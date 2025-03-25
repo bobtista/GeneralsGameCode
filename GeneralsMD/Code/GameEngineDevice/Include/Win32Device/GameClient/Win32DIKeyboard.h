@@ -80,6 +80,7 @@ public:
 	virtual void reset( void );		///< Reset the keybaord system
 	virtual void update( void );  ///< update call, extending update functionality
 	virtual Bool getCapsState( void );		///< get state of caps lock key, return TRUE if down
+	virtual void clearBuffer( void );  ///< clear the buffer
 
 protected:
 

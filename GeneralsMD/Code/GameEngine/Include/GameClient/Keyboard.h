@@ -101,6 +101,7 @@ public:
 	virtual void update( void );						/**< gather current state of all keys, extend 
 																							 this functionality, do not replace */
 	virtual Bool getCapsState( void ) = 0;  ///< get state of caps lock key, return TRUE if down
+	virtual void clearBuffer( void ) = 0;
 
 	virtual void createStreamMessages( void );  /**< given state of device, create 
 																							messages and put them on the 

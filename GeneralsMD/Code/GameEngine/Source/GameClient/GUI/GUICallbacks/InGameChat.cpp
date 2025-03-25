@@ -42,6 +42,7 @@
 #include "GameClient/GUICallbacks.h"
 #include "GameClient/InGameUI.h"
 #include "GameClient/LanguageFilter.h"
+#include "GameClient/Keyboard.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/GameInfo.h"
 #include "GameNetwork/NetworkInterface.h"
@@ -64,6 +65,11 @@ void ShowInGameChat( Bool immediate )
 
 	if (TheDisconnectMenu && TheDisconnectMenu->isScreenVisible())
 		return;
+
+	// Clear the keyboard buffer before showing chat
+	if (TheKeyboard) {
+		TheKeyboard->clearBuffer();
+	}
 
 	if (chatWindow)
 	{

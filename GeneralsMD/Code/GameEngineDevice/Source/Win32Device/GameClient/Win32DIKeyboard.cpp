@@ -332,6 +332,29 @@ void DirectInputKeyboard::getKey( KeyboardIO *key )
 
 }  // end getKey
 
+//-------------------------------------------------------------------------------------------------
+/** Clear all events from the DirectInput buffer */
+//-------------------------------------------------------------------------------------------------
+void DirectInputKeyboard::clearBuffer( void )
+{
+    if( m_pKeyboardDevice )
+    {
+        DWORD items = INFINITE;
+        DIDEVICEOBJECTDATA kbdat;
+
+        while (m_pKeyboardDevice->GetDeviceData(
+            sizeof(DIDEVICEOBJECTDATA),
+            &kbdat,
+            &items,
+            0) == DI_OK && items > 0)
+        {
+            // Events are automatically removed from buffer as they're read
+        }
+
+        DEBUG_LOG(( "OK - Keyboard buffer cleared\n" ));
+    }
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
