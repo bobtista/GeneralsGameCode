@@ -381,8 +381,9 @@ UpdateSleepTime TransportContain::update()
 			{
 				ContainedItemsList::const_iterator it;
 				it = items->begin();
+				ContainedItemsList::const_iterator end = items->end();
 
-				while( *it )
+				while( it != end )
 				{
 					Object *object = *it;
 
