@@ -1,5 +1,5 @@
 /*
-**	Command & Conquer Generals Zero Hour(tm)
+**	Command & Conquer Generals(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
 **	This program is free software: you can redistribute it and/or modify
@@ -45,7 +45,6 @@
 #include "Common/GameLOD.h"
 #include "GameClient/Anim2D.h"
 #include "GameClient/CampaignManager.h"
-#include "GameClient/ChallengeGenerals.h"
 #include "GameClient/CommandXlat.h"
 #include "GameClient/ControlBar.h"
 #include "GameClient/Diplomacy.h"
@@ -73,7 +72,6 @@
 #include "GameClient/RayEffect.h"
 #include "GameClient/SelectionXlat.h"
 #include "GameClient/Shell.h"
-#include "GameClient/Snow.h"
 #include "GameClient/TerrainVisual.h"
 #include "GameClient/View.h"
 #include "GameClient/VideoPlayer.h"
@@ -110,6 +108,10 @@ GameClient::GameClient()
 	m_drawableList = NULL;
 
 	m_nextDrawableID = (DrawableID)1;
+	
+	// Initialize spatial octree to NULL (will be created in init())
+	m_spatialOctree = NULL;
+	
 	TheDrawGroupInfo = new DrawGroupInfo;
 }
 
@@ -169,9 +171,6 @@ GameClient::~GameClient()
 	delete TheInGameUI;
 	TheInGameUI = NULL;
 
-	delete TheChallengeGenerals;
-	TheChallengeGenerals = NULL;
-
 	// delete the shell
 	delete TheShell;
 	TheShell = NULL;
@@ -204,6 +203,12 @@ GameClient::~GameClient()
 	delete TheDisplay;
 	TheDisplay = NULL;
 
+	// cleanup spatial octree
+	if (m_spatialOctree) {
+		delete m_spatialOctree;
+		m_spatialOctree = NULL;
+	}
+
 	delete TheHeaderTemplateManager;
 	TheHeaderTemplateManager = NULL;
 
@@ -233,9 +238,6 @@ GameClient::~GameClient()
 
 	delete TheEva;
 	TheEva = NULL;
-
-	delete TheSnowManager;
-	TheSnowManager = NULL;
 
 }  // end ~GameClient
 
@@ -349,6 +351,14 @@ void GameClient::init( void )
 
 	}  // end if
 
+	// Create spatial octree for efficient drawable queries
+	Region3D worldBounds;
+	// Set reasonable world bounds - these will be updated to actual terrain bounds later
+	// when TheTerrainLogic becomes available (see updateOctreeBounds())
+	worldBounds.lo = Coord3D(-10000, -10000, -10000);
+	worldBounds.hi = Coord3D(10000, 10000, 10000);
+	m_spatialOctree = new SpatialOctree(worldBounds);
+
 	// create the IME manager
 	TheIMEManager = CreateIMEManagerInterface();
 	if ( TheIMEManager )
@@ -370,11 +380,6 @@ void GameClient::init( void )
 		TheInGameUI->init();
  		TheInGameUI->setName("TheInGameUI");
 	}
-
- 	TheChallengeGenerals = createChallengeGenerals();
- 	if( TheChallengeGenerals ) {
- 		TheChallengeGenerals->init();
- 	}
 
 	TheHotKeyManager = MSGNEW("GameClientSubsystem") HotKeyManager;
 	if( TheHotKeyManager ) {
@@ -431,13 +436,6 @@ void GameClient::init( void )
 
 	TheDisplayStringManager->postProcessLoad();
 
-	TheSnowManager = createSnowManager();
-	if (TheSnowManager)
-	{
-		TheSnowManager->init();
-		TheSnowManager->setName("TheSnowManager");
-	}
-
 #ifdef PERF_TIMERS
 	TheGraphDraw = new GraphDraw;
 #endif
@@ -449,11 +447,12 @@ void GameClient::init( void )
 void GameClient::reset( void )
 {
 	Drawable *draw, *nextDraw;
-//	m_drawableHash.clear();
-//	m_drawableHash.resize(DRAWABLE_HASH_SIZE);
-
-	m_drawableVector.clear();
-	m_drawableVector.resize(DRAWABLE_HASH_SIZE, NULL);
+	m_drawableHash.clear();
+#if USING_STLPORT
+	m_drawableHash.resize(DRAWABLE_HASH_SIZE);
+#else
+	m_drawableHash.reserve(DRAWABLE_HASH_SIZE);
+#endif
 
 	// need to reset the in game UI to clear drawables before they are destroyed
 	TheInGameUI->reset();
@@ -471,8 +470,6 @@ void GameClient::reset( void )
 	TheRayEffects->reset();
 	TheVideoPlayer->reset();
 	TheEva->reset();
-	if (TheSnowManager)
-		TheSnowManager->reset();
 
 	// clear any drawable TOC we might have
 	m_drawableTOC.clear();
@@ -496,16 +493,19 @@ DrawableID GameClient::allocDrawableID( void )
 /** -----------------------------------------------------------------------------------------------
  * Given a drawable, register it with the GameClient and give it a unique ID.
  */
-void GameClient::registerDrawable( Drawable *draw )
-{
-
-	// assign this drawable a unique ID, this will add it to the fast lookup table too
-	draw->setID( allocDrawableID() );
-
-	// add the drawable to the master list
-	draw->prependToList( &m_drawableList );
-
-}  // end registerDrawable
+ void GameClient::registerDrawable( Drawable *draw )
+ {
+	 // assign this drawable a unique ID, this will add it to the fast lookup table too
+	 draw->setID( allocDrawableID() );
+ 
+	 // add the drawable to the master list
+	 draw->prependToList( &m_drawableList );
+ 
+	 if (m_spatialOctree) {
+		 m_spatialOctree->insert(draw);
+	 }
+ 
+ }  // end registerDrawable
 
 /** -----------------------------------------------------------------------------------------------
  * Redraw all views, update the GUI, play sound effects, etc.
@@ -583,10 +583,6 @@ void GameClient::update( void )
 		}
 	}
 
-	//Update snow particles.
-	if (TheSnowManager)
-		TheSnowManager->UPDATE();
-
 	// update animation 2d collection
 	TheAnim2DCollection->UPDATE();
 
@@ -608,19 +604,6 @@ void GameClient::update( void )
 		TheMouse->createStreamMessages();
 
 	}  // end if
-
-
-  if (TheInGameUI->isCameraTrackingDrawable())
-  {
-    Drawable *draw = TheInGameUI->getFirstSelectedDrawable();
-    if ( draw )
-    {
-      const Coord3D *pos = draw->getPosition();
-      TheTacticalView->lookAt( pos );
-    }
-    else
-      TheInGameUI->setCameraTrackingDrawable( FALSE );
-  }
 
 	if(TheGlobalData->m_playIntro || TheGlobalData->m_afterIntro)
 	{
@@ -734,7 +717,7 @@ void GameClient::update( void )
 	{
 		// update particle systems
 		TheParticleSystemManager->setLocalPlayerIndex(localPlayerIndex);
-//		TheParticleSystemManager->update();
+		TheParticleSystemManager->update();
 
 	}  // end if
 
@@ -795,41 +778,50 @@ void GameClient::updateHeadless()
  */
 void GameClient::iterateDrawablesInRegion( Region3D *region, GameClientFuncPtr userFunc, void *userData )
 {
+	// Fast path: Use spatial octree if available for region queries
+	if (m_spatialOctree && region) {
+		m_spatialOctree->query(*region, userFunc, userData);
+		return;
+	}
+
+	// Special case: No region specified, iterate all drawables
+	if (region == NULL) {
+		Drawable *draw, *nextDrawable;
+		for( draw = m_drawableList; draw; draw=nextDrawable ) {
+			nextDrawable = draw->getNextDrawable();
+			(*userFunc)( draw, userData );
+		}
+		return;
+	}
+
+	// Fallback: No octree available, use manual scan with position check
 	Drawable *draw, *nextDrawable;
-
-	for( draw = m_drawableList; draw; draw=nextDrawable )
-	{
+	for( draw = m_drawableList; draw; draw=nextDrawable ) {
 		nextDrawable = draw->getNextDrawable();
-
 		Coord3D pos = *draw->getPosition();
-		if( region == NULL ||
-			  (pos.x >= region->lo.x && pos.x <= region->hi.x &&
-			   pos.y >= region->lo.y && pos.y <= region->hi.y &&
-				 pos.z >= region->lo.z && pos.z <= region->hi.z) )
-		{
+		if( pos.x >= region->lo.x && pos.x <= region->hi.x &&
+			pos.y >= region->lo.y && pos.y <= region->hi.y &&
+			pos.z >= region->lo.z && pos.z <= region->hi.z ) {
 			(*userFunc)( draw, userData );
 		}
 	}
 }
 
-/**Helper function to update fake GLA structures to become visible to certain players.
-We should only call this during critical moments, such as changing teams, changing to
-observer, etc.*/
-void GameClient::updateFakeDrawables(void)
+/** -----------------------------------------------------------------------------------------------
+ * Given an object id, return the associated object.
+ * For efficiency, a small Least Recently Used cache is incorporated.
+ * This method is the primary interface for accessing objects, and should be used
+ * instead of pointers to "attach" objects to each other.
+ */
+Drawable* GameClient::findDrawableByID( const DrawableID id )
 {
-	for( Drawable *draw = getDrawableList(); draw; draw = draw->getNextDrawable() )
-	{
-		const Object *object=draw->getObject();
-
-		if( object && object->isKindOf( KINDOF_FS_FAKE ) )
-		{
-			Relationship rel=ThePlayerList->getLocalPlayer()->getRelationship(object->getTeam());
-			if (rel == ALLIES || rel == NEUTRAL)
-				draw->setTerrainDecal(TERRAIN_DECAL_SHADOW_TEXTURE);
-			else
-				draw->setTerrainDecal(TERRAIN_DECAL_NONE);
-		}
+	DrawablePtrHashIt it = m_drawableHash.find(id);
+	if (it == m_drawableHash.end()) {
+		// no such drawable
+		return NULL;
 	}
+
+	return (*it).second;
 }
 
 /** -----------------------------------------------------------------------------------------------
@@ -840,6 +832,9 @@ void GameClient::destroyDrawable( Drawable *draw )
 
 	// remove any notion of the Drawable in the in-game user interface
 	TheInGameUI->disregardDrawable( draw );
+
+	// detach this Drawable from any particle system that may be using it
+	draw->detachFromParticleSystem();
 
 	// remove from the master list
 	draw->removeFromList(&m_drawableList);
@@ -861,6 +856,11 @@ void GameClient::destroyDrawable( Drawable *draw )
 	// remove the drawable from our hash of drawables
 	removeDrawableFromLookupTable( draw );
 
+	// remove the drawable from the spatial octree
+	if (m_spatialOctree) {
+		m_spatialOctree->remove(draw);
+	}
+
 	// free storage
 	deleteInstance(draw);
 
@@ -877,12 +877,7 @@ void GameClient::addDrawableToLookupTable(Drawable *draw )
 		return;
 
 	// add to lookup
-//	m_drawableHash[ draw->getID() ] = draw;
-	DrawableID newID = draw->getID();
-	while( newID >= m_drawableVector.size() ) // Fail case is hella rare, so faster to double up on size() call
-		m_drawableVector.resize(m_drawableVector.size() * 2, NULL);
-
-	m_drawableVector[ newID ] = draw;
+	m_drawableHash[ draw->getID() ] = draw;
 
 }  // end addDrawableToLookupTable
 
@@ -893,13 +888,11 @@ void GameClient::removeDrawableFromLookupTable( Drawable *draw )
 {
 
 	// sanity
-	// TheSuperHackers @fix Mauller/Xezon 24/04/2025 Prevent out of range access to vector lookup table
-	if( draw == NULL || static_cast<size_t>(draw->getID()) >= m_drawableVector.size() )
+	if( draw == NULL )
 		return;
 
 	// remove from table
-//	m_drawableHash.erase( draw->getID() );
-	m_drawableVector[ draw->getID() ] = NULL;
+	m_drawableHash.erase( draw->getID() );
 
 }  // end removeDrawableFromLookupTable
 
@@ -1628,3 +1621,37 @@ void GameClient::crc( Xfer *xfer )
 {
 
 }  // end crc
+
+// ------------------------------------------------------------------------------------------------
+/** Update octree bounds when terrain becomes available */
+// ------------------------------------------------------------------------------------------------
+void GameClient::updateOctreeBounds()
+{
+	if (TheTerrainLogic && m_spatialOctree) {
+		Region3D actualBounds;
+		TheTerrainLogic->getExtent(&actualBounds);
+		
+		// Validate bounds - ensure they're reasonable
+		if (actualBounds.width() > 100.0f && actualBounds.height() > 100.0f) {
+			// Store all existing drawables before recreating octree
+			std::vector<Drawable*> existingDrawables;
+			Drawable* draw = m_drawableList;
+			while (draw) {
+				existingDrawables.push_back(draw);
+				draw = draw->getNextDrawable();
+			}
+			
+			// Recreate octree with actual bounds
+			delete m_spatialOctree;
+			m_spatialOctree = new SpatialOctree(actualBounds);
+			
+			// Re-insert all existing drawables
+			for (Drawable* drawable : existingDrawables) {
+				m_spatialOctree->insert(drawable);
+			}
+			
+			DEBUG_LOG(("GameClient: Updated octree bounds to actual terrain size: %.1f x %.1f", 
+				actualBounds.width(), actualBounds.height()));
+		}
+	}
+}

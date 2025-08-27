@@ -38,6 +38,7 @@
 #include "Common/SubsystemInterface.h"
 #include "GameClient/CommandXlat.h"
 #include "GameClient/Drawable.h"
+#include "GameClient/SpatialOctree.h"
 
 // forward declarations
 class AsciiString;
@@ -207,6 +208,11 @@ private:
 	typedef std::list< Drawable* > TextBearingDrawableList;
 	typedef TextBearingDrawableList::iterator TextBearingDrawableListIterator;
 	TextBearingDrawableList m_textBearingDrawableList;	///< the drawables that have registered here during drawablepostdraw
+
+	SpatialOctree* m_spatialOctree;
+	
+	// Update octree bounds when terrain becomes available
+	void updateOctreeBounds();
 };
 
 //Kris: Try not to use this if possible. In every case I found in the code base, the status was always Drawable::SELECTED.

@@ -1,5 +1,5 @@
 /*
-**	Command & Conquer Generals Zero Hour(tm)
+**	Command & Conquer Generals(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
 **	This program is free software: you can redistribute it and/or modify
@@ -38,6 +38,7 @@
 #include "Common/SubsystemInterface.h"
 #include "GameClient/CommandXlat.h"
 #include "GameClient/Drawable.h"
+#include "GameClient/SpatialOctree.h"
 
 // forward declarations
 class AsciiString;
@@ -54,15 +55,11 @@ class TerrainVisual;
 class ThingTemplate;
 class VideoPlayerInterface;
 struct RayEffectData;
-class ChallengeGenerals;
-class SnowManager;
 
 /// Function pointers for use by GameClient callback functions.
 typedef void (*GameClientFuncPtr)( Drawable *draw, void *userData );
-//typedef std::hash_map<DrawableID, Drawable *, rts::hash<DrawableID>, rts::equal_to<DrawableID> > DrawablePtrHash;
-//typedef DrawablePtrHash::iterator DrawablePtrHashIt;
-
-typedef std::vector<Drawable*> DrawablePtrVector;
+typedef std::hash_map<DrawableID, Drawable *, rts::hash<DrawableID>, rts::equal_to<DrawableID> > DrawablePtrHash;
+typedef DrawablePtrHash::iterator DrawablePtrHashIt;
 
 //-----------------------------------------------------------------------------
 /** The Client message dispatcher, this is the last "translator" on the message
@@ -118,7 +115,6 @@ public:
 																										CommandTranslator::CommandEvaluateType cmdType );
 	void addTextBearingDrawable( Drawable *tbd );
 	void flushTextBearingDrawables( void);
-	void updateFakeDrawables(void);
 
 	virtual void removeFromRayEffects( Drawable *draw );  ///< remove the drawable from the ray effect system if present
 	virtual void getRayEffectData( Drawable *draw, RayEffectData *effectData );  ///< get ray effect data for a drawable
@@ -155,8 +151,6 @@ public:
 	void resetRenderedObjectCount() { m_renderedObjectCount = 0; }
 	UnsignedInt getRenderedObjectCount() const { return m_renderedObjectCount; }
 	void incrementRenderedObjectCount() { m_renderedObjectCount++; }
-	virtual void notifyTerrainObjectMoved(Object *obj) = 0;
-
 
 protected:
 
@@ -169,8 +163,7 @@ protected:
 	UnsignedInt m_frame;																				///< Simulation frame number from server
 
 	Drawable *m_drawableList;																		///< All of the drawables in the world
-//	DrawablePtrHash m_drawableHash;															///< Used for DrawableID lookups
-	DrawablePtrVector m_drawableVector;
+	DrawablePtrHash m_drawableHash;															///< Used for DrawableID lookups
 
 	DrawableID m_nextDrawableID;																///< For allocating drawable id's
 	DrawableID allocDrawableID( void );													///< Returns a new unique drawable id
@@ -195,7 +188,7 @@ private:
 	virtual TerrainVisual *createTerrainVisual( void ) = 0;			///< Factory for TerrainVisual classes. Called during init to instance TheTerrainVisual
 	virtual Keyboard *createKeyboard( void ) = 0;								///< factory for the keyboard
 	virtual Mouse *createMouse( void ) = 0;											///< factory for the mouse
-	virtual SnowManager *createSnowManager(void) = 0;
+
 	virtual void setFrameRate(Real msecsPerFrame) = 0;
 
 	// ----------------------------------------------------------------------------------------------
@@ -215,6 +208,11 @@ private:
 	typedef std::list< Drawable* > TextBearingDrawableList;
 	typedef TextBearingDrawableList::iterator TextBearingDrawableListIterator;
 	TextBearingDrawableList m_textBearingDrawableList;	///< the drawables that have registered here during drawablepostdraw
+
+	SpatialOctree* m_spatialOctree;
+	
+	// Update octree bounds when terrain becomes available
+	void updateOctreeBounds();
 };
 
 //Kris: Try not to use this if possible. In every case I found in the code base, the status was always Drawable::SELECTED.
@@ -234,30 +232,6 @@ private:
 			} \
 		} \
 	} while (0);
-
-/** -----------------------------------------------------------------------------------------------
- * Given an object id, return the associated object.
- * This method is the primary interface for accessing objects, and should be used
- * instead of pointers to "attach" objects to each other.
- */
-inline Drawable* GameClient::findDrawableByID( const DrawableID id )
-{
-	if( id == INVALID_DRAWABLE_ID )
-		return NULL;
-
-//	DrawablePtrHashIt it = m_drawableHash.find(id);
-//	if (it == m_drawableHash.end()) {
-//		// no such drawable
-//		return NULL;
-//	}
-//
-//	return (*it).second;
-
-	if( (size_t)id < m_drawableVector.size() )
-		return m_drawableVector[(size_t)id];
-
-	return NULL;
-}
 
 
 // the singleton

@@ -220,6 +220,7 @@ set(GAMEENGINE_SRC
 #    Include/GameClient/WindowVideoManager.h
     Include/GameClient/WindowXlat.h
     Include/GameClient/WinInstanceData.h
+    Include/GameClient/SpatialOctree.h
     Include/GameLogic/AI.h
     Include/GameLogic/AIDock.h
     Include/GameLogic/AIGuard.h
@@ -652,6 +653,7 @@ set(GAMEENGINE_SRC
     Source/GameClient/Eva.cpp
     Source/GameClient/FXList.cpp
     Source/GameClient/GameClient.cpp
+    Source/GameClient/SpatialOctree.cpp
     Source/GameClient/GameClientDispatch.cpp
     Source/GameClient/GameText.cpp
     Source/GameClient/GlobalLanguage.cpp
