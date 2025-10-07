@@ -31,15 +31,16 @@
 #include "GameNetwork/NetworkDefs.h"
 #include "GameNetwork/networkutil.h"
 #include "GameNetwork/GameMessageParser.h"
+#include <Utility/CppMacros.h>
 
 // TheSuperHackers @refactor BobTista 10/06/2025 Extract magic character literals into named constants for improved readability
 namespace NetPacketFieldTypes {
-	const char CommandType = 'T';		// NetCommandType field
-	const char Relay = 'R';				// Relay field
-	const char PlayerId = 'P';			// Player ID field
-	const char CommandId = 'C';			// Command ID field
-	const char Frame = 'F';				// Frame field
-	const char Data = 'D';				// Data payload field
+	constexpr const char CommandType = 'T';		// NetCommandType field
+	constexpr const char Relay = 'R';			// Relay field
+	constexpr const char PlayerId = 'P';		// Player ID field
+	constexpr const char CommandId = 'C';		// Command ID field
+	constexpr const char Frame = 'F';			// Frame field
+	constexpr const char Data = 'D';			// Data payload field
 }
 
 // This function assumes that all of the fields are either of default value or are
