@@ -34,13 +34,15 @@
 #include <Utility/CppMacros.h>
 
 // TheSuperHackers @refactor BobTista 10/06/2025 Extract magic character literals into named constants for improved readability
+typedef UnsignedByte NetPacketFieldType;
+
 namespace NetPacketFieldTypes {
-	constexpr const char CommandType = 'T';		// NetCommandType field
-	constexpr const char Relay = 'R';			// Relay field
-	constexpr const char PlayerId = 'P';		// Player ID field
-	constexpr const char CommandId = 'C';		// Command ID field
-	constexpr const char Frame = 'F';			// Frame field
-	constexpr const char Data = 'D';			// Data payload field
+	constexpr const NetPacketFieldType CommandType = 'T';		// NetCommandType field
+	constexpr const NetPacketFieldType Relay = 'R';				// Relay field
+	constexpr const NetPacketFieldType PlayerId = 'P';			// Player ID field
+	constexpr const NetPacketFieldType CommandId = 'C';			// Command ID field
+	constexpr const NetPacketFieldType Frame = 'F';				// Frame field
+	constexpr const NetPacketFieldType Data = 'D';				// Data payload field
 }
 
 // This function assumes that all of the fields are either of default value or are
