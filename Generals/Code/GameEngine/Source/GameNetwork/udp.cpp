@@ -328,7 +328,7 @@ UDP::sockStat UDP::GetStatus(void)
  #ifdef _WINDOWS
   //int status=WSAGetLastError();
   switch (status) {
-    case 0:
+    case NO_ERROR:
       return OK;
     case WSAEINTR:
       return INTR;
