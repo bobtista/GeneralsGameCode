@@ -148,9 +148,9 @@ int HModelDefClass::Load_W3D(ChunkLoadClass & cload)
 	/*
 	** process the header info
 	*/
-	strlcpy(ModelName,header.Name,W3D_NAME_LEN);
-	strlcpy(BasePoseName,header.HierarchyName,W3D_NAME_LEN);
-	strcpy(Name,ModelName);
+    strlcpy(ModelName,header.Name,W3D_NAME_LEN);
+    strlcpy(BasePoseName,header.HierarchyName,W3D_NAME_LEN);
+    strcpy(Name,ModelName);
 
 	/*
 	** Just allocate a node for the number of sub objects we're expecting
