@@ -433,7 +433,7 @@ void WorldHeightMapEdit::loadDirectoryOfImages(const char *pFilePath)
 	FilenameList::iterator it = filenameList.begin();
 	do {
 		AsciiString filename = *it;
-		strlcpy(fileBuf, filename.str(), ARRAY_SIZE(fileBuf));
+		snprintf(fileBuf, ARRAY_SIZE(fileBuf), "%s%s", dirBuf, filename.str());
 		loadBitmap(fileBuf, filename.str());
 
 		++it;

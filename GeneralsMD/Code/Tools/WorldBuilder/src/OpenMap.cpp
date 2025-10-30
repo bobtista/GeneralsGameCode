@@ -115,17 +115,10 @@ void OpenMap::populateMapListbox( Bool systemMaps )
 	char				fileBuf[_MAX_PATH];
 
 	if (systemMaps)
-		strlcpy(dirBuf, "Maps\\", ARRAY_SIZE(dirBuf));
+		strcpy(dirBuf, "Maps\\");
 	else
 	{
 		snprintf(dirBuf, ARRAY_SIZE(dirBuf), "%sMaps\\", TheGlobalData->getPath_UserData().str());
-	}
-
-	int len = strlen(dirBuf);
-
-	if (len > 0 && dirBuf[len - 1] != '\\') {
-		dirBuf[len++] = '\\';
-		dirBuf[len] = 0;
 	}
 	CListBox *pList = (CListBox *)this->GetDlgItem(IDC_OPEN_LIST);
 	if (pList == NULL) return;
