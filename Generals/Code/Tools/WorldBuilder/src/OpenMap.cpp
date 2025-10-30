@@ -136,7 +136,7 @@ void OpenMap::populateMapListbox( Bool systemMaps )
 				continue;
 			}
 
-		snprintf(fileBuf, ARRAY_SIZE(fileBuf), "%s%s\\%s.map", dirBuf, findData.cFileName, findData.cFileName);
+			snprintf(fileBuf, ARRAY_SIZE(fileBuf), "%s%s\\%s.map", dirBuf, findData.cFileName, findData.cFileName);
 			try {
 				CFileStatus status;
 				if (CFile::GetStatus(fileBuf, status)) {

@@ -145,10 +145,10 @@ void SaveMap::populateMapListbox( Bool systemMaps )
 		do {
 			if (strcmp(findData.cFileName, ".") == 0 || strcmp(findData.cFileName, "..") == 0)
 				continue;
-		if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
-			continue;
-		}
-		snprintf(fileBuf, ARRAY_SIZE(fileBuf), "%s%s\\%s.map", dirBuf, findData.cFileName, findData.cFileName);
+			if ((findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0) {
+				continue;
+			}
+			snprintf(fileBuf, ARRAY_SIZE(fileBuf), "%s%s\\%s.map", dirBuf, findData.cFileName, findData.cFileName);
 			try {
 				CFileStatus status;
 				if (CFile::GetStatus(fileBuf, status)) {
