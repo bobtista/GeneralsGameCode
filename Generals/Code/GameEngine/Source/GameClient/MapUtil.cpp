@@ -81,7 +81,6 @@ static Coord3DList	m_techPositions;
 static Int m_mapDX = 0;
 static Int m_mapDY = 0;
 
-// TheSuperHackers @refactor bobtista 31/10/2025 Remove unused variables and parameter. Function only uses fname directly.
 static UnsignedInt calcCRC( AsciiString fname )
 {
 	CRC theCRC;
@@ -216,7 +215,6 @@ static Bool ParseSizeOnlyInChunk(DataChunkInput &file, DataChunkInfo *info, void
 	return ParseSizeOnly(file, info, userData);
 }
 
-// TheSuperHackers @refactor bobtista 31/10/2025 Remove unused variables. Function only uses filename directly.
 static Bool loadMap( AsciiString filename )
 {
 	CachedFileInputStream fileStrm;
@@ -566,7 +564,6 @@ Bool MapCache::loadUserMaps()
 				}
 				else
 				{
-					// TheSuperHackers @refactor bobtista 31/10/2025 Remove unused code block that parsed filename but never used result.
 					if (TheFileSystem->getFileInfo(tempfilename, &fileInfo)) {
 						m_seen[tempfilename] = TRUE;
 						parsedAMap |= addMap(mapDir, *iter, &fileInfo, TheGlobalData->m_buildMapCache);
@@ -1017,12 +1014,8 @@ Image *getMapPreviewImage( AsciiString mapName )
 	AsciiString tgaName = mapName;
 	AsciiString name;
 	AsciiString tempName;
-	AsciiString filename;
 	tgaName.truncateBy(4); // ".map"
-	name = tgaName;//.reverseFind('\\') + 1;
-	filename = tgaName.reverseFind('\\') + 1;
-	//tgaName = name;
-	filename.concat(".tga");
+	name = tgaName;
 	tgaName.concat(".tga");
 
 	AsciiString portableName = TheGameState->realMapPathToPortableMapPath(name);
