@@ -45,7 +45,7 @@
 //#include <winuser.h>
 #include <assert.h>
 #include <stdio.h>
-#include "WinFix.H"
+#include "WinFix.h"
 #include "Wnd_File.h"
 
 /***************************************************************************

@@ -37,7 +37,7 @@
 //#include	"timer.h"
 #include	"Wnd_File.h"
 //#include	"missiondisk.h"
-#include	"WinFix.H"
+#include	"WinFix.h"
 
 #ifndef ROR_NOT_READY
 #define ROR_NOT_READY		21

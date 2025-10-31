@@ -90,14 +90,14 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <winuser.h>
-#include "ARGS.H"
+#include "ARGS.h"
 #include "autorun.h"
 #include "DrawButton.h"
 #include "resource.h"
 #include "Wnd_File.h"
 //#include "visualc.h"
-#include "WinFix.H"
-#include "CDCNTRL.H"
+#include "WinFix.h"
+#include "CDCNTRL.h"
 #include "IGR.h"
 #include "ViewHTML.h"
 
