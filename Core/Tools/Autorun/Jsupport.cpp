@@ -16,7 +16,7 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// JSUPPORT.CPP
+// JSUPPORT.cpp
 // DBCS Support Codes
 
 #include <windows.h>

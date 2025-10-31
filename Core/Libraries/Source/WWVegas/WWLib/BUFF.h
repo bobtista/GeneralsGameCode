@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : Command & Conquer                                            *
  *                                                                                             *
- *                     $Archive:: /G/wwlib/BUFF.H                                             $*
+ *                     $Archive:: /G/wwlib/BUFF.h                                             $*
  *                                                                                             *
  *                      $Author:: Eric_c                                                      $*
  *                                                                                             *

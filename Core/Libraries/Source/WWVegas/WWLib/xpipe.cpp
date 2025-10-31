@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : Command & Conquer                                            *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/Library/XPIPE.CPP                            $*
+ *                     $Archive:: /Commando/Code/Library/XPIPE.cpp                            $*
  *                                                                                             *
  *                      $Author:: Greg_h                                                      $*
  *                                                                                             *

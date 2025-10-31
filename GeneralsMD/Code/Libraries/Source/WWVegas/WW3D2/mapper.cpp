@@ -46,7 +46,7 @@
 #include "matinfo.h"
 #include "rendobj.h"
 #include "mesh.h"
-#include <RANDOM.H>
+#include <RANDOM.h>
 #include <bound.h>
 
 Random4Class rand4;

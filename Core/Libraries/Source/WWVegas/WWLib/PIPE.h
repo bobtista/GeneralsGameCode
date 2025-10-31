@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : Command & Conquer                                            *
  *                                                                                             *
- *                     $Archive:: /G/wwlib/PIPE.H                                             $*
+ *                     $Archive:: /G/wwlib/PIPE.h                                             $*
  *                                                                                             *
  *                      $Author:: Eric_c                                                      $*
  *                                                                                             *

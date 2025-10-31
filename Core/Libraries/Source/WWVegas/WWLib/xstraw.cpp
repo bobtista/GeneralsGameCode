@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : Command & Conquer                                            *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/Library/XSTRAW.CPP                           $*
+ *                     $Archive:: /Commando/Code/Library/XSTRAW.cpp                           $*
  *                                                                                             *
  *                      $Author:: Greg_h                                                      $*
  *                                                                                             *

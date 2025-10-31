@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : Command & Conquer                                            *
  *                                                                                             *
- *                     $Archive:: /Renegade Setup/Autorun/CDCNTRL.CPP                         $*
+ *                     $Archive:: /Renegade Setup/Autorun/CDCNTRL.cpp                         $*
  *                                                                                             *
  *                      $Author:: Maria_l                                                     $*
  *                                                                                             *

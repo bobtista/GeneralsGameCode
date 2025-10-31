@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : Command & Conquer                                            *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/Library/Vector.H                             $*
+ *                     $Archive:: /Commando/Code/Library/Vector.h                             $*
  *                                                                                             *
  *                      $Author:: Byon_g                                                      $*
  *                                                                                             *

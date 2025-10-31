@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : Command & Conquer                                            *
  *                                                                                             *
- *                     $Archive:: /Renegade Setup/Autorun/WinFix.H                            $*
+ *                     $Archive:: /Renegade Setup/Autorun/WinFix.h                            $*
  *                                                                                             *
  *                      $Author:: Maria_l                                                     $*
  *                                                                                             *

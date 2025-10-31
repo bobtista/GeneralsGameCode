@@ -20,7 +20,7 @@
  *                                                                         *
  *                 Project Name : G                                        *
  *                                                                         *
- *                    File Name : SLIST.H                                  *
+ *                    File Name : SLIST.h                                  *
  *                                                                         *
  *                   Programmer : Philip W. Gorrow                         *
  *                                                                         *

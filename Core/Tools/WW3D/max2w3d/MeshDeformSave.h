@@ -23,7 +23,7 @@
  *                                                                                             *
  *                 Project Name : Commando / G 3D engine                                       *
  *                                                                                             *
- *                    File Name : MeshDeformSafe.H
+ *                    File Name : MeshDeformSafe.h
  *                                                                                             *
  *                   Programmer : Patrick Smith                                                *
  *                                                                                             *

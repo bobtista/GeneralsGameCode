@@ -22,9 +22,9 @@
 //
 //	Project name:		Blade Runner CD-ROM Windows 95
 //
-// File name:			WND_FILE.CPP
+// File name:			WND_FILE.cpp
 //
-// Functions:			WND_FILE.H
+// Functions:			WND_FILE.h
 //
 // Compatibility:		Microsoft Visual C++ 4.0
 //					 	Borland C++ 5.0

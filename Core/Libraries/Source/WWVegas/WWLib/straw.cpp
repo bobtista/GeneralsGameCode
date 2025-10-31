@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : Command & Conquer                                            *
  *                                                                                             *
- *                     $Archive:: /G/wwlib/STRAW.CPP                                          $*
+ *                     $Archive:: /G/wwlib/STRAW.cpp                                          $*
  *                                                                                             *
  *                      $Author:: Eric_c                                                      $*
  *                                                                                             *

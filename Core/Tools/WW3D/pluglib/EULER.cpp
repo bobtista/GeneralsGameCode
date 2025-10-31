@@ -16,14 +16,14 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/* $Header: /Commando/Code/Tools/max2w3d/EULER.CPP 5     12/02/97 10:14p Greg_h $ */
+/* $Header: /Commando/Code/Tools/max2w3d/EULER.cpp 5     12/02/97 10:14p Greg_h $ */
 /***********************************************************************************************
  ***                            Confidential - Westwood Studios                              ***
  ***********************************************************************************************
  *                                                                                             *
  *                 Project Name : Commando / G 3D Engine                                       *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/Tools/max2w3d/EULER.CPP                      $*
+ *                     $Archive:: /Commando/Code/Tools/max2w3d/EULER.cpp                      $*
  *                                                                                             *
  *                      $Author:: Greg_h                                                      $*
  *                                                                                             *

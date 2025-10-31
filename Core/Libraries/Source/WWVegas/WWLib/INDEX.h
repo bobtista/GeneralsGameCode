@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : Command & Conquer                                            *
  *                                                                                             *
- *                     $Archive:: /G/wwlib/INDEX.H                                            $*
+ *                     $Archive:: /G/wwlib/INDEX.h                                            $*
  *                                                                                             *
  *                      $Author:: Eric_c                                                      $*
  *                                                                                             *

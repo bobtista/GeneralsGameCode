@@ -20,7 +20,7 @@
  *																									*
  *						 Project	Name : G														*
  *																									*
- *							 File	Name : SLNODE.H									 		*
+ *							 File	Name : SLNODE.h									 		*
  *																									*
  *							Programmer : Philip W. Gorrow									*
  *																									*

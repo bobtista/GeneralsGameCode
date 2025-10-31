@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : Command & Conquer                                            *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/Tools/pluglib/Vector.CPP                     $*
+ *                     $Archive:: /Commando/Code/Tools/pluglib/Vector.cpp                     $*
  *                                                                                             *
  *                      $Author:: Greg_h                                                      $*
  *                                                                                             *

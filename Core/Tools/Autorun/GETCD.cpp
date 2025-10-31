@@ -20,7 +20,7 @@
  *****	C O N F I D E N T I A L  ---  W E S T W O O D  S T U D I O S	*****
  ****************************************************************************
  *                 Project Name:: Command & Conquer							*
- *                     $Archive:: /Renegade Setup/Autorun/GETCD.CPP              $Author:: Steve_t									*
+ *                     $Archive:: /Renegade Setup/Autorun/GETCD.cpp              $Author:: Steve_t									*
  *                     $Modtime:: 1/28/02 10:54a                  $Revision:: 20										*
  *--------------------------------------------------------------------------*
  * Functions:																*

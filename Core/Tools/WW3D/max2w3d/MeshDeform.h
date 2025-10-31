@@ -23,7 +23,7 @@
  *                                                                                             *
  *                 Project Name : Commando / G 3D engine                                       *
  *                                                                                             *
- *                    File Name : MeshDeform.H                                                 *
+ *                    File Name : MeshDeform.h                                                 *
  *                                                                                             *
  *                   Programmer : Patrick Smith                                                *
  *                                                                                             *

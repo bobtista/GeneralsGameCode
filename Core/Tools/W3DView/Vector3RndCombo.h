@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : WW3DView                                                     *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/Tools/W3DView/Vector3RndCombo.H                                                                                                                                                                                                                                                                                                                              $Modtime::                                                             $*
+ *                     $Archive:: /Commando/Code/Tools/W3DView/Vector3RndCombo.h                                                                                                                                                                                                                                                                                                                              $Modtime::                                                             $*
  *                                                                                             *
  *                    $Revision:: 2                                                           $*
  *                                                                                             *
