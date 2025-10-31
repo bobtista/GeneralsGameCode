@@ -216,25 +216,12 @@ static Bool ParseSizeOnlyInChunk(DataChunkInput &file, DataChunkInfo *info, void
 	return ParseSizeOnly(file, info, userData);
 }
 
+// TheSuperHackers @refactor bobtista 31/10/2025 Remove unused variables. Function only uses filename directly.
 static Bool loadMap( AsciiString filename )
 {
-	char	tempBuf[_MAX_PATH];
-	char	filenameBuf[_MAX_PATH];
-	AsciiString asciiFile;
-	int length = 0;
-
-	strcpy(tempBuf, filename.str());
-
-	length = strlen( tempBuf );
-	if( length >= 4 )
-	{
-		strlcpy( filenameBuf, tempBuf, length - 4 + 1);
-	}
-
 	CachedFileInputStream fileStrm;
 
-	asciiFile = filename;
-	if( !fileStrm.open(asciiFile) )
+	if( !fileStrm.open(filename) )
 	{
 		return FALSE;
 	}
@@ -581,18 +568,8 @@ Bool MapCache::loadUserMaps()
 				}
 				else
 				{
+					// TheSuperHackers @refactor bobtista 31/10/2025 Remove unused code block that parsed filename but never used result.
 					if (TheFileSystem->getFileInfo(tempfilename, &fileInfo)) {
-						char funk[_MAX_PATH];
-						strcpy(funk, tempfilename.str());
-						char *filenameptr = funk;
-						char *tempchar = funk;
-						while (*tempchar != 0) {
-							if ((*tempchar == '\\') || (*tempchar == '/')) {
-								filenameptr = tempchar+1;
-							}
-							++tempchar;
-						}
-
 						m_seen[tempfilename] = TRUE;
 						parsedAMap |= addMap(mapDir, *iter, &fileInfo, TheGlobalData->m_buildMapCache);
 					} else {
