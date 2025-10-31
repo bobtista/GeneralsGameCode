@@ -81,26 +81,13 @@ static Coord3DList	m_techPositions;
 static Int m_mapDX = 0;
 static Int m_mapDY = 0;
 
-static UnsignedInt calcCRC( AsciiString dirName, AsciiString fname )
+// TheSuperHackers @refactor bobtista 31/10/2025 Remove unused variables and parameter. Function only uses fname directly.
+static UnsignedInt calcCRC( AsciiString fname )
 {
 	CRC theCRC;
 	theCRC.clear();
 
-	// Try the official map dir
-	AsciiString asciiFile;
-	char	tempBuf[_MAX_PATH];
-	char	filenameBuf[_MAX_PATH];
-	int length = 0;
-	strcpy(tempBuf, fname.str());
-	length = strlen( tempBuf );
-	if( length >= 4 )
-	{
-		strlcpy( filenameBuf, tempBuf, length - 4 + 1);
-	}
-
-	File *fp;
-	asciiFile = fname;
-	fp = TheFileSystem->openFile(asciiFile.str(), File::READ);
+	File *fp = TheFileSystem->openFile(fname.str(), File::READ);
 	if( !fp )
 	{
 		DEBUG_CRASH(("Couldn't open '%s'", fname.str()));
@@ -699,7 +686,7 @@ Bool MapCache::addMap( AsciiString dirName, AsciiString fname, FileInfo *fileInf
 	md.m_timestamp.m_lowTimeStamp = fileInfo->timestampLow;
 	md.m_supplyPositions = m_supplyPositions;
 	md.m_techPositions = m_techPositions;
-	md.m_CRC = calcCRC(dirName, fname);
+	md.m_CRC = calcCRC(fname);
 
 	Bool exists = false;
 	AsciiString munkee = worldDict.getAsciiString(TheKey_mapName, &exists);
