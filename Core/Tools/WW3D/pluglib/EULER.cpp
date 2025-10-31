@@ -36,7 +36,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
-#include "EULER.H"
+#include "EULER.h"
 #include <float.h>
 
 

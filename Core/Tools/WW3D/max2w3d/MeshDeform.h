@@ -38,7 +38,7 @@
 #pragma once
 
 #include <max.h>
-#include "Vector.H"
+#include "Vector.h"
 
 // Forward declarations
 class MeshDeformPanelClass;

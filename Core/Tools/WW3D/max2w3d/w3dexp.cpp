@@ -75,7 +75,7 @@
 #include "geometryexportcontext.h"
 
 #include <direct.h>
-#include "TARGA.H"
+#include "TARGA.h"
 
 // Used to communicate from the exporter to the dialog.
 char W3dExportClass::CurrentExportPath[_MAX_DRIVE + _MAX_DIR + 1] = { '\000' };

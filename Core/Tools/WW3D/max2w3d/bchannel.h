@@ -49,7 +49,7 @@
 #endif
 
 #ifndef VECTOR_H
-#include "Vector.H"
+#include "Vector.h"
 #endif
 
 #ifndef W3D_FILE_H
