@@ -16,35 +16,28 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-//
-// If you link with this it will automatically call the COM initialization stuff
-//
-#include "COMINIT.H"
-#include <stdlib.h>
-#include <stdio.h>
+#pragma once
+
 #include <windows.h>
-#include <objbase.h>
+#include "WSTYPES.h"
 
 namespace patchget
 {
 
-ComInit::ComInit()
+class Process
 {
-  HRESULT hRes = CoInitialize(NULL);
-  if (SUCCEEDED(hRes)==FALSE)
-  {
-    MessageBox(NULL,"Can't initialize COM?!?!","Error:",MB_OK);
-    exit(0);
-  }
-}
+ public:
+           Process();
 
+  char     directory[256];
+  char     command[256];
+  char     args[256];
+  HANDLE   hProcess;
+  HANDLE   hThread;
+};
 
-ComInit::~ComInit()
-{
-  CoUninitialize();
-}
-
-// Creating this instance will setup all COM stuff & do cleanup on program exit
-ComInit  Global_COM_Initializer;
+//bit8 Read_Process_Info(ConfigFile &config,OUT Process &info);
+bit8 Create_Process(Process &process);
+bit8 Wait_Process(Process &process, DWORD *exit_code=NULL);
 
 } // namespace patchget

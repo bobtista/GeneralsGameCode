@@ -24,7 +24,7 @@
 #include "gamespy/ghttp/ghttp.h"
 #include "DownloadManager.h"
 
-#include "CHATAPI.H"
+#include "CHATAPI.h"
 
 //#include "api/wolapi_i.c"  // This should only be in one .cpp file
 #include <objbase.h>
@@ -34,8 +34,8 @@
 #if defined(_MSC_VER) && _MSC_VER < 1300
 #include <mapicode.h>
 #endif
-#include "RESOURCE.H"
-#include "WINBLOWS.H"
+#include "RESOURCE.h"
+#include "WINBLOWS.h"
 #include <crtdbg.h>
 #include "process.h"
 #include "WWDownload/Registry.h"

@@ -18,30 +18,17 @@
 
 #pragma once
 
-#include "COMINIT.H"
-#include <stdio.h>
+#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
-#include <commctrl.h>
-#include <winerror.h>
-#include <ocidl.h>
-#include <olectl.h>
+#include <windowsx.h>
+#include <stdlib.h>
 
-/**********************************************************************
-**	This macro serves as a general way to determine the number of elements
-**	within an array.
-*/
-#define	ARRAY_SIZE(x)		int(sizeof(x)/sizeof(x[0]))
-#define size_of(typ,id) sizeof(((typ*)0)->id)
+#include"WSTYPES.h"
 
-namespace patchget
-{
+  extern HINSTANCE Global_instance;
+  extern LPSTR     Global_commandline;
+  extern int       Global_commandshow;
 
-int main(int argc, char *argv[]);
+  extern int       main(int argc, char *argv[]);
 
-void Startup_Chat(void);
-void Shutdown_Chat(void);
-void Update_If_Required(void);
-
-char const * Fetch_String(int id);
-
-} // namespace patchget
+  int              Print_WM(UINT wm,char *out);
