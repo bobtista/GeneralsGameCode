@@ -41,7 +41,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #pragma warning(disable : 4514)
-#include	"BFISH.H"
+#include	"BFISH.h"
 #include	<string.h>
 #include	<assert.h>
 
