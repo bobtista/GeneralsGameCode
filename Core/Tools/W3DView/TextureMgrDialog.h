@@ -36,7 +36,7 @@
 
 #pragma once
 
-#include "Vector.H"
+#include "Vector.h"
 #include "RendObj.H"
 #include "Utils.H"
 #include "Resource.H"

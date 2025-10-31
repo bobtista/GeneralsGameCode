@@ -46,7 +46,7 @@
 
 #define	NULL_HANDLE	 	NULL
 #define	HANDLE_TYPE		FILE*
-#include "WWFILE.H"
+#include "WWFILE.h"
 #include "wwstring.h"
 
 

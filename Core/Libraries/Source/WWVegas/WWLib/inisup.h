@@ -44,7 +44,7 @@
 
 #include	"LISTNODE.H"
 #include	"INDEX.H"
-#include "CRC.H"
+#include "CRC.h"
 
 
 /*

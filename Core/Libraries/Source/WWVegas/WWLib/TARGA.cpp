@@ -60,7 +60,7 @@
 *
 ****************************************************************************/
 
-#include "TARGA.H"
+#include "TARGA.h"
 #ifndef TGA_USES_WWLIB_FILE_CLASSES
 #include "WWDebug/wwdebug.h"
 #endif
@@ -68,7 +68,7 @@
 #include <memory.h>
 #include "stringex.h"
 #ifdef TGA_USES_WWLIB_FILE_CLASSES
-#include "WWFILE.H"
+#include "WWFILE.h"
 #include "ffactory.h"
 #else
 #include <io.h>

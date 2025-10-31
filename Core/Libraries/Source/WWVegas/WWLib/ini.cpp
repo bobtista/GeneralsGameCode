@@ -98,7 +98,7 @@
 #ifdef _UNIX
 #include <ctype.h>
 #endif
-#include "RAWFILE.H"
+#include "RAWFILE.h"
 #include "ffactory.h"
 
 // recently transferred from ini.h

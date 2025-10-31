@@ -53,7 +53,7 @@
 
 #pragma once
 
-#include "SLNODE.H"
+#include "SLNODE.h"
 
 #ifndef NULL
 #define NULL 0L

@@ -25,7 +25,7 @@
 
 #pragma once
 
-#include "Vector.H"
+#include "Vector.h"
 
 // Forward declarations
 class RenderObjClass;

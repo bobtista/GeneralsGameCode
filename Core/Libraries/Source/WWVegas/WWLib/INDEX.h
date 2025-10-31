@@ -51,7 +51,7 @@
 
 #pragma once
 
-#include	"BSEARCH.H"
+#include	"BSEARCH.h"
 
 #if !defined(__BORLANDC__) || !defined(_USERENTRY)
 #define	_USERENTRY

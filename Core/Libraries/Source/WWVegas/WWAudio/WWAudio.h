@@ -41,7 +41,7 @@
 #include "mss.h"
 #pragma warning (pop)
 
-#include "Vector.H"
+#include "Vector.h"
 #include "SoundBuffer.h"
 #include "AudioEvents.h"
 #include "wwstring.h"

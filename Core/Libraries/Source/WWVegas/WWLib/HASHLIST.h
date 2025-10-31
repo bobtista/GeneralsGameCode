@@ -47,7 +47,7 @@
 #pragma warning (push)
 #pragma warning (disable: 4786)
 
-#include "LISTNODE.H"
+#include "LISTNODE.h"
 #include <memory.h>
 
 #ifndef NULL
