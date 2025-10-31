@@ -1,7 +1,7 @@
 set(PLUGLIB_SRC
     "aaplane.h"
     "always.h"
-    "BITTYPE.H"
+    "BITTYPE.h"
     "bool.h"
     "borlandc.h"
     "chunkio.cpp"
@@ -26,7 +26,7 @@ set(PLUGLIB_SRC
     "palette.cpp"
     "palette.h"
     "plane.h"
-    "PROGRESS.H"
+    "PROGRESS.h"
     "rawfile.cpp"
     "rawfile.h"
     "realcrc.cpp"

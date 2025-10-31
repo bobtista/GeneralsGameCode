@@ -36,9 +36,9 @@
 
 #pragma once
 
-#include	"BUFF.H"
-#include	"PIPE.H"
-#include	"WWFILE.H"
+#include "BUFF.h"
+#include "PIPE.h"
+#include "WWFILE.h"
 
 /*
 **	This is a simple store-into-buffer pipe terminator. Use it as the final link in a pipe process

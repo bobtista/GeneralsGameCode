@@ -42,8 +42,8 @@
 **	to help reduce header dependancies. -ehc
 */
 
-#include	"LISTNODE.H"
-#include	"INDEX.H"
+#include "LISTNODE.h"
+#include "INDEX.h"
 #include "CRC.h"
 
 

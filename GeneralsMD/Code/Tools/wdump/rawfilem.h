@@ -50,7 +50,7 @@
 #define	NULL_HANDLE		INVALID_HANDLE_VALUE
 #define	HANDLE_TYPE		HANDLE
 
-#include	"WWFILE.H"
+#include "WWFILE.h"
 
 #ifdef NEVER
 	/*

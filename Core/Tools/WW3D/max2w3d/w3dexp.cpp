@@ -60,7 +60,7 @@
 #include "meshcon.h"
 #include "SnapPoints.h"
 #include "w3ddlg.h"
-#include "PROGRESS.H"
+#include "PROGRESS.h"
 #include "errclass.h"
 #include "motion.h"
 #include "util.h"

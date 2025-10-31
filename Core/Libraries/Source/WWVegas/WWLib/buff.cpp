@@ -41,7 +41,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include	"always.h"
-#include	"BUFF.H"
+#include "BUFF.h"
 //#include	<stddef.h>
 
 

@@ -39,7 +39,7 @@
 
 
 #include	"always.h"
-#include	"XPIPE.H"
+#include "XPIPE.h"
 #include	<stddef.h>
 
 

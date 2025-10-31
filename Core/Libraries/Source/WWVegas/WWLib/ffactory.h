@@ -44,7 +44,7 @@
 /*
 **
 */
-#include	"RAWFILE.H"
+#include "RAWFILE.h"
 class	FileClass;
 
 /*

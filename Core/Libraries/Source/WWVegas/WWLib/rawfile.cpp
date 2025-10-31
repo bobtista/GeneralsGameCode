@@ -53,7 +53,7 @@
 
 // TheSuperHackers @build feliwir 11/04/2025 We removed Win32 API here and use plain C
 #include	"always.h"
-#include	"RAWFILE.H"
+#include "RAWFILE.h"
 #include	<stddef.h>
 #include	<stdlib.h>
 #include	<limits.h>

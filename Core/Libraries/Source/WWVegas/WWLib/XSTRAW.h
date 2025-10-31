@@ -36,9 +36,9 @@
 
 #pragma once
 
-#include	"BUFF.H"
-#include	"STRAW.H"
-#include	"WWFILE.H"
+#include "BUFF.h"
+#include "STRAW.h"
+#include "WWFILE.h"
 #include	<stddef.h>
 
 /*

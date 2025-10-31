@@ -40,7 +40,7 @@
 
 
 #include	"always.h"
-#include	"PIPE.H"
+#include "PIPE.h"
 #include	<stddef.h>
 
 

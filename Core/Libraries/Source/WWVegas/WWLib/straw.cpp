@@ -38,7 +38,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include	"always.h"
-#include	"STRAW.H"
+#include "STRAW.h"
 #include	<stddef.h>
 
 

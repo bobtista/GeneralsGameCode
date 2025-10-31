@@ -36,7 +36,7 @@
 
 #pragma once
 
-#include	"WWFILE.H"
+#include "WWFILE.h"
 
 
 class RAMFileClass : public FileClass

@@ -21,7 +21,7 @@
 // DataTreeView.h : header file
 //
 
-#include "AfxCView.H"
+#include "AfxCView.h"
 #include "AssetTypes.h"
 #include "Vector.h"
 

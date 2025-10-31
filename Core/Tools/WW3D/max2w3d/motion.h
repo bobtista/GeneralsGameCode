@@ -48,7 +48,7 @@
 #endif
 
 #ifndef PROGRESS_H
-#include "PROGRESS.H"
+#include "PROGRESS.h"
 #endif
 
 #ifndef CHUNKIO_H
