@@ -77,6 +77,7 @@ enum FilterTypes CPP_11(: Int)
 	FT_VIEW_MOTION_BLUR_FILTER, //filter to apply motion blur filter to screen.
 	FT_VIEW_CROSSFADE,				///<filter to apply a cross blend between previous/current views.
 	FT_VIEW_DEFAULT,				///<default filter mode for default filter.
+	FT_VIEW_BRIGHTNESS_FILTER,		//filter to apply brightness/gamma adjustment to the screen.
 	FT_MAX
 };
 
@@ -103,6 +104,9 @@ enum FilterModes CPP_11(: Int)
 	FM_VIEW_MB_END_PAN_ALPHA, // Moton blur on screen pan (for camera tracks object mode)
 
 	FM_VIEW_DEFAULT,	//Default filter that's enabled when all others are off.
+
+	// These apply to FT_VIEW_BRIGHTNESS_FILTER
+	FM_VIEW_BRIGHTNESS_ADJUST, // Brightness/gamma adjustment
 
 	// NOTE: This has to be the last entry in this enum.
 	// Add new entries before this one.  jba.
