@@ -21,6 +21,7 @@
 
 #include "StdAfx.h"
 #include "PlaySoundDialog.h"
+#include "refcount.h"
 #include "Utils.h"
 #include "AudibleSound.h"
 
@@ -100,7 +101,7 @@ void
 PlaySoundDialogClass::OnCancel (void)
 {
 	SoundObj->Stop ();
-	MEMBER_RELEASE (SoundObj);
+	REF_PTR_RELEASE (SoundObj);
 
 	CDialog::OnCancel ();
 	return ;

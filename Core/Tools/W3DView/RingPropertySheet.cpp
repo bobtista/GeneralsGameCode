@@ -22,6 +22,7 @@
 #include "StdAfx.h"
 #include "W3DView.h"
 #include "RingPropertySheet.h"
+#include "refcount.h"
 #include "Utils.h"
 #include "W3DViewDoc.h"
 #include "assetmgr.h"
@@ -51,7 +52,7 @@ RingPropertySheetClass::RingPropertySheetClass
 	:	m_RenderObj (NULL),
 		CPropertySheet(nIDCaption, pParentWnd, iSelectPage)
 {
-	MEMBER_ADD (m_RenderObj, ring);
+	REF_PTR_SET (m_RenderObj, ring);
 	Initialize ();
 	return ;
 }
@@ -72,7 +73,7 @@ RingPropertySheetClass::RingPropertySheetClass
 	:	m_RenderObj (NULL),
 		CPropertySheet(pszCaption, pParentWnd, iSelectPage)
 {
-	MEMBER_ADD (m_RenderObj, ring);
+	REF_PTR_SET (m_RenderObj, ring);
 	Initialize ();
 	return ;
 }
@@ -85,7 +86,7 @@ RingPropertySheetClass::RingPropertySheetClass
 /////////////////////////////////////////////////////////////////////////////
 RingPropertySheetClass::~RingPropertySheetClass (void)
 {
-	MEMBER_RELEASE (m_RenderObj);
+	REF_PTR_RELEASE (m_RenderObj);
 	return ;
 }
 
@@ -204,7 +205,7 @@ RingPropertySheetClass::Add_Object_To_Viewer (void)
 		//
 		doc->Reload_Displayed_Object ();
 		m_LastSavedName = m_RenderObj->Get_Name ();
-		MEMBER_ADD (m_RenderObj, (RingRenderObjClass *)doc->GetDisplayedObject ());
+		REF_PTR_SET (m_RenderObj, (RingRenderObjClass *)doc->GetDisplayedObject ());
 
 		//
 		// Pass the object along to the pages

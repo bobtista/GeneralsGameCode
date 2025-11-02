@@ -23,6 +23,7 @@
 #include "W3DView.h"
 #include "W3DViewDoc.h"
 #include "AdvancedAnimSheet.h"
+#include "refcount.h"
 
 #include "assetmgr.h"
 #include "hanim.h"
@@ -77,7 +78,7 @@ CAdvancedAnimSheet::~CAdvancedAnimSheet()
 	{
 		for (int i = 0; i < AnimCount; i++)
 		{
-			MEMBER_RELEASE(Anims[i]);
+			REF_PTR_RELEASE(Anims[i]);
 		}
 		AnimsValid = false;
 		AnimCount = 0;
@@ -162,7 +163,7 @@ void CAdvancedAnimSheet::LoadAnims (void)
 					// Add this Anims pointer to the array.
 					if (AnimCount < MAX_REPORT_ANIMS)
 					{
-						MEMBER_ADD(Anims[AnimCount], pHierarchyAnim);
+						REF_PTR_SET(Anims[AnimCount], pHierarchyAnim);
 						AnimCount++;
 					}
 					else
@@ -176,7 +177,7 @@ void CAdvancedAnimSheet::LoadAnims (void)
 				}
 
 				// Release our hold on this animation.
-				MEMBER_RELEASE(pHierarchyAnim);
+				REF_PTR_RELEASE(pHierarchyAnim);
 			}
 		}
 

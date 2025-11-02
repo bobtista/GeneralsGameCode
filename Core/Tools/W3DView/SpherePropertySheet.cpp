@@ -22,6 +22,7 @@
 #include "StdAfx.h"
 #include "W3DView.h"
 #include "SpherePropertySheet.h"
+#include "refcount.h"
 #include "Utils.h"
 #include "W3DViewDoc.h"
 #include "assetmgr.h"
@@ -51,7 +52,7 @@ SpherePropertySheetClass::SpherePropertySheetClass
 	:	m_RenderObj (NULL),
 		CPropertySheet(nIDCaption, pParentWnd, iSelectPage)
 {
-	MEMBER_ADD (m_RenderObj, sphere);
+	REF_PTR_SET (m_RenderObj, sphere);
 	Initialize ();
 	return ;
 }
@@ -72,7 +73,7 @@ SpherePropertySheetClass::SpherePropertySheetClass
 	:	m_RenderObj (NULL),
 		CPropertySheet(pszCaption, pParentWnd, iSelectPage)
 {
-	MEMBER_ADD (m_RenderObj, sphere);
+	REF_PTR_SET (m_RenderObj, sphere);
 	Initialize ();
 	return ;
 }
@@ -85,7 +86,7 @@ SpherePropertySheetClass::SpherePropertySheetClass
 /////////////////////////////////////////////////////////////////////////////
 SpherePropertySheetClass::~SpherePropertySheetClass (void)
 {
-	MEMBER_RELEASE (m_RenderObj);
+	REF_PTR_RELEASE (m_RenderObj);
 	return ;
 }
 
@@ -204,7 +205,7 @@ SpherePropertySheetClass::Add_Object_To_Viewer (void)
 		//
 		doc->Reload_Displayed_Object ();
 		m_LastSavedName = m_RenderObj->Get_Name ();
-		MEMBER_ADD (m_RenderObj, (SphereRenderObjClass *)doc->GetDisplayedObject ());
+		REF_PTR_SET (m_RenderObj, (SphereRenderObjClass *)doc->GetDisplayedObject ());
 
 		//
 		// Pass the object along to the pages

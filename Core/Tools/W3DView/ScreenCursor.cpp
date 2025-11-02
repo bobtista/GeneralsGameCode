@@ -33,6 +33,7 @@
 
 #include "StdAfx.h"
 #include "ScreenCursor.h"
+#include "refcount.h"
 #include "Utils.h"
 #include "ww3d.h"
 #include "vertmaterial.h"
@@ -153,7 +154,7 @@ ScreenCursorClass::Initialize (void)
 void
 ScreenCursorClass::Set_Texture (TextureClass *texture)
 {
-	MEMBER_ADD (m_pTexture, texture);
+	REF_PTR_SET (m_pTexture, texture);
 
 	// Find the dimensions of the texture:
 	if (m_pTexture != NULL) {

@@ -33,6 +33,7 @@
 #include "StdAfx.h"
 #include "W3DView.h"
 #include "EmitterPropertySheet.h"
+#include "refcount.h"
 #include "part_emt.h"
 #include "part_ldr.h"
 #include "assetmgr.h"
@@ -265,7 +266,7 @@ EmitterPropertySheetClass::Update_Emitter (void)
 	//
 	// Use this emitter as the edited emitter from here on out
 	//
-	MEMBER_RELEASE (m_pEmitter);
+	REF_PTR_RELEASE (m_pEmitter);
 	m_pEmitter = pemitter;*/
 
 	// Pass the emitter along to the pages
@@ -501,7 +502,7 @@ EmitterPropertySheetClass::Create_New_Emitter (void)
 	//	Display the new emitter
 	//
 	::GetCurrentDocument ()->Display_Emitter (emitter);
-	MEMBER_RELEASE (emitter);
+	REF_PTR_RELEASE (emitter);
 
 	/*SAFE_DELETE_ARRAY (color.Values);
 	SAFE_DELETE_ARRAY (color.KeyTimes);
