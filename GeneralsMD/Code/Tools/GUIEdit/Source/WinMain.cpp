@@ -188,7 +188,7 @@ Int APIENTRY WinMain(HINSTANCE hInstance,
 	Char buffer[ _MAX_PATH ];
 	GetModuleFileName( NULL, buffer, sizeof( buffer ) );
 	Char *pEnd = strrchr(buffer, '\\');
-	if (pEnd != nullptr)
+	if (pEnd != NULL)
 	{
 		*pEnd = 0;
 	}
