@@ -739,15 +739,10 @@ void BuildList::OnExport()
 	try {
 		char dirbuf[ _MAX_PATH ];
 		::GetModuleFileName( NULL, dirbuf, sizeof( dirbuf ) );
-		char *pEnd = dirbuf + strlen( dirbuf );
-		while( pEnd != dirbuf )
+		char *pEnd = strrchr(dirbuf, '\\');
+		if (pEnd != NULL)
 		{
-			if( *pEnd == '\\' )
-			{
-				*(pEnd + 1) = 0;
-				break;
-			}
-			pEnd--;
+			*(pEnd + 1) = 0;
 		}
 
 		char curbuf[ _MAX_PATH ];
