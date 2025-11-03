@@ -224,8 +224,7 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	// Set the current directory to the app directory.
 	char buf[_MAX_PATH];
 	GetModuleFileName(NULL, buf, sizeof(buf));
-	char *pEnd = strrchr(buf, '\\');
-	if (pEnd != NULL) {
+	if (char *pEnd = strrchr(buf, '\\')) {
 		*pEnd = 0;
 	}
 	::SetCurrentDirectory(buf);

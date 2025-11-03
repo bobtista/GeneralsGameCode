@@ -1359,8 +1359,7 @@ BOOL CWorldBuilderDoc::OnOpenDocument(LPCTSTR lpszPathName)
 
 	WbApp()->setCurrentDirectory(AsciiString(buf));
 	::GetModuleFileName(NULL, buf, sizeof(buf));
-	char *pEnd = strrchr(buf, '\\');
-	if (pEnd != NULL) {
+	if (char *pEnd = strrchr(buf, '\\')) {
 		*pEnd = 0;
 	}
 	::SetCurrentDirectory(buf);
@@ -2101,8 +2100,7 @@ void CWorldBuilderDoc::OnDumpDocToText(void)
 	try {
 		char dirbuf[ _MAX_PATH ];
 		::GetModuleFileName( NULL, dirbuf, sizeof( dirbuf ) );
-		char *pEnd = strrchr(dirbuf, '\\');
-		if (pEnd != NULL)
+		if (char *pEnd = strrchr(dirbuf, '\\'))
 		{
 			*(pEnd + 1) = 0;
 		}

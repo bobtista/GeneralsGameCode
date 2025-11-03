@@ -739,8 +739,7 @@ void BuildList::OnExport()
 	try {
 		char dirbuf[ _MAX_PATH ];
 		::GetModuleFileName( NULL, dirbuf, sizeof( dirbuf ) );
-		char *pEnd = strrchr(dirbuf, '\\');
-		if (pEnd != NULL)
+		if (char *pEnd = strrchr(dirbuf, '\\'))
 		{
 			*(pEnd + 1) = 0;
 		}

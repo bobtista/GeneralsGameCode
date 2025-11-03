@@ -774,8 +774,7 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		/// @todo remove this force set of working directory later
 		Char buffer[ _MAX_PATH ];
 		GetModuleFileName( NULL, buffer, sizeof( buffer ) );
-		Char *pEnd = strrchr(buffer, '\\');
-		if (pEnd != NULL)
+		if (Char *pEnd = strrchr(buffer, '\\'))
 		{
 			*pEnd = 0;
 		}

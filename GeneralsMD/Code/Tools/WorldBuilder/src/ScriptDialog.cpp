@@ -1295,8 +1295,7 @@ void ScriptDialog::OnSave()
 	// change it back.
 	char buf[_MAX_PATH];
 	::GetModuleFileName(NULL, buf, sizeof(buf));
-	char *pEnd = strrchr(buf, '\\');
-	if (pEnd != NULL) {
+	if (char *pEnd = strrchr(buf, '\\')) {
 		*pEnd = 0;
 	}
 	::SetCurrentDirectory(buf);
@@ -1515,8 +1514,7 @@ void ScriptDialog::OnLoad()
 	// change it back.
 	char buf[_MAX_PATH];
 	::GetModuleFileName(NULL, buf, sizeof(buf));
-	char *pEnd = strrchr(buf, '\\');
-	if (pEnd != NULL) {
+	if (char *pEnd = strrchr(buf, '\\')) {
 		*pEnd = 0;
 	}
 	CWorldBuilderDoc* pDoc = CWorldBuilderDoc::GetActiveDoc();

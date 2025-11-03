@@ -36,8 +36,7 @@ LogClass::LogClass(const char *fname)
 {
 	char buffer[ _MAX_PATH ];
 	GetModuleFileName( NULL, buffer, sizeof( buffer ) );
-	char *pEnd = strrchr(buffer, '\\');
-	if (pEnd != NULL)
+	if (char *pEnd = strrchr(buffer, '\\'))
 	{
 		*pEnd = 0;
 	}
