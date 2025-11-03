@@ -94,7 +94,8 @@ EmitterInstanceListClass::Add_Emitter (ParticleEmitterClass *emitter)
 		//
 		//	Add this emitter to the list and put a hold on its reference
 		//
-		if (emitter) emitter->Add_Ref();
+		if (emitter)
+			emitter->Add_Ref();
 		m_List.Add (emitter);
 	}
 
