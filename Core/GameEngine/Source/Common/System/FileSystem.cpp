@@ -457,3 +457,47 @@ Bool FileSystem::isPathInDirectory(const AsciiString& testPath, const AsciiStrin
 
 	return true;
 }
+
+//============================================================================
+// FileSystem::hasValidTransferFileExtension
+//============================================================================
+// TheSuperHackers @security bobtista 06/11/2025
+// Validates file extensions for map transfer operations to prevent arbitrary
+// file types from being transferred over the network or loaded from save games.
+// This is a security measure to mitigate arbitrary file write vulnerabilities.
+//============================================================================
+Bool FileSystem::hasValidTransferFileExtension(const AsciiString& filePath)
+{
+	static const char* validExtensions[] = {
+		".map",
+		".ini",
+		".str",
+		".wak",
+		".tga",
+		".txt"
+	};
+	static const Int numValidExtensions = sizeof(validExtensions) / sizeof(validExtensions[0]);
+
+	const char* lastDot = strrchr(filePath.str(), '.');
+
+	if (lastDot == NULL || lastDot[1] == '\0')
+	{
+		DEBUG_LOG(("File path '%s' has no extension.", filePath.str()));
+		return false;
+	}
+
+	for (Int i = 0; i < numValidExtensions; ++i)
+	{
+#ifdef _WIN32
+		if (_stricmp(lastDot, validExtensions[i]) == 0)
+#else
+		if (strcasecmp(lastDot, validExtensions[i]) == 0)
+#endif
+		{
+			return true;
+		}
+	}
+
+	DEBUG_LOG(("File path '%s' has invalid extension '%s' for transfer operations.", filePath.str(), lastDot));
+	return false;
+}

@@ -933,6 +933,13 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 		return AsciiString::TheEmptyString;
 	}
 
+	// TheSuperHackers @security bobtista 06/11/2025 Validate file extension to prevent arbitrary file types
+	if (!FileSystem::hasValidTransferFileExtension(prefix))
+	{
+		DEBUG_LOG(("File path '%s' has invalid extension for map transfer operations.", prefix.str()));
+		return AsciiString::TheEmptyString;
+	}
+
 	prefix.toLower();
 	return prefix;
 }
