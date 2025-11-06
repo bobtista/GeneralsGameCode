@@ -21,7 +21,6 @@
 
 #include "StdAfx.h"
 #include "PlaySoundDialog.h"
-#include "refcount.h"
 #include "Utils.h"
 #include "AudibleSound.h"
 

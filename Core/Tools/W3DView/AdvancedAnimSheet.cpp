@@ -23,7 +23,6 @@
 #include "W3DView.h"
 #include "W3DViewDoc.h"
 #include "AdvancedAnimSheet.h"
-#include "refcount.h"
 
 #include "assetmgr.h"
 #include "hanim.h"

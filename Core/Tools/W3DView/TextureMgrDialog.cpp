@@ -38,7 +38,6 @@
 #include "StdAfx.h"
 #include "W3DView.h"
 #include "TextureMgrDialog.h"
-#include "refcount.h"
 #include "Mesh.h"
 #include "MatInfo.h"
 #include "TextureSettingsDialog.h"

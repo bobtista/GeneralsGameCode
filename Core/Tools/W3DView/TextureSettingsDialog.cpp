@@ -35,7 +35,6 @@
 #include "Texture.h"
 #include "W3DView.h"
 #include "TextureSettingsDialog.h"
-#include "refcount.h"
 #include "Utils.h"
 #include "AssetMgr.h"
 

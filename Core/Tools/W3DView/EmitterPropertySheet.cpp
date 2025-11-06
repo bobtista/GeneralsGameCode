@@ -33,7 +33,6 @@
 #include "StdAfx.h"
 #include "W3DView.h"
 #include "EmitterPropertySheet.h"
-#include "refcount.h"
 #include "part_emt.h"
 #include "part_ldr.h"
 #include "assetmgr.h"

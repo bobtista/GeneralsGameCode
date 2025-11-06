@@ -42,7 +42,6 @@
 #include "Utils.h"
 #include "w3derr.h"
 #include "chunkio.h"
-#include "refcount.h"
 #include "AssetInfo.h"
 #include "meshmdl.h"
 #include "agg_def.h"

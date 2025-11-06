@@ -22,7 +22,6 @@
 #include "StdAfx.h"
 #include "W3DView.h"
 #include "BoneMgrDialog.h"
-#include "refcount.h"
 #include "htree.h"
 #include "assetmgr.h"
 #include "Utils.h"

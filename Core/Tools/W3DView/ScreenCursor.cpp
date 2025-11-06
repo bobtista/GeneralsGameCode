@@ -33,7 +33,6 @@
 
 #include "StdAfx.h"
 #include "ScreenCursor.h"
-#include "refcount.h"
 #include "Utils.h"
 #include "ww3d.h"
 #include "vertmaterial.h"

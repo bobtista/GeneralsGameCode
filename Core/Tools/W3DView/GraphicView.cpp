@@ -22,7 +22,6 @@
 #include "StdAfx.h"
 #include "W3DView.h"
 #include "GraphicView.h"
-#include "refcount.h"
 #include "ww3d.h"
 #include "Globals.h"
 #include "W3DViewDoc.h"

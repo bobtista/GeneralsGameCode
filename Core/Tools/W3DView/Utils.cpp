@@ -27,7 +27,6 @@
 #include "StdAfx.h"
 #include "W3DViewDoc.h"
 #include "MainFrm.h"
-#include "refcount.h"
 #include "DataTreeView.h"
 #include "Utils.h"
 #include "texture.h"

@@ -22,7 +22,6 @@
 #include "StdAfx.h"
 #include "W3DView.h"
 #include "SpherePropertySheet.h"
-#include "refcount.h"
 #include "Utils.h"
 #include "W3DViewDoc.h"
 #include "assetmgr.h"

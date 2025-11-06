@@ -22,7 +22,6 @@
 #include "StdAfx.h"
 #include "W3DView.h"
 #include "RingPropertySheet.h"
-#include "refcount.h"
 #include "Utils.h"
 #include "W3DViewDoc.h"
 #include "assetmgr.h"

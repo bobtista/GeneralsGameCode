@@ -22,7 +22,6 @@
 #include "StdAfx.h"
 #include "W3DView.h"
 #include "EditLODDialog.h"
-#include "refcount.h"
 #include "distlod.h"
 #include "Utils.h"
 #include "rendobj.h"

@@ -38,7 +38,6 @@
 #include "StdAfx.h"
 #include "W3DView.h"
 #include "DataTreeView.h"
-#include "refcount.h"
 #include "rendobj.h"
 #include "ViewerAssetMgr.h"
 #include "Globals.h"
