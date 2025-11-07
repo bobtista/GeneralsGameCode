@@ -108,7 +108,8 @@ static NameKeyType textEntryChatID = NAMEKEY_INVALID;
 static NameKeyType textEntryMapDisplayID = NAMEKEY_INVALID;
 static NameKeyType buttonBackID = NAMEKEY_INVALID;
 static NameKeyType buttonStartID = NAMEKEY_INVALID;
-static NameKeyType buttonEmoteID = NAMEKEY_INVALID;
+// TheSuperHackers @tweak arcticdolphin 08/03/2026 Renamed from buttonEmote to buttonChat to reflect chat button purpose
+static NameKeyType buttonChatID = NAMEKEY_INVALID;
 static NameKeyType buttonSelectMapID = NAMEKEY_INVALID;
 static NameKeyType checkboxLimitSuperweaponsID = NAMEKEY_INVALID;
 static NameKeyType comboBoxStartingCashID = NAMEKEY_INVALID;
@@ -118,7 +119,8 @@ static GameWindow* parentLanGameOptions = nullptr;
 static GameWindow* buttonBack = nullptr;
 static GameWindow* buttonStart = nullptr;
 static GameWindow* buttonSelectMap = nullptr;
-static GameWindow* buttonEmote = nullptr;
+// TheSuperHackers @tweak arcticdolphin 08/03/2026 Renamed from buttonEmote to buttonChat to reflect chat button purpose
+static GameWindow* buttonChat = nullptr;
 static GameWindow* textEntryChat = nullptr;
 static GameWindow* textEntryMapDisplay = nullptr;
 static GameWindow* checkboxLimitSuperweapons = nullptr;
@@ -671,7 +673,8 @@ void InitLanGameGadgets()
 	textEntryChatID = TheNameKeyGenerator->nameToKey("LanGameOptionsMenu.wnd:TextEntryChat");
 	textEntryMapDisplayID = TheNameKeyGenerator->nameToKey("LanGameOptionsMenu.wnd:TextEntryMapDisplay");
 	listboxChatWindowLanGameID = TheNameKeyGenerator->nameToKey("LanGameOptionsMenu.wnd:ListboxChatWindowLanGame");
-	buttonEmoteID = TheNameKeyGenerator->nameToKey("LanGameOptionsMenu.wnd:ButtonEmote");
+	// TheSuperHackers @tweak arcticdolphin 08/03/2026 Renamed from buttonEmote to buttonChat to reflect chat button purpose
+	buttonChatID = TheNameKeyGenerator->nameToKey("LanGameOptionsMenu.wnd:ButtonEmote");    // TODO Rename ButtonEmote to ButtonChat in .wnd file
 	buttonSelectMapID = TheNameKeyGenerator->nameToKey("LanGameOptionsMenu.wnd:ButtonSelectMap");
 	checkboxLimitSuperweaponsID = TheNameKeyGenerator->nameToKey("LanGameOptionsMenu.wnd:CheckboxLimitSuperweapons");
 	comboBoxStartingCashID = TheNameKeyGenerator->nameToKey("LanGameOptionsMenu.wnd:ComboBoxStartingCash");
@@ -680,8 +683,9 @@ void InitLanGameGadgets()
 	// Initialize the pointers to our gadgets
 	parentLanGameOptions = TheWindowManager->winGetWindowFromId(nullptr, parentLanGameOptionsID);
 	DEBUG_ASSERTCRASH(parentLanGameOptions, ("Could not find the parentLanGameOptions"));
-	buttonEmote = TheWindowManager->winGetWindowFromId(parentLanGameOptions, buttonEmoteID);
-	DEBUG_ASSERTCRASH(buttonEmote, ("Could not find the buttonEmote"));
+	// TheSuperHackers @tweak arcticdolphin 08/03/2026 Renamed from buttonEmote to buttonChat to reflect chat button purpose
+	buttonChat = TheWindowManager->winGetWindowFromId(parentLanGameOptions, buttonChatID);
+	DEBUG_ASSERTCRASH(buttonChat, ("Could not find the buttonChat"));
 	buttonSelectMap = TheWindowManager->winGetWindowFromId(parentLanGameOptions, buttonSelectMapID);
 	DEBUG_ASSERTCRASH(buttonSelectMap, ("Could not find the buttonSelectMap"));
 	buttonStart = TheWindowManager->winGetWindowFromId(parentLanGameOptions, buttonStartID);
@@ -784,7 +788,8 @@ void InitLanGameGadgets()
 void DeinitLanGameGadgets()
 {
 	parentLanGameOptions = nullptr;
-	buttonEmote = nullptr;
+	// TheSuperHackers @tweak arcticdolphin 08/03/2026 Renamed from buttonEmote to buttonChat to reflect chat button purpose
+	buttonChat = nullptr;
 	buttonSelectMap = nullptr;
 	buttonStart = nullptr;
 	buttonBack = nullptr;
@@ -1221,7 +1226,8 @@ WindowMsgHandledType LanGameOptionsMenuSystem(GameWindow* window, UnsignedInt ms
 				TheLAN->RequestGameLeave();
 				// TheShell->pop();
 			}
-			else if (controlID == buttonEmoteID)
+			// TheSuperHackers @tweak arcticdolphin 08/03/2026 Renamed from buttonEmote to buttonChat to reflect chat button purpose
+			else if (controlID == buttonChatID)
 			{
 				// read the user's input
 				txtInput.set(GadgetTextEntryGetText(textEntryChat));
@@ -1231,7 +1237,10 @@ WindowMsgHandledType LanGameOptionsMenuSystem(GameWindow* window, UnsignedInt ms
 				txtInput.trim();
 				// Echo the user's input to the chat window
 				if (!txtInput.isEmpty())
-					TheLAN->RequestChat(txtInput, LANAPIInterface::LANCHAT_EMOTE);
+				{
+					// TheSuperHackers @feature arcticdolphin 08/03/2026 Uses processChatMessage to handle /me slash command in LAN chat
+					TheLAN->processChatMessage(txtInput);
+				}
 			}
 			else if (controlID == buttonSelectMapID)
 			{
@@ -1365,7 +1374,10 @@ WindowMsgHandledType LanGameOptionsMenuSystem(GameWindow* window, UnsignedInt ms
 				txtInput.trim();
 				// Echo the user's input to the chat window
 				if (!txtInput.isEmpty())
-					TheLAN->RequestChat(txtInput, LANAPIInterface::LANCHAT_NORMAL);
+				{
+					// TheSuperHackers @feature arcticdolphin 08/03/2026 Uses processChatMessage to handle /me slash command in LAN chat
+					TheLAN->processChatMessage(txtInput);
+				}
 			}
 			break;
 		}
