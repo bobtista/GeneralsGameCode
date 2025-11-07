@@ -1456,10 +1456,9 @@ void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *
 				DEBUG_LOG(("Integer argument: %d (%8.8X)", theint, theint));
 			}
 #endif
-			break;
-		}
-		
-		case ARGUMENTDATATYPE_REAL: {
+		break;
+	}
+	case ARGUMENTDATATYPE_REAL: {
 			Real thereal;
 			m_file->read(&thereal, sizeof(thereal));
 			msg->appendRealArgument(thereal);
@@ -1469,10 +1468,9 @@ void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *
 				DEBUG_LOG(("Real argument: %g (%8.8X)", thereal, *(int *)&thereal));
 			}
 #endif
-			break;
-		}
-		
-		case ARGUMENTDATATYPE_BOOLEAN: {
+		break;
+	}
+	case ARGUMENTDATATYPE_BOOLEAN: {
 			Bool thebool;
 			m_file->read(&thebool, sizeof(thebool));
 			msg->appendBooleanArgument(thebool);
@@ -1482,10 +1480,9 @@ void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *
 				DEBUG_LOG(("Bool argument: %d", thebool));
 			}
 #endif
-			break;
-		}
-		
-		case ARGUMENTDATATYPE_OBJECTID: {
+		break;
+	}
+	case ARGUMENTDATATYPE_OBJECTID: {
 			ObjectID theid;
 			m_file->read(&theid, sizeof(theid));
 			msg->appendObjectIDArgument(theid);
@@ -1495,10 +1492,9 @@ void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *
 				DEBUG_LOG(("Object ID argument: %d", theid));
 			}
 #endif
-			break;
-		}
-		
-		case ARGUMENTDATATYPE_DRAWABLEID: {
+		break;
+	}
+	case ARGUMENTDATATYPE_DRAWABLEID: {
 			DrawableID theid;
 			m_file->read(&theid, sizeof(theid));
 			msg->appendDrawableIDArgument(theid);
@@ -1508,10 +1504,9 @@ void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *
 				DEBUG_LOG(("Drawable ID argument: %d", theid));
 			}
 #endif
-			break;
-		}
-		
-		case ARGUMENTDATATYPE_TEAMID: {
+		break;
+	}
+	case ARGUMENTDATATYPE_TEAMID: {
 			UnsignedInt theid;
 			m_file->read(&theid, sizeof(theid));
 			msg->appendTeamIDArgument(theid);
@@ -1521,10 +1516,9 @@ void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *
 				DEBUG_LOG(("Team ID argument: %d", theid));
 			}
 #endif
-			break;
-		}
-		
-		case ARGUMENTDATATYPE_LOCATION: {
+		break;
+	}
+	case ARGUMENTDATATYPE_LOCATION: {
 			Coord3D loc;
 			m_file->read(&loc, sizeof(loc));
 			msg->appendLocationArgument(loc);
@@ -1535,10 +1529,9 @@ void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *
 					*(int *)&loc.x, *(int *)&loc.y, *(int *)&loc.z));
 			}
 #endif
-			break;
-		}
-		
-		case ARGUMENTDATATYPE_PIXEL: {
+		break;
+	}
+	case ARGUMENTDATATYPE_PIXEL: {
 			ICoord2D pixel;
 			m_file->read(&pixel, sizeof(pixel));
 			msg->appendPixelArgument(pixel);
@@ -1548,10 +1541,9 @@ void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *
 				DEBUG_LOG(("Pixel argument: %d,%d", pixel.x, pixel.y));
 			}
 #endif
-			break;
-		}
-		
-		case ARGUMENTDATATYPE_PIXELREGION: {
+		break;
+	}
+	case ARGUMENTDATATYPE_PIXELREGION: {
 			IRegion2D reg;
 			m_file->read(&reg, sizeof(reg));
 			msg->appendPixelRegionArgument(reg);
@@ -1561,10 +1553,9 @@ void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *
 				DEBUG_LOG(("Pixel Region argument: %d,%d -> %d,%d", reg.lo.x, reg.lo.y, reg.hi.x, reg.hi.y));
 			}
 #endif
-			break;
-		}
-		
-		case ARGUMENTDATATYPE_TIMESTAMP: {  // Not to be confused with Terrance Stamp... Kneel before Zod!!!
+		break;
+	}
+	case ARGUMENTDATATYPE_TIMESTAMP: {  // Not to be confused with Terrance Stamp... Kneel before Zod!!!
 			UnsignedInt stamp;
 			m_file->read(&stamp, sizeof(stamp));
 			msg->appendTimestampArgument(stamp);
@@ -1574,10 +1565,9 @@ void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *
 				DEBUG_LOG(("Timestamp argument: %d", stamp));
 			}
 #endif
-			break;
-		}
-		
-		case ARGUMENTDATATYPE_WIDECHAR: {
+		break;
+	}
+	case ARGUMENTDATATYPE_WIDECHAR: {
 			WideChar theid;
 			m_file->read(&theid, sizeof(theid));
 			msg->appendWideCharArgument(theid);
@@ -1587,10 +1577,9 @@ void RecorderClass::readArgument(GameMessageArgumentDataType type, GameMessage *
 				DEBUG_LOG(("WideChar argument: %d (%lc)", theid, theid));
 			}
 #endif
-			break;
-		}
-		
-		default:
+		break;
+	}
+	default:
 			break;
 	}
 }
