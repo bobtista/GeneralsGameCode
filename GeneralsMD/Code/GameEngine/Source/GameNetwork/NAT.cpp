@@ -907,16 +907,11 @@ void NAT::processManglerResponse(UnsignedShort mangledPort) {
 // check to see if we've completed all the rounds
 // this is kind of a cheesy way to check, but it works.
 Bool NAT::allConnectionsDone() {
-	if ((m_numNodes == 2 && m_connectionRound >= 1) ||
-	    (m_numNodes == 3 && m_connectionRound >= 3) ||
-	    (m_numNodes == 4 && m_connectionRound >= 3) ||
-	    (m_numNodes == 5 && m_connectionRound >= 5) ||
-	    (m_numNodes == 6 && m_connectionRound >= 5) ||
-	    (m_numNodes == 7 && m_connectionRound >= 7) ||
-	    (m_numNodes == 8 && m_connectionRound >= 7)) {
-		return TRUE;
+	if (m_numNodes < 2) {
+		return FALSE;
 	}
-	return FALSE;
+	const Int requiredRounds = (m_numNodes & 1) ? m_numNodes : m_numNodes - 1;
+	return m_connectionRound >= requiredRounds;
 }
 
 Bool NAT::allConnectionsDoneThisRound() {
