@@ -125,6 +125,7 @@ OpenContain::OpenContain( Thing *thing, const ModuleData* moduleData ) : UpdateM
 	m_lastLoadSoundFrame = 0;
 	m_containListSize = 0;
 	m_stealthUnitsContained = 0;
+	m_heroUnitsContained = 0;
 	m_doorCloseCountdown = 0;
 
 	m_rallyPoint.zero();
@@ -620,7 +621,7 @@ void OpenContain::scatterToNearbyPosition(Object* rider)
 }
 
 //-------------------------------------------------------------------------------------------------
-void OpenContain::onContaining( Object * /*rider*/ )
+void OpenContain::onContaining( Object *rider )
 {
 	// Play audio
 	if( m_loadSoundsEnabled )
@@ -628,6 +629,12 @@ void OpenContain::onContaining( Object * /*rider*/ )
 		AudioEventRTS enterSound = *getObject()->getTemplate()->getSoundEnter();
 		enterSound.setObjectID(getObject()->getID());
 		TheAudio->addAudioEvent(&enterSound);
+	}
+
+	// TheSuperHackers @performance bobtista 13/11/2025 Cache hero count to avoid O(n) iteration in Object::isHero().
+	if( rider && rider->isKindOf( KINDOF_HERO ) )
+	{
+		m_heroUnitsContained++;
 	}
 }
 
@@ -644,6 +651,11 @@ void OpenContain::onRemoving( Object *rider)
 		AudioEventRTS fallingSound = *rider->getTemplate()->getSoundFalling();
 		fallingSound.setObjectID(rider->getID());
 		TheAudio->addAudioEvent(&fallingSound);
+
+		if( rider->isKindOf( KINDOF_HERO ) && m_heroUnitsContained > 0 )
+		{
+			m_heroUnitsContained--;
+		}
 	}
 }
 
