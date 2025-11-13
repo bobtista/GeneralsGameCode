@@ -2,10 +2,10 @@ set(W3DCONVERT_SRC
     "w3dconvert.cpp"
     "chunkserializer.cpp"
     "chunkserializer.h"
-    "xmlwriter.cpp"
-    "xmlwriter.h"
-    "xmlreader.cpp"
-    "xmlreader.h"
+    "jsonwriter.cpp"
+    "jsonwriter.h"
+    "jsonreader.cpp"
+    "jsonreader.h"
 )
 
 add_executable(z_w3dconvert)

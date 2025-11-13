@@ -1,21 +1,21 @@
 #include "chunkserializer.h"
-#include "xmlwriter.h"
-#include "xmlreader.h"
+#include "jsonwriter.h"
+#include "jsonreader.h"
 #include "wwfile.h"
 #include <iostream>
 #include <cstring>
 
 void PrintUsage(const char* programName) {
-	std::cout << "W3D Converter - Convert between W3D binary and W3X XML formats\n";
+	std::cout << "W3D Converter - Convert between W3D binary and W3J JSON formats\n";
 	std::cout << "Usage:\n";
-	std::cout << "  " << programName << " --to-xml <input.w3d> <output.w3x>\n";
-	std::cout << "  " << programName << " --to-w3d <input.w3x> <output.w3d>\n";
+	std::cout << "  " << programName << " --to-json <input.w3d> <output.w3j>\n";
+	std::cout << "  " << programName << " --to-w3d <input.w3j> <output.w3d>\n";
 	std::cout << "\nOptions:\n";
-	std::cout << "  --to-xml     Convert W3D binary file to W3X XML format\n";
-	std::cout << "  --to-w3d     Convert W3X XML file to W3D binary format\n";
+	std::cout << "  --to-json    Convert W3D binary file to W3J JSON format\n";
+	std::cout << "  --to-w3d     Convert W3J JSON file to W3D binary format\n";
 }
 
-bool ConvertToXML(const char* inputPath, const char* outputPath) {
+bool ConvertToJSON(const char* inputPath, const char* outputPath) {
 	FileClass file(inputPath);
 	if (!file.Open()) {
 		std::cerr << "Error: Could not open input file: " << inputPath << "\n";
@@ -40,9 +40,9 @@ bool ConvertToXML(const char* inputPath, const char* outputPath) {
 		return false;
 	}
 	
-	XMLWriter writer(outputPath);
+	JSONWriter writer(outputPath);
 	if (!writer.WriteW3DFile(chunks)) {
-		std::cerr << "Error: Failed to write XML file: " << outputPath << "\n";
+		std::cerr << "Error: Failed to write JSON file: " << outputPath << "\n";
 		return false;
 	}
 	
@@ -52,11 +52,11 @@ bool ConvertToXML(const char* inputPath, const char* outputPath) {
 }
 
 bool ConvertToW3D(const char* inputPath, const char* outputPath) {
-	XMLReader reader(inputPath);
+	JSONReader reader(inputPath);
 	std::vector<std::unique_ptr<ChunkData>> chunks;
 	
 	if (!reader.ReadW3DFile(chunks)) {
-		std::cerr << "Error: Failed to read XML file: " << inputPath << "\n";
+		std::cerr << "Error: Failed to read JSON file: " << inputPath << "\n";
 		return false;
 	}
 	
@@ -100,8 +100,8 @@ int main(int argc, char* argv[]) {
 	
 	bool success = false;
 	
-	if (std::strcmp(mode, "--to-xml") == 0) {
-		success = ConvertToXML(inputPath, outputPath);
+	if (std::strcmp(mode, "--to-json") == 0) {
+		success = ConvertToJSON(inputPath, outputPath);
 	} else if (std::strcmp(mode, "--to-w3d") == 0) {
 		success = ConvertToW3D(inputPath, outputPath);
 	} else {
