@@ -1238,8 +1238,6 @@ GameMessageDisposition SelectionTranslator::translateGameMessage(const GameMessa
 	return disp;
 }
 
-
-
 //setDragSelecting(Bool dragSelect)
 //Added to fix the drag selection problem in control bar
 ////////////////////////////////////////////////////////////////////////

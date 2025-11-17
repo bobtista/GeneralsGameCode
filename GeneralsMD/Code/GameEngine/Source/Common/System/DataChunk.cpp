@@ -238,8 +238,6 @@ m_pOut(pOut)
 	tmpFileName.concat(TEMP_FILENAME);
 	m_tmp_file = ::fopen( tmpFileName.str(), "wb" );
 	m_chunkStack = NULL;
-
-	// End Add
 }
 
 DataChunkOutput::~DataChunkOutput()

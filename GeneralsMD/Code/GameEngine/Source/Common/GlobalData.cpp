@@ -820,9 +820,6 @@ GlobalData::GlobalData()
 	m_drawEntireTerrain = FALSE;
 	m_maxParticleCount = 0;
 	m_maxFieldParticleCount = 30;
-
-	// End Add
-
 	m_debugAI = AI_DEBUG_NONE;
 	m_debugSupplyCenterPlacement = FALSE;
 	m_debugAIObstacles = FALSE;

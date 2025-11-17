@@ -299,8 +299,6 @@ Anim2D::Anim2D( Anim2DTemplate *animTemplate, Anim2DCollection *collectionSystem
 	// sanity
 	DEBUG_ASSERTCRASH( animTemplate != NULL, ("Anim2D::Anim2D - NULL template") );
 
-	//Initialization
-
 	m_currentFrame = 0;
 
 	//
@@ -322,8 +320,6 @@ Anim2D::Anim2D( Anim2DTemplate *animTemplate, Anim2DCollection *collectionSystem
 	m_maxFrame = m_template->getNumFrames() - 1;
 	m_framesBetweenUpdates = m_template->getNumFramesBetweenUpdates();
 
-	// initializing pointers to NULL, and clearing Frame counters before
-	// we register ourselves to the System
 	m_collectionSystemNext = NULL;
 	m_collectionSystemPrev = NULL;
 

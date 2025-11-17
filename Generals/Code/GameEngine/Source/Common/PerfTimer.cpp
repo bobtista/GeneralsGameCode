@@ -477,7 +477,6 @@ PerfTimer::PerfTimer( const char *identifier, Bool crashWithInfo, Int startFrame
 	m_callCount(0),
 	m_runningTime(0),
 	m_outputInfo(true),
-	//Intializations inserted
 	m_lastFrame(-1)
 {
 }

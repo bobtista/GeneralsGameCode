@@ -128,8 +128,6 @@ GlobalLanguage::GlobalLanguage()
 	m_useHardWrap = FALSE;
 	m_resolutionFontSizeAdjustment = 0.7f;
 	m_resolutionFontSizeMethod = ResolutionFontSizeMethod_Default;
-	//End Add
-
 	m_userResolutionFontSizeAdjustment = -1.0f;
 }
 

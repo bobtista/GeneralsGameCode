@@ -66,7 +66,6 @@ Display::Display()
 
 	m_currentlyPlayingMovie.clear();
 	m_letterBoxFadeStartTime = 0;
-	// End Add
 }
 
 /**

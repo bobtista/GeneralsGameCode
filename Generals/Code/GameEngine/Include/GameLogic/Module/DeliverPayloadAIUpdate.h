@@ -204,7 +204,6 @@ public:
 		m_deliveryDecalRadius = 0;
 
 		m_putInContainerName.clear();
-		// End Add
 	}
 
 	static void buildFieldParse(MultiIniFieldParse& p)
@@ -295,8 +294,6 @@ public:
 		m_visibleDropBoneName.clear();
 		m_visiblePayloadTemplateName.clear();
 		m_visibleSubObjectName.clear();
-
-		// End Add
 	}
 
 	static const FieldParse* getFieldParse();

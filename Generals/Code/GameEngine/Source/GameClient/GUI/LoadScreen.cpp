@@ -883,9 +883,7 @@ void MultiPlayerLoadScreen::processProgress(Int playerId, Int percentage)
 //-----------------------------------------------------------------------------
 GameSpyLoadScreen::GameSpyLoadScreen( void )
 {
-
 	m_mapPreview = NULL;
-
 	for(Int i = 0; i < MAX_SLOTS; ++i)
 	{
 

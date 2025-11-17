@@ -284,8 +284,6 @@ void ToggleQuitMenu()
 	if (TheGameLogic->isIntroMoviePlaying() || TheGameLogic->isLoadingGame() ||TheScriptEngine->isGameEnding())
 		return;
 
-	//End Add
-
 	// BGC- If we are currently in the disconnect screen, don't let the quit menu come up.
 	if (TheDisconnectMenu != NULL) {
 		if (TheDisconnectMenu->isScreenVisible() == TRUE) {

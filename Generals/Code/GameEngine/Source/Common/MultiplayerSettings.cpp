@@ -75,7 +75,6 @@ MultiplayerSettings::MultiplayerSettings()
 {
 	m_initialCreditsMin = 5000;
 
-	//DID U MEAN m_initialCreditsMax = 10000;?
 	m_initialCreditsMax = 10000;
 	m_maxBeaconsPerPlayer = 3;
 

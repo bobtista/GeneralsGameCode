@@ -294,7 +294,6 @@ private:
 	Bool m_shouldValidateCRCs;															///< Should we validate CRCs this frame?
 	//-----------------------------------------------------------------------------------------------
 
-	//Used to for load scene
 	Bool m_loadingScene;
 
 	Bool m_isInUpdate;

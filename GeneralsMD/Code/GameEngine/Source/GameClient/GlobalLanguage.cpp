@@ -130,7 +130,6 @@ GlobalLanguage::GlobalLanguage()
 	m_resolutionFontSizeAdjustment = 0.7f;
 	m_resolutionFontSizeMethod = ResolutionFontSizeMethod_Default;
 	m_militaryCaptionDelayMS = 750;
-	//End Add
 
 	m_userResolutionFontSizeAdjustment = -1.0f;
 }

@@ -256,13 +256,9 @@ public:
 		m_convergenceFactor( 0.0f )
 	{
 		//Note: m_data is constructed with default values.
-
-
 		m_payload.clear();
 		m_putInContainerName.clear();
 		m_transportName.clear();
-
-		// End Add
 	}
 
 	virtual Object* create(const Object *primaryObj, const Coord3D *primary, const Coord3D *secondary, Real angle, UnsignedInt lifetimeFrames = 0 ) const

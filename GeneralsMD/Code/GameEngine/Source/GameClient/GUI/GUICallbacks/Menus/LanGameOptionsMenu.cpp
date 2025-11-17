@@ -722,7 +722,6 @@ void InitLanGameGadgets( void )
 	//Tooltip function is being set for techBuildings, and supplyDocks
 
 	windowMap->winSetTooltipFunc(MapSelectorTooltip);
-	//End Add
 
 	for (Int i = 0; i < MAX_SLOTS; i++)
 	{

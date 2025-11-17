@@ -770,7 +770,7 @@ WindowMsgHandledType SaveLoadMenuSystem( GameWindow *window, UnsignedInt msg,
 					updateMenuActions();
 
 					//Fix for bug
-					// close save menuu
+					// close save menu
 					closeSaveMenu( window );
 
 					//

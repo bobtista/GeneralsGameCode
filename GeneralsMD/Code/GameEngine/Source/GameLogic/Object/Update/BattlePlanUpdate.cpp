@@ -154,12 +154,7 @@ BattlePlanUpdate::BattlePlanUpdate( Thing *thing, const ModuleData* moduleData )
 	m_bonuses->m_invalidKindOf				= data->m_invalidMemberKindOf;
 
 	m_visionObjectID = INVALID_ID;
-
-	//------------------------//
-	//------------------------//
-
 	m_specialPowerModule   = NULL;
-	//
 }
 
 //-------------------------------------------------------------------------------------------------
