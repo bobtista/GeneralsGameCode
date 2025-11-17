@@ -86,7 +86,8 @@ PoisonedBehavior::~PoisonedBehavior( void )
 //-------------------------------------------------------------------------------------------------
 void PoisonedBehavior::onDamage( DamageInfo *damageInfo )
 {
-	if( damageInfo->in.m_damageType == DAMAGE_POISON )
+	if( damageInfo->in.m_damageType == DAMAGE_POISON &&
+	    damageInfo->in.m_sourceID != INVALID_ID )
 		startPoisonedEffects( damageInfo );
 }
 
@@ -118,9 +119,10 @@ UpdateSleepTime PoisonedBehavior::update()
 		// If it is time to do damage, then do it and reset the damage timer
 		DamageInfo damage;
 		damage.in.m_amount = m_poisonDamageAmount;
-		damage.in.m_sourceID = m_poisonSource;
-		damage.in.m_damageType = DAMAGE_UNRESISTABLE; // Not poison, as that will infect us again
-		damage.in.m_damageFXOverride = DAMAGE_POISON; // but this will ensure that the right effect is played
+		// TheSuperHackers @bugfix bobtista 11/17/2025 Use INVALID_ID to prevent infinite loop while allowing poison resistance to work
+		damage.in.m_sourceID = INVALID_ID;
+		damage.in.m_damageType = DAMAGE_POISON;
+		damage.in.m_damageFXOverride = DAMAGE_POISON;
 		damage.in.m_deathType = m_deathType;
 		getObject()->attemptDamage( &damage );
 
