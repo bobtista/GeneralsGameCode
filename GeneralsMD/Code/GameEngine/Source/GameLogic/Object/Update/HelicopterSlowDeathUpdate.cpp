@@ -65,7 +65,6 @@ HelicopterSlowDeathBehaviorModuleData::HelicopterSlowDeathBehaviorModuleData( vo
 	m_bladeBone.clear();
 	m_bladeObjectName.clear();
 	m_finalRubbleObject.clear();
-	//
 
 	m_spiralOrbitTurnRate = 0.0f;
 	m_spiralOrbitForwardSpeed = 0.0f;

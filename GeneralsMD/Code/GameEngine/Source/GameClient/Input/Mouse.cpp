@@ -429,7 +429,6 @@ CursorInfo::CursorInfo( void )
 	cursorTextColor.red = cursorTextColor.green = cursorTextColor.blue = 0;
 	cursorTextDropColor.red = cursorTextDropColor.blue = cursorTextDropColor.green = 0;
 
-	//
 	textureName.clear();
 	imageName.clear();
 	W3DModelName.clear();

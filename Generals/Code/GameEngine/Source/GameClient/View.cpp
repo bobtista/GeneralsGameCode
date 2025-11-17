@@ -56,7 +56,6 @@ View::View( void )
 	m_snapImmediate = FALSE;
 	m_terrainHeightUnderCamera = 0.0f;
 	m_zoom = 0.0f;
-	//
 	m_pos.x = 0;
 	m_pos.y = 0;
 	m_width = 0;

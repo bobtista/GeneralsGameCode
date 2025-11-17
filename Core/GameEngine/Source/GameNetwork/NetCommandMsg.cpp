@@ -39,7 +39,6 @@ NetCommandMsg::NetCommandMsg()
 	m_id = 0;
 	m_playerID = 0;
 
-	//
 	m_timestamp = 0;
 	m_referenceCount = 1; // start this off as 1.  This means that an "attach" is implied by creating a NetCommandMsg object.
 	m_commandType = NETCOMMANDTYPE_UNKNOWN;

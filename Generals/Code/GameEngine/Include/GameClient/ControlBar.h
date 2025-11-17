@@ -457,7 +457,6 @@ public:
 		m_upgradeLabel3Win = NULL;
 		m_upgradeLabel4Win = NULL;
 		sideWindow = NULL;
-		//
 	}
 	~SideSelectWindowData(void);
 

@@ -61,7 +61,6 @@ WaveGuideUpdateModuleData::WaveGuideUpdateModuleData( void )
 	m_bridgeParticleAngleFudge = 0.0f;
 	m_randomSplashSoundFrequency = 0;
 	m_waveDelay = 0.0f;
-	//
 	m_ySize = 0.0f;
 	m_linearWaveSpacing = 0.0f;
 	m_waveBendMagnitude = 0.0f;

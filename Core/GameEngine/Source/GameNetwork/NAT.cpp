@@ -159,7 +159,6 @@ NAT::NAT()
 	m_spareSocketPort = 0;
 	m_startingPortNumber = 0;
 	m_targetNodeNumber = 0;
-	//
 	m_transport = NULL;
 	m_slotList = NULL;
 	m_roundTimeout = 0;

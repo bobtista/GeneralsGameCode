@@ -145,7 +145,6 @@ LookAtTranslator::LookAtTranslator() :
 	m_anchor.x = m_anchor.y = 0;
 	m_currentPos.x = m_currentPos.y = 0;
 	m_originalAnchor.x = m_originalAnchor.y = 0;
-	//
 
 	OptionPreferences prefs;
 	m_screenEdgeScrollMode = prefs.getScreenEdgeScrollMode();

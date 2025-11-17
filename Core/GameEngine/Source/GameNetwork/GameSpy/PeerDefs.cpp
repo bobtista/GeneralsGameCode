@@ -98,7 +98,6 @@ void GameSpyInfo::reset( void )
 	m_pingString.clear();
 	m_rawConfig.clear();
 	m_rawMotd.clear();
-	//
 
 	m_internalIP = m_externalIP = 0;
 

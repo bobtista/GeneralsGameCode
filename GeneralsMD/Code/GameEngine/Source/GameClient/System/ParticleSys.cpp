@@ -1034,7 +1034,6 @@ ParticleSystem::ParticleSystem( const ParticleSystemTemplate *sysTemplate,
 	m_lastPos.zero();
 	m_pos.zero();
 	m_velCoeff.zero();
-	//
 
 	m_attachedToDrawableID = INVALID_DRAWABLE_ID;
 	m_attachedToObjectID = INVALID_ID;
@@ -2819,7 +2818,6 @@ ParticleSystemManager::ParticleSystemManager( void )
 	m_particleCount = 0;
 	m_fieldParticleCount = 0;
 	m_particleSystemCount = 0;
-	//
 
 	for( Int i = 0; i < NUM_PARTICLE_PRIORITIES; ++i )
 	{

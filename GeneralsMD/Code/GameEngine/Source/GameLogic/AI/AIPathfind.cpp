@@ -3036,7 +3036,6 @@ m_width(0),
 m_xOrigin(0),
 m_yOrigin(0),
 m_zone(0)
-//
 {
 	m_startCell.x = -1;
 	m_startCell.y = -1;
@@ -5266,7 +5265,6 @@ Bool Pathfinder::adjustToPossibleDestination(Object *obj, const LocomotorSet& lo
 		return false;
 	}
 
-	//
 	Int zone1, zone2;
 	Bool isCrusher = obj ? obj->getCrusherLevel() > 0 : false;
 	zone1 = m_zoneManager.getEffectiveZone(locomotorSet.getValidSurfaces(), isCrusher, parentCell->getZone());

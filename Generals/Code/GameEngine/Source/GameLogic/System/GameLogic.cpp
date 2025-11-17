@@ -1154,7 +1154,6 @@ void GameLogic::startNewGame( Bool saveGame )
 			TheMouse->setVisibility(FALSE);
 			m_loadScreen->init(game);
 
-			//
 			updateLoadProgress( LOAD_PROGRESS_START );
 		}
 	}

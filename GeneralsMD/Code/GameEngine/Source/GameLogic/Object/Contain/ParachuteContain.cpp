@@ -110,7 +110,6 @@ ParachuteContain::ParachuteContain( Thing *thing, const ModuleData *moduleData )
 	m_riderSwayBone.zero();
 	m_riderSwayOffset.zero();
 
-	//
 	const ParachuteContainModuleData* d = getParachuteContainModuleData();
 	if (d)
 	{

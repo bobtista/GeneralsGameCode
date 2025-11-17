@@ -59,7 +59,6 @@ StructureToppleUpdate::StructureToppleUpdate( Thing *thing, const ModuleData* mo
 	m_delayBurstLocation.zero();
 	m_structuralIntegrity = 0.0f;
 	m_toppleDirection.x = m_toppleDirection.y = 0;
-	//
 	m_toppleFrame = 0;
 	m_toppleState = TOPPLESTATE_STANDING;
 	m_toppleVelocity = 0.0f;

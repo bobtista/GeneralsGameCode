@@ -80,7 +80,6 @@ StatsCollector::StatsCollector( void )
 	m_scrollBeginTime = 0;
 	m_scrollTime = 0;
 
-	//
 	m_timeCount = 0;
 	m_buildCommands = 0;
 	m_moveCommands = 0;
