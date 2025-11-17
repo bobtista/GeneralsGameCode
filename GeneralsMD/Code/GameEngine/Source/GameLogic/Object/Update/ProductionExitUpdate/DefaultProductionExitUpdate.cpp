@@ -49,7 +49,6 @@ DefaultProductionExitUpdate::DefaultProductionExitUpdate( Thing *thing, const Mo
 
 	m_rallyPoint.zero();
 
-	//
 
 	setWakeFrame(getObject(), UPDATE_SLEEP_FOREVER);
 }

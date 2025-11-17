@@ -943,7 +943,6 @@ m_structuresPoorMod(0.0f),
 m_teamWealthyMod(0.0f),
 m_aiDozerBoredRadiusModifier(2.0),
 m_aiCrushesInfantry(true)
-//
 {
 }
 

@@ -239,7 +239,6 @@ UnicodeString ProductionPrerequisite::getRequiresList(const Player *player) cons
 	{
 		orRequirements[i] = FALSE;
 	}
-	//
 	// account for the "or" unit cases, start for loop at 1
 	for (i = 1; i < cnt; i++)
 	{

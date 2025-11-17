@@ -208,7 +208,6 @@ GameWindow *resAcceptMenu = NULL;
 extern DisplaySettings oldDispSettings, newDispSettings;
 extern Bool dispChanged;
 //static time_t timeStarted = 0, currentTime = 0;
-//
 
 void diffReverseSide( void );
 void HandleCanceledDownload( Bool resetDropDown )
@@ -1445,7 +1444,6 @@ WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
 				{
 					QuitMessageBoxYesNo(TheGameText->fetch("GUI:QuitPopupTitle"), TheGameText->fetch("GUI:QuitPopupMessage"),quitCallback,NULL);
 				}
-				//
 //#endif
 
 			}

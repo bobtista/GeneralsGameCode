@@ -772,7 +772,6 @@ void finishSinglePlayerInit( void )
 
 	TheInGameUI->freeMessageResources();
 
-	//
 	if (s_blankLayout)
 	{
 		s_blankLayout->destroyWindows();

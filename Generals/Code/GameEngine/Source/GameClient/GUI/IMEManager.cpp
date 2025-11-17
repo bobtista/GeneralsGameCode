@@ -515,7 +515,6 @@ IMEManager::IMEManager()
 	m_pageStart(0),
 	m_selectedIndex(0),
 	m_unicodeIME(FALSE)
-	//
 {
 }
 

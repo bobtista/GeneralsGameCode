@@ -5475,7 +5475,6 @@ FloatingTextData::FloatingTextData(void)
 	m_frameTimeOut = 0;
 	m_pos3D.zero();
 	m_text.clear();
-	//
 	m_dString = TheDisplayStringManager->newDisplayString();
 }
 

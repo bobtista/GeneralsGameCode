@@ -65,7 +65,6 @@ public:
 		m_defectionDetectionFlashPhase = FALSE;
 		m_defectionDetectionStart = 0;
 		m_doDefectorFX = FALSE;
-		//
 	}
 	// virtual destructor prototype provided by memory pool object
 

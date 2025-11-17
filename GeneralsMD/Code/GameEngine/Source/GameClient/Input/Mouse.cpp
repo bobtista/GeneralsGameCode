@@ -458,7 +458,6 @@ Mouse::Mouse( void )
 	m_dragTolerance = 0;
 	m_dragTolerance3D = 0;
 	m_dragToleranceMS = 0;
-	//
 
 	//m_tooltipString.clear();	// redundant
 	m_displayTooltip = FALSE;

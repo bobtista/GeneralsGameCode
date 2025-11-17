@@ -3774,7 +3774,6 @@ Bool PartitionManager::tryPosition( const Coord3D *center,
 	// srj sez:
 	// we don't usually find positions on impassable areas.
 	// someday, add bit options for this, like for water.
-	//
 	{
 		Int cellX = REAL_TO_INT_FLOOR(pos.x / PATHFIND_CELL_SIZE);
 		Int cellY = REAL_TO_INT_FLOOR(pos.y / PATHFIND_CELL_SIZE);

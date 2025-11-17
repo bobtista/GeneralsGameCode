@@ -574,10 +574,13 @@ GlobalData::GlobalData()
 	m_debugVisibilityTileDuration = LOGICFRAMES_PER_SECOND;
 	m_debugProjectilePath = FALSE;
 	m_debugProjectileTileWidth = 10;
+	m_debugProjectileTileDuration = LOGICFRAMES_PER_SECOND;
 	m_debugThreatMap = FALSE;
 	m_maxDebugThreat = 5000;
+	m_debugThreatMapTileDuration = LOGICFRAMES_PER_SECOND;
 	m_debugCashValueMap = FALSE;
 	m_maxDebugValue = 10000;
+	m_debugCashValueMapTileDuration = LOGICFRAMES_PER_SECOND;
 	m_vTune = false;
 	m_checkForLeaks = TRUE;
 	m_benchmarkTimer = -1;

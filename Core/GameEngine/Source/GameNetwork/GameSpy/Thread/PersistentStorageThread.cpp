@@ -1110,7 +1110,6 @@ void PSPlayerStats::reset( void )
 
 	maxQMwinsInARow = 0;
 	QMwinsInARow = 0;
-	//
 }
 
 //-------------------------------------------------------------------------

@@ -301,7 +301,6 @@ void GameLogic::prepareNewGame( GameMode gameMode, GameDifficulty diff, Int rank
 {
 	//Fix for loading game scene
 	setGameLoading(TRUE);
-	//
 
 	TheScriptEngine->setGlobalDifficulty(diff);
 

@@ -363,7 +363,6 @@ UpdateSleepTime ToppleUpdate::update()
 void ToppleUpdate::onCollide( Object *other, const Coord3D *loc, const Coord3D *normal )
 {
 	// Note that other == null means "collide with ground"
-	//
 	if (other == NULL)
 		return;
 

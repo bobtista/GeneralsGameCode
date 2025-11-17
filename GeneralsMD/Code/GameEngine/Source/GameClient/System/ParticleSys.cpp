@@ -84,8 +84,6 @@ ParticleInfo::ParticleInfo( void )
 
 	m_lifetime = 0;
 	m_particleUpTowardsEmitter = FALSE;
-
-	//
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -730,7 +728,6 @@ ParticleSystemInfo::ParticleSystemInfo()
 	m_slavePosOffset.zero();
 	m_systemLifetime = 0;
 
-	//
 	// some default values for the wind motion values
 	m_windMotion = WIND_MOTION_NOT_USED;
 	m_windAngle = 0.0f;

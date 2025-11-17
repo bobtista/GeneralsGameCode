@@ -1026,7 +1026,6 @@ void InitWOLGameGadgets( void )
 
 	//Tooltip Function set
 	windowMap->winSetTooltipFunc(MapSelectorTooltip);
-	//
 
 	GameWindow *staticTextTitle = TheWindowManager->winGetWindowFromId( parentWOLGameSetup, staticTextTitleID );
 	if (staticTextTitle)

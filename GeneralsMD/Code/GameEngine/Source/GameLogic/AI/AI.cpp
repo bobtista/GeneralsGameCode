@@ -949,7 +949,6 @@ m_aiDozerBoredRadiusModifier(2.0),
 m_aiCrushesInfantry(true),
 m_maxRetaliateDistance(210.0f),
 m_retaliateFriendsRadius(120.0f)
-//
 {
 }
 

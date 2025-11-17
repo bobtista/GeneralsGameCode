@@ -1118,8 +1118,6 @@ StateReturnType DozerPrimaryIdleState::update( void )
 			//
 			// in theory we would need to "interrupt" whatever it is the Dozer is doing now, but
 			// we know we're in the idle state doing nothing so we don't really need to
-			//
-
 		} else {
 			getMachineOwner()->setWeaponSetFlag(WEAPONSET_MINE_CLEARING_DETAIL);//maybe go clear some mines, if I feel like it
 			Object *mine = findMine(dozer);
