@@ -368,9 +368,9 @@ public:
 
 	WideChar& operator[](Int index)
 	{
-		Int length = getLength();
-		DEBUG_ASSERTCRASH(index >= 0 && index < length, ("bad index in UnicodeString::operator[]"));
-		ensureUniqueBufferOfSize(length + 1, true, NULL, NULL);
+		DEBUG_ASSERTCRASH(m_data && m_data->m_numCharsAllocated > index && index >= 0, ("bad index in UnicodeString::operator[]"));
+
+		ensureUniqueBufferOfSize(m_data->m_numCharsAllocated, true, NULL, NULL);
 		return peek()[index];
 	}
 };
