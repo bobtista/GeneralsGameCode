@@ -957,16 +957,19 @@ static Bool TruncatePlayerNames(AsciiStringVec& playerNames, Int truncateAmount)
 	Int truncateNameAmount = 0;
 	for (size_t i = 0; i < lengthIndex.size(); ++i)
 	{
+		const Int playerIndex = lengthIndex[i].Index;
+		const Int playerLength = lengthIndex[i].Length;
+
 		// round avg name length up, which will penalize the final entry (longest name) as it will have to account for the roundings
-		Int avgNameLength = ((remainingNamesLength - truncateAmount) + (playerNames.size() - i - 1)) / (playerNames.size() - i);
-		remainingNamesLength -= lengthIndex[i].Length;
-		if (lengthIndex[i].Length <= avgNameLength)
+		const Int avgNameLength = ((remainingNamesLength - truncateAmount) + (playerNames.size() - i - 1)) / (playerNames.size() - i);
+		remainingNamesLength -= playerLength;
+		if (playerLength <= avgNameLength)
 		{
 			continue;
 		}
 
 		// ensure a longer name is not truncated less than a previous, shorter name
-		truncateNameAmount = std::max(truncateNameAmount, lengthIndex[i].Length - avgNameLength);
+		truncateNameAmount = std::max(truncateNameAmount, playerLength - avgNameLength);
 		if (i == lengthIndex.size() - 1)
 		{
 			// ensure we account for rounding errors when truncating the last, longest entry
@@ -974,12 +977,13 @@ static Bool TruncatePlayerNames(AsciiStringVec& playerNames, Int truncateAmount)
 		}
 
 		// as the name is UTF-8, make sure we don't truncate part of a multibyte character
-		while (lengthIndex[i].Length - truncateNameAmount >= MinimumNameLength && (playerNames[lengthIndex[i].Index][lengthIndex[i].Length - truncateNameAmount + 1] & 0xC0) == 0x80)
+		while (playerLength - truncateNameAmount >= MinimumNameLength && (playerNames[playerIndex].getCharAt(playerLength - truncateNameAmount + 1) & 0xC0) == 0x80)
 		{
-			++truncateNameAmount;    // move back to the start of the multibyte character
+			// move back to the start of the multibyte character
+			++truncateNameAmount;
 		}
 
-		playerNames[lengthIndex[i].Index].truncateBy(truncateNameAmount);
+		playerNames[playerIndex].truncateBy(truncateNameAmount);
 		truncateAmount -= truncateNameAmount;
 	}
 
@@ -1062,11 +1066,15 @@ AsciiString GameInfoToAsciiString(const GameInfo* game, const AsciiStringVec& pl
 		if (slot && slot->isHuman())
 		{
 			str.format("H%s,%X,%d,%c%c,%d,%d,%d,%d,%d:",
-			           playerNames[i].str(), slot->getIP(),
-			           slot->getPort(), (slot->isAccepted() ? 'T' : 'F'),
-			           (slot->hasMap() ? 'T' : 'F'),
-			           slot->getColor(), slot->getPlayerTemplate(),
-			           slot->getStartPos(), slot->getTeamNumber(),
+			           playerNames[i].str(),
+			           slot->getIP(),
+			           slot->getPort(),
+			           slot->isAccepted() ? 'T' : 'F',
+			           slot->hasMap() ? 'T' : 'F',
+			           slot->getColor(),
+			           slot->getPlayerTemplate(),
+			           slot->getStartPos(),
+			           slot->getTeamNumber(),
 			           slot->getNATBehavior());
 		}
 		else if (slot && slot->isAI())
