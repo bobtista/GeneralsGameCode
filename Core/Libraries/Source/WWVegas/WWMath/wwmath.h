@@ -697,6 +697,6 @@ WWINLINE float WWMath::Normalize_Angle(float angle)
 // ----------------------------------------------------------------------------
 WWINLINE int WWMath::Div_Ceil(const int num, const int den)
 {
-	const div_t res = std::div(num, den);
+	const div_t res = ::div(num, den);
 	return (res.rem != 0 && res.quot >= 0) ? res.quot + 1 : res.quot;
 }
