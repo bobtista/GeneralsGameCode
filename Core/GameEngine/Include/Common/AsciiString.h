@@ -382,9 +382,8 @@ public:
 
 	Char& operator[](Int index)
 	{
-		Int length = getLength();
-		DEBUG_ASSERTCRASH(index >= 0 && index < length, ("bad index in AsciiString::operator[]"));
-		ensureUniqueBufferOfSize(length + 1, true, NULL, NULL);
+		DEBUG_ASSERTCRASH(index >= 0 && index < getLength(), ("bad index in AsciiString::operator[]"));
+		ensureUniqueBufferOfSize(m_data->m_numCharsAllocated, true, NULL, NULL);
 		return peek()[index];
 	}
 

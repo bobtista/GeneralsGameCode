@@ -954,22 +954,20 @@ static Bool TruncatePlayerNames(AsciiStringVec& playerNames, Int truncateAmount)
 	// sort based on length in ascending order
 	std::sort(lengthIndex.begin(), lengthIndex.end());
 
-	Int truncateNameAmount = 0;
 	for (size_t i = 0; i < lengthIndex.size(); ++i)
 	{
 		const Int playerIndex = lengthIndex[i].Index;
 		const Int playerLength = lengthIndex[i].Length;
 
 		// round avg name length up, which will penalize the final entry (longest name) as it will have to account for the roundings
-		const Int avgNameLength = ((remainingNamesLength - truncateAmount) + (playerNames.size() - i - 1)) / (playerNames.size() - i);
+		const Int avgNameLength = WWMath::Div_Ceil((remainingNamesLength - truncateAmount), (playerNames.size() - i));
 		remainingNamesLength -= playerLength;
 		if (playerLength <= avgNameLength)
 		{
 			continue;
 		}
 
-		// ensure a longer name is not truncated less than a previous, shorter name
-		truncateNameAmount = std::max(truncateNameAmount, playerLength - avgNameLength);
+		Int truncateNameAmount = playerLength - avgNameLength;
 		if (i == lengthIndex.size() - 1)
 		{
 			// ensure we account for rounding errors when truncating the last, longest entry
