@@ -186,6 +186,7 @@ SinglePlayerLoadScreen::SinglePlayerLoadScreen( void )
 	m_percent = NULL;
 	m_videoStream = NULL;
 	m_videoBuffer = NULL;
+	m_skipVideo = FALSE;
 	m_objectiveWin = NULL;
 	for(Int i = 0; i < MAX_OBJECTIVE_LINES; ++i)
 		m_objectiveLines[i] = NULL;
@@ -212,6 +213,16 @@ SinglePlayerLoadScreen::~SinglePlayerLoadScreen( void )
 	TheAudio->removeAudioEvent( m_ambientLoopHandle );
 	m_ambientLoopHandle = NULL;
 
+}
+
+Bool SinglePlayerLoadScreen::isVideoPlaying( void ) const
+{
+	return m_videoStream != NULL && m_videoBuffer != NULL;
+}
+
+void SinglePlayerLoadScreen::skipVideo( void )
+{
+	m_skipVideo = TRUE;
 }
 
 void SinglePlayerLoadScreen::moveWindows( Int frame )
@@ -619,6 +630,7 @@ void SinglePlayerLoadScreen::reset( void )
 {
  setLoadScreen(NULL);
  m_progressBar = NULL;
+ m_skipVideo = FALSE;
 }
 
 void SinglePlayerLoadScreen::update( Int percent )
@@ -1053,6 +1065,12 @@ void ChallengeLoadScreen::init( GameInfo *game )
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
 		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
 		{
+			if ( m_skipVideo )
+			{
+				m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
+				break;
+			}
+
 			TheGameEngine->serviceWindowsOS();
 
 			if(!m_videoStream->isFrameReady())

@@ -94,6 +94,9 @@ public:
 
 	virtual void setProgressRange( Int min, Int max );
 
+	Bool isVideoPlaying( void ) const;
+	void skipVideo( void );
+
 private:
 	GameWindow *m_progressBar;				///< Pointer to the Progress Bar on the window
 	GameWindow *m_percent;
@@ -112,6 +115,7 @@ private:
 
 	VideoBuffer *m_videoBuffer;
 	VideoStreamInterface *m_videoStream;
+	Bool m_skipVideo;
 
 	void moveWindows( Int frame );
 
