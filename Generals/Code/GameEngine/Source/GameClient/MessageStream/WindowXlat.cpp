@@ -54,6 +54,8 @@
 #include "GameClient/WindowXlat.h"
 #include "GameClient/Shell.h"
 #include "GameClient/Display.h"
+#include "GameLogic/GameLogic.h"
+#include "GameClient/LoadScreen.h"
 
 
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -306,6 +308,20 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 			{
 				TheDisplay->stopMovie();
 				returnCode = WIN_INPUT_USED;
+			}
+
+			if(returnCode != WIN_INPUT_USED
+				&& (key == KEY_ESC)
+				&& (BitIsSet( state, KEY_STATE_UP ))
+				&& TheGameLogic
+				&& TheGameLogic->m_loadScreen )
+			{
+				SinglePlayerLoadScreen *singlePlayerLoadScreen = dynamic_cast<SinglePlayerLoadScreen*>(TheGameLogic->m_loadScreen);
+				if( singlePlayerLoadScreen && singlePlayerLoadScreen->isVideoPlaying() )
+				{
+					singlePlayerLoadScreen->skipVideo();
+					returnCode = WIN_INPUT_USED;
+				}
 			}
 
 			if(returnCode != WIN_INPUT_USED
