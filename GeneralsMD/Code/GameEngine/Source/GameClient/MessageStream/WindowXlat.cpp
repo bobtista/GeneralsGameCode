@@ -312,26 +312,9 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 			UnsignedByte key		= msg->getArgument( 0 )->integer;
 			UnsignedByte state	= msg->getArgument( 1 )->integer;
 
-			Bool videoSkipHandled = FALSE;
-			if( (key == KEY_ESC)
-				&& (BitIsSet( state, KEY_STATE_UP )) )
-			{
-				if( TheGameLogic && TheGameLogic->getLoadScreen() )
-				{
-					LoadScreen *loadScreen = TheGameLogic->getLoadScreen();
-					if( loadScreen->isVideoPlaying() )
-					{
-						loadScreen->skipVideo();
-						returnCode = WIN_INPUT_USED;
-						videoSkipHandled = TRUE;
-					}
-				}
-			}
-
-			if( TheWindowManager && !videoSkipHandled )
-			{
+			// process event through window system
+			if( TheWindowManager )
 				returnCode = TheWindowManager->winProcessKey( key, state );
-			}
 
 
 			// If we're in a movie, we want to be able to escape out of it
@@ -343,6 +326,21 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 			{
 				TheDisplay->stopMovie();
 				returnCode = WIN_INPUT_USED;
+			}
+
+			if(returnCode != WIN_INPUT_USED
+				&& (key == KEY_ESC)
+				&& (BitIsSet( state, KEY_STATE_UP )) )
+			{
+				if( TheGameLogic && TheGameLogic->getLoadScreen() )
+				{
+					LoadScreen *loadScreen = TheGameLogic->getLoadScreen();
+					if( loadScreen->isVideoPlaying() )
+					{
+						loadScreen->skipVideo();
+						returnCode = WIN_INPUT_USED;
+					}
+				}
 			}
 
 			if(returnCode != WIN_INPUT_USED
