@@ -312,15 +312,16 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 
 			if(returnCode != WIN_INPUT_USED
 				&& (key == KEY_ESC)
-				&& (BitIsSet( state, KEY_STATE_UP ))
-				&& TheGameLogic
-				&& TheGameLogic->getLoadScreen() )
+				&& (BitIsSet( state, KEY_STATE_UP )) )
 			{
-				SinglePlayerLoadScreen *singlePlayerLoadScreen = dynamic_cast<SinglePlayerLoadScreen*>(TheGameLogic->getLoadScreen());
-				if( singlePlayerLoadScreen && singlePlayerLoadScreen->isVideoPlaying() )
+				if( TheGameLogic && TheGameLogic->getLoadScreen() )
 				{
-					singlePlayerLoadScreen->skipVideo();
-					returnCode = WIN_INPUT_USED;
+					LoadScreen *loadScreen = TheGameLogic->getLoadScreen();
+					if( loadScreen->isVideoPlaying() )
+					{
+						loadScreen->skipVideo();
+						returnCode = WIN_INPUT_USED;
+					}
 				}
 			}
 
