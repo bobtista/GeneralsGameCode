@@ -165,7 +165,6 @@ SinglePlayerLoadScreen::SinglePlayerLoadScreen( void )
 	m_percent = NULL;
 	m_videoStream = NULL;
 	m_videoBuffer = NULL;
-	m_skipVideo = FALSE;
 	m_objectiveWin = NULL;
 	for(Int i = 0; i < MAX_OBJECTIVE_LINES; ++i)
 		m_objectiveLines[i] = NULL;
@@ -201,7 +200,10 @@ Bool SinglePlayerLoadScreen::isVideoPlaying( void ) const
 
 void SinglePlayerLoadScreen::skipVideo( void )
 {
-	m_skipVideo = TRUE;
+	if ( m_videoStream )
+	{
+		m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
+	}
 }
 
 void SinglePlayerLoadScreen::moveWindows( Int frame )
@@ -501,13 +503,16 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 		Int shiftedPercent = -FRAME_FUDGE_ADD + 1;
 		while (m_videoStream->frameIndex() < m_videoStream->frameCount() - 1 )
 		{
-			if ( m_skipVideo )
+			TheGameEngine->serviceWindowsOS();
+
+			if( TheKeyboard )
 			{
-				m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
-				break;
+				TheKeyboard->UPDATE();
+				TheKeyboard->createStreamMessages();
 			}
 
-			TheGameEngine->serviceWindowsOS();
+			if( TheMessageStream )
+				TheMessageStream->propagateMessages();
 
 			if(!m_videoStream->isFrameReady())
 			{
@@ -604,7 +609,6 @@ void SinglePlayerLoadScreen::reset( void )
 {
  setLoadScreen(NULL);
  m_progressBar = NULL;
- m_skipVideo = FALSE;
 }
 
 void SinglePlayerLoadScreen::update( Int percent )
