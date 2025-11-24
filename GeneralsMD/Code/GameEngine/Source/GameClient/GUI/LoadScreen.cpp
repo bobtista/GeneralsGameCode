@@ -188,7 +188,6 @@ SinglePlayerLoadScreen::SinglePlayerLoadScreen( void )
 	m_percent = NULL;
 	m_videoStream = NULL;
 	m_videoBuffer = NULL;
-	m_skipVideo = FALSE;
 	m_objectiveWin = NULL;
 	for(Int i = 0; i < MAX_OBJECTIVE_LINES; ++i)
 		m_objectiveLines[i] = NULL;
@@ -224,7 +223,10 @@ Bool SinglePlayerLoadScreen::isVideoPlaying( void ) const
 
 void SinglePlayerLoadScreen::skipVideo( void )
 {
-	m_skipVideo = TRUE;
+	if ( m_videoStream )
+	{
+		m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
+	}
 }
 
 void SinglePlayerLoadScreen::moveWindows( Int frame )
@@ -539,8 +541,6 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 	}
 	// else leave the default background screen
 
-	m_skipVideo = FALSE;
-
 	if(TheGameLODManager && TheGameLODManager->didMemPass())
 	{
 		Int progressUpdateCount = m_videoStream->frameCount() / FRAME_FUDGE_ADD;
@@ -556,21 +556,8 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 				TheKeyboard->createStreamMessages();
 			}
 
-			if ( m_skipVideo )
-			{
-				m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
-				break;
-			}
-
-			// NOTE: This may process stale messages, so we check m_skipVideo again after
 			if( TheMessageStream )
 				TheMessageStream->propagateMessages();
-
-			if ( m_skipVideo )
-			{
-				m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
-				break;
-			}
 
 			if(!m_videoStream->isFrameReady())
 			{
@@ -656,7 +643,6 @@ void SinglePlayerLoadScreen::reset( void )
 {
  setLoadScreen(NULL);
  m_progressBar = NULL;
- m_skipVideo = FALSE;
 }
 
 void SinglePlayerLoadScreen::update( Int percent )
@@ -684,7 +670,6 @@ ChallengeLoadScreen::ChallengeLoadScreen( void )
 	m_progressBar = NULL;
 	m_videoStream = NULL;
 	m_videoBuffer = NULL;
-	m_skipVideo = FALSE;
 
 	m_bioNameLeft = NULL;
 	m_bioAgeLeft = NULL;
@@ -779,7 +764,10 @@ Bool ChallengeLoadScreen::isVideoPlaying( void ) const
 
 void ChallengeLoadScreen::skipVideo( void )
 {
-	m_skipVideo = TRUE;
+	if ( m_videoStream )
+	{
+		m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
+	}
 }
 
 // accepts the number of chars to advance, the window we're concerned with, the total text for final display, and the current position of the readout
@@ -1096,8 +1084,6 @@ void ChallengeLoadScreen::init( GameInfo *game )
 	m_wndVideoManager = NEW WindowVideoManager;
 	m_wndVideoManager->init();
 
-	m_skipVideo = FALSE;
-
 	if(TheGameLODManager && TheGameLODManager->didMemPass())
 	{
 		Int progressUpdateCount = m_videoStream->frameCount() / FRAME_FUDGE_ADD;
@@ -1107,12 +1093,6 @@ void ChallengeLoadScreen::init( GameInfo *game )
 		{
 			TheGameEngine->serviceWindowsOS();
 
-			if ( m_skipVideo )
-			{
-				m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
-				break;
-			}
-
 			if ( TheKeyboard )
 			{
 				TheKeyboard->UPDATE();
@@ -1121,12 +1101,6 @@ void ChallengeLoadScreen::init( GameInfo *game )
 			if ( TheMessageStream )
 			{
 				TheMessageStream->propagateMessages();
-			}
-
-			if ( m_skipVideo )
-			{
-				m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
-				break;
 			}
 
 			if(!m_videoStream->isFrameReady())
@@ -1218,7 +1192,6 @@ void ChallengeLoadScreen::reset( void )
 {
  setLoadScreen(NULL);
  m_progressBar = NULL;
-	m_skipVideo = FALSE;
 }
 
 
