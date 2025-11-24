@@ -319,27 +319,19 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 				if( TheGameLogic && TheGameLogic->getLoadScreen() )
 				{
 					LoadScreen *loadScreen = TheGameLogic->getLoadScreen();
-					SinglePlayerLoadScreen *singlePlayerLoadScreen = dynamic_cast<SinglePlayerLoadScreen*>(loadScreen);
-					ChallengeLoadScreen *challengeLoadScreen = dynamic_cast<ChallengeLoadScreen*>(loadScreen);
-
-					if( singlePlayerLoadScreen )
+					if( loadScreen->isVideoPlaying() )
 					{
-						singlePlayerLoadScreen->skipVideo();
-						returnCode = WIN_INPUT_USED;
-						videoSkipHandled = TRUE;
-					}
-					else if( challengeLoadScreen )
-					{
-						challengeLoadScreen->skipVideo();
+						loadScreen->skipVideo();
 						returnCode = WIN_INPUT_USED;
 						videoSkipHandled = TRUE;
 					}
 				}
 			}
 
-			// process event through window system (but skip if we already handled video skip)
 			if( TheWindowManager && !videoSkipHandled )
+			{
 				returnCode = TheWindowManager->winProcessKey( key, state );
+			}
 
 
 			// If we're in a movie, we want to be able to escape out of it
