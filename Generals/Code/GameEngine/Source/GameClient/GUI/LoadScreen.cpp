@@ -74,6 +74,7 @@
 #include "GameClient/Display.h"
 #include "GameClient/WindowLayout.h"
 #include "GameClient/Mouse.h"
+#include "GameClient/Keyboard.h"
 #include "GameClient/VideoPlayer.h"
 #include "GameClient/MapUtil.h"
 #include "GameLogic/FPUControl.h"
