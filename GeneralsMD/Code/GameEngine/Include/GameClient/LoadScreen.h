@@ -63,6 +63,8 @@ public:
 	virtual void update( Int percent ); ///< Update the state of the slider bars
 	virtual void processProgress(Int playerId, Int percentage) = 0;
 	virtual void setProgressRange( Int min, Int max ) = 0;
+	virtual Bool isVideoPlaying( void ) const { return FALSE; }
+	virtual void skipVideo( void ) { }
 protected:
 	void setLoadScreen( GameWindow *g ) { m_loadScreen = g; }
 	GameWindow *m_loadScreen;		///< The GameWindow that is our loadscreen
@@ -94,8 +96,8 @@ public:
 
 	virtual void setProgressRange( Int min, Int max );
 
-	Bool isVideoPlaying( void ) const;
-	void skipVideo( void );
+	virtual Bool isVideoPlaying( void ) const;
+	virtual void skipVideo( void );
 
 private:
 	GameWindow *m_progressBar;				///< Pointer to the Progress Bar on the window
@@ -115,7 +117,6 @@ private:
 
 	VideoBuffer *m_videoBuffer;
 	VideoStreamInterface *m_videoStream;
-	Bool m_skipVideo;
 
 	void moveWindows( Int frame );
 
@@ -148,15 +149,14 @@ public:
 
 	virtual void setProgressRange( Int min, Int max );
 
-	Bool isVideoPlaying( void ) const;
-	void skipVideo( void );
+	virtual Bool isVideoPlaying( void ) const;
+	virtual void skipVideo( void );
 
 private:
 	GameWindow *m_progressBar;				///< Pointer to the Progress Bar on the window
 
 	VideoBuffer *m_videoBuffer;
 	VideoStreamInterface *m_videoStream;
-	Bool m_skipVideo;
 
 	WindowVideoManager *m_wndVideoManager;
 
