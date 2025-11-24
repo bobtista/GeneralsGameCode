@@ -312,8 +312,33 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 			UnsignedByte key		= msg->getArgument( 0 )->integer;
 			UnsignedByte state	= msg->getArgument( 1 )->integer;
 
-			// process event through window system
-			if( TheWindowManager )
+			Bool videoSkipHandled = FALSE;
+			if( (key == KEY_ESC)
+				&& (BitIsSet( state, KEY_STATE_UP )) )
+			{
+				if( TheGameLogic && TheGameLogic->getLoadScreen() )
+				{
+					LoadScreen *loadScreen = TheGameLogic->getLoadScreen();
+					SinglePlayerLoadScreen *singlePlayerLoadScreen = dynamic_cast<SinglePlayerLoadScreen*>(loadScreen);
+					ChallengeLoadScreen *challengeLoadScreen = dynamic_cast<ChallengeLoadScreen*>(loadScreen);
+
+					if( singlePlayerLoadScreen )
+					{
+						singlePlayerLoadScreen->skipVideo();
+						returnCode = WIN_INPUT_USED;
+						videoSkipHandled = TRUE;
+					}
+					else if( challengeLoadScreen )
+					{
+						challengeLoadScreen->skipVideo();
+						returnCode = WIN_INPUT_USED;
+						videoSkipHandled = TRUE;
+					}
+				}
+			}
+
+			// process event through window system (but skip if we already handled video skip)
+			if( TheWindowManager && !videoSkipHandled )
 				returnCode = TheWindowManager->winProcessKey( key, state );
 
 
@@ -326,20 +351,6 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 			{
 				TheDisplay->stopMovie();
 				returnCode = WIN_INPUT_USED;
-			}
-
-			if(returnCode != WIN_INPUT_USED
-				&& (key == KEY_ESC)
-				&& (BitIsSet( state, KEY_STATE_UP ))
-				&& TheGameLogic
-				&& TheGameLogic->m_loadScreen )
-			{
-				SinglePlayerLoadScreen *singlePlayerLoadScreen = dynamic_cast<SinglePlayerLoadScreen*>(TheGameLogic->m_loadScreen);
-				if( singlePlayerLoadScreen && singlePlayerLoadScreen->isVideoPlaying() )
-				{
-					singlePlayerLoadScreen->skipVideo();
-					returnCode = WIN_INPUT_USED;
-				}
 			}
 
 			if(returnCode != WIN_INPUT_USED

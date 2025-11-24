@@ -314,9 +314,9 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 				&& (key == KEY_ESC)
 				&& (BitIsSet( state, KEY_STATE_UP ))
 				&& TheGameLogic
-				&& TheGameLogic->m_loadScreen )
+				&& TheGameLogic->getLoadScreen() )
 			{
-				SinglePlayerLoadScreen *singlePlayerLoadScreen = dynamic_cast<SinglePlayerLoadScreen*>(TheGameLogic->m_loadScreen);
+				SinglePlayerLoadScreen *singlePlayerLoadScreen = dynamic_cast<SinglePlayerLoadScreen*>(TheGameLogic->getLoadScreen());
 				if( singlePlayerLoadScreen && singlePlayerLoadScreen->isVideoPlaying() )
 				{
 					singlePlayerLoadScreen->skipVideo();

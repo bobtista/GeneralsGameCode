@@ -162,6 +162,7 @@ public:
 
 	void updateLoadProgress( Int progress );
 	void deleteLoadScreen( void );
+	LoadScreen *getLoadScreen( void ) const { return m_loadScreen; }
 
 	//Kris: Cut setGameLoading() and replaced with setLoadingMap() and setLoadingSave() -- reason: nomenclature
 	//void setGameLoading( Bool loading ) { m_loadingScene = loading; }

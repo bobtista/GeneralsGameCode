@@ -148,11 +148,15 @@ public:
 
 	virtual void setProgressRange( Int min, Int max );
 
+	Bool isVideoPlaying( void ) const;
+	void skipVideo( void );
+
 private:
 	GameWindow *m_progressBar;				///< Pointer to the Progress Bar on the window
 
 	VideoBuffer *m_videoBuffer;
 	VideoStreamInterface *m_videoStream;
+	Bool m_skipVideo;
 
 	WindowVideoManager *m_wndVideoManager;
 
