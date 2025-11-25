@@ -217,10 +217,8 @@ Bool Win32BIGFileSystem::loadBigFilesFromDirectory(AsciiString dir, AsciiString 
 	FilenameListIter it = filenameList.begin();
 	while (it != filenameList.end()) {
 #if RTS_ZEROHOUR
-		AsciiString filePath = (*it);
-		filePath.toLower();
 		// TheSuperHackers @fix bobtista 18/11/2025 Skip duplicate INIZH.big in Data\INI to prevent CRC mismatches on EA App/Origin installs
-		if (strstr(filePath.str(), "data\\ini\\inizh.big") != NULL || strstr(filePath.str(), "data/ini/inizh.big") != NULL) {
+		if ((*it).endsWithNoCase("data\\ini\\inizh.big") || (*it).endsWithNoCase("data/ini/inizh.big")) {
 			it++;
 			continue;
 		}
