@@ -218,9 +218,7 @@ SinglePlayerLoadScreen::~SinglePlayerLoadScreen( void )
 
 Bool SinglePlayerLoadScreen::isVideoPlaying( void ) const
 {
-	return m_videoStream != NULL 
-		&& m_videoBuffer != NULL 
-		&& m_videoStream->frameIndex() < m_videoStream->frameCount() - 1;
+	return m_videoStream != NULL && m_videoBuffer != NULL;
 }
 
 void SinglePlayerLoadScreen::skipVideo( void )
@@ -759,9 +757,7 @@ ChallengeLoadScreen::~ChallengeLoadScreen( void )
 
 Bool ChallengeLoadScreen::isVideoPlaying( void ) const
 {
-	return m_videoStream != NULL 
-		&& m_videoBuffer != NULL 
-		&& m_videoStream->frameIndex() < m_videoStream->frameCount() - 1;
+	return m_videoStream != NULL && m_videoBuffer != NULL;
 }
 
 void ChallengeLoadScreen::skipVideo( void )
