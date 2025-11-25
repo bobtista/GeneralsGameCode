@@ -508,14 +508,10 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 		{
 			TheGameEngine->serviceWindowsOS();
 
-			if( TheKeyboard )
+			if( TheKeyboard && TheMessageStream )
 			{
 				TheKeyboard->UPDATE();
 				TheKeyboard->createStreamMessages();
-			}
-
-			if( TheMessageStream )
-			{
 				TheMessageStream->propagateMessages();
 			}
 
