@@ -296,8 +296,9 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 
 			// process event through window system
 			if( TheWindowManager )
+			{
 				returnCode = TheWindowManager->winProcessKey( key, state );
-
+			}
 
 			// If we're in a movie, we want to be able to escape out of it
 			if(returnCode != WIN_INPUT_USED
@@ -314,10 +315,10 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 				&& (key == KEY_ESC)
 				&& (BitIsSet( state, KEY_STATE_UP )) )
 			{
-				if( TheGameLogic && TheGameLogic->getLoadScreen() )
+				if( TheGameLogic )
 				{
 					LoadScreen *loadScreen = TheGameLogic->getLoadScreen();
-					if( loadScreen->isVideoPlaying() )
+					if( loadScreen && loadScreen->isVideoPlaying() )
 					{
 						loadScreen->skipVideo();
 						returnCode = WIN_INPUT_USED;
