@@ -104,7 +104,7 @@ bit8 UDP::getLocalAddr(uint32 &ip, uint16 &port)
 // private function
 sint32 UDP::SetBlocking(bit8 block)
 {
-  #ifdef _WINDOWS
+  #if defined(_WINDOWS) || defined(_WIN32) || defined(WIN32)
    unsigned long flag=1;
    if (block)
      flag=0;

@@ -99,7 +99,7 @@ while (1)
 #include "tcp.h"
 #include <stdarg.h>
 
-#ifndef _WINDOWS
+#if !defined(_WINDOWS) && !defined(_WIN32) && !defined(WIN32)
 #include <errno.h>
 #define closesocket close
 #endif
@@ -170,7 +170,7 @@ sint32 TCP::SetBlocking(bit8 block,sint32 whichFD)
    if (whichFD==0)
      whichFD=fd;
 
-   #ifdef _WINDOWS
+   #if defined(_WINDOWS) || defined(_WIN32) || defined(WIN32)
    unsigned long flag=1;
    if (block)
      flag=0;

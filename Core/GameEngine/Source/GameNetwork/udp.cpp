@@ -201,7 +201,7 @@ Int UDP::getLocalAddr(UnsignedInt &ip, UnsignedShort &port)
 // private function
 Int UDP::SetBlocking(Int block)
 {
-  #ifdef _WINDOWS
+  #if defined(_WINDOWS) || defined(_WIN32) || defined(WIN32)
    unsigned long flag=1;
    if (block)
      flag=0;
