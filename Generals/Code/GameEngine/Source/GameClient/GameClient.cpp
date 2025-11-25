@@ -568,7 +568,6 @@ void GameClient::update( void )
 	{
 		TheKeyboard->UPDATE();
 		TheKeyboard->createStreamMessages();
-
 	}
 
 	// Update the Eva stuff

@@ -593,7 +593,6 @@ void GameClient::update( void )
 	{
 		TheKeyboard->UPDATE();
 		TheKeyboard->createStreamMessages();
-
 	}
 
 	// Update the Eva stuff
@@ -604,7 +603,6 @@ void GameClient::update( void )
 	{
 		TheMouse->UPDATE();
 		TheMouse->createStreamMessages();
-
 	}
 
 
