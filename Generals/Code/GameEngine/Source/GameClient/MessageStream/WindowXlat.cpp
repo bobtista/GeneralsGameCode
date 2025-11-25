@@ -55,7 +55,6 @@
 #include "GameClient/Shell.h"
 #include "GameClient/Display.h"
 #include "GameLogic/GameLogic.h"
-#include "GameClient/LoadScreen.h"
 
 
 // DEFINES ////////////////////////////////////////////////////////////////////
@@ -316,14 +315,9 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 				&& (key == KEY_ESC)
 				&& (BitIsSet( state, KEY_STATE_UP )) )
 			{
-				if( TheGameLogic )
+				if( TheGameLogic && TheGameLogic->skipLoadScreen() )
 				{
-					LoadScreen *loadScreen = TheGameLogic->getLoadScreen();
-					if( loadScreen && loadScreen->isVideoPlaying() )
-					{
-						loadScreen->skipVideo();
-						returnCode = WIN_INPUT_USED;
-					}
+					returnCode = WIN_INPUT_USED;
 				}
 			}
 

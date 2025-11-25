@@ -158,6 +158,7 @@ public:
 	void updateLoadProgress( Int progress );
 	void deleteLoadScreen( void );
 	LoadScreen *getLoadScreen( void ) const { return m_loadScreen; }
+	Bool skipLoadScreen( void );
 
 	void setGameLoading( Bool loading );
 	void setGameMode( GameMode mode );

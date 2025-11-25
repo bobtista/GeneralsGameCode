@@ -1123,6 +1123,19 @@ void GameLogic::deleteLoadScreen( void )
 }
 
 // ------------------------------------------------------------------------------------------------
+/** Skip the load screen video if one is playing */
+// ------------------------------------------------------------------------------------------------
+Bool GameLogic::skipLoadScreen( void )
+{
+	if( m_loadScreen && m_loadScreen->isVideoPlaying() )
+	{
+		m_loadScreen->skipVideo();
+		return TRUE;
+	}
+	return FALSE;
+}
+
+// ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 void GameLogic::updateDisplayBusyState()
 {
