@@ -515,7 +515,9 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 			}
 
 			if( TheMessageStream )
+			{
 				TheMessageStream->propagateMessages();
+			}
 
 			if(!m_videoStream->isFrameReady())
 			{
