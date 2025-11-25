@@ -328,6 +328,7 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 				returnCode = WIN_INPUT_USED;
 			}
 
+			// TheSuperHackers @feature bobtista 25/11/2025 Campaign Bink videos are now skippable with ESC
 			if(returnCode != WIN_INPUT_USED
 				&& (key == KEY_ESC)
 				&& (BitIsSet( state, KEY_STATE_UP )) )
