@@ -1198,7 +1198,6 @@ void ChallengeLoadScreen::reset( void )
  m_progressBar = NULL;
 }
 
-
 void ChallengeLoadScreen::update( Int percent )
 {
 	percent = (percent + FRAME_FUDGE_ADD)/1.3;
