@@ -63,7 +63,7 @@ public:
 	virtual void update( Int percent ); ///< Update the state of the slider bars
 	virtual void processProgress(Int playerId, Int percentage) = 0;
 	virtual void setProgressRange( Int min, Int max ) = 0;
-	virtual Bool skipVideo( void ) { return FALSE; }
+	virtual Bool skipVideo( void ) = 0;
 protected:
 	void setLoadScreen( GameWindow *g ) { m_loadScreen = g; }
 	GameWindow *m_loadScreen;		///< The GameWindow that is our loadscreen
