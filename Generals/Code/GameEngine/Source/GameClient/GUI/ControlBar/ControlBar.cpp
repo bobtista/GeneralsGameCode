@@ -1388,7 +1388,7 @@ void ControlBar::update( void )
 		{
 			if (m_animateWindowManager->isFinished() && m_animateWindowManager->isReversed())
 			{
-				Int id = (Int)TheNameKeyGenerator->nameToKey(AsciiString("ControlBar.wnd:ControlBarParent"));
+				Int id = (Int)TheNameKeyGenerator->nameToKey("ControlBar.wnd:ControlBarParent");
 				GameWindow *window = TheWindowManager->winGetWindowFromId(NULL, id);
 				if (window && !window->winIsHidden())
 					window->winHide(TRUE);
