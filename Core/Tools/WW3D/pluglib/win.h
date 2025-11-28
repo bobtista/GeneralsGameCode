@@ -65,7 +65,7 @@
 #pragma warning(pop)
 #endif
 
-#ifdef _WINDOWS
+#ifdef _WIN32
 extern HINSTANCE	ProgramInstance;
 extern HWND			MainWindow;
 extern bool GameInFocus;

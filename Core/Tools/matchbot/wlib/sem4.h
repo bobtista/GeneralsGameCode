@@ -19,13 +19,13 @@
 #pragma once
 
 #include <limits.h>
-#ifndef _WINDOWS
+#ifndef _WIN32
 #include <unistd.h>
 #endif
 #include "wstypes.h"
 
 #ifdef _REENTRANT
-#ifndef _WINDOWS
+#ifndef _WIN32
 #include <semaphore.h>
 #else
 #include <windows.h>
@@ -42,7 +42,7 @@ class Sem4
 {
  private:
   #ifdef _REENTRANT
-#ifndef _WINDOWS
+#ifndef _WIN32
   sem_t sem;
 #else
   HANDLE sem;

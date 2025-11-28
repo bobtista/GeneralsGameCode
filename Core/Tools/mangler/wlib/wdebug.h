@@ -59,7 +59,7 @@ will you be ready to leave grasshopper.
 #include <Utility/iostream_adapter.h>
 #include <Utility/sstream_adapter.h>
 
-#if !defined(_WINDOWS)
+#if !defined(_WIN32)
 // Windows headers have a tendency to redefine IN
 #ifdef IN
 #undef IN
@@ -183,7 +183,7 @@ extern CritSec DebugLibSemaphore;
 #define DBG(X) X
 
 // In Windows, send a copy to the debugger window
-#ifdef _WINDOWS
+#ifdef _WIN32
 
 // Print a variable
 #define PVAR(v) \
