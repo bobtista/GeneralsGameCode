@@ -216,17 +216,14 @@ SinglePlayerLoadScreen::~SinglePlayerLoadScreen( void )
 
 }
 
-Bool SinglePlayerLoadScreen::isVideoPlaying( void ) const
-{
-	return m_videoStream != NULL && m_videoBuffer != NULL;
-}
-
-void SinglePlayerLoadScreen::skipVideo( void )
+Bool SinglePlayerLoadScreen::skipVideo( void )
 {
 	if ( m_videoStream )
 	{
 		m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
+		return TRUE;
 	}
+	return FALSE;
 }
 
 void SinglePlayerLoadScreen::moveWindows( Int frame )
@@ -755,17 +752,14 @@ ChallengeLoadScreen::~ChallengeLoadScreen( void )
 	m_ambientLoopHandle = NULL;
 }
 
-Bool ChallengeLoadScreen::isVideoPlaying( void ) const
-{
-	return m_videoStream != NULL && m_videoBuffer != NULL;
-}
-
-void ChallengeLoadScreen::skipVideo( void )
+Bool ChallengeLoadScreen::skipVideo( void )
 {
 	if ( m_videoStream )
 	{
 		m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
+		return TRUE;
 	}
+	return FALSE;
 }
 
 // accepts the number of chars to advance, the window we're concerned with, the total text for final display, and the current position of the readout
@@ -1091,13 +1085,10 @@ void ChallengeLoadScreen::init( GameInfo *game )
 		{
 			TheGameEngine->serviceWindowsOS();
 
-			if ( TheKeyboard )
+			if( TheKeyboard && TheMessageStream )
 			{
 				TheKeyboard->UPDATE();
 				TheKeyboard->createStreamMessages();
-			}
-			if ( TheMessageStream )
-			{
 				TheMessageStream->propagateMessages();
 			}
 

@@ -194,17 +194,14 @@ SinglePlayerLoadScreen::~SinglePlayerLoadScreen( void )
 
 }
 
-Bool SinglePlayerLoadScreen::isVideoPlaying( void ) const
-{
-	return m_videoStream != NULL && m_videoBuffer != NULL;
-}
-
-void SinglePlayerLoadScreen::skipVideo( void )
+Bool SinglePlayerLoadScreen::skipVideo( void )
 {
 	if ( m_videoStream )
 	{
 		m_videoStream->frameGoto(m_videoStream->frameCount() - 1);
+		return TRUE;
 	}
+	return FALSE;
 }
 
 void SinglePlayerLoadScreen::moveWindows( Int frame )

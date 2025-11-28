@@ -60,8 +60,7 @@ public:
 	virtual void update( Int percent ); ///< Update the state of the slider bars
 	virtual void processProgress(Int playerId, Int percentage) = 0;
 	virtual void setProgressRange( Int min, Int max ) = 0;
-	virtual Bool isVideoPlaying( void ) const = 0;
-	virtual void skipVideo( void ) = 0;
+	virtual Bool skipVideo( void ) = 0;
 protected:
 	void setLoadScreen( GameWindow *g ) { m_loadScreen = g; }
 	GameWindow *m_loadScreen;		///< The GameWindow that is our loadscreen
@@ -93,8 +92,7 @@ public:
 
 	virtual void setProgressRange( Int min, Int max );
 
-	virtual Bool isVideoPlaying( void ) const;
-	virtual void skipVideo( void );
+	virtual Bool skipVideo( void );
 
 private:
 	GameWindow *m_progressBar;				///< Pointer to the Progress Bar on the window
@@ -143,8 +141,7 @@ public:
 		DEBUG_CRASH(("We Got to a single player load screen throw the Network..."));
 	}
 	virtual void setProgressRange( Int min, Int max ) { }
-	virtual Bool isVideoPlaying( void ) const { return FALSE; }
-	virtual void skipVideo( void ) { }
+	virtual Bool skipVideo( void ) { return FALSE; }
 
 private:
 	GameWindow *m_progressBar	;				///< Pointer to the Progress Bar on the window
@@ -170,8 +167,7 @@ public:
 	virtual void update(Int percent);		 ///< Update the state of the progress bar
 	void processProgress(Int playerId, Int percentage);
 	virtual void setProgressRange( Int min, Int max ) { }
-	virtual Bool isVideoPlaying( void ) const { return FALSE; }
-	virtual void skipVideo( void ) { }
+	virtual Bool skipVideo( void ) { return FALSE; }
 private:
 	GameWindow *m_progressBars[MAX_SLOTS];	///< pointer array to all the progress bars on the window
 	GameWindow *m_playerNames[MAX_SLOTS];		///< pointer array to all the static text player names on the window
@@ -200,8 +196,7 @@ public:
 	virtual void update(Int percent);		 ///< Update the state of the progress bar
 	void processProgress(Int playerId, Int percentage);
 	virtual void setProgressRange( Int min, Int max ) { }
-	virtual Bool isVideoPlaying( void ) const { return FALSE; }
-	virtual void skipVideo( void ) { }
+	virtual Bool skipVideo( void ) { return FALSE; }
 private:
 	GameWindow *m_progressBars[MAX_SLOTS];	///< pointer array to all the progress bars on the window
 	GameWindow *m_playerNames[MAX_SLOTS];		///< pointer array to all the static text player names on the window
@@ -242,8 +237,7 @@ public:
 	virtual void setProgressRange( Int min, Int max ) { }
 	void processTimeout(Int secondsLeft);
 	void setCurrentFilename(AsciiString filename);
-	virtual Bool isVideoPlaying( void ) const { return FALSE; }
-	virtual void skipVideo( void ) { }
+	virtual Bool skipVideo( void ) { return FALSE; }
 private:
 	GameWindow *m_progressBars[MAX_SLOTS];	///< pointer array to all the progress bars on the window
 	GameWindow *m_playerNames[MAX_SLOTS];		///< pointer array to all the static text player names on the window
