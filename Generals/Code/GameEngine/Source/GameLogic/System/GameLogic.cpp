@@ -985,12 +985,7 @@ void GameLogic::deleteLoadScreen( void )
 // ------------------------------------------------------------------------------------------------
 Bool GameLogic::skipLoadScreen( void )
 {
-	if( m_loadScreen && m_loadScreen->isVideoPlaying() )
-	{
-		m_loadScreen->skipVideo();
-		return TRUE;
-	}
-	return FALSE;
+	return m_loadScreen && m_loadScreen->skipVideo();
 }
 
 void GameLogic::setGameLoading( Bool loading )
