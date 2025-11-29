@@ -545,10 +545,8 @@ bool readBinaryToJson(const std::string& inFile, json& output)
 			DEBUG_LOG(("  String ID %u: '%s'", stringID, str.c_str()));
 		}
 	}
-	else
-	{
-		fseek(fp, 0, SEEK_SET);
-	}
+	
+	fseek(fp, 0, SEEK_SET);
 
 	FileInputStream stream(fp);
 	DataChunkInput chunkInput(&stream);
@@ -853,59 +851,61 @@ bool writeJsonToBinary(const json& input, const std::string& outFile)
 		return false;
 	}
 
-	FileOutputStream stream(fp);
-	DataChunkOutput chunkOutput(&stream);
-
-	if (input.contains("stringTable"))
 	{
-		std::vector<std::string> stringTable = input["stringTable"].get<std::vector<std::string>>();
-		
-		for (size_t i = 0; i < stringTable.size(); i++)
+		FileOutputStream stream(fp);
+		DataChunkOutput chunkOutput(&stream);
+
+		if (input.contains("stringTable"))
 		{
-			if (!stringTable[i].empty())
+			std::vector<std::string> stringTable = input["stringTable"].get<std::vector<std::string>>();
+			
+			for (size_t i = 0; i < stringTable.size(); i++)
 			{
-				chunkOutput.m_contents.allocateID(stringTable[i]);
+				if (!stringTable[i].empty())
+				{
+					chunkOutput.m_contents.allocateID(stringTable[i]);
+				}
 			}
-		}
-		
-		if (input.contains("chunks"))
-		{
-			for (const auto& chunkEntry : input["chunks"])
+			
+			if (input.contains("chunks"))
 			{
-				std::string chunkTypeName = chunkEntry.value("type", "");
-				if (chunkTypeName.empty())
+				for (const auto& chunkEntry : input["chunks"])
 				{
-					uint32_t chunkID = chunkEntry.value("id", 0);
-					if (chunkID < stringTable.size())
-						chunkTypeName = stringTable[chunkID];
+					std::string chunkTypeName = chunkEntry.value("type", "");
+					if (chunkTypeName.empty())
+					{
+						uint32_t chunkID = chunkEntry.value("id", 0);
+						if (chunkID < stringTable.size())
+							chunkTypeName = stringTable[chunkID];
+					}
+					
+					uint16_t outerVersion = chunkEntry.value("version", 1);
+
+					if (chunkTypeName.empty())
+						chunkTypeName = "UNKNOWN";
+
+					chunkOutput.openDataChunk(chunkTypeName.c_str(), outerVersion);
+
+					if (chunkEntry.contains("parsed"))
+					{
+						const json& parsed = chunkEntry["parsed"];
+						std::vector<uint8_t> innerData = serializeChunk(parsed, stringTable);
+						if (!innerData.empty())
+							chunkOutput.writeArrayOfBytes((const char*)innerData.data(), innerData.size());
+					}
+					else if (chunkEntry.contains("rawData"))
+					{
+						std::vector<uint8_t> innerData = chunkEntry["rawData"].get<std::vector<uint8_t>>();
+						if (!innerData.empty())
+							chunkOutput.writeArrayOfBytes((const char*)innerData.data(), innerData.size());
+					}
+
+					chunkOutput.closeDataChunk();
 				}
-				
-				uint16_t outerVersion = chunkEntry.value("version", 1);
-
-				if (chunkTypeName.empty())
-					chunkTypeName = "UNKNOWN";
-
-				chunkOutput.openDataChunk(chunkTypeName.c_str(), outerVersion);
-
-				if (chunkEntry.contains("parsed"))
-				{
-					const json& parsed = chunkEntry["parsed"];
-					std::vector<uint8_t> innerData = serializeChunk(parsed, stringTable);
-					if (!innerData.empty())
-						chunkOutput.writeArrayOfBytes((const char*)innerData.data(), innerData.size());
-				}
-				else if (chunkEntry.contains("rawData"))
-				{
-					std::vector<uint8_t> innerData = chunkEntry["rawData"].get<std::vector<uint8_t>>();
-					if (!innerData.empty())
-						chunkOutput.writeArrayOfBytes((const char*)innerData.data(), innerData.size());
-				}
-
-				chunkOutput.closeDataChunk();
 			}
 		}
 	}
-
+	
 	fclose(fp);
 	DEBUG_LOG(("Successfully wrote binary SCB file"));
 	return true;
