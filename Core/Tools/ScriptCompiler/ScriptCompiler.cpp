@@ -1,6 +1,6 @@
 /*
 **	Command & Conquer Generals Zero Hour(tm)
-**	Copyright 2025 Electronic Arts Inc.
+**	Copyright 2025 TheSuperHackers
 **
 **	This program is free software: you can redistribute it and/or modify
 **	it under the terms of the GNU General Public License as published by
@@ -25,8 +25,11 @@
 #include <cstdarg>
 #include <cstdint>
 #include <nlohmann/json.hpp>
+#include "DataChunk/DataChunk.h"
+#include "DataChunk/StreamAdapters.h"
 
 using json = nlohmann::json;
+using namespace DataChunk;
 
 static void DebugLog(const char* format, ...)
 {
@@ -114,135 +117,6 @@ private:
 	const uint8_t* m_data;
 	size_t m_size;
 	size_t m_pos;
-};
-
-class BinaryChunkReader
-{
-public:
-	BinaryChunkReader(FILE* fp) : m_file(fp), m_pos(0)
-	{
-		fseek(m_file, 0, SEEK_END);
-		m_size = ftell(m_file);
-		fseek(m_file, 0, SEEK_SET);
-	}
-
-	bool readFileHeader(std::vector<std::string>& stringTable)
-	{
-		char magic[4];
-		if (fread(magic, 1, 4, m_file) != 4) return false;
-		m_pos += 4;
-
-		if (memcmp(magic, "CkMp", 4) != 0)
-		{
-			fseek(m_file, 0, SEEK_SET);
-			m_pos = 0;
-			return true;
-		}
-
-		uint32_t numStrings;
-		if (fread(&numStrings, 4, 1, m_file) != 1) return false;
-		m_pos += 4;
-
-		DEBUG_LOG(("File header: CkMp, %u strings in table", numStrings));
-
-		for (uint32_t i = 0; i < numStrings; i++)
-		{
-			uint8_t length;
-			if (fread(&length, 1, 1, m_file) != 1) return false;
-			m_pos += 1;
-
-			std::vector<char> buffer(length);
-			if (length > 0)
-			{
-				if (fread(buffer.data(), 1, length, m_file) != length) return false;
-				m_pos += length;
-			}
-
-			uint32_t stringID;
-			if (fread(&stringID, 4, 1, m_file) != 1) return false;
-			m_pos += 4;
-
-			std::string str(buffer.begin(), buffer.end());
-
-			if (stringID >= stringTable.size())
-				stringTable.resize(stringID + 1);
-
-			stringTable[stringID] = str;
-			DEBUG_LOG(("  String ID %u: '%s'", stringID, str.c_str()));
-		}
-
-		return true;
-	}
-
-	bool readChunkHeader(ChunkHeader& header)
-	{
-		if (m_pos + 10 > m_size)
-			return false;
-
-		if (fread(&header.chunkID, 4, 1, m_file) != 1) return false;
-		if (fread(&header.version, 2, 1, m_file) != 1) return false;
-		if (fread(&header.dataSize, 4, 1, m_file) != 1) return false;
-
-		m_pos += 10;
-		return true;
-	}
-
-	bool readString(std::string& str)
-	{
-		uint16_t length;
-		if (fread(&length, 2, 1, m_file) != 1) return false;
-		m_pos += 2;
-
-		if (length > 0)
-		{
-			std::vector<char> buffer(length);
-			if (fread(buffer.data(), 1, length, m_file) != length) return false;
-			m_pos += length;
-			str = std::string(buffer.begin(), buffer.end());
-		}
-		else
-		{
-			str.clear();
-		}
-		return true;
-	}
-
-	bool readByte(uint8_t& val)
-	{
-		if (fread(&val, 1, 1, m_file) != 1) return false;
-		m_pos += 1;
-		return true;
-	}
-
-	bool readInt(int32_t& val)
-	{
-		if (fread(&val, 4, 1, m_file) != 4) return false;
-		m_pos += 4;
-		return true;
-	}
-
-	bool readReal(float& val)
-	{
-		if (fread(&val, 4, 1, m_file) != 1) return false;
-		m_pos += 4;
-		return true;
-	}
-
-	bool skipBytes(size_t count)
-	{
-		if (fseek(m_file, count, SEEK_CUR) != 0) return false;
-		m_pos += count;
-		return true;
-	}
-
-	size_t getPosition() const { return m_pos; }
-	size_t getSize() const { return m_size; }
-	bool atEnd() const { return m_pos >= m_size; }
-
-private:
-	FILE* m_file;
-	size_t m_pos;
-	size_t m_size;
 };
 
 void dumpHelp(const char *exe)
@@ -552,6 +426,60 @@ json parseChunkRecursive(DataBuffer& buffer, const std::vector<std::string>& str
 	return parsed;
 }
 
+struct ParseContext
+{
+	json* output;
+	std::vector<std::string>* stringTable;
+};
+
+bool parseChunkCallback(DataChunkInput& file, DataChunkInfo* info, void* userData)
+{
+	ParseContext* ctx = (ParseContext*)userData;
+	json chunk;
+
+	std::string chunkTypeName = info->label;
+	
+	uint32_t chunkID = 0;
+	for (size_t i = 0; i < ctx->stringTable->size(); i++)
+	{
+		if ((*ctx->stringTable)[i] == chunkTypeName)
+		{
+			chunkID = (uint32_t)i;
+			break;
+		}
+	}
+
+	chunk["id"] = chunkID;
+	chunk["type"] = chunkTypeName;
+	chunk["version"] = info->version;
+	chunk["dataSize"] = info->dataSize;
+
+	if (chunkTypeName == "Script" || chunkTypeName == "ScriptAction" || 
+	    chunkTypeName == "ScriptActionFalse" || chunkTypeName == "Condition" ||
+	    chunkTypeName == "ScriptGroup" || chunkTypeName == "PlayerScriptsList" ||
+	    chunkTypeName == "ScriptList" || chunkTypeName == "OrCondition")
+	{
+		std::vector<uint8_t> rawData(info->dataSize);
+		file.readArrayOfBytes((char*)rawData.data(), info->dataSize);
+
+		DataBuffer chunkBuffer(rawData);
+		json parsed = parseChunkRecursive(chunkBuffer, *ctx->stringTable, 0);
+		if (!parsed.is_null())
+			chunk["parsed"] = parsed;
+		else
+			chunk["rawData"] = rawData;
+	}
+	else
+	{
+		std::vector<uint8_t> rawData(info->dataSize);
+		file.readArrayOfBytes((char*)rawData.data(), info->dataSize);
+		chunk["rawData"] = rawData;
+	}
+
+	ctx->output->push_back(chunk);
+	return true;
+}
+
 bool readBinaryToJson(const std::string& inFile, json& output)
 {
 	DEBUG_LOG(("Reading binary SCB file: %s", inFile.c_str()));
@@ -563,10 +491,69 @@ bool readBinaryToJson(const std::string& inFile, json& output)
 		return false;
 	}
 
-	BinaryChunkReader reader(fp);
-	std::vector<std::string> stringTable;
+	char magic[4];
+	if (fread(magic, 1, 4, fp) != 4)
+	{
+		fclose(fp);
+		return false;
+	}
 
-	if (!reader.readFileHeader(stringTable))
+	std::vector<std::string> stringTable;
+	if (memcmp(magic, "CkMp", 4) == 0)
+	{
+		uint32_t numStrings;
+		if (fread(&numStrings, 4, 1, fp) != 1)
+		{
+			fclose(fp);
+			return false;
+		}
+
+		DEBUG_LOG(("File header: CkMp, %u strings in table", numStrings));
+
+		for (uint32_t i = 0; i < numStrings; i++)
+		{
+			uint8_t length;
+			if (fread(&length, 1, 1, fp) != 1)
+			{
+				fclose(fp);
+				return false;
+			}
+
+			std::vector<char> buffer(length);
+			if (length > 0)
+			{
+				if (fread(buffer.data(), 1, length, fp) != length)
+				{
+					fclose(fp);
+					return false;
+				}
+			}
+
+			uint32_t stringID;
+			if (fread(&stringID, 4, 1, fp) != 1)
+			{
+				fclose(fp);
+				return false;
+			}
+
+			std::string str(buffer.begin(), buffer.end());
+
+			if (stringID >= stringTable.size())
+				stringTable.resize(stringID + 1);
+
+			stringTable[stringID] = str;
+			DEBUG_LOG(("  String ID %u: '%s'", stringID, str.c_str()));
+		}
+	}
+	else
+	{
+		fseek(fp, 0, SEEK_SET);
+	}
+
+	FileInputStream stream(fp);
+	DataChunkInput chunkInput(&stream);
+
+	if (!chunkInput.isValidFileType())
 	{
 		DEBUG_LOG(("Failed to read file header"));
 		fclose(fp);
@@ -576,54 +563,24 @@ bool readBinaryToJson(const std::string& inFile, json& output)
 	DEBUG_LOG(("String table has %zu entries", stringTable.size()));
 
 	json chunks = json::array();
+	ParseContext ctx;
+	ctx.output = &chunks;
+	ctx.stringTable = &stringTable;
 
-	while (!reader.atEnd())
+	chunkInput.registerParser("Script", "", parseChunkCallback, &ctx);
+	chunkInput.registerParser("ScriptGroup", "", parseChunkCallback, &ctx);
+	chunkInput.registerParser("ScriptAction", "", parseChunkCallback, &ctx);
+	chunkInput.registerParser("ScriptActionFalse", "", parseChunkCallback, &ctx);
+	chunkInput.registerParser("Condition", "", parseChunkCallback, &ctx);
+	chunkInput.registerParser("OrCondition", "", parseChunkCallback, &ctx);
+	chunkInput.registerParser("ScriptList", "", parseChunkCallback, &ctx);
+	chunkInput.registerParser("PlayerScriptsList", "", parseChunkCallback, &ctx);
+
+	if (!chunkInput.parse(&ctx))
 	{
-		ChunkHeader header;
-		size_t chunkStart = reader.getPosition();
-
-		if (!reader.readChunkHeader(header))
-			break;
-
-		json chunk;
-		std::string chunkTypeName = "UNKNOWN";
-
-		if (header.chunkID < stringTable.size() && !stringTable[header.chunkID].empty())
-		{
-			chunkTypeName = stringTable[header.chunkID];
-		}
-		else
-		{
-			chunkTypeName = chunkIDToString(header.chunkID);
-		}
-
-		chunk["id"] = header.chunkID;
-		chunk["type"] = chunkTypeName;
-		chunk["version"] = header.version;
-		chunk["dataSize"] = header.dataSize;
-		chunk["fileOffset"] = chunkStart;
-
-		DEBUG_LOG(("Chunk: %s (ID=%u) v%d size=%d at offset %zu",
-			chunkTypeName.c_str(), header.chunkID, header.version, header.dataSize, chunkStart));
-
-		std::vector<uint8_t> rawData(header.dataSize);
-
-		FILE* dataFp = fopen(inFile.c_str(), "rb");
-		fseek(dataFp, reader.getPosition(), SEEK_SET);
-		fread(rawData.data(), 1, header.dataSize, dataFp);
-		fclose(dataFp);
-
-		DataBuffer chunkBuffer(rawData);
-		json parsed = parseChunkRecursive(chunkBuffer, stringTable, 0);
-
-		if (!parsed.is_null())
-			chunk["parsed"] = parsed;
-		else
-			chunk["rawData"] = rawData;
-
-		reader.skipBytes(header.dataSize);
-
-		chunks.push_back(chunk);
+		DEBUG_LOG(("Failed to parse chunks"));
+		fclose(fp);
+		return false;
 	}
 
 	fclose(fp);
@@ -636,68 +593,6 @@ bool readBinaryToJson(const std::string& inFile, json& output)
 	DEBUG_LOG(("Successfully read %zu chunks", chunks.size()));
 	return true;
 }
-
-class BinaryChunkWriter
-{
-public:
-	BinaryChunkWriter(FILE* fp) : m_file(fp) {}
-
-	void writeFileHeader(const std::vector<std::string>& stringTable)
-	{
-		fwrite("CkMp", 1, 4, m_file);
-
-		uint32_t numStrings = stringTable.size();
-		fwrite(&numStrings, 4, 1, m_file);
-
-		for (uint32_t i = 0; i < stringTable.size(); i++)
-		{
-			const std::string& str = stringTable[i];
-			uint8_t length = str.length();
-			fwrite(&length, 1, 1, m_file);
-			if (length > 0)
-				fwrite(str.c_str(), 1, length, m_file);
-			fwrite(&i, 4, 1, m_file);
-		}
-	}
-
-	void writeChunkHeader(uint32_t id, uint16_t version, uint32_t dataSize)
-	{
-		fwrite(&id, 4, 1, m_file);
-		fwrite(&version, 2, 1, m_file);
-		fwrite(&dataSize, 4, 1, m_file);
-	}
-
-	void writeString(const std::string& str)
-	{
-		uint16_t len = str.length();
-		fwrite(&len, 2, 1, m_file);
-		if (len > 0)
-			fwrite(str.c_str(), 1, len, m_file);
-	}
-
-	void writeByte(uint8_t val)
-	{
-		fwrite(&val, 1, 1, m_file);
-	}
-
-	void writeInt(int32_t val)
-	{
-		fwrite(&val, 4, 1, m_file);
-	}
-
-	void writeUInt(uint32_t val)
-	{
-		fwrite(&val, 4, 1, m_file);
-	}
-
-	void writeReal(float val)
-	{
-		fwrite(&val, 4, 1, m_file);
-	}
-
-private:
-	FILE* m_file;
-};
 
 std::vector<uint8_t> serializeParameter(const json& param)
 {
@@ -958,34 +853,55 @@ bool writeJsonToBinary(const json& input, const std::string& outFile)
 		return false;
 	}
 
-	BinaryChunkWriter writer(fp);
+	FileOutputStream stream(fp);
+	DataChunkOutput chunkOutput(&stream);
 
 	if (input.contains("stringTable"))
 	{
 		std::vector<std::string> stringTable = input["stringTable"].get<std::vector<std::string>>();
-		writer.writeFileHeader(stringTable);
-
+		
+		for (size_t i = 0; i < stringTable.size(); i++)
+		{
+			if (!stringTable[i].empty())
+			{
+				chunkOutput.m_contents.allocateID(stringTable[i]);
+			}
+		}
+		
 		if (input.contains("chunks"))
 		{
 			for (const auto& chunkEntry : input["chunks"])
 			{
-				uint32_t outerChunkID = chunkEntry.value("id", 0);
+				std::string chunkTypeName = chunkEntry.value("type", "");
+				if (chunkTypeName.empty())
+				{
+					uint32_t chunkID = chunkEntry.value("id", 0);
+					if (chunkID < stringTable.size())
+						chunkTypeName = stringTable[chunkID];
+				}
+				
 				uint16_t outerVersion = chunkEntry.value("version", 1);
 
-				std::vector<uint8_t> innerData;
+				if (chunkTypeName.empty())
+					chunkTypeName = "UNKNOWN";
+
+				chunkOutput.openDataChunk(chunkTypeName.c_str(), outerVersion);
 
 				if (chunkEntry.contains("parsed"))
 				{
-					innerData = serializeChunk(chunkEntry["parsed"], stringTable);
+					const json& parsed = chunkEntry["parsed"];
+					std::vector<uint8_t> innerData = serializeChunk(parsed, stringTable);
+					if (!innerData.empty())
+						chunkOutput.writeArrayOfBytes((const char*)innerData.data(), innerData.size());
 				}
 				else if (chunkEntry.contains("rawData"))
 				{
-					innerData = chunkEntry["rawData"].get<std::vector<uint8_t>>();
+					std::vector<uint8_t> innerData = chunkEntry["rawData"].get<std::vector<uint8_t>>();
+					if (!innerData.empty())
+						chunkOutput.writeArrayOfBytes((const char*)innerData.data(), innerData.size());
 				}
 
-				writer.writeChunkHeader(outerChunkID, outerVersion, innerData.size());
-				if (!innerData.empty())
-					fwrite(innerData.data(), 1, innerData.size(), fp);
+				chunkOutput.closeDataChunk();
 			}
 		}
 	}

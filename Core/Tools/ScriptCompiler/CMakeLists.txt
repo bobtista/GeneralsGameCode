@@ -11,6 +11,7 @@ target_sources(core_scriptcompiler PRIVATE ${SCRIPTCOMPILER_SRC})
 
 target_link_libraries(core_scriptcompiler PRIVATE
     nlohmann_json::nlohmann_json
+    core_datachunk
 )
 
 if(WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows")
