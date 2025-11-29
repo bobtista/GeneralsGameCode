@@ -72,8 +72,6 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-static const AsciiString s_noSoundString("NoSound");
-
 static const char* TheSpeakerTypes[] =
 {
 	"2 Speakers",
@@ -409,7 +407,7 @@ void AudioManager::getInfoForAudioEvent( const AudioEventRTS *eventToFindAndFill
 //-------------------------------------------------------------------------------------------------
 AudioHandle AudioManager::addAudioEvent(const AudioEventRTS *eventToAdd)
 {
-	if (eventToAdd->getEventName().isEmpty() || eventToAdd->getEventName() == s_noSoundString) {
+	if (eventToAdd->getEventName().isEmpty() || eventToAdd->getEventName() == AsciiString("NoSound")) {
 		return AHSV_NoSound;
 	}
 
