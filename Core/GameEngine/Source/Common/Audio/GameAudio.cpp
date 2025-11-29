@@ -451,18 +451,18 @@ AudioHandle AudioManager::addAudioEvent(const AudioEventRTS *eventToAdd)
 	((AudioEventRTS*)eventToAdd)->setPlayingAudioIndex( audioEvent->getPlayingAudioIndex() );
 	audioEvent->generatePlayInfo();	// generate pitch shift and volume shift now as well
 
-	if (!audioEvent->getUninterruptable()) {
-		if (!shouldPlayLocally(audioEvent)) {
-			releaseAudioEventRTS(audioEvent);
-			return AHSV_NotForLocal;
-		}
-	}
-
 	std::list<std::pair<AsciiString, Real> >::iterator it;
 	for (it = m_adjustedVolumes.begin(); it != m_adjustedVolumes.end(); ++it) {
 		if (it->first == audioEvent->getEventName()) {
 			audioEvent->setVolume(it->second);
 			break;
+		}
+	}
+
+	if (!audioEvent->getUninterruptable()) {
+		if (!shouldPlayLocally(audioEvent)) {
+			releaseAudioEventRTS(audioEvent);
+			return AHSV_NotForLocal;
 		}
 	}
 
