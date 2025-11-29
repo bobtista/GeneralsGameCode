@@ -1398,7 +1398,7 @@ protected:
 				// TheSuperHackers @bugfix bobtista 18/11/2025 Use FPF_CLEAR_CELLS_ONLY when DiesOnBadLand to prevent spawning in water/cliffs
 				if (m_diesOnBadLand)
 				{
-					fpOptions.flags = FPF_USE_HIGHEST_LAYER | FPF_CLEAR_CELLS_ONLY;
+					fpOptions.flags = static_cast<FindPositionFlags>(FPF_USE_HIGHEST_LAYER | FPF_CLEAR_CELLS_ONLY);
 				}
 				else
 				{
