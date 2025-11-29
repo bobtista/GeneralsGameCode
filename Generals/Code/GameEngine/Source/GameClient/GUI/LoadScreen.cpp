@@ -84,6 +84,7 @@
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 #include "GameClient/CampaignManager.h"
 #include "GameNetwork/RankPointValue.h"
+#include "Common/MessageStream.h"
 #include "GameClient/GameWindowTransitions.h"
 
 //-----------------------------------------------------------------------------
