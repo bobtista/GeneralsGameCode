@@ -445,17 +445,18 @@ AudioHandle AudioManager::addAudioEvent(const AudioEventRTS *eventToAdd)
 		return AHSV_NoSound;
 	}
 
-	if (!eventToAdd->getUninterruptable()) {
-		if (!shouldPlayLocally(eventToAdd)) {
-			return AHSV_NotForLocal;
-		}
-	}
-
 	AudioEventRTS *audioEvent = MSGNEW("AudioEventRTS") AudioEventRTS(*eventToAdd);		// poolify
 	audioEvent->setPlayingHandle( allocateNewHandle() );
 	audioEvent->generateFilename();	// which file are we actually going to play?
 	((AudioEventRTS*)eventToAdd)->setPlayingAudioIndex( audioEvent->getPlayingAudioIndex() );
 	audioEvent->generatePlayInfo();	// generate pitch shift and volume shift now as well
+
+	if (!audioEvent->getUninterruptable()) {
+		if (!shouldPlayLocally(audioEvent)) {
+			releaseAudioEventRTS(audioEvent);
+			return AHSV_NotForLocal;
+		}
+	}
 
 	std::list<std::pair<AsciiString, Real> >::iterator it;
 	for (it = m_adjustedVolumes.begin(); it != m_adjustedVolumes.end(); ++it) {
