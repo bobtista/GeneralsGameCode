@@ -54,7 +54,7 @@ static struct tm *localtime_r(const time_t *clockval, struct tm *res) {
 #endif
 	return res;
 }
-#endif // _WINDOWS
+#endif // _WIN32
 
 Wtime::Wtime(void)
 {

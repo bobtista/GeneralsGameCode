@@ -29,7 +29,7 @@
 #include <semaphore.h>
 #else
 #include <windows.h>
-#endif // _WINDOWS
+#endif // _WIN32
 #endif // _REENTRANT
 
 // Windows headers have a tendency to redefine IN

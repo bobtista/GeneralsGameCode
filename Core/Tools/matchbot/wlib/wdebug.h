@@ -243,7 +243,7 @@ extern CritSec DebugLibSemaphore;
   DEBUGUNLOCK; \
 }
 
-#else // _WINDOWS
+#else // _WIN32
 
 // Print a variable
 #define PVAR(v) \
@@ -283,7 +283,7 @@ extern CritSec DebugLibSemaphore;
      "]: " << ##X << endl; X \
   DEBUGUNLOCK; \
 }
-#endif // _WINDOWS
+#endif // _WIN32
 
 #endif  // DEBUG
 
