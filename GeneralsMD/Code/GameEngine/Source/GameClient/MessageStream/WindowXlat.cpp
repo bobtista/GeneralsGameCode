@@ -313,7 +313,9 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 
 			// process event through window system
 			if( TheWindowManager )
+			{
 				returnCode = TheWindowManager->winProcessKey( key, state );
+			}
 
 
 			// If we're in a movie, we want to be able to escape out of it
