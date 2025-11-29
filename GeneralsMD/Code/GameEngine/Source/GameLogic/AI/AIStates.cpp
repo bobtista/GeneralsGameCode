@@ -69,7 +69,6 @@
 #include "GameLogic/Module/PhysicsUpdate.h"
 #include "GameLogic/Module/StealthUpdate.h"
 
-
 static Bool cannotPossiblyAttackObject( State *thisState, void* userData );
 
 //----------------------------------------------------------------------------------------------------------
@@ -90,7 +89,7 @@ AICommandParms::AICommandParms(AICommandType cmd, CommandSourceType cmdSource) :
 }
 
 //----------------------------------------------------------------------------------------------------------
-void AICommandParmsStorage::store(const AICommandParms& parms)
+void AICommandParmsStorage::store(AICommandParms& parms)
 {
 	m_cmd = parms.m_cmd;
   m_cmdSource = parms.m_cmdSource;
@@ -98,7 +97,7 @@ void AICommandParmsStorage::store(const AICommandParms& parms)
   m_obj = parms.m_obj ? parms.m_obj->getID() : INVALID_ID;
   m_otherObj = parms.m_otherObj ? parms.m_otherObj->getID() : INVALID_ID;
   m_teamName = parms.m_team ? parms.m_team->getName() : AsciiString::TheEmptyString;
-	m_coords = parms.m_coords;
+	move_or_swap(m_coords, parms.m_coords);
   m_waypoint = parms.m_waypoint;
   m_polygon = parms.m_polygon;
   m_intValue = parms.m_intValue;       /// misc usage
