@@ -107,7 +107,9 @@ void HideInGameChat( Bool immediate )
 {
 	if (chatWindow)
 	{
-		s_savedChat = GadgetTextEntryGetText( chatTextEntry );
+		// TheSuperHackers @bugfix bobtista 03/12/2025 Clear text entry to prevent hotkey accumulation while chat is hidden
+		GadgetTextEntrySetText( chatTextEntry, UnicodeString::TheEmptyString );
+		s_savedChat.clear();
 		chatWindow->winHide(TRUE);
 		chatWindow->winEnable(FALSE);
 		chatTextEntry->winHide(TRUE);
