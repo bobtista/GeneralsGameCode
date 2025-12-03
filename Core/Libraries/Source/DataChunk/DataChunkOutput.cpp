@@ -193,5 +193,10 @@ void DataChunkOutput::writeArrayOfBytes(const char* ptr, ChunkInt len)
 	}
 }
 
+ChunkUInt DataChunkOutput::allocateID(const ChunkString& name)
+{
+	return m_contents.allocateID(name);
+}
+
 } // namespace DataChunk
 

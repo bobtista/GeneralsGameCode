@@ -138,6 +138,11 @@ public:
 
 	/** Write an array of bytes. */
 	void writeArrayOfBytes(const char* ptr, ChunkInt len);
+
+	/** Allocate or get existing ID for a chunk type name.
+	    @param name Chunk type name
+	    @return Integer ID (existing or newly allocated) */
+	ChunkUInt allocateID(const ChunkString& name);
 };
 
 //----------------------------------------------------------------------

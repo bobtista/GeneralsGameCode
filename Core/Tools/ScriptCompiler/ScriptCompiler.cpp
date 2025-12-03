@@ -863,7 +863,7 @@ bool writeJsonToBinary(const json& input, const std::string& outFile)
 			{
 				if (!stringTable[i].empty())
 				{
-					chunkOutput.m_contents.allocateID(stringTable[i]);
+					chunkOutput.allocateID(stringTable[i]);
 				}
 			}
 			
