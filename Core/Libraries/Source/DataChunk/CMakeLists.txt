@@ -16,7 +16,10 @@ target_link_libraries(core_datachunk PUBLIC
     core_utility
 )
 
-target_compile_features(core_datachunk PUBLIC cxx_std_98)
+# VC6 doesn't support target_compile_features
+if(NOT IS_VS6_BUILD)
+    target_compile_features(core_datachunk PUBLIC cxx_std_98)
+endif()
 
 if(WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows")
     target_compile_definitions(core_datachunk PRIVATE _CRT_SECURE_NO_WARNINGS)
