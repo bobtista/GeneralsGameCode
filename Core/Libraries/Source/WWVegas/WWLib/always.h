@@ -144,7 +144,7 @@ private: \
 		return The##ARGCLASS##Pool; \
 	} \
 protected: \
-	virtual int glueEnforcer() const { return sizeof(this); } \
+	virtual int glueEnforcer() const { return sizeof(*this); } \
 public: \
 	inline void* operator new(size_t s) { return allocateFromW3DMemPool(getClassMemoryPool(), s); } \
 	inline void operator delete(void *p) { freeFromW3DMemPool(getClassMemoryPool(), p); } \
