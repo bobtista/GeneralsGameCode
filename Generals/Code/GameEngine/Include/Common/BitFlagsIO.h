@@ -214,7 +214,7 @@ void BitFlags<NUMBITS>::xfer(Xfer* xfer)
 	{
 
 		// just call the xfer implementation on the data values
-#if RETAIL_COMPATIBLE_XFER_SAVE
+#if RETAIL_COMPATIBLE_CRC
 		xfer->xferUser( this, sizeof( this ) );
 #else
 		xfer->xferUser( this, sizeof( *this ) );
