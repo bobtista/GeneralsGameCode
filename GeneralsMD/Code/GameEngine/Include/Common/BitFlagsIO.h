@@ -214,12 +214,10 @@ void BitFlags<NUMBITS>::xfer(Xfer* xfer)
 	{
 
 		// just call the xfer implementation on the data values
-		// TheSuperHackers @bugfix bobtista 05/12/2025 Fix sizeof(this) bug
-		// Original code used sizeof(this) which is pointer size
-#ifndef RETAIL_COMPATIBLE_CRC
-		xfer->xferUser( this, sizeof( *this ) );
-#else
+#if RETAIL_COMPATIBLE_XFER_SAVE
 		xfer->xferUser( this, sizeof( this ) );
+#else
+		xfer->xferUser( this, sizeof( *this ) );
 #endif
 
 	}
