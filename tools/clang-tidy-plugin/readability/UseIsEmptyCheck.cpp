@@ -19,15 +19,12 @@ using namespace clang::ast_matchers;
 namespace clang::tidy::generalsgamecode::readability {
 
 void UseIsEmptyCheck::registerMatchers(MatchFinder *Finder) {
-  // Match member calls to getLength() on AsciiString or UnicodeString
-  // followed by comparison with 0
   auto GetLengthCall = cxxMemberCallExpr(
       callee(cxxMethodDecl(hasName("getLength"))),
       on(hasType(hasUnqualifiedDesugaredType(
           recordType(hasDeclaration(cxxRecordDecl(
               hasAnyName("AsciiString", "UnicodeString"))))))));
 
-  // Match: obj.getLength() == 0
   Finder->addMatcher(
       binaryOperator(
           hasOperatorName("=="),
@@ -36,7 +33,6 @@ void UseIsEmptyCheck::registerMatchers(MatchFinder *Finder) {
           .bind("comparison"),
       this);
 
-  // Match: obj.getLength() != 0
   Finder->addMatcher(
       binaryOperator(
           hasOperatorName("!="),
@@ -45,7 +41,6 @@ void UseIsEmptyCheck::registerMatchers(MatchFinder *Finder) {
           .bind("comparison"),
       this);
 
-  // Match: obj.getLength() > 0
   Finder->addMatcher(
       binaryOperator(
           hasOperatorName(">"),
@@ -54,7 +49,6 @@ void UseIsEmptyCheck::registerMatchers(MatchFinder *Finder) {
           .bind("comparison"),
       this);
 
-  // Match: obj.getLength() <= 0
   Finder->addMatcher(
       binaryOperator(
           hasOperatorName("<="),
@@ -63,7 +57,6 @@ void UseIsEmptyCheck::registerMatchers(MatchFinder *Finder) {
           .bind("comparison"),
       this);
 
-  // Match: 0 == obj.getLength()
   Finder->addMatcher(
       binaryOperator(
           hasOperatorName("=="),
@@ -72,7 +65,6 @@ void UseIsEmptyCheck::registerMatchers(MatchFinder *Finder) {
           .bind("comparison"),
       this);
 
-  // Match: 0 != obj.getLength()
   Finder->addMatcher(
       binaryOperator(
           hasOperatorName("!="),
@@ -90,12 +82,10 @@ void UseIsEmptyCheck::check(const MatchFinder::MatchResult &Result) {
   if (!Comparison || !GetLengthCall)
     return;
 
-  // Get the object on which getLength() is called
   const Expr *ObjectExpr = GetLengthCall->getImplicitObjectArgument();
   if (!ObjectExpr)
     return;
 
-  // Determine the replacement based on the operator
   StringRef Operator = Comparison->getOpcodeStr();
   bool ShouldNegate = false;
 
@@ -108,15 +98,13 @@ void UseIsEmptyCheck::check(const MatchFinder::MatchResult &Result) {
   } else if (Operator == "<=") {
     ShouldNegate = false;
   } else {
-    return; // Unsupported operator
+    return;
   }
 
-  // Get the source text for the object expression
   StringRef ObjectText = Lexer::getSourceText(
       CharSourceRange::getTokenRange(ObjectExpr->getSourceRange()),
       *Result.SourceManager, Result.Context->getLangOpts());
 
-  // Build the replacement text
   std::string Replacement;
   if (ShouldNegate) {
     Replacement = "!" + ObjectText.str() + ".isEmpty()";
@@ -124,7 +112,6 @@ void UseIsEmptyCheck::check(const MatchFinder::MatchResult &Result) {
     Replacement = ObjectText.str() + ".isEmpty()";
   }
 
-  // Create the fix - replace the entire comparison
   SourceLocation StartLoc = Comparison->getBeginLoc();
   SourceLocation EndLoc = Comparison->getEndLoc();
 
