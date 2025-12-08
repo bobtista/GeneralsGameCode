@@ -14,7 +14,7 @@ namespace clang::tidy::generalsgamecode {
 void GeneralsGameCodeTidyModule::addCheckFactories(
     ClangTidyCheckFactories &CheckFactories) {
   CheckFactories.registerCheck<readability::UseIsEmptyCheck>(
-      "generalsgamecode-use-is-empty");
+      "generals-use-is-empty");
 }
 
 } // namespace clang::tidy::generalsgamecode

@@ -4,7 +4,7 @@ This is a custom clang-tidy plugin that provides checks specific to the Generals
 
 ## Checks
 
-### `generalsgamecode-use-is-empty`
+### `generals-use-is-empty`
 
 Finds uses of `getLength() == 0` or `getLength() > 0` on `AsciiString` and `UnicodeString` and suggests using `isEmpty()` or `!isEmpty()` instead.
 
@@ -39,7 +39,7 @@ The plugin will be built as a shared library (`.so` on Linux, `.dylib` on macOS,
 Load the plugin when running clang-tidy:
 
 ```bash
-clang-tidy --checks=-*,generalsgamecode-use-is-empty \
+clang-tidy --checks=-*,generals-use-is-empty \
   -load build/lib/GeneralsGameCodeClangTidyPlugin.so \
   source.cpp
 ```
@@ -47,7 +47,7 @@ clang-tidy --checks=-*,generalsgamecode-use-is-empty \
 Or add it to your `.clang-tidy` configuration file:
 
 ```yaml
-Checks: '-*,generalsgamecode-use-is-empty'
+Checks: '-*,generals-use-is-empty'
 ```
 
 And load it with:

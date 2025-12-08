@@ -19,7 +19,7 @@ namespace clang::tidy::generalsgamecode::readability {
 /// UnicodeString and suggests using isEmpty() or !isEmpty() instead.
 ///
 /// For the user-facing documentation see:
-/// http://clang.llvm.org/extra/clang-tidy/checks/generalsgamecode-use-is-empty.html
+/// http://clang.llvm.org/extra/clang-tidy/checks/generals-use-is-empty.html
 class UseIsEmptyCheck : public ClangTidyCheck {
 public:
   UseIsEmptyCheck(StringRef Name, ClangTidyContext *Context)
