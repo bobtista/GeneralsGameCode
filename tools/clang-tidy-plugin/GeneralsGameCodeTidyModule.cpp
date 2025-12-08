@@ -19,21 +19,14 @@ void GeneralsGameCodeTidyModule::addCheckFactories(
 
 } // namespace clang::tidy::generalsgamecode
 
-// Force static initialization by using constructor attribute
-// This ensures the registry entry is created when the library is loaded
-__attribute__((constructor)) static void registerModule() {
-  // Force the static registry to initialize by creating the Add object
-  static llvm::Registry<::clang::tidy::ClangTidyModule>::Add<
-      ::clang::tidy::generalsgamecode::GeneralsGameCodeTidyModule>
-      X("generalsgamecode", "GeneralsGameCode-specific checks");
-  
-  // Access the registry to ensure it's initialized
-  (void)llvm::Registry<::clang::tidy::ClangTidyModule>::begin();
-}
-
-// Alternative: Static registration at file scope (original approach)
-// Keep this as a fallback in case constructor doesn't work
+// Static registration using LLVM's registry system
+// This is the "hack" mentioned in the documentation for out-of-tree plugins
+// The static initializer should run when the library is loaded
 static llvm::Registry<::clang::tidy::ClangTidyModule>::Add<
     ::clang::tidy::generalsgamecode::GeneralsGameCodeTidyModule>
-    StaticReg("generalsgamecode", "GeneralsGameCode-specific checks");
+    X("generalsgamecode", "GeneralsGameCode-specific checks");
+
+// Anchor variable to force linker to include this file
+// This ensures the static initializer above actually runs
+volatile int GeneralsGameCodeTidyModuleAnchorSource = 0;
 
