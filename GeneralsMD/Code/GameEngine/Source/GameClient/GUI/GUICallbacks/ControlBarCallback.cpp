@@ -340,7 +340,7 @@ WindowMsgHandledType ControlBarInput( GameWindow *window, UnsignedInt msg,
 	return MSG_IGNORED;
 
 }
-void ToggleQuitMenu(void);
+
 //-------------------------------------------------------------------------------------------------
 /** System callback for the control bar parent */
 //-------------------------------------------------------------------------------------------------

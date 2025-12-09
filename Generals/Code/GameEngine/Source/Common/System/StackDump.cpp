@@ -38,7 +38,7 @@
 //*****************************************************************************
 BOOL InitSymbolInfo(void);
 void MakeStackTrace(DWORD myeip,DWORD myesp,DWORD myebp, int skipFrames, void (*callback)(const char*));
-void GetFunctionDetails(void *pointer, char*name, char*filename, unsigned int* linenumber, unsigned int* address);
+
 void WriteStackLine(void*address, void (*callback)(const char*));
 
 //*****************************************************************************

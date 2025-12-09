@@ -65,7 +65,7 @@
 #include "GameNetwork/GUIUtil.h"
 #include "GameNetwork/GameSpy/GSConfig.h"
 
-void WOLDisplaySlotList( void );
+
 
 
 extern std::list<PeerResponse> TheLobbyQueuedUTMs;

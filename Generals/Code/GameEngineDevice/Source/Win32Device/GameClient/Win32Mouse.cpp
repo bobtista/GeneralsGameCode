@@ -39,7 +39,7 @@
 
 
 // EXTERN /////////////////////////////////////////////////////////////////////////////////////////
-extern Win32Mouse *TheWin32Mouse;
+
 
 HCURSOR cursorResources[Mouse::NUM_MOUSE_CURSORS][MAX_2D_CURSOR_DIRECTIONS];
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -358,7 +358,7 @@ void Win32Mouse::addWin32Event( UINT msg, WPARAM wParam, LPARAM lParam, DWORD ti
 
 }
 
-extern HINSTANCE ApplicationHInstance;
+
 
 void Win32Mouse::setVisibility(Bool visible)
 {

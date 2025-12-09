@@ -172,7 +172,7 @@ void initSubsystem(
 
 //-------------------------------------------------------------------------------------------------
 extern HINSTANCE ApplicationHInstance;  ///< our application instance
-extern CComModule _Module;
+
 
 //-------------------------------------------------------------------------------------------------
 static void updateTGAtoDDS();
@@ -758,7 +758,7 @@ void GameEngine::update( void )
 
 // Horrible reference, but we really, really need to know if we are windowed.
 extern bool DX8Wrapper_IsWindowed;
-extern HWND ApplicationHWnd;
+
 
 /** -----------------------------------------------------------------------------------------------
  * The "main loop" of the game engine. It will not return until the game exits.

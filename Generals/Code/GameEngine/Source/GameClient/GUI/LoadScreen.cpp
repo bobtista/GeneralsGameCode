@@ -932,7 +932,7 @@ GameSpyLoadScreen::~GameSpyLoadScreen( void )
 	}
 }
 
-extern Int GetAdditionalDisconnectsFromUserFile(Int playerID);
+
 
 void GameSpyLoadScreen::init( GameInfo *game )
 {
