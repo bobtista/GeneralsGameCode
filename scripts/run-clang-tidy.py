@@ -13,7 +13,7 @@ This is a convenience wrapper that:
 
 For the analysis build to work correctly, it must be built WITHOUT precompiled headers.
 Run this first:
-  cmake -B build/clang-tidy -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON -G Ninja
+  cmake -B build/clang-tidy -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja
 """
 
 import argparse
@@ -75,9 +75,9 @@ def find_compile_commands(build_dir: Optional[Path] = None) -> Path:
 
     if not compile_commands.exists():
         raise RuntimeError(
-            "Clang-tidy build not found!\n\n"
+            "compile_commands.json not found!\n\n"
             "Create the analysis build first:\n"
-            "  cmake -B build/clang-tidy -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON -G Ninja\n\n"
+            "  cmake -B build/clang-tidy -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja\n\n"
             "Or specify a different build with --build-dir"
         )
 
@@ -211,7 +211,7 @@ def main():
         epilog="""
 Examples:
   # First-time setup: Create PCH-free analysis build
-  cmake -B build/clang-tidy -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON -G Ninja
+  cmake -B build/clang-tidy -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja
 
   # Analyze all source files
   python scripts/run-clang-tidy.py
@@ -232,7 +232,7 @@ Examples:
   python scripts/run-clang-tidy.py --build-dir build/win32-debug
 
 Note: Requires a PCH-free build. Create with:
-      cmake -B build/clang-tidy -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON -G Ninja
+      cmake -B build/clang-tidy -DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -G Ninja
         """
     )
 
@@ -265,8 +265,8 @@ Note: Requires a PCH-free build. Create with:
     parser.add_argument(
         '--jobs', '-j',
         type=int,
-        default=1,
-        help='Number of parallel workers (default: 1). Recommended: 4 for 6-core CPUs'
+        default=multiprocessing.cpu_count(),
+        help=f'Number of parallel workers (default: {multiprocessing.cpu_count()} - auto-detected). Use 1 for serial processing'
     )
 
     parser.add_argument(
