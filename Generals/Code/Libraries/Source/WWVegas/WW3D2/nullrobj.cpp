@@ -49,7 +49,7 @@ Null3DObjClass::Null3DObjClass(const char * name)
 }
 
 Null3DObjClass::Null3DObjClass(const Null3DObjClass & src)
-{
+ : RenderObjClass(src) {
 	strcpy(Name, src.Name);
 }
 

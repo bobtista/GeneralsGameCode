@@ -226,7 +226,7 @@ BoxRenderObjClass::BoxRenderObjClass(const W3dBoxStruct & def)
  *   1/19/00    gth : Created.                                                                 *
  *=============================================================================================*/
 BoxRenderObjClass::BoxRenderObjClass(const BoxRenderObjClass & src)
-{
+ : RenderObjClass(src) {
 	*this = src;
 }
 
@@ -604,7 +604,7 @@ AABoxRenderObjClass::AABoxRenderObjClass(const W3dBoxStruct & def) :
  *   1/19/00    gth : Created.                                                                 *
  *=============================================================================================*/
 AABoxRenderObjClass::AABoxRenderObjClass(const AABoxRenderObjClass & src)
-{
+ : BoxRenderObjClass(src) {
 	*this = src;
 }
 
@@ -990,7 +990,7 @@ OBBoxRenderObjClass::OBBoxRenderObjClass(const W3dBoxStruct & def) :
  *   1/19/00    gth : Created.                                                                 *
  *=============================================================================================*/
 OBBoxRenderObjClass::OBBoxRenderObjClass(const OBBoxRenderObjClass & that)
-{
+ : BoxRenderObjClass(that) {
 	*this = that;
 }
 

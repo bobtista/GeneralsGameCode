@@ -692,7 +692,7 @@ EdgeMapperClass::EdgeMapperClass(const INIClass &ini, const char *section, unsig
 }
 
 EdgeMapperClass::EdgeMapperClass(const EdgeMapperClass & src):
-	TextureMapperClass(src.Stage),
+	TextureMapperClass(src.Stagesrc),
 	VSpeed(src.VSpeed),
 	UseReflect(src.UseReflect),
 	VOffset(src.VOffset),

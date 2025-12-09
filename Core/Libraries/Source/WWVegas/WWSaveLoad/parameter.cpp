@@ -2181,7 +2181,7 @@ ScriptListParameterClass::Copy_Value (const ParameterClass &src)
 //
 /////////////////////////////////////////////////////////////////////
 SeparatorParameterClass::SeparatorParameterClass (const SeparatorParameterClass &src)
-{
+ : ParameterClass(src) {
 	(*this) = src;
 	return ;
 }

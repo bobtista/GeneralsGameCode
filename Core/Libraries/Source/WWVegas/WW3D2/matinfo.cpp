@@ -45,7 +45,7 @@ MaterialInfoClass::MaterialInfoClass(void)
 }
 
 MaterialInfoClass::MaterialInfoClass(const MaterialInfoClass & src)
-{
+ : RefCountClass(src) {
 	for (int mi=0; mi<src.VertexMaterials.Count(); mi++) {
 		VertexMaterialClass * vmat;
 		vmat = src.VertexMaterials[mi]->Clone();

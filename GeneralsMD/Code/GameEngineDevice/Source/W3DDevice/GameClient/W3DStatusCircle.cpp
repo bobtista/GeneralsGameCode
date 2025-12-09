@@ -94,7 +94,7 @@ bool W3DStatusCircle::Cast_Ray(RayCollisionTestClass & raytest)
 
 //@todo: MW Handle both of these properly!!
 W3DStatusCircle::W3DStatusCircle(const W3DStatusCircle & src)
-{
+ : RenderObjClass(src) {
 	*this = src;
 }
 

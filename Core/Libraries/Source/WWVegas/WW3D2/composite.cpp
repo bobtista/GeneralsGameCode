@@ -89,7 +89,7 @@ CompositeRenderObjClass::CompositeRenderObjClass(void)
  *   1/26/00    gth : Created.                                                                 *
  *=============================================================================================*/
 CompositeRenderObjClass::CompositeRenderObjClass(const CompositeRenderObjClass & that)
-{
+ : RenderObjClass(that) {
 	Set_Name(that.Get_Name());
 	Set_Base_Model_Name(that.Get_Base_Model_Name());
 }

@@ -90,7 +90,7 @@ Curve3DClass::Curve3DClass(void) :
 }
 
 Curve3DClass::Curve3DClass(const Curve3DClass & that)
-{
+ : PersistClass(that) {
 	*this = that;
 }
 
@@ -333,7 +333,7 @@ Curve1DClass::Curve1DClass(void) :
 }
 
 Curve1DClass::Curve1DClass(const Curve1DClass & that)
-{
+ : PersistClass(that) {
 	*this = that;
 }
 
