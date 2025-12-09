@@ -85,7 +85,7 @@ Int NetCommandMsg::getSortNumber() {
 /**
  * Constructor with no argument, sets everything to default values.
  */
-NetGameCommandMsg::NetGameCommandMsg() : NetCommandMsg() {
+NetGameCommandMsg::NetGameCommandMsg()  {
 	m_argSize = 0;
 	m_numArgs = 0;
 	m_type = (GameMessage::Type)0;
@@ -98,7 +98,7 @@ NetGameCommandMsg::NetGameCommandMsg() : NetCommandMsg() {
  * Constructor with a GameMessage argument. Sets member variables appropriately for this GameMessage.
  * Also copies all the arguments.
  */
-NetGameCommandMsg::NetGameCommandMsg(GameMessage *msg) : NetCommandMsg() {
+NetGameCommandMsg::NetGameCommandMsg(GameMessage *msg)  {
 	m_commandType = NETCOMMANDTYPE_GAMECOMMAND;
 
 	m_type = msg->getType();
@@ -228,7 +228,7 @@ void NetGameCommandMsg::setGameMessageType(GameMessage::Type type) {
 /**
  * Constructor.  Sets the member variables according to the given message.
  */
-NetAckBothCommandMsg::NetAckBothCommandMsg(NetCommandMsg *msg) : NetCommandMsg() {
+NetAckBothCommandMsg::NetAckBothCommandMsg(NetCommandMsg *msg)  {
 	m_commandID = msg->getID();
 	m_commandType = NETCOMMANDTYPE_ACKBOTH;
 	m_originalPlayerID = msg->getPlayerID();
@@ -237,7 +237,7 @@ NetAckBothCommandMsg::NetAckBothCommandMsg(NetCommandMsg *msg) : NetCommandMsg()
 /**
  * Constructor.  Sets the member variables to default values.
  */
-NetAckBothCommandMsg::NetAckBothCommandMsg() : NetCommandMsg() {
+NetAckBothCommandMsg::NetAckBothCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_ACKBOTH;
 }
 
@@ -285,7 +285,7 @@ Int NetAckBothCommandMsg::getSortNumber() {
 /**
  * Constructor.  Sets the member variables according to the given message.
  */
-NetAckStage1CommandMsg::NetAckStage1CommandMsg(NetCommandMsg *msg) : NetCommandMsg() {
+NetAckStage1CommandMsg::NetAckStage1CommandMsg(NetCommandMsg *msg)  {
 	m_commandID = msg->getID();
 	m_commandType = NETCOMMANDTYPE_ACKSTAGE1;
 	m_originalPlayerID = msg->getPlayerID();
@@ -294,7 +294,7 @@ NetAckStage1CommandMsg::NetAckStage1CommandMsg(NetCommandMsg *msg) : NetCommandM
 /**
  * Constructor.  Sets the member variables to default values.
  */
-NetAckStage1CommandMsg::NetAckStage1CommandMsg() : NetCommandMsg() {
+NetAckStage1CommandMsg::NetAckStage1CommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_ACKSTAGE1;
 }
 
@@ -342,7 +342,7 @@ Int NetAckStage1CommandMsg::getSortNumber() {
 /**
  * Constructor.  Sets the member variables according to the given message.
  */
-NetAckStage2CommandMsg::NetAckStage2CommandMsg(NetCommandMsg *msg) : NetCommandMsg() {
+NetAckStage2CommandMsg::NetAckStage2CommandMsg(NetCommandMsg *msg)  {
 	m_commandID = msg->getID();
 	m_commandType = NETCOMMANDTYPE_ACKSTAGE2;
 	m_originalPlayerID = msg->getPlayerID();
@@ -351,7 +351,7 @@ NetAckStage2CommandMsg::NetAckStage2CommandMsg(NetCommandMsg *msg) : NetCommandM
 /**
  * Constructor.  Sets the member variables to default values.
  */
-NetAckStage2CommandMsg::NetAckStage2CommandMsg() : NetCommandMsg() {
+NetAckStage2CommandMsg::NetAckStage2CommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_ACKSTAGE2;
 }
 
@@ -399,7 +399,7 @@ Int NetAckStage2CommandMsg::getSortNumber() {
 /**
  * Constructor.
  */
-NetFrameCommandMsg::NetFrameCommandMsg() : NetCommandMsg() {
+NetFrameCommandMsg::NetFrameCommandMsg()  {
 	m_commandCount = 0;
 	m_commandType = NETCOMMANDTYPE_FRAMEINFO;
 }
@@ -430,7 +430,7 @@ UnsignedShort NetFrameCommandMsg::getCommandCount() {
 /**
  * Constructor
  */
-NetPlayerLeaveCommandMsg::NetPlayerLeaveCommandMsg() : NetCommandMsg() {
+NetPlayerLeaveCommandMsg::NetPlayerLeaveCommandMsg()  {
 	m_leavingPlayerID = 0;
 	m_commandType = NETCOMMANDTYPE_PLAYERLEAVE;
 }
@@ -461,7 +461,7 @@ void NetPlayerLeaveCommandMsg::setLeavingPlayerID(UnsignedByte id) {
 /**
  * Constructor
  */
-NetRunAheadMetricsCommandMsg::NetRunAheadMetricsCommandMsg() : NetCommandMsg() {
+NetRunAheadMetricsCommandMsg::NetRunAheadMetricsCommandMsg()  {
 	m_averageLatency = 0.0;
 	m_averageFps = 0;
 	m_commandType = NETCOMMANDTYPE_RUNAHEADMETRICS;
@@ -504,7 +504,7 @@ Int NetRunAheadMetricsCommandMsg::getAverageFps() {
 //-------------------------
 // NetRunAheadCommandMsg
 //-------------------------
-NetRunAheadCommandMsg::NetRunAheadCommandMsg() : NetCommandMsg() {
+NetRunAheadCommandMsg::NetRunAheadCommandMsg()  {
 	m_runAhead = min(max(20, MIN_RUNAHEAD), MAX_FRAMES_AHEAD/2);
 	m_frameRate = 30;
 	m_commandType = NETCOMMANDTYPE_RUNAHEAD;
@@ -535,7 +535,7 @@ void NetRunAheadCommandMsg::setFrameRate(UnsignedByte frameRate) {
 /**
  * Constructor
  */
-NetDestroyPlayerCommandMsg::NetDestroyPlayerCommandMsg() : NetCommandMsg()
+NetDestroyPlayerCommandMsg::NetDestroyPlayerCommandMsg()  
 {
 	m_playerIndex = 0;
 	m_commandType = NETCOMMANDTYPE_DESTROYPLAYER;
@@ -570,7 +570,7 @@ UnsignedInt NetDestroyPlayerCommandMsg::getPlayerIndex( void )
 /**
  * Constructor
  */
-NetKeepAliveCommandMsg::NetKeepAliveCommandMsg() : NetCommandMsg() {
+NetKeepAliveCommandMsg::NetKeepAliveCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_KEEPALIVE;
 }
 
@@ -583,7 +583,7 @@ NetKeepAliveCommandMsg::~NetKeepAliveCommandMsg() {
 /**
  * Constructor
  */
-NetDisconnectKeepAliveCommandMsg::NetDisconnectKeepAliveCommandMsg() : NetCommandMsg() {
+NetDisconnectKeepAliveCommandMsg::NetDisconnectKeepAliveCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_DISCONNECTKEEPALIVE;
 }
 
@@ -596,7 +596,7 @@ NetDisconnectKeepAliveCommandMsg::~NetDisconnectKeepAliveCommandMsg() {
 /**
  * Constructor
  */
-NetDisconnectPlayerCommandMsg::NetDisconnectPlayerCommandMsg() : NetCommandMsg() {
+NetDisconnectPlayerCommandMsg::NetDisconnectPlayerCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_DISCONNECTPLAYER;
 	m_disconnectSlot = 0;
 }
@@ -641,7 +641,7 @@ UnsignedInt NetDisconnectPlayerCommandMsg::getDisconnectFrame() {
 /**
  * Constructor
  */
-NetPacketRouterQueryCommandMsg::NetPacketRouterQueryCommandMsg() : NetCommandMsg() {
+NetPacketRouterQueryCommandMsg::NetPacketRouterQueryCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_PACKETROUTERQUERY;
 }
 
@@ -657,7 +657,7 @@ NetPacketRouterQueryCommandMsg::~NetPacketRouterQueryCommandMsg() {
 /**
  * Constructor
  */
-NetPacketRouterAckCommandMsg::NetPacketRouterAckCommandMsg() : NetCommandMsg() {
+NetPacketRouterAckCommandMsg::NetPacketRouterAckCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_PACKETROUTERACK;
 }
 
@@ -673,7 +673,7 @@ NetPacketRouterAckCommandMsg::~NetPacketRouterAckCommandMsg() {
 /**
  * Constructor
  */
-NetDisconnectChatCommandMsg::NetDisconnectChatCommandMsg() : NetCommandMsg() {
+NetDisconnectChatCommandMsg::NetDisconnectChatCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_DISCONNECTCHAT;
 }
 
@@ -703,7 +703,7 @@ UnicodeString NetDisconnectChatCommandMsg::getText() {
 /**
  * Constructor
  */
-NetChatCommandMsg::NetChatCommandMsg() : NetCommandMsg()
+NetChatCommandMsg::NetChatCommandMsg()  
 {
 	m_commandType = NETCOMMANDTYPE_CHAT;
 	m_playerMask = 0;
@@ -754,7 +754,7 @@ void NetChatCommandMsg::setPlayerMask( Int playerMask )
 /**
  * Constructor
  */
-NetDisconnectVoteCommandMsg::NetDisconnectVoteCommandMsg() : NetCommandMsg() {
+NetDisconnectVoteCommandMsg::NetDisconnectVoteCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_DISCONNECTVOTE;
 	m_slot = 0;
 }
@@ -796,7 +796,7 @@ void NetDisconnectVoteCommandMsg::setVoteFrame(UnsignedInt voteFrame) {
 //-------------------------
 // NetProgressCommandMsg
 //-------------------------
-NetProgressCommandMsg::NetProgressCommandMsg( void ) : NetCommandMsg()
+NetProgressCommandMsg::NetProgressCommandMsg( void )  
 {
 	m_commandType = NETCOMMANDTYPE_PROGRESS;
 	m_percent = 0;
@@ -817,7 +817,7 @@ void NetProgressCommandMsg::setPercentage( UnsignedByte percent )
 //-------------------------
 // NetWrapperCommandMsg
 //-------------------------
-NetWrapperCommandMsg::NetWrapperCommandMsg() : NetCommandMsg() {
+NetWrapperCommandMsg::NetWrapperCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_WRAPPER;
 	m_numChunks = 0;
 	m_data = NULL;
@@ -892,7 +892,7 @@ void NetWrapperCommandMsg::setWrappedCommandID(UnsignedShort wrappedCommandID) {
 //-------------------------
 // NetFileCommandMsg
 //-------------------------
-NetFileCommandMsg::NetFileCommandMsg() : NetCommandMsg() {
+NetFileCommandMsg::NetFileCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_FILE;
 	m_data = NULL;
 	m_portableFilename.clear();
@@ -932,7 +932,7 @@ void NetFileCommandMsg::setFileData(UnsignedByte *data, UnsignedInt dataLength)
 //-------------------------
 // NetFileAnnounceCommandMsg
 //-------------------------
-NetFileAnnounceCommandMsg::NetFileAnnounceCommandMsg() : NetCommandMsg() {
+NetFileAnnounceCommandMsg::NetFileAnnounceCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_FILEANNOUNCE;
 	m_portableFilename.clear();
 	m_fileID = 0;
@@ -972,7 +972,7 @@ void NetFileAnnounceCommandMsg::setPlayerMask(UnsignedByte playerMask) {
 //-------------------------
 // NetFileProgressCommandMsg
 //-------------------------
-NetFileProgressCommandMsg::NetFileProgressCommandMsg() : NetCommandMsg() {
+NetFileProgressCommandMsg::NetFileProgressCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_FILEPROGRESS;
 	m_fileID = 0;
 	m_progress = 0;
@@ -1000,7 +1000,7 @@ void NetFileProgressCommandMsg::setProgress(Int val) {
 //-------------------------
 // NetDisconnectFrameCommandMsg
 //-------------------------
-NetDisconnectFrameCommandMsg::NetDisconnectFrameCommandMsg() : NetCommandMsg() {
+NetDisconnectFrameCommandMsg::NetDisconnectFrameCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_DISCONNECTFRAME;
 	m_disconnectFrame = 0;
 }
@@ -1019,7 +1019,7 @@ void NetDisconnectFrameCommandMsg::setDisconnectFrame(UnsignedInt disconnectFram
 //-------------------------
 // NetDisconnectScreenOffCommandMsg
 //-------------------------
-NetDisconnectScreenOffCommandMsg::NetDisconnectScreenOffCommandMsg() : NetCommandMsg() {
+NetDisconnectScreenOffCommandMsg::NetDisconnectScreenOffCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_DISCONNECTSCREENOFF;
 	m_newFrame = 0;
 }
@@ -1038,7 +1038,7 @@ void NetDisconnectScreenOffCommandMsg::setNewFrame(UnsignedInt newFrame) {
 //-------------------------
 // NetFrameResendRequestCommandMsg
 //-------------------------
-NetFrameResendRequestCommandMsg::NetFrameResendRequestCommandMsg() : NetCommandMsg() {
+NetFrameResendRequestCommandMsg::NetFrameResendRequestCommandMsg()  {
 	m_commandType = NETCOMMANDTYPE_FRAMERESENDREQUEST;
 	m_frameToResend = 0;
 }

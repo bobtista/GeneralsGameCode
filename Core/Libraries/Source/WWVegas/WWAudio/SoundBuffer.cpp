@@ -284,8 +284,8 @@ SoundBufferClass::Load_From_Memory
 //
 //	StreamSoundBufferClass
 //
-StreamSoundBufferClass::StreamSoundBufferClass (void)	:
-	  SoundBufferClass ()
+StreamSoundBufferClass::StreamSoundBufferClass (void)	
+	  
 {
 	return ;
 }

@@ -79,7 +79,7 @@ ParticleEmitterClass::ParticleEmitterClass(float emit_rate, unsigned int burst_s
 			int max_buffer_size, bool pingpong,int render_mode,int frame_mode,
 			const W3dEmitterLinePropertiesStruct * line_props
 ) :
-	RenderObjClass(),
+	
 	EmitRate(emit_rate > 0.0f ? (unsigned int)(1000.0f / emit_rate) : 1000U),
 	BurstSize(burst_size != 0	? burst_size : 1),
 	OneTimeBurstSize(1),

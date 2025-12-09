@@ -52,7 +52,7 @@
 // GameSpyGameSlot -------------------------------------------
 
 GameSpyGameSlot::GameSpyGameSlot()
-	: GameSlot()
+	 
 {
 	m_gameSpyLogin.clear();
 	m_gameSpyLocale.clear();

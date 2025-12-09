@@ -177,7 +177,7 @@ class PeerThreadClass : public ThreadClass
 {
 
 public:
-	PeerThreadClass() : ThreadClass()
+	PeerThreadClass()  
 	{
 		m_roomJoined = m_allowObservers = m_hasPassword = FALSE;
 		m_useStats = TRUE;

@@ -48,7 +48,7 @@
 // Initialization Functions ////////////////////////////////////////////////////////////////////////
 
 DefaultStaticSortListClass::DefaultStaticSortListClass(void) :
-	StaticSortListClass(),
+	
 	SortLists(),
 	MinSort(1),
 	MaxSort(MAX_SORT_LEVEL)

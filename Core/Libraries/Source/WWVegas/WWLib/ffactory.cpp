@@ -92,8 +92,8 @@ void RawFileFactoryClass::Return_File( FileClass *file )
 */
 
 SimpleFileFactoryClass::SimpleFileFactoryClass( void ) :
-	IsStripPath( false ),
-	Mutex( )
+	IsStripPath( false )
+	
 {
 }
 

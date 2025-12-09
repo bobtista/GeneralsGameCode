@@ -44,7 +44,7 @@
 
 static const char *BIGFileIdentifier = "BIGF";
 
-StdBIGFileSystem::StdBIGFileSystem() : ArchiveFileSystem() {
+StdBIGFileSystem::StdBIGFileSystem()  {
 }
 
 StdBIGFileSystem::~StdBIGFileSystem() {

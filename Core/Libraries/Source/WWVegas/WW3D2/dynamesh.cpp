@@ -50,7 +50,7 @@
 */
 
 DynamicMeshModel::DynamicMeshModel(unsigned int max_polys, unsigned int max_verts) :
-	MeshGeometryClass(),
+	
 	DynamicMeshPNum(0),
 	DynamicMeshVNum(0),
 	MatDesc(NULL),
@@ -66,7 +66,7 @@ DynamicMeshModel::DynamicMeshModel(unsigned int max_polys, unsigned int max_vert
 }
 
 DynamicMeshModel::DynamicMeshModel(unsigned int max_polys, unsigned int max_verts, MaterialInfoClass *mat_info) :
-	MeshGeometryClass(),
+	
 	DynamicMeshPNum(0),
 	DynamicMeshVNum(0),
 	MatDesc(NULL),

@@ -45,7 +45,7 @@
 
 static const char *BIGFileIdentifier = "BIGF";
 
-Win32BIGFileSystem::Win32BIGFileSystem() : ArchiveFileSystem() {
+Win32BIGFileSystem::Win32BIGFileSystem()  {
 }
 
 Win32BIGFileSystem::~Win32BIGFileSystem() {

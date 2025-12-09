@@ -36,7 +36,7 @@
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/dx8webbrowser.h"
 
-W3DWebBrowser::W3DWebBrowser() : WebBrowser() {
+W3DWebBrowser::W3DWebBrowser()  {
 }
 
 Bool W3DWebBrowser::createBrowserWindow(const char *tag, GameWindow *win)

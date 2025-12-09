@@ -61,7 +61,7 @@ static class MouseThreadClass : public ThreadClass
 {
 
 public:
-	MouseThreadClass() : ThreadClass() {}
+	MouseThreadClass()  {}
 
 	void Thread_Function();
 

@@ -920,7 +920,7 @@ HLodClass::HLodClass(void) :
 	BoundingBoxIndex(-1),
 	Cost(NULL),
 	Value(NULL),
-	AdditionalModels(),
+	
 	SnapPoints(NULL),
 	ProxyArray(NULL),
 	LODBias(1.0f)
@@ -948,7 +948,7 @@ HLodClass::HLodClass(const HLodClass & src) :
 	BoundingBoxIndex(-1),
 	Cost(NULL),
 	Value(NULL),
-	AdditionalModels(),
+	
 	SnapPoints(NULL),
 	ProxyArray(NULL),
 	LODBias(1.0f)
@@ -980,7 +980,7 @@ HLodClass::HLodClass(const char * name,RenderObjClass ** lods,int count) :
 	BoundingBoxIndex(-1),
 	Cost(NULL),
 	Value(NULL),
-	AdditionalModels(),
+	
 	SnapPoints(NULL),
 	ProxyArray(NULL),
 	LODBias(1.0f)
@@ -1082,7 +1082,7 @@ HLodClass::HLodClass(const HLodDefClass & def) :
 	BoundingBoxIndex(-1),
 	Cost(NULL),
 	Value(NULL),
-	AdditionalModels(),
+	
 	SnapPoints(NULL),
 	ProxyArray(NULL),
 	LODBias(1.0f)
@@ -1171,7 +1171,7 @@ HLodClass::HLodClass(const HModelDefClass & def) :
 	BoundingBoxIndex(-1),
 	Cost(NULL),
 	Value(NULL),
-	AdditionalModels(),
+	
 	SnapPoints(NULL),
 	ProxyArray(NULL),
 	LODBias(1.0f)

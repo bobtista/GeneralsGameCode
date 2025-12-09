@@ -124,7 +124,7 @@ SphereRenderObjClass::SphereRenderObjClass(void)
 		CurrentColor(0.75f, 0.75f, 0.75F),
 		CurrentAlpha(1.0f),
 		CurrentScale(1.0f, 1.0f, 1.0f),
-		CurrentVector(),
+		
 		Flags(USE_ALPHA_VECTOR),
 		ObjSpaceCenter (0, 0, 0),
 		ObjSpaceExtent (1, 1, 1)
@@ -166,7 +166,7 @@ SphereRenderObjClass::SphereRenderObjClass(const W3dSphereStruct & def)
 		CurrentColor(0.75f, 0.75f, 0.75F),
 		CurrentAlpha(1.0f),
 		CurrentScale(1.0f, 1.0f, 1.0f),
-		CurrentVector(),
+		
 		Flags(USE_ALPHA_VECTOR),
 		ObjSpaceCenter (0, 0, 0),
 		ObjSpaceExtent (1, 1, 1)
@@ -216,7 +216,7 @@ SphereRenderObjClass::SphereRenderObjClass(const SphereRenderObjClass & src)
 		CurrentColor(0.75f, 0.75f, 0.75F),
 		CurrentAlpha(1.0f),
 		CurrentScale(1.0f, 1.0f, 1.0f),
-		CurrentVector(),
+		
 		Flags(USE_ALPHA_VECTOR),
 		ObjSpaceCenter (0, 0, 0),
 		ObjSpaceExtent (1, 1, 1)

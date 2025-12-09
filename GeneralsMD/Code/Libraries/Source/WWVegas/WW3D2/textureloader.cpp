@@ -72,7 +72,7 @@ int TextureLoader::TextureInactiveOverrideTime = 0;
 ////////////////////////////////////////////////////////////////////////////////
 
 TextureLoadTaskListClass::TextureLoadTaskListClass(void)
-: Root()
+ 
 {
 	Root.Next = Root.Prev = &Root;
 }
@@ -159,8 +159,8 @@ void TextureLoadTaskListClass::Remove(TextureLoadTaskClass *task)
 ////////////////////////////////////////////////////////////////////////////////
 
 SynchronizedTextureLoadTaskListClass::SynchronizedTextureLoadTaskListClass(void)
-:	TextureLoadTaskListClass(),
-	CriticalSection()
+
+	
 {
 }
 
@@ -2032,7 +2032,7 @@ unsigned int TextureLoadTaskClass::Get_Locked_Surface_Pitch(unsigned int level) 
 
 // CubeTextureLoadTaskClass
 CubeTextureLoadTaskClass::CubeTextureLoadTaskClass()
-:	TextureLoadTaskClass()
+	
 {
 	// because texture load tasks are pooled, the constructor and destructor
 	// don't need to do much. The work of attaching a task to a texture is
@@ -2446,7 +2446,7 @@ unsigned int CubeTextureLoadTaskClass::Get_Locked_CubeMap_Surface_Pitch(unsigned
 
 // VolumeTextureLoadTaskClass
 VolumeTextureLoadTaskClass::VolumeTextureLoadTaskClass()
-:	TextureLoadTaskClass()
+	
 {
 	// because texture load tasks are pooled, the constructor and destructor
 	// don't need to do much. The work of attaching a task to a texture is

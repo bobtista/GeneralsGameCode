@@ -755,8 +755,8 @@ struct MapListBoxData
 		, mediumImage(NULL)
 		, brutalImage(NULL)
 		, maxBrutalImage(NULL)
-		, mapToSelect()
-		, selectionIndex(0) // always select *something*
+		, 
+		 selectionIndex(0) // always select *something*
 		, isMultiplayer(false)
 	{
 	}
