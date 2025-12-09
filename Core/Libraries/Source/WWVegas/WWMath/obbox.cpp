@@ -264,13 +264,13 @@ void OBBoxClass::Init_From_Box_Points(Vector3 * points,int num)
 		float dy = points[i].Y - Center.Y;
 		float dz = points[i].Z - Center.Z;
 
-		float xprj = float(WWMath::Fabs(axis0.X * dx + axis0.Y * dy + axis0.Z * dz));
+		float xprj = WWMath::Fabs(axis0.X * dx + axis0.Y * dy + axis0.Z * dz);
 		if (xprj > Extent.X) Extent.X = xprj;
 
-		float yprj = float(WWMath::Fabs(axis1.X * dx + axis1.Y * dy + axis1.Z * dz));
+		float yprj = WWMath::Fabs(axis1.X * dx + axis1.Y * dy + axis1.Z * dz);
 		if (yprj > Extent.Y) Extent.Y = yprj;
 
-		float zprj = float(WWMath::Fabs(axis2.X * dx + axis2.Y * dy + axis2.Z * dz));
+		float zprj = WWMath::Fabs(axis2.X * dx + axis2.Y * dy + axis2.Z * dz);
 		if (zprj > Extent.Z) Extent.Z = zprj;
 	}
 }

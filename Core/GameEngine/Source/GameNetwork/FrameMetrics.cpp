@@ -87,7 +87,7 @@ void FrameMetrics::doPerFrameMetrics(UnsignedInt frame) {
 		m_averageFps -= ((m_fpsList[m_fpsListIndex])) / TheGlobalData->m_networkFPSHistoryLength; // subtract out the old value from the average.
 		m_fpsList[m_fpsListIndex] = TheDisplay->getAverageFPS();
 //		m_fpsList[m_fpsListIndex] = TheGameClient->getFrame() - m_fpsStartingFrame;
-		m_averageFps += ((Real)(m_fpsList[m_fpsListIndex])) / TheGlobalData->m_networkFPSHistoryLength; // add the new value to the average.
+		m_averageFps += (m_fpsList[m_fpsListIndex]) / TheGlobalData->m_networkFPSHistoryLength; // add the new value to the average.
 //		DEBUG_LOG(("average after: %f", m_averageFps));
 		++m_fpsListIndex;
 		m_fpsListIndex %= TheGlobalData->m_networkFPSHistoryLength;

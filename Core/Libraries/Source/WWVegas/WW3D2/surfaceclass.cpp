@@ -263,7 +263,7 @@ void * SurfaceClass::Lock(int * pitch)
 	::ZeroMemory(&lock_rect, sizeof(D3DLOCKED_RECT));
 	DX8_ErrorCode(D3DSurface->LockRect(&lock_rect, 0, 0));
 	*pitch = lock_rect.Pitch;
-	return (void *)lock_rect.pBits;
+	return lock_rect.pBits;
 }
 
 void SurfaceClass::Unlock(void)

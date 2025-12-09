@@ -339,9 +339,9 @@ void RigidDecalMeshClass::Render(void)
 		unsigned short * indices = lock.Get_Index_Array();
 		for (int i=0; i < Polys.Count(); i++)
 		{
-			indices[i*3 + 0] = (unsigned short)Polys[i].I;
-			indices[i*3 + 1] = (unsigned short)Polys[i].J;
-			indices[i*3 + 2] = (unsigned short)Polys[i].K;
+			indices[i*3 + 0] = Polys[i].I;
+			indices[i*3 + 1] = Polys[i].J;
+			indices[i*3 + 2] = Polys[i].K;
 		}
 	}
 
@@ -837,9 +837,9 @@ void SkinDecalMeshClass::Render(void)
 		unsigned short * indices = lock.Get_Index_Array();
 		for (int i=0; i < Polys.Count(); i++)
 		{
-			indices[i*3 + 0] = (unsigned short)Polys[i].I;
-			indices[i*3 + 1] = (unsigned short)Polys[i].J;
-			indices[i*3 + 2] = (unsigned short)Polys[i].K;
+			indices[i*3 + 0] = Polys[i].I;
+			indices[i*3 + 1] = Polys[i].J;
+			indices[i*3 + 2] = Polys[i].K;
 		}
 	}
 

@@ -1184,7 +1184,7 @@ void W3DView::update(void)
 			}
 			if (getCameraLockDrawable() != NULL)
 			{
-				Drawable* cameraLockDrawable = (Drawable *)getCameraLockDrawable();
+				Drawable* cameraLockDrawable = getCameraLockDrawable();
 
 				if (!cameraLockDrawable)
 				{

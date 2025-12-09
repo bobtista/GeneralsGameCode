@@ -205,7 +205,7 @@ AsciiString HotKeyManager::searchHotKey( const UnicodeString& uStr )
 	if(uStr.isEmpty())
 		return AsciiString::TheEmptyString;
 
-	const WideChar *marker = (const WideChar *)uStr.str();
+	const WideChar *marker = uStr.str();
 	while (marker && *marker)
 	{
 		if (*marker == L'&')

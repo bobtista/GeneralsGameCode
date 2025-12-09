@@ -42,7 +42,7 @@ void WBPopupSliderButton::SetupPopSliderButton
 	m_sliderStyle = SB_VERT;
 	m_owner = pOwner;
 
-	HBITMAP hBm = (HBITMAP) ::LoadImage((HINSTANCE) AfxGetResourceHandle(),
+	HBITMAP hBm = (HBITMAP) ::LoadImage( AfxGetResourceHandle(),
 								 MAKEINTRESOURCE(IDB_DownArrow),
 								 IMAGE_BITMAP, 0, 0,
 								 LR_LOADMAP3DCOLORS);

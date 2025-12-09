@@ -33,7 +33,7 @@
 
 // yuk, I'm doing this so weird because the destructor
 // of cmd must never be called...
-static ProfileCmdInterface &cmd=*(ProfileCmdInterface *)new
+static ProfileCmdInterface &cmd=*new
                   (ProfileAllocMemory(sizeof(ProfileCmdInterface))) ProfileCmdInterface();
 
 // we have this here so that our command interface will always

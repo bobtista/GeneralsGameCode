@@ -91,7 +91,7 @@ static Real angleBetweenVectors(const Coord3D& inCurDir, const Coord3D& inGoalDi
 	Real cosine = Vector3::Dot_Product(curDir, goalDir);
 
 	// bound it in case of numerical error
-	Real angleBetween = (Real)ACos(clamp(-1.0f, cosine, 1.0f));
+	Real angleBetween = ACos(clamp(-1.0f, cosine, 1.0f));
 
 	return angleBetween;
 }

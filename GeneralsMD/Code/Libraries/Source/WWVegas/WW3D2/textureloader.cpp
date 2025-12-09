@@ -1946,7 +1946,7 @@ bool TextureLoadTaskClass::Load_Uncompressed_Mipmap(void)
 		//generate upper mip-levels that will be dropped in final texture
 		for (unsigned int level = 0; level < Reduction; ++level) {
 		BitmapHandlerClass::Copy_Image(
-			(unsigned char *)destination_surface,
+			destination_surface,
 			width,
 			height,
 			src_pitch,

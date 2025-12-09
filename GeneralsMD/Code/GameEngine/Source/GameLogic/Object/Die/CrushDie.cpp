@@ -82,7 +82,7 @@ static CrushEnum crushLocationCheck( Object* crusherObject, Object* victimObject
 
 		dx = comparisonCoord.x - pos->x;
 		dy = comparisonCoord.y - pos->y;
-		Real dist = (Real)( dx*dx + dy*dy );
+		Real dist = (dx*dx + dy*dy);
 
 		//otherwise we want to make sure we get the closest valid crush point
 		retval = TOTAL_CRUSH;
@@ -98,7 +98,7 @@ static CrushEnum crushLocationCheck( Object* crusherObject, Object* victimObject
 
 		dx = comparisonCoord.x - pos->x;
 		dy = comparisonCoord.y - pos->y;
-		Real dist = (Real)( dx*dx + dy*dy );
+		Real dist = (dx*dx + dy*dy);
 
 		if( dist < bestDist )//closer
 		{
@@ -124,7 +124,7 @@ static CrushEnum crushLocationCheck( Object* crusherObject, Object* victimObject
 
 		dx = comparisonCoord.x - pos->x;
 		dy = comparisonCoord.y - pos->y;
-		Real dist = (Real)( dx*dx + dy*dy );
+		Real dist = (dx*dx + dy*dy);
 
 		if( dist < bestDist )//closer
 		{

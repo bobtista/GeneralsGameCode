@@ -61,12 +61,12 @@ Real ObjectTool::calcAngle(Coord3D downPt, Coord3D curPt, WbView* pView)
 	}
 	else if (abs(dx) > abs(dy))
 	{
-		angle = acos(	(double)dx / dist);
+		angle = acos(	dx / dist);
 		if (dy<0) angle = -angle;
 	}
 	else
 	{
-		angle = asin(	((double)dy) / dist);
+		angle = asin(	(dy) / dist);
 		if (dx<0) angle = PI-angle;
 	}
 	if (angle > PI) angle -= 2*PI;

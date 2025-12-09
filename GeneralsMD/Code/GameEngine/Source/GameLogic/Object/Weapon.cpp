@@ -2124,8 +2124,8 @@ Bool Weapon::computeApproachTarget(const Object *source, const Object *target, c
 		if (angleOffset != 0.0f)
 		{
 			Real angle = atan2(dir.y, dir.x);
-			dir.x = (Real)Cos(angle + angleOffset);
-			dir.y = (Real)Sin(angle + angleOffset);
+			dir.x = Cos(angle + angleOffset);
+			dir.y = Sin(angle + angleOffset);
 		}
 
 		// select a spot along the line between us, halfway between the min & max range.
@@ -2171,8 +2171,8 @@ Bool Weapon::computeApproachTarget(const Object *source, const Object *target, c
 		if (angleOffset != 0.0f)
 		{
 			Real angle = atan2(dir.y, dir.x);
-			dir.x = (Real)Cos(angle + angleOffset);
-			dir.y = (Real)Sin(angle + angleOffset);
+			dir.x = Cos(angle + angleOffset);
+			dir.y = Sin(angle + angleOffset);
 		}
 
 		// select a spot along the line between us, in range of our weapon

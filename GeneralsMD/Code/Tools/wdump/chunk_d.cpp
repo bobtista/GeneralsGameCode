@@ -1120,7 +1120,7 @@ void ChunkTableClass::List_W3D_CHUNK_FX_SHADER_CONSTANT(ChunkItem* Item, CListCt
 	}
 	else if (type == CONSTANT_TYPE_BOOL)
 	{
-		uint8 u = *(uint8*)chunkdata;
+		uint8 u = *chunkdata;
 		AddItem(list, counter, "Bool", u);
 	}
 	else

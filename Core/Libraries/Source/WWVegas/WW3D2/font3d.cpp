@@ -155,13 +155,13 @@ SurfaceClass *Font3DDataClass::Minimize_Font_Image( SurfaceClass *surface )
 		VOffsetTable[ char_index ] = (float)(new_y) / (float)new_width;
 
 		// update width in terms of new normal image width
-		UWidthTable[ char_index ] *= (float)current_width / (float)new_width;
+		UWidthTable[ char_index ] *= current_width / (float)new_width;
 
 		new_x += width;
 	}
 
 	// update height in terms of new normal image height
-	VHeight *= (float)current_height / (float)new_height;
+	VHeight *= current_height / (float)new_height;
 
 	// be sure the new image is SMALLER than the old image
 //	assert ( (new_width * new_height) <= (current_width * current_height));

@@ -1380,11 +1380,11 @@ void IMEManager::updateCandidateList( Int candidateFlags  )
 
 			if ( unicode )
 			{
-				bytesCopied = ImmGetCandidateListW( m_context, i, (CANDIDATELIST*) clist, size );
+				bytesCopied = ImmGetCandidateListW( m_context, i, clist, size );
 			}
 			else
 			{
-				bytesCopied = ImmGetCandidateListA( m_context, i, (CANDIDATELIST*) clist, size );
+				bytesCopied = ImmGetCandidateListA( m_context, i, clist, size );
 			}
 
 			if ( bytesCopied == 0 || bytesCopied > size )

@@ -45,7 +45,7 @@ void INI::parseParticleSystemDefinition( INI* ini )
 	name.set( c );
 
 	// find existing item if present
-	ParticleSystemTemplate *sysTemplate = const_cast<ParticleSystemTemplate*>(TheParticleSystemManager->findTemplate( name ));
+	ParticleSystemTemplate *sysTemplate = TheParticleSystemManager->findTemplate( name );
 	if (sysTemplate == NULL)
 	{
 		// no item is present, create a new one

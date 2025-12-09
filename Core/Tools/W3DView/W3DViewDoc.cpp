@@ -2443,7 +2443,7 @@ CW3DViewDoc::Make_Movie (void)
 			m_pCRenderObj->Set_Animation (m_pCAnimCombo);
 		}
 		else
-			m_pCRenderObj->Set_Animation (m_pCAnimation, (int)0);
+			m_pCRenderObj->Set_Animation (m_pCAnimation, 0);
 		graphic_view->RepaintView (FALSE);
 
 		// Begin our movie

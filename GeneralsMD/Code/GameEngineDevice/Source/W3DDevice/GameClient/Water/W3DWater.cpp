@@ -462,7 +462,7 @@ HRESULT WaterRenderObjClass::initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass 
 		for( DWORD y=0; y<d3dsd.Height; y++ )
 		{
 			BYTE* pDstT  = pDst;
-			BYTE* pSrcB0 = (BYTE*)pSrc;
+			BYTE* pSrcB0 = pSrc;
 			BYTE* pSrcB1 = ( pSrcB0 + dwSrcPitch );
 			BYTE* pSrcB2 = ( pSrcB0 - dwSrcPitch );
 
@@ -1451,7 +1451,7 @@ void WaterRenderObjClass::renderMirror(CameraClass *cam)
 	Matrix3D reflectedTransform(rRight,rUp,rN,rPos);
 
 
-	DX8Wrapper::Set_Render_Target_With_Z((TextureClass*)m_pReflectionTexture);
+	DX8Wrapper::Set_Render_Target_With_Z(m_pReflectionTexture);
 
 	// Clear the backbuffer
 	WW3D::Begin_Render(false,true,Vector3(0.0f,0.0f,0.0f));	//clearing only z-buffer since background always filled with clouds
@@ -2801,7 +2801,7 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 	Real lengthOfRiver = (totalLen/2)-endLen;
 	Real repeatCount = lengthOfRiver / (endLen);
 
-	Real vScale=(Real)repeatCount/(Real)rectangleCount;
+	Real vScale=repeatCount/(Real)rectangleCount;
 
 #define HEIGHT_TO_USE (0.5f)
 	if (innerNdx >= pTrig->getNumPoints()-1) return;

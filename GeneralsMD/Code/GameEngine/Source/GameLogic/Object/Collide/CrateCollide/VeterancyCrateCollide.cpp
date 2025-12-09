@@ -126,7 +126,7 @@ Bool VeterancyCrateCollide::executeCrateBehavior( Object *other )
 {
  	//Make sure the pilot is actually *TRYING* to enter the object
  	//unlike other crates
- 	AIUpdateInterface *ai = (AIUpdateInterface*)getObject()->getAIUpdateInterface();
+ 	AIUpdateInterface *ai = getObject()->getAIUpdateInterface();
 	const VeterancyCrateCollideModuleData *md = getVeterancyCrateCollideModuleData();
 
  	if( !ai || ai->getGoalObject() != other )

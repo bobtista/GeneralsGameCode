@@ -336,7 +336,7 @@ CGraphicView::OnDestroy (void)
 	if (m_TimerID == 0) {
 
 		// Stop the timer
-		::timeKillEvent ((UINT)m_TimerID);
+		::timeKillEvent (m_TimerID);
 		m_TimerID = 0;
 	}
 

@@ -646,7 +646,7 @@ void DX8FVFCategoryContainer::Change_Polygon_Renderer_Material(
 							this,
 							tmp_textures,
 							src_tex_category->Get_Shader(),
-							const_cast<VertexMaterialClass*>(new_vmat),
+							new_vmat,
 							pass);
 
 						/*

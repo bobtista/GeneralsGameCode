@@ -1474,7 +1474,7 @@ void RailroadBehavior::FindPosByPathDistance( Coord3D *pos, const Real dist, con
 					{//play my clickety clack sound, `cause I just rode over a join IN the tracks
 						TheAudio->addAudioEvent( &m_clicketyClackSound );
 						m_clicketyClackSound.setPosition( getObject()->getPosition() );
-						m_clicketyClackSound.setVolume( (Real)conductorPullInfo.speed / 10.0f );//assumed max speed
+						m_clicketyClackSound.setVolume( conductorPullInfo.speed / 10.0f );//assumed max speed
 					}
 				}
 

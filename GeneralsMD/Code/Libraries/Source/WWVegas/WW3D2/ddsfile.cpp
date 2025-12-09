@@ -404,7 +404,7 @@ void DDSFileClass::Copy_Level_To_Surface
 						Recolor(col1,hsv_shift);
 						col0=ARGB8888_To_RGB565(col0);
 						col1=ARGB8888_To_RGB565(col1);
-						cols=unsigned(col0)<<16|col1;
+						cols=col0<<16|col1;
 						*dest_ptr++=cols;
 
 						*dest_ptr++=*src_ptr++;		// Bytes 5-8 of color block
@@ -425,7 +425,7 @@ void DDSFileClass::Copy_Level_To_Surface
 						Recolor(col1,hsv_shift);
 						col0=ARGB8888_To_RGB565(col0);
 						col1=ARGB8888_To_RGB565(col1);
-						cols=unsigned(col0)<<16|col1;
+						cols=col0<<16|col1;
 						*dest_ptr++=cols;
 
 						*dest_ptr++=*src_ptr++;		// Bytes 5-8 of color block
@@ -466,7 +466,7 @@ void DDSFileClass::Copy_Level_To_Surface
 							Recolor(col1,hsv_shift);
 							col0=ARGB8888_To_RGB565(col0);
 							col1=ARGB8888_To_RGB565(col1);
-							cols=unsigned(col0)<<16|col1;
+							cols=col0<<16|col1;
 							*dest_ptr++=cols;
 
 							*dest_ptr++=*src_ptr++;		// Bytes 5-8 of color block
@@ -560,7 +560,7 @@ void DDSFileClass::Copy_CubeMap_Level_To_Surface
 						Recolor(col1,hsv_shift);
 						col0=ARGB8888_To_RGB565(col0);
 						col1=ARGB8888_To_RGB565(col1);
-						cols=unsigned(col0)<<16|col1;
+						cols=col0<<16|col1;
 						*dest_ptr++=cols;
 
 						*dest_ptr++=*src_ptr++;		// Bytes 5-8 of color block
@@ -584,7 +584,7 @@ void DDSFileClass::Copy_CubeMap_Level_To_Surface
 						Recolor(col1,hsv_shift);
 						col0=ARGB8888_To_RGB565(col0);
 						col1=ARGB8888_To_RGB565(col1);
-						cols=unsigned(col0)<<16|col1;
+						cols=col0<<16|col1;
 						*dest_ptr++=cols;
 
 						*dest_ptr++=*src_ptr++;		// Bytes 5-8 of color block
@@ -633,7 +633,7 @@ void DDSFileClass::Copy_CubeMap_Level_To_Surface
 							Recolor(col1,hsv_shift);
 							col0=ARGB8888_To_RGB565(col0);
 							col1=ARGB8888_To_RGB565(col1);
-							cols=unsigned(col0)<<16|col1;
+							cols=col0<<16|col1;
 							*dest_ptr++=cols;
 
 							*dest_ptr++=*src_ptr++;		// Bytes 5-8 of color block
@@ -733,7 +733,7 @@ void DDSFileClass::Copy_Volume_Level_To_Surface
 						Recolor(col1,hsv_shift);
 						col0=ARGB8888_To_RGB565(col0);
 						col1=ARGB8888_To_RGB565(col1);
-						cols=unsigned(col0)<<16|col1;
+						cols=col0<<16|col1;
 						*dest_ptr++=cols;
 
 						*dest_ptr++=*src_ptr++;		// Bytes 5-8 of color block
@@ -757,7 +757,7 @@ void DDSFileClass::Copy_Volume_Level_To_Surface
 						Recolor(col1,hsv_shift);
 						col0=ARGB8888_To_RGB565(col0);
 						col1=ARGB8888_To_RGB565(col1);
-						cols=unsigned(col0)<<16|col1;
+						cols=col0<<16|col1;
 						*dest_ptr++=cols;
 
 						*dest_ptr++=*src_ptr++;		// Bytes 5-8 of color block
@@ -806,7 +806,7 @@ void DDSFileClass::Copy_Volume_Level_To_Surface
 							Recolor(col1,hsv_shift);
 							col0=ARGB8888_To_RGB565(col0);
 							col1=ARGB8888_To_RGB565(col1);
-							cols=unsigned(col0)<<16|col1;
+							cols=col0<<16|col1;
 							*dest_ptr++=cols;
 
 							*dest_ptr++=*src_ptr++;		// Bytes 5-8 of color block

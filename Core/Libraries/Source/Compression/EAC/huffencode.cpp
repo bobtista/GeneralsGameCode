@@ -100,7 +100,7 @@ static void HUFF_writebits(struct HuffEncodeContext *EC,
 	if (len > 16)
 	{
 		HUFF_writebits(EC,dest,(unsigned int) (bitpattern>>16), len-16);
-		HUFF_writebits(EC,dest,(unsigned int) bitpattern, 16);
+		HUFF_writebits(EC,dest, bitpattern, 16);
 	}
 	else
 	{
@@ -156,7 +156,7 @@ static void HUFF_maketree(struct HuffEncodeContext *EC)
 	for (i=0; i<HUFFCODES; ++i)
 	{	EC->bitsarray[i] = 99;
 		if (EC->count[i])
-		{	list_count[i1] = (unsigned int) EC->count[i];
+		{	list_count[i1] = EC->count[i];
 			list_ptr[i1++] = i;
 		}
 	}
@@ -262,8 +262,8 @@ static void HUFF_writenum(struct HuffEncodeContext *EC,
 	unsigned int	dbase;
 
 	if (num<HUFFREPTBL)
-	{	dphuf = EC->repbits[(unsigned int) num];
-		dbase = (unsigned int) EC->repbase[(unsigned int) num];
+	{	dphuf = EC->repbits[ num];
+		dbase = EC->repbase[ num];
 	}
 	else
 	{	if (num<508L)
@@ -320,7 +320,7 @@ static void HUFF_writenum(struct HuffEncodeContext *EC,
 		}
 	}
 	HUFF_writebits(EC,dest,(unsigned int) 0x00000001, dphuf+1);
-	HUFF_writebits(EC,dest,(unsigned int) (num - dbase), dphuf+2);
+	HUFF_writebits(EC,dest,(num - dbase), dphuf+2);
 }
 
 /* write explicite byte ([clue] 0gn [0] [byte]) */
@@ -331,7 +331,7 @@ static void HUFF_writeexp(struct HuffEncodeContext *EC,
 {
 	HUFF_writebits(EC,dest,EC->patternarray[EC->clue], EC->bitsarray[EC->clue]);
 	HUFF_writenum(EC,dest,0L);
-	HUFF_writebits(EC,dest,(unsigned int) code, 9);
+	HUFF_writebits(EC,dest, code, 9);
 }
 
 static void HUFF_writecode(struct HuffEncodeContext *EC,
@@ -874,7 +874,7 @@ static void HUFF_pack(struct HuffEncodeContext *EC,
 	{
 		if (uptype==34)
 		{
-			HUFF_writenum(EC,dest,(unsigned int) EC->ulen);
+			HUFF_writenum(EC,dest, EC->ulen);
 
 			ibits = 0;
 			if ((opt & 16) && (!EC->chainused))
@@ -887,28 +887,28 @@ static void HUFF_pack(struct HuffEncodeContext *EC,
 				i += 2;
 			if (EC->dclues)
 				i += 4;
-			HUFF_writenum(EC,dest,(unsigned int) i);
+			HUFF_writenum(EC,dest, i);
 
 			if (EC->clues)
-			{	HUFF_writenum(EC,dest,(unsigned int) EC->clue);
-				HUFF_writenum(EC,dest,(unsigned int) EC->clues);
+			{	HUFF_writenum(EC,dest, EC->clue);
+				HUFF_writenum(EC,dest, EC->clues);
 			}
 			if (EC->dclues)
-			{	HUFF_writenum(EC,dest,(unsigned int) EC->dclue);
-				HUFF_writenum(EC,dest,(unsigned int) EC->dclues);
+			{	HUFF_writenum(EC,dest, EC->dclue);
+				HUFF_writenum(EC,dest, EC->dclues);
 			}
 
 			if (!ibits)
-				HUFF_writenum(EC,dest,(unsigned int) EC->mostbits);
+				HUFF_writenum(EC,dest, EC->mostbits);
 		}
 		else
 		{
-			HUFF_writebits(EC,dest,(unsigned int) EC->clue, 8);	/* clue */
+			HUFF_writebits(EC,dest, EC->clue, 8);	/* clue */
 			rladjust = 0;
 		}
 
 		for (i=1; i <= EC->mostbits; ++i)
-			HUFF_writenum(EC,dest,(unsigned int) EC->bitnum[i]);
+			HUFF_writenum(EC,dest, EC->bitnum[i]);
 
 		for (i=0; i<HUFFCODES; ++i)
 			EC->qleapcode[i] = 0;
@@ -1012,7 +1012,7 @@ static void HUFF_pack(struct HuffEncodeContext *EC,
 			{	if (repn < irep)
 				{
 					HUFF_writebits(EC,dest,EC->patternarray[EC->clue], EC->bitsarray[EC->clue]);
-					HUFF_writenum(EC,dest,(unsigned int) (i2-rladjust));
+					HUFF_writenum(EC,dest,(i2-rladjust));
 				}
 				else
 				{
@@ -1123,7 +1123,7 @@ static int HUFF_packfile(struct HuffEncodeContext *EC,
     		if (deltaed==0) 		uptype = 0xb0fb;
     		else if (deltaed==1)	uptype = 0xb2fb;
     		else if (deltaed==2)	uptype = 0xb4fb;
-    		HUFF_writebits(EC,outfile,(unsigned int) uptype, 16);
+    		HUFF_writebits(EC,outfile, uptype, 16);
     		HUFF_writebits(EC,outfile,(unsigned int) infile->len, 32);
     	}
 
@@ -1134,7 +1134,7 @@ static int HUFF_packfile(struct HuffEncodeContext *EC,
     		if (deltaed==0) 		uptype = 0xb1fb;
     		else if (deltaed==1)	uptype = 0xb3fb;
     		else if (deltaed==2)	uptype = 0xb5fb;
-    		HUFF_writebits(EC,outfile,(unsigned int) uptype, 16);
+    		HUFF_writebits(EC,outfile, uptype, 16);
     		HUFF_writebits(EC,outfile,(unsigned int) ulen, 32);
     		HUFF_writebits(EC,outfile,(unsigned int) infile->len, 32);
     	}
@@ -1149,7 +1149,7 @@ static int HUFF_packfile(struct HuffEncodeContext *EC,
     		if (deltaed==0) 		uptype = 0x30fb;
     		else if (deltaed==1)	uptype = 0x32fb;
     		else if (deltaed==2)	uptype = 0x34fb;
-    		HUFF_writebits(EC,outfile,(unsigned int) uptype, 16);
+    		HUFF_writebits(EC,outfile, uptype, 16);
     		HUFF_writebits(EC,outfile,(unsigned int) infile->len, 24);
     	}
 
@@ -1160,7 +1160,7 @@ static int HUFF_packfile(struct HuffEncodeContext *EC,
     		if (deltaed==0) 		uptype = 0x31fb;
     		else if (deltaed==1)	uptype = 0x33fb;
     		else if (deltaed==2)	uptype = 0x35fb;
-    		HUFF_writebits(EC,outfile,(unsigned int) uptype, 16);
+    		HUFF_writebits(EC,outfile, uptype, 16);
     		HUFF_writebits(EC,outfile,(unsigned int) ulen, 24);
     		HUFF_writebits(EC,outfile,(unsigned int) infile->len, 24);
     	}

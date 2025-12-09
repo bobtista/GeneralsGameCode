@@ -401,7 +401,7 @@ AggregateDefClass::Initialize (RenderObjClass &base_model)
 	// Create a new instance of the model which we can use
 	// to compare with the supplied model and determine
 	// which 'bones-models' and textures are new.
-	RenderObjClass *pvanilla_model = (RenderObjClass *)Create_Render_Object (orig_model_name);
+	RenderObjClass *pvanilla_model = Create_Render_Object (orig_model_name);
 
 	// Build lists of changes from the delta between the original model and the provided one
 	Build_Subobject_List (*pvanilla_model, base_model);
@@ -476,7 +476,7 @@ AggregateDefClass::Build_Subobject_List
 					// Attach this render object to the 'original' model (this is done
 					// so we can do texture compares later)
 					RenderObjClass *prender_obj = WW3DAssetManager::Get_Instance ()->Create_Render_Obj (prototype_name);
-					((RenderObjClass &)original_model).Add_Sub_Object_To_Bone (prender_obj, pbone_name);
+					(original_model).Add_Sub_Object_To_Bone (prender_obj, pbone_name);
 					REF_PTR_RELEASE (prender_obj);
 				}
 			}

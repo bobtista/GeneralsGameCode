@@ -129,7 +129,7 @@ static Real tryToRotateVector3D(
 	// dot of two unit vectors is cos of angle between them.
 	Real cosine = Vector3::Dot_Product(curDir, goalDir);
 	// bound it in case of numerical error
-	Real angleBetween = (Real)ACos(clamp(-1.0f, cosine, 1.0f));
+	Real angleBetween = ACos(clamp(-1.0f, cosine, 1.0f));
 
 	if (maxAngle < 0)
 	{

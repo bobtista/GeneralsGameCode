@@ -1669,7 +1669,7 @@ void NetPacket::FillBufferWithProgressMessage(UnsignedByte *buffer, NetCommandRe
 }
 
 void NetPacket::FillBufferWithLoadCompleteMessage(UnsignedByte *buffer, NetCommandRef *msg) {
-	NetCommandMsg *cmdMsg = (NetCommandMsg *)(msg->getCommand());
+	NetCommandMsg *cmdMsg = msg->getCommand();
 	UnsignedShort offset = 0;
 
 // If necessary, put the NetCommandType into the packet.
@@ -1702,7 +1702,7 @@ void NetPacket::FillBufferWithLoadCompleteMessage(UnsignedByte *buffer, NetComma
 }
 
 void NetPacket::FillBufferWithTimeOutGameStartMessage(UnsignedByte *buffer, NetCommandRef *msg) {
-	NetCommandMsg *cmdMsg = (NetCommandMsg *)(msg->getCommand());
+	NetCommandMsg *cmdMsg = msg->getCommand();
 	UnsignedShort offset = 0;
 
 // If necessary, put the NetCommandType into the packet.
@@ -2185,7 +2185,7 @@ Bool NetPacket::addFrameResendRequestCommand(NetCommandRef *msg) {
 		}
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -2233,7 +2233,7 @@ Bool NetPacket::isRoomForFrameResendRequestMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 
@@ -2294,7 +2294,7 @@ Bool NetPacket::addDisconnectScreenOffCommand(NetCommandRef *msg) {
 		}
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -2342,7 +2342,7 @@ Bool NetPacket::isRoomForDisconnectScreenOffMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 
@@ -2403,7 +2403,7 @@ Bool NetPacket::addDisconnectFrameCommand(NetCommandRef *msg) {
 		}
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -2451,7 +2451,7 @@ Bool NetPacket::isRoomForDisconnectFrameMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 
@@ -2501,7 +2501,7 @@ Bool NetPacket::addFileCommand(NetCommandRef *msg) {
 		}
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -2549,7 +2549,7 @@ Bool NetPacket::isRoomForFileMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte) + sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedByte) + sizeof(UnsignedShort);
 	}
 
@@ -2603,7 +2603,7 @@ Bool NetPacket::addFileAnnounceCommand(NetCommandRef *msg) {
 		}
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -2656,7 +2656,7 @@ Bool NetPacket::isRoomForFileAnnounceMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte) + sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedByte) + sizeof(UnsignedShort);
 	}
 
@@ -2710,7 +2710,7 @@ Bool NetPacket::addFileProgressCommand(NetCommandRef *msg) {
 		}
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -2756,7 +2756,7 @@ Bool NetPacket::isRoomForFileProgressMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte) + sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedByte) + sizeof(UnsignedShort);
 	}
 
@@ -2809,7 +2809,7 @@ Bool NetPacket::addWrapperCommand(NetCommandRef *msg) {
 		}
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -2886,7 +2886,7 @@ Bool NetPacket::isRoomForWrapperMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte) + sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedByte) + sizeof(UnsignedShort);
 	}
 
@@ -2912,7 +2912,7 @@ Bool NetPacket::isRoomForWrapperMessage(NetCommandRef *msg) {
 Bool NetPacket::addTimeOutGameStartMessage(NetCommandRef *msg) {
 	Bool needNewCommandID = FALSE;
 	if (isRoomForLoadCompleteMessage(msg)) {
-		NetCommandMsg *cmdMsg = (NetCommandMsg *)(msg->getCommand());
+		NetCommandMsg *cmdMsg = msg->getCommand();
 
 		// If necessary, put the NetCommandType into the packet.
 		if (m_lastCommandType != cmdMsg->getNetCommandType()) {
@@ -2946,7 +2946,7 @@ Bool NetPacket::addTimeOutGameStartMessage(NetCommandRef *msg) {
 		}
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -2976,7 +2976,7 @@ Bool NetPacket::addTimeOutGameStartMessage(NetCommandRef *msg) {
  */
 Bool NetPacket::isRoomForTimeOutGameStartMessage(NetCommandRef *msg) {
 	Int len = 0;
-	NetCommandMsg *cmdMsg = (NetCommandMsg *)(msg->getCommand());
+	NetCommandMsg *cmdMsg = msg->getCommand();
 	if (m_lastCommandType != cmdMsg->getNetCommandType()) {
 		++len;
 		len += sizeof(UnsignedByte);
@@ -3004,7 +3004,7 @@ Bool NetPacket::isRoomForTimeOutGameStartMessage(NetCommandRef *msg) {
 Bool NetPacket::addLoadCompleteMessage(NetCommandRef *msg) {
 	Bool needNewCommandID = FALSE;
 	if (isRoomForLoadCompleteMessage(msg)) {
-		NetCommandMsg *cmdMsg = (NetCommandMsg *)(msg->getCommand());
+		NetCommandMsg *cmdMsg = msg->getCommand();
 
 		// If necessary, put the NetCommandType into the packet.
 		if (m_lastCommandType != cmdMsg->getNetCommandType()) {
@@ -3038,7 +3038,7 @@ Bool NetPacket::addLoadCompleteMessage(NetCommandRef *msg) {
 		}
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -3068,7 +3068,7 @@ Bool NetPacket::addLoadCompleteMessage(NetCommandRef *msg) {
  */
 Bool NetPacket::isRoomForLoadCompleteMessage(NetCommandRef *msg) {
 	Int len = 0;
-	NetCommandMsg *cmdMsg = (NetCommandMsg *)(msg->getCommand());
+	NetCommandMsg *cmdMsg = msg->getCommand();
 	if (m_lastCommandType != cmdMsg->getNetCommandType()) {
 		++len;
 		len += sizeof(UnsignedByte);
@@ -3220,7 +3220,7 @@ Bool NetPacket::addDisconnectVoteCommand(NetCommandRef *msg) {
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("player = %d", m_lastPlayerID));
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -3272,7 +3272,7 @@ Bool NetPacket::isRoomForDisconnectVoteMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 
@@ -3428,7 +3428,7 @@ Bool NetPacket::addChatCommand(NetCommandRef *msg) {
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("player = %d", m_lastPlayerID));
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -3484,7 +3484,7 @@ Bool NetPacket::isRoomForChatMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 
@@ -3704,7 +3704,7 @@ Bool NetPacket::addDisconnectPlayerCommand(NetCommandRef *msg) {
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("player = %d", m_lastPlayerID));
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -3756,7 +3756,7 @@ Bool NetPacket::isRoomForDisconnectPlayerMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 
@@ -3982,7 +3982,7 @@ Bool NetPacket::addRunAheadCommand(NetCommandRef *msg) {
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("player = %d", m_lastPlayerID));
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -4037,7 +4037,7 @@ Bool NetPacket::isRoomForRunAheadMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 
@@ -4105,7 +4105,7 @@ Bool NetPacket::addDestroyPlayerCommand(NetCommandRef *msg) {
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("player = %d", m_lastPlayerID));
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -4156,7 +4156,7 @@ Bool NetPacket::isRoomForDestroyPlayerMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 
@@ -4213,7 +4213,7 @@ Bool NetPacket::addRunAheadMetricsCommand(NetCommandRef *msg) {
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("player = %d", m_lastPlayerID));
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -4264,7 +4264,7 @@ Bool NetPacket::isRoomForRunAheadMetricsMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 
@@ -4334,7 +4334,7 @@ Bool NetPacket::addPlayerLeaveCommand(NetCommandRef *msg) {
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("player = %d", m_lastPlayerID));
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -4383,7 +4383,7 @@ Bool NetPacket::isRoomForPlayerLeaveMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 
@@ -4467,7 +4467,7 @@ Bool NetPacket::addFrameCommand(NetCommandRef *msg) {
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("player = %d", m_lastPlayerID));
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -4519,7 +4519,7 @@ Bool NetPacket::isRoomForFrameMessage(NetCommandRef *msg) {
 		len += sizeof(UnsignedByte);
 		needNewCommandID = TRUE;
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		len += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 
@@ -4786,7 +4786,7 @@ Bool NetPacket::addGameCommand(NetCommandRef *msg) {
 		}
 
 		// If necessary, specify the command ID of this command.
-		if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+		if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 			m_packet[m_packetLen] = NetPacketFieldTypes::CommandId;
 			++m_packetLen;
 			UnsignedShort newID = cmdMsg->getID();
@@ -4925,7 +4925,7 @@ Bool NetPacket::isRoomForGameMessage(NetCommandRef *msg, GameMessage *gmsg) {
 	if (m_lastCommandType != cmdMsg->getNetCommandType()) {
 		msglen += sizeof(UnsignedByte) + sizeof(UnsignedByte);
 	}
-	if (((m_lastCommandID + 1) != (UnsignedShort)(cmdMsg->getID())) || (needNewCommandID == TRUE)) {
+	if (((m_lastCommandID + 1) != cmdMsg->getID()) || (needNewCommandID == TRUE)) {
 		msglen += sizeof(UnsignedShort) + sizeof(UnsignedByte);
 	}
 

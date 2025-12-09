@@ -755,9 +755,9 @@ void ParticleSystemInfo::tintAllColors( Color tintColor )
 	//This tints all but the first colorKey!!!
 	for (int key = 1; key < MAX_KEYFRAMES; ++key )
 	{
-		m_colorKey[ key ].color.red   *= (Real)(rgb.red  ) / 255.0f;
-		m_colorKey[ key ].color.green *= (Real)(rgb.green) / 255.0f;
-		m_colorKey[ key ].color.blue  *= (Real)(rgb.blue ) / 255.0f;
+		m_colorKey[ key ].color.red   *= rgb.red / 255.0f;
+		m_colorKey[ key ].color.green *= rgb.green / 255.0f;
+		m_colorKey[ key ].color.blue  *= rgb.blue / 255.0f;
 	}
 
 }

@@ -670,7 +670,7 @@ UpdateSleepTime MissileAIUpdate::update()
 				victim = TheGameLogic->findObjectByID( targetID );
 				getStateMachine()->setGoalPosition(victim->getPosition());
 				// ick. const-cast is evil. fix. (srj)
- 				aiMoveToObject(const_cast<Object*>(victim), CMD_FROM_AI );
+ 				aiMoveToObject(victim, CMD_FROM_AI );
 				m_originalTargetPos = *victim->getPosition();
 				m_isTrackingTarget = TRUE;// Remember that I was originally shot at a moving object, so if the
 				// target dies I can do something cool.

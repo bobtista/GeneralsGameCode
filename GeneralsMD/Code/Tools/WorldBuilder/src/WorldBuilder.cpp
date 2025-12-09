@@ -386,7 +386,7 @@ BOOL CWorldBuilderApp::InitInstance()
 
 	WorldHeightMapEdit::init();
 
-	initSubsystem(TheScriptEngine, (ScriptEngine*)(new ScriptEngine()));
+	initSubsystem(TheScriptEngine, new ScriptEngine());
 
 	TheScriptEngine->turnBreezeOff(); // stop the tree sway.
 

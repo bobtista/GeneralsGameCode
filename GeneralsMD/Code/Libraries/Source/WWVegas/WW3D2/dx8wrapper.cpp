@@ -2298,7 +2298,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 	if (render_state_changed&MATERIAL_CHANGED)
 	{
 		SNAPSHOT_SAY(("DX8 - apply material"));
-		VertexMaterialClass* material=const_cast<VertexMaterialClass*>(render_state.material);
+		VertexMaterialClass* material=render_state.material;
 		if (material)
 		{
 			material->Apply();

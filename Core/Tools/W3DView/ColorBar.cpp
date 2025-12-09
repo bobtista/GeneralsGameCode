@@ -1619,7 +1619,7 @@ ColorBarClass::OnLButtonDblClk
 void
 ColorBarClass::Get_Selection_Rectangle (CRect &rect)
 {
-	float pos_percent = ((float)(m_SelectionPos - m_MinPos)) / ((float)(m_MaxPos - m_MinPos));
+	float pos_percent = ((m_SelectionPos - m_MinPos)) / ((m_MaxPos - m_MinPos));
 	rect = m_ColorArea;
 
 	//

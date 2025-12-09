@@ -294,7 +294,7 @@ static Real calcTransform(const Object* obj, const Coord3D *pos, Real maxTurnRat
 	else if (c > 1.0)
 		c = 1.0;
 
-	Real angle = (Real)ACos( c );
+	Real angle = ACos( c );
 
 	Vector3 newDir;
 	if (fabs(angle) < maxTurnRate)

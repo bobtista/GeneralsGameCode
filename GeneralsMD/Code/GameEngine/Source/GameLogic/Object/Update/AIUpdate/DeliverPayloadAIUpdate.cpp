@@ -457,7 +457,7 @@ void DeliverPayloadAIUpdate::xfer( Xfer *xfer )
 	}
 	data.m_deliveryDecalTemplate.xferRadiusDecalTemplate(xfer);
 	xfer->xferReal(&data.m_deliveryDecalRadius);
-	 *((DeliverPayloadData*)&m_data) = data;
+	 *((&m_data)) = data;
 
 	Bool hasStateMachine = m_deliverPayloadStateMachine!=NULL;
 	xfer->xferBool(&hasStateMachine);

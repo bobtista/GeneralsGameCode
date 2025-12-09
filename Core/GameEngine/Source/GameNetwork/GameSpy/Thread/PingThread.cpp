@@ -478,7 +478,7 @@ Int PingThreadClass::doPing(UnsignedInt IP, Int timeout)
    /*
     * IcmpCreateFile() - Open the ping service
     */
-   hICMP = (HANDLE) lpfnIcmpCreateFile();
+   hICMP = lpfnIcmpCreateFile();
    if (hICMP == INVALID_HANDLE_VALUE)
    {
       DEBUG_LOG(("IcmpCreateFile() failed"));

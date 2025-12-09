@@ -1522,7 +1522,7 @@ bool AABTreeIterator::Enter_Sibling(void)
 		/*
 		** if we our our parent's back child, go to its front child
 		*/
-		if ((int)parent_back->Index == (int)CurNodeIndex) {
+		if ((int)parent_back->Index == CurNodeIndex) {
 			CurNodeIndex = parent_front->Index;
 			return true;
 		}

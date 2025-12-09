@@ -986,7 +986,7 @@ void W3DRoadBuffer::loadLit4PtSection(RoadSegment *pRoad, UnsignedShort *ib, Ver
 				shadeR*=255;
 				shadeG*=255;
 				shadeB*=255;
-				diffuse=REAL_TO_INT(shadeB) | (REAL_TO_INT(shadeG) << 8) | (REAL_TO_INT(shadeR) << 16) | ((int)255 << 24);
+				diffuse=REAL_TO_INT(shadeB) | (REAL_TO_INT(shadeG) << 8) | (REAL_TO_INT(shadeR) << 16) | (255 << 24);
 
 			#ifdef RTS_DEBUG
 				//diffuse &= 0xFFFF00FF; // strip out green.

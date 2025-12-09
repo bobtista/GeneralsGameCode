@@ -66,7 +66,7 @@ static void BTREE_writebits(struct BTreeEncodeContext *EC,
 	if (len > 16)
 	{
 		BTREE_writebits(EC,dest,(unsigned int) (bitpattern>>16), len-16);
-		BTREE_writebits(EC,dest,(unsigned int) bitpattern, 16);
+		BTREE_writebits(EC,dest, bitpattern, 16);
 	}
 	else
 	{
@@ -594,13 +594,13 @@ static void BTREE_treepack(struct BTreeEncodeContext *EC,
 
 /* write header */
 
-	BTREE_writebits(EC,dest,(unsigned int) clue, 8);	/* clue byte */
-	BTREE_writebits(EC,dest,(unsigned int) bt_size, 8);	/* tree size */
+	BTREE_writebits(EC,dest, clue, 8);	/* clue byte */
+	BTREE_writebits(EC,dest, bt_size, 8);	/* tree size */
 
 	for (i=0; i<bt_size;++i)
-	{	BTREE_writebits(EC,dest,(unsigned int) bt_node[i], 8);
-		BTREE_writebits(EC,dest,(unsigned int) bt_left[i], 8);
-		BTREE_writebits(EC,dest,(unsigned int) bt_right[i], 8);
+	{	BTREE_writebits(EC,dest, bt_node[i], 8);
+		BTREE_writebits(EC,dest, bt_left[i], 8);
+		BTREE_writebits(EC,dest, bt_right[i], 8);
 	}
 
 	hlen = EC->plen;
@@ -613,7 +613,7 @@ static void BTREE_treepack(struct BTreeEncodeContext *EC,
 	while (ptr1<bend)
 		BTREE_writebits(EC,dest,(unsigned int) *ptr1++, 8);
 
-	BTREE_writebits(EC,dest,(unsigned int) clue, 8);
+	BTREE_writebits(EC,dest, clue, 8);
 	BTREE_writebits(EC,dest,(unsigned int) 0, 8);
 
 	BTREE_writebits(EC,dest,0L,7);	/* flush bits */

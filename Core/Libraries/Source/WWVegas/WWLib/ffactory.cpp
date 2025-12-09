@@ -221,7 +221,7 @@ Is_Full_Path (const char *path)
 		retval = bool(path[1] == ':');
 
 		// Check for network path
-		retval |= bool((path[0] == '\\') && (path[1] == '\\'));
+		retval |= ((path[0] == '\\') && (path[1] == '\\'));
 	}
 
 	return retval;

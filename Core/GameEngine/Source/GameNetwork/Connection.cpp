@@ -367,7 +367,7 @@ NetCommandRef * Connection::processAck(UnsignedShort commandID, UnsignedByte ori
 #endif
 
 	Int index = temp->getCommand()->getID() % CONNECTION_LATENCY_HISTORY_LENGTH;
-	m_averageLatency -= ((Real)(m_latencies[index])) / CONNECTION_LATENCY_HISTORY_LENGTH;
+	m_averageLatency -= (m_latencies[index]) / CONNECTION_LATENCY_HISTORY_LENGTH;
 	Real lat = timeGetTime() - temp->getTimeLastSent();
 	m_averageLatency += lat / CONNECTION_LATENCY_HISTORY_LENGTH;
 	m_latencies[index] = lat;

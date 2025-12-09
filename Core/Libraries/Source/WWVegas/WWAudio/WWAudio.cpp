@@ -519,13 +519,13 @@ WWAudioClass::Cache_Buffer
 		 (buffer->Get_Raw_Length () < (U32)(m_MaxCacheSize / 2))) {
 
 		// Attempt to free space in the cache (if needed)
-		int space_needed = (m_CurrentCacheSize + buffer->Get_Raw_Length ()) - (int)m_MaxCacheSize;
+		int space_needed = (m_CurrentCacheSize + buffer->Get_Raw_Length ()) - m_MaxCacheSize;
 		if (space_needed > 0) {
 			Free_Cache_Space (space_needed);
 		}
 
 		// Do we have enough space in the cache for this buffer?
-		space_needed = (m_CurrentCacheSize + buffer->Get_Raw_Length ()) - (int)m_MaxCacheSize;
+		space_needed = (m_CurrentCacheSize + buffer->Get_Raw_Length ()) - m_MaxCacheSize;
 		if (space_needed <= 0) {
 
 			// Determine which index in our hash table to use
@@ -1585,7 +1585,7 @@ WWAudioClass::Build_3D_Driver_List (void)
 
 		// Couldn't select a known driver, so just use the first possible.
 		if (m_Driver3DList.Count () > 0) {
-			Select_3D_Device ((int)0);
+			Select_3D_Device (0);
 			//DRIVER_INFO_STRUCT *info = m_Driver3DList[0];
 			//m_Driver3D = info->driver;
 		}

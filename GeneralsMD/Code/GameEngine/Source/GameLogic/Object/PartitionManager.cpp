@@ -403,8 +403,8 @@ static void testRotatedPointsAgainstRect(
 	Real major = a->geom.getMajorRadius();
 	Real minor = (a->geom.getGeomType() == GEOMETRY_SPHERE) ? a->geom.getMajorRadius() : a->geom.getMinorRadius();
 
-	Real c = (Real)Cos(-a->angle);
-	Real s = (Real)Sin(-a->angle);
+	Real c = Cos(-a->angle);
+	Real s = Sin(-a->angle);
 
 	for (Int i = 0; i < 4; ++i, ++pts)
 	{
@@ -437,8 +437,8 @@ static void rectToFourPoints(
 	Coord2D pts[]
 )
 {
-	Real c = (Real)Cos(a->angle);
-	Real s = (Real)Sin(a->angle);
+	Real c = Cos(a->angle);
+	Real s = Sin(a->angle);
 
 	Real exc = a->geom.getMajorRadius()*c;
 	Real eyc = a->geom.getMinorRadius()*c;
@@ -1776,8 +1776,8 @@ void PartitionData::doRectFill(
 	Real angle
 )
 {
-	Real c = (Real)Cos(angle);
-	Real s = (Real)Sin(angle);
+	Real c = Cos(angle);
+	Real s = Sin(angle);
 
 	Real actualCellSize = ThePartitionManager->getCellSize();
 	Real stepSize = actualCellSize * 0.5f; // in theory, should be getCellSize() exactly, but needs to be smaller to avoid aliasing problems
@@ -3604,7 +3604,7 @@ Real PartitionManager::getRelativeAngle2D( const Object *obj, const Coord3D *pos
 	else if (c > 1.0)
 		c = 1.0;
 
-	Real value = (Real)ACos( c );
+	Real value = ACos( c );
 
 	// Determine sign by checking Z component of dir cross v
 	// Note this is assumes 2D, and is identical to dotting the perpendicular of v with dir

@@ -248,7 +248,7 @@ ColorSelectionDialogClass::OnChangeBlueEdit (void)
 		Update_Sliders (IDC_SLIDER_BLUE);
 
 		// Reset the cursor to the end of the edit box
-		SendDlgItemMessage (IDC_BLUE_EDIT, EM_SETSEL, (WPARAM)(int)10, (LPARAM)(int)20);
+		SendDlgItemMessage (IDC_BLUE_EDIT, EM_SETSEL, (WPARAM)10, (LPARAM)20);
 	}
 
 	return ;
@@ -270,7 +270,7 @@ ColorSelectionDialogClass::OnChangeGreenEdit (void)
 		Update_Sliders (IDC_SLIDER_GREEN);
 
 		// Reset the cursor to the end of the edit box
-		SendDlgItemMessage (IDC_GREEN_EDIT, EM_SETSEL, (WPARAM)(int)10, (LPARAM)(int)20);
+		SendDlgItemMessage (IDC_GREEN_EDIT, EM_SETSEL, (WPARAM)10, (LPARAM)20);
 	}
 
 	return ;
@@ -292,7 +292,7 @@ ColorSelectionDialogClass::OnChangeRedEdit (void)
 		Update_Sliders (IDC_SLIDER_RED);
 
 		// Reset the cursor to the end of the edit box
-		SendDlgItemMessage (IDC_RED_EDIT, EM_SETSEL, (WPARAM)(int)10, (LPARAM)(int)20);
+		SendDlgItemMessage (IDC_RED_EDIT, EM_SETSEL, (WPARAM)10, (LPARAM)20);
 	}
 
 	return ;

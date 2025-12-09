@@ -339,8 +339,8 @@ Bridge::Bridge(Object *bridgeObj)
 	Real halfsizeY = bridgeObj->getGeometryInfo().getMinorRadius();
 	m_bridgeInfo.bridgeWidth = 2*halfsizeY;
 
-	Real c = (Real)Cos(angle);
-	Real s = (Real)Sin(angle);
+	Real c = Cos(angle);
+	Real s = Sin(angle);
 
 	m_bridgeInfo.fromLeft.set(pos->x-halfsizeX*c-halfsizeY*s, pos->y + halfsizeY*c - halfsizeX*s, pos->z);
 	m_bridgeInfo.toLeft.set(pos->x+halfsizeX*c-halfsizeY*s, pos->y + halfsizeY*c + halfsizeX*s, pos->z);
@@ -2652,8 +2652,8 @@ void TerrainLogic::flattenTerrain(Object *obj)
 			Real halfsizeY = obj->getGeometryInfo().getMinorRadius();
 
 
-			Real c = (Real)Cos(angle);
-			Real s = (Real)Sin(angle);
+			Real c = Cos(angle);
+			Real s = Sin(angle);
 
 			Vector3 topLeft(pos->x-halfsizeX*c-halfsizeY*s, pos->y + halfsizeY*c - halfsizeX*s, 0);
 			Vector3 topRight(pos->x+halfsizeX*c-halfsizeY*s, pos->y + halfsizeY*c + halfsizeX*s, 0);

@@ -307,25 +307,25 @@ void Matrix3x3::Multiply(const Matrix3x3 & A,const Matrix3x3 & B,Matrix3x3 * set
 	tmp2 = B[1][0];
 	tmp3 = B[2][0];
 
-	(*set_res)[0][0] = (float)((*Aptr)[0][0]*tmp1 + (*Aptr)[0][1]*tmp2 + (*Aptr)[0][2]*tmp3);
-	(*set_res)[1][0] = (float)((*Aptr)[1][0]*tmp1 + (*Aptr)[1][1]*tmp2 + (*Aptr)[1][2]*tmp3);
-	(*set_res)[2][0] = (float)((*Aptr)[2][0]*tmp1 + (*Aptr)[2][1]*tmp2 + (*Aptr)[2][2]*tmp3);
+	(*set_res)[0][0] = ((*Aptr)[0][0]*tmp1 + (*Aptr)[0][1]*tmp2 + (*Aptr)[0][2]*tmp3);
+	(*set_res)[1][0] = ((*Aptr)[1][0]*tmp1 + (*Aptr)[1][1]*tmp2 + (*Aptr)[1][2]*tmp3);
+	(*set_res)[2][0] = ((*Aptr)[2][0]*tmp1 + (*Aptr)[2][1]*tmp2 + (*Aptr)[2][2]*tmp3);
 
 	tmp1 = B[0][1];
 	tmp2 = B[1][1];
 	tmp3 = B[2][1];
 
-	(*set_res)[0][1] = (float)((*Aptr)[0][0]*tmp1 + (*Aptr)[0][1]*tmp2 + (*Aptr)[0][2]*tmp3);
-	(*set_res)[1][1] = (float)((*Aptr)[1][0]*tmp1 + (*Aptr)[1][1]*tmp2 + (*Aptr)[1][2]*tmp3);
-	(*set_res)[2][1] = (float)((*Aptr)[2][0]*tmp1 + (*Aptr)[2][1]*tmp2 + (*Aptr)[2][2]*tmp3);
+	(*set_res)[0][1] = ((*Aptr)[0][0]*tmp1 + (*Aptr)[0][1]*tmp2 + (*Aptr)[0][2]*tmp3);
+	(*set_res)[1][1] = ((*Aptr)[1][0]*tmp1 + (*Aptr)[1][1]*tmp2 + (*Aptr)[1][2]*tmp3);
+	(*set_res)[2][1] = ((*Aptr)[2][0]*tmp1 + (*Aptr)[2][1]*tmp2 + (*Aptr)[2][2]*tmp3);
 
 	tmp1 = B[0][2];
 	tmp2 = B[1][2];
 	tmp3 = B[2][2];
 
-	(*set_res)[0][2] = (float)((*Aptr)[0][0]*tmp1 + (*Aptr)[0][1]*tmp2 + (*Aptr)[0][2]*tmp3);
-	(*set_res)[1][2] = (float)((*Aptr)[1][0]*tmp1 + (*Aptr)[1][1]*tmp2 + (*Aptr)[1][2]*tmp3);
-	(*set_res)[2][2] = (float)((*Aptr)[2][0]*tmp1 + (*Aptr)[2][1]*tmp2 + (*Aptr)[2][2]*tmp3);
+	(*set_res)[0][2] = ((*Aptr)[0][0]*tmp1 + (*Aptr)[0][1]*tmp2 + (*Aptr)[0][2]*tmp3);
+	(*set_res)[1][2] = ((*Aptr)[1][0]*tmp1 + (*Aptr)[1][1]*tmp2 + (*Aptr)[1][2]*tmp3);
+	(*set_res)[2][2] = ((*Aptr)[2][0]*tmp1 + (*Aptr)[2][1]*tmp2 + (*Aptr)[2][2]*tmp3);
 }
 
 int Matrix3x3::Is_Orthogonal(void) const

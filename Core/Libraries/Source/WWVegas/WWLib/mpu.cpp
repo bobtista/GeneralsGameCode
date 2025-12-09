@@ -190,7 +190,7 @@ int Get_RDTSC_CPU_Speed(void)
 		** Loop until 50 ticks have passed since last read of hi-res counter.
 		** This accounts for overhead later.
 		*/
-		while ( (DWORD)t1.LowPart - (DWORD)t0.LowPart<50) {
+		while ( t1.LowPart - t0.LowPart<50) {
 			QueryPerformanceCounter(&t1);
 		}
 
@@ -203,7 +203,7 @@ int Get_RDTSC_CPU_Speed(void)
 		** Loop until 1000 ticks have passed since last read of hi-res counter.
 		** This allows for elapsed time for sampling.
 		*/
-		while ( (DWORD)t1.LowPart - (DWORD)t0.LowPart < 1000 ) {
+		while ( t1.LowPart - t0.LowPart < 1000 ) {
 			QueryPerformanceCounter(&t1);
 		}
 
@@ -211,7 +211,7 @@ int Get_RDTSC_CPU_Speed(void)
 
 		cycles = stamp1 - stamp0;					// # of cycles passed between reads
 
-		double bigticks = (double)((DWORD)t1.LowPart - (DWORD)t0.LowPart);
+		double bigticks = (double)(t1.LowPart - t0.LowPart);
 		assert((bigticks * 100000.0) > bigticks);
 		bigticks = bigticks * 100000.0;						// Convert ticks to hundred
 															//   thousandths of a tick

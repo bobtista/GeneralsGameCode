@@ -632,7 +632,7 @@ void HTreeClass::Anim_Update_Without_Interpolation(const Matrix3D & root,HRawAni
 	Quaternion q;
 	Matrix3D mtx;
 
-	struct NodeMotionStruct * nodeMotion = ((HRawAnimClass*)motion)->Get_Node_Motion_Array();
+	struct NodeMotionStruct * nodeMotion = (motion)->Get_Node_Motion_Array();
 	nodeMotion += 1;	//skip the root node
 
 	pivot = &Pivot[1];

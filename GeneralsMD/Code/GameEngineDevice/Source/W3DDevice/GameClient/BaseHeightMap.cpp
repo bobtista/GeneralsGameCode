@@ -1929,7 +1929,7 @@ void BaseHeightMapRenderObjClass::updateScorches(void)
 	shadeR*=255.0f;
 	shadeG*=255.0f;
 	shadeB*=255.0f;
-	Int diffuse=REAL_TO_INT(shadeB) | (REAL_TO_INT(shadeG) << 8) | (REAL_TO_INT(shadeR) << 16) | ((int)255 << 24);
+	Int diffuse=REAL_TO_INT(shadeB) | (REAL_TO_INT(shadeG) << 8) | (REAL_TO_INT(shadeR) << 16) | (255 << 24);
 	m_scorchesInBuffer = 0;
 	for (curScorch=m_numScorches-1; curScorch>=0; curScorch--) {
 		m_scorchesInBuffer++;

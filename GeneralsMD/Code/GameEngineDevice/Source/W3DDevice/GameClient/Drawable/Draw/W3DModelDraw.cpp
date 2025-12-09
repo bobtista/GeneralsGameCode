@@ -1863,7 +1863,7 @@ void W3DModelDraw::allocateShadows(void)
 		DEBUG_ASSERTCRASH(shadowInfo.m_ShadowName[0] != '\0', ("this should be validated in ThingTemplate now"));
 		shadowInfo.allowUpdates			= FALSE;		//shadow image will never update
 		shadowInfo.allowWorldAlign	= TRUE;	//shadow image will wrap around world objects
-		shadowInfo.m_type						= (ShadowType)tmplate->getShadowType();
+		shadowInfo.m_type						= tmplate->getShadowType();
 		shadowInfo.m_sizeX					= tmplate->getShadowSizeX();
 		shadowInfo.m_sizeY					= tmplate->getShadowSizeY();
 		shadowInfo.m_offsetX				= tmplate->getShadowOffsetX();
@@ -3073,7 +3073,7 @@ void W3DModelDraw::setModelState(const ModelConditionInfo* newState)
 			DEBUG_ASSERTCRASH(shadowInfo.m_ShadowName[0] != '\0', ("this should be validated in ThingTemplate now"));
 			shadowInfo.allowUpdates			= FALSE;		//shadow image will never update
 			shadowInfo.allowWorldAlign	= TRUE;	//shadow image will wrap around world objects
-			shadowInfo.m_type						= (ShadowType)tmplate->getShadowType();
+			shadowInfo.m_type						= tmplate->getShadowType();
 			shadowInfo.m_sizeX					= tmplate->getShadowSizeX();
 			shadowInfo.m_sizeY					= tmplate->getShadowSizeY();
 			shadowInfo.m_offsetX				= tmplate->getShadowOffsetX();

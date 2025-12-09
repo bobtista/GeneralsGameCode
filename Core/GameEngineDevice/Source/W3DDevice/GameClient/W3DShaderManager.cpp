@@ -1261,7 +1261,7 @@ Int ShroudTextureShader::set(Int stage)
 		height = 1.0f/(height*shroud->getTextureHeight());
 		D3DXMatrixScaling(&scale, width, height, 1);
 		*((D3DXMATRIX *)&curView) = (inv * offset) * scale;
-		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), *((Matrix4x4*)&curView));
+		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), *((&curView)));
 	}
 	m_stageOfSet=stage;
 	return TRUE;
@@ -1354,7 +1354,7 @@ Int FlatShroudTextureShader::set(Int stage)
 		height = 1.0f/(height*shroud->getTextureHeight());
 		D3DXMatrixScaling(&scale, width, height, 1);
 		*((D3DXMATRIX *)&curView) = (inv * offset) * scale;
-		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), *((Matrix4x4*)&curView));
+		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), *((&curView)));
 	}
 	m_stageOfSet=stage;
 	return TRUE;
@@ -1460,7 +1460,7 @@ Int MaskTextureShader::set(Int pass)
 		*((D3DXMATRIX *)&curView) = ((inv * offset) * scale);
 	}
 
-	DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE0, *((Matrix4x4*)&curView));
+	DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE0, *((&curView)));
 
 	return TRUE;
 }
@@ -1769,7 +1769,7 @@ Int TerrainShader2Stage::set(Int pass)
 
 				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-				DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE0, *((Matrix4x4*)&curView));
+				DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE0, *((&curView)));
 			}
 			break;
 	}
@@ -3229,7 +3229,7 @@ Int W3DShaderManager::setShroudTex(Int stage)
 		height = 1.0f/(height*shroud->getTextureHeight());
 		D3DXMatrixScaling(&scale, width, height, 1);
 		*((D3DXMATRIX *)&curView) = (inv * offset) * scale;
-		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), *((Matrix4x4*)&curView));
+		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+stage), *((&curView)));
 		return TRUE;
 	}
 	return FALSE;
@@ -3348,7 +3348,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 					height = 1.0f/(height*shroud->getTextureHeight());
 					D3DXMatrixScaling(&scale, width, height, 1);
 					*((D3DXMATRIX *)&curView) = (inv * offset) * scale;
-					DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0), *((Matrix4x4*)&curView));
+					DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0), *((&curView)));
 				}
 			}	else {
 				DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG2 );
@@ -3449,7 +3449,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 
 				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-				DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE0, *((Matrix4x4*)&curView));
+				DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE0, *((&curView)));
 			}
 			break;
 	}
@@ -3619,7 +3619,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 			height = 1.0f/(height*shroud->getTextureHeight());
 			D3DXMatrixScaling(&scale, width, height, 1);
 			*((D3DXMATRIX *)&curView) = (inv * offset) * scale;
-			DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+curStage), *((Matrix4x4*)&curView));
+			DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+curStage), *((&curView)));
 		}
 		DX8Wrapper::Set_DX8_Texture_Stage_State( curStage, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
 		DX8Wrapper::Set_DX8_Texture_Stage_State( curStage, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
@@ -3648,7 +3648,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 		DX8Wrapper::Set_DX8_Texture_Stage_State(curStage,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
 		DX8Wrapper::_Get_D3D_Device8()->SetTexture(curStage, W3DShaderManager::getShaderTexture(2)->Peek_D3D_Texture());
 		terrainShader2Stage.updateNoise1(((D3DXMATRIX*)&curView),&inv);	//update curView with texture matrix
-		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+curStage), *((Matrix4x4*)&curView));
+		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+curStage), *((&curView)));
 		DX8Wrapper::Set_DX8_Texture_Stage_State(curStage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
 		DX8Wrapper::Set_DX8_Texture_Stage_State(curStage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
 
@@ -3675,7 +3675,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 		DX8Wrapper::Set_DX8_Texture_Stage_State(curStage,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
 		DX8Wrapper::_Get_D3D_Device8()->SetTexture(curStage, W3DShaderManager::getShaderTexture(3)->Peek_D3D_Texture());
 		terrainShader2Stage.updateNoise2(((D3DXMATRIX*)&curView),&inv);	//update curView with texture matrix
-		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+curStage), *((Matrix4x4*)&curView));
+		DX8Wrapper::_Set_DX8_Transform((D3DTRANSFORMSTATETYPE )(D3DTS_TEXTURE0+curStage), *((&curView)));
 		DX8Wrapper::Set_DX8_Texture_Stage_State(curStage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
 		DX8Wrapper::Set_DX8_Texture_Stage_State(curStage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
 

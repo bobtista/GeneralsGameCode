@@ -8314,7 +8314,7 @@ void ScriptEngine::particleEditorUpdate( void )
 				{
 					AsciiString particleSystemName = _getParticleSystemName();
 					_addUpdatedParticleSystem(particleSystemName);
-					ParticleSystemTemplate *pTemp = const_cast<ParticleSystemTemplate*>(TheParticleSystemManager->findTemplate(particleSystemName));
+					ParticleSystemTemplate *pTemp = TheParticleSystemManager->findTemplate(particleSystemName);
 					if (pTemp) {
 						// make sure that this system is fully up to date.
 						_updateAsciiStringParmsToSystem(pTemp);
@@ -10101,7 +10101,7 @@ static void _updateAndSetCurrentSystem( void )
 {
 	AsciiString particleSystemName = _getParticleSystemName();
 	_addUpdatedParticleSystem(particleSystemName);
-	ParticleSystemTemplate *pTemp = const_cast<ParticleSystemTemplate*>(TheParticleSystemManager->findTemplate(particleSystemName));
+	ParticleSystemTemplate *pTemp = TheParticleSystemManager->findTemplate(particleSystemName);
 	if (pTemp) {
 		_updateAsciiStringParmsToSystem(pTemp);
 		_updateAsciiStringParmsFromSystem(pTemp);
@@ -10212,7 +10212,7 @@ static void _reloadParticleSystemFromINI( AsciiString particleSystemName )
 //		unlink("temporary.ini");
 
 		// force the particle system to update itself
-		ParticleSystemTemplate *pTemp = const_cast<ParticleSystemTemplate*>(TheParticleSystemManager->findTemplate(particleSystemName));
+		ParticleSystemTemplate *pTemp = TheParticleSystemManager->findTemplate(particleSystemName);
 		_updateAsciiStringParmsFromSystem(pTemp);
 		_updatePanelParameters(pTemp);
 

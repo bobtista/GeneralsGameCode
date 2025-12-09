@@ -423,7 +423,7 @@ Object::Object( const ThingTemplate *tt, const ObjectStatusMaskType &objectStatu
 			m_contain = contain;
 		}
 
-    StealthUpdate* stealth = (StealthUpdate*)newMod->getStealth();
+    StealthUpdate* stealth = newMod->getStealth();
     if ( stealth )
     {
       DEBUG_ASSERTCRASH( m_stealth == NULL, ("DuplicateStealthUpdates!") );

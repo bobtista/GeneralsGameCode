@@ -1198,7 +1198,7 @@ void WbView3d::invalBuildListItemInView(BuildListInfo *pBuildToInval)
 						shadowInfo.allowWorldAlign=TRUE;	//shadow image will wrap around world objects
 						strlcpy(shadowInfo.m_ShadowName, tTemplate->getShadowTextureName().str(), ARRAY_SIZE(shadowInfo.m_ShadowName));
 						DEBUG_ASSERTCRASH(shadowInfo.m_ShadowName[0] != '\0', ("this should be validated in ThingTemplate now"));
-						shadowInfo.m_type=(ShadowType)tTemplate->getShadowType();
+						shadowInfo.m_type=tTemplate->getShadowType();
 						shadowInfo.m_sizeX=tTemplate->getShadowSizeX();
 						shadowInfo.m_sizeY=tTemplate->getShadowSizeY();
 						shadowInfo.m_offsetX=tTemplate->getShadowOffsetX();
@@ -1476,7 +1476,7 @@ void WbView3d::invalObjectInView(MapObject *pMapObjIn)
 					{	//add correct type of shadow
 						strlcpy(shadowInfo.m_ShadowName, tTemplate->getShadowTextureName().str(), ARRAY_SIZE(shadowInfo.m_ShadowName));
 						DEBUG_ASSERTCRASH(shadowInfo.m_ShadowName[0] != '\0', ("this should be validated in ThingTemplate now"));
-						shadowInfo.m_type=(ShadowType)tTemplate->getShadowType();
+						shadowInfo.m_type=tTemplate->getShadowType();
 						shadowInfo.m_sizeX=tTemplate->getShadowSizeX();
 						shadowInfo.m_sizeY=tTemplate->getShadowSizeY();
 						shadowInfo.m_offsetX=tTemplate->getShadowOffsetX();

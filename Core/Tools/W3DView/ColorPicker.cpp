@@ -628,9 +628,9 @@ ColorPickerClass::Paint_DIB
 	for (int icol = rect.left; icol < rect.right; icol ++) {
 
 		// Determine how much to 'darken' the current hue by for each row (goes to black)
-		float red_dec = -((float)(red) / (float)(height-1));
-		float green_dec = -((float)(green) / (float)(height-1));
-		float blue_dec = -((float)(blue) / (float)(height-1));
+		float red_dec = -(red / (float)(height-1));
+		float green_dec = -(green / (float)(height-1));
+		float blue_dec = -(blue / (float)(height-1));
 
 		// Start with the normal hue color
 		float curr_red = red;

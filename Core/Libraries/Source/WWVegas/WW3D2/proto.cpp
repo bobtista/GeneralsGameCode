@@ -82,7 +82,7 @@ int PrimitivePrototypeClass::Get_Class_ID(void) const
 
 RenderObjClass * PrimitivePrototypeClass::Create(void)
 {
-	return (RenderObjClass *)( SET_REF_OWNER( Proto->Clone() ) );
+	return SET_REF_OWNER;
 }
 
 

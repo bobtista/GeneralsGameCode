@@ -42,7 +42,7 @@
 BEGIN_MESSAGE_MAP(DialogToolbarClass, CToolBar)
 	//{{AFX_MSG_MAP(DialogToolbarClass)
 	ON_MESSAGE(WM_IDLEUPDATECMDUI, OnIdleUpdateCmdUI)
-	ON_MESSAGE_VOID(WM_INITIALUPDATE, OnInitialUpdate)
+	ON_MESSAGE_VOID(WM_INITIALUPDATE, DialogToolbarClass::OnInitialUpdate)
 	ON_NOTIFY_EX( TTN_NEEDTEXT, 0, OnNeedToolTipText)
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()

@@ -310,8 +310,8 @@ void
 ColorPickerDialogClass::Update_Red_Bar (void)
 {
 	m_RedColorBar->Set_Selection_Pos (m_CurrentRed);
-	m_RedColorBar->Modify_Point (0, 0, 0, (float)m_CurrentGreen, (float)m_CurrentBlue);
-	m_RedColorBar->Modify_Point (1, 255, 255, (float)m_CurrentGreen, (float)m_CurrentBlue);
+	m_RedColorBar->Modify_Point (0, 0, 0, m_CurrentGreen, m_CurrentBlue);
+	m_RedColorBar->Modify_Point (1, 255, 255, m_CurrentGreen, m_CurrentBlue);
 	return ;
 }
 

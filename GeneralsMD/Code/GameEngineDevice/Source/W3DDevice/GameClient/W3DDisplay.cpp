@@ -2300,7 +2300,7 @@ void W3DDisplay::drawRectClock(Int startX, Int startY, Int width, Int height, In
 		else
 		{
 			// draw the part of triangle
-			Real percentDraw = (Real)(remain)/ 12;
+			Real percentDraw = remain/ 12;
 			m_2DRender->Add_Tri(Vector2(startX, startY + height/2 - (height/2 * percentDraw)),
 													Vector2(startX, startY + height/2),
 													Vector2(startX + width/2, startY + height/2),
@@ -2333,7 +2333,7 @@ void W3DDisplay::drawRectClock(Int startX, Int startY, Int width, Int height, In
 		else
 		{
 			// draw the part of triangle
-			Real percentDraw = (Real)(remain)/ 12;
+			Real percentDraw = remain/ 12;
 			m_2DRender->Add_Tri(Vector2(startX + width/2, startY + height),
 													Vector2(startX + width/2, startY + height/2),
 													Vector2(startX + width/2 - ( width/2 * percentDraw), startY + height),
@@ -2365,7 +2365,7 @@ void W3DDisplay::drawRectClock(Int startX, Int startY, Int width, Int height, In
 		else
 		{
 			// draw the part of triangle
-			Real percentDraw = (Real)(remain)/ 12;
+			Real percentDraw = remain/ 12;
 			m_2DRender->Add_Tri(Vector2(startX + width, startY + height/2),
 													Vector2(startX + width/2, startY + height/2),
 													Vector2(startX + width, startY + height/2 + ( height/2 * percentDraw)),

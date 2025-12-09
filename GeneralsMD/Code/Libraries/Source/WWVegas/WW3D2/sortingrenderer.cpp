@@ -420,7 +420,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 	DynamicVBAccessClass dyn_vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,vertexAllocCount/*overlapping_vertex_count*/);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&dyn_vb_access);
-		VertexFormatXYZNDUV2* dest_verts=(VertexFormatXYZNDUV2 *)lock.Get_Formatted_Vertex_Array();
+		VertexFormatXYZNDUV2* dest_verts=lock.Get_Formatted_Vertex_Array();
 
 		unsigned polygon_array_offset=0;
 		unsigned vertex_array_offset=0;

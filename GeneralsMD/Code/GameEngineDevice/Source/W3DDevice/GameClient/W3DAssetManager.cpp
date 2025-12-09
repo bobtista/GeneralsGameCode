@@ -135,7 +135,7 @@ W3DPrototypeClass::~W3DPrototypeClass(void)
 //---------------------------------------------------------------------
 RenderObjClass * W3DPrototypeClass::Create(void)
 {
-	return (RenderObjClass *)( SET_REF_OWNER( Proto->Clone() ) );
+	return SET_REF_OWNER;
 }
 
 //---------------------------------------------------------------------

@@ -504,7 +504,7 @@ void StepLinearOffsetTextureMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex
 	if (num_steps!=0)
 	{
 		CurrentStep+=Step*num_steps;
-		Remainder-=num_steps/(float)StepsPerMilliSec;
+		Remainder-=num_steps/StepsPerMilliSec;
 	}
 
 	// We need to clamp these texture coordinates to a reasonable range so the hardware doesn't
