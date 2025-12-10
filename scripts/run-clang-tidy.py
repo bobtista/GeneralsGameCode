@@ -9,7 +9,7 @@ This is a convenience wrapper that:
 - Auto-detects the clang-tidy analysis build (build/clang-tidy)
 - Filters source files by include/exclude patterns
 - Processes files in batches to handle Windows command-line limits
-- Provides progress reporting
+- Provides quiet progress reporting (only shows warnings/errors by default)
 
 For the analysis build to work correctly, it must be built WITHOUT precompiled headers.
 Run this first:
@@ -21,8 +21,9 @@ import json
 import multiprocessing
 import subprocess
 import sys
+from collections import defaultdict
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 
 def find_clang_tidy() -> str:
@@ -124,9 +125,9 @@ def filter_source_files(compile_commands: List[dict],
     return sorted(source_files)
 
 
-def _run_batch(args: Tuple) -> int:
+def _run_batch(args: Tuple) -> Tuple[int, Dict[str, List[str]]]:
     """Helper function to run clang-tidy on a batch of files (for multiprocessing)."""
-    batch_num, batch, compile_commands_dir, fix, extra_args, project_root, clang_tidy_exe = args
+    batch_num, batch, compile_commands_dir, fix, extra_args, project_root, clang_tidy_exe, verbose = args
     
     cmd = [
         clang_tidy_exe,
@@ -141,21 +142,62 @@ def _run_batch(args: Tuple) -> int:
 
     cmd.extend(batch)
 
-    print(f"Batch {batch_num}: Analyzing {len(batch)} file(s)...")
-
+    issues_by_file = defaultdict(list)
+    
     try:
-        result = subprocess.run(cmd, cwd=project_root)
-        return result.returncode
+        result = subprocess.run(
+            cmd,
+            cwd=project_root,
+            capture_output=True,
+            text=True
+        )
+        
+        # Parse output to extract warnings/errors
+        if result.stdout or result.stderr:
+            output = result.stdout + result.stderr
+            
+            for line in output.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # clang-tidy diagnostic format: "path/to/file.cpp:line:col: level: message"
+                line_lower = line.lower()
+                is_warning_or_error = ('warning' in line_lower or 'error' in line_lower)
+                
+                # Only process lines that look like diagnostics (have colons and file paths)
+                if ':' in line and (is_warning_or_error or verbose):
+                    # Try to extract file path (first part before colon)
+                    parts = line.split(':', 1)
+                    if parts:
+                        file_path = parts[0].strip()
+                        # Check if it looks like a file path
+                        if any(file_path.endswith(ext) for ext in ['.cpp', '.cxx', '.cc', '.c', '.h', '.hpp', '.hxx']):
+                            # Extract relative path for cleaner output
+                            try:
+                                rel_path = Path(file_path).relative_to(project_root)
+                                file_key = str(rel_path)
+                            except (ValueError, OSError):
+                                file_key = file_path
+                            
+                            # Only add if it's a warning/error, or if verbose mode
+                            if is_warning_or_error or verbose:
+                                issues_by_file[file_key].append(line)
+        
+        return result.returncode, dict(issues_by_file)
     except FileNotFoundError:
-        print("Error: clang-tidy not found. Please install LLVM/Clang.", file=sys.stderr)
-        return 1
+        error_msg = "Error: clang-tidy not found. Please install LLVM/Clang."
+        if verbose:
+            print(error_msg, file=sys.stderr)
+        return 1, {}
 
 
 def run_clang_tidy(source_files: List[str],
                   compile_commands_path: Path,
                   extra_args: List[str],
                   fix: bool = False,
-                  jobs: int = 1) -> int:
+                  jobs: int = 1,
+                  verbose: bool = False) -> int:
     """Run clang-tidy on source files in batches, optionally in parallel."""
     if not source_files:
         print("No source files to analyze.")
@@ -172,35 +214,85 @@ def run_clang_tidy(source_files: List[str],
     project_root = find_project_root()
     compile_commands_dir = compile_commands_path.parent
     
+    all_issues = defaultdict(list)
+    files_with_issues = set()
+    total_issues = 0
+    
     if jobs > 1:
-        print(f"Running clang-tidy on {total_files} file(s) in {len(batches)} batch(es) with {jobs} workers...\n")
+        if verbose:
+            print(f"Running clang-tidy on {total_files} file(s) in {len(batches)} batch(es) with {jobs} workers...\n")
+        else:
+            print(f"Analyzing {total_files} file(s) with {jobs} workers...", end='', flush=True)
 
         try:
             with multiprocessing.Pool(processes=jobs) as pool:
-                results = pool.map(
+                batch_results = pool.map(
                     _run_batch,
                     [
-                        (idx + 1, batch, compile_commands_dir, fix, extra_args, project_root, clang_tidy_exe)
+                        (idx + 1, batch, compile_commands_dir, fix, extra_args, project_root, clang_tidy_exe, verbose)
                         for idx, batch in enumerate(batches)
                     ]
                 )
-            overall_returncode = max(results) if results else 0
+            
+            # Collect results
+            overall_returncode = 0
+            for returncode, issues in batch_results:
+                if returncode != 0:
+                    overall_returncode = returncode
+                for file_path, file_issues in issues.items():
+                    if file_issues:
+                        all_issues[file_path].extend(file_issues)
+                        files_with_issues.add(file_path)
+                        total_issues += len(file_issues)
+            
+            if not verbose:
+                print(" done.")
         except KeyboardInterrupt:
             print("\nInterrupted by user.")
             return 130
     else:
-        print(f"Running clang-tidy on {total_files} file(s) in {len(batches)} batch(es)...\n")
+        if verbose:
+            print(f"Running clang-tidy on {total_files} file(s) in {len(batches)} batch(es)...\n")
+        else:
+            print(f"Analyzing {total_files} file(s)...", end='', flush=True)
 
         overall_returncode = 0
         for batch_num, batch in enumerate(batches, 1):
             try:
-                returncode = _run_batch((batch_num, batch, compile_commands_dir, fix, extra_args, project_root, clang_tidy_exe))
+                if verbose:
+                    print(f"Batch {batch_num}/{len(batches)}: {len(batch)} file(s)...")
+                
+                returncode, issues = _run_batch((batch_num, batch, compile_commands_dir, fix, extra_args, project_root, clang_tidy_exe, verbose))
                 if returncode != 0:
                     overall_returncode = returncode
+                
+                # Collect issues
+                for file_path, file_issues in issues.items():
+                    if file_issues:
+                        all_issues[file_path].extend(file_issues)
+                        files_with_issues.add(file_path)
+                        total_issues += len(file_issues)
+                
+                if not verbose and batch_num < len(batches):
+                    print('.', end='', flush=True)
             except KeyboardInterrupt:
                 print("\nInterrupted by user.")
                 return 130
+        
+        if not verbose:
+            print(" done.")
 
+    # Print summary
+    print(f"\nSummary: {len(files_with_issues)} file(s) with issues, {total_issues} total issue(s)")
+    
+    # Print issues (only warnings/errors, not verbose informational messages)
+    if all_issues:
+        print("\nIssues found:")
+        for file_path in sorted(all_issues.keys()):
+            print(f"\n{file_path}:")
+            for issue in all_issues[file_path]:
+                print(f"  {issue}")
+    
     return overall_returncode
 
 
@@ -227,6 +319,9 @@ Examples:
 
   # Use parallel processing (recommended: --jobs 4 for 6-core CPUs)
   python scripts/run-clang-tidy.py --jobs 4 -- -checks="-*,modernize-use-nullptr"
+
+  # Show verbose output (default: only warnings/errors)
+  python scripts/run-clang-tidy.py --verbose --include Core/Libraries/
 
   # Use different build directory
   python scripts/run-clang-tidy.py --build-dir build/win32-debug
@@ -270,6 +365,12 @@ Note: Requires a PCH-free build. Create with:
     )
 
     parser.add_argument(
+        '--verbose', '-v',
+        action='store_true',
+        help='Show detailed output for each file (default: only show warnings/errors)'
+    )
+
+    parser.add_argument(
         'clang_tidy_args',
         nargs='*',
         help='Additional arguments to pass to clang-tidy, or specific files to analyze (if files are provided, --include/--exclude are ignored)'
@@ -299,13 +400,15 @@ Note: Requires a PCH-free build. Create with:
         
         # If specific files were provided, use them directly
         if specified_files:
-            print(f"Analyzing {len(specified_files)} specified file(s)\n")
+            if args.verbose:
+                print(f"Analyzing {len(specified_files)} specified file(s)\n")
             return run_clang_tidy(
                 specified_files,
                 compile_commands_path,
                 clang_tidy_args,
                 args.fix,
-                args.jobs
+                args.jobs,
+                args.verbose
             )
 
         # Otherwise, filter from compile_commands.json
@@ -330,14 +433,16 @@ Note: Requires a PCH-free build. Create with:
             print("No source files found matching the criteria.")
             return 1
 
-        print(f"Found {len(source_files)} source file(s) to analyze\n")
+        if args.verbose:
+            print(f"Found {len(source_files)} source file(s) to analyze\n")
 
         return run_clang_tidy(
             source_files,
             compile_commands_path,
             clang_tidy_args,
             args.fix,
-            args.jobs
+            args.jobs,
+            args.verbose
         )
 
     except Exception as e:
