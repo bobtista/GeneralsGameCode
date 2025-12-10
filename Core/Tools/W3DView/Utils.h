@@ -25,7 +25,28 @@
 
 #pragma once
 
+#include <string>  // For std::string stubs on non-Windows
+
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "Vector.h"
+#else
+// Stub for non-Windows
+template<typename T> class Vector {
+public:
+    T* Get_Array() { return nullptr; }
+    int Get_Count() { return 0; }
+};
+template<typename T> class DynamicVectorClass {
+public:
+    void Add(const T& item) {}
+    void Delete_All() {}
+    int Get_Count() const { return 0; }
+    int Count() const { return 0; }  // Added for EmitterInstanceList
+    T& operator[](int index) { static T dummy; return dummy; }
+    const T& operator[](int index) const { static T dummy; return dummy; }
+};
+#endif
 
 // Forward declarations
 class RenderObjClass;
@@ -60,6 +81,8 @@ class RenderObjClass;
 //
 /////////////////////////////////////////////////////////////////////////////
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific functions
+#ifdef _WIN32
 __inline void Delimit_Path (LPTSTR path)
 {
 	if (::lstrlen (path) > 0 && path[::lstrlen (path) - 1] != '\\') {
@@ -75,6 +98,14 @@ __inline void Delimit_Path (CString &path)
 	}
 	return ;
 }
+#else
+// Stubs for non-Windows
+inline void Delimit_Path (char* path) {
+	if (strlen(path) > 0 && path[strlen(path) - 1] != '/') {
+		strcat(path, "/");
+	}
+}
+#endif
 
 
 // Forward declarations
@@ -88,12 +119,22 @@ class CGraphicView;
 //
 class CW3DViewDoc *	GetCurrentDocument (void);
 CGraphicView *			Get_Graphic_View (void);
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific functions
+#ifdef _WIN32
 void						Paint_Gradient (HWND hWnd, BYTE baseRed, BYTE baseGreen, BYTE baseBlue);
-void						CenterDialogAroundTreeView (HWND hDlg);
+#else
+// Stubs for non-Windows
+typedef void* HWND;
+typedef unsigned char BYTE;
+void Paint_Gradient (HWND hWnd, BYTE baseRed, BYTE baseGreen, BYTE baseBlue);  // Declaration only, not used on Mac
+#endif
+// CenterDialogAroundTreeView removed - was only used by MFC dialogs
 
 //
 // Dialog routines
 //
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific functions
+#ifdef _WIN32
 void						SetDlgItemFloat (HWND hdlg, UINT child_id, float value);
 float						GetDlgItemFloat (HWND hdlg, UINT child_id);
 void						SetWindowFloat (HWND hwnd, float value);
@@ -125,14 +166,57 @@ HBITMAP					Make_Bitmap_From_Texture (TextureClass &texture, int width, int heig
 CString					Get_Texture_Name (TextureClass &texture);
 TextureClass *			Load_RC_Texture (LPCTSTR resource_name);
 void						Find_Missing_Textures (DynamicVectorClass<CString> &list, LPCTSTR filename, int frame_count = 1);
+#else
+// Stubs for non-Windows - these functions are Windows-only and not used on Mac
+// Declarations only (implementations are Windows-only in Utils.cpp)
+typedef unsigned int UINT;
+void SetDlgItemFloat (HWND hdlg, UINT child_id, float value);
+float GetDlgItemFloat (HWND hdlg, UINT child_id);
+void SetWindowFloat (HWND hwnd, float value);
+float GetWindowFloat (HWND hwnd);
+void Initialize_Spinner (void* ctrl, float pos = 0, float min = 0, float max = 1);
+void Update_Spinner_Buddy (void* ctrl);
+void Update_Spinner_Buddy (HWND hspinner, int delta);
+void Enable_Dialog_Controls (HWND dlg, bool onoff);
+
+// String manipulation - not used on Mac
+std::string Get_Filename_From_Path (const char* path);
+std::string Strip_Filename_From_Path (const char* path);
+std::string Asset_Name_From_Filename (const char* filename);
+std::string Filename_From_Asset_Name (const char* asset_name);
+
+// File routines - not used on Mac
+bool Get_File_Time (const char* path, void* pcreation_time, void* paccess_time = NULL, void* pwrite_time = NULL);
+bool Are_Glide_Drivers_Acceptable (void);
+bool Copy_File (const char* existing_filename, const char* new_filename, bool bforce_copy = false);
+
+// Texture routines - not used on Mac
+void* Make_Bitmap_From_Texture (TextureClass &texture, int width, int height);
+std::string Get_Texture_Name (TextureClass &texture);
+TextureClass * Load_RC_Texture (const char* resource_name);
+void Find_Missing_Textures (void* list, const char* filename, int frame_count = 1);
+#endif
 
 
 // Emitter routines
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific functions
+#ifdef _WIN32
 void						Build_Emitter_List (RenderObjClass &render_obj, DynamicVectorClass<CString> &list);
+#else
+void Build_Emitter_List (RenderObjClass &render_obj, void* list);  // Declaration only, not used on Mac
+#endif
 
 // Identification routines
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific functions
+#ifdef _WIN32
 bool						Is_Aggregate (const char *asset_name);
 bool						Is_Real_LOD (const char *asset_name);
 
 // Prototype routines
 void						Rename_Aggregate_Prototype (const char *old_name, const char *new_name);
+#else
+// Stubs for non-Windows (not used on Mac)
+bool Is_Aggregate (const char *asset_name);
+bool Is_Real_LOD (const char *asset_name);
+void Rename_Aggregate_Prototype (const char *old_name, const char *new_name);
+#endif
