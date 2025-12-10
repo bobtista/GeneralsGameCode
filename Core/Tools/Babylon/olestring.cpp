@@ -20,10 +20,15 @@
 // OLEString.cpp
 //
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
 
-#include "StdAfx.h"
-#include <assert.h>
+#include "PlatformTypes.h"
+#include <cassert>
 #include "olestring.h"
+#include <cwchar>  // For wcslen, wcscpy, swprintf, wcstombs
+#include <cstring>  // For strlen, strcpy, mbstowcs
+#include <cstdio>   // For sprintf
+#include <cstdlib>  // For wcstombs, mbstowcs
 
 template void StripSpaces<OLECHAR> ( OLECHAR *string);
 template void StripSpaces<char> ( char *string );
@@ -95,8 +100,17 @@ void OLEString::Set ( OLECHAR *new_ole )
 		{
 			ole = new OLECHAR[len+1];
 			wcscpy ( ole, new_ole );
-			sb = new char[len+1];
-			sprintf ( sb, "%S", ole );
+			sb = new char[len*4+1];  // UTF-8 can be up to 4 bytes per wchar_t
+			// Convert wide string to narrow string (UTF-8)
+			// Use wcstombs for cross-platform conversion
+			size_t converted = 0;
+			#ifdef _WIN32
+				// Windows: %S format works
+				sprintf ( sb, "%S", ole );
+			#else
+				// Unix: Use wcstombs for conversion
+				wcstombs ( sb, ole, len*4+1 );
+			#endif
 		}
 	}
 
@@ -116,7 +130,13 @@ void OLEString::Set ( const char *new_sb )
 
 		{
 			ole = new OLECHAR[len+1];
-			swprintf ( ole, L"%S", new_sb );
+			#ifdef _WIN32
+				// Windows: %S format works
+				swprintf ( ole, L"%S", new_sb );
+			#else
+				// Unix: Use mbstowcs for conversion
+				mbstowcs ( ole, new_sb, len+1 );
+			#endif
 			sb = new char[len+1];
 			strcpy ( sb, new_sb );
 		}

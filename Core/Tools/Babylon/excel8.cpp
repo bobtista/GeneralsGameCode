@@ -17,14 +17,16 @@
 */
 
 // Machine generated IDispatch wrapper class(es) created with ClassWizard
+// TheSuperHackers @refactor bobtista 01/01/2025 Excel integration is Windows-only
 
-#include "StdAfx.h"
+#ifdef _WIN32
+    #include "StdAfx.h"  // Windows: Use original MFC headers for Excel COM integration
 
-#ifdef RTS_DEBUG
-#define new DEBUG_NEW
-#undef THIS_FILE
-static char THIS_FILE[] = __FILE__;
-#endif
+    #ifdef RTS_DEBUG
+    #define new DEBUG_NEW
+    #undef THIS_FILE
+    static char THIS_FILE[] = __FILE__;
+    #endif
 
 
 
@@ -5453,3 +5455,9 @@ void Interior::SetPatternColorIndex(const VARIANT& newValue)
 	InvokeHelper(0x62, DISPATCH_PROPERTYPUT, VT_EMPTY, NULL, parms,
 		 &newValue);
 }
+
+#else
+    // Excel integration not available on non-Windows platforms
+    // Stub implementations to allow compilation
+    // TheSuperHackers @refactor bobtista 01/01/2025 Excel COM integration is Windows-only
+#endif

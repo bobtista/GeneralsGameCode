@@ -22,6 +22,7 @@
 
 #pragma once
 
+#include "PlatformTypes.h"  // TheSuperHackers @refactor bobtista 01/01/2025 Add cross-platform types
 #include "list.h"
 #include "olestring.h"
 

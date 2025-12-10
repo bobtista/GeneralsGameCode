@@ -20,10 +20,13 @@
 // Bin.cpp
 //
 
-#include "StdAfx.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
+
+#include "PlatformTypes.h"
 #include "bin.h"
-#include "assert.h"
+#include <cassert>
 #include "list.h"
+#include <cwchar>  // For wcslen, wcscmp (used in hash calculations)
 
 Bin::Bin ( int size )
 {

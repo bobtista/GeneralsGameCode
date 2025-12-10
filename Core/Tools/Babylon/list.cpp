@@ -18,11 +18,12 @@
 
 //
 // list.cpp
+// TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
 //
 
 
-#include "StdAfx.h"
-#include <assert.h>
+#include "PlatformTypes.h"
+#include <cassert>
 #include "list.h"
 
 ListNode::ListNode	( void )

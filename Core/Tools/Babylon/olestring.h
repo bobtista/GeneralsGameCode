@@ -22,6 +22,8 @@
 
 #pragma once
 
+#include "PlatformTypes.h"  // TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with cross-platform types
+
 const unsigned int OLESTRING_DEFAULT_SIZE = 256;
 
 class OLEString
