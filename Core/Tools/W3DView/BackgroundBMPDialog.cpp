@@ -86,7 +86,6 @@ CBackgroundBMPDialog::OnInitDialog (void)
 
     // Center the dialog around the data tree view instead
     // of the direct center of the screen
-    ::CenterDialogAroundTreeView (m_hWnd);
 
     // Gett a pointer to the current document
     CW3DViewDoc *pCDoc = ::GetCurrentDocument ();

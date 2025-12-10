@@ -84,7 +84,6 @@ CBackgroundObjectDialog::OnInitDialog (void)
 
     // Center the dialog around the data tree view instead
     // of the direct center of the screen
-    ::CenterDialogAroundTreeView (m_hWnd);
 
     m_heirarchyListCtrl.InsertColumn (0, "Name");
     //m_heirarchyListCtrl.InsertColumn (1, "Subobjects");

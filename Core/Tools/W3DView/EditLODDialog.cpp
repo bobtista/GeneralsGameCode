@@ -98,7 +98,6 @@ CEditLODDialog::OnInitDialog (void)
 
     // Center the dialog around the data tree view instead
     // of the direct center of the screen
-    ::CenterDialogAroundTreeView (m_hWnd);
 
     // Get a pointer to the doc
     CW3DViewDoc *pCDoc = ::GetCurrentDocument ();

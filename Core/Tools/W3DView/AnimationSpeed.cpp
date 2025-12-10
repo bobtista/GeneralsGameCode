@@ -94,7 +94,6 @@ CAnimationSpeed::OnInitDialog (void)
 
     // Center the dialog around the data tree view instead
     // of the direct center of the screen
-    ::CenterDialogAroundTreeView (m_hWnd);
 
     // Get a pointer to the doc so we can get at the current scene
     // pointer.

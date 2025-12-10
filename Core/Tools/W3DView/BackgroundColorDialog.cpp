@@ -79,7 +79,6 @@ CBackgroundColorDialog::OnInitDialog (void)
 
     // Center the dialog around the data tree view instead
     // of the direct center of the screen
-    ::CenterDialogAroundTreeView (m_hWnd);
 
     m_redSlider.SetRange (0, 100);
     m_greenSlider.SetRange (0, 100);

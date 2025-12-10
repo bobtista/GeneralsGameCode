@@ -98,9 +98,6 @@ CSceneLightDialog::OnInitDialog (void)
 	// Allow the base class to process this message
 	CDialog::OnInitDialog ();
 
-	// Center the dialog around the data tree view instead
-	// of the direct center of the screen
-	::CenterDialogAroundTreeView (m_hWnd);
 
 	// Set the initial ranges for the color sliders
 	m_redSlider.SetRange (0, 100);
