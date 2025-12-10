@@ -24,17 +24,19 @@
 //
 
 
-#include "StdAfx.h"
-#include "W3DViewDoc.h"
-#include "MainFrm.h"
-#include "DataTreeView.h"
 #include "Utils.h"
+#include "W3DViewDoc_Qt.h"
+#include "MainFrm_Qt.h"
+#include <QApplication>
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers (Windows-only)
+#ifdef _WIN32
 #include "texture.h"
 #include "assetmgr.h"
 #include "agg_def.h"
 #include "hlod.h"
 #include <VFW.h>
 #include "rcfile.h"
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
@@ -48,71 +50,36 @@ GetCurrentDocument (void)
     // Assume failure
     CW3DViewDoc *pCDoc = NULL;
 
-    // Get a pointer to the main window
-    CMainFrame *pCMainWnd = (CMainFrame *)::AfxGetMainWnd ();
-
-    ASSERT (pCMainWnd);
-    if (pCMainWnd)
-    {
-        // Use the main window pointer to get a pointer
-        // to the current doc.
-        pCDoc = (CW3DViewDoc *)pCMainWnd->GetActiveDocument ();
-        ASSERT (pCDoc);
+    // Get a pointer to the main window using Qt
+    QWidget* mainWidget = QApplication::activeWindow();
+    if (!mainWidget) {
+        QWidgetList widgets = QApplication::topLevelWidgets();
+        for (QWidget* widget : widgets) {
+            CMainFrame* mainFrame = qobject_cast<CMainFrame*>(widget);
+            if (mainFrame) {
+                pCDoc = mainFrame->GetActiveDocument();
+                break;
+            }
+        }
+    } else {
+        CMainFrame* pCMainWnd = qobject_cast<CMainFrame*>(mainWidget);
+        if (pCMainWnd) {
+            pCDoc = pCMainWnd->GetActiveDocument();
+        }
     }
 
     // Return the doc pointer
     return pCDoc;
 }
 
-/////////////////////////////////////////////////////////////
-//
-//  CenterDialogAroundTreeView
-//
-void
-CenterDialogAroundTreeView (HWND hDlg)
-{
-    // Params OK?
-    if (::IsWindow (hDlg))
-    {
-        // Get a pointer to the main window
-        CMainFrame *pCMainWnd = (CMainFrame *)::AfxGetMainWnd ();
-
-        ASSERT (pCMainWnd);
-        if (pCMainWnd)
-        {
-            // Get the tree view pane so we can get its rectangle
-            CDataTreeView *pCDataTreeView = (CDataTreeView *)pCMainWnd->GetPane (0, 0);
-
-            ASSERT (pCDataTreeView);
-            if (pCDataTreeView)
-            {
-                // Get the bounding rectangle of the data tree view
-                RECT rect;
-                pCDataTreeView->GetWindowRect (&rect);
-
-                // Get the bounding rectangle of the dialog
-                RECT dialogRect;
-                ::GetWindowRect (hDlg, &dialogRect);
-
-                // Move the dialog so its centered in the data tree view
-                ::SetWindowPos (hDlg,
-                                NULL,
-                                rect.left + ((rect.right-rect.left) >> 1) - ((dialogRect.right-dialogRect.left) >> 1),
-                                rect.top + ((rect.bottom-rect.top) >> 1) - ((dialogRect.bottom-dialogRect.top) >> 1),
-                                0,
-                                0,
-                                SWP_NOSIZE | SWP_NOZORDER);
-            }
-        }
-    }
-
-    return ;
-}
+// CenterDialogAroundTreeView removed - was only used by MFC dialogs
 
 /////////////////////////////////////////////////////////////
 //
 //  Paint_Gradient
 //
+// TheSuperHackers @refactor bobtista 01/01/2025 Windows-only function
+#ifdef _WIN32
 void
 Paint_Gradient
 (
@@ -159,12 +126,16 @@ Paint_Gradient
     ::ValidateRect (hWnd, NULL);
     return ;
 }
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
-//  SetDlgItemFloat
+//  SetDlgItemFloat, GetDlgItemFloat, Initialize_Spinner, Update_Spinner_Buddy
+//  Windows-only functions - stubbed in Utils.h for non-Windows
 //
+// TheSuperHackers @refactor bobtista 01/01/2025 Windows-only functions
+#ifdef _WIN32
 void
 SetDlgItemFloat
 (
@@ -182,11 +153,6 @@ SetDlgItemFloat
 	return ;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  GetDlgItemFloat
-//
 float
 GetDlgItemFloat
 (
@@ -202,11 +168,6 @@ GetDlgItemFloat
 	return ::atof (string_value);
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Initialize_Spinner
-//
 void
 Initialize_Spinner
 (
@@ -233,11 +194,6 @@ Initialize_Spinner
 	return ;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Update_Spinner_Buddy
-//
 void
 Update_Spinner_Buddy (CSpinButtonCtrl &ctrl, int delta)
 {
@@ -260,8 +216,8 @@ Update_Spinner_Buddy (CSpinButtonCtrl &ctrl, int delta)
 			ctrl.GetRange32 (int_min, int_max);
 			float float_min = ((float)int_min) / 100;
 			float float_max = ((float)int_max) / 100;
-			value = max (float_min, value);
-			value = min (float_max, value);
+			value = std::max (float_min, value);
+			value = std::min (float_max, value);
 
 			// Pass the value onto the buddy window
 			::SetWindowFloat (*buddy, value);
@@ -270,12 +226,15 @@ Update_Spinner_Buddy (CSpinButtonCtrl &ctrl, int delta)
 
 	return ;
 }
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
-//  Update_Spinner_Buddy
+//  Update_Spinner_Buddy (HWND version), Enable_Dialog_Controls, SetWindowFloat, GetWindowFloat
+//  Windows-only functions - stubbed in Utils.h for non-Windows
 //
+#ifdef _WIN32
 void
 Update_Spinner_Buddy (HWND hspinner, int delta)
 {
@@ -298,8 +257,8 @@ Update_Spinner_Buddy (HWND hspinner, int delta)
 			SendMessage (hspinner, UDM_GETRANGE32, (WPARAM)&int_min, (LPARAM)&int_max);
 			float float_min = ((float)int_min) / 100;
 			float float_max = ((float)int_max) / 100;
-			value = max (float_min, value);
-			value = min (float_max, value);
+			value = std::max (float_min, value);
+			value = std::min (float_max, value);
 
 			// Pass the value onto the buddy window
 			::SetWindowFloat (hbuddy_wnd, value);
@@ -309,11 +268,6 @@ Update_Spinner_Buddy (HWND hspinner, int delta)
 	return ;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Enable_Dialog_Controls
-//
 void
 Enable_Dialog_Controls (HWND dlg,bool onoff)
 {
@@ -331,11 +285,6 @@ Enable_Dialog_Controls (HWND dlg,bool onoff)
 	return ;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  SetWindowFloat
-//
 void
 SetWindowFloat
 (
@@ -352,11 +301,6 @@ SetWindowFloat
 	return ;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  GetWindowFloat
-//
 float
 GetWindowFloat (HWND hwnd)
 {
@@ -367,12 +311,15 @@ GetWindowFloat (HWND hwnd)
 	// Convert the string to a float and return the value
 	return ::atof (string_value);
 }
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
-//  Asset_Name_From_Filename
+//  Asset_Name_From_Filename, Filename_From_Asset_Name, Get_Filename_From_Path, Strip_Filename_From_Path
+//  Windows-only functions (use CString) - stubbed in Utils.h for non-Windows
 //
+#ifdef _WIN32
 CString
 Asset_Name_From_Filename (LPCTSTR filename)
 {
@@ -391,11 +338,6 @@ Asset_Name_From_Filename (LPCTSTR filename)
 	return asset_name;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Filename_From_Asset_Name
-//
 CString
 Filename_From_Asset_Name (LPCTSTR asset_name)
 {
@@ -406,11 +348,6 @@ Filename_From_Asset_Name (LPCTSTR asset_name)
 	return filename;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Get_Filename_From_Path
-//
 CString
 Get_Filename_From_Path (LPCTSTR path)
 {
@@ -427,11 +364,6 @@ Get_Filename_From_Path (LPCTSTR path)
 	return CString (filename);
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Strip_Filename_From_Path
-//
 CString
 Strip_Filename_From_Path (LPCTSTR path)
 {
@@ -449,12 +381,16 @@ Strip_Filename_From_Path (LPCTSTR path)
 	// Return the path only
 	return CString (temp_path);
 }
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
-//  Create_DIB_Section
+//  Create_DIB_Section, Make_Bitmap_From_Texture, Get_Texture_Name, Build_Emitter_List,
+//  Is_Aggregate, Rename_Aggregate_Prototype, Is_Real_LOD
+//  Windows-only functions (game engine dependent) - stubbed in Utils.h for non-Windows
 //
+#ifdef _WIN32
 HBITMAP
 Create_DIB_Section
 (
@@ -493,11 +429,6 @@ Create_DIB_Section
 	return hbitmap;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Make_Bitmap_From_Texture
-//
 HBITMAP
 Make_Bitmap_From_Texture (TextureClass &texture, int width, int height)
 {
@@ -507,11 +438,6 @@ Make_Bitmap_From_Texture (TextureClass &texture, int width, int height)
 	return hbitmap;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Get_Texture_Name
-//
 CString
 Get_Texture_Name (TextureClass &texture)
 {
@@ -523,11 +449,6 @@ Get_Texture_Name (TextureClass &texture)
 	return name;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Build_Emitter_List
-//
 void
 Build_Emitter_List
 (
@@ -566,11 +487,6 @@ Build_Emitter_List
 	return ;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Is_Aggregate
-//
 bool
 Is_Aggregate (const char *asset_name)
 {
@@ -592,11 +508,6 @@ Is_Aggregate (const char *asset_name)
 	return retval;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Rename_Aggregate_Prototype
-//
 void
 Rename_Aggregate_Prototype
 (
@@ -629,11 +540,6 @@ Rename_Aggregate_Prototype
 	return ;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Is_Real_LOD
-//
 bool
 Is_Real_LOD (const char *asset_name)
 {
@@ -654,12 +560,15 @@ Is_Real_LOD (const char *asset_name)
 	// Return the true/false result code
 	return retval;
 }
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
 //  Get_File_Time
 //
+// TheSuperHackers @refactor bobtista 01/01/2025 Windows-only function
+#ifdef _WIN32
 bool
 Get_File_Time
 (
@@ -681,7 +590,6 @@ Get_File_Time
 										  0L,
 										  NULL);
 
-	ASSERT (hfile != INVALID_HANDLE_VALUE);
 	if (hfile != INVALID_HANDLE_VALUE) {
 
 		// Get the mod times for this file
@@ -694,12 +602,15 @@ Get_File_Time
 	// Return the true/false result code
 	return retval;
 }
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
 //  Are_Glide_Drivers_Acceptable
 //
+// TheSuperHackers @refactor bobtista 01/01/2025 Windows-only function
+#ifdef _WIN32
 bool
 Are_Glide_Drivers_Acceptable (void)
 {
@@ -739,12 +650,15 @@ Are_Glide_Drivers_Acceptable (void)
 	// Return the true/false result code
 	return retval;
 }
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
-//  Load_RC_Texture
+//  Load_RC_Texture, Resolve_Path, Find_Missing_Textures, Copy_File
+//  Windows-only functions - stubbed in Utils.h for non-Windows
 //
+#ifdef _WIN32
 TextureClass *
 Load_RC_Texture (LPCTSTR resource_name)
 {
@@ -767,12 +681,6 @@ Load_RC_Texture (LPCTSTR resource_name)
 	return texture;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Resolve_Path
-//
-////////////////////////////////////////////////////////////////////////////
 void
 Resolve_Path (CString &filename)
 {
@@ -786,12 +694,6 @@ Resolve_Path (CString &filename)
 	return ;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Find_Missing_Textures
-//
-////////////////////////////////////////////////////////////////////////////
 void
 Find_Missing_Textures
 (
@@ -812,12 +714,6 @@ Find_Missing_Textures
 	return ;
 }
 
-
-////////////////////////////////////////////////////////////////////////////
-//
-//  Copy_File
-//
-////////////////////////////////////////////////////////////////////////////
 bool
 Copy_File
 (
@@ -857,6 +753,7 @@ Copy_File
 	// Return the true/false result code
 	return retval;
 }
+#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
