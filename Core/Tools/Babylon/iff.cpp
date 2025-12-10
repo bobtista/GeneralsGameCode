@@ -17,11 +17,19 @@
 */
 
 
-#include "StdAfx.h"
-#include "sys/stat.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
+#include "PlatformTypes.h"
 #include "iff.h"
+#include <cstdio>
+#include <cstring>
+#include <cassert>
 #include <fcntl.h>
-#include <io.h>
+#ifdef _WIN32
+    #include <io.h>  // Windows-specific I/O functions (_read, _write, _close, _open)
+#else
+    #include <unistd.h>  // For read, write, close, open on Unix
+    #include <sys/stat.h>  // For S_IRUSR, S_IWUSR, etc. on Unix
+#endif
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -32,7 +40,11 @@ int		IFF_rawread ( IFF_FILE *iff, void *buffer, int bytes )
 {
 	if ( ! (iff->flags & mIFF_FILE_LOADED ) )
 	{
-		return	_read ( iff->fp, buffer, bytes );
+		#ifdef _WIN32
+			return	_read ( iff->fp, buffer, bytes );
+		#else
+			return	read ( iff->fp, buffer, bytes );  // TheSuperHackers @refactor bobtista 01/01/2025 Use read instead of _read on Unix
+		#endif
 	}
 
 	if ( iff->file_size < (iff->file_pos + bytes) )
@@ -103,7 +115,11 @@ IFF_FILE	*IFF_Open ( const char *name )
 	iff->fp = -1;
 	memset ( iff, 0, sizeof ( IFF_FILE ));
 
-	if ((iff->fp = open ( name, _O_BINARY | _O_RDONLY )) == -1 )
+	#ifdef _WIN32
+		if ((iff->fp = open ( name, _O_BINARY | _O_RDONLY )) == -1 )
+	#else
+		if ((iff->fp = open ( name, O_RDONLY )) == -1 )  // TheSuperHackers @refactor bobtista 01/01/2025 Use O_RDONLY instead of _O_BINARY | _O_RDONLY on Unix
+	#endif
 	{
 		goto error;
 	}
@@ -138,7 +154,11 @@ IFF_FILE	*IFF_Load ( const char *name )
 	memset ( iff, 0, sizeof ( IFF_FILE ));
 	iff->fp = -1;
 
-	if ((iff->fp = open ( name, _O_BINARY | _O_RDONLY )) == -1 )
+	#ifdef _WIN32
+		if ((iff->fp = open ( name, _O_BINARY | _O_RDONLY )) == -1 )
+	#else
+		if ((iff->fp = open ( name, O_RDONLY )) == -1 )  // TheSuperHackers @refactor bobtista 01/01/2025 Use O_RDONLY instead of _O_BINARY | _O_RDONLY on Unix
+	#endif
 	{
 		goto error;
 	}
@@ -312,7 +332,11 @@ void	IFF_Close ( IFF_FILE *iff )
 {
 	if (iff->fp != -1)
 	{
-		_close (iff->fp);
+		#ifdef _WIN32
+			_close (iff->fp);
+		#else
+			close (iff->fp);  // TheSuperHackers @refactor bobtista 01/01/2025 Use close instead of _close on Unix
+		#endif
 	}
 
 	if ( iff->mem_file )
@@ -370,7 +394,11 @@ IFF_FILE		*IFF_New ( const char *name )
 	memset ( iff, 0, sizeof ( IFF_FILE ));
 	iff->fp = -1;
 
-	if ((iff->fp = _open ( name, _O_BINARY | _O_RDWR | _O_CREAT | _O_TRUNC, _S_IREAD | _S_IWRITE )) == -1 )
+	#ifdef _WIN32
+		if ((iff->fp = _open ( name, _O_BINARY | _O_RDWR | _O_CREAT | _O_TRUNC, _S_IREAD | _S_IWRITE )) == -1 )
+	#else
+		if ((iff->fp = open ( name, O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH )) == -1 )  // TheSuperHackers @refactor bobtista 01/01/2025 Use Unix open flags and permissions
+	#endif
 	{
 		goto error;
 	}
@@ -458,7 +486,11 @@ int		IFF_Write ( IFF_FILE *iff, void *buff, int size )
 {
 	int	val =0;
 
-	val = _write ( iff->fp, buff, size);
+	#ifdef _WIN32
+		val = _write ( iff->fp, buff, size);
+	#else
+		val = write ( iff->fp, buff, size);  // TheSuperHackers @refactor bobtista 01/01/2025 Use write instead of _write on Unix
+	#endif
 
 	if (val==-1)
 	{

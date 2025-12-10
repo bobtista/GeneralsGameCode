@@ -19,10 +19,14 @@
 //
 // transcs.cpp
 //
-
-#include "StdAfx.h"
-#include <windows.h>
-#include <winnls.h>
+// TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
+#include "PlatformTypes.h"
+#ifdef _WIN32
+    #include <windows.h>
+    #include <winnls.h>
+#endif
+#include <cwchar>
+#include <cstring>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -53,11 +57,21 @@ void CreateTranslationTable ( void )
 		}
 
 		mb = i;
-		if ( MultiByteToWideChar (CP_ACP, MB_ERR_INVALID_CHARS, (LPCSTR) &mb, 2, &wc, 2 ) == 0 )
-		{
-			wc = 0;
-			last_error = GetLastError ( );
-		}
+		#ifdef _WIN32
+			if ( MultiByteToWideChar (CP_ACP, MB_ERR_INVALID_CHARS, (LPCSTR) &mb, 2, &wc, 2 ) == 0 )
+			{
+				wc = 0;
+				last_error = GetLastError ( );
+			}
+		#else
+			// On Unix, use stub functions from PlatformTypes.h
+			// The stub provides a simple byte-to-wide-char mapping
+			if ( MultiByteToWideChar (CP_ACP, MB_ERR_INVALID_CHARS, (LPCSTR) &mb, 2, &wc, 2 ) == 0 )
+			{
+				wc = 0;
+				last_error = GetLastError ( );
+			}
+		#endif
 
 		fprintf (out, "0x%04x", wc );
 		if ( i != 0xffff )

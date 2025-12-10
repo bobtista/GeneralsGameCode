@@ -18,10 +18,20 @@
 
 //
 // fileops.cpp
+// TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
 //
 
-#include "StdAfx.h"
+#include "PlatformTypes.h"
 #include "fileops.h"
+#include <cstdio>
+#include <cstring>
+#include <cstdlib>
+#ifdef _WIN32
+    #include <direct.h>
+#else
+    #include <unistd.h>
+    #include <sys/stat.h>
+#endif
 
 
 
@@ -36,29 +46,50 @@ int							FileExists ( const char *filename )
 
 int					 		FileAttribs ( const char *filename )
 {
-	WIN32_FIND_DATA 	fi;
-	HANDLE handle;
 	int	fa = FA_NOFILE;
 
-	handle = FindFirstFile ( filename, &fi );
+	#ifdef _WIN32
+		WIN32_FIND_DATA 	fi;
+		HANDLE handle;
 
-	if ( handle != INVALID_HANDLE_VALUE )
-	{
-		if ( fi.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY )
-		{
-			fa |= FA_DIRECTORY;
-		}
-		if ( fi.dwFileAttributes & FILE_ATTRIBUTE_READONLY )
-		{
-			fa |= FA_READONLY;
-		}
-		else
-		{
-			fa |= FA_WRITEABLE;
-		}
+		handle = FindFirstFile ( filename, &fi );
 
-		FindClose ( handle );
-	}
+		if ( handle != INVALID_HANDLE_VALUE )
+		{
+			if ( fi.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY )
+			{
+				fa |= FA_DIRECTORY;
+			}
+			if ( fi.dwFileAttributes & FILE_ATTRIBUTE_READONLY )
+			{
+				fa |= FA_READONLY;
+			}
+			else
+			{
+				fa |= FA_WRITEABLE;
+			}
+
+			FindClose ( handle );
+		}
+	#else
+		// Unix: Use stat() for file attributes
+		struct stat st;
+		if ( stat(filename, &st) == 0 )
+		{
+			if ( S_ISDIR(st.st_mode) )
+			{
+				fa |= FA_DIRECTORY;
+			}
+			if ( !(st.st_mode & S_IWUSR) )  // Check if user write permission is off
+			{
+				fa |= FA_READONLY;
+			}
+			else
+			{
+				fa |= FA_WRITEABLE;
+			}
+		}
+	#endif
 
 	return fa;
 }
@@ -91,7 +122,15 @@ void	MakeBackupFile ( const char *filename )
 
 	make_bk_name ( bkname, filename );
 
-	CopyFile ( filename, bkname, FALSE );
+	#ifdef _WIN32
+		CopyFile ( filename, bkname, FALSE );
+	#else
+		// Unix: Use system() or file copy
+		#include <cstdio>
+		char cmd[512];
+		snprintf(cmd, sizeof(cmd), "cp \"%s\" \"%s\"", filename, bkname);
+		system(cmd);
+	#endif
 
 }
 
@@ -103,7 +142,14 @@ void	RestoreBackupFile ( const char *filename )
 
 	if ( FileExists ( bkname ))
 	{
-		CopyFile ( bkname, filename, FALSE );
+		#ifdef _WIN32
+			CopyFile ( bkname, filename, FALSE );
+		#else
+			// Unix: Use system() or file copy
+			char cmd[512];
+			snprintf(cmd, sizeof(cmd), "cp \"%s\" \"%s\"", bkname, filename);
+			system(cmd);
+		#endif
 	}
 
 }

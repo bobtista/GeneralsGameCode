@@ -18,12 +18,20 @@
 
 //
 // loadsave.cpp
+// TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
 //
 
-#include "StdAfx.h"
+#include "PlatformTypes.h"
 #include "iff.h"
 #include "TransDB.h"
-#include "BabylonDlg.h"
+#include <cstdio>
+#include <cstring>
+#include <cassert>
+#ifdef _WIN32
+    #include "BabylonDlg.h"  // MFC version - Windows only
+#else
+    #include "BabylonDlg_Qt.h"  // Qt version - cross-platform
+#endif
 
 #define FORM_BABYLONDB			MakeID ('N','X','D','B')
 #define FORM_LABEL			MakeID ('N','L','B','L')
