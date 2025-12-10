@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>BabylonDlg</class>
+ <widget class="QDialog" name="BabylonDlg">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>320</width>
+    <height>257</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Babylon</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QHBoxLayout" name="databaseLayout">
+     <item>
+      <widget class="QGroupBox" name="databaseGroupBox">
+       <property name="title">
+        <string>DataBase</string>
+       </property>
+       <layout class="QHBoxLayout" name="databaseButtonsLayout">
+        <item>
+         <widget class="QPushButton" name="reloadButton">
+          <property name="text">
+           <string>&amp;Reload</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="updateButton">
+          <property name="text">
+           <string>&amp;Update</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="saveButton">
+          <property name="text">
+           <string>&amp;Save</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="translationsGroupBox">
+       <property name="title">
+        <string>Translations</string>
+       </property>
+       <layout class="QHBoxLayout" name="translationsButtonsLayout">
+        <item>
+         <widget class="QPushButton" name="exportButton">
+          <property name="text">
+           <string>E&amp;xport</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="importButton">
+          <property name="text">
+           <string>&amp;Import</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="viewCreateLayout">
+     <item>
+      <widget class="QGroupBox" name="viewGroupBox">
+       <property name="title">
+        <string>View</string>
+       </property>
+       <layout class="QHBoxLayout" name="viewButtonsLayout">
+        <item>
+         <widget class="QPushButton" name="dbsButton">
+          <property name="text">
+           <string>&amp;DBs</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="changesButton">
+          <property name="text">
+           <string>&amp;Changes</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="warningsButton">
+          <property name="text">
+           <string>&amp;Warnings</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="errorsButton">
+          <property name="text">
+           <string>&amp;Errors</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="reportsButton">
+          <property name="text">
+           <string>Report</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="sentButton">
+          <property name="text">
+           <string>Sent</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="createGroupBox">
+       <property name="title">
+        <string>Create</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="generalsStrGroupBox">
+       <property name="title">
+        <string>Generals.Str</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QTextEdit" name="logTextEdit">
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="progressLayout">
+     <item>
+      <widget class="QProgressBar" name="progressBar">
+       <property name="value">
+        <number>0</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="percentLabel">
+       <property name="text">
+        <string>100%</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="statusLabel">
+     <property name="text">
+      <string>Ready</string>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::StyledPanel</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Sunken</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="verifyGroupBox">
+     <property name="title">
+      <string>Verify</string>
+     </property>
+     <layout class="QHBoxLayout" name="verifyLayout">
+      <item>
+       <widget class="QPushButton" name="resetButton">
+        <property name="text">
+         <string>Reset</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="langComboBox"/>
+      </item>
+      <item>
+       <widget class="QPushButton" name="dialogButton">
+        <property name="text">
+         <string>Dialo&amp;g</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="translationsButton">
+        <property name="text">
+         <string>&amp;Text</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="generateButton">
+     <property name="text">
+      <string>&amp;Generate New Game Files</string>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
+
+
+
