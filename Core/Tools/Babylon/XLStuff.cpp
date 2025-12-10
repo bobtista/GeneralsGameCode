@@ -20,15 +20,39 @@
 //	XLStuff.cpp
 //
 //
-#include "StdAfx.h"
-#include "Babylon.h"
-#include "resource.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 XLStuff is Windows-only (Excel integration)
+// Keep StdAfx.h for Windows, but guard the entire file
+#ifdef _WIN32
+    #include "StdAfx.h"
+    #include "Babylon.h"
+    #include "resource.h"
+#else
+    // Stub implementation for non-Windows
+    #include "PlatformTypes.h"
+    #include "Babylon_Qt.h"
+    // Excel integration not available on non-Windows
+    // Stub implementations are provided at the end of the file
+#endif
 #include <stdio.h>
 #include "XLStuff.h"
 #include <assert.h>
-#include <comdef.h>
+#ifdef _WIN32
+    #include <comdef.h>  // Windows COM definitions
+#else
+    // COM not available on non-Windows platforms
+    // Stub definitions for _com_error if needed
+    class _com_error {
+    public:
+        _com_error(long hr) : m_hr(hr) {}
+        const char* ErrorMessage() const { return "COM error (not available on this platform)"; }
+    private:
+        long m_hr;
+    };
+#endif
 
-static const int xlWorkbookNormal = -4143;
+#ifdef _WIN32
+    // Windows Excel COM integration implementation
+    static const int xlWorkbookNormal = -4143;
 static const int xlNoChange = 1;
 static const int xlLocalSessionChanges = 2;
 static const int xlWBATWorksheet = -4167;
@@ -53,7 +77,11 @@ static VARIANT GetCell ( int row, int column )
 	V_VT ( &cell ) = VT_EMPTY;
 
 	assert ( column > 0 );
-	swprintf ( cellname, L"%c%d", 'A'+column -1 , row );
+	#ifdef _WIN32
+		swprintf ( cellname, L"%c%d", 'A'+column -1 , row );
+	#else
+		swprintf ( cellname, sizeof(cellname)/sizeof(OLECHAR), L"%c%d", 'A'+column -1 , row );  // TheSuperHackers @refactor bobtista 01/01/2025 Use size parameter for swprintf on Unix
+	#endif
  	V_VT ( &cell ) = VT_BSTR;
  	V_BSTR ( &cell ) = SysAllocString (cellname);
 
@@ -650,4 +678,33 @@ int GetString ( int row, int cell, OLECHAR *string )
 	return 1;
 
 }
+
+#else
+    // Stub implementations for non-Windows platforms
+    // TheSuperHackers @refactor bobtista 01/01/2025 Excel integration is Windows-only
+    
+    // Excel class stubs (forward declarations only - not implemented)
+    class _Workbook {};
+    class _Application {};
+    class Workbooks {};
+    class Range {};
+    class _Worksheet {};
+    
+    // Stub implementations
+    int OpenExcel(void) { return FALSE; }
+    void CloseExcel(void) {}
+    int NewWorkBook(const char* path) { return FALSE; }
+    int SaveWorkBook(const char* filename, int protect) { return FALSE; }
+    int OpenWorkBook(const char* filename) { return FALSE; }
+    void CloseWorkBook(void) {}
+    int PutCell(int row, int column, const OLECHAR* string, int val) { return FALSE; }
+    int PutSeparator(int row) { return FALSE; }
+    int PutSection(int row, const OLECHAR* title) { return FALSE; }
+    void SelectActiveSheet(void) {}
+    int GetInt(int row, int cell) { return 0; }
+    int GetString(int row, int cell, OLECHAR* buffer) {
+        if (buffer) buffer[0] = 0;
+        return FALSE;
+    }
+#endif
 
