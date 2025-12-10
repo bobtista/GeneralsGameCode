@@ -39,7 +39,7 @@ def find_clang_tidy() -> str:
             return 'clang-tidy'
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
-    
+
     raise RuntimeError(
         "clang-tidy not found in PATH. Please install clang-tidy:\n"
         "  Windows: Install LLVM from https://llvm.org/builds/"
@@ -70,7 +70,6 @@ def find_compile_commands(build_dir: Optional[Path] = None) -> Path:
             f"compile_commands.json not found in {build_dir}"
         )
 
-    # Use the dedicated clang-tidy build (PCH-free, required for correct analysis)
     clang_tidy_build = project_root / "build" / "clang-tidy"
     compile_commands = clang_tidy_build / "compile_commands.json"
 
@@ -104,11 +103,10 @@ def filter_source_files(compile_commands: List[dict],
     for entry in compile_commands:
         file_path = Path(entry['file'])
 
-        # Convert to relative path for pattern matching
         try:
             rel_path = file_path.relative_to(project_root)
         except ValueError:
-            continue  # File outside project root
+            continue
 
         rel_path_str = str(rel_path)
 
@@ -128,7 +126,7 @@ def filter_source_files(compile_commands: List[dict],
 def _run_batch(args: Tuple) -> Tuple[int, Dict[str, List[str]]]:
     """Helper function to run clang-tidy on a batch of files (for multiprocessing)."""
     batch_num, batch, compile_commands_dir, fix, extra_args, project_root, clang_tidy_exe, verbose = args
-    
+
     cmd = [
         clang_tidy_exe,
         f'-p={compile_commands_dir}',
@@ -143,7 +141,7 @@ def _run_batch(args: Tuple) -> Tuple[int, Dict[str, List[str]]]:
     cmd.extend(batch)
 
     issues_by_file = defaultdict(list)
-    
+
     try:
         result = subprocess.run(
             cmd,
@@ -151,36 +149,29 @@ def _run_batch(args: Tuple) -> Tuple[int, Dict[str, List[str]]]:
             capture_output=True,
             text=True
         )
-        
-        # Parse output to extract warnings/errors
+
         if result.stdout or result.stderr:
             output = result.stdout + result.stderr
-            
+
             for line in output.splitlines():
                 line = line.strip()
                 if not line:
                     continue
-                
-                # clang-tidy diagnostic format: "path/to/file.cpp:line:col: level: message"
+
                 line_lower = line.lower()
                 is_warning_or_error = ('warning' in line_lower or 'error' in line_lower)
-                
-                # Only process lines that look like diagnostics (have colons and file paths)
+
                 if ':' in line and (is_warning_or_error or verbose):
-                    # Try to extract file path (first part before colon)
                     parts = line.split(':', 1)
                     if parts:
                         file_path = parts[0].strip()
-                        # Check if it looks like a file path
                         if any(file_path.endswith(ext) for ext in ['.cpp', '.cxx', '.cc', '.c', '.h', '.hpp', '.hxx']):
-                            # Extract relative path for cleaner output
                             try:
                                 rel_path = Path(file_path).relative_to(project_root)
                                 file_key = str(rel_path)
                             except (ValueError, OSError):
                                 file_key = file_path
-                            
-                            # Only add if it's a warning/error, or if verbose mode
+
                             if is_warning_or_error or verbose:
                                 issues_by_file[file_key].append(line)
         
@@ -203,21 +194,19 @@ def run_clang_tidy(source_files: List[str],
         print("No source files to analyze.")
         return 0
 
-    # Find clang-tidy executable
     clang_tidy_exe = find_clang_tidy()
 
-    # Process files in batches (Windows has ~8191 char command-line limit)
     BATCH_SIZE = 50
     total_files = len(source_files)
     batches = [source_files[i:i + BATCH_SIZE] for i in range(0, total_files, BATCH_SIZE)]
 
     project_root = find_project_root()
     compile_commands_dir = compile_commands_path.parent
-    
+
     all_issues = defaultdict(list)
     files_with_issues = set()
     total_issues = 0
-    
+
     if jobs > 1:
         if verbose:
             print(f"Running clang-tidy on {total_files} file(s) in {len(batches)} batch(es) with {jobs} workers...\n")
@@ -233,8 +222,7 @@ def run_clang_tidy(source_files: List[str],
                         for idx, batch in enumerate(batches)
                     ]
                 )
-            
-            # Collect results
+
             overall_returncode = 0
             for returncode, issues in batch_results:
                 if returncode != 0:
@@ -265,8 +253,7 @@ def run_clang_tidy(source_files: List[str],
                 returncode, issues = _run_batch((batch_num, batch, compile_commands_dir, fix, extra_args, project_root, clang_tidy_exe, verbose))
                 if returncode != 0:
                     overall_returncode = returncode
-                
-                # Collect issues
+
                 for file_path, file_issues in issues.items():
                     if file_issues:
                         all_issues[file_path].extend(file_issues)
@@ -278,14 +265,12 @@ def run_clang_tidy(source_files: List[str],
             except KeyboardInterrupt:
                 print("\nInterrupted by user.")
                 return 130
-        
+
         if not verbose:
             print(" done.")
 
-    # Print summary
     print(f"\nSummary: {len(files_with_issues)} file(s) with issues, {total_issues} total issue(s)")
-    
-    # Print issues (only warnings/errors, not verbose informational messages)
+
     if all_issues:
         print("\nIssues found:")
         for file_path in sorted(all_issues.keys()):
@@ -382,23 +367,20 @@ Note: Requires a PCH-free build. Create with:
         compile_commands_path = find_compile_commands(args.build_dir)
         print(f"Using compile commands: {compile_commands_path}\n")
 
-        # Check if any arguments look like file paths
         project_root = find_project_root()
         specified_files = []
         clang_tidy_args = []
-        
+
         for arg in args.clang_tidy_args:
-            # Check if it's a file path (exists and has source file extension)
             file_path = Path(arg)
             if not file_path.is_absolute():
                 file_path = project_root / file_path
-            
+
             if file_path.exists() and file_path.suffix in {'.cpp', '.cxx', '.cc', '.c', '.h', '.hpp'}:
                 specified_files.append(str(file_path.resolve()))
             else:
                 clang_tidy_args.append(arg)
-        
-        # If specific files were provided, use them directly
+
         if specified_files:
             if args.verbose:
                 print(f"Analyzing {len(specified_files)} specified file(s)\n")
@@ -411,7 +393,6 @@ Note: Requires a PCH-free build. Create with:
                 args.verbose
             )
 
-        # Otherwise, filter from compile_commands.json
         compile_commands = load_compile_commands(compile_commands_path)
 
         default_excludes = [
