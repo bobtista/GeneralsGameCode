@@ -183,7 +183,12 @@ class Translation : public DBAttribs
 	void					SetRevision	( int new_rev )						{ revision = new_rev; Changed(); };
 	LangID				GetLangID		( void )									{ return langid; };
 	const char*		Language		( void )									{ return GetLangName ( langid );};
-	void					AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes = FALSE );
+	#ifdef _WIN32
+		void					AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes = FALSE );
+	#else
+		// Stub for non-Windows (tree control not available)
+		void					AddToTree		( void *tc, void *parent, int changes = FALSE );
+	#endif
 	int						TooLong			( int maxlen );
 	int						ValidateFormat ( BabylonText *text );
 	int						IsSent ( void );
@@ -245,7 +250,12 @@ class BabylonText : public DBAttribs
 	int						Revision		( void )									{ return revision; } ;
 	void					SetRevision	( int new_rev )						{ revision = new_rev; Changed(); } ;
 	void					IncRevision ( void )									{ revision++; Changed(); };
-	void					AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes = FALSE );
+	#ifdef _WIN32
+		void					AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes = FALSE );
+	#else
+		// Stub for non-Windows (tree control not available)
+		void					AddToTree		( void *tc, void *parent, int changes = FALSE );
+	#endif
 	int						LineNumber	( void )									{ return line_number; };
 	void					SetLineNumber	( int line )						{ line_number = line; Changed(); };
 	void					FormatMetaString ( void )							{ text->FormatMetaString (); Changed();};
@@ -327,7 +337,12 @@ class BabylonLabel : public DBAttribs
 	char*					SpeakerSB		( void )									{ return speaker->GetSB(); };
 	char*					ListenerSB	( void )									{ return listener->GetSB(); };
 
-	void					AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes = FALSE );
+	#ifdef _WIN32
+		void					AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes = FALSE );
+	#else
+		// Stub for non-Windows (tree control not available)
+		void					AddToTree		( void *tc, void *parent, int changes = FALSE );
+	#endif
 
 };
 
@@ -392,7 +407,12 @@ class TransDB : public DBAttribs
 	void					ClearProcessed ( void );
 	void					ClearMatched ( void );
 	TransDB*			Next				( void );
-	void					AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes = FALSE, void (*cb) ( void ) = NULL );
+	#ifdef _WIN32
+		void					AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes = FALSE, void (*cb) ( void ) = NULL );
+	#else
+		// Stub for non-Windows (tree control not available)
+		void					AddToTree		( void *tc, void *parent, int changes = FALSE, void (*cb) ( void ) = NULL );
+	#endif
 	char*					Name				( void )							{ return name;};
 	void					EnableIDs		( void )							{ next_string_id = START_STRING_ID; };
 	int						NewID				( void )							{ if ( next_string_id != -1)  return next_string_id++; else return -1; };
@@ -404,6 +424,7 @@ class TransDB : public DBAttribs
 	int						MultiTextAllowed ( void )					{ return flags & TRANSDB_OPTION_MULTI_TEXT;};
 	void					AllowDupiclates ( int yes = TRUE) { yes ? flags |= TRANSDB_OPTION_DUP_TEXT : flags &= ~(TRANSDB_OPTION_DUP_TEXT ); };
 	void					AllowMultiText  ( int yes = TRUE) { yes ? flags |= TRANSDB_OPTION_MULTI_TEXT : flags &= ~(TRANSDB_OPTION_MULTI_TEXT ); };
+	List*					GetLabelsList	( void )							{ return &labels; };  // TheSuperHackers @refactor bobtista 01/01/2025 Add accessor for labels list
 };
 
 

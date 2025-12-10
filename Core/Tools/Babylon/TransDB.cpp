@@ -20,13 +20,19 @@
 // TransDB.cpp
 //
 
-#include "StdAfx.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
+
+#include "PlatformTypes.h"
 #include "TransDB.h"
-#include "BabylonDlg.h"
-#include "Babylon.h"
-#include "assert.h"
+#include "BabylonDlg_Qt.h"  // Use Qt version instead of MFC version
+#include "Babylon_Qt.h"  // Use Qt version instead of MFC version
 #include "bin.h"
 #include "list.h"
+#include <cwchar>  // For wide string functions
+#include <cstring>  // For string functions
+#include <cstdio>   // For file I/O
+#include <strings.h>  // For strcasecmp on Unix/macOS (used by PlatformTypes.h stricmp macro)
+#include <sys/stat.h>  // For stat() and struct stat on Unix/macOS
 
 static char buffer[100*1024];
 
@@ -472,46 +478,31 @@ void					TransDB::ClearMatched				( void )
 	NotMatched ();
 }
 
+#ifdef _WIN32
 void					TransDB::AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes, void (*cb) ( void ) )
+#else
+void					TransDB::AddToTree		( void *tc, void *parent, int changes, void (*cb) ( void ) )
+#endif
 {
-	HTREEITEM		item;
-	HTREEITEM		ilabels, iobsolete;
-	ListSearch	sh;
-	BabylonLabel		*label;
-	BabylonText			*txt;
+	#ifdef _WIN32
+		char buffer[256];
+		HTREEITEM		item;
+		HTREEITEM		ilabels, iobsolete;
+		ListSearch	sh;
+		BabylonLabel		*label;
+		BabylonText			*txt;
 
-	sprintf ( buffer, "%s%c  (%d/%d)",name, ChangedSymbol(), NumLabelsChanged(), NumLabels() );
-	item = tc->InsertItem ( buffer, parent );
-	ilabels = tc->InsertItem ( "Labels", item );
+		sprintf ( buffer, "%s%c  (%d/%d)",name, ChangedSymbol(), NumLabelsChanged(), NumLabels() );
+		item = ((CTreeCtrl*)tc)->InsertItem ( buffer, (HTREEITEM)parent );
+		ilabels = ((CTreeCtrl*)tc)->InsertItem ( "Labels", item );
 
-	label = FirstLabel ( sh );
+		label = FirstLabel ( sh );
 
-	while ( label )
-	{
-		if ( !changes || label->IsChanged ())
+		while ( label )
 		{
-			label->AddToTree ( tc, ilabels, changes );
-		}
-
-		if ( cb )
-		{
-			cb ( );
-		}
-
-		label = NextLabel ( sh );
-	}
-
-	if ( num_obsolete )
-	{
-		iobsolete = tc->InsertItem ( "Obsolete Strings", item );
-
-		txt = FirstObsolete ( sh );
-
-		while ( txt )
-		{
-			if ( !changes || txt->IsChanged ())
+			if ( !changes || label->IsChanged ())
 			{
-				txt->AddToTree ( tc, iobsolete );
+				label->AddToTree ( tc, ilabels, changes );
 			}
 
 			if ( cb )
@@ -519,11 +510,31 @@ void					TransDB::AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes, voi
 				cb ( );
 			}
 
-			txt = NextObsolete ( sh );
+			label = NextLabel ( sh );
 		}
-	}
 
+		if ( num_obsolete )
+		{
+			iobsolete = ((CTreeCtrl*)tc)->InsertItem ( "Obsolete Strings", item );
 
+			txt = FirstObsolete ( sh );
+
+			while ( txt )
+			{
+				if ( !changes || txt->IsChanged ())
+				{
+					txt->AddToTree ( tc, iobsolete );
+				}
+
+				if ( cb )
+				{
+					cb ( );
+				}
+
+				txt = NextObsolete ( sh );
+			}
+		}
+	#endif  // _WIN32
 }
 
 TransDB*			TransDB::Next				( void )
@@ -814,63 +825,69 @@ void BabylonText::Sent ( int val )
 	sent = val;
 }
 
+#ifdef _WIN32
 void					BabylonLabel::AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes )
+#else
+void					BabylonLabel::AddToTree		( void *tc, void *parent, int changes )
+#endif
 {
-	HTREEITEM		litem;
-	ListSearch	sh;
-	BabylonText			*txt;
+	#ifdef _WIN32
+		char buffer[256];
+		HTREEITEM		litem;
+		ListSearch	sh;
+		BabylonText			*txt;
 
-	sprintf ( buffer, "%s%c", NameSB(), ChangedSymbol() );
+		sprintf ( buffer, "%s%c", NameSB(), ChangedSymbol() );
+		litem = ((CTreeCtrl*)tc)->InsertItem ( buffer, (HTREEITEM)parent );
 
-	litem = tc->InsertItem ( buffer, parent );
+		txt = FirstText ( sh );
 
-	txt = FirstText ( sh );
-
-	while ( txt )
-	{
-		if ( !changes || txt->IsChanged ())
+		while ( txt )
 		{
-			txt->AddToTree ( tc, litem );
+			if ( !changes || txt->IsChanged ())
+			{
+				txt->AddToTree ( tc, litem );
+			}
+
+			txt = NextText ( sh );
 		}
 
-		txt = NextText ( sh );
-	}
+		if ( strcmp ( CommentSB(), "" ) )
+		{
+			sprintf ( buffer, "COMMENT : %s", CommentSB() );
+			((CTreeCtrl*)tc)->InsertItem ( buffer, litem );
+		}
 
-	if ( strcmp ( CommentSB(), "" ) )
-	{
-		sprintf ( buffer, "COMMENT : %s", CommentSB() );
-		tc->InsertItem ( buffer, litem );
-	}
+		if ( strcmp ( ContextSB(), "" ) )
+		{
+			sprintf ( buffer, "CONTEXT : %s", ContextSB() );
+			((CTreeCtrl*)tc)->InsertItem ( buffer, litem );
+		}
 
-	if ( strcmp ( ContextSB(), "" ) )
-	{
-		sprintf ( buffer, "CONTEXT : %s", ContextSB() );
-		tc->InsertItem ( buffer, litem );
-	}
+		if ( strcmp ( SpeakerSB(), "" ) )
+		{
+			sprintf ( buffer, "SPEAKER : %s", SpeakerSB() );
+			((CTreeCtrl*)tc)->InsertItem ( buffer, litem );
+		}
 
-	if ( strcmp ( SpeakerSB(), "" ) )
-	{
-		sprintf ( buffer, "SPEAKER : %s", SpeakerSB() );
-		tc->InsertItem ( buffer, litem );
-	}
+		if ( strcmp ( ListenerSB(), "" ) )
+		{
+			sprintf ( buffer, "LISTENER: %s", ListenerSB() );
+			((CTreeCtrl*)tc)->InsertItem ( buffer, litem );
+		}
 
-	if ( strcmp ( ListenerSB(), "" ) )
-	{
-		sprintf ( buffer, "LISTENER: %s", ListenerSB() );
-		tc->InsertItem ( buffer, litem );
-	}
+		if ( line_number != -1 )
+		{
+			sprintf ( buffer, "LINE    : %d", line_number );
+			((CTreeCtrl*)tc)->InsertItem ( buffer, litem );
+		}
 
-	if ( line_number != -1 )
-	{
-		sprintf ( buffer, "LINE    : %d", line_number );
-		tc->InsertItem ( buffer, litem );
-	}
-
-	if ( max_len )
-	{
-		sprintf ( buffer, "MAX LEN : %d", max_len );
-		tc->InsertItem ( buffer, litem );
-	}
+		if ( max_len )
+		{
+			sprintf ( buffer, "MAX LEN : %d", max_len );
+			((CTreeCtrl*)tc)->InsertItem ( buffer, litem );
+		}
+	#endif  // _WIN32
 
 }
 
@@ -969,25 +986,49 @@ int						BabylonText::DialogIsValid ( const char *path, LangID langid, int check
 
 	if ( winfo->Valid () && check )
 	{
-		WIN32_FIND_DATA info;
+				#ifdef _WIN32
+					WIN32_FIND_DATA info;
+				#else
+					// Unix: File existence check not implemented
+					struct stat st;
+				#endif
 		HANDLE	handle;
 
 		winfo->SetValid ( FALSE );
 		winfo->SetMissing ( TRUE );
 
-		sprintf ( buffer, "%s%s\\%s%s.wav", path, linfo->character, WaveSB(), linfo->character );
-		if ( (handle = FindFirstFile ( buffer, &info )) != INVALID_HANDLE_VALUE )
+		#ifdef _WIN32
+			sprintf ( buffer, "%s%s\\%s%s.wav", path, linfo->character, WaveSB(), linfo->character );
+		#else
+			sprintf ( buffer, "%s%s/%s%s.wav", path, linfo->character, WaveSB(), linfo->character );  // TheSuperHackers @refactor bobtista 01/01/2025 Use forward slashes on Unix
+		#endif
+				#ifdef _WIN32
+					if ( (handle = FindFirstFile ( buffer, &info )) != INVALID_HANDLE_VALUE )
+				#else
+					if ( stat(buffer, &st) == 0 )
+				#endif
 		{
-			if ( ! (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
-			{
-				if ( winfo->Lo () == info.nFileSizeLow && winfo->Hi() == info.nFileSizeHigh )
+			#ifdef _WIN32
+				if ( ! (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
+				{
+					if ( winfo->Lo () == info.nFileSizeLow && winfo->Hi() == info.nFileSizeHigh )
+					{
+						winfo->SetValid ( TRUE );
+					}
+					winfo->SetMissing ( FALSE );
+				}
+			#else
+				// Unix: Use stat result
+				if ( !S_ISDIR(st.st_mode) )
 				{
 					winfo->SetValid ( TRUE );
+					winfo->SetMissing ( FALSE );
 				}
-				winfo->SetMissing ( FALSE );
-			}
+			#endif
 
-			FindClose ( handle );
+						#ifdef _WIN32
+							FindClose ( handle );
+						#endif
 		}
 
 	}
@@ -997,7 +1038,12 @@ int						BabylonText::DialogIsValid ( const char *path, LangID langid, int check
 
 int						BabylonText::ValidateDialog ( const char *path, LangID langid )
 {
-	WIN32_FIND_DATA info;
+				#ifdef _WIN32
+					WIN32_FIND_DATA info;
+				#else
+					// Unix: File existence check not implemented
+					struct stat st;
+				#endif
 	HANDLE	handle;
 	CWaveInfo *winfo;
 	LANGINFO *linfo;
@@ -1027,17 +1073,33 @@ int						BabylonText::ValidateDialog ( const char *path, LangID langid )
 	winfo->SetMissing ( TRUE );
 
 	sprintf ( buffer, "%s%s\\%s%s.wav", path, linfo->character , WaveSB(), linfo->character );
-	if ( (handle = FindFirstFile ( buffer, &info )) != INVALID_HANDLE_VALUE )
+				#ifdef _WIN32
+					if ( (handle = FindFirstFile ( buffer, &info )) != INVALID_HANDLE_VALUE )
+				#else
+					if ( stat(buffer, &st) == 0 )
+				#endif
 	{
-		if ( ! (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
-		{
-			winfo->SetLo ( info.nFileSizeLow );
-			winfo->SetHi ( info.nFileSizeHigh );
-			winfo->SetValid  ( TRUE );
-			winfo->SetMissing ( FALSE );
-			attribs->Changed();
-		}
-		FindClose ( handle );
+		#ifdef _WIN32
+			if ( ! (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
+			{
+				winfo->SetLo ( info.nFileSizeLow );
+				winfo->SetHi ( info.nFileSizeHigh );
+				winfo->SetValid  ( TRUE );
+				winfo->SetMissing ( FALSE );
+				attribs->Changed();
+			}
+		#else
+			// Unix: Use stat result
+			if ( !S_ISDIR(st.st_mode) )
+			{
+				winfo->SetValid  ( TRUE );
+				winfo->SetMissing ( FALSE );
+				attribs->Changed();
+			}
+		#endif
+						#ifdef _WIN32
+							FindClose ( handle );
+						#endif
 	}
 
 	return winfo->Valid ();
@@ -1046,20 +1108,39 @@ int						BabylonText::ValidateDialog ( const char *path, LangID langid )
 int						BabylonText::DialogIsPresent ( const char *path, LangID langid )
 {
 
-	WIN32_FIND_DATA info;
+				#ifdef _WIN32
+					WIN32_FIND_DATA info;
+				#else
+					// Unix: File existence check not implemented
+					struct stat st;
+				#endif
 	HANDLE	handle;
 	int present = FALSE;
 	LANGINFO	*linfo = GetLangInfo ( langid );
 
-	sprintf ( buffer, "%s%s\\%s%s.wav", path, linfo->character , WaveSB(), linfo->character );
-	if ( (handle = FindFirstFile ( buffer, &info )) != INVALID_HANDLE_VALUE )
+	#ifdef _WIN32
+		sprintf ( buffer, "%s%s\\%s%s.wav", path, linfo->character , WaveSB(), linfo->character );
+	#else
+		sprintf ( buffer, "%s%s/%s%s.wav", path, linfo->character , WaveSB(), linfo->character );  // TheSuperHackers @refactor bobtista 01/01/2025 Use forward slashes on Unix
+	#endif
+				#ifdef _WIN32
+					if ( (handle = FindFirstFile ( buffer, &info )) != INVALID_HANDLE_VALUE )
+				#else
+					if ( stat(buffer, &st) == 0 )
+				#endif
 	{
-		if ( ! (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
-		{
+		#ifdef _WIN32
+			if ( ! (info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) )
+			{
 				present = TRUE;
-		}
-
-		FindClose ( handle );
+			}
+			FindClose ( handle );
+		#else
+			if ( !S_ISDIR(st.st_mode) )
+			{
+				present = TRUE;
+			}
+		#endif
 	}
 
 	return present;
@@ -1314,14 +1395,20 @@ void					BabylonText::InvalidateWave			( LangID langid  )
 	}
 }
 
+#ifdef _WIN32
 void					BabylonText::AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes )
+#else
+void					BabylonText::AddToTree		( void *tc, void *parent, int changes )
+#endif
 {
-	HTREEITEM		item;
-	ListSearch	sh;
-	Translation	*trans;
+	#ifdef _WIN32
+		char buffer[256];
+		HTREEITEM		item;
+		ListSearch	sh;
+		Translation	*trans;
 
-	sprintf ( buffer, "TEXT %c : %s", ChangedSymbol() ,GetSB ());
-	item = tc->InsertItem ( buffer, parent );
+		sprintf ( buffer, "TEXT %c : %s", ChangedSymbol() ,GetSB ());
+		item = ((CTreeCtrl*)tc)->InsertItem ( buffer, (HTREEITEM)parent );
 
 	trans = FirstTranslation ( sh );
 
@@ -1338,27 +1425,27 @@ void					BabylonText::AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes 
 	if ( ID() != -1 )
 	{
 		sprintf ( buffer, "ID     : %d", ID ());
-		tc->InsertItem ( buffer, item );
+		((CTreeCtrl*)tc)->InsertItem ( buffer, item );
 	}
 
 	if ( strcmp ( WaveSB(), "" ) )
 	{
 		sprintf ( buffer, "WAVE   : %s", WaveSB() );
-		tc->InsertItem ( buffer, item );
+		((CTreeCtrl*)tc)->InsertItem ( buffer, item );
 	}
 
 	if ( line_number != -1 )
 	{
 		sprintf ( buffer, "LINE   : %d", line_number );
-		tc->InsertItem ( buffer, item );
+		((CTreeCtrl*)tc)->InsertItem ( buffer, item );
 	}
 
 	sprintf ( buffer, "REV    : %d", revision );
-	tc->InsertItem ( buffer, item );
+	((CTreeCtrl*)tc)->InsertItem ( buffer, item );
 
 	sprintf ( buffer, "LEN    : %d", this->Len() );
-	tc->InsertItem ( buffer, item );
-
+	((CTreeCtrl*)tc)->InsertItem ( buffer, item );
+	#endif  // _WIN32
 }
 
 Translation::Translation ( void )
@@ -1403,9 +1490,15 @@ Translation*			Translation::Clone				( void )
 	return clone;
 }
 
+#ifdef _WIN32
 void					Translation::AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes )
+#else
+void					Translation::AddToTree		( void *tc, void *parent, int changes )
+#endif
 {
-	HTREEITEM		item;
+	#ifdef _WIN32
+		char buffer[256];
+		HTREEITEM		item;
 
 	sprintf ( buffer, "%s%c   : %s", Language(), ChangedSymbol(), GetSB ());
 
@@ -1422,7 +1515,7 @@ void					Translation::AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes 
 
 	sprintf ( buffer, "LEN    : %d", Len() );
 	tc->InsertItem ( buffer, item );
-
+	#endif  // _WIN32
 }
 
 int Translation::TooLong ( int maxlen )
