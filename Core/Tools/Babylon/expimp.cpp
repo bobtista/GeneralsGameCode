@@ -20,16 +20,26 @@
 // expimp.cpp
 //
 
-#include "StdAfx.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
+
+#include "PlatformTypes.h"
 #include "TransDB.h"
 #include "XLStuff.h"
-#include "BabylonDlg.h"
-#include "VerifyTextDlg.h"
-#include "Babylon.h"
+#include "BabylonDlg_Qt.h"  // Use Qt version
+#include "VerifyTextDlg_Qt.h"  // Use Qt version
+#include "Babylon_Qt.h"  // Use Qt version
 #include "expimp.h"
-#include "direct.h"
+#include <unistd.h>  // For getcwd (Unix) or direct.h (Windows)
+#ifdef _WIN32
+    #include <direct.h>
+#endif
 #include "fileops.h"
 #include "olestring.h"
+#include <cwchar>  // For wide string functions
+#include <cstring>  // For string functions
+#include <QMessageBox>  // For QMessageBox (replaces AfxMessageBox)
+#include <cstdio>   // For file I/O
+#include <ctime>    // For time() and strftime on Unix
 
 static char buffer[100*1024];
 static char buffer2[100*1024];
@@ -202,9 +212,17 @@ static void writeText ( BabylonText *text, int row )
 	PutCell ( row, CELL_ENGLISH, olebuf , 0);
 	PutCell ( row, CELL_MAXLEN, NULL , maxlen );
 
-	swprintf ( buffer, L"=LEN(%c%d)",'A' + CELL_LOCALIZED -1,  row );
+	#ifdef _WIN32
+		swprintf ( buffer, L"=LEN(%c%d)",'A' + CELL_LOCALIZED -1,  row );
+	#else
+		swprintf ( buffer, sizeof(buffer)/sizeof(wchar_t), L"=LEN(%c%d)",'A' + CELL_LOCALIZED -1,  row );  // TheSuperHackers @refactor bobtista 01/01/2025 POSIX swprintf requires size parameter
+	#endif
 	PutCell ( row, CELL_STRLEN, buffer , 0);
-	swprintf ( buffer, L"=IF(%c%d>%c%d,\"Too long!\",\" \")", 'A' + CELL_STRLEN -1,  row, 'A' + CELL_MAXLEN -1,  row );
+	#ifdef _WIN32
+		swprintf ( buffer, L"=IF(%c%d>%c%d,\"Too long!\",\" \")", 'A' + CELL_STRLEN -1,  row, 'A' + CELL_MAXLEN -1,  row );
+	#else
+		swprintf ( buffer, sizeof(buffer)/sizeof(wchar_t), L"=IF(%c%d>%c%d,\"Too long!\",\" \")", 'A' + CELL_STRLEN -1,  row, 'A' + CELL_MAXLEN -1,  row );  // TheSuperHackers @refactor bobtista 01/01/2025 POSIX swprintf requires size parameter
+	#endif
 	PutCell ( row, CELL_LENCHECK ,buffer , 0);
 	PutCell ( row, CELL_REVISION , 0, text->Revision ());
 	PutCell ( row, CELL_STRINGID , 0, text->ID ());
@@ -239,10 +257,18 @@ static int export_trans ( TransDB *db, LangID langid, TROPTIONS *options, void (
 	{
 		OLECHAR buffer[100];
 
-		swprintf ( buffer, L"%S", GetLangName ( langid ));
+		#ifdef _WIN32
+			swprintf ( buffer, L"%S", GetLangName ( langid ));
+		#else
+			swprintf ( buffer, sizeof(buffer)/sizeof(wchar_t), L"%S", GetLangName ( langid ));  // TheSuperHackers @refactor bobtista 01/01/2025 POSIX swprintf requires size parameter
+		#endif
 		PutCell ( ROW_LANGUAGE, COLUMN_LANGUAGE,buffer,0);
 
-		swprintf ( buffer, L"%S Translation", GetLangName ( langid ));
+		#ifdef _WIN32
+			swprintf ( buffer, L"%S Translation", GetLangName ( langid ));
+		#else
+			swprintf ( buffer, sizeof(buffer)/sizeof(wchar_t), L"%S Translation", GetLangName ( langid ));  // TheSuperHackers @refactor bobtista 01/01/2025 POSIX swprintf requires size parameter
+		#endif
 		PutCell ( 2, CELL_LOCALIZED,buffer,0);
 	}
 
@@ -334,7 +360,11 @@ static int export_trans ( TransDB *db, LangID langid, TROPTIONS *options, void (
 					writeText ( text, row );
 					if ( text->IsDialog ())
 					{
-						swprintf  ( buffer, L"%s%S.wav", text->Wave (), linfo->character );
+						#ifdef _WIN32
+							swprintf  ( buffer, L"%s%S.wav", text->Wave (), linfo->character );
+						#else
+							swprintf  ( buffer, sizeof(buffer)/sizeof(wchar_t), L"%s%S.wav", text->Wave (), linfo->character );  // TheSuperHackers @refactor bobtista 01/01/2025 POSIX swprintf requires size parameter
+						#endif
 						wcsupr ( buffer );
 						PutCell ( row, CELL_WAVEFILE , buffer, 0);
 					}
@@ -411,7 +441,7 @@ int ExportTranslations ( TransDB *db, const char *filename, LangID langid, TROPT
 	{
 		if ( dlg )
 		{
-			AfxMessageBox ( "Nothing to export." );
+			QMessageBox::warning(nullptr, "Export", "Nothing to export.");  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 			dlg->Ready ();
 		}
 
@@ -474,9 +504,13 @@ int ExportTranslations ( TransDB *db, const char *filename, LangID langid, TROPT
 		dlg->Status ( buffer );
 	}
 
-	_getcwd ( buffer, sizeof ( buffer ) -1 );
-
-	strcat ( buffer, "\\babylon.xlt" );
+	#ifdef _WIN32
+		_getcwd ( buffer, sizeof ( buffer ) -1 );
+		strcat ( buffer, "\\babylon.xlt" );
+	#else
+		getcwd ( buffer, sizeof ( buffer ) -1 );  // TheSuperHackers @refactor bobtista 01/01/2025 Use getcwd instead of _getcwd on Unix
+		strcat ( buffer, "/babylon.xlt" );  // TheSuperHackers @refactor bobtista 01/01/2025 Use forward slashes on Unix
+	#endif
 
 	if ( !FileExists ( buffer ) )
 	{
@@ -484,7 +518,7 @@ int ExportTranslations ( TransDB *db, const char *filename, LangID langid, TROPT
 		{
 			dlg->Log ("FAILED", SAME_LINE );
 			sprintf ( buffer2, "Template file \"%s\" is missing. Cannot export.", buffer );
-			AfxMessageBox ( buffer2 );
+			QMessageBox::warning(nullptr, "Export", buffer2);  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 			dlg->Log ( buffer2 );
 			dlg->Ready();
 		}
@@ -511,7 +545,7 @@ int ExportTranslations ( TransDB *db, const char *filename, LangID langid, TROPT
 				{
 					dlg->Log ("FAILED", SAME_LINE );
 					sprintf ( buffer2, "Failed to save export!");
-					AfxMessageBox ( buffer2 );
+					QMessageBox::warning(nullptr, "Export", buffer2);  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 					dlg->Log ( buffer2 );
 				}
 				exports = -1;
@@ -525,7 +559,7 @@ int ExportTranslations ( TransDB *db, const char *filename, LangID langid, TROPT
 		{
 			dlg->Log ("FAILED", SAME_LINE );
 			sprintf ( buffer2, "Failed to create new work book. File \"%s\" may be corrupt", buffer );
-			AfxMessageBox ( buffer2 );
+			QMessageBox::warning(nullptr, "Export", buffer2);  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 			dlg->Log ( buffer2 );
 		}
 	}
@@ -635,7 +669,7 @@ static int import_trans ( TransDB *db, LangID langid, void (*cb) ( void ), CBaby
 				// didnt find label or label doesn't match
 				// It is possible that the xl was resorted so ask user to do a visual confirmation
 
-				bad_id = dlg.DoModal ()==IDNO;
+				bad_id = (dlg.exec() == QDialog::Rejected);  // TheSuperHackers @refactor bobtista 01/01/2025 Replace DoModal() with exec(), Rejected == IDNO
 			}
 			else if ( text->Label()->FindText( olebuf ))
 			{
@@ -729,7 +763,7 @@ done:
 				dlg->Log ( buffer );
 			}
 
-			AfxMessageBox ("The imported translation file has bad string IDs! Fix the string IDs and re-import" );
+			QMessageBox::warning(nullptr, "Import", "The imported translation file has bad string IDs! Fix the string IDs and re-import");  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 		}
 	return count;
 }
@@ -820,7 +854,7 @@ static int update_sent_trans ( TransDB *db, LangID langid, void (*cb) ( void ), 
 				// didnt find label or label doesn't match
 				// It is possible that the xl was resorted so ask user to do a visual confirmation
 
-				bad_id = dlg.DoModal ()==IDNO;
+				bad_id = (dlg.exec() == QDialog::Rejected);  // TheSuperHackers @refactor bobtista 01/01/2025 Replace DoModal() with exec(), Rejected == IDNO
 			}
 			else if ( text->Label()->FindText( olebuf ))
 			{
@@ -891,7 +925,7 @@ done:
 				dlg->Log ( buffer );
 			}
 
-			AfxMessageBox ("The imported translation file has bad string IDs! Fix the string IDs and re-import" );
+			QMessageBox::warning(nullptr, "Import", "The imported translation file has bad string IDs! Fix the string IDs and re-import");  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 		}
 	return count;
 }
@@ -922,7 +956,7 @@ int ImportTranslations ( TransDB *db, const char *filename, CBabylonDlg *dlg )
 		{
 			if ( dlg )
 			{
-				AfxMessageBox ( "Import file is of an unknown language or is not a translation file" );
+				QMessageBox::warning(nullptr, "Import", "Import file is of an unknown language or is not a translation file");  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 				dlg->Log ( "FAILED", SAME_LINE );
 				dlg->Ready();
 			}
@@ -948,8 +982,8 @@ int ImportTranslations ( TransDB *db, const char *filename, CBabylonDlg *dlg )
 		if ( dlg )
 		{
 			dlg->Log ("FAILED", SAME_LINE );
-			sprintf ( buffer2, "Failed to open \"%s\"", buffer );
-			AfxMessageBox ( buffer2 );
+		sprintf ( buffer2, "Failed to open \"%s\"", buffer );
+		QMessageBox::warning(nullptr, "Import", buffer2);  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 			dlg->Log ( buffer2 );
 		}
 	}
@@ -1208,7 +1242,11 @@ static int generate_csf ( TransDB *db, const char *filename, LangID langid, GNOP
 							if ( options->untranslated == GN_USEIDS )
 							{
 								string = olebuf2;
+								#ifdef _WIN32
 								swprintf (olebuf2, L"%d", text->ID ());
+							#else
+								swprintf (olebuf2, sizeof(olebuf2)/sizeof(wchar_t), L"%d", text->ID ());  // TheSuperHackers @refactor bobtista 01/01/2025 POSIX swprintf requires size parameter
+							#endif
 							}
 							else
 							{
@@ -1464,8 +1502,8 @@ void ProcessWaves ( TransDB *db, const char *filename, CBabylonDlg *dlg )
 		if ( dlg )
 		{
 			dlg->Log ("FAILED", SAME_LINE );
-			sprintf ( buffer2, "Failed to open \"%s\"", buffer );
-			AfxMessageBox ( buffer2 );
+		sprintf ( buffer2, "Failed to open \"%s\"", buffer );
+		QMessageBox::warning(nullptr, "Import", buffer2);  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 			dlg->Log ( buffer2 );
 		}
 	}
@@ -1504,8 +1542,8 @@ int GenerateReport ( TransDB *db, const char *filename, RPOPTIONS *options, Lang
 	{
 		static char buffer[500];
 
-		sprintf ( buffer, "Unable to open file \"%s\".\n\nCannot create report!", filename);
-		AfxMessageBox ( buffer );
+	sprintf ( buffer, "Unable to open file \"%s\".\n\nCannot create report!", filename);
+	QMessageBox::warning(nullptr, "Report", buffer);  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 
 		if ( dlg )
 		{
@@ -1519,10 +1557,18 @@ int GenerateReport ( TransDB *db, const char *filename, RPOPTIONS *options, Lang
 
 	{
 		char date[50];
-		char time[50];
-		_strtime ( time );
-		_strdate ( date );
-		fprintf ( file, "Babylon Report: %s %s\n", date, time);
+		char time_str[50];  // TheSuperHackers @refactor bobtista 01/01/2025 Rename to avoid conflict with time() function
+		#ifdef _WIN32
+			_strtime ( time_str );
+			_strdate ( date );
+		#else
+			// Unix: Use strftime for cross-platform date/time formatting
+			time_t now = ::time(nullptr);  // TheSuperHackers @refactor bobtista 01/01/2025 Use ::time to call global function
+			struct tm* tm_info = localtime(&now);
+			strftime(time_str, sizeof(time_str), "%H:%M:%S", tm_info);
+			strftime(date, sizeof(date), "%m/%d/%y", tm_info);
+		#endif
+		fprintf ( file, "Babylon Report: %s %s\n", date, time_str);
 	}
 
 
@@ -1631,7 +1677,7 @@ int UpdateSentTranslations ( TransDB *db, const char *filename, CBabylonDlg *dlg
 		{
 			if ( dlg )
 			{
-				AfxMessageBox ( "Import file is of an unknown language or is not a translation file" );
+				QMessageBox::warning(nullptr, "Import", "Import file is of an unknown language or is not a translation file");  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 				dlg->Log ( "FAILED", SAME_LINE );
 				dlg->Ready();
 			}
@@ -1657,8 +1703,8 @@ int UpdateSentTranslations ( TransDB *db, const char *filename, CBabylonDlg *dlg
 		if ( dlg )
 		{
 			dlg->Log ("FAILED", SAME_LINE );
-			sprintf ( buffer2, "Failed to open \"%s\"", buffer );
-			AfxMessageBox ( buffer2 );
+		sprintf ( buffer2, "Failed to open \"%s\"", buffer );
+		QMessageBox::warning(nullptr, "Import", buffer2);  // TheSuperHackers @refactor bobtista 01/01/2025 Replace AfxMessageBox with QMessageBox
 			dlg->Log ( buffer2 );
 		}
 	}
