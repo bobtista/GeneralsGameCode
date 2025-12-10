@@ -126,9 +126,8 @@ void						Paint_Gradient (HWND hWnd, BYTE baseRed, BYTE baseGreen, BYTE baseBlue
 // Stubs for non-Windows
 typedef void* HWND;
 typedef unsigned char BYTE;
-void Paint_Gradient (HWND hWnd, BYTE baseRed, BYTE baseGreen, BYTE baseBlue);  // Declaration only, not used on Mac
+void Paint_Gradient (HWND hWnd, BYTE baseRed, BYTE baseGreen, BYTE baseBlue);
 #endif
-// CenterDialogAroundTreeView removed - was only used by MFC dialogs
 
 //
 // Dialog routines
@@ -162,6 +161,7 @@ bool						Copy_File (LPCTSTR existing_filename, LPCTSTR new_filename, bool bforc
 //
 //	Texture routines
 //
+HBITMAP					Create_DIB_Section (UCHAR **pbits, int width, int height);
 HBITMAP					Make_Bitmap_From_Texture (TextureClass &texture, int width, int height);
 CString					Get_Texture_Name (TextureClass &texture);
 TextureClass *			Load_RC_Texture (LPCTSTR resource_name);
@@ -190,7 +190,8 @@ bool Get_File_Time (const char* path, void* pcreation_time, void* paccess_time =
 bool Are_Glide_Drivers_Acceptable (void);
 bool Copy_File (const char* existing_filename, const char* new_filename, bool bforce_copy = false);
 
-// Texture routines - not used on Mac
+// Texture routines
+void* Create_DIB_Section (void** pbits, int width, int height);
 void* Make_Bitmap_From_Texture (TextureClass &texture, int width, int height);
 std::string Get_Texture_Name (TextureClass &texture);
 TextureClass * Load_RC_Texture (const char* resource_name);

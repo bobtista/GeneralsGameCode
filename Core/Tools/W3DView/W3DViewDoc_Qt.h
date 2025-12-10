@@ -61,8 +61,8 @@ public:
 	void UpdateFrame(float time_slice);
 	void SetAnimationBlend(bool bBlend) { m_bAnimBlend = bBlend; }
 	bool GetAnimationBlend() const { return m_bAnimBlend; }
-	bool GetChannelQCompression() const { return false; }
-	void SetChannelQCompression(bool) {}
+	bool GetChannelQCompression() const { return m_bCompress_channel_Q; }
+	void SetChannelQCompression(bool bCompress) { m_bCompress_channel_Q = bCompress; }
 
 	void SetBackgroundColor(const Vector3& backgroundColor);
 	const Vector3& GetBackgroundColor() const { return m_backgroundColor; }
@@ -106,6 +106,7 @@ private:
 	Vector3 m_backgroundColor;
 	QString m_stringBackgroundBMP;
 	QString m_stringBackgroundObject;
+	bool m_bCompress_channel_Q;
 	
 	bool m_bFogEnabled;
 	bool m_bAnimBlend;

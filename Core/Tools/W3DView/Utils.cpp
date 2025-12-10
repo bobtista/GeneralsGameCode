@@ -28,7 +28,6 @@
 #include "W3DViewDoc_Qt.h"
 #include "MainFrm_Qt.h"
 #include <QApplication>
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers (Windows-only)
 #ifdef _WIN32
 #include "texture.h"
 #include "assetmgr.h"
@@ -72,13 +71,10 @@ GetCurrentDocument (void)
     return pCDoc;
 }
 
-// CenterDialogAroundTreeView removed - was only used by MFC dialogs
-
 /////////////////////////////////////////////////////////////
 //
 //  Paint_Gradient
 //
-// TheSuperHackers @refactor bobtista 01/01/2025 Windows-only function
 #ifdef _WIN32
 void
 Paint_Gradient
@@ -134,7 +130,6 @@ Paint_Gradient
 //  SetDlgItemFloat, GetDlgItemFloat, Initialize_Spinner, Update_Spinner_Buddy
 //  Windows-only functions - stubbed in Utils.h for non-Windows
 //
-// TheSuperHackers @refactor bobtista 01/01/2025 Windows-only functions
 #ifdef _WIN32
 void
 SetDlgItemFloat
@@ -609,7 +604,6 @@ Get_File_Time
 //
 //  Are_Glide_Drivers_Acceptable
 //
-// TheSuperHackers @refactor bobtista 01/01/2025 Windows-only function
 #ifdef _WIN32
 bool
 Are_Glide_Drivers_Acceptable (void)

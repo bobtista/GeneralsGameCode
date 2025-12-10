@@ -31,6 +31,7 @@ CW3DViewDoc::~CW3DViewDoc()
 void CW3DViewDoc::InitializeMembers()
 {
 	m_backgroundColor = Vector3(0.0f, 0.0f, 0.0f);
+	m_bCompress_channel_Q = false;
 	m_stringBackgroundBMP.clear();
 	m_stringBackgroundObject.clear();
 }
