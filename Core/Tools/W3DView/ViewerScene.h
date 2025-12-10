@@ -36,9 +36,15 @@
 
 #pragma once
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "scene.h"
 #include "aabox.h"
 #include "sphere.h"
+#else
+#include "GameEngineStubs.h"
+#endif
 
 
 class RenderObjIterator;
@@ -47,7 +53,12 @@ class RenderObjIterator;
 //
 //	ViewerSceneClass
 //
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally inherit from game engine class
+#ifdef _WIN32
 class ViewerSceneClass : public SimpleSceneClass
+#else
+class ViewerSceneClass  // Don't inherit on non-Windows
+#endif
 {
 	public:
 
@@ -87,14 +98,27 @@ class ViewerSceneClass : public SimpleSceneClass
 		virtual AABoxClass		Get_Line_Up_Bounding_Box (void);
 		bool							Can_Line_Up (RenderObjClass *obj);
 		bool							Can_Line_Up (int class_id);
+#ifndef _WIN32
+		// Stub implementations for non-Windows (defined in ViewerScene_Stubs.cpp)
+#endif
 		void							Recalculate_Fog_Planes (void);
 		virtual SphereClass		Get_Bounding_Sphere (void);
+#ifndef _WIN32
+		// On non-Windows, ViewerSceneClass doesn't inherit from SceneClass, so we need Get_Fog_Range and Set_Fog_Range
+		void							Get_Fog_Range(float* near_range, float* far_range);
+		void							Set_Fog_Range(float near_range, float far_range);
+#endif
 
 		//
 		// Line-Up list iteration
 		//
 		virtual SceneIterator *	Create_Line_Up_Iterator (void);
 		virtual void				Destroy_Line_Up_Iterator (SceneIterator *iterator);
+#ifndef _WIN32
+		// On non-Windows, ViewerSceneClass doesn't inherit from SimpleSceneClass, so we need Create_Iterator and Destroy_Iterator
+		virtual SceneIterator *	Create_Iterator (void);
+		virtual void				Destroy_Iterator (SceneIterator *iterator);
+#endif
 
 	private:
 
@@ -103,6 +127,11 @@ class ViewerSceneClass : public SimpleSceneClass
 		//	Private member data
 		//
 		bool							m_AllowLODSwitching;
-		RefRenderObjListClass	LineUpList;
-		RefRenderObjListClass	LightList;
+		RefRenderObjListClass<RenderObjClass>	LineUpList;
+		RefRenderObjListClass<RenderObjClass>	LightList;
+#ifndef _WIN32
+		// On non-Windows, ViewerSceneClass doesn't inherit from SimpleSceneClass, so we need RenderList and Visibility_Checked
+		RefRenderObjListClass<RenderObjClass>	RenderList;
+		bool							Visibility_Checked;
+#endif
 };
