@@ -188,3 +188,15 @@ target_link_libraries(core_wwlib PRIVATE
     core_wwcommon
     corei_always
 )
+
+# TheSuperHackers @refactor bobtista 01/01/2025 MSVC 2022 compatibility: WWVegas uses ANSI strings
+# Ensure core_wwlib is always compiled with ANSI (not Unicode) to match WWVegas expectations
+# This prevents linker errors when StringClass::m_EmptyString is expected to be TCHAR* (char* in ANSI)
+# We need to undefine UNICODE and _UNICODE that Qt might have enabled
+if(WIN32)
+    set_target_properties(core_wwlib PROPERTIES QT_NO_UNICODE_DEFINES TRUE)
+    # Explicitly undefine Unicode defines to ensure ANSI build using compiler flags
+    if(MSVC)
+        target_compile_options(core_wwlib PRIVATE /UUNICODE /U_UNICODE)
+    endif()
+endif()
