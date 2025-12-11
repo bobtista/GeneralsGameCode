@@ -1,12 +1,4 @@
-# TheSuperHackers @refactor bobtista 01/01/2025 Migrated from MFC to Qt with VC6 fallback
-# Check if this is a VC6 build (VC6 doesn't support Qt, needs MFC)
-if(DEFINED MSVC_VERSION AND MSVC_VERSION LESS 1300)
-    set(IS_VS6_BUILD TRUE)
-else()
-    set(IS_VS6_BUILD FALSE)
-endif()
-
-# Qt files - only for non-VC6 builds (VC6 doesn't support Qt)
+# Qt files (always included)
 set(W3DVIEW_QT_SRC
     "GameEngineStubs.h"
     "MainFrm_Qt.cpp"
@@ -105,154 +97,6 @@ set(W3DVIEW_QT_SRC
     "W3DViewDoc_Qt.h"
 )
 
-# MFC files - only for VC6 builds or when Qt is not available
-set(W3DVIEW_MFC_SRC
-    "W3DView.cpp"
-    "W3DView.h"
-    "MainFrm.cpp"
-    "MainFrm.h"
-    "DataTreeView.cpp"
-    "DataTreeView.h"
-    "GraphicView.cpp"
-    "GraphicView.h"
-    "W3DViewDoc.cpp"
-    "W3DViewDoc.h"
-    "W3DViewView.cpp"
-    "W3DViewView.h"
-    "ResolutionDialog.cpp"
-    "ResolutionDialog.h"
-    "DeviceSelectionDialog.cpp"
-    "DeviceSelectionDialog.h"
-    "ScaleDialog.cpp"
-    "ScaleDialog.h"
-    "GammaDialog.cpp"
-    "GammaDialog.h"
-    "SaveSettingsDialog.cpp"
-    "SaveSettingsDialog.h"
-    "CameraDistanceDialog.cpp"
-    "CameraDistanceDialog.h"
-    "AmbientLightDialog.cpp"
-    "AmbientLightDialog.h"
-    "BackgroundColorDialog.cpp"
-    "BackgroundColorDialog.h"
-    "BackgroundBMPDialog.cpp"
-    "BackgroundBMPDialog.h"
-    "BackgroundObjectDialog.cpp"
-    "BackgroundObjectDialog.h"
-    "CameraSettingsDialog.cpp"
-    "CameraSettingsDialog.h"
-    "TexturePathDialog.cpp"
-    "TexturePathDialog.h"
-    "TextureMgrDialog.cpp"
-    "TextureMgrDialog.h"
-    "TextureSettingsDialog.cpp"
-    "TextureSettingsDialog.h"
-    "AssetPropertySheet.cpp"
-    "AssetPropertySheet.h"
-    "EmitterPropertySheet.cpp"
-    "EmitterPropertySheet.h"
-    "RingPropertySheet.cpp"
-    "RingPropertySheet.h"
-    "SpherePropertySheet.cpp"
-    "SpherePropertySheet.h"
-    "AdvancedAnimSheet.cpp"
-    "AdvancedAnimSheet.h"
-    "AggregateNameDialog.cpp"
-    "AggregateNameDialog.h"
-    "AddToLineupDialog.cpp"
-    "AddToLineupDialog.h"
-    "AnimationSpeed.cpp"
-    "AnimationSpeed.h"
-    "PlaySoundDialog.cpp"
-    "PlaySoundDialog.h"
-    "AnimatedSoundOptionsDialog.cpp"
-    "AnimatedSoundOptionsDialog.h"
-    "ParticleSizeDialog.cpp"
-    "ParticleSizeDialog.h"
-    "ParticleFrameKeyDialog.cpp"
-    "ParticleFrameKeyDialog.h"
-    "ParticleRotationKeyDialog.cpp"
-    "ParticleRotationKeyDialog.h"
-    "ParticleBlurTimeKeyDialog.cpp"
-    "ParticleBlurTimeKeyDialog.h"
-    "OpacitySettingsDialog.cpp"
-    "OpacitySettingsDialog.h"
-    "OpacityVectorDialog.cpp"
-    "OpacityVectorDialog.h"
-    "VolumeRandomDialog.cpp"
-    "VolumeRandomDialog.h"
-    "SoundEditDialog.cpp"
-    "SoundEditDialog.h"
-    "EditLODDialog.cpp"
-    "EditLODDialog.h"
-    "SceneLightDialog.cpp"
-    "SceneLightDialog.h"
-    "BoneMgrDialog.cpp"
-    "BoneMgrDialog.h"
-    "ColorSelectionDialog.cpp"
-    "ColorSelectionDialog.h"
-    "ColorPickerDialogClass.cpp"
-    "ColorPickerDialogClass.h"
-    "ColorPicker.cpp"
-    "ColorPicker.h"
-    "ColorBar.cpp"
-    "ColorBar.h"
-    "Vector3RndCombo.cpp"
-    "Vector3RndCombo.h"
-    "DialogToolbar.cpp"
-    "DialogToolbar.h"
-    "Toolbar.cpp"
-    "Toolbar.h"
-    "MeshPropPage.cpp"
-    "MeshPropPage.h"
-    "HierarchyPropPage.cpp"
-    "HierarchyPropPage.h"
-    "AnimationPropPage.cpp"
-    "AnimationPropPage.h"
-    "EmitterColorPropPage.cpp"
-    "EmitterColorPropPage.h"
-    "EmitterFramePropPage.cpp"
-    "EmitterFramePropPage.h"
-    "EmitterGeneralPropPage.cpp"
-    "EmitterGeneralPropPage.h"
-    "EmitterLineGroupPropPage.cpp"
-    "EmitterLineGroupPropPage.h"
-    "EmitterLinePropPage.cpp"
-    "EmitterLinePropPage.h"
-    "EmitterParticlePropPage.cpp"
-    "EmitterParticlePropPage.h"
-    "EmitterPhysicsPropPage.cpp"
-    "EmitterPhysicsPropPage.h"
-    "EmitterRotationPropPage.cpp"
-    "EmitterRotationPropPage.h"
-    "EmitterSizePropPage.cpp"
-    "EmitterSizePropPage.h"
-    "EmitterUserPropPage.cpp"
-    "EmitterUserPropPage.h"
-    "RingColorPropPage.cpp"
-    "RingColorPropPage.h"
-    "RingGeneralPropPage.cpp"
-    "RingGeneralPropPage.h"
-    "RingSizePropPage.cpp"
-    "RingSizePropPage.h"
-    "SphereColorPropPage.cpp"
-    "SphereColorPropPage.h"
-    "SphereGeneralPropPage.cpp"
-    "SphereGeneralPropPage.h"
-    "SphereSizePropPage.cpp"
-    "SphereSizePropPage.h"
-    "AnimMixingPage.cpp"
-    "AnimMixingPage.h"
-    "AnimReportPage.cpp"
-    "AnimReportPage.h"
-    "DirectoryDialog.cpp"
-    "DirectoryDialog.h"
-    "RestrictedFileDialog.cpp"
-    "RestrictedFileDialog.h"
-    "StdAfx.cpp"
-    "StdAfx.h"
-)
-
 # Non-MFC files (always included - shared code, utilities, etc.)
 set(W3DVIEW_COMMON_SRC
     "AssetInfo.cpp"
@@ -288,14 +132,8 @@ else()
     )
 endif()
 
-# Combine files based on build type
-if(NOT IS_VS6_BUILD AND TARGET core_qt)
-    # Qt build - use Qt files
-    set(W3DVIEW_SRC ${W3DVIEW_QT_SRC} ${W3DVIEW_COMMON_SRC})
-else()
-    # MFC build (VC6 or no Qt) - use MFC files
-    set(W3DVIEW_SRC ${W3DVIEW_MFC_SRC} ${W3DVIEW_COMMON_SRC})
-endif()
+# Combine Qt and common files
+set(W3DVIEW_SRC ${W3DVIEW_QT_SRC} ${W3DVIEW_COMMON_SRC})
 
 # Interface library to provide source files to Generals/GeneralsMD builds
 add_library(corei_w3dview INTERFACE)
@@ -307,7 +145,7 @@ target_link_libraries(corei_w3dview INTERFACE
     core_utility
 )
 
-if(NOT IS_VS6_BUILD AND TARGET core_qt)
+if(TARGET core_qt)
     target_link_libraries(corei_w3dview INTERFACE core_qt)
 endif()
 
@@ -326,7 +164,7 @@ if(RTS_BUILD_CORE_TOOLS)
 
     target_sources(core_w3dview PRIVATE ${W3DVIEW_SRC})
 
-    if(NOT IS_VS6_BUILD AND TARGET core_qt)
+    if(TARGET core_qt)
         target_link_libraries(core_w3dview PRIVATE core_qt)
     endif()
 
