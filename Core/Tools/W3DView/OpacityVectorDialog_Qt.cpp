@@ -1,8 +1,15 @@
 #include "OpacityVectorDialog_Qt.h"
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
-// Stub for matrix3
-struct Matrix3Class {};
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "sphereobj.h"    // For AlphaVectorStruct, SphereRenderObjClass, SphereVectorChannelClass
+    #include "wwmath.h"       // For Matrix3Class
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+    // Stub for matrix3
+    struct Matrix3Class {};
+#endif
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>

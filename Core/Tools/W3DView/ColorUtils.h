@@ -25,11 +25,22 @@
 #pragma once
 
 // TheSuperHackers @refactor bobtista 01/01/2025 Define Windows types for Qt builds
+// Include Qt headers early to get HWND definition
+#ifdef QT_VERSION
+#include <QtGui/qwindowdefs_win.h>  // For HWND on Windows
+#endif
+// Include windows.h if available to get RECT, HWND, HINSTANCE definitions
+#ifdef _WIN32
+#ifndef QT_VERSION
+#include <windows.h>  // For RECT, HWND, HINSTANCE on Windows (non-Qt builds)
+#endif
+#endif
 // Define types that might not be available in Qt builds
 #ifndef UCHAR
 typedef unsigned char UCHAR;
 #endif
-#ifndef RECT
+// RECT is defined by windows.h - only define if not already defined
+#if !defined(RECT) && !defined(_WINDEF_) && !defined(_WINUSER_)
 struct RECT { long left, top, right, bottom; };
 #endif
 #ifndef COLORREF
@@ -38,11 +49,12 @@ typedef unsigned long COLORREF;
 #ifndef BOOL
 typedef int BOOL;
 #endif
-// HWND is already defined by Qt's qwindowdefs_win.h when Qt headers are included - don't redefine it
-#ifndef HWND
+// HWND is already defined by Qt's qwindowdefs_win.h or windows.h - don't redefine it
+#if !defined(HWND) && !defined(_WINDEF_) && !defined(_WINUSER_)
 typedef void* HWND;
 #endif
-#ifndef HINSTANCE
+// HINSTANCE is defined by windows.h - only define if not already defined
+#if !defined(HINSTANCE) && !defined(_WINDEF_) && !defined(_WINUSER_)
 typedef void* HINSTANCE;
 #endif
 

@@ -36,16 +36,23 @@
 
 #pragma once
 
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "assetmgr.h"
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+#endif
 #include "Utils.h"  // For DynamicVectorClass and CString
-// Game engine headers not available in Core build:
-// #include "assetmgr.h"
-
-// Additional stubs for ViewerAssetMgr
-class FileClass {};
-typedef int MipCountType;
-#define MIP_LEVELS_ALL 0
+#ifdef HAVE_WWVEGAS
+    // MIP_LEVELS_ALL is defined in assetmgr.h
+#else
+    // FileClass and MipCountType are now defined in GameEngineStubs.h
+    #ifndef MIP_LEVELS_ALL
+    #define MIP_LEVELS_ALL 0
+    #endif
+#endif
 
 
 /////////////////////////////////////////////////////////////////////////////

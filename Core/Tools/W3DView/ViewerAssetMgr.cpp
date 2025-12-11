@@ -45,12 +45,17 @@
 
 #include "ViewerAssetMgr.h"
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
-// Game engine headers not available in Core build:
-// #include "texture.h"
-// #include "ww3d.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "texture.h"
+    #include "ww3d.h"
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+#endif
 #include "Utils.h"
+#include <QtCore/QtGlobal> // For Q_UNUSED
 
 
 ////////////////////////////////////////////////////////////////////////
@@ -65,14 +70,16 @@ ViewerAssetMgrClass::Load_3D_Assets (FileClass &w3dfile)
 	//	Allow the base class to process
 	//
 #ifdef _WIN32
-	bool retval = WW3DAssetManager::Load_3D_Assets (w3dfile);
-	if (retval) {
-
-	}
-
-	return retval;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub out game engine call for Core build
+	// bool retval = WW3DAssetManager::Load_3D_Assets (w3dfile);
+	// if (retval) {
+	// }
+	// return retval;
+	Q_UNUSED(w3dfile);
+	return false; // Stub for Core build
 #else
 	// Stub for non-Windows - asset loading requires game engine
+	Q_UNUSED(w3dfile);
 	return false;
 #endif
 }
@@ -91,9 +98,11 @@ ViewerAssetMgrClass::Get_Texture (const char * tga_filename, MipCountType mip_le
 	//
 
 #ifdef _WIN32
-	StringClass lower_case_name(tga_filename,true);
-	_strlwr(lower_case_name.Peek_Buffer());
-	TextureClass* tex = TextureHash.Get(lower_case_name);
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub out game engine calls for Core build
+	// StringClass lower_case_name(tga_filename,true);
+	// _strlwr(lower_case_name.Peek_Buffer());
+	// TextureClass* tex = TextureHash.Get(lower_case_name);
+	TextureClass* tex = nullptr; // Stub for Core build
 #else
 	// Stub for non-Windows - texture loading requires game engine
 	TextureClass* tex = nullptr;
@@ -103,13 +112,18 @@ ViewerAssetMgrClass::Get_Texture (const char * tga_filename, MipCountType mip_le
 	//	Check to see if this texture is "missing"
 	//
 	if (!tex) {
-		Find_Missing_Textures  (m_MissingTextureList, tga_filename);
+		// TheSuperHackers @refactor bobtista 01/01/2025 Cast const char* to LPCTSTR for compatibility
+		Find_Missing_Textures  (m_MissingTextureList, reinterpret_cast<LPCTSTR>(tga_filename));
 	}
 
 	//
 	//	Create the texture
 	//
-	TextureClass * texture = WW3DAssetManager::Get_Texture(tga_filename, mip_level_count);
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub out game engine call for Core build
+	// TextureClass * texture = WW3DAssetManager::Get_Texture(tga_filename, mip_level_count);
+	Q_UNUSED(tga_filename);
+	Q_UNUSED(mip_level_count);
+	TextureClass * texture = nullptr; // Stub for Core build
 	return texture;
 }
 

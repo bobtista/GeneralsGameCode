@@ -33,17 +33,42 @@
 #pragma once
 
 #include "resource.h"
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+// Include Qt headers early to get HWND definition
+#ifdef QT_VERSION
+#include <QtGui/qwindowdefs_win.h>  // For HWND on Windows
+#endif
+// Include windows.h on Windows if Qt isn't available
 #ifdef _WIN32
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
-// #include "rendobj.h"  // Game engine header - not available in Core build
-#include "Vector3i.h"
+#ifndef QT_VERSION
+#include <windows.h>  // For HWND on Windows (non-Qt builds)
+#endif
+#endif
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "rendobj.h"
+    #include "Vector3i.h"
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+#endif
+#ifdef _WIN32
+// HWND is already defined by Qt's qwindowdefs_win.h or windows.h - don't redefine it
+#if !defined(HWND) && !defined(_WINDEF_) && !defined(_WINUSER_)
+typedef void* HWND;
+#endif
+#ifndef CLASSID_LAST
+#define CLASSID_LAST 0
+#endif
 #else
 #include "GameEngineStubs.h"
 // Additional stubs (only if not already in GameEngineStubs.h)
+#if !defined(HWND) && !defined(_WINDEF_) && !defined(_WINUSER_)
 typedef void* HWND;
+#endif
+#ifndef CLASSID_LAST
 #define CLASSID_LAST 0
+#endif
 #endif
 
 // Forward declarations

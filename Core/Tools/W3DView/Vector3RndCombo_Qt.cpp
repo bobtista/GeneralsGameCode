@@ -1,7 +1,12 @@
 #include "Vector3RndCombo_Qt.h"
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "v3_rnd.h"  // For Vector3Randomizer and related types
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+#endif
 #include <QComboBox>
 
 const char* const RANDOMIZER_NAMES[Vector3Randomizer::CLASSID_MAXKNOWN] =

@@ -34,6 +34,12 @@
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
 #ifdef _WIN32
 #include "StdAfx.h"
+#endif
+#ifdef HAVE_WWVEGAS
+#include "wwdebug.h"  // For WWASSERT
+#ifndef ASSERT
+#define ASSERT(expr) WWASSERT(expr)  // Alias ASSERT to WWASSERT
+#endif
 #else
 #include "GameEngineStubs.h"  // For ASSERT and other stubs
 #endif

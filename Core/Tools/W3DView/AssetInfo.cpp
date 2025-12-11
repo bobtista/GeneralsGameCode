@@ -42,13 +42,12 @@
 #include "AssetInfo.h"
 //#include "HModel.h"
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
-// #include "assetmgr.h"  // Game engine header - not available in Core build
-#include "htree.h"
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    // Headers are included via AssetInfo.h
 #else
-#include "GameEngineStubs.h"
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
 #endif
 
 /////////////////////////////////////////////////////////////////
@@ -68,8 +67,14 @@ AssetInfoClass::Initialize (void)
 
 		// If we are wrapping an asset name, then create an instance of it.
 		if (prender_obj == NULL) {
-#ifdef _WIN32
-			prender_obj = WW3DAssetManager::Get_Instance()->Create_Render_Obj (m_Name);
+#ifdef HAVE_WWVEGAS
+			// CString is StringClass - use str() to get const TCHAR*
+			// In Unicode builds, TCHAR is wchar_t, so we need to convert to const char*
+			// For now, assume ANSI build (TCHAR is char) - if Unicode, would need conversion
+			prender_obj = WW3DAssetManager::Get_Instance()->Create_Render_Obj ((const char*)m_Name.str());
+#elif defined(QT_VERSION)
+			// CString is QString - convert to const char*
+			prender_obj = WW3DAssetManager::Get_Instance()->Create_Render_Obj (m_Name.toLocal8Bit().constData());
 #else
 			prender_obj = WW3DAssetManager::Get_Instance()->Create_Render_Obj (m_Name.c_str());
 #endif

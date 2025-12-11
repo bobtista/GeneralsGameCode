@@ -1,8 +1,15 @@
 #include "AddToLineupDialog_Qt.h"
 #include "ViewerScene.h"
 #include <QLineEdit>  // TheSuperHackers @refactor bobtista 01/01/2025 Needed for lineEdit()
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "rendobj.h"
+    #include "assetmgr.h"  // For WW3DAssetManager
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+#endif
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>

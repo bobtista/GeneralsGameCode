@@ -37,14 +37,15 @@
 #pragma once
 
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
-#if 0  // Disabled - using stubs
-#include "scene.h"
-#include "aabox.h"
-#include "sphere.h"
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "scene.h"
+    #include "aabox.h"
+    #include "sphere.h"
+    #include "robjlist.h"  // For RefRenderObjListClass typedef
 #else
-#include "GameEngineStubs.h"
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
 #endif
 
 
@@ -80,6 +81,7 @@ class ViewerSceneClass : public SceneClass
 		//
 		virtual void				Visibility_Check (CameraClass *pcamera);
 		virtual void				Add_Render_Object(RenderObjClass * obj);
+		virtual void				Remove_Render_Object(RenderObjClass * obj);  // Added for ViewerScene.cpp
 		virtual void				Customized_Render(RenderInfoClass & rinfo);
 
 		//
@@ -110,11 +112,9 @@ class ViewerSceneClass : public SceneClass
 		//
 		virtual SceneIterator *	Create_Line_Up_Iterator (void);
 		virtual void				Destroy_Line_Up_Iterator (SceneIterator *iterator);
-#ifndef _WIN32
-		// On non-Windows, ViewerSceneClass doesn't inherit from SimpleSceneClass, so we need Create_Iterator and Destroy_Iterator
+		// TheSuperHackers @refactor bobtista 01/01/2025 SimpleSceneClass is stubbed, so we need Create_Iterator and Destroy_Iterator on all platforms
 		virtual SceneIterator *	Create_Iterator (void);
 		virtual void				Destroy_Iterator (SceneIterator *iterator);
-#endif
 
 	private:
 
@@ -123,10 +123,10 @@ class ViewerSceneClass : public SceneClass
 		//	Private member data
 		//
 		bool							m_AllowLODSwitching;
-		RefRenderObjListClass<RenderObjClass>	LineUpList;
-		RefRenderObjListClass<RenderObjClass>	LightList;
+		RefRenderObjListClass	LineUpList;
+		RefRenderObjListClass	LightList;
 		// TheSuperHackers @refactor bobtista 01/01/2025 For Core build, ViewerSceneClass needs RenderList and Visibility_Checked
 		// (SceneClass methods are stubbed, so we need our own member variables)
-		RefRenderObjListClass<RenderObjClass>	RenderList;
+		RefRenderObjListClass	RenderList;
 		bool							Visibility_Checked;
 };

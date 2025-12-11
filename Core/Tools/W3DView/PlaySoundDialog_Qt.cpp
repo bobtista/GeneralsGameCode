@@ -1,6 +1,14 @@
 #include "PlaySoundDialog_Qt.h"
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "wwaudio.h"  // For WWAudioClass, AudibleSoundClass
+    #include "soundrobj.h"  // For AudibleSoundClass
+    #include "refcount.h"  // For REF_PTR_RELEASE macro
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+#endif
 #include "Utils.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -85,8 +93,8 @@ void PlaySoundDialogClass::closeEvent(QCloseEvent* event)
     if (m_soundObj != nullptr)
     {
         m_soundObj->Stop();
-        // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile REF_PTR_RELEASE
-        #ifdef _WIN32
+        // TheSuperHackers @refactor bobtista 01/01/2025 REF_PTR_RELEASE is available from refcount.h when HAVE_WWVEGAS is defined
+        #ifdef HAVE_WWVEGAS
         REF_PTR_RELEASE(m_soundObj);
         #else
         if (m_soundObj) { delete m_soundObj; m_soundObj = nullptr; }

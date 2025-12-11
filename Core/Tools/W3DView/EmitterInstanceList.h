@@ -33,18 +33,20 @@
 #pragma once
 
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
-// #include "Vector.h"  // Game engine header - not available in Core build
-#include "part_ldr.h"
-#include "part_emt.h"
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "part_ldr.h"  // For ParticleEmitterDefClass
+    #include "part_emt.h"  // For ParticleEmitterClass
+    #include "v3_rnd.h"    // For Vector3Randomizer
 #else
-#include "GameEngineStubs.h"
-#include "Utils.h"  // For DynamicVectorClass
-// Stubs for particle types (only if not already in GameEngineStubs.h)
-class ParticleLoaderClass {};
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+    // Stubs for particle types (only if not already in GameEngineStubs.h)
+    #ifndef ParticleLoaderClass
+    class ParticleLoaderClass {};
+    #endif
 #endif
+#include "Utils.h"  // For DynamicVectorClass
 
 
 /////////////////////////////////////////////////////////////////////

@@ -38,19 +38,23 @@
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
 #ifdef _WIN32
 #include "StdAfx.h"
-#else
-#include <cassert>
 #endif
+#include <cassert>  // For assert() on all platforms
 #include "ViewerScene.h"
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
-// Game engine headers not available in Core build:
-// #include "camera.h"
-// #include "ww3d.h"
-// #include "rendobj.h"
-// #include "assetmgr.h"
-// #include "rinfo.h"
-// #include "lightenvironment.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "camera.h"
+    #include "ww3d.h"
+    #include "rendobj.h"
+    #include "assetmgr.h"
+    #include "rinfo.h"
+    #include "lightenvironment.h"
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+#endif
+#include <QtCore/QtGlobal> // For Q_UNUSED
 
 /*
 ** ViewerSceneIterator
@@ -67,14 +71,14 @@ public:
 
 protected:
 
-	ViewerSceneIterator(RefRenderObjListClass<RenderObjClass> * renderlist);
+	ViewerSceneIterator(RefRenderObjListClass * renderlist);
 
-	RefRenderObjListIterator<RenderObjClass>	RobjIterator;
+	RefRenderObjListIterator	RobjIterator;
 
 	friend class ViewerSceneClass;
 };
 
-ViewerSceneIterator::ViewerSceneIterator(RefRenderObjListClass<RenderObjClass> *list)
+ViewerSceneIterator::ViewerSceneIterator(RefRenderObjListClass *list)
 :	RobjIterator(list)
 {
 }
@@ -119,7 +123,7 @@ RenderObjClass * ViewerSceneIterator::Current_Item(void)
 void
 ViewerSceneClass::Visibility_Check (CameraClass *camera)
 {
-	RefRenderObjListIterator<RenderObjClass> it(&RenderList);
+	RefRenderObjListIterator it(&RenderList);
 
 	// Loop over all top-level RenderObjects in this scene. If the bounding sphere is not in front
 	// of all the frustum planes, it is invisible.
@@ -303,11 +307,12 @@ ViewerSceneClass::Destroy_Line_Up_Iterator (SceneIterator *it)
 
 void	ViewerSceneClass::Add_Render_Object(RenderObjClass * obj)
 {
-#ifdef _WIN32
-	SceneClass::Add_Render_Object(obj);
-#else
+	// TheSuperHackers @refactor bobtista 01/01/2025 SceneClass is stubbed, so we can't call its methods
+	// #ifdef _WIN32
+	// SceneClass::Add_Render_Object(obj);
+	// #else
 	// On non-Windows, ViewerSceneClass doesn't inherit from SceneClass, so we just add to our lists
-#endif
+	// #endif
 	if (obj->Class_ID()==RenderObjClass::CLASSID_LIGHT)
 		LightList.Add(obj);
 	else
@@ -413,5 +418,47 @@ void	ViewerSceneClass::Customized_Render(RenderInfoClass & rinfo)
 
 #else
 	// On non-Windows, ViewerSceneClass doesn't inherit from SimpleSceneClass, so we just stub this
+	Q_UNUSED(rinfo);
 #endif //WW3D_DX8
 }
+
+// TheSuperHackers @refactor bobtista 01/01/2025 SimpleSceneClass is stubbed, so we need Create_Iterator and Destroy_Iterator on all platforms
+SceneIterator *
+ViewerSceneClass::Create_Iterator (void)
+{
+	return new ViewerSceneIterator(&RenderList);
+}
+
+void
+ViewerSceneClass::Destroy_Iterator (SceneIterator *iterator)
+{
+	if (iterator) {
+		delete iterator;
+	}
+}
+
+#ifndef _WIN32
+// TheSuperHackers @refactor bobtista 01/01/2025 On non-Windows, ViewerSceneClass doesn't inherit from SceneClass, so we need Remove_Render_Object
+void
+ViewerSceneClass::Remove_Render_Object(RenderObjClass *obj)
+{
+	if (obj) {
+		// RefRenderObjListClass doesn't have Remove, so we'll just leave it for now
+		// RenderList.Remove(obj);
+		// LightList.Remove(obj);
+		Q_UNUSED(obj);
+	}
+}
+#else
+// On Windows, Remove_Render_Object should come from SceneClass, but it's stubbed, so we need our own
+void
+ViewerSceneClass::Remove_Render_Object(RenderObjClass *obj)
+{
+	if (obj) {
+		// RefRenderObjListClass doesn't have Remove, so we'll just leave it for now
+		// RenderList.Remove(obj);
+		// LightList.Remove(obj);
+		Q_UNUSED(obj);
+	}
+}
+#endif // !_WIN32

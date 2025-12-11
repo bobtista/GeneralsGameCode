@@ -31,12 +31,17 @@ CW3DViewDoc::~CW3DViewDoc()
 
 void CW3DViewDoc::InitializeMembers()
 {
-	m_backgroundColor.x = 0.0f;
-	m_backgroundColor.y = 0.0f;
-	m_backgroundColor.z = 0.0f;
+#ifdef HAVE_WWVEGAS
+	// Real WWVegas Vector3 uses X, Y, Z (capital letters)
 	m_backgroundColor.X = 0.0f;
 	m_backgroundColor.Y = 0.0f;
 	m_backgroundColor.Z = 0.0f;
+#else
+	// Stub Vector3 uses x, y, z (lowercase)
+	m_backgroundColor.x = 0.0f;
+	m_backgroundColor.y = 0.0f;
+	m_backgroundColor.z = 0.0f;
+#endif
 	m_bCompress_channel_Q = false;
 	m_stringBackgroundBMP.clear();
 	m_stringBackgroundObject.clear();

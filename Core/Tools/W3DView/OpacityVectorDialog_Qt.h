@@ -3,8 +3,15 @@
 #include <QDialog>
 #include <QSlider>
 #include <QDoubleSpinBox>
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "rendobj.h"      // For RenderObjClass
+    #include "sphereobj.h"    // For AlphaVectorStruct, SphereRenderObjClass, SphereVectorChannelClass
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+#endif
 
 class ColorBarClass;
 

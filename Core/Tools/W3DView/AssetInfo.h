@@ -37,17 +37,41 @@
 #pragma once
 
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
-// #include "rendobj.h"  // Game engine header - not available in Core build
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "rendobj.h"  // For RenderObjClass
+    #include "assetmgr.h" // For WW3DAssetManager
+    #include "htree.h"    // For HTreeClass
 #else
-#include <string>  // For std::string
-#include "GameEngineStubs.h"
-// Windows type stubs
-typedef const char* LPCTSTR;
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+    #ifndef _WIN32
+    #include <string>  // For std::string
+    #endif
+#endif
+// Windows type stubs (ensure DWORD is defined even when Qt is present)
+#ifndef DWORD
 typedef unsigned long DWORD;
-typedef std::string CString;
+#endif
+// LPCTSTR is defined by windows.h when HAVE_WWVEGAS is defined - don't redefine
+#if !defined(LPCTSTR) && !defined(_WINDEF_) && !defined(_WINUSER_) && !defined(_WINDOWS_)
+typedef const char* LPCTSTR;
+#endif
+// CString: when HAVE_WWVEGAS is defined, use StringClass; otherwise use QString or std::string
+#ifndef CString
+#ifdef HAVE_WWVEGAS
+    // StringClass is defined in WWVegas
+    class StringClass;
+    typedef StringClass CString;
+#elif defined(QT_VERSION)
+    #include <QString>
+    typedef QString CString;
+#else
+    #include <string>
+    typedef std::string CString;
+#endif
+#endif
+#ifndef NULL
 #define NULL nullptr
 #endif
 #include "Utils.h"
@@ -109,8 +133,10 @@ class AssetInfoClass
 		//	Information methods
 		//
 		// TheSuperHackers @refactor bobtista 01/01/2025 Use cross-platform string length method
-		#ifdef _WIN32
-		bool					Can_Asset_Have_Animations (void) const	{ return bool(m_HierarchyName.GetLength () > 0); }
+		#ifdef HAVE_WWVEGAS
+		bool					Can_Asset_Have_Animations (void) const	{ return bool(m_HierarchyName.Get_Length() > 0); }
+		#elif defined(QT_VERSION)
+		bool					Can_Asset_Have_Animations (void) const	{ return bool(m_HierarchyName.length() > 0); }
 		#else
 		bool					Can_Asset_Have_Animations (void) const	{ return bool(m_HierarchyName.length() > 0); }
 		#endif

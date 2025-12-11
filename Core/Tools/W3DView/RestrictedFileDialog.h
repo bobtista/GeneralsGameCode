@@ -22,13 +22,17 @@
 //
 // TheSuperHackers @refactor bobtista 01/01/2025 Stub for Qt build (MFC CFileDialog not available)
 
+// Include Utils.h to get CString definition
+#include "Utils.h"
+
 // Forward declarations for MFC types (not available in Qt build)
 class CFileDialog {};
 class CWnd {};
 #ifndef BOOL
 typedef int BOOL;
 #endif
-#ifndef LPCTSTR
+// LPCTSTR is defined by windows.h or Utils.h - only define if not already defined
+#if !defined(LPCTSTR) && !defined(_WINDEF_) && !defined(_WINUSER_) && !defined(_WINDOWS_) && !defined(_WINNT_)
 typedef const char* LPCTSTR;
 #endif
 #ifndef DWORD
@@ -46,7 +50,8 @@ typedef unsigned long DWORD;
 #ifndef DECLARE_MESSAGE_MAP
 #define DECLARE_MESSAGE_MAP()
 #endif
-#ifndef CString
+// CString is defined by Utils.h, MFC, or WWVegas - only define if not already defined
+#if !defined(CString) && !defined(_AFXDLL) && !defined(HAVE_WWVEGAS)
 #include <QString>
 typedef QString CString;
 #endif

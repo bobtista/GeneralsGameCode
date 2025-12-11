@@ -25,6 +25,31 @@
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
 #ifdef _WIN32
 #include "StdAfx.h"
+// GetSysColor might not be available in Qt builds - add stub if needed
+#ifndef GetSysColor
+#include <windows.h>  // For GetSysColor
+#endif
+#else
+// Windows macros for COLORREF
+#ifndef GetRValue
+#define GetRValue(rgb) ((UCHAR)(rgb))
+#endif
+#ifndef GetGValue
+#define GetGValue(rgb) ((UCHAR)(((WORD)(rgb)) >> 8))
+#endif
+#ifndef GetBValue
+#define GetBValue(rgb) ((UCHAR)((rgb)>>16))
+#endif
+// Windows API stubs
+#ifndef GetSysColor
+inline COLORREF GetSysColor(int nIndex) { Q_UNUSED(nIndex); return RGB(192, 192, 192); }  // Default gray
+#endif
+#ifndef COLOR_3DSHADOW
+#define COLOR_3DSHADOW 16
+#endif
+#ifndef COLOR_3DHIGHLIGHT
+#define COLOR_3DHIGHLIGHT 20
+#endif
 #endif
 #include "ColorUtils.h"
 

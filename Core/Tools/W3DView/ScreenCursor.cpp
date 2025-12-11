@@ -34,21 +34,52 @@
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
 #ifdef _WIN32
 #include "StdAfx.h"
+// Include windows.h for POINT, RECT, GetCursorPos, GetClientRect, ScreenToClient
+#ifndef QT_VERSION
+#include <windows.h>
+#else
+// Qt build - define Windows types manually
+struct POINT { long x, y; };
+struct RECT { long left, top, right, bottom; };
+inline BOOL GetCursorPos(POINT* lpPoint) { if(lpPoint) { lpPoint->x = 0; lpPoint->y = 0; } return FALSE; }
+inline BOOL GetClientRect(HWND hWnd, RECT* lpRect) { if(lpRect) { lpRect->left = lpRect->top = lpRect->right = lpRect->bottom = 0; } return FALSE; }
+inline BOOL ScreenToClient(HWND hWnd, POINT* lpPoint) { Q_UNUSED(hWnd); Q_UNUSED(lpPoint); return FALSE; }
+#endif
 #endif
 #include "ScreenCursor.h"
 #include "Utils.h"
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
 #ifdef _WIN32
-#include "ww3d.h"
-#include "vertmaterial.h"
-#include "shader.h"
-#include "scene.h"
-#include "rinfo.h"
-#include "texture.h"
-#include "dx8wrapper.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
-#include "sortingrenderer.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "ww3d.h"
+    #include "vertmaterial.h"
+    #include "shader.h"
+    #include "scene.h"
+    #include "rinfo.h"
+    #include "texture.h"
+    #include "dx8wrapper.h"
+    #include "dx8vertexbuffer.h"  // For dynamic_fvf_type
+    #include "dx8indexbuffer.h"
+    #include "sortingrenderer.h"
+    // Forward declaration for global shader
+    extern ShaderClass* g_PresetATestBlend2DShader;
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+#endif
+#include <QtCore/QtGlobal> // For Q_UNUSED
+// #include "ww3d.h"  // Game engine header - not available in Core build
+// #include "vertmaterial.h"  // Game engine header - not available in Core build
+// #include "shader.h"  // Game engine header - not available in Core build
+// #include "scene.h"  // Game engine header - not available in Core build
+// #include "rinfo.h"  // Game engine header - not available in Core build
+// #include "texture.h"  // Game engine header - not available in Core build
+// #include "dx8wrapper.h"  // Game engine header - not available in Core build
+// #include "dx8vertexbuffer.h"  // Game engine header - not available in Core build
+// #include "dx8indexbuffer.h"  // Game engine header - not available in Core build
+// #include "sortingrenderer.h"  // Game engine header - not available in Core build
 #else
 #include "GameEngineStubs.h"
 // Additional stubs (only if not already in GameEngineStubs.h)
@@ -315,8 +346,10 @@ ScreenCursorClass::Render (RenderInfoClass &rinfo)
 	** Apply the shader and material
 	*/
 	DX8Wrapper::Set_Material(m_pVertMaterial);
-	DX8Wrapper::Set_Shader(ShaderClass::_PresetATestBlend2DShader);
-	DX8Wrapper::Set_Texture(0,m_pTexture);
+	if (g_PresetATestBlend2DShader) {
+		DX8Wrapper::Set_Shader(*g_PresetATestBlend2DShader);  // Dereference pointer to get reference
+	}
+	DX8Wrapper::Set_Texture(0, m_pTexture);
 
 	DX8Wrapper::Set_Vertex_Buffer(vbaccess);
 	DX8Wrapper::Set_Index_Buffer(ibaccess,0);
@@ -344,7 +377,7 @@ void
 ScreenCursorClass::Get_Obj_Space_Bounding_Sphere(SphereClass & sphere) const
 {
 	sphere.Center = Get_Transform().Get_Translation();
-	sphere.Radius = max (m_Width, m_Height);
+	sphere.Radius = (m_Width > m_Height) ? m_Width : m_Height;  // Use ternary instead of max
 }
 
 

@@ -34,18 +34,23 @@
 #include "Utils.h"
 #include "W3DViewDoc_Qt.h"
 #include "MainFrm_Qt.h"
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
-#if 0  // Disabled - using stubs
-#include "texture.h"
-#include "assetmgr.h"
-#include "agg_def.h"
-#include "hlod.h"
-#include <VFW.h>
-#include "rcfile.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "texture.h"
+    #include "assetmgr.h"
+    #include "agg_def.h"
+    #include "hlod.h"
+    #include <VFW.h>
+    #include "rcfile.h"
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
 #endif
 
-// Windows API type stubs for Core build
+// Windows API type stubs for Core build (only when HAVE_WWVEGAS is NOT defined)
+// When HAVE_WWVEGAS is defined, Windows headers are included, so don't define stubs
+#ifndef HAVE_WWVEGAS
 // HWND is already defined by Qt's qwindowdefs_win.h - don't redefine it
 #ifndef UINT
 typedef unsigned int UINT;
@@ -110,6 +115,7 @@ inline HDC GetDC(HWND hWnd) { Q_UNUSED(hWnd); return nullptr; }
 inline int ReleaseDC(HWND hWnd, HDC hDC) { Q_UNUSED(hWnd); Q_UNUSED(hDC); return 0; }
 inline BOOL ValidateRect(HWND hWnd, const RECT* lpRect) { Q_UNUSED(hWnd); Q_UNUSED(lpRect); return FALSE; }
 inline BOOL GetClientRect(HWND hWnd, RECT* lpRect) { Q_UNUSED(hWnd); if(lpRect) { lpRect->left=lpRect->top=lpRect->right=lpRect->bottom=0; } return FALSE; }
+#endif // !HAVE_WWVEGAS
 #ifndef RGB
 #define RGB(r,g,b) ((unsigned long)(((unsigned char)(r)|((unsigned short)((unsigned char)(g))<<8))|(((unsigned long)(unsigned char)(b))<<16)))
 #endif
@@ -120,8 +126,11 @@ public:
     void Detach() {}
     void FillSolidRect(int x, int y, int cx, int cy, unsigned long color) { Q_UNUSED(x); Q_UNUSED(y); Q_UNUSED(cx); Q_UNUSED(cy); Q_UNUSED(color); }
 };
+// TCHAR is defined by windows.h or tchar.h when HAVE_WWVEGAS is defined - don't redefine
+#ifndef HAVE_WWVEGAS
 #ifndef TCHAR
 typedef char TCHAR;
+#endif
 #endif
 #ifndef MAX_PATH
 #define MAX_PATH 260
@@ -340,15 +349,27 @@ Asset_Name_From_Filename (LPCTSTR filename)
 	// Get the filename from this path
 	CString asset_name = ::Get_Filename_From_Path (filename);
 
-	// Find the index of the extension (if exists) - CString is QString
+#ifdef HAVE_WWVEGAS
+	// CString is StringClass - use StringClass methods
+	// Find the index of the extension (if exists)
+	int extension = asset_name.Get_Length() - 1;
+	while (extension >= 0 && asset_name[extension] != '.') {
+		extension--;
+	}
+	// Strip off the extension
+	if (extension >= 0) {
+		asset_name.Erase(extension, asset_name.Get_Length() - extension);
+	}
+#else
+	// CString is QString
 	QString qname = asset_name;
 	int extension = qname.lastIndexOf ('.');
-
 	// Strip off the extension
 	if (extension != -1) {
 		qname = qname.left (extension);
 		asset_name = qname;
 	}
+#endif
 
 	// Return the name of the asset
 	return asset_name;
@@ -357,40 +378,73 @@ Asset_Name_From_Filename (LPCTSTR filename)
 CString
 Filename_From_Asset_Name (LPCTSTR asset_name)
 {
-	// The filename is simply the asset name plus the .w3d extension
+#ifdef HAVE_WWVEGAS
+	// CString is StringClass - use StringClass methods
+	CString filename(asset_name);
+	filename += ".w3d";
+	return filename;
+#else
+	// CString is QString
 	QString qname = QString::fromLocal8Bit(asset_name);
 	CString filename = qname + ".w3d";
-
-	// Return the filename
 	return filename;
+#endif
 }
 
 CString
 Get_Filename_From_Path (LPCTSTR path)
 {
-	// Find the last occurance of the directory deliminator
-	const char* filename = strrchr (path, '\\');
+#ifdef HAVE_WWVEGAS
+	// CString is StringClass - use StringClass methods
+	// In Unicode builds, LPCTSTR is const wchar_t*, so convert to const char* first
+	// For now, assume ANSI build (LPCTSTR is const char*)
+	const char* path_char = (const char*)path;  // Cast for strrchr
+	const char* filename = strrchr (path_char, '\\');
 	if (filename == NULL) {
-		filename = strrchr (path, '/');  // Try forward slash too
+		filename = strrchr (path_char, '/');  // Try forward slash too
 	}
 	if (filename != NULL) {
 		// Increment past the directory deliminator
 		filename ++;
 	} else {
-		filename = path;
+		filename = path_char;
 	}
-
-	// Return the filename part of the path
-	return CString (QString::fromLocal8Bit(filename));
+	return CString(filename);  // Directly construct StringClass from const char*
+#else
+	// CString is QString
+	QString qpath = QString::fromLocal8Bit(path);
+	int lastSlash = qpath.lastIndexOf('\\');
+	if (lastSlash == -1) {
+		lastSlash = qpath.lastIndexOf('/');
+	}
+	if (lastSlash != -1) {
+		return qpath.mid(lastSlash + 1);
+	}
+	return qpath;
+#endif
 }
 
 CString
 Strip_Filename_From_Path (LPCTSTR path)
 {
-	// Use QString for path manipulation
+#ifdef HAVE_WWVEGAS
+	// CString is StringClass - use StringClass methods directly
+	CString result(path);
+	// Find the last occurrence of the directory delimiter
+	int lastSlash = result.Get_Length() - 1;
+	while (lastSlash >= 0 && result[lastSlash] != '\\' && result[lastSlash] != '/') {
+		lastSlash--;
+	}
+	// Strip off the filename
+	if (lastSlash >= 0) {
+		result.Erase(lastSlash + 1, result.Get_Length() - lastSlash - 1);
+	}
+	return result;
+#else
+	// CString is QString - use QString for path manipulation
 	QString qpath = QString::fromLocal8Bit(path);
 	
-	// Find the last occurance of the directory deliminator
+	// Find the last occurrence of the directory delimiter
 	int lastSlash = qpath.lastIndexOf('\\');
 	if (lastSlash == -1) {
 		lastSlash = qpath.lastIndexOf('/');  // Try forward slash too
@@ -403,6 +457,7 @@ Strip_Filename_From_Path (LPCTSTR path)
 
 	// Return the path only
 	return CString (qpath);
+#endif
 }
 
 
@@ -548,17 +603,45 @@ Resolve_Path (CString &filename)
 void
 Find_Missing_Textures
 (
-	DynamicVectorClass<CString> &	list,
+	DynamicVectorClass<StringClass> &	list,
 	LPCTSTR								name,
 	int									frame_count
 )
 {
+#ifdef HAVE_WWVEGAS
+	// Real implementation using WWVegas AssetManager
+	// Note: Find_Missing_Textures may not exist in WW3DAssetManager - stub for now
+	// TODO: Implement or find the correct method name
+	Q_UNUSED(list);
+	Q_UNUSED(name);
+	Q_UNUSED(frame_count);
+#else
 	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
 	Q_UNUSED(list);
 	Q_UNUSED(name);
 	Q_UNUSED(frame_count);
 	// Stub - Windows API not available in Core build
+#endif
 }
+
+// TheSuperHackers @refactor bobtista 01/01/2025 Add overload for wchar_t* to match linker expectations
+#ifdef _WIN32
+#ifndef HAVE_WWVEGAS
+// Unicode overload for Qt builds (when HAVE_WWVEGAS is not defined, CString is QString)
+void
+Find_Missing_Textures
+(
+	DynamicVectorClass<CString> &	list,
+	const wchar_t*					name,
+	int								frame_count
+)
+{
+	// Convert wchar_t* to const char* for the main implementation
+	QString qname = QString::fromWCharArray(name);
+	Find_Missing_Textures(list, qname.toLocal8Bit().constData(), frame_count);
+}
+#endif
+#endif
 
 bool
 Copy_File
@@ -596,3 +679,13 @@ Get_Graphic_View (void)
 
 	return view;
 }
+
+// TheSuperHackers @refactor bobtista 01/01/2025 Define shader preset to avoid multiple definition
+#ifdef HAVE_WWVEGAS
+#include "shader.h"  // For ShaderClass
+ShaderClass* g_PresetATestBlend2DShader = nullptr;
+#else
+// Stub for Core build
+#include "GameEngineStubs.h"
+ShaderClass* g_PresetATestBlend2DShader = nullptr;
+#endif

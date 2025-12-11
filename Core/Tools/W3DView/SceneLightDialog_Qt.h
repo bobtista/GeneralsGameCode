@@ -7,8 +7,14 @@
 #include <QRadioButton>
 #include <QButtonGroup>
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
-#include "GameEngineStubs.h"
+#ifdef HAVE_WWVEGAS
+    // Use real WWVegas headers when available (Generals/GeneralsMD builds)
+    #include "light.h"    // For LightClass
+    #include "vector3.h"  // For Vector3
+#else
+    // Use stubs for Core-only build
+    #include "GameEngineStubs.h"
+#endif
 
 class CSceneLightDialog : public QDialog
 {
