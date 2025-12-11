@@ -367,7 +367,7 @@ StringClass::StringClass (TCHAR ch, bool hint_temporary)
 	// Copy constructor - delegate to the version with hint_temporary for compatibility
 inline
 StringClass::StringClass (const StringClass &string)
-	:	StringClass(string, false)  // Delegate to version with hint_temporary
+ 	:	StringClass(string, false)  // Delegate to version with hint_temporary
 {
 	return ;
 }

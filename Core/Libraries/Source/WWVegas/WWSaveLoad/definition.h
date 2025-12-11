@@ -154,7 +154,7 @@ DefinitionClass::~DefinitionClass (void)
 inline const char *
 DefinitionClass::Get_Name (void) const
 {
-	return m_Name;
+	return (const char*)m_Name.str();  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 }
 
 //////////////////////////////////////////////////////////////////////////////////
