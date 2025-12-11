@@ -150,23 +150,23 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 	
-	// On non-Windows, OpenExcel() returns FALSE, but we still want to show the dialog
 	// Excel integration is optional - the dialog can work without it
+	// For Qt builds, OpenExcel() returns FALSE (Excel integration is stubbed)
+	// We always want to show the dialog, regardless of Excel availability
 	#ifdef _WIN32
-		if (OpenExcel()) {
-	#else
-		// On non-Windows, always show the dialog (Excel integration not available)
-		{
+		// Try to open Excel (optional - will fail gracefully if not available)
+		OpenExcel();
 	#endif
-			CBabylonDlg dlg;
-			MainDLG = &dlg;
-			
-			dlg.exec();
-			
-			#ifdef _WIN32
-				CloseExcel();
-			#endif
-		}
+	
+	// Always show the dialog (Excel is optional)
+	CBabylonDlg dlg;
+	MainDLG = &dlg;
+	
+	dlg.exec();
+	
+	#ifdef _WIN32
+		CloseExcel();
+	#endif
 	
 	delete BabylonstrDB;
 	delete MainDB;
