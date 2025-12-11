@@ -1,10 +1,7 @@
 #include "AggregateNameDialog_Qt.h"
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-#include "w3d_file.h"
-#else
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
 #include "GameEngineStubs.h"
-#endif
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>

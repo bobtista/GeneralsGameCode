@@ -1,18 +1,8 @@
 #include "AnimatedSoundOptionsDialog_Qt.h"
 #include "Globals.h"
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-#include "ffactory.h"
-#include "animatedsoundmgr.h"
-#include "wwsaveload.h"
-#include "definitionmgr.h"
-#include "WWFILE.h"
-#include "chunkio.h"
-#include "wwdebug.h"
-#include "RestrictedFileDialog.h"
-#else
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
 #include "GameEngineStubs.h"
-#endif
+#include "RestrictedFileDialog.h"
 #include "Utils.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -142,6 +132,10 @@ void AnimatedSoundOptionsDialogClass::onOkClicked()
 
 void AnimatedSoundOptionsDialogClass::Load_Animated_Sound_Settings()
 {
+    // TheSuperHackers @refactor bobtista 01/01/2025 Stub out game engine calls for Core build
+    // Game engine classes not available in Core build - functionality stubbed
+    (void)0;
+#if 0  // Disabled - game engine not available in Core build
 #ifdef _WIN32
     DefinitionMgrClass::Free_Definitions();
 
@@ -166,11 +160,11 @@ void AnimatedSoundOptionsDialogClass::Load_Animated_Sound_Settings()
 
     AnimatedSoundMgrClass::Shutdown();
     AnimatedSoundMgrClass::Initialize(soundIniPath);
-
     _TheSimpleFileFactory->Append_Sub_Directory(soundDataPath);
 #else
     // Stub for non-Windows
     (void)0;
+#endif
 #endif
 }
 

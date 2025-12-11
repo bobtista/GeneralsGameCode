@@ -1,17 +1,8 @@
 #include "OpacityVectorDialog_Qt.h"
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-#include "rendobj.h"
-#include "sphereobj.h"
-#include "wwmath.h"
-#include "vector3.h"
-#include "euler.h"
-#include "matrix3.h"
-#else
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
 #include "GameEngineStubs.h"
 // Stub for matrix3
 struct Matrix3Class {};
-#endif
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>

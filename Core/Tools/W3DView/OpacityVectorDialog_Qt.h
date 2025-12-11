@@ -3,12 +3,8 @@
 #include <QDialog>
 #include <QSlider>
 #include <QDoubleSpinBox>
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-#include "sphereobj.h"
-#else
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
 #include "GameEngineStubs.h"
-#endif
 
 class ColorBarClass;
 

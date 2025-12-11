@@ -1,11 +1,6 @@
 #include "PlaySoundDialog_Qt.h"
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-#include "WWAudio.h"
-#include "AudibleSound.h"
-#else
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
 #include "GameEngineStubs.h"
-#endif
 #include "Utils.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>

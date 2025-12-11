@@ -1,13 +1,8 @@
 #include "AddToLineupDialog_Qt.h"
 #include "ViewerScene.h"
 #include <QLineEdit>  // TheSuperHackers @refactor bobtista 01/01/2025 Needed for lineEdit()
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-#include <rendobj.h>
-#include <assetmgr.h>
-#else
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
 #include "GameEngineStubs.h"
-#endif
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
