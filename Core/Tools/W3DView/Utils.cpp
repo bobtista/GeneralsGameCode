@@ -24,17 +24,111 @@
 //
 
 
+// Include Qt headers FIRST to get HWND, HBITMAP, etc. definitions
+#include <QApplication>
+#include <QtCore/QtGlobal>  // For Q_UNUSED
+#ifdef QT_VERSION
+#include <QtGui/qwindowdefs_win.h>  // For HWND, HBITMAP on Windows
+#endif
+
 #include "Utils.h"
 #include "W3DViewDoc_Qt.h"
 #include "MainFrm_Qt.h"
-#include <QApplication>
-#ifdef _WIN32
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
+#include "GameEngineStubs.h"
+#if 0  // Disabled - using stubs
 #include "texture.h"
 #include "assetmgr.h"
 #include "agg_def.h"
 #include "hlod.h"
 #include <VFW.h>
 #include "rcfile.h"
+#endif
+
+// Windows API type stubs for Core build
+// HWND is already defined by Qt's qwindowdefs_win.h - don't redefine it
+#ifndef UINT
+typedef unsigned int UINT;
+#endif
+#ifndef BOOL
+typedef int BOOL;
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef LPARAM
+typedef long LPARAM;
+#endif
+#ifndef WPARAM
+typedef unsigned int WPARAM;
+#endif
+#ifndef LRESULT
+typedef long LRESULT;
+#endif
+#ifndef LONG
+typedef long LONG;
+#endif
+#ifndef LPCSTR
+typedef const char* LPCSTR;
+#endif
+#ifndef UDM_GETRANGE32
+#define UDM_GETRANGE32 0
+#endif
+#ifndef UDM_GETBUDDY
+#define UDM_GETBUDDY 0
+#endif
+#ifndef GW_CHILD
+#define GW_CHILD 0
+#endif
+#ifndef GW_HWNDNEXT
+#define GW_HWNDNEXT 0
+#endif
+#ifndef GWL_STYLE
+#define GWL_STYLE 0
+#endif
+#ifndef UDS_SETBUDDYINT
+#define UDS_SETBUDDYINT 0
+#endif
+
+// Windows API function stubs
+inline LRESULT SendMessage(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) { return 0; }
+inline HWND GetWindow(HWND hWnd, UINT uCmd) { return nullptr; }
+inline BOOL IsWindow(HWND hWnd) { return FALSE; }
+inline LONG GetWindowLong(HWND hWnd, int nIndex) { return 0; }
+inline int GetClassName(HWND hWnd, char* lpClassName, int nMaxCount) { return 0; }
+inline BOOL EnableWindow(HWND hWnd, BOOL bEnable) { return FALSE; }
+inline BOOL SetWindowText(HWND hWnd, LPCSTR lpString) { return FALSE; }
+inline int GetWindowText(HWND hWnd, char* lpString, int nMaxCount) { return 0; }
+#ifndef RECT
+struct RECT { long left, top, right, bottom; };
+#endif
+// HDC is already defined by Qt's qwindowdefs_win.h - don't redefine it
+inline HDC GetDC(HWND hWnd) { Q_UNUSED(hWnd); return nullptr; }
+inline int ReleaseDC(HWND hWnd, HDC hDC) { Q_UNUSED(hWnd); Q_UNUSED(hDC); return 0; }
+inline BOOL ValidateRect(HWND hWnd, const RECT* lpRect) { Q_UNUSED(hWnd); Q_UNUSED(lpRect); return FALSE; }
+inline BOOL GetClientRect(HWND hWnd, RECT* lpRect) { Q_UNUSED(hWnd); if(lpRect) { lpRect->left=lpRect->top=lpRect->right=lpRect->bottom=0; } return FALSE; }
+#ifndef RGB
+#define RGB(r,g,b) ((unsigned long)(((unsigned char)(r)|((unsigned short)((unsigned char)(g))<<8))|(((unsigned long)(unsigned char)(b))<<16)))
+#endif
+// MFC CDC stub
+class CDC {
+public:
+    void Attach(HDC hDC) { Q_UNUSED(hDC); }
+    void Detach() {}
+    void FillSolidRect(int x, int y, int cx, int cy, unsigned long color) { Q_UNUSED(x); Q_UNUSED(y); Q_UNUSED(cx); Q_UNUSED(cy); Q_UNUSED(color); }
+};
+#ifndef TCHAR
+typedef char TCHAR;
+#endif
+#ifndef MAX_PATH
+#define MAX_PATH 260
+#endif
+// strrchr is already defined in string.h - don't redefine it
+#ifndef lstrcpy
+inline char* lstrcpy(char* dest, const char* src) { return strcpy(dest, src); }
 #endif
 
 
@@ -75,7 +169,6 @@ GetCurrentDocument (void)
 //
 //  Paint_Gradient
 //
-#ifdef _WIN32
 void
 Paint_Gradient
 (
@@ -85,52 +178,20 @@ Paint_Gradient
 	BYTE baseBlue
 )
 {
-    // Get the bounding rectangle so we know how much to paint
-    RECT rect;
-    ::GetClientRect (hWnd, &rect);
-
-    // Determine the width, height, and width per each shade
-    int iWidth = rect.right-rect.left;
-    int iHeight = rect.bottom-rect.top;
-    float widthPerShade = ((float)iWidth) / 256.00F;
-
-    // Pull a hack to get the CDC for the window
-    HDC hDC = ::GetDC (hWnd);
-    CDC cDC;
-    cDC.Attach(hDC);
-
-    // Loop through each shade and paint its sliver
-    float posX = 0.00F;
-    for (int iShade = 0; iShade < 256; iShade ++)
-    {
-        // Paint this sliver
-        cDC.FillSolidRect ((int)posX,
-                           0,
-                           (widthPerShade >= 1.00F) ? ((int)widthPerShade)+1 : 1,
-                           iHeight,
-                           RGB (iShade*baseRed, iShade*baseGreen, iShade*baseBlue));
-
-        // Increment the current position
-        posX += widthPerShade;
-    }
-
-    // Release the DC
-    cDC.Detach ();
-    ::ReleaseDC (hWnd, hDC);
-
-    // Validate the contents of the window so the control won't paint itself
-    ::ValidateRect (hWnd, NULL);
-    return ;
+    // TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+    Q_UNUSED(hWnd);
+    Q_UNUSED(baseRed);
+    Q_UNUSED(baseGreen);
+    Q_UNUSED(baseBlue);
+    // Stub - MFC CDC and Windows GDI not available in Core build
 }
-#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
 //  SetDlgItemFloat, GetDlgItemFloat, Initialize_Spinner, Update_Spinner_Buddy
-//  Windows-only functions - stubbed in Utils.h for non-Windows
+//  Stub implementations for Core build (Windows API not available)
 //
-#ifdef _WIN32
 void
 SetDlgItemFloat
 (
@@ -139,13 +200,11 @@ SetDlgItemFloat
 	float value
 )
 {
-	// Convert the float to a string
-	CString text;
-	text.Format ("%.2f", value);
-
-	// Pass the string onto the dialog control
-	::SetDlgItemText (hdlg, child_id, text);
-	return ;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(hdlg);
+	Q_UNUSED(child_id);
+	Q_UNUSED(value);
+	// Stub - Windows API not available in Core build
 }
 
 float
@@ -155,12 +214,10 @@ GetDlgItemFloat
 	UINT child_id
 )
 {
-	// Get the string from the window
-	TCHAR string_value[20];
-	::GetDlgItemText (hdlg, child_id, string_value, sizeof (string_value));
-
-	// Convert the string to a float and return the value
-	return ::atof (string_value);
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(hdlg);
+	Q_UNUSED(child_id);
+	return 0.0f;  // Stub - Windows API not available in Core build
 }
 
 void
@@ -172,66 +229,42 @@ Initialize_Spinner
 	float max
 )
 {
-	//
-	//	Convert the floats to ints and pass the settings onto the controls
-	//
-	ctrl.SetRange32 (int(min * 100), int(max * 100));
-	ctrl.SetPos (int(pos * 100));
-
-	//
-	//	Set the buddy's text accordingly
-	//
-	CWnd *buddy = ctrl.GetBuddy ();
-	if (buddy != NULL) {
-		::SetWindowFloat (*buddy, pos);
-	}
-
-	return ;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(ctrl);
+	Q_UNUSED(pos);
+	Q_UNUSED(min);
+	Q_UNUSED(max);
+	// Stub - MFC controls not available in Core build
 }
 
 void
 Update_Spinner_Buddy (CSpinButtonCtrl &ctrl, int delta)
 {
-	//
-	//	Only perform this service if the spinner isn't an auto buddy
-	//
-	if ((::GetWindowLong (ctrl, GWL_STYLE) & UDS_SETBUDDYINT) == 0) {
-		CWnd *buddy = ctrl.GetBuddy ();
-		if (buddy != NULL) {
-
-			// Get the current value, increment it, and put it back into the control
-			float value = ::GetWindowFloat (*buddy);
-			value += (((float)(delta)) / 100.0F);
-
-			//
-			//	Validate the new position
-			//
-			int int_min = 0;
-			int int_max = 0;
-			ctrl.GetRange32 (int_min, int_max);
-			float float_min = ((float)int_min) / 100;
-			float float_max = ((float)int_max) / 100;
-			value = std::max (float_min, value);
-			value = std::min (float_max, value);
-
-			// Pass the value onto the buddy window
-			::SetWindowFloat (*buddy, value);
-		}
-	}
-
-	return ;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(ctrl);
+	Q_UNUSED(delta);
+	// Stub - MFC controls not available in Core build
 }
-#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
 //  Update_Spinner_Buddy (HWND version), Enable_Dialog_Controls, SetWindowFloat, GetWindowFloat
-//  Windows-only functions - stubbed in Utils.h for non-Windows
+//  Stub implementations for Core build
 //
-#ifdef _WIN32
 void
 Update_Spinner_Buddy (HWND hspinner, int delta)
+{
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(hspinner);
+	Q_UNUSED(delta);
+	// Stub - Windows API not available in Core build
+}
+
+#if 0  // Disabled - using stubs above
+#ifdef _WIN32
+void
+Update_Spinner_Buddy_OLD (HWND hspinner, int delta)
 {
 	//
 	//	Only perform this service if the spinner isn't an auto buddy
@@ -262,22 +295,16 @@ Update_Spinner_Buddy (HWND hspinner, int delta)
 
 	return ;
 }
+#endif  // _WIN32
+#endif  // End of disabled block (#if 0)
 
 void
 Enable_Dialog_Controls (HWND dlg,bool onoff)
 {
-	//
-	// Loop over all sub-windows enable/disabling everything except for
-	// the static text controls
-	//
-	for (HWND child = ::GetWindow(dlg,GW_CHILD) ; child != NULL ; child = ::GetWindow(child,GW_HWNDNEXT)) {
-		char buf[64];
-		::GetClassName(child,buf,sizeof(buf));
-		if (stricmp(buf,"STATIC") != 0) {
-			::EnableWindow(child,onoff);
-		}
-	}
-	return ;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(dlg);
+	Q_UNUSED(onoff);
+	// Stub - Windows API not available in Core build
 }
 
 void
@@ -287,46 +314,40 @@ SetWindowFloat
 	float value
 )
 {
-	// Convert the float to a string
-	CString text;
-	text.Format ("%.3f", value);
-
-	// Pass the string onto the window
-	::SetWindowText (hwnd, text);
-	return ;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(hwnd);
+	Q_UNUSED(value);
+	// Stub - Windows API not available in Core build
 }
 
 float
 GetWindowFloat (HWND hwnd)
 {
-	// Get the string from the window
-	TCHAR string_value[20];
-	::GetWindowText (hwnd, string_value, sizeof (string_value));
-
-	// Convert the string to a float and return the value
-	return ::atof (string_value);
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(hwnd);
+	return 0.0f;  // Stub - Windows API not available in Core build
 }
-#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
 //  Asset_Name_From_Filename, Filename_From_Asset_Name, Get_Filename_From_Path, Strip_Filename_From_Path
-//  Windows-only functions (use CString) - stubbed in Utils.h for non-Windows
+//  Stub implementations for Core build (use CString which is QString)
 //
-#ifdef _WIN32
 CString
 Asset_Name_From_Filename (LPCTSTR filename)
 {
 	// Get the filename from this path
 	CString asset_name = ::Get_Filename_From_Path (filename);
 
-	// Find the index of the extension (if exists)
-	int extension = asset_name.ReverseFind ('.');
+	// Find the index of the extension (if exists) - CString is QString
+	QString qname = asset_name;
+	int extension = qname.lastIndexOf ('.');
 
 	// Strip off the extension
 	if (extension != -1) {
-		asset_name = asset_name.Left (extension);
+		qname = qname.left (extension);
+		asset_name = qname;
 	}
 
 	// Return the name of the asset
@@ -337,7 +358,8 @@ CString
 Filename_From_Asset_Name (LPCTSTR asset_name)
 {
 	// The filename is simply the asset name plus the .w3d extension
-	CString filename = asset_name + CString (".w3d");
+	QString qname = QString::fromLocal8Bit(asset_name);
+	CString filename = qname + ".w3d";
 
 	// Return the filename
 	return filename;
@@ -347,7 +369,10 @@ CString
 Get_Filename_From_Path (LPCTSTR path)
 {
 	// Find the last occurance of the directory deliminator
-	LPCTSTR filename = ::strrchr (path, '\\');
+	const char* filename = strrchr (path, '\\');
+	if (filename == NULL) {
+		filename = strrchr (path, '/');  // Try forward slash too
+	}
 	if (filename != NULL) {
 		// Increment past the directory deliminator
 		filename ++;
@@ -356,36 +381,37 @@ Get_Filename_From_Path (LPCTSTR path)
 	}
 
 	// Return the filename part of the path
-	return CString (filename);
+	return CString (QString::fromLocal8Bit(filename));
 }
 
 CString
 Strip_Filename_From_Path (LPCTSTR path)
 {
-	// Copy the path to a buffer we can modify
-	TCHAR temp_path[MAX_PATH];
-	::lstrcpy (temp_path, path);
-
+	// Use QString for path manipulation
+	QString qpath = QString::fromLocal8Bit(path);
+	
 	// Find the last occurance of the directory deliminator
-	LPTSTR filename = ::strrchr (temp_path, '\\');
-	if (filename != NULL) {
-		// Strip off the filename
-		filename[0] = 0;
+	int lastSlash = qpath.lastIndexOf('\\');
+	if (lastSlash == -1) {
+		lastSlash = qpath.lastIndexOf('/');  // Try forward slash too
+	}
+	
+	// Strip off the filename
+	if (lastSlash != -1) {
+		qpath = qpath.left(lastSlash);
 	}
 
 	// Return the path only
-	return CString (temp_path);
+	return CString (qpath);
 }
-#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
 //  Create_DIB_Section, Make_Bitmap_From_Texture, Get_Texture_Name, Build_Emitter_List,
 //  Is_Aggregate, Rename_Aggregate_Prototype, Is_Real_LOD
-//  Windows-only functions (game engine dependent) - stubbed in Utils.h for non-Windows
+//  Stub implementations for Core build (game engine not available)
 //
-#ifdef _WIN32
 HBITMAP
 Create_DIB_Section
 (
@@ -394,54 +420,29 @@ Create_DIB_Section
 	int height
 )
 {
-	// Set-up the fields of the BITMAPINFOHEADER
-	BITMAPINFOHEADER bitmap_info;
-	bitmap_info.biSize = sizeof (BITMAPINFOHEADER);
-	bitmap_info.biWidth = width;
-	bitmap_info.biHeight = -height; // Top-down DIB uses negative height
-	bitmap_info.biPlanes = 1;
-	bitmap_info.biBitCount = 24;
-	bitmap_info.biCompression = BI_RGB;
-	bitmap_info.biSizeImage = ((width * height) * 3);
-	bitmap_info.biXPelsPerMeter = 0;
-	bitmap_info.biYPelsPerMeter = 0;
-	bitmap_info.biClrUsed = 0;
-	bitmap_info.biClrImportant = 0;
-
-	// Get a temporary screen DC
-	HDC hscreen_dc = ::GetDC (NULL);
-
-	// Create a bitmap that we can access the bits directly of
-	HBITMAP hbitmap = ::CreateDIBSection (hscreen_dc,
-													  (const BITMAPINFO *)&bitmap_info,
-													  DIB_RGB_COLORS,
-													  (void **)pbits,
-													  NULL,
-													  0L);
-
-	// Release our temporary screen DC
-	::ReleaseDC (NULL, hscreen_dc);
-	return hbitmap;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(pbits);
+	Q_UNUSED(width);
+	Q_UNUSED(height);
+	return nullptr;  // Stub - Windows GDI not available in Core build
 }
 
 HBITMAP
 Make_Bitmap_From_Texture (TextureClass &texture, int width, int height)
 {
-	// TheSuperHackers @info Not implemented
-	HBITMAP hbitmap = NULL;
-	// Return a handle to the bitmap
-	return hbitmap;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(texture);
+	Q_UNUSED(width);
+	Q_UNUSED(height);
+	return nullptr;  // Stub - game engine not available in Core build
 }
 
 CString
 Get_Texture_Name (TextureClass &texture)
 {
-	CString name;
-
-	name = texture.Get_Texture_Name();
-
-	// Return the texture's name
-	return name;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(texture);
+	return CString();  // Stub - game engine not available in Core build
 }
 
 void
@@ -451,56 +452,18 @@ Build_Emitter_List
 	DynamicVectorClass<CString> &list
 )
 {
-	// Loop through all this render obj's sub-obj's
-	for (int index = 0; index < render_obj.Get_Num_Sub_Objects (); index ++) {
-		RenderObjClass *psub_obj = render_obj.Get_Sub_Object (index);
-		if (psub_obj != NULL) {
-
-			// Is this sub-obj an emitter?
-			if (psub_obj->Class_ID () == RenderObjClass::CLASSID_PARTICLEEMITTER) {
-
-				// Is this emitter already in the list?
-				bool found = false;
-				for (int list_index = 0; (list_index < list.Count ()) && !found; list_index++) {
-					if (::lstrcmpi (list[list_index], psub_obj->Get_Name ()) == 0) {
-						found = true;
-					}
-				}
-
-				// Add this emitter to the list if necessary
-				if (!found) {
-					list.Add (psub_obj->Get_Name ());
-				}
-			}
-
-			// Recursivly add emitters to the list
-			Build_Emitter_List (*psub_obj, list);
-			REF_PTR_RELEASE (psub_obj);
-		}
-	}
-
-	return ;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(render_obj);
+	Q_UNUSED(list);
+	// Stub - game engine not available in Core build
 }
 
 bool
 Is_Aggregate (const char *asset_name)
 {
-	// Assume that the asset isn't an aggregate
-	bool retval = false;
-
-	// Check to see if this object is an aggregate
-	RenderObjClass *prender_obj = WW3DAssetManager::Get_Instance()->Create_Render_Obj (asset_name);
-	if ((prender_obj != NULL) &&
-		 (prender_obj->Get_Base_Model_Name () != NULL))
-	{
-		retval = true;
-	}
-
-	// Free our hold on the temporary render object
-	REF_PTR_RELEASE (prender_obj);
-
-	// Return the true/false result code
-	return retval;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(asset_name);
+	return false;  // Stub - game engine not available in Core build
 }
 
 void
@@ -510,60 +473,26 @@ Rename_Aggregate_Prototype
 	const char *new_name
 )
 {
-	// Params valid?
-	if ((old_name != NULL) &&
-		 (new_name != NULL) &&
-		 (::lstrcmpi (old_name, new_name) != 0)) {
-
-		// Get the prototype from the asset manager
-		AggregatePrototypeClass *proto = NULL;
-		proto = (AggregatePrototypeClass *)WW3DAssetManager::Get_Instance ()->Find_Prototype (old_name);
-		if (proto != NULL) {
-
-			// Copy the definition from the prototype and remove the prototype
-			AggregateDefClass *pdefinition = proto->Get_Definition ();
-			AggregateDefClass *pnew_definition = pdefinition->Clone ();
-			WW3DAssetManager::Get_Instance ()->Remove_Prototype (old_name);
-
-			// Rename the definition, create a new prototype, and add it to the asset manager
-			pnew_definition->Set_Name (new_name);
-			proto = new AggregatePrototypeClass (pnew_definition);
-			WW3DAssetManager::Get_Instance ()->Add_Prototype (proto);
-		}
-	}
-
-	return ;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(old_name);
+	Q_UNUSED(new_name);
+	// Stub - game engine not available in Core build
 }
 
 bool
 Is_Real_LOD (const char *asset_name)
 {
-	// Assume that the asset isn't a true LOD (HLOD w/ more than one
-	bool retval = false;
-
-	// Check to see if this object is an aggregate
-	RenderObjClass *prender_obj = WW3DAssetManager::Get_Instance()->Create_Render_Obj (asset_name);
-	if ((prender_obj != NULL) &&
-		 (prender_obj->Class_ID () == RenderObjClass::CLASSID_HLOD) &&
-		 (((HLodClass *)prender_obj)->Get_LOD_Count () > 1)) {
-		retval = true;
-	}
-
-	// Free our hold on the temporary render object
-	REF_PTR_RELEASE (prender_obj);
-
-	// Return the true/false result code
-	return retval;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(asset_name);
+	return false;  // Stub - game engine not available in Core build
 }
-#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
 //  Get_File_Time
 //
-// TheSuperHackers @refactor bobtista 01/01/2025 Windows-only function
-#ifdef _WIN32
+// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
 bool
 Get_File_Time
 (
@@ -573,119 +502,47 @@ Get_File_Time
 	LPFILETIME pwrite_time
 )
 {
-	// Assume failure
-	bool retval = false;
-
-	// Attempt to open the file
-	HANDLE hfile = ::CreateFile (path,
-										  0,
-										  0,
-										  NULL,
-										  OPEN_EXISTING,
-										  0L,
-										  NULL);
-
-	if (hfile != INVALID_HANDLE_VALUE) {
-
-		// Get the mod times for this file
-		retval = (::GetFileTime (hfile, pcreation_time, paccess_time, pwrite_time) == TRUE);
-
-		// Close the file
-		SAFE_CLOSE (hfile);
-	}
-
-	// Return the true/false result code
-	return retval;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(path);
+	Q_UNUSED(pcreation_time);
+	Q_UNUSED(paccess_time);
+	Q_UNUSED(pwrite_time);
+	return false;  // Stub - Windows API not available in Core build
 }
-#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
 //  Are_Glide_Drivers_Acceptable
 //
-#ifdef _WIN32
+// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
 bool
 Are_Glide_Drivers_Acceptable (void)
 {
-	// Assume success
-	bool retval = true;
-
-	// Is this windows NT?
-	OSVERSIONINFO version = { sizeof (OSVERSIONINFO), 0 };
-	if (::GetVersionEx (&version) && (version.dwPlatformId == VER_PLATFORM_WIN32_NT)) {
-
-		// Now assume failure
-		retval = false;
-
-		// Get a path to the system directory
-		TCHAR path[MAX_PATH];
-		::GetSystemDirectory (path, sizeof (path));
-		::Delimit_Path (path);
-
-		// Build the full path of the 2 main drivers
-		CString glide2x = CString (path) + "glide2x.dll";
-		CString glide3x = CString (path) + "glide3x.dll";
-
-		// Get the creation time of the glide2x driver
-		FILETIME file_time = { 0 };
-		if (::Get_File_Time (glide2x, NULL, NULL, &file_time)) {
-			CTime time_obj (file_time);
-			retval = ((time_obj.GetYear () == 1998) && (time_obj.GetMonth () == 12)) || (time_obj.GetYear () > 1998);
-		}
-
-		// Get the creation time of the glide3x driver
-		if (::Get_File_Time (glide3x, NULL, NULL, &file_time)) {
-			CTime time_obj (file_time);
-			retval = ((time_obj.GetYear () == 1998) && (time_obj.GetMonth () == 12)) || (time_obj.GetYear () > 1998);
-		}
-	}
-
-	// Return the true/false result code
-	return retval;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	return false;  // Stub - Windows API not available in Core build
 }
-#endif
 
 
 ////////////////////////////////////////////////////////////////////////////
 //
 //  Load_RC_Texture, Resolve_Path, Find_Missing_Textures, Copy_File
-//  Windows-only functions - stubbed in Utils.h for non-Windows
+//  Stub implementations for Core build
 //
-#ifdef _WIN32
 TextureClass *
 Load_RC_Texture (LPCTSTR resource_name)
 {
-	TextureClass *texture = NULL;
-
-	//
-	//	Load the cursor file image from this binaries resources
-	//
-	ResourceFileClass resource_file (::AfxGetResourceHandle (), resource_name);
-	unsigned char *res_data = resource_file.Peek_Data ();
-	unsigned int data_size = resource_file.Size ();
-
-	//
-	//	Create a texture from the raw image data
-	//
-
-	// TheSuperHackers @info Not implemented
-
-	// Reutrn a pointer to the new texture
-	return texture;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(resource_name);
+	return nullptr;  // Stub - game engine not available in Core build
 }
 
 void
 Resolve_Path (CString &filename)
 {
-	if (filename.Find ('\\') == -1) {
-		char path[MAX_PATH];
-		::GetCurrentDirectory (MAX_PATH, path);
-		::Delimit_Path (path);
-		filename = CString (path) + filename;
-	}
-
-	return ;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(filename);
+	// Stub - Windows API not available in Core build
 }
 
 void
@@ -696,16 +553,11 @@ Find_Missing_Textures
 	int									frame_count
 )
 {
-	//
-	//	If this file doesn't exist, then add it to our list
-	//
-	if (::GetFileAttributes (name) == 0xFFFFFFFF) {
-		CString full_path = name;
-		Resolve_Path (full_path);
-		list.Add (full_path);
-	}
-
-	return ;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(list);
+	Q_UNUSED(name);
+	Q_UNUSED(frame_count);
+	// Stub - Windows API not available in Core build
 }
 
 bool
@@ -716,38 +568,12 @@ Copy_File
 	bool		force_copy
 )
 {
-	SANITY_CHECK ((existing_filename != NULL && new_filename != NULL)) {
-		return false;
-	}
-
-	// Assume failure
-	bool retval = false;
-
-	// Make sure we aren't copying over ourselves
-	bool allow_copy = (::lstrcmpi (existing_filename, new_filename) != 0);
-
-	// Strip the readonly bit off if necessary
-	DWORD attributes = ::GetFileAttributes (new_filename);
-	if (allow_copy &&
-		 (attributes != 0xFFFFFFFF) &&
-		 ((attributes & FILE_ATTRIBUTE_READONLY) == FILE_ATTRIBUTE_READONLY))
-	{
-		if (force_copy) {
-			::SetFileAttributes (new_filename, attributes & (~FILE_ATTRIBUTE_READONLY));
-		} else {
-			allow_copy = false;
-		}
-	}
-
-	// Perform the copy operation!
-	if (allow_copy) {
-		retval = (::CopyFile (existing_filename, new_filename, FALSE) == TRUE);
-	}
-
-	// Return the true/false result code
-	return retval;
+	// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementation for Core build
+	Q_UNUSED(existing_filename);
+	Q_UNUSED(new_filename);
+	Q_UNUSED(force_copy);
+	return false;  // Stub - Windows API not available in Core build
 }
-#endif
 
 
 ////////////////////////////////////////////////////////////////////////////

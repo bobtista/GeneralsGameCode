@@ -24,8 +24,28 @@
 
 #pragma once
 
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific types
-#ifdef _WIN32
+// TheSuperHackers @refactor bobtista 01/01/2025 Define Windows types for Qt builds
+// Define types that might not be available in Qt builds
+#ifndef UCHAR
+typedef unsigned char UCHAR;
+#endif
+#ifndef RECT
+struct RECT { long left, top, right, bottom; };
+#endif
+#ifndef COLORREF
+typedef unsigned long COLORREF;
+#endif
+#ifndef BOOL
+typedef int BOOL;
+#endif
+// HWND is already defined by Qt's qwindowdefs_win.h when Qt headers are included - don't redefine it
+#ifndef HWND
+typedef void* HWND;
+#endif
+#ifndef HINSTANCE
+typedef void* HINSTANCE;
+#endif
+
 typedef void (*WWCTRL_COLORCALLBACK)(int,int,int,void*);
 
 /////////////////////////////////////////////////////////////////////////////
@@ -41,18 +61,32 @@ HWND		Create_Color_Picker_Form (HWND parent, int red, int green, int blue);
 BOOL		Get_Form_Color (HWND form_wnd, int *red, int *green, int *blue);
 BOOL		Set_Form_Color (HWND form_wnd, int red, int green, int blue);
 BOOL		Set_Form_Original_Color (HWND form_wnd, int red, int green, int blue);
-BOOL		Set_Update_Callback (HWND form_wnd, WWCTRL_COLORCALLBACK callback, void *arg=NULL);
+BOOL		Set_Update_Callback (HWND form_wnd, WWCTRL_COLORCALLBACK callback, void *arg=nullptr);
 void		RegisterColorPicker (HINSTANCE hinst);
 void		RegisterColorBar (HINSTANCE hinst);
+
+// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementations for Qt builds
+#ifdef QT_VERSION
+// Qt build - provide stub implementations
+inline void Frame_Rect (UCHAR *pbits, const RECT &rect, COLORREF color, int scanline_size) { Q_UNUSED(pbits); Q_UNUSED(rect); Q_UNUSED(color); Q_UNUSED(scanline_size); }
+inline void Draw_Vert_Line (UCHAR *pbits, int x, int y, int len, COLORREF color, int scanline_size) { Q_UNUSED(pbits); Q_UNUSED(x); Q_UNUSED(y); Q_UNUSED(len); Q_UNUSED(color); Q_UNUSED(scanline_size); }
+inline void Draw_Horz_Line (UCHAR *pbits, int x, int y, int len, COLORREF color, int scanline_size) { Q_UNUSED(pbits); Q_UNUSED(x); Q_UNUSED(y); Q_UNUSED(len); Q_UNUSED(color); Q_UNUSED(scanline_size); }
+inline BOOL Show_Color_Picker (int *red, int *green, int *blue) { Q_UNUSED(red); Q_UNUSED(green); Q_UNUSED(blue); return 0; }
+inline HWND Create_Color_Picker_Form (HWND parent, int red, int green, int blue) { Q_UNUSED(parent); Q_UNUSED(red); Q_UNUSED(green); Q_UNUSED(blue); return nullptr; }
+inline BOOL Get_Form_Color (HWND form_wnd, int *red, int *green, int *blue) { Q_UNUSED(form_wnd); Q_UNUSED(red); Q_UNUSED(green); Q_UNUSED(blue); return 0; }
+inline BOOL Set_Form_Color (HWND form_wnd, int red, int green, int blue) { Q_UNUSED(form_wnd); Q_UNUSED(red); Q_UNUSED(green); Q_UNUSED(blue); return 0; }
+inline BOOL Set_Form_Original_Color (HWND form_wnd, int red, int green, int blue) { Q_UNUSED(form_wnd); Q_UNUSED(red); Q_UNUSED(green); Q_UNUSED(blue); return 0; }
+inline BOOL Set_Update_Callback (HWND form_wnd, WWCTRL_COLORCALLBACK callback, void *arg=nullptr) { Q_UNUSED(form_wnd); Q_UNUSED(callback); Q_UNUSED(arg); return 0; }
+inline void RegisterColorPicker (HINSTANCE hinst) { Q_UNUSED(hinst); }
+inline void RegisterColorBar (HINSTANCE hinst) { Q_UNUSED(hinst); }
+#endif
+
+#if 0  // Disabled - using unified definitions above
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific types
+#ifdef _WIN32
 #else
 // Stubs for non-Windows
 typedef void (*WWCTRL_COLORCALLBACK)(int,int,int,void*);
-typedef unsigned char UCHAR;
-struct RECT { int left, top, right, bottom; };
-typedef unsigned long COLORREF;
-typedef int BOOL;
-typedef void* HWND;
-typedef void* HINSTANCE;
 
 void Frame_Rect (UCHAR *pbits, const RECT &rect, COLORREF color, int scanline_size) {}
 void Draw_Vert_Line (UCHAR *pbits, int x, int y, int len, COLORREF color, int scanline_size) {}
@@ -67,3 +101,4 @@ BOOL Set_Update_Callback (HWND form_wnd, WWCTRL_COLORCALLBACK callback, void *ar
 void RegisterColorPicker (HINSTANCE hinst) {}
 void RegisterColorBar (HINSTANCE hinst) {}
 #endif
+#endif  // End of disabled block (#if 0)

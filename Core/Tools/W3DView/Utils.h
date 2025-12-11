@@ -26,12 +26,21 @@
 #pragma once
 
 #include <string>  // For std::string stubs on non-Windows
+#include <cstring>  // For strlen, strcat
 
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-#include "Vector.h"
+// Include Qt headers early to get HWND, HBITMAP, etc. definitions
+#ifdef QT_VERSION
+#include <QtGui/qwindowdefs_win.h>  // For HWND, HBITMAP on Windows
 #else
-// Stub for non-Windows
+// Define Windows types if Qt isn't available
+typedef void* HWND;
+typedef void* HBITMAP;
+#endif
+
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
+#include "GameEngineStubs.h"
+
+// Vector template classes (needed for Core build)
 template<typename T> class Vector {
 public:
     T* Get_Array() { return nullptr; }
@@ -46,7 +55,28 @@ public:
     T& operator[](int index) { static T dummy; return dummy; }
     const T& operator[](int index) const { static T dummy; return dummy; }
 };
+
+// Windows type stubs for Core build
+#ifndef LPCTSTR
+typedef const char* LPCTSTR;
 #endif
+#ifndef CString
+#include <QString>  // For QString
+typedef QString CString;  // Use QString as CString replacement
+#endif
+#ifndef UCHAR
+typedef unsigned char UCHAR;
+#endif
+#ifndef LPFILETIME
+typedef void* LPFILETIME;
+#endif
+#ifndef BYTE
+typedef unsigned char BYTE;
+#endif
+#ifndef UINT
+typedef unsigned int UINT;
+#endif
+// HBITMAP and HWND are already defined by Qt's qwindowdefs_win.h when Qt headers are included - don't redefine them
 
 // Forward declarations
 class RenderObjClass;
@@ -81,31 +111,28 @@ class RenderObjClass;
 //
 /////////////////////////////////////////////////////////////////////////////
 
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific functions
-#ifdef _WIN32
-__inline void Delimit_Path (LPTSTR path)
+// TheSuperHackers @refactor bobtista 01/01/2025 Use stubs for Core build
+#ifndef LPTSTR
+typedef char* LPTSTR;
+#endif
+#include <cstring>  // For strlen, strcat
+
+inline void Delimit_Path (LPTSTR path)
 {
-	if (::lstrlen (path) > 0 && path[::lstrlen (path) - 1] != '\\') {
-		::lstrcat (path, "\\");
+	size_t len = strlen(path);
+	if (len > 0 && path[len - 1] != '\\') {
+		strcat(path, "\\");
 	}
-	return ;
 }
 
-__inline void Delimit_Path (CString &path)
+inline void Delimit_Path (CString &path)
 {
-	if (path[::lstrlen (path) - 1] != '\\') {
-		path += CString ("\\");
-	}
-	return ;
-}
-#else
-// Stubs for non-Windows
-inline void Delimit_Path (char* path) {
-	if (strlen(path) > 0 && path[strlen(path) - 1] != '/') {
-		strcat(path, "/");
+	QString qpath = path;
+	if (qpath.length() > 0 && qpath[qpath.length() - 1] != '\\') {
+		qpath += "\\";
+		path = qpath;
 	}
 }
-#endif
 
 
 // Forward declarations
@@ -119,21 +146,16 @@ class CGraphicView;
 //
 class CW3DViewDoc *	GetCurrentDocument (void);
 CGraphicView *			Get_Graphic_View (void);
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific functions
-#ifdef _WIN32
-void						Paint_Gradient (HWND hWnd, BYTE baseRed, BYTE baseGreen, BYTE baseBlue);
-#else
-// Stubs for non-Windows
-typedef void* HWND;
-typedef unsigned char BYTE;
+// TheSuperHackers @refactor bobtista 01/01/2025 Use stubs for Core build
 void Paint_Gradient (HWND hWnd, BYTE baseRed, BYTE baseGreen, BYTE baseBlue);
-#endif
 
 //
 // Dialog routines
 //
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific functions
-#ifdef _WIN32
+// TheSuperHackers @refactor bobtista 01/01/2025 Use stubs for Core build
+// HWND, BYTE, UINT already defined above (or by Qt/Windows headers)
+class CSpinButtonCtrl {};  // Stub class
+
 void						SetDlgItemFloat (HWND hdlg, UINT child_id, float value);
 float						GetDlgItemFloat (HWND hdlg, UINT child_id);
 void						SetWindowFloat (HWND hwnd, float value);
@@ -166,58 +188,16 @@ HBITMAP					Make_Bitmap_From_Texture (TextureClass &texture, int width, int heig
 CString					Get_Texture_Name (TextureClass &texture);
 TextureClass *			Load_RC_Texture (LPCTSTR resource_name);
 void						Find_Missing_Textures (DynamicVectorClass<CString> &list, LPCTSTR filename, int frame_count = 1);
-#else
-// Stubs for non-Windows - these functions are Windows-only and not used on Mac
-// Declarations only (implementations are Windows-only in Utils.cpp)
-typedef unsigned int UINT;
-void SetDlgItemFloat (HWND hdlg, UINT child_id, float value);
-float GetDlgItemFloat (HWND hdlg, UINT child_id);
-void SetWindowFloat (HWND hwnd, float value);
-float GetWindowFloat (HWND hwnd);
-void Initialize_Spinner (void* ctrl, float pos = 0, float min = 0, float max = 1);
-void Update_Spinner_Buddy (void* ctrl);
-void Update_Spinner_Buddy (HWND hspinner, int delta);
-void Enable_Dialog_Controls (HWND dlg, bool onoff);
-
-// String manipulation - not used on Mac
-std::string Get_Filename_From_Path (const char* path);
-std::string Strip_Filename_From_Path (const char* path);
-std::string Asset_Name_From_Filename (const char* filename);
-std::string Filename_From_Asset_Name (const char* asset_name);
-
-// File routines - not used on Mac
-bool Get_File_Time (const char* path, void* pcreation_time, void* paccess_time = NULL, void* pwrite_time = NULL);
-bool Are_Glide_Drivers_Acceptable (void);
-bool Copy_File (const char* existing_filename, const char* new_filename, bool bforce_copy = false);
-
-// Texture routines
-void* Create_DIB_Section (void** pbits, int width, int height);
-void* Make_Bitmap_From_Texture (TextureClass &texture, int width, int height);
-std::string Get_Texture_Name (TextureClass &texture);
-TextureClass * Load_RC_Texture (const char* resource_name);
-void Find_Missing_Textures (void* list, const char* filename, int frame_count = 1);
-#endif
 
 
 // Emitter routines
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific functions
-#ifdef _WIN32
-void						Build_Emitter_List (RenderObjClass &render_obj, DynamicVectorClass<CString> &list);
-#else
-void Build_Emitter_List (RenderObjClass &render_obj, void* list);  // Declaration only, not used on Mac
-#endif
+// TheSuperHackers @refactor bobtista 01/01/2025 Use stubs for Core build
+void Build_Emitter_List (RenderObjClass &render_obj, DynamicVectorClass<CString> &list);
 
 // Identification routines
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific functions
-#ifdef _WIN32
-bool						Is_Aggregate (const char *asset_name);
-bool						Is_Real_LOD (const char *asset_name);
-
-// Prototype routines
-void						Rename_Aggregate_Prototype (const char *old_name, const char *new_name);
-#else
-// Stubs for non-Windows (not used on Mac)
+// TheSuperHackers @refactor bobtista 01/01/2025 Use stubs for Core build
 bool Is_Aggregate (const char *asset_name);
 bool Is_Real_LOD (const char *asset_name);
+
+// Prototype routines
 void Rename_Aggregate_Prototype (const char *old_name, const char *new_name);
-#endif
