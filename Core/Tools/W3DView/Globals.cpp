@@ -32,7 +32,9 @@
 #include "Globals.h"
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
 #ifdef _WIN32
-#include "assetmgr.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
+#include "GameEngineStubs.h"
+// #include "assetmgr.h"  // Game engine header - not available in Core build
 #else
 #include "GameEngineStubs.h"
 #endif

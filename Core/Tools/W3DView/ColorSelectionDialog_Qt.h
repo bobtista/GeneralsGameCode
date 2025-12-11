@@ -6,11 +6,8 @@
 #include <QCheckBox>
 #include <QWidget>
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-#include "vector3.h"
-#else
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
 #include "GameEngineStubs.h"
-#endif
 
 class ColorSelectionDialogClass : public QDialog
 {

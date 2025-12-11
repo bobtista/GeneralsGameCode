@@ -38,7 +38,9 @@
 
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
 #ifdef _WIN32
-#include "rendobj.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
+#include "GameEngineStubs.h"
+// #include "rendobj.h"  // Game engine header - not available in Core build
 #else
 #include <string>  // For std::string
 #include "GameEngineStubs.h"

@@ -35,7 +35,9 @@
 #include "resource.h"
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
 #ifdef _WIN32
-#include "rendobj.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
+#include "GameEngineStubs.h"
+// #include "rendobj.h"  // Game engine header - not available in Core build
 #include "Vector3i.h"
 #else
 #include "GameEngineStubs.h"

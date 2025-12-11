@@ -34,7 +34,9 @@
 
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
 #ifdef _WIN32
-#include "Vector.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
+#include "GameEngineStubs.h"
+// #include "Vector.h"  // Game engine header - not available in Core build
 #include "part_ldr.h"
 #include "part_emt.h"
 #else
