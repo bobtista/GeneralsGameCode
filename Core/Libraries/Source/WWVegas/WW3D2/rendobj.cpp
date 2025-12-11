@@ -99,7 +99,8 @@ const float	RenderObjClass::AT_MIN_LOD = FLT_MAX;
 const float	RenderObjClass::AT_MAX_LOD = -1.0f;
 
 // Local inline functions
-StringClass
+// TheSuperHackers @refactor bobtista 01/01/2025 MSVC 2022 compatibility: Make static to avoid duplicate definition with Utils.cpp
+static StringClass
 Filename_From_Asset_Name (const char *asset_name)
 {
 	StringClass filename;
