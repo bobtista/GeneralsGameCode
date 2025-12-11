@@ -112,8 +112,75 @@ jobs:
         with:
           arch: x86
 
-      - name: Setup vcpkg
-        uses: lukka/run-vcpkg@v11
+      - name: Cache vcpkg executable
+        if: startsWith(inputs.preset, 'win32')
+        id: cache-vcpkg-exe
+        uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}\vcpkg\vcpkg.exe
+          key: vcpkg-exe-${{ runner.os }}-2025-12-05
+          restore-keys: |
+            vcpkg-exe-${{ runner.os }}-
+
+      - name: Bootstrap vcpkg with retry
+        if: startsWith(inputs.preset, 'win32')
+        shell: pwsh
+        run: |
+          $vcpkgDir = "${{ github.workspace }}\vcpkg"
+          $vcpkgExe = "$vcpkgDir\vcpkg.exe"
+          
+          if (-not (Test-Path $vcpkgDir)) {
+            New-Item -ItemType Directory -Path $vcpkgDir -Force | Out-Null
+          }
+          
+          if (Test-Path $vcpkgExe) {
+            Write-Host "Using cached vcpkg.exe" -ForegroundColor Green
+            & $vcpkgExe version --disable-metrics
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Cached vcpkg.exe is valid" -ForegroundColor Green
+              exit 0
+            } else {
+              Write-Host "Cached vcpkg.exe is invalid, will re-download" -ForegroundColor Yellow
+              Remove-Item $vcpkgExe -Force
+            }
+          }
+          
+          $maxRetries = 5
+          $retryDelay = 10
+          $versionDate = "2025-12-05"
+          $downloadUrl = "https://github.com/microsoft/vcpkg-tool/releases/download/$versionDate/vcpkg.exe"
+          
+          for ($attempt = 1; $attempt -le $maxRetries; $attempt++) {
+            Write-Host "Downloading vcpkg.exe (attempt $attempt/$maxRetries)..." -ForegroundColor Cyan
+            try {
+              $ProgressPreference = 'SilentlyContinue'
+              Invoke-WebRequest -Uri $downloadUrl -OutFile $vcpkgExe -TimeoutSec 60 -ErrorAction Stop
+              
+              if (Test-Path $vcpkgExe) {
+                & $vcpkgExe version --disable-metrics
+                if ($LASTEXITCODE -eq 0) {
+                  Write-Host "Successfully downloaded and verified vcpkg.exe" -ForegroundColor Green
+                  exit 0
+                } else {
+                  Write-Host "Downloaded file is invalid, will retry..." -ForegroundColor Yellow
+                  Remove-Item $vcpkgExe -Force -ErrorAction SilentlyContinue
+                }
+              }
+            } catch {
+              Write-Host "Download attempt $attempt failed: $($_.Exception.Message)" -ForegroundColor Yellow
+              if ($attempt -lt $maxRetries) {
+                Write-Host "Waiting $retryDelay seconds before retry..." -ForegroundColor Yellow
+                Start-Sleep -Seconds $retryDelay
+                $retryDelay = [math]::Min($retryDelay * 2, 60)
+              } else {
+                Write-Error "Failed to download vcpkg.exe after $maxRetries attempts"
+                throw
+              }
+            }
+          }
+          
+          Write-Error "Failed to download vcpkg.exe"
+          exit 1
 
       - name: Configure ${{ inputs.game }} with CMake Using ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }} Preset
         shell: pwsh
