@@ -21,16 +21,50 @@
 // TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
 //
 
+// Include Windows headers FIRST, before ANY other headers, to avoid conflicts
+#ifdef _WIN32
+    // Undefine any Qt-defined types that might conflict (in case Qt was included via other headers)
+    #ifdef SHORT
+    #undef SHORT
+    #endif
+    // Ensure we use ANSI functions, not Unicode
+    #ifdef UNICODE
+    #undef UNICODE
+    #endif
+    #ifdef _UNICODE
+    #undef _UNICODE
+    #endif
+    #ifndef NOMINMAX
+    #define NOMINMAX
+    #endif
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <windows.h>
+    #include <direct.h>
+#else
+    #include <unistd.h>
+    #include <sys/stat.h>
+#endif
+
+// Now include our headers (which may include Qt headers)
 #include "PlatformTypes.h"
 #include "fileops.h"
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+
+// Undefine Windows macros that conflict with Qt (after Qt headers are included)
 #ifdef _WIN32
-    #include <direct.h>
-#else
-    #include <unistd.h>
-    #include <sys/stat.h>
+    #ifdef connect
+    #undef connect
+    #endif
+    #ifdef SendMessage
+    #undef SendMessage
+    #endif
+    #ifdef GetMessage
+    #undef GetMessage
+    #endif
 #endif
 
 
@@ -49,10 +83,10 @@ int					 		FileAttribs ( const char *filename )
 	int	fa = FA_NOFILE;
 
 	#ifdef _WIN32
-		WIN32_FIND_DATA 	fi;
+		WIN32_FIND_DATAA 	fi;  // Use ANSI version explicitly
 		HANDLE handle;
 
-		handle = FindFirstFile ( filename, &fi );
+		handle = FindFirstFileA ( filename, &fi );  // Use ANSI version explicitly
 
 		if ( handle != INVALID_HANDLE_VALUE )
 		{

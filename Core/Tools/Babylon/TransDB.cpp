@@ -22,6 +22,29 @@
 
 // TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
 
+// Include Windows headers FIRST, before Qt, to avoid conflicts
+#ifdef _WIN32
+    // Undefine any Qt-defined types that might conflict
+    #ifdef SHORT
+    #undef SHORT
+    #endif
+    // Ensure we use ANSI functions, not Unicode
+    #ifdef UNICODE
+    #undef UNICODE
+    #endif
+    #ifdef _UNICODE
+    #undef _UNICODE
+    #endif
+    #ifndef NOMINMAX
+    #define NOMINMAX
+    #endif
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <windows.h>
+#endif
+
+// Now include our headers (which may include Qt headers)
 #include "PlatformTypes.h"
 #include "TransDB.h"
 #include "BabylonDlg_Qt.h"  // Use Qt version instead of MFC version
@@ -31,8 +54,24 @@
 #include <cwchar>  // For wide string functions
 #include <cstring>  // For string functions
 #include <cstdio>   // For file I/O
-#include <strings.h>  // For strcasecmp on Unix/macOS (used by PlatformTypes.h stricmp macro)
-#include <sys/stat.h>  // For stat() and struct stat on Unix/macOS
+#ifndef _WIN32
+    #include <strings.h>  // For strcasecmp on Unix/macOS (used by PlatformTypes.h stricmp macro)
+    #include <sys/stat.h>  // For stat() and struct stat on Unix/macOS
+#else
+#endif
+
+// Undefine Windows macros that conflict with Qt (after Qt headers are included)
+#ifdef _WIN32
+    #ifdef connect
+    #undef connect
+    #endif
+    #ifdef SendMessage
+    #undef SendMessage
+    #endif
+    #ifdef GetMessage
+    #undef GetMessage
+    #endif
+#endif
 
 static char buffer[100*1024];
 
@@ -485,16 +524,19 @@ void					TransDB::AddToTree		( void *tc, void *parent, int changes, void (*cb) (
 #endif
 {
 	#ifdef _WIN32
-		char buffer[256];
-		HTREEITEM		item;
-		HTREEITEM		ilabels, iobsolete;
-		ListSearch	sh;
-		BabylonLabel		*label;
-		BabylonText			*txt;
+		// CTreeCtrl is MFC-only - stub for Qt build
+		#ifndef QT_WIDGETS_LIB
+			// MFC build - full implementation
+			char buffer[256];
+			HTREEITEM		item;
+			HTREEITEM		ilabels, iobsolete;
+			ListSearch	sh;
+			BabylonLabel		*label;
+			BabylonText			*txt;
 
-		sprintf ( buffer, "%s%c  (%d/%d)",name, ChangedSymbol(), NumLabelsChanged(), NumLabels() );
-		item = ((CTreeCtrl*)tc)->InsertItem ( buffer, (HTREEITEM)parent );
-		ilabels = ((CTreeCtrl*)tc)->InsertItem ( "Labels", item );
+			sprintf ( buffer, "%s%c  (%d/%d)",name, ChangedSymbol(), NumLabelsChanged(), NumLabels() );
+			item = ((CTreeCtrl*)tc)->InsertItem ( buffer, (HTREEITEM)parent );
+			ilabels = ((CTreeCtrl*)tc)->InsertItem ( "Labels", item );
 
 		label = FirstLabel ( sh );
 
@@ -534,6 +576,10 @@ void					TransDB::AddToTree		( void *tc, void *parent, int changes, void (*cb) (
 				txt = NextObsolete ( sh );
 			}
 		}
+		#else
+			// Qt build - AddToTree functionality not available (requires MFC CTreeCtrl)
+			// This function is stubbed for Qt builds
+		#endif  // !QT_WIDGETS_LIB
 	#endif  // _WIN32
 }
 
@@ -832,6 +878,9 @@ void					BabylonLabel::AddToTree		( void *tc, void *parent, int changes )
 #endif
 {
 	#ifdef _WIN32
+		// CTreeCtrl is MFC-only - stub for Qt build
+		#ifndef QT_WIDGETS_LIB
+			// MFC build - full implementation
 		char buffer[256];
 		HTREEITEM		litem;
 		ListSearch	sh;
@@ -887,8 +936,11 @@ void					BabylonLabel::AddToTree		( void *tc, void *parent, int changes )
 			sprintf ( buffer, "MAX LEN : %d", max_len );
 			((CTreeCtrl*)tc)->InsertItem ( buffer, litem );
 		}
+		#else
+			// Qt build - AddToTree functionality not available (requires MFC CTreeCtrl)
+			// This function is stubbed for Qt builds
+		#endif  // !QT_WIDGETS_LIB
 	#endif  // _WIN32
-
 }
 
 void BabylonText::init ( void )
@@ -987,7 +1039,7 @@ int						BabylonText::DialogIsValid ( const char *path, LangID langid, int check
 	if ( winfo->Valid () && check )
 	{
 				#ifdef _WIN32
-					WIN32_FIND_DATA info;
+					WIN32_FIND_DATAA info;  // Use ANSI version explicitly
 				#else
 					// Unix: File existence check not implemented
 					struct stat st;
@@ -1003,7 +1055,7 @@ int						BabylonText::DialogIsValid ( const char *path, LangID langid, int check
 			sprintf ( buffer, "%s%s/%s%s.wav", path, linfo->character, WaveSB(), linfo->character );  // TheSuperHackers @refactor bobtista 01/01/2025 Use forward slashes on Unix
 		#endif
 				#ifdef _WIN32
-					if ( (handle = FindFirstFile ( buffer, &info )) != INVALID_HANDLE_VALUE )
+					if ( (handle = FindFirstFileA ( buffer, &info )) != INVALID_HANDLE_VALUE )  // Use ANSI version
 				#else
 					if ( stat(buffer, &st) == 0 )
 				#endif
@@ -1039,7 +1091,7 @@ int						BabylonText::DialogIsValid ( const char *path, LangID langid, int check
 int						BabylonText::ValidateDialog ( const char *path, LangID langid )
 {
 				#ifdef _WIN32
-					WIN32_FIND_DATA info;
+					WIN32_FIND_DATAA info;  // Use ANSI version explicitly
 				#else
 					// Unix: File existence check not implemented
 					struct stat st;
@@ -1074,7 +1126,7 @@ int						BabylonText::ValidateDialog ( const char *path, LangID langid )
 
 	sprintf ( buffer, "%s%s\\%s%s.wav", path, linfo->character , WaveSB(), linfo->character );
 				#ifdef _WIN32
-					if ( (handle = FindFirstFile ( buffer, &info )) != INVALID_HANDLE_VALUE )
+					if ( (handle = FindFirstFileA ( buffer, &info )) != INVALID_HANDLE_VALUE )  // Use ANSI version
 				#else
 					if ( stat(buffer, &st) == 0 )
 				#endif
@@ -1109,7 +1161,7 @@ int						BabylonText::DialogIsPresent ( const char *path, LangID langid )
 {
 
 				#ifdef _WIN32
-					WIN32_FIND_DATA info;
+					WIN32_FIND_DATAA info;  // Use ANSI version explicitly
 				#else
 					// Unix: File existence check not implemented
 					struct stat st;
@@ -1124,7 +1176,7 @@ int						BabylonText::DialogIsPresent ( const char *path, LangID langid )
 		sprintf ( buffer, "%s%s/%s%s.wav", path, linfo->character , WaveSB(), linfo->character );  // TheSuperHackers @refactor bobtista 01/01/2025 Use forward slashes on Unix
 	#endif
 				#ifdef _WIN32
-					if ( (handle = FindFirstFile ( buffer, &info )) != INVALID_HANDLE_VALUE )
+					if ( (handle = FindFirstFileA ( buffer, &info )) != INVALID_HANDLE_VALUE )  // Use ANSI version
 				#else
 					if ( stat(buffer, &st) == 0 )
 				#endif
@@ -1402,13 +1454,16 @@ void					BabylonText::AddToTree		( void *tc, void *parent, int changes )
 #endif
 {
 	#ifdef _WIN32
-		char buffer[256];
-		HTREEITEM		item;
-		ListSearch	sh;
-		Translation	*trans;
+		// CTreeCtrl is MFC-only - stub for Qt build
+		#ifndef QT_WIDGETS_LIB
+			// MFC build - full implementation
+			char buffer[256];
+			HTREEITEM		item;
+			ListSearch	sh;
+			Translation	*trans;
 
-		sprintf ( buffer, "TEXT %c : %s", ChangedSymbol() ,GetSB ());
-		item = ((CTreeCtrl*)tc)->InsertItem ( buffer, (HTREEITEM)parent );
+			sprintf ( buffer, "TEXT %c : %s", ChangedSymbol() ,GetSB ());
+			item = ((CTreeCtrl*)tc)->InsertItem ( buffer, (HTREEITEM)parent );
 
 	trans = FirstTranslation ( sh );
 
@@ -1445,6 +1500,10 @@ void					BabylonText::AddToTree		( void *tc, void *parent, int changes )
 
 	sprintf ( buffer, "LEN    : %d", this->Len() );
 	((CTreeCtrl*)tc)->InsertItem ( buffer, item );
+		#else
+			// Qt build - AddToTree functionality not available (requires MFC CTreeCtrl)
+			// This function is stubbed for Qt builds
+		#endif  // !QT_WIDGETS_LIB
 	#endif  // _WIN32
 }
 
@@ -1497,12 +1556,15 @@ void					Translation::AddToTree		( void *tc, void *parent, int changes )
 #endif
 {
 	#ifdef _WIN32
-		char buffer[256];
-		HTREEITEM		item;
+		// CTreeCtrl is MFC-only - stub for Qt build
+		#ifndef QT_WIDGETS_LIB
+			// MFC build - full implementation
+			char buffer[256];
+			HTREEITEM		item;
 
-	sprintf ( buffer, "%s%c   : %s", Language(), ChangedSymbol(), GetSB ());
+			sprintf ( buffer, "%s%c   : %s", Language(), ChangedSymbol(), GetSB ());
 
-	item = tc->InsertItem ( buffer, parent );
+			item = tc->InsertItem ( buffer, parent );
 
 	if ( strcmp ( CommentSB(), "" ) )
 	{
@@ -1515,6 +1577,10 @@ void					Translation::AddToTree		( void *tc, void *parent, int changes )
 
 	sprintf ( buffer, "LEN    : %d", Len() );
 	tc->InsertItem ( buffer, item );
+		#else
+			// Qt build - AddToTree functionality not available (requires MFC CTreeCtrl)
+			// This function is stubbed for Qt builds
+		#endif  // !QT_WIDGETS_LIB
 	#endif  // _WIN32
 }
 

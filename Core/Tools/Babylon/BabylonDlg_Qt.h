@@ -1,17 +1,25 @@
 #pragma once
 
-#include <QDialog>
-#include <QProgressBar>
-#include <QLabel>
-#include <QComboBox>
-#include <QTextEdit>
-#include <QScrollBar>
+#include <QtWidgets/QDialog>
+#include <QtWidgets/QProgressBar>
+#include <QtWidgets/QLabel>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QTextEdit>
+#include <QtWidgets/QScrollBar>
+#include <QtCore/QObject>
 #include <string>
 
 namespace Ui {
     class BabylonDlg;
 }
 
+// Forward declarations to avoid circular dependencies
+class TransDB;
+class BabylonText;
+class BabylonLabel;
+// LangID is an enum defined in TransDB.h - we can't forward declare it easily
+// So we'll include TransDB.h here to get the enum definition
+// This is safe because TransDB.h only forward declares CBabylonDlg, not the full class
 #include "TransDB.h"
 
 typedef enum

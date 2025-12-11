@@ -23,11 +23,8 @@
 
 #pragma once
 
-#ifdef _WIN32
-    #include "BabylonDlg.h"  // Old MFC version - Windows only
-#else
-    #include "BabylonDlg_Qt.h"  // Qt version - cross-platform
-#endif
+// Use Qt version for both Windows and other platforms (migration complete)
+#include "BabylonDlg_Qt.h"
 typedef enum {
     xlAll = -4104,
     xlAutomatic = -4105,

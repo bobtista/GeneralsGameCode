@@ -20,10 +20,44 @@
 // transcs.cpp
 //
 // TheSuperHackers @refactor bobtista 01/01/2025 Replace StdAfx.h with PlatformTypes.h for cross-platform support
-#include "PlatformTypes.h"
+
+// Include Windows headers FIRST, before ANY other headers, to avoid conflicts
 #ifdef _WIN32
+    // Undefine any Qt-defined types that might conflict (in case Qt was included via other headers)
+    #ifdef SHORT
+    #undef SHORT
+    #endif
+    // Ensure we use ANSI functions, not Unicode
+    #ifdef UNICODE
+    #undef UNICODE
+    #endif
+    #ifdef _UNICODE
+    #undef _UNICODE
+    #endif
+    #ifndef NOMINMAX
+    #define NOMINMAX
+    #endif
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #endif
     #include <windows.h>
     #include <winnls.h>
+#endif
+
+// Now include our headers (which may include Qt headers)
+#include "PlatformTypes.h"
+
+// Undefine Windows macros that conflict with Qt (after Qt headers are included)
+#ifdef _WIN32
+    #ifdef connect
+    #undef connect
+    #endif
+    #ifdef SendMessage
+    #undef SendMessage
+    #endif
+    #ifdef GetMessage
+    #undef GetMessage
+    #endif
 #endif
 #include <cwchar>
 #include <cstring>

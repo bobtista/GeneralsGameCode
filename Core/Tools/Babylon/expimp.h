@@ -24,7 +24,8 @@
 
 #include "TransDB.h"
 #ifdef _WIN32
-    #include "BabylonDlg.h"  // Old MFC version - Windows only
+    // Use Qt version for both Windows and other platforms (migration complete)
+    #include "BabylonDlg_Qt.h"  // Qt version - cross-platform
 #else
     #include "BabylonDlg_Qt.h"  // Qt version - cross-platform
 #endif

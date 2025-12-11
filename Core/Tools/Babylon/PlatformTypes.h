@@ -61,14 +61,57 @@
 // Windows-specific types (only defined on Windows, stubbed elsewhere)
 #ifdef _WIN32
     // On Windows, use actual Windows types
-    #include <windows.h>
-    // OLECHAR is already defined by windows.h as wchar_t
-    #undef OLECHAR
+    // Prevent macro conflicts with Qt - Qt defines QT_VERSION when any Qt header is included
+    // Also check for Q_MOC_RUN (MOC processing) and Qt library macros
+    #if !defined(Q_MOC_RUN) && !defined(QT_VERSION) && !defined(QT_WIDGETS_LIB) && !defined(QT_GUI_LIB) && !defined(QT_CORE_LIB)
+        // No Qt detected - safe to include windows.h
+        // Prevent macro conflicts with Qt
+        #ifndef NOMINMAX
+        #define NOMINMAX
+        #endif
+        #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+        #endif
+        // Ensure we use ANSI functions, not Unicode
+        #ifdef UNICODE
+        #undef UNICODE
+        #endif
+        #ifdef _UNICODE
+        #undef _UNICODE
+        #endif
+        #include <windows.h>
+        // OLECHAR is already defined by windows.h as wchar_t
+        #undef OLECHAR
+    #else
+        // Qt is present or MOC is running - define Windows types manually to avoid conflicts
+        typedef unsigned short WORD;
+        typedef unsigned long DWORD;
+        typedef unsigned int UINT;
+        typedef long LONG;
+        // HWND is already defined by Qt's qwindowdefs_win.h when Qt headers are included
+        // Do NOT redefine it - Qt's definition takes precedence
+        // Only define BOOL if it's not already defined
+        #ifndef BOOL
+        typedef int BOOL;
+        #endif
+        // CALLBACK needs to be __stdcall for Windows callbacks, not empty
+        #ifndef CALLBACK
+        #define CALLBACK __stdcall
+        #endif
+        // Define Windows string types that might be needed
+        typedef char CHAR;
+        typedef wchar_t WCHAR;
+        typedef CHAR* LPCH;
+        typedef const CHAR* LPCCH;
+        typedef WCHAR* LPWCH;
+        typedef const WCHAR* LPCWCH;
+    #endif
     typedef wchar_t OLECHAR;  // Ensure it's wchar_t
 #else
     // Stub types for non-Windows platforms
     typedef void* HWND;
     typedef int BOOL;
+    typedef unsigned short WORD;
     typedef unsigned long DWORD;
     typedef unsigned int UINT;
     typedef long LONG;

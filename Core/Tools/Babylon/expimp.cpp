@@ -29,7 +29,11 @@
 #include "VerifyTextDlg_Qt.h"  // Use Qt version
 #include "Babylon_Qt.h"  // Use Qt version
 #include "expimp.h"
-#include <unistd.h>  // For getcwd (Unix) or direct.h (Windows)
+#ifdef _WIN32
+    #include <direct.h>  // For getcwd on Windows
+#else
+    #include <unistd.h>  // For getcwd on Unix
+#endif
 #ifdef _WIN32
     #include <direct.h>
 #endif

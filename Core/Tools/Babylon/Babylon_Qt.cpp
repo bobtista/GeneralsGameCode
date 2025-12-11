@@ -1,13 +1,50 @@
-#include "Babylon_Qt.h"
-#include "BabylonDlg_Qt.h"
-#include "XLStuff.h"
-#include <QApplication>
-#include <QMessageBox>
-#include <cstring>
+// Include Windows headers FIRST, before Qt, to avoid conflicts
 #ifdef _WIN32
+    // Undefine any Qt-defined types that might conflict
+    #ifdef SHORT
+    #undef SHORT
+    #endif
+    // Ensure we use ANSI functions, not Unicode
+    #ifdef UNICODE
+    #undef UNICODE
+    #endif
+    #ifdef _UNICODE
+    #undef _UNICODE
+    #endif
+    #ifndef NOMINMAX
+    #define NOMINMAX
+    #endif
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <windows.h>
     #include <direct.h>
 #else
     #include <unistd.h>
+#endif
+
+// Now include Qt headers - they should be safe after windows.h
+#include <QApplication>
+#include <QMessageBox>
+#include <cstring>
+
+// Include our headers
+#include "Babylon_Qt.h"
+#include "BabylonDlg_Qt.h"
+#include "XLStuff.h"
+#include "PlatformTypes.h"  // For Windows types and CALLBACK
+
+// Undefine Windows macros that conflict with Qt
+#ifdef _WIN32
+    #ifdef connect
+    #undef connect
+    #endif
+    #ifdef SendMessage
+    #undef SendMessage
+    #endif
+    #ifdef GetMessage
+    #undef GetMessage
+    #endif
 #endif
 
 char AppTitle[200];
@@ -25,7 +62,9 @@ int ViewChanges = FALSE;
 static const char* AppName = "Babylon:";
 static HWND FoundWindow = NULL;
 
+#ifdef _WIN32
 static BOOL CALLBACK EnumAllWindowsProcExact(HWND hWnd, LPARAM lParam);
+#endif
 static const char* szSearchTitle;
 
 static int AlreadyRunning(void)
@@ -52,11 +91,12 @@ int main(int argc, char* argv[])
 {
 	QApplication app(argc, argv);
 	
+	// OLE initialization is MFC-specific - skip for Qt build
+	// Excel COM integration will be stubbed/disabled in Qt version
 #ifdef _WIN32
-	if (!AfxOleInit()) {
-		QMessageBox::critical(nullptr, "Error", "OLE initialization failed");
-		return 1;
-	}
+	// For Qt build, we don't use MFC's AfxOleInit
+	// If Excel integration is needed, use CoInitialize/CoUninitialize instead
+	// But for now, Excel integration is disabled in Qt build
 #endif
 	
 	MainDB = new TransDB("Main");
@@ -113,15 +153,15 @@ int main(int argc, char* argv[])
 		// On non-Windows, always show the dialog (Excel integration not available)
 		{
 	#endif
-		CBabylonDlg dlg;
-		MainDLG = &dlg;
-		
-		dlg.exec();
-		
-		#ifdef _WIN32
-			CloseExcel();
-		#endif
-	}
+			CBabylonDlg dlg;
+			MainDLG = &dlg;
+			
+			dlg.exec();
+			
+			#ifdef _WIN32
+				CloseExcel();
+			#endif
+		}
 	
 	delete BabylonstrDB;
 	delete MainDB;
@@ -133,7 +173,11 @@ int main(int argc, char* argv[])
 static BOOL CALLBACK EnumAllWindowsProcExact(HWND hWnd, LPARAM lParam)
 {
 	char windowTitle[256];
-	if (GetWindowText(hWnd, windowTitle, sizeof(windowTitle))) {
+	// Use GetWindowTextA for ANSI strings
+	// GetWindowTextA is defined in winuser.h (included via windows.h)
+	// LPSTR is char* - the array decays to pointer, so this should work
+	int textLen = GetWindowTextA(hWnd, (LPSTR)windowTitle, sizeof(windowTitle));
+	if (textLen > 0) {
 		if (strstr(windowTitle, szSearchTitle)) {
 			FoundWindow = hWnd;
 			*(BOOL*)lParam = TRUE;
@@ -143,5 +187,3 @@ static BOOL CALLBACK EnumAllWindowsProcExact(HWND hWnd, LPARAM lParam)
 	return TRUE;
 }
 #endif
-
-

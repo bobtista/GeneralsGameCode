@@ -1,5 +1,34 @@
+// Include Qt headers first to ensure they're available
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QPushButton>
+#include <QtWidgets/QComboBox>
+#include <QtWidgets/QTextEdit>
+#include <QtWidgets/QProgressBar>
+#include <QtWidgets/QLabel>
+#include <QtCore/QObject>
+
+// Include our header FIRST (before any other project headers that might break Qt)
+// This ensures the class definition is complete
 #include "BabylonDlg_Qt.h"
 #include "ui_BabylonDlg.h"
+
+// Now include other headers (which might pull in Windows headers, but Qt is already included)
+// Undefine Windows macros that conflict with Qt before including other headers
+#ifdef _WIN32
+    // Windows Sockets API defines 'connect' as a macro, which conflicts with Qt's connect()
+    #ifdef connect
+    #undef connect
+    #endif
+    // Other Windows macros that might conflict
+    #ifdef SendMessage
+    #undef SendMessage
+    #endif
+    #ifdef GetMessage
+    #undef GetMessage
+    #endif
+#endif
+
+#include "TransDB.h"
 #include "VIEWDBSII_Qt.h"
 #include "VerifyDlg_Qt.h"
 #include "ExportDlg_Qt.h"
@@ -9,25 +38,24 @@
 #include "MatchDlg_Qt.h"
 #include "RetranslateDlg_Qt.h"
 #include "ProceedDlg_Qt.h"
-#include "TransDB.h"
 #include "XLStuff.h"
 #include "fileops.h"
 #include "expimp.h"
 #include "loadsave.h"
 #include "transcs.h"
-#include <QCloseEvent>
-#include <QDragEnterEvent>
-#include <QDropEvent>
-#include <QPaintEvent>
-#include <QMessageBox>
-#include <QApplication>
-#include <QDateTime>
-#include <QFile>
-#include <QFileDialog>
-#include <QTextStream>
-#include <QTimer>
-#include <QMimeData>
-#include <QUrl>
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QMessageBox>
+#include <QtWidgets/QFileDialog>
+#include <QtCore/QDateTime>
+#include <QtCore/QFile>
+#include <QtCore/QTextStream>
+#include <QtCore/QTimer>
+#include <QtCore/QUrl>
+#include <QtGui/QCloseEvent>
+#include <QtGui/QDragEnterEvent>
+#include <QtGui/QDropEvent>
+#include <QtGui/QPaintEvent>
+#include <QtCore/QMimeData>
 #include <cstdio>
 #include <ctime>
 #include <cstring>
@@ -77,7 +105,7 @@ CBabylonDlg::CBabylonDlg(QWidget* parent) :
 	connect(ui->resetButton, &QPushButton::clicked, this, &CBabylonDlg::onReset);
 	connect(ui->sentButton, &QPushButton::clicked, this, &CBabylonDlg::onSent);
 	connect(ui->langComboBox, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &CBabylonDlg::onSelchangeCombolang);
-	connect(ui->langComboBox, &QComboBox::activated, this, &CBabylonDlg::onDblclkCombolang);
+	connect(ui->langComboBox, static_cast<void(QComboBox::*)(int)>(&QComboBox::activated), this, &CBabylonDlg::onDblclkCombolang);
 	
 	ui->logTextEdit->setReadOnly(true);
 	ui->progressBar->setRange(0, 100);

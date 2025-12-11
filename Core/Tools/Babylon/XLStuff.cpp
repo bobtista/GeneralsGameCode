@@ -21,23 +21,70 @@
 //
 //
 // TheSuperHackers @refactor bobtista 01/01/2025 XLStuff is Windows-only (Excel integration)
-// Keep StdAfx.h for Windows, but guard the entire file
+// Use PlatformTypes.h instead of StdAfx.h to avoid MFC conflicts with Qt
+
+// Include Windows headers FIRST, before ANY other headers, to avoid conflicts
 #ifdef _WIN32
-    #include "StdAfx.h"
-    #include "Babylon.h"
+    // Undefine any Qt-defined types that might conflict (in case Qt was included via other headers)
+    #ifdef SHORT
+    #undef SHORT
+    #endif
+    // Ensure we use ANSI functions, not Unicode
+    #ifdef UNICODE
+    #undef UNICODE
+    #endif
+    #ifdef _UNICODE
+    #undef _UNICODE
+    #endif
+    #ifndef NOMINMAX
+    #define NOMINMAX
+    #endif
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <windows.h>
+#endif
+
+// Now include our headers (which may include Qt headers)
+#include "PlatformTypes.h"
+#ifdef _WIN32
+    #include <comdef.h>
+    #include <ole2.h>
+    #include "Babylon_Qt.h"  // Use Qt version, not MFC version
     #include "resource.h"
+    
+    // Excel COM integration requires MFC - forward declare for Qt build
+    // (Excel functionality will be stubbed/disabled in Qt version)
+    class _Workbook;
+    class _Application;
+    class Workbooks;
+    class Range;
+    class _Worksheet;
 #else
     // Stub implementation for non-Windows
-    #include "PlatformTypes.h"
     #include "Babylon_Qt.h"
     // Excel integration not available on non-Windows
     // Stub implementations are provided at the end of the file
+#endif
+
+// Undefine Windows macros that conflict with Qt (after Qt headers are included)
+#ifdef _WIN32
+    #ifdef connect
+    #undef connect
+    #endif
+    #ifdef SendMessage
+    #undef SendMessage
+    #endif
+    #ifdef GetMessage
+    #undef GetMessage
+    #endif
 #endif
 #include <stdio.h>
 #include "XLStuff.h"
 #include <assert.h>
 #ifdef _WIN32
     #include <comdef.h>  // Windows COM definitions
+    // excel8.h requires MFC - forward declarations used instead (see above)
 #else
     // COM not available on non-Windows platforms
     // Stub definitions for _com_error if needed
@@ -52,10 +99,14 @@
 
 #ifdef _WIN32
     // Windows Excel COM integration implementation
+    // Note: Excel functionality requires MFC - skip for Qt build
+    #ifndef QT_WIDGETS_LIB
+        // MFC build - full Excel COM integration available
     static const int xlWorkbookNormal = -4143;
 static const int xlNoChange = 1;
 static const int xlLocalSessionChanges = 2;
 static const int xlWBATWorksheet = -4167;
+// Excel COM objects - forward declared for Qt build (Excel functionality requires MFC)
 static _Workbook *workbook = NULL;
 static _Application *xl = NULL;
 static Workbooks *wbs = NULL;
@@ -162,9 +213,15 @@ int PutCell ( int row, int column, const OLECHAR *string, int val )
 		V_I4 ( &newValue ) = val;
 	}
 
-	range->SetValue ( newValue );
-	range->ReleaseDispatch ( );
-	ok = TRUE;
+	// Excel COM integration requires MFC - stub for Qt build
+	#ifdef QT_WIDGETS_LIB
+		// Qt build - Excel functionality not available
+		ok = FALSE;  // Indicate failure since Excel isn't available
+	#else
+		range->SetValue ( newValue );
+		range->ReleaseDispatch ( );
+		ok = TRUE;
+	#endif
 
 error:
 
@@ -678,7 +735,25 @@ int GetString ( int row, int cell, OLECHAR *string )
 	return 1;
 
 }
-
+    #else
+        // Qt build on Windows - Excel functionality not available (requires MFC)
+        // Stub implementations for functions that would use Excel COM
+        int OpenExcel(void) { return FALSE; }
+        void CloseExcel(void) {}
+        int NewWorkBook(const char* path) { return FALSE; }
+        int SaveWorkBook(const char* filename, int protect) { return FALSE; }
+        int OpenWorkBook(const char* filename) { return FALSE; }
+        void CloseWorkBook(void) {}
+        int PutCell(int row, int column, const OLECHAR* string, int val) { return FALSE; }
+        int PutSeparator(int row) { return FALSE; }
+        int PutSection(int row, const OLECHAR* title) { return FALSE; }
+        void SelectActiveSheet(void) {}
+        int GetInt(int row, int cell) { return 0; }
+        int GetString(int row, int cell, OLECHAR* buffer) {
+            if (buffer) buffer[0] = 0;
+            return FALSE;
+        }
+    #endif  // !QT_WIDGETS_LIB (end of MFC Excel code)
 #else
     // Stub implementations for non-Windows platforms
     // TheSuperHackers @refactor bobtista 01/01/2025 Excel integration is Windows-only

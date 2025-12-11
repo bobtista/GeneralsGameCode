@@ -28,7 +28,7 @@
 #include <cstring>
 #include <cassert>
 #ifdef _WIN32
-    #include "BabylonDlg.h"  // MFC version - Windows only
+    #include "BabylonDlg_Qt.h"  // Qt version - cross-platform
 #else
     #include "BabylonDlg_Qt.h"  // Qt version - cross-platform
 #endif

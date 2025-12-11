@@ -20,12 +20,23 @@
 // TheSuperHackers @refactor bobtista 01/01/2025 Excel integration is Windows-only
 
 #ifdef _WIN32
-    #include "StdAfx.h"  // Windows: Use original MFC headers for Excel COM integration
+    // Excel COM integration requires MFC - skip for Qt build
+    #ifndef QT_WIDGETS_LIB
+        // Use PlatformTypes.h instead of StdAfx.h to avoid MFC conflicts with Qt
+        #include "PlatformTypes.h"
+        #include <windows.h>
+        #include <comdef.h>
+        #include <ole2.h>
+        #include <afxdisp.h>  // MFC OLE dispatch driver
 
-    #ifdef RTS_DEBUG
-    #define new DEBUG_NEW
-    #undef THIS_FILE
-    static char THIS_FILE[] = __FILE__;
+        #ifdef RTS_DEBUG
+        #define new DEBUG_NEW
+        #undef THIS_FILE
+        static char THIS_FILE[] = __FILE__;
+        #endif
+    #else
+        // Qt build - stub Excel functionality
+        #include "PlatformTypes.h"
     #endif
 
 

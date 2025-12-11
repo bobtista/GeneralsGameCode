@@ -29,6 +29,12 @@
 
 class CBabylonDlg;
 
+// Forward declarations for MFC types (not available in Qt build)
+#ifdef _WIN32
+    class CTreeCtrl;
+    typedef void* HTREEITEM;
+#endif
+
 typedef struct
 {
 	int numdialog;
@@ -251,6 +257,7 @@ class BabylonText : public DBAttribs
 	void					SetRevision	( int new_rev )						{ revision = new_rev; Changed(); } ;
 	void					IncRevision ( void )									{ revision++; Changed(); };
 	#ifdef _WIN32
+		// Forward declarations already added above
 		void					AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes = FALSE );
 	#else
 		// Stub for non-Windows (tree control not available)
@@ -338,6 +345,7 @@ class BabylonLabel : public DBAttribs
 	char*					ListenerSB	( void )									{ return listener->GetSB(); };
 
 	#ifdef _WIN32
+		// Forward declarations already added above
 		void					AddToTree		( CTreeCtrl *tc, HTREEITEM parent, int changes = FALSE );
 	#else
 		// Stub for non-Windows (tree control not available)

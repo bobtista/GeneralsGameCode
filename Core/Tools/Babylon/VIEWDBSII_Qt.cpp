@@ -1,11 +1,15 @@
+// Include Qt headers first to avoid Windows header conflicts
+#include <QtWidgets/QDialog>
+#include <QtWidgets/QTreeWidget>
+#include <QtWidgets/QVBoxLayout>
+#include <QtWidgets/QTreeWidgetItem>
+#include <QtWidgets/QHeaderView>
+#include <QtGui/QCloseEvent>
+
 #include "VIEWDBSII_Qt.h"
 #include "TransDB.h"
 #include "BabylonDlg_Qt.h"
 #include "list.h"
-#include <QCloseEvent>
-#include <QVBoxLayout>
-#include <QTreeWidgetItem>
-#include <QHeaderView>
 
 extern int ViewChanges;
 extern TransDB* MainDB;
