@@ -23,8 +23,15 @@
 
 #pragma once
 
+// TheSuperHackers @refactor bobtista 01/01/2025 StdAfx.h is MFC-only - stub for Qt builds
+// Check if we're building for Qt by checking if Qt headers are available
+#if defined(QT_VERSION) || defined(QT_WIDGETS_LIB) || defined(QT_GUI_LIB) || defined(QT_CORE_LIB)
+// Qt build - stub always.h and MFC headers
+// always.h is a game engine header - not available in Core build
+// MFC headers not needed for Qt build
+#else
+// MFC build - include full headers
 #define VC_EXTRALEAN		// Exclude rarely-used stuff from Windows headers
-
 #include "always.h"
 
 // TheSuperHackers @build jlallas384 05/04/2025 Prevent afxwin.h from loading d3d9types.h, colliding with our own DirectX library.
@@ -35,6 +42,7 @@
 #ifndef _AFX_NO_AFXCMN_SUPPORT
 #include <afxcmn.h>			// MFC support for Windows Common Controls
 #endif // _AFX_NO_AFXCMN_SUPPORT
+#endif
 
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Developer Studio will insert additional declarations immediately before the previous line.

@@ -20,6 +20,36 @@
 
 // RestrictedFileDialog.h : header file
 //
+// TheSuperHackers @refactor bobtista 01/01/2025 Stub for Qt build (MFC CFileDialog not available)
+
+// Forward declarations for MFC types (not available in Qt build)
+class CFileDialog {};
+class CWnd {};
+#ifndef BOOL
+typedef int BOOL;
+#endif
+#ifndef LPCTSTR
+typedef const char* LPCTSTR;
+#endif
+#ifndef DWORD
+typedef unsigned long DWORD;
+#endif
+#ifndef OFN_HIDEREADONLY
+#define OFN_HIDEREADONLY 0
+#endif
+#ifndef OFN_OVERWRITEPROMPT
+#define OFN_OVERWRITEPROMPT 0
+#endif
+#ifndef DECLARE_DYNAMIC
+#define DECLARE_DYNAMIC(x)
+#endif
+#ifndef DECLARE_MESSAGE_MAP
+#define DECLARE_MESSAGE_MAP()
+#endif
+#ifndef CString
+#include <QString>
+typedef QString CString;
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 // RestrictedFileDialogClass dialog
