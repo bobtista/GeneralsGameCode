@@ -232,7 +232,7 @@ ParameterClass::Set_Name (const char *new_name)
 inline const char *
 ParameterClass::Get_Units_Name (void) const
 {
-	return m_UnitsName;
+	return (const char*)m_UnitsName.str();  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -327,10 +327,10 @@ public:
 	virtual void			Copy_Value (const ParameterClass &src);
 
 	virtual void			Set_Extension (const char *extension)	{ m_Extension = extension; }
-	virtual const char *	Get_Extension (void) const					{ return m_Extension; }
+	virtual const char *	Get_Extension (void) const					{ return (const char*)m_Extension.str(); }  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 
 	virtual void			Set_Description (const char *desc)		{ m_Description = desc; }
-	virtual const char *	Get_Description (void) const				{ return m_Description; }
+	virtual const char *	Get_Description (void) const				{ return (const char*)m_Description.str(); }  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 
 protected:
 
@@ -449,7 +449,7 @@ public:
 	virtual void __cdecl		Add_Values (const char *first_name, int first_value, ...);
 	virtual void				Add_Value (const char *display_name, int value);
 	virtual int					Get_Count (void) const					{ return m_List.Count (); }
-	virtual const char *		Get_Entry_Name (int index) const		{ return m_List[index].name; }
+	virtual const char *		Get_Entry_Name (int index) const		{ return (const char*)m_List[index].name.str(); }  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 	virtual int					Get_Entry_Value (int index) const	{ return m_List[index].value; }
 
 	virtual void				Set_Selected_Value (int value)	{ (*m_Value) = value; Set_Modified (); }
@@ -516,7 +516,7 @@ public:
 	virtual void				Set_Value (int id)						{ (*m_Value) = id; Set_Modified (); }
 	virtual int					Get_Value (void) const					{ return (*m_Value); }
 	virtual void				Set_Base_Class (const char *name)	{ m_BaseClass = name; }
-	virtual const char *		Get_Base_Class (void) const			{ return m_BaseClass; }
+	virtual const char *		Get_Base_Class (void) const			{ return (const char*)m_BaseClass.str(); }  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 
 	// Copy methods
 	virtual void				Copy_Value (const ParameterClass &src);
@@ -566,7 +566,7 @@ public:
 	virtual void				Set_Value (int id)						{ (*m_Value) = id; Set_Modified (); }
 	virtual int					Get_Value (void) const					{ return (*m_Value); }
 	virtual void				Set_Base_Class (const char *name)	{ m_BaseClass = name; }
-	virtual const char *		Get_Base_Class (void) const			{ return m_BaseClass; }
+	virtual const char *		Get_Base_Class (void) const			{ return (const char*)m_BaseClass.str(); }  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 
 	// Copy methods
 	virtual void				Copy_Value (const ParameterClass &src);
@@ -707,7 +707,7 @@ public:
 
 	// Data manipulation
 	virtual void				Set_Base_Class (const char *name)	{ m_BaseClass = name; Set_Modified (); }
-	virtual const char *		Get_Base_Class (void) const			{ return m_BaseClass; }
+	virtual const char *		Get_Base_Class (void) const			{ return (const char*)m_BaseClass.str(); }  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 
 	// Copy methods
 	virtual void				Copy_Value (const ParameterClass &src);
@@ -896,9 +896,9 @@ public:
 
 	// Data manipulation
 	virtual void				Set_Script_Name (const char *name)	{ (*m_ScriptName) = name; Set_Modified (); }
-	virtual const char *		Get_Script_Name (void) const			{ return (*m_ScriptName); }
+	virtual const char *		Get_Script_Name (void) const			{ return (const char*)(*m_ScriptName).str(); }  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 	virtual void				Set_Params (const char *params)		{ (*m_ScriptParams) = params; Set_Modified (); }
-	virtual const char *		Get_Params (void) const					{ return (*m_ScriptParams); }
+	virtual const char *		Get_Params (void) const					{ return (const char*)(*m_ScriptParams).str(); }  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 
 	// Copy methods
 	virtual void				Copy_Value (const ParameterClass &src);
