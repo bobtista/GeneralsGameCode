@@ -27,6 +27,7 @@
 #include <QApplication>
 #include <QMessageBox>
 #include <cstring>
+#include <cctype>  // For tolower
 
 // Include our headers
 #include "Babylon_Qt.h"
@@ -119,7 +120,11 @@ int main(int argc, char* argv[])
 		}
 	#endif
 	#ifdef _WIN32
-		strlwr(RootPath);
+		// TheSuperHackers @refactor bobtista 01/01/2025 strlwr is Microsoft-specific, use _strlwr_s or manual conversion
+		// Convert to lowercase manually for portability
+		for (char* p = RootPath; *p; ++p) {
+			*p = tolower(*p);
+		}
 		strcpy(BabylonstrFilename, RootPath);
 		strcat(BabylonstrFilename, "\\Data\\Generals.str");
 		strcpy(MainXLSFilename, RootPath);
