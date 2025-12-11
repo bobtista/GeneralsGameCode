@@ -126,10 +126,15 @@ static inline uint64_t _rdtsc()
     #elif __has_builtin(__builtin_trap)
     #define __debugbreak() __builtin_trap()
     #else
-    #error "No implementation for __debugbreak"
+    #define __debugbreak() ((void)0)  // Fallback: no-op if no debug break available
     #endif
 #elif !defined(_MSC_VER)
-#error "No implementation for __debugbreak"
+    // For non-MSVC compilers, provide a fallback
+    #ifdef __GNUC__
+        #define __debugbreak() __builtin_trap()
+    #else
+        #define __debugbreak() ((void)0)  // Fallback: no-op if no debug break available
+    #endif
 #endif
 
 #ifndef cpuid

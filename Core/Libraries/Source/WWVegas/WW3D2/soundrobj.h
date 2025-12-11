@@ -102,7 +102,7 @@ public:
 	//
 	RenderObjClass *	Clone (void) const					{ return W3DNEW SoundRenderObjClass (*this); }
 	int					Class_ID (void) const				{ return CLASSID_SOUND; }
-	const char *		Get_Name (void) const				{ return Name; }
+	const char *		Get_Name (void) const				{ return (const char*)Name.str(); }  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 	void					Set_Name (const char *name)		{ Name = name; }
 	void					Render (RenderInfoClass &rinfo)	{ }
 	void					On_Frame_Update (void);
@@ -178,7 +178,7 @@ public:
 	RenderObjClass *				Create (void);
 	WW3DErrorType					Load_W3D (ChunkLoadClass &cload);
 	WW3DErrorType					Save_W3D (ChunkSaveClass &csave);
-	const char *					Get_Name (void) const					{ return Name; }
+	const char *					Get_Name (void) const					{ return (const char*)Name.str(); }  // TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast to convert StringClass to const char* (assumes ANSI build)
 	void								Set_Name (const char *name)			{ Name = name; }
 	SoundRenderObjDefClass *	Clone (void) const						{ return NEW_REF( SoundRenderObjDefClass, (*this) ); }
 
