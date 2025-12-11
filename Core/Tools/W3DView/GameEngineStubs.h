@@ -1,8 +1,7 @@
 #pragma once
 
-// TheSuperHackers @refactor bobtista 01/01/2025 Stub header for game engine types on non-Windows platforms
-
-#ifndef _WIN32
+// TheSuperHackers @refactor bobtista 01/01/2025 Stub header for game engine types
+// Include on all platforms for Core build (Windows game engine headers not available in Core)
 
 #include <string>  // For std::string and StringClass
 
@@ -132,7 +131,7 @@ public:
 typedef std::string StringClass;  // Added for AnimatedSoundOptionsDialog_Qt.cpp
 class WWFileClass {};
 class ChunkIOClass {};
-class RestrictedFileDialogClass {};
+// RestrictedFileDialogClass is defined in RestrictedFileDialog.h - don't redefine here
 class AudibleSoundClass {
 public:
     void Set_Volume(float vol) {}
@@ -330,6 +329,4 @@ template<typename T> struct ParticlePropertyStruct {
 #ifndef ASSERT
 #define ASSERT(x) ((void)0)
 #endif
-
-#endif  // _WIN32
 
