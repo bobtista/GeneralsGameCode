@@ -119,4 +119,22 @@ target_link_libraries(core_babylon PRIVATE
 
 if(WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows")
     target_sources(core_babylon PRIVATE Babylon.rc)
+    
+    # TheSuperHackers @refactor bobtista 01/01/2025 Copy Qt platform plugins to output directory
+    # Qt applications require platform plugins (qwindows.dll) in a 'platforms' subdirectory
+    if(TARGET core_qt)
+        add_custom_command(TARGET core_babylon POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "$<TARGET_FILE_DIR:core_babylon>/platforms"
+            COMMENT "Creating platforms directory for Qt plugins"
+        )
+        
+        # Copy the Windows platform plugin (required for Qt applications on Windows)
+        add_custom_command(TARGET core_babylon POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<IF:$<CONFIG:Debug>,${CMAKE_BINARY_DIR}/vcpkg_installed/x86-windows/debug/Qt6/plugins/platforms/qwindowsd.dll,${CMAKE_BINARY_DIR}/vcpkg_installed/x86-windows/Qt6/plugins/platforms/qwindows.dll>"
+                "$<TARGET_FILE_DIR:core_babylon>/platforms/$<IF:$<CONFIG:Debug>,qwindowsd.dll,qwindows.dll>"
+            COMMENT "Copying Qt Windows platform plugin"
+        )
+    endif()
 endif()
