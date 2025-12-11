@@ -55,7 +55,13 @@ public:
 	MissingAnimClass( const char * name ) : Name( name ) {}
 	virtual	~MissingAnimClass( void ) {}
 
-	virtual	const char * Get_Key( void )	{ return Name;	}
+	virtual	const char * Get_Key( void )	{ 
+		// TheSuperHackers @refactor bobtista 01/01/2025 Use reinterpret_cast for MSVC 2022 compatibility
+		// The constructor takes const char*, so we assume ANSI build (TCHAR = char)
+		// In ANSI builds, TCHAR* is char*, so this cast is safe
+		// If building in Unicode mode, this would need proper conversion (WideCharToMultiByte)
+		return reinterpret_cast<const char*>(Name.str());	
+	}
 
 private:
 	StringClass	Name;

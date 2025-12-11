@@ -116,7 +116,7 @@ public:
 
 	const char *		Get_Name(void) const
 	{
-		return Name;
+		return (const char*)Name.str();	// TheSuperHackers @refactor bobtista 01/01/2025 Use str() and cast for MSVC 2022 compatibility (TCHAR* to char* in ANSI builds)
 	}
 
 	/*

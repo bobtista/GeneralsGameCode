@@ -2059,6 +2059,14 @@ int HLodClass::Get_Proxy_Count(void) const
  * HISTORY:                                                                                    *
  *   10/27/2000 gth : Created.                                                                 *
  *=============================================================================================*/
+// TheSuperHackers @refactor bobtista 01/01/2025 ProxyClass stub implementation (proxy.h was deleted)
+// Define ProxyClass here to avoid redefinition errors when hlod.h is included multiple times
+class ProxyClass {
+public:
+	void Set_Transform(const Matrix3D& transform) {}
+	void Set_Name(const char* name) {}
+};
+
 bool HLodClass::Get_Proxy (int index, ProxyClass &proxy) const
 {
 	bool retval = false;

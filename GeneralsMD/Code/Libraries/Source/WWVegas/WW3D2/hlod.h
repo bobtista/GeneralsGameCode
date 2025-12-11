@@ -41,7 +41,10 @@
 #include "snapPts.h"
 #include "proto.h"
 #include "w3derr.h"
-#include "proxy.h"
+// #include "proxy.h"  // TheSuperHackers @refactor bobtista 01/01/2025 proxy.h was deleted - commented out
+// Forward declaration for ProxyClass (proxy.h was deleted)
+// Full definition moved to hlod.cpp to avoid redefinition errors
+class ProxyClass;
 
 
 class DistLODClass;
