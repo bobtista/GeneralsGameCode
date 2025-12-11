@@ -1,6 +1,7 @@
 #include "W3DViewDoc_Qt.h"
 #include "GraphicView_Qt.h"
 #include "DataTreeView_Qt.h"
+#include "GameEngineStubs.h"  // For Vector3 definition
 #include <cstring>
 
 CW3DViewDoc::CW3DViewDoc(QObject* parent) :
@@ -30,7 +31,12 @@ CW3DViewDoc::~CW3DViewDoc()
 
 void CW3DViewDoc::InitializeMembers()
 {
-	m_backgroundColor = Vector3(0.0f, 0.0f, 0.0f);
+	m_backgroundColor.x = 0.0f;
+	m_backgroundColor.y = 0.0f;
+	m_backgroundColor.z = 0.0f;
+	m_backgroundColor.X = 0.0f;
+	m_backgroundColor.Y = 0.0f;
+	m_backgroundColor.Z = 0.0f;
 	m_bCompress_channel_Q = false;
 	m_stringBackgroundBMP.clear();
 	m_stringBackgroundObject.clear();
@@ -160,7 +166,7 @@ void CW3DViewDoc::UpdateFrame(float time_slice)
 	emit SceneUpdated();
 }
 
-void CW3DViewDoc::SetBackgroundColor(const class Vector3& backgroundColor)
+void CW3DViewDoc::SetBackgroundColor(const Vector3& backgroundColor)
 {
 	m_backgroundColor = backgroundColor;
 	emit SceneUpdated();

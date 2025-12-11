@@ -42,17 +42,15 @@
 #include <cassert>
 #endif
 #include "ViewerScene.h"
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-#include "camera.h"
-#include "ww3d.h"
-#include "rendobj.h"
-#include "assetmgr.h"
-#include "rinfo.h"
-#include "lightenvironment.h"
-#else
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
 #include "GameEngineStubs.h"
-#endif
+// Game engine headers not available in Core build:
+// #include "camera.h"
+// #include "ww3d.h"
+// #include "rendobj.h"
+// #include "assetmgr.h"
+// #include "rinfo.h"
+// #include "lightenvironment.h"
 
 /*
 ** ViewerSceneIterator
@@ -319,20 +317,17 @@ void	ViewerSceneClass::Add_Render_Object(RenderObjClass * obj)
 	Recalculate_Fog_Planes();
 }
 
-#ifndef _WIN32
-// TheSuperHackers @refactor bobtista 01/01/2025 On non-Windows, ViewerSceneClass doesn't inherit from SceneClass, so we need Get_Fog_Range and Set_Fog_Range
 void ViewerSceneClass::Get_Fog_Range(float* near_range, float* far_range)
 {
-	// Stub implementation for non-Windows
 	if(near_range) *near_range = 0;
 	if(far_range) *far_range = 0;
 }
 
 void ViewerSceneClass::Set_Fog_Range(float near_range, float far_range)
 {
-	// Stub implementation for non-Windows
+	(void)near_range;
+	(void)far_range;
 }
-#endif
 
 void	ViewerSceneClass::Recalculate_Fog_Planes (void)
 {

@@ -2,10 +2,7 @@
 
 #include <QObject>
 #include <QString>
-
-#ifndef _WIN32
-#include "GameEngineStubs.h"
-#endif
+#include "GameEngineStubs.h"  // Include on all platforms for Vector3
 
 class CameraClass;
 class SceneClass;

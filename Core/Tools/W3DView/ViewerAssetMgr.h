@@ -36,19 +36,16 @@
 
 #pragma once
 
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-#include "assetmgr.h"
-#else
-#include <string>  // For std::string
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
 #include "GameEngineStubs.h"
-#include "Utils.h"  // For DynamicVectorClass
-// Additional stubs for ViewerAssetMgr (only if not already in GameEngineStubs.h)
+#include "Utils.h"  // For DynamicVectorClass and CString
+// Game engine headers not available in Core build:
+// #include "assetmgr.h"
+
+// Additional stubs for ViewerAssetMgr
 class FileClass {};
 typedef int MipCountType;
 #define MIP_LEVELS_ALL 0
-typedef std::string CString;
-#endif
 
 
 /////////////////////////////////////////////////////////////////////////////

@@ -37,8 +37,9 @@
 #pragma once
 
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
+#include "GameEngineStubs.h"
+#if 0  // Disabled - using stubs
 #include "scene.h"
 #include "aabox.h"
 #include "sphere.h"
@@ -53,12 +54,9 @@ class RenderObjIterator;
 //
 //	ViewerSceneClass
 //
-// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally inherit from game engine class
-#ifdef _WIN32
-class ViewerSceneClass : public SimpleSceneClass
-#else
-class ViewerSceneClass  // Don't inherit on non-Windows
-#endif
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
+// ViewerSceneClass inherits from SceneClass (stubbed in GameEngineStubs.h)
+class ViewerSceneClass : public SceneClass
 {
 	public:
 
@@ -103,11 +101,9 @@ class ViewerSceneClass  // Don't inherit on non-Windows
 #endif
 		void							Recalculate_Fog_Planes (void);
 		virtual SphereClass		Get_Bounding_Sphere (void);
-#ifndef _WIN32
-		// On non-Windows, ViewerSceneClass doesn't inherit from SceneClass, so we need Get_Fog_Range and Set_Fog_Range
+		// TheSuperHackers @refactor bobtista 01/01/2025 Stub implementations for Core build (SceneClass methods stubbed)
 		void							Get_Fog_Range(float* near_range, float* far_range);
 		void							Set_Fog_Range(float near_range, float far_range);
-#endif
 
 		//
 		// Line-Up list iteration
@@ -129,9 +125,8 @@ class ViewerSceneClass  // Don't inherit on non-Windows
 		bool							m_AllowLODSwitching;
 		RefRenderObjListClass<RenderObjClass>	LineUpList;
 		RefRenderObjListClass<RenderObjClass>	LightList;
-#ifndef _WIN32
-		// On non-Windows, ViewerSceneClass doesn't inherit from SimpleSceneClass, so we need RenderList and Visibility_Checked
+		// TheSuperHackers @refactor bobtista 01/01/2025 For Core build, ViewerSceneClass needs RenderList and Visibility_Checked
+		// (SceneClass methods are stubbed, so we need our own member variables)
 		RefRenderObjListClass<RenderObjClass>	RenderList;
 		bool							Visibility_Checked;
-#endif
 };

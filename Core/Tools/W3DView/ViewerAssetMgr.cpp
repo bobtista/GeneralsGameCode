@@ -45,12 +45,11 @@
 
 #include "ViewerAssetMgr.h"
 // TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
-#ifdef _WIN32
-#include "texture.h"
-#include "ww3d.h"
-#else
+// TheSuperHackers @refactor bobtista 01/01/2025 Use GameEngineStubs for all platforms (Core build)
 #include "GameEngineStubs.h"
-#endif
+// Game engine headers not available in Core build:
+// #include "texture.h"
+// #include "ww3d.h"
 #include "Utils.h"
 
 
