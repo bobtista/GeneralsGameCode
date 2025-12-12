@@ -231,7 +231,9 @@ CWorldBuilderApp::CWorldBuilderApp() :
 	m_tools[21] = &m_rampTool;
 	m_tools[22] = &m_scorchTool;
 	m_tools[23] = &m_borderTool;
+#ifndef RTS_BUILD_GENERALS
 	m_tools[24] = &m_rulerTool;
+#endif
 
 	// set up initial values.
 	m_brushTool.setHeight(16);

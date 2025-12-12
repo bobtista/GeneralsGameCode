@@ -184,11 +184,13 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (m_optionsPanelWidth < frameRect.Width()) m_optionsPanelWidth = frameRect.Width();
 	if (m_optionsPanelHeight < frameRect.Height()) m_optionsPanelHeight = frameRect.Height();
 
+#ifndef RTS_BUILD_GENERALS
 	m_rulerOptions.Create(IDD_RULER_OPTIONS, this);
 	m_rulerOptions.SetWindowPos(NULL, frameRect.left, frameRect.top,	0, 0, SWP_NOZORDER|SWP_NOSIZE);
 	m_rulerOptions.GetWindowRect(&frameRect);
 	if (m_optionsPanelWidth < frameRect.Width()) m_optionsPanelWidth = frameRect.Width();
 	if (m_optionsPanelHeight < frameRect.Height()) m_optionsPanelHeight = frameRect.Height();
+#endif
 
 	m_objectOptions.Create(IDD_OBJECT_OPTIONS, this);
 	m_objectOptions.SetWindowPos(NULL, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
@@ -385,7 +387,9 @@ void CMainFrame::showOptionsDialog(Int dialogID)
 		case IDD_MAPOBJECT_PROPS: newOptions = &m_mapObjectProps; break;
 		case IDD_ROAD_OPTIONS:newOptions  = &m_roadOptions; break;
 		case IDD_MOUND_OPTIONS:newOptions  = &m_moundOptions; break;
+#ifndef RTS_BUILD_GENERALS
 		case IDD_RULER_OPTIONS:newOptions  = &m_rulerOptions; break;
+#endif
 		case IDD_FEATHER_OPTIONS:newOptions  = &m_featherOptions; break;
 		case IDD_MESHMOLD_OPTIONS:newOptions  = &m_meshMoldOptions; break;
 		case IDD_WAYPOINT_OPTIONS:newOptions  = &m_waypointOptions; break;

@@ -45,7 +45,9 @@
 #include "CameraOptions.h"
 #include "ScorchOptions.h"
 #include "BuildList.h"
+#ifndef RTS_BUILD_GENERALS
 #include "RulerOptions.h"
+#endif
 
 #define TWO_D_WINDOW_SECTION "TwoDWindow"
 #define MAIN_FRAME_SECTION "MainFrame"
@@ -116,7 +118,9 @@ protected:  // control bar embedded members
 	CameraOptions				m_cameraOptions;
 	LayersList*					m_layersList;
 	ScriptDialog*				m_scriptDialog;
+#ifndef RTS_BUILD_GENERALS
 	RulerOptions				m_rulerOptions;
+#endif
 
 	CWnd							*m_curOptions;
 	Int								m_curOptionsX;

@@ -30,7 +30,9 @@
 #include "TeamGeneric.h"
 #include "TeamIdentity.h"
 #include "TeamReinforcement.h"
+#ifndef RTS_BUILD_GENERALS
 #include "TeamObjectProperties.h"
+#endif
 #include "WorldBuilderDoc.h"
 #include "CUndoable.h"
 #include "wbview3d.h"
@@ -309,13 +311,17 @@ void CTeamsDialog::OnEditTemplate()
 	TeamGeneric generic;
 	generic.setTeamDict(m_sides.getTeamInfo(m_curTeam)->getDict());
 
+#ifndef RTS_BUILD_GENERALS
 	TeamObjectProperties object(m_sides.getTeamInfo(m_curTeam)->getDict());
+#endif
 
 	editDialog.AddPage(&identity);
 	editDialog.AddPage(&reinforcements);
 	editDialog.AddPage(&behavior);
 	editDialog.AddPage(&generic);
+#ifndef RTS_BUILD_GENERALS
 	editDialog.AddPage(&object);
+#endif
 
 	if (IDOK == editDialog.DoModal()) {
 	}

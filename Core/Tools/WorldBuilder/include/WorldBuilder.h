@@ -51,7 +51,9 @@
 #include "BuildListTool.h"
 #include "RampTool.h"
 #include "ScorchTool.h"
+#ifndef RTS_BUILD_GENERALS
 #include "RulerTool.h"
+#endif
 #include "Common/Debug.h"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -94,7 +96,11 @@ public:
 
 protected:
 
+#ifdef RTS_BUILD_GENERALS
+	enum {NUM_VIEW_TOOLS=24};
+#else
 	enum {NUM_VIEW_TOOLS=25};
+#endif
 
 	Tool							*m_tools[NUM_VIEW_TOOLS]; ///< array of tool pointers.
 	Tool							*m_curTool;   ///< Currently active tool.
@@ -123,7 +129,9 @@ protected:
 	RampTool					m_rampTool;					///< Ramp tool.
 	ScorchTool				m_scorchTool;				///< Scorch tool.
 	BorderTool				m_borderTool;				///< Border tool.
+#ifndef RTS_BUILD_GENERALS
 	RulerTool					m_rulerTool;				///< Ruler tool.
+#endif
 
 	Int								m_lockCurTool;
 
