@@ -81,7 +81,11 @@ public:
 	Int freeMapResources(void);
 	int initData(void);
 
+#ifdef RTS_BUILD_GENERALS
+  void setDrawObjects(Bool val, Bool waypoints, Bool poly) { m_drawObjects = val; m_drawWaypoints=waypoints; m_drawPolygonAreas = poly;}
+#else
   void setDrawObjects(Bool val, Bool waypoints, Bool poly, Bool bounding, Bool sight, Bool weapon, Bool sound, Bool testart, Bool letterbox) { m_drawObjects = val; m_drawWaypoints=waypoints; m_drawPolygonAreas = poly; m_drawBoundingBoxes = bounding; m_drawSightRanges = sight; m_drawWeaponRanges = weapon; m_drawSoundRanges = sound; m_drawTestArtHighlight = testart, m_drawLetterbox = letterbox;}
+#endif
 	static void setDoBrushFeedback(Bool val) { m_toolWantsFeedback = val; m_meshFeedback=false;}
 	static void setDoMeshFeedback(Bool val) { m_meshFeedback = val; }
 	static void setDoRampFeedback(Bool val) { m_rampFeedback = val; }
@@ -126,12 +130,14 @@ protected:
 	Bool											m_drawObjects;
 	Bool											m_drawWaypoints;
 	Bool											m_drawPolygonAreas;
+#ifndef RTS_BUILD_GENERALS
 	Bool											m_drawBoundingBoxes;
 	Bool											m_drawSightRanges;
 	Bool											m_drawWeaponRanges;
   Bool                      m_drawSoundRanges;
 	Bool											m_drawTestArtHighlight;
 	Bool											m_drawLetterbox;
+#endif
 
 	DX8VertexBufferClass			*m_vertexFeedback;	///< Vertex buffer for brush feedback.
 	DX8IndexBufferClass				*m_indexFeedback;	///< indices defining a triangle strip for the feedback on terrain
@@ -167,7 +173,9 @@ protected: // static state vars.
 	static Real								m_rampWidth;
 
 protected:
+#ifndef RTS_BUILD_GENERALS
   void addCircleToLineRenderer( const Coord3D & center, Real radius, Real width, unsigned long color, CameraClass* camera );
+#endif
 	Int updateVB(DX8VertexBufferClass	*vertexBufferTile, Int color, Bool doArrow, Bool doDiamond);
 	void updatePolygonVB(PolygonTrigger *pTrig, Bool selected, Bool isOpen);
 	void updateFeedbackVB(void);
@@ -177,12 +185,14 @@ protected:
 	void updateForWater(void);
 	void updateBoundaryVB(void);
 	void updateAmbientSoundVB(void);
+#ifndef RTS_BUILD_GENERALS
 	void updateVBWithBoundingBox(MapObject *pMapObj, CameraClass* camera);
 	void updateVBWithSightRange(MapObject *pMapObj, CameraClass* camera);
 	void updateVBWithWeaponRange(MapObject *pMapObj, CameraClass* camera);
 	void updateVBWithTestArtHighlight(MapObject *pMapObj, CameraClass* camera);
   void updateVBWithSoundRanges(MapObject *pMapObj, CameraClass* camera);
 	bool worldToScreen(const Coord3D *w, ICoord2D *s, CameraClass* camera);
+#endif
 
 };
 
