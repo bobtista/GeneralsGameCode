@@ -128,6 +128,7 @@ void BorderTool::mouseDown(TTrackingMode m, CPoint viewPt, WbView* pView, CWorld
 
 	Coord3D groundPt;
 	pView->viewToDocCoords(viewPt, &groundPt);
+#ifndef RTS_BUILD_GENERALS
 	if (groundPt.length() < BOUNDARY_PICK_DISTANCE) {
 		m_addingNewBorder = true;
 
@@ -135,6 +136,7 @@ void BorderTool::mouseDown(TTrackingMode m, CPoint viewPt, WbView* pView, CWorld
 		pDoc->addBoundary(&initialBoundary);
 		return;
 	}
+#endif
 
 	Int motion;
 	pDoc->findBoundaryNear(&groundPt, BOUNDARY_PICK_DISTANCE, &m_modifyBorderNdx, &motion);
@@ -145,6 +147,7 @@ void BorderTool::mouseDown(TTrackingMode m, CPoint viewPt, WbView* pView, CWorld
 		// modifying the bottom left is not allowed.
 		m_modifyBorderNdx = -1;
 	}
+#ifndef RTS_BUILD_GENERALS
 	// else if no boundary is near
 	else if (motion == -1)
 	{
@@ -154,6 +157,7 @@ void BorderTool::mouseDown(TTrackingMode m, CPoint viewPt, WbView* pView, CWorld
 		ICoord2D initialBoundary = { 1, 1 };
 		pDoc->addBoundary(&initialBoundary);
 	}
+#endif
 	else
 	{
 		m_modificationType = (ModificationType) motion;
