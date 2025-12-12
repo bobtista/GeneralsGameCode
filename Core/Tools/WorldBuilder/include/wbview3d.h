@@ -130,6 +130,7 @@ protected:
 	afx_msg void OnUpdateViewPartialmapsize128x128(CCmdUI* pCmdUI);
 	afx_msg void OnViewShowModels();
 	afx_msg void OnUpdateViewShowModels(CCmdUI* pCmdUI);
+#ifndef RTS_BUILD_GENERALS
 	afx_msg void OnViewBoundingBoxes();
 	afx_msg void OnUpdateViewBoundingBoxes(CCmdUI* pCmdUI);
 	afx_msg void OnViewSightRanges();
@@ -140,6 +141,7 @@ protected:
 	afx_msg void OnUpdateHighlightTestArt(CCmdUI* pCmdUI);
 	afx_msg void OnShowLetterbox();
 	afx_msg void OnUpdateShowLetterbox(CCmdUI* pCmdUI);
+#endif
 	afx_msg void OnViewLayersList();
 	afx_msg void OnUpdateViewLayersList(CCmdUI* pCmdUI);
 	afx_msg void OnViewGarrisoned();
@@ -204,12 +206,14 @@ private:
 	Bool										m_showLayersList;	///< Flag whether the layers list is visible or not.
 	Bool										m_showMapBoundaries;	///< Flag whether to show all the map boundaries or not
 	Bool										m_showAmbientSounds;	///< Flag whether to show all the ambient sounds or not
+#ifndef RTS_BUILD_GENERALS
   Bool										m_showSoundCircles;	///< Flag whether to show the minimum and maximum radii of the ambient sounds attached to the selected object
 	Bool										m_showBoundingBoxes;
 	Bool										m_showSightRanges;
 	Bool										m_showWeaponRanges;
 	Bool										m_highlightTestArt;
 	Bool										m_showLetterbox;
+#endif
 
 
 	ID3DXFont*							m3DFont;
@@ -222,7 +226,9 @@ protected:
 	void init3dScene();
 	void initAssets();
 	void initWW3D();
+#ifndef RTS_BUILD_GENERALS
   void drawCircle( HDC hdc, const Coord3D & centerPoint, Real radius, COLORREF color );
+#endif
 	void drawLabels(HDC hdc);
 	void drawLabels(void);
 	void shutdownWW3D();
@@ -232,7 +238,9 @@ protected:
 	void updateHysteresis(void);
 	void updateLights();
 	void updateScorches();
+#ifndef RTS_BUILD_GENERALS
 	void updateTrees();
+#endif
 
 public:
 	virtual Bool viewToDocCoords(CPoint curPt, Coord3D *newPt, Bool constrain=true);
@@ -260,7 +268,9 @@ public:
 	virtual void pitchCamera(Real delta);
 	void setCameraPitch(Real absolutePitch);
 	Real getCameraPitch(void);
+#ifndef RTS_BUILD_GENERALS
 	Real getCurrentZoom(void); //WST 10/17/2002
+#endif
 	Real getHeightAboveGround(void) { return m_actualHeightAboveGround; }
 	Vector3 getCameraSource(void) { return m_cameraSource; }
 	Vector3 getCameraTarget(void) { return m_cameraTarget; }
@@ -305,6 +315,7 @@ public:
 
 	void togglePitchAndRotation( void ) { m_doPitch = !m_doPitch; }
 	virtual Bool isDoingPitch( void ) { return m_doPitch; }
+#ifndef RTS_BUILD_GENERALS
 	void setShowBoundingBoxes(Bool toggle) {m_showBoundingBoxes = toggle;}
 	Bool getShowBoundingBoxes(void) { return m_showBoundingBoxes;}
 	void setShowSightRanges(Bool toggle) {m_showSightRanges = toggle;}
@@ -315,6 +326,7 @@ public:
 	Bool getHighlightTestArt(void) { return m_highlightTestArt;}
 	void setShowLetterbox(Bool toggle) {m_showLetterbox = toggle;}
 	Bool getShowLetterbox(void) { return m_showLetterbox;}
+#endif
 };
 
 inline UINT WbView3d::getLastDrawTime() { return m_time; }
