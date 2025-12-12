@@ -18,35 +18,24 @@
 
 #pragma once
 
-// Declared extern C to prevent name mangling, which makes life very unhappy
+// TheSuperHackers @refactor bobtista 01/01/2025 Cross-platform export declarations
+
+#ifdef _WIN32
+	#define DEBUGWINDOW_EXPORT __declspec(dllexport)
+#else
+	#define DEBUGWINDOW_EXPORT __attribute__((visibility("default")))
+#endif
+
 extern "C" {
-	// Called to create the dialog
-	void __declspec(dllexport) CreateDebugDialog(void);
-
-	// Called to (not surprisingly) destroy the dialog (and free the resources)
-	void __declspec(dllexport) DestroyDebugDialog(void);
-
-	// Call this each frame to determine whether to continue or not
-	bool __declspec(dllexport) CanAppContinue(void);
-
-	// Call this to force the app to continue. (Unpause if necessary.)
-	void __declspec(dllexport) ForceAppContinue(void);
-
-	// Call this to tell the app to run really fast
-	bool __declspec(dllexport) RunAppFast(void);
-
-	// Call this to add a message to the script window
-	void __declspec(dllexport) AppendMessage(const char* messageToPass);
-
-	// Call this to set the frame number of the app
-	void __declspec(dllexport) SetFrameNumber(int frameNumber);
-
-	// Call this to add a message, and simulate pressing Pause immediately after
-	void __declspec(dllexport) AppendMessageAndPause(const char* messageToPass);
-
-	// Call this to add or update a variable value
-	void __declspec(dllexport) AdjustVariable(const char* variable, const char* value);
-
-	// Call this to add or update a variable value, and simulate pressing Pause immediately after
-	void __declspec(dllexport) AdjustVariableAndPause(const char* variable, const char* value);
+	void DEBUGWINDOW_EXPORT CreateDebugDialog(void);
+	void DEBUGWINDOW_EXPORT DestroyDebugDialog(void);
+	bool DEBUGWINDOW_EXPORT CanAppContinue(void);
+	bool DEBUGWINDOW_EXPORT IsPaused(void);
+	void DEBUGWINDOW_EXPORT ForceAppContinue(void);
+	bool DEBUGWINDOW_EXPORT RunAppFast(void);
+	void DEBUGWINDOW_EXPORT AppendMessage(const char* messageToPass);
+	void DEBUGWINDOW_EXPORT SetFrameNumber(int frameNumber);
+	void DEBUGWINDOW_EXPORT AppendMessageAndPause(const char* messageToPass);
+	void DEBUGWINDOW_EXPORT AdjustVariable(const char* variable, const char* value);
+	void DEBUGWINDOW_EXPORT AdjustVariableAndPause(const char* variable, const char* value);
 }
