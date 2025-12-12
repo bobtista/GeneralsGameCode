@@ -32,9 +32,17 @@
 
 #pragma once
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "Vector.h"
 #include "part_ldr.h"
 #include "part_emt.h"
+#else
+#include "GameEngineStubs.h"
+#include "Utils.h"  // For DynamicVectorClass
+// Stubs for particle types (only if not already in GameEngineStubs.h)
+class ParticleLoaderClass {};
+#endif
 
 
 /////////////////////////////////////////////////////////////////////

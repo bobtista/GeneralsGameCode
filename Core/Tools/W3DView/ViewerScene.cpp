@@ -35,15 +35,24 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
+#ifdef _WIN32
 #include "StdAfx.h"
+#else
+#include <cassert>
+#endif
 #include "ViewerScene.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "camera.h"
 #include "ww3d.h"
-
 #include "rendobj.h"
 #include "assetmgr.h"
 #include "rinfo.h"
 #include "lightenvironment.h"
+#else
+#include "GameEngineStubs.h"
+#endif
 
 /*
 ** ViewerSceneIterator
@@ -60,14 +69,14 @@ public:
 
 protected:
 
-	ViewerSceneIterator(RefRenderObjListClass * renderlist);
+	ViewerSceneIterator(RefRenderObjListClass<RenderObjClass> * renderlist);
 
-	RefRenderObjListIterator	RobjIterator;
+	RefRenderObjListIterator<RenderObjClass>	RobjIterator;
 
 	friend class ViewerSceneClass;
 };
 
-ViewerSceneIterator::ViewerSceneIterator(RefRenderObjListClass *list)
+ViewerSceneIterator::ViewerSceneIterator(RefRenderObjListClass<RenderObjClass> *list)
 :	RobjIterator(list)
 {
 }
@@ -112,7 +121,7 @@ RenderObjClass * ViewerSceneIterator::Current_Item(void)
 void
 ViewerSceneClass::Visibility_Check (CameraClass *camera)
 {
-	RefRenderObjListIterator it(&RenderList);
+	RefRenderObjListIterator<RenderObjClass> it(&RenderList);
 
 	// Loop over all top-level RenderObjects in this scene. If the bounding sphere is not in front
 	// of all the frustum planes, it is invisible.
@@ -218,7 +227,11 @@ ViewerSceneClass::Clear_Lineup (void)
 	// and remove each object from the line up list.
 	RenderObjClass *obj = NULL;
 	while (obj = LineUpList.Remove_Head())
+#ifdef _WIN32
 		Remove_Render_Object(obj);
+#else
+		;  // Stub for non-Windows
+#endif
 }
 
 SphereClass
@@ -292,7 +305,11 @@ ViewerSceneClass::Destroy_Line_Up_Iterator (SceneIterator *it)
 
 void	ViewerSceneClass::Add_Render_Object(RenderObjClass * obj)
 {
+#ifdef _WIN32
 	SceneClass::Add_Render_Object(obj);
+#else
+	// On non-Windows, ViewerSceneClass doesn't inherit from SceneClass, so we just add to our lists
+#endif
 	if (obj->Class_ID()==RenderObjClass::CLASSID_LIGHT)
 		LightList.Add(obj);
 	else
@@ -301,6 +318,21 @@ void	ViewerSceneClass::Add_Render_Object(RenderObjClass * obj)
 	// Recalculate the fogging distances.
 	Recalculate_Fog_Planes();
 }
+
+#ifndef _WIN32
+// TheSuperHackers @refactor bobtista 01/01/2025 On non-Windows, ViewerSceneClass doesn't inherit from SceneClass, so we need Get_Fog_Range and Set_Fog_Range
+void ViewerSceneClass::Get_Fog_Range(float* near_range, float* far_range)
+{
+	// Stub implementation for non-Windows
+	if(near_range) *near_range = 0;
+	if(far_range) *far_range = 0;
+}
+
+void ViewerSceneClass::Set_Fog_Range(float near_range, float far_range)
+{
+	// Stub implementation for non-Windows
+}
+#endif
 
 void	ViewerSceneClass::Recalculate_Fog_Planes (void)
 {
@@ -385,6 +417,6 @@ void	ViewerSceneClass::Customized_Render(RenderInfoClass & rinfo)
 	}
 
 #else
-	SimpleSceneClass::Customized_Render(rinfo);
+	// On non-Windows, ViewerSceneClass doesn't inherit from SimpleSceneClass, so we just stub this
 #endif //WW3D_DX8
 }

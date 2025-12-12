@@ -22,7 +22,10 @@
 //
 //
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
+#ifdef _WIN32
 #include "StdAfx.h"
+#endif
 #include "ColorUtils.h"
 
 
@@ -30,6 +33,8 @@
 //
 // Draw_Sunken_Rect
 //
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally compile Windows-specific implementations
+#ifdef _WIN32
 void
 Draw_Sunken_Rect
 (
@@ -88,8 +93,8 @@ Frame_Rect
 )
 {
 	UCHAR red = GetRValue (color);
-	UCHAR green = GetRValue (color);
-	UCHAR blue = GetRValue (color);
+	UCHAR green = GetGValue (color);
+	UCHAR blue = GetBValue (color);
 
 	int index = (rect.top * scanline_size) + (rect.left * 3);
 	int col;
@@ -126,11 +131,6 @@ Frame_Rect
 	return ;
 }
 
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Draw_Vert_Line
-//
 void
 Draw_Vert_Line
 (
@@ -143,8 +143,8 @@ Draw_Vert_Line
 )
 {
 	UCHAR red = GetRValue (color);
-	UCHAR green = GetRValue (color);
-	UCHAR blue = GetRValue (color);
+	UCHAR green = GetGValue (color);
+	UCHAR blue = GetBValue (color);
 
 	int index = (y * scanline_size) + (x * 3);
 	for (int row = y; row < len; row ++) {
@@ -157,11 +157,6 @@ Draw_Vert_Line
 	return ;
 }
 
-
-/////////////////////////////////////////////////////////////////////////////
-//
-// Draw_Horz_Line
-//
 void
 Draw_Horz_Line
 (
@@ -174,8 +169,8 @@ Draw_Horz_Line
 )
 {
 	UCHAR red = GetRValue (color);
-	UCHAR green = GetRValue (color);
-	UCHAR blue = GetRValue (color);
+	UCHAR green = GetGValue (color);
+	UCHAR blue = GetBValue (color);
 
 	int index = (y * scanline_size) + (x * 3);
 	for (int col = x; col < len; col ++) {
@@ -186,5 +181,6 @@ Draw_Horz_Line
 
 	return ;
 }
-
-
+#else
+// Stubs for non-Windows (implementations are in header)
+#endif

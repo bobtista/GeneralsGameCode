@@ -24,14 +24,22 @@
 //
 //
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
+#ifdef _WIN32
 #include "StdAfx.h"
+#endif
 
 #include "Globals.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "assetmgr.h"
+#else
+#include "GameEngineStubs.h"
+#endif
 #include "ViewerAssetMgr.h"
 
 // Main asset manager for the application.
-ViewerAssetMgrClass *_TheAssetMgr = NULL;
+ViewerAssetMgrClass *_TheAssetMgr = nullptr;  // TheSuperHackers @refactor bobtista 01/01/2025 Use nullptr instead of NULL
 
 
 int g_iDeviceIndex      = -1;//DEFAULT_DEVICEINDEX;

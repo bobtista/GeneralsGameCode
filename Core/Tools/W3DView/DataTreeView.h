@@ -21,9 +21,16 @@
 // DataTreeView.h : header file
 //
 
+// TheSuperHackers @refactor bobtista 01/01/2025 DataTreeView is MFC-specific
+#ifdef _WIN32
 #include "AfxCView.h"
 #include "AssetTypes.h"
 #include "Vector.h"
+#else
+// Stub for non-Windows
+#include "GameEngineStubs.h"
+#include "AssetTypes.h"
+#endif
 
 // Forward declarations
 class RenderObjClass;
@@ -166,6 +173,14 @@ protected:
 		int			m_iSoundIcon;
 		bool			m_RestrictAnims;
 };
+#else
+// Stub for non-Windows
+class CDataTreeView {
+public:
+    CDataTreeView() {}
+    virtual ~CDataTreeView() {}
+};
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 

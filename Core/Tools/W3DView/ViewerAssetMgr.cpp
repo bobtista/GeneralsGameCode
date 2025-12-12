@@ -35,11 +35,22 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
+#ifdef _WIN32
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
+#ifdef _WIN32
 #include "StdAfx.h"
+#endif
+#endif
 
 #include "ViewerAssetMgr.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "texture.h"
 #include "ww3d.h"
+#else
+#include "GameEngineStubs.h"
+#endif
 #include "Utils.h"
 
 
@@ -54,12 +65,17 @@ ViewerAssetMgrClass::Load_3D_Assets (FileClass &w3dfile)
 	//
 	//	Allow the base class to process
 	//
+#ifdef _WIN32
 	bool retval = WW3DAssetManager::Load_3D_Assets (w3dfile);
 	if (retval) {
 
 	}
 
 	return retval;
+#else
+	// Stub for non-Windows - asset loading requires game engine
+	return false;
+#endif
 }
 
 
@@ -75,9 +91,14 @@ ViewerAssetMgrClass::Get_Texture (const char * tga_filename, MipCountType mip_le
 	// See if the texture has already been loaded.
 	//
 
+#ifdef _WIN32
 	StringClass lower_case_name(tga_filename,true);
 	_strlwr(lower_case_name.Peek_Buffer());
 	TextureClass* tex = TextureHash.Get(lower_case_name);
+#else
+	// Stub for non-Windows - texture loading requires game engine
+	TextureClass* tex = nullptr;
+#endif
 
 	//
 	//	Check to see if this texture is "missing"

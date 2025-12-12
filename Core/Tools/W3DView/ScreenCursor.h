@@ -33,8 +33,16 @@
 #pragma once
 
 #include "resource.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "rendobj.h"
 #include "Vector3i.h"
+#else
+#include "GameEngineStubs.h"
+// Additional stubs (only if not already in GameEngineStubs.h)
+typedef void* HWND;
+#define CLASSID_LAST 0
+#endif
 
 // Forward declarations
 class VertexMaterialClass;

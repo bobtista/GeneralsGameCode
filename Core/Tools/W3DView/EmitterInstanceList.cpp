@@ -31,7 +31,12 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
+#ifdef _WIN32
 #include "StdAfx.h"
+#else
+#include "GameEngineStubs.h"  // For ASSERT and other stubs
+#endif
 #include "EmitterInstanceList.h"
 #include "Utils.h"
 

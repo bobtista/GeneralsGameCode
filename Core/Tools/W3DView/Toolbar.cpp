@@ -23,6 +23,8 @@
 //  Implementation of a 'fancy' toolbar using hi-color buttons
 //
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Toolbar is MFC-specific, only compile on Windows
+#ifdef _WIN32
 #include "StdAfx.h"
 #include "Toolbar.h"
 
@@ -511,3 +513,4 @@ CFancyToolbar::GetButtonState (int iCommandID) const
     return stateInfo;
 }
 
+#endif  // _WIN32

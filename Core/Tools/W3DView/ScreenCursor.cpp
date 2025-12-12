@@ -31,9 +31,14 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
+#ifdef _WIN32
 #include "StdAfx.h"
+#endif
 #include "ScreenCursor.h"
 #include "Utils.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "ww3d.h"
 #include "vertmaterial.h"
 #include "shader.h"
@@ -44,6 +49,12 @@
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "sortingrenderer.h"
+#else
+#include "GameEngineStubs.h"
+// Additional stubs (only if not already in GameEngineStubs.h)
+class WW3DClass {};
+class ShaderClass {};
+#endif
 
 
 ///////////////////////////////////////////////////////////////////

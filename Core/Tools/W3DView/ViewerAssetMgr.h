@@ -36,7 +36,19 @@
 
 #pragma once
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "assetmgr.h"
+#else
+#include <string>  // For std::string
+#include "GameEngineStubs.h"
+#include "Utils.h"  // For DynamicVectorClass
+// Additional stubs for ViewerAssetMgr (only if not already in GameEngineStubs.h)
+class FileClass {};
+typedef int MipCountType;
+#define MIP_LEVELS_ALL 0
+typedef std::string CString;
+#endif
 
 
 /////////////////////////////////////////////////////////////////////////////

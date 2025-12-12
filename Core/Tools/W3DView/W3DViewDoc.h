@@ -22,6 +22,8 @@
 
 #pragma once
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "scene.h"
 #include "chunkio.h"
 #include "hanim.h"
@@ -29,15 +31,26 @@
 #include "dynamesh.h"
 #include "rendobj.h"
 #include "LODDefs.h"
+#else
+#include "GameEngineStubs.h"
+#include "Utils.h"  // For DynamicVectorClass
+#include <string>  // For std::string on non-Windows
+#endif
 
 
 ///////////////////////////////////////////////////////////
 //
 //  Constants
 //
+#ifdef _WIN32
 const DWORD SAVE_SETTINGS_LIGHT     = 0x00000001;
 const DWORD SAVE_SETTINGS_BACK      = 0x00000002;
 const DWORD SAVE_SETTINGS_CAMERA    = 0x00000004;
+#else
+const unsigned int SAVE_SETTINGS_LIGHT     = 0x00000001;
+const unsigned int SAVE_SETTINGS_BACK      = 0x00000002;
+const unsigned int SAVE_SETTINGS_CAMERA    = 0x00000004;
+#endif
 
 
 // Forward declarations
@@ -65,11 +78,19 @@ class DazzleLayerClass;
 //  CW3DViewDoc
 //
 /////////////////////////////////////////////////////////////////////
+#ifdef _WIN32
 class CW3DViewDoc : public CDocument
 {
 protected: // create from serialization only
 	CW3DViewDoc();
 	DECLARE_DYNCREATE(CW3DViewDoc)
+#else
+// TheSuperHackers @refactor bobtista 01/01/2025 W3DViewDoc is MFC-specific, stub for non-Windows
+class CW3DViewDoc
+{
+protected: // create from serialization only
+	CW3DViewDoc();
+#endif
 
 // Attributes
 public:
@@ -81,9 +102,16 @@ public:
 	// ClassWizard generated virtual function overrides
 	//{{AFX_VIRTUAL(CW3DViewDoc)
 	public:
+#ifdef _WIN32
 	virtual BOOL OnNewDocument();
 	virtual void Serialize(CArchive& ar);
 	virtual BOOL OnOpenDocument(LPCTSTR lpszPathName);
+#else
+	// Stub methods for non-Windows
+	bool OnNewDocument() { return false; }
+	void Serialize(void* ar) {}
+	bool OnOpenDocument(const char* lpszPathName) { return false; }
+#endif
 	//}}AFX_VIRTUAL
 
 // Implementation
@@ -102,7 +130,9 @@ protected:
 		// NOTE - the ClassWizard will add and remove member functions here.
 		//    DO NOT EDIT what you see in these blocks of generated code !
 	//}}AFX_MSG
+#ifdef _WIN32
 	DECLARE_MESSAGE_MAP()
+#endif
 
 public:
 	void SetChannelQCompression(bool bCompress){	m_bCompress_channel_Q = bCompress;}
@@ -118,12 +148,17 @@ public:
 	LightClass *			GetSceneLight (void) const				{ return m_pCSceneLight; }
 	RenderObjClass *		GetDisplayedObject (void) const		{ return m_pCRenderObj; }
 	HAnimClass *			GetCurrentAnimation (void) const		{ return m_pCAnimation; }
+#ifdef _WIN32
 	const HTreeClass *	Get_Current_HTree (void) const;
+#else
+	const void*	Get_Current_HTree (void) const { return nullptr; }
+#endif
 
 	//
 	// Creation/destruction methods
 	//
 	void					InitScene (void);
+#ifdef _WIN32
 	void					LoadAssetsFromFile (LPCTSTR lpszPathName);
 	HLodPrototypeClass *GenerateLOD (LPCTSTR pszLODBaseName, LOD_NAMING_TYPE type);
 	void					CleanupResources (void);
@@ -138,6 +173,23 @@ public:
 	CDataTreeView *	GetDataTreeView (void);
 
 	void					Build_Emitter_List (EmitterInstanceListClass *emitter_list, LPCTSTR emitter_name, RenderObjClass *render_obj = NULL);
+#else
+	// Stub methods for non-Windows
+	void					LoadAssetsFromFile (const char* lpszPathName) {}
+	void*					GenerateLOD (const char* pszLODBaseName, int type) { return nullptr; }
+	void					CleanupResources (void) {}
+	bool					Is_Initialized (void)	{ return false; }
+
+	void					Reload_Displayed_Object (void) {}
+	void					Display_Emitter (ParticleEmitterClass *pemitter = nullptr, bool use_global_reset_flag = true, bool allow_reset = true) {}
+	void					DisplayObject (RenderObjClass *pCModel = nullptr, bool use_global_reset_flag = true, bool allow_reset = true, bool add_ghost = false) {}
+	bool					SaveSettings (const char* pszFilename, unsigned int dwSettingsMask) { return false; }
+	bool					LoadSettings (const char* pszFileName) { return false; }
+	void*					GetGraphicView (void) { return nullptr; }
+	void*					GetDataTreeView (void) { return nullptr; }
+
+	void					Build_Emitter_List (EmitterInstanceListClass *emitter_list, const char* emitter_name, RenderObjClass *render_obj = nullptr) {}
+#endif
 
 	//
 	//  Animation methods
@@ -145,17 +197,34 @@ public:
 	void					Make_Movie (void);
 	void					ResetAnimation (void);
 	void					StepAnimation (int frame_inc = 1);
+#ifdef _WIN32
 	void					PlayAnimation (RenderObjClass *pobj, LPCTSTR panim_name = NULL, bool use_global_reset_flag = true, bool allow_reset = true);
 	void					PlayAnimation (RenderObjClass *pobj, HAnimComboClass *pcombo, bool use_global_reset_flag = true, bool allow_reset = true);
+#else
+	void					PlayAnimation (RenderObjClass *pobj, const char* panim_name = nullptr, bool use_global_reset_flag = true, bool allow_reset = true) {}
+	void					PlayAnimation (RenderObjClass *pobj, void* pcombo, bool use_global_reset_flag = true, bool allow_reset = true) {}
+#endif
 	void					UpdateFrame (float time_slice);
+#ifdef _WIN32
 	void					SetAnimationBlend (BOOL bBlend)	{ m_bAnimBlend = bBlend; }
 	bool					GetChannelQCompression(){ return m_bCompress_channel_Q;}
 	int					GetChannelQnBytes(){return m_nChannelQnBytes;}
 	void					SetChannelQnBytes(int n_bytes){m_nChannelQnBytes = n_bytes;}
 	BOOL					GetAnimationBlend (void) const	{ return m_bAnimBlend; }
+#else
+	void					SetAnimationBlend (bool bBlend)	{ m_bAnimBlend = bBlend; }
+	bool					GetChannelQCompression(){ return m_bCompress_channel_Q;}
+	int					GetChannelQnBytes(){return m_nChannelQnBytes;}
+	void					SetChannelQnBytes(int n_bytes){m_nChannelQnBytes = n_bytes;}
+	bool					GetAnimationBlend (void) const	{ return m_bAnimBlend; }
+#endif
 	bool					Is_Camera_Animated (void) const	{ return m_bAnimateCamera; }
 	void					Animate_Camera (bool banimate);
+#ifdef _WIN32
 	void					Import_Facial_Animation (const CString &hierarchy_name, const CString &filename);
+#else
+	void					Import_Facial_Animation (const char* hierarchy_name, const char* filename) {}
+#endif
 	void					Play_Animation_Sound (void);
 
 	//
@@ -173,14 +242,24 @@ public:
 	//
 	//  Background BMP methods
 	//
+#ifdef _WIN32
 	const CString &	GetBackgroundBMP  (void) const						{ return m_stringBackgroundBMP; }
 	void					SetBackgroundBMP  (LPCTSTR pszBackgroundBMP);
+#else
+	const std::string&	GetBackgroundBMP  (void) const						{ return m_stringBackgroundBMP; }
+	void					SetBackgroundBMP  (const char* pszBackgroundBMP) {}
+#endif
 
 	//
 	//  Background Object methods
 	//
+#ifdef _WIN32
 	const CString &	GetBackgroundObjectName (void) const				{ return m_stringBackgroundObject; }
 	void					SetBackgroundObject (LPCTSTR pszBackgroundObjectName);
+#else
+	const std::string&	GetBackgroundObjectName (void) const				{ return m_stringBackgroundObject; }
+	void					SetBackgroundObject (const char* pszBackgroundObjectName) {}
+#endif
 
 	//
 	//  Fogging methods
@@ -197,32 +276,53 @@ public:
 	//	Emitter serialization methods
 	//
 	bool					Save_Selected_Emitter (void);
+#ifdef _WIN32
 	bool					Save_Current_Emitter (const CString &filename);
+#else
+	bool					Save_Current_Emitter (const char* filename) { return false; }
+#endif
 
 	//
 	//	Primitive serialization methods
 	//
 	bool					Save_Selected_Primitive (void);
+#ifdef _WIN32
 	bool					Save_Current_Sphere (const CString &filename);
 	bool					Save_Current_Ring (const CString &filename);
+#else
+	bool					Save_Current_Sphere (const char* filename) { return false; }
+	bool					Save_Current_Ring (const char* filename) { return false; }
+#endif
 
 	//
 	//	Aggregate methods
 	//
 	void					Auto_Assign_Bones (void);
 	bool					Save_Selected_Aggregate (void);
+#ifdef _WIN32
 	bool					Save_Current_Aggregate (const CString &filename);
+#else
+	bool					Save_Current_Aggregate (const char* filename) { return false; }
+#endif
 
 	//
 	//	Sound object methods
 	//
 	bool					Save_Selected_Sound_Object (void);
+#ifdef _WIN32
 	bool					Save_Current_Sound_Object (const CString &filename);
+#else
+	bool					Save_Current_Sound_Object (const char* filename) { return false; }
+#endif
 
 	//
 	//  LOD methods
 	//
+#ifdef _WIN32
 	bool					Save_Current_LOD (const CString &filename);
+#else
+	bool					Save_Current_LOD (const char* filename) { return false; }
+#endif
 	bool					Save_Selected_LOD (void);
 	void					Switch_LOD (int increment = 1, RenderObjClass *render_obj = NULL);
 
@@ -241,7 +341,11 @@ public:
 	//	Cursor managment
 	//
 	void					Show_Cursor (bool onoff);
+#ifdef _WIN32
 	void					Set_Cursor (LPCTSTR resource_name);
+#else
+	void					Set_Cursor (const char* resource_name) {}
+#endif
 	bool					Is_Cursor_Shown (void) const;
 	void					Create_Cursor (void);
 
@@ -266,18 +370,32 @@ public:
 	//
 	//	File methods
 	//
+#ifdef _WIN32
 	void					Copy_Assets_To_Dir (LPCTSTR directory);
 	bool					Lookup_Path (LPCTSTR asset_name, CString &path);
 	const char *		Get_Last_Path (void) const { return (m_LastPath.IsEmpty () ? NULL : (const char *)m_LastPath); }
+#else
+	void					Copy_Assets_To_Dir (const char* directory) {}
+	bool					Lookup_Path (const char* asset_name, std::string &path) { return false; }
+	const char *		Get_Last_Path (void) const { return (m_LastPath.empty() ? nullptr : m_LastPath.c_str()); }
+#endif
 
 	//
 	//	Texture search paths
 	//
+#ifdef _WIN32
 	const CString &	Get_Texture_Path1 (void) const { return m_TexturePath1; }
 	const CString &	Get_Texture_Path2 (void) const { return m_TexturePath2; }
 
 	void					Set_Texture_Path1 (LPCTSTR path);
 	void					Set_Texture_Path2 (LPCTSTR path);
+#else
+	const std::string&	Get_Texture_Path1 (void) const { return m_TexturePath1; }
+	const std::string&	Get_Texture_Path2 (void) const { return m_TexturePath2; }
+
+	void					Set_Texture_Path1 (const char* path) {}
+	void					Set_Texture_Path2 (const char* path) {}
+#endif
 
 	//
 	// Dazzle rendering support
@@ -297,21 +415,34 @@ private:
 	RenderObjClass *		m_pCRenderObj;
 	RenderObjClass *		m_pCBackgroundObject;
 	HAnimClass *			m_pCAnimation;
+#ifdef _WIN32
 	HAnimComboClass *		m_pCAnimCombo;
+#else
+	void*					m_pCAnimCombo;
+#endif
 	LightClass *			m_pCSceneLight;
 	Bitmap2DObjClass *	m_pCBackgroundBMP;
 	CameraClass *			m_pC2DCamera;
 	CameraClass *			m_pCBackObjectCamera;
 	ScreenCursorClass *	m_pCursor;
 	Vector3					m_backgroundColor;
+#ifdef _WIN32
 	CString					m_stringBackgroundBMP;
 	CString					m_stringBackgroundObject;
+#else
+	std::string				m_stringBackgroundBMP;
+	std::string				m_stringBackgroundObject;
+#endif
 
 	bool						m_bCompress_channel_Q;
 	int						m_nChannelQnBytes;
 	float						m_CurrentFrame;
 	float						m_animTime;
+#ifdef _WIN32
 	BOOL						m_bAnimBlend;
+#else
+	bool						m_bAnimBlend;
+#endif
 	bool						m_bAnimateCamera;
 	bool						m_bAutoCameraReset;
 	bool						m_bOneTimeReset;
@@ -320,12 +451,21 @@ private:
 	bool						m_IsInitialized;
 	bool						m_bFogEnabled;
 
+#ifdef _WIN32
 	CString					m_TexturePath1;
 	CString					m_TexturePath2;
 
 	CString					m_LastPath;
 
 	DynamicVectorClass<CString>	m_LoadList;
+#else
+	std::string				m_TexturePath1;
+	std::string				m_TexturePath2;
+
+	std::string				m_LastPath;
+
+	DynamicVectorClass<std::string>	m_LoadList;
+#endif
 };
 
 /////////////////////////////////////////////////////////////////////////////

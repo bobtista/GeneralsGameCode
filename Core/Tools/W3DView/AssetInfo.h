@@ -36,7 +36,18 @@
 
 #pragma once
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "rendobj.h"
+#else
+#include <string>  // For std::string
+#include "GameEngineStubs.h"
+// Windows type stubs
+typedef const char* LPCTSTR;
+typedef unsigned long DWORD;
+typedef std::string CString;
+#define NULL nullptr
+#endif
 #include "Utils.h"
 #include "AssetTypes.h"
 
@@ -95,7 +106,12 @@ class AssetInfoClass
 		//
 		//	Information methods
 		//
+		// TheSuperHackers @refactor bobtista 01/01/2025 Use cross-platform string length method
+		#ifdef _WIN32
 		bool					Can_Asset_Have_Animations (void) const	{ return bool(m_HierarchyName.GetLength () > 0); }
+		#else
+		bool					Can_Asset_Have_Animations (void) const	{ return bool(m_HierarchyName.length() > 0); }
+		#endif
 
 	protected:
 

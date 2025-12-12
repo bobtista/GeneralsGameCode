@@ -35,11 +35,19 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include StdAfx.h (Windows-only)
+#ifdef _WIN32
 #include "StdAfx.h"
+#endif
 #include "AssetInfo.h"
 //#include "HModel.h"
+// TheSuperHackers @refactor bobtista 01/01/2025 Conditionally include game engine headers
+#ifdef _WIN32
 #include "assetmgr.h"
 #include "htree.h"
+#else
+#include "GameEngineStubs.h"
+#endif
 
 /////////////////////////////////////////////////////////////////
 //
@@ -58,7 +66,11 @@ AssetInfoClass::Initialize (void)
 
 		// If we are wrapping an asset name, then create an instance of it.
 		if (prender_obj == NULL) {
+#ifdef _WIN32
 			prender_obj = WW3DAssetManager::Get_Instance()->Create_Render_Obj (m_Name);
+#else
+			prender_obj = WW3DAssetManager::Get_Instance()->Create_Render_Obj (m_Name.c_str());
+#endif
 		}
 
 		if (prender_obj != NULL) {

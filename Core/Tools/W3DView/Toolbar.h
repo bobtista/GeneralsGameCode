@@ -25,6 +25,9 @@
 
 #pragma once
 
+// TheSuperHackers @refactor bobtista 01/01/2025 Toolbar is MFC-specific, only compile on Windows
+#ifdef _WIN32
+
 //////////////////////////////////////////////////////////////
 //
 //  Constants
@@ -162,3 +165,8 @@ class CFancyToolbar : public CControlBar
         int m_iButtons;
         int m_iCurrentButton;
 };
+
+#else
+// Stub for non-Windows (MFC toolbar not available)
+class CFancyToolbar {};
+#endif
