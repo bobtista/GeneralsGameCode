@@ -132,8 +132,10 @@
 #define IDD_TeamGeneric                 229
 #define IDD_IMPASSABLEOPTIONS           230
 #define IDD_EULA_AGREEMENT              231
+#ifndef RTS_BUILD_GENERALS
 #define IDD_RULER_OPTIONS               232
 #define IDD_TeamObjectProperties        233
+#endif
 #define IDI_Selected                    234
 #define IDD_MAPOBJECT_PROPPAGE_GENERAL  235
 #define IDD_MAPOBJECT_PROPPAGE_LOGICAL  236
