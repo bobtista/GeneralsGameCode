@@ -225,6 +225,7 @@ void LayersList::addMapObjectToLayersList(MapObject *objToAdd, AsciiString layer
 	addMapObjectToLayer(objToAdd, &layerIt);
 }
 
+#ifndef RTS_BUILD_GENERALS
 void LayersList::addPolygonTriggerToLayersList(PolygonTrigger *triggerToAdd, AsciiString layerToAddTo)
 {
 	if (!triggerToAdd || findPolygonTriggerAndList(triggerToAdd)) {
@@ -249,6 +250,7 @@ void LayersList::addPolygonTriggerToLayersList(PolygonTrigger *triggerToAdd, Asc
 
 	addPolygonTriggerToLayer(triggerToAdd, &layerIt);
 }
+#endif
 
 
 AsciiString LayersList::removeMapObjectFromLayersList(MapObject *objToRemove)
@@ -264,6 +266,7 @@ AsciiString LayersList::removeMapObjectFromLayersList(MapObject *objToRemove)
 	return layerIt->layerName;
 }
 
+#ifndef RTS_BUILD_GENERALS
 AsciiString LayersList::removePolygonTriggerFromLayersList(PolygonTrigger *triggerToRemove)
 {
 	ListLayerIt layerIt;
@@ -276,6 +279,7 @@ AsciiString LayersList::removePolygonTriggerFromLayersList(PolygonTrigger *trigg
 	removePolygonTriggerFromLayer(triggerToRemove, &layerIt, &triggerIt);
 	return layerIt->layerName;
 }
+#endif
 
 
 void LayersList::changeMapObjectLayer(MapObject *objToChange, AsciiString layerToPlaceOn)
@@ -289,6 +293,7 @@ void LayersList::changeMapObjectLayer(MapObject *objToChange, AsciiString layerT
 	addMapObjectToLayersList(objToChange, layerToPlaceOn);
 }
 
+#ifndef RTS_BUILD_GENERALS
 void LayersList::changePolygonTriggerLayer(PolygonTrigger *triggerToChange, AsciiString layerToPlaceOn)
 {
 	if (!triggerToChange) {
@@ -299,6 +304,7 @@ void LayersList::changePolygonTriggerLayer(PolygonTrigger *triggerToChange, Asci
 	removePolygonTriggerFromLayersList(triggerToChange);
 	addPolygonTriggerToLayersList(triggerToChange, layerToPlaceOn);
 }
+#endif
 
 void LayersList::addLayerNamed(IN AsciiString layerToAdd)
 {
@@ -373,10 +379,12 @@ void LayersList::mergeLayerInto(IN ListLayerIt src, IN ListLayerIt dst)
 		changeMapObjectLayer(*mopIt, dst->layerName);
 	}
 
+#ifndef RTS_BUILD_GENERALS
 	ListPolygonTriggerPtrIt ptpIt;
 	for (ptpIt = src->polygonTriggersInLayer.begin(); ptpIt != src->polygonTriggersInLayer.end(); ptpIt = src->polygonTriggersInLayer.begin()) {
 		changePolygonTriggerLayer(*ptpIt, dst->layerName);
 	}
+#endif
 
 
 	// Don't remove these layers.
@@ -446,10 +454,12 @@ void LayersList::updateUIFromList(void)
 			}
 		}
 
+#ifndef RTS_BUILD_GENERALS
 		for (ListPolygonTriggerPtrIt triggerIt = layersIt->polygonTriggersInLayer.begin(); triggerIt != layersIt->polygonTriggersInLayer.end(); ++triggerIt) {
 			AsciiString uniqueID = (*triggerIt)->getTriggerName();
 			pTree->InsertItem(uniqueID.str(), iconToShow, iconToShow, thisBranch);
 		}
+#endif
 	}
 }
 
@@ -479,6 +489,7 @@ Bool LayersList::findMapObjectAndList(IN MapObject *objectToFind, OUT ListLayerI
 	return false;
 }
 
+#ifndef RTS_BUILD_GENERALS
 Bool LayersList::findPolygonTriggerAndList(IN PolygonTrigger *triggerToFind, OUT ListLayerIt *layerIt, OUT ListPolygonTriggerPtrIt *triggerIt)
 {
 	if (!triggerToFind) {
@@ -500,6 +511,7 @@ Bool LayersList::findPolygonTriggerAndList(IN PolygonTrigger *triggerToFind, OUT
 			}
 		}
 	}
+#endif
 
 	// if we get here, it means we didn't find the object anywhere in any of the layers
 	return false;
@@ -579,6 +591,7 @@ void LayersList::addMapObjectToLayer(IN MapObject *objectToAdd, IN ListLayerIt *
 
 }
 
+#ifndef RTS_BUILD_GENERALS
 void LayersList::addPolygonTriggerToLayer(IN PolygonTrigger *triggerToAdd, IN ListLayerIt *layerIt)
 {
 	if (!triggerToAdd) {
@@ -626,6 +639,7 @@ void LayersList::addPolygonTriggerToLayer(IN PolygonTrigger *triggerToAdd, IN Li
 	}
 
 }
+#endif
 
 
 void LayersList::removeMapObjectFromLayer(IN MapObject *objectToRemove, IN ListLayerIt *layerIt, IN ListMapObjectPtrIt *objectIt)
@@ -668,6 +682,7 @@ void LayersList::removeMapObjectFromLayer(IN MapObject *objectToRemove, IN ListL
 
 }
 
+#ifndef RTS_BUILD_GENERALS
 void LayersList::removePolygonTriggerFromLayer(IN PolygonTrigger *triggerToRemove, IN ListLayerIt *layerIt, IN ListPolygonTriggerPtrIt *triggerIt)
 {
 	if (!triggerToRemove) {
@@ -706,6 +721,7 @@ void LayersList::removePolygonTriggerFromLayer(IN PolygonTrigger *triggerToRemov
 	layerToRemoveFrom->polygonTriggersInLayer.erase(triggerBeingRemove);
 
 }
+#endif
 
 
 BOOL LayersList::OnInitDialog()
@@ -1037,8 +1053,10 @@ void LayersList::OnMergeObject(UINT commandID)
 	if (objToMove) {
 		changeMapObjectLayer(objToMove, layerIt->layerName);
 	} else {
+#ifndef RTS_BUILD_GENERALS
 		PolygonTrigger* triggerToMove = findPolygonTriggerByUID(lastClickedObj);
 		changePolygonTriggerLayer(triggerToMove, layerIt->layerName);
+#endif
 	}
 }
 
@@ -1194,6 +1212,7 @@ void LayersList::unselectAllMapObjects(void)
 	}
 }
 
+#ifndef RTS_BUILD_GENERALS
 void LayersList::unselectAllPolygonTriggers(void)
 {
 	PolygonTrigger *trigger = PolygonTrigger::getFirstPolygonTrigger();
@@ -1202,6 +1221,7 @@ void LayersList::unselectAllPolygonTriggers(void)
 		trigger = trigger->getNext();
 	}
 }
+#endif
 
 
 //WST 11/23/2002
@@ -1224,7 +1244,7 @@ Bool LayersList::findAndSelectMapObject(AsciiString selectedItemAsciiString)
 	return (false);
 }
 
-
+#ifndef RTS_BUILD_GENERALS
 Bool LayersList::findAndSelectPolygonTrigger(AsciiString selectedItemAsciiString)
 {
 	PolygonTrigger *trigger = PolygonTrigger::getFirstPolygonTrigger();
@@ -1241,6 +1261,7 @@ Bool LayersList::findAndSelectPolygonTrigger(AsciiString selectedItemAsciiString
 	}
 	return (false);
 }
+#endif
 
 
 
@@ -1263,7 +1284,9 @@ void LayersList::OnSelectLayerObject()
 
 	//Unselect everything on the map and get ready to find the one user wanted
 	unselectAllMapObjects();
+#ifndef RTS_BUILD_GENERALS
 	unselectAllPolygonTriggers();
+#endif
 
 	// Lets check and see if this is a layer that user selected or individual items
 	ListLayerIt srcLayerIt;
@@ -1274,15 +1297,19 @@ void LayersList::OnSelectLayerObject()
 			(*mopIt)->setSelected(true);
 		}
 
+#ifndef RTS_BUILD_GENERALS
 		ListPolygonTriggerPtrIt ptpIt;
 		for (ptpIt = srcLayerIt->polygonTriggersInLayer.begin(); ptpIt != srcLayerIt->polygonTriggersInLayer.end(); ++ptpIt) {
 			(*ptpIt)->setSelected(true);
 		}
+#endif
 	}
 	else {
 		// User selected individual items
 		if (!findAndSelectMapObject(selectedItemAsciiString)) {
+#ifndef RTS_BUILD_GENERALS
 			findAndSelectPolygonTrigger(selectedItemAsciiString);
+#endif
 		}
 	}
 }
@@ -1305,6 +1332,7 @@ MapObject *LayersList::findObjectByUID(AsciiString objectIDToFind)
 	return NULL;
 }
 
+#ifndef RTS_BUILD_GENERALS
 PolygonTrigger* LayersList::findPolygonTriggerByUID(AsciiString triggerIDToFind)
 {
 	PolygonTrigger *trigger = PolygonTrigger::getFirstPolygonTrigger();
@@ -1320,6 +1348,7 @@ PolygonTrigger* LayersList::findPolygonTriggerByUID(AsciiString triggerIDToFind)
 
 	return (NULL);
 }
+#endif
 
 BEGIN_MESSAGE_MAP(LayersList, CDialog)
 	ON_NOTIFY(TVN_BEGINLABELEDIT, IDC_LL_TREE, OnBeginEditLabel)
