@@ -79,18 +79,24 @@ protected:
 
 	Real m_angle;
 	Real m_height;
+#ifndef RTS_BUILD_GENERALS
 	Real m_scale;
+#endif
 
 	WBPopupSliderButton m_heightSlider;
 	WBPopupSliderButton m_angleSlider;
+#ifndef RTS_BUILD_GENERALS
 	WBPopupSliderButton m_scaleSlider;
+#endif
 
+#ifndef RTS_BUILD_GENERALS
 	Int              m_defaultEntryIndex; //< Index in the sound combobox of the entry labelled "default"
 	Bool             m_defaultIsNone; //< The default for this object is no sound
 	AsciiString      m_defaultEntryName; //< The original name of the default entry
 
 	ModifyObjectUndoable *m_posUndoable;
 	Coord3D m_position;
+#endif
 
 	void deletePages();
 	void updateTheUI(void);
@@ -114,6 +120,7 @@ protected:
 	afx_msg void _ScriptToDict(void);
 	afx_msg void _WeatherToDict(void);
 	afx_msg void _TimeToDict(void);
+#ifndef RTS_BUILD_GENERALS
 	afx_msg void _ScaleToDict(void);
 	afx_msg void SetZOffset(void);
 	afx_msg void SetAngle(void);
@@ -121,6 +128,7 @@ protected:
 	afx_msg void OnScaleOn();
 	afx_msg void OnScaleOff();
 	afx_msg void OnKillfocusMAPOBJECTXYPosition();
+#endif
 	afx_msg void _PrebuiltUpgradesToDict(void);
 	afx_msg void _HealthToDict(void);
 	afx_msg void _EnabledToDict(void);
