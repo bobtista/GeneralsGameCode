@@ -881,9 +881,11 @@ void LayersList::OnDeleteLayer()
 		return;
 	}
 
+#ifndef RTS_BUILD_GENERALS
 	if (asciiCatToDelete.compareNoCase(AsciiString(ThePolygonTriggerLayerName.c_str())) == 0) {
 		return;
 	}
+#endif
 
 	ListLayerIt srcLayerIt, dstLayerIt;
 	if (!findLayerNamed(asciiCatToDelete, &srcLayerIt)) {
