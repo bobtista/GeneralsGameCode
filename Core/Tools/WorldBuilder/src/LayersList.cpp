@@ -1103,6 +1103,7 @@ void LayersList::updateObjectRenderFlags(ListLayerIt *updateLayer)
 		pDoc->invalObject((*it));
 	}
 
+#ifndef RTS_BUILD_GENERALS
 	ListPolygonTriggerPtrIt pit;
 	for (pit = layerIt->polygonTriggersInLayer.begin(); pit != layerIt->polygonTriggersInLayer.end(); ++pit) {
 		if (layerIt->show) {
@@ -1112,6 +1113,7 @@ void LayersList::updateObjectRenderFlags(ListLayerIt *updateLayer)
 		}
 		//pDoc->invalObject((*it));
 	}
+#endif
 }
 
 void LayersList::updateTreeImages()
