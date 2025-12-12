@@ -29,7 +29,9 @@ const long BOUNDARY_PICK_DISTANCE = 5.0f;
 
 BorderTool::BorderTool() : Tool(ID_BORDERTOOL, IDC_POINTER),
 													 m_mouseDown(false),
+#ifndef RTS_BUILD_GENERALS
 													 m_addingNewBorder(false),
+#endif
 													 m_modifyBorderNdx(-1)
 
 { }
@@ -62,6 +64,7 @@ void BorderTool::mouseMoved(TTrackingMode m, CPoint viewPt, WbView* pView, CWorl
 		return;
 	}
 
+#ifndef RTS_BUILD_GENERALS
 	if (m_addingNewBorder) {
 		Int count = pDoc->getNumBoundaries();
 		ICoord2D current;
@@ -82,6 +85,7 @@ void BorderTool::mouseMoved(TTrackingMode m, CPoint viewPt, WbView* pView, CWorl
 		pDoc->changeBoundary(count - 1, &current);
 		return;
 	}
+#endif
 
 	if (m_modifyBorderNdx >= 0) {
 		ICoord2D currentBorder;
@@ -170,6 +174,7 @@ void BorderTool::mouseUp(TTrackingMode m, CPoint viewPt, WbView* pView, CWorldBu
 		return;
 	}
 
+#ifndef RTS_BUILD_GENERALS
 	if (m_addingNewBorder) {
 		m_addingNewBorder = false;
 		// Do the undoable on the last border

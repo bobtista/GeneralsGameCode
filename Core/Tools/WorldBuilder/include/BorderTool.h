@@ -25,7 +25,9 @@ class BorderTool : public Tool
 	protected:
 		enum ModificationType { MOD_TYPE_INVALID, MOD_TYPE_UP, MOD_TYPE_FREE, MOD_TYPE_RIGHT };
 		Bool m_mouseDown;
+#ifndef RTS_BUILD_GENERALS
 		Bool m_addingNewBorder;
+#endif
 		Int m_modifyBorderNdx;
 		ModificationType m_modificationType;
 

@@ -154,7 +154,9 @@ ScriptDialog::ScriptDialog(CWnd* pParent /*=NULL*/)
 	: CDialog(ScriptDialog::IDD, pParent)
 {
 	m_draggingTreeView = false;
+#ifndef RTS_BUILD_GENERALS
 	m_autoUpdateWarnings = true;
+#endif
 	//{{AFX_DATA_INIT(ScriptDialog)
 		// NOTE: the ClassWizard will add member initialization here
 	//}}AFX_DATA_INIT
@@ -184,9 +186,11 @@ BEGIN_MESSAGE_MAP(ScriptDialog, CDialog)
 	ON_BN_CLICKED(IDC_EDIT_SCRIPT, OnEditScript)
 	ON_BN_CLICKED(IDC_COPY_SCRIPT, OnCopyScript)
 	ON_BN_CLICKED(IDC_DELETE, OnDelete)
+#ifndef RTS_BUILD_GENERALS
 	ON_BN_CLICKED(IDC_VERIFY, OnVerify)
 	ON_BN_CLICKED(IDC_PATCH_GC, OnPatchGC)
 	ON_BN_CLICKED(IDC_AUTO_VERIFY, OnAutoVerify)
+#endif
 	ON_BN_CLICKED(IDC_SAVE, OnSave)
 	ON_BN_CLICKED(IDC_LOAD, OnLoad)
 	ON_NOTIFY(NM_DBLCLK, IDC_SCRIPT_TREE, OnDblclkScriptTree)
@@ -342,6 +346,7 @@ void ScriptDialog::updateScriptWarning(Script *pScript)
 	}
 }
 
+#ifndef RTS_BUILD_GENERALS
 void ScriptDialog::OnPatchGC()
 {
 	checkParametersForGC();
@@ -371,6 +376,7 @@ void ScriptDialog::OnAutoVerify()
 	CWnd *pWnd = GetDlgItem(IDC_VERIFY);
 	pWnd->EnableWindow(!m_autoUpdateWarnings);
 }
+#endif
 
 /** Updates the warning flags in the scripts, script groups & script conditions & actions. */
 void ScriptDialog::updateWarnings(Bool forceUpdate)

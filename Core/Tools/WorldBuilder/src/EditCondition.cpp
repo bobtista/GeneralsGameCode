@@ -25,7 +25,7 @@
 #include "EditParameter.h"
 #include "GameLogic/ScriptEngine.h"
 
-
+#ifndef RTS_BUILD_GENERALS
 LRESULT CMyTreeCtrl::WindowProc(	UINT message, WPARAM wParam, LPARAM lParam )
 {
 	if (message==WM_KEYDOWN) {
@@ -36,6 +36,7 @@ LRESULT CMyTreeCtrl::WindowProc(	UINT message, WPARAM wParam, LPARAM lParam )
 	}
 	return CTreeCtrl::WindowProc(message, wParam, lParam);
 }
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 // EditCondition dialog
@@ -126,7 +127,11 @@ BOOL EditCondition::OnInitDialog()
 	rect.DeflateRect(2,2,2,2);
 	m_myEditCtrl.Create(WS_CHILD | WS_TABSTOP | ES_MULTILINE, rect, this, IDC_RICH_EDIT_HERE+1);
 	m_myEditCtrl.ShowWindow(SW_SHOW);
-	m_myEditCtrl.SetEventMask(m_myEditCtrl.GetEventMask() | ENM_LINK | ENM_SELCHANGE | ENM_KEYEVENTS);
+	m_myEditCtrl.SetEventMask(m_myEditCtrl.GetEventMask() | ENM_LINK | ENM_SELCHANGE
+#ifndef RTS_BUILD_GENERALS
+		| ENM_KEYEVENTS
+#endif
+	);
 
 	Int i;
 	HTREEITEM selItem = NULL;
