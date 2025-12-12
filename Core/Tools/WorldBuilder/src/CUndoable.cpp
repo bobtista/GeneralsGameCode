@@ -1356,6 +1356,7 @@ void DeletePolygonUndoable::Undo(void)
 
 
 
+#ifndef RTS_BUILD_GENERALS
 /*************************************************************************
 **                             MultipleUndoable
 ***************************************************************************/
@@ -1442,4 +1443,5 @@ void MultipleUndoable::Redo(void)
     undoable = next;
   }
 }
+#endif
 

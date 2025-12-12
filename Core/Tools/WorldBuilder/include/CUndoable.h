@@ -385,6 +385,7 @@ public:
 		virtual void Undo(void);
 };
 
+#ifndef RTS_BUILD_GENERALS
 ///                            MultipleUndoable
 /**
   * An undoable that doesn't do anything; it just consolidates a number of other
@@ -408,3 +409,4 @@ public:
     virtual void Undo(void);
     virtual void Redo(void);
 };
+#endif
