@@ -378,6 +378,7 @@ void ScriptDialog::OnAutoVerify()
 }
 #endif
 
+#ifndef RTS_BUILD_GENERALS
 /** Updates the warning flags in the scripts, script groups & script conditions & actions. */
 void ScriptDialog::updateWarnings(Bool forceUpdate)
 {
@@ -478,7 +479,9 @@ void ScriptDialog::patchScriptParametersForGC(Script *pScript)
 		}
 	}
 }
+#endif
 
+#ifndef RTS_BUILD_GENERALS
 /*Checks all script parameters for obsolete values (example: mission disk using GC_ templates)*/
 void ScriptDialog::checkParametersForGC(void)
 {
@@ -546,7 +549,9 @@ BOOL ScriptDialog::OnInitDialog()
 	m_sides = *TheSidesList;
 	EditParameter::setCurSidesList(&m_sides);
 	Int i;
+#ifndef RTS_BUILD_GENERALS
 	updateWarnings(true);
+#endif
 	if (pTree) {
 		m_imageList.Create(IDB_FOLDERSCRIPT, 16, 2, ILC_COLOR4);
 		pTree->SetImageList(&m_imageList, TVSIL_STATE);
@@ -791,7 +796,9 @@ void ScriptDialog::addScriptList(HTREEITEM hPlayer, Int playerIndex, ScriptList 
 void ScriptDialog::reloadPlayer(Int playerIndex, ScriptList *pSL)
 {
 //	Dict *d = m_sides.getSideInfo(playerIndex)->getDict();
+#ifndef RTS_BUILD_GENERALS
 	updateWarnings();
+#endif
 
 	CTreeCtrl *pTree = (CTreeCtrl*)GetDlgItem(IDC_SCRIPT_TREE);
 	HTREEITEM player = pTree->GetChildItem(TVI_ROOT);
@@ -1031,7 +1038,9 @@ void ScriptDialog::OnEditScript()
 				if (item) {
 					pTree->SetItemText(item, pGroup->getName().str());
 					pTree->SelectItem(NULL);
+#ifndef RTS_BUILD_GENERALS
 					updateWarnings();
+#endif
 					pTree->SelectItem(item);
 				}
 			}
@@ -1065,7 +1074,9 @@ void ScriptDialog::OnEditScript()
 		if (item) {
 			pTree->SetItemText(item, formatScriptLabel(pScript).str());
 			pTree->SelectItem(NULL);
+#ifndef RTS_BUILD_GENERALS
 			updateWarnings();
+#endif
 			pTree->SelectItem(item); // Updates the comment field & text field.
 		}
 	}
