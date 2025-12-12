@@ -7,7 +7,6 @@ if(RTS_BUILD_GENERALS_TOOLS)
     add_subdirectory(MapCacheBuilder)
     add_subdirectory(ParticleEditor)
     add_subdirectory(W3DView)
-    add_subdirectory(WorldBuilder)
 endif()
 
 # Build less useful tool/test binaries.
