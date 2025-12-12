@@ -401,12 +401,14 @@ WbView3d::WbView3d() :
 	m_ww3dInited(false),
 	m_showLayersList(false),
 	m_showMapBoundaries(false),
+#ifndef RTS_BUILD_GENERALS
 	m_showBoundingBoxes(false),
 	m_showSightRanges(false),
 	m_showWeaponRanges(false),
 	m_highlightTestArt(false),
 	m_showLetterbox(false),
   m_showSoundCircles(false)
+#endif
 {
 	TheTacticalView = &bogusTacticalView;
 	m_actualWinSize.x = ::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "Width", THREE_D_VIEW_WIDTH);
@@ -428,9 +430,11 @@ WbView3d::WbView3d() :
 	TheWritableGlobalData->m_showSoftWaterEdge = (::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowSoftWater", 1) != 0);
 	TheWritableGlobalData->m_use3WayTerrainBlends = (::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowExtraBlends", 1) > 1 ? 2 : 1);
 	setShowModels(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowModels", 1) != 0);
+#ifndef RTS_BUILD_GENERALS
 	setShowBoundingBoxes(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowBoundingBoxes", 0) != 0);
 	setShowSightRanges(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowSightRanges", 0) != 0);
 	setShowWeaponRanges(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowWeaponRanges", 0) != 0);
+#endif
 	setShowGarrisoned(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowGarrisoned", 0) != 0);
 	setHighlightTestArt(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "HighlightTestArt", 0) != 0);
 	setShowLetterbox(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowLetterbox", 0) != 0);
@@ -1004,6 +1008,7 @@ void WbView3d::updateScorches(void)
 }
 
 // ----------------------------------------------------------------------------
+#ifndef RTS_BUILD_GENERALS
 void WbView3d::updateTrees(void)
 {
 	TheTerrainRenderObject->removeAllTrees();
@@ -2661,11 +2666,19 @@ BOOL WbView3d::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt)
 	if (m_trackingMode == TRACK_NONE) {
 
 		//WST 11/21/02 New Triple speed camera zoom request by designers
+#ifndef RTS_BUILD_GENERALS
 		if (getCurrentZoom() > 2.0f)
 		{
 			m_mouseWheelOffset += zDelta;
 		}
 		else if (getCurrentZoom() > 1.0f)
+#else
+		if (false) // getCurrentZoom() not available in Generals
+		{
+			m_mouseWheelOffset += zDelta;
+		}
+		else if (false)
+#endif
 		{
 			m_mouseWheelOffset += zDelta/2;
 		}

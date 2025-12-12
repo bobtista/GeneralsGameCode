@@ -233,6 +233,7 @@ HTREEITEM EditObjectParameter::findOrAdd(HTREEITEM parent, const char *pLabel)
 	return(child);
 }
 
+#ifndef RTS_BUILD_GENERALS
 BOOL EditObjectParameter::OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult)
 {
 	NMTREEVIEW *pHdr = (NMTREEVIEW *)lParam;
@@ -255,6 +256,7 @@ BOOL EditObjectParameter::OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResul
 	}
 	return CDialog::OnNotify(wParam, lParam, pResult);
 }
+#endif
 
 void EditObjectParameter::OnOK()
 {

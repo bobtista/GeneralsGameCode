@@ -60,12 +60,16 @@ MapObjectProps::MapObjectProps(Dict* dictToEdit, const char* title, CWnd* pParen
 	m_title(title),
 	m_selectedObject(NULL),
   m_dictSource(NULL),
+#ifndef RTS_BUILD_GENERALS
   m_scale( 1.0f ),
+#endif
   m_height( 0 ),
   m_posUndoable( NULL ),
   m_angle( 0 ),
+#ifndef RTS_BUILD_GENERALS
   m_defaultEntryIndex(0),
   m_defaultIsNone(true)
+#endif
 {
 
 
@@ -112,8 +116,10 @@ BEGIN_MESSAGE_MAP(MapObjectProps, CDialog)
 	ON_BN_CLICKED(IDC_MAPOBJECT_Unsellable, _UnsellableToDict)
 	ON_BN_CLICKED(IDC_NEWPROP, OnNewprop)
 	ON_BN_CLICKED(IDC_REMOVEPROP, OnRemoveprop)
+#ifndef RTS_BUILD_GENERALS
 	ON_BN_CLICKED(IDC_SCALE_OFF, OnScaleOff)
 	ON_BN_CLICKED(IDC_SCALE_ON, OnScaleOn)
+#endif
 	ON_CBN_KILLFOCUS(IDC_MAPOBJECT_HitPoints, _HPsToDict)
 	ON_CBN_SELCHANGE(IDC_MAPOBJECT_Aggressiveness, _AggressivenessToDict)
 	ON_CBN_SELCHANGE(IDC_MAPOBJECT_Script, _ScriptToDict)
@@ -126,15 +132,21 @@ BEGIN_MESSAGE_MAP(MapObjectProps, CDialog)
 	ON_CBN_SELCHANGE(IDC_SOUND_COMBO, attachedSoundToDict)
 	ON_CBN_SELENDOK(IDC_MAPOBJECT_HitPoints, _HPsToDict)
 	ON_EN_KILLFOCUS(IDC_LOOPCOUNT_EDIT, loopCountToDict)
+#ifndef RTS_BUILD_GENERALS
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_Angle, SetAngle)
+#endif
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_Name, _NameToDict)
+#ifndef RTS_BUILD_GENERALS
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_Scale, _ScaleToDict)
+#endif
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_ShroudClearingDistance, _ShroudClearingDistanceToDict)
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_StartingHealthEdit, _HealthToDict)
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_StoppingDistance, _StoppingDistanceToDict)
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_VisionDistance, _VisibilityToDict)
+#ifndef RTS_BUILD_GENERALS
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_XYPosition, OnKillfocusMAPOBJECTXYPosition)
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_ZOffset, SetZOffset)
+#endif
 	ON_EN_KILLFOCUS(IDC_MAX_RANGE_EDIT, maxRangeToDict)
 	ON_EN_KILLFOCUS(IDC_MIN_RANGE_EDIT, minRangeToDict)
 	ON_EN_KILLFOCUS(IDC_MIN_VOLUME_EDIT, minVolumeToDict)
