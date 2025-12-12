@@ -80,11 +80,13 @@ public:
 
 // Implementation
 public:
+#ifndef RTS_BUILD_GENERALS
 	static void updateWarnings(Bool forceUpdate=false);
 	static void updateScriptWarning(Script *pScript);
 
 	static void patchScriptParametersForGC(Script *pScript);
 	static void checkParametersForGC(void);
+#endif
 
 
 	/// To allow CSDTreeCtrl access to these member functions of ScriptDialog
@@ -98,7 +100,9 @@ protected:
 	static ScriptDialog *m_staticThis;
 	CSDTreeCtrl *mTree;
 	Bool			m_draggingTreeView;
+#ifndef RTS_BUILD_GENERALS
 	Bool m_autoUpdateWarnings;	///< flag whether we should updateWarnings on script editor actions.
+#endif
 
 	HTREEITEM m_dragItem;
 
@@ -144,9 +148,11 @@ protected:
 	afx_msg void OnEditScript();
 	afx_msg void OnCopyScript();
 	afx_msg void OnDelete();
+#ifndef RTS_BUILD_GENERALS
 	afx_msg void OnVerify();
 	afx_msg void OnPatchGC();
 	afx_msg void OnAutoVerify();
+#endif
 	afx_msg void OnSave();
 	afx_msg void OnLoad();
 	afx_msg void OnDblclkScriptTree(NMHDR* pNMHDR, LRESULT* pResult);
