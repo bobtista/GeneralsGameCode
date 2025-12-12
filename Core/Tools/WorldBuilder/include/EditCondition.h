@@ -25,11 +25,13 @@
 class Condition;
 class SidesList;
 
+#ifndef RTS_BUILD_GENERALS
 class CMyTreeCtrl : public CTreeCtrl
 {
 public:
 	virtual LRESULT WindowProc( UINT message, WPARAM wParam, LPARAM lParam );
 };
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 // EditCondition dialog
@@ -68,7 +70,11 @@ protected:
 	CRichEditCtrl m_myEditCtrl;
 	CHARRANGE m_curLinkChrg;
 	Int				m_curEditParameter;
+#ifndef RTS_BUILD_GENERALS
+	CMyTreeCtrl	m_conditionTreeView;
+#else
 	CTreeCtrl	m_conditionTreeView;
+#endif
 
 protected:
 
