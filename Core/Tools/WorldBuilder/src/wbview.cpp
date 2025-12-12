@@ -49,8 +49,10 @@ WbView::WbView() :
 	m_hysteresis(0),
 	m_lockAngle(false),
 	m_doLightFeedback(FALSE),
-	m_pickConstraint(ES_NONE),
-	m_doRulerFeedback(RULER_NONE)
+	m_pickConstraint(ES_NONE)
+#ifndef RTS_BUILD_GENERALS
+	, m_doRulerFeedback(RULER_NONE)
+#endif
 {
 	Int showWay = ::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowWaypoints", 1);
 	m_showWaypoints = (showWay!=0);
@@ -214,6 +216,7 @@ void WbView::mouseMove(TTrackingMode m, CPoint viewPt)
 		return;
 	}
 
+#ifndef RTS_BUILD_GENERALS
 	if (m_doRulerFeedback != RULER_NONE) {
 		// If the user is measuring stuff, no need to do the rest of the text.
 		CString str;
@@ -225,6 +228,7 @@ void WbView::mouseMove(TTrackingMode m, CPoint viewPt)
 		CMainFrame::GetMainFrame()->SetMessageText(str);
 		return;
 	}
+#endif
 
 	// Generate the status text display with coordinates and height.
 	Coord3D cpt;
@@ -1077,9 +1081,11 @@ int WbView::OnCreate(LPCREATESTRUCT lpcs)
 	return CView::OnCreate(lpcs);
 }
 
+#ifndef RTS_BUILD_GENERALS
 void WbView::rulerFeedbackInfo(Coord3D &point1, Coord3D &point2, Real dist)
 {
 	m_rulerPoints[0] = point1;
 	m_rulerPoints[1] = point2;
 	m_rulerLength = dist;
 }
+#endif
