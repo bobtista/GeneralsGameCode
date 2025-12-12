@@ -26,9 +26,10 @@
 #include "wbview3d.h"
 #include "WorldBuilderDoc.h"
 
-
+#ifndef RTS_BUILD_GENERALS
 #include "WaypointOptions.h" //WST 10/7/2002
 #include "CUndoable.h" //WST 10/7/2002
+#endif
 
 /////////////////////////////////////////////////////////////////////////////
 // CameraOptions dialog
@@ -56,8 +57,10 @@ void CameraOptions::DoDataExchange(CDataExchange* pDX)
 BEGIN_MESSAGE_MAP(CameraOptions, CDialog)
 	//{{AFX_MSG_MAP(CameraOptions)
 	ON_BN_CLICKED(IDC_CameraReset, OnCameraReset)
+#ifndef RTS_BUILD_GENERALS
 	ON_BN_CLICKED(IDC_DROP_WAYPOINT_BUTTON, OnDropWaypointButton)
 	ON_BN_CLICKED(IDC_CENTER_ON_SELECTED, OnCenterOnSelectedButton)
+#endif
 	ON_WM_MOVE()
 	ON_EN_CHANGE(IDC_PITCH_EDIT, OnChangePitchEdit)
 	ON_WM_SHOWWINDOW()
@@ -78,6 +81,7 @@ void CameraOptions::OnCameraReset()
 	}
 }
 
+#ifndef RTS_BUILD_GENERALS
 //WST 10/7/2002 - Drop waypoint button for Adam Isgreen -----------
 void CameraOptions::OnDropWaypointButton()
 {
@@ -135,6 +139,7 @@ void CameraOptions::OnCenterOnSelectedButton()
 		}
 	}
 }
+#endif
 
 
 void CameraOptions::OnMove(int x, int y)
@@ -205,8 +210,12 @@ void CameraOptions::stuffValuesIntoFields( void )
 		m_updating = false;
 
 		Real height = p3View->getHeightAboveGround();
+#ifndef RTS_BUILD_GENERALS
 		//WST 10/11/2002 This is inaccurate Real zoom = height/TheGlobalData->m_maxCameraHeight;
 		Real zoom = p3View->getCurrentZoom(); //WST 10.11.2002
+#else
+		Real zoom = height/TheGlobalData->m_maxCameraHeight;
+#endif
 
 		putReal(IDC_ZOOMTEXT, zoom);
 		putReal(IDC_HEIGHTTEXT, height);
