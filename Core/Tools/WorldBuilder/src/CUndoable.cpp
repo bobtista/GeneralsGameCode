@@ -1068,7 +1068,9 @@ AddPolygonUndoable::AddPolygonUndoable(PolygonTrigger *pTrig):
 void AddPolygonUndoable::Do(void)
 {
 	// The call to LayersList must be done here because only the WorldBuilder knows about Layers.
+#ifndef RTS_BUILD_GENERALS
 	TheLayersList->addPolygonTriggerToLayersList(m_trigger, m_trigger->getLayerName());
+#endif
 	PolygonTrigger::addPolygonTrigger(m_trigger);
 	m_isTriggerInList = true;
 }
@@ -1079,7 +1081,9 @@ void AddPolygonUndoable::Do(void)
 void AddPolygonUndoable::Undo(void)
 {
 	// The call to LayersList must be done here because only the WorldBuilder knows about Layers.
+#ifndef RTS_BUILD_GENERALS
 	TheLayersList->removePolygonTriggerFromLayersList(m_trigger);
+#endif
 	PolygonTrigger::removePolygonTrigger(m_trigger);
 	m_isTriggerInList = false;
 }
@@ -1339,7 +1343,9 @@ DeletePolygonUndoable::DeletePolygonUndoable(PolygonTrigger *pTrig):
 //
 void DeletePolygonUndoable::Do(void)
 {
+#ifndef RTS_BUILD_GENERALS
 	TheLayersList->removePolygonTriggerFromLayersList(m_trigger);
+#endif
 	PolygonTrigger::removePolygonTrigger(m_trigger);
 	m_isTriggerInList = false;
 }
@@ -1350,7 +1356,9 @@ void DeletePolygonUndoable::Do(void)
 void DeletePolygonUndoable::Undo(void)
 {
 	PolygonTrigger::addPolygonTrigger(m_trigger);
+#ifndef RTS_BUILD_GENERALS
 	TheLayersList->addPolygonTriggerToLayersList(m_trigger, m_trigger->getLayerName());
+#endif
 	m_isTriggerInList = true;
 }
 
