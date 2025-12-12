@@ -18,11 +18,15 @@
 
 #pragma once
 
-#include "W3DDevice/GameClient/FlatHeightMap.h"
 #include "W3DDevice/GameClient/HeightMap.h"
+#ifndef RTS_BUILD_GENERALS
+#include "W3DDevice/GameClient/FlatHeightMap.h"
 #define dont_USE_FLAT_HEIGHT_MAP // Use the origina height map for mission disk. jba. [4/15/2003]
 #ifdef USE_FLAT_HEIGHT_MAP
 class WBHeightMap : public FlatHeightMapRenderObjClass
+#else
+class WBHeightMap : public HeightMapRenderObjClass
+#endif
 #else
 class WBHeightMap : public HeightMapRenderObjClass
 #endif
