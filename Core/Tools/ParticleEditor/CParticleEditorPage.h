@@ -30,4 +30,3 @@ struct CParticleEditorPage : public CDialog
 		afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 		DECLARE_MESSAGE_MAP()
 };
-

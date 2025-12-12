@@ -418,5 +418,3 @@ int __declspec(dllexport) NextParticleEditorBehavior( void )
 	} catch (...) {	}
 	return PEB_Error;
 }
-
-

@@ -53,4 +53,3 @@ class CColorAlphaDialog : public CDialog
 		afx_msg void OnParticleSystemEdit();
 		DECLARE_MESSAGE_MAP()
 };
-
