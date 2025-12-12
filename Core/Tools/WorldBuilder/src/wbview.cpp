@@ -56,8 +56,10 @@ WbView::WbView() :
 {
 	Int showWay = ::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowWaypoints", 1);
 	m_showWaypoints = (showWay!=0);
+#ifndef RTS_BUILD_GENERALS
 	Int showPoly = ::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowPolygonTriggers", 1);
 	m_showPolygonTriggers = (showPoly!=0);
+#endif
 	Int showObj = ::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowObjectIcons", 1);
 	m_showObjects = (showObj!=0);
 	Int showNames = ::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowNames", 1);
@@ -106,8 +108,10 @@ BEGIN_MESSAGE_MAP(WbView, CView)
 	ON_COMMAND(ID_EDIT_GLOBALLIGHTOPTIONS, OnEditGloballightoptions)
 	ON_COMMAND(ID_VIEW_SHOWWAYPOINTS, OnViewShowwaypoints)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_SHOWWAYPOINTS, OnUpdateViewShowwaypoints)
+#ifndef RTS_BUILD_GENERALS
 	ON_COMMAND(ID_VIEW_SHOWPOLYGONTRIGGERS, OnViewShowpolygontriggers)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_SHOWPOLYGONTRIGGERS, OnUpdateViewShowpolygontriggers)
+#endif
 	ON_COMMAND(ID_EDIT_PLAYERLIST, OnEditPlayerlist)
 	ON_COMMAND(ID_EDIT_WORLDINFO, OnEditWorldinfo)
 	ON_COMMAND(ID_EDIT_TEAMLIST, OnEditTeamlist)
@@ -469,7 +473,11 @@ BOOL WbView::OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message)
 /** Handles the delete menu action. */
 void WbView::OnEditDelete()
 {
-	if (PolygonTool::isActive() || m_showPolygonTriggers) {
+	if (PolygonTool::isActive()
+#ifndef RTS_BUILD_GENERALS
+		|| m_showPolygonTriggers
+#endif
+		) {
 		if (PolygonTool::deleteSelectedPolygon()) {
 			return;
 		}
@@ -774,6 +782,7 @@ void WbView::OnUpdateViewShowwaypoints(CCmdUI* pCmdUI)
 	pCmdUI->SetCheck(m_showWaypoints?1:0);
 }
 
+#ifndef RTS_BUILD_GENERALS
 void WbView::OnViewShowpolygontriggers()
 {
 	m_showPolygonTriggers = !m_showPolygonTriggers;
@@ -784,6 +793,7 @@ void WbView::OnUpdateViewShowpolygontriggers(CCmdUI* pCmdUI)
 {
 	pCmdUI->SetCheck(m_showPolygonTriggers?1:0);
 }
+#endif
 
 void WbView::OnEditPlayerlist()
 {

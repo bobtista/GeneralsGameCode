@@ -191,8 +191,10 @@ void LayersList::resetLayers(void)
 	defaultLayer.show = true;
 	mLayers.clear();
 	mLayers.push_back(defaultLayer);
+#ifndef RTS_BUILD_GENERALS
 	defaultLayer.layerName = AsciiString(ThePolygonTriggerLayerName.c_str());
 	mLayers.push_back(defaultLayer);
+#endif
 	TheLayersList = this;
 	if (mTree) {
 		mTree->DeleteAllItems();
@@ -332,9 +334,11 @@ void LayersList::removeLayerNamed(IN AsciiString layerToRemove)
 	}
 
 	// Not allowed to remove the Default trigger layer
+#ifndef RTS_BUILD_GENERALS
 	if (layerToRemove.compareNoCase(ThePolygonTriggerLayerName.c_str()) == 0) {
 		return;
 	}
+#endif
 
 
 	// If we can't find the layer, how can we remove it?
@@ -391,9 +395,11 @@ void LayersList::mergeLayerInto(IN ListLayerIt src, IN ListLayerIt dst)
 	if (src->layerName.compareNoCase(TheDefaultLayerName.c_str()) == 0) {
 		return;
 	}
+#ifndef RTS_BUILD_GENERALS
 	if (src->layerName.compareNoCase(ThePolygonTriggerLayerName.c_str()) == 0) {
 		return;
 	}
+#endif
 
 	if (src->layerName.compareNoCase(TheActiveLayerName.c_str()) == 0) {
 		// The active layer is no longer available.
@@ -784,9 +790,11 @@ void LayersList::OnBeginEditLabel(NMHDR *pNotifyStruct, LRESULT* pResult)
 		return;
 	}
 
+#ifndef RTS_BUILD_GENERALS
 	if (strcmp(ptvdi->item.pszText, ThePolygonTriggerLayerName.c_str()) == 0) {
 		// Can't edit the default polygon trigger layer name.
 		(*pResult) = 1;
+#endif
 		return;
 	}
 
@@ -1371,7 +1379,9 @@ END_MESSAGE_MAP()
 // TheDefaultLayerName is NOT constant, because it is okay to change it.
 std::string LayersList::TheDefaultLayerName = "Default Object Layer";
 std::string LayersList::TheDefaultNewLayerName = "New Layer";
+#ifndef RTS_BUILD_GENERALS
 std::string LayersList::ThePolygonTriggerLayerName = "Default Trigger Layer";
+#endif
 std::string LayersList::TheActiveLayerName;
 const std::string LayersList::TheUnmutableDefaultLayerName = "Default Object Layer";
 extern LayersList *TheLayersList = NULL;

@@ -2054,7 +2054,11 @@ void WbView3d::redraw(void)
 	if (m_drawObject) {
 		m_drawObject->setDrawObjects(m_showObjects,
 			m_showWaypoints || WaypointTool::isActive(),
+#ifndef RTS_BUILD_GENERALS
 			m_showPolygonTriggers || PolygonTool::isActive(),
+#else
+			PolygonTool::isActive(),
+#endif
       m_showBoundingBoxes, m_showSightRanges, m_showWeaponRanges, m_showSoundCircles, m_highlightTestArt, m_showLetterbox);
 	}
 

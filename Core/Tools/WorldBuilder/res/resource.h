@@ -557,7 +557,9 @@
 #define IDC_CENTER_ON_SELECTED          1327
 #define IDC_CHECK_RULER                 1328
 #define IDC_SIDES                       1329
+#ifndef RTS_BUILD_GENERALS
 #define IDC_RULER_WIDTH                 1330
+#endif
 #define IDC_UPDATE_TEAM_MEMBERS         1331
 #define IDC_USE_TEAM_DEFAULTS           1332
 #define IDC_LOOPING_CHECKBOX            1333
@@ -635,7 +637,9 @@
 #define ID_MOLD_TOOL                    32955
 #define ID_VIEW_SHOWMACROTEXTURE        32956
 #define ID_EDIT_SELECTMACROTEXTURE      32957
+#ifndef RTS_BUILD_GENERALS
 #define ID_RULER_TOOL                   32958
+#endif
 #define ID_SCRIPT_EDIT                  32959
 #define ID_TEAM_EDIT                    32960
 #define ID_LOCK_HORIZONTAL              32962
@@ -644,7 +648,9 @@
 #define ID_EDIT_GLOBALLIGHTOPTIONS      32965
 #define ID_VIEW_SHOWWAYPOINTS           32966
 #define ID_POLYGON_TOOL                 32968
+#ifndef RTS_BUILD_GENERALS
 #define ID_VIEW_SHOWPOLYGONTRIGGERS     32969
+#endif
 #define ID_EDIT_PLAYERLIST              32970
 #define ID_EDIT_WORLDINFO               32971
 #define ID_BUILD_LIST_TOOL              32972

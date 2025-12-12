@@ -70,7 +70,9 @@ protected:
  	Bool					m_showNames;					///< Flag whether names are drawn in the 2d and 3d view.
 	Bool					m_showGarrisoned;
 	Bool					m_showWaypoints;
+#ifndef RTS_BUILD_GENERALS
 	Bool					m_showPolygonTriggers;
+#endif
  	Bool					m_showTerrain;			  ///< Flag whether terrain is rendered or not. (Useful for debugging)
 
 	Real					m_hysteresis;
@@ -147,7 +149,9 @@ public:
 	virtual MapObject *picked3dObjectInView(CPoint viewPt) {return NULL;};
 	virtual BuildListInfo *pickedBuildObjectInView(CPoint viewPt) {return NULL;};
 
+#ifndef RTS_BUILD_GENERALS
 	Bool isPolygonTriggerVisible(void) {return m_showPolygonTriggers;};
+#endif
 	Bool isWaypointVisible(void) {return m_showWaypoints;};
 	Bool isNamesVisible(void) {return m_showNames;};
 	void setShowModels(Bool show) {m_showModels = show;}
