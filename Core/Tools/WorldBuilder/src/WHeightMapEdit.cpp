@@ -1571,6 +1571,38 @@ void WorldHeightMapEdit::resetResources(void)
 	REF_PTR_RELEASE(m_alphaEdgeTex);
 }
 
+#ifdef RTS_BUILD_GENERALS
+Bool  WorldHeightMapEdit::getRawTileData(Short tileNdx, Int width,
+																				 UnsignedByte *buffer, Int bufLen)
+{
+	TileData *pSrc = NULL;
+	if (tileNdx/4 < NUM_SOURCE_TILES) {
+		pSrc = m_sourceTiles[tileNdx/4];
+	}
+	if (bufLen < (width*width*TILE_BYTES_PER_PIXEL)) {
+		return(false);
+	}
+	if (pSrc && pSrc->hasRGBDataForWidth(2*width)) {
+		Int j;
+		UnsignedByte *pSrcData = pSrc->getRGBDataForWidth(2*width);
+		Int xOffset=0;
+		Int yOffset=0;
+		if (tileNdx & 1) xOffset = width;
+		if (tileNdx & 2) yOffset = width;
+		for (j=0; j<width; j++) {
+			UnsignedByte *pDestData = buffer;
+			pDestData += j*(width)*TILE_BYTES_PER_PIXEL;
+			UnsignedByte *pSrc = pSrcData;
+			pSrc += (j+yOffset)*width*TILE_BYTES_PER_PIXEL*2;
+			pSrc += xOffset*TILE_BYTES_PER_PIXEL;
+			memcpy(pDestData, pSrc, width*TILE_BYTES_PER_PIXEL);
+		}
+		return(true);
+	}
+	return(false);
+}
+#endif
+
 /******************************************************************
 	reloadTextures
 		reloads textures from files.

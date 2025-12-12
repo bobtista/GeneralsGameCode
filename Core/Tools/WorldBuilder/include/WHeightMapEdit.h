@@ -24,6 +24,10 @@
 
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 
+#ifdef RTS_BUILD_GENERALS
+#define NUM_ALPHA_TILES 8
+#endif
+
 class DataChunkOutput;
 class TerrainType;
 
@@ -146,6 +150,10 @@ public: // Editing methods.
 	Bool remapTextures(void); ///< returns true if the operation had an effect.
 	void reloadTextures(void); ///< Reloads textures from disk.
 	void resetResources(void); ///< Releases textures in preparation for device reset.
+
+#ifdef RTS_BUILD_GENERALS
+	Bool getRawTileData(Short tileNdx, Int width, UnsignedByte *buffer, Int bufLen);
+#endif
 
 	void dbgVerifyAfterUndo(void); ///< Verifies the structures are still consistent.
 	Bool doCliffAdjustment(Int xIndex, Int yIndex);
