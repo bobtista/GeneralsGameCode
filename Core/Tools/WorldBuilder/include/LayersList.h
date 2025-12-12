@@ -42,20 +42,26 @@
 
 // FORWARD DECLARATIONS ///////////////////////////////////////////////////////
 class MapObject;
+#ifndef RTS_BUILD_GENERALS
 class PolygonTrigger;
+#endif
 
 // TYPE DEFINES ///////////////////////////////////////////////////////////////
 typedef std::list<MapObject*> ListMapObjectPtr;
 typedef ListMapObjectPtr::iterator ListMapObjectPtrIt;
 
+#ifndef RTS_BUILD_GENERALS
 typedef std::list<PolygonTrigger*> ListPolygonTriggerPtr;
 typedef ListPolygonTriggerPtr::iterator ListPolygonTriggerPtrIt;
+#endif
 
 struct Layer
 {
 	AsciiString layerName;
 	ListMapObjectPtr objectsInLayer;
+#ifndef RTS_BUILD_GENERALS
 	ListPolygonTriggerPtr polygonTriggersInLayer;
+#endif
 	Bool show;
 };
 
@@ -91,12 +97,18 @@ class LayersList : public CDialog
 
 		void resetLayers();
 		void addMapObjectToLayersList(IN MapObject *objToAdd, AsciiString layerToAddTo = AsciiString(TheDefaultLayerName.c_str()));
+#ifndef RTS_BUILD_GENERALS
 		void addPolygonTriggerToLayersList(IN PolygonTrigger *triggerToAdd, AsciiString layerToAddTo = AsciiString(TheDefaultLayerName.c_str()));
+#endif
 		AsciiString removeMapObjectFromLayersList(IN MapObject *objToRemove);
+#ifndef RTS_BUILD_GENERALS
 		AsciiString removePolygonTriggerFromLayersList(IN PolygonTrigger *triggerToRemove);
+#endif
 
 		void changeMapObjectLayer(IN MapObject *objToChange, AsciiString layerToPlaceOn);
+#ifndef RTS_BUILD_GENERALS
 		void changePolygonTriggerLayer(IN PolygonTrigger *triggerToChange, AsciiString layerToPlaceOn);
+#endif
 
 		void addLayerNamed(IN AsciiString layerToAdd);
 		void removeLayerNamed(IN AsciiString layerToRemove);
@@ -113,18 +125,22 @@ class LayersList : public CDialog
 		const ListLayer& GetAllLayers(void) const { return mLayers; }
 
 		static MapObject *findObjectByUID(AsciiString objectIDToFind);
+#ifndef RTS_BUILD_GENERALS
 		static PolygonTrigger *findPolygonTriggerByUID(AsciiString objectIDToFind);
-		static Bool findAndSelectMapObject(AsciiString selectedItemAsciiString);
 		static Bool findAndSelectPolygonTrigger(AsciiString selectedItemAsciiString);
-		static void unselectAllMapObjects(void);
 		static void unselectAllPolygonTriggers(void);
+#endif
+		static Bool findAndSelectMapObject(AsciiString selectedItemAsciiString);
+		static void unselectAllMapObjects(void);
 
 	public:
 		// This is a string because making it an AsciiString makes us barf on construction. :-(
 		static std::string TheDefaultLayerName;
+#ifndef RTS_BUILD_GENERALS
 		static std::string ThePolygonTriggerLayerName;
-		static std::string TheDefaultNewLayerName;
 		static std::string TheActiveLayerName;
+#endif
+		static std::string TheDefaultNewLayerName;
 		static const std::string TheUnmutableDefaultLayerName;
 
 	protected:
@@ -146,7 +162,9 @@ class LayersList : public CDialog
 		//    MapObjectIt points to a valid MapObject iterator on the layerIts MapObjectsInLayer member
 		// 2) Returns false if the MapObject cannot be found.
 		Bool findMapObjectAndList(IN MapObject *MapObjectToFind, OUT ListLayerIt *layerIt = NULL, OUT ListMapObjectPtrIt *MapObjectIt = NULL);
+#ifndef RTS_BUILD_GENERALS
 		Bool findPolygonTriggerAndList(IN PolygonTrigger *PolygonTriggerToFind, OUT ListLayerIt *layerIt = NULL, OUT ListPolygonTriggerPtrIt *PolygonTriggerIt = NULL);
+#endif
 
 		// This function takes a layer name, and does one of the following:
 		// 1) Return true if the layer can be found, and
@@ -155,9 +173,11 @@ class LayersList : public CDialog
 		Bool findLayerNamed(IN AsciiString layerName, OUT ListLayerIt *layerIt = NULL);
 
 		void addMapObjectToLayer(IN MapObject *objToAdd, IN ListLayerIt *layerIt);
+#ifndef RTS_BUILD_GENERALS
 		void addPolygonTriggerToLayer(IN PolygonTrigger *objToAdd, IN ListLayerIt *layerIt);
-		void removeMapObjectFromLayer(IN MapObject *objToRemove, IN ListLayerIt *layerIt = NULL, IN ListMapObjectPtrIt *MapObjectIt = NULL);
 		void removePolygonTriggerFromLayer(IN PolygonTrigger *triggerToRemove, IN ListLayerIt *layerIt = NULL, IN ListPolygonTriggerPtrIt *PolygonTriggerIt = NULL);
+#endif
+		void removeMapObjectFromLayer(IN MapObject *objToRemove, IN ListLayerIt *layerIt = NULL, IN ListMapObjectPtrIt *MapObjectIt = NULL);
 		void updateObjectRenderFlags(IN ListLayerIt *layerIt);
 		void updateTreeImages();
 
