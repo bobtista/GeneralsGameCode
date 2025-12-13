@@ -1625,7 +1625,7 @@ void W3DModelDrawModuleData::parseConditionState(INI* ini, void *instance, void 
 				throw INI_INVALID_DATA;
 			}
 
-			DEBUG_ASSERTCRASH(info.m_conditionsYesVec.size() == 0, ("*** ASSET ERROR: nonempty m_conditionsYesVec.size(), see srj"));
+			DEBUG_ASSERTCRASH(info.m_conditionsYesVec.empty(), ("*** ASSET ERROR: nonempty m_conditionsYesVec.size(), see srj"));
 			info.m_conditionsYesVec.clear();
 			info.m_conditionsYesVec.push_back(conditionsYes);
 		}

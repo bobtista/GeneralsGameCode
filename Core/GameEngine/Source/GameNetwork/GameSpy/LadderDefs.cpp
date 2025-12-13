@@ -505,7 +505,7 @@ void LadderList::checkLadder( AsciiString fname, Int index )
 
 	if (li->validMaps.empty())
 	{
-		DEBUG_LOG(("Bailing because of li->validMaps.size() == 0"));
+		DEBUG_LOG(("Bailing because of li->validMaps.empty()"));
 		delete li;
 		return;
 	}
