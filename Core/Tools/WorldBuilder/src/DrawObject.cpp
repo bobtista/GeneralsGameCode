@@ -150,8 +150,10 @@ DrawObject::DrawObject(void) :
 	m_indexFeedback(NULL),
 	m_indexWater(NULL),
 	m_moldMesh(NULL),
+#ifndef RTS_BUILD_GENERALS
 	m_lineRenderer(NULL),
   m_drawSoundRanges(false)
+#endif
 {
 	m_feedbackPoint.x = 20;
 	m_feedbackPoint.y = 20;
@@ -229,8 +231,10 @@ Int DrawObject::freeMapResources(void)
 	REF_PTR_RELEASE(m_indexWater);
 	REF_PTR_RELEASE(m_moldMesh);
 
+#ifndef RTS_BUILD_GENERALS
 	delete m_lineRenderer;
 	m_lineRenderer = NULL;
+#endif
 
 	return 0;
 }
@@ -1606,6 +1610,7 @@ Int DrawObject::updateVB(DX8VertexBufferClass	*pVB, Int color, Bool doArrow, Boo
 }
 
 #define BOUNDING_BOX_LINE_WIDTH 2.0f
+#ifndef RTS_BUILD_GENERALS
 /** Draw an object's bounding box into the vertex buffer. **/
 // MLL C&C3
 void DrawObject::updateVBWithBoundingBox(MapObject *pMapObj, CameraClass* camera)
@@ -1717,7 +1722,9 @@ void DrawObject::updateVBWithBoundingBox(MapObject *pMapObj, CameraClass* camera
 		}
 	}
 }
+#endif
 
+#ifndef RTS_BUILD_GENERALS
 /** Draw a "circle" into the m_lineRenderer, e.g. to visualize weapon range, sight range, sound range **/
 void DrawObject::addCircleToLineRenderer( const Coord3D & center, Real radius, Real width, unsigned long color, CameraClass* camera )
 {
