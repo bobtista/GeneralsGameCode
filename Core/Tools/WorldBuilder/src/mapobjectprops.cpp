@@ -64,8 +64,10 @@ MapObjectProps::MapObjectProps(Dict* dictToEdit, const char* title, CWnd* pParen
   m_scale( 1.0f ),
 #endif
   m_height( 0 ),
-  m_posUndoable( NULL ),
   m_angle( 0 ),
+#ifndef RTS_BUILD_GENERALS
+  m_posUndoable( NULL ),
+#endif
 #ifndef RTS_BUILD_GENERALS
   m_defaultEntryIndex(0),
   m_defaultIsNone(true)
@@ -83,10 +85,12 @@ MapObjectProps::~MapObjectProps()
   if (TheMapObjectProps == this)
 		TheMapObjectProps = NULL;
 
+#ifndef RTS_BUILD_GENERALS
   if ( m_posUndoable != NULL )
   {
     REF_PTR_RELEASE( m_posUndoable );
   }
+#endif
 
   if ( m_hWnd )
     DestroyWindow();
@@ -338,6 +342,7 @@ void MapObjectProps::_ScriptToDict(void)
 
 
 /// Move data from object to dialog controls
+#ifndef RTS_BUILD_GENERALS
 void MapObjectProps::_DictToScale(void)
 {
 // Currently not in the Mission Disk.
@@ -372,6 +377,7 @@ void MapObjectProps::_DictToScale(void)
 #endif
 
 }
+#endif
 
 /// Move data from object to dialog controls
 void MapObjectProps::_DictToWeather(void)
@@ -446,6 +452,7 @@ void MapObjectProps::_TimeToDict(void)
 }
 
 /// Move data from dialog controls to object
+#ifndef RTS_BUILD_GENERALS
 void MapObjectProps::_ScaleToDict(void)
 {
 // Currently not in mission disk.
@@ -479,6 +486,7 @@ void MapObjectProps::_ScaleToDict(void)
   }
 #endif
 }
+#endif
 
 /// Move data from object to dialog controls
 void MapObjectProps::ShowZOffset(MapObject *pMapObj)
@@ -492,6 +500,7 @@ void MapObjectProps::ShowZOffset(MapObject *pMapObj)
 }
 
 /// Move data from dialog controls to object
+#ifndef RTS_BUILD_GENERALS
 void MapObjectProps::SetZOffset(void)
 {
   Real value = 0.0f;
@@ -511,6 +520,7 @@ void MapObjectProps::SetZOffset(void)
     REF_PTR_RELEASE(pUndo); // belongs to pDoc now.
   }
 }
+#endif
 
 /// Move data from object to dialog controls
 void MapObjectProps::ShowAngle(MapObject *pMapObj)
@@ -524,6 +534,7 @@ void MapObjectProps::ShowAngle(MapObject *pMapObj)
 }
 
 /// Move data from object to dialog controls
+#ifndef RTS_BUILD_GENERALS
 void MapObjectProps::ShowPosition(MapObject *pMapObj)
 {
   m_position = *pMapObj->getLocation();
@@ -533,8 +544,10 @@ void MapObjectProps::ShowPosition(MapObject *pMapObj)
   edit->SetWindowText(buff);
   sscanf(buff, "%f,%f", &m_position.x, &m_position.y);
 }
+#endif
 
 /// Move data from dialog controls to object
+#ifndef RTS_BUILD_GENERALS
 void MapObjectProps::SetAngle(void)
 {
   Real angle = m_angle;
@@ -558,8 +571,10 @@ void MapObjectProps::SetAngle(void)
     }
   }
 }
+#endif
 
 /// Move data from dialog controls to object
+#ifndef RTS_BUILD_GENERALS
 void MapObjectProps::SetPosition(void)
 {
   CWnd* edit = GetDlgItem(IDC_MAPOBJECT_XYPosition);
@@ -587,6 +602,7 @@ void MapObjectProps::SetPosition(void)
     }
   }
 }
+#endif
 
 /// Slider control
 void MapObjectProps::GetPopSliderInfo(const long sliderID, long *pMin, long *pMax, long *pLineSize, long *pInitial)
@@ -607,12 +623,14 @@ void MapObjectProps::GetPopSliderInfo(const long sliderID, long *pMin, long *pMa
 			*pLineSize = 1;
 			break;
 
+#ifndef RTS_BUILD_GENERALS
 		case IDC_SCALE_POPUP:
 			*pMin = 1;
 			*pMax = 500;
 			*pInitial = m_scale*100;
 			*pLineSize = 1;
 			break;
+#endif
 
 		default:
 			// uh-oh!
@@ -632,11 +650,13 @@ void MapObjectProps::PopSliderChanged(const long sliderID, long theVal)
 	static char buff[32];
 	switch (sliderID) {
 		case IDC_HEIGHT_POPUP:
+#ifndef RTS_BUILD_GENERALS
 			if (!m_posUndoable) {
 				m_posUndoable = new ModifyObjectUndoable(pDoc);
 				pDoc->AddAndDoUndoable(m_posUndoable);
 			}
 			m_posUndoable->SetZOffset(theVal);
+#endif
 			m_height = theVal;
 			snprintf(buff, ARRAY_SIZE(buff), "%0.2f", m_height);
 			edit = GetDlgItem(IDC_MAPOBJECT_ZOffset);
@@ -644,23 +664,27 @@ void MapObjectProps::PopSliderChanged(const long sliderID, long theVal)
 			break;
 
 		case IDC_ANGLE_POPUP:
+#ifndef RTS_BUILD_GENERALS
 			if (!m_posUndoable) {
 				m_posUndoable = new ModifyObjectUndoable(pDoc);
 				pDoc->AddAndDoUndoable(m_posUndoable);
 			}
 			m_posUndoable->RotateTo(theVal * PI/180);
+#endif
 			m_angle = theVal;
 			snprintf(buff, ARRAY_SIZE(buff), "%0.2f", m_angle);
 			edit = GetDlgItem(IDC_MAPOBJECT_Angle);
 			edit->SetWindowText(buff);
 			break;
 
+#ifndef RTS_BUILD_GENERALS
 		case IDC_SCALE_POPUP:
 			m_scale = theVal/100.0f;
 			snprintf(buff, ARRAY_SIZE(buff), "%0.2f", m_scale);
 			edit = GetDlgItem(IDC_MAPOBJECT_Scale);
 			edit->SetWindowText(buff);
 			break;
+#endif
 
 		default:
 			// uh-oh!
@@ -675,16 +699,20 @@ void MapObjectProps::PopSliderFinished(const long sliderID, long theVal)
 	switch (sliderID) {
 		case IDC_HEIGHT_POPUP:
 		case IDC_ANGLE_POPUP:
+#ifndef RTS_BUILD_GENERALS
       if ( m_posUndoable != NULL )
       {
   			REF_PTR_RELEASE(m_posUndoable); // belongs to pDoc now.
       }
 			m_posUndoable = NULL;
+#endif
 			break;
 
+#ifndef RTS_BUILD_GENERALS
 		case IDC_SCALE_POPUP:
 			_ScaleToDict();
 			break;
+#endif
 
 		default:
 			// uh-oh!
@@ -1612,11 +1640,13 @@ BOOL MapObjectProps::OnInitDialog()
 
   m_heightSlider.SetupPopSliderButton(this, IDC_HEIGHT_POPUP, this);
   m_angleSlider.SetupPopSliderButton(this, IDC_ANGLE_POPUP, this);
+#ifndef RTS_BUILD_GENERALS
   m_scaleSlider.SetupPopSliderButton(this, IDC_SCALE_POPUP, this);
 	m_posUndoable = NULL;
+	m_scale = 1.0f;
+#endif
 	m_angle = 0;
 	m_height = 0;
-	m_scale = 1.0f;
 
 	InitSound();
 	updateTheUI();
@@ -1662,7 +1692,9 @@ void MapObjectProps::updateTheUI(MapObject *pMapObj)
   _DictToScript();
   _DictToWeather();
   _DictToTime();
+#ifndef RTS_BUILD_GENERALS
   _DictToScale();
+#endif
   _DictToPrebuiltUpgrades();
 	_DictToHealth();
   _DictToHPs();
@@ -1680,7 +1712,9 @@ void MapObjectProps::updateTheUI(MapObject *pMapObj)
   _DictToTargetable();
 	ShowZOffset(pMapObj);
   ShowAngle(pMapObj);
+#ifndef RTS_BUILD_GENERALS
   ShowPosition(pMapObj);
+#endif
 
   // Warning: order is important. dictToAttachedSound() must come before dictToCustomize(),
   // dictToCustomize() must come before any of the customization controls, dictToLooping()
@@ -1718,8 +1752,10 @@ void MapObjectProps::InitSound(void)
 
   CComboBox * soundComboBox = (CComboBox *)GetDlgItem(IDC_SOUND_COMBO);
   DEBUG_ASSERTCRASH( soundComboBox != NULL, ("Cannot find sound combobox" ) );
+#ifndef RTS_BUILD_GENERALS
   m_defaultEntryIndex = 0;
   m_defaultIsNone = true;
+#endif
 
   // Load up combobox
   if ( soundComboBox != NULL )
@@ -1738,16 +1774,20 @@ void MapObjectProps::InitSound(void)
       }
     }
 
+#ifndef RTS_BUILD_GENERALS
     m_defaultEntryIndex = soundComboBox->InsertString( 0, BASE_DEFAULT_STRING );
     m_defaultEntryName = NO_SOUND_STRING;
     m_defaultIsNone = true;
 
     soundComboBox->InsertString( 1, NO_SOUND_STRING );
+#else
+    soundComboBox->InsertString( 0, NO_SOUND_STRING );
+#endif
   }
 
 }
 
-
+#ifndef RTS_BUILD_GENERALS
 // Adds a series of Undoable's to the given MultipleUndoable which clears the
 // objectSoundAmbientCustomized flag and all the customization flags out of
 // all the selected dictionaries.
@@ -1790,6 +1830,7 @@ void MapObjectProps::clearCustomizeFlag( CWorldBuilderDoc* pDoc, MultipleUndoabl
   ownerUndoable->addUndoable(pUndo);
   REF_PTR_RELEASE(pUndo); // belongs to ownerUndoable now.
 }
+#endif
 
 /// Move data from dialog controls to object(s)
 void MapObjectProps::attachedSoundToDict(void)
@@ -1803,6 +1844,7 @@ void MapObjectProps::attachedSoundToDict(void)
   CWorldBuilderDoc* pDoc = CWorldBuilderDoc::GetActiveDoc();
   if ( pDoc != NULL )
   {
+#ifndef RTS_BUILD_GENERALS
     MultipleUndoable *pUndo = new MultipleUndoable;
 
     Dict newDict;
@@ -1834,6 +1876,18 @@ void MapObjectProps::attachedSoundToDict(void)
     pDoc->AddAndDoUndoable( pUndo );
     REF_PTR_RELEASE( pDictUndo ); // belongs to pUndo
     REF_PTR_RELEASE( pUndo ); // belongs to pDoc now.
+#else
+    Dict newDict;
+
+    // For the default, erase the objectSoundAmbient key
+    CString selectionText;
+    soundComboBox->GetLBText( soundComboBox->GetCurSel(), selectionText );
+    newDict.setAsciiString(TheKey_objectSoundAmbient, static_cast< const char * >( selectionText) );
+
+    DictItemUndoable *pDictUndo = new DictItemUndoable(getAllSelectedDictsData(), newDict, TheKey_objectSoundAmbient, m_allSelectedDicts.size(), pDoc, true);
+    pDoc->AddAndDoUndoable( pDictUndo );
+    REF_PTR_RELEASE( pDictUndo ); // belongs to pDoc now.
+#endif
     // Update is called by Doc
   }
 }
@@ -1861,6 +1915,7 @@ void MapObjectProps::customizeToDict(void)
       REF_PTR_RELEASE(pUndo); // belongs to pDoc now.
       // Update is called by Doc
     }
+#ifndef RTS_BUILD_GENERALS
     else
     {
       MultipleUndoable *pUndo = new MultipleUndoable;
@@ -1869,6 +1924,7 @@ void MapObjectProps::customizeToDict(void)
       REF_PTR_RELEASE( pUndo ); // belongs to pDoc now.
       // Update is called by Doc
     }
+#endif
   }
 }
 
@@ -2082,6 +2138,7 @@ void MapObjectProps::dictToAttachedSound()
   if ( soundComboBox == NULL )
     return;
 
+#ifndef RTS_BUILD_GENERALS
   // Update the string for the "default" entry
   m_defaultIsNone = true;
   m_defaultEntryName = NO_SOUND_STRING;
@@ -2126,6 +2183,7 @@ void MapObjectProps::dictToAttachedSound()
   {
     m_defaultEntryIndex = soundComboBox->InsertString(0, BASE_DEFAULT_STRING);
   }
+#endif
 
   // Now select the correct entry in the list box
   AsciiString sound;
@@ -2137,9 +2195,14 @@ void MapObjectProps::dictToAttachedSound()
 
   if ( !exists )
   {
+#ifndef RTS_BUILD_GENERALS
     // Use the "default" entry
     soundComboBox->SetCurSel( m_defaultEntryIndex );
     return;
+#else
+    // Use the entry "(None)"
+    sound = NO_SOUND_STRING;
+#endif
   }
 
   if ( sound.isEmpty() )
@@ -2157,7 +2220,11 @@ void MapObjectProps::dictToAttachedSound()
   else
   {
     DEBUG_CRASH( ("Could not find existing sound's name %s in combo box", sound.str() ) );
+#ifndef RTS_BUILD_GENERALS
     soundComboBox->SetCurSel( m_defaultEntryIndex );
+#else
+    soundComboBox->SetCurSel( 0 );
+#endif
   }
 }
 
@@ -2176,8 +2243,11 @@ void MapObjectProps::dictToCustomize()
   int index = soundComboBox->GetCurSel();
   CString currentString;
   soundComboBox->GetLBText( index, currentString );
-  if ( currentString == NO_SOUND_STRING ||
-       ( index == m_defaultEntryIndex && m_defaultIsNone ) )
+  if ( currentString == NO_SOUND_STRING
+#ifndef RTS_BUILD_GENERALS
+       || ( index == m_defaultEntryIndex && m_defaultIsNone )
+#endif
+       )
   {
     customizeCheckbox->SetCheck( 0 );
     customizeCheckbox->EnableWindow( false );
@@ -2245,17 +2315,23 @@ void MapObjectProps::dictToLooping()
 
   CString currentString;
   soundComboBox->GetLBText( index, currentString );
-  if ( currentString == NO_SOUND_STRING || ( index == m_defaultEntryIndex && m_defaultIsNone ) )
+  if ( currentString == NO_SOUND_STRING
+#ifndef RTS_BUILD_GENERALS
+       || ( index == m_defaultEntryIndex && m_defaultIsNone )
+#endif
+       )
   {
     loopingCheckbox->SetCheck( 0 );
     return;
   }
 
+#ifndef RTS_BUILD_GENERALS
   if ( index == m_defaultEntryIndex )
   {
     // Correct the current string e.g. remove "Default <" and ">"
     currentString = m_defaultEntryName.str();
   }
+#endif
 
   AudioEventInfo * audioEventInfo = TheAudio->findAudioEventInfo(static_cast< const char * >( currentString ) );
 
@@ -2315,17 +2391,23 @@ void MapObjectProps::dictToLoopCount()
 
   CString currentString;
   soundComboBox->GetLBText( index, currentString );
-  if ( currentString == NO_SOUND_STRING || ( index == m_defaultEntryIndex && m_defaultIsNone ) )
+  if ( currentString == NO_SOUND_STRING
+#ifndef RTS_BUILD_GENERALS
+       || ( index == m_defaultEntryIndex && m_defaultIsNone )
+#endif
+       )
   {
     loopCountEdit->SetWindowText( "0" );
     return;
   }
 
+#ifndef RTS_BUILD_GENERALS
   if ( index == m_defaultEntryIndex )
   {
     // Correct the current string e.g. remove "Default <" and ">"
     currentString = m_defaultEntryName.str();
   }
+#endif
 
   AudioEventInfo * audioEventInfo = TheAudio->findAudioEventInfo(static_cast< const char * >( currentString ) );
 
@@ -2360,8 +2442,11 @@ void MapObjectProps::dictToEnabled()
 
   Int soundIndex = soundComboBox->GetCurSel();
   soundComboBox->GetLBText( soundIndex, currentString );
-  if ( currentString == NO_SOUND_STRING ||
-      ( soundIndex == m_defaultEntryIndex && m_defaultIsNone ) )
+  if ( currentString == NO_SOUND_STRING
+#ifndef RTS_BUILD_GENERALS
+      || ( soundIndex == m_defaultEntryIndex && m_defaultIsNone )
+#endif
+      )
   {
     enableCheckbox->SetCheck( 0 );
     enableCheckbox->EnableWindow( false );
@@ -2464,17 +2549,23 @@ void MapObjectProps::dictToMinVolume()
 
   CString currentString;
   soundComboBox->GetLBText( index, currentString );
-  if ( currentString == NO_SOUND_STRING || ( index == m_defaultEntryIndex && m_defaultIsNone ) )
+  if ( currentString == NO_SOUND_STRING
+#ifndef RTS_BUILD_GENERALS
+       || ( index == m_defaultEntryIndex && m_defaultIsNone )
+#endif
+       )
   {
     minVolumeEdit->SetWindowText( "40" );
     return;
   }
 
+#ifndef RTS_BUILD_GENERALS
   if ( index == m_defaultEntryIndex )
   {
     // Correct the current string e.g. remove "Default <" and ">"
     currentString = m_defaultEntryName.str();
   }
+#endif
 
   AudioEventInfo * audioEventInfo = TheAudio->findAudioEventInfo(static_cast< const char * >( currentString ) );
 
@@ -2540,17 +2631,23 @@ void MapObjectProps::dictToVolume()
 
   CString currentString;
   soundComboBox->GetLBText( index, currentString );
-  if ( currentString == NO_SOUND_STRING || ( index == m_defaultEntryIndex && m_defaultIsNone ) )
+  if ( currentString == NO_SOUND_STRING
+#ifndef RTS_BUILD_GENERALS
+       || ( index == m_defaultEntryIndex && m_defaultIsNone )
+#endif
+       )
   {
     volumeEdit->SetWindowText( "100" );
     return;
   }
 
+#ifndef RTS_BUILD_GENERALS
   if ( index == m_defaultEntryIndex )
   {
     // Correct the current string e.g. remove "Default <" and ">"
     currentString = m_defaultEntryName.str();
   }
+#endif
 
   AudioEventInfo * audioEventInfo = TheAudio->findAudioEventInfo(static_cast< const char * >( currentString ) );
 
@@ -2616,17 +2713,23 @@ void MapObjectProps::dictToMinRange()
 
   CString currentString;
   soundComboBox->GetLBText( index, currentString );
-  if ( currentString == NO_SOUND_STRING || ( index == m_defaultEntryIndex && m_defaultIsNone ) )
+  if ( currentString == NO_SOUND_STRING
+#ifndef RTS_BUILD_GENERALS
+       || ( index == m_defaultEntryIndex && m_defaultIsNone )
+#endif
+       )
   {
     minRangeEdit->SetWindowText( "175" );
     return;
   }
 
+#ifndef RTS_BUILD_GENERALS
   if ( index == m_defaultEntryIndex )
   {
     // Correct the current string e.g. remove "Default <" and ">"
     currentString = m_defaultEntryName.str();
   }
+#endif
 
   AudioEventInfo * audioEventInfo = TheAudio->findAudioEventInfo(static_cast< const char * >( currentString ) );
 
@@ -2691,17 +2794,23 @@ void MapObjectProps::dictToMaxRange()
 
   CString currentString;
   soundComboBox->GetLBText( index, currentString );
-  if ( currentString == NO_SOUND_STRING || ( index == m_defaultEntryIndex && m_defaultIsNone ) )
+  if ( currentString == NO_SOUND_STRING
+#ifndef RTS_BUILD_GENERALS
+       || ( index == m_defaultEntryIndex && m_defaultIsNone )
+#endif
+       )
   {
     maxRangeEdit->SetWindowText( "600" );
     return;
   }
 
+#ifndef RTS_BUILD_GENERALS
   if ( index == m_defaultEntryIndex )
   {
     // Correct the current string e.g. remove "Default <" and ">"
     currentString = m_defaultEntryName.str();
   }
+#endif
 
   AudioEventInfo * audioEventInfo = TheAudio->findAudioEventInfo(static_cast< const char * >( currentString ) );
 
@@ -2770,17 +2879,23 @@ void MapObjectProps::dictToPriority()
 
   CString currentString;
   soundComboBox->GetLBText( index, currentString );
-  if ( currentString == NO_SOUND_STRING || ( index == m_defaultEntryIndex && m_defaultIsNone ) )
+  if ( currentString == NO_SOUND_STRING
+#ifndef RTS_BUILD_GENERALS
+       || ( index == m_defaultEntryIndex && m_defaultIsNone )
+#endif
+       )
   {
     priorityComboBox->SetCurSel( AP_LOWEST );
     return;
   }
 
+#ifndef RTS_BUILD_GENERALS
   if ( index == m_defaultEntryIndex )
   {
     // Correct the current string e.g. remove "Default <" and ">"
     currentString = m_defaultEntryName.str();
   }
+#endif
 
   AudioEventInfo * audioEventInfo = TheAudio->findAudioEventInfo(static_cast< const char * >( currentString ) );
 
@@ -2886,6 +3001,7 @@ Dict** MapObjectProps::getAllSelectedDictsData()
 }
 
 /// Move data from dialog controls to object
+#ifndef RTS_BUILD_GENERALS
 void MapObjectProps::OnScaleOn()
 {
   _ScaleToDict();
@@ -2896,10 +3012,13 @@ void MapObjectProps::OnScaleOff()
 {
   _ScaleToDict();
 }
+#endif
 
 /// Move data from dialog controls to object
+#ifndef RTS_BUILD_GENERALS
 void MapObjectProps::OnKillfocusMAPOBJECTXYPosition()
 {
   SetPosition();
 }
+#endif
 

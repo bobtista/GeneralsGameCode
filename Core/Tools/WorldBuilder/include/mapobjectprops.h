@@ -27,7 +27,9 @@
 
 class MapObject;
 class ModifyObjectUndoable;
+#ifndef RTS_BUILD_GENERALS
 class MultipleUndoable;
+#endif
 class CWorldBuilderDoc;
 class MapObject;
 
@@ -194,7 +196,9 @@ protected:
 	void dictToMaxRange(void);
 	void dictToPriority(void);
 
+#ifndef RTS_BUILD_GENERALS
 	void clearCustomizeFlag( CWorldBuilderDoc* pDoc, MultipleUndoable * ownerUndoable );
+#endif
 
 	// Implementation of PopupSliderOwner callbacks
 	virtual void GetPopSliderInfo(const long sliderID, long *pMin, long *pMax, long *pLineSize, long *pInitial);
