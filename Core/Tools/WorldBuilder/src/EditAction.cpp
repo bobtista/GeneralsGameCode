@@ -102,10 +102,14 @@ BOOL EditAction::OnInitDialog()
 	pTree->GetWindowRect(&rect);
 
 	ScreenToClient(&rect);
+#ifndef RTS_BUILD_GENERALS
 	m_actionTreeView.Create(TVS_HASLINES|TVS_LINESATROOT|TVS_HASBUTTONS|
 		TVS_SHOWSELALWAYS|TVS_DISABLEDRAGDROP|WS_TABSTOP, rect, this, IDC_ACTION_TREE);
 	m_actionTreeView.ShowWindow(SW_SHOW);
 	pTree->DestroyWindow();
+#else
+	m_actionTreeView.Attach(pTree->Detach());
+#endif
 
 	CWnd *pWnd = GetDlgItem(IDC_RICH_EDIT_HERE);
 	pWnd->GetWindowRect(&rect);
@@ -321,6 +325,7 @@ BOOL EditAction::OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult)
 					formatScriptActionText(0);
 				}
 			}
+#ifndef RTS_BUILD_GENERALS
 		} else if (pHdr->hdr.code == TVN_KEYDOWN) {
 			NMTVKEYDOWN	*pKey = (NMTVKEYDOWN*)lParam;
 			Int key = pKey->wVKey;
@@ -334,6 +339,7 @@ BOOL EditAction::OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult)
 			}
 			return 0;
 		}
+#endif
 		return TRUE;
 	}
 
