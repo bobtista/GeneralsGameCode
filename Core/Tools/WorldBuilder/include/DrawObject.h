@@ -148,8 +148,10 @@ protected:
 
 	MeshClass									*m_moldMesh;		///< W3D mesh model for the mold.
 	SphereClass								m_moldMeshBounds;				///< Bounding sphere for mold mesh.
+#ifndef RTS_BUILD_GENERALS
 	Render2DClass							*m_lineRenderer;		//< Used to render 2D lines for bounding boxes.
 	CPoint										m_winSize;				//< Holds the size of the window.
+#endif
 
 protected: // static state vars.
 	static Bool								m_squareFeedback;	///< True for square brush feedback, false for round.

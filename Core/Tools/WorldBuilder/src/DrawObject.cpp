@@ -1994,6 +1994,7 @@ void DrawObject::updateVBWithTestArtHighlight(MapObject *pMapObj, CameraClass* c
 
 /** Transform a 3D Coordinate into 2D screen space **/
 // MLL C&C3
+#ifndef RTS_BUILD_GENERALS
 bool DrawObject::worldToScreen(const Coord3D *w, ICoord2D *s, CameraClass* camera)
 {
 
@@ -2022,6 +2023,7 @@ bool DrawObject::worldToScreen(const Coord3D *w, ICoord2D *s, CameraClass* camer
 
 	return (true);
 }
+#endif
 
 /** Tells drawobject where the tool is located, so it can draw feedback. */
 void DrawObject::setFeedbackPos(Coord3D pos)
@@ -2071,6 +2073,7 @@ if (_skip_drawobject_render) {
 	return;
 }
 
+#ifndef RTS_BUILD_GENERALS
 	if (m_lineRenderer == NULL) {
 		// This can't be created in init because the doc hasn't been created yet.
 		m_lineRenderer = new Render2DClass();
@@ -2084,6 +2087,7 @@ if (_skip_drawobject_render) {
 		m_lineRenderer->Reset();
 		m_lineRenderer->Enable_Texturing(FALSE);
 	}
+#endif
 
 	DX8Wrapper::Apply_Render_State_Changes();
 
@@ -2102,7 +2106,11 @@ if (_skip_drawobject_render) {
 	}
 	m_waterDrawObject->update();
 	DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferTile1);
-  if (m_drawObjects || m_drawWaypoints || m_drawBoundingBoxes || m_drawSightRanges || m_drawWeaponRanges || m_drawSoundRanges || m_drawTestArtHighlight) {
+  if (m_drawObjects || m_drawWaypoints
+#ifndef RTS_BUILD_GENERALS
+		|| m_drawBoundingBoxes || m_drawSightRanges || m_drawWeaponRanges || m_drawSoundRanges || m_drawTestArtHighlight
+#endif
+		) {
 		//Apply the shader and material
 
 		//WST Variables below are for optimization to reduce VB updates which are extremely slow
@@ -2143,6 +2151,7 @@ if (pMapObj->isSelected()) {
 				}
 			}	else {
 				// MLL C&C3
+#ifndef RTS_BUILD_GENERALS
 				if (pMapObj->isSelected()) {
 					if (doArrow && m_drawBoundingBoxes) {
 						linesToRender = true;
@@ -2166,6 +2175,7 @@ if (pMapObj->isSelected()) {
 					linesToRender = true;
 					updateVBWithTestArtHighlight(pMapObj, &rinfo.Camera);
 				}
+#endif
 
 				if (!m_drawObjects) {
 					continue;
@@ -2437,6 +2447,7 @@ if (pMapObj->isSelected()) {
 		m_waterDrawObject->renderWater();
 	}
 
+#ifndef RTS_BUILD_GENERALS
 	if (m_drawLetterbox) {
 		int w = m_winSize.x;
 		int h = m_winSize.y;
@@ -2455,6 +2466,7 @@ if (pMapObj->isSelected()) {
 		// Clear the old lines.
 		m_lineRenderer->Reset();
 	}
+#endif
 }
 
 
