@@ -434,10 +434,10 @@ WbView3d::WbView3d() :
 	setShowBoundingBoxes(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowBoundingBoxes", 0) != 0);
 	setShowSightRanges(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowSightRanges", 0) != 0);
 	setShowWeaponRanges(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowWeaponRanges", 0) != 0);
-#endif
-	setShowGarrisoned(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowGarrisoned", 0) != 0);
 	setHighlightTestArt(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "HighlightTestArt", 0) != 0);
 	setShowLetterbox(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowLetterbox", 0) != 0);
+#endif
+	setShowGarrisoned(::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowGarrisoned", 0) != 0);
 }
 
 // ----------------------------------------------------------------------------
@@ -1547,9 +1547,11 @@ void WbView3d::invalObjectInView(MapObject *pMapObjIn)
 	if (isRoad) {
 		m_needToLoadRoads = true; // load roads next time we redraw.
 	}
+#ifndef RTS_BUILD_GENERALS
 	if (updateAllTrees) {
 		updateTrees();
 	}
+#endif
 	if (isLight) {
 		updateLights();
 	}
@@ -2061,10 +2063,11 @@ void WbView3d::redraw(void)
 			m_showWaypoints || WaypointTool::isActive(),
 #ifndef RTS_BUILD_GENERALS
 			m_showPolygonTriggers || PolygonTool::isActive(),
+			m_showBoundingBoxes, m_showSightRanges, m_showWeaponRanges, m_showSoundCircles, m_highlightTestArt, m_showLetterbox);
 #else
 			PolygonTool::isActive(),
+			false, false, false, false, false, false);
 #endif
-      m_showBoundingBoxes, m_showSightRanges, m_showWeaponRanges, m_showSoundCircles, m_highlightTestArt, m_showLetterbox);
 	}
 
 	WW3D::Update_Logic_Frame_Time(TheFramePacer->getLogicTimeStepMilliseconds());
@@ -2355,7 +2358,9 @@ int WbView3d::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	m_showLayersList = AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowLayersList", 0);
 	m_showMapBoundaries = AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowMapBoundaries", 0);
 	m_showAmbientSounds = AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowAmbientSounds", 0);
+#ifndef RTS_BUILD_GENERALS
   m_showSoundCircles = AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowSoundCircles", 0);
+#endif
 
 	DrawObject::setDoBoundaryFeedback(m_showMapBoundaries);
 	DrawObject::setDoAmbientSoundFeedback(m_showAmbientSounds);
@@ -2383,6 +2388,7 @@ void WbView3d::OnPaint()
 
 //////////////////////////////////////////////////////////////////////////
 /// Draw a (not very good) circle into the hdc
+#ifndef RTS_BUILD_GENERALS
 void WbView3d::drawCircle( HDC hdc, const Coord3D & centerPoint, Real radius, COLORREF color )
 {
   CPoint rulerPoints[2];
@@ -2422,6 +2428,7 @@ void WbView3d::drawCircle( HDC hdc, const Coord3D & centerPoint, Real radius, CO
   // Delete new pen.
   DeleteObject(pen);
 }
+#endif
 
 
 void WbView3d::drawLabels(void)
@@ -3036,6 +3043,7 @@ void WbView3d::OnUpdateViewShowModels(CCmdUI* pCmdUI)
 }
 
 // MLL C&C3
+#ifndef RTS_BUILD_GENERALS
 void WbView3d::OnViewBoundingBoxes()
 {
 	setShowBoundingBoxes(!getShowBoundingBoxes());
@@ -3104,6 +3112,7 @@ void WbView3d::OnUpdateShowLetterbox(CCmdUI* pCmdUI)
 {
 	pCmdUI->SetCheck(getShowLetterbox()?1:0);
 }
+#endif
 
 
 void WbView3d::OnViewGarrisoned()
@@ -3263,6 +3272,7 @@ void WbView3d::OnUpdateViewShowAmbientSounds(CCmdUI* pCmdUI)
 	pCmdUI->SetCheck(m_showAmbientSounds ? 1 : 0);
 }
 
+#ifndef RTS_BUILD_GENERALS
 void WbView3d::OnViewShowSoundCircles()
 {
   m_showSoundCircles = !m_showSoundCircles;
@@ -3275,4 +3285,5 @@ void WbView3d::OnUpdateViewShowSoundCircles(CCmdUI* pCmdUI)
 {
   pCmdUI->SetCheck(m_showSoundCircles ? 1 : 0);
 }
+#endif
 
