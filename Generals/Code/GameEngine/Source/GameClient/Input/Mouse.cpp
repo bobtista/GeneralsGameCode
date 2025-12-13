@@ -584,7 +584,6 @@ void Mouse::init( void )
 	m_minY = 0;
 	m_maxY = 599;
 
-
 	m_inputMovesAbsolute = FALSE;
 	m_eventsThisFrame = 0;
 
