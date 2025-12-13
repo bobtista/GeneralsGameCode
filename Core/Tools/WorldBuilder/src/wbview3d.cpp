@@ -2802,6 +2802,7 @@ Real WbView3d::getCameraPitch(void)
 
 
 //WST 10.17.2002 ----------------------------------------------------------------------------
+#ifndef RTS_BUILD_GENERALS
 Real WbView3d::getCurrentZoom(void)
 {
 	float zOffset = - m_mouseWheelOffset / 1200; //WST 11/21/02 new triple speed camera zoom.
@@ -2825,6 +2826,7 @@ Real WbView3d::getCurrentZoom(void)
 	}
 	return zoom;
 }
+#endif
 
 // ----------------------------------------------------------------------------
 void WbView3d::OnTimer(UINT nIDEvent)
