@@ -1815,18 +1815,21 @@ BEGIN_MESSAGE_MAP(DebugWindowDialog, CDialog)
 
 
 	ON_EN_KILLFOCUS(IDC_PSEd_CurrentParticleCap, OnParticleCapEdit)
+#ifdef RTS_BUILD_GENERALS
 	ON_EN_KILLFOCUS(IDC_PSEd_AngleXMin, OnParticleSystemEdit)
 	ON_EN_KILLFOCUS(IDC_PSEd_AngleYMin, OnParticleSystemEdit)
-	ON_EN_KILLFOCUS(IDC_PSEd_AngleZMin, OnParticleSystemEdit)
 	ON_EN_KILLFOCUS(IDC_PSEd_AngleXMax, OnParticleSystemEdit)
 	ON_EN_KILLFOCUS(IDC_PSEd_AngleYMax, OnParticleSystemEdit)
-	ON_EN_KILLFOCUS(IDC_PSEd_AngleZMax, OnParticleSystemEdit)
 
 	ON_EN_KILLFOCUS(IDC_PSEd_AngularRateXMin, OnParticleSystemEdit)
 	ON_EN_KILLFOCUS(IDC_PSEd_AngularRateYMin, OnParticleSystemEdit)
-	ON_EN_KILLFOCUS(IDC_PSEd_AngularRateZMin, OnParticleSystemEdit)
 	ON_EN_KILLFOCUS(IDC_PSEd_AngularRateXMax, OnParticleSystemEdit)
 	ON_EN_KILLFOCUS(IDC_PSEd_AngularRateYMax, OnParticleSystemEdit)
+#endif
+	ON_EN_KILLFOCUS(IDC_PSEd_AngleZMin, OnParticleSystemEdit)
+	ON_EN_KILLFOCUS(IDC_PSEd_AngleZMax, OnParticleSystemEdit)
+
+	ON_EN_KILLFOCUS(IDC_PSEd_AngularRateZMin, OnParticleSystemEdit)
 	ON_EN_KILLFOCUS(IDC_PSEd_AngularRateZMax, OnParticleSystemEdit)
 
 	ON_EN_KILLFOCUS(IDC_PSEd_AngleDampingMin, OnParticleSystemEdit)
