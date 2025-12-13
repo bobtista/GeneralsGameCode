@@ -179,4 +179,5 @@ void BorderTool::mouseUp(TTrackingMode m, CPoint viewPt, WbView* pView, CWorldBu
 		m_addingNewBorder = false;
 		// Do the undoable on the last border
 	}
+#endif
 }
