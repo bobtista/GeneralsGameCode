@@ -83,7 +83,9 @@ BOOL ScriptActionsFalse::OnInitDialog()
 void ScriptActionsFalse::loadList(void)
 {
 	m_falseAction = NULL;
+#ifndef RTS_BUILD_GENERALS
 	ScriptDialog::updateScriptWarning(m_script);
+#endif
 	CListBox *pList = (CListBox *)GetDlgItem(IDC_ACTION_LIST);
 	Int count = 0;
 	if (pList) {
@@ -117,7 +119,9 @@ void ScriptActionsFalse::OnEditAction()
 	EditAction cDlg;
 	cDlg.setAction(m_falseAction);
 	cDlg.DoModal();
+#ifndef RTS_BUILD_GENERALS
 	ScriptDialog::updateScriptWarning(m_script);
+#endif
 	pList->DeleteString(m_index);
 	pList->InsertString(m_index, m_falseAction->getUiText().str());
 	pList->SetCurSel(m_index);

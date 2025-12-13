@@ -87,7 +87,9 @@ BOOL ScriptConditionsDlg::OnInitDialog()
 void ScriptConditionsDlg::loadList(void)
 {
 	Int count = 0;
+#ifndef RTS_BUILD_GENERALS
 	ScriptDialog::updateScriptWarning(m_script);
+#endif
 	CListBox *pList = (CListBox *)GetDlgItem(IDC_CONDITION_LIST);
 	if (pList) {
 		pList->ResetContent();
@@ -127,7 +129,9 @@ void ScriptConditionsDlg::OnEditCondition()
 	EditCondition cDlg;
 	cDlg.setCondition(m_condition);
 	cDlg.DoModal();
+#ifndef RTS_BUILD_GENERALS
 	ScriptDialog::updateScriptWarning(m_script);
+#endif
 	pList->DeleteString(m_index);
 	AsciiString label;
 	Bool first;

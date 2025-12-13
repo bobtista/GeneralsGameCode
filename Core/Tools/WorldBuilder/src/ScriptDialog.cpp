@@ -518,6 +518,7 @@ BOOL ScriptDialog::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
+#ifndef RTS_BUILD_GENERALS
 	m_autoUpdateWarnings=::AfxGetApp()->GetProfileInt(SCRIPT_DIALOG_SECTION, "AutoVerifyScripts", 1);
 
 	CButton *pButton = (CButton*)GetDlgItem(IDC_AUTO_VERIFY);
@@ -526,6 +527,7 @@ BOOL ScriptDialog::OnInitDialog()
 	//if user wants to check warnings manually, enable the verify button
 	CWnd *pWnd = GetDlgItem(IDC_VERIFY);
 	pWnd->EnableWindow(!m_autoUpdateWarnings);
+#endif
 
 	m_staticThis = this;
 	CTreeCtrl *pTree = (CTreeCtrl*)GetDlgItem(IDC_SCRIPT_TREE);
