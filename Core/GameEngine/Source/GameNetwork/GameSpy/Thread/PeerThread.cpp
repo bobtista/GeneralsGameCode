@@ -2590,7 +2590,7 @@ static void roomKeyChangedCallback(PEER peer, RoomType roomType, const char *nic
 	}
 
 #ifdef DEBUG_LOGGING
-	if (strcmp(key, "username") && strcmp(key, "b_flags"))
+	if (strcmp(key, "username") != 0 && strcmp(key, "b_flags") != 0)
 	{
 		DEBUG_LOG(("roomKeyChangedCallback() - %s set %s=%s", nick, key, val));
 	}
