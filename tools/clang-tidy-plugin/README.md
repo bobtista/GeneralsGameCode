@@ -6,18 +6,26 @@ This is a custom clang-tidy plugin that provides checks specific to the Generals
 
 ### `generals-use-is-empty`
 
-Finds uses of `getLength() == 0` or `getLength() > 0` on `AsciiString` and `UnicodeString` and suggests using `isEmpty()` or `!isEmpty()` instead.
+Finds uses of `getLength() == 0` or `getLength() > 0` on `AsciiString` and `UnicodeString`, and `Get_Length() == 0` on `StringClass` and `WideStringClass`, and suggests using `isEmpty()`/`Is_Empty()` or `!isEmpty()`/`!Is_Empty()` instead.
 
 **Examples:**
 
 ```cpp
-// Before
+// Before (AsciiString/UnicodeString)
 if (str.getLength() == 0) { ... }
 if (str.getLength() > 0) { ... }
 
-// After
+// After (AsciiString/UnicodeString)
 if (str.isEmpty()) { ... }
 if (!str.isEmpty()) { ... }
+
+// Before (StringClass/WideStringClass)
+if (str.Get_Length() == 0) { ... }
+if (str.Get_Length() > 0) { ... }
+
+// After (StringClass/WideStringClass)
+if (str.Is_Empty()) { ... }
+if (!str.Is_Empty()) { ... }
 ```
 
 ## Building

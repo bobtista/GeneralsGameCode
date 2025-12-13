@@ -5,6 +5,8 @@
 //   - AsciiString::getLength() > 0   -> !AsciiString::isEmpty()
 //   - UnicodeString::getLength() == 0 -> UnicodeString::isEmpty()
 //   - UnicodeString::getLength() > 0  -> !UnicodeString::isEmpty()
+//   - StringClass::Get_Length() == 0  -> StringClass::Is_Empty()
+//   - WideStringClass::Get_Length() == 0 -> WideStringClass::Is_Empty()
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,7 +18,8 @@
 namespace clang::tidy::generalsgamecode::readability {
 
 /// Finds uses of getLength() == 0 or getLength() > 0 on AsciiString and
-/// UnicodeString and suggests using isEmpty() or !isEmpty() instead.
+/// UnicodeString, and Get_Length() == 0 on StringClass and WideStringClass,
+/// and suggests using isEmpty()/Is_Empty() or !isEmpty()/!Is_Empty() instead.
 ///
 /// For the user-facing documentation see:
 /// http://clang.llvm.org/extra/clang-tidy/checks/generals-use-is-empty.html
