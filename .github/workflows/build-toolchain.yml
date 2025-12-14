@@ -113,7 +113,6 @@ jobs:
           arch: x86
 
       - name: Setup vcpkg
-        if: contains(inputs.preset, 'vcpkg')
         uses: lukka/run-vcpkg@v11
 
       - name: Configure ${{ inputs.game }} with CMake Using ${{ inputs.preset }}${{ inputs.tools && '+t' || '' }}${{ inputs.extras && '+e' || '' }} Preset
