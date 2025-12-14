@@ -33,7 +33,7 @@ if (!str.Is_Empty()) { ... }
 This plugin requires LLVM and Clang to be installed. Build it with CMake:
 
 ```bash
-cd tools/clang-tidy-plugin
+cd scripts/clang-tidy-plugin
 mkdir build && cd build
 cmake .. -DLLVM_DIR=/path/to/llvm/lib/cmake/llvm -DClang_DIR=/path/to/clang/lib/cmake/clang
 make
@@ -58,7 +58,7 @@ This creates `build/clang-tidy/compile_commands.json` which tells clang-tidy how
 ```bash
 clang-tidy -p build/clang-tidy \
   --checks='-*,generals-use-is-empty' \
-  -load tools/clang-tidy-plugin/build/lib/libGeneralsGameCodeClangTidyPlugin.so \
+  -load scripts/clang-tidy-plugin/build/lib/libGeneralsGameCodeClangTidyPlugin.so \
   file.cpp
 ```
 
@@ -67,7 +67,7 @@ clang-tidy -p build/clang-tidy \
 ```bash
 clang-tidy -p build/clang-tidy \
   --checks='-*,generals-use-is-empty' \
-  -load tools/clang-tidy-plugin/build/lib/libGeneralsGameCodeClangTidyPlugin.so \
+  -load scripts/clang-tidy-plugin/build/lib/libGeneralsGameCodeClangTidyPlugin.so \
   -fix-errors \
   file.cpp
 ```
@@ -78,7 +78,7 @@ clang-tidy -p build/clang-tidy \
 find Core -name "*.cpp" -type f -exec clang-tidy \
   -p build/clang-tidy \
   --checks='-*,generals-use-is-empty' \
-  -load tools/clang-tidy-plugin/build/lib/libGeneralsGameCodeClangTidyPlugin.so \
+  -load scripts/clang-tidy-plugin/build/lib/libGeneralsGameCodeClangTidyPlugin.so \
   -fix-errors {} \;
 ```
 
