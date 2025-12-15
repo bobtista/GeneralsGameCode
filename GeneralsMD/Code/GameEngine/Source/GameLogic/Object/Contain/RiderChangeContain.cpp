@@ -184,10 +184,6 @@ Bool RiderChangeContain::isValidContainerFor(const Object* rider, Bool checkCapa
 //-------------------------------------------------------------------------------------------------
 void RiderChangeContain::onContaining( Object *rider, Bool wasSelected )
 {
-#if !RETAIL_COMPATIBLE_CRC
-	TransportContain::onContaining( rider, wasSelected );
-#endif
-
 	Object *obj = getObject();
 	m_containing = TRUE;
 	//Remove our existing rider
