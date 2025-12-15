@@ -185,24 +185,6 @@ public:
 
 };
 
-#ifdef BUILD_WITH_D3D8
-struct _D3DMATRIX;
-typedef struct _D3DMATRIX D3DMATRIX;
-struct D3DXMATRIX;
-
-// When converting Matrix4x4 to D3DMATRIX or vice versa always use conversion functions below.
-// Reason being, D3DMATRIX is row major matrix, and Matrix4x4 is column major matrix.
-// Thus copying from one to another will always require a transpose (or invert).
-
-void Build_D3DMATRIX(D3DMATRIX& dxm, const Matrix4x4& m);
-D3DXMATRIX Build_D3DXMATRIX(const Matrix4x4& m);
-
-void Build_Matrix4(Matrix4x4& m, const D3DMATRIX& dxm);
-Matrix4x4 Build_Matrix4(const D3DMATRIX& dxm);
-void Build_Matrix4(Matrix4x4& m, const D3DXMATRIX& dxm);
-Matrix4x4 Build_Matrix4(const D3DXMATRIX& dxm);
-#endif
-
 
 /***********************************************************************************************
  * Matrix4x4::Matrix4x4 -- Constructor, optionally initialize to Identitiy matrix                  *
