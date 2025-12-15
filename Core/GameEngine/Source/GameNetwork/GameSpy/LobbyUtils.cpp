@@ -476,9 +476,9 @@ struct GameSortStruct
 		// sort CRC mismatches to the bottom
 		Bool g1Mismatch = (g1->getExeCRC() != TheGlobalData->m_exeCRC || g1->getIniCRC() != TheGlobalData->m_iniCRC);
 		Bool g2Mismatch = (g2->getExeCRC() != TheGlobalData->m_exeCRC || g2->getIniCRC() != TheGlobalData->m_iniCRC);
-		if ( g1Mismatch ^ g2Mismatch )
+		if (g1Mismatch != g2Mismatch)
 		{
-			return g2Mismatch;
+			return !g1Mismatch;
 		}
 
 		// sort games with private ladders to the bottom
