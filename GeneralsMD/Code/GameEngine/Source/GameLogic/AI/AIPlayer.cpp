@@ -122,10 +122,10 @@ void AIPlayer::onStructureProduced( Object *factory, Object *bldg )
 		Dict d;
 		d.setAsciiString(TheKey_objectName, info->getBuildingName());
 		d.setAsciiString(TheKey_objectScriptAttachment, info->getScript());
+		// TheSuperHackers @bugfix bobtista 31/10/2025 Preserve scaffold health when AI building construction completes instead of resetting to initial health.
 #if RETAIL_COMPATIBLE_CRC
 		d.setInt(TheKey_objectInitialHealth, info->getHealth());
 #endif
-		// TheSuperHackers @bugfix bobtista 31/10/2025 Preserve scaffold health when AI building construction completes instead of resetting to initial health. (#1343)
 		d.setBool(TheKey_objectUnsellable, info->getUnsellable());
 
 		info->setUnderConstruction(false);
@@ -465,10 +465,10 @@ Object *AIPlayer::buildStructureNow(const ThingTemplate *bldgPlan, BuildListInfo
 		Dict d;
 		d.setAsciiString(TheKey_objectName, info->getBuildingName());
 		d.setAsciiString(TheKey_objectScriptAttachment, info->getScript());
+		// TheSuperHackers @bugfix bobtista 31/10/2025 Preserve scaffold health when AI building construction completes instead of resetting to initial health.
 #if RETAIL_COMPATIBLE_CRC
 		d.setInt(TheKey_objectInitialHealth, info->getHealth());
 #endif
-		// TheSuperHackers @bugfix bobtista 31/10/2025 Preserve scaffold health when AI building construction completes instead of resetting to initial health. (#1343)
 		d.setBool(TheKey_objectUnsellable, info->getUnsellable());
 
 		bldg->updateObjValuesFromMapProperties(&d);
