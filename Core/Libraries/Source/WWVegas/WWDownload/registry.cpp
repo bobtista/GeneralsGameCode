@@ -154,6 +154,9 @@ bool SetStringInRegistry( std::string path, std::string key, std::string val)
 #endif
 	fullPath.append(path);
 
+	if (setStringInRegistry( HKEY_LOCAL_MACHINE, fullPath, key, val))
+		return true;
+
 	return setStringInRegistry( HKEY_CURRENT_USER, fullPath, key, val );
 }
 
@@ -165,6 +168,9 @@ bool SetUnsignedIntInRegistry( std::string path, std::string key, unsigned int v
 	std::string fullPath = "SOFTWARE\\Electronic Arts\\EA Games\\Command and Conquer Generals Zero Hour";
 #endif
 	fullPath.append(path);
+
+	if (setUnsignedIntInRegistry( HKEY_LOCAL_MACHINE, fullPath, key, val))
+		return true;
 
 	return setUnsignedIntInRegistry( HKEY_CURRENT_USER, fullPath, key, val );
 }
