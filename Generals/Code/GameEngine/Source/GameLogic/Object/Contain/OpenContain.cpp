@@ -353,6 +353,10 @@ void OpenContain::addToContainList( Object *rider )
 	{
 		m_stealthUnitsContained++;
 	}
+	if( rider->isKindOf( KINDOF_HERO ) )
+	{
+		m_heroUnitsContained++;
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -543,6 +547,10 @@ void OpenContain::removeFromContainViaIterator( ContainedItemsList::iterator it,
 			}
 		}
 	}
+	if( rider->isKindOf( KINDOF_HERO ) && m_heroUnitsContained > 0 )
+	{
+		m_heroUnitsContained--;
+	}
 
 
 	if (isEnclosingContainerFor( rider ))
@@ -630,11 +638,6 @@ void OpenContain::onContaining( Object *rider )
 		enterSound.setObjectID(getObject()->getID());
 		TheAudio->addAudioEvent(&enterSound);
 	}
-
-	if( rider && rider->isKindOf( KINDOF_HERO ) )
-	{
-		m_heroUnitsContained++;
-	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -650,11 +653,6 @@ void OpenContain::onRemoving( Object *rider)
 		AudioEventRTS fallingSound = *rider->getTemplate()->getSoundFalling();
 		fallingSound.setObjectID(rider->getID());
 		TheAudio->addAudioEvent(&fallingSound);
-
-		if( rider->isKindOf( KINDOF_HERO ) && m_heroUnitsContained > 0 )
-		{
-			m_heroUnitsContained--;
-		}
 	}
 }
 
