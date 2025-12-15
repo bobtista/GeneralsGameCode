@@ -420,7 +420,7 @@ struct AICommandParms
   Object*									m_obj;
   Object*									m_otherObj;
   const Team*							m_team;
-	mutable std::vector<Coord3D>		m_coords;
+	std::vector<Coord3D>		m_coords;
   const Waypoint*         m_waypoint;
   const PolygonTrigger*   m_polygon;
   Int											m_intValue;       /// misc usage
