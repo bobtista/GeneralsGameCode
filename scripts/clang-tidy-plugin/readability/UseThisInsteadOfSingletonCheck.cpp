@@ -145,7 +145,7 @@ void UseThisInsteadOfSingletonCheck::check(
     }
     Member = Method;
     MemberName = Method->getName();
-    StartLoc = MemberCall->getCallee()->getBeginLoc();
+    StartLoc = MemberCall->getBeginLoc();
     EndLoc = MemberCall->getEndLoc();
   } else if (MemberExpr) {
     Member = MemberExpr->getMemberDecl();
@@ -164,11 +164,11 @@ void UseThisInsteadOfSingletonCheck::check(
   std::string Replacement = std::string(MemberName);
   
   if (IsCall && MemberCall) {
+    const Expr *Callee = MemberCall->getCallee();
     SourceLocation ArgsStart = Lexer::getLocForEndOfToken(
-        MemberCall->getCallee()->getEndLoc(), 0, SM,
-        Result.Context->getLangOpts());
+        Callee->getEndLoc(), 0, SM, Result.Context->getLangOpts());
     SourceLocation ArgsEnd = MemberCall->getEndLoc();
-    if (ArgsStart.isValid() && ArgsEnd.isValid()) {
+    if (ArgsStart.isValid() && ArgsEnd.isValid() && ArgsStart < ArgsEnd) {
       StringRef ArgsText = Lexer::getSourceText(
           CharSourceRange::getTokenRange(ArgsStart, ArgsEnd), SM,
           Result.Context->getLangOpts());
