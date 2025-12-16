@@ -72,16 +72,41 @@ void UseThisInsteadOfSingletonCheck::registerMatchers(MatchFinder *Finder) {
       hasDeclaration(anyOf(cxxMethodDecl(), fieldDecl())))
       .bind("memberExpr");
 
+  auto SingletonMemberCall = cxxMemberCallExpr(
+      on(ignoringParenImpCasts(SingletonDeclRef)))
+      .bind("memberCall");
+
   Finder->addMatcher(SingletonMemberExpr, this);
+  Finder->addMatcher(SingletonMemberCall, this);
 }
 
 void UseThisInsteadOfSingletonCheck::check(
     const MatchFinder::MatchResult &Result) {
   const auto *MemberExpr = Result.Nodes.getNodeAs<MemberExpr>("memberExpr");
-  const auto *SingletonVar =
-      Result.Nodes.getNodeAs<VarDecl>("singletonVar");
+  const auto *MemberCall = Result.Nodes.getNodeAs<CXXMemberCallExpr>("memberCall");
+  const VarDecl *SingletonVar = nullptr;
+  const Stmt *TargetStmt = nullptr;
+  bool IsCall = false;
 
-  if (!MemberExpr || !SingletonVar) {
+  if (MemberCall) {
+    IsCall = true;
+    TargetStmt = MemberCall;
+    const Expr *ImplicitObject = MemberCall->getImplicitObjectArgument();
+    if (!ImplicitObject) {
+      return;
+    }
+    if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(ImplicitObject->IgnoreParenImpCasts())) {
+      SingletonVar = dyn_cast<VarDecl>(DRE->getDecl());
+    }
+    if (!SingletonVar) {
+      return;
+    }
+  } else if (MemberExpr) {
+    TargetStmt = MemberExpr;
+    SingletonVar = Result.Nodes.getNodeAs<VarDecl>("singletonVar");
+  }
+
+  if (!TargetStmt || !SingletonVar) {
     return;
   }
 
@@ -94,7 +119,7 @@ void UseThisInsteadOfSingletonCheck::check(
   const ASTContext *Context = Result.Context;
 
   const CXXMethodDecl *EnclosingMethod = getEnclosingMethod(
-      const_cast<ASTContext *>(Context), MemberExpr);
+      const_cast<ASTContext *>(Context), TargetStmt);
   if (!EnclosingMethod) {
     return;
   }
@@ -109,23 +134,48 @@ void UseThisInsteadOfSingletonCheck::check(
     return;
   }
 
-  const ValueDecl *Member = MemberExpr->getMemberDecl();
-  if (!Member) {
+  const ValueDecl *Member = nullptr;
+  StringRef MemberName;
+  SourceLocation StartLoc, EndLoc;
+
+  if (IsCall && MemberCall) {
+    const CXXMethodDecl *Method = MemberCall->getMethodDecl();
+    if (!Method) {
+      return;
+    }
+    Member = Method;
+    MemberName = Method->getName();
+    StartLoc = MemberCall->getCallee()->getBeginLoc();
+    EndLoc = MemberCall->getEndLoc();
+  } else if (MemberExpr) {
+    Member = MemberExpr->getMemberDecl();
+    if (!Member) {
+      return;
+    }
+    MemberName = Member->getName();
+    StartLoc = MemberExpr->getBeginLoc();
+    EndLoc = MemberExpr->getEndLoc();
+  } else {
     return;
   }
 
-  StringRef MemberName = Member->getName();
-  
   SourceManager &SM = *Result.SourceManager;
-  const LangOptions &LangOpts = Result.Context->getLangOpts();
-
-  SourceLocation StartLoc = MemberExpr->getBeginLoc();
-  SourceLocation EndLoc = MemberExpr->getEndLoc();
 
   std::string Replacement = std::string(MemberName);
   
-  if (isa<CXXMethodDecl>(Member)) {
-    Replacement += "()";
+  if (IsCall && MemberCall) {
+    SourceLocation ArgsStart = Lexer::getLocForEndOfToken(
+        MemberCall->getCallee()->getEndLoc(), 0, SM,
+        Result.Context->getLangOpts());
+    SourceLocation ArgsEnd = MemberCall->getEndLoc();
+    if (ArgsStart.isValid() && ArgsEnd.isValid()) {
+      StringRef ArgsText = Lexer::getSourceText(
+          CharSourceRange::getTokenRange(ArgsStart, ArgsEnd), SM,
+          Result.Context->getLangOpts());
+      Replacement += ArgsText.str();
+    } else {
+      Replacement += "()";
+    }
   }
 
   diag(StartLoc, "use '%0' instead of '%1->%2' when inside a member function")
