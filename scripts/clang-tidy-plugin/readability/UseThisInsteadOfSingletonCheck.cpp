@@ -82,7 +82,7 @@ void UseThisInsteadOfSingletonCheck::registerMatchers(MatchFinder *Finder) {
 
 void UseThisInsteadOfSingletonCheck::check(
     const MatchFinder::MatchResult &Result) {
-  const auto *MemberExpr = Result.Nodes.getNodeAs<MemberExpr>("memberExpr");
+  const auto *MemExpr = Result.Nodes.getNodeAs<clang::MemberExpr>("memberExpr");
   const auto *MemberCall = Result.Nodes.getNodeAs<CXXMemberCallExpr>("memberCall");
   const VarDecl *SingletonVar = nullptr;
   const Stmt *TargetStmt = nullptr;
@@ -101,8 +101,8 @@ void UseThisInsteadOfSingletonCheck::check(
     if (!SingletonVar) {
       return;
     }
-  } else if (MemberExpr) {
-    TargetStmt = MemberExpr;
+  } else if (MemExpr) {
+    TargetStmt = MemExpr;
     SingletonVar = Result.Nodes.getNodeAs<VarDecl>("singletonVar");
   }
 
@@ -111,7 +111,7 @@ void UseThisInsteadOfSingletonCheck::check(
   }
 
   StringRef SingletonName = SingletonVar->getName();
-  if (!SingletonName.startswith("The") || SingletonName.size() <= 3 ||
+  if (!SingletonName.starts_with("The") || SingletonName.size() <= 3 ||
       (SingletonName[3] < 'A' || SingletonName[3] > 'Z')) {
     return;
   }
@@ -147,14 +147,14 @@ void UseThisInsteadOfSingletonCheck::check(
     MemberName = Method->getName();
     StartLoc = MemberCall->getBeginLoc();
     EndLoc = MemberCall->getEndLoc();
-  } else if (MemberExpr) {
-    Member = MemberExpr->getMemberDecl();
+  } else if (MemExpr) {
+    Member = MemExpr->getMemberDecl();
     if (!Member) {
       return;
     }
     MemberName = Member->getName();
-    StartLoc = MemberExpr->getBeginLoc();
-    EndLoc = MemberExpr->getEndLoc();
+    StartLoc = MemExpr->getBeginLoc();
+    EndLoc = MemExpr->getEndLoc();
   } else {
     return;
   }
