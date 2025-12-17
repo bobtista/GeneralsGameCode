@@ -28,6 +28,28 @@ if (str.Is_Empty()) { ... }
 if (!str.Is_Empty()) { ... }
 ```
 
+### `generals-use-this-instead-of-singleton`
+
+Finds uses of singleton global variables (like `TheGameLogic->method()` or `TheGlobalData->member`) inside member functions of the same class type, and suggests using the member directly (e.g., `method()` or `member`) instead of the singleton reference.
+
+**Examples:**
+
+```cpp
+// Before
+void GameLogic::update() {
+  UnsignedInt now = TheGameLogic->getFrame();
+  TheGameLogic->setFrame(now + 1);
+  TheGameLogic->m_frame = 10;
+}
+
+// After
+void GameLogic::update() {
+  UnsignedInt now = getFrame();
+  setFrame(now + 1);
+  m_frame = 10;
+}
+```
+
 ## Building
 
 This plugin requires LLVM and Clang to be installed. Build it with CMake:
@@ -58,6 +80,15 @@ This creates `build/clang-tidy/compile_commands.json` which tells clang-tidy how
 ```bash
 clang-tidy -p build/clang-tidy \
   --checks='-*,generals-use-is-empty' \
+  -load scripts/clang-tidy-plugin/build/lib/libGeneralsGameCodeClangTidyPlugin.so \
+  file.cpp
+```
+
+Or use both checks:
+
+```bash
+clang-tidy -p build/clang-tidy \
+  --checks='-*,generals-use-is-empty,generals-use-this-instead-of-singleton' \
   -load scripts/clang-tidy-plugin/build/lib/libGeneralsGameCodeClangTidyPlugin.so \
   file.cpp
 ```
