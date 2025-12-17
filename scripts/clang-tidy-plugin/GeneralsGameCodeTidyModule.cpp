@@ -1,7 +1,7 @@
 //===--- GeneralsGameCodeTidyModule.cpp - GeneralsGameCode Tidy Module ---===//
 //
 // Custom clang-tidy module for GeneralsGameCode
-// Provides checks for custom types like AsciiString and UnicodeString
+// Provides GeneralsGameCode-specific checks
 //
 //===----------------------------------------------------------------------===//
 
