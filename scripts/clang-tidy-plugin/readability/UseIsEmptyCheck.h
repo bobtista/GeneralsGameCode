@@ -20,6 +20,8 @@ namespace clang::tidy::generalsgamecode::readability {
 /// Finds uses of getLength() == 0 or getLength() > 0 on AsciiString and
 /// UnicodeString, and Get_Length() == 0 on StringClass and WideStringClass,
 /// and suggests using isEmpty()/Is_Empty() or !isEmpty()/!Is_Empty() instead.
+/// Also finds uses of compare("") == 0 or compare(TheEmptyString) == 0 and
+/// suggests using isEmpty() instead.
 ///
 /// For the user-facing documentation see:
 /// http://clang.llvm.org/extra/clang-tidy/checks/generals-use-is-empty.html

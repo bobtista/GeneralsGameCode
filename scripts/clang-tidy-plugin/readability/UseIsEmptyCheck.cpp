@@ -7,6 +7,10 @@
 //   - UnicodeString::getLength() > 0  -> !UnicodeString::isEmpty()
 //   - StringClass::Get_Length() == 0  -> StringClass::Is_Empty()
 //   - WideStringClass::Get_Length() == 0 -> WideStringClass::Is_Empty()
+//   - AsciiString::compare("") == 0  -> AsciiString::isEmpty()
+//   - UnicodeString::compare(L"") == 0 -> UnicodeString::isEmpty()
+//   - AsciiString::compare(AsciiString::TheEmptyString) == 0 -> AsciiString::isEmpty()
+//   - UnicodeString::compare(UnicodeString::TheEmptyString) == 0 -> UnicodeString::isEmpty()
 //
 //===----------------------------------------------------------------------===//
 
@@ -88,31 +92,110 @@ void UseIsEmptyCheck::registerMatchers(MatchFinder *Finder) {
 
   addMatchersForGetLength(GetLengthCall);
   addMatchersForGetLength(GetLengthCallWWVegas);
+
+  // Matcher for TheEmptyString static member access (AsciiString::TheEmptyString or UnicodeString::TheEmptyString)
+  auto TheEmptyStringRef = memberExpr(
+      member(hasName("TheEmptyString")),
+      hasObjectExpression(hasType(hasUnqualifiedDesugaredType(
+          recordType(hasDeclaration(cxxRecordDecl(
+              hasAnyName("AsciiString", "UnicodeString"))))))));
+
+  // Matcher for AsciiString/UnicodeString with compare() - we'll check if argument is empty in check()
+  auto CompareCall = cxxMemberCallExpr(
+      callee(cxxMethodDecl(hasName("compare"))),
+      on(hasType(hasUnqualifiedDesugaredType(
+          recordType(hasDeclaration(cxxRecordDecl(
+              hasAnyName("AsciiString", "UnicodeString"))))))),
+      hasArgument(0, anyOf(
+          stringLiteral().bind("stringLiteralArg"),
+          TheEmptyStringRef.bind("theEmptyStringArg"))));
+
+  // Helper function to add matchers for compare() calls
+  auto addMatchersForCompare = [&](const auto &CompareMatcher) {
+    Finder->addMatcher(
+        binaryOperator(
+            hasOperatorName("=="),
+            hasLHS(ignoringParenImpCasts(CompareMatcher.bind("compareCall"))),
+            hasRHS(integerLiteral(equals(0)).bind("zero")))
+            .bind("comparison"),
+        this);
+
+    Finder->addMatcher(
+        binaryOperator(
+            hasOperatorName("!="),
+            hasLHS(ignoringParenImpCasts(CompareMatcher.bind("compareCall"))),
+            hasRHS(integerLiteral(equals(0)).bind("zero")))
+            .bind("comparison"),
+        this);
+
+    Finder->addMatcher(
+        binaryOperator(
+            hasOperatorName("=="),
+            hasLHS(integerLiteral(equals(0)).bind("zero")),
+            hasRHS(ignoringParenImpCasts(CompareMatcher.bind("compareCall"))))
+            .bind("comparison"),
+        this);
+
+    Finder->addMatcher(
+        binaryOperator(
+            hasOperatorName("!="),
+            hasLHS(integerLiteral(equals(0)).bind("zero")),
+            hasRHS(ignoringParenImpCasts(CompareMatcher.bind("compareCall"))))
+            .bind("comparison"),
+        this);
+  };
+
+  addMatchersForCompare(CompareCall);
 }
 
 void UseIsEmptyCheck::check(const MatchFinder::MatchResult &Result) {
   const auto *Comparison = Result.Nodes.getNodeAs<BinaryOperator>("comparison");
   const auto *GetLengthCall =
       Result.Nodes.getNodeAs<CXXMemberCallExpr>("getLengthCall");
+  const auto *CompareCall =
+      Result.Nodes.getNodeAs<CXXMemberCallExpr>("compareCall");
 
-  if (!Comparison || !GetLengthCall)
+  if (!Comparison)
     return;
 
-  const Expr *ObjectExpr = GetLengthCall->getImplicitObjectArgument();
+  const CXXMemberCallExpr *MethodCall = GetLengthCall ? GetLengthCall : CompareCall;
+  if (!MethodCall)
+    return;
+
+  // For compare() calls, verify the argument is actually empty
+  if (CompareCall) {
+    const auto *StringLit = Result.Nodes.getNodeAs<StringLiteral>("stringLiteralArg");
+    const auto *TheEmptyString = Result.Nodes.getNodeAs<MemberExpr>("theEmptyStringArg");
+    
+    if (StringLit) {
+      // Check if string literal is actually empty ("" or L"")
+      StringRef Str = StringLit->getString();
+      if (!Str.empty()) {
+        return; // Not an empty string literal
+      }
+    } else if (!TheEmptyString) {
+      return; // Not matching empty string pattern
+    }
+  }
+
+  const Expr *ObjectExpr = MethodCall->getImplicitObjectArgument();
   if (!ObjectExpr)
     return;
 
   // Determine which method name to use based on the called method
-  StringRef GetLengthMethodName = GetLengthCall->getMethodDecl()->getName();
+  StringRef MethodName = MethodCall->getMethodDecl()->getName();
   std::string IsEmptyMethodName;
-  std::string GetLengthMethodNameStr;
+  std::string MethodNameStr;
 
-  if (GetLengthMethodName == "Get_Length") {
+  if (MethodName == "Get_Length") {
     IsEmptyMethodName = "Is_Empty()";
-    GetLengthMethodNameStr = "Get_Length()";
+    MethodNameStr = "Get_Length()";
+  } else if (MethodName == "compare") {
+    IsEmptyMethodName = "isEmpty()";
+    MethodNameStr = "compare()";
   } else {
     IsEmptyMethodName = "isEmpty()";
-    GetLengthMethodNameStr = "getLength()";
+    MethodNameStr = "getLength()";
   }
 
   StringRef Operator = Comparison->getOpcodeStr();
@@ -146,7 +229,7 @@ void UseIsEmptyCheck::check(const MatchFinder::MatchResult &Result) {
 
   diag(Comparison->getBeginLoc(),
        "use %0 instead of comparing %1 with 0")
-      << Replacement << GetLengthMethodNameStr
+      << Replacement << MethodNameStr
       << FixItHint::CreateReplacement(
              CharSourceRange::getTokenRange(StartLoc, EndLoc), Replacement);
 }
