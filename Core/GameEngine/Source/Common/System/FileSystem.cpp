@@ -49,6 +49,12 @@
 #include "Common/file.h"
 #include "Common/FileSystem.h"
 
+#ifdef _WIN32
+#define STRICMP(s1, s2) _stricmp(s1, s2)
+#else
+#define STRICMP(s1, s2) strcasecmp(s1, s2)
+#endif
+
 #include "Common/ArchiveFileSystem.h"
 #include "Common/CDManager.h"
 #include "Common/GameAudio.h"
