@@ -476,12 +476,12 @@ static Bool validateFileContent(File* file, const AsciiString& filePath, const c
 {
 	const Int fileSize = file->size();
 
-	const Int MAX_MAP_SIZE = 50 * 1024 * 1024;
-	const Int MAX_INI_SIZE = 10 * 1024 * 1024;
-	const Int MAX_STR_SIZE = 5 * 1024 * 1024;
-	const Int MAX_TGA_SIZE = 20 * 1024 * 1024;
-	const Int MAX_TXT_SIZE = 5 * 1024 * 1024;
-	const Int MAX_WAK_SIZE = 10 * 1024 * 1024;
+	const Int MAX_MAP_SIZE = 512 * 1024;
+	const Int MAX_INI_SIZE = 512 * 1024;
+	const Int MAX_STR_SIZE = 512 * 1024;
+	const Int MAX_TGA_SIZE = 2 * 1024 * 1024;
+	const Int MAX_TXT_SIZE = 512 * 1024;
+	const Int MAX_WAK_SIZE = 512 * 1024;
 
 	if (STRICMP(extension, ".map") == 0)
 	{
