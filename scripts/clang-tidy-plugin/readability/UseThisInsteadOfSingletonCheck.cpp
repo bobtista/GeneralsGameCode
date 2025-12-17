@@ -59,58 +59,56 @@ static bool typesMatch(const QualType &SingletonType,
 }
 
 void UseThisInsteadOfSingletonCheck::registerMatchers(MatchFinder *Finder) {
-  auto SingletonVarMatcher = varDecl(
-      hasGlobalStorage(),
-      matchesName("^The[A-Z]"),
-      hasType(pointerType(pointee(recordType()))))
-      .bind("singletonVar");
-
-  auto SingletonDeclRef = declRefExpr(to(SingletonVarMatcher));
-
-  auto SingletonMemberExpr = memberExpr(
-      hasObjectExpression(ignoringParenImpCasts(SingletonDeclRef)),
-      hasDeclaration(anyOf(cxxMethodDecl(), fieldDecl())))
+  auto MemberExprMatcher = memberExpr(
+      hasObjectExpression(ignoringParenImpCasts(declRefExpr(to(varDecl(anyOf(hasGlobalStorage(), hasExternalFormalLinkage())).bind("singletonVar"))))),
+      hasDeclaration(fieldDecl()),
+      unless(hasAncestor(cxxMemberCallExpr())))
       .bind("memberExpr");
 
-  auto SingletonMemberCall = cxxMemberCallExpr(
-      on(ignoringParenImpCasts(SingletonDeclRef)))
+  auto MemberCallMatcher = cxxMemberCallExpr(
+      on(ignoringParenImpCasts(declRefExpr(to(varDecl(anyOf(hasGlobalStorage(), hasExternalFormalLinkage())).bind("singletonVarCall"))))))
       .bind("memberCall");
 
-  Finder->addMatcher(SingletonMemberExpr, this);
-  Finder->addMatcher(SingletonMemberCall, this);
+  Finder->addMatcher(MemberExprMatcher, this);
+  Finder->addMatcher(MemberCallMatcher, this);
 }
 
 void UseThisInsteadOfSingletonCheck::check(
     const MatchFinder::MatchResult &Result) {
   const auto *MemExpr = Result.Nodes.getNodeAs<clang::MemberExpr>("memberExpr");
   const auto *MemberCall = Result.Nodes.getNodeAs<CXXMemberCallExpr>("memberCall");
-  const VarDecl *SingletonVar = nullptr;
+  
+  if (!MemExpr && !MemberCall) {
+    return;
+  }
+
   const Stmt *TargetStmt = nullptr;
+  const VarDecl *FoundSingletonVar = nullptr;
   bool IsCall = false;
 
   if (MemberCall) {
     IsCall = true;
     TargetStmt = MemberCall;
-    const Expr *ImplicitObject = MemberCall->getImplicitObjectArgument();
-    if (!ImplicitObject) {
-      return;
-    }
-    if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(ImplicitObject->IgnoreParenImpCasts())) {
-      SingletonVar = dyn_cast<VarDecl>(DRE->getDecl());
-    }
-    if (!SingletonVar) {
-      return;
+    FoundSingletonVar = Result.Nodes.getNodeAs<VarDecl>("singletonVarCall");
+    if (!FoundSingletonVar) {
+      const Expr *ImplicitObject = MemberCall->getImplicitObjectArgument();
+      if (ImplicitObject) {
+        ImplicitObject = ImplicitObject->IgnoreParenImpCasts();
+        if (const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(ImplicitObject)) {
+          FoundSingletonVar = dyn_cast<VarDecl>(DRE->getDecl());
+        }
+      }
     }
   } else if (MemExpr) {
     TargetStmt = MemExpr;
-    SingletonVar = Result.Nodes.getNodeAs<VarDecl>("singletonVar");
+    FoundSingletonVar = Result.Nodes.getNodeAs<VarDecl>("singletonVar");
   }
 
-  if (!TargetStmt || !SingletonVar) {
+  if (!TargetStmt || !FoundSingletonVar) {
     return;
   }
 
-  StringRef SingletonName = SingletonVar->getName();
+  StringRef SingletonName = FoundSingletonVar->getName();
   if (!SingletonName.starts_with("The") || SingletonName.size() <= 3 ||
       (SingletonName[3] < 'A' || SingletonName[3] > 'Z')) {
     return;
@@ -129,7 +127,7 @@ void UseThisInsteadOfSingletonCheck::check(
     return;
   }
 
-  QualType SingletonType = SingletonVar->getType();
+  QualType SingletonType = FoundSingletonVar->getType();
   if (!typesMatch(SingletonType, EnclosingClass)) {
     return;
   }
@@ -179,7 +177,7 @@ void UseThisInsteadOfSingletonCheck::check(
   }
 
   diag(StartLoc, "use '%0' instead of '%1->%2' when inside a member function")
-      << Replacement << SingletonName << MemberName
+      << Replacement << FoundSingletonVar->getName() << MemberName
       << FixItHint::CreateReplacement(
              CharSourceRange::getTokenRange(StartLoc, EndLoc), Replacement);
 }
