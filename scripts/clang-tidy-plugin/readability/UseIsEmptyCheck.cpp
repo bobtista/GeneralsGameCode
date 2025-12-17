@@ -110,12 +110,12 @@ void UseIsEmptyCheck::registerMatchers(MatchFinder *Finder) {
           stringLiteral().bind("stringLiteralArg"),
           TheEmptyStringRef.bind("theEmptyStringArg"))));
 
-  // Helper function to add matchers for compare() calls
-  auto addMatchersForCompare = [&](const auto &CompareMatcher) {
+  // Helper function to add matchers for compare() and compareNoCase() calls
+  auto addMatchersForCompare = [&](const auto &CompareMatcher, const char *BindingName) {
     Finder->addMatcher(
         binaryOperator(
             hasOperatorName("=="),
-            hasLHS(ignoringParenImpCasts(CompareMatcher.bind("compareCall"))),
+            hasLHS(ignoringParenImpCasts(CompareMatcher.bind(BindingName))),
             hasRHS(integerLiteral(equals(0)).bind("zero")))
             .bind("comparison"),
         this);
@@ -123,7 +123,7 @@ void UseIsEmptyCheck::registerMatchers(MatchFinder *Finder) {
     Finder->addMatcher(
         binaryOperator(
             hasOperatorName("!="),
-            hasLHS(ignoringParenImpCasts(CompareMatcher.bind("compareCall"))),
+            hasLHS(ignoringParenImpCasts(CompareMatcher.bind(BindingName))),
             hasRHS(integerLiteral(equals(0)).bind("zero")))
             .bind("comparison"),
         this);
@@ -132,7 +132,7 @@ void UseIsEmptyCheck::registerMatchers(MatchFinder *Finder) {
         binaryOperator(
             hasOperatorName("=="),
             hasLHS(integerLiteral(equals(0)).bind("zero")),
-            hasRHS(ignoringParenImpCasts(CompareMatcher.bind("compareCall"))))
+            hasRHS(ignoringParenImpCasts(CompareMatcher.bind(BindingName))))
             .bind("comparison"),
         this);
 
@@ -140,12 +140,13 @@ void UseIsEmptyCheck::registerMatchers(MatchFinder *Finder) {
         binaryOperator(
             hasOperatorName("!="),
             hasLHS(integerLiteral(equals(0)).bind("zero")),
-            hasRHS(ignoringParenImpCasts(CompareMatcher.bind("compareCall"))))
+            hasRHS(ignoringParenImpCasts(CompareMatcher.bind(BindingName))))
             .bind("comparison"),
         this);
   };
 
-  addMatchersForCompare(CompareCall);
+  addMatchersForCompare(CompareCall, "compareCall");
+  addMatchersForCompare(CompareNoCaseCall, "compareNoCaseCall");
 }
 
 void UseIsEmptyCheck::check(const MatchFinder::MatchResult &Result) {
@@ -154,19 +155,22 @@ void UseIsEmptyCheck::check(const MatchFinder::MatchResult &Result) {
       Result.Nodes.getNodeAs<CXXMemberCallExpr>("getLengthCall");
   const auto *CompareCall =
       Result.Nodes.getNodeAs<CXXMemberCallExpr>("compareCall");
+  const auto *CompareNoCaseCall =
+      Result.Nodes.getNodeAs<CXXMemberCallExpr>("compareNoCaseCall");
 
   if (!Comparison)
     return;
 
-  const CXXMemberCallExpr *MethodCall = GetLengthCall ? GetLengthCall : CompareCall;
+  const CXXMemberCallExpr *MethodCall = GetLengthCall ? GetLengthCall :
+                                        (CompareCall ? CompareCall : CompareNoCaseCall);
   if (!MethodCall)
     return;
 
-  // For compare() calls, verify the argument is actually empty
-  if (CompareCall) {
+  // For compare() and compareNoCase() calls, verify the argument is actually empty
+  if (CompareCall || CompareNoCaseCall) {
     const auto *StringLit = Result.Nodes.getNodeAs<StringLiteral>("stringLiteralArg");
     const auto *TheEmptyString = Result.Nodes.getNodeAs<MemberExpr>("theEmptyStringArg");
-    
+
     if (StringLit) {
       // Check if string literal is actually empty ("" or L"")
       StringRef Str = StringLit->getString();
@@ -193,6 +197,9 @@ void UseIsEmptyCheck::check(const MatchFinder::MatchResult &Result) {
   } else if (MethodName == "compare") {
     IsEmptyMethodName = "isEmpty()";
     MethodNameStr = "compare()";
+  } else if (MethodName == "compareNoCase") {
+    IsEmptyMethodName = "isEmpty()";
+    MethodNameStr = "compareNoCase()";
   } else {
     IsEmptyMethodName = "isEmpty()";
     MethodNameStr = "getLength()";
