@@ -56,6 +56,22 @@ def find_project_root() -> Path:
     raise RuntimeError("Could not find project root (no CMakeLists.txt found)")
 
 
+def find_clang_tidy_plugin(project_root: Path) -> Optional[str]:
+    """Find the GeneralsGameCode clang-tidy plugin."""
+    possible_paths = [
+        project_root / "scripts" / "clang-tidy-plugin" / "build" / "lib" / "libGeneralsGameCodeClangTidyPlugin.so",
+        project_root / "scripts" / "clang-tidy-plugin" / "build" / "lib" / "libGeneralsGameCodeClangTidyPlugin.dylib",
+        project_root / "scripts" / "clang-tidy-plugin" / "build" / "lib" / "libGeneralsGameCodeClangTidyPlugin.dll",
+        project_root / "scripts" / "clang-tidy-plugin" / "build" / "bin" / "libGeneralsGameCodeClangTidyPlugin.dll",
+    ]
+
+    for path in possible_paths:
+        if path.exists():
+            return str(path)
+
+    return None
+
+
 def find_compile_commands(build_dir: Optional[Path] = None) -> Path:
     """Find compile_commands.json from the clang-tidy analysis build."""
     project_root = find_project_root()
@@ -174,7 +190,7 @@ def _run_batch(args: Tuple) -> Tuple[int, Dict[str, List[str]]]:
 
                             if is_warning_or_error or verbose:
                                 issues_by_file[file_key].append(line)
-        
+
         return result.returncode, dict(issues_by_file)
     except FileNotFoundError:
         error_msg = "Error: clang-tidy not found. Please install LLVM/Clang."
@@ -188,7 +204,8 @@ def run_clang_tidy(source_files: List[str],
                   extra_args: List[str],
                   fix: bool = False,
                   jobs: int = 1,
-                  verbose: bool = False) -> int:
+                  verbose: bool = False,
+                  load_plugin: bool = True) -> int:
     """Run clang-tidy on source files in batches, optionally in parallel."""
     if not source_files:
         print("No source files to analyze.")
@@ -196,16 +213,25 @@ def run_clang_tidy(source_files: List[str],
 
     clang_tidy_exe = find_clang_tidy()
 
+    project_root = find_project_root()
+    plugin_path = None
+    if load_plugin:
+        plugin_path = find_clang_tidy_plugin(project_root)
+        if plugin_path and verbose:
+            print(f"Found clang-tidy plugin: {plugin_path}\n")
+
     BATCH_SIZE = 50
     total_files = len(source_files)
     batches = [source_files[i:i + BATCH_SIZE] for i in range(0, total_files, BATCH_SIZE)]
 
-    project_root = find_project_root()
     compile_commands_dir = compile_commands_path.parent
 
     all_issues = defaultdict(list)
     files_with_issues = set()
     total_issues = 0
+
+    if plugin_path and '-load' not in ' '.join(extra_args):
+        extra_args = ['-load', plugin_path] + extra_args
 
     if jobs > 1:
         if verbose:
@@ -232,7 +258,7 @@ def run_clang_tidy(source_files: List[str],
                         all_issues[file_path].extend(file_issues)
                         files_with_issues.add(file_path)
                         total_issues += len(file_issues)
-            
+
             if not verbose:
                 print(" done.")
         except KeyboardInterrupt:
@@ -249,7 +275,7 @@ def run_clang_tidy(source_files: List[str],
             try:
                 if verbose:
                     print(f"Batch {batch_num}/{len(batches)}: {len(batch)} file(s)...")
-                
+
                 returncode, issues = _run_batch((batch_num, batch, compile_commands_dir, fix, extra_args, project_root, clang_tidy_exe, verbose))
                 if returncode != 0:
                     overall_returncode = returncode
@@ -259,7 +285,7 @@ def run_clang_tidy(source_files: List[str],
                         all_issues[file_path].extend(file_issues)
                         files_with_issues.add(file_path)
                         total_issues += len(file_issues)
-                
+
                 if not verbose and batch_num < len(batches):
                     print('.', end='', flush=True)
             except KeyboardInterrupt:
@@ -277,7 +303,7 @@ def run_clang_tidy(source_files: List[str],
             print(f"\n{file_path}:")
             for issue in all_issues[file_path]:
                 print(f"  {issue}")
-    
+
     return overall_returncode
 
 
@@ -356,6 +382,12 @@ Note: Requires a PCH-free build. Create with:
     )
 
     parser.add_argument(
+        '--no-plugin',
+        action='store_true',
+        help='Do not automatically load the GeneralsGameCode clang-tidy plugin'
+    )
+
+    parser.add_argument(
         'clang_tidy_args',
         nargs='*',
         help='Additional arguments to pass to clang-tidy, or specific files to analyze (if files are provided, --include/--exclude are ignored)'
@@ -390,7 +422,8 @@ Note: Requires a PCH-free build. Create with:
                 clang_tidy_args,
                 args.fix,
                 args.jobs,
-                args.verbose
+                args.verbose,
+                load_plugin=not args.no_plugin
             )
 
         compile_commands = load_compile_commands(compile_commands_path)
@@ -423,7 +456,8 @@ Note: Requires a PCH-free build. Create with:
             clang_tidy_args,
             args.fix,
             args.jobs,
-            args.verbose
+            args.verbose,
+            load_plugin=not args.no_plugin
         )
 
     except Exception as e:
