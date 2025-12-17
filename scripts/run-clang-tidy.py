@@ -56,6 +56,38 @@ def find_project_root() -> Path:
     raise RuntimeError("Could not find project root (no CMakeLists.txt found)")
 
 
+def get_clang_tidy_version(clang_tidy_exe: str) -> Optional[str]:
+    """Get the version string from clang-tidy."""
+    try:
+        result = subprocess.run(
+            [clang_tidy_exe, '--version'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
+def extract_llvm_version(version_string: str) -> Optional[str]:
+    """Extract LLVM version number from clang-tidy version string."""
+    import re
+    patterns = [
+        r'LLVM version (\d+\.\d+\.\d+)',
+        r'llvm version (\d+\.\d+\.\d+)',
+        r'Homebrew LLVM version (\d+\.\d+\.\d+)',
+        r'version (\d+\.\d+\.\d+)',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, version_string, re.IGNORECASE)
+        if match:
+            return match.group(1)
+    return None
+
+
 def find_clang_tidy_plugin(project_root: Path) -> Optional[str]:
     """Find the GeneralsGameCode clang-tidy plugin."""
     possible_paths = [
@@ -217,8 +249,23 @@ def run_clang_tidy(source_files: List[str],
     plugin_path = None
     if load_plugin:
         plugin_path = find_clang_tidy_plugin(project_root)
-        if plugin_path and verbose:
-            print(f"Found clang-tidy plugin: {plugin_path}\n")
+        if plugin_path:
+            clang_tidy_version_str = get_clang_tidy_version(clang_tidy_exe)
+            if clang_tidy_version_str:
+                detected_version = extract_llvm_version(clang_tidy_version_str)
+                if detected_version:
+                    if verbose:
+                        print(f"Found clang-tidy plugin: {plugin_path}")
+                        print(f"Using clang-tidy LLVM version: {detected_version}")
+                        print("Note: Ensure the plugin was built with the same LLVM version (check CMake build output).\n")
+                    else:
+                        print(f"Note: Verify plugin was built with LLVM {detected_version} (check CMake build output)")
+                else:
+                    if verbose:
+                        print(f"Found clang-tidy plugin: {plugin_path}\n")
+            else:
+                if verbose:
+                    print(f"Found clang-tidy plugin: {plugin_path}\n")
 
     BATCH_SIZE = 50
     total_files = len(source_files)
