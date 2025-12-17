@@ -63,6 +63,8 @@ make
 
 The plugin will be built as a shared library (`.so` on Linux, `.dylib` on macOS, `.dll` on Windows) in the `build/lib/` directory.
 
+**Important:** The plugin must be built with the same LLVM version as the `clang-tidy` executable in your PATH. The CMake build will display which LLVM version it found (e.g., `Found LLVM 21.1.5`). Verify this matches your `clang-tidy --version` output. Version mismatches will cause the plugin to fail to load or produce incorrect results.
+
 ## Prerequisites
 
 Before using the plugin, you need to generate a compile commands database:
