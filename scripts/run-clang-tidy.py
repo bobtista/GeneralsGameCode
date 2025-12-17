@@ -27,7 +27,7 @@ from typing import List, Optional, Tuple, Dict
 
 
 def find_clang_tidy() -> str:
-    """Find clang-tidy executable in PATH."""
+    """Find clang-tidy executable in PATH or common locations."""
     try:
         result = subprocess.run(
             ['clang-tidy', '--version'],
@@ -40,8 +40,38 @@ def find_clang_tidy() -> str:
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
+    import platform
+    if platform.system() == 'Darwin':
+        import glob
+        import re
+        possible_paths = glob.glob('/opt/homebrew/Cellar/llvm*/*/bin/clang-tidy')
+        possible_paths.extend(glob.glob('/usr/local/Cellar/llvm*/*/bin/clang-tidy'))
+
+        def extract_version(path):
+            match = re.search(r'llvm@?(\d+)', path)
+            if match:
+                return int(match.group(1))
+            match = re.search(r'/(\d+)\.(\d+)\.(\d+)', path)
+            if match:
+                return int(match.group(1)) * 10000 + int(match.group(2)) * 100 + int(match.group(3))
+            return 0
+
+        for path in sorted(possible_paths, key=extract_version, reverse=True):
+            try:
+                result = subprocess.run(
+                    [path, '--version'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0:
+                    return path
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                continue
+
     raise RuntimeError(
         "clang-tidy not found in PATH. Please install clang-tidy:\n"
+        "  macOS: brew install llvm\n"
         "  Windows: Install LLVM from https://llvm.org/builds/"
     )
 
