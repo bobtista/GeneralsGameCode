@@ -472,24 +472,9 @@ Bool FileSystem::isPathInDirectory(const AsciiString& testPath, const AsciiStrin
 // Checks file headers, magic bytes, size limits, and basic structure to prevent
 // malformed or malicious files from being processed.
 //============================================================================
-Bool FileSystem::hasValidTransferFileContent(const AsciiString& filePath)
+static Bool validateFileContent(File* file, const AsciiString& filePath, const char* extension)
 {
-	File* file = TheLocalFileSystem->openFile(filePath.str(), File::READ | File::BINARY);
-	if (file == NULL)
-	{
-		DEBUG_LOG(("Cannot open file '%s' for content validation.", filePath.str()));
-		return false;
-	}
-
 	const Int fileSize = file->size();
-	Bool isValid = false;
-
-	const char* lastDot = strrchr(filePath.str(), '.');
-	if (lastDot == NULL)
-	{
-		file->close();
-		return false;
-	}
 
 	const Int MAX_MAP_SIZE = 50 * 1024 * 1024;
 	const Int MAX_INI_SIZE = 10 * 1024 * 1024;
@@ -498,82 +483,51 @@ Bool FileSystem::hasValidTransferFileContent(const AsciiString& filePath)
 	const Int MAX_TXT_SIZE = 5 * 1024 * 1024;
 	const Int MAX_WAK_SIZE = 10 * 1024 * 1024;
 
-#ifdef _WIN32
-	if (_stricmp(lastDot, ".map") == 0)
-#else
-	if (strcasecmp(lastDot, ".map") == 0)
-#endif
+	if (STRICMP(extension, ".map") == 0)
 	{
 		if (fileSize > MAX_MAP_SIZE)
 		{
 			DEBUG_LOG(("Map file '%s' exceeds maximum size (%d bytes).", filePath.str(), fileSize));
-			isValid = false;
+			return false;
 		}
-		else
+
+		UnsignedByte header[4];
+		file->read(header, 4);
+		if (header[0] != 'C' || header[1] != 'k' || header[2] != 'M' || header[3] != 'p')
 		{
-			UnsignedByte header[4];
-			file->read(header, 4);
-			if (header[0] == 'C' && header[1] == 'k' && header[2] == 'M' && header[3] == 'p')
-			{
-				isValid = true;
-			}
-			else
-			{
-				DEBUG_LOG(("Map file '%s' has invalid magic bytes.", filePath.str()));
-				isValid = false;
-			}
+			DEBUG_LOG(("Map file '%s' has invalid magic bytes.", filePath.str()));
+			return false;
 		}
+		return true;
 	}
-#ifdef _WIN32
-	else if (_stricmp(lastDot, ".ini") == 0)
-#else
-	else if (strcasecmp(lastDot, ".ini") == 0)
-#endif
+
+	if (STRICMP(extension, ".ini") == 0)
 	{
 		if (fileSize > MAX_INI_SIZE)
 		{
 			DEBUG_LOG(("INI file '%s' exceeds maximum size (%d bytes).", filePath.str(), fileSize));
-			isValid = false;
+			return false;
 		}
-		else
+
+		UnsignedByte sample[512];
+		Int bytesToRead = fileSize < 512 ? fileSize : 512;
+		file->read(sample, bytesToRead);
+
+		for (Int i = 0; i < bytesToRead; ++i)
 		{
-			UnsignedByte sample[512];
-			Int bytesToRead = fileSize < 512 ? fileSize : 512;
-			file->read(sample, bytesToRead);
-
-			Bool hasNullBytes = false;
-			for (Int i = 0; i < bytesToRead; ++i)
-			{
-				if (sample[i] == 0)
-				{
-					hasNullBytes = true;
-					break;
-				}
-			}
-
-			if (hasNullBytes)
+			if (sample[i] == 0)
 			{
 				DEBUG_LOG(("INI file '%s' contains null bytes (likely binary).", filePath.str()));
-				isValid = false;
-			}
-			else
-			{
-				isValid = true;
+				return false;
 			}
 		}
+		return true;
 	}
-#ifdef _WIN32
-	else if (_stricmp(lastDot, ".str") == 0 || _stricmp(lastDot, ".txt") == 0)
-#else
-	else if (strcasecmp(lastDot, ".str") == 0 || strcasecmp(lastDot, ".txt") == 0)
-#endif
+
+	if (STRICMP(extension, ".str") == 0 || STRICMP(extension, ".txt") == 0)
 	{
 		Int maxSize = MAX_STR_SIZE;
-#ifdef _WIN32
-		if (_stricmp(lastDot, ".txt") == 0)
-#else
-		if (strcasecmp(lastDot, ".txt") == 0)
-#endif
+		if (STRICMP(extension, ".txt") == 0)
 		{
 			maxSize = MAX_TXT_SIZE;
 		}
@@ -581,56 +535,56 @@ Bool FileSystem::hasValidTransferFileContent(const AsciiString& filePath)
 		if (fileSize > maxSize)
 		{
 			DEBUG_LOG(("Text file '%s' exceeds maximum size (%d bytes).", filePath.str(), fileSize));
-			isValid = false;
+			return false;
 		}
-		else
-		{
-			isValid = true;
-		}
+		return true;
 	}
-#ifdef _WIN32
-	else if (_stricmp(lastDot, ".tga") == 0)
-#else
-	else if (strcasecmp(lastDot, ".tga") == 0)
-#endif
+
+	if (STRICMP(extension, ".tga") == 0)
 	{
 		if (fileSize > MAX_TGA_SIZE)
 		{
 			DEBUG_LOG(("TGA file '%s' exceeds maximum size (%d bytes).", filePath.str(), fileSize));
-			isValid = false;
+			return false;
 		}
-		else if (fileSize < 18)
+		if (fileSize < 18)
 		{
 			DEBUG_LOG(("TGA file '%s' is too small to be valid (minimum 18 bytes).", filePath.str()));
-			isValid = false;
+			return false;
 		}
-		else
-		{
-			isValid = true;
-		}
+		return true;
 	}
-#ifdef _WIN32
-	else if (_stricmp(lastDot, ".wak") == 0)
-#else
-	else if (strcasecmp(lastDot, ".wak") == 0)
-#endif
+
+	if (STRICMP(extension, ".wak") == 0)
 	{
 		if (fileSize > MAX_WAK_SIZE)
 		{
 			DEBUG_LOG(("WAK file '%s' exceeds maximum size (%d bytes).", filePath.str(), fileSize));
-			isValid = false;
+			return false;
 		}
-		else
-		{
-			isValid = true;
-		}
-	}
-	else
-	{
-		DEBUG_LOG(("File '%s' has unrecognized extension for content validation.", filePath.str()));
-		isValid = false;
+		return true;
 	}
 
+	DEBUG_LOG(("File '%s' has unrecognized extension for content validation.", filePath.str()));
+	return false;
+}
+
+Bool FileSystem::hasValidTransferFileContent(const AsciiString& filePath)
+{
+	const char* lastDot = strrchr(filePath.str(), '.');
+	if (lastDot == NULL)
+	{
+		return false;
+	}
+
+	File* file = TheLocalFileSystem->openFile(filePath.str(), File::READ | File::BINARY);
+	if (file == NULL)
+	{
+		DEBUG_LOG(("Cannot open file '%s' for content validation.", filePath.str()));
+		return false;
+	}
+
+	Bool isValid = validateFileContent(file, filePath, lastDot);
 	file->close();
 	return isValid;
 }
