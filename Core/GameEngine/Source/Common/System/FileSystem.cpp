@@ -524,14 +524,11 @@ static Bool validateFileContent(File* file, const AsciiString& filePath, const c
 		return true;
 	}
 
-	if (STRICMP(extension, ".str") == 0 || STRICMP(extension, ".txt") == 0)
+	Bool isStr = (STRICMP(extension, ".str") == 0);
+	Bool isTxt = (STRICMP(extension, ".txt") == 0);
+	if (isStr || isTxt)
 	{
-		Int maxSize = MAX_STR_SIZE;
-		if (STRICMP(extension, ".txt") == 0)
-		{
-			maxSize = MAX_TXT_SIZE;
-		}
-
+		Int maxSize = isTxt ? MAX_TXT_SIZE : MAX_STR_SIZE;
 		if (fileSize > maxSize)
 		{
 			DEBUG_LOG(("Text file '%s' exceeds maximum size (%d bytes).", filePath.str(), fileSize));
