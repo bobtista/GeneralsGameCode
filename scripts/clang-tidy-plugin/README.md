@@ -8,16 +8,24 @@ This is a custom clang-tidy plugin that provides checks specific to the Generals
 
 Finds uses of `getLength() == 0` or `getLength() > 0` on `AsciiString` and `UnicodeString`, and `Get_Length() == 0` on `StringClass` and `WideStringClass`, and suggests using `isEmpty()`/`Is_Empty()` or `!isEmpty()`/`!Is_Empty()` instead.
 
+Also finds uses of `compare("") == 0`, `compare(TheEmptyString) == 0`, `compareNoCase("") == 0`, and similar patterns, suggesting `isEmpty()` instead.
+
 **Examples:**
 
 ```cpp
 // Before (AsciiString/UnicodeString)
 if (str.getLength() == 0) { ... }
 if (str.getLength() > 0) { ... }
+if (str.compare("") == 0) { ... }
+if (str.compare(AsciiString::TheEmptyString) == 0) { ... }
+if (str.compareNoCase("") == 0) { ... }
 
 // After (AsciiString/UnicodeString)
 if (str.isEmpty()) { ... }
 if (!str.isEmpty()) { ... }
+if (str.isEmpty()) { ... }
+if (str.isEmpty()) { ... }
+if (str.isEmpty()) { ... }
 
 // Before (StringClass/WideStringClass)
 if (str.Get_Length() == 0) { ... }
