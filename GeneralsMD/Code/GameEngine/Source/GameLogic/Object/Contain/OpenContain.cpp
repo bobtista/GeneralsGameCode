@@ -1924,6 +1924,18 @@ void OpenContain::loadPostProcess( void )
 
 	}
 
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// In retail compatibility mode, restore hero count by iterating hero objects
+	m_heroUnitsContained = 0;
+	for( ContainedItemsList::const_iterator it = m_containList.begin(); it != m_containList.end(); ++it )
+	{
+		if( (*it)->isKindOf( KINDOF_HERO ) )
+		{
+			m_heroUnitsContained++;
+		}
+	}
+#endif
+
 	// sanity
 	DEBUG_ASSERTCRASH( m_containListSize == m_containList.size(),
 										 ("OpenContain::loadPostProcess - contain list count mismatch") );
