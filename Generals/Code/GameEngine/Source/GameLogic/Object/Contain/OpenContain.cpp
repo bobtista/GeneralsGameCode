@@ -1537,7 +1537,22 @@ void OpenContain::xfer( Xfer *xfer )
 	xfer->xferUnsignedInt( &m_stealthUnitsContained );
 
 	// hero units contained
-	xfer->xferUnsignedInt( &m_heroUnitsContained );
+#if !RETAIL_COMPATIBLE_XFER_SAVE
+	if (version >= 2)
+	{
+		xfer->xferUnsignedInt( &m_heroUnitsContained );
+	}
+	else if (xfer->getXferMode() == XFER_LOAD)
+	{
+		m_heroUnitsContained = 0;
+	}
+#else
+	// In retail compatibility mode, hero count is restored by iterating hero objects in loadPostProcess
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		m_heroUnitsContained = 0;
+	}
+#endif
 
 	// door close countdown
 	xfer->xferUnsignedInt( &m_doorCloseCountdown );
