@@ -1677,13 +1677,19 @@ void OpenContain::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 2: Added m_passengerAllowedToFire
+	* 3: Added m_heroUnitsContained cached hero count (bobtista) */
 // ------------------------------------------------------------------------------------------------
 void OpenContain::xfer( Xfer *xfer )
 {
 
 	// version
-	const XferVersion currentVersion = 2;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	XferVersion currentVersion = 2;
+#else
+	XferVersion currentVersion = 3;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1762,7 +1768,22 @@ void OpenContain::xfer( Xfer *xfer )
 	xfer->xferUnsignedInt( &m_stealthUnitsContained );
 
 	// hero units contained
-	xfer->xferUnsignedInt( &m_heroUnitsContained );
+#if !RETAIL_COMPATIBLE_XFER_SAVE
+	if (version >= 3)
+	{
+		xfer->xferUnsignedInt( &m_heroUnitsContained );
+	}
+	else if (xfer->getXferMode() == XFER_LOAD)
+	{
+		m_heroUnitsContained = 0;
+	}
+#else
+	// In retail compatibility mode, hero count is restored by iterating hero objects in loadPostProcess
+	if (xfer->getXferMode() == XFER_LOAD)
+	{
+		m_heroUnitsContained = 0;
+	}
+#endif
 
 	// door close countdown
 	xfer->xferUnsignedInt( &m_doorCloseCountdown );
