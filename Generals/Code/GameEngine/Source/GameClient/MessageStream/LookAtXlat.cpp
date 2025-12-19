@@ -171,14 +171,13 @@ const ICoord2D* LookAtTranslator::getRMBScrollAnchor(void)
 
 Bool LookAtTranslator::hasMouseMovedRecently( void )
 {
-	const UnsignedInt ONE_SECOND_MSEC = 1000;
 	UnsignedInt now = timeGetTime();
 
 	// Handle time wraparound
 	if (now < m_lastMouseMoveTimeMsec)
 		m_lastMouseMoveTimeMsec = now;
 
-	if (now - m_lastMouseMoveTimeMsec > ONE_SECOND_MSEC)
+	if (now - m_lastMouseMoveTimeMsec > MSEC_PER_SECOND)
 		return false;
 
 	return true;
@@ -288,22 +287,22 @@ GameMessageDisposition LookAtTranslator::translateGameMessage(const GameMessage 
 		//-----------------------------------------------------------------------------
 		case GameMessage::MSG_RAW_MOUSE_MIDDLE_BUTTON_DOWN:
 		{
-			UnsignedInt now = timeGetTime();
+			const UnsignedInt now = timeGetTime();
 			m_lastMouseMoveTimeMsec = now;
+			m_middleButtonDownTimeMsec = now;
 
 			m_isRotating = true;
 			m_anchor = msg->getArgument( 0 )->pixel;
 			m_anchorAngle = TheTacticalView->getAngle();
 			m_originalAnchor = msg->getArgument( 0 )->pixel;
 			m_currentPos = msg->getArgument( 0 )->pixel;
-			m_middleButtonDownTimeMsec = now;
 			break;
 		}
 
 		//-----------------------------------------------------------------------------
 		case GameMessage::MSG_RAW_MOUSE_MIDDLE_BUTTON_UP:
 		{
-			UnsignedInt now = timeGetTime();
+			const UnsignedInt now = timeGetTime();
 			m_lastMouseMoveTimeMsec = now;
 
 			const UnsignedInt CLICK_DURATION_MSEC = 167;
