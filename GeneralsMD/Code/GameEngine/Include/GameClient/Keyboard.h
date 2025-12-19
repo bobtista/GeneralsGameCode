@@ -86,7 +86,11 @@ struct KeyboardIO
 class Keyboard : public SubsystemInterface
 {
 
-	enum { KEY_REPEAT_DELAY_MSEC = 333, KEY_REPEAT_INTERVAL_MSEC = 67 }; // ~2 frames at 30 FPS
+	enum
+	{
+		KEY_REPEAT_DELAY_MSEC = 333,
+		KEY_REPEAT_INTERVAL_MSEC = 67
+	}; // ~2 frames at 30 FPS
 
 public:
 
