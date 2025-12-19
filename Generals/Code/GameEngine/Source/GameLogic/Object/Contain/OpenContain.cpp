@@ -1452,13 +1452,18 @@ void OpenContain::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 /** Xfer method
 	* Version Info:
-	* 1: Initial version */
+	* 1: Initial version
+	* 2: Added m_heroUnitsContained cached hero count (bobtista) */
 // ------------------------------------------------------------------------------------------------
 void OpenContain::xfer( Xfer *xfer )
 {
 
 	// version
-	const XferVersion currentVersion = 1;
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	XferVersion currentVersion = 1;
+#else
+	XferVersion currentVersion = 2;
+#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
 
@@ -1685,6 +1690,18 @@ void OpenContain::loadPostProcess( void )
 		obj->friend_setContainedBy( us );
 
 	}
+
+#if RETAIL_COMPATIBLE_XFER_SAVE
+	// In retail compatibility mode, restore hero count by iterating hero objects
+	m_heroUnitsContained = 0;
+	for( ContainedItemsList::const_iterator it = m_containList.begin(); it != m_containList.end(); ++it )
+	{
+		if( (*it)->isKindOf( KINDOF_HERO ) )
+		{
+			m_heroUnitsContained++;
+		}
+	}
+#endif
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_containListSize == m_containList.size(),
