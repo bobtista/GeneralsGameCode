@@ -171,16 +171,12 @@ const ICoord2D* LookAtTranslator::getRMBScrollAnchor(void)
 
 Bool LookAtTranslator::hasMouseMovedRecently( void )
 {
-	UnsignedInt now = timeGetTime();
+	const UnsignedInt now = timeGetTime();
+	const UnsignedInt lastMove = m_lastMouseMoveTimeMsec;
 
-	// Handle time wraparound
-	if (now < m_lastMouseMoveTimeMsec)
-		m_lastMouseMoveTimeMsec = now;
+	const UnsignedInt elapsedMsec = now - lastMove;
 
-	if (now - m_lastMouseMoveTimeMsec > MSEC_PER_SECOND)
-		return false;
-
-	return true;
+	return elapsedMsec <= MSEC_PER_SECOND;
 }
 
 void LookAtTranslator::setCurrentPos( const ICoord2D& pos )
@@ -312,8 +308,11 @@ GameMessageDisposition LookAtTranslator::translateGameMessage(const GameMessage 
 			if (dx<0) dx = -dx;
 			Int dy = m_currentPos.y-m_originalAnchor.y;
 			Bool didMove = dx>PIXEL_OFFSET || dy>PIXEL_OFFSET;
+
+			const UnsignedInt elapsedMsec = now - m_middleButtonDownTimeMsec;
+
 			// if middle button is "clicked", reset to "home" orientation
-			if (!didMove && now - m_middleButtonDownTimeMsec < CLICK_DURATION_MSEC)
+			if (!didMove && elapsedMsec < CLICK_DURATION_MSEC)
 			{
 				TheTacticalView->setAngleAndPitchToDefault();
 				TheTacticalView->setZoomToDefault();
