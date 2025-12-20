@@ -225,9 +225,13 @@ Bool Keyboard::checkKeyRepeat( void )
 		if( BitIsSet( m_keyStatus[ key ].state, KEY_STATE_DOWN ) )
 		{
 
-			UnsignedInt now = timeGetTime();
+			const UnsignedInt now = timeGetTime();
+			const UnsignedInt keyDownTime = m_keyStatus[ key ].keyDownTimeMsec;
 
-			if( now - m_keyStatus[ key ].keyDownTimeMsec > Keyboard::KEY_REPEAT_DELAY_MSEC )
+			// Unsigned subtraction handles wraparound correctly
+			const UnsignedInt elapsedMsec = now - keyDownTime;
+
+			if( elapsedMsec > Keyboard::KEY_REPEAT_DELAY_MSEC )
 			{
 				// Add key to this frame
 				m_keys[ index ].key = (UnsignedByte)key;
