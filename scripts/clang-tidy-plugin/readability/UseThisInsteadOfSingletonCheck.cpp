@@ -144,6 +144,9 @@ void UseThisInsteadOfSingletonCheck::check(
     if (Method->isStatic()) {
       return;
     }
+    if (EnclosingMethod->isConst() && !Method->isConst()) {
+      return;
+    }
     Member = Method;
     MemberName = Method->getName();
     StartLoc = MemberCall->getBeginLoc();
