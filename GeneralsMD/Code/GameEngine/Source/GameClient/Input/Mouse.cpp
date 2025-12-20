@@ -218,7 +218,7 @@ void Mouse::processMouseEvent( Int index )
 	m_currMouse.wheelPos += m_mouseEvents[ index ].wheelPos;
 
 	// Check Left Mouse State
-	if( m_mouseEvents[ index ].leftStateChanged )
+	if( m_mouseEvents[ index ].leftState != MBS_None )
 	{
 		if( m_currMouse.leftState != m_mouseEvents[ index ].leftState )
 		{
@@ -228,21 +228,18 @@ void Mouse::processMouseEvent( Int index )
 				// Mouse Down
 				m_currMouse.leftEvent = GWM_LEFT_DOWN;
 				m_currMouse.leftState = MBS_Down;
-				m_currMouse.leftStateChanged = TRUE;
 			}
 			else if ( m_mouseEvents[ index ].leftState == MBS_DoubleClick )
 			{
 				// Mouse Double Click
 				m_currMouse.leftEvent = GWM_LEFT_DOUBLE_CLICK;
 				m_currMouse.leftState = MBS_DoubleClick;
-				m_currMouse.leftStateChanged = TRUE;
 			}
 			else
 			{
 				// Mouse Up
 				m_currMouse.leftEvent = GWM_LEFT_UP;
 				m_currMouse.leftState = MBS_Up;
-				m_currMouse.leftStateChanged = TRUE;
 			}
 		}
 	}
@@ -254,7 +251,7 @@ void Mouse::processMouseEvent( Int index )
 	}
 
 	// Check Right Mouse State
-	if( m_mouseEvents[ index ].rightStateChanged )
+	if( m_mouseEvents[ index ].rightState != MBS_None )
 	{
 		if( m_currMouse.rightState != m_mouseEvents[ index ].rightState )
 		{
@@ -264,21 +261,18 @@ void Mouse::processMouseEvent( Int index )
 				// Mouse Down
 				m_currMouse.rightEvent = GWM_RIGHT_DOWN;
 				m_currMouse.rightState = MBS_Down;
-				m_currMouse.rightStateChanged = TRUE;
 			}
 			else if( m_mouseEvents[ index ].rightState == MBS_DoubleClick )
 			{
 				// Mouse Double Click
 				m_currMouse.rightEvent = GWM_RIGHT_DOUBLE_CLICK;
 				m_currMouse.rightState = MBS_DoubleClick;
-				m_currMouse.rightStateChanged = TRUE;
 			}
 			else
 			{
 				// Mouse Up
 				m_currMouse.rightEvent = GWM_RIGHT_UP;
 				m_currMouse.rightState = MBS_Up;
-				m_currMouse.rightStateChanged = TRUE;
 			}
 		}
 	}
@@ -290,7 +284,7 @@ void Mouse::processMouseEvent( Int index )
 	}
 
 	// Check Middle Mouse State
-	if( m_mouseEvents[ index ].middleStateChanged )
+	if( m_mouseEvents[ index ].middleState != MBS_None )
 	{
 		if( m_currMouse.middleState != m_mouseEvents[index].middleState )
 		{
@@ -299,20 +293,17 @@ void Mouse::processMouseEvent( Int index )
 			{
 				m_currMouse.middleEvent = GWM_MIDDLE_DOWN;
 				m_currMouse.middleState = MBS_Down;
-				m_currMouse.middleStateChanged = TRUE;
 			}
 			else if( m_mouseEvents[index].middleState == MBS_DoubleClick )
 			{
 				m_currMouse.middleEvent = GWM_MIDDLE_DOUBLE_CLICK;
 				m_currMouse.middleState = MBS_DoubleClick;
-				m_currMouse.middleStateChanged = TRUE;
 			}
 			else
 			{
 				// Mouse Up
 				m_currMouse.middleEvent = GWM_MIDDLE_UP;
 				m_currMouse.middleState = MBS_Up;
-				m_currMouse.middleStateChanged = TRUE;
 			}
 		}
 	}

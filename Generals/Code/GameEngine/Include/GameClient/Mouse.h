@@ -62,6 +62,7 @@ enum GameMode CPP_11(: Int);
 
 enum MouseButtonState CPP_11(: Int)
 {
+	MBS_None = -1,
 	MBS_Up = 0,
 	MBS_Down,
 	MBS_DoubleClick,
@@ -105,17 +106,14 @@ struct MouseIO
 								 user while - is down/toward user */
 	ICoord2D deltaPos;  ///< overall change in mouse pointer this frame
 
-	MouseButtonState leftState;					// button state: Up, Down, DoubleClick (Which is also down)
+	MouseButtonState leftState;					// button state: None (no event), Up, Down, DoubleClick
 	Int leftEvent;											// Most important event this frame
-	Bool leftStateChanged;					// TRUE if button state changed for a given mouse event
 
 	MouseButtonState rightState;
 	Int rightEvent;
-	Bool rightStateChanged;					// TRUE if button state changed for a given mouse event
 
 	MouseButtonState middleState;
 	Int middleEvent;
-	Bool middleStateChanged;					// TRUE if button state changed for a given mouse event
 };
 
 class CursorInfo
