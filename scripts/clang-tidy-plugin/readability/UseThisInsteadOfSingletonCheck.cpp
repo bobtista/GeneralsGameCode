@@ -165,15 +165,48 @@ void UseThisInsteadOfSingletonCheck::check(
   std::string Replacement = std::string(MemberName);
   
   if (IsCall && MemberCall) {
+    SourceLocation RParenLoc = MemberCall->getRParenLoc();
     const Expr *Callee = MemberCall->getCallee();
-    SourceLocation ArgsStart = Lexer::getLocForEndOfToken(
-        Callee->getEndLoc(), 0, SM, Result.Context->getLangOpts());
-    SourceLocation ArgsEnd = MemberCall->getEndLoc();
-    if (ArgsStart.isValid() && ArgsEnd.isValid() && ArgsStart < ArgsEnd) {
-      StringRef ArgsText = Lexer::getSourceText(
-          CharSourceRange::getTokenRange(ArgsStart, ArgsEnd), SM,
-          Result.Context->getLangOpts());
-      Replacement += ArgsText.str();
+    
+    if (RParenLoc.isValid() && Callee) {
+      SourceLocation CalleeEnd = Lexer::getLocForEndOfToken(
+          Callee->getEndLoc(), 0, SM, Result.Context->getLangOpts());
+      
+      if (CalleeEnd.isValid() && CalleeEnd < RParenLoc) {
+        SourceLocation ArgsStart = CalleeEnd;
+        SourceLocation ArgsEnd = Lexer::getLocForEndOfToken(
+            RParenLoc, 0, SM, Result.Context->getLangOpts());
+        
+        if (ArgsStart.isValid() && ArgsEnd.isValid() && ArgsStart < ArgsEnd) {
+          StringRef ArgsText = Lexer::getSourceText(
+              CharSourceRange::getCharRange(ArgsStart, ArgsEnd), SM,
+              Result.Context->getLangOpts());
+          ArgsText = ArgsText.ltrim();
+          if (!ArgsText.empty()) {
+            Replacement += ArgsText.str();
+          } else {
+            Replacement += "()";
+          }
+        } else {
+          Replacement += "()";
+        }
+      } else {
+        SourceLocation CallEnd = Lexer::getLocForEndOfToken(
+            MemberCall->getEndLoc(), 0, SM, Result.Context->getLangOpts());
+        if (CalleeEnd.isValid() && CallEnd.isValid() && CalleeEnd < CallEnd) {
+          StringRef ArgsText = Lexer::getSourceText(
+              CharSourceRange::getCharRange(CalleeEnd, CallEnd), SM,
+              Result.Context->getLangOpts());
+          ArgsText = ArgsText.ltrim();
+          if (!ArgsText.empty()) {
+            Replacement += ArgsText.str();
+          } else {
+            Replacement += "()";
+          }
+        } else {
+          Replacement += "()";
+        }
+      }
     } else {
       Replacement += "()";
     }
