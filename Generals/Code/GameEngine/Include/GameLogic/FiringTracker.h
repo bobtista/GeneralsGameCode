@@ -55,6 +55,7 @@ public:
 	void shotFired(const Weapon* weaponFired, ObjectID victimID );			///< Owner just fired this weapon at this Object
 	ObjectID getLastShotVictim() const { return m_victimID; }						///< get the last victim ID that was shot at
 	Int getNumConsecutiveShotsAtVictim( const Object *victim ) const;
+	void forceCoolDown();																						///< Force immediate cooldown, stopping all continuous fire states
 
 	/// this is never disabled, since we want disabled things to continue to slowly "spin down"... (srj)
 	virtual DisabledMaskType getDisabledTypesToProcess() const { return DISABLEDMASK_ALL; }
