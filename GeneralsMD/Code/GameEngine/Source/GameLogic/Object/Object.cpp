@@ -2248,6 +2248,7 @@ void Object::setDisabledUntil( DisabledType type, UnsignedInt frame )
 	}
 
 	// TheSuperHackers @bugfix bobtista 21/12/2025 Force FiringTracker to cool down immediately when power is lost to prevent delayed barrel animations.
+	// FiringTracker::getDisabledTypesToProcess() excludes these types, but we still need forceCoolDown() for immediate cooldown.
 	if (m_firingTracker && (type == DISABLED_UNDERPOWERED || type == DISABLED_EMP || type == DISABLED_SUBDUED || type == DISABLED_HACKED))
 	{
 		m_firingTracker->forceCoolDown();
