@@ -536,7 +536,7 @@ public:
 		aiDoCommand(&parms);
 	}
 
-	inline void aiFollowExitProductionPath( std::vector<Coord3D>* path, Object *ignoreObject, CommandSourceType cmdSource )
+	void aiFollowExitProductionPath( std::vector<Coord3D>* path, Object *ignoreObject, CommandSourceType cmdSource )
 	{
 		AICommandParms parms(AICMD_FOLLOW_EXITPRODUCTION_PATH, cmdSource);
 		move_or_swap(parms.m_coords, *path);
@@ -544,7 +544,7 @@ public:
 		aiDoCommand(&parms);
 	}
 
-	inline void aiFollowPath( std::vector<Coord3D>* path, Object *ignoreObject, CommandSourceType cmdSource )
+	void aiFollowPath( std::vector<Coord3D>* path, Object *ignoreObject, CommandSourceType cmdSource )
 	{
 		AICommandParms parms(AICMD_FOLLOW_PATH, cmdSource);
 		move_or_swap(parms.m_coords, *path);
