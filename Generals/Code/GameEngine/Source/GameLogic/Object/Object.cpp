@@ -2018,11 +2018,6 @@ void Object::setDisabledUntil( DisabledType type, UnsignedInt frame )
 	// TheSuperHackers @bugfix bobtista 21/12/2025 Force FiringTracker to cool down immediately when power is lost to prevent delayed barrel animations.
 	if (m_firingTracker && (type == DISABLED_UNDERPOWERED || type == DISABLED_EMP || type == DISABLED_HACKED))
 	{
-		if (testWeaponBonusCondition(WEAPONBONUSCONDITION_CONTINUOUS_FIRE_MEAN) || testWeaponBonusCondition(WEAPONBONUSCONDITION_CONTINUOUS_FIRE_FAST))
-		{
-			clearWeaponBonusCondition(WEAPONBONUSCONDITION_CONTINUOUS_FIRE_MEAN);
-			clearWeaponBonusCondition(WEAPONBONUSCONDITION_CONTINUOUS_FIRE_FAST);
-		}
 		m_firingTracker->forceCoolDown();
 	}
 
