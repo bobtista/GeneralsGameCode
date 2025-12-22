@@ -57,14 +57,8 @@ public:
 	Int getNumConsecutiveShotsAtVictim( const Object *victim ) const;
 	void forceCoolDown();																						///< Force immediate cooldown, stopping all continuous fire states
 
-	/// Exclude power-related disable types (UNDERPOWERED, EMP, HACKED, SUBDUED) so update() isn't called when disabled.
-	/// forceCoolDown() in Object::setDisabledUntil() handles immediate cooldown. Other types allow "spin down".
-	virtual DisabledMaskType getDisabledTypesToProcess() const
-	{
-		DisabledMaskType mask = DISABLEDMASK_ALL;
-		mask.clear(MAKE_DISABLED_MASK4(DISABLED_HACKED, DISABLED_EMP, DISABLED_UNDERPOWERED, DISABLED_SUBDUED));
-		return mask;
-	}
+	/// this is never disabled, since we want disabled things to continue to slowly "spin down"... (srj)
+	virtual DisabledMaskType getDisabledTypesToProcess() const { return DISABLEDMASK_ALL; }
 
 	virtual UpdateSleepTime update();	///< See if spin down is needed because we haven't shot in a while
 
