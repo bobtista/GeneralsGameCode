@@ -58,7 +58,7 @@ public:
 	void forceCoolDown();																						///< Force immediate cooldown, stopping all continuous fire states
 
 	/// Exclude power-related disable types (UNDERPOWERED, EMP, HACKED, SUBDUED) so update() isn't called when disabled.
-	/// forceCoolDown() in Object::setDisabledUntil() handles immediate cooldown. Other types allow "spin down".
+	/// This prevents delayed barrel animation restart. forceCoolDown() in Object::setDisabledUntil() handles immediate cooldown.
 	virtual DisabledMaskType getDisabledTypesToProcess() const override
 	{
 		DisabledMaskType mask = DISABLEDMASK_ALL;
