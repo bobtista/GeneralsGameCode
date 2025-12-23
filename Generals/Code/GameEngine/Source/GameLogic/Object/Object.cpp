@@ -1569,6 +1569,16 @@ Bool Object::isLogicallyVisible() const
 //=============================================================================
 // Object::isLocallyControlled
 //=============================================================================
+Bool Object::isUnderpoweredForAttack() const
+{
+#if !RETAIL_COMPATIBLE_CRC
+	return isKindOf( KINDOF_POWERED ) && isDisabledByType( DISABLED_UNDERPOWERED );
+#else
+	return false;
+#endif
+}
+
+//-------------------------------------------------------------------------------------------------
 Bool Object::isLocallyControlled() const
 {
 	return getControllingPlayer() == ThePlayerList->getLocalPlayer();
@@ -2015,10 +2025,16 @@ void Object::setDisabledUntil( DisabledType type, UnsignedInt frame )
 
 	}
 
-	// TheSuperHackers @bugfix bobtista 21/12/2025 Force FiringTracker to cool down immediately when power is lost to prevent delayed barrel animations.
-	if (m_firingTracker && (type == DISABLED_UNDERPOWERED || type == DISABLED_EMP || type == DISABLED_HACKED))
+	// TheSuperHackers @bugfix bobtista 21/12/2025 Fix Gatling Cannon barrels rotating despite insufficient energy.
+	// When power is lost (UNDERPOWERED, EMP, HACKED), immediately force FiringTracker cooldown to stop barrel animations.
+	// getDisabledTypesToProcess() prevents update() from restarting animations, and isUnderpoweredForAttack() prevents cursor/attack logic.
+	if (m_firingTracker)
 	{
-		m_firingTracker->forceCoolDown();
+		Bool isPowerDisableType = (type == DISABLED_UNDERPOWERED || type == DISABLED_EMP || type == DISABLED_HACKED);
+		if (isPowerDisableType)
+		{
+			m_firingTracker->forceCoolDown();
+		}
 	}
 
 	// This will only be called if we were NOT disabled before coming into this function.
@@ -2924,9 +2940,8 @@ Bool Object::isAbleToAttack() const
 	if( testStatus(OBJECT_STATUS_SOLD) )
 		return false;
 
-	// TheSuperHackers @bugfix bobtista 31/10/2025 Fixes Gatling Cannon barrels rotating despite insufficient energy.
 #if !RETAIL_COMPATIBLE_CRC
-	if ( isKindOf( KINDOF_POWERED ) && isDisabledByType( DISABLED_UNDERPOWERED ) )
+	if (isUnderpoweredForAttack())
 		return false;
 #endif
 
@@ -4199,9 +4214,8 @@ void Object::adjustModelConditionForWeaponStatus()
 			// we really don't care, so we just force the issue here. (This might still need tweaking for the pursue state.)
 			conditionToSet = WSF_NONE;
 		}
-		// TheSuperHackers @bugfix bobtista 11/11/2025 Prevent barrel animation when powered structures are underpowered.
 #if !RETAIL_COMPATIBLE_CRC
-		else if ( isKindOf( KINDOF_POWERED ) && isDisabledByType( DISABLED_UNDERPOWERED ) )
+		else if (isUnderpoweredForAttack())
 		{
 			conditionToSet = WSF_NONE;
 		}
@@ -4229,9 +4243,8 @@ void Object::adjustModelConditionForWeaponStatus()
 			if (newStatus == READY_TO_FIRE && conditionToSet == WSF_NONE && testStatus( OBJECT_STATUS_IS_ATTACKING ) &&
 					(testStatus( OBJECT_STATUS_IS_AIMING_WEAPON ) || testStatus( OBJECT_STATUS_IS_FIRING_WEAPON )))
 			{
-				// TheSuperHackers @bugfix bobtista 11/11/2025 Don't resume firing animation if underpowered.
 #if !RETAIL_COMPATIBLE_CRC
-				if ( !( isKindOf( KINDOF_POWERED ) && isDisabledByType( DISABLED_UNDERPOWERED ) ) )
+				if (!isUnderpoweredForAttack())
 				{
 					conditionToSet = WSF_BETWEEN;
 				}
