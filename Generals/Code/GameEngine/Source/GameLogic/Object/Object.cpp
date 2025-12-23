@@ -2025,6 +2025,7 @@ void Object::setDisabledUntil( DisabledType type, UnsignedInt frame )
 
 	}
 
+#if !RETAIL_COMPATIBLE_CRC
 	// TheSuperHackers @bugfix bobtista 21/12/2025 Fix Gatling Cannon barrels rotating despite insufficient energy.
 	// When power is lost (UNDERPOWERED, EMP, HACKED), immediately force FiringTracker cooldown to stop barrel animations.
 	// getDisabledTypesToProcess() prevents update() from restarting animations, and isUnderpoweredForAttack() prevents cursor/attack logic.
@@ -2036,6 +2037,7 @@ void Object::setDisabledUntil( DisabledType type, UnsignedInt frame )
 			m_firingTracker->forceCoolDown();
 		}
 	}
+#endif
 
 	// This will only be called if we were NOT disabled before coming into this function.
 	if (edgeCase) {
