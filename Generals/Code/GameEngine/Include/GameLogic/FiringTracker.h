@@ -57,8 +57,8 @@ public:
 	Int getNumConsecutiveShotsAtVictim( const Object *victim ) const;
 	void forceCoolDown();																						///< Force immediate cooldown, stopping all continuous fire states
 
-	/// Exclude power-related disable types (UNDERPOWERED, EMP, HACKED) so update() isn't called when disabled.
-	/// This prevents delayed barrel animation restart. forceCoolDown() in Object::setDisabledUntil() handles immediate cooldown.
+	/// Exclude power-related disable types so update() doesn't restart barrel animations.
+	/// forceCoolDown() in setDisabledUntil() handles immediate cooldown.
 	virtual DisabledMaskType getDisabledTypesToProcess() const
 	{
 		DisabledMaskType mask = DISABLEDMASK_ALL;
