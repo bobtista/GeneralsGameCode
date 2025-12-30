@@ -84,11 +84,13 @@ jobs:
         if: startsWith(inputs.preset, 'vc6')
         shell: pwsh
         run: |
+          # Define the base directories as local variables first
           $VSCommonDir = "C:\VC6\VC6SP6\Common"
           $MSDevDir = "C:\VC6\VC6SP6\Common\msdev98"
           $MSVCDir = "C:\VC6\VC6SP6\VC98"
           $VcOsDir = "WINNT"
 
+          # Set the variables in GitHub environment
           "VSCommonDir=$VSCommonDir" >> $env:GITHUB_ENV
           "MSDevDir=$MSDevDir" >> $env:GITHUB_ENV
           "MSVCDir=$MSVCDir" >> $env:GITHUB_ENV
