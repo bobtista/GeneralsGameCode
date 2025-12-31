@@ -1679,7 +1679,8 @@ void OpenContain::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version
 	* 2: Added m_passengerAllowedToFire
-	* 3: Added m_heroUnitsContained cached hero count (bobtista) */
+	* 3: TheSuperHackers @tweak Serialize hero units contained count
+	*/
 // ------------------------------------------------------------------------------------------------
 void OpenContain::xfer( Xfer *xfer )
 {

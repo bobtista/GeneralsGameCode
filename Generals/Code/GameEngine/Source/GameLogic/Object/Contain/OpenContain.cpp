@@ -1453,7 +1453,8 @@ void OpenContain::crc( Xfer *xfer )
 /** Xfer method
 	* Version Info:
 	* 1: Initial version
-	* 2: Added m_heroUnitsContained cached hero count (bobtista) */
+	* 2: TheSuperHackers @tweak Serialize hero units contained count
+	*/
 // ------------------------------------------------------------------------------------------------
 void OpenContain::xfer( Xfer *xfer )
 {
