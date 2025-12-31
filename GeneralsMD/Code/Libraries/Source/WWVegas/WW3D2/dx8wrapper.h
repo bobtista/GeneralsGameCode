@@ -180,8 +180,8 @@ struct RenderStateStruct
 	D3DLIGHT8 Lights[4];
 	bool LightEnable[4];
   //unsigned lightsHash;
-	Matrix4x4 world;
-	Matrix4x4 view;
+	D3DXMATRIX world;
+	D3DXMATRIX view;
 	unsigned vertex_buffer_types[MAX_VERTEX_STREAMS];
 	unsigned index_buffer_type;
 	unsigned short vba_offset;
@@ -1268,12 +1268,12 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 {
 	switch ((int)transform) {
 	case D3DTS_WORLD:
-		render_state.world=m;
+		render_state.world=Build_D3DXMATRIX(m);
 		render_state_changed|=(unsigned)WORLD_CHANGED;
 		render_state_changed&=~(unsigned)WORLD_IDENTITY;
 		break;
 	case D3DTS_VIEW:
-		render_state.view=m;
+		render_state.view=Build_D3DXMATRIX(m);
 		render_state_changed|=(unsigned)VIEW_CHANGED;
 		render_state_changed&=~(unsigned)VIEW_IDENTITY;
 		break;
@@ -1298,12 +1298,12 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 	Matrix4x4 m2(m);
 	switch ((int)transform) {
 	case D3DTS_WORLD:
-		render_state.world=m2;
+		render_state.world=Build_D3DXMATRIX(m2);
 		render_state_changed|=(unsigned)WORLD_CHANGED;
 		render_state_changed&=~(unsigned)WORLD_IDENTITY;
 		break;
 	case D3DTS_VIEW:
-		render_state.view=m2;
+		render_state.view=Build_D3DXMATRIX(m2);
 		render_state_changed|=(unsigned)VIEW_CHANGED;
 		render_state_changed&=~(unsigned)VIEW_IDENTITY;
 		break;
@@ -1318,14 +1318,14 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 WWINLINE void DX8Wrapper::Set_World_Identity()
 {
 	if (render_state_changed&(unsigned)WORLD_IDENTITY) return;
-	render_state.world.Make_Identity();
+	D3DXMatrixIdentity(&render_state.world);
 	render_state_changed|=(unsigned)WORLD_CHANGED|(unsigned)WORLD_IDENTITY;
 }
 
 WWINLINE void DX8Wrapper::Set_View_Identity()
 {
 	if (render_state_changed&(unsigned)VIEW_IDENTITY) return;
-	render_state.view.Make_Identity();
+	D3DXMatrixIdentity(&render_state.view);
 	render_state_changed|=(unsigned)VIEW_CHANGED|(unsigned)VIEW_IDENTITY;
 }
 
@@ -1346,11 +1346,11 @@ WWINLINE void DX8Wrapper::Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4
 	switch ((int)transform) {
 	case D3DTS_WORLD:
 		if (render_state_changed&WORLD_IDENTITY) m.Make_Identity();
-		else m=render_state.world;
+		else Build_Matrix4(m, render_state.world);
 		break;
 	case D3DTS_VIEW:
 		if (render_state_changed&VIEW_IDENTITY) m.Make_Identity();
-		else m=render_state.view;
+		else Build_Matrix4(m, render_state.view);
 		break;
 	default:
 		DX8CALL(GetTransform(transform,&mat));
