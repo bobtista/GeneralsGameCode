@@ -266,14 +266,14 @@ struct NetPacketDisconnectVoteCommand {
 ////////////////////////////////////////////////////////////////////////////////
 
 // Chat command packed struct
-// Fixed fields: T + type, R + relay, P + playerID, D, F + frame, C + commandID
+// Fixed fields: T + type, F + frame, R + relay, P + playerID, C + commandID, D
 struct NetPacketChatCommand {
 	NetPacketCommandTypeField commandType;
+	NetPacketFrameField frame;
 	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
-	NetPacketDataFieldHeader dataHeader;
-	NetPacketFrameField frame;
 	NetPacketCommandIdField commandId;
+	NetPacketDataFieldHeader dataHeader;
 	// Variable fields: UnsignedByte textLength + UnsignedShort text[textLength] + Int playerMask
 };
 
@@ -300,12 +300,12 @@ struct NetPacketGameCommand {
 };
 
 // Wrapper command packet (fixed size - contains metadata about wrapped command)
-// Fields: T + type, P + playerID, C + commandID, R + relay, D + metadata
+// Fields: T + type, R + relay, P + playerID, C + commandID, D + metadata
 struct NetPacketWrapperCommand {
 	NetPacketCommandTypeField commandType;
+	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
 	NetPacketCommandIdField commandId;
-	NetPacketRelayField relay;
 	NetPacketDataFieldHeader dataHeader;
 	UnsignedShort wrappedCommandId;
 	UnsignedInt chunkNumber;
@@ -316,24 +316,24 @@ struct NetPacketWrapperCommand {
 };
 
 // File command packed struct
-// Fixed fields: T + type, R + relay, P + playerID, D, C + commandID
+// Fixed fields: T + type, R + relay, P + playerID, C + commandID, D
 struct NetPacketFileCommand {
 	NetPacketCommandTypeField commandType;
 	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
-	NetPacketDataFieldHeader dataHeader;
 	NetPacketCommandIdField commandId;
+	NetPacketDataFieldHeader dataHeader;
 	// Variable fields: null-terminated filename + UnsignedInt fileDataLength + file data
 };
 
 // File announce command packed struct
-// Fixed fields: T + type, R + relay, P + playerID, D, C + commandID
+// Fixed fields: T + type, R + relay, P + playerID, C + commandID, D
 struct NetPacketFileAnnounceCommand {
 	NetPacketCommandTypeField commandType;
 	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
-	NetPacketDataFieldHeader dataHeader;
 	NetPacketCommandIdField commandId;
+	NetPacketDataFieldHeader dataHeader;
 	// Variable fields: null-terminated filename + UnsignedShort fileID + UnsignedByte playerMask
 };
 
@@ -350,12 +350,11 @@ struct NetPacketFileProgressCommand {
 };
 
 // Progress message packet
-// Fields: T + type, R + relay, P + playerID, C + commandID, D + percentage
+// Fields: T + type, R + relay, P + playerID, D + percentage
 struct NetPacketProgressMessage {
 	NetPacketCommandTypeField commandType;
 	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
-	NetPacketCommandIdField commandId;
 	NetPacketDataFieldHeader dataHeader;
 	UnsignedByte percentage;
 };
@@ -381,34 +380,34 @@ struct NetPacketTimeOutGameStartMessage {
 };
 
 // Disconnect frame command packet
-// Fields: T + type, R + relay, P + playerID, C + commandID, D + disconnectFrame
+// Fields: T + type, P + playerID, C + commandID, R + relay, D + disconnectFrame
 struct NetPacketDisconnectFrameCommand {
 	NetPacketCommandTypeField commandType;
-	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
 	NetPacketCommandIdField commandId;
+	NetPacketRelayField relay;
 	NetPacketDataFieldHeader dataHeader;
 	UnsignedInt disconnectFrame;
 };
 
 // Disconnect screen off command packet
-// Fields: T + type, R + relay, P + playerID, C + commandID, D + newFrame
+// Fields: T + type, P + playerID, C + commandID, R + relay, D + newFrame
 struct NetPacketDisconnectScreenOffCommand {
 	NetPacketCommandTypeField commandType;
-	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
 	NetPacketCommandIdField commandId;
+	NetPacketRelayField relay;
 	NetPacketDataFieldHeader dataHeader;
 	UnsignedInt newFrame;
 };
 
 // Frame resend request command packet
-// Fields: T + type, R + relay, P + playerID, C + commandID, D + frameToResend
+// Fields: T + type, P + playerID, C + commandID, R + relay, D + frameToResend
 struct NetPacketFrameResendRequestCommand {
 	NetPacketCommandTypeField commandType;
-	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
 	NetPacketCommandIdField commandId;
+	NetPacketRelayField relay;
 	NetPacketDataFieldHeader dataHeader;
 	UnsignedInt frameToResend;
 };
