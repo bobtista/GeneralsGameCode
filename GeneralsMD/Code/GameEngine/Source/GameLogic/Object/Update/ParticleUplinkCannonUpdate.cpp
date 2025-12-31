@@ -1422,7 +1422,7 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 	const ParticleUplinkCannonUpdateModuleData *data = getParticleUplinkCannonUpdateModuleData();
 
 	// version
-#if RETAIL_COMPATIBLE_XFER_SAVE
+#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 3;
 #else
 	const XferVersion currentVersion = 5;
