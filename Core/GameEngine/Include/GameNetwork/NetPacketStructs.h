@@ -265,6 +265,8 @@ struct NetPacketDisconnectVoteCommand {
 // These structs represent the fixed portion of variable-length command messages
 ////////////////////////////////////////////////////////////////////////////////
 
+// Chat command packed struct
+// Fixed fields: T + type, R + relay, P + playerID, D, F + frame, C + commandID
 struct NetPacketChatCommand {
 	NetPacketCommandTypeField commandType;
 	NetPacketRelayField relay;
@@ -272,16 +274,21 @@ struct NetPacketChatCommand {
 	NetPacketDataFieldHeader dataHeader;
 	NetPacketFrameField frame;
 	NetPacketCommandIdField commandId;
+	// Variable fields: UnsignedByte textLength + UnsignedShort text[textLength] + Int playerMask
 };
 
+// Disconnect chat command packed struct
+// Fixed fields: T + type, R + relay, P + playerID, D
 struct NetPacketDisconnectChatCommand {
 	NetPacketCommandTypeField commandType;
 	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
 	NetPacketDataFieldHeader dataHeader;
+	// Variable fields: UnsignedByte textLength + UnsignedShort text[textLength]
 };
 
-// Game command packed struct (variable: game message data follows)
+// Game command packed struct
+// Fixed fields: T + type, F + frame, R + relay, P + playerID, C + commandID, D
 struct NetPacketGameCommand {
 	NetPacketCommandTypeField commandType;
 	NetPacketFrameField frame;
@@ -289,6 +296,7 @@ struct NetPacketGameCommand {
 	NetPacketPlayerIdField playerId;
 	NetPacketCommandIdField commandId;
 	NetPacketDataFieldHeader dataHeader;
+	// Variable fields: game message arguments
 };
 
 // Wrapper command packet (fixed size - contains metadata about wrapped command)
@@ -307,22 +315,26 @@ struct NetPacketWrapperCommand {
 	UnsignedInt dataOffset;
 };
 
-// File command packed struct (variable: filename and file data follow)
+// File command packed struct
+// Fixed fields: T + type, R + relay, P + playerID, D, C + commandID
 struct NetPacketFileCommand {
 	NetPacketCommandTypeField commandType;
 	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
 	NetPacketDataFieldHeader dataHeader;
 	NetPacketCommandIdField commandId;
+	// Variable fields: null-terminated filename + UnsignedInt fileDataLength + file data
 };
 
-// File announce command packed struct (variable: filename and metadata follow)
+// File announce command packed struct
+// Fixed fields: T + type, R + relay, P + playerID, D, C + commandID
 struct NetPacketFileAnnounceCommand {
 	NetPacketCommandTypeField commandType;
 	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
 	NetPacketDataFieldHeader dataHeader;
 	NetPacketCommandIdField commandId;
+	// Variable fields: null-terminated filename + UnsignedShort fileID + UnsignedByte playerMask
 };
 
 // File progress command packet
