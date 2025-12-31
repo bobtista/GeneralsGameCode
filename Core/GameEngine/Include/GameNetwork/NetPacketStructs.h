@@ -137,6 +137,8 @@ struct NetPacketPlayerLeaveCommand {
 
 // Run ahead metrics command packet structure
 // Fields: T + type, R + relay, P + playerID, C + commandID, D + averageLatency + averageFps
+// TODO: averageFps should be UnsignedShort to match FillBufferWithRunAheadMetricsCommand, but
+// original GetRunAheadMetricsCommandSize incorrectly counted it as UnsignedByte
 struct NetPacketRunAheadMetricsCommand {
 	NetPacketCommandTypeField commandType;
 	NetPacketRelayField relay;
@@ -144,7 +146,7 @@ struct NetPacketRunAheadMetricsCommand {
 	NetPacketCommandIdField commandId;
 	NetPacketDataFieldHeader dataHeader;
 	Real averageLatency;
-	UnsignedShort averageFps;
+	UnsignedByte averageFps;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -360,22 +362,24 @@ struct NetPacketProgressMessage {
 };
 
 // Load complete message packet
-// Fields: T + type, R + relay, P + playerID, C + commandID, D
+// Fields: T + type, R + relay, P + playerID, D
+// TODO: commandId field is missing. FillBufferWithLoadCompleteMessage writes it, but
+// original GetLoadCompleteMessageSize did not count it
 struct NetPacketLoadCompleteMessage {
 	NetPacketCommandTypeField commandType;
 	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
-	NetPacketCommandIdField commandId;
 	NetPacketDataFieldHeader dataHeader;
 };
 
 // Timeout game start message packet
-// Fields: T + type, R + relay, P + playerID, C + commandID, D
+// Fields: T + type, R + relay, P + playerID, D
+// TODO: commandId field is missing. FillBufferWithTimeOutGameStartMessage writes it, but
+// original GetTimeOutGameStartMessageSize did not count it
 struct NetPacketTimeOutGameStartMessage {
 	NetPacketCommandTypeField commandType;
 	NetPacketRelayField relay;
 	NetPacketPlayerIdField playerId;
-	NetPacketCommandIdField commandId;
 	NetPacketDataFieldHeader dataHeader;
 };
 
