@@ -656,6 +656,7 @@ void OpenContain::removeFromContainViaIterator( ContainedItemsList::iterator it,
 	m_containListSize--;
 	if( rider->isKindOf( KINDOF_STEALTH_GARRISON ) )
 	{
+		DEBUG_ASSERTCRASH( m_stealthUnitsContained > 0, ("OpenContain::removeFromContainViaIterator - Removing stealth unit but stealth count is %d", m_stealthUnitsContained) );
 		m_stealthUnitsContained--;
 		if( exposeStealthUnits )
 		{
