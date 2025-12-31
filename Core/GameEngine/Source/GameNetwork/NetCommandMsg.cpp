@@ -957,7 +957,7 @@ void NetProgressCommandMsg::setPercentage( UnsignedByte percent )
 }
 
 size_t NetProgressCommandMsg::getPackedByteCount() const {
-	return sizeof(NetPacketProgressMessage) - sizeof(NetPacketCommandIdField);
+	return sizeof(NetPacketProgressMessage);
 }
 
 //-------------------------
