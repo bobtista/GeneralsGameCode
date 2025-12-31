@@ -181,6 +181,8 @@ public:
 	static WWINLINE void	Transform_Vector(const Matrix4x4 & tm,const Vector3 & in,Vector4 * out);
 	static WWINLINE void	Transform_Vector(const Matrix4x4 & tm,const Vector4 & in,Vector4 * out);
 
+protected:
+
 	Vector4 Row[4];
 
 };
