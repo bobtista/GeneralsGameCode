@@ -126,6 +126,7 @@ OpenContain::OpenContain( Thing *thing, const ModuleData* moduleData ) : UpdateM
 	m_containListSize = 0;
 	m_stealthUnitsContained = 0;
 	m_heroUnitsContained = 0;
+	m_xferVersion = 1;
 	m_doorCloseCountdown = 0;
 
 	m_rallyPoint.zero();
@@ -1467,6 +1468,7 @@ void OpenContain::xfer( Xfer *xfer )
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
+	m_xferVersion = version;
 
 	// extend base class
 	UpdateModule::xfer( xfer );
@@ -1680,17 +1682,18 @@ void OpenContain::loadPostProcess( void )
 
 	}
 
-#if RETAIL_COMPATIBLE_XFER_SAVE
-	// In retail compatibility mode, restore hero count by iterating hero objects
-	m_heroUnitsContained = 0;
-	for( ContainedItemsList::const_iterator it = m_containList.begin(); it != m_containList.end(); ++it )
+	if (m_xferVersion < 2)
 	{
-		if( (*it)->isKindOf( KINDOF_HERO ) )
+		// Restore hero count by iterating hero objects for old save versions
+		m_heroUnitsContained = 0;
+		for( ContainedItemsList::const_iterator it = m_containList.begin(); it != m_containList.end(); ++it )
 		{
-			m_heroUnitsContained++;
+			if( (*it)->isKindOf( KINDOF_HERO ) )
+			{
+				m_heroUnitsContained++;
+			}
 		}
 	}
-#endif
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_containListSize == m_containList.size(),
