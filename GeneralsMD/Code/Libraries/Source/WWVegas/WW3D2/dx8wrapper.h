@@ -1354,8 +1354,7 @@ WWINLINE void DX8Wrapper::Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4
 		break;
 	default:
 		DX8CALL(GetTransform(transform,&mat));
-		m=*(Matrix4x4*)&mat;
-		m=m.Transpose();
+		Build_Matrix4(m, mat);
 		break;
 	}
 }
