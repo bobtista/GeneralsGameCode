@@ -1800,8 +1800,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 
 	rinfo.Camera.Get_Transform().Get_Translation(&camTran);
 
-	DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, *(Matrix4x4*)&matView);
-	DX8Wrapper::_Get_DX8_Transform(D3DTS_PROJECTION, *(Matrix4x4*)&matProj);
+	DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, matView);
+	DX8Wrapper::_Get_DX8_Transform(D3DTS_PROJECTION, matProj);
 
 	//default setup from Kenny's demo
 	m_pDev->SetTextureStageState( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
@@ -1941,8 +1941,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	m_pDev->SetTextureStageState( 2, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
 	//Restore old transforms
-	DX8Wrapper::_Set_DX8_Transform(D3DTS_VIEW, *(Matrix4x4*)&matView);
-	DX8Wrapper::_Set_DX8_Transform(D3DTS_PROJECTION, *(Matrix4x4*)&matProj);
+	DX8Wrapper::_Set_DX8_Transform(D3DTS_VIEW, matView);
+	DX8Wrapper::_Set_DX8_Transform(D3DTS_PROJECTION, matProj);
 
 	m_pDev->SetPixelShader(0);	//turn off pixel shader
 	m_pDev->SetVertexShader(DX8_FVF_XYZDUV1);	//turn off custom vertex shader
@@ -1966,7 +1966,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 
 				D3DXMatrixMultiply(&matTemp, &patchMatrix, &matWW3D);
 
-				DX8Wrapper::_Set_DX8_Transform(D3DTS_WORLD, *(Matrix4x4*)&matTemp);
+				DX8Wrapper::_Set_DX8_Transform(D3DTS_WORLD, matTemp);
 
 				m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP,0,m_numVertices,0,m_numIndices);
 			}

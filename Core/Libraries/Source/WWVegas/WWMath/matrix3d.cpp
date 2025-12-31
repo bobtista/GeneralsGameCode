@@ -519,7 +519,10 @@ void Matrix3D::Get_Inverse(Matrix3D & inv) const
 	Matrix4x4	mat4Inv;
 
 	float det;
-	D3DXMatrixInverse((D3DXMATRIX *)&mat4Inv, &det, (D3DXMATRIX*)&mat4);
+	D3DXMATRIX d3dMat = Build_D3DXMATRIX(mat4);
+	D3DXMATRIX d3dMatInv;
+	D3DXMatrixInverse(&d3dMatInv, &det, &d3dMat);
+	Build_Matrix4(mat4Inv, d3dMatInv);
 
 	inv.Row[0][0]=mat4Inv[0][0];
 	inv.Row[0][1]=mat4Inv[0][1];
