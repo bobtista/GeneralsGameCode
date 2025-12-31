@@ -549,7 +549,7 @@ void OpenContain::removeFromContainViaIterator( ContainedItemsList::iterator it,
 	}
 	if( rider->isKindOf( KINDOF_HERO ) )
 	{
-		DEBUG_ASSERTCRASH( m_heroUnitsContained > 0, ("Removing hero but hero count is 0") );
+		DEBUG_ASSERTCRASH( m_heroUnitsContained > 0, ("OpenContain::removeFromContainViaIterator - Removing hero but hero count is %d", m_heroUnitsContained) );
 		m_heroUnitsContained--;
 	}
 
