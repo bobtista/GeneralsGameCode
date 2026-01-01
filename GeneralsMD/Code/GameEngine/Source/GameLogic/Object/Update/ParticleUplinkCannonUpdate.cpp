@@ -147,7 +147,11 @@ ParticleUplinkCannonUpdateModuleData::ParticleUplinkCannonUpdateModuleData()
 
     { "ManualDrivingSpeed",										INI::parseReal,									nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_manualDrivingSpeed ) },
     { "ManualFastDrivingSpeed",								INI::parseReal,									nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_manualFastDrivingSpeed ) },
+#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
     { "DoubleClickToFastDriveDelay",					INI::parseDurationUnsignedInt,	nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_doubleClickToFastDriveDelay ) },
+#else
+    { "DoubleClickToFastDriveDelay",					INI::parseUnsignedInt,					nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_doubleClickToFastDriveDelay ) },
+#endif
 
 		{ nullptr, nullptr, nullptr, 0 }
 	};
@@ -583,7 +587,7 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 				const Bool useFasterSpeed = m_scriptedWaypointMode || (m_lastDrivingClickFrame - m_2ndLastDrivingClickFrame < data->m_doubleClickToFastDriveDelay);
 #else
 				DEBUG_ASSERTCRASH(m_lastDrivingClickTimeMsec >= m_2ndLastDrivingClickTimeMsec, ("m_lastDrivingClickTimeMsec should always be >= m_2ndLastDrivingClickTimeMsec"));
-				const Bool useFasterSpeed = m_scriptedWaypointMode || (m_lastDrivingClickTimeMsec - m_2ndLastDrivingClickTimeMsec < data->m_doubleClickToFastDriveDelay * MSEC_PER_LOGICFRAME_REAL);
+				const Bool useFasterSpeed = m_scriptedWaypointMode || (m_lastDrivingClickTimeMsec - m_2ndLastDrivingClickTimeMsec < data->m_doubleClickToFastDriveDelay);
 #endif
 				if( useFasterSpeed )
 				{
