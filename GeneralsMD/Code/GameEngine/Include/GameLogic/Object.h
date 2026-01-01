@@ -636,6 +636,8 @@ public:
 	// player. These are friend_s for player.
 	void friend_adjustPowerForPlayer(Bool incoming);
 
+	void setNeedUpdateTurretPositioning(Bool set);
+
 protected:
 	void setOrRestoreTeam(Team* team, Bool restoring);
 
@@ -819,6 +821,8 @@ private:
 	Byte m_numTriggerAreasActive;
 	Bool m_singleUseCommandUsed;
 	Bool m_isReceivingDifficultyBonus;
+
+	Bool m_turretNeedPositioning;
 };
 
 // deleteInstance is not meant to be used with Object in order to require the use of TheGameLogic->destroyObject()
