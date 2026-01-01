@@ -528,12 +528,12 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 			else
 			{
 				Real speed = data->m_manualDrivingSpeed;
-#if RETAIL_COMPATIBLE_CRC
+#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
 				DEBUG_ASSERTCRASH(m_lastDrivingClickFrame >= m_2ndLastDrivingClickFrame, ("m_lastDrivingClickFrame should always be >= m_2ndLastDrivingClickFrame"));
 				const Bool useFasterSpeed = m_lastDrivingClickFrame - m_2ndLastDrivingClickFrame < data->m_doubleClickToFastDriveDelay;
 #else
 				DEBUG_ASSERTCRASH(m_lastDrivingClickTimeMsec >= m_2ndLastDrivingClickTimeMsec, ("m_lastDrivingClickTimeMsec should always be >= m_2ndLastDrivingClickTimeMsec"));
-				const Bool useFasterSpeed = m_lastDrivingClickTimeMsec - m_2ndLastDrivingClickTimeMsec < data->m_doubleClickToFastDriveDelay;
+				const Bool useFasterSpeed = m_lastDrivingClickTimeMsec - m_2ndLastDrivingClickTimeMsec < data->m_doubleClickToFastDriveDelay * MSEC_PER_LOGICFRAME_REAL;
 #endif
 				if( useFasterSpeed )
 				{
