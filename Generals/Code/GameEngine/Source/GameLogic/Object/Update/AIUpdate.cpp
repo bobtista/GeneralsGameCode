@@ -2620,7 +2620,6 @@ void AIUpdateInterface::aiDoCommand(const AICommandParms* parms)
 			break;
 		case AICMD_FOLLOW_PATH:
 		{
-			// Copy coordinates to a local vector since privateFollowPath requires a non-const pointer.
 			std::vector<Coord3D> coords = parms->m_coords;
 			privateFollowPath(&coords, parms->m_obj, parms->m_cmdSource, FALSE);
 			break;
@@ -2630,7 +2629,6 @@ void AIUpdateInterface::aiDoCommand(const AICommandParms* parms)
 			break;
 		case AICMD_FOLLOW_EXITPRODUCTION_PATH:
 		{
-			// Copy coordinates to a local vector since privateFollowPath requires a non-const pointer.
 			std::vector<Coord3D> coords = parms->m_coords;
 			privateFollowPath(&coords, parms->m_obj, parms->m_cmdSource, TRUE);
 			break;

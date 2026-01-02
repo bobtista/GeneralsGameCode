@@ -49,6 +49,9 @@
 #define nullptr 0
 #endif
 
+namespace stl
+{
+
 // Helper to move-assign from reference: uses std::move in C++11, swap in C++98
 template<typename T>
 inline void move_or_swap(T& dest, T& src)
@@ -63,3 +66,5 @@ inline void move_or_swap(T& dest, T& src)
 	src.swap(empty);
 #endif
 }
+
+} // namespace stl
