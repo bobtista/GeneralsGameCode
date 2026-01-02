@@ -1417,7 +1417,7 @@ void ParticleUplinkCannonUpdate::crc( Xfer *xfer )
 	* 1: Initial version
 	* 2: Serialize decay frames
 	* 3: Serialize scripted waypoints (Added for Zero Hour)
-	* 4: TheSuperHackers @tweak Serialize orbit to target laser radius
+	* 4: TheSuperHackers @tweak Added m_orbitToTargetLaserRadius
 	* 5: TheSuperHackers @tweak Changed m_lastDrivingClickFrame to m_lastDrivingClickTimeMsec (frames to milliseconds)
 	*/
 // ------------------------------------------------------------------------------------------------
