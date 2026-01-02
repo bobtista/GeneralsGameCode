@@ -474,11 +474,11 @@ struct GameSortStruct
 	bool operator()(GameSpyStagingRoom *g1, GameSpyStagingRoom *g2) const
 	{
 		// sort CRC mismatches to the bottom
-		Bool isMismatch1 = (g1->getExeCRC() != TheGlobalData->m_exeCRC || g1->getIniCRC() != TheGlobalData->m_iniCRC);
-		Bool isMismatch2 = (g2->getExeCRC() != TheGlobalData->m_exeCRC || g2->getIniCRC() != TheGlobalData->m_iniCRC);
-		if (isMismatch1 != isMismatch2)
+		Bool g1Good = (g1->getExeCRC() == TheGlobalData->m_exeCRC && g1->getIniCRC() == TheGlobalData->m_iniCRC);
+		Bool g2Good = (g2->getExeCRC() == TheGlobalData->m_exeCRC && g2->getIniCRC() == TheGlobalData->m_iniCRC);
+		if ( g1Good ^ g2Good )
 		{
-			return !isMismatch1;
+			return g1Good;
 		}
 
 		// sort games with private ladders to the bottom
