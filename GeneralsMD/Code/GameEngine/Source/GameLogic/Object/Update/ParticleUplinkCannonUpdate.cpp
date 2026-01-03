@@ -1539,16 +1539,11 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 	}
 	else
 	{
-		// Old versions stored frame numbers, which we can't meaningfully convert to milliseconds
+		// Old versions stored frame numbers, read and discard to advance file position.
 		UnsignedInt oldLastDrivingClickFrame = 0;
 		UnsignedInt old2ndLastDrivingClickFrame = 0;
 		xfer->xferUnsignedInt( &oldLastDrivingClickFrame );
 		xfer->xferUnsignedInt( &old2ndLastDrivingClickFrame );
-		if( xfer->getXferMode() == XFER_LOAD )
-		{
-			m_lastDrivingClickTimeMsec = 0;
-			m_2ndLastDrivingClickTimeMsec = 0;
-		}
 	}
 #endif
 
