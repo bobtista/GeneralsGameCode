@@ -2392,7 +2392,7 @@ Bool NetPacket::isRoomForWrapperMessage(NetCommandRef *msg) {
  */
 Bool NetPacket::addTimeOutGameStartMessage(NetCommandRef *msg) {
 	Bool needNewCommandID = FALSE;
-	if (isRoomForLoadCompleteMessage(msg)) {
+	if (isRoomForTimeOutGameStartMessage(msg)) {
 		NetCommandMsg *cmdMsg = static_cast<NetCommandMsg *>(msg->getCommand());
 
 		// If necessary, put the NetCommandType into the packet.
