@@ -123,7 +123,7 @@ CreditsManager::CreditsManager(void)
 	m_scrollRate = 1; // in pixels
 	m_scrollRatePerFrames = 1;
 	m_scrollDown = TRUE;	// if TRUE text will come from the top to the bottom if False, it will go from the bottom up
-	m_framesSinceStarted = 0;
+	m_lastScrollTime = 0;
 	m_titleColor = m_positionColor = m_normalColor = GameMakeColor(255,255,255,255);
 
 	m_currentStyle = CREDIT_STYLE_NORMAL;
@@ -174,7 +174,7 @@ void CreditsManager::reset( void )
 	m_displayedCreditLineList.clear();
 	m_isFinished = FALSE;
 	m_creditLineListIt = m_creditLineList.begin();
-	m_framesSinceStarted = 0;
+	m_lastScrollTime = timeGetTime();
 
 }
 
@@ -182,10 +182,14 @@ void CreditsManager::update( void )
 {
 	if(m_isFinished)
 		return;
-	m_framesSinceStarted++;
 
-	if(m_framesSinceStarted%m_scrollRatePerFrames != 0)
+	// TheSuperHackers @tweak Credits scroll timing is now decoupled from the render update.
+	// Convert frame-based interval to milliseconds (original assumed 30fps, so 1 frame = 33ms)
+	const UnsignedInt scrollIntervalMs = m_scrollRatePerFrames * 33;
+	const UnsignedInt now = timeGetTime();
+	if (now - m_lastScrollTime < scrollIntervalMs)
 		return;
+	m_lastScrollTime = now;
 
 
 	Int y = 0;
