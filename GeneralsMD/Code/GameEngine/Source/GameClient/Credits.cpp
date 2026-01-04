@@ -148,7 +148,7 @@ void CreditsManager::init(void )
 {
 	m_isFinished = FALSE;
 	m_creditLineListIt = m_creditLineList.begin();
-	m_framesSinceStarted = 0;
+	m_lastScrollTime = timeGetTime();
 }
 
 void CreditsManager::load(void )
@@ -184,8 +184,7 @@ void CreditsManager::update( void )
 		return;
 
 	// TheSuperHackers @tweak Credits scroll timing is now decoupled from the render update.
-	// Convert frame-based interval to milliseconds (original assumed 30fps, so 1 frame = 33ms)
-	const UnsignedInt scrollIntervalMs = m_scrollRatePerFrames * 33;
+	const UnsignedInt scrollIntervalMs = static_cast<UnsignedInt>(m_scrollRatePerFrames * MSEC_PER_LOGICFRAME_REAL);
 	const UnsignedInt now = timeGetTime();
 	if (now - m_lastScrollTime < scrollIntervalMs)
 		return;
