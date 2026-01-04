@@ -4098,11 +4098,7 @@ void Object::xfer(Xfer* xfer)
 {
 
 	// version
-#if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 9;
-#else
-	const XferVersion currentVersion = 10;
-#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion(&version, currentVersion);
 
@@ -4309,9 +4305,6 @@ void Object::xfer(Xfer* xfer)
 	// health box offset
 	xfer->xferCoord3D(&m_healthBoxOffset);
 
-	if (version >= 10)
-		xfer->xferBool(&m_turretNeedPositioning);
-
 	// Entered & exited housekeeping.
 	Int i;
 	xfer->xferByte(&m_numTriggerAreasActive);
@@ -4515,6 +4508,8 @@ void Object::loadPostProcess()
 		m_containedBy = TheGameLogic->findObjectByID(m_containedByID);
 	else
 		m_containedBy = nullptr;
+
+	setNeedUpdateTurretPositioning(TRUE);
 }
 
 //-------------------------------------------------------------------------------------------------

@@ -4043,11 +4043,7 @@ void W3DModelDraw::xfer(Xfer* xfer)
 {
 
 	// version
-#if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 2;
-#else
-	const XferVersion currentVersion = 3;
-#endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion(&version, currentVersion);
 
@@ -4251,15 +4247,6 @@ void W3DModelDraw::xfer(Xfer* xfer)
 	// when loading, update the sub objects if we have any
 	if (xfer->getXferMode() == XFER_LOAD && m_subObjectVec.empty() == FALSE)
 		updateSubObjects();
-
-	if (version >= 3)
-	{
-		// Update Turret Position
-		xfer->xferBool(&m_needUpdateTurretPosition);
-
-		// Handle Recoil
-		xfer->xferBool(&m_doHandleRecoil);
-	}
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -4270,6 +4257,9 @@ void W3DModelDraw::loadPostProcess()
 
 	// extend base class
 	DrawModule::loadPostProcess();
+
+	m_needUpdateTurretPosition = TRUE;
+	m_doHandleRecoil = TRUE;
 }
 
 // ------------------------------------------------------------------------------------------------
