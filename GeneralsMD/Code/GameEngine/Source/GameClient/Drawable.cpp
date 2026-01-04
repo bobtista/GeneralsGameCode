@@ -1394,6 +1394,11 @@ void Drawable::calcPhysicsXformThrust(const Locomotor* locomotor, PhysicsXformIn
 	Real MAX_WOBBLE = locomotor->getMaxWobble();
 	Real MIN_WOBBLE = locomotor->getMinWobble();
 
+	// TheSuperHackers @tweak Wobble and thrust roll rates are now decoupled from the render update.
+	const Real timeScale = TheFramePacer->getActualLogicTimeScaleOverFpsRatio();
+	const Real scaledWobbleRate = WOBBLE_RATE * timeScale;
+	const Real scaledThrustRoll = THRUST_ROLL * timeScale;
+
 	//
 	// this is a kind of quick thrust implementation cause we need scud missiles to wobble *now*,
 	// we deal with just adjusting pitch, yaw, and roll just a little bit
@@ -1408,14 +1413,14 @@ void Drawable::calcPhysicsXformThrust(const Locomotor* locomotor, PhysicsXformIn
 			if (m_locoInfo->m_pitch < MAX_WOBBLE - WOBBLE_RATE * 2)
 			{
 
-				m_locoInfo->m_pitch += WOBBLE_RATE;
-				m_locoInfo->m_yaw += WOBBLE_RATE;
+				m_locoInfo->m_pitch += scaledWobbleRate;
+				m_locoInfo->m_yaw += scaledWobbleRate;
 			}
 			else
 			{
 
-				m_locoInfo->m_pitch += (WOBBLE_RATE / 2.0f);
-				m_locoInfo->m_yaw += (WOBBLE_RATE / 2.0f);
+				m_locoInfo->m_pitch += (scaledWobbleRate / 2.0f);
+				m_locoInfo->m_yaw += (scaledWobbleRate / 2.0f);
 			}
 
 			if (m_locoInfo->m_pitch >= MAX_WOBBLE)
@@ -1427,14 +1432,14 @@ void Drawable::calcPhysicsXformThrust(const Locomotor* locomotor, PhysicsXformIn
 			if (m_locoInfo->m_pitch >= MIN_WOBBLE + WOBBLE_RATE * 2.0f)
 			{
 
-				m_locoInfo->m_pitch -= WOBBLE_RATE;
-				m_locoInfo->m_yaw -= WOBBLE_RATE;
+				m_locoInfo->m_pitch -= scaledWobbleRate;
+				m_locoInfo->m_yaw -= scaledWobbleRate;
 			}
 			else
 			{
 
-				m_locoInfo->m_pitch -= (WOBBLE_RATE / 2.0f);
-				m_locoInfo->m_yaw -= (WOBBLE_RATE / 2.0f);
+				m_locoInfo->m_pitch -= (scaledWobbleRate / 2.0f);
+				m_locoInfo->m_yaw -= (scaledWobbleRate / 2.0f);
 			}
 			if (m_locoInfo->m_pitch <= MIN_WOBBLE)
 				m_locoInfo->m_wobble = 1.0f;
@@ -1447,7 +1452,7 @@ void Drawable::calcPhysicsXformThrust(const Locomotor* locomotor, PhysicsXformIn
 	if (THRUST_ROLL)
 	{
 
-		m_locoInfo->m_roll += THRUST_ROLL;
+		m_locoInfo->m_roll += scaledThrustRoll;
 		info.m_totalRoll = m_locoInfo->m_roll;
 	}
 }
