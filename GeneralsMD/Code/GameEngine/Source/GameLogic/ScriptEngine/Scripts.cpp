@@ -2855,6 +2855,7 @@ void Condition::WriteConditionDataChunkJSON(JSONChunkOutput &chunkWriter, Condit
 		chunkWriter.openDataChunk("Condition", K_SCRIPT_CONDITION_VERSION_2);
 		chunkWriter.writeInt(pCondition->m_conditionType);
 		chunkWriter.writeByte(pCondition->m_inverted);
+		chunkWriter.writeInt(pCondition->m_numParms);
 		for (Int i = 0; i < pCondition->m_numParms; i++) {
 			pCondition->m_parms[i]->WriteParameterJSON(chunkWriter);
 		}
@@ -2869,12 +2870,9 @@ Bool Condition::ParseConditionDataChunkJSON(JSONChunkInput &file, JSONChunkInfo 
 	Condition *pCondition = newInstance(Condition);
 	pCondition->m_conditionType = (Condition::ConditionType)file.readInt();
 	pCondition->m_inverted = file.readByte() ? true : false;
-	const ConditionTemplate *pTempl = TheScriptEngine->getConditionTemplate(pCondition->m_conditionType);
-	if (pTempl) {
-		pCondition->m_numParms = pTempl->numParms;
-		for (Int i = 0; i < pCondition->m_numParms; i++) {
-			pCondition->m_parms[i] = Parameter::ReadParameterJSON(file);
-		}
+	pCondition->m_numParms = file.readInt();
+	for (Int i = 0; i < pCondition->m_numParms; i++) {
+		pCondition->m_parms[i] = Parameter::ReadParameterJSON(file);
 	}
 	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
 	pOwner->setFirstAndCondition(pCondition);
@@ -2886,6 +2884,7 @@ void ScriptAction::WriteActionDataChunkJSON(JSONChunkOutput &chunkWriter, Script
 	while (pScriptAction) {
 		chunkWriter.openDataChunk("ScriptAction", K_SCRIPT_ACTION_VERSION_2);
 		chunkWriter.writeInt(pScriptAction->m_actionType);
+		chunkWriter.writeInt(pScriptAction->m_numParms);
 		for (Int i = 0; i < pScriptAction->m_numParms; i++) {
 			pScriptAction->m_parms[i]->WriteParameterJSON(chunkWriter);
 		}
@@ -2899,6 +2898,7 @@ void ScriptAction::WriteActionFalseDataChunkJSON(JSONChunkOutput &chunkWriter, S
 	while (pScriptAction) {
 		chunkWriter.openDataChunk("ScriptActionFalse", K_SCRIPT_ACTION_VERSION_2);
 		chunkWriter.writeInt(pScriptAction->m_actionType);
+		chunkWriter.writeInt(pScriptAction->m_numParms);
 		for (Int i = 0; i < pScriptAction->m_numParms; i++) {
 			pScriptAction->m_parms[i]->WriteParameterJSON(chunkWriter);
 		}
@@ -2911,12 +2911,9 @@ ScriptAction *ScriptAction::ParseActionJSON(JSONChunkInput &file, JSONChunkInfo 
 {
 	ScriptAction *pScriptAction = newInstance(ScriptAction);
 	pScriptAction->m_actionType = (ScriptAction::ScriptActionType)file.readInt();
-	const ActionTemplate *pTempl = TheScriptEngine->getActionTemplate(pScriptAction->m_actionType);
-	if (pTempl) {
-		pScriptAction->m_numParms = pTempl->numParms;
-		for (Int i = 0; i < pScriptAction->m_numParms; i++) {
-			pScriptAction->m_parms[i] = Parameter::ReadParameterJSON(file);
-		}
+	pScriptAction->m_numParms = file.readInt();
+	for (Int i = 0; i < pScriptAction->m_numParms; i++) {
+		pScriptAction->m_parms[i] = Parameter::ReadParameterJSON(file);
 	}
 	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
 	return pScriptAction;
