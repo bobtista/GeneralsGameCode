@@ -2678,3 +2678,408 @@ const char* const TheObjectFlagsNames[] =
 	"Player Targetable",
 	NULL,
 };
+
+#ifdef RTS_HAS_JSON_CHUNK
+// JSON format function implementations
+
+#include "Common/JSONChunkInput.h"
+#include "Common/JSONChunkOutput.h"
+
+void ScriptList::WriteScriptsDataChunkJSON(JSONChunkOutput &chunkWriter, ScriptList *scriptLists[], Int numLists)
+{
+	chunkWriter.openDataChunk("PlayerScriptsList", K_SCRIPTS_DATA_VERSION_1);
+	for (Int i = 0; i < numLists; i++) {
+		chunkWriter.openDataChunk("ScriptList", K_SCRIPT_LIST_DATA_VERSION_1);
+		if (scriptLists[i]) scriptLists[i]->WriteScriptListDataChunkJSON(chunkWriter);
+		chunkWriter.closeDataChunk();
+	}
+	chunkWriter.closeDataChunk();
+}
+
+void ScriptList::WriteScriptListDataChunkJSON(JSONChunkOutput &chunkWriter)
+{
+	if (m_firstScript) Script::WriteScriptDataChunkJSON(chunkWriter, m_firstScript);
+	if (m_firstGroup) ScriptGroup::WriteGroupDataChunkJSON(chunkWriter, m_firstGroup);
+}
+
+Bool ScriptList::ParseScriptsDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
+{
+	Int i;
+	file.registerParser("ScriptList", info->label, ScriptList::ParseScriptListDataChunkJSON);
+	DEBUG_ASSERTCRASH(s_numInReadList==0, ("Leftover scripts floating around."));
+	for (i = 0; i < s_numInReadList; i++) {
+		if (s_readLists[i]) {
+			deleteInstance(s_readLists[i]);
+			s_readLists[i] = NULL;
+		}
+	}
+	TScriptListReadInfo readInfo;
+	for (i = 0; i < MAX_PLAYER_COUNT; i++) {
+		readInfo.readLists[i] = 0;
+	}
+	readInfo.numLists = 0;
+	if (file.parse(&readInfo)) {
+		DEBUG_ASSERTCRASH(readInfo.numLists < MAX_PLAYER_COUNT, ("Read too many, overrun buffer."));
+		s_numInReadList = readInfo.numLists;
+		for (i = 0; i < s_numInReadList; i++) {
+			s_readLists[i] = readInfo.readLists[i];
+		}
+		return true;
+	}
+	return false;
+}
+
+Bool ScriptList::ParseScriptListDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
+{
+	TScriptListReadInfo *pInfo = (TScriptListReadInfo *)file.m_userData;
+	Int cur = pInfo->numLists++;
+	DEBUG_ASSERTCRASH(cur < MAX_PLAYER_COUNT, ("About to overrun s_readLists"));
+	pInfo->readLists[cur] = newInstance(ScriptList);
+	file.registerParser("Script", info->label, Script::ParseScriptFromListDataChunkJSON);
+	file.registerParser("ScriptGroup", info->label, ScriptGroup::ParseGroupDataChunkJSON);
+	return file.parse(pInfo->readLists[cur]);
+}
+
+void ScriptGroup::WriteGroupDataChunkJSON(JSONChunkOutput &chunkWriter, ScriptGroup *pGroup)
+{
+	while (pGroup) {
+		chunkWriter.openDataChunk("ScriptGroup", K_SCRIPT_GROUP_DATA_VERSION_2);
+		chunkWriter.writeAsciiString(pGroup->m_groupName);
+		chunkWriter.writeByte(pGroup->m_groupIsActive);
+		chunkWriter.writeByte(pGroup->m_groupIsSubroutine);
+		if (pGroup->m_firstScript) Script::WriteScriptDataChunkJSON(chunkWriter, pGroup->m_firstScript);
+		chunkWriter.closeDataChunk();
+		pGroup = pGroup->m_nextGroup;
+	}
+}
+
+Bool ScriptGroup::ParseGroupDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
+{
+	ScriptList *pOwner = (ScriptList *)userData;
+	ScriptGroup *pGroup = newInstance(ScriptGroup);
+	pGroup->m_groupName = file.readAsciiString();
+	pGroup->m_groupIsActive = file.readByte() ? true : false;
+	pGroup->m_groupIsSubroutine = file.readByte() ? true : false;
+	pOwner->addGroup(pGroup, INT_MAX);
+	file.registerParser("Script", info->label, Script::ParseScriptFromGroupDataChunkJSON);
+	return file.parse(pGroup);
+}
+
+void Script::WriteScriptDataChunkJSON(JSONChunkOutput &chunkWriter, Script *pScript)
+{
+	while (pScript) {
+		chunkWriter.openDataChunk("Script", K_SCRIPT_DATA_VERSION_2);
+		chunkWriter.writeAsciiString(pScript->m_scriptName);
+		chunkWriter.writeAsciiString(pScript->m_comment);
+		chunkWriter.writeAsciiString(pScript->m_conditionComment);
+		chunkWriter.writeAsciiString(pScript->m_actionComment);
+		chunkWriter.writeByte(pScript->m_isActive);
+		chunkWriter.writeByte(pScript->m_deactivateUponSuccess);
+		chunkWriter.writeByte(0); // unused
+		chunkWriter.writeByte(pScript->m_isSubroutine);
+		chunkWriter.writeInt(pScript->m_easy);
+		chunkWriter.writeInt(pScript->m_medium);
+		chunkWriter.writeInt(pScript->m_hard);
+		OrCondition::WriteOrConditionDataChunkJSON(chunkWriter, pScript->m_condition);
+		ScriptAction::WriteActionDataChunkJSON(chunkWriter, pScript->m_action);
+		ScriptAction::WriteActionFalseDataChunkJSON(chunkWriter, pScript->m_actionFalse);
+		chunkWriter.closeDataChunk();
+		pScript = pScript->m_nextScript;
+	}
+}
+
+Script *Script::ParseScriptJSON(JSONChunkInput &file, unsigned short version)
+{
+	Script *pScript = newInstance(Script);
+	pScript->m_scriptName = file.readAsciiString();
+	pScript->m_comment = file.readAsciiString();
+	pScript->m_conditionComment = file.readAsciiString();
+	pScript->m_actionComment = file.readAsciiString();
+	pScript->m_isActive = file.readByte() ? true : false;
+	pScript->m_deactivateUponSuccess = file.readByte() ? true : false;
+	file.readByte(); // unused
+	pScript->m_isSubroutine = file.readByte() ? true : false;
+	if (version >= K_SCRIPT_DATA_VERSION_2) {
+		pScript->m_easy = file.readInt();
+		pScript->m_medium = file.readInt();
+		pScript->m_hard = file.readInt();
+	}
+	file.registerParser("OrCondition", "Script", OrCondition::ParseOrConditionDataChunkJSON);
+	file.registerParser("ScriptAction", "Script", ScriptAction::ParseActionDataChunkJSON);
+	file.registerParser("ScriptActionFalse", "Script", ScriptAction::ParseActionFalseDataChunkJSON);
+	if (!file.parse(pScript)) {
+		return NULL;
+	}
+	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
+	return pScript;
+}
+
+Bool Script::ParseScriptFromListDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
+{
+	ScriptList *pOwner = (ScriptList *)userData;
+	Script *pScript = ParseScriptJSON(file, info->version);
+	pOwner->addScript(pScript, INT_MAX);
+	return pScript != NULL;
+}
+
+Bool Script::ParseScriptFromGroupDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
+{
+	ScriptGroup *pOwner = (ScriptGroup *)userData;
+	Script *pScript = ParseScriptJSON(file, info->version);
+	pOwner->addScript(pScript, INT_MAX);
+	return pScript != NULL;
+}
+
+void OrCondition::WriteOrConditionDataChunkJSON(JSONChunkOutput &chunkWriter, OrCondition *pOrCondition)
+{
+	while (pOrCondition) {
+		chunkWriter.openDataChunk("OrCondition", K_SCRIPT_OR_CONDITION_DATA_VERSION_1);
+		Condition::WriteConditionDataChunkJSON(chunkWriter, pOrCondition->m_firstAnd);
+		chunkWriter.closeDataChunk();
+		pOrCondition = pOrCondition->m_nextOr;
+	}
+}
+
+Bool OrCondition::ParseOrConditionDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
+{
+	Script *pOwner = (Script *)userData;
+	OrCondition *pCondition = newInstance(OrCondition);
+	pOwner->setOrCondition(pCondition);
+	file.registerParser("Condition", info->label, Condition::ParseConditionDataChunkJSON);
+	return file.parse(pCondition);
+}
+
+void Condition::WriteConditionDataChunkJSON(JSONChunkOutput &chunkWriter, Condition *pCondition)
+{
+	while (pCondition) {
+		chunkWriter.openDataChunk("Condition", K_SCRIPT_CONDITION_VERSION_2);
+		chunkWriter.writeInt(pCondition->m_conditionType);
+		chunkWriter.writeByte(pCondition->m_inverted);
+		for (Int i = 0; i < pCondition->m_numParms; i++) {
+			pCondition->m_parms[i]->WriteParameterJSON(chunkWriter);
+		}
+		chunkWriter.closeDataChunk();
+		pCondition = pCondition->m_nextCondition;
+	}
+}
+
+Bool Condition::ParseConditionDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
+{
+	OrCondition *pOwner = (OrCondition *)userData;
+	Condition *pCondition = newInstance(Condition);
+	pCondition->m_conditionType = (Condition::ConditionType)file.readInt();
+	pCondition->m_inverted = file.readByte() ? true : false;
+	const ConditionTemplate *pTempl = TheScriptEngine->getConditionTemplate(pCondition->m_conditionType);
+	if (pTempl) {
+		pCondition->m_numParms = pTempl->numParms;
+		for (Int i = 0; i < pCondition->m_numParms; i++) {
+			pCondition->m_parms[i] = Parameter::ReadParameterJSON(file);
+		}
+	}
+	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
+	pOwner->setFirstAndCondition(pCondition);
+	return true;
+}
+
+void ScriptAction::WriteActionDataChunkJSON(JSONChunkOutput &chunkWriter, ScriptAction *pScriptAction)
+{
+	while (pScriptAction) {
+		chunkWriter.openDataChunk("ScriptAction", K_SCRIPT_ACTION_VERSION_2);
+		chunkWriter.writeInt(pScriptAction->m_actionType);
+		for (Int i = 0; i < pScriptAction->m_numParms; i++) {
+			pScriptAction->m_parms[i]->WriteParameterJSON(chunkWriter);
+		}
+		chunkWriter.closeDataChunk();
+		pScriptAction = pScriptAction->m_nextAction;
+	}
+}
+
+void ScriptAction::WriteActionFalseDataChunkJSON(JSONChunkOutput &chunkWriter, ScriptAction *pScriptAction)
+{
+	while (pScriptAction) {
+		chunkWriter.openDataChunk("ScriptActionFalse", K_SCRIPT_ACTION_VERSION_2);
+		chunkWriter.writeInt(pScriptAction->m_actionType);
+		for (Int i = 0; i < pScriptAction->m_numParms; i++) {
+			pScriptAction->m_parms[i]->WriteParameterJSON(chunkWriter);
+		}
+		chunkWriter.closeDataChunk();
+		pScriptAction = pScriptAction->m_nextAction;
+	}
+}
+
+ScriptAction *ScriptAction::ParseActionJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
+{
+	ScriptAction *pScriptAction = newInstance(ScriptAction);
+	pScriptAction->m_actionType = (ScriptAction::ScriptActionType)file.readInt();
+	const ActionTemplate *pTempl = TheScriptEngine->getActionTemplate(pScriptAction->m_actionType);
+	if (pTempl) {
+		pScriptAction->m_numParms = pTempl->numParms;
+		for (Int i = 0; i < pScriptAction->m_numParms; i++) {
+			pScriptAction->m_parms[i] = Parameter::ReadParameterJSON(file);
+		}
+	}
+	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
+	return pScriptAction;
+}
+
+Bool ScriptAction::ParseActionDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
+{
+	Script *pOwner = (Script *)userData;
+	ScriptAction *pScriptAction = ParseActionJSON(file, info, userData);
+	pOwner->setAction(pScriptAction);
+	return true;
+}
+
+Bool ScriptAction::ParseActionFalseDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
+{
+	Script *pOwner = (Script *)userData;
+	ScriptAction *pScriptAction = ParseActionJSON(file, info, userData);
+	pOwner->setActionFalse(pScriptAction);
+	return true;
+}
+
+void Parameter::WriteParameterJSON(JSONChunkOutput &chunkWriter)
+{
+	chunkWriter.writeInt(m_paramType);
+	switch (m_paramType) {
+		case INT:
+		case BOOLEAN:
+		case SIDE:
+		case TEAM:
+		case SCRIPT:
+		case COUNTER:
+		case FLAG:
+		case COMPARISON:
+		case WAYPOINT:
+		case TRIGGER_AREA:
+		case ABILITY:
+		case UPGRADE:
+		case SURFACES_ALLOWED:
+		case SHAKE_INTENSITY:
+		case ATTACK_PRIORITY_SET:
+		case COMMANDBUTTON_ABILITY:
+		case OBJECT_FLAG:
+		case MUSIC:
+		case SPEECH:
+		case SOUND:
+		case MOVIE:
+		case RADAR_EVENT_TYPE:
+		case SPECIAL_POWER:
+		case SCIENCE:
+		case REVEAL_NAME:
+		case BORDER_COLOR:
+		case BUILDABLE_STATUS:
+			chunkWriter.writeInt(m_int);
+			break;
+		case REAL:
+		case PERCENT:
+		case ANGLE:
+		case FRAMES:
+			chunkWriter.writeReal(m_real);
+			break;
+		case COORD3D:
+			chunkWriter.writeReal(m_coord.x);
+			chunkWriter.writeReal(m_coord.y);
+			chunkWriter.writeReal(m_coord.z);
+			break;
+		case OBJECT:
+		case UNIT:
+		case OBJECT_TYPE:
+		case TEXT_STRING:
+		case SCRIPT_SUBROUTINE:
+		case FONT:
+		case DIALOG:
+		case EVACUATE_CONTAINER_SIDE:
+		case LOCALIZED_TEXT:
+		case OBJECT_TYPE_LIST:
+		case BRIDGE:
+		case TEAM_STATE:
+		case EMOTION:
+			chunkWriter.writeAsciiString(m_string);
+			break;
+		case TEAM_COMMANDBUTTON_ABILITY:
+		case COMMANDBUTTON:
+		case COLOR:
+		case OBJECT_STATUS:
+			chunkWriter.writeInt(m_int);
+			chunkWriter.writeAsciiString(m_string);
+			break;
+		default:
+			break;
+	}
+}
+
+Parameter *Parameter::ReadParameterJSON(JSONChunkInput &file)
+{
+	Parameter *pParam = newInstance(Parameter);
+	pParam->m_paramType = (ParameterType)file.readInt();
+	switch (pParam->m_paramType) {
+		case INT:
+		case BOOLEAN:
+		case SIDE:
+		case TEAM:
+		case SCRIPT:
+		case COUNTER:
+		case FLAG:
+		case COMPARISON:
+		case WAYPOINT:
+		case TRIGGER_AREA:
+		case ABILITY:
+		case UPGRADE:
+		case SURFACES_ALLOWED:
+		case SHAKE_INTENSITY:
+		case ATTACK_PRIORITY_SET:
+		case COMMANDBUTTON_ABILITY:
+		case OBJECT_FLAG:
+		case MUSIC:
+		case SPEECH:
+		case SOUND:
+		case MOVIE:
+		case RADAR_EVENT_TYPE:
+		case SPECIAL_POWER:
+		case SCIENCE:
+		case REVEAL_NAME:
+		case BORDER_COLOR:
+		case BUILDABLE_STATUS:
+			pParam->m_int = file.readInt();
+			break;
+		case REAL:
+		case PERCENT:
+		case ANGLE:
+		case FRAMES:
+			pParam->m_real = file.readReal();
+			break;
+		case COORD3D:
+			pParam->m_coord.x = file.readReal();
+			pParam->m_coord.y = file.readReal();
+			pParam->m_coord.z = file.readReal();
+			break;
+		case OBJECT:
+		case UNIT:
+		case OBJECT_TYPE:
+		case TEXT_STRING:
+		case SCRIPT_SUBROUTINE:
+		case FONT:
+		case DIALOG:
+		case EVACUATE_CONTAINER_SIDE:
+		case LOCALIZED_TEXT:
+		case OBJECT_TYPE_LIST:
+		case BRIDGE:
+		case TEAM_STATE:
+		case EMOTION:
+			pParam->m_string = file.readAsciiString();
+			break;
+		case TEAM_COMMANDBUTTON_ABILITY:
+		case COMMANDBUTTON:
+		case COLOR:
+		case OBJECT_STATUS:
+			pParam->m_int = file.readInt();
+			pParam->m_string = file.readAsciiString();
+			break;
+		default:
+			break;
+	}
+	return pParam;
+}
+
+#endif // RTS_HAS_JSON_CHUNK
