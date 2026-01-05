@@ -2,6 +2,7 @@
 
 # Build useful tool binaries.
 if(RTS_BUILD_CORE_TOOLS)
+    add_subdirectory(DataChunkConverter)
     add_subdirectory(DebugWindow)
 endif()
 
