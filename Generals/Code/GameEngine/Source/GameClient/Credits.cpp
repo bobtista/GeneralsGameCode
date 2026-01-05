@@ -123,7 +123,8 @@ CreditsManager::CreditsManager(void)
 	m_scrollRate = 1; // in pixels
 	m_scrollRatePerFrames = 1;
 	m_scrollDown = TRUE;	// if TRUE text will come from the top to the bottom if False, it will go from the bottom up
-	m_lastScrollTime = 0;
+	m_scrollStartTime = 0;
+	m_lastScrollPixels = 0;
 	m_titleColor = m_positionColor = m_normalColor = GameMakeColor(255,255,255,255);
 
 	m_currentStyle = CREDIT_STYLE_NORMAL;
@@ -148,7 +149,8 @@ void CreditsManager::init(void )
 {
 	m_isFinished = FALSE;
 	m_creditLineListIt = m_creditLineList.begin();
-	m_lastScrollTime = timeGetTime();
+	m_scrollStartTime = timeGetTime();
+	m_lastScrollPixels = 0;
 }
 
 void CreditsManager::load(void )
@@ -174,8 +176,8 @@ void CreditsManager::reset( void )
 	m_displayedCreditLineList.clear();
 	m_isFinished = FALSE;
 	m_creditLineListIt = m_creditLineList.begin();
-	m_lastScrollTime = timeGetTime();
-
+	m_scrollStartTime = timeGetTime();
+	m_lastScrollPixels = 0;
 }
 
 void CreditsManager::update( void )
@@ -184,12 +186,15 @@ void CreditsManager::update( void )
 		return;
 
 	// TheSuperHackers @tweak Credits scroll timing is now decoupled from the render update.
-	const UnsignedInt scrollIntervalMs = static_cast<UnsignedInt>(m_scrollRatePerFrames * MSEC_PER_LOGICFRAME_REAL);
+	// Calculate expected scroll position based on elapsed time for accurate timing.
 	const UnsignedInt now = timeGetTime();
-	if (now - m_lastScrollTime < scrollIntervalMs)
+	const UnsignedInt elapsedMs = now - m_scrollStartTime;
+	const Real scrollSpeedPixelsPerMs = static_cast<Real>(m_scrollRate) / (m_scrollRatePerFrames * MSEC_PER_LOGICFRAME_REAL);
+	const Int expectedScrollPixels = static_cast<Int>(elapsedMs * scrollSpeedPixelsPerMs);
+	const Int pixelsToMove = expectedScrollPixels - m_lastScrollPixels;
+	if (pixelsToMove < 1)
 		return;
-	m_lastScrollTime = now;
-
+	m_lastScrollPixels = expectedScrollPixels;
 
 	Int y = 0;
 	Int yTest = 0;
@@ -203,7 +208,7 @@ void CreditsManager::update( void )
 	while (drawIt != m_displayedCreditLineList.end())
 	{
 		CreditsLine *cLine = *drawIt;
-		y = cLine->m_pos.y = cLine->m_pos.y + (m_scrollRate * directionMultiplier);
+		y = cLine->m_pos.y = cLine->m_pos.y + (pixelsToMove * directionMultiplier);
 		lastHeight = cLine->m_height;
 		yTest = y + ((lastHeight + CREDIT_SPACE_OFFSET) * offsetEndMultiplier);
 		if(((m_scrollDown && (yTest > end)) || (!m_scrollDown && (yTest < end))))
