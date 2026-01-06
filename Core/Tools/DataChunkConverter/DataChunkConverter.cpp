@@ -594,7 +594,6 @@ static json parseCondition(BinaryReader &reader)
 {
 	json cond = json::object();
 	cond["conditionType"] = reader.readInt();
-	cond["inverted"] = reader.readByte();
 	int32_t numParms = reader.readInt();
 	cond["numParms"] = numParms;
 
@@ -630,12 +629,12 @@ static json parseScript(BinaryReader &reader, const StringTable &table, uint16_t
 	script["actionComment"] = reader.readLenString();
 	script["isActive"] = reader.readByte();
 	script["deactivateUponSuccess"] = reader.readByte();
-	reader.readByte(); // unused
+	script["easy"] = reader.readByte();
+	script["normal"] = reader.readByte();
+	script["hard"] = reader.readByte();
 	script["isSubroutine"] = reader.readByte();
 	if (version >= 2) {
-		script["easy"] = reader.readInt();
-		script["medium"] = reader.readInt();
-		script["hard"] = reader.readInt();
+		script["delayEvaluationSeconds"] = reader.readInt();
 	}
 	script["_children"] = parseChunks(reader, table, endPos);
 	return script;
@@ -646,7 +645,9 @@ static json parseScriptGroup(BinaryReader &reader, const StringTable &table, uin
 	json group = json::object();
 	group["groupName"] = reader.readLenString();
 	group["isGroupActive"] = reader.readByte();
-	group["isGroupSubroutine"] = reader.readByte();
+	if (version >= 2) {
+		group["isGroupSubroutine"] = reader.readByte();
+	}
 	group["_children"] = parseChunks(reader, table, endPos);
 	return group;
 }
@@ -712,7 +713,6 @@ static void writeChunks(BinaryWriter &writer, StringTable &table, const json &ch
 static void writeCondition(BinaryWriter &writer, const json &data)
 {
 	writer.writeInt(data.value("conditionType", 0));
-	writer.writeByte(data.value("inverted", 0));
 	writer.writeInt(data.value("numParms", 0));
 	if (data.contains("parameters")) {
 		for (const auto &param : data["parameters"]) {
@@ -740,11 +740,12 @@ static void writeScript(BinaryWriter &writer, StringTable &table, const json &da
 	writer.writeLenString(data.value("actionComment", ""));
 	writer.writeByte(data.value("isActive", 0));
 	writer.writeByte(data.value("deactivateUponSuccess", 0));
-	writer.writeByte(0); // unused
+	writer.writeByte(data.value("easy", 1));
+	writer.writeByte(data.value("normal", 1));
+	writer.writeByte(data.value("hard", 1));
 	writer.writeByte(data.value("isSubroutine", 0));
-	writer.writeInt(data.value("easy", 1));
-	writer.writeInt(data.value("medium", 1));
-	writer.writeInt(data.value("hard", 1));
+	// Always write version 2 format with delayEvaluationSeconds
+	writer.writeInt(data.value("delayEvaluationSeconds", 0));
 	if (data.contains("_children")) {
 		writeChunks(writer, table, data["_children"]);
 	}
