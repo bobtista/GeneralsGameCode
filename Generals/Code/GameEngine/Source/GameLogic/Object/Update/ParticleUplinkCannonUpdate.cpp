@@ -1332,9 +1332,8 @@ void ParticleUplinkCannonUpdate::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version
 	* 2: Serialize decay frames
-	* 3: TheSuperHackers @tweak Added m_manualTargetMode
-	* 4: TheSuperHackers @tweak Added m_orbitToTargetLaserRadius
-	* 5: TheSuperHackers @tweak Changed m_lastDrivingClickFrame to m_lastDrivingClickTimeMsec (frames to milliseconds)
+	* 3: TheSuperHackers @tweak Serialize manual target mode
+	* 4: TheSuperHackers @tweak Serialize orbit to target laser radius
 	*/
 // ------------------------------------------------------------------------------------------------
 void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
@@ -1345,7 +1344,7 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 2;
 #else
-	const XferVersion currentVersion = 5;
+	const XferVersion currentVersion = 4;
 #endif
 	XferVersion version = currentVersion;
 	xfer->xferVersion( &version, currentVersion );
@@ -1444,29 +1443,20 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 
 	// the time of last manual target click
 #if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-	// Retail builds stay at version 3 for compatibility, so always use old frame format
 	xfer->xferUnsignedInt( &m_lastDrivingClickFrame );
 	xfer->xferUnsignedInt( &m_2ndLastDrivingClickFrame );
 #else
-	if( version >= 5 )
-	{
-		xfer->xferUnsignedInt( &m_lastDrivingClickTimeMsec );
-		xfer->xferUnsignedInt( &m_2ndLastDrivingClickTimeMsec );
-	}
-	else
-	{
-		// Old versions stored frame numbers, read and discard to advance file position.
-		UnsignedInt oldLastDrivingClickFrame = 0;
-		UnsignedInt old2ndLastDrivingClickFrame = 0;
-		xfer->xferUnsignedInt( &oldLastDrivingClickFrame );
-		xfer->xferUnsignedInt( &old2ndLastDrivingClickFrame );
-	}
-#endif
+	// TheSuperHackers @info timeGetTime values are machine-relative and meaningless on load.
+	// Write/read dummy values to maintain file format compatibility.
+	UnsignedInt dummyClickTime = 0;
+	xfer->xferUnsignedInt( &dummyClickTime );
+	xfer->xferUnsignedInt( &dummyClickTime );
 
 	if( version >= 3 )
 	{
 		xfer->xferBool( &m_manualTargetMode );
 	}
+#endif
 
 	if( version >= 4 )
 	{
