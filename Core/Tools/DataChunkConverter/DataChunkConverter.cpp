@@ -407,38 +407,51 @@ static void writeDict(BinaryWriter &writer, StringTable &table, const json &dict
 {
 	// Count valid entries
 	uint16_t count = 0;
-	for (auto &[key, value] : dict.items()) {
-		if (value.is_object() && value.contains("_type")) {
+	for (auto it = dict.begin(); it != dict.end(); ++it) {
+		if (it.value().is_object() && it.value().contains("_type")) {
 			count++;
 		}
 	}
 
 	writer.writeUShort(count);
 
-	for (auto &[key, value] : dict.items()) {
+	for (auto it = dict.begin(); it != dict.end(); ++it) {
+		const std::string &key = it.key();
+		const json &value = it.value();
 		if (!value.is_object() || !value.contains("_type")) continue;
 
 		uint32_t keyId = table.getOrCreateId(key);
-		DictDataType type = static_cast<DictDataType>(value["_type"].get<int>());
+		int typeInt = value["_type"].get<int>();
+		DictDataType type = static_cast<DictDataType>(typeInt);
 		int32_t keyAndType = (static_cast<int32_t>(keyId) << 8) | (type & 0xFF);
 		writer.writeInt(keyAndType);
 
 		switch (type) {
-			case DICT_BOOL:
-				writer.writeByte(value["value"].get<bool>() ? 1 : 0);
+			case DICT_BOOL: {
+				bool bval = value["value"].get<bool>();
+				writer.writeByte(bval ? 1 : 0);
 				break;
-			case DICT_INT:
-				writer.writeInt(value["value"].get<int32_t>());
+			}
+			case DICT_INT: {
+				int32_t ival = value["value"].get<int32_t>();
+				writer.writeInt(ival);
 				break;
-			case DICT_REAL:
-				writer.writeFloat(value["value"].get<float>());
+			}
+			case DICT_REAL: {
+				float fval = value["value"].get<float>();
+				writer.writeFloat(fval);
 				break;
-			case DICT_ASCIISTRING:
-				writer.writeLenString(value["value"].get<std::string>());
+			}
+			case DICT_ASCIISTRING: {
+				std::string sval = value["value"].get<std::string>();
+				writer.writeLenString(sval);
 				break;
-			case DICT_UNICODESTRING:
-				writer.writeLenUnicodeString(utf8ToUtf16(value["value"].get<std::string>()));
+			}
+			case DICT_UNICODESTRING: {
+				std::string sval = value["value"].get<std::string>();
+				writer.writeLenUnicodeString(utf8ToUtf16(sval));
 				break;
+			}
 			default:
 				break;
 		}
@@ -800,7 +813,8 @@ static void collectStrings(const json &node, StringTable &table)
 {
 	if (node.is_object()) {
 		if (node.contains("_label")) {
-			table.getOrCreateId(node["_label"].get<std::string>());
+			std::string label = node["_label"].get<std::string>();
+			table.getOrCreateId(label);
 		}
 		if (node.contains("_data")) {
 			collectStrings(node["_data"], table);
@@ -812,9 +826,9 @@ static void collectStrings(const json &node, StringTable &table)
 			collectStrings(node["_dicts"], table);
 		}
 		// Collect dict keys
-		for (auto &[key, value] : node.items()) {
-			if (value.is_object() && value.contains("_type")) {
-				table.getOrCreateId(key);
+		for (auto it = node.begin(); it != node.end(); ++it) {
+			if (it.value().is_object() && it.value().contains("_type")) {
+				table.getOrCreateId(it.key());
 			}
 		}
 	} else if (node.is_array()) {
@@ -894,9 +908,11 @@ static bool convertJsonToBinary(const std::string &inputPath, const std::string 
 
 	// Restore string table from JSON if present
 	if (data.contains("_stringTable")) {
-		for (auto &[key, value] : data["_stringTable"].items()) {
-			uint32_t id = std::stoul(key);
-			table.addMapping(value.get<std::string>(), id);
+		const json &stringTable = data["_stringTable"];
+		for (auto it = stringTable.begin(); it != stringTable.end(); ++it) {
+			uint32_t id = std::stoul(it.key());
+			std::string name = it.value().get<std::string>();
+			table.addMapping(name, id);
 		}
 	}
 

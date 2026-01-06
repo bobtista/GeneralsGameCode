@@ -17,6 +17,7 @@ endif()
 
 add_executable(core_datachunkconverter)
 set_target_properties(core_datachunkconverter PROPERTIES OUTPUT_NAME DataChunkConverter)
+target_compile_features(core_datachunkconverter PRIVATE cxx_std_17)
 
 target_sources(core_datachunkconverter PRIVATE
     DataChunkConverter.cpp
