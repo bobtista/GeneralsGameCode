@@ -110,9 +110,21 @@ public:
 	{
 		uint16_t len = readUShort();
 		if (!hasData(len)) return "";
-		std::string str(reinterpret_cast<const char*>(m_data + m_pos), len);
+		// Convert from Latin-1/Windows-1252 to UTF-8
+		std::string utf8;
+		utf8.reserve(len * 2); // worst case
+		for (uint16_t i = 0; i < len; i++) {
+			uint8_t ch = m_data[m_pos + i];
+			if (ch < 0x80) {
+				utf8.push_back(static_cast<char>(ch));
+			} else {
+				// Latin-1 high bytes -> UTF-8 two-byte sequence
+				utf8.push_back(static_cast<char>(0xC0 | (ch >> 6)));
+				utf8.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
+			}
+		}
 		m_pos += len;
-		return str;
+		return utf8;
 	}
 
 	std::u16string readLenUnicodeString()
@@ -174,10 +186,31 @@ public:
 		std::memcpy(m_data.data() + pos, &val, 4);
 	}
 
-	void writeLenString(const std::string &str)
+	void writeLenString(const std::string &utf8)
 	{
-		writeUShort(static_cast<uint16_t>(str.size()));
-		m_data.insert(m_data.end(), str.begin(), str.end());
+		// Convert from UTF-8 to Latin-1
+		std::vector<uint8_t> latin1;
+		latin1.reserve(utf8.size());
+		size_t i = 0;
+		while (i < utf8.size()) {
+			uint8_t c = static_cast<uint8_t>(utf8[i]);
+			if ((c & 0x80) == 0) {
+				// ASCII
+				latin1.push_back(c);
+				i += 1;
+			} else if ((c & 0xE0) == 0xC0 && i + 1 < utf8.size()) {
+				// Two-byte UTF-8 sequence -> Latin-1
+				uint8_t ch = ((c & 0x1F) << 6) | (static_cast<uint8_t>(utf8[i + 1]) & 0x3F);
+				latin1.push_back(ch);
+				i += 2;
+			} else {
+				// Skip invalid or higher UTF-8 sequences
+				latin1.push_back('?');
+				i += 1;
+			}
+		}
+		writeUShort(static_cast<uint16_t>(latin1.size()));
+		m_data.insert(m_data.end(), latin1.begin(), latin1.end());
 	}
 
 	void writeLenUnicodeString(const std::u16string &str)
@@ -210,11 +243,15 @@ class StringTable
 {
 	std::map<uint32_t, std::string> m_idToName;
 	std::map<std::string, uint32_t> m_nameToId;
+	std::vector<uint32_t> m_order;  // Preserves original entry order
 	uint32_t m_nextId = 1;
 
 public:
 	void addMapping(const std::string &name, uint32_t id)
 	{
+		if (m_idToName.find(id) == m_idToName.end()) {
+			m_order.push_back(id);  // Track insertion order
+		}
 		m_idToName[id] = name;
 		m_nameToId[name] = id;
 		if (id >= m_nextId) {
@@ -243,6 +280,7 @@ public:
 	}
 
 	const std::map<uint32_t, std::string>& mappings() const { return m_idToName; }
+	const std::vector<uint32_t>& order() const { return m_order; }
 };
 
 struct ChunkHeader
@@ -283,13 +321,18 @@ static void writeStringTable(BinaryWriter &writer, const StringTable &table)
 
 	// Write count
 	const auto &mappings = table.mappings();
+	const auto &order = table.order();
 	writer.writeInt(static_cast<int32_t>(mappings.size()));
 
-	// Write entries
-	for (const auto &entry : mappings) {
-		writer.writeByte(static_cast<uint8_t>(entry.second.size()));
-		writer.writeBytes(reinterpret_cast<const uint8_t*>(entry.second.data()), entry.second.size());
-		writer.writeUInt(entry.first);
+	// Write entries in original order
+	for (uint32_t id : order) {
+		auto it = mappings.find(id);
+		if (it != mappings.end()) {
+			const std::string &name = it->second;
+			writer.writeByte(static_cast<uint8_t>(name.size()));
+			writer.writeBytes(reinterpret_cast<const uint8_t*>(name.data()), name.size());
+			writer.writeUInt(id);
+		}
 	}
 }
 
@@ -482,74 +525,18 @@ static json readParameter(BinaryReader &reader)
 	int32_t paramType = reader.readInt();
 	param["type"] = paramType;
 
-	switch (paramType) {
-		case 0:  // INT
-		case 1:  // REAL - but stored as int sometimes?
-		case 2:  // SCRIPT
-		case 3:  // TEAM
-		case 4:  // COUNTER
-		case 5:  // FLAG
-		case 6:  // COMPARISON
-		case 7:  // WAYPOINT
-		case 8:  // BOOLEAN
-		case 10: // TRIGGER_AREA
-		case 11: // TEXT_STRING - has both int and string
-		case 12: // SIDE
-		case 13: // SOUND
-		case 15: // OBJECT_TYPE
-		case 22: // ABILITY
-		case 24: // UPGRADE
-		case 28: // SURFACES_ALLOWED
-		case 29: // SHAKE_INTENSITY
-		case 35: // SPEECH
-		case 41: // ATTACK_PRIORITY_SET
-		case 47: // COMMANDBUTTON_ABILITY
-		case 50: // OBJECT_FLAG
-		case 51: // REVEAL_NAME
-		case 54: // RADAR_EVENT_TYPE
-		case 55: // SPECIAL_POWER
-		case 56: // SCIENCE
-		case 57: // MUSIC
-		case 58: // MOVIE
-		case 59: // BORDER_COLOR
-		case 62: // BUILDABLE_STATUS
-			param["int"] = reader.readInt();
-			break;
-		case 9:  // REAL
-		case 14: // ANGLE
-		case 26: // PERCENT
-		case 46: // FRAMES
-			param["real"] = reader.readFloat();
-			break;
-		case 16: // COORD3D
-			param["x"] = reader.readFloat();
-			param["y"] = reader.readFloat();
-			param["z"] = reader.readFloat();
-			break;
-		case 17: // OBJECT
-		case 18: // UNIT
-		case 19: // OBJECT_TYPE
-		case 20: // SCRIPT_SUBROUTINE
-		case 21: // FONT
-		case 23: // DIALOG
-		case 25: // EVACUATE_CONTAINER_SIDE
-		case 27: // LOCALIZED_TEXT
-		case 30: // OBJECT_TYPE_LIST
-		case 31: // BRIDGE
-		case 40: // TEAM_STATE
-		case 49: // EMOTION
-			param["string"] = reader.readLenString();
-			break;
-		case 32: // TEAM_COMMANDBUTTON_ABILITY
-		case 33: // COMMANDBUTTON
-		case 34: // COLOR
-		case 48: // OBJECT_STATUS
-			param["int"] = reader.readInt();
-			param["string"] = reader.readLenString();
-			break;
-		default:
-			param["int"] = reader.readInt();
-			break;
+	// Parameter format from game code:
+	// - type (int)
+	// - if COORD3D (16): x, y, z (floats)
+	// - else: int, real, string (ALL THREE always)
+	if (paramType == 16) { // COORD3D
+		param["x"] = reader.readFloat();
+		param["y"] = reader.readFloat();
+		param["z"] = reader.readFloat();
+	} else {
+		param["int"] = reader.readInt();
+		param["real"] = reader.readFloat();
+		param["string"] = reader.readLenString();
 	}
 	return param;
 }
@@ -559,42 +546,33 @@ static void writeParameter(BinaryWriter &writer, const json &param)
 	int32_t paramType = param.value("type", 0);
 	writer.writeInt(paramType);
 
-	switch (paramType) {
-		case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7: case 8:
-		case 10: case 11: case 12: case 13: case 15: case 22: case 24: case 28:
-		case 29: case 35: case 41: case 47: case 50: case 51: case 54: case 55:
-		case 56: case 57: case 58: case 59: case 62:
-			writer.writeInt(param.value("int", 0));
-			break;
-		case 9: case 14: case 26: case 46:
-			writer.writeFloat(param.value("real", 0.0f));
-			break;
-		case 16:
-			writer.writeFloat(param.value("x", 0.0f));
-			writer.writeFloat(param.value("y", 0.0f));
-			writer.writeFloat(param.value("z", 0.0f));
-			break;
-		case 17: case 18: case 19: case 20: case 21: case 23: case 25: case 27:
-		case 30: case 31: case 40: case 49:
-			writer.writeLenString(param.value("string", ""));
-			break;
-		case 32: case 33: case 34: case 48:
-			writer.writeInt(param.value("int", 0));
-			writer.writeLenString(param.value("string", ""));
-			break;
-		default:
-			writer.writeInt(param.value("int", 0));
-			break;
+	// Parameter format from game code:
+	// - type (int)
+	// - if COORD3D (16): x, y, z (floats)
+	// - else: int, real, string (ALL THREE always)
+	if (paramType == 16) { // COORD3D
+		writer.writeFloat(param.value("x", 0.0f));
+		writer.writeFloat(param.value("y", 0.0f));
+		writer.writeFloat(param.value("z", 0.0f));
+	} else {
+		writer.writeInt(param.value("int", 0));
+		writer.writeFloat(param.value("real", 0.0f));
+		writer.writeLenString(param.value("string", ""));
 	}
 }
 
 static json parseChunks(BinaryReader &reader, const StringTable &table, size_t endPos);
 
-static json parseCondition(BinaryReader &reader)
+static json parseCondition(BinaryReader &reader, const StringTable &table, uint16_t version)
 {
 	json cond = json::object();
 	cond["conditionType"] = reader.readInt();
-	cond["inverted"] = reader.readByte();
+	// Version 4+ has a nameKey between conditionType and numParms
+	if (version >= 4) {
+		int32_t keyAndType = reader.readInt();
+		uint32_t nameKeyId = static_cast<uint32_t>(keyAndType >> 8);
+		cond["nameKey"] = table.getName(nameKeyId);
+	}
 	int32_t numParms = reader.readInt();
 	cond["numParms"] = numParms;
 
@@ -606,10 +584,16 @@ static json parseCondition(BinaryReader &reader)
 	return cond;
 }
 
-static json parseScriptAction(BinaryReader &reader)
+static json parseScriptAction(BinaryReader &reader, const StringTable &table, uint16_t version)
 {
 	json action = json::object();
 	action["actionType"] = reader.readInt();
+	// Version 2+ has a nameKey between actionType and numParms
+	if (version >= 2) {
+		int32_t keyAndType = reader.readInt();
+		uint32_t nameKeyId = static_cast<uint32_t>(keyAndType >> 8);
+		action["nameKey"] = table.getName(nameKeyId);
+	}
 	int32_t numParms = reader.readInt();
 	action["numParms"] = numParms;
 
@@ -630,12 +614,12 @@ static json parseScript(BinaryReader &reader, const StringTable &table, uint16_t
 	script["actionComment"] = reader.readLenString();
 	script["isActive"] = reader.readByte();
 	script["deactivateUponSuccess"] = reader.readByte();
-	reader.readByte(); // unused
+	script["easy"] = reader.readByte();
+	script["normal"] = reader.readByte();
+	script["hard"] = reader.readByte();
 	script["isSubroutine"] = reader.readByte();
 	if (version >= 2) {
-		script["easy"] = reader.readInt();
-		script["medium"] = reader.readInt();
-		script["hard"] = reader.readInt();
+		script["delayEvaluationSeconds"] = reader.readInt();
 	}
 	script["_children"] = parseChunks(reader, table, endPos);
 	return script;
@@ -646,7 +630,9 @@ static json parseScriptGroup(BinaryReader &reader, const StringTable &table, uin
 	json group = json::object();
 	group["groupName"] = reader.readLenString();
 	group["isGroupActive"] = reader.readByte();
-	group["isGroupSubroutine"] = reader.readByte();
+	if (version >= 2) {
+		group["isGroupSubroutine"] = reader.readByte();
+	}
 	group["_children"] = parseChunks(reader, table, endPos);
 	return group;
 }
@@ -656,6 +642,31 @@ static json parseOrCondition(BinaryReader &reader, const StringTable &table, siz
 	json orCond = json::object();
 	orCond["_children"] = parseChunks(reader, table, endPos);
 	return orCond;
+}
+
+// ScriptsPlayers has custom format: readDicts flag (version 2+), numNames, then name+optional dict pairs
+static json parseScriptsPlayers(BinaryReader &reader, const StringTable &table, uint16_t version, size_t endPos)
+{
+	json data = json::object();
+	int32_t readDicts = 0;
+	if (version >= 2) {
+		readDicts = reader.readInt();
+		data["readDicts"] = readDicts;
+	}
+	int32_t numNames = reader.readInt();
+	data["numNames"] = numNames;
+
+	json players = json::array();
+	for (int32_t i = 0; i < numNames && reader.pos() < endPos; i++) {
+		json player = json::object();
+		player["playerName"] = reader.readLenString();
+		if (readDicts) {
+			player["dict"] = readDict(reader, table);
+		}
+		players.push_back(player);
+	}
+	data["players"] = players;
+	return data;
 }
 
 static json parseChunks(BinaryReader &reader, const StringTable &table, size_t endPos)
@@ -680,15 +691,17 @@ static json parseChunks(BinaryReader &reader, const StringTable &table, size_t e
 		} else if (header.label == "OrCondition") {
 			child["_data"] = parseOrCondition(reader, table, chunkEnd);
 		} else if (header.label == "Condition") {
-			child["_data"] = parseCondition(reader);
+			child["_data"] = parseCondition(reader, table, header.version);
 		} else if (header.label == "ScriptAction" || header.label == "ScriptActionFalse") {
-			child["_data"] = parseScriptAction(reader);
+			child["_data"] = parseScriptAction(reader, table, header.version);
 		} else if (header.label == "ScriptList" || header.label == "PlayerScriptsList") {
 			child["_data"] = json::object();
 			child["_data"]["_children"] = parseChunks(reader, table, chunkEnd);
+		} else if (header.label == "ScriptsPlayers") {
+			// ScriptsPlayers has custom format, not just dicts
+			child["_data"] = parseScriptsPlayers(reader, table, header.version, chunkEnd);
 		} else if (header.label == "ScriptTeams" || header.label == "ObjectsList" ||
-		           header.label == "PolygonTriggers" || header.label == "WaypointsList" ||
-		           header.label == "ScriptsPlayers") {
+		           header.label == "PolygonTriggers" || header.label == "WaypointsList") {
 			// Dict-based chunks - parse as array of Dict objects
 			child["_data"] = json::object();
 			child["_data"]["_dicts"] = readDictArray(reader, table, chunkEnd);
@@ -701,6 +714,11 @@ static json parseChunks(BinaryReader &reader, const StringTable &table, size_t e
 			child["_rawData"] = rawData;
 		}
 
+		// Ensure reader is positioned at chunk end for next iteration
+		if (reader.pos() < chunkEnd) {
+			reader.skip(chunkEnd - reader.pos());
+		}
+
 		children.push_back(child);
 	}
 
@@ -709,10 +727,16 @@ static json parseChunks(BinaryReader &reader, const StringTable &table, size_t e
 
 static void writeChunks(BinaryWriter &writer, StringTable &table, const json &children);
 
-static void writeCondition(BinaryWriter &writer, const json &data)
+static void writeCondition(BinaryWriter &writer, StringTable &table, const json &data, uint16_t version)
 {
 	writer.writeInt(data.value("conditionType", 0));
-	writer.writeByte(data.value("inverted", 0));
+	// Version 4+ has a nameKey between conditionType and numParms
+	if (version >= 4 && data.contains("nameKey")) {
+		std::string nameKey = data["nameKey"].get<std::string>();
+		uint32_t nameKeyId = table.getOrCreateId(nameKey);
+		int32_t keyAndType = (static_cast<int32_t>(nameKeyId) << 8) | 3; // 3 = DICT_ASCIISTRING
+		writer.writeInt(keyAndType);
+	}
 	writer.writeInt(data.value("numParms", 0));
 	if (data.contains("parameters")) {
 		for (const auto &param : data["parameters"]) {
@@ -721,9 +745,16 @@ static void writeCondition(BinaryWriter &writer, const json &data)
 	}
 }
 
-static void writeScriptAction(BinaryWriter &writer, const json &data)
+static void writeScriptAction(BinaryWriter &writer, StringTable &table, const json &data, uint16_t version)
 {
 	writer.writeInt(data.value("actionType", 0));
+	// Version 2+ has a nameKey between actionType and numParms
+	if (version >= 2 && data.contains("nameKey")) {
+		std::string nameKey = data["nameKey"].get<std::string>();
+		uint32_t nameKeyId = table.getOrCreateId(nameKey);
+		int32_t keyAndType = (static_cast<int32_t>(nameKeyId) << 8) | 3; // 3 = DICT_ASCIISTRING
+		writer.writeInt(keyAndType);
+	}
 	writer.writeInt(data.value("numParms", 0));
 	if (data.contains("parameters")) {
 		for (const auto &param : data["parameters"]) {
@@ -740,11 +771,12 @@ static void writeScript(BinaryWriter &writer, StringTable &table, const json &da
 	writer.writeLenString(data.value("actionComment", ""));
 	writer.writeByte(data.value("isActive", 0));
 	writer.writeByte(data.value("deactivateUponSuccess", 0));
-	writer.writeByte(0); // unused
+	writer.writeByte(data.value("easy", 1));
+	writer.writeByte(data.value("normal", 1));
+	writer.writeByte(data.value("hard", 1));
 	writer.writeByte(data.value("isSubroutine", 0));
-	writer.writeInt(data.value("easy", 1));
-	writer.writeInt(data.value("medium", 1));
-	writer.writeInt(data.value("hard", 1));
+	// Always write version 2 format with delayEvaluationSeconds
+	writer.writeInt(data.value("delayEvaluationSeconds", 0));
 	if (data.contains("_children")) {
 		writeChunks(writer, table, data["_children"]);
 	}
@@ -757,6 +789,26 @@ static void writeScriptGroup(BinaryWriter &writer, StringTable &table, const jso
 	writer.writeByte(data.value("isGroupSubroutine", 0));
 	if (data.contains("_children")) {
 		writeChunks(writer, table, data["_children"]);
+	}
+}
+
+static void writeScriptsPlayers(BinaryWriter &writer, StringTable &table, const json &data, uint16_t version)
+{
+	// Version 2+ has readDicts flag
+	int32_t readDicts = data.value("readDicts", 0);
+	if (version >= 2) {
+		writer.writeInt(readDicts);
+	}
+	int32_t numNames = data.value("numNames", 0);
+	writer.writeInt(numNames);
+
+	if (data.contains("players")) {
+		for (const auto &player : data["players"]) {
+			writer.writeLenString(player.value("playerName", ""));
+			if (readDicts && player.contains("dict")) {
+				writeDict(writer, table, player["dict"]);
+			}
+		}
 	}
 }
 
@@ -777,16 +829,17 @@ static void writeChunk(BinaryWriter &writer, StringTable &table, const json &chu
 				writeChunks(dataWriter, table, data["_children"]);
 			}
 		} else if (label == "Condition") {
-			writeCondition(dataWriter, data);
+			writeCondition(dataWriter, table, data, version);
 		} else if (label == "ScriptAction" || label == "ScriptActionFalse") {
-			writeScriptAction(dataWriter, data);
+			writeScriptAction(dataWriter, table, data, version);
 		} else if (label == "ScriptList" || label == "PlayerScriptsList") {
 			if (data.contains("_children")) {
 				writeChunks(dataWriter, table, data["_children"]);
 			}
+		} else if (label == "ScriptsPlayers") {
+			writeScriptsPlayers(dataWriter, table, data, version);
 		} else if (label == "ScriptTeams" || label == "ObjectsList" ||
-		           label == "PolygonTriggers" || label == "WaypointsList" ||
-		           label == "ScriptsPlayers") {
+		           label == "PolygonTriggers" || label == "WaypointsList") {
 			// Dict-based chunks
 			if (data.contains("_dicts")) {
 				writeDictArray(dataWriter, table, data["_dicts"]);
@@ -816,6 +869,11 @@ static void collectStrings(const json &node, StringTable &table)
 			std::string label = node["_label"].get<std::string>();
 			table.getOrCreateId(label);
 		}
+		// Collect nameKey for Condition/ScriptAction version compatibility
+		if (node.contains("nameKey")) {
+			std::string nameKey = node["nameKey"].get<std::string>();
+			table.getOrCreateId(nameKey);
+		}
 		if (node.contains("_data")) {
 			collectStrings(node["_data"], table);
 		}
@@ -824,6 +882,14 @@ static void collectStrings(const json &node, StringTable &table)
 		}
 		if (node.contains("_dicts")) {
 			collectStrings(node["_dicts"], table);
+		}
+		// Handle ScriptsPlayers players array with dicts
+		if (node.contains("players")) {
+			for (const auto &player : node["players"]) {
+				if (player.contains("dict")) {
+					collectStrings(player["dict"], table);
+				}
+			}
 		}
 		// Collect dict keys
 		for (auto it = node.begin(); it != node.end(); ++it) {
@@ -865,10 +931,16 @@ static bool convertBinaryToJson(const std::string &inputPath, const std::string 
 	// Parse chunks
 	json result = json::object();
 
-	// Store string table in JSON for round-trip preservation
-	json tableJson = json::object();
-	for (const auto &entry : table.mappings()) {
-		tableJson[std::to_string(entry.first)] = entry.second;
+	// Store string table in JSON for round-trip preservation (as array to preserve order)
+	json tableJson = json::array();
+	for (uint32_t id : table.order()) {
+		auto it = table.mappings().find(id);
+		if (it != table.mappings().end()) {
+			json entry = json::object();
+			entry["id"] = id;
+			entry["name"] = it->second;
+			tableJson.push_back(entry);
+		}
 	}
 	result["_stringTable"] = tableJson;
 
@@ -906,13 +978,23 @@ static bool convertJsonToBinary(const std::string &inputPath, const std::string 
 
 	StringTable table;
 
-	// Restore string table from JSON if present
+	// Restore string table from JSON if present (supports both array and object formats)
 	if (data.contains("_stringTable")) {
 		const json &stringTable = data["_stringTable"];
-		for (auto it = stringTable.begin(); it != stringTable.end(); ++it) {
-			uint32_t id = std::stoul(it.key());
-			std::string name = it.value().get<std::string>();
-			table.addMapping(name, id);
+		if (stringTable.is_array()) {
+			// New array format: preserves order
+			for (const auto &entry : stringTable) {
+				uint32_t id = entry["id"].get<uint32_t>();
+				std::string name = entry["name"].get<std::string>();
+				table.addMapping(name, id);
+			}
+		} else {
+			// Legacy object format
+			for (auto it = stringTable.begin(); it != stringTable.end(); ++it) {
+				uint32_t id = std::stoul(it.key());
+				std::string name = it.value().get<std::string>();
+				table.addMapping(name, id);
+			}
 		}
 	}
 
@@ -967,14 +1049,22 @@ int main(int argc, char *argv[])
 	std::string outputPath = argv[3];
 
 	bool success = false;
-	if (arg1 == "--to-json") {
-		success = convertBinaryToJson(inputPath, outputPath);
-	} else if (arg1 == "--to-binary") {
-		success = convertJsonToBinary(inputPath, outputPath);
-	} else {
-		std::cerr << "Error: Unknown option: " << arg1 << "\n\n";
-		printUsage(argv[0]);
-		return 1;
+	try {
+		if (arg1 == "--to-json") {
+			success = convertBinaryToJson(inputPath, outputPath);
+		} else if (arg1 == "--to-binary") {
+			success = convertJsonToBinary(inputPath, outputPath);
+		} else {
+			std::cerr << "Error: Unknown option: " << arg1 << "\n\n";
+			printUsage(argv[0]);
+			return 1;
+		}
+	} catch (const std::exception &e) {
+		std::cerr << "Exception: " << e.what() << "\n";
+		return 2;
+	} catch (...) {
+		std::cerr << "Unknown exception\n";
+		return 3;
 	}
 
 	return success ? 0 : 1;
