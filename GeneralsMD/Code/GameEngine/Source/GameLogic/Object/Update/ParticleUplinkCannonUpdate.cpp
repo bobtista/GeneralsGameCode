@@ -32,6 +32,7 @@
 #define DEFINE_DEATH_NAMES
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
+#include "Common/FramePacer.h"
 #include "Common/GameUtility.h"
 #include "Common/ThingTemplate.h"
 #include "Common/ThingFactory.h"
@@ -569,8 +570,13 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 			{
 				Real speed = data->m_manualDrivingSpeed;
 				DEBUG_ASSERTCRASH(m_lastDrivingClickFrame >= m_2ndLastDrivingClickFrame, ("m_lastDrivingClickFrame should always be >= m_2ndLastDrivingClickFrame"));
-				// TheSuperHackers @fix Scale delay threshold by frame rate to maintain consistent real-time feel
-				const UnsignedInt scaledDelay = data->m_doubleClickToFastDriveDelay * LOGICFRAMES_PER_SECOND / BaseFps;
+				// TheSuperHackers @fix Scale delay threshold by frame rate and logic time scale to maintain consistent real-time feel
+				UnsignedInt scaledDelay = data->m_doubleClickToFastDriveDelay * LOGICFRAMES_PER_SECOND / BaseFps;
+				if (TheFramePacer != NULL)
+				{
+					const Real timeScaleRatio = TheFramePacer->getActualLogicTimeScaleRatio();
+					scaledDelay = (UnsignedInt)(scaledDelay * timeScaleRatio);
+				}
 				const Bool useFasterSpeed = m_scriptedWaypointMode || (m_lastDrivingClickFrame - m_2ndLastDrivingClickFrame < scaledDelay);
 				if( useFasterSpeed )
 				{
