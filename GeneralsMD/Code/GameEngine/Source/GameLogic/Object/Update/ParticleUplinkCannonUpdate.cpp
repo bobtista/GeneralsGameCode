@@ -1414,7 +1414,7 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 	const ParticleUplinkCannonUpdateModuleData *data = getParticleUplinkCannonUpdateModuleData();
 
 	// version
-#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 3;
 #else
 	const XferVersion currentVersion = 4;
@@ -1515,7 +1515,9 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 	}
 
 	// the time of last manual target click
-	xfer->xferUnsignedInt( &m_lastDrivingClickFrame );
+	xfer->xferUnsignedInt( & m_lastDrivingClickFrame );
+
+	// the time of the 2nd last manual target click
 	xfer->xferUnsignedInt( &m_2ndLastDrivingClickFrame );
 
 	if( version >= 3 )

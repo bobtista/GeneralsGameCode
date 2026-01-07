@@ -1321,7 +1321,6 @@ void ParticleUplinkCannonUpdate::crc( Xfer *xfer )
 	* Version Info:
 	* 1: Initial version
 	* 2: Serialize decay frames
-	* 3: TheSuperHackers @tweak Serialize manual target mode
 	* 4: TheSuperHackers @tweak Serialize orbit to target laser radius
 	*/
 // ------------------------------------------------------------------------------------------------
@@ -1330,7 +1329,7 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 	const ParticleUplinkCannonUpdateModuleData *data = getParticleUplinkCannonUpdateModuleData();
 
 	// version
-#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
+#if RETAIL_COMPATIBLE_XFER_SAVE
 	const XferVersion currentVersion = 2;
 #else
 	const XferVersion currentVersion = 4;
@@ -1431,15 +1430,10 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 	}
 
 	// the time of last manual target click
-	xfer->xferUnsignedInt( &m_lastDrivingClickFrame );
-	xfer->xferUnsignedInt( &m_2ndLastDrivingClickFrame );
+	xfer->xferUnsignedInt( & m_lastDrivingClickFrame );
 
-#if !RETAIL_COMPATIBLE_CRC && !RETAIL_COMPATIBLE_XFER_SAVE
-	if( version >= 3 )
-	{
-		xfer->xferBool( &m_manualTargetMode );
-	}
-#endif
+	// the time of the 2nd last manual target click
+	xfer->xferUnsignedInt( &m_2ndLastDrivingClickFrame );
 
 	if( version >= 4 )
 	{
