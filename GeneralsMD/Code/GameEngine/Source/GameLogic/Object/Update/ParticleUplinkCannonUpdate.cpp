@@ -147,11 +147,7 @@ ParticleUplinkCannonUpdateModuleData::ParticleUplinkCannonUpdateModuleData()
 
     { "ManualDrivingSpeed",										INI::parseReal,									nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_manualDrivingSpeed ) },
     { "ManualFastDrivingSpeed",								INI::parseReal,									nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_manualFastDrivingSpeed ) },
-#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
     { "DoubleClickToFastDriveDelay",					INI::parseDurationUnsignedInt,	nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_doubleClickToFastDriveDelay ) },
-#else
-    { "DoubleClickToFastDriveDelay",					INI::parseUnsignedInt,					nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_doubleClickToFastDriveDelay ) },
-#endif
 
 		{ nullptr, nullptr, nullptr, 0 }
 	};
@@ -189,13 +185,8 @@ ParticleUplinkCannonUpdate::ParticleUplinkCannonUpdate( Thing *thing, const Modu
 	m_nextDamagePulseFrame = 0;
 	m_startAttackFrame = 0;
 	m_startDecayFrame = 0;
-#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
 	m_lastDrivingClickFrame = 0;
 	m_2ndLastDrivingClickFrame = 0;
-#else
-	m_lastDrivingClickTimeMsec = 0;
-	m_2ndLastDrivingClickTimeMsec = 0;
-#endif
 	m_clientShroudedLastFrame = FALSE;
 
 	for( Int i = 0; i < MAX_OUTER_NODES; i++ )
@@ -384,13 +375,8 @@ void ParticleUplinkCannonUpdate::setSpecialPowerOverridableDestination( const Co
 	{
 		m_overrideTargetDestination = *loc;
 		m_manualTargetMode = TRUE;
-#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
 		m_2ndLastDrivingClickFrame = m_lastDrivingClickFrame;
 		m_lastDrivingClickFrame = TheGameLogic->getFrame();
-#else
-		m_2ndLastDrivingClickTimeMsec = m_lastDrivingClickTimeMsec;
-		m_lastDrivingClickTimeMsec = timeGetTime();
-#endif
 	}
 }
 
@@ -582,13 +568,10 @@ UpdateSleepTime ParticleUplinkCannonUpdate::update()
 			else
 			{
 				Real speed = data->m_manualDrivingSpeed;
-#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
 				DEBUG_ASSERTCRASH(m_lastDrivingClickFrame >= m_2ndLastDrivingClickFrame, ("m_lastDrivingClickFrame should always be >= m_2ndLastDrivingClickFrame"));
-				const Bool useFasterSpeed = m_scriptedWaypointMode || (m_lastDrivingClickFrame - m_2ndLastDrivingClickFrame < data->m_doubleClickToFastDriveDelay);
-#else
-				DEBUG_ASSERTCRASH(m_lastDrivingClickTimeMsec >= m_2ndLastDrivingClickTimeMsec, ("m_lastDrivingClickTimeMsec should always be >= m_2ndLastDrivingClickTimeMsec"));
-				const Bool useFasterSpeed = m_scriptedWaypointMode || (m_lastDrivingClickTimeMsec - m_2ndLastDrivingClickTimeMsec < data->m_doubleClickToFastDriveDelay);
-#endif
+				// TheSuperHackers @fix Scale delay threshold by frame rate to maintain consistent real-time feel
+				const UnsignedInt scaledDelay = data->m_doubleClickToFastDriveDelay * LOGICFRAMES_PER_SECOND / BaseFps;
+				const Bool useFasterSpeed = m_scriptedWaypointMode || (m_lastDrivingClickFrame - m_2ndLastDrivingClickFrame < scaledDelay);
 				if( useFasterSpeed )
 				{
 					//Because we double clicked, use the faster driving speed.
@@ -1526,16 +1509,8 @@ void ParticleUplinkCannonUpdate::xfer( Xfer *xfer )
 	}
 
 	// the time of last manual target click
-#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
 	xfer->xferUnsignedInt( &m_lastDrivingClickFrame );
 	xfer->xferUnsignedInt( &m_2ndLastDrivingClickFrame );
-#else
-	// TheSuperHackers @info timeGetTime values are machine-relative and meaningless on load.
-	// Write/read dummy values to maintain file format compatibility.
-	UnsignedInt dummyClickTime = 0;
-	xfer->xferUnsignedInt( &dummyClickTime );
-	xfer->xferUnsignedInt( &dummyClickTime );
-#endif
 
 	if( version >= 3 )
 	{

@@ -225,13 +225,8 @@ protected:
 	UnsignedInt			m_nextDamagePulseFrame;
 	UnsignedInt			m_startAttackFrame;
 	UnsignedInt			m_startDecayFrame;
-#if RETAIL_COMPATIBLE_CRC || RETAIL_COMPATIBLE_XFER_SAVE
-	UnsignedInt			m_lastDrivingClickFrame;		// Frame number for retail compatibility
-	UnsignedInt			m_2ndLastDrivingClickFrame;		// Frame number for retail compatibility
-#else
-	UnsignedInt			m_lastDrivingClickTimeMsec;		// Real-time milliseconds
-	UnsignedInt			m_2ndLastDrivingClickTimeMsec;	// Real-time milliseconds
-#endif
+	UnsignedInt			m_lastDrivingClickFrame;
+	UnsignedInt			m_2ndLastDrivingClickFrame;
 
 	XferVersion			m_xferVersion;
 
