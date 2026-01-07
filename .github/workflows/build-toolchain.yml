@@ -139,6 +139,7 @@ jobs:
             vcpkg-bincache-v2-${{ runner.os }}-
 
       - name: Setup vcpkg
+        if: startsWith(inputs.preset, 'win32')
         uses: lukka/run-vcpkg@v11
         with:
           runVcpkgInstall: false
