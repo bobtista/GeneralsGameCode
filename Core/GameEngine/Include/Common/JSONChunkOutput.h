@@ -73,6 +73,8 @@ public:
 
 	// Binary-only writes (no-op for JSON output)
 	void writeBinaryOnlyInt(Int i) { (void)i; }
+	void writeBinaryOnlyReal(Real r) { (void)r; }
+	void writeBinaryOnlyString(const AsciiString& s) { (void)s; }
 	void writeBinaryOnlyNameKey(NameKeyType key) { (void)key; }
 
 	// JSON-only writes (writes to JSON field)
