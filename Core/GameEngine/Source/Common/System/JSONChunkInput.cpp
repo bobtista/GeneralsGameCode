@@ -649,6 +649,42 @@ Bool JSONChunkInput::readBool()
 	return val.get<int>() != 0;
 }
 
+Int JSONChunkInput::readIntOrEnumString(AsciiString& outEnumStr)
+{
+	// Read from _items array, handling both int and string enum values
+	if (m_chunkStack == NULL || !m_chunkStack->data->is_object()) {
+		DEBUG_CRASH(("Bad - no chunk open for read."));
+		outEnumStr.clear();
+		return 0;
+	}
+
+	nlohmann::json* items = getItemsArray(m_chunkStack->data);
+	if (!items) {
+		DEBUG_CRASH(("Bad - no _items array."));
+		outEnumStr.clear();
+		return 0;
+	}
+
+	if (m_chunkStack->itemIndex >= items->size()) {
+		DEBUG_CRASH(("Read past end of chunk."));
+		outEnumStr.clear();
+		return 0;
+	}
+
+	const auto& val = (*items)[m_chunkStack->itemIndex++];
+	if (val.is_number_integer()) {
+		outEnumStr.clear();
+		return val.get<Int>();
+	} else if (val.is_string()) {
+		// It's a string enum value - caller needs to convert it
+		outEnumStr = val.get<std::string>().c_str();
+		return -999999; // Special sentinel value indicating it's a string
+	}
+
+	outEnumStr.clear();
+	return 0;
+}
+
 AsciiString JSONChunkInput::readAsciiString(const char* name)
 {
 	if (m_chunkStack == NULL || !m_chunkStack->data->is_object()) {

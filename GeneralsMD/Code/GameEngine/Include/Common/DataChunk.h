@@ -155,6 +155,9 @@ public:
 	virtual void writeParameterType(Int type, const char* typeName) = 0;
 	virtual void writeBoolAsByte(Bool b) = 0;
 	virtual void writeBoolAsByte(const char* name, Bool b) = 0;
+
+	// Enum writes (binary writes int, JSON writes string to _items)
+	virtual void writeEnumAsInt(Int value, const char* enumStr) = 0;
 };
 
 //----------------------------------------------------------------------
@@ -208,6 +211,9 @@ public:
 	void writeParameterType(Int type, const char* typeName) { (void)typeName; writeInt(type); }
 	void writeBoolAsByte(Bool b) { writeByte(b ? 1 : 0); }
 	void writeBoolAsByte(const char* name, Bool b) { (void)name; writeByte(b ? 1 : 0); }
+
+	// Enum writes (binary writes int, ignores string)
+	void writeEnumAsInt(Int value, const char* enumStr) { (void)enumStr; writeInt(value); }
 
 	void setTOCEntry(const AsciiString& name, UnsignedInt id); // Set TOC entry for preservation
 };

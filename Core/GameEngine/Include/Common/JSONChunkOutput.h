@@ -85,6 +85,9 @@ public:
 	void writeBoolAsByte(Bool b);
 	void writeBoolAsByte(const char* name, Bool b);
 
+	// Enum writes (JSON writes string to _items, ignores int value)
+	void writeEnumAsInt(Int value, const char* enumStr);
+
 	std::string getJSONString( void );
 };
 
