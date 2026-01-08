@@ -22,10 +22,9 @@
 
 #include "Common/GameMemory.h"
 #include "Common/Dict.h"
+#include "Common/DataChunk.h"
 #include <nlohmann/json.hpp>
 #include <string>
-
-typedef unsigned short DataChunkVersionType;
 
 class JSONOutputChunk : public MemoryPoolObject
 {
@@ -37,7 +36,7 @@ public:
 };
 EMPTY_DTOR(JSONOutputChunk)
 
-class JSONChunkOutput
+class JSONChunkOutput : public ChunkOutputStream
 {
 protected:
 	nlohmann::json m_root;
