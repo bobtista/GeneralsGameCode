@@ -55,6 +55,7 @@
 #include "Common/JSONChunkInput.h"
 #include "Common/JSONChunkOutput.h"
 #endif
+#include "Common/NameKeyGenerator.h"
 #include "Common/GameState.h"
 #include "Common/KindOf.h"
 #include "Common/Radar.h"
@@ -905,9 +906,9 @@ void ScriptGroup::WriteGroupDataChunk(ChunkOutputStream &chunkWriter, ScriptGrou
 	/**********SCRIPT GROUP DATA ***********************/
 	while (pGroup) {
 		chunkWriter.openDataChunk("ScriptGroup", K_SCRIPT_GROUP_DATA_VERSION_2);
-			chunkWriter.writeAsciiString(pGroup->m_groupName);
-			chunkWriter.writeByte(pGroup->m_isGroupActive);
-			chunkWriter.writeByte(pGroup->m_isGroupSubroutine);
+			chunkWriter.writeAsciiString("groupName", pGroup->m_groupName);
+			chunkWriter.writeBoolAsByte("isGroupActive", pGroup->m_isGroupActive);
+			chunkWriter.writeBoolAsByte("isGroupSubroutine", pGroup->m_isGroupSubroutine);
 			if (pGroup->m_firstScript) Script::WriteScriptDataChunk(chunkWriter, pGroup->m_firstScript);
 		chunkWriter.closeDataChunk();
 		pGroup = pGroup->getNext();
@@ -945,11 +946,11 @@ Bool ScriptGroup::ParseGroupDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *i
 	ScriptList *pList = (ScriptList *)userData;
 	ScriptGroup *pGroup = newInstance(ScriptGroup);
 
-	// Read from _items array (matching binary format)
-	pGroup->m_groupName = file.readAsciiString();
-	pGroup->m_isGroupActive = file.readByte();
+	// Read from named fields for human-readable JSON
+	pGroup->m_groupName = file.readAsciiString("groupName");
+	pGroup->m_isGroupActive = file.readBool("isGroupActive");
 	if (info->version == K_SCRIPT_GROUP_DATA_VERSION_2) {
-		pGroup->m_isGroupSubroutine= file.readByte();
+		pGroup->m_isGroupSubroutine= file.readBool("isGroupSubroutine");
 	}
 	pList->addGroup(pGroup, AT_END);
 	file.registerParser( "Script", info->label, Script::ParseScriptFromGroupDataChunkJSON );
@@ -1270,18 +1271,18 @@ void Script::WriteScriptDataChunk(ChunkOutputStream &chunkWriter, Script *pScrip
 	/**********SCRIPT  DATA ***********************/
 	while (pScript) {
 		chunkWriter.openDataChunk("Script", K_SCRIPT_DATA_VERSION_2);
-			chunkWriter.writeAsciiString(pScript->m_scriptName);
-			chunkWriter.writeAsciiString(pScript->m_comment);
-			chunkWriter.writeAsciiString(pScript->m_conditionComment);
-			chunkWriter.writeAsciiString(pScript->m_actionComment);
+			chunkWriter.writeAsciiString("scriptName", pScript->m_scriptName);
+			chunkWriter.writeAsciiString("comment", pScript->m_comment);
+			chunkWriter.writeAsciiString("conditionComment", pScript->m_conditionComment);
+			chunkWriter.writeAsciiString("actionComment", pScript->m_actionComment);
 
-			chunkWriter.writeByte(pScript->m_isActive);
-			chunkWriter.writeByte(pScript->m_isOneShot);
-			chunkWriter.writeByte(pScript->m_easy);
-			chunkWriter.writeByte(pScript->m_normal);
-			chunkWriter.writeByte(pScript->m_hard);
-			chunkWriter.writeByte(pScript->m_isSubroutine);
-			chunkWriter.writeInt(pScript->m_delayEvaluationSeconds);
+			chunkWriter.writeBoolAsByte("isActive", pScript->m_isActive);
+			chunkWriter.writeBoolAsByte("isOneShot", pScript->m_isOneShot);
+			chunkWriter.writeBoolAsByte("easy", pScript->m_easy);
+			chunkWriter.writeBoolAsByte("normal", pScript->m_normal);
+			chunkWriter.writeBoolAsByte("hard", pScript->m_hard);
+			chunkWriter.writeBoolAsByte("isSubroutine", pScript->m_isSubroutine);
+			chunkWriter.writeInt("delayEvaluationSeconds", pScript->m_delayEvaluationSeconds);
 			if (pScript->m_condition) OrCondition::WriteOrConditionDataChunk(chunkWriter, pScript->m_condition);
 			if (pScript->m_action) ScriptAction::WriteActionDataChunk(chunkWriter, pScript->m_action);
 			if (pScript->m_actionFalse) ScriptAction::WriteActionFalseDataChunk(chunkWriter, pScript->m_actionFalse);
@@ -1331,20 +1332,20 @@ Script *Script::ParseScriptJSON(JSONChunkInput &file, unsigned short version)
 {
 	Script *pScript = newInstance(Script);
 
-	// Read from _items array (matching binary format)
-	pScript->m_scriptName = file.readAsciiString();
-	pScript->m_comment = file.readAsciiString();
-	pScript->m_conditionComment = file.readAsciiString();
-	pScript->m_actionComment = file.readAsciiString();
+	// Read from named fields for human-readable JSON
+	pScript->m_scriptName = file.readAsciiString("scriptName");
+	pScript->m_comment = file.readAsciiString("comment");
+	pScript->m_conditionComment = file.readAsciiString("conditionComment");
+	pScript->m_actionComment = file.readAsciiString("actionComment");
 
-	pScript->m_isActive = file.readByte();
-	pScript->m_isOneShot = file.readByte();
-	pScript->m_easy = file.readByte();
-	pScript->m_normal = file.readByte();
-	pScript->m_hard = file.readByte();
-	pScript->m_isSubroutine = file.readByte();
+	pScript->m_isActive = file.readBool("isActive");
+	pScript->m_isOneShot = file.readBool("isOneShot");
+	pScript->m_easy = file.readBool("easy");
+	pScript->m_normal = file.readBool("normal");
+	pScript->m_hard = file.readBool("hard");
+	pScript->m_isSubroutine = file.readBool("isSubroutine");
 	if (version>=K_SCRIPT_DATA_VERSION_2) {
-		pScript->m_delayEvaluationSeconds = file.readInt();
+		pScript->m_delayEvaluationSeconds = file.readInt("delayEvaluationSeconds");
 	}
 	file.registerParser( "OrCondition", "Script", OrCondition::ParseOrConditionDataChunkJSON );
 	file.registerParser( "ScriptAction",  "Script", ScriptAction::ParseActionDataChunkJSON );
@@ -1768,15 +1769,20 @@ void Condition::WriteConditionDataChunk(ChunkOutputStream &chunkWriter, Conditio
 	/**********Condition  DATA ***********************/
 	while (pCondition) {
 		chunkWriter.openDataChunk("Condition", K_SCRIPT_CONDITION_VERSION_4);
-			chunkWriter.writeInt(pCondition->m_conditionType);
+			// Binary: write int type; JSON: write string name
+			chunkWriter.writeBinaryOnlyInt(pCondition->m_conditionType);
 			const ConditionTemplate* ct = TheScriptEngine->getConditionTemplate(pCondition->m_conditionType);
 			if (ct) {
-				chunkWriter.writeNameKey(ct->m_internalNameKey);
+				AsciiString condName = TheNameKeyGenerator->keyToName(ct->m_internalNameKey);
+				chunkWriter.writeJSONOnlyString("condition", condName);
+				chunkWriter.writeBinaryOnlyNameKey(ct->m_internalNameKey);
 			}	else {
 				DEBUG_CRASH(("Invalid condition."));
-				chunkWriter.writeNameKey(NAMEKEY("Bogus"));
+				chunkWriter.writeJSONOnlyString("condition", AsciiString("Bogus"));
+				chunkWriter.writeBinaryOnlyNameKey(NAMEKEY("Bogus"));
 			}
-			chunkWriter.writeInt(pCondition->m_numParms);
+			// Binary: write numParms; JSON: skip (infer from parameters)
+			chunkWriter.writeBinaryOnlyInt(pCondition->m_numParms);
 			Int i;
 			for (i=0; i<pCondition->m_numParms; i++) {
 				pCondition->m_parms[i]->WriteParameter(chunkWriter);
@@ -1883,15 +1889,29 @@ Bool Condition::ParseConditionDataChunkJSON(JSONChunkInput &file, JSONChunkInfo 
 	Condition	*pCondition = newInstance(Condition);
 	OrCondition *pOr = (OrCondition *)userData;
 
-	// Read from _items array (matching binary format)
-	pCondition->m_conditionType = (enum ConditionType)file.readInt();
+	// Read condition name from JSON and look up the type
+	AsciiString conditionName = file.readAsciiString("condition");
+	NameKeyType condNameKey = NAMEKEY(conditionName);
 
-	// Version 4 added namekey after conditionType
-	if (info->version >= K_SCRIPT_CONDITION_VERSION_4) {
-		file.readNameKey(); // discard - we use conditionType
+	// Find the condition type by name
+	Bool found = false;
+	for (Int i = 0; i < Condition::NUM_ITEMS; i++) {
+		const ConditionTemplate* ct = TheScriptEngine->getConditionTemplate(i);
+		if (ct && ct->m_internalNameKey == condNameKey) {
+			pCondition->m_conditionType = (enum ConditionType)i;
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		DEBUG_LOG(("Unknown condition name: %s", conditionName.str()));
+		pCondition->m_conditionType = CONDITION_FALSE;
 	}
 
-	pCondition->m_numParms = file.readInt();
+	// Get numParms from template
+	const ConditionTemplate* ct = TheScriptEngine->getConditionTemplate(pCondition->m_conditionType);
+	pCondition->m_numParms = ct ? ct->getNumParameters() : 0;
+
 	Int i;
 	for (i=0; i<pCondition->m_numParms; i++)
 	{
@@ -2269,32 +2289,6 @@ AsciiString Parameter::getUiText(void) const
 	return uiText;
 }
 
-/**
-* Parameter::WriteParameter - Writes an Parameter.
-* Format is the newer CHUNKY format.
-*	Input: DataChunkInput
-*
-*/
-void Parameter::WriteParameter(ChunkOutputStream &chunkWriter)
-{
-
-	/**********Parameter  DATA ***********************/
-	chunkWriter.writeInt(m_paramType);
-	if (m_paramType == KIND_OF_PARAM) {
-		// To get the proper kindof string stored.
-		m_string = KindOfMaskType::getNameFromSingleBit(m_int);
-	}
-	if (m_paramType == COORD3D) {
-		chunkWriter.writeReal(m_coord.x);
-		chunkWriter.writeReal(m_coord.y);
-		chunkWriter.writeReal(m_coord.z);
-	} else {
-		chunkWriter.writeInt(m_int);
-		chunkWriter.writeReal(m_real);
-		chunkWriter.writeAsciiString(m_string);
-	}
-}
-
 #ifdef RTS_HAS_JSON_CHUNK
 static const char* s_parameterTypeNames[] = {
 	"INT",
@@ -2370,6 +2364,36 @@ Parameter::ParameterType Parameter::getParameterTypeFromName(const char* name)
 	return INT; // Default fallback
 }
 #endif
+
+/**
+* Parameter::WriteParameter - Writes an Parameter.
+* Format is the newer CHUNKY format.
+*	Input: DataChunkInput
+*
+*/
+void Parameter::WriteParameter(ChunkOutputStream &chunkWriter)
+{
+
+	/**********Parameter  DATA ***********************/
+#ifdef RTS_HAS_JSON_CHUNK
+	chunkWriter.writeParameterType(m_paramType, getParameterTypeName(m_paramType));
+#else
+	chunkWriter.writeInt(m_paramType);
+#endif
+	if (m_paramType == KIND_OF_PARAM) {
+		// To get the proper kindof string stored.
+		m_string = KindOfMaskType::getNameFromSingleBit(m_int);
+	}
+	if (m_paramType == COORD3D) {
+		chunkWriter.writeReal(m_coord.x);
+		chunkWriter.writeReal(m_coord.y);
+		chunkWriter.writeReal(m_coord.z);
+	} else {
+		chunkWriter.writeInt(m_int);
+		chunkWriter.writeReal(m_real);
+		chunkWriter.writeAsciiString(m_string);
+	}
+}
 
 /**
 * Parameter::ReadParameter - read a parameter.
@@ -2510,8 +2534,10 @@ Parameter *Parameter::ReadParameter(DataChunkInput &file)
 #ifdef RTS_HAS_JSON_CHUNK
 Parameter *Parameter::ReadParameterJSON(JSONChunkInput &file)
 {
-	// Read inline from parent chunk's _items array (no separate chunk)
-	Parameter *pParm = newInstance(Parameter)( (ParameterType)file.readInt());
+	// Read parameter type as string from _items array
+	AsciiString typeStr = file.readAsciiString();
+	ParameterType ptype = getParameterTypeFromName(typeStr.str());
+	Parameter *pParm = newInstance(Parameter)(ptype);
 	pParm->m_initialized = true;
 	if (pParm->getParameterType() == COORD3D) {
 		Coord3D pos;
@@ -2756,15 +2782,20 @@ void ScriptAction::WriteActionDataChunk(ChunkOutputStream &chunkWriter, ScriptAc
 	/**********ACTION  DATA ***********************/
 	while (pScriptAction) {
 		chunkWriter.openDataChunk("ScriptAction", K_SCRIPT_ACTION_VERSION_2);
-			chunkWriter.writeInt(pScriptAction->m_actionType);
+			// Binary: write int type; JSON: write string name
+			chunkWriter.writeBinaryOnlyInt(pScriptAction->m_actionType);
 			const ActionTemplate* at = TheScriptEngine->getActionTemplate(pScriptAction->m_actionType);
 			if (at) {
-				chunkWriter.writeNameKey(at->m_internalNameKey);
+				AsciiString actionName = TheNameKeyGenerator->keyToName(at->m_internalNameKey);
+				chunkWriter.writeJSONOnlyString("action", actionName);
+				chunkWriter.writeBinaryOnlyNameKey(at->m_internalNameKey);
 			}	else {
 				DEBUG_CRASH(("Invalid action."));
-				chunkWriter.writeNameKey(NAMEKEY("Bogus"));
+				chunkWriter.writeJSONOnlyString("action", AsciiString("Bogus"));
+				chunkWriter.writeBinaryOnlyNameKey(NAMEKEY("Bogus"));
 			}
-			chunkWriter.writeInt(pScriptAction->m_numParms);
+			// Binary: write numParms; JSON: skip (infer from parameters)
+			chunkWriter.writeBinaryOnlyInt(pScriptAction->m_numParms);
 			Int i;
 			for (i=0; i<pScriptAction->m_numParms; i++) {
 				pScriptAction->m_parms[i]->WriteParameter(chunkWriter);
@@ -2986,12 +3017,23 @@ ScriptAction *ScriptAction::ParseActionJSON(JSONChunkInput &file, JSONChunkInfo 
 {
 	ScriptAction	*pScriptAction = newInstance(ScriptAction);
 
-	// Read from _items array (matching binary format)
-	pScriptAction->m_actionType = (enum ScriptActionType)file.readInt();
+	// Read action name from JSON and look up the type
+	AsciiString actionName = file.readAsciiString("action");
+	NameKeyType actionNameKey = NAMEKEY(actionName);
 
-	// Read namekey if version >= 2
-	if (info->version >= K_SCRIPT_ACTION_VERSION_2) {
-		file.readNameKey(); // discard - we use actionType
+	// Find the action type by name
+	Bool found = false;
+	for (Int i = 0; i < ScriptAction::NUM_ITEMS; i++) {
+		const ActionTemplate* at = TheScriptEngine->getActionTemplate(i);
+		if (at && at->m_internalNameKey == actionNameKey) {
+			pScriptAction->m_actionType = (enum ScriptActionType)i;
+			found = true;
+			break;
+		}
+	}
+	if (!found) {
+		DEBUG_LOG(("Unknown action name: %s", actionName.str()));
+		pScriptAction->m_actionType = NO_OP;
 	}
 
 #ifdef DEBUG_CRASHING
@@ -3006,7 +3048,10 @@ ScriptAction *ScriptAction::ParseActionJSON(JSONChunkInput &file, JSONChunkInfo 
 	at2->m_numTimesUsed++;
 	at2->m_firstMapUsed = TheGlobalData->m_mapName;
 #endif
-	pScriptAction->m_numParms = file.readInt();
+	// Get numParms from template
+	const ActionTemplate* atTemplate = TheScriptEngine->getActionTemplate(pScriptAction->m_actionType);
+	pScriptAction->m_numParms = atTemplate ? atTemplate->getNumParameters() : 0;
+
 	Int i;
 	for (i=0; i<pScriptAction->m_numParms; i++)
 	{
@@ -3154,15 +3199,20 @@ void ScriptAction::WriteActionFalseDataChunk(ChunkOutputStream &chunkWriter, Scr
 	/**********ACTION  DATA ***********************/
 	while (pScriptAction) {
 		chunkWriter.openDataChunk("ScriptActionFalse", K_SCRIPT_ACTION_VERSION_2);
-			chunkWriter.writeInt(pScriptAction->m_actionType);
+			// Binary: write int type; JSON: write string name
+			chunkWriter.writeBinaryOnlyInt(pScriptAction->m_actionType);
 			const ActionTemplate* at = TheScriptEngine->getActionTemplate(pScriptAction->m_actionType);
 			if (at) {
-				chunkWriter.writeNameKey(at->m_internalNameKey);
+				AsciiString actionName = TheNameKeyGenerator->keyToName(at->m_internalNameKey);
+				chunkWriter.writeJSONOnlyString("action", actionName);
+				chunkWriter.writeBinaryOnlyNameKey(at->m_internalNameKey);
 			}	else {
 				DEBUG_CRASH(("Invalid action."));
-				chunkWriter.writeNameKey(NAMEKEY("Bogus"));
+				chunkWriter.writeJSONOnlyString("action", AsciiString("Bogus"));
+				chunkWriter.writeBinaryOnlyNameKey(NAMEKEY("Bogus"));
 			}
-			chunkWriter.writeInt(pScriptAction->m_numParms);
+			// Binary: write numParms; JSON: skip (infer from parameters)
+			chunkWriter.writeBinaryOnlyInt(pScriptAction->m_numParms);
 			Int i;
 			for (i=0; i<pScriptAction->m_numParms; i++) {
 				pScriptAction->m_parms[i]->WriteParameter(chunkWriter);

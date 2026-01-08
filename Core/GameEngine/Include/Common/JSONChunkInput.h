@@ -117,6 +117,7 @@ public:
 	Real readReal(const char* name);
 	Int readInt(const char* name);
 	Byte readByte(const char* name);
+	Bool readBool(const char* name);
 
 	AsciiString readAsciiString(const char* name);
 	UnicodeString readUnicodeString(const char* name);
@@ -124,6 +125,9 @@ public:
 	void readArrayOfBytes(const char* name, char *ptr, Int len);
 
 	NameKeyType readNameKey(const char* name);
+
+	// Type-converting reads
+	Bool readBool();  // Read boolean from _items array
 };
 
 #endif // RTS_HAS_JSON_CHUNK
