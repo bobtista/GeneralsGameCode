@@ -448,7 +448,7 @@ static Bool convertSCBToJSON(const char* inputPath, const char* outputPath)
 	for (size_t i = 0; i < chunks.size(); i++) {
 		if (chunks[i].type == ChunkInfo::PARSED) {
 			JSONChunkOutput jsonWriter;
-			ScriptList::WriteScriptsDataChunkJSON(jsonWriter, chunks[i].scripts, chunks[i].numScripts);
+			ScriptList::WriteScriptsDataChunk(jsonWriter, chunks[i].scripts, chunks[i].numScripts);
 
 			nlohmann::json parsedJson = nlohmann::json::parse(jsonWriter.getJSONString());
 			if (parsedJson.contains("chunks") && parsedJson["chunks"].is_array() && parsedJson["chunks"].size() > 0) {
