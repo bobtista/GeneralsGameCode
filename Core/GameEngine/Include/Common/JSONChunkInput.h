@@ -128,6 +128,10 @@ public:
 
 	// Type-converting reads
 	Bool readBool();  // Read boolean from _items array
+
+	// Read int that may be stored as string enum - returns the value if int, or -1 if string
+	// If string, the enum string is stored in outEnumStr (caller must convert it)
+	Int readIntOrEnumString(AsciiString& outEnumStr);
 };
 
 #endif // RTS_HAS_JSON_CHUNK
