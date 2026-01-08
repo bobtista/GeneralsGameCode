@@ -599,7 +599,7 @@ Int ScriptList::getReadScripts(ScriptList *scriptLists[MAX_PLAYER_COUNT])
 *	Input: DataChunkInput
 *
 */
-void ScriptList::WriteScriptsDataChunk(DataChunkOutput &chunkWriter, ScriptList *scriptLists[], Int numLists )
+void ScriptList::WriteScriptsDataChunk(ChunkOutputStream &chunkWriter, ScriptList *scriptLists[], Int numLists )
 {
 	/**********SCRIPTS DATA ***********************/
 	chunkWriter.openDataChunk("PlayerScriptsList", K_SCRIPTS_DATA_VERSION_1);
@@ -613,43 +613,18 @@ void ScriptList::WriteScriptsDataChunk(DataChunkOutput &chunkWriter, ScriptList 
 
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-void ScriptList::WriteScriptsDataChunkJSON(JSONChunkOutput &chunkWriter, ScriptList *scriptLists[], Int numLists )
-{
-	chunkWriter.openDataChunk("PlayerScriptsList", K_SCRIPTS_DATA_VERSION_1);
-		Int i;
-		for (i=0; i<numLists; i++) {
-			chunkWriter.openDataChunk("ScriptList", K_SCRIPT_LIST_DATA_VERSION_1);
-			if (scriptLists[i]) scriptLists[i]->WriteScriptListDataChunkJSON(chunkWriter);
-			chunkWriter.closeDataChunk();
-		}
-	chunkWriter.closeDataChunk();
-}
-#endif
-
-
-
 /**
 * ScriptList::WriteScriptListDataChunk - Writes a Scripts chunk.
 * Format is the newer CHUNKY format.
 *	Input: DataChunkInput
 *
 */
-void ScriptList::WriteScriptListDataChunk(DataChunkOutput &chunkWriter)
+void ScriptList::WriteScriptListDataChunk(ChunkOutputStream &chunkWriter)
 {
 	/**********SCRIPTS DATA ***********************/
 		if (m_firstScript) m_firstScript->WriteScriptDataChunk(chunkWriter, m_firstScript);
 		if (m_firstGroup) m_firstGroup->WriteGroupDataChunk(chunkWriter, m_firstGroup);
 }
-
-#ifdef RTS_HAS_JSON_CHUNK
-void ScriptList::WriteScriptListDataChunkJSON(JSONChunkOutput &chunkWriter)
-{
-		if (m_firstScript) m_firstScript->WriteScriptDataChunkJSON(chunkWriter, m_firstScript);
-		if (m_firstGroup) m_firstGroup->WriteGroupDataChunkJSON(chunkWriter, m_firstGroup);
-}
-#endif
-
 
 /**
 * ScriptList::ParseScriptListDataChunk - read a Scripts chunk.
@@ -911,7 +886,7 @@ void ScriptGroup::addScript(Script *pScr, Int ndx)
 *	Input: DataChunkInput
 *
 */
-void ScriptGroup::WriteGroupDataChunk(DataChunkOutput &chunkWriter, ScriptGroup *pGroup)
+void ScriptGroup::WriteGroupDataChunk(ChunkOutputStream &chunkWriter, ScriptGroup *pGroup)
 {
 
 	/**********SCRIPT GROUP DATA ***********************/
@@ -926,21 +901,6 @@ void ScriptGroup::WriteGroupDataChunk(DataChunkOutput &chunkWriter, ScriptGroup 
 	}
 
 }
-
-#ifdef RTS_HAS_JSON_CHUNK
-void ScriptGroup::WriteGroupDataChunkJSON(JSONChunkOutput &chunkWriter, ScriptGroup *pGroup)
-{
-	while (pGroup) {
-		chunkWriter.openDataChunk("ScriptGroup", K_SCRIPT_GROUP_DATA_VERSION_2);
-			chunkWriter.writeAsciiString(pGroup->m_groupName);
-			chunkWriter.writeByte(pGroup->m_isGroupActive);
-			chunkWriter.writeByte(pGroup->m_isGroupSubroutine);
-			if (pGroup->m_firstScript) Script::WriteScriptDataChunkJSON(chunkWriter, pGroup->m_firstScript);
-		chunkWriter.closeDataChunk();
-		pGroup = pGroup->getNext();
-	}
-}
-#endif
 
 /**
 * ScriptGroup::ParseGroupDataChunk - read a Group chunk.
@@ -1290,7 +1250,7 @@ AsciiString Script::getUiText(void)
 *	Input: DataChunkInput
 *
 */
-void Script::WriteScriptDataChunk(DataChunkOutput &chunkWriter, Script *pScript)
+void Script::WriteScriptDataChunk(ChunkOutputStream &chunkWriter, Script *pScript)
 {
 	/**********SCRIPT  DATA ***********************/
 	while (pScript) {
@@ -1315,31 +1275,6 @@ void Script::WriteScriptDataChunk(DataChunkOutput &chunkWriter, Script *pScript)
 	}
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-void Script::WriteScriptDataChunkJSON(JSONChunkOutput &chunkWriter, Script *pScript)
-{
-	while (pScript) {
-		chunkWriter.openDataChunk("Script", K_SCRIPT_DATA_VERSION_2);
-			chunkWriter.writeAsciiString(pScript->m_scriptName);
-			chunkWriter.writeAsciiString(pScript->m_comment);
-			chunkWriter.writeAsciiString(pScript->m_conditionComment);
-			chunkWriter.writeAsciiString(pScript->m_actionComment);
-
-			chunkWriter.writeByte(pScript->m_isActive);
-			chunkWriter.writeByte(pScript->m_isOneShot);
-			chunkWriter.writeByte(pScript->m_easy);
-			chunkWriter.writeByte(pScript->m_normal);
-			chunkWriter.writeByte(pScript->m_hard);
-			chunkWriter.writeByte(pScript->m_isSubroutine);
-			chunkWriter.writeInt(pScript->m_delayEvaluationSeconds);
-			if (pScript->m_condition) OrCondition::WriteOrConditionDataChunkJSON(chunkWriter, pScript->m_condition);
-			if (pScript->m_action) ScriptAction::WriteActionDataChunkJSON(chunkWriter, pScript->m_action);
-			if (pScript->m_actionFalse) ScriptAction::WriteActionFalseDataChunkJSON(chunkWriter, pScript->m_actionFalse);
-		chunkWriter.closeDataChunk();
-		pScript = pScript->getNext();
-	}
-}
-#endif
 /**
 * Script::ParseScript - read a script chunk.
 * Format is the newer CHUNKY format.
@@ -1584,7 +1519,7 @@ void OrCondition::deleteCondition(Condition *pCond)
 *	Input: DataChunkInput
 *
 */
-void OrCondition::WriteOrConditionDataChunk(DataChunkOutput &chunkWriter, OrCondition	*pOrCondition)
+void OrCondition::WriteOrConditionDataChunk(ChunkOutputStream &chunkWriter, OrCondition	*pOrCondition)
 {
 	/**********OR CONDITION DATA ***********************/
 	while (pOrCondition) {
@@ -1595,18 +1530,6 @@ void OrCondition::WriteOrConditionDataChunk(DataChunkOutput &chunkWriter, OrCond
 	}
 
 }
-
-#ifdef RTS_HAS_JSON_CHUNK
-void OrCondition::WriteOrConditionDataChunkJSON(JSONChunkOutput &chunkWriter, OrCondition	*pOrCondition)
-{
-	while (pOrCondition) {
-		chunkWriter.openDataChunk("OrCondition", K_SCRIPT_OR_CONDITION_DATA_VERSION_1);
-		if (pOrCondition->m_firstAnd) Condition::WriteConditionDataChunkJSON(chunkWriter, pOrCondition->m_firstAnd);
-		chunkWriter.closeDataChunk();
-		pOrCondition = pOrCondition->getNextOrCondition();
-	}
-}
-#endif
 
 /**
 * OrCondition::ParseOrConditionDataChunk - read a Or condition chunk.
@@ -1821,7 +1744,7 @@ AsciiString Condition::getUiText(void)
 *	Input: DataChunkInput
 *
 */
-void Condition::WriteConditionDataChunk(DataChunkOutput &chunkWriter, Condition	*pCondition)
+void Condition::WriteConditionDataChunk(ChunkOutputStream &chunkWriter, Condition	*pCondition)
 {
 	/**********ACTION  DATA ***********************/
 	while (pCondition) {
@@ -1837,22 +1760,6 @@ void Condition::WriteConditionDataChunk(DataChunkOutput &chunkWriter, Condition	
 	}
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-void Condition::WriteConditionDataChunkJSON(JSONChunkOutput &chunkWriter, Condition	*pCondition)
-{
-	while (pCondition) {
-		chunkWriter.openDataChunk("Condition", K_SCRIPT_CONDITION_VERSION_3);
-			chunkWriter.writeInt(pCondition->m_conditionType);
-			chunkWriter.writeInt(pCondition->m_numParms);
-			Int i;
-			for (i=0; i<pCondition->m_numParms; i++) {
-				pCondition->m_parms[i]->WriteParameterJSON(chunkWriter);
-			}
-		chunkWriter.closeDataChunk();
-		pCondition = pCondition->getNext();
-	}
-}
-#endif
 /**
 * Condition::ParseConditionDataChunk - read a condition.
 * Format is the newer CHUNKY format.
@@ -2279,7 +2186,7 @@ AsciiString Parameter::getUiText(void) const
 *	Input: DataChunkInput
 *
 */
-void Parameter::WriteParameter(DataChunkOutput &chunkWriter)
+void Parameter::WriteParameter(ChunkOutputStream &chunkWriter)
 {
 
 	/**********Parameter  DATA ***********************/
@@ -2298,25 +2205,6 @@ void Parameter::WriteParameter(DataChunkOutput &chunkWriter)
 		chunkWriter.writeAsciiString(m_string);
 	}
 }
-
-#ifdef RTS_HAS_JSON_CHUNK
-void Parameter::WriteParameterJSON(JSONChunkOutput &chunkWriter)
-{
-	chunkWriter.writeInt(m_paramType);
-	if (m_paramType == KIND_OF_PARAM) {
-		m_string = KindOfMaskType::getNameFromSingleBit(m_int);
-	}
-	if (m_paramType == COORD3D) {
-		chunkWriter.writeReal(m_coord.x);
-		chunkWriter.writeReal(m_coord.y);
-		chunkWriter.writeReal(m_coord.z);
-	} else {
-		chunkWriter.writeInt(m_int);
-		chunkWriter.writeReal(m_real);
-		chunkWriter.writeAsciiString(m_string);
-	}
-}
-#endif
 
 /**
 * Parameter::ReadParameter - read a parameter.
@@ -2678,7 +2566,7 @@ AsciiString ScriptAction::getUiText(void)
 *	Input: DataChunkInput
 *
 */
-void ScriptAction::WriteActionDataChunk(DataChunkOutput &chunkWriter, ScriptAction	*pScriptAction)
+void ScriptAction::WriteActionDataChunk(ChunkOutputStream &chunkWriter, ScriptAction	*pScriptAction)
 {
 	/**********ACTION  DATA ***********************/
 	while (pScriptAction) {
@@ -2693,23 +2581,6 @@ void ScriptAction::WriteActionDataChunk(DataChunkOutput &chunkWriter, ScriptActi
 		pScriptAction = pScriptAction->getNext();
 	}
 }
-
-#ifdef RTS_HAS_JSON_CHUNK
-void ScriptAction::WriteActionDataChunkJSON(JSONChunkOutput &chunkWriter, ScriptAction	*pScriptAction)
-{
-	while (pScriptAction) {
-		chunkWriter.openDataChunk("ScriptAction", K_SCRIPT_ACTION_VERSION_1);
-			chunkWriter.writeInt(pScriptAction->m_actionType);
-			chunkWriter.writeInt(pScriptAction->m_numParms);
-			Int i;
-			for (i=0; i<pScriptAction->m_numParms; i++) {
-				pScriptAction->m_parms[i]->WriteParameterJSON(chunkWriter);
-			}
-		chunkWriter.closeDataChunk();
-		pScriptAction = pScriptAction->getNext();
-	}
-}
-#endif
 
 /**
 * ScriptAction::ParseActionDataChunk - read an action chunk in a script list.
@@ -2931,7 +2802,7 @@ Bool ScriptAction::ParseActionDataChunkJSON(JSONChunkInput &file, JSONChunkInfo 
 *	Input: DataChunkInput
 *
 */
-void ScriptAction::WriteActionFalseDataChunk(DataChunkOutput &chunkWriter, ScriptAction	*pScriptAction)
+void ScriptAction::WriteActionFalseDataChunk(ChunkOutputStream &chunkWriter, ScriptAction	*pScriptAction)
 {
 	/**********ACTION  DATA ***********************/
 	while (pScriptAction) {
@@ -2946,23 +2817,6 @@ void ScriptAction::WriteActionFalseDataChunk(DataChunkOutput &chunkWriter, Scrip
 		pScriptAction = pScriptAction->getNext();
 	}
 }
-
-#ifdef RTS_HAS_JSON_CHUNK
-void ScriptAction::WriteActionFalseDataChunkJSON(JSONChunkOutput &chunkWriter, ScriptAction	*pScriptAction)
-{
-	while (pScriptAction) {
-		chunkWriter.openDataChunk("ScriptActionFalse", K_SCRIPT_ACTION_VERSION_1);
-			chunkWriter.writeInt(pScriptAction->m_actionType);
-			chunkWriter.writeInt(pScriptAction->m_numParms);
-			Int i;
-			for (i=0; i<pScriptAction->m_numParms; i++) {
-				pScriptAction->m_parms[i]->WriteParameterJSON(chunkWriter);
-			}
-		chunkWriter.closeDataChunk();
-		pScriptAction = pScriptAction->getNext();
-	}
-}
-#endif
 
 /**
 * ScriptAction::ParseActionFalseDataChunk - read a false action chunk in a script list.
