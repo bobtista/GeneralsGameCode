@@ -356,6 +356,17 @@ void JSONChunkOutput::writeBoolAsByte(const char* name, Bool b)
 	}
 }
 
+void JSONChunkOutput::writeBoolAsInt(Bool b)
+{
+	// Write as true/false boolean to _items array (same as writeBoolAsByte for JSON)
+	if (m_chunkStack && m_chunkStack->data) {
+		if (!m_chunkStack->data->contains("_items")) {
+			(*m_chunkStack->data)["_items"] = nlohmann::json::array();
+		}
+		(*m_chunkStack->data)["_items"].push_back((bool)b);
+	}
+}
+
 void JSONChunkOutput::writeEnumAsInt(Int value, const char* enumStr)
 {
 	// Write the string enum name to _items array (ignores int value for JSON)

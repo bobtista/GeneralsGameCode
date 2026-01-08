@@ -84,6 +84,7 @@ public:
 	void writeParameterType(Int type, const char* typeName);
 	void writeBoolAsByte(Bool b);
 	void writeBoolAsByte(const char* name, Bool b);
+	void writeBoolAsInt(Bool b);  // JSON writes true/false to _items
 
 	// Enum writes (JSON writes string to _items, ignores int value)
 	void writeEnumAsInt(Int value, const char* enumStr);
