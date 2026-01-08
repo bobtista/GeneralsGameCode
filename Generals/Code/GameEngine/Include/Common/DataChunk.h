@@ -144,6 +144,8 @@ public:
 
 	// Binary-only writes (write to binary stream, skip JSON output)
 	virtual void writeBinaryOnlyInt(Int i) = 0;
+	virtual void writeBinaryOnlyReal(Real r) = 0;
+	virtual void writeBinaryOnlyString(const AsciiString& s) = 0;
 	virtual void writeBinaryOnlyNameKey(NameKeyType key) = 0;
 
 	// JSON-only writes (write to JSON field, skip binary stream)
@@ -201,6 +203,8 @@ public:
 
 	// Binary-only writes (write to binary)
 	void writeBinaryOnlyInt(Int i) { writeInt(i); }
+	void writeBinaryOnlyReal(Real r) { writeReal(r); }
+	void writeBinaryOnlyString(const AsciiString& s) { writeAsciiString(s); }
 	void writeBinaryOnlyNameKey(NameKeyType key) { writeNameKey(key); }
 
 	// JSON-only writes (no-op for binary output)

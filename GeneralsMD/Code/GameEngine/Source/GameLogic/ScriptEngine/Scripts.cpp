@@ -2525,6 +2525,39 @@ static Bool hasEnumString(Parameter::ParameterType ptype)
 			return false;
 	}
 }
+
+// Determine which field a parameter type uses for its primary value
+enum ParamFieldType { FIELD_INT, FIELD_REAL, FIELD_STRING };
+
+static ParamFieldType getParamFieldType(Parameter::ParameterType ptype)
+{
+	switch (ptype) {
+		// Real types
+		case Parameter::REAL:
+		case Parameter::ANGLE:
+		case Parameter::PERCENT:
+			return FIELD_REAL;
+		// Int types (including enums and boolean)
+		case Parameter::INT:
+		case Parameter::COMPARISON:
+		case Parameter::BOOLEAN:
+		case Parameter::RELATION:
+		case Parameter::AI_MOOD:
+		case Parameter::KIND_OF_PARAM:
+		case Parameter::RADAR_EVENT_TYPE:
+		case Parameter::COMMANDBUTTON_ABILITY:
+		case Parameter::BOUNDARY:
+		case Parameter::BUILDABLE:
+		case Parameter::SURFACES_ALLOWED:
+		case Parameter::SHAKE_INTENSITY:
+		case Parameter::COLOR:
+		case Parameter::LEFT_OR_RIGHT:
+			return FIELD_INT;
+		// String types (everything else)
+		default:
+			return FIELD_STRING;
+	}
+}
 #endif
 
 /**
@@ -2552,25 +2585,45 @@ void Parameter::WriteParameter(ChunkOutputStream &chunkWriter)
 		chunkWriter.writeReal(m_coord.z);
 	} else {
 #ifdef RTS_HAS_JSON_CHUNK
-		// For enum types, write human-readable string to JSON, int to binary
-		if (hasEnumString(m_paramType)) {
-			const char* enumStr = getEnumString(m_paramType, m_int);
-			if (enumStr) {
-				chunkWriter.writeEnumAsInt(m_int, enumStr);
+		// Compact JSON format: only write the field that's actually used
+		ParamFieldType fieldType = getParamFieldType(m_paramType);
+
+		// Write int field (or binary-only if not used)
+		if (fieldType == FIELD_INT) {
+			if (hasEnumString(m_paramType)) {
+				const char* enumStr = getEnumString(m_paramType, m_int);
+				if (enumStr) {
+					chunkWriter.writeEnumAsInt(m_int, enumStr);
+				} else {
+					chunkWriter.writeInt(m_int);
+				}
+			} else if (m_paramType == BOOLEAN) {
+				chunkWriter.writeBoolAsInt(m_int != 0);
 			} else {
 				chunkWriter.writeInt(m_int);
 			}
-		} else if (m_paramType == BOOLEAN) {
-			// Write true/false to JSON, int (4 bytes) to binary
-			chunkWriter.writeBoolAsInt(m_int != 0);
 		} else {
-			chunkWriter.writeInt(m_int);
+			chunkWriter.writeBinaryOnlyInt(m_int);
+		}
+
+		// Write real field (or binary-only if not used)
+		if (fieldType == FIELD_REAL) {
+			chunkWriter.writeReal(m_real);
+		} else {
+			chunkWriter.writeBinaryOnlyReal(m_real);
+		}
+
+		// Write string field (or binary-only if not used)
+		if (fieldType == FIELD_STRING) {
+			chunkWriter.writeAsciiString(m_string);
+		} else {
+			chunkWriter.writeBinaryOnlyString(m_string);
 		}
 #else
 		chunkWriter.writeInt(m_int);
-#endif
 		chunkWriter.writeReal(m_real);
 		chunkWriter.writeAsciiString(m_string);
+#endif
 	}
 }
 
@@ -2727,25 +2780,41 @@ Parameter *Parameter::ReadParameterJSON(JSONChunkInput &file)
 	}
 	else
 	{
-		// For enum types, read int or string and convert
-		if (hasEnumString(ptype)) {
-			AsciiString enumStr;
-			Int val = file.readIntOrEnumString(enumStr);
-			if (!enumStr.isEmpty()) {
-				// It was a string enum value - convert it back to int
-				pParm->m_int = getEnumInt(ptype, enumStr.str());
+		// Compact JSON format: only the relevant field is stored
+		ParamFieldType fieldType = getParamFieldType(ptype);
+
+		// Read int field (or use default if this type uses a different field)
+		if (fieldType == FIELD_INT) {
+			if (hasEnumString(ptype)) {
+				AsciiString enumStr;
+				Int val = file.readIntOrEnumString(enumStr);
+				if (!enumStr.isEmpty()) {
+					pParm->m_int = getEnumInt(ptype, enumStr.str());
+				} else {
+					pParm->m_int = val;
+				}
+			} else if (ptype == BOOLEAN) {
+				pParm->m_int = file.readBool() ? 1 : 0;
 			} else {
-				// It was already an int
-				pParm->m_int = val;
+				pParm->m_int = file.readInt();
 			}
-		} else if (ptype == BOOLEAN) {
-			// Read true/false as boolean, convert to 0/1
-			pParm->m_int = file.readBool() ? 1 : 0;
 		} else {
-			pParm->m_int = file.readInt();
+			pParm->m_int = 0;  // Default for unused field
 		}
-		pParm->m_real = file.readReal();
-		pParm->m_string = file.readAsciiString();
+
+		// Read real field (or use default if this type uses a different field)
+		if (fieldType == FIELD_REAL) {
+			pParm->m_real = file.readReal();
+		} else {
+			pParm->m_real = 0.0f;  // Default for unused field
+		}
+
+		// Read string field (or use default if this type uses a different field)
+		if (fieldType == FIELD_STRING) {
+			pParm->m_string = file.readAsciiString();
+		} else {
+			pParm->m_string.clear();  // Default for unused field
+		}
 	}
 
 	if (pParm->getParameterType() == OBJECT_TYPE)
