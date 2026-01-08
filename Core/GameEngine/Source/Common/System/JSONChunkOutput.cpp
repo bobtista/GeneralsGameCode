@@ -303,3 +303,55 @@ void JSONChunkOutput::writeDict(const char* name, const Dict& d)
 
 	(*m_chunkStack->data)[name] = dictObj;
 }
+
+// JSON-only write implementations
+void JSONChunkOutput::writeJSONOnlyString(const char* name, const AsciiString& value)
+{
+	if (m_chunkStack && m_chunkStack->data) {
+		(*m_chunkStack->data)[name] = value.str();
+	}
+}
+
+void JSONChunkOutput::writeJSONOnlyInt(const char* name, Int i)
+{
+	if (m_chunkStack && m_chunkStack->data) {
+		(*m_chunkStack->data)[name] = i;
+	}
+}
+
+void JSONChunkOutput::writeJSONOnlyBool(const char* name, Bool b)
+{
+	if (m_chunkStack && m_chunkStack->data) {
+		(*m_chunkStack->data)[name] = (bool)b;
+	}
+}
+
+void JSONChunkOutput::writeParameterType(Int type, const char* typeName)
+{
+	// Write the string type name to _items array for human-readable JSON
+	if (m_chunkStack && m_chunkStack->data) {
+		if (!m_chunkStack->data->contains("_items")) {
+			(*m_chunkStack->data)["_items"] = nlohmann::json::array();
+		}
+		(*m_chunkStack->data)["_items"].push_back(typeName);
+	}
+}
+
+void JSONChunkOutput::writeBoolAsByte(Bool b)
+{
+	// Write as true/false boolean to _items array
+	if (m_chunkStack && m_chunkStack->data) {
+		if (!m_chunkStack->data->contains("_items")) {
+			(*m_chunkStack->data)["_items"] = nlohmann::json::array();
+		}
+		(*m_chunkStack->data)["_items"].push_back((bool)b);
+	}
+}
+
+void JSONChunkOutput::writeBoolAsByte(const char* name, Bool b)
+{
+	// Write as true/false boolean to named field
+	if (m_chunkStack && m_chunkStack->data) {
+		(*m_chunkStack->data)[name] = (bool)b;
+	}
+}

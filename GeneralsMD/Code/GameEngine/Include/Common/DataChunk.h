@@ -122,6 +122,7 @@ public:
 	virtual void openDataChunk( const char *name, DataChunkVersionType ver ) = 0;
 	virtual void closeDataChunk( void ) = 0;
 
+	// Unnamed writes (positional)
 	virtual void writeReal(Real r) = 0;
 	virtual void writeInt(Int i) = 0;
 	virtual void writeByte(Byte b) = 0;
@@ -130,6 +131,30 @@ public:
 	virtual void writeArrayOfBytes(char *ptr, Int len) = 0;
 	virtual void writeDict(const Dict& d) = 0;
 	virtual void writeNameKey(const NameKeyType key) = 0;
+
+	// Named writes (for human-readable JSON output - binary ignores the name)
+	virtual void writeReal(const char* name, Real r) = 0;
+	virtual void writeInt(const char* name, Int i) = 0;
+	virtual void writeByte(const char* name, Byte b) = 0;
+	virtual void writeAsciiString(const char* name, const AsciiString& string) = 0;
+	virtual void writeUnicodeString(const char* name, UnicodeString string) = 0;
+	virtual void writeArrayOfBytes(const char* name, char *ptr, Int len) = 0;
+	virtual void writeDict(const char* name, const Dict& d) = 0;
+	virtual void writeNameKey(const char* name, const NameKeyType key) = 0;
+
+	// Binary-only writes (write to binary stream, skip JSON output)
+	virtual void writeBinaryOnlyInt(Int i) = 0;
+	virtual void writeBinaryOnlyNameKey(NameKeyType key) = 0;
+
+	// JSON-only writes (write to JSON field, skip binary stream)
+	virtual void writeJSONOnlyString(const char* name, const AsciiString& value) = 0;
+	virtual void writeJSONOnlyInt(const char* name, Int i) = 0;
+	virtual void writeJSONOnlyBool(const char* name, Bool b) = 0;
+
+	// Type-converting writes (binary writes int, JSON writes string to _items)
+	virtual void writeParameterType(Int type, const char* typeName) = 0;
+	virtual void writeBoolAsByte(Bool b) = 0;
+	virtual void writeBoolAsByte(const char* name, Bool b) = 0;
 };
 
 //----------------------------------------------------------------------
@@ -150,6 +175,7 @@ public:
 	void openDataChunk( const char *name, DataChunkVersionType ver );
 	void closeDataChunk( void );
 
+	// Unnamed writes (positional)
 	void writeReal(Real r);
 	void writeInt(Int i);
 	void writeByte(Byte b);
@@ -158,6 +184,30 @@ public:
 	void writeArrayOfBytes(char *ptr, Int len);
 	void writeDict(const Dict& d);
 	void writeNameKey(const NameKeyType key);
+
+	// Named writes (ignore name, call unnamed version)
+	void writeReal(const char* name, Real r) { writeReal(r); }
+	void writeInt(const char* name, Int i) { writeInt(i); }
+	void writeByte(const char* name, Byte b) { writeByte(b); }
+	void writeAsciiString(const char* name, const AsciiString& string) { writeAsciiString(string); }
+	void writeUnicodeString(const char* name, UnicodeString string) { writeUnicodeString(string); }
+	void writeArrayOfBytes(const char* name, char *ptr, Int len) { writeArrayOfBytes(ptr, len); }
+	void writeDict(const char* name, const Dict& d) { writeDict(d); }
+	void writeNameKey(const char* name, const NameKeyType key) { writeNameKey(key); }
+
+	// Binary-only writes (write to binary)
+	void writeBinaryOnlyInt(Int i) { writeInt(i); }
+	void writeBinaryOnlyNameKey(NameKeyType key) { writeNameKey(key); }
+
+	// JSON-only writes (no-op for binary output)
+	void writeJSONOnlyString(const char* name, const AsciiString& value) { (void)name; (void)value; }
+	void writeJSONOnlyInt(const char* name, Int i) { (void)name; (void)i; }
+	void writeJSONOnlyBool(const char* name, Bool b) { (void)name; (void)b; }
+
+	// Type-converting writes (binary writes int/byte)
+	void writeParameterType(Int type, const char* typeName) { (void)typeName; writeInt(type); }
+	void writeBoolAsByte(Bool b) { writeByte(b ? 1 : 0); }
+	void writeBoolAsByte(const char* name, Bool b) { (void)name; writeByte(b ? 1 : 0); }
 
 	void setTOCEntry(const AsciiString& name, UnsignedInt id); // Set TOC entry for preservation
 };

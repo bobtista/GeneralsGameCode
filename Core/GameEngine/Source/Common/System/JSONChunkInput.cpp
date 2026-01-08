@@ -602,6 +602,53 @@ Byte JSONChunkInput::readByte(const char* name)
 	return (*m_chunkStack->data)[name].get<Byte>();
 }
 
+Bool JSONChunkInput::readBool(const char* name)
+{
+	if (m_chunkStack == NULL || !m_chunkStack->data->is_object()) {
+		DEBUG_CRASH(("Bad - expected object data for named read."));
+		return false;
+	}
+
+	if (!m_chunkStack->data->contains(name)) {
+		DEBUG_CRASH(("Field not found: %s", name));
+		return false;
+	}
+
+	const auto& val = (*m_chunkStack->data)[name];
+	if (val.is_boolean()) {
+		return val.get<bool>();
+	}
+	// Also handle numeric 0/1 for backwards compatibility
+	return val.get<int>() != 0;
+}
+
+Bool JSONChunkInput::readBool()
+{
+	// Read from _items array
+	if (m_chunkStack == NULL || !m_chunkStack->data->is_object()) {
+		DEBUG_CRASH(("Bad - no chunk open for read."));
+		return false;
+	}
+
+	if (!m_chunkStack->data->contains("_items") || !(*m_chunkStack->data)["_items"].is_array()) {
+		DEBUG_CRASH(("Bad - no _items array."));
+		return false;
+	}
+
+	auto& items = (*m_chunkStack->data)["_items"];
+	if (m_chunkStack->itemIndex >= items.size()) {
+		DEBUG_CRASH(("Bad - reading past end of _items array."));
+		return false;
+	}
+
+	const auto& val = items[m_chunkStack->itemIndex++];
+	if (val.is_boolean()) {
+		return val.get<bool>();
+	}
+	// Also handle numeric 0/1 for backwards compatibility
+	return val.get<int>() != 0;
+}
+
 AsciiString JSONChunkInput::readAsciiString(const char* name)
 {
 	if (m_chunkStack == NULL || !m_chunkStack->data->is_object()) {

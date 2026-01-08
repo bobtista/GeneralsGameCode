@@ -71,6 +71,20 @@ public:
 	void writeDict(const char* name, const Dict& d);
 	void writeNameKey(const char* name, const NameKeyType key);
 
+	// Binary-only writes (no-op for JSON output)
+	void writeBinaryOnlyInt(Int i) { (void)i; }
+	void writeBinaryOnlyNameKey(NameKeyType key) { (void)key; }
+
+	// JSON-only writes (writes to JSON field)
+	void writeJSONOnlyString(const char* name, const AsciiString& value);
+	void writeJSONOnlyInt(const char* name, Int i);
+	void writeJSONOnlyBool(const char* name, Bool b);
+
+	// Type-converting writes (JSON writes string to _items)
+	void writeParameterType(Int type, const char* typeName);
+	void writeBoolAsByte(Bool b);
+	void writeBoolAsByte(const char* name, Bool b);
+
 	std::string getJSONString( void );
 };
 
