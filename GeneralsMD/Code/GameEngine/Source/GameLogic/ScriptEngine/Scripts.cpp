@@ -2560,6 +2560,9 @@ void Parameter::WriteParameter(ChunkOutputStream &chunkWriter)
 			} else {
 				chunkWriter.writeInt(m_int);
 			}
+		} else if (m_paramType == BOOLEAN) {
+			// Write true/false to JSON, int (4 bytes) to binary
+			chunkWriter.writeBoolAsInt(m_int != 0);
 		} else {
 			chunkWriter.writeInt(m_int);
 		}
@@ -2735,6 +2738,9 @@ Parameter *Parameter::ReadParameterJSON(JSONChunkInput &file)
 				// It was already an int
 				pParm->m_int = val;
 			}
+		} else if (ptype == BOOLEAN) {
+			// Read true/false as boolean, convert to 0/1
+			pParm->m_int = file.readBool() ? 1 : 0;
 		} else {
 			pParm->m_int = file.readInt();
 		}
