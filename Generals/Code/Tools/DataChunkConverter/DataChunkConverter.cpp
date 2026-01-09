@@ -655,22 +655,86 @@ static Bool convertJSONToSCB(const char* inputPath, const char* outputPath)
 	return true;
 }
 
+static bool getGameDirFromRegistry(char* gameDir, DWORD gameDirSize)
+{
+	const char* regPaths[] = {
+		"SOFTWARE\\Electronic Arts\\EA Games\\Generals",
+		"SOFTWARE\\WOW6432Node\\Electronic Arts\\EA Games\\Generals"
+	};
+	const char* valueNames[] = { "InstallPath", "Install Dir" };
+
+	for (int i = 0; i < 2; i++) {
+		HKEY hKey;
+		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, regPaths[i], 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+			for (int j = 0; j < 2; j++) {
+				DWORD type;
+				DWORD size = gameDirSize;
+				if (RegQueryValueExA(hKey, valueNames[j], NULL, &type, (LPBYTE)gameDir, &size) == ERROR_SUCCESS) {
+					if (type == REG_SZ && size > 0) {
+						RegCloseKey(hKey);
+						return true;
+					}
+				}
+			}
+			RegCloseKey(hKey);
+		}
+	}
+	return false;
+}
+
 int main(int argc, char* argv[])
 {
 	initMemoryManager();
 
-	const char* gameDir = "C:\\Program Files\\EA Games\\Command and Conquer Generals Zero Hour\\Command and Conquer Generals";
-
-	char currentDir[MAX_PATH];
-	if (!GetCurrentDirectoryA(MAX_PATH, currentDir)) {
-		printf("Error: Could not get current directory. Error code: %d\n", GetLastError());
+	if (argc != 5) {
+		printUsage(argv[0]);
 		return 1;
 	}
+
+	const char* inputArg = NULL;
+	const char* outputArg = NULL;
+
+	for (int i = 1; i < argc; i++) {
+		if (strcmp(argv[i], "-in") == 0 && i + 1 < argc) {
+			inputArg = argv[++i];
+		} else if (strcmp(argv[i], "-out") == 0 && i + 1 < argc) {
+			outputArg = argv[++i];
+		}
+	}
+
+	if (!inputArg || !outputArg) {
+		printUsage(argv[0]);
+		return 1;
+	}
+
+	// Convert relative paths to absolute paths before changing directory
+	char inputPath[MAX_PATH];
+	char outputPath[MAX_PATH];
+
+	if (!GetFullPathNameA(inputArg, MAX_PATH, inputPath, NULL)) {
+		printf("Error: Could not resolve input path: %s\n", inputArg);
+		return 1;
+	}
+	if (!GetFullPathNameA(outputArg, MAX_PATH, outputPath, NULL)) {
+		printf("Error: Could not resolve output path: %s\n", outputArg);
+		return 1;
+	}
+
+	const char* inputExt = strrchr(inputPath, '.');
+	const char* outputExt = strrchr(outputPath, '.');
+
+	char gameDir[MAX_PATH] = {0};
 
 	DWORD dataAttrs = GetFileAttributesA("Data");
 	bool inGameDir = (dataAttrs != INVALID_FILE_ATTRIBUTES && (dataAttrs & FILE_ATTRIBUTE_DIRECTORY));
 
 	if (!inGameDir) {
+		if (!getGameDirFromRegistry(gameDir, MAX_PATH)) {
+			printf("Error: Could not find Generals installation in registry.\n");
+			printf("Please run this tool from the game directory, or install the game.\n");
+			return 1;
+		}
+
 		if (!SetCurrentDirectoryA(gameDir)) {
 			printf("Error: Could not set working directory to game directory: %s\n", gameDir);
 			return 1;
@@ -679,34 +743,10 @@ int main(int argc, char* argv[])
 		dataAttrs = GetFileAttributesA("Data");
 		if (dataAttrs == INVALID_FILE_ATTRIBUTES || !(dataAttrs & FILE_ATTRIBUTE_DIRECTORY)) {
 			printf("Error: Data directory not found in game directory.\n");
-			printf("Expected: %s\\Data\n", gameDir);
+			printf("Registry path: %s\n", gameDir);
 			return 1;
 		}
 	}
-
-	if (argc != 5) {
-		printUsage(argv[0]);
-		return 1;
-	}
-
-	const char* inputPath = NULL;
-	const char* outputPath = NULL;
-
-	for (int i = 1; i < argc; i++) {
-		if (strcmp(argv[i], "-in") == 0 && i + 1 < argc) {
-			inputPath = argv[++i];
-		} else if (strcmp(argv[i], "-out") == 0 && i + 1 < argc) {
-			outputPath = argv[++i];
-		}
-	}
-
-	if (!inputPath || !outputPath) {
-		printUsage(argv[0]);
-		return 1;
-	}
-
-	const char* inputExt = strrchr(inputPath, '.');
-	const char* outputExt = strrchr(outputPath, '.');
 
 	if (!inputExt || !outputExt) {
 		printf("Error: Input and output files must have extensions\n");
