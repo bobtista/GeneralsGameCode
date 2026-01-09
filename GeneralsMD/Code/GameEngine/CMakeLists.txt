@@ -28,6 +28,7 @@ set(GAMEENGINE_SRC
     Include/Common/DamageFX.h
     Include/Common/DataChunk.h
 #    Include/Common/Debug.h
+    Include/Common/SemanticScriptJSON.h
     Include/Common/Dict.h
     Include/Common/Directory.h
     Include/Common/DisabledTypes.h
@@ -659,6 +660,7 @@ set(GAMEENGINE_SRC
     Source/Common/System/registry.cpp
     Source/Common/System/SaveGame/GameState.cpp
     Source/Common/System/SaveGame/GameStateMap.cpp
+    Source/Common/System/SemanticScriptJSON.cpp
     Source/Common/System/Snapshot.cpp
     Source/Common/System/StackDump.cpp
 #    Source/Common/System/StreamingArchiveFile.cpp

@@ -593,6 +593,10 @@ public:
 	Int getNumParameters(void) {return m_numParms;}
 	Int getUiStrings(AsciiString strings[MAX_PARMS]);
 
+	// TheSuperHackers @feature Setters for semantic JSON support
+	void setNumParameters(Int num) { m_numParms = num; }
+	void setParameter(Int ndx, Parameter* param) { if (ndx >= 0 && ndx < MAX_PARMS) m_parms[ndx] = param; }
+
 	static void WriteActionDataChunk(ChunkOutputStream &chunkWriter, ScriptAction *pAct);
 	static void WriteActionFalseDataChunk(ChunkOutputStream &chunkWriter, ScriptAction *pAct);
 #ifdef RTS_HAS_JSON_CHUNK
@@ -1042,6 +1046,10 @@ public:
 
 	Int getCustomFrame(void) const {return m_customFrame;}
 	void setCustomFrame(Int val) { m_customFrame = val;}
+
+	// TheSuperHackers @feature Setters for semantic JSON support
+	void setNumParameters(Int num) { m_numParms = num; }
+	void setParameter(Int ndx, Parameter* param) { if (ndx >= 0 && ndx < MAX_PARMS) m_parms[ndx] = param; }
 
 	static void WriteConditionDataChunk(ChunkOutputStream &chunkWriter, Condition *pCond);
 #ifdef RTS_HAS_JSON_CHUNK
