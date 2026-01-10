@@ -1185,19 +1185,16 @@ static bool validateScriptData(ScriptList* scriptLists[], int numPlayers, const 
 		if (!scriptLists[p])
 			continue;
 
-		// Check top-level scripts
 		Script* script = scriptLists[p]->getScript();
 		int scriptIndex = 0;
 		while (script)
 		{
-			// Check for empty script name
 			if (script->getName().isEmpty())
 			{
 				printf("  [%s] VALIDATION ERROR: Player %d script %d has empty name\n", label, p, scriptIndex);
 				valid = false;
 			}
 
-			// Check for invalid condition types
 			OrCondition* orCond = script->getOrCondition();
 			while (orCond)
 			{
@@ -1215,7 +1212,6 @@ static bool validateScriptData(ScriptList* scriptLists[], int numPlayers, const 
 				orCond = orCond->getNextOrCondition();
 			}
 
-			// Check for invalid action types
 			ScriptAction* action = script->getAction();
 			while (action)
 			{
@@ -1232,19 +1228,16 @@ static bool validateScriptData(ScriptList* scriptLists[], int numPlayers, const 
 			scriptIndex++;
 		}
 
-		// Check groups
 		ScriptGroup* group = scriptLists[p]->getScriptGroup();
 		int groupIndex = 0;
 		while (group)
 		{
-			// Check for empty group name
 			if (group->getName().isEmpty())
 			{
 				printf("  [%s] VALIDATION ERROR: Player %d group %d has empty name\n", label, p, groupIndex);
 				valid = false;
 			}
 
-			// Check scripts within group
 			Script* groupScript = group->getScript();
 			int gsIndex = 0;
 			while (groupScript)
@@ -1306,7 +1299,6 @@ static bool validateScriptStats(const ScriptStats& original, const ScriptStats& 
 		valid = false;
 	}
 
-	// Warn if roundtrip has zero content when original had content
 	if (original.totalScripts > 0 && roundtrip.totalScripts == 0)
 	{
 		printf("  VALIDATION ERROR: Roundtrip lost all scripts!\n");
@@ -1333,8 +1325,6 @@ static MapStats getMapStats(const MapData& mapData, int triggerCount)
 	stats.waypointLinkCount = mapData.waypointLinks.size();
 	stats.triggerCount = triggerCount;
 	stats.timeOfDay = mapData.timeOfDay;
-
-	// Count waypoints
 	stats.waypointCount = 0;
 	for (const auto& obj : mapData.objects)
 	{
@@ -1364,18 +1354,16 @@ static bool validateMapData(const MapData& mapData, const char* label)
 {
 	bool valid = true;
 
-	// Check for empty object names
 	for (size_t i = 0; i < mapData.objects.size(); i++)
 	{
 		if (mapData.objects[i].name.empty())
 		{
 			printf("  [%s] VALIDATION ERROR: Object %zu has empty name\n", label, i);
 			valid = false;
-			break;  // Don't spam errors
+			break;
 		}
 	}
 
-	// Check for invalid waypoint links
 	for (size_t i = 0; i < mapData.waypointLinks.size(); i++)
 	{
 		if (mapData.waypointLinks[i].waypoint1 < 0 || mapData.waypointLinks[i].waypoint2 < 0)
@@ -1386,7 +1374,6 @@ static bool validateMapData(const MapData& mapData, const char* label)
 		}
 	}
 
-	// Check time of day is in valid range
 	if (mapData.timeOfDay < 0 || mapData.timeOfDay > 3)
 	{
 		printf("  [%s] VALIDATION WARNING: Unusual time of day value: %d\n", label, mapData.timeOfDay);
@@ -1434,14 +1421,12 @@ static bool validateMapStats(const MapStats& original, const MapStats& roundtrip
 		valid = false;
 	}
 
-	// Warn if roundtrip lost all content
 	if (original.objectCount > 0 && roundtrip.objectCount == 0)
 	{
 		printf("  VALIDATION ERROR: Roundtrip lost all objects!\n");
 		valid = false;
 	}
 
-	// Validate script stats
 	if (!validateScriptStats(original.scripts, roundtrip.scripts))
 		valid = false;
 

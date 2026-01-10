@@ -33,7 +33,6 @@ class PolygonTrigger;
 class ScriptList;
 class DataChunkOutput;
 
-// Stored map object data (since MapObject is WorldBuilder-only)
 struct MapObjectInfo
 {
 	std::string name;
@@ -43,14 +42,12 @@ struct MapObjectInfo
 	Dict* properties;
 };
 
-// Stored waypoint link data
 struct WaypointLinkInfo
 {
 	int waypoint1;
 	int waypoint2;
 };
 
-// Stored lighting data per time-of-day
 struct LightingInfo
 {
 	struct Light
@@ -64,30 +61,17 @@ struct LightingInfo
 	Light objectLights[3];
 };
 
-// Container for all parsed map data
 struct MapData
 {
-	// WorldInfo
 	Dict* worldInfo;
-
-	// Objects
 	std::vector<MapObjectInfo> objects;
-
-	// Polygon triggers (stored separately, not in objects)
-	// PolygonTrigger data is accessed via static list
-
-	// Waypoint links
 	std::vector<WaypointLinkInfo> waypointLinks;
-
-	// Lighting
 	int timeOfDay;
-	LightingInfo lighting[4];  // morning, afternoon, evening, night
-
-	// Scripts (per player)
+	LightingInfo lighting[4];
 	ScriptList* scriptLists[16];
 	int numPlayers;
 
-	// Raw binary chunks (preserved from base map for round-trip)
+	// Binary terrain chunks preserved for round-trip
 	std::vector<unsigned char> heightMapData;
 	std::vector<unsigned char> blendTileData;
 	int heightMapVersion;
@@ -98,7 +82,6 @@ struct MapData
 	void clear();
 };
 
-// Semantic JSON writer for map files
 class SemanticMapWriter
 {
 public:
@@ -129,7 +112,6 @@ private:
 	std::vector<std::string> m_warnings;
 };
 
-// Semantic JSON reader for map files
 class SemanticMapReader
 {
 public:
@@ -159,7 +141,6 @@ private:
 	std::vector<std::string> m_warnings;
 };
 
-// Map file writer (binary output)
 class SemanticMapFileWriter
 {
 public:
