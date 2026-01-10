@@ -34,6 +34,7 @@
 
 #ifdef RTS_HAS_JSON_CHUNK
 
+#include <algorithm>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -1713,13 +1714,282 @@ static int verifyRoundtrip(const char* inputFile)
 }
 
 //-----------------------------------------------------------------------------
+// Map comparison functions
+//-----------------------------------------------------------------------------
+
+static bool compareWaypointLinks(const std::vector<WaypointLinkInfo>& links1,
+                                  const std::vector<WaypointLinkInfo>& links2)
+{
+	if (links1.size() != links2.size())
+	{
+		printf("  DIFF: Waypoint link count mismatch: %zu vs %zu\n", links1.size(), links2.size());
+		return false;
+	}
+
+	for (size_t i = 0; i < links1.size(); i++)
+	{
+		if (links1[i].waypoint1 != links2[i].waypoint1 ||
+		    links1[i].waypoint2 != links2[i].waypoint2)
+		{
+			printf("  DIFF: Waypoint link %zu mismatch: (%d,%d) vs (%d,%d)\n",
+			       i, links1[i].waypoint1, links1[i].waypoint2,
+			       links2[i].waypoint1, links2[i].waypoint2);
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool compareLightValue(float v1, float v2, const char* context)
+{
+	if (std::abs(v1 - v2) > 0.0001f)
+	{
+		printf("  DIFF [%s]: Light value mismatch: %f vs %f\n", context, v1, v2);
+		return false;
+	}
+	return true;
+}
+
+static bool compareLighting(int tod1, const LightingInfo lighting1[4],
+                             int tod2, const LightingInfo lighting2[4])
+{
+	if (tod1 != tod2)
+	{
+		printf("  DIFF: Time of day mismatch: %d vs %d\n", tod1, tod2);
+		return false;
+	}
+
+	for (int i = 0; i < 4; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			char ctx[64];
+			snprintf(ctx, sizeof(ctx), "lighting[%d].terrain[%d]", i, j);
+			if (!compareLightValue(lighting1[i].terrainLights[j].ambientR, lighting2[i].terrainLights[j].ambientR, ctx) ||
+			    !compareLightValue(lighting1[i].terrainLights[j].ambientG, lighting2[i].terrainLights[j].ambientG, ctx) ||
+			    !compareLightValue(lighting1[i].terrainLights[j].ambientB, lighting2[i].terrainLights[j].ambientB, ctx) ||
+			    !compareLightValue(lighting1[i].terrainLights[j].diffuseR, lighting2[i].terrainLights[j].diffuseR, ctx) ||
+			    !compareLightValue(lighting1[i].terrainLights[j].diffuseG, lighting2[i].terrainLights[j].diffuseG, ctx) ||
+			    !compareLightValue(lighting1[i].terrainLights[j].diffuseB, lighting2[i].terrainLights[j].diffuseB, ctx) ||
+			    !compareLightValue(lighting1[i].terrainLights[j].posX, lighting2[i].terrainLights[j].posX, ctx) ||
+			    !compareLightValue(lighting1[i].terrainLights[j].posY, lighting2[i].terrainLights[j].posY, ctx) ||
+			    !compareLightValue(lighting1[i].terrainLights[j].posZ, lighting2[i].terrainLights[j].posZ, ctx))
+				return false;
+
+			snprintf(ctx, sizeof(ctx), "lighting[%d].object[%d]", i, j);
+			if (!compareLightValue(lighting1[i].objectLights[j].ambientR, lighting2[i].objectLights[j].ambientR, ctx) ||
+			    !compareLightValue(lighting1[i].objectLights[j].ambientG, lighting2[i].objectLights[j].ambientG, ctx) ||
+			    !compareLightValue(lighting1[i].objectLights[j].ambientB, lighting2[i].objectLights[j].ambientB, ctx) ||
+			    !compareLightValue(lighting1[i].objectLights[j].diffuseR, lighting2[i].objectLights[j].diffuseR, ctx) ||
+			    !compareLightValue(lighting1[i].objectLights[j].diffuseG, lighting2[i].objectLights[j].diffuseG, ctx) ||
+			    !compareLightValue(lighting1[i].objectLights[j].diffuseB, lighting2[i].objectLights[j].diffuseB, ctx) ||
+			    !compareLightValue(lighting1[i].objectLights[j].posX, lighting2[i].objectLights[j].posX, ctx) ||
+			    !compareLightValue(lighting1[i].objectLights[j].posY, lighting2[i].objectLights[j].posY, ctx) ||
+			    !compareLightValue(lighting1[i].objectLights[j].posZ, lighting2[i].objectLights[j].posZ, ctx))
+				return false;
+		}
+	}
+	return true;
+}
+
+//-----------------------------------------------------------------------------
 // verifyMapRoundtrip - Test MAP -> JSON -> MAP roundtrip
 //-----------------------------------------------------------------------------
 static int verifyMapRoundtrip(const char* inputFile)
 {
 	printf("Verifying map roundtrip for %s...\n", inputFile);
-	printf("(Map roundtrip verification not yet implemented)\n");
-	return 1;
+
+	// Step 1: Read and parse the original map file
+	printf("Step 1: Parsing original map file...\n");
+
+	std::string mapFileData;
+	if (!readFileContents(inputFile, mapFileData))
+		return 1;
+
+	if (!decompressIfNeeded(mapFileData))
+	{
+		fprintf(stderr, "Error: Failed to decompress map file\n");
+		return 1;
+	}
+
+	g_mapData.clear();
+	PolygonTrigger::deleteTriggers();
+
+	MemoryInputStream memStream1((const unsigned char*)mapFileData.data(), mapFileData.size());
+	DataChunkInput input1(&memStream1);
+
+	if (!input1.isValidFileType())
+	{
+		fprintf(stderr, "Error: Invalid map file format\n");
+		return 1;
+	}
+
+	input1.registerParser("WorldInfo", AsciiString::TheEmptyString, parseWorldInfoChunk);
+	input1.registerParser("ObjectsList", AsciiString::TheEmptyString, parseObjectsListChunk);
+	input1.registerParser("PolygonTriggers", AsciiString::TheEmptyString, PolygonTrigger::ParsePolygonTriggersDataChunk);
+	input1.registerParser("WaypointsList", AsciiString::TheEmptyString, parseWaypointsListChunk);
+	input1.registerParser("GlobalLighting", AsciiString::TheEmptyString, parseGlobalLightingChunk);
+	input1.registerParser("SidesList", AsciiString::TheEmptyString, SidesList::ParseSidesDataChunk);
+	input1.registerParser("PlayerScriptsList", "SidesList", ScriptList::ParseScriptsDataChunk);
+
+	if (!input1.parse(NULL))
+	{
+		fprintf(stderr, "Error: Failed to parse map file\n");
+		return 1;
+	}
+
+	g_mapData.numPlayers = ScriptList::getReadScripts(g_mapData.scriptLists);
+
+	// Save original data for comparison
+	MapData originalData;
+	originalData.timeOfDay = g_mapData.timeOfDay;
+	memcpy(originalData.lighting, g_mapData.lighting, sizeof(originalData.lighting));
+	originalData.waypointLinks = g_mapData.waypointLinks;
+	originalData.objects = g_mapData.objects;
+	originalData.numPlayers = g_mapData.numPlayers;
+
+	// Save polygon trigger info before we delete them
+	// Note: We compare by name since trigger IDs are auto-assigned and not preserved in JSON
+	struct TriggerInfo {
+		int id;
+		std::string name;
+		int numPoints;
+		bool isWater;
+		bool isRiver;
+		bool operator<(const TriggerInfo& other) const { return name < other.name; }
+	};
+	std::vector<TriggerInfo> originalTriggerInfo;
+	for (PolygonTrigger* t = PolygonTrigger::getFirstPolygonTrigger(); t; t = t->getNext())
+	{
+		TriggerInfo info;
+		info.id = t->getID();
+		info.name = t->getTriggerName().str() ? t->getTriggerName().str() : "";
+		info.numPoints = t->getNumPoints();
+		info.isWater = t->isWaterArea();
+		info.isRiver = t->isRiver();
+		originalTriggerInfo.push_back(info);
+	}
+	std::sort(originalTriggerInfo.begin(), originalTriggerInfo.end());
+
+	printf("  [Original] Waypoint links: %zu\n", originalData.waypointLinks.size());
+	printf("  [Original] Polygon triggers: %zu\n", originalTriggerInfo.size());
+	printf("  [Original] Objects: %zu\n", originalData.objects.size());
+
+	// Step 2: Convert to JSON
+	printf("Step 2: Converting to JSON...\n");
+	SemanticMapWriter writer;
+	nlohmann::ordered_json jsonOutput = writer.writeMapFile(g_mapData);
+	std::string jsonStr = jsonOutput.dump(2);
+	printf("  JSON size: %zu bytes\n", jsonStr.size());
+
+	// Step 3: Parse JSON back to map data
+	printf("Step 3: Parsing JSON back to map data...\n");
+
+	// Clear global state before parsing
+	PolygonTrigger::deleteTriggers();
+
+	SemanticMapReader reader;
+	MapData roundtripData;
+	if (!reader.parseMapFile(jsonStr.c_str(), jsonStr.size(), roundtripData))
+	{
+		fprintf(stderr, "Error parsing JSON: %s\n", reader.getLastError().c_str());
+		return 1;
+	}
+
+	// Gather roundtrip trigger info
+	std::vector<TriggerInfo> roundtripTriggerInfo;
+	for (PolygonTrigger* t = PolygonTrigger::getFirstPolygonTrigger(); t; t = t->getNext())
+	{
+		TriggerInfo info;
+		info.id = t->getID();
+		info.name = t->getTriggerName().str() ? t->getTriggerName().str() : "";
+		info.numPoints = t->getNumPoints();
+		info.isWater = t->isWaterArea();
+		info.isRiver = t->isRiver();
+		roundtripTriggerInfo.push_back(info);
+	}
+	std::sort(roundtripTriggerInfo.begin(), roundtripTriggerInfo.end());
+
+	printf("  [Roundtrip] Waypoint links: %zu\n", roundtripData.waypointLinks.size());
+	printf("  [Roundtrip] Polygon triggers: %zu\n", roundtripTriggerInfo.size());
+	printf("  [Roundtrip] Objects: %zu\n", roundtripData.objects.size());
+
+	// Step 4: Compare
+	printf("Step 4: Comparing original and roundtrip data...\n");
+
+	bool allMatch = true;
+
+	// Compare waypoint links
+	printf("  Comparing waypoint links...\n");
+	if (!compareWaypointLinks(originalData.waypointLinks, roundtripData.waypointLinks))
+		allMatch = false;
+
+	// Compare lighting
+	printf("  Comparing lighting...\n");
+	if (!compareLighting(originalData.timeOfDay, originalData.lighting,
+	                     roundtripData.timeOfDay, roundtripData.lighting))
+		allMatch = false;
+
+	// Compare polygon triggers (sorted by name, IDs are auto-assigned so not compared)
+	printf("  Comparing polygon triggers...\n");
+	if (originalTriggerInfo.size() != roundtripTriggerInfo.size())
+	{
+		printf("  DIFF: Polygon trigger count mismatch: %zu vs %zu\n",
+		       originalTriggerInfo.size(), roundtripTriggerInfo.size());
+		allMatch = false;
+	}
+	else
+	{
+		for (size_t i = 0; i < originalTriggerInfo.size(); i++)
+		{
+			const TriggerInfo& orig = originalTriggerInfo[i];
+			const TriggerInfo& rt = roundtripTriggerInfo[i];
+
+			if (orig.name != rt.name)
+			{
+				printf("  DIFF: Polygon trigger %zu name mismatch: '%s' vs '%s'\n",
+				       i, orig.name.c_str(), rt.name.c_str());
+				allMatch = false;
+			}
+			if (orig.numPoints != rt.numPoints)
+			{
+				printf("  DIFF: Polygon trigger '%s' point count mismatch: %d vs %d\n",
+				       orig.name.c_str(), orig.numPoints, rt.numPoints);
+				allMatch = false;
+			}
+			if (orig.isWater != rt.isWater)
+			{
+				printf("  DIFF: Polygon trigger '%s' isWater mismatch: %d vs %d\n",
+				       orig.name.c_str(), orig.isWater, rt.isWater);
+				allMatch = false;
+			}
+			if (orig.isRiver != rt.isRiver)
+			{
+				printf("  DIFF: Polygon trigger '%s' isRiver mismatch: %d vs %d\n",
+				       orig.name.c_str(), orig.isRiver, rt.isRiver);
+				allMatch = false;
+			}
+		}
+	}
+
+	// Compare object counts (detailed object comparison is complex due to Dict)
+	if (originalData.objects.size() != roundtripData.objects.size())
+	{
+		printf("  DIFF: Object count mismatch: %zu vs %zu\n",
+		       originalData.objects.size(), roundtripData.objects.size());
+		allMatch = false;
+	}
+
+	if (allMatch)
+	{
+		printf("\nSUCCESS: Map roundtrip verification passed!\n");
+		return 0;
+	}
+	else
+	{
+		printf("\nFAILURE: Map roundtrip verification found differences.\n");
+		return 1;
+	}
 }
 
 //-----------------------------------------------------------------------------
