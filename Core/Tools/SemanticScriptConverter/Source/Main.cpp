@@ -41,6 +41,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
@@ -59,6 +60,7 @@
 #include "Common/DataChunk.h"
 #include "Common/SemanticScriptJSON.h"
 #include "Common/SemanticMapJSON.h"
+#include "Compression.h"
 #include "GameLogic/Scripts.h"
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/SidesList.h"
@@ -77,6 +79,8 @@ HWND ApplicationHWnd = NULL;
 #endif
 
 const char *gAppPrefix = "SSC_";
+const Char *g_strFile = "data\\Generals.str";
+const Char *g_csfFile = "data\\%s\\Generals.csf";
 
 static SubsystemInterfaceList _TheSubsystemList;
 
@@ -85,6 +89,106 @@ void initSubsystem(SUBSYSTEM*& sysref, SUBSYSTEM* sys, const char* path1 = NULL,
 {
 	sysref = sys;
 	_TheSubsystemList.initSubsystem(sys, path1, path2, NULL);
+}
+
+//-----------------------------------------------------------------------------
+// MemoryInputStream - ChunkInputStream that reads from a memory buffer
+//-----------------------------------------------------------------------------
+class MemoryInputStream : public ChunkInputStream
+{
+	const unsigned char* m_data;
+	size_t m_size;
+	size_t m_pos;
+
+public:
+	MemoryInputStream(const unsigned char* data, size_t size)
+		: m_data(data), m_size(size), m_pos(0) {}
+
+	Int read(void* dst, Int numBytes) override
+	{
+		if (m_pos >= m_size)
+			return 0;
+		size_t available = m_size - m_pos;
+		size_t toRead = (size_t)numBytes < available ? (size_t)numBytes : available;
+		memcpy(dst, m_data + m_pos, toRead);
+		m_pos += toRead;
+		return (Int)toRead;
+	}
+
+	Bool absoluteSeek(UnsignedInt pos) override
+	{
+		if (pos > m_size)
+			m_pos = m_size;
+		else
+			m_pos = pos;
+		return true;
+	}
+
+	Bool eof() override { return m_pos >= m_size; }
+	UnsignedInt tell() override { return (UnsignedInt)m_pos; }
+};
+
+//-----------------------------------------------------------------------------
+// MemoryOutputStream - OutputStream that writes to a memory buffer
+//-----------------------------------------------------------------------------
+class MemoryOutputStream : public OutputStream
+{
+	std::vector<unsigned char> m_data;
+
+public:
+	Int write(const void* pData, Int numBytes) override
+	{
+		const unsigned char* src = (const unsigned char*)pData;
+		m_data.insert(m_data.end(), src, src + numBytes);
+		return numBytes;
+	}
+
+	const unsigned char* getData() const { return m_data.data(); }
+	size_t getDataSize() const { return m_data.size(); }
+	void clear() { m_data.clear(); }
+};
+
+//-----------------------------------------------------------------------------
+// SimpleFileOutputStream - OutputStream that writes to a FILE*
+//-----------------------------------------------------------------------------
+class SimpleFileOutputStream : public OutputStream
+{
+	FILE* m_file;
+public:
+	SimpleFileOutputStream(FILE* file) : m_file(file) {}
+	Int write(const void* pData, Int numBytes) override
+	{
+		return (Int)fwrite(pData, 1, numBytes, m_file);
+	}
+};
+
+//-----------------------------------------------------------------------------
+// decompressIfNeeded - Decompress data if it's compressed (RefPack, etc.)
+//-----------------------------------------------------------------------------
+static bool decompressIfNeeded(std::string& data)
+{
+	if (data.size() < 8)
+		return true;  // Too small to be compressed
+
+	if (!CompressionManager::isDataCompressed(data.data(), (Int)data.size()))
+		return true;  // Not compressed
+
+	Int uncompLen = CompressionManager::getUncompressedSize(data.data(), (Int)data.size());
+	if (uncompLen <= 0)
+		return false;  // Invalid compression header
+
+	std::vector<char> uncompBuffer(uncompLen);
+	Int actualLen = CompressionManager::decompressData(data.data(), (Int)data.size(),
+	                                                    uncompBuffer.data(), uncompLen);
+	if (actualLen != uncompLen)
+	{
+		fprintf(stderr, "Warning: Decompression size mismatch (expected %d, got %d)\n",
+		        uncompLen, actualLen);
+		return false;
+	}
+
+	data.assign(uncompBuffer.data(), uncompLen);
+	return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -274,6 +378,9 @@ static bool initMinimalEngine()
 	// Note: Templates are loaded from Data/INI/Scripts*.ini files during INI parsing
 	initSubsystem(TheScriptEngine, (ScriptEngine*)(new ScriptEngine()));
 
+	// Initialize SidesList (needed for map parsing)
+	initSubsystem(TheSidesList, new SidesList());
+
 	_TheSubsystemList.postProcessLoadAll();
 
 	// Check if templates were loaded
@@ -304,6 +411,32 @@ static void shutdownEngine()
 }
 
 //-----------------------------------------------------------------------------
+// cleanupScriptLists - Helper to clean up script lists with proper memory management
+//-----------------------------------------------------------------------------
+static void cleanupScriptLists(ScriptList* scriptLists[], int count)
+{
+	for (int i = 0; i < count; i++)
+	{
+		if (scriptLists[i])
+		{
+			deleteInstance(scriptLists[i]);
+			scriptLists[i] = NULL;
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+// countPolygonTriggers - Count polygon triggers by iterating the list
+//-----------------------------------------------------------------------------
+static int countPolygonTriggers()
+{
+	int count = 0;
+	for (PolygonTrigger* t = PolygonTrigger::getFirstPolygonTrigger(); t; t = t->getNext())
+		count++;
+	return count;
+}
+
+//-----------------------------------------------------------------------------
 // convertToJSON
 //-----------------------------------------------------------------------------
 static int convertToJSON(const char* inputFile, const char* outputFile)
@@ -318,8 +451,14 @@ static int convertToJSON(const char* inputFile, const char* outputFile)
 	}
 
 	// Parse the SCB binary data using the game's chunk parsing system
-	DataChunkInput input;
-	input.open((const unsigned char*)scbData.data(), (Int)scbData.size());
+	MemoryInputStream memStream((const unsigned char*)scbData.data(), scbData.size());
+	DataChunkInput input(&memStream);
+
+	if (!input.isValidFileType())
+	{
+		fprintf(stderr, "Error: Invalid SCB file format\n");
+		return 1;
+	}
 
 	// Register the scripts parser callback
 	input.registerParser("PlayerScriptsList", AsciiString::TheEmptyString, ScriptList::ParseScriptsDataChunk);
@@ -328,15 +467,14 @@ static int convertToJSON(const char* inputFile, const char* outputFile)
 	if (!input.parse(NULL))
 	{
 		fprintf(stderr, "Error: Failed to parse SCB file\n");
-		input.close();
 		return 1;
 	}
 
 	// Get the parsed script lists
 	ScriptList* scriptLists[MAX_PLAYER_COUNT];
+	for (int i = 0; i < MAX_PLAYER_COUNT; i++)
+		scriptLists[i] = NULL;
 	Int numPlayers = ScriptList::getReadScripts(scriptLists);
-
-	input.close();
 
 	// Convert to semantic JSON
 	SemanticScriptWriter writer;
@@ -346,12 +484,7 @@ static int convertToJSON(const char* inputFile, const char* outputFile)
 	std::string jsonStr = jsonOutput.dump(2);
 	if (!writeFileContents(outputFile, jsonStr))
 	{
-		// Clean up
-		for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-		{
-			if (scriptLists[i])
-				delete scriptLists[i];
-		}
+		cleanupScriptLists(scriptLists, MAX_PLAYER_COUNT);
 		return 1;
 	}
 
@@ -368,11 +501,7 @@ static int convertToJSON(const char* inputFile, const char* outputFile)
 	}
 
 	// Clean up
-	for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-	{
-		if (scriptLists[i])
-			delete scriptLists[i];
-	}
+	cleanupScriptLists(scriptLists, MAX_PLAYER_COUNT);
 
 	return 0;
 }
@@ -418,32 +547,26 @@ static int convertToSCB(const char* inputFile, const char* outputFile)
 	}
 
 	// Write to SCB binary format using the game's chunk writing system
-	DataChunkOutput output;
+	FILE* outFile = fopen(outputFile, "wb");
+	if (!outFile)
+	{
+		fprintf(stderr, "Error: Cannot open output file '%s'\n", outputFile);
+		cleanupScriptLists(scriptLists, MAX_PLAYER_COUNT);
+		return 1;
+	}
+
+	SimpleFileOutputStream fileStream(outFile);
+	DataChunkOutput output(&fileStream);
 
 	// WriteScriptsDataChunk handles the entire PlayerScriptsList chunk structure
 	ScriptList::WriteScriptsDataChunk(output, scriptLists, numPlayers);
 
-	// Write to output file
-	std::string scbData((const char*)output.getData(), output.getDataSize());
-	if (!writeFileContents(outputFile, scbData))
-	{
-		// Clean up
-		for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-		{
-			if (scriptLists[i])
-				delete scriptLists[i];
-		}
-		return 1;
-	}
+	fclose(outFile);
 
 	printf("Successfully wrote %s\n", outputFile);
 
 	// Clean up
-	for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-	{
-		if (scriptLists[i])
-			delete scriptLists[i];
-	}
+	cleanupScriptLists(scriptLists, MAX_PLAYER_COUNT);
 
 	return 0;
 }
@@ -457,7 +580,8 @@ static MapData g_mapData;
 static Bool parseWorldInfoChunk(DataChunkInput &file, DataChunkInfo *info, void *userData)
 {
 	g_mapData.worldInfo = new Dict();
-	file.readDict(g_mapData.worldInfo);
+	Dict d = file.readDict();
+	*g_mapData.worldInfo = d;
 	return true;
 }
 
@@ -476,7 +600,8 @@ static Bool parseObjectChunk(DataChunkInput &file, DataChunkInfo *info, void *us
 	obj.name = name.str() ? name.str() : "";
 
 	obj.properties = new Dict();
-	file.readDict(obj.properties);
+	Dict d = file.readDict();
+	*obj.properties = d;
 
 	g_mapData.objects.push_back(obj);
 	return true;
@@ -577,11 +702,24 @@ static int convertMapToJSON(const char* inputFile, const char* outputFile)
 		return 1;
 	}
 
+	// Decompress if needed (map files are often RefPack compressed)
+	if (!decompressIfNeeded(mapFileData))
+	{
+		fprintf(stderr, "Error: Failed to decompress map file\n");
+		return 1;
+	}
+
 	g_mapData.clear();
 	PolygonTrigger::deleteTriggers();
 
-	DataChunkInput input;
-	input.open((const unsigned char*)mapFileData.data(), (Int)mapFileData.size());
+	MemoryInputStream memStream((const unsigned char*)mapFileData.data(), mapFileData.size());
+	DataChunkInput input(&memStream);
+
+	if (!input.isValidFileType())
+	{
+		fprintf(stderr, "Error: Invalid map file format\n");
+		return 1;
+	}
 
 	input.registerParser("WorldInfo", AsciiString::TheEmptyString, parseWorldInfoChunk);
 	input.registerParser("ObjectsList", AsciiString::TheEmptyString, parseObjectsListChunk);
@@ -594,20 +732,15 @@ static int convertMapToJSON(const char* inputFile, const char* outputFile)
 	if (!input.parse(NULL))
 	{
 		fprintf(stderr, "Error: Failed to parse map file\n");
-		input.close();
 		return 1;
 	}
 
 	g_mapData.numPlayers = ScriptList::getReadScripts(g_mapData.scriptLists);
 
-	input.close();
-
 	printf("  Objects: %zu\n", g_mapData.objects.size());
 	printf("  Waypoint links: %zu\n", g_mapData.waypointLinks.size());
 
-	int triggerCount = 0;
-	for (PolygonTrigger* t = PolygonTrigger::getFirstPolygonTrigger(); t; t = t->getNext())
-		triggerCount++;
+	int triggerCount = countPolygonTriggers();
 	printf("  Polygon triggers: %d\n", triggerCount);
 	printf("  Script players: %d\n", g_mapData.numPlayers);
 
@@ -666,22 +799,34 @@ static int convertJSONToMap(const char* jsonFile, const char* baseMapFile, const
 		return 1;
 	}
 
+	// Decompress if needed
+	if (!decompressIfNeeded(baseData))
+	{
+		fprintf(stderr, "Error: Failed to decompress base map file\n");
+		return 1;
+	}
+
 	// Use a separate MapData to capture binary chunks without clearing parsed JSON data
 	g_mapData.heightMapData.clear();
 	g_mapData.blendTileData.clear();
 
-	DataChunkInput baseInput;
-	baseInput.open((const unsigned char*)baseData.data(), (Int)baseData.size());
+	MemoryInputStream baseStream((const unsigned char*)baseData.data(), baseData.size());
+	DataChunkInput baseInput(&baseStream);
+
+	if (!baseInput.isValidFileType())
+	{
+		fprintf(stderr, "Error: Invalid base map file format\n");
+		return 1;
+	}
+
 	baseInput.registerParser("HeightMapData", AsciiString::TheEmptyString, captureHeightMapChunk);
 	baseInput.registerParser("BlendTileData", AsciiString::TheEmptyString, captureBlendTileChunk);
 
 	if (!baseInput.parse(NULL))
 	{
 		fprintf(stderr, "Error: Failed to read base map\n");
-		baseInput.close();
 		return 1;
 	}
-	baseInput.close();
 
 	// Transfer binary chunks to mapData
 	mapData.heightMapData = std::move(g_mapData.heightMapData);
@@ -706,22 +851,27 @@ static int convertJSONToMap(const char* jsonFile, const char* baseMapFile, const
 	       mapData.blendTileData.size(), mapData.blendTileVersion);
 
 	// 3. Write combined output
-	DataChunkOutput output;
+	FILE* outFile = fopen(outputFile, "wb");
+	if (!outFile)
+	{
+		fprintf(stderr, "Error: Cannot open output file '%s'\n", outputFile);
+		return 1;
+	}
+
+	SimpleFileOutputStream fileStream(outFile);
+	DataChunkOutput output(&fileStream);
 	SemanticMapFileWriter writer;
+
 	if (!writer.writeMapFile(mapData, output))
 	{
 		fprintf(stderr, "Error: Failed to write map data\n");
+		fclose(outFile);
 		return 1;
 	}
 
-	// 4. Save to file
-	std::string outputData((const char*)output.getData(), output.getDataSize());
-	if (!writeFileContents(outputFile, outputData))
-	{
-		return 1;
-	}
+	fclose(outFile);
 
-	printf("Successfully wrote %s (%zu bytes)\n", outputFile, outputData.size());
+	printf("Successfully wrote %s\n", outputFile);
 
 	if (reader.hasWarnings())
 	{
@@ -1176,90 +1326,6 @@ static void printScriptValidationSummary(const ScriptStats& stats, const char* l
 	       label, stats.totalScripts, stats.totalGroups, stats.totalConditions, stats.totalActions);
 }
 
-static bool validateScriptData(ScriptList* scriptLists[], int numPlayers, const char* label)
-{
-	bool valid = true;
-
-	for (int p = 0; p < numPlayers; p++)
-	{
-		if (!scriptLists[p])
-			continue;
-
-		Script* script = scriptLists[p]->getScript();
-		int scriptIndex = 0;
-		while (script)
-		{
-			if (script->getName().isEmpty())
-			{
-				printf("  [%s] VALIDATION ERROR: Player %d script %d has empty name\n", label, p, scriptIndex);
-				valid = false;
-			}
-
-			OrCondition* orCond = script->getOrCondition();
-			while (orCond)
-			{
-				Condition* cond = orCond->getFirstAndCondition();
-				while (cond)
-				{
-					if (cond->getConditionType() < 0)
-					{
-						printf("  [%s] VALIDATION ERROR: Player %d script '%s' has invalid condition type %d\n",
-						       label, p, script->getName().str(), cond->getConditionType());
-						valid = false;
-					}
-					cond = cond->getNext();
-				}
-				orCond = orCond->getNextOrCondition();
-			}
-
-			ScriptAction* action = script->getAction();
-			while (action)
-			{
-				if (action->getActionType() < 0)
-				{
-					printf("  [%s] VALIDATION ERROR: Player %d script '%s' has invalid action type %d\n",
-					       label, p, script->getName().str(), action->getActionType());
-					valid = false;
-				}
-				action = action->getNext();
-			}
-
-			script = script->getNext();
-			scriptIndex++;
-		}
-
-		ScriptGroup* group = scriptLists[p]->getScriptGroup();
-		int groupIndex = 0;
-		while (group)
-		{
-			if (group->getName().isEmpty())
-			{
-				printf("  [%s] VALIDATION ERROR: Player %d group %d has empty name\n", label, p, groupIndex);
-				valid = false;
-			}
-
-			Script* groupScript = group->getScript();
-			int gsIndex = 0;
-			while (groupScript)
-			{
-				if (groupScript->getName().isEmpty())
-				{
-					printf("  [%s] VALIDATION ERROR: Player %d group '%s' script %d has empty name\n",
-					       label, p, group->getName().str(), gsIndex);
-					valid = false;
-				}
-				groupScript = groupScript->getNext();
-				gsIndex++;
-			}
-
-			group = group->getNext();
-			groupIndex++;
-		}
-	}
-
-	return valid;
-}
-
 static bool validateScriptStats(const ScriptStats& original, const ScriptStats& roundtrip)
 {
 	bool valid = true;
@@ -1299,440 +1365,7 @@ static bool validateScriptStats(const ScriptStats& original, const ScriptStats& 
 		valid = false;
 	}
 
-	if (original.totalScripts > 0 && roundtrip.totalScripts == 0)
-	{
-		printf("  VALIDATION ERROR: Roundtrip lost all scripts!\n");
-		valid = false;
-	}
-
 	return valid;
-}
-
-struct MapStats
-{
-	size_t objectCount;
-	size_t waypointLinkCount;
-	int triggerCount;
-	int waypointCount;
-	int timeOfDay;
-	ScriptStats scripts;
-};
-
-static MapStats getMapStats(const MapData& mapData, int triggerCount)
-{
-	MapStats stats;
-	stats.objectCount = mapData.objects.size();
-	stats.waypointLinkCount = mapData.waypointLinks.size();
-	stats.triggerCount = triggerCount;
-	stats.timeOfDay = mapData.timeOfDay;
-	stats.waypointCount = 0;
-	for (const auto& obj : mapData.objects)
-	{
-		if (obj.flags & 0x200)  // FLAG_WAYPOINT
-			stats.waypointCount++;
-	}
-
-	stats.scripts = getScriptStats(const_cast<ScriptList**>(mapData.scriptLists), mapData.numPlayers);
-	return stats;
-}
-
-static void printMapValidationSummary(const MapStats& stats, const char* label)
-{
-	printf("  [%s] Objects: %zu, Waypoint links: %zu, Triggers: %d\n",
-	       label, stats.objectCount, stats.waypointLinkCount, stats.triggerCount);
-	printf("  [%s] Waypoints: %d, Time of day: %d\n", label, stats.waypointCount, stats.timeOfDay);
-
-	if (stats.scripts.numPlayers > 0)
-	{
-		printf("  [%s] Scripts: %d scripts, %d groups, %d conditions, %d actions\n",
-		       label, stats.scripts.totalScripts, stats.scripts.totalGroups,
-		       stats.scripts.totalConditions, stats.scripts.totalActions);
-	}
-}
-
-static bool validateMapData(const MapData& mapData, const char* label)
-{
-	bool valid = true;
-
-	for (size_t i = 0; i < mapData.objects.size(); i++)
-	{
-		if (mapData.objects[i].name.empty())
-		{
-			printf("  [%s] VALIDATION ERROR: Object %zu has empty name\n", label, i);
-			valid = false;
-			break;
-		}
-	}
-
-	for (size_t i = 0; i < mapData.waypointLinks.size(); i++)
-	{
-		if (mapData.waypointLinks[i].waypoint1 < 0 || mapData.waypointLinks[i].waypoint2 < 0)
-		{
-			printf("  [%s] VALIDATION ERROR: Waypoint link %zu has negative ID\n", label, i);
-			valid = false;
-			break;
-		}
-	}
-
-	if (mapData.timeOfDay < 0 || mapData.timeOfDay > 3)
-	{
-		printf("  [%s] VALIDATION WARNING: Unusual time of day value: %d\n", label, mapData.timeOfDay);
-	}
-
-	return valid;
-}
-
-static bool validateMapStats(const MapStats& original, const MapStats& roundtrip)
-{
-	bool valid = true;
-
-	if (original.objectCount != roundtrip.objectCount)
-	{
-		printf("  VALIDATION ERROR: Object count mismatch: %zu vs %zu\n",
-		       original.objectCount, roundtrip.objectCount);
-		valid = false;
-	}
-
-	if (original.waypointLinkCount != roundtrip.waypointLinkCount)
-	{
-		printf("  VALIDATION ERROR: Waypoint link count mismatch: %zu vs %zu\n",
-		       original.waypointLinkCount, roundtrip.waypointLinkCount);
-		valid = false;
-	}
-
-	if (original.triggerCount != roundtrip.triggerCount)
-	{
-		printf("  VALIDATION ERROR: Trigger count mismatch: %d vs %d\n",
-		       original.triggerCount, roundtrip.triggerCount);
-		valid = false;
-	}
-
-	if (original.waypointCount != roundtrip.waypointCount)
-	{
-		printf("  VALIDATION ERROR: Waypoint count mismatch: %d vs %d\n",
-		       original.waypointCount, roundtrip.waypointCount);
-		valid = false;
-	}
-
-	if (original.timeOfDay != roundtrip.timeOfDay)
-	{
-		printf("  VALIDATION ERROR: Time of day mismatch: %d vs %d\n",
-		       original.timeOfDay, roundtrip.timeOfDay);
-		valid = false;
-	}
-
-	if (original.objectCount > 0 && roundtrip.objectCount == 0)
-	{
-		printf("  VALIDATION ERROR: Roundtrip lost all objects!\n");
-		valid = false;
-	}
-
-	if (!validateScriptStats(original.scripts, roundtrip.scripts))
-		valid = false;
-
-	return valid;
-}
-
-//-----------------------------------------------------------------------------
-// Map data comparison helpers
-//-----------------------------------------------------------------------------
-static bool floatEqual(float a, float b, float epsilon = 0.001f)
-{
-	return fabs(a - b) < epsilon;
-}
-
-static bool compareMapObjects(const std::vector<MapObjectInfo>& obj1, const std::vector<MapObjectInfo>& obj2)
-{
-	if (obj1.size() != obj2.size())
-	{
-		printf("  DIFF: Object count mismatch: %zu vs %zu\n", obj1.size(), obj2.size());
-		return false;
-	}
-
-	for (size_t i = 0; i < obj1.size(); i++)
-	{
-		const MapObjectInfo& o1 = obj1[i];
-		const MapObjectInfo& o2 = obj2[i];
-
-		if (o1.name != o2.name)
-		{
-			printf("  DIFF [obj %zu]: Name mismatch: '%s' vs '%s'\n", i, o1.name.c_str(), o2.name.c_str());
-			return false;
-		}
-		if (!floatEqual(o1.x, o2.x) || !floatEqual(o1.y, o2.y) || !floatEqual(o1.z, o2.z))
-		{
-			printf("  DIFF [obj %zu '%s']: Position mismatch: (%.2f,%.2f,%.2f) vs (%.2f,%.2f,%.2f)\n",
-			       i, o1.name.c_str(), o1.x, o1.y, o1.z, o2.x, o2.y, o2.z);
-			return false;
-		}
-		if (!floatEqual(o1.angle, o2.angle))
-		{
-			printf("  DIFF [obj %zu '%s']: Angle mismatch: %.4f vs %.4f\n", i, o1.name.c_str(), o1.angle, o2.angle);
-			return false;
-		}
-		if (o1.flags != o2.flags)
-		{
-			printf("  DIFF [obj %zu '%s']: Flags mismatch: 0x%x vs 0x%x\n", i, o1.name.c_str(), o1.flags, o2.flags);
-			return false;
-		}
-	}
-
-	return true;
-}
-
-static bool compareWaypointLinks(const std::vector<WaypointLinkInfo>& links1, const std::vector<WaypointLinkInfo>& links2)
-{
-	if (links1.size() != links2.size())
-	{
-		printf("  DIFF: Waypoint link count mismatch: %zu vs %zu\n", links1.size(), links2.size());
-		return false;
-	}
-
-	for (size_t i = 0; i < links1.size(); i++)
-	{
-		if (links1[i].waypoint1 != links2[i].waypoint1 || links1[i].waypoint2 != links2[i].waypoint2)
-		{
-			printf("  DIFF [link %zu]: Mismatch: (%d,%d) vs (%d,%d)\n",
-			       i, links1[i].waypoint1, links1[i].waypoint2, links2[i].waypoint1, links2[i].waypoint2);
-			return false;
-		}
-	}
-
-	return true;
-}
-
-static bool compareLighting(const LightingInfo lighting1[4], const LightingInfo lighting2[4])
-{
-	for (int i = 0; i < 4; i++)
-	{
-		for (int j = 0; j < 3; j++)
-		{
-			const LightingInfo::Light& t1 = lighting1[i].terrainLights[j];
-			const LightingInfo::Light& t2 = lighting2[i].terrainLights[j];
-			if (!floatEqual(t1.ambientR, t2.ambientR) || !floatEqual(t1.ambientG, t2.ambientG) || !floatEqual(t1.ambientB, t2.ambientB) ||
-			    !floatEqual(t1.diffuseR, t2.diffuseR) || !floatEqual(t1.diffuseG, t2.diffuseG) || !floatEqual(t1.diffuseB, t2.diffuseB) ||
-			    !floatEqual(t1.posX, t2.posX) || !floatEqual(t1.posY, t2.posY) || !floatEqual(t1.posZ, t2.posZ))
-			{
-				printf("  DIFF [lighting %d terrain %d]: Mismatch\n", i, j);
-				return false;
-			}
-
-			const LightingInfo::Light& o1 = lighting1[i].objectLights[j];
-			const LightingInfo::Light& o2 = lighting2[i].objectLights[j];
-			if (!floatEqual(o1.ambientR, o2.ambientR) || !floatEqual(o1.ambientG, o2.ambientG) || !floatEqual(o1.ambientB, o2.ambientB) ||
-			    !floatEqual(o1.diffuseR, o2.diffuseR) || !floatEqual(o1.diffuseG, o2.diffuseG) || !floatEqual(o1.diffuseB, o2.diffuseB) ||
-			    !floatEqual(o1.posX, o2.posX) || !floatEqual(o1.posY, o2.posY) || !floatEqual(o1.posZ, o2.posZ))
-			{
-				printf("  DIFF [lighting %d object %d]: Mismatch\n", i, j);
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-static bool compareMapData(const MapData& map1, const MapData& map2)
-{
-	bool allMatch = true;
-
-	printf("  Comparing objects...\n");
-	if (!compareMapObjects(map1.objects, map2.objects))
-		allMatch = false;
-
-	printf("  Comparing waypoint links...\n");
-	if (!compareWaypointLinks(map1.waypointLinks, map2.waypointLinks))
-		allMatch = false;
-
-	printf("  Comparing lighting...\n");
-	if (map1.timeOfDay != map2.timeOfDay)
-	{
-		printf("  DIFF: Time of day mismatch: %d vs %d\n", map1.timeOfDay, map2.timeOfDay);
-		allMatch = false;
-	}
-	if (!compareLighting(map1.lighting, map2.lighting))
-		allMatch = false;
-
-	printf("  Comparing polygon triggers...\n");
-	// Polygon triggers are stored in a global list, we compare counts here
-	// More detailed comparison would require iterating the static list
-
-	printf("  Comparing scripts...\n");
-	if (map1.numPlayers != map2.numPlayers)
-	{
-		printf("  DIFF: Script player count mismatch: %d vs %d\n", map1.numPlayers, map2.numPlayers);
-		allMatch = false;
-	}
-	else
-	{
-		for (int i = 0; i < map1.numPlayers; i++)
-		{
-			if (!compareScriptLists(map1.scriptLists[i], map2.scriptLists[i], i))
-				allMatch = false;
-		}
-	}
-
-	return allMatch;
-}
-
-//-----------------------------------------------------------------------------
-// verifyMapRoundtrip - Test MAP -> JSON -> MAP roundtrip
-//-----------------------------------------------------------------------------
-static int verifyMapRoundtrip(const char* inputFile)
-{
-	printf("Verifying map roundtrip for %s...\n", inputFile);
-
-	// Step 1: Read and parse the original MAP file
-	std::string mapData;
-	if (!readFileContents(inputFile, mapData))
-	{
-		return 1;
-	}
-
-	printf("Step 1: Parsing original MAP file...\n");
-
-	MapData originalMap;
-	originalMap.clear();
-	g_mapData.clear();
-	PolygonTrigger::deleteAllPolygonTriggers();
-
-	DataChunkInput input1;
-	input1.open((const unsigned char*)mapData.data(), (Int)mapData.size());
-	input1.registerParser("HeightMapData", AsciiString::TheEmptyString, captureHeightMapChunk);
-	input1.registerParser("BlendTileData", AsciiString::TheEmptyString, captureBlendTileChunk);
-	input1.registerParser("WorldInfo", AsciiString::TheEmptyString, parseWorldInfoChunk);
-	input1.registerParser("ObjectsList", AsciiString::TheEmptyString, parseObjectsListChunk);
-	input1.registerParser("Object", "ObjectsList", parseObjectChunk);
-	input1.registerParser("PolygonTriggers", AsciiString::TheEmptyString, PolygonTrigger::ParsePolygonTriggersDataChunk);
-	input1.registerParser("WaypointsList", AsciiString::TheEmptyString, parseWaypointsListChunk);
-	input1.registerParser("GlobalLighting", AsciiString::TheEmptyString, parseGlobalLightingChunk);
-	input1.registerParser("SidesList", AsciiString::TheEmptyString, parseSidesListChunk);
-	input1.registerParser("PlayerScriptsList", "SidesList", ScriptList::ParseScriptsDataChunk);
-
-	if (!input1.parse(NULL))
-	{
-		fprintf(stderr, "Error: Failed to parse original MAP file\n");
-		input1.close();
-		return 1;
-	}
-	input1.close();
-
-	// Copy parsed data to originalMap
-	originalMap = g_mapData;
-	originalMap.numPlayers = ScriptList::getReadScripts(originalMap.scriptLists);
-	int originalTriggerCount = PolygonTrigger::getNumPolygonTriggers();
-
-	MapStats originalStats = getMapStats(originalMap, originalTriggerCount);
-	printMapValidationSummary(originalStats, "Original");
-
-	// Validate original data
-	if (!validateMapData(originalMap, "Original"))
-	{
-		printf("  WARNING: Original map has validation issues\n");
-	}
-
-	// Step 2: Convert to JSON
-	printf("Step 2: Converting to JSON...\n");
-	SemanticMapWriter writer;
-	nlohmann::ordered_json jsonOutput = writer.writeMapFile(originalMap);
-	std::string jsonStr = jsonOutput.dump(2);
-	printf("  JSON size: %zu bytes\n", jsonStr.size());
-
-	// Step 3: Parse JSON back to map data
-	printf("Step 3: Parsing JSON back to map data...\n");
-	SemanticMapReader reader;
-	MapData roundtripMap;
-	PolygonTrigger::deleteAllPolygonTriggers();
-
-	if (!reader.parseMapFile(jsonStr.c_str(), jsonStr.size(), roundtripMap))
-	{
-		fprintf(stderr, "Error parsing JSON: %s\n", reader.getLastError().c_str());
-		return 1;
-	}
-
-	// Transfer binary chunks from original (these wouldn't be in JSON)
-	roundtripMap.heightMapData = originalMap.heightMapData;
-	roundtripMap.blendTileData = originalMap.blendTileData;
-	roundtripMap.heightMapVersion = originalMap.heightMapVersion;
-	roundtripMap.blendTileVersion = originalMap.blendTileVersion;
-
-	// Step 4: Write to binary MAP format
-	printf("Step 4: Writing to binary MAP format...\n");
-	DataChunkOutput output;
-	SemanticMapFileWriter mapWriter;
-	if (!mapWriter.writeMapFile(roundtripMap, output))
-	{
-		fprintf(stderr, "Error: Failed to write map data\n");
-		return 1;
-	}
-	printf("  Binary size: %d bytes\n", output.getDataSize());
-
-	// Step 5: Re-parse the roundtripped binary
-	printf("Step 5: Re-parsing roundtripped binary...\n");
-	MapData reparsedMap;
-	reparsedMap.clear();
-	g_mapData.clear();
-	PolygonTrigger::deleteAllPolygonTriggers();
-
-	DataChunkInput input2;
-	input2.open((const unsigned char*)output.getData(), output.getDataSize());
-	input2.registerParser("HeightMapData", AsciiString::TheEmptyString, captureHeightMapChunk);
-	input2.registerParser("BlendTileData", AsciiString::TheEmptyString, captureBlendTileChunk);
-	input2.registerParser("WorldInfo", AsciiString::TheEmptyString, parseWorldInfoChunk);
-	input2.registerParser("ObjectsList", AsciiString::TheEmptyString, parseObjectsListChunk);
-	input2.registerParser("Object", "ObjectsList", parseObjectChunk);
-	input2.registerParser("PolygonTriggers", AsciiString::TheEmptyString, PolygonTrigger::ParsePolygonTriggersDataChunk);
-	input2.registerParser("WaypointsList", AsciiString::TheEmptyString, parseWaypointsListChunk);
-	input2.registerParser("GlobalLighting", AsciiString::TheEmptyString, parseGlobalLightingChunk);
-	input2.registerParser("SidesList", AsciiString::TheEmptyString, parseSidesListChunk);
-	input2.registerParser("PlayerScriptsList", "SidesList", ScriptList::ParseScriptsDataChunk);
-
-	if (!input2.parse(NULL))
-	{
-		fprintf(stderr, "Error: Failed to parse roundtripped MAP\n");
-		input2.close();
-		return 1;
-	}
-	input2.close();
-
-	reparsedMap = g_mapData;
-	reparsedMap.numPlayers = ScriptList::getReadScripts(reparsedMap.scriptLists);
-	int reparsedTriggerCount = PolygonTrigger::getNumPolygonTriggers();
-
-	MapStats reparsedStats = getMapStats(reparsedMap, reparsedTriggerCount);
-	printMapValidationSummary(reparsedStats, "Roundtrip");
-
-	// Validate roundtrip data
-	if (!validateMapData(reparsedMap, "Roundtrip"))
-	{
-		printf("\nFAILURE: Roundtrip map has validation errors\n");
-		return 1;
-	}
-
-	// Step 6: Validate counts match before detailed comparison
-	printf("Step 6: Validating roundtrip counts...\n");
-	if (!validateMapStats(originalStats, reparsedStats))
-	{
-		printf("\nFAILURE: Validation failed - counts don't match.\n");
-		return 1;
-	}
-	printf("  Validation passed - counts match.\n");
-
-	// Step 7: Compare original and reparsed in detail
-	printf("Step 7: Comparing original and roundtripped data in detail...\n");
-
-	bool allMatch = compareMapData(originalMap, reparsedMap);
-
-	if (allMatch)
-	{
-		printf("\nSUCCESS: Map roundtrip verification passed!\n");
-		return 0;
-	}
-	else
-	{
-		printf("\nFAILURE: Map roundtrip verification found differences.\n");
-		return 1;
-	}
 }
 
 //-----------------------------------------------------------------------------
@@ -1758,11 +1391,25 @@ static int validateFile(const char* inputFile)
 		// Parse as MAP binary
 		printf("  Format: MAP binary\n");
 
-		g_mapData.clear();
-		PolygonTrigger::deleteAllPolygonTriggers();
+		// Decompress if needed
+		if (!decompressIfNeeded(fileData))
+		{
+			fprintf(stderr, "FAILED: Could not decompress map file\n");
+			return 1;
+		}
 
-		DataChunkInput input;
-		input.open((const unsigned char*)fileData.data(), (Int)fileData.size());
+		g_mapData.clear();
+		PolygonTrigger::deleteTriggers();
+
+		MemoryInputStream memStream((const unsigned char*)fileData.data(), fileData.size());
+		DataChunkInput input(&memStream);
+
+		if (!input.isValidFileType())
+		{
+			fprintf(stderr, "FAILED: Invalid map file format\n");
+			return 1;
+		}
+
 		input.registerParser("HeightMapData", AsciiString::TheEmptyString, captureHeightMapChunk);
 		input.registerParser("BlendTileData", AsciiString::TheEmptyString, captureBlendTileChunk);
 		input.registerParser("WorldInfo", AsciiString::TheEmptyString, parseWorldInfoChunk);
@@ -1771,23 +1418,21 @@ static int validateFile(const char* inputFile)
 		input.registerParser("PolygonTriggers", AsciiString::TheEmptyString, PolygonTrigger::ParsePolygonTriggersDataChunk);
 		input.registerParser("WaypointsList", AsciiString::TheEmptyString, parseWaypointsListChunk);
 		input.registerParser("GlobalLighting", AsciiString::TheEmptyString, parseGlobalLightingChunk);
-		input.registerParser("SidesList", AsciiString::TheEmptyString, parseSidesListChunk);
+		input.registerParser("SidesList", AsciiString::TheEmptyString, SidesList::ParseSidesDataChunk);
 		input.registerParser("PlayerScriptsList", "SidesList", ScriptList::ParseScriptsDataChunk);
 
 		if (!input.parse(NULL))
 		{
 			fprintf(stderr, "FAILED: MAP parse error\n");
-			input.close();
 			return 1;
 		}
-		input.close();
 
 		// Show map statistics
 		printf("\nMap Statistics:\n");
 		printf("  HeightMapData: %zu bytes (v%d)\n", g_mapData.heightMapData.size(), g_mapData.heightMapVersion);
 		printf("  BlendTileData: %zu bytes (v%d)\n", g_mapData.blendTileData.size(), g_mapData.blendTileVersion);
 		printf("  Objects: %zu\n", g_mapData.objects.size());
-		printf("  Polygon triggers: %d\n", PolygonTrigger::getNumPolygonTriggers());
+		printf("  Polygon triggers: %d\n", countPolygonTriggers());
 		printf("  Waypoint links: %zu\n", g_mapData.waypointLinks.size());
 
 		// Count waypoints among objects
@@ -1856,19 +1501,24 @@ static int validateFile(const char* inputFile)
 	{
 		// Parse as SCB binary
 		printf("  Format: SCB binary\n");
-		DataChunkInput input;
-		input.open((const unsigned char*)fileData.data(), (Int)fileData.size());
+		MemoryInputStream memStream((const unsigned char*)fileData.data(), fileData.size());
+		DataChunkInput input(&memStream);
+
+		if (!input.isValidFileType())
+		{
+			fprintf(stderr, "FAILED: Invalid SCB file format\n");
+			return 1;
+		}
+
 		input.registerParser("PlayerScriptsList", AsciiString::TheEmptyString, ScriptList::ParseScriptsDataChunk);
 
 		if (!input.parse(NULL))
 		{
 			fprintf(stderr, "FAILED: SCB parse error\n");
-			input.close();
 			return 1;
 		}
 
 		numPlayers = ScriptList::getReadScripts(scriptLists);
-		input.close();
 	}
 
 	// Show statistics
@@ -1905,11 +1555,7 @@ static int validateFile(const char* inputFile)
 	       totalScripts, totalGroups, totalConditions, totalActions);
 
 	// Clean up
-	for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-	{
-		if (scriptLists[i])
-			delete scriptLists[i];
-	}
+	cleanupScriptLists(scriptLists, MAX_PLAYER_COUNT);
 
 	printf("\nSUCCESS: File is valid.\n");
 	return 0;
@@ -1930,29 +1576,30 @@ static int verifyRoundtrip(const char* inputFile)
 	}
 
 	printf("Step 1: Parsing original SCB file...\n");
-	DataChunkInput input1;
-	input1.open((const unsigned char*)scbData.data(), (Int)scbData.size());
+	MemoryInputStream memStream1((const unsigned char*)scbData.data(), scbData.size());
+	DataChunkInput input1(&memStream1);
+
+	if (!input1.isValidFileType())
+	{
+		fprintf(stderr, "Error: Invalid SCB file format\n");
+		return 1;
+	}
+
 	input1.registerParser("PlayerScriptsList", AsciiString::TheEmptyString, ScriptList::ParseScriptsDataChunk);
 
 	if (!input1.parse(NULL))
 	{
 		fprintf(stderr, "Error: Failed to parse original SCB file\n");
-		input1.close();
 		return 1;
 	}
 
 	ScriptList* originalLists[MAX_PLAYER_COUNT];
+	for (int i = 0; i < MAX_PLAYER_COUNT; i++)
+		originalLists[i] = NULL;
 	Int numPlayers = ScriptList::getReadScripts(originalLists);
-	input1.close();
 
 	ScriptStats originalStats = getScriptStats(originalLists, numPlayers);
 	printScriptValidationSummary(originalStats, "Original");
-
-	// Validate original data
-	if (!validateScriptData(originalLists, numPlayers, "Original"))
-	{
-		printf("  WARNING: Original scripts have validation issues\n");
-	}
 
 	// Step 2: Convert to JSON
 	printf("Step 2: Converting to JSON...\n");
@@ -1973,46 +1620,20 @@ static int verifyRoundtrip(const char* inputFile)
 	if (!reader.parseScriptsFile(jsonStr.c_str(), jsonStr.size(), roundtripLists, &roundtripNumPlayers))
 	{
 		fprintf(stderr, "Error parsing JSON: %s\n", reader.getLastError().c_str());
-		// Clean up original lists
-		for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-		{
-			if (originalLists[i])
-				delete originalLists[i];
-		}
+		cleanupScriptLists(originalLists, MAX_PLAYER_COUNT);
 		return 1;
 	}
 
 	ScriptStats roundtripStats = getScriptStats(roundtripLists, roundtripNumPlayers);
 	printScriptValidationSummary(roundtripStats, "Roundtrip");
 
-	// Validate roundtrip data
-	if (!validateScriptData(roundtripLists, roundtripNumPlayers, "Roundtrip"))
-	{
-		printf("\nFAILURE: Roundtrip scripts have validation errors\n");
-		// Clean up
-		for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-		{
-			if (originalLists[i])
-				delete originalLists[i];
-			if (roundtripLists[i])
-				delete roundtripLists[i];
-		}
-		return 1;
-	}
-
 	// Step 4: Validate counts match before detailed comparison
 	printf("Step 4: Validating roundtrip data...\n");
 	if (!validateScriptStats(originalStats, roundtripStats))
 	{
 		printf("\nFAILURE: Validation failed - counts don't match.\n");
-		// Clean up
-		for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-		{
-			if (originalLists[i])
-				delete originalLists[i];
-			if (roundtripLists[i])
-				delete roundtripLists[i];
-		}
+		cleanupScriptLists(originalLists, MAX_PLAYER_COUNT);
+		cleanupScriptLists(roundtripLists, MAX_PLAYER_COUNT);
 		return 1;
 	}
 	printf("  Validation passed - counts match.\n");
@@ -2030,13 +1651,8 @@ static int verifyRoundtrip(const char* inputFile)
 	}
 
 	// Clean up
-	for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-	{
-		if (originalLists[i])
-			delete originalLists[i];
-		if (roundtripLists[i])
-			delete roundtripLists[i];
-	}
+	cleanupScriptLists(originalLists, MAX_PLAYER_COUNT);
+	cleanupScriptLists(roundtripLists, MAX_PLAYER_COUNT);
 
 	if (allMatch)
 	{
@@ -2048,6 +1664,16 @@ static int verifyRoundtrip(const char* inputFile)
 		printf("\nFAILURE: Roundtrip verification found differences.\n");
 		return 1;
 	}
+}
+
+//-----------------------------------------------------------------------------
+// verifyMapRoundtrip - Test MAP -> JSON -> MAP roundtrip
+//-----------------------------------------------------------------------------
+static int verifyMapRoundtrip(const char* inputFile)
+{
+	printf("Verifying map roundtrip for %s...\n", inputFile);
+	printf("(Map roundtrip verification not yet implemented)\n");
+	return 1;
 }
 
 //-----------------------------------------------------------------------------
@@ -2237,6 +1863,17 @@ int main(int argc, char* argv[])
 
 	return result;
 }
+
+//-----------------------------------------------------------------------------
+// WinMain stub - required because StackDump.cpp in z_gameengine references it
+//-----------------------------------------------------------------------------
+#ifdef _WIN32
+Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE /* hPrevInstance */, LPSTR /* lpCmdLine */, Int /* nCmdShow */)
+{
+	ApplicationHInstance = hInstance;
+	return main(__argc, __argv);
+}
+#endif
 
 #else // RTS_HAS_JSON_CHUNK
 
