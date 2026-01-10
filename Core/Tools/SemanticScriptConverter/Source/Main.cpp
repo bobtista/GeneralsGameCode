@@ -53,6 +53,7 @@
 #include "Common/Debug.h"
 #include "Common/GameCommon.h"
 #include "Common/GameMemory.h"
+#include "Common/GlobalData.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/FileSystem.h"
 #include "Common/LocalFileSystem.h"
@@ -275,16 +276,26 @@ static std::string findGameDirectory()
 		if (RegQueryValueExA(hKey, "InstallPath", NULL, &type, (LPBYTE)installPath, &pathSize) == ERROR_SUCCESS)
 		{
 			RegCloseKey(hKey);
-			printf("Found game directory in registry: %s\n", installPath);
-			return std::string(installPath);
+			// Strip trailing quotes or backslashes that might be in the registry
+			std::string path(installPath);
+			while (!path.empty() && (path.back() == '"' || path.back() == '\\'))
+				path.pop_back();
+			printf("Found game directory in registry: %s\n", path.c_str());
+			fflush(stdout);
+			return path;
 		}
 
 		// Try "ErgcKey" as alternative
 		if (RegQueryValueExA(hKey, "ErgcKey", NULL, &type, (LPBYTE)installPath, &pathSize) == ERROR_SUCCESS)
 		{
 			RegCloseKey(hKey);
-			printf("Found game directory in registry (ErgcKey): %s\n", installPath);
-			return std::string(installPath);
+			// Strip trailing quotes or backslashes that might be in the registry
+			std::string path(installPath);
+			while (!path.empty() && (path.back() == '"' || path.back() == '\\'))
+				path.pop_back();
+			printf("Found game directory in registry (ErgcKey): %s\n", path.c_str());
+			fflush(stdout);
+			return path;
 		}
 
 		RegCloseKey(hKey);
@@ -304,7 +315,8 @@ static bool readFileContents(const char* filename, std::string& outContents)
 	std::ifstream file(filename, std::ios::binary);
 	if (!file)
 	{
-		fprintf(stderr, "Error: Cannot open file '%s' for reading\n", filename);
+		printf("Error: Cannot open file '%s' for reading\n", filename);
+		fflush(stdout);
 		return false;
 	}
 
@@ -322,7 +334,8 @@ static bool writeFileContents(const char* filename, const std::string& contents)
 	std::ofstream file(filename, std::ios::binary);
 	if (!file)
 	{
-		fprintf(stderr, "Error: Cannot open file '%s' for writing\n", filename);
+		printf("Error: Cannot open file '%s' for writing\n", filename);
+		fflush(stdout);
 		return false;
 	}
 
@@ -342,30 +355,40 @@ static bool initMinimalEngine()
 	if (!SetCurrentDirectoryA(gameDir.c_str()))
 	{
 		fprintf(stderr, "Warning: Could not change to game directory: %s\n", gameDir.c_str());
+		fflush(stderr);
 	}
 	else
 	{
 		printf("Changed to game directory: %s\n", gameDir.c_str());
+		fflush(stdout);
 	}
 #else
 	if (chdir(gameDir.c_str()) != 0)
 	{
 		fprintf(stderr, "Warning: Could not change to game directory: %s\n", gameDir.c_str());
+		fflush(stderr);
 	}
 	else
 	{
 		printf("Changed to game directory: %s\n", gameDir.c_str());
+		fflush(stdout);
 	}
 #endif
 
 	// Initialize memory manager
+	printf("Initializing memory manager...\n");
+	fflush(stdout);
 	initMemoryManager();
 
 	// Initialize name key generator (required for engine)
+	printf("Initializing name key generator...\n");
+	fflush(stdout);
 	TheNameKeyGenerator = new NameKeyGenerator;
 	TheNameKeyGenerator->init();
 
 	// Initialize file system
+	printf("Initializing file system...\n");
+	fflush(stdout);
 	TheFileSystem = new FileSystem;
 
 #ifdef _WIN32
@@ -374,21 +397,40 @@ static bool initMinimalEngine()
 	initSubsystem(TheLocalFileSystem, (LocalFileSystem*)new StdLocalFileSystem);
 #endif
 
+	// Initialize GlobalData (required by ScriptEngine::init)
+	printf("Initializing global data...\n");
+	fflush(stdout);
+	TheWritableGlobalData = new GlobalData();
+
 	// Initialize script engine (needed for action/condition templates)
-	// Note: Templates are loaded from Data/INI/Scripts*.ini files during INI parsing
+	// Templates are populated in ScriptEngine::init()
+	printf("Initializing script engine...\n");
+	fflush(stdout);
 	initSubsystem(TheScriptEngine, (ScriptEngine*)(new ScriptEngine()));
 
 	// Initialize SidesList (needed for map parsing)
+	printf("Initializing sides list...\n");
+	fflush(stdout);
 	initSubsystem(TheSidesList, new SidesList());
 
+	printf("Post-processing subsystems...\n");
+	fflush(stdout);
 	_TheSubsystemList.postProcessLoadAll();
+	printf("Engine initialization complete.\n");
+	fflush(stdout);
 
-	// Check if templates were loaded
+	// Verify templates were loaded
 	const ActionTemplate* testAction = TheScriptEngine->getActionTemplate(0);
-	if (!testAction || testAction->m_internalName.isEmpty())
+	if (testAction && !testAction->m_internalName.isEmpty())
+	{
+		printf("Script templates loaded successfully.\n");
+		fflush(stdout);
+	}
+	else
 	{
 		fprintf(stderr, "Warning: Script templates not loaded. Template names will show as 'unknownAction/Condition'.\n");
 		fprintf(stderr, "Make sure the game's Data/INI files are accessible from: %s\n", gameDir.c_str());
+		fflush(stderr);
 	}
 
 	return true;
@@ -400,6 +442,9 @@ static bool initMinimalEngine()
 static void shutdownEngine()
 {
 	_TheSubsystemList.shutdownAll();
+
+	delete TheWritableGlobalData;
+	TheWritableGlobalData = NULL;
 
 	delete TheFileSystem;
 	TheFileSystem = NULL;
@@ -442,6 +487,7 @@ static int countPolygonTriggers()
 static int convertToJSON(const char* inputFile, const char* outputFile)
 {
 	printf("Converting %s to JSON...\n", inputFile);
+	fflush(stdout);
 
 	// Read the input SCB file
 	std::string scbData;
@@ -1677,6 +1723,28 @@ static int verifyMapRoundtrip(const char* inputFile)
 }
 
 //-----------------------------------------------------------------------------
+// getAbsolutePath - Convert relative path to absolute before we change directory
+//-----------------------------------------------------------------------------
+static std::string getAbsolutePath(const char* path)
+{
+	if (!path || path[0] == '\0')
+		return std::string();
+
+#ifdef _WIN32
+	char absPath[MAX_PATH];
+	if (GetFullPathNameA(path, MAX_PATH, absPath, NULL) > 0)
+		return std::string(absPath);
+#else
+	char absPath[PATH_MAX];
+	if (realpath(path, absPath) != NULL)
+		return std::string(absPath);
+#endif
+
+	// Fallback: return original path
+	return std::string(path);
+}
+
+//-----------------------------------------------------------------------------
 // main
 //-----------------------------------------------------------------------------
 int main(int argc, char* argv[])
@@ -1766,6 +1834,16 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+	// Convert relative paths to absolute paths BEFORE we change to game directory
+	// This ensures the tool can find files when run from any directory
+	std::string absInputFile = getAbsolutePath(inputFile);
+	std::string absOutputFile = outputFile ? getAbsolutePath(outputFile) : "";
+	std::string absThirdFile = thirdFile ? getAbsolutePath(thirdFile) : "";
+
+	inputFile = absInputFile.c_str();
+	outputFile = absOutputFile.empty() ? NULL : absOutputFile.c_str();
+	thirdFile = absThirdFile.empty() ? NULL : absThirdFile.c_str();
+
 	// Determine conversion direction from file extensions
 	bool toJson = false;
 	bool toScb = false;
@@ -1809,11 +1887,19 @@ int main(int argc, char* argv[])
 	}
 
 	// Initialize minimal engine
+	printf("\nInput file: %s\n", inputFile);
+	if (outputFile)
+		printf("Output file: %s\n", outputFile);
+	fflush(stdout);
+
 	if (!initMinimalEngine())
 	{
 		fprintf(stderr, "Error: Failed to initialize engine\n");
 		return 1;
 	}
+
+	printf("\nStarting conversion...\n");
+	fflush(stdout);
 
 	int result = 0;
 
@@ -1849,17 +1935,26 @@ int main(int argc, char* argv[])
 	}
 	catch (const std::exception& e)
 	{
-		fprintf(stderr, "Error: %s\n", e.what());
+		printf("Error: %s\n", e.what());
+		fflush(stdout);
 		result = 1;
 	}
 	catch (...)
 	{
-		fprintf(stderr, "Error: Unknown exception\n");
+		printf("Error: Unknown exception\n");
+		fflush(stdout);
 		result = 1;
 	}
 
 	// Shutdown engine
 	shutdownEngine();
+
+	// Print final status if no other output was given
+	if (result != 0)
+	{
+		printf("Operation failed.\n");
+		fflush(stdout);
+	}
 
 	return result;
 }
