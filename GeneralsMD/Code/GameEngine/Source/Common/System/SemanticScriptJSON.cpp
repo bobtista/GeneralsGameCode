@@ -974,7 +974,7 @@ ScriptAction* SemanticScriptReader::parseAction(const nlohmann::ordered_json& js
 	int actionType = findActionType(typeName);
 	if (actionType < 0)
 	{
-		m_lastError = "Unknown action type: " + typeName;
+		addWarning("Unknown action type '" + typeName + "', action will be skipped");
 		return NULL;
 	}
 
@@ -1044,7 +1044,7 @@ Condition* SemanticScriptReader::parseCondition(const nlohmann::ordered_json& js
 	int conditionType = findConditionType(typeName);
 	if (conditionType < 0)
 	{
-		m_lastError = "Unknown condition type: " + typeName;
+		addWarning("Unknown condition type '" + typeName + "', condition will be skipped");
 		return NULL;
 	}
 
