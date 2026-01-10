@@ -25,6 +25,7 @@
 #include "Common/DataChunk.h"
 #include "Common/NameKeyGenerator.h"
 #include "Common/GameType.h"
+#include "Common/GameMemory.h"
 #include "GameLogic/PolygonTrigger.h"
 #include "GameLogic/Scripts.h"
 #include "Common/SemanticScriptJSON.h"
@@ -91,7 +92,7 @@ void MapData::clear()
 	{
 		if (scriptLists[i])
 		{
-			delete scriptLists[i];
+			deleteInstance(scriptLists[i]);
 			scriptLists[i] = NULL;
 		}
 	}
@@ -148,8 +149,9 @@ nlohmann::ordered_json SemanticMapWriter::writeDict(const Dict* dict)
 		if (key == NAMEKEY_INVALID)
 			continue;
 
-		const char* keyName = TheNameKeyGenerator->keyToName(key);
-		if (!keyName)
+		AsciiString keyNameStr = TheNameKeyGenerator->keyToName(key);
+		const char* keyName = keyNameStr.str();
+		if (!keyName || !*keyName)
 			continue;
 
 		Dict::DataType type = dict->getNthType(i);
@@ -206,8 +208,9 @@ nlohmann::ordered_json SemanticMapWriter::writeWorldInfo(const Dict* dict)
 		if (key == NAMEKEY_INVALID)
 			continue;
 
-		const char* keyName = TheNameKeyGenerator->keyToName(key);
-		if (!keyName)
+		AsciiString keyNameStr = TheNameKeyGenerator->keyToName(key);
+		const char* keyName = keyNameStr.str();
+		if (!keyName || !*keyName)
 			continue;
 
 		Dict::DataType type = dict->getNthType(i);

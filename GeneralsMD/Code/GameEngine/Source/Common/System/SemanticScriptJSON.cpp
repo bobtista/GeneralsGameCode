@@ -677,16 +677,16 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 		case Parameter::COMMANDBUTTON_ABILITY:
 		case Parameter::BOUNDARY:
 			if (json.is_number_integer())
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			else if (json.is_boolean())
-				param->setInt(json.get<bool>() ? 1 : 0);
+				param->friend_setInt(json.get<bool>() ? 1 : 0);
 			break;
 
 		case Parameter::BOOLEAN:
 			if (json.is_boolean())
-				param->setInt(json.get<bool>() ? 1 : 0);
+				param->friend_setInt(json.get<bool>() ? 1 : 0);
 			else if (json.is_number_integer())
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			break;
 
 		case Parameter::COLOR:
@@ -698,11 +698,11 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 					val = val.substr(1);
 				unsigned int color = 0;
 				if (sscanf(val.c_str(), "%x", &color) == 1)
-					param->setInt(static_cast<int>(color));
+					param->friend_setInt(static_cast<int>(color));
 			}
 			else if (json.is_number_integer())
 			{
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			}
 			break;
 
@@ -718,7 +718,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 					{
 						if (val == kindOfNames[i])
 						{
-							param->setInt(i);
+							param->friend_setInt(i);
 							found = true;
 							break;
 						}
@@ -729,7 +729,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 			}
 			else if (json.is_number_integer())
 			{
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			}
 			break;
 
@@ -742,7 +742,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 				{
 					if (val == s_comparisonNames[i])
 					{
-						param->setInt(i);
+						param->friend_setInt(i);
 						found = true;
 						break;
 					}
@@ -752,7 +752,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 			}
 			else if (json.is_number_integer())
 			{
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			}
 			break;
 
@@ -765,7 +765,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 				{
 					if (val == s_relationNames[i])
 					{
-						param->setInt(i);
+						param->friend_setInt(i);
 						found = true;
 						break;
 					}
@@ -775,7 +775,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 			}
 			else if (json.is_number_integer())
 			{
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			}
 			break;
 
@@ -788,7 +788,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 				{
 					if (val == s_buildableNames[i])
 					{
-						param->setInt(i);
+						param->friend_setInt(i);
 						found = true;
 						break;
 					}
@@ -798,7 +798,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 			}
 			else if (json.is_number_integer())
 			{
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			}
 			break;
 
@@ -811,7 +811,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 				{
 					if (val == s_surfaceNames[i])
 					{
-						param->setInt(i + 1);  // 1-indexed
+						param->friend_setInt(i + 1);  // 1-indexed
 						found = true;
 						break;
 					}
@@ -821,7 +821,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 			}
 			else if (json.is_number_integer())
 			{
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			}
 			break;
 
@@ -834,7 +834,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 				{
 					if (val == s_shakeNames[i])
 					{
-						param->setInt(i);
+						param->friend_setInt(i);
 						found = true;
 						break;
 					}
@@ -844,7 +844,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 			}
 			else if (json.is_number_integer())
 			{
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			}
 			break;
 
@@ -857,7 +857,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 				{
 					if (val == s_radarEventNames[i])
 					{
-						param->setInt(i);
+						param->friend_setInt(i);
 						found = true;
 						break;
 					}
@@ -867,7 +867,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 			}
 			else if (json.is_number_integer())
 			{
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			}
 			break;
 
@@ -880,7 +880,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 				{
 					if (val == s_aiMoodNames[i])
 					{
-						param->setInt(i - 2);  // offset by -2 (sleep=-2, passive=-1, etc.)
+						param->friend_setInt(i - 2);  // offset by -2 (sleep=-2, passive=-1, etc.)
 						found = true;
 						break;
 					}
@@ -890,7 +890,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 			}
 			else if (json.is_number_integer())
 			{
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			}
 			break;
 
@@ -903,7 +903,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 				{
 					if (val == s_evacNames[i])
 					{
-						param->setInt(i);
+						param->friend_setInt(i);
 						found = true;
 						break;
 					}
@@ -913,7 +913,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 			}
 			else if (json.is_number_integer())
 			{
-				param->setInt(json.get<int>());
+				param->friend_setInt(json.get<int>());
 			}
 			break;
 
@@ -921,7 +921,7 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 		case Parameter::ANGLE:
 		case Parameter::PERCENT:
 			if (json.is_number())
-				param->setReal(json.get<float>());
+				param->friend_setReal(json.get<float>());
 			break;
 
 		case Parameter::COORD3D:
@@ -931,13 +931,13 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 				coord.x = json.value("x", 0.0f);
 				coord.y = json.value("y", 0.0f);
 				coord.z = json.value("z", 0.0f);
-				param->setCoord3D(&coord);
+				param->friend_setCoord3D(&coord);
 			}
 			break;
 
 		default:
 			if (json.is_string())
-				param->setString(AsciiString(json.get<std::string>().c_str()));
+				param->friend_setString(AsciiString(json.get<std::string>().c_str()));
 			break;
 	}
 
@@ -960,8 +960,7 @@ ScriptAction* SemanticScriptReader::parseAction(const nlohmann::ordered_json& js
 		return NULL;
 	}
 
-	ScriptAction* action = newInstance(ScriptAction)();
-	action->setActionType(static_cast<ScriptAction::ScriptActionType>(actionType));
+	ScriptAction* action = newInstance(ScriptAction)(static_cast<ScriptAction::ScriptActionType>(actionType));
 
 	const ActionTemplate* tmpl = TheScriptEngine->getActionTemplate(actionType);
 	if (!tmpl)
@@ -1031,8 +1030,7 @@ Condition* SemanticScriptReader::parseCondition(const nlohmann::ordered_json& js
 		return NULL;
 	}
 
-	Condition* condition = newInstance(Condition)();
-	condition->setConditionType(static_cast<Condition::ConditionType>(conditionType));
+	Condition* condition = newInstance(Condition)(static_cast<Condition::ConditionType>(conditionType));
 
 	const ConditionTemplate* tmpl = TheScriptEngine->getConditionTemplate(conditionType);
 	if (!tmpl)
