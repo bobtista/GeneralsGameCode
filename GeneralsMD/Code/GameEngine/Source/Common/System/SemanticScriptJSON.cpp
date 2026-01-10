@@ -113,8 +113,14 @@ std::string SemanticScriptWriter::getParameterName(int paramIndex, const ActionT
 		return "param" + std::to_string(paramIndex);
 
 	std::string name = uiStr.str();
-	while (!name.empty() && (name.back() == ':' || name.back() == ' '))
-		name.pop_back();
+	// Strip leading and trailing spaces/colons
+	size_t start = 0;
+	while (start < name.size() && (name[start] == ' ' || name[start] == ':'))
+		start++;
+	size_t end = name.size();
+	while (end > start && (name[end - 1] == ' ' || name[end - 1] == ':'))
+		end--;
+	name = name.substr(start, end - start);
 
 	std::string result;
 	bool capitalizeNext = false;
@@ -159,8 +165,14 @@ std::string SemanticScriptWriter::getParameterName(int paramIndex, const Conditi
 		return "param" + std::to_string(paramIndex);
 
 	std::string name = uiStr.str();
-	while (!name.empty() && (name.back() == ':' || name.back() == ' '))
-		name.pop_back();
+	// Strip leading and trailing spaces/colons
+	size_t start = 0;
+	while (start < name.size() && (name[start] == ' ' || name[start] == ':'))
+		start++;
+	size_t end = name.size();
+	while (end > start && (name[end - 1] == ' ' || name[end - 1] == ':'))
+		end--;
+	name = name.substr(start, end - start);
 
 	std::string result;
 	bool capitalizeNext = false;
@@ -1302,8 +1314,14 @@ std::string SemanticScriptReader_getParameterName(int paramIndex, const Template
 		return "param" + std::to_string(paramIndex);
 
 	std::string name = uiStr.str();
-	while (!name.empty() && (name.back() == ':' || name.back() == ' '))
-		name.pop_back();
+	// Strip leading and trailing spaces/colons
+	size_t start = 0;
+	while (start < name.size() && (name[start] == ' ' || name[start] == ':'))
+		start++;
+	size_t end = name.size();
+	while (end > start && (name[end - 1] == ' ' || name[end - 1] == ':'))
+		end--;
+	name = name.substr(start, end - start);
 
 	std::string result;
 	bool capitalizeNext = false;
