@@ -629,6 +629,15 @@ std::string SemanticScriptReader::fromCamelCase(const std::string& camelCase)
 
 int SemanticScriptReader::findActionType(const std::string& name)
 {
+	// Handle "unknownActionN" format (written when templates weren't loaded)
+	const std::string unknownPrefix = "unknownAction";
+	if (name.compare(0, unknownPrefix.size(), unknownPrefix) == 0)
+	{
+		int typeNum = std::atoi(name.c_str() + unknownPrefix.size());
+		if (typeNum >= 0 && typeNum < ScriptAction::NUM_ITEMS)
+			return typeNum;
+	}
+
 	std::string upperName = fromCamelCase(name);
 
 	for (int i = 0; i < ScriptAction::NUM_ITEMS; i++)
@@ -647,6 +656,15 @@ int SemanticScriptReader::findActionType(const std::string& name)
 
 int SemanticScriptReader::findConditionType(const std::string& name)
 {
+	// Handle "unknownConditionN" format (written when templates weren't loaded)
+	const std::string unknownPrefix = "unknownCondition";
+	if (name.compare(0, unknownPrefix.size(), unknownPrefix) == 0)
+	{
+		int typeNum = std::atoi(name.c_str() + unknownPrefix.size());
+		if (typeNum >= 0 && typeNum < Condition::NUM_ITEMS)
+			return typeNum;
+	}
+
 	std::string upperName = fromCamelCase(name);
 
 	for (int i = 0; i < Condition::NUM_ITEMS; i++)
