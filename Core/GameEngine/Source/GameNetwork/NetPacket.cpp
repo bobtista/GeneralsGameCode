@@ -33,6 +33,7 @@
 #include "GameNetwork/GameMessageParser.h"
 #include "GameNetwork/NetPacketStructs.h"
 
+// TheSuperHackers @refactor BobTista 31/12/2025 Use packed structs for FillBufferWithXXX serialization
 
 // This function assumes that all of the fields are either of default value or are
 // present in the raw data.
@@ -376,7 +377,6 @@ void NetPacket::FillBufferWithGameCommand(UnsignedByte *buffer, NetCommandRef *m
 
 	//DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::FillBufferWithGameCommand for command ID %d", cmdMsg->getID()));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for fixed header portion
 	NetPacketGameCommandHeader* packet = reinterpret_cast<NetPacketGameCommandHeader*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -516,7 +516,6 @@ void NetPacket::FillBufferWithAckCommand(UnsignedByte *buffer, NetCommandRef *ms
 
 	}
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketAckCommand* packet = reinterpret_cast<NetPacketAckCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = type;
@@ -533,7 +532,6 @@ void NetPacket::FillBufferWithFrameCommand(UnsignedByte *buffer, NetCommandRef *
 	NetFrameCommandMsg *cmdMsg = static_cast<NetFrameCommandMsg *>(msg->getCommand());
 	//		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::addFrameCommand - adding frame command for frame %d, command count = %d, command id = %d", cmdMsg->getExecutionFrame(), cmdMsg->getCommandCount(), cmdMsg->getID()));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketFrameCommand* packet = reinterpret_cast<NetPacketFrameCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -556,7 +554,6 @@ void NetPacket::FillBufferWithPlayerLeaveCommand(UnsignedByte *buffer, NetComman
 	NetPlayerLeaveCommandMsg *cmdMsg = static_cast<NetPlayerLeaveCommandMsg *>(msg->getCommand());
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::addPlayerLeaveCommand - adding player leave command for player %d", cmdMsg->getLeavingPlayerID()));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketPlayerLeaveCommand* packet = reinterpret_cast<NetPacketPlayerLeaveCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -576,7 +573,6 @@ void NetPacket::FillBufferWithRunAheadMetricsCommand(UnsignedByte *buffer, NetCo
 	NetRunAheadMetricsCommandMsg *cmdMsg = static_cast<NetRunAheadMetricsCommandMsg *>(msg->getCommand());
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::addRunAheadMetricsCommand - adding run ahead metrics for player %d, fps = %d, latency = %f", cmdMsg->getPlayerID(), cmdMsg->getAverageFps(), cmdMsg->getAverageLatency()));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketRunAheadMetricsCommand* packet = reinterpret_cast<NetPacketRunAheadMetricsCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -595,7 +591,6 @@ void NetPacket::FillBufferWithRunAheadCommand(UnsignedByte *buffer, NetCommandRe
 	NetRunAheadCommandMsg *cmdMsg = static_cast<NetRunAheadCommandMsg *>(msg->getCommand());
 	//DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::FillBufferWithRunAheadCommand - adding run ahead command"));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketRunAheadCommand* packet = reinterpret_cast<NetPacketRunAheadCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -618,7 +613,6 @@ void NetPacket::FillBufferWithDestroyPlayerCommand(UnsignedByte *buffer, NetComm
 	NetDestroyPlayerCommandMsg *cmdMsg = static_cast<NetDestroyPlayerCommandMsg *>(msg->getCommand());
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::addRunAheadCommand - adding run ahead command"));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketDestroyPlayerCommand* packet = reinterpret_cast<NetPacketDestroyPlayerCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -637,7 +631,6 @@ void NetPacket::FillBufferWithDestroyPlayerCommand(UnsignedByte *buffer, NetComm
 void NetPacket::FillBufferWithKeepAliveCommand(UnsignedByte *buffer, NetCommandRef *msg) {
 	NetKeepAliveCommandMsg *cmdMsg = static_cast<NetKeepAliveCommandMsg *>(msg->getCommand());
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketKeepAliveCommand* packet = reinterpret_cast<NetPacketKeepAliveCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -651,7 +644,6 @@ void NetPacket::FillBufferWithKeepAliveCommand(UnsignedByte *buffer, NetCommandR
 void NetPacket::FillBufferWithDisconnectKeepAliveCommand(UnsignedByte *buffer, NetCommandRef *msg) {
 	NetDisconnectKeepAliveCommandMsg *cmdMsg = static_cast<NetDisconnectKeepAliveCommandMsg *>(msg->getCommand());
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketDisconnectKeepAliveCommand* packet = reinterpret_cast<NetPacketDisconnectKeepAliveCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -666,7 +658,6 @@ void NetPacket::FillBufferWithDisconnectPlayerCommand(UnsignedByte *buffer, NetC
 	NetDisconnectPlayerCommandMsg *cmdMsg = static_cast<NetDisconnectPlayerCommandMsg *>(msg->getCommand());
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::addDisconnectPlayerCommand - adding run ahead command"));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketDisconnectPlayerCommand* packet = reinterpret_cast<NetPacketDisconnectPlayerCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -685,7 +676,6 @@ void NetPacket::FillBufferWithPacketRouterQueryCommand(UnsignedByte *buffer, Net
 	NetPacketRouterQueryCommandMsg *cmdMsg = static_cast<NetPacketRouterQueryCommandMsg *>(msg->getCommand());
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::addPacketRouterQueryCommand - adding packet router query command"));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketRouterQueryCommand* packet = reinterpret_cast<NetPacketRouterQueryCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -700,7 +690,6 @@ void NetPacket::FillBufferWithPacketRouterAckCommand(UnsignedByte *buffer, NetCo
 	NetPacketRouterAckCommandMsg *cmdMsg = (NetPacketRouterAckCommandMsg *)(msg->getCommand());
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::addPacketRouterAckCommand - adding packet router query command"));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketRouterAckCommand* packet = reinterpret_cast<NetPacketRouterAckCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -715,7 +704,6 @@ void NetPacket::FillBufferWithDisconnectChatCommand(UnsignedByte *buffer, NetCom
 	NetDisconnectChatCommandMsg *cmdMsg = (NetDisconnectChatCommandMsg *)(msg->getCommand());
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::addDisconnectChatCommand - adding run ahead command"));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketDisconnectChatCommandHeader* packet = reinterpret_cast<NetPacketDisconnectChatCommandHeader*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -738,7 +726,6 @@ void NetPacket::FillBufferWithDisconnectVoteCommand(UnsignedByte *buffer, NetCom
 	NetDisconnectVoteCommandMsg *cmdMsg = (NetDisconnectVoteCommandMsg *)(msg->getCommand());
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::addDisconnectVoteCommand - adding run ahead command"));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketDisconnectVoteCommand* packet = reinterpret_cast<NetPacketDisconnectVoteCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -757,7 +744,6 @@ void NetPacket::FillBufferWithChatCommand(UnsignedByte *buffer, NetCommandRef *m
 	NetChatCommandMsg *cmdMsg = static_cast<NetChatCommandMsg *>(msg->getCommand());
 //		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::addDisconnectChatCommand - adding run ahead command"));
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketChatCommandHeader* packet = reinterpret_cast<NetPacketChatCommandHeader*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -787,7 +773,6 @@ void NetPacket::FillBufferWithChatCommand(UnsignedByte *buffer, NetCommandRef *m
 void NetPacket::FillBufferWithProgressMessage(UnsignedByte *buffer, NetCommandRef *msg) {
 	NetProgressCommandMsg *cmdMsg = (NetProgressCommandMsg *)(msg->getCommand());
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketProgressMessage* packet = reinterpret_cast<NetPacketProgressMessage*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -802,7 +787,6 @@ void NetPacket::FillBufferWithProgressMessage(UnsignedByte *buffer, NetCommandRe
 void NetPacket::FillBufferWithLoadCompleteMessage(UnsignedByte *buffer, NetCommandRef *msg) {
 	NetCommandMsg *cmdMsg = static_cast<NetCommandMsg *>(msg->getCommand());
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketLoadCompleteMessage* packet = reinterpret_cast<NetPacketLoadCompleteMessage*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -818,7 +802,6 @@ void NetPacket::FillBufferWithLoadCompleteMessage(UnsignedByte *buffer, NetComma
 void NetPacket::FillBufferWithTimeOutGameStartMessage(UnsignedByte *buffer, NetCommandRef *msg) {
 	NetCommandMsg *cmdMsg = static_cast<NetCommandMsg *>(msg->getCommand());
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketTimeOutGameStartMessage* packet = reinterpret_cast<NetPacketTimeOutGameStartMessage*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -834,7 +817,6 @@ void NetPacket::FillBufferWithTimeOutGameStartMessage(UnsignedByte *buffer, NetC
 void NetPacket::FillBufferWithFileMessage(UnsignedByte *buffer, NetCommandRef *msg) {
 	NetFileCommandMsg *cmdMsg = static_cast<NetFileCommandMsg *>(msg->getCommand());
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketFileCommand* packet = reinterpret_cast<NetPacketFileCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -868,7 +850,6 @@ void NetPacket::FillBufferWithFileMessage(UnsignedByte *buffer, NetCommandRef *m
 void NetPacket::FillBufferWithFileAnnounceMessage(UnsignedByte *buffer, NetCommandRef *msg) {
 	NetFileAnnounceCommandMsg *cmdMsg = static_cast<NetFileAnnounceCommandMsg *>(msg->getCommand());
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketFileAnnounceCommand* packet = reinterpret_cast<NetPacketFileAnnounceCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -903,7 +884,6 @@ void NetPacket::FillBufferWithFileAnnounceMessage(UnsignedByte *buffer, NetComma
 void NetPacket::FillBufferWithFileProgressMessage(UnsignedByte *buffer, NetCommandRef *msg) {
 	NetFileProgressCommandMsg *cmdMsg = (NetFileProgressCommandMsg *)(msg->getCommand());
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketFileProgressCommand* packet = reinterpret_cast<NetPacketFileProgressCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -921,7 +901,6 @@ void NetPacket::FillBufferWithFileProgressMessage(UnsignedByte *buffer, NetComma
 void NetPacket::FillBufferWithDisconnectFrameMessage(UnsignedByte *buffer, NetCommandRef *msg) {
 	NetDisconnectFrameCommandMsg *cmdMsg = (NetDisconnectFrameCommandMsg *)(msg->getCommand());
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketDisconnectFrameCommand* packet = reinterpret_cast<NetPacketDisconnectFrameCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -938,7 +917,6 @@ void NetPacket::FillBufferWithDisconnectFrameMessage(UnsignedByte *buffer, NetCo
 void NetPacket::FillBufferWithDisconnectScreenOffMessage(UnsignedByte *buffer, NetCommandRef *msg) {
 	NetDisconnectScreenOffCommandMsg *cmdMsg = (NetDisconnectScreenOffCommandMsg *)(msg->getCommand());
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketDisconnectScreenOffCommand* packet = reinterpret_cast<NetPacketDisconnectScreenOffCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
@@ -955,7 +933,6 @@ void NetPacket::FillBufferWithDisconnectScreenOffMessage(UnsignedByte *buffer, N
 void NetPacket::FillBufferWithFrameResendRequestMessage(UnsignedByte *buffer, NetCommandRef *msg) {
 	NetFrameResendRequestCommandMsg *cmdMsg = (NetFrameResendRequestCommandMsg *)(msg->getCommand());
 
-	// TheSuperHackers @refactor BobTista 12/31/2025 Use packed struct for serialization
 	NetPacketFrameResendRequestCommand* packet = reinterpret_cast<NetPacketFrameResendRequestCommand*>(buffer);
 	packet->commandType.header = NetPacketFieldTypes::CommandType;
 	packet->commandType.commandType = cmdMsg->getNetCommandType();
