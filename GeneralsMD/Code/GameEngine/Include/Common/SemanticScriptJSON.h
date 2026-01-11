@@ -36,6 +36,7 @@ class OrCondition;
 class Parameter;
 class ActionTemplate;
 class ConditionTemplate;
+class Dict;
 
 // Semantic JSON format for scripts - produces clean, human-readable JSON
 // Format example:
@@ -56,6 +57,9 @@ public:
 	SemanticScriptWriter();
 
 	nlohmann::ordered_json writeScriptsFile(ScriptList** scriptLists, int numPlayers);
+	nlohmann::ordered_json writeScriptsFile(ScriptList** scriptLists, int numPlayers, const std::vector<Dict>& teams);
+	nlohmann::ordered_json writeTeams(const std::vector<Dict>& teams);
+	nlohmann::ordered_json writeDict(const Dict* dict);
 	nlohmann::ordered_json writeScriptList(ScriptList* scriptList);
 	nlohmann::ordered_json writeScriptGroup(ScriptGroup* group);
 	nlohmann::ordered_json writeScript(Script* script);
@@ -89,6 +93,9 @@ public:
 	SemanticScriptReader();
 
 	bool parseScriptsFile(const char* jsonData, size_t length, ScriptList** outScriptLists, int* outNumPlayers);
+	bool parseScriptsFile(const char* jsonData, size_t length, ScriptList** outScriptLists, int* outNumPlayers, std::vector<Dict>* outTeams);
+	bool parseTeams(const nlohmann::ordered_json& json, std::vector<Dict>& outTeams);
+	bool parseDict(const nlohmann::ordered_json& json, Dict& outDict);
 	ScriptList* parseScriptList(const nlohmann::ordered_json& json);
 	ScriptGroup* parseScriptGroup(const nlohmann::ordered_json& json);
 	Script* parseScript(const nlohmann::ordered_json& json);

@@ -60,6 +60,7 @@
 #include "Common/LocalFileSystem.h"
 #include "Common/SubsystemInterface.h"
 #include "Common/DataChunk.h"
+#include "Common/Dict.h"
 #include "Common/SemanticScriptJSON.h"
 #include "Common/SemanticMapJSON.h"
 #include "Compression.h"
@@ -197,6 +198,23 @@ static bool decompressIfNeeded(std::string& data)
 // Global options
 //-----------------------------------------------------------------------------
 static std::string g_gameDir;
+
+//-----------------------------------------------------------------------------
+// Global team storage for ScriptTeams chunk parsing
+//-----------------------------------------------------------------------------
+static std::vector<Dict> g_parsedTeams;
+
+// TheSuperHackers @bobtista Parse ScriptTeams chunk - stores team Dicts for JSON export
+static Bool ParseScriptTeamsChunk(DataChunkInput &file, DataChunkInfo *info, void *userData)
+{
+	g_parsedTeams.clear();
+	while (!file.atEndOfChunk())
+	{
+		Dict teamDict = file.readDict();
+		g_parsedTeams.push_back(teamDict);
+	}
+	return true;
+}
 
 //-----------------------------------------------------------------------------
 // printUsage
@@ -507,10 +525,14 @@ static int convertToJSON(const char* inputFile, const char* outputFile)
 		return 1;
 	}
 
-	// Register the scripts parser callback
-	input.registerParser("PlayerScriptsList", AsciiString::TheEmptyString, ScriptList::ParseScriptsDataChunk);
+	// Clear global team storage
+	g_parsedTeams.clear();
 
-	// Parse the file - this invokes the callback for PlayerScriptsList chunks
+	// Register parser callbacks
+	input.registerParser("PlayerScriptsList", AsciiString::TheEmptyString, ScriptList::ParseScriptsDataChunk);
+	input.registerParser("ScriptTeams", AsciiString::TheEmptyString, ParseScriptTeamsChunk);
+
+	// Parse the file - this invokes the callbacks for each chunk type
 	if (!input.parse(NULL))
 	{
 		fprintf(stderr, "Error: Failed to parse SCB file\n");
@@ -525,7 +547,7 @@ static int convertToJSON(const char* inputFile, const char* outputFile)
 
 	// Convert to semantic JSON
 	SemanticScriptWriter writer;
-	nlohmann::ordered_json jsonOutput = writer.writeScriptsFile(scriptLists, numPlayers);
+	nlohmann::ordered_json jsonOutput = writer.writeScriptsFile(scriptLists, numPlayers, g_parsedTeams);
 
 	// Write JSON to output file
 	std::string jsonStr = jsonOutput.dump(2);
@@ -577,7 +599,9 @@ static int convertToSCB(const char* inputFile, const char* outputFile)
 		scriptLists[i] = NULL;
 	}
 
-	if (!reader.parseScriptsFile(jsonData.c_str(), jsonData.size(), scriptLists, &numPlayers))
+	// Parse teams from JSON if present
+	std::vector<Dict> teams;
+	if (!reader.parseScriptsFile(jsonData.c_str(), jsonData.size(), scriptLists, &numPlayers, &teams))
 	{
 		fprintf(stderr, "Error parsing JSON: %s\n", reader.getLastError().c_str());
 		return 1;
@@ -591,6 +615,11 @@ static int convertToSCB(const char* inputFile, const char* outputFile)
 		{
 			printf("  - %s\n", warning.c_str());
 		}
+	}
+
+	if (!teams.empty())
+	{
+		printf("Parsed %zu teams from JSON\n", teams.size());
 	}
 
 	// Write to SCB binary format using the game's chunk writing system
@@ -608,6 +637,17 @@ static int convertToSCB(const char* inputFile, const char* outputFile)
 	{
 		DataChunkOutput output(&fileStream);
 		ScriptList::WriteScriptsDataChunk(output, scriptLists, numPlayers);
+
+		// Write ScriptTeams chunk if teams were parsed
+		if (!teams.empty())
+		{
+			output.openDataChunk("ScriptTeams", 1);
+			for (const Dict& team : teams)
+			{
+				output.writeDict(team);
+			}
+			output.closeDataChunk();
+		}
 	}
 
 	fclose(outFile);

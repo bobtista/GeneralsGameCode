@@ -23,6 +23,9 @@
 #include "Common/SemanticScriptJSON.h"
 #include "Common/GameCommon.h"
 #include "Common/KindOf.h"
+#include "Common/Dict.h"
+#include "Common/NameKeyGenerator.h"
+#include "Common/UnicodeString.h"
 #include "GameLogic/Scripts.h"
 #include "GameLogic/ScriptEngine.h"
 #include "Common/GameMemory.h"
@@ -601,6 +604,12 @@ nlohmann::ordered_json SemanticScriptWriter::writeScriptList(ScriptList* scriptL
 
 nlohmann::ordered_json SemanticScriptWriter::writeScriptsFile(ScriptList** scriptLists, int numPlayers)
 {
+	std::vector<Dict> emptyTeams;
+	return writeScriptsFile(scriptLists, numPlayers, emptyTeams);
+}
+
+nlohmann::ordered_json SemanticScriptWriter::writeScriptsFile(ScriptList** scriptLists, int numPlayers, const std::vector<Dict>& teams)
+{
 	m_root = nlohmann::ordered_json::object();
 
 	nlohmann::ordered_json players = nlohmann::ordered_json::array();
@@ -617,7 +626,82 @@ nlohmann::ordered_json SemanticScriptWriter::writeScriptsFile(ScriptList** scrip
 	}
 	m_root["players"] = players;
 
+	// Write teams if any were provided
+	if (!teams.empty())
+	{
+		m_root["teams"] = writeTeams(teams);
+	}
+
 	return m_root;
+}
+
+nlohmann::ordered_json SemanticScriptWriter::writeTeams(const std::vector<Dict>& teams)
+{
+	nlohmann::ordered_json result = nlohmann::ordered_json::array();
+	for (const Dict& team : teams)
+	{
+		result.push_back(writeDict(&team));
+	}
+	return result;
+}
+
+nlohmann::ordered_json SemanticScriptWriter::writeDict(const Dict* dict)
+{
+	nlohmann::ordered_json result = nlohmann::ordered_json::object();
+	if (!dict)
+		return result;
+
+	int count = dict->getPairCount();
+	for (int i = 0; i < count; i++)
+	{
+		NameKeyType key = dict->getNthKey(i);
+		if (key == NAMEKEY_INVALID)
+			continue;
+
+		AsciiString keyNameStr = TheNameKeyGenerator->keyToName(key);
+		const char* keyName = keyNameStr.str();
+		if (!keyName || !*keyName)
+			continue;
+
+		Dict::DataType type = dict->getNthType(i);
+		switch (type)
+		{
+			case Dict::DICT_BOOL:
+				result[keyName] = dict->getBool(key);
+				break;
+			case Dict::DICT_INT:
+				result[keyName] = dict->getInt(key);
+				break;
+			case Dict::DICT_REAL:
+				result[keyName] = dict->getReal(key);
+				break;
+			case Dict::DICT_ASCIISTRING:
+				result[keyName] = dict->getAsciiString(key).str() ? dict->getAsciiString(key).str() : "";
+				break;
+			case Dict::DICT_UNICODESTRING:
+			{
+				UnicodeString ustr = dict->getUnicodeString(key);
+				if (ustr.str())
+				{
+					std::string utf8;
+					for (const wchar_t* p = ustr.str(); *p; ++p)
+					{
+						if (*p < 0x80)
+							utf8 += static_cast<char>(*p);
+						else
+							utf8 += '?';
+					}
+					result[keyName] = utf8;
+				}
+				else
+					result[keyName] = "";
+				break;
+			}
+			default:
+				break;
+		}
+	}
+	return result;
 }
 
 std::string SemanticScriptWriter::getJSONString(int indent) const
@@ -1277,6 +1361,13 @@ ScriptList* SemanticScriptReader::parseScriptList(const nlohmann::ordered_json& 
 bool SemanticScriptReader::parseScriptsFile(const char* jsonData, size_t length,
                                             ScriptList** outScriptLists, int* outNumPlayers)
 {
+	return parseScriptsFile(jsonData, length, outScriptLists, outNumPlayers, NULL);
+}
+
+bool SemanticScriptReader::parseScriptsFile(const char* jsonData, size_t length,
+                                            ScriptList** outScriptLists, int* outNumPlayers,
+                                            std::vector<Dict>* outTeams)
+{
 	try
 	{
 		nlohmann::ordered_json root = nlohmann::ordered_json::parse(jsonData, jsonData + length);
@@ -1308,6 +1399,12 @@ bool SemanticScriptReader::parseScriptsFile(const char* jsonData, size_t length,
 			outScriptLists[i] = parseScriptList(players[i]);
 		}
 
+		// Parse teams if requested and present
+		if (outTeams && root.contains("teams") && root["teams"].is_array())
+		{
+			parseTeams(root["teams"], *outTeams);
+		}
+
 		return true;
 	}
 	catch (const std::exception& e)
@@ -1315,6 +1412,57 @@ bool SemanticScriptReader::parseScriptsFile(const char* jsonData, size_t length,
 		m_lastError = e.what();
 		return false;
 	}
+}
+
+bool SemanticScriptReader::parseTeams(const nlohmann::ordered_json& json, std::vector<Dict>& outTeams)
+{
+	outTeams.clear();
+	if (!json.is_array())
+		return false;
+
+	for (const auto& teamJson : json)
+	{
+		Dict teamDict;
+		if (parseDict(teamJson, teamDict))
+		{
+			outTeams.push_back(teamDict);
+		}
+	}
+	return true;
+}
+
+bool SemanticScriptReader::parseDict(const nlohmann::ordered_json& json, Dict& outDict)
+{
+	outDict.clear();
+	if (!json.is_object())
+		return false;
+
+	for (auto it = json.begin(); it != json.end(); ++it)
+	{
+		const std::string& keyName = it.key();
+		NameKeyType key = TheNameKeyGenerator->nameToKey(keyName.c_str());
+		if (key == NAMEKEY_INVALID)
+			continue;
+
+		const auto& value = it.value();
+		if (value.is_boolean())
+		{
+			outDict.setBool(key, value.get<bool>());
+		}
+		else if (value.is_number_integer())
+		{
+			outDict.setInt(key, value.get<int>());
+		}
+		else if (value.is_number_float())
+		{
+			outDict.setReal(key, value.get<float>());
+		}
+		else if (value.is_string())
+		{
+			outDict.setAsciiString(key, value.get<std::string>().c_str());
+		}
+	}
+	return true;
 }
 
 // Helper function to get parameter name - uses the same logic as writer
