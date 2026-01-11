@@ -816,7 +816,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_parameters[0] = Parameter::TEAM;
 	curTemplate->m_numUiStrings = 2;
 	curTemplate->m_uiStrings[0] = "Have ";
-	curTemplate->m_uiStrings[1] = " wander around it's current location.";
+	curTemplate->m_uiStrings[1] = " wander around its current location.";
 
  	curTemplate = &m_actionTemplates[ScriptAction::TEAM_INCREASE_PRIORITY];
 	curTemplate->m_internalName = "TEAM_INCREASE_PRIORITY";
@@ -908,7 +908,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_numUiStrings = 4;
 	curTemplate->m_uiStrings[0] = "Have AI ";
 	curTemplate->m_uiStrings[1] = " build a ";
-	curTemplate->m_uiStrings[2] = " near a supply src with at least ";
+	curTemplate->m_uiStrings[2] = " near a supply source with at least ";
 	curTemplate->m_uiStrings[3] = " available resources.";
 
   curTemplate = &m_actionTemplates[ScriptAction::AI_PLAYER_BUILD_TYPE_NEAREST_TEAM];
@@ -932,7 +932,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_parameters[1] = Parameter::INT;
 	curTemplate->m_numUiStrings = 3;
 	curTemplate->m_uiStrings[0] = "Have Team ";
-	curTemplate->m_uiStrings[1] = " guard attacked or closest supply src with at least ";
+	curTemplate->m_uiStrings[1] = " guard attacked or closest supply source with at least ";
 	curTemplate->m_uiStrings[2] = " available resources";
 
   curTemplate = &m_actionTemplates[ScriptAction::AI_PLAYER_BUILD_UPGRADE];
@@ -5160,7 +5160,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_parameters[1] = Parameter::TRIGGER_AREA;
 	curTemplate->m_numUiStrings = 3;
 	curTemplate->m_uiStrings[0] = " ";
-	curTemplate->m_uiStrings[1] = " has doesn't have units in ";
+	curTemplate->m_uiStrings[1] = " doesn't have units in ";
 	curTemplate->m_uiStrings[2] = ".";
 
 	curTemplate = &m_conditionTemplates[Condition::SKIRMISH_PLAYER_HAS_DISCOVERED_PLAYER];
@@ -5194,7 +5194,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_parameters[1] = Parameter::INT;
 	curTemplate->m_numUiStrings = 3;
 	curTemplate->m_uiStrings[0] = " ";
-	curTemplate->m_uiStrings[1] = " closest supply src with at least ";
+	curTemplate->m_uiStrings[1] = " closest supply source with at least ";
 	curTemplate->m_uiStrings[2] = " available resources is SAFE from enemy influence.";
 
 	curTemplate = &m_conditionTemplates[Condition::SUPPLY_SOURCE_ATTACKED];
