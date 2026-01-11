@@ -1675,7 +1675,7 @@ void ScriptEngine::init( void )
 
 	curTemplate = &m_actionTemplates[ScriptAction::NAMED_ENTER_NAMED];
 	curTemplate->m_internalName = "NAMED_ENTER_NAMED";
-	curTemplate->m_uiName = "Unit_/Transport/Transport -- load unit into specific.";
+	curTemplate->m_uiName = "Unit_/Transport/Transport -- load unit into specific transport.";
 	curTemplate->m_numParameters = 2;
 	curTemplate->m_parameters[0] = Parameter::UNIT;
 	curTemplate->m_parameters[1] = Parameter::UNIT;
@@ -1685,7 +1685,7 @@ void ScriptEngine::init( void )
 
 	curTemplate = &m_actionTemplates[ScriptAction::TEAM_ENTER_NAMED];
 	curTemplate->m_internalName = "TEAM_ENTER_NAMED";
-	curTemplate->m_uiName = "Team_/Transport/Transport -- load team into specific.";
+	curTemplate->m_uiName = "Team_/Transport/Transport -- load team into specific transport.";
 	curTemplate->m_numParameters = 2;
 	curTemplate->m_parameters[0] = Parameter::TEAM;
 	curTemplate->m_parameters[1] = Parameter::UNIT;
@@ -1695,7 +1695,7 @@ void ScriptEngine::init( void )
 
 	curTemplate = &m_actionTemplates[ScriptAction::NAMED_EXIT_ALL];
 	curTemplate->m_internalName = "NAMED_EXIT_ALL";
-	curTemplate->m_uiName = "Unit_/Transport/Transport -- unload units from specific.";
+	curTemplate->m_uiName = "Unit_/Transport/Transport -- unload units from specific transport.";
 	curTemplate->m_numParameters = 1;
 	curTemplate->m_parameters[0] = Parameter::UNIT;
 	curTemplate->m_numUiStrings = 2;
@@ -4185,7 +4185,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_numParameters = 1;
 	curTemplate->m_parameters[0] = Parameter::SIDE;
 	curTemplate->m_numUiStrings = 2;
-	curTemplate->m_uiStrings[0] = "Everything belonging to  ";
+	curTemplate->m_uiStrings[0] = "Everything belonging to ";
 	curTemplate->m_uiStrings[1] = " has been destroyed.";
 
 	curTemplate = &m_conditionTemplates[Condition::PLAYER_ALL_BUILDFACILITIES_DESTROYED];
@@ -4194,7 +4194,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_numParameters = 1;
 	curTemplate->m_parameters[0] = Parameter::SIDE;
 	curTemplate->m_numUiStrings = 2;
-	curTemplate->m_uiStrings[0] = "All factories belonging to  ";
+	curTemplate->m_uiStrings[0] = "All factories belonging to ";
 	curTemplate->m_uiStrings[1] = " have been destroyed.";
 
 
@@ -5316,8 +5316,8 @@ void ScriptEngine::reset( void )
 	if (m_numFrames > 1) {
 		DEBUG_LOG_RAW(("\n"));
 		DEBUG_LOG(("***SCRIPT ENGINE STATS %.0f frames:", m_numFrames));
-		DEBUG_LOG(("Avg time to update %.3f milisec", 1000*m_totalUpdateTime/m_numFrames));
-		DEBUG_LOG(("  Max time to update %.3f miliseconds.", m_maxUpdateTime*1000));
+		DEBUG_LOG(("Avg time to update %.3f milliseconds", 1000*m_totalUpdateTime/m_numFrames));
+		DEBUG_LOG(("  Max time to update %.3f milliseconds.", m_maxUpdateTime*1000));
 	}
 	m_numFrames=0;
 	m_totalUpdateTime=0;
