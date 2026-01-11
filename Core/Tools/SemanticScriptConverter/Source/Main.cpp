@@ -603,10 +603,12 @@ static int convertToSCB(const char* inputFile, const char* outputFile)
 	}
 
 	SimpleFileOutputStream fileStream(outFile);
-	DataChunkOutput output(&fileStream);
 
-	// WriteScriptsDataChunk handles the entire PlayerScriptsList chunk structure
-	ScriptList::WriteScriptsDataChunk(output, scriptLists, numPlayers);
+	// Use a block scope to ensure DataChunkOutput destructor writes before fclose
+	{
+		DataChunkOutput output(&fileStream);
+		ScriptList::WriteScriptsDataChunk(output, scriptLists, numPlayers);
+	}
 
 	fclose(outFile);
 
@@ -701,6 +703,7 @@ static Bool parseGlobalLightingChunk(DataChunkInput &file, DataChunkInfo *info, 
 
 		if (info->version >= 3)
 		{
+			// Additional object lights [1-2]
 			for (int j = 1; j < 3; j++)
 			{
 				g_mapData.lighting[i].objectLights[j].ambientR = file.readReal();
@@ -713,8 +716,27 @@ static Bool parseGlobalLightingChunk(DataChunkInput &file, DataChunkInfo *info, 
 				g_mapData.lighting[i].objectLights[j].posY = file.readReal();
 				g_mapData.lighting[i].objectLights[j].posZ = file.readReal();
 			}
+
+			// Additional terrain lights [1-2]
+			for (int j = 1; j < 3; j++)
+			{
+				g_mapData.lighting[i].terrainLights[j].ambientR = file.readReal();
+				g_mapData.lighting[i].terrainLights[j].ambientG = file.readReal();
+				g_mapData.lighting[i].terrainLights[j].ambientB = file.readReal();
+				g_mapData.lighting[i].terrainLights[j].diffuseR = file.readReal();
+				g_mapData.lighting[i].terrainLights[j].diffuseG = file.readReal();
+				g_mapData.lighting[i].terrainLights[j].diffuseB = file.readReal();
+				g_mapData.lighting[i].terrainLights[j].posX = file.readReal();
+				g_mapData.lighting[i].terrainLights[j].posY = file.readReal();
+				g_mapData.lighting[i].terrainLights[j].posZ = file.readReal();
+			}
 		}
 	}
+
+	// Read shadowColor (version 3)
+	if (info->version >= 3)
+		g_mapData.shadowColor = file.readInt();
+
 	return true;
 }
 
@@ -906,15 +928,20 @@ static int convertJSONToMap(const char* jsonFile, const char* baseMapFile, const
 	}
 
 	SimpleFileOutputStream fileStream(outFile);
-	DataChunkOutput output(&fileStream);
 	SemanticMapFileWriter writer;
 
-	if (!writer.writeMapFile(mapData, output))
+	// Use a block scope to ensure DataChunkOutput destructor writes before fclose
 	{
-		fprintf(stderr, "Error: Failed to write map data\n");
-		fclose(outFile);
-		return 1;
+		DataChunkOutput output(&fileStream);
+
+		if (!writer.writeMapFile(mapData, output))
+		{
+			fprintf(stderr, "Error: Failed to write map data\n");
+			fclose(outFile);
+			return 1;
+		}
 	}
+	// DataChunkOutput destructor has now written the table of contents and temp file contents
 
 	fclose(outFile);
 
@@ -960,6 +987,9 @@ static bool compareParameters(Parameter* p1, Parameter* p2, const char* context)
 		case Parameter::COMPARISON:
 		case Parameter::RELATION:
 		case Parameter::SIDE:
+		case Parameter::AI_MOOD:
+		case Parameter::KIND_OF_PARAM:
+		case Parameter::RADAR_EVENT_TYPE:
 		case Parameter::COMMANDBUTTON_ABILITY:
 		case Parameter::BOUNDARY:
 		case Parameter::BUILDABLE:
@@ -1337,6 +1367,224 @@ static void countScriptListContents(ScriptList* list, int& scriptCount, int& gro
 }
 
 //-----------------------------------------------------------------------------
+// Semantic validation - check templates and parameter counts
+//-----------------------------------------------------------------------------
+struct SemanticIssue
+{
+	std::string scriptName;
+	std::string type;       // "action" or "condition"
+	int typeId;
+	std::string description;
+};
+
+// TheSuperHackers @bobtista Check a single script for semantic issues
+static void validateScriptSemantic(Script* script, std::vector<SemanticIssue>& issues)
+{
+	if (!script)
+		return;
+
+	std::string scriptName = script->getName().str();
+
+	// Validate conditions
+	OrCondition* orCond = script->getOrCondition();
+	while (orCond)
+	{
+		Condition* cond = orCond->getFirstAndCondition();
+		while (cond)
+		{
+			int condType = cond->getConditionType();
+			const ConditionTemplate* tmpl = TheScriptEngine->getConditionTemplate(condType);
+
+			// Templates are always allocated but may be uninitialized (empty name)
+			if (!tmpl || tmpl->m_internalName.isEmpty())
+			{
+				SemanticIssue issue;
+				issue.scriptName = scriptName;
+				issue.type = "condition";
+				issue.typeId = condType;
+				issue.description = "No template defined for condition type " + std::to_string(condType);
+				issues.push_back(issue);
+			}
+			else
+			{
+				int expectedParams = tmpl->getNumParameters();
+				int actualParams = cond->getNumParameters();
+				if (actualParams != expectedParams)
+				{
+					SemanticIssue issue;
+					issue.scriptName = scriptName;
+					issue.type = "condition";
+					issue.typeId = condType;
+					issue.description = "Parameter count mismatch for condition " + std::to_string(condType) +
+					                    " (" + std::string(tmpl->m_internalName.str()) + ")" +
+					                    ": expected " + std::to_string(expectedParams) +
+					                    ", got " + std::to_string(actualParams);
+					issues.push_back(issue);
+				}
+			}
+			cond = cond->getNext();
+		}
+		orCond = orCond->getNextOrCondition();
+	}
+
+	// Validate actions
+	ScriptAction* action = script->getAction();
+	while (action)
+	{
+		int actionType = action->getActionType();
+		const ActionTemplate* tmpl = TheScriptEngine->getActionTemplate(actionType);
+
+		// Templates are always allocated but may be uninitialized (empty name)
+		if (!tmpl || tmpl->m_internalName.isEmpty())
+		{
+			SemanticIssue issue;
+			issue.scriptName = scriptName;
+			issue.type = "action";
+			issue.typeId = actionType;
+			issue.description = "No template defined for action type " + std::to_string(actionType);
+			issues.push_back(issue);
+		}
+		else
+		{
+			int expectedParams = tmpl->getNumParameters();
+			int actualParams = action->getNumParameters();
+			if (actualParams != expectedParams)
+			{
+				SemanticIssue issue;
+				issue.scriptName = scriptName;
+				issue.type = "action";
+				issue.typeId = actionType;
+				issue.description = "Parameter count mismatch for action " + std::to_string(actionType) +
+				                    " (" + std::string(tmpl->m_internalName.str()) + ")" +
+				                    ": expected " + std::to_string(expectedParams) +
+				                    ", got " + std::to_string(actualParams);
+				issues.push_back(issue);
+			}
+		}
+		action = action->getNext();
+	}
+
+	// Validate false actions
+	action = script->getFalseAction();
+	while (action)
+	{
+		int actionType = action->getActionType();
+		const ActionTemplate* tmpl = TheScriptEngine->getActionTemplate(actionType);
+
+		// Templates are always allocated but may be uninitialized (empty name)
+		if (!tmpl || tmpl->m_internalName.isEmpty())
+		{
+			SemanticIssue issue;
+			issue.scriptName = scriptName;
+			issue.type = "falseAction";
+			issue.typeId = actionType;
+			issue.description = "No template defined for action type " + std::to_string(actionType);
+			issues.push_back(issue);
+		}
+		else
+		{
+			int expectedParams = tmpl->getNumParameters();
+			int actualParams = action->getNumParameters();
+			if (actualParams != expectedParams)
+			{
+				SemanticIssue issue;
+				issue.scriptName = scriptName;
+				issue.type = "falseAction";
+				issue.typeId = actionType;
+				issue.description = "Parameter count mismatch for action " + std::to_string(actionType) +
+				                    " (" + std::string(tmpl->m_internalName.str()) + ")" +
+				                    ": expected " + std::to_string(expectedParams) +
+				                    ", got " + std::to_string(actualParams);
+				issues.push_back(issue);
+			}
+		}
+		action = action->getNext();
+	}
+}
+
+// TheSuperHackers @bobtista Check all scripts in a list for semantic issues
+static void validateScriptListSemantic(ScriptList* list, std::vector<SemanticIssue>& issues)
+{
+	if (!list)
+		return;
+
+	// Validate top-level scripts
+	Script* script = list->getScript();
+	while (script)
+	{
+		validateScriptSemantic(script, issues);
+		script = script->getNext();
+	}
+
+	// Validate scripts in groups
+	ScriptGroup* group = list->getScriptGroup();
+	while (group)
+	{
+		Script* groupScript = group->getScript();
+		while (groupScript)
+		{
+			validateScriptSemantic(groupScript, issues);
+			groupScript = groupScript->getNext();
+		}
+		group = group->getNext();
+	}
+}
+
+// TheSuperHackers @bobtista Perform semantic validation on all script lists
+static int performSemanticValidation(ScriptList* scriptLists[], int numPlayers)
+{
+	std::vector<SemanticIssue> issues;
+
+	for (int i = 0; i < numPlayers; i++)
+	{
+		if (scriptLists[i])
+		{
+			validateScriptListSemantic(scriptLists[i], issues);
+		}
+	}
+
+	if (issues.empty())
+	{
+		printf("\nSemantic validation: PASSED\n");
+		return 0;
+	}
+
+	printf("\nSemantic validation: FAILED (%zu issues)\n", issues.size());
+
+	// Count by type
+	int missingTemplates = 0;
+	int paramMismatches = 0;
+	for (const auto& issue : issues)
+	{
+		if (issue.description.find("No template") != std::string::npos)
+			missingTemplates++;
+		else
+			paramMismatches++;
+	}
+
+	if (missingTemplates > 0)
+		printf("  Missing templates: %d\n", missingTemplates);
+	if (paramMismatches > 0)
+		printf("  Parameter mismatches: %d\n", paramMismatches);
+
+	// Print first 10 issues
+	int maxToShow = std::min((int)issues.size(), 10);
+	printf("\nFirst %d issues:\n", maxToShow);
+	for (int i = 0; i < maxToShow; i++)
+	{
+		const auto& issue = issues[i];
+		printf("  [%s] %s: %s\n", issue.scriptName.c_str(), issue.type.c_str(), issue.description.c_str());
+	}
+
+	if ((int)issues.size() > maxToShow)
+	{
+		printf("  ... and %zu more issues\n", issues.size() - maxToShow);
+	}
+
+	return 1;
+}
+
+//-----------------------------------------------------------------------------
 // Validation summary helpers for verify functions
 //-----------------------------------------------------------------------------
 struct ScriptStats
@@ -1519,54 +1767,200 @@ static int validateFile(const char* inputFile)
 			printf("  --------\n");
 			printf("  Total: %d scripts, %d groups, %d conditions, %d actions\n",
 			       totalScripts, totalGroups, totalConditions, totalActions);
+
+			// Perform semantic validation on map scripts
+			int semanticResult = performSemanticValidation(g_mapData.scriptLists, g_mapData.numPlayers);
+			if (semanticResult != 0)
+			{
+				fprintf(stderr, "\nFAILED: Map semantic validation errors found.\n");
+				return 1;
+			}
 		}
 
 		printf("\nSUCCESS: Map file is valid.\n");
 		return 0;
 	}
 
-	// SCB/JSON validation (script files)
-	ScriptList* scriptLists[MAX_PLAYER_COUNT];
-	int numPlayers = 0;
-
-	for (int i = 0; i < MAX_PLAYER_COUNT; i++)
-		scriptLists[i] = NULL;
-
 	if (isJson)
 	{
-		// Parse as JSON
-		printf("  Format: JSON\n");
-		SemanticScriptReader reader;
-
-		if (!reader.parseScriptsFile(fileData.c_str(), fileData.size(), scriptLists, &numPlayers))
+		// Detect JSON type by parsing and checking for key fields
+		try
 		{
-			fprintf(stderr, "FAILED: JSON parse error: %s\n", reader.getLastError().c_str());
+			nlohmann::ordered_json root = nlohmann::ordered_json::parse(fileData);
+
+			if (!root.is_object())
+			{
+				fprintf(stderr, "FAILED: JSON root is not an object\n");
+				return 1;
+			}
+
+			// Check if it's a map JSON (has "objects" or "lighting") or script JSON (has "players")
+			bool isMapJson = root.contains("objects") || root.contains("lighting") || root.contains("waypointLinks");
+			bool isScriptJson = root.contains("players");
+
+			if (isMapJson)
+			{
+				printf("  Format: Map JSON\n");
+
+				SemanticMapReader reader;
+				MapData mapData;
+
+				if (!reader.parseMapFile(fileData.c_str(), fileData.size(), mapData))
+				{
+					fprintf(stderr, "FAILED: Map JSON parse error: %s\n", reader.getLastError().c_str());
+					return 1;
+				}
+
+				// Show map JSON statistics
+				printf("\nMap JSON Statistics:\n");
+				printf("  Objects: %zu\n", mapData.objects.size());
+				printf("  Waypoint links: %zu\n", mapData.waypointLinks.size());
+
+				int triggerCount = countPolygonTriggers();
+				printf("  Polygon triggers: %d\n", triggerCount);
+
+				if (mapData.numPlayers > 0)
+				{
+					printf("  Script players: %d\n", mapData.numPlayers);
+
+					int totalScripts = 0, totalGroups = 0, totalConditions = 0, totalActions = 0;
+					for (int i = 0; i < mapData.numPlayers; i++)
+					{
+						if (mapData.scriptLists[i])
+						{
+							int scripts = 0, groups = 0, conditions = 0, actions = 0;
+							countScriptListContents(mapData.scriptLists[i], scripts, groups, conditions, actions);
+							totalScripts += scripts;
+							totalGroups += groups;
+							totalConditions += conditions;
+							totalActions += actions;
+						}
+					}
+					printf("  Total scripts: %d scripts, %d groups, %d conditions, %d actions\n",
+					       totalScripts, totalGroups, totalConditions, totalActions);
+
+					// Perform semantic validation on map JSON scripts
+					int semanticResult = performSemanticValidation(mapData.scriptLists, mapData.numPlayers);
+					if (semanticResult != 0)
+					{
+						fprintf(stderr, "\nFAILED: Map JSON semantic validation errors found.\n");
+						return 1;
+					}
+				}
+
+				if (reader.hasWarnings())
+				{
+					printf("\nWarnings (%zu):\n", reader.getWarnings().size());
+					for (const std::string& warning : reader.getWarnings())
+					{
+						printf("  - %s\n", warning.c_str());
+					}
+				}
+
+				printf("\nSUCCESS: Map JSON file is valid.\n");
+				return 0;
+			}
+			else if (isScriptJson)
+			{
+				printf("  Format: Script JSON\n");
+
+				SemanticScriptReader reader;
+				ScriptList* scriptLists[MAX_PLAYER_COUNT];
+				int numPlayers = 0;
+
+				for (int i = 0; i < MAX_PLAYER_COUNT; i++)
+					scriptLists[i] = NULL;
+
+				if (!reader.parseScriptsFile(fileData.c_str(), fileData.size(), scriptLists, &numPlayers))
+				{
+					fprintf(stderr, "FAILED: Script JSON parse error: %s\n", reader.getLastError().c_str());
+					return 1;
+				}
+
+				// Show statistics
+				printf("\nStatistics:\n");
+				printf("  Players: %d\n", numPlayers);
+
+				int totalScripts = 0;
+				int totalGroups = 0;
+				int totalConditions = 0;
+				int totalActions = 0;
+
+				for (int i = 0; i < numPlayers; i++)
+				{
+					if (scriptLists[i])
+					{
+						int scripts = 0, groups = 0, conditions = 0, actions = 0;
+						countScriptListContents(scriptLists[i], scripts, groups, conditions, actions);
+
+						if (scripts > 0 || groups > 0)
+						{
+							printf("  Player %d: %d scripts, %d groups, %d conditions, %d actions\n",
+							       i, scripts, groups, conditions, actions);
+						}
+
+						totalScripts += scripts;
+						totalGroups += groups;
+						totalConditions += conditions;
+						totalActions += actions;
+					}
+				}
+
+				printf("  --------\n");
+				printf("  Total: %d scripts, %d groups, %d conditions, %d actions\n",
+				       totalScripts, totalGroups, totalConditions, totalActions);
+
+				// Perform semantic validation
+				int semanticResult = performSemanticValidation(scriptLists, numPlayers);
+
+				// Clean up
+				cleanupScriptLists(scriptLists, MAX_PLAYER_COUNT);
+
+				if (semanticResult != 0)
+				{
+					fprintf(stderr, "\nFAILED: Script JSON semantic validation errors found.\n");
+					return 1;
+				}
+
+				printf("\nSUCCESS: Script JSON file is valid.\n");
+				return 0;
+			}
+			else
+			{
+				fprintf(stderr, "FAILED: Unknown JSON format (missing 'players', 'objects', or 'lighting')\n");
+				return 1;
+			}
+		}
+		catch (const std::exception& e)
+		{
+			fprintf(stderr, "FAILED: JSON parse error: %s\n", e.what());
 			return 1;
 		}
 	}
-	else
+
+	// SCB binary validation
+	printf("  Format: SCB binary\n");
+	MemoryInputStream memStream((const unsigned char*)fileData.data(), fileData.size());
+	DataChunkInput input(&memStream);
+
+	if (!input.isValidFileType())
 	{
-		// Parse as SCB binary
-		printf("  Format: SCB binary\n");
-		MemoryInputStream memStream((const unsigned char*)fileData.data(), fileData.size());
-		DataChunkInput input(&memStream);
-
-		if (!input.isValidFileType())
-		{
-			fprintf(stderr, "FAILED: Invalid SCB file format\n");
-			return 1;
-		}
-
-		input.registerParser("PlayerScriptsList", AsciiString::TheEmptyString, ScriptList::ParseScriptsDataChunk);
-
-		if (!input.parse(NULL))
-		{
-			fprintf(stderr, "FAILED: SCB parse error\n");
-			return 1;
-		}
-
-		numPlayers = ScriptList::getReadScripts(scriptLists);
+		fprintf(stderr, "FAILED: Invalid SCB file format\n");
+		return 1;
 	}
+
+	input.registerParser("PlayerScriptsList", AsciiString::TheEmptyString, ScriptList::ParseScriptsDataChunk);
+
+	if (!input.parse(NULL))
+	{
+		fprintf(stderr, "FAILED: SCB parse error\n");
+		return 1;
+	}
+
+	ScriptList* scriptLists[MAX_PLAYER_COUNT];
+	for (int i = 0; i < MAX_PLAYER_COUNT; i++)
+		scriptLists[i] = NULL;
+	int numPlayers = ScriptList::getReadScripts(scriptLists);
 
 	// Show statistics
 	printf("\nStatistics:\n");
@@ -1601,8 +1995,17 @@ static int validateFile(const char* inputFile)
 	printf("  Total: %d scripts, %d groups, %d conditions, %d actions\n",
 	       totalScripts, totalGroups, totalConditions, totalActions);
 
+	// Perform semantic validation
+	int semanticResult = performSemanticValidation(scriptLists, numPlayers);
+
 	// Clean up
 	cleanupScriptLists(scriptLists, MAX_PLAYER_COUNT);
+
+	if (semanticResult != 0)
+	{
+		fprintf(stderr, "\nFAILED: Semantic validation errors found.\n");
+		return 1;
+	}
 
 	printf("\nSUCCESS: File is valid.\n");
 	return 0;
@@ -1750,12 +2153,18 @@ static bool compareLightValue(float v1, float v2, const char* context)
 	return true;
 }
 
-static bool compareLighting(int tod1, const LightingInfo lighting1[4],
-                             int tod2, const LightingInfo lighting2[4])
+static bool compareLighting(int tod1, const LightingInfo lighting1[4], unsigned int shadow1,
+                             int tod2, const LightingInfo lighting2[4], unsigned int shadow2)
 {
 	if (tod1 != tod2)
 	{
 		printf("  DIFF: Time of day mismatch: %d vs %d\n", tod1, tod2);
+		return false;
+	}
+
+	if (shadow1 != shadow2)
+	{
+		printf("  DIFF: Shadow color mismatch: 0x%08X vs 0x%08X\n", shadow1, shadow2);
 		return false;
 	}
 
@@ -1843,6 +2252,7 @@ static int verifyMapRoundtrip(const char* inputFile)
 	// Save original data for comparison
 	MapData originalData;
 	originalData.timeOfDay = g_mapData.timeOfDay;
+	originalData.shadowColor = g_mapData.shadowColor;
 	memcpy(originalData.lighting, g_mapData.lighting, sizeof(originalData.lighting));
 	originalData.waypointLinks = g_mapData.waypointLinks;
 	originalData.objects = g_mapData.objects;
@@ -1926,8 +2336,8 @@ static int verifyMapRoundtrip(const char* inputFile)
 
 	// Compare lighting
 	printf("  Comparing lighting...\n");
-	if (!compareLighting(originalData.timeOfDay, originalData.lighting,
-	                     roundtripData.timeOfDay, roundtripData.lighting))
+	if (!compareLighting(originalData.timeOfDay, originalData.lighting, originalData.shadowColor,
+	                     roundtripData.timeOfDay, roundtripData.lighting, roundtripData.shadowColor))
 		allMatch = false;
 
 	// Compare polygon triggers (sorted by name, IDs are auto-assigned so not compared)
