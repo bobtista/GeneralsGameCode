@@ -825,7 +825,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_parameters[0] = Parameter::TEAM;
 	curTemplate->m_numUiStrings = 2;
 	curTemplate->m_uiStrings[0] = "Increase the AI priority for";
-	curTemplate->m_uiStrings[1] = "  by its Success Priority Increase amount.";
+	curTemplate->m_uiStrings[1] = " by its Success Priority Increase amount.";
 
  	curTemplate = &m_actionTemplates[ScriptAction::TEAM_DECREASE_PRIORITY];
 	curTemplate->m_internalName = "TEAM_DECREASE_PRIORITY";
@@ -834,7 +834,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_parameters[0] = Parameter::TEAM;
 	curTemplate->m_numUiStrings = 2;
 	curTemplate->m_uiStrings[0] = "Reduce the AI priority for";
-	curTemplate->m_uiStrings[1] = "  by its Failure Priority Decrease amount.";
+	curTemplate->m_uiStrings[1] = " by its Failure Priority Decrease amount.";
 
  	curTemplate = &m_actionTemplates[ScriptAction::TEAM_WANDER];
 	curTemplate->m_internalName = "TEAM_WANDER";
@@ -3599,7 +3599,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_numUiStrings = 3;
 	curTemplate->m_uiStrings[0] = " ";
 	curTemplate->m_uiStrings[1] = " use ";
-	curTemplate->m_uiStrings[2] = "  on ";
+	curTemplate->m_uiStrings[2] = " on ";
 
  	curTemplate = &m_actionTemplates[ScriptAction::TEAM_ALL_USE_COMMANDBUTTON_ON_NEAREST_ENEMY_UNIT];
 	curTemplate->m_internalName = "TEAM_ALL_USE_COMMANDBUTTON_ON_NEAREST_ENEMY_UNIT";
@@ -3610,7 +3610,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_numUiStrings = 3;
 	curTemplate->m_uiStrings[0] = " ";
 	curTemplate->m_uiStrings[1] = " use ";
-	curTemplate->m_uiStrings[2] = "  on nearest enemy unit.";
+	curTemplate->m_uiStrings[2] = " on nearest enemy unit.";
 
  	curTemplate = &m_actionTemplates[ScriptAction::TEAM_ALL_USE_COMMANDBUTTON_ON_NEAREST_GARRISONED_BUILDING];
 	curTemplate->m_internalName = "TEAM_ALL_USE_COMMANDBUTTON_ON_NEAREST_GARRISONED_BUILDING";
@@ -3621,7 +3621,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_numUiStrings = 3;
 	curTemplate->m_uiStrings[0] = " ";
 	curTemplate->m_uiStrings[1] = " use ";
-	curTemplate->m_uiStrings[2] = "  on nearest enemy garrisoned building.";
+	curTemplate->m_uiStrings[2] = " on nearest enemy garrisoned building.";
 
  	curTemplate = &m_actionTemplates[ScriptAction::TEAM_ALL_USE_COMMANDBUTTON_ON_NEAREST_KINDOF];
 	curTemplate->m_internalName = "TEAM_ALL_USE_COMMANDBUTTON_ON_NEAREST_KINDOF";
@@ -3633,7 +3633,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_numUiStrings = 4;
 	curTemplate->m_uiStrings[0] = " ";
 	curTemplate->m_uiStrings[1] = " use ";
-	curTemplate->m_uiStrings[2] = "  on nearest enemy with ";
+	curTemplate->m_uiStrings[2] = " on nearest enemy with ";
 	curTemplate->m_uiStrings[4] = ".";
 
  	curTemplate = &m_actionTemplates[ScriptAction::TEAM_ALL_USE_COMMANDBUTTON_ON_NEAREST_ENEMY_BUILDING];
@@ -3645,7 +3645,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_numUiStrings = 3;
 	curTemplate->m_uiStrings[0] = " ";
 	curTemplate->m_uiStrings[1] = " use ";
-	curTemplate->m_uiStrings[2] = "  on nearest enemy building.";
+	curTemplate->m_uiStrings[2] = " on nearest enemy building.";
 
  	curTemplate = &m_actionTemplates[ScriptAction::TEAM_ALL_USE_COMMANDBUTTON_ON_NEAREST_ENEMY_BUILDING_CLASS];
 	curTemplate->m_internalName = "TEAM_ALL_USE_COMMANDBUTTON_ON_NEAREST_ENEMY_BUILDING_CLASS";
@@ -3657,7 +3657,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_numUiStrings = 3;
 	curTemplate->m_uiStrings[0] = " ";
 	curTemplate->m_uiStrings[1] = " use ";
-	curTemplate->m_uiStrings[2] = "  on nearest enemy building with ";
+	curTemplate->m_uiStrings[2] = " on nearest enemy building with ";
 
  	curTemplate = &m_actionTemplates[ScriptAction::TEAM_ALL_USE_COMMANDBUTTON_ON_NEAREST_OBJECTTYPE];
 	curTemplate->m_internalName = "TEAM_ALL_USE_COMMANDBUTTON_ON_NEAREST_OBJECTTYPE";
