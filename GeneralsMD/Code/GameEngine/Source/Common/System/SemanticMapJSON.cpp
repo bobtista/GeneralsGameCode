@@ -64,6 +64,7 @@ static const int s_compressionCount = 14;
 MapData::MapData()
 	: worldInfo(NULL)
 	, timeOfDay(0)
+	, shadowColor(0xFFFFFFFF)
 	, numPlayers(0)
 	, heightMapVersion(4)
 	, blendTileVersion(8)
@@ -380,11 +381,12 @@ nlohmann::ordered_json SemanticMapWriter::writeWaypointLinks(const std::vector<W
 	return result;
 }
 
-nlohmann::ordered_json SemanticMapWriter::writeLighting(int timeOfDay, const LightingInfo lighting[4])
+nlohmann::ordered_json SemanticMapWriter::writeLighting(int timeOfDay, const LightingInfo lighting[4], unsigned int shadowColor)
 {
 	nlohmann::ordered_json result = nlohmann::ordered_json::object();
 
 	result["timeOfDay"] = timeOfDayToString(timeOfDay);
+	result["shadowColor"] = shadowColor;
 
 	const char* periods[] = {"morning", "afternoon", "evening", "night"};
 
@@ -392,20 +394,25 @@ nlohmann::ordered_json SemanticMapWriter::writeLighting(int timeOfDay, const Lig
 	{
 		nlohmann::ordered_json period = nlohmann::ordered_json::object();
 
-		nlohmann::ordered_json terrain = nlohmann::ordered_json::object();
-		terrain["ambient"] = nlohmann::ordered_json::object();
-		terrain["ambient"]["r"] = lighting[i].terrainLights[0].ambientR;
-		terrain["ambient"]["g"] = lighting[i].terrainLights[0].ambientG;
-		terrain["ambient"]["b"] = lighting[i].terrainLights[0].ambientB;
-		terrain["diffuse"] = nlohmann::ordered_json::object();
-		terrain["diffuse"]["r"] = lighting[i].terrainLights[0].diffuseR;
-		terrain["diffuse"]["g"] = lighting[i].terrainLights[0].diffuseG;
-		terrain["diffuse"]["b"] = lighting[i].terrainLights[0].diffuseB;
-		terrain["position"] = nlohmann::ordered_json::object();
-		terrain["position"]["x"] = lighting[i].terrainLights[0].posX;
-		terrain["position"]["y"] = lighting[i].terrainLights[0].posY;
-		terrain["position"]["z"] = lighting[i].terrainLights[0].posZ;
-		period["terrain"] = terrain;
+		nlohmann::ordered_json terrainArray = nlohmann::ordered_json::array();
+		for (int j = 0; j < 3; j++)
+		{
+			nlohmann::ordered_json light = nlohmann::ordered_json::object();
+			light["ambient"] = nlohmann::ordered_json::object();
+			light["ambient"]["r"] = lighting[i].terrainLights[j].ambientR;
+			light["ambient"]["g"] = lighting[i].terrainLights[j].ambientG;
+			light["ambient"]["b"] = lighting[i].terrainLights[j].ambientB;
+			light["diffuse"] = nlohmann::ordered_json::object();
+			light["diffuse"]["r"] = lighting[i].terrainLights[j].diffuseR;
+			light["diffuse"]["g"] = lighting[i].terrainLights[j].diffuseG;
+			light["diffuse"]["b"] = lighting[i].terrainLights[j].diffuseB;
+			light["position"] = nlohmann::ordered_json::object();
+			light["position"]["x"] = lighting[i].terrainLights[j].posX;
+			light["position"]["y"] = lighting[i].terrainLights[j].posY;
+			light["position"]["z"] = lighting[i].terrainLights[j].posZ;
+			terrainArray.push_back(light);
+		}
+		period["terrain"] = terrainArray;
 
 		nlohmann::ordered_json objects = nlohmann::ordered_json::array();
 		for (int j = 0; j < 3; j++)
@@ -440,7 +447,7 @@ nlohmann::ordered_json SemanticMapWriter::writeMapFile(const MapData& mapData)
 	if (mapData.worldInfo)
 		m_root["worldInfo"] = writeWorldInfo(mapData.worldInfo);
 
-	m_root["lighting"] = writeLighting(mapData.timeOfDay, mapData.lighting);
+	m_root["lighting"] = writeLighting(mapData.timeOfDay, mapData.lighting, mapData.shadowColor);
 
 	if (!mapData.objects.empty())
 		m_root["objects"] = writeObjects(mapData.objects);
@@ -727,7 +734,7 @@ bool SemanticMapReader::parseWaypointLinks(const nlohmann::ordered_json& json, s
 	return true;
 }
 
-bool SemanticMapReader::parseLighting(const nlohmann::ordered_json& json, int& outTimeOfDay, LightingInfo outLighting[4])
+bool SemanticMapReader::parseLighting(const nlohmann::ordered_json& json, int& outTimeOfDay, LightingInfo outLighting[4], unsigned int& outShadowColor)
 {
 	if (!json.is_object())
 		return false;
@@ -740,6 +747,14 @@ bool SemanticMapReader::parseLighting(const nlohmann::ordered_json& json, int& o
 			outTimeOfDay = json["timeOfDay"].get<int>();
 	}
 
+	if (json.contains("shadowColor"))
+	{
+		if (json["shadowColor"].is_number_unsigned())
+			outShadowColor = json["shadowColor"].get<unsigned int>();
+		else if (json["shadowColor"].is_number_integer())
+			outShadowColor = static_cast<unsigned int>(json["shadowColor"].get<int>());
+	}
+
 	const char* periods[] = {"morning", "afternoon", "evening", "night"};
 
 	for (int i = 0; i < 4; i++)
@@ -749,26 +764,56 @@ bool SemanticMapReader::parseLighting(const nlohmann::ordered_json& json, int& o
 
 		const auto& period = json[periods[i]];
 
-		if (period.contains("terrain") && period["terrain"].is_object())
+		if (period.contains("terrain"))
 		{
-			const auto& terrain = period["terrain"];
-			if (terrain.contains("ambient"))
+			if (period["terrain"].is_array())
 			{
-				outLighting[i].terrainLights[0].ambientR = terrain["ambient"].value("r", 0.0f);
-				outLighting[i].terrainLights[0].ambientG = terrain["ambient"].value("g", 0.0f);
-				outLighting[i].terrainLights[0].ambientB = terrain["ambient"].value("b", 0.0f);
+				int j = 0;
+				for (const auto& light : period["terrain"])
+				{
+					if (j >= 3) break;
+					if (light.contains("ambient"))
+					{
+						outLighting[i].terrainLights[j].ambientR = light["ambient"].value("r", 0.0f);
+						outLighting[i].terrainLights[j].ambientG = light["ambient"].value("g", 0.0f);
+						outLighting[i].terrainLights[j].ambientB = light["ambient"].value("b", 0.0f);
+					}
+					if (light.contains("diffuse"))
+					{
+						outLighting[i].terrainLights[j].diffuseR = light["diffuse"].value("r", 0.0f);
+						outLighting[i].terrainLights[j].diffuseG = light["diffuse"].value("g", 0.0f);
+						outLighting[i].terrainLights[j].diffuseB = light["diffuse"].value("b", 0.0f);
+					}
+					if (light.contains("position"))
+					{
+						outLighting[i].terrainLights[j].posX = light["position"].value("x", 0.0f);
+						outLighting[i].terrainLights[j].posY = light["position"].value("y", 0.0f);
+						outLighting[i].terrainLights[j].posZ = light["position"].value("z", 0.0f);
+					}
+					j++;
+				}
 			}
-			if (terrain.contains("diffuse"))
+			else if (period["terrain"].is_object())
 			{
-				outLighting[i].terrainLights[0].diffuseR = terrain["diffuse"].value("r", 0.0f);
-				outLighting[i].terrainLights[0].diffuseG = terrain["diffuse"].value("g", 0.0f);
-				outLighting[i].terrainLights[0].diffuseB = terrain["diffuse"].value("b", 0.0f);
-			}
-			if (terrain.contains("position"))
-			{
-				outLighting[i].terrainLights[0].posX = terrain["position"].value("x", 0.0f);
-				outLighting[i].terrainLights[0].posY = terrain["position"].value("y", 0.0f);
-				outLighting[i].terrainLights[0].posZ = terrain["position"].value("z", 0.0f);
+				const auto& terrain = period["terrain"];
+				if (terrain.contains("ambient"))
+				{
+					outLighting[i].terrainLights[0].ambientR = terrain["ambient"].value("r", 0.0f);
+					outLighting[i].terrainLights[0].ambientG = terrain["ambient"].value("g", 0.0f);
+					outLighting[i].terrainLights[0].ambientB = terrain["ambient"].value("b", 0.0f);
+				}
+				if (terrain.contains("diffuse"))
+				{
+					outLighting[i].terrainLights[0].diffuseR = terrain["diffuse"].value("r", 0.0f);
+					outLighting[i].terrainLights[0].diffuseG = terrain["diffuse"].value("g", 0.0f);
+					outLighting[i].terrainLights[0].diffuseB = terrain["diffuse"].value("b", 0.0f);
+				}
+				if (terrain.contains("position"))
+				{
+					outLighting[i].terrainLights[0].posX = terrain["position"].value("x", 0.0f);
+					outLighting[i].terrainLights[0].posY = terrain["position"].value("y", 0.0f);
+					outLighting[i].terrainLights[0].posZ = terrain["position"].value("z", 0.0f);
+				}
 			}
 		}
 
@@ -832,7 +877,7 @@ bool SemanticMapReader::parseMapFile(const char* jsonData, size_t length, MapDat
 	}
 
 	if (root.contains("lighting"))
-		parseLighting(root["lighting"], outMapData.timeOfDay, outMapData.lighting);
+		parseLighting(root["lighting"], outMapData.timeOfDay, outMapData.lighting, outMapData.shadowColor);
 
 	if (root.contains("objects"))
 		parseObjects(root["objects"], outMapData.objects);
@@ -884,6 +929,8 @@ void SemanticMapFileWriter::writeWorldInfoChunk(DataChunkOutput& output, const D
 	output.openDataChunk("WorldInfo", 1);
 	if (dict)
 		output.writeDict(*dict);
+	else
+		output.writeDict(Dict());  // Always write a Dict, even if empty
 	output.closeDataChunk();
 }
 
@@ -922,7 +969,7 @@ void SemanticMapFileWriter::writePolygonTriggersChunk(DataChunkOutput& output)
 	PolygonTrigger::WritePolygonTriggersDataChunk(output);
 }
 
-void SemanticMapFileWriter::writeGlobalLightingChunk(DataChunkOutput& output, int timeOfDay, const LightingInfo lighting[4])
+void SemanticMapFileWriter::writeGlobalLightingChunk(DataChunkOutput& output, int timeOfDay, const LightingInfo lighting[4], unsigned int shadowColor)
 {
 	output.openDataChunk("GlobalLighting", 3);
 	output.writeInt(timeOfDay);
@@ -964,9 +1011,23 @@ void SemanticMapFileWriter::writeGlobalLightingChunk(DataChunkOutput& output, in
 			output.writeReal(lighting[i].objectLights[j].posY);
 			output.writeReal(lighting[i].objectLights[j].posZ);
 		}
+
+		// Additional terrain lights [1-2] (version 3)
+		for (int j = 1; j < 3; j++)
+		{
+			output.writeReal(lighting[i].terrainLights[j].ambientR);
+			output.writeReal(lighting[i].terrainLights[j].ambientG);
+			output.writeReal(lighting[i].terrainLights[j].ambientB);
+			output.writeReal(lighting[i].terrainLights[j].diffuseR);
+			output.writeReal(lighting[i].terrainLights[j].diffuseG);
+			output.writeReal(lighting[i].terrainLights[j].diffuseB);
+			output.writeReal(lighting[i].terrainLights[j].posX);
+			output.writeReal(lighting[i].terrainLights[j].posY);
+			output.writeReal(lighting[i].terrainLights[j].posZ);
+		}
 	}
 
-	output.writeInt(0xFFFFFFFF);  // shadowColor (black shadows)
+	output.writeInt(shadowColor);
 	output.closeDataChunk();
 }
 
@@ -999,7 +1060,7 @@ bool SemanticMapFileWriter::writeMapFile(const MapData& mapData, DataChunkOutput
 
 	writePolygonTriggersChunk(output);
 
-	writeGlobalLightingChunk(output, mapData.timeOfDay, mapData.lighting);
+	writeGlobalLightingChunk(output, mapData.timeOfDay, mapData.lighting, mapData.shadowColor);
 
 	writeWaypointsListChunk(output, mapData.waypointLinks);
 

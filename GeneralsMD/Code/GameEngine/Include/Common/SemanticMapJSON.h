@@ -68,6 +68,7 @@ struct MapData
 	std::vector<WaypointLinkInfo> waypointLinks;
 	int timeOfDay;
 	LightingInfo lighting[4];
+	unsigned int shadowColor;
 	ScriptList* scriptLists[16];
 	int numPlayers;
 
@@ -94,7 +95,7 @@ public:
 	nlohmann::ordered_json writePolygonTriggers();
 	nlohmann::ordered_json writePolygonTrigger(const PolygonTrigger* trigger);
 	nlohmann::ordered_json writeWaypointLinks(const std::vector<WaypointLinkInfo>& links);
-	nlohmann::ordered_json writeLighting(int timeOfDay, const LightingInfo lighting[4]);
+	nlohmann::ordered_json writeLighting(int timeOfDay, const LightingInfo lighting[4], unsigned int shadowColor);
 	nlohmann::ordered_json writeDict(const Dict* dict);
 
 	std::string getJSONString(int indent = 2) const;
@@ -124,7 +125,7 @@ public:
 	bool parsePolygonTriggers(const nlohmann::ordered_json& json);
 	bool parsePolygonTrigger(const nlohmann::ordered_json& json);
 	bool parseWaypointLinks(const nlohmann::ordered_json& json, std::vector<WaypointLinkInfo>& outLinks);
-	bool parseLighting(const nlohmann::ordered_json& json, int& outTimeOfDay, LightingInfo outLighting[4]);
+	bool parseLighting(const nlohmann::ordered_json& json, int& outTimeOfDay, LightingInfo outLighting[4], unsigned int& outShadowColor);
 	bool parseDict(const nlohmann::ordered_json& json, Dict* outDict);
 
 	const std::string& getLastError() const { return m_lastError; }
@@ -153,7 +154,7 @@ private:
 	void writeSidesListChunk(DataChunkOutput& output, ScriptList* scripts[], int numPlayers);
 	void writeObjectsListChunk(DataChunkOutput& output, const std::vector<MapObjectInfo>& objects);
 	void writePolygonTriggersChunk(DataChunkOutput& output);
-	void writeGlobalLightingChunk(DataChunkOutput& output, int timeOfDay, const LightingInfo lighting[4]);
+	void writeGlobalLightingChunk(DataChunkOutput& output, int timeOfDay, const LightingInfo lighting[4], unsigned int shadowColor);
 	void writeWaypointsListChunk(DataChunkOutput& output, const std::vector<WaypointLinkInfo>& links);
 };
 
