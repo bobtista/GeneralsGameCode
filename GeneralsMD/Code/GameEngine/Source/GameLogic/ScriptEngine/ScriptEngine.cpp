@@ -8220,7 +8220,7 @@ void SequentialScript::xfer( Xfer *xfer )
 	// frames to wait
 	xfer->xferInt( &m_framesToWait );
 
-	// dont advance instruction
+	// don't advance instruction
 	xfer->xferBool( &m_dontAdvanceInstruction );
 
 }
