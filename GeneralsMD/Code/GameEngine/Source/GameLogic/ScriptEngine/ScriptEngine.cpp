@@ -1582,7 +1582,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_numUiStrings = 3;
 	curTemplate->m_uiStrings[0] = " ";
 	curTemplate->m_uiStrings[1] = " will delay ";
-	curTemplate->m_uiStrings[1] = " seconds between building teams.";
+	curTemplate->m_uiStrings[2] = " seconds between building teams.";
 
 	curTemplate = &m_actionTemplates[ScriptAction::NAMED_SET_ATTITUDE];
 	curTemplate->m_internalName = "NAMED_SET_ATTITUDE";
@@ -2935,7 +2935,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_uiStrings[0] = " ";
 	curTemplate->m_uiStrings[1] = " considers ";
 	curTemplate->m_uiStrings[2] = " to be ";
-	curTemplate->m_uiStrings[3] = " (rather than using the the player relationship).";
+	curTemplate->m_uiStrings[3] = " (rather than using the player relationship).";
 
 	curTemplate = &m_actionTemplates[ScriptAction::TEAM_REMOVE_OVERRIDE_RELATION_TO_TEAM];
 	curTemplate->m_internalName = "TEAM_REMOVE_OVERRIDE_RELATION_TO_TEAM";
@@ -3055,7 +3055,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_uiStrings[0] = " ";
 	curTemplate->m_uiStrings[1] = " considers ";
 	curTemplate->m_uiStrings[2] = " to be ";
-	curTemplate->m_uiStrings[3] = " (rather than using the the player relationship).";
+	curTemplate->m_uiStrings[3] = " (rather than using the player relationship).";
 
 	curTemplate = &m_actionTemplates[ScriptAction::TEAM_REMOVE_OVERRIDE_RELATION_TO_PLAYER];
 	curTemplate->m_internalName = "TEAM_REMOVE_OVERRIDE_RELATION_TO_PLAYER";
@@ -3078,7 +3078,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_uiStrings[0] = " ";
 	curTemplate->m_uiStrings[1] = " considers ";
 	curTemplate->m_uiStrings[2] = " to be ";
-	curTemplate->m_uiStrings[3] = " (rather than using the the player relationship).";
+	curTemplate->m_uiStrings[3] = " (rather than using the player relationship).";
 
 	curTemplate = &m_actionTemplates[ScriptAction::PLAYER_REMOVE_OVERRIDE_RELATION_TO_TEAM];
 	curTemplate->m_internalName = "PLAYER_REMOVE_OVERRIDE_RELATION_TO_TEAM";
