@@ -216,10 +216,17 @@ void SemanticScriptWriter::writeParameter(nlohmann::ordered_json& params, Parame
 	switch (param->getParameterType())
 	{
 		case Parameter::INT:
-		case Parameter::SIDE:
 		case Parameter::COMMANDBUTTON_ABILITY:
 		case Parameter::BOUNDARY:
 			params[paramName] = param->getInt();
+			break;
+
+		case Parameter::SIDE:
+			// SIDE parameters use string names like "<This Player>", "SkirmishChina", etc.
+			if (!param->getString().isEmpty())
+				params[paramName] = param->getString().str();
+			else
+				params[paramName] = param->getInt();  // fallback to integer if no string
 			break;
 
 		case Parameter::BOOLEAN:
@@ -519,8 +526,7 @@ nlohmann::ordered_json SemanticScriptWriter::writeScript(Script* script)
 	difficulty["hard"] = script->isHard();
 	result["difficulty"] = difficulty;
 
-	if (script->getDelayEvalSeconds() > 0)
-		result["evaluationDelay"] = script->getDelayEvalSeconds();
+	result["evaluationDelay"] = script->getDelayEvalSeconds();
 
 	if (script->getOrCondition())
 		result["if"] = writeConditions(script->getOrCondition());
@@ -592,7 +598,6 @@ nlohmann::ordered_json SemanticScriptWriter::writeScriptList(ScriptList* scriptL
 nlohmann::ordered_json SemanticScriptWriter::writeScriptsFile(ScriptList** scriptLists, int numPlayers)
 {
 	m_root = nlohmann::ordered_json::object();
-	m_root["version"] = 1;
 
 	nlohmann::ordered_json players = nlohmann::ordered_json::array();
 	for (int i = 0; i < numPlayers; i++)
@@ -703,13 +708,20 @@ Parameter* SemanticScriptReader::parseParameter(const nlohmann::ordered_json& js
 	switch (expectedType)
 	{
 		case Parameter::INT:
-		case Parameter::SIDE:
 		case Parameter::COMMANDBUTTON_ABILITY:
 		case Parameter::BOUNDARY:
 			if (json.is_number_integer())
 				param->friend_setInt(json.get<int>());
 			else if (json.is_boolean())
 				param->friend_setInt(json.get<bool>() ? 1 : 0);
+			break;
+
+		case Parameter::SIDE:
+			// SIDE parameters use string names like "<This Player>", "SkirmishChina", etc.
+			if (json.is_string())
+				param->friend_setString(json.get<std::string>().c_str());
+			else if (json.is_number_integer())
+				param->friend_setInt(json.get<int>());
 			break;
 
 		case Parameter::BOOLEAN:
