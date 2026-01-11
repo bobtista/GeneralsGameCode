@@ -2182,7 +2182,7 @@ void ScriptEngine::init( void )
 
 	curTemplate = &m_actionTemplates[ScriptAction::OBJECT_CREATE_RADAR_EVENT];
 	curTemplate->m_internalName = "OBJECT_CREATE_RADAR_EVENT";
-	curTemplate->m_uiName = "Radar_/Create Event/Create  a radar event at a specific object.";
+	curTemplate->m_uiName = "Radar_/Create Event/Create a radar event at a specific object.";
 	curTemplate->m_numParameters = 2;
 	curTemplate->m_parameters[0] = Parameter::UNIT;
 	curTemplate->m_parameters[1] = Parameter::RADAR_EVENT_TYPE;
@@ -2192,7 +2192,7 @@ void ScriptEngine::init( void )
 
 	curTemplate = &m_actionTemplates[ScriptAction::TEAM_CREATE_RADAR_EVENT];
 	curTemplate->m_internalName = "TEAM_CREATE_RADAR_EVENT";
-	curTemplate->m_uiName = "Radar_/Create Event/Create  a radar event at a specific team.";
+	curTemplate->m_uiName = "Radar_/Create Event/Create a radar event at a specific team.";
 	curTemplate->m_numParameters = 2;
 	curTemplate->m_parameters[0] = Parameter::TEAM;
 	curTemplate->m_parameters[1] = Parameter::RADAR_EVENT_TYPE;
@@ -6913,9 +6913,9 @@ void ScriptEngine::checkConditionsForTeamNames(Script *pScript)
 						singletonTeamName = teamName;		// Singleton team - use if it is the only one, but can have multiple of these.
 					} else {
 						if (multiTeamName.isEmpty()) {
-							multiTeamName = teamName;		// Use one multiply defined team.  Good.
+							multiTeamName = teamName;		// Use one non-singleton team.  Good.
 						} else if (multiTeamName!=teamName) {
-							// More than one multiply defined team - bad.
+							// More than one non-singleton team - bad.
 							AppendDebugMessage("***WARNING: Script contains multiple non-singleton team conditions::***", false);
 							AppendDebugMessage(scriptName, false);
 							AppendDebugMessage(multiTeamName, false);
@@ -9192,7 +9192,7 @@ void ScriptEngine::xfer( Xfer *xfer )
 		else
 		{
 
-			// the vector should be emtpy now
+			// the vector should be empty now
 			if( m_namedReveals.empty() == FALSE )
 			{
 
