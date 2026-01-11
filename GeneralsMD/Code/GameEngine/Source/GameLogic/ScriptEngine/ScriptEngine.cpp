@@ -664,10 +664,10 @@ void ScriptEngine::init( void )
 
 	curTemplate = &m_actionTemplates[ScriptAction::DEFEAT];
 	curTemplate->m_internalName = "DEFEAT";
-	curTemplate->m_uiName = "User_/ Announce lose";
+	curTemplate->m_uiName = "User_/ Announce loss";
 	curTemplate->m_numParameters = 0;
 	curTemplate->m_numUiStrings = 1;
-	curTemplate->m_uiStrings[0] = "Announce lose.";
+	curTemplate->m_uiStrings[0] = "Announce loss.";
 
 	curTemplate = &m_actionTemplates[ScriptAction::NO_OP];
 	curTemplate->m_internalName = "NO_OP";
