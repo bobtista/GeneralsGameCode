@@ -151,7 +151,8 @@ std::string SemanticScriptWriter::getParameterName(int paramIndex, const ActionT
 		}
 	}
 
-	return result.empty() ? "param" + std::to_string(paramIndex) : result;
+	// Fall back to paramN if result is empty or too short (e.g. "'s " becomes just "s")
+	return (result.length() < 3) ? "param" + std::to_string(paramIndex) : result;
 }
 
 std::string SemanticScriptWriter::getParameterName(int paramIndex, const ConditionTemplate* tmpl)
@@ -204,7 +205,8 @@ std::string SemanticScriptWriter::getParameterName(int paramIndex, const Conditi
 		}
 	}
 
-	return result.empty() ? "param" + std::to_string(paramIndex) : result;
+	// Fall back to paramN if result is empty or too short (e.g. "'s " becomes just "s")
+	return (result.length() < 3) ? "param" + std::to_string(paramIndex) : result;
 }
 
 void SemanticScriptWriter::writeParameter(nlohmann::ordered_json& params, Parameter* param,
@@ -1366,7 +1368,8 @@ std::string SemanticScriptReader_getParameterName(int paramIndex, const Template
 		}
 	}
 
-	return result.empty() ? "param" + std::to_string(paramIndex) : result;
+	// Fall back to paramN if result is empty or too short (e.g. "'s " becomes just "s")
+	return (result.length() < 3) ? "param" + std::to_string(paramIndex) : result;
 }
 
 #endif // RTS_HAS_JSON_CHUNK
