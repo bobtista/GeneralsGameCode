@@ -584,7 +584,7 @@ void NetPacket::FillBufferWithRunAheadMetricsCommand(UnsignedByte *buffer, NetCo
 	packet->commandId.commandId = cmdMsg->getID();
 	packet->dataHeader.header = NetPacketFieldTypes::Data;
 	packet->averageLatency = cmdMsg->getAverageLatency();
-	packet->averageFps = static_cast<UnsignedByte>(cmdMsg->getAverageFps());
+	packet->averageFps = static_cast<UnsignedShort>(cmdMsg->getAverageFps());
 }
 
 void NetPacket::FillBufferWithRunAheadCommand(UnsignedByte *buffer, NetCommandRef *msg) {
