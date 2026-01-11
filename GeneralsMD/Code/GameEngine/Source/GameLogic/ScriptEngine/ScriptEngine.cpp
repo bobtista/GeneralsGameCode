@@ -7006,7 +7006,7 @@ void ScriptEngine::executeScript( Script *pScript )
 				// Script Debug window
 				_appendMessage(pScript->getName(), false);
 
-				// Only do this is there are actually false actions.
+				// Only do this if there are actually false actions.
 				executeActions(pScript->getFalseAction());
       }
 		}
@@ -7029,7 +7029,7 @@ void ScriptEngine::executeScript( Script *pScript )
 			// Script Debug window
 			_appendMessage(pScript->getName(), false);
 
-			// Only do this is there are actually false actions.
+			// Only do this if there are actually false actions.
 			executeActions(pScript->getFalseAction());
 			if (pScript->isOneShot()) {
 				pScript->setActive(false);
@@ -7162,7 +7162,7 @@ void ScriptEngine::transferObjectName( const AsciiString& unitName, Object *pNew
 		removeObjectFromCache(pNewObject);
 	}
 
-	pNewObject->setName(unitName); // make sure it's named the name.
+	pNewObject->setName(unitName); // make sure it has the correct name.
 
 	//Loop through the cached list and find the string entry. If found, change the object
 	//so it's pointing to the new one.
