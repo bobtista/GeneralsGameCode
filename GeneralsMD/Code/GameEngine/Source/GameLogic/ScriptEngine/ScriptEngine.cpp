@@ -1057,7 +1057,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_uiStrings[1] = " to ";
 	curTemplate->m_uiStrings[2] = " adding toward white. Take ";
 	curTemplate->m_uiStrings[3] = " frames to increase, hold for ";
-	curTemplate->m_uiStrings[4] = " fames, and decrease ";
+	curTemplate->m_uiStrings[4] = " frames, and decrease ";
 	curTemplate->m_uiStrings[5] = " frames.";
 
  	curTemplate = &m_actionTemplates[ScriptAction::CAMERA_FADE_SUBTRACT];
@@ -1074,7 +1074,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_uiStrings[1] = " to ";
 	curTemplate->m_uiStrings[2] = " subtracting toward black. Take ";
 	curTemplate->m_uiStrings[3] = " frames to increase, hold for ";
-	curTemplate->m_uiStrings[4] = " fames, and decrease ";
+	curTemplate->m_uiStrings[4] = " frames, and decrease ";
 	curTemplate->m_uiStrings[5] = " frames.";
 
  	curTemplate = &m_actionTemplates[ScriptAction::CAMERA_FADE_MULTIPLY];
@@ -1091,7 +1091,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_uiStrings[1] = " to ";
 	curTemplate->m_uiStrings[2] = " multiplying toward black. Take ";
 	curTemplate->m_uiStrings[3] = " frames to increase, hold for ";
-	curTemplate->m_uiStrings[4] = " fames, and decrease ";
+	curTemplate->m_uiStrings[4] = " frames, and decrease ";
 	curTemplate->m_uiStrings[5] = " frames.";
 
  	curTemplate = &m_actionTemplates[ScriptAction::CAMERA_FADE_SATURATE];
@@ -1108,7 +1108,7 @@ void ScriptEngine::init( void )
 	curTemplate->m_uiStrings[1] = " to ";
 	curTemplate->m_uiStrings[2] = " increasing saturation. Take ";
 	curTemplate->m_uiStrings[3] = " frames to increase, hold for ";
-	curTemplate->m_uiStrings[4] = " fames, and decrease ";
+	curTemplate->m_uiStrings[4] = " frames, and decrease ";
 	curTemplate->m_uiStrings[5] = " frames.";
 
 	curTemplate = &m_actionTemplates[ScriptAction::PITCH_CAMERA];
