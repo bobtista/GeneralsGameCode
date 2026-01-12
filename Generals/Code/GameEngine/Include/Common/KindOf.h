@@ -93,7 +93,7 @@ enum KindOfType CPP_11(: Int)
 	KINDOF_CAN_SURRENDER,						///< object that can surrender
 #endif
 	KINDOF_CAN_BE_REPULSED,					///< object that runs away from a repulsor object.
-	KINDOF_MOB_NEXUS,					      ///< object that cooyrdinates the members of a mob (i.e. GLAInfantryAngryMob)
+	KINDOF_MOB_NEXUS,					      ///< object that coordinates the members of a mob (i.e. GLAInfantryAngryMob)
 	KINDOF_IGNORED_IN_GUI,					///< object that is the members of a mob (i.e. GLAInfantryAngryMob)
 	KINDOF_CRATE,										///< a bonus crate
 	KINDOF_CAPTURABLE,							///< is "capturable" even if not an enemy (should generally be used only for structures, eg, Tech bldgs)

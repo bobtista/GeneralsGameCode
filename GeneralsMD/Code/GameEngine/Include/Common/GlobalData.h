@@ -458,8 +458,8 @@ public:
 
 	Bool m_debugShowGraphicalFramerate;		///< Whether or not to show the graphical framerate bar.
 
-	Int m_powerBarBase;										///< Logrithmic base for the power bar scale
-	Real m_powerBarIntervals;							///< how many logrithmic intervals the width will be divided into
+	Int m_powerBarBase;										///< Logarithmic base for the power bar scale
+	Real m_powerBarIntervals;							///< how many logarithmic intervals the width will be divided into
 	Int m_powerBarYellowRange;						///< Red if consumption exceeds production, yellow if consumption this close but under, green if further under
 	Real m_displayGamma;									///<display gamma that's adjusted with "brightness" control on options screen.
 
