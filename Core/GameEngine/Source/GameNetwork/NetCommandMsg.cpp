@@ -235,7 +235,7 @@ size_t NetGameCommandMsg::getPackedByteCount() const {
 	msglen += sizeof(UnsignedByte);
 
 	GameMessageParserArgumentType *arg = parser->getFirstArgumentType();
-	while (arg != NULL) {
+	while (arg != nullptr) {
 		msglen += sizeof(UnsignedByte); // argument type
 		msglen += sizeof(UnsignedByte); // argument count
 		GameMessageArgumentDataType type = arg->getType();
@@ -282,10 +282,10 @@ size_t NetGameCommandMsg::getPackedByteCount() const {
 	}
 
 	deleteInstance(parser);
-	parser = NULL;
+	parser = nullptr;
 
 	deleteInstance(gmsg);
-	gmsg = NULL;
+	gmsg = nullptr;
 
 	return msglen;
 }

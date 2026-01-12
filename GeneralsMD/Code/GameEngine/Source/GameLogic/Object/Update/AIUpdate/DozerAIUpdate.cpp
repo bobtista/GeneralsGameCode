@@ -1604,7 +1604,7 @@ UpdateSleepTime DozerAIUpdate::update( void )
 				TheActionManager->canRepairObject( getObject(), targetObject, getLastCommandSource() ) == FALSE )
 			invalidTask = TRUE;
 #if !RETAIL_COMPATIBLE_CRC
-		else if (currentTask == DOZER_TASK_BUILD && targetObject == NULL)
+		else if (currentTask == DOZER_TASK_BUILD && targetObject == nullptr)
 			invalidTask = TRUE;
 #endif
 
