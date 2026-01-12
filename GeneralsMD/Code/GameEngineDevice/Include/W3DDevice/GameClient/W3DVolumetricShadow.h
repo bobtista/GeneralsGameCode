@@ -177,7 +177,7 @@ class W3DVolumetricShadow	: public Shadow
 		// silhouette building space
 		Short *m_silhouetteIndex[MAX_SHADOW_CASTER_MESHES];  // silhouette vertex index list, edges occur
 									 // as disjoint pairs.  The acutal size of this
-									 // piece of memory must accomodate #vertices*2
+									 // piece of memory must accommodate #vertices*2
 		Short m_numSilhouetteIndices[MAX_SHADOW_CASTER_MESHES];  // total number of edge indices in the index
 									   // array, these are pairs and therefore
 									   // always a multiple of two

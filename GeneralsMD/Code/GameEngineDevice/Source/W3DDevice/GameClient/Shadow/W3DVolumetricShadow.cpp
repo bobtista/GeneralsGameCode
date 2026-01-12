@@ -3273,7 +3273,7 @@ void W3DVolumetricShadow::resetShadowVolume( Int volumeIndex, Int meshIndex )
 // allocateSilhouette =========================================================
 // Allocate space for new silhouette storage, the number of vertices passed
 // in is the total vertices in the model, a silhouette must be able to
-// accomodate that as a series of disjoint edge pairs, otherwise known
+// accommodate that as a series of disjoint edge pairs, otherwise known
 // as numVertices * 2
 // ============================================================================
 Bool W3DVolumetricShadow::allocateSilhouette(Int meshIndex, Int numVertices )

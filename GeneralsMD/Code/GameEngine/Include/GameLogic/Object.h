@@ -713,7 +713,7 @@ private:
 
 	// These will last for my lifetime.  I will reuse them and reset them.  The truly dynamic ones are in PartitionManager
 	SightingInfo		*m_partitionLastLook;								///< Where and for whom I last looked, so I can undo its effects when I stop
-	SightingInfo		*m_partitionRevealAllLastLook;			///< And a seperate look to reveal at a different range if so marked
+	SightingInfo		*m_partitionRevealAllLastLook;			///< And a separate look to reveal at a different range if so marked
 	Int							m_visionSpiedBy[MAX_PLAYER_COUNT];  ///< Reference count of having units spied on by players.
 	PlayerMaskType	m_visionSpiedMask;									///< For quick lookup and edge triggered maintenance
 

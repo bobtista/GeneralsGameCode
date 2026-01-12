@@ -719,7 +719,7 @@ static Bool saveComboBoxData( GameWindow *window, FILE *fp, Int dataIndent )
 	sprintf( &buffer[ dataIndent ], "              LETTERSANDNUMBERS: %d;\n", comboData->lettersAndNumbersOnly );
 	writeBufferToFile( fp, buffer );
 
-	//Save teh dropDownButton draw data for the combo box
+	//Save the dropDownButton draw data for the combo box
 	if( comboData->dropDownButton )
 	{
 

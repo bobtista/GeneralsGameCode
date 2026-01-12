@@ -770,7 +770,7 @@ void Object::onDestroy()
 		(*b)->onDelete();
 	}
 
-	//Have to remove ourself from looking as well.  RebuildHoleWorkers definately hit here.
+	//Have to remove ourself from looking as well.  RebuildHoleWorkers definitely hit here.
 	handlePartitionCellMaintenance();
 }
 
