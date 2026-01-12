@@ -32,8 +32,107 @@
 #include <cctype>
 #include <algorithm>
 #include <cstdio>
+#include <set>
+#include <cmath>
 
-std::string SemanticScriptReader_getParameterName(int paramIndex, const Template* tmpl);
+// Round float to 2 decimal places to avoid IEEE-754 precision noise in JSON output
+static float roundFloat(float val)
+{
+	return std::round(val * 100.0f) / 100.0f;
+}
+
+// Shared compound word normalization tables
+// TheSuperHackers @bobtista - fix compound words in internal names for cleaner JSON output
+// Order matters: longer/more specific patterns first
+static const char* s_compoundWordFrom[] = {
+	"ADDOBJECTTYPE", "REMOVEOBJECTTYPE", "OBJECTTYPE", "KINDOF", NULL
+};
+static const char* s_compoundWordTo[] = {
+	"ADD_OBJECT_TYPE", "REMOVE_OBJECT_TYPE", "OBJECT_TYPE", "KIND_OF", NULL
+};
+
+// Shared helper to convert UI string to camelCase parameter name
+static std::string getParameterNameFromTemplate(int paramIndex, const Template* tmpl)
+{
+	if (!tmpl || paramIndex < 0 || paramIndex >= tmpl->m_numUiStrings)
+	{
+		return "param" + std::to_string(paramIndex);
+	}
+
+	AsciiString uiStr = tmpl->m_uiStrings[paramIndex];
+	if (uiStr.isEmpty())
+		return "param" + std::to_string(paramIndex);
+
+	std::string name = uiStr.str();
+
+	// Strip content inside parentheses - these contain hints like "(0.0==default)" not parameter names
+	std::string stripped;
+	int parenDepth = 0;
+	for (char c : name)
+	{
+		if (c == '(')
+			parenDepth++;
+		else if (c == ')')
+			parenDepth--;
+		else if (parenDepth == 0)
+			stripped += c;
+	}
+	name = stripped;
+
+	// Strip leading and trailing spaces/punctuation
+	size_t start = 0;
+	while (start < name.size() && (name[start] == ' ' || name[start] == ':' || name[start] == '.' || name[start] == ','))
+		start++;
+	size_t end = name.size();
+	while (end > start && (name[end - 1] == ' ' || name[end - 1] == ':' || name[end - 1] == '.' || name[end - 1] == ','))
+		end--;
+	name = name.substr(start, end - start);
+
+	std::string result;
+	bool capitalizeNext = false;
+	bool firstChar = true;
+	for (char c : name)
+	{
+		// Skip non-ASCII characters (e.g., degree symbol °)
+		if (static_cast<unsigned char>(c) > 127)
+			continue;
+
+		if (c == ' ' || c == '_')
+		{
+			if (!firstChar)  // Only capitalize after first char has been processed
+				capitalizeNext = true;
+		}
+		else if (std::isalnum(static_cast<unsigned char>(c)))
+		{
+			if (firstChar)
+			{
+				result += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+				firstChar = false;
+			}
+			else if (capitalizeNext)
+			{
+				result += static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
+				capitalizeNext = false;
+			}
+			else
+			{
+				result += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+			}
+		}
+	}
+
+	// Strip leading digits (e.g., "0° default Angle" becomes "0DefaultAngle", strip to "defaultAngle")
+	while (!result.empty() && std::isdigit(static_cast<unsigned char>(result[0])))
+	{
+		result.erase(0, 1);
+		// After stripping a digit, lowercase the next char if it exists (it was capitalized due to space after digit)
+		if (!result.empty() && std::isupper(static_cast<unsigned char>(result[0])))
+			result[0] = static_cast<char>(std::tolower(static_cast<unsigned char>(result[0])));
+	}
+
+	// Fall back to paramN if result is empty or too short (e.g. "'s " becomes just "s")
+	return (result.length() < 3) ? "param" + std::to_string(paramIndex) : result;
+}
 
 static const char* s_comparisonNames[] = {
 	"lessThan", "lessEqual", "equal", "greaterEqual", "greater", "notEqual"
@@ -71,8 +170,22 @@ std::string SemanticScriptWriter::toCamelCase(const AsciiString& internalName)
 	if (internalName.isEmpty())
 		return "";
 
+	// First, normalize compound words that are missing underscores
+	std::string normalized = internalName.str();
+
+	for (int i = 0; s_compoundWordFrom[i] != NULL; i++)
+	{
+		size_t pos = 0;
+		while ((pos = normalized.find(s_compoundWordFrom[i], pos)) != std::string::npos)
+		{
+			normalized.replace(pos, strlen(s_compoundWordFrom[i]), s_compoundWordTo[i]);
+			pos += strlen(s_compoundWordTo[i]);
+		}
+	}
+
+	// Now convert to camelCase
 	std::string result;
-	const char* str = internalName.str();
+	const char* str = normalized.c_str();
 	bool capitalizeNext = false;
 	bool firstChar = true;
 
@@ -106,110 +219,12 @@ std::string SemanticScriptWriter::toCamelCase(const AsciiString& internalName)
 
 std::string SemanticScriptWriter::getParameterName(int paramIndex, const ActionTemplate* tmpl)
 {
-	if (!tmpl || paramIndex < 0 || paramIndex >= tmpl->m_numUiStrings)
-	{
-		return "param" + std::to_string(paramIndex);
-	}
-
-	AsciiString uiStr = tmpl->m_uiStrings[paramIndex];
-	if (uiStr.isEmpty())
-		return "param" + std::to_string(paramIndex);
-
-	std::string name = uiStr.str();
-	// Strip leading and trailing spaces/punctuation
-	size_t start = 0;
-	while (start < name.size() && (name[start] == ' ' || name[start] == ':' || name[start] == '.' || name[start] == ','))
-		start++;
-	size_t end = name.size();
-	while (end > start && (name[end - 1] == ' ' || name[end - 1] == ':' || name[end - 1] == '.' || name[end - 1] == ','))
-		end--;
-	name = name.substr(start, end - start);
-
-	std::string result;
-	bool capitalizeNext = false;
-	bool firstChar = true;
-	for (char c : name)
-	{
-		if (c == ' ' || c == '_')
-		{
-			if (!firstChar)  // Only capitalize after first char has been processed
-				capitalizeNext = true;
-		}
-		else if (std::isalnum(c))
-		{
-			if (firstChar)
-			{
-				result += static_cast<char>(std::tolower(c));
-				firstChar = false;
-			}
-			else if (capitalizeNext)
-			{
-				result += static_cast<char>(std::toupper(c));
-				capitalizeNext = false;
-			}
-			else
-			{
-				result += static_cast<char>(std::tolower(c));
-			}
-		}
-	}
-
-	// Fall back to paramN if result is empty or too short (e.g. "'s " becomes just "s")
-	return (result.length() < 3) ? "param" + std::to_string(paramIndex) : result;
+	return getParameterNameFromTemplate(paramIndex, tmpl);
 }
 
 std::string SemanticScriptWriter::getParameterName(int paramIndex, const ConditionTemplate* tmpl)
 {
-	if (!tmpl || paramIndex < 0 || paramIndex >= tmpl->m_numUiStrings)
-	{
-		return "param" + std::to_string(paramIndex);
-	}
-
-	AsciiString uiStr = tmpl->m_uiStrings[paramIndex];
-	if (uiStr.isEmpty())
-		return "param" + std::to_string(paramIndex);
-
-	std::string name = uiStr.str();
-	// Strip leading and trailing spaces/punctuation
-	size_t start = 0;
-	while (start < name.size() && (name[start] == ' ' || name[start] == ':' || name[start] == '.' || name[start] == ','))
-		start++;
-	size_t end = name.size();
-	while (end > start && (name[end - 1] == ' ' || name[end - 1] == ':' || name[end - 1] == '.' || name[end - 1] == ','))
-		end--;
-	name = name.substr(start, end - start);
-
-	std::string result;
-	bool capitalizeNext = false;
-	bool firstChar = true;
-	for (char c : name)
-	{
-		if (c == ' ' || c == '_')
-		{
-			if (!firstChar)  // Only capitalize after first char has been processed
-				capitalizeNext = true;
-		}
-		else if (std::isalnum(c))
-		{
-			if (firstChar)
-			{
-				result += static_cast<char>(std::tolower(c));
-				firstChar = false;
-			}
-			else if (capitalizeNext)
-			{
-				result += static_cast<char>(std::toupper(c));
-				capitalizeNext = false;
-			}
-			else
-			{
-				result += static_cast<char>(std::tolower(c));
-			}
-		}
-	}
-
-	// Fall back to paramN if result is empty or too short (e.g. "'s " becomes just "s")
-	return (result.length() < 3) ? "param" + std::to_string(paramIndex) : result;
+	return getParameterNameFromTemplate(paramIndex, tmpl);
 }
 
 void SemanticScriptWriter::writeParameter(nlohmann::ordered_json& params, Parameter* param,
@@ -346,7 +361,7 @@ void SemanticScriptWriter::writeParameter(nlohmann::ordered_json& params, Parame
 		case Parameter::REAL:
 		case Parameter::ANGLE:
 		case Parameter::PERCENT:
-			params[paramName] = param->getReal();
+			params[paramName] = roundFloat(param->getReal());
 			break;
 
 		case Parameter::COORD3D:
@@ -640,22 +655,35 @@ nlohmann::ordered_json SemanticScriptWriter::writeTeams(const std::vector<Dict>&
 	nlohmann::ordered_json result = nlohmann::ordered_json::array();
 	for (const Dict& team : teams)
 	{
-		result.push_back(writeDict(&team));
+		result.push_back(writeTeamDict(&team));
 	}
 	return result;
 }
 
-nlohmann::ordered_json SemanticScriptWriter::writeDict(const Dict* dict)
-{
-	nlohmann::ordered_json result = nlohmann::ordered_json::object();
-	if (!dict)
-		return result;
+// Keys for team unit fields (1-7)
+static const char* s_teamUnitTypeKeys[] = {
+	"teamUnitType1", "teamUnitType2", "teamUnitType3", "teamUnitType4",
+	"teamUnitType5", "teamUnitType6", "teamUnitType7"
+};
+static const char* s_teamUnitMinCountKeys[] = {
+	"teamUnitMinCount1", "teamUnitMinCount2", "teamUnitMinCount3", "teamUnitMinCount4",
+	"teamUnitMinCount5", "teamUnitMinCount6", "teamUnitMinCount7"
+};
+static const char* s_teamUnitMaxCountKeys[] = {
+	"teamUnitMaxCount1", "teamUnitMaxCount2", "teamUnitMaxCount3", "teamUnitMaxCount4",
+	"teamUnitMaxCount5", "teamUnitMaxCount6", "teamUnitMaxCount7"
+};
 
+// Helper to write dict entries to JSON, with optional skip set
+static void writeDictEntries(const Dict* dict, nlohmann::ordered_json& result, const std::set<NameKeyType>* skipKeys = NULL)
+{
 	int count = dict->getPairCount();
 	for (int i = 0; i < count; i++)
 	{
 		NameKeyType key = dict->getNthKey(i);
 		if (key == NAMEKEY_INVALID)
+			continue;
+		if (skipKeys && skipKeys->find(key) != skipKeys->end())
 			continue;
 
 		AsciiString keyNameStr = TheNameKeyGenerator->keyToName(key);
@@ -667,21 +695,37 @@ nlohmann::ordered_json SemanticScriptWriter::writeDict(const Dict* dict)
 		switch (type)
 		{
 			case Dict::DICT_BOOL:
-				result[keyName] = dict->getBool(key);
+			{
+				bool val = dict->getBool(key);
+				if (val)
+					result[keyName] = val;
 				break;
+			}
 			case Dict::DICT_INT:
-				result[keyName] = dict->getInt(key);
+			{
+				int val = dict->getInt(key);
+				if (val != 0)
+					result[keyName] = val;
 				break;
+			}
 			case Dict::DICT_REAL:
-				result[keyName] = dict->getReal(key);
+			{
+				float val = dict->getReal(key);
+				if (val != 0.0f)
+					result[keyName] = roundFloat(val);
 				break;
+			}
 			case Dict::DICT_ASCIISTRING:
-				result[keyName] = dict->getAsciiString(key).str() ? dict->getAsciiString(key).str() : "";
+			{
+				AsciiString val = dict->getAsciiString(key);
+				if (!val.isEmpty())
+					result[keyName] = val.str();
 				break;
+			}
 			case Dict::DICT_UNICODESTRING:
 			{
 				UnicodeString ustr = dict->getUnicodeString(key);
-				if (ustr.str())
+				if (ustr.str() && *ustr.str())
 				{
 					std::string utf8;
 					for (const wchar_t* p = ustr.str(); *p; ++p)
@@ -693,14 +737,75 @@ nlohmann::ordered_json SemanticScriptWriter::writeDict(const Dict* dict)
 					}
 					result[keyName] = utf8;
 				}
-				else
-					result[keyName] = "";
 				break;
 			}
 			default:
 				break;
 		}
 	}
+}
+
+nlohmann::ordered_json SemanticScriptWriter::writeTeamDict(const Dict* dict)
+{
+	nlohmann::ordered_json result = nlohmann::ordered_json::object();
+	if (!dict)
+		return result;
+
+	// Build a set of keys to skip (unit type/min/max fields - we'll handle them specially)
+	std::set<NameKeyType> unitKeys;
+	for (int i = 0; i < 7; i++)
+	{
+		unitKeys.insert(TheNameKeyGenerator->nameToKey(s_teamUnitTypeKeys[i]));
+		unitKeys.insert(TheNameKeyGenerator->nameToKey(s_teamUnitMinCountKeys[i]));
+		unitKeys.insert(TheNameKeyGenerator->nameToKey(s_teamUnitMaxCountKeys[i]));
+	}
+
+	// Write non-unit fields
+	writeDictEntries(dict, result, &unitKeys);
+
+	// Now write units array
+	nlohmann::ordered_json units = nlohmann::ordered_json::array();
+	for (int i = 0; i < 7; i++)
+	{
+		NameKeyType typeKey = TheNameKeyGenerator->nameToKey(s_teamUnitTypeKeys[i]);
+		NameKeyType minKey = TheNameKeyGenerator->nameToKey(s_teamUnitMinCountKeys[i]);
+		NameKeyType maxKey = TheNameKeyGenerator->nameToKey(s_teamUnitMaxCountKeys[i]);
+
+		Bool typeExists = false;
+		Bool minExists = false;
+		Bool maxExists = false;
+		AsciiString unitType = dict->getAsciiString(typeKey, &typeExists);
+		int minCount = dict->getInt(minKey, &minExists);
+		int maxCount = dict->getInt(maxKey, &maxExists);
+
+		// Only add if there's a valid unit type with non-zero counts (skip empty, <none>, and 0/0 entries)
+		if (typeExists && !unitType.isEmpty() && unitType != "<none>" && (minCount != 0 || maxCount != 0))
+		{
+			nlohmann::ordered_json unit = nlohmann::ordered_json::object();
+			unit["type"] = unitType.str();
+			if (minCount != 0)
+				unit["min"] = minCount;
+			if (maxCount != 0)
+				unit["max"] = maxCount;
+			units.push_back(unit);
+		}
+	}
+
+	if (!units.empty())
+	{
+		result["units"] = units;
+	}
+
+	return result;
+}
+
+nlohmann::ordered_json SemanticScriptWriter::writeDict(const Dict* dict)
+{
+	nlohmann::ordered_json result = nlohmann::ordered_json::object();
+	if (!dict)
+		return result;
+
+	writeDictEntries(dict, result);
 	return result;
 }
 
@@ -732,6 +837,23 @@ std::string SemanticScriptReader::fromCamelCase(const std::string& camelCase)
 	return result;
 }
 
+// Collapse compound words (OBJECT_TYPE -> OBJECTTYPE, KIND_OF -> KINDOF)
+// Used as fallback when normal conversion doesn't match a template
+static std::string collapseCompoundWords(const std::string& name)
+{
+	std::string result = name;
+	for (int i = 0; s_compoundWordTo[i] != NULL; i++)
+	{
+		size_t pos = 0;
+		while ((pos = result.find(s_compoundWordTo[i], pos)) != std::string::npos)
+		{
+			result.replace(pos, strlen(s_compoundWordTo[i]), s_compoundWordFrom[i]);
+			pos += strlen(s_compoundWordFrom[i]);
+		}
+	}
+	return result;
+}
+
 int SemanticScriptReader::findActionType(const std::string& name)
 {
 	// Handle "unknownActionN" format (written when templates weren't loaded)
@@ -745,6 +867,7 @@ int SemanticScriptReader::findActionType(const std::string& name)
 
 	std::string upperName = fromCamelCase(name);
 
+	// First try normal conversion (handles names like PLAYER_LOST_OBJECT_TYPE)
 	for (int i = 0; i < ScriptAction::NUM_ITEMS; i++)
 	{
 		const ActionTemplate* tmpl = TheScriptEngine->getActionTemplate(i);
@@ -753,6 +876,23 @@ int SemanticScriptReader::findActionType(const std::string& name)
 			if (upperName == tmpl->m_internalName.str())
 			{
 				return i;
+			}
+		}
+	}
+
+	// Fallback: try with collapsed compound words (handles names like TEAM_ATTACKED_BY_OBJECTTYPE)
+	std::string collapsedName = collapseCompoundWords(upperName);
+	if (collapsedName != upperName)
+	{
+		for (int i = 0; i < ScriptAction::NUM_ITEMS; i++)
+		{
+			const ActionTemplate* tmpl = TheScriptEngine->getActionTemplate(i);
+			if (tmpl && !tmpl->m_internalName.isEmpty())
+			{
+				if (collapsedName == tmpl->m_internalName.str())
+				{
+					return i;
+				}
 			}
 		}
 	}
@@ -772,6 +912,7 @@ int SemanticScriptReader::findConditionType(const std::string& name)
 
 	std::string upperName = fromCamelCase(name);
 
+	// First try normal conversion (handles names like PLAYER_LOST_OBJECT_TYPE)
 	for (int i = 0; i < Condition::NUM_ITEMS; i++)
 	{
 		const ConditionTemplate* tmpl = TheScriptEngine->getConditionTemplate(i);
@@ -780,6 +921,23 @@ int SemanticScriptReader::findConditionType(const std::string& name)
 			if (upperName == tmpl->m_internalName.str())
 			{
 				return i;
+			}
+		}
+	}
+
+	// Fallback: try with collapsed compound words (handles names like TEAM_ATTACKED_BY_OBJECTTYPE)
+	std::string collapsedName = collapseCompoundWords(upperName);
+	if (collapsedName != upperName)
+	{
+		for (int i = 0; i < Condition::NUM_ITEMS; i++)
+		{
+			const ConditionTemplate* tmpl = TheScriptEngine->getConditionTemplate(i);
+			if (tmpl && !tmpl->m_internalName.isEmpty())
+			{
+				if (collapsedName == tmpl->m_internalName.str())
+				{
+					return i;
+				}
 			}
 		}
 	}
@@ -1098,7 +1256,7 @@ ScriptAction* SemanticScriptReader::parseAction(const nlohmann::ordered_json& js
 
 	for (int i = 0; i < tmpl->m_numParameters; i++)
 	{
-		std::string paramName = SemanticScriptReader_getParameterName(i, tmpl);
+		std::string paramName = getParameterNameFromTemplate(i, tmpl);
 		if (params.contains(paramName))
 		{
 			Parameter* param = parseParameter(params[paramName], tmpl->m_parameters[i]);
@@ -1168,7 +1326,7 @@ Condition* SemanticScriptReader::parseCondition(const nlohmann::ordered_json& js
 
 	for (int i = 0; i < tmpl->m_numParameters; i++)
 	{
-		std::string paramName = SemanticScriptReader_getParameterName(i, tmpl);
+		std::string paramName = getParameterNameFromTemplate(i, tmpl);
 		if (params.contains(paramName))
 		{
 			Parameter* param = parseParameter(params[paramName], tmpl->m_parameters[i]);
@@ -1423,12 +1581,37 @@ bool SemanticScriptReader::parseTeams(const nlohmann::ordered_json& json, std::v
 	for (const auto& teamJson : json)
 	{
 		Dict teamDict;
-		if (parseDict(teamJson, teamDict))
+		if (parseTeamDict(teamJson, teamDict))
 		{
 			outTeams.push_back(teamDict);
 		}
 	}
 	return true;
+}
+
+// Helper to parse JSON value into a Dict entry
+static void parseDictValue(const std::string& keyName, const nlohmann::ordered_json& value, Dict& outDict)
+{
+	NameKeyType key = TheNameKeyGenerator->nameToKey(keyName.c_str());
+	if (key == NAMEKEY_INVALID)
+		return;
+
+	if (value.is_boolean())
+	{
+		outDict.setBool(key, value.get<bool>());
+	}
+	else if (value.is_number_integer())
+	{
+		outDict.setInt(key, value.get<int>());
+	}
+	else if (value.is_number_float())
+	{
+		outDict.setReal(key, value.get<float>());
+	}
+	else if (value.is_string())
+	{
+		outDict.setAsciiString(key, value.get<std::string>().c_str());
+	}
 }
 
 bool SemanticScriptReader::parseDict(const nlohmann::ordered_json& json, Dict& outDict)
@@ -1439,85 +1622,58 @@ bool SemanticScriptReader::parseDict(const nlohmann::ordered_json& json, Dict& o
 
 	for (auto it = json.begin(); it != json.end(); ++it)
 	{
-		const std::string& keyName = it.key();
-		NameKeyType key = TheNameKeyGenerator->nameToKey(keyName.c_str());
-		if (key == NAMEKEY_INVALID)
-			continue;
-
-		const auto& value = it.value();
-		if (value.is_boolean())
-		{
-			outDict.setBool(key, value.get<bool>());
-		}
-		else if (value.is_number_integer())
-		{
-			outDict.setInt(key, value.get<int>());
-		}
-		else if (value.is_number_float())
-		{
-			outDict.setReal(key, value.get<float>());
-		}
-		else if (value.is_string())
-		{
-			outDict.setAsciiString(key, value.get<std::string>().c_str());
-		}
+		parseDictValue(it.key(), it.value(), outDict);
 	}
 	return true;
 }
 
-// Helper function to get parameter name - uses the same logic as writer
-std::string SemanticScriptReader_getParameterName(int paramIndex, const Template* tmpl)
+bool SemanticScriptReader::parseTeamDict(const nlohmann::ordered_json& json, Dict& outDict)
 {
-	if (!tmpl || paramIndex < 0 || paramIndex >= tmpl->m_numUiStrings)
+	outDict.clear();
+	if (!json.is_object())
+		return false;
+
+	for (auto it = json.begin(); it != json.end(); ++it)
 	{
-		return "param" + std::to_string(paramIndex);
-	}
+		const std::string& keyName = it.key();
 
-	AsciiString uiStr = tmpl->m_uiStrings[paramIndex];
-	if (uiStr.isEmpty())
-		return "param" + std::to_string(paramIndex);
-
-	std::string name = uiStr.str();
-	// Strip leading and trailing spaces/punctuation
-	size_t start = 0;
-	while (start < name.size() && (name[start] == ' ' || name[start] == ':' || name[start] == '.' || name[start] == ','))
-		start++;
-	size_t end = name.size();
-	while (end > start && (name[end - 1] == ' ' || name[end - 1] == ':' || name[end - 1] == '.' || name[end - 1] == ','))
-		end--;
-	name = name.substr(start, end - start);
-
-	std::string result;
-	bool capitalizeNext = false;
-	bool firstChar = true;
-	for (char c : name)
-	{
-		if (c == ' ' || c == '_')
+		// Handle "units" array specially
+		if (keyName == "units" && it.value().is_array())
 		{
-			if (!firstChar)  // Only capitalize after first char has been processed
-				capitalizeNext = true;
-		}
-		else if (std::isalnum(c))
-		{
-			if (firstChar)
+			const auto& units = it.value();
+			int unitIndex = 0;
+			for (const auto& unit : units)
 			{
-				result += static_cast<char>(std::tolower(c));
-				firstChar = false;
-			}
-			else if (capitalizeNext)
-			{
-				result += static_cast<char>(std::toupper(c));
-				capitalizeNext = false;
-			}
-			else
-			{
-				result += static_cast<char>(std::tolower(c));
-			}
-		}
-	}
+				if (unitIndex >= 7)
+					break;  // Max 7 unit slots
 
-	// Fall back to paramN if result is empty or too short (e.g. "'s " becomes just "s")
-	return (result.length() < 3) ? "param" + std::to_string(paramIndex) : result;
+				if (!unit.is_object())
+					continue;
+
+				// Get type, min, max from the unit object
+				if (unit.contains("type") && unit["type"].is_string())
+				{
+					NameKeyType typeKey = TheNameKeyGenerator->nameToKey(s_teamUnitTypeKeys[unitIndex]);
+					outDict.setAsciiString(typeKey, unit["type"].get<std::string>().c_str());
+				}
+				if (unit.contains("min") && unit["min"].is_number_integer())
+				{
+					NameKeyType minKey = TheNameKeyGenerator->nameToKey(s_teamUnitMinCountKeys[unitIndex]);
+					outDict.setInt(minKey, unit["min"].get<int>());
+				}
+				if (unit.contains("max") && unit["max"].is_number_integer())
+				{
+					NameKeyType maxKey = TheNameKeyGenerator->nameToKey(s_teamUnitMaxCountKeys[unitIndex]);
+					outDict.setInt(maxKey, unit["max"].get<int>());
+				}
+				unitIndex++;
+			}
+			continue;
+		}
+
+		parseDictValue(keyName, it.value(), outDict);
+	}
+	return true;
 }
 
 #endif // RTS_HAS_JSON_CHUNK
