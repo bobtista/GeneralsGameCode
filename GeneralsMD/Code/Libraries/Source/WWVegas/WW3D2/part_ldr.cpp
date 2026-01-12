@@ -325,7 +325,7 @@ ParticleEmitterDefClass::Normalize_Filename (void)
 		// Increment past the directory deliminator
 		filename ++;
 
-		// Now copy the filename protion of the path to the structure
+		// Now copy the filename portion of the path to the structure
 		::lstrcpy (m_Info.TextureFilename, filename);
 	}
 

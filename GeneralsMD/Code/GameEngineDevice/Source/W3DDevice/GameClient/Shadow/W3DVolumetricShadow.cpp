@@ -898,7 +898,7 @@ if (!m_polyNeighbors) {
 
 // buildPolygonNeighbors ======================================================
 // Whenever we set a new geometry we want to build some information about
-// the faces in the new geometry so that we can efficienty traverse across
+// the faces in the new geometry so that we can efficiently traverse across
 // the surface to neighboring polygons
 // ============================================================================
 void W3DShadowGeometryMesh::buildPolygonNeighbors( void )
@@ -934,7 +934,7 @@ void W3DShadowGeometryMesh::buildPolygonNeighbors( void )
 	// building our neighbor information for the very first time ...
 	// if our current geometry has a different number of polygons than
 	// we had previously calculated we need to delete and reallocate a
-	// new storate space for the neighbor information
+	// new storage space for the neighbor information
 	//
 	if( numPolys != m_numPolyNeighbors )
 	{

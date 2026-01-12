@@ -178,7 +178,7 @@ static Int getListboxTopEntry( ListboxData *list )
 {
 	Int entry;
 
-	// determin which entry is at the top of the display area
+	// determine which entry is at the top of the display area
 	for( entry=0; ; entry++ )
 	{
 		if( list->listData[entry].listHeight > list->displayPos )
@@ -227,7 +227,7 @@ static void removeSelection( ListboxData *list, Int i )
 }
 
 // adjustDisplay ==============================================================
-/** Update Display List information inlcuding scrollbar */
+/** Update Display List information including scrollbar */
 //=============================================================================
 static void adjustDisplay( GameWindow *window, Int adjustment,
 													 Bool updateSlider )
@@ -236,7 +236,7 @@ static void adjustDisplay( GameWindow *window, Int adjustment,
 	SliderData *sData;
 	ListboxData *list = (ListboxData *)window->winGetUserData();
 
-	// determin which entry is at the top of the display area
+	// determine which entry is at the top of the display area
 	entry = getListboxTopEntry( list ) + adjustment;
 
 	if( entry < 0 )

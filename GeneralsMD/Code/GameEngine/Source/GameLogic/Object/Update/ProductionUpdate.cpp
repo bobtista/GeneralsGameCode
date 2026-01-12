@@ -375,7 +375,7 @@ void ProductionUpdate::cancelUpgrade( const UpgradeTemplate *upgrade )
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Queue the prodcution of a unit.  Returns TRUE if unit was added to queue, FALSE if it
+/** Queue the production of a unit.  Returns TRUE if unit was added to queue, FALSE if it
 	* was not */
 //-------------------------------------------------------------------------------------------------
 Bool ProductionUpdate::queueCreateUnit( const ThingTemplate *unitType, ProductionID productionID )
@@ -912,7 +912,7 @@ UpdateSleepTime ProductionUpdate::update( void )
 				msg.format( format.str(), upgradeName.str() );
 				TheInGameUI->message( msg );
 
-				// upgrades are a more rare event, play a nifty radar event thingie
+				// upgrades are a more rare event, play a nifty radar event thingy
 				TheRadar->createEvent( us->getPosition(), RADAR_EVENT_UPGRADE );
 
 				//Play the sound for the upgrade, because we just built it!
@@ -1044,7 +1044,7 @@ void ProductionUpdate::removeFromProductionQueue( ProductionEntry *production )
 	else
 		m_productionQueue = production->m_next;
 
-	// detach next pointer, keep tail poitner to the whole queue in tact
+	// detach next pointer, keep tail pointer to the whole queue in tact
 	if( production->m_next )
 		production->m_next->m_prev = production->m_prev;
 	else

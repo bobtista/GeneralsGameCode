@@ -271,7 +271,7 @@ public:
 	void preloadAssets( TimeOfDay timeOfDay );									///< preload the assets
 
 private:
-	ControlBarScheme *m_currentScheme;													///< the current scheme that everythign uses
+	ControlBarScheme *m_currentScheme;													///< the current scheme that everything uses
 	Coord2D m_multiplier;
 
 	typedef std::list< ControlBarScheme* > ControlBarSchemeList;			///< list of control bar schemes

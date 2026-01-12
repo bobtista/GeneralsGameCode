@@ -855,7 +855,7 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 		if (vecLength != 0.0f)	//prevent divide by zero
 		{	uVector *= 1.0f/vecLength;
 			vVector = uVector;
-			vVector.Rotate_Z(-1.0f,0.0f);	//rotate u vector by -90 degress to get v vector.
+			vVector.Rotate_Z(-1.0f,0.0f);	//rotate u vector by -90 degrees to get v vector.
 		}
 		else
 		{
@@ -868,7 +868,7 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 				vVector.Set(0.0f,-1.0f,0.0f); //Point uvector in default direction
 
 			uVector = vVector;
-			uVector.Rotate_Z(1.0f,0.0f);	//rotate v vector by 90 degress to get u vector.
+			uVector.Rotate_Z(1.0f,0.0f);	//rotate v vector by 90 degrees to get u vector.
 		}
 
 		//Compute bounding box of projection
@@ -2169,7 +2169,7 @@ void W3DProjectedShadow::updateTexture(Vector3 &lightPos)
 		m_shadowTexture[0]->getTexture()->Get_Level_Description(surface_desc);
 		//default shadow texture points along world -x axis (west).  Rotate uv coordinates to fit actual light direction
 		Vector3 uVec = objectToLight * DECAL_TEXELS_PER_WORLD_UNIT / (float)surface_desc.Width;
-		objectToLight.Rotate_Z(-1.0f,0.0f);	//rotate u vector by -90 degress to get v vector.
+		objectToLight.Rotate_Z(-1.0f,0.0f);	//rotate u vector by -90 degrees to get v vector.
 		Vector3 vVec = objectToLight * DECAL_TEXELS_PER_WORLD_UNIT / (float)surface_desc.Height;
 
 		m_shadowTexture[0]->setDecalUVAxis(uVec, vVec);

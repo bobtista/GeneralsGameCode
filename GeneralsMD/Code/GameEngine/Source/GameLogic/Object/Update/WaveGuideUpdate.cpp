@@ -345,7 +345,7 @@ void WaveGuideUpdate::computeWaveShapePoints( void )
 
 // ------------------------------------------------------------------------------------------------
 /** Given the current position and orientation of the wave guide, transform all the wave
-	* shape points so we can quickly access them for mutliple reasons */
+	* shape points so we can quickly access them for multiple reasons */
 // ------------------------------------------------------------------------------------------------
 void WaveGuideUpdate::transformWaveShape( void )
 {
@@ -542,7 +542,7 @@ void WaveGuideUpdate::doShoreEffects( void )
 }
 
 // ------------------------------------------------------------------------------------------------
-/** Do damage to things that have fallen victim in the path of this enourmous wave */
+/** Do damage to things that have fallen victim in the path of this enormous wave */
 // ------------------------------------------------------------------------------------------------
 void WaveGuideUpdate::doDamage( void )
 {
@@ -801,7 +801,7 @@ UpdateSleepTime WaveGuideUpdate::update( void )
 
 	}
 
-	// every half second we try to play a random spash sound
+	// every half second we try to play a random splash sound
 	if( TheGameLogic->getFrame() - m_splashSoundFrame > LOGICFRAMES_PER_SECOND / 2.0f )
 	{
 
@@ -834,7 +834,7 @@ UpdateSleepTime WaveGuideUpdate::update( void )
 		static const ParticleSystemTemplate *waveSplash = TheParticleSystemManager->findTemplate( "WaveSplash01" );
 		ParticleSystem *particleSys;
 
-		// create spash effect
+		// create splash effect
 		particleSys = TheParticleSystemManager->createParticleSystem( waveSplash );
 		if( particleSys )
 			particleSys->setLocalTransform( waveGuide->getTransformMatrix() );

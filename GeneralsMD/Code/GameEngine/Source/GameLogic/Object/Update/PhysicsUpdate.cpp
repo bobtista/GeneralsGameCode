@@ -778,7 +778,7 @@ UpdateSleepTime PhysicsBehavior::update()
 			// this flag is ALWAYS cleared once we hit the ground.
 			setFlag(ALLOW_TO_FALL, false);
 
-			// When a stunned object hits the ground the first time, chage it's model state from stunned flailing to just stunned.
+			// When a stunned object hits the ground the first time, change it's model state from stunned flailing to just stunned.
 			if (getFlag(IS_STUNNED))
 			{
 				obj->clearModelConditionState(MODELCONDITION_STUNNED_FLAILING);
@@ -1196,7 +1196,7 @@ void PhysicsBehavior::onCollide( Object *other, const Coord3D *loc, const Coord3
 		return;
 	}
 
-	// ignore collisions with our "ignore" thingie, if any (and vice versa)
+	// ignore collisions with our "ignore" thingy, if any (and vice versa)
 	AIUpdateInterface* ai = obj->getAIUpdateInterface();
 	if (ai != NULL  && ai->getIgnoredObstacleID() == other->getID())
 	{

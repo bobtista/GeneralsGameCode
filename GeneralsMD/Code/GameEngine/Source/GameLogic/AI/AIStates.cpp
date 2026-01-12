@@ -2624,7 +2624,7 @@ StateReturnType AIAttackApproachTargetState::onEnter()
 			return STATE_SUCCESS;  // break out, and do the pursuit state.
 		}
 	} else {
-		// Attacking a position.  For a varitey of reasons, we need to destroy any existing path or we spin. jba. [8/25/2003]
+		// Attacking a position.  For a variety of reasons, we need to destroy any existing path or we spin. jba. [8/25/2003]
 		ai->destroyPath();
 	}
 	// If we have a turret, start aiming.
@@ -2802,7 +2802,7 @@ void AIAttackApproachTargetState::onExit( StateExitType status )
 		ai->ignoreObstacle(NULL);
 
 		// Per JohnA, this state should not be calling ai->destroyPath, because we can have spastic users
-		// that click the target repeadedly. This will prevent the unit from stuttering for said spastic
+		// that click the target repeatedly. This will prevent the unit from stuttering for said spastic
 		// users.
 		// ai->destroyPath();
 		// urg. hacky. if we are a projectile, reset precise z-pos.

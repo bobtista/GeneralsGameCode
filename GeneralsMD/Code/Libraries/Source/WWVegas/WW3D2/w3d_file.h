@@ -265,7 +265,7 @@ August 5, 1999
 March 28, 2000
 
 	Adding Merge objects to collections.  We already have "Proxy" objects which ask
-	the level editor to instatiate an object at a given transform.  Now we will
+	the level editor to instantiate an object at a given transform.  Now we will
 	have "Merge" objects which mean a copy of the named model should be merged in
 	with this model.  This is used in the case of building interiors.  We can create
 	a building interior and lightmap it as a separate collection, then "merge" it
@@ -501,7 +501,7 @@ enum {
 		W3D_CHUNK_SOUNDROBJ_HEADER,										// general information such as name and version
 		W3D_CHUNK_SOUNDROBJ_DEFINITION,									// chunk containing the definition of the sound that is to play
 
-	W3D_CHUNK_SHDMESH									=0x00000B00,		// "Shader mesh" Mesh with multiple sub-meshes that use the scaleable shader system
+	W3D_CHUNK_SHDMESH									=0x00000B00,		// "Shader mesh" Mesh with multiple sub-meshes that use the scalable shader system
 		W3D_CHUNK_SHDMESH_NAME,
 		W3D_CHUNK_SHDMESH_HEADER,
 		W3D_CHUNK_SHDMESH_USER_TEXT,										// Text from the MAX comment field (Null terminated string)
@@ -1369,7 +1369,7 @@ struct W3dMeshAABTreeNode
 	base pose to use only matrices with certain properties.  For
 	example, if we wanted the base pose to use translations only,
 	the fixup transform for each node is a transform which when
-	multiplied by the real node's world transform, yeilds a pure
+	multiplied by the real node's world transform, yields a pure
 	translation matrix.  Fixup matrices are used in the mesh
 	exporter since all vertices must be transformed by their inverses
 	in order to make things work.  They also show up in the animation
@@ -1588,7 +1588,7 @@ struct W3dMorphAnimKeyStruct
 
 /********************************************************************************
 
-	HModel - Hiearchical Model
+	HModel - Hierarchical Model
 
 	A Hierarchy Model is a set of render objects which should be attached to
 	bones in a hierarchy tree.  There can be multiple objects per node
@@ -1686,7 +1686,7 @@ struct W3dCollectionHeaderStruct
 #define W3D_CURRENT_PLACEHOLDER_VERSION	W3D_MAKE_VERSION(1,0)
 
 //
-//	Note:  This structure is follwed directly by an array of char's 'name_len' in length
+//	Note:  This structure is followed directly by an array of char's 'name_len' in length
 // which specify the name of the placeholder object in our Commando-level editor.
 //
 struct W3dPlaceholderStruct
@@ -2142,7 +2142,7 @@ struct W3dBoxStruct
 
 	NULL Objects
 
-	Null objects are used by the LOD system to make meshes dissappear at lower
+	Null objects are used by the LOD system to make meshes disappear at lower
 	levels of detail.
 
 ********************************************************************************/
@@ -2187,7 +2187,7 @@ struct W3dNullObjectStruct
 #define W3D_CURRENT_SOUNDROBJ_VERSION			0x00010000
 
 //
-//	Note:  This structure is follwed directly by a chunk (W3D_CHUNK_SOUNDROBJ_DEFINITION)
+//	Note:  This structure is followed directly by a chunk (W3D_CHUNK_SOUNDROBJ_DEFINITION)
 // that contains an embedded AudibleSoundDefinitionClass's storage.  See audibledound.h
 // for details.
 //
@@ -2204,7 +2204,7 @@ struct W3dSoundRObjHeaderStruct
 	ShdMesh Render Objects
 
 	The following structs are used to define a ShdMesh in a w3d file.  This class
-	is the mesh class used with the scaleable shader system.  It contains a number
+	is the mesh class used with the scalable shader system.  It contains a number
 	of sub-meshes; each which use a single shader.
 
 	NOTE: ShdMeshes re-use the following chunks from regular meshes:

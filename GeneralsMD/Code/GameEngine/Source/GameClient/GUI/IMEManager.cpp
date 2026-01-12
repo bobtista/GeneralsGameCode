@@ -138,7 +138,7 @@ class IMEManager : public IMEManagerInterface
 
 		Int										m_result;												///< last IME message's winProc return code
 		GameWindow						*m_window;											///< window we are accepting input for
-		HIMC									m_context;											///< Imput Manager Context
+		HIMC									m_context;											///< Input Manager Context
 		HIMC									m_oldContext;										///< Previous IME comtext
 		Int										m_disabled;											///< IME disable count 0 = enabled
 		Bool									m_composing;										///< Are we currently composing a new string
@@ -1099,7 +1099,7 @@ void IMEManager::updateCompositionString( void )
 
 	if ( m_context )
 	{
-		// try reading unicode directy
+		// try reading unicode directly
 		LONG result = ImmGetCompositionStringW( m_context, GCS_COMPSTR, m_compositionString, MAX_COMPSTRINGLEN );
 
 		if ( result >= 0 )
@@ -1165,7 +1165,7 @@ void IMEManager::getResultsString ( void )
 
 	if ( m_context )
 	{
-		// try reading unicode directy
+		// try reading unicode directly
 		LONG result = ImmGetCompositionStringW( m_context,  GCS_RESULTSTR, m_resultsString, MAX_COMPSTRINGLEN );
 
 		if ( result >= 0 )
@@ -1244,7 +1244,7 @@ void IMEManager::openCandidateList( Int candidateFlags )
 	{
 		return;
 	}
-	// first get lastest candidate list info
+	// first get latest candidate list info
 	updateCandidateList( candidateFlags );
   resizeCandidateWindow( m_pageSize );
 

@@ -113,7 +113,7 @@ class ParticleBufferClass : public RenderObjClass
 		virtual void Scale(float scale);
 
 		// The particle buffer never receives a Set_Transform/Position call,
-		// evem though its bounding volume changes. Since bounding volume
+		// even though its bounding volume changes. Since bounding volume
 		// invalidations ordinarily occur when these functions are called,
 		// the cached bounding volumes will not be invalidated unless we do
 		// it elsewhere (such as here). We also need to call the particle
@@ -262,7 +262,7 @@ class ParticleBufferClass : public RenderObjClass
 
 		// Get new particles from the emitter and write them into the circular
 		// particle buffer, possibly overwriting older particles. Perform
-		// partial-interval upddate on them as well.
+		// partial-interval update on them as well.
 		void Get_New_Particles(void);
 
 		// Kill all remaining particles which will be above their maxage at the

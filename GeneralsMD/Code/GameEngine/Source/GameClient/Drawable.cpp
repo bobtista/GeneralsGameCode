@@ -4714,7 +4714,7 @@ void Drawable::notifyDrawableDependencyCleared()
 //-------------------------------------------------------------------------------------------------
 void Drawable::setSelectable( Bool selectable )
 {
-	// unselct drawable if it is no longer selectable.
+	// unselect drawable if it is no longer selectable.
 	if( !selectable )
 		TheInGameUI->deselectDrawable( this );
 

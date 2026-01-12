@@ -506,13 +506,13 @@ static Bool parseScreenRect( const char *token, char *buffer,
 	c = strtok( NULL, seps );  // UPPERLEFT token
 	c = strtok( NULL, seps );  // x position
 	scanInt( c, screenRegion.lo.x );
-	c = strtok( NULL, seps );  // y posotion
+	c = strtok( NULL, seps );  // y position
 	scanInt( c, screenRegion.lo.y );
 
 	c = strtok( NULL, seps );  // BOTTOMRIGHT token
 	c = strtok( NULL, seps );  // x position
 	scanInt( c, screenRegion.hi.x );
-	c = strtok( NULL, seps );  // y posotion
+	c = strtok( NULL, seps );  // y position
 	scanInt( c, screenRegion.hi.y );
 
 	c = strtok( NULL, seps );  // CREATIONRESOLUTION token
@@ -1359,7 +1359,7 @@ static Bool parseDrawData( const char *token, WinInstanceData *instData,
 // getDataTemplate ============================================================
 /** Given a window type style string return the address of a static
 	* gadget data type used for the generic data pointers in the
-	* GUI gadget contorls */
+	* GUI gadget controls */
 //=============================================================================
 void *getDataTemplate( char *type )
 {

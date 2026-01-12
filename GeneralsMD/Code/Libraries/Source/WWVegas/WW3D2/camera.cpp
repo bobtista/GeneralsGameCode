@@ -133,7 +133,7 @@ CameraClass::CameraClass(const CameraClass & src) :
 	ZBufferMin(src.ZBufferMin),
 	ZBufferMax(src.ZBufferMax)
 {
-	// just being paraniod in case any parent class doesn't completely copy the entire state...
+	// just being paranoid in case any parent class doesn't completely copy the entire state...
 	FrustumValid = false;
 }
 
@@ -166,7 +166,7 @@ CameraClass & CameraClass::operator = (const CameraClass & that)
 		ProjectionTransform = that.ProjectionTransform;
 		CameraInvTransform = that.CameraInvTransform;
 
-		// just being paraniod in case any parent class doesn't completely copy the entire state...
+		// just being paranoid in case any parent class doesn't completely copy the entire state...
 		FrustumValid = false;
 	}
 

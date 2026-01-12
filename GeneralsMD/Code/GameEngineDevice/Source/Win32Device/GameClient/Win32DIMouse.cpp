@@ -330,7 +330,7 @@ DirectInputMouse::DirectInputMouse( void )
 DirectInputMouse::~DirectInputMouse( void )
 {
 
-	// relase all mouse resources
+	// release all mouse resources
 	closeMouse();
 //	ShowCursor( TRUE );
 

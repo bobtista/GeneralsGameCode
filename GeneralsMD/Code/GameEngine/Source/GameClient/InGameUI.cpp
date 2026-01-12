@@ -3790,7 +3790,7 @@ void InGameUI::postDraw( void )
 						{
 
 							// We don't draw our timers until we are finished with construction.
-							// It is important that let the SpecialPowerUpdate is add its timer in its contructor,,
+							// It is important that let the SpecialPowerUpdate is add its timer in its constructor,,
 							// since the science for it could be added before construction is finished,
 							// And thus the timer set to READY before the timer is first drawn, here
 							if ( owningObject->testStatus( OBJECT_STATUS_UNDER_CONSTRUCTION ))
@@ -3880,7 +3880,7 @@ void InGameUI::postDraw( void )
                 // draw the text
                 if ( !m_superweaponHiddenByScript && !marginExceeded )
                 {
-                  // Similarly, only checking timers is not truly indicitive of readyness.
+                  // Similarly, only checking timers is not truly indicative of readiness.
  								  Bool changeBolding = (readySecs != info->m_timestamp) || (isReady != info->m_ready) || info->m_forceUpdateText;
  								  if (changeBolding)
  								  {
@@ -4949,7 +4949,7 @@ Int InGameUI::selectMatchingAcrossRegion( IRegion2D *region )
 		draw = *it;
 		if( draw && draw->getObject() && draw->getObject()->isLocallyControlled() )
 		{
-			// Use the Object's thing template, doing so will prevent wierdness for disguised vehicles.
+			// Use the Object's thing template, doing so will prevent weirdness for disguised vehicles.
 			drawableList.insert( draw->getObject()->getTemplate() );
 			if( draw->getObject()->testStatus( OBJECT_STATUS_IS_CARBOMB ) )
 			{
@@ -5330,7 +5330,7 @@ void InGameUI::updateFloatingText( void )
 			}
 
 		}
-		// increase our itterator
+		// increase our iterator
 		++it;
 
 	}

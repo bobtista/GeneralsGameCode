@@ -216,7 +216,7 @@ static void addScrollbar( GameWindow *listbox )
 }
 
 // removeScrollbar ============================================================
-/** Remove all scrollbar constructs froma listbox that has it already */
+/** Remove all scrollbar constructs from listbox that has it already */
 //=============================================================================
 static void removeScrollbar( GameWindow *listbox )
 {

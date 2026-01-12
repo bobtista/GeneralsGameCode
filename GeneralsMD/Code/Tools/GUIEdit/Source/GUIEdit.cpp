@@ -591,7 +591,7 @@ void GUIEdit::init( void )
 	// lastly just for testing
 	TheWindowManager->initTestGUI();
 
-	// load the layout scheme now read in from the cofig file
+	// load the layout scheme now read in from the config file
 	TheDefaultScheme->loadScheme( TheDefaultScheme->getSchemeFilename() );
 
 	// create the localized game text interface
@@ -856,7 +856,7 @@ Bool GUIEdit::readConfigFile( const char *filename )
 }
 
 // GUIEdit::readFontFile ======================================================
-/** Read the font file defintitions and load them */
+/** Read the font file definitions and load them */
 //=============================================================================
 void GUIEdit::readFontFile( const char *filename )
 {
@@ -878,7 +878,7 @@ void GUIEdit::readFontFile( const char *filename )
 	for( Int i = 0; i < fontCount; i++ )
 	{
 
-		// read all the font defitions
+		// read all the font definitions
 		char fontBuffer[ 512 ];
 		Int size, bold;
 		char c = fgetc( fp );
@@ -3973,7 +3973,7 @@ void GUIEdit::notifyNewWindow( GameWindow *window )
 
 	//
 	// add this window to the hierarchy view at the top, we're adding it
-	// at the bottom because presumabely this method was called directly after
+	// at the bottom because presumably this method was called directly after
 	// the window was placed in the world, and it now resides on the top
 	// of the window chain, therefore at the bottom of the hierarchy, drawn last
 	//

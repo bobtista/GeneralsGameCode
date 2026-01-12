@@ -1395,7 +1395,7 @@ Bool AIUpdateInterface::blockedBy(Object *other)
 
 //-------------------------------------------------------------------------------------------------
 Bool AIUpdateInterface::needToRotate(void)
-/* Returns TRUE if we need to rotate to point in our path's direcion.*/
+/* Returns TRUE if we need to rotate to point in our path's direction.*/
 {
 	if (isWaitingForPath())
 		return TRUE; // new path will probably require rotation.
@@ -3549,7 +3549,7 @@ void AIUpdateInterface::privateAttackPosition( const Coord3D *pos, Int maxShotsT
 	// if it's a contact weapon, we must be able to path to the target pos. if not, find a spot close by.
 	// this fixes an obscure bug with mine-clearing: if you tell someone to clear mines and put the centerpoint
 	// inside a building, the dozer/worker will just go thru the building to that spot. ick. so if you find that
-	// this clause (below) is problematic, you'll probbaly have to find another way to fix this mine-clearing bug. (srj)
+	// this clause (below) is problematic, you'll probably have to find another way to fix this mine-clearing bug. (srj)
 	if (weapon && weapon->isContactWeapon() && !isPathAvailable(&localPos))
 	{
 		FindPositionOptions fpOptions;

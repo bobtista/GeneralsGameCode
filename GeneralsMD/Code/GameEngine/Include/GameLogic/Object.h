@@ -718,8 +718,8 @@ private:
 	PlayerMaskType	m_visionSpiedMask;									///< For quick lookup and edge triggered maintenance
 
 	SightingInfo	*m_partitionLastShroud;	///< Where and for whom I last shrouded, so I can undo its effects when I stop
-	SightingInfo	*m_partitionLastThreat;	///< Where and for whom I last delt with threat, so I can undo its effects when I stop
-	SightingInfo	*m_partitionLastValue;	///< Where and for whom I last delt with value, so I can undo its effects when I stop
+	SightingInfo	*m_partitionLastThreat;	///< Where and for whom I last dealt with threat, so I can undo its effects when I stop
+	SightingInfo	*m_partitionLastValue;	///< Where and for whom I last dealt with value, so I can undo its effects when I stop
 
 	Real					m_visionRange;										///< looking range
 	Real					m_shroudClearingRange;						///< looking range for shroud ONLY

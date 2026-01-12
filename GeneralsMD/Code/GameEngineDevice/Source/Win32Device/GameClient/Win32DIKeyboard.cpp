@@ -110,7 +110,7 @@ static void printReturnCode( char *label, HRESULT hr )
 }
 
 //-------------------------------------------------------------------------------------------------
-/** create our interface to the direct input keybard */
+/** create our interface to the direct input keyboard */
 //-------------------------------------------------------------------------------------------------
 void DirectInputKeyboard::openKeyboard( void )
 {
@@ -419,7 +419,7 @@ void DirectInputKeyboard::update( void )
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Return TRUE if the caps lock key is down/hilighted */
+/** Return TRUE if the caps lock key is down/highlighted */
 //-------------------------------------------------------------------------------------------------
 Bool DirectInputKeyboard::getCapsState( void )
 {

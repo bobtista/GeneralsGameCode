@@ -804,7 +804,7 @@ RenderObjClass * ParticleBufferClass::Clone(void) const
 
 int ParticleBufferClass::Get_Num_Polys(void) const
 {
-	// Currently in particle buffers, the cost happens to be equal to thwe polygon count.
+	// Currently in particle buffers, the cost happens to be equal to the polygon count.
 	return (int)Get_Cost();
 }
 
@@ -1206,7 +1206,7 @@ void ParticleBufferClass::Scale(float scale)
 
 
 // The particle buffer never receives a Set_Transform/Position call,
-// evem though its bounding volume changes. Since bounding volume
+// even though its bounding volume changes. Since bounding volume
 // invalidations ordinarily occur when these functions are called,
 // the cached bounding volumes will not be invalidated unless we do
 // it elsewhere (such as here). We also need to call the particle

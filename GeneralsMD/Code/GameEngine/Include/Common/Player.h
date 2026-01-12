@@ -235,7 +235,7 @@ public:
 	Money *getMoney() { return &m_money; }
 	const Money *getMoney() const { return &m_money; }
 
-	UnsignedInt getSupplyBoxValue();///< Many things can affect the alue of a crate, but at heart it is a GlobalData ratio.
+	UnsignedInt getSupplyBoxValue();///< Many things can affect the value of a crate, but at heart it is a GlobalData ratio.
 
 	Energy *getEnergy() { return &m_energy; }
 	const Energy *getEnergy() const { return &m_energy; }
