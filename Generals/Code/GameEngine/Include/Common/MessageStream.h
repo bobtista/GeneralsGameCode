@@ -741,7 +741,7 @@ protected:
 	{
 		TranslatorData *m_next, *m_prev;						///< List links for list of translators
 		TranslatorID m_id;													///< The unique ID of this translator
-		GameMessageTranslator *m_translator;					///< The translor's interface function
+		GameMessageTranslator *m_translator;					///< The translator's interface function
 		UnsignedInt m_priority;											///< The priority level of this translator
 
 		TranslatorData() : m_next(0), m_prev(0), m_id(0), m_translator(0), m_priority(0)

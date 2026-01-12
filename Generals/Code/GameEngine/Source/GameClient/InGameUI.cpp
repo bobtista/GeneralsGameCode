@@ -1163,7 +1163,7 @@ InGameUI::~InGameUI()
 	// free custom ui strings
 	freeCustomUiResources();
 
-	// delete the array for the drawbles
+	// delete the array for the drawables
 	delete [] m_placeIcon;
 	m_placeIcon = NULL;
 
