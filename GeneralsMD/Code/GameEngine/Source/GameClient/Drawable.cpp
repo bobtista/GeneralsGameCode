@@ -3838,7 +3838,7 @@ void Drawable::drawHealthBar(const IRegion2D* healthBarRegion)
 		return;
 
 	//
-	// only draw health for selected drawbles and drawables that have been moused over
+	// only draw health for selected drawables and drawables that have been moused over
 	// by the cursor
 	//
 	if( TheGlobalData->m_showObjectHealth &&
