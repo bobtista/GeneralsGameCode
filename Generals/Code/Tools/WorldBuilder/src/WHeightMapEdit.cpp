@@ -265,7 +265,7 @@ WorldHeightMapEdit::WorldHeightMapEdit(ChunkInputStream *pStrm):
 	for (i=0; i<m_numGlobalTextureClasses; i++) {
 		for (j=0; j<m_numTextureClasses; j++) {
 			if (m_globalTextureClasses[i].name == m_textureClasses[j].name) {
-				DEBUG_ASSERTCRASH(m_textureClasses[j].globalTextureClass == -1, ("oops")); // should be unintialized at this point.
+				DEBUG_ASSERTCRASH(m_textureClasses[j].globalTextureClass == -1, ("oops")); // should be uninitialized at this point.
 				if (m_globalTextureClasses[i].width != m_textureClasses[i].width) {
 					didMajorRemap = true;	// This will handle the differing tile widths in setBlendUsingCanonicalTile
 				}
