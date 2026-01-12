@@ -159,7 +159,7 @@ public:
 	PlayerRelationMap( void );
 	// virtual destructor provided by memory pool object
 
-	/** @todo I'm just wrappign this up in a nice snapshot object, we really should isolate
+	/** @todo I'm just wrapping this up in a nice snapshot object, we really should isolate
 		* m_map from public access and make access methods for our operations */
 	PlayerRelationMapType m_map;
 
@@ -769,7 +769,7 @@ private:
 	AIPlayer*										m_ai;													///< if PLAYER_COMPUTER, the entity that does the thinking
 	Int													m_mpStartIndex;								///< The player's starting index for multiplayer.
 	ResourceGatheringManager*		m_resourceGatheringManager;		///< Keeps track of all Supply Centers and Warehouses
-	TunnelTracker*							m_tunnelSystem;								///< All TunnelContain buildings use this part of me for actual conatinment
+	TunnelTracker*							m_tunnelSystem;								///< All TunnelContain buildings use this part of me for actual containment
 	Team*												m_defaultTeam;								///< our "default" team.
 
 	ScienceVec						m_sciences;					///< (SAVE) sciences that we know (either intrinsically or via later purchases)

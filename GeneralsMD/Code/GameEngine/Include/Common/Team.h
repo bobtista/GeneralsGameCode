@@ -54,7 +54,7 @@ public:
 	TeamRelationMap( void );
 	// virtual destructor provided by memory pool object
 
-	/** @todo I'm just wrappign this up in a nice snapshot object, we really should isolate
+	/** @todo I'm just wrapping this up in a nice snapshot object, we really should isolate
 		* m_map from public access and make access methods for our operations */
 	TeamRelationMapType m_map;
 

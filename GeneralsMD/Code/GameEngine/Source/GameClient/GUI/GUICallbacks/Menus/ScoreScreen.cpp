@@ -178,7 +178,7 @@ struct ScoreGather
 {
 	Int m_totalMoneyEarned;						///< The total money that was harvested, refined, received in crates
 	Int m_totalMoneySpent;						///< The total money spent on units, buildings, repairs
-	Int m_totalUnitsDestroyed;				///< The total number of enimies that we've killed
+	Int m_totalUnitsDestroyed;				///< The total number of enemies that we've killed
 	Int m_totalUnitsBuilt;						///< The total number of units we've created (created meaning that we built from a building)
 	Int m_totalUnitsLost;							///< The total number of our units lost
 	Int m_totalBuildingsDestroyed;		///< The total number of Buildings we've destroyed
