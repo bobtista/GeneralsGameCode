@@ -1313,9 +1313,9 @@ BOOL MainWindow::Is_Product_Registered( void )
 			{
 				char	*sp;
 
-			strcpy( szUninstallPath, aName );
-			sp = strchr(szUninstallPath,'/');
-			if(sp != nullptr && *sp != '\0')
+				strcpy( szUninstallPath, aName );
+				sp = strchr(szUninstallPath,'/');
+				if(sp != nullptr && *sp != '\0')
 				{
 					strcpy( szUninstallCommandLine, sp );
 					strcpy( szUninstallPath, aName );
