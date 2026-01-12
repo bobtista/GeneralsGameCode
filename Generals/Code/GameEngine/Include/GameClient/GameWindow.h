@@ -129,7 +129,7 @@ enum GameWindowMessage CPP_11(: Int)
 	GWM_CHAR,										GWM_SCRIPT_CREATE,
 	// note that GWM_MOUSE_POS is only actually propogated to windows if the static
 	// sendMousePosMessages is set to true in the window manager file.  See the
-	// comment on the static declaration for addtional info
+	// comment on the static declaration for additional info
 	GWM_INPUT_FOCUS,						GWM_MOUSE_POS,
 	GWM_IME_CHAR,								GWM_IME_STRING
 
@@ -324,7 +324,7 @@ public:
 	virtual void *winGetUserData( void );  ///< get the window user data
 	void winSetUserData( void *userData );  ///< set the user data
 
-	// heirarchy methods
+	// hierarchy methods
 	Int winSetParent( GameWindow *parent );  ///< set parent
 	GameWindow *winGetParent( void );  ///< get parent
 	Bool winIsChild( GameWindow *child );  ///< verifies parent
@@ -358,7 +358,7 @@ public:
 																					also return TRUE if point is in
 																					a child */
 	/** given a piont, return the child window which contains the mouse pointer,
-	if the point is not in a chilc, the function returns the 'window' paramater
+	if the point is not in a chilc, the function returns the 'window' parameter
 	back to the caller */
 	GameWindow *winPointInChild( Int x, Int y, Bool ignoreEnableCheck = FALSE, Bool playDisabledSound = FALSE );
 	/** finds the child which contains the mouse pointer - reguardless of

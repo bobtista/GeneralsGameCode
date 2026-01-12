@@ -2097,7 +2097,7 @@ void Drawable::setStealthLook(StealthLookType look)
 				Object *obj = getObject();
 				if( obj )
 				{
-					//Try to get the stealthupdate module and see if the opacity value is overriden.
+					//Try to get the stealthupdate module and see if the opacity value is overridden.
 					StealthUpdate* stealth = obj->getStealth();
 					if( stealth )
 					{

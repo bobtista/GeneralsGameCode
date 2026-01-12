@@ -532,7 +532,7 @@ void LoadFontCombo( HWND comboBox, GameFont *currFont )
 GameFont *GetSelectedFontFromCombo( HWND combo )
 {
 
-	// santiy
+	// sanity
 	if( combo == NULL )
 		return NULL;
 
@@ -574,7 +574,7 @@ static void saveHeaderSelection( HWND comboBox, GameWindow *window )
 	Int selected;
 	char buffer[ 512 ];
 
-	// santiy
+	// sanity
 	if( comboBox == NULL )
 		return;
 
@@ -1243,7 +1243,7 @@ const Image *ComboBoxSelectionToImage( HWND comboBox )
 	Int selected;
 	char buffer[ 512 ];
 
-	// santiy
+	// sanity
 	if( comboBox == NULL )
 		return NULL;
 

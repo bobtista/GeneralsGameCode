@@ -562,7 +562,7 @@ void RailroadBehavior::loadTrackData( void )
 	Real distFromTo = 0.0f;
 
 
-	//Let's start buliding our own track data from the waypoint data we find
+	//Let's start building our own track data from the waypoint data we find
 	TrackPointList* track = m_track->getWritablePointList();
 	TrackPoint trackPoint; // local workspace
 
@@ -794,7 +794,7 @@ UpdateSleepTime RailroadBehavior::update( void )
 														conductorPullInfo.trackDistance,
 														m_track->m_length);
 
-		//let the conductor pull "me" while reseting my info, then...
+		//let the conductor pull "me" while resetting my info, then...
 		updatePositionTrackDistance( &conductorPullInfo, &m_pullInfo);
 
 
@@ -989,7 +989,7 @@ void RailroadBehavior::createCarriages( void )
 			{
 				if ( closeCarriage )
 					firstCarriage = closeCarriage;
-				else // or else let's use the defualt template list prvided in the INI
+				else // or else let's use the default template list prvided in the INI
 				{
 					firstCarriage = TheThingFactory->newObject( temp, self->getTeam() );
 					DEBUG_LOG(("%s Added a carriage, %s ", self->getTemplate()->getName().str(),firstCarriage->getTemplate()->getName().str()));
@@ -1567,10 +1567,10 @@ void RailroadBehavior::xfer( Xfer *xfer )
 		//Bool m_isLocomotive; ///< Am I a locomotive,
 		xfer->xferBool( &m_isLocomotive );
 
-		//Bool m_isLeadCarraige; ///< Am the carraige in front,
+		//Bool m_isLeadCarraige; ///< Am the carriage in front,
 		xfer->xferBool( &m_isLeadCarraige );
 
-		//Int m_wantsToBeLeadCarraige; ///< Am the carraige in front,
+		//Int m_wantsToBeLeadCarraige; ///< Am the carriage in front,
 		xfer->xferInt( &m_wantsToBeLeadCarraige );
 
 		//Bool m_disembark; ///< If I wait at a station, I should also evacuate everybody when I get theres

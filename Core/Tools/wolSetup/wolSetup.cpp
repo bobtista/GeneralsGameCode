@@ -71,7 +71,7 @@ int APIENTRY WinMain(HINSTANCE hInstance,
 }
 
 
-// Mesage handler for generals setup box.
+// Message handler for generals setup box.
 LRESULT CALLBACK GeneralsSetupDialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
@@ -124,7 +124,7 @@ void updateDisplay(HWND hDlg)
 	SetDlgItemText(hDlg, IDC_TEXT_GENERALSDIR, g_generalsFilename);
 }
 
-// Mesage handler for main dialog box.
+// Message handler for main dialog box.
 LRESULT CALLBACK MainDialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)

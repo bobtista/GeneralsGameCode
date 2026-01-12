@@ -3546,7 +3546,7 @@ void GUIEdit::stripNameDecorations( GameWindow *root )
 		if( c )
 		{
 
-			// skip beyong the scope resolution colon
+			// skip beyond the scope resolution colon
 			c++;
 
 			// put the name only in the decoration field

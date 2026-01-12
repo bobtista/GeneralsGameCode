@@ -976,7 +976,7 @@ bool MeshGeometryExportTaskClass::Can_Combine(void)
 	** This mesh can't combine at all if:
 	** - it has multiple materials
 	** - its polygon count is too high
-	** - (Renegade) VIS is enabled (don't want to create really wierd shaped vis-sectors...)
+	** - (Renegade) VIS is enabled (don't want to create really weird shaped vis-sectors...)
 	*/
 	if (!Is_Single_Material()) {
 		return false;
@@ -1125,7 +1125,7 @@ Point3 MeshGeometryExportTaskClass::Get_Shared_Vertex_Normal(const Point3 & worl
 			if ((face_smgroup & smgroup) || (face_smgroup == smgroup)) {
 
 				/*
-				**	Find out if any of the verticies of this face share the
+				**	Find out if any of the vertices of this face share the
 				** same space as the vertex we are looking for.
 				*/
 				bool found = false;

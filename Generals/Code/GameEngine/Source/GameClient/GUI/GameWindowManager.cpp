@@ -63,7 +63,7 @@ UnsignedInt WindowLayoutCurrentVersion = 2;
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 //
-// with this statis set to true, the window system will propogate mouse position
+// with this statis set to true, the window system will propagate mouse position
 // messages to windows.  You may want to disable this if you feel the mouse position
 // messages are "spamming" your window and making a particular debuggin situation
 // difficult.  Make sure you do enable this before you check in again tho because
@@ -234,7 +234,7 @@ void GameWindowManager::reset( void )
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Update cycle for game widnow manager */
+/** Update cycle for game window manager */
 //-------------------------------------------------------------------------------------------------
 void GameWindowManager::update( void )
 {
@@ -3515,7 +3515,7 @@ void GameWindowManager::assignDefaultGadgetLook( GameWindow *gadget,
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Given a text label, retreive the real localized text associated
+/** Given a text label, retrieve the real localized text associated
 	* with that label */
 //-------------------------------------------------------------------------------------------------
 UnicodeString GameWindowManager::winTextLabelToText( AsciiString label )

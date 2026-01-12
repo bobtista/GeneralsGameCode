@@ -2056,7 +2056,7 @@ void grabMultiPlayerInfo( void )
 	ScoreMap scores;
 	ScoreMapIt it;
 	scores.clear();
-	Int adder = 1; // Varible used to add on an offset to the score to make sure we don't add people to the same map
+	Int adder = 1; // Variable used to add on an offset to the score to make sure we don't add people to the same map
 
 	player = ThePlayerList->getLocalPlayer();
 	if (player)

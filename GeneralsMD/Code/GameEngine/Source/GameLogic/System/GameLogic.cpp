@@ -908,7 +908,7 @@ static void populateRandomStartPosition( GameInfo *game )
 			else
 			{
 				// We're the first real spot.  Pick randomly.
-				// This while loop shouldn't be neccessary, since we're first.  Why not, though?
+				// This while loop shouldn't be necessary, since we're first.  Why not, though?
 				while (posIdx == -1)
 				{
 					posIdx = GameLogicRandomValue(0, numPlayers-1);
@@ -945,7 +945,7 @@ static void populateRandomStartPosition( GameInfo *game )
 		if( !hasStartSpotBeenPicked )
 		{	// We're the first real spot.  Pick randomly.
 			while (posIdx == -1)
-			{	// This while loop shouldn't be neccessary, since we're first.  Why not, though?
+			{	// This while loop shouldn't be necessary, since we're first.  Why not, though?
 				posIdx = GameLogicRandomValue(0, numPlayers-1);
 				if (game->isStartPositionTaken(posIdx))
 					posIdx = -1;

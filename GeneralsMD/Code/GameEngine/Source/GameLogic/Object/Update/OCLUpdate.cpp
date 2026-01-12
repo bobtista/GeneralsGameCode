@@ -141,7 +141,7 @@ UpdateSleepTime OCLUpdate::update( void )
 
 	const OCLUpdateModuleData *data = getOCLUpdateModuleData();
 
-	// Test if the OCL update is faction dependant. If so, check for faction changes
+	// Test if the OCL update is faction dependent. If so, check for faction changes
 	if (data->m_isFactionTriggered)
 	{
 		Player *player = getObject()->getControllingPlayer();

@@ -350,7 +350,7 @@ MeshDeformSetClass::Update_Current_Data (void)
 	}
 
 	//
-	//	Rebuild the list of verticies this 'set' affects
+	//	Rebuild the list of vertices this 'set' affects
 	//
 	Update_Set_Members ();
 
@@ -504,7 +504,7 @@ MeshDeformSetClass::Resize_Vertex_Array (int count, int color_count)
 {
 	if (count != m_VertexCount) {
 
-		// Allocate a new array of verticies
+		// Allocate a new array of vertices
 		Point3 *vertex_array = new Point3[count];
 		Point3 *opstart_array = new Point3[count];
 
@@ -540,7 +540,7 @@ MeshDeformSetClass::Resize_Vertex_Array (int count, int color_count)
 			color_array[index].z = 0;
 		}
 
-		// Delete the old delta array and remeber the new one
+		// Delete the old delta array and remember the new one
 		SAFE_DELETE (m_pVertexColors);
 		m_VertexColorCount = color_count;
 		m_pVertexColors = color_array;
@@ -588,7 +588,7 @@ MeshDeformSetClass::Determine_Interpolation_Indicies
 	//	Determine where we should start interpolation
 	//
 	for (int index = 0; index <= key_frame; index ++) {
-		if (position && m_KeyFrames[index]->verticies.Count () > 0) {
+		if (position && m_KeyFrames[index]->vertices.Count () > 0) {
 			from = index;
 		} else if (!position && m_KeyFrames[index]->colors.Count () > 0) {
 			from = index;
@@ -599,7 +599,7 @@ MeshDeformSetClass::Determine_Interpolation_Indicies
 	//	Determine where we should end interpolation
 	//
 	for (index = to; index < MAX_DEFORM_KEY_FRAMES; index ++) {
-		if (position && m_KeyFrames[index]->verticies.Count () > 0) {
+		if (position && m_KeyFrames[index]->vertices.Count () > 0) {
 			to = index;
 			break;
 		} else if (!position && m_KeyFrames[index]->colors.Count () > 0) {
@@ -909,7 +909,7 @@ MeshDeformSetClass::Update_Mesh (TriObject &tri_obj)
 		}
 
 		//
-		//	Loop through all the verticies and interpolate their
+		//	Loop through all the vertices and interpolate their
 		// positions and colors based on the current 'deformation state'.
 		//
 		for (UINT vert = 0; vert < (UINT)m_pMesh->numVerts; vert ++) {
@@ -940,19 +940,19 @@ MeshDeformSetClass::Update_Mesh (TriObject &tri_obj)
 		for (int key_frame = 0; key_frame < m_KeyFrames.Count (); key_frame ++) {
 
 			//
-			//	Update the verticies
+			//	Update the vertices
 			//
 
 			int from = 0;
 			int to = 0;
 			float state = 0;
 			Determine_Interpolation_Indicies (key_frame, true, from, to, state);
-			DEFORM_LIST &vert_to = m_KeyFrames[to]->verticies;
+			DEFORM_LIST &vert_to = m_KeyFrames[to]->vertices;
 
 			if (from <= m_CurrentKeyFrame) {
 
 				if (from >= 0) {
-					DEFORM_LIST &vert_from = m_KeyFrames[from]->verticies;
+					DEFORM_LIST &vert_from = m_KeyFrames[from]->vertices;
 					for (int index = 0; index < vert_from.Count (); index ++) {
 						VERT_INFO &info = vert_from[index];
 						tri_obj.mesh.verts[info.index] = info.value;
@@ -1075,7 +1075,7 @@ MeshDeformSetClass::Update_Members (DEFORM_CHANNELS flags)
 				m_KeyFrames[m_CurrentKeyFrame]->affected_colors.Set (vert, 1);
 
 				//
-				// Map indicies in the vertex color array to the vertex array.
+				// Map indices in the vertex color array to the vertex array.
 				//
 				/*if (m_pMesh->numCVerts >= m_pMesh->numVerts) {
 					for (int face = 0; face < m_pMesh->numFaces; face ++) {
@@ -1100,7 +1100,7 @@ MeshDeformSetClass::Update_Members (DEFORM_CHANNELS flags)
 
 			//
 			//	Finally, add this vertex to the list of all
-			//	verticies affected by this set.
+			//	vertices affected by this set.
 			//
 			m_SetMembers.Set (vert, 1);
 		}
@@ -1249,7 +1249,7 @@ MeshDeformSetClass::Save
 	for (int key_frame = 0; key_frame < key_frames; key_frame ++) {
 
 		//
-		//	Loop through all the verticies and see if this keyframe
+		//	Loop through all the vertices and see if this keyframe
 		//	modifies any of them
 		//
 		bool verts_affected = false;
@@ -1356,7 +1356,7 @@ MeshDeformSetClass::Save (ISave *save_obj)
 		//save_obj->EndChunk ();
 
 		//
-		//	Loop through the verticies and save their position
+		//	Loop through the vertices and save their position
 		//
 		for (	unsigned int pos_index = 0;
 				(pos_index < keyframe_info.VertexCount) && (result == IO_OK);
@@ -1378,7 +1378,7 @@ MeshDeformSetClass::Save (ISave *save_obj)
 		}
 
 		//
-		//	Loop through the verticies and save their color
+		//	Loop through the vertices and save their color
 		//
 		for (	unsigned int color_index = 0;
 				(color_index < keyframe_info.ColorCount) && (result == IO_OK);

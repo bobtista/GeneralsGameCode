@@ -224,7 +224,7 @@ private:
   /** \internal
 
     Undocumented default constructor. Initializes high level profiler.
-    We can make this private as well so nobody accidently tries to create
+    We can make this private as well so nobody accidentally tries to create
     another instance.
   */
   ProfileHighLevel(void);

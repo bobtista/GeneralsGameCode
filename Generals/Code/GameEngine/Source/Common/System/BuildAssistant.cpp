@@ -1100,7 +1100,7 @@ BuildAssistant::TileBuildInfo *BuildAssistant::buildTiledLocations( const ThingT
 	placementVector.z = 0.0f;  //end->z - start->z;
 
 	//
-	// get the lengh of the placement vector in the world, we'll use this to see how
+	// get the length of the placement vector in the world, we'll use this to see how
 	// many objects we'll need to fill the entire line
 	//
 	Real placementLength = placementVector.length();

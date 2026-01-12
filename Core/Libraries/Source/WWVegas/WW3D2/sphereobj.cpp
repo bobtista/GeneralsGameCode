@@ -1601,7 +1601,7 @@ void SphereMeshClass::Generate(float radius, int slices, int stacks)
 	}
 	//fans[ct]	= Vertex_ct - 2;
 
-	// Generate Strips, for the inbetween stacks
+	// Generate Strips, for the in between stacks
 
 	strip_size = ((Slices+1) * 2);
 	strip_ct = Stacks - 1;

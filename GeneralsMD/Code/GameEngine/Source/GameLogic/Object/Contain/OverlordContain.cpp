@@ -404,7 +404,7 @@ void OverlordContain::onContaining( Object *obj, Bool wasSelected )
 //-------------------------------------------------------------------------------------------------
 void OverlordContain::killAllContained( void )
 {
-	// This is a game call meant to clear actual passengers.  We don't want it to kill our turret.  That'd be wierd.
+	// This is a game call meant to clear actual passengers.  We don't want it to kill our turret.  That'd be weird.
 	if( getRedirectedContain() )
 	{
 		getRedirectedContain()->killAllContained();

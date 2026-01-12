@@ -290,7 +290,7 @@ bool Debug::SkipNext(void)
   if (e->status==Unknown)
     Instance.UpdateFrameStatus(*e);
 
-  // now we now wether to skip or not
+  // now we now whether to skip or not
   return e->status==Skip;
 }
 

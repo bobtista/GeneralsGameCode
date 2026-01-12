@@ -406,7 +406,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits(void)
 	Compute_Caps(D3DFormat_To_WW3DFormat(DisplayFormat));
 
    /*
-	** Initalize any other subsystems inside of WW3D
+	** Initialize any other subsystems inside of WW3D
 	*/
 	MissingTexture::_Init();
 	TextureFilterClass::_Init_Filters((TextureFilterClass::TextureFilterMode)WW3D::Get_Texture_Filter());

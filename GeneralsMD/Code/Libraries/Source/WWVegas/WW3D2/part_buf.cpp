@@ -2821,7 +2821,7 @@ void ParticleBufferClass::Get_New_Particles(void)
 			prev_pos[NewEnd] = new_particle.Position;
 		}
 
-		// upate the group id
+		// update the group id
 		ids[NewEnd] = new_particle.GroupID;
 
 		// Advance the 'end of new particles' index.

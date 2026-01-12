@@ -200,7 +200,7 @@ Bool ImagePacker::packImages( void )
 
 	//
 	// first sanity check all images loaded, if there are images that cannot
-	// be processed the user will be given a list of these and asked wether
+	// be processed the user will be given a list of these and asked whether
 	// or not to proceed
 	//
 	Bool proceed;
@@ -624,7 +624,7 @@ void ImagePacker::addDirectory( char *path, Bool subDirs )
 	WIN32_FIND_DATA item;  // search item
 	HANDLE hFile;  // handle for search resources
 
-	// santiy
+	// sanity
 	if( path == NULL )
 		return;
 

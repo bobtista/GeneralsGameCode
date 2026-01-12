@@ -183,7 +183,7 @@ protected:
 	void SendCommandsToConnectionManager();												///< Send the new commands to the ConnectionManager
 	Bool AllCommandsReady(UnsignedInt frame);											///< Do we have all the commands for the given frame?
 	void RelayCommandsToCommandList(UnsignedInt frame);						///< Put the commands for the given frame onto TheCommandList.
-	Bool isTransferCommand(GameMessage *msg);											///< Is this a command that needs to be transfered to the other clients?
+	Bool isTransferCommand(GameMessage *msg);											///< Is this a command that needs to be transferred to the other clients?
 	Bool processCommand(GameMessage *msg);												///< Whatever needs to be done as a result of this command, do it now.
 	void processFrameSynchronizedNetCommand(NetCommandRef *msg);	///< If there is a network command that needs to be executed at the same frame number on all clients, it happens here.
 	void processRunAheadCommand(NetRunAheadCommandMsg *msg);			///< Do what needs to be done when we get a new run ahead command.
@@ -449,7 +449,7 @@ void Network::attachTransport(Transport *transport) {
 }
 
 /**
- * Does this command need to be transfered to the other game clients?
+ * Does this command need to be transferred to the other game clients?
  */
 Bool Network::isTransferCommand(GameMessage *msg) {
 	if ((msg != NULL) && ((msg->getType() > GameMessage::MSG_BEGIN_NETWORK_MESSAGES) && (msg->getType() < GameMessage::MSG_END_NETWORK_MESSAGES))) {

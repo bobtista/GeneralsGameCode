@@ -2626,7 +2626,7 @@ void GadgetListBoxGetSelected( GameWindow *listbox, Int *selectList )
 	if( listbox == NULL )
 		return;
 
-	// get selected indeces via system message
+	// get selected indices via system message
 	TheWindowManager->winSendSystemMsg( listbox, GLM_GET_SELECTION, 0, (WindowMsgData)selectList );
 
 }

@@ -593,7 +593,7 @@ File::EFileError File::Load(void*& outBuffer, UInt32& outSize)
 		outBuffer = malloc(size);
 		outSize = size;
 
-		// If allocation succeded then load file data.
+		// If allocation succeeded then load file data.
 		if (outBuffer != NULL)
 			{
 			// Fill the buffer with the file contents
@@ -1070,7 +1070,7 @@ UInt32 File::PutBytes(const void* ptr, UInt32 bytes)
 *     Bytes  - Number of bytes to retrieve
 *
 * RESULT
-*     Actual number of bytes transfered
+*     Actual number of bytes transferred
 *
 ******************************************************************************/
 

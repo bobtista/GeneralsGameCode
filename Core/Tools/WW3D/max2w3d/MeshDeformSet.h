@@ -89,7 +89,7 @@ class MeshDeformSetClass
 		Point3 *				Peek_Vertex_OPStart_Array (void) const	{ return m_pVertexOPStartArray; }
 		VertColor *			Peek_Vertex_Colors (void) const			{ return m_pVertexColors; }
 
-		// Keyframe managment
+		// Keyframe management
 		void					Set_Current_Key_Frame (int index);
 		int					Get_Current_Key_Frame (void) const		{ return m_CurrentKeyFrame; }
 		void					Update_Key_Frame (int key_frame);
@@ -99,11 +99,11 @@ class MeshDeformSetClass
 		void					Reset_Key_Frame_Verts (int keyframe);
 		void					Reset_Key_Frame_Colors (int keyframe);
 
-		// Data managment
+		// Data management
 		void					Set_Vertex_Position (int index, const Point3 &value);
 		void					Set_Vertex_Color (int index, int color_index, const VertColor &value);
 
-		// Set managment
+		// Set management
 		void					Select_Members (void);
 		void					Update_Members (DEFORM_CHANNELS flags);
 		void					Restore_Members (void);
@@ -171,7 +171,7 @@ class MeshDeformSetClass
 		float					m_State;
 		bool					m_bAutoApply;
 
-		// Array representing which verticies are part of the set
+		// Array representing which vertices are part of the set
 		BitArray				m_SetMembers;
 
 		// List of key frames

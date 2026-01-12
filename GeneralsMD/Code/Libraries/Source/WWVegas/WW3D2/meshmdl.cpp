@@ -136,7 +136,7 @@ MeshModelClass & MeshModelClass::operator = (const MeshModelClass & that)
 
 		clone_materials(that);
 
-		// DMS - using approriate deallocation method
+		// DMS - using appropriate deallocation method
 		delete GapFiller;
 		GapFiller=NULL;
 

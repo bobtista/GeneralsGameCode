@@ -3094,7 +3094,7 @@ void PathfindLayer::reset(void)
 }
 
 /**
- * Returns true if the layer is avaialble for use.
+ * Returns true if the layer is available for use.
  */
 Bool PathfindLayer::isUnused(void)
 {
@@ -7838,7 +7838,7 @@ Bool Pathfinder::clientSafeQuickDoesPathExistForUI( const LocomotorSet& locomoto
 		return true;
 	}
 	/* Do the effective terrain zone.  This feedback is for the ui, so we won't take structures into account,
-		beacuse if they are visible it will be obvious, and if they are stealthed they should be invisible to the
+		because if they are visible it will be obvious, and if they are stealthed they should be invisible to the
 		pathing as well. jba. */
 	zone1 = parentCell->getZone();
 	zone1 = m_zoneManager.getEffectiveTerrainZone(zone1);

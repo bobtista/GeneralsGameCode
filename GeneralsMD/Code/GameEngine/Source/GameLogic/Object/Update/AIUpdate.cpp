@@ -1202,7 +1202,7 @@ void AIUpdateInterface::markAsDead()
 The way to have a higher priority is:
 1. If the paths were assigned when both units were in the same ai group, we use the path priority assigned.
 2. If not, the unit that is in front has the higher priority.
-3. If exactly tied (usually beacause both units got unfortunately snapped to the same location), ObjectID is used
+3. If exactly tied (usually because both units got unfortunately snapped to the same location), ObjectID is used
 to break the tie.
 */
 Bool AIUpdateInterface::hasHigherPathPriority(AIUpdateInterface *otherAI) const
@@ -4378,7 +4378,7 @@ UnsignedInt AIUpdateInterface::getMoodMatrixActionAdjustment( MoodMatrixAction a
 {
 	// Angry Mob Members (but not Nexi) are never subject to moods. In particular,
 	// they must never, ever, ever convert a move into an attack move, or Bad Things
-	// will happend, since MobMemberSlavedUpdate expects a moveto to remain a moveto.
+	// will happened, since MobMemberSlavedUpdate expects a moveto to remain a moveto.
 	// Mark L sez that members do not, in fact, need any mood adjustment whatsoever,
 	// since the mood of the nexus wants to control all this anyway. Unfortunately, there
 	// is no KINDOF_MOB_MEMBER, and we don't want to add one at the eleventh hour...

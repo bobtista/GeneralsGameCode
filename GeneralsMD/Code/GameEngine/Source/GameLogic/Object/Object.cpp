@@ -2971,7 +2971,7 @@ void Object::scoreTheKill( const Object *victim )
 	if (r != ENEMIES)
 		return;
 
-	// Don't count kills that I do on my own buildings or units, cause thats just silly.
+	// Don't count kills that I do on my own buildings or units, cause that's just silly.
 	if (controller == victimController)
 	{
 		return;
@@ -4814,7 +4814,7 @@ Bool Object::hasGhostObject() const
 }
 
 //-------------------------------------------------------------------------------------------------
-/// We have moved a 'significant' amount, so do maintenence that can be considered 'cell-based'
+/// We have moved a 'significant' amount, so do maintenance that can be considered 'cell-based'
 void Object::onPartitionCellChange()
 {
 	handlePartitionCellMaintenance();
@@ -6229,7 +6229,7 @@ void Object::defect( Team* newTeam, UnsignedInt detectionTime )
 
 	AIUpdateInterface *ai = getAI();
 
-	handlePartitionCellMaintenance();// to clear the shoud for my new master
+	handlePartitionCellMaintenance();// to clear the should for my new master
 
 	if ( ai )
 	{

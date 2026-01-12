@@ -798,7 +798,7 @@ void GarrisonContain::redeployOccupants( void )
 
 
   // ATTENTION... setting this false allows each redeployOccupants() call to create fresh station points, based on the new transform
-  // if anything wierd ever happens, like rotating buildings and such, we will need a way of transforming the points without clearing the
+  // if anything weird ever happens, like rotating buildings and such, we will need a way of transforming the points without clearing the
   // list (and thus forgetting where everyone contained was stationed)... just a handy reminder.
   m_stationGarrisonPointsInitialized = FALSE;
 

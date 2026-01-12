@@ -45,7 +45,7 @@
  *   Vector2::Is_Valid -- Verifies that all components are valid floats                        *
  *	  Vector2::Update_Min -- sets each component of the vector to the min of this and a.        *
  *	  Vector2::Update_Max -- sets each component of the vector to the max of this and a.        *
- *   Vector2::Scale -- multiply components of a vector by independant scaling factors.			  *
+ *   Vector2::Scale -- multiply components of a vector by independent scaling factors.			  *
  *   Vector2::Lerp -- linearly interpolates two Vector2's                                      *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -533,7 +533,7 @@ inline void Vector2::Update_Max (const Vector2 & a)
 
 
 /***********************************************************************************************
- * Vector2::Scale -- multiply components of a vector by independant scaling factors.			  *
+ * Vector2::Scale -- multiply components of a vector by independent scaling factors.			  *
  *                                                                                             *
  * INPUT:                                                                                      *
  *                                                                                             *

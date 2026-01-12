@@ -97,7 +97,7 @@ class IMEManager : public IMEManagerInterface
 		virtual void					update( void );
 
 		virtual void					attach( GameWindow *window );		///< attach IME to specified window
-		virtual void					detatch( void );								///< detatch IME from current window
+		virtual void					detatch( void );								///< detach IME from current window
 		virtual void					enable( void );									///< Enable IME
 		virtual void					disable( void );								///< Disable IME
 		virtual Bool					isEnabled( void );							///< Is IME enabled
@@ -152,7 +152,7 @@ class IMEManager : public IMEManagerInterface
 		Int										m_pageSize;											///< Number of candidate per page
 		Int										m_selectedIndex;								///< Index of the currently selected candidate
 		Int										m_candidateCount;								///< Total number of candidate strings
-		UnicodeString					*m_candidateString;							///< table of canidate strings
+		UnicodeString					*m_candidateString;							///< table of candidate strings
 		Bool									m_unicodeIME;										///< Is this an unicode IME
 		Int										m_compositionCharsDisplayed;		///< number of temporary composition characters displayed that need to be replaced with result string.
 
@@ -646,7 +646,7 @@ void IMEManager::attach( GameWindow *window )
 }
 
 //============================================================================
-// IMEManager::detatch
+// IMEManager::detach
 //============================================================================
 
 void IMEManager::detatch( void )

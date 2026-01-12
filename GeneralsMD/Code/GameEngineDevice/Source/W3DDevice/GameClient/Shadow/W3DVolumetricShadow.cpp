@@ -1105,7 +1105,7 @@ Bool W3DShadowGeometryMesh::allocateNeighbors( Int numPolys )
 
 	}
 
-	// list is now acutally allocated
+	// list is now actually allocated
 	m_numPolyNeighbors = numPolys;
 
 	return TRUE;  // success!
@@ -3236,7 +3236,7 @@ void W3DVolumetricShadow::deleteShadowVolume( Int volumeIndex )
 // resetShadowVolume ==========================================================
 // Reset the contents of the shadow volume information.  Since we're using
 // a geometry class it would be ideal if these structures had a reset
-// option where their resoures were released back to a pool rather than
+// option where their resources were released back to a pool rather than
 // delete and allocate new storage space
 // ============================================================================
 void W3DVolumetricShadow::resetShadowVolume( Int volumeIndex, Int meshIndex )
@@ -3290,7 +3290,7 @@ Bool W3DVolumetricShadow::allocateSilhouette(Int meshIndex, Int numVertices )
 	if( m_silhouetteIndex[meshIndex] == NULL )
 	{
 
-//		DBGPRINTF(( "Unable to allcoate silhouette storage '%d'\n", numEntries ));
+//		DBGPRINTF(( "Unable to allocate silhouette storage '%d'\n", numEntries ));
 		assert( 0 );
 		return FALSE;
 

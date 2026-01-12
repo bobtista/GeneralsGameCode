@@ -296,7 +296,7 @@ August 5, 2000
   Added W3D_CHUNK_LIGHT_GLARE and its sub-chunks.  Light glares are going to
   be a new 'geometry type' which simply define points where light glare effects
   should be placed.  The application will supply a callback to the WW3D code
-  which indicates the visibilty of any light glares in the view frustum.
+  which indicates the visibility of any light glares in the view frustum.
 
 June 5, 2001
 
@@ -593,7 +593,7 @@ struct W3dRGBAStruct
 // MATERIALS
 //
 // Surrender 1.40 significantly changed the way that materials are described.  To
-// accomodate this, the w3d file format has changed since there are new features and
+// accommodate this, the w3d file format has changed since there are new features and
 // optimizations that we want to take advangage of.
 //
 // The VertexMaterial defines parameters which control the calculation of the primary

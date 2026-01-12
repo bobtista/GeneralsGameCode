@@ -1130,7 +1130,7 @@ void WorldHeightMapEdit::blendSpecificTiles(Int xIndex, Int yIndex, Int srcXInde
 	blendInfo.customBlendEdgeClass = edgeClass;
 
 	//Check if there is already a blend tile at the destination and record its flip state.
-	//We need to know this so that we don't accidently apply a third blend layer with with
+	//We need to know this so that we don't accidentally apply a third blend layer with with
 	//a different flip and introduce z-fighting over this tile.
 	Bool baseNeedsFlip = false;
 	UnsignedByte baseIsDiagonal = 0;

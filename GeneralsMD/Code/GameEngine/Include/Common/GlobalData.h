@@ -341,10 +341,10 @@ public:
 	Int m_maxLineBuildObjects;				///< line style builds can be no longer than this
 	Int m_maxTunnelCapacity;					///< Max people in Player's tunnel network
 	Real m_horizontalScrollSpeedFactor;	///< Factor applied to the game screen scrolling speed.
-	Real m_verticalScrollSpeedFactor;		///< Seperated because of our aspect ratio
+	Real m_verticalScrollSpeedFactor;		///< Separated because of our aspect ratio
 	Real m_scrollAmountCutoff;				///< Scroll speed to not adjust camera height
 	Real m_cameraAdjustSpeed;					///< Rate at which we adjust camera height
-	Bool m_enforceMaxCameraHeight;		///< Enfoce max camera height while scrolling?
+	Bool m_enforceMaxCameraHeight;		///< Enforce max camera height while scrolling?
 	Bool m_buildMapCache;
 	AsciiString m_initialFile;				///< If this is specified, load a specific map from the command-line
 	AsciiString m_pendingFile;				///< If this is specified, use this map at the next game start

@@ -48,7 +48,7 @@ enum DisabledType CPP_11(: Int)
 	DISABLED_UNDERPOWERED,//Separate from ScriptUnderpowered, the owning player has insufficient power.  Energy status controls this
 	DISABLED_FREEFALL,    //This unit has been disabled via being in free fall
 
-	//These ones are specificially for scripts to enable/reenable!
+	//These ones are specifically for scripts to enable/reenable!
 	DISABLED_SCRIPT_DISABLED,
 	DISABLED_SCRIPT_UNDERPOWERED,
 

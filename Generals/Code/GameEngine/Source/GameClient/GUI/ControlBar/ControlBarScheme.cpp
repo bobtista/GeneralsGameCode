@@ -727,7 +727,7 @@ void ControlBarScheme::update( void )
 }
 
 //
-// Loop through the propper lists and draw everything for the forground
+// Loop through the propper lists and draw everything for the foreground
 //-----------------------------------------------------------------------------
 void ControlBarScheme::drawForeground( Coord2D multi, ICoord2D offset )
 {
@@ -1026,7 +1026,7 @@ void ControlBarSchemeManager::setControlBarScheme(AsciiString schemeName)
 	ControlBarScheme *tempScheme = findControlBarScheme( schemeName );
 	if(tempScheme)
 	{
-		// setup the multiplyer value
+		// setup the multiplier value
 		m_multiplyer.x = TheDisplay->getWidth() / tempScheme->m_ScreenCreationRes.x;
 		m_multiplyer.y = TheDisplay->getHeight() / tempScheme->m_ScreenCreationRes.y;
 		m_currentScheme = tempScheme;
@@ -1108,7 +1108,7 @@ void ControlBarSchemeManager::setControlBarSchemeByPlayerTemplate( const PlayerT
 
 	if(tempScheme)
 	{
-		// setup the multiplyer value
+		// setup the multiplier value
  		m_multiplyer.x = TheDisplay->getWidth() / (Real)tempScheme->m_ScreenCreationRes.x;
 		m_multiplyer.y = TheDisplay->getHeight() / (Real)tempScheme->m_ScreenCreationRes.y;
 		m_currentScheme = tempScheme;
@@ -1176,7 +1176,7 @@ void ControlBarSchemeManager::setControlBarSchemeByPlayer(Player *p)
 
 	if(tempScheme)
 	{
-		// setup the multiplyer value
+		// setup the multiplier value
  		m_multiplyer.x = TheDisplay->getWidth() / (Real)tempScheme->m_ScreenCreationRes.x;
 		m_multiplyer.y = TheDisplay->getHeight() / (Real)tempScheme->m_ScreenCreationRes.y;
 		m_currentScheme = tempScheme;
