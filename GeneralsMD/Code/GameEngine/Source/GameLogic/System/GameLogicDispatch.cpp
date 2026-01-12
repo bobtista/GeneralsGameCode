@@ -101,7 +101,7 @@ static int thePlanSubjectCount = 0;
 static void doMoveTo( Object *obj, const Coord3D *pos )
 {
 	AIUpdateInterface *ai = obj->getAIUpdateInterface();
-	DEBUG_ASSERTCRASH(ai, ("Attemped doMoveTo() on an Object with no AI"));
+	DEBUG_ASSERTCRASH(ai, ("Attempted doMoveTo() on an Object with no AI"));
 	if (ai)
 	{
 		if (theBuildPlan)

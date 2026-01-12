@@ -809,7 +809,7 @@ bool DynamicVectorClass<T>::Delete(int index)
  * INPUT:   none.                                                                              *
  *                                                                                             *
  * OUTPUT:  T *; Points to the empty space where the new object is to be created. (If the      *
- *               space was not added succesfully, returns NULL).                              *
+ *               space was not added successfully, returns NULL).                             *
  *                                                                                             *
  * WARNINGS:   If memory area is left uninitialized, Very Bad Things will happen.              *
  *                                                                                             *
