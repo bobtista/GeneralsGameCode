@@ -61,7 +61,7 @@ public:
 	// For disconnect blame assignment
 	UnsignedInt getPingFrame();
 	Int getPingsSent();
-	Int getPingsRecieved();
+	Int getPingsReceived();
 
 protected:
 	void sendKeepAlive(ConnectionManager *conMgr);

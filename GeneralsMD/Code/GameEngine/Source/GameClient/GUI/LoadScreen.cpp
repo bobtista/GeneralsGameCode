@@ -217,7 +217,7 @@ void SinglePlayerLoadScreen::moveWindows( Int frame )
 	enum{
 		STATE_BEGIN = 250,
 		STATE_SHOW_LOCATION = 251,
-		STATE_BEGIN_BREIFING = 255,
+		STATE_BEGIN_BRIEFING = 255,
 //		STATE_BEGIN_ANIMATING_TEXT = 250,
 		STATE_SHOW_CAMEO_1 = 434,
 		STATE_BEGIN_ANIMATING_TEXT = 356,
@@ -233,7 +233,7 @@ void SinglePlayerLoadScreen::moveWindows( Int frame )
 	if(frame < STATE_BEGIN || frame > STATE_END)
 		return;
 
-	if( frame == STATE_BEGIN_BREIFING)
+	if( frame == STATE_BEGIN_BRIEFING)
 	{
 		// add sound support here
 		TheAudio->friend_forcePlayAudioEventRTS(&TheCampaignManager->getCurrentMission()->m_briefingVoice);

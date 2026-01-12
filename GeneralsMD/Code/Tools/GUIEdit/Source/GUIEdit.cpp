@@ -2203,7 +2203,7 @@ GameWindow *GUIEdit::newHorizontalSlider( GameWindow *parent,
 
 }
 
-// GUIEdit::newVerticlaSlider =================================================
+// GUIEdit::newVerticalSlider =================================================
 /** Create a new vertical slider */
 //=============================================================================
 GameWindow *GUIEdit::newVerticalSlider( GameWindow *parent,

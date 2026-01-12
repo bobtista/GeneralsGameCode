@@ -191,7 +191,7 @@ Int DisconnectManager::getPingsSent()
 	return m_pingsSent;
 }
 
-Int DisconnectManager::getPingsRecieved()
+Int DisconnectManager::getPingsReceived()
 {
 	return m_pingsRecieved;
 }
