@@ -269,62 +269,63 @@ static bool hasExtension(const char* filename, const char* ext)
 	return true;
 }
 
-//-----------------------------------------------------------------------------
-// findGameDirectory - Find game installation directory
-//-----------------------------------------------------------------------------
 static std::string findGameDirectory()
 {
-	// Option 1: Use explicitly specified game directory
 	if (!g_gameDir.empty())
 	{
 		return g_gameDir;
 	}
 
 #ifdef _WIN32
-	// Option 2: Look up in Windows registry
-	HKEY hKey;
-	const char* registryPath = "SOFTWARE\\Electronic Arts\\EA Games\\Command and Conquer Generals Zero Hour";
+	// Registry paths: EA App/CD, First Decade, Steam
+	const char* registryPaths[] = {
+		"SOFTWARE\\Electronic Arts\\EA Games\\Command and Conquer Generals Zero Hour",
+		"SOFTWARE\\Electronic Arts\\EA Games\\Command and Conquer The First Decade",
+		"SOFTWARE\\Electronic Arts\\EA Games\\ZeroHour"
+	};
 
-	if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, registryPath, 0, KEY_READ, &hKey) == ERROR_SUCCESS ||
-	    RegOpenKeyExA(HKEY_CURRENT_USER, registryPath, 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+	for (const char* registryPath : registryPaths)
 	{
-		char installPath[MAX_PATH];
-		DWORD pathSize = sizeof(installPath);
-		DWORD type;
-
-		if (RegQueryValueExA(hKey, "InstallPath", NULL, &type, (LPBYTE)installPath, &pathSize) == ERROR_SUCCESS)
+		HKEY hKey;
+		if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, registryPath, 0, KEY_READ, &hKey) == ERROR_SUCCESS ||
+		    RegOpenKeyExA(HKEY_CURRENT_USER, registryPath, 0, KEY_READ, &hKey) == ERROR_SUCCESS)
 		{
-			RegCloseKey(hKey);
-			// Strip trailing quotes or backslashes that might be in the registry
-			std::string path(installPath);
-			while (!path.empty() && (path.back() == '"' || path.back() == '\\'))
-				path.pop_back();
-			printf("Found game directory in registry: %s\n", path.c_str());
-			fflush(stdout);
-			return path;
-		}
+			char installPath[MAX_PATH];
+			DWORD pathSize = sizeof(installPath);
+			DWORD type;
 
-		// Try "ErgcKey" as alternative
-		if (RegQueryValueExA(hKey, "ErgcKey", NULL, &type, (LPBYTE)installPath, &pathSize) == ERROR_SUCCESS)
-		{
-			RegCloseKey(hKey);
-			// Strip trailing quotes or backslashes that might be in the registry
-			std::string path(installPath);
-			while (!path.empty() && (path.back() == '"' || path.back() == '\\'))
-				path.pop_back();
-			printf("Found game directory in registry (ErgcKey): %s\n", path.c_str());
-			fflush(stdout);
-			return path;
-		}
+			if (RegQueryValueExA(hKey, "InstallPath", NULL, &type, (LPBYTE)installPath, &pathSize) == ERROR_SUCCESS)
+			{
+				RegCloseKey(hKey);
+				std::string path(installPath);
+				while (!path.empty() && (path.back() == '"' || path.back() == '\\'))
+					path.pop_back();
+				printf("Found game directory in registry: %s\n", path.c_str());
+				fflush(stdout);
+				return path;
+			}
 
-		RegCloseKey(hKey);
+			pathSize = sizeof(installPath);
+			if (RegQueryValueExA(hKey, "ErgcKey", NULL, &type, (LPBYTE)installPath, &pathSize) == ERROR_SUCCESS)
+			{
+				RegCloseKey(hKey);
+				std::string path(installPath);
+				while (!path.empty() && (path.back() == '"' || path.back() == '\\'))
+					path.pop_back();
+				printf("Found game directory in registry: %s\n", path.c_str());
+				fflush(stdout);
+				return path;
+			}
+
+			RegCloseKey(hKey);
+		}
 	}
 #endif
 
-	// Option 3: Use current working directory
 	printf("Using current directory as game directory\n");
 	return ".";
 }
+
 
 //-----------------------------------------------------------------------------
 // readFileContents
@@ -367,7 +368,6 @@ static bool writeFileContents(const char* filename, const std::string& contents)
 //-----------------------------------------------------------------------------
 static bool initMinimalEngine()
 {
-	// Find and change to game directory
 	std::string gameDir = findGameDirectory();
 
 #ifdef _WIN32
@@ -394,7 +394,6 @@ static bool initMinimalEngine()
 	}
 #endif
 
-	// Initialize memory manager
 	printf("Initializing memory manager...\n");
 	fflush(stdout);
 	initMemoryManager();
@@ -405,7 +404,6 @@ static bool initMinimalEngine()
 	TheNameKeyGenerator = new NameKeyGenerator;
 	TheNameKeyGenerator->init();
 
-	// Initialize file system
 	printf("Initializing file system...\n");
 	fflush(stdout);
 	TheFileSystem = new FileSystem;
@@ -438,7 +436,6 @@ static bool initMinimalEngine()
 	printf("Engine initialization complete.\n");
 	fflush(stdout);
 
-	// Verify templates were loaded
 	const ActionTemplate* testAction = TheScriptEngine->getActionTemplate(0);
 	if (testAction && !testAction->m_internalName.isEmpty())
 	{
@@ -508,7 +505,6 @@ static int convertToJSON(const char* inputFile, const char* outputFile)
 	printf("Converting %s to JSON...\n", inputFile);
 	fflush(stdout);
 
-	// Read the input SCB file
 	std::string scbData;
 	if (!readFileContents(inputFile, scbData))
 	{
@@ -525,7 +521,6 @@ static int convertToJSON(const char* inputFile, const char* outputFile)
 		return 1;
 	}
 
-	// Clear global team storage
 	g_parsedTeams.clear();
 
 	// Register parser callbacks
@@ -549,7 +544,6 @@ static int convertToJSON(const char* inputFile, const char* outputFile)
 	SemanticScriptWriter writer;
 	nlohmann::ordered_json jsonOutput = writer.writeScriptsFile(scriptLists, numPlayers, g_parsedTeams);
 
-	// Write JSON to output file
 	std::string jsonStr = jsonOutput.dump(2);
 	if (!writeFileContents(outputFile, jsonStr))
 	{
@@ -559,7 +553,6 @@ static int convertToJSON(const char* inputFile, const char* outputFile)
 
 	printf("Successfully wrote %s\n", outputFile);
 
-	// Print any warnings
 	if (writer.hasWarnings())
 	{
 		printf("\nWarnings (%zu):\n", writer.getWarnings().size());
@@ -569,7 +562,6 @@ static int convertToJSON(const char* inputFile, const char* outputFile)
 		}
 	}
 
-	// Clean up
 	cleanupScriptLists(scriptLists, MAX_PLAYER_COUNT);
 
 	return 0;
@@ -582,7 +574,6 @@ static int convertToSCB(const char* inputFile, const char* outputFile)
 {
 	printf("Converting %s to SCB...\n", inputFile);
 
-	// Read the input JSON file
 	std::string jsonData;
 	if (!readFileContents(inputFile, jsonData))
 	{
@@ -654,7 +645,6 @@ static int convertToSCB(const char* inputFile, const char* outputFile)
 
 	printf("Successfully wrote %s\n", outputFile);
 
-	// Clean up
 	cleanupScriptLists(scriptLists, MAX_PLAYER_COUNT);
 
 	return 0;
@@ -2038,7 +2028,6 @@ static int validateFile(const char* inputFile)
 	// Perform semantic validation
 	int semanticResult = performSemanticValidation(scriptLists, numPlayers);
 
-	// Clean up
 	cleanupScriptLists(scriptLists, MAX_PLAYER_COUNT);
 
 	if (semanticResult != 0)
@@ -2140,7 +2129,6 @@ static int verifyRoundtrip(const char* inputFile)
 		}
 	}
 
-	// Clean up
 	cleanupScriptLists(originalLists, MAX_PLAYER_COUNT);
 	cleanupScriptLists(roundtripLists, MAX_PLAYER_COUNT);
 
@@ -2666,7 +2654,7 @@ int main(int argc, char* argv[])
 		result = 1;
 	}
 
-	// Shutdown engine
+
 	shutdownEngine();
 
 	// Print final status if no other output was given
