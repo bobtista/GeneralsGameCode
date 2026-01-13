@@ -1116,12 +1116,12 @@ void ThingTemplate::resolveNames()
 	//      templates can be partially overridden by map.ini files. When this happens, strings
 	//      that have been parsed are looked up, cached, then cleared. The problem is if a string
 	//      gets cached, but not overridden, it will be clear the next time we call this function.
-	//      so we will want to make sure we don't set to nullptr cached data if the string is empty. A
+	//      so we will want to make sure we don't NULL out cached data if the string is empty. A
 	//      concrete example is overriding an object with prerequisites. We just override the portrait.
 	//      So the 1st time we call this function, we get the standard template data. During this first
 	//      call, the strings are looked up, cached, and cleared. Then we override the portrait in the
 	//      map.ini. The next time we call this function, we look up all the strings again. The prereq
-	//      names didn't used to check for empty strings so they would set to nullptr all the previous prereqs
+	//      names didn't used to check for empty strings so they would NULL out all the previous prereqs
 	//      the object had. So be sure to make sure all string lookups don't blindly lookup things -- check
 	//      if the string isNotEmpty first!
 

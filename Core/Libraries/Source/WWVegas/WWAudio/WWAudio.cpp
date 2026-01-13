@@ -591,7 +591,7 @@ WWAudioClass::Create_Sound_Buffer
 	WWASSERT (success);
 
 	// If we were successful in creating the sound buffer, then
-	// try to cache it as well, otherwise free the buffer and return nullptr.
+	// try to cache it as well, otherwise free the buffer and return null.
 	if (success && (string_id != nullptr)) {
 		Cache_Buffer (sound_buffer, string_id);
 	} else if (success == false) {
@@ -629,7 +629,7 @@ WWAudioClass::Create_Sound_Buffer
 	WWASSERT (success);
 
 	// If we were successful in creating the sound buffer, then
-	// try to cache it as well, otherwise free the buffer and return nullptr.
+	// try to cache it as well, otherwise free the buffer and return null.
 	if (success && (string_id != nullptr)) {
 		Cache_Buffer (sound_buffer, string_id);
 	} else if (success == false) {

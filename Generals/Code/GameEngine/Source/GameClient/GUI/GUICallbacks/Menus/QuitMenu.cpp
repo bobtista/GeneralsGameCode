@@ -511,7 +511,7 @@ WindowMsgHandledType QuitMenuSystem( GameWindow *window, UnsignedInt msg,
 			else if( buttonOptions == controlID )
 			{
 				WindowLayout *optLayout = TheShell->getOptionsLayout(TRUE);
-				DEBUG_ASSERTCRASH(optLayout != nullptr, ("options menu layout is nullptr"));
+				DEBUG_ASSERTCRASH(optLayout != nullptr, ("options menu layout is null"));
 				optLayout->runInit();
 				optLayout->hide(FALSE);
 				optLayout->bringForward();

@@ -853,7 +853,7 @@ static RenderObjClass* createTower( SimpleSceneClass *scene,
 		return nullptr;
 
 	// get template for this bridge
-	DEBUG_ASSERTCRASH( TheTerrainRoads, ("createTower: TheTerrainRoads is nullptr") );
+	DEBUG_ASSERTCRASH( TheTerrainRoads, ("createTower: TheTerrainRoads is null") );
 	TerrainRoadType *bridgeTemplate = TheTerrainRoads->findBridge( mapObject->getName() );
 	if( bridgeTemplate == nullptr )
 		return nullptr;
@@ -876,7 +876,7 @@ static RenderObjClass* createTower( SimpleSceneClass *scene,
 
 	// find the thing template for the tower we want to construct
 	AsciiString towerTemplateName = bridgeTemplate->getTowerObjectName( type );
-	DEBUG_ASSERTCRASH( TheThingFactory, ("createTower: TheThingFactory is nullptr") );
+	DEBUG_ASSERTCRASH( TheThingFactory, ("createTower: TheThingFactory is null") );
 	const ThingTemplate *towerTemplate = TheThingFactory->findTemplate( towerTemplateName );
 	if( towerTemplate == nullptr )
 		return nullptr;

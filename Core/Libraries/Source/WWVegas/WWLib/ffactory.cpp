@@ -43,7 +43,7 @@
 /*
 ** Statics
 ** NOTE: If _TheFileFactory is ever changed to point to an object of a different class which does
-** not derive from SimpleFileFactoryClass, _TheSimpleFileFactory should be set to nullptr.
+** not derive from SimpleFileFactoryClass, _TheSimpleFileFactory should be set to null.
 */
 SimpleFileFactoryClass		_DefaultFileFactory;
 FileFactoryClass *			_TheFileFactory = &_DefaultFileFactory;

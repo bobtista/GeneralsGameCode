@@ -67,11 +67,11 @@ bool localPlayerHasRadar()
 
 Player* getObservedOrLocalPlayer()
 {
-	DEBUG_ASSERTCRASH(TheControlBar != nullptr, ("TheControlBar is nullptr"));
+	DEBUG_ASSERTCRASH(TheControlBar != nullptr, ("TheControlBar is null"));
 	Player* player = TheControlBar->getObservedPlayer();
 	if (player == nullptr)
 	{
-		DEBUG_ASSERTCRASH(ThePlayerList != nullptr, ("ThePlayerList is nullptr"));
+		DEBUG_ASSERTCRASH(ThePlayerList != nullptr, ("ThePlayerList is null"));
 		player = ThePlayerList->getLocalPlayer();
 	}
 	return player;
@@ -101,7 +101,7 @@ PlayerIndex getObservedOrLocalPlayerIndex_Safe()
 
 void changeLocalPlayer(Player* player)
 {
-	DEBUG_ASSERTCRASH(player != nullptr, ("Player is nullptr"));
+	DEBUG_ASSERTCRASH(player != nullptr, ("Player is null"));
 
 	ThePlayerList->setLocalPlayer(player);
 	TheControlBar->setObserverLookAtPlayer(nullptr);

@@ -1108,7 +1108,7 @@ void HierarchyView::moveWindowAheadOf( GameWindow *window,
 	// get the window hierarchy entry
 	removeWindow( window );
 
-	// we'll say and aheadOf of nullptr means put at the top
+	// we'll say and aheadOf of null means put at the top
 	if( aheadOf == nullptr )
 	{
 
@@ -1136,7 +1136,7 @@ void HierarchyView::moveWindowAheadOf( GameWindow *window,
 
 	//
 	// get the item that we will be inserting after (just previous to
-	// 'aheadOfItem' ... this can also be nullptr for putting at the head
+	// 'aheadOfItem' ... this can also be null for putting at the head
 	//
 	HTREEITEM prevItem = TreeView_GetNextItem( m_tree, aheadOfItem, TVGN_PREVIOUS );
 

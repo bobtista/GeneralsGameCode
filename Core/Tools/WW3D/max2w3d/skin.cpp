@@ -312,7 +312,7 @@ CreateMouseCallBack * SkinWSMObjectClass::GetCreateMouseCallBack(void)
 	/*
 	** The "CreateMouseCallback" is used when creating the
 	** object.  Since our object doesn't need an interactive
-	** creation phase, we return nullptr.
+	** creation phase, we return null.
 	*/
 	return &_SkinCreateCB;
 }

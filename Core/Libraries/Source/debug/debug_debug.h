@@ -823,7 +823,7 @@ private:
     /// factory function
     DebugIOInterface* (*factory)(void);
 
-    /// I/O interface (may be nullptr)
+    /// I/O interface (may be null)
     DebugIOInterface *io;
 
     /// input buffer

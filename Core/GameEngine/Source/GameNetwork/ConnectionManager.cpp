@@ -638,10 +638,10 @@ void ConnectionManager::processChat(NetChatCommandMsg *msg)
 	//DEBUG_LOG(("processChat(): playerID = %d", playerID));
 	if (playerID == m_localSlot) {
 		name = m_localUser->GetName();
-		//DEBUG_LOG(("connection is nullptr, using %ls", name.str()));
+		//DEBUG_LOG(("connection is null, using %ls", name.str()));
 	} else if (((m_connections[playerID] != nullptr) && (m_connections[playerID]->isQuitting() == FALSE))) {
 		name = m_connections[playerID]->getUser()->GetName();
-		//DEBUG_LOG(("connection is non-nullptr, using %ls", name.str()));
+		//DEBUG_LOG(("connection is non-null, using %ls", name.str()));
 	}
 	unitext.format(L"[%ls] %ls", name.str(), msg->getText().str());
 //	DEBUG_LOG(("ConnectionManager::processChat - got message from player %d (mask %8.8X), message is %ls", playerID, msg->getPlayerMask(), unitext.str()));
@@ -1079,7 +1079,7 @@ void ConnectionManager::ackCommand(NetCommandRef *ref, UnsignedInt localSlot) {
 			}
 		}
 	} else {
-		// The local connection may be the packet router, in that case, the connection would be nullptr.  So do something about it!
+		// The local connection may be the packet router, in that case, the connection would be null.  So do something about it!
 		if ((m_packetRouterSlot >= 0) && (m_packetRouterSlot < MAX_SLOTS)) {
 			if (m_connections[m_packetRouterSlot] != nullptr) {
 //				DEBUG_LOG(("ConnectionManager::ackCommand - acking command %d from player %d to packet router.", commandID, m_packetRouterSlot));
@@ -1091,13 +1091,13 @@ void ConnectionManager::ackCommand(NetCommandRef *ref, UnsignedInt localSlot) {
 //						DEBUG_LOG(("ConnectionManager::ackCommand - acking command %d from player %d directly to player.", commandID, msg->getPlayerID()));
 						m_connections[msg->getPlayerID()]->sendNetCommandMsg(ackmsg, 1 << msg->getPlayerID());
 					} else {
-	//					DEBUG_ASSERTCRASH(m_connections[msg->getPlayerID()] != nullptr, ("Connection to player is nullptr"));
+	//					DEBUG_ASSERTCRASH(m_connections[msg->getPlayerID()] != nullptr, ("Connection to player is null"));
 					}
 				} else {
 					DEBUG_ASSERTCRASH((msg->getPlayerID() >= 0) && (msg->getPlayerID() < MAX_SLOTS), ("Command sent by an invalid player ID."));
 				}
 			} else {
-				DEBUG_ASSERTCRASH(m_connections[m_packetRouterSlot] != nullptr, ("Connection to packet router is nullptr"));
+				DEBUG_ASSERTCRASH(m_connections[m_packetRouterSlot] != nullptr, ("Connection to packet router is null"));
 			}
 		} else {
 			DEBUG_ASSERTCRASH((m_packetRouterSlot >= 0) && (m_packetRouterSlot < MAX_SLOTS), ("I don't know who the packet router is."));
@@ -1400,7 +1400,7 @@ UnsignedInt ConnectionManager::getMinimumCushion() {
  */
 void ConnectionManager::processFrameTick(UnsignedInt frame) {
 	if ((m_frameData[m_localSlot] == nullptr) || (m_frameData[m_localSlot]->getIsQuitting() == TRUE)) {
-		// if the local frame data stuff is nullptr, we must be leaving the game.
+		// if the local frame data stuff is null, we must be leaving the game.
 		return;
 	}
 	UnsignedShort commandCount = m_frameData[m_localSlot]->getCommandCount(frame);

@@ -4471,7 +4471,7 @@ void Player::xfer( Xfer *xfer )
 		if( m_squads[ i ] == nullptr )
 		{
 
-			DEBUG_CRASH(( "Player::xfer - nullptr squad at index '%d'", i ));
+			DEBUG_CRASH(( "Player::xfer - null squad at index '%d'", i ));
 			throw SC_INVALID_DATA;
 
 		}

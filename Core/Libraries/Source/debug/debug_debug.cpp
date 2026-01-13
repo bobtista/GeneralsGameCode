@@ -710,7 +710,7 @@ Debug& Debug::operator<<(const char *str)
 
   // buffer large enough?
   if (!str)
-    str="[nullptr]";
+    str="[null]";
   else if (!*str)
     return *this;
 
@@ -847,7 +847,7 @@ Debug& Debug::operator<<(const void *ptr)
     (*this) << "0x" << _ultoa((unsigned long)ptr,help,16);
   }
   else
-    (*this) << "nullptr";
+    (*this) << "null";
   return *this;
 }
 

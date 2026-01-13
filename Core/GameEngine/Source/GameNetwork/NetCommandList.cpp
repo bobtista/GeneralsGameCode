@@ -128,7 +128,7 @@ void NetCommandList::reset() {
  */
 NetCommandRef * NetCommandList::addMessage(NetCommandMsg *cmdMsg) {
 	if (cmdMsg == nullptr) {
-		DEBUG_ASSERTCRASH(cmdMsg != nullptr, ("NetCommandList::addMessage - command message was nullptr"));
+		DEBUG_ASSERTCRASH(cmdMsg != nullptr, ("NetCommandList::addMessage - command message was null"));
 		return nullptr;
 	}
 

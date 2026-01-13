@@ -332,7 +332,7 @@ unsigned int TextureBaseClass::Get_Priority(void)
 {
 	if (!D3DTexture)
 	{
-		WWASSERT_PRINT(0, "Get_Priority: D3DTexture is nullptr!");
+		WWASSERT_PRINT(0, "Get_Priority: D3DTexture is null!");
 		return 0;
 	}
 
@@ -352,7 +352,7 @@ unsigned int TextureBaseClass::Set_Priority(unsigned int priority)
 {
 	if (!D3DTexture)
 	{
-		WWASSERT_PRINT(0, "Set_Priority: D3DTexture is nullptr!");
+		WWASSERT_PRINT(0, "Set_Priority: D3DTexture is null!");
 		return 0;
 	}
 
@@ -390,12 +390,12 @@ unsigned TextureBaseClass::Get_Reduction() const
 
 
 //**********************************************************************************************
-//! Apply nullptr texture state
+//! Apply null texture state
 /*!
 */
 void TextureBaseClass::Apply_Null(unsigned int stage)
 {
-	// This function sets the render states for a "nullptr" texture
+	// This function sets the render states for a "null" texture
 	DX8Wrapper::Set_DX8_Texture(stage, nullptr);
 }
 
@@ -709,7 +709,7 @@ TextureClass::TextureClass
 	default:	break;
 	}
 
-	WWASSERT_PRINT(name && name[0], "TextureClass CTor: nullptr or empty texture name");
+	WWASSERT_PRINT(name && name[0], "TextureClass CTor: null or empty texture name");
 	int len=strlen(name);
 	for (int i=0;i<len;++i)
 	{
@@ -983,7 +983,7 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 {
 	if (!Peek_D3D_Texture())
 	{
-		WWASSERT_PRINT(0, "Get_Surface_Level: D3DTexture is nullptr!");
+		WWASSERT_PRINT(0, "Get_Surface_Level: D3DTexture is null!");
 		return nullptr;
 	}
 
@@ -1016,7 +1016,7 @@ IDirect3DSurface8 *TextureClass::Get_D3D_Surface_Level(unsigned int level)
 {
 	if (!Peek_D3D_Texture())
 	{
-		WWASSERT_PRINT(0, "Get_D3D_Surface_Level: D3DTexture is nullptr!");
+		WWASSERT_PRINT(0, "Get_D3D_Surface_Level: D3DTexture is null!");
 		return nullptr;
 	}
 
@@ -1308,7 +1308,7 @@ IDirect3DSurface8* ZTextureClass::Get_D3D_Surface_Level(unsigned int level)
 {
 	if (!Peek_D3D_Texture())
 	{
-		WWASSERT_PRINT(0, "Get_D3D_Surface_Level: D3DTexture is nullptr!");
+		WWASSERT_PRINT(0, "Get_D3D_Surface_Level: D3DTexture is null!");
 		return nullptr;
 	}
 
@@ -1454,7 +1454,7 @@ CubeTextureClass::CubeTextureClass
 	default:	break;
 	}
 
-	WWASSERT_PRINT(name && name[0], "TextureClass CTor: nullptr or empty texture name");
+	WWASSERT_PRINT(name && name[0], "TextureClass CTor: null or empty texture name");
 	int len=strlen(name);
 	for (int i=0;i<len;++i)
 	{
@@ -1739,7 +1739,7 @@ VolumeTextureClass::VolumeTextureClass
 	default:	break;
 	}
 
-	WWASSERT_PRINT(name && name[0], "TextureClass CTor: nullptr or empty texture name");
+	WWASSERT_PRINT(name && name[0], "TextureClass CTor: null or empty texture name");
 	int len=strlen(name);
 	for (int i=0;i<len;++i)
 	{

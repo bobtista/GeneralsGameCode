@@ -229,7 +229,7 @@ void MiniDumper::ShutdownDumpThread()
 {
 	if (IsDumpThreadStillRunning())
 	{
-		DEBUG_ASSERTCRASH(m_quitting != nullptr, ("MiniDumper::ShutdownDumpThread: Dump thread still running despite m_quitting being nullptr"));
+		DEBUG_ASSERTCRASH(m_quitting != nullptr, ("MiniDumper::ShutdownDumpThread: Dump thread still running despite m_quitting being null"));
 		::SetEvent(m_quitting);
 
 		DWORD waitRet = ::WaitForSingleObject(m_dumpThread, 3000);
@@ -322,7 +322,7 @@ DWORD WINAPI MiniDumper::MiniDumpThreadProc(LPVOID lpParam)
 {
 	if (lpParam == nullptr)
 	{
-		DEBUG_LOG(("MiniDumper::MiniDumpThreadProc: The provided parameter was nullptr, exiting thread."));
+		DEBUG_LOG(("MiniDumper::MiniDumpThreadProc: The provided parameter was null, exiting thread."));
 		return MiniDumperExitCode_FailureParam;
 	}
 

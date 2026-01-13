@@ -1822,7 +1822,7 @@ GameWindow *GameWindowManager::gogoGadgetPushButton( GameWindow *parent,
 	// set the owner to the parent, or if no parent it will be itself
 	button->winSetOwner( parent );
 
-	// Init the userdata to nullptr
+	// Init the userdata to null
 	button->winSetUserData(nullptr);
 
 	// assign the default images/colors

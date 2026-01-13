@@ -868,7 +868,7 @@ void StateMachine::xfer( Xfer *xfer )
 			}
 			else
 			{
-				DEBUG_CRASH(("state was nullptr on xfer, trying to heal..."));
+				DEBUG_CRASH(("state was null on xfer, trying to heal..."));
 				// Hmm... too late to find out why we are getting nullptr in our state, but if we let it go, we will Throw in xferSnapshot.
 				state = internalGetState(m_defaultStateID);
 				StateID id = state->getID();
@@ -881,7 +881,7 @@ void StateMachine::xfer( Xfer *xfer )
 	}	else {
 		if( m_currentState == nullptr )
 		{
-			DEBUG_ASSERTCRASH(m_currentState != nullptr, ("currentState was nullptr on xfer, trying to heal..."));
+			DEBUG_ASSERTCRASH(m_currentState != nullptr, ("currentState was null on xfer, trying to heal..."));
 			// Hmm... too late to find out why we are getting nullptr in our state, but if we let it go, we will Throw in xferSnapshot.
 			m_currentState = internalGetState(m_defaultStateID);
 		}

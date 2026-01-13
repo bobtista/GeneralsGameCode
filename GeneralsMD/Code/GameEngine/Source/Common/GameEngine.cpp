@@ -180,8 +180,8 @@ static void updateWindowTitle()
 {
 	// TheSuperHackers @tweak Now prints product and version information in the Window title.
 
-	DEBUG_ASSERTCRASH(TheVersion != nullptr, ("TheVersion is nullptr"));
-	DEBUG_ASSERTCRASH(TheGameText != nullptr, ("TheGameText is nullptr"));
+	DEBUG_ASSERTCRASH(TheVersion != nullptr, ("TheVersion is null"));
+	DEBUG_ASSERTCRASH(TheGameText != nullptr, ("TheGameText is null"));
 
 	UnicodeString title;
 
@@ -785,7 +785,7 @@ void GameEngine::reset( void )
 
 	if (deleteNetwork)
 	{
-		DEBUG_ASSERTCRASH(TheNetwork, ("Deleting nullptr TheNetwork!"));
+		DEBUG_ASSERTCRASH(TheNetwork, ("Deleting null TheNetwork!"));
 		delete TheNetwork;
 		TheNetwork = nullptr;
 	}
@@ -829,7 +829,7 @@ Bool GameEngine::canUpdateGameLogic()
 /// -----------------------------------------------------------------------------------------------
 Bool GameEngine::canUpdateNetworkGameLogic()
 {
-	DEBUG_ASSERTCRASH(TheNetwork != nullptr, ("TheNetwork is nullptr"));
+	DEBUG_ASSERTCRASH(TheNetwork != nullptr, ("TheNetwork is null"));
 
 	if (TheNetwork->isFrameDataReady())
 	{

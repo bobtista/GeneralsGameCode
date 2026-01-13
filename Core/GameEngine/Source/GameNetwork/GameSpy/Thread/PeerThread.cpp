@@ -1191,7 +1191,7 @@ void PeerThreadClass::Thread_Function()
 	m_qmGroupRoom = 0;
 
 	peer = peerInitialize( &callbacks );
-	DEBUG_ASSERTCRASH( peer != nullptr, ("nullptr peer!") );
+	DEBUG_ASSERTCRASH( peer != nullptr, ("null peer!") );
 	m_isConnected = m_isConnecting = false;
 
 	qr2_register_key(EXECRC_KEY, EXECRC_STR);

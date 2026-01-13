@@ -2285,7 +2285,7 @@ void ParticleSystem::removeParticle( Particle *particleToRemove )
 ParticleInfo ParticleSystem::mergeRelatedParticleSystems( ParticleSystem *masterParticleSystem, ParticleSystem *slaveParticleSystem, Bool slaveNeedsFullPromotion)
 {
 	if (!masterParticleSystem || !slaveParticleSystem) {
-		DEBUG_CRASH(("masterParticleSystem or slaveParticleSystem was nullptr. Should not happen. JKMCD"));
+		DEBUG_CRASH(("masterParticleSystem or slaveParticleSystem was null. Should not happen. JKMCD"));
 		ParticleInfo bogus;
 		return bogus;
 	}
@@ -2533,7 +2533,7 @@ void ParticleSystem::loadPostProcess( void )
 		if( m_slaveSystem != nullptr )
 		{
 
-			DEBUG_CRASH(( "ParticleSystem::loadPostProcess - m_slaveSystem is not nullptr but should be" ));
+			DEBUG_CRASH(( "ParticleSystem::loadPostProcess - m_slaveSystem is not null but should be" ));
 			throw SC_INVALID_DATA;
 
 		}
@@ -2545,7 +2545,7 @@ void ParticleSystem::loadPostProcess( void )
 		if( m_slaveSystem == nullptr || m_slaveSystem->isDestroyed() == TRUE )
 		{
 
-			DEBUG_CRASH(( "ParticleSystem::loadPostProcess - m_slaveSystem is nullptr or destroyed" ));
+			DEBUG_CRASH(( "ParticleSystem::loadPostProcess - m_slaveSystem is null or destroyed" ));
 			throw SC_INVALID_DATA;
 
 		}
@@ -2560,7 +2560,7 @@ void ParticleSystem::loadPostProcess( void )
 		if( m_masterSystem != nullptr )
 		{
 
-			DEBUG_CRASH(( "ParticleSystem::loadPostProcess - m_masterSystem is not nullptr but should be" ));
+			DEBUG_CRASH(( "ParticleSystem::loadPostProcess - m_masterSystem is not null but should be" ));
 			throw SC_INVALID_DATA;
 
 		}
@@ -2572,7 +2572,7 @@ void ParticleSystem::loadPostProcess( void )
 		if( m_masterSystem == nullptr || m_masterSystem->isDestroyed() == TRUE )
 		{
 
-			DEBUG_CRASH(( "ParticleSystem::loadPostProcess - m_masterSystem is nullptr or destroyed" ));
+			DEBUG_CRASH(( "ParticleSystem::loadPostProcess - m_masterSystem is null or destroyed" ));
 			throw SC_INVALID_DATA;
 
 		}
@@ -2782,7 +2782,7 @@ ParticleSystemTemplate::~ParticleSystemTemplate()
 }
 
 // ------------------------------------------------------------------------------------------------
-/** If returns non-nullptr, it is a slave system for use ... the create slaves parameter
+/** If returns non-null, it is a slave system for use ... the create slaves parameter
  * tells *this* slave system whether or not it should create any slaves itself
  * automatically during its own constructor */
 // ------------------------------------------------------------------------------------------------
@@ -2854,8 +2854,8 @@ void ParticleSystemManager::init( void )
 	{
 
 		// sanity
-		DEBUG_ASSERTCRASH( m_allParticlesHead[ i ] == nullptr, ("INIT: ParticleSystem all particles head[%d] is not nullptr!", i) );
-		DEBUG_ASSERTCRASH( m_allParticlesTail[ i ] == nullptr, ("INIT: ParticleSystem all particles tail[%d] is not nullptr!", i) );
+		DEBUG_ASSERTCRASH( m_allParticlesHead[ i ] == nullptr, ("INIT: ParticleSystem all particles head[%d] is not null!", i) );
+		DEBUG_ASSERTCRASH( m_allParticlesTail[ i ] == nullptr, ("INIT: ParticleSystem all particles tail[%d] is not null!", i) );
 
 		// just to be clean set them to nullptr
 		m_allParticlesHead[ i ] = nullptr;
@@ -2882,8 +2882,8 @@ void ParticleSystemManager::reset( void )
 	{
 
 		// sanity
-		DEBUG_ASSERTCRASH( m_allParticlesHead[ i ] == nullptr, ("RESET: ParticleSystem all particles head[%d] is not nullptr!", i) );
-		DEBUG_ASSERTCRASH( m_allParticlesTail[ i ] == nullptr, ("RESET: ParticleSystem all particles tail[%d] is not nullptr!", i) );
+		DEBUG_ASSERTCRASH( m_allParticlesHead[ i ] == nullptr, ("RESET: ParticleSystem all particles head[%d] is not null!", i) );
+		DEBUG_ASSERTCRASH( m_allParticlesTail[ i ] == nullptr, ("RESET: ParticleSystem all particles tail[%d] is not null!", i) );
 
 		// just to be clean set them to nullptr
 		m_allParticlesHead[ i ] = nullptr;

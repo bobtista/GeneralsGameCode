@@ -349,7 +349,7 @@ void ParticleEmitterClass::On_Frame_Update(void)
 
 			// The particle buffer doesn't have a valid Scene yet - the emitter
 			// finds out what scene it belongs to (goes up the container tree
-			// until it finds a non-nullptr Scene), and then adds the particle
+			// until it finds a non-null Scene), and then adds the particle
 			// buffer to it.
 			if ( BufferSceneNeeded ) {
 

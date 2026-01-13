@@ -879,7 +879,7 @@ Team *TeamPrototype::findTeamByID( TeamID teamID )
 // ------------------------------------------------------------------------
 void TeamPrototype::setControllingPlayer(Player *newController)
 {
-	DEBUG_ASSERTCRASH(newController, ("Attempted to set nullptr player as team-owner, illegal."));
+	DEBUG_ASSERTCRASH(newController, ("Attempted to set null player as team-owner, illegal."));
 	if (!newController) {
 		return;
 	}

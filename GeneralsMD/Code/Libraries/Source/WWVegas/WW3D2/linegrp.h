@@ -106,11 +106,11 @@ protected:
 
 	ShareBufferClass<Vector3> *			StartLineLoc;	// World/cameraspace point locs
 	ShareBufferClass<Vector3> *			EndLineLoc;	// World/cameraspace point locs
-	ShareBufferClass<Vector4> *			LineDiffuse; // (nullptr if not used) RGBA values
-	ShareBufferClass<Vector4> *			TailDiffuse; // (nullptr if not used) RGBA values
-	ShareBufferClass<unsigned int> *		ALT;			// (nullptr if not used) active line table
-	ShareBufferClass<float> *				LineSize;	// (nullptr if not used) size override table
-	ShareBufferClass<float> *				LineUCoord; // (nullptr if not used) U coordinates
+	ShareBufferClass<Vector4> *			LineDiffuse; // (null if not used) RGBA values
+	ShareBufferClass<Vector4> *			TailDiffuse; // (null if not used) RGBA values
+	ShareBufferClass<unsigned int> *		ALT;			// (null if not used) active line table
+	ShareBufferClass<float> *				LineSize;	// (null if not used) size override table
+	ShareBufferClass<float> *				LineUCoord; // (null if not used) U coordinates
 	int											LineCount;	// Active (if ALT) or total point count
 
 	TextureClass*			Texture;

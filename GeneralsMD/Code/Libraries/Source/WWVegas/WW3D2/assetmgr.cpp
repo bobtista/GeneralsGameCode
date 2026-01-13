@@ -1528,7 +1528,7 @@ void WW3DAssetManager::Register_Prototype_Loader(PrototypeLoaderClass * loader)
  * chunk_id - chunk type that the loader needs to handle                                       *
  *                                                                                             *
  * OUTPUT:                                                                                     *
- * pointer to the appropriate loader or nullptr if one wasn't found                               *
+ * pointer to the appropriate loader or null if one wasn't found                               *
  *                                                                                             *
  * WARNINGS:                                                                                   *
  *                                                                                             *

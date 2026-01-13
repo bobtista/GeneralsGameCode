@@ -86,7 +86,7 @@ UnsignedInt ResolveIP(AsciiString host)
 
   if (host.isEmpty())
   {
-	  DEBUG_LOG(("ResolveIP(): Can't resolve nullptr"));
+	  DEBUG_LOG(("ResolveIP(): Can't resolve null"));
 	  return 0;
   }
 

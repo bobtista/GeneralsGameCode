@@ -1108,7 +1108,7 @@ Int WaterRenderObjClass::init(Real waterLevel, Real dx, Real dy, SceneClass *par
 
 	m_riverTexture=WW3DAssetManager::Get_Instance()->Get_Texture(TheWaterTransparency->m_standingWaterTexture.str());
 
-	//For some reason setting a nullptr texture does not result in 0xffffffff for pixel shaders so using explicit "white" texture.
+	//For some reason setting a null texture does not result in 0xffffffff for pixel shaders so using explicit "white" texture.
 	m_whiteTexture=MSGNEW("TextureClass") TextureClass(1,1,WW3D_FORMAT_A4R4G4B4,MIP_LEVELS_1);
 	SurfaceClass *surface=m_whiteTexture->Get_Surface_Level();
 	surface->DrawPixel(0,0,0xffffffff);
@@ -1349,7 +1349,7 @@ void WaterRenderObjClass::loadSetting( Setting *setting, TimeOfDay timeOfDay )
 	SurfaceClass::SurfaceDescription surfaceDesc;
 
 	// sanity
-	DEBUG_ASSERTCRASH( setting, ("WaterRenderObjClass::loadSetting, nullptr setting") );
+	DEBUG_ASSERTCRASH( setting, ("WaterRenderObjClass::loadSetting, null setting") );
 
 	// textures
 	setting->skyTexture = WW3DAssetManager::Get_Instance()->Get_Texture( WaterSettings[ timeOfDay ].m_skyTextureFile.str() );
@@ -2625,7 +2625,7 @@ void WaterRenderObjClass::setGridResolution(Real gridCellsX, Real gridCellsY, Re
 		{
 
 			delete [] m_meshData;//free previously allocated grid and allocate new size
-			m_meshData = nullptr;	 // must set to nullptr so that we properly re-allocate
+			m_meshData = nullptr;	 // must set to null so that we properly re-allocate
 			m_meshDataSize = 0;
 
 			Bool enable = m_doWaterGrid;

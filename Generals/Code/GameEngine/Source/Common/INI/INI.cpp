@@ -455,7 +455,7 @@ void INI::readLine( void )
 	Bool isComment = FALSE;
 
 	// sanity
-	DEBUG_ASSERTCRASH( m_file, ("readLine(), file pointer is nullptr") );
+	DEBUG_ASSERTCRASH( m_file, ("readLine(), file pointer is null") );
 
 	// if we've reached end of file we'll just keep returning empty string in our buffer
 	if( m_endOfFile )
@@ -900,7 +900,7 @@ void INI::parseMappedImage( INI *ini, void * /*instance*/, void *store, const vo
 	else
 	{
 
-		DEBUG_CRASH(( "INI::parseAnim2DTemplate - TheAnim2DCollection is nullptr" ));
+		DEBUG_CRASH(( "INI::parseAnim2DTemplate - TheAnim2DCollection is null" ));
 		throw INI_UNKNOWN_ERROR;
 
 	}

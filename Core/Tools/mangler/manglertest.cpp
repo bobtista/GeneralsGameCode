@@ -49,7 +49,7 @@ unsigned long ResolveIP(const char *Server)
 
   if (Server == nullptr)
   {
-	  ERRMSG("Can't resolve nullptr");
+	  ERRMSG("Can't resolve null");
 	  return 0;
   }
 

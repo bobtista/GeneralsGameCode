@@ -180,7 +180,7 @@ void UpdateRemoteIPList()
 void HostDirectConnectGame()
 {
 	// Init LAN API Singleton
-	DEBUG_ASSERTCRASH(TheLAN != nullptr, ("TheLAN is nullptr!"));
+	DEBUG_ASSERTCRASH(TheLAN != nullptr, ("TheLAN is null!"));
 	if (!TheLAN)
 	{
 		TheLAN = NEW LANAPI();

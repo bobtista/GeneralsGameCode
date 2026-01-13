@@ -2795,7 +2795,7 @@ void InGameUI::createCommandHint( const GameMessage *msg )
 		drawSelectable = false;
 	}
 
-	// Note: These are only non-nullptr if there is exactly one thing selected.
+	// Note: These are only non-null if there is exactly one thing selected.
 	const Drawable *srcDraw = nullptr;
 	const Object *srcObj = nullptr;
 	if (getSelectCount() == 1) {
@@ -3146,7 +3146,7 @@ const CommandButton *InGameUI::getGUICommand( void ) const
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Destroy any drawables we have in our placement icon array and set to nullptr */
+/** Destroy any drawables we have in our placement icon array and set to null */
 //-------------------------------------------------------------------------------------------------
 void InGameUI::destroyPlacementIcons( void )
 {

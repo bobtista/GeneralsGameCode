@@ -395,7 +395,7 @@ Bool Radar::addObject( Object *obj )
 
 	// sanity
 	DEBUG_ASSERTCRASH( obj->friend_getRadarData() == nullptr,
-										 ("Radar: addObject - non nullptr radar data for '%s'",
+										 ("Radar: addObject - non null radar data for '%s'",
 										 obj->getTemplate()->getName().str()) );
 
 	// allocate a new object
@@ -452,7 +452,7 @@ Bool Radar::deleteFromList( Object *obj, RadarObject **list )
 			else
 				prevObject->friend_setNext( radarObject->friend_getNext() );
 
-			// set the object radar data to nullptr
+			// set the object radar data to null
 			obj->friend_setRadarData( nullptr );
 
 			// delete the object instance
@@ -757,7 +757,7 @@ Object *Radar::searchListForRadarLocationMatch( RadarObject *listHead, ICoord2D 
 		if( obj == nullptr )
 		{
 
-			DEBUG_CRASH(( "Radar::searchListForRadarLocationMatch - nullptr object encountered in list" ));
+			DEBUG_CRASH(( "Radar::searchListForRadarLocationMatch - null object encountered in list" ));
 			continue;
 
 		}
@@ -1318,12 +1318,12 @@ static void xferRadarObjectList( Xfer *xfer, RadarObject **head )
 			{
 				if (!radarObject->friend_getObject()->isDestroyed())
 				{
-					DEBUG_CRASH(( "xferRadarObjectList - List head should be nullptr, or contain only destroyed objects" ));
+					DEBUG_CRASH(( "xferRadarObjectList - List head should be null, or contain only destroyed objects" ));
 					throw SC_INVALID_DATA;
 				}
 			}
 #else
-			DEBUG_CRASH(( "xferRadarObjectList - List head should be nullptr, but isn't" ));
+			DEBUG_CRASH(( "xferRadarObjectList - List head should be null, but isn't" ));
 			throw SC_INVALID_DATA;
 #endif
 		}
@@ -1554,7 +1554,7 @@ void Radar::linkRadarObject( RadarObject *newObj, RadarObject **list )
 	RadarObject *prevObject;
 	RadarObject *nextObject;
 
-	DEBUG_ASSERTCRASH(newObj->friend_getNext() == nullptr, ("newObj->friend_getNext is not nullptr"));
+	DEBUG_ASSERTCRASH(newObj->friend_getNext() == nullptr, ("newObj->friend_getNext is not null"));
 
 	prevObject = nullptr;
 	prevPriority = RADAR_PRIORITY_INVALID;

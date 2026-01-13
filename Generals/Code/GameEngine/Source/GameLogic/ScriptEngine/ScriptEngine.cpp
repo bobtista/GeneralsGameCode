@@ -5017,7 +5017,7 @@ void ScriptEngine::updateFades( void )
 Player *ScriptEngine::getCurrentPlayer(void)
 {
 	if (m_currentPlayer==nullptr)
-		AppendDebugMessage("***Unexpected nullptr player:***", false);
+		AppendDebugMessage("***Unexpected null player:***", false);
 	return m_currentPlayer;
 }
 
@@ -5141,7 +5141,7 @@ ObjectTypes *ScriptEngine::getObjectTypes(const AsciiString& objectTypeList)
 
 	for (it = m_allObjectTypeLists.begin(); it != m_allObjectTypeLists.end(); ++it) {
 		if ((*it) == nullptr) {
-			DEBUG_CRASH(("nullptr object type list was unexpected. jkmcd"));
+			DEBUG_CRASH(("null object type list was unexpected. jkmcd"));
 			continue;
 		}
 
@@ -5184,7 +5184,7 @@ void ScriptEngine::doObjectTypeListMaintenance(const AsciiString& objectTypeList
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Given a name, return the associated trigger area, or nullptr if one doesn't exist.
+/** Given a name, return the associated trigger area, or null if one doesn't exist.
 Handles skirmish name qualification.  */
 //-------------------------------------------------------------------------------------------------
 PolygonTrigger *ScriptEngine::getQualifiedTriggerAreaByName( AsciiString name )
@@ -7484,7 +7484,7 @@ void SequentialScript::xfer( Xfer *xfer )
 
 		// sanity
 		DEBUG_ASSERTCRASH( m_scriptToExecuteSequentially != nullptr,
-											 ("SequentialScript::xfer - m_scriptToExecuteSequentially is nullptr but should not be") );
+											 ("SequentialScript::xfer - m_scriptToExecuteSequentially is null but should not be") );
 
 	}
 
@@ -8266,7 +8266,7 @@ void ScriptEngine::xfer( Xfer *xfer )
 			namedObjectName = it->first;
 			xfer->xferAsciiString( &namedObjectName );
 
-			// write object id (note that object may be nullptr)
+			// write object id (note that object may be null)
 			obj = it->second;
 			objectID = obj ? obj->getID() : INVALID_ID;
 			xfer->xferObjectID( &objectID );

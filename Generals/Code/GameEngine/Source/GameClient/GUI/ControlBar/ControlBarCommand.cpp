@@ -1264,7 +1264,7 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 		{
 			// sanity
 			DEBUG_ASSERTCRASH( command->getSpecialPowerTemplate() != nullptr,
-												 ("The special power in the command '%s' is nullptr", command->getName().str()) );
+												 ("The special power in the command '%s' is null", command->getName().str()) );
 			// get special power module from the object to execute it
 			SpecialPowerModuleInterface *mod = obj->getSpecialPowerModule( command->getSpecialPowerTemplate() );
 

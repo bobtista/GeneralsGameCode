@@ -608,7 +608,7 @@ Object::~Object()
 	}
 
 	//
-	// remove from radar before we nullptr out the team ... the order of ops are critical here
+	// remove from radar before we null out the team ... the order of ops are critical here
 	// because the radar code will sometimes look at the team info and it is assumed through
 	// the team and player code that the team is valid
 	//
@@ -1396,7 +1396,7 @@ void Object::clearSpecialModelConditionStates()
 //	}
 //	else
 //	{
-//		DEBUG_CRASH(("nullptr Drawable at this point, you can't get modelconditionflags now."));
+//		DEBUG_CRASH(("null Drawable at this point, you can't get modelconditionflags now."));
 //		static ModelConditionFlags noFlags;
 //		return noFlags;
 //	}
@@ -3706,7 +3706,7 @@ void Object::updateObjValuesFromMapProperties(Dict* properties)
         if ( audioToModify == nullptr )
         {
           const AudioEventInfo * baseInfo = drawable->getBaseSoundAmbientInfo( );
-          DEBUG_ASSERTCRASH( baseInfo != nullptr, ("getBaseSoundAmbientInfo() return nullptr" ) );
+          DEBUG_ASSERTCRASH( baseInfo != nullptr, ("getBaseSoundAmbientInfo() return null" ) );
           if ( baseInfo != nullptr )
           {
             audioToModify = newInstance( DynamicAudioEventInfo )( *baseInfo );

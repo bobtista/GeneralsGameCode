@@ -159,7 +159,7 @@ public:
                   //Use the placement operator new. This simply calls the constructor
                   //of T with 'this' set to the input address. Note that we don't put
                   //a '()' after the T this is because () causes trivial types like int
-                  //and class* to be assigned zero/nullptr. We don't want that.
+                  //and class* to be assigned zero/null. We don't want that.
                   new(pTArray)T;
                   ++pTArray;
                }
@@ -196,7 +196,7 @@ public:
 
 protected:
    int  mnAllocCount;                     //Count of objects allocated. -1 means that nothing is allocated. We don't use zero because zero is a legal allocation count in C++.
-   T*   mpTHeap;                          //This is normally nullptr, but gets used of the allocation request is too high.
+   T*   mpTHeap;                          //This is normally null, but gets used of the allocation request is too high.
    char mTArray[nStackCount*sizeof(T)];   //This is our stack memory.
 };
 ///////////////////////////////////////////////////////////////////////////////

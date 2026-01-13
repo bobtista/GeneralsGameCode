@@ -1628,7 +1628,7 @@ Bool TerrainLogic::isPurposeOfPath( Waypoint *pWay, AsciiString label )
 
 
 //-------------------------------------------------------------------------------------------------
-/** Given a name, return the associated trigger area, or nullptr if one doesn't exist. */
+/** Given a name, return the associated trigger area, or null if one doesn't exist. */
 //-------------------------------------------------------------------------------------------------
 PolygonTrigger *TerrainLogic::getTriggerAreaByName( AsciiString name )
 {
@@ -2276,7 +2276,7 @@ Real TerrainLogic::getWaterHeight( const WaterHandle *water )
 	}
 
 	// sanity
-	DEBUG_ASSERTCRASH( water->m_polygon != nullptr, ("getWaterHeight: polygon trigger in water handle is nullptr") );
+	DEBUG_ASSERTCRASH( water->m_polygon != nullptr, ("getWaterHeight: polygon trigger in water handle is null") );
 
 	// return the height of the water using the polygon trigger
 	return water->m_polygon->getPoint( 0 )->z;

@@ -1464,7 +1464,7 @@ StateReturnType AIDeadState::onEnter()
 {
 	Object *obj = getMachineOwner();
 
-	// How can an object be nullptr here? I don't think it actually can, but this check must be
+	// How can an object be null here? I don't think it actually can, but this check must be
 	// here for a reason. - jkmcd
 	if (obj)
 	{
@@ -1727,7 +1727,7 @@ void AIInternalMoveToState::onExit( StateExitType status )
 	// (This is why destructors should not do game logic)
 	if (ai) {
 		ai->friend_endingMove();
-		DEBUG_ASSERTLOG(obj->getTeam(), ("AIInternalMoveToState::onExit obj has nullptr team."));
+		DEBUG_ASSERTLOG(obj->getTeam(), ("AIInternalMoveToState::onExit obj has null team."));
 		if (obj->getTeam() && ai->isDoingGroundMovement() && ai->getCurLocomotor() &&
 								ai->getCurLocomotor()->isUltraAccurate()) {
 			Real dx = m_goalPosition.x-obj->getPosition()->x;
@@ -3474,7 +3474,7 @@ AsciiString AIAttackMoveToState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_attackMoveMachine) name.concat(m_attackMoveMachine->getCurrentStateName());
-	else name.concat("*nullptr m_deployMachine");
+	else name.concat("*null m_deployMachine");
 	return name;
 }
 #endif
@@ -4308,7 +4308,7 @@ AsciiString AIAttackFollowWaypointPathState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_attackFollowMachine) name.concat(m_attackFollowMachine->getCurrentStateName());
-	else name.concat("*nullptr m_attackFollowMachine");
+	else name.concat("*null m_attackFollowMachine");
 	return name;
 }
 #endif
@@ -5264,7 +5264,7 @@ AsciiString AIAttackState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_attackMachine) name.concat(m_attackMachine->getCurrentStateName());
-	else name.concat("*nullptr m_attackMachine");
+	else name.concat("*null m_attackMachine");
 	return name;
 }
 #endif
@@ -5640,7 +5640,7 @@ AsciiString AIAttackSquadState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_attackSquadMachine) name.concat(m_attackSquadMachine->getCurrentStateName());
-	else name.concat("*nullptr m_attackSquadMachine");
+	else name.concat("*null m_attackSquadMachine");
 	return name;
 }
 #endif
@@ -5874,7 +5874,7 @@ AsciiString AIDockState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_dockMachine) name.concat(m_dockMachine->getCurrentStateName());
-	else name.concat("*nullptr m_dockMachine");
+	else name.concat("*null m_dockMachine");
 	return name;
 }
 #endif
@@ -6321,7 +6321,7 @@ AsciiString AIGuardState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_guardMachine) name.concat(m_guardMachine->getCurrentStateName());
-	else name.concat("*nullptr guardMachine");
+	else name.concat("*null guardMachine");
 	return name;
 }
 #endif
@@ -6447,7 +6447,7 @@ AsciiString AITunnelNetworkGuardState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_guardMachine) name.concat(m_guardMachine->getCurrentStateName());
-	else name.concat("*nullptr guardMachine");
+	else name.concat("*null guardMachine");
 	return name;
 }
 #endif
@@ -6645,7 +6645,7 @@ AsciiString AIHuntState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_huntMachine) name.concat(m_huntMachine->getCurrentStateName());
-	else name.concat("*nullptr huntMachine");
+	else name.concat("*null huntMachine");
 	return name;
 }
 #endif
@@ -6807,7 +6807,7 @@ AsciiString AIAttackAreaState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_attackMachine) name.concat(m_attackMachine->getCurrentStateName());
-	else name.concat("*nullptr m_attackMachine");
+	else name.concat("*null m_attackMachine");
 	return name;
 }
 #endif

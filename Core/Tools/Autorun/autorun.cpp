@@ -613,7 +613,7 @@ int PASCAL WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpszCmd
 	//	If the named mutex object existed before the function call, the function returns
 	//	a handle to the existing object and GetLastError returns ERROR_ALREADY_EXISTS.
 	//	Otherwise, the caller created the mutex.
-	//	If the function fails, the return value is nullptr. To get extended error
+	//	If the function fails, the return value is null. To get extended error
 	//	information, call GetLastError.
 	//
 	// WARNING: DO NOT use this number for any other application except Autorun
@@ -659,7 +659,7 @@ int PASCAL WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpszCmd
 	//
 	//	Return Values
 	//	If the function succeeds, the return value is a handle to the mutex object.
-	//	If the function fails, the return value is nullptr. To get extended error
+	//	If the function fails, the return value is null. To get extended error
 	//	information, call GetLastError.
 	//
 	// WARNING: DO NOT use this number for any other application except Game/Setup.

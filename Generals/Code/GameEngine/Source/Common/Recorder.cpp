@@ -1447,13 +1447,13 @@ void RecorderClass::appendNextCommand() {
 
 		--argsLeftForType;
 		if (argsLeftForType == 0) {
-			DEBUG_ASSERTCRASH(parserArgType != nullptr, ("parserArgType was nullptr when it shouldn't have been."));
+			DEBUG_ASSERTCRASH(parserArgType != nullptr, ("parserArgType was null when it shouldn't have been."));
 			if (parserArgType == nullptr) {
 				return;
 			}
 
 			parserArgType = parserArgType->getNext();
-			// parserArgType is allowed to be nullptr here, this is the case if there are no more arguments.
+			// parserArgType is allowed to be null here, this is the case if there are no more arguments.
 			if (parserArgType != nullptr) {
 				argsLeftForType = parserArgType->getArgCount();
 				lasttype = parserArgType->getType();

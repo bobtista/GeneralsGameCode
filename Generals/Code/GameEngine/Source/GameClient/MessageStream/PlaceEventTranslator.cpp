@@ -207,7 +207,7 @@ GameMessageDisposition PlaceEventTranslator::translateGameMessage(const GameMess
 					break;
 				}
 
-				DEBUG_ASSERTCRASH(builderObj != nullptr, ("builderObj is nullptr"));
+				DEBUG_ASSERTCRASH(builderObj != nullptr, ("builderObj is null"));
 
 				// check to see if this is a legal location to build something at
 				LegalBuildCode lbc;

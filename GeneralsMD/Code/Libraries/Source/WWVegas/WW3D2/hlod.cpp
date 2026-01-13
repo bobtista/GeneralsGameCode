@@ -2009,7 +2009,7 @@ void HLodClass::Include_NULL_Lod(bool include)
 			Cost = temp_cost;
 			LodCount ++;
 
-			// Add this nullptr object to the start of the lod list
+			// Add this null object to the start of the lod list
 			Add_Lod_Model (0, null_object, 0);
 			null_object->Release_Ref ();
 		}

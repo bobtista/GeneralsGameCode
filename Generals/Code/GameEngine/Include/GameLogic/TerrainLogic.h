@@ -274,10 +274,10 @@ public:
 	///Gets the first bridge.  Traverse all bridges using bridge->getNext();
 	virtual Bridge *getFirstBridge(void) const { return m_bridgeListHead; }
 
-	/// Find the bridge at a location.  nullptr means no bridge.
+	/// Find the bridge at a location.  null means no bridge.
 	virtual Bridge *findBridgeAt(const Coord3D *pLoc) const;
 
-	/// Find the bridge at a location.  nullptr means no bridge. Note that the layer value will be used to resolve crossing bridges.
+	/// Find the bridge at a location.  null means no bridge. Note that the layer value will be used to resolve crossing bridges.
 	virtual Bridge *findBridgeLayerAt(const Coord3D *pLoc, PathfindLayerEnum layer, Bool clip = true) const;
 
 	///  Returns true if the object is close enough to interact with the bridge for pathfinding.

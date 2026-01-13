@@ -1739,7 +1739,7 @@ void W3DVolumetricShadow::updateVolumes(Real zoffset)
 	static SphereClass sphere;
 	Int meshIndex;
 
-	DEBUG_ASSERTCRASH(hlod != nullptr,("updateVolumes : hlod is nullptr!"));
+	DEBUG_ASSERTCRASH(hlod != nullptr,("updateVolumes : hlod is null!"));
 
 	Bool parentVis=m_robj->Is_Really_Visible();
 

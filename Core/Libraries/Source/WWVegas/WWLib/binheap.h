@@ -65,7 +65,7 @@ class HeapNodeClass
 };
 
 // WARNING!
-// To reduce the number of compares, element [0] is a sentinel.  It's key value must be the smallest or nullptr.
+// To reduce the number of compares, element [0] is a sentinel.  It's key value must be the smallest or null.
 // Keeps track of pointers to objects.
 template <class Key_Type>
 class BinaryHeapClass
@@ -100,7 +100,7 @@ class BinaryHeapClass
 			Release_Array ();
 		}
 
-		// Reset all entries in the array to nullptr
+		// Reset all entries in the array to null
 		void Flush_Array (void)
 		{
 			::memset (Elements, nullptr, sizeof (HeapNodeClass<Key_Type> *) * Max_Number_Of_Elements);
@@ -119,7 +119,7 @@ class BinaryHeapClass
 			Number_Of_Elements		= 0;
 			Own_Array					= true;
 
-			// Initialize to nullptr
+			// Initialize to null
 			::memset (Elements, nullptr, sizeof (HeapNodeClass<Key_Type> *) * new_size);
 			return ;
 		}

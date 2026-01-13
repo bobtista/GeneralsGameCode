@@ -548,7 +548,7 @@ inline TriangleQueue::~TriangleQueue ()
  * Description:		Internal function for recalculating a triangle's
  *					connectivity
  *
- * Parameters:		t = pointer to triangle (non-nullptr)
+ * Parameters:		t = pointer to triangle (non-null)
  *
  *****************************************************************************/
 
@@ -585,7 +585,7 @@ inline void TriangleQueue::reinsert (Triangle* t)
  *
  * Description:		Removes a triangle from the queue
  *
- * Parameters:		t = pointer to triangle (non-nullptr)
+ * Parameters:		t = pointer to triangle (non-null)
  *
  *****************************************************************************/
 

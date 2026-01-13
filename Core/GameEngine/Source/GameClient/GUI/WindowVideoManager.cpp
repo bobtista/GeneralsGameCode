@@ -92,7 +92,7 @@ WindowVideo::WindowVideo( void )
 
 WindowVideo::~WindowVideo( void )
 {
-	// Don't Delete the window, only set it's video buffer to nullptr
+	// Don't Delete the window, only set it's video buffer to null
 	if(m_win)
 		m_win->winGetInstanceData()->setVideoBuffer( nullptr );
 	m_win = nullptr;

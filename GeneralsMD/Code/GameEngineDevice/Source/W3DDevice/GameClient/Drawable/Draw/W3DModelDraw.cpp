@@ -1812,7 +1812,7 @@ void W3DModelDraw::doStartOrStopParticleSys()
 	{
 		ParticleSystem *sys = TheParticleSystemManager->findParticleSystem((*it).id);
 		if (sys != nullptr) {
-			// this can be nullptr
+			// this can be null
 			if (hidden) {
 				sys->stop();
 			} else {
@@ -2393,7 +2393,7 @@ void W3DModelDraw::stopClientParticleSystems()
 		ParticleSystem *sys = TheParticleSystemManager->findParticleSystem((*it).id);
 		if (sys != nullptr)
 		{
-			// this can be nullptr
+			// this can be null
 			sys->destroy();
 		}
 	}
@@ -3081,7 +3081,7 @@ void W3DModelDraw::setModelState(const ModelConditionInfo* newState)
 			shadowInfo.m_offsetX				= tmplate->getShadowOffsetX();
 			shadowInfo.m_offsetY				= tmplate->getShadowOffsetY();
 
-			DEBUG_ASSERTCRASH(m_shadow == nullptr, ("m_shadow is not nullptr"));
+			DEBUG_ASSERTCRASH(m_shadow == nullptr, ("m_shadow is not null"));
  			m_shadow = TheW3DShadowManager->addShadow(m_renderObject, &shadowInfo, draw);
 			if (m_shadow)
 			{	m_shadow->enableShadowInvisible(m_fullyObscuredByShroud);

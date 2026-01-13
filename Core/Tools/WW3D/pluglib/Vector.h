@@ -522,7 +522,7 @@ protected:
 
       // Uninitialized Add - does everything an Add does, except copying an
       // object into the 'new' spot in the array. It returns a pointer to
-      // the 'new' spot. (nullptr if the Add failed). NOTE - you must then fill
+      // the 'new' spot. (null if the Add failed). NOTE - you must then fill
       // this memory area with a valid object (e.g. by using placement new),
       // or chaos will result!
       T * Uninitialized_Add(void);

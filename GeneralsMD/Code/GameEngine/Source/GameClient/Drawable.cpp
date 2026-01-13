@@ -3967,7 +3967,7 @@ void Drawable::clearAndSetModelConditionState( ModelConditionFlagType clr, Model
 DrawModule** Drawable::getDrawModulesNonDirty()
 {
 	DrawModule** dm = (DrawModule**)getModuleList(MODULETYPE_DRAW);
-	DEBUG_ASSERTCRASH(dm != nullptr, ("Draw Module List is not expected nullptr"));
+	DEBUG_ASSERTCRASH(dm != nullptr, ("Draw Module List is not expected null"));
 	return dm;
 }
 
@@ -3993,7 +3993,7 @@ DrawModule** Drawable::getDrawModules()
 	}
 #endif
 
-	DEBUG_ASSERTCRASH(dm != nullptr, ("Draw Module List is not expected nullptr"));
+	DEBUG_ASSERTCRASH(dm != nullptr, ("Draw Module List is not expected null"));
 	return dm;
 }
 
@@ -4019,7 +4019,7 @@ DrawModule const** Drawable::getDrawModules() const
 	}
 #endif
 
-	DEBUG_ASSERTCRASH(dm != nullptr, ("Draw Module List is not expected nullptr"));
+	DEBUG_ASSERTCRASH(dm != nullptr, ("Draw Module List is not expected null"));
 	return dm;
 }
 
@@ -4178,7 +4178,7 @@ void Drawable::friend_bindToObject( Object *obj ) ///< bind this drawable to an 
 	PhysicsXformInfo physicsXform;
 	if (calcPhysicsXform(physicsXform))
 	{
-		DEBUG_ASSERTCRASH(m_physicsXform == nullptr, ("m_physicsXform is not nullptr"));
+		DEBUG_ASSERTCRASH(m_physicsXform == nullptr, ("m_physicsXform is not null"));
 		m_physicsXform = new PhysicsXformInfo;
 		*m_physicsXform = physicsXform;
 	}

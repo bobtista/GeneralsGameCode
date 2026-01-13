@@ -153,7 +153,7 @@ if (!DCHECK_MSG(!(cond),msg))
     \endcode
     so it can be used e.g. like this:
     \code
-DFAIL_IF_MSG(!ptrval,"pointer must not be nullptr") return;
+DFAIL_IF_MSG(!ptrval,"pointer must not be null") return;
     \endcode
 
     \param cond condition which is checked for failure

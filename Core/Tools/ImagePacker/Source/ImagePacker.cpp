@@ -137,7 +137,7 @@ Bool ImagePacker::validateImages( void )
 		if( image == nullptr )
 		{
 
-			DEBUG_ASSERTCRASH( image, ("Image in imagelist is nullptr") );
+			DEBUG_ASSERTCRASH( image, ("Image in imagelist is null") );
 			continue;  // should never happen
 
 		}

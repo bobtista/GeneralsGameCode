@@ -646,7 +646,7 @@ WindowMsgHandledType ChallengeMenuSystem( GameWindow *window, UnsignedInt msg, W
  			{
 				if( TheChallengeGameInfo == nullptr )
 				{
-					// If this is nullptr, then we must be on the way back out of this menu.
+					// If this is null, then we must be on the way back out of this menu.
 					// Don't crash, just eat the button click message.
 					return MSG_HANDLED;
 				}

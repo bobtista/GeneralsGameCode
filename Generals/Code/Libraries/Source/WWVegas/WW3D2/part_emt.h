@@ -303,9 +303,9 @@ class ParticleEmitterClass : public RenderObjClass
 		unsigned int				BurstSize;			// Burst size (how many particles in each emission).
 		unsigned int				OneTimeBurstSize;	// Burst size for a one-time burst.
 		bool							OneTimeBurst;		// Do we need to do a one-time burst?
-		Vector3Randomizer *		PosRand;				// Position randomizer pointer (may be nullptr).
+		Vector3Randomizer *		PosRand;				// Position randomizer pointer (may be null).
 		Vector3						BaseVel;				// Base initial emission velocity.
-		Vector3Randomizer *		VelRand;				// Velocity randomizer pointer (may be nullptr).
+		Vector3Randomizer *		VelRand;				// Velocity randomizer pointer (may be null).
 		float							OutwardVel;			// Size of outwards velocity.
 		float							VelInheritFactor;	// Affects emitter vel. inherited by particles.
 		unsigned int				EmitRemain;			// Millisecond emitter remainder.

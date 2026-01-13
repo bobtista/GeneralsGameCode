@@ -265,7 +265,7 @@ const Image* Anim2DTemplate::getFrame( UnsignedShort frameNumber ) const
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_images != nullptr,
-										 ("Anim2DTemplate::getFrame - Image data is nullptr for animation '%s'",
+										 ("Anim2DTemplate::getFrame - Image data is null for animation '%s'",
 										  getName().str()) );
 
 	// sanity
@@ -296,7 +296,7 @@ const Image* Anim2DTemplate::getFrame( UnsignedShort frameNumber ) const
 Anim2D::Anim2D( Anim2DTemplate *animTemplate, Anim2DCollection *collectionSystem )
 {
 	// sanity
-	DEBUG_ASSERTCRASH( animTemplate != nullptr, ("Anim2D::Anim2D - nullptr template") );
+	DEBUG_ASSERTCRASH( animTemplate != nullptr, ("Anim2D::Anim2D - null template") );
 
 	m_currentFrame = 0;
 
@@ -716,7 +716,7 @@ Anim2DCollection::~Anim2DCollection( void )
 {
 
 	// there should not be any animation instances registered with us since we're being destroyed
-	DEBUG_ASSERTCRASH( m_instanceList == nullptr, ("Anim2DCollection - instance list is not nullptr") );
+	DEBUG_ASSERTCRASH( m_instanceList == nullptr, ("Anim2DCollection - instance list is not null") );
 
 	// delete all the templates
 	Anim2DTemplate *nextTemplate;

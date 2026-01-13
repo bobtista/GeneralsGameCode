@@ -1786,7 +1786,7 @@ Bool AIUpdateInterface::computeAttackPath( PathfindServicesInterface *pathServic
 	Object* source = getObject();
 	if (!victim && !victimPos)
 	{
-		//CRCDEBUG_LOG(("AIUpdateInterface::computeAttackPath() - victim is nullptr"));
+		//CRCDEBUG_LOG(("AIUpdateInterface::computeAttackPath() - victim is null"));
 		return FALSE;
 	}
 
@@ -1971,7 +1971,7 @@ Bool AIUpdateInterface::computeAttackPath( PathfindServicesInterface *pathServic
 
 //-------------------------------------------------------------------------------------------------
 /**
- * Destroy the current path, and set it to nullptr
+ * Destroy the current path, and set it to null
  */
 void AIUpdateInterface::destroyPath( void )
 {

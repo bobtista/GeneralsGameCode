@@ -169,7 +169,7 @@ void TunnelContain::killAllContained( void )
 	while ( it != list.end() )
 	{
 		Object *obj = *it++;
-		DEBUG_ASSERTCRASH( obj, ("Contain list must not contain nullptr element"));
+		DEBUG_ASSERTCRASH( obj, ("Contain list must not contain null element"));
 
 		removeFromContain( obj, true );
 
@@ -194,7 +194,7 @@ void TunnelContain::removeAllContained( Bool exposeStealthUnits )
 	while ( it != list.end() )
 	{
 		Object *obj = *it++;
-		DEBUG_ASSERTCRASH( obj, ("Contain list must not contain nullptr element"));
+		DEBUG_ASSERTCRASH( obj, ("Contain list must not contain null element"));
 
 		removeFromContain( obj, exposeStealthUnits );
 	}
