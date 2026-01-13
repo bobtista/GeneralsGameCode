@@ -6913,14 +6913,14 @@ void ScriptEngine::checkConditionsForTeamNames(Script *pScript)
 						singletonTeamName = teamName;		// Singleton team - use if it is the only one, but can have multiple of these.
 					} else {
 						if (multiTeamName.isEmpty()) {
-							multiTeamName = teamName;		// Use one non-singleton team.  Good.
+							multiTeamName = teamName;		// Use one team defined multiple times.  Good.
 						} else if (multiTeamName!=teamName) {
-							// More than one non-singleton team - bad.
-							AppendDebugMessage("***WARNING: Script contains multiple non-singleton team conditions::***", false);
+							// More than one team defined multiple times - bad.
+							AppendDebugMessage("***WARNING: Script contains multiple conditions for teams defined multiple times::***", false);
 							AppendDebugMessage(scriptName, false);
 							AppendDebugMessage(multiTeamName, false);
 							AppendDebugMessage(teamName, false);
-							DEBUG_LOG(("WARNING: Script '%s' contains multiple non-singleton team conditions: %s & %s.", scriptName.str(),
+							DEBUG_LOG(("WARNING: Script '%s' contains multiple conditions for teams defined multiple times: %s & %s.", scriptName.str(),
 								multiTeamName.str(), teamName.str()));
 						}
 					}
