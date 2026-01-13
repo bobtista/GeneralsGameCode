@@ -98,7 +98,7 @@ class RefPtrBase
 
 	protected:
 		RefPtrBase()
-			: mRefObject()
+			: mRefObject(nullptr)
 			{}
 
 		RefPtrBase(RefCounted* object)

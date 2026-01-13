@@ -68,7 +68,7 @@ class GeometryExportContextClass;
 
 struct ConnectionStruct
 {
-	ConnectionStruct(void) : BoneIndex(0),MeshINode()
+	ConnectionStruct(void) : BoneIndex(0),MeshINode(nullptr)
 	{
 		memset(ObjectName,0,sizeof(ObjectName));
 	}

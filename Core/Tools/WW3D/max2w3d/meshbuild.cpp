@@ -569,7 +569,7 @@ MeshBuilderClass::MeshBuilderClass(int pass_count,int face_count_guess,int face_
 	AllocFaceGrowth(0),
 	PolyOrderPass(0),
 	PolyOrderStage(0),
-	WorldInfo ()
+	WorldInfo(nullptr)
 {
 	Reset(pass_count,face_count_guess,face_count_growth_rate);
 }
