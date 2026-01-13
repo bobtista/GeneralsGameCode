@@ -27,7 +27,6 @@
 // Stack walker
 //////////////////////////////////////////////////////////////////////////////
 
-#include <Utility/CppMacros.h>
 #include "debug.h"
 #include "debug_stack.h"
 #include <windows.h>
@@ -102,7 +101,7 @@ static void InitDbghelp(void)
   {
     // not all functions found -> clear them all
     while (funcptr!=gDbg.funcPtr)
-      *--funcptr=nullptr;
+      *--funcptr=0;
   }
   else
   {
@@ -382,7 +381,7 @@ int DebugStackwalk::StackWalk(Signature &sig, struct _CONTEXT *ctx)
   bool skipFirst=!ctx;
   while (sig.m_numAddr<Signature::MAX_ADDR&&
 		     gDbg._StackWalk(IMAGE_FILE_MACHINE_I386,GetCurrentProcess(),GetCurrentThread(),
-                         &stackFrame,nullptr,NULL,gDbg._SymFunctionTableAccess,gDbg._SymGetModuleBase,nullptr))
+                         &stackFrame,nullptr,nullptr,gDbg._SymFunctionTableAccess,gDbg._SymGetModuleBase,nullptr))
   {
     if (skipFirst)
       skipFirst=false;

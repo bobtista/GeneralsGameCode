@@ -910,7 +910,7 @@ TSTR GameMtl::SubAnimName(int i)
  *=============================================================================================*/
 Animatable* GameMtl::SubAnim(int i)
 {
-	return NULL;
+	return nullptr;
 }
 
 
@@ -1120,7 +1120,7 @@ RefTargetHandle GameMtl::GetReference(int i)
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 

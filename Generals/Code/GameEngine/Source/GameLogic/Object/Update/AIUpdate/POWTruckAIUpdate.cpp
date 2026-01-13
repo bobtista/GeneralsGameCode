@@ -509,7 +509,7 @@ static void putContainedInPrison( Object *obj, void *userData )
 	PrisonerReturnData *returnData = (PrisonerReturnData *)userData;
 
 	// sanity
-	DEBUG_ASSERTCRASH( returnData != NULL && returnData->source != NULL && returnData->dest != nullptr,
+	DEBUG_ASSERTCRASH( returnData != nullptr && returnData->source != nullptr && returnData->dest != nullptr,
 										 ("putContainedInPrison: Invalid arguments") );
 
 	// take 'obj' out of the source
@@ -634,7 +634,7 @@ Object *POWTruckAIUpdate::findBestPrison( void )
 
 	ObjectID prisonID = getObject()->getProducerID();
 	if( prisonID == INVALID_ID )
-		return NULL;
+		return nullptr;
 
 	// find prison object
 	Object *prison = TheGameLogic->findObjectByID( prisonID );
@@ -653,7 +653,7 @@ Object *POWTruckAIUpdate::findBestTarget( void )
 
 	// sanity
 	if( player == nullptr )
-		return NULL;
+		return nullptr;
 
 	// get our info
 	const AIUpdateInterface *ai = us->getAIUpdateInterface();
@@ -680,7 +680,7 @@ Object *POWTruckAIUpdate::findBestTarget( void )
 
 		// is this target closer than the one we've found so far
 		Real distSq = ThePartitionManager->getDistanceSquared( us, other, FROM_CENTER_2D );
-		if( closestTarget == NULL || distSq < closestTargetDistSq )
+		if( closestTarget == nullptr || distSq < closestTargetDistSq )
 		{
 
 			// we must be able to pathfind to this target
@@ -727,7 +727,7 @@ static void putPrisonersInPrison( Object *obj, void *userData )
 	Object *prison = prisonUnloadData->destPrison;
 
 	// sanity
-	DEBUG_ASSERTCRASH( prison, ("putPrisonersInPrison: NULL user data") );
+	DEBUG_ASSERTCRASH( prison, ("putPrisonersInPrison: nullptr user data") );
 	DEBUG_ASSERTCRASH( obj->getContainedBy() != nullptr,
 										 ("putPrisonersInPrison: Prisoner '%s' is not contained by anything, it should be contained by a POW truck",
 										 obj->getTemplate()->getName().str()) );
@@ -862,7 +862,7 @@ void POWTruckAIUpdate::loadPrisoner( Object *prisoner )
 	//
 	AIUpdateInterface *prisonerAI = prisoner->getAIUpdateInterface();
 	if( prisonerAI )
-		prisonerAI->setSurrendered( NULL, FALSE );
+		prisonerAI->setSurrendered( nullptr, FALSE );
 
 	// done adding prisoner, for automatic AI find another target, for manual just wait
 	if( m_aiMode == AUTOMATIC )

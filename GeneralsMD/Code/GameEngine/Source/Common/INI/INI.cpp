@@ -459,7 +459,7 @@ UnsignedInt INI::load( AsciiString filename, INILoadType loadType, Xfer *pXfer )
 void INI::readLine( void )
 {
 	// sanity
-	DEBUG_ASSERTCRASH( m_file, ("readLine(), file pointer is NULL") );
+	DEBUG_ASSERTCRASH( m_file, ("readLine(), file pointer is nullptr") );
 
   if (m_endOfFile)
     *m_buffer=0;
@@ -898,7 +898,7 @@ void INI::parseMappedImage( INI *ini, void * /*instance*/, void *store, const vo
 	else
 	{
 
-		DEBUG_CRASH(( "INI::parseAnim2DTemplate - TheAnim2DCollection is NULL" ));
+		DEBUG_CRASH(( "INI::parseAnim2DTemplate - TheAnim2DCollection is nullptr" ));
 		throw INI_UNKNOWN_ERROR;
 
 	}
@@ -1299,7 +1299,7 @@ void INI::parseFXList( INI* ini, void * /*instance*/, void *store, const void* /
 	ConstFXListPtr* theFXList = (ConstFXListPtr*)store;
 
 	const FXList *fxl = TheFXListStore->findFXList(token);	// could be null!
-	DEBUG_ASSERTCRASH(fxl != NULL || stricmp(token, "None") == 0, ("FXList %s not found!",token));
+	DEBUG_ASSERTCRASH(fxl != nullptr || stricmp(token, "None") == 0, ("FXList %s not found!",token));
 	// assign it, even if null!
 	*theFXList = fxl;
 

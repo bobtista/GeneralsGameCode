@@ -98,7 +98,7 @@ protected:
 LogClass::LogClass(const char *fname)
 {
 	char buffer[ _MAX_PATH ];
-	GetModuleFileName( NULL, buffer, sizeof( buffer ) );
+	GetModuleFileName( nullptr, buffer, sizeof( buffer ) );
 	if (char *pEnd = strrchr(buffer, '\\'))
 	{
 		*pEnd = 0;
@@ -379,7 +379,7 @@ W3DAnimationInfo::~W3DAnimationInfo()
 {
 #ifdef RETAIN_ANIM_HANDLES
 	REF_PTR_RELEASE(m_handle);
-	m_handle = NULL;
+	m_handle = nullptr;
 #endif
 }
 
@@ -393,8 +393,8 @@ void ModelConditionInfo::preloadAssets( TimeOfDay timeOfDay, Real scale )
 	}
 
 	// this can be called from the client, which is problematic
-//	validateStuff(NULL, getDrawable()->getScale());
-	//validateCachedBones(NULL, scale);
+//	validateStuff(nullptr, getDrawable()->getScale());
+	//validateCachedBones(nullptr, scale);
 	//validateTurretInfo();
 	//validateWeaponBarrelInfo();
 }
@@ -476,7 +476,7 @@ static Bool findSingleSubObj(RenderObjClass* robj, const AsciiString& boneName, 
 #if defined(RTS_DEBUG)
 				test->Release_Ref();
 				test = robj->Get_Sub_Object_On_Bone(0, boneIndex);
-				DEBUG_ASSERTCRASH(test != NULL && test == childObject, ("*** ASSET ERROR: Hmm, bone problem"));
+				DEBUG_ASSERTCRASH(test != nullptr && test == childObject, ("*** ASSET ERROR: Hmm, bone problem"));
 #endif
 			}
 			if (test) test->Release_Ref();
@@ -1777,7 +1777,7 @@ void W3DModelDraw::doStartOrStopParticleSys()
 	{
 		ParticleSystem *sys = TheParticleSystemManager->findParticleSystem((*it).id);
 		if (sys != nullptr) {
-			// this can be NULL
+			// this can be nullptr
 			if (hidden) {
 				sys->stop();
 			} else {
@@ -2352,7 +2352,7 @@ void W3DModelDraw::stopClientParticleSystems()
 		ParticleSystem *sys = TheParticleSystemManager->findParticleSystem((*it).id);
 		if (sys != nullptr)
 		{
-			// this can be NULL
+			// this can be nullptr
 			sys->destroy();
 		}
 	}
@@ -3026,7 +3026,7 @@ void W3DModelDraw::setModelState(const ModelConditionInfo* newState)
 			shadowInfo.m_offsetX				= tmplate->getShadowOffsetX();
 			shadowInfo.m_offsetY				= tmplate->getShadowOffsetY();
 
-			DEBUG_ASSERTCRASH(m_shadow == nullptr, ("m_shadow is not NULL"));
+			DEBUG_ASSERTCRASH(m_shadow == nullptr, ("m_shadow is not nullptr"));
 			m_shadow = TheW3DShadowManager->addShadow(m_renderObject, &shadowInfo, draw);
 			if (m_shadow)
 			{	m_shadow->enableShadowInvisible(m_fullyObscuredByShroud);
@@ -3171,7 +3171,7 @@ void W3DModelDraw::replaceIndicatorColor(Color color)
 		{
 			m_hexColor = newColor;
 
-			// set these to NULL to force a regen of everything in setModelState.
+			// set these to nullptr to force a regen of everything in setModelState.
 			const ModelConditionInfo* tmp = m_curState;
 			m_curState = nullptr;
 			m_nextState = nullptr;
@@ -3373,7 +3373,7 @@ Int W3DModelDraw::getPristineBonePositionsForConditionState(
 //	{
 //		CRCDEBUG_LOG(("W3DModelDraw::getPristineBonePositionsForConditionState() - state = '%s'",
 //			stateToUse->getDescription().str()));
-//		//CRCDEBUG_LOG(("renderObject == NULL: %d", (stateToUse==m_curState)?(m_renderObject == NULL):1));
+//		//CRCDEBUG_LOG(("renderObject == nullptr: %d", (stateToUse==m_curState)?(m_renderObject == nullptr):1));
 //	}
 
 	//BONEPOS_LOG(("validateStuff() from within W3DModelDraw::getPristineBonePositionsForConditionState()"));
@@ -3725,8 +3725,8 @@ void W3DModelDraw::setAnimationLoopDuration(UnsignedInt numFrames)
 {
 // this is never defined -- srj
 #ifdef NO_DURATIONS_ON_TRANSITIONS
-	if (m_curState != NULL && m_curState->m_transition != NO_TRANSITION &&
-			m_nextState != NULL && m_nextState->m_transition == NO_TRANSITION)
+	if (m_curState != nullptr && m_curState->m_transition != NO_TRANSITION &&
+			m_nextState != nullptr && m_nextState->m_transition == NO_TRANSITION)
 	{
 		DEBUG_LOG(("deferring pending duration of %d frames",numFrames));
 		m_nextStateAnimLoopDuration = numFrames;
@@ -3734,7 +3734,7 @@ void W3DModelDraw::setAnimationLoopDuration(UnsignedInt numFrames)
 	}
 
 	m_nextStateAnimLoopDuration = NO_NEXT_DURATION;
-	DEBUG_ASSERTCRASH(m_curState != NULL && m_curState->m_transition == NO_TRANSITION, ("Hmm, setAnimationLoopDuration on a transition state is probably not right... see srj"));
+	DEBUG_ASSERTCRASH(m_curState != nullptr && m_curState->m_transition == NO_TRANSITION, ("Hmm, setAnimationLoopDuration on a transition state is probably not right... see srj"));
 #else
 	m_nextStateAnimLoopDuration = NO_NEXT_DURATION;
 #endif

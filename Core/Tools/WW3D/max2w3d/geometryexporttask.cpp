@@ -79,7 +79,7 @@ public:
 	MeshGeometryExportTaskClass(INode * node,GeometryExportContextClass & context) :
 		GeometryExportTaskClass(node,context),
 		NameDirty(false),
-		SingleMtl(NULL)
+		SingleMtl()
 	{
 		/*
 		** Copy the export options
@@ -271,7 +271,7 @@ protected:
 
 /**
 ** NullGeometryExportTaskClass
-** Export task for INodes which are to generate W3D NULL objects.  Note that this
+** Export task for INodes which are to generate W3D nullptr objects.  Note that this
 ** does not do anything in the Export_Geometry call, these only create entries in
 ** any Hierarhcical model or collection object being exported.
 */
@@ -506,7 +506,7 @@ GeometryExportTaskClass *
 GeometryExportTaskClass::Create_Task(INode * node,GeometryExportContextClass & context)
 {
 	if (!::Is_Geometry(node)) {
-		return NULL;
+		return nullptr;
 	}
 
 	// NOTE: we *have* to check Is_Proxy first because it is tied to a naming convention
@@ -535,7 +535,7 @@ GeometryExportTaskClass::Create_Task(INode * node,GeometryExportContextClass & c
 		return new AggregateGeometryExportTaskClass(node,context);
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 

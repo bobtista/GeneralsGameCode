@@ -178,7 +178,7 @@ SinglePlayerLoadScreen::SinglePlayerLoadScreen( void )
 {
 	m_currentObjectiveLine = 0;
 	m_currentObjectiveLineCharacter = 0;
-	m_finishedObjectiveText = nullptr;
+	m_finishedObjectiveText = FALSE;
 	m_currentObjectiveWidthOffset = 0;
 	m_progressBar = nullptr;
 	m_percent = nullptr;
@@ -208,7 +208,7 @@ SinglePlayerLoadScreen::~SinglePlayerLoadScreen( void )
 	}
 
 	TheAudio->removeAudioEvent( m_ambientLoopHandle );
-	m_ambientLoopHandle = NULL;
+	m_ambientLoopHandle = 0;
 
 }
 
@@ -675,9 +675,9 @@ ChallengeLoadScreen::ChallengeLoadScreen( void )
 	m_portraitMovieLeft = nullptr;
 	m_portraitMovieRight = nullptr;
 
-//	m_overlayReticleCrosshairs = NULL;
-//	m_overlayReticleCircleLineOuter = NULL;
-//	m_overlayReticleCircleLineInner = NULL;
+//	m_overlayReticleCrosshairs = nullptr;
+//	m_overlayReticleCircleLineOuter = nullptr;
+//	m_overlayReticleCircleLineInner = nullptr;
 	m_overlayReticleCircleAlphaOuter = nullptr;
 	m_overlayReticleCircleAlphaInner = nullptr;
 	m_overlayVsBackdrop = nullptr;
@@ -722,9 +722,9 @@ ChallengeLoadScreen::~ChallengeLoadScreen( void )
 	m_portraitMovieLeft = nullptr;
 	m_portraitMovieRight = nullptr;
 
-//	m_overlayReticleCrosshairs = NULL;
-//	m_overlayReticleCircleLineOuter = NULL;
-//	m_overlayReticleCircleLineInner = NULL;
+//	m_overlayReticleCrosshairs = nullptr;
+//	m_overlayReticleCircleLineOuter = nullptr;
+//	m_overlayReticleCircleLineInner = nullptr;
 	m_overlayReticleCircleAlphaOuter = nullptr;
 	m_overlayReticleCircleAlphaInner = nullptr;
 	m_overlayVsBackdrop = nullptr;
@@ -734,7 +734,7 @@ ChallengeLoadScreen::~ChallengeLoadScreen( void )
 	m_wndVideoManager = nullptr;
 
 	TheAudio->removeAudioEvent( m_ambientLoopHandle );
-	m_ambientLoopHandle = NULL;
+	m_ambientLoopHandle = 0;
 }
 
 // accepts the number of chars to advance, the window we're concerned with, the total text for final display, and the current position of the readout
@@ -1308,7 +1308,7 @@ void MultiPlayerLoadScreen::init( GameInfo *game )
 		else if (pt->getName() == "FactionChina")
 			portrait = TheMappedImageCollection->findImageByName("SNFactionLogoLg_China");
 		else
-			DEBUG_ASSERTCRASH(NULL, ("Unexpected player template"));
+			DEBUG_ASSERTCRASH(nullptr, ("Unexpected player template"));
 
 		localName = pt->getDisplayName();
 	}
@@ -1579,7 +1579,7 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		else if (pt->getName() == "FactionChina")
 			portrait = TheMappedImageCollection->findImageByName("SNFactionLogo144_China");
 		else
-			DEBUG_ASSERTCRASH(NULL, ("Unexpected player template"));
+			DEBUG_ASSERTCRASH(nullptr, ("Unexpected player template"));
 
 		localName = pt->getDisplayName();
 	}

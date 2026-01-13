@@ -20,9 +20,6 @@
 // Westwood Online DLL/COM/ initialization/teardown
 // Author: Matthew D. Campbell, December 2001
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
 #include <snmp.h>
 #include <winreg.h>
 
@@ -192,7 +189,7 @@ IChat *g_pChat = nullptr;
 void checkInstalledWolapiVersion( void )
 {
 	// Initialize this instance
-	_Module.Init(NULL, g_hInst);
+	_Module.Init(nullptr, g_hInst);
 
 	// Create the WOLAPI instance
 	CoCreateInstance(CLSID_Chat, nullptr, CLSCTX_INPROC_SERVER, \

@@ -78,7 +78,7 @@ static GameWindow *parent = nullptr;
 static GameWindow *listboxInfo = nullptr;
 static GameWindow *buttonClose = nullptr;
 static GameWindow *buttonBuddies = nullptr;
-//static GameWindow *buttonbuttonOptions = NULL;
+//static GameWindow *buttonbuttonOptions = nullptr;
 static GameWindow *buttonSetLocale = nullptr;
 static GameWindow *buttonDeleteAccount = nullptr;
 static GameWindow *checkBoxAsianFont = nullptr;
@@ -1017,7 +1017,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 
 	//calculate favorite side and rank overlay image
 	UnicodeString rankStr; //, sideStr, sideRankStr;
-	const PlayerTemplate* pPlayerTemplate = nullptr;  //NULL == newbie
+	const PlayerTemplate* pPlayerTemplate = nullptr;  //nullptr == newbie
 	{	//search all stats for side favorite side (highest numGames)
 		Int mostGames = 0;
 		Int favorite = 0;
@@ -1039,7 +1039,7 @@ void PopulatePlayerInfoWindows( AsciiString parentWindowName )
 
 //		//favorite side  (ex: Toxin, Tank, Stealth, etc.)
 //		AsciiString side;
-//		if( mostGames > 0  &&  pPlayerTemplate != NULL )
+//		if( mostGames > 0  &&  pPlayerTemplate != nullptr )
 //		{
 //			if( stats.gamesAsRandom >= mostGames )
 //				side = "GUI:Random";

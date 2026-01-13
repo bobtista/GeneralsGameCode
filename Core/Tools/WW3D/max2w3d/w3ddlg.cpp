@@ -171,7 +171,7 @@ bool W3dOptionsDialogClass::Dialog_Proc
 						return 1;
 					}
 
-					SetCursor(LoadCursor (NULL, IDC_WAIT));
+					SetCursor(LoadCursor (nullptr, IDC_WAIT));
 					EndDialog(Hwnd, 1);
 					break;
 
@@ -272,7 +272,7 @@ bool W3dOptionsDialogClass::Dialog_Proc
 void W3dOptionsDialogClass::Dialog_Init()
 {
 	CenterWindow(Hwnd, GetParent(Hwnd));
-	SetCursor(LoadCursor (NULL, IDC_ARROW));
+	SetCursor(LoadCursor (nullptr, IDC_ARROW));
 
 	// initialize the export radio buttons
 	if (Options->ExportHierarchy) {

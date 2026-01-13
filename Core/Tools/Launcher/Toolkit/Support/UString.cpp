@@ -185,7 +185,7 @@ UString::UString(UInt capacity)
 *     Create a new UString from an ANSI string literal
 *
 * INPUTS
-*     String - Pointer to a NULL terminated ANSI string
+*     String - Pointer to a null-terminated ANSI string
 *
 * RESULT
 *     NONE
@@ -209,7 +209,7 @@ UString::UString(const Char* s)
 *     Create a new UString from a UNICODE string literal
 *
 * INPUTS
-*     String - Pointer to a NULL terminated UNICODE string
+*     String - Pointer to a null-terminated UNICODE string
 *
 * RESULT
 *     NONE
@@ -516,7 +516,7 @@ void UString::Concat(const UString& s)
 
 Int UString::Compare(const Char* s) const
 	{
-	// If comparing string is NULL and this string is NULL then strings are equal,
+	// If comparing string is nullptr and this string is nullptr then strings are equal,
 	// otherwise comparing string is less than this string.
 	if (s == nullptr)
 		{
@@ -528,7 +528,7 @@ Int UString::Compare(const Char* s) const
 		return -1;
 		}
 
-	// If this string is NULL then comparing string is greater
+	// If this string is nullptr then comparing string is greater
 	if (Get() == nullptr)
 		{
 		return 1;
@@ -632,7 +632,7 @@ Int UString::Compare(const UString& s) const
 
 Int UString::CompareNoCase(const Char* s) const
 	{
-	// If comparing string is NULL and this string is NULL then strings are
+	// If comparing string is nullptr and this string is nullptr then strings are
 	// equal, otherwise comparing string is less than this string.
 	if (s == nullptr)
 		{
@@ -644,7 +644,7 @@ Int UString::CompareNoCase(const Char* s) const
 		return -1;
 		}
 
-	// If this string is NULL then comparing string is greater.
+	// If this string is nullptr then comparing string is greater.
 	if (Get() == nullptr)
 		{
 		return 1;

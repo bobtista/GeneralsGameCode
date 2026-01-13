@@ -48,7 +48,7 @@ Bool RoadOptions::m_doJoin = false;		///< Is a join to different road type.
 // RoadOptions dialog
 
 
-RoadOptions::RoadOptions(CWnd* pParent /*=NULL*/)
+RoadOptions::RoadOptions(CWnd* pParent /*=nullptr*/)
 {
 	m_currentRoadName = "Road";
 	//{{AFX_DATA_INIT(RoadOptions)
@@ -99,7 +99,7 @@ void RoadOptions::updateLabel(void)
 /** Returns true if only one or more roads is selected. */
 Bool RoadOptions::selectionIsRoadsOnly(void)
 {
-//	MapObject *theMapObj = NULL;
+//	MapObject *theMapObj = nullptr;
 	Bool foundRoad = false;
 	Bool foundAnythingElse = false;
 	MapObject *pMapObj;
@@ -118,7 +118,7 @@ Bool RoadOptions::selectionIsRoadsOnly(void)
 /** Returns true if only one or more roads is selected. */
 void RoadOptions::updateSelection(void)
 {
-//	MapObject *theMapObj = NULL;
+//	MapObject *theMapObj = nullptr;
 	Int angled = 0;
 	Int tight = 0;
 	Int broad = 0;

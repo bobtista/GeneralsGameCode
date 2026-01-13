@@ -273,7 +273,7 @@ Bool W3DProjectedShadowManager::ReAcquireResources(void)
 	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
 
 	DEBUG_ASSERTCRASH(m_pDev, ("Trying to ReAquireResources on W3DProjectedShadowManager without device"));
-	DEBUG_ASSERTCRASH(shadowDecalIndexBufferD3D == NULL && shadowDecalIndexBufferD3D == nullptr, ("ReAquireResources not released in W3DProjectedShadowManager"));
+	DEBUG_ASSERTCRASH(shadowDecalIndexBufferD3D == nullptr && shadowDecalIndexBufferD3D == nullptr, ("ReAquireResources not released in W3DProjectedShadowManager"));
 
 	if (FAILED(m_pDev->CreateIndexBuffer
 	(
@@ -2393,7 +2393,7 @@ private:
 ** Missing Textures
 **
 ** The idea here, allow the system to register which textures are determined to be missing
-** so that if they are asked for again, we can quickly return NULL, without searching again.
+** so that if they are asked for again, we can quickly return nullptr, without searching again.
 */
 void	W3DShadowTextureManager::registerMissing( const char * name )
 {

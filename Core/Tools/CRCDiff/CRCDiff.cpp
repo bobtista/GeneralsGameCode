@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
 	atexit(exitWait);
 	const char *inFname[2];
 	const char *outFname = "out.html";
-	FILE *ifp[2] = {NULL, NULL};
+	FILE *ifp[2] = { nullptr, nullptr};
 	std::string header, footer;
 
 	if (argc != 7)
@@ -264,7 +264,7 @@ int main(int argc, char *argv[])
 				if (seenRight && seenLeft)
 				{
 					outputLine(lastFrame[0], lastIndex[0], linkNum++,
-						"leftOnly", lastLine[0], nullptr, NULL);
+						"leftOnly", lastLine[0], nullptr, nullptr);
 					++numDiffs;
 				}
 				lastFrame[0] = -1;
@@ -278,7 +278,7 @@ int main(int argc, char *argv[])
 				if (seenRight && seenLeft)
 				{
 					outputLine(lastFrame[1], lastIndex[1], linkNum++,
-						NULL, nullptr, "rightOnly", lastLine[1]);
+						nullptr, nullptr, "rightOnly", lastLine[1]);
 					++numDiffs;
 				}
 				lastFrame[1] = -1;
@@ -329,7 +329,7 @@ int main(int argc, char *argv[])
 			if (seenRight && seenLeft)
 			{
 				outputLine(lastFrame[0], lastIndex[0], linkNum++,
-					"leftOnly", lastLine[0], nullptr, NULL);
+					"leftOnly", lastLine[0], nullptr, nullptr);
 				++numDiffs;
 			}
 			lastFrame[0] = -1;
@@ -342,7 +342,7 @@ int main(int argc, char *argv[])
 			if (seenRight && seenLeft)
 			{
 				outputLine(lastFrame[1], lastIndex[1], linkNum++,
-					NULL, nullptr, "rightOnly", lastLine[1]);
+					nullptr, nullptr, "rightOnly", lastLine[1]);
 				++numDiffs;
 			}
 			lastFrame[1] = -1;

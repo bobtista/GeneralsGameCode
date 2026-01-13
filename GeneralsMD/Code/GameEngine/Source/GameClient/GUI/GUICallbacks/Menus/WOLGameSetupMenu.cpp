@@ -212,30 +212,22 @@ static GameWindow *checkBoxLimitSuperweapons = nullptr;
 static GameWindow *comboBoxStartingCash = nullptr;
 static GameWindow *checkBoxLimitArmies = nullptr;
 
-static GameWindow *comboBoxPlayer[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																									 nullptr,nullptr,nullptr,nullptr };
-static GameWindow *staticTextPlayer[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																									 nullptr,nullptr,nullptr,nullptr };
-static GameWindow *buttonAccept[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																								nullptr,nullptr,nullptr,nullptr };
+static GameWindow *comboBoxPlayer[MAX_SLOTS] = {0};
+static GameWindow *staticTextPlayer[MAX_SLOTS] = {0};
+static GameWindow *buttonAccept[MAX_SLOTS] = {0};
 
-static GameWindow *comboBoxColor[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																								nullptr,nullptr,nullptr,nullptr };
+static GameWindow *comboBoxColor[MAX_SLOTS] = {0};
 
-static GameWindow *comboBoxPlayerTemplate[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																								nullptr,nullptr,nullptr,nullptr };
+static GameWindow *comboBoxPlayerTemplate[MAX_SLOTS] = {0};
 
-static GameWindow *comboBoxTeam[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																								nullptr,nullptr,nullptr,nullptr };
+static GameWindow *comboBoxTeam[MAX_SLOTS] = {0};
 
-//static GameWindow *buttonStartPosition[MAX_SLOTS] = {NULL,NULL,NULL,NULL,
-//																								NULL,NULL,NULL,NULL };
+//static GameWindow *buttonStartPosition[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
+//																								nullptr,nullptr,nullptr,nullptr };
 //
-static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																								nullptr,nullptr,nullptr,nullptr };
+static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {0};
 
-static GameWindow *genericPingWindow[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																								nullptr,nullptr,nullptr,nullptr };
+static GameWindow *genericPingWindow[MAX_SLOTS] = {0};
 
 static const Image *pingImages[3] = { nullptr, nullptr, nullptr };
 
@@ -1294,7 +1286,7 @@ void DeinitWOLGameGadgets( void )
   checkBoxLimitSuperweapons = nullptr;
   comboBoxStartingCash = nullptr;
 
-//	GameWindow *staticTextTitle = NULL;
+//	GameWindow *staticTextTitle = nullptr;
 	for (Int i = 0; i < MAX_SLOTS; i++)
 	{
 		comboBoxPlayer[i] = nullptr;
@@ -1303,7 +1295,7 @@ void DeinitWOLGameGadgets( void )
 		comboBoxPlayerTemplate[i] = nullptr;
 		comboBoxTeam[i] = nullptr;
 		buttonAccept[i] = nullptr;
-//		buttonStartPosition[i] = NULL;
+//		buttonStartPosition[i] = nullptr;
 		buttonMapStartPosition[i] = nullptr;
 		genericPingWindow[i] = nullptr;
 	}
@@ -2697,7 +2689,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					}
 
 					TheGameSpyInfo->getCurrentStagingRoom()->reset();
-					//peerLeaveRoom(TheGameSpyChat->getPeer(), StagingRoom, NULL);
+					//peerLeaveRoom(TheGameSpyChat->getPeer(), StagingRoom, nullptr);
 					TheGameSpyInfo->leaveStagingRoom();
 					buttonPushed = true;
 					nextScreen = "Menus/WOLCustomLobby.wnd";

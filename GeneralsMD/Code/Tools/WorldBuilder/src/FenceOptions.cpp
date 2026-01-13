@@ -56,7 +56,7 @@ Real FenceOptions::m_fenceOffset=0;
 // FenceOptions dialog
 
 
-FenceOptions::FenceOptions(CWnd* pParent /*=NULL*/)
+FenceOptions::FenceOptions(CWnd* pParent /*=nullptr*/)
 {
 	m_objectsList = nullptr;
 	m_customSpacing = false;
@@ -260,7 +260,7 @@ void FenceOptions::addObject( MapObject *mapObject, const char *pPath, const cha
 
 		// first sort by side, either create or find the tree item with matching side name
 		AsciiString side = thingTemplate->getDefaultOwningSide();
-		DEBUG_ASSERTCRASH( !side.isEmpty(), ("NULL default side in template") );
+		DEBUG_ASSERTCRASH( !side.isEmpty(), ("nullptr default side in template") );
 		parent = findOrAdd( parent, side.str());
 
 		// next tier uses the editor sorting that design can specify in the INI

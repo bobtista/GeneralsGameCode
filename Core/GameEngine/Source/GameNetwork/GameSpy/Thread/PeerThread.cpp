@@ -1191,7 +1191,7 @@ void PeerThreadClass::Thread_Function()
 	m_qmGroupRoom = 0;
 
 	peer = peerInitialize( &callbacks );
-	DEBUG_ASSERTCRASH( peer != nullptr, ("NULL peer!") );
+	DEBUG_ASSERTCRASH( peer != nullptr, ("nullptr peer!") );
 	m_isConnected = m_isConnecting = false;
 
 	qr2_register_key(EXECRC_KEY, EXECRC_STR);
@@ -2204,7 +2204,7 @@ static void joinRoomCallback(PEER peer, PEERBool success, PEERJoinResult result,
 
 // Gets called once for each group room when listing group rooms.
 // After this has been called for each group room, it will be
-// called one more time with groupID==0 and name==NULL.
+// called one more time with groupID==0 and name==nullptr.
 /////////////////////////////////////////////////////////////////
 static void listGroupRoomsCallback(PEER peer, PEERBool success,
 														int groupID, SBServer server,
@@ -2975,7 +2975,7 @@ static void listingGamesCallback(PEER peer, PEERBool success, const char * name,
 			resp.stagingServerName = MultiByteToWideCharSingleLine( gameName.str() );
 			DEBUG_LOG(("Server had basic=%d, full=%d", SBServerHasBasicKeys(server), SBServerHasFullKeys(server)));
 #ifdef DEBUG_LOGGING
-			//SBServerEnumKeys(server, enumFunc, NULL);
+			//SBServerEnumKeys(server, enumFunc, nullptr);
 #endif
 			break;
 		case PEER_REMOVE:

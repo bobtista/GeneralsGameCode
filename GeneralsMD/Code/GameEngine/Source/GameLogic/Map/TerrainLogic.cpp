@@ -1628,7 +1628,7 @@ Bool TerrainLogic::isPurposeOfPath( Waypoint *pWay, AsciiString label )
 
 
 //-------------------------------------------------------------------------------------------------
-/** Given a name, return the associated trigger area, or NULL if one doesn't exist. */
+/** Given a name, return the associated trigger area, or nullptr if one doesn't exist. */
 //-------------------------------------------------------------------------------------------------
 PolygonTrigger *TerrainLogic::getTriggerAreaByName( AsciiString name )
 {
@@ -1814,7 +1814,7 @@ Bool TerrainLogic::objectInteractsWithBridgeLayer(Object *obj, Int layer, Bool c
 //-------------------------------------------------------------------------------------------------
 Bool TerrainLogic::objectInteractsWithBridgeEnd(Object *obj, Int layer) const
 {
-	if (layer == LAYER_GROUND) return NULL;
+	if (layer == LAYER_GROUND) return false;
 	Bridge *pBridge = getFirstBridge();
 
 	while (pBridge ) {
@@ -2276,7 +2276,7 @@ Real TerrainLogic::getWaterHeight( const WaterHandle *water )
 	}
 
 	// sanity
-	DEBUG_ASSERTCRASH( water->m_polygon != nullptr, ("getWaterHeight: polygon trigger in water handle is NULL") );
+	DEBUG_ASSERTCRASH( water->m_polygon != nullptr, ("getWaterHeight: polygon trigger in water handle is nullptr") );
 
 	// return the height of the water using the polygon trigger
 	return water->m_polygon->getPoint( 0 )->z;

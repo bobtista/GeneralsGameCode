@@ -1279,7 +1279,7 @@ DozerPrimaryStateMachine::DozerPrimaryStateMachine( Object *owner ) : StateMachi
 		StateConditionInfo(isBuildMostImportant, DOZER_PRIMARY_BUILD, nullptr),
 		StateConditionInfo(isRepairMostImportant, DOZER_PRIMARY_REPAIR, nullptr),
 		StateConditionInfo(isFortifyMostImportant, DOZER_PRIMARY_FORTIFY, nullptr),
-		StateConditionInfo(nullptr, nullptr, nullptr)
+		StateConditionInfo(nullptr, INVALID_STATE_ID, nullptr)
 	};
 
 	// order matters: first state is the default state.
@@ -1461,7 +1461,7 @@ DozerAIUpdate::DozerAIUpdate( Thing *thing, const ModuleData* moduleData ) :
 	m_buildSubTask = DOZER_SELECT_BUILD_DOCK_LOCATION;  // irrelavant, but I want non-garbage value
 
 	//
-	// initialize the dozer machine to NULL, we want to do this and create it during the update
+	// initialize the dozer machine to nullptr, we want to do this and create it during the update
 	// implementation because at this point we don't have the object all setup
 	//
 	m_dozerMachine = nullptr;
@@ -2165,7 +2165,7 @@ void DozerAIUpdate::internalTaskCompleteOrCancelled( DozerTask task )
 
 			///@todo This would be correct except that we don't have idle crane animations and it is December.
 //			Object* goalObject = TheGameLogic->findObjectByID(m_task[task].m_targetObjectID);
-//			if (goalObject != NULL)
+//			if (goalObject != nullptr)
 //			{
 //				goalObject->clearModelConditionState(MODELCONDITION_ACTIVELY_BEING_CONSTRUCTED);
 //			}
@@ -2181,7 +2181,7 @@ void DozerAIUpdate::internalTaskCompleteOrCancelled( DozerTask task )
 			getObject()->clearModelConditionState( MODELCONDITION_ACTIVELY_CONSTRUCTING );
 
 			// Bridges have been made indestructible, so the code below was meaningless. -- ML
-			// Object *obj = NULL;
+			// Object *obj = nullptr;
 			// get object to reapir (if present)
 			//obj = TheGameLogic->findObjectByID( m_task[ task ].m_targetObjectID );
 			//

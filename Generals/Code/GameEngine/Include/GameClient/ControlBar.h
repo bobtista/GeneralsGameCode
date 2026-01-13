@@ -128,7 +128,7 @@ static const char *const TheCommandOptionNames[] =
 	"IGNORES_UNDERPOWERED",
 	"USES_MINE_CLEARING_WEAPONSET",
 
-	NULL
+	nullptr
 };
 #endif  // end DEFINE_COMMAND_OPTION_NAMES
 
@@ -247,7 +247,7 @@ static const char *const TheGuiCommandNames[] =
 	"PLACE_BEACON",
 	"SPECIAL_POWER_FROM_COMMAND_CENTER",
 
-	NULL
+	nullptr
 };
 static_assert(ARRAY_SIZE(TheGuiCommandNames) == GUI_COMMAND_NUM_COMMANDS + 1, "Incorrect array size");
 #endif  // end DEFINE_GUI_COMMAND_NAMES
@@ -271,7 +271,7 @@ static const LookupListRec CommandButtonMappedBorderTypeNames[] =
 	{ "ACTION",				COMMAND_BUTTON_BORDER_ACTION },
 	{ "SYSTEM",				COMMAND_BUTTON_BORDER_SYSTEM },
 
-	{ NULL, 0	}
+	{ nullptr, 0	}
 };
 static_assert(ARRAY_SIZE(CommandButtonMappedBorderTypeNames) == COMMAND_BUTTON_BORDER_COUNT + 1, "Incorrect array size");
 //-------------------------------------------------------------------------------------------------
@@ -300,7 +300,7 @@ public:
 	Bool isValidObjectTarget(const Object* sourceObj, const Object* targetObj) const;
 	Bool isValidObjectTarget(const Drawable* source, const Drawable* target) const;
 
-	// Note: It is perfectly valid for either (or both!) of targetObj and targetLocation to be NULL.
+	// Note: It is perfectly valid for either (or both!) of targetObj and targetLocation to be nullptr.
 	// This is a convenience function to make several calls to other functions.
 	Bool isValidToUseOn(const Object *sourceObj, const Object *targetObj, const Coord3D *targetLocation, CommandSourceType commandSource) const;
 	Bool isReady(const Object *sourceObj) const;
@@ -727,7 +727,7 @@ public:
 	void setObservedPlayer(Player *player); ///< Sets the observed player. Used to present the game world as if that player was the local player.
 	Player *getObservedPlayer() const { return m_observedPlayer; } ///< Return the observed player. Can return null.
 
-	/// Returns the currently viewed player. May return NULL if no player is selected while observing.
+	/// Returns the currently viewed player. May return nullptr if no player is selected while observing.
 	Player* getCurrentlyViewedPlayer();
 	/// Returns the relationship with the currently viewed player. May return NEUTRAL if no player is selected while observing.
 	Relationship getCurrentlyViewedPlayerRelationship(const Team* team);
@@ -799,7 +799,7 @@ protected:
 	/// show/hide the portrait window image using the image from the object
 	void setPortraitByObject( Object *obj );
 
-	/// show rally point at world location, a NULL location will hide any visible rally point marker
+	/// show rally point at world location, a nullptr location will hide any visible rally point marker
 	void showRallyPoint( const Coord3D *loc );
 
 	/// post process step, after all commands and command sets are loaded

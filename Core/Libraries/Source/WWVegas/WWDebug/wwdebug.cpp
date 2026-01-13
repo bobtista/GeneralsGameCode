@@ -312,7 +312,7 @@ void WWDebug_Assert_Fail(const char * expr,const char * file, int line)
       char assertbuf[4096];
 		sprintf(assertbuf, "Assert failed\n\n. File %s Line %d", file, line);
 
-      int code = MessageBoxA(NULL, assertbuf, "WWDebug_Assert_Fail", MB_ABORTRETRYIGNORE|MB_ICONHAND|MB_SETFOREGROUND|MB_TASKMODAL);
+      int code = MessageBoxA(nullptr, assertbuf, "WWDebug_Assert_Fail", MB_ABORTRETRYIGNORE|MB_ICONHAND|MB_SETFOREGROUND|MB_TASKMODAL);
 
       if (code == IDABORT) {
       	raise(SIGABRT);
@@ -477,7 +477,7 @@ void WWDebug_DBWin32_Message_Handler( const char * str )
     heventDBWIN = OpenEvent(EVENT_MODIFY_STATE, FALSE, "DBWIN_BUFFER_READY");
     if ( !heventDBWIN )
     {
-        //MessageBox(NULL, "DBWIN_BUFFER_READY nonexistent", NULL, MB_OK);
+        //MessageBox(nullptr, "DBWIN_BUFFER_READY nonexistent", nullptr, MB_OK);
         return;
     }
 
@@ -485,7 +485,7 @@ void WWDebug_DBWin32_Message_Handler( const char * str )
     heventData = OpenEvent(EVENT_MODIFY_STATE, FALSE, "DBWIN_DATA_READY");
     if ( !heventData )
     {
-        // MessageBox(NULL, "DBWIN_DATA_READY nonexistent", NULL, MB_OK);
+        // MessageBox(nullptr, "DBWIN_DATA_READY nonexistent", nullptr, MB_OK);
         CloseHandle(heventDBWIN);
         return;
     }
@@ -493,7 +493,7 @@ void WWDebug_DBWin32_Message_Handler( const char * str )
     hSharedFile = CreateFileMapping((HANDLE)-1, nullptr, PAGE_READWRITE, 0, 4096, "DBWIN_BUFFER");
     if (!hSharedFile)
     {
-        //MessageBox(NULL, "DebugTrace: Unable to create file mapping object DBWIN_BUFFER", "Error", MB_OK);
+        //MessageBox(nullptr, "DebugTrace: Unable to create file mapping object DBWIN_BUFFER", "Error", MB_OK);
         CloseHandle(heventDBWIN);
         CloseHandle(heventData);
         return;
@@ -502,7 +502,7 @@ void WWDebug_DBWin32_Message_Handler( const char * str )
     lpszSharedMem = (LPSTR)MapViewOfFile(hSharedFile, FILE_MAP_WRITE, 0, 0, 512);
     if (!lpszSharedMem)
     {
-        //MessageBox(NULL, "DebugTrace: Unable to map shared memory", "Error", MB_OK);
+        //MessageBox(nullptr, "DebugTrace: Unable to map shared memory", "Error", MB_OK);
         CloseHandle(heventDBWIN);
         CloseHandle(heventData);
         return;

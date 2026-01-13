@@ -172,10 +172,10 @@ static const FieldParse TheAIFieldParseTable[] =
 
  	{ "WallHeight",							INI::parseReal,nullptr,		offsetof( TAiData, m_wallHeight ) },
 
-	{ "SideInfo",			AI::parseSideInfo,			nullptr, NULL },
+	{ "SideInfo",			AI::parseSideInfo,			nullptr, 0 },
 
 
-	{ "SkirmishBuildList",			AI::parseSkirmishBuildList,			nullptr, NULL },
+	{ "SkirmishBuildList",			AI::parseSkirmishBuildList,			nullptr, 0 },
 
 
  	{ "MinInfantryForGroup",		INI::parseInt,nullptr,			offsetof( TAiData, m_minInfantryForGroup ) },
@@ -241,7 +241,7 @@ void AI::parseSkillSet(INI *ini, void *instance, void* store, const void* /*user
 {
 	static const FieldParse myFieldParse[] =
 		{
-			{ "Science",											AI::parseScience,					nullptr, NULL },
+			{ "Science",											AI::parseScience,					nullptr, 0 },
 			{ nullptr,							nullptr,											nullptr, 0 }
 		};
 
@@ -280,7 +280,7 @@ void AI::parseSkirmishBuildList(INI *ini, void *instance, void* /*store*/, const
 
 	static const FieldParse myFieldParse[] =
 		{
-			{ "Structure",			BuildListInfo::parseStructure,			nullptr, NULL },
+			{ "Structure",			BuildListInfo::parseStructure,			nullptr, 0 },
 			{ nullptr,							nullptr,											nullptr, 0 }
 		};
 
@@ -336,7 +336,7 @@ void AI::reset( void )
 		}
 		else
 		{
-			m_groupList.pop_front(); // NULL group, just kill from list.  Shouldn't really happen, but just in case.
+			m_groupList.pop_front(); // nullptr group, just kill from list.  Shouldn't really happen, but just in case.
 		}
 	}
 #else
@@ -473,7 +473,7 @@ void AI::destroyGroup( AIGroup *group )
 	if (i == m_groupList.end())
 		return;
 
-	DEBUG_ASSERTCRASH(group != nullptr, ("A NULL group made its way into the AIGroup list.. jkmcd"));
+	DEBUG_ASSERTCRASH(group != nullptr, ("A nullptr group made its way into the AIGroup list.. jkmcd"));
 
 	// remove it
 //	DEBUG_LOG(("***AIGROUP %x is being removed from m_groupList.", group ));

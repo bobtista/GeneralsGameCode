@@ -158,7 +158,7 @@ void objectUnderConstruction(Object* obj, void *underConstruction)
 	}
 
 	ProductionUpdateInterface *pui = ProductionUpdate::getProductionUpdateInterfaceFromObject(obj);
-	if(pui != NULL && pui->getProductionCount() > 0)
+	if(pui != nullptr && pui->getProductionCount() > 0)
 	{
 		*(Bool*)underConstruction = true;
 		return;
@@ -1561,7 +1561,7 @@ GameMessage::Type CommandTranslator::evaluateForceAttack( Drawable *draw, const 
 	* 'draw'.  If type == DO_HINT, then the user hasn't actually clicked, but has moused over
 	* the drawable 'draw' and we want to generate a hint message as to what the actual
 	* command would be if clicked
-	* NOTE: draw can be NULL, in which case we give a hint for the location */
+	* NOTE: draw can be nullptr, in which case we give a hint for the location */
 // ------------------------------------------------------------------------------------------------
 GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 																														 const Coord3D *pos,
@@ -1778,7 +1778,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 							break;
 					}
 
-					// NULL out the GUI command if we're actually doing something
+					// nullptr out the GUI command if we're actually doing something
 					if( type == DO_COMMAND )
 					{
 						TheInGameUI->setGUICommand( nullptr );
@@ -4210,7 +4210,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 /*
 			if (TheWindowManager && TheNameKeyGenerator)
 			{
-				GameWindow *motd = TheWindowManager->winGetWindowFromId(NULL, (Int)TheNameKeyGenerator->nameToKey("MOTD.wnd:MOTD"));
+				GameWindow *motd = TheWindowManager->winGetWindowFromId(nullptr, (Int)TheNameKeyGenerator->nameToKey("MOTD.wnd:MOTD"));
 				if (motd)
 					motd->winHide(!motd->winIsHidden());
 			}*/
@@ -4260,7 +4260,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 				if (TheWindowManager)
 				{
 					Int id = (Int)TheNameKeyGenerator->nameToKey("ControlBar.wnd:ControlBarParent");
-					GameWindow *window = TheWindowManager->winGetWindowFromId(NULL, id);
+					GameWindow *window = TheWindowManager->winGetWindowFromId(nullptr, id);
 
 					if (window)
 						hide = !window->winIsHidden();

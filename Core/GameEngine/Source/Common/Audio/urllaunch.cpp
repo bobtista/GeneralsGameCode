@@ -25,7 +25,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 HRESULT MakeEscapedURL( LPWSTR pszInURL, LPWSTR *ppszOutURL )
 {
-    if( ( NULL == pszInURL ) || ( NULL == ppszOutURL ) )
+    if( ( nullptr == pszInURL ) || ( nullptr == ppszOutURL ) )
     {
         return( E_INVALIDARG );
     }
@@ -45,7 +45,7 @@ HRESULT MakeEscapedURL( LPWSTR pszInURL, LPWSTR *ppszOutURL )
     {
         LPWSTR pchToEscape = wcspbrk( pszTemp, L" #$%&\\+,;=@[]^{}" );
 
-        if( NULL == pchToEscape )
+        if( nullptr == pchToEscape )
         {
             break;
         }
@@ -67,7 +67,7 @@ HRESULT MakeEscapedURL( LPWSTR pszInURL, LPWSTR *ppszOutURL )
 
     *ppszOutURL = new WCHAR[ cchNeeded ];
 
-    if( NULL == *ppszOutURL )
+    if( nullptr == *ppszOutURL )
     {
         return( E_OUTOFMEMORY );
     }
@@ -89,7 +89,7 @@ HRESULT MakeEscapedURL( LPWSTR pszInURL, LPWSTR *ppszOutURL )
     {
         LPWSTR pchToEscape = wcspbrk( pszTemp, L" #$%&\\+,;=@[]^{}" );
 
-        if( NULL == pchToEscape )
+        if( nullptr == pchToEscape )
         {
             //
             // Copy the rest of the input string and get out
@@ -186,7 +186,7 @@ HRESULT GetShellOpenCommand( LPTSTR ptszShellOpenCommand, DWORD cbShellOpenComma
     //
     if( !fFoundExtensionCommand )
     {
-        if( NULL != hKey )
+        if( nullptr != hKey )
         {
             RegCloseKey( hKey );
         }
@@ -210,12 +210,12 @@ HRESULT GetShellOpenCommand( LPTSTR ptszShellOpenCommand, DWORD cbShellOpenComma
         while( FALSE );
     }
 
-    if( NULL != hKey )
+    if( nullptr != hKey )
     {
         RegCloseKey( hKey );
     }
 
-    if( NULL != hFileKey )
+    if( nullptr != hFileKey )
     {
         RegCloseKey( hFileKey );
     }
@@ -248,12 +248,12 @@ HRESULT LaunchURL( LPCWSTR pszURL )
 
     LPTSTR pszParam = _tcsstr( szShellOpenCommand, _T( "\"%1\"" ) );
 
-    if( NULL == pszParam )
+    if( nullptr == pszParam )
     {
         pszParam = _tcsstr( szShellOpenCommand, _T( "\"%*\"" ) );
     }
 
-    if( NULL != pszParam )
+    if( nullptr != pszParam )
     {
         *pszParam = _T( '\0' ) ;
 
@@ -287,7 +287,7 @@ HRESULT LaunchURL( LPCWSTR pszURL )
         pchNext = _tcschr( pchFirst + 1, _T( ' ' ) );
     }
 
-    if( NULL == pchNext )
+    if( nullptr == pchNext )
     {
         pchNext = szShellOpenCommand + _tcslen( szShellOpenCommand );
     }
@@ -312,8 +312,8 @@ HRESULT LaunchURL( LPCWSTR pszURL )
 
     StartUp.cb = sizeof(STARTUPINFO);
 
-    if( !CreateProcess( szExe, szLaunchCommand, nullptr, NULL,
-                        FALSE, 0, nullptr, NULL, &StartUp, &ProcInfo) )
+    if( !CreateProcess( szExe, szLaunchCommand, nullptr, nullptr,
+                        FALSE, 0, nullptr, nullptr, &StartUp, &ProcInfo) )
     {
         hr = HRESULT_FROM_WIN32( GetLastError() );
     }
@@ -323,12 +323,12 @@ HRESULT LaunchURL( LPCWSTR pszURL )
         // CreateProcess succeeded and we do not need the handles to the thread
         // or the process, so close them now.
         //
-        if( NULL != ProcInfo.hThread )
+        if( nullptr != ProcInfo.hThread )
         {
             CloseHandle( ProcInfo.hThread );
         }
 
-        if( NULL != ProcInfo.hProcess )
+        if( nullptr != ProcInfo.hProcess )
         {
             CloseHandle( ProcInfo.hProcess );
         }

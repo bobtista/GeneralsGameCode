@@ -186,7 +186,7 @@ static const char *const TerrainLODNames[] =
 	"AUTOMATIC",
 	"DISABLE",
 
-	NULL
+	nullptr
 };
 static_assert(ARRAY_SIZE(TerrainLODNames) == TERRAIN_LOD_NUM_TYPES + 1, "Incorrect array size");
 #endif  // end DEFINE_TERRAIN_LOD_NAMES
@@ -285,8 +285,8 @@ public:
   virtual void updateSeismicSimulations( void ) = 0; /// walk the SeismicSimulationList and, well, do it.
   virtual void addSeismicSimulation( const SeismicSimulationNode& sim ) = 0;
 #endif
-  virtual WorldHeightMap* getLogicHeightMap( void ) {return NULL;};
-  virtual WorldHeightMap* getClientHeightMap( void ) {return NULL;};
+  virtual WorldHeightMap* getLogicHeightMap( void ) {return nullptr;};
+  virtual WorldHeightMap* getClientHeightMap( void ) {return nullptr;};
   ////////////////////////////////////////////////////
   ////////////////////////////////////////////////////
   ////////////////////////////////////////////////////

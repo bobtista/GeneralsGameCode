@@ -68,7 +68,7 @@ class GeometryExportContextClass;
 
 struct ConnectionStruct
 {
-	ConnectionStruct(void) : BoneIndex(0),MeshINode(NULL)
+	ConnectionStruct(void) : BoneIndex(0),MeshINode()
 	{
 		memset(ObjectName,0,sizeof(ObjectName));
 	}
@@ -116,7 +116,7 @@ public:
 	** out_name - name of the mesh is passed back by setting the char* pointed to by this value.
 	** out_boneindex - the index of the bone used is passed back by setting the int pointed to by this value.
 	** out_inode - mesh INode is passed by setting the INode* pointed to by this value. If this
-	**		parameter is NULL, the value is not passed back.
+	**		parameter is nullptr, the value is not passed back.
 	*/
 	bool Get_Sub_Object_Data(int index, char **out_name, int *out_boneindex, INode **out_inode = nullptr);
 	bool Get_Aggregate_Data(int index, char **out_name, int *out_boneindex, INode **out_inode = nullptr);

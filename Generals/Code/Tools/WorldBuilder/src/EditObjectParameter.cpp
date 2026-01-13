@@ -38,7 +38,7 @@
 // EditObjectParameter dialog
 
 
-EditObjectParameter::EditObjectParameter(CWnd* pParent /*=NULL*/)
+EditObjectParameter::EditObjectParameter(CWnd* pParent /*=nullptr*/)
 	: CDialog(EditObjectParameter::IDD, pParent)
 {
 	//{{AFX_DATA_INIT(EditObjectParameter)
@@ -119,7 +119,7 @@ void EditObjectParameter::addObject( const ThingTemplate *thingTemplate  )
 
 		// first sort by Side, either create or find the tree item with matching side name
 		AsciiString side = thingTemplate->getDefaultOwningSide();
-		DEBUG_ASSERTCRASH(!side.isEmpty(), ("NULL default side in template") );
+		DEBUG_ASSERTCRASH(!side.isEmpty(), ("nullptr default side in template") );
 		parent = findOrAdd( parent, side.str());
 
 		// next tier uses the editor sorting that design can specify in the INI

@@ -20,9 +20,6 @@
 // Defines the entry point for the application.
 // Author: Matthew D. Campbell, December 2001
 
-#ifndef WIN32_LEAN_AND_MEAN
-#define WIN32_LEAN_AND_MEAN
-#endif
 #include <windows.h>
 #include <stdio.h>
 #include <stdlib.h>

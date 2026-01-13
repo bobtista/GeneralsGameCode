@@ -872,7 +872,7 @@ bool TexProjectClass::Compute_Perspective_Projection
 )
 {
 	if (model == nullptr) {
-		WWDEBUG_SAY(("Attempting to generate projection for a NULL model"));
+		WWDEBUG_SAY(("Attempting to generate projection for a nullptr model"));
 		return false;
 	}
 
@@ -999,7 +999,7 @@ bool TexProjectClass::Compute_Ortho_Projection
 )
 {
 	if (model == nullptr) {
-		WWDEBUG_SAY(("Attempting to generate projection for a NULL model"));
+		WWDEBUG_SAY(("Attempting to generate projection for a nullptr model"));
 		return false;
 	}
 

@@ -236,7 +236,7 @@ public:
   /**
     Retrieves next function level tracer.
 
-    \return next function level tracer, NULL if none
+    \return next function level tracer, nullptr if none
   */
   ProfileFuncLevelTracer *GetNext(void)
   {
@@ -355,5 +355,5 @@ inline ProfileFuncLevelTracer::Function *ProfileFuncLevelTracer::FunctionMap::Fi
   for (Entry *e=hash[(addr/16)%HASH_SIZE];e;e=e->next)
     if (e->funcPtr->addr==addr)
       return e->funcPtr;
-  return NULL;
+  return nullptr;
 }

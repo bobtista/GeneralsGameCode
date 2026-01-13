@@ -40,7 +40,6 @@
 ** Includes
 */
 #include	"assert.h"
-#include	<Utility/CppMacros.h>
 
 
 #ifdef __BORLANDC__

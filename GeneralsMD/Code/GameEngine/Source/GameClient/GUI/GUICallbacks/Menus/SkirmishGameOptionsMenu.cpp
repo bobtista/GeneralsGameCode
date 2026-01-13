@@ -129,23 +129,18 @@ static GameWindow *windowMap = nullptr;
 static GameWindow *textEntryPlayerName = nullptr;
 static GameWindow *checkBoxLimitSuperweapons = nullptr;
 static GameWindow *comboBoxStartingCash = nullptr;
-static GameWindow *comboBoxPlayer[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																									 nullptr,nullptr,nullptr,nullptr };
+static GameWindow *comboBoxPlayer[MAX_SLOTS] = {0};
 
-static GameWindow *comboBoxColor[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																								nullptr,nullptr,nullptr,nullptr };
+static GameWindow *comboBoxColor[MAX_SLOTS] = {0};
 
-static GameWindow *comboBoxPlayerTemplate[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																								nullptr,nullptr,nullptr,nullptr };
+static GameWindow *comboBoxPlayerTemplate[MAX_SLOTS] = {0};
 
-static GameWindow *comboBoxTeam[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																								nullptr,nullptr,nullptr,nullptr };
+static GameWindow *comboBoxTeam[MAX_SLOTS] = {0};
 
-//static GameWindow *buttonStartPosition[MAX_SLOTS] = {NULL,NULL,NULL,NULL,
-//																								NULL,NULL,NULL,NULL };
+//static GameWindow *buttonStartPosition[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
+//																								nullptr,nullptr,nullptr,nullptr };
 //
-static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																								nullptr,nullptr,nullptr,nullptr };
+static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {0};
 //external declarations of the Gadgets the callbacks can use
 
 WindowLayout *skirmishMapSelectLayout = nullptr;
@@ -1443,14 +1438,14 @@ static void shutdownComplete( WindowLayout *layout )
 	// our shutdown is complete
 	// what the munkees does this do?
 
-	//TheShell->shutdownComplete( layout, (LANnextScreen != NULL) );
+	//TheShell->shutdownComplete( layout, (LANnextScreen != nullptr) );
 
-	//if (LANnextScreen != NULL)
+	//if (LANnextScreen != nullptr)
 	//{
 	//	TheShell->push(LANnextScreen);
 	//}
 
-	//LANnextScreen = NULL;
+	//LANnextScreen = nullptr;
 
 }
 

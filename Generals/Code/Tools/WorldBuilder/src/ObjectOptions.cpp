@@ -51,7 +51,7 @@ AsciiString ObjectOptions::m_curOwnerName;
 // ObjectOptions dialog
 
 
-ObjectOptions::ObjectOptions(CWnd* pParent /*=NULL*/)
+ObjectOptions::ObjectOptions(CWnd* pParent /*=nullptr*/)
 {
 	m_objectsList = nullptr;
 	strcpy(m_currentObjectName, "No Selection");
@@ -205,7 +205,7 @@ void ObjectOptions::updateLabel()
 static const PlayerTemplate* findFirstPlayerTemplateOnSide(AsciiString side)
 {
 	if (side.isEmpty())
-		return NULL;	// neutral, this is ok
+		return nullptr;	// neutral, this is ok
 
 	for (int i = 0; i < ThePlayerTemplateStore->getPlayerTemplateCount(); i++)
 	{
@@ -217,7 +217,7 @@ static const PlayerTemplate* findFirstPlayerTemplateOnSide(AsciiString side)
 	}
 
 	DEBUG_CRASH(("no player found for %s!",side.str()));
-	return NULL;
+	return nullptr;
 }
 #endif
 
@@ -258,7 +258,7 @@ BOOL ObjectOptions::OnInitDialog()
 	{
 		Coord3D pt = {0,0,0};
 		char base[1024] = "*Lights/Light";
-		MapObject *pMap = newInstance(MapObject)(pt, AsciiString(base), 0.0f, 0, nullptr, NULL );
+		MapObject *pMap = newInstance(MapObject)(pt, AsciiString(base), 0.0f, 0, nullptr, nullptr );
 		pMap->setIsLight();
 
 		Dict *props = pMap->getProperties();
@@ -308,7 +308,7 @@ BOOL ObjectOptions::OnInitDialog()
 					}
 				}
 				Coord3D pt = {0,0,0};
-				MapObject *pMap = newInstance(MapObject)(pt, AsciiString(fileBuf), 0.0f, 0, nullptr, NULL );
+				MapObject *pMap = newInstance(MapObject)(pt, AsciiString(fileBuf), 0.0f, 0, nullptr, nullptr );
 				pMap->setNextMap(m_objectsList);
 				m_objectsList = pMap;
 
@@ -467,7 +467,7 @@ void ObjectOptions::addObject( MapObject *mapObject, const char *pPath,
 
 		// first sort by side, either create or find the tree item with matching side name
 		AsciiString side = thingTemplate->getDefaultOwningSide();
-		DEBUG_ASSERTCRASH( !side.isEmpty(), ("NULL default side in template") );
+		DEBUG_ASSERTCRASH( !side.isEmpty(), ("nullptr default side in template") );
 		parent = findOrAdd( parent, side.str());
 
 		// next tier uses the editor sorting that design can specify in the INI
@@ -776,7 +776,7 @@ Int ObjectOptions::getObjectNamedIndex(const AsciiString& name)
 			pObj = pObj->getNext();
 		}
 	}
-	return(nullptr);
+	return(0);
 }
 
 

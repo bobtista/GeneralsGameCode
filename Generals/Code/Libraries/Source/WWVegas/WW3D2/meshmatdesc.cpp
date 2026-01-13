@@ -212,7 +212,7 @@ MeshMatDescClass::MeshMatDescClass(const MeshMatDescClass & that) :
 	int stage;
 	int array;
 
-	// init everything to NULL
+	// init everything to nullptr
 	for (array=0;array < MAX_COLOR_ARRAYS; array++) {
 		ColorArray[array] = nullptr;
 	}
@@ -451,7 +451,7 @@ bool MeshMatDescClass::Is_Empty(void)
 			if (TextureArray[pass][stage] != nullptr) return false;
 		}
 
-//		if (UVIndex[pass] != NULL) return false;
+//		if (UVIndex[pass] != nullptr) return false;
 		if (Material[pass] != nullptr) return false;
 		if (MaterialArray[pass] != nullptr) return false;
 
@@ -848,7 +848,7 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 		** don't need to pre-multiply the color values; hopefully this is the behavior on
 		** other hardware as well!
 		*/
-/*		if ((DCGSource[pass] != VertexMaterialClass::MATERIAL) && (ColorArray[0] != NULL)) {
+/*		if ((DCGSource[pass] != VertexMaterialClass::MATERIAL) && (ColorArray[0] != nullptr)) {
 			unsigned * diffuse_array = ColorArray[0]->Get_Array();
 			Vector3 mtl_diffuse;
 			float mtl_opacity = 1.0f;
@@ -877,7 +877,7 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 */		/*
 		** If needed, pre-multiply the emissive color array with the material color
 		*/
-/*		if ((DIGSource[pass] != VertexMaterialClass::MATERIAL) && (ColorArray[1] != NULL)) {
+/*		if ((DIGSource[pass] != VertexMaterialClass::MATERIAL) && (ColorArray[1] != nullptr)) {
 
 			unsigned * emissive_array = ColorArray[1]->Get_Array();
 			Vector3 mtl_emissive;

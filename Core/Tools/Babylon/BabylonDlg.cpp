@@ -196,7 +196,7 @@ END_MESSAGE_MAP()
 
 IMPLEMENT_DYNAMIC(CBabylonDlg, CDialog);
 
-CBabylonDlg::CBabylonDlg(CWnd* pParent /*=NULL*/)
+CBabylonDlg::CBabylonDlg(CWnd* pParent /*=nullptr*/)
 	: CDialog(CBabylonDlg::IDD, pParent)
 {
 	//{{AFX_DATA_INIT(CBabylonDlg)
@@ -210,7 +210,7 @@ CBabylonDlg::CBabylonDlg(CWnd* pParent /*=NULL*/)
 CBabylonDlg::~CBabylonDlg()
 {
 	// If there is an automation proxy for this dialog, set
-	//  its back pointer to this dialog to NULL, so it knows
+	//  its back pointer to this dialog to nullptr, so it knows
 	//  the dialog has been deleted.
 	if (m_pAutoProxy != nullptr)
 		m_pAutoProxy->m_pDialog = nullptr;
@@ -451,7 +451,7 @@ BOOL CBabylonDlg::CanExit()
 //DEL 		}
 //DEL 		else
 //DEL 		{
-//DEL 			SelectFile ( NULL );
+//DEL 			SelectFile ( nullptr );
 //DEL 		}
 //DEL 		delete dlg;
 //DEL 	}
@@ -2175,15 +2175,14 @@ int CBabylonDlg::ValidateStrFile( const char *filename)
 
 	sprintf ( buffer, "strcheck %s %s", filename, results );
 
-	if (!CreateProcess(
-			NULL,
+	if (!CreateProcess( nullptr,
 			buffer,
-			NULL,
-			NULL,
+			nullptr,
+			nullptr,
 			FALSE,
 			0,
-			NULL,
-			NULL,
+			nullptr,
+			nullptr,
 			&StartupInfo,
 			&ProcessInfo))
 	{

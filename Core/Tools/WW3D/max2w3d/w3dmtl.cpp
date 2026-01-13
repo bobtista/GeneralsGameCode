@@ -101,8 +101,8 @@ void W3dMapClass::Set_Filename(const char * fullpath)
 		char exten[_MAX_EXT];
 		char fname[_MAX_FNAME+_MAX_EXT+2];
 
-		_splitpath(fullpath,nullptr,NULL,name,exten);
-		_makepath(fname,nullptr,NULL,name,exten);
+		_splitpath(fullpath,nullptr,nullptr,name,exten);
+		_makepath(fname,nullptr,nullptr,name,exten);
 		//strupr(fname);						(gth) need to preserve case since unix/PS2 is case sensitive...
 		Filename = strdup(fname);
 	} else {
@@ -679,7 +679,7 @@ bool W3dMaterialClass::Is_Multi_Pass_Transparent(void) const
 W3dMaterialDescClass::VertMatClass::VertMatClass(void) :
 	PassIndex(-1),
 	Crc(0),
-	Name(NULL)
+	Name()
 {
 	for (int stage=0; stage < W3dMaterialClass::MAX_STAGES; ++stage) {
 		MapperArgs[stage] = nullptr;
@@ -970,7 +970,7 @@ W3dVertexMaterialStruct * W3dMaterialDescClass::Get_Vertex_Material(int mat_inde
 {
 	int index = Get_Vertex_Material_Index(mat_index,pass);
 	if (index == -1) {
-		return NULL;
+		return nullptr;
 	} else {
 		return Get_Vertex_Material(index);
 	}
@@ -980,7 +980,7 @@ const char * W3dMaterialDescClass::Get_Mapper_Args(int mat_index,int pass,int st
 {
 	int index = Get_Vertex_Material_Index(mat_index,pass);
 	if (index == -1) {
-		return NULL;
+		return nullptr;
 	} else {
 		return Get_Mapper_Args(index,stage);
 	}
@@ -990,7 +990,7 @@ W3dShaderStruct * W3dMaterialDescClass::Get_Shader(int mat_index,int pass)
 {
 	int index = Get_Shader_Index(mat_index,pass);
 	if (index == -1) {
-		return NULL;
+		return nullptr;
 	} else {
 		return Get_Shader(index);
 	}
@@ -1000,7 +1000,7 @@ W3dMapClass * W3dMaterialDescClass::Get_Texture(int mat_index,int pass,int stage
 {
 	int index = Get_Texture_Index(mat_index,pass,stage);
 	if (index == -1) {
-		return NULL;
+		return nullptr;
 	} else {
 		return Get_Texture(index);
 	}
@@ -1015,7 +1015,7 @@ const char * W3dMaterialDescClass::Get_Vertex_Material_Name(int mat_index,int pa
 {
 	int index = Get_Vertex_Material_Index(mat_index,pass);
 	if (index == -1) {
-		return NULL;
+		return nullptr;
 	} else {
 		return VertexMaterials[index].Name;
 	}

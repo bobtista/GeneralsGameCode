@@ -313,7 +313,7 @@ void OpenContain::addToContain( Object *rider )
 				reportObject = *items->begin();
 			}
 		}
-		DEBUG_CRASH( ("OpenContain::addToContain() - Object %s not valid for container %s!", reportObject?reportObject->getTemplate()->getName().str():"NULL", getObject()->getTemplate()->getName().str() ) );
+		DEBUG_CRASH( ("OpenContain::addToContain() - Object %s not valid for container %s!", reportObject?reportObject->getTemplate()->getName().str():"nullptr", getObject()->getTemplate()->getName().str() ) );
 	}
 #endif
 
@@ -459,7 +459,7 @@ void OpenContain::killAllContained( void )
 	{
 		Object *rider = *it++;
 
-		DEBUG_ASSERTCRASH( rider, ("Contain list must not contain NULL element"));
+		DEBUG_ASSERTCRASH( rider, ("Contain list must not contain nullptr element"));
 		if ( rider )
 		{
 			onRemoving( rider );
@@ -481,7 +481,7 @@ void OpenContain::harmAndForceExitAllContained( DamageInfo *info )
 	{
 		Object *rider = *it;
 
-		DEBUG_ASSERTCRASH( rider, ("Contain list must not contain NULL element"));
+		DEBUG_ASSERTCRASH( rider, ("Contain list must not contain nullptr element"));
 		if ( rider )
 		{
 		  removeFromContain( rider, true );
@@ -1525,7 +1525,7 @@ void OpenContain::processDamageToContained(Real percentDamage)
 	{
 		Object *object = *it;
 
-		DEBUG_ASSERTCRASH( object, ("Contain list must not contain NULL element") );
+		DEBUG_ASSERTCRASH( object, ("Contain list must not contain nullptr element") );
 
 		// Calculate the damage to be inflicted on each unit.
 		Real damage = object->getBodyModule()->getMaxHealth() * percentDamage;

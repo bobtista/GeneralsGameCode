@@ -63,7 +63,7 @@ DamageClass::DamageClass(void):
 	NumVerts(0),
 	NumColors(0),
 	Verts(nullptr),
-	Colors(NULL)
+	Colors()
 {
 }
 

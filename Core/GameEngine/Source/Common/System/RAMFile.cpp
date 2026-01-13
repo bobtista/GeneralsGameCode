@@ -164,7 +164,7 @@ Bool RAMFile::open( File *file )
 	//USE_PERF_TIMER(RAMFile)
 	if ( file == nullptr )
 	{
-		return NULL;
+		return FALSE;
 	}
 
 	const Int access = file->getAccess();
@@ -551,7 +551,7 @@ char* RAMFile::readEntireAndClose()
 
 	if (m_data == nullptr)
 	{
-		DEBUG_CRASH(("m_data is NULL in RAMFile::readEntireAndClose -- should not happen!"));
+		DEBUG_CRASH(("m_data is nullptr in RAMFile::readEntireAndClose -- should not happen!"));
 		return NEW char[1];	// just to avoid crashing...
 	}
 

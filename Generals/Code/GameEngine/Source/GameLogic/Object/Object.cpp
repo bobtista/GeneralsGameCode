@@ -528,7 +528,7 @@ Object::~Object()
 	}
 
 	//
-	// remove from radar before we NULL out the team ... the order of ops are critical here
+	// remove from radar before we nullptr out the team ... the order of ops are critical here
 	// because the radar code will sometimes look at the team info and it is assumed through
 	// the team and player code that the team is valid
 	//
@@ -1237,7 +1237,7 @@ void Object::clearSpecialModelConditionStates()
 //	}
 //	else
 //	{
-//		DEBUG_CRASH(("NULL Drawable at this point, you can't get modelconditionflags now."));
+//		DEBUG_CRASH(("nullptr Drawable at this point, you can't get modelconditionflags now."));
 //		static ModelConditionFlags noFlags;
 //		return noFlags;
 //	}
@@ -5531,7 +5531,7 @@ void Object::leaveGroup( void )
 	// if we are in a group, remove ourselves from it
 	if (m_group)
 	{
-		// to avoid recursion, set m_group to NULL before removing
+		// to avoid recursion, set m_group to nullptr before removing
 		AIGroupPtr group = m_group;
 		m_group = nullptr;
 		group->remove( this );

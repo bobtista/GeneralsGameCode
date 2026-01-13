@@ -36,13 +36,13 @@ string to it's own memory (for assignment or construction).
 
 #include "wstring.h"
 
-Wstring::Wstring():str(NULL)
+Wstring::Wstring():str(nullptr)
 { }
 
-Wstring::Wstring(const char *string):str(NULL)
+Wstring::Wstring(const char *string):str(nullptr)
 { set(string); }
 
-Wstring::Wstring(const Wstring &other):str(NULL)
+Wstring::Wstring(const Wstring &other):str(nullptr)
 {
   if (other.str!=nullptr)
   {
@@ -493,7 +493,7 @@ char Wstring::set(uint32 size, const char *string)
    return(FALSE);
  }
 
- // Copy the bytes in the string, and NULL-terminate it.
+ // Copy the bytes in the string, and null-terminate it.
  strncpy(str, string, size);
  str[size] = 0;
 

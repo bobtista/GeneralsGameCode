@@ -608,7 +608,7 @@ Object::~Object()
 	}
 
 	//
-	// remove from radar before we NULL out the team ... the order of ops are critical here
+	// remove from radar before we nullptr out the team ... the order of ops are critical here
 	// because the radar code will sometimes look at the team info and it is assumed through
 	// the team and player code that the team is valid
 	//
@@ -1396,7 +1396,7 @@ void Object::clearSpecialModelConditionStates()
 //	}
 //	else
 //	{
-//		DEBUG_CRASH(("NULL Drawable at this point, you can't get modelconditionflags now."));
+//		DEBUG_CRASH(("nullptr Drawable at this point, you can't get modelconditionflags now."));
 //		static ModelConditionFlags noFlags;
 //		return noFlags;
 //	}
@@ -3706,7 +3706,7 @@ void Object::updateObjValuesFromMapProperties(Dict* properties)
         if ( audioToModify == nullptr )
         {
           const AudioEventInfo * baseInfo = drawable->getBaseSoundAmbientInfo( );
-          DEBUG_ASSERTCRASH( baseInfo != nullptr, ("getBaseSoundAmbientInfo() return NULL" ) );
+          DEBUG_ASSERTCRASH( baseInfo != nullptr, ("getBaseSoundAmbientInfo() return nullptr" ) );
           if ( baseInfo != nullptr )
           {
             audioToModify = newInstance( DynamicAudioEventInfo )( *baseInfo );
@@ -4651,7 +4651,7 @@ void Object::onDie( DamageInfo *damageInfo )
 	}
 
 	// This call won't do anything if we aren't actually in the list.
-	//Kris: Added NULL check to prevent crash with combat bikes & their riders getting deleted on exit.
+	//Kris: Added nullptr check to prevent crash with combat bikes & their riders getting deleted on exit.
 	if( getControllingPlayer() )
 	{
 		TheInGameUI->removeIdleWorker( this, getControllingPlayer()->getPlayerIndex() );
@@ -6372,7 +6372,7 @@ void Object::leaveGroup( void )
 	// if we are in a group, remove ourselves from it
 	if (m_group)
 	{
-		// to avoid recursion, set m_group to NULL before removing
+		// to avoid recursion, set m_group to nullptr before removing
 		AIGroupPtr group = m_group;
 		m_group = nullptr;
 		group->remove( this );

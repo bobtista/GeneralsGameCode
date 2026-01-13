@@ -87,7 +87,7 @@ public:
 	// Direct paramblock access
 	int	NumParamBlocks()																	{ return 1; }
 	IParamBlock2* GetParamBlock(int i)													{ return pblock2; }
-	IParamBlock2* GetParamBlockByID(BlockID id)										{ return (pblock2->ID() == id) ? pblock2 : NULL; }
+	IParamBlock2* GetParamBlockByID(BlockID id)										{ return (pblock2->ID() == id) ? pblock2 : nullptr; }
 
 	// From simple mod
 	Deformer& GetDeformer(TimeValue t,ModContext &mc,Matrix3& mat,Matrix3& invmat);
@@ -258,7 +258,7 @@ RefTargetHandle SimpleMod2::GetReference(int i)
 		case 0: return tmControl;
 		case 1: return posControl;
 		case 2: return pblock2;
-		default: return NULL;
+		default: return nullptr;
 	}
 }
 
@@ -277,6 +277,6 @@ Animatable * SimpleMod2::SubAnim(int i)
 		case 0: return posControl;
 		case 1: return tmControl;
 		case 2: return pblock2;
-		default: return NULL;
+		default: return nullptr;
 	}
 }

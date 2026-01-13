@@ -468,7 +468,7 @@ void DX8Wrapper::Invalidate_Cached_Render_States(void)
 		{
 			TextureStageStates[a][b]=0x12345678;
 		}
-		//Need to explicitly set texture to NULL, otherwise app will not be able to
+		//Need to explicitly set texture to nullptr, otherwise app will not be able to
 		//set it to null because of redundant state checker. MW
 		if (_Get_D3D_Device8())
 			_Get_D3D_Device8()->SetTexture(a,nullptr);
@@ -480,7 +480,7 @@ void DX8Wrapper::Invalidate_Cached_Render_States(void)
 
 	ShaderClass::Invalidate();
 
-	//Need to explicitly set render_state texture pointers to NULL. MW
+	//Need to explicitly set render_state texture pointers to nullptr. MW
 	Release_Render_State();
 
 	// (gth) clear the matrix shadows too
@@ -2282,7 +2282,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 	{
 		if (render_state_changed&mask)
 		{
-			SNAPSHOT_SAY(("DX8 - apply texture %d (%s)",i,render_state.Textures[i] ? render_state.Textures[i]->Get_Full_Path().str() : "NULL"));
+			SNAPSHOT_SAY(("DX8 - apply texture %d (%s)",i,render_state.Textures[i] ? render_state.Textures[i]->Get_Full_Path().str() : "nullptr"));
 
 			if (render_state.Textures[i])
 			{
@@ -2432,7 +2432,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	// format that is supported and use that instead.
 
 	// Render target may return NOTAVAILABLE, in
-	// which case we return NULL.
+	// which case we return nullptr.
 	if (rendertarget) {
 		unsigned ret=D3DXCreateTexture(
 			DX8Wrapper::_Get_D3D_Device8(),
@@ -2718,7 +2718,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 	// format that is supported and use that instead.
 
 	// Render target may return NOTAVAILABLE, in
-	// which case we return NULL.
+	// which case we return nullptr.
 	if (rendertarget)
 	{
 		unsigned ret=D3DXCreateCubeTexture
@@ -3224,7 +3224,7 @@ DX8Wrapper::Create_Render_Target (int width, int height, WW3DFormat format)
 		format=D3DFormat_To_WW3DFormat(mode.Format);
 	}
 
-	// If render target format isn't supported return NULL
+	// If render target format isn't supported return nullptr
 	if (!Get_Current_Caps()->Support_Render_To_Texture_Format(format)) {
 		WWDEBUG_SAY(("DX8Wrapper - Render target format is not supported"));
 		return nullptr;
@@ -3294,7 +3294,7 @@ void DX8Wrapper::Create_Render_Target
 		format=D3DFormat_To_WW3DFormat(mode.Format);*/
 	}
 
-	// If render target format isn't supported return NULL
+	// If render target format isn't supported return nullptr
 	if (!Get_Current_Caps()->Support_Render_To_Texture_Format(format) ||
 		 !Get_Current_Caps()->Support_Depth_Stencil_Format(zformat))
 	{
@@ -3424,7 +3424,7 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface8 *render_target, bool use_default
 	//
 	if (render_target == nullptr || render_target == DefaultRenderTarget)
 	{
-		// If there is currently a custom render target, default must NOT be NULL.
+		// If there is currently a custom render target, default must NOT be nullptr.
 		if (CurrentRenderTarget)
 		{
 			WWASSERT(DefaultRenderTarget!=nullptr);
@@ -3470,7 +3470,7 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface8 *render_target, bool use_default
 		//
 		if (DefaultDepthBuffer == nullptr)
 		{
-//		IDirect3DSurface8 *depth_buffer = NULL;
+//		IDirect3DSurface8 *depth_buffer = nullptr;
 			DX8CALL(GetDepthStencilSurface (&DefaultDepthBuffer));
 		}
 
@@ -3523,9 +3523,9 @@ DX8Wrapper::Set_Render_Target(IDirect3DSurface8 *render_target, bool use_default
 	//
 	//	Free our hold on the depth buffer
 	//
-//	if (depth_buffer != NULL) {
+//	if (depth_buffer != nullptr) {
 //		depth_buffer->Release ();
-//		depth_buffer = NULL;
+//		depth_buffer = nullptr;
 //	}
 
 	IsRenderToTexture = false;
@@ -3553,7 +3553,7 @@ void DX8Wrapper::Set_Render_Target
 	//
 	if (render_target == nullptr || render_target == DefaultRenderTarget)
 	{
-		// If there is currently a custom render target, default must NOT be NULL.
+		// If there is currently a custom render target, default must NOT be nullptr.
 		if (CurrentRenderTarget)
 		{
 			WWASSERT(DefaultRenderTarget!=nullptr);
@@ -3598,7 +3598,7 @@ void DX8Wrapper::Set_Render_Target
 		//
 		if (DefaultDepthBuffer == nullptr)
 		{
-//		IDirect3DSurface8 *depth_buffer = NULL;
+//		IDirect3DSurface8 *depth_buffer = nullptr;
 			DX8CALL(GetDepthStencilSurface (&DefaultDepthBuffer));
 		}
 
@@ -3871,7 +3871,7 @@ void DX8Wrapper::Apply_Default_State()
 		Set_Texture(i,nullptr);
 	}
 
-//	DX8Wrapper::Set_Material(NULL);
+//	DX8Wrapper::Set_Material(nullptr);
 	VertexMaterialClass::Apply_Null();
 
 	for (unsigned index=0;index<4;++index) {

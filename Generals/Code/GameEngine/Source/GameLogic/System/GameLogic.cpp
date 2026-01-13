@@ -2249,7 +2249,7 @@ void GameLogic::processCommandList( CommandList *list )
 	for( msg = list->getFirstMessage(); msg; msg = msg->next() )
 	{
 #ifdef RTS_DEBUG
-		DEBUG_ASSERTCRASH(msg != NULL && msg != (GameMessage*)0xdeadbeef, ("bad msg"));
+		DEBUG_ASSERTCRASH(msg != nullptr && msg != (GameMessage*)0xdeadbeef, ("bad msg"));
 #endif
 		logicMessageDispatcher( msg, NULL );
 	}
@@ -2406,8 +2406,8 @@ void GameLogic::deselectObject(Object *obj, PlayerMaskType playerMask, Bool affe
 				group->removeAll();
 #endif
 			} else {
-				// NULL will clear the group.
-				player->setCurrentlySelectedAIGroup(NULL);
+				// nullptr will clear the group.
+				player->setCurrentlySelectedAIGroup(nullptr);
 			}
 
 			if (affectClient) {
@@ -2906,7 +2906,7 @@ static void unitTimings(void)
 			if (mi.getCount() > 0)
 			{
 				const ModuleData* mdd = mi.getNthData(0);
-				const W3DModelDrawModuleData* md = mdd ? mdd->getAsW3DModelDrawModuleData() : NULL;
+				const W3DModelDrawModuleData* md = mdd ? mdd->getAsW3DModelDrawModuleData() : nullptr;
 				if (md)
 				{
 					modelName = md->getBestModelNameForWB(state);

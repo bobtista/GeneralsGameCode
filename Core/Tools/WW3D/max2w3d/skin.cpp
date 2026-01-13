@@ -63,9 +63,9 @@ static float Bone_Distance(INode * bone,TimeValue time,const Point3 & vertex);
 /*
 ** Static variables
 */
-HWND					SkinWSMObjectClass::SotHWND = NULL;
-HWND					SkinWSMObjectClass::SkeletonHWND = NULL;
-HWND					SkinWSMObjectClass::BoneListHWND = NULL;
+HWND					SkinWSMObjectClass::SotHWND = nullptr;
+HWND					SkinWSMObjectClass::SkeletonHWND = nullptr;
+HWND					SkinWSMObjectClass::BoneListHWND = nullptr;
 IObjParam *			SkinWSMObjectClass::InterfacePtr = nullptr;
 ICustButton *		SkinWSMObjectClass::AddBonesButton = nullptr;
 ICustButton *		SkinWSMObjectClass::RemoveBonesButton = nullptr;
@@ -163,14 +163,14 @@ SkinWSMObjectClass::~SkinWSMObjectClass(void)
 	if (SotHWND != nullptr) {
 		InterfacePtr->UnRegisterDlgWnd(SotHWND);
 		InterfacePtr->DeleteRollupPage(SotHWND);
-	  	SotHWND = NULL;
+	  	SotHWND = nullptr;
 	}
 
 	assert(!((InterfacePtr == nullptr) && (SkeletonHWND != nullptr)));
 	if (SkeletonHWND != nullptr) {
 		InterfacePtr->UnRegisterDlgWnd(SkeletonHWND);
 		InterfacePtr->DeleteRollupPage(SkeletonHWND);
-	  	SkeletonHWND = NULL;
+	  	SkeletonHWND = nullptr;
 	}
 }
 
@@ -227,7 +227,7 @@ void SkinWSMObjectClass::EndEditParams(IObjParam *ip, ULONG flags,Animatable *ne
 		if (SotHWND != nullptr) {
 			InterfacePtr->UnRegisterDlgWnd(SotHWND);
 			InterfacePtr->DeleteRollupPage(SotHWND);
-	  		SotHWND = NULL;
+	  		SotHWND = nullptr;
 		}
 
 		/*
@@ -236,7 +236,7 @@ void SkinWSMObjectClass::EndEditParams(IObjParam *ip, ULONG flags,Animatable *ne
 		if (SkeletonHWND != nullptr) {
 			InterfacePtr->UnRegisterDlgWnd(SkeletonHWND);
 			InterfacePtr->DeleteRollupPage(SkeletonHWND);
-	  		SkeletonHWND = NULL;
+	  		SkeletonHWND = nullptr;
 		}
 	}
 
@@ -312,7 +312,7 @@ CreateMouseCallBack * SkinWSMObjectClass::GetCreateMouseCallBack(void)
 	/*
 	** The "CreateMouseCallback" is used when creating the
 	** object.  Since our object doesn't need an interactive
-	** creation phase, we return NULL.
+	** creation phase, we return nullptr.
 	*/
 	return &_SkinCreateCB;
 }
@@ -440,7 +440,7 @@ int SkinWSMObjectClass::Add_Bone(INode * node)
 	}
 
 	/*
-	** Otherwise, look for a NULL bone and we'll re-use
+	** Otherwise, look for a nullptr bone and we'll re-use
 	** its slot.  This happens when a user removes a bone or
 	** a bone in the scene is deleted.
 	*/
@@ -624,7 +624,7 @@ void SkinModifierClass::Default_Init(void)
 	WSMNodeRef = nullptr;
 	InterfacePtr = nullptr;
 
-	BoneInfluenceHWND = NULL;
+	BoneInfluenceHWND = nullptr;
 	LinkButton = nullptr;
 	LinkByNameButton = nullptr;
 	AutoLinkButton = nullptr;
@@ -732,7 +732,7 @@ RefTargetHandle SkinModifierClass::GetReference(int i)
 	switch (i) {
 		case OBJ_REF:			return WSMObjectRef;
 		case NODE_REF:			return WSMNodeRef;
-		default:					return NULL;
+		default:					return nullptr;
 	}
 }
 
@@ -813,8 +813,8 @@ void SkinModifierClass::ModifyObject(TimeValue t, ModContext & mc, ObjectState *
 
 		// TODO: Allow multiple bone influences here...
 		// issues - UI to set the weights, rebalance weights whenever
-		// a bone is deleted, should also then never get NULL bones
-		// and remove the need to check for NULL bones in this routine...
+		// a bone is deleted, should also then never get nullptr bones
+		// and remove the need to check for nullptr bones in this routine...
 
 		/*
 		** Get a pointer to the bone that this vertex is attached to
@@ -961,7 +961,7 @@ void SkinModifierClass::ActivateSubobjSel(int level, XFormModes & modes)
 			break;
 
 		case VERTEX_SEL_LEVEL: // Modifying Vertices
-			modes = XFormModes(NULL,nullptr,NULL,nullptr,NULL,SelectMode);
+			modes = XFormModes(nullptr,nullptr,nullptr,nullptr,nullptr,SelectMode);
 			Install_Bone_Influence_Dialog();
 			break;
 	}
@@ -1606,7 +1606,7 @@ void SkinModifierClass::Remove_Bone_Influence_Dialog(void)
 	if (BoneInfluenceHWND != nullptr) {
 		InterfacePtr->UnRegisterDlgWnd(BoneInfluenceHWND);
 		InterfacePtr->DeleteRollupPage(BoneInfluenceHWND);
-		BoneInfluenceHWND = NULL;
+		BoneInfluenceHWND = nullptr;
 	}
 }
 
@@ -1695,7 +1695,7 @@ BOOL SkinWSMObjectClass::Skeleton_Dialog_Proc(HWND hWnd,UINT message,WPARAM wPar
 			AddBonesButton = nullptr;
 			RemoveBonesButton = nullptr;
 			BasePoseSpin = nullptr;
-			BoneListHWND = NULL;
+			BoneListHWND = nullptr;
 
 			return FALSE;
 
@@ -1870,7 +1870,7 @@ static TriObject * Get_Tri_Object(TimeValue t,ObjectState & os,Interval & valid,
 			return tobj;
 		}
 	}
-	return NULL;
+	return nullptr;
 }
 
 

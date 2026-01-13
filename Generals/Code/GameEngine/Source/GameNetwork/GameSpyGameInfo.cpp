@@ -208,7 +208,7 @@ Bool GetLocalChatConnectionAddress(AsciiString serverName, UnsignedShort serverP
 	SnmpExtensionQueryPtr = (int (__stdcall *)(unsigned char,SnmpVarBindList *,long *,long *)) GetProcAddress(mib_ii_dll, "SnmpExtensionQuery");
 	SnmpUtilMemAllocPtr = (void *(__stdcall *)(unsigned long)) GetProcAddress(snmpapi_dll, "SnmpUtilMemAlloc");
 	SnmpUtilMemFreePtr = (void (__stdcall *)(void *)) GetProcAddress(snmpapi_dll, "SnmpUtilMemFree");
-	if (SnmpExtensionInitPtr == NULL || SnmpExtensionQueryPtr == NULL || SnmpUtilMemAllocPtr == NULL || SnmpUtilMemFreePtr == nullptr) {
+	if (SnmpExtensionInitPtr == nullptr || SnmpExtensionQueryPtr == nullptr || SnmpUtilMemAllocPtr == nullptr || SnmpUtilMemFreePtr == nullptr) {
 		DEBUG_LOG(("Failed to get proc addresses for linked functions"));
 		FreeLibrary(snmpapi_dll);
 		FreeLibrary(mib_ii_dll);
@@ -492,7 +492,7 @@ void GameSpyLaunchGame( void )
 		// Set up the game network
 		AsciiString user;
 		AsciiString userList;
-		DEBUG_ASSERTCRASH(TheNetwork == nullptr, ("For some reason TheNetwork isn't NULL at the start of this game.  Better look into that."));
+		DEBUG_ASSERTCRASH(TheNetwork == nullptr, ("For some reason TheNetwork isn't nullptr at the start of this game.  Better look into that."));
 
 		if (TheNetwork != nullptr) {
 			delete TheNetwork;
@@ -621,8 +621,8 @@ void GameSpyGameInfo::gotGOACall( void )
 void GameSpyGameInfo::startGame(Int gameID)
 {
 	DEBUG_LOG(("GameSpyGameInfo::startGame - game id = %d", gameID));
-	DEBUG_ASSERTCRASH(m_transport == nullptr, ("m_transport is not NULL when it should be"));
-	DEBUG_ASSERTCRASH(TheNAT == nullptr, ("TheNAT is not NULL when it should be"));
+	DEBUG_ASSERTCRASH(m_transport == nullptr, ("m_transport is not nullptr when it should be"));
+	DEBUG_ASSERTCRASH(TheNAT == nullptr, ("TheNAT is not nullptr when it should be"));
 
 	// fill in GS-specific info
 	for (Int i=0; i<MAX_SLOTS; ++i)

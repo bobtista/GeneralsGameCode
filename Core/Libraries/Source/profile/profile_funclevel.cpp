@@ -27,7 +27,6 @@
 // Function level profiling
 //////////////////////////////////////////////////////////////////////////////
 
-#include <Utility/CppMacros.h>
 #include "profile.h"
 #include "internal.h"
 #include "../debug/debug.h"
@@ -464,7 +463,7 @@ ProfileFuncLevelTracer::Profile *ProfileFuncLevelTracer::ProfileMap::Find(int fr
 {
   List *p=root;
   for (;p&&p->frame<frame;p=p->next);
-  return p&&p->frame==frame?&p->p:NULL;
+  return p&&p->frame==frame?&p->p: nullptr;
 }
 
 void ProfileFuncLevelTracer::ProfileMap::Append(int frame, const Profile &p)
@@ -541,7 +540,7 @@ void ProfileFuncLevelTracer::FunctionMap::Insert(Function *funcPtr)
 ProfileFuncLevelTracer::Function *ProfileFuncLevelTracer::FunctionMap::Enumerate(int index)
 {
   if (index<0||index>=(int)used)
-    return NULL;
+    return nullptr;
   return e[index].funcPtr;
 }
 
@@ -567,7 +566,7 @@ bool ProfileFuncLevel::IdList::Enum(unsigned index, Id &id, unsigned *countPtr) 
 const char *ProfileFuncLevel::Id::GetSource(void) const
 {
   if (!m_funcPtr)
-    return NULL;
+    return nullptr;
 
   ProfileFuncLevelTracer::Function *func=(ProfileFuncLevelTracer::Function *)m_funcPtr;
   if (!func->funcSource)
@@ -575,7 +574,7 @@ const char *ProfileFuncLevel::Id::GetSource(void) const
     char helpFunc[256],helpFile[256];
     unsigned ofsFunc;
     DebugStackwalk::Signature::GetSymbol(func->addr,
-                                         NULL,0,nullptr,
+                                         nullptr,0,nullptr,
                                          helpFunc,sizeof(helpFunc),&ofsFunc,
                                          helpFile,sizeof(helpFile),&func->funcLine,nullptr);
 
@@ -593,7 +592,7 @@ const char *ProfileFuncLevel::Id::GetSource(void) const
 const char *ProfileFuncLevel::Id::GetFunction(void) const
 {
   if (!m_funcPtr)
-    return NULL;
+    return nullptr;
   ProfileFuncLevelTracer::Function *func=(ProfileFuncLevelTracer::Function *)m_funcPtr;
   if (!func->funcSource)
     GetSource();
@@ -611,7 +610,7 @@ unsigned ProfileFuncLevel::Id::GetAddress(void) const
 unsigned ProfileFuncLevel::Id::GetLine(void) const
 {
   if (!m_funcPtr)
-    return NULL;
+    return 0;
   ProfileFuncLevelTracer::Function *func=(ProfileFuncLevelTracer::Function *)m_funcPtr;
   if (!func->funcSource)
     GetSource();

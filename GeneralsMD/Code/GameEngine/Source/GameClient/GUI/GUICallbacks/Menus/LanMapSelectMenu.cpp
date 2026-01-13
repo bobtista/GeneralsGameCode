@@ -56,8 +56,7 @@ static GameWindow *winMapPreview = nullptr;
 static NameKeyType radioButtonSystemMapsID = NAMEKEY_INVALID;
 static NameKeyType radioButtonUserMapsID = NAMEKEY_INVALID;
 
-static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-																								nullptr,nullptr,nullptr,nullptr };
+static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {0};
 static NameKeyType buttonMapStartPositionID[MAX_SLOTS] = { NAMEKEY_INVALID,NAMEKEY_INVALID,
 																									NAMEKEY_INVALID,NAMEKEY_INVALID,
 																										NAMEKEY_INVALID,NAMEKEY_INVALID,
@@ -256,7 +255,7 @@ WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 																				  WindowMsgData mData1, WindowMsgData mData2 )
 {
 	GameWindow *mapWindow = nullptr;
-	if (listboxMap != nullptr)
+	if (listboxMap != NAMEKEY_INVALID)
 	{
 		mapWindow = TheWindowManager->winGetWindowFromId( parent, listboxMap );
 	}
@@ -347,7 +346,7 @@ WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 					mapSelectLayout = nullptr;
 				}
 
-				// set the controls to NULL since they've been destroyed.
+				// set the controls to nullptr since they've been destroyed.
 				NullifyControls();
 				showLANGameOptionsUnderlyingGUIElements(TRUE);
 				PostToLanGameOptions( MAP_BACK );
@@ -397,7 +396,7 @@ WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg
 						mapSelectLayout = nullptr;
 					}
 
-					// set the controls to NULL since they've been destroyed.
+					// set the controls to nullptr since they've been destroyed.
 					NullifyControls();
 
 					showLANGameOptionsUnderlyingGUIElements(TRUE);

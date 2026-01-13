@@ -885,7 +885,7 @@ WW3DErrorType MeshModelClass::read_vertex_colors(ChunkLoadClass & cload,MeshLoad
 	**
 	** A side effect is that if two DCG chunks are encountered, only the first is used...
 	*/
-	if (CurMatDesc->Has_Color_Array(0) == nullptr) {
+	if (CurMatDesc->Has_Color_Array(0) == false) {
 		W3dRGBStruct color;
 		unsigned * dcg = Get_Color_Array(0,true);
 		assert(dcg != nullptr);
@@ -1553,7 +1553,7 @@ WW3DErrorType MeshModelClass::read_per_face_texcoord_ids (ChunkLoadClass &cload,
 //		Vector3i *uvindices;
 //
 //		uvindices = matdesc->Get_UVIndex_Array (context->CurPass, true);
-//		WWASSERT (uvindices != NULL);
+//		WWASSERT (uvindices != nullptr);
 
 //uvindices=W3DNEWARRAY Vector3i[Get_Polygon_Count()];
 //		cload.Read (uvindices, size);
@@ -2335,7 +2335,7 @@ WW3DErrorType MeshModelClass::write_triangles(ChunkSaveClass & csave,MeshSaveCon
 	}
 
 	TriIndex	* poly_verts = Poly->Get_Array();
-	Vector4 * poly_eq = (PlaneEq ? PlaneEq->Get_Array() : NULL);
+	Vector4 * poly_eq = (PlaneEq ? PlaneEq->Get_Array() : nullptr);
 
 	for (int i=0; i<Get_Polygon_Count(); i++) {
 

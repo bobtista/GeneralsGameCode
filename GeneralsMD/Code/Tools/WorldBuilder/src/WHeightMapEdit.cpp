@@ -787,7 +787,7 @@ void WorldHeightMapEdit::saveToFile(DataChunkOutput &chunkWriter)
 
 //
 // duplicate - Makes a copy.
-// Returns NULL if allocation failed.
+// Returns nullptr if allocation failed.
 
 WorldHeightMapEdit *WorldHeightMapEdit::duplicate(void)
 {
@@ -1996,7 +1996,7 @@ Bool WorldHeightMapEdit::selectDuplicates(void)
 	const float DELTA =  0.05f;
 	MapObject *firstObj = MapObject::TheMapObjectListPtr;
 	MapObject *pObj;
-//	MapObject *pPrevRoad = NULL;
+//	MapObject *pPrevRoad = nullptr;
 	Bool anySelected = false;
 	for (pObj=firstObj; pObj; pObj=pObj->getNext()) {
 		pObj->setSelected(false);
@@ -2428,7 +2428,7 @@ Bool WorldHeightMapEdit::doCliffAdjustment(Int xIndex, Int yIndex)
 			if (uvRange.hi.y<cliffInfo.v2) uvRange.hi.y=cliffInfo.v2;
 			if (uvRange.hi.y<cliffInfo.v3) uvRange.hi.y=cliffInfo.v3;
 
-			CProcessNode *pNodes[4] = {nullptr,nullptr,nullptr,nullptr};
+			CProcessNode *pNodes[4] = {0};
 			Int k = 0;
 			for (i=pCurNode->m_x-1; i<pCurNode->m_x+2; i++) {
 				if (i<0) continue;

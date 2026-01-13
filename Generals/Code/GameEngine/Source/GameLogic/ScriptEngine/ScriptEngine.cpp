@@ -5017,7 +5017,7 @@ void ScriptEngine::updateFades( void )
 Player *ScriptEngine::getCurrentPlayer(void)
 {
 	if (m_currentPlayer==nullptr)
-		AppendDebugMessage("***Unexpected NULL player:***", false);
+		AppendDebugMessage("***Unexpected nullptr player:***", false);
 	return m_currentPlayer;
 }
 
@@ -5086,7 +5086,7 @@ Player *ScriptEngine::getSkirmishEnemyPlayer(void)
 Player *ScriptEngine::getSkirmishPlayerFromParm(Parameter *pSkirmishPlayerParm)
 {
 	if (!pSkirmishPlayerParm)
-		return NULL;
+		return nullptr;
 
 	return getSkirmishPlayerFromAsciiString(pSkirmishPlayerParm->getString());
 }
@@ -5103,7 +5103,7 @@ Player *ScriptEngine::getSkirmishPlayerFromAsciiString(const AsciiString& skirmi
 
 	AppendDebugMessage("***Invalid Skirmish Player name:***", false);
 
-	return NULL;
+	return nullptr;
 }
 #endif
 
@@ -5141,7 +5141,7 @@ ObjectTypes *ScriptEngine::getObjectTypes(const AsciiString& objectTypeList)
 
 	for (it = m_allObjectTypeLists.begin(); it != m_allObjectTypeLists.end(); ++it) {
 		if ((*it) == nullptr) {
-			DEBUG_CRASH(("NULL object type list was unexpected. jkmcd"));
+			DEBUG_CRASH(("nullptr object type list was unexpected. jkmcd"));
 			continue;
 		}
 
@@ -5184,7 +5184,7 @@ void ScriptEngine::doObjectTypeListMaintenance(const AsciiString& objectTypeList
 }
 
 //-------------------------------------------------------------------------------------------------
-/** Given a name, return the associated trigger area, or NULL if one doesn't exist.
+/** Given a name, return the associated trigger area, or nullptr if one doesn't exist.
 Handles skirmish name qualification.  */
 //-------------------------------------------------------------------------------------------------
 PolygonTrigger *ScriptEngine::getQualifiedTriggerAreaByName( AsciiString name )
@@ -7013,7 +7013,7 @@ void ScriptEngine::appendSequentialScript(const SequentialScript *scriptToSequen
 	SequentialScript *newSequentialScript = newInstance( SequentialScript );
 	(*newSequentialScript) = (*scriptToSequence);
 
-	// Must set this to NULL, as we don't want an infinite loop.
+	// Must set this to nullptr, as we don't want an infinite loop.
 	newSequentialScript->m_nextScriptInSequence = nullptr;
 
 	// reset the instruction pointer
@@ -7484,7 +7484,7 @@ void SequentialScript::xfer( Xfer *xfer )
 
 		// sanity
 		DEBUG_ASSERTCRASH( m_scriptToExecuteSequentially != nullptr,
-											 ("SequentialScript::xfer - m_scriptToExecuteSequentially is NULL but should not be") );
+											 ("SequentialScript::xfer - m_scriptToExecuteSequentially is nullptr but should not be") );
 
 	}
 
@@ -8266,7 +8266,7 @@ void ScriptEngine::xfer( Xfer *xfer )
 			namedObjectName = it->first;
 			xfer->xferAsciiString( &namedObjectName );
 
-			// write object id (note that object may be NULL)
+			// write object id (note that object may be nullptr)
 			obj = it->second;
 			objectID = obj ? obj->getID() : INVALID_ID;
 			xfer->xferObjectID( &objectID );
@@ -9586,13 +9586,13 @@ static void _initVTune()
 	// always try loading it, even if -vtune wasn't specified.
 	st_vTuneDLL = ::LoadLibrary("vtuneapi.dll");
 // nope, not here...
-//DEBUG_ASSERTCRASH(st_vTuneDLL != NULL, "VTuneAPI DLL not found!"));
+//DEBUG_ASSERTCRASH(st_vTuneDLL != nullptr, "VTuneAPI DLL not found!"));
 
 	if (st_vTuneDLL)
 	{
 		VTPause = (VTProc)::GetProcAddress(st_vTuneDLL, "VTPause");
 		VTResume = (VTProc)::GetProcAddress(st_vTuneDLL, "VTResume");
-		DEBUG_ASSERTCRASH(VTPause != NULL && VTResume != nullptr, ("VTuneAPI procs not found!"));
+		DEBUG_ASSERTCRASH(VTPause != nullptr && VTResume != nullptr, ("VTuneAPI procs not found!"));
 	}
 	else
 	{

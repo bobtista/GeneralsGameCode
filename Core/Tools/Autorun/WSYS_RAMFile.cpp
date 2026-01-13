@@ -95,7 +95,7 @@
 
 RAMFile::RAMFile()
 : m_size(0),
-	m_data(NULL)
+	m_data()
 {
 
 }
@@ -154,7 +154,7 @@ Bool RAMFile::open( File *file )
 {
 	if ( file == nullptr )
 	{
-		return NULL;
+		return FALSE;
 	}
 
 	Int access = file->getAccess();

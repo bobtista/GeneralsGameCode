@@ -134,7 +134,7 @@ private:
 			FrontCount(0),
 			BackCount(0),
 			FrontPolys(nullptr),
-			BackPolys(NULL)
+			BackPolys()
 		{
 		}
 

@@ -59,7 +59,7 @@ template<typename T> class Signaler
 
 	protected:
 		Signaler() :
-				mConnection(NULL)
+				mConnection()
 			{}
 
 		virtual ~Signaler()

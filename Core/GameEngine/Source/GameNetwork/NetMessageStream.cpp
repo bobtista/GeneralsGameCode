@@ -43,24 +43,24 @@
 
 // The per-player pointers for the list of commands
 static CommandMsg *CommandHead[MAX_SLOTS] = {  /// @todo: remove static initialization
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr
 };
 static CommandMsg *CommandTail[MAX_SLOTS] = {
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-	NULL
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr,
+	nullptr
 };
 
 /**
@@ -104,21 +104,21 @@ Bool AddToNetCommandList(Int playerNum, GameMessage *msg, UnsignedInt timestamp)
 
 /**
  * GetCommandMsg returns a GameMessage (deleting its CommandMsg wrapper) that is valid
- * for the current frame, or NULL.
+ * for the current frame, or nullptr.
  *
 static GameMessage * GetCommandMsg(UnsignedInt timestamp, CommandMsg *& CommandHead, CommandMsg *& CommandTail)
 {
 	if (!CommandHead)
-		return NULL;
+		return nullptr;
 
 	if (CommandHead->GetTimestamp() < timestamp)
 	{
 		DEBUG_LOG(("Time is %d, yet message timestamp is %d!", timestamp, CommandHead->GetTimestamp()));
-		return NULL;
+		return nullptr;
 	}
 
 	if (CommandHead->GetTimestamp() != timestamp)
-		return NULL;
+		return nullptr;
 
 	CommandMsg *theMsg = CommandHead;
 
@@ -143,7 +143,7 @@ static GameMessage * GetCommandMsg(UnsignedInt timestamp, CommandMsg *& CommandH
 GameMessage * GetCommandMsg(UnsignedInt timestamp, Int playerNum)
 {
 	if (playerNum < 0 || playerNum >= MAX_SLOTS)
-		return NULL;
+		return nullptr;
 
 	//DEBUG_LOG(("Adding msg to NetCommandList %d", playerNum));
 	return GetCommandMsg(timestamp, CommandHead[playerNum], CommandTail[playerNum]);

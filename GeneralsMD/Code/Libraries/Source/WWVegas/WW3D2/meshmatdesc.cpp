@@ -213,7 +213,7 @@ MeshMatDescClass::MeshMatDescClass(const MeshMatDescClass & that) :
 	int stage;
 	int array;
 
-	// init everything to NULL
+	// init everything to nullptr
 	for (array=0;array < MAX_COLOR_ARRAYS; array++) {
 		ColorArray[array] = nullptr;
 	}
@@ -452,7 +452,7 @@ bool MeshMatDescClass::Is_Empty(void)
 			if (TextureArray[pass][stage] != nullptr) return false;
 		}
 
-//		if (UVIndex[pass] != NULL) return false;
+//		if (UVIndex[pass] != nullptr) return false;
 		if (Material[pass] != nullptr) return false;
 		if (MaterialArray[pass] != nullptr) return false;
 

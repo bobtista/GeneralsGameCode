@@ -40,7 +40,7 @@ static Int defaultMaterialIndex = -1;
 
 Int BlendMaterial::m_currentBlendTexture(-1);
 
-BlendMaterial::BlendMaterial(CWnd* pParent /*=NULL*/) :
+BlendMaterial::BlendMaterial(CWnd* pParent /*=nullptr*/) :
 	m_updating(false)
 {
 	//{{AFX_DATA_INIT(BlendMaterial)
@@ -126,7 +126,7 @@ BOOL BlendMaterial::OnInitDialog()
 	pWnd->GetWindowRect(&rect);
 	ScreenToClient(&rect);
 	rect.DeflateRect(2,2,2,2);
-	//m_terrainSwatches.Create(NULL, "", WS_CHILD, rect, this, IDC_TERRAIN_SWATCHES);
+	//m_terrainSwatches.Create(nullptr, "", WS_CHILD, rect, this, IDC_TERRAIN_SWATCHES);
 	//m_terrainSwatches.ShowWindow(SW_SHOW);
 
 	m_staticThis = this;

@@ -34,7 +34,7 @@ static char THIS_FILE[] = __FILE__;
 // CReport dialog
 
 
-CReport::CReport(CWnd* pParent /*=NULL*/)
+CReport::CReport(CWnd* pParent /*=nullptr*/)
 	: CDialog(CReport::IDD, pParent)
 {
 

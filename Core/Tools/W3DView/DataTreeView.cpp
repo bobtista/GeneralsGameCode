@@ -1104,7 +1104,7 @@ CDataTreeView::OnDeleteItem
 	SAFE_DELETE (asset_info);
 
 	// Reset the data associated with this entry
-	GetTreeCtrl ().SetItemData (pNMTreeView->itemOld.hItem, nullptr);
+	GetTreeCtrl ().SetItemData (pNMTreeView->itemOld.hItem, 0);
 	(*pResult) = 0;
 	return ;
 }

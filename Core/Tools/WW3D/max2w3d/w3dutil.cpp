@@ -333,8 +333,8 @@ ClassDesc * Get_W3D_Utility_Desc(void)
 W3DUtilityClass::W3DUtilityClass(void)
 {
 	InterfacePtr = nullptr;
-	SettingsPanelHWND = NULL;
-	ToolsPanelHWND = NULL;
+	SettingsPanelHWND = nullptr;
+	ToolsPanelHWND = nullptr;
 	UpdateSpinnerValue = true;
 }
 
@@ -377,8 +377,8 @@ void W3DUtilityClass::EndEditParams(Interface *ip,IUtil *iu)
 	ip->DeleteRollupPage(SettingsPanelHWND);
 	ip->DeleteRollupPage(ToolsPanelHWND);
 
-	SettingsPanelHWND = NULL;
-	ToolsPanelHWND = NULL;
+	SettingsPanelHWND = nullptr;
+	ToolsPanelHWND = nullptr;
 }
 
 void W3DUtilityClass::SelectionSetChanged(Interface *ip,IUtil *iu)
@@ -769,7 +769,7 @@ void W3DUtilityClass::generate_lod_ext(INode * node)
 				"extension to \"%s\" will pass this limit! Please shorten its name.",
 				W3D_NAME_LEN - 1, oldname);
 			*ext = '.';
-			MessageBox(NULL, msg, "Error", MB_OK);
+			MessageBox(nullptr, msg, "Error", MB_OK);
 		}
 	}
 	else
@@ -789,7 +789,7 @@ void W3DUtilityClass::generate_lod_ext(INode * node)
 			sprintf(msg, "The maximum W3D object name is %d characters. Adding the LOD "
 				"extension to \"%s\" will pass this limit! Please shorten its name.",
 				W3D_NAME_LEN - 1, oldname);
-			MessageBox(NULL, msg, "Error", MB_OK);
+			MessageBox(nullptr, msg, "Error", MB_OK);
 		}
 	}
 }
@@ -815,13 +815,13 @@ void W3DUtilityClass::export_with_standard_materials()
 	}
 
 	InterfacePtr->PushPrompt (convertingmessage);
-	SetCursor (LoadCursor (NULL, IDC_WAIT));
+	SetCursor (LoadCursor (nullptr, IDC_WAIT));
 	convert_materials (GAME_TO_STANDARD, gamenodematerials);
 	InterfacePtr->PopPrompt();
 	InterfacePtr->FileExport();
 	UpdateWindow (InterfacePtr->GetMAXHWnd());
 	InterfacePtr->PushPrompt (convertingmessage);
-	SetCursor (LoadCursor (NULL, IDC_WAIT));
+	SetCursor (LoadCursor (nullptr, IDC_WAIT));
 	convert_materials (STANDARD_TO_GAME, gamenodematerials);
 	InterfacePtr->PopPrompt();
 
@@ -1288,7 +1288,7 @@ W3DAppData0Struct * W3DUtilityClass::get_app_data_0(INode * node)
 	AppDataChunk * appdata = node->GetAppDataChunk(W3DUtilityClassID,UTILITY_CLASS_ID,0);
 
 	/*
-	** If there wasn't one, return NULL since this app data chunk is obsolete now.
+	** If there wasn't one, return nullptr since this app data chunk is obsolete now.
 	** If there was one, get the data from it
 	*/
 	if (appdata) {
@@ -1445,7 +1445,7 @@ static void _settings_form_selection_changed_callback(void * param,NotifyInfo * 
 
 SettingsFormClass::SettingsFormClass(HWND hwnd) :
 	Hwnd(hwnd),
-	RegionSpin(NULL)
+	RegionSpin(nullptr)
 {
 	/*
 	** Link into the active list
@@ -1487,7 +1487,7 @@ SettingsFormClass::~SettingsFormClass(void)
 		}
 	}
 
-	Hwnd = NULL;
+	Hwnd = nullptr;
 }
 
 
@@ -1524,7 +1524,7 @@ void SettingsFormClass::Init(void)
 	SendMessage(dazzle_combo,CB_RESETCONTENT,0,0);
 
 	// Load the section of Dazzle.INI that defines all of the types.  The windows function
-	// that I'm using here, reads in a NULL-terminated string for each entry in the section.  Each
+	// that I'm using here, reads in a null-terminated string for each entry in the section.  Each
 	// string is of the form 'key=value'.  Based on my testing, it appears that windows removes any white
 	// space before or after the equal sign as well.
 	char dllpath[_MAX_PATH];

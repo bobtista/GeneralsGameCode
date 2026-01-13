@@ -777,7 +777,7 @@ Int GameWindowManager::winSetFocus( GameWindow *window )
 
 	}
 
-	// If new window doesn't want focus, set focus to NULL
+	// If new window doesn't want focus, set focus to nullptr
 	if( wantsFocus == FALSE )
 		m_keyboardFocus = NULL;
 
@@ -1822,8 +1822,8 @@ GameWindow *GameWindowManager::gogoGadgetPushButton( GameWindow *parent,
 	// set the owner to the parent, or if no parent it will be itself
 	button->winSetOwner( parent );
 
-	// Init the userdata to NULL
-	button->winSetUserData(NULL);
+	// Init the userdata to nullptr
+	button->winSetUserData(nullptr);
 
 	// assign the default images/colors
 	assignDefaultGadgetLook( button, defaultFont, defaultVisual );

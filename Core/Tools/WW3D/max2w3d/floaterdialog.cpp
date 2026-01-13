@@ -89,7 +89,7 @@ BOOL CALLBACK _floater_dialog_proc(HWND hwnd,UINT message,WPARAM wParam,LPARAM l
 FloaterDialogClass::FloaterDialogClass(void) :
 	Hwnd(nullptr),
 	ChildDialogTemplateID(-1),
-	ChildDialogProc(NULL)
+	ChildDialogProc()
 {
 }
 
@@ -226,7 +226,7 @@ bool FloaterDialogClass::Dialog_Proc(HWND hWnd,UINT message,WPARAM wParam,LPARAM
 
 		case WM_DESTROY:
 			::GetCOREInterface()->UnRegisterDlgWnd(Hwnd);
-			Hwnd = NULL;
+			Hwnd = nullptr;
 			break;
 	}
 	return 0;

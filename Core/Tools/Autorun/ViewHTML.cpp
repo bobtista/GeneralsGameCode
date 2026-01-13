@@ -53,7 +53,7 @@
 * INPUTS
 *     URL      - Website address
 *     Wait     - Wait for user to close browser (default = false)
-*     Callback - User callback to invoke during wait (default = NULL callback)
+*     Callback - User callback to invoke during wait (default = nullptr callback)
 *
 * RESULT
 *     Success - True if successful; otherwise false
@@ -111,10 +111,10 @@ bool ViewHTML(const char* url, bool wait, const CallbackHook& callback)
 					filename2,
 					GENERIC_WRITE,
 					0,
-					NULL,
+					nullptr,
 					CREATE_ALWAYS,
 					FILE_ATTRIBUTE_NORMAL,
-					NULL);
+					nullptr);
 
 	if (file == INVALID_HANDLE_VALUE)
 		{
@@ -157,12 +157,12 @@ bool ViewHTML(const char* url, bool wait, const CallbackHook& callback)
 	BOOL createSuccess = CreateProcess(
 			exeName,
 			commandLine,
-			NULL,
-			NULL,
+			nullptr,
+			nullptr,
 			FALSE,
 			0,
-			NULL,
-			NULL,
+			nullptr,
+			nullptr,
 			&startupInfo,
 			&processInfo);
 

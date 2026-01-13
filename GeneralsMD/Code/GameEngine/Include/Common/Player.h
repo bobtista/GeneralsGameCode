@@ -103,7 +103,7 @@ static const char *const ScienceAvailabilityNames[] =
 	"Available",
 	"Disabled",
 	"Hidden",
-	NULL
+	nullptr
 };
 static_assert(ARRAY_SIZE(ScienceAvailabilityNames) == SCIENCE_AVAILABILITY_COUNT + 1, "Incorrect array size");
 #endif	// end DEFINE_SCIENCE_AVAILABILITY_NAMES
@@ -443,7 +443,7 @@ public:
 
 	virtual Bool computeSuperweaponTarget(const SpecialPowerTemplate *power, Coord3D *pos, Int playerNdx, Real weaponRadius); ///< Calculates best pos for weapon given radius.
 
-	/// Get the enemy an ai player is currently focused on.  NOTE - Can be NULL.
+	/// Get the enemy an ai player is currently focused on.  NOTE - Can be nullptr.
 	Player  *getCurrentEnemy( void );
 
 	/// Is this player a skirmish ai player?

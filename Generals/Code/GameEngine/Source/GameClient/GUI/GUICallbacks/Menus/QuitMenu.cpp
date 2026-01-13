@@ -245,7 +245,7 @@ static void restartMissionMenu()
 		//	InitGameLogicRandom(GameClientRandomValue(0, INT_MAX - 1));
 	}
 	//TheTransitionHandler->remove("QuitFull"); //KRISMORNESS ADD
-	//quitMenuLayout = NULL; //KRISMORNESS ADD
+	//quitMenuLayout = nullptr; //KRISMORNESS ADD
 	//isVisible = TRUE; //KRISMORNESS ADD
 	//HideQuitMenu();	//KRISMORNESS ADD
 	TheInGameUI->setClientQuiet( TRUE );
@@ -298,7 +298,7 @@ void ToggleQuitMenu()
 		DEBUG_ASSERTCRASH(optionsParent != nullptr, ("Not able to get the options layout parent window"));
 		GameWindow *optionsBack = TheWindowManager->winGetWindowFromId(optionsParent, TheNameKeyGenerator->nameToKey( "OptionsMenu.wnd:ButtonBack" ));
 		DEBUG_ASSERTCRASH(optionsBack != nullptr, ("Not able to get the back button window from the options menu"));
-		TheWindowManager->winSendSystemMsg(optLayout->getFirstWindow(), GBM_SELECTED, (WindowMsgData)optionsBack, nullptr);
+		TheWindowManager->winSendSystemMsg(optLayout->getFirstWindow(), GBM_SELECTED, (WindowMsgData)optionsBack, 0);
 		return;
 	}
 	if ((saveLoadMenuLayout != nullptr) && (saveLoadMenuLayout->isHidden() == FALSE))
@@ -307,7 +307,7 @@ void ToggleQuitMenu()
 		DEBUG_ASSERTCRASH(saveLoadParent != nullptr, ("Not able to get the save/load layout parent window"));
 		GameWindow *saveLoadBack = TheWindowManager->winGetWindowFromId(saveLoadParent, TheNameKeyGenerator->nameToKey( "PopupSaveLoad.wnd:ButtonBack" ));
 		DEBUG_ASSERTCRASH(saveLoadBack != nullptr, ("Not able to get the back button window from the save/load menu"));
-		TheWindowManager->winSendSystemMsg(saveLoadMenuLayout->getFirstWindow(), GBM_SELECTED, (WindowMsgData)saveLoadBack, nullptr);
+		TheWindowManager->winSendSystemMsg(saveLoadMenuLayout->getFirstWindow(), GBM_SELECTED, (WindowMsgData)saveLoadBack, 0);
 		saveLoadMenuLayout = nullptr;
 		return;
 	}
@@ -335,7 +335,7 @@ void ToggleQuitMenu()
 			//else
 			//{
 			//	TheTransitionHandler->remove("QuitFull");
-			//	quitMenuLayout = NULL;
+			//	quitMenuLayout = nullptr;
 			//	isVisible = TRUE;
 			//	HideQuitMenu();
 			//}
@@ -511,7 +511,7 @@ WindowMsgHandledType QuitMenuSystem( GameWindow *window, UnsignedInt msg,
 			else if( buttonOptions == controlID )
 			{
 				WindowLayout *optLayout = TheShell->getOptionsLayout(TRUE);
-				DEBUG_ASSERTCRASH(optLayout != nullptr, ("options menu layout is NULL"));
+				DEBUG_ASSERTCRASH(optLayout != nullptr, ("options menu layout is nullptr"));
 				optLayout->runInit();
 				optLayout->hide(FALSE);
 				optLayout->bringForward();

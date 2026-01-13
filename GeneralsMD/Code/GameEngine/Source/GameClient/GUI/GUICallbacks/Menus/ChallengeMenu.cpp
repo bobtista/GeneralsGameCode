@@ -89,7 +89,7 @@ static GameWindow *backdrop = nullptr;
 static GameWindow *bioParent = nullptr;
 
 //static NameKeyType testWinID = NAMEKEY_INVALID;
-//static GameWindow *testWin = NULL;
+//static GameWindow *testWin = nullptr;
 static WindowVideoManager *wndVideoManager = nullptr;
 
 //
@@ -117,8 +117,8 @@ Int bioTotalLength = 0;
 static Int buttonSequenceStep = 0;
 
 // audio
-AudioHandle lastSelectionSound = nullptr;
-AudioHandle lastPreviewSound = nullptr;
+AudioHandle lastSelectionSound = 0;
+AudioHandle lastPreviewSound = 0;
 static Int introAudioMagicNumber = 0;
 static Bool hasPlayedIntroAudio = FALSE;
 
@@ -394,8 +394,8 @@ void ChallengeMenuInit( WindowLayout *layout, void *userData )
 		wndVideoManager = NEW WindowVideoManager;
 	wndVideoManager->init();
 
-	lastSelectionSound = nullptr;
-	lastPreviewSound = nullptr;
+	lastSelectionSound = 0;
+	lastPreviewSound = 0;
 	hasPlayedIntroAudio = FALSE;
 
 }
@@ -477,8 +477,8 @@ void ChallengeMenuShutdown( WindowLayout *layout, void *userData )
 
 	TheAudio->removeAudioEvent( lastSelectionSound );
 	TheAudio->removeAudioEvent( lastPreviewSound );
-	lastSelectionSound = nullptr;
-	lastPreviewSound = nullptr;
+	lastSelectionSound = 0;
+	lastPreviewSound = 0;
 	introAudioMagicNumber = 0;
 }
 
@@ -646,7 +646,7 @@ WindowMsgHandledType ChallengeMenuSystem( GameWindow *window, UnsignedInt msg, W
  			{
 				if( TheChallengeGameInfo == nullptr )
 				{
-					// If this is NULL, then we must be on the way back out of this menu.
+					// If this is nullptr, then we must be on the way back out of this menu.
 					// Don't crash, just eat the button click message.
 					return MSG_HANDLED;
 				}

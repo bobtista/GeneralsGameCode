@@ -177,7 +177,7 @@ AIGuardRetaliateMachine::AIGuardRetaliateMachine( Object *owner ) :
 	static const StateConditionInfo attackAggressors[] =
 	{
 		StateConditionInfo(hasAttackedMeAndICanReturnFire, AI_GUARD_RETALIATE_ATTACK_AGGRESSOR, nullptr),
-		StateConditionInfo(nullptr, nullptr, nullptr)
+		StateConditionInfo(nullptr, INVALID_STATE_ID, nullptr)
 	};
 
 	// order matters: first state is the default state.
@@ -375,7 +375,7 @@ StateReturnType AIGuardRetaliateInnerState::onEnter( void )
 		Object* nemesis = TheGameLogic->findObjectByID(getGuardMachine()->getNemesisID()) ;
 		if (nemesis == nullptr)
 		{
-			DEBUG_LOG(("Unexpected NULL nemesis in AIGuardRetaliateInnerState."));
+			DEBUG_LOG(("Unexpected nullptr nemesis in AIGuardRetaliateInnerState."));
 			return STATE_SUCCESS;
 		}
 		m_enterState = newInstance(AIEnterState)(getMachine());
@@ -394,7 +394,7 @@ StateReturnType AIGuardRetaliateInnerState::onEnter( void )
 		Object* nemesis = TheGameLogic->findObjectByID(getGuardMachine()->getNemesisID()) ;
 		if (nemesis == nullptr)
 		{
-			DEBUG_LOG(("Unexpected NULL nemesis in AIGuardRetaliateInnerState."));
+			DEBUG_LOG(("Unexpected nullptr nemesis in AIGuardRetaliateInnerState."));
 			return STATE_SUCCESS;
 		}
 		m_exitConditions.m_center = pos;
@@ -502,7 +502,7 @@ StateReturnType AIGuardRetaliateOuterState::onEnter( void )
 	Object* nemesis = TheGameLogic->findObjectByID(getGuardMachine()->getNemesisID()) ;
 	if (nemesis == nullptr)
 	{
-		DEBUG_LOG(("Unexpected NULL nemesis in AIGuardRetaliateOuterState."));
+		DEBUG_LOG(("Unexpected nullptr nemesis in AIGuardRetaliateOuterState."));
 		return STATE_SUCCESS;
 	}
 	Object *obj = getMachineOwner();
@@ -764,7 +764,7 @@ AsciiString AIGuardRetaliateAttackAggressorState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/ ");
 	if (m_attackState) name.concat(m_attackState->getName());
-	else name.concat("*NULL m_attackState");
+	else name.concat("*nullptr m_attackState");
 	return name;
 }
 #endif
@@ -798,7 +798,7 @@ StateReturnType AIGuardRetaliateAttackAggressorState::onEnter( void )
 
 	if( !nemesis )
 	{
-		DEBUG_LOG(("Unexpected NULL nemesis in AIGuardRetaliateAttackAggressorState."));
+		DEBUG_LOG(("Unexpected nullptr nemesis in AIGuardRetaliateAttackAggressorState."));
 		return STATE_SUCCESS;
 	}
 

@@ -53,7 +53,7 @@ VoxelDebugWindowClass::VoxelDebugWindowClass(VoxelClass * vxl) :
 	Voxel(vxl),
 	WindowHWND(0),
 	ViewportHWND(0),
-	LayerSpin(NULL)
+	LayerSpin(nullptr)
 {
 	_VoxelPalette[0] = RGBClass(0,0,0);
 	_VoxelPalette[1] = RGBClass(128,255,128);
@@ -70,7 +70,7 @@ void VoxelDebugWindowClass::Display_Window(void)
 						(
 							AppInstance,
 							MAKEINTRESOURCE (IDD_VOXEL_DEBUG_DIALOG),
-							NULL,
+							nullptr,
 							(DLGPROC) _dialog_proc,
 							(LPARAM) this
 						);
@@ -120,7 +120,7 @@ bool VoxelDebugWindowClass::Dialog_Proc
 
 			update_display();
 
-			SetCursor(LoadCursor (NULL, IDC_ARROW));
+			SetCursor(LoadCursor (nullptr, IDC_ARROW));
 
 			return 1;
 
@@ -137,7 +137,7 @@ bool VoxelDebugWindowClass::Dialog_Proc
 				case IDOK:
 
 					// done!
-					SetCursor(LoadCursor (NULL, IDC_WAIT));
+					SetCursor(LoadCursor (nullptr, IDC_WAIT));
 					EndDialog(hWnd, 1);
 					break;
 			}

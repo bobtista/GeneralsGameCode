@@ -455,7 +455,7 @@ void INI::readLine( void )
 	Bool isComment = FALSE;
 
 	// sanity
-	DEBUG_ASSERTCRASH( m_file, ("readLine(), file pointer is NULL") );
+	DEBUG_ASSERTCRASH( m_file, ("readLine(), file pointer is nullptr") );
 
 	// if we've reached end of file we'll just keep returning empty string in our buffer
 	if( m_endOfFile )
@@ -900,7 +900,7 @@ void INI::parseMappedImage( INI *ini, void * /*instance*/, void *store, const vo
 	else
 	{
 
-		DEBUG_CRASH(( "INI::parseAnim2DTemplate - TheAnim2DCollection is NULL" ));
+		DEBUG_CRASH(( "INI::parseAnim2DTemplate - TheAnim2DCollection is nullptr" ));
 		throw INI_UNKNOWN_ERROR;
 
 	}
@@ -1301,7 +1301,7 @@ void INI::parseFXList( INI* ini, void * /*instance*/, void *store, const void* /
 	ConstFXListPtr* theFXList = (ConstFXListPtr*)store;
 
 	const FXList *fxl = TheFXListStore->findFXList(token);	// could be null!
-	DEBUG_ASSERTCRASH(fxl != NULL || stricmp(token, "None") == 0, ("FXList %s not found!",token));
+	DEBUG_ASSERTCRASH(fxl != nullptr || stricmp(token, "None") == 0, ("FXList %s not found!",token));
 	// assign it, even if null!
 	*theFXList = fxl;
 

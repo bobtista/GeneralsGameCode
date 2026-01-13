@@ -133,7 +133,7 @@ static const FieldParse audioSettingsFieldParseTable[] =
   { "ZoomMaxDistance",		INI::parseReal,									nullptr,							offsetof( AudioSettings, m_zoomMaxDistance ) },
   { "ZoomSoundVolumePercentageAmount",		INI::parsePercentToReal,	nullptr,		offsetof( AudioSettings, m_zoomSoundVolumePercentageAmount ) },
 
-	{ nullptr, nullptr, nullptr, NULL }
+	{ nullptr, nullptr, nullptr, 0 }
 };
 
 // Singleton TheAudio /////////////////////////////////////////////////////////////////////////////
@@ -1012,7 +1012,7 @@ Bool AudioManager::shouldPlayLocally(const AudioEventRTS *audioEvent)
 	if( !localPlayer->isPlayerActive() )
 	{
 		//We are dead, thus are observing. Get the player we are observing. It's
-		//possible that we're not looking at any player, therefore it can be NULL.
+		//possible that we're not looking at any player, therefore it can be nullptr.
 		localPlayer = TheControlBar->getObserverLookAtPlayer();
 	}
 

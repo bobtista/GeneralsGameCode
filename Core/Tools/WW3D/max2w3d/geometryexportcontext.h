@@ -79,7 +79,7 @@ public:
 		materialColors(materialColors),
 		numMaterialColors(0),
 		numHouseColors(0),
-		materialColorTexture(NULL)
+		materialColorTexture()
 	{
 		ModelName = strdup(model_name);
 		OriginTransform = Origin->GetNodeTM(CurTime);

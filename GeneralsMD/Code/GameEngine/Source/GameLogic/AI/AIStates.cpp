@@ -271,7 +271,7 @@ AttackStateMachine::AttackStateMachine( Object *obj, AIAttackState* att, AsciiSt
 		StateConditionInfo(outOfWeaponRangeObject, AttackStateMachine::CHASE_TARGET, nullptr),
 		StateConditionInfo(wantToSquishTarget, AttackStateMachine::CHASE_TARGET, nullptr),
 		StateConditionInfo(cannotPossiblyAttackObject, EXIT_MACHINE_WITH_FAILURE, (void*)ATTACK_CONTINUED_TARGET),
-		StateConditionInfo(nullptr, nullptr, nullptr)
+		StateConditionInfo(nullptr, INVALID_STATE_ID, nullptr)
 	};
 
 	// we want to use the CONTINUE mode (not NEW) since we already have acquired the target.
@@ -280,7 +280,7 @@ AttackStateMachine::AttackStateMachine( Object *obj, AIAttackState* att, AsciiSt
 		StateConditionInfo(outOfWeaponRangeObject, AttackStateMachine::CHASE_TARGET, nullptr),
 		StateConditionInfo(cannotPossiblyAttackObject, EXIT_MACHINE_WITH_FAILURE, (void*)ATTACK_CONTINUED_TARGET_FORCED),
 		StateConditionInfo(wantToSquishTarget, AttackStateMachine::CHASE_TARGET, nullptr),
-		StateConditionInfo(nullptr, nullptr, nullptr)
+		StateConditionInfo(nullptr, INVALID_STATE_ID, nullptr)
 	};
 
 	const StateConditionInfo* objectConditions = forceAttacking ? objectConditionsForced : objectConditionsNormal;
@@ -288,7 +288,7 @@ AttackStateMachine::AttackStateMachine( Object *obj, AIAttackState* att, AsciiSt
 	static const StateConditionInfo positionConditions[] =
 	{
 		StateConditionInfo(outOfWeaponRangePosition, AttackStateMachine::CHASE_TARGET, nullptr),
-		StateConditionInfo(nullptr, nullptr, nullptr)
+		StateConditionInfo(nullptr, INVALID_STATE_ID, nullptr)
 	};
 
 #ifdef STATE_MACHINE_DEBUG
@@ -332,7 +332,7 @@ AttackStateMachine::AttackStateMachine( Object *obj, AIAttackState* att, AsciiSt
 			static const StateConditionInfo portableStructureChaseConditions[] =
 			{
 				StateConditionInfo(inWeaponRangeObject, AttackStateMachine::AIM_AT_TARGET, nullptr),
-				StateConditionInfo(nullptr, nullptr, nullptr)
+				StateConditionInfo(nullptr, INVALID_STATE_ID, nullptr)
 			};
 
 			/* we're a rider on a mobile object, so we can't control our motion.
@@ -1470,7 +1470,7 @@ StateReturnType AIDeadState::onEnter()
 {
 	Object *obj = getMachineOwner();
 
-	// How can an object be NULL here? I don't think it actually can, but this check must be
+	// How can an object be nullptr here? I don't think it actually can, but this check must be
 	// here for a reason. - jkmcd
 	if (obj)
 	{
@@ -1738,7 +1738,7 @@ void AIInternalMoveToState::onExit( StateExitType status )
 	// (This is why destructors should not do game logic)
 	if (ai) {
 		ai->friend_endingMove();
-		DEBUG_ASSERTLOG(obj->getTeam(), ("AIInternalMoveToState::onExit obj has NULL team."));
+		DEBUG_ASSERTLOG(obj->getTeam(), ("AIInternalMoveToState::onExit obj has nullptr team."));
 		if (obj->getTeam() && ai->isDoingGroundMovement() && ai->getCurLocomotor() &&
 								ai->getCurLocomotor()->isUltraAccurate()) {
 			Real dx = m_goalPosition.x-obj->getPosition()->x;
@@ -3568,7 +3568,7 @@ AsciiString AIAttackMoveToState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_attackMoveMachine) name.concat(m_attackMoveMachine->getCurrentStateName());
-	else name.concat("*NULL m_deployMachine");
+	else name.concat("*nullptr m_deployMachine");
 	return name;
 }
 #endif
@@ -3794,7 +3794,7 @@ const Waypoint * AIFollowWaypointPathState::getNextWaypoint(void)
 #else
 	if (!hasNextWaypoint()) {
 		m_priorWaypoint = m_currentWaypoint;
-		return NULL;
+		return nullptr;
 	}
 	Int skip = -1;
 	Int i;
@@ -4429,7 +4429,7 @@ AsciiString AIAttackFollowWaypointPathState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_attackFollowMachine) name.concat(m_attackFollowMachine->getCurrentStateName());
-	else name.concat("*NULL m_attackFollowMachine");
+	else name.concat("*nullptr m_attackFollowMachine");
 	return name;
 }
 #endif
@@ -5391,7 +5391,7 @@ AIAttackState::~AIAttackState()
 {
 	// nope, don't do this, since we may well still have it targeted
 	// even though we're leaving this state.
-	// turn it off when we do setCurrentVictim(NULL).
+	// turn it off when we do setCurrentVictim(nullptr).
 	//addSelfAsTargeter(false);
 
 	if (m_attackMachine)
@@ -5459,7 +5459,7 @@ AsciiString AIAttackState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_attackMachine) name.concat(m_attackMachine->getCurrentStateName());
-	else name.concat("*NULL m_attackMachine");
+	else name.concat("*nullptr m_attackMachine");
 	return name;
 }
 #endif
@@ -5706,7 +5706,7 @@ void AIAttackState::onExit( StateExitType status )
 	USE_PERF_TIMER(AIAttackState)
 	// nope, don't do this, since we may well still have it targeted
 	// even though we're leaving this state. turn it off when we
-	// turn it off when we do setCurrentVictim(NULL).
+	// turn it off when we do setCurrentVictim(nullptr).
 	//addSelfAsTargeter(false);
 
 	// destroy the attack machine
@@ -5728,7 +5728,7 @@ void AIAttackState::onExit( StateExitType status )
 		//ai->notifyVictimIsDead();	no, do NOT do this here.
 		ai->setCurrentVictim(nullptr);
 		for (int i = 0; i < MAX_TURRETS; ++i)
-			ai->setTurretTargetObject((WhichTurretType)i, nullptr, nullptr);
+			ai->setTurretTargetObject((WhichTurretType)i, nullptr, FALSE);
 		ai->friend_setGoalObject(nullptr);
 	}
 }
@@ -5852,7 +5852,7 @@ AsciiString AIAttackSquadState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_attackSquadMachine) name.concat(m_attackSquadMachine->getCurrentStateName());
-	else name.concat("*NULL m_attackSquadMachine");
+	else name.concat("*nullptr m_attackSquadMachine");
 	return name;
 }
 #endif
@@ -6086,7 +6086,7 @@ AsciiString AIDockState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_dockMachine) name.concat(m_dockMachine->getCurrentStateName());
-	else name.concat("*NULL m_dockMachine");
+	else name.concat("*nullptr m_dockMachine");
 	return name;
 }
 #endif
@@ -6629,7 +6629,7 @@ AsciiString AIGuardState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_guardMachine) name.concat(m_guardMachine->getCurrentStateName());
-	else name.concat("*NULL guardMachine");
+	else name.concat("*nullptr guardMachine");
 	return name;
 }
 #endif
@@ -6785,7 +6785,7 @@ AsciiString AIGuardRetaliateState::getName(  ) const
 	}
 	else
 	{
-		name.concat("*NULL guardRetaliateMachine");
+		name.concat("*nullptr guardRetaliateMachine");
 	}
 	return name;
 }
@@ -6925,7 +6925,7 @@ AsciiString AITunnelNetworkGuardState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_guardMachine) name.concat(m_guardMachine->getCurrentStateName());
-	else name.concat("*NULL guardMachine");
+	else name.concat("*nullptr guardMachine");
 	return name;
 }
 #endif
@@ -7146,7 +7146,7 @@ AsciiString AIHuntState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_huntMachine) name.concat(m_huntMachine->getCurrentStateName());
-	else name.concat("*NULL huntMachine");
+	else name.concat("*nullptr huntMachine");
 	return name;
 }
 #endif
@@ -7308,7 +7308,7 @@ AsciiString AIAttackAreaState::getName(  ) const
 	AsciiString name = m_name;
 	name.concat("/");
 	if (m_attackMachine) name.concat(m_attackMachine->getCurrentStateName());
-	else name.concat("*NULL m_attackMachine");
+	else name.concat("*nullptr m_attackMachine");
 	return name;
 }
 #endif

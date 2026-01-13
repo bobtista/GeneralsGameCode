@@ -86,14 +86,13 @@ Char* UnicodeToANSI(const WChar* string, Char* buffer, UInt bufferLength)
 	{
 	if ((string == nullptr) || (buffer == nullptr))
 		{
-		return NULL;
+		return nullptr;
 		}
 
 	#ifdef RTS_DEBUG
 	int result =
 	#endif
-		WideCharToMultiByte(CP_ACP, 0, string, -1, buffer, bufferLength,
-			NULL, nullptr);
+		WideCharToMultiByte(CP_ACP, 0, string, -1, buffer, bufferLength, nullptr, nullptr);
 
 	#ifdef RTS_DEBUG
 	if (result == 0)

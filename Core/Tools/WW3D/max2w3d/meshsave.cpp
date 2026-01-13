@@ -154,7 +154,7 @@ uint32 setup_mesh_attributes(INode * node)
 	** And, a mesh may have one or more types of collision detection enabled.
 	** W3D_MESH_FLAG_COLLISION_TYPE_PHYSICAL
 	** W3D_MESH_FLAG_COLLISION_TYPE_PROJECTILE
-	** However, if the mesh is SKIN, SHADOW, ALIGNED, ORIENTED or NULL, don't let
+	** However, if the mesh is SKIN, SHADOW, ALIGNED, ORIENTED or nullptr, don't let
 	** the collision bits get set...
 	*/
 	if (	attributes != W3D_MESH_FLAG_GEOMETRY_TYPE_SKIN &&
@@ -254,7 +254,7 @@ MeshSaveClass::MeshSaveClass
 	HTree(htree),
 	UserText(nullptr),
 	VertInfluences(nullptr),
-	MaterialRemapTable(NULL)
+	MaterialRemapTable(nullptr)
 {
 	Mesh			mesh = *input_mesh;		// copy the mesh so we can modify it
 	Mtl *		   nodemtl = inode->GetMtl();
@@ -500,7 +500,7 @@ void MeshSaveClass::Build_Mesh(Mesh & mesh, Mtl *node_mtl, unsigned int *materia
 	Builder.Reset(true,mesh.getNumFaces(),mesh.getNumFaces()/3);
 
 	// Get a pointer to the channel that has alpha values entered by the artist.
-	// This pointer will be NULL if they didn't use the channel.
+	// This pointer will be nullptr if they didn't use the channel.
 	vdata = mesh.vertexFloat(ALPHA_VERTEX_CHANNEL);
 
 	/*
@@ -794,7 +794,7 @@ void MeshSaveClass::get_skin_modifier_objects(SkinDataClass ** skin_data_ptr,Ski
 		ReferenceTarget *refTarg = MaxINode->GetReference(i);
 
 		// if the reference is a WSM Derived Object.
-		if (refTarg != NULL && refTarg->ClassID() == Class_ID(WSM_DERIVOB_CLASS_ID,0)) {
+		if (refTarg != nullptr && refTarg->ClassID() == Class_ID(WSM_DERIVOB_CLASS_ID,0)) {
 
 			IDerivedObject * wsm_der_obj = (IDerivedObject *)refTarg;
 
@@ -1068,7 +1068,7 @@ int MeshSaveClass::write_user_text(ChunkSaveClass & csave)
 		return 1;
 	}
 
-	// write the user text buffer (writing one extra byte to include the NULL)
+	// write the user text buffer (writing one extra byte to include the null terminator)
 	if (csave.Write(UserText,strlen(UserText) + 1) != strlen(UserText) + 1) {
 		return 1;
 	}

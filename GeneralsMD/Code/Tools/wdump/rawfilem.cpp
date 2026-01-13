@@ -268,7 +268,7 @@ int RawFileMClass::Open(int rights)
 		**	For the case of the file cannot be found, then allow a retry. All other cases
 		**	are fatal.
 		*/
-		if (Handle == NULL_HANDLE) {
+		if (Handle == nullptr) {
 
 			return(false);
 //			Error(GetLastError(), false, Filename);
@@ -327,7 +327,7 @@ bool RawFileMClass::Is_Available(int forced)
 
 		Handle = CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ,
 											nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-		if (Handle == NULL_HANDLE) {
+		if (Handle == nullptr) {
 			return(false);
 		}
 		break;
@@ -391,10 +391,10 @@ void RawFileMClass::Close(void)
  *    the file. This condition can result in fewer bytes being read than requested. Determine  *
  *    this by examining the return value.                                                      *
  *                                                                                             *
- * INPUT:   buffer   -- Pointer to the buffer to read data into. If NULL is passed, no read    *
+ * INPUT:   buffer   -- Pointer to the buffer to read data into. If nullptr is passed, no read    *
  *                      is performed.                                                          *
  *                                                                                             *
- *          size     -- The number of bytes to read. If NULL is passed, then no read is        *
+ *          size     -- The number of bytes to read. If nullptr is passed, then no read is        *
  *                      performed.                                                             *
  *                                                                                             *
  * OUTPUT:  Returns with the number of bytes read into the buffer. If this number is less      *

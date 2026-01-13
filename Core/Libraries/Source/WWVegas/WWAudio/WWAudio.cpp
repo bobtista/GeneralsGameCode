@@ -591,7 +591,7 @@ WWAudioClass::Create_Sound_Buffer
 	WWASSERT (success);
 
 	// If we were successful in creating the sound buffer, then
-	// try to cache it as well, otherwise free the buffer and return NULL.
+	// try to cache it as well, otherwise free the buffer and return nullptr.
 	if (success && (string_id != nullptr)) {
 		Cache_Buffer (sound_buffer, string_id);
 	} else if (success == false) {
@@ -629,7 +629,7 @@ WWAudioClass::Create_Sound_Buffer
 	WWASSERT (success);
 
 	// If we were successful in creating the sound buffer, then
-	// try to cache it as well, otherwise free the buffer and return NULL.
+	// try to cache it as well, otherwise free the buffer and return nullptr.
 	if (success && (string_id != nullptr)) {
 		Cache_Buffer (sound_buffer, string_id);
 	} else if (success == false) {
@@ -1236,7 +1236,7 @@ WWAudioClass::Remove_From_Playlist (AudibleSoundClass *sound_obj)
 		//
 		if (sound_obj->Get_Loop_Count () != INFINITE_LOOPS) {
 			for (index = 0; index < m_EOSCallbackList.Count (); index ++) {
-				uint32 user_data				= nullptr;
+				uint32 user_data				= 0;
 				LPFNEOSCALLBACK callback	= m_EOSCallbackList.Get_Callback (index, &user_data);
 				if (callback != nullptr) {
 					(*callback) (sound_obj, user_data);

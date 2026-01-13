@@ -182,8 +182,8 @@ static void updateWindowTitle()
 {
 	// TheSuperHackers @tweak Now prints product and version information in the Window title.
 
-	DEBUG_ASSERTCRASH(TheVersion != nullptr, ("TheVersion is NULL"));
-	DEBUG_ASSERTCRASH(TheGameText != nullptr, ("TheGameText is NULL"));
+	DEBUG_ASSERTCRASH(TheVersion != nullptr, ("TheVersion is nullptr"));
+	DEBUG_ASSERTCRASH(TheGameText != nullptr, ("TheGameText is nullptr"));
 
 	UnicodeString title;
 
@@ -267,7 +267,7 @@ GameEngine::~GameEngine()
 	TheMapCache = nullptr;
 
 //	delete TheShell;
-//	TheShell = NULL;
+//	TheShell = nullptr;
 
 	TheGameResultsQueue->endThreads();
 
@@ -478,7 +478,7 @@ void GameEngine::init()
 #endif
 
 		initSubsystem(TheActionManager,"TheActionManager", MSGNEW("GameEngineSubsystem") ActionManager(), nullptr);
-		//initSubsystem((CComObject<WebBrowser> *)TheWebBrowser,"(CComObject<WebBrowser> *)TheWebBrowser", (CComObject<WebBrowser> *)createWebBrowser(), NULL);
+		//initSubsystem((CComObject<WebBrowser> *)TheWebBrowser,"(CComObject<WebBrowser> *)TheWebBrowser", (CComObject<WebBrowser> *)createWebBrowser(), nullptr);
 		initSubsystem(TheGameStateMap,"TheGameStateMap", MSGNEW("GameEngineSubsystem") GameStateMap, nullptr );
 		initSubsystem(TheGameState,"TheGameState", MSGNEW("GameEngineSubsystem") GameState, nullptr );
 
@@ -498,7 +498,7 @@ void GameEngine::init()
 		TheAudio->setOn(TheGlobalData->m_audioOn && TheGlobalData->m_sounds3DOn, AudioAffect_Sound3D);
 		TheAudio->setOn(TheGlobalData->m_audioOn && TheGlobalData->m_speechOn, AudioAffect_Speech);
 
-		// We're not in a network game yet, so set the network singleton to NULL.
+		// We're not in a network game yet, so set the network singleton to nullptr.
 		TheNetwork = nullptr;
 
 		//Create a default ini file for options if it doesn't already exist.
@@ -517,7 +517,7 @@ void GameEngine::init()
 		if (TheGlobalData->m_buildMapCache)
 		{
 			// just quit, since the map cache has already updated
-			//populateMapListbox(NULL, true, true);
+			//populateMapListbox(nullptr, true, true);
 			m_quitting = TRUE;
 		}
 
@@ -616,7 +616,7 @@ void GameEngine::reset( void )
 
 	if (deleteNetwork)
 	{
-		DEBUG_ASSERTCRASH(TheNetwork, ("Deleting NULL TheNetwork!"));
+		DEBUG_ASSERTCRASH(TheNetwork, ("Deleting nullptr TheNetwork!"));
 		delete TheNetwork;
 		TheNetwork = nullptr;
 	}
@@ -660,7 +660,7 @@ Bool GameEngine::canUpdateGameLogic()
 /// -----------------------------------------------------------------------------------------------
 Bool GameEngine::canUpdateNetworkGameLogic()
 {
-	DEBUG_ASSERTCRASH(TheNetwork != nullptr, ("TheNetwork is NULL"));
+	DEBUG_ASSERTCRASH(TheNetwork != nullptr, ("TheNetwork is nullptr"));
 
 	if (TheNetwork->isFrameDataReady())
 	{

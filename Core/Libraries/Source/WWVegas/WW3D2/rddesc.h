@@ -61,9 +61,9 @@ class RenderDeviceDescClass
 
 public:
 
-	RenderDeviceDescClass(void) : DeviceName(nullptr), DeviceVendor(nullptr), DevicePlatform(nullptr),
-											DriverName(nullptr), DriverVendor(nullptr), DriverVersion(nullptr),
-											HardwareName(nullptr), HardwareVendor(nullptr), HardwareChipset(NULL)
+	RenderDeviceDescClass(void) : DeviceName(), DeviceVendor(), DevicePlatform(),
+											DriverName(), DriverVendor(), DriverVersion(),
+											HardwareName(), HardwareVendor(), HardwareChipset()
 	{
 	}
 

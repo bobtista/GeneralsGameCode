@@ -366,7 +366,7 @@ const ThingTemplate *MapObject::getThingTemplate( void ) const
 
 /* ********* WorldHeightMap class ****************************/
 
-TileData *WorldHeightMap::m_alphaTiles[NUM_ALPHA_TILES]={nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr};
+TileData *WorldHeightMap::m_alphaTiles[NUM_ALPHA_TILES]={0};
 
 //
 // WorldHeightMap destructor .
@@ -1264,7 +1264,7 @@ Bool WorldHeightMap::ParseObjectData(DataChunkInput &file, DataChunkInfo *info, 
 
 
 	if (pPrevious) {
-		DEBUG_ASSERTCRASH(MapObject::TheMapObjectListPtr != NULL && pPrevious->getNext() == nullptr, ("Bad linkage."));
+		DEBUG_ASSERTCRASH(MapObject::TheMapObjectListPtr != nullptr && pPrevious->getNext() == nullptr, ("Bad linkage."));
 		pPrevious->setNextMap(pThisOne);
 	}	else {
 		DEBUG_ASSERTCRASH(MapObject::TheMapObjectListPtr == nullptr, ("Bad linkage."));
