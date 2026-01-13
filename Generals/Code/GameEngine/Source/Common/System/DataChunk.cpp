@@ -370,10 +370,6 @@ void DataChunkOutput::writeNameKey( const NameKeyType key )
 		writeInt(keyAndType);
 }
 
-void DataChunkOutput::setTOCEntry( const AsciiString& name, UnsignedInt id )
-{
-	m_contents.setID(name, id);
-}
 
 void DataChunkOutput::writeDict( const Dict& d )
 {
@@ -500,29 +496,6 @@ UnsignedInt DataChunkTableOfContents::allocateID(const AsciiString& name )
 	}
 }
 
-// set specific ID for given name (for TOC preservation)
-void DataChunkTableOfContents::setID( const AsciiString& name, UnsignedInt id )
-{
-	Mapping *m = findMapping( name );
-
-	if (m) {
-		// Update existing mapping
-		m->id = id;
-	} else {
-		// Create new mapping with specific ID
-		m = newInstance(Mapping);
-		m->id = id;
-		m->name = name;
-		m->next = m_list;
-		m_list = m;
-		m_listLength++;
-	}
-
-	// Update nextID to ensure we don't reuse IDs
-	if (id >= m_nextID) {
-		m_nextID = id + 1;
-	}
-}
 
 // output the table of m_contents to a binary m_tmp_file stream
 void DataChunkTableOfContents::write( OutputStream &s )

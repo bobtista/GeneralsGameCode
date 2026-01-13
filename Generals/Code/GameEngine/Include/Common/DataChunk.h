@@ -100,7 +100,6 @@ public:
 	UnsignedInt getID( const AsciiString& name );				// convert name to integer identifier
 	AsciiString getName( UnsignedInt id );	// convert integer identifier to name
 	UnsignedInt allocateID( const AsciiString& name );		// create new ID for given name or return existing mapping
-	void setID( const AsciiString& name, UnsignedInt id );	// set specific ID for name (for TOC preservation)
 
 	Bool isOpenedForRead(void) {return m_headerOpened;};
 
@@ -127,7 +126,6 @@ public:
 	void openDataChunk( const char *name, DataChunkVersionType ver );
 	void closeDataChunk( void );
 
-	// Unnamed writes (positional)
 	void writeReal(Real r);
 	void writeInt(Int i);
 	void writeByte(Byte b);
@@ -136,21 +134,6 @@ public:
 	void writeArrayOfBytes(char *ptr, Int len);
 	void writeDict(const Dict& d);
 	void writeNameKey(const NameKeyType key);
-
-	// Named writes (ignore name, call unnamed version)
-	void writeReal(const char* name, Real r) { writeReal(r); }
-	void writeInt(const char* name, Int i) { writeInt(i); }
-	void writeByte(const char* name, Byte b) { writeByte(b); }
-	void writeAsciiString(const char* name, const AsciiString& string) { writeAsciiString(string); }
-	void writeUnicodeString(const char* name, UnicodeString string) { writeUnicodeString(string); }
-	void writeArrayOfBytes(const char* name, char *ptr, Int len) { writeArrayOfBytes(ptr, len); }
-	void writeDict(const char* name, const Dict& d) { writeDict(d); }
-	void writeNameKey(const char* name, const NameKeyType key) { writeNameKey(key); }
-
-	void writeBoolAsByte(Bool b) { writeByte(b ? 1 : 0); }
-	void writeBoolAsByte(const char* name, Bool b) { (void)name; writeByte(b ? 1 : 0); }
-
-	void setTOCEntry(const AsciiString& name, UnsignedInt id); // Set TOC entry for preservation
 };
 
 //----------------------------------------------------------------------
