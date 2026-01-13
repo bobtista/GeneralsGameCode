@@ -111,8 +111,7 @@ public:
 
 //----------------------------------------------------------------------
 // ChunkOutputStream - Abstract base interface for chunk output
-// Both DataChunkOutput (binary) and JSONChunkOutput (JSON) inherit from this.
-// This allows game Write functions to output to either format.
+// DataChunkOutput inherits from this for binary chunk writing.
 //----------------------------------------------------------------------
 class ChunkOutputStream
 {
@@ -132,7 +131,7 @@ public:
 	virtual void writeDict(const Dict& d) = 0;
 	virtual void writeNameKey(const NameKeyType key) = 0;
 
-	// Named writes (for human-readable JSON output - binary ignores the name)
+	// Named writes (name parameter is ignored for binary output)
 	virtual void writeReal(const char* name, Real r) = 0;
 	virtual void writeInt(const char* name, Int i) = 0;
 	virtual void writeByte(const char* name, Byte b) = 0;
