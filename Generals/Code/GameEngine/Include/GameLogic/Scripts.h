@@ -1,5 +1,5 @@
 /*
-**	Command & Conquer Generals(tm)
+**	Command & Conquer Generals Zero Hour(tm)
 **	Copyright 2025 Electronic Arts Inc.
 **
 **	This program is free software: you can redistribute it and/or modify
@@ -42,6 +42,9 @@
 #define THIS_PLAYER "<This Player>"
 #define LOCAL_PLAYER "<Local Player>"
 
+#define THE_PLAYER "ThePlayer"
+#define TEAM_THE_PLAYER "teamThePlayer"
+
 #define THIS_PLAYER_ENEMY "<This Player's Enemy>"
 
 #define WATER_GRID "Water Grid"
@@ -51,16 +54,6 @@
 #define SKIRMISH_FLANK "Flank"
 #define SKIRMISH_BACKDOOR "Backdoor"
 #define SKIRMISH_SPECIAL "Special"
-
-#if 0
-// Skirmish Player names
-#define SKIRMISH_PLAYER_AI		"AI"
-#define SKIRMISH_PLAYER_HUMAN "Human"
-#define SKIRMISH_PLAYER_AI_ALLIES	"AI Allies"
-#define SKIRMISH_PLAYER_AI_ENEMIES	"AI Enemies"
-#define SKIRMISH_PLAYER_HUMAN_ALLIES	"Human Allies"
-#define SKIRMISH_PLAYER_HUMAN_ENEMIES	"Human Enemies"
-#endif
 
 // Skirmish Player Areas
 #define SKIRMISH_AREA_HOME_BASE				"Home Base"
@@ -205,10 +198,9 @@ class ScriptAction : public MemoryPoolObject // This is the action class.
 // friend bad for MPOs. (srj)
 //friend class EditAction;
 public:
-	/// @todo Use a "symbol table" so we can re-order this enum without breaking old maps (MSB)
 	enum ScriptActionType
 	{
-		DEBUG_MESSAGE_BOX=0,							///< Show a message box.
+		DEBUG_MESSAGE_BOX,							///< Show a message box.
 		SET_FLAG,													///< Set a flag true of false.
 		SET_COUNTER,											///< Set a counter to an integer.
 		VICTORY,													///< Announce victory.
@@ -538,7 +530,20 @@ public:
 		RESIZE_VIEW_GUARDBAND,										///< Allow bigger objects to be perceived as onscreen near the edge
 		DELETE_ALL_UNMANNED,											///< Delete all unmanned (sniped) vehicles
 		CHOOSE_VICTIM_ALWAYS_USES_NORMAL,					///< choose victim always uses normal AI behavior, ignoring game difficulty
-
+		CAMERA_ENABLE_SLAVE_MODE,
+		CAMERA_DISABLE_SLAVE_MODE,
+		CAMERA_ADD_SHAKER_AT,			              	///< WST added 10.12.2002 (MBL)
+		SET_TRAIN_HELD,				                    ///< LORENZEN -- Forbids trains from departing stations while true
+    NAMED_SET_EVAC_LEFT_OR_RIGHT,	            ///< LORENZEN -- Which side of the garrisoned unit (LIKELY A TRAIN) do you want units to evacuate from?
+    ENABLE_OBJECT_SOUND,                      ///< Enables the ambient sound on an object or fire the one-shot "ambient" sound on an object
+    DISABLE_OBJECT_SOUND,                     ///< Disable the ambient sound on an object or kill the one-shot "ambient" sound on an object
+		NAMED_USE_COMMANDBUTTON_ABILITY_USING_WAYPOINT_PATH, ///< Added for particle cannon to have beam follow waypoint path.
+		NAMED_SET_UNMANNED_STATUS,								///< Make unit unmanned or manned.
+		TEAM_SET_UNMANNED_STATUS,									///< Make all units on team unmanned or manned.
+		NAMED_SET_BOOBYTRAPPED,										///< Add boobytrap to unit.
+		TEAM_SET_BOOBYTRAPPED,										///< Add boobytrap to all units on team.
+		SHOW_WEATHER,															///< show map defined weather.
+		AI_PLAYER_BUILD_TYPE_NEAREST_TEAM,				///< Tell the ai player to build an object nearest team.
 		// add new items here, please
 		NUM_ITEMS
 	};
@@ -579,9 +584,14 @@ public:
 	Int getNumParameters(void) {return m_numParms;}
 	Int getUiStrings(AsciiString strings[MAX_PARMS]);
 
+	// TheSuperHackers @feature Setters for semantic JSON support
+	void setNumParameters(Int num) { m_numParms = num; }
+	void setParameter(Int ndx, Parameter* param) { if (ndx >= 0 && ndx < MAX_PARMS) m_parms[ndx] = param; }
+
 	static void WriteActionDataChunk(ChunkOutputStream &chunkWriter, ScriptAction *pAct);
-	static Bool ParseActionDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
 	static void WriteActionFalseDataChunk(ChunkOutputStream &chunkWriter, ScriptAction *pAct);
+	static ScriptAction *ParseAction(DataChunkInput &file, DataChunkInfo *info, void *userData);
+	static Bool ParseActionDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
 	static Bool ParseActionFalseDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
 
 };
@@ -764,6 +774,8 @@ public:
 		OBJECT_TYPE_LIST,		// String, Special case of Object Type.
 		REVEALNAME,					// String, the name of the look taking place.
 		SCIENCE_AVAILABILITY, // String, the name of the different science availabilities.
+    LEFT_OR_RIGHT,        // 1=left, 2=right, okay?
+		PERCENT,						// Real.  A percentage.
 		NUM_ITEMS
 	};
 
@@ -850,7 +862,7 @@ class Condition : public MemoryPoolObject  // This is the conditional class.
 public:
 	enum ConditionType
 	{
-		CONDITION_FALSE=0,										// Always evaluates to false.
+		CONDITION_FALSE,										// Always evaluates to false.
 		COUNTER,															// COUNTER, COMPARISON, INT
 		FLAG,																	// FLAG BOOLEAN compares flag to value.
 		CONDITION_TRUE,												// Always evaluates to true.
@@ -960,6 +972,8 @@ public:
 		SUPPLY_SOURCE_SAFE,											// True if the nearest available supply source is not under enemy influence.
 		SUPPLY_SOURCE_ATTACKED,									// True if our supply depot or dozer near depot was attacked.
 		START_POSITION_IS,											// True if our start position matches.
+		NAMED_HAS_FREE_CONTAINER_SLOTS,					///< Kris -- Checks if any given container has any free slots.
+
 		NUM_ITEMS		 // Always the last condition.
 	};
 
@@ -973,14 +987,15 @@ public:
 protected:
 	Condition();  ///< Protected constructor for read.
 
-protected:
+private:
 	enum ConditionType	m_conditionType;
 	Int 		m_numParms;
 	Parameter *m_parms[MAX_PARMS];
 	Condition *m_nextAndCondition;
 
 	Int				m_hasWarnings; ///< Runtime flag used by the editor only.
-	Int				m_customData;
+	Int				m_customData;  ///< Custom data for cacheing.
+	UnsignedInt m_customFrame; ///< Custom frame count for cacheing.
 
 public:
 	void setConditionType(enum ConditionType type);
@@ -1005,10 +1020,19 @@ public:
 	Int getCustomData(void) const {return m_customData;}
 	void setCustomData(Int val) { m_customData = val;}
 
+	Int getCustomFrame(void) const {return m_customFrame;}
+	void setCustomFrame(Int val) { m_customFrame = val;}
+
+	// TheSuperHackers @feature Setters for semantic JSON support
+	void setNumParameters(Int num) { m_numParms = num; }
+	void setParameter(Int ndx, Parameter* param) { if (ndx >= 0 && ndx < MAX_PARMS) m_parms[ndx] = param; }
+
 	static void WriteConditionDataChunk(ChunkOutputStream &chunkWriter, Condition *pCond);
 	static Bool ParseConditionDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
 
 };
+
+#define dontCOUNT_SCRIPT_USAGE
 
 //-------------------------------------------------------------------------------------------------
 // ******************************** class Template ***********************************************
@@ -1021,16 +1045,26 @@ class Template : public MemoryPoolObject
 // friend bad for MPOs. (srj)
 //friend class ScriptEngine;
 public:
-	AsciiString m_name;
+	AsciiString m_uiName;
+	AsciiString m_uiName2;
+	AsciiString m_internalName;
+	NameKeyType m_internalNameKey; // matches internal name.jba [3/20/2003]
 	Int					m_numUiStrings;
 	AsciiString m_uiStrings[MAX_PARMS];
 	Int					m_numParameters;
 	enum Parameter::ParameterType m_parameters[MAX_PARMS];
+	AsciiString m_helpText;
+#ifdef COUNT_SCRIPT_USAGE
+	mutable Int					m_numTimesUsed;
+	mutable AsciiString m_firstMapUsed;
+#endif
+
 public:
 	Template();
 
 public:
-	AsciiString getName(void) const {return m_name;}
+	AsciiString getName(void) const {return m_uiName;}
+	AsciiString getName2(void) const {return m_uiName2;}
 	Int getUiStrings(AsciiString strings[MAX_PARMS]) const;
 	Int getNumParameters(void) const {return m_numParameters;}
 	enum Parameter::ParameterType getParameterType(Int ndx) const;
