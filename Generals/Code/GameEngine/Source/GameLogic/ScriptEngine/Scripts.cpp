@@ -568,7 +568,7 @@ Int ScriptList::getReadScripts(ScriptList *scriptLists[MAX_PLAYER_COUNT])
 *	Input: DataChunkInput
 *
 */
-void ScriptList::WriteScriptsDataChunk(ChunkOutputStream &chunkWriter, ScriptList *scriptLists[], Int numLists )
+void ScriptList::WriteScriptsDataChunk(DataChunkOutput &chunkWriter, ScriptList *scriptLists[], Int numLists )
 {
 	/**********SCRIPTS DATA ***********************/
 	chunkWriter.openDataChunk("PlayerScriptsList", K_SCRIPTS_DATA_VERSION_1);
@@ -590,7 +590,7 @@ void ScriptList::WriteScriptsDataChunk(ChunkOutputStream &chunkWriter, ScriptLis
 *	Input: DataChunkInput
 *
 */
-void ScriptList::WriteScriptListDataChunk(ChunkOutputStream &chunkWriter)
+void ScriptList::WriteScriptListDataChunk(DataChunkOutput &chunkWriter)
 {
 	/**********SCRIPTS DATA ***********************/
 		if (m_firstScript) m_firstScript->WriteScriptDataChunk(chunkWriter, m_firstScript);
@@ -843,7 +843,7 @@ void ScriptGroup::addScript(Script *pScr, Int ndx)
 *	Input: DataChunkInput
 *
 */
-void ScriptGroup::WriteGroupDataChunk(ChunkOutputStream &chunkWriter, ScriptGroup *pGroup)
+void ScriptGroup::WriteGroupDataChunk(DataChunkOutput &chunkWriter, ScriptGroup *pGroup)
 {
 
 	/**********SCRIPT GROUP DATA ***********************/
@@ -1190,7 +1190,7 @@ AsciiString Script::getUiText(void)
 *	Input: DataChunkInput
 *
 */
-void Script::WriteScriptDataChunk(ChunkOutputStream &chunkWriter, Script *pScript)
+void Script::WriteScriptDataChunk(DataChunkOutput &chunkWriter, Script *pScript)
 {
 	/**********SCRIPT  DATA ***********************/
 	while (pScript) {
@@ -1403,7 +1403,7 @@ void OrCondition::deleteCondition(Condition *pCond)
 *	Input: DataChunkInput
 *
 */
-void OrCondition::WriteOrConditionDataChunk(ChunkOutputStream &chunkWriter, OrCondition	*pOrCondition)
+void OrCondition::WriteOrConditionDataChunk(DataChunkOutput &chunkWriter, OrCondition	*pOrCondition)
 {
 	/**********OR CONDITION DATA ***********************/
 	while (pOrCondition) {
@@ -1609,7 +1609,7 @@ AsciiString Condition::getUiText(void)
 *	Input: DataChunkInput
 *
 */
-void Condition::WriteConditionDataChunk(ChunkOutputStream &chunkWriter, Condition	*pCondition)
+void Condition::WriteConditionDataChunk(DataChunkOutput &chunkWriter, Condition	*pCondition)
 {
 	/**********ACTION  DATA ***********************/
 	while (pCondition) {
@@ -2003,7 +2003,7 @@ AsciiString Parameter::getUiText(void) const
 *	Input: DataChunkInput
 *
 */
-void Parameter::WriteParameter(ChunkOutputStream &chunkWriter)
+void Parameter::WriteParameter(DataChunkOutput &chunkWriter)
 {
 
 	/**********Parameter  DATA ***********************/
@@ -2303,7 +2303,7 @@ AsciiString ScriptAction::getUiText(void)
 *	Input: DataChunkInput
 *
 */
-void ScriptAction::WriteActionDataChunk(ChunkOutputStream &chunkWriter, ScriptAction	*pScriptAction)
+void ScriptAction::WriteActionDataChunk(DataChunkOutput &chunkWriter, ScriptAction	*pScriptAction)
 {
 	/**********ACTION  DATA ***********************/
 	while (pScriptAction) {
@@ -2438,7 +2438,7 @@ Bool ScriptAction::ParseActionDataChunk(DataChunkInput &file, DataChunkInfo *inf
 *	Input: DataChunkInput
 *
 */
-void ScriptAction::WriteActionFalseDataChunk(ChunkOutputStream &chunkWriter, ScriptAction	*pScriptAction)
+void ScriptAction::WriteActionFalseDataChunk(DataChunkOutput &chunkWriter, ScriptAction	*pScriptAction)
 {
 	/**********ACTION  DATA ***********************/
 	while (pScriptAction) {
