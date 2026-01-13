@@ -198,85 +198,25 @@ nlohmann::ordered_json SemanticMapWriter::writeDict(const Dict* dict)
 
 nlohmann::ordered_json SemanticMapWriter::writeWorldInfo(const Dict* dict)
 {
-	nlohmann::ordered_json result = nlohmann::ordered_json::object();
-	if (!dict)
-		return result;
+	// Use base writeDict and convert enum keys to readable strings
+	nlohmann::ordered_json result = writeDict(dict);
 
-	int count = dict->getPairCount();
-	for (int i = 0; i < count; i++)
+	// Convert weather enum to string
+	if (result.contains("weather") && result["weather"].is_number_integer())
 	{
-		NameKeyType key = dict->getNthKey(i);
-		if (key == NAMEKEY_INVALID)
-			continue;
-
-		AsciiString keyNameStr = TheNameKeyGenerator->keyToName(key);
-		const char* keyName = keyNameStr.str();
-		if (!keyName || !*keyName)
-			continue;
-
-		Dict::DataType type = dict->getNthType(i);
-
-		// Special handling for known enum keys
-		if (type == Dict::DICT_INT)
-		{
-			int value = dict->getInt(key);
-
-			if (strcmp(keyName, "weather") == 0)
-			{
-				if (value >= 0 && value < s_weatherCount)
-					result[keyName] = s_weatherNames[value];
-				else
-					result[keyName] = value;
-				continue;
-			}
-			else if (strcmp(keyName, "compression") == 0)
-			{
-				if (value >= 0 && value < s_compressionCount)
-					result[keyName] = s_compressionNames[value];
-				else
-					result[keyName] = value;
-				continue;
-			}
-		}
-
-		// Default handling for other keys
-		switch (type)
-		{
-			case Dict::DICT_BOOL:
-				result[keyName] = dict->getBool(key);
-				break;
-			case Dict::DICT_INT:
-				result[keyName] = dict->getInt(key);
-				break;
-			case Dict::DICT_REAL:
-				result[keyName] = dict->getReal(key);
-				break;
-			case Dict::DICT_ASCIISTRING:
-				result[keyName] = dict->getAsciiString(key).str() ? dict->getAsciiString(key).str() : "";
-				break;
-			case Dict::DICT_UNICODESTRING:
-			{
-				UnicodeString ustr = dict->getUnicodeString(key);
-				if (ustr.str())
-				{
-					std::string utf8;
-					for (const wchar_t* p = ustr.str(); *p; ++p)
-					{
-						if (*p < 0x80)
-							utf8 += static_cast<char>(*p);
-						else
-							utf8 += '?';
-					}
-					result[keyName] = utf8;
-				}
-				else
-					result[keyName] = "";
-				break;
-			}
-			default:
-				break;
-		}
+		int value = result["weather"].get<int>();
+		if (value >= 0 && value < s_weatherCount)
+			result["weather"] = s_weatherNames[value];
 	}
+
+	// Convert compression enum to string
+	if (result.contains("compression") && result["compression"].is_number_integer())
+	{
+		int value = result["compression"].get<int>();
+		if (value >= 0 && value < s_compressionCount)
+			result["compression"] = s_compressionNames[value];
+	}
+
 	return result;
 }
 
@@ -381,6 +321,33 @@ nlohmann::ordered_json SemanticMapWriter::writeWaypointLinks(const std::vector<W
 	return result;
 }
 
+
+static nlohmann::ordered_json writeLight(const LightingInfo::Light& light)
+{
+	nlohmann::ordered_json result = nlohmann::ordered_json::object();
+	result["ambient"] = nlohmann::ordered_json::object();
+	result["ambient"]["r"] = light.ambientR;
+	result["ambient"]["g"] = light.ambientG;
+	result["ambient"]["b"] = light.ambientB;
+	result["diffuse"] = nlohmann::ordered_json::object();
+	result["diffuse"]["r"] = light.diffuseR;
+	result["diffuse"]["g"] = light.diffuseG;
+	result["diffuse"]["b"] = light.diffuseB;
+	result["position"] = nlohmann::ordered_json::object();
+	result["position"]["x"] = light.posX;
+	result["position"]["y"] = light.posY;
+	result["position"]["z"] = light.posZ;
+	return result;
+}
+
+static nlohmann::ordered_json writeLightArray(const LightingInfo::Light lights[3])
+{
+	nlohmann::ordered_json result = nlohmann::ordered_json::array();
+	for (int j = 0; j < 3; j++)
+		result.push_back(writeLight(lights[j]));
+	return result;
+}
+
 nlohmann::ordered_json SemanticMapWriter::writeLighting(int timeOfDay, const LightingInfo lighting[4], unsigned int shadowColor)
 {
 	nlohmann::ordered_json result = nlohmann::ordered_json::object();
@@ -393,47 +360,8 @@ nlohmann::ordered_json SemanticMapWriter::writeLighting(int timeOfDay, const Lig
 	for (int i = 0; i < 4; i++)
 	{
 		nlohmann::ordered_json period = nlohmann::ordered_json::object();
-
-		nlohmann::ordered_json terrainArray = nlohmann::ordered_json::array();
-		for (int j = 0; j < 3; j++)
-		{
-			nlohmann::ordered_json light = nlohmann::ordered_json::object();
-			light["ambient"] = nlohmann::ordered_json::object();
-			light["ambient"]["r"] = lighting[i].terrainLights[j].ambientR;
-			light["ambient"]["g"] = lighting[i].terrainLights[j].ambientG;
-			light["ambient"]["b"] = lighting[i].terrainLights[j].ambientB;
-			light["diffuse"] = nlohmann::ordered_json::object();
-			light["diffuse"]["r"] = lighting[i].terrainLights[j].diffuseR;
-			light["diffuse"]["g"] = lighting[i].terrainLights[j].diffuseG;
-			light["diffuse"]["b"] = lighting[i].terrainLights[j].diffuseB;
-			light["position"] = nlohmann::ordered_json::object();
-			light["position"]["x"] = lighting[i].terrainLights[j].posX;
-			light["position"]["y"] = lighting[i].terrainLights[j].posY;
-			light["position"]["z"] = lighting[i].terrainLights[j].posZ;
-			terrainArray.push_back(light);
-		}
-		period["terrain"] = terrainArray;
-
-		nlohmann::ordered_json objects = nlohmann::ordered_json::array();
-		for (int j = 0; j < 3; j++)
-		{
-			nlohmann::ordered_json light = nlohmann::ordered_json::object();
-			light["ambient"] = nlohmann::ordered_json::object();
-			light["ambient"]["r"] = lighting[i].objectLights[j].ambientR;
-			light["ambient"]["g"] = lighting[i].objectLights[j].ambientG;
-			light["ambient"]["b"] = lighting[i].objectLights[j].ambientB;
-			light["diffuse"] = nlohmann::ordered_json::object();
-			light["diffuse"]["r"] = lighting[i].objectLights[j].diffuseR;
-			light["diffuse"]["g"] = lighting[i].objectLights[j].diffuseG;
-			light["diffuse"]["b"] = lighting[i].objectLights[j].diffuseB;
-			light["position"] = nlohmann::ordered_json::object();
-			light["position"]["x"] = lighting[i].objectLights[j].posX;
-			light["position"]["y"] = lighting[i].objectLights[j].posY;
-			light["position"]["z"] = lighting[i].objectLights[j].posZ;
-			objects.push_back(light);
-		}
-		period["objects"] = objects;
-
+		period["terrain"] = writeLightArray(lighting[i].terrainLights);
+		period["objects"] = writeLightArray(lighting[i].objectLights);
 		result[periods[i]] = period;
 	}
 
@@ -734,6 +662,47 @@ bool SemanticMapReader::parseWaypointLinks(const nlohmann::ordered_json& json, s
 	return true;
 }
 
+
+static void parseLight(const nlohmann::ordered_json& json, LightingInfo::Light& outLight)
+{
+	if (json.contains("ambient"))
+	{
+		outLight.ambientR = json["ambient"].value("r", 0.0f);
+		outLight.ambientG = json["ambient"].value("g", 0.0f);
+		outLight.ambientB = json["ambient"].value("b", 0.0f);
+	}
+	if (json.contains("diffuse"))
+	{
+		outLight.diffuseR = json["diffuse"].value("r", 0.0f);
+		outLight.diffuseG = json["diffuse"].value("g", 0.0f);
+		outLight.diffuseB = json["diffuse"].value("b", 0.0f);
+	}
+	if (json.contains("position"))
+	{
+		outLight.posX = json["position"].value("x", 0.0f);
+		outLight.posY = json["position"].value("y", 0.0f);
+		outLight.posZ = json["position"].value("z", 0.0f);
+	}
+}
+
+static void parseLightArray(const nlohmann::ordered_json& json, LightingInfo::Light outLights[3])
+{
+	if (json.is_array())
+	{
+		int j = 0;
+		for (const auto& light : json)
+		{
+			if (j >= 3) break;
+			parseLight(light, outLights[j]);
+			j++;
+		}
+	}
+	else if (json.is_object())
+	{
+		parseLight(json, outLights[0]);
+	}
+}
+
 bool SemanticMapReader::parseLighting(const nlohmann::ordered_json& json, int& outTimeOfDay, LightingInfo outLighting[4], unsigned int& outShadowColor)
 {
 	if (!json.is_object())
@@ -765,85 +734,10 @@ bool SemanticMapReader::parseLighting(const nlohmann::ordered_json& json, int& o
 		const auto& period = json[periods[i]];
 
 		if (period.contains("terrain"))
-		{
-			if (period["terrain"].is_array())
-			{
-				int j = 0;
-				for (const auto& light : period["terrain"])
-				{
-					if (j >= 3) break;
-					if (light.contains("ambient"))
-					{
-						outLighting[i].terrainLights[j].ambientR = light["ambient"].value("r", 0.0f);
-						outLighting[i].terrainLights[j].ambientG = light["ambient"].value("g", 0.0f);
-						outLighting[i].terrainLights[j].ambientB = light["ambient"].value("b", 0.0f);
-					}
-					if (light.contains("diffuse"))
-					{
-						outLighting[i].terrainLights[j].diffuseR = light["diffuse"].value("r", 0.0f);
-						outLighting[i].terrainLights[j].diffuseG = light["diffuse"].value("g", 0.0f);
-						outLighting[i].terrainLights[j].diffuseB = light["diffuse"].value("b", 0.0f);
-					}
-					if (light.contains("position"))
-					{
-						outLighting[i].terrainLights[j].posX = light["position"].value("x", 0.0f);
-						outLighting[i].terrainLights[j].posY = light["position"].value("y", 0.0f);
-						outLighting[i].terrainLights[j].posZ = light["position"].value("z", 0.0f);
-					}
-					j++;
-				}
-			}
-			else if (period["terrain"].is_object())
-			{
-				const auto& terrain = period["terrain"];
-				if (terrain.contains("ambient"))
-				{
-					outLighting[i].terrainLights[0].ambientR = terrain["ambient"].value("r", 0.0f);
-					outLighting[i].terrainLights[0].ambientG = terrain["ambient"].value("g", 0.0f);
-					outLighting[i].terrainLights[0].ambientB = terrain["ambient"].value("b", 0.0f);
-				}
-				if (terrain.contains("diffuse"))
-				{
-					outLighting[i].terrainLights[0].diffuseR = terrain["diffuse"].value("r", 0.0f);
-					outLighting[i].terrainLights[0].diffuseG = terrain["diffuse"].value("g", 0.0f);
-					outLighting[i].terrainLights[0].diffuseB = terrain["diffuse"].value("b", 0.0f);
-				}
-				if (terrain.contains("position"))
-				{
-					outLighting[i].terrainLights[0].posX = terrain["position"].value("x", 0.0f);
-					outLighting[i].terrainLights[0].posY = terrain["position"].value("y", 0.0f);
-					outLighting[i].terrainLights[0].posZ = terrain["position"].value("z", 0.0f);
-				}
-			}
-		}
+			parseLightArray(period["terrain"], outLighting[i].terrainLights);
 
-		if (period.contains("objects") && period["objects"].is_array())
-		{
-			int j = 0;
-			for (const auto& light : period["objects"])
-			{
-				if (j >= 3) break;
-				if (light.contains("ambient"))
-				{
-					outLighting[i].objectLights[j].ambientR = light["ambient"].value("r", 0.0f);
-					outLighting[i].objectLights[j].ambientG = light["ambient"].value("g", 0.0f);
-					outLighting[i].objectLights[j].ambientB = light["ambient"].value("b", 0.0f);
-				}
-				if (light.contains("diffuse"))
-				{
-					outLighting[i].objectLights[j].diffuseR = light["diffuse"].value("r", 0.0f);
-					outLighting[i].objectLights[j].diffuseG = light["diffuse"].value("g", 0.0f);
-					outLighting[i].objectLights[j].diffuseB = light["diffuse"].value("b", 0.0f);
-				}
-				if (light.contains("position"))
-				{
-					outLighting[i].objectLights[j].posX = light["position"].value("x", 0.0f);
-					outLighting[i].objectLights[j].posY = light["position"].value("y", 0.0f);
-					outLighting[i].objectLights[j].posZ = light["position"].value("z", 0.0f);
-				}
-				j++;
-			}
-		}
+		if (period.contains("objects"))
+			parseLightArray(period["objects"], outLighting[i].objectLights);
 	}
 
 	return true;
