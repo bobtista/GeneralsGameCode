@@ -1150,14 +1150,6 @@ set(GAMEENGINE_SRC
 #    Source/Precompiled/PreRTS.cpp
 )
 
-if(NOT IS_VS6_BUILD)
-    list(APPEND GAMEENGINE_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/Include/Common/JSONChunkInput.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/Include/Common/JSONChunkOutput.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/Source/Common/System/JSONChunkInput.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/Source/Common/System/JSONChunkOutput.cpp
-    )
-endif()
 
 if(RTS_GAMEMEMORY_ENABLE)
     # Uses the original Game Memory implementation.

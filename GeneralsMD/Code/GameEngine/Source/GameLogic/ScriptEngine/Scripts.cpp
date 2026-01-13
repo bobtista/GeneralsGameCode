@@ -51,10 +51,6 @@
 
 #include "Common/BorderColors.h"
 #include "Common/DataChunk.h"
-#ifdef RTS_HAS_JSON_CHUNK
-#include "Common/JSONChunkInput.h"
-#include "Common/JSONChunkOutput.h"
-#endif
 #include "Common/NameKeyGenerator.h"
 #include "Common/GameState.h"
 #include "Common/KindOf.h"
@@ -552,32 +548,6 @@ Bool ScriptList::ParseScriptsDataChunk(DataChunkInput &file, DataChunkInfo *info
 	return false;
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-Bool ScriptList::ParseScriptsDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
-{
-	Int i;
-	file.registerParser( "ScriptList", info->label, ScriptList::ParseScriptListDataChunkJSON );
-	DEBUG_ASSERTCRASH(s_numInReadList==0, ("Leftover scripts floating aroung."));
-	for (i=0; i<s_numInReadList; i++) {
-		deleteInstance(s_readLists[i]);
-		s_readLists[i] = NULL;
-	}
-	TScriptListReadInfo readInfo;
-	for (i=0; i<MAX_PLAYER_COUNT; i++) {
-		readInfo.readLists[i] = 0;
-	}
-	readInfo.numLists = 0;
-	if (file.parse(&readInfo)) {
-		DEBUG_ASSERTCRASH(readInfo.numLists<MAX_PLAYER_COUNT, ("Read too many, overrun buffer."));
-		s_numInReadList = readInfo.numLists;
-		for (i=0; i<s_numInReadList; i++) {
-			s_readLists[i] = readInfo.readLists[i];
-		}
-		return true;
-	}
-	return false;
-}
-#endif
 
 /**
 * ScriptList::getReadScripts - Gets the scripts read in from a file by .
@@ -656,20 +626,6 @@ Bool ScriptList::ParseScriptListDataChunk(DataChunkInput &file, DataChunkInfo *i
 
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-Bool ScriptList::ParseScriptListDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
-{
-	TScriptListReadInfo *pInfo = (TScriptListReadInfo*)userData;
-	DEBUG_ASSERTCRASH(pInfo->numLists < MAX_PLAYER_COUNT, ("Too many."));
-	if (pInfo->numLists >= MAX_PLAYER_COUNT) return false;
-	pInfo->readLists[pInfo->numLists] = newInstance(ScriptList);
-	Int cur = pInfo->numLists;
-	pInfo->numLists++;
-	file.registerParser( "Script", info->label, Script::ParseScriptFromListDataChunkJSON );
-	file.registerParser( "ScriptGroup", info->label, ScriptGroup::ParseGroupDataChunkJSON );
-	return file.parse(pInfo->readLists[cur]);
-}
-#endif
 
 
 //-------------------------------------------------------------------------------------------------
@@ -940,23 +896,6 @@ Bool ScriptGroup::ParseGroupDataChunk(DataChunkInput &file, DataChunkInfo *info,
 
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-Bool ScriptGroup::ParseGroupDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
-{
-	ScriptList *pList = (ScriptList *)userData;
-	ScriptGroup *pGroup = newInstance(ScriptGroup);
-
-	// Read from named fields for human-readable JSON
-	pGroup->m_groupName = file.readAsciiString("groupName");
-	pGroup->m_isGroupActive = file.readBool("isGroupActive");
-	if (info->version == K_SCRIPT_GROUP_DATA_VERSION_2) {
-		pGroup->m_isGroupSubroutine= file.readBool("isGroupSubroutine");
-	}
-	pList->addGroup(pGroup, AT_END);
-	file.registerParser( "Script", info->label, Script::ParseScriptFromGroupDataChunkJSON );
-	return file.parse(pGroup);
-}
-#endif
 
 //-------------------------------------------------------------------------------------------------
 // ******************************** class  Script *********************************************
@@ -1327,37 +1266,6 @@ Script *Script::ParseScript(DataChunkInput &file, unsigned short version)
 	return pScript;
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-Script *Script::ParseScriptJSON(JSONChunkInput &file, unsigned short version)
-{
-	Script *pScript = newInstance(Script);
-
-	// Read from named fields for human-readable JSON
-	pScript->m_scriptName = file.readAsciiString("scriptName");
-	pScript->m_comment = file.readAsciiString("comment");
-	pScript->m_conditionComment = file.readAsciiString("conditionComment");
-	pScript->m_actionComment = file.readAsciiString("actionComment");
-
-	pScript->m_isActive = file.readBool("isActive");
-	pScript->m_isOneShot = file.readBool("isOneShot");
-	pScript->m_easy = file.readBool("easy");
-	pScript->m_normal = file.readBool("normal");
-	pScript->m_hard = file.readBool("hard");
-	pScript->m_isSubroutine = file.readBool("isSubroutine");
-	if (version>=K_SCRIPT_DATA_VERSION_2) {
-		pScript->m_delayEvaluationSeconds = file.readInt("delayEvaluationSeconds");
-	}
-	file.registerParser( "OrCondition", "Script", OrCondition::ParseOrConditionDataChunkJSON );
-	file.registerParser( "ScriptAction",  "Script", ScriptAction::ParseActionDataChunkJSON );
-	file.registerParser( "ScriptActionFalse",  "Script", ScriptAction::ParseActionFalseDataChunkJSON );
-	if (! file.parse(pScript) )
-	{
-		return NULL;
-	}
-	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
-	return pScript;
-}
-#endif
 
 /**
 * Script::ParseScriptFromListDataChunk - read a script chunk in a script list.
@@ -1375,16 +1283,6 @@ Bool Script::ParseScriptFromListDataChunk(DataChunkInput &file, DataChunkInfo *i
 	return true;
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-Bool Script::ParseScriptFromListDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
-{
-	ScriptList *pList = (ScriptList *)userData;
-	Script *pScript = ParseScriptJSON(file, info->version);
-	pList->addScript(pScript, AT_END);
-	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
-	return true;
-}
-#endif
 
 /**
 * Script::ParseScriptFromGroupDataChunk - read a script chunk in a script group.
@@ -1402,16 +1300,6 @@ Bool Script::ParseScriptFromGroupDataChunk(DataChunkInput &file, DataChunkInfo *
 	return true;
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-Bool Script::ParseScriptFromGroupDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
-{
-	ScriptGroup *pGroup = (ScriptGroup *)userData;
-	Script *pScript = ParseScriptJSON(file, info->version);
-	pGroup->addScript(pScript, AT_END);
-	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
-	return true;
-}
-#endif
 
 
 /**
@@ -1571,24 +1459,6 @@ Bool OrCondition::ParseOrConditionDataChunk(DataChunkInput &file, DataChunkInfo 
 
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-Bool OrCondition::ParseOrConditionDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
-{
-	Script *pScript = (Script *)userData;
-	OrCondition *pOrCondition = newInstance(OrCondition);
-	OrCondition *pFirst = pScript->getOrCondition();
-	while (pFirst && pFirst->getNextOrCondition()) {
-		pFirst = pFirst->getNextOrCondition();
-	}
-	if (pFirst) {
-		pFirst->setNextOrCondition(pOrCondition);
-	} else {
-		pScript->setOrCondition(pOrCondition);
-	}
-	file.registerParser( "Condition", info->label, Condition::ParseConditionDataChunkJSON );
-	return file.parse(pOrCondition);
-}
-#endif
 
 /**
 * OrCondition::findPreviousCondition - find the condition that immediately proceeds curCond.
@@ -1883,74 +1753,6 @@ Bool Condition::ParseConditionDataChunk(DataChunkInput &file, DataChunkInfo *inf
 	return true;
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-Bool Condition::ParseConditionDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
-{
-	Condition	*pCondition = newInstance(Condition);
-	OrCondition *pOr = (OrCondition *)userData;
-
-	// Read condition name from JSON and look up the type
-	AsciiString conditionName = file.readAsciiString("condition");
-	NameKeyType condNameKey = NAMEKEY(conditionName);
-
-	// Find the condition type by name
-	Bool found = false;
-	for (Int i = 0; i < Condition::NUM_ITEMS; i++) {
-		const ConditionTemplate* ct = TheScriptEngine->getConditionTemplate(i);
-		if (ct && ct->m_internalNameKey == condNameKey) {
-			pCondition->m_conditionType = (enum ConditionType)i;
-			found = true;
-			break;
-		}
-	}
-	if (!found) {
-		DEBUG_LOG(("Unknown condition name: %s", conditionName.str()));
-		pCondition->m_conditionType = CONDITION_FALSE;
-	}
-
-	// Get numParms from template
-	const ConditionTemplate* ct = TheScriptEngine->getConditionTemplate(pCondition->m_conditionType);
-	pCondition->m_numParms = ct ? ct->getNumParameters() : 0;
-
-	Int i;
-	for (i=0; i<pCondition->m_numParms; i++)
-	{
-		pCondition->m_parms[i] = Parameter::ReadParameterJSON(file);
-	}
-
-	if (file.getChunkVersion() < K_SCRIPT_CONDITION_VERSION_2) {
-		for (int j = 0; ParameterChangesVer2[j] != -1; ++j) {
-			if (pCondition->m_conditionType == ParameterChangesVer2[j]) {
-				pCondition->m_parms[pCondition->m_numParms] = newInstance(Parameter)(Parameter::SURFACES_ALLOWED, 3);
-				pCondition->m_numParms = 3;
-			}
-		}
-	}
-	switch (pCondition->getConditionType())
-	{
-		case SKIRMISH_SPECIAL_POWER_READY:
-			if (pCondition->m_numParms == 1)
-			{
-				pCondition->m_numParms = 2;
-				pCondition->m_parms[1] = pCondition->m_parms[0];
-				pCondition->m_parms[0] = newInstance(Parameter)(Parameter::SIDE, 0);
-				pCondition->m_parms[0]->friend_setString(THIS_PLAYER);
-			}
-			break;
-	}
-	Condition *pLast = pOr->getFirstAndCondition();
-	while (pLast && pLast->getNext()) {
-		pLast = pLast->getNext();
-	}
-	if (pLast) {
-		pLast->setNextCondition(pCondition);
-	} else {
-		pOr->setFirstAndCondition(pCondition);
-	}
-	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
-	return true;
-}
-#endif
 
 
 //-------------------------------------------------------------------------------------------------
@@ -2763,139 +2565,6 @@ Parameter *Parameter::ReadParameter(DataChunkInput &file)
 	return pParm;
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-Parameter *Parameter::ReadParameterJSON(JSONChunkInput &file)
-{
-	// Read parameter type as string from _items array
-	AsciiString typeStr = file.readAsciiString();
-	ParameterType ptype = getParameterTypeFromName(typeStr.str());
-	Parameter *pParm = newInstance(Parameter)(ptype);
-	pParm->m_initialized = true;
-	if (pParm->getParameterType() == COORD3D) {
-		Coord3D pos;
-		pos.x = file.readReal();
-		pos.y = file.readReal();
-		pos.z = file.readReal();
-		pParm->setCoord3D(&pos);
-	}
-	else
-	{
-		// Compact JSON format: only the relevant field is stored
-		ParamFieldType fieldType = getParamFieldType(ptype);
-
-		// Read int field (or use default if this type uses a different field)
-		if (fieldType == FIELD_INT) {
-			if (hasEnumString(ptype)) {
-				AsciiString enumStr;
-				Int val = file.readIntOrEnumString(enumStr);
-				if (!enumStr.isEmpty()) {
-					pParm->m_int = getEnumInt(ptype, enumStr.str());
-				} else {
-					pParm->m_int = val;
-				}
-			} else if (ptype == BOOLEAN) {
-				pParm->m_int = file.readBool() ? 1 : 0;
-			} else {
-				pParm->m_int = file.readInt();
-			}
-		} else {
-			pParm->m_int = 0;  // Default for unused field
-		}
-
-		// Read real field (or use default if this type uses a different field)
-		if (fieldType == FIELD_REAL) {
-			pParm->m_real = file.readReal();
-		} else {
-			pParm->m_real = 0.0f;  // Default for unused field
-		}
-
-		// Read string field (or use default if this type uses a different field)
-		if (fieldType == FIELD_STRING) {
-			pParm->m_string = file.readAsciiString();
-		} else {
-			pParm->m_string.clear();  // Default for unused field
-		}
-	}
-
-	if (pParm->getParameterType() == OBJECT_TYPE)
-	{
-		if (pParm->m_string.startsWith("Fundamentalist"))
-		{
-			const char* replacePrefix = "Fundamentalist";
-			const size_t offset = pParm->m_string.startsWith(replacePrefix) ? strlen(replacePrefix) : 0u;
-			char newName[256];
-			strcpy(newName, "GLA");
-			strlcat(newName, pParm->m_string.str() + offset, ARRAY_SIZE(newName));
-			DEBUG_LOG(("Changing Script Ref from %s to %s", pParm->m_string.str(), newName));
-			pParm->m_string.set(newName);
-		}
-	}
-
-	if (pParm->getParameterType() == KIND_OF_PARAM)
-	{
-		const char* const* kindofNames = KindOfMaskType::getBitNames();
-		if (!pParm->m_string.isEmpty())
-		{
-			Bool found = false;
-			for (int i = 0; kindofNames[i]; ++i)
-			{
-				if (pParm->m_string.compareNoCase(kindofNames[i]) == 0)
-				{
-					pParm->setInt(i);
-					found = true;
-					break;
-				}
-				if( !pParm->m_string.compareNoCase( "CRUSHER" ) )
-				{
-					pParm->setInt(i);
-					found = true;
-					DEBUG_CRASH(( "Kindof CRUSHER no longer exists -- in order to get your map to load, it has been switched to OBSTACLE, please call Kris (x36844).", pParm->m_string.str()));
-					break;
-				}
-				else if( !pParm->m_string.compareNoCase( "CRUSHABLE" ) )
-				{
-					pParm->setInt(i);
-					found = true;
-					DEBUG_CRASH(( "Kindof CRUSHABLE no longer exists -- in order to get your map to load, it has been switched to OBSTACLE, please call Kris (x36844).", pParm->m_string.str()));
-					break;
-				}
-				else if( !pParm->m_string.compareNoCase( "OVERLAPPABLE" ) )
-				{
-					pParm->setInt(i);
-					found = true;
-					DEBUG_CRASH(( "Kindof OVERLAPPABLE no longer exists -- in order to get your map to load, it has been switched to OBSTACLE, please call Kris (x36844).", pParm->m_string.str()));
-					break;
-				}
-				else if( !pParm->m_string.compareNoCase( "MISSILE" ) )
-				{
-					pParm->m_string.format( "SMALL_MISSILE" );
-					for( i = 0; kindofNames[i]; ++i )
-					{
-						if (pParm->m_string.compareNoCase("SMALL_MISSILE") == 0)
-						{
-							pParm->setInt(i);
-							found = true;
-							break;
-						}
-					}
-					DEBUG_CRASH(("Unable to find Kindof SMALL_MISSILE, please call KrisM (x36844)."));
-				}
-			}
-			if (!found)
-			{
-				DEBUG_CRASH(("Unable to find Kindof '%s', please call JKM (x36872).", pParm->m_string.str()));
-				throw ERROR_BUG;
-			}
-		}
-		else
-		{
-			pParm->m_string = kindofNames[pParm->m_int];
-		}
-	}
-
-	return pParm;
-}
-#endif
 
 //-------------------------------------------------------------------------------------------------
 // ******************************** class ScriptAction ***********************************************
@@ -3276,181 +2945,7 @@ Bool ScriptAction::ParseActionDataChunk(DataChunkInput &file, DataChunkInfo *inf
 	return true;
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-ScriptAction *ScriptAction::ParseActionJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
-{
-	ScriptAction	*pScriptAction = newInstance(ScriptAction);
 
-	// Read action name from JSON and look up the type
-	AsciiString actionName = file.readAsciiString("action");
-	NameKeyType actionNameKey = NAMEKEY(actionName);
-
-	// Find the action type by name
-	Bool found = false;
-	for (Int i = 0; i < ScriptAction::NUM_ITEMS; i++) {
-		const ActionTemplate* at = TheScriptEngine->getActionTemplate(i);
-		if (at && at->m_internalNameKey == actionNameKey) {
-			pScriptAction->m_actionType = (enum ScriptActionType)i;
-			found = true;
-			break;
-		}
-	}
-	if (!found) {
-		DEBUG_LOG(("Unknown action name: %s", actionName.str()));
-		pScriptAction->m_actionType = NO_OP;
-	}
-
-#ifdef DEBUG_CRASHING
-	const ActionTemplate* at = TheScriptEngine->getActionTemplate(pScriptAction->m_actionType);
-	Script *pScript = (Script *)userData;
-	if (at && (at->getName().isEmpty() || (at->getName().compareNoCase("(placeholder)") == 0))) {
-		DEBUG_CRASH(("Invalid Script Action found in script '%s'", pScript->getName().str()));
-	}
-#endif
-#ifdef COUNT_SCRIPT_USAGE
-	const ActionTemplate* at2 = TheScriptEngine->getActionTemplate(pScriptAction->m_actionType);
-	at2->m_numTimesUsed++;
-	at2->m_firstMapUsed = TheGlobalData->m_mapName;
-#endif
-	// Get numParms from template
-	const ActionTemplate* atTemplate = TheScriptEngine->getActionTemplate(pScriptAction->m_actionType);
-	pScriptAction->m_numParms = atTemplate ? atTemplate->getNumParameters() : 0;
-
-	Int i;
-	for (i=0; i<pScriptAction->m_numParms; i++)
-	{
-		pScriptAction->m_parms[i] = Parameter::ReadParameterJSON(file);
-	}
-
-	switch (pScriptAction->getActionType())
-	{
-		case SKIRMISH_FIRE_SPECIAL_POWER_AT_MOST_COST:
-			if (pScriptAction->m_numParms == 1)
-			{
-				pScriptAction->m_numParms = 2;
-				pScriptAction->m_parms[1] = pScriptAction->m_parms[0];
-				pScriptAction->m_parms[0] = newInstance(Parameter)(Parameter::SIDE, 0);
-				pScriptAction->m_parms[0]->friend_setString(THIS_PLAYER);
-			}
-			break;
-		case TEAM_FOLLOW_WAYPOINTS:
-			if (pScriptAction->m_numParms == 2)
-			{
-				pScriptAction->m_numParms = 3;
-				pScriptAction->m_parms[2] = newInstance(Parameter)(Parameter::BOOLEAN, 1);
-			}
-			break;
-		case SKIRMISH_BUILD_BASE_DEFENSE_FRONT:
-			if (pScriptAction->m_numParms == 1)
-			{
-				Bool flank = pScriptAction->m_parms[0]->getInt()!=0;
-				deleteInstance(pScriptAction->m_parms[0]);
-				pScriptAction->m_numParms = 0;
-				if (flank) pScriptAction->m_actionType = SKIRMISH_BUILD_BASE_DEFENSE_FLANK;
-			}
-			break;
-		case NAMED_SET_ATTITUDE:
-		case TEAM_SET_ATTITUDE:
-			if (pScriptAction->m_numParms >= 2 && pScriptAction->m_parms[1]->getParameterType() == Parameter::INT)
-			{
-				pScriptAction->m_parms[1] = newInstance(Parameter)(Parameter::AI_MOOD, pScriptAction->m_parms[1]->getInt());
-			}
-			break;
-		case MAP_REVEAL_AT_WAYPOINT:
-		case MAP_SHROUD_AT_WAYPOINT:
-			if (pScriptAction->getNumParameters() == 2)
-			{
-				pScriptAction->m_numParms = 3;
-				pScriptAction->m_parms[2] = newInstance(Parameter)(Parameter::SIDE);
-			}
-			break;
-		case MAP_REVEAL_ALL:
-		case MAP_REVEAL_ALL_PERM:
-		case MAP_REVEAL_ALL_UNDO_PERM:
-		case MAP_SHROUD_ALL:
-			if (pScriptAction->getNumParameters() == 0)
-			{
-				pScriptAction->m_numParms = 1;
-				pScriptAction->m_parms[0] = newInstance(Parameter)(Parameter::SIDE);
-			}
-			break;
-		case SPEECH_PLAY:
-			if (pScriptAction->getNumParameters() == 1)
-			{
-				pScriptAction->m_numParms = 2;
-				pScriptAction->m_parms[1] = newInstance(Parameter)(Parameter::BOOLEAN, 1);
-			}
-			break;
-		case CAMERA_MOD_SET_FINAL_ZOOM:
-		case CAMERA_MOD_SET_FINAL_PITCH:
-			if (pScriptAction->getNumParameters() == 1)
-			{
-				pScriptAction->m_numParms = 3;
-				pScriptAction->m_parms[1] = newInstance(Parameter)(Parameter::PERCENT, 0.0f);
-				pScriptAction->m_parms[2] = newInstance(Parameter)(Parameter::PERCENT, 0.0f);
-			}
-			break;
-		case MOVE_CAMERA_TO:
-		case MOVE_CAMERA_ALONG_WAYPOINT_PATH:
-		case CAMERA_LOOK_TOWARD_OBJECT:
-			if (pScriptAction->getNumParameters() == 3)
-			{
-				pScriptAction->m_numParms = 5;
-				pScriptAction->m_parms[3] = newInstance(Parameter)(Parameter::REAL, 0.0f);
-				pScriptAction->m_parms[4] = newInstance(Parameter)(Parameter::REAL, 0.0f);
-			}
-			break;
-		case RESET_CAMERA:
-		case ZOOM_CAMERA:
-		case PITCH_CAMERA:
-		case ROTATE_CAMERA:
-			if (pScriptAction->getNumParameters() == 2)
-			{
-				pScriptAction->m_numParms = 4;
-				pScriptAction->m_parms[2] = newInstance(Parameter)(Parameter::REAL, 0.0f);
-				pScriptAction->m_parms[3] = newInstance(Parameter)(Parameter::REAL, 0.0f);
-			}
-			break;
-		case CAMERA_LOOK_TOWARD_WAYPOINT:
-			if (pScriptAction->getNumParameters() == 2)
-			{
-				pScriptAction->m_numParms = 5;
-				pScriptAction->m_parms[2] = newInstance(Parameter)(Parameter::REAL, 0.0f);
-				pScriptAction->m_parms[3] = newInstance(Parameter)(Parameter::REAL, 0.0f);
-				pScriptAction->m_parms[4] = newInstance(Parameter)(Parameter::BOOLEAN, FALSE);
-			}
-			break;
-	}
-
-	return pScriptAction;
-}
-#endif
-
-#ifdef RTS_HAS_JSON_CHUNK
-Bool ScriptAction::ParseActionDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
-{
-	Script *pScript = (Script *)userData;
-
-	ScriptAction	*pScriptAction = ParseActionJSON(file, info, userData);
-
-	ScriptAction *pLast = pScript->getAction();
-	while (pLast && pLast->getNext())
-	{
-		pLast = pLast->getNext();
-	}
-
-	if (pLast)
-	{
-		pLast->setNextAction(pScriptAction);
-	}
-	else
-	{
-		pScript->setAction(pScriptAction);
-	}
-	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
-	return true;
-}
-#endif
 
 /**
 * ScriptAction::WriteActionFalseDataChunk - Writes a false Action chunk.
@@ -3512,26 +3007,6 @@ Bool ScriptAction::ParseActionFalseDataChunk(DataChunkInput &file, DataChunkInfo
 	return true;
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-Bool ScriptAction::ParseActionFalseDataChunkJSON(JSONChunkInput &file, JSONChunkInfo *info, void *userData)
-{
-	Script *pScript = (Script *)userData;
-
-	ScriptAction	*pScriptAction = ParseActionJSON(file, info, userData);
-
-	ScriptAction *pLast = pScript->getFalseAction();
-	while (pLast && pLast->getNext()) {
-		pLast = pLast->getNext();
-	}
-	if (pLast) {
-		pLast->setNextAction(pScriptAction);
-	} else {
-		pScript->setFalseAction(pScriptAction);
-	}
-	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
-	return true;
-}
-#endif
 
 // NOTE: Changing these or adding to TheObjectFlagsNames requires changes to
 // ScriptActions::changeObjectPanelFlagForSingleObject
