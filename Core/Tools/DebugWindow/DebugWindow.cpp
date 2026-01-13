@@ -19,7 +19,6 @@
 // DebugWindow.cpp : Defines the initialization routines for the DLL.
 //
 
-
 #include "StdAfx.h"
 #include "DebugWindow.h"
 #include "DebugWindowDialog.h"

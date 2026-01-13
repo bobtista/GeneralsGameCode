@@ -19,7 +19,6 @@
 // WBFrameWnd.cpp : implementation file
 //
 
-
 #include "StdAfx.h"
 #include "WorldBuilder.h"
 #include "MainFrm.h"
