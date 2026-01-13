@@ -176,7 +176,7 @@ RawFileClass::RawFileClass(void) :
  *=============================================================================================*/
 bool RawFileClass::Is_Open(void) const
 {
-	return(Handle != nullptr);
+	return(Handle != NULL_HANDLE);
 }
 
 /***********************************************************************************************
@@ -479,7 +479,7 @@ int RawFileClass::Open(int rights)
 		**	For the case of the file cannot be found, then allow a retry. All other cases
 		**	are fatal.
 		*/
-		if (Handle == nullptr) {
+		if (Handle == NULL_HANDLE) {
 			return(false);
 
 //			Error(GetLastError(), false, Filename);
@@ -543,7 +543,7 @@ bool RawFileClass::Is_Available(int forced)
 											nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 		#endif
 
-		if (Handle == nullptr) {
+		if (Handle == NULL_HANDLE) {
 			return(false);
 		}
 		break;
