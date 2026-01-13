@@ -255,12 +255,6 @@ template <class T> T max(T a,T b)
 #endif
 
 
-#ifndef	NULL
-	//#define	NULL		0
-	// NULL is now deprecated - use nullptr instead
-#endif
-
-
 #ifndef size_of
 #define size_of(typ,id) sizeof(((typ*)0)->id)
 #endif

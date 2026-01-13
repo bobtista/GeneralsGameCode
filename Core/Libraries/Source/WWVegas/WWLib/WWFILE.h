@@ -49,11 +49,6 @@
 #define SEEK_END					2	// Seek from end of file.
 #endif
 
-#ifndef NULL
-	//#define	NULL	0
-	// NULL is now deprecated - use nullptr instead
-#endif
-
 
 class FileClass
 {

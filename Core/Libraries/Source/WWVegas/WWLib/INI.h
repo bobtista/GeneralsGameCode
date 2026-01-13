@@ -63,11 +63,6 @@ template<class T> class TRect;
 template<class T> class List;
 template<class T, class U> class IndexClass;
 
-#ifndef NULL
-//#define NULL 0L
-// NULL is now deprecated - use nullptr instead
-#endif
-
 /*
 **	This is an INI database handler class. It handles a database with a disk format identical
 **	to the INI files commonly used by Windows.

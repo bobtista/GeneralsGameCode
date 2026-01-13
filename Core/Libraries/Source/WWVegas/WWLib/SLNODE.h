@@ -37,11 +37,6 @@
 #include "always.h"
 #include "mempool.h"
 
-#ifndef NULL
-//#define NULL 0
-// NULL is now deprecated - use nullptr instead
-#endif
-
 //	Forward references for friend	classes
 template	<class T> class SList;
 
