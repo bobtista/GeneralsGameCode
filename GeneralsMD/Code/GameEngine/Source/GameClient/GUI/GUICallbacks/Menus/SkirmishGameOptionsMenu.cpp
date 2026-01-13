@@ -137,8 +137,7 @@ static GameWindow *comboBoxPlayerTemplate[MAX_SLOTS] = {0};
 
 static GameWindow *comboBoxTeam[MAX_SLOTS] = {0};
 
-//static GameWindow *buttonStartPosition[MAX_SLOTS] = {nullptr,nullptr,nullptr,nullptr,
-//																								nullptr,nullptr,nullptr,nullptr };
+//static GameWindow *buttonStartPosition[MAX_SLOTS] = {0};
 //
 static GameWindow *buttonMapStartPosition[MAX_SLOTS] = {0};
 //external declarations of the Gadgets the callbacks can use
