@@ -1639,20 +1639,15 @@ void Condition::WriteConditionDataChunk(ChunkOutputStream &chunkWriter, Conditio
 	/**********Condition  DATA ***********************/
 	while (pCondition) {
 		chunkWriter.openDataChunk("Condition", K_SCRIPT_CONDITION_VERSION_4);
-			// Binary: write int type; JSON: write string name
-			chunkWriter.writeBinaryOnlyInt(pCondition->m_conditionType);
+			chunkWriter.writeInt(pCondition->m_conditionType);
 			const ConditionTemplate* ct = TheScriptEngine->getConditionTemplate(pCondition->m_conditionType);
 			if (ct) {
-				AsciiString condName = TheNameKeyGenerator->keyToName(ct->m_internalNameKey);
-				chunkWriter.writeJSONOnlyString("condition", condName);
-				chunkWriter.writeBinaryOnlyNameKey(ct->m_internalNameKey);
+				chunkWriter.writeNameKey(ct->m_internalNameKey);
 			}	else {
 				DEBUG_CRASH(("Invalid condition."));
-				chunkWriter.writeJSONOnlyString("condition", AsciiString("Bogus"));
-				chunkWriter.writeBinaryOnlyNameKey(NAMEKEY("Bogus"));
+				chunkWriter.writeNameKey(NAMEKEY("Bogus"));
 			}
-			// Binary: write numParms; JSON: skip (infer from parameters)
-			chunkWriter.writeBinaryOnlyInt(pCondition->m_numParms);
+			chunkWriter.writeInt(pCondition->m_numParms);
 			Int i;
 			for (i=0; i<pCondition->m_numParms; i++) {
 				pCondition->m_parms[i]->WriteParameter(chunkWriter);
@@ -2091,276 +2086,7 @@ AsciiString Parameter::getUiText(void) const
 	return uiText;
 }
 
-#ifdef RTS_HAS_JSON_CHUNK
-static const char* s_parameterTypeNames[] = {
-	"INT",
-	"REAL",
-	"SCRIPT",
-	"TEAM",
-	"COUNTER",
-	"FLAG",
-	"COMPARISON",
-	"WAYPOINT",
-	"BOOLEAN",
-	"TRIGGER_AREA",
-	"TEXT_STRING",
-	"SIDE",
-	"SOUND",
-	"SCRIPT_SUBROUTINE",
-	"UNIT",
-	"OBJECT_TYPE",
-	"COORD3D",
-	"ANGLE",
-	"TEAM_STATE",
-	"RELATION",
-	"AI_MOOD",
-	"DIALOG",
-	"MUSIC",
-	"MOVIE",
-	"WAYPOINT_PATH",
-	"LOCALIZED_TEXT",
-	"BRIDGE",
-	"KIND_OF_PARAM",
-	"ATTACK_PRIORITY_SET",
-	"RADAR_EVENT_TYPE",
-	"SPECIAL_POWER",
-	"SCIENCE",
-	"UPGRADE",
-	"COMMANDBUTTON_ABILITY",
-	"BOUNDARY",
-	"BUILDABLE",
-	"SURFACES_ALLOWED",
-	"SHAKE_INTENSITY",
-	"COMMAND_BUTTON",
-	"FONT_NAME",
-	"OBJECT_STATUS",
-	"COMMANDBUTTON_ALL_ABILITIES",
-	"SKIRMISH_WAYPOINT_PATH",
-	"COLOR",
-	"EMOTICON",
-	"OBJECT_PANEL_FLAG",
-	"FACTION_NAME",
-	"OBJECT_TYPE_LIST",
-	"REVEALNAME",
-	"SCIENCE_AVAILABILITY",
-	"LEFT_OR_RIGHT",
-	"PERCENT",
-	NULL
-};
 
-const char* Parameter::getParameterTypeName(ParameterType type)
-{
-	if (type >= 0 && type < NUM_ITEMS) {
-		return s_parameterTypeNames[type];
-	}
-	return "UNKNOWN";
-}
-
-Parameter::ParameterType Parameter::getParameterTypeFromName(const char* name)
-{
-	for (int i = 0; s_parameterTypeNames[i] != NULL; ++i) {
-		if (strcmp(s_parameterTypeNames[i], name) == 0) {
-			return (ParameterType)i;
-		}
-	}
-	return INT; // Default fallback
-}
-
-// Enum string arrays for human-readable JSON output
-static const char* s_comparisonNames[] = {
-	"LESS_THAN",      // 0
-	"LESS_EQUAL",     // 1
-	"EQUAL",          // 2
-	"GREATER_EQUAL",  // 3
-	"GREATER",        // 4
-	"NOT_EQUAL",      // 5
-	NULL
-};
-
-static const char* s_relationNames[] = {
-	"ENEMIES",        // 0
-	"NEUTRAL",        // 1
-	"ALLIES",         // 2
-	NULL
-};
-
-static const char* s_aiMoodNames[] = {
-	"SLEEP",          // -2 -> index 0
-	"PASSIVE",        // -1 -> index 1
-	"NORMAL",         // 0 -> index 2
-	"ALERT",          // 1 -> index 3
-	"AGGRESSIVE",     // 2 -> index 4
-	NULL
-};
-
-static const char* s_radarEventNames[] = {
-	"INVALID",              // 0
-	"CONSTRUCTION",         // 1
-	"UPGRADE",              // 2
-	"UNDER_ATTACK",         // 3
-	"INFORMATION",          // 4
-	"BEACON_PULSE",         // 5
-	"INFILTRATION",         // 6
-	"BATTLE_PLAN",          // 7
-	"STEALTH_DISCOVERED",   // 8
-	"STEALTH_NEUTRALIZED",  // 9
-	"FAKE",                 // 10
-	NULL
-};
-
-static const char* s_buildableNames[] = {
-	"Yes",                    // 0
-	"Only_AI",                // 1
-	"No",                     // 2
-	"Ignore_Prerequisites",   // 3
-	NULL
-};
-
-static const char* s_leftOrRightNames[] = {
-	NULL,             // 0 (invalid)
-	"LEFT",           // 1
-	"RIGHT",          // 2
-	NULL
-};
-
-// Helper function to convert enum int to string
-static const char* getEnumString(Parameter::ParameterType ptype, Int value)
-{
-	switch (ptype) {
-		case Parameter::COMPARISON:
-			if (value >= 0 && value <= 5) return s_comparisonNames[value];
-			break;
-		case Parameter::RELATION:
-			if (value >= 0 && value <= 2) return s_relationNames[value];
-			break;
-		case Parameter::AI_MOOD:
-			// AI_MOOD values: -2=SLEEP, -1=PASSIVE, 0=NORMAL, 1=ALERT, 2=AGGRESSIVE
-			if (value >= -2 && value <= 2) return s_aiMoodNames[value + 2];
-			break;
-		case Parameter::RADAR_EVENT_TYPE:
-			if (value >= 0 && value <= 10) return s_radarEventNames[value];
-			break;
-		case Parameter::BUILDABLE:
-			if (value >= 0 && value <= 3) return s_buildableNames[value];
-			break;
-		case Parameter::SURFACES_ALLOWED:
-			// Surfaces are 1-indexed: 1=Ground, 2=Air, 3=Ground or Air
-			if (value >= 1 && value <= 3) return Surfaces[value - 1];
-			break;
-		case Parameter::SHAKE_INTENSITY:
-			if (value >= 0 && value <= 5) return ShakeIntensities[value];
-			break;
-		case Parameter::LEFT_OR_RIGHT:
-			if (value >= 1 && value <= 2) return s_leftOrRightNames[value];
-			break;
-		default:
-			break;
-	}
-	return NULL;
-}
-
-// Helper function to convert enum string to int
-static Int getEnumInt(Parameter::ParameterType ptype, const char* str)
-{
-	if (!str) return 0;
-
-	switch (ptype) {
-		case Parameter::COMPARISON:
-			for (int i = 0; s_comparisonNames[i]; ++i) {
-				if (strcmp(s_comparisonNames[i], str) == 0) return i;
-			}
-			break;
-		case Parameter::RELATION:
-			for (int i = 0; s_relationNames[i]; ++i) {
-				if (strcmp(s_relationNames[i], str) == 0) return i;
-			}
-			break;
-		case Parameter::AI_MOOD:
-			for (int i = 0; s_aiMoodNames[i]; ++i) {
-				if (strcmp(s_aiMoodNames[i], str) == 0) return i - 2; // Convert index to value
-			}
-			break;
-		case Parameter::RADAR_EVENT_TYPE:
-			for (int i = 0; s_radarEventNames[i]; ++i) {
-				if (strcmp(s_radarEventNames[i], str) == 0) return i;
-			}
-			break;
-		case Parameter::BUILDABLE:
-			for (int i = 0; s_buildableNames[i]; ++i) {
-				if (strcmp(s_buildableNames[i], str) == 0) return i;
-			}
-			break;
-		case Parameter::SURFACES_ALLOWED:
-			for (int i = 0; i < 3; ++i) {
-				if (strcmp(Surfaces[i], str) == 0) return i + 1; // 1-indexed
-			}
-			break;
-		case Parameter::SHAKE_INTENSITY:
-			for (int i = 0; i < 6; ++i) {
-				if (strcmp(ShakeIntensities[i], str) == 0) return i;
-			}
-			break;
-		case Parameter::LEFT_OR_RIGHT:
-			if (strcmp("LEFT", str) == 0) return 1;
-			if (strcmp("RIGHT", str) == 0) return 2;
-			break;
-		default:
-			break;
-	}
-	return 0;
-}
-
-// Check if a parameter type has enum string representation
-static Bool hasEnumString(Parameter::ParameterType ptype)
-{
-	switch (ptype) {
-		case Parameter::COMPARISON:
-		case Parameter::RELATION:
-		case Parameter::AI_MOOD:
-		case Parameter::RADAR_EVENT_TYPE:
-		case Parameter::BUILDABLE:
-		case Parameter::SURFACES_ALLOWED:
-		case Parameter::SHAKE_INTENSITY:
-		case Parameter::LEFT_OR_RIGHT:
-			return true;
-		default:
-			return false;
-	}
-}
-
-// Determine which field a parameter type uses for its primary value
-enum ParamFieldType { FIELD_INT, FIELD_REAL, FIELD_STRING };
-
-static ParamFieldType getParamFieldType(Parameter::ParameterType ptype)
-{
-	switch (ptype) {
-		// Real types
-		case Parameter::REAL:
-		case Parameter::ANGLE:
-		case Parameter::PERCENT:
-			return FIELD_REAL;
-		// Int types (including enums and boolean)
-		case Parameter::INT:
-		case Parameter::COMPARISON:
-		case Parameter::BOOLEAN:
-		case Parameter::RELATION:
-		case Parameter::AI_MOOD:
-		case Parameter::KIND_OF_PARAM:
-		case Parameter::RADAR_EVENT_TYPE:
-		case Parameter::COMMANDBUTTON_ABILITY:
-		case Parameter::BOUNDARY:
-		case Parameter::BUILDABLE:
-		case Parameter::SURFACES_ALLOWED:
-		case Parameter::SHAKE_INTENSITY:
-		case Parameter::COLOR:
-		case Parameter::LEFT_OR_RIGHT:
-			return FIELD_INT;
-		// String types (everything else)
-		default:
-			return FIELD_STRING;
-	}
-}
-#endif
 
 /**
 * Parameter::WriteParameter - Writes an Parameter.
@@ -2370,13 +2096,8 @@ static ParamFieldType getParamFieldType(Parameter::ParameterType ptype)
 */
 void Parameter::WriteParameter(ChunkOutputStream &chunkWriter)
 {
-
 	/**********Parameter  DATA ***********************/
-#ifdef RTS_HAS_JSON_CHUNK
-	chunkWriter.writeParameterType(m_paramType, getParameterTypeName(m_paramType));
-#else
 	chunkWriter.writeInt(m_paramType);
-#endif
 	if (m_paramType == KIND_OF_PARAM) {
 		// To get the proper kindof string stored.
 		m_string = KindOfMaskType::getNameFromSingleBit(m_int);
@@ -2386,46 +2107,9 @@ void Parameter::WriteParameter(ChunkOutputStream &chunkWriter)
 		chunkWriter.writeReal(m_coord.y);
 		chunkWriter.writeReal(m_coord.z);
 	} else {
-#ifdef RTS_HAS_JSON_CHUNK
-		// Compact JSON format: only write the field that's actually used
-		ParamFieldType fieldType = getParamFieldType(m_paramType);
-
-		// Write int field (or binary-only if not used)
-		if (fieldType == FIELD_INT) {
-			if (hasEnumString(m_paramType)) {
-				const char* enumStr = getEnumString(m_paramType, m_int);
-				if (enumStr) {
-					chunkWriter.writeEnumAsInt(m_int, enumStr);
-				} else {
-					chunkWriter.writeInt(m_int);
-				}
-			} else if (m_paramType == BOOLEAN) {
-				chunkWriter.writeBoolAsInt(m_int != 0);
-			} else {
-				chunkWriter.writeInt(m_int);
-			}
-		} else {
-			chunkWriter.writeBinaryOnlyInt(m_int);
-		}
-
-		// Write real field (or binary-only if not used)
-		if (fieldType == FIELD_REAL) {
-			chunkWriter.writeReal(m_real);
-		} else {
-			chunkWriter.writeBinaryOnlyReal(m_real);
-		}
-
-		// Write string field (or binary-only if not used)
-		if (fieldType == FIELD_STRING) {
-			chunkWriter.writeAsciiString(m_string);
-		} else {
-			chunkWriter.writeBinaryOnlyString(m_string);
-		}
-#else
 		chunkWriter.writeInt(m_int);
 		chunkWriter.writeReal(m_real);
 		chunkWriter.writeAsciiString(m_string);
-#endif
 	}
 }
 
@@ -2715,20 +2399,15 @@ void ScriptAction::WriteActionDataChunk(ChunkOutputStream &chunkWriter, ScriptAc
 	/**********ACTION  DATA ***********************/
 	while (pScriptAction) {
 		chunkWriter.openDataChunk("ScriptAction", K_SCRIPT_ACTION_VERSION_2);
-			// Binary: write int type; JSON: write string name
-			chunkWriter.writeBinaryOnlyInt(pScriptAction->m_actionType);
+			chunkWriter.writeInt(pScriptAction->m_actionType);
 			const ActionTemplate* at = TheScriptEngine->getActionTemplate(pScriptAction->m_actionType);
 			if (at) {
-				AsciiString actionName = TheNameKeyGenerator->keyToName(at->m_internalNameKey);
-				chunkWriter.writeJSONOnlyString("action", actionName);
-				chunkWriter.writeBinaryOnlyNameKey(at->m_internalNameKey);
+				chunkWriter.writeNameKey(at->m_internalNameKey);
 			}	else {
 				DEBUG_CRASH(("Invalid action."));
-				chunkWriter.writeJSONOnlyString("action", AsciiString("Bogus"));
-				chunkWriter.writeBinaryOnlyNameKey(NAMEKEY("Bogus"));
+				chunkWriter.writeNameKey(NAMEKEY("Bogus"));
 			}
-			// Binary: write numParms; JSON: skip (infer from parameters)
-			chunkWriter.writeBinaryOnlyInt(pScriptAction->m_numParms);
+			chunkWriter.writeInt(pScriptAction->m_numParms);
 			Int i;
 			for (i=0; i<pScriptAction->m_numParms; i++) {
 				pScriptAction->m_parms[i]->WriteParameter(chunkWriter);
@@ -2958,20 +2637,15 @@ void ScriptAction::WriteActionFalseDataChunk(ChunkOutputStream &chunkWriter, Scr
 	/**********ACTION  DATA ***********************/
 	while (pScriptAction) {
 		chunkWriter.openDataChunk("ScriptActionFalse", K_SCRIPT_ACTION_VERSION_2);
-			// Binary: write int type; JSON: write string name
-			chunkWriter.writeBinaryOnlyInt(pScriptAction->m_actionType);
+			chunkWriter.writeInt(pScriptAction->m_actionType);
 			const ActionTemplate* at = TheScriptEngine->getActionTemplate(pScriptAction->m_actionType);
 			if (at) {
-				AsciiString actionName = TheNameKeyGenerator->keyToName(at->m_internalNameKey);
-				chunkWriter.writeJSONOnlyString("action", actionName);
-				chunkWriter.writeBinaryOnlyNameKey(at->m_internalNameKey);
+				chunkWriter.writeNameKey(at->m_internalNameKey);
 			}	else {
 				DEBUG_CRASH(("Invalid action."));
-				chunkWriter.writeJSONOnlyString("action", AsciiString("Bogus"));
-				chunkWriter.writeBinaryOnlyNameKey(NAMEKEY("Bogus"));
+				chunkWriter.writeNameKey(NAMEKEY("Bogus"));
 			}
-			// Binary: write numParms; JSON: skip (infer from parameters)
-			chunkWriter.writeBinaryOnlyInt(pScriptAction->m_numParms);
+			chunkWriter.writeInt(pScriptAction->m_numParms);
 			Int i;
 			for (i=0; i<pScriptAction->m_numParms; i++) {
 				pScriptAction->m_parms[i]->WriteParameter(chunkWriter);

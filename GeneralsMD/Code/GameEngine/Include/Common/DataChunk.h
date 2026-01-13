@@ -142,25 +142,10 @@ public:
 	virtual void writeDict(const char* name, const Dict& d) = 0;
 	virtual void writeNameKey(const char* name, const NameKeyType key) = 0;
 
-	// Binary-only writes (write to binary stream, skip JSON output)
-	virtual void writeBinaryOnlyInt(Int i) = 0;
-	virtual void writeBinaryOnlyReal(Real r) = 0;
-	virtual void writeBinaryOnlyString(const AsciiString& s) = 0;
-	virtual void writeBinaryOnlyNameKey(NameKeyType key) = 0;
-
-	// JSON-only writes (write to JSON field, skip binary stream)
-	virtual void writeJSONOnlyString(const char* name, const AsciiString& value) = 0;
-	virtual void writeJSONOnlyInt(const char* name, Int i) = 0;
-	virtual void writeJSONOnlyBool(const char* name, Bool b) = 0;
-
-	// Type-converting writes (binary writes int, JSON writes string to _items)
-	virtual void writeParameterType(Int type, const char* typeName) = 0;
+	// Type-converting writes
 	virtual void writeBoolAsByte(Bool b) = 0;
 	virtual void writeBoolAsByte(const char* name, Bool b) = 0;
-	virtual void writeBoolAsInt(Bool b) = 0;  // Binary writes int (4 bytes), JSON writes true/false
 
-	// Enum writes (binary writes int, JSON writes string to _items)
-	virtual void writeEnumAsInt(Int value, const char* enumStr) = 0;
 };
 
 //----------------------------------------------------------------------
@@ -201,25 +186,8 @@ public:
 	void writeDict(const char* name, const Dict& d) { writeDict(d); }
 	void writeNameKey(const char* name, const NameKeyType key) { writeNameKey(key); }
 
-	// Binary-only writes (write to binary)
-	void writeBinaryOnlyInt(Int i) { writeInt(i); }
-	void writeBinaryOnlyReal(Real r) { writeReal(r); }
-	void writeBinaryOnlyString(const AsciiString& s) { writeAsciiString(s); }
-	void writeBinaryOnlyNameKey(NameKeyType key) { writeNameKey(key); }
-
-	// JSON-only writes (no-op for binary output)
-	void writeJSONOnlyString(const char* name, const AsciiString& value) { (void)name; (void)value; }
-	void writeJSONOnlyInt(const char* name, Int i) { (void)name; (void)i; }
-	void writeJSONOnlyBool(const char* name, Bool b) { (void)name; (void)b; }
-
-	// Type-converting writes (binary writes int/byte)
-	void writeParameterType(Int type, const char* typeName) { (void)typeName; writeInt(type); }
 	void writeBoolAsByte(Bool b) { writeByte(b ? 1 : 0); }
 	void writeBoolAsByte(const char* name, Bool b) { (void)name; writeByte(b ? 1 : 0); }
-	void writeBoolAsInt(Bool b) { writeInt(b ? 1 : 0); }
-
-	// Enum writes (binary writes int, ignores string)
-	void writeEnumAsInt(Int value, const char* enumStr) { (void)enumStr; writeInt(value); }
 
 	void setTOCEntry(const AsciiString& name, UnsignedInt id); // Set TOC entry for preservation
 };

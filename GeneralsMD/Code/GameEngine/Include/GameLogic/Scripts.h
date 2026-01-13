@@ -837,10 +837,6 @@ public:
 	AsciiString getUiText(void) const;
 
 	void WriteParameter(ChunkOutputStream &chunkWriter);
-#ifdef RTS_HAS_JSON_CHUNK
-	static const char* getParameterTypeName(ParameterType type);
-	static ParameterType getParameterTypeFromName(const char* name);
-#endif
 	static Parameter *ReadParameter(DataChunkInput &file);
 
 };
