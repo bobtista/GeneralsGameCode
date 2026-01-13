@@ -137,7 +137,7 @@ static GameFont  *defFont				= nullptr;
 // These strings must be in the same order as they are in their definitions
 // (see WIN_STATUS_* enums and GWS_* enums).
 //
-const char *const WindowStatusNames[] = { "ACTIVE", "TOGGLE", "DRAGABLE", "ENABLED", "HIDDEN",
+const char *const WindowStatusNames[] = { "ACTIVE", "TOGGLE", "DRAGGABLE", "ENABLED", "HIDDEN",
 														  "ABOVE", "BELOW", "IMAGE", "TABSTOP", "NOINPUT",
 														  "NOFOCUS", "DESTROYED", "BORDER",
 														  "SMOOTH_TEXT", "ONE_LINE", "NO_FLUSH", "SEE_THRU",
