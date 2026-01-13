@@ -2984,7 +2984,7 @@ DX8Wrapper::Create_Render_Target (int width, int height, WW3DFormat format)
 	// If render target format isn't supported return null
 	if (!Get_Current_Caps()->Support_Render_To_Texture_Format(format)) {
 		WWDEBUG_SAY(("DX8Wrapper - Render target format is not supported"));
-				return nullptr;
+		return nullptr;
 	}
 
 	//
