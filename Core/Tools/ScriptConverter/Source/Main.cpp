@@ -16,19 +16,19 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @feature Semantic JSON converter for SCB script files and MAP files
+// TheSuperHackers @feature JSON converter for SCB script files and MAP files
 
 // FILE: Main.cpp //////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
 //
-// Project:    SemanticScriptConverter
+// Project:    ScriptConverter
 //
 // Desc:       Command-line tool to convert between SCB/MAP binary and semantic JSON format
 //
 // Usage:
-//   SemanticScriptConverter <input.scb> <output.json>    Convert scripts
-//   SemanticScriptConverter <input.map> <output.json>    Extract map data to JSON
-//   SemanticScriptConverter <input.json> <output.scb>    Convert JSON to scripts
+//   ScriptConverter <input.scb> <output.json>    Convert scripts
+//   ScriptConverter <input.map> <output.json>    Extract map data to JSON
+//   ScriptConverter <input.json> <output.scb>    Convert JSON to scripts
 //
 //-----------------------------------------------------------------------------
 
