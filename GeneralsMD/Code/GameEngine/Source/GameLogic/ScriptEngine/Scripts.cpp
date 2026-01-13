@@ -862,9 +862,9 @@ void ScriptGroup::WriteGroupDataChunk(DataChunkOutput &chunkWriter, ScriptGroup 
 	/**********SCRIPT GROUP DATA ***********************/
 	while (pGroup) {
 		chunkWriter.openDataChunk("ScriptGroup", K_SCRIPT_GROUP_DATA_VERSION_2);
-			chunkWriter.writeAsciiString("groupName", pGroup->m_groupName);
-			chunkWriter.writeBoolAsByte("isGroupActive", pGroup->m_isGroupActive);
-			chunkWriter.writeBoolAsByte("isGroupSubroutine", pGroup->m_isGroupSubroutine);
+			chunkWriter.writeAsciiString(pGroup->m_groupName);
+			chunkWriter.writeByte(pGroup->m_isGroupActive);
+			chunkWriter.writeByte(pGroup->m_isGroupSubroutine);
 			if (pGroup->m_firstScript) Script::WriteScriptDataChunk(chunkWriter, pGroup->m_firstScript);
 		chunkWriter.closeDataChunk();
 		pGroup = pGroup->getNext();
@@ -1210,18 +1210,18 @@ void Script::WriteScriptDataChunk(DataChunkOutput &chunkWriter, Script *pScript)
 	/**********SCRIPT  DATA ***********************/
 	while (pScript) {
 		chunkWriter.openDataChunk("Script", K_SCRIPT_DATA_VERSION_2);
-			chunkWriter.writeAsciiString("scriptName", pScript->m_scriptName);
-			chunkWriter.writeAsciiString("comment", pScript->m_comment);
-			chunkWriter.writeAsciiString("conditionComment", pScript->m_conditionComment);
-			chunkWriter.writeAsciiString("actionComment", pScript->m_actionComment);
+			chunkWriter.writeAsciiString(pScript->m_scriptName);
+			chunkWriter.writeAsciiString(pScript->m_comment);
+			chunkWriter.writeAsciiString(pScript->m_conditionComment);
+			chunkWriter.writeAsciiString(pScript->m_actionComment);
 
-			chunkWriter.writeBoolAsByte("isActive", pScript->m_isActive);
-			chunkWriter.writeBoolAsByte("isOneShot", pScript->m_isOneShot);
-			chunkWriter.writeBoolAsByte("easy", pScript->m_easy);
-			chunkWriter.writeBoolAsByte("normal", pScript->m_normal);
-			chunkWriter.writeBoolAsByte("hard", pScript->m_hard);
-			chunkWriter.writeBoolAsByte("isSubroutine", pScript->m_isSubroutine);
-			chunkWriter.writeInt("delayEvaluationSeconds", pScript->m_delayEvaluationSeconds);
+			chunkWriter.writeByte(pScript->m_isActive);
+			chunkWriter.writeByte(pScript->m_isOneShot);
+			chunkWriter.writeByte(pScript->m_easy);
+			chunkWriter.writeByte(pScript->m_normal);
+			chunkWriter.writeByte(pScript->m_hard);
+			chunkWriter.writeByte(pScript->m_isSubroutine);
+			chunkWriter.writeInt(pScript->m_delayEvaluationSeconds);
 			if (pScript->m_condition) OrCondition::WriteOrConditionDataChunk(chunkWriter, pScript->m_condition);
 			if (pScript->m_action) ScriptAction::WriteActionDataChunk(chunkWriter, pScript->m_action);
 			if (pScript->m_actionFalse) ScriptAction::WriteActionFalseDataChunk(chunkWriter, pScript->m_actionFalse);
