@@ -110,47 +110,9 @@ public:
 
 
 //----------------------------------------------------------------------
-// ChunkOutputStream - Abstract base interface for chunk output
-// DataChunkOutput inherits from this for binary chunk writing.
-//----------------------------------------------------------------------
-class ChunkOutputStream
-{
-public:
-	virtual ~ChunkOutputStream() {}
-
-	virtual void openDataChunk( const char *name, DataChunkVersionType ver ) = 0;
-	virtual void closeDataChunk( void ) = 0;
-
-	// Unnamed writes (positional)
-	virtual void writeReal(Real r) = 0;
-	virtual void writeInt(Int i) = 0;
-	virtual void writeByte(Byte b) = 0;
-	virtual void writeAsciiString(const AsciiString& string) = 0;
-	virtual void writeUnicodeString(UnicodeString string) = 0;
-	virtual void writeArrayOfBytes(char *ptr, Int len) = 0;
-	virtual void writeDict(const Dict& d) = 0;
-	virtual void writeNameKey(const NameKeyType key) = 0;
-
-	// Named writes (name parameter is ignored for binary output)
-	virtual void writeReal(const char* name, Real r) = 0;
-	virtual void writeInt(const char* name, Int i) = 0;
-	virtual void writeByte(const char* name, Byte b) = 0;
-	virtual void writeAsciiString(const char* name, const AsciiString& string) = 0;
-	virtual void writeUnicodeString(const char* name, UnicodeString string) = 0;
-	virtual void writeArrayOfBytes(const char* name, char *ptr, Int len) = 0;
-	virtual void writeDict(const char* name, const Dict& d) = 0;
-	virtual void writeNameKey(const char* name, const NameKeyType key) = 0;
-
-	// Type-converting writes
-	virtual void writeBoolAsByte(Bool b) = 0;
-	virtual void writeBoolAsByte(const char* name, Bool b) = 0;
-
-};
-
-//----------------------------------------------------------------------
 // DataChunkOutput
 //----------------------------------------------------------------------
-class DataChunkOutput : public ChunkOutputStream
+class DataChunkOutput
 {
 protected:
 	OutputStream*							m_pOut;										// The actual output stream.
