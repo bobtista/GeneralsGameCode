@@ -1724,11 +1724,6 @@ Bool Condition::ParseConditionDataChunk(DataChunkInput &file, DataChunkInfo *inf
 			}
 			break;
 	}
-#ifdef COUNT_SCRIPT_USAGE
-	const ConditionTemplate* conT = TheScriptEngine->getConditionTemplate(pCondition->m_conditionType);
-	conT->m_numTimesUsed++;
-	conT->m_firstMapUsed = TheGlobalData->m_mapName;
-#endif
 	if (ct->getNumParameters() != pCondition->getNumParameters()) {
 		// Invalid script [3/20/2003]
 		DEBUG_CRASH(("Invalid script condition.  Making it false. jba."));
@@ -1756,9 +1751,6 @@ Bool Condition::ParseConditionDataChunk(DataChunkInput &file, DataChunkInfo *inf
 Template::Template() :
 m_numUiStrings(0),
 m_numParameters(0),
-#ifdef COUNT_SCRIPT_USAGE
-m_numTimesUsed(0),
-#endif
 m_uiName("UNUSED/(placeholder)/placeholder")
 {
 }
@@ -2462,11 +2454,6 @@ ScriptAction *ScriptAction::ParseAction(DataChunkInput &file, DataChunkInfo *inf
 	if (at && (at->getName().isEmpty() || (at->getName().compareNoCase("(placeholder)") == 0))) {
 		DEBUG_CRASH(("Invalid Script Action found in script '%s'", pScript->getName().str()));
 	}
-#endif
-#ifdef COUNT_SCRIPT_USAGE
-	const ActionTemplate* at2 = TheScriptEngine->getActionTemplate(pScriptAction->m_actionType);
-	at2->m_numTimesUsed++;
-	at2->m_firstMapUsed = TheGlobalData->m_mapName;
 #endif
 	pScriptAction->m_numParms =file.readInt();
 	Int i;

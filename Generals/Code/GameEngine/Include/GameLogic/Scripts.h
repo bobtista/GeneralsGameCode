@@ -1032,8 +1032,6 @@ public:
 
 };
 
-#define dontCOUNT_SCRIPT_USAGE
-
 //-------------------------------------------------------------------------------------------------
 // ******************************** class Template ***********************************************
 //-------------------------------------------------------------------------------------------------
@@ -1054,10 +1052,6 @@ public:
 	Int					m_numParameters;
 	enum Parameter::ParameterType m_parameters[MAX_PARMS];
 	AsciiString m_helpText;
-#ifdef COUNT_SCRIPT_USAGE
-	mutable Int					m_numTimesUsed;
-	mutable AsciiString m_firstMapUsed;
-#endif
 
 public:
 	Template();
