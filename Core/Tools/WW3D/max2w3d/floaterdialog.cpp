@@ -89,7 +89,7 @@ BOOL CALLBACK _floater_dialog_proc(HWND hwnd,UINT message,WPARAM wParam,LPARAM l
 FloaterDialogClass::FloaterDialogClass(void) :
 	Hwnd(nullptr),
 	ChildDialogTemplateID(-1),
-	ChildDialogProc()
+	ChildDialogProc(nullptr)
 {
 }
 

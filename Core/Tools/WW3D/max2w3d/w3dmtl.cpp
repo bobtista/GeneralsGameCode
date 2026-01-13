@@ -679,7 +679,7 @@ bool W3dMaterialClass::Is_Multi_Pass_Transparent(void) const
 W3dMaterialDescClass::VertMatClass::VertMatClass(void) :
 	PassIndex(-1),
 	Crc(0),
-	Name()
+	Name(nullptr)
 {
 	for (int stage=0; stage < W3dMaterialClass::MAX_STAGES; ++stage) {
 		MapperArgs[stage] = nullptr;

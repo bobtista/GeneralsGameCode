@@ -52,7 +52,7 @@ static BOOL CALLBACK _thunk_dialog_proc (HWND hWnd, UINT uMsg, WPARAM wParam, LP
 
 InputDlg::InputDlg (HWND hWndParent)
 :	m_hWndParent(hWndParent),
-	m_hWnd()
+	m_hWnd(nullptr)
 {
 	// Set the strings to default values.
 	SetCaption("Input Value...");
