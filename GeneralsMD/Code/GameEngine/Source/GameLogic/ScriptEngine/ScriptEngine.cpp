@@ -496,19 +496,6 @@ ScriptEngine::~ScriptEngine()
 #endif
 
 	reset(); // just in case.
-#ifdef COUNT_SCRIPT_USAGE
-	Int i;
-	for (i=0; i<ScriptAction::NUM_ITEMS; i++) {
-		DEBUG_LOG(("ScriptAction%d, %4d, %s, %s, %s", i, m_actionTemplates[i].m_numTimesUsed,
-			m_actionTemplates[i].m_internalName.str(), m_actionTemplates[i].m_firstMapUsed.str(),
-			m_actionTemplates[i].m_uiName.str()));
-	}
-	for (i=0; i<Condition::NUM_ITEMS; i++) {
-		DEBUG_LOG(("ScriptCondition%d, %4d, %s, %s, %s", i, m_conditionTemplates[i].m_numTimesUsed,
-			m_conditionTemplates[i].m_internalName.str(), m_conditionTemplates[i].m_firstMapUsed.str(),
-			m_conditionTemplates[i].m_uiName.str()));
-	}
-#endif
 
 }
 
