@@ -205,7 +205,7 @@ private:
 
   /** \internal
 
-    Undocumented default constructor. Initializes function level profiler.
+    Undocumented default constructor. Initializes function-level profiler.
     We can make this private as well so nobody accidentally tries to create
     another instance.
   */
