@@ -112,6 +112,9 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
+          UPSTREAM="https://github.com/TheSuperHackers/GeneralsGameCode.git"
+          git remote add upstream "$UPSTREAM" || true
+
           PR_LIST="${{ github.event.inputs.pull_requests }}"
           IFS=',' read -ra PRS <<< "$PR_LIST"
 
@@ -119,7 +122,7 @@ jobs:
             PR=$(echo "$PR" | xargs)
             echo "::group::Applying PR #$PR"
 
-            git fetch origin "pull/$PR/head:pr-$PR"
+            git fetch upstream "pull/$PR/head:pr-$PR"
 
             PR_BASE=$(git merge-base pr-$PR HEAD)
             PR_COMMITS=$(git rev-list --reverse "$PR_BASE..pr-$PR")
