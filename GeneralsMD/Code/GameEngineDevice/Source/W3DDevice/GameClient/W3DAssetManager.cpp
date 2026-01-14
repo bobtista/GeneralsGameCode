@@ -709,7 +709,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 	const char * name,
 	float scale,
 	const int color,
-	const char *oldTexure,
+	const char *oldTexture,
 	const char *newTexture
 )
 {
@@ -720,7 +720,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 
 	Bool reallyscale = (WWMath::Fabs(scale - ident_scale) > scale_epsilon);
 	Bool reallycolor = (color & 0xFFFFFF) != 0;	//black is not a valid color and assumes no custom coloring.
-	Bool reallytexture = (oldTexure != nullptr && newTexture != nullptr);
+	Bool reallytexture = (oldTexture != nullptr && newTexture != nullptr);
 
 	// base case, no scale or color
 	if (!reallyscale && !reallycolor && !reallytexture)
@@ -755,7 +755,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 		return rendobj;
 	}
 
-	// create a new one based on existing prototype
+	// create a new one based on exisiting prototype
 
 	WWPROFILE( "WW3DAssetManager::Create_Render_Obj" );
 	WWMEMLOG(MEM_GEOMETRY);
@@ -819,7 +819,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 
 	if (reallytexture)
 	{
-		TextureClass *oldTex = Get_Texture(oldTexure);
+		TextureClass *oldTex = Get_Texture(oldTexture);
 		TextureClass *newTex = Get_Texture(newTexture);
 		replaceAssetTexture(rendobj,oldTex,newTex);
 		REF_PTR_RELEASE(newTex);
@@ -1358,7 +1358,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(const char * name,float scal
 	}
 
 	// create a new one based on
-	// existing prototype
+	// exisiting prototype
 
 	WWPROFILE( "WW3DAssetManager::Create_Render_Obj" );
 	WWMEMLOG(MEM_GEOMETRY);

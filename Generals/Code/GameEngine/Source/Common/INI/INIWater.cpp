@@ -123,21 +123,21 @@ void INI::parseWaterTransparencyDefinition( INI *ini )
 		if (wtOriginal == wtOverride)
 			return;
 
-		const AsciiString *oldTexures[5],*newTextures[5];
+		const AsciiString *oldTextures[5],*newTextures[5];
 
 		//Copy current texture names into arrays
-		oldTexures[0]=&wtOriginal->m_skyboxTextureN;
+		oldTextures[0]=&wtOriginal->m_skyboxTextureN;
 		newTextures[0]=&wtOverride->m_skyboxTextureN;
-		oldTexures[1]=&wtOriginal->m_skyboxTextureE;
+		oldTextures[1]=&wtOriginal->m_skyboxTextureE;
 		newTextures[1]=&wtOverride->m_skyboxTextureE;
-		oldTexures[2]=&wtOriginal->m_skyboxTextureS;
+		oldTextures[2]=&wtOriginal->m_skyboxTextureS;
 		newTextures[2]=&wtOverride->m_skyboxTextureS;
-		oldTexures[3]=&wtOriginal->m_skyboxTextureW;
+		oldTextures[3]=&wtOriginal->m_skyboxTextureW;
 		newTextures[3]=&wtOverride->m_skyboxTextureW;
-		oldTexures[4]=&wtOriginal->m_skyboxTextureT;
+		oldTextures[4]=&wtOriginal->m_skyboxTextureT;
 		newTextures[4]=&wtOverride->m_skyboxTextureT;
 
-		TheTerrainVisual->replaceSkyboxTextures(oldTexures, newTextures);
+		TheTerrainVisual->replaceSkyboxTextures(oldTextures, newTextures);
 	}
 }
 
