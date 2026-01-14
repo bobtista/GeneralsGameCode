@@ -925,7 +925,7 @@ static void populateRandomStartPosition( GameInfo *game )
 #else  //GS  The new way puts teammates next to each other.
 	Int teamPosIdx[MAX_SLOTS];
 	for (i=0; i<MAX_SLOTS; ++i)
-		teamPosIdx[i] = -1;  //team has no starting position yet
+		teamPosIdx[i] = -1;  //team has no starting positon yet
 
 	// now pick non-observer spots
 	for (i=0; i<MAX_SLOTS; ++i)
@@ -940,7 +940,7 @@ static void populateRandomStartPosition( GameInfo *game )
 			continue;  //position already assigned
 		DEBUG_ASSERTCRASH(posIdx == -1, ("Non-random bad start position %d in slot %d", posIdx, i));
 
-		//choose a starting position
+		//choose a starting positon
 		Int team = slot->getTeamNumber();
 		if( !hasStartSpotBeenPicked )
 		{	// We're the first real spot.  Pick randomly.
@@ -998,7 +998,7 @@ static void populateRandomStartPosition( GameInfo *game )
 				if( team > -1 )
 					teamPosIdx[team] = farthestIndex;  //remember where this team is
 			}
-			else  //team already has a starting position
+			else  //team already has a starting positon
 			{	//pick position closest to team
 				Real closestDist = FLT_MAX;
 				Int  closestIdx = 0;
@@ -1011,7 +1011,7 @@ static void populateRandomStartPosition( GameInfo *game )
 						closestIdx = n;
 					}
 				}
-				DEBUG_ASSERTCRASH( closestDist < FLT_MAX, ("Couldn't find a closest starting position!"));
+				DEBUG_ASSERTCRASH( closestDist < FLT_MAX, ("Couldn't find a closest starting positon!"));
 				slot->setStartPos(closestIdx);
 				taken[closestIdx] = TRUE;
 			}
