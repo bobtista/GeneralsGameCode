@@ -1309,7 +1309,7 @@ Bool EditParameter::loadFontNames(CComboBox *pCombo, AsciiString match)
 }
 
 // EditParameter::readFontFile ======================================================
-/** Read the font file defintitions and load them */
+/** Read the font file definitions and load them */
 //=============================================================================
 void EditParameter::readFontFile( const char *filename )
 {
@@ -1332,7 +1332,7 @@ void EditParameter::readFontFile( const char *filename )
 	for( Int i = 0; i < fontCount; i++ )
 	{
 
-		// read all the font defitions
+		// read all the font definitions
 		char fontBuffer[ 512 ];
 		Int size, bold;
 		char c;
@@ -1893,7 +1893,7 @@ BOOL EditParameter::OnInitDialog()
 			pList->InsertString(-1, "Passive");
 			pList->InsertString(-1, "Normal");
 			pList->InsertString(-1, "Alert");
-			pList->InsertString(-1, "Agressive");
+			pList->InsertString(-1, "Aggressive");
 			pList->SetCurSel(m_parameter->getInt() - ATTITUDE_SLEEP);
 			showList = true;
 			break;

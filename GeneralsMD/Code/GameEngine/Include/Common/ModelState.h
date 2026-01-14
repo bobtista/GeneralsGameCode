@@ -55,7 +55,7 @@
 	YUCK, WHAT NOW
 	--------------
 
-	Let's represent the Model State with two dictinct pieces:
+	Let's represent the Model State with two distinct pieces:
 
 	-- an "ActionState" piece, representing the mutually-exclusive states, which are almost
 		always an action of some sort
@@ -221,7 +221,7 @@ enum ModelConditionFlagType CPP_11(: Int)
 	MODELCONDITION_RIDER7,
 	MODELCONDITION_RIDER8,
 
-	MODELCONDITION_STUNNED_FLAILING, // Daniel Teh's idea, added by Lorenzen, 5/28/03
+	MODELCONDITION_STUNNED_FLAILING, // Daniel The's idea, added by Lorenzen, 5/28/03
 	MODELCONDITION_STUNNED,
 	MODELCONDITION_SECOND_LIFE,
 	MODELCONDITION_JAMMED,	///< Jammed as in missile jammed by ECM

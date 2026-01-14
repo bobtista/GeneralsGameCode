@@ -374,7 +374,7 @@ void Shell::push( AsciiString filename, Bool shutdownImmediate )
 	}
 
 //	if (TheIMEManager)
-//		TheIMEManager->detatch();
+//		TheIMEManager->detach();
 
 }
 

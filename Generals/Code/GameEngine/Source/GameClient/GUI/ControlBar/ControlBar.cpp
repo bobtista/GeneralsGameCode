@@ -30,7 +30,7 @@
 // USER INCLUDES //////////////////////////////////////////////////////////////////////////////////
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
-#define DEFINE_GUI_COMMMAND_NAMES
+#define DEFINE_GUI_COMMAND_NAMES
 #define DEFINE_COMMAND_OPTION_NAMES
 #define DEFINE_WEAPONSLOTTYPE_NAMES
 #define DEFINE_RADIUSCURSOR_NAMES
@@ -1036,7 +1036,7 @@ void ControlBar::init( void )
 	// post process step after loading the command buttons and command sets
 	postProcessCommands();
 
-	// Init the scheme manager, this will call it's won INI init funciton.
+	// Init the scheme manager, this will call it's won INI init function.
 	m_controlBarSchemeManager = NEW ControlBarSchemeManager;
 	m_controlBarSchemeManager->init();
 
