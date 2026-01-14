@@ -42,6 +42,7 @@ jobs:
     name: Prepare Build Info
     runs-on: ubuntu-latest
     outputs:
+      full_sha: ${{ steps.info.outputs.full_sha }}
       short_sha: ${{ steps.info.outputs.short_sha }}
       commit_date: ${{ steps.info.outputs.commit_date }}
       commit_subject: ${{ steps.info.outputs.commit_subject }}
@@ -63,6 +64,7 @@ jobs:
             exit 1
           fi
 
+          FULL_SHA=$(git rev-parse "$COMMIT")
           SHORT_SHA=$(git rev-parse --short=7 "$COMMIT")
           COMMIT_DATE=$(git show -s --format=%cs "$COMMIT")
           COMMIT_SUBJECT=$(git show -s --format=%s "$COMMIT" | head -c 80)
@@ -73,6 +75,7 @@ jobs:
           fi
           RELEASE_TAG="historical-${COMMIT_DATE}-${SHORT_SHA}${PR_SUFFIX}"
 
+          echo "full_sha=$FULL_SHA" >> $GITHUB_OUTPUT
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
           echo "commit_date=$COMMIT_DATE" >> $GITHUB_OUTPUT
           echo "commit_subject=$COMMIT_SUBJECT" >> $GITHUB_OUTPUT
@@ -99,7 +102,7 @@ jobs:
       - name: Checkout Target Commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.inputs.commit }}
+          ref: ${{ needs.prepare.outputs.full_sha }}
           fetch-depth: 0
 
       - name: Apply Pull Requests
