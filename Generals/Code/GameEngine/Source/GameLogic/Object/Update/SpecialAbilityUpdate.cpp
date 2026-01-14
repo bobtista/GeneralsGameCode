@@ -1146,7 +1146,7 @@ void SpecialAbilityUpdate::triggerAbilityEffect()
 	Object *object = getObject();
 
 	//Award experience to units for triggering the ability (optional and ini specified).
-	//NOTE: Be award of persistent abilities that call trigger over and over again!
+	//NOTE: Be aware of persistent abilities that call trigger over and over again!
 	if( data->m_awardXPForTriggering )
 	{
 		ExperienceTracker *xpTracker = object->getExperienceTracker();
