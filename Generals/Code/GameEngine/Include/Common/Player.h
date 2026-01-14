@@ -706,7 +706,7 @@ private:
 
 	UnicodeString								m_playerDisplayName;					///< This player's persistent name.
 	Handicap										m_handicap;										///< adjustment to varied capabilities (@todo: is this persistent or recalced each time?)
-	AsciiString									m_playerName;									///< player's internal name 9for matching map objects)
+	AsciiString									m_playerName;									///< player's internal name for matching map objects)
 	NameKeyType									m_playerNameKey;							///< This player's internal name (for matching map objects)
 	PlayerIndex									m_playerIndex;								///< player unique index.
 	AsciiString									m_side;												///< the "side" this player is on

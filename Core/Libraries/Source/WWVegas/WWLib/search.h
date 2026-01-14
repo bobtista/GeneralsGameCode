@@ -325,12 +325,12 @@ bool IndexClass<T>::Increase_Table_Size(int amount)
 /***********************************************************************************************
  * IndexClass<T>::Count -- Fetch the number of index entries recorded.                         *
  *                                                                                             *
- *    This will return the quantity of index entries that have been recored by this index      *
+ *    This will return the quantity of index entries that have been recorded by this index     *
  *    handler.                                                                                 *
  *                                                                                             *
  * INPUT:   none                                                                               *
  *                                                                                             *
- * OUTPUT:  Returns with number of recored indecies present.                                   *
+ * OUTPUT:  Returns with number of recorded indices present.                                   *
  *                                                                                             *
  * WARNINGS:   none                                                                            *
  *                                                                                             *

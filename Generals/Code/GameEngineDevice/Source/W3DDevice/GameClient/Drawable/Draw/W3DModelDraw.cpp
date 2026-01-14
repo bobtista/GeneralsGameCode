@@ -4177,7 +4177,7 @@ void W3DModelDraw::xfer( Xfer *xfer )
 						int curMode, dummy3;
 						hlod->Peek_Animation_And_Info(dummy1, dummy3, curMode, dummy2);
 
-						// srj sez: do not change the animation mode. it's too risky, since if you change (say) a nonlooping
+						// srj sez: do not change the animation mode. it's too risky, since if you change (say) a non-looping
 						// to a looping, something might break since it could rely on that anim terminating.
 
 						// set animation data
