@@ -359,7 +359,7 @@ void AcademyStats::update()
 }
 
 //------------------------------------------------------------------------------------------------
-void AcademyStats::recordProduction( const Object *obj, const Object *constructor )
+void AcademyStats::recordProduction( const Object *obj, const Object *constructer )
 {
 	UnsignedInt now = TheGameLogic->getFrame();
 

@@ -703,13 +703,13 @@ __int64 Total_Create_Render_Obj_Time=0;
 #endif
 //---------------------------------------------------------------------
 /** Generals specific code to generate customized render objects for each team color
-	Scale==1.0, color==0x00000000, and oldTexture==nullptr are defaults that do nothing.
+	Scale==1.0, color==0x00000000, and oldTexure==nullptr are defaults that do nothing.
 */
 RenderObjClass * W3DAssetManager::Create_Render_Obj(
 	const char * name,
 	float scale,
 	const int color,
-	const char *oldTexture,
+	const char *oldTexure,
 	const char *newTexture
 )
 {
@@ -720,7 +720,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 
 	Bool reallyscale = (WWMath::Fabs(scale - ident_scale) > scale_epsilon);
 	Bool reallycolor = (color & 0xFFFFFF) != 0;	//black is not a valid color and assumes no custom coloring.
-	Bool reallytexture = (oldTexture != nullptr && newTexture != nullptr);
+	Bool reallytexture = (oldTexure != nullptr && newTexture != nullptr);
 
 	// base case, no scale or color
 	if (!reallyscale && !reallycolor && !reallytexture)
@@ -819,7 +819,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 
 	if (reallytexture)
 	{
-		TextureClass *oldTex = Get_Texture(oldTexture);
+		TextureClass *oldTex = Get_Texture(oldTexure);
 		TextureClass *newTex = Get_Texture(newTexture);
 		replaceAssetTexture(rendobj,oldTex,newTex);
 		REF_PTR_RELEASE(newTex);

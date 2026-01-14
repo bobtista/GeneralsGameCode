@@ -1978,7 +1978,7 @@ void WbView3d::updateHysteresis(void)
 // ----------------------------------------------------------------------------
 Bool WbView3d::docToViewCoords(Coord3D curPt, CPoint* newPt)
 {
-	Bool coordInsideFrustum = true;
+	Bool coordInsideFrustrum = true;
 	Vector3 world;
 	Vector3 screen;
 	newPt->x = -1000;
@@ -1989,9 +1989,9 @@ Bool WbView3d::docToViewCoords(Coord3D curPt, CPoint* newPt)
 
 	world.Set( curPt.x, curPt.y, curPt.z );
 	if (m_camera->Project( screen, world ) != CameraClass::INSIDE_FRUSTUM) {
-		coordInsideFrustum = false;
+		coordInsideFrustrum = false;
 	} else {
-		coordInsideFrustum = true;
+		coordInsideFrustrum = true;
 	}
 
 	CRect rClient;
@@ -2011,7 +2011,7 @@ Bool WbView3d::docToViewCoords(Coord3D curPt, CPoint* newPt)
 	newPt->x = rClient.left + sx;
 	newPt->y = rClient.top + sy;
 
-	return coordInsideFrustum;
+	return coordInsideFrustrum;
 }
 
 // ----------------------------------------------------------------------------

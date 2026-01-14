@@ -24,11 +24,11 @@
 
 #pragma once
 
-#ifndef IG_DEBUG_STACKTRACE
-#define IG_DEBUG_STACKTRACE	1
+#ifndef IG_DEGBUG_STACKTRACE
+#define IG_DEGBUG_STACKTRACE	1
 #endif
 
-#if defined(RTS_DEBUG) || defined(IG_DEBUG_STACKTRACE)
+#if defined(RTS_DEBUG) || defined(IG_DEGBUG_STACKTRACE)
 
 // Writes a stackdump (provide a callback : gets called per line)
 // If callback is nullptr then will write using OuputDebugString
