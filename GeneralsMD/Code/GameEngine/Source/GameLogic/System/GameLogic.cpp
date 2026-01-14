@@ -908,7 +908,7 @@ static void populateRandomStartPosition( GameInfo *game )
 			else
 			{
 				// We're the first real spot.  Pick randomly.
-				// This while loop shouldn't be necessary, since we're first.  Why not, though?
+				// This while loop shouldn't be neccessary, since we're first.  Why not, though?
 				while (posIdx == -1)
 				{
 					posIdx = GameLogicRandomValue(0, numPlayers-1);
@@ -925,7 +925,7 @@ static void populateRandomStartPosition( GameInfo *game )
 #else  //GS  The new way puts teammates next to each other.
 	Int teamPosIdx[MAX_SLOTS];
 	for (i=0; i<MAX_SLOTS; ++i)
-		teamPosIdx[i] = -1;  //team has no starting positon yet
+		teamPosIdx[i] = -1;  //team has no starting position yet
 
 	// now pick non-observer spots
 	for (i=0; i<MAX_SLOTS; ++i)
@@ -940,12 +940,12 @@ static void populateRandomStartPosition( GameInfo *game )
 			continue;  //position already assigned
 		DEBUG_ASSERTCRASH(posIdx == -1, ("Non-random bad start position %d in slot %d", posIdx, i));
 
-		//choose a starting positon
+		//choose a starting position
 		Int team = slot->getTeamNumber();
 		if( !hasStartSpotBeenPicked )
 		{	// We're the first real spot.  Pick randomly.
 			while (posIdx == -1)
-			{	// This while loop shouldn't be necessary, since we're first.  Why not, though?
+			{	// This while loop shouldn't be neccessary, since we're first.  Why not, though?
 				posIdx = GameLogicRandomValue(0, numPlayers-1);
 				if (game->isStartPositionTaken(posIdx))
 					posIdx = -1;
@@ -998,7 +998,7 @@ static void populateRandomStartPosition( GameInfo *game )
 				if( team > -1 )
 					teamPosIdx[team] = farthestIndex;  //remember where this team is
 			}
-			else  //team already has a starting positon
+			else  //team already has a starting position
 			{	//pick position closest to team
 				Real closestDist = FLT_MAX;
 				Int  closestIdx = 0;
@@ -1172,7 +1172,7 @@ void GameLogic::startNewGame( Bool loadingSaveGame )
 	m_rankLevelLimit = 1000;	// this is reset every game.
 
 	//
-	// only reset the next object ID allocator counter when we're not loading a save game.
+	// only reset the next object ID allocater counter when we're not loading a save game.
 	// for save games, we read this value out of the save game file and it is important
 	// that we preserve it as we load and execute the game
 	//
@@ -3987,7 +3987,7 @@ void GameLogic::destroyObject( Object *obj )
 	if (!obj || obj->isDestroyed())
 		return;
 
-	// run the object onDestroy event if provided
+	// run the object onDestroy event if provied
 	for (BehaviorModule** m = obj->getBehaviorModules(); *m; ++m)
 	{
 		DestroyModuleInterface* destroy = (*m)->getDestroy();
@@ -4824,7 +4824,7 @@ void GameLogic::xfer( Xfer *xfer )
 	// !!!DON'T DO THIS!!! ----> xfer->xferObjectID( &m_nextObjectID ); <---- !!!DON'T DO THIS!!!
 
 	//
-	// xfer a table of contents that contain thing template and identifier pairs.  this
+	// xfer a table of contents that contain thing template and indentifier pairs.  this
 	// table of contents is good for this save file only as unique numbers are only
 	// generated and stored for the actual things that are on this map
 	//
