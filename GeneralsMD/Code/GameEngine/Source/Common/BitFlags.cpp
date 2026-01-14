@@ -160,7 +160,7 @@ const char* const ModelConditionFlags::s_bitNameList[] =
 	"RIDER7",
 	"RIDER8",
 
-  "STUNNED_FLAILING", // Daniel The's idea, added by Lorenzen, 5/28/03
+  "STUNNED_FLAILING", // Daniel Teh's idea, added by Lorenzen, 5/28/03
 	"STUNNED",
 	"SECOND_LIFE",
 	"JAMMED",

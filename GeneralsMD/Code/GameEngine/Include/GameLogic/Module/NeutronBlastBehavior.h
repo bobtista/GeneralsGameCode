@@ -23,7 +23,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 
 // FILE: NeutronBlastBehavior.h /////////////////////////////////////////////////////////////////////////
-// Author: Daniel The, July 2003
+// Author: Daniel Teh, July 2003
 // Desc:   Create a neutron blast behavior that wipes out infantry, no matter where they hide
 //------------------------------------------
 
