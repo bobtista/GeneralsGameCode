@@ -487,7 +487,7 @@ void *WW3D::Get_Window( void )
 }
 
 /***********************************************************************************************
- * WW3D::Is_Windowed -- returns whether we are currently in a windowed mode                     *
+ * WW3D::Is_Windowed -- returns whether we are currently in a windowed mode                    *
  *                                                                                             *
  * INPUT:                                                                                      *
  *                                                                                             *

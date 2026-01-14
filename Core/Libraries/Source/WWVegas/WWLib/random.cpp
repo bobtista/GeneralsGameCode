@@ -211,7 +211,7 @@ int Random2Class::operator() (void)
  *    This routine will generate a random number between the two values specified. It uses     *
  *    a method that will not bias the values in any way.                                       *
  *                                                                                             *
- * INPUT:   minval   -- The minimum return value (inclusive).                                   *
+ * INPUT:   minval   -- The minimum return value (inclusive).                                  *
  *                                                                                             *
  *          maxval   -- The maximum return value (inclusive).                                  *
  *                                                                                             *
@@ -320,7 +320,7 @@ int Random3Class::operator() (void)
  *    This routine will generate a random number between the two values specified. It uses     *
  *    a method that will not bias the values in any way.                                       *
  *                                                                                             *
- * INPUT:   minval   -- The minimum return value (inclusive).                                   *
+ * INPUT:   minval   -- The minimum return value (inclusive).                                  *
  *                                                                                             *
  *          maxval   -- The maximum return value (inclusive).                                  *
  *                                                                                             *

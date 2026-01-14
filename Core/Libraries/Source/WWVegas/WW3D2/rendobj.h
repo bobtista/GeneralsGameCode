@@ -157,7 +157,7 @@ public:
 	//Added for 'Generals' - MW
  	enum	{USER_DATA_MATERIAL_OVERRIDE = 0x01234567};
 
- 	//This structure is used to pass custom rendering parameters into the W3D
+	//This structure is used to pass custom rendering parameters into the W3D
  	//mesh renderer so it can override settings which are usually shared across
  	//all instances of a model - typically material settings like alpha, texture
  	//animation, texture uv scrolling, etc.  Added for 'Generals' -MW

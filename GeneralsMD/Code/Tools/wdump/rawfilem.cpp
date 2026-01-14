@@ -865,10 +865,10 @@ void RawFileMClass::Bias(int start, int length)
 
 
 /***********************************************************************************************
- * RawFileMClass::Raw_Seek -- Performs a seek on the unbiased file                              *
+ * RawFileMClass::Raw_Seek -- Performs a seek on the unbiased file                             *
  *                                                                                             *
  *    This will perform a seek on the file as if it were unbiased. This is in spite of any     *
- *    bias setting the file may have. The ability to perform a raw seek in this fashion is      *
+ *    bias setting the file may have. The ability to perform a raw seek in this fashion is     *
  *    necessary to maintain the bias ability.                                                  *
  *                                                                                             *
  * INPUT:   pos   -- The position to seek the file relative to the "dir" parameter.            *
