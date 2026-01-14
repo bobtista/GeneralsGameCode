@@ -449,11 +449,11 @@ void GameWindowTransitionsHandler::draw( void )
 		m_secondaryDrawGroup->draw();
 }
 
-void GameWindowTransitionsHandler::setGroup(AsciiString groupName, Bool immediate )
+void GameWindowTransitionsHandler::setGroup(AsciiString groupName, Bool immidiate )
 {
-	if(groupName.isEmpty() && immediate)
+	if(groupName.isEmpty() && immidiate)
 		m_currentGroup = nullptr;
-	if(immediate && m_currentGroup)
+	if(immidiate && m_currentGroup)
 	{
 		m_currentGroup->skip();
 		m_currentGroup = findGroup(groupName);
