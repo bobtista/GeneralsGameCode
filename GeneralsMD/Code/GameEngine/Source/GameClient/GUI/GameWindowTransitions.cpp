@@ -257,7 +257,7 @@ TransitionGroup::~TransitionGroup( void )
 void TransitionGroup::init( void )
 {
 	m_currentFrame = 0;
-	m_directionMultiplyer = 1;
+	m_directionMultiplier = 1;
 	TransitionWindowList::iterator it = m_transitionWindowList.begin();
 	while (it != m_transitionWindowList.end())
 	{
@@ -270,7 +270,7 @@ void TransitionGroup::init( void )
 
 void TransitionGroup::update( void )
 {
-	m_currentFrame += m_directionMultiplyer; // we go forward or backwards depending.
+	m_currentFrame += m_directionMultiplier; // we go forward or backwards depending.
 	TransitionWindowList::iterator it = m_transitionWindowList.begin();
 	while (it != m_transitionWindowList.end())
 	{
@@ -297,7 +297,7 @@ Bool TransitionGroup::isFinished( void )
 void TransitionGroup::reverse( void )
 {
 	Int totalFrames =0;
-	m_directionMultiplyer = -1;
+	m_directionMultiplier = -1;
 
 	TransitionWindowList::iterator it = m_transitionWindowList.begin();
 	while (it != m_transitionWindowList.end())
@@ -321,7 +321,7 @@ void TransitionGroup::reverse( void )
 
 Bool TransitionGroup::isReversed( void )
 {
-	if(m_directionMultiplyer < 0)
+	if(m_directionMultiplier < 0)
 		return TRUE;
 	return FALSE;
 }
@@ -529,7 +529,7 @@ TransitionGroup *GameWindowTransitionsHandler::getNewGroup( AsciiString name )
 	if(name.isEmpty())
 		return nullptr;
 
-	// test to see if we're trying to add an already existing group.
+	// test to see if we're trying to add an already exisitng group.
 	if(findGroup(name))
 	{
 		DEBUG_ASSERTCRASH(FALSE, ("GameWindowTransitionsHandler::getNewGroup - We already have a group %s", name.str()));
