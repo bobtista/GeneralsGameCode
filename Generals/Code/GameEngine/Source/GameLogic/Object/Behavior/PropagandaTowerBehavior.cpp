@@ -493,7 +493,7 @@ void PropagandaTowerBehavior::doScan( void )
 
 	}
 
-	// delete the inside list we have recordeded
+	// delete the inside list we have recorded
 	ObjectTracker *next;
 	while( m_insideList )
 	{
