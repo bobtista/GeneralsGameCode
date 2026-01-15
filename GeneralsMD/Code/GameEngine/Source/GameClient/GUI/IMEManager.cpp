@@ -97,7 +97,7 @@ class IMEManager : public IMEManagerInterface
 		virtual void					update( void );
 
 		virtual void					attach( GameWindow *window );		///< attach IME to specified window
-		virtual void					detatch( void );								///< detach IME from current window
+		virtual void					detatch( void );								///< detatch IME from current window
 		virtual void					enable( void );									///< Enable IME
 		virtual void					disable( void );								///< Disable IME
 		virtual Bool					isEnabled( void );							///< Is IME enabled
@@ -646,7 +646,7 @@ void IMEManager::attach( GameWindow *window )
 }
 
 //============================================================================
-// IMEManager::detach
+// IMEManager::detatch
 //============================================================================
 
 void IMEManager::detatch( void )
