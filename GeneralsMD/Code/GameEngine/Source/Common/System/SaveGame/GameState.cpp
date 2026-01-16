@@ -782,6 +782,12 @@ AsciiString GameState::getSaveDirectory() const
 //-------------------------------------------------------------------------------------------------
 AsciiString GameState::getFilePathInSaveDirectory(const AsciiString& leaf) const
 {
+	// TheSuperHackers @bugfix bobtista 15/01/2026 Check if path is already absolute (has drive letter)
+	// to avoid double-prepending the save directory when loading checkpoint files.
+	if (leaf.getLength() >= 2 && leaf.getCharAt(1) == ':')
+	{
+		return leaf;
+	}
 	AsciiString tmp = getSaveDirectory();
 	tmp.concat(leaf);
 	return tmp;

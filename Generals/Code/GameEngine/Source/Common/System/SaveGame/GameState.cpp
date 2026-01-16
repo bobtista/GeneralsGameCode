@@ -563,7 +563,8 @@ SaveCode GameState::saveGame( AsciiString filename, UnicodeString desc,
 		xferSave.open( filepath );
 	} catch(...) {
 		// print error message to the user
-		TheInGameUI->message( "GUI:Error" );
+		if (!TheGlobalData->m_headless)
+			TheInGameUI->message( "GUI:Error" );
 		DEBUG_LOG(( "Error opening file '%s'", filepath.str() ));
 		return SC_ERROR;
 	}
@@ -593,13 +594,16 @@ SaveCode GameState::saveGame( AsciiString filename, UnicodeString desc,
 	catch( ... )
 	{
 
-		UnicodeString ufilepath;
-		ufilepath.translate(filepath);
+		if (!TheGlobalData->m_headless)
+		{
+			UnicodeString ufilepath;
+			ufilepath.translate(filepath);
 
-		UnicodeString msg;
-		msg.format( TheGameText->fetch("GUI:ErrorSavingGame"), ufilepath.str() );
+			UnicodeString msg;
+			msg.format( TheGameText->fetch("GUI:ErrorSavingGame"), ufilepath.str() );
 
-		MessageBoxOk(TheGameText->fetch("GUI:Error"), msg, nullptr);
+			MessageBoxOk(TheGameText->fetch("GUI:Error"), msg, nullptr);
+		}
 
 		// close the file and get out of here
 		xferSave.close();
@@ -611,8 +615,11 @@ SaveCode GameState::saveGame( AsciiString filename, UnicodeString desc,
 	xferSave.close();
 
 	// print message to the user for game successfully saved
-	UnicodeString msg = TheGameText->fetch( "GUI:GameSaveComplete" );
-	TheInGameUI->message( msg );
+	if (!TheGlobalData->m_headless)
+	{
+		UnicodeString msg = TheGameText->fetch( "GUI:GameSaveComplete" );
+		TheInGameUI->message( msg );
+	}
 
 	return SC_OK;
 
@@ -719,13 +726,16 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 		TheGameEngine->reset();
 
 		// print error message to the user
-		UnicodeString ufilepath;
-		ufilepath.translate(filepath);
+		if (!TheGlobalData->m_headless)
+		{
+			UnicodeString ufilepath;
+			ufilepath.translate(filepath);
 
-		UnicodeString msg;
-		msg.format( TheGameText->fetch("GUI:ErrorLoadingGame"), ufilepath.str() );
+			UnicodeString msg;
+			msg.format( TheGameText->fetch("GUI:ErrorLoadingGame"), ufilepath.str() );
 
-		MessageBoxOk(TheGameText->fetch("GUI:Error"), msg, nullptr);
+			MessageBoxOk(TheGameText->fetch("GUI:Error"), msg, nullptr);
+		}
 
 		return SC_INVALID_DATA;	// you can't use a naked "throw" outside of a catch statement!
 
@@ -769,6 +779,12 @@ AsciiString GameState::getSaveDirectory() const
 //-------------------------------------------------------------------------------------------------
 AsciiString GameState::getFilePathInSaveDirectory(const AsciiString& leaf) const
 {
+	// TheSuperHackers @bugfix bobtista 15/01/2026 Check if path is already absolute (has drive letter)
+	// to avoid double-prepending the save directory when loading checkpoint files.
+	if (leaf.getLength() >= 2 && leaf.getCharAt(1) == ':')
+	{
+		return leaf;
+	}
 	AsciiString tmp = getSaveDirectory();
 	tmp.concat(leaf);
 	return tmp;
