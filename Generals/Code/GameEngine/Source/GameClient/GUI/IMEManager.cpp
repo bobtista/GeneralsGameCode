@@ -646,7 +646,7 @@ void IMEManager::attach( GameWindow *window )
 }
 
 //============================================================================
-// IMEManager::detatch
+// IMEManager::detach
 //============================================================================
 
 void IMEManager::detach( void )
