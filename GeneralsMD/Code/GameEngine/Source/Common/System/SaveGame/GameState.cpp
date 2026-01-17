@@ -1484,6 +1484,15 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 
 				}
 
+				// Skip blocks with nullptr snapshot (can happen in headless mode)
+				if( blockInfo->snapshot == nullptr )
+				{
+					DEBUG_LOG(("Skipping block '%s' because snapshot is nullptr", blockInfo->blockName.str()));
+					Int dataSize = xfer->beginBlock();
+					xfer->skip( dataSize );
+					continue;
+				}
+
 				try
 				{
 
