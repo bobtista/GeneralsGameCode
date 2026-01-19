@@ -138,6 +138,12 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 
 	unsigned int personalities[MAX_POINTS_PER_GROUP];
 
+	const Real ANGLE_TO_BYTE = 255.0f / (2.0f * PI);
+
+	Vector3 *posArray = m_posBuffer->Get_Array();
+	Real *sizeArray = m_sizeBuffer->Get_Array();
+	Vector4 *RGBAArray = m_RGBABuffer->Get_Array();
+	uint8 *angleArray = m_angleBuffer->Get_Array();
 
 	m_fieldParticleCount = 0;
 
@@ -190,14 +196,7 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			continue;
 		}
 
-		/// @todo lorenzen sez: declare these outside the sys loop, and put some in registers
-		// initialize them here still, of course
-		// build W3D particle buffer
 		Int count = 0;
-		Vector3 *posArray = m_posBuffer->Get_Array();
-		Real *sizeArray = m_sizeBuffer->Get_Array();
-		Vector4 *RGBAArray = m_RGBABuffer->Get_Array();
-		uint8 *angleArray = m_angleBuffer->Get_Array();
 		const Coord3D *pos;
 		const RGBColor *color;
 		Real psize;
@@ -237,7 +236,7 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			RGBAArray[count].Z = color->blue;
 			RGBAArray[count].W = p->getAlpha();
 
-			angleArray[count] = (uint8)(p->getAngle() * 255.0f / (2.0f * PI));
+			angleArray[count] = (uint8)(p->getAngle() * ANGLE_TO_BYTE);
 
 			if (++count == MAX_POINTS_PER_GROUP)
 				break;
