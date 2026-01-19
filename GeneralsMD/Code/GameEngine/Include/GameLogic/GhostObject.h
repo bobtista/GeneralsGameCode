@@ -115,7 +115,7 @@ class GhostObjectManagerDummy : public GhostObjectManager
 {
 public:
 	virtual void reset(void) {}
-	virtual GhostObject *addGhostObject(Object *object, PartitionData *pd) { return NULL; }
+	virtual GhostObject *addGhostObject(Object *object, PartitionData *pd) { return nullptr; }
 	virtual void removeGhostObject(GhostObject *mod) {}
 	virtual void updateOrphanedObjects(int *playerIndexList, int playerIndexCount) {}
 	virtual void releasePartitionData(void) {}
