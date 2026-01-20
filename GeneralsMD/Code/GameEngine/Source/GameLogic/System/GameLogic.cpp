@@ -218,13 +218,14 @@ void setFPMode( void )
 // ------------------------------------------------------------------------------------------------
 GameLogic::GameLogic( void )
 {
+	Int i;
 	m_background = nullptr;
 	m_CRC = 0;
 	m_isInUpdate = FALSE;
 
 	m_rankPointsToAddAtGameStart = 0;
 
-	for(Int i = 0; i < MAX_SLOTS; i++)
+	for(i = 0; i < MAX_SLOTS; i++)
 	{
 		m_progressComplete[i] = FALSE;
 		m_progressCompleteTimeout[i] = 0;
@@ -266,7 +267,7 @@ GameLogic::GameLogic( void )
 	// TheSuperHackers @info bobtista 19/01/2026 Initialize RNG restore state
 	m_pendingRngRestore = FALSE;
 	m_pendingRngBaseSeed = 0;
-	for (int i = 0; i < 6; ++i)
+	for (i = 0; i < 6; ++i)
 		m_pendingRngState[i] = 0;
 
 	m_skipCRCCheckCount = 0;
@@ -4876,6 +4877,7 @@ void GameLogic::xfer( Xfer *xfer )
 	// The RNG state is included in the CRC calculation but was not being saved.
 	if ( version >= 11 )
 	{
+		Int i;
 		UnsignedInt rngState[6];
 		UnsignedInt rngBaseSeed;
 		if ( xfer->getXferMode() == XFER_SAVE )
@@ -4883,7 +4885,7 @@ void GameLogic::xfer( Xfer *xfer )
 			GetGameLogicRandomState( rngState, &rngBaseSeed );
 		}
 		xfer->xferUnsignedInt( &rngBaseSeed );
-		for ( int i = 0; i < 6; ++i )
+		for ( i = 0; i < 6; ++i )
 		{
 			xfer->xferUnsignedInt( &rngState[i] );
 		}
@@ -4895,7 +4897,7 @@ void GameLogic::xfer( Xfer *xfer )
 			// which would corrupt the RNG state before the CRC check runs.
 			m_pendingRngRestore = TRUE;
 			m_pendingRngBaseSeed = rngBaseSeed;
-			for ( int i = 0; i < 6; ++i )
+			for ( i = 0; i < 6; ++i )
 				m_pendingRngState[i] = rngState[i];
 		}
 	}
