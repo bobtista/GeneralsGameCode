@@ -4924,6 +4924,23 @@ void GameLogic::xfer( Xfer *xfer )
 
 		}
 
+		// TheSuperHackers @fix bobtista 19/01/2026
+		// Reverse the object list to restore the original order.
+		// Objects are prepended during registration, so loading them in save order
+		// (oldest first in original list) results in a reversed list.
+		Object *prev = nullptr;
+		Object *current = m_objList;
+		Object *next = nullptr;
+		while ( current != nullptr )
+		{
+			next = current->getNextObject();
+			current->friend_setNextObject( prev );
+			current->friend_setPrevObject( next );
+			prev = current;
+			current = next;
+		}
+		m_objList = prev;
+
 	}
 
 	// campaign info
