@@ -232,8 +232,10 @@ void WeaponSet::xfer( Xfer *xfer )
 			if (tt == nullptr)
 				throw INI_INVALID_DATA;
 
-			// TheSuperHackers @bugfix bobtista 23/01/2026 Use final override to match what Object uses.
-			tt = (const ThingTemplate*)tt->getFinalOverride();
+			// TheSuperHackers @fix bobtista 27/01/2026 findTemplate returns the base template, but Object
+			// uses getFinalOverride() in its constructor. We must do the same here so m_curWeaponTemplateSet
+			// points to the same ThingTemplate's weapon sets, avoiding unnecessary reallocation in updateWeaponSet.
+			tt = static_cast<const ThingTemplate*>(tt->getFinalOverride());
 
 			m_curWeaponTemplateSet = tt->findWeaponTemplateSet(wsFlags);
 			if (m_curWeaponTemplateSet == nullptr)
