@@ -172,7 +172,8 @@ public:
 
 	Object* getNextObject() { return m_next; }
 	const Object* getNextObject() const { return m_next; }
-	// TheSuperHackers @info bobtista 19/01/2026 Friend methods to allow GameLogic to fix object list order after load
+	Object* getPrevObject() { return m_prev; }
+	const Object* getPrevObject() const { return m_prev; }
 	void friend_setNextObject(Object* obj) { m_next = obj; }
 	void friend_setPrevObject(Object* obj) { m_prev = obj; }
 
