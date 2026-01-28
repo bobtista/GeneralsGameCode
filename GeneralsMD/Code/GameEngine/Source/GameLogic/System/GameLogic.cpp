@@ -4801,7 +4801,7 @@ void GameLogic::prepareLogicForObjectLoad( void )
 	* 5: Added xfering the BuildAssistant's sell list.
 	* 9: Added m_rankPointsToAddAtGameStart, or else on a load game, your RestartGame button will forget your exp
   * 10: xfer m_superweaponRestriction
-  * 11: Save objects in reverse order so they load in correct order
+  * 11: TheSuperHackers @tweak Save objects in reverse order so they load in correct order
 	*/
 // ------------------------------------------------------------------------------------------------
 void GameLogic::xfer( Xfer *xfer )
@@ -4930,10 +4930,10 @@ void GameLogic::xfer( Xfer *xfer )
 
 		}
 
-		// TheSuperHackers @bugfix bobtista 27/01/2026 Reverse object list for old saves.
+		// TheSuperHackers @fix bobtista 27/01/2026 Reverse object list for old saves.
 		// Old saves stored objects oldest-first, which results in reversed order when loaded
 		// since objects are prepended during creation. Version 11+ saves in reverse order.
-		if ( version < 11 )
+		if ( version <= 10 )
 		{
 			Object *prev = nullptr;
 			Object *current = m_objList;
