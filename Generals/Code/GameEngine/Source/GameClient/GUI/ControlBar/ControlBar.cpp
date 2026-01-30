@@ -1020,7 +1020,7 @@ ControlBar::~ControlBar( void )
 void ControlBarPopupDescriptionUpdateFunc( WindowLayout *layout, void *param );
 
 //-------------------------------------------------------------------------------------------------
-/** Initialize the control bar, this is our interface to the context sinsitive GUI */
+/** Initialize the control bar, this is our interface to the context sensitive GUI */
 //-------------------------------------------------------------------------------------------------
 void ControlBar::init( void )
 {
