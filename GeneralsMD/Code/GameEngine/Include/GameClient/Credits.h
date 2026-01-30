@@ -149,8 +149,7 @@ private:
 
 	Bool m_isFinished;
 
-	UnsignedInt m_scrollStartTime;
-	Int m_lastScrollPixels;
+	Real m_scrollAccumulator;
 	Int m_normalFontHeight;
 };
 

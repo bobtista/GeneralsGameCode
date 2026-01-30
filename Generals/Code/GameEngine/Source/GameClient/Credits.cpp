@@ -50,6 +50,7 @@
 //-----------------------------------------------------------------------------
 // USER INCLUDES //////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
+#include "Common/FramePacer.h"
 #include "Common/INI.h"
 #include "GameClient/Credits.h"
 #include "GameClient/DisplayStringManager.h"
@@ -123,8 +124,7 @@ CreditsManager::CreditsManager(void)
 	m_scrollRate = 1; // in pixels
 	m_scrollRatePerFrames = 1;
 	m_scrollDown = TRUE;	// if TRUE text will come from the top to the bottom if False, it will go from the bottom up
-	m_scrollStartTime = 0;
-	m_lastScrollPixels = 0;
+	m_scrollAccumulator = 0.0f;
 	m_titleColor = m_positionColor = m_normalColor = GameMakeColor(255,255,255,255);
 
 	m_currentStyle = CREDIT_STYLE_NORMAL;
@@ -149,8 +149,7 @@ void CreditsManager::init(void )
 {
 	m_isFinished = FALSE;
 	m_creditLineListIt = m_creditLineList.begin();
-	m_scrollStartTime = timeGetTime();
-	m_lastScrollPixels = 0;
+	m_scrollAccumulator = 0.0f;
 }
 
 void CreditsManager::load(void )
@@ -176,8 +175,7 @@ void CreditsManager::reset( void )
 	m_displayedCreditLineList.clear();
 	m_isFinished = FALSE;
 	m_creditLineListIt = m_creditLineList.begin();
-	m_scrollStartTime = timeGetTime();
-	m_lastScrollPixels = 0;
+	m_scrollAccumulator = 0.0f;
 }
 
 void CreditsManager::update( void )
@@ -185,16 +183,14 @@ void CreditsManager::update( void )
 	if(m_isFinished)
 		return;
 
-	// TheSuperHackers @tweak Credits scroll timing is now decoupled from the render update.
-	// Calculate expected scroll position based on elapsed time for accurate timing.
-	const UnsignedInt now = timeGetTime();
-	const UnsignedInt elapsedMs = now - m_scrollStartTime;
-	const Real scrollSpeedPixelsPerMs = static_cast<Real>(m_scrollRate) / (m_scrollRatePerFrames * MSEC_PER_LOGICFRAME_REAL);
-	const Int expectedScrollPixels = static_cast<Int>(elapsedMs * scrollSpeedPixelsPerMs);
-	const Int pixelsToMove = expectedScrollPixels - m_lastScrollPixels;
+	// TheSuperHackers @tweak bobtista Scroll timing uses frame delta time for frame-rate independence.
+	// Accumulate fractional pixels and move when we have at least 1 whole pixel.
+	const Real scrollSpeedPixelsPerSec = static_cast<Real>(m_scrollRate) / (m_scrollRatePerFrames * SECONDS_PER_LOGICFRAME_REAL);
+	m_scrollAccumulator += TheFramePacer->getUpdateTime() * scrollSpeedPixelsPerSec;
+	const Int pixelsToMove = static_cast<Int>(m_scrollAccumulator);
 	if (pixelsToMove < 1)
 		return;
-	m_lastScrollPixels = expectedScrollPixels;
+	m_scrollAccumulator -= static_cast<Real>(pixelsToMove);
 
 	Int y = 0;
 	Int yTest = 0;
