@@ -4841,7 +4841,7 @@ void GameLogic::xfer( Xfer *xfer )
 	ObjectTOCEntry *tocEntry;
 	if( xfer->getXferMode() == XFER_SAVE )
 	{
-		// TheSuperHackers @bugfix bobtista 27/01/2026 Save objects in reverse order (newest first)
+		// TheSuperHackers @fix bobtista 27/01/2026 Save objects in reverse order (newest first)
 		// so they load in the correct order (oldest objects at head of list).
 		Object *lastObj = nullptr;
 		for( obj = getFirstObject(); obj; obj = obj->getNextObject() )
