@@ -602,7 +602,7 @@ StateReturnType DozerActionDoActionState::update( void )
 					// Creation is another valid and essential time to call this.  This building now Looks.
 					goalObject->handlePartitionCellMaintenance();
 
-					// this object how has influence in the controlling players' tech tree
+					// this object now has influence in the controlling players' tech tree
 					/// @todo need to write this
 
 					// do some UI stuff for the controlling player
