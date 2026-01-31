@@ -813,6 +813,21 @@ private:
 	TemplateMap m_templateMap;		///< a hash map of all particle system templates
 };
 
+// TheSuperHackers @feature bobtista 31/01/2026
+// ParticleSystemManager that does nothing. Used for Headless Mode.
+class ParticleSystemManagerDummy : public ParticleSystemManager
+{
+public:
+	virtual Int getOnScreenParticleCount( void ) { return 0; }
+	virtual void doParticles(RenderInfoClass &rinfo) {}
+	virtual void queueParticleRender() {}
+
+protected:
+	virtual void crc( Xfer *xfer ) {}
+	virtual void xfer( Xfer *xfer ) {}
+	virtual void loadPostProcess( void ) {}
+};
+
 /// The particle system manager singleton
 extern ParticleSystemManager *TheParticleSystemManager;
 
