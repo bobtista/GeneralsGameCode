@@ -5061,7 +5061,7 @@ ProductionUpdateInterface* Object::getProductionUpdateInterface( void )
 {
 	ProductionUpdateInterface *pui;
 
-	// tell our update modules that we intended to do this special power.
+	// tell our update modules that we intend to do this special power.
 	for( BehaviorModule** u = m_behaviors; *u; ++u )
 	{
 
