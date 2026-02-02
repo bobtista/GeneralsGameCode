@@ -39,6 +39,7 @@
 #include "Common/PlayerTemplate.h"
 #include "Common/Radar.h"
 #include "Common/Recorder.h"
+#include "Common/Xfer.h"
 
 #include "GameClient/InGameUI.h"
 #include "GameClient/Diplomacy.h"
@@ -92,6 +93,12 @@ public:
 	Bool isLocalDefeat( void );												///< convenience function
 	Bool amIObserver( void ) { return m_isObserver;} 	///< Am I an observer?( need this for scripts )
 	virtual UnsignedInt getEndFrame( void ) { return m_endFrame; }	///< on which frame was the game effectively over?
+
+	// Snapshot interface
+	void crc( Xfer *xfer );
+	void xfer( Xfer *xfer );
+	void loadPostProcess( void );
+
 private:
 	Player*				m_players[MAX_PLAYER_COUNT];
 	Int						m_localSlotNum;
@@ -360,5 +367,33 @@ Bool VictoryConditions::isLocalDefeat( void )
 	return (m_localPlayerDefeated);
 }
 
+//-------------------------------------------------------------------------------------------------
+// TheSuperHackers @bugfix bobtista 02/02/2026 Serialize VictoryConditions state to prevent
+// re-triggering defeat events after checkpoint load.
+//-------------------------------------------------------------------------------------------------
+void VictoryConditions::crc( Xfer *xfer )
+{
+	// VictoryConditions state doesn't affect gameplay CRC
+}
 
+//-------------------------------------------------------------------------------------------------
+void VictoryConditions::xfer( Xfer *xfer )
+{
+	XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 
+	// Serialize the defeated state for each player
+	xfer->xferUser( m_isDefeated, sizeof(Bool) * MAX_PLAYER_COUNT );
+
+	// Serialize other state that needs to persist
+	xfer->xferBool( &m_localPlayerDefeated );
+	xfer->xferBool( &m_singleAllianceRemaining );
+	xfer->xferUnsignedInt( &m_endFrame );
+}
+
+//-------------------------------------------------------------------------------------------------
+void VictoryConditions::loadPostProcess( void )
+{
+	// Nothing needed - player pointers are re-cached by cachePlayerPtrs() after load
+}
