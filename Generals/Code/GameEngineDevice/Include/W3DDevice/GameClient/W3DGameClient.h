@@ -111,7 +111,7 @@ protected:
 	virtual VideoPlayerInterface *createVideoPlayer( void ) { return NEW BinkVideoPlayer; }
 	/// factory for creating the TerrainVisual
 	// TheSuperHackers @fix bobtista 31/01/2026 Return dummy in headless mode
-	virtual TerrainVisual *createTerrainVisual( void ) { return TheGlobalData->m_headless ? NEW TerrainVisualDummy : NEW W3DTerrainVisual; }
+	virtual TerrainVisual *createTerrainVisual( void ) { return TheGlobalData->m_headless ? static_cast<TerrainVisual*>(NEW TerrainVisualDummy) : NEW W3DTerrainVisual; }
 
 	virtual void setFrameRate(Real msecsPerFrame) { TheW3DFrameLengthInMsec = msecsPerFrame; }
 
