@@ -183,10 +183,10 @@ void CreditsManager::update( void )
 	if(m_isFinished)
 		return;
 
-	// TheSuperHackers @tweak bobtista Scroll timing uses frame delta time for frame-rate independence.
+	// TheSuperHackers @tweak bobtista Scroll timing is now decoupled from the render update.
 	// Accumulate fractional pixels and move when we have at least 1 whole pixel.
-	const Real scrollSpeedPixelsPerSec = static_cast<Real>(m_scrollRate) / (m_scrollRatePerFrames * SECONDS_PER_LOGICFRAME_REAL);
-	m_scrollAccumulator += TheFramePacer->getUpdateTime() * scrollSpeedPixelsPerSec;
+	const Real timeScale = TheFramePacer->getBaseOverUpdateFpsRatio();
+	m_scrollAccumulator += static_cast<Real>(m_scrollRate) / m_scrollRatePerFrames * timeScale;
 	const Int pixelsToMove = static_cast<Int>(m_scrollAccumulator);
 	if (pixelsToMove < 1)
 		return;
