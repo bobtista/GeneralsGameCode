@@ -24,6 +24,7 @@ class Intro
 	{
 		IntroState_Start,
 		IntroState_EALogoMovie,
+		IntroState_SizzleMovieWait,
 		IntroState_SizzleMovie,
 		IntroState_LegalPage,
 		IntroState_Done,
@@ -43,7 +44,9 @@ private:
 	void doSizzleMovie();
 	void doLegalPage();
 	void doPostIntro();
+	void doAsyncWait(UnsignedInt milliseconds);
 
 	IntroState m_currentState;
 	UnsignedInt m_allowedStateFlags;
+	UnsignedInt m_waitUntilMs;
 };
