@@ -44,6 +44,7 @@ class Drawable;
 class FontLibrary;
 class GameWindowManager;
 class InGameUI;
+class Intro;
 class Keyboard;
 class Mouse;
 class ParticleSystemManager;
@@ -178,6 +179,7 @@ protected:
 	CommandTranslator* m_commandTranslator;    ///< the command translator on the message stream
 
 private:
+	Intro* m_intro;
 	UnsignedInt m_renderedObjectCount;    ///< Keeps track of the number of rendered objects -- resets each frame.
 
 	//---------------------------------------------------------------------------
