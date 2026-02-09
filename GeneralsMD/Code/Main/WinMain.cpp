@@ -884,7 +884,9 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 			DX8Wrapper_IsWindowed = false;
 		}
 		else if (initializeAppWindows(hInstance, nCmdShow, TheGlobalData->m_windowed) == false)
+		{
 			return exitcode;
+		}
 
 		// save our application instance for future use
 		ApplicationHInstance = hInstance;
