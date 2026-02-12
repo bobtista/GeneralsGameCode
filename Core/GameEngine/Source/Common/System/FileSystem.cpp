@@ -482,14 +482,14 @@ Bool FileSystem::hasValidTransferFileContent(const AsciiString& filePath, const 
 	};
 
 	const char* lastDot = strrchr(filePath.str(), '.');
-	if (lastDot == NULL)
+	if (lastDot == nullptr)
 	{
 		DEBUG_LOG(("File '%s' has no extension for content validation.", filePath.str()));
 		return false;
 	}
 
 	// Find matching rule by extension
-	const TransferFileRule* matchedRule = NULL;
+	const TransferFileRule* matchedRule = nullptr;
 	for (Int i = 0; i < ARRAY_SIZE(transferFileRules); ++i)
 	{
 		if (stricmp(lastDot, transferFileRules[i].ext) == 0)
@@ -499,7 +499,7 @@ Bool FileSystem::hasValidTransferFileContent(const AsciiString& filePath, const 
 		}
 	}
 
-	if (matchedRule == NULL)
+	if (matchedRule == nullptr)
 	{
 		DEBUG_LOG(("File '%s' has unrecognized extension '%s' for content validation.", filePath.str(), lastDot));
 		return false;

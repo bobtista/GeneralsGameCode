@@ -743,7 +743,7 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 		if (deleteBuf)
 		{
 			delete[] buf;
-			buf = NULL;
+			buf = nullptr;
 		}
 #endif // COMPRESS_TARGAS
 		return;
