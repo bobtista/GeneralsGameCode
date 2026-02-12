@@ -31,6 +31,7 @@
 #include "Common/CRCDebug.h"
 #include "Common/Debug.h"
 #include "Common/file.h"
+#include "Common/FileSystem.h"
 #include "Common/GameAudio.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/Player.h"
@@ -734,6 +735,20 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 	}
 #endif // COMPRESS_TARGAS
 
+	// TheSuperHackers @security bobtista 12/02/2026 Validate file content in memory before writing to disk
+	if (!FileSystem::hasValidTransferFileContent(realFileName, buf, len))
+	{
+		DEBUG_LOG(("File '%s' failed content validation. Transfer aborted.", realFileName.str()));
+#ifdef COMPRESS_TARGAS
+		if (deleteBuf)
+		{
+			delete[] buf;
+			buf = NULL;
+		}
+#endif // COMPRESS_TARGAS
+		return;
+	}
+
 	File *fp = TheFileSystem->openFile(realFileName.str(), File::CREATE | File::BINARY | File::WRITE);
 	if (fp)
 	{
@@ -742,22 +757,6 @@ void ConnectionManager::processFile(NetFileCommandMsg *msg)
 		fp = NULL;
 		DEBUG_LOG(("Wrote %d bytes to file %s!", len, realFileName.str()));
 
-		// TheSuperHackers @security bobtista 06/11/2025 Validate file content after writing
-		if (!FileSystem::hasValidTransferFileContent(realFileName))
-		{
-			DEBUG_LOG(("File '%s' failed content validation, deleting. Transfer aborted.", realFileName.str()));
-			remove(realFileName.str());
-#ifdef COMPRESS_TARGAS
-			if (deleteBuf)
-			{
-				delete[] buf;
-				buf = NULL;
-			}
-#endif
-			// Transfer is silently aborted - file is deleted and no progress message is sent.
-			// The sender will timeout waiting for progress confirmation.
-			return;
-		}
 	}
 	else
 	{
