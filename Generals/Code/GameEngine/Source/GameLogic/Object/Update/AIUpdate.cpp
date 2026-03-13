@@ -504,6 +504,7 @@ void AIUpdateInterface::requestPath(Coord3D* destination, Bool isFinalGoal)
 		return;
 	}
 	m_waitingForPath = TRUE;
+#if RETAIL_COMPATIBLE_CRC
 	if (m_pathTimestamp > TheGameLogic->getFrame() - 3)
 	{
 		/* Requesting path very quickly.  Can cause a spin. */
@@ -522,6 +523,7 @@ void AIUpdateInterface::requestPath(Coord3D* destination, Bool isFinalGoal)
 		}
 		return;
 	}
+#endif
 	TheAI->pathfinder()->queueForPath(getObject()->getID());
 }
 
@@ -539,6 +541,7 @@ void AIUpdateInterface::requestAttackPath(ObjectID victimID, const Coord3D* vict
 	m_isApproachPath = FALSE;
 	m_isSafePath = FALSE;
 	m_waitingForPath = TRUE;
+#if RETAIL_COMPATIBLE_CRC
 	if (m_pathTimestamp > TheGameLogic->getFrame() - 3)
 	{
 		/* Requesting path very quickly.  Can cause a spin. */
@@ -546,6 +549,7 @@ void AIUpdateInterface::requestAttackPath(ObjectID victimID, const Coord3D* vict
 		setQueueForPathTime(2 * LOGICFRAMES_PER_SECOND);
 		return;
 	}
+#endif
 	TheAI->pathfinder()->queueForPath(getObject()->getID());
 }
 
@@ -564,6 +568,7 @@ void AIUpdateInterface::requestApproachPath(Coord3D* destination)
 	m_isApproachPath = TRUE;
 	m_isSafePath = FALSE;
 	m_waitingForPath = TRUE;
+#if RETAIL_COMPATIBLE_CRC
 	if (m_pathTimestamp > TheGameLogic->getFrame() - 3)
 	{
 		/* Requesting path very quickly.  Can cause a spin. */
@@ -571,6 +576,7 @@ void AIUpdateInterface::requestApproachPath(Coord3D* destination)
 		setQueueForPathTime(2 * LOGICFRAMES_PER_SECOND);
 		return;
 	}
+#endif
 	TheAI->pathfinder()->queueForPath(getObject()->getID());
 }
 
@@ -590,6 +596,7 @@ void AIUpdateInterface::requestSafePath(ObjectID repulsor)
 	m_isApproachPath = FALSE;
 	m_isSafePath = TRUE;
 	m_waitingForPath = TRUE;
+#if RETAIL_COMPATIBLE_CRC
 	if (m_pathTimestamp > TheGameLogic->getFrame() - 3)
 	{
 		/* Requesting path very quickly.  Can cause a spin. */
@@ -597,6 +604,7 @@ void AIUpdateInterface::requestSafePath(ObjectID repulsor)
 		setQueueForPathTime(2 * LOGICFRAMES_PER_SECOND);
 		return;
 	}
+#endif
 	TheAI->pathfinder()->queueForPath(getObject()->getID());
 }
 
