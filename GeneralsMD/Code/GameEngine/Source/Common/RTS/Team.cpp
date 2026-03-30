@@ -2653,6 +2653,7 @@ Bool Team::hasAnyBuildFacility() const
 void Team::updateGenericScripts()
 {
 	// USE_PERF_TIMER(updateGenericScripts)
+#if RETAIL_COMPATIBLE_SCRIPTING
 	for (Int i = 0; i < MAX_GENERIC_SCRIPTS; ++i)
 	{
 		if (!m_shouldAttemptGenericScript[i])
@@ -2682,6 +2683,36 @@ void Team::updateGenericScripts()
 			TheScriptEngine->AppendDebugMessage(msg, false);
 		}
 	}
+#else
+	for (Int i = 0; i < MAX_GENERIC_SCRIPTS; ++i)
+	{
+		Script* script = m_proto->getGenericScript(i);
+		if (!script)
+		{
+			continue;
+		}
+
+		if (!script->isActive())
+		{
+			continue;
+		}
+
+		if (TheScriptEngine->evaluateConditions(script, this))
+		{
+			// It was successful.
+			if (script->isOneShot())
+			{
+				script->setActive(false);
+			}
+			TheScriptEngine->friend_executeAction(script->getAction(), this);
+			AsciiString msg = "Generic script '";
+			msg.concat(script->getName());
+			msg.concat("' run on team ");
+			msg.concat(getName());
+			TheScriptEngine->AppendDebugMessage(msg, false);
+		}
+	}
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -2800,8 +2831,18 @@ void Team::xfer(Xfer* xfer)
 		throw SC_INVALID_DATA;
 	}
 
+#if RETAIL_COMPATIBLE_SCRIPTING
 	for (Int i = 0; i < shouldAttemptGenericScriptCount; ++i)
 		xfer->xferBool(&m_shouldAttemptGenericScript[i]);
+#else
+	// TheSuperHackers @info Generic scripts can now be toggled so we need to directly check each scripts active state
+	for (Int i = 0; i < shouldAttemptGenericScriptCount; ++i)
+	{
+		Script* script = m_proto->getGenericScript(i);
+		Bool scriptActive = script ? script->isActive() : false;
+		xfer->xferBool(&scriptActive);
+	}
+#endif
 
 	// recruitability set
 	xfer->xferBool(&m_isRecruitablitySet);
