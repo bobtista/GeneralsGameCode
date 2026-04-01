@@ -57,6 +57,7 @@
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/scene.h"
 #include "GameLogic/TerrainLogic.h"
+
 #include "GameLogic/Object.h"
 #include "GameClient/Drawable.h"
 
