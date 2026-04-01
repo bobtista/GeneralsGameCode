@@ -7059,10 +7059,9 @@ void ScriptEngine::enableScript(ScriptAction* pAction)
 	if (m_callingTeam)
 	{
 		const AsciiString& scriptName = pAction->getParameter(0)->getString();
-		TeamPrototype* teamProto = const_cast<TeamPrototype*>(m_callingTeam->getPrototype());
 		for (Int i = 0; i < MAX_GENERIC_SCRIPTS; ++i)
 		{
-			Script* script = teamProto->getGenericScript(i);
+			Script* script = m_callingTeam->getGenericScript(i);
 			if (script && script->getName() == scriptName)
 			{
 				script->setActive(true);
@@ -7094,10 +7093,9 @@ void ScriptEngine::disableScript(ScriptAction* pAction)
 	if (m_callingTeam)
 	{
 		const AsciiString& scriptName = pAction->getParameter(0)->getString();
-		TeamPrototype* teamProto = const_cast<TeamPrototype*>(m_callingTeam->getPrototype());
 		for (Int i = 0; i < MAX_GENERIC_SCRIPTS; ++i)
 		{
-			Script* script = teamProto->getGenericScript(i);
+			Script* script = m_callingTeam->getGenericScript(i);
 			if (script && script->getName() == scriptName)
 			{
 				script->setActive(false);
