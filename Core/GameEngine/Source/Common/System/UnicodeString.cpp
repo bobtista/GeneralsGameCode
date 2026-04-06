@@ -45,6 +45,7 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 #include "Common/CriticalSection.h"
+#include "utf8.h"
 
 
 // -----------------------------------------------------
@@ -88,8 +89,8 @@ void UnicodeString::ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveDa
 			// TheSuperHackers @fix Mauller 04/04/2025 Replace wcscpy with safer memmove as memory regions can overlap when part of string is copied to itself
 			DEBUG_ASSERTCRASH(usableNumChars <= wcslen(strToCopy), ("strToCopy is too small"));
 			memmove(m_data->peek(), strToCopy, usableNumChars * sizeof(WideChar));
-			m_data->peek()[usableNumChars] = 0;
 		}
+		m_data->peek()[usableNumChars] = 0;
 		if (strToCat)
 			wcscat(m_data->peek(), strToCat);
 		return;
@@ -117,8 +118,8 @@ void UnicodeString::ensureUniqueBufferOfSize(int numCharsNeeded, Bool preserveDa
 	{
 		DEBUG_ASSERTCRASH(usableNumChars <= wcslen(strToCopy), ("strToCopy is too small"));
 		wcsncpy(newData->peek(), strToCopy, usableNumChars);
-		newData->peek()[usableNumChars] = 0;
 	}
+	newData->peek()[usableNumChars] = 0;
 	if (strToCat)
 		wcscat(newData->peek(), strToCat);
 
@@ -221,11 +222,19 @@ WideChar* UnicodeString::getBufferForRead(Int len)
 void UnicodeString::translate(const AsciiString& stringSrc)
 {
 	validate();
-	/// @todo srj put in a real translation here; this will only work for 7-bit ascii
-	clear();
-	Int len = stringSrc.getLength();
-	for (Int i = 0; i < len; i++)
-		concat((WideChar)stringSrc.getCharAt(i));
+	// TheSuperHackers @fix bobtista 02/04/2026 Implement UTF-8 conversion replacing 7-bit ASCII only implementation
+	const char* src = stringSrc.str();
+	size_t srcLen = strlen(src);
+	size_t size = Get_Unicode_Size(src, srcLen);
+	if (size == 0)
+	{
+		clear();
+		return;
+	}
+	ensureUniqueBufferOfSize((Int)size + 1, false, nullptr, nullptr);
+	WideChar* buf = peek();
+	if (!Utf8_To_Unicode(buf, src, srcLen, size))
+		clear();
 	validate();
 }
 

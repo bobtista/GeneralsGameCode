@@ -28,18 +28,24 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#include "utf8.h"
+
 //-------------------------------------------------------------------------
 
+// TheSuperHackers @refactor bobtista 02/04/2026 Use WWLib UTF-8 functions instead of raw Win32 API calls
 std::wstring MultiByteToWideCharSingleLine( const char *orig )
 {
-	Int len = strlen(orig);
-	WideChar *dest = NEW WideChar[len+1];
-
-	MultiByteToWideChar(CP_UTF8, 0, orig, -1, dest, len);
+	size_t srcLen = strlen(orig);
+	size_t size = Get_Unicode_Size(orig, srcLen);
+	if (size == 0)
+		return std::wstring();
+	std::wstring ret;
+	ret.resize(size);
+	Utf8_To_Unicode(&ret[0], orig, srcLen, size);
 	WideChar *c = nullptr;
 	do
 	{
-		c = wcschr(dest, L'\n');
+		c = wcschr(&ret[0], L'\n');
 		if (c)
 		{
 			*c = L' ';
@@ -48,7 +54,7 @@ std::wstring MultiByteToWideCharSingleLine( const char *orig )
 	while ( c != nullptr );
 	do
 	{
-		c = wcschr(dest, L'\r');
+		c = wcschr(&ret[0], L'\r');
 		if (c)
 		{
 			*c = L' ';
@@ -56,24 +62,18 @@ std::wstring MultiByteToWideCharSingleLine( const char *orig )
 	}
 	while ( c != nullptr );
 
-	dest[len] = 0;
-	std::wstring ret = dest;
-	delete[] dest;
 	return ret;
 }
 
 std::string WideCharStringToMultiByte( const WideChar *orig )
 {
+	size_t srcLen = wcslen(orig);
+	size_t size = Get_Utf8_Size(orig, srcLen);
+	if (size == 0)
+		return std::string();
 	std::string ret;
-	Int len = WideCharToMultiByte( CP_UTF8, 0, orig, wcslen(orig), nullptr, 0, nullptr, nullptr ) + 1;
-	if (len > 0)
-	{
-		char *dest = NEW char[len];
-		WideCharToMultiByte( CP_UTF8, 0, orig, -1, dest, len, nullptr, nullptr );
-		dest[len-1] = 0;
-		ret = dest;
-		delete[] dest;
-	}
+	ret.resize(size);
+	Unicode_To_Utf8(&ret[0], orig, srcLen, size);
 	return ret;
 }
 
