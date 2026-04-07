@@ -97,36 +97,46 @@ bool Utf8_Validate(const char* str, size_t length)
 	return true;
 }
 
-size_t Get_Utf8_Size(const wchar_t* src, size_t srcLen)
+size_t Get_Utf8_Len(const wchar_t* src, size_t srcLen)
 {
 	int bytes = WideCharToMultiByte(CP_UTF8, 0, src, (int)srcLen, nullptr, 0, nullptr, nullptr);
 	return (bytes > 0) ? (size_t)bytes : 0;
 }
 
-size_t Get_Unicode_Size(const char* src, size_t srcLen)
+size_t Get_Unicode_Len(const char* src, size_t srcLen)
 {
 	int wchars = MultiByteToWideChar(CP_UTF8, 0, src, (int)srcLen, nullptr, 0);
 	return (wchars > 0) ? (size_t)wchars : 0;
 }
 
-bool Unicode_To_Utf8(char* dest, const wchar_t* src, size_t srcLen, size_t destSize)
+size_t Unicode_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen)
 {
-	if (destSize == 0)
-		return false;
-	int result = WideCharToMultiByte(CP_UTF8, 0, src, (int)srcLen, dest, (int)destSize, nullptr, nullptr);
-	if (result == 0)
+	if (destLen == 0)
+		return 0;
+	int written = WideCharToMultiByte(CP_UTF8, 0, src, (int)srcLen, dest, (int)destLen, nullptr, nullptr);
+	if (written == 0)
+	{
 		dest[0] = '\0';
-	return result != 0;
+		return 0;
+	}
+	if ((size_t)written < destLen)
+		dest[written] = '\0';
+	return (size_t)written;
 }
 
-bool Utf8_To_Unicode(wchar_t* dest, const char* src, size_t srcLen, size_t destSize)
+size_t Utf8_To_Unicode(wchar_t* dest, size_t destLen, const char* src, size_t srcLen)
 {
-	if (destSize == 0)
-		return false;
-	int result = MultiByteToWideChar(CP_UTF8, 0, src, (int)srcLen, dest, (int)destSize);
-	if (result == 0)
+	if (destLen == 0)
+		return 0;
+	int written = MultiByteToWideChar(CP_UTF8, 0, src, (int)srcLen, dest, (int)destLen);
+	if (written == 0)
+	{
 		dest[0] = L'\0';
-	return result != 0;
+		return 0;
+	}
+	if ((size_t)written < destLen)
+		dest[written] = L'\0';
+	return (size_t)written;
 }
 
 #else

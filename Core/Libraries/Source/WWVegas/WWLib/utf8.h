@@ -33,22 +33,25 @@ size_t Utf8_Trailing_Invalid_Bytes(const char* str, size_t length);
 bool Utf8_Validate(const char* str);
 bool Utf8_Validate(const char* str, size_t length);
 
-// Returns the number of bytes in the UTF-8 representation of srcLen wide characters
-// from src. Returns 0 on failure or if srcLen is 0.
-size_t Get_Utf8_Size(const wchar_t* src, size_t srcLen);
+// Returns the number of bytes needed for the UTF-8 representation of srcLen wide
+// characters from src, not counting a null terminator. Returns 0 on failure or if srcLen is 0.
+size_t Get_Utf8_Len(const wchar_t* src, size_t srcLen);
 
-// Returns the number of wchar_t elements in the wide character representation of
-// srcLen bytes from the UTF-8 string src. Returns 0 on failure or if srcLen is 0.
-size_t Get_Unicode_Size(const char* src, size_t srcLen);
+// Returns the number of wchar_t elements needed for the wide character representation
+// of srcLen bytes from the UTF-8 string src, not counting a null terminator.
+// Returns 0 on failure or if srcLen is 0.
+size_t Get_Unicode_Len(const char* src, size_t srcLen);
 
-// Converts srcLen wide characters from src to UTF-8. destSize is in bytes.
-// Does not write a null terminator. Caller must allocate destSize + 1 and
-// write the terminator if one is needed. Returns true on success, false on failure.
-// On failure, dest[0] is set to '\0'.
-bool Unicode_To_Utf8(char* dest, const wchar_t* src, size_t srcLen, size_t destSize);
+// Converts srcLen wide characters from src to UTF-8.
+// destLen is the destination buffer capacity in bytes, not counting a null terminator.
+// Returns the number of bytes written on success, or 0 on failure.
+// Writes a null terminator if destLen > bytes written. Does not write one if destLen
+// equals bytes written (exact fit). On failure, dest[0] is set to '\0' if destLen > 0.
+size_t Unicode_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen);
 
-// Converts srcLen bytes from the UTF-8 string src to wide characters. destSize is in wchar_t elements.
-// Does not write a null terminator. Caller must allocate destSize + 1 and
-// write the terminator if one is needed. Returns true on success, false on failure.
-// On failure, dest[0] is set to L'\0'.
-bool Utf8_To_Unicode(wchar_t* dest, const char* src, size_t srcLen, size_t destSize);
+// Converts srcLen bytes from the UTF-8 string src to wide characters.
+// destLen is the destination buffer capacity in wchar_t elements, not counting a null terminator.
+// Returns the number of wchar_t elements written on success, or 0 on failure.
+// Writes a null terminator if destLen > elements written. Does not write one if destLen
+// equals elements written (exact fit). On failure, dest[0] is set to L'\0' if destLen > 0.
+size_t Utf8_To_Unicode(wchar_t* dest, size_t destLen, const char* src, size_t srcLen);
