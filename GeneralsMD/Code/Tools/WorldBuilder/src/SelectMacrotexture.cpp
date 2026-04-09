@@ -108,12 +108,12 @@ BOOL SelectMacrotexture::OnInitDialog()
 			ins.item.cchTextMax = strlen(defaultText);
 			child = m_textureTreeView.InsertItem(&ins);
 
- 		}
+		}
 	}
 
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 BOOL SelectMacrotexture::OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult)

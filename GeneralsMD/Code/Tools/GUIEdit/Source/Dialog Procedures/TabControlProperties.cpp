@@ -93,9 +93,9 @@ static void GadgetTabControlUpdatePaneNames( GameWindow *tabControl )
 /** Dialog callback for properties */
 //=============================================================================
 static LRESULT CALLBACK tabControlPropertiesCallback( HWND hWndDialog,
-																											 UINT message,
-																											 WPARAM wParam,
-																											 LPARAM lParam )
+	UINT message,
+	WPARAM wParam,
+	LPARAM lParam )
 {
 	Int returnCode;
 
@@ -112,17 +112,17 @@ static LRESULT CALLBACK tabControlPropertiesCallback( HWND hWndDialog,
 	{
 
 		// ------------------------------------------------------------------------
-    case WM_COMMAND:
-    {
+		case WM_COMMAND:
+		{
 //			Int notifyCode = HIWORD( wParam );  // notification code
 			Int controlID = LOWORD( wParam );  // control ID
 //			HWND hWndControl = (HWND)lParam;  // control window handle
 
-      switch( controlID )
-      {
+			switch( controlID )
+			{
 
 				// --------------------------------------------------------------------
-        case IDOK:
+				case IDOK:
 				{
 					GameWindow *tabControl = TheEditor->getPropertyTarget();
 
@@ -344,32 +344,32 @@ static LRESULT CALLBACK tabControlPropertiesCallback( HWND hWndDialog,
 
 					}
 
-          DestroyWindow( hWndDialog );
-          break;
+					DestroyWindow( hWndDialog );
+					break;
 
 				}
 
 				// --------------------------------------------------------------------
-        case IDCANCEL:
+				case IDCANCEL:
 				{
 
-          DestroyWindow( hWndDialog );
-          break;
+					DestroyWindow( hWndDialog );
+					break;
 
 				}
 
-      }
+			}
 
-      return 0;
+			return 0;
 
-    }
+		}
 
 		// ------------------------------------------------------------------------
-    case WM_CLOSE:
+		case WM_CLOSE:
 		{
 
-      DestroyWindow( hWndDialog );
-      return 0;
+			DestroyWindow( hWndDialog );
+			return 0;
 
 		}
 
@@ -377,7 +377,7 @@ static LRESULT CALLBACK tabControlPropertiesCallback( HWND hWndDialog,
 		default:
 			return 0;
 
-  }
+	}
 
 }
 
@@ -395,9 +395,9 @@ HWND InitTabControlPropertiesDialog( GameWindow *tabControl )
 
 	// create the dialog box
 	dialog = CreateDialog( TheEditor->getInstance(),
-												 (LPCTSTR)TAB_CONTROL_PROPERTIES_DIALOG,
-												 TheEditor->getWindowHandle(),
-												 (DLGPROC)tabControlPropertiesCallback );
+		(LPCTSTR)TAB_CONTROL_PROPERTIES_DIALOG,
+		TheEditor->getWindowHandle(),
+		(DLGPROC)tabControlPropertiesCallback );
 	if( dialog == nullptr )
 		return nullptr;
 

@@ -151,7 +151,7 @@ DrawObject::DrawObject(void) :
 	m_indexWater(nullptr),
 	m_moldMesh(nullptr),
 	m_lineRenderer(nullptr),
-  m_drawSoundRanges(false)
+	m_drawSoundRanges(false)
 {
 	m_feedbackPoint.x = 20;
 	m_feedbackPoint.y = 20;
@@ -298,7 +298,7 @@ void DrawObject::updateMeshVB(void)
 		m_curMeshModelName = MeshMoldOptions::getModelName();
 	}
 	if (m_moldMesh == nullptr) {
- 		WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
+		WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
 		pMgr->Set_WW3D_Load_On_Demand(false);	 // We don't want it fishing for these assets in the game assets.
 		m_moldMesh = (MeshClass*)pMgr->Create_Render_Obj(m_curMeshModelName.str());
 		if (m_moldMesh == nullptr) {
@@ -475,7 +475,7 @@ void DrawObject::updateRampVB(void)
 */
 	Coord3D coordBL, coordTL, coordBR, coordTR;
 	BuildRectFromSegmentAndWidth(&m_rampStartPoint, &m_rampEndPoint, m_rampWidth,
-															 &coordBL, &coordTL, &coordBR, &coordTR);
+		&coordBL, &coordTL, &coordBR, &coordTR);
 
 	Vector3 bl(coordBL.x, coordBL.y, coordBL.z);
 	Vector3 tl(coordTL.x, coordTL.y, coordTL.z);
@@ -490,13 +490,13 @@ void DrawObject::updateRampVB(void)
 
 		Vector3 vLoc;
 		vLoc.X = (br.X - bl.X) * INT_TO_REAL(i % widthVerts) / (widthVerts  - 1) +
-						 (tl.X - bl.X) * INT_TO_REAL(i / lengthVerts) / (lengthVerts - 1) + bl.X;
+			(tl.X - bl.X) * INT_TO_REAL(i / lengthVerts) / (lengthVerts - 1) + bl.X;
 
 		vLoc.Y = (br.Y - bl.Y) * INT_TO_REAL(i % widthVerts) / (widthVerts - 1) +
-						 (tl.Y - bl.Y) * INT_TO_REAL(i / lengthVerts) / (lengthVerts - 1) + bl.Y;
+			(tl.Y - bl.Y) * INT_TO_REAL(i / lengthVerts) / (lengthVerts - 1) + bl.Y;
 
 		vLoc.Z = (br.Z - bl.Z) * INT_TO_REAL(i % widthVerts) / (widthVerts - 1) +
-						 (tl.Z - bl.Z) * INT_TO_REAL(i / lengthVerts) / (lengthVerts - 1) + bl.Z;
+			(tl.Z - bl.Z) * INT_TO_REAL(i / lengthVerts) / (lengthVerts - 1) + bl.Z;
 
 		curVb->x = vLoc.X;
 		curVb->y = vLoc.Y;
@@ -573,7 +573,7 @@ void DrawObject::updateBoundaryVB(void)
 	VertexFormatXYZDUV1 *vb = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	VertexFormatXYZDUV1 *curVb = vb;
 
- 	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();
+	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();
 	Int numBoundaries = pDoc->getNumBoundaries();
 
 	Int i, j;
@@ -859,13 +859,13 @@ void DrawObject::updateWaypointVB(void)
 	VertexFormatXYZDUV1 *vb = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	VertexFormatXYZDUV1 *curVb = vb;
 
- 	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();
+	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();
 	Int i;
 	for (i = 0; i<=pDoc->getNumWaypointLinks(); i++) {
 		Bool gotLocation=false;
 		Coord3D loc1;
 		Coord3D loc2;
- 		Bool exists;
+		Bool exists;
 		Int waypointID1, waypointID2;
 
 		Int k;
@@ -1273,10 +1273,10 @@ void DrawObject::updateFeedbackVB(void)
 				if (i<halfWidth && j<halfWidth) flipForBlend = true;
 				if (flipForBlend) {
 					*curIb++ = j*yOffset + i+1;
- 					*curIb++ = j*yOffset + i+yOffset;
+					*curIb++ = j*yOffset + i+yOffset;
 					*curIb++ = j*yOffset + i;
- 					*curIb++ = j*yOffset + i+1;
- 					*curIb++ = j*yOffset + i+1+yOffset;
+					*curIb++ = j*yOffset + i+1;
+					*curIb++ = j*yOffset + i+1+yOffset;
 					*curIb++ = j*yOffset + i+yOffset;
 				} else {
 					*curIb++ = j*yOffset + i;
@@ -1721,32 +1721,32 @@ void DrawObject::updateVBWithBoundingBox(MapObject *pMapObj, CameraClass* camera
 /** Draw a "circle" into the m_lineRenderer, e.g. to visualize weapon range, sight range, sound range **/
 void DrawObject::addCircleToLineRenderer( const Coord3D & center, Real radius, Real width, unsigned long color, CameraClass* camera )
 {
-  Real angle, inc = PI/4.0f;
-  Coord3D pnt, lastPnt;
-  ICoord2D start, end;
-  Real z = center.z;
+	Real angle, inc = PI/4.0f;
+	Coord3D pnt, lastPnt;
+	ICoord2D start, end;
+	Real z = center.z;
 
-  // Draw the circle.
-  angle = 0.0f;
-  lastPnt.x = center.x + radius * (Real)cos(angle);
-  lastPnt.y = center.y + radius * (Real)sin(angle);
-  lastPnt.z = z;
-  bool shouldEnd = worldToScreen(&lastPnt, &end, camera);
+	// Draw the circle.
+	angle = 0.0f;
+	lastPnt.x = center.x + radius * (Real)cos(angle);
+	lastPnt.y = center.y + radius * (Real)sin(angle);
+	lastPnt.z = z;
+	bool shouldEnd = worldToScreen(&lastPnt, &end, camera);
 
-  for( angle = inc; angle <= 2.0f * PI; angle += inc ) {
-    pnt.x = center.x + radius * (Real)cos(angle);
-    pnt.y = center.y + radius * (Real)sin(angle);
-    pnt.z = z;
+	for( angle = inc; angle <= 2.0f * PI; angle += inc ) {
+		pnt.x = center.x + radius * (Real)cos(angle);
+		pnt.y = center.y + radius * (Real)sin(angle);
+		pnt.z = z;
 
-    bool shouldStart = worldToScreen(&pnt, &start, camera);
-    if (shouldStart && shouldEnd) {
-      m_lineRenderer->Add_Line(Vector2(start.x, start.y), Vector2(end.x, end.y), width, color);
-    }
+		bool shouldStart = worldToScreen(&pnt, &start, camera);
+		if (shouldStart && shouldEnd) {
+			m_lineRenderer->Add_Line(Vector2(start.x, start.y), Vector2(end.x, end.y), width, color);
+		}
 
-    lastPnt = pnt;
-    end = start;
-    shouldEnd = shouldStart;
-  }
+		lastPnt = pnt;
+		end = start;
+		shouldEnd = shouldStart;
+	}
 
 }
 
@@ -1769,7 +1769,7 @@ void DrawObject::updateVBWithSightRange(MapObject *pMapObj, CameraClass* camera)
 		pos.z += TheTerrainRenderObject->getHeightMapHeight(pos.x, pos.y, nullptr);
 	}
 
-  addCircleToLineRenderer(pos, radius, SIGHT_RANGE_LINE_WIDTH, color, camera );
+	addCircleToLineRenderer(pos, radius, SIGHT_RANGE_LINE_WIDTH, color, camera );
 }
 
 #define WEAPON_RANGE_LINE_WIDTH 1.0f
@@ -1781,7 +1781,7 @@ void DrawObject::updateVBWithWeaponRange(MapObject *pMapObj, CameraClass* camera
 		return;
 	}
 
-  const unsigned long colors[WEAPONSLOT_COUNT] = {0xFF00FF00, 0xFFE0F00A, 0xFFFF0000}; // Green, Yellow, Red
+	const unsigned long colors[WEAPONSLOT_COUNT] = {0xFF00FF00, 0xFFE0F00A, 0xFFFF0000}; // Green, Yellow, Red
 
 
 	Coord3D pos = *pMapObj->getLocation();
@@ -1806,7 +1806,7 @@ void DrawObject::updateVBWithWeaponRange(MapObject *pMapObj, CameraClass* camera
 
 			Real radius = tmpl->getUnmodifiedAttackRange();
 
-      addCircleToLineRenderer(pos, radius, WEAPON_RANGE_LINE_WIDTH, colors[i], camera );
+			addCircleToLineRenderer(pos, radius, WEAPON_RANGE_LINE_WIDTH, colors[i], camera );
 		}
 	}
 }
@@ -1816,122 +1816,122 @@ void DrawObject::updateVBWithWeaponRange(MapObject *pMapObj, CameraClass* camera
 // MLL C&C3
 void DrawObject::updateVBWithSoundRanges(MapObject *pMapObj, CameraClass* camera)
 {
-  if (!pMapObj || !m_lineRenderer) {
-    return;
-  }
+	if (!pMapObj || !m_lineRenderer) {
+		return;
+	}
 
-  const unsigned long colors[2] = {0xFF0000FF, 0xFFFF00FF}; // Blue and purple
-                                                            // Colors match those used in W3DView.cpp
+	const unsigned long colors[2] = {0xFF0000FF, 0xFFFF00FF}; // Blue and purple
+	// Colors match those used in W3DView.cpp
 
 
-  Coord3D pos = *pMapObj->getLocation();
-  if (TheTerrainRenderObject) {
-    // Make sure that the position is on the terrain.
-    pos.z += TheTerrainRenderObject->getHeightMapHeight(pos.x, pos.y, nullptr);
-  }
+	Coord3D pos = *pMapObj->getLocation();
+	if (TheTerrainRenderObject) {
+		// Make sure that the position is on the terrain.
+		pos.z += TheTerrainRenderObject->getHeightMapHeight(pos.x, pos.y, nullptr);
+	}
 
-  // Does this object actually have an attached sound?
-  const AudioEventInfo * audioInfo = nullptr;
+	// Does this object actually have an attached sound?
+	const AudioEventInfo * audioInfo = nullptr;
 
-  Dict * properties = pMapObj->getProperties();
+	Dict * properties = pMapObj->getProperties();
 
-  Bool exists = false;
-  AsciiString ambientName = properties->getAsciiString( TheKey_objectSoundAmbient, &exists );
+	Bool exists = false;
+	AsciiString ambientName = properties->getAsciiString( TheKey_objectSoundAmbient, &exists );
 
-  if ( exists )
-  {
-    if ( ambientName.isEmpty() )
-    {
-      // User has removed normal sound
-      return;
-    }
-    else
-    {
-      if ( TheAudio == nullptr )
-      {
-        DEBUG_CRASH( ("TheAudio is null! Can't draw sound circles") );
-        return;
-      }
+	if ( exists )
+	{
+		if ( ambientName.isEmpty() )
+		{
+			// User has removed normal sound
+			return;
+		}
+		else
+		{
+			if ( TheAudio == nullptr )
+			{
+				DEBUG_CRASH( ("TheAudio is null! Can't draw sound circles") );
+				return;
+			}
 
-      audioInfo = TheAudio->findAudioEventInfo( ambientName );
+			audioInfo = TheAudio->findAudioEventInfo( ambientName );
 
-      if ( audioInfo == nullptr )
-      {
-        DEBUG_CRASH( ("Override audio named %s is missing; Can't draw sound circles", ambientName.str() ) );
-        return;
-      }
-    }
-  }
-  else
-  {
-    const ThingTemplate * thingTemplate = pMapObj->getThingTemplate();
-    if ( thingTemplate == nullptr )
-    {
-      // No sound if no template
-      return;
-    }
+			if ( audioInfo == nullptr )
+			{
+				DEBUG_CRASH( ("Override audio named %s is missing; Can't draw sound circles", ambientName.str() ) );
+				return;
+			}
+		}
+	}
+	else
+	{
+		const ThingTemplate * thingTemplate = pMapObj->getThingTemplate();
+		if ( thingTemplate == nullptr )
+		{
+			// No sound if no template
+			return;
+		}
 
-    if ( !thingTemplate->hasSoundAmbient() )
-    {
-      return;
-    }
+		if ( !thingTemplate->hasSoundAmbient() )
+		{
+			return;
+		}
 
-    const AudioEventRTS * event = thingTemplate->getSoundAmbient();
+		const AudioEventRTS * event = thingTemplate->getSoundAmbient();
 
-    if ( event == nullptr )
-    {
-      return;
-    }
+		if ( event == nullptr )
+		{
+			return;
+		}
 
-    audioInfo = event->getAudioEventInfo();
+		audioInfo = event->getAudioEventInfo();
 
-    if ( audioInfo == nullptr )
-    {
-      // May just not be set up yet
-      if ( TheAudio == nullptr )
-      {
-        DEBUG_CRASH( ("TheAudio is null! Can't draw sound circles") );
-        return;
-      }
+		if ( audioInfo == nullptr )
+		{
+			// May just not be set up yet
+			if ( TheAudio == nullptr )
+			{
+				DEBUG_CRASH( ("TheAudio is null! Can't draw sound circles") );
+				return;
+			}
 
-      audioInfo = TheAudio->findAudioEventInfo( event->getEventName() );
+			audioInfo = TheAudio->findAudioEventInfo( event->getEventName() );
 
-      if ( audioInfo == nullptr )
-      {
-        DEBUG_CRASH( ("Default ambient sound %s has no info; Can't draw sound circles", event->getEventName().str() ) );
-        return;
-      }
-    }
-  }
+			if ( audioInfo == nullptr )
+			{
+				DEBUG_CRASH( ("Default ambient sound %s has no info; Can't draw sound circles", event->getEventName().str() ) );
+				return;
+			}
+		}
+	}
 
-  // Should have set up audioInfo or returned by now
-  DEBUG_ASSERTCRASH( audioInfo != nullptr, ("Managed to finish setting up audio info without setting it?!?" ) );
-  if ( audioInfo == nullptr )
-  {
-    return;
-  }
+	// Should have set up audioInfo or returned by now
+	DEBUG_ASSERTCRASH( audioInfo != nullptr, ("Managed to finish setting up audio info without setting it?!?" ) );
+	if ( audioInfo == nullptr )
+	{
+		return;
+	}
 
-  // Get the current radius (could be overridden)
-  Real minRadius = audioInfo->m_minDistance;
-  Real maxRadius = audioInfo->m_maxDistance;
-  Bool customized = properties->getBool( TheKey_objectSoundAmbientCustomized, &exists );
-  if ( exists && customized )
-  {
-    Real valReal;
+	// Get the current radius (could be overridden)
+	Real minRadius = audioInfo->m_minDistance;
+	Real maxRadius = audioInfo->m_maxDistance;
+	Bool customized = properties->getBool( TheKey_objectSoundAmbientCustomized, &exists );
+	if ( exists && customized )
+	{
+		Real valReal;
 
-    valReal = properties->getReal( TheKey_objectSoundAmbientMinRange, &exists );
-    if ( exists )
-    {
-      minRadius = valReal;
-    }
-    valReal = properties->getReal( TheKey_objectSoundAmbientMaxRange, &exists );
-    if ( exists )
-    {
-      maxRadius = valReal;
-    }
-  }
-  addCircleToLineRenderer(pos, minRadius, SOUND_RANGE_LINE_WIDTH, colors[0], camera );
-  addCircleToLineRenderer(pos, maxRadius, SOUND_RANGE_LINE_WIDTH, colors[1], camera );
+		valReal = properties->getReal( TheKey_objectSoundAmbientMinRange, &exists );
+		if ( exists )
+		{
+			minRadius = valReal;
+		}
+		valReal = properties->getReal( TheKey_objectSoundAmbientMaxRange, &exists );
+		if ( exists )
+		{
+			maxRadius = valReal;
+		}
+	}
+	addCircleToLineRenderer(pos, minRadius, SOUND_RANGE_LINE_WIDTH, colors[0], camera );
+	addCircleToLineRenderer(pos, maxRadius, SOUND_RANGE_LINE_WIDTH, colors[1], camera );
 }
 
 
@@ -2095,7 +2095,7 @@ if (_skip_drawobject_render) {
 	}
 	m_waterDrawObject->update();
 	DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferTile1);
-  if (m_drawObjects || m_drawWaypoints || m_drawBoundingBoxes || m_drawSightRanges || m_drawWeaponRanges || m_drawSoundRanges || m_drawTestArtHighlight) {
+	if (m_drawObjects || m_drawWaypoints || m_drawBoundingBoxes || m_drawSightRanges || m_drawWeaponRanges || m_drawSoundRanges || m_drawTestArtHighlight) {
 		//Apply the shader and material
 
 		//WST Variables below are for optimization to reduce VB updates which are extremely slow
@@ -2112,7 +2112,7 @@ if (_skip_drawobject_render) {
 
 // DEBUG!
 if (pMapObj->isSelected()) {
- Transform.Get_Translation();
+				Transform.Get_Translation();
 }
 			Coord3D loc = *pMapObj->getLocation();
 			if (TheTerrainRenderObject) {
@@ -2149,10 +2149,10 @@ if (pMapObj->isSelected()) {
 						linesToRender = true;
 						updateVBWithWeaponRange(pMapObj, &rinfo.Camera);
 					}
-          if (doArrow && m_drawSoundRanges) {
-            linesToRender = true;
-            updateVBWithSoundRanges(pMapObj, &rinfo.Camera);
-          }
+					if (doArrow && m_drawSoundRanges) {
+						linesToRender = true;
+						updateVBWithSoundRanges(pMapObj, &rinfo.Camera);
+					}
 				}
 
 				if (doArrow && m_drawTestArtHighlight) {
@@ -2227,7 +2227,7 @@ if (pMapObj->isSelected()) {
 		}
 	}
 	if (m_drawPolygonAreas) {
- 		DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
+		DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
 		Int selected;
 		for (selected = 0; selected < 2; selected++) {
 			for (PolygonTrigger *pTrig=PolygonTrigger::getFirstPolygonTrigger(); pTrig; pTrig = pTrig->getNext()) {
@@ -2281,7 +2281,7 @@ if (pMapObj->isSelected()) {
 				DX8Wrapper::Set_Transform(D3DTS_WORLD,tmReset);
 				DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferTile1);
 				updatePolygonVB(pTrig, polySelected, polySelected && PolygonTool::isSelectedOpen());
- 				DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+				DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 				if (m_feedbackIndexCount>0) {
 					DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 					DX8Wrapper::Draw_Triangles(	0, m_feedbackIndexCount/3, 0,	m_feedbackVertexCount);
@@ -2292,7 +2292,7 @@ if (pMapObj->isSelected()) {
 	}
 
 
- 	if (BuildListTool::isActive()) for (i=0; i<TheSidesList->getNumSides(); i++) {
+	if (BuildListTool::isActive()) for (i=0; i<TheSidesList->getNumSides(); i++) {
 		SidesInfo *pSide = TheSidesList->getSideInfo(i);
 		for (BuildListInfo *pBuild = pSide->getBuildList(); pBuild; pBuild = pBuild->getNext()) {
 			Coord3D loc = *pBuild->getLocation();
@@ -2338,19 +2338,19 @@ if (pMapObj->isSelected()) {
 	}
 
 	DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
- 	DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
+	DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
 	Matrix3D tmReset(Transform);
 	DX8Wrapper::Set_Transform(D3DTS_WORLD,tmReset);
 
 	if (m_drawWaypoints) {
 		updateWaypointVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(m_shaderClass);
 			DX8Wrapper::Draw_Triangles(	0, m_feedbackIndexCount/3, 0,	m_feedbackVertexCount);
 			DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
 		}
 	}
 
@@ -2360,7 +2360,7 @@ if (pMapObj->isSelected()) {
 	if (m_meshFeedback) {
 		updateMeshVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(SC_OPAQUE_Z);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
@@ -2369,7 +2369,7 @@ if (pMapObj->isSelected()) {
 	} else if (m_toolWantsFeedback && !m_disableFeedback) {
 		updateFeedbackVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(ShaderClass::_PresetAlpha2DShader);
 			DX8Wrapper::Draw_Triangles(	0, m_feedbackIndexCount/3, 0,	m_feedbackVertexCount);
@@ -2381,7 +2381,7 @@ if (pMapObj->isSelected()) {
 	if (m_rampFeedback) {
 		updateRampVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(SC_OPAQUE_Z);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);	// we want a solid ramp
@@ -2395,7 +2395,7 @@ if (pMapObj->isSelected()) {
 	if (m_boundaryFeedback) {
 		updateBoundaryVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(m_shaderClass);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, D3DCULL_NONE);
@@ -2413,7 +2413,7 @@ if (pMapObj->isSelected()) {
 	if (m_ambientSoundFeedback) {
 		updateAmbientSoundVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(m_shaderClass);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, D3DCULL_NONE);
@@ -2423,8 +2423,8 @@ if (pMapObj->isSelected()) {
 		}
 	}
 
-  DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
- 	DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
+	DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
+	DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
 
 	if (m_waterDrawObject) {
 		m_waterDrawObject->renderWater();

@@ -63,13 +63,13 @@ protected:
 
 	static Bool					m_snapToGrid;
 
- 	Bool					m_showObjects;			  ///< Flag whether object icons are drawn in the 2d and 3d view.
- 	Bool					m_showModels;					///< Flag whether models are drawn in the 2d and 3d view.
- 	Bool					m_showNames;					///< Flag whether names are drawn in the 2d and 3d view.
+	Bool					m_showObjects;			  ///< Flag whether object icons are drawn in the 2d and 3d view.
+	Bool					m_showModels;					///< Flag whether models are drawn in the 2d and 3d view.
+	Bool					m_showNames;					///< Flag whether names are drawn in the 2d and 3d view.
 	Bool					m_showGarrisoned;
 	Bool					m_showWaypoints;
 	Bool					m_showPolygonTriggers;
- 	Bool					m_showTerrain;			  ///< Flag whether terrain is rendered or not. (Useful for debugging)
+	Bool					m_showTerrain;			  ///< Flag whether terrain is rendered or not. (Useful for debugging)
 
 	Real					m_hysteresis;
 

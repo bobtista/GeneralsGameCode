@@ -255,9 +255,9 @@ static void resizeMaxItems( GameWindow *listbox, UnsignedInt newMaxItems )
 /** Dialog callback for properties */
 //=============================================================================
 static LRESULT CALLBACK listboxPropertiesCallback( HWND hWndDialog,
-																									 UINT message,
-																									 WPARAM wParam,
-																									 LPARAM lParam )
+	UINT message,
+	WPARAM wParam,
+	LPARAM lParam )
 {
 	Int returnCode;
 
@@ -274,14 +274,14 @@ static LRESULT CALLBACK listboxPropertiesCallback( HWND hWndDialog,
 	{
 
 		// ------------------------------------------------------------------------
-    case WM_COMMAND:
-    {
+		case WM_COMMAND:
+		{
 //			Int notifyCode = HIWORD( wParam );  // notification code
 			Int controlID = LOWORD( wParam );  // control ID
 //			HWND hWndControl = (HWND)lParam;  // control window handle
 
-      switch( controlID )
-      {
+			switch( controlID )
+			{
 
 				// --------------------------------------------------------------------
 				case BUTTON_SUBCONTROL_COLOR:
@@ -330,7 +330,7 @@ static LRESULT CALLBACK listboxPropertiesCallback( HWND hWndDialog,
 				}
 
 				// --------------------------------------------------------------------
-        case IDOK:
+				case IDOK:
 				{
 					GameWindow *window = TheEditor->getPropertyTarget();
 
@@ -650,32 +650,32 @@ static LRESULT CALLBACK listboxPropertiesCallback( HWND hWndDialog,
 
 					}
 
-          DestroyWindow( hWndDialog );
-          break;
+					DestroyWindow( hWndDialog );
+					break;
 
 				}
 
 				// --------------------------------------------------------------------
-        case IDCANCEL:
+				case IDCANCEL:
 				{
 
-          DestroyWindow( hWndDialog );
-          break;
+					DestroyWindow( hWndDialog );
+					break;
 
 				}
 
-      }
+			}
 
-      return 0;
+			return 0;
 
-    }
+		}
 
 		// ------------------------------------------------------------------------
-    case WM_CLOSE:
+		case WM_CLOSE:
 		{
 
-      DestroyWindow( hWndDialog );
-      return 0;
+			DestroyWindow( hWndDialog );
+			return 0;
 
 		}
 
@@ -683,7 +683,7 @@ static LRESULT CALLBACK listboxPropertiesCallback( HWND hWndDialog,
 		default:
 			return 0;
 
-  }
+	}
 
 }
 
@@ -701,9 +701,9 @@ HWND InitListboxPropertiesDialog( GameWindow *window )
 
 	// create the dialog box
 	dialog = CreateDialog( TheEditor->getInstance(),
-												 (LPCTSTR)LISTBOX_PROPERTIES_DIALOG,
-												 TheEditor->getWindowHandle(),
-												 (DLGPROC)listboxPropertiesCallback );
+		(LPCTSTR)LISTBOX_PROPERTIES_DIALOG,
+		TheEditor->getWindowHandle(),
+		(DLGPROC)listboxPropertiesCallback );
 	if( dialog == nullptr )
 		return nullptr;
 

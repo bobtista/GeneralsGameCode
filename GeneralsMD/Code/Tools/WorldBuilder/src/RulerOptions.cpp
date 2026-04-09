@@ -80,7 +80,7 @@ BOOL RulerOptions::OnInitDialog()
 		setWidth(RulerTool::getLength());
 	}
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 void RulerOptions::OnChangeWidthEdit()

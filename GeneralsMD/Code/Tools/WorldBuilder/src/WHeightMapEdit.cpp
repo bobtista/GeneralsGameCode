@@ -388,22 +388,22 @@ void WorldHeightMapEdit::loadBitmap(char *path, const char *uiName)
 void WorldHeightMapEdit::loadBaseImages(void)
 {
 
- 	/// @todo - take this out when we are done evaluating terrain textures.
+	/// @todo - take this out when we are done evaluating terrain textures.
 #if defined(RTS_DEBUG)
- 	loadDirectoryOfImages("..\\TestArt\\TestTerrain");
+	loadDirectoryOfImages("..\\TestArt\\TestTerrain");
 #endif
 
 	// load terrain types from INI definitions
 	TerrainType *terrain;
 
 	for( terrain = TheTerrainTypes->firstTerrain();
-	     terrain;
-			 terrain = TheTerrainTypes->nextTerrain( terrain ) )
+	terrain;
+	terrain = TheTerrainTypes->nextTerrain( terrain ) )
 	{
-		 if (m_numGlobalTextureClasses == NUM_TEXTURE_CLASSES)
-		 {
-			 break;
-		 }
+		if (m_numGlobalTextureClasses == NUM_TEXTURE_CLASSES)
+		{
+			break;
+		}
 		// load the terrain definition for the WorldBuilder to reference
 		loadImagesFromTerrainType( terrain );
 
@@ -521,7 +521,7 @@ UnsignedByte * WorldHeightMapEdit::getPointerToClassTileData(Int texClass)
 
 
 void WorldHeightMapEdit::getTexClassNeighbors(Int xIndex, Int yIndex, Int textureClass,
-									  Int *pSideCount, Int *pTotalCount)
+	Int *pSideCount, Int *pTotalCount)
 {
 	Int i,j;
 	int sideCount=0;
@@ -770,7 +770,7 @@ void WorldHeightMapEdit::saveToFile(DataChunkOutput &chunkWriter)
 				chunkWriter.writeReal(TheGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].lightPos.z);
 			}
 		}
- 		chunkWriter.writeInt(TheW3DShadowManager->getShadowColor());
+	chunkWriter.writeInt(TheW3DShadowManager->getShadowColor());
 
 	chunkWriter.closeDataChunk();
 
@@ -1485,7 +1485,7 @@ Bool WorldHeightMapEdit::floodFill(Int xIndex, Int yIndex, Int textureClass, Boo
 	if (doReplace) {
 		for (i=0; i<m_width; i++) {
 			for (j=0; j<m_height; j++) {
- 				ndx = (j*m_width)+i;
+				ndx = (j*m_width)+i;
 				Int blendNdx = m_blendTileNdxes[ndx];
 				if (curTileClass == getTextureClass(i,j,true)) {
 					setTileNdx(i, j, textureClass, false);
@@ -1510,7 +1510,7 @@ Bool WorldHeightMapEdit::floodFill(Int xIndex, Int yIndex, Int textureClass, Boo
 		Int nodesProcessed = 0;
 		pNodesToProcess = new CProcessNode(xIndex, yIndex);
 		while (pNodesToProcess) {
- 			CProcessNode *pCurNode = pNodesToProcess;
+			CProcessNode *pCurNode = pNodesToProcess;
 			pNodesToProcess = pCurNode->m_next;
 			pCurNode->m_next = nullptr;
 			Int ndx = (pCurNode->m_y*m_width)+pCurNode->m_x;
@@ -1524,7 +1524,7 @@ Bool WorldHeightMapEdit::floodFill(Int xIndex, Int yIndex, Int textureClass, Boo
 				for (j=pCurNode->m_y-1; j<pCurNode->m_y+2; j++) {
 					if (j<0) continue;
 					if (j>=m_height-1) continue;
- 					ndx = (j*m_width)+i;
+					ndx = (j*m_width)+i;
 					blendNdx = m_blendTileNdxes[ndx];
 					if (curTileClass != getTextureClass(i,j,true)) {
 						/* Check blend */
@@ -1859,7 +1859,7 @@ Bool WorldHeightMapEdit::resize(Int newXSize, Int newYSize, Int newHeight, Int n
 	delete(m_cellCliffState);
 	delete(m_cellFlipState);
 	Int numBytesX = (m_width+7)/8;	//how many bytes to fit all bitflags
- 	m_flipStateWidth=numBytesX;
+	m_flipStateWidth=numBytesX;
 
 	m_cellFlipState	= MSGNEW("WorldHeightMapEdit::resize") UnsignedByte[numBytesX*m_height];
 	m_cellCliffState	= MSGNEW("WorldHeightMapEdit::resize") UnsignedByte[numBytesX*m_height];
@@ -2289,7 +2289,7 @@ Bool WorldHeightMapEdit::doCliffAdjustment(Int xIndex, Int yIndex)
 		if (deltaH>maxH)maxH = deltaH;
 		deltaH = IABS(h2-h3);
 		if (deltaH>maxH)maxH = deltaH;
- 		deltaH = IABS(h3-h0);
+		deltaH = IABS(h3-h0);
 		if (deltaH>maxH)maxH = deltaH;
 
 		Bool isCliff = maxH*HEIGHT_SCALE > STRETCH_LIMIT/2.0f;
@@ -2438,7 +2438,7 @@ Bool WorldHeightMapEdit::doCliffAdjustment(Int xIndex, Int yIndex)
 					if (i!=pCurNode->m_x && j!=pCurNode->m_y) continue;
 					if (j<0) continue;
 					if (j>=m_height-1) continue;
- 					ndx = (j*m_width)+i;
+					ndx = (j*m_width)+i;
 					if (pProcessed[ndx]) continue;
 					CProcessNode *pNewNode = new CProcessNode(i,j);
 					DEBUG_LOG(("Adding node %d, %d", i, j));
@@ -2519,7 +2519,7 @@ Bool WorldHeightMapEdit::doCliffAdjustment(Int xIndex, Int yIndex)
 		Real vDelta = (-textureClassExtent/2) - (uvRange.hi.y + uvRange.lo.y)/2;
 		for (i=0; i<m_width; i++) {
 			for (j=0; j<m_height; j++) {
- 				ndx = (j*m_width)+i;
+				ndx = (j*m_width)+i;
 				if (pProcessed[ndx]) {
 					Int cliffNdx = m_cliffInfoNdxes[ndx];
 					if (cliffNdx) {
@@ -2744,7 +2744,7 @@ void WorldHeightMapEdit::updateForAdjacentCliffs(Int xIndex, Int yIndex,
 				if (i!=xIndex && j!=yIndex) continue;
 				if (j<0) continue;
 				if (j>=m_height-1) continue;
- 				Int ndx = (j*m_width)+i;
+				Int ndx = (j*m_width)+i;
 				if (!pProcessed[ndx]) continue;
 				if (m_cliffInfoNdxes[ndx]) {
 					TCliffInfo info = m_cliffInfo[m_cliffInfoNdxes[ndx]];
@@ -3113,7 +3113,7 @@ void WorldHeightMapEdit::updateFlatCellForAdjacentCliffs(Int xIndex, Int yIndex,
 			if (i!=xIndex && j!=yIndex) continue;
 			if (j<0) continue;
 			if (j>=m_height-1) continue;
- 			Int ndx = (j*m_width)+i;
+			Int ndx = (j*m_width)+i;
 			if (m_cliffInfoNdxes[ndx]) {
 				TCliffInfo info = m_cliffInfo[m_cliffInfoNdxes[ndx]];
 				okToProcess = true;

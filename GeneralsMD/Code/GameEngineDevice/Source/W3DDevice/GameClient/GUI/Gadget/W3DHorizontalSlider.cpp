@@ -113,7 +113,7 @@ void W3DGadgetHorizontalSliderDraw( GameWindow *window, WinInstanceData *instDat
 		end.x = start.x + size.x;
 		end.y = start.y + size.y;
 		TheWindowManager->winOpenRect( backBorder, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+			start.x, start.y, end.x, end.y );
 
 	}
 	if( backColor != WIN_COLOR_UNDEFINED )
@@ -124,7 +124,7 @@ void W3DGadgetHorizontalSliderDraw( GameWindow *window, WinInstanceData *instDat
 		end.x = start.x + size.x - 2;
 		end.y = start.y + size.y - 2;
 		TheWindowManager->winFillRect( backColor, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+			start.x, start.y, end.x, end.y );
 
 	}
 
@@ -135,7 +135,7 @@ void W3DGadgetHorizontalSliderDraw( GameWindow *window, WinInstanceData *instDat
 /** Draw horizontal slider with user supplied images */
 //=============================================================================
 void W3DGadgetHorizontalSliderImageDraw( GameWindow *window,
-																				 WinInstanceData *instData )
+	WinInstanceData *instData )
 {
 	const Image *fillSquare, *blankSquare, *highlightSquare;
 	ICoord2D origin, size, start, end, highlightOffset;
@@ -217,7 +217,7 @@ void W3DGadgetHorizontalSliderImageDraw( GameWindow *window,
 /** Draw horizontal slider with user supplied images */
 //=============================================================================
 void W3DGadgetHorizontalSliderImageDrawB( GameWindow *window,
-																				 WinInstanceData *instData )
+	WinInstanceData *instData )
 {
 	const Image *fillSquare, *blankSquare, *highlightSquare;//, *progressArrow;
 	ICoord2D origin, size, start, end;
@@ -325,7 +325,7 @@ void W3DGadgetHorizontalSliderImageDrawB( GameWindow *window,
 /** Draw horizontal slider with user supplied images */
 //=============================================================================
 void W3DGadgetHorizontalSliderImageDrawA( GameWindow *window,
-																				 WinInstanceData *instData )
+	WinInstanceData *instData )
 {
 	const Image *leftImageLeft, *rightImageLeft, *centerImageLeft, *smallCenterImageLeft;
 	const Image *leftImageRight, *rightImageRight, *centerImageRight, *smallCenterImageRight;

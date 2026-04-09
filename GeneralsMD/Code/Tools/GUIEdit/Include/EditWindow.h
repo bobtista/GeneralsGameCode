@@ -106,15 +106,15 @@ public:
 
 	/// draw a line on the display in screen coordinates
 	void drawLine( Int startX, Int startY, Int endX, Int endY,
-								 Real lineWidth, UnsignedInt lineColor );
+		Real lineWidth, UnsignedInt lineColor );
 
 	/// draw a rect border on the display in pixel coordinates with the specified color
 	void drawOpenRect( Int startX, Int startY, Int width, Int height,
-										 Real lineWidth, UnsignedInt lineColor );
+		Real lineWidth, UnsignedInt lineColor );
 
 	/// draw a filled rect on the display in pixel coords with the specified color
 	void drawFillRect( Int startX, Int startY, Int width, Int height,
-										 UnsignedInt color );
+		UnsignedInt color );
 
 	/// draw an image fit within the screen coordinates
 	void drawImage( const Image *image, Int startX, Int startY,

@@ -120,35 +120,35 @@ GUIEdit *TheEditor = nullptr;
 char *GUIEdit::saveAsDialog( void )
 {
 	static char filename[ _MAX_PATH ];
-  OPENFILENAME ofn;
-  Bool returnCode;
-  char filter[] = "Window Files (*.wnd)\0*.wnd\0"  \
-                  "All Files (*.*)\0*.*\0\0" ;
+	OPENFILENAME ofn;
+	Bool returnCode;
+	char filter[] = "Window Files (*.wnd)\0*.wnd\0"  \
+		"All Files (*.*)\0*.*\0\0" ;
 
-  ofn.lStructSize       = sizeof( OPENFILENAME );
-  ofn.hwndOwner         = m_appHWnd;
-  ofn.hInstance         = nullptr;
-  ofn.lpstrFilter       = filter;
-  ofn.lpstrCustomFilter = nullptr;
-  ofn.nMaxCustFilter    = 0;
-  ofn.nFilterIndex      = 0;
-  ofn.lpstrFile         = filename;
-  ofn.nMaxFile          = _MAX_PATH;
-  ofn.lpstrFileTitle    = nullptr;
-  ofn.nMaxFileTitle     = 0;
-  ofn.lpstrInitialDir   = nullptr;
-  ofn.lpstrTitle        = nullptr;
-  ofn.Flags             = OFN_NOREADONLYRETURN | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-  ofn.nFileOffset       = 0;
-  ofn.nFileExtension    = 0;
-  ofn.lpstrDefExt       = "wnd";
-  ofn.lCustData         = 0L ;
-  ofn.lpfnHook          = nullptr ;
-  ofn.lpTemplateName    = nullptr ;
+	ofn.lStructSize       = sizeof( OPENFILENAME );
+	ofn.hwndOwner         = m_appHWnd;
+	ofn.hInstance         = nullptr;
+	ofn.lpstrFilter       = filter;
+	ofn.lpstrCustomFilter = nullptr;
+	ofn.nMaxCustFilter    = 0;
+	ofn.nFilterIndex      = 0;
+	ofn.lpstrFile         = filename;
+	ofn.nMaxFile          = _MAX_PATH;
+	ofn.lpstrFileTitle    = nullptr;
+	ofn.nMaxFileTitle     = 0;
+	ofn.lpstrInitialDir   = nullptr;
+	ofn.lpstrTitle        = nullptr;
+	ofn.Flags             = OFN_NOREADONLYRETURN | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+	ofn.nFileOffset       = 0;
+	ofn.nFileExtension    = 0;
+	ofn.lpstrDefExt       = "wnd";
+	ofn.lCustData         = 0L ;
+	ofn.lpfnHook          = nullptr ;
+	ofn.lpTemplateName    = nullptr ;
 
-  returnCode = GetSaveFileName( &ofn );
+	returnCode = GetSaveFileName( &ofn );
 
-  if( returnCode )
+	if( returnCode )
 		return filename;
 	else
 		return nullptr;
@@ -162,35 +162,35 @@ char *GUIEdit::saveAsDialog( void )
 char *GUIEdit::openDialog( void )
 {
 	static char filename[ _MAX_PATH ];
-  OPENFILENAME ofn;
-  Bool returnCode;
-  char filter[] = "Window Files (*.wnd)\0*.wnd\0"  \
-                  "All Files (*.*)\0*.*\0\0" ;
+	OPENFILENAME ofn;
+	Bool returnCode;
+	char filter[] = "Window Files (*.wnd)\0*.wnd\0"  \
+		"All Files (*.*)\0*.*\0\0" ;
 
-  ofn.lStructSize       = sizeof( OPENFILENAME );
-  ofn.hwndOwner         = m_appHWnd;
-  ofn.hInstance         = nullptr;
-  ofn.lpstrFilter       = filter;
-  ofn.lpstrCustomFilter = nullptr;
-  ofn.nMaxCustFilter    = 0;
-  ofn.nFilterIndex      = 0;
-  ofn.lpstrFile         = filename;
-  ofn.nMaxFile          = _MAX_PATH;
-  ofn.lpstrFileTitle    = nullptr;
-  ofn.nMaxFileTitle     = 0;
-  ofn.lpstrInitialDir   = nullptr;
-  ofn.lpstrTitle        = nullptr;
-  ofn.Flags             = OFN_NOREADONLYRETURN | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-  ofn.nFileOffset       = 0;
-  ofn.nFileExtension    = 0;
-  ofn.lpstrDefExt       = "wnd";
-  ofn.lCustData         = 0L ;
-  ofn.lpfnHook          = nullptr ;
-  ofn.lpTemplateName    = nullptr ;
+	ofn.lStructSize       = sizeof( OPENFILENAME );
+	ofn.hwndOwner         = m_appHWnd;
+	ofn.hInstance         = nullptr;
+	ofn.lpstrFilter       = filter;
+	ofn.lpstrCustomFilter = nullptr;
+	ofn.nMaxCustFilter    = 0;
+	ofn.nFilterIndex      = 0;
+	ofn.lpstrFile         = filename;
+	ofn.nMaxFile          = _MAX_PATH;
+	ofn.lpstrFileTitle    = nullptr;
+	ofn.nMaxFileTitle     = 0;
+	ofn.lpstrInitialDir   = nullptr;
+	ofn.lpstrTitle        = nullptr;
+	ofn.Flags             = OFN_NOREADONLYRETURN | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+	ofn.nFileOffset       = 0;
+	ofn.nFileExtension    = 0;
+	ofn.lpstrDefExt       = "wnd";
+	ofn.lCustData         = 0L ;
+	ofn.lpfnHook          = nullptr ;
+	ofn.lpTemplateName    = nullptr ;
 
-  returnCode = GetOpenFileName( &ofn );
+	returnCode = GetOpenFileName( &ofn );
 
-  if( returnCode )
+	if( returnCode )
 		return filename;
 	else
 		return nullptr;
@@ -248,7 +248,7 @@ void GUIEdit::setUnsaved( Bool unsaved )
 //=============================================================================
 void GUIEdit::setSaveFile( const char *fullPathAndFilename )
 {
-  const char *ptr;
+	const char *ptr;
 
 	// copy over the full path and filename
 	strlcpy(m_savePathAndFilename, fullPathAndFilename, ARRAY_SIZE(m_savePathAndFilename));
@@ -759,13 +759,13 @@ Bool GUIEdit::writeConfigFile( const char *filename )
 	// edit window background color
 	RGBColorReal backColor = TheEditWindow->getBackgroundColor();
 	fprintf( fp, "BACKGROUNDCOLOR = %f %f %f %f\n",
-					 backColor.red, backColor.green, backColor.blue, backColor.alpha );
+		backColor.red, backColor.green, backColor.blue, backColor.alpha );
 
 	// grid settings
 	fprintf( fp, "GRIDRESOLUTION = %d\n", getGridResolution() );
 	RGBColorInt *gridColor = getGridColor();
 	fprintf( fp, "GRIDCOLOR = %d %d %d %d\n",
-					 gridColor->red, gridColor->green, gridColor->blue, gridColor->alpha );
+		gridColor->red, gridColor->green, gridColor->blue, gridColor->alpha );
 	fprintf( fp, "SNAPTOGRID = %d\n", isGridSnapOn() );
 	fprintf( fp, "GRIDVISIBLE = %d\n", isGridVisible() );
 
@@ -811,7 +811,7 @@ Bool GUIEdit::readConfigFile( const char *filename )
 	// edit window background color
 	RGBColorReal backColor;
 	fscanf( fp, "BACKGROUNDCOLOR = %f %f %f %f\n",
-				  &backColor.red, &backColor.green, &backColor.blue, &backColor.alpha );
+		&backColor.red, &backColor.green, &backColor.blue, &backColor.alpha );
 	TheEditWindow->setBackgroundColor( backColor );
 
 	// grid settings
@@ -910,7 +910,7 @@ void GUIEdit::readFontFile( const char *filename )
 			char buffer[ 1024 ];
 
 			sprintf( buffer, "Warning: The font '%s' Size: '%d' Bold: '%d', specified in the config file could not be loaded.  Does that font exist?",
-							 fontBuffer, size, bold );
+				fontBuffer, size, bold );
 			MessageBox( m_appHWnd, buffer, "Cannot Load Font", MB_OK );
 
 		}
@@ -945,11 +945,11 @@ void GUIEdit::writeFontFile( const char *filename )
 
 	GameFont *font;
 	for( font = TheFontLibrary->firstFont();
-			 font;
-			 font = TheFontLibrary->nextFont( font ) )
+	font;
+	font = TheFontLibrary->nextFont( font ) )
 	{
 		fprintf( fp, "AVAILABLEFONT = \"%s\" Size: %d Bold: %d\n",
-						 font->nameString.str(), font->pointSize, font->bold );
+			font->nameString.str(), font->pointSize, font->bold );
 	}
 
 	// close the file
@@ -1216,8 +1216,8 @@ GameWindow *GUIEdit::getWindowAtPos( Int x, Int y )
 	IRegion2D region;
 
 	for( window = TheWindowManager->winGetWindowList();
-			 window;
-			 window = window->winGetNext() )
+	window;
+	window = window->winGetNext() )
 	{
 
 		// get window region
@@ -1602,12 +1602,12 @@ GameWindow *GUIEdit::newPushButton( GameWindow *parent,
 	instData.m_style = GWS_PUSH_BUTTON | GWS_MOUSE_TRACK;
 	instData.m_textLabelString = "Button";
 	window = TheWindowManager->gogoGadgetPushButton( parent,
-																									 status,
-																									 x, y,
-																									 width, height,
-																									 &instData,
-																									 nullptr,
-																									 TRUE );
+		status,
+		x, y,
+		width, height,
+		&instData,
+		nullptr,
+		TRUE );
 
 
 	// set default colors based on the default scheme
@@ -1696,12 +1696,12 @@ GameWindow *GUIEdit::newCheckBox( GameWindow *parent,
 
 	// create gadget
 	window = TheWindowManager->gogoGadgetCheckbox( parent,
-																							   status,
-																								 x, y,
-																								 width, height,
-																								 &instData,
-																								 nullptr,
-																								 TRUE );
+		status,
+		x, y,
+		width, height,
+		&instData,
+		nullptr,
+		TRUE );
 
 	// set default colors based on the default scheme
 	if( window )
@@ -1780,7 +1780,7 @@ GameWindow *GUIEdit::newCheckBox( GameWindow *parent,
 /** Create a new radio button */
 //=============================================================================
 GameWindow *GUIEdit::newRadioButton( GameWindow *parent,
-																		 Int x, Int y, Int width, Int height )
+	Int x, Int y, Int width, Int height )
 {
 	RadioButtonData radioData;
 	GameWindow *window;
@@ -1803,13 +1803,13 @@ GameWindow *GUIEdit::newRadioButton( GameWindow *parent,
 
 	// create gadget
 	window = TheWindowManager->gogoGadgetRadioButton( parent,
-																									  status,
-																									  x, y,
-																									  width, height,
-																									  &instData,
+		status,
+		x, y,
+		width, height,
+		&instData,
 																										&radioData,
-																									  nullptr,
-																									  TRUE );
+		nullptr,
+		TRUE );
 
 	// set default colors based on the default scheme
 	if( window )
@@ -1888,7 +1888,7 @@ GameWindow *GUIEdit::newRadioButton( GameWindow *parent,
 /** Create a tab control gadget */
 //=============================================================================
 GameWindow *GUIEdit::newTabControl( GameWindow *parent,
-																		 Int x, Int y, Int width, Int height )
+	Int x, Int y, Int width, Int height )
 {
 	TabControlData tabControlData;
 	GameWindow *window;
@@ -1917,13 +1917,13 @@ GameWindow *GUIEdit::newTabControl( GameWindow *parent,
 
 	// create gadget
 	window = TheWindowManager->gogoGadgetTabControl( parent,
-																									  status,
-																									  x, y,
-																									  width, height,
-																									  &instData,
+		status,
+		x, y,
+		width, height,
+		&instData,
 																										&tabControlData,
-																									  nullptr,
-																									  TRUE );
+		nullptr,
+		TRUE );
 
 	// set default colors based on the default scheme
 	if( window )
@@ -2115,13 +2115,13 @@ GameWindow *GUIEdit::newHorizontalSlider( GameWindow *parent,
 
 	// make control
 	window = TheWindowManager->gogoGadgetSlider( parent,
-																							 status,
-																							 x, y,
-																							 width, height,
-																							 &instData,
-																							 &sliderData,
-																							 nullptr,
-																							 TRUE );
+		status,
+		x, y,
+		width, height,
+		&instData,
+		&sliderData,
+		nullptr,
+		TRUE );
 
 	// set default colors based on the default scheme
 	if( window )
@@ -2236,13 +2236,13 @@ GameWindow *GUIEdit::newVerticalSlider( GameWindow *parent,
 
 	// make control
 	window = TheWindowManager->gogoGadgetSlider( parent,
-																							 status,
-																							 x, y,
-																							 width, height,
-																							 &instData,
-																							 &sliderData,
-																							 nullptr,
-																							 TRUE );
+		status,
+		x, y,
+		width, height,
+		&instData,
+		&sliderData,
+		nullptr,
+		TRUE );
 
 	// set default colors based on the default scheme
 	if( window )
@@ -2328,8 +2328,8 @@ GameWindow *GUIEdit::newVerticalSlider( GameWindow *parent,
 /** Create a new progress bar */
 //=============================================================================
 GameWindow *GUIEdit::newProgressBar( GameWindow *parent,
-																		 Int x, Int y,
-																		 Int width, Int height )
+	Int x, Int y,
+	Int width, Int height )
 {
 	GameWindow *window;
 	WinInstanceData instData;
@@ -2349,12 +2349,12 @@ GameWindow *GUIEdit::newProgressBar( GameWindow *parent,
 
 	// make control
 	window = TheWindowManager->gogoGadgetProgressBar( parent,
-																									  status,
-																									  x, y,
-																									  width, height,
-																									  &instData,
-																									  nullptr,
-																									  TRUE );
+		status,
+		x, y,
+		width, height,
+		&instData,
+		nullptr,
+		TRUE );
 
 	// set default colors based on the default scheme
 	if( window )
@@ -2463,8 +2463,8 @@ GameWindow *GUIEdit::newProgressBar( GameWindow *parent,
 /** Create a new list box */
 //=============================================================================
 GameWindow *GUIEdit::newComboBox( GameWindow *parent,
-																 Int x, Int y,
-																 Int width, Int height )
+	Int x, Int y,
+	Int width, Int height )
 {
 	GameWindow *window;
 	WinInstanceData instData;
@@ -2523,11 +2523,11 @@ GameWindow *GUIEdit::newComboBox( GameWindow *parent,
 
 	//create the control
 	window = TheWindowManager->gogoGadgetComboBox( parent,
-																							  status,
-																							  x, y,
-																							  width, height,
-																							  &instData,
-																							  comboData,
+		status,
+		x, y,
+		width, height,
+		&instData,
+		comboData,
 																								nullptr,
 																								TRUE );
 
@@ -2878,8 +2878,8 @@ GameWindow *GUIEdit::newComboBox( GameWindow *parent,
 /** Create a new list box */
 //=============================================================================
 GameWindow *GUIEdit::newListbox( GameWindow *parent,
-																 Int x, Int y,
-																 Int width, Int height )
+	Int x, Int y,
+	Int width, Int height )
 {
 	GameWindow *window;
 	WinInstanceData instData;
@@ -2913,11 +2913,11 @@ GameWindow *GUIEdit::newListbox( GameWindow *parent,
 
 	// make control
 	window = TheWindowManager->gogoGadgetListBox( parent,
-																							  status,
-																							  x, y,
-																							  width, height,
-																							  &instData,
-																							  &listData,
+		status,
+		x, y,
+		width, height,
+		&instData,
+		&listData,
 																								nullptr,
 																								TRUE );
 
@@ -3141,8 +3141,8 @@ GameWindow *GUIEdit::newListbox( GameWindow *parent,
 /** Create a new text entry */
 //=============================================================================
 GameWindow *GUIEdit::newTextEntry( GameWindow *parent,
-																	 Int x, Int y,
-																	 Int width, Int height )
+	Int x, Int y,
+	Int width, Int height )
 {
 	GameWindow *window;
 	WinInstanceData instData;
@@ -3274,13 +3274,13 @@ GameWindow *GUIEdit::newStaticText( GameWindow *parent,
 
 	// make control
 	window = TheWindowManager->gogoGadgetStaticText( parent,
-																									 status,
-																									 x, y,
-																									 width, height,
-																									 &instData,
-																									 &textData,
-																									 nullptr,
-																									 TRUE );
+		status,
+		x, y,
+		width, height,
+		&instData,
+		&textData,
+		nullptr,
+		TRUE );
 
 	// set default colors based on the default scheme
 	if( window )
@@ -3338,7 +3338,7 @@ void GUIEdit::createStatusBar( void )
 {
 	RECT rect;
 	Int width;
-  Int sizes[ STATUS_NUM_PARTS ];
+	Int sizes[ STATUS_NUM_PARTS ];
 
 	// create the bar
 	m_statusBarHWnd = CreateStatusWindow( WS_CHILD |
@@ -3365,7 +3365,7 @@ void GUIEdit::createStatusBar( void )
 
 	}
 	sizes[ STATUS_NUM_PARTS - 1 ] = -1;  // right edge
-  SendMessage( m_statusBarHWnd, SB_SETPARTS, STATUS_NUM_PARTS, (LPARAM)sizes );
+	SendMessage( m_statusBarHWnd, SB_SETPARTS, STATUS_NUM_PARTS, (LPARAM)sizes );
 
 }
 
@@ -3438,7 +3438,7 @@ Bool GUIEdit::menuExit( void )
 	{
 
 		result = MessageBox( m_appHWnd, "Save file before quitting?",
-												 "Save?", MB_YESNOCANCEL );
+			"Save?", MB_YESNOCANCEL );
 		if( result == IDCANCEL )
 			return TRUE;  // no error
 		else if( result == IDYES )
@@ -3485,9 +3485,9 @@ Bool GUIEdit::menuNew( void )
 		Int result;
 
 		result = MessageBox( m_appHWnd,
-												 "Current data is not saved.  Save before proceeding?",
-												 "Save?",
-												 MB_YESNOCANCEL );
+			"Current data is not saved.  Save before proceeding?",
+			"Save?",
+			MB_YESNOCANCEL );
 		if( result == IDCANCEL )
 			return TRUE;  // no error
 		else if( result == IDYES )
@@ -3502,9 +3502,9 @@ Bool GUIEdit::menuNew( void )
 			{
 
 				result = MessageBox( m_appHWnd,
-														 "File not saved.  Proceed with new layout anyway?  Current layout will be LOST!",
-														 "File Not Saved",
-														 MB_YESNO );
+					"File not saved.  Proceed with new layout anyway?  Current layout will be LOST!",
+					"File Not Saved",
+					MB_YESNO );
 				if( result == IDNO )
 					return TRUE;  // they chose to proceed anyway, no error
 
@@ -3612,9 +3612,9 @@ Bool GUIEdit::menuOpen( void )
 		Int result;
 
 		result = MessageBox( m_appHWnd,
-												 "Current data is not saved.  Save before proceeding?",
-												 "Save?",
-												 MB_YESNOCANCEL );
+			"Current data is not saved.  Save before proceeding?",
+			"Save?",
+			MB_YESNOCANCEL );
 		if( result == IDCANCEL )
 			return TRUE;  // no error
 		else if( result == IDYES )
@@ -3629,9 +3629,9 @@ Bool GUIEdit::menuOpen( void )
 			{
 
 				result = MessageBox( m_appHWnd,
-														 "File not saved.  Proceed with open layout anyway?  Current layout will be LOST!",
-														 "File Not Saved",
-														 MB_YESNO );
+					"File not saved.  Proceed with open layout anyway?  Current layout will be LOST!",
+					"File Not Saved",
+					MB_YESNO );
 				if( result == IDNO )
 					return TRUE;  // they chose to proceed anyway, no error
 
@@ -3685,8 +3685,8 @@ Bool GUIEdit::menuOpen( void )
 	TheHierarchyView->reset();
 	GameWindow *window;
 	for( window = TheWindowManager->winGetWindowList();
-			 window;
-			 window = window->winGetNext() )
+	window;
+	window = window->winGetNext() )
 		TheHierarchyView->addWindow( window, HIERARCHY_ADD_AT_BOTTOM );
 
 	/** @todo should probably make the window manager interface for
@@ -4093,7 +4093,7 @@ void GUIEdit::bringSelectedToTop( void )
 	* windows */
 //=============================================================================
 void GUIEdit::dragMoveSelectedWindows( ICoord2D *dragOrigin,
-																			 ICoord2D *dragDest )
+	ICoord2D *dragDest )
 {
 	WindowSelectionEntry *select;
 	GameWindow *window;
@@ -4166,7 +4166,7 @@ GameWindow *GUIEdit::getFirstSelected( void )
 	* and on the screen */
 //=============================================================================
 void GUIEdit::computeSafeLocation( GameWindow *window,
-																	 Int x, Int y, Int *safeX, Int *safeY )
+	Int x, Int y, Int *safeX, Int *safeY )
 {
 	Int dx, dy;
 	ICoord2D origin, size;
@@ -4250,10 +4250,10 @@ void GUIEdit::computeSafeLocation( GameWindow *window,
 	*/
 //=============================================================================
 void GUIEdit::computeSafeSizeLocation( GameWindow *window,
-																			 Int newX, Int newY,
-																			 Int newWidth, Int newHeight,
-																			 Int *safeX, Int *safeY,
-																			 Int *safeWidth, Int *safeHeight )
+	Int newX, Int newY,
+	Int newWidth, Int newHeight,
+	Int *safeX, Int *safeY,
+	Int *safeWidth, Int *safeHeight )
 {
 	GameWindow *parent;
 	ICoord2D parentLoc;
@@ -4323,11 +4323,11 @@ void GUIEdit::computeSafeSizeLocation( GameWindow *window,
 	* window should be */
 //=============================================================================
 void GUIEdit::computeResizeLocation( EditMode resizeMode,
-																		 GameWindow *window,
-																		 ICoord2D *resizeOrigin,
-																		 ICoord2D *resizeDest,
-																		 ICoord2D *resultLoc,
-																		 ICoord2D *resultSize )
+	GameWindow *window,
+	ICoord2D *resizeOrigin,
+	ICoord2D *resizeDest,
+	ICoord2D *resultLoc,
+	ICoord2D *resultSize )
 {
 	Int newX, newY, newSizeX, newSizeY;
 	Int sizeLimit = 5;
@@ -4505,10 +4505,10 @@ void GUIEdit::computeResizeLocation( EditMode resizeMode,
 
 	// to finalize the size we must now clip to any parent or the screen
 	computeSafeSizeLocation( window,
-													 newX, newY,
-													 newSizeX, newSizeY,
-													 &resultLoc->x, &resultLoc->y,
-													 &resultSize->x, &resultSize->y );
+		newX, newY,
+		newSizeX, newSizeY,
+		&resultLoc->x, &resultLoc->y,
+		&resultSize->x, &resultSize->y );
 
 }
 

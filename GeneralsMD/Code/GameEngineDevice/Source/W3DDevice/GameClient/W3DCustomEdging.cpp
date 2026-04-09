@@ -241,10 +241,10 @@ void W3DCustomEdging::loadEdgingsInVertexAndIndexBuffers(WorldHeightMap *pMap, I
 #ifdef FLIP_TRIANGLES // jba - reduces "diamonding" in some cases, not others.  Better cliffs, though.
 			if (flipForBlend) {
 				*curIb++ = startVertex + 1;
- 				*curIb++ = startVertex + yOffset;
+				*curIb++ = startVertex + yOffset;
 				*curIb++ = startVertex ;
- 				*curIb++ = startVertex + 1;
- 				*curIb++ = startVertex + 1+yOffset;
+				*curIb++ = startVertex + 1;
+				*curIb++ = startVertex + 1+yOffset;
 				*curIb++ = startVertex + yOffset;
 			}
 			else

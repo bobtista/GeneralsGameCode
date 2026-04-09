@@ -28,9 +28,9 @@
 const long BOUNDARY_PICK_DISTANCE = 5.0f;
 
 BorderTool::BorderTool() : Tool(ID_BORDERTOOL, IDC_POINTER),
-													 m_mouseDown(false),
-													 m_addingNewBorder(false),
-													 m_modifyBorderNdx(-1)
+	m_mouseDown(false),
+	m_addingNewBorder(false),
+	m_modifyBorderNdx(-1)
 
 { }
 

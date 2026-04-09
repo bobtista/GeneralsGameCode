@@ -180,7 +180,7 @@ protected:
 
 	union {
 		// CurMotionMode == SINGLE_ANIM
-    struct {
+		struct {
 			HAnimClass *			Motion;
 			float		  				Frame;
 			float						PrevFrame;

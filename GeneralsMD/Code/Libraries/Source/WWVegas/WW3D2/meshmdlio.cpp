@@ -1005,8 +1005,8 @@ WW3DErrorType MeshModelClass::read_textures(ChunkLoadClass & cload,MeshLoadConte
 {
 	// Keep reading textures until there are no more...
 	for (TextureClass *newtex = ::Load_Texture (cload);
-		  newtex != nullptr;
-		  newtex = ::Load_Texture (cload)) {
+	newtex != nullptr;
+	newtex = ::Load_Texture (cload)) {
 
 		// Add this texture to our context and release our local hold on it
 		context->Add_Texture(newtex);
@@ -1748,10 +1748,10 @@ void MeshModelClass::post_process_fog()
 
 			// Analyze the mesh to determine if it is the shiny mask effect and if it is, fix it up appropriately.
 			bool shiny_mask_effect = shader0.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_ONE &&
-											 shader0.Get_Dst_Blend_Func() == ShaderClass::DSTBLEND_ZERO &&
-											 shader1.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_ONE &&
+				shader0.Get_Dst_Blend_Func() == ShaderClass::DSTBLEND_ZERO &&
+				shader1.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_ONE &&
 											(shader1.Get_Dst_Blend_Func() == ShaderClass::DSTBLEND_SRC_ALPHA ||
-											 shader1.Get_Dst_Blend_Func() == ShaderClass::DSTBLEND_ONE_MINUS_SRC_ALPHA);
+				shader1.Get_Dst_Blend_Func() == ShaderClass::DSTBLEND_ONE_MINUS_SRC_ALPHA);
 
 			if (shiny_mask_effect) {
 				shader0.Set_Fog_Func(ShaderClass::FOG_SCALE_FRAGMENT);
@@ -2441,7 +2441,7 @@ WW3DErrorType MeshModelClass::write_vertices(ChunkSaveClass & csave,MeshSaveCont
 	for (int i=0; i<Get_Vertex_Count(); i++) {
 
 		W3dVectorStruct vert;
-   	vert.X = verts[i].X;
+		vert.X = verts[i].X;
 		vert.Y = verts[i].Y;
 		vert.Z = verts[i].Z;
 
@@ -2468,7 +2468,7 @@ WW3DErrorType MeshModelClass::write_vertex_normals(ChunkSaveClass & csave,MeshSa
 	for (int i=0; i<Get_Vertex_Count(); i++) {
 
 		W3dVectorStruct vert;
-   	vert.X = verts[i].X;
+		vert.X = verts[i].X;
 		vert.Y = verts[i].Y;
 		vert.Z = verts[i].Z;
 

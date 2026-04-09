@@ -103,7 +103,7 @@ W3DWaypointBuffer::W3DWaypointBuffer()
 	m_texture = WW3DAssetManager::Get_Instance()->Get_Texture( "EXLaser.tga" );
 
 
-  setDefaultLineStyle();
+	setDefaultLineStyle();
 }
 
 //=============================================================================
@@ -151,11 +151,11 @@ void W3DWaypointBuffer::setDefaultLineStyle()
 void W3DWaypointBuffer::drawWaypoints(RenderInfoClass &rinfo)
 {
 
-  if ( ! TheInGameUI )
-    return;
+	if ( ! TheInGameUI )
+	return;
 
 
-  setDefaultLineStyle();
+	setDefaultLineStyle();
 
 
 
@@ -237,94 +237,94 @@ void W3DWaypointBuffer::drawWaypoints(RenderInfoClass &rinfo)
 
 
 
-        // WAIT! before we go browsing the drawable list for buildings that want to draw their rally points
-        // lets test for that very special case of having a listeningoutpost selected, and some enemy drawable moused-over
-        if ( obj->isKindOf( KINDOF_REVEALS_ENEMY_PATHS ) )
-        {
+				// WAIT! before we go browsing the drawable list for buildings that want to draw their rally points
+				// lets test for that very special case of having a listeningoutpost selected, and some enemy drawable moused-over
+				if ( obj->isKindOf( KINDOF_REVEALS_ENEMY_PATHS ) )
+				{
 
-          DrawableID enemyID = TheInGameUI->getMousedOverDrawableID();
-          Drawable *enemyDraw = TheGameClient->findDrawableByID( enemyID );
-          if ( enemyDraw )
-          {
-            Object *enemy = enemyDraw->getObject();
-            if ( enemy )
-            {
-              if ( enemy->getRelationship( obj ) == ENEMIES )
-              {
+					DrawableID enemyID = TheInGameUI->getMousedOverDrawableID();
+					Drawable *enemyDraw = TheGameClient->findDrawableByID( enemyID );
+					if ( enemyDraw )
+					{
+						Object *enemy = enemyDraw->getObject();
+						if ( enemy )
+						{
+							if ( enemy->getRelationship( obj ) == ENEMIES )
+							{
 
-                Coord3D delta = *obj->getPosition();
-                delta.sub( enemy->getPosition() );
-                if ( delta.length() <= obj->getVisionRange() ) // is listening outpost close enough to do this?
-                {
-
-
-                  //////////////////////////////////////////////////////////////////////
-                  AIUpdateInterface *ai = enemy->getAI();
-				          Int goalSize = ai ? ai->friend_getWaypointGoalPathSize() : 0;
-				          Int gpIdx = ai ? ai->friend_getCurrentGoalPathIndex() : 0;
-                  if( ai )
-                  {
-                    Bool lineExists = FALSE;
-
-					          const Coord3D *pos = enemy->getPosition();
-					          points[ numPoints++ ].Set( Vector3( pos->x, pos->y, pos->z ) );
-
-                    if ( gpIdx >= 0 && gpIdx < goalSize )// Ooh, the enemy is in waypoint mode
-				            {
-
-					            for( int i = gpIdx; i < goalSize; i++ )
-					            {
-						            const Coord3D *waypoint = ai->friend_getGoalPathPosition( i );
-						            if( waypoint )
-						            {
-							            //Render line from previous point to current node.
-
-							            if( numPoints < MAX_DISPLAY_NODES + 1 )
-							            {
-								            points[ numPoints++ ].Set( Vector3( waypoint->x, waypoint->y, waypoint->z ) );
-							            }
-
-							            m_waypointNodeRobj->Set_Position(Vector3(waypoint->x,waypoint->y,waypoint->z));
-							            WW3D::Render(*m_waypointNodeRobj,localRinfo);
-                          lineExists = TRUE;
-						            }
-					            }
-                    }
-                    else // then enemy may be moving to a goal position
-                    {
-                      const Coord3D *destinationPoint = ai->getGoalPosition();
-                      if ( destinationPoint->length() > 1.0f )
-                      {
-								        points[ numPoints++ ].Set( Vector3( destinationPoint->x, destinationPoint->y, destinationPoint->z ) );
-							          m_waypointNodeRobj->Set_Position(Vector3(destinationPoint->x,destinationPoint->y,destinationPoint->z));
-							          WW3D::Render(*m_waypointNodeRobj,localRinfo);
-                        lineExists = TRUE;
-                      }
-                    }
-
-                    if ( lineExists )
-                    {
-					            //Now render the lines in one pass!
-
-                      m_line->Set_Color( Vector3( 0.95f, 0.5f, 0.0f ) );
-                      m_line->Set_Width( 3.0f );
-
-					            m_line->Set_Points( numPoints, points );
-					            m_line->Render( localRinfo );
-                    }
-                  }
-                  //////////////////////////////////////////////////////////////////////
+								Coord3D delta = *obj->getPosition();
+								delta.sub( enemy->getPosition() );
+								if ( delta.length() <= obj->getVisionRange() ) // is listening outpost close enough to do this?
+								{
 
 
+									//////////////////////////////////////////////////////////////////////
+									AIUpdateInterface *ai = enemy->getAI();
+									Int goalSize = ai ? ai->friend_getWaypointGoalPathSize() : 0;
+									Int gpIdx = ai ? ai->friend_getCurrentGoalPathIndex() : 0;
+									if( ai )
+									{
+										Bool lineExists = FALSE;
+
+										const Coord3D *pos = enemy->getPosition();
+										points[ numPoints++ ].Set( Vector3( pos->x, pos->y, pos->z ) );
+
+										if ( gpIdx >= 0 && gpIdx < goalSize )// Ooh, the enemy is in waypoint mode
+										{
+
+											for( int i = gpIdx; i < goalSize; i++ )
+											{
+												const Coord3D *waypoint = ai->friend_getGoalPathPosition( i );
+												if( waypoint )
+												{
+													//Render line from previous point to current node.
+
+													if( numPoints < MAX_DISPLAY_NODES + 1 )
+													{
+														points[ numPoints++ ].Set( Vector3( waypoint->x, waypoint->y, waypoint->z ) );
+													}
+
+													m_waypointNodeRobj->Set_Position(Vector3(waypoint->x,waypoint->y,waypoint->z));
+													WW3D::Render(*m_waypointNodeRobj,localRinfo);
+													lineExists = TRUE;
+												}
+											}
+										}
+										else // then enemy may be moving to a goal position
+										{
+											const Coord3D *destinationPoint = ai->getGoalPosition();
+											if ( destinationPoint->length() > 1.0f )
+											{
+												points[ numPoints++ ].Set( Vector3( destinationPoint->x, destinationPoint->y, destinationPoint->z ) );
+												m_waypointNodeRobj->Set_Position(Vector3(destinationPoint->x,destinationPoint->y,destinationPoint->z));
+												WW3D::Render(*m_waypointNodeRobj,localRinfo);
+												lineExists = TRUE;
+											}
+										}
+
+										if ( lineExists )
+										{
+											//Now render the lines in one pass!
+
+											m_line->Set_Color( Vector3( 0.95f, 0.5f, 0.0f ) );
+											m_line->Set_Width( 3.0f );
+
+											m_line->Set_Points( numPoints, points );
+											m_line->Render( localRinfo );
+										}
+									}
+									//////////////////////////////////////////////////////////////////////
 
 
-                }
-              }
-            }
-          }
 
-          break;// dont even bother with the rest, since this one listening outpost satisfies the single path-line limit
-        }
+
+								}
+							}
+						}
+					}
+
+					break;// dont even bother with the rest, since this one listening outpost satisfies the single path-line limit
+				}
 
 
 

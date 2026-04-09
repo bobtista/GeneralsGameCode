@@ -370,7 +370,7 @@ void MapPreview::buildMapPreviewTexture( CString tgaName )
 								// interpolate the color for height
 								interpolateColorForHeight( &color, z,
 																						maxHeight, getTerrainAverageZ, minHeight);
-																					 //pMap->getMaxHeightValue(),getTerrainAverageZ,  pMap->getMinHeightValue() );
+								//pMap->getMaxHeightValue(),getTerrainAverageZ,  pMap->getMinHeightValue() );
 
 								// add color to our sample
 								sampleColor.red += color.red;

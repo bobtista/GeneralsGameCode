@@ -139,9 +139,9 @@ void Tool::getCenterIndex(Coord3D *docLocP, Int brushWidth, CPoint *center, CWor
 }
 
 void Tool::getAllIndexesIn(const Coord3D *bl, const Coord3D *br,
-													 const Coord3D *tl, const Coord3D *tr,
-													 Int widthOutside, CWorldBuilderDoc *pDoc,
-													 VecHeightMapIndexes* allIndices)
+	const Coord3D *tl, const Coord3D *tr,
+	Int widthOutside, CWorldBuilderDoc *pDoc,
+	VecHeightMapIndexes* allIndices)
 {
 	if (!(bl && br && tl && tr && pDoc && allIndices)) {
 		return;

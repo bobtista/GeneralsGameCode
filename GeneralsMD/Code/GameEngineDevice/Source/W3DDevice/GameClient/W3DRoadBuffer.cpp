@@ -158,7 +158,7 @@ RoadType::~RoadType()
 //=============================================================================
 void RoadType::applyTexture()
 {
- 	W3DShaderManager::setTexture(0,m_roadTexture);
+	W3DShaderManager::setTexture(0,m_roadTexture);
 	DX8Wrapper::Set_Index_Buffer(m_indexRoad,0);
 	DX8Wrapper::Set_Vertex_Buffer(m_vertexRoad);
 }
@@ -544,9 +544,9 @@ void W3DRoadBuffer::loadFloatSection(RoadSegment *pRoad, Vector2 loc,
 	corners[bottomRight] = corners[bottomLeft];
 	corners[bottomRight] += roadVector;
 	corners[topRight] = corners[bottomRight];
- 	corners[topRight] += 2*roadNormal;
+	corners[topRight] += 2*roadNormal;
 	corners[topLeft] = corners[bottomLeft];
- 	corners[topLeft] += 2*roadNormal;
+	corners[topLeft] += 2*roadNormal;
 
 	loadFloat4PtSection(pRoad, loc, roadNormal, roadVector, corners, uOffset, vOffset, scale, scale);
 
@@ -978,7 +978,7 @@ void W3DRoadBuffer::loadLit4PtSection(RoadSegment *pRoad, UnsignedShort *ib, Ver
 						shadeB += factor*ambient.Z;
 					}
 				}
- 				if (shadeR > 1.0) shadeR = 1.0;
+				if (shadeR > 1.0) shadeR = 1.0;
 				if(shadeR < 0.0f) shadeR = 0.0f;
 				if (shadeG > 1.0) shadeG = 1.0;
 				if(shadeG < 0.0f) shadeG = 0.0f;
@@ -1086,9 +1086,9 @@ void W3DRoadBuffer::loadCurve(RoadSegment *pRoad, Vector2 loc1, Vector2 loc2, Re
 	corners[bottomRight] = corners[bottomLeft];
 	corners[bottomRight] += roadVector;
 	corners[topRight] = corners[bottomRight];
- 	corners[topRight] += 2*roadNormal;
+	corners[topRight] += 2*roadNormal;
 	corners[topLeft] = corners[bottomLeft];
- 	corners[topLeft] += 2*roadNormal;
+	corners[topLeft] += 2*roadNormal;
 
 	// Tweak a little
 	if (pRoad->m_curveRadius == TIGHT_CORNER_RADIUS) {
@@ -1096,9 +1096,9 @@ void W3DRoadBuffer::loadCurve(RoadSegment *pRoad, Vector2 loc1, Vector2 loc2, Re
 		corners[bottomRight] = corners[bottomLeft];
 		corners[bottomRight] += roadVector*0.5f;
 		corners[topRight] = corners[bottomRight];
- 		corners[topRight] += 2*roadNormal;
+		corners[topRight] += 2*roadNormal;
 		corners[topLeft] = corners[bottomLeft];
- 		corners[topLeft] += 2*roadNormal;
+		corners[topLeft] += 2*roadNormal;
 
 		corners[bottomRight] += roadVector*0.1f;
 		corners[bottomRight] += roadNormal*0.2f;
@@ -1113,9 +1113,9 @@ void W3DRoadBuffer::loadCurve(RoadSegment *pRoad, Vector2 loc1, Vector2 loc2, Re
 		corners[bottomRight] = corners[bottomLeft];
 		corners[bottomRight] += roadVector;
 		corners[topRight] = corners[bottomRight];
- 		corners[topRight] += 2*roadNormal;
+		corners[topRight] += 2*roadNormal;
 		corners[topLeft] = corners[bottomLeft];
- 		corners[topLeft] += 2*roadNormal;
+		corners[topLeft] += 2*roadNormal;
 
 		corners[bottomRight] += roadVector*0.1f;
 		corners[bottomRight] += roadNormal*0.4f;
@@ -1210,7 +1210,7 @@ void W3DRoadBuffer::preloadRoadsInVertexAndIndexBuffers()
 	for (curRoad=0; curRoad<m_numRoads; curRoad++) {
 		if (m_roads[curRoad].m_type == ALPHA_JOIN) {
 			loadAlphaJoin(&m_roads[curRoad], m_roads[curRoad].m_pt1.loc, m_roads[curRoad].m_pt2.loc,
-				 m_roads[curRoad].m_scale);
+				m_roads[curRoad].m_scale);
 		}
 	}
 	updateLighting();
@@ -1510,7 +1510,7 @@ void W3DRoadBuffer::addMapObject(RoadSegment *pRoad, Bool updateTheCounts)
 	Vector2 loc1, loc2;
 	loc1 = cur.m_pt1.loc;
 	loc2 = cur.m_pt2.loc;
- 	Vector2 roadVector(loc2.X-loc1.X, loc2.Y-loc1.Y);
+	Vector2 roadVector(loc2.X-loc1.X, loc2.Y-loc1.Y);
 	Vector2 roadNormal(-roadVector.Y, roadVector.X);
 	roadNormal.Normalize();
 	roadNormal *= (cur.m_scale*cur.m_widthInTexture/2.0f);
@@ -2169,7 +2169,7 @@ Bool W3DRoadBuffer::insertY(Vector2 loc, Int index1, Real scale)
 the join points of the 3 way intersection. */
 //=============================================================================
 void W3DRoadBuffer::offset3Way(TRoadPt *pc1, TRoadPt *pc2, TRoadPt *pc3, Vector2 loc, Vector2 upVector,
-															 Vector2 teeVector, Real widthInTexture)
+	Vector2 teeVector, Real widthInTexture)
 {
 	pc1->loc = loc - upVector;
 	pc2->loc = loc + upVector;
@@ -2292,7 +2292,7 @@ void W3DRoadBuffer::offsetH(TRoadPt *pc1, TRoadPt *pc2, TRoadPt *pc3, Vector2 lo
 the join points of the 3 way intersection. */
 //=============================================================================
 void W3DRoadBuffer::offsetY(TRoadPt *pc1, TRoadPt *pc2, TRoadPt *pc3, Vector2 loc, Vector2 upVector,
-															 Real widthInTexture)
+	Real widthInTexture)
 {
 	pc3->loc += upVector*0.55f;
 	pc3->top += upVector*0.55f;
@@ -2338,7 +2338,7 @@ void W3DRoadBuffer::offsetY(TRoadPt *pc1, TRoadPt *pc2, TRoadPt *pc3, Vector2 lo
 the join points of the 4 way intersection. */
 //=============================================================================
 void W3DRoadBuffer::offset4Way(TRoadPt *pc1, TRoadPt *pc2, TRoadPt *pc3, TRoadPt *pr3,
-															 TRoadPt *pc4, Vector2 loc, Vector2 alignVector, Real widthInTexture)
+	TRoadPt *pc4, Vector2 loc, Vector2 alignVector, Real widthInTexture)
 {
 	pc1->loc = loc - alignVector;
 	pc2->loc = loc + alignVector;
@@ -2893,8 +2893,8 @@ void W3DRoadBuffer::insertCurveSegmentAt(Int ndx1, Int ndx2)
 		pr2 = &m_roads[ndx2].m_pt1.loc;
 		pr1 = &m_roads[ndx2].m_pt2.loc;
 		turnRight = false;
- 		line1.Set(Vector3(pr1->X, pr1->Y, 0), Vector3(pr2->X, pr2->Y, 0));
- 		line2.Set(Vector3(pr3->X, pr3->Y, 0), Vector3(pr4->X, pr4->Y, 0));
+		line1.Set(Vector3(pr1->X, pr1->Y, 0), Vector3(pr2->X, pr2->Y, 0));
+		line2.Set(Vector3(pr3->X, pr3->Y, 0), Vector3(pr4->X, pr4->Y, 0));
 	}
 	Real angle = WWMath::Acos(curSin);
 	Real count = angle / (PI/6.0f); // number of 30 degree steps.
@@ -3009,14 +3009,14 @@ void W3DRoadBuffer::insertCurveSegmentAt(Int ndx1, Int ndx2)
 		}
 
 		// Recalculate top & bottom.
- 		Vector2 roadVector = m_roads[ndx1].m_pt2.loc - m_roads[ndx1].m_pt1.loc;
+		Vector2 roadVector = m_roads[ndx1].m_pt2.loc - m_roads[ndx1].m_pt1.loc;
 		Vector2 roadNormal(-roadVector.Y, roadVector.X);
 		roadNormal.Normalize();
 		roadNormal *= (m_roads[ndx1].m_scale*m_roads[ndx1].m_widthInTexture/2.0f);
 		m_roads[ndx1].m_pt1.top = m_roads[ndx1].m_pt1.loc+roadNormal;
 		m_roads[ndx1].m_pt1.bottom = m_roads[ndx1].m_pt1.loc - roadNormal;
 
- 		roadVector = m_roads[ndx2].m_pt2.loc - m_roads[ndx2].m_pt1.loc;
+		roadVector = m_roads[ndx2].m_pt2.loc - m_roads[ndx2].m_pt1.loc;
 		roadNormal = Vector2(-roadVector.Y, roadVector.X);
 		roadNormal.Normalize();
 		roadNormal *= (m_roads[ndx2].m_scale*m_roads[ndx2].m_widthInTexture/2.0f);
@@ -3307,7 +3307,7 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 		st=W3DShaderManager::ST_ROAD_BASE_NOISE2;
 
 	Int devicePasses = 1;	//assume regular rendering
- 	//Find number of passes required to render current shader
+	//Find number of passes required to render current shader
 	devicePasses=W3DShaderManager::getShaderPasses(st);
 
 	W3DShaderManager::setTexture(1,cloudTexture);	//cloud
@@ -3343,7 +3343,7 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 			for (Int pass=0; pass < devicePasses; pass++)
 			{
 				if (!wireframe)
-		 			W3DShaderManager::setShader(st, pass);
+				W3DShaderManager::setShader(st, pass);
 				//Draw all this road type.
 				DX8Wrapper::Draw_Triangles(	0, m_roadTypes[i].getNumIndices()/3, 0,	m_roadTypes[i].getNumVertices());
 #ifdef LOG_STATS
@@ -3352,7 +3352,7 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 			}
 
 			if (!wireframe)	//shader was applied at least once?
- 				W3DShaderManager::resetShader(st);
+			W3DShaderManager::resetShader(st);
 		}
 	}
 #ifdef LOG_STATS

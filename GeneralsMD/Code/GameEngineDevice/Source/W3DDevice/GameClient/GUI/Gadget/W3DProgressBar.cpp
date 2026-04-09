@@ -79,7 +79,7 @@ void W3DGadgetProgressBarDraw( GameWindow *window, WinInstanceData *instData )
 	Int progress = (Int)window->winGetUserData();
 
 	// get window size and position
-  window->winGetScreenPosition( &origin.x, &origin.y );
+	window->winGetScreenPosition( &origin.x, &origin.y );
 	window->winGetSize( &size.x, &size.y );
 
 	// get the right colors to use
@@ -114,7 +114,7 @@ void W3DGadgetProgressBarDraw( GameWindow *window, WinInstanceData *instData )
 		end.x = start.x + size.x;
 		end.y = start.y + size.y;
 		TheWindowManager->winOpenRect( backBorder, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+			start.x, start.y, end.x, end.y );
 
 	}
 
@@ -127,7 +127,7 @@ void W3DGadgetProgressBarDraw( GameWindow *window, WinInstanceData *instData )
 		end.x = start.x + size.x - 2;
 		end.y = start.y + size.y - 2;
 		TheWindowManager->winFillRect( backColor, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+			start.x, start.y, end.x, end.y );
 
 	}
 
@@ -146,7 +146,7 @@ void W3DGadgetProgressBarDraw( GameWindow *window, WinInstanceData *instData )
 			if(end.x- start.x > 1  )
 			{
 				TheWindowManager->winOpenRect( barBorder, WIN_DRAW_LINE_WIDTH,
-																		 start.x, start.y, end.x, end.y );
+					start.x, start.y, end.x, end.y );
 			}
 
 		}
@@ -165,7 +165,7 @@ void W3DGadgetProgressBarDraw( GameWindow *window, WinInstanceData *instData )
 			if(end.x- start.x > 1  )
 			{
 				TheWindowManager->winFillRect( barColor,WIN_DRAW_LINE_WIDTH,
-																		 start.x, start.y, end.x, end.y );
+					start.x, start.y, end.x, end.y );
 
 				TheWindowManager->winDrawLine(GameMakeColor(255,255,255,255),WIN_DRAW_LINE_WIDTH, start.x, start.y, end.x, start.y);
 				TheWindowManager->winDrawLine(GameMakeColor(200,200,200,255),WIN_DRAW_LINE_WIDTH, start.x, start.y, start.x, end.y);
@@ -190,7 +190,7 @@ void W3DGadgetProgressBarImageDrawA( GameWindow *window, WinInstanceData *instDa
 	Int xOffset, yOffset;
 	Int i;
 	// get window size and position
-  window->winGetScreenPosition( &origin.x, &origin.y );
+	window->winGetScreenPosition( &origin.x, &origin.y );
 	window->winGetSize( &size.x, &size.y );
 
 	// get offset
@@ -228,13 +228,13 @@ void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instDat
 {
 	ICoord2D origin, size, start, end;
 	const Image *backLeft, *backRight, *backCenter,
-				 *barRight, *barCenter;//*backSmallCenter,*barLeft,, *barSmallCenter;
+		*barRight, *barCenter;//*backSmallCenter,*barLeft,, *barSmallCenter;
 	Int progress = (Int)window->winGetUserData();
 	Int xOffset, yOffset;
 	Int i;
 
 	// get window size and position
-  window->winGetScreenPosition( &origin.x, &origin.y );
+	window->winGetScreenPosition( &origin.x, &origin.y );
 	window->winGetSize( &size.x, &size.y );
 
 	// get offset
@@ -385,7 +385,7 @@ void W3DGadgetProgressBarImageDraw( GameWindow *window, WinInstanceData *instDat
 	barWindowSize.y = size.y;
 
 	pieces = barWindowSize.x / barCenter->getImageWidth();
- 	// draw the pieces
+	// draw the pieces
 	start.x = origin.x +10;
 	start.y = origin.y + yOffset +5;
 	end.y = start.y + size.y - 10;

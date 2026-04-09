@@ -356,7 +356,7 @@ static Bool _positionIsTooCliffyForTrees(Coord3D pos)
 	otherPos.z = TheTerrainRenderObject->getHeightMapHeight(otherPos.x, otherPos.y, nullptr);
 
 	if (((pos.z / otherPos.z / 1) > MAX_TREE_RISE_OVER_RUN) ||
-		  ((otherPos.z / pos.z / 1) > MAX_TREE_RISE_OVER_RUN)) {
+		((otherPos.z / pos.z / 1) > MAX_TREE_RISE_OVER_RUN)) {
 		return true;
 	}
 

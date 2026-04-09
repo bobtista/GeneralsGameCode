@@ -207,11 +207,11 @@ public:
 																Int *safeWidth, Int *safeHeight );
 	/// compute new size of window using drag-resize logic
 	void computeResizeLocation( EditMode resizeMode,
-														  GameWindow *window,
-														  ICoord2D *resizeOrigin,
-														  ICoord2D *resizeDest,
-														  ICoord2D *resultLoc,
-														  ICoord2D *resultSize );
+		GameWindow *window,
+		ICoord2D *resizeOrigin,
+		ICoord2D *resizeDest,
+		ICoord2D *resultLoc,
+		ICoord2D *resultSize );
 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	// creating new windows and controls ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -230,48 +230,48 @@ public:
 	/** when creating child windows we don't want them to exist outside the
 	parent so we use this to clip them to the the parent size and locations */
 	void clipCreationParamsToParent( GameWindow *parent,
-																	 Int *x, Int *y, Int *width, Int *height );
+		Int *x, Int *y, Int *width, Int *height );
 
 	GameWindow *newWindow( UnsignedInt windowStyle,
-												 GameWindow *parent,
-												 Int x, Int y,
-												 Int width, Int height );
+		GameWindow *parent,
+		Int x, Int y,
+		Int width, Int height );
 	GameWindow *newUserWindow( GameWindow *parent,
-														 Int x, Int y,
-														 Int width, Int height );
+		Int x, Int y,
+		Int width, Int height );
 	GameWindow *newPushButton( GameWindow *parent,
-														 Int x, Int y,
-														 Int width, Int height );
+		Int x, Int y,
+		Int width, Int height );
 	GameWindow *newCheckBox( GameWindow *parent,
-													 Int x, Int y,
-													 Int width, Int height );
+		Int x, Int y,
+		Int width, Int height );
 	GameWindow *newRadioButton( GameWindow *parent,
-														  Int x, Int y,
+		Int x, Int y,
 															Int width, Int height );
 	GameWindow *newTabControl( GameWindow *parent,
-														  Int x, Int y,
+		Int x, Int y,
 															Int width, Int height );
 	GameWindow *newHorizontalSlider( GameWindow *parent,
-																	 Int x, Int y,
-																	 Int width, Int height );
+		Int x, Int y,
+		Int width, Int height );
 	GameWindow *newVerticalSlider( GameWindow *parent,
-																 Int x, Int y,
-																 Int width, Int height );
+		Int x, Int y,
+		Int width, Int height );
 	GameWindow *newProgressBar( GameWindow *parent,
-														  Int x, Int y,
+		Int x, Int y,
 															Int width, Int height );
 	GameWindow *newListbox( GameWindow *parent,
 													Int x, Int y,
 													Int width, Int height );
 	GameWindow *newTextEntry( GameWindow *parent,
-													  Int x, Int y,
+		Int x, Int y,
 														Int width, Int height );
 	GameWindow *newStaticText( GameWindow *parent,
-														 Int x, Int y,
-														 Int width, Int height );
+		Int x, Int y,
+		Int width, Int height );
 	GameWindow *newComboBox( GameWindow *parent,
-														 Int x, Int y,
-														 Int width, Int height );
+		Int x, Int y,
+		Int width, Int height );
 
 	// menu options ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	Bool menuNew( void );  ///< start a new layout process

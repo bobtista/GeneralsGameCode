@@ -143,8 +143,8 @@ BOOL FenceOptions::OnInitDialog()
 	// add entries from the thing factory as the available objects to use
 	const ThingTemplate *tTemplate;
 	for( tTemplate = TheThingFactory->firstTemplate();
-			 tTemplate;
-			 tTemplate = tTemplate->friend_getNextTemplate() )
+	tTemplate;
+	tTemplate = tTemplate->friend_getNextTemplate() )
 	{
 		Coord3D loc = { 0, 0, 0 };
 		MapObject *pMap;
@@ -195,7 +195,7 @@ BOOL FenceOptions::OnInitDialog()
 	m_updating = false;
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 /** Locate the child item in tree item parent with name pLabel.  If not
@@ -234,7 +234,7 @@ HTREEITEM FenceOptions::findOrAdd(HTREEITEM parent, const char *pLabel)
 /** Add the object hierarchy paths to the tree view. */
 //-------------------------------------------------------------------------------------------------
 void FenceOptions::addObject( MapObject *mapObject, const char *pPath, const char *name,
-															 Int terrainNdx, HTREEITEM parent )
+	Int terrainNdx, HTREEITEM parent )
 {
 	const char *leafName = nullptr;
 
@@ -266,8 +266,8 @@ void FenceOptions::addObject( MapObject *mapObject, const char *pPath, const cha
 		// next tier uses the editor sorting that design can specify in the INI
 		EditorSortingType i = ES_FIRST;
 		for( ;
-				 i < ES_NUM_SORTING_TYPES;
-				 i = (EditorSortingType)(i + 1) )
+		i < ES_NUM_SORTING_TYPES;
+		i = (EditorSortingType)(i + 1) )
 		{
 
 			if( thingTemplate->getEditorSorting() == i )

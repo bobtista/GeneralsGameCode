@@ -43,9 +43,9 @@ void WBPopupSliderButton::SetupPopSliderButton
 	m_owner = pOwner;
 
 	HBITMAP hBm = (HBITMAP) ::LoadImage((HINSTANCE) AfxGetResourceHandle(),
-								 MAKEINTRESOURCE(IDB_DownArrow),
-								 IMAGE_BITMAP, 0, 0,
-								 LR_LOADMAP3DCOLORS);
+		MAKEINTRESOURCE(IDB_DownArrow),
+		IMAGE_BITMAP, 0, 0,
+		LR_LOADMAP3DCOLORS);
 
 	HBITMAP hbmOld = (HBITMAP) SendMessage(BM_SETIMAGE, IMAGE_BITMAP, (LPARAM) hBm);
 
@@ -218,8 +218,8 @@ void PopupSlider::MoveThumbUnderMouse(int xNew)
 // PopupSlider static member functions
 
 void PopupSlider::New(CWnd *pParentWnd, long kind,
-						  PopupSliderOwner *pSliderOwner,
-						  long sliderID)
+	PopupSliderOwner *pSliderOwner,
+	long sliderID)
 {
 	PopupSlider * pPopupSlider;
 
@@ -338,10 +338,10 @@ BOOL PopupSlider::Create(const RECT& rect, CWnd* pParentWnd)
 
 		// we'll just use "this" for the child ID
 		if (FALSE == CWnd::CreateEx(dwExStyle, (LPCTSTR) className, "",
-							  dwStyle, winRect.left, winRect.top,
-							  winRect.Width(), winRect.Height(),
-							  pParentWnd->GetSafeHwnd(),
-							  nullptr, nullptr))
+			dwStyle, winRect.left, winRect.top,
+			winRect.Width(), winRect.Height(),
+			pParentWnd->GetSafeHwnd(),
+			nullptr, nullptr))
 			throw(-1);
 
 
@@ -439,7 +439,7 @@ void PopupSlider::OnPaint()
 		CRect iconRect;
 		GetThumbIconRect(&iconRect);
 		::DrawIconEx(dc.GetSafeHdc(), iconRect.left, iconRect.top,
-					 mIcon, 0, 0, 0, nullptr, DI_NORMAL);
+			mIcon, 0, 0, 0, nullptr, DI_NORMAL);
 	}
 	// Do not call CWnd::OnPaint() for painting messages
 }

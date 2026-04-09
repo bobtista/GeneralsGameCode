@@ -161,7 +161,7 @@ void SaveMap::populateMapListbox( Bool systemMaps )
 		} while (FindNextFile(hFindFile, &findData));
 
 		if (hFindFile) FindClose(hFindFile);
- 	}
+	}
 	CEdit *pEdit = (CEdit*)GetDlgItem(IDC_SAVE_MAP_EDIT);
 	if (pEdit != nullptr) {
 		strlcpy(fileBuf, m_pInfo->filename, ARRAY_SIZE(fileBuf));

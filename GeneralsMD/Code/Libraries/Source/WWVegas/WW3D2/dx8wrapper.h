@@ -200,7 +200,7 @@ struct RenderStateStruct
 	TextureBaseClass * Textures[MAX_TEXTURE_STAGES];
 	D3DLIGHT8 Lights[4];
 	bool LightEnable[4];
-  //unsigned lightsHash;
+	//unsigned lightsHash;
 	D3DMATRIX world;
 	D3DMATRIX view;
 	unsigned vertex_buffer_types[MAX_VERTEX_STREAMS];
@@ -878,10 +878,10 @@ WWINLINE void DX8Wrapper::Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane)
 
 WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value)
 {
-  	if (stage >= MAX_TEXTURE_STAGES)
-  	{	DX8CALL(SetTextureStageState( stage, state, value ));
-  		return;
-  	}
+	if (stage >= MAX_TEXTURE_STAGES)
+	{	DX8CALL(SetTextureStageState( stage, state, value ));
+		return;
+	}
 
 	// Can't monitor state changes because setShader call to GERD may change the states!
 	if (TextureStageStates[stage][(unsigned int)state]==value) return;
@@ -903,10 +903,10 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURE
 
 WWINLINE void DX8Wrapper::Set_DX8_Texture(unsigned int stage, IDirect3DBaseTexture8* texture)
 {
-  	if (stage >= MAX_TEXTURE_STAGES)
-  	{	DX8CALL(SetTexture(stage, texture));
-  		return;
-  	}
+	if (stage >= MAX_TEXTURE_STAGES)
+	{	DX8CALL(SetTexture(stage, texture));
+		return;
+	}
 
 	if (Textures[stage]==texture) return;
 
@@ -920,19 +920,19 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture(unsigned int stage, IDirect3DBaseTextu
 }
 
 WWINLINE void DX8Wrapper::_Copy_DX8_Rects(
-  IDirect3DSurface8* pSourceSurface,
-  CONST RECT* pSourceRectsArray,
-  UINT cRects,
-  IDirect3DSurface8* pDestinationSurface,
-  CONST POINT* pDestPointsArray
+	IDirect3DSurface8* pSourceSurface,
+	CONST RECT* pSourceRectsArray,
+	UINT cRects,
+	IDirect3DSurface8* pDestinationSurface,
+	CONST POINT* pDestPointsArray
 )
 {
 	DX8CALL(CopyRects(
-  pSourceSurface,
-  pSourceRectsArray,
-  cRects,
-  pDestinationSurface,
-  pDestPointsArray));
+		pSourceSurface,
+		pSourceRectsArray,
+		cRects,
+		pDestinationSurface,
+		pDestPointsArray));
 }
 
 WWINLINE Vector4 DX8Wrapper::Convert_Color(unsigned color)
@@ -1359,7 +1359,7 @@ WWINLINE RenderStateStruct::RenderStateStruct()
 	unsigned i;
 	for (i=0;i<MAX_VERTEX_STREAMS;++i) vertex_buffers[i]=0;
 	for (i=0;i<MAX_TEXTURE_STAGES;++i) Textures[i]=0;
-  //lightsHash = (unsigned)this;
+	//lightsHash = (unsigned)this;
 }
 
 WWINLINE RenderStateStruct::~RenderStateStruct()
