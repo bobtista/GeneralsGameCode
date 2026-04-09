@@ -528,7 +528,7 @@ void SidesList::prepareForMP_or_Skirmish()
 					Int curSide = -1;
 					Int j;
 					for (j=0; j<m_numSkirmishSides; j++) {
- 						AsciiString name = getSkirmishSideInfo(j)->getDict()->getAsciiString(TheKey_playerName);
+					AsciiString name = getSkirmishSideInfo(j)->getDict()->getAsciiString(TheKey_playerName);
 						if (name == static_readPlayerNames[i]) {
 							curSide = j;
 							break;
@@ -956,11 +956,11 @@ void BuildListInfo::parseStructure(INI *ini, void *instance, void* /*store*/, co
 		{
 			{ "Name",				INI::parseAsciiString,		nullptr, offsetof( BuildListInfo, m_buildingName	 ) },
 			{ "Location",		INI::parseCoord2D,				nullptr, offsetof( BuildListInfo, m_location ) },
-      { "Rebuilds",		INI::parseInt,						nullptr, offsetof( BuildListInfo, m_numRebuilds ) },
-      { "Angle",			INI::parseAngleReal,			nullptr, offsetof( BuildListInfo, m_angle ) },
-      { "InitiallyBuilt",			INI::parseBool,		nullptr, offsetof( BuildListInfo, m_isInitiallyBuilt ) },
-      { "RallyPointOffset",			INI::parseCoord2D,		nullptr, offsetof( BuildListInfo, m_rallyPointOffset ) },
-      { "AutomaticallyBuild",			INI::parseBool,	nullptr, offsetof( BuildListInfo, m_automaticallyBuild ) },
+		{ "Rebuilds",		INI::parseInt,						nullptr, offsetof( BuildListInfo, m_numRebuilds ) },
+		{ "Angle",			INI::parseAngleReal,			nullptr, offsetof( BuildListInfo, m_angle ) },
+		{ "InitiallyBuilt",			INI::parseBool,		nullptr, offsetof( BuildListInfo, m_isInitiallyBuilt ) },
+		{ "RallyPointOffset",			INI::parseCoord2D,		nullptr, offsetof( BuildListInfo, m_rallyPointOffset ) },
+		{ "AutomaticallyBuild",			INI::parseBool,	nullptr, offsetof( BuildListInfo, m_automaticallyBuild ) },
 			{ nullptr,							nullptr,											nullptr, 0 }
 		};
 

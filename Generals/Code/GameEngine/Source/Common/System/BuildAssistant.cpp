@@ -216,7 +216,7 @@ void BuildAssistant::update()
 
 				obj->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK2( MODELCONDITION_PARTIALLY_CONSTRUCTED,
 																																				MODELCONDITION_ACTIVELY_BEING_CONSTRUCTED ),
-																						 MAKE_MODELCONDITION_MASK( MODELCONDITION_SOLD ) );
+					MAKE_MODELCONDITION_MASK( MODELCONDITION_SOLD ) );
 
 				//
 				// set the animation durations so that the regular build up loop animations can be
@@ -247,7 +247,7 @@ void BuildAssistant::update()
 					sellValue = obj->getTemplate()->getRefundValue();
 				else
 					sellValue = REAL_TO_UNSIGNEDINT( obj->getTemplate()->calcCostToBuild( player ) *
-																										 TheGlobalData->m_sellPercentage );
+					TheGlobalData->m_sellPercentage );
 
 				player->getMoney()->deposit( sellValue, TRUE, FALSE );
 				// this money shouldn't be scored since it wasn't really "earned."
@@ -286,9 +286,9 @@ void BuildAssistant::xferTheSellList( Xfer *xfer )
 
 	Int count=0;
 	ObjectSellListIterator it, thisIterator;
- 	for( it = m_sellList.begin(); it != m_sellList.end(); ++it ) {
+	for( it = m_sellList.begin(); it != m_sellList.end(); ++it ) {
 		count++;
- 	}
+	}
 	xfer->xferInt(&count);
 
 	if (xfer->getXferMode() == XFER_LOAD)	{
@@ -319,7 +319,7 @@ void BuildAssistant::xferTheSellList( Xfer *xfer )
 /** Nice little method to wrap up creating an object from a build */
 //-------------------------------------------------------------------------------------------------
 Object *BuildAssistant::buildObjectNow( Object *constructorObject, const ThingTemplate *what,
-																			  const Coord3D *pos, Real angle, Player *owningPlayer )
+	const Coord3D *pos, Real angle, Player *owningPlayer )
 {
 
 	// sanity
@@ -333,14 +333,14 @@ Object *BuildAssistant::buildObjectNow( Object *constructorObject, const ThingTe
 	if( constructorObject )
 	{
 		DEBUG_ASSERTCRASH( constructorObject->getControllingPlayer() == owningPlayer,
-											 ("buildObjectNow: Constructor object player is not the same as the controlling player passed in\n") );
+			("buildObjectNow: Constructor object player is not the same as the controlling player passed in\n") );
 
 	}
 
- 	// Need to validate that we can make this in case someone fakes their CommandSet
+	// Need to validate that we can make this in case someone fakes their CommandSet
 	// A Null constructorObject is used by the script engine to cheat, so let it slide
- 	if( constructorObject && !isPossibleToMakeUnit(constructorObject, what) )
- 		return nullptr;
+	if( constructorObject && !isPossibleToMakeUnit(constructorObject, what) )
+	return nullptr;
 
 	// clear out any objects from the building area that are "auto-clearable" when building
 	clearRemovableForConstruction( what, pos, angle );
@@ -431,7 +431,7 @@ Object *BuildAssistant::buildObjectNow( Object *constructorObject, const ThingTe
 
 	}
 
-  return nullptr;
+	return nullptr;
 
 }
 
@@ -440,8 +440,8 @@ Object *BuildAssistant::buildObjectNow( Object *constructorObject, const ThingTe
 	* space from start to end.  This is especially useful in building walls */
 //-------------------------------------------------------------------------------------------------
 void BuildAssistant::buildObjectLineNow( Object *constructorObject, const ThingTemplate *what,
-																				 const Coord3D *start, const Coord3D *end, Real angle,
-																				 Player *owningPlayer )
+	const Coord3D *start, const Coord3D *end, Real angle,
+	Player *owningPlayer )
 {
 	TileBuildInfo *tileBuildInfo;
 
@@ -457,7 +457,7 @@ void BuildAssistant::buildObjectLineNow( Object *constructorObject, const ThingT
 
 	// build an array of locations that we want to build from start to end
 	tileBuildInfo = buildTiledLocations( what, angle, start, end,
-																			 objectSize, maxObjects, constructorObject );
+		objectSize, maxObjects, constructorObject );
 
 	// create an object at each position
 	for( Int i = 0; i < tileBuildInfo->tilesUsed; i++ )
@@ -540,11 +540,11 @@ static void checkSampleBuildLocation( const Coord3D *samplePoint, void *userData
 	* the more samples will be taken across the footprint area */
 //-------------------------------------------------------------------------------------------------
 void BuildAssistant::iterateFootprint( const ThingTemplate *build,
-																			 Real buildOrientation,
-																			 const Coord3D *worldPos,
-																			 Real sampleResolution,
-																			 IterateFootprintFunc func,
-																			 void *funcUserData )
+	Real buildOrientation,
+	const Coord3D *worldPos,
+	Real sampleResolution,
+	IterateFootprintFunc func,
+	void *funcUserData )
 {
 
 	// sanity
@@ -564,7 +564,7 @@ void BuildAssistant::iterateFootprint( const ThingTemplate *build,
 
 	// get the bounding footprint rectangle for the geometry we're looking at
 	Real halfFootprintHeight,
-			 halfFootprintWidth;
+		halfFootprintWidth;
 	if( build->getTemplateGeometryInfo().getGeomType() == GEOMETRY_BOX )
 	{
 
@@ -573,7 +573,7 @@ void BuildAssistant::iterateFootprint( const ThingTemplate *build,
 
 	}
 	else if( build->getTemplateGeometryInfo().getGeomType() == GEOMETRY_SPHERE ||
-					 build->getTemplateGeometryInfo().getGeomType() == GEOMETRY_CYLINDER )
+		build->getTemplateGeometryInfo().getGeomType() == GEOMETRY_CYLINDER )
 	{
 
 		halfFootprintHeight = build->getTemplateGeometryInfo().getBoundingCircleRadius();
@@ -584,7 +584,7 @@ void BuildAssistant::iterateFootprint( const ThingTemplate *build,
 	{
 
 		DEBUG_CRASH( ("iterateFootprint: Undefined geometry '%d' for '%s'",
-											     build->getTemplateGeometryInfo().getGeomType(), build->getName().str()) );
+			build->getTemplateGeometryInfo().getGeomType(), build->getName().str()) );
 		return;
 
 	}
@@ -600,8 +600,8 @@ void BuildAssistant::iterateFootprint( const ThingTemplate *build,
 	Real x, y;
 	Vector3 v;
 	for( y = -halfFootprintHeight;
-			 y < halfFootprintHeight + sampleResolution;
-			 y += sampleResolution )
+	y < halfFootprintHeight + sampleResolution;
+	y += sampleResolution )
 	{
 
 		// snap it to the actual extent since we can go over by one sample resolution
@@ -609,8 +609,8 @@ void BuildAssistant::iterateFootprint( const ThingTemplate *build,
 			y = halfFootprintHeight;
 
 		for( x = -halfFootprintWidth;
-				 x < halfFootprintWidth + sampleResolution;
-				 x += sampleResolution )
+		x < halfFootprintWidth + sampleResolution;
+		x += sampleResolution )
 		{
 
 			// snap it to the actual extent since we can go over by one sample resolution
@@ -654,16 +654,16 @@ void BuildAssistant::iterateFootprint( const ThingTemplate *build,
 	* edge of the shroud so that players cannot use this info to determine whether they exist. */
 //-------------------------------------------------------------------------------------------------
 Bool BuildAssistant::isLocationClearOfObjects( const Coord3D *worldPos,
-																											 const ThingTemplate *build,
-																											 Real angle,
-																											 const Object *builderObject,
-																											 UnsignedInt options,
-																											 Player *thePlayer)
+	const ThingTemplate *build,
+	Real angle,
+	const Object *builderObject,
+	UnsignedInt options,
+	Player *thePlayer)
 {
 	ObjectIterator *iter =
 			ThePartitionManager->iteratePotentialCollisions( worldPos,
-																											 build->getTemplateGeometryInfo(),
-																											 angle );
+		build->getTemplateGeometryInfo(),
+		angle );
 	Object *them;
 	Bool onlyCheckEnemies = (options == NO_ENEMY_OBJECT_OVERLAP);
 	MemoryPoolObjectHolder hold(iter);
@@ -839,11 +839,11 @@ Bool BuildAssistant::isLocationClearOfObjects( const Coord3D *worldPos,
 	* for queries that require a pathfind check and should be null if not required */
 //-------------------------------------------------------------------------------------------------
 LegalBuildCode BuildAssistant::isLocationLegalToBuild( const Coord3D *worldPos,
-																											 const ThingTemplate *build,
-																											 Real angle,
-																											 UnsignedInt options,
-																											 const Object *builderObject,
-																											 Player *player)
+	const ThingTemplate *build,
+	Real angle,
+	UnsignedInt options,
+	const Object *builderObject,
+	Player *player)
 {
 
 	/* You just can't never build off the map, regardless of options.  jba. */
@@ -992,7 +992,7 @@ LegalBuildCode BuildAssistant::isLocationLegalToBuild( const Coord3D *worldPos,
 
 		// quick check at triple res.
 		iterateFootprint( build, angle, worldPos, 3*sampleResolution,
-		                  checkSampleBuildLocation, &sampleData );
+			checkSampleBuildLocation, &sampleData );
 		if( sampleData.terrainRestricted == TRUE )
 			return LBC_RESTRICTED_TERRAIN;
 		// check if the height across the whole footprint area is too varied (not flat enough)
@@ -1001,7 +1001,7 @@ LegalBuildCode BuildAssistant::isLocationLegalToBuild( const Coord3D *worldPos,
 
 		// careful check at full res.
 		iterateFootprint( build, angle, worldPos, sampleResolution,
-		                  checkSampleBuildLocation, &sampleData );
+			checkSampleBuildLocation, &sampleData );
 		if( sampleData.terrainRestricted == TRUE )
 			return LBC_RESTRICTED_TERRAIN;
 		// check if the height across the whole footprint area is too varied (not flat enough)
@@ -1368,8 +1368,8 @@ void BuildAssistant::clearRemovableForConstruction( const ThingTemplate *whatToB
 {
 	ObjectIterator *iter =
 			ThePartitionManager->iteratePotentialCollisions( pos,
-																											 whatToBuild->getTemplateGeometryInfo(),
-																											 angle );
+		whatToBuild->getTemplateGeometryInfo(),
+		angle );
 	MemoryPoolObjectHolder hold( iter );
 	for( Object *them = iter->first(); them; them = iter->next() )
 	{
@@ -1389,9 +1389,9 @@ void BuildAssistant::clearRemovableForConstruction( const ThingTemplate *whatToB
     the association with the object is enemy. (We can move neutral things) */
 // ------------------------------------------------------------------------------------------------
 Bool BuildAssistant::moveObjectsForConstruction( const ThingTemplate *whatToBuild,
-																								 const Coord3D *pos,
-																								 Real angle,
-																								 Player *playerToBuild )
+	const Coord3D *pos,
+	Real angle,
+	Player *playerToBuild )
 {
 	GeometryInfo gi (GEOMETRY_BOX, false, 10, whatToBuild->getTemplateGeometryInfo().getMajorRadius(),
 		whatToBuild->getTemplateGeometryInfo().getMajorRadius());
@@ -1400,8 +1400,8 @@ Bool BuildAssistant::moveObjectsForConstruction( const ThingTemplate *whatToBuil
 	}
 	ObjectIterator *iter =
 			ThePartitionManager->iteratePotentialCollisions( pos,
-																											 gi,
-																											 angle );
+		gi,
+		angle );
 	Bool anyUnmovables = false;
 	MemoryPoolObjectHolder hold( iter );
 

@@ -308,7 +308,7 @@ void TunnelContain::scatterToNearbyPosition(Object* obj)
 		// set position of the object at center of building and move them toward pos
 		obj->setPosition( theContainer->getPosition() );
 		ai->ignoreObstacle(theContainer);
- 		ai->aiMoveToPosition( &pos, CMD_FROM_AI );
+		ai->aiMoveToPosition( &pos, CMD_FROM_AI );
 
 	}
 	else

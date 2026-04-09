@@ -395,8 +395,8 @@ void GarrisonContain::putObjectAtBestGarrisonPoint( Object *obj, Object *target,
 	// get the index of the garrison point that is closest to the target position
 	Int placeIndex = findClosestFreeGarrisonPointIndex( conditionIndex, targetPos );
 	DEBUG_ASSERTCRASH( placeIndex != GARRISON_INDEX_INVALID,
-										 ("GarrisonContain::putObjectAtBestGarrisonPoint - Unable to find suitable garrison point for '%s'",
-										 obj->getTemplate()->getName().str()) );
+		("GarrisonContain::putObjectAtBestGarrisonPoint - Unable to find suitable garrison point for '%s'",
+		obj->getTemplate()->getName().str()) );
 
 	// put it here
 	putObjectAtGarrisonPoint( obj, target ? target->getID() : INVALID_ID, conditionIndex, placeIndex );
@@ -474,7 +474,7 @@ TheInGameUI->message( msg );
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 GarrisonContain::GarrisonContain( Thing *thing, const ModuleData *moduleData ) :
-								 OpenContain( thing, moduleData )
+	OpenContain( thing, moduleData )
 {
 	Int i, j;
 
@@ -894,7 +894,7 @@ UpdateSleepTime GarrisonContain::update()
 	{
 		// sanity information
 		DEBUG_ASSERTCRASH( getObject()->isMobile() == FALSE,
-		 ("GarrisonContain::update - Objects with garrison contain can be spec'd as 'mobile' in the INI. Do you really want to do this?") );
+			("GarrisonContain::update - Objects with garrison contain can be spec'd as 'mobile' in the INI. Do you really want to do this?") );
 	}
 
 	return UPDATE_SLEEP_NONE;
@@ -1156,7 +1156,7 @@ void GarrisonContain::loadGarrisonPoints()
 	if (gBonesFound && modData->m_mobileGarrison && (getObject()->isMobile() == TRUE) )
 	{
 		DEBUG_ASSERTCRASH( getObject()->isMobile() == FALSE,
-		 ("GarrisonContain::update - You have specified this garrisonContain as mobile,\n yet you want garrison point placement bones... \n what are you thinking?") );
+			("GarrisonContain::update - You have specified this garrisonContain as mobile,\n yet you want garrison point placement bones... \n what are you thinking?") );
 	}
 
 
@@ -1199,8 +1199,8 @@ void GarrisonContain::validateRallyPoint()
 		options.ignoreObject = getObject();
 		options.relationshipObject = getObject();
 		m_rallyValid = ThePartitionManager->findPositionAround( getObject()->getPosition(),
-																													  &options,
-																													  &m_exitRallyPoint );
+			&options,
+			&m_exitRallyPoint );
 	}
 
 }

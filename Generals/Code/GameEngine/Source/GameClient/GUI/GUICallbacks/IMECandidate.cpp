@@ -57,7 +57,7 @@ WindowMsgHandledType IMECandidateWindowInput( GameWindow *window, UnsignedInt ms
 /** System callback for the IME Candidate window */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType IMECandidateWindowSystem( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -149,7 +149,7 @@ void IMECandidateTextAreaDraw( GameWindow *window, WinInstanceData *instData )
 		end.x = start.x + size.x;
 		end.y = start.y + size.y;
 		TheWindowManager->winOpenRect( black, borderWidth,
-																	 start.x, start.y, end.x, end.y );
+			start.x, start.y, end.x, end.y );
 	}
 
 	if ( Dstring == nullptr )
@@ -275,7 +275,7 @@ void IMECandidateMainDraw( GameWindow *window, WinInstanceData *instData )
 		end.x = start.x + size.x;
 		end.y = start.y + size.y;
 		TheWindowManager->winOpenRect( backBorder, borderWidth,
-																	 start.x, start.y, end.x, end.y );
+			start.x, start.y, end.x, end.y );
 	}
 
 	// draw the filled back

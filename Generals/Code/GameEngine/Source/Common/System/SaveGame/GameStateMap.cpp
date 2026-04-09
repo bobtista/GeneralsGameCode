@@ -322,7 +322,7 @@ void GameStateMap::xfer( Xfer *xfer )
 		if (!TheGameState->isInSaveDirectory(saveGameInfo->saveGameMapName))
 		{
 			DEBUG_CRASH(("GameState::xfer - The map filename read from the file '%s' is not in the SAVE directory, but should be",
-												 saveGameInfo->saveGameMapName.str()) );
+				saveGameInfo->saveGameMapName.str()) );
 			throw SC_INVALID_DATA;
 		}
 

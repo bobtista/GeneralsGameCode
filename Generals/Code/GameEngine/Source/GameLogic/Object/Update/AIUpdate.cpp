@@ -106,8 +106,8 @@ const LocomotorTemplateVector* AIUpdateModuleData::findLocomotorTemplateVector(L
 	if (m_locomotorTemplates.empty())
 		return nullptr;
 
-  LocomotorTemplateMap::const_iterator it = m_locomotorTemplates.find(t);
-  if (it == m_locomotorTemplates.end())
+	LocomotorTemplateMap::const_iterator it = m_locomotorTemplates.find(t);
+	if (it == m_locomotorTemplates.end())
 	{
 		return nullptr;
 	}
@@ -120,7 +120,7 @@ const LocomotorTemplateVector* AIUpdateModuleData::findLocomotorTemplateVector(L
 //-------------------------------------------------------------------------------------------------
 /*static*/ void AIUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  ModuleData::buildFieldParse(p);
+	ModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -133,7 +133,7 @@ const LocomotorTemplateVector* AIUpdateModuleData::findLocomotorTemplateVector(L
 #endif
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1445,7 +1445,7 @@ Bool AIUpdateInterface::processCollision(PhysicsBehavior *physics, Object *other
 				}
 			}
 			m_isBlocked = TRUE; // we are blocked.
- 			if (otherMoving && aiOther->isWaitingForPath())
+			if (otherMoving && aiOther->isWaitingForPath())
 			{
 				return FALSE; // let them get their path;
 			}
@@ -1571,7 +1571,7 @@ Bool AIUpdateInterface::canComputeQuickPath()
 	// Note - if a truck happens to pop into the air and gets a move to command, it still
 	// needs to pathfind.  So only skip pathfinding for airborne things that can fly... jba.
 	if (!(m_locomotorSet.getValidSurfaces() & LOCOMOTORSURFACE_AIR))
-  {
+	{
 		landBound = TRUE;
 	}
 
@@ -1722,11 +1722,11 @@ Bool AIUpdateInterface::computePath( PathfindServicesInterface *pathServices, Co
 			theNewPath->updateLastNode(&originalDestination);
 		}
 		setLocomotorGoalPositionOnPath();
- 		if( !getObject()->isKindOf(KINDOF_NO_COLLIDE))// If I don't collide with things, I don't need to tell them to get out of the way
+		if( !getObject()->isKindOf(KINDOF_NO_COLLIDE))// If I don't collide with things, I don't need to tell them to get out of the way
 			TheAI->pathfinder()->moveAllies(getObject(), theNewPath);
 	} else {
 		// Keep using the old path.
- 		if (m_path && m_isBlockedAndStuck) {
+		if (m_path && m_isBlockedAndStuck) {
 			destroyPath();
 			// Stop and wait one second.
 
@@ -1779,7 +1779,7 @@ Bool AIUpdateInterface::computeAttackPath( PathfindServicesInterface *pathServic
 	// Note - if a truck happens to pop into the air and gets a move to command, it still
 	// needs to pathfind.  So only skip pathfinding for airborne things that can fly... jba.
 	if (!(m_locomotorSet.getValidSurfaces() & LOCOMOTORSURFACE_AIR))
-  {
+	{
 		landBound = TRUE;
 	}
 
@@ -1883,9 +1883,9 @@ Bool AIUpdateInterface::computeAttackPath( PathfindServicesInterface *pathServic
 			Real distSqr1 = ThePartitionManager->getDistanceSquared( source, &info.attackPoint1, FROM_BOUNDINGSPHERE_3D );
 			Real distSqr2 = ThePartitionManager->getDistanceSquared( source, &info.attackPoint2, FROM_BOUNDINGSPHERE_3D );
 			if (distSqr2<distSqr1) {
- 				localVictimPos = info.attackPoint2;
+				localVictimPos = info.attackPoint2;
 			} else {
- 				localVictimPos = info.attackPoint1;
+				localVictimPos = info.attackPoint1;
 			}
 		}
 		else
@@ -1952,7 +1952,7 @@ Bool AIUpdateInterface::computeAttackPath( PathfindServicesInterface *pathServic
 		TheAI->pathfinder()->setIgnoreObstacleID( INVALID_ID );
 		if (m_path && m_path->getBlockedByAlly())
 		{
-	 		if( !getObject()->isKindOf(KINDOF_NO_COLLIDE))// If I don't collide with things, I don't need to tell them to get out of the way
+			if( !getObject()->isKindOf(KINDOF_NO_COLLIDE))// If I don't collide with things, I don't need to tell them to get out of the way
 				TheAI->pathfinder()->moveAllies(getObject(), m_path);
 		}
 	}
@@ -3126,7 +3126,7 @@ void AIUpdateInterface::privateMoveAwayFromUnit( Object *unit, CommandSourceType
 		m_stateMachine->setTemporaryState(AI_MOVE_OUT_OF_THE_WAY, 10*LOGICFRAMES_PER_SECOND);
 		if (m_path)
 		{
-	 		if( !getObject()->isKindOf(KINDOF_NO_COLLIDE))// If I don't collide with things, I don't need to tell them to get out of the way
+			if( !getObject()->isKindOf(KINDOF_NO_COLLIDE))// If I don't collide with things, I don't need to tell them to get out of the way
 				TheAI->pathfinder()->moveAllies(getObject(), m_path);
 		}
 	}
@@ -3385,7 +3385,7 @@ void AIUpdateInterface::privateAttackPosition( const Coord3D *pos, Int maxShotsT
 
 		if (victim)
 		{
- 			aiAttackObject(victim, maxShotsToFire, cmdSource);
+			aiAttackObject(victim, maxShotsToFire, cmdSource);
 			return;
 		}
 		else
@@ -3587,7 +3587,7 @@ void AIUpdateInterface::privateResumeConstruction( Object *obj, CommandSourceTyp
 void AIUpdateInterface::privateGetHealed( Object *healDepot, CommandSourceType cmdSource )
 {
 
-  // sanity, if we can't get healed from here get outta here
+	// sanity, if we can't get healed from here get outta here
 	if( TheActionManager->canGetHealedAt( getObject(), healDepot, cmdSource ) == FALSE )
 		return;
 
@@ -4816,13 +4816,13 @@ void AIUpdateInterface::crc( Xfer *x )
 // ------------------------------------------------------------------------------------------------
 void AIUpdateInterface::xfer( Xfer *xfer )
 {
-  // version
-  const XferVersion currentVersion = 4;
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	// version
+	const XferVersion currentVersion = 4;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 
- // extend base class
-  UpdateModule::xfer( xfer );
+	// extend base class
+	UpdateModule::xfer( xfer );
 
 	xfer->xferUnsignedInt(&m_priorWaypointID);
 	xfer->xferUnsignedInt(&m_currentWaypointID);

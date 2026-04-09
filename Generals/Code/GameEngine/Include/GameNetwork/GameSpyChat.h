@@ -47,9 +47,9 @@ extern GameWindow *listboxGameSetupChat;			///< Chat box on the custom game setu
 extern WindowLayout *WOLMapSelectLayout;			///< Map selection overlay
 
 void RoomMessageCallback(PEER peer, RoomType roomType,
-												 const char * nick, const char * message,
-												 MessageType messageType, void * param);		///< Called when a message arrives in a room.
+	const char * nick, const char * message,
+	MessageType messageType, void * param);		///< Called when a message arrives in a room.
 
 void PlayerMessageCallback(PEER peer, const char * nick,
-													 const char * message, MessageType messageType,
-													 void * param);														///< Called when a private message is received from another player.
+	const char * message, MessageType messageType,
+	void * param);														///< Called when a private message is received from another player.

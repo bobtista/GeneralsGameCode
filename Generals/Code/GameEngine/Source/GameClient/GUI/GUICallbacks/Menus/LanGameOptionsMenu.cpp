@@ -984,7 +984,7 @@ void LanGameOptionsMenuUpdate( WindowLayout * layout, void *userData)
 /** Lan Game Options menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType LanGameOptionsMenuInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -1025,7 +1025,7 @@ WindowMsgHandledType LanGameOptionsMenuInput( GameWindow *window, UnsignedInt ms
 /** Lan Game Options menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 	switch( msg )
@@ -1079,7 +1079,7 @@ WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt m
 					{
 						// We don't have anything that'll happen if we click on ourselves
 						if(i == myGame->getLocalSlotNum())
-						 break;
+					break;
 						// Get
 						Int pos = -1;
 						GadgetComboBoxGetSelectedPos(comboBoxPlayer[i], &pos);

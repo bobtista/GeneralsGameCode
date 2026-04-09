@@ -212,14 +212,14 @@ GameMessageDisposition PlaceEventTranslator::translateGameMessage(const GameMess
 				// check to see if this is a legal location to build something at
 				LegalBuildCode lbc;
 				lbc = TheBuildAssistant->isLocationLegalToBuild( &world,
-																												 build,
-																												 angle,
-																												 BuildAssistant::USE_QUICK_PATHFIND |
-																												 BuildAssistant::TERRAIN_RESTRICTIONS |
-																												 BuildAssistant::CLEAR_PATH |
-																												 BuildAssistant::NO_OBJECT_OVERLAP |
-																												 BuildAssistant::SHROUD_REVEALED,
-																												 builderObj, nullptr );
+					build,
+					angle,
+					BuildAssistant::USE_QUICK_PATHFIND |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::NO_OBJECT_OVERLAP |
+					BuildAssistant::SHROUD_REVEALED,
+					builderObj, nullptr );
 				if( lbc == LBC_OK )
 				{
 

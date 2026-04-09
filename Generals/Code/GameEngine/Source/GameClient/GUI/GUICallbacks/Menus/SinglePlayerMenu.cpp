@@ -181,7 +181,7 @@ WindowMsgHandledType SinglePlayerMenuInput( GameWindow *window, UnsignedInt msg,
 /** single player menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType SinglePlayerMenuSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	static NameKeyType buttonNew = NAMEKEY_INVALID;
 	static NameKeyType buttonLoad = NAMEKEY_INVALID;

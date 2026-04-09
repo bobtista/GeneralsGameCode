@@ -243,7 +243,7 @@ void MapSelectMenuUpdate( WindowLayout *layout, void *userData )
 /** Map select menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType MapSelectMenuInput( GameWindow *window, UnsignedInt msg,
-																				 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	switch( msg )
@@ -297,7 +297,7 @@ WindowMsgHandledType MapSelectMenuInput( GameWindow *window, UnsignedInt msg,
 /** MapSelect menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType MapSelectMenuSystem( GameWindow *window, UnsignedInt msg,
-																				  WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	static NameKeyType buttonBack = NAMEKEY_INVALID;
 	static NameKeyType buttonOK = NAMEKEY_INVALID;
@@ -407,7 +407,7 @@ WindowMsgHandledType MapSelectMenuSystem( GameWindow *window, UnsignedInt msg,
 					buttonPushed = true;
 					// reset the campaign manager to empty
 					if( TheCampaignManager )
-					  TheCampaignManager->setCampaign( "" );
+					TheCampaignManager->setCampaign( "" );
 					// get text of the map to load
 					const char *mapFname = (const char *)GadgetListBoxGetItemData( mapWindow, selected );
 					DEBUG_ASSERTCRASH(mapFname, ("No map item data"));

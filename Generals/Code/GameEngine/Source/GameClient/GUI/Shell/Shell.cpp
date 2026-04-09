@@ -644,7 +644,7 @@ void Shell::unlinkScreen( WindowLayout *screen )
 		return;
 
 	DEBUG_ASSERTCRASH( m_screenStack[ m_screenCount - 1 ] == screen,
-										 ("Screen not on top of stack") );
+		("Screen not on top of stack") );
 
 	// remove reference to screen and decrease count
 	if( m_screenStack[ m_screenCount - 1 ] == screen )
@@ -728,7 +728,7 @@ void Shell::shutdownComplete( WindowLayout *screen, Bool impendingPush )
 
 	// there should never be a pending push AND pop operation
 	DEBUG_ASSERTCRASH( m_pendingPush == FALSE || m_pendingPop == FALSE,
-										 ("There is a pending push AND pop in the shell.  Not allowed!") );
+		("There is a pending push AND pop in the shell.  Not allowed!") );
 
 	// Reset the AnimateWindowManager
 	m_animateWindowManager->reset();
@@ -839,7 +839,7 @@ WindowLayout *Shell::getSaveLoadMenuLayout()
 
 	// if layout has not been created, create it now
 	if( m_saveLoadMenuLayout == nullptr )
-   m_saveLoadMenuLayout = TheWindowManager->winCreateLayout( "Menus/PopupSaveLoad.wnd" );
+	m_saveLoadMenuLayout = TheWindowManager->winCreateLayout( "Menus/PopupSaveLoad.wnd" );
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_saveLoadMenuLayout, ("Unable to create save/load menu layout") );
@@ -856,7 +856,7 @@ WindowLayout *Shell::getPopupReplayLayout()
 
 	// if layout has not been created, create it now
 	if( m_popupReplayLayout == nullptr )
-   m_popupReplayLayout = TheWindowManager->winCreateLayout( "Menus/PopupReplay.wnd" );
+	m_popupReplayLayout = TheWindowManager->winCreateLayout( "Menus/PopupReplay.wnd" );
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_popupReplayLayout, ("Unable to create replay save menu layout") );

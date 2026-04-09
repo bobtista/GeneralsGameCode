@@ -103,7 +103,7 @@ void WOLMessageWindowUpdate( WindowLayout * layout, void *userData)
 /** WOLMessage Window input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLMessageWindowInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -150,7 +150,7 @@ WindowMsgHandledType WOLMessageWindowInput( GameWindow *window, UnsignedInt msg,
 /** WOLMessage Window window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLMessageWindowSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 

@@ -90,7 +90,7 @@ static WindowLayout *theLayout = nullptr;
 static GameWindow *theWindow = nullptr;
 static AnimateWindowManager *theAnimateWindowManager = nullptr;
 WindowMsgHandledType BuddyControlSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2);
+	WindowMsgData mData1, WindowMsgData mData2);
 void InitBuddyControls(Int type);
 void updateBuddyInfo();
 static void grabWindowPointers()
@@ -377,7 +377,7 @@ WindowMsgHandledType DiplomacyInput( GameWindow *window, UnsignedInt msg,
 
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType DiplomacySystem( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	if(BuddyControlSystem(window, msg, mData1, mData2) == MSG_HANDLED)
 	{

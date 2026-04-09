@@ -158,7 +158,7 @@ void DifficultySelectInit( WindowLayout *layout, void *userData )
 /** Map select menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType DifficultySelectInput( GameWindow *window, UnsignedInt msg,
-																				 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 //	switch( msg )
@@ -211,7 +211,7 @@ WindowMsgHandledType DifficultySelectInput( GameWindow *window, UnsignedInt msg,
 /** MapSelect menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType DifficultySelectSystem( GameWindow *window, UnsignedInt msg,
-																				  WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	switch( msg )

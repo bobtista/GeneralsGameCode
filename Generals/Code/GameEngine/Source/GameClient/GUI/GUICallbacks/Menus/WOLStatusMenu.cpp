@@ -109,7 +109,7 @@ void WOLStatusMenuUpdate( WindowLayout * layout, void *userData)
 /** WOL Status Menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLStatusMenuInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -156,7 +156,7 @@ WindowMsgHandledType WOLStatusMenuInput( GameWindow *window, UnsignedInt msg,
 /** WOL Status Menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLStatusMenuSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 

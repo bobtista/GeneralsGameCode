@@ -104,13 +104,13 @@ static void doRadioUnselect( GameWindow *window, Int group, Int screen,
 	* window specified */
 //=============================================================================
 static void unselectOtherRadioOfGroup( Int group, Int screen,
-																			 GameWindow *except )
+	GameWindow *except )
 {
 	GameWindow *window = TheWindowManager->winGetWindowList();
 
 	for( window = TheWindowManager->winGetWindowList();
-			 window;
-			 window = window->winGetNext() )
+	window;
+	window = window->winGetNext() )
 		doRadioUnselect( window, group, screen, except );
 
 }
@@ -121,7 +121,7 @@ static void unselectOtherRadioOfGroup( Int group, Int screen,
 /** Handle input for radio button */
 //=============================================================================
 WindowMsgHandledType GadgetRadioButtonInput( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	WinInstanceData *instData = window->winGetInstanceData();
 
@@ -158,7 +158,7 @@ WindowMsgHandledType GadgetRadioButtonInput( GameWindow *window, UnsignedInt msg
 				BitClear( instData->m_state, WIN_STATE_HILITED );
 				TheWindowManager->winSendSystemMsg( instData->getOwner(),
 																						GBM_MOUSE_LEAVING,
-																					  (WindowMsgData)window,
+					(WindowMsgData)window,
 																						mData1 );
 			}
 

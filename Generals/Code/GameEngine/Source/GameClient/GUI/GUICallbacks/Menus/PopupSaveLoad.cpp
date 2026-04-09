@@ -136,7 +136,7 @@ void SaveLoadMenuInit( WindowLayout *layout, void *userData )
 	if( userData )
 		currentLayoutType = *((SaveLoadLayoutType *)userData);
 
-  // get ids for our children controls
+	// get ids for our children controls
 	buttonBackKey					 = NAMEKEY( "PopupSaveLoad.wnd:ButtonBack" );
 	buttonSaveKey					 = NAMEKEY( "PopupSaveLoad.wnd:ButtonSave" );
 	buttonLoadKey					 = NAMEKEY( "PopupSaveLoad.wnd:ButtonLoad" );
@@ -198,7 +198,7 @@ void SaveLoadMenuFullScreenInit( WindowLayout *layout, void *userData )
 	if( userData )
 		currentLayoutType = *((SaveLoadLayoutType *)userData);
 
-  // get ids for our children controls
+	// get ids for our children controls
 	buttonBackKey					 = NAMEKEY( "SaveLoad.wnd:ButtonBack" );
 	buttonSaveKey					 = NAMEKEY( "SaveLoad.wnd:ButtonSave" );
 	buttonLoadKey					 = NAMEKEY( "SaveLoad.wnd:ButtonLoad" );
@@ -506,10 +506,10 @@ static void processLoadButtonPress(GameWindow *window)
 /** SaveLoad menu system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType SaveLoadMenuSystem( GameWindow *window, UnsignedInt msg,
-																				 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 
-  switch( msg )
+	switch( msg )
 	{
 
 		// --------------------------------------------------------------------------------------------
@@ -519,7 +519,7 @@ WindowMsgHandledType SaveLoadMenuSystem( GameWindow *window, UnsignedInt msg,
 			break;
 
 		}
-    //---------------------------------------------------------------------------------------------
+		//---------------------------------------------------------------------------------------------
 		case GWM_DESTROY:
 		{
 
@@ -527,8 +527,8 @@ WindowMsgHandledType SaveLoadMenuSystem( GameWindow *window, UnsignedInt msg,
 
 		}
 
-    //----------------------------------------------------------------------------------------------
-    case GWM_INPUT_FOCUS:
+		//----------------------------------------------------------------------------------------------
+		case GWM_INPUT_FOCUS:
 		{
 
 			// if we're givin the opportunity to take the keyboard focus we must say we want it
@@ -539,7 +539,7 @@ WindowMsgHandledType SaveLoadMenuSystem( GameWindow *window, UnsignedInt msg,
 
 		}
 
-    //----------------------------------------------------------------------------------------------
+		//----------------------------------------------------------------------------------------------
 		case GLM_DOUBLE_CLICKED:
 			{
 				GameWindow *control = (GameWindow *)mData1;
@@ -577,24 +577,24 @@ WindowMsgHandledType SaveLoadMenuSystem( GameWindow *window, UnsignedInt msg,
 
 		}
 
-    //---------------------------------------------------------------------------------------------
+		//---------------------------------------------------------------------------------------------
 		case GBM_SELECTED:
 		{
 			GameWindow *control = (GameWindow *)mData1;
 			Int controlID = control->winGetWindowId();
 
-      if( controlID == buttonLoadKey )
-      {
+			if( controlID == buttonLoadKey )
+			{
 				processLoadButtonPress(window);
-      }
-      else if( controlID == buttonSaveKey )
-      {
+			}
+			else if( controlID == buttonSaveKey )
+			{
 
 				// sanity
 				DEBUG_ASSERTCRASH( currentLayoutType == SLLT_SAVE_AND_LOAD ||
-													 currentLayoutType == SLLT_SAVE_ONLY,
-													 ("SaveLoadMenuSystem - layout type '%d' does not allow saving",
-													 currentLayoutType) );
+					currentLayoutType == SLLT_SAVE_ONLY,
+					("SaveLoadMenuSystem - layout type '%d' does not allow saving",
+					currentLayoutType) );
 
 				// get save file info
 				AvailableGameInfo *selectedGameInfo = getSelectedSaveFileInfo( window );
@@ -639,7 +639,7 @@ WindowMsgHandledType SaveLoadMenuSystem( GameWindow *window, UnsignedInt msg,
 
 				}
 
-      }
+			}
 			else if( controlID == buttonDeleteKey )
 			{
 

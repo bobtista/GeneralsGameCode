@@ -44,17 +44,17 @@
 #include "GameClient/ExtendedMessageBox.h"
 
 WindowMsgHandledType ExtendedMessageBoxSystem( GameWindow *window, UnsignedInt msg,
-										 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 
 //-------------------------------------------------------------------------------------------------
 /** Create an extended Modal Message Box */
 //-------------------------------------------------------------------------------------------------
 static GameWindow *gogoExMessageBox(Int x, Int y, Int width, Int height, UnsignedShort buttonFlags,
-                        UnicodeString titleString, UnicodeString bodyString, void *userData,
-                        MessageBoxFunc yesCallback,
-                        MessageBoxFunc noCallback,
-                        MessageBoxFunc okCallback,
-                        MessageBoxFunc cancelCallback )
+	UnicodeString titleString, UnicodeString bodyString, void *userData,
+	MessageBoxFunc yesCallback,
+	MessageBoxFunc noCallback,
+	MessageBoxFunc okCallback,
+	MessageBoxFunc cancelCallback )
 {
 	// first check to make sure we have some buttons to display
 	if(buttonFlags == 0 )
@@ -189,31 +189,31 @@ static GameWindow *gogoExMessageBox(Int x, Int y, Int width, Int height, Unsigne
 }
 
 GameWindow *ExMessageBoxYesNo				(UnicodeString titleString,UnicodeString bodyString, void *userData,
-																		 MessageBoxFunc yesCallback, MessageBoxFunc noCallback)
+	MessageBoxFunc yesCallback, MessageBoxFunc noCallback)
 {
 	return gogoExMessageBox(-1,-1,-1,-1,MSG_BOX_NO | MSG_BOX_YES , titleString, bodyString, userData, yesCallback, noCallback, nullptr, nullptr);
 }
 
 GameWindow *ExMessageBoxYesNoCancel	(UnicodeString titleString,UnicodeString bodyString, void *userData,
-																		 MessageBoxFunc yesCallback, MessageBoxFunc noCallback, MessageBoxFunc cancelCallback)
+	MessageBoxFunc yesCallback, MessageBoxFunc noCallback, MessageBoxFunc cancelCallback)
 {
 	return gogoExMessageBox(-1,-1,-1,-1,MSG_BOX_NO | MSG_BOX_YES | MSG_BOX_CANCEL , titleString, bodyString, userData, yesCallback, noCallback, nullptr, cancelCallback);
 }
 
 GameWindow *ExMessageBoxOkCancel		(UnicodeString titleString,UnicodeString bodyString, void *userData,
-																		 MessageBoxFunc okCallback, MessageBoxFunc cancelCallback)
+	MessageBoxFunc okCallback, MessageBoxFunc cancelCallback)
 {
 	return gogoExMessageBox(-1,-1,-1,-1,MSG_BOX_OK | MSG_BOX_CANCEL , titleString, bodyString, userData, nullptr, nullptr, okCallback, cancelCallback);
 }
 
 GameWindow *ExMessageBoxOk					(UnicodeString titleString,UnicodeString bodyString, void *userData,
-																		 MessageBoxFunc okCallback)
+	MessageBoxFunc okCallback)
 {
 	return gogoExMessageBox(-1,-1,-1,-1,MSG_BOX_OK, titleString, bodyString, userData, nullptr, nullptr, okCallback, nullptr);
 }
 
 GameWindow *ExMessageBoxCancel			(UnicodeString titleString,UnicodeString bodyString, void *userData,
-																		 MessageBoxFunc cancelCallback)
+	MessageBoxFunc cancelCallback)
 {
 	return gogoExMessageBox(-1,-1,-1,-1, MSG_BOX_CANCEL, titleString, bodyString, userData, nullptr, nullptr, nullptr, cancelCallback);
 }
@@ -228,7 +228,7 @@ GameWindow *ExMessageBoxCancel			(UnicodeString titleString,UnicodeString bodySt
 /** Message Box window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType ExtendedMessageBoxSystem( GameWindow *window, UnsignedInt msg,
-										 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 

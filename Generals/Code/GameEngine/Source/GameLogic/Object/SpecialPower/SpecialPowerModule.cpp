@@ -134,9 +134,9 @@ SpecialPowerModule::SpecialPowerModule( Thing *thing, const ModuleData *moduleDa
 			getObject()->isKindOf( KINDOF_STRUCTURE ) )
 	{
 		TheInGameUI->addSuperweapon( getObject()->getControllingPlayer()->getPlayerIndex(),
-																 getPowerName(),
-																 getObject()->getID(),
-																 getSpecialPowerModuleData()->m_specialPowerTemplate );
+			getPowerName(),
+			getObject()->getID(),
+			getSpecialPowerModuleData()->m_specialPowerTemplate );
 	}
 
 
@@ -153,9 +153,9 @@ const AudioEventRTS& SpecialPowerModule::getInitiateSound() const
 SpecialPowerModule::~SpecialPowerModule()
 {
 
- 	if( getSpecialPowerModuleData()->m_specialPowerTemplate->hasPublicTimer() == TRUE &&
+	if( getSpecialPowerModuleData()->m_specialPowerTemplate->hasPublicTimer() == TRUE &&
 			getObject()->getControllingPlayer() )
- 		TheInGameUI->removeSuperweapon( getObject()->getControllingPlayer()->getPlayerIndex(),
+	TheInGameUI->removeSuperweapon( getObject()->getControllingPlayer()->getPlayerIndex(),
 																		getPowerName(),
 																		getObject()->getID(),
 																		getSpecialPowerModuleData()->m_specialPowerTemplate );
@@ -217,9 +217,9 @@ void SpecialPowerModule::onSpecialPowerCreation()
 			getObject()->isKindOf( KINDOF_STRUCTURE ) )
 	{
 		TheInGameUI->addSuperweapon( getObject()->getControllingPlayer()->getPlayerIndex(),
-																 getPowerName(),
-																 getObject()->getID(),
-																 getSpecialPowerModuleData()->m_specialPowerTemplate );
+			getPowerName(),
+			getObject()->getID(),
+			getSpecialPowerModuleData()->m_specialPowerTemplate );
 	}
 }
 
@@ -338,7 +338,7 @@ Real SpecialPowerModule::getPercentReady() const
 
 	// calculate the percent
 	Real percent = 1.0f - ((readyFrame - TheGameLogic->getFrame()) /
-												 (Real)modData->m_specialPowerTemplate->getReloadTime());
+		(Real)modData->m_specialPowerTemplate->getReloadTime());
 
 	return percent;
 }
@@ -734,9 +734,9 @@ void SpecialPowerModule::loadPostProcess()
 			getObject()->isKindOf( KINDOF_STRUCTURE ) )
 	{
 		TheInGameUI->addSuperweapon( getObject()->getControllingPlayer()->getPlayerIndex(),
-																 getPowerName(),
-																 getObject()->getID(),
-																 getSpecialPowerModuleData()->m_specialPowerTemplate );
+			getPowerName(),
+			getObject()->getID(),
+			getSpecialPowerModuleData()->m_specialPowerTemplate );
 	}
 
 

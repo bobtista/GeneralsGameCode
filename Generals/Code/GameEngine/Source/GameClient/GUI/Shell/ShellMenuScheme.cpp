@@ -224,7 +224,7 @@ void ShellMenuSchemeManager::parseImagePart(INI *ini, void *instance, void* /*st
 		{
 			{ "Position",				INI::parseICoord2D,				nullptr, offsetof( ShellMenuSchemeImage, m_position ) },
 			{ "Size",						INI::parseICoord2D,				nullptr, offsetof( ShellMenuSchemeImage, m_size ) },
-      { "ImageName",			INI::parseMappedImage,		nullptr, offsetof( ShellMenuSchemeImage, m_image ) },
+		{ "ImageName",			INI::parseMappedImage,		nullptr, offsetof( ShellMenuSchemeImage, m_image ) },
 			{ nullptr,							nullptr,											nullptr, 0 }
 		};
 
@@ -240,7 +240,7 @@ void ShellMenuSchemeManager::parseLinePart(INI *ini, void *instance, void* /*sto
 		{
 			{ "StartPosition",		INI::parseICoord2D,				nullptr, offsetof( ShellMenuSchemeLine, m_startPos ) },
 			{ "EndPosition",			INI::parseICoord2D,				nullptr, offsetof( ShellMenuSchemeLine, m_endPos ) },
-      { "Color",						INI::parseColorInt,				nullptr, offsetof( ShellMenuSchemeLine, m_color ) },
+		{ "Color",						INI::parseColorInt,				nullptr, offsetof( ShellMenuSchemeLine, m_color ) },
 			{ "Width",						INI::parseInt,						nullptr, offsetof( ShellMenuSchemeLine, m_width ) },
 
 			{ nullptr,								nullptr,											nullptr, 0 }

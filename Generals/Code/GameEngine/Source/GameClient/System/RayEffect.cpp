@@ -115,8 +115,8 @@ void RayEffectSystem::reset()
 /** add a ray effect entry for this drawable */
 //-------------------------------------------------------------------------------------------------
 void RayEffectSystem::addRayEffect( const Drawable *draw,
-																	  const Coord3D *startLoc,
-																	  const Coord3D *endLoc )
+	const Coord3D *startLoc,
+	const Coord3D *endLoc )
 {
 	Int i;
 	RayEffectData *effectData = nullptr;
@@ -182,7 +182,7 @@ void RayEffectSystem::deleteRayEffect( const Drawable *draw )
 	*	the ray effect data for its entry */
 //-------------------------------------------------------------------------------------------------
 void RayEffectSystem::getRayEffectData( const Drawable *draw,
-																			  RayEffectData *effectData )
+	RayEffectData *effectData )
 {
 	RayEffectData *entry = nullptr;
 

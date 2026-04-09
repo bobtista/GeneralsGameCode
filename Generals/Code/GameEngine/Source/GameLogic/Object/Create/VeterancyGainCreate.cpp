@@ -49,7 +49,7 @@ VeterancyGainCreateModuleData::VeterancyGainCreateModuleData()
 //-------------------------------------------------------------------------------------------------
 void VeterancyGainCreateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  CreateModuleData::buildFieldParse(p);
+	CreateModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -58,7 +58,7 @@ void VeterancyGainCreateModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -86,7 +86,7 @@ void VeterancyGainCreate::onCreate()
 	const VeterancyGainCreateModuleData *md = getVeterancyGainCreateModuleData();
 	Player *myPlayer = getObject()->getControllingPlayer();
 	if( myPlayer && (md->m_scienceRequired == SCIENCE_INVALID ||
-									 myPlayer->hasScience( md->m_scienceRequired )) )
+		myPlayer->hasScience( md->m_scienceRequired )) )
 	{
 		ExperienceTracker* myExp = getObject()->getExperienceTracker();
 		if( myExp  &&  myExp->isTrainable() )

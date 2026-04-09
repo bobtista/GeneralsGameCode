@@ -442,8 +442,8 @@ Bool ActionManager::canRepairObject( const Object *obj, const Object *objectToRe
 /** Can 'obj' resume the construction of 'objectBeingConstructed' */
 // ------------------------------------------------------------------------------------------------
 Bool ActionManager::canResumeConstructionOf( const Object *obj,
-																						 const Object *objectBeingConstructed,
-																						 CommandSourceType commandSource )
+	const Object *objectBeingConstructed,
+	CommandSourceType commandSource )
 {
 
 	// sanity
@@ -1010,7 +1010,7 @@ Bool ActionManager::canCaptureBuilding( const Object *obj, const Object *objectT
 	if (appearsToContainFriendlies(obj, objectToCapture))
 		return FALSE;
 
-  return TRUE;
+	return TRUE;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1710,7 +1710,7 @@ Bool ActionManager::canDoSpecialPower( const Object *obj, const SpecialPowerTemp
 			case SPECIAL_REPAIR_VEHICLES:
 			case SPECIAL_PARTICLE_UPLINK_CANNON:
 			case SPECIAL_CASH_BOUNTY:
- 			case SPECIAL_CLEANUP_AREA:
+			case SPECIAL_CLEANUP_AREA:
 				//These all require object or location targets.
 				return false;
 

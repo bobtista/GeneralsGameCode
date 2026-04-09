@@ -1039,7 +1039,7 @@ void updateTGAtoDDS()
 			TheFileSystem->getFileInfo(filenameDDS, &infoDDS);
 			if (infoTGA.timestampHigh > infoDDS.timestampHigh ||
 					(infoTGA.timestampHigh == infoDDS.timestampHigh &&
-					 infoTGA.timestampLow > infoDDS.timestampLow)) {
+				infoTGA.timestampLow > infoDDS.timestampLow)) {
 				needsToBeUpdated = TRUE;
 			}
 		} else {

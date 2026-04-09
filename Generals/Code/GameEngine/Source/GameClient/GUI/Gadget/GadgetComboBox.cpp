@@ -86,7 +86,7 @@ void HideListBox(GameWindow * window);
 /** Handle input for Combo box */
 //=============================================================================
 WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
-												 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 //	ComboBoxData *combo = (ComboBoxData *)window->winGetUserData();
 	WinInstanceData *instData = window->winGetInstanceData();
@@ -711,18 +711,18 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 	* buttons */
 //=============================================================================
 void GadgetComboBoxSetColors( GameWindow *comboBox,
-														 Color enabledColor,
-														 Color enabledBorderColor,
-														 Color enabledSelectedItemColor,
-														 Color enabledSelectedItemBorderColor,
-														 Color disabledColor,
-														 Color disabledBorderColor,
-														 Color disabledSelectedItemColor,
-														 Color disabledSelectedItemBorderColor,
-														 Color hiliteColor,
-														 Color hiliteBorderColor,
-														 Color hiliteSelectedItemColor,
-														 Color hiliteSelectedItemBorderColor )
+	Color enabledColor,
+	Color enabledBorderColor,
+	Color enabledSelectedItemColor,
+	Color enabledSelectedItemBorderColor,
+	Color disabledColor,
+	Color disabledBorderColor,
+	Color disabledSelectedItemColor,
+	Color disabledSelectedItemBorderColor,
+	Color hiliteColor,
+	Color hiliteBorderColor,
+	Color hiliteSelectedItemColor,
+	Color hiliteSelectedItemBorderColor )
 {
 //	ComboBoxData *comboBoxData = (ComboBoxData *)comboBox->winGetUserData();
 	// enabled
@@ -811,7 +811,7 @@ void GadgetComboBoxSetIsEditable(GameWindow *comboBox, Bool isEditable  )
 	GameWindow *editBox = GadgetComboBoxGetEditBox(comboBox);
 	UnsignedInt status ;
 	if(!editBox)
-	 return;
+	return;
 
 	comboData->isEditable = isEditable;
 	if (isEditable)

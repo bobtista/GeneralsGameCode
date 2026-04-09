@@ -402,7 +402,7 @@ void NetworkDirectConnectUpdate( WindowLayout * layout, void *userData)
 /** WOL Welcome Menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType NetworkDirectConnectInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -451,7 +451,7 @@ WindowMsgHandledType NetworkDirectConnectInput( GameWindow *window, UnsignedInt 
 /** WOL Welcome Menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType NetworkDirectConnectSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 

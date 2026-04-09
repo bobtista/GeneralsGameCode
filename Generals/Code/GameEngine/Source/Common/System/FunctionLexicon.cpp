@@ -376,7 +376,7 @@ FunctionLexicon *TheFunctionLexicon = nullptr;  ///< the function dictionary
 	* a key based off the name supplied in the table for faster access */
 //-------------------------------------------------------------------------------------------------
 void FunctionLexicon::loadTable( TableEntry *table,
-																 TableIndex tableIndex )
+	TableIndex tableIndex )
 {
 
 	// sanity

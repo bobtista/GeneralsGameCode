@@ -502,8 +502,8 @@ public:
 		const ThingTemplate* ropeTmpl = TheThingFactory->findTemplate(d->m_ropeName);
 
 		const Int MAX_BONES = 32;
-    Coord3D ropePos[MAX_BONES];
-    Matrix3D dropMtx[MAX_BONES];
+		Coord3D ropePos[MAX_BONES];
+		Matrix3D dropMtx[MAX_BONES];
 
 		Int ropeCount = draw->getPristineBonePositions("RopeStart", 1, ropePos, nullptr, MAX_BONES);
 		Int dropCount = draw->getPristineBonePositions("RopeEnd", 1, nullptr, dropMtx, MAX_BONES);
@@ -849,7 +849,7 @@ ChinookAIUpdateModuleData::ChinookAIUpdateModuleData()
 //-------------------------------------------------------------------------------------------------
 /*static*/ void ChinookAIUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  SupplyTruckAIUpdateModuleData::buildFieldParse(p);
+	SupplyTruckAIUpdateModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -869,7 +869,7 @@ ChinookAIUpdateModuleData::ChinookAIUpdateModuleData()
 		{ "WaitForRopesToDrop", INI::parseBool, 0, offsetof(ChinookAIUpdateModuleData, m_waitForRopesToDrop) },
 		{ 0, 0, 0, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -971,7 +971,7 @@ Bool ChinookAIUpdate::isAvailableForSupplying() const
 //-------------------------------------------------------------------------------------------------
 Bool ChinookAIUpdate::isAllowedToAdjustDestination() const
 {
-	 if (m_flightStatus == CHINOOK_LANDED)
+	if (m_flightStatus == CHINOOK_LANDED)
 		return false;
 
 	return SupplyTruckAIUpdate::isAllowedToAdjustDestination();
@@ -994,7 +994,7 @@ ObjectID ChinookAIUpdate::getBuildingToNotPathAround() const
 AIFreeToExitType ChinookAIUpdate::getAiFreeToExit(const Object* exiter) const
 {
 #if RETAIL_COMPATIBLE_CRC
-	 if (m_flightStatus == CHINOOK_LANDED
+	if (m_flightStatus == CHINOOK_LANDED
 				|| (m_flightStatus == CHINOOK_DOING_COMBAT_DROP && exiter->isKindOf(KINDOF_CAN_RAPPEL)))
 #else
 	if (m_flightStatus == CHINOOK_LANDED)
@@ -1277,10 +1277,10 @@ void ChinookAIUpdate::crc( Xfer *xfer )
 void ChinookAIUpdate::xfer( Xfer *xfer )
 {
 
-  // version
-  XferVersion currentVersion = 1;
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	// version
+	XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 	SupplyTruckAIUpdate::xfer(xfer);
 
 	xfer->xferBool(&m_hasPendingCommand);
@@ -1289,7 +1289,7 @@ void ChinookAIUpdate::xfer( Xfer *xfer )
 	}
 	xfer->xferUser(&m_flightStatus, sizeof(m_flightStatus));
 	xfer->xferObjectID(&m_airfieldForHealing);
- // extend base class
+	// extend base class
 }
 
 // ------------------------------------------------------------------------------------------------

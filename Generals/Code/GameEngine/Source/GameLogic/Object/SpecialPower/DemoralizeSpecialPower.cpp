@@ -146,13 +146,13 @@ void DemoralizeSpecialPower::doSpecialPowerAtLocation( const Coord3D *loc, Real 
 	PartitionFilterRelationship filter1( source, PartitionFilterRelationship::ALLOW_ENEMIES |
 																							PartitionFilterRelationship::ALLOW_NEUTRAL );
 	PartitionFilterAcceptByKindOf filter2( MAKE_KINDOF_MASK( KINDOF_INFANTRY ),
-																				 KINDOFMASK_NONE );
+		KINDOFMASK_NONE );
 	PartitionFilterSameMapStatus filterMapStatus(source);
 	PartitionFilter *filters[] = { &filter1, &filter2, &filterMapStatus, nullptr };
 	ObjectIterator *iter = ThePartitionManager->iterateObjectsInRange( loc,
-																																		 range,
-																																		 FROM_CENTER_2D,
-																																		 filters );
+		range,
+		FROM_CENTER_2D,
+		filters );
 
 	MemoryPoolObjectHolder hold( iter );
 	AIUpdateInterface *ai;

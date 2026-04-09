@@ -130,7 +130,7 @@ ActiveBodyModuleData::ActiveBodyModuleData()
 //-------------------------------------------------------------------------------------------------
 void ActiveBodyModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  ModuleData::buildFieldParse(p);
+	ModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -138,7 +138,7 @@ void ActiveBodyModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ "InitialHealth",				INI::parseReal,						nullptr,		offsetof( ActiveBodyModuleData, m_initialHealth ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -767,8 +767,8 @@ void ActiveBody::createParticleSystems( const AsciiString &boneBaseName,
 		// MDC: moving to GameLogicRandomValue.  This does not need to be synced, but having it so makes searches *so* much nicer.
 		//Int boneIndex = GameLogicRandomValue( 0, maxSystems - i - 1 );
 
-    // DTEH: Moved back to GameClientRandomValue because of desync problems. July 27th 2003.
-    Int boneIndex = GameClientRandomValue( 0, maxSystems - i - 1 );
+		// DTEH: Moved back to GameClientRandomValue because of desync problems. July 27th 2003.
+		Int boneIndex = GameClientRandomValue( 0, maxSystems - i - 1 );
 
 
 		// find the actual bone location to use and mark that bone index as used
@@ -802,7 +802,7 @@ void ActiveBody::createParticleSystems( const AsciiString &boneBaseName,
 
 		// sanity
 		DEBUG_ASSERTCRASH( j != numBones,
-											 ("ActiveBody::createParticleSystems, Unable to select particle system index") );
+			("ActiveBody::createParticleSystems, Unable to select particle system index") );
 
 		// create particle system here
 		ParticleSystem *particleSystem = TheParticleSystemManager->createParticleSystem( systemTemplate );
@@ -922,32 +922,32 @@ void ActiveBody::updateBodyParticleSystems()
 
 	// small fire bones
 	createParticleSystems( TheGlobalData->m_autoFireParticleSmallPrefix,
-												 fireSmall, TheGlobalData->m_autoFireParticleSmallMax * countModifier );
+		fireSmall, TheGlobalData->m_autoFireParticleSmallMax * countModifier );
 
 	// medium fire bones
 	createParticleSystems( TheGlobalData->m_autoFireParticleMediumPrefix,
-												 fireMedium, TheGlobalData->m_autoFireParticleMediumMax * countModifier );
+		fireMedium, TheGlobalData->m_autoFireParticleMediumMax * countModifier );
 
 	// large fire bones
 	createParticleSystems( TheGlobalData->m_autoFireParticleLargePrefix,
-												 fireLarge, TheGlobalData->m_autoFireParticleLargeMax * countModifier );
+		fireLarge, TheGlobalData->m_autoFireParticleLargeMax * countModifier );
 
 	// small smoke bones
 	createParticleSystems( TheGlobalData->m_autoSmokeParticleSmallPrefix,
-												 smokeSmall, TheGlobalData->m_autoSmokeParticleSmallMax * countModifier );
+		smokeSmall, TheGlobalData->m_autoSmokeParticleSmallMax * countModifier );
 
 	// medium smoke bones
 	createParticleSystems( TheGlobalData->m_autoSmokeParticleMediumPrefix,
-												 smokeMedium, TheGlobalData->m_autoSmokeParticleMediumMax * countModifier );
+		smokeMedium, TheGlobalData->m_autoSmokeParticleMediumMax * countModifier );
 
 	// large smoke bones
 	createParticleSystems( TheGlobalData->m_autoSmokeParticleLargePrefix,
-												 smokeLarge, TheGlobalData->m_autoSmokeParticleLargeMax * countModifier );
+		smokeLarge, TheGlobalData->m_autoSmokeParticleLargeMax * countModifier );
 
 	// actively on fire
 	if( getObject()->testStatus( OBJECT_STATUS_AFLAME ) )
 		createParticleSystems( TheGlobalData->m_autoAflameParticlePrefix,
-													 aflameTemplate, TheGlobalData->m_autoAflameParticleMax * countModifier );
+		aflameTemplate, TheGlobalData->m_autoAflameParticleMax * countModifier );
 
 }
 
@@ -1183,7 +1183,7 @@ void ActiveBody::setAflame( Bool )
 void ActiveBody::crc( Xfer *xfer )
 {
 
-  // extend base class
+	// extend base class
 	BodyModule::crc( xfer );
 
 }

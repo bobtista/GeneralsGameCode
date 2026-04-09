@@ -475,7 +475,7 @@ GlobalData* GlobalData::m_theOriginal = nullptr;
 
 	{ "StandardPublicBone", INI::parseAsciiStringVectorAppend, nullptr, offsetof(GlobalData, m_standardPublicBones) },
 	{ "ShowMetrics",								INI::parseBool,				   nullptr,		offsetof( GlobalData, m_showMetrics ) },
-  { "DefaultStartingCash",				Money::parseMoneyAmount, nullptr,		offsetof( GlobalData, m_defaultStartingCash ) },
+	{ "DefaultStartingCash",				Money::parseMoneyAmount, nullptr,		offsetof( GlobalData, m_defaultStartingCash ) },
 
 // NOTE: m_doubleClickTimeMS is still in use, but we disallow setting it from the GameData.ini file. It is now set in the constructor according to the windows parameter.
 //	{ "DoubleClickTimeMS",									INI::parseUnsignedInt,			nullptr, offsetof( GlobalData, m_doubleClickTimeMS ) },
@@ -516,7 +516,7 @@ GlobalData* GlobalData::m_theOriginal = nullptr;
 	{ "ShroudOn",										INI::parseBool,				nullptr,			offsetof( GlobalData, m_shroudOn ) },
 	{ "FogOfWarOn",										INI::parseBool,				nullptr,			offsetof( GlobalData, m_fogOfWarOn ) },
 	{ "ShowCollisionExtents",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_showCollisionExtents ) },
-  { "ShowAudioLocations",  				INI::parseBool,				nullptr,			offsetof( GlobalData, m_showAudioLocations ) },
+	{ "ShowAudioLocations",  				INI::parseBool,				nullptr,			offsetof( GlobalData, m_showAudioLocations ) },
 	{ "DebugProjectileTileWidth",		INI::parseReal,				nullptr,			offsetof( GlobalData, m_debugProjectileTileWidth) },
 	{ "DebugProjectileTileDuration",INI::parseInt,				nullptr,			offsetof( GlobalData, m_debugProjectileTileDuration) },
 	{ "DebugProjectileTileColor",		INI::parseRGBColor,		nullptr,			offsetof( GlobalData, m_debugProjectileTileColor) },
@@ -559,7 +559,7 @@ GlobalData::GlobalData()
 		m_theOriginal = this;
 	m_next = nullptr;
 
-  m_TiVOFastMode = FALSE;
+	m_TiVOFastMode = FALSE;
 
 #if defined(RTS_DEBUG) || ENABLE_CONFIGURABLE_SHROUD
 	m_shroudOn = TRUE;
@@ -573,7 +573,7 @@ GlobalData::GlobalData()
 	m_jabberOn = FALSE;
 	m_munkeeOn = FALSE;
 	m_showCollisionExtents = FALSE;
-  m_showAudioLocations = FALSE;
+	m_showAudioLocations = FALSE;
 	m_debugCamera = FALSE;
 	m_specialPowerUsesDelay = TRUE;
 	m_debugVisibility = FALSE;
@@ -1025,8 +1025,8 @@ GlobalData::GlobalData()
 
 #ifdef DUMP_PERF_STATS
 	m_dumpPerformanceStatistics = FALSE;
-  m_dumpStatsAtInterval = FALSE;
-  m_statsInterval = 30;
+	m_dumpStatsAtInterval = FALSE;
+	m_statsInterval = 30;
 #endif
 
 	m_forceBenchmark = FALSE;	///<forces running of CPU detection benchmark, even on known cpu's.

@@ -128,11 +128,11 @@ public:
 
 	/// iterate the "footprint" area of a structure at the given "sample resolution"
 	void iterateFootprint( const ThingTemplate *build,
-												 Real buildOrientation,
-												 const Coord3D *worldPos,
-												 Real sampleResolution,
-												 IterateFootprintFunc func,
-												 void *funcUserData );
+		Real buildOrientation,
+		const Coord3D *worldPos,
+		Real sampleResolution,
+		IterateFootprintFunc func,
+		void *funcUserData );
 
 	/// create object from a build and put it in the world now
 	virtual Object *buildObjectNow( Object *constructorObject, const ThingTemplate *what,
@@ -140,24 +140,24 @@ public:
 
 	/// using the "line placement" for objects (like walls etc) create that line of objects line
 	virtual void buildObjectLineNow( Object *constructorObject, const ThingTemplate *what,
-																	 const Coord3D *start, const Coord3D *end, Real angle,
-																	 Player *owningPlayer );
+		const Coord3D *start, const Coord3D *end, Real angle,
+		Player *owningPlayer );
 
 	/// query if we can build at this location
 	virtual LegalBuildCode isLocationLegalToBuild( const Coord3D *worldPos,
-																								 const ThingTemplate *build,
-																								 Real angle,  // angle to construct 'build' at
-																								 UnsignedInt options,		// use LocationLegalToBuildOptions
-																								 const Object *builderObject,
-																								 Player *player);
+		const ThingTemplate *build,
+		Real angle,  // angle to construct 'build' at
+		UnsignedInt options,		// use LocationLegalToBuildOptions
+		const Object *builderObject,
+		Player *player);
 
 	/// query if we can build at this location
 	virtual Bool isLocationClearOfObjects( const Coord3D *worldPos,
-																								 const ThingTemplate *build,
-																								 Real angle,  // angle to construct 'build' a
-																								 const Object *builderObject,
-																								 UnsignedInt options,
-																								 Player *thePlayer);
+		const ThingTemplate *build,
+		Real angle,  // angle to construct 'build' a
+		const Object *builderObject,
+		UnsignedInt options,
+		Player *thePlayer);
 
 	/// Adds bib highlighting for this location.
 	virtual void addBibs( const Coord3D *worldPos,
@@ -166,8 +166,8 @@ public:
 	/// tiling wall object helper function, we can use this to "tile" walls when building
 	virtual TileBuildInfo *buildTiledLocations( const ThingTemplate *thingBeingTiled,
 																							Real angle, // angle to construct thing being tiled
-																						  const Coord3D *start, const Coord3D *end,
-																						  Real tilingSize, Int maxTiles,
+		const Coord3D *start, const Coord3D *end,
+		Real tilingSize, Int maxTiles,
 																							Object *builderObject );
 
 	/// return the "scratch pad" array that can be used to create a line of build locations
@@ -199,7 +199,7 @@ protected:
 	/// will move objects that can move out of the way.
 	/// will return false if there are objects that cannot be moved out of the way.
 	Bool moveObjectsForConstruction( const ThingTemplate *whatToBuild,
-																	 const Coord3D *pos, Real angle, Player *playerToBuild );
+		const Coord3D *pos, Real angle, Player *playerToBuild );
 
 	Coord3D *m_buildPositions;			///< array used to create a line of build locations (think walls)
 	Int m_buildPositionSize;				///< number of elements in the build position array

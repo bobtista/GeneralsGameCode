@@ -72,7 +72,7 @@
 /** Handle input for TabControl */
 //=============================================================================
 WindowMsgHandledType GadgetTabControlInput( GameWindow *tabControl, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 //	WinInstanceData *instData = tabControl->winGetInstanceData();
 	TabControlData *tabData = (TabControlData *)tabControl->winGetUserData();

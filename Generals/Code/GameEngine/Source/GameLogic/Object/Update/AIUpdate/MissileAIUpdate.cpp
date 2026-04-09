@@ -77,7 +77,7 @@ MissileAIUpdateModuleData::MissileAIUpdateModuleData()
 //-----------------------------------------------------------------------------
 void MissileAIUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  AIUpdateModuleData::buildFieldParse(p);
+	AIUpdateModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -99,7 +99,7 @@ void MissileAIUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -262,7 +262,7 @@ void MissileAIUpdate::projectileFireAtObjectOrPosition( const Object *victim, co
 	{
 		getStateMachine()->setGoalPosition(victim->getPosition());
 		// ick. const-cast is evil. fix. (srj)
- 		aiMoveToObject(const_cast<Object*>(victim), CMD_FROM_AI );
+		aiMoveToObject(const_cast<Object*>(victim), CMD_FROM_AI );
 		m_originalTargetPos = *victim->getPosition();
 		m_isTrackingTarget = TRUE;// Remember that I was originally shot at a moving object, so if the
 		// target dies I can do something cool.
@@ -313,10 +313,10 @@ Bool MissileAIUpdate::projectileHandleCollision( Object *other )
 
 	if (other != nullptr)
 	{
- 		Object *projectileLauncher = TheGameLogic->findObjectByID( projectileGetLauncherID() );
+		Object *projectileLauncher = TheGameLogic->findObjectByID( projectileGetLauncherID() );
 
- 		// if it's not the specific thing we were targeting, see if we should incidentally collide...
- 		if (!m_detonationWeaponTmpl->shouldProjectileCollideWith(projectileLauncher, obj, other, m_victimID))
+		// if it's not the specific thing we were targeting, see if we should incidentally collide...
+		if (!m_detonationWeaponTmpl->shouldProjectileCollideWith(projectileLauncher, obj, other, m_victimID))
 		{
 			//DEBUG_LOG(("ignoring projectile collision with %s at frame %d",other->getTemplate()->getName().str(),TheGameLogic->getFrame()));
 			return true;
@@ -746,12 +746,12 @@ void MissileAIUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void MissileAIUpdate::xfer( Xfer *xfer )
 {
-  // version
-  const XferVersion currentVersion = 4;
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	// version
+	const XferVersion currentVersion = 4;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 
- // extend base class
+	// extend base class
 	AIUpdateInterface::xfer(xfer);
 
 	if (version>=2) {
@@ -810,6 +810,6 @@ void MissileAIUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void MissileAIUpdate::loadPostProcess()
 {
- // extend base class
+	// extend base class
 	AIUpdateInterface::loadPostProcess();
 }

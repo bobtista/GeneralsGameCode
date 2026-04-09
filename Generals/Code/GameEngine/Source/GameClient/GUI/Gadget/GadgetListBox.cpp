@@ -230,7 +230,7 @@ static void removeSelection( ListboxData *list, Int i )
 /** Update Display List information including scrollbar */
 //=============================================================================
 static void adjustDisplay( GameWindow *window, Int adjustment,
-													 Bool updateSlider )
+	Bool updateSlider )
 {
 	Int entry;
 	SliderData *sData;
@@ -545,7 +545,7 @@ static Int addEntry( UnicodeString *string, Int color, Int row, Int column, Game
 /** Handle input for list box */
 //=============================================================================
 WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
-												 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	ListboxData *list = (ListboxData *)window->winGetUserData();
 	WinInstanceData *instData = window->winGetInstanceData();
@@ -775,7 +775,7 @@ WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 		case GWM_WHEEL_UP:
 		{
 			if( list->endPos <= 0)
-			 break;
+			break;
 
 			adjustDisplay( window, -1, TRUE );
 			break;
@@ -1674,7 +1674,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 																							list->selectPos, 0 );
 				}
 				else if( list->listData[list->selectPos].listHeight >
-								 (list->displayPos + list->displayHeight) )
+					(list->displayPos + list->displayHeight) )
 				{
 
 					if( list->selectPos > 0 )
@@ -2060,18 +2060,18 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 	* buttons */
 //=============================================================================
 void GadgetListBoxSetColors( GameWindow *listbox,
-														 Color enabledColor,
-														 Color enabledBorderColor,
-														 Color enabledSelectedItemColor,
-														 Color enabledSelectedItemBorderColor,
-														 Color disabledColor,
-														 Color disabledBorderColor,
-														 Color disabledSelectedItemColor,
-														 Color disabledSelectedItemBorderColor,
-														 Color hiliteColor,
-														 Color hiliteBorderColor,
-														 Color hiliteSelectedItemColor,
-														 Color hiliteSelectedItemBorderColor )
+	Color enabledColor,
+	Color enabledBorderColor,
+	Color enabledSelectedItemColor,
+	Color enabledSelectedItemBorderColor,
+	Color disabledColor,
+	Color disabledBorderColor,
+	Color disabledSelectedItemColor,
+	Color disabledSelectedItemBorderColor,
+	Color hiliteColor,
+	Color hiliteBorderColor,
+	Color hiliteSelectedItemColor,
+	Color hiliteSelectedItemBorderColor )
 {
 	ListboxData *listboxData = (ListboxData *)listbox->winGetUserData();
 
@@ -2230,7 +2230,7 @@ Int GadgetListBoxAddEntryText( GameWindow *listbox,
 		//index, oldBottomIndex, newEntryOffset, index, oldBottomIndex, newEntryOffset, wasFull, GadgetListBoxIsFull(listbox), listData->listLength, listData->endPos));
 	if(listData->scrollIfAtEnd && index - oldBottomIndex == newEntryOffset && GadgetListBoxIsFull(listbox))
 	{
-	  GadgetListBoxSetBottomVisibleEntry( listbox, index );
+		GadgetListBoxSetBottomVisibleEntry( listbox, index );
 	}
 
 	return (index);
@@ -2240,9 +2240,9 @@ Int GadgetListBoxAddEntryText( GameWindow *listbox,
 /** Add a new string entry into the listbox at the insert position */
 //=============================================================================
 Int GadgetListBoxAddEntryImage( GameWindow *listbox, const Image *image,
-															 Int row, Int column,
-															 Int hight, Int width,
-															 Bool overwrite, Color color )
+	Int row, Int column,
+	Int hight, Int width,
+	Bool overwrite, Color color )
 {
 	Int index;
 	AddMessageStruct addInfo;
@@ -2259,8 +2259,8 @@ Int GadgetListBoxAddEntryImage( GameWindow *listbox, const Image *image,
 }
 
 Int GadgetListBoxAddEntryImage( GameWindow *listbox, const Image *image,
-															 Int row, Int column,
-															 Bool overwrite, Color color )
+	Int row, Int column,
+	Bool overwrite, Color color )
 {
 	return GadgetListBoxAddEntryImage(listbox, image, row, column,  -1, -1, overwrite, color);
 }
@@ -2351,11 +2351,11 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 		BitSet( winInstData.m_style, GWS_MOUSE_TRACK );
 
 	listData->upButton =
-		 TheWindowManager->gogoGadgetPushButton( listbox,
-																						 status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
-																						 width - buttonWidth -2, top+2,
-																						 buttonWidth, buttonHeight,
-																						 &winInstData, nullptr, TRUE );
+		TheWindowManager->gogoGadgetPushButton( listbox,
+		status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
+		width - buttonWidth -2, top+2,
+		buttonWidth, buttonHeight,
+		&winInstData, nullptr, TRUE );
 
 	// ----------------------------------------------------------------------
 	// Create Bottom Button
@@ -2370,12 +2370,12 @@ void GadgetListboxCreateScrollbar( GameWindow *listbox )
 		BitSet( winInstData.m_style, GWS_MOUSE_TRACK );
 
 	listData->downButton =
-			 TheWindowManager->gogoGadgetPushButton( listbox,
-																							 status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
-																							 width - buttonWidth -2,
-																							 (top + bottom - buttonHeight -2),
-																							 buttonWidth, buttonHeight,
-																							 &winInstData, nullptr, TRUE );
+		TheWindowManager->gogoGadgetPushButton( listbox,
+		status | WIN_STATUS_ACTIVE | WIN_STATUS_ENABLED,
+		width - buttonWidth -2,
+		(top + bottom - buttonHeight -2),
+		buttonWidth, buttonHeight,
+		&winInstData, nullptr, TRUE );
 
 	// ----------------------------------------------------------------------
 	// create the slider
@@ -2427,8 +2427,8 @@ void GadgetListBoxAddMultiSelect( GameWindow *listbox )
 	DEBUG_ASSERTCRASH(listboxData && listboxData->selections == nullptr, ("selections is not null"));
 	listboxData->selections = NEW Int [listboxData->listLength];
 	DEBUG_LOG(( "Enable list box multi select: listLength (select) = %d * %d = %d bytes;",
-					 listboxData->listLength, sizeof(Int),
-					 listboxData->listLength *sizeof(Int) ));
+		listboxData->listLength, sizeof(Int),
+		listboxData->listLength *sizeof(Int) ));
 
 	if( listboxData->selections == nullptr )
 	{
@@ -2440,7 +2440,7 @@ void GadgetListBoxAddMultiSelect( GameWindow *listbox )
 	}
 
 	memset( listboxData->selections, -1,
-		      listboxData->listLength * sizeof(Int) );
+		listboxData->listLength * sizeof(Int) );
 
 	// set mutliselect flag
 	listboxData->multiSelect = TRUE;
@@ -2487,13 +2487,13 @@ void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength )
 	if( listboxData->columns < 1 )
 		return;
 
-  Int columns = listboxData->columns;
+	Int columns = listboxData->columns;
 	ListEntryRow *newData = NEW ListEntryRow[ newLength ];
 	DEBUG_ASSERTCRASH(newData, ("Unable to allocate new data structures for the Listbox"));
 	if( !newData )
 		return;
 	Int i;
-  // zero out the new Data structure
+	// zero out the new Data structure
 	memset( newData, 0, newLength  * sizeof( ListEntryRow ) );
 
 	// we want to copy over different amounts of data depending on if we're adding
@@ -2511,10 +2511,10 @@ void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength )
 		//if we're multiselect, just select no position
 		if(listboxData->selectPos > newLength || listboxData->multiSelect)
 			listboxData->selectPos = -1;
-    if(listboxData->insertPos > newLength)
+		if(listboxData->insertPos > newLength)
 			listboxData->insertPos = newLength;
 
-    listboxData->endPos = newLength;
+		listboxData->endPos = newLength;
 		//copy only the data that we'll be needing.
 		memcpy(newData,listboxData->listData,newLength * sizeof( ListEntryRow ) );
 	}
@@ -2555,7 +2555,7 @@ void GadgetListBoxSetListLength( GameWindow *listbox, Int newLength )
 	//reset the total height
 	computeTotalHeight(listbox);
 
-  // Sanity check that everything was created properly
+	// Sanity check that everything was created properly
 	if( listboxData->listData == nullptr )
 	{
 

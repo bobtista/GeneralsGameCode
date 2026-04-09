@@ -117,7 +117,7 @@ public:
 	void prepareNewGame( GameMode gameMode, GameDifficulty diff, Int rankPoints );						///< prepare for new game
 
 	void logicMessageDispatcher( GameMessage *msg,
-																			 void *userData );	///< Logic command list processing
+		void *userData );	///< Logic command list processing
 
 	void registerObject( Object *obj );							///< Given an object, register it with the GameLogic and give it a unique ID
 

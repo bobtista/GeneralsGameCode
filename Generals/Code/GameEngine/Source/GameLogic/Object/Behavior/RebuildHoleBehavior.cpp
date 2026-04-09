@@ -58,17 +58,17 @@ RebuildHoleBehaviorModuleData::RebuildHoleBehaviorModuleData()
 /*static*/ void RebuildHoleBehaviorModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
 
-  UpdateModuleData::buildFieldParse( p );
+	UpdateModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
-	  { "WorkerObjectName", INI::parseAsciiString, nullptr, offsetof( RebuildHoleBehaviorModuleData, m_workerTemplateName ) },
+		{ "WorkerObjectName", INI::parseAsciiString, nullptr, offsetof( RebuildHoleBehaviorModuleData, m_workerTemplateName ) },
 		{ "WorkerRespawnDelay", INI::parseDurationReal,	nullptr, offsetof( RebuildHoleBehaviorModuleData, m_workerRespawnDelay ) },
 		{ "HoleHealthRegen%PerSecond", INI::parsePercentToReal, nullptr, offsetof( RebuildHoleBehaviorModuleData, m_holeHealthRegenPercentPerSecond ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add( dataFieldParse );
+	p.add( dataFieldParse );
 
 }
 

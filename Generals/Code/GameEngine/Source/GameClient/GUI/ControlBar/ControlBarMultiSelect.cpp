@@ -225,8 +225,8 @@ void ControlBar::populateMultiSelect()
 
 	// sanity
 	DEBUG_ASSERTCRASH( TheInGameUI->getSelectCount() > 1,
-										 ("populateMultiSelect: Can't populate multiselect context cause there are only '%d' things selected",
-										  TheInGameUI->getSelectCount()) );
+		("populateMultiSelect: Can't populate multiselect context cause there are only '%d' things selected",
+		TheInGameUI->getSelectCount()) );
 
 	// get the list of drawable IDs from the in game UI
 	const DrawableList *selectedDrawables = TheInGameUI->getAllSelectedDrawables();
@@ -236,7 +236,7 @@ void ControlBar::populateMultiSelect()
 
 	// loop through all the selected drawables
 	for( DrawableListCIt it = selectedDrawables->begin();
-			 it != selectedDrawables->end(); ++it )
+	it != selectedDrawables->end(); ++it )
 	{
 
 		// get the drawable
@@ -306,8 +306,8 @@ void ControlBar::updateContextMultiSelect()
 
 	// sanity
 	DEBUG_ASSERTCRASH( TheInGameUI->getSelectCount() > 1,
-										 ("updateContextMultiSelect: TheInGameUI only has '%d' things selected",
-										  TheInGameUI->getSelectCount()) );
+		("updateContextMultiSelect: TheInGameUI only has '%d' things selected",
+		TheInGameUI->getSelectCount()) );
 
 	// get the list of drawable IDs from the in game UI
 	const DrawableList *selectedDrawables = TheInGameUI->getAllSelectedDrawables();
@@ -317,7 +317,7 @@ void ControlBar::updateContextMultiSelect()
 
 	// loop through all the selected drawable IDs
 	for( DrawableListCIt it = selectedDrawables->begin();
-			 it != selectedDrawables->end(); ++it )
+	it != selectedDrawables->end(); ++it )
 	{
 
 		// get the drawable from the ID

@@ -59,8 +59,8 @@ Version::Version()
 }
 
 void Version::setVersion(Int major, Int minor, Int buildNum,
-												 Int localBuildNum, AsciiString user, AsciiString location,
-												 AsciiString buildTime, AsciiString buildDate)
+	Int localBuildNum, AsciiString user, AsciiString location,
+	AsciiString buildTime, AsciiString buildDate)
 {
 	m_major = major;
 	m_minor = minor;

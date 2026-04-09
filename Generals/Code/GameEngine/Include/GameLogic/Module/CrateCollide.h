@@ -79,7 +79,7 @@ public:
 	virtual Bool wouldLikeToCollideWith(const Object* other) const override { return isValidToExecute(other); }
 
 	virtual Bool isRailroad() const override { return FALSE;};
- 	virtual Bool isCarBombCrateCollide() const override { return FALSE; }
+	virtual Bool isCarBombCrateCollide() const override { return FALSE; }
 	virtual Bool isHijackedVehicleCrateCollide() const override { return FALSE; }
 
 protected:

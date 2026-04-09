@@ -92,7 +92,7 @@ PropagandaTowerBehaviorModuleData::PropagandaTowerBehaviorModuleData()
 // ------------------------------------------------------------------------------------------------
 /*static*/ void PropagandaTowerBehaviorModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
-  UpdateModuleData::buildFieldParse( p );
+	UpdateModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -106,7 +106,7 @@ PropagandaTowerBehaviorModuleData::PropagandaTowerBehaviorModuleData()
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add( dataFieldParse );
+	p.add( dataFieldParse );
 
 }
 
@@ -238,7 +238,7 @@ UpdateSleepTime PropagandaTowerBehavior::update()
 		// find this object
 		obj = TheGameLogic->findObjectByID( curr->objectID );
 		if ((obj) &&
-			 (obj->isKindOf(KINDOF_SCORE) || obj->isKindOf(KINDOF_SCORE_CREATE) || obj->isKindOf(KINDOF_SCORE_DESTROY) || obj->isKindOf(KINDOF_MP_COUNT_FOR_VICTORY)))
+			(obj->isKindOf(KINDOF_SCORE) || obj->isKindOf(KINDOF_SCORE_CREATE) || obj->isKindOf(KINDOF_SCORE_DESTROY) || obj->isKindOf(KINDOF_MP_COUNT_FOR_VICTORY)))
 		{
 
 			// give any bonus to this object
@@ -288,7 +288,7 @@ void PropagandaTowerBehavior::onDie( const DamageInfo *damageInfo )
 /** Grant or remove effect to this object */
 // ------------------------------------------------------------------------------------------------
 void PropagandaTowerBehavior::effectLogic( Object *obj, Bool giving,
-																					 const PropagandaTowerBehaviorModuleData *modData )
+	const PropagandaTowerBehaviorModuleData *modData )
 {
 	Bool effectUpgraded = getObject()->getControllingPlayer()->hasUpgradeComplete( m_upgradeRequired );
 
@@ -445,9 +445,9 @@ void PropagandaTowerBehavior::doScan()
 
 	// scan objects in our region
 	ObjectIterator *iter = ThePartitionManager->iterateObjectsInRange( us->getPosition(),
-																																		 modData->m_scanRadius,
-																																		 FROM_CENTER_2D,
-																																		 filters );
+		modData->m_scanRadius,
+		FROM_CENTER_2D,
+		filters );
 	MemoryPoolObjectHolder hold( iter );
 	Object *obj;
 	ObjectTracker *newEntry;

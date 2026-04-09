@@ -107,14 +107,14 @@ void RebuildHoleExposeDie::onDie( const DamageInfo *damageInfo )
 	// we do not "spawn" a hole object
 	//
 	if( us->getControllingPlayer() != ThePlayerList->getNeutralPlayer()
-		  && us->getControllingPlayer()->isPlayerActive()
+		&& us->getControllingPlayer()->isPlayerActive()
 			&& !us->getStatusBits().test( OBJECT_STATUS_UNDER_CONSTRUCTION ) )
 	{
 		Object *hole;
 
 		// create the hole
 		hole = TheThingFactory->newObject( TheThingFactory->findTemplate( modData->m_holeName ),
-																			 getObject()->getTeam() );
+			getObject()->getTeam() );
 
 		// put the hole at our position and angle
 		hole->setPosition( us->getPosition() );

@@ -62,8 +62,8 @@ BridgeScaffoldBehavior::~BridgeScaffoldBehavior()
 /** Set all of the target positions that we're care about as a moving scaffold object */
 // ------------------------------------------------------------------------------------------------
 void BridgeScaffoldBehavior::setPositions( const Coord3D *createPos,
-																					 const Coord3D *riseToPos,
-																					 const Coord3D *buildPos )
+	const Coord3D *riseToPos,
+	const Coord3D *buildPos )
 {
 
 	m_createPos = *createPos;

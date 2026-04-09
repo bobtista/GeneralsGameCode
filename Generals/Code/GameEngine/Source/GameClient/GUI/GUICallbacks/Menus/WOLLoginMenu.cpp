@@ -905,7 +905,7 @@ void WOLLoginMenuUpdate( WindowLayout * layout, void *userData)
 /** WOL Login Menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLLoginMenuInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -986,9 +986,9 @@ static Bool isAgeOkay(AsciiString &month, AsciiString &day, AsciiString year)
 	#define DATE_BUFFER_SIZE 256
 	char dateBuffer[ DATE_BUFFER_SIZE ];
 	GetDateFormat( LOCALE_SYSTEM_DEFAULT,
-								 0, nullptr,
-								 "yyyy",
-								 dateBuffer, DATE_BUFFER_SIZE );
+		0, nullptr,
+		"yyyy",
+		dateBuffer, DATE_BUFFER_SIZE );
 	Int sysVal = atoi(dateBuffer);
 	Int userVal = atoi(year.str());
 	if(sysVal - userVal >= 14)
@@ -997,9 +997,9 @@ static Bool isAgeOkay(AsciiString &month, AsciiString &day, AsciiString year)
 		return FALSE;
 
 	GetDateFormat( LOCALE_SYSTEM_DEFAULT,
-								 0, nullptr,
-								 "MM",
-								 dateBuffer, DATE_BUFFER_SIZE );
+		0, nullptr,
+		"MM",
+		dateBuffer, DATE_BUFFER_SIZE );
 	sysVal = atoi(dateBuffer);
 	userVal = atoi(month.str());
 	if(sysVal - userVal >0 )
@@ -1008,9 +1008,9 @@ static Bool isAgeOkay(AsciiString &month, AsciiString &day, AsciiString year)
 		return FALSE;
 //	month.format("%02.2d",userVal);
 	GetDateFormat( LOCALE_SYSTEM_DEFAULT,
-								 0, nullptr,
-								 "dd",
-								 dateBuffer, DATE_BUFFER_SIZE );
+		0, nullptr,
+		"dd",
+		dateBuffer, DATE_BUFFER_SIZE );
 	sysVal = atoi(dateBuffer);
 	userVal = atoi(day.str());
 	if(sysVal - userVal< 0)
@@ -1023,7 +1023,7 @@ static Bool isAgeOkay(AsciiString &month, AsciiString &day, AsciiString year)
 /** WOL Login Menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLLoginMenuSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 

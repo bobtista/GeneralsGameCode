@@ -1303,7 +1303,7 @@ void TeamPrototype::loadPostProcess()
 
 // ------------------------------------------------------------------------
 Team::Team(TeamPrototype *proto, TeamID id ) :
-  m_id( id ),
+	m_id( id ),
 	m_proto(proto),
 	m_enteredOrExited(false),
 	m_active(false),
@@ -1539,7 +1539,7 @@ Object *Team::getTeamTargetObject()
 }
 
 // ------------------------------------------------------------------------
- void Team::setOverrideTeamRelationship( TeamID teamID, Relationship r)
+void Team::setOverrideTeamRelationship( TeamID teamID, Relationship r)
 {
 	if (teamID != TEAM_ID_INVALID )
 	{
@@ -2387,7 +2387,7 @@ Object *Team::tryToRecruit(const ThingTemplate *tTemplate, const Coord3D *teamHo
 	if (recruit!=nullptr) {
 		return recruit;
 	}
- 	return nullptr;
+	return nullptr;
 }
 
 // ------------------------------------------------------------------------
@@ -2585,8 +2585,8 @@ void Team::xfer( Xfer *xfer )
 	ObjectID memberID;
 	UnsignedShort memberCount = 0;
 	for( DLINK_ITERATOR< Object > objIt = iterate_TeamMemberList();
-			 objIt.done() == FALSE;
-			 objIt.advance() )
+	objIt.done() == FALSE;
+	objIt.advance() )
 		memberCount++;
 	xfer->xferUnsignedShort( &memberCount );
 	if( xfer->getXferMode() == XFER_SAVE )
@@ -2595,8 +2595,8 @@ void Team::xfer( Xfer *xfer )
 
 		// save all member info
 		for( DLINK_ITERATOR< Object > objIt = iterate_TeamMemberList();
-				 objIt.done() == FALSE;
-				 objIt.advance() )
+		objIt.done() == FALSE;
+		objIt.advance() )
 		{
 
 			// get object

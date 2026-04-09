@@ -67,7 +67,7 @@ ParachuteContainModuleData::ParachuteContainModuleData() :
 //-------------------------------------------------------------------------------------------------
 void ParachuteContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  OpenContainModuleData::buildFieldParse(p);
+	OpenContainModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -80,14 +80,14 @@ void ParachuteContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ "ParachuteOpenSound", INI::parseAudioEventRTS, nullptr, offsetof( ParachuteContainModuleData, m_parachuteOpenSound ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 // PUBLIC /////////////////////////////////////////////////////////////////////////////////////////
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 ParachuteContain::ParachuteContain( Thing *thing, const ModuleData *moduleData ) :
-								 OpenContain( thing, moduleData )
+	OpenContain( thing, moduleData )
 {
 	m_opened = false;
 	m_needToUpdateParaBones = true;

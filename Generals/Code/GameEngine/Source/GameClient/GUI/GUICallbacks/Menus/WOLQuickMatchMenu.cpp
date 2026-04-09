@@ -1399,7 +1399,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 /** WOL Quick Match Menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLQuickMatchMenuInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -1449,7 +1449,7 @@ WindowMsgHandledType WOLQuickMatchMenuInput( GameWindow *window, UnsignedInt msg
 /** WOL Quick Match Menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 
@@ -1616,7 +1616,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					Int val;
 					GadgetComboBoxGetSelectedPos(comboBoxMaxDisconnects, &val);
 					if( val < 0)
-						 val = 0;
+				val = 0;
 					req.QM.maxDiscons = MAX_DISCONNECTS[val];
 
 					GadgetComboBoxGetSelectedPos(comboBoxMaxPing, &val);

@@ -176,7 +176,7 @@ WindowMsgHandledType EstablishConnectionsControlInput(GameWindow *window, Unsign
 }
 
 WindowMsgHandledType EstablishConnectionsControlSystem(GameWindow *window, UnsignedInt msg,
-																											 WindowMsgData mData1, WindowMsgData mData2) {
+	WindowMsgData mData1, WindowMsgData mData2) {
 
 	switch (msg) {
 		case GBM_SELECTED:

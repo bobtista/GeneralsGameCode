@@ -294,7 +294,7 @@ public:
 	const UpgradeMaskType& getCompletedUpgradeMask() const { return m_upgradesCompleted; }	///< get list of upgrades that are completed
 	Bool hasUpgradeInProduction( const UpgradeTemplate *upgradeTemplate );		///< does player have this upgrade in progress right now
 	Upgrade *addUpgrade( const UpgradeTemplate *upgradeTemplate,
-											 UpgradeStatusType status );		///< add upgrade, or update existing upgrade status
+		UpgradeStatusType status );		///< add upgrade, or update existing upgrade status
 	void removeUpgrade( const UpgradeTemplate *upgradeTemplate );	///< remove this upgrade from us
 
 	/** find upgrade, NOTE, the upgrade may *NOT* be "complete" and therefore "active", it could be in production

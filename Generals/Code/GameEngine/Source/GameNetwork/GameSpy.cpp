@@ -520,7 +520,7 @@ void ReadyChangedCallback(PEER peer, const char * nick,
 }
 
 void GameStartedCallback(PEER peer, unsigned int IP,
-												 const char * message, void * param)
+	const char * message, void * param)
 {
 	GameSpyStartGame();
 }
@@ -613,8 +613,8 @@ void PlayerLeftCallback(PEER peer, RoomType roomType,
 }
 
 void PlayerChangedNickCallback(PEER peer, RoomType roomType,
-															 const char * oldNick,
-															 const char * newNick, void * param)
+	const char * oldNick,
+	const char * newNick, void * param)
 {
 	if (TheGameSpyChat->getCurrentGroupRoomID())
 	{
@@ -629,8 +629,8 @@ void PingCallback(PEER peer, const char * nick, int ping,
 }
 
 void CrossPingCallback(PEER peer, const char * nick1,
-											 const char * nick2, int crossPing,
-											 void * param)
+	const char * nick2, int crossPing,
+	void * param)
 {
 	DEBUG_LOG(("CrossPingCallback"));
 }
@@ -813,7 +813,7 @@ void GOABasicCallback(PEER peer, PEERBool playing, char * outbuf,
 }
 
 void GOAInfoCallback(PEER peer, PEERBool playing, char * outbuf,
-										 int maxlen, void * param)
+	int maxlen, void * param)
 {
 	snprintf(outbuf, maxlen, "\\hostname\\%s\\hostport\\%d\\mapname\\%s\\gametype\\%s\\numplayers\\%d\\maxplayers\\%d\\gamemode\\%s",
 		TheGameSpyChat->getLoginName().str(), 0, TheGameSpyGame->getMap().str(), "battle", TheGameSpyGame->getNumPlayers(), TheGameSpyGame->getMaxPlayers(), "wait");

@@ -708,20 +708,20 @@ void pickAndPlayUnitVoiceResponse( const DrawableList *list, GameMessage::Type m
 							break;
 						//these are specific to the guicommand based ground attacks, the toxin sprinkler and the firestorm wall thing
 						//hence the additional check for it being a non-primary weapon
- 						case DAMAGE_FLAME:
+						case DAMAGE_FLAME:
 							if (weapon->getWeaponSlot() != PRIMARY_WEAPON)
 							{
- 								soundToPlayPtr = templ->getPerUnitSound( "VoiceFlameLocation" );
- 								objectWithSound = obj;
+								soundToPlayPtr = templ->getPerUnitSound( "VoiceFlameLocation" );
+								objectWithSound = obj;
 							}
- 							break;
- 						case DAMAGE_POISON:
+							break;
+						case DAMAGE_POISON:
 							if (weapon->getWeaponSlot() != PRIMARY_WEAPON)
 							{
- 								soundToPlayPtr = templ->getPerUnitSound( "VoicePoisonLocation" );
- 								objectWithSound = obj;
+								soundToPlayPtr = templ->getPerUnitSound( "VoicePoisonLocation" );
+								objectWithSound = obj;
 							}
- 							break;
+							break;
 						default:
 							if( !weapon->getName().compare( "ComancheRocketPodWeapon" ) )
 							{
@@ -946,7 +946,7 @@ static Object *iNeedAHero()
  * Create DO_MOVE_TO messages for each selected object, instructing it to move to the given location.
  */
 GameMessage::Type CommandTranslator::issueMoveToLocationCommand( const Coord3D *pos, Drawable *drawableInWay,
-																																 CommandEvaluateType commandType )
+	CommandEvaluateType commandType )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
 	Object *obj = drawableInWay ? drawableInWay->getObject() : nullptr;
@@ -1044,8 +1044,8 @@ GameMessage::Type CommandTranslator::createAttackMessage( Drawable *draw,
  * Return TRUE if any attacks actually occurred.
  */
 GameMessage::Type CommandTranslator::issueAttackCommand( Drawable *target,
-																												 CommandEvaluateType commandType,
-																												 GUICommandType command )
+	CommandEvaluateType commandType,
+	GUICommandType command )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
 
@@ -1302,7 +1302,7 @@ GameMessage::Type CommandTranslator::issueFireWeaponCommand( const CommandButton
 				PickAndPlayInfo info;
 				WeaponSlotType slot = command->getWeaponSlot();
 				info.m_weaponSlot = &slot;
- 				pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_WEAPON_AT_OBJECT, &info );
+				pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_WEAPON_AT_OBJECT, &info );
 			}
 		}
 	}
@@ -1340,7 +1340,7 @@ GameMessage::Type CommandTranslator::issueFireWeaponCommand( const CommandButton
 
 //-------------------------------------------------------------------------------------------------
 GameMessage::Type CommandTranslator::createEnterMessage( Drawable *enter,
-																												 CommandEvaluateType commandType )
+	CommandEvaluateType commandType )
 {
 	GameMessage::Type msgType = GameMessage::MSG_ENTER;
 
@@ -1483,8 +1483,8 @@ GameMessage::Type CommandTranslator::evaluateForceAttack( Drawable *draw, const 
 	* NOTE: draw can be null, in which case we give a hint for the location */
 // ------------------------------------------------------------------------------------------------
 GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
-																														 const Coord3D *pos,
-																														 CommandEvaluateType type )
+	const Coord3D *pos,
+	CommandEvaluateType type )
 {
 	Object *obj = draw ? draw->getObject() : nullptr;
 	Drawable *drawableInWay = draw;
@@ -1747,7 +1747,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_RESUME_CONSTRUCTION, obj, InGameUI::SELECTION_ANY ) )
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_RESUME_CONSTRUCTION, obj, InGameUI::SELECTION_ANY ) )
 		{
 
 			if( type == DO_COMMAND || type == EVALUATE_ONLY )
@@ -1779,7 +1779,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DOCK_AT,
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DOCK_AT,
 																											obj,
 																											InGameUI::SELECTION_ALL ) )
 		{
@@ -1799,8 +1799,8 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 
 					dockMsg->appendObjectIDArgument( obj->getID() );
 
- 					// only make sounds if we really did the command messages
- 					pickAndPlayUnitVoiceResponse(TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DOCK);
+					// only make sounds if we really did the command messages
+					pickAndPlayUnitVoiceResponse(TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DOCK);
 				}
 
 			}
@@ -1817,7 +1817,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_REPAIR_OBJECT, obj, InGameUI::SELECTION_ANY ) )
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_REPAIR_OBJECT, obj, InGameUI::SELECTION_ANY ) )
 		{
 
 			if( type == DO_COMMAND || type == EVALUATE_ONLY )
@@ -1883,7 +1883,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_HEALED_AT, obj, InGameUI::SELECTION_ANY ) )
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_HEALED_AT, obj, InGameUI::SELECTION_ANY ) )
 		{
 
 			if( type == DO_COMMAND || type == EVALUATE_ONLY )
@@ -1915,7 +1915,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && draw->getObject() && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_HIJACK_VEHICLE,
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_HIJACK_VEHICLE,
 																											draw->getObject(),
 																											InGameUI::SELECTION_ANY ) )
 		{
@@ -1924,8 +1924,8 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 			{
 
 				// Now, this just tricks the AI  into making the hijacker run towards the target vehicle
-        // I must add a test to keep him from actually entering an enemy vehicle (contained)... Lorenzen
-        msgType = createEnterMessage( draw, type );
+				// I must add a test to keep him from actually entering an enemy vehicle (contained)... Lorenzen
+				msgType = createEnterMessage( draw, type );
 
 			}
 			else
@@ -1940,7 +1940,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CONVERT_OBJECT_TO_CARBOMB, obj, InGameUI::SELECTION_ANY ) )
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CONVERT_OBJECT_TO_CARBOMB, obj, InGameUI::SELECTION_ANY ) )
 		{
 
 			if( type == DO_COMMAND || type == EVALUATE_ONLY )
@@ -1981,7 +1981,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_ENTER_OBJECT, obj, InGameUI::SELECTION_ANY, true ) )
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_ENTER_OBJECT, obj, InGameUI::SELECTION_ANY, true ) )
 		{
 
 			if( type == DO_COMMAND || type == EVALUATE_ONLY )
@@ -2787,7 +2787,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 						{
 							const Object *tempObject = temp->getObject();
 							if( tempObject && !temp->isSelected() && tempObject->isMobile()
-								  && tempObject->isLocallyControlled() && !tempObject->isContained() && tempObject->isKindOf( KINDOF_DOZER ) )
+								&& tempObject->isLocallyControlled() && !tempObject->isContained() && tempObject->isKindOf( KINDOF_DOZER ) )
 							{
 								newDrawable = temp;
 								break;
@@ -3567,43 +3567,43 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		case GameMessage::MSG_RAW_MOUSE_RIGHT_BUTTON_DOWN:
 		{
 			// There are two ways in which we can ignore this as a deselect:
- 			// 1) 2-D position on screen
- 			// 2) Time has exceeded the time which we allow for this to be a click.
- 			m_mouseRightDragAnchor = msg->getArgument( 0 )->pixel;
- 			m_mouseRightDown = (UnsignedInt) msg->getArgument( 2 )->integer;
+			// 1) 2-D position on screen
+			// 2) Time has exceeded the time which we allow for this to be a click.
+			m_mouseRightDragAnchor = msg->getArgument( 0 )->pixel;
+			m_mouseRightDown = (UnsignedInt) msg->getArgument( 2 )->integer;
 
- 			break;
- 		}
+			break;
+		}
 
- 		//-----------------------------------------------------------------------------
- 		case GameMessage::MSG_RAW_MOUSE_RIGHT_BUTTON_UP:
- 		{
- 			// register this event for determining if the click was fast or short enough not to be a drag
- 			m_mouseRightDragLift = msg->getArgument( 0 )->pixel;
- 			m_mouseRightUp = (UnsignedInt) msg->getArgument( 2 )->integer;
+		//-----------------------------------------------------------------------------
+		case GameMessage::MSG_RAW_MOUSE_RIGHT_BUTTON_UP:
+		{
+			// register this event for determining if the click was fast or short enough not to be a drag
+			m_mouseRightDragLift = msg->getArgument( 0 )->pixel;
+			m_mouseRightUp = (UnsignedInt) msg->getArgument( 2 )->integer;
 
- 			break;
- 		}
+			break;
+		}
 
- 		//-----------------------------------------------------------------------------
- 		case GameMessage::MSG_MOUSE_RIGHT_DOUBLE_CLICK:
- 		case GameMessage::MSG_MOUSE_RIGHT_CLICK:
- 		{
- 			// right click is only actioned here if we're in alternate mouse mode
- 			if (TheGlobalData->m_useAlternateMouse
- 				&& TheMouse->isClick(&m_mouseRightDragAnchor, &m_mouseRightDragLift, m_mouseRightDown, m_mouseRightUp))
- 			{
- 				Bool isPoint = (msg->getArgument(0)->pixelRegion.height() == 0 && msg->getArgument(0)->pixelRegion.width() == 0);
+		//-----------------------------------------------------------------------------
+		case GameMessage::MSG_MOUSE_RIGHT_DOUBLE_CLICK:
+		case GameMessage::MSG_MOUSE_RIGHT_CLICK:
+		{
+			// right click is only actioned here if we're in alternate mouse mode
+			if (TheGlobalData->m_useAlternateMouse
+				&& TheMouse->isClick(&m_mouseRightDragAnchor, &m_mouseRightDragLift, m_mouseRightDown, m_mouseRightUp))
+			{
+				Bool isPoint = (msg->getArgument(0)->pixelRegion.height() == 0 && msg->getArgument(0)->pixelRegion.width() == 0);
 
- 				// NOTE: RIGHT_CLICK is not transmitted if AREA_SELECTION or DRAWABLE_PICKED occurs.
- 				// If we see this msg, no object was clicked on, therefore clicked on ground.
- 				// Issue move command to all currently selected objects.
+				// NOTE: RIGHT_CLICK is not transmitted if AREA_SELECTION or DRAWABLE_PICKED occurs.
+				// If we see this msg, no object was clicked on, therefore clicked on ground.
+				// Issue move command to all currently selected objects.
 
- 				// sanity
- 				if( TheTacticalView == nullptr )
- 					break;
+				// sanity
+				if( TheTacticalView == nullptr )
+				break;
 
- 				// translate from screen coordinates to terrain coords
+				// translate from screen coordinates to terrain coords
 				Coord3D pos;
 				TheTacticalView->screenToTerrain( &msg->getArgument( 0 )->pixel, &pos );
 
@@ -3658,16 +3658,16 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 			const CommandButton *command = TheInGameUI->getGUICommand();
 			// maintain this as the set of GUI button initiated commands that require a left click action in alt mouse mode
- 			Bool isFiringGUICommand = (command	&& (command->getCommandType() == GUI_COMMAND_SPECIAL_POWER
- 												|| command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_COMMAND_CENTER
+			Bool isFiringGUICommand = (command	&& (command->getCommandType() == GUI_COMMAND_SPECIAL_POWER
+				|| command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_COMMAND_CENTER
 												|| command->getCommandType() == GUI_COMMAND_FIRE_WEAPON
 												|| command->getCommandType() == GUI_COMMAND_COMBATDROP
 												|| command->getCommandType() == GUICOMMANDMODE_HIJACK_VEHICLE
 												|| command->getCommandType() == GUICOMMANDMODE_CONVERT_TO_CARBOMB));
 
- 			// in alternate mouse mode, this left click is only actioned here if we're firing a gui command
- 			if ((TheGlobalData->m_useAlternateMouse) && (! isFiringGUICommand))
- 				break;
+			// in alternate mouse mode, this left click is only actioned here if we're firing a gui command
+			if ((TheGlobalData->m_useAlternateMouse) && (! isFiringGUICommand))
+			break;
 
 			Bool controllable = TheInGameUI->areSelectedObjectsControllable()
 													|| (command && command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_COMMAND_CENTER);
