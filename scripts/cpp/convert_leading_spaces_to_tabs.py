@@ -86,15 +86,18 @@ def get_indent_depth(node):
     return depth
 
 
-def is_continuation_line(node, line_num):
-    """Check if this line is a continuation of a multi-line statement.
+def get_continuation_parent(node, line_num):
+    """Find the parent statement that this line is a continuation of.
+
+    Returns the parent statement node if this is a continuation line,
+    or None if it's not a continuation.
 
     A continuation line is one where the innermost meaningful AST node
-    started on a previous line. We skip these because their alignment
-    is a style choice we don't want to change in this PR.
+    started on a previous line (e.g., multi-line function arguments,
+    constructor initializer lists, multi-line conditions).
     """
     if node is None:
-        return False
+        return None
 
     # Walk up to find the nearest statement-level node
     current = node
@@ -116,10 +119,21 @@ def is_continuation_line(node, line_num):
                 'field_initializer_list', 'field_initializer',
                 'base_class_clause', 'initializer_pair',
             ):
-                return True
+                return current
         current = current.parent
 
-    return False
+    return None
+
+
+def is_closing_delimiter_line(stripped):
+    """Check if a line is just a closing delimiter, possibly with trailing punctuation.
+
+    Matches lines like ')', ');', ') {', ']);', etc.
+    These should be at the parent statement's depth, not +1.
+    """
+    # Strip trailing semicolons, braces, commas
+    s = stripped.rstrip(';,{ ')
+    return s in (')', ']', '}')
 
 
 
@@ -239,16 +253,18 @@ def process_file(filepath, dry_run=False, verbose=False):
         # However, single-line /* */ comments on their own line are also
         # fine to reindent.
 
-        # Skip continuation lines
-        if is_continuation_line(node, line_idx):
-            new_lines.append(line)
-            skipped += 1
-            if verbose:
-                print(f"  SKIP continuation L{line_idx+1}: {line.rstrip()[:80]}")
-            continue
-
-        # Calculate expected depth
-        depth = get_indent_depth(node)
+        # Continuation lines: indent at parent statement depth + 1.
+        # Closing delimiters on their own line go at parent depth (no +1).
+        continuation_parent = get_continuation_parent(node, line_idx)
+        if continuation_parent is not None:
+            parent_depth = get_indent_depth(continuation_parent)
+            if is_closing_delimiter_line(stripped):
+                depth = parent_depth
+            else:
+                depth = parent_depth + 1
+        else:
+            # Calculate expected depth
+            depth = get_indent_depth(node)
 
         # Special handling: the opening/closing braces of a compound_statement
         # should be at the parent's depth, not the compound_statement's depth.
@@ -368,7 +384,7 @@ def main():
 
     action = "Would change" if args.dry_run else "Changed"
     print(f"\n{action} {total_changed} lines across {total_files_modified} files")
-    print(f"Skipped {total_skipped} lines (continuations, ambiguous)")
+    print(f"Skipped {total_skipped} lines (ambiguous)")
 
 
 if __name__ == '__main__':
