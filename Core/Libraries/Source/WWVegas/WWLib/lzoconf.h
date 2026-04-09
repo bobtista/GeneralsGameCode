@@ -94,12 +94,12 @@
 
 /* Unsigned type with 32 bits or more */
 #if (UINT_MAX >= 0xffffffffL)
-   typedef unsigned int     lzo_uint;
-   typedef int              lzo_int;
+typedef unsigned int     lzo_uint;
+typedef int              lzo_int;
 #  define LZO_UINT_MAX      UINT_MAX
 #elif (ULONG_MAX >= 0xffffffffL)
-   typedef unsigned long    lzo_uint;
-   typedef long             lzo_int;
+typedef unsigned long    lzo_uint;
+typedef long             lzo_int;
 #  define LZO_UINT_MAX      ULONG_MAX
 #else
 #  error lzo_uint
@@ -164,13 +164,13 @@ typedef unsigned long       lzo_ptr_t;
 
 typedef int __LZO_ENTRY
 (__LZO_EXPORT *lzo_compress_t)  ( const lzo_byte *src, lzo_uint  src_len,
-                                        lzo_byte *dst, lzo_uint *dst_len,
-                                        lzo_voidp wrkmem );
+	lzo_byte *dst, lzo_uint *dst_len,
+	lzo_voidp wrkmem );
 
 typedef int __LZO_ENTRY
 (__LZO_EXPORT *lzo_decompress_t)( const lzo_byte *src, lzo_uint  src_len,
-                                        lzo_byte *dst, lzo_uint *dst_len,
-                                        lzo_voidp wrkmem );
+	lzo_byte *dst, lzo_uint *dst_len,
+	lzo_voidp wrkmem );
 
 
 /* a progress indicator callback function */

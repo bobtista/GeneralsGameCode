@@ -835,11 +835,11 @@ void CollectionClass::Update_Obj_Space_Bounding_Volumes()
 
 	BoundBox.Init(box);
 
-   Invalidate_Cached_Bounding_Volumes();
+	Invalidate_Cached_Bounding_Volumes();
 
-   // Now update the object space bounding volumes of this object's container:
-   RenderObjClass *container = Get_Container();
-   if (container) container->Update_Obj_Space_Bounding_Volumes();
+	// Now update the object space bounding volumes of this object's container:
+	RenderObjClass *container = Get_Container();
+	if (container) container->Update_Obj_Space_Bounding_Volumes();
 
 	Set_Transform(tm);
 }
@@ -1045,8 +1045,8 @@ WW3DErrorType CollectionDefClass::Load(ChunkLoadClass & cload)
 
 				// Create a matrix from the data in the chunk
 				Matrix3D transform (info.transform[0][0], info.transform[1][0], info.transform[2][0], info.transform[3][0],
-										  info.transform[0][1], info.transform[1][1], info.transform[2][1], info.transform[3][1],
-										  info.transform[0][2], info.transform[1][2], info.transform[2][2], info.transform[3][2]);
+					info.transform[0][1], info.transform[1][1], info.transform[2][1], info.transform[3][1],
+					info.transform[0][2], info.transform[1][2], info.transform[2][2], info.transform[3][2]);
 
 				// Add this placeholder to our list
 				ProxyList.Add (ProxyClass (name, transform));

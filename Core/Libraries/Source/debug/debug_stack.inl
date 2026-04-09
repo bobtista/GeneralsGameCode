@@ -20,8 +20,8 @@
 
 // keep this always as first entry
 DBGHELP(SymInitialize,
-        BOOL,
-        (HANDLE hProcess, PCSTR UserSearchPath, BOOL fInvadeProcess))
+	BOOL,
+	(HANDLE hProcess, PCSTR UserSearchPath, BOOL fInvadeProcess))
 
 DBGHELP(SymGetOptions,
         DWORD,

@@ -80,13 +80,13 @@ extern OVERRIDE<WeatherSetting> TheWeatherSetting;
 
 class SnowManager : public SubsystemInterface
 {
-  public :
-	  enum{
-		 SNOW_NOISE_X=64,			//dimensions table holding noise function used for initial snow positions.
-		 SNOW_NOISE_Y=64,			//dimensions table holding noise function used for initial snow positions.
-	  };
+public :
+	enum{
+		SNOW_NOISE_X=64,			//dimensions table holding noise function used for initial snow positions.
+		SNOW_NOISE_Y=64,			//dimensions table holding noise function used for initial snow positions.
+	};
 
-	 SnowManager();
+	SnowManager();
 	virtual ~SnowManager() override;
 
 	virtual void init() override;
@@ -94,7 +94,7 @@ class SnowManager : public SubsystemInterface
 	virtual void updateIniSettings ();
 	void setVisible(Bool showWeather);	///<enable/disable rendering of weather - assuming it's available on map.
 
-  protected :
+protected :
 
 	Real				*m_startingHeights;
 	Real				m_time;	///<time elapsed since it started snowing.

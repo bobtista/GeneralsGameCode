@@ -172,7 +172,7 @@ void Mouse::updateMouseData()
 			index++;
 		}
 		while( (result != MOUSE_NONE) &&
-					 (index < sizeof( m_mouseEvents ) / sizeof( MouseIO )) );
+			(index < sizeof( m_mouseEvents ) / sizeof( MouseIO )) );
 
 		busy = FALSE;
 
@@ -211,8 +211,8 @@ void Mouse::processMouseEvent( Int index )
 
 	// add Mouse Position Changes to Master Position
 	moveMouse( m_mouseEvents[ index ].pos.x,
-						 m_mouseEvents[ index ].pos.y,
-						 movementType );
+		m_mouseEvents[ index ].pos.y,
+		movementType );
 
 	// Cumulate Wheel Adjustments
 	m_currMouse.wheelPos += m_mouseEvents[ index ].wheelPos;
@@ -450,7 +450,7 @@ Mouse::Mouse()
 	//m_tooltipString.clear();	// redundant
 	m_displayTooltip = FALSE;
 	m_tooltipDisplayString = nullptr;
-  m_tooltipDelay = -1;  // default value
+	m_tooltipDelay = -1;  // default value
 	// initialize all the mouse io data
 	memset( m_mouseEvents, 0, sizeof( m_mouseEvents ) );
 	memset( &m_currMouse, 0, sizeof( m_currMouse ) );
@@ -580,7 +580,7 @@ void Mouse::init()
 
 	m_currentCursor = ARROW;
 
- 	// allocate a new display string
+	// allocate a new display string
 	m_cursorTextDisplayString = TheDisplayStringManager->newDisplayString();
 }
 
@@ -642,8 +642,8 @@ void Mouse::reset()
 	///@ todo Write Mouse::reset() if there needs to be anything here
 
 	// reset the text of the cursor text
-  if ( m_cursorTextDisplayString )
-  	m_cursorTextDisplayString->reset();
+	if ( m_cursorTextDisplayString )
+	m_cursorTextDisplayString->reset();
 
 	blockCapture(CursorCaptureBlockReason_NoInit);
 
@@ -681,9 +681,9 @@ void Mouse::createStreamMessages()
 	msg->appendPixelArgument( m_currMouse.pos );
 	msg->appendIntegerArgument( TheKeyboard->getModifierFlags() );
 
-  Int delay = m_tooltipDelayTime;
-  if(m_tooltipDelay >= 0 )
-     delay = m_tooltipDelay;
+	Int delay = m_tooltipDelayTime;
+	if(m_tooltipDelay >= 0 )
+	delay = m_tooltipDelay;
 	if( TheGlobalData->m_scriptDebug )
 	{
 		//No delay while scriptdebugging!
@@ -840,7 +840,7 @@ void Mouse::setCursorTooltip( UnicodeString tooltip, Int delay, const RGBColor *
 	//DEBUG_LOG(("%d Tooltip: %ls", TheGameClient->getFrame(), tooltip.str()));
 
 	m_isTooltipEmpty = tooltip.isEmpty();
-  m_tooltipDelay = delay;
+	m_tooltipDelay = delay;
 
 	Bool forceRecalc = FALSE;
 	if ( !tooltip.isEmpty() && width != m_lastTooltipWidth )
@@ -1211,13 +1211,13 @@ void Mouse::drawCursorText()
 	// get the colors to draw the text in an acceptable format
 	Color color, dropColor;
 	color = GameMakeColor( m_cursorTextColor.red,
-												 m_cursorTextColor.green,
-												 m_cursorTextColor.blue,
-												 m_cursorTextColor.alpha );
+		m_cursorTextColor.green,
+		m_cursorTextColor.blue,
+		m_cursorTextColor.alpha );
 	dropColor = GameMakeColor( m_cursorTextDropColor.red,
-														 m_cursorTextDropColor.green,
-														 m_cursorTextDropColor.blue,
-														 m_cursorTextDropColor.alpha );
+		m_cursorTextDropColor.green,
+		m_cursorTextDropColor.blue,
+		m_cursorTextDropColor.alpha );
 
 	// get the size of the text to draw
 	Int width, height;
@@ -1243,7 +1243,7 @@ Int Mouse::getCursorIndex(const AsciiString& name)
 	static const char *CursorININames[NUM_MOUSE_CURSORS] =
 	{
 		//"InvalidMouseCursor",  // this entry is not actually a mouse cursor, but just a
-														 // reminder that it does exist
+		// reminder that it does exist
 		"None",
 		"Normal",
 		"Arrow",
@@ -1329,8 +1329,8 @@ void Mouse::setCursor( MouseCursor cursor )
 		//
 		if( cursorInfo->cursorText.isEmpty() == FALSE )
 			setMouseText( TheGameText->fetch( cursorInfo->cursorText.str() ),
-										 &(cursorInfo->cursorTextColor),
-										 &(cursorInfo->cursorTextDropColor) );
+			&(cursorInfo->cursorTextColor),
+			&(cursorInfo->cursorTextDropColor) );
 		else
 			setMouseText( L"", nullptr, nullptr );
 

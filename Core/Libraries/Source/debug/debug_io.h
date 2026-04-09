@@ -42,9 +42,9 @@
 */
 class DebugIOInterface
 {
-  // no copy/assign op
-  DebugIOInterface(const DebugIOInterface&);
-  DebugIOInterface& operator=(const DebugIOInterface&);
+	// no copy/assign op
+	DebugIOInterface(const DebugIOInterface&);
+	DebugIOInterface& operator=(const DebugIOInterface&);
 
 protected:
   /**
@@ -53,41 +53,41 @@ protected:
     The destructor must always be protected. Destruction is
     done by calling the Delete member function.
   */
-  virtual ~DebugIOInterface() {}
+	virtual ~DebugIOInterface() {}
 
 public:
-  // interface only so no functionality here
-  explicit DebugIOInterface() {}
+	// interface only so no functionality here
+	explicit DebugIOInterface() {}
 
-  /// List of possible log string types
-  enum StringType
-  {
-    /// DASSERT etc
-    Assert = 0,
+	/// List of possible log string types
+	enum StringType
+	{
+		/// DASSERT etc
+		Assert = 0,
 
-    /// DCHECK etc
-    Check,
+		/// DCHECK etc
+		Check,
 
-    /// DLOG etc
-    Log,
+		/// DLOG etc
+		Log,
 
-    /// DCRASH etc
-    Crash,
+		/// DCRASH etc
+		Crash,
 
-    /// Exception
-    Exception,
+		/// Exception
+		Exception,
 
-    /// Regular command reply
-    CmdReply,
+		/// Regular command reply
+		CmdReply,
 
-    /// Structured command reply, see \ref debug_structcmd
-    StructuredCmdReply,
+		/// Structured command reply, see \ref debug_structcmd
+		StructuredCmdReply,
 
-    /// some other message
-    Other,
+		/// some other message
+		Other,
 
-    MAX
-  };
+		MAX
+	};
 
   /**
     \brief Retrieves up to the given number of characters from a command input source.
@@ -100,7 +100,7 @@ public:
     \return numbers of characters written to buffer
     \note There is no terminating NUL char written to the buffer
   */
-  virtual int Read(char *buf, int maxchar)=0;
+	virtual int Read(char *buf, int maxchar)=0;
 
   /**
     \brief Write out some characters differentiated by the log string type.
@@ -121,7 +121,7 @@ public:
     \param str string to output, NUL delimited, if nullptr then simply flush
                output (if applicable)
   */
-  virtual void Write(StringType type, const char *src, const char *str)=0;
+	virtual void Write(StringType type, const char *src, const char *str)=0;
 
   /**
     \brief Emergency shutdown function.
@@ -129,7 +129,7 @@ public:
     This function gets called during an exception and should perform the
     absolute bare minimum (e.g. just flushing and closing the output file).
   */
-  virtual void EmergencyFlush()=0;
+	virtual void EmergencyFlush()=0;
 
   /**
     \brief I/O class specific command.
@@ -144,15 +144,15 @@ public:
     \param argn number of additional arguments passed in
     \param argv argument list
   */
-  virtual void Execute(class Debug& dbg, const char *cmd, bool structuredCmd,
-                       unsigned argn, const char * const * argv)=0;
+	virtual void Execute(class Debug& dbg, const char *cmd, bool structuredCmd,
+		unsigned argn, const char * const * argv)=0;
 
   /**
     \brief Destroys the current I/O class instance.
 
     Use this function instead of just delete'ing the instance.
   */
-  virtual void Delete()=0;
+	virtual void Delete()=0;
 };
 
 /**

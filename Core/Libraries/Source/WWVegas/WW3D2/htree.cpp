@@ -1181,11 +1181,11 @@ HTreeClass * HTreeClass::Create_Interpolated(	const HTreeClass * tree_a0_b0,
 	for (int pi = 0; pi < new_tree->NumPivots; pi++) {
 
 		Vector3::Lerp( tree_a0_b0->Pivot[pi].BaseTransform.Get_Translation(),
-							  		  tree_a0_b1->Pivot[pi].BaseTransform.Get_Translation(),
-									  lerp_b, &pos_a0 );
+			tree_a0_b1->Pivot[pi].BaseTransform.Get_Translation(),
+			lerp_b, &pos_a0 );
 		Vector3::Lerp( tree_a1_b0->Pivot[pi].BaseTransform.Get_Translation(),
-									  tree_a1_b1->Pivot[pi].BaseTransform.Get_Translation(),
-									  lerp_b, &pos_a1 );
+			tree_a1_b1->Pivot[pi].BaseTransform.Get_Translation(),
+			lerp_b, &pos_a1 );
 		Vector3::Lerp( pos_a0, pos_a1, lerp_a, &pos );
 
 		new_tree->Pivot[pi].BaseTransform.Set_Translation( pos );
@@ -1196,9 +1196,9 @@ HTreeClass * HTreeClass::Create_Interpolated(	const HTreeClass * tree_a0_b0,
 
 // Create an HTree by Interpolating between others
 HTreeClass * HTreeClass::Create_Interpolated(const HTreeClass * tree_base,
-														   const HTreeClass * tree_a,
-														   const HTreeClass * tree_b,
-														   float a_scale, float b_scale )
+	const HTreeClass * tree_a,
+	const HTreeClass * tree_b,
+	float a_scale, float b_scale )
 {
 	WWMEMLOG(MEM_ANIMATION);
 	assert( tree_base->NumPivots == tree_a->NumPivots );
@@ -1217,11 +1217,11 @@ HTreeClass * HTreeClass::Create_Interpolated(const HTreeClass * tree_base,
 		for (int pi = 0; pi < new_tree->NumPivots; pi++) {
 
 			Vector3::Lerp( tree_base->Pivot[pi].BaseTransform.Get_Translation(),
-							  			 tree_a->Pivot[pi].BaseTransform.Get_Translation(),
-										 a_scale, &pos_a );
+				tree_a->Pivot[pi].BaseTransform.Get_Translation(),
+				a_scale, &pos_a );
 			Vector3::Lerp( tree_base->Pivot[pi].BaseTransform.Get_Translation(),
-										 tree_b->Pivot[pi].BaseTransform.Get_Translation(),
-										 b_scale, &pos_b );
+				tree_b->Pivot[pi].BaseTransform.Get_Translation(),
+				b_scale, &pos_b );
 
 			pos   = (pos_a * a_scale_abs + pos_b * b_scale_abs ) / ( a_scale_abs + b_scale_abs );
 

@@ -356,27 +356,27 @@ WWINLINE void Swap(Vector4 & a,Vector4 & b)
  *=============================================================================================*/
 WWINLINE Vector4 Lerp(const Vector4 & a, const Vector4 & b, float alpha)
 {
-   return Vector4(
-      (a.X + (b.X - a.X)*alpha),
-      (a.Y + (b.Y - a.Y)*alpha),
-      (a.Z + (b.Z - a.Z)*alpha),
-      (a.W + (b.W - a.W)*alpha)
-   );
+	return Vector4(
+		(a.X + (b.X - a.X)*alpha),
+		(a.Y + (b.Y - a.Y)*alpha),
+		(a.Z + (b.Z - a.Z)*alpha),
+		(a.W + (b.W - a.W)*alpha)
+	);
 }
 
 WWINLINE Vector4 Vector4::Lerp(const Vector4 & a, const Vector4 & b, float alpha)
 {
-   return Vector4(
-      (a.X + (b.X - a.X)*alpha),
-      (a.Y + (b.Y - a.Y)*alpha),
-      (a.Z + (b.Z - a.Z)*alpha),
-      (a.W + (b.W - a.W)*alpha)
-   );
+	return Vector4(
+		(a.X + (b.X - a.X)*alpha),
+		(a.Y + (b.Y - a.Y)*alpha),
+		(a.Z + (b.Z - a.Z)*alpha),
+		(a.W + (b.W - a.W)*alpha)
+	);
 }
 
 WWINLINE void Vector4::Lerp(const Vector4 & a, const Vector4 & b, float alpha,Vector4 * set_result)
 {
-   set_result->X = (a.X + (b.X - a.X)*alpha);
+	set_result->X = (a.X + (b.X - a.X)*alpha);
 	set_result->Y = (a.Y + (b.Y - a.Y)*alpha);
 	set_result->Z = (a.Z + (b.Z - a.Z)*alpha);
 	set_result->X = (a.W + (b.W - a.W)*alpha);

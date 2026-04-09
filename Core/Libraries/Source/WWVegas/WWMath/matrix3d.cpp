@@ -102,12 +102,12 @@ const Matrix3D Matrix3D::RotateY90
 (
 	0.0,	0.0,	1.0,	0.0,
 	0.0,	1.0,	0.0,	0.0,
-  -1.0,	0.0,	0.0,	0.0
+	-1.0,	0.0,	0.0,	0.0
 );
 
 const Matrix3D Matrix3D::RotateY180
 (
-  -1.0,	0.0,	0.0,	0.0,
+	-1.0,	0.0,	0.0,	0.0,
 	0.0,	1.0,	0.0,	0.0,
 	0.0,	0.0, -1.0,	0.0
 );
@@ -128,7 +128,7 @@ const Matrix3D	Matrix3D::RotateZ90
 
 const Matrix3D Matrix3D::RotateZ180
 (
-  -1.0,	0.0,	0.0,	0.0,
+	-1.0,	0.0,	0.0,	0.0,
 	0.0, -1.0,	0.0,	0.0,
 	0.0,	0.0,	1.0,	0.0
 );
@@ -136,8 +136,8 @@ const Matrix3D Matrix3D::RotateZ180
 const Matrix3D	Matrix3D::RotateZ270
 (
 	0.0,	1.0,	0.0,	0.0,
-  -1.0,	0.0,	0.0,	0.0,
- 	0.0,	0.0,	1.0,	0.0
+	-1.0,	0.0,	0.0,	0.0,
+	0.0,	0.0,	1.0,	0.0
 );
 
 
@@ -173,8 +173,8 @@ void Matrix3D::Set(const Matrix3x3 & rot,const Vector3 & pos)
  *=============================================================================================*/
 void Matrix3D::Set(const Quaternion & rot,const Vector3 & pos)
 {
-   Set_Rotation(rot);
-   Set_Translation(pos);
+	Set_Rotation(rot);
+	Set_Translation(pos);
 }
 
 
@@ -1228,12 +1228,12 @@ void Matrix3D::Re_Orthogonalize()
  *=============================================================================================*/
 void Matrix3D::Lerp(const Matrix3D &A, const Matrix3D &B, float factor, Matrix3D& result)
 {
-   assert(factor >= 0.0f);
-   assert(factor <= 1.0f);
+	assert(factor >= 0.0f);
+	assert(factor <= 1.0f);
 
 	// Lerp position
 #ifdef ALLOW_TEMPORARIES
-  Vector3 pos = Vector3::Lerp(A.Get_Translation(), B.Get_Translation(), factor);
+	Vector3 pos = Vector3::Lerp(A.Get_Translation(), B.Get_Translation(), factor);
 #else
 	Vector3 pos;
 	Vector3::Lerp(A.Get_Translation(), B.Get_Translation(), factor, &pos);

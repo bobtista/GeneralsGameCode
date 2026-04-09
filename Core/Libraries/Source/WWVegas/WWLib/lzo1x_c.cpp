@@ -220,7 +220,7 @@ code_match:
 		assert(ii == ip);
 		ip += 3;
 		if (*m_pos++ != *ip++ || *m_pos++ != *ip++ || *m_pos++ != *ip++ ||
-		    *m_pos++ != *ip++ || *m_pos++ != *ip++ || *m_pos++ != *ip++)
+	*m_pos++ != *ip++ || *m_pos++ != *ip++ || *m_pos++ != *ip++)
 		{
 			--ip;
 			m_len = ip - ii;
@@ -239,7 +239,7 @@ code_match:
 					m_off -= 0x4000;
 					assert(m_off > 0); assert(m_off <= 0x7fff);
 					*op++ = LZO_BYTE(M4_MARKER |
-					                 ((m_off & 0x4000) >> 11) | (m_len - 2));
+				((m_off & 0x4000) >> 11) | (m_len - 2));
 					goto m3_m4_offset;
 				}
 			}
@@ -267,7 +267,7 @@ code_match:
 				assert(m_off > 0); assert(m_off <= 0x7fff);
 				if (m_len <= 9) {
 					*op++ = LZO_BYTE(M4_MARKER |
-					                 ((m_off & 0x4000) >> 11) | (m_len - 2));
+				((m_off & 0x4000) >> 11) | (m_len - 2));
 				} else {
 					m_len -= 9;
 					*op++ = LZO_BYTE(M4_MARKER | ((m_off & 0x4000) >> 11));
@@ -333,8 +333,8 @@ m3_m4_offset:
 ************************************************************************/
 
 int lzo1x_1_compress     ( const lzo_byte * in, lzo_uint  in_len,
-                                 lzo_byte * out, lzo_uint *out_len,
-                                 lzo_voidp wrkmem )
+	lzo_byte * out, lzo_uint *out_len,
+	lzo_voidp wrkmem )
 {
 	lzo_byte *op = out;
 	int r = LZO_E_OK;

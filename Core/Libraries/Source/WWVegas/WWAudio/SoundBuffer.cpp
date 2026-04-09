@@ -68,13 +68,13 @@ static DynamicVectorClass<FileMappingClass> MappingList;
 //
 SoundBufferClass::SoundBufferClass ()
 	: m_Buffer (nullptr),
-	  m_Length (0),
-	  m_Filename (nullptr),
-	  m_Duration (0),
-	  m_Rate (0),
-	  m_Bits (0),
-	  m_Channels (0),
-	  m_Type (WAVE_FORMAT_IMA_ADPCM)
+	m_Length (0),
+	m_Filename (nullptr),
+	m_Duration (0),
+	m_Rate (0),
+	m_Bits (0),
+	m_Channels (0),
+	m_Type (WAVE_FORMAT_IMA_ADPCM)
 {
 	return ;
 }
@@ -285,7 +285,7 @@ SoundBufferClass::Load_From_Memory
 //	StreamSoundBufferClass
 //
 StreamSoundBufferClass::StreamSoundBufferClass ()	:
-	  SoundBufferClass ()
+	SoundBufferClass ()
 {
 	return ;
 }

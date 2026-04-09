@@ -69,10 +69,10 @@ inline Color GameMakeColor( UnsignedByte red, UnsignedByte green, UnsignedByte b
 }
 
 extern void GameGetColorComponents( Color color,
-																	  UnsignedByte *red,
-																	  UnsignedByte *green,
-																	  UnsignedByte *blue,
-																	  UnsignedByte *alpha );
+	UnsignedByte *red,
+	UnsignedByte *green,
+	UnsignedByte *blue,
+	UnsignedByte *alpha );
 
 // Put on ice until later - M Lorenzen
 //extern void GameGetColorComponentsWithCheatSpy( Color color,

@@ -237,8 +237,8 @@ AggregateDefClass::Find_Subobject
 	// Loop through all the models in our "path" until we've either failed
 	// or found the exact mesh we were looking for...
 	for (int index = 1;
-		  (mesh_path[index][0] != 0) && (parent_model != nullptr);
-		  index ++) {
+	(mesh_path[index][0] != 0) && (parent_model != nullptr);
+	index ++) {
 
 		// Look one level deeper into the subobject chain...
 		RenderObjClass *sub_obj = nullptr;
@@ -325,7 +325,7 @@ AggregateDefClass::Create_Render_Object (const char *passet_name)
 	// If we couldn't find the render object in the asset manager, then attempt to
 	// load it from file
 	if ((prender_obj == nullptr) &&
-	    Load_Assets (passet_name)) {
+		Load_Assets (passet_name)) {
 
 		// It should be in the asset manager now, so attempt to get it again.
 		prender_obj = WW3DAssetManager::Get_Instance()->Create_Render_Obj (passet_name);
@@ -434,8 +434,8 @@ AggregateDefClass::Build_Subobject_List
 		// Build a list of nodes that are contained in the vanilla model
 		DynamicVectorClass <RenderObjClass *> orig_node_list;
 		for (index = 0;
-			  index < original_model.Get_Num_Sub_Objects_On_Bone (bone_index);
-			  index ++) {
+		index < original_model.Get_Num_Sub_Objects_On_Bone (bone_index);
+		index ++) {
 			RenderObjClass *psubobj = original_model.Get_Sub_Object_On_Bone (index, bone_index);
 			if (psubobj != nullptr) {
 				orig_node_list.Add (psubobj);
@@ -445,8 +445,8 @@ AggregateDefClass::Build_Subobject_List
 		// Build a list of nodes that are contained in this bone
 		DynamicVectorClass <RenderObjClass *> node_list;
 		for (index = 0;
-			  index < model.Get_Num_Sub_Objects_On_Bone (bone_index);
-			  index ++) {
+		index < model.Get_Num_Sub_Objects_On_Bone (bone_index);
+		index ++) {
 			RenderObjClass *psubobj = model.Get_Sub_Object_On_Bone (index, bone_index);
 			if (psubobj != nullptr) {
 				node_list.Add (psubobj);
@@ -465,7 +465,7 @@ AggregateDefClass::Build_Subobject_List
 				// Is this subobject new?  (i.e. not in a 'vanilla' instance?)
 				const char *prototype_name = psubobject->Get_Name ();
 				if (psubobject != nullptr &&
-					 (Is_Object_In_List (prototype_name, orig_node_list) == false)) {
+					(Is_Object_In_List (prototype_name, orig_node_list) == false)) {
 
 					// Add this subobject to our list
 					::lstrcpy (subobj_info.SubobjectName, prototype_name);
@@ -520,7 +520,7 @@ AggregateDefClass::Is_Object_In_List
 
 		// Is this the render object we were looking for?
 		if (prender_obj != nullptr &&
-		    ::lstrcmpi (prender_obj->Get_Name (), passet_name) == 0) {
+			::lstrcmpi (prender_obj->Get_Name (), passet_name) == 0) {
 			retval = true;
 		}
 	}
@@ -625,8 +625,8 @@ AggregateDefClass::Read_Info (ChunkLoadClass &chunk_load)
 
 		// Read all the subobjects from the file
 		for (UINT isubobject = 0;
-			  (isubobject < m_Info.SubobjectCount) && (ret_val == WW3D_ERROR_OK);
-			  isubobject ++) {
+		(isubobject < m_Info.SubobjectCount) && (ret_val == WW3D_ERROR_OK);
+		isubobject ++) {
 
 			// Read this subobject's definition from the file
 			ret_val = Read_Subobject (chunk_load);
@@ -720,8 +720,8 @@ AggregateDefClass::Save_W3D (ChunkSaveClass &chunk_save)
 
 		// Attempt to save the different sections of the aggregate definition
 		if ((Save_Header (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Info (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Class_Info (chunk_save) == WW3D_ERROR_OK)) {
+			(Save_Info (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Class_Info (chunk_save) == WW3D_ERROR_OK)) {
 
 			// Success!
 			ret_val = WW3D_ERROR_OK;
@@ -790,8 +790,8 @@ AggregateDefClass::Save_Info (ChunkSaveClass &chunk_save)
 
 			// Write all the subobjects to the file
 			for (int isubobject = 0;
-			     (isubobject < m_SubobjectList.Count ()) && (ret_val == WW3D_ERROR_OK);
-				  isubobject ++) {
+			(isubobject < m_SubobjectList.Count ()) && (ret_val == WW3D_ERROR_OK);
+			isubobject ++) {
 
 				// Write this object to the file
 				ret_val = Save_Subobject (chunk_save, m_SubobjectList[isubobject]);
@@ -889,7 +889,7 @@ AggregateLoaderClass::Load_W3D (ChunkLoadClass &chunk_load)
 		}
 	}
 
-    // Return a pointer to the prototype
-	 return pprototype;
+	// Return a pointer to the prototype
+	return pprototype;
 }
 

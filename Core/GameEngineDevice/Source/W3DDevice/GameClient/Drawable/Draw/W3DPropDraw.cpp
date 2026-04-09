@@ -52,14 +52,14 @@ W3DPropDrawModuleData::~W3DPropDrawModuleData()
 //-------------------------------------------------------------------------------------------------
 void W3DPropDrawModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  ModuleData::buildFieldParse(p);
+	ModuleData::buildFieldParse(p);
 	static const FieldParse dataFieldParse[] =
 	{
 		{ "ModelName", INI::parseAsciiString, nullptr, offsetof(W3DPropDrawModuleData, m_modelName) },
 
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -83,8 +83,8 @@ W3DPropDraw::~W3DPropDraw()
 
 //-------------------------------------------------------------------------------------------------
 void W3DPropDraw::reactToTransformChange( const Matrix3D *oldMtx,
-																							 const Coord3D *oldPos,
-																							 Real oldAngle )
+	const Coord3D *oldPos,
+	Real oldAngle )
 {
 	Drawable *draw = getDrawable();
 	if (m_propAdded) {

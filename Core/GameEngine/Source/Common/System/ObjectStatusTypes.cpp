@@ -75,7 +75,7 @@ const char* const ObjectStatusMaskType::s_bitNameList[] =
 	"STATUS_RIDER7",
 	"STATUS_RIDER8",
 	"FAERIE_FIRE",
-  "KILLING_SELF",
+	"KILLING_SELF",
 	"REASSIGN_PARKING",
 	"BOOBY_TRAPPED",
 	"IMMOBILE",

@@ -119,7 +119,7 @@ public:
 	virtual void OnAccept( UnsignedInt playerIP, Bool status ) = 0;																///< Someone's accept status changed
 	virtual void OnHasMap( UnsignedInt playerIP, Bool status ) = 0;																///< Someone's map status changed
 	virtual void OnChat( UnicodeString player, UnsignedInt ip,
-											 UnicodeString message, ChatType format ) = 0;														///< Chat message from someone
+		UnicodeString message, ChatType format ) = 0;														///< Chat message from someone
 	virtual void OnGameStart() = 0;																													///< The game is starting
 	virtual void OnGameStartTimer( Int seconds ) = 0;
 	virtual void OnGameOptions( UnsignedInt playerIP, Int playerSlot, AsciiString options ) = 0;	///< Someone sent game options
@@ -319,7 +319,7 @@ public:
 	virtual void OnAccept( UnsignedInt playerIP, Bool status ) override;																///< Someone's accept status changed
 	virtual void OnHasMap( UnsignedInt playerIP, Bool status ) override;																///< Someone's map status changed
 	virtual void OnChat( UnicodeString player, UnsignedInt ip,
-											 UnicodeString message, ChatType format ) override;														///< Chat message from someone
+		UnicodeString message, ChatType format ) override;														///< Chat message from someone
 	virtual void OnGameStart() override;																													///< The game is starting
 	virtual void OnGameStartTimer( Int seconds ) override;
 	virtual void OnGameOptions( UnsignedInt playerIP, Int playerSlot, AsciiString options ) override;	///< Someone sent game options

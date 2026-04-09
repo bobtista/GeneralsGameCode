@@ -280,6 +280,6 @@ protected:
 
 	void updateTopplingTree(TTree *tree, Real timeScale);
 	void applyTopplingForce( TTree *tree, const Coord3D* toppleDirection, Real toppleSpeed,
-																			 UnsignedInt options );
+		UnsignedInt options );
 
 };

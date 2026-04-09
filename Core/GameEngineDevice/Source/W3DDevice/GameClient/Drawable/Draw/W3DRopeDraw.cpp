@@ -87,20 +87,20 @@ void W3DRopeDraw::buildSegments()
 		info.wobbleAxisX = Cos(axis);
 		info.wobbleAxisY = Sin(axis);
 		info.line = NEW Line3DClass( Vector3(pos.x,pos.y,pos.z),
-																	 Vector3(pos.x,pos.y,pos.z+eachLen),
-																	 m_width * 0.5f,  // width
-																	 m_color.red,  // red
-																	 m_color.green,  // green
-																	 m_color.blue,  // blue
-																	 1.0f );  // transparency
+			Vector3(pos.x,pos.y,pos.z+eachLen),
+			m_width * 0.5f,  // width
+			m_color.red,  // red
+			m_color.green,  // green
+			m_color.blue,  // blue
+			1.0f );  // transparency
 
 		info.softLine = NEW Line3DClass( Vector3(pos.x,pos.y,pos.z),
-																	 Vector3(pos.x,pos.y,pos.z+eachLen),
-																	 m_width,  // width
-																	 m_color.red,  // red
-																	 m_color.green,  // green
-																	 m_color.blue,  // blue
-																	 0.5f );  // transparency
+			Vector3(pos.x,pos.y,pos.z+eachLen),
+			m_width,  // width
+			m_color.red,  // red
+			m_color.green,  // green
+			m_color.blue,  // blue
+			0.5f );  // transparency
 
 		if (W3DDisplay::m_3DScene)
 		{

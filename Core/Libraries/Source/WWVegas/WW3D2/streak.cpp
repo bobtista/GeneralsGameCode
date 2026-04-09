@@ -161,10 +161,10 @@ void StreakLineClass::Set_Colors( unsigned int num_points, Vector4 *colors )
 }
 
 void StreakLineClass::Set_LocsWidthsColors( unsigned int num_points,
-																					 Vector3 *locs,
-																					 float *widths,
-																					 Vector4 *colors,
-																					 unsigned int *personalities)
+	Vector3 *locs,
+	float *widths,
+	Vector4 *colors,
+	unsigned int *personalities)
 {
 
 	Personalities = personalities;

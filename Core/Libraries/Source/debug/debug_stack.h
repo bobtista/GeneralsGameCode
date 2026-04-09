@@ -32,43 +32,43 @@
 /// \brief stack walker class (singleton)
 class DebugStackwalk
 {
-  friend class Debug;
+	friend class Debug;
 
-  DebugStackwalk(const DebugStackwalk&);
-  DebugStackwalk& operator=(DebugStackwalk&);
+	DebugStackwalk(const DebugStackwalk&);
+	DebugStackwalk& operator=(DebugStackwalk&);
 
-  // private so that only Debug can create and destroy us
-  DebugStackwalk();
-  ~DebugStackwalk();
+	// private so that only Debug can create and destroy us
+	DebugStackwalk();
+	~DebugStackwalk();
 
 public:
 
-  /// \brief a stack trace signature
-  class Signature
-  {
-    // makes life easier :)
-    friend class DebugStackwalk;
+	/// \brief a stack trace signature
+	class Signature
+	{
+		// makes life easier :)
+		friend class DebugStackwalk;
 
-    /// max # of possible addresses
-    enum { MAX_ADDR = 256 };
+		/// max # of possible addresses
+		enum { MAX_ADDR = 256 };
 
-    /// number of addresses
-    unsigned m_numAddr;
+		/// number of addresses
+		unsigned m_numAddr;
 
-    /// addresses
-    unsigned m_addr[MAX_ADDR];
+		/// addresses
+		unsigned m_addr[MAX_ADDR];
 
-  public:
-    explicit Signature(): m_numAddr(0) {}
-    Signature(const Signature &src);
-    Signature& operator=(const Signature& src);
+	public:
+		explicit Signature(): m_numAddr(0) {}
+		Signature(const Signature &src);
+		Signature& operator=(const Signature& src);
 
     /**
       \brief Determine the number of addresses in this signature.
 
       \return number of addresses in this signature
     */
-    unsigned Size() const { return m_numAddr; }
+		unsigned Size() const { return m_numAddr; }
 
     /**
       \brief Get a single address from the signature.
@@ -78,7 +78,7 @@ public:
       \param n index, 0..Size()-1
       \return signature address
     */
-    unsigned GetAddress(int n) const;
+		unsigned GetAddress(int n) const;
 
     /**
       \brief Strong ordering operator.
@@ -87,18 +87,18 @@ public:
       first. Implemented inline so that STL algorithms using this
       operator can be compiled more efficiently.
     */
-    bool operator<(const Signature &other) const
-    {
-      unsigned m=m_numAddr<other.m_numAddr?m_numAddr:other.m_numAddr;
-      for (unsigned k=0;k<m;k++)
-      {
-        if (m_addr[m_numAddr-k-1]<other.m_addr[other.m_numAddr-k-1])
-          return true;
-        if (m_addr[m_numAddr-k-1]>other.m_addr[other.m_numAddr-k-1])
-          return false;
-      }
-      return m_numAddr<other.m_numAddr;
-    }
+		bool operator<(const Signature &other) const
+		{
+		unsigned m=m_numAddr<other.m_numAddr?m_numAddr:other.m_numAddr;
+		for (unsigned k=0;k<m;k++)
+			{
+		if (m_addr[m_numAddr-k-1]<other.m_addr[other.m_numAddr-k-1])
+		return true;
+		if (m_addr[m_numAddr-k-1]>other.m_addr[other.m_numAddr-k-1])
+		return false;
+			}
+		return m_numAddr<other.m_numAddr;
+		}
 
     /**
       \brief Determines symbol for given address.
@@ -110,7 +110,7 @@ public:
       \param buf return buffer
       \param bufSize size of return buffer, minimum is 64 bytes (256 recommended)
     */
-    static void GetSymbol(unsigned addr, char *buf, unsigned bufSize);
+		static void GetSymbol(unsigned addr, char *buf, unsigned bufSize);
 
     /**
       \brief Determines symbol for given address.
@@ -127,25 +127,25 @@ public:
       \param line line number, may be nullptr
       \param relLine relative address within line, may be nullptr
     */
-    static void GetSymbol(unsigned addr,
-                          char *bufMod, unsigned sizeMod, unsigned *relMod,
-                          char *bufSym, unsigned sizeSym, unsigned *relSym,
-                          char *bufFile, unsigned sizeFile, unsigned *line, unsigned *relLine);
-  };
+		static void GetSymbol(unsigned addr,
+			char *bufMod, unsigned sizeMod, unsigned *relMod,
+			char *bufSym, unsigned sizeSym, unsigned *relSym,
+			char *bufFile, unsigned sizeFile, unsigned *line, unsigned *relLine);
+	};
 
   /** \internal
     \brief Returns dbghelp.dll DLL handle.
 
     \return dbghelp.dll DLL handle
   */
-  static void *GetDbghelpHandle();
+	static void *GetDbghelpHandle();
 
   /** \internal
     \brief Checks if dbghelp.dll version is old.
 
     \return true if old version, false if not
   */
-  static bool IsOldDbghelp();
+	static bool IsOldDbghelp();
 
   /**
     \brief Walks the stack from the given address.
@@ -154,7 +154,7 @@ public:
     \param ctx processor context, if nullptr then use current address
     \return number of addresses found
   */
-  static int StackWalk(Signature &sig, struct _CONTEXT *ctx=0);
+	static int StackWalk(Signature &sig, struct _CONTEXT *ctx=0);
 };
 
 /**

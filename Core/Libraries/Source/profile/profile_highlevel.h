@@ -37,21 +37,21 @@ class ProfileId;
 */
 class ProfileHighLevel
 {
-  friend class Profile;
+	friend class Profile;
 
-  // no, no copying allowed!
-  ProfileHighLevel(const ProfileHighLevel&);
-  ProfileHighLevel& operator=(const ProfileHighLevel&);
+	// no, no copying allowed!
+	ProfileHighLevel(const ProfileHighLevel&);
+	ProfileHighLevel& operator=(const ProfileHighLevel&);
 
 public:
 
-  /// \brief A high level profile ID.
-  class Id
-  {
-    friend ProfileHighLevel;
+	/// \brief A high level profile ID.
+	class Id
+	{
+		friend ProfileHighLevel;
 
-  public:
-    Id(): m_idPtr(0) {}
+	public:
+		Id(): m_idPtr(0) {}
 
     /**
       \brief Increment the internal profile value.
@@ -60,7 +60,7 @@ public:
 
       \param add amount to add to internal profile value
     */
-    void Increment(double add=1.0);
+		void Increment(double add=1.0);
 
     /**
       \brief Set a new maximum value.
@@ -73,28 +73,28 @@ public:
       \param max new maximum value (if larger than current max value,
                  otherwise current max value is left unchanged)
     */
-    void SetMax(double max);
+		void SetMax(double max);
 
     /**
       \brief Returns the internal Id name.
 
       \return internal Id name, e.g. 'render.texture.count.512x512'
     */
-    const char *GetName() const;
+		const char *GetName() const;
 
     /**
       \brief Returns the descriptive name.
 
       \return descriptive name, e.g. '# of 512x512 textures'
     */
-    const char *GetDescr() const;
+		const char *GetDescr() const;
 
     /**
       \brief Returns the value's unit text.
 
       \return unit text, e.g. 'bytes'
     */
-    const char *GetUnit() const;
+		const char *GetUnit() const;
 
     /**
       \brief Returns the current value.
@@ -110,7 +110,7 @@ public:
 
       \return current value
     */
-    const char *GetCurrentValue() const;
+		const char *GetCurrentValue() const;
 
     /**
       \brief Returns the value for the given recorded frame/range.
@@ -121,7 +121,7 @@ public:
       \param frame number of recorded frame/range
       \return value at given frame, nullptr if frame not found
     */
-    const char *GetValue(unsigned frame) const;
+		const char *GetValue(unsigned frame) const;
 
     /**
       \brief Returns the total value for all frames.
@@ -133,24 +133,24 @@ public:
 
       \return total value
     */
-    const char *GetTotalValue() const;
+		const char *GetTotalValue() const;
 
-  private:
+	private:
 
-    /// internal pointer
-    ProfileId *m_idPtr;
-  };
+		/// internal pointer
+		ProfileId *m_idPtr;
+	};
 
-  /// \brief Timer based function block profile
-  class Block
-  {
-    friend ProfileHighLevel;
+	/// \brief Timer based function block profile
+	class Block
+	{
+		friend ProfileHighLevel;
 
-    // no copying
-    Block(const Block&);
-    Block& operator=(const Block&);
+		// no copying
+		Block(const Block&);
+		Block& operator=(const Block&);
 
-  public:
+	public:
     /**
       \brief Instructs high level profiler to start a new timer
              based function block (or update if it already exists)
@@ -160,18 +160,18 @@ public:
 
       \param name name of function block
     */
-    explicit Block(const char *name);
+		explicit Block(const char *name);
 
-    /// \brief Updates timer based function block
-    ~Block();
+		/// \brief Updates timer based function block
+		~Block();
 
-  private:
-    /// internal id (time)
-    Id m_idTime;
+	private:
+		/// internal id (time)
+		Id m_idTime;
 
-    /// start time
-    _int64 m_start;
-  };
+		/// start time
+		_int64 m_start;
+	};
 
   /**
     \brief Registers a new high level profile value.
@@ -193,7 +193,7 @@ public:
     \param exp10 10 base exponent (used for scaleing)
     \return internal profile ID value
   */
-  static Id AddProfile(const char *name, const char *descr, const char *unit, int precision, int exp10=0);
+	static Id AddProfile(const char *name, const char *descr, const char *unit, int precision, int exp10=0);
 
   /**
     \brief Enumerates the list of known high level profile values.
@@ -204,7 +204,7 @@ public:
     \param id return buffer for ID value
     \return true if ID found at given index, false if not
   */
-  static bool EnumProfile(unsigned index, Id &id);
+	static bool EnumProfile(unsigned index, Id &id);
 
   /**
     \brief Searches for the given high level profile.
@@ -217,7 +217,7 @@ public:
     \param id return buffer for ID value
     \return true if ID found, false if not
   */
-  static bool FindProfile(const char *name, Id &id);
+	static bool FindProfile(const char *name, Id &id);
 
 private:
 
@@ -227,10 +227,10 @@ private:
     We can make this private as well so nobody accidentally tries to create
     another instance.
   */
-  ProfileHighLevel();
+	ProfileHighLevel();
 
   /**
     \brief The only high level profiler instance.
   */
-  static ProfileHighLevel Instance;
+	static ProfileHighLevel Instance;
 };

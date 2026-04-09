@@ -30,9 +30,9 @@
 
 enum LocaleType CPP_11(: Int)
 {
-    LOC_UNKNOWN = 0,
-    LOC_MIN = 1,
-    LOC_MAX = 37
+	LOC_UNKNOWN = 0,
+	LOC_MIN = 1,
+	LOC_MAX = 37
 };
 
 void HandlePersistentStorageResponses();

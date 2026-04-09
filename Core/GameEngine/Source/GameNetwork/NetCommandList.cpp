@@ -153,8 +153,8 @@ NetCommandRef * NetCommandList::addMessage(NetCommandMsg *cmdMsg) {
 			(m_lastMessageInserted->getCommand()->getPlayerID() == msg->getCommand()->getPlayerID()) &&
 			(m_lastMessageInserted->getCommand()->getID() < msg->getCommand()->getID()) &&
 			((theNext == nullptr) || ((theNext->getCommand()->getNetCommandType() > msg->getCommand()->getNetCommandType()) ||
-			 (theNext->getCommand()->getPlayerID() > msg->getCommand()->getPlayerID()) ||
-			 (theNext->getCommand()->getID() > msg->getCommand()->getID())))) {
+			(theNext->getCommand()->getPlayerID() > msg->getCommand()->getPlayerID()) ||
+			(theNext->getCommand()->getID() > msg->getCommand()->getID())))) {
 
 			// Make sure this command isn't already in the list.
 			if (isEqualCommandMsg(m_lastMessageInserted->getCommand(), msg->getCommand())) {

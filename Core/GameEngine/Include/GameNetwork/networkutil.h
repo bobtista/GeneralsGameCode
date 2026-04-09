@@ -47,8 +47,8 @@ void dumpBufferToLog(const void *vBuf, Int len, const char *fname, Int line);
 
 inline UnsignedInt AssembleIp(UnsignedByte a, UnsignedByte b, UnsignedByte c, UnsignedByte d)
 {
-    return ((UnsignedInt)(a) << 24) |
-           ((UnsignedInt)(b) << 16) |
-           ((UnsignedInt)(c) << 8) |
-           ((UnsignedInt)(d));
+	return ((UnsignedInt)(a) << 24) |
+		((UnsignedInt)(b) << 16) |
+		((UnsignedInt)(c) << 8) |
+		((UnsignedInt)(d));
 }

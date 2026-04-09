@@ -55,7 +55,7 @@ const static Coord2D reallyFarPoint = { 1000000.0, 1000000.0 };
 	*/
 //-------------------------------------------------------------------------------------------------
 Bool ClipLine2D( ICoord2D *p1, ICoord2D *p2, ICoord2D *c1, ICoord2D *c2,
-								 IRegion2D *clipRegion )
+	IRegion2D *clipRegion )
 {
 	Int x1, y1, x2, y2;
 	Int clipLeft;
@@ -206,7 +206,7 @@ Bool ClipLine2D( ICoord2D *p1, ICoord2D *p2, ICoord2D *c1, ICoord2D *c2,
 		}
 	}
 
-  c1->x = x1;
+	c1->x = x1;
 	c1->y = y1;
 	c2->x = x2;
 	c2->y = y2;
@@ -220,7 +220,7 @@ Bool ClipLine2D( ICoord2D *p1, ICoord2D *p2, ICoord2D *c1, ICoord2D *c2,
 
 	// Line is visible
 	return (x1 >= clipLeft && x1 <= clipRight &&
-		    y1 >= clipTop && y1 <= clipBottom &&
+		y1 >= clipTop && y1 <= clipBottom &&
 			x2 >= clipLeft && x2 <= clipRight &&
 			y2 >= clipTop && y2 <= clipBottom);
 
@@ -231,8 +231,8 @@ Bool ClipLine2D( ICoord2D *p1, ICoord2D *p2, ICoord2D *c1, ICoord2D *c2,
 // http://www.faqs.org/faqs/graphics/algorithms-faq/
 // Subject 1.03
 Bool IntersectLine2D( const Coord2D *a, const Coord2D *b,
-										   const Coord2D *c, const Coord2D *d,
-											 Coord2D *intersection)
+	const Coord2D *c, const Coord2D *d,
+	Coord2D *intersection)
 {
 	if (!a || !b || !c || !d) {
 		// sanity. Lines that do not have endpoints do not intersect.
@@ -266,7 +266,7 @@ Bool IntersectLine2D( const Coord2D *a, const Coord2D *b,
 // determines whether a point lies within a rectangle. Doesn't determine whether the shape is
 // actually a rectangle or not.
 Bool PointInsideRect2D(const Coord2D *bl, const Coord2D *tl, const Coord2D *br, const Coord2D *tr,
-											 const Coord2D *inputPoint)
+	const Coord2D *inputPoint)
 {
 	if (!(bl && br && tl && tr && inputPoint)) {
 		return FALSE;
@@ -286,7 +286,7 @@ Bool PointInsideRect2D(const Coord2D *bl, const Coord2D *tl, const Coord2D *br, 
 
 // convenience. Just prunes out the Z coordinate for a call to PointInsideRect2D
 Bool PointInsideRect3D(const Coord3D *bl, const Coord3D *tl, const Coord3D *br, const Coord3D *tr,
-											 const Coord3D *inputPoint)
+	const Coord3D *inputPoint)
 {
 	Coord2D bl2d, tl2d, br2d, tr2d, pt;
 	bl2d.x = bl->x;
@@ -368,7 +368,7 @@ void ScaleRect2D( Coord2D *tl, Coord2D *br, Real scaleFactor )
 
 // Solution taken from http://astronomy.swin.edu.au/~pbourke/geometry/pointline/
 void ShortestDistancePointToSegment2D( const Coord2D *a, const Coord2D *b, const Coord2D *pt,
-																			 Real *outDistance, Coord2D *outPosition, Real *outU )
+	Real *outDistance, Coord2D *outPosition, Real *outU )
 {
 	if (!a || !b || !pt) {
 		return;
@@ -400,7 +400,7 @@ void ShortestDistancePointToSegment2D( const Coord2D *a, const Coord2D *b, const
 
 	// General case
 	Real u = ((pt->x - a->x) * (b->x - a->x) + (pt->y - a->y) * (b->y - a->y)) /
-					 sqr(segAB.length());
+		sqr(segAB.length());
 
 	Coord2D intersectSegment;
 

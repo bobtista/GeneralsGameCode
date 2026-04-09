@@ -79,12 +79,12 @@ const Matrix3x3 Matrix3x3::RotateY90
 (
 	0.0,	0.0,	1.0,
 	0.0,	1.0,	0.0,
-  -1.0,	0.0,	0.0
+	-1.0,	0.0,	0.0
 );
 
 const Matrix3x3 Matrix3x3::RotateY180
 (
-  -1.0,	0.0,	0.0,
+	-1.0,	0.0,	0.0,
 	0.0,	1.0,	0.0,
 	0.0,	0.0, -1.0
 );
@@ -105,7 +105,7 @@ const Matrix3x3 Matrix3x3::RotateZ90
 
 const Matrix3x3 Matrix3x3::RotateZ180
 (
-  -1.0,	0.0,	0.0,
+	-1.0,	0.0,	0.0,
 	0.0, -1.0,	0.0,
 	0.0,	0.0,	1.0
 );
@@ -113,7 +113,7 @@ const Matrix3x3 Matrix3x3::RotateZ180
 const Matrix3x3 Matrix3x3::RotateZ270
 (
 	0.0,	1.0,	0.0,
-  -1.0,	0.0,	0.0,
+	-1.0,	0.0,	0.0,
 	0.0,	0.0,	1.0
 );
 

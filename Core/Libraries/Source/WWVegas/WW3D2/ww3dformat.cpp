@@ -436,46 +436,46 @@ unsigned ARGB_Color_To_WW3D_Color(WW3DFormat format, unsigned argb)
 
 	case WW3D_FORMAT_R5G6B5:
 		return ((r >> 3) << 11) |
-					 ((g >> 2) << 5)  |
-					 ((b >> 3) << 0);
+				((g >> 2) << 5)  |
+				((b >> 3) << 0);
 
 	case WW3D_FORMAT_X1R5G5B5:
 		return ( 1       << 15) |
-					 ((r >> 3) << 10) |
-					 ((g >> 3) << 5)  |
-					 ((b >> 3) << 0);
+				((r >> 3) << 10) |
+				((g >> 3) << 5)  |
+				((b >> 3) << 0);
 
 	case WW3D_FORMAT_A1R5G5B5:
 		return ((a >> 7) << 15) |
-					 ((r >> 3) << 10) |
-					 ((g >> 3) << 5)  |
-					 ((b >> 3) << 0);
+				((r >> 3) << 10) |
+				((g >> 3) << 5)  |
+				((b >> 3) << 0);
 
 	case WW3D_FORMAT_A4R4G4B4:
 		return ((a >> 4) << 12) |
-					 ((r >> 4) << 8)  |
-					 ((g >> 4) << 4)  |
-					 ((b >> 4) << 0);
+				((r >> 4) << 8)  |
+				((g >> 4) << 4)  |
+				((b >> 4) << 0);
 
 	case WW3D_FORMAT_R3G3B2:
 		return ((r >> 5) << 5) |
-					 ((g >> 5) << 2) |
-					 ((b >> 6) << 0);
+				((g >> 5) << 2) |
+				((b >> 6) << 0);
 
 	case WW3D_FORMAT_A8:
 		return a;
 
 	case WW3D_FORMAT_A8R3G3B2:
 		return ( a       << 8) |
-					 ((r >> 5) << 5) |
-					 ((g >> 5) << 2) |
-					 ((b >> 6) << 0);
+				((r >> 5) << 5) |
+				((g >> 5) << 2) |
+				((b >> 6) << 0);
 
 	case WW3D_FORMAT_X4R4G4B4:
 		return ( 0xF     << 12) |
-					 ((r >> 4) << 8) |
-					 ((g >> 4) << 4) |
-					 ((b >> 4) << 0);
+				((r >> 4) << 8) |
+				((g >> 4) << 4) |
+				((b >> 4) << 0);
 
 	case WW3D_FORMAT_L8:
 	{

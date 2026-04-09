@@ -59,7 +59,7 @@ class SoundCullObjClass : public MultiListObjectClass, public CullableClass
 		//////////////////////////////////////////////////////////////////////
 		SoundCullObjClass ()
 			: m_SoundObj (nullptr),
-			  m_Transform (1) {}
+		m_Transform (1) {}
 
 		virtual ~SoundCullObjClass () override { REF_PTR_RELEASE (m_SoundObj); }
 

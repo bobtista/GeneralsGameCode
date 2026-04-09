@@ -86,7 +86,7 @@ TextureBaseClass::TextureBaseClass
 :	MipLevelCount(mip_level_count),
 	D3DTexture(nullptr),
 	Initialized(false),
-   Name(""),
+	Name(""),
 	FullPath(""),
 	texture_id(unused_texture_id++),
 	IsLightmap(false),
@@ -732,9 +732,9 @@ TextureClass::TextureClass
 	{
 		Width=thumb->Get_Original_Texture_Width();
 		Height=thumb->Get_Original_Texture_Height();
- 		if (MipLevelCount!=MIP_LEVELS_1) {
- 			MipLevelCount=(MipCountType)thumb->Get_Original_Texture_Mip_Level_Count();
- 		}
+		if (MipLevelCount!=MIP_LEVELS_1) {
+			MipLevelCount=(MipCountType)thumb->Get_Original_Texture_Mip_Level_Count();
+		}
 	}
 
 	LastAccessed=WW3D::Get_Sync_Time();
@@ -1477,9 +1477,9 @@ CubeTextureClass::CubeTextureClass
 	{
 		Width=thumb->Get_Original_Texture_Width();
 		Height=thumb->Get_Original_Texture_Height();
- 		if (MipLevelCount!=MIP_LEVELS_1) {
- 			MipLevelCount=(MipCountType)thumb->Get_Original_Texture_Mip_Level_Count();
- 		}
+		if (MipLevelCount!=MIP_LEVELS_1) {
+			MipLevelCount=(MipCountType)thumb->Get_Original_Texture_Mip_Level_Count();
+		}
 	}
 
 	LastAccessed=WW3D::Get_Sync_Time();
@@ -1625,7 +1625,7 @@ VolumeTextureClass::VolumeTextureClass
 	bool allow_reduction
 )
 : TextureClass(width, height, format, mip_level_count, pool, rendertarget),
-  Depth(depth)
+	Depth(depth)
 {
 	Initialized=true;
 	IsProcedural=true;
@@ -1762,9 +1762,9 @@ VolumeTextureClass::VolumeTextureClass
 	{
 		Width=thumb->Get_Original_Texture_Width();
 		Height=thumb->Get_Original_Texture_Height();
- 		if (MipLevelCount!=MIP_LEVELS_1) {
- 			MipLevelCount=(MipCountType)thumb->Get_Original_Texture_Mip_Level_Count();
- 		}
+		if (MipLevelCount!=MIP_LEVELS_1) {
+			MipLevelCount=(MipCountType)thumb->Get_Original_Texture_Mip_Level_Count();
+		}
 	}
 
 	LastAccessed=WW3D::Get_Sync_Time();

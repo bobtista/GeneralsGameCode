@@ -425,7 +425,7 @@ UnsignedInt INI::load( AsciiString filename, INILoadType loadType, Xfer *pXfer )
 				else
 				{
 					DEBUG_CRASH( ("[LINE: %d - FILE: '%s'] Unknown block '%s'",
-														 getLineNum(), getFilename().str(), token ) );
+						getLineNum(), getFilename().str(), token ) );
 					throw INI_UNKNOWN_TOKEN;
 				}
 
@@ -1549,7 +1549,7 @@ void INI::initFromINIMulti( void *what, const MultiIniFieldParse& parseTableList
 
 						} catch (...) {
 							DEBUG_CRASH( ("[LINE: %d - FILE: '%s'] Error reading field '%s' of block '%s'",
-																 INI::getLineNum(), INI::getFilename().str(), field, m_curBlockStart) );
+								INI::getLineNum(), INI::getFilename().str(), field, m_curBlockStart) );
 
 
 							char buff[1024];
@@ -1567,7 +1567,7 @@ void INI::initFromINIMulti( void *what, const MultiIniFieldParse& parseTableList
 				if (!found)
 				{
 					DEBUG_CRASH( ("[LINE: %d - FILE: '%s'] Unknown field '%s' in block '%s'",
-														 INI::getLineNum(), INI::getFilename().str(), field, m_curBlockStart) );
+						INI::getLineNum(), INI::getFilename().str(), field, m_curBlockStart) );
 				}
 
 			}
@@ -1580,7 +1580,7 @@ void INI::initFromINIMulti( void *what, const MultiIniFieldParse& parseTableList
 
 			done = TRUE;
 			DEBUG_CRASH( ("Error parsing block '%s', in INI file '%s'.  Missing '%s' token",
-												 m_curBlockStart, getFilename().str(), m_blockEndToken) );
+				m_curBlockStart, getFilename().str(), m_blockEndToken) );
 			throw INI_MISSING_END_TOKEN;
 
 		}

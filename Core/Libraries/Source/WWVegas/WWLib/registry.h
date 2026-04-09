@@ -69,7 +69,7 @@ public:
 
 	// String data type access
 	char *Get_String( const char * name, char *value, int value_size,
-      const char * default_string = nullptr );
+		const char * default_string = nullptr );
 	void	Get_String( const char * name, StringClass &string, const char *default_string = nullptr);
 	void	Set_String( const char * name, const char *value );
 

@@ -89,7 +89,7 @@ Bool DecompressFile		(char *infile, char *outfile)
 		for (;;)
 		{
 			ok = LZHLDecompress( decompress, outBlock + rawSize - dstSz, &dstSz,
-																			 inBlock + compressedSize - srcSz, &srcSz);
+				inBlock + compressedSize - srcSz, &srcSz);
 
 			if ( !ok )
 				break;
@@ -245,7 +245,7 @@ Bool DecompressMemory		(void *inBufferVoid, Int inSize, void *outBufferVoid, Int
 	for (;;)
 	{
 		ok = LZHLDecompress( decompress, outBuffer + rawSize - dstSz, &dstSz,
-																		 inBuffer + compressedSize - srcSz, &srcSz);
+			inBuffer + compressedSize - srcSz, &srcSz);
 
 		if ( !ok )
 			break;

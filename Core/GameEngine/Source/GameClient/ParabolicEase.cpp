@@ -83,7 +83,7 @@ ParabolicEase::operator ()(Real param) const
 		return v0*(m_in/2.0f + (param - m_in));
 	} else {
 		return v0*(m_in/2.0f + (m_out - m_in) +
-					 (param - m_out + (m_out*m_out - param*param)/2.0f)/(1.0f - m_out));
+			(param - m_out + (m_out*m_out - param*param)/2.0f)/(1.0f - m_out));
 	}
 #else
 	const Real v0 = 1.0f + m_out - m_in;

@@ -138,21 +138,21 @@ public:
 
 	// Morph the bones on the HTree using weights from a number of other HTrees
 	static HTreeClass *	Create_Morphed( int num_morph_sources,
-													 const float morph_weights[],
-													 const HTreeClass *tree_array[] );
+		const float morph_weights[],
+		const HTreeClass *tree_array[] );
 
 	// Create an HTree by Interpolating between others
 	static HTreeClass	*	Create_Interpolated( const HTreeClass * tree_a0_b0,
-														   const HTreeClass * tree_a0_b1,
-														   const HTreeClass * tree_a1_b0,
-														   const HTreeClass * tree_a1_b1,
-														   float lerp_a, float lerp_b );
+		const HTreeClass * tree_a0_b1,
+		const HTreeClass * tree_a1_b0,
+		const HTreeClass * tree_a1_b1,
+		float lerp_a, float lerp_b );
 
 	// Create an HTree by Interpolating between others
 	static HTreeClass	*	Create_Interpolated( const HTreeClass * tree_base,
-														   const HTreeClass * tree_a,
-														   const HTreeClass * tree_b,
-														   float a_scale, float b_scale );
+		const HTreeClass * tree_a,
+		const HTreeClass * tree_b,
+		float a_scale, float b_scale );
 
 private:
 

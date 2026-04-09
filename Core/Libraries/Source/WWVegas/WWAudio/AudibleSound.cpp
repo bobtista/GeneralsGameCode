@@ -465,7 +465,7 @@ AudibleSoundClass::Stop (bool remove_from_playlist)
 	bool retval = false;
 
 	if ((m_State == STATE_PAUSED) ||
-		 (m_State == STATE_PLAYING)) {
+		(m_State == STATE_PLAYING)) {
 
 		// Actually stop the sample from playing
 		if (m_SoundHandle != nullptr) {
@@ -909,8 +909,8 @@ AudibleSoundClass::On_Frame_Update (unsigned int milliseconds)
 	// Do we need to track this sound's play-progress?
 	//
 	if ((m_LoopCount != INFINITE_LOOPS) &&
-		 (m_State == STATE_PLAYING) &&
-		 (m_Length > 0))
+		(m_State == STATE_PLAYING) &&
+		(m_Length > 0))
 	{
 		Update_Play_Position ();
 	}

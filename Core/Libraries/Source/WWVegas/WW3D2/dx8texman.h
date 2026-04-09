@@ -59,9 +59,9 @@ public:
 		TextureBaseClass *tex
 	)
 	: Width(w),
-	  Height(h),
-	  Mip_level_count(count),
-	  Texture(tex)
+		Height(h),
+		Mip_level_count(count),
+		Texture(tex)
 	{
 	}
 

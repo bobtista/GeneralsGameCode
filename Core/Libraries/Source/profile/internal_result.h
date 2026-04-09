@@ -32,15 +32,15 @@
 /// \brief Simple CSV format flat file result function, for all threads.
 class ProfileResultFileCSV: public ProfileResultInterface
 {
-  ProfileResultFileCSV() {}
+	ProfileResultFileCSV() {}
 
-  void WriteThread(ProfileFuncLevel::Thread &thread);
+	void WriteThread(ProfileFuncLevel::Thread &thread);
 
 public:
-  static ProfileResultInterface *Create(int argn, const char * const *);
-  virtual const char *GetName() const { return "file_csv"; }
-  virtual void WriteResults() override;
-  virtual void Delete() override;
+	static ProfileResultInterface *Create(int argn, const char * const *);
+	virtual const char *GetName() const { return "file_csv"; }
+	virtual void WriteResults() override;
+	virtual void Delete() override;
 };
 
 /**
@@ -57,10 +57,10 @@ public:
 class ProfileResultFileDOT: public ProfileResultInterface
 {
 public:
-  enum
-  {
-    MAX_FUNCTIONS_PER_FILE = 200
-  };
+	enum
+	{
+		MAX_FUNCTIONS_PER_FILE = 200
+	};
 
   /**
     \brief Creates a class instance.
@@ -72,26 +72,26 @@ public:
                          will be folded into a single entry
     \return new instance
   */
-  static ProfileResultInterface *Create(int argn, const char * const *);
+	static ProfileResultInterface *Create(int argn, const char * const *);
 
-  virtual const char *GetName() const { return "file_dot"; }
-  virtual void WriteResults() override;
-  virtual void Delete() override;
+	virtual const char *GetName() const { return "file_dot"; }
+	virtual void WriteResults() override;
+	virtual void Delete() override;
 
 private:
 
-  ProfileResultFileDOT(const char *fileName, const char *frameName, int foldThreshold);
+	ProfileResultFileDOT(const char *fileName, const char *frameName, int foldThreshold);
 
-  struct FoldHelper
-  {
-    FoldHelper *next;
-    const char *source;
-    ProfileFuncLevel::Id id[MAX_FUNCTIONS_PER_FILE];
-    unsigned numId;
-    bool mark;
-  };
+	struct FoldHelper
+	{
+		FoldHelper *next;
+		const char *source;
+		ProfileFuncLevel::Id id[MAX_FUNCTIONS_PER_FILE];
+		unsigned numId;
+		bool mark;
+	};
 
-  char *m_fileName;
-  char *m_frameName;
-  int m_foldThreshold;
+	char *m_fileName;
+	char *m_frameName;
+	int m_foldThreshold;
 };

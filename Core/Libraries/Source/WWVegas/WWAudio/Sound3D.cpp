@@ -79,11 +79,11 @@ enum
 ////////////////////////////////////////////////////////////////////////////////////////////////
 Sound3DClass::Sound3DClass ()
 	: m_bAutoCalcVel (true),
-	  m_CurrentVelocity (0, 0, 0),
-	  m_MaxVolRadius (0),
-	  m_LastUpdate (0),
-	  m_IsStatic (false),
-	  m_IsTransformInitted (false)
+	m_CurrentVelocity (0, 0, 0),
+	m_MaxVolRadius (0),
+	m_LastUpdate (0),
+	m_IsStatic (false),
+	m_IsTransformInitted (false)
 {
 	return ;
 }
@@ -96,12 +96,12 @@ Sound3DClass::Sound3DClass ()
 ////////////////////////////////////////////////////////////////////////////////////////////////
 Sound3DClass::Sound3DClass (const Sound3DClass &src)
 	: m_bAutoCalcVel (true),
-	  m_CurrentVelocity (0, 0, 0),
-	  m_MaxVolRadius (0),
-	  m_LastUpdate (0),
-	  m_IsStatic (false),
-	  m_IsTransformInitted (false),
-	  AudibleSoundClass (src)
+	m_CurrentVelocity (0, 0, 0),
+	m_MaxVolRadius (0),
+	m_LastUpdate (0),
+	m_IsStatic (false),
+	m_IsTransformInitted (false),
+	AudibleSoundClass (src)
 {
 	(*this) = src;
 	return ;
@@ -115,7 +115,7 @@ Sound3DClass::Sound3DClass (const Sound3DClass &src)
 ////////////////////////////////////////////////////////////////////////////////////////////////
 Sound3DClass::~Sound3DClass ()
 {
- 	Free_Miles_Handle ();
+	Free_Miles_Handle ();
 	return ;
 }
 
@@ -316,12 +316,12 @@ Sound3DClass::Update_Miles_Transform ()
 		Vector3 up		= listener_space_tm.Get_Z_Vector ();
 
 		::AIL_set_3D_orientation (m_SoundHandle->Get_H3DSAMPLE (),
-										  -facing.Y,
-										  facing.Z,
-										  facing.X,
-										  -up.Y,
-										  up.Z,
-										  up.X);
+			-facing.Y,
+			facing.Z,
+			facing.X,
+			-up.Y,
+			up.Z,
+			up.X);
 	}
 
 	return ;

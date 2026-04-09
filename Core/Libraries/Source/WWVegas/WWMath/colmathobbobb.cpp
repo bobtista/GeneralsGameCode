@@ -578,7 +578,7 @@ private:
  *=============================================================================================*/
 static inline bool obb_separation_test
 (
- 	ObbCollisionStruct & context,
+	ObbCollisionStruct & context,
 	float ra,
 	float rb,
 	float u0,

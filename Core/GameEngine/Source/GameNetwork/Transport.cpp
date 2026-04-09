@@ -379,7 +379,7 @@ Bool Transport::doRecv()
 }
 
 Bool Transport::queueSend(UnsignedInt addr, UnsignedShort port, const UnsignedByte *buf, Int len /*,
-						  NetMessageFlags flags, Int id */)
+	NetMessageFlags flags, Int id */)
 {
 	int i;
 

@@ -99,10 +99,10 @@ public:
 
 	// you may extend the functionality of these for your device
 	virtual void init() override;							/**< initialize the keyboard, only extend this
-																							 functionality, do not replace */
+	functionality, do not replace */
 	virtual void reset() override;							///< Reset keyboard system
 	virtual void update() override;						/**< gather current state of all keys, extend
-																							 this functionality, do not replace */
+	this functionality, do not replace */
 	virtual Bool getCapsState() = 0;  ///< get state of caps lock key, return TRUE if down
 
 	virtual void createStreamMessages();  /**< given state of device, create
@@ -119,7 +119,7 @@ public:
 	KeyboardIO *getFirstKey();							///< get first key ready for processing
 	KeyboardIO *findKey( KeyDefType key, KeyboardIO::StatusType status ); ///< get key ready for processing, can return nullptr
 	void setKeyStatusData( KeyDefType key,
-												 KeyboardIO::StatusType data );   ///< set key status
+		KeyboardIO::StatusType data );   ///< set key status
 	WideChar translateKey( WideChar keyCode );		///< translate key code to printable UNICODE char
 	WideChar getPrintableKey( KeyDefType key, Int state );
 	enum { MAX_KEY_STATES = 3};

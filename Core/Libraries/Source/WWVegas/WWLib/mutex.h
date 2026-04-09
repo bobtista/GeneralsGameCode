@@ -162,35 +162,35 @@ public:
 
 		  __asm mov ebx, [nFlag]
 		  __asm ts_lock
-		  __asm bts dword ptr [ebx], 0
+	__asm bts dword ptr [ebx], 0
 		  __asm jnc BitSet
-      //__asm _emit 0x73
-      //__asm _emit 0x0f
+	//__asm _emit 0x73
+	//__asm _emit 0x0f
 
 		  The_Bit_Was_Previously_Set_So_Try_Again:
-		    ThreadClass::Switch_Thread();
+	ThreadClass::Switch_Thread();
 		  __asm mov ebx, [nFlag]
 		  __asm ts_lock
-		  __asm bts dword ptr [ebx], 0
+	__asm bts dword ptr [ebx], 0
 		  __asm jc  The_Bit_Was_Previously_Set_So_Try_Again
-      //_asm _emit 0x72
-      //_asm _emit 0xf1
+	//_asm _emit 0x72
+	//_asm _emit 0xf1
 
       BitSet:
-        ;
+	;
 #else
         while (cs.Flag.test_and_set(std::memory_order_acq_rel)) {
-            cs.Flag.wait(true, std::memory_order_relaxed);
+	cs.Flag.wait(true, std::memory_order_relaxed);
         }
 #endif
     }
 
     void unlock() {
 #if defined(_MSC_VER) && _MSC_VER < 1300
-      cs.Flag=0;
+	cs.Flag=0;
 #else
-      cs.Flag.clear(std::memory_order_release);
-      cs.Flag.notify_one();
+	cs.Flag.clear(std::memory_order_release);
+	cs.Flag.notify_one();
 #endif
     }
 
@@ -198,5 +198,5 @@ public:
     LockClass(const LockClass&);
 	};
 
-  friend class LockClass;
+friend class LockClass;
 };

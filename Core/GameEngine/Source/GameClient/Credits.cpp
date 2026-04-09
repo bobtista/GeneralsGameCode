@@ -274,7 +274,7 @@ void CreditsManager::update()
 		}
 		break;
 	case CREDIT_STYLE_NORMAL:
-	 {
+		{
 			cLine->m_color = m_normalColor;
 
 			if(TheGlobalLanguageData && !cLine->m_text.isEmpty())
@@ -443,7 +443,7 @@ void CreditsManager::addText( AsciiString text )
 				CreditsLineList::reverse_iterator rIt = m_creditLineList.rbegin();
 				CreditsLine *rcLine = *rIt;
 				if(rIt == m_creditLineList.rend() || rcLine->m_style != CREDIT_STYLE_COLUMN
-				   || (rcLine->m_style == CREDIT_STYLE_COLUMN && rcLine->m_done == TRUE))
+				|| (rcLine->m_style == CREDIT_STYLE_COLUMN && rcLine->m_done == TRUE))
 				{
 					cLine->m_text = getUnicodeString(text);
 					cLine->m_style = CREDIT_STYLE_COLUMN;

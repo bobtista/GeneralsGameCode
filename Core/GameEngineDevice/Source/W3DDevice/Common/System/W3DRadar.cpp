@@ -197,8 +197,8 @@ void W3DRadar::reconstructViewBox()
 	{
 
 		// first convert to radar cells
- 		radar[ i ].x = world[ i ].x / (m_mapExtent.width() / RADAR_CELL_WIDTH);
- 		radar[ i ].y = world[ i ].y / (m_mapExtent.height() / RADAR_CELL_HEIGHT);
+		radar[ i ].x = world[ i ].x / (m_mapExtent.width() / RADAR_CELL_WIDTH);
+		radar[ i ].y = world[ i ].y / (m_mapExtent.height() / RADAR_CELL_HEIGHT);
 
 		//
 		// store these points in the view box array which contains a first position
@@ -229,8 +229,8 @@ void W3DRadar::reconstructViewBox()
 /** Convert radar position to actual pixel coord */
 //-------------------------------------------------------------------------------------------------
 void W3DRadar::radarToPixel( const ICoord2D *radar, ICoord2D *pixel,
-														 Int radarUpperLeftX, Int radarUpperLeftY,
-														 Int radarWidth, Int radarHeight )
+	Int radarUpperLeftX, Int radarUpperLeftY,
+	Int radarWidth, Int radarHeight )
 {
 
 	// sanity
@@ -307,8 +307,8 @@ void W3DRadar::drawViewBox( Int pixelX, Int pixelY, Int width, Int height )
 	TheTacticalView->screenToWorldAtZ( &ulScreen, &ulWorld, getTerrainAverageZ() );
 
 	// convert world to radar coords
- 	ulRadar.x = ulWorld.x / (m_mapExtent.width() / RADAR_CELL_WIDTH);
- 	ulRadar.y = ulWorld.y / (m_mapExtent.height() / RADAR_CELL_HEIGHT);
+	ulRadar.x = ulWorld.x / (m_mapExtent.width() / RADAR_CELL_WIDTH);
+	ulRadar.y = ulWorld.y / (m_mapExtent.height() / RADAR_CELL_HEIGHT);
 
 	//
 	// convert radar point to actual pixel coords on the screen, shifted
@@ -335,7 +335,7 @@ void W3DRadar::drawViewBox( Int pixelX, Int pixelY, Int width, Int height )
 		TheDisplay->drawLine( clipStart.x, clipStart.y, clipEnd.x, clipEnd.y,
 													lineWidth, topColor );
 
-  // right line
+	// right line
 	start = end;
 	radar.x += m_viewBox[ 2 ].x;
 	radar.y += m_viewBox[ 2 ].y;
@@ -344,7 +344,7 @@ void W3DRadar::drawViewBox( Int pixelX, Int pixelY, Int width, Int height )
 		TheDisplay->drawLine( clipStart.x, clipStart.y, clipEnd.x, clipEnd.y,
 													lineWidth, topColor, bottomColor );
 
-  // bottom line
+	// bottom line
 	start = end;
 	radar.x += m_viewBox[ 3 ].x;
 	radar.y += m_viewBox[ 3 ].y;
@@ -353,7 +353,7 @@ void W3DRadar::drawViewBox( Int pixelX, Int pixelY, Int width, Int height )
 		TheDisplay->drawLine( clipStart.x, clipStart.y, clipEnd.x, clipEnd.y,
 													lineWidth, bottomColor );
 
-  // left line
+	// left line
 	start = end;
 	end = ulStart;
 	if( ClipLine2D( &start, &end, &clipStart, &clipEnd, &clipRegion ) )
@@ -912,12 +912,12 @@ void W3DRadar::init()
 	// allocate our terrain texture
 	// poolify
 	m_terrainTexture = MSGNEW("TextureClass") TextureClass( m_textureWidth, m_textureHeight,
-																			 m_terrainTextureFormat, MIP_LEVELS_1 );
+		m_terrainTextureFormat, MIP_LEVELS_1 );
 	DEBUG_ASSERTCRASH( m_terrainTexture, ("W3DRadar: Unable to allocate terrain texture") );
 
 	// allocate our overlay texture
 	m_overlayTexture = MSGNEW("TextureClass") TextureClass( m_textureWidth, m_textureHeight,
-																			 m_overlayTextureFormat, MIP_LEVELS_1 );
+		m_overlayTextureFormat, MIP_LEVELS_1 );
 	DEBUG_ASSERTCRASH( m_overlayTexture, ("W3DRadar: Unable to allocate overlay texture") );
 
 	// set filter type for the overlay texture, try it and see if you like it, I don't ;)
@@ -926,7 +926,7 @@ void W3DRadar::init()
 
 	// allocate our shroud texture
 	m_shroudTexture = MSGNEW("TextureClass") TextureClass( m_textureWidth, m_textureHeight,
-																			 m_shroudTextureFormat, MIP_LEVELS_1 );
+		m_shroudTextureFormat, MIP_LEVELS_1 );
 	DEBUG_ASSERTCRASH( m_shroudTexture, ("W3DRadar: Unable to allocate shroud texture") );
 	m_shroudTexture->Get_Filter().Set_Min_Filter( TextureFilterClass::FILTER_TYPE_DEFAULT );
 	m_shroudTexture->Get_Filter().Set_Mag_Filter( TextureFilterClass::FILTER_TYPE_DEFAULT );
@@ -1149,8 +1149,8 @@ void W3DRadar::buildTerrainTexture( TerrainLogic *terrain )
 
 									// interpolate the water color for height in the water table
 									interpolateColorForHeight( &color, underwaterZ, waterZ,
-																						 waterZ,
-																						 m_mapExtent.lo.z );
+										waterZ,
+										m_mapExtent.lo.z );
 
 									// add color to our samples
 									sampleColor.red += color.red;
@@ -1222,14 +1222,14 @@ void W3DRadar::buildTerrainTexture( TerrainLogic *terrain )
 									// instead use the height for the entire bridge
 									//
 									Real bridgeHeight = (bridge->peekBridgeInfo()->fromLeft.z +
-																			 bridge->peekBridgeInfo()->fromRight.z +
-																			 bridge->peekBridgeInfo()->toLeft.z +
-																			 bridge->peekBridgeInfo()->toRight.z) / 4.0f;
+										bridge->peekBridgeInfo()->fromRight.z +
+										bridge->peekBridgeInfo()->toLeft.z +
+										bridge->peekBridgeInfo()->toRight.z) / 4.0f;
 
 									// interpolate the color, but use the bridge height, not the terrain height
 									interpolateColorForHeight( &color, bridgeHeight,
-																						 getTerrainAverageZ(),
-																						 m_mapExtent.hi.z, m_mapExtent.lo.z );
+										getTerrainAverageZ(),
+										m_mapExtent.hi.z, m_mapExtent.lo.z );
 
 								}
 								else
@@ -1240,7 +1240,7 @@ void W3DRadar::buildTerrainTexture( TerrainLogic *terrain )
 
 									// interpolate the color for height
 									interpolateColorForHeight( &color, worldPoint.z, getTerrainAverageZ(),
-																						 m_mapExtent.hi.z, m_mapExtent.lo.z );
+										m_mapExtent.hi.z, m_mapExtent.lo.z );
 
 								}
 
@@ -1493,7 +1493,7 @@ void W3DRadar::draw( Int pixelX, Int pixelY, Int width, Int height )
 	}
 
 	// draw the overlay image
- 	TheDisplay->drawImage( m_overlayImage, ul.x, ul.y, lr.x, lr.y );
+	TheDisplay->drawImage( m_overlayImage, ul.x, ul.y, lr.x, lr.y );
 
 	// draw the shroud image
 #if ENABLE_CONFIGURABLE_SHROUD

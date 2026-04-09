@@ -1600,7 +1600,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		}
 		const W3DTreeDrawModuleData *moduleData = m_treeTypes[type].m_data;
 		if(m_trees[curTree].m_toppleState == TOPPLE_FALLING ||
-			 m_trees[curTree].m_toppleState == TOPPLE_FOGGED) {
+			m_trees[curTree].m_toppleState == TOPPLE_FOGGED) {
 			updateTopplingTree(m_trees+curTree, timeScale);
 		} else if(m_trees[curTree].m_toppleState == TOPPLE_DOWN) {
 			if (moduleData->m_killWhenToppled) {
@@ -1799,19 +1799,19 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 ///< Start the toppling process by giving a force vector
 //-------------------------------------------------------------------------------------------------
 void W3DTreeBuffer::applyTopplingForce( TTree *tree, const Coord3D* toppleDirection, Real toppleSpeed,
-																			 UnsignedInt options )
+	UnsignedInt options )
 {
 	if (tree->m_toppleState != TOPPLE_UPRIGHT) {
 		return;
 	}
 	const W3DTreeDrawModuleData* d = m_treeTypes[tree->treeType].m_data;
-  // Having a low toppleSpeed is BAD. In particular, if the toppleSpeed is exactly 0, the
-  // tree will stay upright forever, frozen in place (because the sway update is dead)
-  // but never dying
-  if ( toppleSpeed < d->m_minimumToppleSpeed )
-  {
-    toppleSpeed = d->m_minimumToppleSpeed;
-  }
+	// Having a low toppleSpeed is BAD. In particular, if the toppleSpeed is exactly 0, the
+	// tree will stay upright forever, frozen in place (because the sway update is dead)
+	// but never dying
+	if ( toppleSpeed < d->m_minimumToppleSpeed )
+	{
+		toppleSpeed = d->m_minimumToppleSpeed;
+	}
 
 	tree->m_toppleDirection = *toppleDirection;
 	tree->m_toppleDirection.normalize();

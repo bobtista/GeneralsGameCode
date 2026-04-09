@@ -119,45 +119,45 @@ __forceinline long fast_float2long_round(float f)
 __forceinline float fast_float_trunc(float f)
 {
 #if defined(_MSC_VER) && _MSC_VER < 1300
-  _asm
-  {
-    mov ecx,[f]
-    shr ecx,23
+	_asm
+	{
+		mov ecx,[f]
+		shr ecx,23
     mov eax,0xff800000
     xor ebx,ebx
     sub cl,127
     cmovc eax,ebx
     sar eax,cl
-    and [f],eax
-  }
-  return f;
+			and [f],eax
+	}
+	return f;
 #else
-  unsigned x = *(unsigned *)&f;
-  unsigned char exp = x >> 23;
-  int mask = exp < 127 ? 0 : 0xff800000;
-  exp -= 127;
-  mask >>= exp & 31;
-  x &= mask;
-  return *(float *)&x;
+	unsigned x = *(unsigned *)&f;
+	unsigned char exp = x >> 23;
+	int mask = exp < 127 ? 0 : 0xff800000;
+	exp -= 127;
+	mask >>= exp & 31;
+	x &= mask;
+	return *(float *)&x;
 #endif
 }
 
 // same here, fast floor function
 __forceinline float fast_float_floor(float f)
 {
-  static unsigned almost1=(126<<23)|0x7fffff;
-  if (*(unsigned *)&f &0x80000000)
-    f-=*(float *)&almost1;
-  return fast_float_trunc(f);
+	static unsigned almost1=(126<<23)|0x7fffff;
+	if (*(unsigned *)&f &0x80000000)
+	f-=*(float *)&almost1;
+	return fast_float_trunc(f);
 }
 
 // same here, fast ceil function
 __forceinline float fast_float_ceil(float f)
 {
-  static unsigned almost1=(126<<23)|0x7fffff;
-  if ( (*(unsigned *)&f &0x80000000)==0)
-    f+=*(float *)&almost1;
-  return fast_float_trunc(f);
+	static unsigned almost1=(126<<23)|0x7fffff;
+	if ( (*(unsigned *)&f &0x80000000)==0)
+	f+=*(float *)&almost1;
+	return fast_float_trunc(f);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -494,14 +494,14 @@ struct Region3D
 	Bool isInRegionNoZ( const Coord3D *query ) const
 	{
 		return (lo.x < query->x) && (query->x < hi.x) &&
-					 (lo.y < query->y) && (query->y < hi.y);
+			(lo.y < query->y) && (query->y < hi.y);
 	}
 
 	Bool isInRegion( const Coord3D *query ) const
 	{
 		return (lo.x < query->x) && (query->x < hi.x) &&
-					 (lo.y < query->y) && (query->y < hi.y) &&
-					 (lo.z < query->z) && (query->z < hi.z);
+			(lo.y < query->y) && (query->y < hi.y) &&
+			(lo.z < query->z) && (query->z < hi.z);
 	}
 };
 

@@ -572,7 +572,7 @@ void GameWindowTransitionsHandler::parseWindow( INI* ini, void *instance, void *
 	static const FieldParse myFieldParse[] =
 		{
 			{ "WinName",				INI::parseAsciiString,		nullptr,									offsetof( TransitionWindow, m_winName ) },
-      { "Style",					INI::parseLookupList,			TransitionStyleNames,	offsetof( TransitionWindow, m_style ) },
+		{ "Style",					INI::parseLookupList,			TransitionStyleNames,	offsetof( TransitionWindow, m_style ) },
 			{ "FrameDelay",			INI::parseInt,						nullptr,									offsetof( TransitionWindow, m_frameDelay ) },
 			{ nullptr,							nullptr,											nullptr, 0 }
 		};

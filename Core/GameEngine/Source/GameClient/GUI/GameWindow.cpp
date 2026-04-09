@@ -260,7 +260,7 @@ GameWindow *GameWindow::findPrevLeaf()
 		leaf = leaf->m_prev;
 
 		while( leaf->m_child &&
-					 BitIsSet( leaf->m_status, WIN_STATUS_TAB_STOP ) == FALSE )
+			BitIsSet( leaf->m_status, WIN_STATUS_TAB_STOP ) == FALSE )
 		{
 
 			leaf = leaf->m_child;
@@ -287,7 +287,7 @@ GameWindow *GameWindow::findPrevLeaf()
 				leaf = leaf->m_prev;
 
 				while( leaf->m_child &&
-							 BitIsSet( leaf->m_status, WIN_STATUS_TAB_STOP ) == FALSE )
+					BitIsSet( leaf->m_status, WIN_STATUS_TAB_STOP ) == FALSE )
 				{
 
 					leaf = leaf->m_child;
@@ -458,8 +458,8 @@ Int GameWindow::winBringToTop()
 
 		// sanity, make sure this window is in the window list
 		for( current = TheWindowManager->winGetWindowList();
-				 current != this;
-				 current = current->m_next)
+		current != this;
+		current = current->m_next)
 			if (current == nullptr)
 				return WIN_ERR_INVALID_PARAMETER;
 
@@ -701,7 +701,7 @@ Int GameWindow::winEnable( Bool enable )
 //=============================================================================
 Bool GameWindow::winGetEnabled()
 {
-  return BitIsSet( m_status, WIN_STATUS_ENABLED );
+	return BitIsSet( m_status, WIN_STATUS_ENABLED );
 
 }
 
@@ -1396,8 +1396,8 @@ Int GameWindow::winSetTooltipFunc( GameWinTooltipFunc tooltip )
 /** Sets the window's input, tooltip, and redraw callback functions. */
 //=============================================================================
 Int GameWindow::winSetCallbacks( GameWinInputFunc input,
-																 GameWinDrawFunc draw,
-																 GameWinTooltipFunc tooltip )
+	GameWinDrawFunc draw,
+	GameWinTooltipFunc tooltip )
 {
 
 	winSetInputFunc( input );
@@ -1565,7 +1565,7 @@ WindowMsgHandledType GameWinBlockInput( GameWindow *window, UnsignedInt msg,
 /** The default system callback.  Currently does nothing. */
 //=============================================================================
 WindowMsgHandledType GameWinDefaultSystem( GameWindow *window, UnsignedInt msg,
-													 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	return MSG_IGNORED;

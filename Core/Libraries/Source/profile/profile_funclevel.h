@@ -38,23 +38,23 @@
 */
 class ProfileFuncLevel
 {
-  friend class Profile;
+	friend class Profile;
 
-  // no, no copying allowed!
-  ProfileFuncLevel(const ProfileFuncLevel&);
-  ProfileFuncLevel& operator=(const ProfileFuncLevel&);
+	// no, no copying allowed!
+	ProfileFuncLevel(const ProfileFuncLevel&);
+	ProfileFuncLevel& operator=(const ProfileFuncLevel&);
 
 public:
-  class Id;
-  class Thread;
+	class Id;
+	class Thread;
 
-  /// \brief A list of function level profile IDs
-  class IdList
-  {
-    friend Id;
+	/// \brief A list of function level profile IDs
+	class IdList
+	{
+		friend Id;
 
-  public:
-    IdList(): m_ptr(0) {}
+	public:
+		IdList(): m_ptr(0) {}
 
     /**
       \brief Enumerates the list of IDs.
@@ -66,57 +66,57 @@ public:
       \param countPtr return buffer for count, if given
       \return true if ID found at given index, false if not
     */
-    bool Enum(unsigned index, Id &id, unsigned *countPtr=0) const;
+		bool Enum(unsigned index, Id &id, unsigned *countPtr=0) const;
 
-  private:
+	private:
 
-    /// internal value
-    void *m_ptr;
-  };
+		/// internal value
+		void *m_ptr;
+	};
 
-  /// \brief A function level profile ID.
-  class Id
-  {
-    friend IdList;
-    friend Thread;
+	/// \brief A function level profile ID.
+	class Id
+	{
+		friend IdList;
+		friend Thread;
 
-  public:
-    Id(): m_funcPtr(0) {}
+	public:
+		Id(): m_funcPtr(0) {}
 
-    /// special 'frame' numbers
-    enum
-    {
-      /// return the total value/count
-      Total = 0xffffffff
-    };
+		/// special 'frame' numbers
+		enum
+		{
+			/// return the total value/count
+			Total = 0xffffffff
+		};
 
     /**
       \brief Returns the source file this Id is in.
 
       \return source file name, may be nullptr
     */
-    const char *GetSource() const;
+		const char *GetSource() const;
 
     /**
       \brief Returns the function name for this Id.
 
       \return function name, may be nullptr
     */
-    const char *GetFunction() const;
+		const char *GetFunction() const;
 
     /**
       \brief Returns function address.
 
       \return function address
     */
-    unsigned GetAddress() const;
+		unsigned GetAddress() const;
 
     /**
       \brief Returns the line number for this Id.
 
       \return line number, 0 if unknown
     */
-    unsigned GetLine() const;
+		unsigned GetLine() const;
 
     /**
       \brief Determine call counts.
@@ -124,7 +124,7 @@ public:
       \param frame number of recorded frame, or Total
       \return number of calls
     */
-    unsigned _int64 GetCalls(unsigned frame) const;
+		unsigned _int64 GetCalls(unsigned frame) const;
 
     /**
       \brief Determine time spend in this function and its children.
@@ -132,7 +132,7 @@ public:
       \param frame number of recorded frame, or Total
       \return time spend (in CPU ticks)
     */
-    unsigned _int64 GetTime(unsigned frame) const;
+		unsigned _int64 GetTime(unsigned frame) const;
 
     /**
       \brief Determine time spend in this function only (exclude
@@ -141,7 +141,7 @@ public:
       \param frame number of recorded frame, or Total
       \return time spend in this function alone (in CPU ticks)
     */
-    unsigned _int64 GetFunctionTime(unsigned frame) const;
+		unsigned _int64 GetFunctionTime(unsigned frame) const;
 
     /**
       \brief Determine the list of caller Ids.
@@ -149,20 +149,20 @@ public:
       \param frame number of recorded frame, or Total
       \return Caller Id list (actually just a handle value)
     */
-    IdList GetCaller(unsigned frame) const;
+		IdList GetCaller(unsigned frame) const;
 
-  private:
-    /// internal function pointer
-    void *m_funcPtr;
-  };
+	private:
+		/// internal function pointer
+		void *m_funcPtr;
+	};
 
-  /// \brief a profiled thread
-  class Thread
-  {
-    friend ProfileFuncLevel;
+	/// \brief a profiled thread
+	class Thread
+	{
+		friend ProfileFuncLevel;
 
-  public:
-    Thread(): m_threadID(0) {}
+	public:
+		Thread(): m_threadID(0) {}
 
     /**
       \brief Enumerates the list of known function level profile values.
@@ -173,22 +173,22 @@ public:
       \param id return buffer for ID value
       \return true if ID found at given index, false if not
     */
-    bool EnumProfile(unsigned index, Id &id) const;
+		bool EnumProfile(unsigned index, Id &id) const;
 
     /**
       \brief Returns a unique thread ID (not related to Windows thread ID)
 
       \return profile thread ID
     */
-    unsigned GetId() const
-    {
-      return unsigned(m_threadID);
-    }
+		unsigned GetId() const
+		{
+		return unsigned(m_threadID);
+		}
 
-  private:
-    /// internal thread ID
-    class ProfileFuncLevelTracer *m_threadID;
-  };
+	private:
+		/// internal thread ID
+		class ProfileFuncLevelTracer *m_threadID;
+	};
 
   /**
     \brief Enumerates the list of known and profiled threads.
@@ -199,7 +199,7 @@ public:
     \param thread return buffer for thread handle
     \return true if Thread found, false if not
   */
-  static bool EnumThreads(unsigned index, Thread &thread);
+	static bool EnumThreads(unsigned index, Thread &thread);
 
 private:
 
@@ -209,10 +209,10 @@ private:
     We can make this private as well so nobody accidentally tries to create
     another instance.
   */
-  ProfileFuncLevel();
+	ProfileFuncLevel();
 
   /**
     \brief The only function level profiler instance.
   */
-  static ProfileFuncLevel Instance;
+	static ProfileFuncLevel Instance;
 };

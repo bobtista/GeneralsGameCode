@@ -59,7 +59,7 @@ template<class T> class Callback :
 	public:
 		Callback(bool (*callback)(T), T userdata) :
 				mCallback(callback),
-			  mUserData(userdata)
+		mUserData(userdata)
 			{}
 
 		virtual ~Callback()
