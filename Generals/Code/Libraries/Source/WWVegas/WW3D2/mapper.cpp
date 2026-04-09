@@ -682,8 +682,8 @@ void WSClassicEnvironmentMapperClass::Apply(int uv_array_index)
 	Matrix4x4 mat;
 	DX8Wrapper::Get_Transform(D3DTS_VIEW,mat);
 	Matrix3D mat2(mat[0].X,mat[1].X,mat[2].X,0.0f,
-					  mat[0].Y,mat[1].Y,mat[2].Y,0.0f,
-					  mat[0].Z,mat[1].Z,mat[2].Z,0.0f);
+		mat[0].Y,mat[1].Y,mat[2].Y,0.0f,
+		mat[0].Z,mat[1].Z,mat[2].Z,0.0f);
 #ifdef ALLOW_TEMPORARIES
 	matenv=matenv*mat2;
 #else
@@ -714,8 +714,8 @@ void WSEnvironmentMapperClass::Apply(int uv_array_index)
 	Matrix4x4 mat;
 	DX8Wrapper::Get_Transform(D3DTS_VIEW,mat);
 	Matrix3D mat2(mat[0].X,mat[1].X,mat[2].X,0.0f,
-					  mat[0].Y,mat[1].Y,mat[2].Y,0.0f,
-					  mat[0].Z,mat[1].Z,mat[2].Z,0.0f);
+		mat[0].Y,mat[1].Y,mat[2].Y,0.0f,
+		mat[0].Z,mat[1].Z,mat[2].Z,0.0f);
 #ifdef ALLOW_TEMPORARIES
 	matenv=matenv*mat2;
 #else

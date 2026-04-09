@@ -237,8 +237,8 @@ BOOL ObjectOptions::OnInitDialog()
 	// add entries from the thing factory as the available objects to use
 	const ThingTemplate *tTemplate;
 	for( tTemplate = TheThingFactory->firstTemplate();
-			 tTemplate;
-			 tTemplate = tTemplate->friend_getNextTemplate() )
+	tTemplate;
+	tTemplate = tTemplate->friend_getNextTemplate() )
 	{
 		Coord3D loc = { 0, 0, 0 };
 		MapObject *pMap;
@@ -314,7 +314,7 @@ BOOL ObjectOptions::OnInitDialog()
 
 				++it;
 			} while (it != filenameList.end());
- 		}
+		}
 	}
 #endif
 
@@ -357,7 +357,7 @@ BOOL ObjectOptions::OnInitDialog()
 	updateLabel();
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 /** Locate the child item in tree item parent with name pLabel.  If not
@@ -441,7 +441,7 @@ HTREEITEM ObjectOptions::_FindOrDont(const char* pLabel, HTREEITEM startPoint)
 /** Add the object hierarchy paths to the tree view. */
 //-------------------------------------------------------------------------------------------------
 void ObjectOptions::addObject( MapObject *mapObject, const char *pPath,
-															 Int terrainNdx, HTREEITEM parent )
+	Int terrainNdx, HTREEITEM parent )
 {
 	char buffer[ _MAX_PATH ];
 	const char *leafName = nullptr;
@@ -474,8 +474,8 @@ void ObjectOptions::addObject( MapObject *mapObject, const char *pPath,
 		// next tier uses the editor sorting that design can specify in the INI
 		EditorSortingType i = ES_FIRST;
 		for( ;
-				 i < ES_NUM_SORTING_TYPES;
-				 i = (EditorSortingType)(i + 1) )
+		i < ES_NUM_SORTING_TYPES;
+		i = (EditorSortingType)(i + 1) )
 		{
 
 			if( thingTemplate->getEditorSorting() == i )
@@ -700,8 +700,8 @@ MapObject *ObjectOptions::duplicateCurMapObjectForPlace(const Coord3D* loc, Real
 		if (found)
 		{
 			MapObject *pNew = newInstance(MapObject)( *loc, pCur->getName(), angle,
-																			 pCur->getFlags(), pCur->getProperties(),
-																			 pCur->getThingTemplate() );
+				pCur->getFlags(), pCur->getProperties(),
+				pCur->getThingTemplate() );
 			pNew->getProperties()->setAsciiString(TheKey_originalOwner, m_curOwnerName);
 			pNew->setColor(pCur->getColor());
 			return pNew;

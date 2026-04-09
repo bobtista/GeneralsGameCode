@@ -133,7 +133,7 @@ BOOL BlendMaterial::OnInitDialog()
 	updateTextures();
 	m_updating = false;
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 /** Locate the child item in tree item parent with name pLabel.  If not

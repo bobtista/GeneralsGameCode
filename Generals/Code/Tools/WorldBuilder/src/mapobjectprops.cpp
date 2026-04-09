@@ -99,7 +99,7 @@ BEGIN_MESSAGE_MAP(MapObjectProps, CDialog)
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_VisionDistance, _VisibilityToDict)
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_ShroudClearingDistance, _ShroudClearingDistanceToDict)
 	ON_CBN_SELCHANGE(IDC_MAPOBJECT_Veterancy, _VeterancyToDict)
- 	ON_BN_CLICKED(IDC_MAPOBJECT_RecruitableAI, _RecruitableAIToDict)
+ON_BN_CLICKED(IDC_MAPOBJECT_RecruitableAI, _RecruitableAIToDict)
 	ON_BN_CLICKED(IDC_MAPOBJECT_Selectable, _SelectableToDict)
 	ON_CBN_SELCHANGE(IDC_MAPOBJECT_Weather, _WeatherToDict)
 	ON_CBN_SELCHANGE(IDC_MAPOBJECT_Time, _TimeToDict)
@@ -183,7 +183,7 @@ BOOL MapObjectProps::OnInitDialog()
 	updateTheUI();
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 /*static*/ void MapObjectProps::update(void)
@@ -655,14 +655,14 @@ void MapObjectProps::_DictToShroudClearingDistance(void)
 
 void MapObjectProps::_DictToRecruitableAI(void)
 {
- 	Bool recruitableAI = true;
- 	Bool exists;
- 	if (m_dictToEdit) {
+	Bool recruitableAI = true;
+	Bool exists;
+	if (m_dictToEdit) {
 		recruitableAI  = m_dictToEdit->getBool(TheKey_objectRecruitableAI, &exists);
- 	}
+	}
 
- 	CButton* pItem = (CButton*) GetDlgItem(IDC_MAPOBJECT_RecruitableAI);
- 	if (pItem) {
+	CButton* pItem = (CButton*) GetDlgItem(IDC_MAPOBJECT_RecruitableAI);
+	if (pItem) {
 		pItem->SetCheck(recruitableAI);
 	}
 }

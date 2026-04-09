@@ -1253,7 +1253,7 @@ Bool EditParameter::loadFontNames(CComboBox *pCombo, AsciiString match)
 		string.concat( " - Size:" );
 		Int size = font->pointSize;
 		char buffer[33];
-    itoa( size, buffer, 10 );
+		itoa( size, buffer, 10 );
 		string.concat( buffer );
 		if( font->bold )
 			string.concat( " [Bold]" );
@@ -1333,7 +1333,7 @@ void EditParameter::readFontFile( const char *filename )
 			char buffer[ 1024 ];
 
 			snprintf( buffer, ARRAY_SIZE(buffer), "Warning: The font '%s' Size: '%d' Bold: '%d', specified in the config file could not be loaded.  Does that font exist?",
-							 fontBuffer, size, bold );
+				fontBuffer, size, bold );
 			//MessageBox( m_appHWnd, buffer, "Cannot Load Font", MB_OK );
 
 		}
@@ -2072,7 +2072,7 @@ BOOL EditParameter::OnInitDialog()
 	}
 
 	return FALSE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 void EditParameter::OnOK()
@@ -2271,8 +2271,8 @@ void EditParameter::OnPreviewSound()
 
 	//only execute if the script in the combo box deals with sound
 	if (m_parameter->getParameterType() == Parameter::SOUND ||
-		  m_parameter->getParameterType() == Parameter::DIALOG ||
-		  m_parameter->getParameterType() == Parameter::MUSIC) {
+		m_parameter->getParameterType() == Parameter::DIALOG ||
+		m_parameter->getParameterType() == Parameter::MUSIC) {
 		CComboBox *pCombo = (CComboBox*)GetDlgItem(IDC_COMBO);
 		pCombo->GetWindowText(txt);
 		comboText = AsciiString(txt);

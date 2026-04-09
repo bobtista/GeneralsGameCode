@@ -1096,7 +1096,7 @@ AddPolygonPointUndoable::~AddPolygonPointUndoable(void)
 // AddPolygonUndoable - create a new undoable.	Adds a polygon point.
 //
 AddPolygonPointUndoable::AddPolygonPointUndoable(PolygonTrigger *pTrig,
-																			 ICoord3D pt):
+	ICoord3D pt):
 	m_trigger(pTrig),
 	m_point(pt)
 {

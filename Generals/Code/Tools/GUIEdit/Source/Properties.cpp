@@ -79,8 +79,8 @@
 static TextDrawData textDrawData[ 3 ];
 static Int currTextIndex;
 static Int enabledTextIndex,
-			 disabledTextIndex,
-			 hiliteTextIndex;
+	disabledTextIndex,
+	hiliteTextIndex;
 
 ColorControl colorControlTable[] =
 {
@@ -469,8 +469,8 @@ void LoadFontCombo( HWND comboBox, GameFont *currFont )
 	// pointer to the entry
 	//
 	for( font = TheFontLibrary->firstFont();
-			 font;
-			 font = TheFontLibrary->nextFont( font ) )
+	font;
+	font = TheFontLibrary->nextFont( font ) )
 	{
 
 		// construct name
@@ -727,9 +727,9 @@ static void saveTextLabel( HWND edit, GameWindow *window )
 /** Load the text state combo */
 //=============================================================================
 void LoadTextStateCombo( HWND comboBox,
-												 Color enabled, Color enabledBorder,
-												 Color disabled, Color disabledBorder,
-												 Color hilite, Color hiliteBorder )
+	Color enabled, Color enabledBorder,
+	Color disabled, Color disabledBorder,
+	Color hilite, Color hiliteBorder )
 	{
 
 	// sanity
@@ -832,12 +832,12 @@ void CommonDialogInitialize( GameWindow *window, HWND dialog )
 	// room for the filename
 	//
 	SendMessage( GetDlgItem( dialog, EDIT_NAME ), EM_SETLIMITTEXT,
-							 MAX_WINDOW_NAME_LEN - 16, 0 );
+		MAX_WINDOW_NAME_LEN - 16, 0 );
 
 	// set the text explaining the name size limit to the user
 	char buffer[ 128 ];
 	sprintf( buffer, "Name length + layout filename length (.wnd) must not exceed %d characters.",
-					 MAX_WINDOW_NAME_LEN );
+		MAX_WINDOW_NAME_LEN );
 	SetDlgItemText( dialog, STATIC_NAME_MAX, buffer );
 
 	// set name
@@ -877,10 +877,10 @@ void CommonDialogInitialize( GameWindow *window, HWND dialog )
 	if( tooltipEdit )
 		loadTooltipTextLabel( tooltipEdit, window );
 
-  // load text edit control if present
+	// load text edit control if present
 	HWND tooltipDelay = GetDlgItem( dialog, EDIT_TOOLTIP_DELAY );
 	if( tooltipDelay )
-    SetDlgItemInt( dialog, EDIT_TOOLTIP_DELAY, instData->m_tooltipDelay, TRUE );
+	SetDlgItemInt( dialog, EDIT_TOOLTIP_DELAY, instData->m_tooltipDelay, TRUE );
 
 
 
@@ -1119,13 +1119,13 @@ Bool SaveCommonDialogProperties( HWND dialog, GameWindow *window )
 	//
 	if( TheEditor->windowIsGadget( window ) )
 		adjustGadgetDrawMethods( BitIsSet( window->winGetStatus(), WIN_STATUS_IMAGE ),
-														 window );
+		window );
 
 	// save colors
 	window->winSetEnabledTextColors( textDrawData[ enabledTextIndex ].color,
-																	 textDrawData[ enabledTextIndex ].borderColor );
+		textDrawData[ enabledTextIndex ].borderColor );
 	window->winSetDisabledTextColors( textDrawData[ disabledTextIndex ].color,
-																	  textDrawData[ disabledTextIndex ].borderColor );
+		textDrawData[ disabledTextIndex ].borderColor );
 	window->winSetHiliteTextColors( textDrawData[ hiliteTextIndex ].color,
 																	textDrawData[ hiliteTextIndex ].borderColor );
 
@@ -1144,10 +1144,10 @@ Bool SaveCommonDialogProperties( HWND dialog, GameWindow *window )
 	if( editTooltipText )
 		saveTooltipTextLabel( editTooltipText, window );
 
-  	// save delay text label data if present
+	// save delay text label data if present
 	HWND editTooltipDelayText = GetDlgItem( dialog, EDIT_TOOLTIP_DELAY );
 	if( editTooltipDelayText )
-  	instData->m_tooltipDelay = GetDlgItemInt( dialog, EDIT_TOOLTIP_DELAY, nullptr, TRUE );
+	instData->m_tooltipDelay = GetDlgItemInt( dialog, EDIT_TOOLTIP_DELAY, nullptr, TRUE );
 
 	HWND headerCombo = GetDlgItem( dialog, COMBO_HEADER );
 	if( headerCombo )
@@ -1176,7 +1176,7 @@ void LoadImageListComboBox( HWND comboBox )
 	SendMessage( comboBox, CB_RESETCONTENT, 0, 0 );
 
 	// load the combo box with string names from the GUI image collection
-  for (unsigned index=0;(image=TheMappedImageCollection->Enum(index))!=nullptr;index++)
+	for (unsigned index=0;(image=TheMappedImageCollection->Enum(index))!=nullptr;index++)
 	{
 
 		SendMessage( comboBox, CB_ADDSTRING, 0, (LPARAM)image->getName().str() );
@@ -1208,8 +1208,8 @@ void LoadHeaderTemplateListComboBox( HWND comboBox, AsciiString selected )
 
 	// load the combo box with string names from the Header Templates
 	for( ht = TheHeaderTemplateManager->getFirstHeader();
-			 ht;
-			 ht = TheHeaderTemplateManager->getNextHeader(ht) )
+	ht;
+	ht = TheHeaderTemplateManager->getNextHeader(ht) )
 	{
 
 		SendMessage( comboBox, CB_ADDSTRING, 0, (LPARAM)ht->m_name.str());
@@ -1376,7 +1376,7 @@ void SwitchToState( StateIdentifier id, HWND dialog )
 /** Store the image and colors in the table */
 //=============================================================================
 void StoreImageAndColor( StateIdentifier id, const Image *image,
-												 Color color, Color borderColor )
+	Color color, Color borderColor )
 {
 	ImageAndColorInfo *entry;
 
@@ -1485,8 +1485,8 @@ void PositionWindowOnScreen( HWND window, Int x, Int y )
 /** Handle any messages common to all controls on all property dialogs */
 //=============================================================================
 Bool HandleCommonDialogMessages( HWND hWndDialog, UINT message,
-																 WPARAM wParam, LPARAM lParam,
-																 Int *returnCode )
+	WPARAM wParam, LPARAM lParam,
+	Int *returnCode )
 {
 	Bool used = FALSE;
 
@@ -1496,8 +1496,8 @@ Bool HandleCommonDialogMessages( HWND hWndDialog, UINT message,
 		// ------------------------------------------------------------------------
 		case WM_DRAWITEM:
 		{
-      UINT controlID = (UINT)wParam;  // control identifier
-      LPDRAWITEMSTRUCT drawItem = (LPDRAWITEMSTRUCT)lParam; // item drawing
+			UINT controlID = (UINT)wParam;  // control identifier
+			LPDRAWITEMSTRUCT drawItem = (LPDRAWITEMSTRUCT)lParam; // item drawing
 			Color color = GAME_COLOR_UNDEFINED;
 //			ImageAndColorInfo *info = GetCurrentStateInfo( hWndDialog );
 
@@ -1546,19 +1546,19 @@ Bool HandleCommonDialogMessages( HWND hWndDialog, UINT message,
 				// Get the area we have to draw in
 				GetClientRect( hWndControl, &rect );
 
-        // create a new brush and select it into DC
-        hBrushNew = CreateSolidBrush( RGB ( r, g, b ) );
-        hBrushOld = (HBRUSH)SelectObject( drawItem->hDC, hBrushNew );
+				// create a new brush and select it into DC
+				hBrushNew = CreateSolidBrush( RGB ( r, g, b ) );
+				hBrushOld = (HBRUSH)SelectObject( drawItem->hDC, hBrushNew );
 
-        // draw the rectangle
-        Rectangle( drawItem->hDC, rect.left, rect.top, rect.right, rect.bottom );
+				// draw the rectangle
+				Rectangle( drawItem->hDC, rect.left, rect.top, rect.right, rect.bottom );
 
-        // put the old brush back and delete the new one
-        SelectObject( drawItem->hDC, hBrushOld );
-        DeleteObject( hBrushNew );
+				// put the old brush back and delete the new one
+				SelectObject( drawItem->hDC, hBrushOld );
+				DeleteObject( hBrushNew );
 
-        // validate this new area
-        ValidateRect( hWndControl, nullptr );
+				// validate this new area
+				ValidateRect( hWndControl, nullptr );
 
 				// we have taken care of it
 				*returnCode = TRUE;
@@ -1573,14 +1573,14 @@ Bool HandleCommonDialogMessages( HWND hWndDialog, UINT message,
 		}
 
 		// ------------------------------------------------------------------------
-    case WM_COMMAND:
-    {
+		case WM_COMMAND:
+		{
 			Int notifyCode = HIWORD( wParam );  // notification code
 			Int controlID = LOWORD( wParam );  // control ID
 			HWND hWndControl = (HWND)lParam;  // control window handle
 
-      switch( controlID )
-      {
+			switch( controlID )
+			{
 
 				// --------------------------------------------------------------------
 				case COMBO_STATE:
@@ -1704,14 +1704,14 @@ Bool HandleCommonDialogMessages( HWND hWndDialog, UINT message,
 
 				}
 
-      }
+			}
 
-      *returnCode = 0;
+			*returnCode = 0;
 			break;
 
-    }
+		}
 
-  }
+	}
 
 	return used;
 

@@ -82,8 +82,8 @@ BOOL EditObjectParameter::OnInitDialog()
 	// add entries from the thing factory as the available objects to use
 	const ThingTemplate *tTemplate;
 	for( tTemplate = TheThingFactory->firstTemplate();
-			 tTemplate;
-			 tTemplate = tTemplate->friend_getNextTemplate() )
+	tTemplate;
+	tTemplate = tTemplate->friend_getNextTemplate() )
 	{
 		addObject(tTemplate);
 
@@ -93,7 +93,7 @@ BOOL EditObjectParameter::OnInitDialog()
 	addObjectLists();
 
 	return FALSE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 //-------------------------------------------------------------------------------------------------
 /** Add the object hierarchy paths to the tree view. */
@@ -125,8 +125,8 @@ void EditObjectParameter::addObject( const ThingTemplate *thingTemplate  )
 		// next tier uses the editor sorting that design can specify in the INI
 		EditorSortingType i = ES_FIRST;
 		for( ;
-				 i < ES_NUM_SORTING_TYPES;
-				 i = (EditorSortingType)(i + 1) )
+		i < ES_NUM_SORTING_TYPES;
+		i = (EditorSortingType)(i + 1) )
 		{
 
 			if( thingTemplate->getEditorSorting() == i )

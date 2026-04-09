@@ -96,4 +96,4 @@ protected:
 
 // EXTERNALS //////////////////////////////////////////////////////////////////
 extern void W3DGameWinDefaultDraw( GameWindow *window,
-																	 WinInstanceData *instData );
+	WinInstanceData *instData );

@@ -181,7 +181,7 @@ public:
 
 	/// Handles command messages.
 	virtual BOOL OnCmdMsg(UINT nID, int nCode, void* pExtra,
-						  AFX_CMDHANDLERINFO* pHandlerInfo);
+		AFX_CMDHANDLERINFO* pHandlerInfo);
 };
 
 inline CWorldBuilderApp *WbApp() { return (CWorldBuilderApp*)::AfxGetApp(); }

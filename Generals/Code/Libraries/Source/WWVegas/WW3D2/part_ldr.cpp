@@ -343,8 +343,8 @@ ParticleEmitterDefClass::Load_W3D (ChunkLoadClass &chunk_load)
 
 	// Attempt to read the different sections of the emitter definition
 	if ((Read_Header (chunk_load) == WW3D_ERROR_OK) &&
-		 (Read_User_Data (chunk_load) == WW3D_ERROR_OK) &&
-		 (Read_Info (chunk_load) == WW3D_ERROR_OK)) {
+		(Read_User_Data (chunk_load) == WW3D_ERROR_OK) &&
+		(Read_Info (chunk_load) == WW3D_ERROR_OK)) {
 
 		if (m_Version > 0x00010000) {
 
@@ -352,7 +352,7 @@ ParticleEmitterDefClass::Load_W3D (ChunkLoadClass &chunk_load)
 			// Read the version 2.0 structures from the chunk
 			//
 			if ((Read_InfoV2 (chunk_load) == WW3D_ERROR_OK) &&
-				 (Read_Props (chunk_load) == WW3D_ERROR_OK)) {
+				(Read_Props (chunk_load) == WW3D_ERROR_OK)) {
 
 				// Success!
 				ret_val = WW3D_ERROR_OK;
@@ -524,7 +524,7 @@ ParticleEmitterDefClass::Read_Header (ChunkLoadClass &chunk_load)
 
 	// Is this the header chunk?
 	if (chunk_load.Open_Chunk () &&
-	    (chunk_load.Cur_Chunk_ID () == W3D_CHUNK_EMITTER_HEADER)) {
+		(chunk_load.Cur_Chunk_ID () == W3D_CHUNK_EMITTER_HEADER)) {
 
 		W3dEmitterHeaderStruct header = { 0 };
 		if (chunk_load.Read (&header, sizeof (header)) == sizeof (header)) {
@@ -558,7 +558,7 @@ ParticleEmitterDefClass::Read_User_Data (ChunkLoadClass &chunk_load)
 
 	// Is this the user chunk?
 	if (chunk_load.Open_Chunk () &&
-	    (chunk_load.Cur_Chunk_ID () == W3D_CHUNK_EMITTER_USER_DATA)) {
+		(chunk_load.Cur_Chunk_ID () == W3D_CHUNK_EMITTER_USER_DATA)) {
 
 		W3dEmitterUserInfoStruct user_info = { 0 };
 		if (chunk_load.Read (&user_info, sizeof (user_info)) == sizeof (user_info)) {
@@ -602,7 +602,7 @@ ParticleEmitterDefClass::Read_Info (ChunkLoadClass &chunk_load)
 
 	// Is this the user chunk?
 	if (chunk_load.Open_Chunk () &&
-	    (chunk_load.Cur_Chunk_ID () == W3D_CHUNK_EMITTER_INFO)) {
+		(chunk_load.Cur_Chunk_ID () == W3D_CHUNK_EMITTER_INFO)) {
 
 		// Read the chunk straight into our member structure
 		::memset (&m_Info, 0, sizeof (m_Info));
@@ -705,7 +705,7 @@ ParticleEmitterDefClass::Read_InfoV2 (ChunkLoadClass &chunk_load)
 
 	// Is this the user chunk?
 	if (chunk_load.Open_Chunk () &&
-	    (chunk_load.Cur_Chunk_ID () == W3D_CHUNK_EMITTER_INFOV2)) {
+		(chunk_load.Cur_Chunk_ID () == W3D_CHUNK_EMITTER_INFOV2)) {
 
 		// Read the chunk straight into our member structure
 		::memset (&m_InfoV2, 0, sizeof (m_InfoV2));
@@ -745,7 +745,7 @@ ParticleEmitterDefClass::Read_Props (ChunkLoadClass &chunk_load)
 
 	// Is this the user chunk?
 	if (chunk_load.Open_Chunk () &&
-	    (chunk_load.Cur_Chunk_ID () == W3D_CHUNK_EMITTER_PROPS)) {
+		(chunk_load.Cur_Chunk_ID () == W3D_CHUNK_EMITTER_PROPS)) {
 
 		W3dEmitterPropertyStruct info = { 0 };
 		if (chunk_load.Read (&info, sizeof (info)) == sizeof (info)) {
@@ -1132,13 +1132,13 @@ ParticleEmitterDefClass::Save_W3D (ChunkSaveClass &chunk_save)
 
 		// Attempt to save the different sections of the emitter definition
 		if ((Save_Header (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_User_Data (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Info (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_InfoV2 (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Props (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Rotation_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Frame_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Blur_Time_Keyframes (chunk_save) == WW3D_ERROR_OK))
+			(Save_User_Data (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Info (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_InfoV2 (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Props (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Rotation_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Frame_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Blur_Time_Keyframes (chunk_save) == WW3D_ERROR_OK))
 		{
 			// Success!
 			ret_val = WW3D_ERROR_OK;
@@ -1326,8 +1326,8 @@ ParticleEmitterDefClass::Save_Props (ChunkSaveClass &chunk_save)
 			//	Save the keyframes
 			//
 			if ((Save_Color_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
-				 (Save_Opacity_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
-				 (Save_Size_Keyframes (chunk_save) == WW3D_ERROR_OK)) {
+				(Save_Opacity_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
+				(Save_Size_Keyframes (chunk_save) == WW3D_ERROR_OK)) {
 
 				// Success!
 				ret_val = WW3D_ERROR_OK;
@@ -1818,6 +1818,6 @@ ParticleEmitterLoaderClass::Load_W3D (ChunkLoadClass &chunk_load)
 		}
 	}
 
-    // Return a pointer to the prototype
-	 return pprototype;
+	// Return a pointer to the prototype
+	return pprototype;
 }

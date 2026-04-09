@@ -69,9 +69,9 @@
 /** Dialog callback for properties */
 //=============================================================================
 static LRESULT CALLBACK progressBarPropertiesCallback( HWND hWndDialog,
-																											 UINT message,
-																											 WPARAM wParam,
-																											 LPARAM lParam )
+	UINT message,
+	WPARAM wParam,
+	LPARAM lParam )
 {
 	Int returnCode;
 
@@ -88,17 +88,17 @@ static LRESULT CALLBACK progressBarPropertiesCallback( HWND hWndDialog,
 	{
 
 		// ------------------------------------------------------------------------
-    case WM_COMMAND:
-    {
+		case WM_COMMAND:
+		{
 //			Int notifyCode = HIWORD( wParam );  // notification code
 			Int controlID = LOWORD( wParam );  // control ID
 //			HWND hWndControl = (HWND)lParam;  // control window handle
 
-      switch( controlID )
-      {
+			switch( controlID )
+			{
 
 				// --------------------------------------------------------------------
-        case IDOK:
+				case IDOK:
 				{
 					GameWindow *window = TheEditor->getPropertyTarget();
 
@@ -183,32 +183,32 @@ static LRESULT CALLBACK progressBarPropertiesCallback( HWND hWndDialog,
 
 					}
 
-          DestroyWindow( hWndDialog );
-          break;
+					DestroyWindow( hWndDialog );
+					break;
 
 				}
 
 				// --------------------------------------------------------------------
-        case IDCANCEL:
+				case IDCANCEL:
 				{
 
-          DestroyWindow( hWndDialog );
-          break;
+					DestroyWindow( hWndDialog );
+					break;
 
 				}
 
-      }
+			}
 
-      return 0;
+			return 0;
 
-    }
+		}
 
 		// ------------------------------------------------------------------------
-    case WM_CLOSE:
+		case WM_CLOSE:
 		{
 
-      DestroyWindow( hWndDialog );
-      return 0;
+			DestroyWindow( hWndDialog );
+			return 0;
 
 		}
 
@@ -216,7 +216,7 @@ static LRESULT CALLBACK progressBarPropertiesCallback( HWND hWndDialog,
 		default:
 			return 0;
 
-  }
+	}
 
 }
 
@@ -234,9 +234,9 @@ HWND InitProgressBarPropertiesDialog( GameWindow *window )
 
 	// create the dialog box
 	dialog = CreateDialog( TheEditor->getInstance(),
-												 (LPCTSTR)PROGRESS_BAR_PROPERTIES_DIALOG,
-												 TheEditor->getWindowHandle(),
-												 (DLGPROC)progressBarPropertiesCallback );
+		(LPCTSTR)PROGRESS_BAR_PROPERTIES_DIALOG,
+		TheEditor->getWindowHandle(),
+		(DLGPROC)progressBarPropertiesCallback );
 	if( dialog == nullptr )
 		return nullptr;
 

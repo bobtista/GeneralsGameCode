@@ -285,11 +285,11 @@ Int GUIEditWindowManager::winDestroy( GameWindow *window )
 /** Create a new window by setting up its parameters and callbacks. */
 //-------------------------------------------------------------------------------------------------
 GameWindow *GUIEditWindowManager::winCreate( GameWindow *parent,
-																						 UnsignedInt status,
-	 																				   Int x, Int y,
-																						 Int width, Int height,
-																						 GameWinSystemFunc system,
-																						 WinInstanceData *instData )
+	UnsignedInt status,
+	Int x, Int y,
+	Int width, Int height,
+	GameWinSystemFunc system,
+	WinInstanceData *instData )
 {
 	GameWindow *window;
 
@@ -639,7 +639,7 @@ void GUIEditWindowManager::validateClipboardNames( GameWindow *root )
 			char buffer[ 1024 ];
 
 			sprintf( buffer, "Unable to make unique name for '%s', please manually edit the name before saving.",
-							 instData->m_decoratedNameString.str() );
+				instData->m_decoratedNameString.str() );
 			MessageBox( TheEditor->getWindowHandle(), buffer, "Error Mapping Names", MB_OK );
 			nameOK = TRUE;
 
@@ -782,7 +782,7 @@ void InstDrawCopy (  WinInstanceData *instData, WinInstanceData *sourceInstData)
 /** Duplciate a window and all its children */
 //-------------------------------------------------------------------------------------------------
 GameWindow *GUIEditWindowManager::duplicateWindow( GameWindow *source,
-																									 GameWindow *parent )
+	GameWindow *parent )
 {
 	GameWindow *duplicate = nullptr;
 	UnsignedInt style, status;
@@ -838,15 +838,15 @@ GameWindow *GUIEditWindowManager::duplicateWindow( GameWindow *source,
 
 		duplicate =
 			TheWindowManager->gogoGadgetRadioButton( parent,
-																							 status,
-																							 pos.x,
-																							 pos.y,
-																							 size.x,
-																							 size.y,
-																							 &instDataCopy,
-																							 &radioDataCopy,
-																							 source->winGetFont(),
-																							 FALSE );
+			status,
+			pos.x,
+			pos.y,
+			size.x,
+			size.y,
+			&instDataCopy,
+			&radioDataCopy,
+			source->winGetFont(),
+			FALSE );
 
 	}
 	else if( BitIsSet( style, GWS_CHECK_BOX ) )
@@ -958,15 +958,15 @@ GameWindow *GUIEditWindowManager::duplicateWindow( GameWindow *source,
 
 		duplicate =
 			TheWindowManager->gogoGadgetComboBox( parent,
-																					 status,
-																					 pos.x,
-																					 pos.y,
-																					 size.x,
-																					 size.y,
-																					 &instDataCopy,
-																					 &comboDataCopy,
-																					 source->winGetFont(),
-																					 FALSE );
+			status,
+			pos.x,
+			pos.y,
+			size.x,
+			size.y,
+			&instDataCopy,
+			&comboDataCopy,
+			source->winGetFont(),
+			FALSE );
 
 		//
 		// copy the color and image schemes of the sub controls that make
@@ -1143,15 +1143,15 @@ GameWindow *GUIEditWindowManager::duplicateWindow( GameWindow *source,
 
 		duplicate =
 			TheWindowManager->gogoGadgetListBox( parent,
-																					 status,
-																					 pos.x,
-																					 pos.y,
-																					 size.x,
-																					 size.y,
-																					 &instDataCopy,
-																					 &listDataCopy,
-																					 source->winGetFont(),
-																					 FALSE );
+			status,
+			pos.x,
+			pos.y,
+			size.x,
+			size.y,
+			&instDataCopy,
+			&listDataCopy,
+			source->winGetFont(),
+			FALSE );
 
 		//
 		// copy the color and image schemes of the sub controls that make
@@ -1269,15 +1269,15 @@ GameWindow *GUIEditWindowManager::duplicateWindow( GameWindow *source,
 
 		duplicate =
 			TheWindowManager->gogoGadgetTextEntry( parent,
-																						 status,
-																						 pos.x,
-																						 pos.y,
-																						 size.x,
-																						 size.y,
-																						 &instDataCopy,
-																						 &entryDataCopy,
-																						 source->winGetFont(),
-																						 FALSE );
+			status,
+			pos.x,
+			pos.y,
+			size.x,
+			size.y,
+			&instDataCopy,
+			&entryDataCopy,
+			source->winGetFont(),
+			FALSE );
 
 	}
 	else if( BitIsSet( style, GWS_STATIC_TEXT ) )
@@ -1305,14 +1305,14 @@ GameWindow *GUIEditWindowManager::duplicateWindow( GameWindow *source,
 
 		duplicate =
 			TheWindowManager->gogoGadgetProgressBar( parent,
-																							 status,
-																							 pos.x,
-																							 pos.y,
-																							 size.x,
-																							 size.y,
-																							 &instDataCopy,
-																							 source->winGetFont(),
-																							 FALSE );
+			status,
+			pos.x,
+			pos.y,
+			size.x,
+			size.y,
+			&instDataCopy,
+			source->winGetFont(),
+			FALSE );
 
 	}
 	else if( BitIsSet( style, GWS_USER_WINDOW ) )
@@ -1320,13 +1320,13 @@ GameWindow *GUIEditWindowManager::duplicateWindow( GameWindow *source,
 
 		// create plain ol generic window
 		duplicate = TheWindowManager->winCreate( parent,
-																						 status,
-																						 pos.x,
-																						 pos.y,
-																						 size.x,
-																						 size.y,
-																						 nullptr,
-																						 &instDataCopy );
+			status,
+			pos.x,
+			pos.y,
+			size.x,
+			size.y,
+			nullptr,
+			&instDataCopy );
 
 	}
 	else

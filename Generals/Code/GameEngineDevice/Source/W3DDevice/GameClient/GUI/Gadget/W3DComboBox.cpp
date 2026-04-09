@@ -137,13 +137,13 @@ void W3DGadgetComboBoxDraw( GameWindow *window, WinInstanceData *instData )
 	// draw the back border
 	if( border != WIN_COLOR_UNDEFINED )
 		TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
-																	 x, y, x + width, y + height );
+		x, y, x + width, y + height );
 
 	// draw background
 	if( background != WIN_COLOR_UNDEFINED )
 		TheWindowManager->winFillRect( background, WIN_DRAW_LINE_WIDTH,
-																	 x + 1, y + 1,
-																	 x + width - 1, y + height - 1 );
+		x + 1, y + 1,
+		x + width - 1, y + height - 1 );
 
 }
 

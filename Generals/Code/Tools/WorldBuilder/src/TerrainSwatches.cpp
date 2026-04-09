@@ -94,7 +94,7 @@ void TerrainSwatches::DrawMyTexture(CDC *pDc, int top, int left, Int width, Unsi
 
 	LPBITMAPINFO pBI;
 //	long bytes = sizeof(BITMAPINFO);
- 	pBI = new BITMAPINFO;
+	pBI = new BITMAPINFO;
 	pBI->bmiHeader.biSize = sizeof(pBI->bmiHeader);
 	pBI->bmiHeader.biWidth = width;
 	pBI->bmiHeader.biHeight = width; /* match display top left == 0,0 */

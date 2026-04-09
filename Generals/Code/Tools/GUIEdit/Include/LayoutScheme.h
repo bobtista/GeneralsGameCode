@@ -82,7 +82,7 @@ public:
 
 	ImageAndColorInfo *getImageAndColor( StateIdentifier id );
 	void storeImageAndColor( StateIdentifier id, const Image *image,
-													 Color color, Color borderColor );
+		Color color, Color borderColor );
 
 	void setFont( GameFont *font );
 	GameFont *getFont( void );

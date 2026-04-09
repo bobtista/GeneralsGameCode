@@ -46,7 +46,7 @@ public:
 // Operations
 public:
 	void SetupPopSliderButton(CWnd *pParentWnd, long controlID,
-							   PopupSliderOwner *pOwner);
+		PopupSliderOwner *pOwner);
 
 // Overrides
 	// ClassWizard generated virtual function overrides

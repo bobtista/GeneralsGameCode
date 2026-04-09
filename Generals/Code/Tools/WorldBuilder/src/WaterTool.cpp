@@ -526,7 +526,7 @@ PolygonTrigger * WaterTool::adjustSpacing(PolygonTrigger *trigger, Real spacing)
 				curSpacingLen = spacing;
 			}
 			curSpacingLen -= curLen;
- 			if ((curLen)<MAP_XY_FACTOR/2) {
+			if ((curLen)<MAP_XY_FACTOR/2) {
 				didCurPoint = true;
 			}
 		}

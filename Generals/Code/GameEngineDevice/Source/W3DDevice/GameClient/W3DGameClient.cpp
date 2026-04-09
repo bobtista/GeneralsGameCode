@@ -144,8 +144,8 @@ void W3DGameClient::addScorch(const Coord3D *pos, Real radius, Scorches type)
 /** create an effect that requires a start and end location */
 //-------------------------------------------------------------------------------------------------
 void W3DGameClient::createRayEffectByTemplate( const Coord3D *start,
-																		 const Coord3D *end,
-																		 const ThingTemplate* tmpl )
+	const Coord3D *end,
+	const ThingTemplate* tmpl )
 {
 	Drawable *draw = TheThingFactory->newDrawable(tmpl);
 

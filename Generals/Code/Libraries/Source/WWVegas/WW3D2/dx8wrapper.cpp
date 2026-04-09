@@ -856,7 +856,7 @@ void DX8Wrapper::Resize_And_Position_Window()
 }
 
 bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int windowed,
-								   bool resize_window,bool reset_device, bool restore_assets)
+	bool resize_window,bool reset_device, bool restore_assets)
 {
 	WWASSERT(IsInitted);
 	WWASSERT(dev >= -1);
@@ -1076,13 +1076,13 @@ bool DX8Wrapper::Toggle_Windowed()
 		// toggling the windowed state.
 		int curr_res = -1;
 		for (int res = 0;
-		     (res < resolutions.Count ()) && (curr_res == -1);
-			  res ++) {
+		(res < resolutions.Count ()) && (curr_res == -1);
+		res ++) {
 
 			// Is this the resolution we are looking for?
 			if ((resolutions[res].Width == ResolutionWidth) &&
-				 (resolutions[res].Height == ResolutionHeight) &&
-				 (resolutions[res].BitDepth == BitDepth)) {
+				(resolutions[res].Height == ResolutionHeight) &&
+				(resolutions[res].BitDepth == BitDepth)) {
 				curr_res = res;
 			}
 		}
@@ -1092,9 +1092,9 @@ bool DX8Wrapper::Toggle_Windowed()
 			// We don't match any of the standard resolutions,
 			// so set the first resolution and toggle the windowed state.
 			return Set_Device_Resolution (resolutions[0].Width,
-								 resolutions[0].Height,
-								 resolutions[0].BitDepth,
-								 !IsWindowed, true);
+				resolutions[0].Height,
+				resolutions[0].BitDepth,
+				!IsWindowed, true);
 		} else {
 
 			// Toggle the windowed state
@@ -2676,9 +2676,9 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 			strlcpy(compressed_name,filename_, sizeof(compressed_name));
 			char *ext = strstr(compressed_name, ".");
 			if ( ext && (strlen(ext)==4) &&
-				  ( (ext[1] == 't') || (ext[1] == 'T') ) &&
-				  ( (ext[2] == 'g') || (ext[2] == 'G') ) &&
-				  ( (ext[3] == 'a') || (ext[3] == 'A') ) ) {
+				( (ext[1] == 't') || (ext[1] == 'T') ) &&
+				( (ext[2] == 'g') || (ext[2] == 'G') ) &&
+				( (ext[3] == 'a') || (ext[3] == 'A') ) ) {
 				ext[1]='d';
 				ext[2]='d';
 				ext[3]='s';
@@ -3000,7 +3000,7 @@ void DX8Wrapper::Create_Render_Target
 
 	// If render target format isn't supported return null
 	if (!Get_Current_Caps()->Support_Render_To_Texture_Format(format) ||
-		 !Get_Current_Caps()->Support_Depth_Stencil_Format(zformat))
+		!Get_Current_Caps()->Support_Depth_Stencil_Format(zformat))
 	{
 		WWDEBUG_SAY(("DX8Wrapper - Render target with depth format is not supported"));
 		return;
@@ -4178,7 +4178,7 @@ const char* DX8Wrapper::Get_DX8_Patch_Edge_Style_Name(unsigned value)
 {
 	switch (value) {
 	case D3DPATCHEDGE_DISCRETE	: return "D3DPATCHEDGE_DISCRETE";
-   case D3DPATCHEDGE_CONTINUOUS:return "D3DPATCHEDGE_CONTINUOUS";
+		case D3DPATCHEDGE_CONTINUOUS:return "D3DPATCHEDGE_CONTINUOUS";
 	default							: return "UNKNOWN";
 	}
 }

@@ -118,7 +118,7 @@ void disableUVAnimations(RenderObjClass *robj)
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 void W3DRenderObjectSnapshot::update(RenderObjClass *robj, DrawableInfo *drawInfo,
-																		 Bool cloneParentRobj)
+	Bool cloneParentRobj)
 {
 	REF_PTR_RELEASE(m_robj);
 
@@ -171,7 +171,7 @@ Bool W3DRenderObjectSnapshot::removeFromScene()
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 W3DRenderObjectSnapshot::W3DRenderObjectSnapshot(RenderObjClass *robj, DrawableInfo *drawInfo,
-																								 Bool cloneParentRobj)
+	Bool cloneParentRobj)
 {
 	m_robj = nullptr;
 	m_next = nullptr;

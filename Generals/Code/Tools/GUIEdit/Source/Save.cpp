@@ -180,13 +180,13 @@ static Bool savePosition( GameWindow *window, FILE *fp, Int dataIndent )
 	// that ratio if need be
 	//
 	sprintf( &buffer[ dataIndent ], "SCREENRECT = UPPERLEFT: %d %d,\n",
-					 screenRect.lo.x, screenRect.lo.y );
+		screenRect.lo.x, screenRect.lo.y );
 	writeBufferToFile( fp, buffer );
 	sprintf( &buffer[ dataIndent ], "             BOTTOMRIGHT: %d %d,\n",
-					 screenRect.hi.x, screenRect.hi.y );
+		screenRect.hi.x, screenRect.hi.y );
 	writeBufferToFile( fp, buffer );
 	sprintf( &buffer[ dataIndent ], "             CREATIONRESOLUTION: %d %d;\n",
-					 TheDisplay->getWidth(), TheDisplay->getHeight() );
+		TheDisplay->getWidth(), TheDisplay->getHeight() );
 	writeBufferToFile( fp, buffer );
 
 	return TRUE;
@@ -201,7 +201,7 @@ static Bool saveName( GameWindow *window, FILE *fp, Int dataIndent )
 	WinInstanceData *instData = window->winGetInstanceData();
 
 	sprintf( &buffer[ dataIndent ], "NAME = \"%s:%s\";\n",
-					 TheEditor->getSaveFilename(), instData->m_decoratedNameString.str() );
+		TheEditor->getSaveFilename(), instData->m_decoratedNameString.str() );
 	writeBufferToFile( fp, buffer );
 
 	return TRUE;
@@ -370,7 +370,7 @@ static Bool saveFont( GameWindow *window, FILE *fp, Int dataIndent )
 
 	// write the font data
 	sprintf( &buffer[ dataIndent ], "FONT = NAME: \"%s\", SIZE: %d, BOLD: %d;\n",
-					 font->nameString.str(), font->pointSize, font->bold );
+		font->nameString.str(), font->pointSize, font->bold );
 	writeBufferToFile( fp, buffer );
 
 	return TRUE;
@@ -467,13 +467,13 @@ static Bool saveTextColor( GameWindow *window, FILE *fp, Int dataIndent )
 
 		if( i == 0 )
 			sprintf( &buffer[ dataIndent ], "TEXTCOLOR = ENABLED:  %d %d %d %d, ENABLEDBORDER:  %d %d %d %d,\n",
-							 r, g, b, a, br, bg, bb, ba );
+			r, g, b, a, br, bg, bb, ba );
 		else if( i == max - 1 )
 			sprintf( &buffer[ dataIndent ], "            HILITE:   %d %d %d %d, HILITEBORDER:   %d %d %d %d;\n",
-							 r, g, b, a, br, bg, bb, ba );
+			r, g, b, a, br, bg, bb, ba );
 		else
 			sprintf( &buffer[ dataIndent ], "            DISABLED: %d %d %d %d, DISABLEDBORDER: %d %d %d %d,\n",
-							 r, g, b, a, br, bg, bb, ba );
+			r, g, b, a, br, bg, bb, ba );
 		writeBufferToFile( fp, buffer );
 
 	}
@@ -588,13 +588,13 @@ static Bool saveDrawData( const char *token, GameWindow *window,
 
 		if( i == 0 )
 			sprintf( &buffer[ dataIndent ], "%s = IMAGE: %s, COLOR: %d %d %d %d, BORDERCOLOR: %d %d %d %d,\n",
-							 token, image ? image->getName().str() : "NoImage", r, g, b, a, br, bg, bb, ba );
+			token, image ? image->getName().str() : "NoImage", r, g, b, a, br, bg, bb, ba );
 		else if( i == MAX_DRAW_DATA - 1 )
 			sprintf( &buffer[ dataIndent ], "%s   IMAGE: %s, COLOR: %d %d %d %d, BORDERCOLOR: %d %d %d %d;\n",
-							 spaces, image ? image->getName().str() : "NoImage", r, g, b, a, br, bg, bb, ba );
+			spaces, image ? image->getName().str() : "NoImage", r, g, b, a, br, bg, bb, ba );
 		else
 			sprintf( &buffer[ dataIndent ], "%s   IMAGE: %s, COLOR: %d %d %d %d, BORDERCOLOR: %d %d %d %d,\n",
-							 spaces, image ? image->getName().str() : "NoImage", r, g, b, a, br, bg, bb, ba );
+			spaces, image ? image->getName().str() : "NoImage", r, g, b, a, br, bg, bb, ba );
 
 		writeBufferToFile( fp, buffer );
 
@@ -616,7 +616,7 @@ static Bool saveListboxData( GameWindow *window, FILE *fp, Int dataIndent )
 	{
 
 		DEBUG_LOG(( "No listbox data to save for window '%d'",
-						 window->winGetWindowId() ));
+			window->winGetWindowId() ));
 		assert( 0 );
 		return FALSE;
 
@@ -702,7 +702,7 @@ static Bool saveComboBoxData( GameWindow *window, FILE *fp, Int dataIndent )
 	{
 
 		DEBUG_LOG(( "No comboData data to save for window '%d'",
-						 window->winGetWindowId() ));
+			window->winGetWindowId() ));
 		assert( 0 );
 		return FALSE;
 
@@ -802,7 +802,7 @@ static Bool saveRadioButtonData( GameWindow *window, FILE *fp, Int dataIndent )
 
 
 		DEBUG_LOG(( "No radio button data to save for window '%d'",
-						 window->winGetWindowId() ));
+			window->winGetWindowId() ));
 		assert( 0 );
 		return FALSE;
 
@@ -970,7 +970,7 @@ static Bool saveGadgetData( GameWindow *window, FILE *fp, Int dataIndent )
 	else if( BitIsSet( window->winGetStyle(), GWS_RADIO_BUTTON ) )
 		return saveRadioButtonData( window, fp, dataIndent );
 	else if( BitIsSet( window->winGetStyle(), GWS_VERT_SLIDER |
-																					 GWS_HORZ_SLIDER ) )
+		GWS_HORZ_SLIDER ) )
 		return saveSliderData( window, fp, dataIndent );
 	else if( BitIsSet( window->winGetStyle(), GWS_STATIC_TEXT ) )
 		return saveStaticTextData( window, fp, dataIndent );
@@ -1013,7 +1013,7 @@ static Bool saveWindow( FILE *fp, GameWindow *window, Int indent )
 	saveFont( window, fp, dataIndent );
 	saveHeaderTemplate( window, fp, dataIndent );
 	saveTooltipText( window, fp, dataIndent );
-  saveTooltipDelay( window, fp, dataIndent );
+	saveTooltipDelay( window, fp, dataIndent );
 	saveText( window, fp, dataIndent );
 	saveTextColor( window, fp, dataIndent );
 	saveDrawData( "ENABLEDDRAWDATA", window, fp, dataIndent );
@@ -1103,7 +1103,7 @@ void GUIEdit::validateNames( GameWindow *root, char *filename, Bool *valid )
 	{
 
 		sprintf( offendingNames, "Filename '%s' is too long.  The max is '%d' for filename AND window name!\n",
-						 filename, MAX_WINDOW_NAME_LEN );
+			filename, MAX_WINDOW_NAME_LEN );
 		*valid = FALSE;
 		return;
 
@@ -1223,7 +1223,7 @@ Bool GUIEdit::saveData( char *filePathAndFilename, char *filename )
 	// check all the names for sizes once decorated with filename
 	Bool valid = TRUE;
 	sprintf( offendingNames, "\nOne or more window names are illegal.  A window name PLUS the filename must be under '%d' characters and names cannot be duplicates.\n\nList of illegal window names:\n\n",
-					 MAX_WINDOW_NAME_LEN );
+		MAX_WINDOW_NAME_LEN );
 	validateNames( window, filename, &valid );
 	if( valid == FALSE )
 	{

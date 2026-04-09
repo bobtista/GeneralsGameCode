@@ -59,14 +59,14 @@ public:
 	virtual ~W3DDisplay() override;
 
 	virtual void init() override;  ///< initialize or re-initialize the sytsem
- 	virtual void reset() override;																///< Reset system
+	virtual void reset() override;																///< Reset system
 
 	virtual void setWidth( UnsignedInt width ) override;
 	virtual void setHeight( UnsignedInt height ) override;
 	virtual Bool setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed ) override;
 	virtual Int getDisplayModeCount() override;	///<return number of display modes/resolutions supported by video card.
 	virtual void getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, Int *bitDepth) override;	///<return description of mode
- 	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) override;
+	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) override;
 	virtual void doSmartAssetPurgeAndPreload(const char* usageFileName) override;
 #if defined(RTS_DEBUG)
 	virtual void dumpAssetUsage(const char* mapname);
@@ -83,25 +83,25 @@ public:
 
 	/// @todo Replace these light management routines with a LightManager singleton
 	virtual void createLightPulse( const Coord3D *pos, const RGBColor *color, Real innerRadius,Real outerRadius,
-																 UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime//, Bool donut = FALSE
-																 ) override;
+		UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime//, Bool donut = FALSE
+		) override;
 	virtual void setTimeOfDay ( TimeOfDay tod ) override;
 
 	/// draw a line on the display in screen coordinates
 	virtual void drawLine( Int startX, Int startY, Int endX, Int endY,
-												 Real lineWidth, UnsignedInt lineColor ) override;
+		Real lineWidth, UnsignedInt lineColor ) override;
 
 	/// draw a line on the display in screen coordinates
 	virtual void drawLine( Int startX, Int startY, Int endX, Int endY,
-												 Real lineWidth, UnsignedInt lineColor1, UnsignedInt lineColor2 ) override;
+		Real lineWidth, UnsignedInt lineColor1, UnsignedInt lineColor2 ) override;
 
 	/// draw a rect border on the display in pixel coordinates with the specified color
 	virtual void drawOpenRect( Int startX, Int startY, Int width, Int height,
-														 Real lineWidth, UnsignedInt lineColor ) override;
+		Real lineWidth, UnsignedInt lineColor ) override;
 
 	/// draw a filled rect on the display in pixel coords with the specified color
 	virtual void drawFillRect( Int startX, Int startY, Int width, Int height,
-														 UnsignedInt color ) override;
+		UnsignedInt color ) override;
 
 	/// Draw a percentage of a rectangle, much like a clock (0 to x%)
 	virtual void drawRectClock(Int startX, Int startY, Int width, Int height, Int percent, UnsignedInt color) override;

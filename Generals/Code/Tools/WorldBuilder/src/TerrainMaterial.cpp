@@ -236,7 +236,7 @@ BOOL TerrainMaterial::OnInitDialog()
 	m_updating = false;
 	setWidth(m_currentWidth);
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 /** Locate the child item in tree item parent with name pLabel.  If not
@@ -306,7 +306,7 @@ void TerrainMaterial::addTerrain(char *pPath, Int terrainNdx, HTREEITEM parent)
 
 		doAdd = TRUE;
 	}
- 	else if (!WorldHeightMapEdit::getTexClassIsBlendEdge(terrainNdx))
+	else if (!WorldHeightMapEdit::getTexClassIsBlendEdge(terrainNdx))
 	{
 
 		// all these old entries we will put in a tree for eval textures

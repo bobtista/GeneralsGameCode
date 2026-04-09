@@ -150,7 +150,7 @@ void OpenMap::populateMapListbox( Bool systemMaps )
 		} while (FindNextFile(hFindFile, &findData));
 
 		if (hFindFile) FindClose(hFindFile);
- 	}
+	}
 	if (found) {
 		pList->SetCurSel(0);
 	} else {
@@ -178,7 +178,7 @@ BOOL OpenMap::OnInitDialog()
 	populateMapListbox( m_usingSystemDir );
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 void OpenMap::OnDblclkOpenList()

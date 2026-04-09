@@ -103,7 +103,7 @@ BOOL ContourOptions::OnInitDialog()
 	CWorldBuilderView *pView = CWorldBuilderDoc::GetActive2DView();
 	if (pButton && pView) pButton->SetCheck(pView->getShowContours()?1:0);
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 /// Handles slider ui messages.

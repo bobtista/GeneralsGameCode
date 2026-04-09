@@ -73,7 +73,7 @@ BOOL CellWidth::OnInitDialog()
 	if (combo) combo->SetWindowText(val);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 BEGIN_MESSAGE_MAP(CellWidth, CDialog)
