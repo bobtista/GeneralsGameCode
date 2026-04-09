@@ -520,8 +520,8 @@ WW3DErrorType HLodDefClass::Save_Lod_Array(ChunkSaveClass &csave)
 	// Loop through all the LODs and save their model array to the chunk
 	bool success = true;
 	for (int lod_index = 0;
-		  (lod_index < LodCount) && success;
-		  lod_index ++) {
+	(lod_index < LodCount) && success;
+	lod_index ++) {
 		success = Lod[lod_index].Save_W3D (csave);
 	}
 
@@ -576,7 +576,7 @@ WW3DErrorType HLodDefClass::Load_W3D(ChunkLoadClass & cload)
 	Free();
 
 	if (read_header(cload) == FALSE) {
-	  return WW3D_ERROR_LOAD_FAILED;
+		return WW3D_ERROR_LOAD_FAILED;
 	}
 
 	/*
@@ -867,8 +867,8 @@ bool HLodDefClass::SubObjectArrayClass::Save_W3D(ChunkSaveClass &csave)
 
 			// Write all of this LOD's models to the file
 			for (int index = 0;
-				  (index < ModelCount) && ret_val;
-				  index ++) {
+			(index < ModelCount) && ret_val;
+			index ++) {
 
 				// Save this LOD sub-obj to the chunk
 				ret_val &= (csave.Begin_Chunk (W3D_CHUNK_HLOD_SUB_OBJECT) == TRUE);
@@ -3276,9 +3276,9 @@ void HLodClass::Scale(float scale)
 	// Invalidate hierarchy
 	Set_Hierarchy_Valid(false);
 
-   // Now update the object space bounding volumes of this object's container:
-   RenderObjClass *container = Get_Container();
-   if (container) container->Update_Obj_Space_Bounding_Volumes();
+	// Now update the object space bounding volumes of this object's container:
+	RenderObjClass *container = Get_Container();
+	if (container) container->Update_Obj_Space_Bounding_Volumes();
 }
 
 
@@ -3486,12 +3486,12 @@ void HLodClass::Update_Obj_Space_Bounding_Volumes()
 	ObjSphere = sphere;
 	ObjBox = box;
 
-   Invalidate_Cached_Bounding_Volumes();
+	Invalidate_Cached_Bounding_Volumes();
 	Set_Hierarchy_Valid(false);
 
-   // Now update the object space bounding volumes of this object's container:
-   RenderObjClass *container = Get_Container();
-   if (container) container->Update_Obj_Space_Bounding_Volumes();
+	// Now update the object space bounding volumes of this object's container:
+	RenderObjClass *container = Get_Container();
+	if (container) container->Update_Obj_Space_Bounding_Volumes();
 }
 
 

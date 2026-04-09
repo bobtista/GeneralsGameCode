@@ -121,8 +121,8 @@ BOOL MeshMoldOptions::OnInitDialog()
 
 				++it;
 			} while (it != filenameList.end());
- 			if (child) m_moldTreeView.SelectItem(child);
- 		}
+			if (child) m_moldTreeView.SelectItem(child);
+		}
 	}
 
 	m_staticThis = this;
@@ -131,7 +131,7 @@ BOOL MeshMoldOptions::OnInitDialog()
 	setScale(m_currentScale);
 	setHeight(m_currentHeight);
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 void MeshMoldOptions::setHeight(Real height)

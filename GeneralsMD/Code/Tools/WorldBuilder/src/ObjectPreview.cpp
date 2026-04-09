@@ -199,7 +199,7 @@ static UnsignedByte * generatePreview( const ThingTemplate *tt )
 	if( modelName.isEmpty() == FALSE &&
 			strncmp( modelName.str(), "No ", 3 ) )
 	{
-	 	WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
+		WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
 		model = pMgr->Create_Render_Obj(modelName.str());
 		if (model)
 		{
@@ -296,7 +296,7 @@ void ObjectPreview::DrawMyTexture(CDC *pDc, int top, int left, Int width, Int he
 
 	LPBITMAPINFO pBI;
 //	long bytes = sizeof(BITMAPINFO);
- 	pBI = new BITMAPINFO;
+	pBI = new BITMAPINFO;
 	pBI->bmiHeader.biSize = sizeof(pBI->bmiHeader);
 	pBI->bmiHeader.biWidth = PREVIEW_WIDTH;
 	pBI->bmiHeader.biHeight = PREVIEW_HEIGHT; /* match display top left == 0,0 */

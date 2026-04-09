@@ -146,7 +146,7 @@ void RulerTool::setLength(Real length)
 	}
 
 	CString str;
- 	str.Format("Diameter (in feet): %f", length * 2.0f);
+	str.Format("Diameter (in feet): %f", length * 2.0f);
 	CMainFrame::GetMainFrame()->SetMessageText(str);
 }
 

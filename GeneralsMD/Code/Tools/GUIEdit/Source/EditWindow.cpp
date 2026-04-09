@@ -1288,26 +1288,26 @@ void EditWindow::drawUIFeedback( void )
 			window->winGetSize( &size.x, &size.y );
 
 			// figure out the destination of the window from this move
- 			ICoord2D change;
- 			change.x = (m_dragMoveDest.x - m_dragMoveOrigin.x);
- 			change.y = (m_dragMoveDest.y - m_dragMoveOrigin.y);
+			ICoord2D change;
+			change.x = (m_dragMoveDest.x - m_dragMoveOrigin.x);
+			change.y = (m_dragMoveDest.y - m_dragMoveOrigin.y);
 
- 		// [SKB: Jun 02 2003 @ 2:7pm] :
- 		// Don't move the object unless we have moved the mouse,
- 		// this is to avoid the irritating movement of a window when just
- 		// clicking on a window.
- 			if (change.x || change.y)
- 			{
- 				moveLoc.x = origin.x + change.x;
- 				moveLoc.y = origin.y + change.y;
+			// [SKB: Jun 02 2003 @ 2:7pm] :
+			// Don't move the object unless we have moved the mouse,
+			// this is to avoid the irritating movement of a window when just
+			// clicking on a window.
+			if (change.x || change.y)
+			{
+				moveLoc.x = origin.x + change.x;
+				moveLoc.y = origin.y + change.y;
 
 				// snap move location to grid if on
- 				if( (TheEditor->getMode() == MODE_DRAG_MOVE) && TheEditor->isGridSnapOn() )
+				if( (TheEditor->getMode() == MODE_DRAG_MOVE) && TheEditor->isGridSnapOn() )
 					TheEditor->gridSnapLocation( &moveLoc, &moveLoc );
 
 
 				// keep location legal
- 				TheEditor->computeSafeLocation( window, moveLoc.x, moveLoc.y,
+				TheEditor->computeSafeLocation( window, moveLoc.x, moveLoc.y,
 																				&safeLoc.x, &safeLoc.y );
 
 				// adjust location by parent location if present

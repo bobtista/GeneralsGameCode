@@ -245,7 +245,7 @@ typedef struct _NeighborEdge
 	Short neighborIndex;  // index of polygon who is our neighbor, if there is
 												// not a neighbor it contains NO_NEIGHBOR
 	Short neighborEdgeIndex[ 2 ];  // the two vertex indices that represent the
-																 // shared edge
+	// shared edge
 
 } NeighborEdge;
 

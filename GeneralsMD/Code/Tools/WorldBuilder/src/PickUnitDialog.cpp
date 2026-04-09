@@ -160,8 +160,8 @@ BOOL PickUnitDialog::OnInitDialog()
 	// add entries from the thing factory as the available objects to use
 	const ThingTemplate *tTemplate;
 	for( tTemplate = TheThingFactory->firstTemplate();
-			 tTemplate;
-			 tTemplate = tTemplate->friend_getNextTemplate() )
+	tTemplate;
+	tTemplate = tTemplate->friend_getNextTemplate() )
 	{
 		Coord3D loc = { 0, 0, 0 };
 		MapObject *pMap;
@@ -201,7 +201,7 @@ BOOL PickUnitDialog::OnInitDialog()
 	}
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 /** Locate the child item in tree item parent with name pLabel.  If not
@@ -313,8 +313,8 @@ void PickUnitDialog::addObject( MapObject *mapObject, const char *pPath, Int ind
 		// next tier uses the editor sorting that design can specify in the INI
 		EditorSortingType i = ES_FIRST;
 		for( ;
-				 i < ES_NUM_SORTING_TYPES;
-				 i = (EditorSortingType)(i + 1) )
+		i < ES_NUM_SORTING_TYPES;
+		i = (EditorSortingType)(i + 1) )
 		{
 
 			if( thingTemplate->getEditorSorting() == i )

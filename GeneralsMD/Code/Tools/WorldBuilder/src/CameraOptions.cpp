@@ -303,7 +303,7 @@ BOOL CameraOptions::OnInitDialog()
 	m_pitchPopup.SetupPopSliderButton(this, IDC_PITCH_POPUP, this);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 void CameraOptions::OnChangePitchEdit()

@@ -59,14 +59,14 @@ public:
 	virtual ~W3DDisplay() override;
 
 	virtual void init() override;  ///< initialize or re-initialize the system
- 	virtual void reset() override;																///< Reset system
+	virtual void reset() override;																///< Reset system
 
 	virtual void setWidth( UnsignedInt width ) override;
 	virtual void setHeight( UnsignedInt height ) override;
 	virtual Bool setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed ) override;
 	virtual Int getDisplayModeCount() override;	///<return number of display modes/resolutions supported by video card.
 	virtual void getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, Int *bitDepth) override;	///<return description of mode
- 	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) override;
+	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) override;
 	virtual void doSmartAssetPurgeAndPreload(const char* usageFileName) override;
 #if defined(RTS_DEBUG)
 	virtual void dumpAssetUsage(const char* mapname);
