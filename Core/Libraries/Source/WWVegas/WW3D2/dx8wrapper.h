@@ -685,6 +685,7 @@ public:
 
 	static void Set_DX8_Light(int index,D3DLIGHT9* light);
 	static void Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value);
+	static void Set_DX8_ZBias(unsigned int zbias);
 	static void Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane);
 	static void Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value);
 
@@ -1378,6 +1379,15 @@ WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigne
 	DX8CALL(SetRenderState(state, value));
 	DX8_RECORD_RENDER_STATE_CHANGE();
 
+}
+
+WWINLINE void DX8Wrapper::Set_DX8_ZBias(unsigned int zbias)
+{
+	// D3D8 D3DRS_ZBIAS accepted integer values 0-16.
+	// D3D9 D3DRS_DEPTHBIAS accepts a float encoded as a DWORD.
+	// Convert the legacy integer to a float depth bias value.
+	float bias = zbias * (-0.000005f);
+	Set_DX8_Render_State(D3DRS_DEPTHBIAS, *reinterpret_cast<unsigned*>(&bias));
 }
 
 WWINLINE void DX8Wrapper::Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane)
