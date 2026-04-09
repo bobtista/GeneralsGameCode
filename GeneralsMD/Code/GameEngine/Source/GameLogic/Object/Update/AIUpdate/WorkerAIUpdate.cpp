@@ -110,7 +110,7 @@ WorkerAIUpdate::WorkerAIUpdate( Thing *thing, const ModuleData* moduleData ) :
 
 	m_workerMachine = nullptr;
 
- 	m_suppliesDepletedVoice = getWorkerAIUpdateModuleData()->m_suppliesDepletedVoice;
+	m_suppliesDepletedVoice = getWorkerAIUpdateModuleData()->m_suppliesDepletedVoice;
 
 	createMachines();
 
@@ -326,7 +326,7 @@ Object *WorkerAIUpdate::construct( const ThingTemplate *what,
 	// !!! Graham: Please please please have inspiration for how to *not* duplicate this code
 	// GS - Construct needs to be an AI primitive.  Inheriting off of AIUpdate means you are writing a
 	// master brain that will call AI primitives on the object, not something that does stuff itself.
-  // SupplyTruckAI decides who to call AIDock on.  Worker should decide to AIDock or AIConstruct
+	// SupplyTruckAI decides who to call AIDock on.  Worker should decide to AIDock or AIConstruct
 	// or AIRepair.  Dozer should just use the latter two.  No construction logic should be in
 	// the inherited AIUpdates at all.
 
@@ -456,17 +456,17 @@ void WorkerAIUpdate::exitingSupplyTruckState()
 {
 	if( m_workerMachine->getCurrentStateID() == AS_SUPPLY_TRUCK )
 	{
- 		// We've been given a Dozer specific order that the Supply Truck machine doesn't recognize
- 		// as BUSY (because this command also recognizes its own busy and is likewise waiting).
- 		// Explicitly slap it upside the head.
- 		if( getObject()->getAIUpdateInterface() )
- 		{
- 			getObject()->getAIUpdateInterface()->aiIdle(CMD_FROM_AI);
- 		}
- 		m_workerMachine->setState( AS_DOZER );
- 		// To clarify, I leave supply truck mode when I notice I am doing something not supply
- 		// truck related.  When given a construct command, I wait to do anything until I notice
- 		// I'm not busy.  Both states are being polite, so I must force the switch.
+		// We've been given a Dozer specific order that the Supply Truck machine doesn't recognize
+		// as BUSY (because this command also recognizes its own busy and is likewise waiting).
+		// Explicitly slap it upside the head.
+		if( getObject()->getAIUpdateInterface() )
+		{
+			getObject()->getAIUpdateInterface()->aiIdle(CMD_FROM_AI);
+		}
+		m_workerMachine->setState( AS_DOZER );
+		// To clarify, I leave supply truck mode when I notice I am doing something not supply
+		// truck related.  When given a construct command, I wait to do anything until I notice
+		// I'm not busy.  Both states are being polite, so I must force the switch.
 	}
 }
 
@@ -868,9 +868,9 @@ void WorkerAIUpdate::internalTaskCompleteOrCancelled( DozerTask task )
 
 			if( obj )
 			{
- 				// when we're done repairing bridges, tell the scaffolding to go away
- 				if( obj->isKindOf( KINDOF_BRIDGE_TOWER ) )
- 					removeBridgeScaffolding( obj );
+				// when we're done repairing bridges, tell the scaffolding to go away
+				if( obj->isKindOf( KINDOF_BRIDGE_TOWER ) )
+				removeBridgeScaffolding( obj );
 
 			}
 
@@ -1450,10 +1450,10 @@ void WorkerAIUpdate::xfer( Xfer *xfer )
 #else
 	XferVersion currentVersion = 2;
 #endif
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 
- // extend base class
+	// extend base class
 	AIUpdateInterface::xfer(xfer);
 
 
@@ -1510,6 +1510,6 @@ void WorkerAIUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void WorkerAIUpdate::loadPostProcess()
 {
- // extend base class
+	// extend base class
 	AIUpdateInterface::loadPostProcess();
 }

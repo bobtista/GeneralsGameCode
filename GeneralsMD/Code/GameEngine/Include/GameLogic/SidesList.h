@@ -167,7 +167,7 @@ public:
 	inline TeamsInfo *getTeamInfo(Int team);
 	inline TeamsInfo *getSkirmishTeamInfo(Int team);
 	Int getNumSkirmishTeams() { return m_skirmishTeamrec.getNumTeams(); }
- 	void addSkirmishTeam(const Dict* d);
+	void addSkirmishTeam(const Dict* d);
 
 	TeamsInfo *findTeamInfo(AsciiString name, Int* index = nullptr);
 

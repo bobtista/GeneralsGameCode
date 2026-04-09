@@ -286,9 +286,9 @@ void BuildAssistant::xferTheSellList( Xfer *xfer )
 
 	Int count=0;
 	ObjectSellListIterator it, thisIterator;
- 	for( it = m_sellList.begin(); it != m_sellList.end(); ++it ) {
+	for( it = m_sellList.begin(); it != m_sellList.end(); ++it ) {
 		count++;
- 	}
+	}
 	xfer->xferInt(&count);
 
 	if (xfer->getXferMode() == XFER_LOAD)	{
@@ -431,7 +431,7 @@ Object *BuildAssistant::buildObjectNow( Object *constructorObject, const ThingTe
 
 	}
 
-  return nullptr;
+	return nullptr;
 
 }
 
@@ -600,8 +600,8 @@ void BuildAssistant::iterateFootprint( const ThingTemplate *build,
 	Real x, y;
 	Vector3 v;
 	for( y = -halfFootprintHeight;
-			 y < halfFootprintHeight + sampleResolution;
-			 y += sampleResolution )
+	y < halfFootprintHeight + sampleResolution;
+	y += sampleResolution )
 	{
 
 		// snap it to the actual extent since we can go over by one sample resolution
@@ -609,8 +609,8 @@ void BuildAssistant::iterateFootprint( const ThingTemplate *build,
 			y = halfFootprintHeight;
 
 		for( x = -halfFootprintWidth;
-				 x < halfFootprintWidth + sampleResolution;
-				 x += sampleResolution )
+		x < halfFootprintWidth + sampleResolution;
+		x += sampleResolution )
 		{
 
 			// snap it to the actual extent since we can go over by one sample resolution
@@ -1325,13 +1325,13 @@ CanMakeType BuildAssistant::canMakeUnit( Object *builder, const ThingTemplate *w
 		return CANMAKE_OK;
 	}
 
-  Player *player = builder->getControllingPlayer();
+	Player *player = builder->getControllingPlayer();
 
-  // make sure we're not maxed out for this type of unit.
-  // Warning: isPossibleToMakeUnit() now implicitly calls
-  // canBuildMoreOfType(), so do this check first
-  if ( player && !player->canBuildMoreOfType( whatToBuild ) )
-    return CANMAKE_MAXED_OUT_FOR_PLAYER;
+	// make sure we're not maxed out for this type of unit.
+	// Warning: isPossibleToMakeUnit() now implicitly calls
+	// canBuildMoreOfType(), so do this check first
+	if ( player && !player->canBuildMoreOfType( whatToBuild ) )
+	return CANMAKE_MAXED_OUT_FOR_PLAYER;
 
 	if (!isPossibleToMakeUnit(builder, whatToBuild))
 		return CANMAKE_NO_PREREQ;

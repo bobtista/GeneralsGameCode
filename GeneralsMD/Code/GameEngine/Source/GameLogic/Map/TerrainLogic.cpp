@@ -109,7 +109,7 @@ BridgeInfo::BridgeInfo()
 	fromRight.zero();
 	toLeft.zero();
 	toRight.zero();
-  bridgeIndex = 0;
+	bridgeIndex = 0;
 	curDamageState = BODY_PRISTINE;
 	damageStateChanged = FALSE;
 	bridgeObjectID = INVALID_ID;
@@ -800,13 +800,13 @@ Bool Bridge::isCellEntryPoint(const Region2D *cell)
 	Coord3D toLeft = m_bridgeInfo.toLeft;
 	toLeft.x += bridgeVector.x;
 	toLeft.y += bridgeVector.y;
- 	toLeft.x += endVector.x;
+	toLeft.x += endVector.x;
 	toLeft.y += endVector.y;
 
 	Coord3D toRight = m_bridgeInfo.toRight;
 	toRight.x += bridgeVector.x;
 	toRight.y += bridgeVector.y;
- 	toRight.x -= endVector.x;
+	toRight.x -= endVector.x;
 	toRight.y -= endVector.y;
 
 /*	if (PointInRegion2D(&fromLeft, cell)) return false;
@@ -2012,8 +2012,8 @@ void TerrainLogic::deleteBridge( Bridge *bridge )
 	{
 
 		for( Bridge *otherBridge = getFirstBridge();
-				 otherBridge;
-				 otherBridge = otherBridge->getNext() )
+		otherBridge;
+		otherBridge = otherBridge->getNext() )
 		{
 
 			//
@@ -2140,12 +2140,12 @@ Bool TerrainLogic::isUnderwater( Real x, Real y, Real *waterZ, Real *terrainZ )
 
 	// if no water here, no height, no nuttin
 	if( waterHandle == nullptr )
-  {
-    // but we have to return the terrain Z if requested!
-    if (terrainZ)
-      *terrainZ=getGroundHeight(x,y);
+	{
+		// but we have to return the terrain Z if requested!
+		if (terrainZ)
+		*terrainZ=getGroundHeight(x,y);
 		return FALSE;
-  }
+	}
 
 	//
 	// if this water handle is a grid water use the grid height function, otherwise look into
@@ -2185,8 +2185,8 @@ const WaterHandle* TerrainLogic::getWaterHandle( Real x, Real y )
 
 	// Look for water areas in the polygon triggers
 	for( PolygonTrigger *pTrig = PolygonTrigger::getFirstPolygonTrigger();
-			 pTrig;
-			 pTrig = pTrig->getNext() )
+	pTrig;
+	pTrig = pTrig->getNext() )
 	{
 
 		if( !pTrig->isWaterArea() )
@@ -2859,43 +2859,43 @@ void TerrainLogic::createCraterInTerrain(Object *obj)
 		return;
 
 	const Coord3D *pos = obj->getPosition();
-  Real radius = obj->getGeometryInfo().getMajorRadius();
+	Real radius = obj->getGeometryInfo().getMajorRadius();
 
-  if ( radius <= 0.0f )
-    return; // sanity
+	if ( radius <= 0.0f )
+	return; // sanity
 
-  ICoord2D iMin, iMax;
-  iMin.x = REAL_TO_INT_FLOOR( ( pos->x - radius ) / MAP_XY_FACTOR );
-  iMin.y = REAL_TO_INT_FLOOR( ( pos->y - radius ) / MAP_XY_FACTOR );
-  iMax.x = REAL_TO_INT_FLOOR( ( pos->x + radius ) / MAP_XY_FACTOR );
+	ICoord2D iMin, iMax;
+	iMin.x = REAL_TO_INT_FLOOR( ( pos->x - radius ) / MAP_XY_FACTOR );
+	iMin.y = REAL_TO_INT_FLOOR( ( pos->y - radius ) / MAP_XY_FACTOR );
+	iMax.x = REAL_TO_INT_FLOOR( ( pos->x + radius ) / MAP_XY_FACTOR );
 	iMax.y = REAL_TO_INT_FLOOR( ( pos->y + radius ) / MAP_XY_FACTOR );
 
-  Real deltaX, deltaY;
+	Real deltaX, deltaY;
 
 	for (Int i = iMin.x; i <= iMax.x; i++ )
-  {
+	{
 		for ( Int j=0; j <= iMax.y; j++ )
-    {
+		{
 			deltaX = ( i * MAP_XY_FACTOR ) - pos->x;
 			deltaY = ( j * MAP_XY_FACTOR ) - pos->y;
 
-      Real distance = sqrt( sqr( deltaX ) + sqr( deltaY ) );
+			Real distance = sqrt( sqr( deltaX ) + sqr( deltaY ) );
 
 			if ( distance < radius ) //inside circle
-      {
+			{
 				ICoord2D gridPos;
 				gridPos.x = i;
 				gridPos.y = j;
 
 
-        Real displacementAmount = radius * (1.0f - distance / radius );
+				Real displacementAmount = radius * (1.0f - distance / radius );
 
-        Int targetHeight = MAX( 1, TheTerrainVisual->getRawMapHeight( &gridPos ) - displacementAmount );
+				Int targetHeight = MAX( 1, TheTerrainVisual->getRawMapHeight( &gridPos ) - displacementAmount );
 
 				TheTerrainVisual->setRawMapHeight( &gridPos, targetHeight );
 			}
-    }
-  }
+		}
+	}
 
 }
 

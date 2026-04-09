@@ -741,7 +741,7 @@ UpdateSleepTime ParkingPlaceBehavior::update()
 					healInfo.in.m_damageType = DAMAGE_HEALING;
 					healInfo.in.m_deathType = DEATH_NONE;
 					healInfo.in.m_sourceID = getObject()->getID();
-  				healInfo.in.m_amount = HEAL_RATE_FRAMES * d->m_healAmount * SECONDS_PER_LOGICFRAME_REAL;
+					healInfo.in.m_amount = HEAL_RATE_FRAMES * d->m_healAmount * SECONDS_PER_LOGICFRAME_REAL;
 
 //          if ( objToHeal->isKindOf( KINDOF_PRODUCED_AT_HELIPAD ) )
 //            healInfo.in.m_amount += HEAL_RATE_FRAMES * d->m_extraHealAmount4Helicopters * SECONDS_PER_LOGICFRAME_REAL;
@@ -875,7 +875,7 @@ void ParkingPlaceBehavior::exitObjectViaDoor( Object *newObj, ExitDoorType exitD
 			{
 				// Lorenzen sez: aiMoveToPosition has an added benefit.
 				// It invokes the pathfinder to find a vacant destination.
-	      ai->aiMoveToPosition( &ppinfo.parkingSpace, CMD_FROM_AI );
+				ai->aiMoveToPosition( &ppinfo.parkingSpace, CMD_FROM_AI );
 			}
 		}
 	}

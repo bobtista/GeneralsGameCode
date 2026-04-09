@@ -73,14 +73,14 @@ MissileAIUpdateModuleData::MissileAIUpdateModuleData()
 	m_garrisonHitKillFX = nullptr;
 	m_lockDistance = 75.0f;
 	m_distanceScatterWhenJammed = 75.0f;
-    m_detonateCallsKill = FALSE;
-    m_killSelfDelay   = 3; // just long enough for the contrail to catch up to me
+	m_detonateCallsKill = FALSE;
+	m_killSelfDelay   = 3; // just long enough for the contrail to catch up to me
 }
 
 //-----------------------------------------------------------------------------
 void MissileAIUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  AIUpdateModuleData::buildFieldParse(p);
+	AIUpdateModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -105,7 +105,7 @@ void MissileAIUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
     { nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -271,7 +271,7 @@ void MissileAIUpdate::projectileFireAtObjectOrPosition( const Object *victim, co
 	{
 		getStateMachine()->setGoalPosition(victim->getPosition());
 		// ick. const-cast is evil. fix. (srj)
- 		aiMoveToObject(const_cast<Object*>(victim), CMD_FROM_AI );
+		aiMoveToObject(const_cast<Object*>(victim), CMD_FROM_AI );
 		m_originalTargetPos = *victim->getPosition();
 		m_isTrackingTarget = TRUE;// Remember that I was originally shot at a moving object, so if the
 		// target dies I can do something cool.
@@ -289,7 +289,7 @@ void MissileAIUpdate::projectileFireAtObjectOrPosition( const Object *victim, co
 		m_victimID = INVALID_ID;
 	}
 
-  setCurrentVictim( victim );/// extending access to the victim via the parent class
+	setCurrentVictim( victim );/// extending access to the victim via the parent class
 	m_prevPos = *getObject()->getPosition();
 }
 
@@ -323,10 +323,10 @@ Bool MissileAIUpdate::projectileHandleCollision( Object *other )
 
 	if (other != nullptr)
 	{
- 		Object *projectileLauncher = TheGameLogic->findObjectByID( projectileGetLauncherID() );
+		Object *projectileLauncher = TheGameLogic->findObjectByID( projectileGetLauncherID() );
 
- 		// if it's not the specific thing we were targeting, see if we should incidentally collide...
- 		if (!m_detonationWeaponTmpl->shouldProjectileCollideWith(projectileLauncher, obj, other, m_victimID))
+		// if it's not the specific thing we were targeting, see if we should incidentally collide...
+		if (!m_detonationWeaponTmpl->shouldProjectileCollideWith(projectileLauncher, obj, other, m_victimID))
 		{
 			//DEBUG_LOG(("ignoring projectile collision with %s at frame %d",other->getTemplate()->getName().str(),TheGameLogic->getFrame()));
 			return true;
@@ -412,9 +412,9 @@ void MissileAIUpdate::detonate()
 		obj->getDrawable()->setDrawableHidden(true);
 	// Delay destroying the object two frames to let the contrail catch up. jba.
 
-    switchToState(KILL_SELF);
+	switchToState(KILL_SELF);
 
-	  obj->setStatus( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_MISSILE_KILLING_SELF ) );
+	obj->setStatus( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_MISSILE_KILLING_SELF ) );
 
 }
 
@@ -431,20 +431,20 @@ void MissileAIUpdate::doPrelaunchState()
 //-------------------------------------------------------------------------------------------------
 void MissileAIUpdate::doKillSelfState()
 {
-  const MissileAIUpdateModuleData *modData = getMissileAIUpdateModuleData();
+	const MissileAIUpdateModuleData *modData = getMissileAIUpdateModuleData();
 
 	if (m_stateTimestamp > TheGameLogic->getFrame() - modData->m_killSelfDelay )
-  {
+	{
 		// Hold in this state [modData->m_killSelfDelay] frames to let the contrail catch up. jba.
 		return;
 	}
 	Object* obj = getObject();
 	if (m_detonationWeaponTmpl)
-  {
-    if ( modData->m_detonateCallsKill )
-      obj->kill(); // kill it (vs destroying it) so that its Die modules are called
-    else
-		  TheGameLogic->destroyObject( obj );
+	{
+		if ( modData->m_detonateCallsKill )
+		obj->kill(); // kill it (vs destroying it) so that its Die modules are called
+		else
+		TheGameLogic->destroyObject( obj );
 	}
 	switchToState(DEAD);
 }
@@ -670,7 +670,7 @@ UpdateSleepTime MissileAIUpdate::update()
 				victim = TheGameLogic->findObjectByID( targetID );
 				getStateMachine()->setGoalPosition(victim->getPosition());
 				// ick. const-cast is evil. fix. (srj)
- 				aiMoveToObject(const_cast<Object*>(victim), CMD_FROM_AI );
+				aiMoveToObject(const_cast<Object*>(victim), CMD_FROM_AI );
 				m_originalTargetPos = *victim->getPosition();
 				m_isTrackingTarget = TRUE;// Remember that I was originally shot at a moving object, so if the
 				// target dies I can do something cool.
@@ -845,12 +845,12 @@ void MissileAIUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void MissileAIUpdate::xfer( Xfer *xfer )
 {
-  // version
-  const XferVersion currentVersion = 6;
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	// version
+	const XferVersion currentVersion = 6;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 
- // extend base class
+	// extend base class
 	AIUpdateInterface::xfer(xfer);
 
 	if (version>=2) {
@@ -918,6 +918,6 @@ void MissileAIUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void MissileAIUpdate::loadPostProcess()
 {
- // extend base class
+	// extend base class
 	AIUpdateInterface::loadPostProcess();
 }

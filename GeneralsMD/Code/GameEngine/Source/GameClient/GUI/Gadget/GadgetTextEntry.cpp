@@ -101,7 +101,7 @@ WindowMsgHandledType GadgetTextEntryInput( GameWindow *window, UnsignedInt msg,
 			if ( ch == VK_RETURN )
 			{
 				// Done with this edit
-			 		TheWindowManager->winSendSystemMsg( window->winGetOwner(),
+				TheWindowManager->winSendSystemMsg( window->winGetOwner(),
 			 																				GEM_EDIT_DONE,
 			 																				(WindowMsgData)window,
 			 																				0 );

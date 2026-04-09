@@ -278,7 +278,7 @@ Object* CommandButtonHuntUpdate::scanClosestTarget()
 	Bool isBlackLotusVehicleHack = FALSE;
 	Bool isCaptureBuilding = FALSE;
 	Bool isPlaceExplosive = FALSE;
- 	const SpecialPowerTemplate *spTemplate = m_commandButton->getSpecialPowerTemplate();
+	const SpecialPowerTemplate *spTemplate = m_commandButton->getSpecialPowerTemplate();
 	if( !isEnter )
 	{
 		if( !spTemplate )

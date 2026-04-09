@@ -811,7 +811,7 @@ void GadgetComboBoxSetIsEditable(GameWindow *comboBox, Bool isEditable  )
 	GameWindow *editBox = GadgetComboBoxGetEditBox(comboBox);
 	UnsignedInt status ;
 	if(!editBox)
-	 return;
+	return;
 
 	comboData->isEditable = isEditable;
 	if (isEditable)

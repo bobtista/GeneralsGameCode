@@ -78,7 +78,7 @@ WaveGuideUpdateModuleData::WaveGuideUpdateModuleData()
 /*static*/ void WaveGuideUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
 
-  UpdateModuleData::buildFieldParse( p );
+	UpdateModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -101,7 +101,7 @@ WaveGuideUpdateModuleData::WaveGuideUpdateModuleData()
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 
 }
 
@@ -223,7 +223,7 @@ Bool WaveGuideUpdate::startMoving()
 			waveGuide->setPosition( &pos );
 
 			// follow the waypoint path here
- 			ai->aiFollowWaypointPath( waypoint, CMD_FROM_AI );
+			ai->aiFollowWaypointPath( waypoint, CMD_FROM_AI );
 
 			//
 			// make sure it doesn't stop or slow down at each waypoint along the path if the path
