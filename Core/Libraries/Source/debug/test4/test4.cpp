@@ -31,7 +31,7 @@
 void main()
 {
 	for (int i=0;i<30;i++)
-	DCHECK_MSG(i>100,"run#" << i);
+		DCHECK_MSG(i>100,"run#" << i);
 	Debug::Command("list c");
 	for (int k=0;k<3;k++)
 	{

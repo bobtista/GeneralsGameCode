@@ -910,7 +910,7 @@ void Targa::YFlip()
 	char *ptrTop=mImage,
        *ptrBottom=mImage+stride*(Header.Height-1);
 	for (unsigned y=Header.Height/2;y;--y,ptrTop+=stride,ptrBottom-=stride)
-	_swapBytes(ptrTop,ptrBottom,stride);
+		_swapBytes(ptrTop,ptrBottom,stride);
 }
 
 /****************************************************************************

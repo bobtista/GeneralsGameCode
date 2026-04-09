@@ -95,7 +95,7 @@ void ProfileResultFileCSV::WriteThread(ProfileFuncLevel::Thread &thread)
 			ProfileFuncLevel::Id callid;
 			unsigned count;
 			for (unsigned j=0;idlist.Enum(j,callid,&count);j++)
-			fprintf(f," %s[%08x](%i)",callid.GetFunction(),callid.GetAddress(),count);
+				fprintf(f," %s[%08x](%i)",callid.GetFunction(),callid.GetAddress(),count);
 		}
 		fprintf(f,"\n");
 	}
@@ -108,14 +108,14 @@ void ProfileResultFileCSV::WriteResults()
 	ProfileFuncLevel::Thread t;
 	unsigned k=0;
 	for (;ProfileFuncLevel::EnumThreads(k,t);k++)
-	WriteThread(t);
+		WriteThread(t);
 
 	FILE *f=fopen("profile-high.csv","wt");
 
 	// CSV file header
 	fprintf(f,"Profile\tUnit\ttotal");
 	for (k=0;k<Profile::GetFrameCount();k++)
-	fprintf(f,"\t%s",Profile::GetFrameName(k));
+		fprintf(f,"\t%s",Profile::GetFrameName(k));
 	fprintf(f,"\n");
 
 	// now show all high level profile IDs
@@ -154,7 +154,7 @@ ProfileResultInterface *ProfileResultFileDOT::Create(int argn, const char * cons
 ProfileResultFileDOT::ProfileResultFileDOT(const char *fileName, const char *frameName, int foldThreshold)
 {
 	if (!fileName)
-	fileName="profile.dot";
+		fileName="profile.dot";
 	m_fileName=(char *)ProfileAllocMemory(strlen(fileName)+1);
 	strcpy(m_fileName,fileName);
 	if (frameName)
@@ -172,7 +172,7 @@ void ProfileResultFileDOT::WriteResults()
 	// search "main" thread
 	ProfileFuncLevel::Thread t,tMax;
 	if (!ProfileFuncLevel::EnumThreads(0,tMax))
-	return;
+		return;
 
 	unsigned curMax=0;
 	unsigned k=1;
@@ -187,7 +187,7 @@ void ProfileResultFileDOT::WriteResults()
 				break;
 			}
 			if (!t.EnumProfile(curMax,help))
-			break;
+				break;
 			curMax++;
 		}
 	}
@@ -197,23 +197,23 @@ void ProfileResultFileDOT::WriteResults()
 	if (m_frameName)
 	{
 		for (unsigned k=0;k<Profile::GetFrameCount();k++)
-		if (strcmp(Profile::GetFrameName(k),m_frameName) == 0)
-		{
-			frame=k;
-			break;
-		}
+			if (strcmp(Profile::GetFrameName(k),m_frameName) == 0)
+			{
+				frame=k;
+				break;
+			}
 	}
 
 	// determine number of active functions
 	unsigned active=0;
 	ProfileFuncLevel::Id id;
 	for (k=0;tMax.EnumProfile(k,id);k++)
-	if (id.GetCalls(frame))
-	active++;
+		if (id.GetCalls(frame))
+			active++;
 
 	FILE *f=fopen(m_fileName,"wt");
 	if (!f)
-	return;
+		return;
 
 	// DOT header
 	fprintf(f,"digraph G { rankdir=\"LR\";\n");
@@ -233,12 +233,12 @@ void ProfileResultFileDOT::WriteResults()
 			const char *source=id.GetSource();
 			FoldHelper *cur=fold;
 			for (;cur;cur=cur->next)
-			if (strcmp(source,cur->source) == 0)
-			{
-				if (cur->numId<MAX_FUNCTIONS_PER_FILE)
-				cur->id[cur->numId++]=id;
-				break;
-			}
+				if (strcmp(source,cur->source) == 0)
+				{
+					if (cur->numId<MAX_FUNCTIONS_PER_FILE)
+						cur->id[cur->numId++]=id;
+					break;
+				}
 			if (!cur)
 			{
 				cur=(FoldHelper *)ProfileAllocMemory(sizeof(FoldHelper));
@@ -255,7 +255,7 @@ void ProfileResultFileDOT::WriteResults()
 		{
 			FoldHelper *cur2=fold;
 			for (;cur2;cur2=cur2->next)
-			cur2->mark=false;
+				cur2->mark=false;
 
 			for (k=0;k<cur->numId;k++)
 			{
@@ -265,10 +265,10 @@ void ProfileResultFileDOT::WriteResults()
 				{
 					const char *s=caller.GetSource();
 					for (FoldHelper *cur2=fold;cur2;cur2=cur2->next)
-					if (strcmp(cur2->source,s) == 0)
-					break;
+						if (strcmp(cur2->source,s) == 0)
+							break;
 					if (!cur2||cur2->mark)
-					continue;
+						continue;
 					cur2->mark=true;
 
 					fprintf(f,"\"%s\" -> \"%s\"\n",s,cur->source);
@@ -288,15 +288,15 @@ void ProfileResultFileDOT::WriteResults()
 	{
 		// non-folding version
 		for (k=0;tMax.EnumProfile(k,id);k++)
-		if (id.GetCalls(frame))
-		fprintf(f,"f%08x [label=\"%s\"]\n",id.GetAddress(),id.GetFunction());
+			if (id.GetCalls(frame))
+				fprintf(f,"f%08x [label=\"%s\"]\n",id.GetAddress(),id.GetFunction());
 		for (k=0;tMax.EnumProfile(k,id);k++)
 		{
 			ProfileFuncLevel::IdList idlist=id.GetCaller(frame);
 			ProfileFuncLevel::Id caller;
 			unsigned count;
 			for (unsigned i=0;idlist.Enum(i,caller,&count);i++)
-			fprintf(f,"f%08x -> f%08x [headlabel=\"%i\"];\n",caller.GetAddress(),id.GetAddress(),count);
+				fprintf(f,"f%08x -> f%08x [headlabel=\"%i\"];\n",caller.GetAddress(),id.GetAddress(),count);
 		}
 	}
 

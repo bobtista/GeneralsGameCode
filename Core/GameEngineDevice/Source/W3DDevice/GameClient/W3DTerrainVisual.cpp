@@ -76,11 +76,11 @@ class TestSeismicFilter : public SeismicSimulationFilterBase
 		Int life = node->m_life;
 
 		if ( heightMap == nullptr )
-		return SEISMIC_STATUS_INVALID;
+			return SEISMIC_STATUS_INVALID;
 
 
 		if ( life == 0 )
-		return SEISMIC_STATUS_ACTIVE;
+			return SEISMIC_STATUS_ACTIVE;
 		if ( life < 15 )
 		{
 			// ADD HEIGHT BECAUSE THE EXPLOSION IS PUSHING DIRT UP
@@ -119,7 +119,7 @@ class TestSeismicFilter : public SeismicSimulationFilterBase
 						{
       			  workspace[ (radius - x) + workspaceWidth * (radius + y) ] = height + heightMap->getBilinearSampleSeismicZVelocity( centerX - x,  centerY + y ) ;
 							if ( y != 0 )
-							workspace[ (radius - x) + workspaceWidth * (radius - y) ] =  height + heightMap->getBilinearSampleSeismicZVelocity( centerX - x,  centerY - y ) ;
+								workspace[ (radius - x) + workspaceWidth * (radius - y) ] =  height + heightMap->getBilinearSampleSeismicZVelocity( centerX - x,  centerY - y ) ;
 						}
 						if ( y != 0 )
       			  workspace[ (radius + x) + workspaceWidth * (radius - y) ] = height + heightMap->getBilinearSampleSeismicZVelocity( centerX + x,  centerY - y ) ;
@@ -129,7 +129,7 @@ class TestSeismicFilter : public SeismicSimulationFilterBase
 
 			// stuff the values from the workspace into the heightmap's velocities
 			for (x = 0; x < workspaceWidth; ++x)
-			for (Int y = 0; y < workspaceWidth; ++y)
+				for (Int y = 0; y < workspaceWidth; ++y)
     			heightMap->setSeismicZVelocity( centerX - radius + x, centerY - radius + y,  workspace[  x + workspaceWidth * y ]  );
 
 			delete [] workspace;
@@ -355,7 +355,7 @@ void W3DTerrainVisual::addSeismicSimulation( const SeismicSimulationNode& sim )
 void W3DTerrainVisual::handleSeismicSimulations()
 {
 	if ( ! m_clientHeightMap || ! m_logicHeightMap || ! m_terrainRenderObject )
-	return;
+		return;
 
 
 	if ( ! m_seismicSimulationList.empty() )
@@ -417,7 +417,7 @@ void W3DTerrainVisual::handleSeismicSimulations()
 								++fallCount;
 
 								if ( heightToUse > 255 )
-								heightToUse = 255;
+									heightToUse = 255;
 
 							}
     			    m_clientHeightMap->setRawHeight( x, y, heightToUse );
@@ -428,7 +428,7 @@ void W3DTerrainVisual::handleSeismicSimulations()
 				}
 
 				if ( fallCount == 0 )
-				ssn->m_clean = TRUE;
+					ssn->m_clean = TRUE;
 
 			}
 
@@ -453,7 +453,7 @@ void W3DTerrainVisual::updateSeismicSimulations()
 		return;
 
 	if (m_terrainRenderObject==nullptr)
-	return;
+		return;
 
 	if ( ! m_seismicSimulationList.empty() )
 	{
@@ -905,7 +905,7 @@ void W3DTerrainVisual::setRawMapHeight(const ICoord2D *gridPos, Int height)
 			if ( m_clientHeightMap )
 			{
 				if ( height < m_clientHeightMap->getHeight( x,y ) )
-				m_clientHeightMap->setRawHeight( x, y, height ); // if the client map is higher than this height, it will fall down to it anyway!
+					m_clientHeightMap->setRawHeight( x, y, height ); // if the client map is higher than this height, it will fall down to it anyway!
 			}
 #endif
 

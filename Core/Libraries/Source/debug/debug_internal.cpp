@@ -47,7 +47,7 @@ void *DebugAllocMemory(unsigned numBytes)
 {
 	HGLOBAL h=GlobalAlloc(GMEM_FIXED,numBytes);
 	if (!h)
-	DCRASH_RELEASE("Debug mem alloc failed");
+		DCRASH_RELEASE("Debug mem alloc failed");
 	return (void *)h;
 }
 
@@ -55,7 +55,7 @@ void *DebugReAllocMemory(void *oldPtr, unsigned newSize)
 {
 	// Windows doesn't like ReAlloc with null handle/ptr...
 	if (!oldPtr)
-	return newSize?DebugAllocMemory(newSize):nullptr;
+		return newSize?DebugAllocMemory(newSize):nullptr;
 
 	// Shrinking to 0 size is basically freeing memory
 	if (!newSize)
@@ -72,7 +72,7 @@ void *DebugReAllocMemory(void *oldPtr, unsigned newSize)
 		// fixed memory blocks) - go with Alloc/Free instead
 		h=GlobalAlloc(GMEM_FIXED,newSize);
 		if (!h)
-		DCRASH_RELEASE("Debug mem realloc failed");
+			DCRASH_RELEASE("Debug mem realloc failed");
 		unsigned oldSize=GlobalSize((HGLOBAL)oldPtr);
 		memcpy((void *)h,oldPtr,oldSize<newSize?oldSize:newSize);
 		GlobalFree((HGLOBAL)oldPtr);
@@ -84,5 +84,5 @@ void *DebugReAllocMemory(void *oldPtr, unsigned newSize)
 void DebugFreeMemory(void *ptr)
 {
 	if (ptr)
-	GlobalFree((HGLOBAL)ptr);
+		GlobalFree((HGLOBAL)ptr);
 }

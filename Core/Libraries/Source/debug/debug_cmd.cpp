@@ -42,7 +42,7 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
 	if (strcmp(cmd,"help") == 0)
 	{
 		if (!normalMode)
-		return true;
+			return true;
 
 		if (!argn)
 		{
@@ -150,40 +150,40 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
 			case 'g':
 			{
 				if (normalMode)
-				dbg << "Command groups:\n";
+					dbg << "Command groups:\n";
 				for (Debug::CmdInterfaceListEntry *cur=dbg.firstCmdGroup;cur;cur=cur->next)
-				if (Debug::SimpleMatch(cur->group,pattern))
-				dbg << cur->group << "\n";
+					if (Debug::SimpleMatch(cur->group,pattern))
+						dbg << cur->group << "\n";
 			}
 				break;
 			case 'l':
 			case 'd':
 			{
 				if (normalMode)
-				dbg << "Logs:\n";
+					dbg << "Logs:\n";
 				for (Debug::KnownLogGroupList *cur=dbg.firstLogGroup;cur;cur=cur->next)
-				if (Debug::SimpleMatch(cur->nameGroup,pattern)&&
+					if (Debug::SimpleMatch(cur->nameGroup,pattern)&&
                 (*argv[0]=='l'||cur->descr))
-				{
-					dbg << cur->nameGroup;
-					if (cur->descr)
-					dbg << " (" << cur->descr << ")";
-					dbg << "\n";
-				}
+					{
+						dbg << cur->nameGroup;
+						if (cur->descr)
+							dbg << " (" << cur->descr << ")";
+						dbg << "\n";
+					}
 			}
 				break;
 			case 'a':
 			case 'c':
 			{
 				if (normalMode)
-				dbg << (*argv[0]=='a'?"Asserts/Crashes:\n":"Checks:\n");
+					dbg << (*argv[0]=='a'?"Asserts/Crashes:\n":"Checks:\n");
 				unsigned mask=*argv[0]=='a'?Debug::FrameTypeAssert:Debug::FrameTypeCheck;
 				for (unsigned k=0;k<Debug::FRAME_HASH_SIZE;k++)
 				{
 					for (Debug::FrameHashEntry *cur=dbg.frameHash[k];cur;cur=cur->next)
 					{
 						if (!(cur->frameType&mask))
-						continue;
+							continue;
 
 						char help[256];
 						wsprintf(help,"%s(%i)",cur->fileOrGroup,cur->line);
@@ -191,7 +191,7 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
 						{
 							dbg << help << " (" << cur->hits << " hits)";
 							if (cur->status==Debug::Skip)
-							dbg << " [off]";
+								dbg << " [off]";
 							dbg << "\n";
 						}
 					}
@@ -211,19 +211,19 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
 		{
 			// show active/all I/O classes
 			if (normalMode)
-			dbg << (argn?"Possible:\n":"Active:\n");
+				dbg << (argn?"Possible:\n":"Active:\n");
 
 			bool hadItem=false;
 			for (Debug::IOFactoryListEntry *cur=dbg.firstIOFactory;cur;cur=cur->next)
 			{
 				if (!argn&&!cur->io)
-				continue;
+					continue;
 
 				hadItem=true;
 				dbg << cur->ioID << " (" << cur->descr << ")\n";
 			}
 			if (normalMode&&!hadItem)
-			dbg << "(none)\n";
+				dbg << "(none)\n";
 		}
 		else
 		{
@@ -232,8 +232,8 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
 			// find I/O class
 			Debug::IOFactoryListEntry *cur=dbg.firstIOFactory;
 			for (;cur;cur=cur->next)
-			if (strcmp(argv[0],cur->ioID) == 0)
-			break;
+				if (strcmp(argv[0],cur->ioID) == 0)
+					break;
 			if (!cur)
 			{
 				dbg << "Unknown I/O class " << argv[0];
@@ -285,12 +285,12 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
 		if (argn)
 		{
 			if (*argv[0]=='+')
-			dbg.alwaysFlush=true;
+				dbg.alwaysFlush=true;
 			if (*argv[0]=='-')
-			dbg.alwaysFlush=false;
+				dbg.alwaysFlush=false;
 		}
 		if (normalMode)
-		dbg << "Always flush: " << (dbg.alwaysFlush?"on":"off");
+			dbg << "Always flush: " << (dbg.alwaysFlush?"on":"off");
 		else
 		dbg << (dbg.alwaysFlush?"1":"0");
 
@@ -301,12 +301,12 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
 		if (argn)
 		{
 			if (*argv[0]=='+')
-			dbg.timeStamp=true;
+				dbg.timeStamp=true;
 			if (*argv[0]=='-')
-			dbg.timeStamp=false;
+				dbg.timeStamp=false;
 		}
 		if (normalMode)
-		dbg << "Timestamp: " << (dbg.timeStamp?"on":"off");
+			dbg << "Timestamp: " << (dbg.timeStamp?"on":"off");
 		else
 		dbg << (dbg.timeStamp?"1":"0");
 
@@ -335,7 +335,7 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
 			}
 		}
 		if (!mask)
-		mask=0xffffffff;
+			mask=0xffffffff;
 
 		bool modified=false;
 		if (strcmp(cmd,"clear") == 0)
@@ -372,7 +372,7 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
 		{
 			// add a pattern
 			if (argn<3)
-			dbg << "Please specify mode and pattern";
+				dbg << "Please specify mode and pattern";
 			else
 			{
 				dbg.AddPatternEntry(mask,*argv[1]=='+',argv[2]);
@@ -385,7 +385,7 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
 			for (Debug::PatternListEntry *cur=dbg.firstPatternEntry;cur;cur=cur->next)
 			{
 				if (!(cur->frameTypes&mask))
-				continue;
+					continue;
 
 				if (cur->frameTypes&Debug::FrameTypeLog) dbg << "l";
 				if (cur->frameTypes&Debug::FrameTypeAssert) dbg << "a";
@@ -399,8 +399,8 @@ bool DebugCmdInterfaceDebug::Execute(class Debug& dbg, const char *cmd,
 		{
 			// pattern list was modified, set all frame entries statuses to Unknown
 			for (unsigned k=0;k<Debug::FRAME_HASH_SIZE;k++)
-			for (Debug::FrameHashEntry *cur=dbg.frameHash[k];cur;cur=cur->next)
-			cur->status=Debug::Unknown;
+				for (Debug::FrameHashEntry *cur=dbg.frameHash[k];cur;cur=cur->next)
+					cur->status=Debug::Unknown;
 		}
 		return true;
 	}

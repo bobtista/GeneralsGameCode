@@ -136,11 +136,11 @@ SeismicSimulationFilterBase::SeismicSimStatusCode DomeStyleSeismicFilter::filter
 	Int life = node->m_life;
 
 	if ( heightMap == nullptr )
-	return SEISMIC_STATUS_INVALID;
+		return SEISMIC_STATUS_INVALID;
 
 
 	if ( life == 0 )
-	return SEISMIC_STATUS_ACTIVE;
+		return SEISMIC_STATUS_ACTIVE;
 	if ( life < 15 )
 	{
 		// ADD HEIGHT BECAUSE THE EXPLOSION IS PUSHING DIRT UP
@@ -179,7 +179,7 @@ SeismicSimulationFilterBase::SeismicSimStatusCode DomeStyleSeismicFilter::filter
 					{
       			workspace[ (radius - x) + workspaceWidth * (radius + y) ] = height + heightMap->getBilinearSampleSeismicZVelocity( centerX - x,  centerY + y ) ;
 						if ( y != 0 )
-						workspace[ (radius - x) + workspaceWidth * (radius - y) ] =  height + heightMap->getBilinearSampleSeismicZVelocity( centerX - x,  centerY - y ) ;
+							workspace[ (radius - x) + workspaceWidth * (radius - y) ] =  height + heightMap->getBilinearSampleSeismicZVelocity( centerX - x,  centerY - y ) ;
 					}
 					if ( y != 0 )
       			workspace[ (radius + x) + workspaceWidth * (radius - y) ] = height + heightMap->getBilinearSampleSeismicZVelocity( centerX + x,  centerY - y ) ;
@@ -189,7 +189,7 @@ SeismicSimulationFilterBase::SeismicSimStatusCode DomeStyleSeismicFilter::filter
 
 		// stuff the values from the workspace into the heightmap's velocities
 		for (x = 0; x < workspaceWidth; ++x)
-		for (y = 0; y < workspaceWidth; ++y)
+			for (y = 0; y < workspaceWidth; ++y)
     		heightMap->setSeismicZVelocity( centerX - radius + x, centerY - radius + y,  MIN( 9.0f, workspace[  x + workspaceWidth * y ])  );
 
 		delete [] workspace;

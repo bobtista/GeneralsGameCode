@@ -963,8 +963,8 @@ private:
 	__forceinline FrameHashEntry *LookupFrame(unsigned addr)
 	{
 		for (FrameHashEntry *e=frameHash[addr%FRAME_HASH_SIZE];e;e=e->next)
-		if (e->frameAddr==addr)
-		return e;
+			if (e->frameAddr==addr)
+				return e;
 		return 0;
 	}
 
@@ -1007,9 +1007,9 @@ private:
 	{
 		FrameHashEntry *e=LookupFrame(addr);
 		if (!e)
-		e=AddFrameEntry(addr,type,fileOrGroup,line);
+			e=AddFrameEntry(addr,type,fileOrGroup,line);
 		if (e->status==Unknown)
-		UpdateFrameStatus(*e);
+			UpdateFrameStatus(*e);
 		return e;
 	}
 

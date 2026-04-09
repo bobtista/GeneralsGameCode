@@ -71,13 +71,13 @@ static int BTREE_decompress(unsigned char *packbuf,unsigned char *unpackbuf)
 
         /* (skip nothing for 0x46fb) */
 		if (type==0x47fb)                       /* skip ulen */
-		s += 3;
+			s += 3;
 
 		ulen = ggetm(s,3);
 		s += 3;
 
 		for (i=0;i<256;++i)                     /* 0 means a code is a leaf */
-		DC.cluetbl[i] = 0;
+			DC.cluetbl[i] = 0;
 
 		clue = *s++;
 		DC.cluetbl[clue] = 1;                   /* mark clue as special */
@@ -130,7 +130,7 @@ bool GCALL BTREE_is(const void *compresseddata)
 
 	if (ggetm(compresseddata,2)==0x46fb
      || ggetm(compresseddata,2)==0x47fb)
-	ok = true;
+		ok = true;
 
 	return(ok);
 }

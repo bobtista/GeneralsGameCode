@@ -34,7 +34,7 @@
 void DebugIOOds::Write(StringType type, const char *src, const char *str)
 {
 	if (type!=StringType::StructuredCmdReply&&str)
-	OutputDebugString(str);
+		OutputDebugString(str);
 }
 
 DebugIOInterface *DebugIOOds::Create()

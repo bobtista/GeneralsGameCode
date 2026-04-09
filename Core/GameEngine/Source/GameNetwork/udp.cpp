@@ -131,11 +131,11 @@ Int UDP::Bind(const char *Host,UnsignedShort port)
 	struct in_addr *hostNode;
 
 	if (isdigit(Host[0]))
-	return ( Bind( ntohl(inet_addr(Host)), port) );
+		return ( Bind( ntohl(inet_addr(Host)), port) );
 
 	hostStruct = gethostbyname(Host);
 	if (hostStruct == nullptr)
-	return (0);
+		return (0);
 	hostNode = (struct in_addr *) hostStruct->h_addr;
 	return ( Bind(ntohl(hostNode->s_addr),port) );
 }
@@ -156,10 +156,10 @@ Int UDP::Bind(UnsignedInt IP,UnsignedShort Port)
 	fd=socket(AF_INET,SOCK_DGRAM,DEFAULT_PROTOCOL);
   #ifdef _WIN32
 	if (fd==SOCKET_ERROR)
-	fd=-1;
+		fd=-1;
   #endif
 	if (fd==-1)
-	return(UNKNOWN);
+		return(UNKNOWN);
 
 	retval=bind(fd,(struct sockaddr *)&addr,sizeof(addr));
 
@@ -185,7 +185,7 @@ Int UDP::Bind(UnsignedInt IP,UnsignedShort Port)
 
 	retval=SetBlocking(FALSE);
 	if (retval==-1)
-	fprintf(stderr,"Couldn't set nonblocking mode!\n");
+		fprintf(stderr,"Couldn't set nonblocking mode!\n");
 
 	return(OK);
 }
@@ -204,17 +204,17 @@ Int UDP::SetBlocking(Int block)
   #ifdef _WIN32
 	unsigned long flag=1;
 	if (block)
-	flag=0;
+		flag=0;
 	int retval;
 	retval=ioctlsocket(fd,FIONBIO,&flag);
 	if (retval==SOCKET_ERROR)
-	return(UNKNOWN);
+		return(UNKNOWN);
 	else
 	return(OK);
   #else  // UNIX
 	int flags = fcntl(fd, F_GETFL, 0);
 	if (block==FALSE)          // set nonblocking
-	flags |= O_NONBLOCK;
+		flags |= O_NONBLOCK;
 	else                       // set blocking
 	flags &= ~(O_NONBLOCK);
 
@@ -482,7 +482,7 @@ Int UDP::SetInputBuffer(UnsignedInt bytes)
 	retval=setsockopt(fd,SOL_SOCKET,SO_RCVBUF,
      (char *)&arg,sizeof(int));
 	if (retval==0)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -496,7 +496,7 @@ Int UDP::SetOutputBuffer(UnsignedInt bytes)
 	retval=setsockopt(fd,SOL_SOCKET,SO_SNDBUF,
      (char *)&arg,sizeof(int));
 	if (retval==0)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }

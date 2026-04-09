@@ -370,7 +370,7 @@ Bool addDrawableToList( Drawable *draw, void *userData )
 			ContainModuleInterface *contain = obj->getContainedBy()->getContain();
 			Drawable *containDraw = obj->getContainedBy()->getDrawable();
 			if (contain && ! contain->isEnclosingContainerFor( obj ) && containDraw )
-			return addDrawableToList( containDraw, userData );
+				return addDrawableToList( containDraw, userData );
 		}
 		else
 		return FALSE;

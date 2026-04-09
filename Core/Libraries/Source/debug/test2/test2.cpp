@@ -52,7 +52,7 @@ public:
                        unsigned argn, const char * const * argv)
 	{
 		if (strcmp(cmd,"box") != 0)
-		return false;
+			return false;
 
 		MessageBox(nullptr,"Hello world!","Command",MB_OK);
 		return true;

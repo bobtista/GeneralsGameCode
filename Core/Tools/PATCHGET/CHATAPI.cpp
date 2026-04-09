@@ -976,7 +976,7 @@ void Update_If_Required(void)
 		int   i;
 		// Create the events
 		for (i=0; i<NUM_EVENTS; i++)
-		Events[i]=CreateEvent(nullptr,FALSE,FALSE,nullptr);
+			Events[i]=CreateEvent(nullptr,FALSE,FALSE,nullptr);
 
 	StartPatchCheck();
 
@@ -991,7 +991,7 @@ void Update_If_Required(void)
 			}
 			retval=WaitForMultipleObjectsEx(NUM_EVENTS,Events,FALSE,50,FALSE);
 			if (retval==WAIT_TIMEOUT)
-			continue;
+				continue;
 			//DBGMSG("An event was set");
 			retval-=WAIT_OBJECT_0;
 			break;
@@ -1012,7 +1012,7 @@ void Update_If_Required(void)
 
 		// close all the event objects
 		for (i=0; i<NUM_EVENTS; i++)
-		CloseHandle(Events[i]);
+			CloseHandle(Events[i]);
 
 	/*
   Startup_Chat();
@@ -1330,9 +1330,9 @@ BOOL CALLBACK Download_Dialog_Proc( HWND hwndDlg, UINT uMsg, WPARAM wParam, LPAR
 */
 					LogMsg("Done with PumpMsgs");
 					if (strlen(g_DLTimeRem))
-					SetDlgItemText( hwndDlg, IDC_TIMEREM, g_DLTimeRem );
+						SetDlgItemText( hwndDlg, IDC_TIMEREM, g_DLTimeRem );
 					if (strlen(g_DLBytesLeft))
-					SetDlgItemText( hwndDlg, IDC_BYTESLEFT, g_DLBytesLeft );
+						SetDlgItemText( hwndDlg, IDC_BYTESLEFT, g_DLBytesLeft );
 					//if (strlen(g_DLBPS))
 					//  SetDlgItemText( hwndDlg, IDC_BPS, g_DLBPS );
 			}

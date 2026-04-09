@@ -36,11 +36,21 @@ SCOPE_CREATING_TYPES = frozenset({
     'case_statement',
 })
 
+# Control-flow statements whose braceless body should be indented one level.
+BRACELESS_BODY_PARENTS = frozenset({
+    'if_statement',
+    'while_statement',
+    'for_statement',
+    'do_statement',
+    'else_clause',
+})
+
 
 def get_indent_depth(node):
     """Walk up the AST and count scope-creating ancestors to determine indent depth."""
     depth = 0
     current = node.parent
+    prev = node
 
     while current is not None:
         if current.type in SCOPE_CREATING_TYPES:
@@ -53,6 +63,17 @@ def get_indent_depth(node):
                 pass  # don't increment
             else:
                 depth += 1
+        elif current.type in BRACELESS_BODY_PARENTS:
+            # If prev is the body/consequence of a braceless control-flow
+            # statement, it needs one extra indent level.
+            body_field = (current.child_by_field_name('consequence')
+                          or current.child_by_field_name('body')
+                          or current.child_by_field_name('alternative'))
+            if (body_field is not None
+                    and body_field.id == prev.id
+                    and body_field.type != 'compound_statement'):
+                depth += 1
+        prev = current
         current = current.parent
 
     return depth

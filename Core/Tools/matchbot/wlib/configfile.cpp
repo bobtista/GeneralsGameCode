@@ -72,7 +72,7 @@ bit8 ConfigFile::readFile(FILE *in)
 	{
 		cptr=Eat_Spaces(string);
 		if ((*cptr==0)||(*cptr=='#'))  // '#' signals a comment
-		continue;
+			continue;
 
 		if (*cptr=='[')  // new section
 		{
@@ -98,7 +98,7 @@ bit8 ConfigFile::readFile(FILE *in)
 		}
 
 		if (strchr(cptr,'=')==nullptr)   // All config entries must have a '='
-		continue;
+			continue;
 		key=cptr;
 		key.truncate('=');
 		key.removeSpaces();  // No spaces allowed in the key
@@ -106,7 +106,7 @@ bit8 ConfigFile::readFile(FILE *in)
 
 		// Add the section name to the end of the key
 		if (strlen(sectionname))
-		key.cat(sectionname);
+			key.cat(sectionname);
 
 		cptr=Eat_Spaces(strchr(cptr,'=')+1); // Jump to after the '='
 		value=cptr;
@@ -122,7 +122,7 @@ bit8 ConfigFile::readFile(FILE *in)
 			uint32 spaceIdx = valueLen;
 			for (; spaceIdx > 0 && isgraph(valueStr[spaceIdx - 1])==0; --spaceIdx);
 			if (spaceIdx != valueLen)
-			value.truncate(spaceIdx);
+				value.truncate(spaceIdx);
 		}
 
 		Critsec_.lock();
@@ -153,15 +153,15 @@ bit8 ConfigFile::enumerate(int &index, int &offset, Wstring &key, Wstring &value
 		Critsec_.unlock();
 
 		if (section==nullptr)  // no specified section, so any will do...
-		break;
+			break;
 
 		if (strlen(section)+2 >= strlen(key.get()))  // key should have form: X[section]
-		continue;
+			continue;
 
 		// Is this key part of our section?
 	const char *keystr = key.get() + strlen(key.get())-seclen-1;
 		if (strncmp(keystr,section,strlen(section))==0)
-		break;
+			break;
 	}
 	key.truncate('[');  // remove the section name
 	return(TRUE);
@@ -224,7 +224,7 @@ bit8 ConfigFile::getInt(IN Wstring &_key,sint32 &value, IN char *section) const
 	{ DBGMSG("Config entry missing: "<<key.get()); }
 
 	if (retval==FALSE)
-	return(FALSE);
+		return(FALSE);
 	value=atol(svalue.get());
 	return(TRUE);
 }
@@ -262,7 +262,7 @@ bit8 ConfigFile::getInt(IN Wstring &_key,sint16 &value, IN char *section) const
 	{ DBGMSG("Config entry missing: "<<key.get()); }
 
 	if (retval==FALSE)
-	return(FALSE);
+		return(FALSE);
 	value=atoi(svalue.get());
 	return(TRUE);
 }
@@ -485,6 +485,6 @@ static char *Eat_Spaces(char *string)
 {
 	char *retval=string;
 	while (isspace(*retval))
-	retval++;
+		retval++;
 	return(retval);
 }

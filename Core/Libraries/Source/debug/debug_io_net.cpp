@@ -40,20 +40,20 @@ DebugIONet::DebugIONet()
 DebugIONet::~DebugIONet()
 {
 	if (m_pipe!=INVALID_HANDLE_VALUE)
-	CloseHandle(m_pipe);
+		CloseHandle(m_pipe);
 }
 
 int DebugIONet::Read(char *buf, int maxchar)
 {
 	if (m_pipe==INVALID_HANDLE_VALUE)
-	return 0;
+		return 0;
 
 	DWORD mode=PIPE_READMODE_MESSAGE|PIPE_NOWAIT;
 	SetNamedPipeHandleState(m_pipe,&mode,nullptr,nullptr);
 
 	DWORD read;
 	if (!ReadFile(m_pipe,buf,maxchar-1,&read,nullptr))
-	read=0;
+		read=0;
 	mode=PIPE_READMODE_MESSAGE|PIPE_WAIT;
 	SetNamedPipeHandleState(m_pipe,&mode,nullptr,nullptr);
 
@@ -63,7 +63,7 @@ int DebugIONet::Read(char *buf, int maxchar)
 void DebugIONet::Write(StringType type, const char *src, const char *str)
 {
 	if (m_pipe==INVALID_HANDLE_VALUE)
-	return;
+		return;
 
 	DWORD dummy;
 	WriteFile(m_pipe,&type,1,&dummy,nullptr);
@@ -72,12 +72,12 @@ void DebugIONet::Write(StringType type, const char *src, const char *str)
 	len=src?strlen(src):0;
 	WriteFile(m_pipe,&len,4,&dummy,nullptr);
 	if (len)
-	WriteFile(m_pipe,src,len,&dummy,nullptr);
+		WriteFile(m_pipe,src,len,&dummy,nullptr);
 
 	len=strlen(str);
 	WriteFile(m_pipe,&len,4,&dummy,nullptr);
 	if (len)
-	WriteFile(m_pipe,str,len,&dummy,nullptr);
+		WriteFile(m_pipe,str,len,&dummy,nullptr);
 }
 
 void DebugIONet::EmergencyFlush()

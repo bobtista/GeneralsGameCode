@@ -82,7 +82,7 @@ void DynamicAudioEventInfo::overrideLoopFlag( Bool newLoopFlag )
 	m_overriddenFields.set( OVERRIDE_LOOP_FLAG );
 
 	if ( newLoopFlag)
-	BitSet( m_control, AC_LOOP );
+		BitSet( m_control, AC_LOOP );
 	else
 	BitClear( m_control, AC_LOOP );
 }

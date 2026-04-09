@@ -548,9 +548,9 @@ HRESULT WaterRenderObjClass::initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass 
 		BYTE* pSrcB2 = ( pSrcB0 - dwSrcPitch );
 
 		if( y == d3dsd.Height-1 )  // Don't go past the last line
-		pSrcB1 = pSrcB0;
+			pSrcB1 = pSrcB0;
 		if( y == 0 )               // Don't go before first line
-		pSrcB2 = pSrcB0;
+			pSrcB2 = pSrcB0;
 
 		for( DWORD x=0; x<d3dsd.Width; x++ )
 		{
@@ -567,7 +567,7 @@ HRESULT WaterRenderObjClass::initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass 
 			{
 				iDu = vM1-v00;                 // Choose greater of 1st order diffs
 				if( iDu < v00-v01 )
-				iDu = v00-v01;
+					iDu = v00-v01;
 			}
 
 			// The luminance bump value (land masses are less shiny)

@@ -71,18 +71,18 @@ static char *InputConsole()
 	{
 		DWORD dwRecords;
 		if (!GetNumberOfConsoleInputEvents(h,&dwRecords))
-		break;
+			break;
 		if (!dwRecords)
-		break;
+			break;
 
 		INPUT_RECORD record;
 		ReadConsoleInput(h,&record,1,&dwRecords);
 		if (record.EventType!=KEY_EVENT)
-		continue;
+			continue;
 
 		KEY_EVENT_RECORD &key=record.Event.KeyEvent;
 		if (!key.bKeyDown||!key.uChar.AsciiChar)
-		continue;
+			continue;
 
 		if (key.uChar.AsciiChar=='\r'||
         key.uChar.AsciiChar=='\n')
@@ -97,12 +97,12 @@ static char *InputConsole()
 		if (key.uChar.AsciiChar=='\b')
 		{
 			if (m_inputUsed)
-			m_inputUsed--;
+				m_inputUsed--;
 		}
 		else if (((unsigned char)key.uChar.AsciiChar)>=' ')
 		{
 			if (m_inputUsed<sizeof(m_input)-1)
-			m_input[m_inputUsed++]=key.uChar.AsciiChar;
+				m_input[m_inputUsed++]=key.uChar.AsciiChar;
 		}
 	}
 
@@ -120,7 +120,7 @@ static char *InputConsole()
 
 	// fake another cursor
 	if (GetTickCount()&512)
-	ci[m_inputUsed].Attributes=BACKGROUND_BLUE|BACKGROUND_GREEN
+		ci[m_inputUsed].Attributes=BACKGROUND_BLUE|BACKGROUND_GREEN
                               |BACKGROUND_RED|BACKGROUND_INTENSITY|FOREGROUND_BLUE;
 
 	COORD srcSize,srcCoord;
@@ -220,18 +220,18 @@ public:
 		{
 			case 0:
 				if (!ReadFile(m_pipe,&m_stringType,1,&read,nullptr))
-				break;
+					break;
 				if (read==1)
-				m_state++;
+					m_state++;
 				return nullptr;
 			case 1:
 			case 3:
 				if (!ReadFile(m_pipe,&m_len,4,&read,nullptr))
-				break;
+					break;
 				if (read==4)
 				{
 					if (m_state==1)
-					m_src=(char *)realloc(m_src,m_len+1);
+						m_src=(char *)realloc(m_src,m_len+1);
 					else
 					m_str=(char *)realloc(m_str,m_len+1);
 					m_state++;
@@ -239,7 +239,7 @@ public:
 				return nullptr;
 			case 2:
 				if (!ReadFile(m_pipe,m_src,m_len,&read,nullptr))
-				break;
+					break;
 				if (read==m_len)
 				{
 					m_src[m_len]=0;
@@ -248,7 +248,7 @@ public:
 				return nullptr;
 			case 4:
 				if (!ReadFile(m_pipe,m_str,m_len,&read,nullptr))
-				break;
+					break;
 				if (read==m_len)
 				{
 					m_str[m_len]=0;
@@ -284,13 +284,13 @@ int CALLBACK WinMain(HINSTANCE,HINSTANCE,LPSTR,int)
 
 	Pipe p[10];
 	for (int k=0;k<10;k++)
-	if (!p[k].Create("\\\\.\\pipe\\ea_debug_v1"))
-	{
-		char msg[200];
-		wsprintf(msg,"Can't create named pipe (Code %i).",GetLastError());
-		MessageBox(nullptr,msg,"Error",MB_OK);
-		return 1;
-	}
+		if (!p[k].Create("\\\\.\\pipe\\ea_debug_v1"))
+		{
+			char msg[200];
+			wsprintf(msg,"Can't create named pipe (Code %i).",GetLastError());
+			MessageBox(nullptr,msg,"Error",MB_OK);
+			return 1;
+		}
 
 	for (;;)
 	{
@@ -298,13 +298,13 @@ int CALLBACK WinMain(HINSTANCE,HINSTANCE,LPSTR,int)
 		if (input)
 		{
 			if (strcmp(input,"quit") == 0)
-			break;
+				break;
 		}
 
 		for (int k=0;k<10;k++)
 		{
 			if (!p[k].Connected())
-			continue;
+				continue;
 
 			const char *msg=p[k].Read();
 			if (msg)
@@ -316,7 +316,7 @@ int CALLBACK WinMain(HINSTANCE,HINSTANCE,LPSTR,int)
 			if (input)
 			{
 				for (unsigned i=0;input[i];i++)
-				p[k].Write(input[i]);
+					p[k].Write(input[i]);
 				p[k].Write('\n');
 			}
 		}

@@ -168,9 +168,9 @@ bit8 LinkedList<T>::add(IN T &node,sint32 pos, OUT T **newnodeptr)
 	LNode<T> *item;
 
 	if (pos<0)
-	pos=0;
+		pos=0;
 	if (pos>Entries)
-	pos=Entries;
+		pos=Entries;
 
 	item=(LNode<T> *)new LNode<T>;
 	assert(item!=nullptr);
@@ -179,19 +179,19 @@ bit8 LinkedList<T>::add(IN T &node,sint32 pos, OUT T **newnodeptr)
 	item->Next=nullptr;
 
 	if (newnodeptr)
-	*newnodeptr=&(item->Node);
+		*newnodeptr=&(item->Node);
 
 	if ((pos==0)||(pos==Entries)) {  // Both cases can be true for a new list!
 		if (pos==0) {
 			item->Next=Head;
 			if (Head)
-			Head->Prev=item;
+				Head->Prev=item;
 			Head=item;
 		}
 		if (pos==Entries) {
 			item->Prev=Tail;
 			if (Tail)
-			Tail->Next=item;
+				Tail->Next=item;
 			Tail=item;
 		}
 		Entries++;
@@ -267,18 +267,18 @@ bit8 LinkedList<T>::remove(OUT T &node, sint32 pos)
 	LNode<T> *item;
 
 	if (Entries==0)
-	return(FALSE);
+		return(FALSE);
 
 	if (pos<0)
-	pos=0;
+		pos=0;
 	if (pos>=Entries)
-	pos=Entries-1;
+		pos=Entries-1;
 
 	if ((pos==0)||(pos==Entries-1)) {  // Both can be true for a 1 item list
 		if (pos==0) {
 			item=Head;
 			if (item->Next)
-			item->Next->Prev=nullptr;
+				item->Next->Prev=nullptr;
 			Head=item->Next;
 			node=item->Node;
 			Current=Head;
@@ -287,7 +287,7 @@ bit8 LinkedList<T>::remove(OUT T &node, sint32 pos)
 		if (pos==Entries-1) {
 			item=Tail;
 			if (item->Prev)
-			item->Prev->Next=nullptr;
+				item->Prev->Next=nullptr;
 			Tail=item->Prev;
 			node=item->Node;
 			Current=Tail;
@@ -387,7 +387,7 @@ bit8 LinkedList<T>::get(OUT T &node, sint32 pos)
 	T *objptr;
 	bool retval=getPointer(&objptr,pos);
 	if (retval && objptr)
-	node=*objptr;
+		node=*objptr;
 
 	return(retval);
 }
@@ -397,7 +397,7 @@ template <class T>
 bit8 LinkedList<T>::getPointer(OUT T **node,sint32 pos)
 {
 	if ((node==0)||(Entries==0))
-	return(FALSE);
+		return(FALSE);
 
 	LNode<T> *item;
 

@@ -492,7 +492,7 @@ Int PingThreadClass::doPing(UnsignedInt IP, Int timeout)
 	for (j = 0, i = 32; j < nDataLen; j++, i++)
 	{
 		if (i >= 126)
-		i = 32;
+			i = 32;
 		achReqData[j] = i;
 	}
 
@@ -531,7 +531,7 @@ Int PingThreadClass::doPing(UnsignedInt IP, Int timeout)
 		// I've seen the ping time bigger than the timeout by a little
 		//   bit.  How lame.
 		if (pingTime > timeout)
-		pingTime = timeout;
+			pingTime = timeout;
 
 		dwStatus = *(DWORD *) & (achRepData[4]);
 		if (dwStatus != IP_SUCCESS)
@@ -564,7 +564,7 @@ cleanup:
 
 	// Shut down...
 	if (hICMP_DLL)
-	FreeLibrary((HINSTANCE)hICMP_DLL);
+		FreeLibrary((HINSTANCE)hICMP_DLL);
 
 	return pingTime;
 }

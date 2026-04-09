@@ -53,7 +53,7 @@ int Find_Patch(OUT char *filename,int maxlen, ConfigFile &config)
 		skuIndex++;
 		ok=Get_App_Dir(gamePath,MAX_PATH,config,skuIndex);
 		if (ok==FALSE)
-		break;
+			break;
 
 		i=0;
 		while(extensions[i++])
@@ -106,7 +106,7 @@ bit8 Get_App_Dir(OUT char *filename,int maxlen, ConfigFile &config,int index)
 
 	// Can't find this product
 	if (config.getString(string,key)==FALSE)
-	return(FALSE);
+		return(FALSE);
 
 
 	DBGMSG("KEY = "<<key.get());
@@ -116,7 +116,7 @@ bit8 Get_App_Dir(OUT char *filename,int maxlen, ConfigFile &config,int index)
 	path=key;
 	path.remove(0,temp);
 	while((*(path.get()))==' ')  // remove leading spaces
-	path.remove(0,1);
+		path.remove(0,1);
 
 
 	DBGMSG("CONFIG:   SKU = "<<sku.get()<<"  PATH = '"<<path.get()<<"'");
@@ -146,9 +146,9 @@ bit8 Get_App_Dir(OUT char *filename,int maxlen, ConfigFile &config,int index)
 	char *cptr=gamePath;
 	char *tempPtr;
 	while( (tempPtr=strchr(cptr,'\\')) !=nullptr)
-	cptr=tempPtr+1;
+		cptr=tempPtr+1;
 	if (cptr)
-	*cptr=0;
+		*cptr=0;
 
 	DBGMSG("Game path = "<<gamePath);
 	strncpy(filename,gamePath,maxlen);
@@ -181,7 +181,7 @@ void Delete_Patches(ConfigFile &config)
 		//   dumb enough to install a game to the root directory. (It's OK though
 		//   since only the '\patches' folder is cleared out.
 		if (strlen(dir)<3)
-		continue;
+			continue;
 
 		//
 		// Delete everything in case a .exe patch had some data files it used.

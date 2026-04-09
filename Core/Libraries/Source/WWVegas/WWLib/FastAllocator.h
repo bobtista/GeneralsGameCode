@@ -133,7 +133,7 @@ public:
 	~StackAllocator(){
 		if(mnAllocCount != -1){ //If there is anything to do...
 			if(mpTHeap)
-			delete mpTHeap;
+				delete mpTHeap;
 			else{
 				if(bConstruct){ //Since this constant, the comparison gets optimized away.
 					T* pTArray = (T*)mTArray;
@@ -335,7 +335,7 @@ WWINLINE void FastFixedAllocator::grow()
 	char* start = n->mem;
 	char* last = &start[(nelem-1)*esize];
 	for(char* p = start; p<last; p+=esize)
-	reinterpret_cast<Link*>(p)->next = reinterpret_cast<Link*>(p+esize);
+		reinterpret_cast<Link*>(p)->next = reinterpret_cast<Link*>(p+esize);
 	reinterpret_cast<Link*>(last)->next = 0;
 	head = reinterpret_cast<Link*>(start);
 }

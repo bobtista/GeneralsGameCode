@@ -342,18 +342,18 @@ inline void ProfileFuncLevelTracer::UnsignedMap::Insert(unsigned val, int countA
 	// in hash?
 	unsigned at=(val/16)%HASH_SIZE;
 	for (Entry *e=hash[at];e;e=e->next)
-	if (e->val==val)
-	{
-		e->count+=countAdd;
-		return;
-	}
+		if (e->val==val)
+		{
+			e->count+=countAdd;
+			return;
+		}
 	_Insert(at,val,countAdd);
 }
 
 inline ProfileFuncLevelTracer::Function *ProfileFuncLevelTracer::FunctionMap::Find(unsigned addr)
 {
 	for (Entry *e=hash[(addr/16)%HASH_SIZE];e;e=e->next)
-	if (e->funcPtr->addr==addr)
-	return e->funcPtr;
+		if (e->funcPtr->addr==addr)
+			return e->funcPtr;
 	return nullptr;
 }

@@ -4352,7 +4352,7 @@ void Pathfinder::classifyObjectFootprint( Object *obj, Bool insert )
 
 #if !RTS_GENERALS
 			if ( obj->isKindOf( KINDOF_BLAST_CRATER ) ) // since these footprints are permanent, never remove them
-			return;
+				return;
 #endif
 
 		removeUnitFromPathfindMap(obj);

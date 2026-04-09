@@ -630,7 +630,7 @@ void WorldHeightMap::fillSeismicZVelocities( Real value )
 {
 	if (!m_seismicZVelocities) return ;
 	for (Int idx = 0; idx < m_width*m_height; ++idx)
-	m_seismicZVelocities[idx] = value;
+		m_seismicZVelocities[idx] = value;
 }
 
 Real WorldHeightMap::getBilinearSampleSeismicZVelocity( Int x, Int y)

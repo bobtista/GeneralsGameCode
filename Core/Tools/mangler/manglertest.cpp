@@ -54,7 +54,7 @@ unsigned long ResolveIP(const char *Server)
 	}
 
 	if (isdigit(Server[0]))
-	return ( ntohl(inet_addr(Server)) );
+		return ( ntohl(inet_addr(Server)) );
 
 	strcpy(serverName, Server);
 

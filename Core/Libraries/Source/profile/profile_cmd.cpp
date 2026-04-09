@@ -39,8 +39,8 @@ void ProfileCmdInterface::AddResultFunction(ProfileResultInterface* (*func)(int,
 	DFAIL_IF(!func) return;
 	DFAIL_IF(!name) return;
 	for (unsigned k=0;k<numResIf;k++)
-	if (strcmp(resIf[k].name,name) == 0)
-	return;
+		if (strcmp(resIf[k].name,name) == 0)
+			return;
 	++numResIf;
 	resIf=(Factory *)ProfileReAllocMemory(resIf,numResIf*sizeof(Factory));
 	resIf[numResIf-1].func=func;
@@ -52,7 +52,7 @@ void ProfileCmdInterface::RunResultFunctions()
 {
 	// no result functions registered?
 	if (!numResFunc)
-	Debug::Command("profile.result file_csv");
+		Debug::Command("profile.result file_csv");
 
 	// process result interfaces
 	for (unsigned k=0;k<numResFunc;k++)
@@ -71,7 +71,7 @@ bool ProfileCmdInterface::Execute(class Debug& dbg, const char *cmd, CommandMode
 	if (strcmp(cmd,"help") == 0)
 	{
 		if (!normalMode)
-		return true;
+			return true;
 
 		if (!argn)
 		{
@@ -132,7 +132,7 @@ bool ProfileCmdInterface::Execute(class Debug& dbg, const char *cmd, CommandMode
 			{
 				dbg << resIf[k].name;
 				if ((resIf[k].arg&&*resIf[k].arg)||!normalMode)
-				dbg << "\n  " << resIf[k].arg;
+					dbg << "\n  " << resIf[k].arg;
 				dbg << "\n";
 			}
 		}
@@ -140,8 +140,8 @@ bool ProfileCmdInterface::Execute(class Debug& dbg, const char *cmd, CommandMode
 		{
 			unsigned k=0;
 			for (;k<numResIf;k++)
-			if (strcmp(argv[0],resIf[k].name) == 0)
-			break;
+				if (strcmp(argv[0],resIf[k].name) == 0)
+					break;
 			if (k==numResIf)
 			{
 				dbg << "Unknown result function\n";
@@ -159,7 +159,7 @@ bool ProfileCmdInterface::Execute(class Debug& dbg, const char *cmd, CommandMode
 			resFunc=(ProfileResultInterface **)ProfileReAllocMemory(resFunc,numResFunc*sizeof(ProfileResultInterface *));
 			resFunc[numResFunc-1]=newIf;
 			if (normalMode)
-			dbg << "Result function " << argv[0] << " added\n";
+				dbg << "Result function " << argv[0] << " added\n";
 		}
 
 		return true;
@@ -172,12 +172,12 @@ bool ProfileCmdInterface::Execute(class Debug& dbg, const char *cmd, CommandMode
 		if (argn)
 		{
 			if (*argv[0]=='+')
-			ProfileFuncLevelTracer::recordCaller=true;
+				ProfileFuncLevelTracer::recordCaller=true;
 			if (*argv[0]=='-')
-			ProfileFuncLevelTracer::recordCaller=false;
+				ProfileFuncLevelTracer::recordCaller=false;
 		}
 		if (normalMode)
-		dbg << "Record caller: " << (ProfileFuncLevelTracer::recordCaller?"on":"off");
+			dbg << "Record caller: " << (ProfileFuncLevelTracer::recordCaller?"on":"off");
 		else
 		dbg << (ProfileFuncLevelTracer::recordCaller?"1":"0");
 #endif
@@ -221,7 +221,7 @@ bool ProfileCmdInterface::Execute(class Debug& dbg, const char *cmd, CommandMode
 	{
 		// add a pattern
 		if (argn<2)
-		dbg << "Please specify mode and pattern";
+			dbg << "Please specify mode and pattern";
 		else
 		{
 			// alloc new pattern entry
@@ -236,7 +236,7 @@ bool ProfileCmdInterface::Execute(class Debug& dbg, const char *cmd, CommandMode
 
 			// add to list
 			if (Profile::lastPatternEntry)
-			Profile::lastPatternEntry->next=cur;
+				Profile::lastPatternEntry->next=cur;
 			else
 			Profile::firstPatternEntry=cur;
 			Profile::lastPatternEntry=cur;
@@ -249,7 +249,7 @@ bool ProfileCmdInterface::Execute(class Debug& dbg, const char *cmd, CommandMode
 	{
 		// show list of defined patterns
 		for (Profile::PatternListEntry *cur=Profile::firstPatternEntry;cur;cur=cur->next)
-		dbg << (cur->isActive?"+ ":"- ") << cur->pattern << "\n";
+			dbg << (cur->isActive?"+ ":"- ") << cur->pattern << "\n";
 		return true;
 	}
 

@@ -170,7 +170,7 @@ void DebugExceptionhandler::LogFPURegisters(Debug &dbg, struct _EXCEPTION_POINTE
 
 		BYTE *value=flt.RegisterArea+k*10;
 		for (unsigned i=0;i<10;i++)
-		dbg << Debug::Width(2) << value[i];
+			dbg << Debug::Width(2) << value[i];
 
 		// TheSuperHackers @refactor Replaced MSVC inline assembly with portable C++ cast for MinGW compatibility
 		// Convert from temporary real (10 byte) to double (8 bytes).
@@ -203,7 +203,7 @@ static BOOL CALLBACK ExceptionDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			break;
 		case WM_COMMAND:
 			if (LOWORD(wParam)==IDOK)
-			EndDialog(hWnd,IDOK);
+				EndDialog(hWnd,IDOK);
 		default:
 			return FALSE;
 	}
@@ -222,7 +222,7 @@ static BOOL CALLBACK ExceptionDlgProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARA
 			bool quit=!*q; *q=0;
 			SendDlgItemMessage(hWnd,105,LB_ADDSTRING,0,(LPARAM)p);
 			if (quit)
-			break;
+				break;
 			p=q+1;
 		}
 	}
@@ -364,7 +364,7 @@ LONG __stdcall DebugExceptionhandler::ExceptionFilter(struct _EXCEPTION_POINTERS
 	// we're logging an exception
 	++dbg.disableAssertsEtc;
 	if (dbg.curType!=DebugIOInterface::StringType::MAX)
-	dbg.FlushOutput();
+		dbg.FlushOutput();
 	dbg.StartOutput(DebugIOInterface::StringType::Exception,"");
 
 	// start off with the exception type & location
@@ -377,7 +377,7 @@ LONG __stdcall DebugExceptionhandler::ExceptionFilter(struct _EXCEPTION_POINTERS
 	dbg.WriteBuildInfo();
 	unsigned len=dbg.ioBuffer[DebugIOInterface::Exception].used-curOfs;
 	if (len>=sizeof(verInfo))
-	len=sizeof(verInfo)-1;
+		len=sizeof(verInfo)-1;
 	memcpy(verInfo,dbg.ioBuffer[DebugIOInterface::Exception].buffer+curOfs,len);
 	verInfo[len]=0;
 	dbg << "\n\n";
@@ -388,7 +388,7 @@ LONG __stdcall DebugExceptionhandler::ExceptionFilter(struct _EXCEPTION_POINTERS
 	LogFPURegisters(dbg,pExPtrs); dbg << "\n";
 	len=dbg.ioBuffer[DebugIOInterface::Exception].used-curOfs;
 	if (len>=sizeof(regInfo))
-	len=sizeof(regInfo)-1;
+		len=sizeof(regInfo)-1;
 	memcpy(regInfo,dbg.ioBuffer[DebugIOInterface::Exception].buffer+curOfs,len);
 	regInfo[len]=0;
 

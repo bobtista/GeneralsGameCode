@@ -57,9 +57,9 @@ Wstring::~Wstring()
 bit8 Wstring::operator==(const char *other)
 {
 	if ((str==nullptr)&&(other==nullptr))
-	return(TRUE);
+		return(TRUE);
 	if(strcmp(str, other) != 0)
-	return(FALSE);
+		return(FALSE);
 	else
 	return(TRUE);
 }
@@ -67,13 +67,13 @@ bit8 Wstring::operator==(const char *other)
 bit8 Wstring::operator==(const Wstring &other)
 {
 	if((str == nullptr) && (other.str == nullptr))
-	return(TRUE);
+		return(TRUE);
 
 	if((str == nullptr) || (other.str == nullptr))
-	return(FALSE);
+		return(FALSE);
 
 	if(strcmp(str, other.str) != 0)
-	return(FALSE);
+		return(FALSE);
 	else
 	return(TRUE);
 }
@@ -82,7 +82,7 @@ bit8 Wstring::operator==(const Wstring &other)
 bit8 Wstring::operator!=(const char *other)
 {
 	if(strcmp(str, other) != 0)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -91,13 +91,13 @@ bit8 Wstring::operator!=(const char *other)
 bit8 Wstring::operator!=(const Wstring &other)
 {
 	if((str == nullptr) && (other.str == nullptr))
-	return(FALSE);
+		return(FALSE);
 
 	if((str == nullptr) || (other.str == nullptr))
-	return(TRUE);
+		return(TRUE);
 
 	if(strcmp(str, other.str) != 0)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -113,7 +113,7 @@ Wstring &Wstring::operator=(const char *other)
 Wstring &Wstring::operator=(const Wstring &other)
 {
 	if(*this == other)
-	return(*this);
+		return(*this);
 
 	set(other.get());
 	return(*this);
@@ -126,7 +126,7 @@ bit8 Wstring::cat(const char *s)
 	uint32   len;
 
 	if (s==nullptr)   // it's OK to cat nothing
-	return(TRUE);
+		return(TRUE);
 
 	// Save the contents of the string.
 	oldStr = str;
@@ -134,7 +134,7 @@ bit8 Wstring::cat(const char *s)
 	// Determine the length of the resultant string.
 	len = strlen(s) + 1;
 	if(oldStr)
-	len += strlen(oldStr);
+		len += strlen(oldStr);
 
 	// Allocate memory for the new string.
 
@@ -168,7 +168,7 @@ bit8 Wstring::cat(uint32 size, const char *s)
 	// Determine the length of the resultant string.
 	len = size + 1;
 	if(oldStr)
-	len += strlen(oldStr);
+		len += strlen(oldStr);
 
 	// Allocate memory for the new string.
 	if(!(str = new char[(len * sizeof(char))]))
@@ -180,7 +180,7 @@ bit8 Wstring::cat(uint32 size, const char *s)
 	// Copy the contents of the old string and concatenate the passed
 	// string.
 	if(oldStr)
-	strcpy(str, oldStr);
+		strcpy(str, oldStr);
 	else
 	str[0] = 0;
 
@@ -235,19 +235,19 @@ char Wstring::remove(sint32 pos,sint32 count)
 	sint32   len;
 
 	if (!str)
-	return(FALSE);
+		return(FALSE);
 
 	len = (sint32)strlen(str);
 
 	if(pos+count > len)
-	pos = len - count;
+		pos = len - count;
 	if (pos < 0)
 	{
 		count+=pos;    // If they remove before 0, ignore up till beginning
 		pos=0;
 	}
 	if (count<=0)
-	return(FALSE);
+		return(FALSE);
 
 	if(!(s = new char[len-count+1]))
 	{
@@ -277,7 +277,7 @@ bit8 Wstring::removeChar(char c)
 	bit8    removed=FALSE;
 
 	if (str==nullptr)
-	return(FALSE);
+		return(FALSE);
 
 	len=strlen(str);
 	while ((cptr=strchr(str,c)) !=nullptr)
@@ -313,7 +313,7 @@ void Wstring::setSize(sint32 size)
 {
 	clear();
 	if (size<0)
-	return;
+		return;
 	str=new char[size];
 	memset(str,0,size);
 }
@@ -324,28 +324,28 @@ void Wstring::cellCopy(char *dest, uint32 len)
 
 	strncpy(dest, str, len);
 	for(i = (uint32)strlen(str); i < len; i++)
-	dest[i] = ' ';
+		dest[i] = ' ';
 	dest[len] = 0;
 }
 
 const char *Wstring::get(void) const
 {
 	if(!str)
-	return "";
+		return "";
 	return str;
 }
 
 char Wstring::get(uint32 index) const
 {
 	if(index < strlen(str))
-	return str[index];
+		return str[index];
 	return(0);
 }
 
 uint32 Wstring::length(void) const
 {
 	if(str == nullptr)
-	return(0);
+		return(0);
 	return((uint32)strlen(str));
 }
 
@@ -354,9 +354,9 @@ uint32 Wstring::length(void) const
 bit8 Wstring::insert(const char *instring, uint32 pos)
 {
 	if (str==nullptr)
-	return(set(instring));
+		return(set(instring));
 	if (pos>strlen(str))
-	pos=strlen(str);
+		pos=strlen(str);
 	char *newstr=new char[strlen(str)+strlen(instring)+1];
 	memset(newstr,0,strlen(str)+strlen(instring)+1);
 	strcpy(newstr,str);
@@ -390,7 +390,7 @@ bit8 Wstring::insert(char k, uint32 pos)
 	len = (uint32)strlen(str);
 
 	if(pos > len)
-	pos = len;
+		pos = len;
 
 	if(!(s = (char *)new char[(len + 2)]))
 	{
@@ -432,16 +432,16 @@ bit8 Wstring::replace(const char *replaceThis, const char *withThis)
 			if(len)
 			{
 				if(!dest.cat(len, src))
-				return(FALSE);
+					return(FALSE);
 			}
 			if(!dest.cat(withThis))
-			return(FALSE);
+				return(FALSE);
 			src = foundStr + strlen(replaceThis);
 		}
 		else
 		{
 			if(!dest.cat(src))
-			return(FALSE);
+				return(FALSE);
 
 			src=nullptr;
 		}
@@ -472,7 +472,7 @@ bit8 Wstring::set(const char *s)
 bit8 Wstring::set(char c, uint32 index)
 {
 	if(index >= (uint32)strlen(str))
-	return FALSE;
+		return FALSE;
 
 	str[index] = c;
 
@@ -510,7 +510,7 @@ void Wstring::toLower(void)
 	for(i = 0; i < length(); i++)
 	{
 		if((str[i] >= 'A') && (str[i] <= 'Z'))
-		str[i] = tolower(str[i]);
+			str[i] = tolower(str[i]);
 	}
 }
 
@@ -524,7 +524,7 @@ void Wstring::toUpper(void)
 	for(i = 0; i < length(); i++)
 	{
 		if((str[i] >= 'a') && (str[i] <= 'z'))
-		str[i] = toupper(str[i]);
+			str[i] = toupper(str[i]);
 	}
 }
 
@@ -535,7 +535,7 @@ bit8 Wstring::truncate(uint32 len)
 {
 	Wstring tmp;
 	if(!tmp.set(len, get()) || !set(tmp.get()))
-	return(FALSE);
+		return(FALSE);
 	return(TRUE);
 }
 
@@ -546,11 +546,11 @@ bit8 Wstring::truncate(char c)
 	sint32  len;
 
 	if (str==nullptr)
-	return(FALSE);
+		return(FALSE);
 
 	char   *cptr=strchr(str,c);
 	if (cptr==nullptr)
-	return(FALSE);
+		return(FALSE);
 	len=(sint32)(cptr-str);
 	truncate((uint32)len);
 	return(TRUE);
@@ -565,15 +565,15 @@ sint32 Wstring::getToken(int offset,const char *delim,Wstring &out)
 	sint32 stop;
 	for (i=offset; i<(int)length(); i++) {
 		if(strchr(delim,str[i])==nullptr)
-		break;
+			break;
 	}
 	if (i>=(int)length())
-	return(-1);
+		return(-1);
 	start=i;
 
 	for (; i<(int)length(); i++) {
 		if(strchr(delim,str[i])!=nullptr)
-		break;
+			break;
 	}
 	stop=i-1;
 	out.set(str+start);
@@ -590,15 +590,15 @@ sint32 Wstring::getLine(int offset, Wstring &out)
 
 	start=i=offset;
 	if (start >= (int)length())
-	return(-1);
+		return(-1);
 
 	for (; i<(int)length(); i++) {
 		if(strchr("\r\n",str[i])!=nullptr)
-		break;
+			break;
 	}
 	stop=i;
 	if ((str[stop]=='\r')&&(str[stop+1]=='\n'))
-	stop++;
+		stop++;
 
 	out.set(str+start);
 	out.truncate((uint32)stop-start+1);

@@ -2387,14 +2387,14 @@ void MilesAudioManager::processPlayingList()
 Bool MilesAudioManager::has3DSensitiveStreamsPlaying() const
 {
 	if ( m_playingStreams.empty() )
-	return FALSE;
+		return FALSE;
 
 	for ( std::list< PlayingAudio* >::const_iterator it = m_playingStreams.begin(); it != m_playingStreams.end(); ++it )
 	{
 		const PlayingAudio *playing = (*it);
 
 		if ( ! playing )
-		continue;
+			continue;
 
 		if ( playing->m_audioEventRTS->getAudioEventInfo()->m_soundType != AT_Music )
 		{

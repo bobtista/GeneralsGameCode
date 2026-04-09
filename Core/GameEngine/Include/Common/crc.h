@@ -69,7 +69,7 @@ public:
 	__forceinline void computeCRC( const void *buf, Int len )
 	{
 		if (!buf||len<1)
-		return;
+			return;
 
 #if !(defined(_MSC_VER) && _MSC_VER < 1300)
 		// C++ version left in for reference purposes

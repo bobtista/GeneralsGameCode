@@ -45,7 +45,7 @@ static Streamer           error_streamer;
 int MsgManager::setAllStreams(OutputDevice *device)
 {
 	if (device==nullptr)
-	return(1);
+		return(1);
 
 
 	debug_streamer.setOutputDevice(device);
@@ -71,7 +71,7 @@ int MsgManager::setAllStreams(OutputDevice *device)
 int MsgManager::setDebugStream(OutputDevice *device)
 {
 	if (device==nullptr)
-	return(1);
+		return(1);
 
 
 	debug_streamer.setOutputDevice(device);
@@ -84,7 +84,7 @@ int MsgManager::setDebugStream(OutputDevice *device)
 int MsgManager::setInfoStream(OutputDevice *device)
 {
 	if (device==nullptr)
-	return(1);
+		return(1);
 
 
 	info_streamer.setOutputDevice(device);
@@ -97,7 +97,7 @@ int MsgManager::setInfoStream(OutputDevice *device)
 int MsgManager::setWarnStream(OutputDevice *device)
 {
 	if (device==nullptr)
-	return(1);
+		return(1);
 
 
 	warn_streamer.setOutputDevice(device);
@@ -110,7 +110,7 @@ int MsgManager::setWarnStream(OutputDevice *device)
 int MsgManager::setErrorStream(OutputDevice *device)
 {
 	if (device==nullptr)
-	return(1);
+		return(1);
 
 
 	error_streamer.setOutputDevice(device);

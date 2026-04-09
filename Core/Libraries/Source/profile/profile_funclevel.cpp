@@ -105,7 +105,7 @@ extern "C" void __declspec(naked) __cdecl _penter()
 
   // do we need a new stack tracer?
 	if (TLSIndex==-1)
-	TLSIndex=TlsAlloc();
+		TLSIndex=TlsAlloc();
 	p=(ProfileFuncLevelTracer *)TlsGetValue(TLSIndex);
 	if (!p)
 	{
@@ -152,7 +152,7 @@ void ProfileFuncLevelTracer::Enter(unsigned addr, unsigned esp, unsigned ret)
 {
 	// must stack grow?
 	if (usedStack>=totalStack)
-	stack=(StackEntry *)ProfileReAllocMemory(stack,(totalStack+=100)*sizeof(StackEntry));
+		stack=(StackEntry *)ProfileReAllocMemory(stack,(totalStack+=100)*sizeof(StackEntry));
 
 	// save info
 	Function *f=func.Find(addr);
@@ -164,7 +164,7 @@ void ProfileFuncLevelTracer::Enter(unsigned addr, unsigned esp, unsigned ret)
 		f->addr=addr;
 		f->glob.callCount=f->glob.tickPure=f->glob.tickTotal=0;
 		for (int i=0;i<MAX_FRAME_RECORDS;i++)
-		f->cur[i].callCount=f->cur[i].tickPure=f->cur[i].tickTotal=0;
+			f->cur[i].callCount=f->cur[i].tickPure=f->cur[i].tickTotal=0;
 		f->depth=0;
 		func.Insert(f);
 	}
@@ -179,7 +179,7 @@ void ProfileFuncLevelTracer::Enter(unsigned addr, unsigned esp, unsigned ret)
 
 	// new max depth?
 	if (usedStack>=maxDepth)
-	maxDepth=usedStack;
+		maxDepth=usedStack;
 
 	DLOG_GROUP(profile_stack,Debug::RepeatChar(' ',usedStack-1)
                           << Debug::Hex() << this
@@ -211,7 +211,7 @@ unsigned ProfileFuncLevelTracer::Leave(unsigned esp)
 
 		// insert caller
 		if (recordCaller&&usedStack)
-		f->glob.caller.Insert(sPrev.func->addr,1);
+			f->glob.caller.Insert(sPrev.func->addr,1);
 
 		// inc call counter
 		f->glob.callCount++;
@@ -219,14 +219,14 @@ unsigned ProfileFuncLevelTracer::Leave(unsigned esp)
 		// add total time
 		__int64 delta=cur-s.tickEnter;
 		if (!f->depth)
-		f->glob.tickTotal+=delta;
+			f->glob.tickTotal+=delta;
 
 		// add pure time
 		f->glob.tickPure+=delta-s.tickSubTime;
 
 		// add sub time for higher function
 		if (usedStack)
-		sPrev.tickSubTime+=delta;
+			sPrev.tickSubTime+=delta;
 
 		// frame based profiling?
 		if (frameRecordMask)
@@ -237,26 +237,26 @@ unsigned ProfileFuncLevelTracer::Leave(unsigned esp)
 				if (mask&1)
 				{
 					if (recordCaller&&usedStack>0)
-					f->cur[i].caller.Insert(sPrev.func->addr,1);
+						f->cur[i].caller.Insert(sPrev.func->addr,1);
 					f->cur[i].callCount++;
 					if (!f->depth)
-					f->cur[i].tickTotal+=delta;
+						f->cur[i].tickTotal+=delta;
 					f->cur[i].tickPure+=delta-s.tickSubTime;
 				}
 				if (!(mask>>=1))
-				break;
+					break;
 			}
 		}
 
 		// exit if address match (somewhat...)
 		if (s.esp==esp)
-		break;
+			break;
 
 		// catching those nasty ret<n>...
 		if (s.esp<esp&&
         (esp-s.esp)%4==0&&
         (esp-s.esp)<256)
-		break;
+			break;
 
 		// emit warning
 		DCRASH("ESP " << Debug::Hex() << esp << " does not match " << stack[usedStack].esp << Debug::Dec());
@@ -278,9 +278,9 @@ void ProfileFuncLevelTracer::Shutdown()
 	if (frameRecordMask)
 	{
 		for (unsigned i=0;i<MAX_FRAME_RECORDS;i++)
-		if (frameRecordMask&(1<<i))
-		for (ProfileFuncLevelTracer *p=head;p;p=p->next)
-		p->FrameEnd(i,-1);
+			if (frameRecordMask&(1<<i))
+				for (ProfileFuncLevelTracer *p=head;p;p=p->next)
+					p->FrameEnd(i,-1);
 	}
 }
 
@@ -290,10 +290,10 @@ int ProfileFuncLevelTracer::FrameStart()
 
 	unsigned i=0;
 	for (;i<MAX_FRAME_RECORDS;i++)
-	if (!(frameRecordMask&(1<<i)))
-	break;
+		if (!(frameRecordMask&(1<<i)))
+			break;
 	if (i==MAX_FRAME_RECORDS)
-	return -1;
+		return -1;
 
 	for (ProfileFuncLevelTracer *p=head;p;p=p->next)
 	{
@@ -323,7 +323,7 @@ void ProfileFuncLevelTracer::FrameEnd(int which, int mixIndex)
 
 	frameRecordMask^=1<<which;
 	if (mixIndex<0)
-	curFrame++;
+		curFrame++;
 	for (ProfileFuncLevelTracer *p=head;p;p=p->next)
 	{
 		Function *f;
@@ -333,7 +333,7 @@ void ProfileFuncLevelTracer::FrameEnd(int which, int mixIndex)
 			if (p.callCount)
 			{
 				if (mixIndex<0)
-				f->frame.Append(curFrame,p);
+					f->frame.Append(curFrame,p);
 				else
 				f->frame.MixIn(mixIndex,p);
 			}
@@ -394,11 +394,11 @@ void ProfileFuncLevelTracer::UnsignedMap::_Insert(unsigned at, unsigned val, int
 		{
 			unsigned k=0;
 			for (;k<HASH_SIZE;k++)
-			if (hash[k])
-			((unsigned &)hash[k])+=delta;
+				if (hash[k])
+					((unsigned &)hash[k])+=delta;
 			for (k=0;k<used;k++)
-			if (e[k].next)
-			((unsigned &)e[k].next)+=delta;
+				if (e[k].next)
+					((unsigned &)e[k].next)+=delta;
 		}
 	}
 
@@ -412,14 +412,14 @@ void ProfileFuncLevelTracer::UnsignedMap::_Insert(unsigned at, unsigned val, int
 unsigned ProfileFuncLevelTracer::UnsignedMap::Enumerate(int index)
 {
 	if (index<0||index>=(int)used)
-	return 0;
+		return 0;
 	return e[index].val;
 }
 
 unsigned ProfileFuncLevelTracer::UnsignedMap::GetCount(int index)
 {
 	if (index<0||index>=(int)used)
-	return 0;
+		return 0;
 	return e[index].count;
 }
 
@@ -439,7 +439,7 @@ void ProfileFuncLevelTracer::UnsignedMap::MixIn(const UnsignedMap &src)
 {
 	writeLock=false;
 	for (unsigned k=0;k<src.used;k++)
-	Insert(src.e[k].val,src.e[k].count);
+		Insert(src.e[k].val,src.e[k].count);
 	writeLock=true;
 }
 
@@ -482,10 +482,10 @@ void ProfileFuncLevelTracer::ProfileMap::MixIn(int frame, const Profile &p)
 	// search correct list entry
 	List *oldEntry=root;
 	for (;oldEntry;oldEntry=oldEntry->next)
-	if (oldEntry->frame==frame)
-	break;
+		if (oldEntry->frame==frame)
+			break;
 	if (!oldEntry)
-	Append(frame,p);
+		Append(frame,p);
 	else
 	oldEntry->p.MixIn(p);
 }
@@ -522,11 +522,11 @@ void ProfileFuncLevelTracer::FunctionMap::Insert(Function *funcPtr)
 		{
 			unsigned k=0;
 			for (;k<HASH_SIZE;k++)
-			if (hash[k])
-			((unsigned &)hash[k])+=delta;
+				if (hash[k])
+					((unsigned &)hash[k])+=delta;
 			for (k=0;k<used;k++)
-			if (e[k].next)
-			((unsigned &)e[k].next)+=delta;
+				if (e[k].next)
+					((unsigned &)e[k].next)+=delta;
 		}
 	}
 
@@ -540,14 +540,14 @@ void ProfileFuncLevelTracer::FunctionMap::Insert(Function *funcPtr)
 ProfileFuncLevelTracer::Function *ProfileFuncLevelTracer::FunctionMap::Enumerate(int index)
 {
 	if (index<0||index>=(int)used)
-	return nullptr;
+		return nullptr;
 	return e[index].funcPtr;
 }
 
 bool ProfileFuncLevel::IdList::Enum(unsigned index, Id &id, unsigned *countPtr) const
 {
 	if (!m_ptr)
-	return false;
+		return false;
 
 	ProfileFuncLevelTracer::Profile &prof=*(ProfileFuncLevelTracer::Profile *)m_ptr;
 
@@ -556,7 +556,7 @@ bool ProfileFuncLevel::IdList::Enum(unsigned index, Id &id, unsigned *countPtr) 
 	{
 		id.m_funcPtr=prof.tracer->FindFunction(addr);
 		if (countPtr)
-		*countPtr=prof.caller.GetCount(index);
+			*countPtr=prof.caller.GetCount(index);
 		return true;
 	}
 	else
@@ -566,7 +566,7 @@ bool ProfileFuncLevel::IdList::Enum(unsigned index, Id &id, unsigned *countPtr) 
 const char *ProfileFuncLevel::Id::GetSource() const
 {
 	if (!m_funcPtr)
-	return nullptr;
+		return nullptr;
 
 	ProfileFuncLevelTracer::Function *func=(ProfileFuncLevelTracer::Function *)m_funcPtr;
 	if (!func->funcSource)
@@ -592,17 +592,17 @@ const char *ProfileFuncLevel::Id::GetSource() const
 const char *ProfileFuncLevel::Id::GetFunction() const
 {
 	if (!m_funcPtr)
-	return nullptr;
+		return nullptr;
 	ProfileFuncLevelTracer::Function *func=(ProfileFuncLevelTracer::Function *)m_funcPtr;
 	if (!func->funcSource)
-	GetSource();
+		GetSource();
 	return func->funcName;
 }
 
 unsigned ProfileFuncLevel::Id::GetAddress() const
 {
 	if (!m_funcPtr)
-	return 0;
+		return 0;
 	ProfileFuncLevelTracer::Function *func=(ProfileFuncLevelTracer::Function *)m_funcPtr;
 	return func->addr;
 }
@@ -610,17 +610,17 @@ unsigned ProfileFuncLevel::Id::GetAddress() const
 unsigned ProfileFuncLevel::Id::GetLine() const
 {
 	if (!m_funcPtr)
-	return 0;
+		return 0;
 	ProfileFuncLevelTracer::Function *func=(ProfileFuncLevelTracer::Function *)m_funcPtr;
 	if (!func->funcSource)
-	GetSource();
+		GetSource();
 	return func->funcLine;
 }
 
 unsigned _int64 ProfileFuncLevel::Id::GetCalls(unsigned frame) const
 {
 	if (!m_funcPtr)
-	return 0;
+		return 0;
 
 	ProfileFuncLevelTracer::Function &func=*(ProfileFuncLevelTracer::Function *)m_funcPtr;
 
@@ -637,7 +637,7 @@ unsigned _int64 ProfileFuncLevel::Id::GetCalls(unsigned frame) const
 unsigned _int64 ProfileFuncLevel::Id::GetTime(unsigned frame) const
 {
 	if (!m_funcPtr)
-	return 0;
+		return 0;
 
 	ProfileFuncLevelTracer::Function &func=*(ProfileFuncLevelTracer::Function *)m_funcPtr;
 
@@ -654,7 +654,7 @@ unsigned _int64 ProfileFuncLevel::Id::GetTime(unsigned frame) const
 unsigned _int64 ProfileFuncLevel::Id::GetFunctionTime(unsigned frame) const
 {
 	if (!m_funcPtr)
-	return 0;
+		return 0;
 
 	ProfileFuncLevelTracer::Function &func=*(ProfileFuncLevelTracer::Function *)m_funcPtr;
 
@@ -671,7 +671,7 @@ unsigned _int64 ProfileFuncLevel::Id::GetFunctionTime(unsigned frame) const
 ProfileFuncLevel::IdList ProfileFuncLevel::Id::GetCaller(unsigned frame) const
 {
 	if (!m_funcPtr)
-	return IdList();
+		return IdList();
 
 	ProfileFuncLevelTracer::Function &func=*(ProfileFuncLevelTracer::Function *)m_funcPtr;
 
@@ -684,7 +684,7 @@ ProfileFuncLevel::IdList ProfileFuncLevel::Id::GetCaller(unsigned frame) const
 		default:
 			ProfileFuncLevelTracer::Profile *prof=func.frame.Find(frame);
 			if (prof)
-			ret.m_ptr=prof;
+				ret.m_ptr=prof;
 	}
 
 	return ret;
@@ -693,7 +693,7 @@ ProfileFuncLevel::IdList ProfileFuncLevel::Id::GetCaller(unsigned frame) const
 bool ProfileFuncLevel::Thread::EnumProfile(unsigned index, Id &id) const
 {
 	if (!m_threadID)
-	return false;
+		return false;
 
 	ProfileFastCS::Lock lock(cs);
 
@@ -713,8 +713,8 @@ bool ProfileFuncLevel::EnumThreads(unsigned index, Thread &thread)
 
 	ProfileFuncLevelTracer *p=ProfileFuncLevelTracer::GetFirst();
 	for (;p;p=p->GetNext())
-	if (!index--)
-	break;
+		if (!index--)
+			break;
 	if (p)
 	{
 		thread.m_threadID=p;

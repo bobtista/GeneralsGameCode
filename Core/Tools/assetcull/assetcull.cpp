@@ -47,17 +47,17 @@ static bool filesEqual(const char *fn1, const char *fn2)
 	struct _stat s1,s2;
 	if (_stat(fn1,&s1)||
       _stat(fn2,&s2))
-	return false;
+		return false;
 	if (s1.st_size!=s2.st_size)
-	return false;
+		return false;
 
 	// must compare byte-by-byte
 	FILE *f1=fopen(fn1,"rb");
 	if (!f1)
-	return false;
+		return false;
 	FILE *f2=fopen(fn2,"rb");
 	if (!f2)
-	return false;
+		return false;
 
 	static char buf1[16384],buf2[16384];
 	unsigned k=0;
@@ -65,12 +65,12 @@ static bool filesEqual(const char *fn1, const char *fn2)
 	{
 		unsigned cur=s1.st_size-k;
 		if (cur>sizeof(buf1))
-		cur=sizeof(buf1);
+			cur=sizeof(buf1);
 		if (fread(buf1,cur,1,f1)!=1||
         fread(buf2,cur,1,f2)!=1)
-		break;
+			break;
 		if (memcmp(buf1,buf2,cur) != 0)
-		break;
+			break;
 		k+=cur;
 	}
 	fclose(f1);
@@ -89,13 +89,13 @@ static int recursiveCull(FILE *batchFile,
 	_finddata_t fd;
 	long h=_findfirst(work.c_str(),&fd);
 	if (h==-1)
-	return 0;
+		return 0;
 	_findclose(h);
 
 	work=dir2; work+=relDir; work+="*.*";
 	h=_findfirst(work.c_str(),&fd);
 	if (h==-1)
-	return 0;
+		return 0;
 
 	// walk dir2, collect sub directories and check for duplicate
 	// files
@@ -107,7 +107,7 @@ static int recursiveCull(FILE *batchFile,
 		{
 			if (strcmp(fd.name,".") != 0&&
           strcmp(fd.name,".."))
-			subdir.push_back(fd.name);
+				subdir.push_back(fd.name);
 		}
 		else
 		{
@@ -115,10 +115,10 @@ static int recursiveCull(FILE *batchFile,
 			work1=dir1; work1+=relDir; work1+=fd.name;
 			work2=dir2; work2+=relDir; work2+=fd.name;
 			if (filesEqual(work1.c_str(),work2.c_str()))
-			dupfiles.push_back(fd.name);
+				dupfiles.push_back(fd.name);
 		}
 		if (_findnext(h,&fd))
-		break;
+			break;
 	}
 	_findclose(h);
 
@@ -132,7 +132,7 @@ static int recursiveCull(FILE *batchFile,
 		work=dir1; work+=relDir; work+=*i;
 		_chmod(work.c_str(),_S_IREAD|_S_IWRITE);
 		if (_unlink(work.c_str()))
-		fprintf(stderr,"Error: Can't delete %s\n",work.c_str());
+			fprintf(stderr,"Error: Can't delete %s\n",work.c_str());
 		else
 		deleted++;
 		fprintf(batchFile,"attrib -r \"%s\"\n",work.c_str());

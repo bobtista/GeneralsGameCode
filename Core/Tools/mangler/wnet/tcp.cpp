@@ -112,7 +112,7 @@ TCP::TCP(int new_mode)
 	fd = -1;
 	clientCount=0;
 	if ((new_mode==CLIENT)||(new_mode==SERVER))
-	mode=new_mode;
+		mode=new_mode;
 	FD_ZERO(&clientList);
 	connectionState=CLOSED;
 	inputDelay=5;
@@ -129,7 +129,7 @@ TCP::TCP(int new_mode,sint16 socket)
 	fd = socket;
 	clientCount=0;
 	if ((new_mode==CLIENT)||(new_mode==SERVER))
-	mode=new_mode;
+		mode=new_mode;
 	FD_ZERO(&clientList);
 
 	inputDelay=5;
@@ -144,7 +144,7 @@ TCP::TCP(int new_mode,sint16 socket)
 	{
 		connectionState=CONNECTING;   // this is used when state is unsure
 		if (IsConnected(socket))
-		connectionState=CONNECTED;
+			connectionState=CONNECTED;
 		else
 		connectionState=CLOSED;
 	}
@@ -168,22 +168,22 @@ int TCP::GetFD()
 sint32 TCP::SetBlocking(bit8 block,sint32 whichFD)
 {
 	if (whichFD==0)
-	whichFD=fd;
+		whichFD=fd;
 
    #ifdef _WIN32
 	unsigned long flag=1;
 	if (block)
-	flag=0;
+		flag=0;
 	int retval;
 	retval=ioctlsocket(whichFD,FIONBIO,&flag);
 	if (retval==SOCKET_ERROR)
-	return(-1);
+		return(-1);
 	else
 	return(0);
    #else
 	int flags = fcntl(whichFD, F_GETFL, 0);
 	if (block==FALSE)          // set nonblocking
-	flags |= O_NONBLOCK;
+		flags |= O_NONBLOCK;
 	else                       // set blocking
 	flags &= ~(O_NONBLOCK);
 
@@ -199,9 +199,9 @@ sint32 TCP::SetBlocking(bit8 block,sint32 whichFD)
 sint32 TCP::GetMaxFD(void)
 {
 	if (mode==CLIENT)
-	return(fd);
+		return(fd);
 	else if (mode==SERVER)
-	return(maxFD);
+		return(maxFD);
 	else
 	return(-1);
 }
@@ -214,14 +214,14 @@ sint32 TCP::Write(const uint8 *msg,uint32 len,sint32 whichFD)
 	if (whichFD==0)
 	{
 		if (mode==SERVER)
-		assert(FALSE);
+			assert(FALSE);
 		whichFD=fd;
 	}
 	SetBlocking(TRUE,whichFD);
 	retval=send(whichFD,(const char *)msg,len,0);
   #ifdef _WIN32
 	if (retval==SOCKET_ERROR)
-	retval=-1;
+		retval=-1;
   #endif
 	SetBlocking(FALSE,whichFD);
 	return(retval);
@@ -237,13 +237,13 @@ sint32 TCP::WriteNB(uint8 *msg,uint32 len,sint32 whichFD)
 	if (whichFD==0)
 	{
 		if (mode==SERVER)
-		assert(FALSE);
+			assert(FALSE);
 		whichFD=fd;
 	}
 	retval=send(whichFD,(const char *)msg,len,0);
   #ifdef _WIN32
 	if (retval==SOCKET_ERROR)
-	retval=-1;
+		retval=-1;
   #endif
 	return(retval);
 }
@@ -261,7 +261,7 @@ sint32 TCP::EncapsulatedWrite(uint8 *msg,uint32 len,sint32 whichFD)
 	uint8  data,one=1;
 
 	if (mode==CLIENT)
-	whichFD=fd;
+		whichFD=fd;
 	SetBlocking(TRUE,whichFD);
 	for (i=0; i<len; i++)
 	{
@@ -285,11 +285,11 @@ sint32 TCP::EncapsulatedWrite(uint8 *msg,uint32 len,sint32 whichFD)
 				return(i);
 			}
 			if (data==0)
-			data=1;
+				data=1;
 			else if (data==1)
-			data=2;
+				data=2;
 			else if (data==255)
-			data=3;
+				data=3;
 
 			retval=send(whichFD,(char *)&data,1,0);
 			if (retval<1)
@@ -310,7 +310,7 @@ sint32 TCP::EncapsulatedWrite(uint8 *msg,uint32 len,sint32 whichFD)
 sint32 TCP::WriteString(char *msg,sint32 whichFD)
 {
 	if (mode==CLIENT)
-	whichFD=fd;
+		whichFD=fd;
 
 	WaitWrite(whichFD);
 
@@ -348,7 +348,7 @@ sint32 TCP::Printf(sint32 whichFD,const char *format,...)
 	va_end(arg);
 
 	if (mode==CLIENT)
-	whichFD=fd;
+		whichFD=fd;
 
 	WaitWrite(fd);
 	if (mode==CLIENT)
@@ -383,12 +383,12 @@ uint32 TCP::GetRemoteIP(sint32 whichFD)
 	if (mode==CLIENT)
 	{
 		if(getpeername(fd,(sockaddr *)&sin,&sinSize)==0)
-		return(ntohl(sin.sin_addr.s_addr));
+			return(ntohl(sin.sin_addr.s_addr));
 	}
 	else if (mode==SERVER)
 	{
 		if(getpeername(whichFD,(sockaddr *)&sin,&sinSize)==0)
-		return(ntohl(sin.sin_addr.s_addr));
+			return(ntohl(sin.sin_addr.s_addr));
 	}
 	return(0);
 }
@@ -404,12 +404,12 @@ uint16 TCP::GetRemotePort(sint32 whichFD)
 	if (mode==CLIENT)
 	{
 		if(getpeername(fd,(sockaddr *)&sin,&sinSize)==0)
-		return(ntohs(sin.sin_port));
+			return(ntohs(sin.sin_port));
 	}
 	else if (mode==SERVER)
 	{
 		if(getpeername(whichFD,(sockaddr *)&sin,&sinSize)==0)
-		return(ntohs(sin.sin_port));
+			return(ntohs(sin.sin_port));
 	}
 	return(0);
 }
@@ -422,23 +422,23 @@ bit8 TCP::IsConnected(sint32 whichFD)
 	int    sinSize=sizeof(sin);
 
 	if (mode==CLIENT)
-	whichFD=fd;
+		whichFD=fd;
 
 	if (mode==CLIENT)
 	{
 		if (connectionState==CONNECTED)
-		return(TRUE);
+			return(TRUE);
 		if (connectionState==CLOSED)
-		return(FALSE);
+			return(FALSE);
 	}
 
 	// only get here if state==CONNECTING
 	if(getpeername(whichFD,(sockaddr *)&sin,&sinSize)==0)
-	if ( (sin.sin_addr.s_addr!=htonl(0)) && (CanWrite(whichFD)) )
-	{
-		connectionState=CONNECTED;
-		return(TRUE);
-	}
+		if ( (sin.sin_addr.s_addr!=htonl(0)) && (CanWrite(whichFD)) )
+		{
+			connectionState=CONNECTED;
+			return(TRUE);
+		}
 	return(FALSE);
 }
 
@@ -469,17 +469,17 @@ char *TCP::Gets(char *string,int n,int whichFD)
 	fd_set fdSet;
 
 	if (whichFD==0)
-	whichFD=GetFD();
+		whichFD=GetFD();
 
 	if (whichFD <= 0)
-	return(nullptr);
+		return(nullptr);
 
 	memset(string,0,n);
 
 	while(1)
 	{
 		if (i==n)
-		return(string);
+			return(string);
 
 		Wait(inputDelay,0,fdSet,whichFD);   // inputDelay = 5 sec or so
 		if (! FD_ISSET(whichFD,&fdSet))
@@ -493,7 +493,7 @@ char *TCP::Gets(char *string,int n,int whichFD)
 		{
 			string[i]=c;
 			if (c=='\n')
-			return(string);
+				return(string);
 			i++;
 		}
 		else if ((retval==0)&&(i==0))
@@ -502,7 +502,7 @@ char *TCP::Gets(char *string,int n,int whichFD)
 			return(nullptr);
 		}
 		else if (retval==0)
-		return(string);
+			return(string);
 	}
 	return(string);
 }
@@ -518,7 +518,7 @@ sint32 TCP::Read(uint8 *msg,uint32 len,sint32 whichFD)
 		retval=recv(fd,(char *)msg,len,0);
 		////////DBGMSG("READ: "<<retval << "   ON FD: " << fd << "  LEN: "<< len);
 		if (retval==0)
-		Close();
+			Close();
 		return(retval);
 	}
 	else if (mode==SERVER)
@@ -563,7 +563,7 @@ sint32 TCP::TimedRead(uint8 *msg,uint32 len,int seconds,sint32 whichFD)
 			return(bytes_read);
 		}
 		else if (retval>0)
-		bytes_read+=retval;
+			bytes_read+=retval;
 		// otherwise some error
 	}
 	return(bytes_read);
@@ -580,7 +580,7 @@ sint32 TCP::Peek(uint8 *msg,uint32 len,sint32 whichFD)
 	{
 		retval=recv(fd,(char *)msg,len,MSG_PEEK);
 		if (retval==0)
-		Close();
+			Close();
 		return(retval);
 	}
 	else if (mode==SERVER)
@@ -589,7 +589,7 @@ sint32 TCP::Peek(uint8 *msg,uint32 len,sint32 whichFD)
 		{
 			retval=recv(whichFD,(char *)msg,len,MSG_PEEK);
 			if (retval==0)
-			Close(whichFD);
+				Close(whichFD);
 			return(retval);
 		}
 		else
@@ -609,11 +609,11 @@ sint32 TCP::EncapsulatedRead(uint8 *msg,uint32 len,sint32 whichFD)
 	char data;
 
 	if (mode==CLIENT)
-	whichFD=fd;
+		whichFD=fd;
 	else if (mode==SERVER)
 	{
 		if ((whichFD>maxFD) || (!FD_ISSET(whichFD,&clientList)))
-		return(0);
+			return(0);
 	}
 	else
 	return(-1);
@@ -642,16 +642,16 @@ sint32 TCP::EncapsulatedRead(uint8 *msg,uint32 len,sint32 whichFD)
 					}
 				}
 				if (data==1)
-				data=0;
+					data=0;
 				else if (data==2)
-				data=1;
+					data=1;
 				else if (data==3)
-				data=(char)255;
+					data=(char)255;
 			}
 			msg[i]=data;
 		}
 		if (retval==-1)
-		return(bytesRead);
+			return(bytesRead);
 	}
 	return(bytesRead);
 }
@@ -662,12 +662,12 @@ sint32 TCP::CloseAll(void)
 	int i;
 
 	if (mode==CLIENT)
-	return(Close());
+		return(Close());
 
 	for(i=0; i<=maxFD; i++)
 	{
 		if ((i!=fd)&&(FD_ISSET(i,&clientList)))
-		Close(i);
+			Close(i);
 	}
 	return(Close(fd));  // close the master fd last
 }
@@ -705,7 +705,7 @@ sint32 TCP::Close(sint32 whichFD)
 		if (whichFD==0)
 		{
 			if (shutdown(fd,2)==0)
-			return(closesocket(fd));
+				return(closesocket(fd));
 			else
 			return(-1);
 		}
@@ -714,11 +714,11 @@ sint32 TCP::Close(sint32 whichFD)
 			if (whichFD==maxFD)  // make sure maxFD is still correct
 			{
 				for (i=maxFD; i>=0; i--)
-				if (FD_ISSET(i,&clientList))
-				{
-					maxFD=i;
-					break;
-				}
+					if (FD_ISSET(i,&clientList))
+					{
+						maxFD=i;
+						break;
+					}
 			}
 			FD_CLR((uint32)whichFD,&clientList);
 			clientCount--;
@@ -745,17 +745,17 @@ int TCP::Wait(sint32 sec,sint32 usec,fd_set &returnSet,sint32 whichFD)
 		{
 			inputSet=clientList;
 			if (fd > 0)
-			FD_SET(fd,&inputSet);
+				FD_SET(fd,&inputSet);
 		}
 		else if (whichFD > 0)
-		FD_SET(whichFD,&inputSet);
+			FD_SET(whichFD,&inputSet);
 	}
 	else if (mode==CLIENT)
 	{
 		if (whichFD==0)
-		whichFD=fd;
+			whichFD=fd;
 		if (whichFD > 0)
-		FD_SET(whichFD,&inputSet);
+			FD_SET(whichFD,&inputSet);
 	}
 
 	return(Wait(sec,usec,inputSet,returnSet));
@@ -775,7 +775,7 @@ int TCP::Wait(sint32 sec,sint32 usec,fd_set &givenSet,fd_set &returnSet)
 	backupSet=returnSet;
 
 	if ((sec==-1)&&(usec==-1))
-	noTimeout=TRUE;
+		noTimeout=TRUE;
 
 	timeout.SetSec(sec);
 	timeout.SetUsec(usec);
@@ -785,14 +785,14 @@ int TCP::Wait(sint32 sec,sint32 usec,fd_set &givenSet,fd_set &returnSet)
 	for (uint32 i=0; i<(sizeof(fd_set)*8); i++)   // i=maxFD+1
 	{
 		if (FD_ISSET(i,&givenSet))
-		givenMax=i;
+			givenMax=i;
 	}
 
 	done=0;
 	while( ! done)
 	{
 		if (noTimeout)
-		retval=select(givenMax+1,&returnSet,0,0,nullptr);
+			retval=select(givenMax+1,&returnSet,0,0,nullptr);
 		else
 		{
 			timeout.GetTimevalMT(tv);
@@ -800,7 +800,7 @@ int TCP::Wait(sint32 sec,sint32 usec,fd_set &givenSet,fd_set &returnSet)
 		}
 
 		if (retval>=0)
-		done=1;
+			done=1;
 
 		else if ((retval==-1)&&(errno==EINTR))  // in case of signal
 		{
@@ -810,7 +810,7 @@ int TCP::Wait(sint32 sec,sint32 usec,fd_set &givenSet,fd_set &returnSet)
 				timeout=timethen-timenow;
 			}
 			if ((noTimeout==FALSE)&&(timenow.GetSec()==0)&&(timenow.GetUsec()==0))
-			done=1;
+				done=1;
 			else
 			returnSet=backupSet;
 		}
@@ -830,10 +830,10 @@ void TCP::WaitWrite(sint32 whichFD)
 	fd_set       outputSet;
 
 	if (whichFD==0)
-	whichFD=fd;
+		whichFD=fd;
 
 	if (whichFD==-1)
-	return;
+		return;
 
 	FD_ZERO(&outputSet);
 	FD_SET(whichFD,&outputSet);
@@ -845,10 +845,10 @@ void TCP::WaitWrite(sint32 whichFD)
 		retval=select(maxFD+1,0,&outputSet,0,nullptr);
 
 		if (retval>=0)
-		done=1;
+			done=1;
 
 		else if ((retval==-1)&&(errno==EINTR))  // in case of signal
-		outputSet=backupSet;
+			outputSet=backupSet;
 		else  // maybe out of memory?
 		done=1;
 	}
@@ -866,7 +866,7 @@ bit8 TCP::CanWrite(sint32 whichFD)
 	timeout.SetUsec(0);
 
 	if (whichFD==0)
-	whichFD=fd;
+		whichFD=fd;
 
 	FD_ZERO(&outputSet);
 	FD_SET(whichFD,&outputSet);
@@ -874,7 +874,7 @@ bit8 TCP::CanWrite(sint32 whichFD)
 	timeout.GetTimevalMT(tv);
 	retval=select(whichFD+1,0,&outputSet,0,&tv);
 	if (retval>0)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -887,13 +887,13 @@ bit8 TCP::Bind(char *Host,uint16 port,bit8 reuseAddr)
 	struct in_addr *hostNode;
 
 	if (isdigit(Host[0]))
-	return ( Bind( ntohl(inet_addr(Host)), port,reuseAddr) );
+		return ( Bind( ntohl(inet_addr(Host)), port,reuseAddr) );
 
 	strcpy(hostName, Host);
 
 	hostStruct = gethostbyname(Host);
 	if (hostStruct == nullptr)
-	return (0);
+		return (0);
 	hostNode = (struct in_addr *) hostStruct->h_addr;
 	return ( Bind(ntohl(hostNode->s_addr),port,reuseAddr) );
 }
@@ -915,11 +915,11 @@ bit8 TCP::Bind(uint32 IP,uint16 Port,bit8 reuseAddr)
 	addr.sin_addr.s_addr=IP;
 	fd=socket(AF_INET,SOCK_STREAM,DEFAULT_PROTOCOL);
 	if (fd==-1)
-	return(FALSE);
+		return(FALSE);
 
 	retval=SetBlocking(FALSE,fd);
 	if (retval==-1)
-	ERRMSG("Couldn't set nonblocking mode!");
+		ERRMSG("Couldn't set nonblocking mode!");
 
 	if (reuseAddr==TRUE)
 	{
@@ -937,14 +937,14 @@ bit8 TCP::Bind(uint32 IP,uint16 Port,bit8 reuseAddr)
 		opval=1;
 		retval=setsockopt(fd,SOL_SOCKET,SO_REUSEADDR,(char *)&opval,sizeof(opval));
 		if (retval!=0)
-		fprintf(stderr,"Could not set socket to SO_REUSEADDR\n");
+			fprintf(stderr,"Could not set socket to SO_REUSEADDR\n");
     #endif
 	}
 
 	retval=bind(fd,(struct sockaddr *)&addr,sizeof(addr));
   #ifdef _WIN32
 	if (retval==SOCKET_ERROR)
-	retval=-1;
+		retval=-1;
   #endif
 
 	if (retval==-1)
@@ -958,7 +958,7 @@ bit8 TCP::Bind(uint32 IP,uint16 Port,bit8 reuseAddr)
 	maxFD=fd;
 
 	if (mode==SERVER)
-	listen(fd,64);  //Solaris needs lots of listen slots for some reason
+		listen(fd,64);  //Solaris needs lots of listen slots for some reason
 
 	return(TRUE);
 }
@@ -973,7 +973,7 @@ bit8 TCP::Connect(char *Host,uint16 port)
 	struct in_addr *hostNode;
 
 	if (isdigit(Host[0]))
-	return ( Connect( ntohl(inet_addr(Host)), port) );
+		return ( Connect( ntohl(inet_addr(Host)), port) );
 
 	strcpy(hostName, Host);
 
@@ -1015,7 +1015,7 @@ bit8 TCP::Connect(uint32 IP,uint16 Port)
 
     #ifdef _WIN32
 		if (result==SOCKET_ERROR)
-		result=-1;
+			result=-1;
     #endif
 
 		if ((status == ISCONN) && (result == -1))
@@ -1059,13 +1059,13 @@ bit8 TCP::ConnectAsync(char *Host,uint16 port)
 	struct in_addr *hostNode;
 
 	if (isdigit(Host[0]))
-	return ( ConnectAsync( ntohl(inet_addr(Host)), port) );
+		return ( ConnectAsync( ntohl(inet_addr(Host)), port) );
 
 	strcpy(hostName, Host);
 
 	hostStruct = gethostbyname(Host);
 	if (hostStruct == nullptr)
-	return (0);
+		return (0);
 	hostNode = (struct in_addr *) hostStruct->h_addr;
 	return ( ConnectAsync(ntohl(hostNode->s_addr),port) );
 }
@@ -1086,7 +1086,7 @@ bit8 TCP::ConnectAsync(uint32 IP,uint16 Port)
 	serverAddr.sin_addr.s_addr=IP;
 
 	if (mode!=CLIENT)
-	return(FALSE);
+		return(FALSE);
 
 	result=-1;
 
@@ -1204,7 +1204,7 @@ int TCP::GetStatus(void)
 sint32 TCP::GetConnection(void)
 {
 	if (mode!=SERVER)
-	return(-1);
+		return(-1);
 
 	sint32 clientFD;
 	struct sockaddr_in clientAddr;
@@ -1214,7 +1214,7 @@ sint32 TCP::GetConnection(void)
 	if (clientFD!=-1)
 	{
 		if (clientFD>maxFD)
-		maxFD=clientFD;
+			maxFD=clientFD;
 		FD_SET(clientFD,&clientList);
 		clientCount++;
 	}
@@ -1224,7 +1224,7 @@ sint32 TCP::GetConnection(void)
 sint32 TCP::GetConnection(struct sockaddr *clientAddr)
 {
 	if (mode!=SERVER)
-	return(-1);
+		return(-1);
 
 	sint32 clientFD;
 	int addrlen=sizeof(struct sockaddr);
@@ -1233,7 +1233,7 @@ sint32 TCP::GetConnection(struct sockaddr *clientAddr)
 	if (clientFD!=-1)
 	{
 		if (clientFD>maxFD)
-		maxFD=clientFD;
+			maxFD=clientFD;
 		FD_SET(clientFD,&clientList);
 		clientCount++;
 	}

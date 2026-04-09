@@ -683,7 +683,7 @@ void Mouse::createStreamMessages()
 
 	Int delay = m_tooltipDelayTime;
 	if(m_tooltipDelay >= 0 )
-	delay = m_tooltipDelay;
+		delay = m_tooltipDelay;
 	if( TheGlobalData->m_scriptDebug )
 	{
 		//No delay while scriptdebugging!

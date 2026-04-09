@@ -68,7 +68,7 @@ inline HRESULT WINAPI _ATL_DelegateQueryInterface(void* pv, REFIID riid, LPVOID*
 {
 	IUnknown** ppunk = reinterpret_cast<IUnknown**>(reinterpret_cast<char*>(pv) + dw);
 	if (*ppunk == nullptr)
-	return E_NOINTERFACE;
+		return E_NOINTERFACE;
 	return (*ppunk)->QueryInterface(riid, ppv);
 }
 

@@ -68,7 +68,7 @@ DebugIOCon::~DebugIOCon()
 {
 	// close console if we allocated it
 	if (m_allocatedConsole)
-	FreeConsole();
+		FreeConsole();
 }
 
 int DebugIOCon::Read(char *buf, int maxchar)
@@ -81,7 +81,7 @@ int DebugIOCon::Read(char *buf, int maxchar)
 	// we would probably be snatching away keyboard data
 	// for the process that is using that console.
 	if (!m_allocatedConsole)
-	return 0;
+		return 0;
 
 	// are we doing a continuous read?
 	if (m_inputRead)
@@ -111,18 +111,18 @@ int DebugIOCon::Read(char *buf, int maxchar)
 	{
 		DWORD dwRecords;
 		if (!GetNumberOfConsoleInputEvents(h,&dwRecords))
-		break;
+			break;
 		if (!dwRecords)
-		break;
+			break;
 
 		INPUT_RECORD record;
 		ReadConsoleInput(h,&record,1,&dwRecords);
 		if (record.EventType!=KEY_EVENT)
-		continue;
+			continue;
 
 		KEY_EVENT_RECORD &key=record.Event.KeyEvent;
 		if (!key.bKeyDown||!key.uChar.AsciiChar)
-		continue;
+			continue;
 
 		if (key.uChar.AsciiChar=='\r'||
         key.uChar.AsciiChar=='\n')
@@ -137,12 +137,12 @@ int DebugIOCon::Read(char *buf, int maxchar)
 		if (key.uChar.AsciiChar=='\b')
 		{
 			if (m_inputUsed)
-			m_inputUsed--;
+				m_inputUsed--;
 		}
 		else if (((unsigned char)key.uChar.AsciiChar)>=' ')
 		{
 			if (m_inputUsed<sizeof(m_input)-1)
-			m_input[m_inputUsed++]=key.uChar.AsciiChar;
+				m_input[m_inputUsed++]=key.uChar.AsciiChar;
 		}
 	}
 
@@ -160,7 +160,7 @@ int DebugIOCon::Read(char *buf, int maxchar)
 
 	// fake another cursor
 	if (GetTickCount()&512)
-	ci[m_inputUsed].Attributes=BACKGROUND_BLUE|BACKGROUND_GREEN
+		ci[m_inputUsed].Attributes=BACKGROUND_BLUE|BACKGROUND_GREEN
                               |BACKGROUND_RED|BACKGROUND_INTENSITY|FOREGROUND_GREEN;
 
 	COORD srcSize,srcCoord;
@@ -186,7 +186,7 @@ int DebugIOCon::Read(char *buf, int maxchar)
 void DebugIOCon::Write(StringType type, const char *src, const char *str)
 {
 	if (type==StringType::StructuredCmdReply||!str)
-	return;
+		return;
 
 	DWORD dwDummy;
 	WriteFile(GetStdHandle(STD_OUTPUT_HANDLE),str,strlen(str),&dwDummy,nullptr);

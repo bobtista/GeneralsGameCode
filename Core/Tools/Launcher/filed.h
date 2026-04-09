@@ -27,7 +27,7 @@ class FileD : public OutputDevice
 	{
 		out=fopen(filename,"w");
 		if (out==nullptr)
-		out=fopen("FileDev.out","w");
+			out=fopen("FileDev.out","w");
 	}
 
 	virtual ~FileD()

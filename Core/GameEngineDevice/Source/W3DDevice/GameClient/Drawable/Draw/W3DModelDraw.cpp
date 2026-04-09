@@ -2107,7 +2107,7 @@ void W3DModelDraw::doDrawModule(const Matrix3D* transformMtx)
 
 	const W3DModelDrawModuleData *modData = getW3DModelDrawModuleData();
 	if ( modData->m_particlesAttachedToAnimatedBones )
-	updateBonesForClientParticleSystems();// LORENZEN ADDED THIS
+		updateBonesForClientParticleSystems();// LORENZEN ADDED THIS
 	// IT REPOSITIONS PARTICLESYSTEMS TO TSTAY IN SYNC WITH ANIMATED BONES
 
 	handleClientRecoil();

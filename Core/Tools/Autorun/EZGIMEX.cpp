@@ -168,7 +168,7 @@ GSTREAM * GCALL gwopen(const char *filename)
 
 	handle = fopen(filename,"w+b");
 	if (!handle)
-	handle = fopen(filename,"wb");
+		handle = fopen(filename,"wb");
 
 	return((GSTREAM *) handle);
 }
@@ -177,7 +177,7 @@ int GCALL gclose(GSTREAM *g)
 {
 	int ok=1;
 	if (g)
-	ok = !fclose((FILE*) g);
+		ok = !fclose((FILE*) g);
 	return(ok);
 }
 

@@ -266,7 +266,7 @@ FieldClass *PacketClass::Find_Field(char *id)
 	for (FieldClass *current = Head; current; current = current->Next)
 	{
 		if ( strncmp(id, current->ID, 4) == 0)
-		return current;
+			return current;
 	}
 	return nullptr;
 }

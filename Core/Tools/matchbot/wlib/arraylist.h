@@ -200,11 +200,11 @@ bit8 ArrayList<T>::setSize(sint32 newsize, IN T &filler)
 	Entries_ = newsize;
 
 	if (newsize<0)
-	return(false);
+		return(false);
 
 	// Grow the vector as much as we need to
 	while (newsize > Slots_)
-	growVector();
+		growVector();
 
 	// Create new objects in the blank holes
 	for (int i=oldEntries; i<Entries_; i++)
@@ -215,7 +215,7 @@ bit8 ArrayList<T>::setSize(sint32 newsize, IN T &filler)
 
 	// If we're at 33% usage or less, shrink the vector
 	if ((Entries_*3) <= Slots_)  // don't do while, because I think shrink will never goto 0
-	shrinkVector();
+		shrinkVector();
 
 	return(true);
 }
@@ -227,16 +227,16 @@ template <class T>
 bit8 ArrayList<T>::add(IN T &node,sint32 pos)
 {
 	if (pos > Entries_)      // You can only access one of the end of the vector
-	pos=Entries_;
+		pos=Entries_;
 	if (pos >= Slots_)        // If we're at the end, grow the list
-	growVector();
+		growVector();
 	if (Entries_ >= Slots_)   // enuff space?
-	growVector();
+		growVector();
 
 	// If we are insering into the middle or front of the list we have to
 	//  slide the old objects forward.
 	if (pos < Entries_)   // If there are elements after the add point
-	memmove(Vector_+pos+1,Vector_+pos,sizeof(T)*(Entries_-pos)); // move them forward
+		memmove(Vector_+pos+1,Vector_+pos,sizeof(T)*(Entries_-pos)); // move them forward
 
 	//fprintf(stderr,"Placement new to %p\n",(Vector_+pos));
 
@@ -502,11 +502,11 @@ template <class T>
 bit8 ArrayList<T>::replace(IN T &node, sint32 pos)
 {
 	if (Entries_==0)
-	return(FALSE);
+		return(FALSE);
 	if (pos<0)
-	pos=0;
+		pos=0;
 	if (pos >= Entries_)
-	pos=Entries_-1;
+		pos=Entries_-1;
 
 	(Vector_+pos)->~T();    // Call the destructor manually. Don't try this
 	//  at home kiddies!
@@ -525,11 +525,11 @@ template <class T>
 bit8 ArrayList<T>::remove(sint32 pos)
 {
 	if (Entries_==0)
-	return(FALSE);
+		return(FALSE);
 	if (pos<0)
-	pos=0;
+		pos=0;
 	if (pos >= Entries_)
-	pos=Entries_-1;
+		pos=Entries_-1;
 
 	(Vector_+pos)->~T();    // Call the destructor manually. Don't try this
 	//  at home kiddies!
@@ -540,7 +540,7 @@ bit8 ArrayList<T>::remove(sint32 pos)
 
 	// If we're at 33% usage or less, shrink the vector
 	if ( (Entries_*3) <= Slots_)
-	shrinkVector();
+		shrinkVector();
 
 	return(TRUE);
 }
@@ -554,7 +554,7 @@ bit8 ArrayList<T>::remove(OUT T &node, sint32 pos)
 	bit8 retval;
 	retval=get(node,pos);
 	if (retval==FALSE)
-	return(FALSE);
+		return(FALSE);
 	return(remove(pos));
 }
 
@@ -581,7 +581,7 @@ template <class T>
 bit8 ArrayList<T>::getPointer(OUT T **node,sint32 pos) RO
 {
 	if ((pos < 0)||(pos >= Entries_))
-	return(FALSE);
+		return(FALSE);
 	*node=&(Vector_[pos]);
 	return(TRUE);
 }
@@ -592,7 +592,7 @@ template <class T>
 bit8 ArrayList<T>::get(OUT T &node,sint32 pos) RO
 {
 	if ((pos < 0)||(pos >= Entries_))
-	return(FALSE);
+		return(FALSE);
 	node=Vector_[pos];
 	return(TRUE);
 }
@@ -637,11 +637,11 @@ template <class T>
 bit8 ArrayList<T>::growVector(void)
 {
 	if (Entries_ < Slots_)   // Don't grow until we're at 100% usage
-	return(FALSE);
+		return(FALSE);
 
 	int   newSlots=Entries_*2;
 	if(newSlots < INITIAL_SIZE)
-	newSlots=INITIAL_SIZE;
+		newSlots=INITIAL_SIZE;
 
 	//fprintf(stderr,"Growing vector to: %d\n",newSlots);
 
@@ -654,7 +654,7 @@ bit8 ArrayList<T>::growVector(void)
 	memset(newVector,0,newSlots * sizeof(T)); // zero just to be safe
 
 	if (Vector_ != nullptr)
-	memcpy(newVector,Vector_,Entries_*sizeof(T));
+		memcpy(newVector,Vector_,Entries_*sizeof(T));
 
 	delete[]((uint8 *)Vector_);  // Get rid of the old vector without calling
                                //  destructors
@@ -674,14 +674,14 @@ bit8 ArrayList<T>::shrinkVector(void)
 
 	// Don't need to shrink until usage goes below 33%
 	if ( (Entries_*3) > Slots_)
-	return(FALSE);
+		return(FALSE);
 
 	int   newSlots=Slots_/2;
 	if(newSlots < INITIAL_SIZE) // never shrink past initial size
-	newSlots=INITIAL_SIZE;
+		newSlots=INITIAL_SIZE;
 
 	if (newSlots >= Slots_)   // don't need to shrink
-	return(FALSE);
+		return(FALSE);
 
 	//fprintf(stderr,"Shrinking vector to: %d\n",newSlots);
 
@@ -693,7 +693,7 @@ bit8 ArrayList<T>::shrinkVector(void)
 	T *newVector=(T *)(new uint8[newSlots * sizeof(T)]);
 
 	if (Vector_ != nullptr)    // Vector_ better not be nullptr!
-	memcpy(newVector,Vector_,Entries_*sizeof(T));
+		memcpy(newVector,Vector_,Entries_*sizeof(T));
 
 	delete[]((uint8 *)Vector_);  // Get rid of the old vector without calling
                                //  destructors

@@ -364,7 +364,7 @@ Random4Class::Random4Class(unsigned int seed)
 
 	mt[0]= seed & 0xffffffff;
 	for (mti=1; mti<N; mti++)
-	mt[mti] = (69069 * mt[mti-1]) & 0xffffffff;
+		mt[mti] = (69069 * mt[mti-1]) & 0xffffffff;
 	 // mti is N+1 after this
 }
 

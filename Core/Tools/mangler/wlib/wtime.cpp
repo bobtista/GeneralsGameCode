@@ -112,10 +112,10 @@ bit8 Wtime::ParseDate(char *in)
 	if (*ptr==0) return(FALSE);
 	t.tm_wday=-1;
 	for (i=0; i<7; i++)  // parse day of week
-	if (strncmp(ptr,DAYS[i],strlen(DAYS[i]))==0)
-	t.tm_wday=i;
+		if (strncmp(ptr,DAYS[i],strlen(DAYS[i]))==0)
+			t.tm_wday=i;
 	if (t.tm_wday==-1)
-	return(FALSE);
+		return(FALSE);
 	while ((!isdigit(*ptr))&&(*ptr!=0)) ptr++;  // skip to day of month
 	if (*ptr==0) return(FALSE);
 	t.tm_mday=atoi(ptr);
@@ -123,17 +123,17 @@ bit8 Wtime::ParseDate(char *in)
 	if (*ptr==0) return(FALSE);
 	t.tm_mon=-1;
 	for (i=0; i<12; i++)  // match month
-	if (strncmp(ptr,MONTHS[i],strlen(MONTHS[i]))==0) t.tm_mon=i;
+		if (strncmp(ptr,MONTHS[i],strlen(MONTHS[i]))==0) t.tm_mon=i;
 	if (t.tm_mon==-1) return(FALSE);
 	while ((!isdigit(*ptr))&&(*ptr!=0)) ptr++;
 	if (*ptr==0) return(FALSE);
 	t.tm_year=atoi(ptr);
 	if (t.tm_year<70)  // if they specify a 2 digit year, we'll be nice
-	t.tm_year+=2000;
+		t.tm_year+=2000;
 	else if (t.tm_year<100)
-	t.tm_year+=1900;
+		t.tm_year+=1900;
 	if (t.tm_year>2200)  // I doubt my code will be around for another 203 years
-	return(FALSE);
+		return(FALSE);
 	while ((isdigit(*ptr))&&(*ptr!=0)) ptr++;  // skip to end of year
 	if (*ptr==0) return(FALSE);
 
@@ -154,7 +154,7 @@ bit8 Wtime::ParseDate(char *in)
 
 	sec=(uint32)(mktime(&t));
 	if ((sint32)sec==-1)
-	return(FALSE);
+		return(FALSE);
 
 
 	// The next part of the time is OPTIONAL (+minutes)
@@ -203,7 +203,7 @@ bit8 Wtime::FormatTime(char *out, const char *format)
 	while (*ptr!=0)
 	{
 		if (lastWasH>0)
-		lastWasH--;
+			lastWasH--;
 
 		if (isspace(*ptr))
 		{
@@ -287,7 +287,7 @@ bit8 Wtime::FormatTime(char *out, const char *format)
 		else if (strncmp(ptr,"mm",2)==0)
 		{
 			if (lastWasH==1)
-			sprintf(out+strlen(out),"%02ld",GetMinute());
+				sprintf(out+strlen(out),"%02ld",GetMinute());
 			else
 			sprintf(out+strlen(out),"%02ld",GetMonth());
 			ptr+=2;
@@ -295,7 +295,7 @@ bit8 Wtime::FormatTime(char *out, const char *format)
 		else if (strncmp(ptr,"m",1)==0)
 		{
 			if (lastWasH==1)
-			sprintf(out+strlen(out),"%ld",GetMinute());
+				sprintf(out+strlen(out),"%ld",GetMinute());
 			else
 			sprintf(out+strlen(out),"%ld",GetMonth());
 			ptr+=1;
@@ -373,7 +373,7 @@ bit8 Wtime::FormatTime(char *out, const char *format)
 	{
 		char ampm[4];
 		if( GetHour() < 12 )
-		strcpy(ampm, " AM");
+			strcpy(ampm, " AM");
 		else
 		strcpy(ampm, " PM");
 		sprintf(out+strlen(out), "%s", ampm);
@@ -521,7 +521,7 @@ uint32 Wtime::GetYear(void) const
 	struct tm *tptr;
 	tptr=localtime_r((time_t *)&sec,&t);
 	if ((tptr->tm_year)>=70)
-	return((tptr->tm_year)+1900);
+		return((tptr->tm_year)+1900);
 	else
 	return((tptr->tm_year)+2000);
 }
@@ -538,14 +538,14 @@ bit8 Wtime::GetSign(void) const
 int   Wtime::Compare(const Wtime &other) const
 {
 	if ((sec==other.sec)&&(usec==other.usec))
-	return(0);        // equal
+		return(0);        // equal
 
 	else if (sec>other.sec)
-	return(1);
+		return(1);
 	else if (sec<other.sec)
-	return(-1);
+		return(-1);
 	else if (usec>other.usec)
-	return(1);
+		return(1);
 	else
 	return(-1);
 }
@@ -555,7 +555,7 @@ bit8 Wtime::operator == ( const Wtime &other ) const
 {
 	bit8 retval=Compare(other);
 	if (retval==0)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -564,7 +564,7 @@ bit8 Wtime::operator != ( const Wtime &other ) const
 {
 	bit8 retval=Compare(other);
 	if (retval==0)
-	return(FALSE);
+		return(FALSE);
 	else
 	return(TRUE);
 }
@@ -573,7 +573,7 @@ bit8 Wtime::operator < ( const Wtime &other ) const
 {
 	int retval=Compare(other);
 	if (retval==-1)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -582,7 +582,7 @@ bit8 Wtime::operator > ( const Wtime &other ) const
 {
 	int retval=Compare(other);
 	if (retval==1)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -591,7 +591,7 @@ bit8 Wtime::operator <= ( const Wtime &other ) const
 {
 	int retval=Compare(other);
 	if ((retval==-1)||(retval==0))
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -600,7 +600,7 @@ bit8 Wtime::operator >= ( const Wtime &other ) const
 {
 	int retval=Compare(other);
 	if ((retval==1)||(retval==0))
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }

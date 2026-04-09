@@ -129,7 +129,7 @@ public:
 	{
 		if (frame<(unsigned)m_firstFrame||
         frame>=(unsigned)curFrame)
-		return false;
+			return false;
 		value=m_recFrameVal[frame-m_firstFrame];
 		return true;
 	}
@@ -163,7 +163,7 @@ public:
 	static void ClearTotals()
 	{
 		for (ProfileId *cur=first;cur;cur=cur->m_next)
-		cur->m_totalVal=0.;
+			cur->m_totalVal=0.;
 	}
 
 private:

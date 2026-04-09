@@ -73,7 +73,7 @@ static sint32 Get_Day(int month, int day, int year)
   /* subtract out the leap day that was added above for this year */
 
 	if (month < 3 && IS_LEAP(year))
-	--days;
+		--days;
 	return(days);
 }
 
@@ -324,7 +324,7 @@ bit8 Xtime::FormatTime(char *out, const char *format)
 	while (*ptr!=0)
 	{
 		if (lastWasH>0)
-		lastWasH--;
+			lastWasH--;
 
 		if (isspace(*ptr))
 		{
@@ -408,7 +408,7 @@ bit8 Xtime::FormatTime(char *out, const char *format)
 		else if (strncmp(ptr,"mm",2)==0)
 		{
 			if (lastWasH==1)
-			sprintf(out+strlen(out),"%02ld",getMinute());
+				sprintf(out+strlen(out),"%02ld",getMinute());
 			else
 			sprintf(out+strlen(out),"%02ld",getMonth());
 			ptr+=2;
@@ -416,7 +416,7 @@ bit8 Xtime::FormatTime(char *out, const char *format)
 		else if (strncmp(ptr,"m",1)==0)
 		{
 			if (lastWasH==1)
-			sprintf(out+strlen(out),"%ld",getMinute());
+				sprintf(out+strlen(out),"%ld",getMinute());
 			else
 			sprintf(out+strlen(out),"%ld",getMonth());
 			ptr+=1;
@@ -494,7 +494,7 @@ bit8 Xtime::FormatTime(char *out, const char *format)
 	{
 		char ampm[4];
 		if( getHour() < 12 )
-		strcpy(ampm, " AM");
+			strcpy(ampm, " AM");
 		else
 		strcpy(ampm, " PM");
 		sprintf(out+strlen(out), "%s", ampm);
@@ -662,7 +662,7 @@ bit8 Xtime::getTimeval(struct timeval &tv)
 {
 	// A timeval can only hold dates from 1970-2038
 	if ((day_ < 719528) || (day_ >= 719528+24855))
-	return(FALSE);
+		return(FALSE);
 
 	// Compute seconds since Jan 1, 1970
 	uint32 seconds=day_-719528;
@@ -706,7 +706,7 @@ bit8 Xtime::getTime(int &month, int &mday, int &year, int &hour, int &minute, in
 	int i;
 	sint32 dayofyear;
 	if (Get_Date_From_Day(day_,year,dayofyear)==FALSE)
-	return(FALSE);
+		return(FALSE);
 
 	static int DaysAtMonth[2][12] = {
         {0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334},   // normal
@@ -719,7 +719,7 @@ bit8 Xtime::getTime(int &month, int &mday, int &year, int &hour, int &minute, in
 	for (i=0; i<12; i++)
 	{
 		if (DaysAtMonth[isleap][i] >= dayofyear)
-		break;
+			break;
 		month=i;
 	}
 	month++;  // 1 based
@@ -870,14 +870,14 @@ bit8 Xtime::setMDay(sint32 _mday)
 int   Xtime::compare(const Xtime &other) const
 {
 	if ((day_==other.day_)&&(msec_==other.msec_))
-	return(0);        // equal
+		return(0);        // equal
 
 	else if (day_>other.day_)
-	return(1);
+		return(1);
 	else if (day_<other.day_)
-	return(-1);
+		return(-1);
 	else if (msec_>other.msec_)
-	return(1);
+		return(1);
 	else
 	return(-1);
 }
@@ -887,7 +887,7 @@ bit8 Xtime::operator == ( const Xtime &other ) const
 {
 	bit8 retval=compare(other);
 	if (retval==0)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -896,7 +896,7 @@ bit8 Xtime::operator != ( const Xtime &other ) const
 {
 	bit8 retval=compare(other);
 	if (retval==0)
-	return(FALSE);
+		return(FALSE);
 	else
 	return(TRUE);
 }
@@ -905,7 +905,7 @@ bit8 Xtime::operator < ( const Xtime &other ) const
 {
 	int retval=compare(other);
 	if (retval==-1)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -914,7 +914,7 @@ bit8 Xtime::operator > ( const Xtime &other ) const
 {
 	int retval=compare(other);
 	if (retval==1)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -923,7 +923,7 @@ bit8 Xtime::operator <= ( const Xtime &other ) const
 {
 	int retval=compare(other);
 	if ((retval==-1)||(retval==0))
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }
@@ -932,7 +932,7 @@ bit8 Xtime::operator >= ( const Xtime &other ) const
 {
 	int retval=compare(other);
 	if ((retval==1)||(retval==0))
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
 }

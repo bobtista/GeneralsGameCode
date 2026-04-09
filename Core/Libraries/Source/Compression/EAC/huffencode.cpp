@@ -1185,7 +1185,7 @@ int GCALL HUFF_encode(void *compresseddata, const void *source, int sourcesize, 
 	void *deltabuf=nullptr;
 	int opt=0;
 	if (opts)
-	opt = opts[0];
+		opt = opts[0];
 
 	EC = (struct HuffEncodeContext *)galloc(sizeof(struct HuffEncodeContext));
 	if (EC)

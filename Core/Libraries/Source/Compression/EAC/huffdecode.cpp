@@ -233,7 +233,7 @@ static int HUFF_decompress(unsigned char *packbuf, unsigned char *unpackbuf)
 
 							cmp = 0;
 							if (bitnum)                             /* left justify cmp */
-							cmp = (basecmp << (16-numbits) & 0xffff);
+								cmp = (basecmp << (16-numbits) & 0xffff);
 
 							cmptbl[numbits++] = cmp;
 
@@ -264,7 +264,7 @@ static int HUFF_decompress(unsigned char *packbuf, unsigned char *unpackbuf)
 							{
 								++nextchar;
 								if (!leap[nextchar])
-								--leapdelta;
+									--leapdelta;
 							} while (leapdelta);
 
 							leap[nextchar] = 1;
@@ -298,7 +298,7 @@ static int HUFF_decompress(unsigned char *packbuf, unsigned char *unpackbuf)
 					{
 						bitnum = bitnumtbl[bits];
 						if (bits>=9)
-						break;
+							break;
 						numbitentries = 1<<(8-bits);
 
 						while (bitnum--)
@@ -454,7 +454,7 @@ nextloop:
 
 					SQgetbits(v,1);                         /* End Of File */
 					if (v)
-					break;
+						break;
 
 					{
 						unsigned int t;
@@ -533,7 +533,7 @@ bool GCALL HUFF_is(const void *compresseddata)
      || packtype==0xb3fb
      || packtype==0xb4fb
      || packtype==0xb5fb)
-	ok = true;
+		ok = true;
 
 	return(ok);
 }

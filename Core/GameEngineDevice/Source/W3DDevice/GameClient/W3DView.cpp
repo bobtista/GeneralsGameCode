@@ -884,7 +884,7 @@ void drawDebugCircle( const Coord3D & center, Real radius, Real width, Color col
 		startValid = ( TheTacticalView->worldToScreenTriReturn( &pnt, &start ) != View::WTS_INVALID );
 
 		if ( startValid && endValid )
-		TheDisplay->drawLine( start.x, start.y, end.x, end.y, width, color );
+			TheDisplay->drawLine( start.x, start.y, end.x, end.y, width, color );
 
 		lastPnt = pnt;
 		end = start;
@@ -1011,7 +1011,7 @@ static void drawContainedAudioLocations( Object *obj, void *userData )
 	Drawable *draw = obj->getDrawable();
 
 	if( draw )
-	drawAudioLocations( draw, userData );
+		drawAudioLocations( draw, userData );
 
 }
 
@@ -1028,7 +1028,7 @@ static void drawAudioLocations( Drawable *draw, void *userData )
 		ContainModuleInterface *contain = obj->getContain();
 
 		if( contain )
-		contain->iterateContained( drawContainedAudioLocations, userData, FALSE );
+			contain->iterateContained( drawContainedAudioLocations, userData, FALSE );
 
 	}
 
@@ -1149,7 +1149,7 @@ static void drawablePostDraw( Drawable *draw, void *userData )
 	  drawDrawableExtents( draw, userData );
 
 	if ( TheGlobalData->m_showAudioLocations )
-	drawAudioLocations( draw, userData );
+		drawAudioLocations( draw, userData );
 #endif
 
 	// debug terrain normals at object positions
@@ -2163,7 +2163,7 @@ View::WorldToScreenReturn W3DView::worldToScreenTriReturn( const Coord3D *w, ICo
 {
 	// sanity
 	if( w == nullptr || s == nullptr )
-	return WTS_INVALID;
+		return WTS_INVALID;
 
 	if( m_3DCamera )
 	{

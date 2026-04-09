@@ -41,13 +41,13 @@ static ProfileFastCS cs;
 void ProfileHighLevel::Id::Increment(double add)
 {
 	if (m_idPtr)
-	m_idPtr->Increment(add);
+		m_idPtr->Increment(add);
 }
 
 void ProfileHighLevel::Id::SetMax(double max)
 {
 	if (m_idPtr)
-	m_idPtr->Maximum(max);
+		m_idPtr->Maximum(max);
 }
 
 const char *ProfileHighLevel::Id::GetName() const
@@ -74,7 +74,7 @@ const char *ProfileHighLevel::Id::GetValue(unsigned frame) const
 {
 	double v;
 	if (!m_idPtr||!m_idPtr->GetFrameValue(frame,v))
-	return nullptr;
+		return nullptr;
 	return m_idPtr->AsString(v);
 }
 
@@ -160,9 +160,9 @@ void ProfileId::Increment(double add)
 		for (unsigned i=0;i<MAX_FRAME_RECORDS;i++)
 		{
 			if (mask&1)
-			m_frameVal[i]+=add;
+				m_frameVal[i]+=add;
 			if (!(mask>>=1))
-			break;
+				break;
 		}
 	}
 }
@@ -174,9 +174,9 @@ void ProfileId::Maximum(double max)
 
 	m_valueMode=ModeMaximum;
 	if (max>m_curVal)
-	m_curVal=max;
+		m_curVal=max;
 	if (max>m_totalVal)
-	m_totalVal=max;
+		m_totalVal=max;
 	if (frameRecordMask)
 	{
 		unsigned mask=frameRecordMask;
@@ -185,10 +185,10 @@ void ProfileId::Maximum(double max)
 			if (mask&1)
 			{
 				if (max>m_frameVal[i])
-				m_frameVal[i]=max;
+					m_frameVal[i]=max;
 			}
 			if (!(mask>>=1))
-			break;
+				break;
 		}
 	}
 }
@@ -207,7 +207,7 @@ const char *ProfileId::AsString(double v) const
 
 	ProfileFastCS::Lock lock(cs);
 	if (stringBufUnused+len>STRING_BUFFER_SIZE)
-	stringBufUnused=0;
+		stringBufUnused=0;
 	char *ret=stringBuf+stringBufUnused;
 	memcpy(ret,help,len);
 	stringBufUnused+=len;
@@ -220,13 +220,13 @@ int ProfileId::FrameStart()
 
 	unsigned i=0;
 	for (;i<MAX_FRAME_RECORDS;i++)
-	if (!(frameRecordMask&(1<<i)))
-	break;
+		if (!(frameRecordMask&(1<<i)))
+			break;
 	if (i==MAX_FRAME_RECORDS)
-	return -1;
+		return -1;
 
 	for (ProfileId *p=first;p;p=p->m_next)
-	p->m_frameVal[i]=0.;
+		p->m_frameVal[i]=0.;
 
 	frameRecordMask|=1<<i;
 	return i;
@@ -260,7 +260,7 @@ void ProfileId::FrameEnd(int which, int mixIndex)
 		for (ProfileId *p=first;p;p=p->m_next)
 		{
 			if (p->m_firstFrame>mixIndex)
-			continue;
+				continue;
 
 			double &val=p->m_recFrameVal[mixIndex-p->m_firstFrame];
 			switch(p->m_valueMode)
@@ -272,7 +272,7 @@ void ProfileId::FrameEnd(int which, int mixIndex)
 					break;
 				case ProfileId::ModeMaximum:
 					if (p->m_frameVal[which]>val)
-					val=p->m_frameVal[which];
+						val=p->m_frameVal[which];
 					break;
 				default:
 					DFAIL();
@@ -286,8 +286,8 @@ void ProfileId::Shutdown()
 	if (frameRecordMask)
 	{
 		for (unsigned i=0;i<MAX_FRAME_RECORDS;i++)
-		if (frameRecordMask&(1<<i))
-		FrameEnd(i,-1);
+			if (frameRecordMask&(1<<i))
+				FrameEnd(i,-1);
 	}
 }
 
@@ -299,7 +299,7 @@ ProfileHighLevel::Id ProfileHighLevel::AddProfile(const char *name, const char *
 	// check if there is already an ID with the given name...
 	Id id;
 	if (FindProfile(name,id))
-	return id;
+		return id;
 
 	// checks...
 	DFAIL_IF(!name) return id;
@@ -325,11 +325,11 @@ bool ProfileHighLevel::FindProfile(const char *name, Id &id)
 
 	ProfileFastCS::Lock lock(cs);
 	for (ProfileId *cur=ProfileId::GetFirst();cur;cur=cur->GetNext())
-	if (strcmp(name,cur->GetName()) == 0)
-	{
-		id.m_idPtr=cur;
-		return true;
-	}
+		if (strcmp(name,cur->GetName()) == 0)
+		{
+			id.m_idPtr=cur;
+			return true;
+		}
 
 	id.m_idPtr=nullptr;
 	return false;

@@ -147,7 +147,7 @@ __forceinline float fast_float_floor(float f)
 {
 	static unsigned almost1=(126<<23)|0x7fffff;
 	if (*(unsigned *)&f &0x80000000)
-	f-=*(float *)&almost1;
+		f-=*(float *)&almost1;
 	return fast_float_trunc(f);
 }
 
@@ -156,7 +156,7 @@ __forceinline float fast_float_ceil(float f)
 {
 	static unsigned almost1=(126<<23)|0x7fffff;
 	if ( (*(unsigned *)&f &0x80000000)==0)
-	f+=*(float *)&almost1;
+		f+=*(float *)&almost1;
 	return fast_float_trunc(f);
 }
 

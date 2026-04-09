@@ -52,7 +52,7 @@ CritSec                      DebugLibSemaphore;
 int MsgManager::setAllStreams(OutputDevice *device)
 {
 	if (device==nullptr)
-	return(1);
+		return(1);
 
 	DEBUGLOCK;
 	debug_streamer.setOutputDevice(device);
@@ -118,7 +118,7 @@ int MsgManager::ReplaceAllStreams(FileD * output_device, IN char *device_filenam
 int MsgManager::setDebugStream(OutputDevice *device)
 {
 	if (device==nullptr)
-	return(1);
+		return(1);
 
 	DEBUGLOCK;
 	debug_streamer.setOutputDevice(device);
@@ -131,7 +131,7 @@ int MsgManager::setDebugStream(OutputDevice *device)
 int MsgManager::setInfoStream(OutputDevice *device)
 {
 	if (device==nullptr)
-	return(1);
+		return(1);
 
 	DEBUGLOCK;
 	info_streamer.setOutputDevice(device);
@@ -144,7 +144,7 @@ int MsgManager::setInfoStream(OutputDevice *device)
 int MsgManager::setWarnStream(OutputDevice *device)
 {
 	if (device==nullptr)
-	return(1);
+		return(1);
 
 	DEBUGLOCK;
 	warn_streamer.setOutputDevice(device);
@@ -157,7 +157,7 @@ int MsgManager::setWarnStream(OutputDevice *device)
 int MsgManager::setErrorStream(OutputDevice *device)
 {
 	if (device==nullptr)
-	return(1);
+		return(1);
 
 	DEBUGLOCK;
 	error_streamer.setOutputDevice(device);

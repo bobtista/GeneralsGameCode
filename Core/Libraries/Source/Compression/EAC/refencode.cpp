@@ -34,7 +34,7 @@ static unsigned int matchlen(unsigned char *s,unsigned char *d, unsigned int max
 	unsigned int current;
 
 	for (current=0; current<maxmatch && *s++==*d++; ++current)
-	;
+		;
 
 	return(current);
 }
@@ -72,11 +72,11 @@ static int refcompress(unsigned char *from, int len, unsigned char *dest, int ma
 	cptr = rptr = from;
 
 	if ((unsigned int)maxback > (unsigned int)131071)
-	maxback = 131071;
+		maxback = 131071;
 
 	hashtbl = (int *) galloc(65536L*sizeof(int));
 	if (!hashtbl)
-	return(0);
+		return(0);
 	link = (int *) galloc(131072L*sizeof(int));
 	if (!link)
 	{
@@ -112,9 +112,9 @@ static int refcompress(unsigned char *from, int len, unsigned char *dest, int ma
 					{
 						toffset = (cptr-1)-tptr;
 						if (toffset<1024 && tlen<=10)       /* two byte int form */
-						tcost = 2;
+							tcost = 2;
 						else if (toffset<16384 && tlen<=67) /* three byte int form */
-						tcost = 3;
+							tcost = 3;
 						else                                /* four byte very int form */
 						tcost = 4;
 

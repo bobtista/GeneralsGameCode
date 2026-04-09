@@ -75,7 +75,7 @@ bit8 ThreadFactory::startThread(Runnable &runnable, void *data, bit8 destroy)
 	uint32 stup1d;
 	handle=_beginthreadex(nullptr,0,  threadClassLauncher, tInfo, 0, &stup1d);
 	if (handle!=nullptr)
-	return(TRUE);
+		return(TRUE);
 	else
 	{
 		{
@@ -94,7 +94,7 @@ bit8 ThreadFactory::startThread(Runnable &runnable, void *data, bit8 destroy)
 	pthread_attr_setscope(&threadAttr,PTHREAD_SCOPE_SYSTEM);
 	retval=pthread_create(nullptr,&threadAttr, threadClassLauncher, tInfo);
 	if (retval==0)
-	return(TRUE);
+		return(TRUE);
 	else
 	{
 		{
@@ -128,7 +128,7 @@ bit8 ThreadFactory::startThread(void (*start_func)(void *), void *data)
 	unsigned temp;
 	handle=_beginthreadex(nullptr,0,  threadFuncLauncher, tInfo, 0, &temp);
 	if (handle!=nullptr)
-	return(TRUE);
+		return(TRUE);
 	return(FALSE);
   #else // UNIX
 	// Setup thread attributes for client threads
@@ -139,7 +139,7 @@ bit8 ThreadFactory::startThread(void (*start_func)(void *), void *data)
 	pthread_attr_setscope(&threadAttr,PTHREAD_SCOPE_SYSTEM);
 	retval=pthread_create(nullptr,&threadAttr, threadFuncLauncher, tInfo);
 	if (retval==0)
-	return(TRUE);
+		return(TRUE);
 	else
 	return(FALSE);
   #endif

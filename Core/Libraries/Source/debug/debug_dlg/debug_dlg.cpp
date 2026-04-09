@@ -195,7 +195,7 @@ int CALLBACK WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int)
 		for (unsigned k=0;k<size;k+=8)
 		{
 			for (unsigned i=0;i<8;i++)
-			fprintf(f,"0x%02x,",k+i<size?data[k+i]:0);
+				fprintf(f,"0x%02x,",k+i<size?data[k+i]:0);
 			fprintf(f,"\n");
 		}
 

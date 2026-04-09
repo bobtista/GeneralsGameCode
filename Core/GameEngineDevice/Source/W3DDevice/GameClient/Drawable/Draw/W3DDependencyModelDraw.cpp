@@ -92,11 +92,11 @@ void W3DDependencyModelDraw::doDrawModule(const Matrix3D* transformMtx)
 		// A handy place to synchronize my drawable with container's
 		Drawable *myDrawable = getDrawable();
 		if ( ! myDrawable )
-		return;
+			return;
 
 		const Object *me = myDrawable->getObject();
 		if ( ! me )
-		return;
+			return;
 
 	  Drawable *theirDrawable = nullptr;
 

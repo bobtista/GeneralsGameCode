@@ -528,7 +528,7 @@ Bool Radar::radarToWorld2D( const ICoord2D *radar, Coord3D *world )
 Bool Radar::radarToWorld( const ICoord2D *radar, Coord3D *world )
 {
 	if (!radarToWorld2D(radar,world))
-	return FALSE;
+		return FALSE;
 
 	// find the terrain height here
 	world->z = TheTerrainLogic->getGroundHeight( world->x, world->y );

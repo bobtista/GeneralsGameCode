@@ -63,7 +63,7 @@ sint32 CritSec::lock(int *refcount) RO
 	ThreadId_ = pthread_self();
 	RefCount_++;
 		if (refcount)
-		*refcount=RefCount_;
+			*refcount=RefCount_;
 	return(0);
 	}
 
@@ -80,7 +80,7 @@ sint32 CritSec::lock(int *refcount) RO
 	}
 
 	if (refcount)
-	*refcount=RefCount_;
+		*refcount=RefCount_;
 
 	return(status);
  #elif defined(_WIN32)

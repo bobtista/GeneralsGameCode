@@ -64,10 +64,10 @@ BOOL CALLBACK Update_Info_Proc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lPara
 				while(1)
 				{
 					if (strlen(line)<1)
-					break;
+						break;
 					cptr=line+(strlen(line))-1;
 					if ((*cptr=='\r')||(*cptr=='\n'))
-					*cptr=0;
+						*cptr=0;
 					else
 					break;
 				}
@@ -87,7 +87,7 @@ BOOL CALLBACK Update_Info_Proc(HWND hwnd, UINT iMsg, WPARAM wParam, LPARAM lPara
 
 		case WM_PAINT:
 			if (unselectText)
-			SendDlgItemMessage(hwnd, IDC_TEXT, EM_SETSEL, -1, 0);
+				SendDlgItemMessage(hwnd, IDC_TEXT, EM_SETSEL, -1, 0);
 			unselectText=0;
 			return(0);
 			break;
@@ -249,9 +249,9 @@ void Apply_Patch(char *patchfile,ConfigFile &config,int skuIndex)
 		char   *tempPtr;
 		DWORD   version;
 		while( (tempPtr=strchr(cptr,'\\')) !=nullptr)
-		cptr=tempPtr+1;
+			cptr=tempPtr+1;
 		if (cptr)
-		version=atol(cptr);
+			version=atol(cptr);
 		DBGMSG("VERSION TO = "<<version);
 
 
@@ -272,14 +272,14 @@ void Apply_Patch(char *patchfile,ConfigFile &config,int skuIndex)
 		path=key;
 		path.remove(0,temp);
 		while((*(path.get()))==' ')  // remove leading spaces
-		path.remove(0,1);
+			path.remove(0,1);
 		// Open the registry key for modifying now...
 		HKEY regKey;
 		LONG regRetval;
 		regRetval=RegOpenKeyEx(HKEY_LOCAL_MACHINE,path.get(),0,
         KEY_ALL_ACCESS,&regKey);
 		if (regRetval!=ERROR_SUCCESS)
-		DBGMSG("Can't open reg key for writing");
+			DBGMSG("Can't open reg key for writing");
 		regRetval=RegSetValueEx(regKey,"Version",0,REG_DWORD,(uint8 *)&version,
         sizeof(version));
 
@@ -415,7 +415,7 @@ __declspec(dllexport) LPVOID CALLBACK PatchCallBack(UINT Id, LPVOID Param)
 		DispatchMessage( &msg );
 		counter++;
 		if (counter==100)     // just in case...
-		break;
+			break;
 	}
 
 	static char null[] = "";
@@ -574,7 +574,7 @@ __declspec(dllexport) LPVOID CALLBACK PatchCallBack(UINT Id, LPVOID Param)
 	}
 
 	if(Abort)
-	return (nullptr);
+		return (nullptr);
 	else
 	return (RetVal);
 }

@@ -99,7 +99,7 @@ void W3DOverlordAircraftDraw::doDrawModule(const Matrix3D* transformMtx)
 		{
 			TintEnvelope *env = getDrawable()->getColorTintEnvelope();
 			if ( env )
-			riderDraw->setColorTintEnvelope( *env );
+				riderDraw->setColorTintEnvelope( *env );
 
 			riderDraw->notifyDrawableDependencyCleared();
 			riderDraw->draw();

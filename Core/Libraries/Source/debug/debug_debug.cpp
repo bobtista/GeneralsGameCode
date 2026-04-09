@@ -139,11 +139,11 @@ void Debug::PostStaticInit()
 	GetModuleFileName(nullptr,ioBuffer,sizeof(ioBuffer));
 	char *q=strrchr(ioBuffer,'.');
 	if (q)
-	strcpy(q,".dbgcmd");
+		strcpy(q,".dbgcmd");
 	HANDLE h=CreateFile(ioBuffer,GENERIC_READ,0,nullptr,OPEN_EXISTING,
                       FILE_ATTRIBUTE_NORMAL,nullptr);
 	if (h==INVALID_HANDLE_VALUE)
-	h=CreateFile("default.dbgcmd",GENERIC_READ,0,nullptr,OPEN_EXISTING,
+		h=CreateFile("default.dbgcmd",GENERIC_READ,0,nullptr,OPEN_EXISTING,
                       FILE_ATTRIBUTE_NORMAL,nullptr);
 	if (h!=INVALID_HANDLE_VALUE)
 	{
@@ -165,13 +165,13 @@ void Debug::PostStaticInit()
 					cmdCur=0;
 				}
 				if (ioCur==ioUsed)
-				break;
+					break;
 				ioCur++;
 			}
 			else
 			{
 				if (cmdCur<sizeof(cmdBuffer))
-				cmdBuffer[cmdCur++]=ioBuffer[ioCur];
+					cmdBuffer[cmdCur++]=ioBuffer[ioCur];
 				ioCur++;
 			}
 		}
@@ -185,7 +185,7 @@ void Debug::PostStaticInit()
 		{
 			const char *q=strchr(p,'\n');
 			if (!q)
-			q=p+strlen(p);
+				q=p+strlen(p);
 			if (p!=q)
 			{
 				Instance.ExecCommand(p,q);
@@ -220,21 +220,21 @@ void Debug::StaticExit()
 
 	// however, I/O classes must be actively shut down
 	if (Instance.curType!=DebugIOInterface::StringType::MAX)
-	Instance.FlushOutput();
+		Instance.FlushOutput();
 	for (IOFactoryListEntry *io=Instance.firstIOFactory;io;io=io->next)
-	if (io->io)
-	{
-		io->io->Delete();
-		io->io=nullptr;
-	}
+		if (io->io)
+		{
+			io->io->Delete();
+			io->io=nullptr;
+		}
 
 	// and command group interfaces...
 	for (CmdInterfaceListEntry *cmd=Instance.firstCmdGroup;cmd;cmd=cmd->next)
-	if (cmd->cmdif)
-	{
-		cmd->cmdif->Delete();
-		cmd->cmdif=nullptr;
-	}
+		if (cmd->cmdif)
+		{
+			cmd->cmdif->Delete();
+			cmd->cmdif=nullptr;
+		}
 }
 
 Debug& Debug::operator<<(RepeatChar c)
@@ -244,10 +244,10 @@ Debug& Debug::operator<<(RepeatChar c)
 		char help[10];
 		memset(help,c.m_char,10);
 		while ((c.m_count-=10)>=0)
-		AddOutput(help,10);
+			AddOutput(help,10);
 	}
 	while (c.m_count-->0)
-	AddOutput(&c.m_char,1);
+		AddOutput(&c.m_char,1);
 	return *this;
 }
 
@@ -301,7 +301,7 @@ bool Debug::SkipNext()
 	// this is typically set while an assertion
 	// is running
 	if (Instance.disableAssertsEtc)
-	return true;
+		return true;
 
 	// do not implement this function inline, we do need
 	// a valid frame pointer here!
@@ -329,11 +329,11 @@ bool Debug::SkipNext()
 	FrameHashEntry *e=Instance.LookupFrame(curStackFrame);
 	if (!e||                // unknown frame, will be added later
        e->status==NoSkip) // frame known but active
-	return false;
+		return false;
 
 	// status is unknown, must update
 	if (e->status==Unknown)
-	Instance.UpdateFrameStatus(*e);
+		Instance.UpdateFrameStatus(*e);
 
 	// now we now whether to skip or not
 	return e->status==Skip;
@@ -346,7 +346,7 @@ Debug& Debug::AssertBegin(const char *file, int line, const char *expr)
 
 	// anything to flush first?
 	if (Instance.curType!=DebugIOInterface::StringType::MAX)
-	Instance.FlushOutput();
+		Instance.FlushOutput();
 
 	// set new output
 	__ASSERT(Instance.curFrameEntry==nullptr);
@@ -381,11 +381,11 @@ bool Debug::AssertDone()
 
 		// hit info?
 		if (curFrameEntry->hits>1)
-		(*this) << " (hit #" << curFrameEntry->hits << ")";
+			(*this) << " (hit #" << curFrameEntry->hits << ")";
 
 		// need CR?
 		if (!ioBuffer[curType].lastWasCR)
-		operator<<("\n");
+			operator<<("\n");
 
 		// yes, duplicate message
 		const char *addInfo="\nPress 'abort' to abort the program,\n"
@@ -401,7 +401,7 @@ bool Debug::AssertDone()
 		{
 			DebugStackwalk::Signature sig;
 			if (m_stackWalk.StackWalk(sig))
-			(*this) << sig;
+				(*this) << sig;
 		}
 
 		// ... and flush out
@@ -481,7 +481,7 @@ Debug& Debug::CheckBegin(const char *file, int line, const char *expr)
 
 	// anything to flush first?
 	if (Instance.curType!=DebugIOInterface::StringType::MAX)
-	Instance.FlushOutput();
+		Instance.FlushOutput();
 
 	// set new output
 	__ASSERT(Instance.curFrameEntry==nullptr);
@@ -516,18 +516,18 @@ bool Debug::CheckDone()
 
 		// hit info?
 		if (curFrameEntry->hits>1)
-		(*this) << " (hit #" << curFrameEntry->hits << ")";
+			(*this) << " (hit #" << curFrameEntry->hits << ")";
 
 		// need CR?
 		if (!ioBuffer[curType].lastWasCR)
-		operator<<("\n");
+			operator<<("\n");
 
 		// First hit? Then do a stack trace
 		if (curFrameEntry->hits==1)
 		{
 			DebugStackwalk::Signature sig;
 			if (m_stackWalk.StackWalk(sig))
-			(*this) << sig;
+				(*this) << sig;
 		}
 
 		// flush out
@@ -565,7 +565,7 @@ Debug& Debug::LogBegin(const char *fileOrGroup)
 	// anything to flush first?
 	if (Instance.curType!=DebugIOInterface::StringType::MAX&&
       Instance.curType!=DebugIOInterface::StringType::Log)
-	Instance.FlushOutput();
+		Instance.FlushOutput();
 
 	// set new output
 	__ASSERT(Instance.curFrameEntry==nullptr);
@@ -578,14 +578,14 @@ Debug& Debug::LogBegin(const char *fileOrGroup)
 		// multiple calls
 		if (Instance.curType==DebugIOInterface::StringType::Log&&
         strcmp(Instance.curSource,Instance.curFrameEntry->fileOrGroup) != 0)
-		Instance.FlushOutput();
+			Instance.FlushOutput();
 
 		if (Instance.curType!=DebugIOInterface::StringType::Log)
-		Instance.StartOutput(DebugIOInterface::StringType::Log,"%s",
+			Instance.StartOutput(DebugIOInterface::StringType::Log,"%s",
                     Instance.curFrameEntry->fileOrGroup);
 	}
 	else if (Instance.curType!=DebugIOInterface::StringType::MAX)
-	Instance.FlushOutput();
+		Instance.FlushOutput();
 
 	return Instance;
 }
@@ -607,7 +607,7 @@ Debug& Debug::CrashBegin(const char *file, int line)
 
 	// anything to flush first?
 	if (Instance.curType!=DebugIOInterface::StringType::MAX)
-	Instance.FlushOutput();
+		Instance.FlushOutput();
 
 	// set new output
 	__ASSERT(Instance.curFrameEntry==nullptr);
@@ -644,11 +644,11 @@ bool Debug::CrashDone(bool die)
 
 		// hit info?
 		if (curFrameEntry->hits>1)
-		(*this) << " (hit #" << curFrameEntry->hits << ")";
+			(*this) << " (hit #" << curFrameEntry->hits << ")";
 
 		// need CR?
 		if (!ioBuffer[curType].lastWasCR)
-		operator<<("\n");
+			operator<<("\n");
 
 		// duplicate message
 		const char *addInfo=
@@ -656,7 +656,7 @@ bool Debug::CrashDone(bool die)
       "game will now exit.";
 #ifdef HAS_LOGS
 		if (IsWindowed()&&!die)
-		addInfo=
+			addInfo=
         "\nPress 'abort' to abort the program,\n"
         "'retry' for breaking into the debugger, or\n"
         "'ignore' for ignoring this assertion for the\n"
@@ -671,7 +671,7 @@ bool Debug::CrashDone(bool die)
 		{
 			DebugStackwalk::Signature sig;
 			if (m_stackWalk.StackWalk(sig))
-			(*this) << sig;
+				(*this) << sig;
 		}
 
 		// ... and flush out
@@ -762,13 +762,13 @@ Debug& Debug::operator<<(const char *str)
 	if (curType==DebugIOInterface::StringType::MAX)
 	// yes, this is valid and simply means not to
 	// write anything...
-	return *this;
+		return *this;
 
 	// buffer large enough?
 	if (!str)
-	str="[null]";
+		str="[null]";
 	else if (!*str)
-	return *this;
+		return *this;
 
 	unsigned len=strlen(str);
 
@@ -776,7 +776,7 @@ Debug& Debug::operator<<(const char *str)
 	if (len<m_width)
 	{
 		for (unsigned k=len;k<m_width;k++)
-		AddOutput(&m_fillChar,1);
+			AddOutput(&m_fillChar,1);
 	}
 
 	// reset width after each insertion
@@ -910,11 +910,11 @@ Debug& Debug::operator<<(const void *ptr)
 Debug& Debug::operator<<(const MemDump &dump)
 {
 	if (curType==DebugIOInterface::StringType::MAX)
-	return *this;
+		return *this;
 
 	// need CR?
 	if (!ioBuffer[curType].lastWasCR)
-	operator<<("\n");
+		operator<<("\n");
 
 	// How many items per line? We're assuming an output
 	// width of 73 chars. Left border is address thus
@@ -924,7 +924,7 @@ Debug& Debug::operator<<(const MemDump &dump)
 	unsigned itemPerLine=(dump.m_withChars?64:65)/
                           (1+2*dump.m_bytePerItem+(dump.m_withChars?1:0));
 	if (!itemPerLine)
-	itemPerLine=1;
+		itemPerLine=1;
 
 	// now dump line by line
 	const unsigned char *cur=dump.m_startPtr;
@@ -945,12 +945,12 @@ Debug& Debug::operator<<(const MemDump &dump)
 			if (k+i>=dump.m_numItems)
 			{
 				for (unsigned l=dump.m_bytePerItem;l;--l)
-				operator<<("  ");
+					operator<<("  ");
 			}
 			else if (IsBadReadPtr(curByte,dump.m_bytePerItem))
 			{
 				for (unsigned l=dump.m_bytePerItem;l;--l)
-				operator<<("??");
+					operator<<("??");
 			}
 			else
 			{
@@ -965,17 +965,17 @@ Debug& Debug::operator<<(const MemDump &dump)
 
 		// characters
 		if (!dump.m_withChars)
-		continue;
+			continue;
     operator<<(" ");
 		curByte=cur;
 		for (k=0;k<itemPerLine;k++,curByte+=dump.m_bytePerItem)
 		{
 			if (k+i>=dump.m_numItems)
-			break;
+				break;
 			else if (IsBadReadPtr(curByte,dump.m_bytePerItem))
 			{
 				for (unsigned l=dump.m_bytePerItem;l;--l)
-				operator<<("?");
+					operator<<("?");
 			}
 			else
 			{
@@ -997,8 +997,8 @@ Debug& Debug::operator<<(const MemDump &dump)
 Debug& Debug::operator<<(HResult hres)
 {
 	for (unsigned k=0;k<numHrTranslators;k++)
-	if (hrTranslators[k].func(*this,hres.m_hresult,hrTranslators[k].user))
-	return *this;
+		if (hrTranslators[k].func(*this,hres.m_hresult,hrTranslators[k].user))
+			return *this;
 	(*this) << "HResult:0x";
 	char help[9];
 	return (*this) << _ultoa(hres.m_hresult,help,16);
@@ -1012,9 +1012,9 @@ bool Debug::IsLogEnabled(const char *fileOrGroup)
 	// that strings address as frame address...
 	FrameHashEntry *e=Instance.LookupFrame((unsigned)fileOrGroup);
 	if (!e)
-	e=Instance.AddFrameEntry((unsigned)fileOrGroup,FrameTypeLog,fileOrGroup,0);
+		e=Instance.AddFrameEntry((unsigned)fileOrGroup,FrameTypeLog,fileOrGroup,0);
 	if (e->status==Unknown)
-	Instance.UpdateFrameStatus(*e);
+		Instance.UpdateFrameStatus(*e);
 	return e->status==NoSkip;
 }
 
@@ -1022,7 +1022,7 @@ void Debug::AddHResultTranslator(unsigned prio, HResultTranslator func, void *us
 {
 	// bail out if invalid parameter passed in
 	if (!func)
-	return;
+		return;
 
 	// just remove it first (if it's not in there nothing is done)
 	// necessary in case we want to 'change' the priority of an
@@ -1033,8 +1033,8 @@ void Debug::AddHResultTranslator(unsigned prio, HResultTranslator func, void *us
 	// (slow but this function is not time critical)
 	unsigned k=0;
 	for (;k<Instance.numHrTranslators;++k)
-	if (Instance.hrTranslators[k].prio<prio)
-	break;
+		if (Instance.hrTranslators[k].prio<prio)
+			break;
 
 	// grow & move
 	Instance.hrTranslators=(HResultTranslatorEntry *)
@@ -1052,27 +1052,27 @@ void Debug::RemoveHResultTranslator(HResultTranslator func, void *user)
 {
 	// bail out if invalid parameter passed in
 	if (!func)
-	return;
+		return;
 
 	// look for func/user pair
 	for (unsigned k=0;k<Instance.numHrTranslators;++k)
-	if (Instance.hrTranslators[k].func==func&&
+		if (Instance.hrTranslators[k].func==func&&
         Instance.hrTranslators[k].user==user)
-	{
-		// remove it
-		memmove(Instance.hrTranslators+k,Instance.hrTranslators+k+1,
+		{
+			// remove it
+			memmove(Instance.hrTranslators+k,Instance.hrTranslators+k+1,
         (Instance.numHrTranslators-k-1)*sizeof(void *));
-		--Instance.hrTranslators;
-		Instance.hrTranslators=(HResultTranslatorEntry *)
+			--Instance.hrTranslators;
+			Instance.hrTranslators=(HResultTranslatorEntry *)
         DebugReAllocMemory(Instance.hrTranslators,Instance.numHrTranslators*sizeof(void *));
-	}
+		}
 }
 
 bool Debug::AddIOFactory(const char *io_id, const char *descr, DebugIOInterface* (*func)())
 {
 	// bail out if invalid parameters passed in
 	if (!io_id||!func)
-	return true;
+		return true;
 
 	// allocate & init new list entry
 	IOFactoryListEntry *entry=(IOFactoryListEntry *)
@@ -1096,7 +1096,7 @@ bool Debug::AddCommands(const char *cmdgroup, DebugCmdInterface *cmdif)
 {
 	// bail out if invalid parameters passed in
 	if (!cmdgroup||!cmdif)
-	return true;
+		return true;
 
 	// walk to end of list, add there (unless interface pointer already in list)
 	CmdInterfaceListEntry **listptr=&Instance.firstCmdGroup;
@@ -1104,7 +1104,7 @@ bool Debug::AddCommands(const char *cmdgroup, DebugCmdInterface *cmdif)
 	{
 		if ((*listptr)->cmdif==cmdif)
 		// interface already in list, don't add twice
-		return true;
+			return true;
 		listptr=&((*listptr)->next);
 	}
 
@@ -1125,7 +1125,7 @@ void Debug::RemoveCommands(DebugCmdInterface *cmdif)
 {
 	// bail out if invalid parameter passed in
 	if (!cmdif)
-	return;
+		return;
 
 	// walk the list, search for interface pointer
 	CmdInterfaceListEntry **listptr=&Instance.firstCmdGroup;
@@ -1159,7 +1159,7 @@ void Debug::Update()
 	for (IOFactoryListEntry *cur=Instance.firstIOFactory;cur;cur=cur->next)
 	{
 		if (!cur->io)
-		continue;
+			continue;
 
 		// any input?
 		bool hadInput=false;
@@ -1167,10 +1167,10 @@ void Debug::Update()
 		{
 			if (cur->inputAlloc-cur->inputUsed<64)
 			// must grow input buffer...
-			cur->input=(char *)DebugReAllocMemory(cur->input,(cur->inputAlloc+=64)+1);
+				cur->input=(char *)DebugReAllocMemory(cur->input,(cur->inputAlloc+=64)+1);
 			int numChars=cur->io->Read(cur->input+cur->inputUsed,cur->inputAlloc-cur->inputUsed);
 			if (!numChars)
-			break;
+				break;
 
 			cur->inputUsed+=numChars;
 			cur->input[cur->inputUsed]=0;
@@ -1179,14 +1179,14 @@ void Debug::Update()
 
 		if (!hadInput)
 		// skip then
-		continue;
+			continue;
 
 		// else look for completed commands and try to process them
 		for (;;)
 		{
 			char *p=strchr(cur->input,'\n');
 			if (!p)
-			break;
+				break;
 
 			Instance.ExecCommand(cur->input,p);
 			strcpy(cur->input,p+1);
@@ -1243,7 +1243,7 @@ void Debug::UpdateFrameStatus(FrameHashEntry &entry)
 	char help[512];
 	if (entry.frameType==FrameTypeAssert||
       entry.frameType==FrameTypeCheck)
-	wsprintf(help,"%s(%i)",entry.fileOrGroup,entry.line);
+		wsprintf(help,"%s(%i)",entry.fileOrGroup,entry.line);
 	else
 	strlcpy(help, entry.fileOrGroup, ARRAY_SIZE(help));
 
@@ -1252,9 +1252,9 @@ void Debug::UpdateFrameStatus(FrameHashEntry &entry)
 	for (PatternListEntry *cur=firstPatternEntry;cur;cur=cur->next)
 	{
 		if (!(cur->frameTypes&entry.frameType))
-		continue;
+			continue;
 		if (SimpleMatch(help,cur->pattern))
-		active=cur->isActive;
+			active=cur->isActive;
 	}
 	entry.status=active?NoSkip:Skip;
 }
@@ -1274,7 +1274,7 @@ const char *Debug::AddLogGroup(const char *fileOrGroup, const char *descr)
 		p=p?p+1:fileOrGroup;
 		if (!q) q=p+strlen(p);
 		if (q-p>=sizeof(help))
-		q=p+sizeof(help)-1;
+			q=p+sizeof(help)-1;
 		memcpy(help,p,q-p);
 		help[q-p]=0;
 		fileOrGroup=help;
@@ -1304,7 +1304,7 @@ const char *Debug::AddLogGroup(const char *fileOrGroup, const char *descr)
 void Debug::StartOutput(DebugIOInterface::StringType type, const char *fmt, ...)
 {
 	if (curType==DebugIOInterface::Log)
-	FlushOutput();
+		FlushOutput();
 	__ASSERT(curType==DebugIOInterface::StringType::MAX);
 	curType=type;
 
@@ -1321,7 +1321,7 @@ void Debug::AddOutput(const char *str, unsigned remainingLen)
 	// bail out if no valid destination type
 	// (valid, can happen if hitting a disabled log for the first time)
 	if (curType==DebugIOInterface::StringType::MAX)
-	return;
+		return;
 
 	while (remainingLen)
 	{
@@ -1392,20 +1392,20 @@ void Debug::FlushOutput(bool defaultLog)
 
 	// need CR?
 	if (!ioBuffer[curType].lastWasCR)
-	operator<<("\n");
+		operator<<("\n");
 
 	// send string to all active I/O interfaces
 	bool hadWrite=!defaultLog;
 	for (IOFactoryListEntry *cur=firstIOFactory;cur;cur=cur->next)
 	{
 		if (!cur->io)
-		continue;
+			continue;
 
 		hadWrite=true;
 		cur->io->Write(curType,curSource,ioBuffer[curType].buffer);
 
 		if (alwaysFlush)
-		cur->io->Write(curType,curSource,nullptr);
+			cur->io->Write(curType,curSource,nullptr);
 	}
 
 	// written nowhere?
@@ -1447,7 +1447,7 @@ void Debug::AddPatternEntry(unsigned types, bool isActive, const char *pattern)
 
 	// add to list
 	if (lastPatternEntry)
-	lastPatternEntry->next=cur;
+		lastPatternEntry->next=cur;
 	else
 	firstPatternEntry=cur;
 	lastPatternEntry=cur;
@@ -1463,14 +1463,14 @@ bool Debug::SimpleMatch(const char *str, const char *pattern)
 		{
 			pattern++;
 			while (*str)
-			if (SimpleMatch(str++,pattern))
-			return true;
+				if (SimpleMatch(str++,pattern))
+					return true;
 			return *str==*pattern;
 		}
 		else
 		{
 			if (*str++!=*pattern++)
-			return false;
+				return false;
 		}
 	}
 
@@ -1482,20 +1482,20 @@ void Debug::SetBuildInfo(const char *version,
                          const char *buildDate)
 {
 	if (version)
-	strlcpy(Instance.m_version,version,sizeof(Instance.m_version));
+		strlcpy(Instance.m_version,version,sizeof(Instance.m_version));
 	if (internalVersion)
-	strlcpy(Instance.m_intVersion,internalVersion,sizeof(Instance.m_intVersion));
+		strlcpy(Instance.m_intVersion,internalVersion,sizeof(Instance.m_intVersion));
 	if (buildDate)
-	strlcpy(Instance.m_buildDate,buildDate,sizeof(Instance.m_buildDate));
+		strlcpy(Instance.m_buildDate,buildDate,sizeof(Instance.m_buildDate));
 }
 
 void Debug::WriteBuildInfo()
 {
   operator<<("Version:");
 	if (*m_version)
-	(*this) << " " << m_version;
+		(*this) << " " << m_version;
 	if (*m_intVersion)
-	(*this) << " internal " << m_intVersion;
+		(*this) << " internal " << m_intVersion;
   #if defined(RTS_DEBUG)
     operator<<(" debug");
   #elif defined(RTS_PROFILE)
@@ -1504,7 +1504,7 @@ void Debug::WriteBuildInfo()
     operator<<(" release");
   #endif
 	if (*m_buildDate)
-	(*this) << " build " << m_buildDate;
+		(*this) << " build " << m_buildDate;
 }
 
 void Debug::ExecCommand(const char *cmdstart, const char *cmdend)
@@ -1546,34 +1546,34 @@ void Debug::ExecCommand(const char *cmdstart, const char *cmdend)
 			char quote=*cur++;
 
 			if (numParts<sizeof(parts)/sizeof(*parts))
-			parts[numParts++]=cur;
+				parts[numParts++]=cur;
 
 			while (*cur&&*cur!=quote)
-			++cur;
+				++cur;
 			if (*cur)
-			*cur++=0;
+				*cur++=0;
 		}
 		else if (*cur==' '||*cur=='\t'||!*cur||*cur==';')
 		{
 			if (*cur==';')
-			*cur=0;
+				*cur=0;
 			if (lastNonWhitespace)
 			{
 				if (numParts<sizeof(parts)/sizeof(*parts))
-				parts[numParts++]=lastNonWhitespace;
+					parts[numParts++]=lastNonWhitespace;
 				lastNonWhitespace=nullptr;
 				if (*cur)
-				*cur++=0;
+					*cur++=0;
 			}
 			else if (*cur)
-			++cur;
+				++cur;
 			else
 			break;
 		}
 		else
 		{
 			if (!lastNonWhitespace)
-			lastNonWhitespace=cur;
+				lastNonWhitespace=cur;
 			++cur;
 		}
 	}
@@ -1596,7 +1596,7 @@ void Debug::ExecCommand(const char *cmdstart, const char *cmdend)
 		StartOutput(reply,"%s.%s",curCommandGroup,p);
 
 		if (mode!=DebugCmdInterface::CommandMode::Structured)
-		AddOutput("> ",2);
+			AddOutput("> ",2);
 
 		// repeat current command first
 		AddOutput(cmdstart,cmdend-cmdstart);
@@ -1604,8 +1604,8 @@ void Debug::ExecCommand(const char *cmdstart, const char *cmdend)
 
 		// command group known?
 		for (CmdInterfaceListEntry *cur=firstCmdGroup;cur;cur=cur->next)
-		if (strcmp(curCommandGroup,cur->group) == 0)
-		break;
+			if (strcmp(curCommandGroup,cur->group) == 0)
+				break;
 		if (!cur)
 		{
 			// nope, show error message
@@ -1621,20 +1621,20 @@ void Debug::ExecCommand(const char *cmdstart, const char *cmdend)
 			for (CmdInterfaceListEntry *cur=firstCmdGroup;cur;cur=cur->next)
 			{
 				if (strcmp(curCommandGroup,cur->group) != 0)
-				continue;
+					continue;
 
 				bool doneCommand=cur->cmdif->Execute(*this,p,mode,numParts-1,parts+1);
 				if (doneCommand&&(strcmp(p,"help") != 0||numParts>1))
-				break;
+					break;
 			}
 
 			// display error message if command not found, break away
 			if (!cur&&mode==DebugCmdInterface::CommandMode::Normal)
 			{
 				if (strcmp(p,"help") != 0)
-				operator<<("Unknown command");
+					operator<<("Unknown command");
 				else if (numParts>1)
-				operator<<("Unknown command, help not available");
+					operator<<("Unknown command, help not available");
 			}
 		}
 
@@ -1657,7 +1657,7 @@ bool Debug::IsWindowed()
 {
 	// use cached result if possible
 	if (m_isWindowed)
-	return m_isWindowed>0;
+		return m_isWindowed>0;
 
 	// find main app window
 	HWND appHWnd=nullptr;

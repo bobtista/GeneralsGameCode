@@ -363,7 +363,7 @@ static void BTREE_treepack(struct BTreeEncodeContext *EC,
 
 	treebuf =	(unsigned char *) galloc(treebufsize);
 	if (!treebuf)
-	return; /* failure Insufficient memory for work buffer */
+		return; /* failure Insufficient memory for work buffer */
 
 	EC->buf1 =	(unsigned char *) galloc(buf1size);
 	if (!EC->buf1)
@@ -701,7 +701,7 @@ int GCALL BTREE_encode(void *compresseddata, const void *source, int sourcesize,
 	struct BTreeEncodeContext EC;
 	int opt=0;
 	if (opts)
-	opt = opts[0];
+		opt = opts[0];
 
 	infile.ptr = (char *)source;
 	infile.len = sourcesize;

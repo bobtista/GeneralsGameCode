@@ -70,14 +70,14 @@ bit8 Wait_Process(Process &process, DWORD *exit_code)
 	DWORD retval;
 	retval=WaitForSingleObject(process.hProcess,INFINITE);
 	if (exit_code != nullptr)
-	*exit_code=-1;
+		*exit_code=-1;
 	if (retval==WAIT_OBJECT_0)  // process exited
 	{
 		// MDC 1/10/2003 Inserting sleep here to let game exit before applying patch
 		Sleep(3000);
 
 		if (exit_code != nullptr)
-		GetExitCodeProcess(process.hProcess,exit_code);
+			GetExitCodeProcess(process.hProcess,exit_code);
 		return(TRUE);
 	}
 	else                        // can this happen?

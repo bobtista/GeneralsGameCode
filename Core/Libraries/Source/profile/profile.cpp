@@ -45,7 +45,7 @@ void *ProfileAllocMemory(unsigned numBytes)
 {
 	HGLOBAL h=GlobalAlloc(GMEM_FIXED,numBytes);
 	if (!h)
-	DCRASH_RELEASE("Debug mem alloc failed");
+		DCRASH_RELEASE("Debug mem alloc failed");
 	return (void *)h;
 }
 
@@ -53,7 +53,7 @@ void *ProfileReAllocMemory(void *oldPtr, unsigned newSize)
 {
 	// Windows doesn't like ReAlloc with null handle/ptr...
 	if (!oldPtr)
-	return newSize?ProfileAllocMemory(newSize):nullptr;
+		return newSize?ProfileAllocMemory(newSize):nullptr;
 
 	// Shrinking to 0 size is basically freeing memory
 	if (!newSize)
@@ -70,7 +70,7 @@ void *ProfileReAllocMemory(void *oldPtr, unsigned newSize)
 		// fixed memory blocks) - go with Alloc/Free instead
 		h=GlobalAlloc(GMEM_FIXED,newSize);
 		if (!h)
-		DCRASH_RELEASE("Debug mem realloc failed");
+			DCRASH_RELEASE("Debug mem realloc failed");
 		unsigned oldSize=GlobalSize((HGLOBAL)oldPtr);
 		memcpy((void *)h,oldPtr,oldSize<newSize?oldSize:newSize);
 		GlobalFree((HGLOBAL)oldPtr);
@@ -82,7 +82,7 @@ void *ProfileReAllocMemory(void *oldPtr, unsigned newSize)
 void ProfileFreeMemory(void *ptr)
 {
 	if (ptr)
-	GlobalFree((HGLOBAL)ptr);
+		GlobalFree((HGLOBAL)ptr);
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -162,13 +162,13 @@ void Profile::StartRange(const char *range)
 {
 	// set default
 	if (!range)
-	range="frame";
+		range="frame";
 
 	// known name?
 	unsigned k=0;
 	for (;k<m_names;++k)
-	if (strcmp(range,m_frameNames[k].name) == 0)
-	break;
+		if (strcmp(range,m_frameNames[k].name) == 0)
+			break;
 	if (k==m_names)
 	{
 		// no, must add to list
@@ -183,7 +183,7 @@ void Profile::StartRange(const char *range)
 
 	// stop old recording?
 	if (m_frameNames[k].isRecording)
-	StopRange(range);
+		StopRange(range);
 
 	// start new recording
 	m_frameNames[k].isRecording=true;
@@ -194,7 +194,7 @@ void Profile::StartRange(const char *range)
 	for (PatternListEntry *cur=firstPatternEntry;cur;cur=cur->next)
 	{
 		if (SimpleMatch(range,cur->pattern))
-		active=cur->isActive;
+			active=cur->isActive;
 	}
 
 	if (active)
@@ -217,13 +217,13 @@ void Profile::AppendRange(const char *range)
 {
 	// set default
 	if (!range)
-	range="frame";
+		range="frame";
 
 	// known name?
 	unsigned k=0;
 	for (;k<m_names;++k)
-	if (strcmp(range,m_frameNames[k].name) == 0)
-	break;
+		if (strcmp(range,m_frameNames[k].name) == 0)
+			break;
 	if (k==m_names)
 	{
 		// no, so StartRange will do the job for us
@@ -234,7 +234,7 @@ void Profile::AppendRange(const char *range)
 	// still recording?
 	if (m_frameNames[k].isRecording)
 	// don't do anything
-	return;
+		return;
 
 	// start new recording
 	m_frameNames[k].isRecording=true;
@@ -245,7 +245,7 @@ void Profile::AppendRange(const char *range)
 	for (PatternListEntry *cur=firstPatternEntry;cur;cur=cur->next)
 	{
 		if (SimpleMatch(range,cur->pattern))
-		active=cur->isActive;
+			active=cur->isActive;
 	}
 
 	if (active)

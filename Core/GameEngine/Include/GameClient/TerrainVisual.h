@@ -115,7 +115,7 @@ struct SeismicSimulationNode
 	SeismicSimulationFilterBase::SeismicSimStatusCode handleFilterCallback( WorldHeightMapInterfaceClass *heightMap )
 	{
 		if ( callbackFilter == nullptr )
-		return SeismicSimulationFilterBase::SEISMIC_STATUS_INVALID;
+			return SeismicSimulationFilterBase::SEISMIC_STATUS_INVALID;
 
 		++m_life;
 
@@ -127,7 +127,7 @@ struct SeismicSimulationNode
 		DEBUG_ASSERTCRASH( callbackFilter, ("SeismicSimulationNode::applyGravity() has no callback filter!") );
 
 		if ( callbackFilter == nullptr )
-		return velocityIn;//oops, we have no callback!
+			return velocityIn;//oops, we have no callback!
 
 		return callbackFilter->applyGravityCallback( velocityIn );
 

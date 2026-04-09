@@ -41,7 +41,7 @@ bool GCALL REF_is(const void *compresseddata)
      || packtype==0x11fb
      || packtype==0x90fb
      || packtype==0x91fb)
-	ok = true;
+		ok = true;
 
 	return(ok);
 }
@@ -95,7 +95,7 @@ int GCALL REF_decode(void *dest, const void *compresseddata, int *compressedsize
 		if (type&0x8000) /* 4 byte size field */
 		{
 			if (type&0x100)                       /* skip ulen */
-			s += 4;
+				s += 4;
 
 			ulen = *s++;
 			ulen = (ulen<<8) + *s++;
@@ -105,7 +105,7 @@ int GCALL REF_decode(void *dest, const void *compresseddata, int *compressedsize
 		else
 		{
 			if (type&0x100)                       /* skip ulen */
-			s += 3;
+				s += 3;
 
 			ulen = *s++;
 			ulen = (ulen<<8) + *s++;
@@ -120,7 +120,7 @@ int GCALL REF_decode(void *dest, const void *compresseddata, int *compressedsize
 				second = *s++;
 				run = first&3;
 				while (run--)
-				*d++ = *s++;
+					*d++ = *s++;
 				ref = d-1 - (((first&0x60)<<3) + second);
 				run = ((first&0x1c)>>2)+3-1;
 				do
@@ -135,7 +135,7 @@ int GCALL REF_decode(void *dest, const void *compresseddata, int *compressedsize
 				third = *s++;
 				run = second>>6;
 				while (run--)
-				*d++ = *s++;
+					*d++ = *s++;
 
 				ref = d-1 - (((second&0x3f)<<8) + third);
 
@@ -153,7 +153,7 @@ int GCALL REF_decode(void *dest, const void *compresseddata, int *compressedsize
 				forth = *s++;
 				run = first&3;
 				while (run--)
-				*d++ = *s++;
+					*d++ = *s++;
 
 				ref = d-1 - (((first&0x10)>>4<<16) +  (second<<8) + third);
 
@@ -168,17 +168,17 @@ int GCALL REF_decode(void *dest, const void *compresseddata, int *compressedsize
 			if (run<=112)
 			{
 				while (run--)
-				*d++ = *s++;
+					*d++ = *s++;
 				continue;
 			}
 			run = first&3;              /* eof (+0..3 literal) */
 			while (run--)
-			*d++ = *s++;
+				*d++ = *s++;
 			break;
 		}
 	}
 	if (compressedsize)
-	*compressedsize = (int)((char *)s-(char *)compresseddata);
+		*compressedsize = (int)((char *)s-(char *)compresseddata);
 	return(ulen);
 }
 

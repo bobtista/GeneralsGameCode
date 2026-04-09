@@ -58,7 +58,7 @@ int Streamer::setOutputDevice(OutputDevice *device)
 int Streamer::xsputn(const char* buf, int size) //implementation of sputn
 {
 	if (size<=0)  // Nothing to do
-	return(0);
+		return(0);
 
 	const unsigned char *ptr=(const unsigned char *)buf;
 	for (int i=0; i<size; i++, ptr++)
@@ -66,10 +66,10 @@ int Streamer::xsputn(const char* buf, int size) //implementation of sputn
 		if(*ptr=='\n')
 		{
 			if (overflow(*ptr)==EOF)
-			return(i);
+				return(i);
 		}
 		else if (sputc(*ptr)==EOF)
-		return(i);
+			return(i);
 	}
 	return(size);
 }
@@ -78,11 +78,11 @@ int Streamer::xsputn(const char* buf, int size) //implementation of sputn
 int Streamer::overflow(int c)
 {
 	if (c==EOF)
-	return(sync());
+		return(sync());
 	if ((pbase()==0) && (doallocate()==0))
-	return(EOF);
+		return(EOF);
 	if((pptr() >= epptr()) && (sync()==EOF))
-	return(EOF);
+		return(EOF);
 	else {
 		sputc(c);
 		if ((STREAMER_UNBUFFERED && c=='\n' || pptr() >= epptr())

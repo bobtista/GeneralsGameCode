@@ -665,7 +665,7 @@ HRESULT  Cftp::FindFile( LPCSTR szRemoteFileName, int * piSize )
 	char ext[ 10 ];
 
 	if (m_findStart==0)
-	m_findStart=time(nullptr);
+		m_findStart=time(nullptr);
 
 	if((time(nullptr)-m_findStart) > 30)  // try for 30 seconds
 	{

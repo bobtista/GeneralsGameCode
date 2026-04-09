@@ -67,9 +67,9 @@ bit8 ConfigFile::readFile(FILE *in)
 	{
 		cptr=Eat_Spaces(string);
 		if ((*cptr==0)||(*cptr=='#'))  // '#' signals a comment
-		continue;
+			continue;
 		if (strchr(cptr,'=')==nullptr)   // All config entries must have a '='
-		continue;
+			continue;
 		key=cptr;
 		key.truncate('=');
 		key.removeSpaces();  // No spaces allowed in the key
@@ -103,7 +103,7 @@ bit8 ConfigFile::getInt(Wstring &key,sint32 &value)
 	Wstring svalue;
 	bit8 retval=dictionary.getValue(key,svalue);
 	if (retval==FALSE)
-	return(FALSE);
+		return(FALSE);
 	value=atol(svalue.get());
 	return(TRUE);
 }
@@ -124,7 +124,7 @@ bit8 ConfigFile::getInt(Wstring &key,sint16 &value)
 	Wstring svalue;
 	bit8 retval=dictionary.getValue(key,svalue);
 	if (retval==FALSE)
-	return(FALSE);
+		return(FALSE);
 	value=atoi(svalue.get());
 	return(TRUE);
 }
@@ -160,6 +160,6 @@ static char *Eat_Spaces(char *string)
 {
 	char *retval=string;
 	while (isspace(*retval))
-	retval++;
+		retval++;
 	return(retval);
 }

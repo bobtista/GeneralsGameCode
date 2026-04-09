@@ -47,7 +47,7 @@ DebugIOFlat::OutputStream::OutputStream(const char *filename, unsigned maxSize):
 	m_buffer=(char *)DebugAllocMemory(m_bufferSize);
 
 	if (!m_limitedFileSize)
-	m_fileHandle=CreateFile(m_fileName,GENERIC_WRITE,0,nullptr,CREATE_ALWAYS,
+		m_fileHandle=CreateFile(m_fileName,GENERIC_WRITE,0,nullptr,CREATE_ALWAYS,
                             FILE_ATTRIBUTE_NORMAL|FILE_FLAG_WRITE_THROUGH,
                             nullptr);
 }
@@ -65,7 +65,7 @@ void DebugIOFlat::OutputStream::Delete(const char *path)
 {
 	Flush();
 	if (!m_limitedFileSize)
-	CloseHandle(m_fileHandle);
+		CloseHandle(m_fileHandle);
 
 	if (path&&*path)
 	{
@@ -73,7 +73,7 @@ void DebugIOFlat::OutputStream::Delete(const char *path)
 		int run=-1;
 		char *ext=strrchr(m_fileName,'.');
 		if (!ext)
-		ext=m_fileName+strlen(m_fileName);
+			ext=m_fileName+strlen(m_fileName);
 		char *fileNameOnly=strrchr(m_fileName,'\\');
 		fileNameOnly=fileNameOnly?fileNameOnly+1:m_fileName;
 
@@ -95,13 +95,13 @@ void DebugIOFlat::OutputStream::Delete(const char *path)
 				strlcat(help, fileNameOnly, ARRAY_SIZE(help));
 			}
 			if (++run)
-			wsprintf(help+strlen(help),"(%i)%s",run,ext);
+				wsprintf(help+strlen(help),"(%i)%s",run,ext);
 			else
 			strlcat(help, ext, ARRAY_SIZE(help));
 			if (CopyFile(m_fileName,help,TRUE))
-			break;
+				break;
 			if (GetLastError()!=ERROR_FILE_EXISTS)
-			break;
+				break;
 		}
 	}
 
@@ -118,7 +118,7 @@ void DebugIOFlat::OutputStream::Write(const char *src)
 	{
 		// flush request, flush only if unlimited file size
 		if (!m_limitedFileSize)
-		Flush();
+			Flush();
 	}
 	else
 	{
@@ -142,7 +142,7 @@ void DebugIOFlat::OutputStream::InternalWrite(const char *src, unsigned len)
 	if (!m_limitedFileSize)
 	{
 		if (m_bufferUsed+len>m_bufferSize)
-		Flush();
+			Flush();
 		memcpy(m_buffer+m_bufferUsed,src,len);
 		m_bufferUsed+=len;
 	}
@@ -150,18 +150,18 @@ void DebugIOFlat::OutputStream::InternalWrite(const char *src, unsigned len)
 	{
 		// just write to ring buffer
 		if ((m_bufferUsed+=len)>m_bufferSize)
-		m_bufferUsed=m_bufferSize;
+			m_bufferUsed=m_bufferSize;
 
 		while (len)
 		{
 			unsigned toWrite;
 			if (m_nextChar+len>m_bufferSize)
-			toWrite=m_bufferSize-m_nextChar;
+				toWrite=m_bufferSize-m_nextChar;
 			else
 			toWrite=len;
 			memcpy(m_buffer+m_nextChar,src,toWrite);
 			if ((m_nextChar+=toWrite)>=m_bufferSize)
-			m_nextChar=0;
+				m_nextChar=0;
 			src+=toWrite;
 			len-=toWrite;
 		}
@@ -185,7 +185,7 @@ void DebugIOFlat::OutputStream::Flush()
                             nullptr);
 		DWORD written;
 		if (m_bufferUsed<m_bufferSize)
-		WriteFile(m_fileHandle,m_buffer,m_bufferUsed,&written,nullptr);
+			WriteFile(m_fileHandle,m_buffer,m_bufferUsed,&written,nullptr);
 		else
 		{
 			WriteFile(m_fileHandle,m_buffer+m_nextChar,m_bufferUsed-m_nextChar,&written,nullptr);
@@ -201,7 +201,7 @@ void DebugIOFlat::ExpandMagic(const char *src, const char *splitName, char *buf)
 {
 	// barf if too long
 	if (strlen(src)>250)
-	src="*eMN";
+		src="*eMN";
 
 	// non-magic name?
 	if (*src!='*')
@@ -212,7 +212,7 @@ void DebugIOFlat::ExpandMagic(const char *src, const char *splitName, char *buf)
 			// must jam in split name before extension
 			const char *p=strrchr(src,'.');
 			if (!p)
-			p=src+strlen(src);
+				p=src+strlen(src);
 			strncpy(buf,src,p-src);
 			buf[p-src]='-';
 			strcpy(buf+(p-src)+1,splitName);
@@ -230,10 +230,10 @@ void DebugIOFlat::ExpandMagic(const char *src, const char *splitName, char *buf)
 	while (*src)
 	{
 		if (dst-buf>250)
-		break;
+			break;
 
 		if (*src>='A'&&*src<='Z'&&(*src!='N'||splitName))
-		*dst++='-';
+			*dst++='-';
 
 		char help[256];
 		DWORD size=sizeof(help);
@@ -267,7 +267,7 @@ void DebugIOFlat::ExpandMagic(const char *src, const char *splitName, char *buf)
 			case 'n':
 			case 'N':
 				if (splitName&&strlen(splitName)<250)
-				strlcpy(help, splitName, ARRAY_SIZE(help));
+					strlcpy(help, splitName, ARRAY_SIZE(help));
 				break;
 			default:
 				*dst++=src[-1];
@@ -275,7 +275,7 @@ void DebugIOFlat::ExpandMagic(const char *src, const char *splitName, char *buf)
 
 		unsigned len=strlen(help);
 		if (dst-buf+len>250)
-		break;
+			break;
 		strcpy(dst, help);
 		dst+=len;
 	}
@@ -314,20 +314,20 @@ void DebugIOFlat::Write(StringType type, const char *src, const char *str)
 	for (;cur;cur=cur->next)
 	{
 		if (!(cur->stringTypes&(1<<type)))
-		continue;
+			continue;
 		if (src&&*src&&!Debug::SimpleMatch(src,cur->items))
-		continue;
+			continue;
 		cur->stream->Write(str);
 		break;
 	}
 	if (!cur)
-	m_firstStream->stream->Write(str);
+		m_firstStream->stream->Write(str);
 }
 
 void DebugIOFlat::EmergencyFlush()
 {
 	for (StreamListEntry *cur=m_firstStream;cur;cur=cur->next)
-	cur->stream->Flush();
+		cur->stream->Flush();
 }
 
 void DebugIOFlat::Execute(class Debug& dbg, const char *cmd, bool structuredCmd,
@@ -336,12 +336,12 @@ void DebugIOFlat::Execute(class Debug& dbg, const char *cmd, bool structuredCmd,
 	if (!cmd||strcmp(cmd,"help") == 0)
 	{
 		if (!argn)
-		dbg << "flat I/O help:\n"
+			dbg << "flat I/O help:\n"
              "The following I/O commands are defined:\n"
              "  add, copy, splitadd, splitview, splitremove\n"
              "Type in debug.io flat help <cmd> for a detailed command help.\n";
 		else if (strcmp(argv[0],"add") == 0)
-		dbg <<
+			dbg <<
         "add [ <filename> [ <size in kb> ] ]\n\n"
         "Create flat file I/O (optionally specifying file name and file size).\n"
         "If a filename is specified all output is written to that file. Otherwise\n"
@@ -365,13 +365,13 @@ void DebugIOFlat::Execute(class Debug& dbg, const char *cmd, bool structuredCmd,
         "program exits. If no size is given then the size of the log file is not \n"
         "limited and any log data is written out immediately.\n";
 		else if (strcmp(argv[0],"copy") == 0)
-		dbg <<
+			dbg <<
         "copy <directory>\n\n"
         "Copies generated log file(s) into the given directory if the program\n"
         "exists or crashes. If there is already a log file with the same\n"
         "name a unique number is appended to the current log files' name.\n";
 		else if (strcmp(argv[0],"splitadd") == 0)
-		dbg <<
+			dbg <<
         "splitadd <types> <filter> <name> [ <size in kb> ]\n\n"
         "Splits off part of the log data. Multiple splits can be defined. They \n"
         "are written out to the first matching split file.\n"
@@ -404,10 +404,10 @@ void DebugIOFlat::Execute(class Debug& dbg, const char *cmd, bool structuredCmd,
         "If no size is given then the size of the log file is not limited and \n"
         "any log data is written out immediately.\n";
 		else if (strcmp(argv[0],"splitview") == 0)
-		dbg << "splitview\n\n"
+			dbg << "splitview\n\n"
              "Shows all existing splits in the order they are evaluated.";
 		else if (strcmp(argv[0],"splitremove") == 0)
-		dbg << "splitremove <namepattern>\n\n"
+			dbg << "splitremove <namepattern>\n\n"
              "Removes all active splits matching the given name pattern.";
 		else
 		dbg << "Unknown flat I/O command";
@@ -445,7 +445,7 @@ void DebugIOFlat::Execute(class Debug& dbg, const char *cmd, bool structuredCmd,
 			cur->next=*m_lastSplitPtr;
 			m_lastSplitPtr=&cur->next;
 			if (!m_firstSplit)
-			m_firstSplit=cur;
+				m_firstSplit=cur;
 			cur->stringTypes=0;
 			for (const char *p=argv[0];*p;++p)
 			{
@@ -461,7 +461,7 @@ void DebugIOFlat::Execute(class Debug& dbg, const char *cmd, bool structuredCmd,
 				}
 			}
 			if (!cur->stringTypes)
-			cur->stringTypes=0xffffffff;
+				cur->stringTypes=0xffffffff;
 
 			strlcpy(cur->items,argv[1],sizeof(cur->items));
 			strlcpy(cur->name,argv[2],sizeof(cur->name));
@@ -471,8 +471,8 @@ void DebugIOFlat::Execute(class Debug& dbg, const char *cmd, bool structuredCmd,
 			ExpandMagic(m_baseFilename,cur->name,fn);
 			StreamListEntry *stream=m_firstStream;
 			for (;stream;stream=stream->next)
-			if (strcmp(stream->stream->GetFilename(),fn) == 0)
-			break;
+				if (strcmp(stream->stream->GetFilename(),fn) == 0)
+					break;
 			if (!stream)
 			{
 				// must create new stream
@@ -493,7 +493,7 @@ void DebugIOFlat::Execute(class Debug& dbg, const char *cmd, bool structuredCmd,
 			for (StringType t=Assert;t<MAX;t=(StringType)(t+1))
 			{
 				if (t==StructuredCmdReply||!(cur->stringTypes&(1<<t)))
-				continue;
+					continue;
 				switch(t)
 				{
 					case Assert:    dbg << "a"; break;

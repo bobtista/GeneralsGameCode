@@ -68,7 +68,7 @@ static void InitDbghelp()
 {
 	// already called?
 	if (g_dbghelp)
-	return;
+		return;
 
 	// firstly check for dbghelp.dll in the EXE directory
 	char dbgHelpPath[256];
@@ -86,7 +86,7 @@ static void InitDbghelp()
 		g_dbghelp=::LoadLibrary("DBGHELP.DLL");
 
 	if (!g_dbghelp)
-	return;
+		return;
 
 	// Get function addresses
 	unsigned *funcptr=gDbg.funcPtr;
@@ -95,13 +95,13 @@ static void InitDbghelp()
 	{
 		*funcptr=(unsigned)GetProcAddress(g_dbghelp,DebughelpFunctionNames[k]);
 		if (!*funcptr)
-		break;
+			break;
 	}
 	if (DebughelpFunctionNames[k])
 	{
 		// not all functions found -> clear them all
 		while (funcptr!=gDbg.funcPtr)
-		*--funcptr=0;
+			*--funcptr=0;
 	}
 	else
 	{
@@ -114,7 +114,7 @@ static void InitDbghelp()
 		// Check: are we using a newer version of dbghelp.dll?
 		// (older versions have some serious issues.. err... bugs)
 		if (!GetProcAddress(g_dbghelp,"SymEnumSymbolsForAddr"))
-		g_oldDbghelp=true;
+			g_oldDbghelp=true;
 	}
 }
 
@@ -176,7 +176,7 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr, char *buf, unsigned buf
 	strcpy(buf,p);
 	buf+=strlen(buf);
 	if (bufEnd-buf<32)
-	return;
+		return;
 	buf+=wsprintf(buf,"+0x%x",addr-modBase);
 
 	// determine symbol
@@ -186,9 +186,9 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr, char *buf, unsigned buf
 	symPtr->MaxNameLength=sizeof(symbolBuffer)-sizeof(IMAGEHLP_SYMBOL);
 	DWORD displacement;
 	if (!gDbg._SymGetSymFromAddr((HANDLE)GetCurrentProcessId(),addr,&displacement,symPtr))
-	return;
+		return;
 	if ((unsigned int)(bufEnd-buf)<strlen(symPtr->Name)+16)
-	return;
+		return;
 	buf+=wsprintf(buf,", %s+0x%x",symPtr->Name,displacement);
 
 	// and line number
@@ -196,13 +196,13 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr, char *buf, unsigned buf
 	memset(&line,0,sizeof(line));
 	line.SizeOfStruct=sizeof(line);
 	if (!gDbg._SymGetLineFromAddr((HANDLE)GetCurrentProcessId(),addr,&displacement,&line))
-	return;
+		return;
 
 	p=strrchr(line.FileName,'\\'); // use filename only, strip off path
 	p=p?p+1:line.FileName;
 
 	if ((unsigned int)(bufEnd-buf)<strlen(p)+16)
-	return;
+		return;
 	buf+=wsprintf(buf,", %s:%i+0x%x",p,line.LineNumber,displacement);
 }
 
@@ -233,7 +233,7 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr,
 		if (bufMod)
 		  strcpy(bufMod,"(unknown mod)");
 		if (bufSym)
-		strcpy(bufSym,"(unknown)");
+			strcpy(bufSym,"(unknown)");
 		return;
 	}
 
@@ -243,7 +243,7 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr,
 		if (bufMod)
 		  strcpy(bufMod,"(inv code addr)");
 		if (bufSym)
-		strcpy(bufSym,"(unknown)");
+			strcpy(bufSym,"(unknown)");
 		return;
 	}
 
@@ -257,7 +257,7 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr,
 		strlcpy(bufMod,p,sizeMod);
 	}
 	if (relMod)
-	*relMod=addr-modBase;
+		*relMod=addr-modBase;
 
 	// determine symbol
 	if (bufSym)
@@ -271,7 +271,7 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr,
 		{
 			strlcpy(bufSym,symPtr->Name,sizeSym);
 			if (relSym)
-			*relSym=displacement;
+				*relSym=displacement;
 		}
 		else
 		strcpy(bufSym,"(unknown)");
@@ -285,16 +285,16 @@ void DebugStackwalk::Signature::GetSymbol(unsigned addr,
 		line.SizeOfStruct=sizeof(line);
 		DWORD displacement;
 		if (!gDbg._SymGetLineFromAddr((HANDLE)GetCurrentProcessId(),addr,&displacement,&line))
-		strcpy(bufFile,"(unknown)");
+			strcpy(bufFile,"(unknown)");
 		else
 		{
 			char *p=strrchr(line.FileName,'\\'); // use filename only, strip off path
 			p=p?p+1:line.FileName;
 			strlcpy(bufFile,p,sizeFile);
 			if (linePtr)
-			*linePtr=line.LineNumber;
+				*linePtr=line.LineNumber;
 			if (relLine)
-			*relLine=displacement;
+				*relLine=displacement;
 		}
 	}
 }
@@ -343,7 +343,7 @@ int DebugStackwalk::StackWalk(Signature &sig, struct _CONTEXT *ctx)
 
 	// bail out if no stack walk available
 	if (!gDbg._StackWalk)
-	return 0;
+		return 0;
 
 	// Set up the stack frame structure for the start point of the stack walk (i.e. here).
 	STACKFRAME stackFrame;
@@ -396,7 +396,7 @@ int DebugStackwalk::StackWalk(Signature &sig, struct _CONTEXT *ctx)
                          &stackFrame,nullptr,nullptr,gDbg._SymFunctionTableAccess,gDbg._SymGetModuleBase,nullptr))
 		{
 			if (skipFirst)
-			skipFirst=false;
+				skipFirst=false;
 			else
 			sig.m_addr[sig.m_numAddr++]=stackFrame.AddrPC.Offset;
 		}

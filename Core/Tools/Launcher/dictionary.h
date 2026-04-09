@@ -154,7 +154,7 @@ void Dictionary<K,V>::clear()
 	entries=0;
 
 	while ((getSize()>(uint32)MIN_TABLE_SIZE)&&(keepSize==FALSE))
-	shrink();
+		shrink();
 }
 
 template <class K,class V>
@@ -204,7 +204,7 @@ bit8 Dictionary<K,V>::iterate(INOUT int &index,INOUT int &offset,
 
 	// index out of range
 	if ((index<0)||(index >= getSize()))
-	return(FALSE);
+		return(FALSE);
 
 	temp=table[index];
 	while ((temp==nullptr)&&((++index) < getSize()))
@@ -214,7 +214,7 @@ bit8 Dictionary<K,V>::iterate(INOUT int &index,INOUT int &offset,
 	}
 
 	if (temp==nullptr)   // no more slots with data
-	return(FALSE);
+		return(FALSE);
 
 	uint32 i=0;
 	while ((temp!=nullptr) && (i < offset))
@@ -224,7 +224,7 @@ bit8 Dictionary<K,V>::iterate(INOUT int &index,INOUT int &offset,
 	}
 
 	if (temp==nullptr)  // should never happen
-	return(FALSE);
+		return(FALSE);
 
 	value=temp->value;
 	if (temp->hashNext==nullptr)
@@ -284,7 +284,7 @@ bit8 Dictionary<K,V>::updateValue(IN K &key,IN V &value)
 
 	retval=remove(key);
 	if (retval==FALSE)
-	return(FALSE);
+		return(FALSE);
 
 	add(key,value);
 	return(TRUE);
