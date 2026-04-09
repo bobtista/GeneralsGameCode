@@ -365,7 +365,7 @@ int DebugStackwalk::StackWalk(Signature &sig, struct _CONTEXT *ctx)
 		// walk stack back using current call chain
 		unsigned long reg_eip, reg_ebp, reg_esp;
 #if defined(_MSC_VER)
-	  __asm
+		__asm
 		{
 			here:
 			lea	eax,here

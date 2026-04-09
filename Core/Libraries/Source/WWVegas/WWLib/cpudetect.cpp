@@ -817,7 +817,7 @@ void CPUDetectClass::Init_CPUID_Instruction()
 
 #if defined(_MSC_VER) && _MSC_VER < 1300
 #ifdef WIN32
-   __asm
+	__asm
 	{
 		mov cpuid_available, 0	// clear flag
       push ebx
