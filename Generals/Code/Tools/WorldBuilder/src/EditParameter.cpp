@@ -1253,7 +1253,7 @@ Bool EditParameter::loadFontNames(CComboBox *pCombo, AsciiString match)
 		string.concat( " - Size:" );
 		Int size = font->pointSize;
 		char buffer[33];
-    itoa( size, buffer, 10 );
+		itoa( size, buffer, 10 );
 		string.concat( buffer );
 		if( font->bold )
 			string.concat( " [Bold]" );
@@ -2072,7 +2072,7 @@ BOOL EditParameter::OnInitDialog()
 	}
 
 	return FALSE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 void EditParameter::OnOK()

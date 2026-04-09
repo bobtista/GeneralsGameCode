@@ -241,7 +241,7 @@ typedef struct _NeighborEdge
 	Short neighborIndex;  // index of polygon who is our neighbor, if there is
 												// not a neighbor it contains NO_NEIGHBOR
 	Short neighborEdgeIndex[ 2 ];  // the two vertex indices that represent the
-																 // shared edge
+	// shared edge
 
 } NeighborEdge;
 
@@ -342,7 +342,7 @@ protected:
 	/// the neighbor info indexed by polygon id
 	PolyNeighbor *m_polyNeighbors;
 	Int m_numPolyNeighbors;  // length of m_polyNeighbors and the number of polygons
-							 // in our current geometry.
+	// in our current geometry.
 	W3DShadowGeometry *m_parentGeometry; // mesh hierarchy containing this mesh.
 
 };
@@ -1683,34 +1683,34 @@ void W3DVolumetricShadow::Update()
 			groundHeight=TheTerrainLogic->getGroundHeight(pos.X,pos.Y);	//logic knows about bridges so use if available.
 		else
 			groundHeight=TheTerrainRenderObject->getHeightMapHeight(pos.X,pos.Y, nullptr);
-   		if (fabs(pos.Z - groundHeight) >= AIRBORNE_UNIT_GROUND_DELTA)
-   		{
- 			Real extent = MAX_SHADOW_LENGTH_EXTRA_AIRBORNE_SCALE_FACTOR * m_robjExtent;
- 			if (WWMath::Fabs(pos.X - bcX) > (beX + extent) ||
+		if (fabs(pos.Z - groundHeight) >= AIRBORNE_UNIT_GROUND_DELTA)
+		{
+			Real extent = MAX_SHADOW_LENGTH_EXTRA_AIRBORNE_SCALE_FACTOR * m_robjExtent;
+			if (WWMath::Fabs(pos.X - bcX) > (beX + extent) ||
  				WWMath::Fabs(pos.Y - bcY) > (beY + extent) ||
  				WWMath::Fabs(pos.Z - bcZ) > (beZ + extent))
- 				return;	//shadow can't be visible so no point in updating.
+			return;	//shadow can't be visible so no point in updating.
 
 			//this unit is above ground, extend shadow volume to reach lowest point on the terrain plus extra bit to make
 			//sure shadow goes under ground.
-   			updateVolumes(fabs(pos.Z - TheTerrainRenderObject->getMinHeight()) + SHADOW_EXTRUSION_BUFFER);
-   		}
-   		else
- 		{	//normal object that is not floating above ground so we don't need to extend the shadow lower than the object's
+			updateVolumes(fabs(pos.Z - TheTerrainRenderObject->getMinHeight()) + SHADOW_EXTRUSION_BUFFER);
+		}
+		else
+		{	//normal object that is not floating above ground so we don't need to extend the shadow lower than the object's
 			//base since it should be sitting directly at ground level.
 
- 			if (WWMath::Fabs(pos.X - bcX) > (beX + m_robjExtent) ||
+			if (WWMath::Fabs(pos.X - bcX) > (beX + m_robjExtent) ||
  				WWMath::Fabs(pos.Y - bcY) > (beY + m_robjExtent) ||
  				WWMath::Fabs(pos.Z - bcZ) > (beZ + m_robjExtent))
- 				return;	//shadow can't be visible so no point in updating.
+			return;	//shadow can't be visible so no point in updating.
 
 				//check if this object has never had it's extrusion length updated.  Will only be true for
 				//immobile objects because finding an optimal extrusion length is expensive.
 				if (!m_extraExtrusionPadding)
 					updateOptimalExtrusionPadding();
 
-   			updateVolumes(m_extraExtrusionPadding);
- 		}
+			updateVolumes(m_extraExtrusionPadding);
+		}
 
 
 	//	floorZ = 2.0f;	//lower slightly so shadows go under ground.
@@ -1765,11 +1765,11 @@ void W3DVolumetricShadow::updateVolumes(Real zoffset)
 					{	//Updating the mesh volume didn't update the visibility, must do it here.
 						//First check against bounding sphere
 						if (parentVis)
- 						{ //parent is visible so most likely all sub_objects are also visible so probably all shadows also visible.
- 						  //skip additional visibility tests
- 							m_shadowVolume[i][j]->setVisibleState(Geometry::STATE_VISIBLE);
- 						}
- 						else
+						{ //parent is visible so most likely all sub_objects are also visible so probably all shadows also visible.
+							//skip additional visibility tests
+							m_shadowVolume[i][j]->setVisibleState(Geometry::STATE_VISIBLE);
+						}
+						else
 						{	sphere=m_shadowVolume[i][j]->getBoundingSphere();
 							sphere.Center += mesh->Get_Transform().Get_Translation();
 							CollisionMath::OverlapType result=CollisionMath::Overlap_Test(*shadowCameraFrustum,sphere);
@@ -3204,21 +3204,21 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
 
-    v[0].p = D3DXVECTOR4( xpos+width, ypos+height, 0.0f, 1.0f );
-    v[1].p = D3DXVECTOR4( xpos+width, 0, 0.0f, 1.0f );
-    v[2].p = D3DXVECTOR4(  xpos, ypos+height, 0.0f, 1.0f );
-    v[3].p = D3DXVECTOR4(  xpos,  0, 0.0f, 1.0f );
-    v[0].color = TheW3DShadowManager->getShadowColor();
-    v[1].color = TheW3DShadowManager->getShadowColor();
-    v[2].color = TheW3DShadowManager->getShadowColor();
-    v[3].color = TheW3DShadowManager->getShadowColor();
+	v[0].p = D3DXVECTOR4( xpos+width, ypos+height, 0.0f, 1.0f );
+	v[1].p = D3DXVECTOR4( xpos+width, 0, 0.0f, 1.0f );
+	v[2].p = D3DXVECTOR4(  xpos, ypos+height, 0.0f, 1.0f );
+	v[3].p = D3DXVECTOR4(  xpos,  0, 0.0f, 1.0f );
+	v[0].color = TheW3DShadowManager->getShadowColor();
+	v[1].color = TheW3DShadowManager->getShadowColor();
+	v[2].color = TheW3DShadowManager->getShadowColor();
+	v[3].color = TheW3DShadowManager->getShadowColor();
 
 	//draw polygons like this is very inefficient but for only 2 triangles, it's
 	//not worth bothering with index/vertex buffers.
 	m_pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
 
 	// Use alpha blending to draw the transparent shadow
-    m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
+	m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
 //  m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA );
 //  m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 		m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_DESTCOLOR);
@@ -3226,18 +3226,18 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 
 
 	// Set stencil states
-    m_pDev->SetRenderState( D3DRS_ZENABLE,          TRUE );
+	m_pDev->SetRenderState( D3DRS_ZENABLE,          TRUE );
 		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_ALWAYS);
 
 	// Only write where stencil val >= 1 (count indicates # of shadows that
 	// overlap that pixel)
-    m_pDev->SetRenderState( D3DRS_STENCILENABLE, TRUE );
-    m_pDev->SetRenderState( D3DRS_STENCILFUNC, D3DCMP_LESSEQUAL );	//reference value is less or equal to stencil
-    m_pDev->SetRenderState( D3DRS_STENCILPASS, D3DSTENCILOP_KEEP );
+	m_pDev->SetRenderState( D3DRS_STENCILENABLE, TRUE );
+	m_pDev->SetRenderState( D3DRS_STENCILFUNC, D3DCMP_LESSEQUAL );	//reference value is less or equal to stencil
+	m_pDev->SetRenderState( D3DRS_STENCILPASS, D3DSTENCILOP_KEEP );
 	//Upper bits of stencil could be used for storing occluded models which are player colored.  So we mask out those
 	//pixels and only use the lower bits for shadow calculations.
 	m_pDev->SetRenderState( D3DRS_STENCILMASK,     ~TheW3DShadowManager->getStencilShadowMask());
-    m_pDev->SetRenderState( D3DRS_STENCILREF,      0x1 );
+	m_pDev->SetRenderState( D3DRS_STENCILREF,      0x1 );
 
 
 	m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);
@@ -3257,21 +3257,21 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 	W3DVolumetricShadow *shadow;
 	Int numRenderedShadows = 0;
 
- 	AABoxClass bbox;
+	AABoxClass bbox;
 	SphereClass bsphere;
 
- 	//Get a bounding box around our visible universe.  Bounded by terrain and the sky
- 	//so much tighter fitting volume than what's actually visible.  This will cull
- 	//particles falling under the ground.
+	//Get a bounding box around our visible universe.  Bounded by terrain and the sky
+	//so much tighter fitting volume than what's actually visible.  This will cull
+	//particles falling under the ground.
 
- 	TheTerrainRenderObject->getMaximumVisibleBox(*shadowCameraFrustum, &bbox, TRUE);
+	TheTerrainRenderObject->getMaximumVisibleBox(*shadowCameraFrustum, &bbox, TRUE);
 
- 	bcX = bbox.Center.X;
- 	bcY = bbox.Center.Y;
- 	bcZ = bbox.Center.Z;
- 	beX = bbox.Extent.X;
- 	beY = bbox.Extent.Y;
- 	beZ = bbox.Extent.Z;
+	bcX = bbox.Center.X;
+	bcY = bbox.Center.Y;
+	bcZ = bbox.Center.Z;
+	beX = bbox.Extent.X;
+	beY = bbox.Extent.Y;
+	beZ = bbox.Extent.Z;
 
 	if (m_shadowList && TheGlobalData->m_useShadowVolumes)
 	{
@@ -3298,7 +3298,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 
 		// turn off z writing
 		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-	  m_pDev->SetRenderState( D3DRS_ZENABLE,          TRUE );
+		m_pDev->SetRenderState( D3DRS_ZENABLE,          TRUE );
 		m_pDev->SetRenderState(D3DRS_ZWRITEENABLE , FALSE);
 		m_pDev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
 		m_pDev->SetRenderState(D3DRS_FOGENABLE, FALSE);
@@ -3686,9 +3686,9 @@ W3DVolumetricShadow* W3DVolumetricShadowManager::addShadow(RenderObjClass *robj,
 
 	shadow->setRenderObject(robj);
 	shadow->SetGeometry(sg);
- 	SphereClass sphere;
- 	robj->Get_Obj_Space_Bounding_Sphere(sphere);
- 	shadow->setRenderObjExtent(sphere.Radius*MAX_SHADOW_LENGTH_SCALE_FACTOR);
+	SphereClass sphere;
+	robj->Get_Obj_Space_Bounding_Sphere(sphere);
+	shadow->setRenderObjExtent(sphere.Radius*MAX_SHADOW_LENGTH_SCALE_FACTOR);
 
 	Real sunElevationAngleTan = 0;
 	if (shadowInfo->m_sizeX)

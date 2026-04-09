@@ -470,27 +470,27 @@ GameMessageDisposition MetaEventTranslator::translateGameMessage(const GameMessa
 				else
 				{
 
-          // THIS IS A GREASY HACK... MESSAGE SHOULD BE HANDLED IN A TRANSLATOR, BUT DURING CINEMATICS THE TRANSLATOR IS DISABLED
-          if( map->m_meta ==  GameMessage::MSG_META_TOGGLE_FAST_FORWARD_REPLAY)
-		      {
+					// THIS IS A GREASY HACK... MESSAGE SHOULD BE HANDLED IN A TRANSLATOR, BUT DURING CINEMATICS THE TRANSLATOR IS DISABLED
+					if( map->m_meta ==  GameMessage::MSG_META_TOGGLE_FAST_FORWARD_REPLAY)
+					{
 				#if defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)//may be defined in GameCommon.h
-			      if( TheGlobalData )
+						if( TheGlobalData )
 				#else
-				  if( TheGlobalData && TheGameLogic->isInReplayGame())
+						if( TheGlobalData && TheGameLogic->isInReplayGame())
 				#endif
-			      {
-	            if ( TheWritableGlobalData )
-                TheWritableGlobalData->m_TiVOFastMode = 1 - TheGlobalData->m_TiVOFastMode;
+						{
+							if ( TheWritableGlobalData )
+							TheWritableGlobalData->m_TiVOFastMode = 1 - TheGlobalData->m_TiVOFastMode;
 
-              if ( TheInGameUI )
+							if ( TheInGameUI )
 								TheInGameUI->messageNoFormat( TheGlobalData->m_TiVOFastMode
 									? TheGameText->FETCH_OR_SUBSTITUTE("GUI:FF_ON", L"Fast Forward is on")
 									: TheGameText->FETCH_OR_SUBSTITUTE("GUI:FF_OFF", L"Fast Forward is off")
 								);
-			      }
-			      disp = KEEP_MESSAGE; // cause for goodness sake, this key gets used a lot by non-replay hotkeys
-			      break;
-		      }
+						}
+						disp = KEEP_MESSAGE; // cause for goodness sake, this key gets used a lot by non-replay hotkeys
+						break;
+					}
 
 
 					/*GameMessage *metaMsg =*/ TheMessageStream->appendMessage(map->m_meta);

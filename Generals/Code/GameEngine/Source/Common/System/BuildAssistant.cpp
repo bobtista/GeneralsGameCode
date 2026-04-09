@@ -286,9 +286,9 @@ void BuildAssistant::xferTheSellList( Xfer *xfer )
 
 	Int count=0;
 	ObjectSellListIterator it, thisIterator;
- 	for( it = m_sellList.begin(); it != m_sellList.end(); ++it ) {
+	for( it = m_sellList.begin(); it != m_sellList.end(); ++it ) {
 		count++;
- 	}
+	}
 	xfer->xferInt(&count);
 
 	if (xfer->getXferMode() == XFER_LOAD)	{
@@ -337,10 +337,10 @@ Object *BuildAssistant::buildObjectNow( Object *constructorObject, const ThingTe
 
 	}
 
- 	// Need to validate that we can make this in case someone fakes their CommandSet
+	// Need to validate that we can make this in case someone fakes their CommandSet
 	// A Null constructorObject is used by the script engine to cheat, so let it slide
- 	if( constructorObject && !isPossibleToMakeUnit(constructorObject, what) )
- 		return nullptr;
+	if( constructorObject && !isPossibleToMakeUnit(constructorObject, what) )
+	return nullptr;
 
 	// clear out any objects from the building area that are "auto-clearable" when building
 	clearRemovableForConstruction( what, pos, angle );
@@ -431,7 +431,7 @@ Object *BuildAssistant::buildObjectNow( Object *constructorObject, const ThingTe
 
 	}
 
-  return nullptr;
+	return nullptr;
 
 }
 
@@ -600,8 +600,8 @@ void BuildAssistant::iterateFootprint( const ThingTemplate *build,
 	Real x, y;
 	Vector3 v;
 	for( y = -halfFootprintHeight;
-			 y < halfFootprintHeight + sampleResolution;
-			 y += sampleResolution )
+	y < halfFootprintHeight + sampleResolution;
+	y += sampleResolution )
 	{
 
 		// snap it to the actual extent since we can go over by one sample resolution
@@ -609,8 +609,8 @@ void BuildAssistant::iterateFootprint( const ThingTemplate *build,
 			y = halfFootprintHeight;
 
 		for( x = -halfFootprintWidth;
-				 x < halfFootprintWidth + sampleResolution;
-				 x += sampleResolution )
+		x < halfFootprintWidth + sampleResolution;
+		x += sampleResolution )
 		{
 
 			// snap it to the actual extent since we can go over by one sample resolution

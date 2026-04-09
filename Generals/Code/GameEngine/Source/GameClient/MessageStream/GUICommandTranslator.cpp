@@ -402,7 +402,7 @@ GameMessageDisposition GUICommandTranslator::translateGameMessage(const GameMess
 						WeaponSlotType slot = command->getWeaponSlot();
 						info.m_weaponSlot = &slot;
 
-	 					pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_WEAPON_AT_LOCATION, &info );
+						pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_WEAPON_AT_LOCATION, &info );
 						break;
 
 					}

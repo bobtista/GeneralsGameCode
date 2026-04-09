@@ -928,10 +928,10 @@ GameMessageDisposition SelectionTranslator::translateGameMessage(const GameMessa
 					//With a GUI command cancel, we want no other behavior.
 					disp = DESTROY_MESSAGE;
 					TheInGameUI->setScrolling( FALSE );
- 				}
+				}
 				else
 				{
- 					//In alternate mouse mode, right click still cancels building placement.
+					//In alternate mouse mode, right click still cancels building placement.
 					// TheSuperHackers @tweak Stubbjax 08/08/2025 Canceling building placement no longer deselects the builder.
 					if (TheInGameUI->getPendingPlaceSourceObjectID() != INVALID_ID)
 					{
@@ -941,12 +941,12 @@ GameMessageDisposition SelectionTranslator::translateGameMessage(const GameMessa
 						TheInGameUI->setScrolling(FALSE);
 					}
 					else if (!TheGlobalData->m_useAlternateMouse)
- 					{
+					{
 						//No GUI command mode, so deselect everyone if we're in regular mouse mode.
- 						deselectAll();
+						deselectAll();
 						m_lastGroupSelGroup = -1;
- 					}
- 				}
+					}
+				}
 			}
 
 			break;

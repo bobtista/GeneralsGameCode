@@ -73,7 +73,7 @@ void StackDump(void (*callback)(const char*))
 _asm
 {
 MYEIP1:
- mov eax, MYEIP1
+		mov eax, MYEIP1
  mov dword ptr [myeip] , eax
  mov eax, esp
  mov dword ptr [myesp] , eax
@@ -269,14 +269,14 @@ void GetFunctionDetails(void *pointer, char*name, char*filename, unsigned int* l
 
 	ULONG displacement = 0;
 
-    HANDLE process = ::GetCurrentProcess();
+	HANDLE process = ::GetCurrentProcess();
 
-    char symbol_buffer[512 + sizeof(IMAGEHLP_SYMBOL)];
-    memset(symbol_buffer, 0, sizeof(symbol_buffer));
+	char symbol_buffer[512 + sizeof(IMAGEHLP_SYMBOL)];
+	memset(symbol_buffer, 0, sizeof(symbol_buffer));
 
-    PIMAGEHLP_SYMBOL psymbol = (PIMAGEHLP_SYMBOL)symbol_buffer;
-    psymbol->SizeOfStruct = sizeof(symbol_buffer);
-    psymbol->MaxNameLength = 512;
+	PIMAGEHLP_SYMBOL psymbol = (PIMAGEHLP_SYMBOL)symbol_buffer;
+	psymbol->SizeOfStruct = sizeof(symbol_buffer);
+	psymbol->MaxNameLength = 512;
 
 	if (DbgHelpLoader::symGetSymFromAddr(process, (DWORD) pointer, &displacement, psymbol))
 	{
@@ -325,15 +325,15 @@ void FillStackAddresses(void**addresses, unsigned int count, unsigned int skip)
 	HANDLE thread = GetCurrentThread();
 	HANDLE process = GetCurrentProcess();
 
-    memset(&gsContext, 0, sizeof(CONTEXT));
-    gsContext.ContextFlags = CONTEXT_FULL;
+	memset(&gsContext, 0, sizeof(CONTEXT));
+	gsContext.ContextFlags = CONTEXT_FULL;
 
 	DWORD myeip,myesp,myebp;
 #if defined(_MSC_VER)
 _asm
 {
 MYEIP2:
- mov eax, MYEIP2
+		mov eax, MYEIP2
  mov dword ptr [myeip] , eax
  mov eax, esp
  mov dword ptr [myesp] , eax
@@ -466,7 +466,7 @@ void WriteStackLine(void*address, void (*callback)(const char*))
 	unsigned int addr;
 
 	GetFunctionDetails(address, function_name, filename, &linenumber, &addr);
-    sprintf(line, "  %s(%d) : %s 0x%08p", filename, linenumber, function_name, address);
+	sprintf(line, "  %s(%d) : %s 0x%08p", filename, linenumber, function_name, address);
 		if (g_LastErrorDump.isNotEmpty()) {
 			g_LastErrorDump.concat(line);
 			g_LastErrorDump.concat("\n");
@@ -484,7 +484,7 @@ void DumpExceptionInfo( unsigned int u, EXCEPTION_POINTERS* e_info )
 	/*
 	** List of possible exceptions
 	*/
-	 g_LastErrorDump.clear();
+	g_LastErrorDump.clear();
 
 	static const unsigned int _codes[] = {
 		EXCEPTION_ACCESS_VIOLATION,

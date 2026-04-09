@@ -234,7 +234,7 @@ Object* CommandButtonHuntUpdate::scanClosestTarget()
 	filters[2] = &filterTeam;
 	filters[3] = nullptr;
 
- 	const SpecialPowerTemplate *spTemplate = m_commandButton->getSpecialPowerTemplate();
+	const SpecialPowerTemplate *spTemplate = m_commandButton->getSpecialPowerTemplate();
 	if( !spTemplate ) return nullptr;  // isn't going to happen.
 	Bool isBlackLotusVehicleHack = 	(spTemplate->getSpecialPowerType() == SPECIAL_BLACKLOTUS_DISABLE_VEHICLE_HACK);
 	Bool isCaptureBuilding = 	(spTemplate->getSpecialPowerType() == SPECIAL_INFANTRY_CAPTURE_BUILDING);

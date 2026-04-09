@@ -519,8 +519,8 @@ LocomotorTemplate* LocomotorStore::findLocomotorTemplate(NameKeyType namekey)
 	if (namekey == NAMEKEY_INVALID)
 		return nullptr;
 
-  LocomotorTemplateMap::iterator it = m_locomotorTemplates.find(namekey);
-  if (it == m_locomotorTemplates.end())
+	LocomotorTemplateMap::iterator it = m_locomotorTemplates.find(namekey);
+	if (it == m_locomotorTemplates.end())
 		return nullptr;
 	else
 		return (*it).second;
@@ -532,8 +532,8 @@ const LocomotorTemplate* LocomotorStore::findLocomotorTemplate(NameKeyType namek
 	if (namekey == NAMEKEY_INVALID)
 		return nullptr;
 
-  LocomotorTemplateMap::const_iterator it = m_locomotorTemplates.find(namekey);
-  if (it == m_locomotorTemplates.end())
+	LocomotorTemplateMap::const_iterator it = m_locomotorTemplates.find(namekey);
+	if (it == m_locomotorTemplates.end())
 	{
 		return nullptr;
 	}
@@ -1175,7 +1175,7 @@ void Locomotor::moveTowardsPositionTreads(Object* obj, PhysicsBehavior *physics,
 		goalSpeed = actualSpeed*0.6f;
 	}
 
- 	if (onPathDistToGoal < slowDownDist && !getFlag(IS_BRAKING) && !getFlag(NO_SLOW_DOWN_AS_APPROACHING_DEST))
+	if (onPathDistToGoal < slowDownDist && !getFlag(IS_BRAKING) && !getFlag(NO_SLOW_DOWN_AS_APPROACHING_DEST))
 	{
 		setFlag(IS_BRAKING, true);
 		m_brakingFactor = 1.1f;
@@ -1386,7 +1386,7 @@ void Locomotor::moveTowardsPositionWheels(Object* obj, PhysicsBehavior *physics,
 		setFlag(IS_BRAKING, false);
 	}
 
- 	if (onPathDistToGoal > DONUT_DISTANCE) {
+	if (onPathDistToGoal > DONUT_DISTANCE) {
 		m_donutTimer = TheGameLogic->getFrame()+DONUT_TIME_DELAY_SECONDS*LOGICFRAMES_PER_SECOND;
 	} else {
 		if (m_donutTimer < TheGameLogic->getFrame()) {

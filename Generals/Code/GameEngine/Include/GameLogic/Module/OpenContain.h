@@ -64,9 +64,9 @@ public:
 	UnsignedInt m_doorOpenTime;
 	KindOfMaskType m_allowInsideKindOf;			///< objects must have at least one of these kind of bits set to be contained by us
 	KindOfMaskType m_forbidInsideKindOf;		///< objects must have NONE of these kind of bits set to be contained by us
- 	Bool m_allowAlliesInside;				///< allow allies inside us
- 	Bool m_allowEnemiesInside;			///< allow enemies inside us
- 	Bool m_allowNeutralInside;			///< allow neutral inside us
+	Bool m_allowAlliesInside;				///< allow allies inside us
+	Bool m_allowEnemiesInside;			///< allow enemies inside us
+	Bool m_allowNeutralInside;			///< allow neutral inside us
 
 	OpenContainModuleData();
 	static void buildFieldParse(MultiIniFieldParse& p);

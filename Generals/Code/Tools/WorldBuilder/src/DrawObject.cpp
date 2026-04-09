@@ -283,7 +283,7 @@ void DrawObject::updateMeshVB(void)
 		m_curMeshModelName = MeshMoldOptions::getModelName();
 	}
 	if (m_moldMesh == nullptr) {
- 		WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
+		WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
 		pMgr->Set_WW3D_Load_On_Demand(false);	 // We don't want it fishing for these assets in the game assets.
 		m_moldMesh = (MeshClass*)pMgr->Create_Render_Obj(m_curMeshModelName.str());
 		if (m_moldMesh == nullptr) {
@@ -558,7 +558,7 @@ void DrawObject::updateBoundaryVB(void)
 	VertexFormatXYZDUV1 *vb = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	VertexFormatXYZDUV1 *curVb = vb;
 
- 	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();
+	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();
 	Int numBoundaries = pDoc->getNumBoundaries();
 
 	Int i, j;
@@ -845,13 +845,13 @@ void DrawObject::updateWaypointVB(void)
 	VertexFormatXYZDUV1 *vb = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	VertexFormatXYZDUV1 *curVb = vb;
 
- 	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();
+	CWorldBuilderDoc *pDoc = CWorldBuilderDoc::GetActiveDoc();
 	Int i;
 	for (i = 0; i<=pDoc->getNumWaypointLinks(); i++) {
 		Bool gotLocation=false;
 		Coord3D loc1;
 		Coord3D loc2;
- 		Bool exists;
+		Bool exists;
 		Int waypointID1, waypointID2;
 
 		Int k;
@@ -1259,10 +1259,10 @@ void DrawObject::updateFeedbackVB(void)
 				if (i<halfWidth && j<halfWidth) flipForBlend = true;
 				if (flipForBlend) {
 					*curIb++ = j*yOffset + i+1;
- 					*curIb++ = j*yOffset + i+yOffset;
+					*curIb++ = j*yOffset + i+yOffset;
 					*curIb++ = j*yOffset + i;
- 					*curIb++ = j*yOffset + i+1;
- 					*curIb++ = j*yOffset + i+1+yOffset;
+					*curIb++ = j*yOffset + i+1;
+					*curIb++ = j*yOffset + i+1+yOffset;
 					*curIb++ = j*yOffset + i+yOffset;
 				} else {
 					*curIb++ = j*yOffset + i;
@@ -1765,7 +1765,7 @@ void DrawObject::Render(RenderInfoClass & rinfo)
 				DX8Wrapper::Set_Transform(D3DTS_WORLD,tmReset);
 				DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferTile1);
 				updatePolygonVB(pTrig, polySelected, polySelected && PolygonTool::isSelectedOpen());
- 				DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+				DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 				if (m_feedbackIndexCount>0) {
 					DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 					DX8Wrapper::Draw_Triangles(	0, m_feedbackIndexCount/3, 0,	m_feedbackVertexCount);
@@ -1778,7 +1778,7 @@ void DrawObject::Render(RenderInfoClass & rinfo)
 	DX8Wrapper::Set_Vertex_Buffer(nullptr);	//release reference to vertex buffer
 	DX8Wrapper::Set_Index_Buffer(nullptr,0);	//release reference to vertex buffer
 
- 	if (BuildListTool::isActive()) for (i=0; i<TheSidesList->getNumSides(); i++) {
+	if (BuildListTool::isActive()) for (i=0; i<TheSidesList->getNumSides(); i++) {
 		SidesInfo *pSide = TheSidesList->getSideInfo(i);
 		for (BuildListInfo *pBuild = pSide->getBuildList(); pBuild; pBuild = pBuild->getNext()) {
 			Coord3D loc = *pBuild->getLocation();
@@ -1832,12 +1832,12 @@ void DrawObject::Render(RenderInfoClass & rinfo)
 	if (m_drawWaypoints) {
 		updateWaypointVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(m_shaderClass);
 			DX8Wrapper::Draw_Triangles(	0, m_feedbackIndexCount/3, 0,	m_feedbackVertexCount);
 //			DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
- //			DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
+			//			DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
 		}
 	}
 
@@ -1848,7 +1848,7 @@ void DrawObject::Render(RenderInfoClass & rinfo)
 	if (m_meshFeedback) {
 		updateMeshVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(SC_OPAQUE_Z);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
@@ -1857,7 +1857,7 @@ void DrawObject::Render(RenderInfoClass & rinfo)
 	} else if (m_toolWantsFeedback && !m_disableFeedback) {
 		updateFeedbackVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(ShaderClass::_PresetAlpha2DShader);
 			DX8Wrapper::Draw_Triangles(	0, m_feedbackIndexCount/3, 0,	m_feedbackVertexCount);
@@ -1872,7 +1872,7 @@ void DrawObject::Render(RenderInfoClass & rinfo)
 	if (m_rampFeedback) {
 		updateRampVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(SC_OPAQUE_Z);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);	// we want a solid ramp
@@ -1889,7 +1889,7 @@ void DrawObject::Render(RenderInfoClass & rinfo)
 	if (m_boundaryFeedback) {
 		updateBoundaryVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(m_shaderClass);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, D3DCULL_NONE);
@@ -1907,7 +1907,7 @@ void DrawObject::Render(RenderInfoClass & rinfo)
 	if (m_ambientSoundFeedback) {
 		updateAmbientSoundVB();
 		if (m_feedbackIndexCount>0) {
- 			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
+			DX8Wrapper::Set_Vertex_Buffer(m_vertexFeedback);
 			DX8Wrapper::Set_Index_Buffer(m_indexFeedback,0);
 			DX8Wrapper::Set_Shader(m_shaderClass);
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, D3DCULL_NONE);
@@ -1918,7 +1918,7 @@ void DrawObject::Render(RenderInfoClass & rinfo)
 	}
 
 	DX8Wrapper::Set_Index_Buffer(m_indexBuffer,0);
- 	DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
+	DX8Wrapper::Set_Vertex_Buffer(m_vertexBufferWater);
 
 	if (m_waterDrawObject) {
 		m_waterDrawObject->renderWater();

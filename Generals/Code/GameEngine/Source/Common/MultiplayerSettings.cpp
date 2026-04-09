@@ -130,7 +130,7 @@ MultiplayerColorDefinition * MultiplayerSettings::findMultiplayerColorDefinition
 
 MultiplayerColorDefinition * MultiplayerSettings::newMultiplayerColorDefinition(AsciiString name)
 {
- 	MultiplayerColorDefinition tmp;
+	MultiplayerColorDefinition tmp;
 	Int numColors = getNumColors();
 
 	m_colorList[numColors] = tmp;

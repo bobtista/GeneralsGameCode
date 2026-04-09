@@ -344,7 +344,7 @@ void AnimateWindowManager::reverseAnimateWindow()
 			return;
 		}
 		// Run the window through the processAnim's init function.
-		 processAnim = getProcessAnimate( animWin->getAnimType() );
+		processAnim = getProcessAnimate( animWin->getAnimType() );
 		if(processAnim)
 		{
 			processAnim->initReverseAnimateWindow( animWin, maxDelay );

@@ -57,7 +57,7 @@ public:
 
 	static void buildFieldParse(MultiIniFieldParse& p)
 	{
-    AIUpdateModuleData::buildFieldParse(p);
+		AIUpdateModuleData::buildFieldParse(p);
 
 		static const FieldParse dataFieldParse[] =
 		{
@@ -65,7 +65,7 @@ public:
 			{ "ClearRangeRequiredToContinueAttackMove", INI::parseReal, nullptr, offsetof( AssaultTransportAIUpdateModuleData, m_clearRangeRequiredToContinueAttackMove ) },
 			{ 0, 0, 0, 0 }
 		};
-    p.add(dataFieldParse);
+		p.add(dataFieldParse);
 	}
 };
 
@@ -90,7 +90,7 @@ public:
 	AssaultTransportAIUpdate( Thing *thing, const ModuleData* moduleData );
 	// virtual destructor prototype provided by memory pool declaration
 
- 	virtual void aiDoCommand(const AICommandParms* parms) override;
+	virtual void aiDoCommand(const AICommandParms* parms) override;
 	virtual Bool isIdle() const override;
 	virtual UpdateSleepTime update() override;
 	virtual AssaultTransportAIInterface* getAssaultTransportAIInterface() override { return this; }
@@ -104,15 +104,15 @@ public:
 	Bool isMemberHealthy( const Object *member ) const; //Member has full health?
 	void retrieveMembers();
 	void giveFinalOrders();
-  Bool isAttackPointless() const;
+	Bool isAttackPointless() const;
 
 protected:
 
-  ObjectID					m_memberIDs[ MAX_TRANSPORT_SLOTS ];
+	ObjectID					m_memberIDs[ MAX_TRANSPORT_SLOTS ];
 	Bool							m_memberHealing[ MAX_TRANSPORT_SLOTS ];
 	Bool							m_newMember[ MAX_TRANSPORT_SLOTS ];
-  Coord3D						m_attackMoveGoalPos;
-  mutable ObjectID	m_designatedTarget;
+	Coord3D						m_attackMoveGoalPos;
+	mutable ObjectID	m_designatedTarget;
 	AssaultStateTypes	m_state;
 	UnsignedInt				m_framesRemaining;
 	Int								m_currentMembers;

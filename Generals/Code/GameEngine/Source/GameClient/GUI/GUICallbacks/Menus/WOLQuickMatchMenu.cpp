@@ -1616,7 +1616,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					Int val;
 					GadgetComboBoxGetSelectedPos(comboBoxMaxDisconnects, &val);
 					if( val < 0)
-						 val = 0;
+				val = 0;
 					req.QM.maxDiscons = MAX_DISCONNECTS[val];
 
 					GadgetComboBoxGetSelectedPos(comboBoxMaxPing, &val);

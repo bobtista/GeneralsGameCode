@@ -139,7 +139,7 @@ void AISkirmishPlayer::processBaseBuilding()
 								info->setObjectID(obj->getID());
 							}
 						}
- 					}
+					}
 				}	else {
 					if (bldg->getControllingPlayer() == m_player) {
 						// Check for built or dozer missing.
@@ -155,7 +155,7 @@ void AISkirmishPlayer::processBaseBuilding()
 							if (myDozer==nullptr) {
 								DEBUG_LOG(("AI's Dozer got killed.  Find another dozer."));
 								queueDozer();
- 								myDozer = findDozer(bldg->getPosition());
+								myDozer = findDozer(bldg->getPosition());
 								if (myDozer==nullptr || myDozer->getAI()==nullptr) {
 									continue;
 								}

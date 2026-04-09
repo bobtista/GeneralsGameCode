@@ -92,7 +92,7 @@ public:
 	DeployStyleAIUpdate( Thing *thing, const ModuleData* moduleData );
 	// virtual destructor prototype provided by memory pool declaration
 
- 	virtual void aiDoCommand(const AICommandParms* parms) override;
+	virtual void aiDoCommand(const AICommandParms* parms) override;
 	virtual Bool isIdle() const override;
 	virtual UpdateSleepTime update() override;
 
@@ -110,7 +110,7 @@ protected:
 	DeployStateTypes				m_state;
 	UnsignedInt							m_frameToWakeForDeploy;
 
-  ObjectID								m_designatedTargetID;
+	ObjectID								m_designatedTargetID;
 	ObjectID								m_attackObjectID;
 	Coord3D									m_position;	//Used for attack position and guard position.
 	Bool										m_isAttackMultiple;

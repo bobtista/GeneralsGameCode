@@ -92,7 +92,7 @@ BOOL EditAction::OnInitDialog()
 	formatScriptActionText(-1);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 
@@ -114,7 +114,7 @@ void EditAction::formatScriptActionText(Int parameterNdx)
 
 	m_myEditCtrl.SetSel(0, 1000);
 	m_myEditCtrl.SetSelectionCharFormat(cf);
- 	m_myEditCtrl.SetReadOnly();
+	m_myEditCtrl.SetReadOnly();
 	// Set up the links.
 	cf.dwMask =  CFE_UNDERLINE | CFM_LINK | CFM_COLOR;
 

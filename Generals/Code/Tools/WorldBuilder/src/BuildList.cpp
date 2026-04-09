@@ -109,7 +109,7 @@ BOOL BuildList::OnInitDialog()
 	m_staticThis = this;
 	m_updating = false;
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 /// Load the sides in the sides list.
@@ -300,7 +300,7 @@ void BuildList::setSelectedBuildList(BuildListInfo *pInfo)
 		return;
 	}
 	Int i;
- 	for (i=0; i<TheSidesList->getNumSides(); i++) {
+	for (i=0; i<TheSidesList->getNumSides(); i++) {
 		SidesInfo *pSide = TheSidesList->getSideInfo(i);
 		Int listSel = 0;
 		for (BuildListInfo *pBuild = pSide->getBuildList(); pBuild; pBuild = pBuild->getNext()) {

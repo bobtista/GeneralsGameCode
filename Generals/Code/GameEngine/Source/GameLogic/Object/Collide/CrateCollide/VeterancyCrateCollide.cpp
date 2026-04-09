@@ -124,15 +124,15 @@ Bool VeterancyCrateCollide::isValidToExecute( const Object *other ) const
 //-------------------------------------------------------------------------------------------------
 Bool VeterancyCrateCollide::executeCrateBehavior( Object *other )
 {
- 	//Make sure the pilot is actually *TRYING* to enter the object
- 	//unlike other crates
- 	AIUpdateInterface *ai = (AIUpdateInterface*)getObject()->getAIUpdateInterface();
+	//Make sure the pilot is actually *TRYING* to enter the object
+	//unlike other crates
+	AIUpdateInterface *ai = (AIUpdateInterface*)getObject()->getAIUpdateInterface();
 	const VeterancyCrateCollideModuleData *md = getVeterancyCrateCollideModuleData();
 
- 	if( !ai || ai->getGoalObject() != other )
- 	{
- 		return false;
- 	}
+	if( !ai || ai->getGoalObject() != other )
+	{
+		return false;
+	}
 
 	Int levelsToGain = getLevelsToGain();
 	Real range = md->m_rangeOfEffect;

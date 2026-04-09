@@ -640,7 +640,7 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 			// use the selected group
 			WeaponSlotType weaponSlot = (WeaponSlotType)msg->getArgument( 0 )->integer;
 			// lock until un-switched, or switched to something else.
- 			if( currentlySelectedGroup )
+			if( currentlySelectedGroup )
 				currentlySelectedGroup->setWeaponLockForGroup( weaponSlot, LOCKED_PERMANENTLY );
 			break;
 		}
@@ -667,7 +667,7 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 			{
 					// lock it just till the weapon is empty or the attack is "done"
 				if (currentlySelectedGroup->setWeaponLockForGroup( weaponSlot, LOCKED_TEMPORARILY ))
- 					currentlySelectedGroup->groupAttackPosition( &targetLoc, maxShotsToFire, CMD_FROM_PLAYER );
+				currentlySelectedGroup->groupAttackPosition( &targetLoc, maxShotsToFire, CMD_FROM_PLAYER );
 
 
 			}

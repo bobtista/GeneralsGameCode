@@ -351,7 +351,7 @@ void SuperweaponInfo::drawName(Int x, Int y, Color color, Color dropColor)
 {
 	if (color == 0)
 		color = m_color;
- 	m_nameDisplayString->draw(x - m_nameDisplayString->getWidth(), y, color, dropColor);
+	m_nameDisplayString->draw(x - m_nameDisplayString->getWidth(), y, color, dropColor);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -359,7 +359,7 @@ void SuperweaponInfo::drawTime(Int x, Int y, Color color, Color dropColor)
 {
 	if (color == 0)
 		color = m_color;
- 	m_timeDisplayString->draw(x, y, color, dropColor);
+	m_timeDisplayString->draw(x, y, color, dropColor);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1021,7 +1021,7 @@ InGameUI::InGameUI()
 	Int i;
 
 
-  m_inputEnabled = true;
+	m_inputEnabled = true;
 	m_isDragSelecting = false;
 	m_nextMoveHint = 0;
 	m_selectCount = 0;
@@ -2525,24 +2525,24 @@ void InGameUI::createMouseoverHint( const GameMessage *msg )
 
 			//Ahh, here is a weird exception: if the moused-over drawable is a mob-member
 			//(e.g. AngryMob), Lets fool the UI into creating the hint for the NEXUS instead...
- 			if (obj->isKindOf( KINDOF_IGNORED_IN_GUI ))
- 			{
- 				static NameKeyType key_MobMemberSlavedUpdate = NAMEKEY( "MobMemberSlavedUpdate" );
- 				MobMemberSlavedUpdate *MMSUpdate = (MobMemberSlavedUpdate*)obj->findUpdateModule( key_MobMemberSlavedUpdate );
- 				if( MMSUpdate )
- 				{
- 					Object *slaver = TheGameLogic->findObjectByID(MMSUpdate->getSlaverID());
- 					if ( slaver )
- 					{
- 						Drawable *slaverDraw = slaver->getDrawable();
- 						if ( slaverDraw )
- 							m_mousedOverDrawableID = slaverDraw->getID();
- 							// if this fails, not to worry... it has already defaulted to INVALID_DRAWABLE_ID, above
- 					}
- 				}
- 			}
- 			else
- 				m_mousedOverDrawableID = draw->getID();
+			if (obj->isKindOf( KINDOF_IGNORED_IN_GUI ))
+			{
+				static NameKeyType key_MobMemberSlavedUpdate = NAMEKEY( "MobMemberSlavedUpdate" );
+				MobMemberSlavedUpdate *MMSUpdate = (MobMemberSlavedUpdate*)obj->findUpdateModule( key_MobMemberSlavedUpdate );
+				if( MMSUpdate )
+				{
+					Object *slaver = TheGameLogic->findObjectByID(MMSUpdate->getSlaverID());
+					if ( slaver )
+					{
+						Drawable *slaverDraw = slaver->getDrawable();
+						if ( slaverDraw )
+						m_mousedOverDrawableID = slaverDraw->getID();
+						// if this fails, not to worry... it has already defaulted to INVALID_DRAWABLE_ID, above
+					}
+				}
+			}
+			else
+			m_mousedOverDrawableID = draw->getID();
 
 #if defined(RTS_DEBUG) //Extra hacky, sorry, but I need to use this in constantdebug report
 			if ( TheGlobalData->m_constantDebugUpdate == TRUE )
@@ -2658,7 +2658,7 @@ void InGameUI::createMouseoverHint( const GameMessage *msg )
 				str.concat(warehouseFeedback);
 			}
 
-      if (player)
+			if (player)
 			{
 				UnicodeString tooltip;
 				//if (TheRecorder->isMultiplayer() && player->getPlayerType() == PLAYER_HUMAN)
@@ -2702,7 +2702,7 @@ void InGameUI::createMouseoverHint( const GameMessage *msg )
 					//any popup box at all if that is the case!
 					if( displayName.compare( TheGameText->fetch( "OBJECT:Prop" ) ) )
 					{
-	  				TheMouse->setCursorTooltip(tooltip, -1, &rgb );
+						TheMouse->setCursorTooltip(tooltip, -1, &rgb );
 					}
 				}
 			}
@@ -3573,8 +3573,8 @@ Bool InGameUI::isAnySelectedKindOf( KindOfType kindOf ) const
 	Drawable *draw;
 
 	for( DrawableListCIt it = m_selectedDrawables.begin();
-			 it != m_selectedDrawables.end();
-			 ++it )
+	it != m_selectedDrawables.end();
+	++it )
 	{
 
 		/** @todo, it seems like we might want to keep a list of drawable pointers so we
@@ -3597,8 +3597,8 @@ Bool InGameUI::isAllSelectedKindOf( KindOfType kindOf ) const
 	Drawable *draw;
 
 	for( DrawableListCIt it = m_selectedDrawables.begin();
-			 it != m_selectedDrawables.end();
-			 ++it )
+	it != m_selectedDrawables.end();
+	++it )
 	{
 
 		/** @todo, it seems like we might want to keep a list of drawable pointers so we
@@ -3820,22 +3820,22 @@ void InGameUI::postDraw()
 							if (module)
 							{
 								// found one - draw it
- 								Bool isReady = module->isReady();
- 								Int readySecs;
+								Bool isReady = module->isReady();
+								Int readySecs;
 
 								// IsReady includes disabledness, so if you have a 0 timer disabled super, you don't want
- 								// the UnsignedInt to wrap around to hundreds of millions of seconds.
- 								if( module->getReadyFrame() < TheGameLogic->getFrame() )
+								// the UnsignedInt to wrap around to hundreds of millions of seconds.
+								if( module->getReadyFrame() < TheGameLogic->getFrame() )
 									readySecs = 0;
- 								else
- 									readySecs = (module->getReadyFrame() - TheGameLogic->getFrame()) / LOGICFRAMES_PER_SECOND;
+								else
+								readySecs = (module->getReadyFrame() - TheGameLogic->getFrame()) / LOGICFRAMES_PER_SECOND;
 								// Yes, integer math.  We can't have float imprecision display 4:01 on a disabled superweapon.
 
- 								// Similarly, only checking timers is not truly indicative of readiness.
- 								Bool changeBolding = (readySecs != info->m_timestamp) || (isReady != info->m_ready) || info->m_forceUpdateText;
- 								if (changeBolding)
- 								{
- 									if (isReady)
+								// Similarly, only checking timers is not truly indicative of readiness.
+								Bool changeBolding = (readySecs != info->m_timestamp) || (isReady != info->m_ready) || info->m_forceUpdateText;
+								if (changeBolding)
+								{
+									if (isReady)
 									{
 										// go bold - we're good to go
 										info->setFont( m_superweaponReadyFont, m_superweaponReadyPointSize, m_superweaponReadyBold );
@@ -3850,7 +3850,7 @@ void InGameUI::postDraw()
 									}
 
 									info->m_forceUpdateText = false;
- 									info->m_ready = isReady;
+									info->m_ready = isReady;
 									info->m_timestamp = readySecs;
 									Int min = readySecs/60;
 									Int sec = readySecs - min*60;
@@ -3863,7 +3863,7 @@ void InGameUI::postDraw()
 								}
 
 								// draw the text
- 								if (isReady)
+								if (isReady)
 								{
 									if ( m_superweaponFlashDuration != 0.0f )
 									{
@@ -4225,7 +4225,7 @@ void InGameUI::displayCantBuildMessage( LegalBuildCode lbc )
 
 		//---------------------------------------------------------------------------------------------
 		case LBC_NO_CLEAR_PATH:
-		  message( "GUI:CantBuildNoClearPath" );
+			message( "GUI:CantBuildNoClearPath" );
 			break;
 
 		//---------------------------------------------------------------------------------------------
@@ -5482,7 +5482,7 @@ void InGameUI::clearWorldAnimations()
 {
 	// iterate through all entries and delete the animation data
 	for( WorldAnimationListIterator it = m_worldAnimationList.begin();
-			 it != m_worldAnimationList.end(); /*empty*/ )
+	it != m_worldAnimationList.end(); /*empty*/ )
 	{
 
 		WorldAnimationData *wad = *it;
@@ -5507,7 +5507,7 @@ void InGameUI::updateAndDrawWorldAnimations()
 {
 	// go through all animations
 	for( WorldAnimationListIterator it = m_worldAnimationList.begin();
-			 it != m_worldAnimationList.end(); /*empty*/ )
+	it != m_worldAnimationList.end(); /*empty*/ )
 	{
 
 		// get data
@@ -6093,13 +6093,13 @@ void InGameUI::drawGameTime()
 	Int seconds = gameSeconds % 60;
 	Int frame = currentFrame % 30;
 
-    UnicodeString gameTimeString;
-    gameTimeString.format(L"%2.2d:%2.2d:%2.2d", hours, minutes, seconds);
-    m_gameTimeString->setText(gameTimeString);
+	UnicodeString gameTimeString;
+	gameTimeString.format(L"%2.2d:%2.2d:%2.2d", hours, minutes, seconds);
+	m_gameTimeString->setText(gameTimeString);
 
 	UnicodeString gameTimeFrameString;
-    gameTimeFrameString.format(L".%2.2d", frame);
-    m_gameTimeFrameString->setText(gameTimeFrameString);
+	gameTimeFrameString.format(L".%2.2d", frame);
+	m_gameTimeFrameString->setText(gameTimeFrameString);
 
 	// TheSuperHackers @info this implicitly offsets the game timer from the right instead of left of the screen
 	int horizontalTimerOffset = TheDisplay->getWidth() - (Int)m_gameTimePosition.x - m_gameTimeString->getWidth() - m_gameTimeFrameString->getWidth();

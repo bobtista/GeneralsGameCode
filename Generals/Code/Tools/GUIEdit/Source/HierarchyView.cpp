@@ -88,25 +88,25 @@ LRESULT CALLBACK HierarchyView::dialogProc( HWND hWndDialog, UINT message,
 	switch( message )
 	{
 
-   		// ------------------------------------------------------------------------
- 		case WM_MOVE:
- 		{
+		// ------------------------------------------------------------------------
+		case WM_MOVE:
+		{
 // 			Int x = LOWORD( lParam );
 // 			Int y = HIWORD( lParam );
 
- 			// record our position
- 			RECT rect;
- 			POINT p;
- 			GetWindowRect( hWndDialog, &rect );
- 			p.x = rect.left;
- 			p.y = rect.top;
- 			ScreenToClient( TheEditor->getWindowHandle(), &p );
- 			dialogPos.x = p.x;
- 			dialogPos.y = p.y;
+			// record our position
+			RECT rect;
+			POINT p;
+			GetWindowRect( hWndDialog, &rect );
+			p.x = rect.left;
+			p.y = rect.top;
+			ScreenToClient( TheEditor->getWindowHandle(), &p );
+			dialogPos.x = p.x;
+			dialogPos.y = p.y;
 
- 			return 0;
+			return 0;
 
- 		}
+		}
 
 		// ------------------------------------------------------------------------
 		case WM_SIZE:
@@ -472,14 +472,14 @@ LRESULT CALLBACK HierarchyView::dialogProc( HWND hWndDialog, UINT message,
 		}
 
 		// ------------------------------------------------------------------------
-    case WM_COMMAND:
-    {
+		case WM_COMMAND:
+		{
 //			Int notifyCode = HIWORD( wParam );
 			Int controlID = LOWORD( wParam );
 //			HWND hWndControl = (HWND)lParam;
 
-      switch( controlID )
-      {
+			switch( controlID )
+			{
 
 				// --------------------------------------------------------------------
 				case MENU_HIERARCHY_MOVE_HERE:
@@ -578,24 +578,24 @@ LRESULT CALLBACK HierarchyView::dialogProc( HWND hWndDialog, UINT message,
 				}
 
 				// --------------------------------------------------------------------
-        case IDOK:
-          break;
+				case IDOK:
+					break;
 
 				// --------------------------------------------------------------------
-        case IDCANCEL:
-          break;
+				case IDCANCEL:
+					break;
 
-      }
+			}
 
-      return 0;
+			return 0;
 
-    }
+		}
 
 		// ------------------------------------------------------------------------
 		default:
 			return 0;
 
-  }
+	}
 
 }
 
@@ -623,8 +623,8 @@ HTREEITEM HierarchyView::findItemEntry( HTREEITEM node, GameWindow *window )
 	HTREEITEM child;
 	HTREEITEM found = nullptr;
 	for( child = TreeView_GetNextItem( m_tree, node, TVGN_CHILD );
-			 child;
-			 child = TreeView_GetNextItem( m_tree, child, TVGN_NEXT ) )
+	child;
+	child = TreeView_GetNextItem( m_tree, child, TVGN_NEXT ) )
 	{
 
 		found = findItemEntry( child, window );

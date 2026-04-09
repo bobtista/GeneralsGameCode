@@ -55,7 +55,7 @@
 //-------------------------------------------------------------------------------------------------
 void StealthDetectorUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  UpdateModuleData::buildFieldParse(p);
+	UpdateModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -76,7 +76,7 @@ void StealthDetectorUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -230,18 +230,18 @@ UpdateSleepTime StealthDetectorUpdate::update()
 					if( them->isKindOf( KINDOF_MINE ) )
 						doFeedback = TheRadar->tryEvent( RADAR_EVENT_STEALTH_DISCOVERED, them->getPosition() );
 					else
- 						TheRadar->createEvent( them->getPosition(), RADAR_EVENT_STEALTH_DISCOVERED );
+					TheRadar->createEvent( them->getPosition(), RADAR_EVENT_STEALTH_DISCOVERED );
 
 					// do audio and UI message if we need to do feedback
 					if( doFeedback )
 					{
 
- 						// audio msg
- 						static AudioEventRTS discoveredSound = TheAudio->getMiscAudio()->m_stealthDiscoveredSound;
- 						discoveredSound.setPlayerIndex( self->getControllingPlayer()->getPlayerIndex() );
- 						TheAudio->addAudioEvent( &discoveredSound );
- 						// ui msg
- 						TheInGameUI->message( TheGameText->fetch( "MESSAGE:StealthDiscovered" ) );
+						// audio msg
+						static AudioEventRTS discoveredSound = TheAudio->getMiscAudio()->m_stealthDiscoveredSound;
+						discoveredSound.setPlayerIndex( self->getControllingPlayer()->getPlayerIndex() );
+						TheAudio->addAudioEvent( &discoveredSound );
+						// ui msg
+						TheInGameUI->message( TheGameText->fetch( "MESSAGE:StealthDiscovered" ) );
 
 					}
 
@@ -251,7 +251,7 @@ UpdateSleepTime StealthDetectorUpdate::update()
 				if( rts::getObservedOrLocalPlayer() == them->getControllingPlayer() &&
 						self->getRelationship( them ) != ALLIES )
 				{
- 					Bool doFeedback = TRUE;
+					Bool doFeedback = TRUE;
 
 					//
 					// do a radar event, for mines we only make events if there weren't other
@@ -260,18 +260,18 @@ UpdateSleepTime StealthDetectorUpdate::update()
 					if( them->isKindOf( KINDOF_MINE ) )
 						doFeedback = TheRadar->tryEvent( RADAR_EVENT_STEALTH_NEUTRALIZED, them->getPosition() );
 					else
- 						TheRadar->createEvent( them->getPosition(), RADAR_EVENT_STEALTH_NEUTRALIZED );
+					TheRadar->createEvent( them->getPosition(), RADAR_EVENT_STEALTH_NEUTRALIZED );
 
 					// do audio and UI message if we need to do feedback
 					if( doFeedback )
 					{
 
- 						// audio msg
- 						static AudioEventRTS neutralizedSound = TheAudio->getMiscAudio()->m_stealthNeutralizedSound;
- 						neutralizedSound.setPlayerIndex( them->getControllingPlayer()->getPlayerIndex() );
- 						TheAudio->addAudioEvent( &neutralizedSound );
- 						// ui msg
- 						TheInGameUI->message( TheGameText->fetch( "MESSAGE:StealthNeutralized" ) );
+						// audio msg
+						static AudioEventRTS neutralizedSound = TheAudio->getMiscAudio()->m_stealthNeutralizedSound;
+						neutralizedSound.setPlayerIndex( them->getControllingPlayer()->getPlayerIndex() );
+						TheAudio->addAudioEvent( &neutralizedSound );
+						// ui msg
+						TheInGameUI->message( TheGameText->fetch( "MESSAGE:StealthNeutralized" ) );
 
 					}
 
@@ -336,7 +336,7 @@ UpdateSleepTime StealthDetectorUpdate::update()
 	}
 
 
-  const Player *localPlayer = rts::getObservedOrLocalPlayer();
+	const Player *localPlayer = rts::getObservedOrLocalPlayer();
 
 	//Make sure the detector is visible to the local player before we add effects or sounds.
 	if (data->m_IRGridParticleSysTmpl && self->getShroudedStatus(localPlayer->getPlayerIndex()) <= OBJECTSHROUD_PARTIAL_CLEAR)

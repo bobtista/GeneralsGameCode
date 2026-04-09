@@ -153,9 +153,9 @@ const AudioEventRTS& SpecialPowerModule::getInitiateSound() const
 SpecialPowerModule::~SpecialPowerModule()
 {
 
- 	if( getSpecialPowerModuleData()->m_specialPowerTemplate->hasPublicTimer() == TRUE &&
+	if( getSpecialPowerModuleData()->m_specialPowerTemplate->hasPublicTimer() == TRUE &&
 			getObject()->getControllingPlayer() )
- 		TheInGameUI->removeSuperweapon( getObject()->getControllingPlayer()->getPlayerIndex(),
+	TheInGameUI->removeSuperweapon( getObject()->getControllingPlayer()->getPlayerIndex(),
 																		getPowerName(),
 																		getObject()->getID(),
 																		getSpecialPowerModuleData()->m_specialPowerTemplate );

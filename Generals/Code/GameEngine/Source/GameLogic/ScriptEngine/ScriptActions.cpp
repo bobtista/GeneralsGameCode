@@ -402,7 +402,7 @@ void ScriptActions::doMoveToWaypoint(const AsciiString& team, const AsciiString&
 		if (way) {
 			Coord3D destination = *way->getLocation();
 			//DEBUG_LOG(("Moving team to waypoint %f, %f, %f", destination.x, destination.y, destination.z));
- 			theGroup->groupMoveToPosition( &destination, false, CMD_FROM_SCRIPT );
+			theGroup->groupMoveToPosition( &destination, false, CMD_FROM_SCRIPT );
 		}
 	}
 }
@@ -947,7 +947,7 @@ void ScriptActions::doCreateObject(const AsciiString& objectName, const AsciiStr
 	Object* pOldObj = nullptr;
 
 	if (objectName != m_unnamedUnit) {
-		 pOldObj = TheScriptEngine->getUnitNamed(objectName);
+		pOldObj = TheScriptEngine->getUnitNamed(objectName);
 
 		if (pOldObj && !pOldObj->isEffectivelyDead()) {
 			AsciiString str = "WARNING - Object with name ";

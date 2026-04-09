@@ -1079,7 +1079,7 @@ WindowMsgHandledType LanGameOptionsMenuSystem( GameWindow *window, UnsignedInt m
 					{
 						// We don't have anything that'll happen if we click on ourselves
 						if(i == myGame->getLocalSlotNum())
-						 break;
+					break;
 						// Get
 						Int pos = -1;
 						GadgetComboBoxGetSelectedPos(comboBoxPlayer[i], &pos);

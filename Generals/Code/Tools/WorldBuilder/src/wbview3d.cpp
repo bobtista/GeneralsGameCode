@@ -173,7 +173,7 @@ public:
 	virtual Int iterateDrawablesInRegion( IRegion2D *screenRegion,
 																				Bool (*callback)( Drawable *draw, void *userData ),
 																				void *userData ) {return 0;};
-  virtual WorldToScreenReturn worldToScreenTriReturn( const Coord3D *w, ICoord2D *s ) { return WTS_INVALID; };	///< Transform world coordinate "w" into screen coordinate "s"
+	virtual WorldToScreenReturn worldToScreenTriReturn( const Coord3D *w, ICoord2D *s ) { return WTS_INVALID; };	///< Transform world coordinate "w" into screen coordinate "s"
 	virtual void screenToTerrain( const ICoord2D *screen, Coord3D *world ) {};  ///< transform screen coord to a point on the 3D terrain
 	virtual void screenToWorldAtZ( const ICoord2D *s, Coord3D *w, Real z ) {};  ///< transform screen point to world point at the specified world Z value
 	virtual void getScreenCornerWorldPointsAtZ( Coord3D *topLeft, Coord3D *topRight,
@@ -207,8 +207,8 @@ public:
 	virtual void moveCameraAlongWaypointPath(Waypoint *way, Int frames, Int shutter,
 														Bool orient) {};
 	virtual Bool isCameraMovementFinished(void) {return true;};
- 	virtual void resetCamera(const Coord3D *location, Int frames) {}; ///< Move camera to location, and reset to default angle & zoom.
- 	virtual void rotateCamera(Real rotations, Int frames) {}; ///< Rotate camera about current viewpoint.
+	virtual void resetCamera(const Coord3D *location, Int frames) {}; ///< Move camera to location, and reset to default angle & zoom.
+	virtual void rotateCamera(Real rotations, Int frames) {}; ///< Rotate camera about current viewpoint.
 	virtual void rotateCameraTowardObject(ObjectID id, Int milliseconds, Int holdMilliseconds) {};	///< Rotate camera to face an object, and hold on it
 	virtual void cameraModFinalZoom(Real finalZoom){};			 ///< Final zoom for current camera movement.
 	virtual void cameraModRollingAverage(Int framesToAverage){}; ///< Number of frames to average movement for current camera movement.
@@ -909,8 +909,8 @@ void WbView3d::updateLights()
 				Matrix3D mtx;
 				mtx.Set(Vector3(1,0,0), Vector3(0,1,0), Vector3(ol->lightPos.x, ol->lightPos.y, ol->lightPos.z), Vector3(0,0,0));
 				m_globalLight[i]->Set_Transform(mtx);
- 				m_scene->setGlobalLight(m_globalLight[i],i);
- 				m_baseBuildScene->setGlobalLight(m_globalLight[i],i);
+				m_scene->setGlobalLight(m_globalLight[i],i);
+				m_baseBuildScene->setGlobalLight(m_globalLight[i],i);
 			}
 		}
 		if(TheTerrainRenderObject) {
@@ -951,7 +951,7 @@ void WbView3d::updateLights()
 			lightP->Set_Far_Attenuation_Range(lightInnerRadius, lightOuterRadius);
 
 			m_lightList.Add(lightP);
- 			m_scene->Add_Render_Object(lightP);
+			m_scene->Add_Render_Object(lightP);
 			pMapObj->setRenderObj(lightP);
 			REF_PTR_RELEASE( lightP );
 		}
@@ -1583,7 +1583,7 @@ BuildListInfo *WbView3d::pickedBuildObjectInView(CPoint viewPt)
 	Coord3D cpt;
 	Int i;
 	viewToDocCoords(viewPt, &cpt, false);
- 	for (i=0; i<TheSidesList->getNumSides(); i++) {
+	for (i=0; i<TheSidesList->getNumSides(); i++) {
 		SidesInfo *pSide = TheSidesList->getSideInfo(i);
 		for (BuildListInfo *pBuild = pSide->getBuildList(); pBuild; pBuild = pBuild->getNext()) {
 			Coord3D center = *pBuild->getLocation();
@@ -1607,7 +1607,7 @@ BuildListInfo *WbView3d::pickedBuildObjectInView(CPoint viewPt)
 		// do the intersection using W3D intersector class
 		Bool hit = m_intersector->Intersect_Screen_Point_Layer( logX, logY, *m_buildLayer );
 		if( hit ) {
- 			for (i=0; i<TheSidesList->getNumSides(); i++) {
+			for (i=0; i<TheSidesList->getNumSides(); i++) {
 				SidesInfo *pSide = TheSidesList->getSideInfo(i);
 				for (BuildListInfo *pBuild = pSide->getBuildList(); pBuild; pBuild = pBuild->getNext()) {
 					if (pBuild->getRenderObj() == m_intersector->Result.IntersectedRenderObject) {
@@ -2229,7 +2229,7 @@ void WbView3d::initWW3D()
 		TheWritableGlobalData->m_enableBehindBuildingMarkers = false;	//this is only for the game.
 		if (TheW3DShadowManager==nullptr)
 		{	TheW3DShadowManager = new W3DShadowManager;
- 			TheW3DShadowManager->init();
+			TheW3DShadowManager->init();
 		}
 #endif
 		updateLights();
@@ -2255,7 +2255,7 @@ int WbView3d::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	initWW3D();
 	TheWritableGlobalData->m_useCloudMap = AfxGetApp()->GetProfileInt("GameOptions", "cloudMap", 0);
 	AfxGetApp()->WriteProfileInt("GameOptions", "cloudMap", TheGlobalData->m_useCloudMap);	// Just in case it wasn't already there
- 	m_partialMapSize = AfxGetApp()->GetProfileInt("GameOptions", "partialMapSize", 97);
+	m_partialMapSize = AfxGetApp()->GetProfileInt("GameOptions", "partialMapSize", 97);
 
 	m_showLayersList = AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowLayersList", 0);
 	m_showMapBoundaries = AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowMapBoundaries", 0);

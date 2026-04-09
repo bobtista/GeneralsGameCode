@@ -112,14 +112,14 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 	m_onScreenParticleCount = 0;
 
 
- 	const FrustumClass & frustum = rinfo.Camera.Get_Frustum();
+	const FrustumClass & frustum = rinfo.Camera.Get_Frustum();
 	AABoxClass bbox;
 
 	//Get a bounding box around our visible universe.  Bounded by terrain and the sky
 	//so much tighter fitting volume than what's actually visible.  This will cull
 	//particles falling under the ground.
 
- 	TheTerrainRenderObject->getMaximumVisibleBox(frustum, &bbox, TRUE);
+	TheTerrainRenderObject->getMaximumVisibleBox(frustum, &bbox, TRUE);
 
 	//@todo lorenzen sez: put these in registers for sure
 	Real bcX = bbox.Center.X;

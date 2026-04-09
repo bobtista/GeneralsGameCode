@@ -574,10 +574,10 @@ WindowMsgHandledType SkirmishMapSelectMenuSystem( GameWindow *window, UnsignedIn
 					win	= TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey("SkirmishGameOptionsMenu.wnd:TextEntryMapDisplay") );
 					if(win)
 					{
-				    if (md)
-				    {
-  						GadgetStaticTextSetText(win, md->m_displayName);
-            }
+						if (md)
+						{
+							GadgetStaticTextSetText(win, md->m_displayName);
+						}
 					}
 					//if (mapFname)
 						//setupGameStart(mapFname);

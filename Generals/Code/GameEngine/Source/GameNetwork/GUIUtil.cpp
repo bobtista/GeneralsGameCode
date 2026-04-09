@@ -398,8 +398,8 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 			else
 			{
 				GadgetComboBoxSetSelectedPos(comboPlayer[i], slot->getState(), TRUE);
-        if( buttonAccept &&  buttonAccept[i] )
-				  buttonAccept[i]->winHide(TRUE);
+				if( buttonAccept &&  buttonAccept[i] )
+				buttonAccept[i]->winHide(TRUE);
 			}
 /*
 			if (myGame->getLocalSlotNum() == i && i!=0)
@@ -413,7 +413,7 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 					comboPlayer[i]->winEnable( FALSE );
 			}
 			//if( i == myGame->getLocalSlotNum())
-      if((comboColor[i] != nullptr) && BitIsSet(comboColor[i]->winGetStatus(), WIN_STATUS_ENABLED))
+			if((comboColor[i] != nullptr) && BitIsSet(comboColor[i]->winGetStatus(), WIN_STATUS_ENABLED))
 				PopulateColorComboBox(i, comboColor, myGame, myGame->getConstSlot(i)->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER);
 			Int max, idx;
 			if (comboColor[i] != nullptr) {
