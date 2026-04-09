@@ -66,7 +66,7 @@ void ControlBar::populateButtonProc( Object *obj, void *userData )
 
 	// sanity
 	DEBUG_ASSERTCRASH( info->buttonIndex < MAX_STRUCTURE_INVENTORY_BUTTONS,
-										 ("Too many objects inside '%s' for the inventory buttons to hold",
+		("Too many objects inside '%s' for the inventory buttons to hold",
 											info->source->getTemplate()->getName().str()) );
 
 	// put object in inventory data

@@ -122,7 +122,7 @@ public:
 	void prepareNewGame( GameMode gameMode, GameDifficulty diff, Int rankPoints );						///< prepare for new game
 
 	void logicMessageDispatcher( GameMessage *msg,
-																			 void *userData );	///< Logic command list processing
+		void *userData );	///< Logic command list processing
 
 	void registerObject( Object *obj );							///< Given an object, register it with the GameLogic and give it a unique ID
 
@@ -155,7 +155,7 @@ public:
 	Object *friend_createObject( const ThingTemplate *thing, const ObjectStatusMaskType &objectStatusMask, Team *team );
 	void destroyObject( Object *obj );							///< Mark object as destroyed for later deletion
 	Object *findObjectByID( ObjectID id );								///< Given an ObjectID, return a pointer to the object.
- 	Object *getFirstObject();									///< Returns the "first" object in the world. When used with the object method "getNextObject()", all objects in the world can be iterated.
+	Object *getFirstObject();									///< Returns the "first" object in the world. When used with the object method "getNextObject()", all objects in the world can be iterated.
 	ObjectID allocateObjectID();							///< Returns a new unique object id
 
 	// super hack
@@ -244,8 +244,8 @@ public:
 	// We need to allow access to this, because on a restartGame, we need to restart with the settings we started with
 	Int getRankPointsToAddAtGameStart() const { return m_rankPointsToAddAtGameStart; }
 
-  UnsignedShort getSuperweaponRestriction() const; ///< Get any optional limits on superweapons
-  void setSuperweaponRestriction();
+	UnsignedShort getSuperweaponRestriction() const; ///< Get any optional limits on superweapons
+	void setSuperweaponRestriction();
 
 #ifdef DUMP_PERF_STATS
 	void getAIMetricsStatistics( UnsignedInt *numAI, UnsignedInt *numMoving, UnsignedInt *numAttacking, UnsignedInt *numWaitingForPath, UnsignedInt *overallFailedPathfinds );
@@ -365,7 +365,7 @@ private:
 
 	GameMode m_gameMode;
 	Int m_rankLevelLimit;
-  UnsignedShort m_superweaponRestriction;
+	UnsignedShort m_superweaponRestriction;
 
 	LoadScreen *getLoadScreen( Bool loadSaveGame );
 	LoadScreen *m_loadScreen;

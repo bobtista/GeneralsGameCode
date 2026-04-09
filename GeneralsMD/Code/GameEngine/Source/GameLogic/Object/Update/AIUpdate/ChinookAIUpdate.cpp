@@ -503,8 +503,8 @@ public:
 		const ThingTemplate* ropeTmpl = TheThingFactory->findTemplate(d->m_ropeName);
 
 		const Int MAX_BONES = 32;
-    Coord3D ropePos[MAX_BONES];
-    Matrix3D dropMtx[MAX_BONES];
+		Coord3D ropePos[MAX_BONES];
+		Matrix3D dropMtx[MAX_BONES];
 
 		Int ropeCount = draw->getPristineBonePositions("RopeStart", 1, ropePos, nullptr, MAX_BONES);
 		Int dropCount = draw->getPristineBonePositions("RopeEnd", 1, nullptr, dropMtx, MAX_BONES);
@@ -895,14 +895,14 @@ ChinookAIUpdateModuleData::ChinookAIUpdateModuleData()
 	m_ropeWobbleLen = 10.0f;
 	m_ropeWobbleAmp = 1.0f;
 	m_ropeWobbleRate = 0.1f;
-  m_rotorWashParticleSystem.clear();
+	m_rotorWashParticleSystem.clear();
 	m_upgradedSupplyBoost = 0;
 }
 
 //-------------------------------------------------------------------------------------------------
 /*static*/ void ChinookAIUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  SupplyTruckAIUpdateModuleData::buildFieldParse(p);
+	SupplyTruckAIUpdateModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -925,7 +925,7 @@ ChinookAIUpdateModuleData::ChinookAIUpdateModuleData()
 
 		{ 0, 0, 0, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1056,7 +1056,7 @@ ObjectID ChinookAIUpdate::getBuildingToNotPathAround() const
 AIFreeToExitType ChinookAIUpdate::getAiFreeToExit(const Object* exiter) const
 {
 #if RETAIL_COMPATIBLE_CRC
-	 if (m_flightStatus == CHINOOK_LANDED
+	if (m_flightStatus == CHINOOK_LANDED
 				|| (m_flightStatus == CHINOOK_DOING_COMBAT_DROP && exiter->isKindOf(KINDOF_CAN_RAPPEL)))
 #else
 	if (m_flightStatus == CHINOOK_LANDED)
@@ -1125,7 +1125,7 @@ UpdateSleepTime ChinookAIUpdate::update()
 	// when we have a pending command...
 	if( contain )
 	{
-	  if (SupplyTruckAIUpdate::isIdle())
+		if (SupplyTruckAIUpdate::isIdle())
 		{
 			if (m_hasPendingCommand)
 			{
@@ -1145,36 +1145,36 @@ UpdateSleepTime ChinookAIUpdate::update()
 		}
 
 
-    if ( TheGameLogic->getFrame()%10 == 1 )
-    {
-	    Object *victim = getCurrentVictim();
-      if ( victim )
-      {
-       // privateAttackObject( victim, 9999, CMD_FROM_AI );
+		if ( TheGameLogic->getFrame()%10 == 1 )
+		{
+			Object *victim = getCurrentVictim();
+			if ( victim )
+			{
+				// privateAttackObject( victim, 9999, CMD_FROM_AI );
 
-        //If we are attacking something, lets make sure our passengers follow suit
-        if ( contain->isPassengerAllowedToFire() )
-        {
-			    const ContainedItemsList *passengerList = contain->getContainedItemsList();
-			    ContainedItemsList::const_iterator passengerIterator;
-			    passengerIterator = passengerList->begin();
+				//If we are attacking something, lets make sure our passengers follow suit
+				if ( contain->isPassengerAllowedToFire() )
+				{
+					const ContainedItemsList *passengerList = contain->getContainedItemsList();
+					ContainedItemsList::const_iterator passengerIterator;
+					passengerIterator = passengerList->begin();
 
-			    while( passengerIterator != passengerList->end() )
-			    {
-				    Object *passenger = *passengerIterator;
-				    //Advance to the next iterator
-				    passengerIterator++;
+					while( passengerIterator != passengerList->end() )
+					{
+						Object *passenger = *passengerIterator;
+						//Advance to the next iterator
+						passengerIterator++;
 
-				    AIUpdateInterface *passengerAI = passenger->getAIUpdateInterface();
-				    if( passengerAI && (passengerAI->getCurrentVictim() == nullptr) )
-				    {
-					    passengerAI->aiAttackObject( victim, 999, CMD_FROM_AI );
-				    }
-			    }
-        }
+						AIUpdateInterface *passengerAI = passenger->getAIUpdateInterface();
+						if( passengerAI && (passengerAI->getCurrentVictim() == nullptr) )
+						{
+							passengerAI->aiAttackObject( victim, 999, CMD_FROM_AI );
+						}
+					}
+				}
 
-      }
-    }
+			}
+		}
 
 
 
@@ -1184,34 +1184,34 @@ UpdateSleepTime ChinookAIUpdate::update()
 
 
 
-  // Just a handy spot to handle that groovy client effect of the rotor wash
-  const Int playerIndex = rts::getObservedOrLocalPlayer()->getPlayerIndex();
+	// Just a handy spot to handle that groovy client effect of the rotor wash
+	const Int playerIndex = rts::getObservedOrLocalPlayer()->getPlayerIndex();
 
-  if ( getObject()->getShroudedStatus(playerIndex) == OBJECTSHROUD_CLEAR )
-  {
-    if ( m_flightStatus == CHINOOK_LANDING || m_flightStatus == CHINOOK_TAKING_OFF || m_flightStatus == CHINOOK_LANDED )
-    {
-      Coord3D pos = *getObject()->getPosition();
-      Real chopperElevation = pos.z;
-      pos.z = TheTerrainLogic->getGroundHeight( pos.x, pos.y ) + 3.0f;
-      chopperElevation -= pos.z;
+	if ( getObject()->getShroudedStatus(playerIndex) == OBJECTSHROUD_CLEAR )
+	{
+		if ( m_flightStatus == CHINOOK_LANDING || m_flightStatus == CHINOOK_TAKING_OFF || m_flightStatus == CHINOOK_LANDED )
+		{
+			Coord3D pos = *getObject()->getPosition();
+			Real chopperElevation = pos.z;
+			pos.z = TheTerrainLogic->getGroundHeight( pos.x, pos.y ) + 3.0f;
+			chopperElevation -= pos.z;
 
-      if ( GameClientRandomValueReal( 0.0f, chopperElevation ) < 5.0f )
-      {
-	      const ParticleSystemTemplate *tmp = TheParticleSystemManager->findTemplate( getChinookAIUpdateModuleData()->m_rotorWashParticleSystem );
-	      ParticleSystem *system;
-	      if( tmp )
-	      {
-		      system = TheParticleSystemManager->createParticleSystem( tmp );
-		      if( system )
-		      {
-			      system->setPosition( &pos );
-		      }
-	      }
-      }
+			if ( GameClientRandomValueReal( 0.0f, chopperElevation ) < 5.0f )
+			{
+				const ParticleSystemTemplate *tmp = TheParticleSystemManager->findTemplate( getChinookAIUpdateModuleData()->m_rotorWashParticleSystem );
+				ParticleSystem *system;
+				if( tmp )
+				{
+					system = TheParticleSystemManager->createParticleSystem( tmp );
+					if( system )
+					{
+						system->setPosition( &pos );
+					}
+				}
+			}
 
-    }
-  }
+		}
+	}
 
 
 
@@ -1412,10 +1412,10 @@ void ChinookAIUpdate::crc( Xfer *xfer )
 void ChinookAIUpdate::xfer( Xfer *xfer )
 {
 
-  // version
-  XferVersion currentVersion = 2;
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	// version
+	XferVersion currentVersion = 2;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 	// extend base class
 	SupplyTruckAIUpdate::xfer(xfer);
 
@@ -1452,21 +1452,21 @@ void ChinookAIUpdate::loadPostProcess()
 void ChinookAIUpdate::privateIdle(CommandSourceType cmdSource)
 {
 
-  // Just an extra step, here, before extending idle to parent classes.
-  // Living in you own privateIdle-ho.
-  ContainModuleInterface* contain = getObject()->getContain();
+	// Just an extra step, here, before extending idle to parent classes.
+	// Living in you own privateIdle-ho.
+	ContainModuleInterface* contain = getObject()->getContain();
 	if( contain != nullptr )
 	{
-    Object *rider = (Object*)contain->friend_getRider();
-    if ( rider )
-    {
+		Object *rider = (Object*)contain->friend_getRider();
+		if ( rider )
+		{
 			AIUpdateInterface *riderAI = rider->getAIUpdateInterface();
 			if( riderAI )
 				riderAI->aiIdle( cmdSource );
 		}
-  }
+	}
 
-  SupplyTruckAIUpdate::privateIdle( cmdSource );
+	SupplyTruckAIUpdate::privateIdle( cmdSource );
 
 }
 
@@ -1478,55 +1478,55 @@ void ChinookAIUpdate::privateIdle(CommandSourceType cmdSource)
 void ChinookAIUpdate::privateAttackObject( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource )
 {
 
-  if ( ! getObject()->isKindOf( KINDOF_CAN_ATTACK ) )
-    return;
+	if ( ! getObject()->isKindOf( KINDOF_CAN_ATTACK ) )
+	return;
 
-  ContainModuleInterface* contain = getObject()->getContain();
+	ContainModuleInterface* contain = getObject()->getContain();
 	if( contain != nullptr )
 	{
 		// As an extension of the normal attack, I may want to tell my passengers to attack
 		// too, but only if this is a direct command.  (As opposed to a passive acquire)
 		if( (cmdSource == CMD_FROM_PLAYER  ||  cmdSource == CMD_FROM_SCRIPT) )
 		{
-      //if ( contain->isPassengerAllowedToFire() )//moved to below
-      {
-			  const ContainedItemsList *passengerList = contain->getContainedItemsList();
-			  ContainedItemsList::const_iterator passengerIterator;
-			  passengerIterator = passengerList->begin();
+			//if ( contain->isPassengerAllowedToFire() )//moved to below
+			{
+				const ContainedItemsList *passengerList = contain->getContainedItemsList();
+				ContainedItemsList::const_iterator passengerIterator;
+				passengerIterator = passengerList->begin();
 
-			  while( passengerIterator != passengerList->end() )
-			  {
-				  Object *passenger = *passengerIterator;
-				  //Advance to the next iterator
-				  passengerIterator++;
+				while( passengerIterator != passengerList->end() )
+				{
+					Object *passenger = *passengerIterator;
+					//Advance to the next iterator
+					passengerIterator++;
 
 
-          if ( ! contain->isPassengerAllowedToFire( passenger->getID() ) )
-            continue;
+					if ( ! contain->isPassengerAllowedToFire( passenger->getID() ) )
+					continue;
 
-          if ( ! passenger->isKindOf( KINDOF_INFANTRY ))
-            continue;
+					if ( ! passenger->isKindOf( KINDOF_INFANTRY ))
+					continue;
 
-				  // If I am an overlord with a gattling upgrade, I do not tell it to fire if it is disabled
-				  if ( passenger->isKindOf( KINDOF_PORTABLE_STRUCTURE ) )
-				  {
-					  if( passenger->isDisabledByType( DISABLED_HACKED )
-						  || passenger->isDisabledByType( DISABLED_EMP )
-						  || passenger->isDisabledByType( DISABLED_SUBDUED )
-						  || passenger->isDisabledByType( DISABLED_PARALYZED) )
-						  continue;
-				  }
+					// If I am an overlord with a gattling upgrade, I do not tell it to fire if it is disabled
+					if ( passenger->isKindOf( KINDOF_PORTABLE_STRUCTURE ) )
+					{
+						if( passenger->isDisabledByType( DISABLED_HACKED )
+							|| passenger->isDisabledByType( DISABLED_EMP )
+							|| passenger->isDisabledByType( DISABLED_SUBDUED )
+							|| passenger->isDisabledByType( DISABLED_PARALYZED) )
+						continue;
+					}
 
-				  AIUpdateInterface *passengerAI = passenger->getAIUpdateInterface();
-				  if( passengerAI )
-				  {
-					  passengerAI->aiAttackObject( victim, maxShotsToFire, cmdSource );
-				  }
-			  }
+					AIUpdateInterface *passengerAI = passenger->getAIUpdateInterface();
+					if( passengerAI )
+					{
+						passengerAI->aiAttackObject( victim, maxShotsToFire, cmdSource );
+					}
+				}
 
-      }
+			}
 
-      private___TellPortableStructureToAttackWithMe( victim, maxShotsToFire, cmdSource );
+			private___TellPortableStructureToAttackWithMe( victim, maxShotsToFire, cmdSource );
 
 		}
 	}
@@ -1538,25 +1538,25 @@ void ChinookAIUpdate::privateAttackObject( Object *victim, Int maxShotsToFire, C
 
 void ChinookAIUpdate::private___TellPortableStructureToAttackWithMe( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource )
 {
-  ContainModuleInterface* contain = getObject()->getContain();
+	ContainModuleInterface* contain = getObject()->getContain();
 	if( contain != nullptr )
 	{
-    //--------- THE GATTLING UPGRADE OR THE GUYS IN THE BUNKER_NOT_A_BUNKER-------------
-    Object *rider = (Object*)contain->friend_getRider();
+		//--------- THE GATTLING UPGRADE OR THE GUYS IN THE BUNKER_NOT_A_BUNKER-------------
+		Object *rider = (Object*)contain->friend_getRider();
 		if ( rider
-      && rider->isKindOf( KINDOF_PORTABLE_STRUCTURE )
-      && !rider->isDisabledByType( DISABLED_HACKED )
+			&& rider->isKindOf( KINDOF_PORTABLE_STRUCTURE )
+			&& !rider->isDisabledByType( DISABLED_HACKED )
 			&& !rider->isDisabledByType( DISABLED_EMP )
 			&& !rider->isDisabledByType( DISABLED_SUBDUED )
 			&& !rider->isDisabledByType( DISABLED_PARALYZED) )
-    {
+		{
 			AIUpdateInterface *riderAI = rider->getAIUpdateInterface();
 			if( riderAI )
 			{
 				riderAI->aiAttackObject( victim, maxShotsToFire, cmdSource );
 			}
 		}
-  }
+	}
 }
 
 
@@ -1567,10 +1567,10 @@ void ChinookAIUpdate::private___TellPortableStructureToAttackWithMe( Object *vic
 void ChinookAIUpdate::privateForceAttackObject( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource )
 {
 
-  if ( ! getObject()->isKindOf( KINDOF_CAN_ATTACK ) )
-    return;
+	if ( ! getObject()->isKindOf( KINDOF_CAN_ATTACK ) )
+	return;
 
-  ContainModuleInterface* contain = getObject()->getContain();
+	ContainModuleInterface* contain = getObject()->getContain();
 	if( contain != nullptr )
 	{
 		// As an extension of the normal attack, I may want to tell my passengers to attack
@@ -1578,52 +1578,52 @@ void ChinookAIUpdate::privateForceAttackObject( Object *victim, Int maxShotsToFi
 		if( (cmdSource == CMD_FROM_PLAYER  ||  cmdSource == CMD_FROM_SCRIPT) )
 		{
 //      if ( contain->isPassengerAllowedToFire() )
-      {
-			  const ContainedItemsList *passengerList = contain->getContainedItemsList();
-			  ContainedItemsList::const_iterator passengerIterator;
-			  passengerIterator = passengerList->begin();
+			{
+				const ContainedItemsList *passengerList = contain->getContainedItemsList();
+				ContainedItemsList::const_iterator passengerIterator;
+				passengerIterator = passengerList->begin();
 
-			  while( passengerIterator != passengerList->end() )
-			  {
-				  Object *passenger = *passengerIterator;
-				  //Advance to the next iterator
-				  passengerIterator++;
+				while( passengerIterator != passengerList->end() )
+				{
+					Object *passenger = *passengerIterator;
+					//Advance to the next iterator
+					passengerIterator++;
 
-          if ( ! contain->isPassengerAllowedToFire( passenger->getID() ) )
-            continue;
+					if ( ! contain->isPassengerAllowedToFire( passenger->getID() ) )
+					continue;
 
-          if ( ! passenger->isKindOf( KINDOF_INFANTRY ))
-            continue;
+					if ( ! passenger->isKindOf( KINDOF_INFANTRY ))
+					continue;
 
-				  // If I am an overlord with a gattling upgrade, I do not tell it to fire if it is disabled
-				  if ( passenger->isKindOf( KINDOF_PORTABLE_STRUCTURE ) )
-				  {
-					  if( passenger->isDisabledByType( DISABLED_HACKED )
-						  || passenger->isDisabledByType( DISABLED_EMP )
-						  || passenger->isDisabledByType( DISABLED_SUBDUED )
-						  || passenger->isDisabledByType( DISABLED_PARALYZED) )
-						  continue;
-				  }
+					// If I am an overlord with a gattling upgrade, I do not tell it to fire if it is disabled
+					if ( passenger->isKindOf( KINDOF_PORTABLE_STRUCTURE ) )
+					{
+						if( passenger->isDisabledByType( DISABLED_HACKED )
+							|| passenger->isDisabledByType( DISABLED_EMP )
+							|| passenger->isDisabledByType( DISABLED_SUBDUED )
+							|| passenger->isDisabledByType( DISABLED_PARALYZED) )
+						continue;
+					}
 
-				  AIUpdateInterface *passengerAI = passenger->getAIUpdateInterface();
-				  if( passengerAI )
-				  {
-					  passengerAI->aiForceAttackObject( victim, maxShotsToFire, cmdSource );
-				  }
+					AIUpdateInterface *passengerAI = passenger->getAIUpdateInterface();
+					if( passengerAI )
+					{
+						passengerAI->aiForceAttackObject( victim, maxShotsToFire, cmdSource );
+					}
 
-			  }
-      }
+				}
+			}
 
 
-      //--------- THE GATTLING UPGRADE OR THE GUYS IN THE BUNKER_NOT_A_BUNKER-------------
-      Object *rider = (Object*)contain->friend_getRider();
+			//--------- THE GATTLING UPGRADE OR THE GUYS IN THE BUNKER_NOT_A_BUNKER-------------
+			Object *rider = (Object*)contain->friend_getRider();
 			if ( rider
-        && rider->isKindOf( KINDOF_PORTABLE_STRUCTURE )
-        && !rider->isDisabledByType( DISABLED_HACKED )
+				&& rider->isKindOf( KINDOF_PORTABLE_STRUCTURE )
+				&& !rider->isDisabledByType( DISABLED_HACKED )
 				&& !rider->isDisabledByType( DISABLED_EMP )
 				&& !rider->isDisabledByType( DISABLED_SUBDUED )
 				&& !rider->isDisabledByType( DISABLED_PARALYZED) )
-      {
+			{
 				AIUpdateInterface *riderAI = rider->getAIUpdateInterface();
 				if( riderAI )
 				{
@@ -1644,8 +1644,8 @@ void ChinookAIUpdate::privateForceAttackObject( Object *victim, Int maxShotsToFi
 void ChinookAIUpdate::privateAttackPosition( const Coord3D *pos, Int maxShotsToFire, CommandSourceType cmdSource )
 {
 
-  if ( ! getObject()->isKindOf( KINDOF_CAN_ATTACK ) )
-    return;
+	if ( ! getObject()->isKindOf( KINDOF_CAN_ATTACK ) )
+	return;
 
 	ContainModuleInterface* contain = getObject()->getContain();
 	if( contain != nullptr )
@@ -1655,52 +1655,52 @@ void ChinookAIUpdate::privateAttackPosition( const Coord3D *pos, Int maxShotsToF
 		if( (cmdSource == CMD_FROM_PLAYER  ||  cmdSource == CMD_FROM_SCRIPT) )
 		{
 
-      //if ( contain->isPassengerAllowedToFire() )
-      {
-			  const ContainedItemsList *passengerList = contain->getContainedItemsList();
-			  ContainedItemsList::const_iterator passengerIterator;
-			  passengerIterator = passengerList->begin();
+			//if ( contain->isPassengerAllowedToFire() )
+			{
+				const ContainedItemsList *passengerList = contain->getContainedItemsList();
+				ContainedItemsList::const_iterator passengerIterator;
+				passengerIterator = passengerList->begin();
 
-			  while( passengerIterator != passengerList->end() )
-			  {
-				  Object *passenger = *passengerIterator;
-				  //Advance to the next iterator
-				  passengerIterator++;
+				while( passengerIterator != passengerList->end() )
+				{
+					Object *passenger = *passengerIterator;
+					//Advance to the next iterator
+					passengerIterator++;
 
-          if ( ! contain->isPassengerAllowedToFire( passenger->getID() ) )
-            continue;
+					if ( ! contain->isPassengerAllowedToFire( passenger->getID() ) )
+					continue;
 
-          if ( ! passenger->isKindOf( KINDOF_INFANTRY ))
-            continue;
+					if ( ! passenger->isKindOf( KINDOF_INFANTRY ))
+					continue;
 
-          // If I am an overlord with a gattling upgrade, I do not tell it ti fire if it is disabled
-				  if ( passenger->isKindOf( KINDOF_PORTABLE_STRUCTURE ) )
-				  {
-					  if( passenger->isDisabledByType( DISABLED_HACKED )
-						  || passenger->isDisabledByType( DISABLED_EMP)
-						  || passenger->isDisabledByType( DISABLED_SUBDUED)
-						  || passenger->isDisabledByType( DISABLED_PARALYZED) )
-						  continue;
-				  }
+					// If I am an overlord with a gattling upgrade, I do not tell it ti fire if it is disabled
+					if ( passenger->isKindOf( KINDOF_PORTABLE_STRUCTURE ) )
+					{
+						if( passenger->isDisabledByType( DISABLED_HACKED )
+							|| passenger->isDisabledByType( DISABLED_EMP)
+							|| passenger->isDisabledByType( DISABLED_SUBDUED)
+							|| passenger->isDisabledByType( DISABLED_PARALYZED) )
+						continue;
+					}
 
-				  AIUpdateInterface *passengerAI = passenger->getAIUpdateInterface();
-				  if( passengerAI )
-				  {
-					  passengerAI->aiAttackPosition( pos, maxShotsToFire, cmdSource );
-				  }
+					AIUpdateInterface *passengerAI = passenger->getAIUpdateInterface();
+					if( passengerAI )
+					{
+						passengerAI->aiAttackPosition( pos, maxShotsToFire, cmdSource );
+					}
 
-			  }
-      }
+				}
+			}
 
-      //--------- THE GATTLING UPGRADE OR THE GUYS IN THE BUNKER_NOT_A_BUNKER-------------
-      Object *rider = (Object*)contain->friend_getRider();
+			//--------- THE GATTLING UPGRADE OR THE GUYS IN THE BUNKER_NOT_A_BUNKER-------------
+			Object *rider = (Object*)contain->friend_getRider();
 			if ( rider
-        && rider->isKindOf( KINDOF_PORTABLE_STRUCTURE )
-        && !rider->isDisabledByType( DISABLED_HACKED )
+				&& rider->isKindOf( KINDOF_PORTABLE_STRUCTURE )
+				&& !rider->isDisabledByType( DISABLED_HACKED )
 				&& !rider->isDisabledByType( DISABLED_EMP )
 				&& !rider->isDisabledByType( DISABLED_SUBDUED )
 				&& !rider->isDisabledByType( DISABLED_PARALYZED) )
-      {
+			{
 				AIUpdateInterface *riderAI = rider->getAIUpdateInterface();
 				if( riderAI )
 				{

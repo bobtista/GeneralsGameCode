@@ -83,7 +83,7 @@ private:
 	Int							m_consecutiveShots;					///< How many times I have shot at the same thing
 	ObjectID				m_victimID;									///< The thing I have shot so many times
 	UnsignedInt			m_frameToStartCooldown;			///< This is the frame I should cool down at, and is pushed back every time a shot is fired
- 	UnsignedInt			m_frameToForceReload;				///< Even more than AutoReload, this means it will pre-emptively reload instead of event triggering a delay after the last shot
+	UnsignedInt			m_frameToForceReload;				///< Even more than AutoReload, this means it will pre-emptively reload instead of event triggering a delay after the last shot
 
 	UnsignedInt			m_frameToStopLoopingSound;	///< if sound is looping, frame to stop looping it (or zero if not looping)
 	AudioHandle			m_audioHandle;

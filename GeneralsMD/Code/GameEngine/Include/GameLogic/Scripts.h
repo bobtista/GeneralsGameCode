@@ -533,9 +533,9 @@ public:
 		CAMERA_DISABLE_SLAVE_MODE,
 		CAMERA_ADD_SHAKER_AT,			              	///< WST added 10.12.2002 (MBL)
 		SET_TRAIN_HELD,				                    ///< LORENZEN -- Forbids trains from departing stations while true
-    NAMED_SET_EVAC_LEFT_OR_RIGHT,	            ///< LORENZEN -- Which side of the garrisoned unit (LIKELY A TRAIN) do you want units to evacuate from?
-    ENABLE_OBJECT_SOUND,                      ///< Enables the ambient sound on an object or fire the one-shot "ambient" sound on an object
-    DISABLE_OBJECT_SOUND,                     ///< Disable the ambient sound on an object or kill the one-shot "ambient" sound on an object
+		NAMED_SET_EVAC_LEFT_OR_RIGHT,	            ///< LORENZEN -- Which side of the garrisoned unit (LIKELY A TRAIN) do you want units to evacuate from?
+		ENABLE_OBJECT_SOUND,                      ///< Enables the ambient sound on an object or fire the one-shot "ambient" sound on an object
+		DISABLE_OBJECT_SOUND,                     ///< Disable the ambient sound on an object or kill the one-shot "ambient" sound on an object
 		NAMED_USE_COMMANDBUTTON_ABILITY_USING_WAYPOINT_PATH, ///< Added for particle cannon to have beam follow waypoint path.
 		NAMED_SET_UNMANNED_STATUS,								///< Make unit unmanned or manned.
 		TEAM_SET_UNMANNED_STATUS,									///< Make all units on team unmanned or manned.
@@ -771,7 +771,7 @@ public:
 		OBJECT_TYPE_LIST,		// String, Special case of Object Type.
 		REVEALNAME,					// String, the name of the look taking place.
 		SCIENCE_AVAILABILITY, // String, the name of the different science availabilities.
-    LEFT_OR_RIGHT,        // 1=left, 2=right, okay?
+		LEFT_OR_RIGHT,        // 1=left, 2=right, okay?
 		PERCENT,						// Real.  A percentage.
 		NUM_ITEMS
 	};

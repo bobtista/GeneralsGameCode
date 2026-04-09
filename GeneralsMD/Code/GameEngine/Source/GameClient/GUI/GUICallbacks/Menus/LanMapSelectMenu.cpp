@@ -200,7 +200,7 @@ void LanMapSelectMenuUpdate( WindowLayout *layout, void *userData )
 /** Map select menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType LanMapSelectMenuInput( GameWindow *window, UnsignedInt msg,
-																				 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	switch( msg )
@@ -252,7 +252,7 @@ WindowMsgHandledType LanMapSelectMenuInput( GameWindow *window, UnsignedInt msg,
 /** MapSelect menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType LanMapSelectMenuSystem( GameWindow *window, UnsignedInt msg,
-																				  WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	GameWindow *mapWindow = nullptr;
 	if (listboxMap != NAMEKEY_INVALID)

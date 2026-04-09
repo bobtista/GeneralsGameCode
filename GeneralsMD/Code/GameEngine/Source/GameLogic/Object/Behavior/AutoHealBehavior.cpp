@@ -229,7 +229,7 @@ UpdateSleepTime AutoHealBehavior::update()
 		BodyModuleInterface *body = obj->getBodyModule();
 		if( body->getHealth() < body->getMaxHealth() )
 		{
-  		pulseHealObject( obj );
+			pulseHealObject( obj );
 			return UPDATE_SLEEP(d->m_healingDelay);
 		}
 		else
@@ -272,8 +272,8 @@ UpdateSleepTime AutoHealBehavior::update()
 								{
 									Coord3D iconPosition;
 									iconPosition.set(obj->getPosition()->x,
-																	 obj->getPosition()->y,
-																	 obj->getPosition()->z + obj->getGeometryInfo().getMaxHeightAbovePosition() );
+										obj->getPosition()->y,
+										obj->getPosition()->z + obj->getGeometryInfo().getMaxHeightAbovePosition() );
 									TheInGameUI->addWorldAnimation( animTemplate,	&iconPosition, WORLD_ANIM_FADE_ON_EXPIRE,
 																									TheGlobalData->m_getHealedAnimationDisplayTimeInSeconds,
 																									TheGlobalData->m_getHealedAnimationZRisePerSecond);

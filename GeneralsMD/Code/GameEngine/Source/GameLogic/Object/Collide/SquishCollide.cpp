@@ -96,7 +96,7 @@ void SquishCollide::onCollide( Object *other, const Coord3D *loc, const Coord3D 
 			return;
 
 		// use a 1.0 crush radius so the tank has to actually hit the infantry.
- 		GeometryInfo myGeom = self->getGeometryInfo();
+		GeometryInfo myGeom = self->getGeometryInfo();
 		myGeom.setMajorRadius(1.0f);
 		myGeom.setMinorRadius(1.0f);
 		if (!ThePartitionManager->geomCollidesWithGeom(other->getPosition(), other->getGeometryInfo(), other->getOrientation(),
@@ -126,7 +126,7 @@ void SquishCollide::onCollide( Object *other, const Coord3D *loc, const Coord3D 
 		}
 
 
-  }
+	}
 }
 
 // ------------------------------------------------------------------------------------------------

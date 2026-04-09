@@ -137,7 +137,7 @@ void TunnelContain::harmAndForceExitAllContained( DamageInfo *info )
 	{
 		obj = *it;
 		removeFromContain( obj, true );
-    obj->attemptDamage( info );
+		obj->attemptDamage( info );
 		it = (*fullList).begin();
 	}
 
@@ -226,7 +226,7 @@ void TunnelContain::onContaining( Object *obj, Bool wasSelected )
 
 
 
-  obj->handlePartitionCellMaintenance();
+	obj->handlePartitionCellMaintenance();
 
 
 }
@@ -385,7 +385,7 @@ void TunnelContain::scatterToNearbyPosition(Object* obj)
 		// set position of the object at center of building and move them toward pos
 		obj->setPosition( theContainer->getPosition() );
 		ai->ignoreObstacle(theContainer);
- 		ai->aiMoveToPosition( &pos, CMD_FROM_AI );
+		ai->aiMoveToPosition( &pos, CMD_FROM_AI );
 
 	}
 	else

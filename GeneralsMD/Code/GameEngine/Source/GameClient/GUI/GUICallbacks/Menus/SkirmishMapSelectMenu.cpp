@@ -343,7 +343,7 @@ void SkirmishMapSelectMenuUpdate( WindowLayout *layout, void *userData )
 /** Map select menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType SkirmishMapSelectMenuInput( GameWindow *window, UnsignedInt msg,
-																				 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	switch( msg )
@@ -395,7 +395,7 @@ WindowMsgHandledType SkirmishMapSelectMenuInput( GameWindow *window, UnsignedInt
 /** MapSelect menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType SkirmishMapSelectMenuSystem( GameWindow *window, UnsignedInt msg,
-																				  WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	switch( msg )
@@ -577,11 +577,11 @@ WindowMsgHandledType SkirmishMapSelectMenuSystem( GameWindow *window, UnsignedIn
 					win	= TheWindowManager->winGetWindowFromId( parent, TheNameKeyGenerator->nameToKey("SkirmishGameOptionsMenu.wnd:TextEntryMapDisplay") );
 					if(win)
 					{
-				    if (md)
-				    {
-  						GadgetStaticTextSetText(win, md->m_displayName);
-                    }
-		         }
+						if (md)
+						{
+							GadgetStaticTextSetText(win, md->m_displayName);
+						}
+					}
 					//if (mapFname)
 						//setupGameStart(mapFname);
 

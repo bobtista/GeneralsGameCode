@@ -132,7 +132,7 @@ static void commandButtonTooltip(GameWindow *window,
 /// mark the UI as dirty so the context of everything is re-evaluated
 void ControlBar::markUIDirty()
 {
-  m_UIDirty = TRUE;
+	m_UIDirty = TRUE;
 
 #if defined(RTS_DEBUG)
 	UnsignedInt now = TheGameLogic->getFrame();
@@ -804,7 +804,7 @@ void CommandSet::parseCommandButton( INI* ini, void *instance, void *store, cons
 	{
 
 		DEBUG_CRASH(( "[LINE: %d - FILE: '%s'] Unknown command '%s' found in command set",
-								  ini->getLineNum(), ini->getFilename().str(), token ));
+			ini->getLineNum(), ini->getFilename().str(), token ));
 		throw INI_INVALID_DATA;
 
 	}
@@ -815,7 +815,7 @@ void CommandSet::parseCommandButton( INI* ini, void *instance, void *store, cons
 
 	// sanity
 	DEBUG_ASSERTCRASH( buttonIndex < MAX_COMMANDS_PER_SET, ("parseCommandButton: button index '%d' out of range",
-										 buttonIndex) );
+		buttonIndex) );
 
 	// save it
 	buttonArray[ buttonIndex ] = commandButton;
@@ -837,7 +837,7 @@ CommandSet::CommandSet(const AsciiString& name) :
 const CommandButton* CommandSet::getCommandButton(Int i) const
 {
 	const CommandButton* button;
-  // Check for TheGameLogic == null, cause it is in Worldbuilder, and wb gets command bar info. jba.
+	// Check for TheGameLogic == null, cause it is in Worldbuilder, and wb gets command bar info. jba.
 	if (TheGameLogic && TheGameLogic->findControlBarOverride(m_name, i, button))
 		return button;
 
@@ -2623,7 +2623,7 @@ void ControlBar::setPortraitByObject( Object *obj )
 				setPortraitByObject( nullptr );
 				return;
 			}
-      StealthUpdate *stealth = obj->getStealth();
+			StealthUpdate *stealth = obj->getStealth();
 			if( stealth && stealth->isDisguised() )
 			{
 				//Fake player upgrades too!
@@ -2889,7 +2889,7 @@ void ControlBar::updateBuildQueueDisabledImages( const Image *image )
 
 		// get window commented out cause I believe we already set this.  We'll see in a few minutes
 		m_queueData[ i ].control = TheWindowManager->winGetWindowFromId( m_contextParent[ CP_BUILD_QUEUE ],
-																																		 buildQueueIDs[ i ] );
+			buildQueueIDs[ i ] );
 
 		GadgetButtonSetDisabledImage( m_queueData[ i ].control, image );
 
@@ -3134,8 +3134,8 @@ void ControlBar::updateSlotExitImage( const Image *image )
 }
 
 void ControlBar::updateUpDownImages( const Image *toggleButtonUpIn, const Image *toggleButtonUpOn, const Image *toggleButtonUpPushed,
-																		 const Image *toggleButtonDownIn, const Image *toggleButtonDownOn, const Image *toggleButtonDownPushed,
-																		 const Image *generalButtonEnable, const Image *generalButtonHighlight  )
+	const Image *toggleButtonDownIn, const Image *toggleButtonDownOn, const Image *toggleButtonDownPushed,
+	const Image *generalButtonEnable, const Image *generalButtonHighlight  )
 {
 	m_toggleButtonUpIn = toggleButtonUpIn;
 	m_toggleButtonUpOn = toggleButtonUpOn;
@@ -3537,7 +3537,7 @@ Bool ControlBar::hasAnyShortcutSelection() const
 void ControlBar::updateSpecialPowerShortcut()
 {
 	if(!m_specialPowerShortcutParent || !m_specialPowerShortcutButtons
-	   || !ThePlayerList || !ThePlayerList->getLocalPlayer())
+		|| !ThePlayerList || !ThePlayerList->getLocalPlayer())
 		return;
 
 	Bool hasShortcutSelectionButtons = hasAnyShortcutSelection();
@@ -3546,7 +3546,7 @@ void ControlBar::updateSpecialPowerShortcut()
 	Bool hasValidShortcutButton = hasShortcutSelectionButtons || hasAnyShortcutSpecialPower;
 
 	if( hasValidShortcutButton
-		  && m_specialPowerShortcutParent->winIsHidden()
+		&& m_specialPowerShortcutParent->winIsHidden()
 			&& m_contextParent[ CP_MASTER ]
 			&& !m_contextParent[ CP_MASTER ]->winIsHidden() )
 	{
@@ -3554,8 +3554,8 @@ void ControlBar::updateSpecialPowerShortcut()
 		animateSpecialPowerShortcut(TRUE);
 	}
 	else if( !hasValidShortcutButton
-					 && !m_specialPowerShortcutParent->winIsHidden()
-					 && m_animateWindowManagerForGenShortcuts->isFinished() )
+		&& !m_specialPowerShortcutParent->winIsHidden()
+		&& m_animateWindowManagerForGenShortcuts->isFinished() )
 	{
 		animateSpecialPowerShortcut(FALSE);
 	}

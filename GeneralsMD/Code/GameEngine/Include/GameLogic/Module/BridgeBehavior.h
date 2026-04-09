@@ -127,8 +127,8 @@ public:
 
 	// module methods
 	static Int getInterfaceMask() { return (MODULEINTERFACE_DAMAGE) |
-																							 (MODULEINTERFACE_DIE) |
-																							 (MODULEINTERFACE_UPDATE); }
+			(MODULEINTERFACE_DIE) |
+			(MODULEINTERFACE_UPDATE); }
 	virtual BridgeBehaviorInterface* getBridgeBehaviorInterface() override { return this; }
 	virtual void onDelete() override;
 
@@ -171,8 +171,8 @@ protected:
 												const Coord3D *bridgeCenter );
 
 	void getRandomSurfacePosition( TerrainRoadType *bridgeTemplate,
-																 const BridgeInfo *bridgeInfo,
-																 Coord3D *pos );
+		const BridgeInfo *bridgeInfo,
+		Coord3D *pos );
 
 	ObjectID m_towerID[ BRIDGE_MAX_TOWERS ];		///< the towers that are a part of us
 

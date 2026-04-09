@@ -54,7 +54,7 @@ POWTruckBehaviorModuleData::POWTruckBehaviorModuleData()
 // ------------------------------------------------------------------------------------------------
 /*static*/ void POWTruckBehaviorModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
-  OpenContainModuleData::buildFieldParse( p );
+	OpenContainModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -63,7 +63,7 @@ POWTruckBehaviorModuleData::POWTruckBehaviorModuleData()
 
 	};
 
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 
 }
 
@@ -107,7 +107,7 @@ void POWTruckBehavior::onCollide( Object *other, const Coord3D *loc, const Coord
 														us->getTemplate()->getName().str()) );
 	POWTruckAIUpdateInterface *powTruckAI = ourAI->getPOWTruckAIUpdateInterface();
 	DEBUG_ASSERTCRASH( powTruckAI, ("POWTruckBehavior::onCollide - '%s' has no POWTruckAI",
-																 us->getTemplate()->getName().str()) );
+		us->getTemplate()->getName().str()) );
 
 	// pick up the prisoner
 	powTruckAI->loadPrisoner( other );

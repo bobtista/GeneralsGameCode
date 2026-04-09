@@ -42,40 +42,40 @@ const char *const TheEvaMessageNames[] =
 	"SUPERWEAPONDETECTED_OWN_PARTICLECANNON",
 	"SUPERWEAPONDETECTED_OWN_NUKE",
 	"SUPERWEAPONDETECTED_OWN_SCUDSTORM",
-  "SUPERWEAPONDETECTED_ALLY_PARTICLECANNON",
-  "SUPERWEAPONDETECTED_ALLY_NUKE",
-  "SUPERWEAPONDETECTED_ALLY_SCUDSTORM",
-  "SUPERWEAPONDETECTED_ENEMY_PARTICLECANNON",
-  "SUPERWEAPONDETECTED_ENEMY_NUKE",
-  "SUPERWEAPONDETECTED_ENEMY_SCUDSTORM",
+	"SUPERWEAPONDETECTED_ALLY_PARTICLECANNON",
+	"SUPERWEAPONDETECTED_ALLY_NUKE",
+	"SUPERWEAPONDETECTED_ALLY_SCUDSTORM",
+	"SUPERWEAPONDETECTED_ENEMY_PARTICLECANNON",
+	"SUPERWEAPONDETECTED_ENEMY_NUKE",
+	"SUPERWEAPONDETECTED_ENEMY_SCUDSTORM",
 	"SUPERWEAPONLAUNCHED_OWN_PARTICLECANNON",
 	"SUPERWEAPONLAUNCHED_OWN_NUKE",
 	"SUPERWEAPONLAUNCHED_OWN_SCUDSTORM",
-  "SUPERWEAPONLAUNCHED_ALLY_PARTICLECANNON",
-  "SUPERWEAPONLAUNCHED_ALLY_NUKE",
-  "SUPERWEAPONLAUNCHED_ALLY_SCUDSTORM",
-  "SUPERWEAPONLAUNCHED_ENEMY_PARTICLECANNON",
-  "SUPERWEAPONLAUNCHED_ENEMY_NUKE",
-  "SUPERWEAPONLAUNCHED_ENEMY_SCUDSTORM",
-  "SUPERWEAPONREADY_OWN_PARTICLECANNON",
-  "SUPERWEAPONREADY_OWN_NUKE",
-  "SUPERWEAPONREADY_OWN_SCUDSTORM",
-  "SUPERWEAPONREADY_ALLY_PARTICLECANNON",
-  "SUPERWEAPONREADY_ALLY_NUKE",
-  "SUPERWEAPONREADY_ALLY_SCUDSTORM",
-  "SUPERWEAPONREADY_ENEMY_PARTICLECANNON",
-  "SUPERWEAPONREADY_ENEMY_NUKE",
-  "SUPERWEAPONREADY_ENEMY_SCUDSTORM",
+	"SUPERWEAPONLAUNCHED_ALLY_PARTICLECANNON",
+	"SUPERWEAPONLAUNCHED_ALLY_NUKE",
+	"SUPERWEAPONLAUNCHED_ALLY_SCUDSTORM",
+	"SUPERWEAPONLAUNCHED_ENEMY_PARTICLECANNON",
+	"SUPERWEAPONLAUNCHED_ENEMY_NUKE",
+	"SUPERWEAPONLAUNCHED_ENEMY_SCUDSTORM",
+	"SUPERWEAPONREADY_OWN_PARTICLECANNON",
+	"SUPERWEAPONREADY_OWN_NUKE",
+	"SUPERWEAPONREADY_OWN_SCUDSTORM",
+	"SUPERWEAPONREADY_ALLY_PARTICLECANNON",
+	"SUPERWEAPONREADY_ALLY_NUKE",
+	"SUPERWEAPONREADY_ALLY_SCUDSTORM",
+	"SUPERWEAPONREADY_ENEMY_PARTICLECANNON",
+	"SUPERWEAPONREADY_ENEMY_NUKE",
+	"SUPERWEAPONREADY_ENEMY_SCUDSTORM",
 	"BUILDINGLOST",
 	"BASEUNDERATTACK",
 	"ALLYUNDERATTACK",
 	"BEACONDETECTED",
-  "ENEMYBLACKLOTUSDETECTED",
-  "ENEMYJARMENKELLDETECTED",
-  "ENEMYCOLONELBURTONDETECTED",
-  "OWNBLACKLOTUSDETECTED",
-  "OWNJARMENKELLDETECTED",
-  "OWNCOLONELBURTONDETECTED",
+	"ENEMYBLACKLOTUSDETECTED",
+	"ENEMYJARMENKELLDETECTED",
+	"ENEMYCOLONELBURTONDETECTED",
+	"OWNBLACKLOTUSDETECTED",
+	"OWNJARMENKELLDETECTED",
+	"OWNCOLONELBURTONDETECTED",
 	"UNITLOST",
 	"GENERALLEVELUP",
 	"VEHICLESTOLEN",
@@ -84,12 +84,12 @@ const char *const TheEvaMessageNames[] =
 	"UPGRADECOMPLETE",
 	"BUILDINGBEINGSTOLEN",
 	"BUILDINGSABOTAGED",
-  "SUPERWEAPONLAUNCHED_OWN_GPS_SCRAMBLER",
-  "SUPERWEAPONLAUNCHED_ALLY_GPS_SCRAMBLER",
-  "SUPERWEAPONLAUNCHED_ENEMY_GPS_SCRAMBLER",
-  "SUPERWEAPONLAUNCHED_OWN_SNEAK_ATTACK",
-  "SUPERWEAPONLAUNCHED_ALLY_SNEAK_ATTACK",
-  "SUPERWEAPONLAUNCHED_ENEMY_SNEAK_ATTACK",
+	"SUPERWEAPONLAUNCHED_OWN_GPS_SCRAMBLER",
+	"SUPERWEAPONLAUNCHED_ALLY_GPS_SCRAMBLER",
+	"SUPERWEAPONLAUNCHED_ENEMY_GPS_SCRAMBLER",
+	"SUPERWEAPONLAUNCHED_OWN_SNEAK_ATTACK",
+	"SUPERWEAPONLAUNCHED_ALLY_SNEAK_ATTACK",
+	"SUPERWEAPONLAUNCHED_ENEMY_SNEAK_ATTACK",
 
 	//****************************************************************************
 	//Kris: Don't forget to add another handler below -- it's ghey-ly implemented.
@@ -120,39 +120,39 @@ const ShouldPlayFunc Eva::s_shouldPlayFuncs[] =
 	Eva::shouldPlayGenericHandler,
 	Eva::shouldPlayGenericHandler,
 	Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
-  Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
+	Eva::shouldPlayGenericHandler,
 };
 
 
@@ -328,7 +328,7 @@ EvaMessage Eva::nameToMessage(const AsciiString& name)
 //-------------------------------------------------------------------------------------------------
 AsciiString Eva::messageToName(EvaMessage message)
 {
-  if (message >= EVA_FIRST && message < EVA_COUNT)
+	if (message >= EVA_FIRST && message < EVA_COUNT)
 		return TheEvaMessageNames[message];
 
 	DEBUG_CRASH(("Invalid requested Eva message translation. jkmcd"));
@@ -373,7 +373,7 @@ void Eva::setShouldPlay(EvaMessage messageToPlay)
 {
 	m_shouldPlay[messageToPlay] = TRUE;
 
-  // DEBUG_LOG( ( "Eva message %s play requested", messageToName( messageToPlay).str() ) );
+	// DEBUG_LOG( ( "Eva message %s play requested", messageToName( messageToPlay).str() ) );
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -507,8 +507,8 @@ void Eva::processPlayingMessages(UnsignedInt currentFrame)
 	AsciiString side = rts::getObservedOrLocalPlayer()->getSide();
 	Int numSides = storedIt->m_evaInfo->m_evaSideSounds.size();
 
-  // clear it. If we can't find the side we want, don't play anything
-  m_evaSpeech.setEventName(AsciiString::TheEmptyString);
+	// clear it. If we can't find the side we want, don't play anything
+	m_evaSpeech.setEventName(AsciiString::TheEmptyString);
 
 	for (Int i = 0; i < numSides; ++i) {
 		if (side.compareNoCase(storedIt->m_evaInfo->m_evaSideSounds[i].m_side) == 0) {
@@ -517,7 +517,7 @@ void Eva::processPlayingMessages(UnsignedInt currentFrame)
 				Int soundToPlay = GameClientRandomValue(0, storedIt->m_evaInfo->m_evaSideSounds[i].m_soundNames.size() - 1);
 				m_evaSpeech.setEventName(storedIt->m_evaInfo->m_evaSideSounds[i].m_soundNames[soundToPlay]);
 			}
-      break;
+			break;
 		}
 	}
 
@@ -537,16 +537,16 @@ void Eva::processPlayingMessages(UnsignedInt currentFrame)
 //-------------------------------------------------------------------------------------------------
 /*static*/void Eva::parseEvaMessageFromIni( INI * ini, void *instance, void *store, const void* userData )
 {
-  const char *token = ini->getNextToken();
+	const char *token = ini->getNextToken();
 
-  EvaMessage message = nameToMessage( token );
-  if ( message == EVA_Invalid )
-  {
-    // debug message already displayed
-    throw ERROR_BAD_INI;
-  }
+	EvaMessage message = nameToMessage( token );
+	if ( message == EVA_Invalid )
+	{
+		// debug message already displayed
+		throw ERROR_BAD_INI;
+	}
 
-  *((EvaMessage *)store) = message;
+	*((EvaMessage *)store) = message;
 }
 
 //-------------------------------------------------------------------------------------------------

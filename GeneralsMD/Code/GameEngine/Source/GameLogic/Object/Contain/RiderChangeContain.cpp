@@ -95,7 +95,7 @@ void RiderChangeContainModuleData::parseRiderInfo( INI* ini, void *instance, voi
 // ------------------------------------------------------------------------------------------------
 void RiderChangeContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  TransportContainModuleData::buildFieldParse(p);
+	TransportContainModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -107,11 +107,11 @@ void RiderChangeContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ "Rider6",					parseRiderInfo,					nullptr, offsetof( RiderChangeContainModuleData, m_riders[5] ) },
 		{ "Rider7",					parseRiderInfo,					nullptr, offsetof( RiderChangeContainModuleData, m_riders[6] ) },
 		{ "Rider8",					parseRiderInfo,					nullptr, offsetof( RiderChangeContainModuleData, m_riders[7] ) },
-    { "ScuttleDelay",   INI::parseDurationUnsignedInt,	nullptr, offsetof( RiderChangeContainModuleData, m_scuttleFrames ) },
-    { "ScuttleStatus",  INI::parseIndexList,		ModelConditionFlags::getBitNames(), offsetof( RiderChangeContainModuleData, m_scuttleState ) },
+		{ "ScuttleDelay",   INI::parseDurationUnsignedInt,	nullptr, offsetof( RiderChangeContainModuleData, m_scuttleFrames ) },
+		{ "ScuttleStatus",  INI::parseIndexList,		ModelConditionFlags::getBitNames(), offsetof( RiderChangeContainModuleData, m_scuttleState ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 
@@ -132,7 +132,7 @@ Int RiderChangeContain::getContainMax() const
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 RiderChangeContain::RiderChangeContain( Thing *thing, const ModuleData *moduleData ) :
-								 TransportContain( thing, moduleData )
+	TransportContain( thing, moduleData )
 {
 	m_extraSlotsInUse = 0;
 	m_frameExitNotBusy = 0;
@@ -437,8 +437,8 @@ Bool RiderChangeContain::getContainerPipsToShow(Int& numTotal, Int& numFull)
 //-------------------------------------------------------------------------------------------------
 const Object *RiderChangeContain::friend_getRider() const
 {
- 	if( m_containListSize > 0 ) // Yes, this does assume that infantry never ride double on the bike
- 		return m_containList.front();
+	if( m_containListSize > 0 ) // Yes, this does assume that infantry never ride double on the bike
+	return m_containList.front();
 
 	return nullptr;
 }

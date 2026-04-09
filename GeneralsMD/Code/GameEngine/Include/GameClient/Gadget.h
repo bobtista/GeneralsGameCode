@@ -482,47 +482,47 @@ typedef struct _TabControlData
 extern WindowMsgHandledType GadgetPushButtonSystem( GameWindow *window, UnsignedInt msg,
 																										WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetPushButtonInput( GameWindow *window, UnsignedInt msg,
-																									 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetCheckBoxInput( GameWindow *window, UnsignedInt msg,
-																								 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetCheckBoxSystem( GameWindow *window, UnsignedInt msg,
 																									WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetRadioButtonInput( GameWindow *window, UnsignedInt msg,
 																										WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetRadioButtonSystem( GameWindow *window, UnsignedInt msg,
-																										 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetTabControlInput( GameWindow *window, UnsignedInt msg,
 																										WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetTabControlSystem( GameWindow *window, UnsignedInt msg,
-																										 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetListBoxInput( GameWindow *window, UnsignedInt msg,
 																								WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetListBoxMultiInput( GameWindow *window, UnsignedInt msg,
-																										 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
-																								 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetHorizontalSliderInput( GameWindow *window, UnsignedInt msg,
-																												 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedInt msg,
 																													WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetVerticalSliderInput( GameWindow *window, UnsignedInt msg,
-																											 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetVerticalSliderSystem( GameWindow *window, UnsignedInt msg,
 																												WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetProgressBarSystem( GameWindow *window, UnsignedInt msg,
-																										 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetStaticTextInput( GameWindow *window, UnsignedInt msg,
-																									 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetStaticTextSystem( GameWindow *window, UnsignedInt msg,
 																										WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetTextEntryInput( GameWindow *window, UnsignedInt msg,
 																									WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetTextEntrySystem( GameWindow *window, UnsignedInt msg,
-																									 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetComboBoxInput( GameWindow *window, UnsignedInt msg,
 																								WindowMsgData mData1, WindowMsgData mData2 );
 extern WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
-																								 WindowMsgData mData1, WindowMsgData mData2 );
+	WindowMsgData mData1, WindowMsgData mData2 );
 
 
 extern Bool InitializeEntryGadget();

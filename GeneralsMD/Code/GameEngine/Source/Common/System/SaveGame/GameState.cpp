@@ -217,20 +217,20 @@ UnicodeString getUnicodeDateBuffer(SYSTEMTIME timeVal)
 		{
 			char dateBuffer[ DATE_BUFFER_SIZE ];
 			GetDateFormat( LOCALE_USER_DEFAULT,
-										 DATE_SHORTDATE,
-										 &timeVal,
-										 nullptr,
-										 dateBuffer, sizeof(dateBuffer) );
+				DATE_SHORTDATE,
+				&timeVal,
+				nullptr,
+				dateBuffer, sizeof(dateBuffer) );
 			displayDateBuffer.translate(dateBuffer);
 			return displayDateBuffer;
 		}
 	}
 	wchar_t dateBuffer[ DATE_BUFFER_SIZE ];
 	GetDateFormatW( LOCALE_USER_DEFAULT,
-								 DATE_SHORTDATE,
-								 &timeVal,
-								 nullptr,
-								 dateBuffer, ARRAY_SIZE(dateBuffer) );
+		DATE_SHORTDATE,
+		&timeVal,
+		nullptr,
+		dateBuffer, ARRAY_SIZE(dateBuffer) );
 	displayDateBuffer.set(dateBuffer);
 	return displayDateBuffer;
 	//displayDateBuffer.format( L"%ls", dateBuffer );
@@ -248,10 +248,10 @@ UnicodeString getUnicodeTimeBuffer(SYSTEMTIME timeVal)
 		{
 			char timeBuffer[ DATE_BUFFER_SIZE ];
 			GetTimeFormat( LOCALE_USER_DEFAULT,
-										 TIME_NOSECONDS|TIME_FORCE24HOURFORMAT|TIME_NOTIMEMARKER,
-										 &timeVal,
-										 nullptr,
-										 timeBuffer, sizeof(timeBuffer) );
+				TIME_NOSECONDS|TIME_FORCE24HOURFORMAT|TIME_NOTIMEMARKER,
+				&timeVal,
+				nullptr,
+				timeBuffer, sizeof(timeBuffer) );
 			displayTimeBuffer.translate(timeBuffer);
 			return displayTimeBuffer;
 		}
@@ -260,11 +260,11 @@ UnicodeString getUnicodeTimeBuffer(SYSTEMTIME timeVal)
 	#define TIME_BUFFER_SIZE 256
 	wchar_t timeBuffer[ TIME_BUFFER_SIZE ];
 	GetTimeFormatW( LOCALE_USER_DEFAULT,
-								 TIME_NOSECONDS,
-								 &timeVal,
-								 nullptr,
-								 timeBuffer,
-								 ARRAY_SIZE(timeBuffer) );
+		TIME_NOSECONDS,
+		&timeVal,
+		nullptr,
+		timeBuffer,
+		ARRAY_SIZE(timeBuffer) );
 	displayTimeBuffer.set(timeBuffer);
 	return displayTimeBuffer;
 }
@@ -1370,7 +1370,7 @@ void GameState::xferSaveData( Xfer *xfer, SnapshotType which )
 			//
 			if( getSaveGameInfo()->saveFileType != SAVE_FILE_TYPE_MISSION ||
 					(blockName.compareNoCase( GAME_STATE_BLOCK_STRING ) == 0 ||
-					 blockName.compareNoCase( CAMPAIGN_BLOCK_STRING ) == 0) )
+				blockName.compareNoCase( CAMPAIGN_BLOCK_STRING ) == 0) )
 			{
 
 				// xfer block name

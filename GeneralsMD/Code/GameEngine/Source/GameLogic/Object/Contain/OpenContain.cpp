@@ -77,16 +77,16 @@ OpenContainModuleData::OpenContainModuleData()
 	m_allowInsideKindOf.clear(); m_allowInsideKindOf.flip();		// everything is allowed
 	m_forbidInsideKindOf.clear();	// nothing is forbidden
 	m_weaponBonusPassedToPassengers = FALSE;
- 	m_allowAlliesInside = TRUE;
- 	m_allowEnemiesInside = TRUE;
- 	m_allowNeutralInside = TRUE;
+	m_allowAlliesInside = TRUE;
+	m_allowEnemiesInside = TRUE;
+	m_allowNeutralInside = TRUE;
 }
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 /*static*/ void OpenContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  UpdateModuleData::buildFieldParse(p);
+	UpdateModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -101,13 +101,13 @@ OpenContainModuleData::OpenContainModuleData()
 		{ "PassengersInTurret",				INI::parseBool, nullptr, offsetof( OpenContainModuleData, m_passengersInTurret ) },
 		{ "NumberOfExitPaths",				INI::parseInt, nullptr, offsetof( OpenContainModuleData, m_numberOfExitPaths ) },
 		{ "DoorOpenTime",							INI::parseDurationUnsignedInt, nullptr, offsetof( OpenContainModuleData, m_doorOpenTime ) },
- 		{ "WeaponBonusPassedToPassengers", INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_weaponBonusPassedToPassengers ) },
- 		{ "AllowAlliesInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowAlliesInside ) },
- 		{ "AllowEnemiesInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowEnemiesInside ) },
- 		{ "AllowNeutralInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowNeutralInside ) },
+		{ "WeaponBonusPassedToPassengers", INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_weaponBonusPassedToPassengers ) },
+		{ "AllowAlliesInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowAlliesInside ) },
+		{ "AllowEnemiesInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowEnemiesInside ) },
+		{ "AllowNeutralInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowNeutralInside ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 	p.add(DieMuxData::getFieldParse(), offsetof( OpenContainModuleData, m_dieMuxData ));
 
 }
@@ -142,8 +142,8 @@ OpenContain::OpenContain( Thing *thing, const ModuleData* moduleData ) : UpdateM
 	m_whichExitPath = 1;
 	m_loadSoundsEnabled = TRUE;
 
-  m_passengerAllowedToFire = getOpenContainModuleData()->m_passengersAllowedToFire;
-  // overridable by setPass...()  in the parent interface (for use by upgrade module)
+	m_passengerAllowedToFire = getOpenContainModuleData()->m_passengersAllowedToFire;
+	// overridable by setPass...()  in the parent interface (for use by upgrade module)
 
 	for( Int i = 0; i < MAX_FIRE_POINTS; i++ )
 	{
@@ -169,12 +169,12 @@ OpenContain::~OpenContain()
 
 	// sanity, the system should be cleaning these up itself if all is going well
 	DEBUG_ASSERTCRASH( m_containList.empty(),
-										 ("OpenContain %s: destroying a container that still has items in it!",
-										  getObject()->getTemplate()->getName().str() ) );
+		("OpenContain %s: destroying a container that still has items in it!",
+		getObject()->getTemplate()->getName().str() ) );
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_xferContainIDList.empty(),
-										 ("OpenContain %s: m_xferContainIDList is not empty but should be",
+		("OpenContain %s: m_xferContainIDList is not empty but should be",
 											getObject()->getTemplate()->getName().str() ) );
 
 }
@@ -432,11 +432,11 @@ void OpenContain::removeAllContained( Bool exposeStealthUnits )
 {
 	ContainedItemsList::iterator it;
 
- 	while ((it = m_containList.begin()) != m_containList.end())
+	while ((it = m_containList.begin()) != m_containList.end())
 	{
 
- 		// note that this invalidates the iterator!
- 		removeFromContainViaIterator( it, exposeStealthUnits );
+		// note that this invalidates the iterator!
+		removeFromContainViaIterator( it, exposeStealthUnits );
 
 	}
 
@@ -488,15 +488,15 @@ void OpenContain::harmAndForceExitAllContained( DamageInfo *info )
 {
 	ContainedItemsList::iterator it = m_containList.begin();
 
- 	while ( it != m_containList.end() )
+	while ( it != m_containList.end() )
 	{
 		Object *rider = *it;
 
 		DEBUG_ASSERTCRASH( rider, ("Contain list must not contain null element"));
 		if ( rider )
 		{
-		  removeFromContain( rider, true );
-		  rider->attemptDamage( info );
+			removeFromContain( rider, true );
+			rider->attemptDamage( info );
 		}
 
 		//Kris: Patch 1.03 -- Crash fix when neutral bunker on Alpine Assault is occupied with 10 demo general
@@ -509,7 +509,7 @@ void OpenContain::harmAndForceExitAllContained( DamageInfo *info )
 	}
 
 
-  DEBUG_ASSERTCRASH( m_containListSize == 0, ("harmAndForceExitAllContained just made a booboo, list size != zero.") );
+	DEBUG_ASSERTCRASH( m_containListSize == 0, ("harmAndForceExitAllContained just made a booboo, list size != zero.") );
 
 }
 
@@ -599,7 +599,7 @@ void OpenContain::iterateContained( ContainIterateFunc func, void *userData, Boo
 			// call it
 			(*func)( rider, userData );
 		}
-  }
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -611,21 +611,21 @@ Object* OpenContain::getClosestRider( const Coord3D *pos )
 
 	for(ContainedItemsList::const_iterator it = m_containList.begin(); it != m_containList.end(); ++it)
 	{
-    Object *rider = *it;
+		Object *rider = *it;
 
-    if (rider)
-    {
-      Real distance = ThePartitionManager->getDistanceSquared( rider, pos, FROM_CENTER_2D );
-	    if( !closest || closestDistance > distance )
-	    {
-		    closest = rider;
-		    closestDistance = distance;
-	    }
-    }
+		if (rider)
+		{
+			Real distance = ThePartitionManager->getDistanceSquared( rider, pos, FROM_CENTER_2D );
+			if( !closest || closestDistance > distance )
+			{
+				closest = rider;
+				closestDistance = distance;
+			}
+		}
 
-  }
+	}
 
-   return closest; //Could be null!
+	return closest; //Could be null!
 }
 
 
@@ -688,8 +688,8 @@ void OpenContain::removeFromContainViaIterator( ContainedItemsList::iterator it,
 	if (isEnclosingContainerFor( rider ))
 	{
 		addOrRemoveObjFromWorld(rider, true);
-  	rider->setPosition( getObject()->getPosition() );
-        // if we are not enclosed, then just walk away from where we "are."
+		rider->setPosition( getObject()->getPosition() );
+		// if we are not enclosed, then just walk away from where we "are."
 
 	}
 
@@ -844,8 +844,8 @@ void OpenContain::onCollide( Object *other, const Coord3D *loc, const Coord3D *n
 				if( rider->isKindOf( KINDOF_STEALTH_GARRISON ) )
 				{
 					// aiExit is needed to walk away from the building well, but it doesn't take the Unstealth flag
-          StealthUpdate* stealth = rider->getStealth();
-         	if( stealth )
+					StealthUpdate* stealth = rider->getStealth();
+					if( stealth )
 					{
 						stealth->markAsDetected();
 					}
@@ -922,38 +922,38 @@ Bool OpenContain::isValidContainerFor(const Object* obj, Bool checkCapacity) con
 		return false;
 	}
 
- 	//
- 	// check relationship, note that this behavior is defined as the relation between
- 	// 'obj' and the container 'us', and not the reverse
- 	//
- 	Bool relationshipRestricted = FALSE;
- 	Relationship r = obj->getRelationship( us );
- 	switch( r )
- 	{
- 		case ALLIES:
- 			if( modData->m_allowAlliesInside == FALSE )
- 				relationshipRestricted = TRUE;
- 			break;
+	//
+	// check relationship, note that this behavior is defined as the relation between
+	// 'obj' and the container 'us', and not the reverse
+	//
+	Bool relationshipRestricted = FALSE;
+	Relationship r = obj->getRelationship( us );
+	switch( r )
+	{
+		case ALLIES:
+			if( modData->m_allowAlliesInside == FALSE )
+			relationshipRestricted = TRUE;
+			break;
 
- 		case ENEMIES:
- 			if( modData->m_allowEnemiesInside == FALSE )
- 				relationshipRestricted = TRUE;
- 			break;
+		case ENEMIES:
+			if( modData->m_allowEnemiesInside == FALSE )
+			relationshipRestricted = TRUE;
+			break;
 
- 		case NEUTRAL:
- 			if( modData->m_allowNeutralInside == FALSE )
- 				relationshipRestricted = TRUE;
- 			break;
+		case NEUTRAL:
+			if( modData->m_allowNeutralInside == FALSE )
+			relationshipRestricted = TRUE;
+			break;
 
- 		default:
- 			DEBUG_CRASH(( "isValidContainerFor: Undefined relationship (%d) between '%s' and '%s'",
- 										r, getObject()->getTemplate()->getName().str(),
- 										obj->getTemplate()->getName().str() ));
- 			return FALSE;
+		default:
+			DEBUG_CRASH(( "isValidContainerFor: Undefined relationship (%d) between '%s' and '%s'",
+				r, getObject()->getTemplate()->getName().str(),
+				obj->getTemplate()->getName().str() ));
+			return FALSE;
 
- 	}
- 	if( relationshipRestricted == TRUE )
- 		return FALSE;
+	}
+	if( relationshipRestricted == TRUE )
+	return FALSE;
 
 	// all is well
 	return true;
@@ -1184,8 +1184,8 @@ void OpenContain::exitObjectInAHurry( Object *exitObj )
 Bool OpenContain::isPassengerAllowedToFire( ObjectID id ) const
 {
 //	const OpenContainModuleData *modData = getOpenContainModuleData();
-  //this flag is owned by opencontain, now, so that the upgrade can override the template data
-  //M Lorenzen, 5/6/03
+	//this flag is owned by opencontain, now, so that the upgrade can override the template data
+	//M Lorenzen, 5/6/03
 	if( ! m_passengerAllowedToFire )
 		return FALSE;// Just no, no matter what.
 
@@ -1677,21 +1677,21 @@ Bool OpenContain::getNaturalRallyPoint( Coord3D& rallyPoint, Bool offset )  cons
 void testForAttackingProc( Object *obj, void *userData )
 {
 	Bool *info = (Bool*)userData;
-  if ( *info == TRUE )
-    return;
+	if ( *info == TRUE )
+	return;
 
-  *info = ( obj->testStatus( OBJECT_STATUS_IS_ATTACKING ) );
+	*info = ( obj->testStatus( OBJECT_STATUS_IS_ATTACKING ) );
 
 }
 
 //-------------------------------------------------------------------------------------------------
 Bool OpenContain::isAnyRiderAttacking() const
 {
-  Bool wellIsHe = FALSE;
+	Bool wellIsHe = FALSE;
 
 	((ContainModuleInterface*)this)->iterateContained(testForAttackingProc, &wellIsHe, FALSE );
 
-  return wellIsHe;
+	return wellIsHe;
 }
 
 
@@ -1886,10 +1886,10 @@ void OpenContain::xfer( Xfer *xfer )
 	xfer->xferInt( &m_whichExitPath );
 
 
-  if ( version >= 2 )
-  {
-    xfer->xferBool( &m_passengerAllowedToFire );
-  }
+	if ( version >= 2 )
+	{
+		xfer->xferBool( &m_passengerAllowedToFire );
+	}
 
 
 }
@@ -1948,7 +1948,7 @@ void OpenContain::loadPostProcess()
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_containListSize == m_containList.size(),
-										 ("OpenContain::loadPostProcess - contain list count mismatch") );
+		("OpenContain::loadPostProcess - contain list count mismatch") );
 
 	// clear the list as we don't need it anymore
 	m_xferContainIDList.clear();

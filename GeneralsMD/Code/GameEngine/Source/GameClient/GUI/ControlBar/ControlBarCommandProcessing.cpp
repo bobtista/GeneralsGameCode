@@ -102,7 +102,7 @@ CBCommandStatus ControlBar::processCommandTransitionUI( GameWindow *control, Gad
 	// sanity, we won't process messages if we have no source object
 	if( m_currContext != CB_CONTEXT_MULTI_SELECT &&
 			(m_currentSelectedDrawable == nullptr ||
-			 m_currentSelectedDrawable->getObject() == nullptr) )
+		m_currentSelectedDrawable->getObject() == nullptr) )
 	{
 
 		if( m_currContext != CB_CONTEXT_NONE &&
@@ -398,7 +398,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 
 			// sanity, we must have something to build
 			DEBUG_ASSERTCRASH( whatToBuild, ("Undefined BUILD command for object '%s'",
-												 commandButton->getThingTemplate()->getName().str()) );
+				commandButton->getThingTemplate()->getName().str()) );
 
 			CanMakeType cmt = TheBuildAssistant->canMakeUnit(factory, whatToBuild);
 
@@ -713,7 +713,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 
 			}
 
-      //what if container is subdued... assert a logic failure, perhaps?
+			//what if container is subdued... assert a logic failure, perhaps?
 
 			// send message to exit
 			GameMessage *exitMsg = TheMessageStream->appendMessage( GameMessage::MSG_EXIT );

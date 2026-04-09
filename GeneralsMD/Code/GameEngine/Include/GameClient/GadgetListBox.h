@@ -109,18 +109,18 @@ extern void GadgetListBoxSetAudioFeedback( GameWindow *listbox, Bool enable );
 // and those slider buttons and thumb
 //
 extern void GadgetListBoxSetColors( GameWindow *listbox,
-																	  Color enabledColor,
-																	  Color enabledBorderColor,
-																	  Color enabledSelectedItemColor,
-																	  Color enabledSelectedItemBorderColor,
-																	  Color disabledColor,
-																	  Color disabledBorderColor,
-																	  Color disabledSelectedItemColor,
-																	  Color disabledSelectedItemBorderColor,
-																	  Color hiliteColor,
-																	  Color hiliteBorderColor,
-																	  Color hiliteSelectedItemColor,
-																	  Color hiliteSelectedItemBorderColor );
+	Color enabledColor,
+	Color enabledBorderColor,
+	Color enabledSelectedItemColor,
+	Color enabledSelectedItemBorderColor,
+	Color disabledColor,
+	Color disabledBorderColor,
+	Color disabledSelectedItemColor,
+	Color disabledSelectedItemBorderColor,
+	Color hiliteColor,
+	Color hiliteBorderColor,
+	Color hiliteSelectedItemColor,
+	Color hiliteSelectedItemBorderColor );
 
 inline void GadgetListBoxSetEnabledImage( GameWindow *g, const Image *image )													{ g->winSetEnabledImage( 0, image ); }
 inline void GadgetListBoxSetEnabledColor( GameWindow *g, Color color )													{ g->winSetEnabledColor( 0, color ); }

@@ -71,7 +71,7 @@ WaterHandle TerrainLogic::m_gridWaterHandle;
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 Waypoint::Waypoint(WaypointID id, AsciiString name, const Coord3D *pLoc, AsciiString label1, AsciiString label2,
-									 AsciiString label3, Bool biDirectional) :
+	AsciiString label3, Bool biDirectional) :
 m_name(name),
 m_pNext(nullptr),
 m_location(*pLoc),
@@ -109,7 +109,7 @@ BridgeInfo::BridgeInfo()
 	fromRight.zero();
 	toLeft.zero();
 	toRight.zero();
-  bridgeIndex = 0;
+	bridgeIndex = 0;
 	curDamageState = BODY_PRISTINE;
 	damageStateChanged = FALSE;
 	bridgeObjectID = INVALID_ID;
@@ -122,9 +122,9 @@ BridgeInfo::BridgeInfo()
 /** Create a tower object for the bridge of the specified type (and therefore position) */
 // ------------------------------------------------------------------------------------------------
 Object *Bridge::createTower( Coord3D *worldPos,
-														 BridgeTowerType towerType,
-														 const ThingTemplate *towerTemplate,
-														 Object *bridge )
+	BridgeTowerType towerType,
+	const ThingTemplate *towerTemplate,
+	Object *bridge )
 {
 
 	// sanity
@@ -622,7 +622,7 @@ Bool LineInRegion( const Coord2D *p1, const Coord2D *p2, const Region2D *clipReg
 
 	// Line is visible
 	return (x1 >= clipLeft && x1 <= clipRight &&
-		    y1 >= clipTop && y1 <= clipBottom &&
+		y1 >= clipTop && y1 <= clipBottom &&
 			x2 >= clipLeft && x2 <= clipRight &&
 			y2 >= clipTop && y2 <= clipBottom);
 
@@ -800,13 +800,13 @@ Bool Bridge::isCellEntryPoint(const Region2D *cell)
 	Coord3D toLeft = m_bridgeInfo.toLeft;
 	toLeft.x += bridgeVector.x;
 	toLeft.y += bridgeVector.y;
- 	toLeft.x += endVector.x;
+	toLeft.x += endVector.x;
 	toLeft.y += endVector.y;
 
 	Coord3D toRight = m_bridgeInfo.toRight;
 	toRight.x += bridgeVector.x;
 	toRight.y += bridgeVector.y;
- 	toRight.x -= endVector.x;
+	toRight.x -= endVector.x;
 	toRight.y -= endVector.y;
 
 /*	if (PointInRegion2D(&fromLeft, cell)) return false;
@@ -1027,11 +1027,11 @@ void TerrainLogic::update()
 	{
 		const WaterHandle *water;
 		Real changePerFrame,
-				 damageAmount,
-				 targetHeight,
-				 currentHeight;
+			damageAmount,
+			targetHeight,
+			currentHeight;
 		Bool finalTransition,
-				 doDamageThisFrame = (TheGameLogic->getFrame() % LOGICFRAMES_PER_SECOND) == 0;
+			doDamageThisFrame = (TheGameLogic->getFrame() % LOGICFRAMES_PER_SECOND) == 0;
 
 		for( Int i = m_numWaterToUpdate - 1; i >= 0; --i )
 		{
@@ -1218,10 +1218,10 @@ void TerrainLogic::enableWaterGrid( Bool enable )
 																								TheGlobalData->m_vertexWaterHeightClampLow[ waterSettingIndex ],
 																								TheGlobalData->m_vertexWaterHeightClampHi[ waterSettingIndex ] );
 		TheTerrainVisual->setWaterTransform( nullptr,
-																				 TheGlobalData->m_vertexWaterAngle[ waterSettingIndex ],
-																				 TheGlobalData->m_vertexWaterXPosition[ waterSettingIndex ],
-																				 TheGlobalData->m_vertexWaterYPosition[ waterSettingIndex ],
-																				 TheGlobalData->m_vertexWaterZPosition[ waterSettingIndex ] );
+			TheGlobalData->m_vertexWaterAngle[ waterSettingIndex ],
+			TheGlobalData->m_vertexWaterXPosition[ waterSettingIndex ],
+			TheGlobalData->m_vertexWaterYPosition[ waterSettingIndex ],
+			TheGlobalData->m_vertexWaterZPosition[ waterSettingIndex ] );
 		TheTerrainVisual->setWaterGridResolution( nullptr,
 																							TheGlobalData->m_vertexWaterXGridCells[ waterSettingIndex ],
 																							TheGlobalData->m_vertexWaterYGridCells[ waterSettingIndex ],
@@ -2012,8 +2012,8 @@ void TerrainLogic::deleteBridge( Bridge *bridge )
 	{
 
 		for( Bridge *otherBridge = getFirstBridge();
-				 otherBridge;
-				 otherBridge = otherBridge->getNext() )
+		otherBridge;
+		otherBridge = otherBridge->getNext() )
 		{
 
 			//
@@ -2140,12 +2140,12 @@ Bool TerrainLogic::isUnderwater( Real x, Real y, Real *waterZ, Real *terrainZ )
 
 	// if no water here, no height, no nuttin
 	if( waterHandle == nullptr )
-  {
-    // but we have to return the terrain Z if requested!
-    if (terrainZ)
-      *terrainZ=getGroundHeight(x,y);
+	{
+		// but we have to return the terrain Z if requested!
+		if (terrainZ)
+		*terrainZ=getGroundHeight(x,y);
 		return FALSE;
-  }
+	}
 
 	//
 	// if this water handle is a grid water use the grid height function, otherwise look into
@@ -2185,8 +2185,8 @@ const WaterHandle* TerrainLogic::getWaterHandle( Real x, Real y )
 
 	// Look for water areas in the polygon triggers
 	for( PolygonTrigger *pTrig = PolygonTrigger::getFirstPolygonTrigger();
-			 pTrig;
-			 pTrig = pTrig->getNext() )
+	pTrig;
+	pTrig = pTrig->getNext() )
 	{
 
 		if( !pTrig->isWaterArea() )
@@ -2288,7 +2288,7 @@ Real TerrainLogic::getWaterHeight( const WaterHandle *water )
 	* underwater will be damaged by the amount provided in the parameter 'damageAmount' */
 // ------------------------------------------------------------------------------------------------
 void TerrainLogic::setWaterHeight( const WaterHandle *water, Real height, Real damageAmount,
-																	 Bool forcePathfindUpdate )
+	Bool forcePathfindUpdate )
 {
 
 	// sanity
@@ -2370,13 +2370,13 @@ void TerrainLogic::setWaterHeight( const WaterHandle *water, Real height, Real d
 
 		// the max radius to scan around us is the diagonal of the bounding region
 		Real maxDist = sqrt( affectedRegion.width() * affectedRegion.width() +
-												 affectedRegion.height() * affectedRegion.height() );
+			affectedRegion.height() * affectedRegion.height() );
 
 		// scan the objects in the area of the water affected
 		ObjectIterator *iter = ThePartitionManager->iterateObjectsInRange( &center,
-																																			 maxDist,
-																																			 FROM_CENTER_2D,
-																																			 nullptr );
+			maxDist,
+			FROM_CENTER_2D,
+			nullptr );
 		MemoryPoolObjectHolder hold( iter );
 		Object *obj;
 		const Coord3D *objPos;
@@ -2457,7 +2457,7 @@ void TerrainLogic::changeWaterHeightOverTime( const WaterHandle *water,
 	// add the entry into the array of water to update
 	m_waterToUpdate[ m_numWaterToUpdate ].waterTable = water;
 	m_waterToUpdate[ m_numWaterToUpdate ].changePerFrame = (finalHeight - currentHeight) /
-																												 (LOGICFRAMES_PER_SECOND * transitionTimeInSeconds);
+		(LOGICFRAMES_PER_SECOND * transitionTimeInSeconds);
 	m_waterToUpdate[ m_numWaterToUpdate ].targetHeight = finalHeight;
 	m_waterToUpdate[ m_numWaterToUpdate ].damageAmount = damageAmount;
 	m_waterToUpdate[ m_numWaterToUpdate ].currentHeight = currentHeight;
@@ -2859,43 +2859,43 @@ void TerrainLogic::createCraterInTerrain(Object *obj)
 		return;
 
 	const Coord3D *pos = obj->getPosition();
-  Real radius = obj->getGeometryInfo().getMajorRadius();
+	Real radius = obj->getGeometryInfo().getMajorRadius();
 
-  if ( radius <= 0.0f )
-    return; // sanity
+	if ( radius <= 0.0f )
+	return; // sanity
 
-  ICoord2D iMin, iMax;
-  iMin.x = REAL_TO_INT_FLOOR( ( pos->x - radius ) / MAP_XY_FACTOR );
-  iMin.y = REAL_TO_INT_FLOOR( ( pos->y - radius ) / MAP_XY_FACTOR );
-  iMax.x = REAL_TO_INT_FLOOR( ( pos->x + radius ) / MAP_XY_FACTOR );
+	ICoord2D iMin, iMax;
+	iMin.x = REAL_TO_INT_FLOOR( ( pos->x - radius ) / MAP_XY_FACTOR );
+	iMin.y = REAL_TO_INT_FLOOR( ( pos->y - radius ) / MAP_XY_FACTOR );
+	iMax.x = REAL_TO_INT_FLOOR( ( pos->x + radius ) / MAP_XY_FACTOR );
 	iMax.y = REAL_TO_INT_FLOOR( ( pos->y + radius ) / MAP_XY_FACTOR );
 
-  Real deltaX, deltaY;
+	Real deltaX, deltaY;
 
 	for (Int i = iMin.x; i <= iMax.x; i++ )
-  {
+	{
 		for ( Int j=0; j <= iMax.y; j++ )
-    {
+		{
 			deltaX = ( i * MAP_XY_FACTOR ) - pos->x;
 			deltaY = ( j * MAP_XY_FACTOR ) - pos->y;
 
-      Real distance = sqrt( sqr( deltaX ) + sqr( deltaY ) );
+			Real distance = sqrt( sqr( deltaX ) + sqr( deltaY ) );
 
 			if ( distance < radius ) //inside circle
-      {
+			{
 				ICoord2D gridPos;
 				gridPos.x = i;
 				gridPos.y = j;
 
 
-        Real displacementAmount = radius * (1.0f - distance / radius );
+				Real displacementAmount = radius * (1.0f - distance / radius );
 
-        Int targetHeight = MAX( 1, TheTerrainVisual->getRawMapHeight( &gridPos ) - displacementAmount );
+				Int targetHeight = MAX( 1, TheTerrainVisual->getRawMapHeight( &gridPos ) - displacementAmount );
 
 				TheTerrainVisual->setRawMapHeight( &gridPos, targetHeight );
 			}
-    }
-  }
+		}
+	}
 
 }
 

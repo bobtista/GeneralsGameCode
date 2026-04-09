@@ -92,8 +92,8 @@ enum SpecialPowerType CPP_11(: Int)
 	// don't forget to add new strings to SpecialPowerMaskType::s_bitNameList[]
 	SPECIAL_LAUNCH_BAIKONUR_ROCKET,
 
-  SPECIAL_SPECTRE_GUNSHIP,
-  SPECIAL_GPS_SCRAMBLER,
+		SPECIAL_SPECTRE_GUNSHIP,
+		SPECIAL_GPS_SCRAMBLER,
 
 	SPECIAL_FRENZY,
 	SPECIAL_SNEAK_ATTACK,

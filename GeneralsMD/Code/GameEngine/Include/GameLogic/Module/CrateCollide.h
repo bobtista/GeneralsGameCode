@@ -92,11 +92,11 @@ enum SabotageVictimType CPP_11(: Int)
 	virtual Bool wouldLikeToCollideWith(const Object* other) const override { return isValidToExecute(other); }
 
 	virtual Bool isRailroad() const override { return FALSE;};
- 	virtual Bool isCarBombCrateCollide() const override { return FALSE; }
+	virtual Bool isCarBombCrateCollide() const override { return FALSE; }
 	virtual Bool isHijackedVehicleCrateCollide() const override { return FALSE; }
 	virtual Bool isSabotageBuildingCrateCollide() const override { return FALSE; }
 
-  void doSabotageFeedbackFX( const Object *other, SabotageVictimType type = SAB_VICTIM_GENERIC );
+	void doSabotageFeedbackFX( const Object *other, SabotageVictimType type = SAB_VICTIM_GENERIC );
 
 protected:
 

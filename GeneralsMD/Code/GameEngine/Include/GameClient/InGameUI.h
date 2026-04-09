@@ -123,8 +123,8 @@ static const char *const TheRadiusCursorNames[] =
 	"DAISYCUTTER",
 	"PARADROP",
 	"SPYSATELLITE",
-  "SPECTREGUNSHIP",
-  "HELIX_NAPALM_BOMB",
+	"SPECTREGUNSHIP",
+	"HELIX_NAPALM_BOMB",
 
 	"NUCLEARMISSILE",
 	"EMPPULSE",
@@ -186,7 +186,7 @@ public:
 		Bool hiddenByScript,
 		Bool hiddenByScience,
 		Bool ready,
-    Bool evaReadyPlayed,
+		Bool evaReadyPlayed,
 		const AsciiString& superweaponNormalFont,
 		Int superweaponNormalPointSize,
 		Bool superweaponNormalBold,
@@ -207,10 +207,10 @@ public:
 	UnsignedInt									m_timestamp;									  ///< seconds shown in display string
 	Bool												m_hiddenByScript;
 	Bool												m_hiddenByScience;
- 	Bool												m_ready;											///< Stores if we were ready last draw, since readiness can change without time changing
-  Bool                        m_evaReadyPlayed;             ///< Stores if Eva announced superweapon is ready
+	Bool												m_ready;											///< Stores if we were ready last draw, since readiness can change without time changing
+	Bool                        m_evaReadyPlayed;             ///< Stores if Eva announced superweapon is ready
 // not saved, but public
- 	Bool												m_forceUpdateText;
+	Bool												m_forceUpdateText;
 
 };
 
@@ -484,7 +484,7 @@ public:  // ********************************************************************
 	virtual void stopCameoMovie();
 	virtual VideoBuffer* cameoVideoBuffer();
 
-  // mouse over information
+	// mouse over information
 	virtual DrawableID getMousedOverDrawableID() const;	///< Get drawble ID of drawable under cursor
 
 	/// Set the ingame flag as to if we have the Quit menu up or not
@@ -553,12 +553,12 @@ public:  // ********************************************************************
 	void setCameraRotateRight( Bool set )		{ m_cameraRotatingRight = set; }
 	void setCameraZoomIn( Bool set )				{ m_cameraZoomingIn = set; }
 	void setCameraZoomOut( Bool set )				{ m_cameraZoomingOut = set; }
-  void setCameraTrackingDrawable( Bool set ) { m_cameraTrackingDrawable = set; }
+	void setCameraTrackingDrawable( Bool set ) { m_cameraTrackingDrawable = set; }
 	Bool isCameraRotatingLeft() const { return m_cameraRotatingLeft; }
 	Bool isCameraRotatingRight() const { return m_cameraRotatingRight; }
 	Bool isCameraZoomingIn() const { return m_cameraZoomingIn; }
 	Bool isCameraZoomingOut() const { return m_cameraZoomingOut; }
-  Bool isCameraTrackingDrawable() const { return m_cameraTrackingDrawable; }
+	Bool isCameraTrackingDrawable() const { return m_cameraTrackingDrawable; }
 	void resetCamera();
 
 	virtual void addIdleWorker( Object *obj );
@@ -603,7 +603,7 @@ public:
 	void registerWindowLayout(WindowLayout *layout); // register a layout for updates
 	void unregisterWindowLayout(WindowLayout *layout); // stop updates for this layout
 
-  void triggerDoubleClickAttackMoveGuardHint();
+	void triggerDoubleClickAttackMoveGuardHint();
 
 
 public:
@@ -746,8 +746,8 @@ protected:
 	Int													m_maxSelectCount;												///< Max number of objects to select
 	UnsignedInt									m_frameSelectionChanged;								///< Frame when the selection last changed.
 
-  Int                         m_duringDoubleClickAttackMoveGuardHintTimer; ///< Frames left to draw the doubleClickFeedbackTimer
-  Coord3D                     m_duringDoubleClickAttackMoveGuardHintStashedPosition;
+	Int                         m_duringDoubleClickAttackMoveGuardHintTimer; ///< Frames left to draw the doubleClickFeedbackTimer
+	Coord3D                     m_duringDoubleClickAttackMoveGuardHintStashedPosition;
 
 	// Video playback data
 	VideoBuffer*								m_videoBuffer;			///< video playback buffer
@@ -942,7 +942,7 @@ protected:
 	PopupMessageData *					m_popupMessageData;
 	Color												m_popupMessageColor;
 
- 	Bool												m_waypointMode;			///< are we in waypoint plotting mode?
+	Bool												m_waypointMode;			///< are we in waypoint plotting mode?
 	Bool												m_forceAttackMode;		///< are we in force attack mode?
 	Bool												m_forceMoveToMode;		///< are we in force move mode?
 	Bool												m_attackMoveToMode;	///< are we in attack move mode?

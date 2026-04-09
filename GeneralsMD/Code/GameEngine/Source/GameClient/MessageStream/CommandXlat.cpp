@@ -329,40 +329,40 @@ static CanAttackResult canObjectForceAttack( Object *obj, const Object *victim, 
 
 		//Special case -- objects with spawn weapons have to do different checks. Stinger site with stinger soldiers is
 		//the catalyst example.
-    if ( obj->isKindOf( KINDOF_SPAWNS_ARE_THE_WEAPONS ) )
-    {
-      if( result != ATTACKRESULT_POSSIBLE && result != ATTACKRESULT_POSSIBLE_AFTER_MOVING )
-		  {
-			  SpawnBehaviorInterface *spawnInterface = obj->getSpawnBehaviorInterface();
-			  if( spawnInterface )
-			  {
-				  //We found the spawn interface, now get the closest slave to the target.
-				  Object *slave = spawnInterface->getClosestSlave( victim->getPosition() );
-				  if( slave )
-				  {
-					  result = slave->getAbleToAttackSpecificObject( ATTACK_NEW_TARGET_FORCED, victim, CMD_FROM_PLAYER );
-				  }
-			  }
-		  }
-      else // oh dear me. The weird case of a garrisoncontainer being a KINDOF_SPAWNS_ARE_THE_WEAPONS... the AmericaBuildingFirebase
-      {
-        ContainModuleInterface *contain = obj->getContain();
-        if ( contain )
-        {
-          Object *rider = contain->getClosestRider( victim->getPosition() );
-          if ( rider )
-          {
-            result = rider->getAbleToAttackSpecificObject( ATTACK_NEW_TARGET_FORCED, victim, CMD_FROM_PLAYER );
-            if( result != ATTACKRESULT_NOT_POSSIBLE )
-              return result;
-          }
-        }
-      }
+		if ( obj->isKindOf( KINDOF_SPAWNS_ARE_THE_WEAPONS ) )
+		{
+			if( result != ATTACKRESULT_POSSIBLE && result != ATTACKRESULT_POSSIBLE_AFTER_MOVING )
+			{
+				SpawnBehaviorInterface *spawnInterface = obj->getSpawnBehaviorInterface();
+				if( spawnInterface )
+				{
+					//We found the spawn interface, now get the closest slave to the target.
+					Object *slave = spawnInterface->getClosestSlave( victim->getPosition() );
+					if( slave )
+					{
+						result = slave->getAbleToAttackSpecificObject( ATTACK_NEW_TARGET_FORCED, victim, CMD_FROM_PLAYER );
+					}
+				}
+			}
+			else // oh dear me. The weird case of a garrisoncontainer being a KINDOF_SPAWNS_ARE_THE_WEAPONS... the AmericaBuildingFirebase
+			{
+				ContainModuleInterface *contain = obj->getContain();
+				if ( contain )
+				{
+					Object *rider = contain->getClosestRider( victim->getPosition() );
+					if ( rider )
+					{
+						result = rider->getAbleToAttackSpecificObject( ATTACK_NEW_TARGET_FORCED, victim, CMD_FROM_PLAYER );
+						if( result != ATTACKRESULT_NOT_POSSIBLE )
+						return result;
+					}
+				}
+			}
 
-    }
+		}
 
 
-    return result;
+		return result;
 	}
 	else
 	{
@@ -385,20 +385,20 @@ static CanAttackResult canObjectForceAttack( Object *obj, const Object *victim, 
 						testObj = slave;
 					}
 				}
-        else
-        {
-    			result = obj->getAbleToUseWeaponAgainstTarget( ATTACK_NEW_TARGET, nullptr, pos, CMD_FROM_PLAYER );
-          if( result != ATTACKRESULT_POSSIBLE ) // oh dear me. The weird case of a garrisoncontainer being a KINDOF_SPAWNS_ARE_THE_WEAPONS... the AmericaBuildingFirebase
-          {
-            ContainModuleInterface *contain = obj->getContain();
-            if ( contain )
-            {
-              Object *rider = contain->getClosestRider( pos );
-              if ( rider )
-                testObj = rider;
-            }
-          }
-        }
+				else
+				{
+					result = obj->getAbleToUseWeaponAgainstTarget( ATTACK_NEW_TARGET, nullptr, pos, CMD_FROM_PLAYER );
+					if( result != ATTACKRESULT_POSSIBLE ) // oh dear me. The weird case of a garrisoncontainer being a KINDOF_SPAWNS_ARE_THE_WEAPONS... the AmericaBuildingFirebase
+					{
+						ContainModuleInterface *contain = obj->getContain();
+						if ( contain )
+						{
+							Object *rider = contain->getClosestRider( pos );
+							if ( rider )
+							testObj = rider;
+						}
+					}
+				}
 			}
 			//Now evaluate the testObj again to see if it is capable of force attacking the pos.
 			result = testObj->getAbleToUseWeaponAgainstTarget( ATTACK_NEW_TARGET, nullptr, pos, CMD_FROM_PLAYER );
@@ -766,20 +766,20 @@ void pickAndPlayUnitVoiceResponse( const DrawableList *list, GameMessage::Type m
 							break;
 						//these are specific to the guicommand based ground attacks, the toxin sprinkler and the firestorm wall thing
 						//hence the additional check for it being a non-primary weapon
- 						case DAMAGE_FLAME:
+						case DAMAGE_FLAME:
 							if (weapon->getWeaponSlot() != PRIMARY_WEAPON)
 							{
- 								soundToPlayPtr = templ->getPerUnitSound( "VoiceFlameLocation" );
- 								objectWithSound = obj;
+								soundToPlayPtr = templ->getPerUnitSound( "VoiceFlameLocation" );
+								objectWithSound = obj;
 							}
- 							break;
- 						case DAMAGE_POISON:
+							break;
+						case DAMAGE_POISON:
 							if (weapon->getWeaponSlot() != PRIMARY_WEAPON)
 							{
- 								soundToPlayPtr = templ->getPerUnitSound( "VoicePoisonLocation" );
- 								objectWithSound = obj;
+								soundToPlayPtr = templ->getPerUnitSound( "VoicePoisonLocation" );
+								objectWithSound = obj;
 							}
- 							break;
+							break;
 						default:
 							if( !weapon->getName().compare( "ComancheRocketPodWeapon" ) )
 							{
@@ -1004,7 +1004,7 @@ static Object *iNeedAHero()
  * Create DO_MOVE_TO messages for each selected object, instructing it to move to the given location.
  */
 GameMessage::Type CommandTranslator::issueMoveToLocationCommand( const Coord3D *pos, Drawable *drawableInWay,
-																																 CommandEvaluateType commandType )
+	CommandEvaluateType commandType )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
 	Object *obj = drawableInWay ? drawableInWay->getObject() : nullptr;
@@ -1102,8 +1102,8 @@ GameMessage::Type CommandTranslator::createAttackMessage( Drawable *draw,
  * Return TRUE if any attacks actually occurred.
  */
 GameMessage::Type CommandTranslator::issueAttackCommand( Drawable *target,
-																												 CommandEvaluateType commandType,
-																												 GUICommandType command )
+	CommandEvaluateType commandType,
+	GUICommandType command )
 {
 	GameMessage::Type msgType = GameMessage::MSG_INVALID;
 
@@ -1383,7 +1383,7 @@ GameMessage::Type CommandTranslator::issueFireWeaponCommand( const CommandButton
 				PickAndPlayInfo info;
 				WeaponSlotType slot = command->getWeaponSlot();
 				info.m_weaponSlot = &slot;
- 				pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_WEAPON_AT_OBJECT, &info );
+				pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_WEAPON_AT_OBJECT, &info );
 			}
 		}
 	}
@@ -1421,7 +1421,7 @@ GameMessage::Type CommandTranslator::issueFireWeaponCommand( const CommandButton
 
 //-------------------------------------------------------------------------------------------------
 GameMessage::Type CommandTranslator::createEnterMessage( Drawable *enter,
-																												 CommandEvaluateType commandType )
+	CommandEvaluateType commandType )
 {
 	GameMessage::Type msgType = GameMessage::MSG_ENTER;
 
@@ -1564,8 +1564,8 @@ GameMessage::Type CommandTranslator::evaluateForceAttack( Drawable *draw, const 
 	* NOTE: draw can be null, in which case we give a hint for the location */
 // ------------------------------------------------------------------------------------------------
 GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
-																														 const Coord3D *pos,
-																														 CommandEvaluateType type )
+	const Coord3D *pos,
+	CommandEvaluateType type )
 {
 	Object *obj = draw ? draw->getObject() : nullptr;
 	Drawable *drawableInWay = draw;
@@ -1801,7 +1801,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 
 		}
 		else if( command && (command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_CONSTRUCT
-						 || command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_CONSTRUCT_FROM_SHORTCUT) )
+			|| command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_CONSTRUCT_FROM_SHORTCUT) )
 		{
 			//We're using the build placement interface to determine where to build our special power item.
 			//Because of that, we only care about DO_COMMAND. The context evaluation and hint feedback system
@@ -1857,7 +1857,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_RESUME_CONSTRUCTION, obj, InGameUI::SELECTION_ANY ) )
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_RESUME_CONSTRUCTION, obj, InGameUI::SELECTION_ANY ) )
 		{
 
 			if( type == DO_COMMAND || type == EVALUATE_ONLY )
@@ -1889,7 +1889,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DOCK_AT,
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_DOCK_AT,
 																											obj,
 																											InGameUI::SELECTION_ALL ) )
 		{
@@ -1909,8 +1909,8 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 
 					dockMsg->appendObjectIDArgument( obj->getID() );
 
- 					// only make sounds if we really did the command messages
- 					pickAndPlayUnitVoiceResponse(TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DOCK);
+					// only make sounds if we really did the command messages
+					pickAndPlayUnitVoiceResponse(TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DOCK);
 				}
 
 			}
@@ -1927,7 +1927,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_REPAIR_OBJECT, obj, InGameUI::SELECTION_ANY ) )
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_REPAIR_OBJECT, obj, InGameUI::SELECTION_ANY ) )
 		{
 
 			if( type == DO_COMMAND || type == EVALUATE_ONLY )
@@ -1993,7 +1993,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_HEALED_AT, obj, InGameUI::SELECTION_ANY ) )
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_GET_HEALED_AT, obj, InGameUI::SELECTION_ANY ) )
 		{
 
 			if( type == DO_COMMAND || type == EVALUATE_ONLY )
@@ -2025,7 +2025,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && draw->getObject() && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_HIJACK_VEHICLE,
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_HIJACK_VEHICLE,
 																											draw->getObject(),
 																											InGameUI::SELECTION_ANY ) )
 		{
@@ -2034,8 +2034,8 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 			{
 
 				// Now, this just tricks the AI  into making the hijacker run towards the target vehicle
-        // I must add a test to keep him from actually entering an enemy vehicle (contained)... Lorenzen
-        msgType = createEnterMessage( draw, type );
+				// I must add a test to keep him from actually entering an enemy vehicle (contained)... Lorenzen
+				msgType = createEnterMessage( draw, type );
 
 			}
 			else
@@ -2050,7 +2050,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CONVERT_OBJECT_TO_CARBOMB, obj, InGameUI::SELECTION_ANY ) )
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_CONVERT_OBJECT_TO_CARBOMB, obj, InGameUI::SELECTION_ANY ) )
 		{
 
 			if( type == DO_COMMAND || type == EVALUATE_ONLY )
@@ -2071,14 +2071,14 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && draw->getObject() && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_SABOTAGE_BUILDING,
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_SABOTAGE_BUILDING,
 																											draw->getObject(),
 																											InGameUI::SELECTION_ANY ) )
 		{
 
 			if( type == DO_COMMAND || type == EVALUATE_ONLY )
 			{
-        msgType = createEnterMessage( draw, type );
+				msgType = createEnterMessage( draw, type );
 			}
 			else
 			{
@@ -2110,7 +2110,7 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 		}
 		// ********************************************************************************************
 		else if( draw && !TheInGameUI->isInForceAttackMode() &&
-						 TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_ENTER_OBJECT, obj, InGameUI::SELECTION_ANY, true ) )
+			TheInGameUI->canSelectedObjectsDoAction( InGameUI::ACTIONTYPE_ENTER_OBJECT, obj, InGameUI::SELECTION_ANY, true ) )
 		{
 
 			if( type == DO_COMMAND || type == EVALUATE_ONLY )
@@ -2407,25 +2407,25 @@ GameMessage::Type CommandTranslator::evaluateContextCommand( Drawable *draw,
 					Object *obj = (*it) ? (*it)->getObject() : nullptr;
 					AIUpdateInterface *ai = obj ? obj->getAI() : nullptr;
 					if( ai )
-          {
-            if ( ai->isQuickPathAvailable( pos ) )
-					  {
-						  validQuickPath = TRUE;
-						  break;
-					  }
-            // Wait! there are some units that CAN moveTo positions that Quickpath will reject,
-            // namely, Colonel Burton and the CombatBike. Both have CLIFF locomotors.
-            // We must detect whether the position is valid for these, before just invalidating the cursor,
-            // out of hand.
-            if ( ai->hasLocomotorForSurface( LOCOMOTORSURFACE_CLIFF ) )
-            {
-              if ( TheTerrainLogic->isCliffCell( pos->x, pos->y ) )
-              {
-						    validQuickPath = TRUE;// yeah, not really quick, but you know...
-						    break;
-              }
-            }
-          }
+				{
+					if ( ai->isQuickPathAvailable( pos ) )
+					{
+						validQuickPath = TRUE;
+						break;
+					}
+					// Wait! there are some units that CAN moveTo positions that Quickpath will reject,
+					// namely, Colonel Burton and the CombatBike. Both have CLIFF locomotors.
+					// We must detect whether the position is valid for these, before just invalidating the cursor,
+					// out of hand.
+					if ( ai->hasLocomotorForSurface( LOCOMOTORSURFACE_CLIFF ) )
+					{
+						if ( TheTerrainLogic->isCliffCell( pos->x, pos->y ) )
+						{
+							validQuickPath = TRUE;// yeah, not really quick, but you know...
+							break;
+						}
+					}
+				}
 
 
 				}
@@ -2933,7 +2933,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 						{
 							const Object *tempObject = temp->getObject();
 							if( tempObject && !temp->isSelected() && tempObject->isMobile()
-								  && tempObject->isLocallyControlled() && !tempObject->isContained() && tempObject->isKindOf( KINDOF_DOZER ) )
+								&& tempObject->isLocallyControlled() && !tempObject->isContained() && tempObject->isKindOf( KINDOF_DOZER ) )
 							{
 								newDrawable = temp;
 								break;
@@ -3456,7 +3456,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		case GameMessage::MSG_META_TOGGLE_CAMERA_TRACKING_DRAWABLE:
 			TheInGameUI->setCameraTrackingDrawable( true );
 			break;
-        //--------------------------------------------------------------------------------------
+		//--------------------------------------------------------------------------------------
 		case GameMessage::MSG_META_TOGGLE_FAST_FORWARD_REPLAY:
 		{
 			if( TheGlobalData )
@@ -3510,15 +3510,15 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 		}
 
 #if defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)//may be defined in GameCommon.h
-    case GameMessage::MSG_CHEAT_RUNSCRIPT1:
-    case GameMessage::MSG_CHEAT_RUNSCRIPT2:
-    case GameMessage::MSG_CHEAT_RUNSCRIPT3:
-    case GameMessage::MSG_CHEAT_RUNSCRIPT4:
-    case GameMessage::MSG_CHEAT_RUNSCRIPT5:
-    case GameMessage::MSG_CHEAT_RUNSCRIPT6:
-    case GameMessage::MSG_CHEAT_RUNSCRIPT7:
-    case GameMessage::MSG_CHEAT_RUNSCRIPT8:
-    case GameMessage::MSG_CHEAT_RUNSCRIPT9:
+		case GameMessage::MSG_CHEAT_RUNSCRIPT1:
+		case GameMessage::MSG_CHEAT_RUNSCRIPT2:
+		case GameMessage::MSG_CHEAT_RUNSCRIPT3:
+		case GameMessage::MSG_CHEAT_RUNSCRIPT4:
+		case GameMessage::MSG_CHEAT_RUNSCRIPT5:
+		case GameMessage::MSG_CHEAT_RUNSCRIPT6:
+		case GameMessage::MSG_CHEAT_RUNSCRIPT7:
+		case GameMessage::MSG_CHEAT_RUNSCRIPT8:
+		case GameMessage::MSG_CHEAT_RUNSCRIPT9:
 		{
 			if ( !TheGameLogic->isInMultiplayerGame() )
 			{
@@ -3534,8 +3534,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			}
 			break;
 		}
-    //--------------------------------------------------------------------------------------
-    case GameMessage::MSG_CHEAT_TOGGLE_SPECIAL_POWER_DELAYS:
+		//--------------------------------------------------------------------------------------
+		case GameMessage::MSG_CHEAT_TOGGLE_SPECIAL_POWER_DELAYS:
 		{
 			if ( !TheGameLogic->isInMultiplayerGame() )
 			{
@@ -3556,8 +3556,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			break;
 
 		}
-    //--------------------------------------------------------------------------------------
-    case GameMessage::MSG_CHEAT_SWITCH_TEAMS:
+		//--------------------------------------------------------------------------------------
+		case GameMessage::MSG_CHEAT_SWITCH_TEAMS:
 		{
 			if ( !TheGameLogic->isInMultiplayerGame() )
 			{
@@ -3591,8 +3591,8 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			}
 			break;
 		}
-    //--------------------------------------------------------------------------------------
-    case GameMessage::MSG_CHEAT_KILL_SELECTION:
+		//--------------------------------------------------------------------------------------
+		case GameMessage::MSG_CHEAT_KILL_SELECTION:
 		{
 			if ( !TheGameLogic->isInMultiplayerGame() )
 			{
@@ -3602,7 +3602,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			}
 			break;
 		}
-    case GameMessage::MSG_CHEAT_INSTANT_BUILD:
+		case GameMessage::MSG_CHEAT_INSTANT_BUILD:
 		{
 			if ( !TheGameLogic->isInMultiplayerGame() )
 			{
@@ -3619,7 +3619,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			}
 			break;
 		}
-    case GameMessage::MSG_CHEAT_ADD_CASH:
+		case GameMessage::MSG_CHEAT_ADD_CASH:
 		{
 			if ( !TheGameLogic->isInMultiplayerGame() )
 			{
@@ -3630,7 +3630,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			}
 			break;
 		}
-    case GameMessage::MSG_CHEAT_GIVE_ALL_SCIENCES:
+		case GameMessage::MSG_CHEAT_GIVE_ALL_SCIENCES:
 		{
 			if ( !TheGameLogic->isInMultiplayerGame() )
 			{
@@ -3644,7 +3644,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			}
 			break;
 		}
-    case GameMessage::MSG_CHEAT_GIVE_SCIENCEPURCHASEPOINTS:
+		case GameMessage::MSG_CHEAT_GIVE_SCIENCEPURCHASEPOINTS:
 		{
 			if ( !TheGameLogic->isInMultiplayerGame() )
 			{
@@ -3941,7 +3941,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 				ThePlayerList->getLocalPlayer()->getAcademyStats()->recordDoubleClickAttackMoveOrderGiven();
 
-        TheInGameUI->triggerDoubleClickAttackMoveGuardHint();
+				TheInGameUI->triggerDoubleClickAttackMoveGuardHint();
 
 				break;
 			}
@@ -4012,7 +4012,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 				ThePlayerList->getLocalPlayer()->getAcademyStats()->recordDoubleClickAttackMoveOrderGiven();
 
-        TheInGameUI->triggerDoubleClickAttackMoveGuardHint();
+				TheInGameUI->triggerDoubleClickAttackMoveGuardHint();
 
 				break;
 			}
@@ -4036,9 +4036,9 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 			const CommandButton *command = TheInGameUI->getGUICommand();
 			// maintain this as the list of GUI button initiated commands that fire with left click in alt mouse mode
-  			Bool isFiringGUICommand = (command	&& (command->getCommandType() == GUI_COMMAND_SPECIAL_POWER
-  												|| command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT
- 												|| command->getCommandType() == GUI_COMMAND_FIRE_WEAPON
+			Bool isFiringGUICommand = (command	&& (command->getCommandType() == GUI_COMMAND_SPECIAL_POWER
+				|| command->getCommandType() == GUI_COMMAND_SPECIAL_POWER_FROM_SHORTCUT
+				|| command->getCommandType() == GUI_COMMAND_FIRE_WEAPON
 												|| command->getCommandType() == GUI_COMMAND_COMBATDROP
 												|| command->getCommandType() == GUICOMMANDMODE_HIJACK_VEHICLE
 												|| command->getCommandType() == GUICOMMANDMODE_CONVERT_TO_CARBOMB));
@@ -4082,7 +4082,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 #ifdef ALLOW_ALT_F4
 		case GameMessage::MSG_META_DEMO_INSTANT_QUIT:
-    {
+		{
 			if (TheGameLogic->isInGame())
 			{
 				if (TheRecorder->getMode() == RECORDERMODETYPE_RECORD)
@@ -4094,7 +4094,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 			TheGameEngine->setQuitting(TRUE);
 			disp = DESTROY_MESSAGE;
 			break;
-    }
+		}
 #endif
 
 
@@ -4777,7 +4777,7 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 			disp = DESTROY_MESSAGE;
 			break;
-    }
+		}
 
 		//------------------------------------------------------------------------------- DEMO MESSAGES
 		//-----------------------------------------------------------------------------------------
@@ -5243,19 +5243,19 @@ GameMessageDisposition CommandTranslator::translateGameMessage(const GameMessage
 
 			break;
 
-    //------------------------------------------------------------------------------- DEMO MESSAGES
-    //-----------------------------------------------------------------------------------------
-    case GameMessage::MSG_META_DEBUG_SHOW_AUDIO_LOCATIONS:
-      TheWritableGlobalData->m_showAudioLocations = 1 - TheGlobalData->m_showAudioLocations;
+		//------------------------------------------------------------------------------- DEMO MESSAGES
+		//-----------------------------------------------------------------------------------------
+		case GameMessage::MSG_META_DEBUG_SHOW_AUDIO_LOCATIONS:
+			TheWritableGlobalData->m_showAudioLocations = 1 - TheGlobalData->m_showAudioLocations;
 
 			if (TheGlobalData->m_showAudioLocations)
 				TheInGameUI->messageNoFormat( TheGameText->FETCH_OR_SUBSTITUTE("GUI:DebugAudioLocationsOn", L"Show Audio Locations is ON") );
 			else
 				TheInGameUI->messageNoFormat( TheGameText->FETCH_OR_SUBSTITUTE("GUI:DebugAudioLocationsOff", L"Show Audio Locations is OFF") );
 
-      break;
+			break;
 
-    //------------------------------------------------------------------------------- DEMO MESSAGES
+		//------------------------------------------------------------------------------- DEMO MESSAGES
 		//-----------------------------------------------------------------------------------------
 		case GameMessage::MSG_META_DEBUG_SHOW_HEALTH:
 		{

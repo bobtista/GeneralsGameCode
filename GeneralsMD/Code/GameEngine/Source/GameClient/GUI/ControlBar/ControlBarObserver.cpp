@@ -165,7 +165,7 @@ void ControlBar::setObservedPlayer(Player *player)
 /** System callback for the ControlBarObserverSystem */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType ControlBarObserverSystem( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	static NameKeyType buttonCommunicator = NAMEKEY_INVALID;
 

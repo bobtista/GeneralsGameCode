@@ -114,7 +114,7 @@ void WOLCustomScoreScreenUpdate( WindowLayout * layout, void *userData)
 /** WOL Status Menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLCustomScoreScreenInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -161,7 +161,7 @@ WindowMsgHandledType WOLCustomScoreScreenInput( GameWindow *window, UnsignedInt 
 /** WOL Status Menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLCustomScoreScreenSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 

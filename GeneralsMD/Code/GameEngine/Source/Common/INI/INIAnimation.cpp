@@ -66,7 +66,7 @@ void INI::parseAnim2DDefinition( INI* ini )
 		// item not found, create a new one
 		animTemplate = TheAnim2DCollection->newTemplate( name );
 		DEBUG_ASSERTCRASH( animTemplate, ("INI::parseAnim2DDefinition -  unable to allocate animation template for '%s'",
-											 name.str()) );
+			name.str()) );
 
 	}
 	else

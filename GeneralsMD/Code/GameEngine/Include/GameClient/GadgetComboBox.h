@@ -91,18 +91,18 @@ extern void GadgetComboBoxSetIMECompositeTextColors( GameWindow *comboBox, Color
 // and those slider buttons and thumb as well as the drop down button and edit box.
 //
 extern void GadgetComboBoxSetColors( GameWindow *comboBox,
-																	  Color enabledColor,
-																	  Color enabledBorderColor,
-																	  Color enabledSelectedItemColor,
-																	  Color enabledSelectedItemBorderColor,
-																	  Color disabledColor,
-																	  Color disabledBorderColor,
-																	  Color disabledSelectedItemColor,
-																	  Color disabledSelectedItemBorderColor,
-																	  Color hiliteColor,
-																	  Color hiliteBorderColor,
-																	  Color hiliteSelectedItemColor,
-																	  Color hiliteSelectedItemBorderColor );
+	Color enabledColor,
+	Color enabledBorderColor,
+	Color enabledSelectedItemColor,
+	Color enabledSelectedItemBorderColor,
+	Color disabledColor,
+	Color disabledBorderColor,
+	Color disabledSelectedItemColor,
+	Color disabledSelectedItemBorderColor,
+	Color hiliteColor,
+	Color hiliteBorderColor,
+	Color hiliteSelectedItemColor,
+	Color hiliteSelectedItemBorderColor );
 
 inline void GadgetComboBoxSetEnabledImage( GameWindow *g, const Image *image )													{ g->winSetEnabledImage( 0, image ); }
 inline void GadgetComboBoxSetEnabledColor( GameWindow *g, Color color )													{ g->winSetEnabledColor( 0, color ); }

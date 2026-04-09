@@ -290,7 +290,7 @@ GameMessageDisposition WindowTranslator::translateGameMessage(const GameMessage 
 			GameWindowMessage gwm = rawMouseToWindowMessage( msg );
 			if( TheWindowManager )
 				returnCode = TheWindowManager->winProcessMouseEvent( gwm, &mousePos,
-																														 &wheelPos );
+				&wheelPos );
 
 			if( TheShell && TheShell->isShellActive() )
 				returnCode = WIN_INPUT_USED;

@@ -598,12 +598,12 @@ WindowMsgHandledType ChallengeMenuSystem( GameWindow *window, UnsignedInt msg, W
 			GameWindow *control = (GameWindow *)mData1;
 			Int controlID = control->winGetWindowId();
 
- 			// we don't need to handle these
- 			if ( isAutoSelecting )
- 			{
- 				isAutoSelecting = FALSE;
- 				break;
- 			}
+			// we don't need to handle these
+			if ( isAutoSelecting )
+			{
+				isAutoSelecting = FALSE;
+				break;
+			}
 
 			Int buttonIndex = findPositionButton(controlID);
 			if( buttonIndex != -1)
@@ -643,7 +643,7 @@ WindowMsgHandledType ChallengeMenuSystem( GameWindow *window, UnsignedInt msg, W
 				//@todo: outro transitions
 			}
 			else if( controlID == buttonPlayID )
- 			{
+			{
 				if( TheChallengeGameInfo == nullptr )
 				{
 					// If this is null, then we must be on the way back out of this menu.
@@ -671,7 +671,7 @@ WindowMsgHandledType ChallengeMenuSystem( GameWindow *window, UnsignedInt msg, W
 				DEBUG_ASSERTCRASH(TheChallengeGenerals, ("TheChallengeGenerals are not initialized."));
 				if (TheChallengeGenerals)
 				{
-	        TheCampaignManager->setGameDifficulty(TheChallengeGenerals->getCurrentDifficulty());
+					TheCampaignManager->setGameDifficulty(TheChallengeGenerals->getCurrentDifficulty());
 					TheScriptEngine->setGlobalDifficulty(TheChallengeGenerals->getCurrentDifficulty());
 				}
 
@@ -682,9 +682,9 @@ WindowMsgHandledType ChallengeMenuSystem( GameWindow *window, UnsignedInt msg, W
 				msg->appendIntegerArgument(TheCampaignManager->getRankPoints());
 
 
-        // Added so that, even though a ChallengeGame is really a SkirmishGame in SinglePlayerGame's clothing,
-        // GameEngine will still apply the default "FRAME CAP" as it does during "Solo Missions."
-        msg->appendIntegerArgument(LOGICFRAMES_PER_SECOND);	// FPS limit
+				// Added so that, even though a ChallengeGame is really a SkirmishGame in SinglePlayerGame's clothing,
+				// GameEngine will still apply the default "FRAME CAP" as it does during "Solo Missions."
+				msg->appendIntegerArgument(LOGICFRAMES_PER_SECOND);	// FPS limit
 
 				InitRandom(0);
 			}

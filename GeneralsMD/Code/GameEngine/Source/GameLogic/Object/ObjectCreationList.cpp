@@ -128,7 +128,7 @@ class FireWeaponNugget : public ObjectCreationNugget
 public:
 
 	FireWeaponNugget() :
-    m_weapon(nullptr)
+		m_weapon(nullptr)
 	{
 	}
 
@@ -137,15 +137,15 @@ public:
 		if (!primaryObj || !primary || !secondary)
 		{
 			DEBUG_CRASH(("You must have a primary and secondary source for this effect"));
-      return nullptr;
-    }
+			return nullptr;
+		}
 
-	  if (m_weapon)
-	  {
-		  TheWeaponStore->createAndFireTempWeapon( m_weapon, primaryObj, secondary );
-	  }
+		if (m_weapon)
+		{
+			TheWeaponStore->createAndFireTempWeapon( m_weapon, primaryObj, secondary );
+		}
 		return nullptr;
-  }
+	}
 
 	static void parse(INI *ini, void *instance, void* /*store*/, const void* /*userData*/)
 	{
@@ -173,7 +173,7 @@ class AttackNugget : public ObjectCreationNugget
 public:
 
 	AttackNugget() :
-    m_numberOfShots(1),
+		m_numberOfShots(1),
 		m_weaponSlot(PRIMARY_WEAPON),
 		m_deliveryDecalRadius(0)
 	{
@@ -184,8 +184,8 @@ public:
 		if (!primaryObj || !primary || !secondary)
 		{
 			DEBUG_CRASH(("You must have a primary and secondary source for this effect"));
-      return nullptr;
-    }
+			return nullptr;
+		}
 
 		// Star trekkin, across the universe.
 		// Boldly going forward now, cause we can't find reverse!
@@ -213,7 +213,7 @@ public:
 			rd->killWhenNoLongerAttacking(true);
 		}
 		return nullptr;
-  }
+	}
 
 	static void parse(INI *ini, void *instance, void* /*store*/, const void* /*userData*/)
 	{
@@ -271,8 +271,8 @@ public:
 		if (!primaryObj || !primary || !secondary)
 		{
 			DEBUG_CRASH(("You must have a primary and secondary source for this effect"));
-      return nullptr;
-    }
+			return nullptr;
+		}
 
 		Team* owner = primaryObj ? primaryObj->getControllingPlayer()->getDefaultTeam() : nullptr;
 
@@ -437,7 +437,7 @@ public:
 
 				const ThingTemplate* putInContainerTmpl = m_putInContainerName.isEmpty() ? nullptr : TheThingFactory->findTemplate(m_putInContainerName);
 				for (std::vector<Payload>::const_iterator it = m_payload.begin(); it != m_payload.end(); ++it)
-  			{
+				{
 					const ThingTemplate* payloadTmpl = TheThingFactory->findTemplate(it->m_payloadName);
 					if( !payloadTmpl )
 					{
@@ -555,7 +555,7 @@ public:
 		MultiIniFieldParse p;
 		p.add(myFieldParse);
 		p.add(DeliverPayloadData::getFieldParse(), offsetof( DeliverPayloadNugget, m_data ));
- 		ini->initFromINIMulti(nugget, p);
+		ini->initFromINIMulti(nugget, p);
 		((ObjectCreationList*)instance)->addObjectCreationNugget(nugget);
 	}
 
@@ -568,7 +568,7 @@ private:
 	};
 
 	//Specific data needed to create the transport(s), internal payload, and initial physics.
-  AsciiString           m_transportName;
+	AsciiString           m_transportName;
 	AsciiString						m_putInContainerName;
 	std::vector<Payload>	m_payload;
 	Real									m_formationSpacing;
@@ -625,23 +625,23 @@ public:
 		{
 			/// @todo srj -- ack. const_cast is evil.
 			PhysicsBehavior* p = const_cast<Object*>(primary)->getPhysics();
-      if (p)
-      {
+			if (p)
+			{
 				Coord3D force;
 				calcRandomForce(m_minMag, m_maxMag, m_minPitch, m_maxPitch, &force);
 				p->applyForce(&force);
 
-			  Real yaw = GameLogicRandomValueReal( -m_spinRate, m_spinRate );
-			  Real roll = GameLogicRandomValueReal( -m_spinRate, m_spinRate );
-			  Real pitch = GameLogicRandomValueReal( -m_spinRate, m_spinRate );
-			  p->setYawRate(yaw);
-			  p->setRollRate(roll);
-			  p->setPitchRate(pitch);
-      }
-      else
-      {
-  			DEBUG_CRASH(("You must have a Physics module source for this effect"));
-      }
+				Real yaw = GameLogicRandomValueReal( -m_spinRate, m_spinRate );
+				Real roll = GameLogicRandomValueReal( -m_spinRate, m_spinRate );
+				Real pitch = GameLogicRandomValueReal( -m_spinRate, m_spinRate );
+				p->setYawRate(yaw);
+				p->setRollRate(roll);
+				p->setPitchRate(pitch);
+			}
+			else
+			{
+				DEBUG_CRASH(("You must have a Physics module source for this effect"));
+			}
 		}
 		else
 		{
@@ -744,11 +744,11 @@ public:
 		m_minLODRequired(STATIC_GAME_LOD_LOW),
 		m_ignorePrimaryObstacle(false),
 		m_inheritsVeterancy(false),
-    m_diesOnBadLand(FALSE),
+		m_diesOnBadLand(FALSE),
 		m_skipIfSignificantlyAirborne(false),
 		m_invulnerableTime(0),
 		m_containInsideSourceObject(FALSE),
-    m_minHealth(1.0f),
+		m_minHealth(1.0f),
 		m_maxHealth(1.0f),
 		m_orientInForceDirection(false),
 		m_spreadFormation(false),
@@ -1046,21 +1046,21 @@ protected:
 					physics->setAllowToFall(true);
 			}
 
-      //Lorenzen sez:
-      //Since the sneak attack is a structure created with an ocl, it bypasses a lot of the
-      //goodness that it would have gotten from dozerAI::build( the normal way to make structures )
-      // but, since it is a building... lets stamp it down in the pathfind map, here.
-      if ( obj->isKindOf( KINDOF_STRUCTURE ) )
-      {
-	      // Flatten the terrain underneath the object, then adjust to the flattened height. jba.
-	      TheTerrainLogic->flattenTerrain(obj);
-	      Coord3D adjustedPos = *obj->getPosition();
-	      adjustedPos.z = TheTerrainLogic->getGroundHeight(pos->x, pos->y);
-	      obj->setPosition(&adjustedPos);
-	      // Note - very important that we add to map AFTER we flatten terrain. jba.
-	      TheAI->pathfinder()->addObjectToPathfindMap( obj );
+			//Lorenzen sez:
+			//Since the sneak attack is a structure created with an ocl, it bypasses a lot of the
+			//goodness that it would have gotten from dozerAI::build( the normal way to make structures )
+			// but, since it is a building... lets stamp it down in the pathfind map, here.
+			if ( obj->isKindOf( KINDOF_STRUCTURE ) )
+			{
+				// Flatten the terrain underneath the object, then adjust to the flattened height. jba.
+				TheTerrainLogic->flattenTerrain(obj);
+				Coord3D adjustedPos = *obj->getPosition();
+				adjustedPos.z = TheTerrainLogic->getGroundHeight(pos->x, pos->y);
+				obj->setPosition(&adjustedPos);
+				// Note - very important that we add to map AFTER we flatten terrain. jba.
+				TheAI->pathfinder()->addObjectToPathfindMap( obj );
 
-      }
+			}
 
 
 
@@ -1252,48 +1252,48 @@ protected:
 
 
 
-    if ( m_diesOnBadLand && obj )
-    {
-	    // if we land in the water, we die. alas.
-	    const Coord3D* riderPos = obj->getPosition();
-	    Real waterZ, terrainZ;
-	    if (TheTerrainLogic->isUnderwater(riderPos->x, riderPos->y, &waterZ, &terrainZ)
-			    && riderPos->z <= waterZ + 10.0f
-			    && obj->getLayer() == LAYER_GROUND)
-	    {
-		    // don't call kill(); do it manually, so we can specify DEATH_FLOODED
-		    DamageInfo damageInfo;
-		    damageInfo.in.m_damageType = DAMAGE_WATER;	// use this instead of UNRESISTABLE so we don't get a dusty damage effect
-		    damageInfo.in.m_deathType = DEATH_FLOODED;
-		    damageInfo.in.m_sourceID = INVALID_ID;
-		    damageInfo.in.m_amount = HUGE_DAMAGE_AMOUNT;
-		    obj->attemptDamage( &damageInfo );
-	    }
+		if ( m_diesOnBadLand && obj )
+		{
+			// if we land in the water, we die. alas.
+			const Coord3D* riderPos = obj->getPosition();
+			Real waterZ, terrainZ;
+			if (TheTerrainLogic->isUnderwater(riderPos->x, riderPos->y, &waterZ, &terrainZ)
+				&& riderPos->z <= waterZ + 10.0f
+				&& obj->getLayer() == LAYER_GROUND)
+			{
+				// don't call kill(); do it manually, so we can specify DEATH_FLOODED
+				DamageInfo damageInfo;
+				damageInfo.in.m_damageType = DAMAGE_WATER;	// use this instead of UNRESISTABLE so we don't get a dusty damage effect
+				damageInfo.in.m_deathType = DEATH_FLOODED;
+				damageInfo.in.m_sourceID = INVALID_ID;
+				damageInfo.in.m_amount = HUGE_DAMAGE_AMOUNT;
+				obj->attemptDamage( &damageInfo );
+			}
 
-	    // Kill if materialized on impassable ground
-	    Int cellX = REAL_TO_INT( obj->getPosition()->x / PATHFIND_CELL_SIZE );
-	    Int cellY = REAL_TO_INT( obj->getPosition()->y / PATHFIND_CELL_SIZE );
+			// Kill if materialized on impassable ground
+			Int cellX = REAL_TO_INT( obj->getPosition()->x / PATHFIND_CELL_SIZE );
+			Int cellY = REAL_TO_INT( obj->getPosition()->y / PATHFIND_CELL_SIZE );
 
-	    PathfindCell* cell = TheAI->pathfinder()->getCell( obj->getLayer(), cellX, cellY );
-	    PathfindCell::CellType cellType = cell ? cell->getType() : PathfindCell::CELL_IMPASSABLE;
+			PathfindCell* cell = TheAI->pathfinder()->getCell( obj->getLayer(), cellX, cellY );
+			PathfindCell::CellType cellType = cell ? cell->getType() : PathfindCell::CELL_IMPASSABLE;
 
-	    // If we land outside the map, we die too.
-	    // Otherwise we exist outside the PartitionManger like a cheater.
-	  if( obj->isOffMap()
-      || (cellType == PathfindCell::CELL_CLIFF)
-      || (cellType == PathfindCell::CELL_WATER)
-      || (cellType == PathfindCell::CELL_IMPASSABLE) )
-	    {
-		    // We are sorry, for reasons beyond our control, we are experiencing technical difficulties. Please die.
-		    obj->kill();
-	    }
+			// If we land outside the map, we die too.
+			// Otherwise we exist outside the PartitionManger like a cheater.
+			if( obj->isOffMap()
+				|| (cellType == PathfindCell::CELL_CLIFF)
+				|| (cellType == PathfindCell::CELL_WATER)
+				|| (cellType == PathfindCell::CELL_IMPASSABLE) )
+			{
+				// We are sorry, for reasons beyond our control, we are experiencing technical difficulties. Please die.
+				obj->kill();
+			}
 
-  // Note: for future enhancement of this feature, we should test the object against the cell type he is on,
-  // using obj->getAI()->hasLocomotorForSurface( __ ). We cshould not assume here that the object can not
-  // find happiness on cliffs or water or whatever.
+			// Note: for future enhancement of this feature, we should test the object against the cell type he is on,
+			// using obj->getAI()->hasLocomotorForSurface( __ ). We cshould not assume here that the object can not
+			// find happiness on cliffs or water or whatever.
 
 
-    }
+		}
 
 
 
@@ -1497,7 +1497,7 @@ private:
 	Bool											m_fadeOut;
 	Bool											m_ignorePrimaryObstacle;
 	Bool											m_inheritsVeterancy;
-  Bool                      m_diesOnBadLand;
+	Bool                      m_diesOnBadLand;
 	Bool											m_skipIfSignificantlyAirborne;
 
 };
@@ -1604,8 +1604,8 @@ const ObjectCreationList *ObjectCreationListStore::findObjectCreationList(const 
 	if (stricmp(name, "None") == 0)
 		return nullptr;
 
-  ObjectCreationListMap::const_iterator it = m_ocls.find(NAMEKEY(name));
-  if (it == m_ocls.end())
+	ObjectCreationListMap::const_iterator it = m_ocls.find(NAMEKEY(name));
+	if (it == m_ocls.end())
 	{
 		return nullptr;
 	}

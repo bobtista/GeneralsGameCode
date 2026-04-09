@@ -696,7 +696,7 @@ void WOLWelcomeMenuUpdate( WindowLayout * layout, void *userData)
 /** WOL Welcome Menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLWelcomeMenuInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -745,7 +745,7 @@ WindowMsgHandledType WOLWelcomeMenuInput( GameWindow *window, UnsignedInt msg,
 /** WOL Welcome Menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLWelcomeMenuSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 

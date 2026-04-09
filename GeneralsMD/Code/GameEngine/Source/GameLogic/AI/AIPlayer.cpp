@@ -527,9 +527,9 @@ Object *AIPlayer::buildStructureWithDozer(const ThingTemplate *bldgPlan, BuildLi
 		return nullptr;
 	}
 	Real angle = info->getAngle();
- 	if( TheBuildAssistant->isLocationLegalToBuild( &pos, bldgPlan, angle,
-																								 BuildAssistant::NO_ENEMY_OBJECT_OVERLAP,
-																								 dozer, m_player ) != LBC_OK ) {
+	if( TheBuildAssistant->isLocationLegalToBuild( &pos, bldgPlan, angle,
+		BuildAssistant::NO_ENEMY_OBJECT_OVERLAP,
+		dozer, m_player ) != LBC_OK ) {
 		// If there's enemy units or structures, don't build/rebuild.
 		TheTerrainVisual->removeAllBibs();	// isLocationLegalToBuild adds bib feedback, turn it off.  jba.
 		return nullptr;
@@ -537,10 +537,10 @@ Object *AIPlayer::buildStructureWithDozer(const ThingTemplate *bldgPlan, BuildLi
 
 	// validate the the position to build at is valid
 	if( TheBuildAssistant->isLocationLegalToBuild( &pos, bldgPlan, angle,
-																								 BuildAssistant::CLEAR_PATH |
-																								 BuildAssistant::TERRAIN_RESTRICTIONS |
-																								 BuildAssistant::NO_OBJECT_OVERLAP,
-																								 dozer, m_player ) != LBC_OK ) {
+		BuildAssistant::CLEAR_PATH |
+		BuildAssistant::TERRAIN_RESTRICTIONS |
+		BuildAssistant::NO_OBJECT_OVERLAP,
+		dozer, m_player ) != LBC_OK ) {
 			// Warn.
 			AsciiString bldgName = bldgPlan->getName();
 			bldgName.concat(" - Dozer unable to place.  Attempting to adjust position.");
@@ -566,17 +566,17 @@ Object *AIPlayer::buildStructureWithDozer(const ThingTemplate *bldgPlan, BuildLi
 					newPos.x = xPos;
 					newPos.y = yPos;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, bldgPlan, angle,
-																							 BuildAssistant::CLEAR_PATH |
-																							 BuildAssistant::TERRAIN_RESTRICTIONS |
-																							 BuildAssistant::NO_OBJECT_OVERLAP,
-																							 dozer, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					dozer, m_player ) == LBC_OK;
 					if (valid) break;
 					newPos.y = yPos+posOffset;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, bldgPlan, angle,
-																							 BuildAssistant::CLEAR_PATH |
-																							 BuildAssistant::TERRAIN_RESTRICTIONS |
-																							 BuildAssistant::NO_OBJECT_OVERLAP,
-																							 dozer, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					dozer, m_player ) == LBC_OK;
 				}
 				if (valid) break;
 				xPos = pos.x-offset;
@@ -585,25 +585,25 @@ Object *AIPlayer::buildStructureWithDozer(const ThingTemplate *bldgPlan, BuildLi
 					newPos.x = xPos;
 					newPos.y = yPos;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, bldgPlan, angle,
-																							 BuildAssistant::CLEAR_PATH |
-																							 BuildAssistant::TERRAIN_RESTRICTIONS |
-																							 BuildAssistant::NO_OBJECT_OVERLAP,
-																							 dozer, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					dozer, m_player ) == LBC_OK;
 					if (valid) break;
 					newPos.x = xPos+posOffset;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, bldgPlan, angle,
-																							 BuildAssistant::CLEAR_PATH |
-																							 BuildAssistant::TERRAIN_RESTRICTIONS |
-																							 BuildAssistant::NO_OBJECT_OVERLAP,
-																							 dozer, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					dozer, m_player ) == LBC_OK;
 				}
 				if (valid) break;
 			}
 			if (valid) pos = newPos;
 			if (!valid) {
 				valid = TheBuildAssistant->isLocationLegalToBuild( &pos, bldgPlan, angle,
-																						 BuildAssistant::NO_ENEMY_OBJECT_OVERLAP,
-																						 dozer, m_player ) == LBC_OK;
+				BuildAssistant::NO_ENEMY_OBJECT_OVERLAP,
+				dozer, m_player ) == LBC_OK;
 				if (!valid) {
 					return nullptr;
 				}
@@ -632,7 +632,7 @@ Object *AIPlayer::buildStructureWithDozer(const ThingTemplate *bldgPlan, BuildLi
 	if (TheGlobalData->m_debugAI == AI_DEBUG_PATHS)
 	{
 		extern void addIcon(const Coord3D *pos, Real width, Int numFramesDuration, RGBColor color);
- 		RGBColor color;
+		RGBColor color;
 		color.blue = 0;
 		color.red = 1;
 		color.green = 0;
@@ -738,7 +738,7 @@ void AIPlayer::processBaseBuilding()
 								info->setObjectID(obj->getID());
 							}
 						}
- 					}
+					}
 				}	else {
 					if (bldg->getControllingPlayer() == m_player) {
 						// Check for built or dozer missing.
@@ -749,7 +749,7 @@ void AIPlayer::processBaseBuilding()
 							Object* myDozer = TheGameLogic->findObjectByID(builder);
 							if (myDozer==nullptr) {
 								DEBUG_LOG(("AI's Dozer got killed.  Find another dozer."));
- 								myDozer = findDozer(bldg->getPosition());
+								myDozer = findDozer(bldg->getPosition());
 								if (myDozer==nullptr || myDozer->getAI()==nullptr) {
 									continue;
 								}
@@ -1012,7 +1012,7 @@ Bool AIPlayer::isLocationSafe(const Coord3D *pos, const ThingTemplate *tthing )
 	// and only stuff that isn't stealthed (and not detected)
 	// (note that stealthed allies aren't hidden from us, but we're only looking for enemies here)
 	PartitionFilterRejectByObjectStatus filterStealth( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_STEALTHED ),
-																										 MAKE_OBJECT_STATUS_MASK2( OBJECT_STATUS_DETECTED, OBJECT_STATUS_DISGUISED ) );
+		MAKE_OBJECT_STATUS_MASK2( OBJECT_STATUS_DETECTED, OBJECT_STATUS_DISGUISED ) );
 
 	// (optional) only stuff that is significant
 	PartitionFilterInsignificantBuildings filterInsignificant(true, false);
@@ -1150,7 +1150,7 @@ void AIPlayer::onUnitProduced( Object *factory, Object *unit )
 Bool AIPlayer::computeSuperweaponTarget(const SpecialPowerTemplate *power, Coord3D *retPos, Int playerNdx, Real weaponRadius)
 {
 
-  Bool success = FALSE;
+	Bool success = FALSE;
 
 	Region2D bounds;
 	getPlayerStructureBounds(&bounds, playerNdx);
@@ -1288,10 +1288,10 @@ Bool AIPlayer::computeSuperweaponTarget(const SpecialPowerTemplate *power, Coord
 	veryBestPos.z = TheTerrainLogic->getGroundHeight(veryBestPos.x, veryBestPos.y);
 	*retPos = veryBestPos;
 
-  success = ( cash > -1 );
+	success = ( cash > -1 );
 
 
-  return success;
+	return success;
 
 
 }
@@ -1769,7 +1769,7 @@ void AIPlayer::buildUpgrade(const AsciiString &upgrade)
 		TheScriptEngine->AppendDebugMessage( msg, false);
 		return;
 	}
- 	if (curUpgrade->getUpgradeType()==UPGRADE_TYPE_OBJECT) {
+	if (curUpgrade->getUpgradeType()==UPGRADE_TYPE_OBJECT) {
 		AsciiString msg = "Player build upgrade: Upgrade ";
 		msg.concat(upgrade);
 		msg.concat(" is an object, not a player upgrade.  Ignoring request.");
@@ -1825,7 +1825,7 @@ void AIPlayer::buildUpgrade(const AsciiString &upgrade)
 				if (commandButton==nullptr) continue;
 				if (commandButton->getName().isEmpty() )	continue;
 				if (commandButton->getUpgradeTemplate() == nullptr )	continue;
- 				if (commandButton->getUpgradeTemplate()->getUpgradeName() == curUpgrade->getUpgradeName()) {
+				if (commandButton->getUpgradeTemplate()->getUpgradeName() == curUpgrade->getUpgradeName()) {
 					canUpgradeHere = true;
 				}
 			}
@@ -1900,12 +1900,12 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 		location.y -= offset.y*radius;
 		Real angle = tTemplate->getPlacementViewAngle();
 
- 		// validate the the position to build at is valid
+		// validate the the position to build at is valid
 		Bool valid=false;
 		Coord3D newPos = location;
 		if( TheBuildAssistant->isLocationLegalToBuild( &location, tTemplate, angle,
-																									 BuildAssistant::NO_OBJECT_OVERLAP,
-																									 nullptr, m_player ) != LBC_OK ) {
+			BuildAssistant::NO_OBJECT_OVERLAP,
+			nullptr, m_player ) != LBC_OK ) {
 			// Warn.
 			const Coord3D *warehouseLocation = bestSupplyWarehouse->getPosition();
 			AsciiString debugMessage;
@@ -1928,19 +1928,19 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 					newPos.x = xPos;
 					newPos.y = yPos;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
-																							 BuildAssistant::CLEAR_PATH |
-																							 BuildAssistant::TERRAIN_RESTRICTIONS |
-																							 BuildAssistant::NO_OBJECT_OVERLAP,
-																							 nullptr, m_player ) == LBC_OK;
+						BuildAssistant::CLEAR_PATH |
+						BuildAssistant::TERRAIN_RESTRICTIONS |
+						BuildAssistant::NO_OBJECT_OVERLAP,
+						nullptr, m_player ) == LBC_OK;
 					if (valid) break;
 					if( TheGlobalData->m_debugSupplyCenterPlacement )
 						DEBUG_LOG(("buildBySupplies -- Fail at (%.2f,%.2f)", newPos.x, newPos.y));
 					newPos.y = yPos+posOffset;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
-																							 BuildAssistant::CLEAR_PATH |
-																							 BuildAssistant::TERRAIN_RESTRICTIONS |
-																							 BuildAssistant::NO_OBJECT_OVERLAP,
-																							 nullptr, m_player ) == LBC_OK;
+						BuildAssistant::CLEAR_PATH |
+						BuildAssistant::TERRAIN_RESTRICTIONS |
+						BuildAssistant::NO_OBJECT_OVERLAP,
+						nullptr, m_player ) == LBC_OK;
 					if (valid) break;
 					if( TheGlobalData->m_debugSupplyCenterPlacement )
 						DEBUG_LOG(("buildBySupplies -- Fail at (%.2f,%.2f)", newPos.x, newPos.y));
@@ -1951,19 +1951,19 @@ void AIPlayer::buildBySupplies(Int minimumCash, const AsciiString& thingName)
 					newPos.x = xPos;
 					newPos.y = yPos;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
-																							 BuildAssistant::CLEAR_PATH |
-																							 BuildAssistant::TERRAIN_RESTRICTIONS |
-																							 BuildAssistant::NO_OBJECT_OVERLAP,
-																							 nullptr, m_player ) == LBC_OK;
+						BuildAssistant::CLEAR_PATH |
+						BuildAssistant::TERRAIN_RESTRICTIONS |
+						BuildAssistant::NO_OBJECT_OVERLAP,
+						nullptr, m_player ) == LBC_OK;
 					if (valid) break;
 					if( TheGlobalData->m_debugSupplyCenterPlacement )
 						DEBUG_LOG(("buildBySupplies -- Fail at (%.2f,%.2f)", newPos.x, newPos.y));
 					newPos.x = xPos+posOffset;
 					valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
-																							 BuildAssistant::CLEAR_PATH |
-																							 BuildAssistant::TERRAIN_RESTRICTIONS |
-																							 BuildAssistant::NO_OBJECT_OVERLAP,
-																							 nullptr, m_player ) == LBC_OK;
+						BuildAssistant::CLEAR_PATH |
+						BuildAssistant::TERRAIN_RESTRICTIONS |
+						BuildAssistant::NO_OBJECT_OVERLAP,
+						nullptr, m_player ) == LBC_OK;
 					if (valid) break;
 					if( TheGlobalData->m_debugSupplyCenterPlacement )
 						DEBUG_LOG(("buildBySupplies -- Fail at (%.2f,%.2f)", newPos.x, newPos.y));
@@ -1994,7 +1994,7 @@ Bool AIPlayer::calcClosestConstructionZoneLocation( const ThingTemplate *constru
 		return FALSE;
 	}
 
-  Bool success = FALSE;
+	Bool success = FALSE;
 
 	// offset back towards the base.
 	Coord2D offset;
@@ -2004,7 +2004,7 @@ Bool AIPlayer::calcClosestConstructionZoneLocation( const ThingTemplate *constru
 
 	Real angle = constructTemplate->getPlacementViewAngle();
 
- 	// validate the the position to build at is valid
+	// validate the the position to build at is valid
 	Bool valid=false;
 	Coord3D newPos = *location;
 	if( TheBuildAssistant->isLocationLegalToBuild( location, constructTemplate, angle, BuildAssistant::NO_OBJECT_OVERLAP, nullptr, m_player ) != LBC_OK )
@@ -2026,19 +2026,19 @@ Bool AIPlayer::calcClosestConstructionZoneLocation( const ThingTemplate *constru
 				newPos.x = xPos;
 				newPos.y = yPos;
 				valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, constructTemplate, angle,
-																						 BuildAssistant::CLEAR_PATH |
-																						 BuildAssistant::TERRAIN_RESTRICTIONS |
-																						 BuildAssistant::NO_OBJECT_OVERLAP,
-																						 nullptr, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					nullptr, m_player ) == LBC_OK;
 				if( valid )
 					break;
 
 				newPos.y = yPos + posOffset;
 				valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, constructTemplate, angle,
-																						 BuildAssistant::CLEAR_PATH |
-																						 BuildAssistant::TERRAIN_RESTRICTIONS |
-																						 BuildAssistant::NO_OBJECT_OVERLAP,
-																						 nullptr, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					nullptr, m_player ) == LBC_OK;
 			}
 
 			if( valid )
@@ -2050,19 +2050,19 @@ Bool AIPlayer::calcClosestConstructionZoneLocation( const ThingTemplate *constru
 				newPos.x = xPos;
 				newPos.y = yPos;
 				valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, constructTemplate, angle,
-																						 BuildAssistant::CLEAR_PATH |
-																						 BuildAssistant::TERRAIN_RESTRICTIONS |
-																						 BuildAssistant::NO_OBJECT_OVERLAP,
-																						 nullptr, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					nullptr, m_player ) == LBC_OK;
 				if( valid )
 					break;
 
 				newPos.x = xPos + posOffset;
 				valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, constructTemplate, angle,
-																						 BuildAssistant::CLEAR_PATH |
-																						 BuildAssistant::TERRAIN_RESTRICTIONS |
-																						 BuildAssistant::NO_OBJECT_OVERLAP,
-																						 nullptr, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					nullptr, m_player ) == LBC_OK;
 			}
 
 			if( valid )
@@ -2073,18 +2073,18 @@ Bool AIPlayer::calcClosestConstructionZoneLocation( const ThingTemplate *constru
 	{
 		//We succeeded in calculating the best position.
 		location->set( &newPos );
-    success = TRUE;
+		success = TRUE;
 	}
 	else
 	{
 		//We failed to calculate a position, so zero out the position.
 		location->zero();
-    success = FALSE;
+		success = FALSE;
 	}
 
 	TheTerrainVisual->removeAllBibs();	// isLocationLegalToBuild adds bib feedback, turn it off.  jba.
 
-  return success;
+	return success;
 
 }
 
@@ -2116,7 +2116,7 @@ void AIPlayer::buildSpecificBuildingNearestTeam( const AsciiString &thingName, c
 
 	Real angle = tTemplate->getPlacementViewAngle();
 
- 	// validate the the position to build at is valid
+	// validate the the position to build at is valid
 	Bool valid=false;
 	Coord3D newPos = *location;
 	if( TheBuildAssistant->isLocationLegalToBuild( location, tTemplate, angle, BuildAssistant::NO_OBJECT_OVERLAP, nullptr, m_player ) != LBC_OK )
@@ -2138,19 +2138,19 @@ void AIPlayer::buildSpecificBuildingNearestTeam( const AsciiString &thingName, c
 				newPos.x = xPos;
 				newPos.y = yPos;
 				valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
-																						 BuildAssistant::CLEAR_PATH |
-																						 BuildAssistant::TERRAIN_RESTRICTIONS |
-																						 BuildAssistant::NO_OBJECT_OVERLAP,
-																						 nullptr, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					nullptr, m_player ) == LBC_OK;
 				if( valid )
 					break;
 
 				newPos.y = yPos + posOffset;
 				valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
-																						 BuildAssistant::CLEAR_PATH |
-																						 BuildAssistant::TERRAIN_RESTRICTIONS |
-																						 BuildAssistant::NO_OBJECT_OVERLAP,
-																						 nullptr, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					nullptr, m_player ) == LBC_OK;
 			}
 
 			if( valid )
@@ -2162,19 +2162,19 @@ void AIPlayer::buildSpecificBuildingNearestTeam( const AsciiString &thingName, c
 				newPos.x = xPos;
 				newPos.y = yPos;
 				valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
-																						 BuildAssistant::CLEAR_PATH |
-																						 BuildAssistant::TERRAIN_RESTRICTIONS |
-																						 BuildAssistant::NO_OBJECT_OVERLAP,
-																						 nullptr, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					nullptr, m_player ) == LBC_OK;
 				if( valid )
 					break;
 
 				newPos.x = xPos + posOffset;
 				valid = TheBuildAssistant->isLocationLegalToBuild( &newPos, tTemplate, angle,
-																						 BuildAssistant::CLEAR_PATH |
-																						 BuildAssistant::TERRAIN_RESTRICTIONS |
-																						 BuildAssistant::NO_OBJECT_OVERLAP,
-																						 nullptr, m_player ) == LBC_OK;
+					BuildAssistant::CLEAR_PATH |
+					BuildAssistant::TERRAIN_RESTRICTIONS |
+					BuildAssistant::NO_OBJECT_OVERLAP,
+					nullptr, m_player ) == LBC_OK;
 			}
 
 			if( valid )
@@ -2264,7 +2264,7 @@ Object *AIPlayer::findSupplyCenter(Int minimumCash)
 		}
 		if (bestSupplyWarehouse) break;
 		minimumCash /= 2;
- 	} while (minimumCash > 100);
+	} while (minimumCash > 100);
 
 	return bestSupplyWarehouse;
 }
@@ -3327,8 +3327,8 @@ void AIPlayer::xfer( Xfer *xfer )
 	// team build queue count
 	UnsignedShort teamBuildQueueCount = 0;
 	for( DLINK_ITERATOR< TeamInQueue > teamInQueueIt = iterate_TeamBuildQueue();
-			 teamInQueueIt.done() == FALSE;
-			 teamInQueueIt.advance() )
+	teamInQueueIt.done() == FALSE;
+	teamInQueueIt.advance() )
 		teamBuildQueueCount++;
 	xfer->xferUnsignedShort( &teamBuildQueueCount );
 
@@ -3338,8 +3338,8 @@ void AIPlayer::xfer( Xfer *xfer )
 	{
 
 		for( DLINK_ITERATOR< TeamInQueue > teamInQueueIt = iterate_TeamBuildQueue();
-				 teamInQueueIt.done() == FALSE;
-				 teamInQueueIt.advance() )
+		teamInQueueIt.done() == FALSE;
+		teamInQueueIt.advance() )
 		{
 
 			// get element data
@@ -3386,8 +3386,8 @@ void AIPlayer::xfer( Xfer *xfer )
 	// team ready queue count
 	UnsignedShort teamReadyQueueCount = 0;
 	for( DLINK_ITERATOR< TeamInQueue > teamReadyQueueIt = iterate_TeamReadyQueue();
-			 teamReadyQueueIt.done() == FALSE;
-			 teamReadyQueueIt.advance() )
+	teamReadyQueueIt.done() == FALSE;
+	teamReadyQueueIt.advance() )
 		teamReadyQueueCount++;
 	xfer->xferUnsignedShort( &teamReadyQueueCount );
 
@@ -3397,8 +3397,8 @@ void AIPlayer::xfer( Xfer *xfer )
 	{
 
 		for( DLINK_ITERATOR< TeamInQueue > teamReadyQueueIt = iterate_TeamReadyQueue();
-				 teamReadyQueueIt.done() == FALSE;
-				 teamReadyQueueIt.advance() )
+		teamReadyQueueIt.done() == FALSE;
+		teamReadyQueueIt.advance() )
 		{
 
 			// get element
@@ -3463,7 +3463,7 @@ void AIPlayer::xfer( Xfer *xfer )
 	xfer->xferInt( &m_teamDelay );
 
 	xfer->xferInt(&m_teamSeconds);
- 	xfer->xferObjectID(&m_curWarehouseID);
+	xfer->xferObjectID(&m_curWarehouseID);
 
 	xfer->xferInt( &m_frameLastBuildingBuilt );
 

@@ -179,7 +179,7 @@ static void doSetRallyPoint( Object *obj, const Coord3D& pos )
 		// print a message to the user
 		UnicodeString info;
 		info.format( TheGameText->fetch( "GUI:RallyPointSet" ),
-								 obj->getTemplate()->getDisplayName().str() );
+			obj->getTemplate()->getDisplayName().str() );
 		TheInGameUI->message( info );
 
 		// play a sound for setting the rally point
@@ -534,9 +534,9 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 				if ( obj->getControllingPlayer() != msgPlayer )
 				{
 					DEBUG_CRASH( ("MSG_SET_RALLY_POINT: Player '%ls' attempted to set the rally point of object '%s' owned by player '%ls'.",
-						 msgPlayer->getPlayerDisplayName().str(),
-						 obj->getTemplate()->getName().str(),
-						 obj->getControllingPlayer()->getPlayerDisplayName().str()) );
+						msgPlayer->getPlayerDisplayName().str(),
+						obj->getTemplate()->getName().str(),
+						obj->getControllingPlayer()->getPlayerDisplayName().str()) );
 					break;
 				}
 #endif
@@ -571,8 +571,8 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 			// issue command for either single object or for selected group
 			if( currentlySelectedGroup && targetObject )
 				currentlySelectedGroup->groupCombatDrop( targetObject,
-																								 *targetObject->getPosition(),
-																								 CMD_FROM_PLAYER );
+				*targetObject->getPosition(),
+				CMD_FROM_PLAYER );
 
 /*
 			if( sourceObject && targetObject )
@@ -643,7 +643,7 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 			// use the selected group
 			WeaponSlotType weaponSlot = (WeaponSlotType)msg->getArgument( 0 )->integer;
 			// lock until un-switched, or switched to something else.
- 			if( currentlySelectedGroup )
+			if( currentlySelectedGroup )
 				currentlySelectedGroup->setWeaponLockForGroup( weaponSlot, LOCKED_PERMANENTLY );
 			break;
 		}
@@ -695,7 +695,7 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 			{
 					// lock it just till the weapon is empty or the attack is "done"
 				if (currentlySelectedGroup->setWeaponLockForGroup( weaponSlot, LOCKED_TEMPORARILY ))
- 					currentlySelectedGroup->groupAttackPosition( &targetLoc, maxShotsToFire, CMD_FROM_PLAYER );
+				currentlySelectedGroup->groupAttackPosition( &targetLoc, maxShotsToFire, CMD_FROM_PLAYER );
 
 
 			}
@@ -724,9 +724,9 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 				if ( source->getControllingPlayer() != msgPlayer )
 				{
 					DEBUG_CRASH( ("MSG_DO_SPECIAL_POWER: Player '%ls' attempted to control the object '%s' owned by player '%ls'.",
-						 msgPlayer->getPlayerDisplayName().str(),
-						 source->getTemplate()->getName().str(),
-						 source->getControllingPlayer()->getPlayerDisplayName().str()) );
+						msgPlayer->getPlayerDisplayName().str(),
+						source->getTemplate()->getName().str(),
+						source->getControllingPlayer()->getPlayerDisplayName().str()) );
 					break;
 				}
 #endif
@@ -781,9 +781,9 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 				if ( source->getControllingPlayer() != msgPlayer )
 				{
 					DEBUG_CRASH( ("MSG_DO_SPECIAL_POWER_AT_LOCATION: Player '%ls' attempted to control the object '%s' owned by player '%ls'.",
-						 msgPlayer->getPlayerDisplayName().str(),
-						 source->getTemplate()->getName().str(),
-						 source->getControllingPlayer()->getPlayerDisplayName().str()) );
+						msgPlayer->getPlayerDisplayName().str(),
+						source->getTemplate()->getName().str(),
+						source->getControllingPlayer()->getPlayerDisplayName().str()) );
 					break;
 				}
 #endif
@@ -836,9 +836,9 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 				if ( source->getControllingPlayer() != msgPlayer )
 				{
 					DEBUG_CRASH( ("MSG_DO_SPECIAL_POWER_AT_OBJECT: Player '%ls' attempted to control the object '%s' owned by player '%ls'.",
-						 msgPlayer->getPlayerDisplayName().str(),
-						 source->getTemplate()->getName().str(),
-						 source->getControllingPlayer()->getPlayerDisplayName().str()) );
+						msgPlayer->getPlayerDisplayName().str(),
+						source->getTemplate()->getName().str(),
+						source->getControllingPlayer()->getPlayerDisplayName().str()) );
 					break;
 				}
 #endif
@@ -1291,9 +1291,9 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 				if ( source->getControllingPlayer() != msgPlayer )
 				{
 					DEBUG_CRASH( ("MSG_DO_SPECIAL_POWER_OVERRIDE_DESTINATION: Player '%ls' attempted to control the object '%s' owned by player '%ls'.",
-						 msgPlayer->getPlayerDisplayName().str(),
-						 source->getTemplate()->getName().str(),
-						 source->getControllingPlayer()->getPlayerDisplayName().str()) );
+						msgPlayer->getPlayerDisplayName().str(),
+						source->getTemplate()->getName().str(),
+						source->getControllingPlayer()->getPlayerDisplayName().str()) );
 					break;
 				}
 #endif
@@ -1536,7 +1536,7 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 			{
 
 				TheBuildAssistant->buildObjectNow( constructorObject, place, &loc, angle,
-																					 constructorObject->getControllingPlayer() );
+					constructorObject->getControllingPlayer() );
 
 			}
 			else
@@ -1548,7 +1548,7 @@ void GameLogic::logicMessageDispatcher( GameMessage *msg, void *userData )
 
 				// place the line of structures, the end location being present will make it happen
 				TheBuildAssistant->buildObjectLineNow( constructorObject, place, &loc, &locEnd, angle,
-																							 constructorObject->getControllingPlayer() );
+					constructorObject->getControllingPlayer() );
 
 			}
 

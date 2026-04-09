@@ -52,14 +52,14 @@ BaseRegenerateUpdateModuleData::BaseRegenerateUpdateModuleData()
 // ------------------------------------------------------------------------------------------------
 void BaseRegenerateUpdateModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
-  UpdateModuleData::buildFieldParse( p );
+	UpdateModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add( dataFieldParse );
+	p.add( dataFieldParse );
 
 }
 
@@ -138,7 +138,7 @@ UpdateSleepTime BaseRegenerateUpdate::update()
 
 		// do some healing
 		Real amount = HEAL_RATE * (body->getMaxHealth() * TheGlobalData->m_baseRegenHealthPercentPerSecond) /
-														 LOGICFRAMES_PER_SECOND;
+			LOGICFRAMES_PER_SECOND;
 		me->attemptHealing(amount, me);
 
 		return UPDATE_SLEEP(HEAL_RATE);

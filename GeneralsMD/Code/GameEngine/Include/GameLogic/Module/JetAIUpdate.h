@@ -87,7 +87,7 @@ public:
 	virtual JetAIUpdate* getJetAIUpdate() override { return this; }
 	virtual const JetAIUpdate* getJetAIUpdate() const override { return this; }
 
- 	virtual void aiDoCommand(const AICommandParms* parms) override;
+	virtual void aiDoCommand(const AICommandParms* parms) override;
 	virtual Bool chooseLocomotorSet(LocomotorSetType wst) override;
 	virtual void setLocomotorGoalNone() override;
 	virtual Bool isIdle() const override;

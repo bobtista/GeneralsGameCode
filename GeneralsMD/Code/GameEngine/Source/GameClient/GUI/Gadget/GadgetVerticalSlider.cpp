@@ -265,7 +265,7 @@ WindowMsgHandledType GadgetVerticalSliderInput( GameWindow *window, UnsignedInt 
 /** Handle system messages for vertical slider */
 //=============================================================================
 WindowMsgHandledType GadgetVerticalSliderSystem( GameWindow *window, UnsignedInt msg,
-																 WindowMsgData mData1, WindowMsgData mData2 )
+	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	SliderData *s = (SliderData *)window->winGetUserData();
 	WinInstanceData *instData = window->winGetInstanceData();

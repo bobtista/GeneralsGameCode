@@ -306,7 +306,7 @@ static CommandStatus doSetRallyPointCommand( const CommandButton *command, const
 	// so we must be sure there is only one thing selected (that thing we will set the point on)
 	//
 	DEBUG_ASSERTCRASH( TheInGameUI->getSelectCount() == 1,
-										 ("doSetRallyPointCommand: The selected count is not 1, we can only set a rally point on a *SINGLE* building\n") );
+		("doSetRallyPointCommand: The selected count is not 1, we can only set a rally point on a *SINGLE* building\n") );
 	Drawable *draw = TheInGameUI->getFirstSelectedDrawable();
 	DEBUG_ASSERTCRASH( draw, ("doSetRallyPointCommand: No selected object") );
 
@@ -402,7 +402,7 @@ GameMessageDisposition GUICommandTranslator::translateGameMessage(const GameMess
 						WeaponSlotType slot = command->getWeaponSlot();
 						info.m_weaponSlot = &slot;
 
-	 					pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_WEAPON_AT_LOCATION, &info );
+						pickAndPlayUnitVoiceResponse( TheInGameUI->getAllSelectedDrawables(), GameMessage::MSG_DO_WEAPON_AT_LOCATION, &info );
 						break;
 
 					}

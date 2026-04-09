@@ -54,7 +54,7 @@ void INI::parseTerrainRoadDefinition( INI* ini )
 
 		// sanity
 		DEBUG_ASSERTCRASH( road->isBridge() == FALSE, ("Redefining bridge '%s' as a road!",
-											 road->getName().str()) );
+			road->getName().str()) );
 		throw INI_INVALID_DATA;
 
 	}

@@ -123,7 +123,7 @@ ProductionUpdateModuleData::ProductionUpdateModuleData()
 //-------------------------------------------------------------------------------------------------
 /*static*/ void ProductionUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  UpdateModuleData::buildFieldParse( p );
+	UpdateModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -137,7 +137,7 @@ ProductionUpdateModuleData::ProductionUpdateModuleData()
 		{ "DisabledTypesToProcess",	DisabledMaskType::parseFromINI, nullptr, offsetof( ProductionUpdateModuleData, m_disabledTypesToProcess ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 
 }
 
@@ -269,8 +269,8 @@ Bool ProductionUpdate::queueUpgrade( const UpgradeTemplate *upgrade )
 			TheUpgradeCenter->canAffordUpgrade( player, upgrade ) == FALSE )
 		return FALSE;
 	else if( upgrade->getUpgradeType() == UPGRADE_TYPE_OBJECT &&
-					 (getObject()->hasUpgrade( upgrade ) == TRUE ||
-					  getObject()->affectedByUpgrade( upgrade ) == FALSE) )
+		(getObject()->hasUpgrade( upgrade ) == TRUE ||
+		getObject()->affectedByUpgrade( upgrade ) == FALSE) )
 		return FALSE;
 
 	// you cannot queue the production of an upgrade twice in this queue
@@ -286,7 +286,7 @@ Bool ProductionUpdate::queueUpgrade( const UpgradeTemplate *upgrade )
 	// (or that somewhere else could even possibly be here)
 	//
 	if( upgrade->getUpgradeType() == UPGRADE_TYPE_PLAYER &&
-      (player->hasUpgradeComplete( upgrade ) || player->hasUpgradeInProduction( upgrade )) )
+		(player->hasUpgradeComplete( upgrade ) || player->hasUpgradeInProduction( upgrade )) )
 		return FALSE;
 
 	if (m_productionCount >= getProductionUpdateModuleData()->m_maxQueueEntries)
@@ -306,7 +306,7 @@ Bool ProductionUpdate::queueUpgrade( const UpgradeTemplate *upgrade )
 	production->m_type = PRODUCTION_UPGRADE;
 	production->m_upgradeToResearch = upgrade;
 	production->m_productionID = PRODUCTIONID_INVALID;  // not needed for upgrades, you can only have one of
-																	 // this type in the queue
+	// this type in the queue
 
 	// tie to the end of the production queue
 	addToProductionQueue( production );
@@ -433,7 +433,7 @@ Bool ProductionUpdate::queueCreateUnit( const ThingTemplate *unitType, Productio
 	production->m_productionQuantityTotal = 1;
 	production->m_productionQuantityProduced = 0;
 	for( std::vector<QuantityModifier>::const_iterator it = data->m_quantityModifiers.begin(); it != data->m_quantityModifiers.end(); ++it )
-  {
+	{
 		const ThingTemplate* productionTemplate = TheThingFactory->findTemplate( it->m_templateName );
 		if( productionTemplate && productionTemplate->isEquivalentTo( unitType ) )
 		{
@@ -502,7 +502,7 @@ void ProductionUpdate::cancelAllUnitsOfType( const ThingTemplate *unitType)
 
 		// are we at the one we want get rid of it
 		if( production->getProductionType() == PRODUCTION_UNIT &&
-		    production->getProductionObject() == unitType )
+			production->getProductionObject() == unitType )
 		{
 			ProductionEntry *temp = production->m_next;
 

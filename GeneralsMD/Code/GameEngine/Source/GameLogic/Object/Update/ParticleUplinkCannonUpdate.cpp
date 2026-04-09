@@ -88,9 +88,9 @@ ParticleUplinkCannonUpdateModuleData::ParticleUplinkCannonUpdateModuleData()
 	m_damageType										= DAMAGE_LASER;
 	m_deathType											= DEATH_LASERED;
 	m_revealRange										= 0.0f;
-  m_manualDrivingSpeed						= 0.0f;
-  m_manualFastDrivingSpeed				= 0.0f;
-  m_doubleClickToFastDriveDelay		= 500;
+	m_manualDrivingSpeed						= 0.0f;
+	m_manualFastDrivingSpeed				= 0.0f;
+	m_doubleClickToFastDriveDelay		= 500;
 	m_swathOfDeathAmplitude					= 0.0f;
 	m_swathOfDeathDistance					=	0.0f;
 }
@@ -103,8 +103,8 @@ ParticleUplinkCannonUpdateModuleData::ParticleUplinkCannonUpdateModuleData()
 	static const FieldParse dataFieldParse[] =
 	{
 		{ "SpecialPowerTemplate",									INI::parseSpecialPowerTemplate,	nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_specialPowerTemplate ) },
-    { "BeginChargeTime",											INI::parseDurationUnsignedInt,	nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_beginChargeFrames ) },
-    { "RaiseAntennaTime",											INI::parseDurationUnsignedInt,	nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_raiseAntennaFrames ) },
+		{ "BeginChargeTime",											INI::parseDurationUnsignedInt,	nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_beginChargeFrames ) },
+		{ "RaiseAntennaTime",											INI::parseDurationUnsignedInt,	nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_raiseAntennaFrames ) },
 		{ "ReadyDelayTime",												INI::parseDurationUnsignedInt,  nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_readyDelayFrames ) },
 		{ "WidthGrowTime",												INI::parseDurationUnsignedInt,	nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_widthGrowFrames ) },
 		{ "BeamTravelTime",												INI::parseDurationUnsignedInt,	nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_beamTravelFrames ) },
@@ -150,9 +150,9 @@ ParticleUplinkCannonUpdateModuleData::ParticleUplinkCannonUpdateModuleData()
 		{ "GroundAnnihilationSoundLoop",					INI::parseAsciiString,					nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_annihilationSoundName ) },
 		{ "DamagePulseRemnantObjectName",					INI::parseAsciiString,					nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_damagePulseRemnantObjectName ) },
 
-    { "ManualDrivingSpeed",										INI::parseReal,									nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_manualDrivingSpeed ) },
-    { "ManualFastDrivingSpeed",								INI::parseReal,									nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_manualFastDrivingSpeed ) },
-    { "DoubleClickToFastDriveDelay",					INI::parseDurationUnsignedInt,	nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_doubleClickToFastDriveDelay ) },
+		{ "ManualDrivingSpeed",										INI::parseReal,									nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_manualDrivingSpeed ) },
+		{ "ManualFastDrivingSpeed",								INI::parseReal,									nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_manualFastDrivingSpeed ) },
+		{ "DoubleClickToFastDriveDelay",					INI::parseDurationUnsignedInt,	nullptr, offsetof( ParticleUplinkCannonUpdateModuleData, m_doubleClickToFastDriveDelay ) },
 
 		{ nullptr, nullptr, nullptr, 0 }
 	};
@@ -1223,14 +1223,14 @@ void ParticleUplinkCannonUpdate::setLogicalStatus( PUCStatus newStatus )
 		{
 			//Set deployed animation
 			obj->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK2( MODELCONDITION_PACKING, MODELCONDITION_UNPACKING ),
-																					 MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
+				MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
 			m_laserStatus = LASERSTATUS_NONE;
 			break;
 		}
 		case STATUS_READY_TO_FIRE:
 		{
 			obj->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK2( MODELCONDITION_PACKING, MODELCONDITION_UNPACKING ),
-																					 MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
+				MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
 			TheAudio->removeAudioEvent( m_powerupSound.getPlayingHandle() );
 			TheAudio->removeAudioEvent( m_firingToIdleSound.getPlayingHandle() );
 			TheAudio->removeAudioEvent( m_annihilationSound.getPlayingHandle() );
@@ -1244,7 +1244,7 @@ void ParticleUplinkCannonUpdate::setLogicalStatus( PUCStatus newStatus )
 		case STATUS_FIRING:
 		{
 			obj->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK2( MODELCONDITION_PACKING, MODELCONDITION_UNPACKING ),
-																					 MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
+				MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
 			if( m_firingToIdleSound.getEventName().isNotEmpty() )
 			{
 				m_firingToIdleSound.setObjectID( obj->getID() );
@@ -1264,7 +1264,7 @@ void ParticleUplinkCannonUpdate::setLogicalStatus( PUCStatus newStatus )
 		{
 			//Set packing animation
 			obj->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK2( MODELCONDITION_UNPACKING, MODELCONDITION_DEPLOYED ),
-																						 MAKE_MODELCONDITION_MASK( MODELCONDITION_PACKING ) );
+				MAKE_MODELCONDITION_MASK( MODELCONDITION_PACKING ) );
 			break;
 		}
 	}

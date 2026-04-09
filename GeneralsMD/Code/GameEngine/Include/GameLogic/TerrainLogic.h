@@ -179,7 +179,7 @@ public:
 	// should be protected, but friendly access needed (srj)
 	void setNext(Bridge *pNext) {m_next = pNext; }
 	Object *createTower( Coord3D *worldPos, BridgeTowerType towerPos,
-											 const ThingTemplate *towerTemplate, Object *bridge );
+		const ThingTemplate *towerTemplate, Object *bridge );
 
 public:
 	/// return the bridge template name
@@ -246,9 +246,9 @@ public:
 	virtual const WaterHandle* getWaterHandleByName( AsciiString name );	///< get water handle by name
 	virtual Real getWaterHeight( const WaterHandle *water );							///< get height of water table
 	virtual void setWaterHeight( const WaterHandle *water,
-															 Real height,
-															 Real damageAmount,
-															 Bool forcePathfindUpdate );	///< set height of water table
+		Real height,
+		Real damageAmount,
+		Bool forcePathfindUpdate );	///< set height of water table
 	virtual void changeWaterHeightOverTime( const WaterHandle *water,
 																					Real finalHeight,
 																					Real transitionTimeInSeconds,
@@ -311,8 +311,8 @@ public:
 	Int getActiveBoundary() { return m_activeBoundary; }
 	void setActiveBoundary(Int newActiveBoundary);
 
-  void flattenTerrain(Object *obj);  ///< Flatten the terrain under a building.
-  void createCraterInTerrain(Object *obj);  ///< Flatten the terrain under a building.
+	void flattenTerrain(Object *obj);  ///< Flatten the terrain under a building.
+	void createCraterInTerrain(Object *obj);  ///< Flatten the terrain under a building.
 
 protected:
 
@@ -322,7 +322,7 @@ protected:
 	virtual void loadPostProcess() override;
 
 	/// Chunk parser callback.
- 	static Bool parseWaypointDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
+	static Bool parseWaypointDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
 	/// Chunk parser callback.
 	Bool parseWaypointData(DataChunkInput &file, DataChunkInfo *info, void *userData);
 	/// Add a waypoint to the list.

@@ -249,9 +249,9 @@ void FirestormDynamicGeometryInfoUpdate::doDamageScan()
 	if( boundingCircle )
 	{
 		ObjectIterator *iter = ThePartitionManager->iterateObjectsInRange( firestormPos,
-																																			 boundingCircle,
-																																			 FROM_BOUNDINGSPHERE_2D,
-																																			 nullptr );
+			boundingCircle,
+			FROM_BOUNDINGSPHERE_2D,
+			nullptr );
 		MemoryPoolObjectHolder hold( iter );
 		Object *other;
 		for( other = iter->first(); other; other = iter->next() )

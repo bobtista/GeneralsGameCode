@@ -372,16 +372,16 @@ Bool GameSpySendChat( UnicodeString message, Bool isAction, GameWindow *playerLi
 }
 
 void RoomMessageCallback(PEER peer, RoomType roomType,
-												 const char * nick, const char * message,
-												 MessageType messageType, void * param)
+	const char * nick, const char * message,
+	MessageType messageType, void * param)
 {
 	DEBUG_LOG(("RoomMessageCallback"));
 	handleUnicodeMessage(nick, QuotedPrintableToUnicodeString(message), true, (messageType == ActionMessage));
 }
 
 void PlayerMessageCallback(PEER peer,
-												 const char * nick, const char * message,
-												 MessageType messageType, void * param)
+	const char * nick, const char * message,
+	MessageType messageType, void * param)
 {
 	DEBUG_LOG(("PlayerMessageCallback"));
 	handleUnicodeMessage(nick, QuotedPrintableToUnicodeString(message), false, (messageType == ActionMessage));
@@ -422,7 +422,7 @@ static handleUnicodeMessage( const char *nick, UnicodeString msg, Bool isPublic,
 	// filters language
 //  if( TheGlobalData->m_languageFilterPref )
 //  {
-    TheLanguageFilter->filterLine(msg);
+	TheLanguageFilter->filterLine(msg);
 //	}
 
 	UnicodeString fullMsg;
