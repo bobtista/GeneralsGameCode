@@ -254,11 +254,11 @@ void SupplyTruckAIUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void SupplyTruckAIUpdate::xfer( Xfer *xfer )
 {
-  XferVersion currentVersion = 1;
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 
- // extend base class
+	// extend base class
 	AIUpdateInterface::xfer(xfer);
 
 	xfer->xferSnapshot(m_supplyTruckStateMachine);
@@ -273,7 +273,7 @@ void SupplyTruckAIUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void SupplyTruckAIUpdate::loadPostProcess()
 {
- // extend base class
+	// extend base class
 	AIUpdateInterface::loadPostProcess();
 }
 
@@ -358,22 +358,22 @@ StateReturnType SupplyTruckIdleState::onEnter()
 TheInGameUI->DEBUG_addFloatingText("entering idle state", getMachineOwner()->getPosition(), GameMakeColor(255, 0, 0, 255));
 #endif
 
- 	Object *owner = getMachineOwner();
- 	if (owner != nullptr) {
- 		AIUpdateInterface * ownerAI = owner->getAIUpdateInterface();
- 		if (ownerAI != nullptr) {
- 			// This is to get idle workers to always show up on the
- 			// "idle worker button."
- 			// Basically if you have a worker interface, and we are entering
- 			// the idle state for the supply truck, we let the worker interface
- 			// know so it can decide which idle state it wants us to actually
- 			// be in from its perspective.
- 			WorkerAIInterface *workerAI = ownerAI->getWorkerAIInterface();
- 			if (workerAI != nullptr) {
- 				workerAI->exitingSupplyTruckState();
- 			}
- 		}
- 	}
+	Object *owner = getMachineOwner();
+	if (owner != nullptr) {
+		AIUpdateInterface * ownerAI = owner->getAIUpdateInterface();
+		if (ownerAI != nullptr) {
+			// This is to get idle workers to always show up on the
+			// "idle worker button."
+			// Basically if you have a worker interface, and we are entering
+			// the idle state for the supply truck, we let the worker interface
+			// know so it can decide which idle state it wants us to actually
+			// be in from its perspective.
+			WorkerAIInterface *workerAI = ownerAI->getWorkerAIInterface();
+			if (workerAI != nullptr) {
+				workerAI->exitingSupplyTruckState();
+			}
+		}
+	}
 
 	return STATE_CONTINUE;
 }

@@ -1005,8 +1005,8 @@ WW3DErrorType MeshModelClass::read_textures(ChunkLoadClass & cload,MeshLoadConte
 {
 	// Keep reading textures until there are no more...
 	for (TextureClass *newtex = ::Load_Texture (cload);
-		  newtex != nullptr;
-		  newtex = ::Load_Texture (cload)) {
+	newtex != nullptr;
+	newtex = ::Load_Texture (cload)) {
 
 		// Add this texture to our contex and release our local hold on it
 		context->Add_Texture(newtex);
@@ -2395,7 +2395,7 @@ WW3DErrorType MeshModelClass::write_vertices(ChunkSaveClass & csave,MeshSaveCont
 	for (int i=0; i<Get_Vertex_Count(); i++) {
 
 		W3dVectorStruct vert;
-   	vert.X = verts[i].X;
+		vert.X = verts[i].X;
 		vert.Y = verts[i].Y;
 		vert.Z = verts[i].Z;
 
@@ -2422,7 +2422,7 @@ WW3DErrorType MeshModelClass::write_vertex_normals(ChunkSaveClass & csave,MeshSa
 	for (int i=0; i<Get_Vertex_Count(); i++) {
 
 		W3dVectorStruct vert;
-   	vert.X = verts[i].X;
+		vert.X = verts[i].X;
 		vert.Y = verts[i].Y;
 		vert.Z = verts[i].Z;
 

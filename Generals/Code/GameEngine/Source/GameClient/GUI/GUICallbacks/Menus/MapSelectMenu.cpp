@@ -407,7 +407,7 @@ WindowMsgHandledType MapSelectMenuSystem( GameWindow *window, UnsignedInt msg,
 					buttonPushed = true;
 					// reset the campaign manager to empty
 					if( TheCampaignManager )
-					  TheCampaignManager->setCampaign( "" );
+					TheCampaignManager->setCampaign( "" );
 					// get text of the map to load
 					const char *mapFname = (const char *)GadgetListBoxGetItemData( mapWindow, selected );
 					DEBUG_ASSERTCRASH(mapFname, ("No map item data"));

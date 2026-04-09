@@ -236,7 +236,7 @@ void ControlBar::populateMultiSelect()
 
 	// loop through all the selected drawables
 	for( DrawableListCIt it = selectedDrawables->begin();
-			 it != selectedDrawables->end(); ++it )
+	it != selectedDrawables->end(); ++it )
 	{
 
 		// get the drawable
@@ -317,7 +317,7 @@ void ControlBar::updateContextMultiSelect()
 
 	// loop through all the selected drawable IDs
 	for( DrawableListCIt it = selectedDrawables->begin();
-			 it != selectedDrawables->end(); ++it )
+	it != selectedDrawables->end(); ++it )
 	{
 
 		// get the drawable from the ID

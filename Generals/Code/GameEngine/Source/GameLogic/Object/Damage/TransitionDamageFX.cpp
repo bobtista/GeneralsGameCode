@@ -278,7 +278,7 @@ static Coord3D getLocalEffectPos( const FXLocInfo *locInfo, Drawable *draw )
 		}
 		else
 		{
-		  const Int MAX_BONES = 32;
+			const Int MAX_BONES = 32;
 			Coord3D positions[ MAX_BONES ];
 
 			// get the bone positions

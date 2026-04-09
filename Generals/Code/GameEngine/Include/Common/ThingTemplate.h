@@ -734,7 +734,7 @@ private:
 	// ---- Bool-sized things
 	Bool					m_isPrerequisite;							///< Is this thing considered in a prerequisite for any other thing?
 	Bool					m_isBridge;										///< True if this model is a bridge.
- 	Bool					m_isBuildFacility;						///< is this the build facility for something? (calculated based on other template's prereqs)
+		Bool					m_isBuildFacility;						///< is this the build facility for something? (calculated based on other template's prereqs)
 	Bool					m_isTrainable;								///< Whether or not I can even gain experience
 	Bool					m_isForbidden;								///< useful when overriding in <mapfile>.ini
 	Bool					m_armorCopiedFromDefault;

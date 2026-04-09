@@ -2432,7 +2432,7 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 					{
 						// We don't have anything that'll happen if we click on ourselves
 						if(i == myGame->getLocalSlotNum())
-						 break;
+					break;
 						// Get
 						Int pos = -1;
 						GadgetComboBoxGetSelectedPos(comboBoxPlayer[i], &pos);
@@ -2602,11 +2602,11 @@ WindowMsgHandledType WOLGameSetupMenuSystem( GameWindow *window, UnsignedInt msg
 			}
 		//-------------------------------------------------------------------------------------------------
 		case GBM_SELECTED_RIGHT:
-   		{
-   			if (buttonPushed)
-   				break;
+		{
+			if (buttonPushed)
+			break;
 
-   			GameWindow *control = (GameWindow *)mData1;
+			GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
 				for (Int i = 0; i < MAX_SLOTS; i++)
 				{

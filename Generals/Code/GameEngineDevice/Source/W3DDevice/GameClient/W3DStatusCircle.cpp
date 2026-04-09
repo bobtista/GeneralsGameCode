@@ -195,7 +195,7 @@ Int W3DStatusCircle::updateCircleVB()
 		const Real theZ = 0.0f;
 		const Real theRadius = 0.02f;
 		const Int theAlpha = 127;
-	  Int diffuse = m_diffuse + (theAlpha<<24);	 // b g<<8 r<<16 a<<24.
+		Int diffuse = m_diffuse + (theAlpha<<24);	 // b g<<8 r<<16 a<<24.
 		Int limit = m_numTriangles;
 		float curAngle = 0;
 		float deltaAngle = 2*PI/limit;

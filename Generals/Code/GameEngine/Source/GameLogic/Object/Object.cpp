@@ -1461,7 +1461,7 @@ void Object::setProducer(const Object* obj)
 void Object::setBuilder( const Object *obj )
 {
 
-  m_builderID = obj ? obj->getID() : INVALID_ID;
+	m_builderID = obj ? obj->getID() : INVALID_ID;
 
 }
 
@@ -1646,7 +1646,7 @@ void Object::reactToTransformChange(const Matrix3D* oldMtx, const Coord3D* oldPo
 	}
 	if (m_drawable)
 	{
-  	m_drawable->setTransformMatrix( this->getTransformMatrix() );
+		m_drawable->setTransformMatrix( this->getTransformMatrix() );
 	}
 
 	Bool posDiff = isPosDifferent(oldPos, getPosition());
@@ -1897,7 +1897,7 @@ void Object::setDisabledUntil( DisabledType type, UnsignedInt frame )
 	}
 
 	//Handle audio events!
- 	AudioEventRTS sound;
+	AudioEventRTS sound;
 	if( type == DISABLED_UNMANNED && !isKindOf( KINDOF_DRONE ) )
 	{
 		//We've been sniped! Play a splatter sound for the pilot losing his face.
@@ -2026,7 +2026,7 @@ Bool Object::clearDisabled( DisabledType type )
 	if( type == DISABLED_UNDERPOWERED || type == DISABLED_EMP || type == DISABLED_HACKED )
 	{
 		//We've regained power-- make sure we aren't still disabled by another type.
-	 	AudioEventRTS sound;
+		AudioEventRTS sound;
 		if( (!isDisabledByType( DISABLED_UNDERPOWERED ) || type == DISABLED_UNDERPOWERED ) &&
 				(!isDisabledByType( DISABLED_EMP ) || type == DISABLED_EMP ) &&
 				(!isDisabledByType( DISABLED_HACKED ) || type == DISABLED_HACKED ) )
@@ -3769,7 +3769,7 @@ void Object::xfer( Xfer *xfer )
 			// empty names, see John A. for more info
 			//
 			//if (triggerName.isNotEmpty())
-			  m_triggerInfo[i].pTrigger = TheTerrainLogic->getTriggerAreaByName(triggerName);
+			m_triggerInfo[i].pTrigger = TheTerrainLogic->getTriggerAreaByName(triggerName);
 		}
 		xfer->xferByte(&m_triggerInfo[i].entered);
 		xfer->xferByte(&m_triggerInfo[i].exited);
@@ -4624,11 +4624,11 @@ Real Object::getShroudClearingRange() const
 //-------------------------------------------------------------------------------------------------
 void Object::setShroudClearingRange( Real newShroudClearingRange )
 {
- 	if( newShroudClearingRange != m_shroudClearingRange )
- 	{
- 		// The partition cell refresh is a slow operation, so only do it if you really have to.
- 		// Range change is a valid reason to relook.
- 		m_shroudClearingRange = newShroudClearingRange;
+	if( newShroudClearingRange != m_shroudClearingRange )
+	{
+		// The partition cell refresh is a slow operation, so only do it if you really have to.
+		// Range change is a valid reason to relook.
+		m_shroudClearingRange = newShroudClearingRange;
 
 		/*
 			Complete and total monkey hack fix.
@@ -4651,9 +4651,9 @@ void Object::setShroudClearingRange( Real newShroudClearingRange )
 		const Coord3D* pos = getPosition();
 		if (pos->x || pos->y || pos->z)
 		{
-	 		handlePartitionCellMaintenance();
+			handlePartitionCellMaintenance();
 		}
- 	}
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -5333,21 +5333,21 @@ Bool Object::canProduceUpgrade( const UpgradeTemplate *upgrade )
 	// We need to have the button to make the upgrade.  CommandSets are a weird Logic/Client hybrid.
 	const CommandSet *set = TheControlBar->findCommandSet(getCommandSetString());
 
- 	for( Int buttonIndex = 0; buttonIndex < MAX_COMMANDS_PER_SET; buttonIndex++ )
- 	{
- 		const CommandButton *button = set->getCommandButton(buttonIndex);
- 		if( button
+	for( Int buttonIndex = 0; buttonIndex < MAX_COMMANDS_PER_SET; buttonIndex++ )
+	{
+		const CommandButton *button = set->getCommandButton(buttonIndex);
+		if( button
 				&&  ( (button->getCommandType() == GUI_COMMAND_PLAYER_UPGRADE)  ||  (button->getCommandType() == GUI_COMMAND_OBJECT_UPGRADE) ) // Or else a button that requires an upgrade will appear the same as a button that gives an upgrade
 				&&  button->getUpgradeTemplate()
 				&&  (button->getUpgradeTemplate() == upgrade)
 				)
- 			return TRUE; // getUpgradeTemplate only returns something if it is actually an upgrade
- 	}
+		return TRUE; // getUpgradeTemplate only returns something if it is actually an upgrade
+	}
 
- 	return FALSE;// Cheatin' punk.
+	return FALSE;// Cheatin' punk.
 }
 
- //=============================================================================
+//=============================================================================
 const AsciiString& Object::getCommandSetString() const
 {
 	if (m_commandSetStringOverride.isNotEmpty())

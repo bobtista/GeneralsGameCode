@@ -519,8 +519,8 @@ void ThingFactory::postProcessLoad()
 
 	// go through all thing templates
 	for( ThingTemplate *thingTemplate = m_firstTemplate;
-			 thingTemplate;
-			 thingTemplate = thingTemplate->friend_getNextTemplate() )
+	thingTemplate;
+	thingTemplate = thingTemplate->friend_getNextTemplate() )
 	{
 
 		// resolve the prerequisite names

@@ -124,7 +124,7 @@ public:
 	UnsignedInt m_centerDelay;
 	UnsignedInt m_warehouseDelay;
 	Real m_warehouseScanDistance;
- 	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
+	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
 
 	SupplyTruckAIUpdateModuleData()
 	{
@@ -136,7 +136,7 @@ public:
 
 	static void buildFieldParse(MultiIniFieldParse& p)
 	{
-    AIUpdateModuleData::buildFieldParse(p);
+		AIUpdateModuleData::buildFieldParse(p);
 
 		static const FieldParse dataFieldParse[] =
 		{
@@ -147,7 +147,7 @@ public:
  			{ "SuppliesDepletedVoice", INI::parseAudioEventRTS, nullptr, offsetof( SupplyTruckAIUpdateModuleData, m_suppliesDepletedVoice) },
 			{ 0, 0, 0, 0 }
 		};
-    p.add(dataFieldParse);
+		p.add(dataFieldParse);
 
 	}
 };
@@ -229,6 +229,6 @@ private:
 																									// forceWanting will latch into here until serviced.
 	Bool											m_forcedBusyPending;	// A supply truck can't tell the difference between Idle since
 																									// I'm between docking states, or a Stop command without help.
- 	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
+	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
 
 };

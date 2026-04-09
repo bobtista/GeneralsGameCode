@@ -311,7 +311,7 @@ public:
 	Int getActiveBoundary() { return m_activeBoundary; }
 	void setActiveBoundary(Int newActiveBoundary);
 
-  void flattenTerrain(Object *obj);  ///< Flatten the terrain under a building.
+	void flattenTerrain(Object *obj);  ///< Flatten the terrain under a building.
 
 protected:
 
@@ -321,7 +321,7 @@ protected:
 	virtual void loadPostProcess() override;
 
 	/// Chunk parser callback.
- 	static Bool parseWaypointDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
+	static Bool parseWaypointDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
 	/// Chunk parser callback.
 	Bool parseWaypointData(DataChunkInput &file, DataChunkInfo *info, void *userData);
 	/// Add a waypoint to the list.

@@ -330,8 +330,8 @@ Int CampaignManager::getCurrentMissionNumber()
 		Campaign::MissionListIt it;
 
 		for( it = m_currentCampaign->m_missions.begin();
-				 it != m_currentCampaign->m_missions.end();
-				 ++it )
+		it != m_currentCampaign->m_missions.end();
+		++it )
 		{
 
 			number++;

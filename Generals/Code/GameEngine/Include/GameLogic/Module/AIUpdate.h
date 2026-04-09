@@ -195,7 +195,7 @@ public:
 	UnsignedInt						m_moodAttackCheckRate;				///< how frequently we should recheck for enemies due to moods, when idle
 	UnsignedInt						m_autoAcquireEnemiesWhenIdle;
 #ifdef ALLOW_SURRENDER
- 	UnsignedInt						m_surrenderDuration;					///< when we surrender, how long we stay surrendered.
+	UnsignedInt						m_surrenderDuration;					///< when we surrender, how long we stay surrendered.
 #endif
 
 	AIUpdateModuleData();

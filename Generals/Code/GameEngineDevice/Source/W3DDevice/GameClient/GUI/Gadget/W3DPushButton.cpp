@@ -464,11 +464,11 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 						TheDisplay->drawImage( hilitedOverlayIcon, start.x, start.y, start.x + size.x, start.y + size.y );
 					}
 				}
-  			else if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
- 				{
- 					//The button appears to be pushed -- CHECK_LIKE buttons that are on.
- 					TheDisplay->drawImage( pushedOverlayIcon, start.x, start.y, start.x + size.x, start.y + size.y );
-  			}
+				else if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
+				{
+					//The button appears to be pushed -- CHECK_LIKE buttons that are on.
+					TheDisplay->drawImage( pushedOverlayIcon, start.x, start.y, start.x + size.x, start.y + size.y );
+				}
 			}
 		}
 	}

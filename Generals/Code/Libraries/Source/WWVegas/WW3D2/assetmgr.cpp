@@ -1591,8 +1591,8 @@ void WW3DAssetManager::Remove_Prototype(PrototypeClass *proto)
 		PrototypeClass *prev = nullptr;
 		int hash = CRC_Stringi(pname) & PROTOTYPE_HASH_MASK;
 		for (PrototypeClass *test = PrototypeHashTable[hash];
-			  (test != nullptr) && (bfound == false);
-			  test = test->friend_getNextHash()) {
+		(test != nullptr) && (bfound == false);
+		test = test->friend_getNextHash()) {
 
 			// Is this the prototype?
 			if (::stricmp (test->Get_Name(), pname) == 0) {

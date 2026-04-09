@@ -251,7 +251,7 @@ DataChunkOutput::~DataChunkOutput()
 	AsciiString tmpFileName = TheGlobalData->getPath_UserData();
 	tmpFileName.concat(TEMP_FILENAME);
 
- 	m_tmp_file = ::fopen( tmpFileName.str(), "rb" );
+	m_tmp_file = ::fopen( tmpFileName.str(), "rb" );
 	::fseek(m_tmp_file, 0, SEEK_SET);
 
 	// append the temp m_tmp_file m_contents

@@ -283,7 +283,7 @@ UpdateSleepTime DeployStyleAIUpdate::update()
 				//object is dead, we revert to our original command.
 				AICommandParms parms( AICMD_MOVE_TO_POSITION, CMD_FROM_AI );	// values don't matter, will be wiped by next line
 				m_lastOutsideCommand.reconstitute( parms );
- 				aiDoCommand(&parms);
+				aiDoCommand(&parms);
 			}
 			break;
 		case DEPLOY:
@@ -411,7 +411,7 @@ void DeployStyleAIUpdate::setMyState( DeployStateTypes stateID )
 			{
 				AICommandParms parms( AICMD_MOVE_TO_POSITION, CMD_FROM_AI );	// values don't matter, will be wiped by next line
 				m_lastOutsideCommand.reconstitute( parms );
-	 			aiDoCommand(&parms);
+				aiDoCommand(&parms);
 			}
 
 			self->clearModelConditionFlags( MAKE_MODELCONDITION_MASK( MODELCONDITION_PACKING ) );
@@ -426,7 +426,7 @@ void DeployStyleAIUpdate::setMyState( DeployStateTypes stateID )
 			{
 				AICommandParms parms( AICMD_MOVE_TO_POSITION, CMD_FROM_AI );	// values don't matter, will be wiped by next line
 				m_lastOutsideCommand.reconstitute( parms );
- 				aiDoCommand(&parms);
+				aiDoCommand(&parms);
 			}
 
 			self->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK( MODELCONDITION_UNPACKING ),
@@ -477,12 +477,12 @@ void DeployStyleAIUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void DeployStyleAIUpdate::xfer( Xfer *xfer )
 {
-  // version
-  XferVersion currentVersion = 3;
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	// version
+	XferVersion currentVersion = 3;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 
- // extend base class
+	// extend base class
 	AIUpdateInterface::xfer(xfer);
 
 	xfer->xferBool(&m_hasOutsideCommand);
@@ -519,7 +519,7 @@ void DeployStyleAIUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void DeployStyleAIUpdate::loadPostProcess()
 {
- // extend base class
+	// extend base class
 	AIUpdateInterface::loadPostProcess();
 }
 

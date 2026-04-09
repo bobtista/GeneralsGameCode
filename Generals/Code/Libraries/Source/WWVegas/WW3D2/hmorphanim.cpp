@@ -250,8 +250,8 @@ static int Build_List_From_String
 		//
 		const char *entry = buffer;
 		for (;
-			  (entry != nullptr) && (entry[1] != 0);
-			  entry = ::strstr (entry, delimiter))
+		(entry != nullptr) && (entry[1] != 0);
+		entry = ::strstr (entry, delimiter))
 		{
 
 			//
@@ -277,8 +277,8 @@ static int Build_List_From_String
 			//
 			count = 0;
 			for (entry = buffer;
-				  (entry != nullptr) && (entry[1] != 0);
-				  entry = ::strstr (entry, delimiter))
+			(entry != nullptr) && (entry[1] != 0);
+			entry = ::strstr (entry, delimiter))
 			{
 
 				//

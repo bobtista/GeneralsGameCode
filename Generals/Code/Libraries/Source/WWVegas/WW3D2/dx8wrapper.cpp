@@ -1076,8 +1076,8 @@ bool DX8Wrapper::Toggle_Windowed()
 		// toggling the windowed state.
 		int curr_res = -1;
 		for (int res = 0;
-		     (res < resolutions.Count ()) && (curr_res == -1);
-			  res ++) {
+		(res < resolutions.Count ()) && (curr_res == -1);
+		res ++) {
 
 			// Is this the resolution we are looking for?
 			if ((resolutions[res].Width == ResolutionWidth) &&
@@ -4178,7 +4178,7 @@ const char* DX8Wrapper::Get_DX8_Patch_Edge_Style_Name(unsigned value)
 {
 	switch (value) {
 	case D3DPATCHEDGE_DISCRETE	: return "D3DPATCHEDGE_DISCRETE";
-   case D3DPATCHEDGE_CONTINUOUS:return "D3DPATCHEDGE_CONTINUOUS";
+		case D3DPATCHEDGE_CONTINUOUS:return "D3DPATCHEDGE_CONTINUOUS";
 	default							: return "UNKNOWN";
 	}
 }

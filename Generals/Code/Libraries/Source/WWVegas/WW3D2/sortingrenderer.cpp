@@ -336,7 +336,7 @@ void SortingRendererClass::Insert_Triangles(
 
 	DX8Wrapper::Get_Render_State(state->sorting_state);
 
- 	WWASSERT(
+	WWASSERT(
 		((state->sorting_state.index_buffer_type==BUFFER_TYPE_SORTING || state->sorting_state.index_buffer_type==BUFFER_TYPE_DYNAMIC_SORTING) &&
 		(state->sorting_state.vertex_buffer_type==BUFFER_TYPE_SORTING || state->sorting_state.vertex_buffer_type==BUFFER_TYPE_DYNAMIC_SORTING)));
 
@@ -482,7 +482,7 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 
 	if (!render_state.material->Get_Lighting())
 		return;	//no point changing lights if they are ignored.
-  //prevLight = render_state.lightsHash;
+	//prevLight = render_state.lightsHash;
 
 	if (render_state.LightEnable[0]) {
 		DX8Wrapper::Set_DX8_Light(0,&render_state.Lights[0]);

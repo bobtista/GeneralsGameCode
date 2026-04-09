@@ -73,7 +73,7 @@ public:
 	UnsignedInt m_centerDelay;
 	UnsignedInt m_warehouseDelay;
 	Real m_warehouseScanDistance;
- 	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
+	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
 
 	WorkerAIUpdateModuleData()
 	{
@@ -88,7 +88,7 @@ public:
 
 	static void buildFieldParse(MultiIniFieldParse& p)
 	{
-    AIUpdateModuleData::buildFieldParse(p);
+		AIUpdateModuleData::buildFieldParse(p);
 
 		static const FieldParse dataFieldParse[] =
 		{
@@ -102,7 +102,7 @@ public:
  			{ "SuppliesDepletedVoice", INI::parseAudioEventRTS, nullptr, offsetof( WorkerAIUpdateModuleData, m_suppliesDepletedVoice) },
 			{ 0, 0, 0, 0 }
 		};
-    p.add(dataFieldParse);
+		p.add(dataFieldParse);
 	}
 };
 
@@ -267,6 +267,6 @@ protected:
 private:
 
 	void createMachines();		///< create our behavior machines we need
- 	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
+	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
 
 };

@@ -672,14 +672,14 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
 
 	// register the window class
 
-  WNDCLASS wndClass = { CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS, WndProc, 0, 0, hInstance,
+	WNDCLASS wndClass = { CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS, WndProc, 0, 0, hInstance,
                        LoadIcon (hInstance, MAKEINTRESOURCE(IDI_ApplicationIcon)),
                        nullptr/*LoadCursor(nullptr, IDC_ARROW)*/,
                        (HBRUSH)GetStockObject(BLACK_BRUSH), nullptr,
 	                     TEXT("Game Window") };
-  RegisterClass( &wndClass );
+	RegisterClass( &wndClass );
 
-   // Create our main window
+	// Create our main window
 	windowStyle =  WS_POPUP|WS_VISIBLE;
 	if (runWindowed)
 		windowStyle |= WS_MINIMIZEBOX | WS_SYSMENU | WS_DLGFRAME | WS_CAPTION;
@@ -700,7 +700,7 @@ static Bool initializeAppWindows( HINSTANCE hInstance, Int nCmdShow, Bool runWin
 
 	gInitializing = true;
 
-  HWND hWnd = CreateWindow( TEXT("Game Window"),
+	HWND hWnd = CreateWindow( TEXT("Game Window"),
                             TEXT("Command and Conquer Generals"),
                             windowStyle,
 														(GetSystemMetrics( SM_CXSCREEN ) / 2) - (startWidth / 2), // original position X
@@ -814,9 +814,9 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 	//	WWDebug_Install_Message_Handler(WWDebug_Message_Callback);
 	//	WWDebug_Install_Assert_Handler(WWAssert_Callback);
 
- 		// [SKB: Jun 24 2003 @ 1:50pm] :
+		// [SKB: Jun 24 2003 @ 1:50pm] :
 		// Force to be loaded from a file, not a resource so same exe can be used in germany and retail.
- 		gLoadScreenBitmap = (HBITMAP)LoadImage(hInstance, "Install_Final.bmp",	IMAGE_BITMAP, 0, 0, LR_SHARED|LR_LOADFROMFILE);
+		gLoadScreenBitmap = (HBITMAP)LoadImage(hInstance, "Install_Final.bmp",	IMAGE_BITMAP, 0, 0, LR_SHARED|LR_LOADFROMFILE);
 
 		CommandLine::parseCommandLineForStartup();
 

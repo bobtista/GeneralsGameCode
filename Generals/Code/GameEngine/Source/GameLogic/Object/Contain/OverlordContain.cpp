@@ -56,13 +56,13 @@ OverlordContainModuleData::OverlordContainModuleData()
 // ------------------------------------------------------------------------------------------------
 void OverlordContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  TransportContainModuleData::buildFieldParse(p);
+	TransportContainModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -403,8 +403,8 @@ const Object *OverlordContain::friend_getRider() const
 	//around it.	So this is another function that knows it is getting around redirection to ask
 	// an Overlord specific function.
 
- 	if( m_containListSize > 0 )
- 		return m_containList.front();
+	if( m_containListSize > 0 )
+	return m_containList.front();
 
 
 	return nullptr;

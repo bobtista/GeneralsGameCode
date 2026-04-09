@@ -47,14 +47,14 @@ public:
 
 	static void buildFieldParse(MultiIniFieldParse& p)
 	{
-    UpdateModuleData::buildFieldParse(p);
+		UpdateModuleData::buildFieldParse(p);
 		static const FieldParse dataFieldParse[] =
 		{
 			{ "AttachToTargetBone",	INI::parseAsciiString,		nullptr, offsetof( HijackerUpdateModuleData, m_attachToBone ) },
 			{ "ParachuteName",	INI::parseAsciiString,		nullptr, offsetof( HijackerUpdateModuleData, m_parachuteName ) },
 			{ 0, 0, 0, 0 }
 		};
-    p.add(dataFieldParse);
+		p.add(dataFieldParse);
 	}
 };
 
@@ -86,6 +86,6 @@ private:
 	Bool		 m_wasTargetAirborne;
 
 //	DieModuleInterface *m_ejectPilotDMI; // point to ejectpilotdiemodule
-																			 // of target vehicle if it has one
+	// of target vehicle if it has one
 
 };

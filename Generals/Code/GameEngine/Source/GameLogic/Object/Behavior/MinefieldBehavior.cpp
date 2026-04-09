@@ -70,7 +70,7 @@ MinefieldBehaviorModuleData::MinefieldBehaviorModuleData()
 /*static*/ void MinefieldBehaviorModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
 
-  UpdateModuleData::buildFieldParse( p );
+	UpdateModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -87,7 +87,7 @@ MinefieldBehaviorModuleData::MinefieldBehaviorModuleData()
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add( dataFieldParse );
+	p.add( dataFieldParse );
 
 }
 
@@ -271,7 +271,7 @@ void MinefieldBehavior::detonateOnce(const Coord3D& position)
 	if (d->m_detonationWeapon)
 	{
 		Object* obj = getObject();
-	  TheWeaponStore->createAndFireTempWeapon(d->m_detonationWeapon, obj, &position);
+		TheWeaponStore->createAndFireTempWeapon(d->m_detonationWeapon, obj, &position);
 	}
 
 	if (m_virtualMinesRemaining > 0)

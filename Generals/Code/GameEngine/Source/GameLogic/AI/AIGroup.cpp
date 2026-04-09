@@ -597,7 +597,7 @@ Bool AIGroup::friend_computeGroundPath( const Coord3D *pos, CommandSourceType cm
 		}
 		if( obj->isKindOf( KINDOF_INFANTRY ) )
 		{
- 			numInfantry++;
+			numInfantry++;
 		} else if (obj->isKindOf( KINDOF_VEHICLE)) {
 			if (obj->isKindOf(KINDOF_AIRCRAFT)) {
 				continue;
@@ -618,7 +618,7 @@ Bool AIGroup::friend_computeGroundPath( const Coord3D *pos, CommandSourceType cm
 		// find object closest to the center.
 		dx = unitPos.x-center.x;
 		dy = unitPos.y-center.y;
- 		if (centerVehicle==nullptr || dx*dx+dy*dy<distSqrCenterVeh) {
+		if (centerVehicle==nullptr || dx*dx+dy*dy<distSqrCenterVeh) {
 			centerVehicle = (*i);
 			distSqrCenterVeh = dx*dx+dy*dy;
 		}
@@ -958,7 +958,7 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cm
 		Int tmp = ai->getTmpValue();
 		Int fiveColumnDelta = tmp>>16;
 		Int columnDelta = (Short)(tmp & 0xFFFF);
- 		Int factor = columnFactor[fiveColumnDelta+2];
+		Int factor = columnFactor[fiveColumnDelta+2];
 		columnFactor[fiveColumnDelta+2] = factor+1;
 
 		std::vector<Coord3D> path;
@@ -990,7 +990,7 @@ Bool AIGroup::friend_moveInfantryToPos( const Coord3D *pos, CommandSourceType cm
 			Real offset = PATHFIND_CELL_SIZE_F*2.1f/halfNumColumns;
 			dest.x += offset * columnDelta * cornerVectorNormal.x;
 			dest.y += offset * columnDelta * cornerVectorNormal.y;
- 			if (factor&1) {
+			if (factor&1) {
 				dest.x += 0.5f*PATHFIND_CELL_SIZE_F * cornerVectorNormal.x;
 				dest.y += 0.5f*PATHFIND_CELL_SIZE_F * cornerVectorNormal.y;
 			} else {
@@ -1433,7 +1433,7 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 		Int tmp = ai->getTmpValue();
 		Int threeColumnDelta = tmp>>16;
 		Int columnDelta = (Short)(tmp & 0xFFFF);
- 		Int factor = columnFactor[threeColumnDelta+2];
+		Int factor = columnFactor[threeColumnDelta+2];
 		columnFactor[threeColumnDelta+2] = factor+1;
 
 		std::vector<Coord3D> path;
@@ -1465,7 +1465,7 @@ Bool AIGroup::friend_moveVehicleToPos( const Coord3D *pos, CommandSourceType cmd
 			Real offset = PATHFIND_CELL_SIZE_F*1.5f;
 			dest.x += offset * columnDelta * cornerVectorNormal.x;
 			dest.y += offset * columnDelta * cornerVectorNormal.y;
- 			if (factor&1) {
+			if (factor&1) {
 				dest.x += 0.5f*PATHFIND_CELL_SIZE_F * cornerVectorNormal.x;
 				dest.y += 0.5f*PATHFIND_CELL_SIZE_F * cornerVectorNormal.y;
 			} else {
@@ -1552,26 +1552,26 @@ void clampWaypointPosition( Coord3D &position, Int margin )
 	Region3D mapExtent;
 	TheTerrainLogic->getExtent(&mapExtent);
 
-  // trim some fat off of all sides,
-  mapExtent.hi.x -= margin;
-  mapExtent.hi.y -= margin;
-  mapExtent.lo.x += margin;
-  mapExtent.lo.y += margin;
+	// trim some fat off of all sides,
+	mapExtent.hi.x -= margin;
+	mapExtent.hi.y -= margin;
+	mapExtent.lo.x += margin;
+	mapExtent.lo.y += margin;
 
 	if ( mapExtent.isInRegionNoZ( &position ) == FALSE )
-  {
-    if ( position.x > mapExtent.hi.x )
-      position.x = mapExtent.hi.x;
-    else if ( position.x < mapExtent.lo.x )
-      position.x = mapExtent.lo.x;
+	{
+		if ( position.x > mapExtent.hi.x )
+		position.x = mapExtent.hi.x;
+		else if ( position.x < mapExtent.lo.x )
+		position.x = mapExtent.lo.x;
 
-    if ( position.y > mapExtent.hi.y )
-      position.y = mapExtent.hi.y;
-    else if ( position.y < mapExtent.lo.y )
-      position.y = mapExtent.lo.y;
+		if ( position.y > mapExtent.hi.y )
+		position.y = mapExtent.hi.y;
+		else if ( position.y < mapExtent.lo.y )
+		position.y = mapExtent.lo.y;
 
-    position.z = TheTerrainLogic->getGroundHeight( position.x, position.y );
-  }
+		position.z = TheTerrainLogic->getGroundHeight( position.x, position.y );
+	}
 }
 
 
@@ -1817,30 +1817,30 @@ const Real CIRCLE = ( 2.0f * PI );
 
 void getHelicopterOffset( Coord3D& posOut, Int idx )
 {
-  if (idx == 0)
-    return;
+	if (idx == 0)
+	return;
 
-  Real assumedHeliDiameter = 70.0f;
-  Real radius = assumedHeliDiameter;
-  Real circumference = radius * CIRCLE;
-  Real angle = 0;
-  Real angleBetweenEachChopper = assumedHeliDiameter / circumference * CIRCLE;
-  for (Int h = 1; h < idx; ++h )
-  {
-    angle += angleBetweenEachChopper;
+	Real assumedHeliDiameter = 70.0f;
+	Real radius = assumedHeliDiameter;
+	Real circumference = radius * CIRCLE;
+	Real angle = 0;
+	Real angleBetweenEachChopper = assumedHeliDiameter / circumference * CIRCLE;
+	for (Int h = 1; h < idx; ++h )
+	{
+		angle += angleBetweenEachChopper;
 
-    if ( angle > CIRCLE )
-    {
-      radius += assumedHeliDiameter;
-      circumference = radius * CIRCLE;
-      angleBetweenEachChopper = assumedHeliDiameter / circumference * CIRCLE;
-      angle -= CIRCLE;
-    }
-  }
+		if ( angle > CIRCLE )
+		{
+			radius += assumedHeliDiameter;
+			circumference = radius * CIRCLE;
+			angleBetweenEachChopper = assumedHeliDiameter / circumference * CIRCLE;
+			angle -= CIRCLE;
+		}
+	}
 
-  Coord3D tempCtr = posOut;
-  posOut.x = tempCtr.x + (sin(angle) * radius);
-  posOut.y = tempCtr.y + (cos(angle) * radius);
+	Coord3D tempCtr = posOut;
+	posOut.x = tempCtr.x + (sin(angle) * radius);
+	posOut.y = tempCtr.y + (cos(angle) * radius);
 
 }
 
