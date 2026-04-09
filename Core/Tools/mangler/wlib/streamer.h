@@ -43,22 +43,22 @@
 // Provide a streambuf interface for a class that can 'print'
 class Streamer : public streambuf
 {
- public:
-               Streamer();
-    virtual   ~Streamer();
+public:
+	Streamer();
+	virtual   ~Streamer();
 
-    int        setOutputDevice(OutputDevice *output_device);
+	int        setOutputDevice(OutputDevice *output_device);
 
- protected:
-    // Virtual methods from streambuf
-    int       xsputn(const char* s, int n); // buffer some characters
-    int       overflow(int = EOF);          // flush buffer and make more room
-    int       underflow(void);              // Does nothing
-    int       sync();
+protected:
+	// Virtual methods from streambuf
+	int       xsputn(const char* s, int n); // buffer some characters
+	int       overflow(int = EOF);          // flush buffer and make more room
+	int       underflow(void);              // Does nothing
+	int       sync();
 
-    int       doallocate();                 // allocate a buffer
+	int       doallocate();                 // allocate a buffer
 
 
-    OutputDevice  *Output_Device;
-    char* Buf;
+	OutputDevice  *Output_Device;
+	char* Buf;
 };

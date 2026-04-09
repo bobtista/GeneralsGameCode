@@ -173,9 +173,9 @@ void setupGenerals( const char *genPath, const char *genSerial )
 	*/
 class OLEInitializer
 {
- public:
-          OLEInitializer() { OleInitialize(nullptr); }
-         ~OLEInitializer() { OleUninitialize(); }
+public:
+	OLEInitializer() { OleInitialize(nullptr); }
+	~OLEInitializer() { OleUninitialize(); }
 };
 OLEInitializer g_OLEInitializer;
 CComModule _Module;

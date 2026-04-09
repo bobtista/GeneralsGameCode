@@ -57,7 +57,7 @@
 
 template <class T>
 class SList {
-  private:
+private:
 		SLNode<T> *HeadNode;    // Note: Constructor not called for pointer.
 		SLNode<T> *TailNode;
 

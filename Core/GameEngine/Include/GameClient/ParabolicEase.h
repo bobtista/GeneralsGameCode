@@ -67,7 +67,7 @@
  */
 class ParabolicEase
 {
-  public:
+public:
 		explicit ParabolicEase(Real easeInTime = 0.0f, Real easeOutTime = 0.0f)
 			{ setEaseTimes(easeInTime, easeOutTime); }
 
