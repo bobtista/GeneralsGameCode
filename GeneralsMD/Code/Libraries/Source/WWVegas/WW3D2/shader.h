@@ -111,7 +111,7 @@ public:
 		COLOR_WRITE_ENABLE,		// enable color buffer writes		(default)
 	};
 
- 	enum DetailAlphaFuncType
+	enum DetailAlphaFuncType
  	{
 		DETAILALPHA_DISABLE=0,	// local (default)
 		DETAILALPHA_DETAIL,		// other
@@ -148,7 +148,7 @@ public:
 		NPATCH_ENABLE,
 	};
 
-  	enum DstBlendFuncType
+	enum DstBlendFuncType
   	{
   		DSTBLEND_ZERO=0,					// destination pixel doesn't affect blending (default)
   		DSTBLEND_ONE,						// destination pixel added unmodified
@@ -168,7 +168,7 @@ public:
  		FOG_WHITE,				// fog scalar value replaces fragment, f*fogColor
  	};
 
- 	enum PriGradientType
+	enum PriGradientType
  	{
  		GRADIENT_DISABLE=0,				//	000	disable primary gradient (same as OpenGL 'decal' texture blend)
 		GRADIENT_MODULATE,				//	001	modulate fragment ARGB by gradient ARGB (default)

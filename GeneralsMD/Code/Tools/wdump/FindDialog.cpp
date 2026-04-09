@@ -73,7 +73,7 @@ BOOL FindDialog::OnInitDialog()
 	GetDlgItem (IDC_FIND_STRING)->SetWindowText (_FindString);
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 

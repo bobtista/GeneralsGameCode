@@ -53,7 +53,7 @@ protected:
 	int									m_maxUndos;
 	int									m_curRedo;		///< 0 means no redos available.
 	Bool								m_linkCenters;				///< Flag whether the centers of the 2d and 3d views track together.
- 	Bool								m_needAutosave;			///< True if changes have been made since last autosave.
+	Bool								m_needAutosave;			///< True if changes have been made since last autosave.
 	Int									m_curWaypointID;
 
 protected:

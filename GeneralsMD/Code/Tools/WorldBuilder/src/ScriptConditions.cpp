@@ -81,7 +81,7 @@ BOOL ScriptConditionsDlg::OnInitDialog()
 	CListBox *pList = (CListBox *)GetDlgItem(IDC_CONDITION_LIST);
 	pList->SetHorizontalExtent(10000);	// band-aid fix until more precise length can be determined
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 void ScriptConditionsDlg::loadList(void)

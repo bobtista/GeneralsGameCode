@@ -1569,7 +1569,7 @@ void CWorldBuilderDoc::getObjArrowPoint(MapObject *pObj, Coord3D *location)
 {
 	// Get the center location, and the angle.
 	Coord3D loc = *pObj->getLocation();
- 	float angle = pObj->getAngle();
+	float angle = pObj->getAngle();
 	// The arrow starts in the +x direction.
 	Vector3 arrow(1.2f*MAP_XY_FACTOR, 0, 0);
 	// Rotate

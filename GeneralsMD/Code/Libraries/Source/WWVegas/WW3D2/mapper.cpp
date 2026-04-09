@@ -515,7 +515,7 @@ void StepLinearOffsetTextureMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex
 	// This works well for clamped textures.
 	if (!ClampFix) {
 		CurrentStep.U -= WWMath::Floor(CurrentStep.U);
-	  	CurrentStep.V -= WWMath::Floor(CurrentStep.V);
+		CurrentStep.V -= WWMath::Floor(CurrentStep.V);
 	} else {
 		CurrentStep.U = WWMath::Clamp(CurrentStep.U, -Scale.X, Scale.X);
 		CurrentStep.V = WWMath::Clamp(CurrentStep.V, -Scale.Y, Scale.Y);

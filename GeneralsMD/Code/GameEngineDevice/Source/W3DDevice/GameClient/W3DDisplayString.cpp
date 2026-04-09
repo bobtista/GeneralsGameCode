@@ -391,6 +391,6 @@ void W3DDisplayString::setUseHotkey( Bool useHotkey, Color hotKeyColor )
 void W3DDisplayString::setWordWrapCentered( Bool isCentered )
 {
 	// set the Word Wrap
-	 if( m_textRenderer.Set_Word_Wrap_Centered(isCentered) )
+	if( m_textRenderer.Set_Word_Wrap_Centered(isCentered) )
 		notifyTextChanged();
 }

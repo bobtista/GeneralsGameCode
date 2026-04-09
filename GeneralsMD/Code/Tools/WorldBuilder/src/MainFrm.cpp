@@ -87,7 +87,7 @@ CMainFrame::~CMainFrame()
 	TheMainFrame = nullptr;
 	::AfxGetApp()->WriteProfileInt(MAIN_FRAME_SECTION, "AutoSave", m_autoSave);
 	::AfxGetApp()->WriteProfileInt(MAIN_FRAME_SECTION, "AutoSaveIntervalSeconds", m_autoSaveInterval);
-    CoUninitialize();
+	CoUninitialize();
 }
 
 int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
@@ -139,7 +139,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 		TRACE0("Failed to create toolbar\n");
 		return -1;      // fail to create
 	}
- 	 m_wndToolBar.EnableDocking(CBRS_ALIGN_TOP);
+	m_wndToolBar.EnableDocking(CBRS_ALIGN_TOP);
 
 	frameRect.left = frameRect.right;
 	frameRect.top = ::AfxGetApp()->GetProfileInt(OPTIONS_PANEL_SECTION, "Top", frameRect.top);
@@ -211,56 +211,56 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	m_roadOptions.Create(IDD_ROAD_OPTIONS, this);
 	m_roadOptions.SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_roadOptions.GetWindowRect(&frameRect);
+	m_roadOptions.GetWindowRect(&frameRect);
 	if (m_optionsPanelWidth < frameRect.Width()) m_optionsPanelWidth = frameRect.Width();
 	if (m_optionsPanelHeight < frameRect.Height()) m_optionsPanelHeight = frameRect.Height();
 
 	m_waypointOptions.Create(IDD_WAYPOINT_OPTIONS, this);
 	m_waypointOptions.SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_waypointOptions.GetWindowRect(&frameRect);
+	m_waypointOptions.GetWindowRect(&frameRect);
 	if (m_optionsPanelWidth < frameRect.Width()) m_optionsPanelWidth = frameRect.Width();
 	if (m_optionsPanelHeight < frameRect.Height()) m_optionsPanelHeight = frameRect.Height();
 
 	m_waterOptions.Create(IDD_WATER_OPTIONS, this);
 	m_waterOptions.SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_waterOptions.GetWindowRect(&frameRect);
+	m_waterOptions.GetWindowRect(&frameRect);
 	if (m_optionsPanelWidth < frameRect.Width()) m_optionsPanelWidth = frameRect.Width();
 	if (m_optionsPanelHeight < frameRect.Height()) m_optionsPanelHeight = frameRect.Height();
 
 	m_lightOptions.Create(IDD_LIGHT_OPTIONS, this);
 	m_lightOptions.SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_lightOptions.GetWindowRect(&frameRect);
+	m_lightOptions.GetWindowRect(&frameRect);
 	if (m_optionsPanelWidth < frameRect.Width()) m_optionsPanelWidth = frameRect.Width();
 	if (m_optionsPanelHeight < frameRect.Height()) m_optionsPanelHeight = frameRect.Height();
 
 	m_meshMoldOptions.Create(IDD_MESHMOLD_OPTIONS, this);
 	m_meshMoldOptions.SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_meshMoldOptions.GetWindowRect(&frameRect);
+	m_meshMoldOptions.GetWindowRect(&frameRect);
 	if (m_optionsPanelWidth < frameRect.Width()) m_optionsPanelWidth = frameRect.Width();
 	if (m_optionsPanelHeight < frameRect.Height()) m_optionsPanelHeight = frameRect.Height();
 
 	m_buildListOptions.Create(IDD_BUILD_LIST_PANEL, this);
 	m_buildListOptions.SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_buildListOptions.GetWindowRect(&frameRect);
+	m_buildListOptions.GetWindowRect(&frameRect);
 	if (m_optionsPanelWidth < frameRect.Width()) m_optionsPanelWidth = frameRect.Width();
 	if (m_optionsPanelHeight < frameRect.Height()) m_optionsPanelHeight = frameRect.Height();
 
 	m_groveOptions.Create(IDD_GROVE_OPTIONS, this);
 	m_groveOptions.makeMain();
 	m_groveOptions.SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_groveOptions.GetWindowRect(&frameRect);
+	m_groveOptions.GetWindowRect(&frameRect);
 	if (m_optionsPanelWidth < frameRect.Width()) m_optionsPanelWidth = frameRect.Width();
 	if (m_optionsPanelHeight < frameRect.Height()) m_optionsPanelHeight = frameRect.Height();
 
 	m_rampOptions.Create(IDD_RAMP_OPTIONS, this);
 	m_rampOptions.SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_rampOptions.GetWindowRect(&frameRect);
+	m_rampOptions.GetWindowRect(&frameRect);
 	if (m_optionsPanelWidth < frameRect.Width()) m_optionsPanelWidth = frameRect.Width();
 	if (m_optionsPanelHeight < frameRect.Height()) m_optionsPanelHeight = frameRect.Height();
 
 	m_scorchOptions.Create(IDD_SCORCH_OPTIONS, this);
 	m_scorchOptions.SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_scorchOptions.GetWindowRect(&frameRect);
+	m_scorchOptions.GetWindowRect(&frameRect);
 	if (m_optionsPanelWidth < frameRect.Width()) m_optionsPanelWidth = frameRect.Width();
 	if (m_optionsPanelHeight < frameRect.Height()) m_optionsPanelHeight = frameRect.Height();
 
@@ -269,7 +269,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	m_globalLightOptions.Create(IDD_GLOBAL_LIGHT_OPTIONS, this);
 	m_globalLightOptions.SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_globalLightOptions.GetWindowRect(&frameRect);
+	m_globalLightOptions.GetWindowRect(&frameRect);
 	m_globalLightOptionsWidth = frameRect.Width();
 	m_globalLightOptionsHeight = frameRect.Height();
 
@@ -278,7 +278,7 @@ int CMainFrame::OnCreate(LPCREATESTRUCT lpCreateStruct)
 
 	m_cameraOptions.Create(IDD_CAMERA_OPTIONS, this);
 	m_cameraOptions.SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_cameraOptions.GetWindowRect(&frameRect);
+	m_cameraOptions.GetWindowRect(&frameRect);
 
 	// now, setup the Layers Panel
 	m_layersList = new LayersList(LayersList::IDD, this);
@@ -434,7 +434,7 @@ void CMainFrame::onEditScripts()
 	m_scriptDialog = new ScriptDialog(this);
 	m_scriptDialog->Create(IDD_ScriptDialog, this);
 	m_scriptDialog->SetWindowPos(nullptr, frameRect.left, frameRect.top, 0, 0, SWP_NOZORDER|SWP_NOSIZE);
- 	m_scriptDialog->GetWindowRect(&frameRect);
+	m_scriptDialog->GetWindowRect(&frameRect);
 	m_scriptDialog->ShowWindow(SW_SHOWNA);
 }
 

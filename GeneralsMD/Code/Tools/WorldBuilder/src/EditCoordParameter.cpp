@@ -74,7 +74,7 @@ BOOL EditCoordParameter::OnInitDialog()
 	pEditZ->SetWindowText(string);
 
 	return FALSE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 void EditCoordParameter::OnOK()

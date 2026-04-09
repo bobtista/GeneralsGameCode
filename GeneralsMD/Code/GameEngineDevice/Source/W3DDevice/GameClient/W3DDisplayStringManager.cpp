@@ -83,9 +83,9 @@ void W3DDisplayStringManager::postProcessLoad()
 	{
 		m_groupNumeralStrings[i] = newDisplayString();
 		m_groupNumeralStrings[i]->setFont(font);
- 		AsciiString displayNumber;
- 		displayNumber.format("NUMBER:%d", i);
- 		m_groupNumeralStrings[i]->setText(TheGameText->fetch(displayNumber));
+		AsciiString displayNumber;
+		displayNumber.format("NUMBER:%d", i);
+		m_groupNumeralStrings[i]->setText(TheGameText->fetch(displayNumber));
 	}
 
 	m_formationLetterDisplayString = newDisplayString();

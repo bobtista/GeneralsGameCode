@@ -295,20 +295,20 @@ void DX8FVFCategoryContainer::Render_Procedural_Material_Passes()
 	// additional passes
 	MatPassTaskClass * mpr = visible_matpass_head;
 	MatPassTaskClass * last_mpr = nullptr;
-   	bool renderTasksRemaining=false;
+	bool renderTasksRemaining=false;
 
 	while (mpr != nullptr) {
 		SNAPSHOT_SAY(("Render_Procedural_Material_Pass"));
 
-   		MeshClass * mesh = mpr->Peek_Mesh();
+		MeshClass * mesh = mpr->Peek_Mesh();
 
-   		if (mesh->Get_Base_Vertex_Offset() == VERTEX_BUFFER_OVERFLOW)	//check if this mesh is valid
-   		{	//skip this mesh so it gets rendered later after vertices are filled in.
-	        last_mpr = mpr;
-   			mpr = mpr->Get_Next_Visible();
-   			renderTasksRemaining = true;
-   			continue;
-   		}
+		if (mesh->Get_Base_Vertex_Offset() == VERTEX_BUFFER_OVERFLOW)	//check if this mesh is valid
+		{	//skip this mesh so it gets rendered later after vertices are filled in.
+			last_mpr = mpr;
+			mpr = mpr->Get_Next_Visible();
+			renderTasksRemaining = true;
+			continue;
+		}
 
 		mpr->Peek_Mesh()->Render_Material_Pass(mpr->Peek_Material_Pass(),index_buffer);
 		MatPassTaskClass * next_mpr = mpr->Get_Next_Visible();
@@ -317,8 +317,8 @@ void DX8FVFCategoryContainer::Render_Procedural_Material_Passes()
 		if (last_mpr == nullptr) {
 			visible_matpass_head = next_mpr;
 		} else {
-	       last_mpr->Set_Next_Visible(next_mpr);
-	    }
+			last_mpr->Set_Next_Visible(next_mpr);
+		}
 
 		delete mpr;
 		mpr = next_mpr;

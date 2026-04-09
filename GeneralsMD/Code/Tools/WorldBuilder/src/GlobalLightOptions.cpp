@@ -533,7 +533,7 @@ BOOL GlobalLightOptions::OnInitDialog()
 	}
 
 	return TRUE;  // return TRUE unless you set the focus to a control
-	              // EXCEPTION: OCX Property Pages should return FALSE
+	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
 
@@ -559,7 +559,7 @@ void GlobalLightOptions::stuffValuesIntoFields(Int lightIndex)
 	if (azimuth < 0) {
 		azimuth += 360;
 	}
- 	Real angleElevation = acos(light.Z);//WWMath::Asin(light.X);
+	Real angleElevation = acos(light.Z);//WWMath::Asin(light.X);
 	elevation = (angleElevation-PI/2.0f)*180.0f/PI;//90-(angleLR/PI)*180;
 
 	m_angleElevation[lightIndex] = elevation;
@@ -569,7 +569,7 @@ void GlobalLightOptions::stuffValuesIntoFields(Int lightIndex)
 
 	m_updating = true;
 	CString str;
- 	str.Format("XYZ: %.2f, %.2f, %.2f", light.X, light.Y, light.Z);
+	str.Format("XYZ: %.2f, %.2f, %.2f", light.X, light.Y, light.Z);
 	CWnd *pWnd = this->GetDlgItem(IDC_XYZ_STATIC);
 	if (pWnd && lightIndex==0) {
 		pWnd->SetWindowText(str);

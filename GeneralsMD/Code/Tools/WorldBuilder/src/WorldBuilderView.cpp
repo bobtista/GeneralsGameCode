@@ -304,7 +304,7 @@ void CWorldBuilderView::OnPaint()
 
 		maxJ = pMap->getYExtent() - min;
 		minJ = pMap->getYExtent() - max;
- 		if (maxJ>=pMap->getYExtent()) maxJ = pMap->getYExtent()-1;
+		if (maxJ>=pMap->getYExtent()) maxJ = pMap->getYExtent()-1;
 	}
 
 
@@ -477,7 +477,7 @@ void CWorldBuilderView::drawObjectInView(CDC *pDc, MapObject *pMapObj)
 	Int delta = (m_cellSize+4)/4;
 	Int smallDelta = (delta+4)/4;
 
- 	float angle = pMapObj->getAngle();
+	float angle = pMapObj->getAngle();
 
 	Vector3 head1(m_cellSize - delta, smallDelta, 0);
 	Vector3 head2(m_cellSize - delta, -smallDelta, 0);

@@ -190,25 +190,25 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 	}
 
 
-  Bool beBrief = brief & s_notFirstDump;
-  s_notFirstDump = TRUE;
+	Bool beBrief = brief & s_notFirstDump;
+	s_notFirstDump = TRUE;
 
 	fprintf( m_fp, "----------------------------------------------------------------\n" );
 	fprintf( m_fp, "Performance Statistical Dump -- Frame %d\n", TheGameLogic->getFrame() );
-  if ( ! beBrief )
-  {
-	  //static char buf[1024];
-	  fprintf( m_fp, "Time:\t%s", getCurrentTimeString() );
-	  fprintf( m_fp, "Map:\t%s\n", TheGlobalData->m_mapName.str());
-	  fprintf( m_fp, "Side:\t%s\n", ThePlayerList->getLocalPlayer()->getSide().str());
-	  fprintf( m_fp, "----------------------------------------------------------------\n" );
-  }
+	if ( ! beBrief )
+	{
+		//static char buf[1024];
+		fprintf( m_fp, "Time:\t%s", getCurrentTimeString() );
+		fprintf( m_fp, "Map:\t%s\n", TheGlobalData->m_mapName.str());
+		fprintf( m_fp, "Side:\t%s\n", ThePlayerList->getLocalPlayer()->getSide().str());
+		fprintf( m_fp, "----------------------------------------------------------------\n" );
+	}
 
 	//FPS
 	Real fps = TheDisplay->getAverageFPS();
 	fprintf( m_fp, "Average FPS: %.1f (%.5f msec)\n", fps, 1000.0f / fps );
-  if ( flagSpikes && fps<20.0f )
-  	fprintf( m_fp, "                                                                      FPS OUT OF TOLERANCE\n" );
+	if ( flagSpikes && fps<20.0f )
+	fprintf( m_fp, "                                                                      FPS OUT OF TOLERANCE\n" );
 
 
 	//Rendering stats
@@ -218,23 +218,23 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 
 	Int onScreenParticleCount = TheParticleSystemManager->getOnScreenParticleCount();
 
-  if ( flagSpikes )
-  {
-    if ( Debug_Statistics::Get_Draw_Calls()>2000 )
-  	  fprintf( m_fp, "                                                                      DRAWS OUT OF TOLERANCE(2000)\n" );
-    if ( Debug_Statistics::Get_Sorting_Polygons() > (onScreenParticleCount*2) + 300 )
-  	  fprintf( m_fp, "                                                                      NON-PARTICLE-SORTS OUT OF TOLERANCE(300)\n" );
-    if ( Debug_Statistics::Get_DX8_Skin_Renders()>100 )
-  	  fprintf( m_fp, "                                                                      SKINS OUT OF TOLERANCE(100)\n" );
-  }
+	if ( flagSpikes )
+	{
+		if ( Debug_Statistics::Get_Draw_Calls()>2000 )
+		fprintf( m_fp, "                                                                      DRAWS OUT OF TOLERANCE(2000)\n" );
+		if ( Debug_Statistics::Get_Sorting_Polygons() > (onScreenParticleCount*2) + 300 )
+		fprintf( m_fp, "                                                                      NON-PARTICLE-SORTS OUT OF TOLERANCE(300)\n" );
+		if ( Debug_Statistics::Get_DX8_Skin_Renders()>100 )
+		fprintf( m_fp, "                                                                      SKINS OUT OF TOLERANCE(100)\n" );
+	}
 
 
 	//Object stats
 	UnsignedInt objCount = TheGameLogic->getObjectCount();
 	UnsignedInt objScreenCount = TheGameClient->getRenderedObjectCount();
 	fprintf( m_fp, "Objects: %d in world (%d onscreen)\n", objCount, objScreenCount );
-  if ( flagSpikes && objCount > 800 )
-  	fprintf( m_fp, "                                                                      OBJS OUT OF TOLERANCE(800)\n" );
+	if ( flagSpikes && objCount > 800 )
+	fprintf( m_fp, "                                                                      OBJS OUT OF TOLERANCE(800)\n" );
 
 	//AI stats
 	UnsignedInt numAI, numMoving, numAttacking, numWaitingForPath, overallFailedPathfinds;
@@ -246,8 +246,8 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 	fprintf( m_fp, "    -attacking: %d\n", numAttacking );
 	fprintf( m_fp, "    -waiting for path: %d\n", numWaitingForPath );
 	fprintf( m_fp, "  Total failed pathfinds: %d\n", overallFailedPathfinds );
-  if ( flagSpikes && overallFailedPathfinds > 0 )
-  	fprintf( m_fp, "                                                                      FAILEDPATHFINDS OUT OF TOLERANCE(0)\n" );
+	if ( flagSpikes && overallFailedPathfinds > 0 )
+	fprintf( m_fp, "                                                                      FAILEDPATHFINDS OUT OF TOLERANCE(0)\n" );
 	fprintf( m_fp, "\n" );
 
 	// Script stats
@@ -258,8 +258,8 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 	fprintf( m_fp, "  Total time last frame: %.5f msec\n", timeLastFrame*1000 );
 	fprintf( m_fp, "    -Slowest 2 scripts      %s\n", slowScripts.str() );
 	fprintf( m_fp, "    -Slowest 2 script times %.5f msec, %.5f msec \n", slowScript1*1000, slowScript2*1000 );
-  if ( flagSpikes && slowScript1*1000 > 0.2f || slowScript2*1000 > 0.2f )
-  	fprintf( m_fp, "                                                                      SLOW SCRIPT OUT OF TOLERANCE(0.2)\n" );
+	if ( flagSpikes && slowScript1*1000 > 0.2f || slowScript2*1000 > 0.2f )
+	fprintf( m_fp, "                                                                      SLOW SCRIPT OUT OF TOLERANCE(0.2)\n" );
 	fprintf( m_fp, "\n" );
 
 
@@ -281,10 +281,10 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 	Int totalParticles = TheParticleSystemManager->getParticleCount();
 	fprintf( m_fp, "  Particles: %d in world (%d onscreen)\n", totalParticles, onScreenParticleCount );
 
-  if ( flagSpikes && totalParticles > TheGlobalData->m_maxParticleCount - 10 )
-  	fprintf( m_fp, "                                                                      PARTICLES OUT OF TOLERANCE(CAP-10)\n" );
-  if ( flagSpikes && onScreenParticleCount > TheGlobalData->m_maxParticleCount - 10 )
-  	fprintf( m_fp, "                                                                      ON_SCREEN_PARTICLES OUT OF TOLERANCE(CAP-10)\n" );
+	if ( flagSpikes && totalParticles > TheGlobalData->m_maxParticleCount - 10 )
+	fprintf( m_fp, "                                                                      PARTICLES OUT OF TOLERANCE(CAP-10)\n" );
+	if ( flagSpikes && onScreenParticleCount > TheGlobalData->m_maxParticleCount - 10 )
+	fprintf( m_fp, "                                                                      ON_SCREEN_PARTICLES OUT OF TOLERANCE(CAP-10)\n" );
 
 
 	// polygons this frame
@@ -303,19 +303,19 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 
 	// terrain stats
 	fprintf( m_fp, "  3-Way Blends: %d/%d, \n Shoreline Blends: %d/%d\n", TheTerrainRenderObject->getNumExtraBlendTiles(TRUE),TheTerrainRenderObject->getNumExtraBlendTiles(FALSE), TheTerrainRenderObject->getNumShoreLineTiles(TRUE),TheTerrainRenderObject->getNumShoreLineTiles(FALSE));
-  if ( flagSpikes && TheTerrainRenderObject->getNumExtraBlendTiles(TRUE) > 2000 )
-  	fprintf( m_fp, "                                                                      3-WAYS OUT OF TOLERANCE(2000)\n" );
-  if ( flagSpikes && TheTerrainRenderObject->getNumShoreLineTiles(TRUE) > 2000 )
-  	fprintf( m_fp, "                                                                      SHORELINES OUT OF TOLERANCE(2000)\n" );
+	if ( flagSpikes && TheTerrainRenderObject->getNumExtraBlendTiles(TRUE) > 2000 )
+	fprintf( m_fp, "                                                                      3-WAYS OUT OF TOLERANCE(2000)\n" );
+	if ( flagSpikes && TheTerrainRenderObject->getNumShoreLineTiles(TRUE) > 2000 )
+	fprintf( m_fp, "                                                                      SHORELINES OUT OF TOLERANCE(2000)\n" );
 
 	fprintf( m_fp, "\n" );
 
 #if defined(RTS_DEBUG)
-  if ( ! beBrief )
-  {
-    TheAudio->audioDebugDisplay( nullptr, nullptr, m_fp );
-	  fprintf( m_fp, "\n" );
-  }
+	if ( ! beBrief )
+	{
+		TheAudio->audioDebugDisplay( nullptr, nullptr, m_fp );
+		fprintf( m_fp, "\n" );
+	}
 #endif
 
 #ifdef MEMORYPOOL_DEBUG
@@ -328,12 +328,12 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 
 	fprintf( m_fp, "%s", TheSubsystemList->dumpTimesForAll().str());
 
-  if ( ! beBrief )
-  {
-	  fprintf( m_fp, "----------------------------------------------------------------\n" );
-	  fprintf( m_fp, "END -- Frame %d\n", TheGameLogic->getFrame() );
-	  fprintf( m_fp, "----------------------------------------------------------------\n" );
-  }
+	if ( ! beBrief )
+	{
+		fprintf( m_fp, "----------------------------------------------------------------\n" );
+		fprintf( m_fp, "END -- Frame %d\n", TheGameLogic->getFrame() );
+		fprintf( m_fp, "----------------------------------------------------------------\n" );
+	}
 	fprintf( m_fp, "\n\n" );
 	fflush(m_fp);
 }
@@ -972,7 +972,7 @@ void W3DDisplay::gatherDebugStats()
 	}
 
 	++s_framesRenderedSinceLastUpdate;
-  s_drawCallsSinceLastUpdate += Debug_Statistics::Get_Draw_Calls();
+	s_drawCallsSinceLastUpdate += Debug_Statistics::Get_Draw_Calls();
 	s_sortedPolysSinceLastUpdate += Debug_Statistics::Get_Sorting_Polygons();
 
 	Int64 freq64 = getPerformanceCounterFrequency();
@@ -1164,7 +1164,7 @@ void W3DDisplay::gatherDebugStats()
 				}
 			}
 		}
- 		if (pListFile) {
+		if (pListFile) {
 			fprintf(pListFile, "\nFPS: %.2f, %.2fms\n", fps, ms);
 			fflush(pListFile);
 		}

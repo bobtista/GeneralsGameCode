@@ -74,8 +74,8 @@ protected:
 	const char* m_title;
 	MapObject *m_selectedObject;
 	MapObject *m_dictSource; // Source object for m_dictToEdit. m_selectedObject is not always the current source
-	                         // of m_dictToEdit, and I don't understand why, so I'm making another MapObject pointer
-	                         // which is always kept in sync.
+	// of m_dictToEdit, and I don't understand why, so I'm making another MapObject pointer
+	// which is always kept in sync.
 
 	Real m_angle;
 	Real m_height;
@@ -198,9 +198,9 @@ public:
 	static void update(void);
 
 private:
-  /// Disallow copying: Object is not set up to be copied
-  MapObjectProps( const MapObjectProps & other ); // Deliberately undefined
-  MapObjectProps & operator=( const MapObjectProps & other ); // Deliberately undefined
+	/// Disallow copying: Object is not set up to be copied
+	MapObjectProps( const MapObjectProps & other ); // Deliberately undefined
+	MapObjectProps & operator=( const MapObjectProps & other ); // Deliberately undefined
 	void updateTheUI(MapObject *pMapObj);
 	void InitSound(void);
 };
