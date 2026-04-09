@@ -67,7 +67,7 @@
 /** Dialog proc for the error window */
 //=============================================================================
 BOOL CALLBACK ImageErrorProc( HWND hWndDialog, UINT message,
-														  WPARAM wParam, LPARAM lParam )
+	WPARAM wParam, LPARAM lParam )
 {
 
 	switch( message )
@@ -116,8 +116,8 @@ BOOL CALLBACK ImageErrorProc( HWND hWndDialog, UINT message,
 						sprintf( reason, "Unknown Reason" );
 
 					sprintf( buffer, "%s: (%dx%dx%d) %s",
-									 reason, image->m_size.x, image->m_size.y, image->m_colorDepth,
-									 image->m_path );
+						reason, image->m_size.x, image->m_size.y, image->m_colorDepth,
+						image->m_path );
 
 					SendMessage( list, LB_INSERTSTRING, -1, (LPARAM)buffer );
 

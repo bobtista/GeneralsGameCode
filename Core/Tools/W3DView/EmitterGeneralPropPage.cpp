@@ -47,10 +47,10 @@ IMPLEMENT_DYNCREATE(EmitterGeneralPropPageClass, CPropertyPage)
 //
 EmitterGeneralPropPageClass::EmitterGeneralPropPageClass (EmitterInstanceListClass *pemitter)
 	: m_pEmitterList (nullptr),
-	  m_Parent (nullptr),
-	  m_bValid (true),
-	  m_Lifetime (0),
-	  CPropertyPage(EmitterGeneralPropPageClass::IDD)
+	m_Parent (nullptr),
+	m_bValid (true),
+	m_Lifetime (0),
+	CPropertyPage(EmitterGeneralPropPageClass::IDD)
 {
 	//{{AFX_DATA_INIT(EmitterGeneralPropPageClass)
 	//}}AFX_DATA_INIT
@@ -141,8 +141,8 @@ EmitterGeneralPropPageClass::Add_Shader_To_Combo
 		//	particle emitter's shader.
 		//
 		if ((shader.Get_Alpha_Test () == m_Shader.Get_Alpha_Test ()) &&
-			 (shader.Get_Dst_Blend_Func () == m_Shader.Get_Dst_Blend_Func ()) &&
-			 (shader.Get_Src_Blend_Func () == m_Shader.Get_Src_Blend_Func ())) {
+			(shader.Get_Dst_Blend_Func () == m_Shader.Get_Dst_Blend_Func ()) &&
+			(shader.Get_Src_Blend_Func () == m_Shader.Get_Src_Blend_Func ())) {
 			SendDlgItemMessage (IDC_SHADER_COMBO, CB_SETCURSEL, (WPARAM)index);
 		}
 	}
@@ -258,11 +258,11 @@ void
 EmitterGeneralPropPageClass::OnBrowseButton (void)
 {
 	CFileDialog openFileDialog (TRUE,
-										 ".tga",
-										 nullptr,
-										 OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_EXPLORER,
-										 "Textures files (*.tga)|*.tga||",
-										 ::AfxGetMainWnd ());
+		".tga",
+		nullptr,
+		OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_EXPLORER,
+		"Textures files (*.tga)|*.tga||",
+		::AfxGetMainWnd ());
 
 	// Ask the user what texture file they wish to load
 	if (openFileDialog.DoModal () == IDOK) {

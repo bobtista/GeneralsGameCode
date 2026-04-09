@@ -383,7 +383,7 @@ SphereSizePropPageClass::OnCommand
 		{
 			// Update the object
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY))
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY))
 			{
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 

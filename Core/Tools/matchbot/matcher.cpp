@@ -238,7 +238,7 @@ static void NickErrorCallback ( PEER peer, int type, const char * badNick, int n
 /////////////////////////////////////////////////////////////////////////////
 
 void callbackEach( CHAT chat, CHATBool success, int index, const char *channel,
-                   const char *topic, int numUsers, void *param )
+	const char *topic, int numUsers, void *param )
 {
 	DEBUG_LOG(("Chat channel success: %d", success));
 	if (!success)
@@ -246,11 +246,11 @@ void callbackEach( CHAT chat, CHATBool success, int index, const char *channel,
 		return;
 	}
 	DEBUG_LOG(("Channel[%d]: %s (%s), %d users",
-	           index, channel, topic, numUsers));
+		index, channel, topic, numUsers));
 }
 
 void callbackAll( CHAT chat, CHATBool success, int numChannels, const char **channels,
-                  const char **topics, int *numUsers, void *param )
+	const char **topics, int *numUsers, void *param )
 {
 	DEBUG_LOG(("Chat channels success: %d", success));
 	if (!success)
@@ -263,7 +263,7 @@ void callbackAll( CHAT chat, CHATBool success, int numChannels, const char **cha
 	for (int i=0; i<numChannels; ++i)
 	{
 		DEBUG_LOG(("Channel[%d]: %s (%s), %d users",
-		           i, channels[i], topics[i], numUsers[i]));
+			i, channels[i], topics[i], numUsers[i]));
 	}
 }
 
@@ -297,10 +297,10 @@ void MatcherClass::handleNickError( const char *badNick )
 
 static void AuthenticateCDKeyCallback
 (
-    PEER peer,
-    int result,
-    const char * message,
-    void * param
+	PEER peer,
+	int result,
+	const char * message,
+	void * param
 )
 {
 	bool *val = (bool *)param;

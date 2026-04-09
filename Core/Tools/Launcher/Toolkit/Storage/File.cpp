@@ -108,7 +108,7 @@ File::File(const Char* name, ERights rights)
 
 File::File(const UString& name, ERights rights)
 	: mName(name),
-	  mRights(rights),
+	mRights(rights),
 		mHandle(INVALID_HANDLE)
 	{
 	}

@@ -392,11 +392,11 @@ SoundEditDialogClass::OnBrowse (void)
 	}
 
 	CFileDialog dialog (TRUE,
-							  ".wav",
-							  default_filename,
-							  OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_EXPLORER,
-							  "All Sound Files|*.wav;*.mp3|WAV File (*.wav)|*.wav|MP3 File (*.mp3)|*.mp3||",
-							  this);
+		".wav",
+		default_filename,
+		OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_EXPLORER,
+		"All Sound Files|*.wav;*.mp3|WAV File (*.wav)|*.wav|MP3 File (*.mp3)|*.mp3||",
+		this);
 
 	//
 	// Set the path, so it opens in the correct directory

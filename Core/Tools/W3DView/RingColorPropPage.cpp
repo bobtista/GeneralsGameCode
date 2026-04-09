@@ -247,7 +247,7 @@ RingColorPropPageClass::OnNotify
 					SetModified ();
 				}
 			} else if ((color_bar_hdr->hdr.code == CBRN_MOVING_POINT) ||
-						  (color_bar_hdr->hdr.code == CBRN_DELETED_POINT))
+				(color_bar_hdr->hdr.code == CBRN_DELETED_POINT))
 			{
 				//
 				// Update the object
@@ -283,7 +283,7 @@ RingColorPropPageClass::OnNotify
 				}
 
 			} else if ((color_bar_hdr->hdr.code == CBRN_MOVING_POINT) ||
-						  (color_bar_hdr->hdr.code == CBRN_DELETED_POINT))
+				(color_bar_hdr->hdr.code == CBRN_DELETED_POINT))
 			{
 				//
 				// Update the object

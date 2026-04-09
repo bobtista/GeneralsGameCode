@@ -618,8 +618,8 @@ static vertexstruct intersect
 	Point3 delta = p1.Pos - p0.Pos;
 
 	float num = -( plane.N[0] * p0.Pos.x +
-					   plane.N[1] * p0.Pos.y +
-					   plane.N[2] * p0.Pos.z + plane.D );
+		plane.N[1] * p0.Pos.y +
+		plane.N[2] * p0.Pos.z + plane.D );
 
 	float den = plane.N[0] * delta.x +
 					plane.N[1] * delta.y +

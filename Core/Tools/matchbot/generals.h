@@ -42,10 +42,10 @@ typedef std::vector<bool> MapBitSet;
 // Here are the states a matcher can be in:
 typedef enum
 {
-    STATUS_INVAL = 0,
-    STATUS_INCHANNEL,  // Just entered the channel
-    STATUS_WORKING,    // Sent info, needs to be matched
-    STATUS_MATCHED,    // Been matched, but is still in the channel
+	STATUS_INVAL = 0,
+	STATUS_INCHANNEL,  // Just entered the channel
+	STATUS_WORKING,    // Sent info, needs to be matched
+	STATUS_MATCHED,    // Been matched, but is still in the channel
 } UserStatus;
 
 class GeneralsUser
@@ -140,10 +140,10 @@ private:
 	void dumpUsers(void);
 
 	void sendMatchInfo(std::string name1, std::string name2, std::string name3, std::string name4,
-	                   std::string name5, std::string name6, std::string name7, std::string name8,
-	                   GeneralsUser *user1, GeneralsUser *user2, GeneralsUser *user3, GeneralsUser *user4,
-	                   GeneralsUser *user5, GeneralsUser *user6, GeneralsUser *user7, GeneralsUser *user8,
-	                   int numPlayers, int ladderID);
+		std::string name5, std::string name6, std::string name7, std::string name8,
+		GeneralsUser *user1, GeneralsUser *user2, GeneralsUser *user3, GeneralsUser *user4,
+		GeneralsUser *user5, GeneralsUser *user6, GeneralsUser *user7, GeneralsUser *user8,
+		int numPlayers, int ladderID);
 
 	// Command handlers for above privmsg commands (offset is the
 	// offset for the getToken() past the command token)

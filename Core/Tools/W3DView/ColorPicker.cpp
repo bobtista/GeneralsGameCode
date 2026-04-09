@@ -45,15 +45,15 @@ static char THIS_FILE[] = __FILE__;
 //
 ColorPickerClass::ColorPickerClass (void)
 	: m_hBitmap (nullptr),
-	  m_iWidth (0),
-	  m_iHeight (0),
-	  m_CurrentPoint (0, 0),
-	  m_CurrentColor (0),
-	  m_bSelecting (false),
-	  m_pBits (nullptr),
-	  m_hMemDC (nullptr),
-	  m_CurrentHue (0),
-	  CWnd ()
+	m_iWidth (0),
+	m_iHeight (0),
+	m_CurrentPoint (0, 0),
+	m_CurrentColor (0),
+	m_bSelecting (false),
+	m_pBits (nullptr),
+	m_hMemDC (nullptr),
+	m_CurrentHue (0),
+	CWnd ()
 {
 	return ;
 }
@@ -275,16 +275,16 @@ ColorPickerClass::Create
 	// Create the window (it will force the message map and everthing)
 	HWND hparent_wnd = (pparent_wnd != nullptr) ? pparent_wnd->m_hWnd : nullptr;
 	HWND hwnd = ::CreateWindow ("WWCOLORPICKER",
-										 lpszWindowName,
-										 dwStyle,
-										 rect.left,
-										 rect.top,
-										 rect.right - rect.left,
-										 rect.bottom - rect.top,
-										 hparent_wnd,
-										 (HMENU)nID,
-										 ::AfxGetInstanceHandle (),
-										 this);
+		lpszWindowName,
+		dwStyle,
+		rect.left,
+		rect.top,
+		rect.right - rect.left,
+		rect.bottom - rect.top,
+		hparent_wnd,
+		(HMENU)nID,
+		::AfxGetInstanceHandle (),
+		this);
 
 	// Return the true/false result code
 	return (hwnd != nullptr);
@@ -326,11 +326,11 @@ ColorPickerClass::Create_Bitmap (void)
 
 	// Create a bitmap that we can access the bits directly of
 	m_hBitmap = ::CreateDIBSection (hscreen_dc,
-											  (const BITMAPINFO *)&bitmap_info,
-											  DIB_RGB_COLORS,
-											  (void **)&m_pBits,
-											  nullptr,
-											  0L);
+		(const BITMAPINFO *)&bitmap_info,
+		DIB_RGB_COLORS,
+		(void **)&m_pBits,
+		nullptr,
+		0L);
 
 	// Release our temporary screen DC
 	::ReleaseDC (nullptr, hscreen_dc);
@@ -390,7 +390,7 @@ ColorPickerClass::Color_From_Point
 
 	// x,y location inside boundaries?
 	if ((x >= 0) && (x < m_iWidth) &&
-		 (y >= 0) && (y < m_iHeight)) {
+		(y >= 0) && (y < m_iHeight)) {
 
 		// Window's bitmaps are DWORD aligned, so make sure
 		// we take that into account.
@@ -903,14 +903,14 @@ ColorPickerClass::Erase_Marker (void)
 		CRect rect;
 		GetClientRect (&rect);
 		::BitBlt (hdc,
-					 m_CurrentPoint.x - 5,
-					 m_CurrentPoint.y - 5,
-					 11,
-					 11,
-					 m_hMemDC,
-					 m_CurrentPoint.x - 5,
-					 m_CurrentPoint.y - 5,
-					 SRCCOPY);
+			m_CurrentPoint.x - 5,
+			m_CurrentPoint.y - 5,
+			11,
+			11,
+			m_hMemDC,
+			m_CurrentPoint.x - 5,
+			m_CurrentPoint.y - 5,
+			SRCCOPY);
 
 		::SelectObject (m_hMemDC, hold_bmp);
 	}
@@ -937,14 +937,14 @@ ColorPickerClass::Paint_Marker (void)
 		CRect rect;
 		GetClientRect (&rect);
 		::BitBlt (hdc,
-					 m_CurrentPoint.x - 5,
-					 m_CurrentPoint.y - 5,
-					 11,
-					 11,
-					 m_hMemDC,
-					 0,
-					 0,
-					 SRCINVERT);
+			m_CurrentPoint.x - 5,
+			m_CurrentPoint.y - 5,
+			11,
+			11,
+			m_hMemDC,
+			0,
+			0,
+			SRCINVERT);
 
 		::SelectObject (m_hMemDC, hold_bmp);
 		::DeleteObject (hmarker_bmp);

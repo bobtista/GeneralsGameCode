@@ -43,9 +43,9 @@ IMPLEMENT_DYNCREATE(EmitterUserPropPageClass, CPropertyPage)
 //
 EmitterUserPropPageClass::EmitterUserPropPageClass (EmitterInstanceListClass *pemitter)
 	: m_pEmitterList (nullptr),
-	  m_bValid (true),
-	  m_iType (EMITTER_TYPEID_DEFAULT),
-	  CPropertyPage(EmitterUserPropPageClass::IDD)
+	m_bValid (true),
+	m_iType (EMITTER_TYPEID_DEFAULT),
+	CPropertyPage(EmitterUserPropPageClass::IDD)
 {
 	//{{AFX_DATA_INIT(EmitterUserPropPageClass)
 		// NOTE: the ClassWizard will add member initialization here

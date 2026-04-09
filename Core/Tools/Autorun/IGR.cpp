@@ -67,7 +67,7 @@ bool IGROptionsClass::Init( void )
 		IGROptionsType ReadOptions = 0;
 
 		returnValue = RegQueryValueEx(handle, WOLAPI_REG_KEY_OPTIONS, nullptr,
-			 (unsigned long *) &type, (unsigned char *) &ReadOptions, (unsigned long *)&size);
+			(unsigned long *) &type, (unsigned char *) &ReadOptions, (unsigned long *)&size);
 
 		if (returnValue == ERROR_SUCCESS) {
 

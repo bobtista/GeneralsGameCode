@@ -288,7 +288,7 @@ void logMonitor(void *)
 			Global.config.getString("LOGPATH", logpath);
 			xtime.update();
 			sprintf(filenamebuf, "%s/%02d%02d%04d_%02d%02d%02d_log", logpath.get(), xtime.getMonth(),
-			        xtime.getMDay(), xtime.getYear(), xtime.getHour(), xtime.getMinute(), xtime.getSecond());
+				xtime.getMDay(), xtime.getYear(), xtime.getHour(), xtime.getMinute(), xtime.getSecond());
 			rename(newfilename.get(), filenamebuf);
 			DBGMSG("Normal: Just been switched.  " << logfilename.get() << ", " << newfilename.get());
 			sleep(60*60*23); // sleep the next 23 hours
@@ -314,12 +314,12 @@ void rotateOutput(void)
 
 	// This grabs the semaphore, renames the file, and switches the output device
 	MsgManager::ReplaceAllStreams((FileD*)output_device, logfilename.get(),
-	                              newfilename.get());
+		newfilename.get());
 
 	// clean up the tmp filename and move it to the log dir.
 	sprintf(filenamebuf, "%s/%02d%02d%04d_%02d%02d%02d_log", logpath.get(),
-	        xtime.getMonth(), xtime.getMDay(), xtime.getYear(), xtime.getHour(),
-	        xtime.getMinute(), xtime.getSecond());
+		xtime.getMonth(), xtime.getMDay(), xtime.getYear(), xtime.getHour(),
+		xtime.getMinute(), xtime.getSecond());
 #ifdef _WIN32
 	mkdir(logpath.get());
 #else
@@ -328,7 +328,7 @@ void rotateOutput(void)
 	rename(newfilename.get(), filenamebuf);
 
 	DBGMSG("Normal: Just been switched.  " << logfilename.get() << ", " <<
-	       newfilename.get());
+		newfilename.get());
 }
 
 void paranoidLogMonitor(void *)
@@ -364,7 +364,7 @@ void paranoidLogMonitor(void *)
 			Global.config.getString("PARANOIDLOGPATH", logpath);
 			xtime.update();
 			sprintf(filenamebuf, "%s/%02d%02d%04d_%02d%02d%02d_log", logpath.get(), xtime.getMonth(),
-			        xtime.getMDay(), xtime.getYear(), xtime.getHour(), xtime.getMinute(), xtime.getSecond());
+				xtime.getMDay(), xtime.getYear(), xtime.getHour(), xtime.getMinute(), xtime.getSecond());
 			rename(newfilename.get(), filenamebuf);
 			PARANOIDMSG("Paranoid: Just been switched.  " << logfilename.get() << ", " << newfilename.get());
 			sleep(60*60*23); // sleep the next 23 hours
@@ -390,12 +390,12 @@ void rotateParanoid(void)
 
 	// This grabs the semaphore, renames the file, and switches the output device
 	MyMsgManager::ReplaceAllStreams((FileD*)output_device, logfilename.get(),
-	                                newfilename.get());
+		newfilename.get());
 
 	// clean up the tmp filename and move it to the log dir.
 	sprintf(filenamebuf, "%s/%02d%02d%04d_%02d%02d%02d_log", logpath.get(),
-	        xtime.getMonth(), xtime.getMDay(), xtime.getYear(), xtime.getHour(),
-	        xtime.getMinute(), xtime.getSecond());
+		xtime.getMonth(), xtime.getMDay(), xtime.getYear(), xtime.getHour(),
+		xtime.getMinute(), xtime.getSecond());
 #ifdef _WIN32
 	mkdir(logpath.get());
 #else
@@ -404,7 +404,7 @@ void rotateParanoid(void)
 	rename(newfilename.get(), filenamebuf);
 
 	PARANOIDMSG("Paranoid: Just been switched.  " << logfilename.get() << ", " <<
-	            newfilename.get());
+		newfilename.get());
 }
 
 

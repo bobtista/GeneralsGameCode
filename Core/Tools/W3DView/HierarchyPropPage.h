@@ -57,10 +57,10 @@ protected:
 	DECLARE_MESSAGE_MAP()
 
     private:
-        // Private constructor that shouldn't be called
-        CHierarchyPropPage () {};
+		// Private constructor that shouldn't be called
+		CHierarchyPropPage () {};
 
-        CString m_stringHierarchyName;
+	CString m_stringHierarchyName;
 
 };
 

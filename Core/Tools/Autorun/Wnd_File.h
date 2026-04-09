@@ -124,7 +124,7 @@ class StandardFileClass
 		int 	Query_Size			( void );
 		bool 	Query_Open			( void );
 		char *	Query_Name_String	( void );
-     	int		End_Of_File			( void );
+	int		End_Of_File			( void );
 		int		Flush	  	 		( void );
 
 		#if( SUPPORT_STREAMS )
@@ -176,14 +176,14 @@ class StandardFileClass
 	HANDLE 	Open_File( char const *file_name, int mode );
 	bool   	Close_File( HANDLE handle );
 	int    	Read_File( HANDLE handle,
-		   			void *buffer,
-		   			unsigned long int bytes_to_read );
+	void *buffer,
+	unsigned long int bytes_to_read );
 	int    	Write_File( HANDLE handle,
-		   		 	 void const *buffer,
-		   		 	 unsigned long int bytes_to_write );
+	void const *buffer,
+	unsigned long int bytes_to_write );
 	bool   	Seek_File( HANDLE handle,
-		   		 	 int distance,
-		   		 	 int seek_file_location );
+	int distance,
+	int seek_file_location );
 	int    	Tell_File( HANDLE handle );
 	int    	File_Size( HANDLE handle );
 	//

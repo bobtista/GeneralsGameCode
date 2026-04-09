@@ -208,10 +208,10 @@ void GeneralsMatcher::dumpUsers(void)
 
 
 void GeneralsMatcher::sendMatchInfo(std::string name1, std::string name2, std::string name3, std::string name4,
-                                    std::string name5, std::string name6, std::string name7, std::string name8,
-                                    GeneralsUser *user1, GeneralsUser *user2, GeneralsUser *user3, GeneralsUser *user4,
-                                    GeneralsUser *user5, GeneralsUser *user6, GeneralsUser *user7, GeneralsUser *user8,
-                                    int numPlayers, int ladderID)
+	std::string name5, std::string name6, std::string name7, std::string name8,
+	GeneralsUser *user1, GeneralsUser *user2, GeneralsUser *user3, GeneralsUser *user4,
+	GeneralsUser *user5, GeneralsUser *user6, GeneralsUser *user7, GeneralsUser *user8,
+	int numPlayers, int ladderID)
 {
 	MapBitSet tmp = MapSetUnion(user1->maps, user2->maps);
 	if (numPlayers > 2)
@@ -502,7 +502,7 @@ double GeneralsMatcher::computeMatchFitness(const std::string& i1, const General
 
 	// they have something in common.  calculate match fitness.
 	double matchFitness = ( weightAvgPoints * (1-pointPercent) +
-	                        weightLowPing * (MaxPingValue - pingDelta)/MaxPingValue ) / (double)totalWeight;
+		weightLowPing * (MaxPingValue - pingDelta)/MaxPingValue ) / (double)totalWeight;
 	//DBGMSG("Match fitness: "<<matchFitness);
 
 	/*
@@ -619,7 +619,7 @@ void GeneralsMatcher::checkMatchesInUserMap(UserMap& userMap, int ladderID, int 
 									{
 										// match 4 players
 										sendMatchInfo(i1->first, i2->first, i3->first, i4->first, "", "", "", "",
-										              u1, u2, u3, u4, nullptr, nullptr, nullptr, nullptr, 4, ladderID);
+											u1, u2, u3, u4, nullptr, nullptr, nullptr, nullptr, 4, ladderID);
 										break;
 									}
 									else
@@ -665,7 +665,7 @@ void GeneralsMatcher::checkMatchesInUserMap(UserMap& userMap, int ladderID, int 
 														{
 															// match 6 players
 															sendMatchInfo(i1->first, i2->first, i3->first, i4->first, i5->first, i6->first, "", "",
-															              u1, u2, u3, u4, u5, u6, nullptr, nullptr, 6, ladderID);
+																u1, u2, u3, u4, u5, u6, nullptr, nullptr, 6, ladderID);
 															break;
 														}
 														else
@@ -717,7 +717,7 @@ void GeneralsMatcher::checkMatchesInUserMap(UserMap& userMap, int ladderID, int 
 																		{
 																			// match 8 players
 																			sendMatchInfo(i1->first, i2->first, i3->first, i4->first, i5->first, i6->first, i7->first, i8->first,
-																			              u1, u2, u3, u4, u5, u6, u7, u8, 8, ladderID);
+																				u1, u2, u3, u4, u5, u6, u7, u8, 8, ladderID);
 																			break;
 																		}
 																	}
@@ -743,13 +743,13 @@ void GeneralsMatcher::checkMatchesInUserMap(UserMap& userMap, int ladderID, int 
 		{
 			// we had a match.  send the info.
 			DBGMSG("Matching " << i1->first << " with " << bestName << ":"
-			       "\tmatch fitness: " << bestMatchFitness << "\n"
-			       "\tpoint percentage: " << (1-bestUser->points/(double)u1->points)*100 << "\n"
-			       "\tpoints: " << u1->points << ", " << u2->points << "\n"
-			       "\tping in ms: " << sqrt(1000000 * calcPingDelta(u1, bestUser) / (255*255*2)) << "\n"
-			       "\tprevious attempts: " << u1->widened << ", " << bestUser->widened);
+				"\tmatch fitness: " << bestMatchFitness << "\n"
+				"\tpoint percentage: " << (1-bestUser->points/(double)u1->points)*100 << "\n"
+				"\tpoints: " << u1->points << ", " << u2->points << "\n"
+				"\tping in ms: " << sqrt(1000000 * calcPingDelta(u1, bestUser) / (255*255*2)) << "\n"
+				"\tprevious attempts: " << u1->widened << ", " << bestUser->widened);
 			sendMatchInfo(i1->first, bestName, "", "", "", "", "", "",
-			              u1, bestUser, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 2, ladderID);
+				u1, bestUser, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 2, ladderID);
 			break;
 		}
 	}
@@ -871,7 +871,7 @@ bool GeneralsMatcher::handleUserInfo(const char *nick, const std::string& msg)
 		{
 			userInfo->numPlayers = atoi(v.c_str());
 			if (userInfo->numPlayers != 2 && userInfo->numPlayers != 4 &&
-			        userInfo->numPlayers != 6 && userInfo->numPlayers != 8)
+				userInfo->numPlayers != 6 && userInfo->numPlayers != 8)
 			{
 				INFMSG("Bad numPlayers from " << nick << ": [" << userInfo->numPlayers << "]");
 				peerMessagePlayer(m_peer, nick, "MBOT:BADCINFO", NormalMessage);

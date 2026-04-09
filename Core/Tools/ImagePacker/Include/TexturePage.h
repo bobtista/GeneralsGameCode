@@ -120,18 +120,18 @@ protected:
 
 	/// add the actual image data of 'image' to the destination buffer
 	Bool addImageData( Byte *destBuffer,
-										 Int destWidth,
-										 Int destHeight,
-										 Int destBPP,
-										 ImageInfo *image );
+		Int destWidth,
+		Int destHeight,
+		Int destBPP,
+		ImageInfo *image );
 
 	/// extend edges of image outward into border if present
 	void extendImageEdges( Byte *destBuffer,
-												 Int destWidth,
-												 Int destHeight,
-												 Int destBPP,
-												 ImageInfo *image,
-												 Bool extendAlpha );
+		Int destWidth,
+		Int destHeight,
+		Int destBPP,
+		ImageInfo *image,
+		Bool extendAlpha );
 
 	/// if the pixel at abolve/below row is open, extend pixel at src to its location
 	void extendToRowIfOpen( char *src,

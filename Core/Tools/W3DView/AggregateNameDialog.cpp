@@ -69,7 +69,7 @@ AggregateNameDialogClass::AggregateNameDialogClass
 	CWnd *pParent
 )
 	: m_Name (def_name),
-	  CDialog (resource_id, pParent)
+	CDialog (resource_id, pParent)
 {
 	return ;
 }

@@ -379,8 +379,8 @@ MeshDeformSetClass::Update_Key_Frame (int key_frame)
 	BitArray &affected_colors	= m_KeyFrames[key_frame]->affected_colors;
 
 	if ((key_frame == m_CurrentKeyFrame) ||
-		 (vertices.Count () > 0) ||
-		 (colors.Count () > 0)) {
+		(vertices.Count () > 0) ||
+		(colors.Count () > 0)) {
 
 		// Clear all entries from this keyframe
 		vertices.Delete_All ();

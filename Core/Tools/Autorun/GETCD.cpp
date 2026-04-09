@@ -293,15 +293,15 @@ const char *GetCDClass::Get_Volume_For_This_CD_Drive ( const char *path, char *v
 
 		LPVOID lpMsgBuf;
 		FormatMessage(
-		    FORMAT_MESSAGE_ALLOCATE_BUFFER |
-		    FORMAT_MESSAGE_FROM_SYSTEM |
-		    FORMAT_MESSAGE_IGNORE_INSERTS,
-		    nullptr,
-		    GetLastError(),
-		    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
-		    (LPTSTR) &lpMsgBuf,
-		    0,
-		    nullptr
+			FORMAT_MESSAGE_ALLOCATE_BUFFER |
+			FORMAT_MESSAGE_FROM_SYSTEM |
+			FORMAT_MESSAGE_IGNORE_INSERTS,
+			nullptr,
+			GetLastError(),
+			MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), // Default language
+			(LPTSTR) &lpMsgBuf,
+			0,
+			nullptr
 		);
 		Msg( __LINE__, __FILE__, (LPTSTR)lpMsgBuf );
 		LocalFree( lpMsgBuf );

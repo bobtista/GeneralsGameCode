@@ -208,7 +208,7 @@ static char *nextParam(char *newSource, const char *seps)
 /** Application entry point */
 //=============================================================================
 Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
-                      LPSTR lpCmdLine, Int nCmdShow )
+	LPSTR lpCmdLine, Int nCmdShow )
 {
 
 	// initialize the memory manager early

@@ -300,7 +300,7 @@ SphereColorPropPageClass::OnNotify
 					SetModified ();
 				}
 			} else if ((color_bar_hdr->hdr.code == CBRN_MOVING_POINT) ||
-						  (color_bar_hdr->hdr.code == CBRN_DELETED_POINT))
+				(color_bar_hdr->hdr.code == CBRN_DELETED_POINT))
 			{
 				//
 				// Update the object
@@ -336,7 +336,7 @@ SphereColorPropPageClass::OnNotify
 				}
 
 			} else if ((color_bar_hdr->hdr.code == CBRN_MOVING_POINT) ||
-						  (color_bar_hdr->hdr.code == CBRN_DELETED_POINT))
+				(color_bar_hdr->hdr.code == CBRN_DELETED_POINT))
 			{
 				//
 				// Update the object
@@ -373,7 +373,7 @@ SphereColorPropPageClass::OnNotify
 				}
 
 			} else if ((color_bar_hdr->hdr.code == CBRN_MOVING_POINT) ||
-						  (color_bar_hdr->hdr.code == CBRN_DELETED_POINT))
+				(color_bar_hdr->hdr.code == CBRN_DELETED_POINT))
 			{
 				update = true;
 			} else if (color_bar_hdr->hdr.code == CBRN_DEL_POINT) {

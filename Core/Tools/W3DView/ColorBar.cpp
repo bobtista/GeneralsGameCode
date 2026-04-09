@@ -44,24 +44,24 @@ static char THIS_FILE[] = __FILE__;
 //
 ColorBarClass::ColorBarClass (void)
 	: m_hBitmap (nullptr),
-	  m_iBMPWidth (0),
-	  m_iBMPHeight (0),
-	  m_pBits (nullptr),
-	  m_hMemDC (nullptr),
-	  m_iColorPoints (0),
-	  m_iMarkerWidth (0),
-	  m_iMarkerHeight (0),
-	  m_KeyFrameDIB (nullptr),
-	  m_pKeyFrameBits (nullptr),
-	  m_iCurrentKey (0),
-	  m_MinPos (0),
-	  m_MaxPos (1),
-	  m_iScanlineSize (0),
-	  m_bMoving (false),
-	  m_bMoved (false),
-	  m_SelectionPos (0),
-	  m_bRedraw (true),
-	  CWnd ()
+	m_iBMPWidth (0),
+	m_iBMPHeight (0),
+	m_pBits (nullptr),
+	m_hMemDC (nullptr),
+	m_iColorPoints (0),
+	m_iMarkerWidth (0),
+	m_iMarkerHeight (0),
+	m_KeyFrameDIB (nullptr),
+	m_pKeyFrameBits (nullptr),
+	m_iCurrentKey (0),
+	m_MinPos (0),
+	m_MaxPos (1),
+	m_iScanlineSize (0),
+	m_bMoving (false),
+	m_bMoved (false),
+	m_SelectionPos (0),
+	m_bRedraw (true),
+	CWnd ()
 {
 	::memset (m_ColorPoints, 0, sizeof (m_ColorPoints));
 
@@ -293,16 +293,16 @@ ColorBarClass::Create
 	// Create the window (it will force the message map and everthing)
 	HWND hparent_wnd = (pparent_wnd != nullptr) ? pparent_wnd->m_hWnd : nullptr;
 	HWND hwnd = ::CreateWindow ("WWCOLORBAR",
-										 lpszWindowName,
-										 dwStyle,
-										 rect.left,
-										 rect.top,
-										 rect.right - rect.left,
-										 rect.bottom - rect.top,
-										 hparent_wnd,
-										 (HMENU)nID,
-										 ::AfxGetInstanceHandle (),
-										 this);
+		lpszWindowName,
+		dwStyle,
+		rect.left,
+		rect.top,
+		rect.right - rect.left,
+		rect.bottom - rect.top,
+		hparent_wnd,
+		(HMENU)nID,
+		::AfxGetInstanceHandle (),
+		this);
 
 	// Return the true/false result code
 	return (hwnd != nullptr);
@@ -381,11 +381,11 @@ ColorBarClass::Create_Bitmap (void)
 
 	// Create a bitmap that we can access the bits directly of
 	m_hBitmap = ::CreateDIBSection (hscreen_dc,
-											  (const BITMAPINFO *)&bitmap_info,
-											  DIB_RGB_COLORS,
-											  (void **)&m_pBits,
-											  nullptr,
-											  0L);
+		(const BITMAPINFO *)&bitmap_info,
+		DIB_RGB_COLORS,
+		(void **)&m_pBits,
+		nullptr,
+		0L);
 
 	// Release our temporary screen DC
 	::ReleaseDC (nullptr, hscreen_dc);
@@ -652,16 +652,16 @@ ColorBarClass::Paint_DIB (void)
 	//
 	if (style & CBRS_HORZ) {
 		Paint_Bar_Horz (m_ColorArea.left,
-							 m_ColorArea.top,
-							 m_ColorArea.Width (),
-							 m_ColorArea.Height (),
-							 m_pBits);
+			m_ColorArea.top,
+			m_ColorArea.Width (),
+			m_ColorArea.Height (),
+			m_pBits);
 	} else {
 		Paint_Bar_Vert (m_ColorArea.left,
-							 m_ColorArea.top,
-							 m_ColorArea.Width (),
-							 m_ColorArea.Height (),
-							 m_pBits);
+			m_ColorArea.top,
+			m_ColorArea.Width (),
+			m_ColorArea.Height (),
+			m_pBits);
 	}
 
 
@@ -877,7 +877,7 @@ ColorBarClass::Insert_Point (CPoint point, DWORD flags)
 	float graph_percent = 0;
 	for (int index = 0; (index < m_iColorPoints) && !found; index ++) {
 		if ((position > m_ColorPoints[index].StartPos) &&
-			 (position < m_ColorPoints[index].EndPos)) {
+			(position < m_ColorPoints[index].EndPos)) {
 			new_index = index + 1;
 			found = true;
 
@@ -933,13 +933,13 @@ ColorBarClass::Insert_Point
 
 	// Params valid?
 	if (((m_iColorPoints + 1) < MAX_COLOR_POINTS) &&
-		 (index >= 0) &&
-		 (index <= m_iColorPoints)) {
+		(index >= 0) &&
+		(index <= m_iColorPoints)) {
 
 		// Bump all the points up one position in the array
 		::memmove (&m_ColorPoints[index + 1],
-					  &m_ColorPoints[index],
-					  sizeof (COLOR_POINT) * (m_iColorPoints - index));
+			&m_ColorPoints[index],
+			sizeof (COLOR_POINT) * (m_iColorPoints - index));
 
 		// Increment the point count
 		m_iColorPoints ++;
@@ -965,12 +965,12 @@ ColorBarClass::Delete_Point (int index)
 
 	// Params valid?
 	if ((index > 0) &&
-		 (index < m_iColorPoints)) {
+		(index < m_iColorPoints)) {
 
 		// Bump all the points up one position in the array
 		::memmove (&m_ColorPoints[index],
-					  &m_ColorPoints[index + 1],
-					  sizeof (COLOR_POINT) * (m_iColorPoints - (index + 1)));
+			&m_ColorPoints[index + 1],
+			sizeof (COLOR_POINT) * (m_iColorPoints - (index + 1)));
 
 		// Decrement the point count
 		m_iColorPoints --;
@@ -1785,7 +1785,7 @@ ColorBarClass::Get_Color
 	int key_index = 0;
 	for (int index = 0; (index < m_iColorPoints) && !found; index ++) {
 		if ((pixel_pos >= m_ColorPoints[index].StartPos) &&
-			 (pixel_pos <= m_ColorPoints[index].EndPos)) {
+			(pixel_pos <= m_ColorPoints[index].EndPos)) {
 			key_index = index;
 			found = true;
 		}

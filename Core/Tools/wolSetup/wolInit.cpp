@@ -173,9 +173,9 @@ void setupGenerals( const char *genPath, const char *genSerial )
 	*/
 class OLEInitializer
 {
- public:
-          OLEInitializer() { OleInitialize(nullptr); }
-         ~OLEInitializer() { OleUninitialize(); }
+public:
+	OLEInitializer() { OleInitialize(nullptr); }
+	~OLEInitializer() { OleUninitialize(); }
 };
 OLEInitializer g_OLEInitializer;
 CComModule _Module;
@@ -193,7 +193,7 @@ void checkInstalledWolapiVersion( void )
 
 	// Create the WOLAPI instance
 	CoCreateInstance(CLSID_Chat, nullptr, CLSCTX_INPROC_SERVER, \
-					 IID_IChat, (void**)&g_pChat);
+		IID_IChat, (void**)&g_pChat);
 
 	if (g_pChat)
 	{

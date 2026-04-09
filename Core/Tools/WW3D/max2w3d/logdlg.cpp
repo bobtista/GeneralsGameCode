@@ -64,11 +64,11 @@ static DWORD WINAPI		_logdata_thread_function(LPVOID log_obj_ptr);
  *   02/09/2000 JGA  : Created.                                                                *
  *=============================================================================================*/
 LogDataDialogClass::LogDataDialogClass(HWND parent):
- Hwnd(nullptr),
- ParentHwnd(parent),
- buffer_index(0),
- last_buffer_index(0),
- status(0)
+	Hwnd(nullptr),
+	ParentHwnd(parent),
+	buffer_index(0),
+	last_buffer_index(0),
+	status(0)
 {
 	ThreadHandle = CreateThread(nullptr, 0, _logdata_thread_function, (LPVOID)this, 0, &ThreadID);
 
@@ -374,10 +374,10 @@ DWORD WINAPI _logdata_thread_function(LPVOID log_obj_ptr)
 {
 	// put logdata dialog box (lpParameter is the "this" pointer of the object)
 	DialogBoxParam( AppInstance,
-   					 MAKEINTRESOURCE(IDD_W3D_LOG),
-						 ((LogDataDialogClass*)log_obj_ptr)->ParentHwnd,
-                   (DLGPROC) _logdata_dialog_proc,
-                   (LPARAM) log_obj_ptr);
+		MAKEINTRESOURCE(IDD_W3D_LOG),
+		((LogDataDialogClass*)log_obj_ptr)->ParentHwnd,
+		(DLGPROC) _logdata_dialog_proc,
+		(LPARAM) log_obj_ptr);
 
 
 	// When this exits it should terminate the thread

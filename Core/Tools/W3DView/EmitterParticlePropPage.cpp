@@ -46,12 +46,12 @@ IMPLEMENT_DYNCREATE(EmitterParticlePropPageClass, CPropertyPage)
 //
 EmitterParticlePropPageClass::EmitterParticlePropPageClass (EmitterInstanceListClass *pemitter)
 	: m_pEmitterList (pemitter),
-	  m_bValid (true),
-	  m_Rate (0),
-	  m_BurstSize (0),
-	  m_MaxParticles (0),
-	  m_Randomizer (nullptr),
-	  CPropertyPage(EmitterParticlePropPageClass::IDD)
+	m_bValid (true),
+	m_Rate (0),
+	m_BurstSize (0),
+	m_MaxParticles (0),
+	m_Randomizer (nullptr),
+	CPropertyPage(EmitterParticlePropPageClass::IDD)
 {
 	//{{AFX_DATA_INIT(EmitterParticlePropPageClass)
 	//}}AFX_DATA_INIT

@@ -74,10 +74,10 @@ public:
 						IScene * scene,
 						INode * rootnode,
 						HierarchySaveClass * basepose,
-					   W3dExportOptionsStruct & options,
+		W3dExportOptionsStruct & options,
 						int	framerate,
 						Progress_Meter_Class * meter,
-                  HWND	MaxHwnd,
+		HWND	MaxHwnd,
 						char * name,
 						Matrix3 & offset = Matrix3(1)		// matrix to bring current object space into
 																	// base object space (for damage animations)
@@ -87,10 +87,10 @@ public:
 						IScene * scene,
 						INodeListClass * rootlist,
 						HierarchySaveClass * basepose,
-					   W3dExportOptionsStruct & options,
+		W3dExportOptionsStruct & options,
 						int	framerate,
 						Progress_Meter_Class * meter,
-                  HWND MaxHwnd,
+		HWND MaxHwnd,
 						char * name,
 						Matrix3 & offset = Matrix3(1)		// matrix to bring current object space into
 																	// base object space (for damage animations)

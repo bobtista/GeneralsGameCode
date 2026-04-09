@@ -47,17 +47,17 @@ IMPLEMENT_DYNCREATE(EmitterColorPropPageClass, CPropertyPage)
 /////////////////////////////////////////////////////////////
 EmitterColorPropPageClass::EmitterColorPropPageClass (EmitterInstanceListClass *pemitter)
 	: m_pEmitterList (nullptr),
-	  m_bValid (true),
-	  m_ColorBar (nullptr),
-	  m_OpacityBar (nullptr),
-	  m_Lifetime (0),
-	  CPropertyPage (EmitterColorPropPageClass::IDD)
+	m_bValid (true),
+	m_ColorBar (nullptr),
+	m_OpacityBar (nullptr),
+	m_Lifetime (0),
+	CPropertyPage (EmitterColorPropPageClass::IDD)
 {
 
-  ::memset (&m_OrigColors, 0, sizeof (m_OrigColors));
-  ::memset (&m_OrigOpacities, 0, sizeof (m_OrigOpacities));
-  ::memset (&m_CurrentColors, 0, sizeof (m_CurrentColors));
-  ::memset (&m_CurrentOpacities, 0, sizeof (m_CurrentOpacities));
+	::memset (&m_OrigColors, 0, sizeof (m_OrigColors));
+	::memset (&m_OrigOpacities, 0, sizeof (m_OrigOpacities));
+	::memset (&m_CurrentColors, 0, sizeof (m_CurrentColors));
+	::memset (&m_CurrentOpacities, 0, sizeof (m_CurrentOpacities));
 
 	//{{AFX_DATA_INIT(EmitterColorPropPageClass)
 	//}}AFX_DATA_INIT
@@ -310,7 +310,7 @@ EmitterColorPropPageClass::OnNotify
 					SetModified ();
 				}
 			} else if ((color_bar_hdr->hdr.code == CBRN_MOVING_POINT) ||
-						  (color_bar_hdr->hdr.code == CBRN_DELETED_POINT)) {
+				(color_bar_hdr->hdr.code == CBRN_DELETED_POINT)) {
 
 				// Update the emitter
 				Update_Opacities ();
@@ -343,7 +343,7 @@ EmitterColorPropPageClass::OnNotify
 					SetModified ();
 				}
 			} else if ((color_bar_hdr->hdr.code == CBRN_MOVING_POINT) ||
-						  (color_bar_hdr->hdr.code == CBRN_DELETED_POINT)) {
+				(color_bar_hdr->hdr.code == CBRN_DELETED_POINT)) {
 
 				// Update the emitter
 				Update_Colors ();
@@ -551,7 +551,7 @@ EmitterColorPropPageClass::OnCommand
 
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_CurrentColors.Rand.X = ((float)GetDlgItemInt (IDC_RED_RANDOM_EDIT)) / 255;
@@ -569,7 +569,7 @@ EmitterColorPropPageClass::OnCommand
 
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_CurrentColors.Rand.Y = ((float)GetDlgItemInt (IDC_GREEN_RANDOM_EDIT)) / 255;
@@ -587,7 +587,7 @@ EmitterColorPropPageClass::OnCommand
 
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_CurrentColors.Rand.Z = ((float)GetDlgItemInt (IDC_BLUE_RANDOM_EDIT)) / 255;
@@ -605,7 +605,7 @@ EmitterColorPropPageClass::OnCommand
 
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_CurrentOpacities.Rand = ((float)GetDlgItemInt (IDC_OPACITY_RANDOM_EDIT)) / 100;

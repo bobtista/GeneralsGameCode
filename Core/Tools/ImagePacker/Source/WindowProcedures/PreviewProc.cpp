@@ -68,7 +68,7 @@
 /** */
 //=============================================================================
 LRESULT CALLBACK PreviewProc( HWND hWnd, UINT message,
-														  WPARAM wParam, LPARAM lParam )
+	WPARAM wParam, LPARAM lParam )
 {
 
 	switch( message )
@@ -87,8 +87,8 @@ LRESULT CALLBACK PreviewProc( HWND hWnd, UINT message,
 			// find the target texture page
 			TexturePage *page;
 			for( page = TheImagePacker->getFirstTexturePage();
-					 page;
-					 page = page->m_next )
+			page;
+			page = page->m_next )
 			{
 
 				// if this is not the target page, ignore it
@@ -138,8 +138,8 @@ LRESULT CALLBACK PreviewProc( HWND hWnd, UINT message,
 					// go through all the images on this page
 					ImageInfo *image;
 					for( image = page->getFirstImage();
-							 image;
-							 image = image->m_nextPageImage )
+					image;
+					image = image->m_nextPageImage )
 					{
 						RECT rect;
 
@@ -193,17 +193,17 @@ HWND MakePreviewDisplay( void )
 
 	// create app window and keep handle
 	hWnd = CreateWindowEx( 0,											// extended style
-												 className,							// window class name
-												 "Preview",							// window name
-												 PREVIEW_STYLE,					// window styles
-												 30,											// x position
-												 30,											// y position
-												 TheImagePacker->getTargetWidth(),
-												 TheImagePacker->getTargetHeight(),
-												 nullptr,									// parent
-												 nullptr,									// menu
-												 ApplicationHInstance,	// instance
-												 nullptr );								// creation data
+		className,							// window class name
+		"Preview",							// window name
+		PREVIEW_STYLE,					// window styles
+		30,											// x position
+		30,											// y position
+		TheImagePacker->getTargetWidth(),
+		TheImagePacker->getTargetHeight(),
+		nullptr,									// parent
+		nullptr,									// menu
+		ApplicationHInstance,	// instance
+		nullptr );								// creation data
 
 	if( hWnd == nullptr )
 		return nullptr;
@@ -238,8 +238,8 @@ void UpdatePreviewWindow( void )
 
 	// construct title
 	sprintf( title, "Page #%d of %d",
-					 TheImagePacker->getTargetPreviewPage(),
-					 TheImagePacker->getPageCount() );
+		TheImagePacker->getTargetPreviewPage(),
+		TheImagePacker->getPageCount() );
 	SetWindowText( preview, title );
 
 	// adjust the window rect so the client area is the target packed size

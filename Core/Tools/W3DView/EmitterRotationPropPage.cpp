@@ -262,7 +262,7 @@ BOOL EmitterRotationPropPageClass::OnNotify(WPARAM wParam, LPARAM lParam, LRESUL
 					SetModified ();
 				}
 			} else if ((color_bar_hdr->hdr.code == CBRN_MOVING_POINT) ||
-						  (color_bar_hdr->hdr.code == CBRN_DELETED_POINT)) {
+				(color_bar_hdr->hdr.code == CBRN_DELETED_POINT)) {
 
 				//
 				// Update the emitter
@@ -357,7 +357,7 @@ EmitterRotationPropPageClass::OnCommand(WPARAM wParam, LPARAM lParam)
 		{
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_Rotations.Rand = ::GetDlgItemFloat (m_hWnd, IDC_ROTATION_RANDOM_EDIT);
@@ -373,7 +373,7 @@ EmitterRotationPropPageClass::OnCommand(WPARAM wParam, LPARAM lParam)
 		{
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_InitialOrientationRandom = ::GetDlgItemFloat (m_hWnd, IDC_INITIAL_ORIENTATION_RANDOM_EDIT);

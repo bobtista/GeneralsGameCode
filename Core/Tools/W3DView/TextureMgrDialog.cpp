@@ -78,12 +78,12 @@ TextureMgrDialogClass::TextureMgrDialogClass
 	CWnd *pParent
 )
 	: m_pBaseModel (pbase_model),
-	  m_bContainsMeshes (true),
-	  m_pImageList (nullptr),
-	  m_pImageListSmall (nullptr),
-	  m_pTextureImageList (nullptr),
-	  m_pTextureImageListSmall (nullptr),
-	  CDialog (TextureMgrDialogClass::IDD, pParent)
+	m_bContainsMeshes (true),
+	m_pImageList (nullptr),
+	m_pImageListSmall (nullptr),
+	m_pTextureImageList (nullptr),
+	m_pTextureImageListSmall (nullptr),
+	CDialog (TextureMgrDialogClass::IDD, pParent)
 {
 	//{{AFX_DATA_INIT(TextureMgrDialogClass)
 		// NOTE: the ClassWizard will add member initialization here
@@ -249,11 +249,11 @@ TextureMgrDialogClass::OnInitDialog (void)
 
 	// Load this icon and add it to our imagelist
 	m_pImageListSmall->Add ((HICON)::LoadImage (::AfxGetResourceHandle (),
-															  MAKEINTRESOURCE (IDI_MESH_FOLDER),
-															  IMAGE_ICON,
-															  16,
-															  16,
-															  LR_SHARED));
+		MAKEINTRESOURCE (IDI_MESH_FOLDER),
+		IMAGE_ICON,
+		16,
+		16,
+		LR_SHARED));
 
 	// Add the name column to the list control
 	m_ListCtrl.GetClientRect (&rect);
@@ -444,8 +444,8 @@ TextureMgrDialogClass::OnDblclkMeshTextureListCtrl
 
 					// Show the user a dialog containing the texture's properties
 					TextureSettingsDialogClass dialog ((IndirectTextureClass *)ptexture,
-																  (IndirectTextureClass *)poriginal_texture,
-																  this);
+						(IndirectTextureClass *)poriginal_texture,
+						this);
 					dialog.DoModal ();
 
 					// If the settings we modified, then update the list control information
@@ -657,11 +657,11 @@ TextureMgrDialogClass::Insert_Texture_Details
 
 		// Update the texture's icon and name in the list control
 		m_ListCtrl.SetItem (index,
-								  COL_NAME,
-								  LVIF_IMAGE | LVIF_TEXT,
-								  texture_name,
-								  pnode->Get_Icon_Index (),
-								  0, 0, 0);
+			COL_NAME,
+			LVIF_IMAGE | LVIF_TEXT,
+			texture_name,
+			pnode->Get_Icon_Index (),
+			0, 0, 0);
 
 		// Insert the texture dimensions in the second column
 		SurfaceClass::SurfaceDescription surface_desc;

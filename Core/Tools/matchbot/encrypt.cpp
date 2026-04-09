@@ -24,7 +24,7 @@
 #define MAX_CHARS 65
 static char Base_String[MAX_CHARS] =
 
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./";
+	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./";
 
 static char Return_Buffer[MAX_ENCRYPTED_STRING + 1];
 static char Temp_Buffer [MAX_ENCRYPTED_STRING + 1];
@@ -61,10 +61,10 @@ char *do_encrypt(char *String)
 	for (UpCnt = 0, DnCnt = Length; UpCnt < Length; UpCnt++, DnCnt--)
 		if (String[UpCnt] & 0x01)
 			Temp_Buffer[UpCnt] = (String[UpCnt] << (String[UpCnt] & 0x01)) &
-			                     String[DnCnt];
+		String[DnCnt];
 		else
 			Temp_Buffer[UpCnt] = (String[UpCnt] << (String[UpCnt] & 0x01)) ^
-			                     String[DnCnt];
+		String[DnCnt];
 
 	for (Cnt = 0; Cnt < MAX_ENCRYPTED_STRING; Cnt++)
 		Return_Buffer[Cnt] = Base_String[Temp_Buffer[Cnt] & 0x3F];

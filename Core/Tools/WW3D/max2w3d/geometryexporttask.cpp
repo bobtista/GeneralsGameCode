@@ -1133,8 +1133,8 @@ Point3 MeshGeometryExportTaskClass::Get_Shared_Vertex_Normal(const Point3 & worl
 					int max_vert_index = maxface.v[vert_index];
 					Point3 delta = obj_pos - MeshData.verts[max_vert_index];
 					if ((fabs (delta.x) < EPSILON) &&
-						 (fabs (delta.y) < EPSILON) &&
-						 (fabs (delta.z) < EPSILON))
+						(fabs (delta.y) < EPSILON) &&
+						(fabs (delta.z) < EPSILON))
 					{
 
 						/*

@@ -42,8 +42,8 @@ ColorSelectionDialogClass::ColorSelectionDialogClass
 	CWnd *pParent
 )
 	: m_Color (def_color),
-	  m_PaintColor (def_color),
-	  CDialog(ColorSelectionDialogClass::IDD, pParent)
+	m_PaintColor (def_color),
+	CDialog(ColorSelectionDialogClass::IDD, pParent)
 {
 	//{{AFX_DATA_INIT(ColorSelectionDialogClass)
 		// NOTE: the ClassWizard will add member initialization here
@@ -109,7 +109,7 @@ ColorSelectionDialogClass::OnInitDialog (void)
 	int blue_value = int(m_Color.Z * 255.00F);
 
 	if ((red_value == green_value) &&
-	    (red_value == blue_value)) {
+		(red_value == blue_value)) {
 
 		// Check the grayscale checkbox
 		SendDlgItemMessage (IDC_GRAYSCALE_CHECK, BM_SETCHECK, (WPARAM)TRUE);

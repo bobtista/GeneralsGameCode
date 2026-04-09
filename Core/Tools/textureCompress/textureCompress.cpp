@@ -287,7 +287,7 @@ void eraseCachedFiles(const std::string& sourceDirName, const std::string& targe
 
 //-------------------------------------------------------------------------------------------------
 void copyCachedFiles(const std::string& sourceDirName, const std::string& targetDirName, const std::string& cacheDirName,
-										 StringSet& cachedFilesToCopy)
+	StringSet& cachedFilesToCopy)
 {
 	StringSet::const_iterator sit;
 	for (sit = cachedFilesToCopy.begin(); sit != cachedFilesToCopy.end(); ++sit)
@@ -311,7 +311,7 @@ void copyCachedFiles(const std::string& sourceDirName, const std::string& target
 
 //-------------------------------------------------------------------------------------------------
 void compressOrigFiles(const std::string& sourceDirName, const std::string& targetDirName, const std::string& cacheDirName,
-											 StringSet& origFilesToCompress, const std::string& dxtOutFname)
+	StringSet& origFilesToCompress, const std::string& dxtOutFname)
 {
 	char tmpPath[_MAX_PATH] = "C:\\temp\\";
 	char tmpFname[_MAX_PATH] = "C:\\temp\\tmp.txt";
@@ -393,7 +393,7 @@ void compressOrigFiles(const std::string& sourceDirName, const std::string& targ
 
 //-------------------------------------------------------------------------------------------------
 void copyOrigFiles(const std::string& sourceDirName, const std::string& targetDirName, const std::string& cacheDirName,
-									 StringSet& origFilesToCopy)
+	StringSet& origFilesToCopy)
 {
 	StringSet::const_iterator sit;
 	for (sit = origFilesToCopy.begin(); sit != origFilesToCopy.end(); ++sit)

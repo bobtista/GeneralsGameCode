@@ -81,7 +81,7 @@ const Char *g_csfFile = "data\\%s\\Generals.csf";
 /** Application entry point */
 //=============================================================================
 Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
-                      LPSTR lpCmdLine, Int nCmdShow )
+	LPSTR lpCmdLine, Int nCmdShow )
 {
 
 	// initialize the memory manager early
@@ -107,7 +107,7 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	// load the dialog box
 	DialogBox( hInstance, (LPCTSTR)IMAGE_PACKER_DIALOG,
-						 nullptr, (DLGPROC)ImagePackerProc );
+		nullptr, (DLGPROC)ImagePackerProc );
 
 	// delete the image packer
 	delete TheImagePacker;

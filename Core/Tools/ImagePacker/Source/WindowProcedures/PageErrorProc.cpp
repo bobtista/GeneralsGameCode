@@ -67,7 +67,7 @@
 /** Dialog proc for the error window */
 //=============================================================================
 BOOL CALLBACK PageErrorProc( HWND hWndDialog, UINT message,
-														 WPARAM wParam, LPARAM lParam )
+	WPARAM wParam, LPARAM lParam )
 {
 
 	switch( message )
@@ -93,8 +93,8 @@ BOOL CALLBACK PageErrorProc( HWND hWndDialog, UINT message,
 			char reason[ 32 ];
 
 			for( page = TheImagePacker->getFirstTexturePage();
-					 page;
-					 page = page->m_next )
+			page;
+			page = page->m_next )
 			{
 
 				// if image can't be processed find out why
@@ -113,8 +113,8 @@ BOOL CALLBACK PageErrorProc( HWND hWndDialog, UINT message,
 						sprintf( reason, "Unknown Reason" );
 
 					sprintf( buffer, "%s: (%dx%d) %s%d",
-									 reason, page->getWidth(), page->getHeight(),
-									 TheImagePacker->getOutputFile(), page->getID() );
+						reason, page->getWidth(), page->getHeight(),
+						TheImagePacker->getOutputFile(), page->getID() );
 
 					SendMessage( list, LB_INSERTSTRING, -1, (LPARAM)buffer );
 

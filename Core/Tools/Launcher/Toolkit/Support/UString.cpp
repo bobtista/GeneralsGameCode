@@ -147,7 +147,7 @@ template<typename T> bool StripRight(WChar* string, const T* trimChars)
 
 UString::UString()
 	: mData(nullptr),
-	  mCapacity(0)
+	mCapacity(0)
 	{
 	}
 
@@ -170,7 +170,7 @@ UString::UString()
 
 UString::UString(UInt capacity)
 	: mData(nullptr),
-	  mCapacity(0)
+	mCapacity(0)
 	{
 	AllocString(capacity);
 	}
@@ -194,7 +194,7 @@ UString::UString(UInt capacity)
 
 UString::UString(const Char* s)
 	: mData(nullptr),
-	  mCapacity(0)
+	mCapacity(0)
 	{
 	Copy(s);
 	}
@@ -218,7 +218,7 @@ UString::UString(const Char* s)
 
 UString::UString(const WChar* ws)
 	: mData(nullptr),
-	  mCapacity(0)
+	mCapacity(0)
 	{
 	Copy(ws);
 	}
@@ -242,7 +242,7 @@ UString::UString(const WChar* ws)
 
 UString::UString(const UString& s)
 	: mData(nullptr),
-	  mCapacity(0)
+	mCapacity(0)
 	{
 	Copy(s);
 	}

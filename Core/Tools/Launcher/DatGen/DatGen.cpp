@@ -76,7 +76,7 @@ static void doIt(void)
 	DWORD maxComponentLength;
 	DWORD fileSystemFlags;
 	BOOL volInfoSuccess = GetVolumeInformation((const char*)drive, nullptr, 0,
-		                    &volumeSerialNumber, &maxComponentLength, &fileSystemFlags, nullptr, 0);
+		&volumeSerialNumber, &maxComponentLength, &fileSystemFlags, nullptr, 0);
 
 	if (volInfoSuccess == FALSE)
 	{
@@ -189,9 +189,9 @@ static void doIt(void)
 }
 
 int APIENTRY WinMain(HINSTANCE hInstance,
-                     HINSTANCE hPrevInstance,
-                     LPSTR     lpCmdLine,
-                     int       nCmdShow)
+	HINSTANCE hPrevInstance,
+	LPSTR     lpCmdLine,
+	int       nCmdShow)
 {
 	doIt();
 

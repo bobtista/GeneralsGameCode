@@ -54,9 +54,9 @@ HINSTANCE g_hInst = nullptr;
 LRESULT CALLBACK MainDialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 
 int APIENTRY WinMain(HINSTANCE hInstance,
-                     HINSTANCE hPrevInstance,
-                     LPSTR     lpCmdLine,
-                     int       nCmdShow)
+	HINSTANCE hPrevInstance,
+	LPSTR     lpCmdLine,
+	int       nCmdShow)
 {
 	g_hInst = hInstance;
 
@@ -101,7 +101,7 @@ LRESULT CALLBACK GeneralsSetupDialogProc(HWND hDlg, UINT message, WPARAM wParam,
 			}
 			break;
 	}
-    return FALSE;
+	return FALSE;
 }
 
 void updateDisplay(HWND hDlg)
@@ -201,7 +201,7 @@ LRESULT CALLBACK MainDialogProc(HWND hDlg, UINT message, WPARAM wParam, LPARAM l
 			}
 			break;
 	}
-    return FALSE;
+	return FALSE;
 }
 
 

@@ -59,11 +59,11 @@ __inline bool Is_LOD_Name_Valid (LPCTSTR name, LOD_NAMING_TYPE &type)
 	// Does this name fit with the format expected?
 	LPCTSTR last_2_chars = name + (::lstrlen (name)-2);
 	if (((last_2_chars[0] == 'L') || (last_2_chars[0] == 'l')) &&
-		 ((last_2_chars[1] >= '0') && (last_2_chars[1] <= '9'))) {
+		((last_2_chars[1] >= '0') && (last_2_chars[1] <= '9'))) {
 		type = TYPE_COMMANDO;
 		retval = true;
 	} else if ((last_2_chars[1] >= 'a' && last_2_chars[1] <= 'z') ||
-				  (last_2_chars[1] >= 'A' && last_2_chars[1] <= 'Z')) {
+		(last_2_chars[1] >= 'A' && last_2_chars[1] <= 'Z')) {
 		type = TYPE_G;
 		retval = true;
 	}
@@ -85,12 +85,12 @@ __inline bool Is_Model_Part_of_LOD (LPCTSTR name, LPCTSTR base, LOD_NAMING_TYPE 
 		// What naming convention are we using?
 		if (type == TYPE_COMMANDO) {
 			if (((extension[0] == 'L') || (extension[0] == 'l')) &&
-				 ((extension[1] >= '0') && (extension[1] <= '9'))) {
+				((extension[1] >= '0') && (extension[1] <= '9'))) {
 				retval = (extension[2] == 0);
 			}
 		} else if (type == TYPE_G) {
 			if ((extension[0] >= 'a' && extension[0] <= 'z') ||
-				 (extension[0] >= 'A' && extension[0] <= 'Z')) {
+				(extension[0] >= 'A' && extension[0] <= 'Z')) {
 				retval = (extension[1] == 0);
 			}
 		}

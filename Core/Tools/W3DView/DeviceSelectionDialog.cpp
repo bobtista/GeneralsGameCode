@@ -44,18 +44,18 @@ static char THIS_FILE[] = __FILE__;
 //
 CDeviceSelectionDialog::CDeviceSelectionDialog
 (
-    BOOL bLookupCachedInfo,
-    CWnd* pParent /*=nullptr*/
+	BOOL bLookupCachedInfo,
+	CWnd* pParent /*=nullptr*/
 )
 	: m_iDeviceIndex (1),
-      m_iBitsPerPixel (16),
-      m_bLookupCachedInfo (bLookupCachedInfo),
-      CDialog(CDeviceSelectionDialog::IDD, pParent)
+	m_iBitsPerPixel (16),
+	m_bLookupCachedInfo (bLookupCachedInfo),
+	CDialog(CDeviceSelectionDialog::IDD, pParent)
 {
 	//{{AFX_DATA_INIT(CDeviceSelectionDialog)
 		// NOTE: the ClassWizard will add member initialization here
 	//}}AFX_DATA_INIT
-    return ;
+	return ;
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -65,12 +65,12 @@ CDeviceSelectionDialog::CDeviceSelectionDialog
 void
 CDeviceSelectionDialog::DoDataExchange (CDataExchange* pDX)
 {
-    // Allow the base class to process this message
+	// Allow the base class to process this message
 	CDialog::DoDataExchange(pDX);
 	//{{AFX_DATA_MAP(CDeviceSelectionDialog)
 	DDX_Control(pDX, IDC_RENDER_DEVICE_COMBO, m_deviceListComboBox);
 	//}}AFX_DATA_MAP
-    return ;
+	return ;
 }
 
 
@@ -210,8 +210,8 @@ CDeviceSelectionDialog::DoModal (void)
 	// Get the name of the last used device driver from the registry
 	m_DriverName = theApp.GetProfileString ("Config", "DeviceName");
 	if (m_bLookupCachedInfo &&
-		 (m_DriverName.GetLength () > 0) &&
-		 !(::GetKeyState (VK_SHIFT) & 0xF000)) {
+		(m_DriverName.GetLength () > 0) &&
+		!(::GetKeyState (VK_SHIFT) & 0xF000)) {
 
 		//
 		// Loop through all the devices and see if we can find the right one

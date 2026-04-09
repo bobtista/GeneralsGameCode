@@ -57,14 +57,14 @@
 
 class MonoD : public OutputDevice
 {
- public:
-                   MonoD();
-                  ~MonoD();
+public:
+	MonoD();
+	~MonoD();
 
-   virtual int    print(const char *str,int len);
+	virtual int    print(const char *str,int len);
 
- private:
+private:
    #ifdef _WIN32
-     HANDLE handle;
+	HANDLE handle;
    #endif
 };

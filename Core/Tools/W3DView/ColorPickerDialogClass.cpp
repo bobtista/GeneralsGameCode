@@ -590,9 +590,9 @@ void
 ColorPickerDialogClass::OnReset (void)
 {
 	Update_Color (m_OrigRed,
-					  m_OrigGreen,
-					  m_OrigBlue,
-					  UPDATE_COLOR_BARS| UPDATE_WHITENESS | UPDATE_HUE_PICKER);
+		m_OrigGreen,
+		m_OrigBlue,
+		UPDATE_COLOR_BARS| UPDATE_WHITENESS | UPDATE_HUE_PICKER);
 	return ;
 }
 

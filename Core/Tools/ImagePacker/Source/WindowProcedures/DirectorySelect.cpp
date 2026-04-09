@@ -100,7 +100,7 @@ static void selectDrive( HWND dialog )
 /** Directory selection dialog */
 //=============================================================================
 BOOL CALLBACK DirectorySelectProc( HWND hWndDialog, UINT message,
-																	 WPARAM wParam, LPARAM lParam )
+	WPARAM wParam, LPARAM lParam )
 {
 	static char buffer[ _MAX_PATH ];
 
@@ -240,7 +240,7 @@ BOOL CALLBACK DirectorySelectProc( HWND hWndDialog, UINT message,
 
 						// get selected index
 						selected = SendDlgItemMessage( hWndDialog, COMBO_DRIVE,
-																					 CB_GETCURSEL, 0, 0 );
+							CB_GETCURSEL, 0, 0 );
 						if( selected != CB_ERR )
 						{
 							char string[ 32 ];
@@ -294,7 +294,7 @@ BOOL CALLBACK DirectorySelectProc( HWND hWndDialog, UINT message,
 
 						// get selected count
 						selCount = SendDlgItemMessage( hWndDialog, LIST_DIR,
-																					 LB_GETSELCOUNT, 0, 0 );
+							LB_GETSELCOUNT, 0, 0 );
 
 						// if we have selected items, enable the add button
 						if( selCount > 0 )
@@ -335,7 +335,7 @@ BOOL CALLBACK DirectorySelectProc( HWND hWndDialog, UINT message,
 
 						// get currently selected item
 						selected = SendDlgItemMessage( hWndDialog, LIST_DIR,
-																					 LB_GETCURSEL, 0, 0 );
+							LB_GETCURSEL, 0, 0 );
 
 						// get text of selected item
 						SendDlgItemMessage( hWndDialog, LIST_DIR, LB_GETTEXT,

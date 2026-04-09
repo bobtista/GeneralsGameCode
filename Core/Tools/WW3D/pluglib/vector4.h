@@ -351,12 +351,12 @@ inline void Swap(Vector4 & a,Vector4 & b)
  *=============================================================================================*/
 inline Vector4 Lerp(const Vector4 & a, const Vector4 & b, float alpha)
 {
-   return Vector4(
-      (a.X + (b.X - a.X)*alpha),
-      (a.Y + (b.Y - a.Y)*alpha),
-      (a.Z + (b.Z - a.Z)*alpha),
-      (a.W + (b.W - a.W)*alpha)
-   );
+	return Vector4(
+		(a.X + (b.X - a.X)*alpha),
+		(a.Y + (b.Y - a.Y)*alpha),
+		(a.Z + (b.Z - a.Z)*alpha),
+		(a.W + (b.W - a.W)*alpha)
+	);
 }
 
 

@@ -58,7 +58,7 @@ template<class T> class Callback : public CallbackHook
 	public:
 		Callback(bool (*callback)(T), T userdata)
 			: mCallback(callback),
-			  mUserData(userdata)
+		mUserData(userdata)
 			{
 			}
 

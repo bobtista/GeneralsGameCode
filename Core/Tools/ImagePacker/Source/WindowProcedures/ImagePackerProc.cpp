@@ -67,7 +67,7 @@
 /** Dialog procedure for the program flow */
 //=============================================================================
 BOOL CALLBACK ImagePackerProc( HWND hWndDialog, UINT message,
-															 WPARAM wParam, LPARAM lParam )
+	WPARAM wParam, LPARAM lParam )
 {
 
 	switch( message )
@@ -274,9 +274,9 @@ BOOL CALLBACK ImagePackerProc( HWND hWndDialog, UINT message,
 
 					// bring up the add directory dialog
 					DialogBox( ApplicationHInstance,
-										 (LPCTSTR)DIRECTORY_SELECT_DIALOG,
-										 TheImagePacker->getWindowHandle(),
-										 (DLGPROC)DirectorySelectProc );
+						(LPCTSTR)DIRECTORY_SELECT_DIALOG,
+						TheImagePacker->getWindowHandle(),
+						(DLGPROC)DirectorySelectProc );
 					break;
 
 				}

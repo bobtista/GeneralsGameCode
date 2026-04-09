@@ -79,8 +79,8 @@ FormClass::Create_Form
 
 	// Remove the caption from the dialog (if there was any)
 	::SetWindowLong (m_hWnd,
-						  GWL_STYLE,
-						  ::GetWindowLong (m_hWnd, GWL_STYLE) & (~WS_CAPTION));
+		GWL_STYLE,
+		::GetWindowLong (m_hWnd, GWL_STYLE) & (~WS_CAPTION));
 
 	::GetWindowRect (m_hWnd, &m_FormRect);
 

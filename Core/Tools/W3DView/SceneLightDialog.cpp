@@ -42,16 +42,16 @@ static char THIS_FILE[] = __FILE__;
 //
 CSceneLightDialog::CSceneLightDialog(CWnd* pParent /*=nullptr*/)
 	: m_CurrentChannel (DIFFUSE),
-	  m_InitialStartAtten (0),
-	  m_InitialEndAtten (0),
-	  m_InitialDistance (0),
-	  m_InitialIntensity (0),
-	  m_InitialAttenOn (TRUE),
-	  CDialog(CSceneLightDialog::IDD, pParent)
+	m_InitialStartAtten (0),
+	m_InitialEndAtten (0),
+	m_InitialDistance (0),
+	m_InitialIntensity (0),
+	m_InitialAttenOn (TRUE),
+	CDialog(CSceneLightDialog::IDD, pParent)
 {
 	//{{AFX_DATA_INIT(CSceneLightDialog)
 	//}}AFX_DATA_INIT
-    return ;
+	return ;
 }
 
 
@@ -72,7 +72,7 @@ CSceneLightDialog::DoDataExchange (CDataExchange* pDX)
 	DDX_Control(pDX, IDC_SLIDER_GREEN, m_greenSlider);
 	DDX_Control(pDX, IDC_SLIDER_RED, m_redSlider);
 	//}}AFX_DATA_MAP
-    return ;
+	return ;
 }
 
 
@@ -187,9 +187,9 @@ CSceneLightDialog::OnInitDialog (void)
 void
 CSceneLightDialog::OnHScroll
 (
-    UINT nSBCode,
-    UINT nPos,
-    CScrollBar* pScrollBar
+	UINT nSBCode,
+	UINT nPos,
+	CScrollBar* pScrollBar
 )
 {
 	// Did the intensity slider send this message or did the color sliders?
@@ -288,9 +288,9 @@ CSceneLightDialog::OnCancel (void)
 LRESULT
 CSceneLightDialog::WindowProc
 (
-    UINT message,
-    WPARAM wParam,
-    LPARAM lParam
+	UINT message,
+	WPARAM wParam,
+	LPARAM lParam
 )
 {
 	switch (message)
@@ -460,7 +460,7 @@ CSceneLightDialog::Set_Color_Control_State (const Vector3 &color)
 {
 	// Should we 'lock' the color sliders together?
 	if ((color.X == color.Y) &&
-		 (color.X == color.Z)) {
+		(color.X == color.Z)) {
 		SendDlgItemMessage (IDC_GRAYSCALE_CHECK, BM_SETCHECK, (WPARAM)TRUE);
 	} else {
 		SendDlgItemMessage (IDC_GRAYSCALE_CHECK, BM_SETCHECK, (WPARAM)FALSE);
