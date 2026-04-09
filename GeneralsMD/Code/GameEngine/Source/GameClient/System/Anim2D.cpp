@@ -628,7 +628,7 @@ void Anim2D::draw( Int x, Int y )
 	// frame numbers for animation instances that are registered with a system as the
 	// system will update them during its update phase
 	//
- 	if( m_collectionSystem == nullptr && BitIsSet( m_status, ANIM_2D_STATUS_FROZEN ) == FALSE )
+	if( m_collectionSystem == nullptr && BitIsSet( m_status, ANIM_2D_STATUS_FROZEN ) == FALSE )
 		tryNextFrame();
 
 }
@@ -656,7 +656,7 @@ void Anim2D::draw( Int x, Int y, Int width, Int height )
 	// frame numbers for animation instances that are registered with a system as the
 	// system will update them during its update phase
 	//
- 	if( m_collectionSystem == nullptr && BitIsSet( m_status, ANIM_2D_STATUS_FROZEN ) == FALSE )
+	if( m_collectionSystem == nullptr && BitIsSet( m_status, ANIM_2D_STATUS_FROZEN ) == FALSE )
 		tryNextFrame();
 
 }
@@ -774,8 +774,8 @@ Anim2DTemplate *Anim2DCollection::findTemplate( const AsciiString& name )
 
 	// search the list
 	for( Anim2DTemplate *animTemplate = m_templateList;
-			 animTemplate;
-			 animTemplate = animTemplate->friend_getNextTemplate() )
+	animTemplate;
+	animTemplate = animTemplate->friend_getNextTemplate() )
 	{
 
 		if( animTemplate->getName() == name )

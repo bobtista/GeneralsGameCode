@@ -184,7 +184,7 @@ void BitFlags<NUMBITS>::xfer(Xfer* xfer)
 	}
 	else if( xfer->getXferMode() == XFER_LOAD )
 	{
-  	// clear the kind of mask data
+		// clear the kind of mask data
 		clear();
 
 		// read how many entries follow

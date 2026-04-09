@@ -276,7 +276,7 @@ void GameClient::init()
 	// now that we have all the images loaded ... load any animation definitions from those images
 	TheAnim2DCollection = MSGNEW("GameClientSubsystem") Anim2DCollection;
 	TheAnim2DCollection->init();
- 	TheAnim2DCollection->setName("TheAnim2DCollection");
+	TheAnim2DCollection->setName("TheAnim2DCollection");
 
 	// register message translators
 	if( TheMessageStream )
@@ -319,13 +319,13 @@ void GameClient::init()
 	TheMouse = TheGlobalData->m_headless ? NEW MouseDummy : createMouse();
 	TheMouse->parseIni();
 	TheMouse->initCursorResources();
- 	TheMouse->setName("TheMouse");
+	TheMouse->setName("TheMouse");
 
 	// instantiate the display
 	TheDisplay = createGameDisplay();
 	if( TheDisplay ) {
 		TheDisplay->init();
- 		TheDisplay->setName("TheDisplay");
+		TheDisplay->setName("TheDisplay");
 	}
 
 	TheHeaderTemplateManager = MSGNEW("GameClientSubsystem") HeaderTemplateManager;
@@ -339,7 +339,7 @@ void GameClient::init()
 	{
 
 		TheWindowManager->init();
- 		TheWindowManager->setName("TheWindowManager");
+		TheWindowManager->setName("TheWindowManager");
 //		TheWindowManager->initTestGUI();
 
 	}
@@ -349,46 +349,46 @@ void GameClient::init()
 	if ( TheIMEManager )
 	{
 		TheIMEManager->init();
- 		TheIMEManager->setName("TheIMEManager");
+		TheIMEManager->setName("TheIMEManager");
 	}
 
 	// create the shell
 	TheShell = MSGNEW("GameClientSubsystem") Shell;
 	if( TheShell ) {
 		TheShell->init();
- 		TheShell->setName("TheShell");
+		TheShell->setName("TheShell");
 	}
 
 	// instantiate the in-game user interface
 	TheInGameUI = createInGameUI();
 	if( TheInGameUI ) {
 		TheInGameUI->init();
- 		TheInGameUI->setName("TheInGameUI");
+		TheInGameUI->setName("TheInGameUI");
 	}
 
- 	TheChallengeGenerals = createChallengeGenerals();
- 	if( TheChallengeGenerals ) {
- 		TheChallengeGenerals->init();
- 	}
+	TheChallengeGenerals = createChallengeGenerals();
+	if( TheChallengeGenerals ) {
+		TheChallengeGenerals->init();
+	}
 
 	TheHotKeyManager = MSGNEW("GameClientSubsystem") HotKeyManager;
 	if( TheHotKeyManager ) {
 		TheHotKeyManager->init();
- 		TheHotKeyManager->setName("TheHotKeyManager");
+		TheHotKeyManager->setName("TheHotKeyManager");
 	}
 
 	// instantiate the terrain visual display
 	TheTerrainVisual = createTerrainVisual();
 	if( TheTerrainVisual ) {
 		TheTerrainVisual->init();
- 		TheTerrainVisual->setName("TheTerrainVisual");
+		TheTerrainVisual->setName("TheTerrainVisual");
 	}
 
 	// allocate the ray effects manager
 	TheRayEffects = MSGNEW("GameClientSubsystem") RayEffectSystem;
 	if( TheRayEffects )	{
 		TheRayEffects->init();
- 		TheRayEffects->setName("TheRayEffects");
+		TheRayEffects->setName("TheRayEffects");
 	}
 
 	// set the limits of the mouse now that we've created the display and such
@@ -407,7 +407,7 @@ void GameClient::init()
 	if ( TheVideoPlayer )
 	{
 		TheVideoPlayer->init();
- 		TheVideoPlayer->setName("TheVideoPlayer");
+		TheVideoPlayer->setName("TheVideoPlayer");
 	}
 
 	// create the language filter.
@@ -415,7 +415,7 @@ void GameClient::init()
 	if (TheLanguageFilter)
 	{
 		TheLanguageFilter->init();
- 		TheLanguageFilter->setName("TheLanguageFilter");
+		TheLanguageFilter->setName("TheLanguageFilter");
 	}
 
 	TheCampaignManager = MSGNEW("GameClientSubsystem") CampaignManager;
@@ -423,7 +423,7 @@ void GameClient::init()
 
 	TheEva = MSGNEW("GameClientSubsystem") Eva;
 	TheEva->init();
- 	TheEva->setName("TheEva");
+	TheEva->setName("TheEva");
 
 	TheDisplayStringManager->postProcessLoad();
 

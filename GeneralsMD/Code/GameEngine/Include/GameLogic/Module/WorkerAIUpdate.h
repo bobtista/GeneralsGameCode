@@ -73,7 +73,7 @@ public:
 	UnsignedInt m_centerDelay;
 	UnsignedInt m_warehouseDelay;
 	Real m_warehouseScanDistance;
- 	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
+	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
 	Int m_upgradedSupplyBoost;
 
 	WorkerAIUpdateModuleData()
@@ -90,7 +90,7 @@ public:
 
 	static void buildFieldParse(MultiIniFieldParse& p)
 	{
-    AIUpdateModuleData::buildFieldParse(p);
+		AIUpdateModuleData::buildFieldParse(p);
 
 		static const FieldParse dataFieldParse[] =
 		{
@@ -105,7 +105,7 @@ public:
  			{ "UpgradedSupplyBoost", INI::parseInt, nullptr, offsetof( WorkerAIUpdateModuleData, m_upgradedSupplyBoost) },
 			{ 0, 0, 0, 0 }
 		};
-    p.add(dataFieldParse);
+		p.add(dataFieldParse);
 	}
 };
 
@@ -273,6 +273,6 @@ protected:
 private:
 
 	void createMachines();		///< create our behavior machines we need
- 	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
+	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
 
 };

@@ -296,7 +296,7 @@ WeaponTemplate::WeaponTemplate() : m_nextTemplate(nullptr)
 	m_continuousFireOneShotsNeeded	= INT_MAX;
 	m_continuousFireTwoShotsNeeded	= INT_MAX;
 	m_continuousFireCoastFrames			= 0;
- 	m_autoReloadWhenIdleFrames			= 0;
+	m_autoReloadWhenIdleFrames			= 0;
 	m_clipReloadTime								= 0;
 	m_minDelayBetweenShots					= 0;
 	m_maxDelayBetweenShots					= 0;
@@ -597,15 +597,15 @@ Real WeaponTemplate::estimateWeaponTemplateDamage(
 	}
 
 
-  // hmm.. must be shooting a firebase or such, if there is noone home to take the bullet, return 0!
-  if ( victimObj->isKindOf( KINDOF_STRUCTURE) && damageType == DAMAGE_SNIPER )
-  {
-    if ( victimObj->getContain() )
-    {
-      if ( victimObj->getContain()->getContainCount() == 0 )
-        return 0.0f;
-    }
-  }
+	// hmm.. must be shooting a firebase or such, if there is noone home to take the bullet, return 0!
+	if ( victimObj->isKindOf( KINDOF_STRUCTURE) && damageType == DAMAGE_SNIPER )
+	{
+		if ( victimObj->getContain() )
+		{
+			if ( victimObj->getContain()->getContainCount() == 0 )
+			return 0.0f;
+		}
+	}
 
 
 
@@ -653,26 +653,26 @@ Bool WeaponTemplate::shouldProjectileCollideWith(
 	ObjectID intendedVictimID	// could be INVALID_ID for a position-shot
 ) const
 {
- 	if (!projectile || !thingWeCollidedWith)
- 		return false;
+	if (!projectile || !thingWeCollidedWith)
+	return false;
 
 	// if it's our intended victim, we want to collide with it, regardless of any other considerations.
 	if (intendedVictimID == thingWeCollidedWith->getID())
 		return true;
 
- 	if (projectileLauncher != nullptr)
- 	{
+	if (projectileLauncher != nullptr)
+	{
 
- 		// Don't hit your own launcher, ever.
- 		if (projectileLauncher == thingWeCollidedWith)
- 			return false;
+		// Don't hit your own launcher, ever.
+		if (projectileLauncher == thingWeCollidedWith)
+		return false;
 
- 		// If our launcher is inside something, and that something is 'thingWeCollidedWith' we won't collide
- 		const Object *launcherContainedBy = projectileLauncher->getContainedBy();
- 		if( launcherContainedBy == thingWeCollidedWith )
- 			return false;
+		// If our launcher is inside something, and that something is 'thingWeCollidedWith' we won't collide
+		const Object *launcherContainedBy = projectileLauncher->getContainedBy();
+		if( launcherContainedBy == thingWeCollidedWith )
+		return false;
 
- 	}
+	}
 
 	// never bother burning already-burned things. (srj)
 	if (getDamageType() == DAMAGE_FLAME || getDamageType() == DAMAGE_PARTICLE_BEAM)
@@ -829,7 +829,7 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 				TheTerrainLogic->getBridgeAttackPoints(victimObj, &info);
 				distSqr = ThePartitionManager->getDistanceSquared( sourceObj, &info.attackPoint1, ATTACK_RANGE_CALC_TYPE );
 				victimPos = &info.attackPoint1;
- 				Real distSqr2 = ThePartitionManager->getDistanceSquared( sourceObj, &info.attackPoint2, ATTACK_RANGE_CALC_TYPE );
+				Real distSqr2 = ThePartitionManager->getDistanceSquared( sourceObj, &info.attackPoint2, ATTACK_RANGE_CALC_TYPE );
 				if (distSqr > distSqr2)
 				{
 					// Try the other one.
@@ -1266,7 +1266,7 @@ void WeaponTemplate::processHistoricDamage(const Object* source, const Coord3D* 
 
 		if( count >= m_historicBonusCount - 1 )	// minus 1 since we include ourselves implicitly
 		{
-		  TheWeaponStore->createAndFireTempWeapon(m_historicBonusWeapon, source, pos);
+			TheWeaponStore->createAndFireTempWeapon(m_historicBonusWeapon, source, pos);
 
 			/** @todo E3 hack! Clear the list for now to make sure we don't have multiple firestorms
 				* remove this when the branches merge back into one.  What is causing the
@@ -1516,7 +1516,7 @@ void WeaponTemplate::dealDamageInternal(ObjectID sourceID, ObjectID victimID, co
 				damageInfo.in.m_shockWaveTaperOff = m_shockWaveTaperOff;
 			}
 
-      if (source && source->getControllingPlayer()) {
+			if (source && source->getControllingPlayer()) {
 				damageInfo.in.m_sourcePlayerMask = source->getControllingPlayer()->getPlayerMask();
 			}
 			// note, don't bother with damage multipliers here...
@@ -3083,7 +3083,7 @@ void Weapon::processRequestAssistance( const Object *requestingObject, Object *v
 //  DEBUG_ASSERTCRASH( muzzleHeight > 0.001f, ("YOUR TURRET HAS A VERY LOW PROJECTILE LAUNCH POSITION, BUT FOUND A VALID BONE. DID YOU PICK THE WRONG ONE? %s", launcher->getTemplate()->getName().str()));
 //#endif
 
-  launcher->convertBonePosToWorldPos(nullptr, &attachTransform, nullptr, &worldTransform);
+	launcher->convertBonePosToWorldPos(nullptr, &attachTransform, nullptr, &worldTransform);
 
 	Vector3 tmp = worldTransform.Get_Translation();
 	worldPos.x = tmp.X;

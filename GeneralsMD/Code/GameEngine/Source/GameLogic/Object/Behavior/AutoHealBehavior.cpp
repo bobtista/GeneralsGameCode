@@ -229,7 +229,7 @@ UpdateSleepTime AutoHealBehavior::update()
 		BodyModuleInterface *body = obj->getBodyModule();
 		if( body->getHealth() < body->getMaxHealth() )
 		{
-  		pulseHealObject( obj );
+			pulseHealObject( obj );
 			return UPDATE_SLEEP(d->m_healingDelay);
 		}
 		else

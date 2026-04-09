@@ -109,8 +109,8 @@ static void unselectOtherRadioOfGroup( Int group, Int screen,
 	GameWindow *window = TheWindowManager->winGetWindowList();
 
 	for( window = TheWindowManager->winGetWindowList();
-			 window;
-			 window = window->winGetNext() )
+	window;
+	window = window->winGetNext() )
 		doRadioUnselect( window, group, screen, except );
 
 }

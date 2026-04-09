@@ -139,7 +139,7 @@ void AISkirmishPlayer::processBaseBuilding()
 								info->setObjectID(obj->getID());
 							}
 						}
- 					}
+					}
 				}	else {
 					if (bldg->getControllingPlayer() == m_player) {
 						// Check for built or dozer missing.
@@ -153,16 +153,16 @@ void AISkirmishPlayer::processBaseBuilding()
 							ObjectID builder = bldg->getBuilderID();
 							Object* myDozer = TheGameLogic->findObjectByID(builder);
 
-              if (myDozer && ( myDozer->getControllingPlayer() != m_player || myDozer->isDisabledByType( DISABLED_UNMANNED ) ) )
-              {//I don't expect this dozer to work well with me.
-                myDozer = nullptr;
-                bldg->setBuilder( nullptr );
-              }
+							if (myDozer && ( myDozer->getControllingPlayer() != m_player || myDozer->isDisabledByType( DISABLED_UNMANNED ) ) )
+							{//I don't expect this dozer to work well with me.
+								myDozer = nullptr;
+								bldg->setBuilder( nullptr );
+							}
 
 							if (myDozer==nullptr) {
 								DEBUG_LOG(("AI's Dozer got killed (or captured).  Find another dozer."));
 								queueDozer();
- 								myDozer = findDozer(bldg->getPosition());
+								myDozer = findDozer(bldg->getPosition());
 								if (myDozer==nullptr || myDozer->getAI()==nullptr) {
 									continue;
 								}

@@ -60,7 +60,7 @@ SupplyWarehouseDockUpdateModuleData::SupplyWarehouseDockUpdateModuleData()
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 
 }
 
@@ -128,7 +128,7 @@ Bool SupplyWarehouseDockUpdate::action( Object* docker, Object *drone )
 	}
 	else
 		++m_boxesStored; //take it back, since there was noone to gain the box
-  									 //this is important so that I have one less boxes as perceived by the docker when he gains one
+	//this is important so that I have one less boxes as perceived by the docker when he gains one
 
 
 	return FALSE;

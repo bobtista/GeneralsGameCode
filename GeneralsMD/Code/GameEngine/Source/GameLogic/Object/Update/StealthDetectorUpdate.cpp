@@ -56,7 +56,7 @@
 //-------------------------------------------------------------------------------------------------
 void StealthDetectorUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  UpdateModuleData::buildFieldParse(p);
+	UpdateModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -77,7 +77,7 @@ void StealthDetectorUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -243,19 +243,19 @@ UpdateSleepTime StealthDetectorUpdate::update()
 					// do audio and UI message if we need to do feedback
 					if( doFeedback )
 					{
- 						// audio msg
- 						static AudioEventRTS discoveredSound = TheAudio->getMiscAudio()->m_stealthDiscoveredSound;
- 						discoveredSound.setPlayerIndex( self->getControllingPlayer()->getPlayerIndex() );
- 						TheAudio->addAudioEvent( &discoveredSound );
- 						// ui msg
- 						TheInGameUI->message( TheGameText->fetch( "MESSAGE:StealthDiscovered" ) );
+						// audio msg
+						static AudioEventRTS discoveredSound = TheAudio->getMiscAudio()->m_stealthDiscoveredSound;
+						discoveredSound.setPlayerIndex( self->getControllingPlayer()->getPlayerIndex() );
+						TheAudio->addAudioEvent( &discoveredSound );
+						// ui msg
+						TheInGameUI->message( TheGameText->fetch( "MESSAGE:StealthDiscovered" ) );
 
-            // If revealing this unit is suppose to cause an Eva event, do it
-            EvaMessage message = stealth->getEnemyDetectionEvaEvent();
-            if ( message != EVA_Invalid && TheEva != nullptr )
-            {
-              TheEva->setShouldPlay( message );
-            }
+						// If revealing this unit is suppose to cause an Eva event, do it
+						EvaMessage message = stealth->getEnemyDetectionEvaEvent();
+						if ( message != EVA_Invalid && TheEva != nullptr )
+						{
+							TheEva->setShouldPlay( message );
+						}
 					}
 
 				}
@@ -264,7 +264,7 @@ UpdateSleepTime StealthDetectorUpdate::update()
 				if( rts::getObservedOrLocalPlayer() == them->getControllingPlayer() &&
 						self->getRelationship( them ) != ALLIES )
 				{
- 					Bool doFeedback = TRUE;
+					Bool doFeedback = TRUE;
 
 					//
 					// do a radar event, for mines we only make events if there weren't other
@@ -273,25 +273,25 @@ UpdateSleepTime StealthDetectorUpdate::update()
 					if( them->isKindOf( KINDOF_MINE ) || them->isKindOf( KINDOF_BOOBY_TRAP ) || them->isKindOf( KINDOF_DEMOTRAP ) )
 						doFeedback = TheRadar->tryEvent( RADAR_EVENT_STEALTH_NEUTRALIZED, them->getPosition() );
 					else
- 						TheRadar->createEvent( them->getPosition(), RADAR_EVENT_STEALTH_NEUTRALIZED );
+					TheRadar->createEvent( them->getPosition(), RADAR_EVENT_STEALTH_NEUTRALIZED );
 
 					// do audio and UI message if we need to do feedback
 					if( doFeedback )
 					{
 
- 						// audio msg
- 						static AudioEventRTS neutralizedSound = TheAudio->getMiscAudio()->m_stealthNeutralizedSound;
- 						neutralizedSound.setPlayerIndex( them->getControllingPlayer()->getPlayerIndex() );
- 						TheAudio->addAudioEvent( &neutralizedSound );
- 						// ui msg
- 						TheInGameUI->message( TheGameText->fetch( "MESSAGE:StealthNeutralized" ) );
+						// audio msg
+						static AudioEventRTS neutralizedSound = TheAudio->getMiscAudio()->m_stealthNeutralizedSound;
+						neutralizedSound.setPlayerIndex( them->getControllingPlayer()->getPlayerIndex() );
+						TheAudio->addAudioEvent( &neutralizedSound );
+						// ui msg
+						TheInGameUI->message( TheGameText->fetch( "MESSAGE:StealthNeutralized" ) );
 
-            // If revealing this unit is suppose to cause an Eva event, do it
-            EvaMessage message = stealth->getOwnDetectionEvaEvent();
-            if ( message != EVA_Invalid && TheEva != nullptr )
-            {
-              TheEva->setShouldPlay( message );
-            }
+						// If revealing this unit is suppose to cause an Eva event, do it
+						EvaMessage message = stealth->getOwnDetectionEvaEvent();
+						if ( message != EVA_Invalid && TheEva != nullptr )
+						{
+							TheEva->setShouldPlay( message );
+						}
 					}
 
 				}
@@ -338,7 +338,7 @@ UpdateSleepTime StealthDetectorUpdate::update()
 				{
 					rider = *it;
 
-          StealthUpdate *stealth = rider->getStealth();
+					StealthUpdate *stealth = rider->getStealth();
 					if ( stealth )
 					{
 						// we have found someone
@@ -355,64 +355,64 @@ UpdateSleepTime StealthDetectorUpdate::update()
 	}
 
 
-  const Player *localPlayer = rts::getObservedOrLocalPlayer();
+	const Player *localPlayer = rts::getObservedOrLocalPlayer();
 
 	//Make sure the detector is visible to the local player before we add effects or sounds.
 	if ( self->getShroudedStatus( localPlayer->getPlayerIndex() ) <= OBJECTSHROUD_PARTIAL_CLEAR )
 	{
-    if ( self->testStatus( OBJECT_STATUS_STEALTHED ) == FALSE || self->getControllingPlayer() == localPlayer )
-    {
-		  Drawable *myDraw = self->getDrawable();
-		  Coord3D bonePosition = {-1.66f,5.5f,15};
-		  if (myDraw)
-			  myDraw->getPristineBonePositions( data->m_IRParticleSysBone.str(), 0, &bonePosition, nullptr, 1);
+		if ( self->testStatus( OBJECT_STATUS_STEALTHED ) == FALSE || self->getControllingPlayer() == localPlayer )
+		{
+			Drawable *myDraw = self->getDrawable();
+			Coord3D bonePosition = {-1.66f,5.5f,15};
+			if (myDraw)
+			myDraw->getPristineBonePositions( data->m_IRParticleSysBone.str(), 0, &bonePosition, nullptr, 1);
 
-		  const ParticleSystemTemplate *pingTemplate;
-		  if ( foundSomeone )
-			  pingTemplate = data->m_IRBrightParticleSysTmpl;
-		  else
-			  pingTemplate = data->m_IRParticleSysTmpl;
+			const ParticleSystemTemplate *pingTemplate;
+			if ( foundSomeone )
+			pingTemplate = data->m_IRBrightParticleSysTmpl;
+			else
+			pingTemplate = data->m_IRParticleSysTmpl;
 
-		  if (pingTemplate)
-		  {
-			  ParticleSystem *sys = TheParticleSystemManager->createParticleSystem( pingTemplate );
-			  if (sys)
-			  {
-				  if (myDraw)
-					  sys->attachToDrawable( myDraw );
-				  else
-					  sys->attachToObject( self );
+			if (pingTemplate)
+			{
+				ParticleSystem *sys = TheParticleSystemManager->createParticleSystem( pingTemplate );
+				if (sys)
+				{
+					if (myDraw)
+					sys->attachToDrawable( myDraw );
+					else
+					sys->attachToObject( self );
 
-				  sys->setPosition( &bonePosition );
-			  }
-		  }
+					sys->setPosition( &bonePosition );
+				}
+			}
 
-		  const ParticleSystemTemplate *beaconTemplate = data->m_IRBeaconParticleSysTmpl;
-		  if (beaconTemplate)
-		  {
-			  ParticleSystem *sys = TheParticleSystemManager->createParticleSystem( beaconTemplate );//BEACON
-			  if (sys)
-			  {
-				  if (myDraw)
-					  sys->attachToDrawable( myDraw );
-				  else
-					  sys->attachToObject( self );
+			const ParticleSystemTemplate *beaconTemplate = data->m_IRBeaconParticleSysTmpl;
+			if (beaconTemplate)
+			{
+				ParticleSystem *sys = TheParticleSystemManager->createParticleSystem( beaconTemplate );//BEACON
+				if (sys)
+				{
+					if (myDraw)
+					sys->attachToDrawable( myDraw );
+					else
+					sys->attachToObject( self );
 
-				  sys->setPosition( &bonePosition );
+					sys->setPosition( &bonePosition );
 
-			  }
-		  }
+				}
+			}
 
-		  AudioEventRTS IRPingSound;
-		  if (foundSomeone)
-			  IRPingSound = data->m_loudPingSound;
-		  else
-			  IRPingSound = data->m_pingSound;
+			AudioEventRTS IRPingSound;
+			if (foundSomeone)
+			IRPingSound = data->m_loudPingSound;
+			else
+			IRPingSound = data->m_pingSound;
 
-		  IRPingSound.setObjectID( self->getID() );
-		  TheAudio->addAudioEvent(&IRPingSound);
+			IRPingSound.setObjectID( self->getID() );
+			TheAudio->addAudioEvent(&IRPingSound);
 
-    }
+		}
 
 	}
 

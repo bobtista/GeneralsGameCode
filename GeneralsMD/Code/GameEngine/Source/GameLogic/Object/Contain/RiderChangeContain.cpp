@@ -95,7 +95,7 @@ void RiderChangeContainModuleData::parseRiderInfo( INI* ini, void *instance, voi
 // ------------------------------------------------------------------------------------------------
 void RiderChangeContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  TransportContainModuleData::buildFieldParse(p);
+	TransportContainModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -111,7 +111,7 @@ void RiderChangeContainModuleData::buildFieldParse(MultiIniFieldParse& p)
     { "ScuttleStatus",  INI::parseIndexList,		ModelConditionFlags::getBitNames(), offsetof( RiderChangeContainModuleData, m_scuttleState ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 
@@ -437,8 +437,8 @@ Bool RiderChangeContain::getContainerPipsToShow(Int& numTotal, Int& numFull)
 //-------------------------------------------------------------------------------------------------
 const Object *RiderChangeContain::friend_getRider() const
 {
- 	if( m_containListSize > 0 ) // Yes, this does assume that infantry never ride double on the bike
- 		return m_containList.front();
+	if( m_containListSize > 0 ) // Yes, this does assume that infantry never ride double on the bike
+	return m_containList.front();
 
 	return nullptr;
 }

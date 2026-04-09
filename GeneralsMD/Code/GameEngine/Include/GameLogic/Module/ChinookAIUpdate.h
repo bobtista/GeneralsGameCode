@@ -43,8 +43,8 @@ class ChinookAIUpdateModuleData : public SupplyTruckAIUpdateModuleData
 {
 public:
 	AsciiString		m_ropeName;
-  AsciiString   m_rotorWashParticleSystem;
-  Real					m_rappelSpeed;
+	AsciiString   m_rotorWashParticleSystem;
+	Real					m_rappelSpeed;
 	Real					m_ropeDropSpeed;
 	Real					m_ropeWidth;
 	Real					m_ropeFinalHeight;
@@ -86,7 +86,7 @@ public:
 	// virtual destructor prototype provided by memory pool declaration
 
 	virtual UpdateSleepTime update() override;
- 	virtual void aiDoCommand(const AICommandParms* parms) override;
+	virtual void aiDoCommand(const AICommandParms* parms) override;
 	virtual Bool chooseLocomotorSet(LocomotorSetType wst) override;
 	// this is present solely for some transports to override, so that they can land before
 	// allowing people to exit...
@@ -121,9 +121,9 @@ protected:
 	virtual void privateAttackPosition( const Coord3D *pos, Int maxShotsToFire, CommandSourceType cmdSource ) override;///< Extension.  Also tell occupants to attackPosition
 	virtual void privateForceAttackObject( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource ) override;///< Extension.  Also tell occupants to forceAttackObject
 
-  virtual void privateIdle(CommandSourceType cmdSource) override;
+	virtual void privateIdle(CommandSourceType cmdSource) override;
 
-  void private___TellPortableStructureToAttackWithMe( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource );
+	void private___TellPortableStructureToAttackWithMe( Object *victim, Int maxShotsToFire, CommandSourceType cmdSource );
 
 
 private:
