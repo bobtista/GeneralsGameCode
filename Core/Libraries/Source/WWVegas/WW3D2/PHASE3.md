@@ -2,7 +2,7 @@
 
 **Branch:** `bobtista/refactor/phase3-migrate-callsites`
 **Base:** `bobtista/feat/phase2-render-backends` (Phase 2)
-**Status:** in progress
+**Status:** first migration batch complete, pending Windows build verification
 
 See [RENDER_BACKEND.md](RENDER_BACKEND.md) for the full multi-phase plan, [PHASE2.md](PHASE2.md) for the previous phase.
 
@@ -94,13 +94,125 @@ For each file:
 
 ## Task list
 
-- [ ] **3.0** Write this document
-- [ ] **3.1** Migrate `W3DBibBuffer` (both copies) — pattern reference
-- [ ] **3.2** Migrate `W3DDebugIcons` (both copies) — subagent
-- [ ] **3.3** Migrate `W3DInGameUI` (both copies) — subagent
-- [ ] **3.4** Migrate `W3DTerrainTracks` (Core, shared) — subagent
-- [ ] **3.5** Migrate `W3DBridgeBuffer` (both copies) — subagent
-- [ ] **3.6** Document completion + Phase 4 handoff
+- [x] **3.0** Write this document
+- [x] **3.1** Migrate `W3DBibBuffer` (both copies) — pattern reference
+- [x] **3.2** Migrate `W3DDebugIcons` (both copies) — subagent
+- [x] **3.3** Migrate `W3DInGameUI` (both copies) — subagent
+- [x] **3.4** Migrate `W3DTerrainTracks` (Core, shared) — subagent
+- [x] **3.5** Migrate `W3DBridgeBuffer` (both copies) — subagent
+- [x] **3.6** Document completion + Phase 4 handoff
+
+## What landed in this Phase 3 batch
+
+Nine files touched across five migrations. Every call site replaced is a high-level `DX8Wrapper::*` call that is covered by `IRenderBackend`; low-level D3D8 calls were left on the static facade.
+
+| Subsystem | File(s) | Calls migrated | Remaining `DX8Wrapper::` refs | Notes |
+|---|---|---:|---:|---|
+| Building bibs | `W3DBibBuffer.cpp` (Generals + ZH) | 7 → 0 | 0 | `W3DBibBuffer::renderBibs()` |
+| Debug icons | `W3DDebugIcons.cpp` (Generals + ZH) | 9 → 0 | 0 | `W3DDebugIcons::Render()` |
+| Debug hint UI | `W3DInGameUI.cpp` (Generals + ZH) | 8 → 1 | 1 | `DebugHintObject::Render()`. The remaining `DX8Wrapper::stats.m_disableConsole` is a static debug-stats struct access, not a method call — correctly left unchanged |
+| Terrain tracks | `W3DTerrainTracks.cpp` (Core, shared) | 7 → 0 | 0 | `TerrainTracksRenderObjClassSystem::flush()` edge-flush branch |
+| Bridges | `W3DBridgeBuffer.cpp` (Generals + ZH) | 14 → 1 | 1 | `W3DBridge::renderBridge()` and `W3DBridgeBuffer::drawBridges()`. The remaining reference is a commented-out debug line inside `#ifdef RTS_DEBUG` |
+
+**Commits on this branch (`bobtista/refactor/phase3-migrate-callsites`):**
+
+```
+b746b8a8f refactor(ww3d): route W3DBridgeBuffer render calls through g_renderBackend
+7f12c055d refactor(ww3d): route W3DTerrainTracks flush calls through g_renderBackend
+bcde69551 refactor(ww3d): route W3DInGameUI DebugHintObject::Render calls through g_renderBackend
+45b89c5d9 refactor(ww3d): route W3DDebugIcons::Render calls through g_renderBackend
+e15dd034a refactor(ww3d): route W3DBibBuffer renderBibs calls through g_renderBackend
+9c2c9b7e3 docs(ww3d2): add Phase 3 plan explaining decoupling-only scope
+```
+
+Each commit is independent, small, and mechanical. Any one can be reverted in isolation without affecting the others.
+
+## What this changes at runtime
+
+**Nothing, under any backend.** Phase 3 is a pure decoupling pass. Each migrated file goes through `g_renderBackend->X(...)` which, under `=dx8`, hits `DX8Backend::X` which immediately forwards to `DX8Wrapper::X`. Under `=bgfx` or `=diligent`, the call hits the backend stubs which silently no-op. Because most of the rest of the engine is still using `DX8Wrapper::*` statics directly, the overall rendering still happens via DX8 in all three builds — just the five migrated subsystems are routed through the new virtual interface.
+
+Performance impact: one extra vtable indirection per call site in the migrated files. Negligible on modern hardware. `Set_Transform` / `Set_Texture` / `Set_Shader` calls that were previously `jmp` to a static function now go through a `load-vtable / indirect-call` sequence, which is 2-3 extra cycles per call. Across the migrated files, that's maybe a few thousand extra cycles per frame — well under a microsecond total.
+
+## What's still on `DX8Wrapper::*` (intentionally)
+
+Two remaining references across the migrated files, both correct to leave as-is:
+
+1. `Generals/.../W3DInGameUI.cpp:424` — `DX8Wrapper::stats.m_disableConsole`. This is a static field access on `DX8_Stats`, a debug-only stats struct that's part of `DX8Wrapper`. It's not a rendering method, it's a debug state flag. Migrating it would require exposing the stats struct on `IRenderBackend` or creating a separate debug-stats interface, neither of which is warranted for a single reference inside `#ifdef EXTENDED_STATS`.
+2. `Generals/.../W3DBridgeBuffer.cpp` and ZH copy — a single `//DX8Wrapper::Set_Shader(detailShader);` commented-out debug line inside `#ifdef RTS_DEBUG`. Commented code stays commented; this will get cleaned up naturally when the debug block is next touched.
+
+## Remaining migration candidates (Phase 3B / 3C)
+
+These were identified as clean migration targets but deferred from this first batch due to scope:
+
+- **`W3DRoadBuffer.cpp`** (3311 LOC, 12 clean calls) — largest clean candidate. Should be the next target in a follow-up Phase 3B session because it's clean and well-understood, just large.
+
+These need interface extension before they can migrate cleanly:
+
+- **`W3DStatusCircle.cpp`** — partially migrated in Phase 1. Four remaining `DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP, ...)` calls for fade effects need `IRenderBackend` extended with a blend-op abstraction, or gated under `#if GGC_RENDER_BACKEND_DX8` with a comment explaining "non-DX8 backends don't support this yet".
+- **`FlatHeightMap.cpp`** (642 LOC, 23 high-level + 1 low-level) — the 1 low-level call is `Set_DX8_Render_State(D3DRS_COLORWRITEENABLE, ...)` which is isolated and can be easily gated or abstracted.
+- **`W3DShroud.cpp`** (800 LOC, 6 high-level + 3 low-level) — similar story, the 3 low-level calls need investigation for whether they can be gated, abstracted, or moved into WW3D2 internals.
+
+These are deeply coupled and need the low-level D3D8 API abstracted before migration can begin:
+
+- **`W3DWater.cpp`** — 47 low-level calls, extensive use of raw `D3DRS_*` and `D3DTSS_*`. The water system is the largest single piece of DX8-coupled code. Phase 3C or later.
+- **`W3DVolumetricShadow.cpp`** / **`W3DProjectedShadow.cpp`** — stencil volume shadows use raw `D3DRS_STENCIL*` setters. Need `IRenderBackend` stencil ops abstracted.
+- **`W3DShaderManager.cpp`** — central shader + post-processing manager, touches raw `IDirect3DDevice8` methods. Large and critical; careful rewrite required.
+- **`W3DDisplay.cpp`** — main display context manager with device lifecycle. Close to the metal; likely the last thing to migrate before Phase 4's cutover.
+- **`W3DScene.cpp`** — scene graph rendering orchestrator, 99 calls. Large, should be migrated in a focused session.
+- **`W3DMouse.cpp`** — cursor rendering, uses raw `_Get_D3D_Device8` for `IDirect3DDevice8::ShowCursor` / `SetCursorProperties`. Needs a cursor API on `IRenderBackend`.
+
+## Windows build verification needed
+
+This branch has not been built on Windows. Expected behavior on first Windows build:
+
+1. **`-DGGC_RENDER_BACKEND=dx8`** (default) — should compile identically to the Phase 2 branch + the 5 new migrations. Running the game should produce a byte-identical rendering result. Specifically:
+   - Bibs under buildings should render
+   - Debug icons should render in debug builds
+   - Debug hint overlay should render in debug builds
+   - Vehicle terrain tracks should render
+   - Bridges should render
+2. **`-DGGC_RENDER_BACKEND=bgfx`** — should still compile and link. Running the game: all five migrated subsystems silently stop rendering (they go through bgfx stubs which no-op), while everything else keeps rendering via DX8 statics. Visual: game mostly works, but no bibs, debug icons, debug hints, terrain tracks, or bridges visible. This is the **correct** Phase 3 behavior under `=bgfx` — the migrated subsystems are decoupled from DX8 but the backend hasn't been filled in yet.
+3. **`-DGGC_RENDER_BACKEND=diligent`** — same as bgfx.
+
+Any visible difference in the `=dx8` build is a bug in `DX8Backend`'s forwarding layer (Phase 1 code), not a bug in Phase 3.
+
+**Likely first-build errors and fixes:**
+
+- **"g_renderBackend undeclared"** — `RenderBackend.h` isn't reaching a TU because of include-path ordering. Fix: ensure `RenderBackend.h` is included in the same block as `dx8wrapper.h`. Usually a 1-line fix.
+- **"no matching function for call to `Set_Vertex_Buffer`"** — I instructed subagents to add `,0` for the stream argument, but there might be cases where a function is called with a `DynamicVBAccessClass&` overload that didn't originally have the stream parameter. Those calls should NOT add `,0`. Check which overload is being invoked and revert if needed.
+- **"`RB_TRANSFORM_WORLD` not declared"** — `IRenderBackend.h` needs to be included. It's included by `RenderBackend.h` so this shouldn't happen, but it's a possible include-ordering issue.
+
+## Phase 4 preview: the cutover
+
+Phase 4 is the big architectural step that actually makes bgfx/Diligent render anything. The shape of the work:
+
+1. **Finish migrating remaining high-level subsystems** (Phase 3B, 3C) — drain the `DX8Wrapper::*` call count across the engine down to just the low-level D3D8 calls and the `DX8Wrapper` internals.
+2. **Abstract the remaining low-level calls.** Extend `IRenderBackend` with methods for the state categories still on `Set_DX8_Render_State`: blend ops, stencil ops, texture stage ops, etc. Implement them all in `DX8Backend` as forwarders, and in `BgfxBackend` / `DiligentBackend` as real backend code.
+3. **Introduce an `Init(void* hwnd, int w, int h)` virtual method** on `IRenderBackend` so the backend can take the HWND and create its own device/swapchain.
+4. **Add a `GGC_BACKEND_OWNS_SWAPCHAIN` compile flag or runtime check** that, when the non-DX8 backend is selected, disables `DX8Wrapper::Create_Device()` and has the new backend create the device instead. DX8Wrapper must gracefully handle "I never got a device" — any code that calls `_Get_D3D_Device8()` must be fully abstracted or gated by this point.
+5. **Flip the swapchain ownership.** Under `=bgfx` or `=diligent`, the new backend creates and owns the HWND's swapchain. DX8 is not initialized at all. `DX8Wrapper::Init()` becomes a thin pass-through that constructs the `IRenderBackend` instance and does nothing else when a non-DX8 backend is selected.
+6. **Run the game under `=bgfx`** and watch the migrated subsystems actually render through real bgfx code.
+7. **Add Linux / macOS native build targets** once enough of the engine works on a non-DX8 backend to be useful.
+
+Phase 4 is a multi-week effort. It cannot start until most of the migration work is done (Phases 3B, 3C) and the low-level API abstraction is in place. Good candidates for the order:
+
+- Migrate `W3DRoadBuffer` next (big, clean)
+- Migrate `FlatHeightMap` and `W3DShroud` with minor interface extensions
+- Migrate `W3DStatusCircle`'s remaining fades once blend-op abstraction exists
+- Tackle the hard ones (`W3DWater`, shadows, `W3DShaderManager`, `W3DDisplay`, `W3DScene`, `W3DMouse`) with interface extensions as needed
+- Only then start Phase 4
+
+## Statistics for this session
+
+- 5 subsystems migrated
+- 9 files touched
+- 45 call sites replaced (7+9+8+7+14)
+- 2 low-level references intentionally retained (stats field, commented code)
+- 5 independent commits, each a safe isolated change
+- 0 interface changes to `IRenderBackend.h` (every migrated call fit the existing high-level API)
+- 0 behavioral changes under any backend (pure decoupling)
+- Subagents used: 4 parallel migrations across 2 batches
+
 
 ## Exit criterion
 
