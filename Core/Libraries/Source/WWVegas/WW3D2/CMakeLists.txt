@@ -90,6 +90,7 @@ set(WW3D2_SRC
     htree.h
     #htreemgr.cpp
     #htreemgr.h
+    IRenderBackend.h
     intersec.cpp
     intersec.h
     intersec.inl
