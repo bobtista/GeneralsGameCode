@@ -15,9 +15,9 @@ The refactor is multi-phase. This directory's `RENDER_BACKEND.md` tracks the pha
 | Phase | Description | State |
 |---|---|---|
 | 0 | Unify Generals and Zero Hour WW3D2 trees (`dx8wrapper`, `dx8caps`, `shdlib`) | **Done** (#2499) |
-| **1** | **Introduce `IRenderBackend` abstract interface. Make `DX8Wrapper` internals reachable through it. Zero behavior change.** | **In progress (this branch)** |
-| 2 | Add parallel `BgfxBackend` (and possibly `DiligentBackend`) behind a compile-time flag. DX8 path remains the default. | Not started |
-| 3 | Port rendering subsystems to use the interface, in order of isolation: 2D UI, debug geometry, heat haze, static meshes, terrain, shadows, water, particles. Each subsystem opts in individually. | Not started |
+| 1 | Introduce `IRenderBackend` abstract interface. Make `DX8Wrapper` internals reachable through it. Zero behavior change. | **Done** (branch `bobtista/refactor/render-backend-interface`, pending Windows build validation) |
+| 2 | Add parallel `BgfxBackend` and `DiligentBackend` behind a compile-time flag. DX8 path remains the default. Stubs only — real implementations come in Phase 3. | **Scaffolding done** (branch `bobtista/feat/phase2-render-backends`, see [PHASE2.md](PHASE2.md)) |
+| 3 | Port rendering subsystems to use the interface, in order of isolation: 2D UI, debug geometry, heat haze, static meshes, terrain, shadows, water, particles. Each subsystem opts in individually; as it migrates, the matching BgfxBackend/DiligentBackend stubs are filled in with real rendering code. | Not started |
 | 4 | Add Linux / macOS native build targets. Proton compatibility improves for free. | Not started |
 | 5 | Decide: retire the DX8 path once subsystem parity is reached, or keep it as a permanent reference implementation per xezon's request. | Not started |
 
