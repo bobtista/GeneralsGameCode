@@ -18,10 +18,29 @@
 
 // TheSuperHackers @refactor bobtista 10/04/2026 Render backend global
 // owner. Holds the single g_renderBackend pointer and constructs/destroys
-// the concrete backend instance. See RENDER_BACKEND.md.
+// the concrete backend instance.
+//
+// The concrete backend is selected at compile time via the GGC_RENDER_BACKEND
+// CMake flag which sets one of:
+//   GGC_RENDER_BACKEND_DX8      - DirectX 8 (default, VC6-compatible, Windows only)
+//   GGC_RENDER_BACKEND_BGFX     - bgfx (DX11/Vulkan/Metal/GL, cross-platform)
+//   GGC_RENDER_BACKEND_DILIGENT - Diligent Engine (DX11/Vulkan/Metal, cross-platform)
+//
+// Exactly one of these is defined in any given build. If none are defined
+// (a legacy build that hasn't included render-backend.cmake) we default to
+// DX8 so the legacy path keeps working unchanged.
+//
+// See RENDER_BACKEND.md and PHASE2.md.
 
 #include "RenderBackend.h"
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+#include "BgfxBackend.h"
+#elif defined(GGC_RENDER_BACKEND_DILIGENT)
+#include "DiligentBackend.h"
+#else
 #include "DX8Backend.h"
+#endif
 
 IRenderBackend * g_renderBackend = nullptr;
 
@@ -31,10 +50,13 @@ void Init_Render_Backend()
     {
         return;
     }
-
-    // Phase 1: the DX8 backend is the only option. Phase 2 will introduce
-    // a compile-time flag to pick between DX8, bgfx, and Diligent.
+#if defined(GGC_RENDER_BACKEND_BGFX)
+    g_renderBackend = new BgfxBackend();
+#elif defined(GGC_RENDER_BACKEND_DILIGENT)
+    g_renderBackend = new DiligentBackend();
+#else
     g_renderBackend = new DX8Backend();
+#endif
 }
 
 void Shutdown_Render_Backend()
