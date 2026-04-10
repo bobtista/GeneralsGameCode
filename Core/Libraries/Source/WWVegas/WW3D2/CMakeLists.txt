@@ -158,6 +158,8 @@ set(WW3D2_SRC
     proto.h
     proxy.h
     rddesc.h
+    RenderBackend.cpp
+    RenderBackend.h
     #render2d.cpp
     #render2d.h
     render2dsentence.cpp
