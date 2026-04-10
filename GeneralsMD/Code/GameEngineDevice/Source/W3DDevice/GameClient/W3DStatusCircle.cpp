@@ -317,11 +317,9 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 		if (m_needUpdate) {
 			updateCircleVB();
 		}
-		// TheSuperHackers @refactor bobtista 10/04/2026 First Phase 1 call site
-		// migrated to IRenderBackend. High-level W3D-facing calls route through
-		// the global backend pointer; the remaining raw D3DRS_* state calls
-		// below still go through DX8Wrapper:: directly because IRenderBackend
-		// does not expose the low-level D3D8 state API in Phase 1.
+		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 1 introduced the
+		// IRenderBackend migration for this function; Phase 3B completed it by
+		// routing the fade blend-op overrides through the new interface API.
 		// See Core/Libraries/Source/WWVegas/WW3D2/RENDER_BACKEND.md.
 
 		//Apply the shader and material
