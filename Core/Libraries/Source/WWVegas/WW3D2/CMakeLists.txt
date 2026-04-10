@@ -43,6 +43,8 @@ set(WW3D2_SRC
     distlod.cpp
     distlod.h
     dllist.h
+    DX8Backend.cpp
+    DX8Backend.h
     dx8caps.cpp
     dx8caps.h
     dx8fvf.cpp
