@@ -165,6 +165,39 @@ void DX8Backend::Invalidate_Cached_Render_States()
     DX8Wrapper::Invalidate_Cached_Render_States();
 }
 
+void DX8Backend::Set_Blend_Op(BlendOp op)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP, static_cast<unsigned>(op));
+}
+
+void DX8Backend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,  static_cast<unsigned>(src));
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, static_cast<unsigned>(dest));
+}
+
+void DX8Backend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha)
+{
+    unsigned mask = 0;
+    if (red)
+    {
+        mask |= D3DCOLORWRITEENABLE_RED;
+    }
+    if (green)
+    {
+        mask |= D3DCOLORWRITEENABLE_GREEN;
+    }
+    if (blue)
+    {
+        mask |= D3DCOLORWRITEENABLE_BLUE;
+    }
+    if (alpha)
+    {
+        mask |= D3DCOLORWRITEENABLE_ALPHA;
+    }
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE, mask);
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void DX8Backend::Set_Transform(TransformKind transform, const Matrix4x4 & m)

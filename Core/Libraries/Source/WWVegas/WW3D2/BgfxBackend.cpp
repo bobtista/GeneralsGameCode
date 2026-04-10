@@ -169,6 +169,18 @@ void BgfxBackend::Invalidate_Cached_Render_States()
 {
 }
 
+void BgfxBackend::Set_Blend_Op(BlendOp /*op*/)
+{
+}
+
+void BgfxBackend::Set_Blend_Factors(BlendFactor /*src*/, BlendFactor /*dest*/)
+{
+}
+
+void BgfxBackend::Set_Color_Write_Enable(bool /*red*/, bool /*green*/, bool /*blue*/, bool /*alpha*/)
+{
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void BgfxBackend::Set_Transform(TransformKind /*transform*/, const Matrix4x4 & /*m*/)

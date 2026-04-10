@@ -163,6 +163,18 @@ void DiligentBackend::Invalidate_Cached_Render_States()
 {
 }
 
+void DiligentBackend::Set_Blend_Op(BlendOp /*op*/)
+{
+}
+
+void DiligentBackend::Set_Blend_Factors(BlendFactor /*src*/, BlendFactor /*dest*/)
+{
+}
+
+void DiligentBackend::Set_Color_Write_Enable(bool /*red*/, bool /*green*/, bool /*blue*/, bool /*alpha*/)
+{
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void DiligentBackend::Set_Transform(TransformKind /*transform*/, const Matrix4x4 & /*m*/)

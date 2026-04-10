@@ -76,6 +76,38 @@ struct RenderBackendViewport
     float max_z;
 };
 
+// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3B interface extension
+// to unblock W3DStatusCircle fade effects and FlatHeightMap shroud trickery
+// without exposing raw D3DRENDERSTATETYPE in the interface. See PHASE3B.md.
+//
+// Values chosen to match D3DBLENDOP_* / D3DBLEND_* directly so the DX8Backend
+// can cast without a branch. Modern backends translate these to their native
+// blend-state representation.
+
+enum BlendOp
+{
+    RB_BLEND_OP_ADD          = 1, // D3DBLENDOP_ADD
+    RB_BLEND_OP_SUBTRACT     = 2, // D3DBLENDOP_SUBTRACT
+    RB_BLEND_OP_REV_SUBTRACT = 3, // D3DBLENDOP_REVSUBTRACT
+    RB_BLEND_OP_MIN          = 4, // D3DBLENDOP_MIN
+    RB_BLEND_OP_MAX          = 5  // D3DBLENDOP_MAX
+};
+
+enum BlendFactor
+{
+    RB_BLEND_ZERO            = 1,  // D3DBLEND_ZERO
+    RB_BLEND_ONE             = 2,  // D3DBLEND_ONE
+    RB_BLEND_SRC_COLOR       = 3,  // D3DBLEND_SRCCOLOR
+    RB_BLEND_INV_SRC_COLOR   = 4,  // D3DBLEND_INVSRCCOLOR
+    RB_BLEND_SRC_ALPHA       = 5,  // D3DBLEND_SRCALPHA
+    RB_BLEND_INV_SRC_ALPHA   = 6,  // D3DBLEND_INVSRCALPHA
+    RB_BLEND_DEST_ALPHA      = 7,  // D3DBLEND_DESTALPHA
+    RB_BLEND_INV_DEST_ALPHA  = 8,  // D3DBLEND_INVDESTALPHA
+    RB_BLEND_DEST_COLOR      = 9,  // D3DBLEND_DESTCOLOR
+    RB_BLEND_INV_DEST_COLOR  = 10, // D3DBLEND_INVDESTCOLOR
+    RB_BLEND_SRC_ALPHA_SAT   = 11  // D3DBLEND_SRCALPHASAT
+};
+
 // -----------------------------------------------------------------------------
 // IRenderBackend — abstract W3D-facing rendering interface
 // -----------------------------------------------------------------------------
@@ -152,6 +184,14 @@ public:
     virtual void Apply_Render_State_Changes() = 0;
     virtual void Apply_Default_State() = 0;
     virtual void Invalidate_Cached_Render_States() = 0;
+
+    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3B typed blend +
+    // color-write setters (see PHASE3B.md). These exist so subsystems that
+    // previously called DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP / ...)
+    // can migrate without the interface re-exposing the raw D3DRENDERSTATETYPE.
+    virtual void Set_Blend_Op(BlendOp op) = 0;
+    virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) = 0;
+    virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) = 0;
 
     // -------------------------------------------------------------------------
     // Transforms
