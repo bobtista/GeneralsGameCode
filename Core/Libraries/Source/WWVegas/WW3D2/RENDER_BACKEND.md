@@ -2,7 +2,7 @@
 
 **Branch:** `bobtista/refactor/render-backend-interface`
 **Base:** `superhackers/main` at `df31c7eae` (post-unification)
-**Status:** in progress
+**Status:** Phase 1 structural work complete pending Windows build validation
 
 ## Purpose
 
@@ -99,12 +99,111 @@ extern IRenderBackend* g_renderBackend;
 
 ## Phase 1 task list
 
-- [ ] **1.0** Write this document (you are here)
-- [ ] **1.1** Write `IRenderBackend.h` — the abstract interface
-- [ ] **1.2** Write `DX8Backend.{h,cpp}` — the concrete adapter
-- [ ] **1.3** Add `RenderBackend.h` + `g_renderBackend` global + init/shutdown wiring
-- [ ] **1.4** Migrate one isolated call site as proof (e.g. `W3DStatusCircle`)
-- [ ] **1.5** Update this document with completion status and Phase 2 handoff notes
+- [x] **1.0** Write this document
+- [x] **1.1** Write `IRenderBackend.h` — the abstract interface
+- [x] **1.2** Write `DX8Backend.{h,cpp}` — the concrete adapter
+- [x] **1.3** Add `RenderBackend.h` + `g_renderBackend` global + init/shutdown wiring
+- [x] **1.4** Migrate one isolated call site as proof (`W3DStatusCircle::Render`)
+- [x] **1.5** Update this document with completion status and Phase 2 handoff notes
+
+## What landed in Phase 1
+
+Files added:
+
+- `Core/Libraries/Source/WWVegas/WW3D2/IRenderBackend.h` — abstract virtual interface, C++98-compatible, ~60 virtual methods covering the W3D-facing subset of `DX8Wrapper`'s public API. Takes and returns W3D types (`ShaderClass`, `TextureBaseClass`, `Matrix4x4`, `Vector3`, etc.); does not expose raw D3D8 types.
+- `Core/Libraries/Source/WWVegas/WW3D2/DX8Backend.{h,cpp}` — concrete implementation of `IRenderBackend` that forwards every virtual method to the existing `DX8Wrapper::` static functions. Every forwarder is a single line. Zero new rendering logic.
+- `Core/Libraries/Source/WWVegas/WW3D2/RenderBackend.h` — backend-agnostic public entry point exposing `extern IRenderBackend * g_renderBackend;` and `Init_Render_Backend()` / `Shutdown_Render_Backend()` free functions.
+- `Core/Libraries/Source/WWVegas/WW3D2/RenderBackend.cpp` — defines `g_renderBackend` and implements the factory functions. Phase 1 always constructs a `DX8Backend`.
+
+Files modified:
+
+- `Core/Libraries/Source/WWVegas/WW3D2/CMakeLists.txt` — adds the four new files to `WW3D2_SRC` so they are picked up by `corei_ww3d2` and compiled into both `z_ww3d2` (GeneralsMD) and `z_ww3d2` (Generals) static libraries.
+- `GeneralsMD/Code/Libraries/Source/WWVegas/WW3D2/dx8wrapper.cpp` — `#include "RenderBackend.h"` added. `Init_Render_Backend()` called at the end of `Do_Onetime_Device_Dependent_Inits()`. `Shutdown_Render_Backend()` called at the start of `Do_Onetime_Device_Dependent_Shutdowns()`.
+- `Generals/Code/Libraries/Source/WWVegas/WW3D2/dx8wrapper.cpp` — identical change mirrored from the GeneralsMD copy (the two files stay byte-identical modulo the copyright line).
+- `GeneralsMD/Code/GameEngineDevice/Source/W3DDevice/GameClient/W3DStatusCircle.cpp` — first call site migrated. `W3DStatusCircle::Render()` now routes high-level DX8Wrapper calls through `g_renderBackend->`. Low-level `DX8Wrapper::Set_DX8_Render_State` calls are explicitly left on the static facade because `IRenderBackend` does not expose raw `D3DRENDERSTATETYPE` in Phase 1.
+- `Generals/Code/GameEngineDevice/Source/W3DDevice/GameClient/W3DStatusCircle.cpp` — identical change.
+
+Commits on this branch (`bobtista/refactor/render-backend-interface`, based on `superhackers/main@df31c7eae`):
+
+```
+42c0df63c refactor(ww3d): route W3DStatusCircle high-level calls through g_renderBackend
+77e5502ca feat(ww3d2): add global g_renderBackend pointer and lifecycle wiring
+99b936b9d feat(ww3d2): add DX8Backend adapter forwarding to DX8Wrapper statics
+3e0dbf4e7 feat(ww3d2): add IRenderBackend abstract interface
+d2dff981b docs(ww3d2): add render backend Phase 1 plan
+```
+
+Runtime behavior is unchanged: the new `g_renderBackend->X(...)` calls in `W3DStatusCircle::Render()` go through the virtual dispatch to `DX8Backend::X(...)` which immediately forwards to `DX8Wrapper::X(...)`. The only observable difference versus `superhackers/main` is one extra vtable indirection per rendering call site in `W3DStatusCircle::Render()`.
+
+## What's NOT in Phase 1
+
+- **33 files outside `WW3D2` that hold raw `IDirect3DTexture8*` / `IDirect3DSurface8*` / `D3DMATRIX` types.** These still compile against DX8 and will remain DX8-only until Phase 3 ports them subsystem by subsystem.
+- **The low-level D3D8 API on `DX8Wrapper`.** Calls like `Set_DX8_Render_State`, `Set_DX8_Texture_Stage_State`, `_Create_DX8_Texture`, `_Get_D3D_Device8`, etc. stay on `DX8Wrapper` as DX8-only methods. Adding backend-neutral equivalents is a design exercise for a later phase.
+- **Migration of the other ~200 call sites** that use `DX8Wrapper::X(...)` syntax. Only `W3DStatusCircle` has been migrated in Phase 1 as a proof of concept. Phase 3 migrates the remaining subsystems.
+- **Any bgfx or Diligent code.** That's Phase 2.
+- **A CMake flag to select the backend.** Phase 1 hardcodes `new DX8Backend()` in `Init_Render_Backend()`. Phase 2 will introduce `GGC_RENDER_BACKEND` to pick between backends at compile time.
+- **Native Linux or macOS build targets.** Still Windows-only. Phase 4 adds cross-platform.
+
+## Windows build verification needed
+
+**This branch has not been built on Windows.** Development happens on macOS where DirectX 8 headers are not available, so clang LSP can't see `DX8Wrapper::` methods and complains about undefined identifiers in every new file. Those errors are LSP-only and will disappear on a real MSVC 2022 build.
+
+Concrete verification checklist for the first Windows build:
+
+1. **Does the normal build still compile?** `cmake -S . -B build && cmake --build build --config Release --target z_generals z_generalszh`. This exercises every file in the refactor, including the new `DX8Backend.cpp` and `RenderBackend.cpp` which are compiled as part of `z_ww3d2`.
+2. **Does the VC6 build still compile?** If the project's VC6 toolchain build is still active, it must successfully compile `IRenderBackend.h`, `DX8Backend.h`, `RenderBackend.h`, and the two modified `dx8wrapper.cpp` files. The interface headers are written in a C++98-compatible style specifically for this.
+3. **Does the game still launch and render correctly?** Start a skirmish match, toggle the status circle on via the "show team dot" option, verify it still renders. This exercises the migrated call site in `W3DStatusCircle::Render()`. Alt-tab out and back in to exercise device loss / recovery and confirm `Shutdown_Render_Backend()` and `Init_Render_Backend()` lifecycle hooks fire correctly during device reset.
+4. **Any visible difference in any subsystem?** There should not be — `W3DStatusCircle` is the only migrated caller, and its calls go through a trivial forwarding adapter. If anything looks different, that's a bug in `DX8Backend`'s forwarding layer that must be fixed before Phase 2.
+
+Likely compile errors on first Windows build and how to fix them:
+
+- **"`DX8Wrapper::X` is private"** — the interface header uses some method name I assumed was public but is actually protected or private. Either make it public in `dx8wrapper.h` or remove it from `IRenderBackend.h` if it shouldn't be part of the public surface.
+- **"no matching function for call to `Set_Viewport`"** — the `D3DVIEWPORT8` conversion in `DX8Backend::Set_Viewport` may need tweaking if the `DWORD` field types don't match the `unsigned int` in `RenderBackendViewport`.
+- **"`D3DTRANSFORMSTATETYPE` is not convertible from `TransformKind`"** — the `static_cast<D3DTRANSFORMSTATETYPE>` in `DX8Backend::Set_Transform` may fail on strict compilers if the enum base types don't line up. Fix by picking matching values or using an explicit switch.
+- **Any "undeclared identifier `g_renderBackend`"** in `W3DStatusCircle.cpp` — confirm `RenderBackend.h` is reachable through the normal `#include "WW3D2/..."` path.
+
+None of these should be hard to resolve. Each one is a 1-5 line fix.
+
+## Phase 2 preview
+
+Once Phase 1 is validated on Windows, Phase 2 adds parallel modern backends:
+
+1. **Introduce `GGC_RENDER_BACKEND` CMake option** — values `dx8` (default), `bgfx`, `diligent`. Selected at configure time.
+2. **Add `BgfxBackend.{h,cpp}`** under a new subdirectory like `Core/.../WW3D2/backends/bgfx/` (or similar). Implements `IRenderBackend` against bgfx, which we'll use in its DX11 backend on Windows and Metal/Vulkan on Linux/Mac. Pulls in the `bgfx.cmake` submodule.
+3. **Add `DiligentBackend.{h,cpp}`** similarly. Pulls in `DiligentCore`.
+4. **Modify `RenderBackend.cpp`** to pick the concrete backend based on `GGC_RENDER_BACKEND` at compile time:
+   ```cpp
+   #if GGC_RENDER_BACKEND == GGC_BACKEND_BGFX
+       g_renderBackend = new BgfxBackend();
+   #elif GGC_RENDER_BACKEND == GGC_BACKEND_DILIGENT
+       g_renderBackend = new DiligentBackend();
+   #else
+       g_renderBackend = new DX8Backend();
+   #endif
+   ```
+5. **Phase 2 exit criterion:** the game builds with `-DGGC_RENDER_BACKEND=bgfx`, starts, and renders *something* (probably just a clear color at first, or whatever the one migrated call site in `W3DStatusCircle` can draw). It won't render the whole scene — only the migrated subsystems come through.
+
+See the heat-haze spike (`bobtista/spike/heat-haze-renderer-backends` branch) for hands-on familiarity with both bgfx and Diligent APIs. The spike validated both libraries against a standalone Win32 test app and can inform the Phase 2 backend implementations directly.
+
+## Phase 3+ preview (for planning)
+
+Phase 3 migrates the remaining subsystems from `DX8Wrapper::` statics to `g_renderBackend->` calls, in order of isolation:
+
+1. 2D UI / `render2d`
+2. Debug geometry
+3. Static W3D meshes via `DX8TextureCategoryClass`
+4. Heat haze (`W3DSmudge`)
+5. Terrain
+6. Shadows (projected + stencil)
+7. Water
+8. Particles
+
+Each subsystem migration is a standalone commit that doesn't affect the others. Low-level D3D8 uses that a subsystem depends on must be replaced with backend-neutral alternatives before the subsystem can be fully migrated — which may involve growing `IRenderBackend` with new abstracted methods, or rewriting the subsystem to use higher-level primitives.
+
+Phase 4 adds Linux and macOS native build targets once the migrated subsystems cover enough of the render pipeline to produce a playable game.
+
+Phase 5 decides whether to retire the DX8 path or keep it permanently as a reference implementation.
+
 
 ## Why this phase matters
 
