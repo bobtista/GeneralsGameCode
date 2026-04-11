@@ -2,7 +2,7 @@
 
 **Branch:** `bobtista/refactor/phase3f-scene`
 **Base:** `bobtista/refactor/phase3e-shadows` (Phase 3E)
-**Status:** in progress
+**Status:** W3DScene partial migration complete, pending Windows build verification
 
 See [RENDER_BACKEND.md](RENDER_BACKEND.md) for the multi-phase plan and [PHASE3.md](PHASE3.md) - [PHASE3E.md](PHASE3E.md) for previous Phase 3 sessions.
 
@@ -114,10 +114,78 @@ Across both copies: ~120 migrated, ~60 TODO.
 
 ## Task list
 
-- [ ] **3F.0** Write this document
-- [ ] **3F.1** Add stencil state group to all 4 backend implementations
-- [ ] **3F.2** Migrate W3DScene high-level + stencil + blend + ambient calls
-- [ ] **3F.3** Document completion + handoff
+- [x] **3F.0** Write this document
+- [x] **3F.1** Add stencil state group to all 4 backend implementations
+- [x] **3F.2** Migrate W3DScene high-level + stencil + blend calls
+- [x] **3F.3** Document completion + handoff
+
+## What landed
+
+### Stencil state extension (commit `c20b21a73`)
+
+Two new POD enums + 8 new virtual methods on `IRenderBackend`. `CompareFunc` is reusable for future depth-test work. Both enums match D3D constants 1..8 directly so DX8Backend can cast without a switch. All three backends updated consistently (DX8 real forwarders, bgfx + Diligent stub no-ops).
+
+### W3DScene partial migration (commit `4b54b572c`)
+
+Both Generals and GeneralsMD copies migrated together via a Python rewrite script that handled the regex-based stencil/blend translations consistently. Migration counts:
+
+| File | Before | After | Migrated |
+|---|---:|---:|---:|
+| W3DScene.cpp (Generals) | 95 | 40 | 55 |
+| W3DScene.cpp (GeneralsMD) | 99 | 45 | 54 |
+| **Total** | **194** | **85** | **109** |
+
+What got migrated:
+- ~36 stencil state calls per file (D3DRS_STENCIL{ENABLE,FUNC,REF,MASK,WRITEMASK,PASS,FAIL,ZFAIL}) → 8 stencil methods
+- ~3 alpha-blend enable calls → `Set_Alpha_Blend_Enable`
+- 12 high-level calls (Has_Stencil, Clear, Set_Material, Set_Shader, Set_Fog, Apply_Render_State_Changes)
+
+What's left as TODO with markers:
+- 8 D3DRS_ZBIAS calls (per file)
+- 8 D3DRS_COLORWRITEENABLE calls (bitmask values, not yet expressible through `Set_Color_Write_Enable(r,g,b,a)`)
+- 5 D3DRS_FILLMODE calls
+- 6 D3DRS_ZENABLE/ZFUNC calls
+- 6 D3DRS_SRCBLEND/DESTBLEND calls (paired with ALPHABLENDENABLE; the script only migrated ENABLE)
+- 3 D3DRS_AMBIENT calls (Set_Ambient takes Vector3, the D3DRS calls pass D3DCOLOR — needs unpack helper)
+- 4 Convert_Color utility calls (static utility, not in interface)
+- 5 misc (stats access, _Get_D3D_Device8, _Is_Triangle_Draw_Enabled, Get_Current_Caps)
+
+A migration comment block is added at the top of `RTS3DScene::draw3DPlayerColorMarkers` (the function with the heaviest concentration of stencil state) explaining the deferred work and pointing at PHASE3F.md.
+
+### Commits
+
+```
+4b54b572c refactor(ww3d): partially route W3DScene high-level + stencil + blend calls through g_renderBackend
+c20b21a73 feat(ww3d2): add stencil state group + CompareFunc/StencilOp enums to IRenderBackend
+ba27b3c60 docs(ww3d2): add Phase 3F plan with stencil state extension design
+```
+
+### Statistics
+
+- 1 subsystem partially migrated (W3DScene, both copies)
+- 9 files touched
+- ~109 call sites replaced
+- ~85 sites remain as Phase 4 TODO (down from 194)
+- 8 new IRenderBackend methods + 2 new enums
+- 3 commits
+
+## Cumulative Phase 3 progress
+
+13 subsystems migrated total: 10 fully + 3 partially (volumetric shadow, projected shadow, scene). `IRenderBackend` has grown by **15 methods + 4 enums** beyond Phase 1 baseline.
+
+## Phase 3G preview / pause point
+
+**Phase 3 is hitting clear diminishing returns.** Phase 3F migrated 109 sites for 8 new methods + 2 enums — that's good leverage, but each subsequent phase needs more interface design for less coverage:
+
+- A "Phase 3G state remainders" cleanup phase (Z-bias, fill mode, depth test, paired blend factors, ambient unpack) would migrate maybe 50-60 more sites for ~5 more interface methods
+- W3DDisplay, W3DWater, W3DShaderManager are progressively harder and progressively less leveraged
+
+**Realistic recommendation: stop Phase 3 here.** With 13 subsystems migrated and a 15-method extended interface, we have meaningful coverage to:
+- Validate the architecture under real Windows builds
+- Start Phase 4's swapchain ownership flip with confidence that the migrated subsystems will exercise the new backends in real frames
+- Defer the remaining hardest subsystems until Phase 4 surfaces actual requirements
+
+The remaining 85 W3DScene sites and the remaining ~142 shadow inner-loop sites and the unmigrated W3DWater/W3DDisplay/W3DShaderManager files are all genuine work, but they don't unlock anything Phase 4 doesn't already need to do.
 
 ## Exit criterion
 
