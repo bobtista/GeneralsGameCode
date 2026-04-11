@@ -1779,7 +1779,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			break;
 		}
 		g_renderBackend->Set_Index_Buffer(m_indexTree[bNdx],0);
-		g_renderBackend->Set_Vertex_Buffer(m_vertexTree[bNdx]);
+		g_renderBackend->Set_Vertex_Buffer(m_vertexTree[bNdx],0);
 		// Render the waving grass
 		g_renderBackend->Apply_Render_State_Changes();
 		if (m_dwTreeVertexShader) {

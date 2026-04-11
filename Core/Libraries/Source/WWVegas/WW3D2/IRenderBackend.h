@@ -197,7 +197,7 @@ public:
     // Vertex / index buffers
     // -------------------------------------------------------------------------
 
-    virtual void Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream) = 0;
+    virtual void Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream = 0) = 0;
     virtual void Set_Vertex_Buffer(const DynamicVBAccessClass & vba) = 0;
     virtual void Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset) = 0;
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset) = 0;
