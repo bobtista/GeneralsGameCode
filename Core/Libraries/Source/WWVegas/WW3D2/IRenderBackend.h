@@ -310,8 +310,8 @@ public:
     // Render targets
     // -------------------------------------------------------------------------
 
-    virtual TextureClass * Create_Render_Target(int width, int height, WW3DFormat format) = 0;
-    virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture) = 0;
+    virtual TextureClass * Create_Render_Target(int width, int height, WW3DFormat format = WW3D_FORMAT_UNKNOWN) = 0;
+    virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture = nullptr) = 0;
     virtual bool Is_Render_To_Texture() = 0;
     virtual void Set_Shadow_Map(int idx, ZTextureClass * ztex) = 0;
     virtual ZTextureClass * Get_Shadow_Map(int idx) = 0;
