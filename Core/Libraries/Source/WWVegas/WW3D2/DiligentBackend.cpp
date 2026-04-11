@@ -175,6 +175,10 @@ void DiligentBackend::Set_Color_Write_Enable(bool /*red*/, bool /*green*/, bool 
 {
 }
 
+void DiligentBackend::Set_Alpha_Blend_Enable(bool /*enable*/)
+{
+}
+
 void DiligentBackend::Show_Hardware_Cursor(bool /*show*/)
 {
 }

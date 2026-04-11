@@ -198,6 +198,11 @@ void DX8Backend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool al
     DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE, mask);
 }
 
+void DX8Backend::Set_Alpha_Blend_Enable(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE, enable ? TRUE : FALSE);
+}
+
 void DX8Backend::Show_Hardware_Cursor(bool show)
 {
     IDirect3DDevice8 * pDev = DX8Wrapper::_Get_D3D_Device8();

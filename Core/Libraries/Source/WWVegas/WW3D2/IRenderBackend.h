@@ -192,6 +192,9 @@ public:
     virtual void Set_Blend_Op(BlendOp op) = 0;
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) = 0;
     virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) = 0;
+    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3E. Natural complement
+    // to the Phase 3B blend extension. See PHASE3E.md.
+    virtual void Set_Alpha_Blend_Enable(bool enable) = 0;
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D hardware cursor
     // extension. Lets W3DMouse drive the device's hardware cursor without

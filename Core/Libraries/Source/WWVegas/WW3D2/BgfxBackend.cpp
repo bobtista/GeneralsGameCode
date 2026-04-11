@@ -181,6 +181,10 @@ void BgfxBackend::Set_Color_Write_Enable(bool /*red*/, bool /*green*/, bool /*bl
 {
 }
 
+void BgfxBackend::Set_Alpha_Blend_Enable(bool /*enable*/)
+{
+}
+
 void BgfxBackend::Show_Hardware_Cursor(bool /*show*/)
 {
 }
