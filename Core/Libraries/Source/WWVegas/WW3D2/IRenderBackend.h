@@ -108,6 +108,35 @@ enum BlendFactor
     RB_BLEND_SRC_ALPHA_SAT   = 11  // D3DBLEND_SRCALPHASAT
 };
 
+// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3F stencil state
+// extension. Generic CompareFunc enum is also reusable for depth-test
+// comparison in a future phase. See PHASE3F.md.
+enum CompareFunc
+{
+    // Values match D3DCMP_* 1..8 directly so DX8Backend can cast.
+    RB_CMP_NEVER         = 1,
+    RB_CMP_LESS          = 2,
+    RB_CMP_EQUAL         = 3,
+    RB_CMP_LESS_EQUAL    = 4,
+    RB_CMP_GREATER       = 5,
+    RB_CMP_NOT_EQUAL     = 6,
+    RB_CMP_GREATER_EQUAL = 7,
+    RB_CMP_ALWAYS        = 8
+};
+
+enum StencilOp
+{
+    // Values match D3DSTENCILOP_* 1..8 directly so DX8Backend can cast.
+    RB_STENCIL_OP_KEEP     = 1,
+    RB_STENCIL_OP_ZERO     = 2,
+    RB_STENCIL_OP_REPLACE  = 3,
+    RB_STENCIL_OP_INCR_SAT = 4,
+    RB_STENCIL_OP_DECR_SAT = 5,
+    RB_STENCIL_OP_INVERT   = 6,
+    RB_STENCIL_OP_INCR     = 7,
+    RB_STENCIL_OP_DECR     = 8
+};
+
 // -----------------------------------------------------------------------------
 // IRenderBackend — abstract W3D-facing rendering interface
 // -----------------------------------------------------------------------------
@@ -202,6 +231,19 @@ public:
     virtual void Show_Hardware_Cursor(bool show) = 0;
     virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface) = 0;
     virtual void Set_Hardware_Cursor_Position(int x, int y) = 0;
+
+    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3F stencil state
+    // group. Each method maps 1:1 onto an existing D3DRS_STENCIL* state. The
+    // CompareFunc and StencilOp enums above are reusable for future depth
+    // and stencil work. See PHASE3F.md.
+    virtual void Set_Stencil_Enable(bool enable) = 0;
+    virtual void Set_Stencil_Func(CompareFunc func) = 0;
+    virtual void Set_Stencil_Ref(unsigned int ref) = 0;
+    virtual void Set_Stencil_Mask(unsigned int mask) = 0;
+    virtual void Set_Stencil_Write_Mask(unsigned int mask) = 0;
+    virtual void Set_Stencil_Pass_Op(StencilOp op) = 0;
+    virtual void Set_Stencil_Fail_Op(StencilOp op) = 0;
+    virtual void Set_Stencil_ZFail_Op(StencilOp op) = 0;
 
     // -------------------------------------------------------------------------
     // Transforms

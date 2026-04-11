@@ -79,6 +79,14 @@ public:
     virtual void Show_Hardware_Cursor(bool show);
     virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface);
     virtual void Set_Hardware_Cursor_Position(int x, int y);
+    virtual void Set_Stencil_Enable(bool enable);
+    virtual void Set_Stencil_Func(CompareFunc func);
+    virtual void Set_Stencil_Ref(unsigned int ref);
+    virtual void Set_Stencil_Mask(unsigned int mask);
+    virtual void Set_Stencil_Write_Mask(unsigned int mask);
+    virtual void Set_Stencil_Pass_Op(StencilOp op);
+    virtual void Set_Stencil_Fail_Op(StencilOp op);
+    virtual void Set_Stencil_ZFail_Op(StencilOp op);
 
     // -- Transforms -----------------------------------------------------------
 

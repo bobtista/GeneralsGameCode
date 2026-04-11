@@ -191,6 +191,38 @@ void DiligentBackend::Set_Hardware_Cursor_Position(int /*x*/, int /*y*/)
 {
 }
 
+void DiligentBackend::Set_Stencil_Enable(bool /*enable*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Func(CompareFunc /*func*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Ref(unsigned int /*ref*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Mask(unsigned int /*mask*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Write_Mask(unsigned int /*mask*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Pass_Op(StencilOp /*op*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Fail_Op(StencilOp /*op*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_ZFail_Op(StencilOp /*op*/)
+{
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void DiligentBackend::Set_Transform(TransformKind /*transform*/, const Matrix4x4 & /*m*/)
