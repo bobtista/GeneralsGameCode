@@ -181,6 +181,18 @@ void BgfxBackend::Set_Color_Write_Enable(bool /*red*/, bool /*green*/, bool /*bl
 {
 }
 
+void BgfxBackend::Show_Hardware_Cursor(bool /*show*/)
+{
+}
+
+void BgfxBackend::Set_Hardware_Cursor_Image(int /*hotspot_x*/, int /*hotspot_y*/, SurfaceClass * /*surface*/)
+{
+}
+
+void BgfxBackend::Set_Hardware_Cursor_Position(int /*x*/, int /*y*/)
+{
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void BgfxBackend::Set_Transform(TransformKind /*transform*/, const Matrix4x4 & /*m*/)

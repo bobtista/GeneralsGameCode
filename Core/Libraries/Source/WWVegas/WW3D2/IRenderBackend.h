@@ -193,6 +193,13 @@ public:
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) = 0;
     virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) = 0;
 
+    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D hardware cursor
+    // extension. Lets W3DMouse drive the device's hardware cursor without
+    // touching IDirect3DDevice8 directly. See PHASE3D.md.
+    virtual void Show_Hardware_Cursor(bool show) = 0;
+    virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface) = 0;
+    virtual void Set_Hardware_Cursor_Position(int x, int y) = 0;
+
     // -------------------------------------------------------------------------
     // Transforms
     // -------------------------------------------------------------------------

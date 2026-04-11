@@ -198,6 +198,36 @@ void DX8Backend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool al
     DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE, mask);
 }
 
+void DX8Backend::Show_Hardware_Cursor(bool show)
+{
+    IDirect3DDevice8 * pDev = DX8Wrapper::_Get_D3D_Device8();
+    if (pDev != nullptr)
+    {
+        pDev->ShowCursor(show ? TRUE : FALSE);
+    }
+}
+
+void DX8Backend::Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface)
+{
+    IDirect3DDevice8 * pDev = DX8Wrapper::_Get_D3D_Device8();
+    if (pDev != nullptr && surface != nullptr)
+    {
+        pDev->SetCursorProperties(
+            static_cast<UINT>(hotspot_x),
+            static_cast<UINT>(hotspot_y),
+            surface->Peek_D3D_Surface());
+    }
+}
+
+void DX8Backend::Set_Hardware_Cursor_Position(int x, int y)
+{
+    IDirect3DDevice8 * pDev = DX8Wrapper::_Get_D3D_Device8();
+    if (pDev != nullptr)
+    {
+        pDev->SetCursorPosition(x, y, D3DCURSOR_IMMEDIATE_UPDATE);
+    }
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void DX8Backend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
