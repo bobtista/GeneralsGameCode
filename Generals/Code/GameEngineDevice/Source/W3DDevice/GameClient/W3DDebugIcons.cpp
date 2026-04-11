@@ -308,7 +308,7 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 		if (numVertex == 0) break;
 		g_renderBackend->Set_Shader(ShaderClass(SC_ALPHA));
 		g_renderBackend->Set_Index_Buffer(ib_access,0);
-		g_renderBackend->Set_Vertex_Buffer(vb_access,0);
+		g_renderBackend->Set_Vertex_Buffer(vb_access);
 		g_renderBackend->Draw_Triangles(	0,curIndex/3, 0,	numVertex);	//draw a quad, 2 triangles, 4 verts
 	}
 

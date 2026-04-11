@@ -634,7 +634,7 @@ static void RenderVBTile(TextureClass *text, Real ox, Real oy, Real ou, Real ov,
 	// high-level binding/draw calls and the blend state through g_renderBackend.
 	// See PHASE3E.md.
 	g_renderBackend->Set_Index_Buffer(ib_access,0);
-	g_renderBackend->Set_Vertex_Buffer(vb_access,0);
+	g_renderBackend->Set_Vertex_Buffer(vb_access);
 	g_renderBackend->Set_Texture(0, text);
 	g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 	g_renderBackend->Set_Alpha_Blend_Enable(true);
