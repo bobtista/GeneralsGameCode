@@ -58,6 +58,18 @@
 #include "dx8indexbuffer.h"
 #include "vertmaterial.h"
 
+// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3G deprecation sweep.
+// Flag DX8Wrapper methods that have an IRenderBackend equivalent so the
+// compiler lists every remaining call site as a warning. The WW3D2 library
+// itself (g_ww3d2 STATIC) defines GGC_ALLOW_DX8WRAPPER to suppress the
+// warning inside DX8Backend.cpp / dx8wrapper.cpp and the rest of WW3D2,
+// which legitimately call DX8Wrapper directly. VC6 tools get a no-op.
+#if defined(_MSC_VER) && _MSC_VER >= 1400 && !defined(GGC_ALLOW_DX8WRAPPER)
+#  define GGC_RB_DEPRECATED __declspec(deprecated("[Phase 3G] migrate to g_renderBackend equivalent"))
+#else
+#  define GGC_RB_DEPRECATED
+#endif
+
 /*
 ** Registry value names
 */
@@ -281,30 +293,30 @@ public:
 	static void	Do_Onetime_Device_Dependent_Inits();
 	static void Do_Onetime_Device_Dependent_Shutdowns();
 
-	static bool Is_Device_Lost() { return IsDeviceLost; }
+	GGC_RB_DEPRECATED static bool Is_Device_Lost() { return IsDeviceLost; }
 	static bool Is_Initted() { return IsInitted; }
 
-	static bool Has_Stencil ();
+	GGC_RB_DEPRECATED static bool Has_Stencil ();
 	static void Get_Format_Name(unsigned int format, StringClass *tex_format);
 
 	/*
 	** Rendering
 	*/
-	static void Begin_Scene();
-	static void End_Scene(bool flip_frame = true);
+	GGC_RB_DEPRECATED static void Begin_Scene();
+	GGC_RB_DEPRECATED static void End_Scene(bool flip_frame = true);
 
 	// Flip until the primary buffer is visible.
-	static void Flip_To_Primary();
+	GGC_RB_DEPRECATED static void Flip_To_Primary();
 
-	static void Clear(bool clear_color, bool clear_z_stencil, const Vector3 &color, float dest_alpha=0.0f, float z=1.0f, unsigned int stencil=0);
+	GGC_RB_DEPRECATED static void Clear(bool clear_color, bool clear_z_stencil, const Vector3 &color, float dest_alpha=0.0f, float z=1.0f, unsigned int stencil=0);
 
-	static void	Set_Viewport(CONST D3DVIEWPORT8* pViewport);
+	GGC_RB_DEPRECATED static void	Set_Viewport(CONST D3DVIEWPORT8* pViewport);
 
-	static void Set_Vertex_Buffer(const VertexBufferClass* vb, unsigned stream=0);
-	static void Set_Vertex_Buffer(const DynamicVBAccessClass& vba);
-	static void Set_Index_Buffer(const IndexBufferClass* ib,unsigned short index_base_offset);
-	static void Set_Index_Buffer(const DynamicIBAccessClass& iba,unsigned short index_base_offset);
-	static void Set_Index_Buffer_Index_Offset(unsigned offset);
+	GGC_RB_DEPRECATED static void Set_Vertex_Buffer(const VertexBufferClass* vb, unsigned stream=0);
+	GGC_RB_DEPRECATED static void Set_Vertex_Buffer(const DynamicVBAccessClass& vba);
+	GGC_RB_DEPRECATED static void Set_Index_Buffer(const IndexBufferClass* ib,unsigned short index_base_offset);
+	GGC_RB_DEPRECATED static void Set_Index_Buffer(const DynamicIBAccessClass& iba,unsigned short index_base_offset);
+	GGC_RB_DEPRECATED static void Set_Index_Buffer_Index_Offset(unsigned offset);
 
 	static void Get_Render_State(RenderStateStruct& state);
 	static void Set_Render_State(const RenderStateStruct& state);
@@ -312,19 +324,19 @@ public:
 
 	static void Set_DX8_Material(const D3DMATERIAL8* mat);
 
-	static void Set_Gamma(float gamma,float bright,float contrast,bool calibrate=true,bool uselimit=true);
+	GGC_RB_DEPRECATED static void Set_Gamma(float gamma,float bright,float contrast,bool calibrate=true,bool uselimit=true);
 
 	// Set_ and Get_Transform() functions take the matrix in Westwood convention format.
 
-	static void Set_Projection_Transform_With_Z_Bias(const Matrix4x4& matrix,float znear, float zfar);	// pointer to 16 matrices
+	GGC_RB_DEPRECATED static void Set_Projection_Transform_With_Z_Bias(const Matrix4x4& matrix,float znear, float zfar);	// pointer to 16 matrices
 
-	static void Set_Transform(D3DTRANSFORMSTATETYPE transform,const Matrix4x4& m);
-	static void Set_Transform(D3DTRANSFORMSTATETYPE transform,const Matrix3D& m);
-	static void Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4x4& m);
-	static void Set_World_Identity();
-	static void Set_View_Identity();
-	static bool Is_World_Identity();
-	static bool Is_View_Identity();
+	GGC_RB_DEPRECATED static void Set_Transform(D3DTRANSFORMSTATETYPE transform,const Matrix4x4& m);
+	GGC_RB_DEPRECATED static void Set_Transform(D3DTRANSFORMSTATETYPE transform,const Matrix3D& m);
+	GGC_RB_DEPRECATED static void Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4x4& m);
+	GGC_RB_DEPRECATED static void Set_World_Identity();
+	GGC_RB_DEPRECATED static void Set_View_Identity();
+	GGC_RB_DEPRECATED static bool Is_World_Identity();
+	GGC_RB_DEPRECATED static bool Is_View_Identity();
 
 	// Note that *_DX8_Transform() functions take the matrix in DX8 format - transposed from Westwood convention.
 
@@ -336,33 +348,33 @@ public:
 	static void Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane);
 	static void Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value);
 	static void Set_DX8_Texture(unsigned int stage, IDirect3DBaseTexture8* texture);
-	static void Set_Light_Environment(LightEnvironmentClass* light_env);
-	static LightEnvironmentClass* Get_Light_Environment() { return Light_Environment; }
-	static void Set_Fog(bool enable, const Vector3 &color, float start, float end);
+	GGC_RB_DEPRECATED static void Set_Light_Environment(LightEnvironmentClass* light_env);
+	GGC_RB_DEPRECATED static LightEnvironmentClass* Get_Light_Environment() { return Light_Environment; }
+	GGC_RB_DEPRECATED static void Set_Fog(bool enable, const Vector3 &color, float start, float end);
 
 	// Deferred
 
-	static void Set_Shader(const ShaderClass& shader);
-	static void Get_Shader(ShaderClass& shader);
-	static void Set_Texture(unsigned stage,TextureBaseClass* texture);
-	static void Set_Material(const VertexMaterialClass* material);
+	GGC_RB_DEPRECATED static void Set_Shader(const ShaderClass& shader);
+	GGC_RB_DEPRECATED static void Get_Shader(ShaderClass& shader);
+	GGC_RB_DEPRECATED static void Set_Texture(unsigned stage,TextureBaseClass* texture);
+	GGC_RB_DEPRECATED static void Set_Material(const VertexMaterialClass* material);
 	static void Set_Light(unsigned index,const D3DLIGHT8* light);
-	static void Set_Light(unsigned index,const LightClass &light);
+	GGC_RB_DEPRECATED static void Set_Light(unsigned index,const LightClass &light);
 
-	static void Apply_Render_State_Changes();	// Apply deferred render state changes (will be called automatically by Draw...)
+	GGC_RB_DEPRECATED static void Apply_Render_State_Changes();	// Apply deferred render state changes (will be called automatically by Draw...)
 
-	static void Draw_Triangles(
+	GGC_RB_DEPRECATED static void Draw_Triangles(
 		unsigned buffer_type,
 		unsigned short start_index,
 		unsigned short polygon_count,
 		unsigned short min_vertex_index,
 		unsigned short vertex_count);
-	static void Draw_Triangles(
+	GGC_RB_DEPRECATED static void Draw_Triangles(
 		unsigned short start_index,
 		unsigned short polygon_count,
 		unsigned short min_vertex_index,
 		unsigned short vertex_count);
-	static void Draw_Strip(
+	GGC_RB_DEPRECATED static void Draw_Strip(
 		unsigned short start_index,
 		unsigned short index_count,
 		unsigned short min_vertex_index,
@@ -483,13 +495,13 @@ public:
 	/*
 	** Render target interface. If render target format is WW3D_FORMAT_UNKNOWN, current display format is used.
 	*/
-	static TextureClass *	Create_Render_Target (int width, int height, WW3DFormat format = WW3D_FORMAT_UNKNOWN);
+	GGC_RB_DEPRECATED static TextureClass *	Create_Render_Target (int width, int height, WW3DFormat format = WW3D_FORMAT_UNKNOWN);
 
 	static void					Set_Render_Target (IDirect3DSurface8 *render_target, bool use_default_depth_buffer = false);
 	static void					Set_Render_Target (IDirect3DSurface8* render_target, IDirect3DSurface8* dpeth_buffer);
 
 	static void					Set_Render_Target (IDirect3DSwapChain8 *swap_chain);
-	static bool					Is_Render_To_Texture() { return IsRenderToTexture; }
+	GGC_RB_DEPRECATED static bool					Is_Render_To_Texture() { return IsRenderToTexture; }
 
 	// for depth map support KJM V
 	static void Create_Render_Target
@@ -501,26 +513,26 @@ public:
 		TextureClass** target,
 		ZTextureClass** depth_buffer
 	);
-	static void					Set_Render_Target_With_Z (TextureClass * texture, ZTextureClass* ztexture=nullptr);
+	GGC_RB_DEPRECATED static void					Set_Render_Target_With_Z (TextureClass * texture, ZTextureClass* ztexture=nullptr);
 
-	static void Set_Shadow_Map(int idx, ZTextureClass* ztex) { Shadow_Map[idx]=ztex; }
-	static ZTextureClass* Get_Shadow_Map(int idx) { return Shadow_Map[idx]; }
+	GGC_RB_DEPRECATED static void Set_Shadow_Map(int idx, ZTextureClass* ztex) { Shadow_Map[idx]=ztex; }
+	GGC_RB_DEPRECATED static ZTextureClass* Get_Shadow_Map(int idx) { return Shadow_Map[idx]; }
 	// for depth map support KJM ^
 
 	// shader system updates KJM v
-	static void Apply_Default_State();
+	GGC_RB_DEPRECATED static void Apply_Default_State();
 
-	static void Set_Vertex_Shader(DWORD vertex_shader);
-	static void Set_Pixel_Shader(DWORD pixel_shader);
+	GGC_RB_DEPRECATED static void Set_Vertex_Shader(DWORD vertex_shader);
+	GGC_RB_DEPRECATED static void Set_Pixel_Shader(DWORD pixel_shader);
 
-	static void Set_Vertex_Shader_Constant(int reg, const void* data, int count);
-	static void Set_Pixel_Shader_Constant(int reg, const void* data, int count);
+	GGC_RB_DEPRECATED static void Set_Vertex_Shader_Constant(int reg, const void* data, int count);
+	GGC_RB_DEPRECATED static void Set_Pixel_Shader_Constant(int reg, const void* data, int count);
 
 	static DWORD Get_Vertex_Processing_Behavior() { return Vertex_Processing_Behavior; }
 
 	// Needed by scene lighting class
-	static void						Set_Ambient(const Vector3& color);
-	static const Vector3&		Get_Ambient() { return Ambient_Color; }
+	GGC_RB_DEPRECATED static void						Set_Ambient(const Vector3& color);
+	GGC_RB_DEPRECATED static const Vector3&		Get_Ambient() { return Ambient_Color; }
 	// shader system updates KJM ^
 
 
@@ -564,7 +576,7 @@ public:
 	static const char* Get_DX8_Debug_Monitor_Token_Name(unsigned value);
 	static const char* Get_DX8_Blend_Op_Name(unsigned value);
 
-	static void Invalidate_Cached_Render_States();
+	GGC_RB_DEPRECATED static void Invalidate_Cached_Render_States();
 
 	static void Set_Draw_Polygon_Low_Bound_Limit(unsigned n) { DrawPolygonLowBoundLimit=n; }
 
