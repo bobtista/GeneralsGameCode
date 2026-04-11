@@ -2,7 +2,7 @@
 
 **Branch:** `bobtista/refactor/phase3e-shadows`
 **Base:** `bobtista/refactor/phase3d-mouse` (Phase 3D)
-**Status:** in progress
+**Status:** partial migration complete, pending Windows build verification
 
 See [RENDER_BACKEND.md](RENDER_BACKEND.md) for the multi-phase plan and [PHASE3.md](PHASE3.md) - [PHASE3D.md](PHASE3D.md) for previous Phase 3 sessions.
 
@@ -111,11 +111,103 @@ DX8Backend forwards to `DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,
 
 ## Task list
 
-- [ ] **3E.0** Write this document
-- [ ] **3E.1** Add `Set_Alpha_Blend_Enable` to all 4 backend implementations
-- [ ] **3E.2** Migrate W3DVolumetricShadow high-level calls (both copies)
-- [ ] **3E.3** Migrate W3DProjectedShadow high-level calls (both copies)
-- [ ] **3E.4** Document completion + handoff
+- [x] **3E.0** Write this document
+- [x] **3E.1** Add `Set_Alpha_Blend_Enable` to all 4 backend implementations
+- [x] **3E.2** Migrate W3DVolumetricShadow high-level calls (both copies)
+- [x] **3E.3** Migrate W3DProjectedShadow high-level calls (both copies)
+- [x] **3E.4** Document completion + handoff
+
+## What landed
+
+### Interface extension (commit `5311b671e`)
+
+One new virtual method on all four backends:
+
+```cpp
+virtual void Set_Alpha_Blend_Enable(bool enable) = 0;
+```
+
+DX8Backend forwards to `DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE, enable ? TRUE : FALSE)`. BgfxBackend and DiligentBackend stub no-ops.
+
+### W3DVolumetricShadow partial migration (commit `2fc0727d2`)
+
+Both Generals and GeneralsMD copies. **12 of 15 high-level call sites migrated per file**, leaving 3 that stay on `DX8Wrapper::` for documented reasons:
+
+- ✅ Migrated: `Set_Material` (×2), `Set_Shader` (×2), `Set_Texture` (×3), `Apply_Render_State_Changes` (×2), `Invalidate_Cached_Render_States` (×2), `Has_Stencil`
+- ⏸️ Left as-is with notes:
+  - `DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps()` — caps query, not in interface
+  - `DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE, 0)` and the matching restore — paired with a raw `m_pDev->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable)` save call. Round-tripping a DWORD bitmask through the boolean `Set_Color_Write_Enable(r,g,b,a)` API would smuggle in a behavior change.
+
+The ~81 raw `m_pDev->X()` calls are unchanged. Each containing function gets a clear migration-comment block at the top explaining the Phase 4 dependency.
+
+### W3DProjectedShadow partial migration (commit `aad68e09b`)
+
+Both Generals and GeneralsMD copies. **18 of 22 high-level sites migrated per file** (the 4 unchanged are commented-out debug breadcrumbs):
+
+- ✅ Migrated: `Create_Render_Target` (×2), `Set_Index_Buffer`, `Set_Vertex_Buffer` (added explicit `,0` stream arg), `Set_Texture` (×3), `Set_Material` (×2), `Set_Shader` (×4), `Set_Transform` (with `D3DTS_WORLD` → `RB_TRANSFORM_WORLD`), `Apply_Render_State_Changes` (×2), `Draw_Triangles`. Plus the blend trio: `Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA)` + `Set_Alpha_Blend_Enable(true)` replacing 3 raw `Set_DX8_Render_State` calls.
+
+The ~61 raw `m_pDev->X()` calls remain unchanged with the same migration-comment marker pattern.
+
+### Commits
+
+```
+aad68e09b refactor(ww3d): partially route W3DProjectedShadow high-level calls through g_renderBackend
+2fc0727d2 refactor(ww3d): partially route W3DVolumetricShadow high-level calls through g_renderBackend
+5311b671e feat(ww3d2): add Set_Alpha_Blend_Enable to IRenderBackend
+9b9f83f96 docs(ww3d2): add Phase 3E plan with realistic partial-migration scope
+```
+
+### Statistics
+
+- 2 subsystems partially migrated
+- 6 files touched (2 .cpp × 2 copies + 4 backend files via the extension commit + this doc)
+- ~60 high-level call sites replaced (12+18 per file × 2 copies)
+- ~142 raw `m_pDev->X()` calls remain — clearly marked Phase 4 TODO
+- 1 new IRenderBackend method
+- 4 commits
+
+## Cumulative phase 3 progress
+
+Across Phase 3 + 3B + 3C + 3D + 3E, **12 subsystems are now routed through `g_renderBackend`** (10 fully + 2 partially):
+
+1. W3DBibBuffer (3) — full
+2. W3DDebugIcons (3) — full
+3. W3DInGameUI (3) — full
+4. W3DTerrainTracks (3) — full
+5. W3DBridgeBuffer (3) — full
+6. W3DRoadBuffer (3B) — full
+7. W3DStatusCircle (1 + 3B) — full
+8. FlatHeightMap (3B) — full
+9. W3DShroud (3C) — full
+10. W3DMouse (3D) — full
+11. **W3DVolumetricShadow (3E) — partial** (12/15 high-level migrated, ~81 raw device calls remain)
+12. **W3DProjectedShadow (3E) — partial** (18/22 high-level migrated, ~61 raw device calls remain)
+
+`IRenderBackend` has grown by **7 methods + 2 enums** beyond Phase 1 baseline.
+
+## What this changes at runtime
+
+Same as every Phase 3 migration: **nothing changes under any backend.**
+
+- `=dx8`: high-level calls go `g_renderBackend->X` → `DX8Backend::X` → `DX8Wrapper::X` → D3D8. Raw `m_pDev->X` calls go directly to D3D8 as before.
+- `=bgfx` / `=diligent`: the migrated high-level calls silently no-op through stubs. The raw `m_pDev->` calls still drive DX8 directly because no Phase 3 work has touched device ownership. Visual result under non-DX8 backends is unpredictable for shadows specifically (state defaults that the migrated calls would have set go missing) but stencil draws still happen via the raw paths.
+
+## Windows build verification
+
+Test plan: build `=dx8`, start a skirmish, verify stencil shadows on units render correctly, verify projected decal shadows on terrain render correctly, alt-tab and back, confirm shadows survive a device reset.
+
+`=bgfx` and `=diligent` builds should compile cleanly. Shadow visual correctness under non-DX8 backends is **not** expected — that's the whole point of the partial migration deferring the inner-loop work.
+
+## Phase 3F preview
+
+Logical next targets ordered by leverage:
+
+1. **W3DScene** (99 calls, mostly mechanical) — biggest call count of any clean target. May need 1-2 more interface methods but most calls covered already.
+2. **The deferred shadow inner-loop blocks** — would need a "raw rendering" abstraction or refactor to W3D buffer classes.
+3. **W3DDisplay / W3DGameClient** — main display + device lifecycle, closer to the metal.
+4. **W3DWater** — biggest single piece of remaining work, needs texture-stage-state API designed.
+
+**Alternative**: Pause Phase 3 here and start designing Phase 4 (the cutover). With 12 subsystems migrated we have meaningful coverage to start exercising bgfx/Diligent backends in real frames. The remaining subsystems are progressively harder and progressively less leveraged.
 
 ## Exit criterion
 
