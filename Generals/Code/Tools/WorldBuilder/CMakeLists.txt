@@ -200,7 +200,7 @@ target_include_directories(g_worldbuilder PRIVATE
     res
 )
 
-target_compile_definitions(g_worldbuilder PRIVATE _AFXDLL)
+target_compile_definitions(g_worldbuilder PRIVATE _AFXDLL GGC_ALLOW_DX8WRAPPER)
 
 target_precompile_headers(g_worldbuilder PRIVATE
     [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
