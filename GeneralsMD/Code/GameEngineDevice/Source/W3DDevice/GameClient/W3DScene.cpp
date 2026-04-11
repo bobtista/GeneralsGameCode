@@ -1314,8 +1314,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		{
 			//device does not support disabling writes to color buffer so fake it through alpha blending
 			g_renderBackend->Set_Alpha_Blend_Enable(true);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND, D3DBLEND_ZERO );
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, D3DBLEND_ONE );
+			g_renderBackend->Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_ONE);
 		}
 	}
 	else
@@ -1330,8 +1329,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 
 		//Make occluded pixels transparent
 		g_renderBackend->Set_Alpha_Blend_Enable(true);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 	}
 
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
@@ -1340,8 +1338,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	// turn off the stencil buffer
 	g_renderBackend->Set_Stencil_Enable(false);
 	g_renderBackend->Set_Alpha_Blend_Enable(false);	//restore shader state
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND, D3DBLEND_ONE );
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, D3DBLEND_ZERO );
+	g_renderBackend->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ZERO);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, D3DCMP_ALWAYS);
 
 	if (oldColorWriteEnable != 0x12345678)
