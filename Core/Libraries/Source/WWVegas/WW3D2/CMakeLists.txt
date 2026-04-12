@@ -255,6 +255,11 @@ elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
         ${CMAKE_CURRENT_SOURCE_DIR}/DiligentBackend.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/DiligentBackend.h
     )
+elseif(GGC_RENDER_BACKEND STREQUAL "dx9")
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/DX9Backend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/DX9Backend.h
+    )
 endif()
 
 # Propagate the active backend's compile define to every translation unit
@@ -285,4 +290,6 @@ elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
         Diligent-Common
         Diligent-GraphicsTools
     )
+elseif(GGC_RENDER_BACKEND STREQUAL "dx9")
+    target_link_libraries(corei_ww3d2 INTERFACE dx9sdk)
 endif()

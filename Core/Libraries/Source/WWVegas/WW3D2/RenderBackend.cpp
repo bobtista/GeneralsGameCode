@@ -25,6 +25,7 @@
 //   GGC_RENDER_BACKEND_DX8      - DirectX 8 (default, VC6-compatible, Windows only)
 //   GGC_RENDER_BACKEND_BGFX     - bgfx (DX11/Vulkan/Metal/GL, cross-platform)
 //   GGC_RENDER_BACKEND_DILIGENT - Diligent Engine (DX11/Vulkan/Metal, cross-platform)
+//   GGC_RENDER_BACKEND_DX9      - DirectX 9 (Windows only)
 //
 // Exactly one of these is defined in any given build. If none are defined
 // (a legacy build that hasn't included render-backend.cmake) we default to
@@ -38,6 +39,8 @@
 #include "BgfxBackend.h"
 #elif defined(GGC_RENDER_BACKEND_DILIGENT)
 #include "DiligentBackend.h"
+#elif defined(GGC_RENDER_BACKEND_DX9)
+#include "DX9Backend.h"
 #else
 #include "DX8Backend.h"
 #endif
@@ -54,6 +57,8 @@ void Init_Render_Backend()
     g_renderBackend = new BgfxBackend();
 #elif defined(GGC_RENDER_BACKEND_DILIGENT)
     g_renderBackend = new DiligentBackend();
+#elif defined(GGC_RENDER_BACKEND_DX9)
+    g_renderBackend = new DX9Backend();
 #else
     g_renderBackend = new DX8Backend();
 #endif
