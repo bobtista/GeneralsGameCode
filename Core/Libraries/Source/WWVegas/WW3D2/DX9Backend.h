@@ -24,6 +24,7 @@
 #pragma once
 
 #include "IRenderBackend.h"
+#include "vector3.h"
 
 struct IDirect3D9;
 struct IDirect3DDevice9;
