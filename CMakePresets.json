@@ -130,6 +130,14 @@
             }
         },
         {
+            "name": "win32-debug-dx9",
+            "inherits": "win32-debug",
+            "displayName": "Windows 32bit Debug (DX9 backend)",
+            "cacheVariables": {
+                "GGC_RENDER_BACKEND": "dx9"
+            }
+        },
+        {
             "name": "win32-debug-diligent",
             "inherits": "win32-debug",
             "displayName": "Windows 32bit Debug (diligent stub backend)",

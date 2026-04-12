@@ -18,14 +18,15 @@
 
 set(GGC_RENDER_BACKEND "dx8" CACHE STRING
     "Rendering backend for WW3D2: dx8 (default), bgfx, or diligent")
-set_property(CACHE GGC_RENDER_BACKEND PROPERTY STRINGS dx8 bgfx diligent)
+set_property(CACHE GGC_RENDER_BACKEND PROPERTY STRINGS dx8 dx9 bgfx diligent)
 
 if(NOT GGC_RENDER_BACKEND STREQUAL "dx8" AND
+   NOT GGC_RENDER_BACKEND STREQUAL "dx9" AND
    NOT GGC_RENDER_BACKEND STREQUAL "bgfx" AND
    NOT GGC_RENDER_BACKEND STREQUAL "diligent")
     message(FATAL_ERROR
         "Invalid GGC_RENDER_BACKEND: '${GGC_RENDER_BACKEND}'. "
-        "Must be one of: dx8, bgfx, diligent.")
+        "Must be one of: dx8, dx9, bgfx, diligent.")
 endif()
 
 message(STATUS "WW3D2 render backend: ${GGC_RENDER_BACKEND}")
@@ -51,6 +52,8 @@ endif()
 # without coupling to the raw string variable.
 if(GGC_RENDER_BACKEND STREQUAL "dx8")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_DX8=1")
+elseif(GGC_RENDER_BACKEND STREQUAL "dx9")
+    set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_DX9=1")
 elseif(GGC_RENDER_BACKEND STREQUAL "bgfx")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_BGFX=1")
 elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
