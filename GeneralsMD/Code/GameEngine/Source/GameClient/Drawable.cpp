@@ -1116,7 +1116,7 @@ void Drawable::updateDrawable()
 		{
 			if (ProjectileUpdateInterface* pui = (*m)->getProjectileUpdateInterface())
 			{
-				applySubFrameExtrapolation(pui);
+				applySubFrameExtrapolation(pui->getProjectileLogicVelocity());
 				break;
 			}
 		}
@@ -5544,9 +5544,8 @@ void TintEnvelope::loadPostProcess()
 {
 }
 
-void Drawable::applySubFrameExtrapolation(ProjectileUpdateInterface* pui)
+void Drawable::applySubFrameExtrapolation(const Coord3D* v)
 {
-	const Coord3D* v = pui->getProjectileLogicVelocity();
 	Real alpha = TheGameEngine->getLogicTimeAccumulator() * TheFramePacer->getActualLogicTimeScaleFps();
 
 	if (v && alpha > 0.0f && m_object)
