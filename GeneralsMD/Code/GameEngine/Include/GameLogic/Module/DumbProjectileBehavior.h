@@ -80,6 +80,7 @@ public:
 
 	// UpdateModuleInterface
 	virtual UpdateSleepTime update() override;
+	virtual void onDelete() override;
 	virtual ProjectileUpdateInterface* getProjectileUpdateInterface() override { return this; }
 
 	// ProjectileUpdateInterface
