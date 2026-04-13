@@ -38,6 +38,7 @@
 #include "Common/DrawModule.h"
 #include "Common/FramePacer.h"
 #include "Common/GameAudio.h"
+#include "Common/GameEngine.h"
 #include "Common/GameLOD.h"
 #include "Common/GameState.h"
 #include "Common/GameUtility.h"
@@ -61,6 +62,7 @@
 #include "GameLogic/Module/StealthUpdate.h"
 #include "GameLogic/Module/StickyBombUpdate.h"
 #include "GameLogic/Module/BattlePlanUpdate.h"
+#include "GameLogic/Module/UpdateModule.h"
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/Weapon.h"
 
@@ -397,6 +399,8 @@ Drawable::Drawable(const ThingTemplate* thingTemplate, DrawableStatusBits status
 	// Real scaleFuzziness = thingTemplate->getInstanceScaleFuzziness();
 	// Real fuzzyScale = ( 1.0f + GameClientRandomValueReal( -scaleFuzziness, scaleFuzziness ));
 	m_instanceScale = thingTemplate->getAssetScale();    // * fuzzyScale;
+	m_useExtrapolation = FALSE;
+	m_visualExtrapolationMtx.Make_Identity();
 
 	// initially not bound to an object
 	m_object = nullptr;
@@ -1105,6 +1109,18 @@ void Drawable::updateDrawable()
 
 	UnsignedInt now = TheGameLogic->getFrame();
 	Object* obj = getObject();
+
+	if (obj)
+	{
+		for (BehaviorModule** m = obj->getBehaviorModules(); m && *m; ++m)
+		{
+			if (ProjectileUpdateInterface* pui = (*m)->getProjectileUpdateInterface())
+			{
+				applySubFrameExtrapolation(pui);
+				break;
+			}
+		}
+	}
 
 	{
 		for (ClientUpdateModule** cu = getClientUpdateModules(); cu && *cu; ++cu)
@@ -4169,6 +4185,11 @@ void Drawable::setInstanceMatrix(const Matrix3D* instance)
 //-------------------------------------------------------------------------------------------------
 const Matrix3D* Drawable::getTransformMatrix() const
 {
+	if (m_useExtrapolation)
+	{
+		return &m_visualExtrapolationMtx;
+	}
+
 	const Object* obj = getObject();
 
 	if (obj)
@@ -5521,4 +5542,21 @@ void TintEnvelope::xfer(Xfer* xfer)
 // ------------------------------------------------------------------------------------------------
 void TintEnvelope::loadPostProcess()
 {
+}
+
+void Drawable::applySubFrameExtrapolation(ProjectileUpdateInterface* pui)
+{
+	const Coord3D* v = pui->getProjectileLogicVelocity();
+	Real alpha = TheGameEngine->getLogicTimeAccumulator() * TheFramePacer->getActualLogicTimeScaleFps();
+
+	if (v && alpha > 0.0f && m_object)
+	{
+		m_visualExtrapolationMtx = *m_object->getTransformMatrix();
+		m_visualExtrapolationMtx.Adjust_Translation(*(Vector3*)v * (alpha > 1.0f ? 1.0f : alpha));
+		m_useExtrapolation = TRUE;
+	}
+	else
+	{
+		m_useExtrapolation = FALSE;
+	}
 }

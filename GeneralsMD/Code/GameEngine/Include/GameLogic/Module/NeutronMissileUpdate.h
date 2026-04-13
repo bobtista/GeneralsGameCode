@@ -102,6 +102,7 @@ public:
 	virtual const Coord3D* getVelocity() const { return &m_vel; }    ///< get current velocity
 	virtual void setFramesTillCountermeasureDiversionOccurs(UnsignedInt frames) override {}
 	virtual void projectileNowJammed() override {}
+	virtual const Coord3D* getProjectileLogicVelocity() const override { return &m_logicStepVelocity; }
 
 	virtual UpdateSleepTime update() override;
 	virtual void onDelete() override;
@@ -117,6 +118,7 @@ private:
 
 	Coord3D m_accel;
 	Coord3D m_vel;
+	Coord3D m_logicStepVelocity;    ///< Logic frame velocity vector
 
 	UnsignedInt m_stateTimestamp;    ///< time of state change
 	Bool m_isLaunched;

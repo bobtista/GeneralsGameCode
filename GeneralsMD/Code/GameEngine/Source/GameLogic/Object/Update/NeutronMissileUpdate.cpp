@@ -125,6 +125,7 @@ NeutronMissileUpdate::NeutronMissileUpdate(Thing* thing, const ModuleData* modul
 	m_frameAtLaunch = 0;
 
 	m_exhaustSysTmpl = nullptr;
+	m_logicStepVelocity.zero();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -252,12 +253,15 @@ void NeutronMissileUpdate::doLaunch()
 
 	// fall
 	Coord3D pos = *getObject()->getPosition();
+	Coord3D oldPos = pos;
 
 	pos.x += m_vel.x;
 	pos.y += m_vel.y;
 	pos.z += m_vel.z;
 
 	getObject()->setPosition(&pos);
+
+	m_logicStepVelocity = m_vel;
 
 	FXList::doFXObj(getNeutronMissileUpdateModuleData()->m_ignitionFX, getObject());
 
@@ -331,6 +335,7 @@ void NeutronMissileUpdate::doAttack()
 {
 	Matrix3D mx;
 	Real speed = getNeutronMissileUpdateModuleData()->m_relativeSpeed;
+	Coord3D oldPos = *getObject()->getPosition();
 
 	if (getNeutronMissileUpdateModuleData()->m_targetFromDirectlyAbove && m_reachedIntermediatePos)
 		speed *= STRAIGHT_DOWN_SLOW_FACTOR;
@@ -419,6 +424,9 @@ void NeutronMissileUpdate::doAttack()
 	// DEBUG_LOG(("vel is %f %f %f (%f)",m_vel.x,m_vel.y,m_vel.z,vm));
 	getObject()->setTransformMatrix(&mx);
 	getObject()->setPosition(&pos);
+
+	m_logicStepVelocity = m_vel;
+	m_logicStepVelocity.add(&m_accel);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -521,6 +529,12 @@ UpdateSleepTime NeutronMissileUpdate::update()
 		normal.z = -1.0f;
 		getObject()->onCollide(nullptr, getObject()->getPosition(), &normal);
 	}
+
+	if (m_state == DEAD)
+	{
+		m_logicStepVelocity.zero();
+	}
+
 	return UPDATE_SLEEP_NONE;
 }
 
