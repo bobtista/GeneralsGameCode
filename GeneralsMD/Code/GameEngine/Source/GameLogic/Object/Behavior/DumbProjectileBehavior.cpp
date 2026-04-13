@@ -574,7 +574,6 @@ UpdateSleepTime DumbProjectileBehavior::update()
 {
 	const DumbProjectileBehaviorModuleData* d = getDumbProjectileBehaviorModuleData();
 	m_logicStepVelocity.zero();
-	Coord3D oldPos = *getObject()->getPosition();
 
 	if (m_lifespanFrame != 0 && TheGameLogic->getFrame() >= m_lifespanFrame)
 	{
