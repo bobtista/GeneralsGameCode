@@ -424,7 +424,6 @@ void NeutronMissileUpdate::doAttack()
 	getObject()->setPosition(&pos);
 
 	m_logicStepVelocity = m_vel;
-	m_logicStepVelocity.add(&m_accel);
 }
 
 //-------------------------------------------------------------------------------------------------
