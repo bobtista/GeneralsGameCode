@@ -435,9 +435,9 @@ void W3DMainMenuMapBorder( GameWindow *window, WinInstanceData *instData )
 		{
 
 			TheDisplay->drawImage( image,
-														 x, y, x + size, y + size );
+														x, y, x + size, y + size );
 			TheDisplay->drawImage( image,
-														 x, y2, x + size, y2 + size );
+														x, y2, x + size, y2 + size );
 
 		}
 
@@ -450,9 +450,9 @@ void W3DMainMenuMapBorder( GameWindow *window, WinInstanceData *instData )
 
 			//Blit Half piece
 			TheDisplay->drawImage( image,
-														 x, y, x + halfSize, y + size );
+														x, y, x + halfSize, y + size );
 			TheDisplay->drawImage( image,
-														 x, y2, x + halfSize, y2 + size );
+														x, y2, x + halfSize, y2 + size );
 
 			x += (BORDER_LINE_SIZE / 2);
 
@@ -469,9 +469,9 @@ void W3DMainMenuMapBorder( GameWindow *window, WinInstanceData *instData )
 
 			//Blit Half piece
 			TheDisplay->drawImage( image,
-														 x, y, x + halfSize, y + size );
+														x, y, x + halfSize, y + size );
 			TheDisplay->drawImage( image,
-														 x, y2, x + halfSize, y2 + size );
+														x, y2, x + halfSize, y2 + size );
 
 		}
 	}
@@ -490,9 +490,9 @@ void W3DMainMenuMapBorder( GameWindow *window, WinInstanceData *instData )
 		{
 
 			TheDisplay->drawImage( image,
-														 x, y, x + size, y + size );
+														x, y, x + size, y + size );
 			TheDisplay->drawImage( image,
-														 x2, y, x2 + size, y + size );
+														x2, y, x2 + size, y + size );
 
 		}
 
@@ -504,9 +504,9 @@ void W3DMainMenuMapBorder( GameWindow *window, WinInstanceData *instData )
 
 			//Blit Half piece
 			TheDisplay->drawImage( image,
-														 x, y, x + size, y + halfSize );
+														x, y, x + size, y + halfSize );
 			TheDisplay->drawImage( image,
-														 x2, y, x2 + size, y + halfSize );
+														x2, y, x2 + size, y + halfSize );
 
 			y += (BORDER_LINE_SIZE / 2);
 		}
@@ -521,9 +521,9 @@ void W3DMainMenuMapBorder( GameWindow *window, WinInstanceData *instData )
 
 			//Blit Half piece
 			TheDisplay->drawImage( image,
-														 x, y, x + size, y + halfSize );
+														x, y, x + size, y + halfSize );
 			TheDisplay->drawImage( image,
-														 x2, y, x2 + size, y + halfSize );
+														x2, y, x2 + size, y + halfSize );
 
 		}
 	}
@@ -532,19 +532,19 @@ void W3DMainMenuMapBorder( GameWindow *window, WinInstanceData *instData )
 	x = originalX - BORDER_CORNER_SIZE;
 	y = originalY - BORDER_CORNER_SIZE;
 	TheDisplay->drawImage( TheMappedImageCollection->findImageByName("FrameCornerUL"),
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 	x = maxX - BORDER_CORNER_SIZE;
 	y = originalY - BORDER_CORNER_SIZE;
 	TheDisplay->drawImage( TheMappedImageCollection->findImageByName("FrameCornerUR"),
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 	x = originalX - BORDER_CORNER_SIZE;
 	y = maxY - BORDER_CORNER_SIZE;
 	TheDisplay->drawImage( TheMappedImageCollection->findImageByName("FrameCornerLL"),
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 	x = maxX - BORDER_CORNER_SIZE;
 	y = maxY - BORDER_CORNER_SIZE;
 	TheDisplay->drawImage(TheMappedImageCollection->findImageByName("FrameCornerLR"),
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 
 	TheDisplay->enableClipping(FALSE);
 
@@ -556,7 +556,7 @@ void W3DMainMenuMapBorder( GameWindow *window, WinInstanceData *instData )
 /** Draw pushbutton with user supplied images */
 //=============================================================================
 void W3DMainMenuButtonDropShadowDraw( GameWindow *window,
-																	 WinInstanceData *instData )
+																	WinInstanceData *instData )
 {
 	const Image *leftImage, *rightImage, *centerImage;
 	ICoord2D origin, size, start, end;
@@ -846,7 +846,7 @@ void W3DMainMenuRandomTextDraw( GameWindow *window, WinInstanceData *instData )
 	textOutlineColor	= window->winGetDisabledTextBorderColor();
 	// draw the text
 
-  if( !(tData->text && (textColor != WIN_COLOR_UNDEFINED)) )
+	if( !(tData->text && (textColor != WIN_COLOR_UNDEFINED)) )
 		return;
 
 	DisplayString *text = tData->text;

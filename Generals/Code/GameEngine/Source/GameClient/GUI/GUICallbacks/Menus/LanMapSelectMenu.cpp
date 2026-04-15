@@ -200,7 +200,7 @@ void LanMapSelectMenuUpdate( WindowLayout *layout, void *userData )
 /** Map select menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType LanMapSelectMenuInput( GameWindow *window, UnsignedInt msg,
-																				 WindowMsgData mData1, WindowMsgData mData2 )
+																				WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	switch( msg )

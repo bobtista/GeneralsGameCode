@@ -678,7 +678,7 @@ void ControlBarScheme::addImage( ControlBarSchemeImage *schemeImage )
 	if(schemeImage->m_layer < 0 || schemeImage->m_layer >= MAX_CONTROL_BAR_SCHEME_IMAGE_LAYERS)
 	{
 		DEBUG_CRASH(("SchemeImage %s attempted to be added to layer %d which is not Between to %d, %d",
-								 schemeImage->m_name.str(), schemeImage->m_layer, 0, MAX_CONTROL_BAR_SCHEME_IMAGE_LAYERS));
+								schemeImage->m_name.str(), schemeImage->m_layer, 0, MAX_CONTROL_BAR_SCHEME_IMAGE_LAYERS));
 		// bring the foobar to the front so we make it obvious that something's wrong
 		schemeImage->m_layer = 0;
 	}

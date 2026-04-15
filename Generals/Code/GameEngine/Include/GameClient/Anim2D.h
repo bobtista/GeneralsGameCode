@@ -130,7 +130,7 @@ enum Anim2DStatus CPP_11(: Int)
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 class Anim2D : public MemoryPoolObject,
-							 public Snapshot
+							public Snapshot
 {
 
 friend class Anim2DCollection;

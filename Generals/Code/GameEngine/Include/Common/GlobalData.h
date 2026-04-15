@@ -285,8 +285,8 @@ public:
 
 #ifdef DUMP_PERF_STATS
 	Bool m_dumpPerformanceStatistics;
-  Bool  m_dumpStatsAtInterval;///< should I automatically dump stats every N frames
-  Int   m_statsInterval;       ///< if so, how many is N?
+	Bool  m_dumpStatsAtInterval;///< should I automatically dump stats every N frames
+	Int   m_statsInterval;       ///< if so, how many is N?
 #endif
 
 	Bool m_forceBenchmark;	///<forces running of CPU detection benchmark, even on known cpu's.
@@ -392,10 +392,10 @@ public:
 
 	Real m_cameraAudibleRadius;				///< If the camera is being used as the position of audio, then how far can we hear?
 	Real m_groupMoveClickToGatherFactor; /** if you take all the selected units and calculate the smallest possible rectangle
-																			 that contains them all, and click within that, all the selected units will break
-																			 formation and gather at the point the user clicked (if the value is 1.0). If it's 0.0,
-																			 units will always keep their formation. If it's <1.0, then the user must click a
-																			 smaller area within the rectangle to order the gather. */
+																			that contains them all, and click within that, all the selected units will break
+																			formation and gather at the point the user clicked (if the value is 1.0). If it's 0.0,
+																			units will always keep their formation. If it's <1.0, then the user must click a
+																			smaller area within the rectangle to order the gather. */
 
 	Int m_antiAliasBoxValue;          ///< value of selected antialias from combo box in options menu
 	Bool m_languageFilterPref;        ///< Bool if user wants to filter language
@@ -487,9 +487,9 @@ public:
 	UnsignedInt	m_networkDisconnectScreenNotifyTime; ///< The number of milliseconds between when the disconnect screen comes up and when the other players are notified that we are on the disconnect screen.
 
 	Real				m_keyboardCameraRotateSpeed;    ///< How fast the camera rotates when rotated via keyboard controls.
-  Int					m_playStats;									///< Int whether we want to log play stats or not, if <= 0 then we don't log
+	Int					m_playStats;									///< Int whether we want to log play stats or not, if <= 0 then we don't log
 
-  Bool m_TiVOFastMode;            ///< When true, the client speeds up the framerate... set by HOTKEY!
+	Bool m_TiVOFastMode;            ///< When true, the client speeds up the framerate... set by HOTKEY!
 
 #if defined(RTS_DEBUG) || ENABLE_CONFIGURABLE_SHROUD
 	Bool m_shroudOn;
@@ -529,7 +529,7 @@ public:
 	Int m_debugProjectileTileDuration;		///< How long should these tiles stay around, in frames?
 	RGBColor m_debugProjectileTileColor;	///< What color should these tiles be?
 	Bool m_showCollisionExtents;	///< Used to display collision extents
-  Bool m_showAudioLocations;    ///< Used to display audio markers and ambient sound radii
+	Bool m_showAudioLocations;    ///< Used to display audio markers and ambient sound radii
 	Bool m_saveStats;
 	Bool m_saveAllStats;
 	Bool m_useLocalMOTD;

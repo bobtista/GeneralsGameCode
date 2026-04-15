@@ -72,7 +72,7 @@ SpecialAbilityUpdate::SpecialAbilityUpdate( Thing *thing, const ModuleData* modu
 	m_active = false;
 	m_prepFrames = 0;
 	m_animFrames = 0;
-  m_targetID = INVALID_ID;
+	m_targetID = INVALID_ID;
 	m_targetPos.zero();
 	m_locationCount = 0;
 	m_specialObjectEntries = 0;
@@ -373,10 +373,10 @@ UpdateSleepTime SpecialAbilityUpdate::update()
 
 //-------------------------------------------------------------------------------------------------
 Bool SpecialAbilityUpdate::initiateIntentToDoSpecialPower( const SpecialPowerTemplate *specialPowerTemplate,
-																													 const Object *targetObj,
-																													 const Coord3D *targetPos,
-																													 const Waypoint *way,
-																													 UnsignedInt commandOptions )
+																													const Object *targetObj,
+																													const Coord3D *targetPos,
+																													const Waypoint *way,
+																													UnsignedInt commandOptions )
 {
 	const SpecialAbilityUpdateModuleData* data = getSpecialAbilityUpdateModuleData();
 	const SpecialPowerTemplate *spTemplate = data->m_specialPowerTemplate;
@@ -911,7 +911,7 @@ void SpecialAbilityUpdate::startPreparation()
 			}
 
 			getObject()->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK( MODELCONDITION_UNPACKING ),
-																									 MAKE_MODELCONDITION_MASK( MODELCONDITION_RAISING_FLAG ) );
+																									MAKE_MODELCONDITION_MASK( MODELCONDITION_RAISING_FLAG ) );
 			Drawable* draw = getObject()->getDrawable();
 			if (draw)
 				draw->setAnimationCompletionTime(data->m_preparationFrames);
@@ -947,7 +947,7 @@ void SpecialAbilityUpdate::startPreparation()
 
 					//For the hacker this sets up the looping typing animation.
 					getObject()->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK( MODELCONDITION_UNPACKING ),
-																											 MAKE_MODELCONDITION_MASK( MODELCONDITION_FIRING_A ) );
+																											MAKE_MODELCONDITION_MASK( MODELCONDITION_FIRING_A ) );
 				}
 
 				//Warn the victim so he might have a chance to react!
@@ -1658,7 +1658,7 @@ void SpecialAbilityUpdate::finishAbility()
 		//Clear any old AI before ending this special ability.
 		AIUpdateInterface *ai = getObject()->getAIUpdateInterface();
 		if (ai)
-	  	ai->aiIdle(CMD_FROM_AI);
+		ai->aiIdle(CMD_FROM_AI);
 	}
 
 	//// Emit finished sound //Moved to StartPacking(), thank you, ML
@@ -1881,8 +1881,8 @@ void SpecialAbilityUpdate::xfer( Xfer *xfer )
 	// do disable fx particles
 	xfer->xferBool( &m_doDisableFXParticles );
 
-  // capture flash phase
-  xfer->xferReal( &m_captureFlashPhase );
+	// capture flash phase
+	xfer->xferReal( &m_captureFlashPhase );
 
 }
 

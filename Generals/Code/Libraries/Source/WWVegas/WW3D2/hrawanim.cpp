@@ -430,7 +430,7 @@ void HRawAnimClass::Get_Translation(Vector3& trans, int pividx, float frame ) co
 	struct NodeMotionStruct * motion = &NodeMotion[pividx];
 
 	if ( (motion->X == nullptr) && (motion->Y == nullptr) && (motion->Z == nullptr) ) {
-		 trans.Set(0.0f,0.0f,0.0f);
+		trans.Set(0.0f,0.0f,0.0f);
 		return;
 	}
 

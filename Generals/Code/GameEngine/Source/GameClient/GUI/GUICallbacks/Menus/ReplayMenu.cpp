@@ -429,10 +429,10 @@ void ReplayMenuInit( WindowLayout *layout, void *userData )
 	instData.m_textLabelString = "Debug: Analyze Replay";
 	instData.setTooltipText(L"Only Used in Debug and Internal!");
 	buttonAnalyzeReplay = TheWindowManager->gogoGadgetPushButton( parentReplayMenu,
-																									 WIN_STATUS_ENABLED | WIN_STATUS_IMAGE,
-																									 4, 4,
-																									 180, 26,
-																									 &instData, nullptr, TRUE );
+																									WIN_STATUS_ENABLED | WIN_STATUS_IMAGE,
+																									4, 4,
+																									180, 26,
+																									&instData, nullptr, TRUE );
 #endif
 
 	// show menu
@@ -620,7 +620,7 @@ static void loadReplay(UnicodeString filename)
 /** single player menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType ReplayMenuSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+														WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	switch( msg )

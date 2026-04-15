@@ -194,7 +194,7 @@ void InitBuddyControls(Int type)
 }
 
 WindowMsgHandledType BuddyControlSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2)
+														WindowMsgData mData1, WindowMsgData mData2)
 {
 	if(!TheGameSpyInfo || TheGameSpyInfo->getLocalProfileID() == 0 || !buddyControls.isInit)
 	{
@@ -793,7 +793,7 @@ void WOLBuddyOverlayUpdate( WindowLayout * layout, void *userData)
 /** WOL Buddy Overlay input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLBuddyOverlayInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+																			WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -840,7 +840,7 @@ WindowMsgHandledType WOLBuddyOverlayInput( GameWindow *window, UnsignedInt msg,
 /** WOL Buddy Overlay window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLBuddyOverlaySystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+														WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 	if(BuddyControlSystem(window, msg, mData1, mData2) == MSG_HANDLED)
@@ -1096,7 +1096,7 @@ WindowMsgHandledType WOLBuddyOverlaySystem( GameWindow *window, UnsignedInt msg,
 }
 
 WindowMsgHandledType PopupBuddyNotificationSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+														WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{

@@ -744,7 +744,7 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 
 		// If both DCG and DIG arrays are submitted, multiply them together to DCG channel
 		if ((DCGSource[pass] != VertexMaterialClass::MATERIAL) && (ColorArray[0] != nullptr) &&
-			 (DIGSource[pass] != VertexMaterialClass::MATERIAL) && (ColorArray[1] != nullptr)) {
+			(DIGSource[pass] != VertexMaterialClass::MATERIAL) && (ColorArray[1] != nullptr)) {
 			unsigned * diffuse_array = ColorArray[0]->Get_Array();
 			unsigned * emissive_array = ColorArray[1]->Get_Array();
 

@@ -97,7 +97,7 @@ HelicopterSlowDeathBehaviorModuleData::HelicopterSlowDeathBehaviorModuleData()
 // ------------------------------------------------------------------------------------------------
 /*static*/ void HelicopterSlowDeathBehaviorModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
-  SlowDeathBehaviorModuleData::buildFieldParse( p );
+	SlowDeathBehaviorModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -132,7 +132,7 @@ HelicopterSlowDeathBehaviorModuleData::HelicopterSlowDeathBehaviorModuleData()
 
 	};
 
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 
 }
 
@@ -199,7 +199,7 @@ void HelicopterSlowDeathBehavior::beginSlowDeath( const DamageInfo *damageInfo )
 
 	// pick a frame we will fly the blade off at
 	m_bladeFlyOffFrame = GameLogicRandomValueReal( modData->m_minBladeFlyOffDelay,
-																								 modData->m_maxBladeFlyOffDelay );
+																								modData->m_maxBladeFlyOffDelay );
 
 	// for now, make it always fall to the left
 	m_orbitDirection = ORBIT_DIRECTION_LEFT;
@@ -351,7 +351,7 @@ UpdateSleepTime HelicopterSlowDeathBehavior::update()
 		// get the physics update module
 		PhysicsBehavior *physics = copter->getPhysics();
 		DEBUG_ASSERTCRASH( physics, ("HelicopterSlowDeathBehavior: object '%s' does not have a physics module",
-																 copter->getTemplate()->getName().str()) );
+																copter->getTemplate()->getName().str()) );
 
 		//
 		// apply a force to the helicopter pushing it in a forward motion	according to the

@@ -513,7 +513,7 @@ enum {
 				W3D_CHUNK_SHDSUBMESH_SHADER_CLASSID,
 				W3D_CHUNK_SHDSUBMESH_SHADER_DEF,
 
- 			W3D_CHUNK_SHDSUBMESH_VERTICES,								// array of vertices (array of W3dVectorStruct's)
+			W3D_CHUNK_SHDSUBMESH_VERTICES,								// array of vertices (array of W3dVectorStruct's)
 			W3D_CHUNK_SHDSUBMESH_VERTEX_NORMALS,						// array of normals (array of W3dVectorStruct's)
 			W3D_CHUNK_SHDSUBMESH_TRIANGLES,								// array of 16bit int triplets (vertex indices for each triangle)
 			W3D_CHUNK_SHDSUBMESH_VERTEX_SHADE_INDICES,				// shade indexes for each vertex (array of uint32's)
@@ -783,13 +783,13 @@ enum
 	W3DSHADER_ALPHATEST_ENABLE,						// enable alpha testing
 	W3DSHADER_ALPHATEST_MAX,							// end of enumeration
 
-  	W3DSHADER_DESTBLENDFUNC_ZERO = 0,				// destination pixel doesn't affect blending (default)
-  	W3DSHADER_DESTBLENDFUNC_ONE,						// destination pixel added unmodified
- 	W3DSHADER_DESTBLENDFUNC_SRC_COLOR,				// destination pixel multiplied by fragment RGB components
- 	W3DSHADER_DESTBLENDFUNC_ONE_MINUS_SRC_COLOR, // destination pixel multiplied by one minus (i.e. inverse) fragment RGB components
- 	W3DSHADER_DESTBLENDFUNC_SRC_ALPHA,				// destination pixel multiplied by fragment alpha component
- 	W3DSHADER_DESTBLENDFUNC_ONE_MINUS_SRC_ALPHA,	// destination pixel multiplied by fragment inverse alpha
- 	W3DSHADER_DESTBLENDFUNC_SRC_COLOR_PREFOG,		// destination pixel multiplied by fragment RGB components prior to fogging
+	W3DSHADER_DESTBLENDFUNC_ZERO = 0,				// destination pixel doesn't affect blending (default)
+	W3DSHADER_DESTBLENDFUNC_ONE,						// destination pixel added unmodified
+	W3DSHADER_DESTBLENDFUNC_SRC_COLOR,				// destination pixel multiplied by fragment RGB components
+	W3DSHADER_DESTBLENDFUNC_ONE_MINUS_SRC_COLOR, // destination pixel multiplied by one minus (i.e. inverse) fragment RGB components
+	W3DSHADER_DESTBLENDFUNC_SRC_ALPHA,				// destination pixel multiplied by fragment alpha component
+	W3DSHADER_DESTBLENDFUNC_ONE_MINUS_SRC_ALPHA,	// destination pixel multiplied by fragment inverse alpha
+	W3DSHADER_DESTBLENDFUNC_SRC_COLOR_PREFOG,		// destination pixel multiplied by fragment RGB components prior to fogging
 	W3DSHADER_DESTBLENDFUNC_MAX,						// end of enumeration
 
 	W3DSHADER_PRIGRADIENT_DISABLE = 0,				// disable primary gradient (same as OpenGL 'decal' texture blend)
@@ -804,10 +804,10 @@ enum
 	W3DSHADER_SECGRADIENT_ENABLE,						// add secondary gradient RGB to fragment RGB
 	W3DSHADER_SECGRADIENT_MAX,							// end of enumeration
 
-  	W3DSHADER_SRCBLENDFUNC_ZERO = 0,					// fragment not added to color buffer
-  	W3DSHADER_SRCBLENDFUNC_ONE,						// fragment added unmodified to color buffer (default)
- 	W3DSHADER_SRCBLENDFUNC_SRC_ALPHA,				// fragment RGB components multiplied by fragment A
- 	W3DSHADER_SRCBLENDFUNC_ONE_MINUS_SRC_ALPHA,	// fragment RGB components multiplied by fragment inverse (one minus) A
+	W3DSHADER_SRCBLENDFUNC_ZERO = 0,					// fragment not added to color buffer
+	W3DSHADER_SRCBLENDFUNC_ONE,						// fragment added unmodified to color buffer (default)
+	W3DSHADER_SRCBLENDFUNC_SRC_ALPHA,				// fragment RGB components multiplied by fragment A
+	W3DSHADER_SRCBLENDFUNC_ONE_MINUS_SRC_ALPHA,	// fragment RGB components multiplied by fragment inverse (one minus) A
 	W3DSHADER_SRCBLENDFUNC_MAX,						// end of enumeration
 
 	W3DSHADER_TEXTURING_DISABLE = 0,					// no texturing (treat fragment initial color as 1,1,1,1) (default)
@@ -1465,10 +1465,10 @@ enum
 //
 enum
 {
-    ANIM_FLAVOR_TIMECODED = 0,
-    ANIM_FLAVOR_ADAPTIVE_DELTA,
+	ANIM_FLAVOR_TIMECODED = 0,
+	ANIM_FLAVOR_ADAPTIVE_DELTA,
 
-	 ANIM_FLAVOR_VALID
+	ANIM_FLAVOR_VALID
 };
 
 // Begin Classic Structures

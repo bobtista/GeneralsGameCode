@@ -248,8 +248,8 @@ void TeamIdentity::loadUnitsInfo(int idcMinUnit, NameKeyType keyMinUnit,
 	// add entries from the thing factory as the available UNITS to use
 	const ThingTemplate *tTemplate;
 	for( tTemplate = TheThingFactory->firstTemplate();
-			 tTemplate;
-			 tTemplate = tTemplate->friend_getNextTemplate() ) {
+			tTemplate;
+			tTemplate = tTemplate->friend_getNextTemplate() ) {
 
 		// next tier uses the editor sorting bits that design can specify in the INI
 		EditorSortingType sort = tTemplate->getEditorSorting();

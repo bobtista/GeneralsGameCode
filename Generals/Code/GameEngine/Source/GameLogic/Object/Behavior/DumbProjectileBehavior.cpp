@@ -72,7 +72,7 @@ DumbProjectileBehaviorModuleData::DumbProjectileBehaviorModuleData() :
 //-----------------------------------------------------------------------------
 void DumbProjectileBehaviorModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  UpdateModuleData::buildFieldParse(p);
+	UpdateModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -97,7 +97,7 @@ void DumbProjectileBehaviorModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -375,8 +375,8 @@ void DumbProjectileBehavior::projectileFireAtObjectOrPosition( const Object *vic
 		m_flightPathSpeed = weaponSpeed;
 	}
 
- 	PhysicsBehavior* physics = projectile->getPhysics();
- 	if ( d->m_tumbleRandomly && physics)
+	PhysicsBehavior* physics = projectile->getPhysics();
+	if ( d->m_tumbleRandomly && physics)
 	{
 		physics->setPitchRate( GameLogicRandomValueReal( -1.0f/PI, 1.0f/PI ) );
 		physics->setYawRate( GameLogicRandomValueReal( -1.0f/PI, 1.0f/PI ) );

@@ -552,7 +552,7 @@ private:
 
 // ---------------------------------------------------------
 class Weapon : public MemoryPoolObject,
-							 public Snapshot
+							public Snapshot
 {
 	friend class WeaponStore;
 

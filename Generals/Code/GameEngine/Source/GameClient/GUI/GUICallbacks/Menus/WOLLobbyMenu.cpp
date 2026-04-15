@@ -1173,7 +1173,7 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 							room.setExeCRC(resp.stagingRoom.exeCRC);
 							room.setIniCRC(resp.stagingRoom.iniCRC);
 							room.setAllowObservers(resp.stagingRoom.allowObservers);
-              room.setUseStats(resp.stagingRoom.useStats);
+								room.setUseStats(resp.stagingRoom.useStats);
 							room.setPingString(resp.stagingServerPingString.c_str());
 							room.setLadderIP(resp.stagingServerLadderIP.c_str());
 							room.setLadderPort(resp.stagingRoom.ladderPort);
@@ -1316,7 +1316,7 @@ void WOLLobbyMenuUpdate( WindowLayout * layout, void *userData)
 /** WOL Lobby Menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLLobbyMenuInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+																			WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -1414,7 +1414,7 @@ WindowMsgHandledType WOLLobbyMenuInput( GameWindow *window, UnsignedInt msg,
 /** WOL Lobby Menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+														WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 	static NameKeyType buttonGameListTypeToggleID = NAMEKEY_INVALID;

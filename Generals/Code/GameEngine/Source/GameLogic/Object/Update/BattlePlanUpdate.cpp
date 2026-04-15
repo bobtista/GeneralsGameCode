@@ -532,8 +532,8 @@ void BattlePlanUpdate::setStatus( TransitionStatus newStatus )
 
 			// play a radar blip showing the battle plan change in the color of the
 			TheRadar->createPlayerEvent( obj->getControllingPlayer(),
-																	 obj->getPosition(),
-																	 RADAR_EVENT_BATTLE_PLAN );
+																	obj->getPosition(),
+																	RADAR_EVENT_BATTLE_PLAN );
 
 			createVisionObject();
 

@@ -240,8 +240,8 @@ static int Build_List_From_String
 	WWASSERT (delimiter != nullptr);
 	WWASSERT (string_list != nullptr);
 	if ((buffer != nullptr) &&
-		 (delimiter != nullptr) &&
-		 (string_list != nullptr))
+		(delimiter != nullptr) &&
+		(string_list != nullptr))
 	{
 		int delim_len = ::strlen (delimiter);
 

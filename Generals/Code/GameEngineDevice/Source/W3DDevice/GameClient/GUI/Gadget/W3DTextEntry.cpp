@@ -71,9 +71,9 @@
 // drawTextEntryText ==========================================================
 //=============================================================================
 static void drawTextEntryText( GameWindow *window, WinInstanceData *instData,
-															 Color textColor, Color textDropColor,
-															 Color compositeColor, Color compositeDropColor,
-															 Int x, Int y, Int width, Int fontHeight )
+															Color textColor, Color textDropColor,
+															Color compositeColor, Color compositeDropColor,
+															Int x, Int y, Int width, Int fontHeight )
 {
 	static Byte drawCnt = 0;
 	EntryData *e = (EntryData *)window->winGetUserData();
@@ -200,8 +200,8 @@ static void drawTextEntryText( GameWindow *window, WinInstanceData *instData,
 
 	if( (window == TheWindowManager->winGetFocus() || (parent && parent == TheWindowManager->winGetFocus())) && ((drawCnt++ >> 3) & 0x1) )
 		TheWindowManager->winFillRect( textColor, WIN_DRAW_LINE_WIDTH,
-																	 cursorPos, origin.y + 3,
-																	 cursorPos + 2, origin.y + size.y - 3 );
+																	cursorPos, origin.y + 3,
+																	cursorPos + 2, origin.y + size.y - 3 );
 	window->winSetCursorPosition( cursorPos + 2 - origin.x, 0 );
 
 }
@@ -271,7 +271,7 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 		end.x = start.x + size.x;
 		end.y = start.y + size.y;
 		TheWindowManager->winOpenRect( backBorder, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+																	start.x, start.y, end.x, end.y );
 
 	}
 
@@ -284,7 +284,7 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 		end.x = start.x + size.x - 2;
 		end.y = start.y + size.y - 2;
 		TheWindowManager->winFillRect( backColor, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+																	start.x, start.y, end.x, end.y );
 
 	}
 
@@ -302,7 +302,7 @@ void W3DGadgetTextEntryDraw( GameWindow *window, WinInstanceData *instData )
 
 	// draw the edit text
 	drawTextEntryText( window, instData, textColor, textBorder, compositeColor, compositeBorder,
-										 start.x, start.y, width, fontHeight );
+										start.x, start.y, width, fontHeight );
 
 
 
@@ -456,7 +456,7 @@ void W3DGadgetTextEntryImageDraw( GameWindow *window, WinInstanceData *instData 
 
 	// draw the edit text
 	drawTextEntryText( window, instData, textColor, textBorder, compositeColor, compositeBorder,
-										 start.x, start.y, width, fontHeight );
+										start.x, start.y, width, fontHeight );
 
 
 

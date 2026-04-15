@@ -921,7 +921,7 @@ void W3DDisplay::gatherDebugStats()
 	}
 
 	++s_framesRenderedSinceLastUpdate;
-  s_drawCallsSinceLastUpdate += Debug_Statistics::Get_Draw_Calls();
+	s_drawCallsSinceLastUpdate += Debug_Statistics::Get_Draw_Calls();
 	s_sortedPolysSinceLastUpdate += Debug_Statistics::Get_Sorting_Polygons();
 
 	Int64 freq64 = getPerformanceCounterFrequency();
@@ -1113,7 +1113,7 @@ void W3DDisplay::gatherDebugStats()
 				}
 			}
 		}
- 		if (pListFile) {
+		if (pListFile) {
 			fprintf(pListFile, "\nFPS: %.2f, %.2fms\n", fps, ms);
 			fflush(pListFile);
 		}
@@ -1663,10 +1663,10 @@ AGAIN:
 	/// @todo Make more explicit drawing layers(ground, ground UI, objects, object UI, overlay UI)
 
 	///@todo: Ask Vegas why the LOD optimizer hangs particle system.
- 	//
-  	// Predictive LOD optimizer optimizes the mesh LOD levels to match
-  	// the given polygon budget
-  	//
+	//
+	// Predictive LOD optimizer optimizes the mesh LOD levels to match
+	// the given polygon budget
+	//
 	//PredictiveLODOptimizerClass::Optimize_LODs( 5000 );
 
 	Bool freezeTime = TheFramePacer->isTimeFrozen() || TheFramePacer->isGameHalted();
@@ -1954,10 +1954,10 @@ Bool W3DDisplay::isLetterBoxed()
 	* and vanishes over several frames */
 //=============================================================================
 void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
-																	 Real innerRadius, Real attenuationWidth,
-																	 UnsignedInt increaseFrameTime,
-																	 UnsignedInt decayFrameTime//, Bool donut
-																	 )
+																	Real innerRadius, Real attenuationWidth,
+																	UnsignedInt increaseFrameTime,
+																	UnsignedInt decayFrameTime//, Bool donut
+																	)
 {
 	if (m_3DScene == nullptr)
 		return;
@@ -2040,9 +2040,9 @@ void W3DDisplay::setTimeOfDay( TimeOfDay tod )
 /** draw a line on the display in pixel coordinates with the specified color */
 //=============================================================================
 void W3DDisplay::drawLine( Int startX, Int startY,
-													 Int endX, Int endY,
-													 Real lineWidth,
-													 UnsignedInt lineColor )
+													Int endX, Int endY,
+													Real lineWidth,
+													UnsignedInt lineColor )
 {
 
 	/// @todo we need to consider the efficiency of the 2D renderer
@@ -2058,9 +2058,9 @@ void W3DDisplay::drawLine( Int startX, Int startY,
 /** draw a line on the display in pixel coordinates with the specified color */
 //=============================================================================
 void W3DDisplay::drawLine( Int startX, Int startY,
-													 Int endX, Int endY,
-													 Real lineWidth,
-													 UnsignedInt lineColor1,UnsignedInt lineColor2 )
+													Int endX, Int endY,
+													Real lineWidth,
+													UnsignedInt lineColor1,UnsignedInt lineColor2 )
 {
 
 	/// @todo we need to consider the efficiency of the 2D renderer
@@ -2076,7 +2076,7 @@ void W3DDisplay::drawLine( Int startX, Int startY,
 // W3DDisplay::drawOpenRect ===================================================
 //=============================================================================
 void W3DDisplay::drawOpenRect( Int startX, Int startY, Int width, Int height,
-															 Real lineWidth, UnsignedInt lineColor )
+															Real lineWidth, UnsignedInt lineColor )
 {
 
 	if (m_isClippedEnabled)
@@ -2117,7 +2117,7 @@ void W3DDisplay::drawOpenRect( Int startX, Int startY, Int width, Int height,
 
 		m_2DRender->Add_Outline( RectClass( startX, startY,
 																				startX + width, startY + height ),
-														 lineWidth, lineColor );
+														lineWidth, lineColor );
 
 		// render it now!
 		m_2DRender->Render();
@@ -2128,14 +2128,14 @@ void W3DDisplay::drawOpenRect( Int startX, Int startY, Int width, Int height,
 // W3DDisplay::drawFillRect ===================================================
 //=============================================================================
 void W3DDisplay::drawFillRect( Int startX, Int startY, Int width, Int height,
-															 UnsignedInt color )
+															UnsignedInt color )
 {
 
 	/// @todo we need to consider the efficiency of the 2D renderer
 	m_2DRender->Reset();
 	m_2DRender->Enable_Texturing( FALSE );
 	m_2DRender->Add_Rect( RectClass( startX, startY,
-																	 startX + width, startY + height ),
+																	startX + width, startY + height ),
 												0, 0, color );
 
 	// render it now!
@@ -2352,16 +2352,16 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 		if( percent < 13 )
 		{
 			//1-12%
-  		//-----
+		//-----
 
 			//Draw the 2nd half of rectangle #1
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( endX, midY ), Vector2( endX, startY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 
 			//Draw the last part of the 1st portion of rectangle #1
 			Real percentDraw = (Real)( 13 - percent ) / 13;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( endX, startY ), Vector2( endX - halfWidth * percentDraw, startY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 		else
 		{
@@ -2371,7 +2371,7 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 			//Draw the last part of the 2nd half of rectangle #1
 			Real percentDraw = (Real)( percent - 13 ) / 12;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( endX, midY ), Vector2( endX, startY + halfHeight * percentDraw ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 	}
 	else if( percent < 50 )
@@ -2386,16 +2386,16 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 		if( percent < 38 )
 		{
 			//25-37%
-  		//-----
+		//-----
 
 			//Draw the 2nd half of rectangle #2
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( midX, endY ), Vector2( endX, endY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 
 			//Draw the last part of the 1st portion of rectangle #2
 			Real percentDraw = (Real)( percent - 25 ) / 13;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( endX, endY ), Vector2( endX, midY + halfHeight * percentDraw ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 		else
 		{
@@ -2405,7 +2405,7 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 			//Draw the last part of the 2nd half of rectangle #1
 			Real percentDraw = (Real)( percent - 38 ) / 12;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( midX, endY ), Vector2( endX - halfWidth * percentDraw, endY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 	}
 	else if( percent < 75 )
@@ -2420,16 +2420,16 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 		if( percent < 63 )
 		{
 			//50-62%
-  		//-----
+		//-----
 
 			//Draw the 2nd half of rectangle #3
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( startX, midY ), Vector2( startX, endY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 
 			//Draw the last part of the 1st portion of rectangle #3
 			Real percentDraw = (Real)( percent - 50 ) / 13;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( startX, endY ), Vector2( midX - halfWidth * percentDraw, endY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 		else
 		{
@@ -2439,7 +2439,7 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 			//Draw the last part of the 2nd half of rectangle #3
 			Real percentDraw = (Real)( percent - 62 ) / 12;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( startX, midY ), Vector2( startX, endY - halfHeight * percentDraw ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 	}
 	else
@@ -2451,16 +2451,16 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 		if( percent < 87 )
 		{
 			//75-87%
-  		//-----
+		//-----
 
 			//Draw the 2nd half of rectangle #4
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( midX, startY ), Vector2( startX, startY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 
 			//Draw the last part of the 1st portion of rectangle #4
 			Real percentDraw = (Real)( percent - 75 ) / 13;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( startX, startY ), Vector2( startX, midY - halfHeight * percentDraw ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 		else
 		{
@@ -2470,7 +2470,7 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 			//Draw the last part of the 2nd half of rectangle #4
 			Real percentDraw = (Real)( percent - 88 ) / 12;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( midX, startY ), Vector2( startX + halfWidth * percentDraw, startY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 	}
 
@@ -2620,20 +2620,20 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 	{
 
 		m_2DRender->Add_Tri( Vector2( screen_rect.Left, screen_rect.Top ),
-												 Vector2( screen_rect.Left, screen_rect.Bottom ),
-												 Vector2( screen_rect.Right, screen_rect.Top ),
-												 Vector2( uv_rect.Right, uv_rect.Top),
-												 Vector2( uv_rect.Left, uv_rect.Top),
-												 Vector2( uv_rect.Right, uv_rect.Bottom ),
-												 color );
+												Vector2( screen_rect.Left, screen_rect.Bottom ),
+												Vector2( screen_rect.Right, screen_rect.Top ),
+												Vector2( uv_rect.Right, uv_rect.Top),
+												Vector2( uv_rect.Left, uv_rect.Top),
+												Vector2( uv_rect.Right, uv_rect.Bottom ),
+												color );
 
 		m_2DRender->Add_Tri( Vector2( screen_rect.Right, screen_rect.Bottom ),
-												 Vector2( screen_rect.Right, screen_rect.Top ),
-												 Vector2( screen_rect.Left, screen_rect.Bottom ),
-												 Vector2( uv_rect.Left, uv_rect.Bottom ),
-												 Vector2( uv_rect.Right, uv_rect.Bottom ),
-												 Vector2( uv_rect.Left, uv_rect.Top ),
-												 color );
+												Vector2( screen_rect.Right, screen_rect.Top ),
+												Vector2( screen_rect.Left, screen_rect.Bottom ),
+												Vector2( uv_rect.Left, uv_rect.Bottom ),
+												Vector2( uv_rect.Right, uv_rect.Bottom ),
+												Vector2( uv_rect.Left, uv_rect.Top ),
+												color );
 
 	}
 	else

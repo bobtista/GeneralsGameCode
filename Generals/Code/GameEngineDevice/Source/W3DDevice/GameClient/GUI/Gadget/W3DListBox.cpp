@@ -72,9 +72,9 @@
 /** Draw image for the hilite bar */
 //=============================================================================
 static void drawHiliteBar( const Image *left, const Image *right,
-													 const Image *center, const Image *smallCenter,
-													 Int startX, Int startY,
-													 Int endX, Int endY )
+													const Image *center, const Image *smallCenter,
+													Int startX, Int startY,
+													Int endX, Int endY )
 {
 	ICoord2D barWindowSize;  // end point of bar from window origin
 	Int xOffset = 0, yOffset = 0;  // incase we want this functionality later
@@ -182,8 +182,8 @@ static void drawHiliteBar( const Image *left, const Image *right,
 /** Draw the text for a listbox */
 //=============================================================================
 static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
-														 Int x, Int y, Int width, Int height,
-														 Bool useImages )
+														Int x, Int y, Int width, Int height,
+														Bool useImages )
 {
 	Int drawY;
 	ListboxData *list = (ListboxData *)window->winGetUserData();
@@ -349,9 +349,9 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 
 				if( selectBorder != WIN_COLOR_UNDEFINED )
 					TheWindowManager->winOpenRect( selectBorder,
-																				 WIN_DRAW_LINE_WIDTH,
-																				 start.x, start.y,
-																				 end.x, end.y );
+																				WIN_DRAW_LINE_WIDTH,
+																				start.x, start.y,
+																				end.x, end.y );
 
 				// draw filled inner rect
 
@@ -371,9 +371,9 @@ static void drawListBoxText( GameWindow *window, WinInstanceData *instData,
 
 				if( selectColor != WIN_COLOR_UNDEFINED )
 					TheWindowManager->winFillRect( selectColor,
-																				 WIN_DRAW_LINE_WIDTH,
-																				 start.x, start.y,
-																				 end.x, end.y );
+																				WIN_DRAW_LINE_WIDTH,
+																				start.x, start.y,
+																				end.x, end.y );
 
 			}
 
@@ -556,13 +556,13 @@ void W3DGadgetListBoxDraw( GameWindow *window, WinInstanceData *instData )
 	// draw the back border
 	if( border != WIN_COLOR_UNDEFINED )
 		TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
-																	 x, y, x + width, y + height );
+																	x, y, x + width, y + height );
 
 	// draw background
 	if( background != WIN_COLOR_UNDEFINED )
 		TheWindowManager->winFillRect( background, WIN_DRAW_LINE_WIDTH,
-																	 x + 1, y + 1,
-																	 x + width - 1, y + height - 1 );
+																	x + 1, y + 1,
+																	x + width - 1, y + height - 1 );
 
 	// If ScrollBar was requested ... adjust width.
 	if( list->slider  && !list->slider->winIsHidden())

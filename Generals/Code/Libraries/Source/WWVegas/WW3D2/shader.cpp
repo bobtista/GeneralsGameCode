@@ -380,17 +380,17 @@ const Blend srcBlendLUT[ShaderClass::SRCBLEND_MAX] =
 	Blend(D3DBLEND_ZERO, false),
 	Blend(D3DBLEND_ONE, false),
 	Blend(D3DBLEND_SRCALPHA, true),
- 	Blend(D3DBLEND_DESTCOLOR, true)
+	Blend(D3DBLEND_DESTCOLOR, true)
 };
 
 const Blend dstBlendLUT[ShaderClass::DSTBLEND_MAX] =
 {
 	Blend(D3DBLEND_ZERO, false),
 	Blend(D3DBLEND_ONE, false),
- 	Blend(D3DBLEND_SRCCOLOR, false),
- 	Blend(D3DBLEND_INVSRCCOLOR, false),
- 	Blend(D3DBLEND_SRCALPHA, true),
- 	Blend(D3DBLEND_INVSRCALPHA, true)
+	Blend(D3DBLEND_SRCCOLOR, false),
+	Blend(D3DBLEND_INVSRCCOLOR, false),
+	Blend(D3DBLEND_SRCALPHA, true),
+	Blend(D3DBLEND_INVSRCALPHA, true)
 };
 
 
@@ -979,22 +979,22 @@ const StringClass& ShaderClass::Get_Description(StringClass& str) const
 
 	switch (Get_Dst_Blend_Func()) {
 	case DSTBLEND_ZERO: str+="DSTBLEND_ZERO | "; break;
-  	case DSTBLEND_ONE: str+="DSTBLEND_ONE | "; break;
- 	case DSTBLEND_SRC_COLOR: str+="DSTBLEND_SRC_COLOR | "; break;
- 	case DSTBLEND_ONE_MINUS_SRC_COLOR: str+="DSTBLEND_ONE_MINUS_SRC_COLOR | "; break;
- 	case DSTBLEND_SRC_ALPHA: str+="DSTBLEND_SRC_ALPHA | "; break;
- 	case DSTBLEND_ONE_MINUS_SRC_ALPHA: str+="DSTBLEND_ONE_MINUS_SRC_ALPHA | "; break;
+	case DSTBLEND_ONE: str+="DSTBLEND_ONE | "; break;
+	case DSTBLEND_SRC_COLOR: str+="DSTBLEND_SRC_COLOR | "; break;
+	case DSTBLEND_ONE_MINUS_SRC_COLOR: str+="DSTBLEND_ONE_MINUS_SRC_COLOR | "; break;
+	case DSTBLEND_SRC_ALPHA: str+="DSTBLEND_SRC_ALPHA | "; break;
+	case DSTBLEND_ONE_MINUS_SRC_ALPHA: str+="DSTBLEND_ONE_MINUS_SRC_ALPHA | "; break;
 	}
 
 	switch (Get_Fog_Func()) {
 	case FOG_DISABLE: str+="FOG_DISABLE | "; break;
- 	case FOG_ENABLE: str+="FOG_ENABLE | "; break;
- 	case FOG_SCALE_FRAGMENT: str+="FOG_SCALE_FRAGMENT | "; break;
- 	case FOG_WHITE: str+="FOG_WHITE | "; break;
+	case FOG_ENABLE: str+="FOG_ENABLE | "; break;
+	case FOG_SCALE_FRAGMENT: str+="FOG_SCALE_FRAGMENT | "; break;
+	case FOG_WHITE: str+="FOG_WHITE | "; break;
 	}
 
 	switch (Get_Primary_Gradient()) {
- 	case GRADIENT_DISABLE: str+="GRADIENT_DISABLE | "; break;
+	case GRADIENT_DISABLE: str+="GRADIENT_DISABLE | "; break;
 	case GRADIENT_MODULATE: str+="GRADIENT_MODULATE | "; break;
 	case GRADIENT_ADD: str+="GRADIENT_ADD | "; break;
 	case GRADIENT_BUMPENVMAP: str+="GRADIENT_BUMPENVMAP | "; break;
@@ -1008,10 +1008,10 @@ const StringClass& ShaderClass::Get_Description(StringClass& str) const
 	}
 
 	switch (Get_Src_Blend_Func()) {
-  	case SRCBLEND_ZERO: str+="SRCBLEND_ZERO | "; break;
-  	case SRCBLEND_ONE: str+="SRCBLEND_ONE | "; break;
- 	case SRCBLEND_SRC_ALPHA: str+="SRCBLEND_SRC_ALPHA | "; break;
- 	case SRCBLEND_ONE_MINUS_SRC_ALPHA: str+="SRCBLEND_ONE_MINUS_SRC_ALPHA | "; break;
+	case SRCBLEND_ZERO: str+="SRCBLEND_ZERO | "; break;
+	case SRCBLEND_ONE: str+="SRCBLEND_ONE | "; break;
+	case SRCBLEND_SRC_ALPHA: str+="SRCBLEND_SRC_ALPHA | "; break;
+	case SRCBLEND_ONE_MINUS_SRC_ALPHA: str+="SRCBLEND_ONE_MINUS_SRC_ALPHA | "; break;
 	}
 
 	switch (Get_Texturing()) {

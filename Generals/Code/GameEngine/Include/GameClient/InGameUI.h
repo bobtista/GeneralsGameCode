@@ -194,9 +194,9 @@ public:
 	UnsignedInt									m_timestamp;									  ///< seconds shown in display string
 	Bool												m_hiddenByScript;
 	Bool												m_hiddenByScience;
- 	Bool												m_ready;											///< Stores if we were ready last draw, since readyness can change without time changing
+	Bool												m_ready;											///< Stores if we were ready last draw, since readyness can change without time changing
 // not saved, but public
- 	Bool												m_forceUpdateText;
+	Bool												m_forceUpdateText;
 
 };
 
@@ -469,7 +469,7 @@ public:  // ********************************************************************
 	virtual void stopCameoMovie();
 	virtual VideoBuffer* cameoVideoBuffer();
 
-  // mouse over information
+	// mouse over information
 	virtual DrawableID getMousedOverDrawableID() const;	///< Get drawble ID of drawable under cursor
 
 	/// Set the ingame flag as to if we have the Quit menu up or not
@@ -921,7 +921,7 @@ protected:
 	PopupMessageData *					m_popupMessageData;
 	Color												m_popupMessageColor;
 
- 	Bool												m_waypointMode;			///< are we in waypoint plotting mode?
+	Bool												m_waypointMode;			///< are we in waypoint plotting mode?
 	Bool												m_forceAttackMode;		///< are we in force attack mode?
 	Bool												m_forceMoveToMode;		///< are we in force move mode?
 	Bool												m_attackMoveToMode;	///< are we in attack move mode?

@@ -49,7 +49,7 @@ WindowMsgHandledType ReplayControlInput( GameWindow *window, UnsignedInt msg,
 /** System callback for the control bar parent */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType ReplayControlSystem( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+																			WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{

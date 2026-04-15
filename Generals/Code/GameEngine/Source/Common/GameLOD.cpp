@@ -339,7 +339,7 @@ void GameLODManager::init()
 				}
 			}
 
-	 		m_compositeBenchIndex = m_intBenchIndex + m_floatBenchIndex;	///@todo: Need to scale these based on our apps usage of int/float/mem ops.
+			m_compositeBenchIndex = m_intBenchIndex + m_floatBenchIndex;	///@todo: Need to scale these based on our apps usage of int/float/mem ops.
 
 			StaticGameLODLevel currentLevel=STATIC_GAME_LOD_LOW;
 			BenchProfile *prof=m_benchProfiles;

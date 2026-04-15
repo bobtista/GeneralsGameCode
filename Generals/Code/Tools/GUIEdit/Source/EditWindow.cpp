@@ -88,7 +88,7 @@ EditWindow *TheEditWindow = nullptr;  ///< edit window singleton
 /** Window procedure for the edit window */
 //=============================================================================
 LRESULT CALLBACK EditWindow::editProc( HWND hWnd, UINT message,
-																			 WPARAM wParam, LPARAM lParam )
+																			WPARAM wParam, LPARAM lParam )
 {
 
 	switch( message )
@@ -439,17 +439,17 @@ void EditWindow::init( UnsignedInt clientWidth, UnsignedInt clientHeight )
 
 	// create the window
 	m_editWindowHWnd = CreateWindowEx( extendedWindowStyle,  // extended window style
-																		 m_className,  // class name
-																		 "Edit Window",  // window name
-																		 windowStyle,  // style bits
-																		 0,  // x location
-																		 0,  // y location
-																		 clientRect.right - clientRect.left,  // width
-																		 clientRect.bottom - clientRect.top,  // height,
-																		 TheEditor->getWindowHandle(),  // parent
-																		 nullptr,  // menu
-																		 TheEditor->getInstance(),  // instance
-																		 nullptr );  // creation parameters
+																		m_className,  // class name
+																		"Edit Window",  // window name
+																		windowStyle,  // style bits
+																		0,  // x location
+																		0,  // y location
+																		clientRect.right - clientRect.left,  // width
+																		clientRect.bottom - clientRect.top,  // height,
+																		TheEditor->getWindowHandle(),  // parent
+																		nullptr,  // menu
+																		TheEditor->getInstance(),  // instance
+																		nullptr );  // creation parameters
 
 	// display the window
 	ShowWindow( m_editWindowHWnd, SW_SHOW );
@@ -462,10 +462,10 @@ void EditWindow::init( UnsignedInt clientWidth, UnsignedInt clientHeight )
 	WW3D::Init( m_editWindowHWnd );
 	WW3D::Set_Screen_UV_Bias( TRUE );  ///< this makes text look good :)
 	if( WW3D::Set_Render_Device( 0,
-															 m_size.x,
-															 m_size.y,
-															 m_bitDepth,
-															 TRUE ) != WW3D_ERROR_OK )
+															m_size.x,
+															m_size.y,
+															m_bitDepth,
+															TRUE ) != WW3D_ERROR_OK )
 	{
 
 		assert( 0 );
@@ -529,7 +529,7 @@ void EditWindow::updatePulse( void )
 	static Bool dir = 1;
 	static Int stepSize = 4;
 	static Int pulseMax = 175,
-						 pulseMin = 75;
+						pulseMin = 75;
 
 	// this is used for drawing pusling lines for moving stuff
 	if( dir == 1 )
@@ -551,7 +551,7 @@ void EditWindow::updatePulse( void )
 /** A mouse event has occurred from our window procedure */
 //=============================================================================
 void EditWindow::mouseEvent( UnsignedInt windowsMessage,
-														 WPARAM wParam, LPARAM lParam )
+														WPARAM wParam, LPARAM lParam )
 {
 	Int x = LOWORD( lParam );
 	Int y = HIWORD( lParam );
@@ -581,7 +581,7 @@ void EditWindow::mouseEvent( UnsignedInt windowsMessage,
 			mousePrint.y = m_size.y;
 
 		sprintf( buffer, "Mouse Location (X = %d, Y = %d)",
-						 mousePrint.x, mousePrint.y );
+						mousePrint.x, mousePrint.y );
 		TheEditor->statusMessage( STATUS_MOUSE_COORDS, buffer );
 
 		// keep focus in our app
@@ -1215,7 +1215,7 @@ void EditWindow::drawUIFeedback( void )
 	// draw see-thru window outlines if requested
 	if( TheEditor->getShowSeeThruOutlines() )
 		drawSeeThruOutlines( TheWindowManager->winGetWindowList(),
-												 GameMakeColor( 64, 64, color, 255 ) );
+												GameMakeColor( 64, 64, color, 255 ) );
 
 	// if the grid is visible draw it on top of everything
 	if( TheEditor->isGridVisible() == TRUE )
@@ -1405,7 +1405,7 @@ void EditWindow::drawGrid( void )
 	Int x, y;
 	RGBColorInt *gridColor = TheEditor->getGridColor();
 	Color color = GameMakeColor( gridColor->red, gridColor->green,
-															 gridColor->blue, gridColor->alpha );
+															gridColor->blue, gridColor->alpha );
 
 	// set us to invert where we draw
 //	SetROP2( hdc, R2_NOT );
@@ -1462,8 +1462,8 @@ void EditWindow::draw( void )
 
 	// start render block
 	WW3D::Begin_Render( true, true, Vector3( m_backgroundColor.red,
-																					 m_backgroundColor.green,
-																					 m_backgroundColor.blue ) );
+																					m_backgroundColor.green,
+																					m_backgroundColor.blue ) );
 
 	// draw the windows
 	TheWindowManager->winRepaint();
@@ -1499,9 +1499,9 @@ void EditWindow::setSize( ICoord2D *size )
 	// set the extents for our 2D renderer
 	if( m_2DRender )
 		m_2DRender->Set_Coordinate_Range( RectClass( 0,
-																								 0,
-																								 m_size.x,
-																								 m_size.y ) );
+																								0,
+																								m_size.x,
+																								m_size.y ) );
 
 }
 
@@ -1557,8 +1557,8 @@ void EditWindow::openPopupMenu( Int x, Int y )
 /** draw a line on the display in pixel coordinates with the specified color */
 //=============================================================================
 void EditWindow::drawLine( Int startX, Int startY,
-													 Int endX, Int endY,
-													 Real lineWidth, UnsignedInt lineColor )
+													Int endX, Int endY,
+													Real lineWidth, UnsignedInt lineColor )
 {
 
 	m_2DRender->Reset();
@@ -1574,15 +1574,15 @@ void EditWindow::drawLine( Int startX, Int startY,
 	* specified color */
 //=============================================================================
 void EditWindow::drawOpenRect( Int startX, Int startY,
-															 Int width, Int height,
-															 Real lineWidth, UnsignedInt lineColor )
+															Int width, Int height,
+															Real lineWidth, UnsignedInt lineColor )
 {
 
 	m_2DRender->Reset();
 	m_2DRender->Enable_Texturing( FALSE );
 	m_2DRender->Add_Outline( RectClass( startX, startY,
 																			startX + width, startY + height ),
-													 lineWidth, lineColor );
+													lineWidth, lineColor );
 
 	// render it now!
 	m_2DRender->Render();
@@ -1594,14 +1594,14 @@ void EditWindow::drawOpenRect( Int startX, Int startY,
 	* specified color */
 //=============================================================================
 void EditWindow::drawFillRect( Int startX, Int startY,
-															 Int width, Int height,
-															 UnsignedInt color )
+															Int width, Int height,
+															UnsignedInt color )
 {
 
 	m_2DRender->Reset();
 	m_2DRender->Enable_Texturing( FALSE );
 	m_2DRender->Add_Rect( RectClass( startX, startY,
-																	 startX + width, startY + height ),
+																	startX + width, startY + height ),
 												0, 0, color );
 
 	// render it now!
@@ -1681,20 +1681,20 @@ void EditWindow::drawImage( const Image *image,
 	{
 
 		m_2DRender->Add_Tri( Vector2( screen_rect.Left, screen_rect.Top ),
-												 Vector2( screen_rect.Left, screen_rect.Bottom ),
-												 Vector2( screen_rect.Right, screen_rect.Top ),
-												 Vector2( uv_rect.Right, uv_rect.Top),
-												 Vector2( uv_rect.Left, uv_rect.Top),
-												 Vector2( uv_rect.Right, uv_rect.Bottom ),
-												 color );
+												Vector2( screen_rect.Left, screen_rect.Bottom ),
+												Vector2( screen_rect.Right, screen_rect.Top ),
+												Vector2( uv_rect.Right, uv_rect.Top),
+												Vector2( uv_rect.Left, uv_rect.Top),
+												Vector2( uv_rect.Right, uv_rect.Bottom ),
+												color );
 
 		m_2DRender->Add_Tri( Vector2( screen_rect.Right, screen_rect.Bottom ),
-												 Vector2( screen_rect.Right, screen_rect.Top ),
-												 Vector2( screen_rect.Left, screen_rect.Bottom ),
-												 Vector2( uv_rect.Left, uv_rect.Bottom ),
-												 Vector2( uv_rect.Right, uv_rect.Bottom ),
-												 Vector2( uv_rect.Left, uv_rect.Top ),
-												 color );
+												Vector2( screen_rect.Right, screen_rect.Top ),
+												Vector2( screen_rect.Left, screen_rect.Bottom ),
+												Vector2( uv_rect.Left, uv_rect.Bottom ),
+												Vector2( uv_rect.Right, uv_rect.Bottom ),
+												Vector2( uv_rect.Left, uv_rect.Top ),
+												color );
 
 	}
 	else

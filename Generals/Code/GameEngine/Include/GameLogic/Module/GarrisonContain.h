@@ -57,7 +57,7 @@ public:
 
 	static void buildFieldParse(MultiIniFieldParse& p)
 	{
-    OpenContainModuleData::buildFieldParse(p);
+		OpenContainModuleData::buildFieldParse(p);
 
 		static const FieldParse dataFieldParse[] =
 		{
@@ -69,7 +69,7 @@ public:
 
 			{ 0, 0, 0, 0 }
 		};
-    p.add(dataFieldParse);
+		p.add(dataFieldParse);
 	};
 
 	static void parseInitialRoster( INI* ini, void *instance, void *store, const void* )
@@ -154,7 +154,7 @@ protected:
 	Int findConditionIndex();										///< find the condition index to use given the current object body state
 	Int getObjectGarrisonPointIndex( Object *obj );		///< get the garrison point index object is at (if present)
 	Int findClosestFreeGarrisonPointIndex( Int conditionIndex,
-																				 const Coord3D *targetPos );  ///< find closest free garrison point to the target location
+																				const Coord3D *targetPos );  ///< find closest free garrison point to the target location
 
 	void healObjects();	///< heal all the objects within me
 	void healSingleObject( Object *obj, Real frames );	///< heal just one of the objects within me

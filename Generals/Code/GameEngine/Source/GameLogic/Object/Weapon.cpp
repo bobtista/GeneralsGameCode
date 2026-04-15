@@ -621,26 +621,26 @@ Bool WeaponTemplate::shouldProjectileCollideWith(
 	ObjectID intendedVictimID	// could be INVALID_ID for a position-shot
 ) const
 {
- 	if (!projectile || !thingWeCollidedWith)
- 		return false;
+	if (!projectile || !thingWeCollidedWith)
+		return false;
 
 	// if it's our intended victim, we want to collide with it, regardless of any other considerations.
 	if (intendedVictimID == thingWeCollidedWith->getID())
 		return true;
 
- 	if (projectileLauncher != nullptr)
- 	{
+	if (projectileLauncher != nullptr)
+	{
 
- 		// Don't hit your own launcher, ever.
- 		if (projectileLauncher == thingWeCollidedWith)
- 			return false;
+		// Don't hit your own launcher, ever.
+		if (projectileLauncher == thingWeCollidedWith)
+			return false;
 
- 		// If our launcher is inside something, and that something is 'thingWeCollidedWith' we won't collide
- 		const Object *launcherContainedBy = projectileLauncher->getContainedBy();
- 		if( launcherContainedBy == thingWeCollidedWith )
- 			return false;
+		// If our launcher is inside something, and that something is 'thingWeCollidedWith' we won't collide
+		const Object *launcherContainedBy = projectileLauncher->getContainedBy();
+		if( launcherContainedBy == thingWeCollidedWith )
+			return false;
 
- 	}
+	}
 
 	// never bother burning already-burned things. (srj)
 	if (getDamageType() == DAMAGE_FLAME || getDamageType() == DAMAGE_PARTICLE_BEAM)
@@ -796,7 +796,7 @@ UnsignedInt WeaponTemplate::fireWeaponTemplate
 				TheTerrainLogic->getBridgeAttackPoints(victimObj, &info);
 				distSqr = ThePartitionManager->getDistanceSquared( sourceObj, &info.attackPoint1, ATTACK_RANGE_CALC_TYPE );
 				victimPos = &info.attackPoint1;
- 				Real distSqr2 = ThePartitionManager->getDistanceSquared( sourceObj, &info.attackPoint2, ATTACK_RANGE_CALC_TYPE );
+				Real distSqr2 = ThePartitionManager->getDistanceSquared( sourceObj, &info.attackPoint2, ATTACK_RANGE_CALC_TYPE );
 				if (distSqr > distSqr2)
 				{
 					// Try the other one.

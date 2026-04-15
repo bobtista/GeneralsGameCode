@@ -82,9 +82,9 @@ private:
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 class ParkingPlaceBehavior : public UpdateModule,
-														 public DieModuleInterface,
-														 public ParkingPlaceBehaviorInterface,
-														 public ExitInterface
+														public DieModuleInterface,
+														public ParkingPlaceBehaviorInterface,
+														public ExitInterface
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( ParkingPlaceBehavior, "ParkingPlaceBehavior" )

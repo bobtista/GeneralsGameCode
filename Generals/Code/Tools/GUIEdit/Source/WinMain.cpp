@@ -361,13 +361,13 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 				// --------------------------------------------------------------------
 				case MENU_CALLBACKS:
 					DialogBox( TheEditor->getInstance(), (LPCTSTR)CALLBACK_EDITOR_DIALOG,
-										 TheEditor->getWindowHandle(), CallbackEditorDialogProc );
+										TheEditor->getWindowHandle(), CallbackEditorDialogProc );
 					break;
 
 				// --------------------------------------------------------------------
 				case MENU_GRID_SETTINGS:
 					DialogBox( TheEditor->getInstance(), (LPCTSTR)GRID_SETTINGS_DIALOG,
-										 TheEditor->getWindowHandle(), GridSettingsDialogProc );
+										TheEditor->getWindowHandle(), GridSettingsDialogProc );
 					break;
 
 				// --------------------------------------------------------------------
@@ -445,7 +445,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 				{
 
 					DialogBox( ApplicationHInstance, (LPCTSTR)ABOUT_DIALOG,
-										 hWnd, (DLGPROC)AboutCallback );
+										hWnd, (DLGPROC)AboutCallback );
 					break;
 
 				}
@@ -785,7 +785,7 @@ LRESULT CALLBACK AboutCallback( HWND hDlg, UINT message,
 			}
 			break;
 	}
-    return FALSE;
+	return FALSE;
 
 }
 

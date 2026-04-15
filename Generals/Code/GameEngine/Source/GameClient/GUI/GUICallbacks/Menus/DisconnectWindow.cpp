@@ -202,7 +202,7 @@ WindowMsgHandledType DisconnectControlInput( GameWindow *window, UnsignedInt msg
 /** System callback for the control bar parent */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType DisconnectControlSystem( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+																			WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{

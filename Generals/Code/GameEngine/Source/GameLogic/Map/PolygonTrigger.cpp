@@ -114,7 +114,7 @@ PolygonTrigger *PolygonTrigger::getPolygonTriggerByID(Int triggerID)
 {
 
 	for( PolygonTrigger *poly = PolygonTrigger::getFirstPolygonTrigger();
-			 poly; poly = poly->getNext() )
+			poly; poly = poly->getNext() )
 		if( poly->getID() == triggerID )
 			return poly;
 

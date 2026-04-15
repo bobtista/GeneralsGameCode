@@ -86,8 +86,8 @@ GUIEditDisplay::~GUIEditDisplay( void )
 /** draw a line on the display in pixel coordinates with the specified color */
 //=============================================================================
 void GUIEditDisplay::drawLine( Int startX, Int startY,
-															 Int endX, Int endY,
-															 Real lineWidth, UnsignedInt lineColor )
+															Int endX, Int endY,
+															Real lineWidth, UnsignedInt lineColor )
 {
 
 	TheEditWindow->drawLine( startX, startY, endX, endY, lineWidth, lineColor );
@@ -99,12 +99,12 @@ void GUIEditDisplay::drawLine( Int startX, Int startY,
 	* specified color */
 //=============================================================================
 void GUIEditDisplay::drawOpenRect( Int startX, Int startY,
-																	 Int width, Int height,
-																	 Real lineWidth, UnsignedInt lineColor )
+																	Int width, Int height,
+																	Real lineWidth, UnsignedInt lineColor )
 {
 
 	TheEditWindow->drawOpenRect( startX, startY, width, height,
-															 lineWidth, lineColor );
+															lineWidth, lineColor );
 
 }
 
@@ -113,13 +113,13 @@ void GUIEditDisplay::drawOpenRect( Int startX, Int startY,
 	* specified color */
 //=============================================================================
 void GUIEditDisplay::drawFillRect( Int startX, Int startY,
-																	 Int width, Int height,
-																	 UnsignedInt color )
+																	Int width, Int height,
+																	UnsignedInt color )
 {
 
 	TheEditWindow->drawFillRect( startX, startY,
-															 width, height,
-															 color );
+															width, height,
+															color );
 
 }
 

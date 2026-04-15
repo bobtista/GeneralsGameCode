@@ -402,7 +402,7 @@ void ScriptActions::doMoveToWaypoint(const AsciiString& team, const AsciiString&
 		if (way) {
 			Coord3D destination = *way->getLocation();
 			//DEBUG_LOG(("Moving team to waypoint %f, %f, %f", destination.x, destination.y, destination.z));
- 			theGroup->groupMoveToPosition( &destination, false, CMD_FROM_SCRIPT );
+			theGroup->groupMoveToPosition( &destination, false, CMD_FROM_SCRIPT );
 		}
 	}
 }
@@ -947,7 +947,7 @@ void ScriptActions::doCreateObject(const AsciiString& objectName, const AsciiStr
 	Object* pOldObj = nullptr;
 
 	if (objectName != m_unnamedUnit) {
-		 pOldObj = TheScriptEngine->getUnitNamed(objectName);
+		pOldObj = TheScriptEngine->getUnitNamed(objectName);
 
 		if (pOldObj && !pOldObj->isEffectivelyDead()) {
 			AsciiString str = "WARNING - Object with name ";
@@ -6828,7 +6828,7 @@ void ScriptActions::executeAction( ScriptAction *pAction )
 
 		case ScriptAction::WATER_CHANGE_HEIGHT_OVER_TIME:
 			doWaterChangeHeightOverTime( pAction->getParameter(0)->getString(), pAction->getParameter(1)->getReal(),
-																	 pAction->getParameter(2)->getReal(), pAction->getParameter(3)->getReal() );
+																	pAction->getParameter(2)->getReal(), pAction->getParameter(3)->getReal() );
 			return;
 
 		case ScriptAction::MAP_SWITCH_BORDER:
@@ -6837,9 +6837,9 @@ void ScriptActions::executeAction( ScriptAction *pAction )
 
 		case ScriptAction::OBJECT_FORCE_SELECT:
 			doForceObjectSelection(pAction->getParameter(0)->getString(),
-														 pAction->getParameter(1)->getString(),
-														 pAction->getParameter(2)->getInt(),
-														 pAction->getParameter(3)->getString());
+														pAction->getParameter(1)->getString(),
+														pAction->getParameter(2)->getInt(),
+														pAction->getParameter(3)->getString());
 			return;
 		case ScriptAction::UNIT_DESTROY_ALL_CONTAINED:
 			doDestroyAllContained(pAction->getParameter(0)->getString(), 0);

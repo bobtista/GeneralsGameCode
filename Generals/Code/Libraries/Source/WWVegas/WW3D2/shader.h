@@ -111,8 +111,8 @@ public:
 		COLOR_WRITE_ENABLE,		// enable color buffer writes		(default)
 	};
 
- 	enum DetailAlphaFuncType
- 	{
+	enum DetailAlphaFuncType
+	{
 		DETAILALPHA_DISABLE=0,	// local (default)
 		DETAILALPHA_DETAIL,		// other
 		DETAILALPHA_SCALE,		// local * other
@@ -120,8 +120,8 @@ public:
 	};
 
 	enum DetailColorFuncType
- 	{
- 		DETAILCOLOR_DISABLE=0,		// 0000	local (default)
+	{
+		DETAILCOLOR_DISABLE=0,		// 0000	local (default)
 		DETAILCOLOR_DETAIL,			// 0001	other
 		DETAILCOLOR_SCALE,			// 0010	local * other
 		DETAILCOLOR_INVSCALE,		// 0011	~(~local * ~other) = local + (1-local)*other
@@ -144,35 +144,35 @@ public:
 		NPATCH_ENABLE,
 	};
 
-  	enum DstBlendFuncType
-  	{
-  		DSTBLEND_ZERO=0,					// destination pixel doesn't affect blending (default)
-  		DSTBLEND_ONE,						// destination pixel added unmodified
- 		DSTBLEND_SRC_COLOR,				// destination pixel multiplied by fragment RGB components
- 		DSTBLEND_ONE_MINUS_SRC_COLOR,	// destination pixel multiplied by one minus (i.e. inverse) fragment RGB components
- 		DSTBLEND_SRC_ALPHA,        	// destination pixel multiplied by fragment alpha component
- 		DSTBLEND_ONE_MINUS_SRC_ALPHA, // destination pixel multiplied by fragment inverse alpha
+	enum DstBlendFuncType
+	{
+		DSTBLEND_ZERO=0,					// destination pixel doesn't affect blending (default)
+		DSTBLEND_ONE,						// destination pixel added unmodified
+		DSTBLEND_SRC_COLOR,				// destination pixel multiplied by fragment RGB components
+		DSTBLEND_ONE_MINUS_SRC_COLOR,	// destination pixel multiplied by one minus (i.e. inverse) fragment RGB components
+		DSTBLEND_SRC_ALPHA,        	// destination pixel multiplied by fragment alpha component
+		DSTBLEND_ONE_MINUS_SRC_ALPHA, // destination pixel multiplied by fragment inverse alpha
 
 		DSTBLEND_MAX
-  	};
+	};
 
 	enum FogFuncType
- 	{
- 		FOG_DISABLE=0,			// don't perform fogging (default)
- 		FOG_ENABLE,        	// apply fog, f*fogColor + (1-f)*fragment
- 		FOG_SCALE_FRAGMENT,  // fog scalar value multiplies fragment, (1-f)*fragment
- 		FOG_WHITE,				// fog scalar value replaces fragment, f*fogColor
- 	};
+	{
+		FOG_DISABLE=0,			// don't perform fogging (default)
+		FOG_ENABLE,        	// apply fog, f*fogColor + (1-f)*fragment
+		FOG_SCALE_FRAGMENT,  // fog scalar value multiplies fragment, (1-f)*fragment
+		FOG_WHITE,				// fog scalar value replaces fragment, f*fogColor
+	};
 
- 	enum PriGradientType
- 	{
- 		GRADIENT_DISABLE=0,				//	000	disable primary gradient (same as OpenGL 'decal' texture blend)
+	enum PriGradientType
+	{
+		GRADIENT_DISABLE=0,				//	000	disable primary gradient (same as OpenGL 'decal' texture blend)
 		GRADIENT_MODULATE,				//	001	modulate fragment ARGB by gradient ARGB (default)
 		GRADIENT_ADD,						//	010	add gradient RGB to fragment RGB, copy gradient A to fragment A
 		GRADIENT_BUMPENVMAP,				// 011	environment-mapped bump mapping
 		GRADIENT_BUMPENVMAPLUMINANCE,	// 100	environment-mapped bump mapping with luminance control
 		GRADIENT_MODULATE2X,				// 101	modulate fragment ARGB by gradient ARGB and multiply RGB by 2
- 	};
+	};
 
 	enum SecGradientType
 	{
@@ -181,14 +181,14 @@ public:
 	};
 
 	enum SrcBlendFuncType
-  	{
-  		SRCBLEND_ZERO=0,						// fragment not added to color buffer
-  		SRCBLEND_ONE,							// fragment added unmodified to color buffer (default)
- 		SRCBLEND_SRC_ALPHA,					// fragment RGB components multiplied by fragment A
- 		SRCBLEND_ONE_MINUS_SRC_ALPHA,		// fragment RGB components multiplied by fragment inverse (one minus) A
+	{
+		SRCBLEND_ZERO=0,						// fragment not added to color buffer
+		SRCBLEND_ONE,							// fragment added unmodified to color buffer (default)
+		SRCBLEND_SRC_ALPHA,					// fragment RGB components multiplied by fragment A
+		SRCBLEND_ONE_MINUS_SRC_ALPHA,		// fragment RGB components multiplied by fragment inverse (one minus) A
 
 		SRCBLEND_MAX
-  	};
+	};
 
 	enum TexturingType
 	{

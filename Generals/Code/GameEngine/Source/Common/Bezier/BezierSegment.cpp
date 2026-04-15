@@ -38,9 +38,9 @@ BezierSegment::BezierSegment()
 
 //-------------------------------------------------------------------------------------------------
 BezierSegment::BezierSegment(Real x0, Real y0, Real z0,
-														 Real x1, Real y1, Real z1,
-														 Real x2, Real y2, Real z2,
-														 Real x3, Real y3, Real z3)
+														Real x1, Real y1, Real z1,
+														Real x2, Real y2, Real z2,
+														Real x3, Real y3, Real z3)
 {
 	m_controlPoints[0].x = x0;
 	m_controlPoints[0].y = y0;
@@ -159,20 +159,20 @@ Real BezierSegment::getApproximateLength(Real withinTolerance) const
 	*/
 
 	Coord3D p0p1 = { m_controlPoints[1].x - m_controlPoints[0].x,
-									 m_controlPoints[1].y - m_controlPoints[0].y,
-									 m_controlPoints[1].z - m_controlPoints[0].z, };
+									m_controlPoints[1].y - m_controlPoints[0].y,
+									m_controlPoints[1].z - m_controlPoints[0].z, };
 
 	Coord3D p1p2 = { m_controlPoints[2].x - m_controlPoints[1].x,
-									 m_controlPoints[2].y - m_controlPoints[1].y,
-									 m_controlPoints[2].z - m_controlPoints[1].z, };
+									m_controlPoints[2].y - m_controlPoints[1].y,
+									m_controlPoints[2].z - m_controlPoints[1].z, };
 
 	Coord3D p2p3 = { m_controlPoints[3].x - m_controlPoints[2].x,
-									 m_controlPoints[3].y - m_controlPoints[2].y,
-									 m_controlPoints[3].z - m_controlPoints[2].z, };
+									m_controlPoints[3].y - m_controlPoints[2].y,
+									m_controlPoints[3].z - m_controlPoints[2].z, };
 
 	Coord3D p0p3 = { m_controlPoints[3].x - m_controlPoints[0].x,
-									 m_controlPoints[3].y - m_controlPoints[0].y,
-									 m_controlPoints[3].z - m_controlPoints[0].z, };
+									m_controlPoints[3].y - m_controlPoints[0].y,
+									m_controlPoints[3].z - m_controlPoints[0].z, };
 
 	Real length0 = p0p3.length();
 	Real length1 = p0p1.length() + p1p2.length() + p2p3.length();
@@ -192,16 +192,16 @@ void BezierSegment::splitSegmentAtT(Real tValue, BezierSegment &outSeg1, BezierS
 	// I think there are faster ways to do this. Could someone clue me in?
 
 	Coord3D p0p1 = { m_controlPoints[1].x - m_controlPoints[0].x,
-									 m_controlPoints[1].y - m_controlPoints[0].y,
-									 m_controlPoints[1].z - m_controlPoints[0].z, };
+									m_controlPoints[1].y - m_controlPoints[0].y,
+									m_controlPoints[1].z - m_controlPoints[0].z, };
 
 	Coord3D p1p2 = { m_controlPoints[2].x - m_controlPoints[1].x,
-									 m_controlPoints[2].y - m_controlPoints[1].y,
-									 m_controlPoints[2].z - m_controlPoints[1].z, };
+									m_controlPoints[2].y - m_controlPoints[1].y,
+									m_controlPoints[2].z - m_controlPoints[1].z, };
 
 	Coord3D p2p3 = { m_controlPoints[3].x - m_controlPoints[2].x,
-									 m_controlPoints[3].y - m_controlPoints[2].y,
-									 m_controlPoints[3].z - m_controlPoints[2].z, };
+									m_controlPoints[3].y - m_controlPoints[2].y,
+									m_controlPoints[3].z - m_controlPoints[2].z, };
 
 	p0p1.scale(tValue);
 	p1p2.scale(tValue);
@@ -216,8 +216,8 @@ void BezierSegment::splitSegmentAtT(Real tValue, BezierSegment &outSeg1, BezierS
 											p1p2.z - p0p1.z, };
 
 	Coord3D triRight = { p2p3.x - p1p2.x,
-											 p2p3.y - p1p2.y,
-											 p2p3.z - p1p2.z, };
+											p2p3.y - p1p2.y,
+											p2p3.z - p1p2.z, };
 
 	triLeft.scale(tValue);
 	triRight.scale(tValue);
@@ -240,7 +240,7 @@ void BezierSegment::splitSegmentAtT(Real tValue, BezierSegment &outSeg1, BezierS
 // The Basis Matrix for a bezier segment
 const D3DXMATRIX BezierSegment::s_bezBasisMatrix(
 	-1.0f,  3.0f, -3.0f,  1.0f,
-	 3.0f, -6.0f,  3.0f,  0.0f,
+	3.0f, -6.0f,  3.0f,  0.0f,
 	-3.0f,  3.0f,  0.0f,  0.0f,
-	 1.0f,  0.0f,  0.0f,  0.0f
+	1.0f,  0.0f,  0.0f,  0.0f
 );

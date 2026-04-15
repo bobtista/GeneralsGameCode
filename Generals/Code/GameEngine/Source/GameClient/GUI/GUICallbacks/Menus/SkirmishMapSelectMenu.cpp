@@ -340,7 +340,7 @@ void SkirmishMapSelectMenuUpdate( WindowLayout *layout, void *userData )
 /** Map select menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType SkirmishMapSelectMenuInput( GameWindow *window, UnsignedInt msg,
-																				 WindowMsgData mData1, WindowMsgData mData2 )
+																				WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	switch( msg )
@@ -576,8 +576,8 @@ WindowMsgHandledType SkirmishMapSelectMenuSystem( GameWindow *window, UnsignedIn
 					{
 				    if (md)
 				    {
-  						GadgetStaticTextSetText(win, md->m_displayName);
-            }
+						GadgetStaticTextSetText(win, md->m_displayName);
+						}
 					}
 					//if (mapFname)
 						//setupGameStart(mapFname);

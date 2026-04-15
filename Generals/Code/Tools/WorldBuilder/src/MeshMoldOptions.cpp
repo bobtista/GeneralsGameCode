@@ -115,8 +115,8 @@ BOOL MeshMoldOptions::OnInitDialog()
 
 				++it;
 			} while (it != filenameList.end());
- 			if (child) m_moldTreeView.SelectItem(child);
- 		}
+			if (child) m_moldTreeView.SelectItem(child);
+		}
 	}
 
 	m_staticThis = this;

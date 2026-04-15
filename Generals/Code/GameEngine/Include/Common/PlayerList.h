@@ -71,7 +71,7 @@ enum AllowPlayerRelationship CPP_11(: Int)
 	This is a singleton class that maintains the list of Players.
 */
 class PlayerList : public SubsystemInterface,
-									 public Snapshot
+									public Snapshot
 {
 
 public:

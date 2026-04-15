@@ -101,8 +101,8 @@ public:
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 class AutoHealBehavior : public UpdateModule,
-												 public UpgradeMux,
-												 public DamageModuleInterface
+												public UpgradeMux,
+												public DamageModuleInterface
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( AutoHealBehavior, "AutoHealBehavior" )
@@ -169,7 +169,7 @@ private:
 																		I can't rely solely on my sleeping.  So this will guard onDamage's wake up.
 																		I could guard the act of healing, but that would defeat the gain of being
 																		a sleepy module.  I never want to run update unless I am going to heal.
-																 */
+																*/
 
 	Bool m_stopped;
 

@@ -66,7 +66,7 @@ CBCommandStatus ControlBar::processCommandTransitionUI( GameWindow *control, Gad
 	// sanity, we won't process messages if we have no source object
 	if( m_currContext != CB_CONTEXT_MULTI_SELECT &&
 			(m_currentSelectedDrawable == nullptr ||
-			 m_currentSelectedDrawable->getObject() == nullptr) )
+			m_currentSelectedDrawable->getObject() == nullptr) )
 	{
 
 		if( m_currContext != CB_CONTEXT_NONE &&
@@ -102,7 +102,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 			commandButton->getCommandType() != GUI_COMMAND_PURCHASE_SCIENCE &&
 			commandButton->getCommandType() != GUI_COMMAND_SPECIAL_POWER_FROM_COMMAND_CENTER &&
 			(m_currentSelectedDrawable == nullptr ||
-			 m_currentSelectedDrawable->getObject() == nullptr) )
+			m_currentSelectedDrawable->getObject() == nullptr) )
 	{
 
 		if( m_currContext != CB_CONTEXT_NONE )
@@ -265,7 +265,7 @@ CBCommandStatus ControlBar::processCommandUI( GameWindow *control,
 
 			// sanity, we must have something to build
 			DEBUG_ASSERTCRASH( whatToBuild, ("Undefined BUILD command for object '%s'",
-												 commandButton->getThingTemplate()->getName().str()) );
+												commandButton->getThingTemplate()->getName().str()) );
 
 			CanMakeType cmt = TheBuildAssistant->canMakeUnit(factory, whatToBuild);
 

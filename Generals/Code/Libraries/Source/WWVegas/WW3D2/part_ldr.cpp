@@ -343,8 +343,8 @@ ParticleEmitterDefClass::Load_W3D (ChunkLoadClass &chunk_load)
 
 	// Attempt to read the different sections of the emitter definition
 	if ((Read_Header (chunk_load) == WW3D_ERROR_OK) &&
-		 (Read_User_Data (chunk_load) == WW3D_ERROR_OK) &&
-		 (Read_Info (chunk_load) == WW3D_ERROR_OK)) {
+		(Read_User_Data (chunk_load) == WW3D_ERROR_OK) &&
+		(Read_Info (chunk_load) == WW3D_ERROR_OK)) {
 
 		if (m_Version > 0x00010000) {
 
@@ -352,7 +352,7 @@ ParticleEmitterDefClass::Load_W3D (ChunkLoadClass &chunk_load)
 			// Read the version 2.0 structures from the chunk
 			//
 			if ((Read_InfoV2 (chunk_load) == WW3D_ERROR_OK) &&
-				 (Read_Props (chunk_load) == WW3D_ERROR_OK)) {
+				(Read_Props (chunk_load) == WW3D_ERROR_OK)) {
 
 				// Success!
 				ret_val = WW3D_ERROR_OK;
@@ -1132,13 +1132,13 @@ ParticleEmitterDefClass::Save_W3D (ChunkSaveClass &chunk_save)
 
 		// Attempt to save the different sections of the emitter definition
 		if ((Save_Header (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_User_Data (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Info (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_InfoV2 (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Props (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Rotation_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Frame_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Blur_Time_Keyframes (chunk_save) == WW3D_ERROR_OK))
+			(Save_User_Data (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Info (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_InfoV2 (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Props (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Rotation_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Frame_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Blur_Time_Keyframes (chunk_save) == WW3D_ERROR_OK))
 		{
 			// Success!
 			ret_val = WW3D_ERROR_OK;
@@ -1326,8 +1326,8 @@ ParticleEmitterDefClass::Save_Props (ChunkSaveClass &chunk_save)
 			//	Save the keyframes
 			//
 			if ((Save_Color_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
-				 (Save_Opacity_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
-				 (Save_Size_Keyframes (chunk_save) == WW3D_ERROR_OK)) {
+				(Save_Opacity_Keyframes (chunk_save) == WW3D_ERROR_OK) &&
+				(Save_Size_Keyframes (chunk_save) == WW3D_ERROR_OK)) {
 
 				// Success!
 				ret_val = WW3D_ERROR_OK;
@@ -1818,6 +1818,6 @@ ParticleEmitterLoaderClass::Load_W3D (ChunkLoadClass &chunk_load)
 		}
 	}
 
-    // Return a pointer to the prototype
-	 return pprototype;
+	// Return a pointer to the prototype
+	return pprototype;
 }

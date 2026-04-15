@@ -40,7 +40,7 @@ class TunnelTracker; // The player owns one such object for his Tunnels, so inst
 		System responsible for Crates as code objects - ini, new/delete etc
 */
 class CaveSystem : public SubsystemInterface,
-									 public Snapshot
+									public Snapshot
 {
 public:
 	CaveSystem();

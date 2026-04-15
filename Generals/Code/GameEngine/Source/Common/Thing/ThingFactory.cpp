@@ -173,8 +173,8 @@ ThingTemplate* ThingFactory::newOverride( ThingTemplate *thingTemplate )
 
 	// sanity just for debugging, the weapon must be in the master list to do overrides
 	DEBUG_ASSERTCRASH( findTemplate( thingTemplate->getName() ) != nullptr,
-										 ("newOverride(): Thing template '%s' not in master list",
-										 thingTemplate->getName().str()) );
+										("newOverride(): Thing template '%s' not in master list",
+										thingTemplate->getName().str()) );
 
 	// find final override of the 'parent' template
 	ThingTemplate *child = (ThingTemplate*) thingTemplate->friend_getFinalOverride();
@@ -519,8 +519,8 @@ void ThingFactory::postProcessLoad()
 
 	// go through all thing templates
 	for( ThingTemplate *thingTemplate = m_firstTemplate;
-			 thingTemplate;
-			 thingTemplate = thingTemplate->friend_getNextTemplate() )
+			thingTemplate;
+			thingTemplate = thingTemplate->friend_getNextTemplate() )
 	{
 
 		// resolve the prerequisite names

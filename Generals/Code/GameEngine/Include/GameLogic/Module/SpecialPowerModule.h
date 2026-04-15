@@ -87,7 +87,7 @@ public:
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 class SpecialPowerModule : public BehaviorModule,
-													 public SpecialPowerModuleInterface
+													public SpecialPowerModuleInterface
 {
 
 	MEMORY_POOL_GLUE_ABC( SpecialPowerModule )
