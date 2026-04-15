@@ -225,7 +225,7 @@ void UnicodeString::translate(const AsciiString& stringSrc)
 	// TheSuperHackers @fix bobtista 02/04/2026 Implement UTF-8 conversion replacing 7-bit ASCII only implementation
 	const char* src = stringSrc.str();
 	size_t srcLen = strlen(src);
-	size_t len = Get_Unicode_Len(src, srcLen);
+	size_t len = Utf8_To_Utf16Le_Len(src, srcLen);
 	if (len == 0)
 	{
 		clear();
@@ -233,7 +233,7 @@ void UnicodeString::translate(const AsciiString& stringSrc)
 	}
 	ensureUniqueBufferOfSize((Int)len + 1, false, nullptr, nullptr);
 	WideChar* buf = peek();
-	if (Utf8_To_Unicode(buf, len + 1, src, srcLen) == 0)
+	if (Utf8_To_Utf16Le(buf, len + 1, src, srcLen) == 0)
 		clear();
 	validate();
 }
