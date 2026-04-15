@@ -81,7 +81,7 @@ BridgeBehaviorModuleData::~BridgeBehaviorModuleData()
 // ------------------------------------------------------------------------------------------------
 /*static*/ void BridgeBehaviorModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
-  BehaviorModuleData::buildFieldParse( p );
+	BehaviorModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -92,7 +92,7 @@ BridgeBehaviorModuleData::~BridgeBehaviorModuleData()
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add( dataFieldParse );
+	p.add( dataFieldParse );
 
 }
 
@@ -141,9 +141,9 @@ static void parseTimeAndLocationInfo( INI *ini, void *instance,
 //-------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 /*static*/ void BridgeBehaviorModuleData::parseFX( INI *ini,
-											 														 void *instance,
-																									 void *store,
-																									 const void *userData )
+																									void *instance,
+																									void *store,
+																									const void *userData )
 {
 	const char *token;
 
@@ -514,8 +514,8 @@ void BridgeBehavior::onHealing( DamageInfo *damageInfo )
 /** Pick a random surface spot on the bridge surface */
 // ------------------------------------------------------------------------------------------------
 void BridgeBehavior::getRandomSurfacePosition( TerrainRoadType *bridgeTemplate,
-																							 const BridgeInfo *bridgeInfo,
-																							 Coord3D *pos )
+																							const BridgeInfo *bridgeInfo,
+																							Coord3D *pos )
 {
 
 	// sanity
@@ -651,8 +651,8 @@ void BridgeBehavior::onBodyDamageStateChange( const DamageInfo* damageInfo,
 
 	// sanity
 	DEBUG_ASSERTCRASH( bridgeTemplate, ("BridgeBehavior: Unable to find bridge template '%s' in bridge object '%s'",
-																		 bridgeTemplateName.str(),
-																		 us->getTemplate()->getName().str()) );
+																		bridgeTemplateName.str(),
+																		us->getTemplate()->getName().str()) );
 
 	//
 	// given the old state and the new state, did we get worse (damaged) or did
@@ -910,8 +910,8 @@ void BridgeBehavior::handleObjectsOnBridgeOnDie()
 
 		// scan the objects in the radius
 		ObjectIterator *iter = ThePartitionManager->iterateObjectsInRange( bridgePos,
-																																			 radius,
-																																			 FROM_CENTER_2D );
+																																			radius,
+																																			FROM_CENTER_2D );
 		MemoryPoolObjectHolder hold( iter );
 		Object *other;
 		for( other = iter->first(); other; other = iter->next() )
@@ -1067,7 +1067,7 @@ void BridgeBehavior::createScaffolding()
 	Real scaffoldHeight = scaffoldTemplate->getTemplateGeometryInfo().getMaxHeightAbovePosition() +
 												scaffoldTemplate->getTemplateGeometryInfo().getMaxHeightBelowPosition();
 	Real scaffoldSupportHeight = scaffoldSupportTemplate->getTemplateGeometryInfo().getMaxHeightAbovePosition() +
-															 scaffoldSupportTemplate->getTemplateGeometryInfo().getMaxHeightBelowPosition();
+															scaffoldSupportTemplate->getTemplateGeometryInfo().getMaxHeightBelowPosition();
 
 	// get the bridge info
 	BridgeInfo bridgeInfo;
@@ -1145,7 +1145,7 @@ void BridgeBehavior::createScaffolding()
 
 		// sanity
 		DEBUG_ASSERTCRASH( scaffoldObjectsCreated < numObjects,
-											 ("Creating too many scaffold objects") );
+											("Creating too many scaffold objects") );
 
 		// create object
 		obj = TheThingFactory->newObject( scaffoldTemplate, us->getTeam() );
@@ -1190,11 +1190,11 @@ void BridgeBehavior::createScaffolding()
 			supportBridgeCenter.z -= scaffoldSupportHeight;
 			obj = TheThingFactory->newObject( scaffoldSupportTemplate, us->getTeam() );
 			setScaffoldData( obj,
-											 angle,
-											 &scaffoldSupportHeight,
-											 &supportRiseToPos,
-											 &supportDestinationPos,
-											 &supportBridgeCenter );
+											angle,
+											&scaffoldSupportHeight,
+											&supportRiseToPos,
+											&supportDestinationPos,
+											&supportBridgeCenter );
 			m_scaffoldObjectIDList.push_back( obj->getID() );
 
 
@@ -1213,7 +1213,7 @@ void BridgeBehavior::createScaffolding()
 
 			// sanity
 			DEBUG_ASSERTCRASH( scaffoldObjectsCreated < numObjects,
-												 ("Creating too many scaffold objects") );
+												("Creating too many scaffold objects") );
 
 			// create new object
 			obj = TheThingFactory->newObject( scaffoldTemplate, us->getTeam() );
@@ -1255,11 +1255,11 @@ void BridgeBehavior::createScaffolding()
 				supportBridgeCenter.z -= scaffoldSupportHeight;
 				obj = TheThingFactory->newObject( scaffoldSupportTemplate, us->getTeam() );
 				setScaffoldData( obj,
-												 angle,
-												 &scaffoldSupportHeight,
-												 &supportRiseToPos,
-												 &supportDestinationPos,
-												 &supportBridgeCenter );
+												angle,
+												&scaffoldSupportHeight,
+												&supportRiseToPos,
+												&supportDestinationPos,
+												&supportBridgeCenter );
 				m_scaffoldObjectIDList.push_back( obj->getID() );
 
 
@@ -1452,7 +1452,7 @@ void BridgeBehavior::xfer( Xfer *xfer )
 
 		// read all object IDs
 		DEBUG_ASSERTCRASH( m_scaffoldObjectIDList.empty(),
-											 ("BridgeBehavior::xfer - scaffold object list should be empty") );
+											("BridgeBehavior::xfer - scaffold object list should be empty") );
 		for( Int i = 0; i < scaffoldObjectCount; ++i )
 		{
 

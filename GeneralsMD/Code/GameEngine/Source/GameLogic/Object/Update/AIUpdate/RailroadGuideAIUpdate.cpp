@@ -98,7 +98,7 @@ RailroadBehaviorModuleData::RailroadBehaviorModuleData()
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 RailroadBehavior::RailroadBehavior( Thing *thing, const ModuleData *moduleData )
-											 : PhysicsBehavior( thing, moduleData )
+											: PhysicsBehavior( thing, moduleData )
 {
 	const RailroadBehaviorModuleData *modData = getRailroadBehaviorModuleData();
 
@@ -156,7 +156,7 @@ RailroadBehavior::RailroadBehavior( Thing *thing, const ModuleData *moduleData )
 	m_wantsToBeLeadCarriage = FALSE;
 	m_disembark = FALSE;
 	m_inTunnel = FALSE;
-  m_held = FALSE;
+	m_held = FALSE;
 
 
 	m_conductorState = m_isLocomotive ? ACCELERATE : COAST;
@@ -248,7 +248,7 @@ void RailroadBehavior::onCollide( Object *other, const Coord3D *loc, const Coord
 
 	}
 
- 	if (other->isKindOf( KINDOF_STRUCTURE ) )// now be careful here, we ignore buildings, except for hostile, nasty ones that can blow us up
+	if (other->isKindOf( KINDOF_STRUCTURE ) )// now be careful here, we ignore buildings, except for hostile, nasty ones that can blow us up
 	{
 		//If it is a civilian building like a tunnel or a train station, let it be
 		//but if it is a faction building, kill it!
@@ -310,7 +310,7 @@ void RailroadBehavior::onCollide( Object *other, const Coord3D *loc, const Coord
 	// if we made it this far, it is something we dont want to share space with
 
 
-  Coord3D dlt;
+	Coord3D dlt;
 	dlt.x = theirLoc->x - myLoc->x;
 	dlt.y = theirLoc->y - myLoc->y;
 	dlt.z = theirLoc->z - myLoc->z;
@@ -337,13 +337,13 @@ void RailroadBehavior::onCollide( Object *other, const Coord3D *loc, const Coord
 	  other->setPosition( &newPos );
 	}
 
-  if ( m_conductorState == WAIT_AT_STATION || (m_conductorState == COAST && m_pullInfo.speed < modData->m_runningGarrisonSpeedMax) || !m_isLocomotive )
+	if ( m_conductorState == WAIT_AT_STATION || (m_conductorState == COAST && m_pullInfo.speed < modData->m_runningGarrisonSpeedMax) || !m_isLocomotive )
 	{
 //  AIUpdateInterface *ai = other->getAI();
 //	  if ( ai )
 //		  ai->aiIdle( CMD_FROM_AI );// this eliminates yadda by telling them to stop driving into me
 
-    return;//let those trying to board pass through unhindered
+		return;//let those trying to board pass through unhindered
 	}
 
 
@@ -638,24 +638,24 @@ void RailroadBehavior::loadTrackData()
 
 void RailroadBehavior::makeAWallOutOfThisTrain( Bool on )
 {
-  if ( on == TRUE )
-  	TheAI->pathfinder()->createAWallFromMyFootprint( getObject() ); // Temporarily treat this object as an obstacle.
-  else
-  	TheAI->pathfinder()->removeWallFromMyFootprint( getObject() );  // Undo createAWallFromMyFootprint.
+	if ( on == TRUE )
+	TheAI->pathfinder()->createAWallFromMyFootprint( getObject() ); // Temporarily treat this object as an obstacle.
+	else
+	TheAI->pathfinder()->removeWallFromMyFootprint( getObject() );  // Undo createAWallFromMyFootprint.
 
 
 	if ( m_trailerID != INVALID_ID )
 	{
 		Object *trailer = TheGameLogic->findObjectByID( m_trailerID );
-    if ( trailer )
-    {
+		if ( trailer )
+		{
 			static NameKeyType key_RGUpdate = NAMEKEY("RailroadBehavior");
 			RailroadBehavior *RGUpdate = (RailroadBehavior*)trailer->findUpdateModule(key_RGUpdate);
 			if( RGUpdate )
 			{
 				RGUpdate->makeAWallOutOfThisTrain( on ); // recursive down the train
 			}
-    }
+		}
 	}
 
 
@@ -709,7 +709,7 @@ UpdateSleepTime RailroadBehavior::update()
 				m_conductorState = WAIT_AT_STATION;
 
 
-         makeAWallOutOfThisTrain( TRUE );
+				makeAWallOutOfThisTrain( TRUE );
 
 
 				if ( m_disembark )
@@ -717,7 +717,7 @@ UpdateSleepTime RailroadBehavior::update()
 					disembark();
 					m_disembark = FALSE;
 				}
-      }
+			}
 		}
 		else if ( m_conductorState == WAIT_AT_STATION)
 		{
@@ -729,7 +729,7 @@ UpdateSleepTime RailroadBehavior::update()
 
 				m_runningSound.setPlayingHandle(TheAudio->addAudioEvent( &m_runningSound ));
 
-        makeAWallOutOfThisTrain( FALSE );
+				makeAWallOutOfThisTrain( FALSE );
 
 
 			}
@@ -1429,7 +1429,7 @@ void RailroadBehavior::FindPosByPathDistance( Coord3D *pos, const Real dist, con
 
 			// TheSuperHackers Mauller 02/04/2025 Prevent dereferencing of endpoint pointer which throws asserts during Debug
 			if (pointIter != pointList->end()) {
-				 nextPoint = &(*pointIter);
+				nextPoint = &(*pointIter);
 			}
 
 			if (nextPoint && nextPoint->m_distanceFromFirst > actualDistance)

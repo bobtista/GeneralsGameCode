@@ -69,7 +69,7 @@ public:
 protected:
 
 	virtual GameLogic *createGameLogic() override;							///< factory for game logic
- 	virtual GameClient *createGameClient() override;						///< factory for game client
+	virtual GameClient *createGameClient() override;						///< factory for game client
 	virtual ModuleFactory *createModuleFactory() override;			///< factory for creating modules
 	virtual ThingFactory *createThingFactory() override;				///< factory for the thing factory
 	virtual FunctionLexicon *createFunctionLexicon() override; ///< factory for function lexicon

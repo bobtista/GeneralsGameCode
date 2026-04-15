@@ -103,14 +103,14 @@ void RebuildHoleExposeDie::onDie( const DamageInfo *damageInfo )
 
 
 #if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
-  if(TheSelectionTranslator->isHandOfGodSelectionMode())
-  {
-    if ( getObject()->isKindOf( KINDOF_STRUCTURE ) )
-    {
-      if ( damageInfo->in.m_damageType == DAMAGE_UNRESISTABLE )
-        return;
-    }
-  }
+	if(TheSelectionTranslator->isHandOfGodSelectionMode())
+	{
+		if ( getObject()->isKindOf( KINDOF_STRUCTURE ) )
+		{
+			if ( damageInfo->in.m_damageType == DAMAGE_UNRESISTABLE )
+				return;
+		}
+	}
 #endif
 
 
@@ -132,7 +132,7 @@ void RebuildHoleExposeDie::onDie( const DamageInfo *damageInfo )
 
 		// create the hole
 		hole = TheThingFactory->newObject( TheThingFactory->findTemplate( modData->m_holeName ),
-																			 getObject()->getTeam() );
+																			getObject()->getTeam() );
 
 		// put the hole at our position and angle
 		hole->setPosition( us->getPosition() );

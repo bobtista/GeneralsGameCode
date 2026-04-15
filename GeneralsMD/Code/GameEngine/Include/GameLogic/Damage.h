@@ -170,9 +170,9 @@ enum DeathType CPP_11(: Int)
 	// can come from DAMAGE_FLAME but also from DAMAGE_PARTICLE_BEAM.
 	DEATH_NORMAL		= 0,
 	DEATH_NONE			= 1,					///< this is a "special case" that can't normally cause death
-  DEATH_CRUSHED		= 2,
-  DEATH_BURNED		= 3,
-  DEATH_EXPLODED	= 4,
+		DEATH_CRUSHED		= 2,
+		DEATH_BURNED		= 3,
+		DEATH_EXPLODED	= 4,
 	DEATH_POISONED	= 5,
 	DEATH_TOPPLED		= 6,
 	DEATH_FLOODED		= 7,
@@ -271,10 +271,10 @@ public:
 		m_amount = 0;
 		m_kill = FALSE;
 
-    m_shockWaveVector.zero();
-    m_shockWaveAmount   = 0.0f;
-    m_shockWaveRadius   = 0.0f;
-    m_shockWaveTaperOff = 0.0f;
+			m_shockWaveVector.zero();
+			m_shockWaveAmount   = 0.0f;
+			m_shockWaveRadius   = 0.0f;
+			m_shockWaveTaperOff = 0.0f;
 	}
 
 	ObjectID		   m_sourceID;							///< source of the damage

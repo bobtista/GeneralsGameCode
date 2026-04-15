@@ -585,7 +585,7 @@ WindowMsgHandledType ScoreScreenSystem( GameWindow *window, UnsignedInt msg,
 			else if ( controlID == buttonSaveReplayID )
 			{
 				ScoreScreenEnableControls(FALSE);
-        WindowLayout *saveReplayLayout = TheShell->getPopupReplayLayout();
+				WindowLayout *saveReplayLayout = TheShell->getPopupReplayLayout();
 				DEBUG_ASSERTCRASH( saveReplayLayout, ("Unable to get save replay menu layout.") );
 				saveReplayLayout->runInit();
 				saveReplayLayout->hide( FALSE );
@@ -815,7 +815,7 @@ void finishSinglePlayerInit()
 	if(TheCampaignManager->isVictorious())
 	{
 		if (TheCampaignManager->getCurrentCampaign()
-		 && TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
+		&& TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
 		{
 			// display challenge style win/loss
 			AsciiString name = TheCampaignManager->getCurrentMission()->m_generalName;
@@ -932,7 +932,7 @@ void finishSinglePlayerInit()
 	else
 	{
 		if (TheCampaignManager->getCurrentCampaign()
-		 && TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
+		&& TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
 		{
 			// display challenge style win/loss
 			AsciiString name = TheCampaignManager->getCurrentMission()->m_generalName;
@@ -989,7 +989,7 @@ void finishSinglePlayerInit()
 
 	// need to do this here
 	if ( TheCampaignManager->getCurrentCampaign()
-	 && !TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
+	&& !TheCampaignManager->getCurrentCampaign()->isChallengeCampaign())
 		TheTransitionHandler->setGroup("ScoreScreenShow");
 }
 
@@ -1649,7 +1649,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 	{
 		DEBUG_LOG(("populatePlayerInfo() - SCORESCREEN_INTERNET"));
 		if (TheGameSpyGame && !TheGameSpyGame->getUseStats()
-		 && !TheGameSpyGame->isQMGame() )  //QuickMatch games always record stats
+		&& !TheGameSpyGame->isQMGame() )  //QuickMatch games always record stats
 			return;	//the host has requested not to record stats for this game.
 
 		Int localID = TheGameSpyInfo->getLocalProfileID();
@@ -1759,9 +1759,9 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 						return;
 					}
 
- 					//Remove the extra disconnection we add to all games when they start.
+					//Remove the extra disconnection we add to all games when they start.
 					DEBUG_LOG(("populatePlayerInfo() - removing extra disconnect"));
- 					if (TheGameSpyInfo)
+					if (TheGameSpyInfo)
 						TheGameSpyInfo->updateAdditionalGameSpyDisconnections(-1);
 
 					Bool sawEndOfGame = FALSE;
@@ -1798,7 +1798,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 					}
 					if (TheVictoryConditions->getEndFrame() < LOGICFRAMES_PER_SECOND * 25 && TheVictoryConditions->getEndFrame())
 					{
- 						return;
+						return;
 					}
 					// generate and send a gameres packet
 					AsciiString resultsPacket = TheGameSpyGame->generateGameSpyGameResultsPacket();
@@ -1847,7 +1847,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 							req.password = "";
 							req.player = stats;
 							req.addDesync = TheNetwork->sawCRCMismatch();
- 							req.addDiscon = gameEndedInDisconnect;
+							req.addDiscon = gameEndedInDisconnect;
 							req.lastHouse = ptIdx;
 							TheGameSpyPSMessageQueue->addRequest(req);
 						}
@@ -1913,12 +1913,12 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 					stats.earnings[ptIdx] += s->getTotalMoneyEarned();
 					stats.duration[ptIdx] += TheGameLogic->getFrame() / LOGICFRAMES_PER_SECOND / 60; // in minutes
 					stats.games[ptIdx]++;
- 					//since we raise this number when game starts, we need to lower it back on completion
- 					Int disCons;
- 					disCons = stats.discons[ptIdx];
- 					disCons -= 1;
- 					if (disCons >= 0)
- 						stats.discons[ptIdx] = disCons;
+					//since we raise this number when game starts, we need to lower it back on completion
+					Int disCons;
+					disCons = stats.discons[ptIdx];
+					disCons -= 1;
+					if (disCons >= 0)
+						stats.discons[ptIdx] = disCons;
 
 					stats.gamesAsRandom += (localSlot->getOriginalPlayerTemplate() == PLAYERTEMPLATE_RANDOM);
 
@@ -2010,7 +2010,7 @@ winName.format("ScoreScreen.wnd:StaticTextScore%d", pos);
 					req.password = TheGameSpyInfo->getLocalPassword().str();
 					req.player = stats;
 					req.addDesync = TheNetwork->sawCRCMismatch();
- 					req.addDiscon = gameEndedInDisconnect;
+					req.addDiscon = gameEndedInDisconnect;
 					req.lastHouse = ptIdx;
 					TheGameSpyPSMessageQueue->addRequest(req);
 					TheGameSpyPSMessageQueue->trackPlayerStats(stats);
@@ -2189,7 +2189,7 @@ void grabSinglePlayerInfo()
 		{
 			player = ThePlayerList->getNthPlayer(i);
 			if(player && player != localPlayer &&
-				 side.compare(player->getBaseSide()) == 0)
+				side.compare(player->getBaseSide()) == 0)
 			{
 				if ((TheGameLogic->isInSinglePlayerGame() == FALSE) || (player->getListInScoreScreen() == TRUE))
 				{

@@ -202,7 +202,7 @@ enum WeaponBonusConditionType CPP_11(: Int)
 	WEAPONBONUSCONDITION_SOLO_AI_NORMAL,
 	WEAPONBONUSCONDITION_SOLO_AI_HARD,
 	WEAPONBONUSCONDITION_TARGET_FAERIE_FIRE,
-  WEAPONBONUSCONDITION_FANATICISM, // FOR THE NEW GC INFANTRY GENERAL... adds to nationalism
+		WEAPONBONUSCONDITION_FANATICISM, // FOR THE NEW GC INFANTRY GENERAL... adds to nationalism
 	WEAPONBONUSCONDITION_FRENZY_ONE,
 	WEAPONBONUSCONDITION_FRENZY_TWO,
 	WEAPONBONUSCONDITION_FRENZY_THREE,
@@ -240,7 +240,7 @@ static const char *const TheWeaponBonusNames[] =
 	"SOLO_AI_NORMAL",
 	"SOLO_AI_HARD",
 	"TARGET_FAERIE_FIRE",
-  "FANATICISM", // FOR THE NEW GC INFANTRY GENERAL... adds to nationalism
+		"FANATICISM", // FOR THE NEW GC INFANTRY GENERAL... adds to nationalism
 	"FRENZY_ONE",
 	"FRENZY_TWO",
 	"FRENZY_THREE",
@@ -443,7 +443,7 @@ public:
 	Int getContinuousFireOneShotsNeeded() const { return m_continuousFireOneShotsNeeded; }
 	Int getContinuousFireTwoShotsNeeded() const { return m_continuousFireTwoShotsNeeded; }
 	UnsignedInt getContinuousFireCoastFrames() const { return m_continuousFireCoastFrames; }
- 	UnsignedInt getAutoReloadWhenIdleFrames() const { return m_autoReloadWhenIdleFrames; }
+	UnsignedInt getAutoReloadWhenIdleFrames() const { return m_autoReloadWhenIdleFrames; }
 	UnsignedInt getSuspendFXDelay() const { return m_suspendFXDelay; }
 
 	const FXList* getFireFX(VeterancyLevel v) const { return m_fireFXs[v]; }
@@ -539,7 +539,7 @@ private:
 	Int m_continuousFireOneShotsNeeded;			///< How many consecutive shots will give my owner the ContinuousFire Property
 	Int m_continuousFireTwoShotsNeeded;			///< How many consecutive shots will give my owner the ContinuousFireTwo Property
 	UnsignedInt m_continuousFireCoastFrames;///< How long after we should have shot should we start to wind down from Continuous fire mode
- 	UnsignedInt m_autoReloadWhenIdleFrames;	///< How long we have to wait after our last shot to force a reload
+	UnsignedInt m_autoReloadWhenIdleFrames;	///< How long we have to wait after our last shot to force a reload
 	Int m_shotsPerBarrel;										///< If non zero, don't cycle through your launch points every shot, mod the shot by this to get even chucks of firing
 	Int m_antiMask;													///< what we can target
 	Int m_affectsMask;											///< what we can affect
@@ -569,7 +569,7 @@ private:
 
 // ---------------------------------------------------------
 class Weapon : public MemoryPoolObject,
-							 public Snapshot
+							public Snapshot
 {
 	friend class WeaponStore;
 
@@ -705,7 +705,7 @@ public:
 	Int getContinuousFireOneShotsNeeded() const { return m_template->getContinuousFireOneShotsNeeded(); }
 	Int getContinuousFireTwoShotsNeeded() const { return m_template->getContinuousFireTwoShotsNeeded(); }
 	UnsignedInt getContinuousFireCoastFrames() const { return m_template->getContinuousFireCoastFrames(); }
- 	UnsignedInt getAutoReloadWhenIdleFrames() const { return m_template->getAutoReloadWhenIdleFrames(); }
+	UnsignedInt getAutoReloadWhenIdleFrames() const { return m_template->getAutoReloadWhenIdleFrames(); }
 	const AudioEventRTS& getFireSound() const { return m_template->getFireSound(); }
 	UnsignedInt getFireSoundLoopTime() const { return m_template->getFireSoundLoopTime(); }
 	DamageType getDamageType() const { return m_template->getDamageType(); }

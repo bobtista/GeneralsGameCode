@@ -242,7 +242,7 @@ ChunkItem *CWDumpTreeView::FindChunkItem (ChunkItem *selectedchunkitem, ChunkIte
 				searchstate = SEARCH_WRAPPED;
 				return (nullptr);
 			} else {
-		  		if ((chunkitem != nullptr) && (chunkitem->Type != nullptr) && (chunkitem->Type->Callback != nullptr)) {
+				if ((chunkitem != nullptr) && (chunkitem->Type != nullptr) && (chunkitem->Type->Callback != nullptr)) {
 					(*chunkitem->Type->Callback)(chunkitem, nullptr);
 				}
 				if (FindDialog::Found()) return (chunkitem);

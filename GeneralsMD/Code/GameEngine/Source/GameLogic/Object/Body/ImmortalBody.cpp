@@ -39,7 +39,7 @@
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 ImmortalBody::ImmortalBody( Thing *thing, const ModuleData* moduleData )
-						 : ActiveBody( thing, moduleData )
+						: ActiveBody( thing, moduleData )
 {
 }
 

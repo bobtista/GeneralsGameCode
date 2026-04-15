@@ -1181,7 +1181,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 					TheGameSpyInfo->reset();
 					TheShell->pop();
 				}
-            break; // LORENZEN ADDED. SORRY IF THIS "BREAKS" IT...
+					break; // LORENZEN ADDED. SORRY IF THIS "BREAKS" IT...
 
 
 			case PeerResponse::PEERRESPONSE_JOINGROUPROOM:
@@ -1220,7 +1220,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 
 
 // LORENZEN EXPRESSES DOUBT ABOUT THIS ONE, AS IT MAY HAVE SUFFERED MERGE MANGLING... SORRY
-            // I THINK THIS IS THE OBSOLETE VERSION... SEE THE NEWER LOOKING ONE ABOVE
+				// I THINK THIS IS THE OBSOLETE VERSION... SEE THE NEWER LOOKING ONE ABOVE
 /*
   			case PeerResponse::PEERRESPONSE_DISCONNECT:
   				{
@@ -1464,7 +1464,7 @@ void WOLQuickMatchMenuUpdate( WindowLayout * layout, void *userData)
 /** WOL Quick Match Menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLQuickMatchMenuInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+																			WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -1514,7 +1514,7 @@ WindowMsgHandledType WOLQuickMatchMenuInput( GameWindow *window, UnsignedInt msg
 /** WOL Quick Match Menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+														WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 
@@ -1665,7 +1665,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 					Int val;
 					GadgetComboBoxGetSelectedPos(comboBoxMaxDisconnects, &val);
 					if( val < 0)
-						 val = 0;
+						val = 0;
 					req.QM.maxDiscons = MAX_DISCONNECTS[val];
 
 					GadgetComboBoxGetSelectedPos(comboBoxMaxPing, &val);

@@ -403,9 +403,9 @@ private:
 enum { MAX_COMMANDS_PER_SET = 18 };  // user interface max is 14 (but internally it's 18 for script only buttons!)
 enum { MAX_RIGHT_HUD_UPGRADE_CAMEOS = 5};
 enum {
-			 MAX_PURCHASE_SCIENCE_RANK_1 = 4,
-			 MAX_PURCHASE_SCIENCE_RANK_3 = 15,
-			 MAX_PURCHASE_SCIENCE_RANK_8 = 4,
+			MAX_PURCHASE_SCIENCE_RANK_1 = 4,
+			MAX_PURCHASE_SCIENCE_RANK_3 = 15,
+			MAX_PURCHASE_SCIENCE_RANK_8 = 4,
 			};
 enum { MAX_STRUCTURE_INVENTORY_BUTTONS = 10 }; // there are this many physical buttons in "inventory" windows for structures
 enum { MAX_BUILD_QUEUE_BUTTONS = 9 };// physical button count for the build queue
@@ -810,7 +810,7 @@ protected:
 
 	/// set the command data into the button
 	void setControlCommand( const AsciiString& buttonWindowName, GameWindow *parent,
-											 const CommandButton *commandButton );
+											const CommandButton *commandButton );
 
 	/// show/hide the portrait window image using the image pointer to set
 	void setPortraitByImage( const Image *image );

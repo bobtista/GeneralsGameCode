@@ -620,7 +620,7 @@ public:
 			else
 			{
 				//Airfield
- 				movePath->appendNode( &ppinfo.parkingSpace, LAYER_GROUND );
+				movePath->appendNode( &ppinfo.parkingSpace, LAYER_GROUND );
 			}
 		}
 
@@ -1803,7 +1803,7 @@ JetAIUpdateModuleData::JetAIUpdateModuleData()
 //-------------------------------------------------------------------------------------------------
 /*static*/ void JetAIUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  AIUpdateModuleData::buildFieldParse(p);
+	AIUpdateModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -1828,7 +1828,7 @@ JetAIUpdateModuleData::JetAIUpdateModuleData()
 		{ "ReturnToBaseIdleTime",					INI::parseDurationUnsignedInt, nullptr, offsetof( JetAIUpdateModuleData, m_returnToBaseIdleTime ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -2041,7 +2041,7 @@ UpdateSleepTime JetAIUpdate::update()
 			m_mostRecentCommand.reconstitute(parms);
 			setFlag(HAS_PENDING_COMMAND, false);
 
- 			aiDoCommand(&parms);
+			aiDoCommand(&parms);
 		}
 		else if (m_returnToBaseFrame != 0 && now >= m_returnToBaseFrame && getFlag(ALLOW_AIR_LOCO))
 		{
@@ -2722,12 +2722,12 @@ void JetAIUpdate::crc( Xfer *xfer )
 void JetAIUpdate::xfer( Xfer *xfer )
 {
 
-  // version
-  XferVersion currentVersion = 2;
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	// version
+	XferVersion currentVersion = 2;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 
- // extend base class
+	// extend base class
 	AIUpdateInterface::xfer(xfer);
 
 

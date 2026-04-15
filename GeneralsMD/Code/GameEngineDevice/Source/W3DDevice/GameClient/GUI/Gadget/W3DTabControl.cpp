@@ -131,12 +131,12 @@ void W3DGadgetTabControlDraw( GameWindow *tabControl, WinInstanceData *instData 
 		if( border != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
-																		 tabX, tabY, tabX + tabWidth, tabY + tabHeight );
+																		tabX, tabY, tabX + tabWidth, tabY + tabHeight );
 		}
 		if( color != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH,
-																		 tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
+																		tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
 		}
 	}
 
@@ -165,12 +165,12 @@ void W3DGadgetTabControlDraw( GameWindow *tabControl, WinInstanceData *instData 
 		if( border != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
-																		 tabX, tabY, tabX + tabWidth, tabY + tabHeight );
+																		tabX, tabY, tabX + tabWidth, tabY + tabHeight );
 		}
 		if( color != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH,
-																		 tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
+																		tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
 		}
 	}
 
@@ -199,12 +199,12 @@ void W3DGadgetTabControlDraw( GameWindow *tabControl, WinInstanceData *instData 
 		if( border != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
-																		 tabX, tabY, tabX + tabWidth, tabY + tabHeight );
+																		tabX, tabY, tabX + tabWidth, tabY + tabHeight );
 		}
 		if( color != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH,
-																		 tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
+																		tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
 		}
 	}
 
@@ -233,12 +233,12 @@ void W3DGadgetTabControlDraw( GameWindow *tabControl, WinInstanceData *instData 
 		if( border != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
-																		 tabX, tabY, tabX + tabWidth, tabY + tabHeight );
+																		tabX, tabY, tabX + tabWidth, tabY + tabHeight );
 		}
 		if( color != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH,
-																		 tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
+																		tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
 		}
 	}
 
@@ -267,12 +267,12 @@ void W3DGadgetTabControlDraw( GameWindow *tabControl, WinInstanceData *instData 
 		if( border != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
-																		 tabX, tabY, tabX + tabWidth, tabY + tabHeight );
+																		tabX, tabY, tabX + tabWidth, tabY + tabHeight );
 		}
 		if( color != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH,
-																		 tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
+																		tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
 		}
 	}
 
@@ -301,12 +301,12 @@ void W3DGadgetTabControlDraw( GameWindow *tabControl, WinInstanceData *instData 
 		if( border != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
-																		 tabX, tabY, tabX + tabWidth, tabY + tabHeight );
+																		tabX, tabY, tabX + tabWidth, tabY + tabHeight );
 		}
 		if( color != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH,
-																		 tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
+																		tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
 		}
 	}
 
@@ -335,12 +335,12 @@ void W3DGadgetTabControlDraw( GameWindow *tabControl, WinInstanceData *instData 
 		if( border != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
-																		 tabX, tabY, tabX + tabWidth, tabY + tabHeight );
+																		tabX, tabY, tabX + tabWidth, tabY + tabHeight );
 		}
 		if( color != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH,
-																		 tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
+																		tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
 		}
 	}
 
@@ -369,12 +369,12 @@ void W3DGadgetTabControlDraw( GameWindow *tabControl, WinInstanceData *instData 
 		if( border != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
-																		 tabX, tabY, tabX + tabWidth, tabY + tabHeight );
+																		tabX, tabY, tabX + tabWidth, tabY + tabHeight );
 		}
 		if( color != WIN_COLOR_UNDEFINED )
 		{
 			TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH,
-																		 tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
+																		tabX + 1, tabY + 1, tabX + tabWidth - 1, tabY + tabHeight - 1 );
 		}
 	}
 

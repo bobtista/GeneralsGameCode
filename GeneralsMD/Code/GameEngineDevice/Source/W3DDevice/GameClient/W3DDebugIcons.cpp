@@ -245,7 +245,7 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 		UnsignedShort *curIb = ib;
 
 //		VertexFormatXYZNDUV2 *curVb = vb;
- 		Real shadeR, shadeG, shadeB;
+		Real shadeR, shadeG, shadeB;
 		shadeR = 0;
 		shadeG = 0;
 		shadeB = 255;

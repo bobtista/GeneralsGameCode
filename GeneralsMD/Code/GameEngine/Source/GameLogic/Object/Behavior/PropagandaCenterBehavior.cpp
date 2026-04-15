@@ -57,7 +57,7 @@ PropagandaCenterBehaviorModuleData::PropagandaCenterBehaviorModuleData()
 // ------------------------------------------------------------------------------------------------
 /*static*/ void PropagandaCenterBehaviorModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
-  PrisonBehaviorModuleData::buildFieldParse( p );
+	PrisonBehaviorModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -67,7 +67,7 @@ PropagandaCenterBehaviorModuleData::PropagandaCenterBehaviorModuleData()
 
 	};
 
-  p.add( dataFieldParse );
+	p.add( dataFieldParse );
 
 }
 
@@ -106,8 +106,8 @@ void PropagandaCenterBehavior::onDelete()
 	// control, return them to their original owners
 	//
 	for( BrainwashedIDListContIterator it = m_brainwashedList.begin();
-			 it != m_brainwashedList.end();
-			 ++it )
+			it != m_brainwashedList.end();
+			++it )
 	{
 		Object *obj;
 
@@ -168,7 +168,7 @@ UpdateSleepTime PropagandaCenterBehavior::update()
 
 					// add this object to our brainwashed list if we're not already in it
 					for( BrainwashedIDListIterator it = m_brainwashedList.begin();
-							 it != m_brainwashedList.end(); ++it )
+							it != m_brainwashedList.end(); ++it )
 						if( *it == brainwashingSubject->getID() )
 							break;  // exit for
 

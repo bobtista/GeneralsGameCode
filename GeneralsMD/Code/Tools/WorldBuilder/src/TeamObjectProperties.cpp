@@ -65,7 +65,7 @@ BEGIN_MESSAGE_MAP(TeamObjectProperties, CPropertyPage)
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_VisionDistance, _VisibilityToDict)
 	ON_EN_KILLFOCUS(IDC_MAPOBJECT_ShroudClearingDistance, _ShroudClearingDistanceToDict)
 	ON_CBN_SELCHANGE(IDC_MAPOBJECT_Veterancy, _VeterancyToDict)
- 	ON_BN_CLICKED(IDC_MAPOBJECT_RecruitableAI, _RecruitableAIToDict)
+	ON_BN_CLICKED(IDC_MAPOBJECT_RecruitableAI, _RecruitableAIToDict)
 	ON_BN_CLICKED(IDC_MAPOBJECT_Selectable, _SelectableToDict)
 	ON_CBN_SELCHANGE(IDC_MAPOBJECT_Weather, _WeatherToDict)
 	ON_CBN_SELCHANGE(IDC_MAPOBJECT_Time, _TimeToDict)
@@ -343,14 +343,14 @@ void TeamObjectProperties::_DictToShroudClearingDistance(void)
 
 void TeamObjectProperties::_DictToRecruitableAI(void)
 {
- 	Bool recruitableAI = true;
- 	Bool exists;
- 	if (m_dictToEdit) {
+	Bool recruitableAI = true;
+	Bool exists;
+	if (m_dictToEdit) {
 		recruitableAI  = m_dictToEdit->getBool(TheKey_teamObjectRecruitableAI, &exists);
- 	}
+	}
 
- 	CButton* pItem = (CButton*) GetDlgItem(IDC_MAPOBJECT_RecruitableAI);
- 	if (pItem) {
+	CButton* pItem = (CButton*) GetDlgItem(IDC_MAPOBJECT_RecruitableAI);
+	if (pItem) {
 		pItem->SetCheck(recruitableAI);
 	}
 }

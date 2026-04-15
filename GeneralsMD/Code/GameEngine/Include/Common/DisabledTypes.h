@@ -49,8 +49,8 @@ enum DisabledType CPP_11(: Int)
 	DISABLED_UNDERPOWERED,//Separate from ScriptUnderpowered, the owning player has insufficient power.  Energy status controls this
 	DISABLED_FREEFALL,    //This unit has been disabled via being in free fall
 
-  DISABLED_AWESTRUCK,
-  DISABLED_BRAINWASHED,
+	DISABLED_AWESTRUCK,
+	DISABLED_BRAINWASHED,
 	DISABLED_SUBDUED,			///< Temporarily shut down by Subdual damage
 	//These ones are specifically for scripts to enable/reenable!
 	DISABLED_SCRIPT_DISABLED,

@@ -95,7 +95,7 @@ public:
 	DeployStyleAIUpdate( Thing *thing, const ModuleData* moduleData );
 	// virtual destructor prototype provided by memory pool declaration
 
- 	virtual void aiDoCommand(const AICommandParms* parms) override;
+	virtual void aiDoCommand(const AICommandParms* parms) override;
 	virtual Bool isIdle() const override;
 	virtual UpdateSleepTime update() override;
 

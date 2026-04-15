@@ -354,14 +354,14 @@ void ControlBar::populateBuildTooltipLayout( const CommandButton *commandButton,
 							break;
 						case CANMAKE_MAXED_OUT_FOR_PLAYER:
 							descrip.concat( L"\n\n" );
-              if ( thingTemplate->isKindOf( KINDOF_STRUCTURE ) )
-              {
-                descrip.concat( TheGameText->fetch( "TOOLTIP:TooltipCannotBuildBuildingBecauseMaximumNumber" ) );
-              }
-              else
-              {
-  							descrip.concat( TheGameText->fetch( "TOOLTIP:TooltipCannotBuildUnitBecauseMaximumNumber" ) );
-              }
+							if ( thingTemplate->isKindOf( KINDOF_STRUCTURE ) )
+							{
+								descrip.concat( TheGameText->fetch( "TOOLTIP:TooltipCannotBuildBuildingBecauseMaximumNumber" ) );
+							}
+							else
+							{
+							descrip.concat( TheGameText->fetch( "TOOLTIP:TooltipCannotBuildUnitBecauseMaximumNumber" ) );
+							}
 							break;
 						//case CANMAKE_NO_PREREQ:
 						//	descrip.concat( L"\n\n" );
@@ -630,17 +630,17 @@ void ControlBar::populateBuildTooltipLayout( const CommandButton *commandButton,
 		TheDisplayStringManager->freeDisplayString(tempDString);
 		tempDString = nullptr;
 		diffSize = newSize.y - size.y;
- 		GameWindow *parent = m_buildToolTipLayout->getFirstWindow();
- 		if(!parent)
- 			return;
+		GameWindow *parent = m_buildToolTipLayout->getFirstWindow();
+		if(!parent)
+			return;
 
- 		parent->winGetSize(&size.x, &size.y);
- 		if(size.y + diffSize < 102) {
+		parent->winGetSize(&size.x, &size.y);
+		if(size.y + diffSize < 102) {
 			diffSize = 102 - size.y;
 		}
 
 		parent->winSetSize(size.x, size.y + diffSize);
- 		parent->winGetPosition(&pos.x, &pos.y);
+		parent->winGetPosition(&pos.x, &pos.y);
 //		if(size.y + diffSize < 102)
 //		{
 //
@@ -669,7 +669,7 @@ void ControlBar::populateBuildTooltipLayout( const CommandButton *commandButton,
 		lastOffset.y = offset.y;
 
 		win->winGetSize(&size.x, &size.y);
- 		win->winSetSize(size.x, size.y + diffSize);
+		win->winSetSize(size.x, size.y + diffSize);
 
 		GadgetStaticTextSetText(win, descrip);
 	}

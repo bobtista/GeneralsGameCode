@@ -63,7 +63,7 @@
 static Byte drawCnt = 0;
 // static TbIME *ourIME = nullptr;  ///< @todo need this for IME kanji support
 static GameWindow *curWindow = nullptr;  /**< so we can keep track of the input
-																					 window when using IME */
+																					window when using IME */
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////
 
@@ -79,7 +79,7 @@ static GameWindow *curWindow = nullptr;  /**< so we can keep track of the input
 /** Handle input for text entry field */
 //=============================================================================
 WindowMsgHandledType GadgetTextEntryInput( GameWindow *window, UnsignedInt msg,
-													 WindowMsgData mData1, WindowMsgData mData2 )
+													WindowMsgData mData1, WindowMsgData mData2 )
 {
 	EntryData *e = (EntryData *)window->winGetUserData();
 	WinInstanceData *instData = window->winGetInstanceData();
@@ -101,10 +101,10 @@ WindowMsgHandledType GadgetTextEntryInput( GameWindow *window, UnsignedInt msg,
 			if ( ch == VK_RETURN )
 			{
 				// Done with this edit
-			 		TheWindowManager->winSendSystemMsg( window->winGetOwner(),
-			 																				GEM_EDIT_DONE,
-			 																				(WindowMsgData)window,
-			 																				0 );
+					TheWindowManager->winSendSystemMsg( window->winGetOwner(),
+																							GEM_EDIT_DONE,
+																							(WindowMsgData)window,
+																							0 );
 				return MSG_HANDLED;
 			};
 

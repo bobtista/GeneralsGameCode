@@ -80,7 +80,7 @@ static NameKeyType closeButtonID = NAMEKEY_INVALID;
 /** Message of the day */
 //=============================================================================
 WindowMsgHandledType MOTDSystem( GameWindow *window, UnsignedInt msg,
-								 WindowMsgData mData1, WindowMsgData mData2 )
+								WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{

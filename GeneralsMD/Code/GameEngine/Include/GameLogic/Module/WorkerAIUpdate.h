@@ -73,7 +73,7 @@ public:
 	UnsignedInt m_centerDelay;
 	UnsignedInt m_warehouseDelay;
 	Real m_warehouseScanDistance;
- 	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
+	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
 	Int m_upgradedSupplyBoost;
 
 	WorkerAIUpdateModuleData()
@@ -90,7 +90,7 @@ public:
 
 	static void buildFieldParse(MultiIniFieldParse& p)
 	{
-    AIUpdateModuleData::buildFieldParse(p);
+		AIUpdateModuleData::buildFieldParse(p);
 
 		static const FieldParse dataFieldParse[] =
 		{
@@ -101,11 +101,11 @@ public:
 			{ "SupplyCenterActionDelay", INI::parseDurationUnsignedInt, nullptr, offsetof( WorkerAIUpdateModuleData, m_centerDelay ) },
 			{ "SupplyWarehouseActionDelay", INI::parseDurationUnsignedInt, nullptr, offsetof( WorkerAIUpdateModuleData, m_warehouseDelay ) },
 			{ "SupplyWarehouseScanDistance", INI::parseReal, nullptr, offsetof( WorkerAIUpdateModuleData, m_warehouseScanDistance ) },
- 			{ "SuppliesDepletedVoice", INI::parseAudioEventRTS, nullptr, offsetof( WorkerAIUpdateModuleData, m_suppliesDepletedVoice) },
- 			{ "UpgradedSupplyBoost", INI::parseInt, nullptr, offsetof( WorkerAIUpdateModuleData, m_upgradedSupplyBoost) },
+			{ "SuppliesDepletedVoice", INI::parseAudioEventRTS, nullptr, offsetof( WorkerAIUpdateModuleData, m_suppliesDepletedVoice) },
+			{ "UpgradedSupplyBoost", INI::parseInt, nullptr, offsetof( WorkerAIUpdateModuleData, m_upgradedSupplyBoost) },
 			{ 0, 0, 0, 0 }
 		};
-    p.add(dataFieldParse);
+		p.add(dataFieldParse);
 	}
 };
 
@@ -141,9 +141,9 @@ public:
 	virtual Real getBoredRange() const override;							///< when we're bored, we look this far away to do things
 
 	virtual Object *construct( const ThingTemplate *what,
-														 const Coord3D *pos, Real angle,
-														 Player *owningPlayer,
-														 Bool isRebuild ) override;			///< construct a building
+														const Coord3D *pos, Real angle,
+														Player *owningPlayer,
+														Bool isRebuild ) override;			///< construct a building
 
 	// get task information
 	virtual DozerTask getMostRecentCommand() override;				///< return task that was most recently issued
@@ -273,6 +273,6 @@ protected:
 private:
 
 	void createMachines();		///< create our behavior machines we need
- 	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
+	AudioEventRTS m_suppliesDepletedVoice;						///< Sound played when I take the last box.
 
 };

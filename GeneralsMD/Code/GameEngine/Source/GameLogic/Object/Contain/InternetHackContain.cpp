@@ -47,13 +47,13 @@ InternetHackContainModuleData::InternetHackContainModuleData()
 // ------------------------------------------------------------------------------------------------
 void InternetHackContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  TransportContainModuleData::buildFieldParse(p);
+	TransportContainModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 
@@ -64,7 +64,7 @@ void InternetHackContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 InternetHackContain::InternetHackContain( Thing *thing, const ModuleData *moduleData ) :
-								 TransportContain( thing, moduleData )
+								TransportContain( thing, moduleData )
 {
 }
 

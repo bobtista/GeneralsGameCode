@@ -691,7 +691,7 @@ void ControlBarScheme::addImage( ControlBarSchemeImage *schemeImage )
 	if(schemeImage->m_layer < 0 || schemeImage->m_layer >= MAX_CONTROL_BAR_SCHEME_IMAGE_LAYERS)
 	{
 		DEBUG_CRASH(("SchemeImage %s attempted to be added to layer %d which is not Between to %d, %d",
-								 schemeImage->m_name.str(), schemeImage->m_layer, 0, MAX_CONTROL_BAR_SCHEME_IMAGE_LAYERS));
+								schemeImage->m_name.str(), schemeImage->m_layer, 0, MAX_CONTROL_BAR_SCHEME_IMAGE_LAYERS));
 		// bring the foobar to the front so we make it obvious that something's wrong
 		schemeImage->m_layer = 0;
 	}
@@ -851,7 +851,7 @@ void ControlBarSchemeManager::parseImagePart(INI *ini, void *instance, void* /*s
 		{
 			{ "Position",				INI::parseICoord2D,				nullptr, offsetof( ControlBarSchemeImage, m_position ) },
 			{ "Size",						INI::parseICoord2D,				nullptr, offsetof( ControlBarSchemeImage, m_size ) },
-      { "ImageName",			INI::parseMappedImage,		nullptr, offsetof( ControlBarSchemeImage, m_image ) },
+		{ "ImageName",			INI::parseMappedImage,		nullptr, offsetof( ControlBarSchemeImage, m_image ) },
 			{ "Layer",					INI::parseInt,						nullptr, offsetof( ControlBarSchemeImage, m_layer ) },
 			{ nullptr,							nullptr,											nullptr, 0 }
 		};
@@ -871,7 +871,7 @@ void ControlBarSchemeManager::parseAnimatingPartImage(INI *ini, void *instance, 
 		{
 			{ "Position",				INI::parseICoord2D,				nullptr, offsetof( ControlBarSchemeImage, m_position ) },
 			{ "Size",						INI::parseICoord2D,				nullptr, offsetof( ControlBarSchemeImage, m_size ) },
-      { "ImageName",			INI::parseMappedImage,		nullptr, offsetof( ControlBarSchemeImage, m_image ) },
+		{ "ImageName",			INI::parseMappedImage,		nullptr, offsetof( ControlBarSchemeImage, m_image ) },
 			{ "Layer",					INI::parseInt,						nullptr, offsetof( ControlBarSchemeImage, m_layer ) },
 			{ nullptr,							nullptr,											nullptr, 0 }
 		};
@@ -890,7 +890,7 @@ void ControlBarSchemeManager::parseAnimatingPart(INI *ini, void *instance, void*
 	static const FieldParse myFieldParse[] =
 		{
 			{ "Name",						INI::parseAsciiString,		nullptr, offsetof( ControlBarSchemeAnimation, m_name ) },
-      { "Animation",			INI::parseLookupList,			AnimTypeNames, offsetof( ControlBarSchemeAnimation, m_animType ) },
+		{ "Animation",			INI::parseLookupList,			AnimTypeNames, offsetof( ControlBarSchemeAnimation, m_animType ) },
 			{ "Duration",				INI::parseDurationUnsignedInt,			nullptr, offsetof( ControlBarSchemeAnimation, m_animDuration ) },
 			{ "FinalPos",				INI::parseICoord2D,			nullptr, offsetof( ControlBarSchemeAnimation, m_finalPos ) },
 			{ "ImagePart",			ControlBarSchemeManager::parseAnimatingPartImage,	nullptr, 0 },

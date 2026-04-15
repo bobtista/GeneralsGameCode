@@ -306,7 +306,7 @@ void TerrainMaterial::addTerrain(char *pPath, Int terrainNdx, HTREEITEM parent)
 
 		doAdd = TRUE;
 	}
- 	else if (!WorldHeightMapEdit::getTexClassIsBlendEdge(terrainNdx))
+	else if (!WorldHeightMapEdit::getTexClassIsBlendEdge(terrainNdx))
 	{
 
 		// all these old entries we will put in a tree for eval textures

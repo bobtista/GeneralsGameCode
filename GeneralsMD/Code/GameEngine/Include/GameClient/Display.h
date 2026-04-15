@@ -83,7 +83,7 @@ public:
 	virtual Bool setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt bitdepth, Bool windowed );	///<sets screen resolution/mode
 	virtual Int getDisplayModeCount() {return 0;}	///<return number of display modes/resolutions supported by video card.
 	virtual void getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, Int *bitDepth) {}	///<return description of mode
- 	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) {};
+	virtual void setGamma(Real gamma, Real bright, Real contrast, Bool calibrate) {};
 	virtual Bool testMinSpecRequirements(Bool *videoPassed, Bool *cpuPassed, Bool *memPassed,StaticGameLODLevel *idealVideoLevel=nullptr, Real *cpuTime=nullptr) {*videoPassed=*cpuPassed=*memPassed=true; return true;}
 	virtual void doSmartAssetPurgeAndPreload(const char* usageFileName) = 0;
 #if defined(RTS_DEBUG)
@@ -117,21 +117,21 @@ public:
 	virtual void draw() override;																		///< Redraw the entire display
 	virtual void setTimeOfDay( TimeOfDay tod ) = 0;								///< Set the time of day for this display
 	virtual void createLightPulse( const Coord3D *pos, const RGBColor *color, Real innerRadius,Real attenuationWidth,
-																 UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime//, Bool donut = FALSE
-																 ) = 0;
+																UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime//, Bool donut = FALSE
+																) = 0;
 
 	/// draw a line on the display in pixel coordinates with the specified color
 	virtual void drawLine( Int startX, Int startY, Int endX, Int endY,
-												 Real lineWidth, UnsignedInt lineColor ) = 0;
+												Real lineWidth, UnsignedInt lineColor ) = 0;
 	/// draw a line on the display in pixel coordinates with the specified 2 colors
 	virtual void drawLine( Int startX, Int startY, Int endX, Int endY,
-												 Real lineWidth, UnsignedInt lineColor1, UnsignedInt lineColor2 ) = 0;
+												Real lineWidth, UnsignedInt lineColor1, UnsignedInt lineColor2 ) = 0;
 	/// draw a rect border on the display in pixel coordinates with the specified color
 	virtual void drawOpenRect( Int startX, Int startY, Int width, Int height,
-														 Real lineWidth, UnsignedInt lineColor ) = 0;
+														Real lineWidth, UnsignedInt lineColor ) = 0;
 	/// draw a filled rect on the display in pixel coords with the specified color
 	virtual void drawFillRect( Int startX, Int startY, Int width, Int height,
-														 UnsignedInt color ) = 0;
+														UnsignedInt color ) = 0;
 
 	/// Draw a percentage of a rectangle, much like a clock
 	virtual void drawRectClock(Int startX, Int startY, Int width, Int height, Int percent, UnsignedInt color) = 0;

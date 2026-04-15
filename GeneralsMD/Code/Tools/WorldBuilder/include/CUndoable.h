@@ -393,18 +393,18 @@ public:
 class MultipleUndoable : public Undoable
 {
 protected:
-  Undoable * m_undoableList; //< The head of the list of undoables, in the order they should be done. Reverse order for undoes
+	Undoable * m_undoableList; //< The head of the list of undoables, in the order they should be done. Reverse order for undoes
 public:
 		MultipleUndoable();
-    // destructor.
-    virtual ~MultipleUndoable(void) override;
+	// destructor.
+	virtual ~MultipleUndoable(void) override;
 
     /** Add other undoables in the order you would want them UNdone; e.g. in the reverse order you want them done
       * The MultipleUndoable object will then own the pointers.
       */
-    void addUndoable( Undoable * undoable );
+	void addUndoable( Undoable * undoable );
 
-    virtual void Do(void) override;
-    virtual void Undo(void) override;
-    virtual void Redo(void) override;
+	virtual void Do(void) override;
+	virtual void Undo(void) override;
+	virtual void Redo(void) override;
 };

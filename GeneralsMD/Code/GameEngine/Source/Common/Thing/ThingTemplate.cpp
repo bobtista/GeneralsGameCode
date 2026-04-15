@@ -234,14 +234,14 @@ const FieldParse ThingTemplate::s_objectFieldParseTable[] =
 	{ "ReplaceModule",				ThingTemplate::parseReplaceModule,	nullptr, 0 },
 	{ "InheritableModule",		ThingTemplate::parseInheritableModule,	nullptr, 0 },
 
-  { "OverrideableByLikeKind",		ThingTemplate::OverrideableByLikeKind,	nullptr, 0 },
+	{ "OverrideableByLikeKind",		ThingTemplate::OverrideableByLikeKind,	nullptr, 0 },
 
 	{ "Locomotor",						AIUpdateModuleData::parseLocomotorSet, nullptr, 0 },
 	{ "InstanceScaleFuzziness",	INI::parseReal,					nullptr, offsetof(ThingTemplate, m_instanceScaleFuzziness ) },
 	{ "StructureRubbleHeight",	INI::parseUnsignedByte,					nullptr, offsetof(ThingTemplate, m_structureRubbleHeight ) },
 	{ "ThreatValue",						INI::parseUnsignedShort,		nullptr, offsetof(ThingTemplate, m_threatValue ) },
-  { "MaxSimultaneousOfType",	ThingTemplate::parseMaxSimultaneous,		nullptr, offsetof(ThingTemplate, m_maxSimultaneousOfType ) },
-  { "MaxSimultaneousLinkKey",	NameKeyGenerator::parseStringAsNameKeyType,		nullptr, offsetof(ThingTemplate, m_maxSimultaneousLinkKey ) },
+	{ "MaxSimultaneousOfType",	ThingTemplate::parseMaxSimultaneous,		nullptr, offsetof(ThingTemplate, m_maxSimultaneousOfType ) },
+	{ "MaxSimultaneousLinkKey",	NameKeyGenerator::parseStringAsNameKeyType,		nullptr, offsetof(ThingTemplate, m_maxSimultaneousLinkKey ) },
 	{ "CrusherLevel",					INI::parseUnsignedByte,			nullptr, offsetof( ThingTemplate, m_crusherLevel ) },
 	{ "CrushableLevel",				INI::parseUnsignedByte,			nullptr, offsetof( ThingTemplate, m_crushableLevel ) },
 
@@ -263,9 +263,9 @@ const FieldParse ThingTemplate::s_objectReskinFieldParseTable[] =
 	{ "FenceWidth",						INI::parseReal,													nullptr,		offsetof( ThingTemplate, m_fenceWidth ) },
 	{ "FenceXOffset",					INI::parseReal,													nullptr,		offsetof( ThingTemplate, m_fenceXOffset ) },
 
-  // Needed to avoid some cheats with the scud storm rebuild hole
-  { "MaxSimultaneousOfType",	ThingTemplate::parseMaxSimultaneous,		nullptr, offsetof(ThingTemplate, m_maxSimultaneousOfType ) },
-  { "MaxSimultaneousLinkKey",	NameKeyGenerator::parseStringAsNameKeyType,		nullptr, offsetof(ThingTemplate, m_maxSimultaneousLinkKey ) },
+	// Needed to avoid some cheats with the scud storm rebuild hole
+	{ "MaxSimultaneousOfType",	ThingTemplate::parseMaxSimultaneous,		nullptr, offsetof(ThingTemplate, m_maxSimultaneousOfType ) },
+	{ "MaxSimultaneousLinkKey",	NameKeyGenerator::parseStringAsNameKeyType,		nullptr, offsetof(ThingTemplate, m_maxSimultaneousLinkKey ) },
 
 	{ nullptr, nullptr, nullptr, 0 }
 
@@ -292,12 +292,12 @@ const ModuleInfo::Nugget *ModuleInfo::getNuggetWithTag( const AsciiString& tag )
 /** Add this module info to the thing template */
 // ------------------------------------------------------------------------------------------------
 void ModuleInfo::addModuleInfo(ThingTemplate *thingTemplate,
-															 const AsciiString& name,
-															 const AsciiString& moduleTag,
-															 const ModuleData* data,
-															 Int interfaceMask,
-															 Bool inheritable,
-                               Bool overrideableByLikeKind)
+															const AsciiString& name,
+															const AsciiString& moduleTag,
+															const ModuleData* data,
+															Int interfaceMask,
+															Bool inheritable,
+	Bool overrideableByLikeKind)
 {
 
 	//
@@ -314,7 +314,7 @@ void ModuleInfo::addModuleInfo(ThingTemplate *thingTemplate,
 
 		// compare this nugget tag against the tag for the new data we're going to submit
 		DEBUG_ASSERTCRASH( nugget->m_moduleTag != moduleTag,
-											 ("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
+											("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
 												name.str(),
 												thingTemplate->getName().str(),
 												name.str(),
@@ -332,7 +332,7 @@ void ModuleInfo::addModuleInfo(ThingTemplate *thingTemplate,
 
 		// compare this nugget tag against the tag for the new data we're going to submit
 		DEBUG_ASSERTCRASH( nugget->m_moduleTag != moduleTag,
-											 ("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
+											("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
 												name.str(),
 												thingTemplate->getName().str(),
 												name.str(),
@@ -350,7 +350,7 @@ void ModuleInfo::addModuleInfo(ThingTemplate *thingTemplate,
 
 		// compare this nugget tag against the tag for the new data we're going to submit
 		DEBUG_ASSERTCRASH( nugget->m_moduleTag != moduleTag,
-											 ("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
+											("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
 												name.str(),
 												thingTemplate->getName().str(),
 												name.str(),
@@ -400,46 +400,46 @@ Bool ModuleInfo::clearModuleDataWithTag(const AsciiString& tagToClear, AsciiStri
 //-------------------------------------------------------------------------------------------------
 Bool ModuleInfo::clearCopiedFromDefaultEntries(Int interfaceMask, const AsciiString &newName, const ThingTemplate *fullTemplate )
 {
-  static KindOfMaskType ImmuneToGPSScramblerMask;
-  KindOfMaskType &m = ImmuneToGPSScramblerMask;
-  m.set(KINDOF_AIRCRAFT);// NO PLANES or helicopters
-  m.set(KINDOF_SHRUBBERY);// NO trees or bushes
-  m.set(KINDOF_OPTIMIZED_TREE);
-  m.set(KINDOF_STRUCTURE);// NO buildings
-  m.set(KINDOF_DRAWABLE_ONLY);
-  m.set(KINDOF_MOB_NEXUS);
-  m.set(KINDOF_IGNORED_IN_GUI);
-  m.set(KINDOF_CLEARED_BY_BUILD);
-  m.set(KINDOF_DEFENSIVE_WALL);
-  m.set(KINDOF_BALLISTIC_MISSILE);
-  m.set(KINDOF_SUPPLY_SOURCE);
-  m.set(KINDOF_BOAT);
-  m.set(KINDOF_INERT);
-  m.set(KINDOF_BRIDGE);
-  m.set(KINDOF_LANDMARK_BRIDGE);
-  m.set(KINDOF_BRIDGE_TOWER);
-  Bool disallowed =  fullTemplate->isAnyKindOf( ImmuneToGPSScramblerMask );
+	static KindOfMaskType ImmuneToGPSScramblerMask;
+	KindOfMaskType &m = ImmuneToGPSScramblerMask;
+	m.set(KINDOF_AIRCRAFT);// NO PLANES or helicopters
+	m.set(KINDOF_SHRUBBERY);// NO trees or bushes
+	m.set(KINDOF_OPTIMIZED_TREE);
+	m.set(KINDOF_STRUCTURE);// NO buildings
+	m.set(KINDOF_DRAWABLE_ONLY);
+	m.set(KINDOF_MOB_NEXUS);
+	m.set(KINDOF_IGNORED_IN_GUI);
+	m.set(KINDOF_CLEARED_BY_BUILD);
+	m.set(KINDOF_DEFENSIVE_WALL);
+	m.set(KINDOF_BALLISTIC_MISSILE);
+	m.set(KINDOF_SUPPLY_SOURCE);
+	m.set(KINDOF_BOAT);
+	m.set(KINDOF_INERT);
+	m.set(KINDOF_BRIDGE);
+	m.set(KINDOF_LANDMARK_BRIDGE);
+	m.set(KINDOF_BRIDGE_TOWER);
+	Bool disallowed =  fullTemplate->isAnyKindOf( ImmuneToGPSScramblerMask );
 
-  static KindOfMaskType CandidateForGPSScramblerMask;
-  CandidateForGPSScramblerMask.set(KINDOF_SCORE);
-  CandidateForGPSScramblerMask.set(KINDOF_VEHICLE);
-  CandidateForGPSScramblerMask.set(KINDOF_INFANTRY);
-  CandidateForGPSScramblerMask.set(KINDOF_PORTABLE_STRUCTURE);
-  Bool candidate =  fullTemplate->isAnyKindOf( CandidateForGPSScramblerMask );
+	static KindOfMaskType CandidateForGPSScramblerMask;
+	CandidateForGPSScramblerMask.set(KINDOF_SCORE);
+	CandidateForGPSScramblerMask.set(KINDOF_VEHICLE);
+	CandidateForGPSScramblerMask.set(KINDOF_INFANTRY);
+	CandidateForGPSScramblerMask.set(KINDOF_PORTABLE_STRUCTURE);
+	Bool candidate =  fullTemplate->isAnyKindOf( CandidateForGPSScramblerMask );
 
-  Bool ret = false;
+	Bool ret = false;
 
 	std::vector<Nugget>::iterator it = m_info.begin();
 	while( it != m_info.end() )
 	{
 		if( (it->interfaceMask & interfaceMask) != 0 && it->copiedFromDefault )
 		{
-      if ( it->inheritable )
+			if ( it->inheritable )
 			{
 				if( it->m_moduleTag.compare("ModuleTag_DefaultAutoHealBehavior") == 0  && !fullTemplate->isTrainable() )
 				{
 					// Don't inherit this module if it is entirely useless to us.
-          it = m_info.erase( it );
+					it = m_info.erase( it );
 			    ret = true;
 				}
 				else
@@ -447,27 +447,27 @@ Bool ModuleInfo::clearCopiedFromDefaultEntries(Int interfaceMask, const AsciiStr
 					++it;//skip to the next nugget, 'cause we inherit this one
 				}
 			}
-      else if ( it->overrideableByLikeKind)
-      {
+			else if ( it->overrideableByLikeKind)
+			{
 
-        AsciiString oldName = it->first;
-        if ( oldName == newName  //we will dump this instance, since the INI author requested a specific one of the same class
-             || disallowed  // or, we just do not Add these special overrideables to these kinds of templates, so just dump it
-             || candidate == FALSE )
-        {
-          it = m_info.erase( it );
+				AsciiString oldName = it->first;
+				if ( oldName == newName  //we will dump this instance, since the INI author requested a specific one of the same class
+					|| disallowed  // or, we just do not Add these special overrideables to these kinds of templates, so just dump it
+					|| candidate == FALSE )
+				{
+					it = m_info.erase( it );
 			    ret = true;
-        }
-        else
+				}
+				else
 			    ++it;//no match, preserve the default instance of this Module for now
-      }
-      else // just dump this instance of this Module, since one of the same interface mask has been added by caller
-      {
-        it = m_info.erase( it );
+			}
+			else // just dump this instance of this Module, since one of the same interface mask has been added by caller
+			{
+				it = m_info.erase( it );
 			  ret = true;
-      }
-    }
-    else
+			}
+		}
+		else
 			++it;
 	}
 	return ret;
@@ -606,7 +606,7 @@ void ThingTemplate::parseModuleName(INI* ini, void *instance, void* store, const
 	}
 
 	Bool inheritable = (self->m_moduleParsingMode == MODULEPARSE_INHERITABLE);
-  Bool overrideableByLikeKind = (self->m_moduleParsingMode == MODULEPARSE_OVERRIDEABLE_BY_LIKE_KIND);
+	Bool overrideableByLikeKind = (self->m_moduleParsingMode == MODULEPARSE_OVERRIDEABLE_BY_LIKE_KIND);
 	mi->addModuleInfo(self, tokenStr, moduleTagStr, data, interfaceMask, inheritable, overrideableByLikeKind);
 }
 
@@ -951,31 +951,31 @@ void ThingTemplate::parseWeaponTemplateSet( INI* ini, void *instance, void * /*s
 // Parse the "maxSimultaneousOfType" keyword
 void ThingTemplate::parseMaxSimultaneous(INI *ini, void *instance, void *store, const void *userData)
 {
-  // Most of the time, this is an UnsignedShort, but sometimes this is the keyword
-  // "DeterminedBySuperweaponRestriction"
-  const char DETERMINED_BY_SUPERWEAPON_KEYWORD[] = "DeterminedBySuperweaponRestriction";
+	// Most of the time, this is an UnsignedShort, but sometimes this is the keyword
+	// "DeterminedBySuperweaponRestriction"
+	const char DETERMINED_BY_SUPERWEAPON_KEYWORD[] = "DeterminedBySuperweaponRestriction";
 
-  ThingTemplate *myTemplate = (ThingTemplate *)instance;
-  DEBUG_ASSERTCRASH ( &myTemplate->m_maxSimultaneousOfType == store, ("Bad store passed to parseMaxSimultaneous" ) );
+	ThingTemplate *myTemplate = (ThingTemplate *)instance;
+	DEBUG_ASSERTCRASH ( &myTemplate->m_maxSimultaneousOfType == store, ("Bad store passed to parseMaxSimultaneous" ) );
 
-  const char * token = ini->getNextToken();
-  if ( stricmp( token, DETERMINED_BY_SUPERWEAPON_KEYWORD ) == 0 )
-  {
-    myTemplate->m_maxSimultaneousDeterminedBySuperweaponRestriction = true;
-    *(UnsignedShort *)store = 0;
-  }
-  else
-  {
-    // Copied from parseUnsignedShort
-    Int value = INI::scanInt(token);
-    if (value < 0 || value > 65535)
-    {
-      DEBUG_CRASH(("Bad value parseMaxSimultaneous"));
-      throw ERROR_BUG;
-    }
-    *(UnsignedShort *)store = (UnsignedShort)value;
-    myTemplate->m_maxSimultaneousDeterminedBySuperweaponRestriction = false;
-  }
+	const char * token = ini->getNextToken();
+	if ( stricmp( token, DETERMINED_BY_SUPERWEAPON_KEYWORD ) == 0 )
+	{
+		myTemplate->m_maxSimultaneousDeterminedBySuperweaponRestriction = true;
+		*(UnsignedShort *)store = 0;
+	}
+	else
+	{
+		// Copied from parseUnsignedShort
+		Int value = INI::scanInt(token);
+		if (value < 0 || value > 65535)
+		{
+			DEBUG_CRASH(("Bad value parseMaxSimultaneous"));
+			throw ERROR_BUG;
+		}
+		*(UnsignedShort *)store = (UnsignedShort)value;
+		myTemplate->m_maxSimultaneousDeterminedBySuperweaponRestriction = false;
+	}
 }
 
 
@@ -1037,8 +1037,8 @@ ThingTemplate::ThingTemplate() :
 	m_instanceScaleFuzziness = 0;
 	m_threatValue = 0;
 	m_maxSimultaneousOfType = 0;	// unlimited
-  m_maxSimultaneousLinkKey = NAMEKEY_INVALID; // Not linked
-  m_maxSimultaneousDeterminedBySuperweaponRestriction = false;
+	m_maxSimultaneousLinkKey = NAMEKEY_INVALID; // Not linked
+	m_maxSimultaneousDeterminedBySuperweaponRestriction = false;
 	m_crusherLevel = 0;			//Unspecified, this object is unable to crush anything!
 	m_crushableLevel = 255; //Unspecified, this object is unable to be crushed by anything!
 
@@ -1360,13 +1360,13 @@ void ThingTemplate::initForLTA(const AsciiString& name)
 //=============================================================================
 const ArmorTemplateSet* ThingTemplate::findArmorTemplateSet(const ArmorSetFlags& t) const
 {
-  return m_armorTemplateSetFinder.findBestInfo(m_armorTemplateSets, t);
+	return m_armorTemplateSetFinder.findBestInfo(m_armorTemplateSets, t);
 }
 
 //=============================================================================
 const WeaponTemplateSet* ThingTemplate::findWeaponTemplateSet(const WeaponSetFlags& t) const
 {
-  return m_weaponTemplateSetFinder.findBestInfo(m_weaponTemplateSets, t);
+	return m_weaponTemplateSetFinder.findBestInfo(m_weaponTemplateSets, t);
 }
 
 //-----------------------------------------------------------------------------
@@ -1448,9 +1448,9 @@ const AudioEventRTS *ThingTemplate::getPerUnitSound(const AsciiString& soundName
 	if (it == m_perUnitSounds.end())
 	{
 #ifndef DO_UNIT_TIMINGS
-    DEBUG_LOG(("Unknown Audio name (%s) asked for in ThingTemplate (%s).", soundName.str(), m_nameString.str()));
+		DEBUG_LOG(("Unknown Audio name (%s) asked for in ThingTemplate (%s).", soundName.str(), m_nameString.str()));
 #endif
-    return &s_audioEventNoSound;
+		return &s_audioEventNoSound;
 	}
 
 	return &(it->second);
@@ -1459,12 +1459,12 @@ const AudioEventRTS *ThingTemplate::getPerUnitSound(const AsciiString& soundName
 //-------------------------------------------------------------------------------------------------
 UnsignedInt ThingTemplate::getMaxSimultaneousOfType() const
 {
-  if ( m_maxSimultaneousDeterminedBySuperweaponRestriction && TheGameLogic )
-  {
-    return TheGameLogic->getSuperweaponRestriction();
-  }
+	if ( m_maxSimultaneousDeterminedBySuperweaponRestriction && TheGameLogic )
+	{
+		return TheGameLogic->getSuperweaponRestriction();
+	}
 
-  return m_maxSimultaneousOfType;
+	return m_maxSimultaneousOfType;
 }
 
 

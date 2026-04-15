@@ -147,11 +147,11 @@ enum KindOfType CPP_11(: Int)
 	KINDOF_FS_STRATEGY_CENTER,			///< Is this object a strategy center?
 	KINDOF_MONEY_HACKER,	///< Unit that generates money from air.  Needed for things that directly power them up.
 	KINDOF_ARMOR_SALVAGER,					///< subset of salvager that can get armor upgrades from salvage
-  KINDOF_REVEALS_ENEMY_PATHS,     ///< like the listening outpost... when selected, any enemy drawable will draw show paths when moused over
+		KINDOF_REVEALS_ENEMY_PATHS,     ///< like the listening outpost... when selected, any enemy drawable will draw show paths when moused over
 	KINDOF_BOOBY_TRAP,							///< A sticky bomb that gets set off by 5 random and unrelated events.
 	KINDOF_FS_FAKE,									///< Fake structure!
 	KINDOF_FS_INTERNET_CENTER,			///< Internet Center.
-  KINDOF_BLAST_CRATER,            ///< deeply gouges out the terrain under object footprint
+		KINDOF_BLAST_CRATER,            ///< deeply gouges out the terrain under object footprint
 	KINDOF_PROP,										///< A prop, visual only, doesn't interact with other objects (rock, street sign, inert fire hydrant)
 	KINDOF_OPTIMIZED_TREE,					///< An optimized, client side only tree.  (The only good kind of tree. jba)
 	KINDOF_FS_ADVANCED_TECH,				///< Represents each faction's advanced techtree building -- strategy center, propaganda center, and palace.
@@ -163,7 +163,7 @@ enum KindOfType CPP_11(: Int)
 	KINDOF_REJECT_UNMANNED,					///< Unit cannot enter an unmanned vehicle.
 	KINDOF_CANNOT_RETALIATE,				///< Unit will not retaliate if asked.
 	KINDOF_TECH_BASE_DEFENSE,				///< Tech Building that acts as base defence when captured
-  KINDOF_EMP_HARDENED,            ///< Like a delivery plane (B52, B3, CargoPlane,etc.)  or a SpectreGunship, which sort-of IS the weapon...
+		KINDOF_EMP_HARDENED,            ///< Like a delivery plane (B52, B3, CargoPlane,etc.)  or a SpectreGunship, which sort-of IS the weapon...
 	KINDOF_DEMOTRAP,								///< Added strictly only for disarming purposes. They don't act like mines which have rendering and selection implications!
 	KINDOF_CONSERVATIVE_BUILDING,		///< Conservative structures aren't considered part of your base for sneak attack boundary calculations...
 	KINDOF_IGNORE_DOCKING_BONES,		///< Structure will not look up docking bones. Patch 1.03 hack.

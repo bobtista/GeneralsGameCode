@@ -63,7 +63,7 @@ POWTruckAIUpdateModuleData::POWTruckAIUpdateModuleData()
 // ------------------------------------------------------------------------------------------------
 void POWTruckAIUpdateModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
-  AIUpdateModuleData::buildFieldParse( p );
+	AIUpdateModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -72,7 +72,7 @@ void POWTruckAIUpdateModuleData::buildFieldParse( MultiIniFieldParse &p )
 		{ 0, 0, 0, 0 }
 	};
 
-  p.add( dataFieldParse );
+	p.add( dataFieldParse );
 
 }
 
@@ -251,7 +251,7 @@ void POWTruckAIUpdate::setTask( POWTruckTask task, Object *taskObject )
 
 		// mark this target as slated for pickup
 		DEBUG_ASSERTCRASH( taskObject->getAIUpdateInterface(), ("POWTruckAIUpdate::setTask - '%s' has no ai module",
-													 taskObject->getTemplate()->getName().str()) );
+													taskObject->getTemplate()->getName().str()) );
 
 	}
 	else if( task == POW_TRUCK_TASK_RETURNING_PRISONERS )
@@ -510,7 +510,7 @@ static void putContainedInPrison( Object *obj, void *userData )
 
 	// sanity
 	DEBUG_ASSERTCRASH( returnData != nullptr && returnData->source != nullptr && returnData->dest != nullptr,
-										 ("putContainedInPrison: Invalid arguments") );
+										("putContainedInPrison: Invalid arguments") );
 
 	// take 'obj' out of the source
 	ContainModuleInterface *sourceContain = returnData->source->getContain();
@@ -535,7 +535,7 @@ void POWTruckAIUpdate::updateReturnPrisoners()
 	Object *us = getObject();
 	AIUpdateInterface *ai = us->getAIUpdateInterface();
 	DEBUG_ASSERTCRASH( ai, ("POWTruckAIUpdate::updateReturnPrisoners - '%s' has no AI",
-												 us->getTemplate()->getName().str()) );
+												us->getTemplate()->getName().str()) );
 
 	// get the prison we're returning to
 	Object *prison = TheGameLogic->findObjectByID( m_prisonID );
@@ -587,7 +587,7 @@ void POWTruckAIUpdate::doReturnPrisoners()
 	Object *us = getObject();
 	AIUpdateInterface *ai = us->getAIUpdateInterface();
 	DEBUG_ASSERTCRASH( ai, ("POWTruckAIUpdate::doReturnPrisoners - '%s' has no AI",
-												 us->getTemplate()->getName().str()) );
+												us->getTemplate()->getName().str()) );
 	ai->aiReturnPrisoners( prison, CMD_FROM_AI );
 
 }
@@ -658,7 +658,7 @@ Object *POWTruckAIUpdate::findBestTarget()
 	// get our info
 	const AIUpdateInterface *ai = us->getAIUpdateInterface();
 	DEBUG_ASSERTCRASH( ai, ("POWTruckAIUpdate::findBestTarget- '%s' has no AI",
-												 us->getTemplate()->getName().str()) );
+												us->getTemplate()->getName().str()) );
 
 	// scan all objects, there is no range
 	Object *other;
@@ -729,8 +729,8 @@ static void putPrisonersInPrison( Object *obj, void *userData )
 	// sanity
 	DEBUG_ASSERTCRASH( prison, ("putPrisonersInPrison: null user data") );
 	DEBUG_ASSERTCRASH( obj->getContainedBy() != nullptr,
-										 ("putPrisonersInPrison: Prisoner '%s' is not contained by anything, it should be contained by a POW truck",
-										 obj->getTemplate()->getName().str()) );
+										("putPrisonersInPrison: Prisoner '%s' is not contained by anything, it should be contained by a POW truck",
+										obj->getTemplate()->getName().str()) );
 
 	// extra super sanity, just so that we don't crash ... this is in the assert above
 	if( obj->getContainedBy() == nullptr )
@@ -774,13 +774,13 @@ void POWTruckAIUpdate::unloadPrisonersToPrison( Object *prison )
 	DEBUG_ASSERTCRASH( prison->getContain(), ("POWTruckAIUpdate::unloadPrisonersToPrison - '%s' has no contain",
 																		prison->getTemplate()->getName().str()) );
 	DEBUG_ASSERTCRASH( prison->getContain()->asOpenContain(),
-										 ("POWTruckAIUpdate::unloadPrisonersToPrison - '%s' has no OPEN contain",
-										 prison->getTemplate()->getName().str()) );
+										("POWTruckAIUpdate::unloadPrisonersToPrison - '%s' has no OPEN contain",
+										prison->getTemplate()->getName().str()) );
 	DEBUG_ASSERTCRASH( truckContain, ("POWTruckAIUpdate::unloadPrisonersToPrison - '%s' has no contain",
-																	 us->getTemplate()->getName().str()) );
+																	us->getTemplate()->getName().str()) );
 	DEBUG_ASSERTCRASH( truckContain->asOpenContain(),
-										 ("POWTruckAIUpdate::unloadPrisonersToPrison - '%s' has no OPEN contain",
-										 us->getTemplate()->getName().str()) );
+										("POWTruckAIUpdate::unloadPrisonersToPrison - '%s' has no OPEN contain",
+										us->getTemplate()->getName().str()) );
 
 	// put the prisoners in the prison
 	PrisonUnloadData prisonUnloadData;
@@ -888,12 +888,12 @@ void POWTruckAIUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void POWTruckAIUpdate::xfer( Xfer *xfer )
 {
-  // version
-  XferVersion currentVersion = 1;
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	// version
+	XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 
- // extend base class
+	// extend base class
 	AIUpdateInterface::xfer(xfer);
 
 	xfer->xferUser(&m_aiMode, sizeof(m_aiMode));
@@ -910,7 +910,7 @@ void POWTruckAIUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void POWTruckAIUpdate::loadPostProcess()
 {
- // extend base class
+	// extend base class
 	AIUpdateInterface::loadPostProcess();
 }
 

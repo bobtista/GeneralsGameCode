@@ -50,7 +50,7 @@ class UpgradeModuleInterface
 {
 public:
 
- 	virtual Bool isAlreadyUpgraded() const = 0;
+	virtual Bool isAlreadyUpgraded() const = 0;
 	virtual Bool attemptUpgrade( const UpgradeMaskType& keyMask ) = 0;
 	virtual Bool wouldUpgrade( const UpgradeMaskType& keyMask ) const = 0;
 	virtual Bool resetUpgrade( const UpgradeMaskType& keyMask ) = 0;
@@ -158,7 +158,7 @@ public:
 
 	static void buildFieldParse(MultiIniFieldParse& p)
 	{
-    ModuleData::buildFieldParse(p);
+		ModuleData::buildFieldParse(p);
 		p.add(UpgradeMuxData::getFieldParse(), offsetof( UpgradeModuleData, m_upgradeMuxData ));
 	}
 };

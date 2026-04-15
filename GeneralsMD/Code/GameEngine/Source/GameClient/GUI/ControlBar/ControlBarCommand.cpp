@@ -205,13 +205,13 @@ void ControlBar::doTransportInventoryUI( Object *transport, const CommandSet *co
 			GadgetButtonDrawOverlayImage( m_commandWindows[ i ], nullptr );
 
 			//Unmanned vehicles don't have any commands available -- in fact they are hidden!
- 			if( transport->isDisabledByType( DISABLED_UNMANNED ) )
- 			{
- 				m_commandWindows[ i ]->winHide( TRUE );
- 			}
+			if( transport->isDisabledByType( DISABLED_UNMANNED ) )
+			{
+				m_commandWindows[ i ]->winHide( TRUE );
+			}
 
 
-     //  is this where we set the cameos disabled when container is subdued?
+			//  is this where we set the cameos disabled when container is subdued?
 
 			// if we've counted more UI spots than the transport can hold, hide this command window
 			if( inventoryCommandCount > transportMax )
@@ -579,7 +579,7 @@ void ControlBar::populateBuildQueue( Object *producer )
 
 		// get window commented out cause I believe we already set this.  We'll see in a few minutes
 		m_queueData[ i ].control = TheWindowManager->winGetWindowFromId( m_contextParent[ CP_BUILD_QUEUE ],
-																																		 buildQueueIDs[ i ] );
+																																		buildQueueIDs[ i ] );
 
 		// disable window by default
 		m_queueData[ i ].control->winEnable( FALSE );
@@ -604,8 +604,8 @@ void ControlBar::populateBuildQueue( Object *producer )
 	Int windowIndex = 0;
 	const Image *image;
 	for( production = pu->firstProduction();
-			 production;
-			 production = pu->nextProduction( production ) )
+			production;
+			production = pu->nextProduction( production ) )
 	{
 
 		// don't go above how many queue windows we have
@@ -692,7 +692,7 @@ void ControlBar::populateBuildQueue( Object *producer )
 //-------------------------------------------------------------------------------------------------
 void ControlBar::updateContextCommand()
 {
- 	Object *obj = nullptr;
+	Object *obj = nullptr;
 	Int i;
 
 	// get object
@@ -826,7 +826,7 @@ void ControlBar::updateContextCommand()
 
 
 // LORENZEN COMMENTED THIS OUT 8/11
-    // Reason: ExitCameos can be greyed out when the container object gets subdued
+		// Reason: ExitCameos can be greyed out when the container object gets subdued
 
 //		// ignore transport/structure inventory commands, they are handled elsewhere
 //		if( command->getCommandType() == GUI_COMMAND_EXIT_CONTAINER )
@@ -883,8 +883,8 @@ void ControlBar::updateContextCommand()
 
 			// sanity, check like commands should have windows that are check like as well
 			DEBUG_ASSERTCRASH( BitIsSet( win->winGetStatus(), WIN_STATUS_CHECK_LIKE ),
-												 ("updateContextCommand: Error, gadget window for command '%s' is not check-like!",
-												 command->getName().str()) );
+												("updateContextCommand: Error, gadget window for command '%s' is not check-like!",
+												command->getName().str()) );
 
 			if( availability == COMMAND_ACTIVE )
 				GadgetCheckLikeButtonSetVisualCheck( win, TRUE );
@@ -1039,10 +1039,10 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 	}
 
 	//Unmanned vehicles don't have any commands available -- in fact they are hidden!
- 	if( obj->isDisabledByType( DISABLED_UNMANNED ) )
- 	{
- 		return COMMAND_HIDDEN;
- 	}
+	if( obj->isDisabledByType( DISABLED_UNMANNED ) )
+	{
+		return COMMAND_HIDDEN;
+	}
 
 	//It's possible for command buttons to be a single use only type of a button -- like detonating a nuke from a convoy truck.
 	if( obj->hasSingleUseCommandBeenUsed() )
@@ -1072,8 +1072,8 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 		disabled = false;
 	}
 
- 	if (disabled && !forceDisabledEvaluation)
- 	{
+	if (disabled && !forceDisabledEvaluation)
+	{
 
 		GUICommandType commandType = command->getCommandType();
 		if( commandType != GUI_COMMAND_SELL &&
@@ -1088,9 +1088,9 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 			{
 				return COMMAND_HIDDEN;
 			}
- 			return COMMAND_RESTRICTED;
+			return COMMAND_RESTRICTED;
 		}
- 	}
+	}
 
 	// if the command requires an upgrade and we don't have it we can't do it
 	if( BitIsSet( command->getOptions(), NEED_UPGRADE ) )
@@ -1105,7 +1105,7 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 					return COMMAND_RESTRICTED;
 			}
 			else if( upgradeT->getUpgradeType() == UPGRADE_TYPE_OBJECT &&
-							 obj->hasUpgrade( upgradeT ) == FALSE )
+							obj->hasUpgrade( upgradeT ) == FALSE )
 			{
 				return COMMAND_RESTRICTED;
 			}
@@ -1126,7 +1126,7 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 	{
 		case GUI_COMMAND_DOZER_CONSTRUCT:
 		{
-      const ThingTemplate * whatToBuild = command->getThingTemplate();
+			const ThingTemplate * whatToBuild = command->getThingTemplate();
 			// if the command is a dozer construct task and the object dozer is building anything
 			// this command is not available
 			if(whatToBuild)
@@ -1175,9 +1175,9 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 			if (obj->testScriptStatusBit(OBJECT_STATUS_SCRIPT_UNSELLABLE))
 				return COMMAND_HIDDEN;
 
-    //since the container can be subdued, , M Lorenzen 8/11
-      if ( obj->isDisabledByType( DISABLED_SUBDUED ) )
-        return COMMAND_RESTRICTED;
+			//since the container can be subdued, , M Lorenzen 8/11
+			if ( obj->isDisabledByType( DISABLED_SUBDUED ) )
+				return COMMAND_RESTRICTED;
 
 			break;
 		}
@@ -1366,9 +1366,9 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 			// container changes the UI is completely repopulated
 			//
 
-    //since the container can be subdued, the above is no longer true, M Lorenzen 8/11
-      if ( obj->isDisabledByType( DISABLED_SUBDUED ) )
-        return COMMAND_RESTRICTED;
+			//since the container can be subdued, the above is no longer true, M Lorenzen 8/11
+			if ( obj->isDisabledByType( DISABLED_SUBDUED ) )
+				return COMMAND_RESTRICTED;
 
 			break;
 		}
@@ -1380,8 +1380,8 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 			if( !obj->getContain() || obj->getContain()->getContainCount() <= 0 )
 				return COMMAND_RESTRICTED;
 
-      if ( obj->isDisabledByType( DISABLED_SUBDUED ) )
-        return COMMAND_RESTRICTED;
+			if ( obj->isDisabledByType( DISABLED_SUBDUED ) )
+				return COMMAND_RESTRICTED;
 
 
 			break;
@@ -1404,7 +1404,7 @@ CommandAvailability ControlBar::getCommandAvailability( const CommandButton *com
 		{
 			// sanity
 			DEBUG_ASSERTCRASH( command->getSpecialPowerTemplate() != nullptr,
-												 ("The special power in the command '%s' is null", command->getName().str()) );
+												("The special power in the command '%s' is null", command->getName().str()) );
 			// get special power module from the object to execute it
 			SpecialPowerModuleInterface *mod = obj->getSpecialPowerModule( command->getSpecialPowerTemplate() );
 

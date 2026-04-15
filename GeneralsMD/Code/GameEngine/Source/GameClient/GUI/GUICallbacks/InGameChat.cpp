@@ -301,7 +301,7 @@ WindowMsgHandledType InGameChatInput( GameWindow *window, UnsignedInt msg,
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType InGameChatSystem( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+																			WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{

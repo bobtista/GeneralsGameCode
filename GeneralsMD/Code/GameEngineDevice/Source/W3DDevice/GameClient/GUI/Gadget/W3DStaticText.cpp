@@ -186,7 +186,7 @@ void W3DGadgetStaticTextDraw( GameWindow *window, WinInstanceData *instData )
 		end.x = start.x + size.x;
 		end.y = start.y + size.y;
 		TheWindowManager->winOpenRect( backBorder, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+																	start.x, start.y, end.x, end.y );
 
 	}
 
@@ -199,11 +199,11 @@ void W3DGadgetStaticTextDraw( GameWindow *window, WinInstanceData *instData )
 		end.x = start.x + size.x - 2;
 		end.y = start.y + size.y - 2;
 		TheWindowManager->winFillRect( backColor, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+																	start.x, start.y, end.x, end.y );
 	}
 
 	// draw the text
-  if( tData->text && (textColor != WIN_COLOR_UNDEFINED) )
+	if( tData->text && (textColor != WIN_COLOR_UNDEFINED) )
 		drawStaticTextText( window, instData, textColor, textOutlineColor );
 
 
@@ -255,7 +255,7 @@ void W3DGadgetStaticTextImageDraw( GameWindow *window, WinInstanceData *instData
 	}
 
 	// draw the text
-  if( tData->text && (textColor != WIN_COLOR_UNDEFINED) )
+	if( tData->text && (textColor != WIN_COLOR_UNDEFINED) )
 		drawStaticTextText( window, instData, textColor, textOutlineColor );
 
 

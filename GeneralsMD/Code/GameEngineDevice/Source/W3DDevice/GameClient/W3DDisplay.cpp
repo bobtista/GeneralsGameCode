@@ -190,25 +190,25 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 	}
 
 
-  Bool beBrief = brief & s_notFirstDump;
-  s_notFirstDump = TRUE;
+	Bool beBrief = brief & s_notFirstDump;
+	s_notFirstDump = TRUE;
 
 	fprintf( m_fp, "----------------------------------------------------------------\n" );
 	fprintf( m_fp, "Performance Statistical Dump -- Frame %d\n", TheGameLogic->getFrame() );
-  if ( ! beBrief )
-  {
+	if ( ! beBrief )
+	{
 	  //static char buf[1024];
 	  fprintf( m_fp, "Time:\t%s", getCurrentTimeString() );
 	  fprintf( m_fp, "Map:\t%s\n", TheGlobalData->m_mapName.str());
 	  fprintf( m_fp, "Side:\t%s\n", ThePlayerList->getLocalPlayer()->getSide().str());
 	  fprintf( m_fp, "----------------------------------------------------------------\n" );
-  }
+	}
 
 	//FPS
 	Real fps = TheDisplay->getAverageFPS();
 	fprintf( m_fp, "Average FPS: %.1f (%.5f msec)\n", fps, 1000.0f / fps );
-  if ( flagSpikes && fps<20.0f )
-  	fprintf( m_fp, "                                                                      FPS OUT OF TOLERANCE\n" );
+	if ( flagSpikes && fps<20.0f )
+	fprintf( m_fp, "                                                                      FPS OUT OF TOLERANCE\n" );
 
 
 	//Rendering stats
@@ -218,23 +218,23 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 
 	Int onScreenParticleCount = TheParticleSystemManager->getOnScreenParticleCount();
 
-  if ( flagSpikes )
-  {
-    if ( Debug_Statistics::Get_Draw_Calls()>2000 )
-  	  fprintf( m_fp, "                                                                      DRAWS OUT OF TOLERANCE(2000)\n" );
-    if ( Debug_Statistics::Get_Sorting_Polygons() > (onScreenParticleCount*2) + 300 )
-  	  fprintf( m_fp, "                                                                      NON-PARTICLE-SORTS OUT OF TOLERANCE(300)\n" );
-    if ( Debug_Statistics::Get_DX8_Skin_Renders()>100 )
-  	  fprintf( m_fp, "                                                                      SKINS OUT OF TOLERANCE(100)\n" );
-  }
+	if ( flagSpikes )
+	{
+		if ( Debug_Statistics::Get_Draw_Calls()>2000 )
+	fprintf( m_fp, "                                                                      DRAWS OUT OF TOLERANCE(2000)\n" );
+		if ( Debug_Statistics::Get_Sorting_Polygons() > (onScreenParticleCount*2) + 300 )
+	fprintf( m_fp, "                                                                      NON-PARTICLE-SORTS OUT OF TOLERANCE(300)\n" );
+		if ( Debug_Statistics::Get_DX8_Skin_Renders()>100 )
+	fprintf( m_fp, "                                                                      SKINS OUT OF TOLERANCE(100)\n" );
+	}
 
 
 	//Object stats
 	UnsignedInt objCount = TheGameLogic->getObjectCount();
 	UnsignedInt objScreenCount = TheGameClient->getRenderedObjectCount();
 	fprintf( m_fp, "Objects: %d in world (%d onscreen)\n", objCount, objScreenCount );
-  if ( flagSpikes && objCount > 800 )
-  	fprintf( m_fp, "                                                                      OBJS OUT OF TOLERANCE(800)\n" );
+	if ( flagSpikes && objCount > 800 )
+	fprintf( m_fp, "                                                                      OBJS OUT OF TOLERANCE(800)\n" );
 
 	//AI stats
 	UnsignedInt numAI, numMoving, numAttacking, numWaitingForPath, overallFailedPathfinds;
@@ -246,8 +246,8 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 	fprintf( m_fp, "    -attacking: %d\n", numAttacking );
 	fprintf( m_fp, "    -waiting for path: %d\n", numWaitingForPath );
 	fprintf( m_fp, "  Total failed pathfinds: %d\n", overallFailedPathfinds );
-  if ( flagSpikes && overallFailedPathfinds > 0 )
-  	fprintf( m_fp, "                                                                      FAILEDPATHFINDS OUT OF TOLERANCE(0)\n" );
+	if ( flagSpikes && overallFailedPathfinds > 0 )
+	fprintf( m_fp, "                                                                      FAILEDPATHFINDS OUT OF TOLERANCE(0)\n" );
 	fprintf( m_fp, "\n" );
 
 	// Script stats
@@ -258,8 +258,8 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 	fprintf( m_fp, "  Total time last frame: %.5f msec\n", timeLastFrame*1000 );
 	fprintf( m_fp, "    -Slowest 2 scripts      %s\n", slowScripts.str() );
 	fprintf( m_fp, "    -Slowest 2 script times %.5f msec, %.5f msec \n", slowScript1*1000, slowScript2*1000 );
-  if ( flagSpikes && slowScript1*1000 > 0.2f || slowScript2*1000 > 0.2f )
-  	fprintf( m_fp, "                                                                      SLOW SCRIPT OUT OF TOLERANCE(0.2)\n" );
+	if ( flagSpikes && slowScript1*1000 > 0.2f || slowScript2*1000 > 0.2f )
+	fprintf( m_fp, "                                                                      SLOW SCRIPT OUT OF TOLERANCE(0.2)\n" );
 	fprintf( m_fp, "\n" );
 
 
@@ -281,10 +281,10 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 	Int totalParticles = TheParticleSystemManager->getParticleCount();
 	fprintf( m_fp, "  Particles: %d in world (%d onscreen)\n", totalParticles, onScreenParticleCount );
 
-  if ( flagSpikes && totalParticles > TheGlobalData->m_maxParticleCount - 10 )
-  	fprintf( m_fp, "                                                                      PARTICLES OUT OF TOLERANCE(CAP-10)\n" );
-  if ( flagSpikes && onScreenParticleCount > TheGlobalData->m_maxParticleCount - 10 )
-  	fprintf( m_fp, "                                                                      ON_SCREEN_PARTICLES OUT OF TOLERANCE(CAP-10)\n" );
+	if ( flagSpikes && totalParticles > TheGlobalData->m_maxParticleCount - 10 )
+	fprintf( m_fp, "                                                                      PARTICLES OUT OF TOLERANCE(CAP-10)\n" );
+	if ( flagSpikes && onScreenParticleCount > TheGlobalData->m_maxParticleCount - 10 )
+	fprintf( m_fp, "                                                                      ON_SCREEN_PARTICLES OUT OF TOLERANCE(CAP-10)\n" );
 
 
 	// polygons this frame
@@ -303,19 +303,19 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 
 	// terrain stats
 	fprintf( m_fp, "  3-Way Blends: %d/%d, \n Shoreline Blends: %d/%d\n", TheTerrainRenderObject->getNumExtraBlendTiles(TRUE),TheTerrainRenderObject->getNumExtraBlendTiles(FALSE), TheTerrainRenderObject->getNumShoreLineTiles(TRUE),TheTerrainRenderObject->getNumShoreLineTiles(FALSE));
-  if ( flagSpikes && TheTerrainRenderObject->getNumExtraBlendTiles(TRUE) > 2000 )
-  	fprintf( m_fp, "                                                                      3-WAYS OUT OF TOLERANCE(2000)\n" );
-  if ( flagSpikes && TheTerrainRenderObject->getNumShoreLineTiles(TRUE) > 2000 )
-  	fprintf( m_fp, "                                                                      SHORELINES OUT OF TOLERANCE(2000)\n" );
+	if ( flagSpikes && TheTerrainRenderObject->getNumExtraBlendTiles(TRUE) > 2000 )
+	fprintf( m_fp, "                                                                      3-WAYS OUT OF TOLERANCE(2000)\n" );
+	if ( flagSpikes && TheTerrainRenderObject->getNumShoreLineTiles(TRUE) > 2000 )
+	fprintf( m_fp, "                                                                      SHORELINES OUT OF TOLERANCE(2000)\n" );
 
 	fprintf( m_fp, "\n" );
 
 #if defined(RTS_DEBUG)
-  if ( ! beBrief )
-  {
-    TheAudio->audioDebugDisplay( nullptr, nullptr, m_fp );
+	if ( ! beBrief )
+	{
+		TheAudio->audioDebugDisplay( nullptr, nullptr, m_fp );
 	  fprintf( m_fp, "\n" );
-  }
+	}
 #endif
 
 #ifdef MEMORYPOOL_DEBUG
@@ -328,12 +328,12 @@ void StatDumpClass::dumpStats( Bool brief, Bool flagSpikes )
 
 	fprintf( m_fp, "%s", TheSubsystemList->dumpTimesForAll().str());
 
-  if ( ! beBrief )
-  {
+	if ( ! beBrief )
+	{
 	  fprintf( m_fp, "----------------------------------------------------------------\n" );
 	  fprintf( m_fp, "END -- Frame %d\n", TheGameLogic->getFrame() );
 	  fprintf( m_fp, "----------------------------------------------------------------\n" );
-  }
+	}
 	fprintf( m_fp, "\n\n" );
 	fflush(m_fp);
 }
@@ -972,7 +972,7 @@ void W3DDisplay::gatherDebugStats()
 	}
 
 	++s_framesRenderedSinceLastUpdate;
-  s_drawCallsSinceLastUpdate += Debug_Statistics::Get_Draw_Calls();
+	s_drawCallsSinceLastUpdate += Debug_Statistics::Get_Draw_Calls();
 	s_sortedPolysSinceLastUpdate += Debug_Statistics::Get_Sorting_Polygons();
 
 	Int64 freq64 = getPerformanceCounterFrequency();
@@ -1164,7 +1164,7 @@ void W3DDisplay::gatherDebugStats()
 				}
 			}
 		}
- 		if (pListFile) {
+		if (pListFile) {
 			fprintf(pListFile, "\nFPS: %.2f, %.2fms\n", fps, ms);
 			fflush(pListFile);
 		}
@@ -1424,9 +1424,9 @@ void W3DDisplay::gatherDebugStats()
 			if( locoInfo )
 			{
 				unibuffer2.format( L"\nPhysics Info -- Turn: %d, Pitch(accel): %.3f(%.3f), Roll(accel): %.3f(%.3f)",
-													 turnType,
-													 locoInfo->m_accelerationPitch, locoInfo->m_accelerationPitchRate,
-													 locoInfo->m_accelerationRoll, locoInfo->m_accelerationRollRate );
+													turnType,
+													locoInfo->m_accelerationPitch, locoInfo->m_accelerationPitchRate,
+													locoInfo->m_accelerationRoll, locoInfo->m_accelerationRollRate );
 				unibuffer.concat( unibuffer2 );
 			}
 
@@ -1705,7 +1705,7 @@ AGAIN:
     Int interval = TheGlobalData->m_statsInterval;
     if ( TheGameLogic->getFrame() > 0 && (TheGameLogic->getFrame() % interval) == 0 )
     {
-  	  TheStatDump.dumpStats( TRUE, TRUE );
+	TheStatDump.dumpStats( TRUE, TRUE );
     	TheInGameUI->message( L"-stats is running, at interval: %d.", TheGlobalData->m_statsInterval );
     }
   }
@@ -1743,10 +1743,10 @@ AGAIN:
 	/// @todo Make more explicit drawing layers(ground, ground UI, objects, object UI, overlay UI)
 
 	///@todo: Ask Vegas why the LOD optimizer hangs particle system.
- 	//
-  	// Predictive LOD optimizer optimizes the mesh LOD levels to match
-  	// the given polygon budget
-  	//
+	//
+	// Predictive LOD optimizer optimizes the mesh LOD levels to match
+	// the given polygon budget
+	//
 	//PredictiveLODOptimizerClass::Optimize_LODs( 5000 );
 
 	Bool freezeTime = TheFramePacer->isTimeFrozen() || TheFramePacer->isGameHalted();
@@ -2043,10 +2043,10 @@ Bool W3DDisplay::isLetterBoxed()
 	* and vanishes over several frames */
 //=============================================================================
 void W3DDisplay::createLightPulse( const Coord3D *pos, const RGBColor *color,
-																	 Real innerRadius, Real attenuationWidth,
-																	 UnsignedInt increaseFrameTime,
-																	 UnsignedInt decayFrameTime//, Bool donut
-																	 )
+																	Real innerRadius, Real attenuationWidth,
+																	UnsignedInt increaseFrameTime,
+																	UnsignedInt decayFrameTime//, Bool donut
+																	)
 {
 	if (m_3DScene == nullptr)
 		return;
@@ -2149,9 +2149,9 @@ void W3DDisplay::setTimeOfDay( TimeOfDay tod )
 /** draw a line on the display in pixel coordinates with the specified color */
 //=============================================================================
 void W3DDisplay::drawLine( Int startX, Int startY,
-													 Int endX, Int endY,
-													 Real lineWidth,
-													 UnsignedInt lineColor )
+													Int endX, Int endY,
+													Real lineWidth,
+													UnsignedInt lineColor )
 {
 
 	/// @todo we need to consider the efficiency of the 2D renderer
@@ -2167,9 +2167,9 @@ void W3DDisplay::drawLine( Int startX, Int startY,
 /** draw a line on the display in pixel coordinates with the specified color */
 //=============================================================================
 void W3DDisplay::drawLine( Int startX, Int startY,
-													 Int endX, Int endY,
-													 Real lineWidth,
-													 UnsignedInt lineColor1,UnsignedInt lineColor2 )
+													Int endX, Int endY,
+													Real lineWidth,
+													UnsignedInt lineColor1,UnsignedInt lineColor2 )
 {
 
 	/// @todo we need to consider the efficiency of the 2D renderer
@@ -2185,7 +2185,7 @@ void W3DDisplay::drawLine( Int startX, Int startY,
 // W3DDisplay::drawOpenRect ===================================================
 //=============================================================================
 void W3DDisplay::drawOpenRect( Int startX, Int startY, Int width, Int height,
-															 Real lineWidth, UnsignedInt lineColor )
+															Real lineWidth, UnsignedInt lineColor )
 {
 
 	if (m_isClippedEnabled)
@@ -2226,7 +2226,7 @@ void W3DDisplay::drawOpenRect( Int startX, Int startY, Int width, Int height,
 
 		m_2DRender->Add_Outline( RectClass( startX, startY,
 																				startX + width, startY + height ),
-														 lineWidth, lineColor );
+														lineWidth, lineColor );
 
 		// render it now!
 		m_2DRender->Render();
@@ -2237,14 +2237,14 @@ void W3DDisplay::drawOpenRect( Int startX, Int startY, Int width, Int height,
 // W3DDisplay::drawFillRect ===================================================
 //=============================================================================
 void W3DDisplay::drawFillRect( Int startX, Int startY, Int width, Int height,
-															 UnsignedInt color )
+															UnsignedInt color )
 {
 
 	/// @todo we need to consider the efficiency of the 2D renderer
 	m_2DRender->Reset();
 	m_2DRender->Enable_Texturing( FALSE );
 	m_2DRender->Add_Rect( RectClass( startX, startY,
-																	 startX + width, startY + height ),
+																	startX + width, startY + height ),
 												0, 0, color );
 
 	// render it now!
@@ -2461,16 +2461,16 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 		if( percent < 13 )
 		{
 			//1-12%
-  		//-----
+		//-----
 
 			//Draw the 2nd half of rectangle #1
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( endX, midY ), Vector2( endX, startY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 
 			//Draw the last part of the 1st portion of rectangle #1
 			Real percentDraw = (Real)( 13 - percent ) / 13;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( endX, startY ), Vector2( endX - halfWidth * percentDraw, startY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 		else
 		{
@@ -2480,7 +2480,7 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 			//Draw the last part of the 2nd half of rectangle #1
 			Real percentDraw = (Real)( percent - 13 ) / 12;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( endX, midY ), Vector2( endX, startY + halfHeight * percentDraw ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 	}
 	else if( percent < 50 )
@@ -2495,16 +2495,16 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 		if( percent < 38 )
 		{
 			//25-37%
-  		//-----
+		//-----
 
 			//Draw the 2nd half of rectangle #2
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( midX, endY ), Vector2( endX, endY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 
 			//Draw the last part of the 1st portion of rectangle #2
 			Real percentDraw = (Real)( percent - 25 ) / 13;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( endX, endY ), Vector2( endX, midY + halfHeight * percentDraw ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 		else
 		{
@@ -2514,7 +2514,7 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 			//Draw the last part of the 2nd half of rectangle #1
 			Real percentDraw = (Real)( percent - 38 ) / 12;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( midX, endY ), Vector2( endX - halfWidth * percentDraw, endY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 	}
 	else if( percent < 75 )
@@ -2529,16 +2529,16 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 		if( percent < 63 )
 		{
 			//50-62%
-  		//-----
+		//-----
 
 			//Draw the 2nd half of rectangle #3
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( startX, midY ), Vector2( startX, endY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 
 			//Draw the last part of the 1st portion of rectangle #3
 			Real percentDraw = (Real)( percent - 50 ) / 13;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( startX, endY ), Vector2( midX - halfWidth * percentDraw, endY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 		else
 		{
@@ -2548,7 +2548,7 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 			//Draw the last part of the 2nd half of rectangle #3
 			Real percentDraw = (Real)( percent - 62 ) / 12;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( startX, midY ), Vector2( startX, endY - halfHeight * percentDraw ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 	}
 	else
@@ -2560,16 +2560,16 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 		if( percent < 87 )
 		{
 			//75-87%
-  		//-----
+		//-----
 
 			//Draw the 2nd half of rectangle #4
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( midX, startY ), Vector2( startX, startY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 
 			//Draw the last part of the 1st portion of rectangle #4
 			Real percentDraw = (Real)( percent - 75 ) / 13;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( startX, startY ), Vector2( startX, midY - halfHeight * percentDraw ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 		else
 		{
@@ -2579,7 +2579,7 @@ void W3DDisplay::drawRemainingRectClock(Int startX, Int startY, Int width, Int h
 			//Draw the last part of the 2nd half of rectangle #4
 			Real percentDraw = (Real)( percent - 88 ) / 12;
 			m_2DRender->Add_Tri( Vector2( midX, midY ), Vector2( midX, startY ), Vector2( startX + halfWidth * percentDraw, startY ),
-													 Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
+													Vector2( 0, 0 ), Vector2( 0, 0 ), Vector2( 0, 0 ), color );
 		}
 	}
 
@@ -2729,20 +2729,20 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 	{
 
 		m_2DRender->Add_Tri( Vector2( screen_rect.Left, screen_rect.Top ),
-												 Vector2( screen_rect.Left, screen_rect.Bottom ),
-												 Vector2( screen_rect.Right, screen_rect.Top ),
-												 Vector2( uv_rect.Right, uv_rect.Top),
-												 Vector2( uv_rect.Left, uv_rect.Top),
-												 Vector2( uv_rect.Right, uv_rect.Bottom ),
-												 color );
+												Vector2( screen_rect.Left, screen_rect.Bottom ),
+												Vector2( screen_rect.Right, screen_rect.Top ),
+												Vector2( uv_rect.Right, uv_rect.Top),
+												Vector2( uv_rect.Left, uv_rect.Top),
+												Vector2( uv_rect.Right, uv_rect.Bottom ),
+												color );
 
 		m_2DRender->Add_Tri( Vector2( screen_rect.Right, screen_rect.Bottom ),
-												 Vector2( screen_rect.Right, screen_rect.Top ),
-												 Vector2( screen_rect.Left, screen_rect.Bottom ),
-												 Vector2( uv_rect.Left, uv_rect.Bottom ),
-												 Vector2( uv_rect.Right, uv_rect.Bottom ),
-												 Vector2( uv_rect.Left, uv_rect.Top ),
-												 color );
+												Vector2( screen_rect.Right, screen_rect.Top ),
+												Vector2( screen_rect.Left, screen_rect.Bottom ),
+												Vector2( uv_rect.Left, uv_rect.Bottom ),
+												Vector2( uv_rect.Right, uv_rect.Bottom ),
+												Vector2( uv_rect.Left, uv_rect.Top ),
+												color );
 
 	}
 	else

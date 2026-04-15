@@ -300,7 +300,7 @@ void BuildList::setSelectedBuildList(BuildListInfo *pInfo)
 		return;
 	}
 	Int i;
- 	for (i=0; i<TheSidesList->getNumSides(); i++) {
+	for (i=0; i<TheSidesList->getNumSides(); i++) {
 		SidesInfo *pSide = TheSidesList->getSideInfo(i);
 		Int listSel = 0;
 		for (BuildListInfo *pBuild = pSide->getBuildList(); pBuild; pBuild = pBuild->getNext()) {

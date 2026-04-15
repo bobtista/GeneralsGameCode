@@ -295,9 +295,9 @@ static void setDefaults()
 	GadgetSliderSetPosition(sliderVoiceVolume, REAL_TO_INT(TheAudio->getAudioSettings()->m_defaultSpeechVolume * 100.0f));
 
 	//-------------------------------------------------------------------------------------------------
- 	// slider Gamma
- 	GadgetSliderGetMinMax(sliderGamma,&valMin, &valMax);
- 	GadgetSliderSetPosition(sliderGamma, ((valMax - valMin) / 2 + valMin));
+	// slider Gamma
+	GadgetSliderGetMinMax(sliderGamma,&valMin, &valMax);
+	GadgetSliderSetPosition(sliderGamma, ((valMax - valMin) / 2 + valMin));
 
 	if constexpr (ModifyDisplaySettings)
 	{
@@ -311,62 +311,62 @@ static void setDefaults()
 		GadgetSliderSetPosition( sliderTextureResolution, 2-txtFact);
 
 		//-------------------------------------------------------------------------------------------------
- 		// 3D Shadows checkbox
+		// 3D Shadows checkbox
 		//
 		GadgetCheckBoxSetChecked( check3DShadows, TheGlobalData->m_useShadowVolumes);
 
 		//-------------------------------------------------------------------------------------------------
- 		// 2D Shadows checkbox
+		// 2D Shadows checkbox
 		//
 		GadgetCheckBoxSetChecked( check2DShadows, TheGlobalData->m_useShadowDecals);
 
 		//-------------------------------------------------------------------------------------------------
- 		// Cloud Shadows checkbox
+		// Cloud Shadows checkbox
 		//
 		GadgetCheckBoxSetChecked( checkCloudShadows, TheGlobalData->m_useCloudMap);
 
 		//-------------------------------------------------------------------------------------------------
- 		// Ground Lighting (lightmap) checkbox
+		// Ground Lighting (lightmap) checkbox
 		//
 		GadgetCheckBoxSetChecked( checkGroundLighting, TheGlobalData->m_useLightMap);
 
 		//-------------------------------------------------------------------------------------------------
- 		// Smooth Water Border checkbox
+		// Smooth Water Border checkbox
 		//
 		GadgetCheckBoxSetChecked( checkSmoothWater, TheGlobalData->m_showSoftWaterEdge);
 
 		//-------------------------------------------------------------------------------------------------
- 		// Extra Animations (tree sway and buildups) checkbox
+		// Extra Animations (tree sway and buildups) checkbox
 		//
 		GadgetCheckBoxSetChecked( checkExtraAnimations, !TheGlobalData->m_useDrawModuleLOD);
 
 		//-------------------------------------------------------------------------------------------------
- 		// DisableDynamicLOD
+		// DisableDynamicLOD
 		//
 		GadgetCheckBoxSetChecked( checkNoDynamicLod, !TheGlobalData->m_enableDynamicLOD);
 
 		//-------------------------------------------------------------------------------------------------
- 		// Disable FPS Limit
+		// Disable FPS Limit
 		//
 		GadgetCheckBoxSetChecked( checkUnlockFps, !TheGlobalData->m_useFpsLimit);
 
 		//-------------------------------------------------------------------------------------------------
- 		// Heat Effects
+		// Heat Effects
 		//
 		GadgetCheckBoxSetChecked( checkHeatEffects, TheGlobalData->m_useHeatEffects);
 
 		//-------------------------------------------------------------------------------------------------
- 		// Building Occlusion checkbox
+		// Building Occlusion checkbox
 		//
 		GadgetCheckBoxSetChecked( checkBuildingOcclusion, TheGlobalData->m_enableBehindBuildingMarkers);
 
 		//-------------------------------------------------------------------------------------------------
- 		// Particle Cap slider
+		// Particle Cap slider
 		//
 		GadgetSliderSetPosition( sliderParticleCap, TheGlobalData->m_maxParticleCount);
 
 		//-------------------------------------------------------------------------------------------------
- 		// Trees and Shrubs
+		// Trees and Shrubs
 		//
 		GadgetCheckBoxSetChecked( checkProps, TheGlobalData->m_useTrees);
 	}
@@ -421,10 +421,10 @@ static void saveOptions()
 	GadgetComboBoxGetSelectedPos( comboBoxDetail, &index );
 	if (index == STATIC_GAME_LOD_CUSTOM)
 	{
- 		//-------------------------------------------------------------------------------------------------
- 		// Texture resolution slider
+		//-------------------------------------------------------------------------------------------------
+		// Texture resolution slider
 		{
-		 		val = 2 - GadgetSliderGetPosition(sliderTextureResolution);
+				val = 2 - GadgetSliderGetPosition(sliderTextureResolution);
 
 				AsciiString prefString;
 				prefString.format("%d",val);
@@ -469,12 +469,12 @@ static void saveOptions()
 		TheWritableGlobalData->m_useTrees = GadgetCheckBoxIsChecked( checkProps);
 		(*pref)["ShowTrees"] = TheWritableGlobalData->m_useTrees ? "yes" : "no";
 
- 		//-------------------------------------------------------------------------------------------------
+		//-------------------------------------------------------------------------------------------------
 		// Particle Cap slider
 		{
 				AsciiString prefString;
 
-		 		val = GadgetSliderGetPosition(sliderParticleCap);
+				val = GadgetSliderGetPosition(sliderParticleCap);
 
 				prefString.format("%d",val);
 				(*pref)["MaxParticleCount"] = prefString;
@@ -551,14 +551,14 @@ static void saveOptions()
 
 	//-------------------------------------------------------------------------------------------------
 	// antialiasing
-  GadgetComboBoxGetSelectedPos(comboBoxAntiAliasing, &index);
-  if( index >= 0 && TheGlobalData->m_antiAliasBoxValue != index )
-  {
-    TheWritableGlobalData->m_antiAliasBoxValue = index;
-    AsciiString prefString;
+	GadgetComboBoxGetSelectedPos(comboBoxAntiAliasing, &index);
+	if( index >= 0 && TheGlobalData->m_antiAliasBoxValue != index )
+	{
+		TheWritableGlobalData->m_antiAliasBoxValue = index;
+		AsciiString prefString;
 		prefString.format("%d", index);
 		(*pref)["AntiAliasing"] = prefString;
-  }
+	}
 
 
 	//-------------------------------------------------------------------------------------------------
@@ -639,10 +639,10 @@ static void saveOptions()
 	val = GadgetSliderGetPosition(sliderMusicVolume);
 	if(val != -1)
 	{
-    AsciiString prefString;
-    prefString.format("%d", val);
-    (*pref)["MusicVolume"] = prefString;
-    TheAudio->setVolume(val / 100.0f, (AudioAffect) (AudioAffect_Music | AudioAffect_SystemSetting));
+		AsciiString prefString;
+		prefString.format("%d", val);
+		(*pref)["MusicVolume"] = prefString;
+		TheAudio->setVolume(val / 100.0f, (AudioAffect) (AudioAffect_Music | AudioAffect_SystemSetting));
 	}
 
 	//-------------------------------------------------------------------------------------------------
@@ -668,14 +668,14 @@ static void saveOptions()
 		}
 
 		//Apply the sound volumes in the audio system now.
-    TheAudio->setVolume( sound2DVolume, (AudioAffect) (AudioAffect_Sound | AudioAffect_SystemSetting) );
+		TheAudio->setVolume( sound2DVolume, (AudioAffect) (AudioAffect_Sound | AudioAffect_SystemSetting) );
 		TheAudio->setVolume( sound3DVolume, (AudioAffect) (AudioAffect_Sound3D | AudioAffect_SystemSetting) );
 
 		//Save the settings in the options.ini.
-    AsciiString prefString;
-    prefString.format("%d", REAL_TO_INT( sound2DVolume * 100.0f ) );
-    (*pref)["SFXVolume"] = prefString;
-    prefString.format("%d", REAL_TO_INT( sound3DVolume * 100.0f ) );
+		AsciiString prefString;
+		prefString.format("%d", REAL_TO_INT( sound2DVolume * 100.0f ) );
+		(*pref)["SFXVolume"] = prefString;
+		prefString.format("%d", REAL_TO_INT( sound3DVolume * 100.0f ) );
 		(*pref)["SFX3DVolume"] = prefString;
 	}
 
@@ -684,10 +684,10 @@ static void saveOptions()
 	val = GadgetSliderGetPosition(sliderVoiceVolume);
 	if(val != -1)
 	{
-    AsciiString prefString;
-    prefString.format("%d", val);
-    (*pref)["VoiceVolume"] = prefString;
-    TheAudio->setVolume(val / 100.0f, (AudioAffect) (AudioAffect_Speech | AudioAffect_SystemSetting));
+		AsciiString prefString;
+		prefString.format("%d", val);
+		(*pref)["VoiceVolume"] = prefString;
+		TheAudio->setVolume(val / 100.0f, (AudioAffect) (AudioAffect_Speech | AudioAffect_SystemSetting));
 	}
 
 	//-------------------------------------------------------------------------------------------------
@@ -701,11 +701,11 @@ static void saveOptions()
 		TheAudio->friend_getAudioSettings()->m_preferredMoneyTransactionVolume = val / 100.0f;
 	}
 
- 	//-------------------------------------------------------------------------------------------------
- 	// slider Gamma
- 	val = GadgetSliderGetPosition(sliderGamma);
- 	if(val != -1)
- 	{
+	//-------------------------------------------------------------------------------------------------
+	// slider Gamma
+	val = GadgetSliderGetPosition(sliderGamma);
+	if(val != -1)
+	{
 		Real gammaval=1.0f;
 		//generate a value between 0.6 and 2.0.
 		if (val < 50)
@@ -719,15 +719,15 @@ static void saveOptions()
 		if (val > 50)
 			gammaval=1.0f+(1.0f) * (Real)(val-50)/50.0f;
 
- 		AsciiString prefString;
- 		prefString.format("%d", val);
- 		(*pref)["Gamma"] = prefString;
+		AsciiString prefString;
+		prefString.format("%d", val);
+		(*pref)["Gamma"] = prefString;
 
 		if (TheGlobalData->m_displayGamma != gammaval)
 		{	TheWritableGlobalData->m_displayGamma = gammaval;
 			TheDisplay->setGamma(TheGlobalData->m_displayGamma,0.0f, 1.0f, FALSE);
 		}
- 	}
+	}
 
 	//-------------------------------------------------------------------------------------------------
 	// Set Network Latency Font Size
@@ -966,8 +966,8 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	sliderSFXVolume        = TheWindowManager->winGetWindowFromId( nullptr, sliderSFXVolumeID );
 	sliderVoiceVolumeID    = TheNameKeyGenerator->nameToKey( "OptionsMenu.wnd:SliderVoiceVolume" );
 	sliderVoiceVolume      = TheWindowManager->winGetWindowFromId( nullptr, sliderVoiceVolumeID );
- 	sliderGammaID    = TheNameKeyGenerator->nameToKey( "OptionsMenu.wnd:SliderGamma" );
- 	sliderGamma      = TheWindowManager->winGetWindowFromId( nullptr, sliderGammaID );
+	sliderGammaID    = TheNameKeyGenerator->nameToKey( "OptionsMenu.wnd:SliderGamma" );
+	sliderGamma      = TheWindowManager->winGetWindowFromId( nullptr, sliderGammaID );
 
 //	checkBoxLowTextureDetailID = TheNameKeyGenerator->nameToKey( "OptionsMenu.wnd:CheckLowTextureDetail" );
 //	checkBoxLowTextureDetail      = TheWindowManager->winGetWindowFromId( nullptr, checkBoxLowTextureDetailID );
@@ -1018,19 +1018,19 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	checkProps   = TheWindowManager->winGetWindowFromId( nullptr, checkPropsID);
 
 	sliderParticleCapID = TheNameKeyGenerator->nameToKey( "OptionsMenu.wnd:ParticleCapSlider" );
-  sliderParticleCap = TheWindowManager->winGetWindowFromId( nullptr, sliderParticleCapID );
+	sliderParticleCap = TheWindowManager->winGetWindowFromId( nullptr, sliderParticleCapID );
 
 	WinAdvancedDisplay->winHide(TRUE);
 
 	Color color =  GameMakeColor(255,255,255,255);
 
-  enum AliasingMode CPP_11(: Int)
-  {
-    OFF = 0,
-    LOW,
-    HIGH,
-    NUM_ALIASING_MODES
-  };
+	enum AliasingMode CPP_11(: Int)
+	{
+		OFF = 0,
+		LOW,
+		HIGH,
+		NUM_ALIASING_MODES
+	};
 
 	initLabelVersion();
 
@@ -1329,7 +1329,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	// set the send delay check box
 	GadgetCheckBoxSetChecked(checkSendDelay, TheGlobalData->m_firewallSendDelay);
 
- 	// set volume sliders
+	// set volume sliders
 
 	// set music volume slider
 	GadgetSliderSetPosition( sliderMusicVolume, REAL_TO_INT(pref->getMusicVolume()) );
@@ -1342,7 +1342,7 @@ void OptionsMenuInit( WindowLayout *layout, void *userData )
 	GadgetSliderSetPosition( sliderVoiceVolume, REAL_TO_INT(pref->getSpeechVolume()) );
 
 	// set the gamma slider
- 	GadgetSliderSetPosition( sliderGamma, REAL_TO_INT(pref->getGammaValue()) );
+	GadgetSliderSetPosition( sliderGamma, REAL_TO_INT(pref->getGammaValue()) );
 
 	// show menu
 	layout->hide( FALSE );
@@ -1424,7 +1424,7 @@ void OptionsMenuUpdate( WindowLayout *layout, void *userData )
 /** Options menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType OptionsMenuInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+																			WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	switch( msg )
@@ -1616,57 +1616,57 @@ WindowMsgHandledType OptionsMenuSystem( GameWindow *window, UnsignedInt msg,
 				TheShell->push( "Menus/KeyboardOptionsMenu.wnd" );
 			}
 			else if(controlID == checkDrawAnchorID )
-      {
-        if( GadgetCheckBoxIsChecked( control ) )
-        {
-          	TheInGameUI->setDrawRMBScrollAnchor(true);
-          	(*pref)["DrawScrollAnchor"] = "yes";
-        }
+			{
+				if( GadgetCheckBoxIsChecked( control ) )
+				{
+					TheInGameUI->setDrawRMBScrollAnchor(true);
+					(*pref)["DrawScrollAnchor"] = "yes";
+				}
 				else
-        {
-          	TheInGameUI->setDrawRMBScrollAnchor(false);
-          	(*pref)["DrawScrollAnchor"] = "no";
-        }
-      }
+				{
+					TheInGameUI->setDrawRMBScrollAnchor(false);
+					(*pref)["DrawScrollAnchor"] = "no";
+				}
+			}
 			else if(controlID == checkMoveAnchorID )
-      {
-        if( GadgetCheckBoxIsChecked( control ) )
-        {
-          	TheInGameUI->setMoveRMBScrollAnchor(true);
-          	(*pref)["MoveScrollAnchor"] = "yes";
-        }
+			{
+				if( GadgetCheckBoxIsChecked( control ) )
+				{
+					TheInGameUI->setMoveRMBScrollAnchor(true);
+					(*pref)["MoveScrollAnchor"] = "yes";
+				}
 				else
-        {
-          	TheInGameUI->setMoveRMBScrollAnchor(false);
-          	(*pref)["MoveScrollAnchor"] = "no";
-        }
-      }
+				{
+					TheInGameUI->setMoveRMBScrollAnchor(false);
+					(*pref)["MoveScrollAnchor"] = "no";
+				}
+			}
 			else if(controlID == checkSaveCameraID )
-      {
-        if( GadgetCheckBoxIsChecked( control ) )
-        {
-          	TheWritableGlobalData->m_saveCameraInReplay = true;
-          	(*pref)["SaveCameraInReplays"] = "yes";
-        }
+			{
+				if( GadgetCheckBoxIsChecked( control ) )
+				{
+					TheWritableGlobalData->m_saveCameraInReplay = true;
+					(*pref)["SaveCameraInReplays"] = "yes";
+				}
 				else
-        {
-          	TheWritableGlobalData->m_saveCameraInReplay = false;
-          	(*pref)["SaveCameraInReplays"] = "no";
-        }
-      }
+				{
+					TheWritableGlobalData->m_saveCameraInReplay = false;
+					(*pref)["SaveCameraInReplays"] = "no";
+				}
+			}
 			else if(controlID == checkUseCameraID )
-      {
-        if( GadgetCheckBoxIsChecked( control ) )
-        {
-          	TheWritableGlobalData->m_useCameraInReplay = true;
-          	(*pref)["UseCameraInReplays"] = "yes";
-        }
+			{
+				if( GadgetCheckBoxIsChecked( control ) )
+				{
+					TheWritableGlobalData->m_useCameraInReplay = true;
+					(*pref)["UseCameraInReplays"] = "yes";
+				}
 				else
-        {
-          	TheWritableGlobalData->m_useCameraInReplay = false;
-          	(*pref)["UseCameraInReplays"] = "no";
-        }
-      }
+				{
+					TheWritableGlobalData->m_useCameraInReplay = false;
+					(*pref)["UseCameraInReplays"] = "no";
+				}
+			}
 			else if (controlID == buttonFirewallRefreshID)
 			{
 				// setting the behavior to unknown will force the firewall helper to detect the firewall behavior

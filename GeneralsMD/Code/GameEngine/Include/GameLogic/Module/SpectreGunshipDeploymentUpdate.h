@@ -49,7 +49,7 @@ enum ScienceType CPP_11(: Int);
 enum GunshipCreateLocType CPP_11(: Int)
 {
 	CREATE_GUNSHIP_AT_EDGE_NEAR_SOURCE,
-  CREATE_GUNSHIP_AT_EDGE_FARTHEST_FROM_SOURCE,
+	CREATE_GUNSHIP_AT_EDGE_FARTHEST_FROM_SOURCE,
 	CREATE_GUNSHIP_AT_EDGE_NEAR_TARGET,
 	CREATE_GUNSHIP_AT_EDGE_FARTHEST_FROM_TARGET,
 
@@ -66,15 +66,15 @@ public:
 	SpecialPowerTemplate *m_specialPowerTemplate;
 	ScienceType						m_extraRequiredScience;		///< science required (if any) to actually execute this power
 	WeaponTemplate	      *m_howitzerWeaponTemplate;
-  AsciiString           m_gunshipTemplateName;
-  AsciiString           m_gattlingTemplateName;
+	AsciiString           m_gunshipTemplateName;
+	AsciiString           m_gattlingTemplateName;
 //  AsciiString           m_howitzerTemplateName;
-  RadiusDecalTemplate   m_attackAreaDecalTemplate;
-  RadiusDecalTemplate   m_targetingReticleDecalTemplate;
-  UnsignedInt           m_orbitFrames;
-  Real                  m_attackAreaRadius;
-  Real                  m_targetingReticleRadius;
-  Real                  m_gunshipOrbitRadius;
+	RadiusDecalTemplate   m_attackAreaDecalTemplate;
+	RadiusDecalTemplate   m_targetingReticleDecalTemplate;
+	UnsignedInt           m_orbitFrames;
+	Real                  m_attackAreaRadius;
+	Real                  m_targetingReticleRadius;
+	Real                  m_gunshipOrbitRadius;
 	GunshipCreateLocType	m_createLoc;
 
 
@@ -89,10 +89,10 @@ private:
 
 enum GunshipDeployStatus CPP_11(: Int)
 {
-   GUNSHIPDEPLOY_STATUS_INSERTING,
-   GUNSHIPDEPLOY_STATUS_ORBITING,
-   GUNSHIPDEPLOY_STATUS_DEPARTING,
-   GUNSHIPDEPLOY_STATUS_IDLE,
+	GUNSHIPDEPLOY_STATUS_INSERTING,
+	GUNSHIPDEPLOY_STATUS_ORBITING,
+	GUNSHIPDEPLOY_STATUS_DEPARTING,
+	GUNSHIPDEPLOY_STATUS_IDLE,
 };
 
 
@@ -117,7 +117,7 @@ public:
 	virtual Bool isActive() const override {return FALSE;}
 	virtual SpecialPowerUpdateInterface* getSpecialPowerUpdateInterface() override { return this; }
 	virtual CommandOption getCommandOption() const override { return (CommandOption)0; }
-  virtual Bool isPowerCurrentlyInUse( const CommandButton *command = nullptr ) const override { return FALSE; };
+	virtual Bool isPowerCurrentlyInUse( const CommandButton *command = nullptr ) const override { return FALSE; };
 	virtual ScienceType getExtraRequiredScience() const override { return getSpectreGunshipDeploymentUpdateModuleData()->m_extraRequiredScience; } //Does this object have more than one special power module with the same spTemplate?
 
 	virtual void onObjectCreated() override;
@@ -127,9 +127,9 @@ public:
 
 
 
-  virtual Bool doesSpecialPowerHaveOverridableDestinationActive() const override { return FALSE; };
+	virtual Bool doesSpecialPowerHaveOverridableDestinationActive() const override { return FALSE; };
 	virtual Bool doesSpecialPowerHaveOverridableDestination() const override { return FALSE; }	//Does it have it, even if it's not active?
-  virtual void setSpecialPowerOverridableDestination( const Coord3D *loc ) override {};
+	virtual void setSpecialPowerOverridableDestination( const Coord3D *loc ) override {};
 
 	// Disabled conditions to process (termination conditions!)
 	virtual DisabledMaskType getDisabledTypesToProcess() const override { return MAKE_DISABLED_MASK4( DISABLED_SUBDUED, DISABLED_UNDERPOWERED, DISABLED_EMP, DISABLED_HACKED ); }
@@ -139,8 +139,8 @@ protected:
 
 
 	SpecialPowerModuleInterface* m_specialPowerModule;
-  Coord3D				m_initialTargetPosition;
-  ObjectID        m_gunshipID;
+	Coord3D				m_initialTargetPosition;
+	ObjectID        m_gunshipID;
 
 
 };

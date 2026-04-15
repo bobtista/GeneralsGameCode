@@ -116,7 +116,7 @@ class W3DVolumetricShadow	: public Shadow
 		const W3DShadowGeometry *getGeometry() {return m_geometry;}
 
 		void setRenderObject( RenderObjClass	*robj) {assert(m_robj==nullptr); m_robj=robj;}
- 		void setRenderObjExtent ( Real extent) { m_robjExtent = extent; }
+		void setRenderObjExtent ( Real extent) { m_robjExtent = extent; }
 
 		// called once per frame, updates shadow volume when necessary
 		void Update();
@@ -156,7 +156,7 @@ class W3DVolumetricShadow	: public Shadow
 		RenderObjClass	*m_robj;	///<render object belonging to model casting shadow
 
 		Real	m_shadowLengthScale;	///<scale factor used to reduce/clamp shadow length
- 		Real	m_robjExtent;			///<maximum possible horizontal reach of shadow from center of object.
+		Real	m_robjExtent;			///<maximum possible horizontal reach of shadow from center of object.
 		Real	m_extraExtrusionPadding;	///<amount to extrude shadow beyond where it would normally stop (ground level below object).
 
 		//
@@ -176,8 +176,8 @@ class W3DVolumetricShadow	: public Shadow
 
 		// silhouette building space
 		Short *m_silhouetteIndex[MAX_SHADOW_CASTER_MESHES];  // silhouette vertex index list, edges occur
-									 // as disjoint pairs.  The actual size of this
-									 // piece of memory must accommodate #vertices*2
+									// as disjoint pairs.  The actual size of this
+									// piece of memory must accommodate #vertices*2
 		Short m_numSilhouetteIndices[MAX_SHADOW_CASTER_MESHES];  // total number of edge indices in the index
 									   // array, these are pairs and therefore
 									   // always a multiple of two

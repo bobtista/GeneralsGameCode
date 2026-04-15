@@ -475,7 +475,7 @@ GlobalData* GlobalData::m_theOriginal = nullptr;
 
 	{ "StandardPublicBone", INI::parseAsciiStringVectorAppend, nullptr, offsetof(GlobalData, m_standardPublicBones) },
 	{ "ShowMetrics",								INI::parseBool,				   nullptr,		offsetof( GlobalData, m_showMetrics ) },
-  { "DefaultStartingCash",				Money::parseMoneyAmount, nullptr,		offsetof( GlobalData, m_defaultStartingCash ) },
+	{ "DefaultStartingCash",				Money::parseMoneyAmount, nullptr,		offsetof( GlobalData, m_defaultStartingCash ) },
 
 // NOTE: m_doubleClickTimeMS is still in use, but we disallow setting it from the GameData.ini file. It is now set in the constructor according to the windows parameter.
 //	{ "DoubleClickTimeMS",									INI::parseUnsignedInt,			nullptr, offsetof( GlobalData, m_doubleClickTimeMS ) },
@@ -516,7 +516,7 @@ GlobalData* GlobalData::m_theOriginal = nullptr;
 	{ "ShroudOn",										INI::parseBool,				nullptr,			offsetof( GlobalData, m_shroudOn ) },
 	{ "FogOfWarOn",										INI::parseBool,				nullptr,			offsetof( GlobalData, m_fogOfWarOn ) },
 	{ "ShowCollisionExtents",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_showCollisionExtents ) },
-  { "ShowAudioLocations",  				INI::parseBool,				nullptr,			offsetof( GlobalData, m_showAudioLocations ) },
+	{ "ShowAudioLocations",  				INI::parseBool,				nullptr,			offsetof( GlobalData, m_showAudioLocations ) },
 	{ "DebugProjectileTileWidth",		INI::parseReal,				nullptr,			offsetof( GlobalData, m_debugProjectileTileWidth) },
 	{ "DebugProjectileTileDuration",INI::parseInt,				nullptr,			offsetof( GlobalData, m_debugProjectileTileDuration) },
 	{ "DebugProjectileTileColor",		INI::parseRGBColor,		nullptr,			offsetof( GlobalData, m_debugProjectileTileColor) },
@@ -562,7 +562,7 @@ GlobalData::GlobalData()
 #if defined(RTS_DEBUG) || defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)
 	m_specialPowerUsesDelay = TRUE;
 #endif
-  m_TiVOFastMode = FALSE;
+	m_TiVOFastMode = FALSE;
 
 #if defined(RTS_DEBUG) || ENABLE_CONFIGURABLE_SHROUD
 	m_shroudOn = TRUE;
@@ -576,7 +576,7 @@ GlobalData::GlobalData()
 	m_jabberOn = FALSE;
 	m_munkeeOn = FALSE;
 	m_showCollisionExtents = FALSE;
-  m_showAudioLocations = FALSE;
+	m_showAudioLocations = FALSE;
 	m_debugCamera = FALSE;
 	m_debugVisibility = FALSE;
 	m_debugVisibilityTileCount = 32;	// default to 32.
@@ -919,8 +919,8 @@ GlobalData::GlobalData()
 
 	m_hotKeyTextColor = GameMakeColor(255,255,0,255);
 
-  // THis is put ON ice until later
-  //  m_cheaterHasBeenSpiedIfMyLowestBitIsTrue = GameMakeColor(255,128,0,0);// orange, to the hacker's eye
+	// THis is put ON ice until later
+	//  m_cheaterHasBeenSpiedIfMyLowestBitIsTrue = GameMakeColor(255,128,0,0);// orange, to the hacker's eye
 
 	m_shroudColor.setFromInt( 0x00FFFFFF ) ;
 	m_clearAlpha = 255;
@@ -1032,8 +1032,8 @@ GlobalData::GlobalData()
 
 #ifdef DUMP_PERF_STATS
 	m_dumpPerformanceStatistics = FALSE;
-  m_dumpStatsAtInterval = FALSE;
-  m_statsInterval = 30;
+	m_dumpStatsAtInterval = FALSE;
+	m_statsInterval = 30;
 #endif
 
 	m_forceBenchmark = FALSE;	///<forces running of CPU detection benchmark, even on known cpu's.

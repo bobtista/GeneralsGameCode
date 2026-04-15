@@ -61,14 +61,14 @@ public:
 		};
 
 		p.add(dataFieldParse);
-  }
+	}
 
 };
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 class NeutronBlastBehavior : public UpdateModule,
-														 public DieModuleInterface
+														public DieModuleInterface
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( NeutronBlastBehavior, "NeutronBlastBehavior" )

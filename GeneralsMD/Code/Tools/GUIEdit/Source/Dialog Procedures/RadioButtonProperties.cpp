@@ -75,9 +75,9 @@
 /** Dialog callback for properties */
 //=============================================================================
 static LRESULT CALLBACK radioButtonPropertiesCallback( HWND hWndDialog,
-																											 UINT message,
-																											 WPARAM wParam,
-																											 LPARAM lParam )
+																											UINT message,
+																											WPARAM wParam,
+																											LPARAM lParam )
 {
 	Int returnCode;
 
@@ -94,14 +94,14 @@ static LRESULT CALLBACK radioButtonPropertiesCallback( HWND hWndDialog,
 	{
 
 		// ------------------------------------------------------------------------
-    case WM_COMMAND:
-    {
+		case WM_COMMAND:
+		{
 //			Int notifyCode = HIWORD( wParam );  // notification code
 			Int controlID = LOWORD( wParam );  // control ID
 //			HWND hWndControl = (HWND)lParam;  // control window handle
 
-      switch( controlID )
-      {
+			switch( controlID )
+			{
 
 				// --------------------------------------------------------------------
 				case BUTTON_CLEAR_GROUP:
@@ -113,7 +113,7 @@ static LRESULT CALLBACK radioButtonPropertiesCallback( HWND hWndDialog,
 				}
 
 				// --------------------------------------------------------------------
-        case IDOK:
+				case IDOK:
 				{
 					GameWindow *window = TheEditor->getPropertyTarget();
 
@@ -182,32 +182,32 @@ static LRESULT CALLBACK radioButtonPropertiesCallback( HWND hWndDialog,
 
 					}
 
-          DestroyWindow( hWndDialog );
-          break;
+					DestroyWindow( hWndDialog );
+					break;
 
 				}
 
 				// --------------------------------------------------------------------
-        case IDCANCEL:
+				case IDCANCEL:
 				{
 
-          DestroyWindow( hWndDialog );
-          break;
+					DestroyWindow( hWndDialog );
+					break;
 
 				}
 
-      }
+			}
 
-      return 0;
+			return 0;
 
-    }
+		}
 
 		// ------------------------------------------------------------------------
-    case WM_CLOSE:
+		case WM_CLOSE:
 		{
 
-      DestroyWindow( hWndDialog );
-      return 0;
+			DestroyWindow( hWndDialog );
+			return 0;
 
 		}
 
@@ -215,7 +215,7 @@ static LRESULT CALLBACK radioButtonPropertiesCallback( HWND hWndDialog,
 		default:
 			return 0;
 
-  }
+	}
 
 }
 
@@ -272,9 +272,9 @@ HWND InitRadioButtonPropertiesDialog( GameWindow *window )
 
 	// create the dialog box
 	dialog = CreateDialog( TheEditor->getInstance(),
-												 (LPCTSTR)RADIO_BUTTON_PROPERTIES_DIALOG,
-												 TheEditor->getWindowHandle(),
-												 (DLGPROC)radioButtonPropertiesCallback );
+												(LPCTSTR)RADIO_BUTTON_PROPERTIES_DIALOG,
+												TheEditor->getWindowHandle(),
+												(DLGPROC)radioButtonPropertiesCallback );
 	if( dialog == nullptr )
 		return nullptr;
 
@@ -340,7 +340,7 @@ HWND InitRadioButtonPropertiesDialog( GameWindow *window )
 
 	// fill the group combo box with all the other groups in the screen
 	loadExistingGroupsCombo( GetDlgItem( dialog, COMBO_GROUP ),
-													 TheWindowManager->winGetWindowList() );
+													TheWindowManager->winGetWindowList() );
 
 	// set the group for this radio button
 	SetDlgItemInt( dialog, COMBO_GROUP, radioData->group, FALSE );

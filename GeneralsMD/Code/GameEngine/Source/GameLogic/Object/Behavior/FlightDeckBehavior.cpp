@@ -149,7 +149,7 @@ FlightDeckBehavior::FlightDeckBehavior( Thing *thing, const ModuleData* moduleDa
 		m_rampUp[ i ] = FALSE;
 	}
 
-  m_thingTemplate = nullptr;
+	m_thingTemplate = nullptr;
 
 }
 
@@ -949,7 +949,7 @@ Bool FlightDeckBehavior::calcBestParkingAssignment( ObjectID id, Coord3D *pos, I
 			else if( checkForPlaneInWay  )
 			{
 				//Ugh, there's a plane parked between us and the best spot!
- 				checkForPlaneInWay = FALSE;
+				checkForPlaneInWay = FALSE;
 				if( pos )
 				{
 					pos->set( &myIt->m_prep ); //reset the original position.

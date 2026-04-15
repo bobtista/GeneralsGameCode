@@ -272,7 +272,7 @@ public:
 		MSG_META_BEGIN_CAMERA_ZOOM_OUT,
 		MSG_META_END_CAMERA_ZOOM_OUT,
 		MSG_META_CAMERA_RESET,
-    MSG_META_TOGGLE_CAMERA_TRACKING_DRAWABLE,
+		MSG_META_TOGGLE_CAMERA_TRACKING_DRAWABLE,
 		MSG_META_TOGGLE_FAST_FORWARD_REPLAY,				///< Toggle the fast forward feature
 		MSG_META_TOGGLE_PAUSE,											///< TheSuperHackers @feature Toggle game pause
 		MSG_META_TOGGLE_PAUSE_ALT,									///< TheSuperHackers @feature Toggle game pause (alternative mapping)
@@ -282,7 +282,7 @@ public:
 
 
 #if defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)//may be defined in GameCommon.h
-    MSG_CHEAT_RUNSCRIPT1,										///< run script named "KEY_F1"
+		MSG_CHEAT_RUNSCRIPT1,										///< run script named "KEY_F1"
 		MSG_CHEAT_RUNSCRIPT2,										///< run script named "KEY_F2"
 		MSG_CHEAT_RUNSCRIPT3,										///< run script named "KEY_F3"
 		MSG_CHEAT_RUNSCRIPT4,										///< run script named "KEY_F4"
@@ -301,7 +301,7 @@ public:
 		MSG_CHEAT_GIVE_ALL_SCIENCES,						///< grant all grantable sciences
 		MSG_CHEAT_GIVE_SCIENCEPURCHASEPOINTS,		///< give yourself an SPP (but no rank change)
 		MSG_CHEAT_SHOW_HEALTH,									///< show object health
-    MSG_CHEAT_TOGGLE_MESSAGE_TEXT,          ///< hides/shows the onscreen messages
+		MSG_CHEAT_TOGGLE_MESSAGE_TEXT,          ///< hides/shows the onscreen messages
 
 #endif
 
@@ -364,8 +364,8 @@ public:
 		MSG_META_DEMO_ENSHROUD,											///< re-shroud the world for the local player
 		MSG_META_DEMO_DESHROUD,											///< de-shroud the world for the local player
 		MSG_META_DEBUG_SHOW_EXTENTS,								///< show object extents
-    MSG_META_DEBUG_SHOW_AUDIO_LOCATIONS,	  		///< show audio objects and radii
-    MSG_META_DEBUG_SHOW_HEALTH,									///< show object health
+		MSG_META_DEBUG_SHOW_AUDIO_LOCATIONS,	  		///< show audio objects and radii
+		MSG_META_DEBUG_SHOW_HEALTH,									///< show object health
 		MSG_META_DEBUG_GIVE_VETERANCY,							///< give a veterancy level to selected objects
 		MSG_META_DEBUG_TAKE_VETERANCY,							///< take a veterancy level from selected objects
 		MSG_META_DEMO_TOGGLE_AI_DEBUG,							///< show/hide the ai debug stats
@@ -552,9 +552,9 @@ public:
 		MSG_QUEUE_UNIT_CREATE,											///< clicked on a button to queue the production of a unit
 		MSG_CANCEL_UNIT_CREATE,											///< clicked on UI button to cancel production of a unit
 		MSG_DOZER_CONSTRUCT,												/**< building things requires clicking on a dozer
-																										 selecting what to build, selecting where to
-																										 build it ... this construct message will
-																										 start the actual build process */
+																										selecting what to build, selecting where to
+																										build it ... this construct message will
+																										start the actual build process */
 		MSG_DOZER_CONSTRUCT_LINE,										///< Like MSG_CONSTRUCT, but for build processes that occur in a line (like walls)
 		MSG_DOZER_CANCEL_CONSTRUCT,									///< cancel construction of a building
 		MSG_SELL,																		///< sell a structure

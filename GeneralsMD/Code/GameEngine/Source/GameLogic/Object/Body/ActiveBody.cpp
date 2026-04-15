@@ -137,7 +137,7 @@ ActiveBodyModuleData::ActiveBodyModuleData()
 //-------------------------------------------------------------------------------------------------
 void ActiveBodyModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  ModuleData::buildFieldParse(p);
+	ModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -149,7 +149,7 @@ void ActiveBodyModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ "SubdualDamageHealAmount",	INI::parseReal,									nullptr,		offsetof( ActiveBodyModuleData, m_subdualDamageHealAmount ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -426,8 +426,8 @@ void ActiveBody::attemptDamage( DamageInfo *damageInfo )
 					obj->setDisabled( DISABLED_UNMANNED );
 					TheGameLogic->deselectObject(obj, PLAYERMASK_ALL, TRUE);
 
-          if ( obj->getAI() )
-            obj->getAI()->aiIdle( CMD_FROM_AI );
+					if ( obj->getAI() )
+						obj->getAI()->aiIdle( CMD_FROM_AI );
 
 					// Convert it to the neutral team so it renders gray giving visual representation that it is unmanned.
 					obj->setTeam( ThePlayerList->getNeutralPlayer()->getDefaultTeam() );
@@ -1056,7 +1056,7 @@ void ActiveBody::createParticleSystems( const AsciiString &boneBaseName,
 
 		// sanity
 		DEBUG_ASSERTCRASH( j != numBones,
-											 ("ActiveBody::createParticleSystems, Unable to select particle system index") );
+											("ActiveBody::createParticleSystems, Unable to select particle system index") );
 
 		// create particle system here
 		ParticleSystem *particleSystem = TheParticleSystemManager->createParticleSystem( systemTemplate );
@@ -1176,32 +1176,32 @@ void ActiveBody::updateBodyParticleSystems()
 
 	// small fire bones
 	createParticleSystems( TheGlobalData->m_autoFireParticleSmallPrefix,
-												 fireSmall, TheGlobalData->m_autoFireParticleSmallMax * countModifier );
+												fireSmall, TheGlobalData->m_autoFireParticleSmallMax * countModifier );
 
 	// medium fire bones
 	createParticleSystems( TheGlobalData->m_autoFireParticleMediumPrefix,
-												 fireMedium, TheGlobalData->m_autoFireParticleMediumMax * countModifier );
+												fireMedium, TheGlobalData->m_autoFireParticleMediumMax * countModifier );
 
 	// large fire bones
 	createParticleSystems( TheGlobalData->m_autoFireParticleLargePrefix,
-												 fireLarge, TheGlobalData->m_autoFireParticleLargeMax * countModifier );
+												fireLarge, TheGlobalData->m_autoFireParticleLargeMax * countModifier );
 
 	// small smoke bones
 	createParticleSystems( TheGlobalData->m_autoSmokeParticleSmallPrefix,
-												 smokeSmall, TheGlobalData->m_autoSmokeParticleSmallMax * countModifier );
+												smokeSmall, TheGlobalData->m_autoSmokeParticleSmallMax * countModifier );
 
 	// medium smoke bones
 	createParticleSystems( TheGlobalData->m_autoSmokeParticleMediumPrefix,
-												 smokeMedium, TheGlobalData->m_autoSmokeParticleMediumMax * countModifier );
+												smokeMedium, TheGlobalData->m_autoSmokeParticleMediumMax * countModifier );
 
 	// large smoke bones
 	createParticleSystems( TheGlobalData->m_autoSmokeParticleLargePrefix,
-												 smokeLarge, TheGlobalData->m_autoSmokeParticleLargeMax * countModifier );
+												smokeLarge, TheGlobalData->m_autoSmokeParticleLargeMax * countModifier );
 
 	// actively on fire
 	if( getObject()->testStatus( OBJECT_STATUS_AFLAME ) )
 		createParticleSystems( TheGlobalData->m_autoAflameParticlePrefix,
-													 aflameTemplate, TheGlobalData->m_autoAflameParticleMax * countModifier );
+													aflameTemplate, TheGlobalData->m_autoAflameParticleMax * countModifier );
 
 }
 
@@ -1292,9 +1292,9 @@ void ActiveBody::onSubdualChange( Bool isNowSubdued )
 		{
 			me->setDisabled(DISABLED_SUBDUED);
 
-      ContainModuleInterface *contain = me->getContain();
-      if ( contain )
-        contain->orderAllPassengersToIdle( CMD_FROM_AI );
+			ContainModuleInterface *contain = me->getContain();
+			if ( contain )
+				contain->orderAllPassengersToIdle( CMD_FROM_AI );
 
 		}
 		else
@@ -1329,7 +1329,7 @@ Bool ActiveBody::isSubdued() const
 #if RETAIL_COMPATIBLE_CRC
 	return m_maxHealth <= m_currentSubdualDamage;
 #else
-  // TheSuperHackers @info Projectiles don't receive the DISABLED_SUBDUED flag (or any flag for
+	// TheSuperHackers @info Projectiles don't receive the DISABLED_SUBDUED flag (or any flag for
 	// that matter) when jammed, so we have to check their subdual damage directly.
 	if (getObject()->isKindOf(KINDOF_PROJECTILE))
 		return m_maxHealth <= m_currentSubdualDamage;
@@ -1540,7 +1540,7 @@ void ActiveBody::setAflame( Bool )
 void ActiveBody::crc( Xfer *xfer )
 {
 
-  // extend base class
+	// extend base class
 	BodyModule::crc( xfer );
 
 }

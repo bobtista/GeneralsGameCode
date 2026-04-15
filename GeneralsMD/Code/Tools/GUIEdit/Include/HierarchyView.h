@@ -139,19 +139,19 @@ protected:
 
 #if USE_FAST_FIND_ITEM
 	typedef const GameWindow* ConstGameWindowPtr;
- 	// use special class for hashing, since std::hash won't compile for arbitrary ptrs
- 	struct hashConstGameWindowPtr
- 	{
- 		size_t operator()(ConstGameWindowPtr p) const
- 		{
- 			std::hash<UnsignedInt> hasher;
- 			return hasher((UnsignedInt)p);
- 		}
- 	};
+	// use special class for hashing, since std::hash won't compile for arbitrary ptrs
+	struct hashConstGameWindowPtr
+	{
+		size_t operator()(ConstGameWindowPtr p) const
+		{
+			std::hash<UnsignedInt> hasher;
+			return hasher((UnsignedInt)p);
+		}
+	};
 
- 	typedef std::hash_map< ConstGameWindowPtr, HTREEITEM, hashConstGameWindowPtr, std::equal_to<ConstGameWindowPtr> > TreeHash;
+	typedef std::hash_map< ConstGameWindowPtr, HTREEITEM, hashConstGameWindowPtr, std::equal_to<ConstGameWindowPtr> > TreeHash;
 
- 	TreeHash 		m_treeHash;	///< Speed up the search with a nice hash.
+	TreeHash 		m_treeHash;	///< Speed up the search with a nice hash.
 #endif
 
 

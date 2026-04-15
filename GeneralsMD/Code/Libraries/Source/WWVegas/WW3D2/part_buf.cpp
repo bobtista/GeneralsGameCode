@@ -1876,7 +1876,7 @@ void ParticleBufferClass::Reset_Rotations(ParticlePropertyStruct<float> &new_pro
 {
 
 	unsigned int i;	// Used in loops
-   float oo_intmax = 1.0f / (float)INT_MAX;
+	float oo_intmax = 1.0f / (float)INT_MAX;
 	unsigned int ui_previous_key_time = 0;
 	unsigned int ui_current_key_time = 0;
 
@@ -2069,7 +2069,7 @@ void ParticleBufferClass::Reset_Frames(ParticlePropertyStruct<float> &new_props)
 {
 
 	unsigned int i;	// Used in loops
-   float oo_intmax = 1.0f / (float)INT_MAX;
+	float oo_intmax = 1.0f / (float)INT_MAX;
 	unsigned int ui_previous_key_time = 0;
 	unsigned int ui_current_key_time = 0;
 
@@ -2219,7 +2219,7 @@ void ParticleBufferClass::Reset_Blur_Times(ParticlePropertyStruct<float> &new_bl
 {
 
 	unsigned int i;	// Used in loops
-   float oo_intmax = 1.0f / (float)INT_MAX;
+	float oo_intmax = 1.0f / (float)INT_MAX;
 	unsigned int ui_previous_key_time = 0;
 	unsigned int ui_current_key_time = 0;
 
@@ -2392,7 +2392,7 @@ NewParticleStruct * ParticleBufferClass::Add_Uninitialized_New_Particle()
 	// Push new particle on new particle queue. If it overflows, just adjust
 	// queue to remove oldest member (which is the one which was overwritten).
 	NewParticleStruct *ptr = &(NewParticleQueue[NewParticleQueueEnd]);
-   if (++NewParticleQueueEnd == MaxNum) NewParticleQueueEnd = 0;
+	if (++NewParticleQueueEnd == MaxNum) NewParticleQueueEnd = 0;
 	if (++NewParticleQueueCount == (signed)(MaxNum + 1)) {
 		// Overflow - advance queue start:
 		if (++NewParticleQueueStart == MaxNum) NewParticleQueueStart = 0;
@@ -2737,7 +2737,7 @@ void ParticleBufferClass::Update_Bounding_Box()
 		sub1_end = MaxNum;
 		sub2_start = 0;
 	}
-   for (i = Start; i < sub1_end; i++) {
+	for (i = Start; i < sub1_end; i++) {
 		max_coords.X = max_coords.X >= position[i].X ? max_coords.X : position[i].X;
 		max_coords.Y = max_coords.Y >= position[i].Y ? max_coords.Y : position[i].Y;
 		max_coords.Z = max_coords.Z >= position[i].Z ? max_coords.Z : position[i].Z;
@@ -2745,7 +2745,7 @@ void ParticleBufferClass::Update_Bounding_Box()
 		min_coords.Y = min_coords.Y <= position[i].Y ? min_coords.Y : position[i].Y;
 		min_coords.Z = min_coords.Z <= position[i].Z ? min_coords.Z : position[i].Z;
 	}
-   for (i = sub2_start; i < End; i++) {
+	for (i = sub2_start; i < End; i++) {
 		max_coords.X = max_coords.X >= position[i].X ? max_coords.X : position[i].X;
 		max_coords.Y = max_coords.Y >= position[i].Y ? max_coords.Y : position[i].Y;
 		max_coords.Z = max_coords.Z >= position[i].Z ? max_coords.Z : position[i].Z;
@@ -2827,25 +2827,25 @@ void ParticleBufferClass::Get_New_Particles()
 
 		// Advance the 'end of new particles' index.
 		NewEnd++;
-      if (NewEnd == MaxNum) NewEnd = 0;
+		if (NewEnd == MaxNum) NewEnd = 0;
 
-      // Update the new particles count.
-      NewNum++;
+		// Update the new particles count.
+		NewNum++;
 
 		// If we have just overflowed the total buffer, advance Start.
-      if ((NewNum + NonNewNum) == (signed)(MaxNum + 1)) {
-         Start++;
-         if (Start == MaxNum) Start = 0;
-         NonNewNum--;
+		if ((NewNum + NonNewNum) == (signed)(MaxNum + 1)) {
+			Start++;
+			if (Start == MaxNum) Start = 0;
+			NonNewNum--;
 
-         // If this underflows the 'non-new' buffer, advance End.
-         if (NonNewNum == -1) {
-            End++;
-            if (End == MaxNum) End = 0;
-            NonNewNum = 0;
-            NewNum--;
-         }
-      }
+			// If this underflows the 'non-new' buffer, advance End.
+			if (NonNewNum == -1) {
+				End++;
+				if (End == MaxNum) End = 0;
+				NonNewNum = 0;
+				NewNum--;
+			}
+		}
 	}
 }
 
@@ -2868,28 +2868,28 @@ void ParticleBufferClass::Kill_Old_Particles()
 		sub2_start = 0;
 	}
 
-   unsigned int current_time = WW3D::Get_Sync_Time();
+	unsigned int current_time = WW3D::Get_Sync_Time();
 
 	// Stop when the current particle is young enough to be alive.
 	bool broke = false;
-   for (i = Start; i < sub1_end; i++) {
-      if ((current_time - TimeStamp[i]) < MaxAge) {
-         broke = true;
-         break;
-      }
-      NonNewNum--;
+	for (i = Start; i < sub1_end; i++) {
+		if ((current_time - TimeStamp[i]) < MaxAge) {
+			broke = true;
+			break;
+		}
+		NonNewNum--;
 	}
-   if (!broke) {
+	if (!broke) {
 	   for (i = sub2_start; i < End; i++) {
 		   if ((current_time - TimeStamp[i]) < MaxAge) break;
-         NonNewNum--;
+			NonNewNum--;
 	   }
-   }
+	}
 
 	Start = i;
 
-   // NOTE: we do not scan the new particles, because they have been already
-   // preculled to be under MaxAge.
+	// NOTE: we do not scan the new particles, because they have been already
+	// preculled to be under MaxAge.
 }
 
 
@@ -2971,7 +2971,7 @@ void ParticleBufferClass::Get_Color_Key_Frames (ParticlePropertyStruct<Vector3> 
 	//	Determine if there is a keyframe at the very end of the particle's lifetime
 	//
 	if ((ColorKeyFrameDeltas != nullptr) &&
-		 ((ColorKeyFrameDeltas[NumColorKeyFrames - 1].X != 0) ||
+		((ColorKeyFrameDeltas[NumColorKeyFrames - 1].X != 0) ||
 		  (ColorKeyFrameDeltas[NumColorKeyFrames - 1].Y != 0) ||
 		  (ColorKeyFrameDeltas[NumColorKeyFrames - 1].Z != 0))) {
 		real_keyframe_count ++;
@@ -3029,7 +3029,7 @@ void ParticleBufferClass::Get_Opacity_Key_Frames (ParticlePropertyStruct<float> 
 	//	Determine if there is a keyframe at the very end of the particle's lifetime
 	//
 	if ((AlphaKeyFrameDeltas != nullptr) &&
-		 (AlphaKeyFrameDeltas[NumAlphaKeyFrames - 1] != 0)) {
+		(AlphaKeyFrameDeltas[NumAlphaKeyFrames - 1] != 0)) {
 		real_keyframe_count ++;
 		create_last_keyframe = true;
 	}
@@ -3086,7 +3086,7 @@ void ParticleBufferClass::Get_Size_Key_Frames (ParticlePropertyStruct<float> &si
 	//	Determine if there is a keyframe at the very end of the particle's lifetime
 	//
 	if ((SizeKeyFrameDeltas != nullptr) &&
-		 (SizeKeyFrameDeltas[NumSizeKeyFrames - 1] != 0)) {
+		(SizeKeyFrameDeltas[NumSizeKeyFrames - 1] != 0)) {
 		real_keyframe_count ++;
 		create_last_keyframe = true;
 	}
@@ -3147,7 +3147,7 @@ void ParticleBufferClass::Get_Rotation_Key_Frames (ParticlePropertyStruct<float>
 	//	Determine if there is a keyframe at the very end of the particle's lifetime
 	//
 	if ((HalfRotationKeyFrameDeltas != nullptr) &&
-		 (HalfRotationKeyFrameDeltas[NumRotationKeyFrames - 1] != 0)) {
+		(HalfRotationKeyFrameDeltas[NumRotationKeyFrames - 1] != 0)) {
 		real_keyframe_count ++;
 		create_last_keyframe = true;
 	}
@@ -3205,7 +3205,7 @@ void ParticleBufferClass::Get_Frame_Key_Frames (ParticlePropertyStruct<float> &f
 	//	Determine if there is a keyframe at the very end of the particle's lifetime
 	//
 	if ((FrameKeyFrameDeltas != nullptr) &&
-		 (FrameKeyFrameDeltas[NumFrameKeyFrames - 1] != 0)) {
+		(FrameKeyFrameDeltas[NumFrameKeyFrames - 1] != 0)) {
 		real_keyframe_count ++;
 		create_last_keyframe = true;
 	}
@@ -3261,7 +3261,7 @@ void ParticleBufferClass::Get_Blur_Time_Key_Frames (ParticlePropertyStruct<float
 	//	Determine if there is a keyframe at the very end of the particle's lifetime
 	//
 	if ((BlurTimeKeyFrameDeltas != nullptr) &&
-		 (BlurTimeKeyFrameDeltas[NumBlurTimeKeyFrames - 1] != 0)) {
+		(BlurTimeKeyFrameDeltas[NumBlurTimeKeyFrames - 1] != 0)) {
 		real_keyframe_count ++;
 		create_last_keyframe = true;
 	}

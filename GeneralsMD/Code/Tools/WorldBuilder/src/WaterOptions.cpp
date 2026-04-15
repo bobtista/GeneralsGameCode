@@ -335,7 +335,7 @@ PolygonTrigger * WaterOptions::adjustCount(PolygonTrigger *trigger, Int firstPt,
 				curSpacingLen = spacing;
 			}
 			curSpacingLen -= curLen;
- 			if ((curLen)<MAP_XY_FACTOR/2) {
+			if ((curLen)<MAP_XY_FACTOR/2) {
 				didCurPoint = true;
 			}
 		}
@@ -463,7 +463,7 @@ void WaterOptions::endUpdateHeight(void)
 }
 
 
- /// Handles width edit ui messages.
+/// Handles width edit ui messages.
 /** Gets the new edit control text, converts it to an int, then updates
 		the slider and brush tool. */
 void WaterOptions::OnChangeHeightEdit()
@@ -485,7 +485,7 @@ void WaterOptions::OnChangeHeightEdit()
 	}
 }
 
- /// Handles width edit ui messages.
+/// Handles width edit ui messages.
 /** Gets the new edit control text, converts it to an int, then updates
 		the slider and brush tool. */
 void WaterOptions::OnChangeSpacingEdit()

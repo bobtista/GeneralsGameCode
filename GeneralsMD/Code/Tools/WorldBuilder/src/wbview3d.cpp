@@ -174,7 +174,7 @@ public:
 	virtual Int iterateDrawablesInRegion( IRegion2D *screenRegion,
 																				Bool (*callback)( Drawable *draw, void *userData ),
 																				void *userData ) override {return 0;};
-  virtual WorldToScreenReturn worldToScreenTriReturn( const Coord3D *w, ICoord2D *s ) override { return WTS_INVALID; };	///< Transform world coordinate "w" into screen coordinate "s"
+	virtual WorldToScreenReturn worldToScreenTriReturn( const Coord3D *w, ICoord2D *s ) override { return WTS_INVALID; };	///< Transform world coordinate "w" into screen coordinate "s"
 	virtual void screenToTerrain( const ICoord2D *screen, Coord3D *world ) override {};  ///< transform screen coord to a point on the 3D terrain
 	virtual void screenToWorldAtZ( const ICoord2D *s, Coord3D *w, Real z ) override {};  ///< transform screen point to world point at the specified world Z value
 	virtual void getScreenCornerWorldPointsAtZ( Coord3D *topLeft, Coord3D *topRight,
@@ -408,7 +408,7 @@ WbView3d::WbView3d() :
 	m_showWeaponRanges(false),
 	m_highlightTestArt(false),
 	m_showLetterbox(false),
-  m_showSoundCircles(false)
+	m_showSoundCircles(false)
 {
 	TheTacticalView = &bogusTacticalView;
 	m_actualWinSize.x = ::AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "Width", THREE_D_VIEW_WIDTH);
@@ -934,8 +934,8 @@ void WbView3d::updateLights()
 				Matrix3D mtx;
 				mtx.Set(Vector3(1,0,0), Vector3(0,1,0), Vector3(ol->lightPos.x, ol->lightPos.y, ol->lightPos.z), Vector3(0,0,0));
 				m_globalLight[i]->Set_Transform(mtx);
- 				m_scene->setGlobalLight(m_globalLight[i],i);
- 				m_baseBuildScene->setGlobalLight(m_globalLight[i],i);
+				m_scene->setGlobalLight(m_globalLight[i],i);
+				m_baseBuildScene->setGlobalLight(m_globalLight[i],i);
 			}
 		}
 		if(TheTerrainRenderObject) {
@@ -976,7 +976,7 @@ void WbView3d::updateLights()
 			lightP->Set_Far_Attenuation_Range(lightInnerRadius, lightOuterRadius);
 
 			m_lightList.Add(lightP);
- 			m_scene->Add_Render_Object(lightP);
+			m_scene->Add_Render_Object(lightP);
 			pMapObj->setRenderObj(lightP);
 			REF_PTR_RELEASE( lightP );
 		}
@@ -1664,7 +1664,7 @@ BuildListInfo *WbView3d::pickedBuildObjectInView(CPoint viewPt)
 	Coord3D cpt;
 	Int i;
 	viewToDocCoords(viewPt, &cpt, false);
- 	for (i=0; i<TheSidesList->getNumSides(); i++) {
+	for (i=0; i<TheSidesList->getNumSides(); i++) {
 		SidesInfo *pSide = TheSidesList->getSideInfo(i);
 		for (BuildListInfo *pBuild = pSide->getBuildList(); pBuild; pBuild = pBuild->getNext()) {
 			Coord3D center = *pBuild->getLocation();
@@ -1688,7 +1688,7 @@ BuildListInfo *WbView3d::pickedBuildObjectInView(CPoint viewPt)
 		// do the intersection using W3D intersector class
 		Bool hit = m_intersector->Intersect_Screen_Point_Layer( logX, logY, *m_buildLayer );
 		if( hit ) {
- 			for (i=0; i<TheSidesList->getNumSides(); i++) {
+			for (i=0; i<TheSidesList->getNumSides(); i++) {
 				SidesInfo *pSide = TheSidesList->getSideInfo(i);
 				for (BuildListInfo *pBuild = pSide->getBuildList(); pBuild; pBuild = pBuild->getNext()) {
 					if (pBuild->getRenderObj() == m_intersector->Result.IntersectedRenderObject) {
@@ -2015,8 +2015,8 @@ Bool WbView3d::docToViewCoords(Coord3D curPt, CPoint* newPt)
 	//
 	Int sx, sy;
 	W3DLogicalScreenToPixelScreen( screen.X, screen.Y,
-																 &sx, &sy,
-																 rClient.right-rClient.left, rClient.bottom-rClient.top );
+																&sx, &sy,
+																rClient.right-rClient.left, rClient.bottom-rClient.top );
 
 	newPt->x = rClient.left + sx;
 	newPt->y = rClient.top + sy;
@@ -2065,7 +2065,7 @@ void WbView3d::redraw(void)
 		m_drawObject->setDrawObjects(m_showObjects,
 			m_showWaypoints || WaypointTool::isActive(),
 			m_showPolygonTriggers || PolygonTool::isActive(),
-      m_showBoundingBoxes, m_showSightRanges, m_showWeaponRanges, m_showSoundCircles, m_highlightTestArt, m_showLetterbox);
+			m_showBoundingBoxes, m_showSightRanges, m_showWeaponRanges, m_showSoundCircles, m_highlightTestArt, m_showLetterbox);
 	}
 
 	WW3D::Update_Logic_Frame_Time(TheFramePacer->getLogicTimeStepMilliseconds());
@@ -2209,8 +2209,8 @@ BEGIN_MESSAGE_MAP(WbView3d, WbView)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_SHOWMAPBOUNDARIES, OnUpdateViewShowMapBoundaries)
 	ON_COMMAND(ID_VIEW_SHOWAMBIENTSOUNDS, OnViewShowAmbientSounds)
 	ON_UPDATE_COMMAND_UI(ID_VIEW_SHOWAMBIENTSOUNDS, OnUpdateViewShowAmbientSounds)
-  ON_COMMAND(ID_VIEW_SHOW_SOUND_CIRCLES, OnViewShowSoundCircles)
-  ON_UPDATE_COMMAND_UI(ID_VIEW_SHOW_SOUND_CIRCLES, OnUpdateViewShowSoundCircles)
+ON_COMMAND(ID_VIEW_SHOW_SOUND_CIRCLES, OnViewShowSoundCircles)
+ON_UPDATE_COMMAND_UI(ID_VIEW_SHOW_SOUND_CIRCLES, OnUpdateViewShowSoundCircles)
 	//}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -2321,7 +2321,7 @@ void WbView3d::initWW3D()
 		TheWritableGlobalData->m_enableBehindBuildingMarkers = false;	//this is only for the game.
 		if (TheW3DShadowManager==nullptr)
 		{	TheW3DShadowManager = new W3DShadowManager;
- 			TheW3DShadowManager->init();
+			TheW3DShadowManager->init();
 		}
 #endif
 		updateLights();
@@ -2347,12 +2347,12 @@ int WbView3d::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	initWW3D();
 	TheWritableGlobalData->m_useCloudMap = AfxGetApp()->GetProfileInt("GameOptions", "cloudMap", 0);
 	AfxGetApp()->WriteProfileInt("GameOptions", "cloudMap", TheGlobalData->m_useCloudMap);	// Just in case it wasn't already there
- 	m_partialMapSize = AfxGetApp()->GetProfileInt("GameOptions", "partialMapSize", 97);
+	m_partialMapSize = AfxGetApp()->GetProfileInt("GameOptions", "partialMapSize", 97);
 
 	m_showLayersList = AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowLayersList", 0);
 	m_showMapBoundaries = AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowMapBoundaries", 0);
 	m_showAmbientSounds = AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowAmbientSounds", 0);
-  m_showSoundCircles = AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowSoundCircles", 0);
+	m_showSoundCircles = AfxGetApp()->GetProfileInt(MAIN_FRAME_SECTION, "ShowSoundCircles", 0);
 
 	DrawObject::setDoBoundaryFeedback(m_showMapBoundaries);
 	DrawObject::setDoAmbientSoundFeedback(m_showAmbientSounds);
@@ -2382,42 +2382,42 @@ void WbView3d::OnPaint()
 /// Draw a (not very good) circle into the hdc
 void WbView3d::drawCircle( HDC hdc, const Coord3D & centerPoint, Real radius, COLORREF color )
 {
-  CPoint rulerPoints[2];
-  Coord3D pnt;
-  Real angle = 0.0f;
-  Real inc = PI/4.0f;
+	CPoint rulerPoints[2];
+	Coord3D pnt;
+	Real angle = 0.0f;
+	Real inc = PI/4.0f;
 
-  // Create and select a correctly colored pen. Remember the old one so that it can be restored.
-  HPEN pen = CreatePen(PS_SOLID, 2, color);
-  HPEN penOld = (HPEN)SelectObject(hdc, pen);
+	// Create and select a correctly colored pen. Remember the old one so that it can be restored.
+	HPEN pen = CreatePen(PS_SOLID, 2, color);
+	HPEN penOld = (HPEN)SelectObject(hdc, pen);
 
 
-  // Get the starting point on the circumference of the circle.
-  pnt.x = centerPoint.x + radius * (Real)cosf(angle);
-  pnt.y = centerPoint.y + radius * (Real)sinf(angle);
-  pnt.z = centerPoint.z;
-  docToViewCoords(pnt, &rulerPoints[0]);
+	// Get the starting point on the circumference of the circle.
+	pnt.x = centerPoint.x + radius * (Real)cosf(angle);
+	pnt.y = centerPoint.y + radius * (Real)sinf(angle);
+	pnt.z = centerPoint.z;
+	docToViewCoords(pnt, &rulerPoints[0]);
 
-  angle += inc;
-  for(; angle <= 2.0f * PI; angle += inc) {
+	angle += inc;
+	for(; angle <= 2.0f * PI; angle += inc) {
 		// Get a new point on the circumference of the circle.
 		pnt.x = centerPoint.x + radius * (Real)cosf(angle);
-    pnt.y = centerPoint.y + radius * (Real)sinf(angle);
-    pnt.z = centerPoint.z;
+		pnt.y = centerPoint.y + radius * (Real)sinf(angle);
+		pnt.z = centerPoint.z;
 
-    docToViewCoords(pnt, &rulerPoints[1]);
+		docToViewCoords(pnt, &rulerPoints[1]);
 
-    ::Polyline(hdc, rulerPoints, 2);
+		::Polyline(hdc, rulerPoints, 2);
 
-    // Remember the last point to use as the starting point for the next line.
-    rulerPoints[0].x = rulerPoints[1].x;
-    rulerPoints[0].y = rulerPoints[1].y;
-  }
+		// Remember the last point to use as the starting point for the next line.
+		rulerPoints[0].x = rulerPoints[1].x;
+		rulerPoints[0].y = rulerPoints[1].y;
+	}
 
-  // Restore previous pen.
-  SelectObject(hdc, penOld);
-  // Delete new pen.
-  DeleteObject(pen);
+	// Restore previous pen.
+	SelectObject(hdc, penOld);
+	// Delete new pen.
+	DeleteObject(pen);
 }
 
 
@@ -2466,7 +2466,7 @@ void WbView3d::drawLabels(HDC hdc)
 				pos = *pMapObj->getLocation();
 				pos.z = m_heightMapRenderObj->getHeightMapHeight(pos.x, pos.y, nullptr);
 			} else if (pMapObj->getThingTemplate() && !(pMapObj->getFlags() & (FLAG_ROAD_FLAGS|FLAG_BRIDGE_FLAGS)) &&
-								 pMapObj->getRenderObj() == nullptr && !pMapObj->getThingTemplate()->isKindOf(KINDOF_OPTIMIZED_TREE)) {
+								pMapObj->getRenderObj() == nullptr && !pMapObj->getThingTemplate()->isKindOf(KINDOF_OPTIMIZED_TREE)) {
 				name = pMapObj->getThingTemplate()->getName();
 				pos = *pMapObj->getLocation();
 				pos.z += m_heightMapRenderObj->getHeightMapHeight(pos.x, pos.y, nullptr);
@@ -2507,8 +2507,8 @@ void WbView3d::drawLabels(HDC hdc)
 						//
 						Int sx, sy;
 						W3DLogicalScreenToPixelScreen( screen.X, screen.Y,
-																					 &sx, &sy,
-																					 rClient.right-rClient.left, rClient.bottom-rClient.top );
+																					&sx, &sy,
+																					rClient.right-rClient.left, rClient.bottom-rClient.top );
 						pt.x = rClient.left+sx;
 						pt.y = rClient.top+sy;
 						pt.y += i*15;
@@ -2553,23 +2553,23 @@ void WbView3d::drawLabels(HDC hdc)
 
 	if (hdc && m_doRulerFeedback) {
 		if (m_doRulerFeedback == RULER_LINE) {
-      // Change world coords to screen viewport coords.
-      CPoint rulerPoints[2];
-      docToViewCoords(m_rulerPoints[0], &rulerPoints[0]);
-      docToViewCoords(m_rulerPoints[1], &rulerPoints[1]);
+			// Change world coords to screen viewport coords.
+			CPoint rulerPoints[2];
+			docToViewCoords(m_rulerPoints[0], &rulerPoints[0]);
+			docToViewCoords(m_rulerPoints[1], &rulerPoints[1]);
 
-      // Create and select a green pen. Remember the old one so that it can be restored.
-      HPEN pen = CreatePen(PS_SOLID, 2, RGB(0,255,0));
-      HPEN penOld = (HPEN)SelectObject(hdc, pen);
-      // Draw the line ruler.
+			// Create and select a green pen. Remember the old one so that it can be restored.
+			HPEN pen = CreatePen(PS_SOLID, 2, RGB(0,255,0));
+			HPEN penOld = (HPEN)SelectObject(hdc, pen);
+			// Draw the line ruler.
 			::Polyline(hdc, rulerPoints, 2);
 
-      // Restore previous pen.
-      SelectObject(hdc, penOld);
-      // Delete new pen.
-      DeleteObject(pen);
+			// Restore previous pen.
+			SelectObject(hdc, penOld);
+			// Delete new pen.
+			DeleteObject(pen);
 		} else if (m_doRulerFeedback == RULER_CIRCLE) {
-      drawCircle( hdc, m_rulerPoints[0], m_rulerLength, RGB( 0, 255, 0 ) );
+			drawCircle( hdc, m_rulerPoints[0], m_rulerLength, RGB( 0, 255, 0 ) );
 		}
 	}
 
@@ -3252,14 +3252,14 @@ void WbView3d::OnUpdateViewShowAmbientSounds(CCmdUI* pCmdUI)
 
 void WbView3d::OnViewShowSoundCircles()
 {
-  m_showSoundCircles = !m_showSoundCircles;
-  ::AfxGetApp()->WriteProfileInt(MAIN_FRAME_SECTION, "ShowSoundCircles", m_showSoundCircles ? 1 : 0);
-  resetRenderObjects();
-  invalObjectInView(nullptr);
+	m_showSoundCircles = !m_showSoundCircles;
+	::AfxGetApp()->WriteProfileInt(MAIN_FRAME_SECTION, "ShowSoundCircles", m_showSoundCircles ? 1 : 0);
+	resetRenderObjects();
+	invalObjectInView(nullptr);
 }
 
 void WbView3d::OnUpdateViewShowSoundCircles(CCmdUI* pCmdUI)
 {
-  pCmdUI->SetCheck(m_showSoundCircles ? 1 : 0);
+	pCmdUI->SetCheck(m_showSoundCircles ? 1 : 0);
 }
 
