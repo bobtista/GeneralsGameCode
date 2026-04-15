@@ -88,25 +88,25 @@ LRESULT CALLBACK HierarchyView::dialogProc( HWND hWndDialog, UINT message,
 	switch( message )
 	{
 
-   		// ------------------------------------------------------------------------
- 		case WM_MOVE:
- 		{
+		// ------------------------------------------------------------------------
+		case WM_MOVE:
+		{
 // 			Int x = LOWORD( lParam );
 // 			Int y = HIWORD( lParam );
 
- 			// record our position
- 			RECT rect;
- 			POINT p;
- 			GetWindowRect( hWndDialog, &rect );
- 			p.x = rect.left;
- 			p.y = rect.top;
- 			ScreenToClient( TheEditor->getWindowHandle(), &p );
- 			dialogPos.x = p.x;
- 			dialogPos.y = p.y;
+			// record our position
+			RECT rect;
+			POINT p;
+			GetWindowRect( hWndDialog, &rect );
+			p.x = rect.left;
+			p.y = rect.top;
+			ScreenToClient( TheEditor->getWindowHandle(), &p );
+			dialogPos.x = p.x;
+			dialogPos.y = p.y;
 
- 			return 0;
+			return 0;
 
- 		}
+		}
 
 		// ------------------------------------------------------------------------
 		case WM_SIZE:
@@ -235,7 +235,7 @@ LRESULT CALLBACK HierarchyView::dialogProc( HWND hWndDialog, UINT message,
 
 					// do the drag drop if allowed
 					if( TheHierarchyView->validateDragDropOperation( dragWindow,
-																													 overWindow ) )
+																													overWindow ) )
 					{
 
 						//
@@ -472,14 +472,14 @@ LRESULT CALLBACK HierarchyView::dialogProc( HWND hWndDialog, UINT message,
 		}
 
 		// ------------------------------------------------------------------------
-    case WM_COMMAND:
-    {
+		case WM_COMMAND:
+		{
 //			Int notifyCode = HIWORD( wParam );
 			Int controlID = LOWORD( wParam );
 //			HWND hWndControl = (HWND)lParam;
 
-      switch( controlID )
-      {
+			switch( controlID )
+			{
 
 				// --------------------------------------------------------------------
 				case MENU_HIERARCHY_MOVE_HERE:
@@ -578,24 +578,24 @@ LRESULT CALLBACK HierarchyView::dialogProc( HWND hWndDialog, UINT message,
 				}
 
 				// --------------------------------------------------------------------
-        case IDOK:
-          break;
+				case IDOK:
+					break;
 
 				// --------------------------------------------------------------------
-        case IDCANCEL:
-          break;
+				case IDCANCEL:
+					break;
 
-      }
+			}
 
-      return 0;
+			return 0;
 
-    }
+		}
 
 		// ------------------------------------------------------------------------
 		default:
 			return 0;
 
-  }
+	}
 
 }
 
@@ -623,8 +623,8 @@ HTREEITEM HierarchyView::findItemEntry( HTREEITEM node, GameWindow *window )
 	HTREEITEM child;
 	HTREEITEM found = nullptr;
 	for( child = TreeView_GetNextItem( m_tree, node, TVGN_CHILD );
-			 child;
-			 child = TreeView_GetNextItem( m_tree, child, TVGN_NEXT ) )
+			child;
+			child = TreeView_GetNextItem( m_tree, child, TVGN_NEXT ) )
 	{
 
 		found = findItemEntry( child, window );
@@ -659,10 +659,10 @@ HTREEITEM HierarchyView::findTreeEntry( GameWindow *window )
 /** Add a single window to the hierarchy tree */
 //=============================================================================
 void HierarchyView::addWindowToTree( GameWindow *window,
-																		 HTREEITEM treeParent,
-																		 HierarchyOption option,
-																		 Bool addChildren,
-																		 Bool addSiblings )
+																		HTREEITEM treeParent,
+																		HierarchyOption option,
+																		Bool addChildren,
+																		Bool addSiblings )
 {
 	HTREEITEM newItem = nullptr;
 
@@ -722,7 +722,7 @@ void HierarchyView::addWindowToTree( GameWindow *window,
 	// add siblings if requested
 	if( addSiblings )
 		addWindowToTree( window->winGetNext(), treeParent, option,
-										 addChildren, addSiblings );
+										addChildren, addSiblings );
 
 }
 
@@ -767,9 +767,9 @@ void HierarchyView::init( void )
 
 	// create the modless dialog box
 	m_dialog = CreateDialog( TheEditor->getInstance(),
-													 (LPCSTR)HIERARCHY_DIALOG,
-													 TheEditor->getWindowHandle(),
-													 (DLGPROC)dialogProc );
+													(LPCSTR)HIERARCHY_DIALOG,
+													TheEditor->getWindowHandle(),
+													(DLGPROC)dialogProc );
 
 	// display the dialog
 	ShowWindow( m_dialog, SW_SHOW );
@@ -1078,7 +1078,7 @@ void HierarchyView::setDialogSize( ICoord2D *size )
 	* hierarchy entry of 'aheadOf' */
 //=============================================================================
 void HierarchyView::moveWindowAheadOf( GameWindow *window,
-																			 GameWindow *aheadOf )
+																			GameWindow *aheadOf )
 {
 
 	// sanity
@@ -1264,7 +1264,7 @@ void HierarchyView::selectWindow( GameWindow *window )
 	* you cannot move a parent window into it's own child list. */
 //=============================================================================
 Bool HierarchyView::validateDragDropOperation( GameWindow *source,
-																							 GameWindow *target )
+																							GameWindow *target )
 {
 
 	// sanity

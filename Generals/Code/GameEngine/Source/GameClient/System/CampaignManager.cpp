@@ -330,8 +330,8 @@ Int CampaignManager::getCurrentMissionNumber()
 		Campaign::MissionListIt it;
 
 		for( it = m_currentCampaign->m_missions.begin();
-				 it != m_currentCampaign->m_missions.end();
-				 ++it )
+				it != m_currentCampaign->m_missions.end();
+				++it )
 		{
 
 			number++;
@@ -354,7 +354,7 @@ void CampaignManager::parseMissionPart( INI* ini, void *instance, void *store, c
 			{ "NextMission",			INI::parseAsciiString,				nullptr, offsetof( Mission, m_nextMission ) },
 			{ "IntroMovie",				INI::parseAsciiString,				nullptr, offsetof( Mission, m_movieLabel ) },
 			{ "ObjectiveLine0",		INI::parseAsciiString,				nullptr, offsetof( Mission, m_missionObjectivesLabel[0] ) },
-      { "ObjectiveLine1",		INI::parseAsciiString,				nullptr, offsetof( Mission, m_missionObjectivesLabel[1] ) },
+		{ "ObjectiveLine1",		INI::parseAsciiString,				nullptr, offsetof( Mission, m_missionObjectivesLabel[1] ) },
 			{ "ObjectiveLine2",		INI::parseAsciiString,				nullptr, offsetof( Mission, m_missionObjectivesLabel[2] ) },
 			{ "ObjectiveLine3",		INI::parseAsciiString,				nullptr, offsetof( Mission, m_missionObjectivesLabel[3] ) },
 			{ "ObjectiveLine4",		INI::parseAsciiString,				nullptr, offsetof( Mission, m_missionObjectivesLabel[4] ) },

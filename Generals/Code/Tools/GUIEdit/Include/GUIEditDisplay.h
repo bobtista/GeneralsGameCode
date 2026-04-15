@@ -70,15 +70,15 @@ public:
 
 	/// draw a line on the display in pixel coordinates with the specified color
 	virtual void drawLine( Int startX, Int startY, Int endX, Int endY,
-												 Real lineWidth, UnsignedInt lineColor ) override;
+												Real lineWidth, UnsignedInt lineColor ) override;
 	virtual void drawLine( Int startX, Int startY, Int endX, Int endY,
-												 Real lineWidth, UnsignedInt lineColor1, UnsignedInt lineColor2 ) override { }
+												Real lineWidth, UnsignedInt lineColor1, UnsignedInt lineColor2 ) override { }
 	/// draw a rect border on the display in pixel coordinates with the specified color
 	virtual void drawOpenRect( Int startX, Int startY, Int width, Int height,
-														 Real lineWidth, UnsignedInt lineColor ) override;
+														Real lineWidth, UnsignedInt lineColor ) override;
 	/// draw a filled rect on the display in pixel coords with the specified color
 	virtual void drawFillRect( Int startX, Int startY, Int width, Int height,
-														 UnsignedInt color ) override;
+														UnsignedInt color ) override;
 
 	/// Draw a percentage of a rectangle, much like a clock
 	virtual void drawRectClock(Int startX, Int startY, Int width, Int height, Int percent, UnsignedInt color) override { }
@@ -107,7 +107,7 @@ public:
 	// methods that we need to stub
 	virtual void setTimeOfDay( TimeOfDay tod ) override {}
 	virtual void createLightPulse( const Coord3D *pos, const RGBColor *color, Real innerRadius, Real attenuationWidth,
-																 UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime ) override {}
+																UnsignedInt increaseFrameTime, UnsignedInt decayFrameTime ) override {}
 	virtual void setShroudLevel(Int x, Int y, CellShroudStatus setting) override {}
 	virtual void setBorderShroudLevel(UnsignedByte level) override {}
 	virtual void clearShroud() override {}

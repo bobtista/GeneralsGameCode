@@ -63,7 +63,7 @@ WindowLayout *popupCommunicatorLayout = nullptr;
 /** Input procedure for the left HUD */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType LeftHUDInput( GameWindow *window, UnsignedInt msg,
-																	 WindowMsgData mData1, WindowMsgData mData2 )
+																	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	//
 	// if the player doesn't have a radar, or the radar is hidden, and the radar is not being
@@ -259,10 +259,10 @@ WindowMsgHandledType LeftHUDInput( GameWindow *window, UnsignedInt msg,
 				const DrawableList *drawableList = TheInGameUI->getAllSelectedLocalDrawables(); // locally-owned only
 
 
- 				// see if the user wants to move the tactical view
- 				if (	drawableList->empty()
- 					||	(! TheGlobalData->m_useAlternateMouse && msg == GWM_RIGHT_DOWN)
- 					||	(TheGlobalData->m_useAlternateMouse && msg == GWM_LEFT_DOWN)	)
+				// see if the user wants to move the tactical view
+				if (	drawableList->empty()
+					||	(! TheGlobalData->m_useAlternateMouse && msg == GWM_RIGHT_DOWN)
+					||	(TheGlobalData->m_useAlternateMouse && msg == GWM_LEFT_DOWN)	)
 				{
 					TheTacticalView->userLookAt( &world );
 					break;
@@ -346,7 +346,7 @@ void ToggleQuitMenu();
 /** System callback for the control bar parent */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType ControlBarSystem( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+																			WindowMsgData mData1, WindowMsgData mData2 )
 {
 	static NameKeyType buttonCommunicator = NAMEKEY_INVALID;
 	if(TheScriptEngine && TheScriptEngine->isGameEnding())

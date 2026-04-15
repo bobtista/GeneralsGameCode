@@ -88,7 +88,7 @@ void TransportContainModuleData::parseInitialPayload( INI* ini, void *instance, 
 // ------------------------------------------------------------------------------------------------
 void TransportContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  OpenContainModuleData::buildFieldParse(p);
+	OpenContainModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -106,7 +106,7 @@ void TransportContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ "ExitDelay",	INI::parseDurationUnsignedInt,		nullptr, offsetof( TransportContainModuleData, m_exitDelay ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 
@@ -127,7 +127,7 @@ Int TransportContain::getContainMax() const
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 TransportContain::TransportContain( Thing *thing, const ModuleData *moduleData ) :
-								 OpenContain( thing, moduleData )
+								OpenContain( thing, moduleData )
 {
 	m_extraSlotsInUse = 0;
 	m_frameExitNotBusy = 0;
@@ -448,7 +448,7 @@ Bool TransportContain::isSpecificRiderFreeToExit(Object* specificObject)
 
 	// This is a override, not an extend.  I will check for game legality for
 	// okaying the call to exitObjectViaDoor.
-  const Object* me = getObject();
+	const Object* me = getObject();
 
 	// this is present solely for some transports to override, so that they can land before
 	// allowing people to exit...
@@ -464,23 +464,23 @@ Bool TransportContain::isSpecificRiderFreeToExit(Object* specificObject)
 		return FALSE;
 #endif
 
-  // I can always kick people out if I am in the air, I know what I'm doing
-  if (me->isUsingAirborneLocomotor())
-   	return TRUE;
+	// I can always kick people out if I am in the air, I know what I'm doing
+	if (me->isUsingAirborneLocomotor())
+	return TRUE;
 
-  const Coord3D *myPosition = me->getPosition();
- 	if (!specificObject->getAIUpdateInterface())
+	const Coord3D *myPosition = me->getPosition();
+	if (!specificObject->getAIUpdateInterface())
 		return FALSE;
 
 	const Locomotor *hisLocomotor = specificObject->getAIUpdateInterface()->getCurLocomotor();
 	if( hisLocomotor == FALSE )
-   	return FALSE;
+	return FALSE;
 
-  // He can't get to this spot naturally, so I can't force him there.  (amphib transport)
-  if (!TheAI->pathfinder()->validMovementTerrain(me->getLayer(), hisLocomotor, myPosition))
-   	return FALSE;
+	// He can't get to this spot naturally, so I can't force him there.  (amphib transport)
+	if (!TheAI->pathfinder()->validMovementTerrain(me->getLayer(), hisLocomotor, myPosition))
+	return FALSE;
 
-  return TRUE;
+	return TRUE;
 }
 
 // ------------------------------------------------------------------------------------------------

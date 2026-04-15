@@ -206,7 +206,7 @@ void W3DGadgetPushButtonDraw( GameWindow *window, WinInstanceData *instData )
 	{
 
 		TheWindowManager->winOpenRect( border, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+																	start.x, start.y, end.x, end.y );
 
 	}
 
@@ -219,7 +219,7 @@ void W3DGadgetPushButtonDraw( GameWindow *window, WinInstanceData *instData )
 		end.x--;
 		end.y--;
 		TheWindowManager->winFillRect( color, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+																	start.x, start.y, end.x, end.y );
 
 	}
 
@@ -271,7 +271,7 @@ void W3DGadgetPushButtonDraw( GameWindow *window, WinInstanceData *instData )
 /** Draw pushbutton with user supplied images */
 //=============================================================================
 void W3DGadgetPushButtonImageDraw( GameWindow *window,
-																	 WinInstanceData *instData )
+																	WinInstanceData *instData )
 {
 	// if we return nullptr then we'll call the one picture drawing code, if we return a value
 	// then we'll call the 3 picture drawing code
@@ -302,7 +302,7 @@ void W3DGadgetPushButtonImageDraw( GameWindow *window,
 }
 
 void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
-																	 WinInstanceData *instData )
+																	WinInstanceData *instData )
 {
 	const Image *image = nullptr;
 	ICoord2D size, start, end;
@@ -464,11 +464,11 @@ void W3DGadgetPushButtonImageDrawOne( GameWindow *window,
 						TheDisplay->drawImage( hilitedOverlayIcon, start.x, start.y, start.x + size.x, start.y + size.y );
 					}
 				}
-  			else if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
- 				{
- 					//The button appears to be pushed -- CHECK_LIKE buttons that are on.
- 					TheDisplay->drawImage( pushedOverlayIcon, start.x, start.y, start.x + size.x, start.y + size.y );
-  			}
+			else if( BitIsSet( instData->getState(), WIN_STATE_SELECTED ) )
+				{
+					//The button appears to be pushed -- CHECK_LIKE buttons that are on.
+					TheDisplay->drawImage( pushedOverlayIcon, start.x, start.y, start.x + size.x, start.y + size.y );
+			}
 			}
 		}
 	}

@@ -439,7 +439,7 @@ WW3DErrorType HLodDefClass::Save(ChunkSaveClass & csave)
 
 		// Attempt to save the different sections of the aggregate definition
 		if ((Save_Header (csave) == WW3D_ERROR_OK) &&
-			 (Save_Lod_Array (csave) == WW3D_ERROR_OK)) {
+			(Save_Lod_Array (csave) == WW3D_ERROR_OK)) {
 
 			// Success!
 			ret_val = WW3D_ERROR_OK;
@@ -1713,8 +1713,8 @@ RenderObjClass *HLodClass::Peek_Lod_Model(int lod_index, int model_index) const
 	WWASSERT(lod_index >= 0);
 	WWASSERT(lod_index < LodCount);
 	if ((lod_index >= 0) &&
-		 (lod_index < LodCount) &&
-		 (model_index < Lod[lod_index].Count ())) {
+		(lod_index < LodCount) &&
+		(model_index < Lod[lod_index].Count ())) {
 
 		// Get a pointer to the requested model
 		pmodel = Lod[lod_index][model_index].Model;
@@ -1745,8 +1745,8 @@ RenderObjClass *HLodClass::Get_Lod_Model(int lod_index, int model_index) const
 	WWASSERT(lod_index >= 0);
 	WWASSERT(lod_index < LodCount);
 	if ((lod_index >= 0) &&
-		 (lod_index < LodCount) &&
-		 (model_index < Lod[lod_index].Count ())) {
+		(lod_index < LodCount) &&
+		(model_index < Lod[lod_index].Count ())) {
 
 		// Get a pointer to the requested model
 		pmodel = Lod[lod_index][model_index].Model;
@@ -1780,8 +1780,8 @@ int HLodClass::Get_Lod_Model_Bone(int lod_index, int model_index) const
 	WWASSERT(lod_index >= 0);
 	WWASSERT(lod_index < LodCount);
 	if ((lod_index >= 0) &&
-		 (lod_index < LodCount) &&
-		 (model_index < Lod[lod_index].Count ())) {
+		(lod_index < LodCount) &&
+		(model_index < Lod[lod_index].Count ())) {
 
 		// Get the bone that this model resides on
 		bone_index = Lod[lod_index][model_index].BoneIndex;
@@ -1830,7 +1830,7 @@ RenderObjClass * HLodClass::Peek_Additional_Model (int model_index) const
 	WWASSERT(model_index >= 0);
 	WWASSERT(model_index < AdditionalModels.Count());
 	if ((model_index >= 0) &&
-		 (model_index < AdditionalModels.Count())) {
+		(model_index < AdditionalModels.Count())) {
 
 		// Get a pointer to the requested model
 		pmodel = AdditionalModels[model_index].Model;
@@ -1861,7 +1861,7 @@ RenderObjClass * HLodClass::Get_Additional_Model (int model_index) const
 	WWASSERT(model_index >= 0);
 	WWASSERT(model_index < AdditionalModels.Count());
 	if ((model_index >= 0) &&
-		 (model_index < AdditionalModels.Count())) {
+		(model_index < AdditionalModels.Count())) {
 
 		// Get a pointer to the requested model
 		pmodel = AdditionalModels[model_index].Model;
@@ -1895,7 +1895,7 @@ int HLodClass::Get_Additional_Model_Bone (int model_index) const
 	WWASSERT(model_index >= 0);
 	WWASSERT(model_index < AdditionalModels.Count());
 	if ((model_index >= 0) &&
-		 (model_index < AdditionalModels.Count())) {
+		(model_index < AdditionalModels.Count())) {
 
 		// Get the bone that this model resides on
 		bone_index = AdditionalModels[model_index].BoneIndex;
@@ -3276,9 +3276,9 @@ void HLodClass::Scale(float scale)
 	// Invalidate hierarchy
 	Set_Hierarchy_Valid(false);
 
-   // Now update the object space bounding volumes of this object's container:
-   RenderObjClass *container = Get_Container();
-   if (container) container->Update_Obj_Space_Bounding_Volumes();
+	// Now update the object space bounding volumes of this object's container:
+	RenderObjClass *container = Get_Container();
+	if (container) container->Update_Obj_Space_Bounding_Volumes();
 }
 
 
@@ -3486,12 +3486,12 @@ void HLodClass::Update_Obj_Space_Bounding_Volumes()
 	ObjSphere = sphere;
 	ObjBox = box;
 
-   Invalidate_Cached_Bounding_Volumes();
+	Invalidate_Cached_Bounding_Volumes();
 	Set_Hierarchy_Valid(false);
 
-   // Now update the object space bounding volumes of this object's container:
-   RenderObjClass *container = Get_Container();
-   if (container) container->Update_Obj_Space_Bounding_Volumes();
+	// Now update the object space bounding volumes of this object's container:
+	RenderObjClass *container = Get_Container();
+	if (container) container->Update_Obj_Space_Bounding_Volumes();
 }
 
 

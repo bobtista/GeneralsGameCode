@@ -276,7 +276,7 @@ BOOL RoadOptions::OnInitDialog()
 				++it;
 			} while (it != filenameList.end());
 
- 		}
+		}
 	}
 #endif
 
@@ -284,8 +284,8 @@ BOOL RoadOptions::OnInitDialog()
 	// add bridge defs from INI
 	TerrainRoadType *bridge;
 	for( bridge = TheTerrainRoads->firstBridge();
-			 bridge;
-			 bridge = TheTerrainRoads->nextBridge( bridge ) )
+			bridge;
+			bridge = TheTerrainRoads->nextBridge( bridge ) )
 	{
 
 		addRoad( (char *)bridge->getName().str(), index, TVI_ROOT );

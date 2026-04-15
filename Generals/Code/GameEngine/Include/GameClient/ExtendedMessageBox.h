@@ -46,24 +46,24 @@ typedef MessageBoxReturnType (* MessageBoxFunc)( void *userData );
 struct WindowExMessageBoxData
 {
 	MessageBoxFunc yesCallback;		///<Function pointer to the Yes Button Callback
-  MessageBoxFunc noCallback;			///<Function pointer to the No Button Callback
-  MessageBoxFunc okCallback;			///<Function pointer to the Ok Button Callback
-  MessageBoxFunc cancelCallback;	///<Function pointer to the Cancel Button Callback
+	MessageBoxFunc noCallback;			///<Function pointer to the No Button Callback
+	MessageBoxFunc okCallback;			///<Function pointer to the Ok Button Callback
+	MessageBoxFunc cancelCallback;	///<Function pointer to the Cancel Button Callback
 	void *userData;
 };
 
 
 GameWindow *ExMessageBoxYesNo				(UnicodeString titleString,UnicodeString bodyString, void *userData,
-																		 MessageBoxFunc yesCallback, MessageBoxFunc noCallback);
+																		MessageBoxFunc yesCallback, MessageBoxFunc noCallback);
 
 GameWindow *ExMessageBoxYesNoCancel	(UnicodeString titleString,UnicodeString bodyString, void *userData,
-																		 MessageBoxFunc yesCallback, MessageBoxFunc noCallback, MessageBoxFunc cancelCallback);
+																		MessageBoxFunc yesCallback, MessageBoxFunc noCallback, MessageBoxFunc cancelCallback);
 
 GameWindow *ExMessageBoxOkCancel		(UnicodeString titleString,UnicodeString bodyString, void *userData,
-																		 MessageBoxFunc okCallback, MessageBoxFunc cancelCallback);
+																		MessageBoxFunc okCallback, MessageBoxFunc cancelCallback);
 
 GameWindow *ExMessageBoxOk					(UnicodeString titleString,UnicodeString bodyString, void *userData,
-																		 MessageBoxFunc okCallback);
+																		MessageBoxFunc okCallback);
 
 GameWindow *ExMessageBoxCancel			(UnicodeString titleString,UnicodeString bodyString, void *userData,
-																		 MessageBoxFunc cancelCallback);
+																		MessageBoxFunc cancelCallback);

@@ -786,9 +786,9 @@ void drawSkinnyBorder( Int x, Int y, Int width, Int height)
 	{
 
 		TheDisplay->drawImage( image1,
-													 x, y, x + size, y + size );
+													x, y, x + size, y + size );
 		TheDisplay->drawImage( image2,
-													 x, y2, x + size, y2 + size );
+													x, y2, x + size, y2 + size );
 
 	}
 
@@ -800,9 +800,9 @@ void drawSkinnyBorder( Int x, Int y, Int width, Int height)
 
 		//Blit Half piece
 		TheDisplay->drawImage( image1,
-													 x, y, x + halfSize, y + size );
+													x, y, x + halfSize, y + size );
 		TheDisplay->drawImage( image2,
-													 x, y2, x + halfSize, y2 + size );
+													x, y2, x + halfSize, y2 + size );
 
 		x += (BORDER_LINE_SIZE / 2);
 
@@ -818,9 +818,9 @@ void drawSkinnyBorder( Int x, Int y, Int width, Int height)
 
 		//Blit Half piece
 		TheDisplay->drawImage(image1,
-													 x, y, x + halfSize, y + size );
+													x, y, x + halfSize, y + size );
 		TheDisplay->drawImage( image2,
-													 x, y2, x + halfSize, y2 + size );
+													x, y2, x + halfSize, y2 + size );
 
 	}
 
@@ -837,9 +837,9 @@ void drawSkinnyBorder( Int x, Int y, Int width, Int height)
 	{
 
 		TheDisplay->drawImage( image1,
-													 x, y, x + size, y + size );
+													x, y, x + size, y + size );
 		TheDisplay->drawImage( image2,
-													 x2, y, x2 + size, y + size );
+													x2, y, x2 + size, y + size );
 
 	}
 
@@ -851,9 +851,9 @@ void drawSkinnyBorder( Int x, Int y, Int width, Int height)
 
 		//Blit Half piece
 		TheDisplay->drawImage( image1,
-													 x, y, x + size, y + halfSize );
+													x, y, x + size, y + halfSize );
 		TheDisplay->drawImage( image2,
-													 x2, y, x2 + size, y + halfSize );
+													x2, y, x2 + size, y + halfSize );
 
 		y += (BORDER_LINE_SIZE / 2);
 	}
@@ -868,9 +868,9 @@ void drawSkinnyBorder( Int x, Int y, Int width, Int height)
 
 		//Blit Half piece
 		TheDisplay->drawImage( image1,
-													 x, y, x + size, y + halfSize );
+													x, y, x + size, y + halfSize );
 		TheDisplay->drawImage( image2,
-													 x2, y, x2 + size, y + halfSize );
+													x2, y, x2 + size, y + halfSize );
 
 	}
 
@@ -879,22 +879,22 @@ void drawSkinnyBorder( Int x, Int y, Int width, Int height)
 	y = originalY - 2;//BORDER_CORNER_SIZE;
 	image1 = TheMappedImageCollection->findImageByName("FrameCornerUL");
 	TheDisplay->drawImage( image1,
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 	x = maxX - 5;//BORDER_CORNER_SIZE;
 	y = originalY - 2;//BORDER_CORNER_SIZE;
 	image1 = TheMappedImageCollection->findImageByName("FrameCornerUR");
 	TheDisplay->drawImage(image1,
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 	x = originalX - 2;//BORDER_CORNER_SIZE;
 	y = maxY - 5;//BORDER_CORNER_SIZE;
 	image1 = TheMappedImageCollection->findImageByName("FrameCornerLL");
 	TheDisplay->drawImage( image1,
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 	x = maxX - 5;//BORDER_CORNER_SIZE;
 	y = maxY - 5;//BORDER_CORNER_SIZE;
 	image1 = TheMappedImageCollection->findImageByName("FrameCornerLR");
 	TheDisplay->drawImage(image1,
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 
 
 }

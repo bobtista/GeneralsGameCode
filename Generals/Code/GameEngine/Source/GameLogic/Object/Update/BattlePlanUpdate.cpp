@@ -91,9 +91,9 @@ BattlePlanUpdateModuleData::BattlePlanUpdateModuleData()
 	{
 		{ "SpecialPowerTemplate",									INI::parseSpecialPowerTemplate,	nullptr, offsetof( BattlePlanUpdateModuleData, m_specialPowerTemplate ) },
 
-    { "BombardmentPlanAnimationTime",					INI::parseDurationUnsignedInt,  nullptr, offsetof( BattlePlanUpdateModuleData, m_bombardmentPlanAnimationFrames ) },
-    { "HoldTheLinePlanAnimationTime",					INI::parseDurationUnsignedInt,  nullptr, offsetof( BattlePlanUpdateModuleData, m_holdTheLinePlanAnimationFrames ) },
-    { "SearchAndDestroyPlanAnimationTime",		INI::parseDurationUnsignedInt,  nullptr, offsetof( BattlePlanUpdateModuleData, m_searchAndDestroyPlanAnimationFrames ) },
+		{ "BombardmentPlanAnimationTime",					INI::parseDurationUnsignedInt,  nullptr, offsetof( BattlePlanUpdateModuleData, m_bombardmentPlanAnimationFrames ) },
+		{ "HoldTheLinePlanAnimationTime",					INI::parseDurationUnsignedInt,  nullptr, offsetof( BattlePlanUpdateModuleData, m_holdTheLinePlanAnimationFrames ) },
+		{ "SearchAndDestroyPlanAnimationTime",		INI::parseDurationUnsignedInt,  nullptr, offsetof( BattlePlanUpdateModuleData, m_searchAndDestroyPlanAnimationFrames ) },
 		{ "TransitionIdleTime",										INI::parseDurationUnsignedInt,  nullptr, offsetof( BattlePlanUpdateModuleData, m_transitionIdleFrames ) },
 
 		{ "BombardmentPlanUnpackSoundName",				INI::parseAsciiString,					nullptr, offsetof( BattlePlanUpdateModuleData, m_bombardmentUnpackName ) },
@@ -119,7 +119,7 @@ BattlePlanUpdateModuleData::BattlePlanUpdateModuleData()
 		{ "StrategyCenterSearchAndDestroySightRangeScalar", INI::parseReal,				nullptr, offsetof( BattlePlanUpdateModuleData, m_strategyCenterSearchAndDestroySightRangeScalar ) },
 		{ "StrategyCenterSearchAndDestroyDetectsStealth",   INI::parseBool,				nullptr, offsetof( BattlePlanUpdateModuleData, m_strategyCenterSearchAndDestroyDetectsStealth ) },
 		{ "StrategyCenterHoldTheLineMaxHealthScalar",				INI::parseReal,				nullptr, offsetof( BattlePlanUpdateModuleData, m_strategyCenterHoldTheLineMaxHealthScalar ) },
-    { "StrategyCenterHoldTheLineMaxHealthChangeType",		INI::parseIndexList,  TheMaxHealthChangeTypeNames, offsetof( BattlePlanUpdateModuleData, m_strategyCenterHoldTheLineMaxHealthChangeType ) },
+		{ "StrategyCenterHoldTheLineMaxHealthChangeType",		INI::parseIndexList,  TheMaxHealthChangeTypeNames, offsetof( BattlePlanUpdateModuleData, m_strategyCenterHoldTheLineMaxHealthChangeType ) },
 
 		{ "VisionObjectName",											INI::parseAsciiString,					nullptr, offsetof( BattlePlanUpdateModuleData, m_visionObjectName ) },
 
@@ -532,8 +532,8 @@ void BattlePlanUpdate::setStatus( TransitionStatus newStatus )
 
 			// play a radar blip showing the battle plan change in the color of the
 			TheRadar->createPlayerEvent( obj->getControllingPlayer(),
-																	 obj->getPosition(),
-																	 RADAR_EVENT_BATTLE_PLAN );
+																	obj->getPosition(),
+																	RADAR_EVENT_BATTLE_PLAN );
 
 			createVisionObject();
 

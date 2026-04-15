@@ -31,7 +31,7 @@ class GameWindow;
 class GameInfo;
 
 void ShowUnderlyingGUIElements( Bool show, const char *layoutFilename, const char *parentName,
-															 const char **gadgetsToHide, const char **perPlayerGadgetsToHide );
+															const char **gadgetsToHide, const char **perPlayerGadgetsToHide );
 
 void PopulateColorComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool isObserver = FALSE);
 void PopulatePlayerTemplateComboBox(Int comboBox, GameWindow *comboArray[], GameInfo *myGame, Bool allowObservers );

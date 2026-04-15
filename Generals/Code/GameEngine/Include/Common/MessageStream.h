@@ -521,9 +521,9 @@ public:
 		MSG_QUEUE_UNIT_CREATE,											///< clicked on a button to queue the production of a unit
 		MSG_CANCEL_UNIT_CREATE,											///< clicked on UI button to cancel production of a unit
 		MSG_DOZER_CONSTRUCT,												/**< building things requires clicking on a dozer
-																										 selecting what to build, selecting where to
-																										 build it ... this construct message will
-																										 start the actual build process */
+																										selecting what to build, selecting where to
+																										build it ... this construct message will
+																										start the actual build process */
 		MSG_DOZER_CONSTRUCT_LINE,										///< Like MSG_CONSTRUCT, but for build processes that occur in a line (like walls)
 		MSG_DOZER_CANCEL_CONSTRUCT,									///< cancel construction of a building
 		MSG_SELL,																		///< sell a structure

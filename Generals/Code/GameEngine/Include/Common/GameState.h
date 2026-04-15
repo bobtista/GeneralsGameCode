@@ -157,9 +157,9 @@ public:
 
 	// save game methods
 	SaveCode saveGame( AsciiString filename,
-										 UnicodeString desc,
-										 SaveFileType saveType,
-										 SnapshotType which = SNAPSHOT_SAVELOAD  );  ///< save a game
+										UnicodeString desc,
+										SaveFileType saveType,
+										SnapshotType which = SNAPSHOT_SAVELOAD  );  ///< save a game
 	SaveCode missionSave();																	 ///< do a in between mission save
 	SaveCode loadGame( AvailableGameInfo gameInfo );							 ///< load a save file
 	SaveGameInfo *getSaveGameInfo() { return &m_gameInfo; }

@@ -114,7 +114,7 @@ void W3DGadgetVerticalSliderDraw( GameWindow *window,
 		end.x = start.x + size.x;
 		end.y = start.y + size.y;
 		TheWindowManager->winOpenRect( backBorder, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+																	start.x, start.y, end.x, end.y );
 
 	}
 	if( backColor != WIN_COLOR_UNDEFINED )
@@ -125,7 +125,7 @@ void W3DGadgetVerticalSliderDraw( GameWindow *window,
 		end.x = start.x + size.x - 2;
 		end.y = start.y + size.y - 2;
 		TheWindowManager->winFillRect( backColor, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+																	start.x, start.y, end.x, end.y );
 
 	}
 
@@ -137,7 +137,7 @@ void W3DGadgetVerticalSliderDraw( GameWindow *window,
 /** Draw vertical slider with user supplied images */
 //=============================================================================
 void W3DGadgetVerticalSliderImageDraw( GameWindow *window,
-																			 WinInstanceData *instData )
+																			WinInstanceData *instData )
 {
 	const Image *topImage, *bottomImage, *centerImage, *smallCenterImage;
 	ICoord2D origin, size, start, end;

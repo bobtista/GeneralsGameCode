@@ -127,8 +127,8 @@ void Energy::objectEnteringInfluence( Object *obj )
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_energyProduction >= 0 && m_energyConsumption >= 0,
-										 ("Energy - Negative Energy numbers, Produce=%d Consume=%d\n",
-										 m_energyProduction, m_energyConsumption) );
+										("Energy - Negative Energy numbers, Produce=%d Consume=%d\n",
+										m_energyProduction, m_energyConsumption) );
 
 }
 
@@ -153,8 +153,8 @@ void Energy::objectLeavingInfluence( Object *obj )
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_energyProduction >= 0 && m_energyConsumption >= 0,
-										 ("Energy - Negative Energy numbers, Produce=%d Consume=%d\n",
-										 m_energyProduction, m_energyConsumption) );
+										("Energy - Negative Energy numbers, Produce=%d Consume=%d\n",
+										m_energyProduction, m_energyConsumption) );
 
 }
 
@@ -175,8 +175,8 @@ void Energy::addPowerBonus( Object *obj )
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_energyProduction >= 0 && m_energyConsumption >= 0,
-										 ("Energy - Negative Energy numbers, Produce=%d Consume=%d\n",
-										 m_energyProduction, m_energyConsumption) );
+										("Energy - Negative Energy numbers, Produce=%d Consume=%d\n",
+										m_energyProduction, m_energyConsumption) );
 
 }
 
@@ -200,8 +200,8 @@ void Energy::removePowerBonus( Object *obj )
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_energyProduction >= 0 && m_energyConsumption >= 0,
-										 ("Energy - Negative Energy numbers, Produce=%d Consume=%d\n",
-										 m_energyProduction, m_energyConsumption) );
+										("Energy - Negative Energy numbers, Produce=%d Consume=%d\n",
+										m_energyProduction, m_energyConsumption) );
 
 }
 

@@ -96,7 +96,7 @@ RailroadBehaviorModuleData::RailroadBehaviorModuleData()
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 RailroadBehavior::RailroadBehavior( Thing *thing, const ModuleData *moduleData )
-											 : PhysicsBehavior( thing, moduleData )
+											: PhysicsBehavior( thing, moduleData )
 {
 	const RailroadBehaviorModuleData *modData = getRailroadBehaviorModuleData();
 
@@ -245,7 +245,7 @@ void RailroadBehavior::onCollide( Object *other, const Coord3D *loc, const Coord
 
 	}
 
- 	if (other->isKindOf( KINDOF_STRUCTURE ) )// now be careful here, we ignore buildings, except for hostile, nasty ones that can blow us up
+	if (other->isKindOf( KINDOF_STRUCTURE ) )// now be careful here, we ignore buildings, except for hostile, nasty ones that can blow us up
 	{
 		//If it is a civilian building like a tunnel or a train station, let it be
 		//but if it is a faction building, kill it!
@@ -1384,7 +1384,7 @@ void RailroadBehavior::FindPosByPathDistance( Coord3D *pos, const Real dist, con
 
 			// TheSuperHackers Mauller 02/04/2025 Prevent dereferencing of endpoint pointer which throws asserts during Debug
 			if (pointIter != pointList->end()) {
-				 nextPoint = &(*pointIter);
+				nextPoint = &(*pointIter);
 			}
 
 			if (nextPoint && nextPoint->m_distanceFromFirst > actualDistance)

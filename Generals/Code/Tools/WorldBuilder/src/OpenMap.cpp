@@ -150,7 +150,7 @@ void OpenMap::populateMapListbox( Bool systemMaps )
 		} while (FindNextFile(hFindFile, &findData));
 
 		if (hFindFile) FindClose(hFindFile);
- 	}
+	}
 	if (found) {
 		pList->SetCurSel(0);
 	} else {

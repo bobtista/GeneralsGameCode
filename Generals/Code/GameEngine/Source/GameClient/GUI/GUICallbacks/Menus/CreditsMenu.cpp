@@ -197,7 +197,7 @@ WindowMsgHandledType CreditsMenuInput( GameWindow *window, UnsignedInt msg,
 /** single player menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType CreditsMenuSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+														WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	switch( msg )

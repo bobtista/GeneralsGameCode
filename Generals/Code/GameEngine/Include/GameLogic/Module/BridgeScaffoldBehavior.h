@@ -52,8 +52,8 @@ class BridgeScaffoldBehaviorInterface
 public:
 
 	virtual void setPositions( const Coord3D *createPos,
-														 const Coord3D *riseToPos,
-														 const Coord3D *buildPos ) = 0;
+														const Coord3D *riseToPos,
+														const Coord3D *buildPos ) = 0;
 	virtual void setMotion( ScaffoldTargetMotion targetMotion ) = 0;
 	virtual ScaffoldTargetMotion getCurrentMotion() = 0;
 	virtual void reverseMotion() = 0;
@@ -65,7 +65,7 @@ public:
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 class BridgeScaffoldBehavior : public UpdateModule,
-															 public BridgeScaffoldBehaviorInterface
+															public BridgeScaffoldBehaviorInterface
 {
 
 	MAKE_STANDARD_MODULE_MACRO( BridgeScaffoldBehavior );
@@ -84,8 +84,8 @@ public:
 
 	// bridge scaffold interface methods
 	virtual void setPositions( const Coord3D *createPos,
-														 const Coord3D *riseToPos,
-														 const Coord3D *buildPos ) override;
+														const Coord3D *riseToPos,
+														const Coord3D *buildPos ) override;
 	virtual void setMotion( ScaffoldTargetMotion targetMotion ) override;
 	virtual ScaffoldTargetMotion getCurrentMotion() override { return m_targetMotion; }
 	virtual void reverseMotion() override;

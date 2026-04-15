@@ -123,7 +123,7 @@ ProductionUpdateModuleData::ProductionUpdateModuleData()
 //-------------------------------------------------------------------------------------------------
 /*static*/ void ProductionUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  UpdateModuleData::buildFieldParse( p );
+	UpdateModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -137,7 +137,7 @@ ProductionUpdateModuleData::ProductionUpdateModuleData()
 		{ "DisabledTypesToProcess",	DisabledMaskType::parseFromINI, nullptr, offsetof( ProductionUpdateModuleData, m_disabledTypesToProcess ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 
 }
 
@@ -268,7 +268,7 @@ Bool ProductionUpdate::queueUpgrade( const UpgradeTemplate *upgrade )
 			TheUpgradeCenter->canAffordUpgrade( player, upgrade ) == FALSE )
 		return FALSE;
 	else if( upgrade->getUpgradeType() == UPGRADE_TYPE_OBJECT &&
-					 (getObject()->hasUpgrade( upgrade ) == TRUE ||
+					(getObject()->hasUpgrade( upgrade ) == TRUE ||
 					  getObject()->affectedByUpgrade( upgrade ) == FALSE) )
 		return FALSE;
 
@@ -276,16 +276,16 @@ Bool ProductionUpdate::queueUpgrade( const UpgradeTemplate *upgrade )
 	if( isUpgradeInQueue( upgrade ) == TRUE )
 		return FALSE;
 
- 	// STOP cheaters by making sure they can actually build this
- 	if( !getObject()->canProduceUpgrade(upgrade) )
- 		return FALSE;
+	// STOP cheaters by making sure they can actually build this
+	if( !getObject()->canProduceUpgrade(upgrade) )
+		return FALSE;
 
 	//
 	// you cannot queue a player upgrade production if you are producing one already somewhere else
 	// (or that somewhere else could even possibly be here)
 	//
 	if( upgrade->getUpgradeType() == UPGRADE_TYPE_PLAYER &&
-      (player->hasUpgradeComplete( upgrade ) || player->hasUpgradeInProduction( upgrade )) )
+		(player->hasUpgradeComplete( upgrade ) || player->hasUpgradeInProduction( upgrade )) )
 		return FALSE;
 
 	if (m_productionCount >= getProductionUpdateModuleData()->m_maxQueueEntries)
@@ -305,7 +305,7 @@ Bool ProductionUpdate::queueUpgrade( const UpgradeTemplate *upgrade )
 	production->m_type = PRODUCTION_UPGRADE;
 	production->m_upgradeToResearch = upgrade;
 	production->m_productionID = PRODUCTIONID_INVALID;  // not needed for upgrades, you can only have one of
-																	 // this type in the queue
+																	// this type in the queue
 
 	// tie to the end of the production queue
 	addToProductionQueue( production );
@@ -432,7 +432,7 @@ Bool ProductionUpdate::queueCreateUnit( const ThingTemplate *unitType, Productio
 	production->m_productionQuantityTotal = 1;
 	production->m_productionQuantityProduced = 0;
 	for( std::vector<QuantityModifier>::const_iterator it = data->m_quantityModifiers.begin(); it != data->m_quantityModifiers.end(); ++it )
-  {
+	{
 		const ThingTemplate* productionTemplate = TheThingFactory->findTemplate( it->m_templateName );
 		if( productionTemplate && productionTemplate->isEquivalentTo( unitType ) )
 		{
@@ -1131,27 +1131,27 @@ void ProductionUpdate::onDie( const DamageInfo *damageInfo )
 // ------------------------------------------------------------------------------------------------
 void ProductionUpdate::cancelAndRefundAllProduction()
 {
-  // Empirically, in release the code can loop forever.  So we limit to 100 passes. jba. [8/31/2003]
-  const Int productionLimit = 100;// With luck, we never queue up 100 units. [8/31/2003]
-  Int i;
-  for (i=0; i<productionLimit; i++)
-  {
-    // iterate through our production queue
-    if( m_productionQueue )
-    {
-      if( m_productionQueue->getProductionType() == PRODUCTION_UNIT )
-        cancelUnitCreate( m_productionQueue->getProductionID() );
-      else if( m_productionQueue->getProductionType() == PRODUCTION_UPGRADE )
-        cancelUpgrade( m_productionQueue->getProductionUpgrade() );
-      else
-      {
-        // unknown production type
-        DEBUG_CRASH(( "ProductionUpdate::cancelAndRefundAllProduction - Unknown production type '%d'",
-                      m_productionQueue->getProductionType() ));
-        return;
-      }
-    }
-  }
+	// Empirically, in release the code can loop forever.  So we limit to 100 passes. jba. [8/31/2003]
+	const Int productionLimit = 100;// With luck, we never queue up 100 units. [8/31/2003]
+	Int i;
+	for (i=0; i<productionLimit; i++)
+	{
+		// iterate through our production queue
+		if( m_productionQueue )
+		{
+			if( m_productionQueue->getProductionType() == PRODUCTION_UNIT )
+				cancelUnitCreate( m_productionQueue->getProductionID() );
+			else if( m_productionQueue->getProductionType() == PRODUCTION_UPGRADE )
+				cancelUpgrade( m_productionQueue->getProductionUpgrade() );
+			else
+			{
+				// unknown production type
+				DEBUG_CRASH(( "ProductionUpdate::cancelAndRefundAllProduction - Unknown production type '%d'",
+					m_productionQueue->getProductionType() ));
+				return;
+			}
+		}
+	}
 }
 
 // ------------------------------------------------------------------------------------------------

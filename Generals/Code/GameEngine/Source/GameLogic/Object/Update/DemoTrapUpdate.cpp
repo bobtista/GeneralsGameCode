@@ -67,12 +67,12 @@ DemoTrapUpdateModuleData::DemoTrapUpdateModuleData()
 
 	static const FieldParse dataFieldParse[] =
 	{
-    { "DefaultProximityMode",      INI::parseBool,								nullptr, offsetof( DemoTrapUpdateModuleData, m_defaultsToProximityMode ) },
-    { "DetonationWeaponSlot",      INI::parseLookupList,					TheWeaponSlotTypeNamesLookupList, offsetof( DemoTrapUpdateModuleData, m_detonationWeaponSlot ) },
-    { "ProximityModeWeaponSlot",   INI::parseLookupList,					TheWeaponSlotTypeNamesLookupList, offsetof( DemoTrapUpdateModuleData, m_proximityModeWeaponSlot ) },
-    { "ManualModeWeaponSlot",      INI::parseLookupList,					TheWeaponSlotTypeNamesLookupList, offsetof( DemoTrapUpdateModuleData, m_manualModeWeaponSlot ) },
-    { "TriggerDetonationRange",    INI::parseReal,								nullptr, offsetof( DemoTrapUpdateModuleData, m_triggerDetonationRange ) },
-    { "IgnoreTargetTypes",         KindOfMaskType::parseFromINI,							nullptr, offsetof( DemoTrapUpdateModuleData, m_ignoreKindOf ) },
+		{ "DefaultProximityMode",      INI::parseBool,								nullptr, offsetof( DemoTrapUpdateModuleData, m_defaultsToProximityMode ) },
+		{ "DetonationWeaponSlot",      INI::parseLookupList,					TheWeaponSlotTypeNamesLookupList, offsetof( DemoTrapUpdateModuleData, m_detonationWeaponSlot ) },
+		{ "ProximityModeWeaponSlot",   INI::parseLookupList,					TheWeaponSlotTypeNamesLookupList, offsetof( DemoTrapUpdateModuleData, m_proximityModeWeaponSlot ) },
+		{ "ManualModeWeaponSlot",      INI::parseLookupList,					TheWeaponSlotTypeNamesLookupList, offsetof( DemoTrapUpdateModuleData, m_manualModeWeaponSlot ) },
+		{ "TriggerDetonationRange",    INI::parseReal,								nullptr, offsetof( DemoTrapUpdateModuleData, m_triggerDetonationRange ) },
+		{ "IgnoreTargetTypes",         KindOfMaskType::parseFromINI,							nullptr, offsetof( DemoTrapUpdateModuleData, m_ignoreKindOf ) },
 		{ "ScanRate",									 INI::parseDurationUnsignedInt,	nullptr, offsetof( DemoTrapUpdateModuleData, m_scanFrames ) },
 		{ "AutoDetonationWithFriendsInvolved", INI::parseBool,				nullptr, offsetof( DemoTrapUpdateModuleData, m_friendlyDetonation ) },
 		{ "DetonationWeapon",					 INI::parseWeaponTemplate,			nullptr, offsetof( DemoTrapUpdateModuleData, m_detonationWeaponTemplate ) },

@@ -55,7 +55,7 @@ DamDieModuleData::DamDieModuleData()
 /*static*/ void DamDieModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
 
-  DieModuleData::buildFieldParse( p );
+	DieModuleData::buildFieldParse( p );
 
 //	static const FieldParse dataFieldParse[] =
 //	{
@@ -73,7 +73,7 @@ DamDieModuleData::DamDieModuleData()
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 DamDie::DamDie( Thing *thing, const ModuleData *moduleData )
-			 :DieModule( thing, moduleData )
+			:DieModule( thing, moduleData )
 {
 
 }

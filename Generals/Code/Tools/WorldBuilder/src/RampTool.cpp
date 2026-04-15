@@ -135,7 +135,7 @@ void RampTool::applyRamp(CWorldBuilderDoc* pDoc)
 	Real width = TheRampOptions->getRampWidth();
 
 	BuildRectFromSegmentAndWidth(&mStartPoint, &mEndPoint, width,
-															 &bl, &tl, &br, &tr);
+															&bl, &tl, &br, &tr);
 
 	if (bl == br || bl == tl) {
 		return;

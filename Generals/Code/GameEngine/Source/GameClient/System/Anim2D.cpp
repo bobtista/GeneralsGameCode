@@ -105,7 +105,7 @@ void Anim2DTemplate::parseNumImages( INI *ini, void *instance, void *store, cons
 	{
 
 		DEBUG_CRASH(( "Anim2DTemplate::parseNumImages - Invalid animation '%s', animations must have '%d' or more frames defined",
-									 animTemplate->getName().str(), minimumFrames ));
+									animTemplate->getName().str(), minimumFrames ));
 		throw INI_INVALID_DATA;
 
 	}
@@ -265,7 +265,7 @@ const Image* Anim2DTemplate::getFrame( UnsignedShort frameNumber ) const
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_images != nullptr,
-										 ("Anim2DTemplate::getFrame - Image data is null for animation '%s'",
+										("Anim2DTemplate::getFrame - Image data is null for animation '%s'",
 										  getName().str()) );
 
 	// sanity
@@ -350,13 +350,13 @@ void Anim2D::setCurrentFrame( UnsignedShort frame )
 
 	// sanity
 	DEBUG_ASSERTCRASH( TheGameLogic != nullptr,
-										 ("Anim2D::setCurrentFrame - TheGameLogic must exist to use animation instances (%s)",
+										("Anim2D::setCurrentFrame - TheGameLogic must exist to use animation instances (%s)",
 										  m_template->getName().str()) );
 
 	// sanity
 	DEBUG_ASSERTCRASH( frame >= 0 && frame < m_template->getNumFrames(),
-										 ("Anim2D::setCurrentFrame - Illegal frame number '%d' in animation",
-										 frame, m_template->getName().str()) );
+										("Anim2D::setCurrentFrame - Illegal frame number '%d' in animation",
+										frame, m_template->getName().str()) );
 
 	// set the frame
 	m_currentFrame = frame;
@@ -425,7 +425,7 @@ void Anim2D::tryNextFrame()
 
 	// sanity
 	DEBUG_ASSERTCRASH( TheGameLogic != nullptr,
-										 ("Anim2D::tryNextFrame - TheGameLogic must exist to use animation instances (%s)",
+										("Anim2D::tryNextFrame - TheGameLogic must exist to use animation instances (%s)",
 										  m_template->getName().str()) );
 
 	// how many frames have passed since our last update
@@ -613,7 +613,7 @@ void Anim2D::draw( Int x, Int y )
 
 	// sanity
 	DEBUG_ASSERTCRASH( image != nullptr, ("Anim2D::draw - Image not found for frame '%d' on animation '%s'",
-										 m_currentFrame, m_template->getName().str()) );
+										m_currentFrame, m_template->getName().str()) );
 
 	// get the natural width and height of this image
 	const ICoord2D *imageSize = image->getImageSize();
@@ -627,7 +627,7 @@ void Anim2D::draw( Int x, Int y )
 	// frame numbers for animation instances that are registered with a system as the
 	// system will update them during its update phase
 	//
- 	if( m_collectionSystem == nullptr && BitIsSet( m_status, ANIM_2D_STATUS_FROZEN ) == FALSE )
+	if( m_collectionSystem == nullptr && BitIsSet( m_status, ANIM_2D_STATUS_FROZEN ) == FALSE )
 		tryNextFrame();
 
 }
@@ -643,7 +643,7 @@ void Anim2D::draw( Int x, Int y, Int width, Int height )
 
 	// sanity
 	DEBUG_ASSERTCRASH( image != nullptr, ("Anim2D::draw - Image not found for frame '%d' on animation '%s'",
-										 m_currentFrame, m_template->getName().str()) );
+										m_currentFrame, m_template->getName().str()) );
 
 
 	// draw image to the display
@@ -655,7 +655,7 @@ void Anim2D::draw( Int x, Int y, Int width, Int height )
 	// frame numbers for animation instances that are registered with a system as the
 	// system will update them during its update phase
 	//
- 	if( m_collectionSystem == nullptr && BitIsSet( m_status, ANIM_2D_STATUS_FROZEN ) == FALSE )
+	if( m_collectionSystem == nullptr && BitIsSet( m_status, ANIM_2D_STATUS_FROZEN ) == FALSE )
 		tryNextFrame();
 
 }
@@ -773,8 +773,8 @@ Anim2DTemplate *Anim2DCollection::findTemplate( const AsciiString& name )
 
 	// search the list
 	for( Anim2DTemplate *animTemplate = m_templateList;
-			 animTemplate;
-			 animTemplate = animTemplate->friend_getNextTemplate() )
+			animTemplate;
+			animTemplate = animTemplate->friend_getNextTemplate() )
 	{
 
 		if( animTemplate->getName() == name )
@@ -827,9 +827,9 @@ void Anim2DCollection::registerAnimation( Anim2D *anim )
 
 	// sanity
 	DEBUG_ASSERTCRASH( anim->m_collectionSystemNext == nullptr &&
-										 anim->m_collectionSystemPrev == nullptr,
-										 ("Registering animation instance, instance '%s' is already in a system",
-										 anim->getAnimTemplate()->getName().str()) );
+										anim->m_collectionSystemPrev == nullptr,
+										("Registering animation instance, instance '%s' is already in a system",
+										anim->getAnimTemplate()->getName().str()) );
 
 	// tie to our list
 	anim->m_collectionSystemPrev = nullptr;

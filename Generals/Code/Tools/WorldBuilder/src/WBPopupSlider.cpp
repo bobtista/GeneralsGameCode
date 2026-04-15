@@ -43,9 +43,9 @@ void WBPopupSliderButton::SetupPopSliderButton
 	m_owner = pOwner;
 
 	HBITMAP hBm = (HBITMAP) ::LoadImage((HINSTANCE) AfxGetResourceHandle(),
-								 MAKEINTRESOURCE(IDB_DownArrow),
-								 IMAGE_BITMAP, 0, 0,
-								 LR_LOADMAP3DCOLORS);
+								MAKEINTRESOURCE(IDB_DownArrow),
+								IMAGE_BITMAP, 0, 0,
+								LR_LOADMAP3DCOLORS);
 
 	HBITMAP hbmOld = (HBITMAP) SendMessage(BM_SETIMAGE, IMAGE_BITMAP, (LPARAM) hBm);
 
@@ -439,7 +439,7 @@ void PopupSlider::OnPaint()
 		CRect iconRect;
 		GetThumbIconRect(&iconRect);
 		::DrawIconEx(dc.GetSafeHdc(), iconRect.left, iconRect.top,
-					 mIcon, 0, 0, 0, nullptr, DI_NORMAL);
+					mIcon, 0, 0, 0, nullptr, DI_NORMAL);
 	}
 	// Do not call CWnd::OnPaint() for painting messages
 }

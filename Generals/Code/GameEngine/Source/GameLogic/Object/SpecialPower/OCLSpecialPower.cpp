@@ -107,7 +107,7 @@ static void parseOCLUpgradePair( INI* ini, void * /*instance*/, void *store, con
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 OCLSpecialPower::OCLSpecialPower( Thing *thing, const ModuleData *moduleData )
-							 : SpecialPowerModule( thing, moduleData )
+							: SpecialPowerModule( thing, moduleData )
 {
 
 }

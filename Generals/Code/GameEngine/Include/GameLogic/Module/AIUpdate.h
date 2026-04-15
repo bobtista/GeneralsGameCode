@@ -195,7 +195,7 @@ public:
 	UnsignedInt						m_moodAttackCheckRate;				///< how frequently we should recheck for enemies due to moods, when idle
 	UnsignedInt						m_autoAcquireEnemiesWhenIdle;
 #ifdef ALLOW_SURRENDER
- 	UnsignedInt						m_surrenderDuration;					///< when we surrender, how long we stay surrendered.
+	UnsignedInt						m_surrenderDuration;					///< when we surrender, how long we stay surrendered.
 #endif
 
 	AIUpdateModuleData();
@@ -350,9 +350,9 @@ public:
 	virtual GuardMode getGuardMode() const { return m_guardMode; }
 
 	virtual Object* construct( const ThingTemplate *what,
-														 const Coord3D *pos, Real angle,
-														 Player *owningPlayer,
-														 Bool isRebuild ) { return nullptr; }///< construct a building
+														const Coord3D *pos, Real angle,
+														Player *owningPlayer,
+														Bool isRebuild ) { return nullptr; }///< construct a building
 
 
 	void ignoreObstacle( const Object *obj );			///< tell the pathfinder to ignore the given object as an obstacle

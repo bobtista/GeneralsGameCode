@@ -202,7 +202,7 @@ enum WeaponBonusConditionType CPP_11(: Int)
 	WEAPONBONUSCONDITION_SOLO_AI_NORMAL,
 	WEAPONBONUSCONDITION_SOLO_AI_HARD,
 	WEAPONBONUSCONDITION_TARGET_FAERIE_FIRE,
-  WEAPONBONUSCONDITION_FANATICISM, // FOR THE NEW GC INFANTRY GENERAL... adds to nationalism
+		WEAPONBONUSCONDITION_FANATICISM, // FOR THE NEW GC INFANTRY GENERAL... adds to nationalism
 	WEAPONBONUSCONDITION_FRENZY_ONE,
 	WEAPONBONUSCONDITION_FRENZY_TWO,
 	WEAPONBONUSCONDITION_FRENZY_THREE,
@@ -240,7 +240,7 @@ static const char *const TheWeaponBonusNames[] =
 	"SOLO_AI_NORMAL",
 	"SOLO_AI_HARD",
 	"TARGET_FAERIE_FIRE",
-  "FANATICISM", // FOR THE NEW GC INFANTRY GENERAL... adds to nationalism
+		"FANATICISM", // FOR THE NEW GC INFANTRY GENERAL... adds to nationalism
 	"FRENZY_ONE",
 	"FRENZY_TWO",
 	"FRENZY_THREE",
@@ -552,7 +552,7 @@ private:
 
 // ---------------------------------------------------------
 class Weapon : public MemoryPoolObject,
-							 public Snapshot
+							public Snapshot
 {
 	friend class WeaponStore;
 

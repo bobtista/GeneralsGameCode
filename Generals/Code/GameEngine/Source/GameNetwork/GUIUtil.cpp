@@ -127,7 +127,7 @@ void EnableAcceptControls(Bool Enabled, GameInfo *myGame, GameWindow *comboPlaye
 // -----------------------------------------------------------------------------
 
 void ShowUnderlyingGUIElements( Bool show, const char *layoutFilename, const char *parentName,
-															 const char **gadgetsToHide, const char **perPlayerGadgetsToHide )
+															const char **gadgetsToHide, const char **perPlayerGadgetsToHide )
 {
 	AsciiString parentNameStr;
 	parentNameStr.format("%s:%s", layoutFilename, parentName);
@@ -398,7 +398,7 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 			else
 			{
 				GadgetComboBoxSetSelectedPos(comboPlayer[i], slot->getState(), TRUE);
-        if( buttonAccept &&  buttonAccept[i] )
+				if( buttonAccept &&  buttonAccept[i] )
 				  buttonAccept[i]->winHide(TRUE);
 			}
 /*
@@ -413,7 +413,7 @@ void UpdateSlotList( GameInfo *myGame, GameWindow *comboPlayer[],
 					comboPlayer[i]->winEnable( FALSE );
 			}
 			//if( i == myGame->getLocalSlotNum())
-      if((comboColor[i] != nullptr) && BitIsSet(comboColor[i]->winGetStatus(), WIN_STATUS_ENABLED))
+			if((comboColor[i] != nullptr) && BitIsSet(comboColor[i]->winGetStatus(), WIN_STATUS_ENABLED))
 				PopulateColorComboBox(i, comboColor, myGame, myGame->getConstSlot(i)->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER);
 			Int max, idx;
 			if (comboColor[i] != nullptr) {

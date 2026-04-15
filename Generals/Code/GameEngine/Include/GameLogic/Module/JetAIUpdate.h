@@ -84,7 +84,7 @@ public:
 	virtual void onObjectCreated() override;
 	virtual void onDelete() override;
 
- 	virtual void aiDoCommand(const AICommandParms* parms) override;
+	virtual void aiDoCommand(const AICommandParms* parms) override;
 	virtual Bool chooseLocomotorSet(LocomotorSetType wst) override;
 	virtual void setLocomotorGoalNone() override;
 	virtual Bool isIdle() const override;

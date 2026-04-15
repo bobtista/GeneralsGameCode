@@ -173,7 +173,7 @@ public: \
 	* convenient this way */
 //-------------------------------------------------------------------------------------------------
 class Module : public MemoryPoolObject,
-							 public Snapshot
+							public Snapshot
 {
 
 	MEMORY_POOL_GLUE_ABC( Module )						///< this abstract class needs memory pool hooks

@@ -33,7 +33,7 @@
 #define MAX_CHARS 65
 static char Base_String[MAX_CHARS] =
 
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./";
+	"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789./";
 
 static char Return_Buffer[MAX_ENCRYPTED_STRING + 1];
 static char Temp_Buffer [MAX_ENCRYPTED_STRING + 1];

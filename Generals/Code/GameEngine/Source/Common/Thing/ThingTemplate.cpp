@@ -283,11 +283,11 @@ const ModuleInfo::Nugget *ModuleInfo::getNuggetWithTag( const AsciiString& tag )
 /** Add this module info to the thing template */
 // ------------------------------------------------------------------------------------------------
 void ModuleInfo::addModuleInfo(ThingTemplate *thingTemplate,
-															 const AsciiString& name,
-															 const AsciiString& moduleTag,
-															 const ModuleData* data,
-															 Int interfaceMask,
-															 Bool inheritable)
+															const AsciiString& name,
+															const AsciiString& moduleTag,
+															const ModuleData* data,
+															Int interfaceMask,
+															Bool inheritable)
 {
 
 	//
@@ -304,7 +304,7 @@ void ModuleInfo::addModuleInfo(ThingTemplate *thingTemplate,
 
 		// compare this nugget tag against the tag for the new data we're going to submit
 		DEBUG_ASSERTCRASH( nugget->m_moduleTag != moduleTag,
-											 ("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
+											("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
 												name.str(),
 												thingTemplate->getName().str(),
 												name.str(),
@@ -322,7 +322,7 @@ void ModuleInfo::addModuleInfo(ThingTemplate *thingTemplate,
 
 		// compare this nugget tag against the tag for the new data we're going to submit
 		DEBUG_ASSERTCRASH( nugget->m_moduleTag != moduleTag,
-											 ("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
+											("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
 												name.str(),
 												thingTemplate->getName().str(),
 												name.str(),
@@ -340,7 +340,7 @@ void ModuleInfo::addModuleInfo(ThingTemplate *thingTemplate,
 
 		// compare this nugget tag against the tag for the new data we're going to submit
 		DEBUG_ASSERTCRASH( nugget->m_moduleTag != moduleTag,
-											 ("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
+											("addModuleInfo - ERROR defining module '%s' on thing template '%s'.  The module '%s' has the tag '%s' which must be unique among all modules for this object, but the tag '%s' is also already on module '%s' within this object.\n\nPlease make unique tag names within an object definition",
 												name.str(),
 												thingTemplate->getName().str(),
 												name.str(),
@@ -1221,13 +1221,13 @@ void ThingTemplate::initForLTA(const AsciiString& name)
 //=============================================================================
 const ArmorTemplateSet* ThingTemplate::findArmorTemplateSet(const ArmorSetFlags& t) const
 {
-  return m_armorTemplateSetFinder.findBestInfo(m_armorTemplateSets, t);
+	return m_armorTemplateSetFinder.findBestInfo(m_armorTemplateSets, t);
 }
 
 //=============================================================================
 const WeaponTemplateSet* ThingTemplate::findWeaponTemplateSet(const WeaponSetFlags& t) const
 {
-  return m_weaponTemplateSetFinder.findBestInfo(m_weaponTemplateSets, t);
+	return m_weaponTemplateSetFinder.findBestInfo(m_weaponTemplateSets, t);
 }
 
 //-----------------------------------------------------------------------------

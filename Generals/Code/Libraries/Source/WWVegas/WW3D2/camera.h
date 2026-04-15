@@ -137,11 +137,11 @@ public:
 	virtual void 					Set_Transform(const Matrix3D &m) override;
 	virtual void 					Set_Position(const Vector3 &v) override;
 
-  	/////////////////////////////////////////////////////////////////////////////
+	/////////////////////////////////////////////////////////////////////////////
 	// Render Object Interface - Bounding Volumes
 	/////////////////////////////////////////////////////////////////////////////
 	virtual void					Get_Obj_Space_Bounding_Sphere(SphereClass & sphere) const override;
-   virtual void					Get_Obj_Space_Bounding_Box(AABoxClass & box) const override;
+	virtual void					Get_Obj_Space_Bounding_Box(AABoxClass & box) const override;
 
 	///////////////////////////////////////////////////////////////////////////
 	// Camera parameter control

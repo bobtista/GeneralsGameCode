@@ -114,7 +114,7 @@ void RebuildHoleExposeDie::onDie( const DamageInfo *damageInfo )
 
 		// create the hole
 		hole = TheThingFactory->newObject( TheThingFactory->findTemplate( modData->m_holeName ),
-																			 getObject()->getTeam() );
+																			getObject()->getTeam() );
 
 		// put the hole at our position and angle
 		hole->setPosition( us->getPosition() );

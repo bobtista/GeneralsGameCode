@@ -54,7 +54,7 @@
 #define SPAWN_DELAY_MIN_FRAMES (16) // about as rapidly as you'd expect people to successively exit through the same door
 //-------------------------------------------------------------------------------------------------
 SpawnBehavior::SpawnBehavior( Thing *thing, const ModuleData* moduleData )
-						 : UpdateModule( thing, moduleData )
+						: UpdateModule( thing, moduleData )
 {
 	const SpawnBehaviorModuleData* md = getSpawnBehaviorModuleData();
 

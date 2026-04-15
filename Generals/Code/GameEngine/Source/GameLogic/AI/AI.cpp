@@ -167,9 +167,9 @@ static const FieldParse TheAIFieldParseTable[] =
 
 
 	{ "AttackPriorityDistanceModifier", INI::parseReal,nullptr, offsetof( TAiData, m_attackPriorityDistanceModifier) },
- 	{ "MaxRecruitRadius",				INI::parseReal,nullptr,		offsetof( TAiData, m_maxRecruitDistance ) },
+	{ "MaxRecruitRadius",				INI::parseReal,nullptr,		offsetof( TAiData, m_maxRecruitDistance ) },
 
- 	{ "WallHeight",							INI::parseReal,nullptr,		offsetof( TAiData, m_wallHeight ) },
+	{ "WallHeight",							INI::parseReal,nullptr,		offsetof( TAiData, m_wallHeight ) },
 
 	{ "SideInfo",			AI::parseSideInfo,			nullptr, 0 },
 
@@ -177,20 +177,20 @@ static const FieldParse TheAIFieldParseTable[] =
 	{ "SkirmishBuildList",			AI::parseSkirmishBuildList,			nullptr, 0 },
 
 
- 	{ "MinInfantryForGroup",		INI::parseInt,nullptr,			offsetof( TAiData, m_minInfantryForGroup ) },
- 	{ "MinVehiclesForGroup",		INI::parseInt,nullptr,			offsetof( TAiData, m_minVehiclesForGroup ) },
+	{ "MinInfantryForGroup",		INI::parseInt,nullptr,			offsetof( TAiData, m_minInfantryForGroup ) },
+	{ "MinVehiclesForGroup",		INI::parseInt,nullptr,			offsetof( TAiData, m_minVehiclesForGroup ) },
 
- 	{ "MinDistanceForGroup",		INI::parseReal,nullptr,			offsetof( TAiData, m_minDistanceForGroup ) },
- 	{ "DistanceRequiresGroup",	INI::parseReal,nullptr,			offsetof( TAiData, m_distanceRequiresGroup ) },
- 	{ "MinClumpDensity",				INI::parseReal,nullptr,			offsetof( TAiData, m_minClumpDensity ) },
+	{ "MinDistanceForGroup",		INI::parseReal,nullptr,			offsetof( TAiData, m_minDistanceForGroup ) },
+	{ "DistanceRequiresGroup",	INI::parseReal,nullptr,			offsetof( TAiData, m_distanceRequiresGroup ) },
+	{ "MinClumpDensity",				INI::parseReal,nullptr,			offsetof( TAiData, m_minClumpDensity ) },
 
- 	{ "InfantryPathfindDiameter",		INI::parseInt,nullptr,			offsetof( TAiData, m_infantryPathfindDiameter ) },
- 	{ "VehiclePathfindDiameter",		INI::parseInt,nullptr,			offsetof( TAiData, m_vehiclePathfindDiameter ) },
- 	{ "RebuildDelayTimeSeconds",		INI::parseInt,nullptr,			offsetof( TAiData, m_rebuildDelaySeconds ) },
- 	{ "SupplyCenterSafeRadius",			INI::parseReal,nullptr,			offsetof( TAiData, m_supplyCenterSafeRadius ) },
+	{ "InfantryPathfindDiameter",		INI::parseInt,nullptr,			offsetof( TAiData, m_infantryPathfindDiameter ) },
+	{ "VehiclePathfindDiameter",		INI::parseInt,nullptr,			offsetof( TAiData, m_vehiclePathfindDiameter ) },
+	{ "RebuildDelayTimeSeconds",		INI::parseInt,nullptr,			offsetof( TAiData, m_rebuildDelaySeconds ) },
+	{ "SupplyCenterSafeRadius",			INI::parseReal,nullptr,			offsetof( TAiData, m_supplyCenterSafeRadius ) },
 
- 	{ "AIDozerBoredRadiusModifier",	INI::parseReal,nullptr,			offsetof( TAiData, m_aiDozerBoredRadiusModifier ) },
- 	{ "AICrushesInfantry",	INI::parseBool,nullptr,			offsetof( TAiData, m_aiCrushesInfantry ) },
+	{ "AIDozerBoredRadiusModifier",	INI::parseReal,nullptr,			offsetof( TAiData, m_aiDozerBoredRadiusModifier ) },
+	{ "AICrushesInfantry",	INI::parseBool,nullptr,			offsetof( TAiData, m_aiCrushesInfantry ) },
 
 
 
@@ -207,8 +207,8 @@ void AI::parseSideInfo(INI *ini, void *instance, void* /*store*/, const void* /*
 		{
 			{ "ResourceGatherersEasy",				INI::parseInt,						nullptr, offsetof( AISideInfo, m_easy ) },
 			{ "ResourceGatherersNormal",			INI::parseInt,						nullptr, offsetof( AISideInfo, m_normal ) },
-      { "ResourceGatherersHard",				INI::parseInt,						nullptr, offsetof( AISideInfo, m_hard ) },
-      { "BaseDefenseStructure1",				INI::parseAsciiString,		nullptr, offsetof( AISideInfo, m_baseDefenseStructure1 ) },
+		{ "ResourceGatherersHard",				INI::parseInt,						nullptr, offsetof( AISideInfo, m_hard ) },
+		{ "BaseDefenseStructure1",				INI::parseAsciiString,		nullptr, offsetof( AISideInfo, m_baseDefenseStructure1 ) },
 			{ "SkillSet1",										AI::parseSkillSet,				nullptr, offsetof( AISideInfo, m_skillSet1 ) },
 			{ "SkillSet2",										AI::parseSkillSet,				nullptr, offsetof( AISideInfo, m_skillSet2 ) },
 			{ "SkillSet3",										AI::parseSkillSet,				nullptr, offsetof( AISideInfo, m_skillSet3 ) },
@@ -588,7 +588,7 @@ static void priorityFunc(Object *obj, void *userData)
  * Return the closest enemy, according to the qualifiers.
  */
 Object *AI::findClosestEnemy( const Object *me, Real range, UnsignedInt qualifiers,
-														 const AttackPriorityInfo *info, PartitionFilter *optionalFilter)
+														const AttackPriorityInfo *info, PartitionFilter *optionalFilter)
 {
 
 	if ((qualifiers & CAN_ATTACK) && !me->isAbleToAttack())
@@ -734,7 +734,7 @@ Object *AI::findClosestEnemy( const Object *me, Real range, UnsignedInt qualifie
 
 
 
- /////////////////////////////
+/////////////////////////////
 /**
  * Return the closest ally, according to the qualifiers.
  */
@@ -774,7 +774,7 @@ Object *AI::findClosestAlly( const Object *me, Real range, UnsignedInt qualifier
 
 
 
- /////////////////////////////
+/////////////////////////////
 /**
  * Return the closest repulsor.
  */
@@ -791,7 +791,7 @@ Object *AI::findClosestRepulsor( const Object *me, Real range)
 	// and only stuff that isn't stealthed (and not detected)
 	// (note that stealthed allies aren't hidden from us, but that's ok. jba.)
 	PartitionFilterRejectByObjectStatus filterStealth( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_STEALTHED ),
-																										 MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_DETECTED ) );
+																										MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_DETECTED ) );
 
 	PartitionFilter *filters[16];
 	Int numFilters = 0;

@@ -75,16 +75,16 @@ OpenContainModuleData::OpenContainModuleData()
 	m_doorOpenTime = 1;
 	m_allowInsideKindOf.clear(); m_allowInsideKindOf.flip();		// everything is allowed
 	m_forbidInsideKindOf.clear();	// nothing is forbidden
- 	m_allowAlliesInside = TRUE;
- 	m_allowEnemiesInside = TRUE;
- 	m_allowNeutralInside = TRUE;
+	m_allowAlliesInside = TRUE;
+	m_allowEnemiesInside = TRUE;
+	m_allowNeutralInside = TRUE;
 }
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 /*static*/ void OpenContainModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  UpdateModuleData::buildFieldParse(p);
+	UpdateModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -98,12 +98,12 @@ OpenContainModuleData::OpenContainModuleData()
 		{ "PassengersInTurret",				INI::parseBool, nullptr, offsetof( OpenContainModuleData, m_passengersInTurret ) },
 		{ "NumberOfExitPaths",				INI::parseInt, nullptr, offsetof( OpenContainModuleData, m_numberOfExitPaths ) },
 		{ "DoorOpenTime",							INI::parseDurationUnsignedInt, nullptr, offsetof( OpenContainModuleData, m_doorOpenTime ) },
- 		{ "AllowAlliesInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowAlliesInside ) },
- 		{ "AllowEnemiesInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowEnemiesInside ) },
- 		{ "AllowNeutralInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowNeutralInside ) },
+		{ "AllowAlliesInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowAlliesInside ) },
+		{ "AllowEnemiesInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowEnemiesInside ) },
+		{ "AllowNeutralInside",				INI::parseBool,	nullptr, offsetof( OpenContainModuleData, m_allowNeutralInside ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 	p.add(DieMuxData::getFieldParse(), offsetof( OpenContainModuleData, m_dieMuxData ));
 
 }
@@ -162,12 +162,12 @@ OpenContain::~OpenContain()
 
 	// sanity, the system should be cleaning these up itself if all is going well
 	DEBUG_ASSERTCRASH( m_containList.empty(),
-										 ("OpenContain %s: destroying a container that still has items in it!",
+										("OpenContain %s: destroying a container that still has items in it!",
 										  getObject()->getTemplate()->getName().str() ) );
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_xferContainIDList.empty(),
-										 ("OpenContain %s: m_xferContainIDList is not empty but should be",
+										("OpenContain %s: m_xferContainIDList is not empty but should be",
 											getObject()->getTemplate()->getName().str() ) );
 
 }
@@ -410,11 +410,11 @@ void OpenContain::removeAllContained( Bool exposeStealthUnits )
 {
 	ContainedItemsList::iterator it;
 
- 	while ((it = m_containList.begin()) != m_containList.end())
+	while ((it = m_containList.begin()) != m_containList.end())
 	{
 
- 		// note that this invalidates the iterator!
- 		removeFromContainViaIterator( it, exposeStealthUnits );
+		// note that this invalidates the iterator!
+		removeFromContainViaIterator( it, exposeStealthUnits );
 
 	}
 
@@ -796,38 +796,38 @@ Bool OpenContain::isValidContainerFor(const Object* obj, Bool checkCapacity) con
 		return false;
 	}
 
- 	//
- 	// check relationship, note that this behavior is defined as the relation between
- 	// 'obj' and the container 'us', and not the reverse
- 	//
- 	Bool relationshipRestricted = FALSE;
- 	Relationship r = obj->getRelationship( us );
- 	switch( r )
- 	{
- 		case ALLIES:
- 			if( modData->m_allowAlliesInside == FALSE )
- 				relationshipRestricted = TRUE;
- 			break;
+	//
+	// check relationship, note that this behavior is defined as the relation between
+	// 'obj' and the container 'us', and not the reverse
+	//
+	Bool relationshipRestricted = FALSE;
+	Relationship r = obj->getRelationship( us );
+	switch( r )
+	{
+		case ALLIES:
+			if( modData->m_allowAlliesInside == FALSE )
+				relationshipRestricted = TRUE;
+			break;
 
- 		case ENEMIES:
- 			if( modData->m_allowEnemiesInside == FALSE )
- 				relationshipRestricted = TRUE;
- 			break;
+		case ENEMIES:
+			if( modData->m_allowEnemiesInside == FALSE )
+				relationshipRestricted = TRUE;
+			break;
 
- 		case NEUTRAL:
- 			if( modData->m_allowNeutralInside == FALSE )
- 				relationshipRestricted = TRUE;
- 			break;
+		case NEUTRAL:
+			if( modData->m_allowNeutralInside == FALSE )
+				relationshipRestricted = TRUE;
+			break;
 
- 		default:
- 			DEBUG_CRASH(( "isValidContainerFor: Undefined relationship (%d) between '%s' and '%s'",
- 										r, getObject()->getTemplate()->getName().str(),
- 										obj->getTemplate()->getName().str() ));
- 			return FALSE;
+		default:
+			DEBUG_CRASH(( "isValidContainerFor: Undefined relationship (%d) between '%s' and '%s'",
+										r, getObject()->getTemplate()->getName().str(),
+										obj->getTemplate()->getName().str() ));
+			return FALSE;
 
- 	}
- 	if( relationshipRestricted == TRUE )
- 		return FALSE;
+	}
+	if( relationshipRestricted == TRUE )
+		return FALSE;
 
 	// all is well
 	return true;
@@ -1709,7 +1709,7 @@ void OpenContain::loadPostProcess()
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_containListSize == m_containList.size(),
-										 ("OpenContain::loadPostProcess - contain list count mismatch") );
+										("OpenContain::loadPostProcess - contain list count mismatch") );
 
 	// clear the list as we don't need it anymore
 	m_xferContainIDList.clear();
