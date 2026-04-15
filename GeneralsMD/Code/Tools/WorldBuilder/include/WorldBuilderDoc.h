@@ -53,7 +53,7 @@ protected:
 	int									m_maxUndos;
 	int									m_curRedo;		///< 0 means no redos available.
 	Bool								m_linkCenters;				///< Flag whether the centers of the 2d and 3d views track together.
- 	Bool								m_needAutosave;			///< True if changes have been made since last autosave.
+	Bool								m_needAutosave;			///< True if changes have been made since last autosave.
 	Int									m_curWaypointID;
 
 protected:
@@ -133,8 +133,8 @@ public:
 	/// Gets all of the indices within widthOutside of the rectangle and places them into
 	/// allIndices
 	Bool getAllIndexesInRect(const Coord3D* bl, const Coord3D* br,
-													 const Coord3D* tl, const Coord3D* tr,
-													 Int widthOutside, VecHeightMapIndexes* allIndices);
+													const Coord3D* tl, const Coord3D* tr,
+													Int widthOutside, VecHeightMapIndexes* allIndices);
 
 	/// Gets the arrow point location.
 	void getObjArrowPoint(MapObject *pObj, Coord3D *location);

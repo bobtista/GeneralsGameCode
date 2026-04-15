@@ -210,7 +210,7 @@ void W3DGadgetCheckBoxDraw( GameWindow *window, WinInstanceData *instData )
 	end.x = start.x + size.x;
 	end.y = start.y + size.y;
 	TheWindowManager->winOpenRect( backBorder, WIN_DRAW_LINE_WIDTH,
-																 start.x, start.y, end.x, end.y );
+																start.x, start.y, end.x, end.y );
 
 	// draw the background
 	start.x++;
@@ -218,7 +218,7 @@ void W3DGadgetCheckBoxDraw( GameWindow *window, WinInstanceData *instData )
 	end.x--;
 	end.y--;
 	TheWindowManager->winFillRect( backColor, WIN_DRAW_LINE_WIDTH,
-																 start.x, start.y, end.x, end.y );
+																start.x, start.y, end.x, end.y );
 
 	// draw box border
 	start.x = origin.x + checkOffsetFromLeft;
@@ -226,16 +226,16 @@ void W3DGadgetCheckBoxDraw( GameWindow *window, WinInstanceData *instData )
 	end.x = start.x + (size.y / 3);
 	end.y = start.y + (size.y / 3);
 	TheWindowManager->winOpenRect( boxBorder, WIN_DRAW_LINE_WIDTH,
-																 start.x, start.y, end.x, end.y );
+																start.x, start.y, end.x, end.y );
 
 	// draw "x" for button
 	if( boxColor != WIN_COLOR_UNDEFINED )
 	{
 
 		TheWindowManager->winDrawLine( boxColor, WIN_DRAW_LINE_WIDTH,
-																	 start.x, start.y, end.x, end.y );
+																	start.x, start.y, end.x, end.y );
 		TheWindowManager->winDrawLine( boxColor, WIN_DRAW_LINE_WIDTH,
-																	 start.x, end.y, end.x, start.y );
+																	start.x, end.y, end.x, start.y );
 
 	}
 

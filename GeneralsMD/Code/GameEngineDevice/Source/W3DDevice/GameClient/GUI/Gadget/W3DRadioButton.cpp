@@ -210,7 +210,7 @@ void W3DGadgetRadioButtonDraw( GameWindow *window, WinInstanceData *instData )
 	end.x = start.x + size.x;
 	end.y = start.y + size.y;
 	TheWindowManager->winOpenRect( backBorder, WIN_DRAW_LINE_WIDTH,
-																 start.x, start.y, end.x, end.y );
+																start.x, start.y, end.x, end.y );
 
 	// draw the background
 	start.x++;
@@ -218,7 +218,7 @@ void W3DGadgetRadioButtonDraw( GameWindow *window, WinInstanceData *instData )
 	end.x--;
 	end.y--;
 	TheWindowManager->winFillRect( backColor, WIN_DRAW_LINE_WIDTH,
-																 start.x, start.y, end.x, end.y );
+																start.x, start.y, end.x, end.y );
 
 
 
@@ -228,7 +228,7 @@ void W3DGadgetRadioButtonDraw( GameWindow *window, WinInstanceData *instData )
 	end.x = start.x;
 	end.y = start.y + size.y;
 	TheWindowManager->winDrawLine( backBorder, WIN_DRAW_LINE_WIDTH,
-																 start.x, start.y, end.x, end.y );
+																start.x, start.y, end.x, end.y );
 
 	// draw box for button
 	start.x = origin.x + 1;
@@ -236,7 +236,7 @@ void W3DGadgetRadioButtonDraw( GameWindow *window, WinInstanceData *instData )
 	end.x	= origin.x + size.y -1;
 	end.y = origin.y + size.y -1;
 	TheWindowManager->winFillRect( boxColor, WIN_DRAW_LINE_WIDTH,
-																 start.x, start.y, end.x, end.y );
+																start.x, start.y, end.x, end.y );
 
 	// draw box border
 	start.x = origin.x + size.x - size.y;
@@ -244,7 +244,7 @@ void W3DGadgetRadioButtonDraw( GameWindow *window, WinInstanceData *instData )
 	end.x = start.x;
 	end.y = start.y + size.y;
 	TheWindowManager->winDrawLine( backBorder, WIN_DRAW_LINE_WIDTH,
-																 start.x, start.y, end.x, end.y );
+																start.x, start.y, end.x, end.y );
 
 	// draw box for button
 	start.x = origin.x + size.x - size.y;
@@ -252,7 +252,7 @@ void W3DGadgetRadioButtonDraw( GameWindow *window, WinInstanceData *instData )
 	end.x	= origin.x + size.x -1;
 	end.y = origin.y + size.y -1;
 	TheWindowManager->winFillRect( boxColor, WIN_DRAW_LINE_WIDTH,
-																 start.x, start.y, end.x, end.y );
+																start.x, start.y, end.x, end.y );
 	// draw the button text
 	if( instData->getTextLength() )
 		drawRadioButtonText( window, instData );

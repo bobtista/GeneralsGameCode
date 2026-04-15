@@ -1039,7 +1039,7 @@ void W3DBridgeBuffer::worldBuilderUpdateBridgeTowers( W3DAssetManager *assetMana
 
 						// sanity
 						DEBUG_ASSERTCRASH( towerRenderObj != nullptr, ("worldBuilderUpdateBridgeTowers: unable to create tower for bridge '%s'",
-															 m_bridges[ i ].getTemplateName().str()) );
+															m_bridges[ i ].getTemplateName().str()) );
 
 						// update the position of the towers
 						updateTowerPos( towerRenderObj, (BridgeTowerType)j, &bridgeInfo );

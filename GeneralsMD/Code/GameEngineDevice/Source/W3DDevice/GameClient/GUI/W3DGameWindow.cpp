@@ -150,9 +150,9 @@ void W3DGameWindow::blitBorderRect( Int x, Int y, Int width, Int height )
 	{
 
 		TheDisplay->drawImage( borderPieces[ BORDER_HORIZONTAL_TOP ],
-													 x, y, x + size, y + size );
+													x, y, x + size, y + size );
 		TheDisplay->drawImage( borderPieces[ BORDER_HORIZONTAL_BOTTOM ],
-													 x, y2, x + size, y2 + size );
+													x, y2, x + size, y2 + size );
 
 	}
 
@@ -164,9 +164,9 @@ void W3DGameWindow::blitBorderRect( Int x, Int y, Int width, Int height )
 
 		//Blit Half piece
 		TheDisplay->drawImage( borderPieces[ BORDER_HORIZONTAL_TOP_SHORT ],
-													 x, y, x + halfSize, y + size );
+													x, y, x + halfSize, y + size );
 		TheDisplay->drawImage( borderPieces[ BORDER_HORIZONTAL_BOTTOM_SHORT ],
-													 x, y2, x + halfSize, y2 + size );
+													x, y2, x + halfSize, y2 + size );
 
 		x += (BORDER_LINE_SIZE / 2);
 
@@ -182,9 +182,9 @@ void W3DGameWindow::blitBorderRect( Int x, Int y, Int width, Int height )
 
 		//Blit Half piece
 		TheDisplay->drawImage( borderPieces[ BORDER_HORIZONTAL_TOP_SHORT ],
-													 x, y, x + halfSize, y + size );
+													x, y, x + halfSize, y + size );
 		TheDisplay->drawImage( borderPieces[ BORDER_HORIZONTAL_BOTTOM_SHORT ],
-													 x, y2, x + halfSize, y2 + size );
+													x, y2, x + halfSize, y2 + size );
 
 	}
 
@@ -198,9 +198,9 @@ void W3DGameWindow::blitBorderRect( Int x, Int y, Int width, Int height )
 	{
 
 		TheDisplay->drawImage( borderPieces[ BORDER_VERTICAL_LEFT ],
-													 x, y, x + size, y + size );
+													x, y, x + size, y + size );
 		TheDisplay->drawImage( borderPieces[ BORDER_VERTICAL_RIGHT ],
-													 x2, y, x2 + size, y + size );
+													x2, y, x2 + size, y + size );
 
 	}
 
@@ -212,9 +212,9 @@ void W3DGameWindow::blitBorderRect( Int x, Int y, Int width, Int height )
 
 		//Blit Half piece
 		TheDisplay->drawImage( borderPieces[ BORDER_VERTICAL_LEFT_SHORT ],
-													 x, y, x + size, y + halfSize );
+													x, y, x + size, y + halfSize );
 		TheDisplay->drawImage( borderPieces[ BORDER_VERTICAL_RIGHT_SHORT ],
-													 x2, y, x2 + size, y + halfSize );
+													x2, y, x2 + size, y + halfSize );
 
 		y += (BORDER_LINE_SIZE / 2);
 	}
@@ -229,9 +229,9 @@ void W3DGameWindow::blitBorderRect( Int x, Int y, Int width, Int height )
 
 		//Blit Half piece
 		TheDisplay->drawImage( borderPieces[ BORDER_VERTICAL_LEFT_SHORT ],
-													 x, y, x + size, y + halfSize );
+													x, y, x + size, y + halfSize );
 		TheDisplay->drawImage( borderPieces[ BORDER_VERTICAL_RIGHT_SHORT ],
-													 x2, y, x2 + size, y + halfSize );
+													x2, y, x2 + size, y + halfSize );
 
 	}
 
@@ -239,19 +239,19 @@ void W3DGameWindow::blitBorderRect( Int x, Int y, Int width, Int height )
 	x = originalX - BORDER_CORNER_SIZE ;
 	y = originalY - BORDER_CORNER_SIZE;
 	TheDisplay->drawImage( borderPieces[ BORDER_CORNER_UL ],
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 	x = maxX - 5;//BORDER_CORNER_SIZE;
 	y = originalY - BORDER_CORNER_SIZE;
 	TheDisplay->drawImage( borderPieces[ BORDER_CORNER_UR ],
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 	x = originalX - BORDER_CORNER_SIZE;
 	y = maxY - 5;//BORDER_CORNER_SIZE;
 	TheDisplay->drawImage( borderPieces[ BORDER_CORNER_LL ],
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 	x = maxX - 5;//BORDER_CORNER_SIZE;
 	y = maxY - 5;//BORDER_CORNER_SIZE;
 	TheDisplay->drawImage( borderPieces[ BORDER_CORNER_LR ],
-												 x, y, x + size, y + size );
+												x, y, x + size, y + size );
 
 }
 
@@ -365,16 +365,16 @@ void W3DGameWinDefaultDraw( GameWindow *window, WinInstanceData *instData )
 		//
 		if( borderColor != WIN_COLOR_UNDEFINED )
 			TheWindowManager->winOpenRect( borderColor, borderWidth,
-																		 origin.x, origin.y,
-																		 origin.x + size.x, origin.y + size.y );
+																		origin.x, origin.y,
+																		origin.x + size.x, origin.y + size.y );
 
 		// draw filled background
 		if( color != WIN_COLOR_UNDEFINED )
 			TheWindowManager->winFillRect( color, borderWidth,
-																		 origin.x + borderWidth,
-																		 origin.y + borderWidth,
-																		 origin.x + size.x - borderWidth,
-																		 origin.y + size.y - borderWidth );
+																		origin.x + borderWidth,
+																		origin.y + borderWidth,
+																		origin.x + size.x - borderWidth,
+																		origin.y + size.y - borderWidth );
 
 	}
 

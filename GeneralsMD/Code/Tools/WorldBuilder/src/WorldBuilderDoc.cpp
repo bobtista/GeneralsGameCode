@@ -1501,8 +1501,8 @@ void CWorldBuilderDoc::getCoordFromCellIndex(CPoint ndx, Coord3D* pt)
 //=============================================================================
 //=============================================================================
 Bool CWorldBuilderDoc::getAllIndexesInRect(const Coord3D* bl, const Coord3D* br,
-																					 const Coord3D* tl, const Coord3D* tr,
-																					 Int widthOutside, VecHeightMapIndexes* allIndices)
+																					const Coord3D* tl, const Coord3D* tr,
+																					Int widthOutside, VecHeightMapIndexes* allIndices)
 {
 	// given the four corners of this rectangle, find all indices that are within
 	// widthOutside of the rect and place them into allIndices.
@@ -1569,7 +1569,7 @@ void CWorldBuilderDoc::getObjArrowPoint(MapObject *pObj, Coord3D *location)
 {
 	// Get the center location, and the angle.
 	Coord3D loc = *pObj->getLocation();
- 	float angle = pObj->getAngle();
+	float angle = pObj->getAngle();
 	// The arrow starts in the +x direction.
 	Vector3 arrow(1.2f*MAP_XY_FACTOR, 0, 0);
 	// Rotate

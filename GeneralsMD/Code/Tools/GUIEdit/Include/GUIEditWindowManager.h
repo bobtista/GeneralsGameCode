@@ -53,9 +53,9 @@ public:
 	virtual Int winDestroy( GameWindow *window ) override;  ///< destroy this window
 	/// create a new window by setting up parameters and callbacks
 	virtual GameWindow *winCreate( GameWindow *parent, UnsignedInt status,
-																 Int x, Int y, Int width, Int height,
-																 GameWinSystemFunc system,
-																 WinInstanceData *instData = nullptr ) override;
+																Int x, Int y, Int width, Int height,
+																GameWinSystemFunc system,
+																WinInstanceData *instData = nullptr ) override;
 
 	// **************************************************************************
 	// GUIEdit specific methods *************************************************
@@ -93,7 +93,7 @@ protected:
 	and become adults (their parent will be null, otherwise the screen) */
 //	void orphanSelectedChildren( void );
 
-  /// dupe a window and its children
+	/// dupe a window and its children
 	GameWindow *duplicateWindow( GameWindow *source, GameWindow *parent );
 	void createClipboardDuplicate( void );  ///< duplicate the clipboard on the dup list
 

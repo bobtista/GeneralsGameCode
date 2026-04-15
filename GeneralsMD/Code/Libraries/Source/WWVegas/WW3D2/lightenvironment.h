@@ -104,7 +104,7 @@ public:
 	float getPointOrad(int i) const {return InputLights[i].m_outerRadius;}
 	const Vector3 &	getPointDiffuse(int i) const				{ return InputLights[i].m_diffuse; }
 	const Vector3 &	getPointAmbient(int i) const				{ return InputLights[i].m_ambient; }
- 	const Vector3 &	getPointCenter(int i)	const				{ return InputLights[i].m_center; }
+	const Vector3 &	getPointCenter(int i)	const				{ return InputLights[i].m_center; }
 
 	/*
 	** Lighting LOD.  This is a static setting that is used to convert weak diffuse lights

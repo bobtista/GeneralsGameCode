@@ -88,9 +88,9 @@ public:
 protected:
 
 	void checkForChangedTextData();  /**< called when we need to update our
-																				 render sentence and update extents */
+																				render sentence and update extents */
 	void usingResources( UnsignedInt frame );  /**< call this whenever display
-																						 resources are in use */
+																						resources are in use */
 	void computeExtents();  ///< compupte text width and height
 
 	Render2DSentenceClass m_textRenderer;  ///< for drawing text

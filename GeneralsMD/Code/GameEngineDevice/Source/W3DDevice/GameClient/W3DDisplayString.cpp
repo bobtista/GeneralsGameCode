@@ -330,13 +330,13 @@ void W3DDisplayString::setClipRegion( IRegion2D *region )
 
 		// set new region in renderer
 		m_textRenderer.Set_Clipping_Rect( RectClass( m_clipRegion.lo.x,
-																								 m_clipRegion.lo.y,
-																								 m_clipRegion.hi.x,
-																								 m_clipRegion.hi.y ) );
+																								m_clipRegion.lo.y,
+																								m_clipRegion.hi.x,
+																								m_clipRegion.hi.y ) );
 		m_textRendererHotKey.Set_Clipping_Rect( RectClass( m_clipRegion.lo.x,
-																								 m_clipRegion.lo.y,
-																								 m_clipRegion.hi.x,
-																								 m_clipRegion.hi.y ) );
+																								m_clipRegion.lo.y,
+																								m_clipRegion.hi.x,
+																								m_clipRegion.hi.y ) );
 	}
 
 }
@@ -391,6 +391,6 @@ void W3DDisplayString::setUseHotkey( Bool useHotkey, Color hotKeyColor )
 void W3DDisplayString::setWordWrapCentered( Bool isCentered )
 {
 	// set the Word Wrap
-	 if( m_textRenderer.Set_Word_Wrap_Centered(isCentered) )
+	if( m_textRenderer.Set_Word_Wrap_Centered(isCentered) )
 		notifyTextChanged();
 }

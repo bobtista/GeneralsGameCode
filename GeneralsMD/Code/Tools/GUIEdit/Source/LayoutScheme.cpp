@@ -174,9 +174,9 @@ static void saveData( HWND hWndDialog )
 	info = GetStateInfo( (StateIdentifier)i );
 	assert( info );
 	theScheme->storeImageAndColor( info->stateID,
-																 info->image,
-																 info->color,
-																 info->borderColor );
+																info->image,
+																info->color,
+																info->borderColor );
 
 	}
 
@@ -200,35 +200,35 @@ static void saveData( HWND hWndDialog )
 char *saveAsDialog( void )
 {
 	static char filename[ _MAX_PATH ];
-  OPENFILENAME ofn;
-  Bool returnCode;
-  char filter[] = "Layout Scheme Files (*.ls)\0*.ls\0"  \
+	OPENFILENAME ofn;
+	Bool returnCode;
+	char filter[] = "Layout Scheme Files (*.ls)\0*.ls\0"  \
                   "All Files (*.*)\0*.*\0\0" ;
 
-  ofn.lStructSize       = sizeof( OPENFILENAME );
-  ofn.hwndOwner         = TheEditor->getWindowHandle();
-  ofn.hInstance         = nullptr;
-  ofn.lpstrFilter       = filter;
-  ofn.lpstrCustomFilter = nullptr;
-  ofn.nMaxCustFilter    = 0;
-  ofn.nFilterIndex      = 0;
-  ofn.lpstrFile         = filename;
-  ofn.nMaxFile          = _MAX_PATH;
-  ofn.lpstrFileTitle    = nullptr;
-  ofn.nMaxFileTitle     = 0;
-  ofn.lpstrInitialDir   = nullptr;
-  ofn.lpstrTitle        = nullptr;
-  ofn.Flags             = OFN_NOREADONLYRETURN | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-  ofn.nFileOffset       = 0;
-  ofn.nFileExtension    = 0;
-  ofn.lpstrDefExt       = "ls";
-  ofn.lCustData         = 0L ;
-  ofn.lpfnHook          = nullptr ;
-  ofn.lpTemplateName    = nullptr ;
+	ofn.lStructSize       = sizeof( OPENFILENAME );
+	ofn.hwndOwner         = TheEditor->getWindowHandle();
+	ofn.hInstance         = nullptr;
+	ofn.lpstrFilter       = filter;
+	ofn.lpstrCustomFilter = nullptr;
+	ofn.nMaxCustFilter    = 0;
+	ofn.nFilterIndex      = 0;
+	ofn.lpstrFile         = filename;
+	ofn.nMaxFile          = _MAX_PATH;
+	ofn.lpstrFileTitle    = nullptr;
+	ofn.nMaxFileTitle     = 0;
+	ofn.lpstrInitialDir   = nullptr;
+	ofn.lpstrTitle        = nullptr;
+	ofn.Flags             = OFN_NOREADONLYRETURN | OFN_OVERWRITEPROMPT | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+	ofn.nFileOffset       = 0;
+	ofn.nFileExtension    = 0;
+	ofn.lpstrDefExt       = "ls";
+	ofn.lCustData         = 0L ;
+	ofn.lpfnHook          = nullptr ;
+	ofn.lpTemplateName    = nullptr ;
 
-  returnCode = GetSaveFileName( &ofn );
+	returnCode = GetSaveFileName( &ofn );
 
-  if( returnCode )
+	if( returnCode )
 		return filename;
 	else
 		return nullptr;
@@ -242,35 +242,35 @@ char *saveAsDialog( void )
 char *openDialog( void )
 {
 	static char filename[ _MAX_PATH ];
-  OPENFILENAME ofn;
-  Bool returnCode;
-  char filter[] = "Layout Scheme Files (*.ls)\0*.ls\0"  \
+	OPENFILENAME ofn;
+	Bool returnCode;
+	char filter[] = "Layout Scheme Files (*.ls)\0*.ls\0"  \
                   "All Files (*.*)\0*.*\0\0" ;
 
-  ofn.lStructSize       = sizeof( OPENFILENAME );
-  ofn.hwndOwner         = TheEditor->getWindowHandle();
-  ofn.hInstance         = nullptr;
-  ofn.lpstrFilter       = filter;
-  ofn.lpstrCustomFilter = nullptr;
-  ofn.nMaxCustFilter    = 0;
-  ofn.nFilterIndex      = 0;
-  ofn.lpstrFile         = filename;
-  ofn.nMaxFile          = _MAX_PATH;
-  ofn.lpstrFileTitle    = nullptr;
-  ofn.nMaxFileTitle     = 0;
-  ofn.lpstrInitialDir   = nullptr;
-  ofn.lpstrTitle        = nullptr;
-  ofn.Flags             = OFN_NOREADONLYRETURN | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
-  ofn.nFileOffset       = 0;
-  ofn.nFileExtension    = 0;
-  ofn.lpstrDefExt       = "ls";
-  ofn.lCustData         = 0L ;
-  ofn.lpfnHook          = nullptr ;
-  ofn.lpTemplateName    = nullptr ;
+	ofn.lStructSize       = sizeof( OPENFILENAME );
+	ofn.hwndOwner         = TheEditor->getWindowHandle();
+	ofn.hInstance         = nullptr;
+	ofn.lpstrFilter       = filter;
+	ofn.lpstrCustomFilter = nullptr;
+	ofn.nMaxCustFilter    = 0;
+	ofn.nFilterIndex      = 0;
+	ofn.lpstrFile         = filename;
+	ofn.nMaxFile          = _MAX_PATH;
+	ofn.lpstrFileTitle    = nullptr;
+	ofn.nMaxFileTitle     = 0;
+	ofn.lpstrInitialDir   = nullptr;
+	ofn.lpstrTitle        = nullptr;
+	ofn.Flags             = OFN_NOREADONLYRETURN | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
+	ofn.nFileOffset       = 0;
+	ofn.nFileExtension    = 0;
+	ofn.lpstrDefExt       = "ls";
+	ofn.lCustData         = 0L ;
+	ofn.lpfnHook          = nullptr ;
+	ofn.lpTemplateName    = nullptr ;
 
-  returnCode = GetOpenFileName( &ofn );
+	returnCode = GetOpenFileName( &ofn );
 
-  if( returnCode )
+	if( returnCode )
 		return filename;
 	else
 		return nullptr;
@@ -309,8 +309,8 @@ static LRESULT CALLBACK layoutSchemeCallback( HWND hWndDialog,
 		}
 
 		// ------------------------------------------------------------------------
-    case WM_COMMAND:
-    {
+		case WM_COMMAND:
+		{
 //			Int notifyCode = HIWORD( wParam );  // notification code
 			Int controlID = LOWORD( wParam );  // control ID
 //			HWND hWndControl = (HWND)lParam;  // control window handle
@@ -330,7 +330,7 @@ static LRESULT CALLBACK layoutSchemeCallback( HWND hWndDialog,
 					// ask them if they are sure
 					//
 					result = MessageBox( nullptr, "This will apply these scheme color and image settings to ALL windows and gadgets currently loaded in the edit window.  Are you sure you want to proceed?",
-															 "Are You Sure?", MB_YESNO | MB_ICONWARNING );
+															"Are You Sure?", MB_YESNO | MB_ICONWARNING );
 					if( result == IDNO )
 						break;
 
@@ -2161,7 +2161,7 @@ void LayoutScheme::openDialog( void )
 
 	// create the dialog box
 	DialogBox( TheEditor->getInstance(), (LPCTSTR)LAYOUT_SCHEME_DIALOG,
-						 TheEditor->getWindowHandle(), (DLGPROC)layoutSchemeCallback );
+						TheEditor->getWindowHandle(), (DLGPROC)layoutSchemeCallback );
 
 	theScheme = nullptr;
 
@@ -2221,7 +2221,7 @@ ImageAndColorInfo *LayoutScheme::getImageAndColor( StateIdentifier id )
 /** Store the image and colors of the specific state in our own data array */
 //=============================================================================
 void LayoutScheme::storeImageAndColor( StateIdentifier id, const Image *image,
-																			 Color color, Color borderColor )
+																			Color color, Color borderColor )
 {
 
 	// sanity
@@ -2254,7 +2254,7 @@ Bool LayoutScheme::saveScheme( char *filename )
 {
 	FILE *fp;
 	UnsignedByte colorR, colorG, colorB, colorA,
-							 bColorR, bColorG, bColorB, bColorA;
+							bColorR, bColorG, bColorB, bColorA;
 
 	// open the file
 	fp = fopen( filename, "w" );
@@ -2294,7 +2294,7 @@ Bool LayoutScheme::saveScheme( char *filename )
 	char fontBuffer[ 256 ];
 	if( m_font )
 		sprintf( fontBuffer, "\"%s\" Size: %d Bold: %d",
-						 m_font->nameString.str(), m_font->pointSize, m_font->bold );
+						m_font->nameString.str(), m_font->pointSize, m_font->bold );
 	else
 		sprintf( fontBuffer, "\"None\" Size: 0 Bold: 0" );
 	fprintf( fp, "Default Font: %s\n", fontBuffer );
@@ -2317,8 +2317,8 @@ Bool LayoutScheme::saveScheme( char *filename )
 
 		// output it
 		fprintf( fp, "%d: Image: %s Color: (%d,%d,%d,%d) Border: (%d,%d,%d,%d)\n",
-						 i, info->image ? info->image->getName().str() : "NONE", colorR, colorG, colorB, colorA,
-						 bColorR, bColorG, bColorB, bColorA );
+						i, info->image ? info->image->getName().str() : "NONE", colorR, colorG, colorB, colorA,
+						bColorR, bColorG, bColorB, bColorA );
 
 	}
 
@@ -2336,7 +2336,7 @@ Bool LayoutScheme::loadScheme( char *filename )
 {
 	FILE *fp;
 	UnsignedByte colorR, colorG, colorB, colorA,
-							 bColorR, bColorG, bColorB, bColorA;
+							bColorR, bColorG, bColorB, bColorA;
 
 	// open the file
 	fp = fopen( filename, "r" );
