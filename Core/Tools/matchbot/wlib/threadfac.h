@@ -72,9 +72,9 @@ class Runnable;
 //
 class ThreadFactory
 {
- public:
-  static bit8    startThread(void (*start_func)(void *), void *data);
-  static bit8    startThread(Runnable &runnable, void *data, bit8 destroy=FALSE);
+public:
+	static bit8    startThread(void (*start_func)(void *), void *data);
+	static bit8    startThread(Runnable &runnable, void *data, bit8 destroy=FALSE);
 };
 
 
@@ -85,37 +85,37 @@ class ThreadFactory
 //
 class Runnable
 {
- public:
-                Runnable();
-   virtual     ~Runnable();
+public:
+	Runnable();
+	virtual     ~Runnable();
 
 
-   // ThreadFactory needs to be able to access the private
-   // IsRunning_ field.
-   friend class ThreadFactory;
+	// ThreadFactory needs to be able to access the private
+	// IsRunning_ field.
+	friend class ThreadFactory;
 
-   // So do the threadClassLaunchers
+	// So do the threadClassLaunchers
    #ifdef _WIN32
      friend unsigned __stdcall threadClassLauncher(void *temp);
    #else  // UNIX
-     friend void *threadClassLauncher(void *temp);
+	friend void *threadClassLauncher(void *temp);
    #endif
 
-   virtual void run(void *data)=0;       // Thread entry point
+	virtual void run(void *data)=0;       // Thread entry point
 
-           void startThread(void *data,bit8 destroy=FALSE)  // nice way to start a thread
-           {
-             ThreadFactory::startThread(*this,data,destroy);
-           };
+	void startThread(void *data,bit8 destroy=FALSE)  // nice way to start a thread
+	{
+		ThreadFactory::startThread(*this,data,destroy);
+	};
 
-           // Is there a thread running in this class?
-           static bit8 isRunning(void);
+	// Is there a thread running in this class?
+	static bit8 isRunning(void);
 
-           // Get the count of threads running inside this class
-           static int    getThreadCount();
+	// Get the count of threads running inside this class
+	static int    getThreadCount();
 
 
-  private:
-   static int       ThreadCount_;
-   static CritSec   CritSec_;           // to protect ThreadCount_
+private:
+	static int       ThreadCount_;
+	static CritSec   CritSec_;           // to protect ThreadCount_
 };

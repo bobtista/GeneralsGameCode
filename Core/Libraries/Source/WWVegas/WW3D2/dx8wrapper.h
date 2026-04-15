@@ -877,10 +877,10 @@ WWINLINE void DX8Wrapper::Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane)
 
 WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value)
 {
-  	if (stage >= MAX_TEXTURE_STAGES)
-  	{	DX8CALL(SetTextureStageState( stage, state, value ));
-  		return;
-  	}
+	if (stage >= MAX_TEXTURE_STAGES)
+	{	DX8CALL(SetTextureStageState( stage, state, value ));
+		return;
+	}
 
 	// Can't monitor state changes because setShader call to GERD may change the states!
 	if (TextureStageStates[stage][(unsigned int)state]==value) return;
@@ -902,10 +902,10 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURE
 
 WWINLINE void DX8Wrapper::Set_DX8_Texture(unsigned int stage, IDirect3DBaseTexture8* texture)
 {
-  	if (stage >= MAX_TEXTURE_STAGES)
-  	{	DX8CALL(SetTexture(stage, texture));
-  		return;
-  	}
+	if (stage >= MAX_TEXTURE_STAGES)
+	{	DX8CALL(SetTexture(stage, texture));
+		return;
+	}
 
 	if (Textures[stage]==texture) return;
 

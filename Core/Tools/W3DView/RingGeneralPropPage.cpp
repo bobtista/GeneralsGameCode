@@ -135,8 +135,8 @@ RingGeneralPropPageClass::Add_Shader_To_Combo
 		//	object's shader.
 		//
 		if ((shader.Get_Alpha_Test () == m_Shader.Get_Alpha_Test ()) &&
-			 (shader.Get_Dst_Blend_Func () == m_Shader.Get_Dst_Blend_Func ()) &&
-			 (shader.Get_Src_Blend_Func () == m_Shader.Get_Src_Blend_Func ()))
+			(shader.Get_Dst_Blend_Func () == m_Shader.Get_Dst_Blend_Func ()) &&
+			(shader.Get_Src_Blend_Func () == m_Shader.Get_Src_Blend_Func ()))
 		{
 			SendDlgItemMessage (IDC_SHADER_COMBO, CB_SETCURSEL, (WPARAM)index);
 		}

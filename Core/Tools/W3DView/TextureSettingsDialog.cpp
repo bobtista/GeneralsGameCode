@@ -383,7 +383,7 @@ TextureSettingsDialogClass::WindowProc
 			case IDC_FPS_EDIT:
 			case IDC_FILENAME_EDIT:
 				if ((HIWORD (wParam) == EN_UPDATE) ||
-					 (HIWORD (wParam) == EN_CHANGE)) {
+					(HIWORD (wParam) == EN_CHANGE)) {
 					::EnableWindow (::GetDlgItem (m_hWnd, IDC_APPLY), TRUE);
 				}
 				break;
@@ -482,14 +482,14 @@ TextureSettingsDialogClass::Paint_Thumbnail (void)
 		CRect rect;
 		::GetClientRect (hchild_wnd, &rect);
 		::BitBlt (hdc,
-					 rect.left + (rect.Width () >> 1) - 48,
-					 rect.top + (rect.Height () >> 1) - 48,
-					 96,
-					 96,
-					 hmem_dc,
-					 0,
-					 0,
-					 SRCCOPY);
+					rect.left + (rect.Width () >> 1) - 48,
+					rect.top + (rect.Height () >> 1) - 48,
+					96,
+					96,
+					hmem_dc,
+					0,
+					0,
+					SRCCOPY);
 
 		// Release the misc windows crap
 		::SelectObject (hmem_dc, hold_bmp);
@@ -548,29 +548,29 @@ TextureSettingsDialogClass::OnApply (void)
 		{
 			case TYPE_LOOP:
 				pnew_texture = new TimeAnimTextureInstanceClass (*(WW3DAssetManager::Get_Instance ()),
-																				 texture_name,
-																				 frame_count,
-																				 (float)frame_rate,
-																				 TimeAnimTextureInstanceClass::LOOP,
-																				 TimeAnimTextureInstanceClass::FORWARD);
+																				texture_name,
+																				frame_count,
+																				(float)frame_rate,
+																				TimeAnimTextureInstanceClass::LOOP,
+																				TimeAnimTextureInstanceClass::FORWARD);
 				break;
 
 			case TYPE_ONCE:
 				pnew_texture = new TimeAnimTextureInstanceClass (*(WW3DAssetManager::Get_Instance ()),
-																				 texture_name,
-																				 frame_count,
-																				 (float)frame_rate,
-																				 TimeAnimTextureInstanceClass::ONE_TIME,
-																				 TimeAnimTextureInstanceClass::FORWARD);
+																				texture_name,
+																				frame_count,
+																				(float)frame_rate,
+																				TimeAnimTextureInstanceClass::ONE_TIME,
+																				TimeAnimTextureInstanceClass::FORWARD);
 				break;
 
 			case TYPE_PING_PONG:
 				pnew_texture = new TimeAnimTextureInstanceClass (*(WW3DAssetManager::Get_Instance ()),
-																				 texture_name,
-																				 frame_count,
-																				 (float)frame_rate,
-																				 TimeAnimTextureInstanceClass::PINGPONG,
-																				 TimeAnimTextureInstanceClass::FORWARD);
+																				texture_name,
+																				frame_count,
+																				(float)frame_rate,
+																				TimeAnimTextureInstanceClass::PINGPONG,
+																				TimeAnimTextureInstanceClass::FORWARD);
 				break;
 
 			case TYPE_MANUAL:
@@ -606,8 +606,8 @@ TextureSettingsDialogClass::OnApply (void)
 
 		// Clamp the UVs if necessary
 		::Set_Clamping (pnew_texture,
-							 (SendDlgItemMessage (IDC_CLAMPU_CHECK, BM_GETCHECK) == 1),
-							 (SendDlgItemMessage (IDC_CLAMPV_CHECK, BM_GETCHECK) == 1));
+							(SendDlgItemMessage (IDC_CLAMPU_CHECK, BM_GETCHECK) == 1),
+							(SendDlgItemMessage (IDC_CLAMPV_CHECK, BM_GETCHECK) == 1));
 
 
 		// Pass the new texture on, and free the old texture

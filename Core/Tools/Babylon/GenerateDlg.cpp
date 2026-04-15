@@ -117,7 +117,7 @@ BOOL CGenerateDlg::OnInitDialog()
 void CGenerateDlg::OnSelectall()
 {
 	// TODO: Add your control notification handler code here
-	 list->SelItemRange ( TRUE, 0, num_langs-1 );
+	list->SelItemRange ( TRUE, 0, num_langs-1 );
 }
 
 void CGenerateDlg::OnInvert()

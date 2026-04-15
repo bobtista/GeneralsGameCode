@@ -289,16 +289,16 @@ ColorBarClass::Create
 	// Create the window (it will force the message map and everthing)
 	HWND hparent_wnd = (pparent_wnd != nullptr) ? pparent_wnd->m_hWnd : nullptr;
 	HWND hwnd = ::CreateWindow ("WWCOLORBAR",
-										 lpszWindowName,
-										 dwStyle,
-										 rect.left,
-										 rect.top,
-										 rect.right - rect.left,
-										 rect.bottom - rect.top,
-										 hparent_wnd,
-										 (HMENU)nID,
-										 ::AfxGetInstanceHandle (),
-										 this);
+										lpszWindowName,
+										dwStyle,
+										rect.left,
+										rect.top,
+										rect.right - rect.left,
+										rect.bottom - rect.top,
+										hparent_wnd,
+										(HMENU)nID,
+										::AfxGetInstanceHandle (),
+										this);
 
 	// Return the true/false result code
 	return (hwnd != nullptr);
@@ -641,16 +641,16 @@ ColorBarClass::Paint_DIB ()
 	//
 	if (style & CBRS_HORZ) {
 		Paint_Bar_Horz (m_ColorArea.left,
-							 m_ColorArea.top,
-							 m_ColorArea.Width (),
-							 m_ColorArea.Height (),
-							 m_pBits);
+							m_ColorArea.top,
+							m_ColorArea.Width (),
+							m_ColorArea.Height (),
+							m_pBits);
 	} else {
 		Paint_Bar_Vert (m_ColorArea.left,
-							 m_ColorArea.top,
-							 m_ColorArea.Width (),
-							 m_ColorArea.Height (),
-							 m_pBits);
+							m_ColorArea.top,
+							m_ColorArea.Width (),
+							m_ColorArea.Height (),
+							m_pBits);
 	}
 
 
@@ -861,7 +861,7 @@ ColorBarClass::Insert_Point (CPoint point, DWORD flags)
 	float graph_percent = 0;
 	for (int index = 0; (index < m_iColorPoints) && !found; index ++) {
 		if ((position > m_ColorPoints[index].StartPos) &&
-			 (position < m_ColorPoints[index].EndPos)) {
+			(position < m_ColorPoints[index].EndPos)) {
 			new_index = index + 1;
 			found = true;
 
@@ -917,8 +917,8 @@ ColorBarClass::Insert_Point
 
 	// Params valid?
 	if (((m_iColorPoints + 1) < MAX_COLOR_POINTS) &&
-		 (index >= 0) &&
-		 (index <= m_iColorPoints)) {
+		(index >= 0) &&
+		(index <= m_iColorPoints)) {
 
 		// Bump all the points up one position in the array
 		::memmove (&m_ColorPoints[index + 1],
@@ -949,7 +949,7 @@ ColorBarClass::Delete_Point (int index)
 
 	// Params valid?
 	if ((index > 0) &&
-		 (index < m_iColorPoints)) {
+		(index < m_iColorPoints)) {
 
 		// Bump all the points up one position in the array
 		::memmove (&m_ColorPoints[index],
@@ -1750,7 +1750,7 @@ ColorBarClass::Get_Color
 	int key_index = 0;
 	for (int index = 0; (index < m_iColorPoints) && !found; index ++) {
 		if ((pixel_pos >= m_ColorPoints[index].StartPos) &&
-			 (pixel_pos <= m_ColorPoints[index].EndPos)) {
+			(pixel_pos <= m_ColorPoints[index].EndPos)) {
 			key_index = index;
 			found = true;
 		}

@@ -157,12 +157,12 @@ void Keyboard::updateKeys()
 			}
 		}
 		else if( m_keys[ index ].key == KEY_CAPS	 ||
-						 m_keys[ index ].key == KEY_LCTRL  ||
-						 m_keys[ index ].key == KEY_RCTRL	 ||
-						 m_keys[ index ].key == KEY_LSHIFT ||
-						 m_keys[ index ].key == KEY_RSHIFT ||
-						 m_keys[ index ].key == KEY_LALT	 ||
-						 m_keys[ index ].key == KEY_RALT )
+						m_keys[ index ].key == KEY_LCTRL  ||
+						m_keys[ index ].key == KEY_RCTRL	 ||
+						m_keys[ index ].key == KEY_LSHIFT ||
+						m_keys[ index ].key == KEY_RSHIFT ||
+						m_keys[ index ].key == KEY_LALT	 ||
+						m_keys[ index ].key == KEY_RALT )
 
 		{
 
@@ -344,10 +344,10 @@ void Keyboard::initKeyNames()
 	Int low = (UnsignedInt)kLayout & 0xFFFF;
 	LanguageID currentLanguage = OurLanguage;
 	if(low == 0x040c
-		 || low == 0x080c
-		 || low == 0x0c0c
-		 || low == 0x100c
-		 || low == 0x140c)
+		|| low == 0x080c
+		|| low == 0x0c0c
+		|| low == 0x100c
+		|| low == 0x140c)
 		currentLanguage = LANGUAGE_ID_FRENCH;
 
 	switch( currentLanguage )

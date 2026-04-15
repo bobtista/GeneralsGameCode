@@ -232,8 +232,8 @@ EmitterInstanceListClass::Set_Color_Keyframes (ParticlePropertyStruct<Vector3> &
 	{
 		for (UINT index = 0; index < keyframes.NumKeyFrames; index ++) {
 			if ((keyframes.Values[index].X <= 0.000001F) &&
-				 (keyframes.Values[index].Y <= 0.000001F) &&
-				 (keyframes.Values[index].Z <= 0.000001F)) {
+				(keyframes.Values[index].Y <= 0.000001F) &&
+				(keyframes.Values[index].Z <= 0.000001F)) {
 				keyframes.Values[index].X = -keyframes.Rand.X;
 				keyframes.Values[index].Y = -keyframes.Rand.Y;
 				keyframes.Values[index].Z = -keyframes.Rand.Z;

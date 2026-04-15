@@ -104,7 +104,7 @@ void RetranslateDlg::OnSkip()
 {
 	// TODO: Add your control notification handler code here
 
-		 EndDialog ( IDSKIP );
+		EndDialog ( IDSKIP );
 }
 
 void RetranslateDlg::OnNoRetranslate()

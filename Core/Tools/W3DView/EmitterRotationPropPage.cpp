@@ -355,7 +355,7 @@ EmitterRotationPropPageClass::OnCommand(WPARAM wParam, LPARAM lParam)
 		{
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_Rotations.Rand = ::GetDlgItemFloat (m_hWnd, IDC_ROTATION_RANDOM_EDIT);
@@ -371,7 +371,7 @@ EmitterRotationPropPageClass::OnCommand(WPARAM wParam, LPARAM lParam)
 		{
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_InitialOrientationRandom = ::GetDlgItemFloat (m_hWnd, IDC_INITIAL_ORIENTATION_RANDOM_EDIT);

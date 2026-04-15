@@ -152,15 +152,15 @@ EmitterPropertySheetClass::WindowProc
 
 						// If all the pages contain valid data, then update the emitter
 						if (m_GeneralPage.Is_Data_Valid () &&
-							 m_ParticlePage.Is_Data_Valid () &&
-							 m_PhysicsPage.Is_Data_Valid () &&
-							 m_ColorPage.Is_Data_Valid () &&
-							 m_UserPage.Is_Data_Valid () &&
-							 m_SizePage.Is_Data_Valid () &&
-							 m_LinePage.Is_Data_Valid () &&
-							 m_RotationPage.Is_Data_Valid () &&
-							 m_FramePage.Is_Data_Valid () &&
-							 m_LineGroupPage.Is_Data_Valid () )
+							m_ParticlePage.Is_Data_Valid () &&
+							m_PhysicsPage.Is_Data_Valid () &&
+							m_ColorPage.Is_Data_Valid () &&
+							m_UserPage.Is_Data_Valid () &&
+							m_SizePage.Is_Data_Valid () &&
+							m_LinePage.Is_Data_Valid () &&
+							m_RotationPage.Is_Data_Valid () &&
+							m_FramePage.Is_Data_Valid () &&
+							m_LineGroupPage.Is_Data_Valid () )
 						{
 							// Update the current emitter to match the data
 							Update_Emitter ();

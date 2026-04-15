@@ -686,7 +686,7 @@ int CBabylonDlg::SaveLog()
 {
 	FILE *log = nullptr;
 	EDITSTREAM es;
- 	CRichEditCtrl *rec = (CRichEditCtrl *) GetDlgItem ( IDC_LOG );
+	CRichEditCtrl *rec = (CRichEditCtrl *) GetDlgItem ( IDC_LOG );
 	int ok = FALSE;
 
 
@@ -2309,10 +2309,10 @@ void CBabylonDlg::VerifyDialog( TransDB *db, LangID langid )
 					{
 						if ( !text->DialogIsValid ( DialogPath, langid, FALSE ) )
 						{
-						 	VerifyDlg dlg(text, langid, DialogPath);
-						 	int result;
+							VerifyDlg dlg(text, langid, DialogPath);
+							int result;
 
-						 	result = dlg.DoModal ();
+							result = dlg.DoModal ();
 
 							if ( result == IDCANCEL )
 							{

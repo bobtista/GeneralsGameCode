@@ -167,7 +167,7 @@ Int XferSave::beginBlock()
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_fileFP != nullptr, ("Xfer begin block - file pointer for '%s' is null",
-										 m_identifier.str()) );
+										m_identifier.str()) );
 
 	// get the current file position so we can back up here for the next end block call
 	XferFilePos filePos = ftell( m_fileFP );
@@ -212,7 +212,7 @@ void XferSave::endBlock()
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_fileFP != nullptr, ("Xfer end block - file pointer for '%s' is null",
-										 m_identifier.str()) );
+										m_identifier.str()) );
 
 	// sanity, make sure we have a block started
 	if( m_blockStack == nullptr )
@@ -259,7 +259,7 @@ void XferSave::skip( Int dataSize )
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_fileFP != nullptr, ("XferSave - file pointer for '%s' is null",
-										 m_identifier.str()) );
+										m_identifier.str()) );
 
 
 	// skip forward dataSize bytes
@@ -344,7 +344,7 @@ void XferSave::xferImplementation( void *data, Int dataSize )
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_fileFP != nullptr, ("XferSave - file pointer for '%s' is null",
-										 m_identifier.str()) );
+										m_identifier.str()) );
 
 	// write data to file
 	if( fwrite( data, dataSize, 1, m_fileFP ) != 1 )

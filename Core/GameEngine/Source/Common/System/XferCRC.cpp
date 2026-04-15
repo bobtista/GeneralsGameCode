@@ -269,7 +269,7 @@ void XferDeepCRC::xferImplementation( void *data, Int dataSize )
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_fileFP != nullptr, ("XferSave - file pointer for '%s' is null",
-										 m_identifier.str()) );
+										m_identifier.str()) );
 
 	// write data to file
 	if( fwrite( data, dataSize, 1, m_fileFP ) != 1 )

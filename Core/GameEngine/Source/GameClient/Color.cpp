@@ -85,10 +85,10 @@
 //static UnsignedByte s_cheaterHasBeenSpied = 0;
 
 void GameGetColorComponents( Color color,
-														 UnsignedByte *red,
-														 UnsignedByte *green,
-														 UnsignedByte *blue,
-														 UnsignedByte *alpha )
+														UnsignedByte *red,
+														UnsignedByte *green,
+														UnsignedByte *blue,
+														UnsignedByte *alpha )
 {
 
 	*alpha	= (color & 0xFF000000) >> 24;

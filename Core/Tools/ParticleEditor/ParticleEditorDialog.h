@@ -83,19 +83,19 @@ class DebugWindowDialog : public CDialog
 																  OUT RGBColorKeyframe &colorFrame ) const;
 
 		void updateColorValueToSystem( IN Int systemNum,
-																	 IN const RGBColorKeyframe &colorFrame );
+																	IN const RGBColorKeyframe &colorFrame );
 
 		void getAlphaRangeFromSystem( IN Int systemNum,
 																  OUT ParticleSystemInfo::RandomKeyframe &randomVar ) const;
 
 		void updateAlphaRangeToSystem( IN Int systemNum,
-																	 IN const ParticleSystemInfo::RandomKeyframe &randomVar );
+																	IN const ParticleSystemInfo::RandomKeyframe &randomVar );
 
 		void getHalfSizeFromSystem( IN Int coordNum, // 0:X, 1:Y, 2:Z
 																OUT Real& halfSize ) const;
 
 		void updateHalfSizeToSystem( IN Int coordNum, // 0:X, 1:Y, 2:Z
-																 IN const Real &halfSize );
+																IN const Real &halfSize );
 
 		void getSphereRadiusFromSystem( OUT Real &radius ) const;
 		void updateSphereRadiusToSystem( IN const Real &radius );
@@ -110,16 +110,16 @@ class DebugWindowDialog : public CDialog
 														OUT Real& linePoint ) const;
 
 		void updateLineToSystem( IN Int coordNum, // 0:X, 1:Y, 2:Z, 3:X2, 4:Y2, 5:Z2
-														 IN const Real &linePoint );
+														IN const Real &linePoint );
 
 		void getVelSphereFromSystem( IN Int velNum, // 0:min 1:max
-																 OUT Real &radius ) const;
+																OUT Real &radius ) const;
 
 		void updateVelSphereToSystem( IN Int velNum, // 0:min 1:max
 																	IN const Real &radius );
 
 		void getVelHemisphereFromSystem( IN Int velNum, // 0:min 1:max
-																		 OUT Real &radius ) const;
+																		OUT Real &radius ) const;
 
 		void updateVelHemisphereToSystem( IN Int velNum, // 0:min 1:max
 																			IN const Real &radius );
@@ -128,10 +128,10 @@ class DebugWindowDialog : public CDialog
 																OUT Real& ortho ) const;
 
 		void updateVelOrthoToSystem( IN Int coordNum, // 0:Xmin, 1:Ymin, 2:Zmin, 3:Xmax, 4:Ymax, 5:Zmax
-																 IN const Real& ortho );
+																IN const Real& ortho );
 
 		void getVelCylinderFromSystem( IN Int coordNum, // 0:Radialmin, 1:Lengthmin, 2:Radialmax, 3:Lengthmax
-																	 OUT Real& ortho ) const;
+																	OUT Real& ortho ) const;
 
 		void updateVelCylinderToSystem( IN Int coordNum, // 0:Radialmin, 1:Lengthmin, 2:Radialmax, 3:Lengthmax
 																		IN const Real& ortho );
@@ -140,7 +140,7 @@ class DebugWindowDialog : public CDialog
 																	OUT Real& ortho ) const;
 
 		void updateVelOutwardToSystem( IN Int coordNum, // 0:Outwardmin, 1:Othermin, 2:Outwardmax, 3:Othermax
-																	 IN const Real& ortho );
+																	IN const Real& ortho );
 
 		void getParticleNameFromSystem( OUT char *buffer, IN int buffLen ) const;
 		void updateParticleNameToSystem( IN const char *buffer );
@@ -151,55 +151,55 @@ class DebugWindowDialog : public CDialog
 																	OUT Real& initialDelay ) const;
 
 		void updateInitialDelayToSystem( IN Int parmNum, // 0:min, 1:min
-																	 IN const Real& initialDelay );
+																	IN const Real& initialDelay );
 
 		void getBurstDelayFromSystem( IN Int parmNum, // 0:min, 1:min
 																	OUT Real& burstDelay ) const;
 
 		void updateBurstDelayToSystem( IN Int parmNum, // 0:min, 1:min
-																	 IN const Real& burstDelay );
+																	IN const Real& burstDelay );
 
 		void getBurstCountFromSystem( IN Int parmNum, // 0:min, 1:min
 																	OUT Real& burstCount ) const;
 
 		void updateBurstCountToSystem( IN Int parmNum, // 0:min, 1:min
-																	 IN const Real& burstCount );
+																	IN const Real& burstCount );
 
 		void getColorScaleFromSystem( IN Int parmNum, // 0:min, 1:min
 																	OUT Real& colorScale ) const;
 
 		void updateColorScaleToSystem( IN Int parmNum, // 0:min, 1:min
-																	 IN const Real& colorScale );
+																	IN const Real& colorScale );
 
 		void getParticleLifetimeFromSystem( IN Int parmNum, // 0:min, 1:min
 																	OUT Real& particleLifetime ) const;
 
 		void updateParticleLifetimeToSystem( IN Int parmNum, // 0:min, 1:min
-																	 IN const Real& particleLifetime );
+																	IN const Real& particleLifetime );
 
 		void getParticleSizeFromSystem( IN Int parmNum, // 0:min, 1:min
 																	OUT Real& particleSize ) const;
 
 		void updateParticleSizeToSystem( IN Int parmNum, // 0:min, 1:min
-																	 IN const Real& particleSize );
+																	IN const Real& particleSize );
 
 		void getStartSizeRateFromSystem( IN Int parmNum, // 0:min, 1:min
 																	OUT Real& startSizeRate ) const;
 
 		void updateStartSizeRateToSystem( IN Int parmNum, // 0:min, 1:min
-																	 IN const Real& startSizeRate );
+																	IN const Real& startSizeRate );
 
 		void getSizeRateFromSystem( IN Int parmNum, // 0:min, 1:min
 																	OUT Real& sizeRate ) const;
 
 		void updateSizeRateToSystem( IN Int parmNum, // 0:min, 1:min
-																	 IN const Real& sizeRate );
+																	IN const Real& sizeRate );
 
 		void getSizeDampingFromSystem( IN Int parmNum, // 0:min, 1:min
 																	OUT Real& sizeDamping ) const;
 
 		void updateSizeDampingToSystem( IN Int parmNum, // 0:min, 1:min
-																	 IN const Real& sizeDamping );
+																	IN const Real& sizeDamping );
 
 		void getSystemLifetimeFromSystem( OUT Real& systemLifetime ) const;
 
@@ -209,19 +209,19 @@ class DebugWindowDialog : public CDialog
 																	OUT Real& slaveOffset ) const;
 
 		void updateSlaveOffsetToSystem( IN Int parmNum, // 0:min, 1:min
-																	 IN const Real& slaveOffset );
+																	IN const Real& slaveOffset );
 
 		void getDriftVelocityFromSystem( IN Int parmNum, // 0:X, 1:Y, 2:Z
 																	OUT Real& driftVelocity ) const;
 
 		void updateDriftVelocityToSystem( IN Int parmNum, // 0:min, 1:min
-																	 IN const Real& driftVelocity );
+																	IN const Real& driftVelocity );
 
 		void getSwitchFromSystem( IN SwitchType switchType,
 															OUT Bool& switchVal ) const;
 
 		void updateSwitchToSystem( IN SwitchType switchType,
-															 IN const Bool& switchVal );
+															IN const Bool& switchVal );
 
 		void getSlaveSystemFromSystem( OUT char *buffer, IN Int bufferSize) const;
 		void updateSlaveSystemToSystem( IN const char *buffer );

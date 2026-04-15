@@ -118,7 +118,7 @@ BOOL CReport::OnInitDialog()
 void CReport::OnSelectall()
 {
 	// TODO: Add your control notification handler code here
-	 list->SelItemRange ( TRUE, 0, num_langs-1 );
+	list->SelItemRange ( TRUE, 0, num_langs-1 );
 }
 
 void CReport::OnInvert()

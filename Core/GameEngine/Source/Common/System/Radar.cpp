@@ -387,8 +387,8 @@ Bool Radar::addObject( Object *obj )
 
 	// sanity
 	DEBUG_ASSERTCRASH( obj->friend_getRadarData() == nullptr,
-										 ("Radar: addObject - non null radar data for '%s'",
-										 obj->getTemplate()->getName().str()) );
+										("Radar: addObject - non null radar data for '%s'",
+										obj->getTemplate()->getName().str()) );
 
 	// allocate a new object
 	newObj = newInstance(RadarObject);
@@ -479,7 +479,7 @@ Bool Radar::removeObject( Object *obj )
 	else
 	{
 		DEBUG_CRASH( ("Radar: Tried to remove object '%s' which was not found",
-											 obj->getTemplate()->getName().str()) );
+											obj->getTemplate()->getName().str()) );
 		return FALSE;
 	}
 
@@ -516,7 +516,7 @@ Bool Radar::radarToWorld2D( const ICoord2D *radar, Coord3D *world )
 	// translate to world
 	world->x = x * m_xSample;
 	world->y = y * m_ySample;
-  return TRUE;
+	return TRUE;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -527,8 +527,8 @@ Bool Radar::radarToWorld2D( const ICoord2D *radar, Coord3D *world )
 //-------------------------------------------------------------------------------------------------
 Bool Radar::radarToWorld( const ICoord2D *radar, Coord3D *world )
 {
-  if (!radarToWorld2D(radar,world))
-    return FALSE;
+	if (!radarToWorld2D(radar,world))
+		return FALSE;
 
 	// find the terrain height here
 	world->z = TheTerrainLogic->getGroundHeight( world->x, world->y );
@@ -769,7 +769,7 @@ Object *Radar::searchListForRadarLocationMatch( RadarObject *listHead, ICoord2D 
 	* aspect ratio of the map */
 // ------------------------------------------------------------------------------------------------
 void Radar::findDrawPositions( Int startX, Int startY, Int width, Int height,
-															 ICoord2D *ul, ICoord2D *lr )
+															ICoord2D *ul, ICoord2D *lr )
 {
 
 	Real ratioWidth;
@@ -931,7 +931,7 @@ void Radar::createEvent( const Coord3D *world, RadarEventType type, Real seconds
 /** Create radar event using a specific colors from the player */
 // ------------------------------------------------------------------------------------------------
 void Radar::createPlayerEvent( Player *player, const Coord3D *world,
-															 RadarEventType type, Real secondsToLive )
+															RadarEventType type, Real secondsToLive )
 {
 
 	// sanity
@@ -973,7 +973,7 @@ void Radar::createPlayerEvent( Player *player, const Coord3D *world,
 /** Create a new radar event */
 //-------------------------------------------------------------------------------------------------
 void Radar::internalCreateEvent( const Coord3D *world, RadarEventType type, Real secondsToLive,
-																 const RGBAColorInt *color1, const RGBAColorInt *color2 )
+																const RGBAColorInt *color1, const RGBAColorInt *color2 )
 {
 	static Real secondsBeforeDieToFade = 0.5f;  ///< this many seconds before we hit the die frame we start to fade away
 

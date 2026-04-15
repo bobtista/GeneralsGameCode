@@ -582,7 +582,7 @@ bool DX8Wrapper::Create_Device()
 			{
 				return false;
 			}
-        }
+		}
 		else
 		{
 				return false;
@@ -1148,8 +1148,8 @@ bool DX8Wrapper::Toggle_Windowed()
 
 			// Is this the resolution we are looking for?
 			if ((resolutions[res].Width == ResolutionWidth) &&
-				 (resolutions[res].Height == ResolutionHeight) &&
-				 (resolutions[res].BitDepth == BitDepth)) {
+				(resolutions[res].Height == ResolutionHeight) &&
+				(resolutions[res].BitDepth == BitDepth)) {
 				curr_res = res;
 			}
 		}
@@ -1159,9 +1159,9 @@ bool DX8Wrapper::Toggle_Windowed()
 			// We don't match any of the standard resolutions,
 			// so set the first resolution and toggle the windowed state.
 			return Set_Device_Resolution (resolutions[0].Width,
-								 resolutions[0].Height,
-								 resolutions[0].BitDepth,
-								 !IsWindowed, true);
+								resolutions[0].Height,
+								resolutions[0].BitDepth,
+								!IsWindowed, true);
 		} else {
 
 			// Toggle the windowed state
@@ -3225,7 +3225,7 @@ void DX8Wrapper::Create_Render_Target
 
 	// If render target format isn't supported return null
 	if (!Get_Current_Caps()->Support_Render_To_Texture_Format(format) ||
-		 !Get_Current_Caps()->Support_Depth_Stencil_Format(zformat))
+		!Get_Current_Caps()->Support_Depth_Stencil_Format(zformat))
 	{
 		WWDEBUG_SAY(("DX8Wrapper - Render target with depth format is not supported"));
 		return;
@@ -4400,7 +4400,7 @@ const char* DX8Wrapper::Get_DX8_Patch_Edge_Style_Name(unsigned value)
 {
 	switch (value) {
 	case D3DPATCHEDGE_DISCRETE	: return "D3DPATCHEDGE_DISCRETE";
-   case D3DPATCHEDGE_CONTINUOUS:return "D3DPATCHEDGE_CONTINUOUS";
+		case D3DPATCHEDGE_CONTINUOUS:return "D3DPATCHEDGE_CONTINUOUS";
 	default							: return "UNKNOWN";
 	}
 }

@@ -526,7 +526,7 @@ int BufferIOFileClass::Open(int rights)
 		BufferRights = rights;		// save rights requested for checks later
 
 		if (rights != READ ||
-			 (rights == READ && FileSize > BufferSize)) {
+			(rights == READ && FileSize > BufferSize)) {
 
 			if (rights == WRITE) {
 				BASECLASS::Open(rights);
@@ -889,7 +889,7 @@ int BufferIOFileClass::Seek(int pos, int dir)
 			BufferPos = FilePos;
 		} else {
 			if (FilePos >= BufferFilePos &&
-				 FilePos < (BufferFilePos + BufferSize)) {
+				FilePos < (BufferFilePos + BufferSize)) {
 				BufferPos = FilePos - BufferFilePos;
 			} else {
 				Commit();

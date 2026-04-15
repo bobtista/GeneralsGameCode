@@ -46,9 +46,9 @@ class DrawButton
 	public:
 
 		enum BUTTON_STATE {
-   			NORMAL_STATE = 0,
-	      	PRESSED_STATE,
-   			FOCUS_STATE
+			NORMAL_STATE = 0,
+		PRESSED_STATE,
+			FOCUS_STATE
 		};
 
 		DrawButton ( int id, RECT button_rect, const char *normal, const char *focus, const char *pressed, const char *string, TTFontClass *fontptr );
@@ -83,7 +83,7 @@ class DrawButton
 
 	protected:
 
-   		int				Id;
+		int				Id;
 		Rect			MyRect;
 		Rect			TextRect;
 		RECT			rect;

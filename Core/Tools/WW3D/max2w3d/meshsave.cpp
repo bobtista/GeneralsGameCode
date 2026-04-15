@@ -560,7 +560,7 @@ void MeshSaveClass::Build_Mesh(Mesh & mesh, Mtl *node_mtl, unsigned int *materia
 		}
 
 		if ((mtl_to_use != nullptr) && ((mtl_to_use->ClassID() == GameMaterialClassID) ||
-			 (mtl_to_use->ClassID() == PS2GameMaterialClassID))) {
+			(mtl_to_use->ClassID() == PS2GameMaterialClassID))) {
 			face.SurfaceType = ((GameMtl *)mtl_to_use)->Get_Surface_Type ();
 		}
 
@@ -1203,8 +1203,8 @@ int MeshSaveClass::write_vert_normals(ChunkSaveClass & csave)
 int MeshSaveClass::write_vert_influences(ChunkSaveClass & csave)
 {
 	if (((Header.Attributes & W3D_MESH_FLAG_GEOMETRY_TYPE_MASK) != W3D_MESH_FLAG_GEOMETRY_TYPE_SKIN) ||
-		 !(Header.VertexChannels & W3D_VERTEX_CHANNEL_BONEID) ||
-		 (VertInfluences == nullptr)) {
+		!(Header.VertexChannels & W3D_VERTEX_CHANNEL_BONEID) ||
+		(VertInfluences == nullptr)) {
 		return 0;
 	}
 
@@ -2156,17 +2156,17 @@ void MeshSaveClass::compute_physical_constants
 
 		// Create a Voxel object for this mesh
 		VoxelClass * voxel = new VoxelClass
- 		(
- 			meshlist,
- 			VOXEL_RESOLUTION,
- 			ExportSpace,
- 			CurTime,
- 			meter
- 		);
+		(
+			meshlist,
+			VOXEL_RESOLUTION,
+			ExportSpace,
+			CurTime,
+			meter
+		);
 
 #if DEBUG_VOXELS
 		VoxelDebugWindowClass dbgwin(voxel);
- 		dbgwin.Display_Window();
+		dbgwin.Display_Window();
 #endif
 
 		double vol[1];

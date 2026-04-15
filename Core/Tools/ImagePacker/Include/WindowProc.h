@@ -56,10 +56,10 @@ extern BOOL CALLBACK ImagePackerProc( HWND hWndDialog, UINT message,
 extern HWND MakePreviewDisplay();
 extern void UpdatePreviewWindow();
 extern LRESULT CALLBACK PreviewProc( HWND hWnd, UINT message,
-																		 WPARAM wParam, LPARAM lParam );
+																		WPARAM wParam, LPARAM lParam );
 
 extern BOOL CALLBACK ImageErrorProc( HWND hWndDialog, UINT message,
-																		 WPARAM wParam, LPARAM lParam );
+																		WPARAM wParam, LPARAM lParam );
 
 extern BOOL CALLBACK PageErrorProc( HWND hWndDialog, UINT message,
 																		WPARAM wParam, LPARAM lParam );

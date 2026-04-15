@@ -362,7 +362,7 @@ EmitterSizePropPageClass::OnCommand
 		{
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_CurrentSizes.Rand = ::GetDlgItemFloat (m_hWnd, IDC_SIZE_RANDOM_EDIT);

@@ -589,7 +589,7 @@ int PASCAL WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpszCmd
 
 	productName = TheGameText->fetch("Autorun:Generals");
 	fullProductName = TheGameText->fetch("Autorun:Command&ConquerGenerals");
-  Msg( __LINE__, __FILE__, "Product Name = %ls.", productName.str() );
+	Msg( __LINE__, __FILE__, "Product Name = %ls.", productName.str() );
 	Msg( __LINE__, __FILE__, "Full Product Name = %ls.", fullProductName.str()	);
 	Msg( __LINE__, __FILE__, "szRegistryKey		= %s.", szRegistryKey		);
 	Msg( __LINE__, __FILE__, "szGameWindow		= %s.", szGameWindow		);
@@ -892,7 +892,7 @@ void Prog_End ( void )
 	}
 
 	if ( FontManager != nullptr ) {
-   		delete( FontManager );
+		delete( FontManager );
 		FontManager = nullptr;
 		Msg( __LINE__, __FILE__, "FontManager deleted." );
 	}
@@ -1064,18 +1064,18 @@ MainWindow::MainWindow( void )
 	// Pass 'this' pointer in lpParam of CreateWindow().
 	//--------------------------------------------------------------------------
 	hWnd = CreateWindowEx(
-   				0,
-		 		szClassName,
-		 		szClassName,
-		 		WS_POPUPWINDOW | WS_MINIMIZE | !WS_VISIBLE,
-		 		0,
-		 		0,
+				0,
+				szClassName,
+				szClassName,
+				WS_POPUPWINDOW | WS_MINIMIZE | !WS_VISIBLE,
+				0,
+				0,
 				640,
 				480,
-		 		nullptr,
-		 		nullptr,
-		 		Main::hInstance,
-		 		(LPTSTR) this );
+				nullptr,
+				nullptr,
+				Main::hInstance,
+				(LPTSTR) this );
 
 	if ( !hWnd ) {
 		Stop_Sound_Playing();
@@ -1271,7 +1271,7 @@ BOOL MainWindow::Is_Product_Registered( void )
 		// Get Full path\filename of product to execute ("Play").
 		//-----------------------------------------------------------------------
 		Size = _MAX_PATH;
- 		if ( RegQueryValueEx( phKey, INSTALL_PATH_KEY, nullptr, &Type, (unsigned char *)szGamePath, &Size ) == ERROR_SUCCESS ) {
+		if ( RegQueryValueEx( phKey, INSTALL_PATH_KEY, nullptr, &Type, (unsigned char *)szGamePath, &Size ) == ERROR_SUCCESS ) {
 			_tcscpy(szWorldbuilderPath, szGamePath);
 			_tcscpy(szPatchgetPath, szGamePath);
 			_tcscat(szGamePath, LAUNCHER_FILENAME);
@@ -3210,9 +3210,9 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 								ButtonList[i]->Return_Area( &rect );
 
 								if ( paint_rect.left	== rect.left	&&
-									 paint_rect.top		== rect.top		&&
-									 paint_rect.right	== rect.right	&&
-									 paint_rect.bottom	== rect.bottom ) {
+									paint_rect.top		== rect.top		&&
+									paint_rect.right	== rect.right	&&
+									paint_rect.bottom	== rect.bottom ) {
 
 									PaintBackground = FALSE;
 //									Msg( __LINE__, TEXT(__FILE__), TEXT("Rectangle matches a button to update = [%d,%d,%d,%d]"), rect.left, rect.top, rect.right, rect.bottom );
@@ -3245,7 +3245,7 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 										BackgroundRect[i].top,
 										BackgroundRect[i].right,
 										BackgroundRect[i].bottom,
-  										memDC,
+										memDC,
 										BackgroundRect[i].left,
 										BackgroundRect[i].top,
 										BackgroundRect[i].right,
@@ -4171,7 +4171,7 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 						// Save index of button with focus.
 						//---------------------------------------------------------------
 						if(	ButtonList[i]->Get_State() == DrawButton::FOCUS_STATE ||
-						  	ButtonList[i]->Get_State() == DrawButton::PRESSED_STATE ) {
+							ButtonList[i]->Get_State() == DrawButton::PRESSED_STATE ) {
 							focus_index = i;
 						}
 					}
@@ -4377,17 +4377,17 @@ BOOL CALLBACK  Dialog_Box_Proc( HWND window_handle, UINT message, WPARAM w_param
 
 
 			#if( USE_MOUSE_MOVES )
-	        	//-----------------------------------------------------------------------
+		//-----------------------------------------------------------------------
 				// If a MouseMove was found to be in one of the buttons, then
 				// CurrentButton will have a value.
-        		//-----------------------------------------------------------------------
+			//-----------------------------------------------------------------------
 				if ( CurrentButton != 0 ) {
 
 					LastButton = CurrentButton;
 
-		        	//-------------------------------------------------------------------
+			//-------------------------------------------------------------------
 					// If we are still in the same button, don't make a sound!
-				  	//-------------------------------------------------------------------
+					//-------------------------------------------------------------------
 					if ( LastButton != PrevButton ) {
 						PrevButton = LastButton;
 						PlaySound( szButtonWav, Main::hModule, SND_ASYNC | SND_RESOURCE );
@@ -4802,7 +4802,7 @@ BOOL Valid_Environment ( void )
 
 	int length = 0;
 	result = WinVersion.Meets_Minimum_Version_Requirements();
-  if ( !result )
+	if ( !result )
 	{
 		std::wstring wideBuffer = TheGameText->fetch("GUI:WindowsVersionText");
 		std::wstring wideBuffer2 = TheGameText->fetch("GUI:WindowsVersionTitle");
@@ -5311,18 +5311,18 @@ void Debug_Date_And_Time_Stamp ( void )
 	};
 
 	char		ampm[] = "AM";
-    time_t		ltime;
-    struct tm *	today;
+	time_t		ltime;
+	struct tm *	today;
 
     /*-------------------------------------------------------------------------
 	 *Convert to time structure and adjust for PM if necessary.
 	 */
-    time( &ltime );
-    today = localtime( &ltime );
-    if( today->tm_hour > 12 ) {
+	time( &ltime );
+	today = localtime( &ltime );
+	if( today->tm_hour > 12 ) {
 		strcpy( ampm, "PM" );
 		today->tm_hour -= 12;
-    }
+	}
 	if( today->tm_hour == 0 ) {		/* Adjust if midnight hour. */
 		today->tm_hour = 12;
 	}

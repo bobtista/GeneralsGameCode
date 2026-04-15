@@ -228,7 +228,7 @@ void Win32Mouse::translateEvent( UnsignedInt eventIndex, MouseIO *result )
 		{
 
 			DEBUG_CRASH(( "translateEvent: Unknown Win32 mouse event [%d,%d,%d]",
-							 msg, wParam, lParam ));
+							msg, wParam, lParam ));
 			return;
 
 		}

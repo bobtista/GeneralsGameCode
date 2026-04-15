@@ -34,24 +34,24 @@
 template <class charT>
 class UstringT : public basic_string<charT, string_char_traits<charT> >
 {
- public:
+public:
 		explicit UstringT(int max_charlength) {
 			set_max_bytelength(max_charlength*MAX_BYTES_PER_CHAR);
 		}
 
 		UstringT() { max_bytelength=4000; }
 
-      size_t   get_max_bytelength(void) { return(max_bytelength); }
-      void     set_max_bytelength(size_t max) { max_bytelength=max; }
+	size_t   get_max_bytelength(void) { return(max_bytelength); }
+	void     set_max_bytelength(size_t max) { max_bytelength=max; }
 
-      bool     operator==(const UstringT<charT> &other)
-      {
-        const basic_string<charT, string_char_traits<charT> > *other_basic=&other;
-        const basic_string<charT, string_char_traits<charT> > *this_basic=this;
-        return((*other_basic)==(*this_basic));
-      }
+	bool     operator==(const UstringT<charT> &other)
+	{
+		const basic_string<charT, string_char_traits<charT> > *other_basic=&other;
+		const basic_string<charT, string_char_traits<charT> > *this_basic=this;
+		return((*other_basic)==(*this_basic));
+	}
 
- private:
+private:
 		size_t   max_bytelength;
 };
 

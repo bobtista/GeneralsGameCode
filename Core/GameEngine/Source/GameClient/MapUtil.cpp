@@ -1194,7 +1194,7 @@ Image *getMapPreviewImage( AsciiString mapName )
 
 		if (success)
 		{
-    	image = newInstance(Image);
+			image = newInstance(Image);
 			image->setName(tempName);
 			//image->setFullPath("mission.tga");
 			image->setFilename(name);
@@ -1314,7 +1314,7 @@ Bool parseMapPreviewChunk(DataChunkInput &file, DataChunkInfo *info, void *userD
 }
 
 void findDrawPositions( Int startX, Int startY, Int width, Int height, Region3D extent,
-															 ICoord2D *ul, ICoord2D *lr )
+															ICoord2D *ul, ICoord2D *lr )
 {
 
 	Real ratioWidth;

@@ -21,7 +21,7 @@
 #include "Registry.h"
 
 void FormatURLFromRegistry( std::string& gamePatchURL, std::string& mapPatchURL,
-													 std::string& configURL, std::string& motdURL )
+													std::string& configURL, std::string& motdURL )
 {
 #if RTS_GENERALS
 	std::string sku = "generals";

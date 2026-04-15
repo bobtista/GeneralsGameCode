@@ -180,7 +180,7 @@ void CMatchDlg::OnSelchangeMatchcombo()
 void CMatchDlg::OnSkip()
 {
 	// TODO: Add your control notification handler code here
-		 EndDialog ( IDSKIP );
+		EndDialog ( IDSKIP );
 }
 
 

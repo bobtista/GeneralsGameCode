@@ -85,6 +85,7 @@ Sound3DClass::Sound3DClass ()
 	  m_IsStatic (false),
 	  m_IsTransformInitted (false)
 {
+	return ;
 }
 
 
@@ -103,6 +104,7 @@ Sound3DClass::Sound3DClass (const Sound3DClass &src)
 	  AudibleSoundClass (src)
 {
 	(*this) = src;
+	return ;
 }
 
 
@@ -113,7 +115,8 @@ Sound3DClass::Sound3DClass (const Sound3DClass &src)
 ////////////////////////////////////////////////////////////////////////////////////////////////
 Sound3DClass::~Sound3DClass ()
 {
- 	Free_Miles_Handle ();
+	Free_Miles_Handle ();
+	return ;
 }
 
 
@@ -245,6 +248,7 @@ Sound3DClass::Set_Transform (const Matrix3D &transform)
 	}
 
 	Update_Miles_Transform ();
+	return ;
 }
 
 
@@ -265,6 +269,8 @@ Sound3DClass::Set_Listener_Transform (const Matrix3D &tm)
 
 		Update_Miles_Transform ();
 	}
+
+	return ;
 }
 
 
@@ -317,6 +323,8 @@ Sound3DClass::Update_Miles_Transform ()
 										  up.Z,
 										  up.X);
 	}
+
+	return ;
 }
 
 
@@ -364,6 +372,8 @@ Sound3DClass::Set_Position (const Vector3 &position)
 					listener_space_pos.Z, listener_space_pos.X);
 		}
 	}
+
+	return ;
 }
 
 
@@ -391,6 +401,8 @@ Sound3DClass::Set_Velocity (const Vector3 &velocity)
 												m_CurrentVelocity.Z,
 												m_CurrentVelocity.X);
 	}
+
+	return ;
 }
 
 
@@ -413,6 +425,8 @@ Sound3DClass::Set_DropOff_Radius (float radius)
 													m_DropOffRadius,
 													(m_MaxVolRadius > 1.0F) ? m_MaxVolRadius : 1.0F);
 	}
+
+	return ;
 }
 
 
@@ -433,6 +447,8 @@ Sound3DClass::Set_Max_Vol_Radius (float radius)
 													m_DropOffRadius,
 													(m_MaxVolRadius > 1.0F) ? m_MaxVolRadius : 1.0F);
 	}
+
+	return ;
 }
 
 
@@ -518,6 +534,8 @@ Sound3DClass::Initialize_Miles_Handle ()
 		// Associate this object instance with the handle
 		m_SoundHandle->Set_Sample_User_Data (INFO_OBJECT_PTR, (void *)this);
 	}
+
+	return ;
 }
 
 
@@ -537,6 +555,8 @@ Sound3DClass::Allocate_Miles_Handle ()
 	if (m_SoundHandle == nullptr) {
 		Set_Miles_Handle ((MILES_HANDLE)WWAudioClass::Get_Instance ()->Get_3D_Sample (*this));
 	}
+
+	return ;
 }
 
 
@@ -559,6 +579,8 @@ Sound3DClass::Add_To_Scene (bool start_playing)
 		}
 		m_Scene = scene;
 	}
+
+	return ;
 }
 
 
@@ -582,6 +604,8 @@ Sound3DClass::Remove_From_Scene ()
 		m_Scene = nullptr;
 		m_PhysWrapper = nullptr;
 	}
+
+	return ;
 }
 
 
@@ -595,6 +619,7 @@ Sound3DClass::On_Loop_End ()
 {
 	// Allow the base class to process this message
 	AudibleSoundClass::On_Loop_End ();
+	return ;
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -706,4 +731,6 @@ Sound3DClass::Set_Miles_Handle (MILES_HANDLE handle)
 		//
 		Initialize_Miles_Handle ();
 	}
+
+	return ;
 }

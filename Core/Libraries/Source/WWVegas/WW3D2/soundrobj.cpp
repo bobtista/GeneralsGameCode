@@ -525,7 +525,7 @@ SoundRenderObjDefClass::Load_W3D (ChunkLoadClass &cload)
 	// Attempt to read the different sections of the definition
 	//
 	if ((Read_Header (cload) == WW3D_ERROR_OK) &&
-		 (Read_Definition (cload) == WW3D_ERROR_OK))
+		(Read_Definition (cload) == WW3D_ERROR_OK))
 	{
 		retval = WW3D_ERROR_OK;
 	}
@@ -553,7 +553,7 @@ SoundRenderObjDefClass::Save_W3D (ChunkSaveClass &csave)
 		// Attempt to save the different sections of the aggregate definition
 		//
 		if ((Write_Header (csave) == WW3D_ERROR_OK) &&
-			 (Write_Definition (csave) == WW3D_ERROR_OK))
+			(Write_Definition (csave) == WW3D_ERROR_OK))
 		{
 			retval = WW3D_ERROR_OK;
 		}

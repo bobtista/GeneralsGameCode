@@ -343,8 +343,8 @@ void W3DPropBuffer::drawProps(RenderInfoClass &rinfo)
 	{
 			m_light->Set_Ambient(zeroVector);
 			m_light->Set_Diffuse(Vector3(objectLighting[i].diffuse.red,
-																		 objectLighting[i].diffuse.green,
-																		 objectLighting[i].diffuse.blue));
+																		objectLighting[i].diffuse.green,
+																		objectLighting[i].diffuse.blue));
 			m_light->Set_Specular(zeroVector);
 			mtx.Set(xVector, yVector, Vector3(objectLighting[i].lightPos.x, objectLighting[i].lightPos.y, objectLighting[i].lightPos.z), zeroVector);
 			m_light->Set_Transform(mtx);

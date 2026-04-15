@@ -327,7 +327,7 @@ bool WideStringClass::Convert_From (const char *text)
 			// Success.
 			return (true);
 		}
-   }
+	}
 
 	// Failure.
 	return (false);

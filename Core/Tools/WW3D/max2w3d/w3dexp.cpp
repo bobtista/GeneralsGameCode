@@ -625,8 +625,8 @@ bool W3dExportClass::Export_Animation(char * name,ChunkSaveClass & csave,Progres
  *   1999 AJA : Created.                                                                       *
  *=============================================================================================*/
 bool W3dExportClass::Export_Damage_Animations(char *name, ChunkSaveClass &csave,
-															 Progress_Meter_Class &meter,
-															 INode *damage_root)
+															Progress_Meter_Class &meter,
+															INode *damage_root)
 {
 	if (!ExportOptions.ExportAnimation) return true;
 	HierarchySaveClass *htree = get_hierarchy_tree();
@@ -720,7 +720,7 @@ unsigned int houseColorScale[TEAM_COLOR_PALETTE_SIZE]=
  *   10/30/2000 gth : If exporting only geometry, only export the first mesh                   *
  *=============================================================================================*/
 bool W3dExportClass::Export_Geometry(char * name,ChunkSaveClass & csave,Progress_Meter_Class & meter,
-												 INode *root,MeshConnectionsClass **out_connection)
+												INode *root,MeshConnectionsClass **out_connection)
 {
 	unsigned int i;
 
@@ -912,8 +912,8 @@ bool W3dExportClass::Export_Geometry(char * name,ChunkSaveClass & csave,Progress
  *   10/17/2000 gth : Created.                                                                 *
  *=============================================================================================*/
 bool W3dExportClass::Export_HLod( char *name, const char *htree_name, ChunkSaveClass &csave,
-											 Progress_Meter_Class &meter, MeshConnectionsClass **connections,
-											 int lod_count)
+											Progress_Meter_Class &meter, MeshConnectionsClass **connections,
+											int lod_count)
 {
 	if (!ExportOptions.ExportGeometry) return true;
 

@@ -55,6 +55,7 @@ CDeviceSelectionDialog::CDeviceSelectionDialog
 	//{{AFX_DATA_INIT(CDeviceSelectionDialog)
 		// NOTE: the ClassWizard will add member initialization here
 	//}}AFX_DATA_INIT
+	return ;
 }
 
 ////////////////////////////////////////////////////////////////////
@@ -64,11 +65,12 @@ CDeviceSelectionDialog::CDeviceSelectionDialog
 void
 CDeviceSelectionDialog::DoDataExchange (CDataExchange* pDX)
 {
-    // Allow the base class to process this message
+	// Allow the base class to process this message
 	CDialog::DoDataExchange(pDX);
 	//{{AFX_DATA_MAP(CDeviceSelectionDialog)
 	DDX_Control(pDX, IDC_RENDER_DEVICE_COMBO, m_deviceListComboBox);
 	//}}AFX_DATA_MAP
+	return ;
 }
 
 
@@ -87,7 +89,7 @@ END_MESSAGE_MAP()
 //  OnInitDialog
 //
 BOOL
-CDeviceSelectionDialog::OnInitDialog ()
+CDeviceSelectionDialog::OnInitDialog (void)
 {
 	CDialog::OnInitDialog();
 
@@ -129,7 +131,7 @@ CDeviceSelectionDialog::OnInitDialog ()
 //  OnSelchangeRenderDeviceCombo
 //
 void
-CDeviceSelectionDialog::OnSelchangeRenderDeviceCombo ()
+CDeviceSelectionDialog::OnSelchangeRenderDeviceCombo (void)
 {
 	int index = m_deviceListComboBox.GetCurSel ();
 	if (index != CB_ERR) {
@@ -138,6 +140,8 @@ CDeviceSelectionDialog::OnSelchangeRenderDeviceCombo ()
 		// Update the static controls with the information from the device
 		UpdateDeviceDescription ();
 	}
+
+	return ;
 }
 
 
@@ -146,7 +150,7 @@ CDeviceSelectionDialog::OnSelchangeRenderDeviceCombo ()
 //  UpdateDeviceDescription
 //
 void
-CDeviceSelectionDialog::UpdateDeviceDescription ()
+CDeviceSelectionDialog::UpdateDeviceDescription (void)
 {
 	const RenderDeviceDescClass &device_desc = WW3D::Get_Render_Device_Desc ();
 
@@ -163,6 +167,7 @@ CDeviceSelectionDialog::UpdateDeviceDescription ()
 	SetDlgItemText (IDC_HARDWARE_NAME_STATIC, device_desc.Get_Hardware_Name());
 	SetDlgItemText (IDC_HARDWARE_VENDOR_STATIC, device_desc.Get_Hardware_Vendor());
 	SetDlgItemText (IDC_HARDWARE_CHIPSET_STATIC, device_desc.Get_Hardware_Chipset());
+	return ;
 }
 
 
@@ -171,7 +176,7 @@ CDeviceSelectionDialog::UpdateDeviceDescription ()
 //  OnOK
 //
 void
-CDeviceSelectionDialog::OnOK ()
+CDeviceSelectionDialog::OnOK (void)
 {
 	// Ask the combobox for its current selection
 	m_iDeviceIndex = m_deviceListComboBox.GetItemData (m_deviceListComboBox.GetCurSel ());
@@ -188,6 +193,7 @@ CDeviceSelectionDialog::OnOK ()
 
 	// Allow the base class to process this message
 	CDialog::OnOK();
+	return ;
 }
 
 
@@ -196,7 +202,7 @@ CDeviceSelectionDialog::OnOK ()
 //  DoModal
 //
 int
-CDeviceSelectionDialog::DoModal ()
+CDeviceSelectionDialog::DoModal (void)
 {
 	BOOL bFoundDevice = FALSE;
 	int iReturn = IDOK;
@@ -204,8 +210,8 @@ CDeviceSelectionDialog::DoModal ()
 	// Get the name of the last used device driver from the registry
 	m_DriverName = theApp.GetProfileString ("Config", "DeviceName");
 	if (m_bLookupCachedInfo &&
-		 (m_DriverName.GetLength () > 0) &&
-		 !(::GetKeyState (VK_SHIFT) & 0xF000)) {
+		(m_DriverName.GetLength () > 0) &&
+		!(::GetKeyState (VK_SHIFT) & 0xF000)) {
 
 		//
 		// Loop through all the devices and see if we can find the right one

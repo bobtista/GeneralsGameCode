@@ -54,10 +54,10 @@ EmitterColorPropPageClass::EmitterColorPropPageClass (EmitterInstanceListClass *
 	  CPropertyPage (EmitterColorPropPageClass::IDD)
 {
 
-  ::memset (&m_OrigColors, 0, sizeof (m_OrigColors));
-  ::memset (&m_OrigOpacities, 0, sizeof (m_OrigOpacities));
-  ::memset (&m_CurrentColors, 0, sizeof (m_CurrentColors));
-  ::memset (&m_CurrentOpacities, 0, sizeof (m_CurrentOpacities));
+	::memset (&m_OrigColors, 0, sizeof (m_OrigColors));
+	::memset (&m_OrigOpacities, 0, sizeof (m_OrigOpacities));
+	::memset (&m_CurrentColors, 0, sizeof (m_CurrentColors));
+	::memset (&m_CurrentOpacities, 0, sizeof (m_CurrentOpacities));
 
 	//{{AFX_DATA_INIT(EmitterColorPropPageClass)
 	//}}AFX_DATA_INIT
@@ -540,7 +540,7 @@ EmitterColorPropPageClass::OnCommand
 
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_CurrentColors.Rand.X = ((float)GetDlgItemInt (IDC_RED_RANDOM_EDIT)) / 255;
@@ -558,7 +558,7 @@ EmitterColorPropPageClass::OnCommand
 
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_CurrentColors.Rand.Y = ((float)GetDlgItemInt (IDC_GREEN_RANDOM_EDIT)) / 255;
@@ -576,7 +576,7 @@ EmitterColorPropPageClass::OnCommand
 
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_CurrentColors.Rand.Z = ((float)GetDlgItemInt (IDC_BLUE_RANDOM_EDIT)) / 255;
@@ -594,7 +594,7 @@ EmitterColorPropPageClass::OnCommand
 
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 
 				m_CurrentOpacities.Rand = ((float)GetDlgItemInt (IDC_OPACITY_RANDOM_EDIT)) / 100;

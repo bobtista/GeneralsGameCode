@@ -101,18 +101,18 @@ BoneMgrDialogClass::OnInitDialog ()
 
 	// Load this icon and add it to our imagelist
 	pimagelist->Add ((HICON)::LoadImage (::AfxGetResourceHandle (),
-													 MAKEINTRESOURCE (IDI_FOLDER),
-													 IMAGE_ICON,
-													 16,
-													 16,
-													 LR_SHARED));
+													MAKEINTRESOURCE (IDI_FOLDER),
+													IMAGE_ICON,
+													16,
+													16,
+													LR_SHARED));
 
 	pimagelist->Add ((HICON)::LoadImage (::AfxGetResourceHandle (),
-													 MAKEINTRESOURCE (IDI_OBJECT),
-													 IMAGE_ICON,
-													 16,
-													 16,
-													 LR_SHARED));
+													MAKEINTRESOURCE (IDI_OBJECT),
+													IMAGE_ICON,
+													16,
+													16,
+													LR_SHARED));
 
 	m_BoneTree.SetImageList (pimagelist, TVSIL_NORMAL);
 
@@ -212,7 +212,7 @@ BoneMgrDialogClass::Fill_Bone_Item
 
 			// Is this subobject new?  (i.e. not in a 'vanilla' instance?)
 			if (psubobject != nullptr &&
-				 (Is_Object_In_List (psubobject->Get_Name (), orig_node_list) == false)) {
+				(Is_Object_In_List (psubobject->Get_Name (), orig_node_list) == false)) {
 				m_BoneTree.InsertItem (psubobject->Get_Name (), 1, 1, hbone_item);
 			}
 		}
@@ -463,7 +463,7 @@ BoneMgrDialogClass::OnAttachButton ()
 			// Is this the subobject we were looking for?
 			RenderObjClass *psub_obj = m_pBaseModel->Get_Sub_Object_On_Bone (index, bone_index);
 			if ((psub_obj != nullptr) &&
-				 (::lstrcmpi (psub_obj->Get_Name (), name) == 0)) {
+				(::lstrcmpi (psub_obj->Get_Name (), name) == 0)) {
 
 				// Remove this subobject from the bone
 				m_pBaseModel->Remove_Sub_Object (psub_obj);

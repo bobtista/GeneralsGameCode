@@ -91,7 +91,7 @@ WWAudioClass::Is_OK_To_Give_Handle (const AudibleSoundClass &sound_obj)
 	bool is_ok = false;
 	AudibleSoundClass::SOUND_TYPE type = sound_obj.Get_Type ();
 	if (((type == AudibleSoundClass::TYPE_SOUND_EFFECT) && m_AreSoundEffectsEnabled) ||
-		 ((type == AudibleSoundClass::TYPE_MUSIC) && m_IsMusicEnabled)) {
+		((type == AudibleSoundClass::TYPE_MUSIC) && m_IsMusicEnabled)) {
 		is_ok = true;
 	}
 	return is_ok;
@@ -239,12 +239,12 @@ WWAudioClass::Open_2D_Device (LPWAVEFORMAT format)
 
 	// Do we need to switch from direct sound to waveout?
 	if ((success == AIL_NO_ERROR) &&
-		 (m_Driver2D != nullptr) &&
-		 (m_Driver2D->emulated_ds == TRUE)) {
+		(m_Driver2D != nullptr) &&
+		(m_Driver2D->emulated_ds == TRUE)) {
 		::AIL_waveOutClose (m_Driver2D);
 		success = 2;
 		WWDEBUG_SAY (("WWAudio: Detected 2D DirectSound emulation, switching to WaveOut."));
-   }
+	}
 
 	// If we couldn't open the direct sound device, then use the
 	// default wave out device
@@ -298,7 +298,7 @@ WWAudioClass::Open_2D_Device
 
 	DRIVER_TYPE_2D type = DRIVER2D_ERROR;
 	while (((type = Open_2D_Device ((LPWAVEFORMAT)&wave_format)) == DRIVER2D_ERROR) &&
-			 (wave_format.wf.nSamplesPerSec >= 11025)) {
+			(wave_format.wf.nSamplesPerSec >= 11025)) {
 
 		//
 		//	Cut the playback rate in half and try again
@@ -512,8 +512,8 @@ WWAudioClass::Cache_Buffer
 	WWASSERT (buffer != nullptr);
 	WWASSERT (string_id != nullptr);
 	if ((buffer != nullptr) &&
-		 (string_id != nullptr) &&
-		 (buffer->Get_Raw_Length () < (U32)(m_MaxCacheSize / 2))) {
+		(string_id != nullptr) &&
+		(buffer->Get_Raw_Length () < (U32)(m_MaxCacheSize / 2))) {
 
 		// Attempt to free space in the cache (if needed)
 		int space_needed = (m_CurrentCacheSize + buffer->Get_Raw_Length ()) - (int)m_MaxCacheSize;
@@ -1120,7 +1120,7 @@ WWAudioClass::Free_Completed_Sounds ()
 		for (int index = 0; index < m_CompletedSounds.Count (); index ++) {
 			AudibleSoundClass *sound_obj = m_CompletedSounds[index];
 
-         WWASSERT(sound_obj != nullptr); //TSS 05/24/99
+			WWASSERT(sound_obj != nullptr); //TSS 05/24/99
 
 			// Remove this sound from the playlist
 			bool found = false;
@@ -1284,8 +1284,8 @@ WWAudioClass::Reprioritize_Playlist ()
 		// Is this the highest priority without a miles handle?
 		AudibleSoundClass *sound_obj = m_Playlist[index];
 		if ((sound_obj->Get_Miles_Handle () == nullptr) &&
-			 (sound_obj->Is_Sound_Culled () == false) &&
-			 (sound_obj->Get_Priority () > hightest_priority))
+			(sound_obj->Is_Sound_Culled () == false) &&
+			(sound_obj->Get_Priority () > hightest_priority))
 		{
 			// This is now the highest priority sound effect without
 			// a play-handle.
@@ -1566,9 +1566,9 @@ WWAudioClass::Build_3D_Driver_List ()
 
 	// Attempt to select one of the known drivers (in the following order).
 	if ((Select_3D_Device (DRIVER3D_A3D) == false) &&
-		 (Select_3D_Device (DRIVER3D_EAX) == false) &&
-		 (Select_3D_Device (DRIVER3D_D3DSOUND) == false) &&
-		 (Select_3D_Device (DRIVER3D_DOLBY) == false)) {
+		(Select_3D_Device (DRIVER3D_EAX) == false) &&
+		(Select_3D_Device (DRIVER3D_D3DSOUND) == false) &&
+		(Select_3D_Device (DRIVER3D_DOLBY) == false)) {
 
 		// Couldn't select a known driver, so just use the first possible.
 		if (m_Driver3DList.Count () > 0) {
@@ -1865,9 +1865,9 @@ WWAudioClass::Validate_3D_Sound_Buffer (SoundBufferClass *buffer)
 	// 3D sound buffer MUST be uncompressed mono WAV data
 	//
 	if ((buffer != nullptr) &&
-		 (buffer->Get_Channels () == 1) &&
-		 (buffer->Get_Type () == WAVE_FORMAT_PCM) &&
-		 (buffer->Is_Streaming () == false))
+		(buffer->Get_Channels () == 1) &&
+		(buffer->Get_Type () == WAVE_FORMAT_PCM) &&
+		(buffer->Is_Streaming () == false))
 	{
 		retval = true;
 	}
@@ -1892,8 +1892,8 @@ WWAudioClass::ReAssign_2D_Handles ()
 		// If this is a 2D sound effect, then force it to 'get' a new
 		// sound handle.
 		if ((sound_obj->Get_Class_ID () == CLASSID_2D) ||
-			 (sound_obj->Get_Class_ID () == CLASSID_PSEUDO3D) ||
-			 (sound_obj->Get_Class_ID () == CLASSID_2DTRIGGER))
+			(sound_obj->Get_Class_ID () == CLASSID_PSEUDO3D) ||
+			(sound_obj->Get_Class_ID () == CLASSID_2DTRIGGER))
 		{
 			sound_obj->Free_Miles_Handle ();
 			sound_obj->Allocate_Miles_Handle ();

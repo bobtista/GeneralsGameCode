@@ -1199,7 +1199,7 @@ long Targa::EncodeImage()
 				}
 
 			/* Run of pixels */
- 			if (match == 1)
+			if (match == 1)
 				{
 				count++;
 

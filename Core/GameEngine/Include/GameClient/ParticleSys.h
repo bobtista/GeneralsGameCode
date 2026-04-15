@@ -169,7 +169,7 @@ protected:
  * NOTE: Particles cannot exist without a parent particle system.
  */
 class Particle : public MemoryPoolObject,
-								 public ParticleInfo
+								public ParticleInfo
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( Particle, "ParticlePool" )
@@ -550,7 +550,7 @@ protected:
  * is reset.
  */
 class ParticleSystem : public MemoryPoolObject,
-											 public ParticleSystemInfo
+											public ParticleSystemInfo
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( ParticleSystem, "ParticleSystemPool" )
@@ -754,7 +754,7 @@ public:
 	virtual void update() override;								///< update all particle systems
 
 	virtual Int getOnScreenParticleCount() = 0;   ///< returns the number of particles on screen
-  virtual void setOnScreenParticleCount(int count);
+	virtual void setOnScreenParticleCount(int count);
 
 	ParticleSystemTemplate *findTemplate( const AsciiString &name ) const;
 	ParticleSystemTemplate *findParentTemplate( const AsciiString &name, int parentNum ) const;

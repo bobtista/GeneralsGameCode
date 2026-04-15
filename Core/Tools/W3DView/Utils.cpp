@@ -43,25 +43,25 @@
 //
 ////////////////////////////////////////////////////////////////////////////
 CW3DViewDoc *
-GetCurrentDocument ()
+GetCurrentDocument (void)
 {
-    // Assume failure
-    CW3DViewDoc *pCDoc = nullptr;
+	// Assume failure
+	CW3DViewDoc *pCDoc = nullptr;
 
-    // Get a pointer to the main window
-    CMainFrame *pCMainWnd = (CMainFrame *)::AfxGetMainWnd ();
+	// Get a pointer to the main window
+	CMainFrame *pCMainWnd = (CMainFrame *)::AfxGetMainWnd ();
 
-    ASSERT (pCMainWnd);
-    if (pCMainWnd)
-    {
-        // Use the main window pointer to get a pointer
-        // to the current doc.
-        pCDoc = (CW3DViewDoc *)pCMainWnd->GetActiveDocument ();
-        ASSERT (pCDoc);
-    }
+	ASSERT (pCMainWnd);
+	if (pCMainWnd)
+	{
+		// Use the main window pointer to get a pointer
+		// to the current doc.
+		pCDoc = (CW3DViewDoc *)pCMainWnd->GetActiveDocument ();
+		ASSERT (pCDoc);
+	}
 
-    // Return the doc pointer
-    return pCDoc;
+	// Return the doc pointer
+	return pCDoc;
 }
 
 /////////////////////////////////////////////////////////////
@@ -71,40 +71,42 @@ GetCurrentDocument ()
 void
 CenterDialogAroundTreeView (HWND hDlg)
 {
-    // Params OK?
-    if (::IsWindow (hDlg))
-    {
-        // Get a pointer to the main window
-        CMainFrame *pCMainWnd = (CMainFrame *)::AfxGetMainWnd ();
+	// Params OK?
+	if (::IsWindow (hDlg))
+	{
+		// Get a pointer to the main window
+		CMainFrame *pCMainWnd = (CMainFrame *)::AfxGetMainWnd ();
 
-        ASSERT (pCMainWnd);
-        if (pCMainWnd)
-        {
-            // Get the tree view pane so we can get its rectangle
-            CDataTreeView *pCDataTreeView = (CDataTreeView *)pCMainWnd->GetPane (0, 0);
+		ASSERT (pCMainWnd);
+		if (pCMainWnd)
+		{
+			// Get the tree view pane so we can get its rectangle
+			CDataTreeView *pCDataTreeView = (CDataTreeView *)pCMainWnd->GetPane (0, 0);
 
-            ASSERT (pCDataTreeView);
-            if (pCDataTreeView)
-            {
-                // Get the bounding rectangle of the data tree view
-                RECT rect;
-                pCDataTreeView->GetWindowRect (&rect);
+			ASSERT (pCDataTreeView);
+			if (pCDataTreeView)
+			{
+				// Get the bounding rectangle of the data tree view
+				RECT rect;
+				pCDataTreeView->GetWindowRect (&rect);
 
-                // Get the bounding rectangle of the dialog
-                RECT dialogRect;
-                ::GetWindowRect (hDlg, &dialogRect);
+				// Get the bounding rectangle of the dialog
+				RECT dialogRect;
+				::GetWindowRect (hDlg, &dialogRect);
 
-                // Move the dialog so its centered in the data tree view
-                ::SetWindowPos (hDlg,
+				// Move the dialog so its centered in the data tree view
+				::SetWindowPos (hDlg,
                                 nullptr,
                                 rect.left + ((rect.right-rect.left) >> 1) - ((dialogRect.right-dialogRect.left) >> 1),
                                 rect.top + ((rect.bottom-rect.top) >> 1) - ((dialogRect.bottom-dialogRect.top) >> 1),
                                 0,
                                 0,
                                 SWP_NOSIZE | SWP_NOZORDER);
-            }
-        }
-    }
+			}
+		}
+	}
+
+	return ;
 }
 
 /////////////////////////////////////////////////////////////
@@ -120,41 +122,42 @@ Paint_Gradient
 	BYTE baseBlue
 )
 {
-    // Get the bounding rectangle so we know how much to paint
-    RECT rect;
-    ::GetClientRect (hWnd, &rect);
+	// Get the bounding rectangle so we know how much to paint
+	RECT rect;
+	::GetClientRect (hWnd, &rect);
 
-    // Determine the width, height, and width per each shade
-    int iWidth = rect.right-rect.left;
-    int iHeight = rect.bottom-rect.top;
-    float widthPerShade = ((float)iWidth) / 256.00F;
+	// Determine the width, height, and width per each shade
+	int iWidth = rect.right-rect.left;
+	int iHeight = rect.bottom-rect.top;
+	float widthPerShade = ((float)iWidth) / 256.00F;
 
-    // Pull a hack to get the CDC for the window
-    HDC hDC = ::GetDC (hWnd);
-    CDC cDC;
-    cDC.Attach(hDC);
+	// Pull a hack to get the CDC for the window
+	HDC hDC = ::GetDC (hWnd);
+	CDC cDC;
+	cDC.Attach(hDC);
 
-    // Loop through each shade and paint its sliver
-    float posX = 0.00F;
-    for (int iShade = 0; iShade < 256; iShade ++)
-    {
-        // Paint this sliver
-        cDC.FillSolidRect ((int)posX,
+	// Loop through each shade and paint its sliver
+	float posX = 0.00F;
+	for (int iShade = 0; iShade < 256; iShade ++)
+	{
+		// Paint this sliver
+		cDC.FillSolidRect ((int)posX,
                            0,
                            (widthPerShade >= 1.00F) ? ((int)widthPerShade)+1 : 1,
                            iHeight,
                            RGB (iShade*baseRed, iShade*baseGreen, iShade*baseBlue));
 
-        // Increment the current position
-        posX += widthPerShade;
-    }
+		// Increment the current position
+		posX += widthPerShade;
+	}
 
-    // Release the DC
-    cDC.Detach ();
-    ::ReleaseDC (hWnd, hDC);
+	// Release the DC
+	cDC.Detach ();
+	::ReleaseDC (hWnd, hDC);
 
-    // Validate the contents of the window so the control won't paint itself
-    ::ValidateRect (hWnd, nullptr);
+	// Validate the contents of the window so the control won't paint itself
+	::ValidateRect (hWnd, nullptr);
+	return ;
 }
 
 
@@ -176,6 +179,7 @@ SetDlgItemFloat
 
 	// Pass the string onto the dialog control
 	::SetDlgItemText (hdlg, child_id, text);
+	return ;
 }
 
 
@@ -225,6 +229,8 @@ Initialize_Spinner
 	if (buddy != nullptr) {
 		::SetWindowFloat (*buddy, pos);
 	}
+
+	return ;
 }
 
 
@@ -261,6 +267,8 @@ Update_Spinner_Buddy (CSpinButtonCtrl &ctrl, int delta)
 			::SetWindowFloat (*buddy, value);
 		}
 	}
+
+	return ;
 }
 
 
@@ -297,6 +305,8 @@ Update_Spinner_Buddy (HWND hspinner, int delta)
 			::SetWindowFloat (hbuddy_wnd, value);
 		}
 	}
+
+	return ;
 }
 
 
@@ -318,6 +328,7 @@ Enable_Dialog_Controls (HWND dlg,bool onoff)
 			::EnableWindow(child,onoff);
 		}
 	}
+	return ;
 }
 
 
@@ -338,6 +349,7 @@ SetWindowFloat
 
 	// Pass the string onto the window
 	::SetWindowText (hwnd, text);
+	return ;
 }
 
 
@@ -550,6 +562,8 @@ Build_Emitter_List
 			REF_PTR_RELEASE (psub_obj);
 		}
 	}
+
+	return ;
 }
 
 
@@ -566,7 +580,7 @@ Is_Aggregate (const char *asset_name)
 	// Check to see if this object is an aggregate
 	RenderObjClass *prender_obj = WW3DAssetManager::Get_Instance()->Create_Render_Obj (asset_name);
 	if ((prender_obj != nullptr) &&
-		 (prender_obj->Get_Base_Model_Name () != nullptr))
+		(prender_obj->Get_Base_Model_Name () != nullptr))
 	{
 		retval = true;
 	}
@@ -592,8 +606,8 @@ Rename_Aggregate_Prototype
 {
 	// Params valid?
 	if ((old_name != nullptr) &&
-		 (new_name != nullptr) &&
-		 (::lstrcmpi (old_name, new_name) != 0)) {
+		(new_name != nullptr) &&
+		(::lstrcmpi (old_name, new_name) != 0)) {
 
 		// Get the prototype from the asset manager
 		AggregatePrototypeClass *proto = nullptr;
@@ -611,6 +625,8 @@ Rename_Aggregate_Prototype
 			WW3DAssetManager::Get_Instance ()->Add_Prototype (proto);
 		}
 	}
+
+	return ;
 }
 
 
@@ -627,8 +643,8 @@ Is_Real_LOD (const char *asset_name)
 	// Check to see if this object is an aggregate
 	RenderObjClass *prender_obj = WW3DAssetManager::Get_Instance()->Create_Render_Obj (asset_name);
 	if ((prender_obj != nullptr) &&
-		 (prender_obj->Class_ID () == RenderObjClass::CLASSID_HLOD) &&
-		 (((HLodClass *)prender_obj)->Get_LOD_Count () > 1)) {
+		(prender_obj->Class_ID () == RenderObjClass::CLASSID_HLOD) &&
+		(((HLodClass *)prender_obj)->Get_LOD_Count () > 1)) {
 		retval = true;
 	}
 
@@ -685,7 +701,7 @@ Get_File_Time
 //  Are_Glide_Drivers_Acceptable
 //
 bool
-Are_Glide_Drivers_Acceptable ()
+Are_Glide_Drivers_Acceptable (void)
 {
 	// Assume success
 	bool retval = true;
@@ -766,6 +782,8 @@ Resolve_Path (CString &filename)
 		::Delimit_Path (path);
 		filename = CString (path) + filename;
 	}
+
+	return ;
 }
 
 
@@ -790,6 +808,8 @@ Find_Missing_Textures
 		Resolve_Path (full_path);
 		list.Add (full_path);
 	}
+
+	return ;
 }
 
 
@@ -819,8 +839,8 @@ Copy_File
 	// Strip the readonly bit off if necessary
 	DWORD attributes = ::GetFileAttributes (new_filename);
 	if (allow_copy &&
-		 (attributes != 0xFFFFFFFF) &&
-		 ((attributes & FILE_ATTRIBUTE_READONLY) == FILE_ATTRIBUTE_READONLY))
+		(attributes != 0xFFFFFFFF) &&
+		((attributes & FILE_ATTRIBUTE_READONLY) == FILE_ATTRIBUTE_READONLY))
 	{
 		if (force_copy) {
 			::SetFileAttributes (new_filename, attributes & (~FILE_ATTRIBUTE_READONLY));
@@ -845,7 +865,7 @@ Copy_File
 //
 ////////////////////////////////////////////////////////////////////////////
 CGraphicView *
-Get_Graphic_View ()
+Get_Graphic_View (void)
 {
 	CGraphicView *view = nullptr;
 

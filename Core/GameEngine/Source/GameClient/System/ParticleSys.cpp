@@ -81,7 +81,7 @@ ParticleInfo::ParticleInfo()
 	m_angularRateZ = 0.0f;
 	m_angularDamping = 0.0f;
 	m_colorScale =0.0f;
-  m_size = 0.0f;
+	m_size = 0.0f;
 	m_sizeRate = 0.0f;
 	m_sizeRateDamping = 0.0f;
 	m_velDamping = 0.0f;
@@ -1746,7 +1746,7 @@ Particle *ParticleSystem::createParticle( const ParticleInfo *info,
 		//
 		if( priority < TheGameLODManager->getMinDynamicParticlePriority() ||
 				(priority < TheGameLODManager->getMinDynamicParticleSkipPriority() &&
-				 TheGameLODManager->isParticleSkipped()) )
+				TheGameLODManager->isParticleSkipped()) )
 			return nullptr;
 
 		if ( getParticleCount() > 0 && priority == AREA_EFFECT && m_isGroundAligned && TheParticleSystemManager->getFieldParticleCount() > (UnsignedInt)TheGlobalData->m_maxFieldParticleCount )
@@ -2209,10 +2209,10 @@ void ParticleSystem::updateWindMotion()
 					// pick new start and end angles
 					m_windMotionStartAngle =
 							GameClientRandomValueReal( m_windMotionStartAngleMin,
-																				 m_windMotionStartAngleMax );
+																				m_windMotionStartAngleMax );
 					m_windMotionEndAngle =
 							GameClientRandomValueReal( m_windMotionEndAngleMin,
-																				 m_windMotionEndAngleMax );
+																				m_windMotionEndAngleMax );
 
 				}
 
@@ -2237,10 +2237,10 @@ void ParticleSystem::updateWindMotion()
 					// pick new start and end angles
 					m_windMotionStartAngle =
 							GameClientRandomValueReal( m_windMotionStartAngleMin,
-																				 m_windMotionStartAngleMax );
+																				m_windMotionStartAngleMax );
 					m_windMotionEndAngle =
 							GameClientRandomValueReal( m_windMotionEndAngleMin,
-																				 m_windMotionEndAngleMax );
+																				m_windMotionEndAngleMax );
 
 				}
 
@@ -2766,7 +2766,7 @@ const FieldParse ParticleSystemTemplate::m_fieldParseTable[] =
  * The format is "FIELD = low high frame". */
 // ------------------------------------------------------------------------------------------------
 void ParticleSystemTemplate::parseRandomKeyframe( INI* ini, void *instance,
-																											 void *store, const void* /*userData*/ )
+																											void *store, const void* /*userData*/ )
 {
 	RandomKeyframe *key = static_cast<RandomKeyframe *>(store);
 
@@ -2796,7 +2796,7 @@ void ParticleSystemTemplate::parseRGBColorKeyframe( INI* ini, void *instance,
  * Note that the components may be negative, as this is used for rates, as well. */
 // ------------------------------------------------------------------------------------------------
 void ParticleSystemTemplate::parseRandomRGBColor( INI* ini, void *instance,
-																											 void *store, const void* /*userData*/ )
+																											void *store, const void* /*userData*/ )
 {
 #if 0
 	char seps[] = " \n\r\t=:RGB,";
@@ -3174,8 +3174,8 @@ void ParticleSystemManager::destroyAttachedSystems( Object *obj )
 
 	// iterate through all systems
 	for( ParticleSystemListIt it = m_allParticleSystemList.begin();
-			 it != m_allParticleSystemList.end();
-			 ++it )
+			it != m_allParticleSystemList.end();
+			++it )
 	{
 
 		ParticleSystem *system = *it;
@@ -3288,8 +3288,8 @@ Int ParticleSystemManager::removeOldestParticles( UnsignedInt count,
 	while (count-- && getParticleCount())
 	{
 		for( Int i = PARTICLE_PRIORITY_LOWEST;
-				 i < priorityCap;
-				 ++i )
+				i < priorityCap;
+				++i )
 		{
 			if( m_allParticlesHead[ i ] )
 			{
@@ -3315,7 +3315,7 @@ void ParticleSystemManager::preloadAssets( TimeOfDay timeOfDay )
 	for (; begin != end; ++begin) {
 		const ParticleSystemTemplate *tmplate = (*begin).second;
 		if (tmplate->m_particleType == ParticleSystemInfo::PARTICLE &&
-			 	(! tmplate->m_particleTypeName.isEmpty()))
+				(! tmplate->m_particleTypeName.isEmpty()))
 		{
 			TheDisplay->preloadTextureAssets(tmplate->m_particleTypeName);
 		}

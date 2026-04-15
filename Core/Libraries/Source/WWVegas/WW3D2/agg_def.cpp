@@ -457,7 +457,7 @@ AggregateDefClass::Build_Subobject_List
 				// Is this subobject new?  (i.e. not in a 'vanilla' instance?)
 				const char *prototype_name = psubobject->Get_Name ();
 				if (psubobject != nullptr &&
-					 (Is_Object_In_List (prototype_name, orig_node_list) == false)) {
+					(Is_Object_In_List (prototype_name, orig_node_list) == false)) {
 
 					// Add this subobject to our list
 					::lstrcpy (subobj_info.SubobjectName, prototype_name);
@@ -709,8 +709,8 @@ AggregateDefClass::Save_W3D (ChunkSaveClass &chunk_save)
 
 		// Attempt to save the different sections of the aggregate definition
 		if ((Save_Header (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Info (chunk_save) == WW3D_ERROR_OK) &&
-			 (Save_Class_Info (chunk_save) == WW3D_ERROR_OK)) {
+			(Save_Info (chunk_save) == WW3D_ERROR_OK) &&
+			(Save_Class_Info (chunk_save) == WW3D_ERROR_OK)) {
 
 			// Success!
 			ret_val = WW3D_ERROR_OK;
@@ -878,7 +878,7 @@ AggregateLoaderClass::Load_W3D (ChunkLoadClass &chunk_load)
 		}
 	}
 
-    // Return a pointer to the prototype
-	 return pprototype;
+	// Return a pointer to the prototype
+	return pprototype;
 }
 

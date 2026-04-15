@@ -98,8 +98,8 @@ static void outputLine(const char *line)
 //=============================================================================
 
 static void outputLine(int frame, int index, int linkNum,
-											 const char *class1, const char *line1,
-											 const char *class2, const char *line2, bool same = false)
+											const char *class1, const char *line1,
+											const char *class2, const char *line2, bool same = false)
 {
 	dumpQueued();
 	if (!line1)

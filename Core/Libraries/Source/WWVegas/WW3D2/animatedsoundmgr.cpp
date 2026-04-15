@@ -104,8 +104,8 @@ Build_List_From_String
 	WWASSERT (delimiter != nullptr);
 	WWASSERT (string_list != nullptr);
 	if ((buffer != nullptr) &&
-		 (delimiter != nullptr) &&
-		 (string_list != nullptr))
+		(delimiter != nullptr) &&
+		(string_list != nullptr))
 	{
 		int delim_len = ::strlen (delimiter);
 
@@ -228,7 +228,7 @@ Is_In_Param_List
 			// if ( stricmp( string.Peek_Buffer(), param_to_check ) == 0 ) // Breaks with whitespaces
 			if ( strstr( string.str(), param_to_check ) != nullptr )
 			{
-			 	return( true );
+				return( true );
 			}
 		}
 	}

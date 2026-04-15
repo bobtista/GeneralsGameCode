@@ -217,7 +217,7 @@ public:
 	static void parseObjectCreationListDefinition( INI* ini );
 	static void parseMultiplayerSettingsDefinition( INI* ini );
 	static void parseMultiplayerColorDefinition( INI* ini );
-  static void parseMultiplayerStartingMoneyChoiceDefinition( INI* ini );
+	static void parseMultiplayerStartingMoneyChoiceDefinition( INI* ini );
 	static void parseOnlineChatColorDefinition( INI* ini );
 	static void parseMapCacheDefinition( INI* ini );
 	static void parseVideoDefinition( INI* ini );

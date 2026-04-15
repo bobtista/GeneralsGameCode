@@ -704,7 +704,7 @@ void Network::update()
 			m_didSelfSlug = FALSE;
 		}
 		//m_conMgr->update(); // Do the priority thing, packetize thing. This also calls the Transport::update function.
-									 // depacketizes the incoming packets and puts them on the Network command list.
+									// depacketizes the incoming packets and puts them on the Network command list.
 	}
 
 	liteupdate();

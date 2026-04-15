@@ -638,7 +638,7 @@ void VoxelClass::Compute_Physical_Properties(double Volume[1],double CM[3],doubl
 					// Add this block's position to the CM computation
 					cm += Voxel_Position(i,j,k);
 					numblocks++;
- 				}
+				}
 			}
 		}
 	}

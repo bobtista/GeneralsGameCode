@@ -269,16 +269,16 @@ ColorPickerClass::Create
 	// Create the window (it will force the message map and everthing)
 	HWND hparent_wnd = (pparent_wnd != nullptr) ? pparent_wnd->m_hWnd : nullptr;
 	HWND hwnd = ::CreateWindow ("WWCOLORPICKER",
-										 lpszWindowName,
-										 dwStyle,
-										 rect.left,
-										 rect.top,
-										 rect.right - rect.left,
-										 rect.bottom - rect.top,
-										 hparent_wnd,
-										 (HMENU)nID,
-										 ::AfxGetInstanceHandle (),
-										 this);
+										lpszWindowName,
+										dwStyle,
+										rect.left,
+										rect.top,
+										rect.right - rect.left,
+										rect.bottom - rect.top,
+										hparent_wnd,
+										(HMENU)nID,
+										::AfxGetInstanceHandle (),
+										this);
 
 	// Return the true/false result code
 	return (hwnd != nullptr);
@@ -381,7 +381,7 @@ ColorPickerClass::Color_From_Point
 
 	// x,y location inside boundaries?
 	if ((x >= 0) && (x < m_iWidth) &&
-		 (y >= 0) && (y < m_iHeight)) {
+		(y >= 0) && (y < m_iHeight)) {
 
 		// Window's bitmaps are DWORD aligned, so make sure
 		// we take that into account.
@@ -881,14 +881,14 @@ ColorPickerClass::Erase_Marker ()
 		CRect rect;
 		GetClientRect (&rect);
 		::BitBlt (hdc,
-					 m_CurrentPoint.x - 5,
-					 m_CurrentPoint.y - 5,
-					 11,
-					 11,
-					 m_hMemDC,
-					 m_CurrentPoint.x - 5,
-					 m_CurrentPoint.y - 5,
-					 SRCCOPY);
+					m_CurrentPoint.x - 5,
+					m_CurrentPoint.y - 5,
+					11,
+					11,
+					m_hMemDC,
+					m_CurrentPoint.x - 5,
+					m_CurrentPoint.y - 5,
+					SRCCOPY);
 
 		::SelectObject (m_hMemDC, hold_bmp);
 	}
@@ -914,14 +914,14 @@ ColorPickerClass::Paint_Marker ()
 		CRect rect;
 		GetClientRect (&rect);
 		::BitBlt (hdc,
-					 m_CurrentPoint.x - 5,
-					 m_CurrentPoint.y - 5,
-					 11,
-					 11,
-					 m_hMemDC,
-					 0,
-					 0,
-					 SRCINVERT);
+					m_CurrentPoint.x - 5,
+					m_CurrentPoint.y - 5,
+					11,
+					11,
+					m_hMemDC,
+					0,
+					0,
+					SRCINVERT);
 
 		::SelectObject (m_hMemDC, hold_bmp);
 		::DeleteObject (hmarker_bmp);

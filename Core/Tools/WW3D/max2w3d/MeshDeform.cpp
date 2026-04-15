@@ -236,7 +236,7 @@ MeshDeformClass::BeginEditParams
 	//
 	const TCHAR * ptype[] = { "Vertices" };
 #if defined W3D_MAX4		//defined as in the project (.dsp)
- 	max_interface->SetSubObjectLevel(1);
+	max_interface->SetSubObjectLevel(1);
 #else
 	//---This call is obsolete from max4.
 	max_interface->RegisterSubObjectTypes( ptype, 1);
@@ -383,10 +383,10 @@ MeshDeformClass::HitTest
 	MeshDeformModData *mod_data = static_cast <MeshDeformModData *> (mod_context->localData);
 	Mesh &mesh = tri->mesh;//mod_data->Peek_Mesh ();
 	int result = mesh.SubObjectHitTest (graphics_wnd,
-													 graphics_wnd->getMaterial (),
-													 &hit_rgn,
-													 flags | SUBHIT_VERTS,
-													 hitlist);
+													graphics_wnd->getMaterial (),
+													&hit_rgn,
+													flags | SUBHIT_VERTS,
+													hitlist);
 
 	//
 	// Record all of the hits

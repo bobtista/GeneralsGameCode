@@ -52,7 +52,7 @@ class PathfindCell;
 #undef RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION
 #endif
 
-  typedef UnsignedShort zoneStorageType;
+typedef UnsignedShort zoneStorageType;
 
 
 //----------------------------------------------------------------------------------------------------------
@@ -526,7 +526,7 @@ protected:
 
 	zoneStorageType m_firstZone; // First zone in this block.
 	UnsignedShort m_numZones;	 // Number of zones in this block.  If == 1, there is only one zone, and
-														 // no zone equivalency arrays will be allocated.
+														// no zone equivalency arrays will be allocated.
 
 	UnsignedShort m_zonesAllocated;
 	zoneStorageType *m_groundCliffZones;
@@ -838,9 +838,9 @@ protected:
 	static Int lineBlockedByObstacleCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
 	static Int tightenPathCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
 	static Int attackBlockedByObstacleCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
- 	static Int examineCellsCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
- 	static Int groundCellsCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
- 	static Int moveAlliesDestinationCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
+	static Int examineCellsCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
+	static Int groundCellsCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
+	static Int moveAlliesDestinationCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
 
 	static Int segmentIntersectsBuildingCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
 
@@ -858,8 +858,8 @@ protected:
 
 	Bool evaluateCell(PathfindCell* newCell, PathfindCell *parentCell,
 									const LocomotorSet& locomotorSet,
-									 Bool centerInCell, Int radius,
-									 const Object *obj, Int attackDistance);
+									Bool centerInCell, Int radius,
+									const Object *obj, Int attackDistance);
 
 	Path *buildActualPath( const Object *obj, LocomotorSurfaceTypeMask acceptableSurfaces,
 		const Coord3D *fromPos, PathfindCell *goalCell, Bool center, Bool blocked );	///< Work backwards from goal cell to construct final path

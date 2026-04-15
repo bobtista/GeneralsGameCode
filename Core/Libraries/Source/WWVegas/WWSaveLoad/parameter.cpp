@@ -241,7 +241,7 @@ StringParameterClass::operator== (const StringParameterClass &src)
 	bool retval = false;
 
 	if (m_String != nullptr && src.m_String != nullptr &&
-		 (m_String->Compare (*(src.m_String)) == 0)) {
+		(m_String->Compare (*(src.m_String)) == 0)) {
 		retval = true;
 	}
 
@@ -558,7 +558,7 @@ EnumParameterClass::operator== (const EnumParameterClass &src)
 	bool retval = false;
 
 	if (m_Value != nullptr && src.m_Value != nullptr &&
-		 (*m_Value) == (*src.m_Value))
+		(*m_Value) == (*src.m_Value))
 	{
 		retval = true;
 	}
@@ -708,7 +708,7 @@ PhysDefParameterClass::operator== (const PhysDefParameterClass &src)
 	bool retval = false;
 
 	if (m_Value != nullptr && src.m_Value != nullptr &&
-		 (*m_Value) == (*src.m_Value))
+		(*m_Value) == (*src.m_Value))
 	{
 		retval = true;
 	}
@@ -803,7 +803,7 @@ ModelDefParameterClass::operator== (const ModelDefParameterClass &src)
 	bool retval = false;
 
 	if (m_Value != nullptr && src.m_Value != nullptr &&
-		 (*m_Value) == (*src.m_Value))
+		(*m_Value) == (*src.m_Value))
 	{
 		retval = true;
 	}
@@ -898,7 +898,7 @@ DefParameterClass::operator== (const DefParameterClass &src)
 	bool retval = false;
 
 	if (m_Value != nullptr && src.m_Value != nullptr &&
-		 (*m_Value) == (*src.m_Value))
+		(*m_Value) == (*src.m_Value))
 	{
 		retval = true;
 	}
@@ -998,7 +998,7 @@ GenericDefParameterClass::operator== (const GenericDefParameterClass &src)
 	bool retval = false;
 
 	if (m_Value != nullptr && src.m_Value != nullptr &&
-		 (*m_Value) == (*src.m_Value))
+		(*m_Value) == (*src.m_Value))
 	{
 		retval = true;
 	}
@@ -1095,7 +1095,7 @@ GameObjDefParameterClass::operator== (const GameObjDefParameterClass &src)
 	bool retval = false;
 
 	if (m_Value != nullptr && src.m_Value != nullptr &&
-		 (*m_Value) == (*src.m_Value))
+		(*m_Value) == (*src.m_Value))
 	{
 		retval = true;
 	}
@@ -1193,7 +1193,7 @@ WeaponObjDefParameterClass::operator== (const WeaponObjDefParameterClass &src)
 	bool retval = false;
 
 	if (m_Value != nullptr && src.m_Value != nullptr &&
-		 (*m_Value) == (*src.m_Value))
+		(*m_Value) == (*src.m_Value))
 	{
 		retval = true;
 	}
@@ -1291,7 +1291,7 @@ AmmoObjDefParameterClass::operator== (const AmmoObjDefParameterClass &src)
 	bool retval = false;
 
 	if (m_Value != nullptr && src.m_Value != nullptr &&
-		 (*m_Value) == (*src.m_Value))
+		(*m_Value) == (*src.m_Value))
 	{
 		retval = true;
 	}
@@ -1389,7 +1389,7 @@ ExplosionObjDefParameterClass::operator== (const ExplosionObjDefParameterClass &
 	bool retval = false;
 
 	if (m_Value != nullptr && src.m_Value != nullptr &&
-		 (*m_Value) == (*src.m_Value))
+		(*m_Value) == (*src.m_Value))
 	{
 		retval = true;
 	}
@@ -1485,7 +1485,7 @@ SoundDefParameterClass::operator== (const SoundDefParameterClass &src)
 	bool retval = false;
 
 	if (m_Value != nullptr && src.m_Value != nullptr &&
-		 (*m_Value) == (*src.m_Value))
+		(*m_Value) == (*src.m_Value))
 	{
 		retval = true;
 	}

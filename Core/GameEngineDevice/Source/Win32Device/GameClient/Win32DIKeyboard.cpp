@@ -114,14 +114,14 @@ static void printReturnCode( char *label, HRESULT hr )
 //-------------------------------------------------------------------------------------------------
 void DirectInputKeyboard::openKeyboard()
 {
-  HRESULT hr;
+	HRESULT hr;
 
 	// create our interface to direct input
 	hr = DirectInput8Create( ApplicationHInstance,
-													 DIRECTINPUT_VERSION,
-													 IID_IDirectInput8,
-													 (void **)&m_pDirectInput,
-													 nullptr );
+													DIRECTINPUT_VERSION,
+													IID_IDirectInput8,
+													(void **)&m_pDirectInput,
+													nullptr );
 	if( FAILED( hr ) )
 	{
 
@@ -134,8 +134,8 @@ void DirectInputKeyboard::openKeyboard()
 
 	// obtain an interface to the system keyboard device
 	hr = m_pDirectInput->CreateDevice( GUID_SysKeyboard,
-																		 &m_pKeyboardDevice,
-																		 nullptr );
+																		&m_pKeyboardDevice,
+																		nullptr );
 	if( FAILED( hr ) )
 	{
 
@@ -164,8 +164,8 @@ void DirectInputKeyboard::openKeyboard()
 	// on 2000 etc
 	//
 	hr = m_pKeyboardDevice->SetCooperativeLevel( ApplicationHWnd,
-																							 DISCL_FOREGROUND |
-																							 DISCL_NONEXCLUSIVE );
+																							DISCL_FOREGROUND |
+																							DISCL_NONEXCLUSIVE );
 	if( FAILED( hr ) )
 	{
 
@@ -176,7 +176,7 @@ void DirectInputKeyboard::openKeyboard()
 
 	}
 
-  // set the keyboard buffer size
+	// set the keyboard buffer size
 	DIPROPDWORD prop;
 	prop.diph.dwSize = sizeof( DIPROPDWORD );
 	prop.diph.dwHeaderSize = sizeof( DIPROPHEADER );
@@ -260,7 +260,7 @@ void DirectInputKeyboard::getKey( KeyboardIO *key )
 		hr = m_pKeyboardDevice->Acquire();
 		if (hr == DI_OK || hr == S_FALSE)
 			hr = m_pKeyboardDevice->GetDeviceData( sizeof( DIDEVICEOBJECTDATA ),
-																						 &kbdat, &num, 0 );
+																						&kbdat, &num, 0 );
 		switch( hr )
 		{
 

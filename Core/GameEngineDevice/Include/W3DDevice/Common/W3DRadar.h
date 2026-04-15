@@ -95,8 +95,8 @@ protected:
 																	Real loZ );		///< "shade" color according to height value
 	void reconstructViewBox();							///< remake the view box
 	void radarToPixel( const ICoord2D *radar, ICoord2D *pixel,
-										 Int radarUpperLeftX, Int radarUpperLeftY,
-										 Int radarWidth, Int radarHeight );  ///< convert radar coord to pixel location
+										Int radarUpperLeftX, Int radarUpperLeftY,
+										Int radarWidth, Int radarHeight );  ///< convert radar coord to pixel location
 
 	WW3DFormat m_terrainTextureFormat;						///< format to use for terrain texture
 	Image *m_terrainImage;												///< terrain image abstraction for drawing

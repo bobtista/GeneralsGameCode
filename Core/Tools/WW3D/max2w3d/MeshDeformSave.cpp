@@ -68,7 +68,7 @@ MeshDeformSaveClass::Initialize
 	int test = object->SuperClassID ();
 	int test2 = GEN_DERIVOB_CLASS_ID;
 	if ((object != nullptr) &&
-		 (object->SuperClassID () == GEN_DERIVOB_CLASS_ID)) {
+		(object->SuperClassID () == GEN_DERIVOB_CLASS_ID)) {
 
 		//
 		//	Loop through all the modifiers and see if we can find the
@@ -399,8 +399,8 @@ MeshDeformSaveClass::Does_Deformer_Modify_DCG (void)
 					// modify the DCG array.
 					//
 					if ((data.color.x != 1) ||
-						 (data.color.y != 1) ||
-						 (data.color.z != 1)) {
+						(data.color.y != 1) ||
+						(data.color.z != 1)) {
 						retval = true;
 					}
 				}

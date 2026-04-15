@@ -254,7 +254,7 @@ EmitterPhysicsPropPageClass::OnCommand
 		{
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 				On_Setting_Changed (LOWORD (wParam));
 			} else if (HIWORD (wParam) == EN_CHANGE) {
@@ -269,7 +269,7 @@ EmitterPhysicsPropPageClass::OnCommand
 		{
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 				On_Setting_Changed (LOWORD (wParam));
 			} else if (HIWORD (wParam) == EN_CHANGE) {
@@ -282,7 +282,7 @@ EmitterPhysicsPropPageClass::OnCommand
 		{
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 				On_Setting_Changed (LOWORD (wParam));
 			} else if (HIWORD (wParam) == EN_CHANGE) {
@@ -295,7 +295,7 @@ EmitterPhysicsPropPageClass::OnCommand
 		{
 			// Update the emitter
 			if ((HIWORD (wParam) == EN_KILLFOCUS) &&
-				 SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
+				SendDlgItemMessage (LOWORD (wParam), EM_GETMODIFY)) {
 				SendDlgItemMessage (LOWORD (wParam), EM_SETMODIFY, (WPARAM)0);
 				On_Setting_Changed (LOWORD (wParam));
 			} else if (HIWORD (wParam) == EN_CHANGE) {

@@ -374,8 +374,8 @@ DWORD WINAPI _logdata_thread_function(LPVOID log_obj_ptr)
 {
 	// put logdata dialog box (lpParameter is the "this" pointer of the object)
 	DialogBoxParam( AppInstance,
-   					 MAKEINTRESOURCE(IDD_W3D_LOG),
-						 ((LogDataDialogClass*)log_obj_ptr)->ParentHwnd,
+					MAKEINTRESOURCE(IDD_W3D_LOG),
+						((LogDataDialogClass*)log_obj_ptr)->ParentHwnd,
                    (DLGPROC) _logdata_dialog_proc,
                    (LPARAM) log_obj_ptr);
 

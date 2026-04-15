@@ -88,7 +88,7 @@ END_MESSAGE_MAP()
 //
 //  CW3DViewDoc
 //
-CW3DViewDoc::CW3DViewDoc ()
+CW3DViewDoc::CW3DViewDoc (void)
     : m_pCScene (nullptr),
       m_pC2DScene (nullptr),
 		m_pCursorScene (nullptr),
@@ -119,6 +119,7 @@ CW3DViewDoc::CW3DViewDoc ()
 	// Read the camera animation settings from the registry
 	m_bAnimateCamera = ((BOOL)theApp.GetProfileInt ("Config", "AnimateCamera", 0)) == TRUE;
 	m_bAutoCameraReset = ((BOOL)theApp.GetProfileInt ("Config", "ResetCamera", 1)) == TRUE;
+	return ;
 }
 
 ///////////////////////////////////////////////////////////////
@@ -126,10 +127,11 @@ CW3DViewDoc::CW3DViewDoc ()
 //  ~CW3DViewDoc
 //
 ///////////////////////////////////////////////////////////////
-CW3DViewDoc::~CW3DViewDoc ()
+CW3DViewDoc::~CW3DViewDoc (void)
 {
-    CleanupResources ();
-	 REF_PTR_RELEASE (m_pCursor);
+	CleanupResources ();
+	REF_PTR_RELEASE (m_pCursor);
+	return ;
 }
 
 
@@ -139,111 +141,113 @@ CW3DViewDoc::~CW3DViewDoc ()
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::CleanupResources ()
+CW3DViewDoc::CleanupResources (void)
 {
-    if (m_pC2DScene)
-    {
+	if (m_pC2DScene)
+	{
 		  if (m_pCBackgroundBMP)
-        {
-            // Remove the background BMP from the scene
+		{
+			// Remove the background BMP from the scene
 				m_pCBackgroundBMP->Remove ();
-        }
+		}
 
-        // Release the 2D scene we allocated to display background BMPs
-        m_pC2DScene->Release_Ref ();
-        m_pC2DScene = nullptr;
-    }
+		// Release the 2D scene we allocated to display background BMPs
+		m_pC2DScene->Release_Ref ();
+		m_pC2DScene = nullptr;
+	}
 
-    if (m_pCBackObjectScene)
-    {
-        if (m_pCBackgroundObject)
-        {
-            // Remove the background BMP from the scene
+	if (m_pCBackObjectScene)
+	{
+		if (m_pCBackgroundObject)
+		{
+			// Remove the background BMP from the scene
 				m_pCBackgroundObject->Remove ();
-        }
+		}
 
-        // Release the scene we allocated to display background objects
-        m_pCBackObjectScene->Release_Ref ();
-        m_pCBackObjectScene = nullptr;
-    }
+		// Release the scene we allocated to display background objects
+		m_pCBackObjectScene->Release_Ref ();
+		m_pCBackObjectScene = nullptr;
+	}
 
 	if (m_pCursor != nullptr) {
 		m_pCursor->Remove ();
 	}
 	REF_PTR_RELEASE (m_pCursorScene);
 
-    if (m_pCScene)
-    {
-        if (m_pCRenderObj)
-        {
-            // Remove the currently displayed object from the scene
+	if (m_pCScene)
+	{
+		if (m_pCRenderObj)
+		{
+			// Remove the currently displayed object from the scene
 				Remove_Object_From_Scene (m_pCRenderObj);
-        }
+		}
 
-        if (m_pCSceneLight)
-        {
-            // Remove the light from the scene
+		if (m_pCSceneLight)
+		{
+			// Remove the light from the scene
 				Remove_Object_From_Scene (m_pCSceneLight);
-        }
+		}
 
 		  // Get rid of the lined up objects.
 		  m_pCScene->Clear_Lineup();
 
-        // Release the scene object we allocated earlier
-        m_pCScene->Release_Ref ();
-        m_pCScene = nullptr;
-    }
+		// Release the scene object we allocated earlier
+		m_pCScene->Release_Ref ();
+		m_pCScene = nullptr;
+	}
 
-	 // Was there a dazzle layer?
-	 delete m_pDazzleLayer;
-	 m_pDazzleLayer = nullptr;
+	// Was there a dazzle layer?
+	delete m_pDazzleLayer;
+	m_pDazzleLayer = nullptr;
 
-    // Was there a valid scene object?
-    if (m_pCBackObjectScene)
-    {
-        // Free the scene object
-        m_pCBackObjectScene->Release_Ref ();
-        m_pCBackObjectScene = nullptr;
-    }
+	// Was there a valid scene object?
+	if (m_pCBackObjectScene)
+	{
+		// Free the scene object
+		m_pCBackObjectScene->Release_Ref ();
+		m_pCBackObjectScene = nullptr;
+	}
 
-    // Was there a valid 2D camera?
-    if (m_pC2DCamera)
-    {
-        // Free the camera object
-        m_pC2DCamera->Release_Ref ();
-        m_pC2DCamera = nullptr;
-    }
+	// Was there a valid 2D camera?
+	if (m_pC2DCamera)
+	{
+		// Free the camera object
+		m_pC2DCamera->Release_Ref ();
+		m_pC2DCamera = nullptr;
+	}
 
-    // Was there a valid background camera?
-    if (m_pCBackObjectCamera)
-    {
-        // Free the camera object
-        m_pCBackObjectCamera->Release_Ref ();
-        m_pCBackObjectCamera = nullptr;
-    }
+	// Was there a valid background camera?
+	if (m_pCBackObjectCamera)
+	{
+		// Free the camera object
+		m_pCBackObjectCamera->Release_Ref ();
+		m_pCBackObjectCamera = nullptr;
+	}
 
-    // Was there a valid background BMP?
-    if (m_pCBackgroundBMP)
-    {
-        m_pCBackgroundBMP->Release_Ref ();
-        m_pCBackgroundBMP = nullptr;
-    }
+	// Was there a valid background BMP?
+	if (m_pCBackgroundBMP)
+	{
+		m_pCBackgroundBMP->Release_Ref ();
+		m_pCBackgroundBMP = nullptr;
+	}
 
-    // Was there a valid scene light?
-    if (m_pCSceneLight)
-    {
-        m_pCSceneLight->Release_Ref ();
-        m_pCSceneLight = nullptr;
-    }
+	// Was there a valid scene light?
+	if (m_pCSceneLight)
+	{
+		m_pCSceneLight->Release_Ref ();
+		m_pCSceneLight = nullptr;
+	}
 
-    // Was there a valid display object?
-    if (m_pCRenderObj)
-    {
-        // Free the currently displayed object
+	// Was there a valid display object?
+	if (m_pCRenderObj)
+	{
+		// Free the currently displayed object
 			SAFE_DELETE (m_pCAnimCombo);
 			REF_PTR_RELEASE (m_pCAnimation);
 			REF_PTR_RELEASE (m_pCRenderObj);
-    }
+	}
+
+	return ;
 }
 
 ///////////////////////////////////////////////////////////////
@@ -252,7 +256,7 @@ CW3DViewDoc::CleanupResources ()
 //
 ///////////////////////////////////////////////////////////////
 BOOL
-CW3DViewDoc::OnNewDocument ()
+CW3DViewDoc::OnNewDocument (void)
 {
 	if (!CDocument::OnNewDocument())
 		return FALSE;
@@ -260,47 +264,47 @@ CW3DViewDoc::OnNewDocument ()
 	_TheAssetMgr->Start_Tracking_Textures ();
 	m_LoadList.Delete_All ();
 
-	 m_bOneTimeReset = true;
-    if (m_pCScene && m_pCRenderObj)
-    {
-        // Remove the currently displayed object from the scene
+	m_bOneTimeReset = true;
+	if (m_pCScene && m_pCRenderObj)
+	{
+		// Remove the currently displayed object from the scene
 		  Remove_Object_From_Scene (m_pCRenderObj);
-    }
+	}
 
-	 if (m_pCScene)
-	 {
-		 // Remove all objects from the lineup.
-		 m_pCScene->Clear_Lineup();
+	if (m_pCScene)
+	{
+		// Remove all objects from the lineup.
+		m_pCScene->Clear_Lineup();
 
-		 // Update the fog color.
-		 m_pCScene->Set_Fog_Color(m_backgroundColor);
-	 }
+		// Update the fog color.
+		m_pCScene->Set_Fog_Color(m_backgroundColor);
+	}
 
-    if (m_pCRenderObj)
-    {
+	if (m_pCRenderObj)
+	{
 			// Free the currently displayed object
 			SAFE_DELETE (m_pCAnimCombo);
 			REF_PTR_RELEASE (m_pCAnimation);
 			REF_PTR_RELEASE (m_pCRenderObj);
-    }
+	}
 
-    CDataTreeView *pCDataTreeView = GetDataTreeView ();
-    if (pCDataTreeView)
-    {
-        // Delete everything from the tree
-        pCDataTreeView->GetTreeCtrl ().DeleteAllItems ();
+	CDataTreeView *pCDataTreeView = GetDataTreeView ();
+	if (pCDataTreeView)
+	{
+		// Delete everything from the tree
+		pCDataTreeView->GetTreeCtrl ().DeleteAllItems ();
 
-        // Recreate the root nodes
-        pCDataTreeView->CreateRootNodes ();
-    }
+		// Recreate the root nodes
+		pCDataTreeView->CreateRootNodes ();
+	}
 
-    // Remove everything from the scene and the asset manager
-	 CleanupResources ();
-	 //WW3DAssetManager::Get_Instance ()->Release_All_Textures ();
-    WW3DAssetManager::Get_Instance ()->Free_Assets ();
-	 WW3DAssetManager::Get_Instance ()->Load_Procedural_Textures();
+	// Remove everything from the scene and the asset manager
+	CleanupResources ();
+	//WW3DAssetManager::Get_Instance ()->Release_All_Textures ();
+	WW3DAssetManager::Get_Instance ()->Free_Assets ();
+	WW3DAssetManager::Get_Instance ()->Load_Procedural_Textures();
 
-    return TRUE;
+	return TRUE;
 }
 
 
@@ -320,6 +324,8 @@ CW3DViewDoc::Serialize(CArchive& ar)
 	{
 		// TODO: add loading code here
 	}
+
+	return ;
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -344,7 +350,7 @@ void CW3DViewDoc::Dump(CDumpContext& dc) const
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::InitScene ()
+CW3DViewDoc::InitScene (void)
 {
 	if (m_pCScene == nullptr) {
 
@@ -456,6 +462,7 @@ CW3DViewDoc::InitScene ()
 
 	Load_Camera_Settings ();
 	m_IsInitialized = true;
+	return ;
 }
 
 
@@ -562,6 +569,8 @@ CW3DViewDoc::LoadAssetsFromFile (LPCTSTR lpszPathName)
 	if (current_view != nullptr) {
 		current_view->Allow_Update (true);
 	}
+
+	return ;
 }
 
 
@@ -571,12 +580,13 @@ CW3DViewDoc::LoadAssetsFromFile (LPCTSTR lpszPathName)
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::Reload_Displayed_Object ()
+CW3DViewDoc::Reload_Displayed_Object (void)
 {
 	GetDataTreeView ()->Display_Asset ();
 	//SAFE_ADD_REF (m_pCRenderObj);
 	//DisplayObject (m_pCRenderObj, false, false);
 	//SAFE_RELEASE_REF (m_pCRenderObj);
+	return ;
 }
 
 
@@ -625,14 +635,16 @@ CW3DViewDoc::Display_Emitter
 
 				// Try to find a good view for the emitter
 				if ((use_global_reset_flag && m_bAutoCameraReset) ||
-					 ((use_global_reset_flag == false) && allow_reset) ||
-					 m_bOneTimeReset) {
+					((use_global_reset_flag == false) && allow_reset) ||
+					m_bOneTimeReset) {
 					pCGraphicView->Reset_Camera_To_Display_Emitter (*pemitter);
 					m_bOneTimeReset = false;
 				}
 			}
 		}
 	}
+
+	return ;
 }
 
 
@@ -650,16 +662,16 @@ CW3DViewDoc::DisplayObject
 	bool add_ghost
 )
 {
-    ASSERT (m_pCScene);
+	ASSERT (m_pCScene);
 
-    // Data OK?
-    if (m_pCScene)
-    {
-        // Lose the animation
+	// Data OK?
+	if (m_pCScene)
+	{
+		// Lose the animation
 		  SAFE_DELETE (m_pCAnimCombo);
 		  REF_PTR_RELEASE (m_pCAnimation);
 
-        // Do we have an old object to remove from the scene?
+		// Do we have an old object to remove from the scene?
 		  if (add_ghost == false) {
 			  if (m_pCRenderObj)
 			  {
@@ -671,17 +683,17 @@ CW3DViewDoc::DisplayObject
 		  }
 		  m_pCScene->Clear_Lineup();
 
-        // Do we have a new object to display?
-        if (pCModel && (add_ghost == false))
-        {
-            // Reset the animation for this object
-            pCModel->Set_Animation ();
+		// Do we have a new object to display?
+		if (pCModel && (add_ghost == false))
+		{
+			// Reset the animation for this object
+			pCModel->Set_Animation ();
 
-            m_pCRenderObj = pCModel;
-            m_pCRenderObj->Add_Ref ();
-            m_pCRenderObj->Set_Transform (Matrix3D (1));
+			m_pCRenderObj = pCModel;
+			m_pCRenderObj->Add_Ref ();
+			m_pCRenderObj->Set_Transform (Matrix3D (1));
 
-            // Add this object to the scene
+			// Add this object to the scene
 				if (m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_BITMAP2D) {
 					m_pC2DScene->Add_Render_Object (m_pCRenderObj);
 				} else {
@@ -690,34 +702,34 @@ CW3DViewDoc::DisplayObject
 
 				// Reset the current lod to be the lowest possible LOD...
 				if ((m_pCScene->Are_LODs_Switching ()) &&
-					 (m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_HLOD)) {
+					(m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_HLOD)) {
 					((HLodClass *)m_pCRenderObj)->Set_LOD_Level (0);
 				}
 
-            CGraphicView *pCGraphicView = GetGraphicView ();
-            if (pCGraphicView)
-            {
-                // Reset the camera to so the user can see
-                // the whole object
-                if ((use_global_reset_flag && m_bAutoCameraReset) ||
+			CGraphicView *pCGraphicView = GetGraphicView ();
+			if (pCGraphicView)
+			{
+				// Reset the camera to so the user can see
+				// the whole object
+				if ((use_global_reset_flag && m_bAutoCameraReset) ||
 					     ((use_global_reset_flag == false) && allow_reset) ||
 						  m_bOneTimeReset) {
 						pCGraphicView->Reset_Camera_To_Display_Object (*m_pCRenderObj);
 						m_bOneTimeReset = false;
-					 }
-            }
-        }
+					}
+			}
+		}
 		  else if (pCModel) {
-            // Reset the animation for this object
-            pCModel->Set_Animation ();
+			// Reset the animation for this object
+			pCModel->Set_Animation ();
 
 				RenderObjClass *m_pCRenderObj;
 
-            m_pCRenderObj = pCModel;
-            m_pCRenderObj->Add_Ref ();
-            m_pCRenderObj->Set_Transform (Matrix3D (1));
+			m_pCRenderObj = pCModel;
+			m_pCRenderObj->Add_Ref ();
+			m_pCRenderObj->Set_Transform (Matrix3D (1));
 
-            // Add this object to the scene
+			// Add this object to the scene
 				if (m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_BITMAP2D) {
 					m_pC2DScene->Add_Render_Object (m_pCRenderObj);
 				} else {
@@ -727,24 +739,26 @@ CW3DViewDoc::DisplayObject
 
 				// Reset the current lod to be the lowest possible LOD...
 				if ((m_pCScene->Are_LODs_Switching ()) &&
-					 (m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_HLOD)) {
+					(m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_HLOD)) {
 					((HLodClass *)m_pCRenderObj)->Set_LOD_Level (0);
 				}
 
-            CGraphicView *pCGraphicView = GetGraphicView ();
-            if (pCGraphicView)
-            {
-                // Reset the camera to so the user can see
-                // the whole object
-                if ((use_global_reset_flag && m_bAutoCameraReset) ||
+			CGraphicView *pCGraphicView = GetGraphicView ();
+			if (pCGraphicView)
+			{
+				// Reset the camera to so the user can see
+				// the whole object
+				if ((use_global_reset_flag && m_bAutoCameraReset) ||
 					     ((use_global_reset_flag == false) && allow_reset) ||
 						  m_bOneTimeReset) {
 						pCGraphicView->Reset_Camera_To_Display_Object (*m_pCRenderObj);
 						m_bOneTimeReset = false;
-					 }
-            }
+					}
+			}
 		  }
-    }
+	}
+
+	return ;
 }
 
 
@@ -754,7 +768,7 @@ CW3DViewDoc::DisplayObject
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::ResetAnimation ()
+CW3DViewDoc::ResetAnimation (void)
 {
 	if (m_pCAnimation != nullptr) {
 
@@ -774,6 +788,8 @@ CW3DViewDoc::ResetAnimation ()
 																					m_pCAnimation->Get_Num_Frames () - 1,
 																					frame_rate * anim_speed);
 	}
+
+	return ;
 }
 
 
@@ -825,6 +841,8 @@ CW3DViewDoc::StepAnimation (int iFrameInc)
 
 		Update_Camera ();
 	}
+
+	return ;
 }
 
 
@@ -838,56 +856,58 @@ CW3DViewDoc::PlayAnimation
 (
     RenderObjClass *pCModel,
     LPCTSTR pszAnimationName,
-	 bool use_global_reset_flag,
-	 bool allow_reset
+	bool use_global_reset_flag,
+	bool allow_reset
 )
 {
-    ASSERT (m_pCScene);
-    ASSERT (pCModel);
-    ASSERT (pszAnimationName);
+	ASSERT (m_pCScene);
+	ASSERT (pCModel);
+	ASSERT (pszAnimationName);
 
-    // Data OK?
-    if (m_pCScene &&
+	// Data OK?
+	if (m_pCScene &&
         pCModel &&
         pszAnimationName)
-    {
-        // Display this hierarchy on the screen
-        DisplayObject (pCModel);
+	{
+		// Display this hierarchy on the screen
+		DisplayObject (pCModel);
 
-        // Get an instance of the animation object
+		// Get an instance of the animation object
 		  SAFE_DELETE (m_pCAnimCombo);
 		  REF_PTR_RELEASE (m_pCAnimation);
-        m_pCAnimation = WW3DAssetManager::Get_Instance()->Get_HAnim (pszAnimationName);
-        ASSERT (m_pCAnimation);
+		m_pCAnimation = WW3DAssetManager::Get_Instance()->Get_HAnim (pszAnimationName);
+		ASSERT (m_pCAnimation);
 
-        // Reset the frame counter
-        m_CurrentFrame = 0;
-        m_animTime = 0.00F;
+		// Reset the frame counter
+		m_CurrentFrame = 0;
+		m_animTime = 0.00F;
 
-        if (m_pCRenderObj)
-        {
-            // Update the animation frame
-            m_pCRenderObj->Set_Animation (m_pCAnimation, 0);
+		if (m_pCRenderObj)
+		{
+			// Update the animation frame
+			m_pCRenderObj->Set_Animation (m_pCAnimation, 0);
 
-            CGraphicView *pCGraphicView = GetGraphicView ();
-            if (pCGraphicView)
-            {
-                // Reset the camera to so the user can see
-                // the whole object
-                if ((use_global_reset_flag && m_bAutoCameraReset) ||
+			CGraphicView *pCGraphicView = GetGraphicView ();
+			if (pCGraphicView)
+			{
+				// Reset the camera to so the user can see
+				// the whole object
+				if ((use_global_reset_flag && m_bAutoCameraReset) ||
 					     ((use_global_reset_flag == false) && allow_reset) ||
 						  m_bOneTimeReset) {
 						pCGraphicView->Reset_Camera_To_Display_Object (*m_pCRenderObj);
 						m_bOneTimeReset = false;
-					 }
+					}
 
-                AfxGetMainWnd ()->PostMessage (WM_COMMAND, MAKELPARAM (IDM_ANI_START, 0));
-            }
-        }
+				AfxGetMainWnd ()->PostMessage (WM_COMMAND, MAKELPARAM (IDM_ANI_START, 0));
+			}
+		}
 
 		  Update_Camera ();
 		  Play_Animation_Sound ();
-    }
+	}
+
+	return ;
 }
 
 
@@ -897,7 +917,7 @@ CW3DViewDoc::PlayAnimation
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::Play_Animation_Sound ()
+CW3DViewDoc::Play_Animation_Sound (void)
 {
 	if (m_pCAnimation != nullptr) {
 	  CString animation_name = m_pCAnimation->Get_Name ();
@@ -913,6 +933,8 @@ CW3DViewDoc::Play_Animation_Sound ()
 		  ::PlaySound (sound_filename, nullptr, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
 		}
 	}
+
+	return ;
 }
 
 
@@ -926,63 +948,65 @@ CW3DViewDoc::PlayAnimation
 (
     RenderObjClass *pCModel,
     HAnimComboClass *pCAnimCombo,
-	 bool use_global_reset_flag,
-	 bool allow_reset
+	bool use_global_reset_flag,
+	bool allow_reset
 )
 {
-    ASSERT (m_pCScene);
-    ASSERT (pCModel);
-    ASSERT (pCAnimCombo);
+	ASSERT (m_pCScene);
+	ASSERT (pCModel);
+	ASSERT (pCAnimCombo);
 
-    // Data OK?
-    if (m_pCScene &&
+	// Data OK?
+	if (m_pCScene &&
         pCModel &&
         pCAnimCombo)
-    {
-        // Display this hierarchy on the screen
-        DisplayObject (pCModel);
+	{
+		// Display this hierarchy on the screen
+		DisplayObject (pCModel);
 
-        // Get an instance of the animation object
+		// Get an instance of the animation object
 		  SAFE_DELETE (m_pCAnimCombo);
 		  REF_PTR_RELEASE (m_pCAnimation);
 		  m_pCAnimCombo = pCAnimCombo;
 		  m_pCAnimation = m_pCAnimCombo->Get_Motion(0);	// ref added by get_motion
-        ASSERT (m_pCAnimation);
+		ASSERT (m_pCAnimation);
 
 		  // It will be assumed that every animation in the m_pCAnimCombo
 		  // has the same number of frames and has the same framerate as
 		  // the first animation in the combo (m_pCAnimation).
 
-        // Reset the frame counter
-        m_CurrentFrame = 0;
-        m_animTime = 0.00F;
+		// Reset the frame counter
+		m_CurrentFrame = 0;
+		m_animTime = 0.00F;
 
-        if (m_pCRenderObj)
-        {
-            // Update the animation frame
+		if (m_pCRenderObj)
+		{
+			// Update the animation frame
 			  for (int i = 0; i < m_pCAnimCombo->Get_Num_Anims(); i++)
 				  m_pCAnimCombo->Set_Frame(i, 0.0f);
-            m_pCRenderObj->Set_Animation(m_pCAnimCombo);
+			m_pCRenderObj->Set_Animation(m_pCAnimCombo);
 
-            CGraphicView *pCGraphicView = GetGraphicView ();
-            if (pCGraphicView)
-            {
-                // Reset the camera to so the user can see
-                // the whole object
-                if ((use_global_reset_flag && m_bAutoCameraReset) ||
+			CGraphicView *pCGraphicView = GetGraphicView ();
+			if (pCGraphicView)
+			{
+				// Reset the camera to so the user can see
+				// the whole object
+				if ((use_global_reset_flag && m_bAutoCameraReset) ||
 					     ((use_global_reset_flag == false) && allow_reset) ||
 						  m_bOneTimeReset) {
 						pCGraphicView->Reset_Camera_To_Display_Object (*m_pCRenderObj);
 						m_bOneTimeReset = false;
-					 }
+					}
 
-                AfxGetMainWnd ()->PostMessage (WM_COMMAND, MAKELPARAM (IDM_ANI_START, 0));
-            }
-        }
+				AfxGetMainWnd ()->PostMessage (WM_COMMAND, MAKELPARAM (IDM_ANI_START, 0));
+			}
+		}
 
 		  Update_Camera ();
 		  Play_Animation_Sound ();
-    }
+	}
+
+	return ;
 }
 
 
@@ -1024,7 +1048,7 @@ Get_Camera_Transform (RenderObjClass *render_obj, Matrix3D &tm)
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::Update_Camera ()
+CW3DViewDoc::Update_Camera (void)
 {
 	// Should we update the camera's position as well?
 	if (m_bAnimateCamera && m_pCRenderObj != nullptr) {
@@ -1047,6 +1071,8 @@ CW3DViewDoc::Update_Camera ()
 			pcamera->Set_Transform (new_transform);
 		}
 	}
+
+	return ;
 }
 
 
@@ -1099,6 +1125,8 @@ CW3DViewDoc::UpdateFrame (float relativeTimeSlice)
 
 		Update_Camera ();
 	}
+
+	return ;
 }
 
 
@@ -1108,20 +1136,20 @@ CW3DViewDoc::UpdateFrame (float relativeTimeSlice)
 //
 ///////////////////////////////////////////////////////////////
 CDataTreeView *
-CW3DViewDoc::GetDataTreeView ()
+CW3DViewDoc::GetDataTreeView (void)
 {
-    CDataTreeView *pCDataTreeView = nullptr;
+	CDataTreeView *pCDataTreeView = nullptr;
 
-    // Get a pointer to the main window
-    CMainFrame *pCMainWnd = (CMainFrame *)::AfxGetMainWnd ();
-    if (pCMainWnd)
-    {
-        // Get the pane from the main window
-        pCDataTreeView = (CDataTreeView *)pCMainWnd->GetPane (0, 0);
-    }
+	// Get a pointer to the main window
+	CMainFrame *pCMainWnd = (CMainFrame *)::AfxGetMainWnd ();
+	if (pCMainWnd)
+	{
+		// Get the pane from the main window
+		pCDataTreeView = (CDataTreeView *)pCMainWnd->GetPane (0, 0);
+	}
 
-    // Return a pointer to the tree view
-    return pCDataTreeView;
+	// Return a pointer to the tree view
+	return pCDataTreeView;
 }
 
 
@@ -1131,20 +1159,20 @@ CW3DViewDoc::GetDataTreeView ()
 //
 ///////////////////////////////////////////////////////////////
 CGraphicView *
-CW3DViewDoc::GetGraphicView ()
+CW3DViewDoc::GetGraphicView (void)
 {
-    CGraphicView *pCGrephicView = nullptr;
+	CGraphicView *pCGrephicView = nullptr;
 
-    // Get a pointer to the main window
-    CMainFrame *pCMainWnd = (CMainFrame *)::AfxGetMainWnd ();
-    if (pCMainWnd)
-    {
-        // Get the pane from the main window
-        pCGrephicView = (CGraphicView *)pCMainWnd->GetPane (0, 1);
-    }
+	// Get a pointer to the main window
+	CMainFrame *pCMainWnd = (CMainFrame *)::AfxGetMainWnd ();
+	if (pCMainWnd)
+	{
+		// Get the pane from the main window
+		pCGrephicView = (CGraphicView *)pCMainWnd->GetPane (0, 1);
+	}
 
-    // Return a pointer to the graphic view
-    return pCGrephicView;
+	// Return a pointer to the graphic view
+	return pCGrephicView;
 }
 
 
@@ -1182,7 +1210,7 @@ CW3DViewDoc::GenerateLOD
 
 			// Is this a hierarchy?
 			if (WW3DAssetManager::Get_Instance()->Render_Obj_Exists (pszItemName) &&
-				 (pObjEnum->Current_Item_Class_ID () == RenderObjClass::CLASSID_HLOD)) {
+				(pObjEnum->Current_Item_Class_ID () == RenderObjClass::CLASSID_HLOD)) {
 
 				if (Is_Model_Part_of_LOD (pszItemName, pszLODBaseName, type)) {
 					lod_count ++;
@@ -1247,38 +1275,40 @@ CW3DViewDoc::GenerateLOD
 void
 CW3DViewDoc::SetBackgroundBMP (LPCTSTR pszBackgroundBMP)
 {
-    ASSERT (m_pC2DScene);
-    if (m_pC2DScene)
-    {
+	ASSERT (m_pC2DScene);
+	if (m_pC2DScene)
+	{
 		  // Remove the old background BMP if there was one.
-        if (m_pCBackgroundBMP)
-        {
-            // Remove the background BMP from the scene
-            // and release its pointer
+		if (m_pCBackgroundBMP)
+		{
+			// Remove the background BMP from the scene
+			// and release its pointer
 				m_pCBackgroundBMP->Remove ();
-            m_pCBackgroundBMP->Release_Ref ();
-            m_pCBackgroundBMP = nullptr;
-        }
+			m_pCBackgroundBMP->Release_Ref ();
+			m_pCBackgroundBMP = nullptr;
+		}
 
-        // Is this a new background BMP?
-        if (pszBackgroundBMP &&
+		// Is this a new background BMP?
+		if (pszBackgroundBMP &&
             (m_stringBackgroundBMP.CompareNoCase (pszBackgroundBMP) != 0))
-        {
+		{
 				// Create a new instance of the BMP object to use
-            m_pCBackgroundBMP = new Bitmap2DObjClass (pszBackgroundBMP, 0.5F, 0.5F, TRUE, FALSE);
+			m_pCBackgroundBMP = new Bitmap2DObjClass (pszBackgroundBMP, 0.5F, 0.5F, TRUE, FALSE);
 
-            // Were we successful in creating the bitmap object?
-            ASSERT (m_pCBackgroundBMP);
-            if (m_pCBackgroundBMP)
-            {
-                // Add the object to the scene
-					 m_pC2DScene->Add_Render_Object (m_pCBackgroundBMP);
-            }
-        }
+			// Were we successful in creating the bitmap object?
+			ASSERT (m_pCBackgroundBMP);
+			if (m_pCBackgroundBMP)
+			{
+				// Add the object to the scene
+					m_pC2DScene->Add_Render_Object (m_pCBackgroundBMP);
+			}
+		}
 
-        // Remember what our current background BMP is
-        m_stringBackgroundBMP = pszBackgroundBMP;
-    }
+		// Remember what our current background BMP is
+		m_stringBackgroundBMP = pszBackgroundBMP;
+	}
+
+	return ;
 }
 
 
@@ -1308,8 +1338,8 @@ CW3DViewDoc::LoadSettings (LPCTSTR filename)
 		// Ambient light color
 		//
 		if (ini_obj.Is_Present ("Settings", "AmbientLightR") &&
-			 ini_obj.Is_Present ("Settings", "AmbientLightG") &&
-			 ini_obj.Is_Present ("Settings", "AmbientLightB")) {
+			ini_obj.Is_Present ("Settings", "AmbientLightG") &&
+			ini_obj.Is_Present ("Settings", "AmbientLightB")) {
 
 			// Read the settings from,the INI file
 			color.X = ini_obj.Get_Float ("Settings", "AmbientLightR");
@@ -1324,8 +1354,8 @@ CW3DViewDoc::LoadSettings (LPCTSTR filename)
 		// Scene light color
 		//
 		if (ini_obj.Is_Present ("Settings", "SceneLightR") &&
-			 ini_obj.Is_Present ("Settings", "SceneLightG") &&
-			 ini_obj.Is_Present ("Settings", "SceneLightB")) {
+			ini_obj.Is_Present ("Settings", "SceneLightG") &&
+			ini_obj.Is_Present ("Settings", "SceneLightB")) {
 
 			// Read the settings from,the INI file
 			color.X = ini_obj.Get_Float ("Settings", "SceneLightR");
@@ -1333,17 +1363,17 @@ CW3DViewDoc::LoadSettings (LPCTSTR filename)
 			color.Z = ini_obj.Get_Float ("Settings", "SceneLightB");
 
 			// Pass the scene light color onto the light
-         m_pCSceneLight->Set_Diffuse (color);
-         m_pCSceneLight->Set_Specular (color);
+			m_pCSceneLight->Set_Diffuse (color);
+			m_pCSceneLight->Set_Specular (color);
 		}
 
 		//
 		// Scene light orientation
 		//
 		if (ini_obj.Is_Present ("Settings", "SceneLightX") &&
-			 ini_obj.Is_Present ("Settings", "SceneLightY") &&
-			 ini_obj.Is_Present ("Settings", "SceneLightZ") &&
-			 ini_obj.Is_Present ("Settings", "SceneLightW")) {
+			ini_obj.Is_Present ("Settings", "SceneLightY") &&
+			ini_obj.Is_Present ("Settings", "SceneLightZ") &&
+			ini_obj.Is_Present ("Settings", "SceneLightW")) {
 
 			// Read the settings from,the INI file
 			Quaternion orientation;
@@ -1379,10 +1409,10 @@ CW3DViewDoc::LoadSettings (LPCTSTR filename)
 		// Scene light distance, intensity, and attenuation
 		//
 		if (ini_obj.Is_Present ("Settings", "SceneLightDistance") &&
-			 ini_obj.Is_Present ("Settings", "SceneLightIntensity") &&
-			 ini_obj.Is_Present ("Settings", "SceneLightAttenStart") &&
-			 ini_obj.Is_Present ("Settings", "SceneLightAttenEnd") &&
-			 ini_obj.Is_Present ("Settings", "SceneLightAttenOn")) {
+			ini_obj.Is_Present ("Settings", "SceneLightIntensity") &&
+			ini_obj.Is_Present ("Settings", "SceneLightAttenStart") &&
+			ini_obj.Is_Present ("Settings", "SceneLightAttenEnd") &&
+			ini_obj.Is_Present ("Settings", "SceneLightAttenOn")) {
 
 			// Read the settings from,the INI file
 			float distance = ini_obj.Get_Float ("Settings", "SceneLightDistance");
@@ -1413,8 +1443,8 @@ CW3DViewDoc::LoadSettings (LPCTSTR filename)
 		// Background color
 		//
 		if (ini_obj.Is_Present ("Settings", "BackgroundR") &&
-			 ini_obj.Is_Present ("Settings", "BackgroundG") &&
-			 ini_obj.Is_Present ("Settings", "BackgroundB")) {
+			ini_obj.Is_Present ("Settings", "BackgroundG") &&
+			ini_obj.Is_Present ("Settings", "BackgroundB")) {
 
 			// Read the settings from,the INI file
 			color.X = ini_obj.Get_Float ("Settings", "BackgroundR");
@@ -1444,7 +1474,7 @@ CW3DViewDoc::LoadSettings (LPCTSTR filename)
 			EnableFog(enable);
 		}
 
-      // Close the INI file
+		// Close the INI file
 		_TheFileFactory->Return_File (pini_file);
 	}
 
@@ -1465,14 +1495,14 @@ CW3DViewDoc::SaveSettings
     DWORD dwSettingsMask
 )
 {
-    // Assume failure
-    BOOL bReturn = FALSE;
-    ASSERT (pszFilename);
-    ASSERT (dwSettingsMask != 0L);
-    ASSERT (m_pCScene);
+	// Assume failure
+	BOOL bReturn = FALSE;
+	ASSERT (pszFilename);
+	ASSERT (dwSettingsMask != 0L);
+	ASSERT (m_pCScene);
 
-    // Is the filename OK?
-    HANDLE hFile = ::CreateFile (pszFilename,
+	// Is the filename OK?
+	HANDLE hFile = ::CreateFile (pszFilename,
                                  0,
                                  0,
                                  nullptr,
@@ -1480,81 +1510,81 @@ CW3DViewDoc::SaveSettings
                                  0L,
                                  nullptr);
 
-    ASSERT (hFile != nullptr);
-    if (hFile == nullptr)
-    {
-        // Invalid file, let the user know
-        ::AfxGetMainWnd ()->MessageBox ("Unable to open file for writing.  Please select another filename.", "File Error", MB_ICONERROR | MB_OK);
-    }
-    else if (pszFilename &&
+	ASSERT (hFile != nullptr);
+	if (hFile == nullptr)
+	{
+		// Invalid file, let the user know
+		::AfxGetMainWnd ()->MessageBox ("Unable to open file for writing.  Please select another filename.", "File Error", MB_ICONERROR | MB_OK);
+	}
+	else if (pszFilename &&
              (dwSettingsMask != 0L) &&
              (m_pCScene != nullptr))
-    {
-        CString stringCompleteFilename = pszFilename;
+	{
+		CString stringCompleteFilename = pszFilename;
 
-        // Does this filename contain a path?
-        if (::strrchr (pszFilename, '\\') == nullptr)
-        {
-            // Add the current directories path to the filename
-            TCHAR szPath[MAX_PATH] = { 0 };
-            ::GetCurrentDirectory (sizeof (szPath), szPath);
+		// Does this filename contain a path?
+		if (::strrchr (pszFilename, '\\') == nullptr)
+		{
+			// Add the current directories path to the filename
+			TCHAR szPath[MAX_PATH] = { 0 };
+			::GetCurrentDirectory (sizeof (szPath), szPath);
 
-            if (szPath[::lstrlen (szPath)-1] != '\\')
-            {
-                // Ensure the path is directory delimited
-                strlcat(szPath, "\\", ARRAY_SIZE(szPath));
-            }
+			if (szPath[::lstrlen (szPath)-1] != '\\')
+			{
+				// Ensure the path is directory delimited
+				strlcat(szPath, "\\", ARRAY_SIZE(szPath));
+			}
 
-            // Prepend the filename with its new path
-            stringCompleteFilename = CString (szPath) + stringCompleteFilename;
-        }
+			// Prepend the filename with its new path
+			stringCompleteFilename = CString (szPath) + stringCompleteFilename;
+		}
 
-        // Should we save light settings?
-        if (dwSettingsMask & SAVE_SETTINGS_LIGHT)
-        {
-            Vector3 colorSettings = m_pCScene->Get_Ambient_Light ();
+		// Should we save light settings?
+		if (dwSettingsMask & SAVE_SETTINGS_LIGHT)
+		{
+			Vector3 colorSettings = m_pCScene->Get_Ambient_Light ();
 
-            // Write the 'Red' component out to the file
-            CString stringValue;
-            stringValue.Format ("%f", colorSettings.X);
-            ::WritePrivateProfileString ("Settings",
+			// Write the 'Red' component out to the file
+			CString stringValue;
+			stringValue.Format ("%f", colorSettings.X);
+			::WritePrivateProfileString ("Settings",
                                          "AmbientLightR",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the 'Green' component out to the file
-            stringValue.Format ("%f", colorSettings.Y);
-            ::WritePrivateProfileString ("Settings",
+			// Write the 'Green' component out to the file
+			stringValue.Format ("%f", colorSettings.Y);
+			::WritePrivateProfileString ("Settings",
                                          "AmbientLightG",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the 'Blue' component out to the file
-            stringValue.Format ("%f", colorSettings.Z);
-            ::WritePrivateProfileString ("Settings",
+			// Write the 'Blue' component out to the file
+			stringValue.Format ("%f", colorSettings.Z);
+			::WritePrivateProfileString ("Settings",
                                          "AmbientLightB",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-             m_pCSceneLight->Get_Diffuse (&colorSettings);
+			m_pCSceneLight->Get_Diffuse (&colorSettings);
 
-            // Write the 'Red' component out to the file
-            stringValue.Format ("%f", colorSettings.X);
-            ::WritePrivateProfileString ("Settings",
+			// Write the 'Red' component out to the file
+			stringValue.Format ("%f", colorSettings.X);
+			::WritePrivateProfileString ("Settings",
                                          "SceneLightR",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the 'Green' component out to the file
-            stringValue.Format ("%f", colorSettings.Y);
-            ::WritePrivateProfileString ("Settings",
+			// Write the 'Green' component out to the file
+			stringValue.Format ("%f", colorSettings.Y);
+			::WritePrivateProfileString ("Settings",
                                          "SceneLightG",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the 'Blue' component out to the file
-            stringValue.Format ("%f", colorSettings.Z);
-            ::WritePrivateProfileString ("Settings",
+			// Write the 'Blue' component out to the file
+			stringValue.Format ("%f", colorSettings.Z);
+			::WritePrivateProfileString ("Settings",
                                          "SceneLightB",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
@@ -1562,30 +1592,30 @@ CW3DViewDoc::SaveSettings
 				Matrix3D transform = m_pCSceneLight->Get_Transform ();
 				Quaternion orientation = ::Build_Quaternion (transform);
 
-            // Write the x-position out to the file
-            stringValue.Format ("%f", orientation.X);
-            ::WritePrivateProfileString ("Settings",
+			// Write the x-position out to the file
+			stringValue.Format ("%f", orientation.X);
+			::WritePrivateProfileString ("Settings",
                                          "SceneLightX",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the y-position out to the file
-            stringValue.Format ("%f", orientation.Y);
-            ::WritePrivateProfileString ("Settings",
+			// Write the y-position out to the file
+			stringValue.Format ("%f", orientation.Y);
+			::WritePrivateProfileString ("Settings",
                                          "SceneLightY",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the z-position out to the file
-            stringValue.Format ("%f", orientation.Z);
-            ::WritePrivateProfileString ("Settings",
+			// Write the z-position out to the file
+			stringValue.Format ("%f", orientation.Z);
+			::WritePrivateProfileString ("Settings",
                                          "SceneLightZ",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the w-position out to the file
-            stringValue.Format ("%f", orientation.W);
-            ::WritePrivateProfileString ("Settings",
+			// Write the w-position out to the file
+			stringValue.Format ("%f", orientation.W);
+			::WritePrivateProfileString ("Settings",
                                          "SceneLightW",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
@@ -1596,96 +1626,96 @@ CW3DViewDoc::SaveSettings
 				Vector3 light_pos = m_pCSceneLight->Get_Position ();
 				float distance = (light_pos - obj_pos).Length ();
 
-            // Write the distance out to the file
-            stringValue.Format ("%f", distance);
-            ::WritePrivateProfileString ("Settings",
+			// Write the distance out to the file
+			stringValue.Format ("%f", distance);
+			::WritePrivateProfileString ("Settings",
                                          "SceneLightDistance",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the intensity out to the file
+			// Write the intensity out to the file
 				float intensity = m_pCSceneLight->Get_Intensity ();
-            stringValue.Format ("%f", intensity);
-            ::WritePrivateProfileString ("Settings",
+			stringValue.Format ("%f", intensity);
+			::WritePrivateProfileString ("Settings",
                                          "SceneLightIntensity",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the start attenuation out to the file
+			// Write the start attenuation out to the file
 				double start = 0;
 				double end = 0;
 				m_pCSceneLight->Get_Far_Attenuation_Range (start, end);
-            stringValue.Format ("%f", start);
-            ::WritePrivateProfileString ("Settings",
+			stringValue.Format ("%f", start);
+			::WritePrivateProfileString ("Settings",
                                          "SceneLightAttenStart",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the end attenuation out to the file
-            stringValue.Format ("%f", end);
-            ::WritePrivateProfileString ("Settings",
+			// Write the end attenuation out to the file
+			stringValue.Format ("%f", end);
+			::WritePrivateProfileString ("Settings",
                                          "SceneLightAttenEnd",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the end attenuation out to the file
+			// Write the end attenuation out to the file
 				BOOL atten_on = m_pCSceneLight->Get_Flag (LightClass::FAR_ATTENUATION);
 				stringValue.Format ("%d", atten_on);
-            ::WritePrivateProfileString ("Settings",
+			::WritePrivateProfileString ("Settings",
 													  "SceneLightAttenOn",
 													  stringValue,
 													  (LPCTSTR)stringCompleteFilename);
-        }
+		}
 
-        // Should we save background settings?
-        if (dwSettingsMask & SAVE_SETTINGS_BACK)
-        {
-            // Write the 'Red' component out to the file
-            CString stringValue;
-            stringValue.Format ("%f", m_backgroundColor.X);
-            ::WritePrivateProfileString ("Settings",
+		// Should we save background settings?
+		if (dwSettingsMask & SAVE_SETTINGS_BACK)
+		{
+			// Write the 'Red' component out to the file
+			CString stringValue;
+			stringValue.Format ("%f", m_backgroundColor.X);
+			::WritePrivateProfileString ("Settings",
                                          "BackgroundR",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the 'Green' component out to the file
-            stringValue.Format ("%f", m_backgroundColor.Y);
-            ::WritePrivateProfileString ("Settings",
+			// Write the 'Green' component out to the file
+			stringValue.Format ("%f", m_backgroundColor.Y);
+			::WritePrivateProfileString ("Settings",
                                          "BackgroundG",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the 'Blue' component out to the file
-            stringValue.Format ("%f", m_backgroundColor.Z);
-            ::WritePrivateProfileString ("Settings",
+			// Write the 'Blue' component out to the file
+			stringValue.Format ("%f", m_backgroundColor.Z);
+			::WritePrivateProfileString ("Settings",
                                          "BackgroundB",
                                          stringValue,
                                          (LPCTSTR)stringCompleteFilename);
 
-            // Write the BMP filename out to the profile
-            ::WritePrivateProfileString ("Settings",
+			// Write the BMP filename out to the profile
+			::WritePrivateProfileString ("Settings",
                                          "BackgroundBMP",
                                          (LPCTSTR)m_stringBackgroundBMP,
                                          (LPCTSTR)stringCompleteFilename);
 
 				// Write the fog settings out to the file.
 				::WritePrivateProfileString("Settings",
-													 "FogEnabled",
-													 IsFogEnabled() ? "true" : "false",
-													 (LPCTSTR)stringCompleteFilename);
-        }
+													"FogEnabled",
+													IsFogEnabled() ? "true" : "false",
+													(LPCTSTR)stringCompleteFilename);
+		}
 
-        // Should we save camera settings?
-        if (dwSettingsMask & SAVE_SETTINGS_CAMERA)
-        {
-        }
+		// Should we save camera settings?
+		if (dwSettingsMask & SAVE_SETTINGS_CAMERA)
+		{
+		}
 
-        // Success!
-        bReturn = TRUE;
-    }
+		// Success!
+		bReturn = TRUE;
+	}
 
-    // Return the TRUE/FALSE result code
-    return bReturn;
+	// Return the TRUE/FALSE result code
+	return bReturn;
 }
 
 
@@ -1695,14 +1725,14 @@ CW3DViewDoc::SaveSettings
 //
 ///////////////////////////////////////////////////////////////
 bool
-CW3DViewDoc::Save_Selected_LOD ()
+CW3DViewDoc::Save_Selected_LOD (void)
 {
 	// Assume failure
 	bool retval = false;
 
 	// Is this an emitter?
 	if ((m_pCRenderObj != nullptr) &&
-		 m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_HLOD) {
+		m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_HLOD) {
 
 		// Build the default filename from the name of the LOD
 		CString default_filename = GetDataTreeView ()->GetCurrentSelectionName ();
@@ -1784,56 +1814,58 @@ CW3DViewDoc::Save_Current_LOD (const CString &filename)
 void
 CW3DViewDoc::SetBackgroundObject (LPCTSTR pszBackgroundObjectName)
 {
-    // State valid?
-    ASSERT (m_pCBackObjectScene);
-    ASSERT (m_pCBackObjectCamera);
-    if (m_pCBackObjectScene && m_pCBackObjectCamera)
-    {
-        // Did we have an old background object we needed to remove?
-        if (m_pCBackgroundObject)
-        {
-            // Remove the object from the scene
+	// State valid?
+	ASSERT (m_pCBackObjectScene);
+	ASSERT (m_pCBackObjectCamera);
+	if (m_pCBackObjectScene && m_pCBackObjectCamera)
+	{
+		// Did we have an old background object we needed to remove?
+		if (m_pCBackgroundObject)
+		{
+			// Remove the object from the scene
 				m_pCBackgroundObject->Remove ();
 
-            // Free the object
-            m_pCBackgroundObject->Release_Ref ();
-            m_pCBackgroundObject = nullptr;
-        }
+			// Free the object
+			m_pCBackgroundObject->Release_Ref ();
+			m_pCBackgroundObject = nullptr;
+		}
 
-        if (pszBackgroundObjectName)
-        {
-            // Create a new instance of the render object to use as the background
-            m_pCBackgroundObject = WW3DAssetManager::Get_Instance()->Create_Render_Obj (pszBackgroundObjectName);
+		if (pszBackgroundObjectName)
+		{
+			// Create a new instance of the render object to use as the background
+			m_pCBackgroundObject = WW3DAssetManager::Get_Instance()->Create_Render_Obj (pszBackgroundObjectName);
 
-            ASSERT (m_pCBackgroundObject);
-            if (m_pCBackgroundObject)
-            {
-                // Place the object at world center
-                m_pCBackgroundObject->Set_Position (Vector3 (0.00F, 0.00F, 0.00F));
+			ASSERT (m_pCBackgroundObject);
+			if (m_pCBackgroundObject)
+			{
+				// Place the object at world center
+				m_pCBackgroundObject->Set_Position (Vector3 (0.00F, 0.00F, 0.00F));
 
-                // Calculate the depth the camera should be at by the objects bouding sphere
-                float cameraDepth = m_pCBackgroundObject->Get_Bounding_Sphere ().Radius * 4.0F;
+				// Calculate the depth the camera should be at by the objects bouding sphere
+				float cameraDepth = m_pCBackgroundObject->Get_Bounding_Sphere ().Radius * 4.0F;
 
-                CGraphicView *pCGraphicView = GetGraphicView ();
-                if (pCGraphicView)
-                {
-                    // Set the camera's rotation
-                    m_pCBackObjectCamera->Set_Transform (pCGraphicView->GetCamera ()->Get_Transform ());
-                }
+				CGraphicView *pCGraphicView = GetGraphicView ();
+				if (pCGraphicView)
+				{
+					// Set the camera's rotation
+					m_pCBackObjectCamera->Set_Transform (pCGraphicView->GetCamera ()->Get_Transform ());
+				}
 
-                // Set the camera's position and depth
-                m_pCBackObjectCamera->Set_Position (Vector3 (0.00F, 0.00F, 0.00F));
-                //m_pCBackObjectCamera->Set_Depth (cameraDepth);
-                m_pCBackObjectCamera->Set_Clip_Planes (1, cameraDepth);
+				// Set the camera's position and depth
+				m_pCBackObjectCamera->Set_Position (Vector3 (0.00F, 0.00F, 0.00F));
+				//m_pCBackObjectCamera->Set_Depth (cameraDepth);
+				m_pCBackObjectCamera->Set_Clip_Planes (1, cameraDepth);
 
-                // Add the background object to the scene
-					 m_pCBackObjectScene->Add_Render_Object (m_pCBackgroundObject);
-            }
-        }
+				// Add the background object to the scene
+					m_pCBackObjectScene->Add_Render_Object (m_pCBackgroundObject);
+			}
+		}
 
-        // Remember this for later...
-        m_stringBackgroundObject = pszBackgroundObjectName;
-    }
+		// Remember this for later...
+		m_stringBackgroundObject = pszBackgroundObjectName;
+	}
+
+	return ;
 }
 
 
@@ -1862,7 +1894,7 @@ CW3DViewDoc::Remove_Object_From_Scene (RenderObjClass *prender_obj)
 
 	// If this is an emitter, then remove its buffer
 	if ((prender_obj != nullptr) &&
-		 prender_obj->Class_ID () == RenderObjClass::CLASSID_PARTICLEEMITTER) {
+		prender_obj->Class_ID () == RenderObjClass::CLASSID_PARTICLEEMITTER) {
 
 		// Attempt to remove this emitter's buffer
 		((ParticleEmitterClass *)prender_obj)->Stop ();
@@ -1874,6 +1906,8 @@ CW3DViewDoc::Remove_Object_From_Scene (RenderObjClass *prender_obj)
 	if (m_pCScene != nullptr) {
 		prender_obj->Remove ();
 	}
+
+	return ;
 }
 
 
@@ -1883,14 +1917,14 @@ CW3DViewDoc::Remove_Object_From_Scene (RenderObjClass *prender_obj)
 //
 ///////////////////////////////////////////////////////////////
 bool
-CW3DViewDoc::Save_Selected_Primitive ()
+CW3DViewDoc::Save_Selected_Primitive (void)
 {
 	// Assume failure
 	bool retval = false;
 
 	// Is this an emitter?
 	if ((m_pCRenderObj != nullptr) &&
-		 (m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_SPHERE ||
+		(m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_SPHERE ||
 		  m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_RING)) {
 
 		// Build the default filename from the name of the emitter
@@ -2019,14 +2053,14 @@ CW3DViewDoc::Save_Current_Ring (const CString &filename)
 //
 ///////////////////////////////////////////////////////////////
 bool
-CW3DViewDoc::Save_Selected_Emitter ()
+CW3DViewDoc::Save_Selected_Emitter (void)
 {
 	// Assume failure
 	bool retval = false;
 
 	// Is this an emitter?
 	if ((m_pCRenderObj != nullptr) &&
-		 m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_PARTICLEEMITTER) {
+		m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_PARTICLEEMITTER) {
 
 		// Build the default filename from the name of the emitter
 		CString default_filename = GetDataTreeView ()->GetCurrentSelectionName ();
@@ -2102,7 +2136,7 @@ CW3DViewDoc::Save_Current_Emitter (const CString &filename)
 //
 ///////////////////////////////////////////////////////////////
 bool
-CW3DViewDoc::Save_Selected_Sound_Object ()
+CW3DViewDoc::Save_Selected_Sound_Object (void)
 {
 	bool retval = false;
 
@@ -2110,7 +2144,7 @@ CW3DViewDoc::Save_Selected_Sound_Object ()
 	// Is this a sound render object?
 	//
 	if ((m_pCRenderObj != nullptr) &&
-		 m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_SOUND)
+		m_pCRenderObj->Class_ID () == RenderObjClass::CLASSID_SOUND)
 	{
 		//
 		// Build the default filename from the name of the emitter
@@ -2204,7 +2238,7 @@ CW3DViewDoc::Save_Current_Sound_Object (const CString &filename)
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::Auto_Assign_Bones ()
+CW3DViewDoc::Auto_Assign_Bones (void)
 {
 	if (m_pCRenderObj != nullptr) {
 		bool bupdate_prototype = false;
@@ -2229,6 +2263,8 @@ CW3DViewDoc::Auto_Assign_Bones ()
 			Update_Aggregate_Prototype (*m_pCRenderObj);
 		}
 	}
+
+	return ;
 }
 
 
@@ -2238,7 +2274,7 @@ CW3DViewDoc::Auto_Assign_Bones ()
 //
 ///////////////////////////////////////////////////////////////
 bool
-CW3DViewDoc::Save_Selected_Aggregate ()
+CW3DViewDoc::Save_Selected_Aggregate (void)
 {
 	// Assume failure
 	bool retval = false;
@@ -2329,6 +2365,7 @@ CW3DViewDoc::Update_Aggregate_Prototype (RenderObjClass &render_obj)
 	// Add this prototype to the asset manager
 	WW3DAssetManager::Get_Instance ()->Remove_Prototype (pdefinition->Get_Name ());
 	WW3DAssetManager::Get_Instance ()->Add_Prototype (pprototype);
+	return ;
 }
 
 
@@ -2347,6 +2384,7 @@ CW3DViewDoc::Update_LOD_Prototype (HLodClass &hlod)
 	// Add this prototype to the asset manager
 	WW3DAssetManager::Get_Instance ()->Remove_Prototype (pdefinition->Get_Name ());
 	WW3DAssetManager::Get_Instance ()->Add_Prototype (pprototype);
+	return ;
 }
 
 
@@ -2364,6 +2402,8 @@ CW3DViewDoc::Animate_Camera (bool banimate)
 	if (m_bAnimateCamera == false) {
 		::AfxGetMainWnd ()->SendMessage (WM_COMMAND, MAKEWPARAM (IDM_CAMERA_RESET, 0));
 	}
+
+	return ;
 }
 
 
@@ -2373,7 +2413,7 @@ CW3DViewDoc::Animate_Camera (bool banimate)
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::Make_Movie ()
+CW3DViewDoc::Make_Movie (void)
 {
 	// Hide the mouse cursor when we're making a movie.
 	bool restore_cursor = Is_Cursor_Shown();
@@ -2463,6 +2503,8 @@ CW3DViewDoc::Make_Movie ()
 
 	// Restore the mouse cursor to its previous visibility state.
 	Show_Cursor(restore_cursor);
+
+	return ;
 }
 
 
@@ -2501,11 +2543,13 @@ CW3DViewDoc::Build_Emitter_List
 	// Is this the emitter we are requesting?
 	//
 	if ((render_obj != nullptr) &&
-		 (render_obj->Class_ID () == RenderObjClass::CLASSID_PARTICLEEMITTER) &&
-		 (::lstrcmpi (emitter_name, render_obj->Get_Name ()) == 0)) {
+		(render_obj->Class_ID () == RenderObjClass::CLASSID_PARTICLEEMITTER) &&
+		(::lstrcmpi (emitter_name, render_obj->Get_Name ()) == 0)) {
 
 		emitter_list->Add_Emitter ((ParticleEmitterClass *)render_obj);
 	}
+
+	return ;
 }
 
 
@@ -2522,6 +2566,7 @@ CW3DViewDoc::Show_Cursor (bool onoff)
 	}
 
 	m_pCursor->Set_Hidden (!onoff);
+	return ;
 }
 
 
@@ -2531,7 +2576,7 @@ CW3DViewDoc::Show_Cursor (bool onoff)
 //
 ///////////////////////////////////////////////////////////////
 bool
-CW3DViewDoc::Is_Cursor_Shown () const
+CW3DViewDoc::Is_Cursor_Shown (void) const
 {
 	return m_pCursor != nullptr && m_pCursor->Is_Not_Hidden_At_All ();
 }
@@ -2546,6 +2591,7 @@ void
 CW3DViewDoc::Set_Cursor (LPCTSTR resource_name)
 {
 	m_pCursor->Set_Texture (::Load_RC_Texture (resource_name));
+	return ;
 }
 
 
@@ -2555,13 +2601,15 @@ CW3DViewDoc::Set_Cursor (LPCTSTR resource_name)
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::Create_Cursor ()
+CW3DViewDoc::Create_Cursor (void)
 {
 	if (m_pCursor == nullptr) {
 		m_pCursor = new ScreenCursorClass;
 		m_pCursor->Set_Window (GetGraphicView ()->m_hWnd);
 		m_pCursor->Set_Texture (::Load_RC_Texture ("cursor.tga"));
 	}
+
+	return ;
 }
 
 
@@ -2619,10 +2667,11 @@ CW3DViewDoc::Count_Particles (RenderObjClass *render_obj)
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::Update_Particle_Count ()
+CW3DViewDoc::Update_Particle_Count (void)
 {
 	int particles = Count_Particles ();
 	((CMainFrame *)::AfxGetMainWnd ())->Update_Particle_Count (particles);
+	return ;
 }
 
 
@@ -2661,6 +2710,8 @@ CW3DViewDoc::Switch_LOD (int increment, RenderObjClass *render_obj)
 			((HLodClass *)render_obj)->Set_LOD_Level (current_lod + increment);
 		}
 	}
+
+	return ;
 }
 
 
@@ -2697,6 +2748,8 @@ CW3DViewDoc::Toggle_Alternate_Materials(RenderObjClass * render_obj)
 			Toggle_Alternate_Materials(sub_obj);
 		}
 	}
+
+	return;
 }
 
 
@@ -2809,6 +2862,8 @@ CW3DViewDoc::Copy_Assets_To_Dir (LPCTSTR directory)
 		message.Format ("Unable to find file for asset: %s.", asset_name);
 		::MessageBox (::AfxGetMainWnd ()->m_hWnd, message, "File Not Found", MB_ICONEXCLAMATION | MB_OK);
 	}
+
+	return ;
 }
 
 
@@ -2832,6 +2887,8 @@ CW3DViewDoc::Set_Texture_Path1 (LPCTSTR path)
 		m_TexturePath1 = path;
 		theApp.WriteProfileString ("Config", "TexturePath1", m_TexturePath1);
 	}
+
+	return ;
 }
 
 
@@ -2854,6 +2911,8 @@ CW3DViewDoc::Set_Texture_Path2 (LPCTSTR path)
 		m_TexturePath2 = path;
 		theApp.WriteProfileString ("Config", "TexturePath2", m_TexturePath2);
 	}
+
+	return ;
 }
 
 
@@ -2914,6 +2973,8 @@ CW3DViewDoc::Import_Facial_Animation (const CString &heirarchy_name, const CStri
 		REF_PTR_RELEASE (new_anim);
 		SAFE_DELETE (anim_desc_file);
 	}
+
+	return ;
 }
 
 
@@ -2923,7 +2984,7 @@ CW3DViewDoc::Import_Facial_Animation (const CString &heirarchy_name, const CStri
 //
 ///////////////////////////////////////////////////////////////
 const HTreeClass *
-CW3DViewDoc::Get_Current_HTree () const
+CW3DViewDoc::Get_Current_HTree (void) const
 {
 	const HTreeClass *htree = nullptr;
 
@@ -2941,7 +3002,7 @@ CW3DViewDoc::Get_Current_HTree () const
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::Save_Camera_Settings ()
+CW3DViewDoc::Save_Camera_Settings (void)
 {
 	theApp.WriteProfileInt ("Config", "UseManualFOV", m_ManualFOV);
 	theApp.WriteProfileInt ("Config", "UseManualClipPlanes", m_ManualClipPlanes);
@@ -2971,6 +3032,8 @@ CW3DViewDoc::Save_Camera_Settings ()
 		theApp.WriteProfileString ("Config", "znear", znear_string);
 		theApp.WriteProfileString ("Config", "zfar", zfar_string);
 	}
+
+	return ;
 }
 
 
@@ -2980,7 +3043,7 @@ CW3DViewDoc::Save_Camera_Settings ()
 //
 ///////////////////////////////////////////////////////////////
 void
-CW3DViewDoc::Load_Camera_Settings ()
+CW3DViewDoc::Load_Camera_Settings (void)
 {
 	m_ManualFOV				= (theApp.GetProfileInt ("Config", "UseManualFOV", 0) == TRUE);
 	m_ManualClipPlanes	= (theApp.GetProfileInt ("Config", "UseManualClipPlanes", 0) == TRUE);
@@ -3024,6 +3087,8 @@ CW3DViewDoc::Load_Camera_Settings ()
 			}
 		}
 	}
+
+	return ;
 }
 
 ///////////////////////////////////////////////////////////////

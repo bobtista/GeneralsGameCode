@@ -110,7 +110,7 @@ FilteredSoundClass::Initialize_Miles_Handle ()
 	SoundPseudo3DClass::Initialize_Miles_Handle ();
 	m_hFilter = WWAudioClass::Get_Instance ()->Get_Reverb_Filter ();
 	if ((m_SoundHandle != nullptr) &&
-		 (m_hFilter != (HPROVIDER)INVALID_MILES_HANDLE)) {
+		(m_hFilter != (HPROVIDER)INVALID_MILES_HANDLE)) {
 
 		//
 		//	Pass the filter onto the sample

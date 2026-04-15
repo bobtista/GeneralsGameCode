@@ -456,10 +456,10 @@ struct GradientsStruct
 		}
 
 		DOOZ_DX = oodx * ( ((OOZ[1] - OOZ[2]) * (verts[0].Y - verts[2].Y)) -
-								 ((OOZ[0] - OOZ[2]) * (verts[1].Y - verts[2].Y)));
+								((OOZ[0] - OOZ[2]) * (verts[1].Y - verts[2].Y)));
 
 		DOOZ_DY = oody * ( ((OOZ[1] - OOZ[2]) * (verts[0].X - verts[2].X)) -
-								 ((OOZ[0] - OOZ[2]) * (verts[1].X - verts[2].X)));
+								((OOZ[0] - OOZ[2]) * (verts[1].X - verts[2].X)));
 	}
 
 	float OOZ[3];			// 1/z for each vertex

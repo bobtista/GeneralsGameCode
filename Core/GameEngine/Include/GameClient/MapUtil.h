@@ -146,5 +146,5 @@ AsciiString getDefaultOfficialMap();
 Bool isOfficialMap( AsciiString mapName );
 Bool parseMapPreviewChunk(DataChunkInput &file, DataChunkInfo *info, void *userData);
 void findDrawPositions( Int startX, Int startY, Int width, Int height, Region3D extent,
-															 ICoord2D *ul, ICoord2D *lr );
+															ICoord2D *ul, ICoord2D *lr );
 Bool WouldMapTransfer( const AsciiString& mapName );

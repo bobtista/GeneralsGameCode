@@ -29,7 +29,7 @@
 
 class IDownload
 {
- public:
+public:
 	virtual HRESULT OnError( int error )=0;
 	virtual HRESULT OnEnd()=0;
 	virtual HRESULT OnQueryResume()=0;

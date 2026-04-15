@@ -85,8 +85,8 @@ void GameWindowManager::winDrawImage( const Image *image, Int startX, Int startY
 /** draw filled rect, coords are absolute screen coords */
 //=============================================================================
 void GameWindowManager::winFillRect( Color color, Real width,
-																		 Int startX, Int startY,
-																		 Int endX, Int endY )
+																		Int startX, Int startY,
+																		Int endX, Int endY )
 {
 
 	TheDisplay->drawFillRect( startX, startY,
@@ -99,8 +99,8 @@ void GameWindowManager::winFillRect( Color color, Real width,
 /** draw rect outline, coords are absolute screen coords */
 //=============================================================================
 void GameWindowManager::winOpenRect( Color color, Real width,
-																		 Int startX, Int startY,
-																		 Int endX, Int endY )
+																		Int startX, Int startY,
+																		Int endX, Int endY )
 {
 
 	TheDisplay->drawOpenRect( startX, startY,
@@ -113,8 +113,8 @@ void GameWindowManager::winOpenRect( Color color, Real width,
 /** draw line, coords are absolute screen coords */
 //=============================================================================
 void GameWindowManager::winDrawLine( Color color, Real width,
-																		 Int startX, Int startY,
-																		 Int endX, Int endY )
+																		Int startX, Int startY,
+																		Int endX, Int endY )
 {
 
 	TheDisplay->drawLine( startX, startY, endX, endY, width, color );
@@ -142,9 +142,9 @@ const Image *GameWindowManager::winFindImage( const char *name )
 	* individual project needs */
 //=============================================================================
 Color GameWindowManager::winMakeColor( UnsignedByte red,
-																			 UnsignedByte green,
-																			 UnsignedByte blue,
-																			 UnsignedByte alpha )
+																			UnsignedByte green,
+																			UnsignedByte blue,
+																			UnsignedByte alpha )
 {
 
 	return GameMakeColor( red, green, blue, alpha );
@@ -155,7 +155,7 @@ Color GameWindowManager::winMakeColor( UnsignedByte red,
 /** draw text to the screen */
 //=============================================================================
 void GameWindowManager::winFormatText( GameFont *font, UnicodeString text, Color color,
-																			 Int x, Int y, Int width, Int height )
+																			Int x, Int y, Int width, Int height )
 {
 
 	/// @todo make all display string rendering go through here!

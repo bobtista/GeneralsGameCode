@@ -47,10 +47,10 @@ void DirectInputMouse::openMouse()
 
 	// create our direct input device for mouse access
 	hr = DirectInput8Create( ApplicationHInstance,
-													 DIRECTINPUT_VERSION,
-													 IID_IDirectInput8,
-													 (void **)&m_pDirectInput,
-													 nullptr );
+													DIRECTINPUT_VERSION,
+													IID_IDirectInput8,
+													(void **)&m_pDirectInput,
+													nullptr );
 	if( FAILED( hr ) )
 	{
 
@@ -149,7 +149,7 @@ void DirectInputMouse::openMouse()
 		m_forceFeedback = BitIsSet( diDevCaps.dwFlags, DIDC_FORCEFEEDBACK );
 
 		DEBUG_LOG(( "OK - Mouse info: Buttons = '%d', Force Feedback = '%s', Axes = '%d'",
-						 m_numButtons, m_forceFeedback ? "Yes" : "No", m_numAxes ));
+						m_numButtons, m_forceFeedback ? "Yes" : "No", m_numAxes ));
 
 	}
 

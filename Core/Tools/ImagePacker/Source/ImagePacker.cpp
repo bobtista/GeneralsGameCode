@@ -178,9 +178,9 @@ Bool ImagePacker::validateImages()
 	{
 
 		proceed = DialogBox( ApplicationHInstance,
-												 (LPCTSTR)IMAGE_ERRORS,
-												 getWindowHandle(),
-												 (DLGPROC)ImageErrorProc );
+												(LPCTSTR)IMAGE_ERRORS,
+												getWindowHandle(),
+												(DLGPROC)ImageErrorProc );
 
 	}
 
@@ -285,7 +285,7 @@ void ImagePacker::writeFinalTextures()
 
 		// update status message
 		sprintf( buffer, "Generating texture #%d of %d.",
-						 page->getID(), m_pageCount );
+						page->getID(), m_pageCount );
 		statusMessage( buffer );
 
 		// generate the final texture for this page
@@ -316,9 +316,9 @@ void ImagePacker::writeFinalTextures()
 	{
 
 		DialogBox( ApplicationHInstance,
-							 (LPCTSTR)PAGE_ERRORS,
-							 getWindowHandle(),
-							 (DLGPROC)PageErrorProc );
+							(LPCTSTR)PAGE_ERRORS,
+							getWindowHandle(),
+							(DLGPROC)PageErrorProc );
 
 	}
 
@@ -473,8 +473,8 @@ Bool ImagePacker::checkOutputDirectory()
 
 		// if this is a file count it
 		if( !(item.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
-				 strcmp( item.cFileName, "." ) != 0 &&
-				 strcmp( item.cFileName, ".." ) != 0 )
+				strcmp( item.cFileName, "." ) != 0 &&
+				strcmp( item.cFileName, ".." ) != 0 )
 			fileCount++;
 
 		// find the rest of the files
@@ -483,8 +483,8 @@ Bool ImagePacker::checkOutputDirectory()
 
 			// if this is a file count it
 			if( !(item.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
-					 strcmp( item.cFileName, "." ) != 0 &&
-					 strcmp( item.cFileName, ".." ) != 0 )
+					strcmp( item.cFileName, "." ) != 0 &&
+					strcmp( item.cFileName, ".." ) != 0 )
 				fileCount++;
 
 		}
@@ -503,10 +503,10 @@ Bool ImagePacker::checkOutputDirectory()
 		Int response;
 
 		sprintf( buffer, "The output directory (%s) must be empty before proceeding.  Delete '%d' files and continue with build process?",
-						 m_outputDirectory, fileCount );
+						m_outputDirectory, fileCount );
 		response = MessageBox( nullptr, buffer,
-													 "Delete files to continue?",
-													 MB_YESNO | MB_ICONWARNING );
+													"Delete files to continue?",
+													MB_YESNO | MB_ICONWARNING );
 
 		// if they said no, do not delete the files and abort the pack process
 		if( response == IDNO )
@@ -526,8 +526,8 @@ Bool ImagePacker::checkOutputDirectory()
 
 			// if this is a file count it
 			if( !(item.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
-					 strcmp( item.cFileName, "." ) != 0 &&
-					 strcmp( item.cFileName, ".." ) != 0 )
+					strcmp( item.cFileName, "." ) != 0 &&
+					strcmp( item.cFileName, ".." ) != 0 )
 				DeleteFile( item.cFileName );
 
 			// find the rest of the files
@@ -536,8 +536,8 @@ Bool ImagePacker::checkOutputDirectory()
 
 				// if this is a file count it
 				if( !(item.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
-						 strcmp( item.cFileName, "." ) != 0 &&
-						 strcmp( item.cFileName, ".." ) != 0 )
+						strcmp( item.cFileName, "." ) != 0 &&
+						strcmp( item.cFileName, ".." ) != 0 )
 					DeleteFile( item.cFileName );
 
 			}
@@ -851,7 +851,7 @@ void ImagePacker::addImage( char *path )
 
 	// update status
 	sprintf( m_statusBuffer, "Loading Image %d of %d.",
-					 m_imageCount, m_imagesInDirs );
+					m_imageCount, m_imagesInDirs );
 	statusMessage( m_statusBuffer );
 
 }
@@ -902,8 +902,8 @@ Bool ImagePacker::generateINIFile()
 
 		// go through each image on this page
 		for( image = page->getFirstImage();
-				 image;
-				 image = image->m_nextPageImage )
+				image;
+				image = image->m_nextPageImage )
 		{
 
 			//
@@ -917,10 +917,10 @@ Bool ImagePacker::generateINIFile()
 			fprintf( fp, "  TextureWidth = %d\n", page->getWidth() );
 			fprintf( fp, "  TextureHeight = %d\n", page->getHeight() );
 			fprintf( fp, "  Coords = Left:%d Top:%d Right:%d Bottom:%d\n",
-							 image->m_pagePos.lo.x, image->m_pagePos.lo.y,
-							 image->m_pagePos.hi.x + 1, image->m_pagePos.hi.y + 1 );
+							image->m_pagePos.lo.x, image->m_pagePos.lo.y,
+							image->m_pagePos.hi.x + 1, image->m_pagePos.hi.y + 1 );
 			fprintf( fp, "  Status = %s\n",
-							 BitIsSet( image->m_status, ImageInfo::ROTATED90C ) ?
+							BitIsSet( image->m_status, ImageInfo::ROTATED90C ) ?
 												"ROTATED_90_CLOCKWISE" : "NONE" );
 			fprintf( fp, "End\n\n" );
 
@@ -1050,7 +1050,7 @@ Bool ImagePacker::getSettingsFromDialog( HWND dialog )
 				char buffer[ 256 ];
 
 				sprintf( buffer, "Output filename '%s' contains one or more of the following illegal characters:\n\n%s",
-								 m_outputFile, illegal );
+								m_outputFile, illegal );
 				MessageBox( nullptr, buffer, "Illegal Filename", MB_OK | MB_ICONERROR );
 				return FALSE;
 
@@ -1235,7 +1235,7 @@ Bool ImagePacker::process()
 
 		// all done
 		sprintf( m_statusBuffer, "Image Packing Complete: '%d' Texture Pages Generated from '%d' Images in '%d' Folder(s)",
-						 m_pageCount, m_imageCount, m_dirCount );
+						m_pageCount, m_imageCount, m_dirCount );
 		statusMessage( m_statusBuffer );
 
 	}

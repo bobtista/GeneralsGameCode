@@ -107,7 +107,7 @@ Int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 	// load the dialog box
 	DialogBox( hInstance, (LPCTSTR)IMAGE_PACKER_DIALOG,
-						 nullptr, (DLGPROC)ImagePackerProc );
+						nullptr, (DLGPROC)ImagePackerProc );
 
 	// delete the image packer
 	delete TheImagePacker;

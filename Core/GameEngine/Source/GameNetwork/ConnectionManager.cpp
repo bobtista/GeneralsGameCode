@@ -2043,7 +2043,7 @@ void ConnectionManager::parseUserList(const GameInfo *game)
 			if (game->getLocalSlotNum() == i)
 			{
 				m_localSlot = i;
-   			m_localUser->setName(slot->getName());
+			m_localUser->setName(slot->getName());
 			}
 
 			if (m_localSlot != i)
