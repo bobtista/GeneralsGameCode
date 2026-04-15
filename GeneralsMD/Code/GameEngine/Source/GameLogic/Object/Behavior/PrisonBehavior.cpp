@@ -100,7 +100,7 @@ PrisonBehaviorModuleData::PrisonBehaviorModuleData()
 // ------------------------------------------------------------------------------------------------
 /*static*/ void PrisonBehaviorModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
-  OpenContainModuleData::buildFieldParse( p );
+	OpenContainModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -111,7 +111,7 @@ PrisonBehaviorModuleData::PrisonBehaviorModuleData()
 
 	};
 
-  p.add( dataFieldParse );
+	p.add( dataFieldParse );
 
 }
 
@@ -224,9 +224,9 @@ void PrisonBehavior::pickVisualLocation( Coord3D *pos )
 	const Int MAX_YARD_BONES = 16;
 	Coord3D yardPositions[ MAX_YARD_BONES ];
 	Int yardBones = us->getMultiLogicalBonePosition( modData->m_prisonYardBonePrefix.str(),
-																									 MAX_YARD_BONES,
-																									 yardPositions,
-																									 nullptr );
+																									MAX_YARD_BONES,
+																									yardPositions,
+																									nullptr );
 
 	//
 	// we must have at least 3 bone locations to make a yard polygon, otherwise we'll

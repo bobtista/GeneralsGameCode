@@ -59,7 +59,7 @@ RailedTransportDockUpdateModuleData::RailedTransportDockUpdateModuleData()
 // ------------------------------------------------------------------------------------------------
 /*static*/ void RailedTransportDockUpdateModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
-  DockUpdateModuleData::buildFieldParse( p );
+	DockUpdateModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -71,7 +71,7 @@ RailedTransportDockUpdateModuleData::RailedTransportDockUpdateModuleData()
 
 	};
 
-  p.add( dataFieldParse );
+	p.add( dataFieldParse );
 
 }
 
@@ -82,7 +82,7 @@ RailedTransportDockUpdateModuleData::RailedTransportDockUpdateModuleData()
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 RailedTransportDockUpdate::RailedTransportDockUpdate( Thing *thing, const ModuleData *moduleData )
-												 : DockUpdate( thing, moduleData )
+												: DockUpdate( thing, moduleData )
 {
 
 	m_dockingObjectID = INVALID_ID;
@@ -467,7 +467,7 @@ void RailedTransportDockUpdate::unloadNext()
 	ContainModuleInterface *contain = us->getContain();
 	OpenContain *openContain = contain ? contain->asOpenContain() : nullptr;
 	DEBUG_ASSERTCRASH( openContain, ("Unloading next from railed transport, but '%s' has no open container",
-										 us->getTemplate()->getName().str()) );
+										us->getTemplate()->getName().str()) );
 
 	// get the first contained object
 	Object *unloader = nullptr;

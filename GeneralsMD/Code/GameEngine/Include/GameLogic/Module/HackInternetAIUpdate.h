@@ -149,7 +149,7 @@ public:
 
 	static void buildFieldParse(MultiIniFieldParse& p)
 	{
-    AIUpdateModuleData::buildFieldParse(p);
+		AIUpdateModuleData::buildFieldParse(p);
 
 		static const FieldParse dataFieldParse[] =
 		{
@@ -165,7 +165,7 @@ public:
 			{ "XpPerCashUpdate",		INI::parseUnsignedInt,	nullptr, offsetof( HackInternetAIUpdateModuleData, m_xpPerCashUpdate ) },
 			{ 0, 0, 0, 0 }
 		};
-    p.add(dataFieldParse);
+		p.add(dataFieldParse);
 
 	}
 };
@@ -189,7 +189,7 @@ public:
 	HackInternetAIUpdate( Thing *thing, const ModuleData* moduleData );
 	// virtual destructor prototype provided by memory pool declaration
 
- 	virtual void aiDoCommand(const AICommandParms* parms) override;
+	virtual void aiDoCommand(const AICommandParms* parms) override;
 
 	Real getPackUnpackVariationFactor() const { return getHackInternetAIUpdateModuleData()->m_packUnpackVariationFactor; }
 	UnsignedInt getUnpackTime()					const;

@@ -538,7 +538,7 @@ void SidesList::prepareForMP_or_Skirmish()
 					Int curSide = -1;
 					Int j;
 					for (j=0; j<m_numSkirmishSides; j++) {
- 						AsciiString name = getSkirmishSideInfo(j)->getDict()->getAsciiString(TheKey_playerName);
+						AsciiString name = getSkirmishSideInfo(j)->getDict()->getAsciiString(TheKey_playerName);
 						if (name == static_readPlayerNames[i]) {
 							curSide = j;
 							break;

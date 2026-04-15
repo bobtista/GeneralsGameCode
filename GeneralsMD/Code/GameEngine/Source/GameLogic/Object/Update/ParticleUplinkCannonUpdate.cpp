@@ -88,9 +88,9 @@ ParticleUplinkCannonUpdateModuleData::ParticleUplinkCannonUpdateModuleData()
 	m_damageType										= DAMAGE_LASER;
 	m_deathType											= DEATH_LASERED;
 	m_revealRange										= 0.0f;
-  m_manualDrivingSpeed						= 0.0f;
-  m_manualFastDrivingSpeed				= 0.0f;
-  m_doubleClickToFastDriveDelay		= 500;
+	m_manualDrivingSpeed						= 0.0f;
+	m_manualFastDrivingSpeed				= 0.0f;
+	m_doubleClickToFastDriveDelay		= 500;
 	m_swathOfDeathAmplitude					= 0.0f;
 	m_swathOfDeathDistance					=	0.0f;
 }
@@ -1223,14 +1223,14 @@ void ParticleUplinkCannonUpdate::setLogicalStatus( PUCStatus newStatus )
 		{
 			//Set deployed animation
 			obj->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK2( MODELCONDITION_PACKING, MODELCONDITION_UNPACKING ),
-																					 MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
+																					MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
 			m_laserStatus = LASERSTATUS_NONE;
 			break;
 		}
 		case STATUS_READY_TO_FIRE:
 		{
 			obj->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK2( MODELCONDITION_PACKING, MODELCONDITION_UNPACKING ),
-																					 MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
+																					MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
 			TheAudio->removeAudioEvent( m_powerupSound.getPlayingHandle() );
 			TheAudio->removeAudioEvent( m_firingToIdleSound.getPlayingHandle() );
 			TheAudio->removeAudioEvent( m_annihilationSound.getPlayingHandle() );
@@ -1244,7 +1244,7 @@ void ParticleUplinkCannonUpdate::setLogicalStatus( PUCStatus newStatus )
 		case STATUS_FIRING:
 		{
 			obj->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK2( MODELCONDITION_PACKING, MODELCONDITION_UNPACKING ),
-																					 MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
+																					MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED ) );
 			if( m_firingToIdleSound.getEventName().isNotEmpty() )
 			{
 				m_firingToIdleSound.setObjectID( obj->getID() );
@@ -1264,7 +1264,7 @@ void ParticleUplinkCannonUpdate::setLogicalStatus( PUCStatus newStatus )
 		{
 			//Set packing animation
 			obj->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK2( MODELCONDITION_UNPACKING, MODELCONDITION_DEPLOYED ),
-																						 MAKE_MODELCONDITION_MASK( MODELCONDITION_PACKING ) );
+																						MAKE_MODELCONDITION_MASK( MODELCONDITION_PACKING ) );
 			break;
 		}
 	}

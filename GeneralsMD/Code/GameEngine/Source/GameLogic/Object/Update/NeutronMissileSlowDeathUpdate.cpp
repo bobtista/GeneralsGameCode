@@ -78,7 +78,7 @@ NeutronMissileSlowDeathBehaviorModuleData::NeutronMissileSlowDeathBehaviorModule
 /*static*/ void NeutronMissileSlowDeathBehaviorModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
 
-  SlowDeathBehaviorModuleData::buildFieldParse( p );
+	SlowDeathBehaviorModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -178,7 +178,7 @@ NeutronMissileSlowDeathBehaviorModuleData::NeutronMissileSlowDeathBehaviorModule
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 
 }
 
@@ -315,9 +315,9 @@ void NeutronMissileSlowDeathBehavior::doBlast( const BlastInfo *blastInfo )
 	if( blastInfo->outerRadius )
 	{
 		ObjectIterator *iter = ThePartitionManager->iterateObjectsInRange( missilePos,
-																																			 blastInfo->outerRadius,
-																																			 FROM_CENTER_2D,
-																																			 nullptr );
+																																			blastInfo->outerRadius,
+																																			FROM_CENTER_2D,
+																																			nullptr );
 		MemoryPoolObjectHolder hold( iter );
 		Object *other;
 		const Coord3D *otherPos;
@@ -336,7 +336,7 @@ void NeutronMissileSlowDeathBehavior::doBlast( const BlastInfo *blastInfo )
 
 			// try to topple other object
 			other->topple( &forceVector, blastInfo->toppleSpeed, TOPPLE_OPTIONS_NO_BOUNCE |
-																													 TOPPLE_OPTIONS_NO_FX );
+																													TOPPLE_OPTIONS_NO_FX );
 
 			//
 			// compute how much damage we're going to do to this object ... if the object
@@ -427,9 +427,9 @@ void NeutronMissileSlowDeathBehavior::doScorchBlast( const BlastInfo *blastInfo 
 	if( blastInfo->outerRadius )
 	{
 		ObjectIterator *iter = ThePartitionManager->iterateObjectsInRange( missilePos,
-																																			 blastInfo->outerRadius,
-																																			 FROM_CENTER_2D,
-																																			 nullptr );
+																																			blastInfo->outerRadius,
+																																			FROM_CENTER_2D,
+																																			nullptr );
 		MemoryPoolObjectHolder hold( iter );
 		Object *other;
 		for( other = iter->first(); other; other = iter->next() )

@@ -39,7 +39,7 @@
 //-------------------------------------------------------------------------------------------------
 void FireWeaponCollideModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  CollideModuleData::buildFieldParse(p);
+	CollideModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -49,7 +49,7 @@ void FireWeaponCollideModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ "ForbiddenStatus",	ObjectStatusMaskType::parseFromINI,	nullptr, offsetof( FireWeaponCollideModuleData, m_forbiddenStatus ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -145,7 +145,7 @@ void FireWeaponCollide::xfer( Xfer *xfer )
 	{
 
 		DEBUG_ASSERTCRASH( m_collideWeapon != nullptr,
-											 ("FireWeaponCollide::xfer - m_collideWeapon present mismatch") );
+											("FireWeaponCollide::xfer - m_collideWeapon present mismatch") );
 		xfer->xferSnapshot( m_collideWeapon );
 
 	}
@@ -153,7 +153,7 @@ void FireWeaponCollide::xfer( Xfer *xfer )
 	{
 
 		DEBUG_ASSERTCRASH( m_collideWeapon == nullptr,
-											 ("FireWeaponCollide::Xfer - m_collideWeapon missing mismatch" ));
+											("FireWeaponCollide::Xfer - m_collideWeapon missing mismatch" ));
 
 	}
 

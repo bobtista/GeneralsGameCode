@@ -62,7 +62,7 @@ HeightDieUpdateModuleData::HeightDieUpdateModuleData()
 void HeightDieUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
 
-  UpdateModuleData::buildFieldParse( p );
+	UpdateModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -76,7 +76,7 @@ void HeightDieUpdateModuleData::buildFieldParse(MultiIniFieldParse& p)
 
 	};
 
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 
 }
 
@@ -182,9 +182,9 @@ UpdateSleepTime HeightDieUpdate::update()
 			PartitionFilter *filters[] = { &filter1, nullptr };
 			Real range = getObject()->getGeometryInfo().getBoundingCircleRadius();
 			ObjectIterator *iter = ThePartitionManager->iterateObjectsInRange( getObject(),
-																																				 range,
-																																				 FROM_BOUNDINGSPHERE_3D,
-																																				 filters );
+																																				range,
+																																				FROM_BOUNDINGSPHERE_3D,
+																																				filters );
 			MemoryPoolObjectHolder hold( iter );
 			Object *obj;
 

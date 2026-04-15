@@ -45,7 +45,7 @@ class DozerPrimaryStateMachine : public StateMachine
 
 public:
 
-  DozerPrimaryStateMachine( Object *owner );
+	DozerPrimaryStateMachine( Object *owner );
 	// virtual destructor prototypes provided by memory pool object
 
 	//-----------------------------------------------------------------------------------------------
@@ -119,9 +119,9 @@ public:
 
 	// methods to override for the dozer behaviors
 	virtual Object *construct( const ThingTemplate *what,
-														 const Coord3D *pos, Real angle,
-														 Player *owningPlayer,
-														 Bool isRebuild ) = 0;
+														const Coord3D *pos, Real angle,
+														Player *owningPlayer,
+														Bool isRebuild ) = 0;
 
 
 	// get task information
@@ -223,9 +223,9 @@ public:
 
 	// methods to override for the dozer behaviors
 	virtual Object* construct( const ThingTemplate *what,
-														 const Coord3D *pos, Real angle,
-														 Player *owningPlayer,
-														 Bool isRebuild ) override;								///< construct an object
+														const Coord3D *pos, Real angle,
+														Player *owningPlayer,
+														Bool isRebuild ) override;								///< construct an object
 
 
 	// get task information

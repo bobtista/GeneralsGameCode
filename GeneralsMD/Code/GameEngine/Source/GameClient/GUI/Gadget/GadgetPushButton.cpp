@@ -438,7 +438,7 @@ WindowMsgHandledType GadgetPushButtonInput( GameWindow *window,
 /** Handle system messages for push button */
 //=============================================================================
 WindowMsgHandledType GadgetPushButtonSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+														WindowMsgData mData1, WindowMsgData mData2 )
 {
 	WinInstanceData *instData = window->winGetInstanceData();
 

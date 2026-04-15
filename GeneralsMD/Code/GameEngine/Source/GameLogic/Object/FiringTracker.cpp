@@ -49,7 +49,7 @@ FiringTracker::FiringTracker(Thing* thing, const ModuleData *modData) : UpdateMo
 	m_consecutiveShots = 0;
 	m_victimID = INVALID_ID;
 	m_frameToStartCooldown = 0;
- 	m_frameToForceReload = 0;
+	m_frameToForceReload = 0;
 	m_frameToStopLoopingSound = 0;
 	m_audioHandle = AHSV_NoSound;
 	setWakeFrame(getObject(), UPDATE_SLEEP_FOREVER);
@@ -117,10 +117,10 @@ void FiringTracker::shotFired(const Weapon* weaponFired, ObjectID victimID)
 		m_victimID = victimID;
 	}
 
- 	// Push back the time that we should force a reload with each shot
- 	UnsignedInt autoReloadDelay = weaponFired->getAutoReloadWhenIdleFrames();
- 	if( autoReloadDelay > 0 )
- 		m_frameToForceReload = now + autoReloadDelay;
+	// Push back the time that we should force a reload with each shot
+	UnsignedInt autoReloadDelay = weaponFired->getAutoReloadWhenIdleFrames();
+	if( autoReloadDelay > 0 )
+		m_frameToForceReload = now + autoReloadDelay;
 
 	UnsignedInt coast = weaponFired->getContinuousFireCoastFrames();
 	if (coast)
@@ -185,12 +185,12 @@ UpdateSleepTime FiringTracker::update()
 
 	UnsignedInt now = TheGameLogic->getFrame();
 
- 	// I have been idle long enough that I should reload, so I do not hang around with a near empty clip forever.
- 	if( m_frameToForceReload != 0  &&  now >= m_frameToForceReload )
- 	{
- 		getObject()->reloadAllAmmo(TRUE);
- 		m_frameToForceReload = 0;
- 	}
+	// I have been idle long enough that I should reload, so I do not hang around with a near empty clip forever.
+	if( m_frameToForceReload != 0  &&  now >= m_frameToForceReload )
+	{
+		getObject()->reloadAllAmmo(TRUE);
+		m_frameToForceReload = 0;
+	}
 
 	// If it has been too long since I fired.  I have to start over.
 	// (don't call if we don't need to cool down... it's expensive!)
@@ -220,38 +220,38 @@ UpdateSleepTime FiringTracker::update()
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime FiringTracker::calcTimeToSleep()
 {
- 	// Figure out the longest amount of time we can sleep as unneeded
+	// Figure out the longest amount of time we can sleep as unneeded
 
- 	// If all the timers are off, then we aren't needed at all
- 	if (m_frameToStopLoopingSound == 0 && m_frameToStartCooldown == 0 && m_frameToForceReload == 0)
-   		return UPDATE_SLEEP_FOREVER;
+	// If all the timers are off, then we aren't needed at all
+	if (m_frameToStopLoopingSound == 0 && m_frameToStartCooldown == 0 && m_frameToForceReload == 0)
+		return UPDATE_SLEEP_FOREVER;
 
- 	// Otherwise, we need to wake up to service the shortest timer
-   	UnsignedInt now = TheGameLogic->getFrame();
- 	UnsignedInt sleepTime = UPDATE_SLEEP_FOREVER;
- 	if( m_frameToStopLoopingSound != 0 )
- 	{
- 		if( m_frameToStopLoopingSound <= now )
- 			sleepTime = UPDATE_SLEEP_NONE;
- 		else if( (m_frameToStopLoopingSound - now) < sleepTime )
- 			sleepTime = m_frameToStopLoopingSound - now;
- 	}
- 	if( m_frameToStartCooldown != 0 )
- 	{
- 		if( m_frameToStartCooldown <= now )
- 			sleepTime = UPDATE_SLEEP_NONE;
- 		else if( (m_frameToStartCooldown - now) < sleepTime )
- 			sleepTime = m_frameToStartCooldown - now;
- 	}
- 	if( m_frameToForceReload != 0 )
- 	{
- 		if( m_frameToForceReload <= now )
- 			sleepTime = UPDATE_SLEEP_NONE;
- 		else if( (m_frameToForceReload - now) < sleepTime )
- 			sleepTime = m_frameToForceReload - now;
- 	}
+	// Otherwise, we need to wake up to service the shortest timer
+	UnsignedInt now = TheGameLogic->getFrame();
+	UnsignedInt sleepTime = UPDATE_SLEEP_FOREVER;
+	if( m_frameToStopLoopingSound != 0 )
+	{
+		if( m_frameToStopLoopingSound <= now )
+			sleepTime = UPDATE_SLEEP_NONE;
+		else if( (m_frameToStopLoopingSound - now) < sleepTime )
+			sleepTime = m_frameToStopLoopingSound - now;
+	}
+	if( m_frameToStartCooldown != 0 )
+	{
+		if( m_frameToStartCooldown <= now )
+			sleepTime = UPDATE_SLEEP_NONE;
+		else if( (m_frameToStartCooldown - now) < sleepTime )
+			sleepTime = m_frameToStartCooldown - now;
+	}
+	if( m_frameToForceReload != 0 )
+	{
+		if( m_frameToForceReload <= now )
+			sleepTime = UPDATE_SLEEP_NONE;
+		else if( (m_frameToForceReload - now) < sleepTime )
+			sleepTime = m_frameToForceReload - now;
+	}
 
- 	return UPDATE_SLEEP(sleepTime);
+	return UPDATE_SLEEP(sleepTime);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -307,7 +307,7 @@ void FiringTracker::coolDown()
 	ModelConditionFlags clr, set;
 
 	if( getObject()->testWeaponBonusCondition( WEAPONBONUSCONDITION_CONTINUOUS_FIRE_FAST )
-	 || getObject()->testWeaponBonusCondition( WEAPONBONUSCONDITION_CONTINUOUS_FIRE_MEAN ))
+	|| getObject()->testWeaponBonusCondition( WEAPONBONUSCONDITION_CONTINUOUS_FIRE_MEAN ))
 	{
 
 		// Straight to zero from wherever it is

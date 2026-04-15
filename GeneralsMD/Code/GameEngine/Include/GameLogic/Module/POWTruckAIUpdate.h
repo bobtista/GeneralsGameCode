@@ -81,7 +81,7 @@ public:
 	* civilian structures */
 //-------------------------------------------------------------------------------------------------
 class POWTruckAIUpdate : public AIUpdateInterface,
-												 public POWTruckAIUpdateInterface
+												public POWTruckAIUpdateInterface
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( POWTruckAIUpdate, "POWTruckAIUpdate" )

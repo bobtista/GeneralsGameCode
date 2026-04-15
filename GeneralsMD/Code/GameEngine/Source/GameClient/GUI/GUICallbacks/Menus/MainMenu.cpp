@@ -537,10 +537,10 @@ void MainMenuInit( WindowLayout *layout, void *userData )
 	instData.m_textLabelString = "Debug: Compress/Decompress Maps";
 	instData.setTooltipText(L"Only Used in Debug and Internal!");
 	buttonCompressTest = TheWindowManager->gogoGadgetPushButton( parentMainMenu,
-																									 WIN_STATUS_ENABLED | WIN_STATUS_IMAGE,
-																									 25, 175,
-																									 400, 400,
-																									 &instData, nullptr, TRUE );
+																									WIN_STATUS_ENABLED | WIN_STATUS_IMAGE,
+																									25, 175,
+																									400, 400,
+																									&instData, nullptr, TRUE );
 #endif // TEST_COMPRESSION
 
 	instData.init();
@@ -549,10 +549,10 @@ void MainMenuInit( WindowLayout *layout, void *userData )
 
 	instData.setTooltipText(L"Only Used in Debug and Internal!");
 	buttonCampaign = TheWindowManager->gogoGadgetPushButton( parentMainMenu,
-																									 WIN_STATUS_ENABLED,
-																									 25, 54,
-																									 180, 26,
-																									 &instData, nullptr, TRUE );
+																									WIN_STATUS_ENABLED,
+																									25, 54,
+																									180, 26,
+																									&instData, nullptr, TRUE );
 #endif
 
 	initLabelVersion();
@@ -744,9 +744,9 @@ void DoResolutionDialog()
 
 
 	resAcceptMenu = TheWindowManager->gogoMessageBox( CORNER, CORNER, -1, -1,MSG_BOX_OK | MSG_BOX_CANCEL ,
-																									 TheGameText->fetch("GUI:Resolution"),
-																									 resTimerString, nullptr, nullptr, AcceptResolution,
-																									 DeclineResolution);
+																									TheGameText->fetch("GUI:Resolution"),
+																									resTimerString, nullptr, nullptr, AcceptResolution,
+																									DeclineResolution);
 }
 
 /* This function is not being currently used because we do not need a timer on the
@@ -990,7 +990,7 @@ void PrintOffsetsFromControlBarParent();
 /** Main menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType MainMenuSystem( GameWindow *window, UnsignedInt msg,
-										 WindowMsgData mData1, WindowMsgData mData2 )
+										WindowMsgData mData1, WindowMsgData mData2 )
 {
 	static Bool triedToInitWOLAPI = FALSE;
 	static Bool canInitWOLAPI = FALSE;

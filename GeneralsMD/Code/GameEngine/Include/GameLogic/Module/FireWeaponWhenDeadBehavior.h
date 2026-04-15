@@ -70,8 +70,8 @@ public:
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 class FireWeaponWhenDeadBehavior : public BehaviorModule,
-																	 public UpgradeMux,
-																	 public DieModuleInterface
+																	public UpgradeMux,
+																	public DieModuleInterface
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( FireWeaponWhenDeadBehavior, "FireWeaponWhenDeadBehavior" )

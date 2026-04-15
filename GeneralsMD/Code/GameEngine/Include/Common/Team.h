@@ -176,7 +176,7 @@ protected:
 
 // ------------------------------------------------------------------------
 class Team : public MemoryPoolObject,
-						 public Snapshot
+						public Snapshot
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(Team, "TeamPool" )
@@ -518,11 +518,11 @@ class TeamPrototype : public MemoryPoolObject,
 public:
 
 	TeamPrototype( TeamFactory *tf,
-								 const AsciiString& name,
-								 Player *ownerPlayer,
-								 Bool isSingleton,
-								 Dict *d,
-								 TeamPrototypeID id );
+								const AsciiString& name,
+								Player *ownerPlayer,
+								Bool isSingleton,
+								Dict *d,
+								TeamPrototypeID id );
 	// virtual destructor prototype provided by memory pool object
 
 	TeamPrototypeID getID() const { return m_id; }

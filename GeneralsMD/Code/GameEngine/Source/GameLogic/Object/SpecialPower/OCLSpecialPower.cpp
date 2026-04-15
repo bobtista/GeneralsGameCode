@@ -112,7 +112,7 @@ static void parseOCLUpgradePair( INI* ini, void * /*instance*/, void *store, con
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 OCLSpecialPower::OCLSpecialPower( Thing *thing, const ModuleData *moduleData )
-							 : SpecialPowerModule( thing, moduleData )
+							: SpecialPowerModule( thing, moduleData )
 {
 
 }
@@ -166,9 +166,9 @@ void OCLSpecialPower::doSpecialPowerAtLocation( const Coord3D *loc, Real angle, 
 		fpOptions.flags = FPF_CLEAR_CELLS_ONLY;
 		fpOptions.maxRadius = MAX_ADJUST_RADIUS;
 		if ( ! ThePartitionManager->findPositionAround(&targetCoord, &fpOptions, &targetCoord) )
-    { // if findPosition() fails, then don't monkey with target Coord!
-    	targetCoord = *loc;
-    }
+		{ // if findPosition() fails, then don't monkey with target Coord!
+			targetCoord = *loc;
+		}
 
 
 	}

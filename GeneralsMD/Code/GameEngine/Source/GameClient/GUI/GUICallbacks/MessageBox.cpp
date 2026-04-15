@@ -99,7 +99,7 @@ GameWindow *MessageBoxCancel(UnicodeString titleString,UnicodeString bodyString,
 /** Message Box window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType MessageBoxSystem( GameWindow *window, UnsignedInt msg,
-										 WindowMsgData mData1, WindowMsgData mData2 )
+										WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 
@@ -183,7 +183,7 @@ WindowMsgHandledType MessageBoxSystem( GameWindow *window, UnsignedInt msg,
 /** Message Box window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType QuitMessageBoxSystem( GameWindow *window, UnsignedInt msg,
-										 WindowMsgData mData1, WindowMsgData mData2 )
+										WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 

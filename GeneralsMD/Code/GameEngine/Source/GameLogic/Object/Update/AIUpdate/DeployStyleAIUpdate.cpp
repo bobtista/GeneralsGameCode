@@ -285,7 +285,7 @@ void DeployStyleAIUpdate::setMyState( DeployStateTypes stateID, Bool reverseDepl
 		{
 			//Tell our object to deploy (so it can continue the same attack later).
 			self->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK( MODELCONDITION_PACKING ),
-																						 MAKE_MODELCONDITION_MASK( MODELCONDITION_UNPACKING ) );
+																						MAKE_MODELCONDITION_MASK( MODELCONDITION_UNPACKING ) );
 
 			if( reverseDeploy )
 			{
@@ -328,7 +328,7 @@ void DeployStyleAIUpdate::setMyState( DeployStateTypes stateID, Bool reverseDepl
 
 			//Tell our object to pack up (so it can continue the same move later).
 			self->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK2( MODELCONDITION_UNPACKING, MODELCONDITION_DEPLOYED ),
-																						 MAKE_MODELCONDITION_MASK( MODELCONDITION_PACKING ) );
+																						MAKE_MODELCONDITION_MASK( MODELCONDITION_PACKING ) );
 
 			if( reverseDeploy )
 			{
@@ -387,7 +387,7 @@ void DeployStyleAIUpdate::setMyState( DeployStateTypes stateID, Bool reverseDepl
 			m_frameToWaitForDeploy = 0;
 
 			self->clearAndSetModelConditionFlags( MAKE_MODELCONDITION_MASK( MODELCONDITION_UNPACKING ),
-																						 MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED) );
+																						MAKE_MODELCONDITION_MASK( MODELCONDITION_DEPLOYED) );
 
 			if( doTurretsFunctionOnlyWhenDeployed() )
 			{
@@ -433,12 +433,12 @@ void DeployStyleAIUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void DeployStyleAIUpdate::xfer( Xfer *xfer )
 {
-  // version
-  XferVersion currentVersion = 4;
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	// version
+	XferVersion currentVersion = 4;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 
- // extend base class
+	// extend base class
 	AIUpdateInterface::xfer(xfer);
 
 	if( version >= 4 )
@@ -453,7 +453,7 @@ void DeployStyleAIUpdate::xfer( Xfer *xfer )
 		UnsignedInt obsoleteUnsignedInt;
 		ObjectID obsoleteObjectID;
 		Coord3D obsoleteCoord3D;
-   	AICommandParmsStorage	obsoleteAICommandParmsStorage;
+	AICommandParmsStorage	obsoleteAICommandParmsStorage;
 
 		xfer->xferBool( &obsoleteBool );
 		xfer->xferUnsignedInt( &obsoleteUnsignedInt );
@@ -492,7 +492,7 @@ void DeployStyleAIUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void DeployStyleAIUpdate::loadPostProcess()
 {
- // extend base class
+	// extend base class
 	AIUpdateInterface::loadPostProcess();
 }
 

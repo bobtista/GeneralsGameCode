@@ -623,7 +623,7 @@ private:
 	Coord3D m_position;
 	GeometryInfo m_geom;
 	Real m_angle;
-  Bool m_desiredCollisionResult;  // collision must match this for allow to return true
+	Bool m_desiredCollisionResult;  // collision must match this for allow to return true
 public:
 	PartitionFilterWouldCollide(const Coord3D& pos, const GeometryInfo& geom, Real angle, Bool desired);
 	virtual Bool allow(Object *objOther) override;
@@ -1452,8 +1452,8 @@ public:
 
 	/// finding legal positions in the world
 	Bool findPositionAround( const Coord3D *center,
-													 const FindPositionOptions *options,
-													 Coord3D *result );
+													const FindPositionOptions *options,
+													Coord3D *result );
 
 	/// return the size of a PartitionCell, in world coords.
 	Real getCellSize() { return m_cellSize; }				// only for the use of PartitionData!
@@ -1527,7 +1527,7 @@ public:
 
 	void getMostValuableLocation( Int playerIndex, UnsignedInt whichPlayerTypes, ValueOrThreat valType, Coord3D *outLocation );
 	void getNearestGroupWithValue( Int playerIndex, UnsignedInt whichPlayerTypes, ValueOrThreat valType, const Coord3D *sourceLocation,
-																 Int valueRequired, Bool greaterThan, Coord3D *outLocation );
+																Int valueRequired, Bool greaterThan, Coord3D *outLocation );
 
 	// If saveToFog is true, then we are writing STORE_FOG.
 	// If saveToFog is false, then we are writing STORE_PERMENANT_REVEAL

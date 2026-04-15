@@ -51,7 +51,7 @@ RailedTransportAIUpdateModuleData::RailedTransportAIUpdateModuleData()
 // ------------------------------------------------------------------------------------------------
 void RailedTransportAIUpdateModuleData::buildFieldParse( MultiIniFieldParse &p )
 {
-  AIUpdateModuleData::buildFieldParse( p );
+	AIUpdateModuleData::buildFieldParse( p );
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -59,14 +59,14 @@ void RailedTransportAIUpdateModuleData::buildFieldParse( MultiIniFieldParse &p )
 		{ nullptr, nullptr, nullptr, 0 }
 	};
 
-  p.add( dataFieldParse );
+	p.add( dataFieldParse );
 
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 RailedTransportAIUpdate::RailedTransportAIUpdate( Thing *thing, const ModuleData *moduleData )
-											 : AIUpdateInterface( thing, moduleData )
+											: AIUpdateInterface( thing, moduleData )
 {
 
 	m_inTransit = FALSE;
@@ -171,8 +171,8 @@ void RailedTransportAIUpdate::pickAndMoveToInitialLocation()
 
 	// a path must have been found
 	DEBUG_ASSERTCRASH( closestPath != INVALID_PATH,
-										 ("No suitable starting waypoint path could be found for '%s'",
-										 us->getTemplate()->getName().str()) );
+										("No suitable starting waypoint path could be found for '%s'",
+										us->getTemplate()->getName().str()) );
 
 	// follow the waypoint path to its destination end point
 	aiFollowWaypointPath( closestEndWaypoint, CMD_FROM_AI );
@@ -221,7 +221,7 @@ UpdateSleepTime RailedTransportAIUpdate::update()
 
 		// sanity
 		DEBUG_ASSERTCRASH( m_currentPath != INVALID_PATH,
-											 ("RailedTransportAIUpdate: Invalid current path '%s'", m_currentPath) );
+											("RailedTransportAIUpdate: Invalid current path '%s'", m_currentPath) );
 
 		// get our target waypoint
 		Waypoint *waypoint = TheTerrainLogic->getWaypointByID( m_path[ m_currentPath ].endWaypointID );
@@ -383,11 +383,11 @@ void RailedTransportAIUpdate::crc( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void RailedTransportAIUpdate::xfer( Xfer *xfer )
 {
-  XferVersion currentVersion = 1;
-  XferVersion version = currentVersion;
-  xfer->xferVersion( &version, currentVersion );
+	XferVersion currentVersion = 1;
+	XferVersion version = currentVersion;
+	xfer->xferVersion( &version, currentVersion );
 
- // extend base class
+	// extend base class
 	AIUpdateInterface::xfer(xfer);
 
 	xfer->xferBool(&m_inTransit);
@@ -411,6 +411,6 @@ void RailedTransportAIUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void RailedTransportAIUpdate::loadPostProcess()
 {
- // extend base class
+	// extend base class
 	AIUpdateInterface::loadPostProcess();
 }

@@ -511,8 +511,8 @@ GameMessageDisposition MetaEventTranslator::translateGameMessage(const GameMessa
 				else
 				{
 
-          // THIS IS A GREASY HACK... MESSAGE SHOULD BE HANDLED IN A TRANSLATOR, BUT DURING CINEMATICS THE TRANSLATOR IS DISABLED
-          if( map->m_meta ==  GameMessage::MSG_META_TOGGLE_FAST_FORWARD_REPLAY)
+					// THIS IS A GREASY HACK... MESSAGE SHOULD BE HANDLED IN A TRANSLATOR, BUT DURING CINEMATICS THE TRANSLATOR IS DISABLED
+					if( map->m_meta ==  GameMessage::MSG_META_TOGGLE_FAST_FORWARD_REPLAY)
 		      {
 				#if defined(_ALLOW_DEBUG_CHEATS_IN_RELEASE)//may be defined in GameCommon.h
 			      if( TheGlobalData )
@@ -521,9 +521,9 @@ GameMessageDisposition MetaEventTranslator::translateGameMessage(const GameMessa
 				#endif
 			      {
 	            if ( TheWritableGlobalData )
-                TheWritableGlobalData->m_TiVOFastMode = 1 - TheGlobalData->m_TiVOFastMode;
+								TheWritableGlobalData->m_TiVOFastMode = 1 - TheGlobalData->m_TiVOFastMode;
 
-              if ( TheInGameUI )
+							if ( TheInGameUI )
 								TheInGameUI->messageNoFormat( TheGlobalData->m_TiVOFastMode
 									? TheGameText->FETCH_OR_SUBSTITUTE("GUI:FF_ON", L"Fast Forward is on")
 									: TheGameText->FETCH_OR_SUBSTITUTE("GUI:FF_OFF", L"Fast Forward is off")
@@ -545,7 +545,7 @@ GameMessageDisposition MetaEventTranslator::translateGameMessage(const GameMessa
 
 
 		if (t == GameMessage::MSG_RAW_KEY_DOWN)
-    {
+		{
 			m_lastKeyDown = key;
 
 
@@ -556,14 +556,14 @@ GameMessageDisposition MetaEventTranslator::translateGameMessage(const GameMessa
 		          uKey.set(&Wkey);
 		          AsciiString aKey;
 		          aKey.translate(uKey);
-  	          DEBUG_LOG(("^%s ", aKey.str()));
+	DEBUG_LOG(("^%s ", aKey.str()));
 #endif
 
-    }
+		}
 
 
 
-    m_lastModState = newModState;
+		m_lastModState = newModState;
 	}
 
 

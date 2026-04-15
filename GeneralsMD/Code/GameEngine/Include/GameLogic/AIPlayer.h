@@ -145,7 +145,7 @@ public:
  * The computer-controlled opponent.
  */
 class AIPlayer : public MemoryPoolObject,
-								 public Snapshot
+								public Snapshot
 {
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( AIPlayer, "AIPlayer"  )
 
@@ -196,7 +196,7 @@ public:
 	/// A team is about to be destroyed.
 	void aiPreTeamDestroy( const Team *team );
 	/// Is the nearest supply source safe?
- 	Bool isSupplySourceSafe( Int minSupplies );
+	Bool isSupplySourceSafe( Int minSupplies );
 	/// Is a supply source attacked?
 	Bool isSupplySourceAttacked();
 
@@ -230,7 +230,7 @@ protected:
 	virtual Bool isAGoodIdeaToBuildTeam( TeamPrototype *proto );		///< return true if team should be built
 	virtual void processBaseBuilding();		///< do base-building behaviors
 	virtual void processTeamBuilding();		///< do team-building behaviors
- 	static Int getPlayerSuperweaponValue( Coord3D *center, Int playerNdx, Real radius, Bool includeMilitaryUnits = TRUE );
+	static Int getPlayerSuperweaponValue( Coord3D *center, Int playerNdx, Real radius, Bool includeMilitaryUnits = TRUE );
 // End of aiplayer interface.
 
 protected:
@@ -247,7 +247,7 @@ protected:
 	Object *findFactory(const ThingTemplate *thing, Bool busyOK); ///< Find a factory to build a unit.  If force is true, may return a busy factory.
 	void queueUnits();						///< Check the team build list, & queue up units at any idle factories.
 	void checkForSupplyCenter( BuildListInfo *info, Object *bldg);
- 	void queueSupplyTruck();
+	void queueSupplyTruck();
 	void updateBridgeRepair();
 	Bool dozerInQueue();
 	Object *findSupplyCenter(Int minSupplies);

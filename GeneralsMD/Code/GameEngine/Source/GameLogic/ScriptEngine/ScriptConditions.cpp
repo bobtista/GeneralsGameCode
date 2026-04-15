@@ -670,7 +670,7 @@ Bool ScriptConditions::evaluateTeamInsideAreaEntirely(Parameter *pTeamParm, Para
 Bool ScriptConditions::evaluateTeamOutsideAreaEntirely(Parameter *pTeamParm, Parameter *pTriggerParm, Parameter *pTypeParm)
 {
 	return !(evaluateTeamInsideAreaEntirely(pTeamParm, pTriggerParm, pTypeParm) ||
-					 evaluateTeamInsideAreaPartially(pTeamParm, pTriggerParm, pTypeParm));
+					evaluateTeamInsideAreaPartially(pTeamParm, pTriggerParm, pTypeParm));
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1079,7 +1079,7 @@ Bool ScriptConditions::evaluateEnemySighted(Parameter *pItemParm, Parameter *pAl
 
 	// and only nonstealthed items.
 	PartitionFilterRejectByObjectStatus filterStealth( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_STEALTHED ),
-																										 MAKE_OBJECT_STATUS_MASK2( OBJECT_STATUS_DETECTED, OBJECT_STATUS_DISGUISED ) );
+																										MAKE_OBJECT_STATUS_MASK2( OBJECT_STATUS_DETECTED, OBJECT_STATUS_DISGUISED ) );
 
 	// and only on-map (or not)
 	PartitionFilterSameMapStatus filterMapStatus(theObj);
@@ -1124,7 +1124,7 @@ Bool ScriptConditions::evaluateTypeSighted(Parameter *pItemParm, Parameter *pTyp
 
 	// and only nonstealthed items.
 	PartitionFilterRejectByObjectStatus filterStealth( MAKE_OBJECT_STATUS_MASK( OBJECT_STATUS_STEALTHED ),
-																										 MAKE_OBJECT_STATUS_MASK2( OBJECT_STATUS_DETECTED, OBJECT_STATUS_DISGUISED ) );
+																										MAKE_OBJECT_STATUS_MASK2( OBJECT_STATUS_DETECTED, OBJECT_STATUS_DISGUISED ) );
 
 	// and only on-map (or not)
 	PartitionFilterSameMapStatus filterMapStatus(theObj);

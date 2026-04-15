@@ -63,7 +63,7 @@ WindowLayout *popupCommunicatorLayout = nullptr;
 /** Input procedure for the left HUD */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType LeftHUDInput( GameWindow *window, UnsignedInt msg,
-																	 WindowMsgData mData1, WindowMsgData mData2 )
+																	WindowMsgData mData1, WindowMsgData mData2 )
 {
 	//
 	// if the player doesn't have a radar, or the radar is hidden, and the radar is not being
@@ -345,7 +345,7 @@ void ToggleQuitMenu();
 /** System callback for the control bar parent */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType ControlBarSystem( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+																			WindowMsgData mData1, WindowMsgData mData2 )
 {
 	static NameKeyType buttonCommunicator = NAMEKEY_INVALID;
 	if(TheScriptEngine && TheScriptEngine->isGameEnding())

@@ -75,8 +75,8 @@ Bool UnitCrateCollide::executeCrateBehavior( Object *other )
 			fpOptions.minRadius = 0.0f;
 			fpOptions.maxRadius = 20.0f;
 			ThePartitionManager->findPositionAround( &creationPoint,
-																							 &fpOptions,
-																							 &creationPoint );
+																							&fpOptions,
+																							&creationPoint );
 
 			newObj->setOrientation( other->getOrientation() );
 			newObj->setPosition( &creationPoint );

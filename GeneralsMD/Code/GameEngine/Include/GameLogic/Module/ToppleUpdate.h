@@ -72,7 +72,7 @@ public:
 
 //-------------------------------------------------------------------------------------------------
 class ToppleUpdate : public UpdateModule,
-										 public CollideModuleInterface
+										public CollideModuleInterface
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( ToppleUpdate, "ToppleUpdate" )

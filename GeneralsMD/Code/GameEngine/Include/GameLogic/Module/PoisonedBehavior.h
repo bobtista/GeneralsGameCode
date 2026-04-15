@@ -53,7 +53,7 @@ private:
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 class PoisonedBehavior : public UpdateModule,
-												 public DamageModuleInterface
+												public DamageModuleInterface
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( PoisonedBehavior, "PoisonedBehavior" )

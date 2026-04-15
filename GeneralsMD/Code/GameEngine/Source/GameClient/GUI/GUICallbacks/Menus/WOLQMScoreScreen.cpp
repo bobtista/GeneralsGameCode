@@ -119,7 +119,7 @@ void WOLQMScoreScreenUpdate( WindowLayout * layout, void *userData)
 /** WOL Status Menu input callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLQMScoreScreenInput( GameWindow *window, UnsignedInt msg,
-																			 WindowMsgData mData1, WindowMsgData mData2 )
+																			WindowMsgData mData1, WindowMsgData mData2 )
 {
 	switch( msg )
 	{
@@ -166,7 +166,7 @@ WindowMsgHandledType WOLQMScoreScreenInput( GameWindow *window, UnsignedInt msg,
 /** WOL Status Menu window system callback */
 //-------------------------------------------------------------------------------------------------
 WindowMsgHandledType WOLQMScoreScreenSystem( GameWindow *window, UnsignedInt msg,
-														 WindowMsgData mData1, WindowMsgData mData2 )
+														WindowMsgData mData1, WindowMsgData mData2 )
 {
 	UnicodeString txtInput;
 

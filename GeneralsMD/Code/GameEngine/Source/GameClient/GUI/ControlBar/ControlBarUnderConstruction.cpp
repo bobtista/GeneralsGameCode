@@ -56,7 +56,7 @@ void ControlBar::updateConstructionTextDisplay( Object *obj )
 
 	// format the message
 	text.format( TheGameText->fetch( "CONTROLBAR:UnderConstructionDesc" ),
-							 obj->getConstructionPercent() );
+							obj->getConstructionPercent() );
 	GadgetStaticTextSetText( descWindow, text );
 
 	// record this as the last percentage displayed

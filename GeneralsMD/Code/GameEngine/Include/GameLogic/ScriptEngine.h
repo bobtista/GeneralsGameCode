@@ -211,7 +211,7 @@ protected:
 /** Implementation for the Script Engine singleton */
 //-----------------------------------------------------------------------------
 class ScriptEngine : public SubsystemInterface,
-										 public Snapshot
+										public Snapshot
 {
 
 public:

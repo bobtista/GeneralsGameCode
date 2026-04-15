@@ -1617,7 +1617,7 @@ ObjectShroudStatus PartitionData::getShroudedStatus(Int playerIndex)
 {
 	// sanity
 	DEBUG_ASSERTCRASH( playerIndex >= 0 && playerIndex < MAX_PLAYER_COUNT,
-										 ("PartitionData::getShroudedStatus - Invalid player index '%d'", playerIndex) );
+										("PartitionData::getShroudedStatus - Invalid player index '%d'", playerIndex) );
 
 	if (!ThePartitionManager->getUpdatedSinceLastReset())
 	{
@@ -1708,14 +1708,14 @@ ObjectShroudStatus PartitionData::getShroudedStatus(Int playerIndex)
 			}
 		}
 #ifndef DISABLE_INVALID_PREVENTION
- 		if (m_coiInUseCount && updateShroudednessPrevious)
+		if (m_coiInUseCount && updateShroudednessPrevious)
 		{
 #else
- 		if (m_coiInUseCount)
+		if (m_coiInUseCount)
 		{
 #endif
 			//only remember the previous state of objects actually on the map.
- 			m_shroudednessPrevious[playerIndex] = m_shroudedness[playerIndex];
+			m_shroudednessPrevious[playerIndex] = m_shroudedness[playerIndex];
 		}
 	}
 
@@ -1977,8 +1977,8 @@ void PartitionData::addPossibleCollisions(PartitionContactList *ctList)
 // ensure that the above case is cool before signing off. (srj)
 #ifdef NOPE_READ_THE_COMMENT
 	// dead objects never collide with things...
- 	AIUpdateInterface *ai = getObject()->getAIUpdateInterface();
- 	if (ai && ai->isAiInDeadState())
+	AIUpdateInterface *ai = getObject()->getAIUpdateInterface();
+	if (ai && ai->isAiInDeadState())
 	{
 		return;
 	}
@@ -2577,14 +2577,14 @@ void PartitionContactList::processContactList()
 		obj->onCollide(other, &cinfo.loc, &cinfo.normal);
 		flipCoord3D(&cinfo.normal);
 
- 		//Before checking the "other" case, make sure that the previous collision didn't
- 		//absorb him. This becomes a conflict for pilots giving veterancy to transports
- 		//and pilots entering transports. Both would occur if these isDestroyed checks
- 		//were missing.
- 		if( !obj->isDestroyed() && !other->isDestroyed() )
- 		{
- 			other->onCollide(obj, &cinfo.loc, &cinfo.normal);
- 		}
+		//Before checking the "other" case, make sure that the previous collision didn't
+		//absorb him. This becomes a conflict for pilots giving veterancy to transports
+		//and pilots entering transports. Both would occur if these isDestroyed checks
+		//were missing.
+		if( !obj->isDestroyed() && !other->isDestroyed() )
+		{
+			other->onCollide(obj, &cinfo.loc, &cinfo.normal);
+		}
 
 		//
 		// NOTE: it is VERY IMPORTANT (for performance reasons) to not re-dirty immobile things.
@@ -3962,8 +3962,8 @@ static Real ringSpacing = 5.0f;
 	*/
 //-------------------------------------------------------------------------------------------------
 Bool PartitionManager::findPositionAround( const Coord3D *center,
-																					 const FindPositionOptions *options,
-																					 Coord3D *result )
+																					const FindPositionOptions *options,
+																					Coord3D *result )
 {
 
 	// sanity
@@ -3981,7 +3981,7 @@ Bool PartitionManager::findPositionAround( const Coord3D *center,
 	// sanity, FPF_IGNORE_WATER and FPF_WATER_ONLY are mutually exclusive
 	DEBUG_ASSERTCRASH( !(BitIsSet( options->flags, FPF_IGNORE_WATER ) == TRUE &&
 										   BitIsSet( options->flags, FPF_WATER_ONLY ) == TRUE),
-										 ("PartitionManager::findPositionAround - The options FPF_WATER_ONLY and FPF_IGNORE_WATER are mutually exclusive.  You cannot use them together") );
+										("PartitionManager::findPositionAround - The options FPF_WATER_ONLY and FPF_IGNORE_WATER are mutually exclusive.  You cannot use them together") );
 
 	// pick a random angle from the center location to start at
 	Real startAngle;
@@ -4862,14 +4862,14 @@ void PartitionManager::getMostValuableLocation( Int playerIndex, UnsignedInt whi
 	}
 
 	outLocation->set(m_cells[greatestValueCell].getCellX() * TheGlobalData->m_partitionCellSize,
-									 m_cells[greatestValueCell].getCellY() * TheGlobalData->m_partitionCellSize,
-									 0
+									m_cells[greatestValueCell].getCellY() * TheGlobalData->m_partitionCellSize,
+									0
 									);
 }
 
 //-------------------------------------------------------------------------------------------------
 void PartitionManager::getNearestGroupWithValue( Int playerIndex, UnsignedInt whichPlayerTypes, ValueOrThreat valType,
-															 const Coord3D *sourceLocation, Int valueRequired, Bool greaterThan, Coord3D *outLocation )
+															const Coord3D *sourceLocation, Int valueRequired, Bool greaterThan, Coord3D *outLocation )
 {
 	if (!(sourceLocation && outLocation))
 		return;
