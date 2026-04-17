@@ -233,7 +233,7 @@ void UnicodeString::translate(const AsciiString& stringSrc)
 	}
 	ensureUniqueBufferOfSize((Int)len + 1, false, nullptr, nullptr);
 	WideChar* buf = peek();
-	if (Utf8_To_Utf16Le(buf, len + 1, src, srcLen) == 0)
+	if (Utf8_To_Utf16Le(buf, len + 1, src, srcLen, true) == 0)
 		clear();
 	validate();
 }
