@@ -47,23 +47,15 @@ size_t Utf16Le_To_Utf8_Len(const wchar_t* src, size_t srcLen);
 size_t Utf8_To_Utf16Le_Len(const char* src, size_t srcLen);
 
 // Converts srcLen UTF-16LE characters from src to UTF-8.
-// destLen is the destination buffer capacity in bytes (including room for a null terminator).
-// Writes a null terminator if room remains, otherwise not (strncpy-like).
-// When writeDirect is false (default): queries required size first. Returns required byte count
-//   (not counting null terminator). If returned value > destLen, buffer was too small and dest[0]
-//   is set to '\0'; callers should reallocate to the returned size and retry.
-// When writeDirect is true: skips the size pre-check and writes directly. Use this when the
-//   buffer was already sized via Utf16Le_To_Utf8_Len to avoid a redundant Win32 call.
-// Returns 0 on conversion failure; dest[0] is set to '\0' if destLen > 0.
-size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen, bool writeDirect = false);
+// destLen is the destination buffer capacity in bytes. Caller must ensure destLen is large enough
+// by querying Utf16Le_To_Utf8_Len first. Writes a null terminator if room remains, otherwise not.
+// Returns the number of bytes written on success, or 0 on failure.
+// On failure, dest[0] is set to '\0' if destLen > 0.
+size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen);
 
 // Converts srcLen bytes from the UTF-8 string src to UTF-16LE characters.
-// destLen is the destination buffer capacity in wchar_t elements (including room for a null terminator).
-// Writes a null terminator if room remains, otherwise not (strncpy-like).
-// When writeDirect is false (default): queries required size first. Returns required element count
-//   (not counting null terminator). If returned value > destLen, buffer was too small and dest[0]
-//   is set to L'\0'; callers should reallocate to the returned size and retry.
-// When writeDirect is true: skips the size pre-check and writes directly. Use this when the
-//   buffer was already sized via Utf8_To_Utf16Le_Len to avoid a redundant Win32 call.
-// Returns 0 on conversion failure; dest[0] is set to L'\0' if destLen > 0.
-size_t Utf8_To_Utf16Le(wchar_t* dest, size_t destLen, const char* src, size_t srcLen, bool writeDirect = false);
+// destLen is the destination buffer capacity in wchar_t elements. Caller must ensure destLen is
+// large enough by querying Utf8_To_Utf16Le_Len first. Writes a null terminator if room remains,
+// otherwise not. Returns the number of wchar_t elements written on success, or 0 on failure.
+// On failure, dest[0] is set to L'\0' if destLen > 0.
+size_t Utf8_To_Utf16Le(wchar_t* dest, size_t destLen, const char* src, size_t srcLen);

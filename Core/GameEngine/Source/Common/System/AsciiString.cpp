@@ -284,7 +284,7 @@ void AsciiString::translate(const UnicodeString& stringSrc)
 	}
 	ensureUniqueBufferOfSize((Int)len + 1, false, nullptr, nullptr);
 	char* buf = peek();
-	if (Utf16Le_To_Utf8(buf, len + 1, src, srcLen, true) == 0)
+	if (Utf16Le_To_Utf8(buf, len + 1, src, srcLen) == 0)
 		clear();
 	validate();
 }

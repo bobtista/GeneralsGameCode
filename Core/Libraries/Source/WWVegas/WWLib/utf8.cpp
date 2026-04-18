@@ -85,6 +85,9 @@ bool Utf8_Validate(const char* str, size_t length)
 			return false;
 		if (bytes == 3 && s[i] == 0xE0 && s[i + 1] < 0xA0)
 			return false;
+		// Reject UTF-16 surrogates (U+D800-U+DFFF) per RFC 3629
+		if (bytes == 3 && s[i] == 0xED && s[i + 1] > 0x9F)
+			return false;
 		if (bytes == 4 && s[i] == 0xF0 && s[i + 1] < 0x90)
 			return false;
 		// Reject codepoints above U+10FFFF
@@ -109,24 +112,9 @@ size_t Utf8_To_Utf16Le_Len(const char* src, size_t srcLen)
 	return (wchars > 0) ? (size_t)wchars : 0;
 }
 
-size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen, bool writeDirect)
+size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen)
 {
-	if (!writeDirect)
-	{
-		const size_t required = Utf16Le_To_Utf8_Len(src, srcLen);
-		if (required == 0)
-		{
-			if (destLen > 0)
-				dest[0] = '\0';
-			return 0;
-		}
-		if (required > destLen)
-		{
-			if (destLen > 0)
-				dest[0] = '\0';
-			return required;
-		}
-	}
+	WWASSERT(destLen >= Utf16Le_To_Utf8_Len(src, srcLen));
 	const int written = WideCharToMultiByte(CP_UTF8, 0, src, (int)srcLen, dest, (int)destLen, nullptr, nullptr);
 	if (written <= 0)
 	{
@@ -139,24 +127,9 @@ size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t sr
 	return (size_t)written;
 }
 
-size_t Utf8_To_Utf16Le(wchar_t* dest, size_t destLen, const char* src, size_t srcLen, bool writeDirect)
+size_t Utf8_To_Utf16Le(wchar_t* dest, size_t destLen, const char* src, size_t srcLen)
 {
-	if (!writeDirect)
-	{
-		const size_t required = Utf8_To_Utf16Le_Len(src, srcLen);
-		if (required == 0)
-		{
-			if (destLen > 0)
-				dest[0] = L'\0';
-			return 0;
-		}
-		if (required > destLen)
-		{
-			if (destLen > 0)
-				dest[0] = L'\0';
-			return required;
-		}
-	}
+	WWASSERT(destLen >= Utf8_To_Utf16Le_Len(src, srcLen));
 	const int written = MultiByteToWideChar(CP_UTF8, 0, src, (int)srcLen, dest, (int)destLen);
 	if (written <= 0)
 	{
