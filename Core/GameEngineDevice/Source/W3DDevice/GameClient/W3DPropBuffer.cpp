@@ -341,14 +341,14 @@ void W3DPropBuffer::drawProps(RenderInfoClass &rinfo)
 
 	for (i = 0; i < MAX_GLOBAL_LIGHTS; ++i)
 	{
-			m_light->Set_Ambient(zeroVector);
-			m_light->Set_Diffuse(Vector3(objectLighting[i].diffuse.red,
-																		 objectLighting[i].diffuse.green,
-																		 objectLighting[i].diffuse.blue));
-			m_light->Set_Specular(zeroVector);
-			mtx.Set(xVector, yVector, Vector3(objectLighting[i].lightPos.x, objectLighting[i].lightPos.y, objectLighting[i].lightPos.z), zeroVector);
-			m_light->Set_Transform(mtx);
-			lightEnv.Add_Light(*m_light);
+		m_light->Set_Ambient(zeroVector);
+		m_light->Set_Diffuse(Vector3(objectLighting[i].diffuse.red,
+		                             objectLighting[i].diffuse.green,
+		                             objectLighting[i].diffuse.blue));
+		m_light->Set_Specular(zeroVector);
+		mtx.Set(xVector, yVector, Vector3(objectLighting[i].lightPos.x, objectLighting[i].lightPos.y, objectLighting[i].lightPos.z), zeroVector);
+		m_light->Set_Transform(mtx);
+		lightEnv.Add_Light(*m_light);
 	}
 
 	rinfo.light_environment = &lightEnv;

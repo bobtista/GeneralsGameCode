@@ -47,10 +47,10 @@ void DirectInputMouse::openMouse()
 
 	// create our direct input device for mouse access
 	hr = DirectInput8Create( ApplicationHInstance,
-													 DIRECTINPUT_VERSION,
-													 IID_IDirectInput8,
-													 (void **)&m_pDirectInput,
-													 nullptr );
+	                         DIRECTINPUT_VERSION,
+	                         IID_IDirectInput8,
+	                         (void **)&m_pDirectInput,
+	                         nullptr );
 	if( FAILED( hr ) )
 	{
 
@@ -66,10 +66,10 @@ void DirectInputMouse::openMouse()
 	if( FAILED( hr ) )
 	{
 
-			DEBUG_LOG(( "ERROR - openMouse: Unable to create mouse device" ));
-			assert( 0 );
-			closeMouse();
-			return;
+		DEBUG_LOG(( "ERROR - openMouse: Unable to create mouse device" ));
+		assert( 0 );
+		closeMouse();
+		return;
 
 	}
 
@@ -87,8 +87,8 @@ void DirectInputMouse::openMouse()
 
 	// set the mouse cooperative level
 	hr = m_pMouseDevice->SetCooperativeLevel( ApplicationHWnd,
-																						DISCL_NONEXCLUSIVE |
-																						DISCL_FOREGROUND );
+	     DISCL_NONEXCLUSIVE |
+	     DISCL_FOREGROUND );
 	if( FAILED( hr ) )
 	{
 
@@ -149,7 +149,7 @@ void DirectInputMouse::openMouse()
 		m_forceFeedback = BitIsSet( diDevCaps.dwFlags, DIDC_FORCEFEEDBACK );
 
 		DEBUG_LOG(( "OK - Mouse info: Buttons = '%d', Force Feedback = '%s', Axes = '%d'",
-						 m_numButtons, m_forceFeedback ? "Yes" : "No", m_numAxes ));
+		            m_numButtons, m_forceFeedback ? "Yes" : "No", m_numAxes ));
 
 	}
 
@@ -210,9 +210,9 @@ UnsignedByte DirectInputMouse::getMouseEvent( MouseIO *result, Bool flush )
 		num = 1;
 		m_pMouseDevice->Poll();
 		hr = m_pMouseDevice->GetDeviceData( sizeof( DIDEVICEOBJECTDATA ),
-																				&mdat,
-																				&num,
-																				0 );
+		                                    &mdat,
+		                                    &num,
+		                                    0 );
 		switch( hr )
 		{
 
@@ -274,7 +274,7 @@ UnsignedByte DirectInputMouse::getMouseEvent( MouseIO *result, Bool flush )
 /** Map the direct input codes to our own mouse format */
 //-------------------------------------------------------------------------------------------------
 void DirectInputMouse::mapDirectInputMouse( MouseIO *mouse,
-																						DIDEVICEOBJECTDATA *mdat )
+        DIDEVICEOBJECTDATA *mdat )
 {
 
 	switch( mdat->dwOfs )

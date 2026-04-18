@@ -376,7 +376,7 @@ void Network::setSawCRCMismatch()
 
 	// dump GameLogic random seed
 	DEBUG_LOG(("Latest frame for mismatch = %d GameLogic frame = %d",
-		TheGameLogic->getFrame()-m_runAhead-1, TheGameLogic->getFrame()));
+	           TheGameLogic->getFrame()-m_runAhead-1, TheGameLogic->getFrame()));
 	DEBUG_LOG(("GetGameLogicRandomSeedCRC() = %d", GetGameLogicRandomSeedCRC()));
 
 	// dump CRCs
@@ -543,9 +543,9 @@ Bool Network::processCommand(GameMessage *msg)
 
 		m_conMgr->handleLocalPlayerLeaving(executionFrame+1);
 		m_conMgr->processFrameTick(executionFrame); // This is the last command we will execute, so send the command count.
-																								// Also, we are guaranteed not to send any more commands for this frame
-																								// since the local status will change to "Leaving" so we don't have to
-																								// worry about messing up the other players.
+		// Also, we are guaranteed not to send any more commands for this frame
+		// since the local status will change to "Leaving" so we don't have to
+		// worry about messing up the other players.
 		m_conMgr->processFrameTick(executionFrame+1); // since we send it for executionFrame+1, we need to process both ticks
 		m_lastFrameCompleted = executionFrame;
 		DEBUG_LOG(("Network::processCommand - player leaving on frame %d", executionFrame));
@@ -676,7 +676,7 @@ void Network::processDestroyPlayerCommand(NetDestroyPlayerCommandMsg *msg)
 	}
 
 	DEBUG_LOG(("Saw DestroyPlayer from %d about %d for frame %d on frame %d", msg->getPlayerID(), msg->getPlayerIndex(),
-		msg->getExecutionFrame(), TheGameLogic->getFrame()));
+	           msg->getExecutionFrame(), TheGameLogic->getFrame()));
 }
 
 /**
@@ -706,7 +706,7 @@ void Network::update()
 			m_didSelfSlug = FALSE;
 		}
 		//m_conMgr->update(); // Do the priority thing, packetize thing. This also calls the Transport::update function.
-									 // depacketizes the incoming packets and puts them on the Network command list.
+		// depacketizes the incoming packets and puts them on the Network command list.
 	}
 
 	liteupdate();
@@ -828,7 +828,7 @@ Real Network::getIncomingBytesPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getIncomingBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -839,7 +839,7 @@ Real Network::getIncomingPacketsPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getIncomingPacketsPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -850,7 +850,7 @@ Real Network::getOutgoingBytesPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getOutgoingBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -861,7 +861,7 @@ Real Network::getOutgoingPacketsPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getOutgoingPacketsPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -872,7 +872,7 @@ Real Network::getUnknownBytesPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getUnknownBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -883,7 +883,7 @@ Real Network::getUnknownPacketsPerSecond()
 	if (m_conMgr)
 		return m_conMgr->getUnknownPacketsPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -997,7 +997,7 @@ void Network::sendTimeOutGameStart()
 
 UnsignedInt Network::getLocalPlayerID()
 {
-if (m_conMgr != nullptr) {
+	if (m_conMgr != nullptr) {
 		return m_conMgr->getLocalPlayerID();
 	}
 	return 49;

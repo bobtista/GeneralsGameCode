@@ -260,7 +260,7 @@ GameWindow *GameWindow::findPrevLeaf()
 		leaf = leaf->m_prev;
 
 		while( leaf->m_child &&
-					 BitIsSet( leaf->m_status, WIN_STATUS_TAB_STOP ) == FALSE )
+		        BitIsSet( leaf->m_status, WIN_STATUS_TAB_STOP ) == FALSE )
 		{
 
 			leaf = leaf->m_child;
@@ -287,7 +287,7 @@ GameWindow *GameWindow::findPrevLeaf()
 				leaf = leaf->m_prev;
 
 				while( leaf->m_child &&
-							 BitIsSet( leaf->m_status, WIN_STATUS_TAB_STOP ) == FALSE )
+				        BitIsSet( leaf->m_status, WIN_STATUS_TAB_STOP ) == FALSE )
 				{
 
 					leaf = leaf->m_child;
@@ -329,7 +329,7 @@ GameWindow *GameWindow::findNextLeaf()
 
 		for( leaf = leaf->m_next; leaf; leaf = leaf->m_child )
 			if( leaf->m_child == nullptr || BitIsSet( leaf->m_status,
-																						WIN_STATUS_TAB_STOP ) )
+			        WIN_STATUS_TAB_STOP ) )
 				return leaf;
 
 	}
@@ -346,7 +346,7 @@ GameWindow *GameWindow::findNextLeaf()
 
 				for( leaf = leaf->m_next; leaf; leaf = leaf->m_child )
 					if( leaf->m_child == nullptr ||
-							BitIsSet( leaf->m_status, WIN_STATUS_TAB_STOP ) )
+					        BitIsSet( leaf->m_status, WIN_STATUS_TAB_STOP ) )
 						return leaf;
 
 			}
@@ -369,32 +369,32 @@ GameWindow *GameWindow::findNextLeaf()
 //=============================================================================
 Int GameWindow::winNextTab()
 {
-/*
-	GameWindow *newTab = this;
-	Bool firstTry = TRUE;
+	/*
+		GameWindow *newTab = this;
+		Bool firstTry = TRUE;
 
-	// Un-hilite the current window
-	m_instData.m_state &= ~WIN_STATE_HILITED;
+		// Un-hilite the current window
+		m_instData.m_state &= ~WIN_STATE_HILITED;
 
-	do
-	{
-
-		if( m_parent == nullptr && firstTry )
+		do
 		{
 
-			newTab = findLastLeaf( newTab );
-			firstTry = FALSE;
+			if( m_parent == nullptr && firstTry )
+			{
 
-		}
-		else
-			newTab = findPrevLeaf( newTab );
-	} while( ( isEnabled( newTab ) == FALSE ) ||
-					 ( isHidden( newTab ) ) );
+				newTab = findLastLeaf( newTab );
+				firstTry = FALSE;
 
-	newTab->instData.state |= WIN_STATE_HILITED;
-	WinSetFocus( newTab );
+			}
+			else
+				newTab = findPrevLeaf( newTab );
+		} while( ( isEnabled( newTab ) == FALSE ) ||
+						 ( isHidden( newTab ) ) );
 
-*/
+		newTab->instData.state |= WIN_STATE_HILITED;
+		WinSetFocus( newTab );
+
+	*/
 	return WIN_ERR_OK;
 
 }
@@ -404,33 +404,33 @@ Int GameWindow::winNextTab()
 //=============================================================================
 Int GameWindow::winPrevTab()
 {
-/*
-	GameWindow *newTab = this;
-	Bool firstTry = TRUE;
+	/*
+		GameWindow *newTab = this;
+		Bool firstTry = TRUE;
 
-	// Un-hilite the current window
-	m_instData.m_state &= ~WIN_STATE_HILITED;
+		// Un-hilite the current window
+		m_instData.m_state &= ~WIN_STATE_HILITED;
 
-	do
-	{
-
-		if( m_parent == nullptr && firstTry )
+		do
 		{
 
-			newTab = findFirstLeaf( newTab );
-			firstTry = FALSE;
+			if( m_parent == nullptr && firstTry )
+			{
 
-		}
-		else
-			newTab = findNextLeaf( newTab );
+				newTab = findFirstLeaf( newTab );
+				firstTry = FALSE;
 
-	} while( ( isEnabled( newTab ) == FALSE ) ||
-					 ( isHidden( newTab ) ) );
+			}
+			else
+				newTab = findNextLeaf( newTab );
 
-	newTab->instData.state |= WIN_STATE_HILITED;
-	WinSetFocus( newTab );
+		} while( ( isEnabled( newTab ) == FALSE ) ||
+						 ( isHidden( newTab ) ) );
 
-*/
+		newTab->instData.state |= WIN_STATE_HILITED;
+		WinSetFocus( newTab );
+
+	*/
 
 	return WIN_ERR_OK;
 
@@ -458,8 +458,8 @@ Int GameWindow::winBringToTop()
 
 		// sanity, make sure this window is in the window list
 		for( current = TheWindowManager->winGetWindowList();
-				 current != this;
-				 current = current->m_next)
+		        current != this;
+		        current = current->m_next)
 			if (current == nullptr)
 				return WIN_ERR_INVALID_PARAMETER;
 
@@ -626,7 +626,7 @@ Bool GameWindow::winPointInWindow( Int x, Int y )
 	winGetSize( &width, &height );
 
 	if (x >= winX && x <= winX + width &&
-			y >= winY && y <= winY + height)
+	        y >= winY && y <= winY + height)
 		return TRUE;
 
 	return FALSE;
@@ -645,9 +645,9 @@ Int GameWindow::winSetSize( Int width, Int height )
 	m_region.hi.y = m_region.lo.y + height;
 
 	TheWindowManager->winSendSystemMsg( this,
-																			GGM_RESIZED,
-																			(WindowMsgData)width,
-																			(WindowMsgData)height );
+	                                    GGM_RESIZED,
+	                                    (WindowMsgData)width,
+	                                    (WindowMsgData)height );
 
 	return WIN_ERR_OK;
 
@@ -701,7 +701,7 @@ Int GameWindow::winEnable( Bool enable )
 //=============================================================================
 Bool GameWindow::winGetEnabled()
 {
-  return BitIsSet( m_status, WIN_STATUS_ENABLED );
+	return BitIsSet( m_status, WIN_STATUS_ENABLED );
 
 }
 
@@ -1396,8 +1396,8 @@ Int GameWindow::winSetTooltipFunc( GameWinTooltipFunc tooltip )
 /** Sets the window's input, tooltip, and redraw callback functions. */
 //=============================================================================
 Int GameWindow::winSetCallbacks( GameWinInputFunc input,
-																 GameWinDrawFunc draw,
-																 GameWinTooltipFunc tooltip )
+                                 GameWinDrawFunc draw,
+                                 GameWinTooltipFunc tooltip )
 {
 
 	winSetInputFunc( input );
@@ -1448,7 +1448,7 @@ GameWindow *GameWindow::winPointInChild( Int x, Int y, Bool ignoreEnableCheck, B
 		}
 
 		if( x >= origin.x && x <= origin.x + child->m_size.x &&
-				y >= origin.y && y <= origin.y + child->m_size.y )
+		        y >= origin.y && y <= origin.y + child->m_size.y )
 		{
 			Bool enabled = ignoreEnableCheck || BitIsSet( child->m_status, WIN_STATUS_ENABLED );
 			Bool hidden = BitIsSet( child->m_status, WIN_STATUS_HIDDEN );
@@ -1502,7 +1502,7 @@ GameWindow *GameWindow::winPointInAnyChild( Int x, Int y, Bool ignoreHidden, Boo
 		}
 
 		if( x >= origin.x && x <= origin.x + child->m_size.x &&
-				y >= origin.y && y <= origin.y + child->m_size.y )
+		        y >= origin.y && y <= origin.y + child->m_size.y )
 		{
 
 			if( !(ignoreHidden == TRUE &&	BitIsSet( child->m_status, WIN_STATUS_HIDDEN )) )
@@ -1530,7 +1530,7 @@ GameWindow *GameWindow::winPointInAnyChild( Int x, Int y, Bool ignoreHidden, Boo
 /** The default input callback.  Currently does nothing. */
 //=============================================================================
 WindowMsgHandledType GameWinDefaultInput( GameWindow *window, UnsignedInt msg,
-													WindowMsgData mData1, WindowMsgData mData2 )
+        WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	return MSG_IGNORED;
@@ -1539,7 +1539,7 @@ WindowMsgHandledType GameWinDefaultInput( GameWindow *window, UnsignedInt msg,
 
 ///< Input that blocks all (mouse) input like a wall, instead of passing like it wasn't there
 WindowMsgHandledType GameWinBlockInput( GameWindow *window, UnsignedInt msg,
-													WindowMsgData mData1, WindowMsgData mData2 )
+                                        WindowMsgData mData1, WindowMsgData mData2 )
 {
 	if (msg == GWM_CHAR || msg == GWM_MOUSE_POS)
 		return MSG_IGNORED;
@@ -1565,7 +1565,7 @@ WindowMsgHandledType GameWinBlockInput( GameWindow *window, UnsignedInt msg,
 /** The default system callback.  Currently does nothing. */
 //=============================================================================
 WindowMsgHandledType GameWinDefaultSystem( GameWindow *window, UnsignedInt msg,
-													 WindowMsgData mData1, WindowMsgData mData2 )
+        WindowMsgData mData1, WindowMsgData mData2 )
 {
 
 	return MSG_IGNORED;
@@ -1576,8 +1576,8 @@ WindowMsgHandledType GameWinDefaultSystem( GameWindow *window, UnsignedInt msg,
 /** Default tooltip callback */
 //=============================================================================
 void GameWinDefaultTooltip( GameWindow *window,
-														WinInstanceData *instData,
-														UnsignedInt mouse )
+                            WinInstanceData *instData,
+                            UnsignedInt mouse )
 {
 	return;
 

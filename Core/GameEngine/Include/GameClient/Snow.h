@@ -35,43 +35,43 @@ class WeatherSetting : public Overridable
 {
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( WeatherSetting, "WeatherSetting"  )
 
-	public:
-		AsciiString m_snowTexture;
-		Real	m_snowFrequencyScaleX;	///<used to adjust snow position.
-		Real	m_snowFrequencyScaleY;	///<used to adjust snow position.
-		Real	m_snowAmplitude;		///<used to adjust amount of of snow movement. (in world units)
-		Real	m_snowPointSize;		///<used to control hardware point-sprite size. (in arbitrary units - see DX SDK Docs).
-		Real	m_snowMaxPointSize;		///<used to control maximum size (in pixels) of point sprite.
-		Real	m_snowMinPointSize;		///<used to control the minimum size (in piexels) of point sprite.
-		Real	m_snowQuadSize;			///<used to control quad size when no hardware point sprites. (world width/height of quad)
-		Real	m_snowBoxDimensions;	///<used to set dimensions of box surrounding camera. (world units)
-		Real	m_snowBoxDensity;		///<used to control how many emitters are present per world unit
-		Real	m_snowVelocity;			///<used to set speed at which snow falls (world units/sec).
-		Bool    m_usePointSprites;		///<used to disable hardware point-sprite support.
-		Bool	m_snowEnabled;			///<enable/disable snow on the map.
+public:
+	AsciiString m_snowTexture;
+	Real	m_snowFrequencyScaleX;	///<used to adjust snow position.
+	Real	m_snowFrequencyScaleY;	///<used to adjust snow position.
+	Real	m_snowAmplitude;		///<used to adjust amount of of snow movement. (in world units)
+	Real	m_snowPointSize;		///<used to control hardware point-sprite size. (in arbitrary units - see DX SDK Docs).
+	Real	m_snowMaxPointSize;		///<used to control maximum size (in pixels) of point sprite.
+	Real	m_snowMinPointSize;		///<used to control the minimum size (in piexels) of point sprite.
+	Real	m_snowQuadSize;			///<used to control quad size when no hardware point sprites. (world width/height of quad)
+	Real	m_snowBoxDimensions;	///<used to set dimensions of box surrounding camera. (world units)
+	Real	m_snowBoxDensity;		///<used to control how many emitters are present per world unit
+	Real	m_snowVelocity;			///<used to set speed at which snow falls (world units/sec).
+	Bool    m_usePointSprites;		///<used to disable hardware point-sprite support.
+	Bool	m_snowEnabled;			///<enable/disable snow on the map.
 
-	public:
-		WeatherSetting()
-		{
-			m_snowTexture = "EXSnowFlake.tga";
-			m_snowFrequencyScaleX=0.0533f;
-			m_snowFrequencyScaleY=0.0275f;
-			m_snowAmplitude=5.0f;
-			m_snowPointSize=1.0f;
-			m_snowQuadSize=0.5f;
-			m_snowBoxDimensions=200;
-			m_snowBoxDensity=1;
-			m_snowVelocity=4;
-			m_usePointSprites=TRUE;
-			m_snowEnabled=FALSE;
-			m_snowMaxPointSize=64.0f;
-			m_snowMinPointSize=0.0f;
-		}
+public:
+	WeatherSetting()
+	{
+		m_snowTexture = "EXSnowFlake.tga";
+		m_snowFrequencyScaleX=0.0533f;
+		m_snowFrequencyScaleY=0.0275f;
+		m_snowAmplitude=5.0f;
+		m_snowPointSize=1.0f;
+		m_snowQuadSize=0.5f;
+		m_snowBoxDimensions=200;
+		m_snowBoxDensity=1;
+		m_snowVelocity=4;
+		m_usePointSprites=TRUE;
+		m_snowEnabled=FALSE;
+		m_snowMaxPointSize=64.0f;
+		m_snowMinPointSize=0.0f;
+	}
 
-		static const FieldParse m_weatherSettingFieldParseTable[];		///< the parse table for INI definition
+	static const FieldParse m_weatherSettingFieldParseTable[];		///< the parse table for INI definition
 
-		/// Get the INI parsing table for loading
-		const FieldParse *getFieldParse() const { return m_weatherSettingFieldParseTable; }
+	/// Get the INI parsing table for loading
+	const FieldParse *getFieldParse() const { return m_weatherSettingFieldParseTable; }
 };
 
 EMPTY_DTOR(WeatherSetting)
@@ -80,13 +80,13 @@ extern OVERRIDE<WeatherSetting> TheWeatherSetting;
 
 class SnowManager : public SubsystemInterface
 {
-  public :
-	  enum{
-		 SNOW_NOISE_X=64,			//dimensions table holding noise function used for initial snow positions.
-		 SNOW_NOISE_Y=64,			//dimensions table holding noise function used for initial snow positions.
-	  };
+public :
+	enum {
+		SNOW_NOISE_X=64,			//dimensions table holding noise function used for initial snow positions.
+		SNOW_NOISE_Y=64,			//dimensions table holding noise function used for initial snow positions.
+	};
 
-	 SnowManager();
+	SnowManager();
 	virtual ~SnowManager() override;
 
 	virtual void init() override;
@@ -94,7 +94,7 @@ class SnowManager : public SubsystemInterface
 	virtual void updateIniSettings ();
 	void setVisible(Bool showWeather);	///<enable/disable rendering of weather - assuming it's available on map.
 
-  protected :
+protected :
 
 	Real				*m_startingHeights;
 	Real				m_time;	///<time elapsed since it started snowing.

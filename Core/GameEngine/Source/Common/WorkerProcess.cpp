@@ -96,8 +96,8 @@ bool WorkerProcess::startProcess(UnicodeString command)
 	PROCESS_INFORMATION pi = { nullptr };
 
 	if (!CreateProcessW(nullptr, (LPWSTR)command.str(),
-			nullptr, nullptr, /*bInheritHandles=*/TRUE, 0,
-			nullptr, nullptr, &si, &pi))
+	                    nullptr, nullptr, /*bInheritHandles=*/TRUE, 0,
+	                    nullptr, nullptr, &si, &pi))
 	{
 		CloseHandle(writeHandle);
 		CloseHandle(m_readHandle);

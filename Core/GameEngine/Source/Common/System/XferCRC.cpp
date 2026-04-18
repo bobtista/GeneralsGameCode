@@ -137,18 +137,18 @@ void XferCRC::xferImplementation( void *data, Int dataSize )
 
 	switch(dataSize & 3)
 	{
-	case 3:
-		val += (c[2] << 16);
-		FALLTHROUGH;
-	case 2:
-		val += (c[1] << 8);
-		FALLTHROUGH;
-	case 1:
-		val += c[0];
-		m_crc = (m_crc << 1) + val + ((m_crc >> 31) & 0x01);
-		FALLTHROUGH;
-	default:
-		break;
+		case 3:
+			val += (c[2] << 16);
+			FALLTHROUGH;
+		case 2:
+			val += (c[1] << 8);
+			FALLTHROUGH;
+		case 1:
+			val += c[0];
+			m_crc = (m_crc << 1) + val + ((m_crc >> 31) & 0x01);
+			FALLTHROUGH;
+		default:
+			break;
 	}
 
 }
@@ -209,7 +209,7 @@ void XferDeepCRC::open( AsciiString identifier )
 	{
 
 		DEBUG_CRASH(( "Cannot open file '%s' cause we've already got '%s' open",
-									identifier.str(), m_identifier.str() ));
+		              identifier.str(), m_identifier.str() ));
 		throw XFER_FILE_ALREADY_OPEN;
 
 	}
@@ -269,7 +269,7 @@ void XferDeepCRC::xferImplementation( void *data, Int dataSize )
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_fileFP != nullptr, ("XferSave - file pointer for '%s' is null",
-										 m_identifier.str()) );
+	                   m_identifier.str()) );
 
 	// write data to file
 	if( fwrite( data, dataSize, 1, m_fileFP ) != 1 )

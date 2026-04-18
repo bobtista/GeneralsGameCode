@@ -31,10 +31,10 @@
 enum AudioHandleSpecialValues CPP_11(: Int)
 {
 	AHSV_Error					= 0x00,
-	AHSV_NoSound,
-	AHSV_Muted,
-	AHSV_NotForLocal,
-	AHSV_StopTheMusic,
-	AHSV_StopTheMusicFade,
-	AHSV_FirstHandle
+	 AHSV_NoSound,
+	 AHSV_Muted,
+	 AHSV_NotForLocal,
+	 AHSV_StopTheMusic,
+	 AHSV_StopTheMusicFade,
+	 AHSV_FirstHandle
 };

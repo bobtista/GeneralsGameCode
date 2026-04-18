@@ -92,7 +92,7 @@ typedef struct {
 //
 class W3DPropBuffer : Snapshot
 {
-friend class BaseHeightMapRenderObjClass;
+	friend class BaseHeightMapRenderObjClass;
 
 
 public:
@@ -109,9 +109,9 @@ public:
 	void notifyShroudChanged();
 
 	void removePropsForConstruction(
-		const Coord3D* pos,
-		const GeometryInfo& geom,
-		Real angle
+	    const Coord3D* pos,
+	    const GeometryInfo& geom,
+	    Real angle
 	);
 
 	/// Add a type of prop.  Name is the w3d model name.

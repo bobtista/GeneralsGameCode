@@ -56,9 +56,9 @@
 
 // ----------------------------------------------------------------------------------------------
 #if defined(RTS_DEBUG)
-	#define DUMP_PERF_STATS
+#define DUMP_PERF_STATS
 #else
-	#define NO_DUMP_PERF_STATS
+#define NO_DUMP_PERF_STATS
 #endif
 
 // ----------------------------------------------------------------------------------------------
@@ -114,11 +114,11 @@ enum
 	a bitmask that can uniquely represent each player.
 */
 #if MAX_PLAYER_COUNT <= 16
-	typedef UnsignedShort PlayerMaskType;
-	const PlayerMaskType PLAYERMASK_ALL = 0xffff;
-	const PlayerMaskType PLAYERMASK_NONE = 0x0;
+typedef UnsignedShort PlayerMaskType;
+const PlayerMaskType PLAYERMASK_ALL = 0xffff;
+const PlayerMaskType PLAYERMASK_NONE = 0x0;
 #else
-	#error "this is the wrong size"
+#error "this is the wrong size"
 #endif
 
 // ----------------------------------------------------------------------------------------------
@@ -186,7 +186,7 @@ enum
 {
 	NEVER				= 0,
 	FOREVER			= 0x3fffffff			// (we use 0x3fffffff so that we can add offsets and not overflow...
-																//		at 30fps we're still pretty safe!)
+	             //		at 30fps we're still pretty safe!)
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -230,40 +230,40 @@ enum CommandSourceType CPP_11(: Int)
 enum AbleToAttackType CPP_11(: Int)
 {
 	_ATTACK_FORCED			= 0x01,
-	_ATTACK_CONTINUED		= 0x02,
-	_ATTACK_TUNNELNETWORK_GUARD = 0x04,
+	 _ATTACK_CONTINUED		= 0x02,
+	  _ATTACK_TUNNELNETWORK_GUARD = 0x04,
 
-	/**
-		can we attack if this is a new target?
-	*/
-	ATTACK_NEW_TARGET = (0),
+	  /**
+	  	can we attack if this is a new target?
+	  */
+	  ATTACK_NEW_TARGET = (0),
 
-	/**
-		can we attack if this is a new target, via force-fire?
-		(The only current difference between this and ATTACK_NEW_TARGET is that disguised units
-		are force-attackable even when stealthed.)
-	*/
-	ATTACK_NEW_TARGET_FORCED= (_ATTACK_FORCED),
+	  /**
+	  	can we attack if this is a new target, via force-fire?
+	  	(The only current difference between this and ATTACK_NEW_TARGET is that disguised units
+	  	are force-attackable even when stealthed.)
+	  */
+	  ATTACK_NEW_TARGET_FORCED= (_ATTACK_FORCED),
 
-	/**
-		can we attack if this is continuation of an existing attack?
-		(The only current difference between this and ATTACK_NEW_TARGET is you are allowed to follow
-		immobile shrouded units into the fog)
-	*/
-	ATTACK_CONTINUED_TARGET = (_ATTACK_CONTINUED),
+	  /**
+	  	can we attack if this is continuation of an existing attack?
+	  	(The only current difference between this and ATTACK_NEW_TARGET is you are allowed to follow
+	  	immobile shrouded units into the fog)
+	  */
+	  ATTACK_CONTINUED_TARGET = (_ATTACK_CONTINUED),
 
-	/**
-		can we attack if this is continuation of an existing attack?
-		(The only current difference between this and ATTACK_NEW_TARGET is you are allowed to follow
-		immobile shrouded units into the fog)
-	*/
-	ATTACK_CONTINUED_TARGET_FORCED = (_ATTACK_FORCED | _ATTACK_CONTINUED),
+	  /**
+	  	can we attack if this is continuation of an existing attack?
+	  	(The only current difference between this and ATTACK_NEW_TARGET is you are allowed to follow
+	  	immobile shrouded units into the fog)
+	  */
+	  ATTACK_CONTINUED_TARGET_FORCED = (_ATTACK_FORCED | _ATTACK_CONTINUED),
 
-	/**
-		Special case that bypasses some of the checks for units guarding from within tunnel networks!
-		For example, a unit inside couldn't normally see outside and would fail.
-	*/
-	ATTACK_TUNNEL_NETWORK_GUARD = (_ATTACK_TUNNELNETWORK_GUARD)
+	  /**
+	  	Special case that bypasses some of the checks for units guarding from within tunnel networks!
+	  	For example, a unit inside couldn't normally see outside and would fail.
+	  */
+	  ATTACK_TUNNEL_NETWORK_GUARD = (_ATTACK_TUNNELNETWORK_GUARD)
 
 };
 

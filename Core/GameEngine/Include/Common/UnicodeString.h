@@ -94,11 +94,11 @@ private:
 		WideChar* peek() { return (WideChar*)(this+1); }
 	};
 
-	#ifdef RTS_DEBUG
+#ifdef RTS_DEBUG
 	void validate() const;
-	#else
+#else
 	void validate() const { }
-	#endif
+#endif
 
 protected:
 	UnicodeStringData* m_data;   // pointer to ref counted string data

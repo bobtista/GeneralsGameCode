@@ -102,10 +102,10 @@ EnumeratedIP * IPEnumeration::getAddresses()
 	{
 		const UnsignedInt id = rts::ClientInstance::getInstanceId();
 		addNewIP(
-			127,
-			(UnsignedByte)(id >> 16),
-			(UnsignedByte)(id >> 8),
-			(UnsignedByte)(id));
+		    127,
+		    (UnsignedByte)(id >> 16),
+		    (UnsignedByte)(id >> 8),
+		    (UnsignedByte)(id));
 	}
 
 	// construct a list of addresses
@@ -114,10 +114,10 @@ EnumeratedIP * IPEnumeration::getAddresses()
 	while ( (entry = hostEnt->h_addr_list[numAddresses++]) != nullptr )
 	{
 		addNewIP(
-			(UnsignedByte)entry[0],
-			(UnsignedByte)entry[1],
-			(UnsignedByte)entry[2],
-			(UnsignedByte)entry[3]);
+		    (UnsignedByte)entry[0],
+		    (UnsignedByte)entry[1],
+		    (UnsignedByte)entry[2],
+		    (UnsignedByte)entry[3]);
 	}
 
 	return m_IPlist;

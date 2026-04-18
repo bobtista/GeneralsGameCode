@@ -251,8 +251,8 @@ Bool View::isUserControlLocked() const
 		the world points are at the requested Z */
 //-------------------------------------------------------------------------------------------------
 void View::getScreenCornerWorldPointsAtZ( Coord3D *topLeft, Coord3D *topRight,
-																					Coord3D *bottomRight, Coord3D *bottomLeft,
-																					Real z )
+        Coord3D *bottomRight, Coord3D *bottomLeft,
+        Real z )
 {
 	// sanity
 	if( topLeft == nullptr || topRight == nullptr || bottomRight == nullptr || bottomLeft == nullptr)

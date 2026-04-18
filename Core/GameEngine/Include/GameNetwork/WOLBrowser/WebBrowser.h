@@ -75,50 +75,50 @@ public:
 
 
 class WebBrowser :
-		public FEBDispatch<WebBrowser, IBrowserDispatch, &IID_IBrowserDispatch>,
-		public SubsystemInterface
-	{
-	public:
-		virtual void init() override;
-		virtual void reset() override;
-		virtual void update() override;
+	public FEBDispatch<WebBrowser, IBrowserDispatch, &IID_IBrowserDispatch>,
+	public SubsystemInterface
+{
+public:
+	virtual void init() override;
+	virtual void reset() override;
+	virtual void update() override;
 
-		// Create an instance of the embedded browser for Dune Emperor.
-		virtual Bool createBrowserWindow(const char *tag, GameWindow *win) = 0;
-		virtual void closeBrowserWindow(GameWindow *win) = 0;
+	// Create an instance of the embedded browser for Dune Emperor.
+	virtual Bool createBrowserWindow(const char *tag, GameWindow *win) = 0;
+	virtual void closeBrowserWindow(GameWindow *win) = 0;
 
-		WebBrowserURL *makeNewURL(AsciiString tag);
-		WebBrowserURL *findURL(AsciiString tag);
+	WebBrowserURL *makeNewURL(AsciiString tag);
+	WebBrowserURL *findURL(AsciiString tag);
 
-	protected:
-		// Protected to prevent direct construction via new, use CreateInstance() instead.
-		WebBrowser();
-		virtual ~WebBrowser() override;
+protected:
+	// Protected to prevent direct construction via new, use CreateInstance() instead.
+	WebBrowser();
+	virtual ~WebBrowser() override;
 
-		// Protected to prevent copy and assignment
-		WebBrowser(const WebBrowser&);
-		const WebBrowser& operator=(const WebBrowser&);
+	// Protected to prevent copy and assignment
+	WebBrowser(const WebBrowser&);
+	const WebBrowser& operator=(const WebBrowser&);
 
 //		Bool RetrievePageURL(const char* page, char* url, int size);
 //		Bool RetrieveHTMLPath(char* path, int size);
 
-	protected:
-		ULONG mRefCount;
-		WebBrowserURL *m_urlList;
+protected:
+	ULONG mRefCount;
+	WebBrowserURL *m_urlList;
 
 	//---------------------------------------------------------------------------
 	// IUnknown methods
 	//---------------------------------------------------------------------------
-	protected:
-		HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) IUNKNOWN_NOEXCEPT;
-		ULONG STDMETHODCALLTYPE AddRef() IUNKNOWN_NOEXCEPT;
-		ULONG STDMETHODCALLTYPE Release() IUNKNOWN_NOEXCEPT;
+protected:
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void** ppvObject) IUNKNOWN_NOEXCEPT;
+	ULONG STDMETHODCALLTYPE AddRef() IUNKNOWN_NOEXCEPT;
+	ULONG STDMETHODCALLTYPE Release() IUNKNOWN_NOEXCEPT;
 
 	//---------------------------------------------------------------------------
 	// IBrowserDispatch methods
 	//---------------------------------------------------------------------------
-	public:
-		STDMETHOD(TestMethod)(Int num1);
-	};
+public:
+	STDMETHOD(TestMethod)(Int num1);
+};
 
 extern CComObject<WebBrowser> *TheWebBrowser;

@@ -63,7 +63,7 @@ W3DTruckDrawModuleData::~W3DTruckDrawModuleData()
 //-------------------------------------------------------------------------------------------------
 void W3DTruckDrawModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  W3DModelDrawModuleData::buildFieldParse(p);
+	W3DModelDrawModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -92,17 +92,17 @@ void W3DTruckDrawModuleData::buildFieldParse(MultiIniFieldParse& p)
 
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 W3DTruckDraw::W3DTruckDraw( Thing *thing, const ModuleData* moduleData ) : W3DModelDraw( thing, moduleData ),
-m_effectsInitialized(false), m_wasAirborne(false), m_isPowersliding(false),
-m_frontWheelRotation(0), m_rearWheelRotation(0), m_midFrontWheelRotation(0), m_midRearWheelRotation(0),
-m_frontRightTireBone(0), m_frontLeftTireBone(0), m_rearLeftTireBone(0),m_rearRightTireBone(0),
-m_midFrontRightTireBone(0), m_midFrontLeftTireBone(0), m_midRearLeftTireBone(0),m_midRearRightTireBone(0),
-m_midMidRightTireBone(0), m_midMidLeftTireBone(0), m_prevRenderObj(nullptr)
+	m_effectsInitialized(false), m_wasAirborne(false), m_isPowersliding(false),
+	m_frontWheelRotation(0), m_rearWheelRotation(0), m_midFrontWheelRotation(0), m_midRearWheelRotation(0),
+	m_frontRightTireBone(0), m_frontLeftTireBone(0), m_rearLeftTireBone(0),m_rearRightTireBone(0),
+	m_midFrontRightTireBone(0), m_midFrontLeftTireBone(0), m_midRearLeftTireBone(0),m_midRearRightTireBone(0),
+	m_midMidRightTireBone(0), m_midMidLeftTireBone(0), m_prevRenderObj(nullptr)
 {
 	std::fill(m_truckEffectIDs, m_truckEffectIDs + ARRAY_SIZE(m_truckEffectIDs), INVALID_PARTICLE_SYSTEM_ID);
 
@@ -182,7 +182,7 @@ void W3DTruckDraw::createWheelEmitters()
 				{
 					if (!effectNames[i]->isEmpty()) {
 						DEBUG_LOG(("*** ERROR - Missing particle system '%s' in thing '%s'",
-							effectNames[i]->str(), getDrawable()->getObject()->getTemplate()->getName().str()));
+						           effectNames[i]->str(), getDrawable()->getObject()->getTemplate()->getName().str()));
 					}
 				}
 			}

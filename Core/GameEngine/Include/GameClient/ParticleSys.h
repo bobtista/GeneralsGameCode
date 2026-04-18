@@ -152,7 +152,7 @@ public:
 	Real m_windRandomness;											///< multiplier for wind randomness per particle
 
 	Bool m_particleUpTowardsEmitter;						///< if this is true, then the 0.0 Z rotation should actually
-																							///< correspond to the direction of the emitter.
+	///< correspond to the direction of the emitter.
 
 protected:
 
@@ -169,7 +169,7 @@ protected:
  * NOTE: Particles cannot exist without a parent particle system.
  */
 class Particle : public MemoryPoolObject,
-								 public ParticleInfo
+	public ParticleInfo
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( Particle, "ParticlePool" )
@@ -550,7 +550,7 @@ protected:
  * is reset.
  */
 class ParticleSystem : public MemoryPoolObject,
-											 public ParticleSystemInfo
+	public ParticleSystemInfo
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( ParticleSystem, "ParticleSystemPool" )
@@ -558,8 +558,8 @@ class ParticleSystem : public MemoryPoolObject,
 public:
 
 	ParticleSystem( const ParticleSystemTemplate *sysTemplate,
-									ParticleSystemID id,
-									Bool createSlaves );			///< create a particle system from a template and assign it this ID
+	                ParticleSystemID id,
+	                Bool createSlaves );			///< create a particle system from a template and assign it this ID
 
 	ParticleSystemID getSystemID() const { return m_systemID; }	///< get unique system ID
 
@@ -667,8 +667,8 @@ protected:
 	virtual void loadPostProcess() override;
 
 	virtual Particle *createParticle( const ParticleInfo *data,
-																		ParticlePriorityType priority,
-																		Bool forceCreate = FALSE );	///< factory method for particles
+	                                  ParticlePriorityType priority,
+	                                  Bool forceCreate = FALSE );	///< factory method for particles
 
 
 	const ParticleInfo *generateParticleInfo( Int particleNum, Int particleCount );	///< generate a new, random set of ParticleInfo
@@ -695,7 +695,7 @@ protected:
 	UnsignedInt				m_startTimestamp;								///< timestamp when this particle system was (re)started
 	UnsignedInt				m_systemLifetimeLeft;						///< lifetime remaining for entire particle system
 	UnsignedInt				m_personalityStore;							///< increments each time it is assigned to each new particle
-																										///< so that each particle gets an ever greater number
+	///< so that each particle gets an ever greater number
 
 	Real							m_accumulatedSizeBonus;					///< For a system that wants to make particles start bigger and bigger.  StartSizeRate
 
@@ -736,7 +736,7 @@ protected:
  * The particle system manager, responsible for maintaining all ParticleSystems
  */
 class ParticleSystemManager : public SubsystemInterface,
-															public Snapshot
+	public Snapshot
 {
 
 public:
@@ -754,7 +754,7 @@ public:
 	virtual void update() override;								///< update all particle systems
 
 	virtual Int getOnScreenParticleCount() = 0;   ///< returns the number of particles on screen
-  virtual void setOnScreenParticleCount(int count);
+	virtual void setOnScreenParticleCount(int count);
 
 	ParticleSystemTemplate *findTemplate( const AsciiString &name ) const;
 	ParticleSystemTemplate *findParentTemplate( const AsciiString &name, int parentNum ) const;
@@ -762,15 +762,15 @@ public:
 
 	/// given a template, instantiate a particle system
 	ParticleSystem *createParticleSystem( const ParticleSystemTemplate *sysTemplate,
-																				Bool createSlaves = TRUE );
+	                                      Bool createSlaves = TRUE );
 
 	/** given a template, instantiate a particle system.
 		if attachTo is not null, attach the particle system to the given object.
 		return the particle system's ID, NOT its pointer.
 	*/
 	ParticleSystemID createAttachedParticleSystemID( const ParticleSystemTemplate *sysTemplate,
-																				Object* attachTo,
-																				Bool createSlaves = TRUE );
+	        Object* attachTo,
+	        Bool createSlaves = TRUE );
 
 	/// find a particle system given a unique system identifier
 	ParticleSystem *findParticleSystem( ParticleSystemID id );

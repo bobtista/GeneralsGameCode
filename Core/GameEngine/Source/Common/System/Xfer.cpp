@@ -86,7 +86,7 @@ void Xfer::xferVersion( XferVersion *versionData, XferVersion currentVersion )
 	{
 
 		DEBUG_CRASH(( "XferVersion - Unknown version '%d' should be no higher than '%d'",
-									*versionData, currentVersion ));
+		              *versionData, currentVersion ));
 		throw XFER_INVALID_VERSION;
 
 	}
@@ -592,7 +592,7 @@ void Xfer::xferScienceType( ScienceType *science )
 	}
 	else if( getXferMode() == XFER_CRC )
 	{
-			xferImplementation( science, sizeof( *science ) );
+		xferImplementation( science, sizeof( *science ) );
 
 	}
 	else
@@ -849,9 +849,9 @@ void Xfer::xferMatrix3D( Matrix3D* mtx )
 	XferVersion version = currentVersion;
 	xferVersion( &version, currentVersion );
 
- 	Vector4& tmp0 = (*mtx)[0];
- 	Vector4& tmp1 = (*mtx)[1];
- 	Vector4& tmp2 = (*mtx)[2];
+	Vector4& tmp0 = (*mtx)[0];
+	Vector4& tmp1 = (*mtx)[1];
+	Vector4& tmp2 = (*mtx)[2];
 
 	xferReal(&tmp0.X);
 	xferReal(&tmp0.Y);

@@ -131,9 +131,9 @@ static const FieldParse audioSettingsFieldParseTable[] =
 	{ "DefaultMoneyTransactionVolume", INI::parsePercentToReal,		nullptr,							offsetof( AudioSettings, m_defaultMoneyTransactionVolume) },
 	{ "MicrophoneDesiredHeightAboveTerrain",	INI::parseReal,			nullptr,							offsetof( AudioSettings, m_microphoneDesiredHeightAboveTerrain ) },
 	{ "MicrophoneMaxPercentageBetweenGroundAndCamera", INI::parsePercentToReal,	nullptr,	offsetof( AudioSettings, m_microphoneMaxPercentageBetweenGroundAndCamera ) },
-  { "ZoomMinDistance",		INI::parseReal,									nullptr,							offsetof( AudioSettings, m_zoomMinDistance ) },
-  { "ZoomMaxDistance",		INI::parseReal,									nullptr,							offsetof( AudioSettings, m_zoomMaxDistance ) },
-  { "ZoomSoundVolumePercentageAmount",		INI::parsePercentToReal,	nullptr,		offsetof( AudioSettings, m_zoomSoundVolumePercentageAmount ) },
+	{ "ZoomMinDistance",		INI::parseReal,									nullptr,							offsetof( AudioSettings, m_zoomMinDistance ) },
+	{ "ZoomMaxDistance",		INI::parseReal,									nullptr,							offsetof( AudioSettings, m_zoomMaxDistance ) },
+	{ "ZoomSoundVolumePercentageAmount",		INI::parsePercentToReal,	nullptr,		offsetof( AudioSettings, m_zoomSoundVolumePercentageAmount ) },
 
 	{ nullptr, nullptr, nullptr, 0 }
 };
@@ -768,8 +768,8 @@ void AudioManager::set3DVolumeAdjustment( Real volumeAdjustment )
 	if (m_sound3DVolume > 1.0f)
 		m_sound3DVolume = 1.0f;
 
-  if ( ! has3DSensitiveStreamsPlaying() )
-  	m_volumeHasChanged = TRUE;
+	if ( ! has3DSensitiveStreamsPlaying() )
+		m_volumeHasChanged = TRUE;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -810,12 +810,12 @@ void AudioManager::appendAudioRequest( AudioRequest *m_request )
 // Remove all pending audio requests
 void AudioManager::removeAllAudioRequests()
 {
-  std::list<AudioRequest*>::iterator it;
-  for ( it = m_audioRequests.begin(); it != m_audioRequests.end(); it++ ) {
-    releaseAudioRequest( *it );
-  }
+	std::list<AudioRequest*>::iterator it;
+	for ( it = m_audioRequests.begin(); it != m_audioRequests.end(); it++ ) {
+		releaseAudioRequest( *it );
+	}
 
-  m_audioRequests.clear();
+	m_audioRequests.clear();
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -841,17 +841,17 @@ AudioEventInfo *AudioManager::newAudioEventInfo( AsciiString audioName )
 // Add an AudioEventInfo structure allocated elsewhere to the audio event list
 void AudioManager::addAudioEventInfo( AudioEventInfo * newEvent )
 {
-  // Warning: Don't try to copy the structure. It may be a derived class
-  AudioEventInfo *eventInfo = findAudioEventInfo( newEvent->m_audioName );
-  if (eventInfo)
-  {
-    DEBUG_CRASH(("Requested add of '%s' multiple times. Is this intentional? - jkmcd", newEvent->m_audioName.str()));
-    *eventInfo = *newEvent;
-  }
-  else
-  {
-    m_allAudioEventInfo[newEvent->m_audioName] = newEvent;
-  }
+	// Warning: Don't try to copy the structure. It may be a derived class
+	AudioEventInfo *eventInfo = findAudioEventInfo( newEvent->m_audioName );
+	if (eventInfo)
+	{
+		DEBUG_CRASH(("Requested add of '%s' multiple times. Is this intentional? - jkmcd", newEvent->m_audioName.str()));
+		*eventInfo = *newEvent;
+	}
+	else
+	{
+		m_allAudioEventInfo[newEvent->m_audioName] = newEvent;
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -870,21 +870,21 @@ AudioEventInfo *AudioManager::findAudioEventInfo( AsciiString eventName ) const
 // Remove all AudioEventInfo's with the m_isLevelSpecific flag
 void AudioManager::removeLevelSpecificAudioEventInfos()
 {
-  AudioEventInfoHash::iterator it = m_allAudioEventInfo.begin();
+	AudioEventInfoHash::iterator it = m_allAudioEventInfo.begin();
 
-  while ( it != m_allAudioEventInfo.end() )
-  {
-    AudioEventInfoHash::iterator next = it; // Make sure erase doesn't cause problems
-    next++;
+	while ( it != m_allAudioEventInfo.end() )
+	{
+		AudioEventInfoHash::iterator next = it; // Make sure erase doesn't cause problems
+		next++;
 
-    if ( it->second->isLevelSpecific() )
-    {
-      deleteInstance(it->second);
-      m_allAudioEventInfo.erase( it );
-    }
+		if ( it->second->isLevelSpecific() )
+		{
+			deleteInstance(it->second);
+			m_allAudioEventInfo.erase( it );
+		}
 
-    it = next;
-  }
+		it = next;
+	}
 
 }
 
@@ -940,8 +940,8 @@ Real AudioManager::getAudioLengthMS( const AudioEventRTS *event )
 	tmpEvent.generateFilename();
 	tmpEvent.generatePlayInfo();
 	return getFileLengthMS(tmpEvent.getAttackFilename()) +
-				 getFileLengthMS(tmpEvent.getFilename()) +
-				 getFileLengthMS(tmpEvent.getDecayFilename());
+	       getFileLengthMS(tmpEvent.getFilename()) +
+	       getFileLengthMS(tmpEvent.getDecayFilename());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1087,7 +1087,7 @@ void AudioManager::muteAudio( MuteAudioReason reason )
 	m_muteReasonBits |= 1u << reason;
 
 	DEBUG_LOG(("AudioManager::muteAudio(%s): m_muteReason=%u muted=%d",
-		MuteAudioReasonNames[reason], m_muteReasonBits, (int)(m_muteReasonBits != 0)));
+	           MuteAudioReasonNames[reason], m_muteReasonBits, (int)(m_muteReasonBits != 0)));
 
 	if (m_muteReasonBits == 0 || m_savedValues)
 		return;
@@ -1109,7 +1109,7 @@ void AudioManager::unmuteAudio( MuteAudioReason reason )
 	m_muteReasonBits &= ~(1u << reason);
 
 	DEBUG_LOG(("AudioManager::unmuteAudio(%s): m_muteReason=%u muted=%d",
-		MuteAudioReasonNames[reason], m_muteReasonBits, (int)(m_muteReasonBits != 0)));
+	           MuteAudioReasonNames[reason], m_muteReasonBits, (int)(m_muteReasonBits != 0)));
 
 	if (m_muteReasonBits != 0 || !m_savedValues)
 		return;

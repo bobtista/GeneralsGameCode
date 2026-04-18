@@ -101,14 +101,14 @@ VideoPlayerInterface *TheVideoPlayer = nullptr;
 //============================================================================
 
 VideoBuffer::VideoBuffer( Type format)
-: m_width(0),
-	m_height(0),
-	m_textureWidth(0),
-	m_textureHeight(0),
-	m_format(format),
-	m_pitch(0),
-	m_xPos(0),
-	m_yPos(0)
+	: m_width(0),
+	  m_height(0),
+	  m_textureWidth(0),
+	  m_textureHeight(0),
+	  m_format(format),
+	  m_pitch(0),
+	  m_xPos(0),
+	  m_yPos(0)
 {
 
 	if ( m_format >= NUM_TYPES || m_format < 0 )
@@ -129,9 +129,9 @@ RectClass VideoBuffer::Rect( Real x1, Real y1, Real x2, Real y2 )
 	if ( valid() )
 	{
 		rect.Set(
-						((Real)m_width/(Real)m_textureWidth)*x1, ((Real)m_height/(Real)m_textureHeight)*y1,
-						((Real)m_width/(Real)m_textureWidth)*x2, ((Real)m_height/(Real)m_textureHeight)*y2
-					);
+		    ((Real)m_width/(Real)m_textureWidth)*x1, ((Real)m_height/(Real)m_textureHeight)*y1,
+		    ((Real)m_width/(Real)m_textureWidth)*x2, ((Real)m_height/(Real)m_textureHeight)*y2
+		);
 	}
 
 	return rect;
@@ -155,7 +155,7 @@ void	VideoBuffer::free()
 //============================================================================
 
 VideoPlayer::VideoPlayer()
-: m_firstStream(nullptr)
+	: m_firstStream(nullptr)
 {
 
 }
@@ -374,8 +374,8 @@ const Video* VideoPlayer::getVideo( Int index )
 //============================================================================
 
 VideoStream::VideoStream()
-: m_next(nullptr),
-	m_player(nullptr)
+	: m_next(nullptr),
+	  m_player(nullptr)
 {
 
 }

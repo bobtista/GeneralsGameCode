@@ -65,18 +65,18 @@ class DisplayString;
 
 class GraphDraw
 {
-	public:
-		GraphDraw();
-		virtual ~GraphDraw();
+public:
+	GraphDraw();
+	virtual ~GraphDraw();
 
-		void addEntry(AsciiString str, Real val);
-		// Called during begin/end
-		void render();
-		void clear();
+	void addEntry(AsciiString str, Real val);
+	// Called during begin/end
+	void render();
+	void clear();
 
-	protected:
-		VecGraphEntries m_graphEntries;
-		DisplayString *m_displayStrings[MAX_GRAPH_VALUES];
+protected:
+	VecGraphEntries m_graphEntries;
+	DisplayString *m_displayStrings[MAX_GRAPH_VALUES];
 };
 
 extern GraphDraw *TheGraphDraw;

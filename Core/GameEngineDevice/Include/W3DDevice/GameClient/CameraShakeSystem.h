@@ -64,9 +64,9 @@ public:
 	};
 
 	void		Add_Camera_Shake(		const Vector3 & position,
-											float radius = 50.0f,
-											float duration = 1.5f,
-											float power = 1.0f	);
+	                                float radius = 50.0f,
+	                                float duration = 1.5f,
+	                                float power = 1.0f	);
 	void		Timestep(float dt);
 	bool		IsCameraShaking();
 	void		Update_Camera_Shaker(Vector3 camera_position, Vector3 * shaker_angles);

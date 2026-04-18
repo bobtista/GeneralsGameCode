@@ -109,8 +109,8 @@ FirewallHelperClass::FirewallHelperClass()
 	m_currentState = DETECTIONSTATE_IDLE;
 
 	m_sourcePortPool = 4096 + ((timeGetTime() / 1000) % 1000); // do this to make sure we don't use the same source
-																										// port before a previous connection has had a chance
-																										// to time out.
+	// port before a previous connection has had a chance
+	// to time out.
 }
 
 
@@ -203,34 +203,34 @@ Bool FirewallHelperClass::behaviorDetectionUpdate()
 	switch (m_currentState) {
 		case DETECTIONSTATE_IDLE:
 			return FALSE;
-			
+
 		case DETECTIONSTATE_DONE:
 			return TRUE;
-			
+
 		case DETECTIONSTATE_BEGIN:
 			return detectionBeginUpdate();
-			
+
 		case DETECTIONSTATE_TEST1:
 			return detectionTest1Update();
-			
+
 		case DETECTIONSTATE_TEST2:
 			return detectionTest2Update();
-			
+
 		case DETECTIONSTATE_TEST3:
 			return detectionTest3Update();
-			
+
 		case DETECTIONSTATE_TEST3_WAITFORRESPONSES:
 			return detectionTest3WaitForResponsesUpdate();
-			
+
 		case DETECTIONSTATE_TEST4_1:
 			return detectionTest4Stage1Update();
-			
+
 		case DETECTIONSTATE_TEST4_2:
 			return detectionTest4Stage2Update();
-			
+
 		case DETECTIONSTATE_TEST5:
 			return detectionTest5Update();
-			
+
 		default:
 			return TRUE;
 	}
@@ -310,7 +310,7 @@ UnsignedShort FirewallHelperClass::getNextTemporarySourcePort(Int skip)
 Bool FirewallHelperClass::sendToManglerFromPort(UnsignedInt address, UnsignedShort port, UnsignedShort packetID, Bool blitzme)
 {
 	DEBUG_LOG(("sizeof(ManglerMessage) == %d, sizeof(ManglerData) == %d",
-		sizeof(ManglerMessage), sizeof(ManglerData)));
+	           sizeof(ManglerMessage), sizeof(ManglerData)));
 
 	/*
 	** Build the packet to send out.
@@ -326,21 +326,21 @@ Bool FirewallHelperClass::sendToManglerFromPort(UnsignedInt address, UnsignedSho
 	}
 	packet.data.magic = GENERALS_MAGIC_NUMBER;
 	packet.data.OriginalPortNumber = port;
-/*
-	DEBUG_LOG_RAW(("Pre-Adjust Buffer = "));
-	for (Int i = 0; i < sizeof(ManglerData); ++i) {
-		DEBUG_LOG_RAW(("%02x", *(((unsigned char *)(&(packet.data))) + i)));
-	}
-	DEBUG_LOG_RAW(("\n"));
-*/
+	/*
+		DEBUG_LOG_RAW(("Pre-Adjust Buffer = "));
+		for (Int i = 0; i < sizeof(ManglerData); ++i) {
+			DEBUG_LOG_RAW(("%02x", *(((unsigned char *)(&(packet.data))) + i)));
+		}
+		DEBUG_LOG_RAW(("\n"));
+	*/
 	byteAdjust(&(packet.data));
-/*
-	DEBUG_LOG_RAW(("Pre-CRC Buffer = "));
-	for (i = 0; i < sizeof(ManglerData); ++i) {
-		DEBUG_LOG_RAW(("%02x", *(((unsigned char *)(&(packet.data))) + i)));
-	}
-	DEBUG_LOG_RAW(("\n"));
-*/
+	/*
+		DEBUG_LOG_RAW(("Pre-CRC Buffer = "));
+		for (i = 0; i < sizeof(ManglerData); ++i) {
+			DEBUG_LOG_RAW(("%02x", *(((unsigned char *)(&(packet.data))) + i)));
+		}
+		DEBUG_LOG_RAW(("\n"));
+	*/
 	CRC crc;
 	crc.computeCRC((unsigned char *)(&(packet.data.magic)), sizeof(ManglerData) - sizeof(unsigned int));
 	packet.data.CRC = htonl(crc.get());
@@ -348,14 +348,14 @@ Bool FirewallHelperClass::sendToManglerFromPort(UnsignedInt address, UnsignedSho
 	packet.length = sizeof(ManglerData);
 
 	DEBUG_LOG(("FirewallHelperClass::sendToManglerFromPort - Sending from port %d to %d.%d.%d.%d:%d", (UnsignedInt)port,
-		PRINTF_IP_AS_4_INTS(address), MANGLER_PORT));
-/*
-	DEBUG_LOG_RAW(("Buffer = "));
-	for (i = 0; i < sizeof(ManglerData); ++i) {
-		DEBUG_LOG_RAW(("%02x", *(((unsigned char *)(&(packet.data))) + i)));
-	}
-	DEBUG_LOG_RAW(("\n"));
-*/
+	           PRINTF_IP_AS_4_INTS(address), MANGLER_PORT));
+	/*
+		DEBUG_LOG_RAW(("Buffer = "));
+		for (i = 0; i < sizeof(ManglerData); ++i) {
+			DEBUG_LOG_RAW(("%02x", *(((unsigned char *)(&(packet.data))) + i)));
+		}
+		DEBUG_LOG_RAW(("\n"));
+	*/
 	SpareSocketStruct *spareSocket = findSpareSocketByPort(port);
 //	DEBUG_LOG(("PacketID = %u", packetID));
 //	DEBUG_LOG(("OriginalPortNumber = %u", port));
@@ -607,7 +607,7 @@ Short FirewallHelperClass::getSourcePortAllocationDelta() {
 
 Bool FirewallHelperClass::detectionBeginUpdate() {
 //	UnsignedShort mangler_port = MANGLER_PORT;
-	 m_packetID = 0x7f00;
+	m_packetID = 0x7f00;
 	//int current_mangler = 0;
 
 	/*
@@ -656,7 +656,7 @@ Bool FirewallHelperClass::detectionBeginUpdate() {
 //		if (NumManglerServers > namenum) {
 //			mangler_name_ptr = &ManglerServerAddress[namenum][0];
 //			mangler_port = ManglerServerPort[namenum];
-			//current_mangler = CurrentManglerServer;
+		//current_mangler = CurrentManglerServer;
 //			DEBUG_LOG(("Using mangler from servserv"));
 //		}
 		namenum++;

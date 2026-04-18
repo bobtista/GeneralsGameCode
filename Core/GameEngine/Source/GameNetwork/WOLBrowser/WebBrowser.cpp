@@ -58,7 +58,7 @@ public:
 	{
 		// Initialize this instance
 		OleInitialize(nullptr);
-	 }
+	}
 	~OLEInitializer()
 	{
 		OleUninitialize();
@@ -87,7 +87,7 @@ CComObject<WebBrowser> * TheWebBrowser = nullptr;
 ******************************************************************************/
 
 WebBrowser::WebBrowser() :
-		mRefCount(1)
+	mRefCount(1)
 {
 	DEBUG_LOG(("Instantiating embedded WebBrowser"));
 	m_urlList = nullptr;

@@ -182,10 +182,10 @@ void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool ove
 					rangeIt1 = std::next(rangeIt0);
 
 					DEBUG_LOG(("ArchiveFileSystem::loadIntoDirectoryTree - adding file %s, archived in %s, overwriting same file in %s",
-						it->str(),
-						rangeIt0->second->getName().str(),
-						rangeIt1->second->getName().str()
-					));
+					           it->str(),
+					           rangeIt0->second->getName().str(),
+					           rangeIt1->second->getName().str()
+					          ));
 				}
 				else
 				{
@@ -193,10 +193,10 @@ void ArchiveFileSystem::loadIntoDirectoryTree(ArchiveFile *archiveFile, Bool ove
 					rangeIt0 = std::prev(rangeIt1);
 
 					DEBUG_LOG(("ArchiveFileSystem::loadIntoDirectoryTree - adding file %s, archived in %s, overwritten by same file in %s",
-						it->str(),
-						rangeIt1->second->getName().str(),
-						rangeIt0->second->getName().str()
-					));
+					           it->str(),
+					           rangeIt1->second->getName().str(),
+					           rangeIt0->second->getName().str()
+					          ));
 				}
 			}
 			else
@@ -233,7 +233,7 @@ void ArchiveFileSystem::loadMods()
 #ifdef DEBUG_LOGGING
 		Bool ret =
 #endif
-		loadBigFilesFromDirectory(TheGlobalData->m_modDir, "*.big", TRUE);
+		    loadBigFilesFromDirectory(TheGlobalData->m_modDir, "*.big", TRUE);
 		DEBUG_ASSERTLOG(ret, ("loadBigFilesFromDirectory(%s) returned FALSE!", TheGlobalData->m_modDir.str()));
 	}
 }
@@ -328,7 +328,7 @@ ArchiveFile* ArchiveFileSystem::getArchiveFile(const AsciiString& filename, File
 
 	if (!range.valid())
 		return nullptr;
-	
+
 	return range.get()->second;
 }
 

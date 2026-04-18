@@ -117,7 +117,7 @@ void initMemoryManager()
 	}
 	else
 	{
-			DEBUG_CRASH(("Null Memory Manager is already initialized"));
+		DEBUG_CRASH(("Null Memory Manager is already initialized"));
 	}
 
 	theMainInitFlag = true;

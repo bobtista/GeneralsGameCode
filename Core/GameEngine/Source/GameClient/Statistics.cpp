@@ -46,7 +46,7 @@ Real MuLaw(Real valueToRun, Real maxValueForVal, Real mu)
 {
 	Real testVal = (valueToRun - maxValueForVal / 2) / (maxValueForVal / 2);
 	return (sign(testVal) * log(1 + mu * fabs(testVal)) /
-														 log(1 + mu));
+	        log(1 + mu));
 }
 
 // from my head. jkmcd

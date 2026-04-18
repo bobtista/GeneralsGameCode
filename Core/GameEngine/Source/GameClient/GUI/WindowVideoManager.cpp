@@ -108,8 +108,8 @@ WindowVideo::~WindowVideo()
 }
 
 void WindowVideo::init( GameWindow *win, AsciiString movieName,
-												WindowVideoPlayType playType,
-												VideoBuffer *videoBuffer, VideoStreamInterface *videoStream)
+                        WindowVideoPlayType playType,
+                        VideoBuffer *videoBuffer, VideoStreamInterface *videoStream)
 {
 	m_win = win;
 	m_movieName = movieName;
@@ -266,9 +266,9 @@ void WindowVideoManager::playMovie( GameWindow *win, AsciiString movieName, Wind
 	// Create the new buffer
 	VideoBuffer *videoBuffer = TheDisplay->createVideoBuffer();
 	if (	videoBuffer == nullptr ||
-				!videoBuffer->allocate(	videoStream->width(),
-													videoStream->height())
-		)
+	        !videoBuffer->allocate(	videoStream->width(),
+	                                videoStream->height())
+	   )
 	{
 		// If we failed to create the buffer...
 		delete videoBuffer;
@@ -304,7 +304,7 @@ void WindowVideoManager::pauseMovie( GameWindow *win )
 	{
 		WindowVideo *winVid = it->second;
 		if(winVid)
-		winVid->setWindowState(WINDOW_VIDEO_STATE_PAUSE);
+			winVid->setWindowState(WINDOW_VIDEO_STATE_PAUSE);
 	}
 
 }
@@ -315,7 +315,7 @@ void WindowVideoManager::hideMovie( GameWindow *win )
 	{
 		WindowVideo *winVid = it->second;
 		if(winVid)
-		winVid->setWindowState(WINDOW_VIDEO_STATE_HIDDEN);
+			winVid->setWindowState(WINDOW_VIDEO_STATE_HIDDEN);
 	}
 }
 

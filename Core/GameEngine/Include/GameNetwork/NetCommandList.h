@@ -54,9 +54,9 @@ public:
 	NetCommandRef * getFirstMessage();				///< Get the first message on the list.
 	NetCommandRef * findMessage(NetCommandMsg *msg);	///< Find and return a reference to the given message if one exists.
 	NetCommandRef * findMessage(UnsignedShort commandID, UnsignedByte playerID);	///< Find and return a reference to the
-																								///< message given the player id and the command id.
-																								///< This will only check against messages of types that require
-																								///< a command id.
+	///< message given the player id and the command id.
+	///< This will only check against messages of types that require
+	///< a command id.
 	void removeMessage(NetCommandRef *msg);			///< Remove the given message from the list.
 	void appendList(NetCommandList *list);			///< Append the given list to the end of this list.
 	Int length();									///< Returns the number of nodes in this list.  This is inefficient and is meant to be a debug tool.

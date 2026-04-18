@@ -220,7 +220,7 @@ Bool ClipLine2D( ICoord2D *p1, ICoord2D *p2, ICoord2D *c1, ICoord2D *c2,
 
 	// Line is visible
 	return (x1 >= clipLeft && x1 <= clipRight &&
-		    y1 >= clipTop && y1 <= clipBottom &&
+			y1 >= clipTop && y1 <= clipBottom &&
 			x2 >= clipLeft && x2 <= clipRight &&
 			y2 >= clipTop && y2 <= clipBottom);
 

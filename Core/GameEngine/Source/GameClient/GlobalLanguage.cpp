@@ -209,64 +209,64 @@ Real GlobalLanguage::getResolutionFontSizeScale(ResolutionFontSizeMethod method,
 
 	switch (method)
 	{
-	default:
-	case ResolutionFontSizeMethod_Classic:
-	{
-		// TheSuperHackers @info The original font scaling for this game.
-		// Useful for not breaking legacy Addons and Mods. Scales poorly with large resolutions.
-		adjustFactor = TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH;
-		adjustFactor = 1.0f + (adjustFactor - 1.0f) * scaler;
-		if (adjustFactor > 2.0f)
-			adjustFactor = 2.0f;
-		break;
-	}
-	case ResolutionFontSizeMethod_ClassicNoCeiling:
-	{
-		// TheSuperHackers @feature The original font scaling, but without ceiling.
-		// Useful for not changing the original look of the game. Scales alright with large resolutions.
-		adjustFactor = TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH;
-		adjustFactor = 1.0f + (adjustFactor - 1.0f) * scaler;
-		break;
-	}
-	case ResolutionFontSizeMethod_Strict:
-	{
-		// TheSuperHackers @feature The strict method scales fonts based on the smallest screen
-		// dimension so they scale independent of aspect ratio.
-		const Real wScale = TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH;
-		const Real hScale = TheDisplay->getHeight() / (Real)DEFAULT_DISPLAY_HEIGHT;
-		adjustFactor = min(wScale, hScale);
-		adjustFactor = 1.0f + (adjustFactor - 1.0f) * scaler;
-		break;
-	}
-	case ResolutionFontSizeMethod_Balanced:
-	{
-		// TheSuperHackers @feature The balanced method evenly weighs the display width and height
-		// for a balanced rescale on non 4:3 resolutions. The aspect ratio scaling is clamped to
-		// prevent oversizing.
-		constexpr const Real maxAspect = 1.8f;
-		constexpr const Real minAspect = 1.0f;
-		Real w = TheDisplay->getWidth();
-		Real h = TheDisplay->getHeight();
-		const Real aspect = w / h;
-		Real wScale = w / (Real)DEFAULT_DISPLAY_WIDTH;
-		Real hScale = h / (Real)DEFAULT_DISPLAY_HEIGHT;
+		default:
+		case ResolutionFontSizeMethod_Classic:
+		{
+			// TheSuperHackers @info The original font scaling for this game.
+			// Useful for not breaking legacy Addons and Mods. Scales poorly with large resolutions.
+			adjustFactor = TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH;
+			adjustFactor = 1.0f + (adjustFactor - 1.0f) * scaler;
+			if (adjustFactor > 2.0f)
+				adjustFactor = 2.0f;
+			break;
+		}
+		case ResolutionFontSizeMethod_ClassicNoCeiling:
+		{
+			// TheSuperHackers @feature The original font scaling, but without ceiling.
+			// Useful for not changing the original look of the game. Scales alright with large resolutions.
+			adjustFactor = TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH;
+			adjustFactor = 1.0f + (adjustFactor - 1.0f) * scaler;
+			break;
+		}
+		case ResolutionFontSizeMethod_Strict:
+		{
+			// TheSuperHackers @feature The strict method scales fonts based on the smallest screen
+			// dimension so they scale independent of aspect ratio.
+			const Real wScale = TheDisplay->getWidth() / (Real)DEFAULT_DISPLAY_WIDTH;
+			const Real hScale = TheDisplay->getHeight() / (Real)DEFAULT_DISPLAY_HEIGHT;
+			adjustFactor = min(wScale, hScale);
+			adjustFactor = 1.0f + (adjustFactor - 1.0f) * scaler;
+			break;
+		}
+		case ResolutionFontSizeMethod_Balanced:
+		{
+			// TheSuperHackers @feature The balanced method evenly weighs the display width and height
+			// for a balanced rescale on non 4:3 resolutions. The aspect ratio scaling is clamped to
+			// prevent oversizing.
+			constexpr const Real maxAspect = 1.8f;
+			constexpr const Real minAspect = 1.0f;
+			Real w = TheDisplay->getWidth();
+			Real h = TheDisplay->getHeight();
+			const Real aspect = w / h;
+			Real wScale = w / (Real)DEFAULT_DISPLAY_WIDTH;
+			Real hScale = h / (Real)DEFAULT_DISPLAY_HEIGHT;
 
-		if (aspect > maxAspect)
-		{
-			// Recompute width at max aspect
-			w = maxAspect * h;
-			wScale = w / (Real)DEFAULT_DISPLAY_WIDTH;
+			if (aspect > maxAspect)
+			{
+				// Recompute width at max aspect
+				w = maxAspect * h;
+				wScale = w / (Real)DEFAULT_DISPLAY_WIDTH;
+			}
+			else if (aspect < minAspect)
+			{
+				// Recompute height at min aspect
+				h = minAspect * w;
+				hScale = h / (Real)DEFAULT_DISPLAY_HEIGHT;
+			}
+			adjustFactor = (wScale + hScale) * 0.5f;
+			adjustFactor = 1.0f + (adjustFactor - 1.0f) * scaler;
+			break;
 		}
-		else if (aspect < minAspect)
-		{
-			// Recompute height at min aspect
-			h = minAspect * w;
-			hScale = h / (Real)DEFAULT_DISPLAY_HEIGHT;
-		}
-		adjustFactor = (wScale + hScale) * 0.5f;
-		adjustFactor = 1.0f + (adjustFactor - 1.0f) * scaler;
-		break;
-	}
 	}
 
 	if (adjustFactor < 1.0f)

@@ -75,7 +75,7 @@ class TerrainTextureClass;
 //
 class W3DTerrainBackground
 {
-friend class HeightMapRenderObjClass;
+	friend class HeightMapRenderObjClass;
 public:
 
 	W3DTerrainBackground();

@@ -102,9 +102,9 @@
 //============================================================================
 
 W3DVideoBuffer::W3DVideoBuffer( VideoBuffer::Type format )
-: VideoBuffer(format),
-	m_texture(nullptr),
-	m_surface(nullptr)
+	: VideoBuffer(format),
+	  m_texture(nullptr),
+	  m_surface(nullptr)
 {
 
 }
@@ -239,15 +239,15 @@ WW3DFormat W3DVideoBuffer::TypeToW3DFormat( VideoBuffer::Type format )
 			w3dFormat = WW3D_FORMAT_X8R8G8B8;
 			break;
 
- 		case TYPE_R8G8B8:
+		case TYPE_R8G8B8:
 			w3dFormat = WW3D_FORMAT_R8G8B8;
 			break;
 
- 		case TYPE_R5G6B5:
+		case TYPE_R5G6B5:
 			w3dFormat = WW3D_FORMAT_R5G6B5;
 			break;
 
- 		case TYPE_X1R5G5B5:
+		case TYPE_X1R5G5B5:
 			w3dFormat = WW3D_FORMAT_X1R5G5B5;
 			break;
 	}
@@ -265,17 +265,17 @@ VideoBuffer::Type W3DVideoBuffer::W3DFormatToType( WW3DFormat w3dFormat )
 	switch ( w3dFormat )
 	{
 		case WW3D_FORMAT_X8R8G8B8:
-				format = VideoBuffer::TYPE_X8R8G8B8;
-				break;
+			format = VideoBuffer::TYPE_X8R8G8B8;
+			break;
 		case WW3D_FORMAT_R8G8B8:
-				format = VideoBuffer::TYPE_R8G8B8;
-				break;
+			format = VideoBuffer::TYPE_R8G8B8;
+			break;
 		case WW3D_FORMAT_R5G6B5:
-				format = VideoBuffer::TYPE_R5G6B5;
-				break;
+			format = VideoBuffer::TYPE_R5G6B5;
+			break;
 		case WW3D_FORMAT_X1R5G5B5:
-				format = VideoBuffer::TYPE_X1R5G5B5;
-				break;
+			format = VideoBuffer::TYPE_X1R5G5B5;
+			break;
 	}
 
 	return format;

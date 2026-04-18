@@ -80,99 +80,99 @@ class File : public MemoryPoolObject
 // friend doesn't play well with MPO (srj)
 //	friend class FileSystem;
 
-	public:
+public:
 
-		enum access
-		{
-			NONE			= 0x00000000,				///< Access file. Reading by default
+	enum access
+	{
+		NONE			= 0x00000000,				///< Access file. Reading by default
 
-			READ			= 0x00000001,				///< Access file for reading
-			WRITE			= 0x00000002,				///< Access file for writing
-			READWRITE = (READ | WRITE),
+		READ			= 0x00000001,				///< Access file for reading
+		WRITE			= 0x00000002,				///< Access file for writing
+		READWRITE = (READ | WRITE),
 
-			APPEND		= 0x00000004,				///< Seek to end of file on open
-			CREATE		= 0x00000008,				///< Create file if it does not exist
-			TRUNCATE	= 0x00000010,				///< Delete all data in file when opened
+		APPEND		= 0x00000004,				///< Seek to end of file on open
+		CREATE		= 0x00000008,				///< Create file if it does not exist
+		TRUNCATE	= 0x00000010,				///< Delete all data in file when opened
 
-			// NOTE: accesses file as binary data if neither TEXT and BINARY are set
-			TEXT			= 0x00000020,				///< Access file as text data
-			BINARY		= 0x00000040,				///< Access file as binary data
+		// NOTE: accesses file as binary data if neither TEXT and BINARY are set
+		TEXT			= 0x00000020,				///< Access file as text data
+		BINARY		= 0x00000040,				///< Access file as binary data
 
-			ONLYNEW		= 0x00000080,				///< Only create file if it does not exist
+		ONLYNEW		= 0x00000080,				///< Only create file if it does not exist
 
-			// NOTE: STREAMING is Mutually exclusive with WRITE
-			STREAMING = 0x00000100,				///< Do not read this file into a ram file, read it as requested.
+		// NOTE: STREAMING is Mutually exclusive with WRITE
+		STREAMING = 0x00000100,				///< Do not read this file into a ram file, read it as requested.
 
-			// NOTE: accesses file with full buffering if neither LINEBUF and FULLBUF are set
-			LINEBUF   = 0x00000200,				///< Access file with line buffering
-			FULLBUF   = 0x00000400,				///< Access file with full buffering
-		};
+		// NOTE: accesses file with full buffering if neither LINEBUF and FULLBUF are set
+		LINEBUF   = 0x00000200,				///< Access file with line buffering
+		FULLBUF   = 0x00000400,				///< Access file with full buffering
+	};
 
-		enum seekMode
-		{
-			START,												///< Seek position is relative to start of file
-			CURRENT,											///< Seek position is relative to current file position
-			END														///< Seek position is relative from the end of the file
-		};
+	enum seekMode
+	{
+		START,												///< Seek position is relative to start of file
+		CURRENT,											///< Seek position is relative to current file position
+		END														///< Seek position is relative from the end of the file
+	};
 
-		enum
-		{
-			BUFFERSIZE = BUFSIZ,
-		};
+	enum
+	{
+		BUFFERSIZE = BUFSIZ,
+	};
 
-	protected:
+protected:
 
-		AsciiString	m_nameStr;						///< Stores file name
-		Int					m_access;									///< How the file was opened
-		Bool				m_open;										///< Has the file been opened
-		Bool				m_deleteOnClose;					///< delete File object on close()
-
-
-		File();											///< This class can only used as a base class
-		//virtual				~File();
-
-		void closeWithoutDelete();
-
-	public:
+	AsciiString	m_nameStr;						///< Stores file name
+	Int					m_access;									///< How the file was opened
+	Bool				m_open;										///< Has the file been opened
+	Bool				m_deleteOnClose;					///< delete File object on close()
 
 
-						Bool	eof();
-		virtual Bool	open( const Char *filename, Int access = NONE, size_t bufferSize = BUFFERSIZE ); ///< Open a file for access
-		virtual void	close();																			///< Close the file !!! File object no longer valid after this call !!!
+	File();											///< This class can only used as a base class
+	//virtual				~File();
 
-		virtual Int		read( void *buffer, Int bytes ) = 0 ;						/**< Read the specified number of bytes from the file in to the
+	void closeWithoutDelete();
+
+public:
+
+
+	Bool	eof();
+	virtual Bool	open( const Char *filename, Int access = NONE, size_t bufferSize = BUFFERSIZE ); ///< Open a file for access
+	virtual void	close();																			///< Close the file !!! File object no longer valid after this call !!!
+
+	virtual Int		read( void *buffer, Int bytes ) = 0 ;						/**< Read the specified number of bytes from the file in to the
 																																			  *  memory pointed at by buffer. Returns the number of bytes read.
 																																			  *  Returns -1 if an error occurred.
 																																			  */
-		virtual Int		readChar() = 0 ;											/**< Read a character from the file
+	virtual Int		readChar() = 0 ;											/**< Read a character from the file
 																																			  *  Returns the character converted to an integer.
 																																			  *  Returns EOF if an error occurred.
 																																			  */
-		virtual Int		readWideChar() = 0 ;										/**< Read a wide character from the file
+	virtual Int		readWideChar() = 0 ;										/**< Read a wide character from the file
 																																			  *  Returns the wide character converted to an integer.
 																																			  *  Returns wide EOF if an error occurred.
 																																			  */
-		virtual Int		write( const void *buffer, Int bytes ) = 0 ;						/**< Write the specified number of bytes from the
+	virtual Int		write( const void *buffer, Int bytes ) = 0 ;						/**< Write the specified number of bytes from the
 																																			  *	 memory pointed at by buffer to the file. Returns the number of bytes written.
 																																			  *	 Returns -1 if an error occurred.
 																																			  */
-		virtual Int		writeFormat( const Char* format, ... ) = 0 ;						/**< Write an unterminated formatted string to the file
+	virtual Int		writeFormat( const Char* format, ... ) = 0 ;						/**< Write an unterminated formatted string to the file
 																																			  *	 Returns the number of bytes written.
 																																			  *	 Returns -1 if an error occurred.
 																																			  */
-		virtual Int		writeFormat( const WideChar* format, ... ) = 0 ;						/**< Write an unterminated formatted wide character string to the file
+	virtual Int		writeFormat( const WideChar* format, ... ) = 0 ;						/**< Write an unterminated formatted wide character string to the file
 																																			  *	 Returns the number of bytes written.
 																																			  *	 Returns -1 if an error occurred.
 																																			  */
-		virtual Int		writeChar( const Char* character ) = 0 ;						/**< Write a character to the file
+	virtual Int		writeChar( const Char* character ) = 0 ;						/**< Write a character to the file
 																																			  *	 Returns a copy of the character written.
 																																			  *	 Returns EOF if an error occurred.
 																																			  */
-		virtual Int		writeChar( const WideChar* character ) = 0 ;						/**< Write a wide character to the file
+	virtual Int		writeChar( const WideChar* character ) = 0 ;						/**< Write a wide character to the file
 																																			  *	 Returns a copy of the wide character written.
 																																			  *	 Returns wide EOF if an error occurred.
 																																			  */
-		virtual Int		seek( Int bytes, seekMode mode = CURRENT ) = 0;	/**< Sets the file position of the next read/write operation. Returns the new file
+	virtual Int		seek( Int bytes, seekMode mode = CURRENT ) = 0;	/**< Sets the file position of the next read/write operation. Returns the new file
 																																				*  position as the number of bytes from the start of the file.
 																																				*  Returns -1 if an error occurred.
 																																				*
@@ -182,33 +182,33 @@ class File : public MemoryPoolObject
 																																				*  CURRENT: means seek the specified the number of bytes from the current file position
 																																				*  END: means seek the specified number of bytes back from the end of the file
 																																				*/
-		virtual Bool	flush() = 0;											///< flush data to disk
-		virtual void	nextLine(Char *buf = nullptr, Int bufSize = 0) = 0;		///< reads until it reaches a new-line character
+	virtual Bool	flush() = 0;											///< flush data to disk
+	virtual void	nextLine(Char *buf = nullptr, Int bufSize = 0) = 0;		///< reads until it reaches a new-line character
 
-		virtual Bool	scanInt(Int &newInt) = 0;														///< read an integer from the current file position.
-		virtual Bool	scanReal(Real &newReal) = 0;												///< read a real number from the current file position.
-		virtual Bool	scanString(AsciiString &newString) = 0;							///< read a string from the current file position.
+	virtual Bool	scanInt(Int &newInt) = 0;														///< read an integer from the current file position.
+	virtual Bool	scanReal(Real &newReal) = 0;												///< read a real number from the current file position.
+	virtual Bool	scanString(AsciiString &newString) = 0;							///< read a string from the current file position.
 
-		virtual Bool	print ( const Char *format, ...);										///< Prints formatted string to text file
-		virtual Int		size();																				///< Returns the size of the file
-		virtual Int		position();																		///< Returns the current read/write position
+	virtual Bool	print ( const Char *format, ...);										///< Prints formatted string to text file
+	virtual Int		size();																				///< Returns the size of the file
+	virtual Int		position();																		///< Returns the current read/write position
 
 
-		void					setName( const char *name );												///< Set the name of the file
-		const char*		getName() const;															///< Returns a pointer to the name of the file
-		Int						getAccess() const;														///< Returns file's access flags
+	void					setName( const char *name );												///< Set the name of the file
+	const char*		getName() const;															///< Returns a pointer to the name of the file
+	Int						getAccess() const;														///< Returns file's access flags
 
-		void					deleteOnClose ();															///< Causes the File object to delete itself when it closes
+	void					deleteOnClose ();															///< Causes the File object to delete itself when it closes
 
-		/**
-			Allocate a buffer large enough to hold entire file, read
-			the entire file into the buffer, then close the file.
-			the buffer is owned by the caller, who is responsible
-			for freeing is (via delete[]). This is a Good Thing to
-			use because it minimizes memory copies for BIG files.
-		*/
-		virtual char* readEntireAndClose() = 0;
-		virtual File* convertToRAMFile() = 0;
+	/**
+		Allocate a buffer large enough to hold entire file, read
+		the entire file into the buffer, then close the file.
+		the buffer is owned by the caller, who is responsible
+		for freeing is (via delete[]). This is a Good Thing to
+		use because it minimizes memory copies for BIG files.
+	*/
+	virtual char* readEntireAndClose() = 0;
+	virtual File* convertToRAMFile() = 0;
 };
 
 

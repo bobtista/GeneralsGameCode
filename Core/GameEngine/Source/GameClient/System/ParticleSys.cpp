@@ -81,7 +81,7 @@ ParticleInfo::ParticleInfo()
 	m_angularRateZ = 0.0f;
 	m_angularDamping = 0.0f;
 	m_colorScale =0.0f;
-  m_size = 0.0f;
+	m_size = 0.0f;
 	m_sizeRate = 0.0f;
 	m_sizeRateDamping = 0.0f;
 	m_velDamping = 0.0f;
@@ -581,7 +581,7 @@ void Particle::doWindMotion()
 		// only apply force if still within the circle of influence
 		if( distFromWind > fullForceDistance )
 			windForceStrength *= (1.0f - ((distFromWind - fullForceDistance) /
-																		(noForceDistance - fullForceDistance)));
+			                              (noForceDistance - fullForceDistance)));
 
 		// integrate the wind motion into the position
 		m_pos.x += (Cos( windAngle ) * windForceStrength);
@@ -1064,8 +1064,8 @@ void ParticleSystemInfo::loadPostProcess()
 /** Read particle system properties from given file */
 // ------------------------------------------------------------------------------------------------
 ParticleSystem::ParticleSystem( const ParticleSystemTemplate *sysTemplate,
-																ParticleSystemID id,
-																Bool createSlaves )
+                                ParticleSystemID id,
+                                Bool createSlaves )
 {
 	m_systemParticlesHead = m_systemParticlesTail = nullptr;
 
@@ -1718,8 +1718,8 @@ const Coord3D *ParticleSystem::computeParticlePosition()
 /** Factory method for particles. */
 // ------------------------------------------------------------------------------------------------
 Particle *ParticleSystem::createParticle( const ParticleInfo *info,
-																					ParticlePriorityType priority,
-																					Bool forceCreate )
+        ParticlePriorityType priority,
+        Bool forceCreate )
 {
 
 	//
@@ -1745,8 +1745,8 @@ Particle *ParticleSystem::createParticle( const ParticleInfo *info,
 		// getMinDynamicParticleSkipPriority())
 		//
 		if( priority < TheGameLODManager->getMinDynamicParticlePriority() ||
-				(priority < TheGameLODManager->getMinDynamicParticleSkipPriority() &&
-				 TheGameLODManager->isParticleSkipped()) )
+		        (priority < TheGameLODManager->getMinDynamicParticleSkipPriority() &&
+		         TheGameLODManager->isParticleSkipped()) )
 			return nullptr;
 
 		if ( getParticleCount() > 0 && priority == AREA_EFFECT && m_isGroundAligned && TheParticleSystemManager->getFieldParticleCount() > (UnsignedInt)TheGlobalData->m_maxFieldParticleCount )
@@ -1871,11 +1871,11 @@ const ParticleInfo *ParticleSystem::generateParticleInfo( Int particleNum, Int p
 		info.m_colorKey[i] = m_colorKey[i];
 	}
 
-/*
-	info.m_color.red = m_color.red.getValue();
-	info.m_color.green = m_color.green.getValue();
-	info.m_color.blue = m_color.blue.getValue();
-*/
+	/*
+		info.m_color.red = m_color.red.getValue();
+		info.m_color.green = m_color.green.getValue();
+		info.m_color.blue = m_color.blue.getValue();
+	*/
 
 	info.m_colorScale = m_colorScale.getValue();
 #ifdef ALLOW_TEMPORARIES
@@ -1987,11 +1987,11 @@ Bool ParticleSystem::update( Int localPlayerIndex  )
 		{
 			// if system has its own local transform, concatenate them
 			if (m_isLocalIdentity == false)
-	#ifdef ALLOW_TEMPORARIES
+#ifdef ALLOW_TEMPORARIES
 				m_transform = (*parentXfrm) * m_localTransform;
-	#else
+#else
 				m_transform.mul(*parentXfrm, m_localTransform);
-	#endif
+#endif
 			else
 				m_transform = *parentXfrm;
 		}
@@ -2181,7 +2181,7 @@ void ParticleSystem::updateWindMotion()
 			Real change = (1.0f - (diffFromCenter / halfSpan)) * m_windAngleChange;
 
 			// we will always change a little bit
-			#define MINIMUM_CHANGE 0.005f  // lower #'s have softer swings at the edge angles
+#define MINIMUM_CHANGE 0.005f  // lower #'s have softer swings at the edge angles
 			if( change < MINIMUM_CHANGE )
 				change = MINIMUM_CHANGE;
 
@@ -2204,15 +2204,15 @@ void ParticleSystem::updateWindMotion()
 
 					// pick a new change delta
 					m_windAngleChange =
-							GameClientRandomValueReal( m_windAngleChangeMin, m_windAngleChangeMax );
+					    GameClientRandomValueReal( m_windAngleChangeMin, m_windAngleChangeMax );
 
 					// pick new start and end angles
 					m_windMotionStartAngle =
-							GameClientRandomValueReal( m_windMotionStartAngleMin,
-																				 m_windMotionStartAngleMax );
+					    GameClientRandomValueReal( m_windMotionStartAngleMin,
+					                               m_windMotionStartAngleMax );
 					m_windMotionEndAngle =
-							GameClientRandomValueReal( m_windMotionEndAngleMin,
-																				 m_windMotionEndAngleMax );
+					    GameClientRandomValueReal( m_windMotionEndAngleMin,
+					                               m_windMotionEndAngleMax );
 
 				}
 
@@ -2232,15 +2232,15 @@ void ParticleSystem::updateWindMotion()
 
 					// pick a new change delta
 					m_windAngleChange =
-							GameClientRandomValueReal( m_windAngleChangeMin, m_windAngleChangeMax );
+					    GameClientRandomValueReal( m_windAngleChangeMin, m_windAngleChangeMax );
 
 					// pick new start and end angles
 					m_windMotionStartAngle =
-							GameClientRandomValueReal( m_windMotionStartAngleMin,
-																				 m_windMotionStartAngleMax );
+					    GameClientRandomValueReal( m_windMotionStartAngleMin,
+					                               m_windMotionStartAngleMax );
 					m_windMotionEndAngle =
-							GameClientRandomValueReal( m_windMotionEndAngleMin,
-																				 m_windMotionEndAngleMax );
+					    GameClientRandomValueReal( m_windMotionEndAngleMin,
+					                               m_windMotionEndAngleMax );
 
 				}
 
@@ -2404,16 +2404,16 @@ ParticleInfo ParticleSystem::mergeRelatedParticleSystems( ParticleSystem *master
 
 
 		slaveParticleSystem->m_startSize.setRange(masterParticleSystem->m_startSize.getMinimumValue() * slaveParticleSystem->m_startSize.getMinimumValue(),
-																							masterParticleSystem->m_startSize.getMaximumValue() * slaveParticleSystem->m_startSize.getMaximumValue(),
-																							masterParticleSystem->m_startSize.getDistributionType());
+		                                masterParticleSystem->m_startSize.getMaximumValue() * slaveParticleSystem->m_startSize.getMaximumValue(),
+		                                masterParticleSystem->m_startSize.getDistributionType());
 
 		slaveParticleSystem->m_sizeRate.setRange(masterParticleSystem->m_sizeRate.getMinimumValue() * slaveParticleSystem->m_sizeRate.getMinimumValue(),
-																							masterParticleSystem->m_sizeRate.getMaximumValue() * slaveParticleSystem->m_sizeRate.getMaximumValue(),
-																							masterParticleSystem->m_sizeRate.getDistributionType());
+		                               masterParticleSystem->m_sizeRate.getMaximumValue() * slaveParticleSystem->m_sizeRate.getMaximumValue(),
+		                               masterParticleSystem->m_sizeRate.getDistributionType());
 
 		slaveParticleSystem->m_sizeRateDamping.setRange(masterParticleSystem->m_sizeRateDamping.getMinimumValue() * slaveParticleSystem->m_sizeRateDamping.getMinimumValue(),
-																							masterParticleSystem->m_sizeRateDamping.getMaximumValue() * slaveParticleSystem->m_sizeRateDamping.getMaximumValue(),
-																							masterParticleSystem->m_sizeRateDamping.getDistributionType());
+		                                      masterParticleSystem->m_sizeRateDamping.getMaximumValue() * slaveParticleSystem->m_sizeRateDamping.getMaximumValue(),
+		                                      masterParticleSystem->m_sizeRateDamping.getDistributionType());
 
 //		slaveParticleSystem->m_burstCount.setRange(masterParticleSystem->m_burstCount.getMinimumValue() / 2,
 //																							 masterParticleSystem->m_burstCount.getMaximumValue() / 2,
@@ -2766,7 +2766,7 @@ const FieldParse ParticleSystemTemplate::m_fieldParseTable[] =
  * The format is "FIELD = low high frame". */
 // ------------------------------------------------------------------------------------------------
 void ParticleSystemTemplate::parseRandomKeyframe( INI* ini, void *instance,
-																											 void *store, const void* /*userData*/ )
+        void *store, const void* /*userData*/ )
 {
 	RandomKeyframe *key = static_cast<RandomKeyframe *>(store);
 
@@ -2783,7 +2783,7 @@ void ParticleSystemTemplate::parseRandomKeyframe( INI* ini, void *instance,
  * The format is "FIELD = R:r G:g B:b frame". */
 // ------------------------------------------------------------------------------------------------
 void ParticleSystemTemplate::parseRGBColorKeyframe( INI* ini, void *instance,
-																													void *store, const void* /*userData*/ )
+        void *store, const void* /*userData*/ )
 {
 	RGBColorKeyframe *key = static_cast<RGBColorKeyframe *>(store);
 
@@ -2796,7 +2796,7 @@ void ParticleSystemTemplate::parseRGBColorKeyframe( INI* ini, void *instance,
  * Note that the components may be negative, as this is used for rates, as well. */
 // ------------------------------------------------------------------------------------------------
 void ParticleSystemTemplate::parseRandomRGBColor( INI* ini, void *instance,
-																											 void *store, const void* /*userData*/ )
+        void *store, const void* /*userData*/ )
 {
 #if 0
 	char seps[] = " \n\r\t=:RGB,";
@@ -3069,9 +3069,9 @@ ParticleSystem *ParticleSystemManager::createParticleSystem( const ParticleSyste
 /// given a template, instantiate a particle system attached to the given object, and return its ID
 // ------------------------------------------------------------------------------------------------
 ParticleSystemID ParticleSystemManager::createAttachedParticleSystemID(
-																			const ParticleSystemTemplate *sysTemplate,
-																			Object* attachTo,
-																			Bool createSlaves )
+    const ParticleSystemTemplate *sysTemplate,
+    Object* attachTo,
+    Bool createSlaves )
 {
 	ParticleSystem* pSystem = createParticleSystem(sysTemplate, createSlaves);
 	if (pSystem && attachTo)
@@ -3174,8 +3174,8 @@ void ParticleSystemManager::destroyAttachedSystems( Object *obj )
 
 	// iterate through all systems
 	for( ParticleSystemListIt it = m_allParticleSystemList.begin();
-			 it != m_allParticleSystemList.end();
-			 ++it )
+	        it != m_allParticleSystemList.end();
+	        ++it )
 	{
 
 		ParticleSystem *system = *it;
@@ -3281,15 +3281,15 @@ void ParticleSystemManager::friend_removeParticleSystem( ParticleSystem *particl
  * not remove particles from any priorities higher or equal to the priorityCap parameter. */
 // ------------------------------------------------------------------------------------------------
 Int ParticleSystemManager::removeOldestParticles( UnsignedInt count,
-																									ParticlePriorityType priorityCap )
+        ParticlePriorityType priorityCap )
 {
 	Int countToRemove = count;
 
 	while (count-- && getParticleCount())
 	{
 		for( Int i = PARTICLE_PRIORITY_LOWEST;
-				 i < priorityCap;
-				 ++i )
+		        i < priorityCap;
+		        ++i )
 		{
 			if( m_allParticlesHead[ i ] )
 			{
@@ -3315,7 +3315,7 @@ void ParticleSystemManager::preloadAssets( TimeOfDay timeOfDay )
 	for (; begin != end; ++begin) {
 		const ParticleSystemTemplate *tmplate = (*begin).second;
 		if (tmplate->m_particleType == ParticleSystemInfo::PARTICLE &&
-			 	(! tmplate->m_particleTypeName.isEmpty()))
+		        (! tmplate->m_particleTypeName.isEmpty()))
 		{
 			TheDisplay->preloadTextureAssets(tmplate->m_particleTypeName);
 		}
@@ -3402,7 +3402,7 @@ void ParticleSystemManager::xfer( Xfer *xfer )
 			{
 
 				DEBUG_CRASH(( "ParticleSystemManager::xfer - Unknown particle system template '%s'",
-											systemName.str() ));
+				              systemName.str() ));
 				throw SC_INVALID_DATA;
 
 			}
@@ -3420,7 +3420,7 @@ void ParticleSystemManager::xfer( Xfer *xfer )
 			if( system->getSystemID() == INVALID_PARTICLE_SYSTEM_ID )
 			{
 				DEBUG_CRASH(( "ParticleSystemManager::xfer - Unable to restore system ID to particle system '%s'",
-											systemName.str() ));
+				              systemName.str() ));
 				deleteInstance(system);
 				throw SC_INVALID_DATA;
 			}

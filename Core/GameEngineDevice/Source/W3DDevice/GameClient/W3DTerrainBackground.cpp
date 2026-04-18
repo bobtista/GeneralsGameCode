@@ -276,7 +276,7 @@ Bool W3DTerrainBackground::advanceRight(ICoord2D &right, Int xOffset, Int yOffse
 /** Fills in vertex & index buffers.
 */
 void W3DTerrainBackground::fillVBRecursive(UnsignedShort *ib, Int xOffset, Int yOffset,
-																					 Int width, UnsignedShort *ndx, Int &curIndex)
+        Int width, UnsignedShort *ndx, Int &curIndex)
 {
 
 	Int bottomLeftNdx	= ndx[xOffset+yOffset*(m_width+1)];
@@ -611,16 +611,16 @@ W3DTerrainBackground::~W3DTerrainBackground()
 for the bibs. */
 //=============================================================================
 W3DTerrainBackground::W3DTerrainBackground():
-m_vertexTerrain(nullptr),
-m_vertexTerrainSize(0),
-m_initialized(FALSE),
-m_indexTerrain(nullptr),
-m_indexTerrainSize(0),
-m_terrainTexture(nullptr),
-m_terrainTexture2X(nullptr),
-m_terrainTexture4X(nullptr),
-m_cullStatus(CULL_STATUS_UNKNOWN),
-m_texMultiplier(TEX1X)
+	m_vertexTerrain(nullptr),
+	m_vertexTerrainSize(0),
+	m_initialized(FALSE),
+	m_indexTerrain(nullptr),
+	m_indexTerrainSize(0),
+	m_terrainTexture(nullptr),
+	m_terrainTexture2X(nullptr),
+	m_terrainTexture4X(nullptr),
+	m_cullStatus(CULL_STATUS_UNKNOWN),
+	m_texMultiplier(TEX1X)
 {
 }
 
@@ -765,7 +765,7 @@ void W3DTerrainBackground::drawVisiblePolys(RenderInfoClass & rinfo, Bool disabl
 	// Setup the vertex buffer, shader & texture.
 	DX8Wrapper::Set_Index_Buffer(m_indexTerrain,0);
 	DX8Wrapper::Set_Vertex_Buffer(m_vertexTerrain);
-  if (!disableTextures) {
+	if (!disableTextures) {
 		if (m_terrainTexture4X) {
 			DX8Wrapper::Set_Texture(1, m_terrainTexture4X);
 		}	else if (m_terrainTexture2X) {
@@ -785,7 +785,7 @@ void W3DTerrainBackground::drawVisiblePolys(RenderInfoClass & rinfo, Bool disabl
 	// Setup the vertex buffer, shader & texture.
 	DX8Wrapper::Set_Index_Buffer(m_indexTerrain,0);
 	DX8Wrapper::Set_Vertex_Buffer(m_vertexTerrain);
-  if (!disableTextures) {
+	if (!disableTextures) {
 		if (m_terrainTexture4X) {
 			DX8Wrapper::Set_Texture(0, m_terrainTexture4X);
 		}	else if (m_terrainTexture2X) {

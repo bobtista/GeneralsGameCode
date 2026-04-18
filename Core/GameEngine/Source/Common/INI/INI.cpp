@@ -391,10 +391,10 @@ UnsignedInt INI::load( AsciiString filename, INILoadType loadType, Xfer *pXfer )
 				INIBlockParse parse = findBlockParse(token);
 				if (parse)
 				{
-					#ifdef DEBUG_CRASHING
+#ifdef DEBUG_CRASHING
 					static_assert(ARRAY_SIZE(m_curBlockStart) >= ARRAY_SIZE(m_buffer), "Incorrect array size");
 					strcpy(m_curBlockStart, m_buffer);
-					#endif
+#endif
 					try {
 						(*parse)( this );
 
@@ -402,18 +402,18 @@ UnsignedInt INI::load( AsciiString filename, INILoadType loadType, Xfer *pXfer )
 						DEBUG_CRASH(("Error parsing block '%s' in INI file '%s'", token, m_filename.str()) );
 						char buff[1024];
 						snprintf(buff, ARRAY_SIZE(buff), "Error parsing INI file '%s' (Line: '%s')\n",
-							m_filename.str(), currentLine.str());
+						         m_filename.str(), currentLine.str());
 
 						throw INIException(buff);
 					}
-					#ifdef DEBUG_CRASHING
-						strcpy(m_curBlockStart, "NO_BLOCK");
-					#endif
+#ifdef DEBUG_CRASHING
+					strcpy(m_curBlockStart, "NO_BLOCK");
+#endif
 				}
 				else
 				{
 					DEBUG_CRASH( ("[LINE: %d - FILE: '%s'] Unknown block '%s'",
-														 getLineNum(), getFilename().str(), token ) );
+					              getLineNum(), getFilename().str(), token ) );
 					throw INI_UNKNOWN_TOKEN;
 				}
 
@@ -437,7 +437,7 @@ UnsignedInt INI::load( AsciiString filename, INILoadType loadType, Xfer *pXfer )
 //-------------------------------------------------------------------------------------------------
 /** Read a line from the already open file.  Any comments will be removed and
 	* therefore ignored from any given line
-	* 
+	*
 	* TheSuperHackers @performance xezon 18/01/2026 The file contents are now read directly from a
 	* full File Ram buffer into the INI Line Buffer without a third buffer in between.
 	*/
@@ -606,7 +606,7 @@ void INI::parsePositiveNonZeroReal( INI* ini, void * /*instance*/, void *store, 
 	* in a Real */
 //-------------------------------------------------------------------------------------------------
 void INI::parseAngleReal( INI *ini, void * /*instance*/,
-																			void *store, const void *userData )
+                          void *store, const void *userData )
 {
 	const char *token = ini->getNextToken();
 
@@ -620,7 +620,7 @@ void INI::parseAngleReal( INI *ini, void * /*instance*/,
 	* in a Real */
 //-------------------------------------------------------------------------------------------------
 void INI::parseAngularVelocityReal( INI *ini, void * /*instance*/,
-																			void *store, const void *userData )
+                                    void *store, const void *userData )
 {
 	const char *token = ini->getNextToken();
 
@@ -1533,16 +1533,16 @@ void INI::initFromINIMulti( void *what, const MultiIniFieldParse& parseTableList
 						// parse this block and check for parse errors
 						try {
 
-						(*parse)( this, what, (char *)what + offset + parseTableList.getNthExtraOffset(ptIdx), userData );
+							(*parse)( this, what, (char *)what + offset + parseTableList.getNthExtraOffset(ptIdx), userData );
 
 						} catch (...) {
 							DEBUG_CRASH( ("[LINE: %d - FILE: '%s'] Error reading field '%s' of block '%s'",
-																 INI::getLineNum(), INI::getFilename().str(), field, m_curBlockStart) );
+							              INI::getLineNum(), INI::getFilename().str(), field, m_curBlockStart) );
 
 
 							char buff[1024];
 							snprintf(buff, ARRAY_SIZE(buff), "[LINE: %d - FILE: '%s'] Error reading field '%s'\n",
-								INI::getLineNum(), INI::getFilename().str(), field);
+							         INI::getLineNum(), INI::getFilename().str(), field);
 							throw INIException(buff);
 						}
 
@@ -1555,7 +1555,7 @@ void INI::initFromINIMulti( void *what, const MultiIniFieldParse& parseTableList
 				if (!found)
 				{
 					DEBUG_CRASH( ("[LINE: %d - FILE: '%s'] Unknown field '%s' in block '%s'",
-														 INI::getLineNum(), INI::getFilename().str(), field, m_curBlockStart) );
+					              INI::getLineNum(), INI::getFilename().str(), field, m_curBlockStart) );
 				}
 
 			}
@@ -1568,7 +1568,7 @@ void INI::initFromINIMulti( void *what, const MultiIniFieldParse& parseTableList
 
 			done = TRUE;
 			DEBUG_CRASH( ("Error parsing block '%s', in INI file '%s'.  Missing '%s' token",
-												 m_curBlockStart, getFilename().str(), getEndToken()) );
+			              m_curBlockStart, getFilename().str(), getEndToken()) );
 			throw INI_MISSING_END_TOKEN;
 
 		}

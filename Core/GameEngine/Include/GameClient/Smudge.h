@@ -50,10 +50,10 @@ struct Smudge : public DLNodeClass<Smudge>
 #ifdef USING_STLPORT
 namespace std
 {
-	template<> struct hash<Smudge::Identifier>
-	{
-		size_t operator()(Smudge::Identifier id) const { return reinterpret_cast<size_t>(id); }
-	};
+template<> struct hash<Smudge::Identifier>
+{
+	size_t operator()(Smudge::Identifier id) const { return reinterpret_cast<size_t>(id); }
+};
 }
 #endif // USING_STLPORT
 

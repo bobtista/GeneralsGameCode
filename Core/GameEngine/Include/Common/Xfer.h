@@ -101,9 +101,9 @@ enum XferStatus CPP_11(: Int)
 enum XferOptions CPP_11(: UnsignedInt)
 {
 	XO_NONE										= 0x00000000,
-	XO_NO_POST_PROCESSING			= 0x00000001,
+	 XO_NO_POST_PROCESSING			= 0x00000001,
 
-	XO_ALL										= 0xFFFFFFFF
+	  XO_ALL										= 0xFFFFFFFF
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

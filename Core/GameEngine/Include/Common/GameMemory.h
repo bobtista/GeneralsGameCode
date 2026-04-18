@@ -47,16 +47,16 @@
 
 // Turn off memory pool checkpointing for now.
 #ifndef DISABLE_MEMORYPOOL_CHECKPOINTING
-	#define DISABLE_MEMORYPOOL_CHECKPOINTING 1
+#define DISABLE_MEMORYPOOL_CHECKPOINTING 1
 #endif
 
 #if defined(RTS_DEBUG) && !defined(MEMORYPOOL_DEBUG_CUSTOM_NEW) && !defined(DISABLE_MEMORYPOOL_DEBUG_CUSTOM_NEW)
-	#define MEMORYPOOL_DEBUG_CUSTOM_NEW
+#define MEMORYPOOL_DEBUG_CUSTOM_NEW
 #endif
 
 //#if defined(RTS_DEBUG) && !defined(MEMORYPOOL_DEBUG) && !defined(DISABLE_MEMORYPOOL_DEBUG)
 #if defined(RTS_DEBUG) && !defined(MEMORYPOOL_DEBUG) && !defined(DISABLE_MEMORYPOOL_DEBUG)
-	#define MEMORYPOOL_DEBUG
+#define MEMORYPOOL_DEBUG
 #endif
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
@@ -64,7 +64,7 @@
 #include <new.h>
 #include <Utility/stdio_adapter.h>
 #ifdef MEMORYPOOL_OVERRIDE_MALLOC
-	#include <malloc.h>
+#include <malloc.h>
 #endif
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
@@ -77,102 +77,102 @@
 
 #ifdef MEMORYPOOL_DEBUG
 
-	// by default, enable free-block-retention for checkpointing in debug mode
-	#if !defined(DISABLE_MEMORYPOOL_CHECKPOINTING) || DISABLE_MEMORYPOOL_CHECKPOINTING == 0
-		#define MEMORYPOOL_CHECKPOINTING
-	#endif
-
-	// by default, enable bounding walls in debug mode (unless we have specifically disabled them)
-	#ifndef DISABLE_MEMORYPOOL_BOUNDINGWALL
-		#define MEMORYPOOL_BOUNDINGWALL
-	#endif
-
-	#if !defined(MEMORYPOOL_STACKTRACE) && !defined(DISABLE_MEMORYPOOL_STACKTRACE)
-		#define MEMORYPOOL_STACKTRACE
-	#endif
-
-	// flags for the memory-report options.
-	enum
-	{
-
-#ifdef MEMORYPOOL_CHECKPOINTING
-		// ------------------------------------------------------
-		// you usually won't use the _REPORT bits directly; see below for more convenient combinations.
-
-		// you must set at least one of the 'allocate' bits.
-		_REPORT_CP_ALLOCATED_BEFORE			= 0x0001,
-		_REPORT_CP_ALLOCATED_BETWEEN		= 0x0002,
-		_REPORT_CP_ALLOCATED_DONTCARE		= (_REPORT_CP_ALLOCATED_BEFORE|_REPORT_CP_ALLOCATED_BETWEEN),
-
-		// you must set at least one of the 'freed' bits.
-		_REPORT_CP_FREED_BEFORE					= 0x0010,
-		_REPORT_CP_FREED_BETWEEN				= 0x0020,
-		_REPORT_CP_FREED_NEVER					= 0x0040,	// ie, still in existence
-		_REPORT_CP_FREED_DONTCARE				= (_REPORT_CP_FREED_BEFORE|_REPORT_CP_FREED_BETWEEN|_REPORT_CP_FREED_NEVER),
-		// ------------------------------------------------------
-#endif // MEMORYPOOL_CHECKPOINTING
-
-#ifdef MEMORYPOOL_CHECKPOINTING
-		/** display the stacktrace for allocation location for all blocks found.
-			this bit may be mixed-n-matched with any other flag.
-		*/
-		REPORT_CP_STACKTRACE		= 0x0100,
+// by default, enable free-block-retention for checkpointing in debug mode
+#if !defined(DISABLE_MEMORYPOOL_CHECKPOINTING) || DISABLE_MEMORYPOOL_CHECKPOINTING == 0
+#define MEMORYPOOL_CHECKPOINTING
 #endif
 
-		/** display stats for each pool, in addition to each block.
-			(this is useful for finding suitable allocation counts for the pools.)
-			this bit may be mixed-n-matched with any other flag.
-		*/
-		REPORT_POOLINFO					= 0x0200,
+// by default, enable bounding walls in debug mode (unless we have specifically disabled them)
+#ifndef DISABLE_MEMORYPOOL_BOUNDINGWALL
+#define MEMORYPOOL_BOUNDINGWALL
+#endif
 
-		/** report on the overall memory situation (including all pools and dma's).
-			this bit may be mixed-n-matched with any other flag.
-		*/
-		REPORT_FACTORYINFO			= 0x0400,
+#if !defined(MEMORYPOOL_STACKTRACE) && !defined(DISABLE_MEMORYPOOL_STACKTRACE)
+#define MEMORYPOOL_STACKTRACE
+#endif
 
-		/** report on pools that have overflowed their initial allocation.
-			this bit may be mixed-n-matched with any other flag.
-		*/
-		REPORT_POOL_OVERFLOW		= 0x0800,
-
-		/** simple-n-cheap leak checking */
-		REPORT_SIMPLE_LEAKS			= 0x1000,
+// flags for the memory-report options.
+enum
+{
 
 #ifdef MEMORYPOOL_CHECKPOINTING
-		/** report on blocks that were allocated between the checkpoints.
-		 (don't care if they were freed or not.)
-		*/
-		REPORT_CP_ALLOCATES	= (_REPORT_CP_ALLOCATED_BETWEEN | _REPORT_CP_FREED_DONTCARE),
+	// ------------------------------------------------------
+	// you usually won't use the _REPORT bits directly; see below for more convenient combinations.
 
-		/** report on blocks that were freed between the checkpoints.
-		 (don't care when they were allocated.)
-		*/
-		REPORT_CP_FREES			= (_REPORT_CP_ALLOCATED_DONTCARE | _REPORT_CP_FREED_BETWEEN),
+	// you must set at least one of the 'allocate' bits.
+	_REPORT_CP_ALLOCATED_BEFORE			= 0x0001,
+	_REPORT_CP_ALLOCATED_BETWEEN		= 0x0002,
+	_REPORT_CP_ALLOCATED_DONTCARE		= (_REPORT_CP_ALLOCATED_BEFORE|_REPORT_CP_ALLOCATED_BETWEEN),
 
-		/** report on blocks that were allocated between the checkpoints, and still exist
-		 (note that this reports *potential* leaks -- some such blocks may be desired)
-		*/
-		REPORT_CP_LEAKS			= (_REPORT_CP_ALLOCATED_BETWEEN | _REPORT_CP_FREED_NEVER),
-
-		/** report on blocks that existed before checkpoint #1 and still exist now.
-		*/
-		REPORT_CP_LONGTERM		= (_REPORT_CP_ALLOCATED_BEFORE | _REPORT_CP_FREED_NEVER),
-
-		/** report on blocks that were allocated-and-freed between the checkpoints.
-		*/
-		REPORT_CP_TRANSIENT		= (_REPORT_CP_ALLOCATED_BETWEEN | _REPORT_CP_FREED_BETWEEN),
-
-		/** report on all blocks that currently exist
-		*/
-		REPORT_CP_EXISTING		= (_REPORT_CP_ALLOCATED_BEFORE | _REPORT_CP_ALLOCATED_BETWEEN | _REPORT_CP_FREED_NEVER),
-
-		/** report on all blocks that have ever existed (!) (or at least, since the last call
-			to debugResetCheckpoints)
-		*/
-		REPORT_CP_ALL					= (_REPORT_CP_ALLOCATED_DONTCARE | _REPORT_CP_FREED_DONTCARE)
+	// you must set at least one of the 'freed' bits.
+	_REPORT_CP_FREED_BEFORE					= 0x0010,
+	_REPORT_CP_FREED_BETWEEN				= 0x0020,
+	_REPORT_CP_FREED_NEVER					= 0x0040,	// ie, still in existence
+	_REPORT_CP_FREED_DONTCARE				= (_REPORT_CP_FREED_BEFORE|_REPORT_CP_FREED_BETWEEN|_REPORT_CP_FREED_NEVER),
+	// ------------------------------------------------------
 #endif // MEMORYPOOL_CHECKPOINTING
 
-	};
+#ifdef MEMORYPOOL_CHECKPOINTING
+	/** display the stacktrace for allocation location for all blocks found.
+		this bit may be mixed-n-matched with any other flag.
+	*/
+	REPORT_CP_STACKTRACE		= 0x0100,
+#endif
+
+	/** display stats for each pool, in addition to each block.
+		(this is useful for finding suitable allocation counts for the pools.)
+		this bit may be mixed-n-matched with any other flag.
+	*/
+	REPORT_POOLINFO					= 0x0200,
+
+	/** report on the overall memory situation (including all pools and dma's).
+		this bit may be mixed-n-matched with any other flag.
+	*/
+	REPORT_FACTORYINFO			= 0x0400,
+
+	/** report on pools that have overflowed their initial allocation.
+		this bit may be mixed-n-matched with any other flag.
+	*/
+	REPORT_POOL_OVERFLOW		= 0x0800,
+
+	/** simple-n-cheap leak checking */
+	REPORT_SIMPLE_LEAKS			= 0x1000,
+
+#ifdef MEMORYPOOL_CHECKPOINTING
+	/** report on blocks that were allocated between the checkpoints.
+	 (don't care if they were freed or not.)
+	*/
+	REPORT_CP_ALLOCATES	= (_REPORT_CP_ALLOCATED_BETWEEN | _REPORT_CP_FREED_DONTCARE),
+
+	/** report on blocks that were freed between the checkpoints.
+	 (don't care when they were allocated.)
+	*/
+	REPORT_CP_FREES			= (_REPORT_CP_ALLOCATED_DONTCARE | _REPORT_CP_FREED_BETWEEN),
+
+	/** report on blocks that were allocated between the checkpoints, and still exist
+	 (note that this reports *potential* leaks -- some such blocks may be desired)
+	*/
+	REPORT_CP_LEAKS			= (_REPORT_CP_ALLOCATED_BETWEEN | _REPORT_CP_FREED_NEVER),
+
+	/** report on blocks that existed before checkpoint #1 and still exist now.
+	*/
+	REPORT_CP_LONGTERM		= (_REPORT_CP_ALLOCATED_BEFORE | _REPORT_CP_FREED_NEVER),
+
+	/** report on blocks that were allocated-and-freed between the checkpoints.
+	*/
+	REPORT_CP_TRANSIENT		= (_REPORT_CP_ALLOCATED_BETWEEN | _REPORT_CP_FREED_BETWEEN),
+
+	/** report on all blocks that currently exist
+	*/
+	REPORT_CP_EXISTING		= (_REPORT_CP_ALLOCATED_BEFORE | _REPORT_CP_ALLOCATED_BETWEEN | _REPORT_CP_FREED_NEVER),
+
+	/** report on all blocks that have ever existed (!) (or at least, since the last call
+		to debugResetCheckpoints)
+	*/
+	REPORT_CP_ALL					= (_REPORT_CP_ALLOCATED_DONTCARE | _REPORT_CP_FREED_DONTCARE)
+#endif // MEMORYPOOL_CHECKPOINTING
+
+};
 
 #endif // MEMORYPOOL_DEBUG
 
@@ -185,33 +185,33 @@
 
 #ifdef MEMORYPOOL_DEBUG
 
-	#define DECLARE_LITERALSTRING_ARG1										const char * debugLiteralTagString
-	#define PASS_LITERALSTRING_ARG1												debugLiteralTagString
-	#define DECLARE_LITERALSTRING_ARG2										, const char * debugLiteralTagString
-	#define PASS_LITERALSTRING_ARG2												, debugLiteralTagString
+#define DECLARE_LITERALSTRING_ARG1										const char * debugLiteralTagString
+#define PASS_LITERALSTRING_ARG1												debugLiteralTagString
+#define DECLARE_LITERALSTRING_ARG2										, const char * debugLiteralTagString
+#define PASS_LITERALSTRING_ARG2												, debugLiteralTagString
 
-	#define MP_LOC_SUFFIX																/*" [" DEBUG_FILENLINE "]"*/
+#define MP_LOC_SUFFIX																/*" [" DEBUG_FILENLINE "]"*/
 
-	#define allocateBlock(ARGLITERAL)										allocateBlockImplementation(ARGLITERAL MP_LOC_SUFFIX)
-	#define allocateBlockDoNotZero(ARGLITERAL)					allocateBlockDoNotZeroImplementation(ARGLITERAL MP_LOC_SUFFIX)
-	#define allocateBytes(ARGCOUNT,ARGLITERAL)					allocateBytesImplementation(ARGCOUNT, ARGLITERAL MP_LOC_SUFFIX)
-	#define allocateBytesDoNotZero(ARGCOUNT,ARGLITERAL)	allocateBytesDoNotZeroImplementation(ARGCOUNT, ARGLITERAL MP_LOC_SUFFIX)
-	#define newInstanceDesc(ARGCLASS,ARGLITERAL)				new(ARGCLASS::ARGCLASS##_GLUE_NOT_IMPLEMENTED, ARGLITERAL MP_LOC_SUFFIX) ARGCLASS
-	#define newInstance(ARGCLASS)												new(ARGCLASS::ARGCLASS##_GLUE_NOT_IMPLEMENTED, __FILE__) ARGCLASS
+#define allocateBlock(ARGLITERAL)										allocateBlockImplementation(ARGLITERAL MP_LOC_SUFFIX)
+#define allocateBlockDoNotZero(ARGLITERAL)					allocateBlockDoNotZeroImplementation(ARGLITERAL MP_LOC_SUFFIX)
+#define allocateBytes(ARGCOUNT,ARGLITERAL)					allocateBytesImplementation(ARGCOUNT, ARGLITERAL MP_LOC_SUFFIX)
+#define allocateBytesDoNotZero(ARGCOUNT,ARGLITERAL)	allocateBytesDoNotZeroImplementation(ARGCOUNT, ARGLITERAL MP_LOC_SUFFIX)
+#define newInstanceDesc(ARGCLASS,ARGLITERAL)				new(ARGCLASS::ARGCLASS##_GLUE_NOT_IMPLEMENTED, ARGLITERAL MP_LOC_SUFFIX) ARGCLASS
+#define newInstance(ARGCLASS)												new(ARGCLASS::ARGCLASS##_GLUE_NOT_IMPLEMENTED, __FILE__) ARGCLASS
 
 #else
 
-	#define DECLARE_LITERALSTRING_ARG1
-	#define PASS_LITERALSTRING_ARG1
-	#define DECLARE_LITERALSTRING_ARG2
-	#define PASS_LITERALSTRING_ARG2
+#define DECLARE_LITERALSTRING_ARG1
+#define PASS_LITERALSTRING_ARG1
+#define DECLARE_LITERALSTRING_ARG2
+#define PASS_LITERALSTRING_ARG2
 
-	#define allocateBlock(ARGLITERAL)										allocateBlockImplementation()
-	#define allocateBlockDoNotZero(ARGLITERAL)					allocateBlockDoNotZeroImplementation()
-	#define allocateBytes(ARGCOUNT,ARGLITERAL)					allocateBytesImplementation(ARGCOUNT)
-	#define allocateBytesDoNotZero(ARGCOUNT,ARGLITERAL)	allocateBytesDoNotZeroImplementation(ARGCOUNT)
-	#define newInstanceDesc(ARGCLASS,ARGLITERAL)				new(ARGCLASS::ARGCLASS##_GLUE_NOT_IMPLEMENTED) ARGCLASS
-	#define newInstance(ARGCLASS)												new(ARGCLASS::ARGCLASS##_GLUE_NOT_IMPLEMENTED) ARGCLASS
+#define allocateBlock(ARGLITERAL)										allocateBlockImplementation()
+#define allocateBlockDoNotZero(ARGLITERAL)					allocateBlockDoNotZeroImplementation()
+#define allocateBytes(ARGCOUNT,ARGLITERAL)					allocateBytesImplementation(ARGCOUNT)
+#define allocateBytesDoNotZero(ARGCOUNT,ARGLITERAL)	allocateBytesDoNotZeroImplementation(ARGCOUNT)
+#define newInstanceDesc(ARGCLASS,ARGLITERAL)				new(ARGCLASS::ARGCLASS##_GLUE_NOT_IMPLEMENTED) ARGCLASS
+#define newInstance(ARGCLASS)												new(ARGCLASS::ARGCLASS##_GLUE_NOT_IMPLEMENTED) ARGCLASS
 
 #endif
 
@@ -266,9 +266,9 @@ protected:
 
 	/// create a new checkpoint info and add it to the list.
 	BlockCheckpointInfo *debugAddCheckpointInfo(
-		const char *debugLiteralTagString,
-		Int allocCheckpoint,
-		Int blockSize
+	    const char *debugLiteralTagString,
+	    Int allocCheckpoint,
+	    Int blockSize
 	);
 
 public:
@@ -320,15 +320,15 @@ public:
 	MemoryPool *getNextPoolInList();					///< return next pool in linked list
 	void addToList(MemoryPool **pHead);				///< add this pool to head of the linked list
 	void removeFromList(MemoryPool **pHead);	///< remove this pool from the linked list
-	#ifdef MEMORYPOOL_DEBUG
-		static void debugPoolInfoReport( MemoryPool *pool, FILE *fp = nullptr );	///< dump a report about this pool to the logfile
-		const char *debugGetBlockTagString(void *pBlock);		///< return the tagstring for the given block (assumed to belong to this pool)
-		void debugMemoryVerifyPool();												///< perform internal consistency check on this pool.
-		Int debugPoolReportLeaks( const char* owner );
-	#endif
-	#ifdef MEMORYPOOL_CHECKPOINTING
-		void debugResetCheckpoints();												///< throw away all checkpoint information for this pool.
-	#endif
+#ifdef MEMORYPOOL_DEBUG
+	static void debugPoolInfoReport( MemoryPool *pool, FILE *fp = nullptr );	///< dump a report about this pool to the logfile
+	const char *debugGetBlockTagString(void *pBlock);		///< return the tagstring for the given block (assumed to belong to this pool)
+	void debugMemoryVerifyPool();												///< perform internal consistency check on this pool.
+	Int debugPoolReportLeaks( const char* owner );
+#endif
+#ifdef MEMORYPOOL_CHECKPOINTING
+	void debugResetCheckpoints();												///< throw away all checkpoint information for this pool.
+#endif
 
 public:
 
@@ -380,10 +380,10 @@ public:
 	/// destroy all blocks and blobs in this pool.
 	void reset();
 
-	#ifdef MEMORYPOOL_DEBUG
-		/// return true iff this block was allocated by this pool.
-		Bool debugIsBlockInPool(void *pBlock);
-	#endif
+#ifdef MEMORYPOOL_DEBUG
+	/// return true iff this block was allocated by this pool.
+	Bool debugIsBlockInPool(void *pBlock);
+#endif
 };
 
 // ----------------------------------------------------------------------------
@@ -417,16 +417,16 @@ public:
 	DynamicMemoryAllocator *getNextDmaInList();						///< return next dma in linked list
 	void addToList(DynamicMemoryAllocator **pHead);				///< add this dma to the list
 	void removeFromList(DynamicMemoryAllocator **pHead);	///< remove this dma from the list
-	#ifdef MEMORYPOOL_DEBUG
-		Int debugCalcRawBlockBytes(Int *numBlocks);												///< calculate the number of bytes in "raw" (non-subpool) blocks
-		void debugMemoryVerifyDma();												///< perform internal consistency check
-		const char *debugGetBlockTagString(void *pBlock);		///< return the tagstring for the given block (assumed to belong to this dma)
-		void debugDmaInfoReport( FILE *fp = nullptr );					///< dump a report about this pool to the logfile
-		Int debugDmaReportLeaks();
-	#endif
-	#ifdef MEMORYPOOL_CHECKPOINTING
-		void debugResetCheckpoints();												///< toss all checkpoint information
-	#endif
+#ifdef MEMORYPOOL_DEBUG
+	Int debugCalcRawBlockBytes(Int *numBlocks);												///< calculate the number of bytes in "raw" (non-subpool) blocks
+	void debugMemoryVerifyDma();												///< perform internal consistency check
+	const char *debugGetBlockTagString(void *pBlock);		///< return the tagstring for the given block (assumed to belong to this dma)
+	void debugDmaInfoReport( FILE *fp = nullptr );					///< dump a report about this pool to the logfile
+	Int debugDmaReportLeaks();
+#endif
+#ifdef MEMORYPOOL_CHECKPOINTING
+	void debugResetCheckpoints();												///< toss all checkpoint information
+#endif
 
 public:
 
@@ -465,15 +465,15 @@ public:
 	Int getDmaMemoryPoolCount() const { return m_numPools; }
 	MemoryPool* getNthDmaMemoryPool(Int i) const { return m_pools[i]; }
 
-	#ifdef MEMORYPOOL_DEBUG
+#ifdef MEMORYPOOL_DEBUG
 
-		/// return true iff this block was allocated by this dma
-		Bool debugIsBlockInDma(void *pBlock);
+	/// return true iff this block was allocated by this dma
+	Bool debugIsBlockInDma(void *pBlock);
 
-		/// return true iff the pool is a subpool of this dma
-		Bool debugIsPoolInDma(MemoryPool *pool);
+	/// return true iff the pool is a subpool of this dma
+	Bool debugIsPoolInDma(MemoryPool *pool);
 
-	#endif	// MEMORYPOOL_DEBUG
+#endif	// MEMORYPOOL_DEBUG
 };
 
 // ----------------------------------------------------------------------------
@@ -508,15 +508,15 @@ private:
 
 public:
 
-		// 'public' funcs that are really only for use by MemoryPool and friends
-	#ifdef MEMORYPOOL_DEBUG
-		/// adjust the usedBytes and physBytes variables by the given amoun ts.
-		void adjustTotals(const char* tagString, Int usedDelta, Int physDelta);
-	#endif
-	#ifdef MEMORYPOOL_CHECKPOINTING
-		/// return the current checkpoint value.
-		Int getCurCheckpoint() { return m_curCheckpoint; }
-	#endif
+	// 'public' funcs that are really only for use by MemoryPool and friends
+#ifdef MEMORYPOOL_DEBUG
+	/// adjust the usedBytes and physBytes variables by the given amoun ts.
+	void adjustTotals(const char* tagString, Int usedDelta, Int physDelta);
+#endif
+#ifdef MEMORYPOOL_CHECKPOINTING
+	/// return the current checkpoint value.
+	Int getCurCheckpoint() { return m_curCheckpoint; }
+#endif
 
 public:
 
@@ -547,32 +547,32 @@ public:
 
 	void memoryPoolUsageReport( const char* filename, FILE *appendToFileInstead = nullptr );
 
-	#ifdef MEMORYPOOL_DEBUG
+#ifdef MEMORYPOOL_DEBUG
 
-		/// perform internal consistency checking
-		void debugMemoryVerify();
+	/// perform internal consistency checking
+	void debugMemoryVerify();
 
-		/// return true iff the block was allocated by any pool or dma owned by this factory.
-		Bool debugIsBlockInAnyPool(void *pBlock);
+	/// return true iff the block was allocated by any pool or dma owned by this factory.
+	Bool debugIsBlockInAnyPool(void *pBlock);
 
-		/// return the tag string for the block.
-		const char *debugGetBlockTagString(void *pBlock);
+	/// return the tag string for the block.
+	const char *debugGetBlockTagString(void *pBlock);
 
-		/// dump a report with the given options to the logfile.
-		void debugMemoryReport(Int flags, Int startCheckpoint, Int endCheckpoint, FILE *fp = nullptr );
+	/// dump a report with the given options to the logfile.
+	void debugMemoryReport(Int flags, Int startCheckpoint, Int endCheckpoint, FILE *fp = nullptr );
 
-		void debugSetInitFillerIndex(Int index);
+	void debugSetInitFillerIndex(Int index);
 
-	#endif
-	#ifdef MEMORYPOOL_CHECKPOINTING
+#endif
+#ifdef MEMORYPOOL_CHECKPOINTING
 
-		/// set a new checkpoint.
-		Int debugSetCheckpoint();
+	/// set a new checkpoint.
+	Int debugSetCheckpoint();
 
-		/// reset all checkpoint information.
-		void debugResetCheckpoints();
+	/// reset all checkpoint information.
+	void debugResetCheckpoints();
 
-	#endif
+#endif
 };
 
 // how many bytes are we allowed to 'waste' per pool allocation before the debug code starts yelling at us...
@@ -848,37 +848,37 @@ extern void userMemoryAdjustPoolSize(const char *poolName, Int& initialAllocatio
 
 #ifndef _OPERATOR_NEW_DEFINED_
 
-	#define _OPERATOR_NEW_DEFINED_
+#define _OPERATOR_NEW_DEFINED_
 
-	extern void * __cdecl operator new		(size_t size);
-	extern void __cdecl operator delete		(void *p);
+extern void * __cdecl operator new		(size_t size);
+extern void __cdecl operator delete		(void *p);
 
-	extern void * __cdecl operator new[]	(size_t size);
-	extern void __cdecl operator delete[]	(void *p);
+extern void * __cdecl operator new[]	(size_t size);
+extern void __cdecl operator delete[]	(void *p);
 
-	// additional overloads to account for VC/MFC funky versions
-	extern void* __cdecl operator new(size_t nSize, const char *, int);
-	extern void __cdecl operator delete(void *, const char *, int);
+// additional overloads to account for VC/MFC funky versions
+extern void* __cdecl operator new(size_t nSize, const char *, int);
+extern void __cdecl operator delete(void *, const char *, int);
 
-	extern void* __cdecl operator new[](size_t nSize, const char *, int);
-	extern void __cdecl operator delete[](void *, const char *, int);
+extern void* __cdecl operator new[](size_t nSize, const char *, int);
+extern void __cdecl operator delete[](void *, const char *, int);
 
 #if defined(_MSC_VER) && _MSC_VER < 1300
-	// additional overloads for 'placement new'
-	//inline void* __cdecl operator new							(size_t s, void *p) { return p; }
-	//inline void __cdecl operator delete						(void *, void *p)		{ }
-	inline void* __cdecl operator new[]						(size_t s, void *p) { return p; }
-	inline void __cdecl operator delete[]					(void *, void *p)		{ }
+// additional overloads for 'placement new'
+//inline void* __cdecl operator new							(size_t s, void *p) { return p; }
+//inline void __cdecl operator delete						(void *, void *p)		{ }
+inline void* __cdecl operator new[]						(size_t s, void *p) { return p; }
+inline void __cdecl operator delete[]					(void *, void *p)		{ }
 #endif
 
 #endif
 
 #ifdef MEMORYPOOL_DEBUG_CUSTOM_NEW
-	#define MSGNEW(MSG)		new(MSG, 0)
-	#define NEW						new(__FILE__, __LINE__)
+#define MSGNEW(MSG)		new(MSG, 0)
+#define NEW						new(__FILE__, __LINE__)
 #else
-	#define MSGNEW(MSG)		new
-	#define NEW						new
+#define MSGNEW(MSG)		new
+#define NEW						new
 #endif
 
 #endif

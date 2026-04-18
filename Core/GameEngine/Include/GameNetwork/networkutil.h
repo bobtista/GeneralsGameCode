@@ -38,7 +38,7 @@ const char* GetNetCommandTypeAsString(NetCommandType type);
 
 #ifdef DEBUG_LOGGING
 extern "C" {
-void dumpBufferToLog(const void *vBuf, Int len, const char *fname, Int line);
+	void dumpBufferToLog(const void *vBuf, Int len, const char *fname, Int line);
 };
 #define LOGBUFFER(buf, len) dumpBufferToLog(buf, len, __FILE__, __LINE__)
 #else
@@ -47,8 +47,8 @@ void dumpBufferToLog(const void *vBuf, Int len, const char *fname, Int line);
 
 inline UnsignedInt AssembleIp(UnsignedByte a, UnsignedByte b, UnsignedByte c, UnsignedByte d)
 {
-    return ((UnsignedInt)(a) << 24) |
-           ((UnsignedInt)(b) << 16) |
-           ((UnsignedInt)(c) << 8) |
-           ((UnsignedInt)(d));
+	return ((UnsignedInt)(a) << 24) |
+	       ((UnsignedInt)(b) << 16) |
+	       ((UnsignedInt)(c) << 8) |
+	       ((UnsignedInt)(d));
 }

@@ -35,10 +35,10 @@
 enum AudioAffect CPP_11(: Int)
 {
 	AudioAffect_Music		= 0x01,
-	AudioAffect_Sound		= 0x02,
-	AudioAffect_Sound3D	= 0x04,
-	AudioAffect_Speech	= 0x08,
-	AudioAffect_All			= (AudioAffect_Music | AudioAffect_Sound | AudioAffect_Sound3D | AudioAffect_Speech),
+	 AudioAffect_Sound		= 0x02,
+	  AudioAffect_Sound3D	= 0x04,
+	  AudioAffect_Speech	= 0x08,
+	   AudioAffect_All			= (AudioAffect_Music | AudioAffect_Sound | AudioAffect_Sound3D | AudioAffect_Speech),
 
-	AudioAffect_SystemSetting = 0x10,
+	    AudioAffect_SystemSetting = 0x10,
 };

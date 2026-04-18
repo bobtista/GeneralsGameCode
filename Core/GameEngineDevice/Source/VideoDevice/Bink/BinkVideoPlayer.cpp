@@ -206,7 +206,7 @@ VideoStreamInterface* BinkVideoPlayer::createStream( HBINK handle )
 		Int mod = (Int) ((TheAudio->getVolume(AudioAffect_Speech) * 0.8f) * 100) + 1;
 		Int volume = (32768*mod)/100;
 		DEBUG_LOG(("BinkVideoPlayer::createStream() - About to set volume (%g -> %d -> %d",
-			TheAudio->getVolume(AudioAffect_Speech), mod, volume));
+		           TheAudio->getVolume(AudioAffect_Speech), mod, volume));
 		BinkSetVolume( stream->m_handle,0, volume);
 		DEBUG_LOG(("BinkVideoPlayer::createStream() - set volume"));
 	}
@@ -230,7 +230,7 @@ VideoStreamInterface*	BinkVideoPlayer::open( AsciiString movieTitle )
 		{
 			char filePath[ _MAX_PATH ];
 			snprintf( filePath, ARRAY_SIZE(filePath), "%s%s\\%s.%s", TheGlobalData->m_modDir.str(), VIDEO_PATH, pVideo->m_filename.str(), VIDEO_EXT );
-			HBINK handle = BinkOpen(filePath , BINKPRELOADALL );
+			HBINK handle = BinkOpen(filePath, BINKPRELOADALL );
 			DEBUG_ASSERTLOG(!handle, ("opened bink file %s", filePath));
 			if (handle)
 			{
@@ -240,13 +240,13 @@ VideoStreamInterface*	BinkVideoPlayer::open( AsciiString movieTitle )
 
 		char localizedFilePath[ _MAX_PATH ];
 		snprintf( localizedFilePath, ARRAY_SIZE(localizedFilePath), VIDEO_LANG_PATH_FORMAT, GetRegistryLanguage().str(), pVideo->m_filename.str(), VIDEO_EXT );
-		HBINK handle = BinkOpen(localizedFilePath , BINKPRELOADALL );
+		HBINK handle = BinkOpen(localizedFilePath, BINKPRELOADALL );
 		DEBUG_ASSERTLOG(!handle, ("opened localized bink file %s", localizedFilePath));
 		if (!handle)
 		{
 			char filePath[ _MAX_PATH ];
 			snprintf( filePath, ARRAY_SIZE(filePath), "%s\\%s.%s", VIDEO_PATH, pVideo->m_filename.str(), VIDEO_EXT );
-			handle = BinkOpen(filePath , BINKPRELOADALL );
+			handle = BinkOpen(filePath, BINKPRELOADALL );
 			DEBUG_ASSERTLOG(!handle, ("opened bink file %s", localizedFilePath));
 		}
 
@@ -300,7 +300,7 @@ void BinkVideoPlayer::initializeBinkWithMiles()
 //============================================================================
 
 BinkVideoStream::BinkVideoStream()
-: m_handle(nullptr)
+	: m_handle(nullptr)
 {
 
 }
@@ -342,7 +342,7 @@ Bool BinkVideoStream::isFrameReady()
 
 void BinkVideoStream::frameDecompress()
 {
-		BinkDoFrame( m_handle );
+	BinkDoFrame( m_handle );
 }
 
 //============================================================================
@@ -383,7 +383,7 @@ void BinkVideoStream::frameRender( VideoBuffer *buffer )
 		{
 
 			BinkCopyToBuffer ( m_handle, mem, buffer->pitch(), buffer->height(),
-													buffer->xPos(), buffer->yPos(), flags );
+			                   buffer->xPos(), buffer->yPos(), flags );
 			buffer->unlock();
 		}
 	}

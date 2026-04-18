@@ -193,16 +193,16 @@ void Connection::sendNetCommandMsg(NetCommandMsg *msg, UnsignedByte relay) {
 
 		if (ref != nullptr) {
 
-/*
-#if defined(RTS_DEBUG)
-			if (msg->getNetCommandType() == NETCOMMANDTYPE_GAMECOMMAND) {
-				DEBUG_LOG(("Connection::sendNetCommandMsg - added game command %d to net command list for frame %d.",
-					msg->getID(), msg->getExecutionFrame()));
-			} else if (msg->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) {
-				DEBUG_LOG(("Connection::sendNetCommandMsg - added frame info for frame %d", msg->getExecutionFrame()));
-			}
-#endif // RTS_DEBUG
-*/
+			/*
+			#if defined(RTS_DEBUG)
+						if (msg->getNetCommandType() == NETCOMMANDTYPE_GAMECOMMAND) {
+							DEBUG_LOG(("Connection::sendNetCommandMsg - added game command %d to net command list for frame %d.",
+								msg->getID(), msg->getExecutionFrame()));
+						} else if (msg->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) {
+							DEBUG_LOG(("Connection::sendNetCommandMsg - added frame info for frame %d", msg->getExecutionFrame()));
+						}
+			#endif // RTS_DEBUG
+			*/
 
 			ref->setRelay(relay);
 		}
@@ -220,7 +220,7 @@ void Connection::clearCommandsExceptFrom( Int playerIndex )
 		if (msg->getPlayerID() != playerIndex)
 		{
 			DEBUG_LOG(("Connection::clearCommandsExceptFrom(%d) - clearing a command from player %d for frame %d",
-				playerIndex, tmp->getCommand()->getPlayerID(), tmp->getCommand()->getExecutionFrame()));
+			           playerIndex, tmp->getCommand()->getPlayerID(), tmp->getCommand()->getExecutionFrame()));
 
 			m_netCommandList->removeMessage(tmp);
 			deleteInstance(tmp);
@@ -404,8 +404,8 @@ void Connection::debugPrintCommands() {
 	NetCommandRef *ref = m_netCommandList->getFirstMessage();
 	while (ref != nullptr) {
 		DEBUG_LOG(("Connection::debugPrintCommands - ID: %d\tType: %s\tRelay: 0x%X for frame %d",
-			ref->getCommand()->getID(), GetNetCommandTypeAsString(ref->getCommand()->getNetCommandType()),
-			ref->getRelay(), ref->getCommand()->getExecutionFrame()));
+		           ref->getCommand()->getID(), GetNetCommandTypeAsString(ref->getCommand()->getNetCommandType()),
+		           ref->getRelay(), ref->getCommand()->getExecutionFrame()));
 		ref = ref->getNext();
 	}
 }

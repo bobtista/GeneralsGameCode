@@ -76,9 +76,9 @@ struct PickDrawableStruct
 
 //-------------------------------------------------------------------------------------------------
 extern Bool contextCommandForNewSelection(const DrawableList *currentlySelectedDrawables,
-																					const DrawableList *newlySelectedDrawables,
-																					SelectionInfo *outSelectionInfo,
-																					Bool selectionIsPoint);
+        const DrawableList *newlySelectedDrawables,
+        SelectionInfo *outSelectionInfo,
+        Bool selectionIsPoint);
 
 
 //-------------------------------------------------------------------------------------------------

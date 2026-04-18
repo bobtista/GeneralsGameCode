@@ -49,38 +49,38 @@ struct ErrorLookup
 };
 static ErrorLookup errorLookup[] =
 {
-{ (HRESULT)DIERR_ACQUIRED, "DIERR_ACQUIRED" },
-{ (HRESULT)DIERR_ALREADYINITIALIZED, "DIERR_ALREADYINITIALIZED" },
-{ (HRESULT)DIERR_BADDRIVERVER, "DIERR_BADDRIVERVER" },
-{ (HRESULT)DIERR_BETADIRECTINPUTVERSION, "DIERR_BETADIRECTINPUTVERSION" },
-{ (HRESULT)DIERR_DEVICEFULL, "DIERR_DEVICEFULL" },
-{ (HRESULT)DIERR_DEVICENOTREG, "DIERR_DEVICENOTREG" },
-{ (HRESULT)DIERR_EFFECTPLAYING, "DIERR_EFFECTPLAYING" },
-{ (HRESULT)DIERR_GENERIC, "DIERR_GENERIC" },
-{ (HRESULT)DIERR_HANDLEEXISTS, "DIERR_HANDLEEXISTS" },
-{ (HRESULT)DIERR_HASEFFECTS, "DIERR_HASEFFECTS" },
-{ (HRESULT)DIERR_INCOMPLETEEFFECT, "DIERR_INCOMPLETEEFFECT" },
-{ (HRESULT)DIERR_INPUTLOST, "DIERR_INPUTLOST" },
-{ (HRESULT)DIERR_INVALIDPARAM, "DIERR_INVALIDPARAM" },
-{ (HRESULT)DIERR_MAPFILEFAIL, "DIERR_MAPFILEFAIL" },
-{ (HRESULT)DIERR_MOREDATA, "DIERR_MOREDATA" },
-{ (HRESULT)DIERR_NOAGGREGATION, "DIERR_NOAGGREGATION" },
-{ (HRESULT)DIERR_NOINTERFACE, "DIERR_NOINTERFACE" },
-{ (HRESULT)DIERR_NOTACQUIRED, "DIERR_NOTACQUIRED" },
-{ (HRESULT)DIERR_NOTBUFFERED, "DIERR_NOTBUFFERED" },
-{ (HRESULT)DIERR_NOTDOWNLOADED, "DIERR_NOTDOWNLOADED" },
-{ (HRESULT)DIERR_NOTEXCLUSIVEACQUIRED, "DIERR_NOTEXCLUSIVEACQUIRED" },
-{ (HRESULT)DIERR_NOTFOUND, "DIERR_NOTFOUND" },
-{ (HRESULT)DIERR_NOTINITIALIZED, "DIERR_NOTINITIALIZED" },
-{ (HRESULT)DIERR_OBJECTNOTFOUND, "DIERR_OBJECTNOTFOUND" },
-{ (HRESULT)DIERR_OLDDIRECTINPUTVERSION, "DIERR_OLDDIRECTINPUTVERSION" },
-{ (HRESULT)DIERR_OTHERAPPHASPRIO, "DIERR_OTHERAPPHASPRIO" },
-{ (HRESULT)DIERR_OUTOFMEMORY, "DIERR_OUTOFMEMORY" },
-{ (HRESULT)DIERR_READONLY, "DIERR_READONLY" },
-{ (HRESULT)DIERR_REPORTFULL, "DIERR_REPORTFULL" },
-{ (HRESULT)DIERR_UNPLUGGED, "DIERR_UNPLUGGED" },
-{ (HRESULT)DIERR_UNSUPPORTED, "DIERR_UNSUPPORTED" },
-{ 0, nullptr }
+	{ (HRESULT)DIERR_ACQUIRED, "DIERR_ACQUIRED" },
+	{ (HRESULT)DIERR_ALREADYINITIALIZED, "DIERR_ALREADYINITIALIZED" },
+	{ (HRESULT)DIERR_BADDRIVERVER, "DIERR_BADDRIVERVER" },
+	{ (HRESULT)DIERR_BETADIRECTINPUTVERSION, "DIERR_BETADIRECTINPUTVERSION" },
+	{ (HRESULT)DIERR_DEVICEFULL, "DIERR_DEVICEFULL" },
+	{ (HRESULT)DIERR_DEVICENOTREG, "DIERR_DEVICENOTREG" },
+	{ (HRESULT)DIERR_EFFECTPLAYING, "DIERR_EFFECTPLAYING" },
+	{ (HRESULT)DIERR_GENERIC, "DIERR_GENERIC" },
+	{ (HRESULT)DIERR_HANDLEEXISTS, "DIERR_HANDLEEXISTS" },
+	{ (HRESULT)DIERR_HASEFFECTS, "DIERR_HASEFFECTS" },
+	{ (HRESULT)DIERR_INCOMPLETEEFFECT, "DIERR_INCOMPLETEEFFECT" },
+	{ (HRESULT)DIERR_INPUTLOST, "DIERR_INPUTLOST" },
+	{ (HRESULT)DIERR_INVALIDPARAM, "DIERR_INVALIDPARAM" },
+	{ (HRESULT)DIERR_MAPFILEFAIL, "DIERR_MAPFILEFAIL" },
+	{ (HRESULT)DIERR_MOREDATA, "DIERR_MOREDATA" },
+	{ (HRESULT)DIERR_NOAGGREGATION, "DIERR_NOAGGREGATION" },
+	{ (HRESULT)DIERR_NOINTERFACE, "DIERR_NOINTERFACE" },
+	{ (HRESULT)DIERR_NOTACQUIRED, "DIERR_NOTACQUIRED" },
+	{ (HRESULT)DIERR_NOTBUFFERED, "DIERR_NOTBUFFERED" },
+	{ (HRESULT)DIERR_NOTDOWNLOADED, "DIERR_NOTDOWNLOADED" },
+	{ (HRESULT)DIERR_NOTEXCLUSIVEACQUIRED, "DIERR_NOTEXCLUSIVEACQUIRED" },
+	{ (HRESULT)DIERR_NOTFOUND, "DIERR_NOTFOUND" },
+	{ (HRESULT)DIERR_NOTINITIALIZED, "DIERR_NOTINITIALIZED" },
+	{ (HRESULT)DIERR_OBJECTNOTFOUND, "DIERR_OBJECTNOTFOUND" },
+	{ (HRESULT)DIERR_OLDDIRECTINPUTVERSION, "DIERR_OLDDIRECTINPUTVERSION" },
+	{ (HRESULT)DIERR_OTHERAPPHASPRIO, "DIERR_OTHERAPPHASPRIO" },
+	{ (HRESULT)DIERR_OUTOFMEMORY, "DIERR_OUTOFMEMORY" },
+	{ (HRESULT)DIERR_READONLY, "DIERR_READONLY" },
+	{ (HRESULT)DIERR_REPORTFULL, "DIERR_REPORTFULL" },
+	{ (HRESULT)DIERR_UNPLUGGED, "DIERR_UNPLUGGED" },
+	{ (HRESULT)DIERR_UNSUPPORTED, "DIERR_UNSUPPORTED" },
+	{ 0, nullptr }
 };
 
 
@@ -114,14 +114,14 @@ static void printReturnCode( char *label, HRESULT hr )
 //-------------------------------------------------------------------------------------------------
 void DirectInputKeyboard::openKeyboard()
 {
-  HRESULT hr;
+	HRESULT hr;
 
 	// create our interface to direct input
 	hr = DirectInput8Create( ApplicationHInstance,
-													 DIRECTINPUT_VERSION,
-													 IID_IDirectInput8,
-													 (void **)&m_pDirectInput,
-													 nullptr );
+	                         DIRECTINPUT_VERSION,
+	                         IID_IDirectInput8,
+	                         (void **)&m_pDirectInput,
+	                         nullptr );
 	if( FAILED( hr ) )
 	{
 
@@ -134,8 +134,8 @@ void DirectInputKeyboard::openKeyboard()
 
 	// obtain an interface to the system keyboard device
 	hr = m_pDirectInput->CreateDevice( GUID_SysKeyboard,
-																		 &m_pKeyboardDevice,
-																		 nullptr );
+	                                   &m_pKeyboardDevice,
+	                                   nullptr );
 	if( FAILED( hr ) )
 	{
 
@@ -164,8 +164,8 @@ void DirectInputKeyboard::openKeyboard()
 	// on 2000 etc
 	//
 	hr = m_pKeyboardDevice->SetCooperativeLevel( ApplicationHWnd,
-																							 DISCL_FOREGROUND |
-																							 DISCL_NONEXCLUSIVE );
+	     DISCL_FOREGROUND |
+	     DISCL_NONEXCLUSIVE );
 	if( FAILED( hr ) )
 	{
 
@@ -176,7 +176,7 @@ void DirectInputKeyboard::openKeyboard()
 
 	}
 
-  // set the keyboard buffer size
+	// set the keyboard buffer size
 	DIPROPDWORD prop;
 	prop.diph.dwSize = sizeof( DIPROPDWORD );
 	prop.diph.dwHeaderSize = sizeof( DIPROPHEADER );
@@ -260,7 +260,7 @@ void DirectInputKeyboard::getKey( KeyboardIO *key )
 		hr = m_pKeyboardDevice->Acquire();
 		if (hr == DI_OK || hr == S_FALSE)
 			hr = m_pKeyboardDevice->GetDeviceData( sizeof( DIDEVICEOBJECTDATA ),
-																						 &kbdat, &num, 0 );
+			                                       &kbdat, &num, 0 );
 		switch( hr )
 		{
 
@@ -404,17 +404,17 @@ void DirectInputKeyboard::update()
 	// extending functionality
 	Keyboard::update();
 
-/*
-	// make sure the keyboard buffer is flushed
-	if( m_pKeyboardDevice )
-	{
-		DWORD items = INFINITE;
+	/*
+		// make sure the keyboard buffer is flushed
+		if( m_pKeyboardDevice )
+		{
+			DWORD items = INFINITE;
 
-		m_pKeyboardDevice->GetDeviceData( sizeof( DIDEVICEOBJECTDATA ),
-																			nullptr, &items, 0 );
+			m_pKeyboardDevice->GetDeviceData( sizeof( DIDEVICEOBJECTDATA ),
+																				nullptr, &items, 0 );
 
-	}
-*/
+		}
+	*/
 
 }
 

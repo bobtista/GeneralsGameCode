@@ -192,9 +192,9 @@ GameFont *FontLibrary::getFont( AsciiString name, Int pointSize, Bool bold )
 	{
 
 		if( font->pointSize == pointSize &&
-				font->bold == bold &&
-				font->nameString == name
-			)
+		        font->bold == bold &&
+		        font->nameString == name
+		  )
 			return font;  // found
 
 	}

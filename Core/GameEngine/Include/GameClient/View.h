@@ -58,11 +58,11 @@ constexpr const Real ViewDefaultYawRadians = DEG_TO_RADF(0.0f);
 enum PickType CPP_11(: Int)
 {
 	PICK_TYPE_TERRAIN						= COLL_TYPE_0,
-	PICK_TYPE_SELECTABLE				= COLL_TYPE_1,
-	PICK_TYPE_SHRUBBERY					= COLL_TYPE_2,
-	PICK_TYPE_MINES							= COLL_TYPE_3,	// mines aren't normally selectable, but workers/dozers need to
-	PICK_TYPE_FORCEATTACKABLE		= COLL_TYPE_4,
-	PICK_TYPE_ALL_DRAWABLES			= (PICK_TYPE_SELECTABLE | PICK_TYPE_SHRUBBERY | PICK_TYPE_MINES | PICK_TYPE_FORCEATTACKABLE)
+	 PICK_TYPE_SELECTABLE				= COLL_TYPE_1,
+	  PICK_TYPE_SHRUBBERY					= COLL_TYPE_2,
+	   PICK_TYPE_MINES							= COLL_TYPE_3,	// mines aren't normally selectable, but workers/dozers need to
+	    PICK_TYPE_FORCEATTACKABLE		= COLL_TYPE_4,
+	     PICK_TYPE_ALL_DRAWABLES			= (PICK_TYPE_SELECTABLE | PICK_TYPE_SHRUBBERY | PICK_TYPE_MINES | PICK_TYPE_FORCEATTACKABLE)
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -90,13 +90,13 @@ public:
 		SHAKE_COUNT
 	};
 
-  // Return values for worldToScreenTriReturn
-  enum WorldToScreenReturn CPP_11(: Int)
-  {
-    WTS_INSIDE_FRUSTUM = 0, // On the screen (inside frustum of camera)
-    WTS_OUTSIDE_FRUSTUM,    // Return is valid but off the screen (outside frustum of camera)
-    WTS_INVALID,            // No transform possible
-  };
+	// Return values for worldToScreenTriReturn
+	enum WorldToScreenReturn CPP_11(: Int)
+	{
+		WTS_INSIDE_FRUSTUM = 0, // On the screen (inside frustum of camera)
+		WTS_OUTSIDE_FRUSTUM,    // Return is valid but off the screen (outside frustum of camera)
+		WTS_INVALID,            // No transform possible
+	};
 
 public:
 
@@ -115,14 +115,14 @@ public:
 
 	/// all drawables in the 2D screen region will call the 'callback'
 	virtual Int iterateDrawablesInRegion( IRegion2D *screenRegion,
-																				Bool (*callback)( Drawable *draw, void *userData ),
-																				void *userData ) = 0;
+	                                      Bool (*callback)( Drawable *draw, void *userData ),
+	                                      void *userData ) = 0;
 
 	/** project the 4 corners of this view into the world and return each point as a parameter,
 			the world points are at the requested Z */
 	virtual void getScreenCornerWorldPointsAtZ( Coord3D *topLeft, Coord3D *topRight,
-																							Coord3D *bottomRight, Coord3D *bottomLeft,
-																							Real z );
+	        Coord3D *bottomRight, Coord3D *bottomLeft,
+	        Real z );
 
 	virtual void setWidth( Int width ) { m_width = width; }
 	virtual Int getWidth() { return m_width; }
@@ -141,15 +141,15 @@ public:
 	virtual void moveCameraTo(const Coord3D *o, Int frames, Int shutter, Bool orient, Real easeIn=0.0f, Real easeOut=0.0f) { lookAt( o ); }
 	virtual void moveCameraAlongWaypointPath(Waypoint *way, Int frames, Int shutter, Bool orient, Real easeIn=0.0f, Real easeOut=0.0f) { }
 	virtual Bool isCameraMovementFinished() { return TRUE; }
-	virtual void cameraModFinalZoom(Real finalZoom, Real easeIn=0.0f, Real easeOut=0.0f){}; ///< Final zoom for current camera movement.
-	virtual void cameraModRollingAverage(Int framesToAverage){}; ///< Number of frames to average movement for current camera movement.
-	virtual void cameraModFinalTimeMultiplier(Int finalMultiplier){}; ///< Final time multiplier for current camera movement.
-	virtual void cameraModFinalPitch(Real finalPitch, Real easeIn=0.0f, Real easeOut=0.0f){};	 ///< Final pitch for current camera movement.
-	virtual void cameraModFreezeTime(){ }					///< Freezes time during the next camera movement.
-	virtual void cameraModFreezeAngle(){ }					///< Freezes time during the next camera movement.
-	virtual void cameraModLookToward(Coord3D *pLoc){}			///< Sets a look at point during camera movement.
-	virtual void cameraModFinalLookToward(Coord3D *pLoc){}			///< Sets a look at point during camera movement.
-	virtual void cameraModFinalMoveTo(Coord3D *pLoc){ };			///< Sets a final move to.
+	virtual void cameraModFinalZoom(Real finalZoom, Real easeIn=0.0f, Real easeOut=0.0f) {}; ///< Final zoom for current camera movement.
+	virtual void cameraModRollingAverage(Int framesToAverage) {}; ///< Number of frames to average movement for current camera movement.
+	virtual void cameraModFinalTimeMultiplier(Int finalMultiplier) {}; ///< Final time multiplier for current camera movement.
+	virtual void cameraModFinalPitch(Real finalPitch, Real easeIn=0.0f, Real easeOut=0.0f) {};	 ///< Final pitch for current camera movement.
+	virtual void cameraModFreezeTime() { }					///< Freezes time during the next camera movement.
+	virtual void cameraModFreezeAngle() { }					///< Freezes time during the next camera movement.
+	virtual void cameraModLookToward(Coord3D *pLoc) {}			///< Sets a look at point during camera movement.
+	virtual void cameraModFinalLookToward(Coord3D *pLoc) {}			///< Sets a look at point during camera movement.
+	virtual void cameraModFinalMoveTo(Coord3D *pLoc) { };			///< Sets a final move to.
 
 	// (gth) C&C3 animation controlled camera feature
 	virtual void cameraEnableSlaveMode(const AsciiString & thingtemplateName, const AsciiString & boneName) {}
@@ -164,11 +164,11 @@ public:
 	virtual void setFadeParameters(Int fadeFrames, Int direction) { };
 	virtual void set3DWireFrameMode(Bool enable) { };
 
- 	virtual void resetCamera(const Coord3D *location, Int frames, Real easeIn=0.0f, Real easeOut=0.0f) {}; ///< Move camera to location, and reset to default angle & zoom.
- 	virtual void rotateCamera(Real rotations, Int frames, Real easeIn=0.0f, Real easeOut=0.0f) {}; ///< Rotate camera about current viewpoint.
+	virtual void resetCamera(const Coord3D *location, Int frames, Real easeIn=0.0f, Real easeOut=0.0f) {}; ///< Move camera to location, and reset to default angle & zoom.
+	virtual void rotateCamera(Real rotations, Int frames, Real easeIn=0.0f, Real easeOut=0.0f) {}; ///< Rotate camera about current viewpoint.
 	virtual void rotateCameraTowardObject(ObjectID id, Int milliseconds, Int holdMilliseconds, Real easeIn=0.0f, Real easeOut=0.0f) {};	///< Rotate camera to face an object, and hold on it
 	virtual void rotateCameraTowardPosition(const Coord3D *pLoc, Int milliseconds, Real easeIn=0.0f, Real easeOut=0.0f, Bool reverseRotation=FALSE) {};	///< Rotate camera to face a location.
-	virtual Bool isTimeFrozen(){ return false;}					///< Freezes time during the next camera movement.
+	virtual Bool isTimeFrozen() { return false;}					///< Freezes time during the next camera movement.
 	virtual Int	 getTimeMultiplier() {return 1;};				///< Get the time multiplier.
 	virtual void setTimeMultiplier(Int multiple) {}; ///< Set the time multiplier.
 	virtual void setDefaultView(Real pitch, Real angle, Real maxHeight) {}; // TheSuperHackers @todo Replace with setDefaultPitch(), setMaxHeightScale()
@@ -228,8 +228,8 @@ public:
 	virtual void setFieldOfView( Real angle ) { m_FOV = angle; }				///< Set the horizontal field of view angle
 	virtual Real getFieldOfView() { return m_FOV; }								///< Get the horizontal field of view angle
 
-  Bool worldToScreen( const Coord3D *w, ICoord2D *s ) { return worldToScreenTriReturn( w, s ) == WTS_INSIDE_FRUSTUM; }	///< Transform world coordinate "w" into screen coordinate "s"
-  virtual WorldToScreenReturn worldToScreenTriReturn(const Coord3D *w, ICoord2D *s ) = 0; ///< Like worldToScreen(), but with a more informative return value
+	Bool worldToScreen( const Coord3D *w, ICoord2D *s ) { return worldToScreenTriReturn( w, s ) == WTS_INSIDE_FRUSTUM; }	///< Transform world coordinate "w" into screen coordinate "s"
+	virtual WorldToScreenReturn worldToScreenTriReturn(const Coord3D *w, ICoord2D *s ) = 0; ///< Like worldToScreen(), but with a more informative return value
 	virtual void screenToTerrain( const ICoord2D *screen, Coord3D *world ) = 0;  ///< transform screen coord to a point on the 3D terrain
 	virtual void screenToWorldAtZ( const ICoord2D *s, Coord3D *w, Real z ) = 0;  ///< transform screen point to world point at the specified world Z value
 

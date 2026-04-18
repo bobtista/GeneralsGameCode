@@ -40,12 +40,12 @@ Real SubsystemInterface::s_msConsumed = 0;
 //-----------------------------------------------------------------------------
 SubsystemInterface::SubsystemInterface()
 #ifdef DUMP_PERF_STATS
-:m_curDrawTime(0),
-m_startDrawTimeConsumed(0),
-m_startTimeConsumed(0),
-m_curUpdateTime(0),
-m_dumpUpdate(false),
-m_dumpDraw(false)
+	:m_curDrawTime(0),
+	 m_startDrawTimeConsumed(0),
+	 m_startTimeConsumed(0),
+	 m_curUpdateTime(0),
+	 m_dumpUpdate(false),
+	 m_dumpDraw(false)
 #endif
 {
 	if (TheSubsystemList) {

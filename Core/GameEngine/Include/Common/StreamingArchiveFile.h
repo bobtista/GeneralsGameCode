@@ -70,37 +70,37 @@
 class StreamingArchiveFile : public RAMFile
 {
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(StreamingArchiveFile, "StreamingArchiveFile")
-	protected:
+protected:
 
-		File					*m_file;											///< The archive file that I came from
-		Int						m_startingPos;								///< My starting position in the archive
-		Int						m_size;												///< My length
-		Int						m_curPos;											///< My current position.
+	File					*m_file;											///< The archive file that I came from
+	Int						m_startingPos;								///< My starting position in the archive
+	Int						m_size;												///< My length
+	Int						m_curPos;											///< My current position.
 
-	public:
+public:
 
-		StreamingArchiveFile();
-		//virtual				~StreamingArchiveFile();
+	StreamingArchiveFile();
+	//virtual				~StreamingArchiveFile();
 
 
-		virtual Bool	open( const Char *filename, Int access = NONE, size_t bufferSize = BUFFERSIZE ) override; ///< Open a file for access
-		virtual void	close() override;																			///< Close the file
-		virtual Int		read( void *buffer, Int bytes ) override;										///< Read the specified number of bytes in to buffer: See File::read
-		virtual Int		write( const void *buffer, Int bytes ) override;							///< Write the specified number of bytes from the buffer: See File::write
-		virtual Int		seek( Int new_pos, seekMode mode = CURRENT ) override;				///< Set file position: See File::seek
+	virtual Bool	open( const Char *filename, Int access = NONE, size_t bufferSize = BUFFERSIZE ) override; ///< Open a file for access
+	virtual void	close() override;																			///< Close the file
+	virtual Int		read( void *buffer, Int bytes ) override;										///< Read the specified number of bytes in to buffer: See File::read
+	virtual Int		write( const void *buffer, Int bytes ) override;							///< Write the specified number of bytes from the buffer: See File::write
+	virtual Int		seek( Int new_pos, seekMode mode = CURRENT ) override;				///< Set file position: See File::seek
 
-		// Ini's should not be parsed with streaming files, that's just dumb.
-		virtual void	nextLine(Char *buf = nullptr, Int bufSize = 0) override { DEBUG_CRASH(("Should not call nextLine on a streaming file.")); }
-		virtual Bool	scanInt(Int &newInt) override { DEBUG_CRASH(("Should not call scanInt on a streaming file."));  return FALSE; }
-		virtual Bool	scanReal(Real &newReal) override { DEBUG_CRASH(("Should not call scanReal on a streaming file.")); return FALSE; }
-		virtual Bool	scanString(AsciiString &newString) override { DEBUG_CRASH(("Should not call scanString on a streaming file.")); return FALSE; }
+	// Ini's should not be parsed with streaming files, that's just dumb.
+	virtual void	nextLine(Char *buf = nullptr, Int bufSize = 0) override { DEBUG_CRASH(("Should not call nextLine on a streaming file.")); }
+	virtual Bool	scanInt(Int &newInt) override { DEBUG_CRASH(("Should not call scanInt on a streaming file."));  return FALSE; }
+	virtual Bool	scanReal(Real &newReal) override { DEBUG_CRASH(("Should not call scanReal on a streaming file.")); return FALSE; }
+	virtual Bool	scanString(AsciiString &newString) override { DEBUG_CRASH(("Should not call scanString on a streaming file.")); return FALSE; }
 
-		virtual Bool	open( File *file ) override;																	///< Open file for fast RAM access
-		virtual Bool	openFromArchive(File *archiveFile, const AsciiString& filename, Int offset, Int size) override; ///< copy file data from the given file at the given offset for the given size.
-		virtual Bool	copyDataToFile(File *localFile) override { DEBUG_CRASH(("Are you sure you meant to copyDataToFile on a streaming file?")); return FALSE; }
+	virtual Bool	open( File *file ) override;																	///< Open file for fast RAM access
+	virtual Bool	openFromArchive(File *archiveFile, const AsciiString& filename, Int offset, Int size) override; ///< copy file data from the given file at the given offset for the given size.
+	virtual Bool	copyDataToFile(File *localFile) override { DEBUG_CRASH(("Are you sure you meant to copyDataToFile on a streaming file?")); return FALSE; }
 
-		virtual char* readEntireAndClose() override { DEBUG_CRASH(("Are you sure you meant to readEntireAndClose on a streaming file?")); return nullptr; }
-		virtual File* convertToRAMFile() override { DEBUG_CRASH(("Are you sure you meant to readEntireAndClose on a streaming file?")); return this; }
+	virtual char* readEntireAndClose() override { DEBUG_CRASH(("Are you sure you meant to readEntireAndClose on a streaming file?")); return nullptr; }
+	virtual File* convertToRAMFile() override { DEBUG_CRASH(("Are you sure you meant to readEntireAndClose on a streaming file?")); return this; }
 };
 
 

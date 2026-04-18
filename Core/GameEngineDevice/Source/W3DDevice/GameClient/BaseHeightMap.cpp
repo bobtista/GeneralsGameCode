@@ -367,9 +367,9 @@ void BaseHeightMapRenderObjClass::adjustTerrainLOD(Int adj)
 	if (newROBJ) {
 		// apply the heightmap to the terrain render object
 		newROBJ->initHeightData( m_map->getDrawWidth(),
-																					 m_map->getDrawHeight(),
-																					 m_map,
-																					 nullptr);
+		                         m_map->getDrawHeight(),
+		                         m_map,
+		                         nullptr);
 		TheTerrainRenderObject = newROBJ;
 		newROBJ->staticLightingChanged();
 		newROBJ->m_roadBuffer->loadRoads();
@@ -517,8 +517,8 @@ void BaseHeightMapRenderObjClass::doTheLight(VERTEX_FORMAT *vb, Vector3*light, V
 			Vector3 lightDirection(vb->x, vb->y, vb->z);
 			Real factor = 1.0f;
 			switch(pLight->Get_Type()) {
-			case LightClass::POINT:
-			case LightClass::SPOT: {
+				case LightClass::POINT:
+				case LightClass::SPOT: {
 					Vector3 lightLoc = pLight->Get_Position();
 					lightDirection -= lightLoc;
 					double range, midRange;
@@ -544,10 +544,10 @@ void BaseHeightMapRenderObjClass::doTheLight(VERTEX_FORMAT *vb, Vector3*light, V
 					factor = WWMath::Clamp(factor,0.0f,1.0f);
 				}
 				break;
-			case LightClass::DIRECTIONAL:
-				lightDirection = pLight->Get_Transform().Get_Z_Vector();
-				factor = 1.0;
-				break;
+				case LightClass::DIRECTIONAL:
+					lightDirection = pLight->Get_Transform().Get_Z_Vector();
+					factor = 1.0;
+					break;
 			};
 			lightDirection.Normalize();
 			Vector3 lightRay(-lightDirection.X, -lightDirection.Y, -lightDirection.Z);
@@ -688,12 +688,12 @@ bool BaseHeightMapRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 	CastResultStruct	result;
 	Int StartCellX = 0;
 	Int EndCellX = 0;
- 	Int StartCellY = 0;
+	Int StartCellY = 0;
 	Int EndCellY = 0;
 	const Int overhang = 2*VERTEX_BUFFER_TILE_LENGTH + m_map->getBorderSizeInline(); // Allow picking past the edge for scrolling & objects.
- 	Vector3 minPt(MAP_XY_FACTOR*(-overhang), MAP_XY_FACTOR*(-overhang), -MAP_XY_FACTOR);
+	Vector3 minPt(MAP_XY_FACTOR*(-overhang), MAP_XY_FACTOR*(-overhang), -MAP_XY_FACTOR);
 	Vector3 maxPt(MAP_XY_FACTOR*(m_map->getXExtent()+overhang),
-		MAP_XY_FACTOR*(m_map->getYExtent()+overhang), MAP_HEIGHT_SCALE*m_map->getMaxHeightValue()+MAP_XY_FACTOR);
+	              MAP_XY_FACTOR*(m_map->getYExtent()+overhang), MAP_HEIGHT_SCALE*m_map->getMaxHeightValue()+MAP_XY_FACTOR);
 	MinMaxAABoxClass mmbox(minPt, maxPt);
 	hbox.Init(mmbox);
 
@@ -844,20 +844,20 @@ bool BaseHeightMapRenderObjClass::Cast_Ray(RayCollisionTestClass & raytest)
 Real BaseHeightMapRenderObjClass::getHeightMapHeight(Real x, Real y, Coord3D* normal) const
 {
 
-  // SORRY, KIDS
-  // Had to make this function logic safe, so,
-  // even though this is a renderObject, and is thus classified as client-side
-  // it is responsible for reporting height map heights (for reasons I can't say)
-  // but to do so safely, I a going to pass it the logical heighmap from the W3dTerrainVisual
-  // yes another nosequiter. Ugh!
+	// SORRY, KIDS
+	// Had to make this function logic safe, so,
+	// even though this is a renderObject, and is thus classified as client-side
+	// it is responsible for reporting height map heights (for reasons I can't say)
+	// but to do so safely, I a going to pass it the logical heighmap from the W3dTerrainVisual
+	// yes another nosequiter. Ugh!
 
-  // M Lorenzen
+	// M Lorenzen
 
-  // by doing it this way the compiler won't call getLogicHeightMap twice...
-  WorldHeightMap *logicHeightMap = TheTerrainVisual?TheTerrainVisual->getLogicHeightMap():m_map;
+	// by doing it this way the compiler won't call getLogicHeightMap twice...
+	WorldHeightMap *logicHeightMap = TheTerrainVisual?TheTerrainVisual->getLogicHeightMap():m_map;
 
-  if ( !logicHeightMap )
-  {
+	if ( !logicHeightMap )
+	{
 		if (normal)
 		{
 			// return a default normal pointing up
@@ -866,7 +866,7 @@ Real BaseHeightMapRenderObjClass::getHeightMapHeight(Real x, Real y, Coord3D* no
 			normal->z = 1.0f;
 		}
 		return 0;
-  }
+	}
 
 
 	float height;
@@ -938,9 +938,9 @@ Real BaseHeightMapRenderObjClass::getHeightMapHeight(Real x, Real y, Coord3D* no
 		//
 		//		4			5
 		//Find surrounding grid points for smoothed normals.
- 		int idx4 = ix + (iy-1)*xExtent;
- 		int idx0 = ix + iy*xExtent;
- 		int idx3 = ix + iy*xExtent+xExtent;
+		int idx4 = ix + (iy-1)*xExtent;
+		int idx0 = ix + iy*xExtent;
+		int idx3 = ix + iy*xExtent+xExtent;
 		int idx9 = ix + (iy+2)*xExtent;
 		UnsignedByte d0, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11;
 		d0 = data[idx0];
@@ -977,13 +977,13 @@ Real BaseHeightMapRenderObjClass::getHeightMapHeight(Real x, Real y, Coord3D* no
 
 
 
-			Vector3 l2r, n2f, normalAtTexel;
-			l2r.Set(2*MAP_XY_FACTOR/MAP_HEIGHT_SCALE, 0, deltaZ_X);
-			n2f.Set(0, 2*MAP_XY_FACTOR/MAP_HEIGHT_SCALE, deltaZ_Y);
-			Vector3::Normalized_Cross_Product(l2r,n2f, &normalAtTexel);
-			normal->x = normalAtTexel.X;
-			normal->y = normalAtTexel.Y;
-			normal->z = normalAtTexel.Z;
+		Vector3 l2r, n2f, normalAtTexel;
+		l2r.Set(2*MAP_XY_FACTOR/MAP_HEIGHT_SCALE, 0, deltaZ_X);
+		n2f.Set(0, 2*MAP_XY_FACTOR/MAP_HEIGHT_SCALE, deltaZ_Y);
+		Vector3::Normalized_Cross_Product(l2r,n2f, &normalAtTexel);
+		normal->x = normalAtTexel.X;
+		normal->y = normalAtTexel.Y;
+		normal->z = normalAtTexel.Z;
 
 	}
 
@@ -997,7 +997,7 @@ Bool BaseHeightMapRenderObjClass::isClearLineOfSight(const Coord3D& pos, const C
 	if (m_map == nullptr)
 		return false;	// doh. should not happen.
 
-  WorldHeightMap *logicHeightMap = TheTerrainVisual?TheTerrainVisual->getLogicHeightMap():m_map;
+	WorldHeightMap *logicHeightMap = TheTerrainVisual?TheTerrainVisual->getLogicHeightMap():m_map;
 
 #define DO_BRESENHAM
 #ifdef DO_BRESENHAM
@@ -1077,9 +1077,9 @@ Bool BaseHeightMapRenderObjClass::isClearLineOfSight(const Coord3D& pos, const C
 	for (Int curpixel = 0; curpixel < numpixels; curpixel++)
 	{
 		if (x < 0 ||
-				y < 0 ||
-				x >= xExtent-1 ||
-				y >= yExtent-1)
+		        y < 0 ||
+		        x >= xExtent-1 ||
+		        y >= yExtent-1)
 		{
 			// once we go off the map, we're done
 			break;
@@ -1202,7 +1202,7 @@ Real BaseHeightMapRenderObjClass::getMaxCellHeight(Real x, Real y) const
 		return 0.0f;	//return default height
 	}
 
-  WorldHeightMap *logicHeightMap = TheTerrainVisual?TheTerrainVisual->getLogicHeightMap():m_map;
+	WorldHeightMap *logicHeightMap = TheTerrainVisual?TheTerrainVisual->getLogicHeightMap():m_map;
 
 
 	Int offset = 1;
@@ -1245,7 +1245,7 @@ Bool BaseHeightMapRenderObjClass::isCliffCell(Real x, Real y)
 		return false;
 	}
 
-  WorldHeightMap *logicHeightMap = TheTerrainVisual?TheTerrainVisual->getLogicHeightMap():m_map;
+	WorldHeightMap *logicHeightMap = TheTerrainVisual?TheTerrainVisual->getLogicHeightMap():m_map;
 
 	Int iX = x/MAP_XY_FACTOR;
 	Int iY = y/MAP_XY_FACTOR;
@@ -1455,7 +1455,7 @@ void BaseHeightMapRenderObjClass::loadRoadsAndBridges(W3DTerrainLogic *pTerrainL
 	* of the bridge towers */
 // ============================================================================
 void BaseHeightMapRenderObjClass::worldBuilderUpdateBridgeTowers( W3DAssetManager *assetManager,
-																															SimpleSceneClass *scene )
+        SimpleSceneClass *scene )
 {
 
 	if( m_bridgeBuffer )
@@ -1603,8 +1603,8 @@ void BaseHeightMapRenderObjClass::updateShorelineTile(Int i, Int j, Int border, 
 
 	//Check if mix of under/over water vertices or some vertices within depth fade region.
 	if (waterSide < 0xf || (waterZ0 - terrainZ0) < transparentDepth ||
-		(waterZ1 - terrainZ1) < transparentDepth || (waterZ2 - terrainZ2) < transparentDepth
-		|| (waterZ3 - terrainZ3) < transparentDepth)
+	        (waterZ1 - terrainZ1) < transparentDepth || (waterZ2 - terrainZ2) < transparentDepth
+	        || (waterZ3 - terrainZ3) < transparentDepth)
 	{	//add tile to set that needs shoreline blending.
 		if (m_numShoreLineTiles >= m_shoreLineTilePositionsSize)
 		{	//no more room to store extra blend tiles so enlarge the buffer.
@@ -1659,7 +1659,7 @@ void BaseHeightMapRenderObjClass::updateShorelineTiles(Int minX, Int minY, Int m
 	{	Int x = m_shoreLineTilePositions[j].m_xy & 0xffff;
 		Int y = m_shoreLineTilePositions[j].m_xy >> 16;
 		if (x >= minX && x < maxX &&
-			y >= minY && y < maxY)
+		        y >= minY && y < maxY)
 		{	//this tile is inside region being updated so remove it by shifting tile array
 			memcpy(m_shoreLineTilePositions+j,m_shoreLineTilePositions+j+1,(m_numShoreLineTiles-1-j)*sizeof(shoreLineTileInfo));
 			m_numShoreLineTiles--;
@@ -1992,10 +1992,10 @@ void BaseHeightMapRenderObjClass::updateScorches()
 #endif
 				if (flipForBlend) {
 					*curIb++ = startVertex + j*yOffset + i+1;
- 					*curIb++ = startVertex + j*yOffset + i+yOffset;
+					*curIb++ = startVertex + j*yOffset + i+yOffset;
 					*curIb++ = startVertex + j*yOffset + i;
- 					*curIb++ = startVertex + j*yOffset + i+1;
- 					*curIb++ = startVertex + j*yOffset + i+1+yOffset;
+					*curIb++ = startVertex + j*yOffset + i+1;
+					*curIb++ = startVertex + j*yOffset + i+1+yOffset;
 					*curIb++ = startVertex + j*yOffset + i+yOffset;
 				}
 				else
@@ -2049,9 +2049,9 @@ void BaseHeightMapRenderObjClass::addScorch(Vector3 location, Real radius, Scorc
 	Real limit = radius/4;
 	for (i=0; i<m_numScorches; i++) {
 		if ( abs(location.X-m_scorches[i].location.X) < limit &&
-				 abs(location.Y-m_scorches[i].location.Y) < limit &&
-				 abs(radius - m_scorches[i].radius) < limit &&
-				 m_scorches[i].scorchType == type) {
+		        abs(location.Y-m_scorches[i].location.Y) < limit &&
+		        abs(radius - m_scorches[i].radius) < limit &&
+		        m_scorches[i].scorchType == type) {
 			return; // basically a duplicate.
 		}
 	}
@@ -2130,8 +2130,8 @@ Int BaseHeightMapRenderObjClass::getStaticDiffuse(Int x, Int y)
 		RefRenderObjListIterator *it = pMyScene->createLightsIterator();
 		doTheLight(&vertex, lightRay, &normalAtTexel, it, 1.0f);
 		if (it) {
-		 pMyScene->destroyLightsIterator(it);
-		 it = nullptr;
+			pMyScene->destroyLightsIterator(it);
+			it = nullptr;
 		}
 	} else {
 		doTheLight(&vertex, lightRay, &normalAtTexel, nullptr, 1.0f);
@@ -2182,7 +2182,7 @@ void BaseHeightMapRenderObjClass::removeTreesAndPropsForConstruction(const Coord
 /** Adds a tree to the tree buffer.*/
 //=============================================================================
 void BaseHeightMapRenderObjClass::addTree(DrawableID id, Coord3D location, Real scale, Real angle,
-								Real randomScaleAmount,  const W3DTreeDrawModuleData *data)
+        Real randomScaleAmount,  const W3DTreeDrawModuleData *data)
 {
 	if (m_treeBuffer) {
 		m_treeBuffer->addTree(id, location, scale, angle, randomScaleAmount, data);
@@ -2232,7 +2232,7 @@ Bool BaseHeightMapRenderObjClass::updateTreePosition(DrawableID id, Coord3D loca
 /** Adds a prop to the prop buffer.*/
 //=============================================================================
 void BaseHeightMapRenderObjClass::addProp(Int id, Coord3D location, Real angle, Real scale,
-																					const AsciiString &modelName)
+        const AsciiString &modelName)
 {
 	if (m_propBuffer) {
 		m_propBuffer->addProp(id, location, angle, scale, modelName);
@@ -2282,7 +2282,7 @@ void BaseHeightMapRenderObjClass::notifyShroudChanged()
 /** Adds a terrainBib to the bib buffer.*/
 //=============================================================================
 void BaseHeightMapRenderObjClass::addTerrainBib(Vector3 corners[4],
-																						ObjectID id, Bool highlight)
+        ObjectID id, Bool highlight)
 {
 	if (m_bibBuffer)
 		m_bibBuffer->addBib(corners, id, highlight);
@@ -2294,7 +2294,7 @@ void BaseHeightMapRenderObjClass::addTerrainBib(Vector3 corners[4],
 /** Adds a terrainBib to the bib buffer.*/
 //=============================================================================
 void BaseHeightMapRenderObjClass::addTerrainBibDrawable(Vector3 corners[4],
-																						DrawableID id, Bool highlight)
+        DrawableID id, Bool highlight)
 {
 	if (m_bibBuffer)
 		m_bibBuffer->addBibDrawable(corners, id, highlight);
@@ -2394,7 +2394,7 @@ rendered portion of the terrain.  Only a 96x96 section is rendered at any time,
 even though maps can be up to 1024x1024.  This function determines which subset
 is rendered. */
 //=============================================================================
-void BaseHeightMapRenderObjClass::updateCenter(CameraClass *camera , RefRenderObjListIterator *pLightsIterator)
+void BaseHeightMapRenderObjClass::updateCenter(CameraClass *camera, RefRenderObjListIterator *pLightsIterator)
 {
 	if (m_map==nullptr) {
 		return;

@@ -153,53 +153,53 @@ static Bool hasValidTransferFileContent(const AsciiString& filePath, const Unsig
 	// Extension-specific content validation
 	switch (fileType)
 	{
-	case TransferFileType_Map:
-	{
-		if (dataSize < 4 || memcmp(data, "CkMp", 4) != 0)
+		case TransferFileType_Map:
 		{
-			DEBUG_LOG(("Map file '%s' has invalid magic bytes.", filePath.str()));
-			return false;
-		}
-		break;
-	}
-
-	case TransferFileType_Ini:
-	{
-		for (UnsignedInt i = 0; i < dataSize; ++i)
-		{
-			if (data[i] == 0)
+			if (dataSize < 4 || memcmp(data, "CkMp", 4) != 0)
 			{
-				DEBUG_LOG(("INI file '%s' contains null bytes (likely binary).", filePath.str()));
+				DEBUG_LOG(("Map file '%s' has invalid magic bytes.", filePath.str()));
 				return false;
 			}
+			break;
 		}
-		break;
-	}
 
-	case TransferFileType_Tga:
-	{
-		if (dataSize < sizeof(TGAHeader) + sizeof(TGA2Footer))
+		case TransferFileType_Ini:
 		{
-			DEBUG_LOG(("TGA file '%s' is too small to be valid.", filePath.str()));
-			return false;
+			for (UnsignedInt i = 0; i < dataSize; ++i)
+			{
+				if (data[i] == 0)
+				{
+					DEBUG_LOG(("INI file '%s' contains null bytes (likely binary).", filePath.str()));
+					return false;
+				}
+			}
+			break;
 		}
-		TGA2Footer footer;
-		memcpy(&footer, data + dataSize - sizeof(footer), sizeof(footer));
-		const Bool isTGA2 = memcmp(footer.Signature, TGA2_SIGNATURE, sizeof(footer.Signature)) == 0
-			&& footer.RsvdChar == '.'
-			&& footer.BZST == '\0';
-		if (!isTGA2)
-		{
-			DEBUG_LOG(("TGA file '%s' is missing TRUEVISION-XFILE footer signature.", filePath.str()));
-			return false;
-		}
-		break;
-	}
 
-	default:
-	{
-		break;
-	}
+		case TransferFileType_Tga:
+		{
+			if (dataSize < sizeof(TGAHeader) + sizeof(TGA2Footer))
+			{
+				DEBUG_LOG(("TGA file '%s' is too small to be valid.", filePath.str()));
+				return false;
+			}
+			TGA2Footer footer;
+			memcpy(&footer, data + dataSize - sizeof(footer), sizeof(footer));
+			const Bool isTGA2 = memcmp(footer.Signature, TGA2_SIGNATURE, sizeof(footer.Signature)) == 0
+			                    && footer.RsvdChar == '.'
+			                    && footer.BZST == '\0';
+			if (!isTGA2)
+			{
+				DEBUG_LOG(("TGA file '%s' is missing TRUEVISION-XFILE footer signature.", filePath.str()));
+				return false;
+			}
+			break;
+		}
+
+		default:
+		{
+			break;
+		}
 	}
 
 	return true;
@@ -488,7 +488,7 @@ void ConnectionManager::doRelay() {
 			// Iterate through the commands in this packet and send them to the proper connections.
 			while (cmd != nullptr) {
 				//DEBUG_LOG(("ConnectionManager::doRelay() - Looking at a command of type %s",
-					//GetNetCommandTypeAsString(cmd->getCommand()->getNetCommandType())));
+				//GetNetCommandTypeAsString(cmd->getCommand()->getNetCommandType())));
 				if (CommandRequiresAck(cmd->getCommand())) {
 					ackCommand(cmd, m_localSlot);
 				}
@@ -546,8 +546,8 @@ Bool ConnectionManager::processNetCommand(NetCommandRef *ref) {
 
 	// Handle ACK commands first (before connection validation)
 	if ((cmdType == NETCOMMANDTYPE_ACKSTAGE1) ||
-			(cmdType == NETCOMMANDTYPE_ACKSTAGE2) ||
-			(cmdType == NETCOMMANDTYPE_ACKBOTH)) {
+	        (cmdType == NETCOMMANDTYPE_ACKSTAGE2) ||
+	        (cmdType == NETCOMMANDTYPE_ACKBOTH)) {
 		processAck(msg);
 		return FALSE;
 	}
@@ -683,7 +683,7 @@ void ConnectionManager::processWrapper(NetCommandRef *ref)
 	NetWrapperCommandMsg *wrapperMsg = (NetWrapperCommandMsg *)(ref->getCommand());
 	UnsignedShort commandID = wrapperMsg->getWrappedCommandID();
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::processWrapper() - wrapped commandID is %d, commandID is %d",
-		commandID, wrapperMsg->getID()));
+	                                  commandID, wrapperMsg->getID()));
 	Int origProgress = 0;
 	FileCommandMap::iterator fcIt = s_fileCommandMap.find(commandID);
 	if (fcIt != s_fileCommandMap.end())
@@ -691,7 +691,7 @@ void ConnectionManager::processWrapper(NetCommandRef *ref)
 		origProgress = s_fileProgressMap[m_localSlot][commandID];
 	}
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::processWrapper() - origProgress[%d] == %d for command %d",
-		m_localSlot, origProgress, commandID));
+	                                  m_localSlot, origProgress, commandID));
 
 	m_netCommandWrapperList->processWrapper(ref);
 
@@ -699,7 +699,7 @@ void ConnectionManager::processWrapper(NetCommandRef *ref)
 	{
 		Int newProgress = m_netCommandWrapperList->getPercentComplete(commandID);
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::processWrapper() - newProgress[%d] == %d for command %d",
-			m_localSlot, newProgress, commandID));
+		                                  m_localSlot, newProgress, commandID));
 		if (newProgress > origProgress && newProgress < 100)
 		{
 			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::processWrapper() - sending a NetFileProgressCommandMsg"));
@@ -942,7 +942,7 @@ void ConnectionManager::processFileAnnounce(NetFileAnnounceCommandMsg *msg)
 void ConnectionManager::processFileProgress(NetFileProgressCommandMsg *msg)
 {
 	DEBUG_LOG(("ConnectionManager::processFileProgress() - command %d is at %d%%",
-		msg->getFileID(), msg->getProgress()));
+	           msg->getFileID(), msg->getProgress()));
 
 	const UnsignedInt playerID = msg->getPlayerID();
 	if (playerID >= MAX_SLOTS) {
@@ -1245,7 +1245,7 @@ void ConnectionManager::ackCommand(NetCommandRef *ref, UnsignedInt localSlot) {
 //						DEBUG_LOG(("ConnectionManager::ackCommand - acking command %d from player %d directly to player.", commandID, msg->getPlayerID()));
 						m_connections[msg->getPlayerID()]->sendNetCommandMsg(ackmsg, 1 << msg->getPlayerID());
 					} else {
-	//					DEBUG_CRASH(("Connection to player is null"));
+						//					DEBUG_CRASH(("Connection to player is null"));
 					}
 				} else {
 					DEBUG_CRASH(("Command sent by an invalid player ID."));
@@ -1272,7 +1272,7 @@ void ConnectionManager::sendRemoteCommand(NetCommandRef *msg) {
 	}
 
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendRemoteCommand - sending net command %d of type %s from player %d, relay is 0x%x",
-		msg->getCommand()->getID(), GetNetCommandTypeAsString(msg->getCommand()->getNetCommandType()), msg->getCommand()->getPlayerID(), msg->getRelay()));
+	                                  msg->getCommand()->getID(), GetNetCommandTypeAsString(msg->getCommand()->getNetCommandType()), msg->getCommand()->getPlayerID(), msg->getRelay()));
 
 	const UnsignedByte relay = msg->getRelay();
 	const UnsignedInt playerID = msg->getCommand()->getPlayerID();
@@ -1350,7 +1350,7 @@ void ConnectionManager::update(Bool isInGame) {
 		if (m_connections[i] != nullptr) {
 			/*
 			if (m_connections[i]->isQueueEmpty() == FALSE) {
-//				DEBUG_LOG(("ConnectionManager::update - calling doSend on connection %d", i));
+			//				DEBUG_LOG(("ConnectionManager::update - calling doSend on connection %d", i));
 			}
 			*/
 
@@ -1390,7 +1390,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 //			if (didSelfSlug) {
 //				m_fpsAverages[m_localSlot] = frameRate;
 //			} else {
-				m_fpsAverages[m_localSlot] = m_frameMetrics.getAverageFPS();
+			m_fpsAverages[m_localSlot] = m_frameMetrics.getAverageFPS();
 //			}
 			if (didSelfSlug) {
 				//DEBUG_LOG(("ConnectionManager::updateRunAhead - local player run ahead metrics, fps = %d, actual fps = %d, latency = %f, didSelfSlug = true", m_fpsAverages[m_localSlot], m_frameMetrics.getAverageFPS(), m_latencyAverages[m_localSlot]));
@@ -1503,7 +1503,7 @@ void ConnectionManager::updateRunAhead(Int oldRunAhead, Int frameRate, Bool didS
 //			if (didSelfSlug) {
 //				msg->setAverageFps(frameRate);
 //			} else {
-				msg->setAverageFps(m_frameMetrics.getAverageFPS());
+			msg->setAverageFps(m_frameMetrics.getAverageFPS());
 //			}
 			if (didSelfSlug) {
 				//DEBUG_LOG(("ConnectionManager::updateRunAhead - average latency = %f, average fps = %d, actual fps = %d, didSelfSlug = true", m_frameMetrics.getAverageLatency(), m_frameMetrics.getAverageFPS(), m_frameMetrics.getAverageFPS()));
@@ -1642,7 +1642,7 @@ void ConnectionManager::sendLocalCommand(NetCommandMsg *msg, UnsignedByte relay 
 	msg->attach();
 
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendLocalCommand - sending net command %d of type %s", msg->getID(),
-		GetNetCommandTypeAsString(msg->getNetCommandType())));
+	                                  GetNetCommandTypeAsString(msg->getNetCommandType())));
 
 	if (relay & (1 << m_localSlot)) {
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendLocalCommand - adding net command of type %s to player %d for frame %d", GetNetCommandTypeAsString(msg->getNetCommandType()), msg->getPlayerID(), msg->getExecutionFrame()));
@@ -1663,8 +1663,8 @@ void ConnectionManager::sendLocalCommand(NetCommandMsg *msg, UnsignedByte relay 
 	} else {
 		// Send the command to everyone else via the packet router.
 		UnsignedByte temprelay = relay & ~(1 << m_localSlot);	// Tell the packet router to relay the message to everyone but myself.
-														// Hopefully the packet router is smart enough to not send it
-														// to slots that are not in the game.
+		// Hopefully the packet router is smart enough to not send it
+		// to slots that are not in the game.
 
 		m_connections[m_packetRouterSlot]->sendNetCommandMsg(msg, temprelay); // This will create a new copy of netmsg for this connection.
 
@@ -1719,17 +1719,17 @@ Bool ConnectionManager::allCommandsReady(UnsignedInt frame, Bool justTesting /* 
 	Int i = 0;
 	for (; (i < MAX_SLOTS) && retval; ++i) {
 		if ((m_frameData[i] != nullptr) && (m_frameData[i]->getIsQuitting() == FALSE)) {
-/*
-			if (!(m_frameData[i]->allCommandsReady(frame, (frame != commandsReadyDebugSpewage) && (justTesting == FALSE)))) {
-				if ((frame != commandsReadyDebugSpewage) && (justTesting == FALSE)) {
-					DEBUG_LOG(("ConnectionManager::allCommandsReady, frame %d player %d not ready.", frame, i));
-					commandsReadyDebugSpewage = frame;
-				}
-				retval = FALSE;
-			} else {
-//				DEBUG_LOG(("ConnectionManager::allCommandsReady, frame %d player %d is ready.", frame, i));
-			}
-*/
+			/*
+						if (!(m_frameData[i]->allCommandsReady(frame, (frame != commandsReadyDebugSpewage) && (justTesting == FALSE)))) {
+							if ((frame != commandsReadyDebugSpewage) && (justTesting == FALSE)) {
+								DEBUG_LOG(("ConnectionManager::allCommandsReady, frame %d player %d not ready.", frame, i));
+								commandsReadyDebugSpewage = frame;
+							}
+							retval = FALSE;
+						} else {
+			//				DEBUG_LOG(("ConnectionManager::allCommandsReady, frame %d player %d is ready.", frame, i));
+						}
+			*/
 
 			frameRetVal = m_frameData[i]->allCommandsReady(frame, (frame != commandsReadyDebugSpewage) && (justTesting == FALSE));
 			if (frameRetVal == FRAMEDATA_NOTREADY) {
@@ -1753,7 +1753,7 @@ Bool ConnectionManager::allCommandsReady(UnsignedInt frame, Bool justTesting /* 
 	if ((retval == TRUE) && (justTesting == FALSE)) {
 		m_disconnectManager->allCommandsReady(TheGameLogic->getFrame(), this);
 		retval = m_disconnectManager->allowedToContinue(); // allow the disconnect manager to keep us on this frame
-																											// in case we are waiting for a new packet router or something.
+		// in case we are waiting for a new packet router or something.
 	}
 
 	return retval;
@@ -1784,8 +1784,8 @@ NetCommandList *ConnectionManager::getFrameCommandList(UnsignedInt frame)
 			retlist->appendList(m_frameData[i]->getFrameCommandList(frame));
 			if (frame > FRAMES_TO_KEEP) {
 				m_frameData[i]->resetFrame(frame - FRAMES_TO_KEEP);	// After getting the commands for that frame from this
-													// FrameDataManager object, we need to tell it that we're
-													// done with the messages for that frame.
+				// FrameDataManager object, we need to tell it that we're
+				// done with the messages for that frame.
 				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("getFrameCommandList - called reset frame on player %d for frame %d", i, frame - FRAMES_TO_KEEP));
 			}
 		}
@@ -1873,7 +1873,7 @@ PlayerLeaveCode ConnectionManager::disconnectPlayer(Int slot) {
 		if (gSlot && !gSlot->lastFrameInGame())
 		{
 			DEBUG_LOG(("ConnectionManager::disconnectPlayer(%d) - slot is last in the game on frame %d",
-				slot, TheGameLogic->getFrame()));
+			           slot, TheGameLogic->getFrame()));
 			gSlot->setLastFrameInGame(TheGameLogic->getFrame());
 		}
 	}
@@ -1989,7 +1989,7 @@ void ConnectionManager::flushConnections() {
 //			DEBUG_LOG(("ConnectionManager::flushConnections - flushing connection to player %d", i));
 			/*
 			if (m_connections[i]->isQueueEmpty()) {
-//				DEBUG_LOG(("ConnectionManager::flushConnections - connection queue empty"));
+			//				DEBUG_LOG(("ConnectionManager::flushConnections - connection queue empty"));
 			}
 			*/
 			m_connections[i]->doSend();
@@ -2050,7 +2050,7 @@ void ConnectionManager::parseUserList(const GameInfo *game)
 			if (game->getLocalSlotNum() == i)
 			{
 				m_localSlot = i;
-   			m_localUser->setName(slot->getName());
+				m_localUser->setName(slot->getName());
 			}
 
 			if (m_localSlot != i)
@@ -2132,7 +2132,7 @@ void ConnectionManager::parseUserList(const GameInfo *game)
 		UnsignedInt addr = ResolveIP(addrAsciiStr);
 		UnsignedInt port = atoi(portStr);
 
-//		if ((m_localAddr != addr) || (m_localPort != port)) {
+	//		if ((m_localAddr != addr) || (m_localPort != port)) {
 		if (loginName.compare(nameStr) != 0) {
 			m_connections[numUsers] = newInstance(Connection)();
 			m_connections[numUsers]->init();
@@ -2178,7 +2178,7 @@ Real ConnectionManager::getIncomingBytesPerSecond()
 	if (m_transport)
 		return m_transport->getIncomingBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -2189,7 +2189,7 @@ Real ConnectionManager::getIncomingPacketsPerSecond()
 	if (m_transport)
 		return m_transport->getIncomingPacketsPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -2200,7 +2200,7 @@ Real ConnectionManager::getOutgoingBytesPerSecond()
 	if (m_transport)
 		return m_transport->getOutgoingBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -2211,7 +2211,7 @@ Real ConnectionManager::getOutgoingPacketsPerSecond()
 	if (m_transport) {
 		return m_transport->getOutgoingPacketsPerSecond();
 	} else {
-	  return 0.0;
+		return 0.0;
 	}
 }
 
@@ -2223,7 +2223,7 @@ Real ConnectionManager::getUnknownBytesPerSecond()
 	if (m_transport)
 		return m_transport->getUnknownBytesPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -2234,7 +2234,7 @@ Real ConnectionManager::getUnknownPacketsPerSecond()
 	if (m_transport)
 		return m_transport->getUnknownPacketsPerSecond();
 	else
-	  return 0.0;
+		return 0.0;
 }
 
 /**
@@ -2304,8 +2304,8 @@ UnsignedShort ConnectionManager::sendFileAnnounce(AsciiString path, UnsignedByte
 	UnsignedShort fileID = GenerateNextCommandID();
 	announceMsg->setFileID(fileID);
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendFileAnnounce() - creating announce message with ID of %d from %d to mask %X for '%s' going to %X as command %d",
-		announceMsg->getID(), announceMsg->getPlayerID(), announceMask, announceMsg->getRealFilename().str(),
-		announceMsg->getPlayerMask(), announceMsg->getFileID()));
+	                                  announceMsg->getID(), announceMsg->getPlayerID(), announceMask, announceMsg->getRealFilename().str(),
+	                                  announceMsg->getPlayerMask(), announceMsg->getFileID()));
 
 	processFileAnnounce(announceMsg); // set up things for the host
 
@@ -2339,7 +2339,7 @@ void ConnectionManager::sendFile(AsciiString path, UnsignedByte playerMask, Unsi
 	Int compressedSize = 0;
 	if (compressedLen)
 		compressedSize = CompressionManager::compressData(CompressionManager::getPreferredCompression(),
-		buf, len, compressedBuf, compressedLen);
+		                 buf, len, compressedBuf, compressedLen);
 
 	if (!compressedSize)
 	{
@@ -2356,7 +2356,7 @@ void ConnectionManager::sendFile(AsciiString path, UnsignedByte playerMask, Unsi
 	if (compressedBuf)
 	{
 		DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("Compressed '%s' from %d to %d (%g%%) before transfer", path.str(), len, compressedSize,
-			(Real)compressedSize/(Real)len*100.0f));
+		                                  (Real)compressedSize/(Real)len*100.0f));
 		fileMsg->setFileData((unsigned char *)compressedBuf, compressedSize);
 	}
 	else
@@ -2366,7 +2366,7 @@ void ConnectionManager::sendFile(AsciiString path, UnsignedByte playerMask, Unsi
 	}
 
 	DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("ConnectionManager::sendFile() - creating file message with ID of %d for '%s' going to %X from %d, size of %d",
-		fileMsg->getID(), fileMsg->getRealFilename().str(), playerMask, fileMsg->getPlayerID(), fileMsg->getFileLength()));
+	                                  fileMsg->getID(), fileMsg->getRealFilename().str(), playerMask, fileMsg->getPlayerID(), fileMsg->getFileLength()));
 
 	delete[] buf;
 	buf = nullptr;

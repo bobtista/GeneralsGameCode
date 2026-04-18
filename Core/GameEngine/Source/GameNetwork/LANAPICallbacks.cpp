@@ -196,11 +196,11 @@ void LANAPI::OnGameStart()
 		option.format("%d", m_currentGame->getLANSlot( m_currentGame->getLocalSlotNum() )->getColor());
 		pref["Color"] = option;
 		if (m_currentGame->amIHost())
-    {
-    	pref["Map"] = AsciiStringToQuotedPrintable(m_currentGame->getMap());
-      pref.setSuperweaponRestricted( m_currentGame->getSuperweaponRestriction() > 0 );
-      pref.setStartingCash( m_currentGame->getStartingCash() );
-    }
+		{
+			pref["Map"] = AsciiStringToQuotedPrintable(m_currentGame->getMap());
+			pref.setSuperweaponRestricted( m_currentGame->getSuperweaponRestriction() > 0 );
+			pref.setStartingCash( m_currentGame->getStartingCash() );
+		}
 		pref.write();
 
 		m_isInLANMenu = FALSE;
@@ -433,7 +433,7 @@ void LANAPI::OnGameOptions( UnsignedInt playerIP, Int playerSlot, AsciiString op
 				else if (key == "NAT")
 				{
 					if ((val >= FirewallHelperClass::FIREWALL_TYPE_SIMPLE) &&
-							(val <= FirewallHelperClass::FIREWALL_TYPE_DESTINATION_PORT_DELTA))
+					        (val <= FirewallHelperClass::FIREWALL_TYPE_DESTINATION_PORT_DELTA))
 					{
 						slot->setNATBehavior((FirewallHelperClass::FirewallBehaviorType)val);
 						DEBUG_LOG(("NAT behavior set to %d for player %d", val, playerSlot));
@@ -452,7 +452,7 @@ void LANAPI::OnGameOptions( UnsignedInt playerIP, Int playerSlot, AsciiString op
 					RequestGameOptions(GenerateGameOptionsString(), true);
 					lanUpdateSlotList();
 					DEBUG_LOG(("Slot value is color=%d, PlayerTemplate=%d, startPos=%d, team=%d",
-						slot->getColor(), slot->getPlayerTemplate(), slot->getStartPos(), slot->getTeamNumber()));
+					           slot->getColor(), slot->getPlayerTemplate(), slot->getStartPos(), slot->getTeamNumber()));
 					DEBUG_LOG(("Slot list updated to %s", GenerateGameOptionsString().str()));
 				}
 			}
@@ -608,14 +608,14 @@ void LANAPI::OnGameCreate( ReturnType ret )
 		{
 			switch( ret )
 			{
-			case RET_GAME_EXISTS:
-				GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorGameExists"), chatSystemColor, -1, -1);
-				break;
-			case RET_BUSY:
-				GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorBusy"), chatSystemColor, -1, -1);
-				break;
-			default:
-				GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorUnknown"), chatSystemColor, -1, -1);
+				case RET_GAME_EXISTS:
+					GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorGameExists"), chatSystemColor, -1, -1);
+					break;
+				case RET_BUSY:
+					GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorBusy"), chatSystemColor, -1, -1);
+					break;
+				default:
+					GadgetListBoxAddEntryText(listboxChatWindow, TheGameText->fetch("LAN:ErrorUnknown"), chatSystemColor, -1, -1);
 			}
 		}
 	}

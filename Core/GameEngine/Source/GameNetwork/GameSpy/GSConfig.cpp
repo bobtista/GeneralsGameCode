@@ -126,7 +126,7 @@ public:
 	void addVar(const Bool *var) { m_bools.push_back(var); }
 	Bool isInSection();
 protected:
-	 SectionList m_bools;
+	SectionList m_bools;
 };
 Bool SectionChecker::isInSection() {
 	Bool ret = FALSE;
@@ -140,19 +140,19 @@ Bool SectionChecker::isInSection() {
 ///////////////////////////////////////////////////////////////////////////////////////
 
 GameSpyConfig::GameSpyConfig( AsciiString config ) :
-m_natRetryInterval(1000),
-m_natMaxManglerRetries(25),
-m_natManglerRetryInterval(300),
-m_natKeepaliveInterval(15000),
-m_natPortTimeout(10000),
-m_natRoundTimeout(10000),
-m_pingReps(1),
-m_pingTimeout(1000),
-m_pingCutoffGood(300),
-m_pingCutoffBad(600),
-m_restrictGamesToLobby(FALSE),
-m_qmBotID(0),
-m_qmChannel(0)
+	m_natRetryInterval(1000),
+	m_natMaxManglerRetries(25),
+	m_natManglerRetryInterval(300),
+	m_natKeepaliveInterval(15000),
+	m_natPortTimeout(10000),
+	m_natRoundTimeout(10000),
+	m_pingReps(1),
+	m_pingTimeout(1000),
+	m_pingCutoffGood(300),
+	m_pingCutoffBad(600),
+	m_restrictGamesToLobby(FALSE),
+	m_qmBotID(0),
+	m_qmChannel(0)
 {
 	m_rankPoints[0] = 0;
 	m_rankPoints[1] = 5;
@@ -336,15 +336,15 @@ m_qmChannel(0)
 			// German2 is missing some maps because of content.  But, we need the m_qmMaps
 			// to contain same number of strings as the Retail version so that the
 			// QM Bot thinks that they have the same number of maps.
-			#if RTS_GENERALS
+#if RTS_GENERALS
 			m_qmMaps.push_back(mapName);
-			#else
+#else
 			const MapMetaData *md = TheMapCache->findMap(mapName);
 			if (md)
 			{
 				m_qmMaps.push_back(mapName);
 			}
-			#endif
+#endif
 		}
 		else if (inQMBot)
 		{

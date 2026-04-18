@@ -158,8 +158,8 @@ static LadderInfo *parseLadder(AsciiString raw)
 		else if ( lad && line.compare("</Ladder>") == 0 )
 		{
 			DEBUG_LOG(("Saw a ladder: name=%ls, addr=%s:%d, players=%dv%d, pass=%s, replay=%d, homepage=%s",
-				lad->name.str(), lad->address.str(), lad->port, lad->playersPerTeam, lad->playersPerTeam, lad->cryptedPassword.str(),
-				lad->submitReplay, lad->homepageURL.str()));
+			           lad->name.str(), lad->address.str(), lad->port, lad->playersPerTeam, lad->playersPerTeam, lad->cryptedPassword.str(),
+			           lad->submitReplay, lad->homepageURL.str()));
 			// end of a ladder
 			if (lad->playersPerTeam >= 1 && lad->playersPerTeam <= MAX_SLOTS/2)
 			{

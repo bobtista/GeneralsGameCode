@@ -131,7 +131,7 @@ static Bool ParseObjectDataChunk(DataChunkInput &file, DataChunkInfo *info, void
 
 	// create the map object
 	pThisOne = newInstance( MapObject )( loc, name, angle, flags, &d,
-														TheThingFactory->findTemplate( name, FALSE ) );
+	                                     TheThingFactory->findTemplate( name, FALSE ) );
 
 //DEBUG_LOG(("obj %s owner %s",name.str(),d.getAsciiString(TheKey_originalOwner).str()));
 
@@ -573,11 +573,11 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 }
 
 Bool MapCache::addMap(
-	const AsciiString &mapDir,
-	const AsciiString &fname,
-	const AsciiString &lowerFname,
-	FileInfo &fileInfo,
-	Bool isOfficial)
+    const AsciiString &mapDir,
+    const AsciiString &fname,
+    const AsciiString &lowerFname,
+    FileInfo &fileInfo,
+    Bool isOfficial)
 {
 	MapCache::iterator it = find(lowerFname);
 	if (it != end())
@@ -696,8 +696,8 @@ Bool MapCache::addMap(
 	DEBUG_LOG(("  numPlayers = %d", md.m_numPlayers));
 
 	DEBUG_LOG(("  extent = (%2.2f,%2.2f) -> (%2.2f,%2.2f)",
-		md.m_extent.lo.x, md.m_extent.lo.y,
-		md.m_extent.hi.x, md.m_extent.hi.y));
+	           md.m_extent.lo.x, md.m_extent.lo.y,
+	           md.m_extent.hi.x, md.m_extent.hi.y));
 
 	Coord3D pos;
 	WaypointMap::iterator itw = md.m_waypoints.begin();
@@ -779,10 +779,10 @@ struct MapListBoxData
 
 //-------------------------------------------------------------------------------------------------
 static Bool addMapToMapListbox(
-	MapListBoxData& lbData,
-	const AsciiString& mapDir,
-	const AsciiString& mapName,
-	const MapMetaData& mapMetaData)
+    MapListBoxData& lbData,
+    const AsciiString& mapDir,
+    const AsciiString& mapName,
+    const MapMetaData& mapMetaData)
 {
 	const Bool mapOk = mapName.startsWithNoCase(mapDir.str()) && lbData.isMultiplayer == mapMetaData.m_isMultiplayer && !mapMetaData.m_displayName.isEmpty();
 
@@ -859,10 +859,10 @@ static Bool addMapToMapListbox(
 
 //-------------------------------------------------------------------------------------------------
 static Bool addMapCollectionToMapListbox(
-	MapListBoxData& lbData,
-	const AsciiString& mapDir,
-	const MapNameList& mapNames,
-	const MapDisplayToFileNameList& fileNames)
+    MapListBoxData& lbData,
+    const AsciiString& mapDir,
+    const MapNameList& mapNames,
+    const MapDisplayToFileNameList& fileNames)
 {
 	MapNameList::const_iterator mapNameIt = mapNames.begin();
 
@@ -876,7 +876,7 @@ static Bool addMapCollectionToMapListbox(
 #if RTS_ZEROHOUR
 		//Patch 1.03 -- Purposely filter out these broken maps that exist in Generals.
 		if( !asciiMapName.compare( "maps\\armored fury\\armored fury.map" ) ||
-			!asciiMapName.compare( "maps\\scorched earth\\scorched earth.map" ) )
+		        !asciiMapName.compare( "maps\\scorched earth\\scorched earth.map" ) )
 		{
 			continue;
 		}
@@ -1194,7 +1194,7 @@ Image *getMapPreviewImage( AsciiString mapName )
 
 		if (success)
 		{
-    	image = newInstance(Image);
+			image = newInstance(Image);
 			image->setName(tempName);
 			//image->setFullPath("mission.tga");
 			image->setFilename(name);
@@ -1219,102 +1219,102 @@ Image *getMapPreviewImage( AsciiString mapName )
 
 
 
-/*
-	// sanity
-	if( mapName.isEmpty() )
-		return nullptr;
-	Region2D uv;
-	mapPreviewImage = TheMappedImageCollection->findImageByName("MapPreview");
-	if(mapPreviewImage)
-		deleteInstance(mapPreviewImage);
+	/*
+		// sanity
+		if( mapName.isEmpty() )
+			return nullptr;
+		Region2D uv;
+		mapPreviewImage = TheMappedImageCollection->findImageByName("MapPreview");
+		if(mapPreviewImage)
+			deleteInstance(mapPreviewImage);
 
-	mapPreviewImage = TheMappedImageCollection->newImage();
-	mapPreviewImage->setName("MapPreview");
-	mapPreviewImage->setStatus(IMAGE_STATUS_RAW_TEXTURE);
-// allocate our terrain texture
-	TextureClass * texture = new TextureClass( size.x, size.y,
-																			 WW3D_FORMAT_X8R8G8B8, MIP_LEVELS_1 );
-	uv.lo.x = 0.0f;
-	uv.lo.y = 1.0f;
-	uv.hi.x = 1.0f;
-	uv.hi.y = 0.0f;
-	mapPreviewImage->setStatus( IMAGE_STATUS_RAW_TEXTURE );
-	mapPreviewImage->setRawTextureData( texture );
-	mapPreviewImage->setUV( &uv );
-	mapPreviewImage->setTextureWidth( size.x );
-	mapPreviewImage->setTextureHeight( size.y );
-	mapPreviewImage->setImageSize( &size );
+		mapPreviewImage = TheMappedImageCollection->newImage();
+		mapPreviewImage->setName("MapPreview");
+		mapPreviewImage->setStatus(IMAGE_STATUS_RAW_TEXTURE);
+	// allocate our terrain texture
+		TextureClass * texture = new TextureClass( size.x, size.y,
+																				 WW3D_FORMAT_X8R8G8B8, MIP_LEVELS_1 );
+		uv.lo.x = 0.0f;
+		uv.lo.y = 1.0f;
+		uv.hi.x = 1.0f;
+		uv.hi.y = 0.0f;
+		mapPreviewImage->setStatus( IMAGE_STATUS_RAW_TEXTURE );
+		mapPreviewImage->setRawTextureData( texture );
+		mapPreviewImage->setUV( &uv );
+		mapPreviewImage->setTextureWidth( size.x );
+		mapPreviewImage->setTextureHeight( size.y );
+		mapPreviewImage->setImageSize( &size );
 
 
-	CachedFileInputStream theInputStream;
-	if (theInputStream.open(AsciiString(mapName.str())))
-	{
-		ChunkInputStream *pStrm = &theInputStream;
-		pStrm->absoluteSeek(0);
-		DataChunkInput file( pStrm );
-		if (file.isValidFileType()) {	// Backwards compatible files aren't valid data chunk files.
-			// Read the waypoints.
-			file.registerParser( "MapPreview", AsciiString::TheEmptyString, parseMapPreviewChunk );
-			if (!file.parse(nullptr)) {
-				DEBUG_CRASH(("Unable to read MapPreview info."));
-				deleteInstance(mapPreviewImage);
-				return nullptr;
+		CachedFileInputStream theInputStream;
+		if (theInputStream.open(AsciiString(mapName.str())))
+		{
+			ChunkInputStream *pStrm = &theInputStream;
+			pStrm->absoluteSeek(0);
+			DataChunkInput file( pStrm );
+			if (file.isValidFileType()) {	// Backwards compatible files aren't valid data chunk files.
+				// Read the waypoints.
+				file.registerParser( "MapPreview", AsciiString::TheEmptyString, parseMapPreviewChunk );
+				if (!file.parse(nullptr)) {
+					DEBUG_CRASH(("Unable to read MapPreview info."));
+					deleteInstance(mapPreviewImage);
+					return nullptr;
+				}
 			}
+			theInputStream.close();
 		}
-		theInputStream.close();
-	}
-	else
-	{
-		deleteInstance(mapPreviewImage);
-		return nullptr;
-	}
+		else
+		{
+			deleteInstance(mapPreviewImage);
+			return nullptr;
+		}
 
 
-	return mapPreviewImage;
+		return mapPreviewImage;
 
-*/
+	*/
 	return nullptr;
 }
 
 Bool parseMapPreviewChunk(DataChunkInput &file, DataChunkInfo *info, void *userData)
 {
-/*
-	ICoord2D size;
+	/*
+		ICoord2D size;
 
-	SurfaceClass *surface;
-	size.x = file.readInt();
-	size.y = file.readInt();
+		SurfaceClass *surface;
+		size.x = file.readInt();
+		size.y = file.readInt();
 
 
-	surface = (TextureClass *)mapPreviewImage->getRawTextureData()->Get_Surface_Level();
-	//texture->Get_Surface_Level();
+		surface = (TextureClass *)mapPreviewImage->getRawTextureData()->Get_Surface_Level();
+		//texture->Get_Surface_Level();
 
-	DEBUG_LOG(("BeginMapPreviewInfo"));
-	int pitch;
-	void *pBits = surface->Lock(&pitch);
-	const unsigned int bytesPerPixel = surface->Get_Bytes_Per_Pixel();
-	UnsignedInt *buffer = new UnsignedInt[size.x * size.y];
-	Int x,y;
-	for (y=0; y<size.y; y++) {
-		for(x = 0; x< size.x; x++)
-		{
-			surface->Draw_Pixel( x, y, file.readInt(), bytesPerPixel, pBits, pitch );
-			buffer[y + x] = file.readInt();
-			DEBUG_LOG(("x:%d, y:%d, %X", x, y, buffer[y + x]));
+		DEBUG_LOG(("BeginMapPreviewInfo"));
+		int pitch;
+		void *pBits = surface->Lock(&pitch);
+		const unsigned int bytesPerPixel = surface->Get_Bytes_Per_Pixel();
+		UnsignedInt *buffer = new UnsignedInt[size.x * size.y];
+		Int x,y;
+		for (y=0; y<size.y; y++) {
+			for(x = 0; x< size.x; x++)
+			{
+				surface->Draw_Pixel( x, y, file.readInt(), bytesPerPixel, pBits, pitch );
+				buffer[y + x] = file.readInt();
+				DEBUG_LOG(("x:%d, y:%d, %X", x, y, buffer[y + x]));
+			}
 		}
-	}
-	mapPreviewImage->setRawTextureData(buffer);
-	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
-	DEBUG_LOG(("EndMapPreviewInfo"));
-	surface->Unlock();
-	REF_PTR_RELEASE(surface);
-	return true;
-*/
+		mapPreviewImage->setRawTextureData(buffer);
+		DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
+		DEBUG_LOG(("EndMapPreviewInfo"));
+		surface->Unlock();
+		REF_PTR_RELEASE(surface);
+		return true;
+	*/
 	return FALSE;
 }
 
 void findDrawPositions( Int startX, Int startY, Int width, Int height, Region3D extent,
-															 ICoord2D *ul, ICoord2D *lr )
+                        ICoord2D *ul, ICoord2D *lr )
 {
 
 	Real ratioWidth;

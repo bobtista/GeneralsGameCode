@@ -86,7 +86,7 @@ void Radar::deleteListResources()
 	for( Object *obj = TheGameLogic->getFirstObject(); obj; obj = obj->getNextObject() )
 	{
 		DEBUG_ASSERTCRASH( obj->friend_getRadarData() == nullptr,
-			("Radar::deleteListResources: Unexpectedly an object still has radar data assigned") );
+		                   ("Radar::deleteListResources: Unexpectedly an object still has radar data assigned") );
 	}
 #endif
 }
@@ -287,14 +287,14 @@ void Radar::update()
 	{
 
 		if( m_event[ i ].active == TRUE && m_event[ i ].createFrame &&
-				thisFrame > m_event[ i ].dieFrame )
+		        thisFrame > m_event[ i ].dieFrame )
 			m_event[ i ].active = FALSE;
 
 	}
 
 	// see if we should refresh the terrain
 	if( m_queueTerrainRefreshFrame != 0 &&
-			TheGameLogic->getFrame() - m_queueTerrainRefreshFrame > RADAR_QUEUE_TERRAIN_REFRESH_DELAY )
+	        TheGameLogic->getFrame() - m_queueTerrainRefreshFrame > RADAR_QUEUE_TERRAIN_REFRESH_DELAY )
 	{
 
 		// refresh the terrain
@@ -387,8 +387,8 @@ Bool Radar::addObject( Object *obj )
 
 	// sanity
 	DEBUG_ASSERTCRASH( obj->friend_getRadarData() == nullptr,
-										 ("Radar: addObject - non null radar data for '%s'",
-										 obj->getTemplate()->getName().str()) );
+	                   ("Radar: addObject - non null radar data for '%s'",
+	                    obj->getTemplate()->getName().str()) );
 
 	// allocate a new object
 	newObj = newInstance(RadarObject);
@@ -479,7 +479,7 @@ Bool Radar::removeObject( Object *obj )
 	else
 	{
 		DEBUG_CRASH( ("Radar: Tried to remove object '%s' which was not found",
-											 obj->getTemplate()->getName().str()) );
+		              obj->getTemplate()->getName().str()) );
 		return FALSE;
 	}
 
@@ -516,7 +516,7 @@ Bool Radar::radarToWorld2D( const ICoord2D *radar, Coord3D *world )
 	// translate to world
 	world->x = x * m_xSample;
 	world->y = y * m_ySample;
-  return TRUE;
+	return TRUE;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -527,8 +527,8 @@ Bool Radar::radarToWorld2D( const ICoord2D *radar, Coord3D *world )
 //-------------------------------------------------------------------------------------------------
 Bool Radar::radarToWorld( const ICoord2D *radar, Coord3D *world )
 {
-  if (!radarToWorld2D(radar,world))
-    return FALSE;
+	if (!radarToWorld2D(radar,world))
+		return FALSE;
 
 	// find the terrain height here
 	world->z = TheTerrainLogic->getGroundHeight( world->x, world->y );
@@ -608,7 +608,7 @@ Bool Radar::localPixelToRadar( const ICoord2D *pixel, ICoord2D *radar )
 
 	// if the pixel is outsize of the adjusted radar area there are no logical coords
 	if( pixel->x < ul.x || pixel->x > lr.x ||
-			pixel->y < ul.y || pixel->y > lr.y )
+	        pixel->y < ul.y || pixel->y > lr.y )
 		return FALSE;
 
 	if( scaledWidth >= scaledHeight )
@@ -750,9 +750,9 @@ Object *Radar::searchListForRadarLocationMatch( RadarObject *listHead, ICoord2D 
 
 		// see if this matches our match radar location
 		if( radar.x >= radarMatch->x - 1 &&
-				radar.x <= radarMatch->x + 1 &&
-				radar.y >= radarMatch->y - 1 &&
-				radar.y <= radarMatch->y + 1 )
+		        radar.x <= radarMatch->x + 1 &&
+		        radar.y >= radarMatch->y - 1 &&
+		        radar.y <= radarMatch->y + 1 )
 			return obj;
 
 	}
@@ -769,7 +769,7 @@ Object *Radar::searchListForRadarLocationMatch( RadarObject *listHead, ICoord2D 
 	* aspect ratio of the map */
 // ------------------------------------------------------------------------------------------------
 void Radar::findDrawPositions( Int startX, Int startY, Int width, Int height,
-															 ICoord2D *ul, ICoord2D *lr )
+                               ICoord2D *ul, ICoord2D *lr )
 {
 
 	Real ratioWidth;
@@ -796,59 +796,59 @@ void Radar::findDrawPositions( Int startX, Int startY, Int width, Int height,
 		lr->x = width - ul->x;
 		lr->y = radar.y;
 	}
-/*
+	/*
 
-	if( m_mapExtent.width() > m_mapExtent.height() )
-	{
+		if( m_mapExtent.width() > m_mapExtent.height() )
+		{
 
-		//
-		// +---------------+
-		// |               |
-		// |               |
-		// +---------------+
-		// |   map area    |
-		// +---------------+
-		// |               |
-		// |               |
-		// +---------------+
-		//
-		ul->x = 0;
-		ul->y = (height - (m_mapExtent.height() / m_mapExtent.width() * height)) / 2.0f;
-		lr->x = width;
-		lr->y = height - ul->y;
+			//
+			// +---------------+
+			// |               |
+			// |               |
+			// +---------------+
+			// |   map area    |
+			// +---------------+
+			// |               |
+			// |               |
+			// +---------------+
+			//
+			ul->x = 0;
+			ul->y = (height - (m_mapExtent.height() / m_mapExtent.width() * height)) / 2.0f;
+			lr->x = width;
+			lr->y = height - ul->y;
 
-	}
-	else if(  m_mapExtent.height() > m_mapExtent.width() )
-	{
+		}
+		else if(  m_mapExtent.height() > m_mapExtent.width() )
+		{
 
-		// +-----+---+-----+
-		// |     | m |     |
-		// |     | a |     |
-		// |     | p |     |
-		// |     |   |     |
-		// |     | a |     |
-		// |     | r |     |
-		// |     | e |     |
-		// |     | a |     |
-		// +-----+---+-----+
-		//
+			// +-----+---+-----+
+			// |     | m |     |
+			// |     | a |     |
+			// |     | p |     |
+			// |     |   |     |
+			// |     | a |     |
+			// |     | r |     |
+			// |     | e |     |
+			// |     | a |     |
+			// +-----+---+-----+
+			//
 
-		ul->x = (width - (m_mapExtent.width() / m_mapExtent.height() * width)) / 2.0f;
-		ul->y = 0;
-		lr->x = width - ul->x;
-		lr->y = height;
+			ul->x = (width - (m_mapExtent.width() / m_mapExtent.height() * width)) / 2.0f;
+			ul->y = 0;
+			lr->x = width - ul->x;
+			lr->y = height;
 
-	}
-	else
-	{
+		}
+		else
+		{
 
-		ul->x = 0;
-		ul->y = 0;
-		lr->x = width;
-		lr->y = height;
+			ul->x = 0;
+			ul->y = 0;
+			lr->x = width;
+			lr->y = height;
 
-	}
-*/
+		}
+	*/
 
 	// make them pixel positions
 	ul->x += startX;
@@ -931,7 +931,7 @@ void Radar::createEvent( const Coord3D *world, RadarEventType type, Real seconds
 /** Create radar event using a specific colors from the player */
 // ------------------------------------------------------------------------------------------------
 void Radar::createPlayerEvent( Player *player, const Coord3D *world,
-															 RadarEventType type, Real secondsToLive )
+                               RadarEventType type, Real secondsToLive )
 {
 
 	// sanity
@@ -973,7 +973,7 @@ void Radar::createPlayerEvent( Player *player, const Coord3D *world,
 /** Create a new radar event */
 //-------------------------------------------------------------------------------------------------
 void Radar::internalCreateEvent( const Coord3D *world, RadarEventType type, Real secondsToLive,
-																 const RGBAColorInt *color1, const RGBAColorInt *color2 )
+                                 const RGBAColorInt *color1, const RGBAColorInt *color2 )
 {
 	static Real secondsBeforeDieToFade = 0.5f;  ///< this many seconds before we hit the die frame we start to fade away
 
@@ -1189,11 +1189,11 @@ Bool Radar::tryEvent( RadarEventType event, const Coord3D *pos )
 			const Real distSquared = sqr(m_event[ i ].worldLoc.x - pos->x) + sqr(m_event[ i ].worldLoc.y - pos->y);
 
 			Bool isClose = distSquared <= closeEnoughDistanceSq;
-			#if PRESERVE_RETAIL_BEHAVIOR
-				// TheSuperHackers @tweak Preserve retail map-wide suppression for under attack events
-				// because otherwise they trigger way too frequent from cargo planes.
-				isClose |= (event == RADAR_EVENT_UNDER_ATTACK);
-			#endif
+#if PRESERVE_RETAIL_BEHAVIOR
+			// TheSuperHackers @tweak Preserve retail map-wide suppression for under attack events
+			// because otherwise they trigger way too frequent from cargo planes.
+			isClose |= (event == RADAR_EVENT_UNDER_ATTACK);
+#endif
 
 			if( isClose )
 			{
@@ -1407,7 +1407,7 @@ void Radar::xfer( Xfer *xfer )
 	{
 
 		DEBUG_CRASH(( "Radar::xfer - size of MAX_RADAR_EVENTS has changed, you must version this xfer method to accommodate the new array size.  Was '%d' and is now '%d'",
-									eventCount, eventCountVerify ));
+		              eventCount, eventCountVerify ));
 		throw SC_INVALID_DATA;
 
 	}

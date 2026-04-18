@@ -73,22 +73,22 @@ public:
 	virtual void setWaterGridHeightClamps( const WaterHandle *waterTable, Real minZ, Real maxZ ) override;
 	/// adjust fallof parameters for grid change method
 	virtual void setWaterAttenuationFactors( const WaterHandle *waterTable,
-																					 Real a, Real b, Real c, Real range ) override;
+	        Real a, Real b, Real c, Real range ) override;
 	/// set the water table position and orientation in world space
 	virtual void setWaterTransform( const WaterHandle *waterTable,
-																	Real angle, Real x, Real y, Real z ) override;
+	                                Real angle, Real x, Real y, Real z ) override;
 	virtual void setWaterTransform( const Matrix3D *transform ) override;
 	virtual void getWaterTransform( const WaterHandle *waterTable, Matrix3D *transform ) override;
 	/// water grid resolution spacing
 	virtual void setWaterGridResolution( const WaterHandle *waterTable,
-																			 Real gridCellsX, Real gridCellsY, Real cellSize ) override;
+	                                     Real gridCellsX, Real gridCellsY, Real cellSize ) override;
 	virtual void getWaterGridResolution( const WaterHandle *waterTable,
-																			 Real *gridCellsX, Real *gridCellsY, Real *cellSize ) override;
+	                                     Real *gridCellsX, Real *gridCellsY, Real *cellSize ) override;
 	/// adjust the water grid in world coords by the delta
 	virtual void changeWaterHeight( Real x, Real y, Real delta ) override;
 	/// adjust the velocity at a water grid point corresponding to the world x,y
 	virtual void addWaterVelocity( Real worldX, Real worldY,
-																 Real velocity, Real preferredHeight ) override;
+	                               Real velocity, Real preferredHeight ) override;
 	virtual Bool getWaterGridHeight( Real worldX, Real worldY, Real *height) override;
 
 	virtual void setTerrainTracksDetail() override;
@@ -110,9 +110,9 @@ public:
 	virtual void addProp(const ThingTemplate *tt, const Coord3D *pos, Real angle) override;
 
 	virtual void removeTreesAndPropsForConstruction(
-		const Coord3D* pos,
-		const GeometryInfo& geom,
-		Real angle
+	    const Coord3D* pos,
+	    const GeometryInfo& geom,
+	    Real angle
 	) override;
 
 
@@ -125,24 +125,24 @@ public:
 	/// Replace the skybox texture
 	virtual void replaceSkyboxTextures(const AsciiString *oldTexName[NumSkyboxTextures], const AsciiString *newTexName[NumSkyboxTextures]) override;
 
-  ////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////
+	////////////////////////////////////////////////////
+	////////////////////////////////////////////////////
+	////////////////////////////////////////////////////
 #ifdef DO_SEISMIC_SIMULATIONS
-  virtual void addSeismicSimulation( const SeismicSimulationNode& sim );
+	virtual void addSeismicSimulation( const SeismicSimulationNode& sim );
 #endif
-  virtual WorldHeightMap* getLogicHeightMap() override {return m_logicHeightMap;};
-  virtual WorldHeightMap* getClientHeightMap() override
-  {
+	virtual WorldHeightMap* getLogicHeightMap() override {return m_logicHeightMap;};
+	virtual WorldHeightMap* getClientHeightMap() override
+	{
 #ifdef DO_SEISMIC_SIMULATIONS
-    return m_clientHeightMap;
+		return m_clientHeightMap;
 #else
-    return m_logicHeightMap;
+		return m_logicHeightMap;
 #endif
-  }
-  ////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////
+	}
+	////////////////////////////////////////////////////
+	////////////////////////////////////////////////////
+	////////////////////////////////////////////////////
 
 protected:
 
@@ -152,30 +152,30 @@ protected:
 	virtual void loadPostProcess() override;
 
 #ifdef DO_SEISMIC_SIMULATIONS
-  ////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////
-  virtual void handleSeismicSimulations();
-  SeismicSimulationList m_seismicSimulationList;
-  virtual void updateSeismicSimulations(); /// walk the SeismicSimulationList and, well, do it.
+	////////////////////////////////////////////////////
+	////////////////////////////////////////////////////
+	////////////////////////////////////////////////////
+	virtual void handleSeismicSimulations();
+	SeismicSimulationList m_seismicSimulationList;
+	virtual void updateSeismicSimulations(); /// walk the SeismicSimulationList and, well, do it.
 
-  ////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////
-  ////////////////////////////////////////////////////
+	////////////////////////////////////////////////////
+	////////////////////////////////////////////////////
+	////////////////////////////////////////////////////
 #endif
 
 	BaseHeightMapRenderObjClass *m_terrainRenderObject;  ///< W3D render object for terrain
 	WaterRenderObjClass	*m_waterRenderObject;	///< W3D render object for water plane
 
-  WorldHeightMap *m_logicHeightMap;  ///< height map used for render obj building
+	WorldHeightMap *m_logicHeightMap;  ///< height map used for render obj building
 
 #ifdef DO_SEISMIC_SIMULATIONS
-  WorldHeightMap *m_clientHeightMap; ///< this is a workspace for animating the terrain elevations
+	WorldHeightMap *m_clientHeightMap; ///< this is a workspace for animating the terrain elevations
 #endif
 
 	Bool m_isWaterGridRenderingEnabled;
 
-  AsciiString	m_currentSkyboxTexNames[NumSkyboxTextures];	///<store current texture names applied to skybox.
+	AsciiString	m_currentSkyboxTexNames[NumSkyboxTextures];	///<store current texture names applied to skybox.
 	AsciiString m_initialSkyboxTexNames[NumSkyboxTextures];	///<store starting texture/default skybox textures.
 
 };

@@ -94,12 +94,12 @@ typedef UnsignedByte FileInstance;
 #endif
 
 #ifdef LOAD_TEST_ASSETS
-	#define ROAD_DIRECTORY		"../TestArt/TestRoad/"
-	#define TEST_STRING				"***TESTING"
-	// the following directories will be used to look for test art
-	#define LOOK_FOR_TEST_ART
-	#define TEST_W3D_DIR_PATH "../TestArt/"					///< .w3d files live here
-	#define TEST_TGA_DIR_PATH "../TestArt/"		///< .tga texture files live here
+#define ROAD_DIRECTORY		"../TestArt/TestRoad/"
+#define TEST_STRING				"***TESTING"
+// the following directories will be used to look for test art
+#define LOOK_FOR_TEST_ART
+#define TEST_W3D_DIR_PATH "../TestArt/"					///< .w3d files live here
+#define TEST_TGA_DIR_PATH "../TestArt/"		///< .tga texture files live here
 #endif
 
 #ifndef ENABLE_FILESYSTEM_LOGGING
@@ -130,15 +130,15 @@ struct FileInfo {
 // TheSuperHackers @feature xezon 23/08/2025 Implements file instance access.
 // Can be used to access different versions of files in different archives under the same name.
 // Instance 0 refers to the top file that shadows all other files under the same name.
-// 
+//
 // TheSuperHackers @bugfix xezon 26/10/2025 Adds a mutex to the file exist map to try prevent
 // application hangs during level load after the file exist map was corrupted because of writes
 // from multiple threads.
 //===============================
 class FileSystem : public SubsystemInterface
 {
-  FileSystem(const FileSystem&);
-  FileSystem& operator=(const FileSystem&);
+	FileSystem(const FileSystem&);
+	FileSystem& operator=(const FileSystem&);
 
 public:
 	FileSystem();
@@ -167,9 +167,9 @@ protected:
 		FileInstance instanceDoesNotExist;
 	};
 	typedef std::hash_map<
-		rts::string_key<AsciiString>, FileExistData,
-		rts::string_key_hash<AsciiString>,
-		rts::string_key_equal<AsciiString> > FileExistMap;
+	rts::string_key<AsciiString>, FileExistData,
+	    rts::string_key_hash<AsciiString>,
+	    rts::string_key_equal<AsciiString> > FileExistMap;
 
 	mutable FileExistMap m_fileExist;
 	mutable FastCriticalSectionClass m_fileExistMutex;

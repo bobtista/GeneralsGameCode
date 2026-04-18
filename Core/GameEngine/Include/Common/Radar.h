@@ -71,7 +71,7 @@ enum RadarEventType CPP_11(: Int)
 	RADAR_EVENT_STEALTH_DISCOVERED,		// we discovered a stealth unit
 	RADAR_EVENT_STEALTH_NEUTRALIZED,	// our stealth unit has been revealed
 	RADAR_EVENT_FAKE,					//Internally creates a radar event, but doesn't notify the player (unit lost
-														//for example, so we can use the spacebar to jump to the event).
+	//for example, so we can use the spacebar to jump to the event).
 
 	RADAR_EVENT_NUM_EVENTS
 
@@ -83,7 +83,7 @@ enum RadarEventType CPP_11(: Int)
 /** Radar objects are objects that are on the radar, go figure :) */
 //-------------------------------------------------------------------------------------------------
 class RadarObject : public MemoryPoolObject,
-										public Snapshot
+	public Snapshot
 {
 
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( RadarObject, "RadarObject" )
@@ -151,7 +151,7 @@ static_assert(ARRAY_SIZE(RadarPriorityNames) == RADAR_PRIORITY_NUM_PRIORITIES + 
 /** Interface for the radar */
 //-------------------------------------------------------------------------------------------------
 class Radar : public Snapshot,
-							public SubsystemInterface
+	public SubsystemInterface
 {
 
 public:
@@ -173,7 +173,7 @@ public:
 	Bool screenPixelToWorld( const ICoord2D *pixel, Coord3D *world ); ///< translate pixel (with UL of the screen being (0,0)) to world position in the world
 	Object *objectUnderRadarPixel( const ICoord2D *pixel );				///< return the object (if any) represented by the pixel coordinates passed in
 	void findDrawPositions( Int startX, Int startY, Int width, Int height,
-													ICoord2D *ul, ICoord2D *lr );					///< make translation for screen area of radar square to scaled aspect ratio preserving points inside the radar area
+	                        ICoord2D *ul, ICoord2D *lr );					///< make translation for screen area of radar square to scaled aspect ratio preserving points inside the radar area
 
 	// priority inquiry
 	static Bool isPriorityVisible( RadarPriorityType priority );		///< is the priority passed in a "visible" one on the radar
@@ -185,7 +185,7 @@ public:
 	Bool getLastEventLoc( Coord3D *eventPos );							///< get last event loc (if any)
 	void tryUnderAttackEvent( const Object *obj );					///< try to make an "under attack" event if it's the proper time
 	void tryInfiltrationEvent( const Object *obj );					///< try to make an "infiltration" event if it's the proper time
- 	Bool tryEvent( RadarEventType event, const Coord3D *pos );	///< try to make a "stealth" event
+	Bool tryEvent( RadarEventType event, const Coord3D *pos );	///< try to make a "stealth" event
 
 	// adding and removing objects from the radar
 	virtual Bool addObject( Object *obj ); ///< add object to radar
@@ -234,7 +234,7 @@ protected:
 
 	/// internal method for creating a radar event with specific colors
 	void internalCreateEvent( const Coord3D *world, RadarEventType type, Real secondsToLive,
-														const RGBAColorInt *color1, const RGBAColorInt *color2 );
+	                          const RGBAColorInt *color1, const RGBAColorInt *color2 );
 
 	void deleteList( RadarObject **list );
 	void deleteListResources();			///< delete list radar resources used

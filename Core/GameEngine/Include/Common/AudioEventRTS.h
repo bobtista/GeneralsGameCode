@@ -164,7 +164,7 @@ protected:
 	AudioHandle m_playingHandle;
 
 	AudioHandle m_killThisHandle;		///< Sometimes sounds will canabilize other sounds in order to take their handle away.
-																	///< This is one of those instances.
+	///< This is one of those instances.
 
 	AsciiString m_eventName;				///< This should correspond with an entry in Dialog.ini, Speech.ini, or Audio.ini
 	AsciiString m_attackName;				///< This is the filename that should be used during the attack.

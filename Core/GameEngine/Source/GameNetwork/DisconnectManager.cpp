@@ -149,7 +149,7 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 					m_pingsSent = req.repetitions;
 					ThePinger->addRequest(req);
 					DEBUG_LOG(("DisconnectManager::update() - requesting %d pings of %d from %s",
-						req.repetitions, req.timeout, req.hostname.c_str()));
+					           req.repetitions, req.timeout, req.hostname.c_str()));
 				}
 			}
 		}
@@ -164,13 +164,13 @@ void DisconnectManager::update(ConnectionManager *conMgr) {
 				{
 					// wrong frame - we're not pinging yet
 					DEBUG_LOG(("DisconnectManager::update() - discarding ping of %d from %s (%d reps)",
-						resp.avgPing, resp.hostname.c_str(), resp.repetitions));
+					           resp.avgPing, resp.hostname.c_str(), resp.repetitions));
 				}
 				else
 				{
 					// right frame
 					DEBUG_LOG(("DisconnectManager::update() - keeping ping of %d from %s (%d reps)",
-						resp.avgPing, resp.hostname.c_str(), resp.repetitions));
+					           resp.avgPing, resp.hostname.c_str(), resp.repetitions));
 					if (resp.avgPing < 2000)
 					{
 						m_pingsReceived += resp.repetitions;
@@ -249,53 +249,53 @@ void DisconnectManager::updateDisconnectStatus(ConnectionManager *conMgr) {
 }
 
 void DisconnectManager::updateWaitForPacketRouter(ConnectionManager *conMgr) {
-/*
-	time_t curTime = timeGetTime();
-	time_t newTime = TheGlobalData->m_networkPlayerTimeoutTime - (curTime - m_packetRouterTimeout);
-	if (newTime < 0) {
-		newTime = 0;
+	/*
+		time_t curTime = timeGetTime();
+		time_t newTime = TheGlobalData->m_networkPlayerTimeoutTime - (curTime - m_packetRouterTimeout);
+		if (newTime < 0) {
+			newTime = 0;
 
-		// The guy that we were hoping would be the new packet router isn't.  We're screwed, get out of the game.
+			// The guy that we were hoping would be the new packet router isn't.  We're screwed, get out of the game.
 
-		DEBUG_LOG(("DisconnectManager::updateWaitForPacketRouter - timed out waiting for new packet router, quitting game"));
-		TheNetwork->quitGame();
-	}
-	TheDisconnectMenu->setPacketRouterTimeoutTime(newTime);
-*/
+			DEBUG_LOG(("DisconnectManager::updateWaitForPacketRouter - timed out waiting for new packet router, quitting game"));
+			TheNetwork->quitGame();
+		}
+		TheDisconnectMenu->setPacketRouterTimeoutTime(newTime);
+	*/
 }
 
 void DisconnectManager::processDisconnectCommand(NetCommandRef *ref, ConnectionManager *conMgr) {
 	NetCommandMsg *msg = ref->getCommand();
-	
+
 	switch (msg->getNetCommandType()) {
 		case NETCOMMANDTYPE_DISCONNECTKEEPALIVE:
 			processDisconnectKeepAlive(msg, conMgr);
 			break;
-			
+
 		case NETCOMMANDTYPE_DISCONNECTPLAYER:
 			processDisconnectPlayer(msg, conMgr);
 			break;
-			
+
 		case NETCOMMANDTYPE_PACKETROUTERQUERY:
 			processPacketRouterQuery(msg, conMgr);
 			break;
-			
+
 		case NETCOMMANDTYPE_PACKETROUTERACK:
 			processPacketRouterAck(msg, conMgr);
 			break;
-			
+
 		case NETCOMMANDTYPE_DISCONNECTVOTE:
 			processDisconnectVote(msg, conMgr);
 			break;
-			
+
 		case NETCOMMANDTYPE_DISCONNECTFRAME:
 			processDisconnectFrame(msg, conMgr);
 			break;
-			
+
 		case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
 			processDisconnectScreenOff(msg, conMgr);
 			break;
-			
+
 		default:
 			break;
 	}
@@ -452,21 +452,21 @@ void DisconnectManager::nextFrame(UnsignedInt frame, ConnectionManager *conMgr) 
 }
 
 void DisconnectManager::allCommandsReady(UnsignedInt frame, ConnectionManager *conMgr, Bool waitForPacketRouter) {
-		if (m_disconnectState != DISCONNECTSTATETYPE_SCREENOFF) {
-			DEBUG_LOG(("DisconnectManager::allCommandsReady - setting screen state to off."));
+	if (m_disconnectState != DISCONNECTSTATETYPE_SCREENOFF) {
+		DEBUG_LOG(("DisconnectManager::allCommandsReady - setting screen state to off."));
 
-			TheDisconnectMenu->hideScreen();
-			m_disconnectState = DISCONNECTSTATETYPE_SCREENOFF;
-			TheNetwork->notifyOthersOfNewFrame(frame);
+		TheDisconnectMenu->hideScreen();
+		m_disconnectState = DISCONNECTSTATETYPE_SCREENOFF;
+		TheNetwork->notifyOthersOfNewFrame(frame);
 
-			// reset the votes since we're moving to a new frame.
-			for (Int i = 0; i < MAX_SLOTS; ++i) {
-				m_playerVotes[i][conMgr->getLocalPlayerID()].vote = FALSE;
-			}
-
-			DEBUG_LOG(("DisconnectManager::allCommandsReady - resetting m_timeOfDisconnectScreenOn"));
-			m_timeOfDisconnectScreenOn = 0;
+		// reset the votes since we're moving to a new frame.
+		for (Int i = 0; i < MAX_SLOTS; ++i) {
+			m_playerVotes[i][conMgr->getLocalPlayerID()].vote = FALSE;
 		}
+
+		DEBUG_LOG(("DisconnectManager::allCommandsReady - resetting m_timeOfDisconnectScreenOn"));
+		m_timeOfDisconnectScreenOn = 0;
+	}
 }
 
 Bool DisconnectManager::allowedToContinue() {
@@ -730,7 +730,7 @@ void DisconnectManager::sendPlayerDestruct(Int slot, ConnectionManager *conMgr) 
 	}
 
 	DEBUG_LOG(("Queueing DestroyPlayer %d for frame %d on frame %d as command %d",
-		slot, TheNetwork->getExecutionFrame()+1, TheGameLogic->getFrame(), currentID));
+	           slot, TheNetwork->getExecutionFrame()+1, TheGameLogic->getFrame(), currentID));
 
 	NetDestroyPlayerCommandMsg *netmsg = newInstance(NetDestroyPlayerCommandMsg);
 	netmsg->setExecutionFrame(TheNetwork->getExecutionFrame()+1);

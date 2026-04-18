@@ -119,20 +119,20 @@ void positionStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[]
 void updateMapStartSpots( GameInfo *myGame, GameWindow *buttonMapStartPositions[], Bool onLoadScreen = FALSE );
 void positionAdditionalImages( MapMetaData *mmd, GameWindow *mapWindow, Bool force);
 
-enum{
-FRAME_TITLES_START = 20,
-FRAME_TELETYPE_START = 24,
-FRAME_FUDGE_ADD = 30,
-FRAME_PORTRAITS_START = 35,
-FRAME_OUTER_CIRCLE_LINE_SHOW = 50,
-FRAME_INNER_CIRCLE_LINE_SHOW = 52,
-FRAME_OUTER_CIRCLE_ALPHA_SHOW = 63,
-FRAME_INNER_CIRCLE_ALPHA_SHOW = 74,
-FRAME_OUTER_CIRCLE_LINE_HIDE = 75,
-FRAME_INNER_BACKDROP_ALPHA_SHOW = 80,
-FRAME_INNER_CIRCLE_LINE_HIDE = 81,
-FRAME_VS_ANIM_START = 98,
-FRAME_RIGHT_VOICE = 140,
+enum {
+	FRAME_TITLES_START = 20,
+	FRAME_TELETYPE_START = 24,
+	FRAME_FUDGE_ADD = 30,
+	FRAME_PORTRAITS_START = 35,
+	FRAME_OUTER_CIRCLE_LINE_SHOW = 50,
+	FRAME_INNER_CIRCLE_LINE_SHOW = 52,
+	FRAME_OUTER_CIRCLE_ALPHA_SHOW = 63,
+	FRAME_INNER_CIRCLE_ALPHA_SHOW = 74,
+	FRAME_OUTER_CIRCLE_LINE_HIDE = 75,
+	FRAME_INNER_BACKDROP_ALPHA_SHOW = 80,
+	FRAME_INNER_CIRCLE_LINE_HIDE = 81,
+	FRAME_VS_ANIM_START = 98,
+	FRAME_RIGHT_VOICE = 140,
 };
 
 static const Int TELETYPE_UPDATE_FREQ = 2; // how many frames between teletype updates
@@ -201,7 +201,7 @@ SinglePlayerLoadScreen::~SinglePlayerLoadScreen()
 
 void SinglePlayerLoadScreen::moveWindows( Int frame )
 {
-	enum{
+	enum {
 		STATE_BEGIN = 250,
 		STATE_SHOW_LOCATION = 251,
 		STATE_BEGIN_BRIEFING = 255,
@@ -255,27 +255,27 @@ void SinglePlayerLoadScreen::moveWindows( Int frame )
 	}
 	switch (frame) {
 
-	case STATE_SHOW_LOCATION:
-		m_location->winHide(FALSE);
-		break;
-	case STATE_SHOW_CAMEO_1:
-		m_unitDesc[0]->winHide(FALSE);
-		break;
-	case STATE_HIDE_CAMEO_1:
-		m_unitDesc[0]->winHide(TRUE);
-		break;
-	case STATE_SHOW_CAMEO_2:
-		m_unitDesc[1]->winHide(FALSE);
-		break;
-	case STATE_HIDE_CAMEO_2:
-		m_unitDesc[1]->winHide(TRUE);
-		break;
-	case STATE_SHOW_CAMEO_3:
-		m_unitDesc[2]->winHide(FALSE);
-		break;
-	case STATE_HIDE_CAMEO_3:
-		m_unitDesc[2]->winHide(TRUE);
-		break;
+		case STATE_SHOW_LOCATION:
+			m_location->winHide(FALSE);
+			break;
+		case STATE_SHOW_CAMEO_1:
+			m_unitDesc[0]->winHide(FALSE);
+			break;
+		case STATE_HIDE_CAMEO_1:
+			m_unitDesc[0]->winHide(TRUE);
+			break;
+		case STATE_SHOW_CAMEO_2:
+			m_unitDesc[1]->winHide(FALSE);
+			break;
+		case STATE_HIDE_CAMEO_2:
+			m_unitDesc[1]->winHide(TRUE);
+			break;
+		case STATE_SHOW_CAMEO_3:
+			m_unitDesc[2]->winHide(FALSE);
+			break;
+		case STATE_HIDE_CAMEO_3:
+			m_unitDesc[2]->winHide(TRUE);
+			break;
 	}
 
 }
@@ -430,38 +430,38 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 	m_currentObjectiveWidthOffset = 0;
 	m_currentObjectiveLineCharacter = 0;
 	m_finishedObjectiveText = FALSE;
-/*
-	m_cameoWindow1 = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowCameo1" ));
-	DEBUG_ASSERTCRASH(m_cameoWindow1, ("Can't initialize the m_cameoWindow1 for the single player loadscreen"));
-	m_cameoWindow1->winHide(TRUE);
-	m_cameoWindow1->winEnable(FALSE);
-	m_cameoWindow1->winSetEnabledImage(0, mission->m_cameoImage[0]);
-	m_cameoWindow1->winSetDisabledImage(0, mission->m_cameoDisabledImage[0]);
+	/*
+		m_cameoWindow1 = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowCameo1" ));
+		DEBUG_ASSERTCRASH(m_cameoWindow1, ("Can't initialize the m_cameoWindow1 for the single player loadscreen"));
+		m_cameoWindow1->winHide(TRUE);
+		m_cameoWindow1->winEnable(FALSE);
+		m_cameoWindow1->winSetEnabledImage(0, mission->m_cameoImage[0]);
+		m_cameoWindow1->winSetDisabledImage(0, mission->m_cameoDisabledImage[0]);
 
-	m_cameoWindow2 = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowCameo2" ));
-	DEBUG_ASSERTCRASH(m_cameoWindow2, ("Can't initialize the m_cameoWindow2 for the single player loadscreen"));
-	m_cameoWindow2->winHide(TRUE);
-	m_cameoWindow2->winEnable(FALSE);
-	m_cameoWindow2->winSetEnabledImage(0, mission->m_cameoImage[1]);
-	m_cameoWindow2->winSetDisabledImage(0, mission->m_cameoDisabledImage[1]);
+		m_cameoWindow2 = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowCameo2" ));
+		DEBUG_ASSERTCRASH(m_cameoWindow2, ("Can't initialize the m_cameoWindow2 for the single player loadscreen"));
+		m_cameoWindow2->winHide(TRUE);
+		m_cameoWindow2->winEnable(FALSE);
+		m_cameoWindow2->winSetEnabledImage(0, mission->m_cameoImage[1]);
+		m_cameoWindow2->winSetDisabledImage(0, mission->m_cameoDisabledImage[1]);
 
-	m_cameoWindow3 = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowCameo3" ));
-	DEBUG_ASSERTCRASH(m_cameoWindow3, ("Can't initialize the m_cameoWindow3 for the single player loadscreen"));
-	m_cameoWindow3->winHide(TRUE);
-	m_cameoWindow3->winEnable(FALSE);
-	m_cameoWindow3->winSetEnabledImage(0, mission->m_cameoImage[2]);
-	m_cameoWindow3->winSetDisabledImage(0, mission->m_cameoDisabledImage[2]);
+		m_cameoWindow3 = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowCameo3" ));
+		DEBUG_ASSERTCRASH(m_cameoWindow3, ("Can't initialize the m_cameoWindow3 for the single player loadscreen"));
+		m_cameoWindow3->winHide(TRUE);
+		m_cameoWindow3->winEnable(FALSE);
+		m_cameoWindow3->winSetEnabledImage(0, mission->m_cameoImage[2]);
+		m_cameoWindow3->winSetDisabledImage(0, mission->m_cameoDisabledImage[2]);
 
-	m_headMovie = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowHead" ));
-	DEBUG_ASSERTCRASH(m_headMovie, ("Can't initialize the m_headMovie for the single player loadscreen"));
-	m_headMovie->winHide(TRUE);
-	m_cameoFrame = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowHiliteCameo" ));
-	DEBUG_ASSERTCRASH(m_cameoFrame, ("Can't initialize the m_cameoFrame for the single player loadscreen"));
-	m_cameoFrame->winHide(TRUE);
-	m_cameoText = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:StaticTextCameoText" ));
-	DEBUG_ASSERTCRASH(m_cameoText, ("Can't initialize the m_cameoText for the single player loadscreen"));
+		m_headMovie = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowHead" ));
+		DEBUG_ASSERTCRASH(m_headMovie, ("Can't initialize the m_headMovie for the single player loadscreen"));
+		m_headMovie->winHide(TRUE);
+		m_cameoFrame = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:WindowHiliteCameo" ));
+		DEBUG_ASSERTCRASH(m_cameoFrame, ("Can't initialize the m_cameoFrame for the single player loadscreen"));
+		m_cameoFrame->winHide(TRUE);
+		m_cameoText = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "SinglePlayerLoadScreen.wnd:StaticTextCameoText" ));
+		DEBUG_ASSERTCRASH(m_cameoText, ("Can't initialize the m_cameoText for the single player loadscreen"));
 
-*/
+	*/
 	m_ambientLoop.setEventName("LoadScreenAmbient");
 	// create the new stream
 	m_videoStream = TheVideoPlayer->open( TheCampaignManager->getCurrentMission()->m_movieLabel );
@@ -474,9 +474,9 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 	// Create the new buffer
 	m_videoBuffer = TheDisplay->createVideoBuffer();
 	if (	m_videoBuffer == nullptr ||
-				!m_videoBuffer->allocate(	m_videoStream->width(),
-													m_videoStream->height())
-		)
+	        !m_videoBuffer->allocate(	m_videoStream->width(),
+	                                    m_videoStream->height())
+	   )
 	{
 		delete m_videoBuffer;
 		m_videoBuffer = nullptr;
@@ -607,7 +607,7 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 		m_videoStream->frameDecompress();
 		m_videoStream->frameRender(m_videoBuffer);
 		if(m_videoBuffer)
-				m_loadScreen->winGetInstanceData()->setVideoBuffer(m_videoBuffer);
+			m_loadScreen->winGetInstanceData()->setVideoBuffer(m_videoBuffer);
 
 		m_objectiveWin->winHide(FALSE);
 		for(i = 0; i < MAX_DISPLAYED_UNITS; ++i)
@@ -653,8 +653,8 @@ void SinglePlayerLoadScreen::init( GameInfo *game )
 
 void SinglePlayerLoadScreen::reset()
 {
- setLoadScreen(nullptr);
- m_progressBar = nullptr;
+	setLoadScreen(nullptr);
+	m_progressBar = nullptr;
 }
 
 void SinglePlayerLoadScreen::update( Int percent )
@@ -981,12 +981,12 @@ void ChallengeLoadScreen::init( GameInfo *game )
 
 //	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:ReticleCrosshairs");
 //	m_overlayReticleCrosshairs = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-/*
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:OuterCircleLine");
-	m_overlayReticleCircleLineOuter = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:InnerCircleLine");
-	m_overlayReticleCircleLineInner = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
-*/
+	/*
+		namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:OuterCircleLine");
+		m_overlayReticleCircleLineOuter = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
+		namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:InnerCircleLine");
+		m_overlayReticleCircleLineInner = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
+	*/
 	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:CircleAlphaOuter");
 	m_overlayReticleCircleAlphaOuter = TheWindowManager->winGetWindowFromId( m_loadScreen, namekey );
 	namekey = TheNameKeyGenerator->nameToKey( "ChallengeLoadScreen.wnd:CircleAlphaInner");
@@ -1148,8 +1148,8 @@ void ChallengeLoadScreen::init( GameInfo *game )
 
 void ChallengeLoadScreen::reset()
 {
- setLoadScreen(nullptr);
- m_progressBar = nullptr;
+	setLoadScreen(nullptr);
+	m_progressBar = nullptr;
 }
 
 void ChallengeLoadScreen::update( Int percent )
@@ -1212,8 +1212,8 @@ void ShellGameLoadScreen::init( GameInfo *game )
 
 void ShellGameLoadScreen::reset()
 {
- setLoadScreen(nullptr);
- m_progressBar = nullptr;
+	setLoadScreen(nullptr);
+	m_progressBar = nullptr;
 }
 
 void ShellGameLoadScreen::update( Int percent )
@@ -1528,7 +1528,7 @@ void GameSpyLoadScreen::init( GameInfo *game )
 	m_mapPreview = TheWindowManager->winGetWindowFromId( m_loadScreen,TheNameKeyGenerator->nameToKey( "GameSpyLoadScreen.wnd:WinMapPreview"));
 	DEBUG_ASSERTCRASH(TheNetwork, ("Where the Heck is the Network!!!!"));
 	DEBUG_LOG(("NumPlayers %d", TheNetwork->getNumPlayers()));
-GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
+	GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 	const PlayerTemplate* pt;
 	if (lSlot->getPlayerTemplate() >= 0)
 		pt = ThePlayerTemplateStore->getNthPlayerTemplate(lSlot->getPlayerTemplate());
@@ -1666,7 +1666,7 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		// Get the stats for the player
 		PSPlayerStats stats = TheGameSpyPSMessageQueue->findPlayerStatsByID(slot->getProfileID());
 		DEBUG_LOG(("LoadScreen - populating info for %ls(%d) - stats returned id %d",
-			slot->getName().str(), slot->getProfileID(), stats.id));
+		           slot->getName().str(), slot->getProfileID(), stats.id));
 
 		Bool isPreorder = TheGameSpyInfo->didPlayerPreorder(stats.id);
 		Int rankPoints = CalculateRank(stats);
@@ -1696,7 +1696,7 @@ GameSlot *lSlot = game->getSlot(game->getLocalSlotNum());
 		GadgetStaticTextSetText(m_playerWinLosses[netSlot], formatString);
 		m_playerWinLosses[netSlot]->winSetEnabledTextColors(houseColor, m_playerWinLosses[netSlot]->winGetEnabledTextBorderColor());
 		// favoriteFaction
-			Int numGames = 0;
+		Int numGames = 0;
 		Int favorite = 0;
 		for(it =stats.games.begin(); it != stats.games.end(); ++it)
 		{

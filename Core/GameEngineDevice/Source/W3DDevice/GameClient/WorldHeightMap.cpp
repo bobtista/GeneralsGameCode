@@ -74,7 +74,7 @@ protected:
 public:
 	GDIFileStream(File* pFile):m_file(pFile) {};
 	virtual Int read(void *pData, Int numBytes) override {
-			return(m_file->read(pData, numBytes));
+		return(m_file->read(pData, numBytes));
 	};
 };
 
@@ -84,7 +84,7 @@ public:
 /*static*/ Dict MapObject::TheWorldDict;
 
 MapObject::MapObject(Coord3D loc, AsciiString name, Real angle, Int flags, const Dict* props,
-										 const ThingTemplate *thingTemplate )
+                     const ThingTemplate *thingTemplate )
 {
 	m_objectName = validateName( name, flags );
 	m_thingTemplate = thingTemplate;
@@ -366,7 +366,7 @@ const ThingTemplate *MapObject::getThingTemplate() const
 
 /* ********* WorldHeightMap class ****************************/
 
-TileData *WorldHeightMap::m_alphaTiles[NUM_ALPHA_TILES]={0};
+TileData *WorldHeightMap::m_alphaTiles[NUM_ALPHA_TILES]= {0};
 
 //
 // WorldHeightMap destructor .
@@ -629,8 +629,8 @@ void WorldHeightMap::setSeismicZVelocity(Int xIndex, Int yIndex, Real value)
 void WorldHeightMap::fillSeismicZVelocities( Real value )
 {
 	if (!m_seismicZVelocities) return ;
-  for (Int idx = 0; idx < m_width*m_height; ++idx)
-    m_seismicZVelocities[idx] = value;
+	for (Int idx = 0; idx < m_width*m_height; ++idx)
+		m_seismicZVelocities[idx] = value;
 }
 
 Real WorldHeightMap::getBilinearSampleSeismicZVelocity( Int x, Int y)
@@ -640,58 +640,58 @@ Real WorldHeightMap::getBilinearSampleSeismicZVelocity( Int x, Int y)
 	if ( x >= m_width ) return 0;
 	if (!m_seismicZVelocities) return 0;
 
-  Real collector = 0.0f;
-  Real divisor = 0.0f;
+	Real collector = 0.0f;
+	Real divisor = 0.0f;
 
-  collector += m_seismicZVelocities[ y * m_width + x ];
-  ++divisor;
+	collector += m_seismicZVelocities[ y * m_width + x ];
+	++divisor;
 
-  if ( y > 0 )
-  {
-    collector += m_seismicZVelocities[ (y-1) * m_width + x ];//bottom
-    ++divisor;
+	if ( y > 0 )
+	{
+		collector += m_seismicZVelocities[ (y-1) * m_width + x ];//bottom
+		++divisor;
 
-    if( x > 0 )
-    {
-      collector += m_seismicZVelocities[ (y-1) * m_width + (x-1) ];//lower left
-      ++divisor;
-    }
-    if ( x < m_width-1 )
-    {
-      collector += m_seismicZVelocities[ (y-1) * m_width + (x+1) ];//lower right
-      ++divisor;
-    }
-  }
-  if ( y < m_height-1 )
-  {
-    collector += m_seismicZVelocities[ (y+1) * m_width + x ];//top
-    ++divisor;
+		if( x > 0 )
+		{
+			collector += m_seismicZVelocities[ (y-1) * m_width + (x-1) ];//lower left
+			++divisor;
+		}
+		if ( x < m_width-1 )
+		{
+			collector += m_seismicZVelocities[ (y-1) * m_width + (x+1) ];//lower right
+			++divisor;
+		}
+	}
+	if ( y < m_height-1 )
+	{
+		collector += m_seismicZVelocities[ (y+1) * m_width + x ];//top
+		++divisor;
 
-    if( x > 0 )
-    {
-      collector += m_seismicZVelocities[ (y+1) * m_width + (x-1) ];//upper left
-      ++divisor;
-    }
-    if ( x < m_width-1 )
-    {
-      collector += m_seismicZVelocities[ (y+1) * m_width + (x+1) ];//upper right
-      ++divisor;
-    }
-  }
-  if( x > 0 )
-  {
-    collector += m_seismicZVelocities[ y * m_width + (x-1) ];//left
-    ++divisor;
-  }
-  if ( x < m_width-1 )
-  {
-    collector += m_seismicZVelocities[ y * m_width + (x+1) ];//right
-    ++divisor;
-  }
+		if( x > 0 )
+		{
+			collector += m_seismicZVelocities[ (y+1) * m_width + (x-1) ];//upper left
+			++divisor;
+		}
+		if ( x < m_width-1 )
+		{
+			collector += m_seismicZVelocities[ (y+1) * m_width + (x+1) ];//upper right
+			++divisor;
+		}
+	}
+	if( x > 0 )
+	{
+		collector += m_seismicZVelocities[ y * m_width + (x-1) ];//left
+		++divisor;
+	}
+	if ( x < m_width-1 )
+	{
+		collector += m_seismicZVelocities[ y * m_width + (x+1) ];//right
+		++divisor;
+	}
 
-  collector /= divisor;
+	collector /= divisor;
 
-  return collector;
+	return collector;
 
 }
 
@@ -748,74 +748,74 @@ Bool WorldHeightMap::ParseWorldDictDataChunk(DataChunkInput &file, DataChunkInfo
 */
 Bool WorldHeightMap::ParseLightingDataChunk(DataChunkInput &file, DataChunkInfo *info, void *userData)
 {
-		TheWritableGlobalData->m_timeOfDay = (TimeOfDay)file.readInt();
-		Int i;
-		GlobalData::TerrainLighting	initLightValues	= { { 0,0,0},{0,0,0},{0,0,-1.0f}};
+	TheWritableGlobalData->m_timeOfDay = (TimeOfDay)file.readInt();
+	Int i;
+	GlobalData::TerrainLighting	initLightValues	= { { 0,0,0},{0,0,0},{0,0,-1.0f}};
 
-		// initialize the directions of the lights to not be totally invalid, in case old maps are read
-		for (i=0; i<4; i++) {
-			for (Int j=0;j<MAX_GLOBAL_LIGHTS; j++) {
-				TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j]=initLightValues;
-				TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j]=initLightValues;
+	// initialize the directions of the lights to not be totally invalid, in case old maps are read
+	for (i=0; i<4; i++) {
+		for (Int j=0; j<MAX_GLOBAL_LIGHTS; j++) {
+			TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j]=initLightValues;
+			TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j]=initLightValues;
+		}
+	}
+
+	for (i=0; i<4; i++) {
+		TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].ambient.red = file.readReal();
+		TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].ambient.green = file.readReal();
+		TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].ambient.blue = file.readReal();
+		TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].diffuse.red = file.readReal();
+		TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].diffuse.green = file.readReal();
+		TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].diffuse.blue = file.readReal();
+		TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].lightPos.x = file.readReal();
+		TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].lightPos.y = file.readReal();
+		TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].lightPos.z = file.readReal();
+
+		TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].ambient.red = file.readReal();
+		TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].ambient.green = file.readReal();
+		TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].ambient.blue = file.readReal();
+		TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].diffuse.red = file.readReal();
+		TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].diffuse.green = file.readReal();
+		TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].diffuse.blue = file.readReal();
+		TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].lightPos.x = file.readReal();
+		TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].lightPos.y = file.readReal();
+		TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].lightPos.z = file.readReal();
+
+		if (info->version >= K_LIGHTING_VERSION_2) {
+			for (Int j=1; j<3; j++)	//added support for 2 extra object lights
+			{
+				TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].ambient.red = file.readReal();
+				TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].ambient.green = file.readReal();
+				TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].ambient.blue = file.readReal();
+				TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].diffuse.red = file.readReal();
+				TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].diffuse.green = file.readReal();
+				TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].diffuse.blue = file.readReal();
+				TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].lightPos.x = file.readReal();
+				TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].lightPos.y = file.readReal();
+				TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].lightPos.z = file.readReal();
 			}
 		}
-
-		for (i=0; i<4; i++) {
-			TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].ambient.red = file.readReal();
-			TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].ambient.green = file.readReal();
-			TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].ambient.blue = file.readReal();
-			TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].diffuse.red = file.readReal();
-			TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].diffuse.green = file.readReal();
-			TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].diffuse.blue = file.readReal();
-			TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].lightPos.x = file.readReal();
-			TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].lightPos.y = file.readReal();
-			TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][0].lightPos.z = file.readReal();
-
-			TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].ambient.red = file.readReal();
-			TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].ambient.green = file.readReal();
-			TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].ambient.blue = file.readReal();
-			TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].diffuse.red = file.readReal();
-			TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].diffuse.green = file.readReal();
-			TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].diffuse.blue = file.readReal();
-			TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].lightPos.x = file.readReal();
-			TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].lightPos.y = file.readReal();
-			TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][0].lightPos.z = file.readReal();
-
-			if (info->version >= K_LIGHTING_VERSION_2) {
-				for (Int j=1; j<3; j++)	//added support for 2 extra object lights
-				{
-					TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].ambient.red = file.readReal();
-					TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].ambient.green = file.readReal();
-					TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].ambient.blue = file.readReal();
-					TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].diffuse.red = file.readReal();
-					TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].diffuse.green = file.readReal();
-					TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].diffuse.blue = file.readReal();
-					TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].lightPos.x = file.readReal();
-					TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].lightPos.y = file.readReal();
-					TheWritableGlobalData->m_terrainObjectsLighting[i+TIME_OF_DAY_FIRST][j].lightPos.z = file.readReal();
-				}
-			}
-			if (info->version >= K_LIGHTING_VERSION_3) {
-				for (Int j=1; j<3; j++)	//added support for 2 extra terrain lights
-				{
-					TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].ambient.red = file.readReal();
-					TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].ambient.green = file.readReal();
-					TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].ambient.blue = file.readReal();
-					TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].diffuse.red = file.readReal();
-					TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].diffuse.green = file.readReal();
-					TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].diffuse.blue = file.readReal();
-					TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].lightPos.x = file.readReal();
-					TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].lightPos.y = file.readReal();
-					TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].lightPos.z = file.readReal();
-				}
+		if (info->version >= K_LIGHTING_VERSION_3) {
+			for (Int j=1; j<3; j++)	//added support for 2 extra terrain lights
+			{
+				TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].ambient.red = file.readReal();
+				TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].ambient.green = file.readReal();
+				TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].ambient.blue = file.readReal();
+				TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].diffuse.red = file.readReal();
+				TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].diffuse.green = file.readReal();
+				TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].diffuse.blue = file.readReal();
+				TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].lightPos.x = file.readReal();
+				TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].lightPos.y = file.readReal();
+				TheWritableGlobalData->m_terrainLighting[i+TIME_OF_DAY_FIRST][j].lightPos.z = file.readReal();
 			}
 		}
-		if (!file.atEndOfChunk()) {
-			UnsignedInt shadowColor = file.readInt();
-			if (TheW3DShadowManager) {
-				TheW3DShadowManager->setShadowColor(shadowColor);
-			}
+	}
+	if (!file.atEndOfChunk()) {
+		UnsignedInt shadowColor = file.readInt();
+		if (TheW3DShadowManager) {
+			TheW3DShadowManager->setShadowColor(shadowColor);
 		}
+	}
 	DEBUG_ASSERTCRASH(file.atEndOfChunk(), ("Unexpected data left over."));
 	return true;
 }
@@ -887,9 +887,9 @@ Bool WorldHeightMap::ParseHeightMapData(DataChunkInput &file, DataChunkInfo *inf
 	Int numBytesY = m_height;
 	m_seismicUpdateWidth=numBytesX;
 	m_seismicUpdateFlag	= MSGNEW("WorldHeightMap::ParseHeightMapData _ m_seismicUpdateFlag allocated") UnsignedByte[numBytesX*numBytesY];
-  clearSeismicUpdateFlags();
-  m_seismicZVelocities = MSGNEW("WorldHeightMap_ParseHeightMapData _ zvelocities allocated") Real[m_dataSize];
-  fillSeismicZVelocities( 0 );
+	clearSeismicUpdateFlags();
+	m_seismicZVelocities = MSGNEW("WorldHeightMap_ParseHeightMapData _ zvelocities allocated") Real[m_dataSize];
+	fillSeismicZVelocities( 0 );
 
 
 	file.readArrayOfBytes((char *)m_data, m_dataSize);
@@ -1107,7 +1107,7 @@ Bool WorldHeightMap::ParseBlendTileData(DataChunkInput &file, DataChunkInfo *inf
 
 		// legacy GDF data
 		// used to read "m_textureClasses[i].isGDF = file.readInt();"
-	/*	Int legacy = */ file.readInt();
+		/*	Int legacy = */ file.readInt();
 
 		m_textureClasses[i].name = file.readAsciiString();
 		readTexClass(&m_textureClasses[i], m_sourceTiles);
@@ -1249,7 +1249,7 @@ Bool WorldHeightMap::ParseObjectData(DataChunkInput &file, DataChunkInfo *info, 
 
 	// create the map object
 	pThisOne = newInstance( MapObject )( loc, name, angle, flags, &d,
-														TheThingFactory->findTemplate( name, FALSE ) );
+	                                     TheThingFactory->findTemplate( name, FALSE ) );
 
 //DEBUG_LOG(("obj %s owner %s",name.str(),d.getAsciiString(TheKey_originalOwner).str()));
 
@@ -1289,8 +1289,8 @@ typedef struct {
 	Short			imageHeight;
 	UnsignedByte	pixelDepth;
 	UnsignedByte	flags; //  &0x0F = alpha channel bits, &0x10 is right to left flag,
-						   // 0x20 is top to bottom flag.  (0x0? is left to right, bottom to top)
-						   // 0x3? is top to bottom, right to left.
+	// 0x20 is top to bottom flag.  (0x0? is left to right, bottom to top)
+	// 0x3? is top to bottom, right to left.
 } TTargaHeader;
 
 // followed by idLength bytes of ascii data
@@ -1652,23 +1652,23 @@ Bool WorldHeightMap::getUVData(Int xIndex, Int yIndex, float U[4], float V[4])
 {
 #define dont_SHOW_THE_TEXTURE_FOR_DEBUG 1
 #if SHOW_THE_TEXTURE_FOR_DEBUG
-		// This is debug code that just shows the generated texture laid on the terrain.
-		// For debugging ;) jba.
-		xIndex += m_drawOriginX;
-		yIndex += m_drawOriginY;
-		float nU= xIndex;
-		float xU = xIndex+1;
-		float nV = 48-yIndex-1;
-		float xV = 48-yIndex;
-		float k = 48;
-		nU /= k;
-		xU /= k;
-		k = k*m_terrainTexHeight/TEXTURE_WIDTH;
-		nV /= k;
-		xV /= k;
-		U[0] = nU; U[1] = xU; U[2] = xU; U[3] = nU;
-		V[0] = xV; V[1] = xV; V[2] = nV; V[3] = nV;
-		return(true);
+	// This is debug code that just shows the generated texture laid on the terrain.
+	// For debugging ;) jba.
+	xIndex += m_drawOriginX;
+	yIndex += m_drawOriginY;
+	float nU= xIndex;
+	float xU = xIndex+1;
+	float nV = 48-yIndex-1;
+	float xV = 48-yIndex;
+	float k = 48;
+	nU /= k;
+	xU /= k;
+	k = k*m_terrainTexHeight/TEXTURE_WIDTH;
+	nV /= k;
+	xV /= k;
+	U[0] = nU; U[1] = xU; U[2] = xU; U[3] = nU;
+	V[0] = xV; V[1] = xV; V[2] = nV; V[3] = nV;
+	return(true);
 #else
 	xIndex += m_drawOriginX;
 	yIndex += m_drawOriginY;
@@ -1743,7 +1743,7 @@ Bool WorldHeightMap::getUVForTileIndex(Int ndx, Short tileNdx, float U[4], float
 // old uv adjustment for cliffs
 		static Real STRETCH_LIMIT = 1.5f;	 // If it is stretching less than this, don't adjust.
 		static Real TILE_LIMIT = 4.0;			// Our tiles are currently 4 cells wide & tall, so dont'
-																			// adjust to more than 4.0.
+		// adjust to more than 4.0.
 
 		static Real TALL_STRETCH_LIMIT = 2.0f;
 		static Real DIAMOND_STRETCH_LIMIT = 2.4f;
@@ -1804,7 +1804,7 @@ Bool WorldHeightMap::getUVForTileIndex(Int ndx, Short tileNdx, float U[4], float
 				}
 				// see if the blend tile is in a texture class, and get the right tile for xIndex, yIndex.
 				if (baseNdx >= m_textureClasses[texClass].firstTile &&
-					baseNdx < m_textureClasses[texClass].firstTile+m_textureClasses[texClass].numTiles) {
+				        baseNdx < m_textureClasses[texClass].firstTile+m_textureClasses[texClass].numTiles) {
 					break;
 				}
 			}
@@ -2224,9 +2224,9 @@ Bool WorldHeightMap::setDrawOrg(Int xOrg, Int yOrg)
 	if (newY > m_height - newHeight) newY = m_height - newHeight;
 	if (newY<0) newY=0;
 	Bool anythingDifferent = (m_drawOriginX!=newX) ||
-										 (m_drawOriginY!=newY) ||
-										 (m_drawWidthX!=newWidth) ||
-										 (m_drawHeightY!=newHeight) ;
+	                         (m_drawOriginY!=newY) ||
+	                         (m_drawWidthX!=newWidth) ||
+	                         (m_drawHeightY!=newHeight) ;
 
 	if (anythingDifferent) {
 		m_drawOriginX=newX;
@@ -2296,7 +2296,7 @@ Int WorldHeightMap::getTextureClassFromNdx(Int tileNdx)
 		}
 		// see if the blend tile is in a texture class, and get the right tile for xIndex, yIndex.
 		if (tileNdx >= m_textureClasses[i].firstTile &&
-			tileNdx < m_textureClasses[i].firstTile+m_textureClasses[i].numTiles) {
+		        tileNdx < m_textureClasses[i].firstTile+m_textureClasses[i].numTiles) {
 			return(m_textureClasses[i].globalTextureClass);
 		}
 	}
@@ -2503,7 +2503,7 @@ void WorldHeightMap::setupAlphaTiles()
 
 
 Bool  WorldHeightMap::getRawTileData(Short tileNdx, Int width,
-																				 UnsignedByte *buffer, Int bufLen)
+                                     UnsignedByte *buffer, Int bufLen)
 {
 	TileData *pSrc = nullptr;
 	if (tileNdx/4 < NUM_SOURCE_TILES) {

@@ -135,68 +135,68 @@ struct NoString
 
 class GameTextManager : public GameTextInterface
 {
-	public:
+public:
 
-		GameTextManager();
-		virtual ~GameTextManager() override;
+	GameTextManager();
+	virtual ~GameTextManager() override;
 
-		virtual void					init() override;						///< Initializes the text system
-		virtual void					deinit();					///< Shuts down the text system
-		virtual void					update() override {};			///< update text manager
-		virtual void					reset() override;					///< Resets the text system
+	virtual void					init() override;						///< Initializes the text system
+	virtual void					deinit();					///< Shuts down the text system
+	virtual void					update() override {};			///< update text manager
+	virtual void					reset() override;					///< Resets the text system
 
-		virtual UnicodeString fetch( const Char *label, Bool *exists = nullptr ) override;		///< Returns the associated labeled unicode text
-		virtual UnicodeString fetch( AsciiString label, Bool *exists = nullptr ) override;		///< Returns the associated labeled unicode text
-		virtual UnicodeString fetchFormat( const Char *label, ... ) override;
-		virtual UnicodeString fetchOrSubstitute( const Char *label, const WideChar *substituteText ) override;
-		virtual UnicodeString fetchOrSubstituteFormat( const Char *label, const WideChar *substituteFormat, ... ) override;
-		virtual UnicodeString fetchOrSubstituteFormatVA( const Char *label, const WideChar *substituteFormat, va_list args ) override;
+	virtual UnicodeString fetch( const Char *label, Bool *exists = nullptr ) override;		///< Returns the associated labeled unicode text
+	virtual UnicodeString fetch( AsciiString label, Bool *exists = nullptr ) override;		///< Returns the associated labeled unicode text
+	virtual UnicodeString fetchFormat( const Char *label, ... ) override;
+	virtual UnicodeString fetchOrSubstitute( const Char *label, const WideChar *substituteText ) override;
+	virtual UnicodeString fetchOrSubstituteFormat( const Char *label, const WideChar *substituteFormat, ... ) override;
+	virtual UnicodeString fetchOrSubstituteFormatVA( const Char *label, const WideChar *substituteFormat, va_list args ) override;
 
-		virtual AsciiStringVec& getStringsWithLabelPrefix(AsciiString label) override;
+	virtual AsciiStringVec& getStringsWithLabelPrefix(AsciiString label) override;
 
-		virtual void					initMapStringFile( const AsciiString& filename ) override;
+	virtual void					initMapStringFile( const AsciiString& filename ) override;
 
-	protected:
+protected:
 
-		Int							m_textCount;
-		Int							m_maxLabelLen;
-		Char						m_buffer[MAX_UITEXT_LENGTH];
-		Char						m_buffer2[MAX_UITEXT_LENGTH];
-		Char						m_buffer3[MAX_UITEXT_LENGTH];
-		WideChar				m_tbuffer[MAX_UITEXT_LENGTH*2];
+	Int							m_textCount;
+	Int							m_maxLabelLen;
+	Char						m_buffer[MAX_UITEXT_LENGTH];
+	Char						m_buffer2[MAX_UITEXT_LENGTH];
+	Char						m_buffer3[MAX_UITEXT_LENGTH];
+	WideChar				m_tbuffer[MAX_UITEXT_LENGTH*2];
 
-		StringInfo			*m_stringInfo;
-		StringLookUp		*m_stringLUT;
-		Bool						m_initialized;
+	StringInfo			*m_stringInfo;
+	StringLookUp		*m_stringLUT;
+	Bool						m_initialized;
 #if defined(RTS_DEBUG)
-		Bool						m_jabberWockie;
-		Bool						m_munkee;
+	Bool						m_jabberWockie;
+	Bool						m_munkee;
 #endif
-		NoString				*m_noStringList;
-		Int							m_useStringFile;
-		LanguageID			m_language;
-		UnicodeString		m_failed;
+	NoString				*m_noStringList;
+	Int							m_useStringFile;
+	LanguageID			m_language;
+	UnicodeString		m_failed;
 
-		StringInfo			*m_mapStringInfo;
-		StringLookUp		*m_mapStringLUT;
-		Int							m_mapTextCount;
+	StringInfo			*m_mapStringInfo;
+	StringLookUp		*m_mapStringLUT;
+	Int							m_mapTextCount;
 
-		/// m_asciiStringVec will be altered every time that getStringsWithLabelPrefix is called,
-		/// so don't simply store a pointer to it.
-		AsciiStringVec			m_asciiStringVec;
+	/// m_asciiStringVec will be altered every time that getStringsWithLabelPrefix is called,
+	/// so don't simply store a pointer to it.
+	AsciiStringVec			m_asciiStringVec;
 
-		void						stripSpaces ( WideChar *string );
-		void						removeLeadingAndTrailing ( Char *m_buffer );
-		void						readToEndOfQuote( File *file, Char *in, Char *out, Char *wavefile, Int maxBufLen );
-		void						reverseWord ( Char *file, Char *lp );
-		void						translateCopy( WideChar *outbuf, Char *inbuf );
-		Bool						getStringCount( const Char *filename, Int& textCount );
-		Bool						getCSFInfo ( const Char *filename );
-		Bool						parseCSF(  const Char *filename );
-		Bool						parseStringFile( const char *filename );
-		Bool						parseMapStringFile( const char *filename );
-		Bool						readLine( char *buffer, Int max, File *file );
-		Char						readChar( File *file );
+	void						stripSpaces ( WideChar *string );
+	void						removeLeadingAndTrailing ( Char *m_buffer );
+	void						readToEndOfQuote( File *file, Char *in, Char *out, Char *wavefile, Int maxBufLen );
+	void						reverseWord ( Char *file, Char *lp );
+	void						translateCopy( WideChar *outbuf, Char *inbuf );
+	Bool						getStringCount( const Char *filename, Int& textCount );
+	Bool						getCSFInfo ( const Char *filename );
+	Bool						parseCSF(  const Char *filename );
+	Bool						parseStringFile( const char *filename );
+	Bool						parseMapStringFile( const char *filename );
+	Bool						readLine( char *buffer, Int max, File *file );
+	Char						readChar( File *file );
 };
 
 static int __cdecl			compareLUT ( const void *,  const void*);
@@ -243,22 +243,22 @@ GameTextInterface* CreateGameTextInterface()
 //============================================================================
 
 GameTextManager::GameTextManager()
-:	m_textCount(0),
-	m_maxLabelLen(0),
-	m_stringInfo(nullptr),
-	m_stringLUT(nullptr),
-	m_initialized(FALSE),
-	m_noStringList(nullptr),
+	:	m_textCount(0),
+	  m_maxLabelLen(0),
+	  m_stringInfo(nullptr),
+	  m_stringLUT(nullptr),
+	  m_initialized(FALSE),
+	  m_noStringList(nullptr),
 #if defined(RTS_DEBUG)
-	m_jabberWockie(FALSE),
-	m_munkee(FALSE),
-	m_useStringFile(g_useStringFile),
+	  m_jabberWockie(FALSE),
+	  m_munkee(FALSE),
+	  m_useStringFile(g_useStringFile),
 #else
-	m_useStringFile(TRUE),
+	  m_useStringFile(TRUE),
 #endif
-	m_mapStringInfo(nullptr),
-	m_mapStringLUT(nullptr),
-	m_failed(L"***FATAL*** String Manager failed to initialize properly")
+	  m_mapStringInfo(nullptr),
+	  m_mapStringLUT(nullptr),
+	  m_failed(L"***FATAL*** String Manager failed to initialize properly")
 {
 	for(Int i=0; i < MAX_UITEXT_LENGTH; i++)
 	{
@@ -440,15 +440,15 @@ void GameTextManager::stripSpaces ( WideChar *string )
 
 		if ( ch == '\n' || ch == '\t' )
 		{
-				// remove last space
-				if ( last == ' ' )
-				{
-					str--;
-				}
+			// remove last space
+			if ( last == ' ' )
+			{
+				str--;
+			}
 
-				skipall = TRUE;		// skip all spaces
-				last = *str++ = ch;
-				continue;
+			skipall = TRUE;		// skip all spaces
+			last = *str++ = ch;
+			continue;
 		}
 
 		last = *str++ = ch;
@@ -476,7 +476,7 @@ void GameTextManager::removeLeadingAndTrailing ( Char *buffer )
 
 	while ( (ch = *first) != 0 && iswspace ( ch ))
 	{
-			first++;
+		first++;
 	}
 
 	while ( (*ptr++ = *first++) != 0 );
@@ -819,9 +819,9 @@ Bool GameTextManager::getStringCount( const char *filename, Int& textCount )
 
 		if( m_buffer[0] == '"' )
 		{
-				Int len = strlen(m_buffer);
-				m_buffer[ len ] = '\n';
-				m_buffer[ len+1] = 0;
+			Int len = strlen(m_buffer);
+			m_buffer[ len ] = '\n';
+			m_buffer[ len+1] = 0;
 			readToEndOfQuote( file, &m_buffer[1], m_buffer2, m_buffer3, MAX_UITEXT_LENGTH );
 		}
 		else if( stricmp( m_buffer, "END") == 0 )
@@ -933,14 +933,14 @@ Bool GameTextManager::parseCSF( const Char *filename )
 
 		while ( num < num_strings )
 		{
-		 	file->read ( &id, sizeof ( Int ) );
+			file->read ( &id, sizeof ( Int ) );
 
 			if ( id != CSF_STRING && id != CSF_STRINGWITHWAVE )
 			{
 				goto quit;
 			}
 
-		 	file->read ( &len, sizeof ( Int ) );
+			file->read ( &len, sizeof ( Int ) );
 
 			if ( len )
 			{
@@ -970,7 +970,7 @@ Bool GameTextManager::parseCSF( const Char *filename )
 
 			if ( id == CSF_STRINGWITHWAVE )
 			{
-			 	file->read ( &len, sizeof ( Int ) );
+				file->read ( &len, sizeof ( Int ) );
 				if ( len )
 				{
 					file->read ( m_buffer, len );
@@ -1073,7 +1073,7 @@ Bool GameTextManager::parseStringFile( const char *filename )
 				if ( readString )
 				{
 					// only one string per label allows
-						DEBUG_CRASH ( ("String label '%s' has more than one string defined!", m_stringInfo[listCount].label.str()));
+					DEBUG_CRASH ( ("String label '%s' has more than one string defined!", m_stringInfo[listCount].label.str()));
 				}
 				else
 				{
@@ -1204,7 +1204,7 @@ Bool GameTextManager::parseMapStringFile( const char *filename )
 				if ( readString )
 				{
 					// only one string per label allowed
-						DEBUG_CRASH ( ("String label '%s' has more than one string defined!", m_stringInfo[listCount].label.str()));
+					DEBUG_CRASH ( ("String label '%s' has more than one string defined!", m_stringInfo[listCount].label.str()));
 				}
 				else
 				{

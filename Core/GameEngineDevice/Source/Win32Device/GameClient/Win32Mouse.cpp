@@ -228,7 +228,7 @@ void Win32Mouse::translateEvent( UnsignedInt eventIndex, MouseIO *result )
 		{
 
 			DEBUG_CRASH(( "translateEvent: Unknown Win32 mouse event [%d,%d,%d]",
-							 msg, wParam, lParam ));
+			              msg, wParam, lParam ));
 			return;
 
 		}
@@ -374,10 +374,10 @@ void Win32Mouse::initCursorResources()
 				//Check if this is a directional cursor
 				if (m_cursorInfo[cursor].numDirections > 1)
 					snprintf(resourcePath, ARRAY_SIZE(resourcePath), "data\\cursors\\%s%d.ANI",
-						m_cursorInfo[cursor].textureName.str(), direction);
+					         m_cursorInfo[cursor].textureName.str(), direction);
 				else
 					snprintf(resourcePath, ARRAY_SIZE(resourcePath), "data\\cursors\\%s.ANI",
-						m_cursorInfo[cursor].textureName.str());
+					         m_cursorInfo[cursor].textureName.str());
 
 				// check for a MOD cursor.
 				Bool loaded = FALSE;

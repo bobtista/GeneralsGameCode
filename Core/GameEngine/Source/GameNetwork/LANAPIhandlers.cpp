@@ -154,8 +154,8 @@ void LANAPI::handleGameAnnounce( LANMessage *msg, UnsignedInt senderIP )
 		}
 
 		OnGameList( m_games );
-	//	if (game == m_currentGame && !m_inLobby)
-	//		OnSlotList(RET_OK, game);
+		//	if (game == m_currentGame && !m_inLobby)
+		//		OnSlotList(RET_OK, game);
 	}
 }
 
@@ -206,22 +206,22 @@ void LANAPI::handleRequestGameInfo( LANMessage *msg, UnsignedInt senderIP )
 static Bool IsInvalidCharForPlayerName(const WideChar c)
 {
 	return c < L' ' // C0 control chars
-		|| c == L',' || c == L':' || c == L';' // chars used for strtok in ParseAsciiStringToGameInfo
-		|| (c >= L'\x007f' && c <= L'\x009f') // DEL + C1 control chars
-		|| c == L'\x2028' || c == L'\x2029' // line and paragraph separators
-		|| (c >= L'\xdc00' && c <= L'\xdfff') // low surrogate, for chars beyond the Unicode Basic Multilingual Plane
-		|| (c >= L'\xd800' && c <= L'\xdbff'); // high surrogate, for chars beyond the BMP
+	       || c == L',' || c == L':' || c == L';' // chars used for strtok in ParseAsciiStringToGameInfo
+	       || (c >= L'\x007f' && c <= L'\x009f') // DEL + C1 control chars
+	       || c == L'\x2028' || c == L'\x2029' // line and paragraph separators
+	       || (c >= L'\xdc00' && c <= L'\xdfff') // low surrogate, for chars beyond the Unicode Basic Multilingual Plane
+	       || (c >= L'\xd800' && c <= L'\xdbff'); // high surrogate, for chars beyond the BMP
 }
 
 static Bool IsSpaceCharacter(const WideChar c)
 {
 	return c == L' ' // space
-		|| c == L'\xA0' // no-break space
-		|| c == L'\x1680' // ogham space mark
-		|| (c >= L'\x2000' && c <= L'\x200A') // en/em spaces, figure, punctuation, thin, hair
-		|| c == L'\x202F' // narrow no-break space
-		|| c == L'\x205F' // medium mathematical space
-		|| c == L'\x3000'; // ideographic space
+	       || c == L'\xA0' // no-break space
+	       || c == L'\x1680' // ogham space mark
+	       || (c >= L'\x2000' && c <= L'\x200A') // en/em spaces, figure, punctuation, thin, hair
+	       || c == L'\x202F' // narrow no-break space
+	       || c == L'\x205F' // medium mathematical space
+	       || c == L'\x3000'; // ideographic space
 }
 
 static Bool ContainsInvalidChars(const WideChar* playerName)
@@ -251,7 +251,7 @@ static Bool ContainsAnyReadableChars(const WideChar* playerName)
 void LANAPI::handleRequestJoin( LANMessage *msg, UnsignedInt senderIP )
 {
 	UnsignedInt responseIP = senderIP;	// need this cause the player may or may not be
-																			// in the player list at the sendMessage.
+	// in the player list at the sendMessage.
 
 	if (msg->GameToJoin.gameIP != m_localIP)
 	{
@@ -280,18 +280,18 @@ void LANAPI::handleRequestJoin( LANMessage *msg, UnsignedInt senderIP )
 #endif
 // TheSuperHackers @todo Enable CRC checks!
 #if !RTS_ZEROHOUR
-			if (msg->GameToJoin.iniCRC != TheGlobalData->m_iniCRC ||
-					msg->GameToJoin.exeCRC != TheGlobalData->m_exeCRC)
-			{
-				DEBUG_LOG(("LANAPI::handleRequestJoin - join denied because of CRC mismatch. CRCs are them/us INI:%X/%X exe:%X/%X",
-					msg->GameToJoin.iniCRC, TheGlobalData->m_iniCRC,
-					msg->GameToJoin.exeCRC, TheGlobalData->m_exeCRC));
-				reply.messageType = LANMessage::MSG_JOIN_DENY;
-				reply.GameNotJoined.reason = LANAPIInterface::RET_CRC_MISMATCH;
-				reply.GameNotJoined.gameIP = m_localIP;
-				reply.GameNotJoined.playerIP = senderIP;
-				canJoin = false;
-			}
+				if (msg->GameToJoin.iniCRC != TheGlobalData->m_iniCRC ||
+				        msg->GameToJoin.exeCRC != TheGlobalData->m_exeCRC)
+				{
+					DEBUG_LOG(("LANAPI::handleRequestJoin - join denied because of CRC mismatch. CRCs are them/us INI:%X/%X exe:%X/%X",
+					           msg->GameToJoin.iniCRC, TheGlobalData->m_iniCRC,
+					           msg->GameToJoin.exeCRC, TheGlobalData->m_exeCRC));
+					reply.messageType = LANMessage::MSG_JOIN_DENY;
+					reply.GameNotJoined.reason = LANAPIInterface::RET_CRC_MISMATCH;
+					reply.GameNotJoined.gameIP = m_localIP;
+					reply.GameNotJoined.playerIP = senderIP;
+					canJoin = false;
+				}
 #endif
 #if defined(RTS_DEBUG)
 			}
@@ -352,7 +352,7 @@ void LANAPI::handleRequestJoin( LANMessage *msg, UnsignedInt senderIP )
 
 					DEBUG_LOG(("LANAPI::handleRequestJoin - join denied because of illegal characters in the player name."));
 				}
-			}	
+			}
 
 			// Then see if the player has a duplicate name
 			for (player = 0; canJoin && player<MAX_SLOTS; ++player)

@@ -56,7 +56,7 @@
 #include "GameClient/ClientRandomValue.h"
 #endif
 #ifdef MEMORYPOOL_STACKTRACE
-	#include "Common/StackDump.h"
+#include "Common/StackDump.h"
 #endif
 
 #ifdef MEMORYPOOL_DEBUG
@@ -76,74 +76,74 @@ DECLARE_PERF_TIMER(MemoryPoolInitFilling)
 	@todo verify this speedup is enough to be worth the extra space
 */
 #ifndef DISABLE_MEMORYPOOL_MPSB_DLINK
-	#define MPSB_DLINK
+#define MPSB_DLINK
 #endif
 
 #ifdef MEMORYPOOL_DEBUG
 
-	/**
-		if you define MEMORYPOOL_INTENSE_VERIFY, we do intensive verifications after
-		nearly every memory operation. this is OFF by default, since it slows down
-		things a lot, but is worth turning on for really obscure memory corruption issues.
-	*/
-	#ifndef MEMORYPOOL_INTENSE_VERIFY
-		#define NO_MEMORYPOOL_INTENSE_VERIFY
-	#endif
+/**
+	if you define MEMORYPOOL_INTENSE_VERIFY, we do intensive verifications after
+	nearly every memory operation. this is OFF by default, since it slows down
+	things a lot, but is worth turning on for really obscure memory corruption issues.
+*/
+#ifndef MEMORYPOOL_INTENSE_VERIFY
+#define NO_MEMORYPOOL_INTENSE_VERIFY
+#endif
 
-	/**
-		if you define MEMORYPOOL_CHECK_BLOCK_OWNERSHIP, we do lots of calls to verify
-		that a block actually belongs to the pool it is called with. this is great
-		for debugging, but can be realllly slow, so is off by default.
-	*/
-	#ifndef MEMORYPOOL_CHECK_BLOCK_OWNERSHIP
-		#define NO_MEMORYPOOL_CHECK_BLOCK_OWNERSHIP
-	#endif
+/**
+	if you define MEMORYPOOL_CHECK_BLOCK_OWNERSHIP, we do lots of calls to verify
+	that a block actually belongs to the pool it is called with. this is great
+	for debugging, but can be realllly slow, so is off by default.
+*/
+#ifndef MEMORYPOOL_CHECK_BLOCK_OWNERSHIP
+#define NO_MEMORYPOOL_CHECK_BLOCK_OWNERSHIP
+#endif
 
-	static const char* FREE_SINGLEBLOCK_TAG_STRING			= "FREE_SINGLEBLOCK_TAG_STRING";
-	const Short SINGLEBLOCK_MAGIC_COOKIE								= 12345;
-	const Int GARBAGE_FILL_VALUE												= 0xdeadbeef;
+static const char* FREE_SINGLEBLOCK_TAG_STRING			= "FREE_SINGLEBLOCK_TAG_STRING";
+const Short SINGLEBLOCK_MAGIC_COOKIE								= 12345;
+const Int GARBAGE_FILL_VALUE												= 0xdeadbeef;
 
-	// flags for m_debugFlags
-	enum
-	{
-		IGNORE_LEAKS		= 0x0001
-	};
+// flags for m_debugFlags
+enum
+{
+	IGNORE_LEAKS		= 0x0001
+};
 
-	// in debug mode (but not internal), save stacktraces too
-	#if !defined(MEMORYPOOL_CHECKPOINTING) && defined(MEMORYPOOL_STACKTRACE) && defined(RTS_DEBUG)
-		#define MEMORYPOOL_SINGLEBLOCK_GETS_STACKTRACE
-	#endif
+// in debug mode (but not internal), save stacktraces too
+#if !defined(MEMORYPOOL_CHECKPOINTING) && defined(MEMORYPOOL_STACKTRACE) && defined(RTS_DEBUG)
+#define MEMORYPOOL_SINGLEBLOCK_GETS_STACKTRACE
+#endif
 
-	#define USE_FILLER_VALUE
+#define USE_FILLER_VALUE
 
-	const Int MAX_INIT_FILLER_COUNT = 8;
-	#ifdef USE_FILLER_VALUE
-		static UnsignedInt s_initFillerValue = 0xf00dcafe; // will be replaced, should never be this value at runtime
-		static void calcFillerValue(Int index)
-		{
-			s_initFillerValue = (index & 3) << 1;
-			s_initFillerValue |= 0x01;
-			s_initFillerValue |= (~(s_initFillerValue << 4)) & 0xf0;
-			s_initFillerValue |= (s_initFillerValue << 8);
-			s_initFillerValue |= (s_initFillerValue << 16);
-			//DEBUG_LOG(("Setting MemoryPool initFillerValue to %08x (index %d)",s_initFillerValue,index));
-		}
-	#endif
+const Int MAX_INIT_FILLER_COUNT = 8;
+#ifdef USE_FILLER_VALUE
+static UnsignedInt s_initFillerValue = 0xf00dcafe; // will be replaced, should never be this value at runtime
+static void calcFillerValue(Int index)
+{
+	s_initFillerValue = (index & 3) << 1;
+	s_initFillerValue |= 0x01;
+	s_initFillerValue |= (~(s_initFillerValue << 4)) & 0xf0;
+	s_initFillerValue |= (s_initFillerValue << 8);
+	s_initFillerValue |= (s_initFillerValue << 16);
+	//DEBUG_LOG(("Setting MemoryPool initFillerValue to %08x (index %d)",s_initFillerValue,index));
+}
+#endif
 
 #endif
 
 #ifdef MEMORYPOOL_BOUNDINGWALL
 
-	#define WALLCOUNT (2)	// default setting of 8 requires 4*4*2==32 extra bytes PER BLOCK
-	#define WALLSIZE	(WALLCOUNT * sizeof(Int))
+#define WALLCOUNT (2)	// default setting of 8 requires 4*4*2==32 extra bytes PER BLOCK
+#define WALLSIZE	(WALLCOUNT * sizeof(Int))
 
 #endif
 
 #ifdef MEMORYPOOL_STACKTRACE
 
-	#define MEMORYPOOL_STACKTRACE_SIZE				(20)
-	#define MEMORYPOOL_STACKTRACE_SKIP_SIZE		(6)
-	#define MEMORYPOOL_STACKTRACE_SIZE_BYTES	(MEMORYPOOL_STACKTRACE_SIZE * sizeof(void*))
+#define MEMORYPOOL_STACKTRACE_SIZE				(20)
+#define MEMORYPOOL_STACKTRACE_SKIP_SIZE		(6)
+#define MEMORYPOOL_STACKTRACE_SIZE_BYTES	(MEMORYPOOL_STACKTRACE_SIZE * sizeof(void*))
 
 #endif
 
@@ -153,40 +153,40 @@ DECLARE_PERF_TIMER(MemoryPoolInitFilling)
 
 #ifdef MEMORYPOOL_BOUNDINGWALL
 
-	static Int theBoundingWallPattern = 0xbabeface;
+static Int theBoundingWallPattern = 0xbabeface;
 
 #endif
 
 #ifdef MEMORYPOOL_STACKTRACE
 
-	/** the max number levels to dump in the stacktrace. a variable rather than
-		constant so that you can fiddle with it in the debugger if desired, to
-		get shorter or longer dumps. (you can't go longer than MEMORYPOOL_STACKTRACE_SIZE
-		in any event. */
-	static Int theStackTraceDepth = 16;
+/** the max number levels to dump in the stacktrace. a variable rather than
+	constant so that you can fiddle with it in the debugger if desired, to
+	get shorter or longer dumps. (you can't go longer than MEMORYPOOL_STACKTRACE_SIZE
+	in any event. */
+static Int theStackTraceDepth = 16;
 
 #endif
 
 #ifdef MEMORYPOOL_DEBUG
 
-	static Int theTotalSystemAllocationInBytes = 0;
-	static Int thePeakSystemAllocationInBytes = 0;
-	static Int theTotalLargeBlocks = 0;
-	static Int thePeakLargeBlocks = 0;
-	Int theTotalDMA = 0;
-	Int thePeakDMA = 0;
-	Int theWastedDMA = 0;
-	Int thePeakWastedDMA = 0;
+static Int theTotalSystemAllocationInBytes = 0;
+static Int thePeakSystemAllocationInBytes = 0;
+static Int theTotalLargeBlocks = 0;
+static Int thePeakLargeBlocks = 0;
+Int theTotalDMA = 0;
+Int thePeakDMA = 0;
+Int theWastedDMA = 0;
+Int thePeakWastedDMA = 0;
 
 #ifdef INTENSE_DMA_BOOKKEEPING
-	struct UsedNPeak
-	{
-		Int used, peak, waste, peakwaste;
-		UsedNPeak() : used(0), peak(0), waste(0), peakwaste(0) { }
-	};
-	typedef std::map< const char*, UsedNPeak, std::less<const char*> > UsedNPeakMap;
-	static UsedNPeakMap TheUsedNPeakMap;
-	static Int doingIntenseDMA = 0;
+struct UsedNPeak
+{
+	Int used, peak, waste, peakwaste;
+	UsedNPeak() : used(0), peak(0), waste(0), peakwaste(0) { }
+};
+typedef std::map< const char*, UsedNPeak, std::less<const char*> > UsedNPeakMap;
+static UsedNPeakMap TheUsedNPeakMap;
+static Int doingIntenseDMA = 0;
 #endif
 
 
@@ -239,12 +239,12 @@ static void* sysAllocateDoNotZero(Int numBytes)
 #ifdef MEMORYPOOL_DEBUG
 	{
 		USE_PERF_TIMER(MemoryPoolDebugging)
-		#ifdef USE_FILLER_VALUE
+#ifdef USE_FILLER_VALUE
 		{
 			USE_PERF_TIMER(MemoryPoolInitFilling)
 			::memset32(p, s_initFillerValue, ::GlobalSize(p));
 		}
-		#endif
+#endif
 		theTotalSystemAllocationInBytes += ::GlobalSize(p);
 		if (thePeakSystemAllocationInBytes < theTotalSystemAllocationInBytes)
 			thePeakSystemAllocationInBytes = theTotalSystemAllocationInBytes;
@@ -367,10 +367,10 @@ public:
 #endif
 
 	static BlockCheckpointInfo *addToList(
-		BlockCheckpointInfo **pHead,
-		const char *debugLiteralTagString,
-		Int allocCheckpoint,
-		Int blockSize
+	    BlockCheckpointInfo **pHead,
+	    const char *debugLiteralTagString,
+	    Int allocCheckpoint,
+	    Int blockSize
 	);
 
 	static void freeList(BlockCheckpointInfo **pHead);
@@ -378,7 +378,7 @@ public:
 	Bool shouldBeInReport(Int flags, Int startCheckpoint, Int endCheckpoint);
 
 	static void doBlockCheckpointReport( BlockCheckpointInfo *bi, const char *poolName,
-									Int flags, Int startCheckpoint, Int endCheckpoint );
+	                                     Int flags, Int startCheckpoint, Int endCheckpoint );
 };
 
 #endif
@@ -414,9 +414,9 @@ private:
 	Int										m_wastedSize;							///< if allocated via DMA, the "wasted" bytes
 	Short									m_magicCookie;						///< magic value used to verify that the block is one of ours (as opposed to random pointer)
 	Short									m_debugFlags;							///< misc flags
-	#ifdef MEMORYPOOL_SINGLEBLOCK_GETS_STACKTRACE
+#ifdef MEMORYPOOL_SINGLEBLOCK_GETS_STACKTRACE
 	void*									m_stacktrace[MEMORYPOOL_STACKTRACE_SIZE];		///< stacktrace of when block was allocated (if not checkpointing)
-	#endif
+#endif
 #endif
 
 private:
@@ -532,9 +532,9 @@ inline void **BlockCheckpointInfo::getStacktraceInfo() { return m_stacktrace; }
 inline void* MemoryPoolSingleBlock::getUserDataNoDbg()
 {
 	char* p = ((char*)this) + sizeof(MemoryPoolSingleBlock);
-	#ifdef MEMORYPOOL_BOUNDINGWALL
+#ifdef MEMORYPOOL_BOUNDINGWALL
 	p += WALLSIZE;
-	#endif
+#endif
 	return (void*)p;
 }
 
@@ -545,9 +545,9 @@ inline void* MemoryPoolSingleBlock::getUserDataNoDbg()
 inline void* MemoryPoolSingleBlock::getUserData()
 {
 	// yes, verify the block in this case for plain debug mode (not intense-verify mode)
-	#ifdef MEMORYPOOL_DEBUG
+#ifdef MEMORYPOOL_DEBUG
 	debugVerifyBlock();
-	#endif
+#endif
 	return getUserDataNoDbg();
 }
 
@@ -558,9 +558,9 @@ inline void* MemoryPoolSingleBlock::getUserData()
 inline /*static*/ Int MemoryPoolSingleBlock::calcRawBlockSize(Int logicalSize)
 {
 	Int s = ::roundUpMemBound(logicalSize) + sizeof(MemoryPoolSingleBlock);
-	#ifdef MEMORYPOOL_BOUNDINGWALL
+#ifdef MEMORYPOOL_BOUNDINGWALL
 	s += WALLSIZE*2;
-	#endif
+#endif
 	return s;
 }
 
@@ -755,7 +755,7 @@ Bool BlockCheckpointInfo::shouldBeInReport(Int flags, Int startCheckpoint, Int e
 #ifdef MEMORYPOOL_CHECKPOINTING
 /// print a checkpointreport for the given checkpointinfo. if checkpointinfo is null, print column headers.
 /*static*/ void BlockCheckpointInfo::doBlockCheckpointReport(BlockCheckpointInfo *bi,
-			const char *poolName, Int flags, Int startCheckpoint, Int endCheckpoint )
+        const char *poolName, Int flags, Int startCheckpoint, Int endCheckpoint )
 {
 	const char *PREPEND = "BLOCKINFO";	// allows grepping more easily
 
@@ -772,12 +772,12 @@ Bool BlockCheckpointInfo::shouldBeInReport(Int flags, Int startCheckpoint, Int e
 		if (bi->shouldBeInReport(flags, startCheckpoint, endCheckpoint))
 		{
 			DEBUG_LOG(("%s,%32s,%6d,%6d,%6d,%s",PREPEND,poolName,bi->m_blockSize,bi->m_allocCheckpoint,bi->m_freeCheckpoint,bi->m_debugLiteralTagString));
-	#ifdef MEMORYPOOL_STACKTRACE
+#ifdef MEMORYPOOL_STACKTRACE
 			if (flags & REPORT_CP_STACKTRACE)
 			{
 				::doStackDump(bi->m_stacktrace, min(MEMORYPOOL_STACKTRACE_SIZE, theStackTraceDepth ));
 			}
-	#endif
+#endif
 		}
 	}
 }
@@ -807,10 +807,10 @@ Bool BlockCheckpointInfo::shouldBeInReport(Int flags, Int startCheckpoint, Int e
 	if there is not enough memory to allocate a new checkpointinfo, it will quietly return null.)
 */
 /*static*/ BlockCheckpointInfo *BlockCheckpointInfo::addToList(
-	BlockCheckpointInfo **pHead,
-	const char *debugLiteralTagString,
-	Int allocCheckpoint,
-	Int blockSize
+    BlockCheckpointInfo **pHead,
+    const char *debugLiteralTagString,
+    Int allocCheckpoint,
+    Int blockSize
 )
 {
 	DEBUG_ASSERTCRASH(debugLiteralTagString != FREE_SINGLEBLOCK_TAG_STRING, ("bad tag string"));
@@ -845,36 +845,36 @@ Bool BlockCheckpointInfo::shouldBeInReport(Int flags, Int startCheckpoint, Int e
 	but might also be done at other points in debug mode.
 */
 void MemoryPoolSingleBlock::initBlock(Int logicalSize, MemoryPoolBlob *owningBlob,
-			MemoryPoolFactory *owningFactory DECLARE_LITERALSTRING_ARG2)
+                                      MemoryPoolFactory *owningFactory DECLARE_LITERALSTRING_ARG2)
 {
 	// Note that while it is OK for owningBlob to be null, it is NEVER ok
 	// for owningFactory to be null.
 	DEBUG_ASSERTCRASH(owningFactory, ("null factory"));
 
 #ifdef MEMORYPOOL_DEBUG
-{
-	USE_PERF_TIMER(MemoryPoolDebugging)
-	m_magicCookie = SINGLEBLOCK_MAGIC_COOKIE;
-	m_debugFlags = 0;
-	if (!theMainInitFlag)
-		debugIgnoreLeaksForThisBlock();
-	DEBUG_ASSERTCRASH(debugLiteralTagString != nullptr, ("null tagstrings are not allowed"));
-	m_debugLiteralTagString = debugLiteralTagString;
-	m_logicalSize = logicalSize;
-	m_wastedSize = 0;
+	{
+		USE_PERF_TIMER(MemoryPoolDebugging)
+		m_magicCookie = SINGLEBLOCK_MAGIC_COOKIE;
+		m_debugFlags = 0;
+		if (!theMainInitFlag)
+			debugIgnoreLeaksForThisBlock();
+		DEBUG_ASSERTCRASH(debugLiteralTagString != nullptr, ("null tagstrings are not allowed"));
+		m_debugLiteralTagString = debugLiteralTagString;
+		m_logicalSize = logicalSize;
+		m_wastedSize = 0;
 
 #ifdef MEMORYPOOL_SINGLEBLOCK_GETS_STACKTRACE
-	if (theStackTraceDepth > 0 && (!TheGlobalData || TheGlobalData->m_checkForLeaks))
-	{
-		memset(m_stacktrace, 0, MEMORYPOOL_STACKTRACE_SIZE_BYTES);
-		::FillStackAddresses(m_stacktrace, min(MEMORYPOOL_STACKTRACE_SIZE, theStackTraceDepth), MEMORYPOOL_STACKTRACE_SKIP_SIZE);
-	}
-	else
-	{
-		m_stacktrace[0] = nullptr;
-	}
+		if (theStackTraceDepth > 0 && (!TheGlobalData || TheGlobalData->m_checkForLeaks))
+		{
+			memset(m_stacktrace, 0, MEMORYPOOL_STACKTRACE_SIZE_BYTES);
+			::FillStackAddresses(m_stacktrace, min(MEMORYPOOL_STACKTRACE_SIZE, theStackTraceDepth), MEMORYPOOL_STACKTRACE_SKIP_SIZE);
+		}
+		else
+		{
+			m_stacktrace[0] = nullptr;
+		}
 #endif
-}
+	}
 #endif // MEMORYPOOL_DEBUG
 
 #ifdef MEMORYPOOL_CHECKPOINTING
@@ -904,9 +904,9 @@ void MemoryPoolSingleBlock::initBlock(Int logicalSize, MemoryPoolBlob *owningBlo
 	if (!pUserData)
 		return nullptr;
 	char* p = ((char*)pUserData) - sizeof(MemoryPoolSingleBlock);
-	#ifdef MEMORYPOOL_BOUNDINGWALL
+#ifdef MEMORYPOOL_BOUNDINGWALL
 	p -= WALLSIZE;
-	#endif
+#endif
 	MemoryPoolSingleBlock *block = (MemoryPoolSingleBlock *)p;
 // yes, verify the block in this case for plain debug mode (not intense-verify mode)
 #ifdef MEMORYPOOL_DEBUG
@@ -921,10 +921,10 @@ void MemoryPoolSingleBlock::initBlock(Int logicalSize, MemoryPoolBlob *owningBlo
 	when allocating an extraordinarily large block.
 */
 /*static*/ MemoryPoolSingleBlock *MemoryPoolSingleBlock::rawAllocateSingleBlock(
-	MemoryPoolSingleBlock **pRawListHead,
-	Int logicalSize,
-	MemoryPoolFactory *owningFactory
-	DECLARE_LITERALSTRING_ARG2)
+    MemoryPoolSingleBlock **pRawListHead,
+    Int logicalSize,
+    MemoryPoolFactory *owningFactory
+    DECLARE_LITERALSTRING_ARG2)
 {
 	MemoryPoolSingleBlock *block = (MemoryPoolSingleBlock *)::sysAllocateDoNotZero(calcRawBlockSize(logicalSize));
 	block->initBlock(logicalSize, nullptr, owningFactory PASS_LITERALSTRING_ARG2);
@@ -1015,10 +1015,10 @@ Int MemoryPoolSingleBlock::debugSingleBlockReportLeak(const char* owner)
 		DEBUG_LOG(("Leaked a block of size %d, tagstring %s, from pool/dma %s",m_logicalSize,m_debugLiteralTagString,owner));
 	}
 
-	#ifdef MEMORYPOOL_SINGLEBLOCK_GETS_STACKTRACE
+#ifdef MEMORYPOOL_SINGLEBLOCK_GETS_STACKTRACE
 	if (!TheGlobalData || TheGlobalData->m_checkForLeaks)
 		::doStackDump(m_stacktrace, min(MEMORYPOOL_STACKTRACE_SIZE, theStackTraceDepth));
-	#endif
+#endif
 
 	return 1;
 }
@@ -1039,12 +1039,12 @@ void MemoryPoolSingleBlock::debugVerifyBlock()
 	/// @todo Put this check back in after the AI memory usage is under control (MSB)
 	//DEBUG_ASSERTCRASH(m_logicalSize>0 && m_logicalSize < 0x00ffffff, ("unlikely value for m_logicalSize"));
 	DEBUG_ASSERTCRASH(m_nextBlock == nullptr
-		|| memcmp(&m_nextBlock->m_owningBlob, &s_initFillerValue, sizeof(s_initFillerValue)) == 0
-		|| m_nextBlock->m_owningBlob == m_owningBlob, ("owning blob mismatch..."));
+	                  || memcmp(&m_nextBlock->m_owningBlob, &s_initFillerValue, sizeof(s_initFillerValue)) == 0
+	                  || m_nextBlock->m_owningBlob == m_owningBlob, ("owning blob mismatch..."));
 #ifdef MPSB_DLINK
 	DEBUG_ASSERTCRASH(m_prevBlock == nullptr
-		|| memcmp(&m_prevBlock->m_owningBlob, &s_initFillerValue, sizeof(s_initFillerValue)) == 0
-		|| m_prevBlock->m_owningBlob == m_owningBlob, ("owning blob mismatch..."));
+	                  || memcmp(&m_prevBlock->m_owningBlob, &s_initFillerValue, sizeof(s_initFillerValue)) == 0
+	                  || m_prevBlock->m_owningBlob == m_owningBlob, ("owning blob mismatch..."));
 #endif
 	debugCheckUnderrun();
 	debugCheckOverrun();
@@ -1062,9 +1062,9 @@ void MemoryPoolSingleBlock::debugMarkBlockAsFree()
 
 	::memset32(getUserDataNoDbg(), GARBAGE_FILL_VALUE, m_logicalSize);
 	m_debugLiteralTagString = FREE_SINGLEBLOCK_TAG_STRING;
-	#ifdef MEMORYPOOL_INTENSE_VERIFY
+#ifdef MEMORYPOOL_INTENSE_VERIFY
 	debugVerifyBlock();
-	#endif
+#endif
 }
 #endif
 
@@ -1136,9 +1136,9 @@ void MemoryPoolSingleBlock::debugFillInWalls()
 	for (i = 0; i < WALLCOUNT; i++)
 		*p++ = m_wallPattern-i;
 
-	#ifdef MEMORYPOOL_INTENSE_VERIFY
+#ifdef MEMORYPOOL_INTENSE_VERIFY
 	debugVerifyBlock();
-	#endif
+#endif
 }
 #endif
 
@@ -1419,14 +1419,14 @@ Checkpointable::~Checkpointable()
 	enough memory, and sets a flag to indicate our checkpointinfo is not complete.
 */
 BlockCheckpointInfo *Checkpointable::debugAddCheckpointInfo(
-	const char *debugLiteralTagString,
-	Int allocCheckpoint,
-	Int blockSize
+    const char *debugLiteralTagString,
+    Int allocCheckpoint,
+    Int blockSize
 )
 {
 
 	BlockCheckpointInfo *bi = BlockCheckpointInfo::addToList(&m_firstCheckpointInfo, debugLiteralTagString,
-				allocCheckpoint, blockSize);
+	                          allocCheckpoint, blockSize);
 
 	if (bi)
 	{
@@ -1638,12 +1638,12 @@ void* MemoryPool::allocateBlockDoNotZeroImplementation(DECLARE_LITERALSTRING_ARG
 		for (; blob != nullptr; blob = blob->getNextInList())
 		{
 			if (blob->hasAnyFreeBlocks())
-			 	break;
+				break;
 		}
 
 		// note that if we walk thru the list without finding anything, this will
 		// reset m_firstBlobWithFreeBlocks to null and fall thru.
-	 	m_firstBlobWithFreeBlocks = blob;
+		m_firstBlobWithFreeBlocks = blob;
 	}
 
 	// OK, if we are here then we have no blobs with freespace... darn.
@@ -1680,12 +1680,12 @@ void* MemoryPool::allocateBlockDoNotZeroImplementation(DECLARE_LITERALSTRING_ARG
 
 #ifdef MEMORYPOOL_DEBUG
 	m_factory->adjustTotals(debugLiteralTagString, 1*getAllocationSize(), 0);
-	#ifdef USE_FILLER_VALUE
+#ifdef USE_FILLER_VALUE
 	{
 		USE_PERF_TIMER(MemoryPoolInitFilling)
 		::memset32(block->getUserData(), s_initFillerValue, getAllocationSize());
 	}
-	#endif
+#endif
 #endif
 
 	return block->getUserData();
@@ -1867,13 +1867,13 @@ void MemoryPool::removeFromList(MemoryPool **pHead)
 	else
 	{
 		DEBUG_LOG(("%s,%32s,%6d,%6d,%6d,%6d,%6d,%6d",PREPEND,
-			pool->m_poolName,pool->m_allocationSize,pool->m_initialAllocationCount,pool->m_overflowAllocationCount,
-			pool->m_usedBlocksInPool,pool->m_totalBlocksInPool,pool->m_peakUsedBlocksInPool));
+		           pool->m_poolName,pool->m_allocationSize,pool->m_initialAllocationCount,pool->m_overflowAllocationCount,
+		           pool->m_usedBlocksInPool,pool->m_totalBlocksInPool,pool->m_peakUsedBlocksInPool));
 		if( fp )
 		{
 			fprintf( fp, "%s,%32s,%6d,%6d,%6d,%6d,%6d,%6d\n",PREPEND,
-				pool->m_poolName,pool->m_allocationSize,pool->m_initialAllocationCount,pool->m_overflowAllocationCount,
-				pool->m_usedBlocksInPool,pool->m_totalBlocksInPool,pool->m_peakUsedBlocksInPool );
+			         pool->m_poolName,pool->m_allocationSize,pool->m_initialAllocationCount,pool->m_overflowAllocationCount,
+			         pool->m_usedBlocksInPool,pool->m_totalBlocksInPool,pool->m_peakUsedBlocksInPool );
 		}
 	}
 }
@@ -2175,20 +2175,20 @@ void *DynamicMemoryAllocator::allocateBytesDoNotZeroImplementation(Int numBytes 
 	{
 		result = pool->allocateBlockDoNotZeroImplementation(PASS_LITERALSTRING_ARG1);
 #ifdef MEMORYPOOL_DEBUG
-	{
-		USE_PERF_TIMER(MemoryPoolDebugging)
-		waste = pool->getAllocationSize() - numBytes;
-		MemoryPoolSingleBlock *wblock = MemoryPoolSingleBlock::recoverBlockFromUserData(result);
-		wblock->debugSetWastedSize(waste);
-#ifdef INTENSE_DMA_BOOKKEEPING
-		if (doingIntenseDMA == 0)
-#endif
 		{
-			theWastedDMA += (waste);
-			if (thePeakWastedDMA < theWastedDMA)
-				thePeakWastedDMA = theWastedDMA;
+			USE_PERF_TIMER(MemoryPoolDebugging)
+			waste = pool->getAllocationSize() - numBytes;
+			MemoryPoolSingleBlock *wblock = MemoryPoolSingleBlock::recoverBlockFromUserData(result);
+			wblock->debugSetWastedSize(waste);
+#ifdef INTENSE_DMA_BOOKKEEPING
+			if (doingIntenseDMA == 0)
+#endif
+			{
+				theWastedDMA += (waste);
+				if (thePeakWastedDMA < theWastedDMA)
+					thePeakWastedDMA = theWastedDMA;
+			}
 		}
-	}
 #endif // MEMORYPOOL_DEBUG
 	}
 	else
@@ -2213,43 +2213,43 @@ void *DynamicMemoryAllocator::allocateBytesDoNotZeroImplementation(Int numBytes 
 	}
 
 #ifdef MEMORYPOOL_DEBUG
-{
-	USE_PERF_TIMER(MemoryPoolDebugging)
-	theTotalDMA += numBytes;
-	if (thePeakDMA < theTotalDMA)
-		thePeakDMA = theTotalDMA;
-#ifdef INTENSE_DMA_BOOKKEEPING
-	if (isMemoryManagerOfficiallyInited() && doingIntenseDMA == 0)
 	{
-		++doingIntenseDMA;
-		UsedNPeak& up = TheUsedNPeakMap[debugLiteralTagString];
-		up.used += numBytes;
-		if (up.peak < up.used)
-			up.peak = up.used;
-		up.waste += waste;
-		if (up.peakwaste < up.waste)
-			up.peakwaste = up.waste;
-		--doingIntenseDMA;
-	}
+		USE_PERF_TIMER(MemoryPoolDebugging)
+		theTotalDMA += numBytes;
+		if (thePeakDMA < theTotalDMA)
+			thePeakDMA = theTotalDMA;
+#ifdef INTENSE_DMA_BOOKKEEPING
+		if (isMemoryManagerOfficiallyInited() && doingIntenseDMA == 0)
+		{
+			++doingIntenseDMA;
+			UsedNPeak& up = TheUsedNPeakMap[debugLiteralTagString];
+			up.used += numBytes;
+			if (up.peak < up.used)
+				up.peak = up.used;
+			up.waste += waste;
+			if (up.peakwaste < up.waste)
+				up.peakwaste = up.waste;
+			--doingIntenseDMA;
+		}
 #endif
-}
+	}
 #endif // MEMORYPOOL_DEBUG
 
 	++m_usedBlocksInDma;
 	DEBUG_ASSERTCRASH(m_usedBlocksInDma >= 0, ("negative count for m_usedBlocksInDma"));
 #ifdef MEMORYPOOL_DEBUG
-	#ifdef USE_FILLER_VALUE
+#ifdef USE_FILLER_VALUE
 	{
 		USE_PERF_TIMER(MemoryPoolInitFilling)
 		::memset32(result, s_initFillerValue, numBytes);
 	}
-	#endif
+#endif
 #endif
 
 #if defined(RTS_DEBUG)
-  // check alignment
-  if (unsigned(result)&3)
-    throw ERROR_OUT_OF_MEMORY;
+	// check alignment
+	if (unsigned(result)&3)
+		throw ERROR_OUT_OF_MEMORY;
 #endif
 
 	return result;
@@ -2296,9 +2296,9 @@ void DynamicMemoryAllocator::freeBytes(void* pBlockPtr)
 		theTotalDMA -= used;
 		if (thePeakDMA < theTotalDMA)
 			thePeakDMA = theTotalDMA;
-	#ifdef INTENSE_DMA_BOOKKEEPING
+#ifdef INTENSE_DMA_BOOKKEEPING
 		tagString = block->debugGetLiteralTagString();
-	#endif
+#endif
 	}
 #endif // MEMORYPOOL_DEBUG
 
@@ -2308,9 +2308,9 @@ void DynamicMemoryAllocator::freeBytes(void* pBlockPtr)
 		{
 			USE_PERF_TIMER(MemoryPoolDebugging)
 			DEBUG_ASSERTCRASH(findPoolForSize(used) == block->getOwningBlob()->getOwningPool(), ("pool mismatch"));
-	#ifdef INTENSE_DMA_BOOKKEEPING
+#ifdef INTENSE_DMA_BOOKKEEPING
 			if (doingIntenseDMA == 0)
-	#endif
+#endif
 			{
 				waste = block->debugGetWastedSize();
 				theWastedDMA -= waste;
@@ -2602,9 +2602,9 @@ MemoryPoolFactory::MemoryPoolFactory() :
 		m_physBytesSpecial[i] = 0;
 		m_physBytesSpecialPeak[i] = 0;
 	}
-	#ifdef USE_FILLER_VALUE
+#ifdef USE_FILLER_VALUE
 	calcFillerValue(GameClientRandomValue(0, MAX_INIT_FILLER_COUNT-1));
-	#endif
+#endif
 #endif
 }
 //-----------------------------------------------------------------------------
@@ -2776,9 +2776,9 @@ void MemoryPoolFactory::reset()
 		m_physBytesSpecial[i] = 0;
 		m_physBytesSpecialPeak[i] = 0;
 	}
-	#ifdef USE_FILLER_VALUE
+#ifdef USE_FILLER_VALUE
 	calcFillerValue(GameClientRandomValue(0, MAX_INIT_FILLER_COUNT-1));
-	#endif
+#endif
 #endif
 }
 
@@ -2837,11 +2837,11 @@ void MemoryPoolFactory::adjustTotals(const char* tagString, Int usedDelta, Int p
 #ifdef MEMORYPOOL_DEBUG
 void MemoryPoolFactory::debugSetInitFillerIndex(Int index)
 {
-	#ifdef USE_FILLER_VALUE
+#ifdef USE_FILLER_VALUE
 	if (index < 0 || index >= MAX_INIT_FILLER_COUNT)
 		index = GameClientRandomValue(0, MAX_INIT_FILLER_COUNT-1);
 	calcFillerValue(index);
-	#endif
+#endif
 }
 #endif
 
@@ -3164,7 +3164,7 @@ void MemoryPoolFactory::debugMemoryReport(Int flags, Int startCheckpoint, Int en
 			if (peak < initial/2 && (initial - peak) > 4096)
 			{
 				DEBUG_LOG(("*** Pool %s used less than half its initial allocation of %d (peak allocation was %d, wasted %dk)",
-					pool->getPoolName(),pool->getInitialBlockCount(),pool->getPeakBlockCount(),(initial - peak)/1024));
+				           pool->getPoolName(),pool->getInitialBlockCount(),pool->getPeakBlockCount(),(initial - peak)/1024));
 			}
 		}
 		DEBUG_LOG(("------------------------------------------"));
@@ -3509,9 +3509,9 @@ void shutdownMemoryManager()
 {
 	if (thePreMainInitFlag)
 	{
-	#ifdef MEMORYPOOL_DEBUG
+#ifdef MEMORYPOOL_DEBUG
 		DEBUG_LOG(("*** Memory Manager was inited prior to main -- skipping shutdown!"));
-	#endif
+#endif
 	}
 	else
 	{
@@ -3533,11 +3533,11 @@ void shutdownMemoryManager()
 			TheMemoryPoolFactory = nullptr;
 		}
 
-	#ifdef MEMORYPOOL_DEBUG
+#ifdef MEMORYPOOL_DEBUG
 		DEBUG_LOG(("Peak system allocation was %d bytes",thePeakSystemAllocationInBytes));
 		DEBUG_LOG(("Wasted DMA space (peak) was %d bytes",thePeakWastedDMA));
 		DEBUG_ASSERTCRASH(theTotalSystemAllocationInBytes == 0, ("Leaked a total of %d raw bytes", theTotalSystemAllocationInBytes));
-	#endif
+#endif
 	}
 
 	theMainInitFlag = false;

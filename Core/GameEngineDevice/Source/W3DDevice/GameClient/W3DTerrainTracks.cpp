@@ -789,10 +789,10 @@ void TerrainTracksRenderObjClassSystem::update()
 //=============================================================================
 void TerrainTracksRenderObjClassSystem::flush()
 {
-/** @todo: Optimize system by drawing tracks as triangle strips and use dynamic vertex buffer access.
-May also try rendering all tracks with one call to W3D/D3D by grouping them by texture.
-Try improving the fit to vertical surfaces like cliffs.
-*/
+	/** @todo: Optimize system by drawing tracks as triangle strips and use dynamic vertex buffer access.
+	May also try rendering all tracks with one call to W3D/D3D by grouping them by texture.
+	Try improving the fit to vertical surfaces like cliffs.
+	*/
 
 	Int	diffuseLight;
 	TerrainTracksRenderObjClass *mod=m_usedModules;

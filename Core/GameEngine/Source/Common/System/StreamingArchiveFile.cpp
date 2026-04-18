@@ -102,10 +102,10 @@
 //=================================================================
 
 StreamingArchiveFile::StreamingArchiveFile()
-: m_file(nullptr),
-	m_startingPos(0),
-	m_size(0),
-	m_curPos(0)
+	: m_file(nullptr),
+	  m_startingPos(0),
+	  m_size(0),
+	  m_curPos(0)
 {
 
 }

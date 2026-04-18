@@ -102,9 +102,9 @@
 //=================================================================
 
 RAMFile::RAMFile()
-: m_size(0),
-	m_data(nullptr),
-	m_pos(0)
+	: m_size(0),
+	  m_data(nullptr),
+	  m_pos(0)
 {
 
 }

@@ -41,10 +41,10 @@ class Xfer;
 class Snapshot
 {
 
-friend class GameState;
-friend class XferLoad;
-friend class XferSave;
-friend class XferCRC;
+	friend class GameState;
+	friend class XferLoad;
+	friend class XferSave;
+	friend class XferCRC;
 
 public:
 

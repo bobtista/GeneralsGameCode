@@ -98,8 +98,8 @@ W3DTracerDraw::~W3DTracerDraw()
 
 //-------------------------------------------------------------------------------------------------
 void W3DTracerDraw::reactToTransformChange( const Matrix3D *oldMtx,
-																							 const Coord3D *oldPos,
-																							 Real oldAngle )
+        const Coord3D *oldPos,
+        Real oldAngle )
 {
 	if( m_theTracer )
 		m_theTracer->Set_Transform( *getDrawable()->getTransformMatrix() );
@@ -120,12 +120,12 @@ void W3DTracerDraw::doDrawModule(const Matrix3D* transformMtx)
 		// create tracer render object for us to manipulate
 		// poolify
 		m_theTracer = NEW Line3DClass( start,
-																	 stop,
-																	 m_width,  // width
-																	 m_color.red,  // red
-																	 m_color.green,  // green
-																	 m_color.blue,  // blue
-																	 m_opacity );  // transparency
+		                               stop,
+		                               m_width,  // width
+		                               m_color.red,  // red
+		                               m_color.green,  // green
+		                               m_color.blue,  // blue
+		                               m_opacity );  // transparency
 		W3DDisplay::m_3DScene->Add_Render_Object( m_theTracer );
 
 		// set the transform for the tracer to that of the drawable

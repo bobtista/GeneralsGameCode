@@ -108,7 +108,7 @@ void StartDownloadingPatches()
 		{
 			QueuedDownload q = *it;
 			TheDownloadManager->queueFileForDownload(q.server, q.userName, q.password,
-				q.file, q.localFile, q.regKey, q.tryResume);
+			        q.file, q.localFile, q.regKey, q.tryResume);
 			queuedDownloads.pop_front();
 			it = queuedDownloads.begin();
 		}
@@ -187,8 +187,8 @@ static void startOnline()
 	if (cantConnectBeforeOnline)
 	{
 		MessageBoxOk(TheGameText->fetch("GUI:CannotConnectToServservTitle"),
-			TheGameText->fetch("GUI:CannotConnectToServserv"),
-			noPatchBeforeOnlineCallback);
+		             TheGameText->fetch("GUI:CannotConnectToServserv"),
+		             noPatchBeforeOnlineCallback);
 		return;
 	}
 	if (!queuedDownloads.empty())
@@ -196,20 +196,20 @@ static void startOnline()
 		if (!hasWriteAccess())
 		{
 			MessageBoxOk(TheGameText->fetch("GUI:Error"),
-				TheGameText->fetch("GUI:MustHaveAdminRights"),
-				noPatchBeforeOnlineCallback);
+			             TheGameText->fetch("GUI:MustHaveAdminRights"),
+			             noPatchBeforeOnlineCallback);
 		}
 		else if (mustDownloadPatch)
 		{
 			MessageBoxOkCancel(TheGameText->fetch("GUI:PatchAvailable"),
-				TheGameText->fetch("GUI:MustPatchForOnline"),
-				patchBeforeOnlineCallback, noPatchBeforeOnlineCallback);
+			                   TheGameText->fetch("GUI:MustPatchForOnline"),
+			                   patchBeforeOnlineCallback, noPatchBeforeOnlineCallback);
 		}
 		else
 		{
 			MessageBoxYesNo(TheGameText->fetch("GUI:PatchAvailable"),
-				TheGameText->fetch("GUI:CanPatchForOnline"),
-				patchBeforeOnlineCallback, noPatchBeforeOnlineCallback);
+			                TheGameText->fetch("GUI:CanPatchForOnline"),
+			                patchBeforeOnlineCallback, noPatchBeforeOnlineCallback);
 		}
 		return;
 	}
@@ -279,8 +279,8 @@ static void queuePatch(Bool mandatory, AsciiString downloadURL)
 	fileName.concat(fileStr);
 
 	DEBUG_LOG(("download URL split: %d [%s] [%s] [%s] [%s] [%s] [%s]",
-		success, connectionType.str(), server.str(), user.str(), pass.str(),
-		filePath.str(), fileName.str()));
+	           success, connectionType.str(), server.str(), user.str(), pass.str(),
+	           filePath.str(), fileName.str()));
 
 	if (!success)
 		return;
@@ -307,7 +307,7 @@ static void queuePatch(Bool mandatory, AsciiString downloadURL)
 ///////////////////////////////////////////////////////////////////////////////////////
 
 static GHTTPBool motdCallback( GHTTPRequest request, GHTTPResult result,
-															char * buffer, GHTTPByteCount bufferLen, void * param )
+                               char * buffer, GHTTPByteCount bufferLen, void * param )
 {
 	Int run = (Int)param;
 	if (run != timeThroughOnline)
@@ -342,7 +342,7 @@ static GHTTPBool motdCallback( GHTTPRequest request, GHTTPResult result,
 ///////////////////////////////////////////////////////////////////////////////////////
 
 static GHTTPBool configCallback( GHTTPRequest request, GHTTPResult result,
-																char * buffer, GHTTPByteCount bufferLen, void * param )
+                                 char * buffer, GHTTPByteCount bufferLen, void * param )
 {
 	Int run = (Int)param;
 	if (run != timeThroughOnline)
@@ -404,7 +404,7 @@ static GHTTPBool configCallback( GHTTPRequest request, GHTTPResult result,
 ///////////////////////////////////////////////////////////////////////////////////////
 
 static GHTTPBool configHeadCallback( GHTTPRequest request, GHTTPResult result,
-																		char * buffer, GHTTPByteCount bufferLen, void * param )
+                                     char * buffer, GHTTPByteCount bufferLen, void * param )
 {
 	Int run = (Int)param;
 	if (run != timeThroughOnline)
@@ -777,13 +777,13 @@ void HTTPThinkWrapper()
 		Int ret = asyncGethostbyname(hostname);
 		switch(ret)
 		{
-		case LOOKUP_FAILED:
-			cantConnectBeforeOnline = TRUE;
-			startOnline();
-			break;
-		case LOOKUP_SUCCEEDED:
-			reallyStartPatchCheck();
-			break;
+			case LOOKUP_FAILED:
+				cantConnectBeforeOnline = TRUE;
+				startOnline();
+				break;
+			case LOOKUP_SUCCEEDED:
+				reallyStartPatchCheck();
+				break;
 		}
 	}
 
@@ -796,8 +796,8 @@ void HTTPThinkWrapper()
 		catch (...)
 		{
 			isHttpOk = FALSE; // we can't abort the login, since we might be done with the
-												// required checks and are fetching extras.  If it is a required
-												// check, we'll time out normally.
+			// required checks and are fetching extras.  If it is a required
+			// check, we'll time out normally.
 		}
 	}
 }
@@ -811,7 +811,7 @@ void StopAsyncDNSCheck()
 #ifdef DEBUG_CRASHING
 		Int res =
 #endif
-			TerminateThread(s_asyncDNSThreadHandle,0);
+		    TerminateThread(s_asyncDNSThreadHandle,0);
 		DEBUG_ASSERTCRASH(res, ("Could not terminate the Async DNS Lookup thread!"));	// Thread still not killed!
 	}
 	s_asyncDNSThreadHandle = nullptr;
@@ -828,20 +828,20 @@ void StartPatchCheck()
 	checksLeftBeforeOnline = 0;
 
 	onlineCancelWindow = MessageBoxCancel(TheGameText->fetch("GUI:CheckingForPatches"),
-		TheGameText->fetch("GUI:CheckingForPatches"), CancelPatchCheckCallbackAndReopenDropdown);
+	                                      TheGameText->fetch("GUI:CheckingForPatches"), CancelPatchCheckCallbackAndReopenDropdown);
 
 	s_asyncDNSLookupInProgress = TRUE;
 	Char hostname[] = "servserv.generals.ea.com";
 	Int ret = asyncGethostbyname(hostname);
 	switch(ret)
 	{
-	case LOOKUP_FAILED:
-		cantConnectBeforeOnline = TRUE;
-		startOnline();
-		break;
-	case LOOKUP_SUCCEEDED:
-		reallyStartPatchCheck();
-		break;
+		case LOOKUP_FAILED:
+			cantConnectBeforeOnline = TRUE;
+			startOnline();
+			break;
+		case LOOKUP_SUCCEEDED:
+			reallyStartPatchCheck();
+			break;
 	}
 }
 

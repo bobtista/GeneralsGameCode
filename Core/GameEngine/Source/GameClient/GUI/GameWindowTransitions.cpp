@@ -102,41 +102,41 @@ void INI::parseWindowTransitions( INI* ini )
 Transition *getTransitionForStyle( Int style )
 {
 	switch (style) {
-	case TRANSITION_FLASH:
-		return NEW FlashTransition;
-	case BUTTON_TRANSITION_FLASH:
-		return NEW ButtonFlashTransition;
-	case WIN_FADE_TRANSITION:
-		return NEW FadeTransition;
-	case WIN_SCALE_UP_TRANSITION:
-		return NEW ScaleUpTransition;
-	case MAINMENU_SCALE_UP_TRANSITION:
-		return NEW MainMenuScaleUpTransition;
-	case TEXT_TYPE_TRANSITION:
-		return NEW TextTypeTransition;
-	case SCREEN_FADE_TRANSITION:
-		return NEW ScreenFadeTransition;
-	case COUNT_UP_TRANSITION:
-		return NEW CountUpTransition;
-	case FULL_FADE_TRANSITION:
-		return NEW FullFadeTransition;
-	case TEXT_ON_FRAME_TRANSITION:
-		return NEW TextOnFrameTransition;
-	case REVERSE_SOUND_TRANSITION:
-		return NEW ReverseSoundTransition;
+		case TRANSITION_FLASH:
+			return NEW FlashTransition;
+		case BUTTON_TRANSITION_FLASH:
+			return NEW ButtonFlashTransition;
+		case WIN_FADE_TRANSITION:
+			return NEW FadeTransition;
+		case WIN_SCALE_UP_TRANSITION:
+			return NEW ScaleUpTransition;
+		case MAINMENU_SCALE_UP_TRANSITION:
+			return NEW MainMenuScaleUpTransition;
+		case TEXT_TYPE_TRANSITION:
+			return NEW TextTypeTransition;
+		case SCREEN_FADE_TRANSITION:
+			return NEW ScreenFadeTransition;
+		case COUNT_UP_TRANSITION:
+			return NEW CountUpTransition;
+		case FULL_FADE_TRANSITION:
+			return NEW FullFadeTransition;
+		case TEXT_ON_FRAME_TRANSITION:
+			return NEW TextOnFrameTransition;
+		case REVERSE_SOUND_TRANSITION:
+			return NEW ReverseSoundTransition;
 
-	case MAINMENU_MEDIUM_SCALE_UP_TRANSITION:
-		return NEW MainMenuMediumScaleUpTransition;
-	case MAINMENU_SMALL_SCALE_DOWN_TRANSITION:
-		return NEW MainMenuSmallScaleDownTransition;
-	case CONTROL_BAR_ARROW_TRANSITION:
-		return NEW ControlBarArrowTransition;
-	case SCORE_SCALE_UP_TRANSITION:
-		return NEW ScoreScaleUpTransition;
+		case MAINMENU_MEDIUM_SCALE_UP_TRANSITION:
+			return NEW MainMenuMediumScaleUpTransition;
+		case MAINMENU_SMALL_SCALE_DOWN_TRANSITION:
+			return NEW MainMenuSmallScaleDownTransition;
+		case CONTROL_BAR_ARROW_TRANSITION:
+			return NEW ControlBarArrowTransition;
+		case SCORE_SCALE_UP_TRANSITION:
+			return NEW ScoreScaleUpTransition;
 
-	default:
-		DEBUG_CRASH(("getTransitionForStyle:: An invalid style was passed in. Style = %d", style));
-		return nullptr;
+		default:
+			DEBUG_CRASH(("getTransitionForStyle:: An invalid style was passed in. Style = %d", style));
+			return nullptr;
 	}
 	return nullptr;
 }
@@ -444,7 +444,7 @@ void GameWindowTransitionsHandler::draw()
 {
 //	if( TheGameLogic->getFrame() > 0 )//if( areTransitionsEnabled() ) //KRIS
 	if(m_drawGroup)
-			m_drawGroup->draw();
+		m_drawGroup->draw();
 	if(m_secondaryDrawGroup)
 		m_secondaryDrawGroup->draw();
 }
@@ -570,12 +570,12 @@ TransitionGroup *GameWindowTransitionsHandler::findGroup( AsciiString groupName 
 void GameWindowTransitionsHandler::parseWindow( INI* ini, void *instance, void *store, const void *userData )
 {
 	static const FieldParse myFieldParse[] =
-		{
-			{ "WinName",				INI::parseAsciiString,		nullptr,									offsetof( TransitionWindow, m_winName ) },
-      { "Style",					INI::parseLookupList,			TransitionStyleNames,	offsetof( TransitionWindow, m_style ) },
-			{ "FrameDelay",			INI::parseInt,						nullptr,									offsetof( TransitionWindow, m_frameDelay ) },
-			{ nullptr,							nullptr,											nullptr, 0 }
-		};
+	{
+		{ "WinName",				INI::parseAsciiString,		nullptr,									offsetof( TransitionWindow, m_winName ) },
+		{ "Style",					INI::parseLookupList,			TransitionStyleNames,	offsetof( TransitionWindow, m_style ) },
+		{ "FrameDelay",			INI::parseInt,						nullptr,									offsetof( TransitionWindow, m_frameDelay ) },
+		{ nullptr,							nullptr,											nullptr, 0 }
+	};
 	TransitionWindow *transWin = NEW TransitionWindow;
 	ini->initFromINI(transWin, myFieldParse);
 	((TransitionGroup*)instance)->addWindow(transWin);

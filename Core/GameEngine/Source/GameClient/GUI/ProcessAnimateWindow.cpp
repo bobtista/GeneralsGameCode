@@ -964,7 +964,7 @@ Bool ProcessAnimateWindowSlideFromBottomTimed::updateAnimateWindow( wnd::Animate
 
 	curPos.y = startPos.y + percentDone*(endPos.y - startPos.y);
 	DEBUG_LOG(("(%d,%d) -> (%d,%d) -> (%d,%d) at %g",
-		startPos.x, startPos.y, curPos.x, curPos.y, endPos.x, endPos.y, percentDone));
+	           startPos.x, startPos.y, curPos.x, curPos.y, endPos.x, endPos.y, percentDone));
 
 	win->winSetPosition(curPos.x, curPos.y);
 	animWin->setCurPos(curPos);
@@ -1164,7 +1164,7 @@ ProcessAnimateWindowSlideFromTopFast::ProcessAnimateWindowSlideFromTopFast()
 	m_maxVel.y =  60.0f;  // top speed windows travel in x and y
 	m_maxVel.x = 0.0f;
 	m_slowDownThreshold = 40;  // when windows get this close to their resting
-																			// positions they start to slow down
+	// positions they start to slow down
 	m_slowDownRatio = 0.67f;  // how fast the windows slow down (smaller slows quicker)
 	m_speedUpRatio = 4.0f - m_slowDownRatio;  // how fast the windows speed up
 
@@ -1347,7 +1347,7 @@ ProcessAnimateWindowSlideFromRightFast::ProcessAnimateWindowSlideFromRightFast()
 	m_maxVel.x =  -80.0f;  // top speed windows travel in x and y
 	m_maxVel.y = 0.0f;
 	m_slowDownThreshold = 60;  // when windows get this close to their resting
-																			// positions they start to slow down
+	// positions they start to slow down
 	m_slowDownRatio = 0.77f;  // how fast the windows slow down (smaller slows quicker)
 	m_speedUpRatio = 3.0f - m_slowDownRatio;  // how fast the windows speed up
 

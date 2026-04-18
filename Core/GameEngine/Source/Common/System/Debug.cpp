@@ -67,7 +67,7 @@
 #include "GameClient/Keyboard.h"
 #include "GameClient/Mouse.h"
 #if defined(DEBUG_STACKTRACE) || defined(IG_DEBUG_STACKTRACE)
-	#include "Common/StackDump.h"
+#include "Common/StackDump.h"
 #endif
 #ifdef RTS_ENABLE_CRASHDUMP
 #include "Common/MiniDumper.h"
@@ -87,11 +87,11 @@ extern const char *gAppPrefix; /// So WB can have a different log file name.
 #ifdef DEBUG_LOGGING
 
 #if defined(RTS_DEBUG)
-	#define DEBUG_FILE_NAME				"DebugLogFileD"
-	#define DEBUG_FILE_NAME_PREV	"DebugLogFilePrevD"
+#define DEBUG_FILE_NAME				"DebugLogFileD"
+#define DEBUG_FILE_NAME_PREV	"DebugLogFilePrevD"
 #else
-	#define DEBUG_FILE_NAME				"DebugLogFile"
-	#define DEBUG_FILE_NAME_PREV	"DebugLogFilePrev"
+#define DEBUG_FILE_NAME				"DebugLogFile"
+#define DEBUG_FILE_NAME_PREV	"DebugLogFilePrev"
 #endif
 
 #endif
@@ -233,7 +233,7 @@ static void prepBuffer(char *buffer)
 #ifdef DEBUG_LOGGING
 static void doLogOutput(const char *buffer)
 {
-		doLogOutput(buffer, "\n");
+	doLogOutput(buffer, "\n");
 }
 
 static void doLogOutput(const char *buffer, const char *endline)
@@ -367,7 +367,7 @@ void DebugInit(int flags)
 
 		theMainThreadID = GetCurrentThreadId();
 
-	#ifdef DEBUG_LOGGING
+#ifdef DEBUG_LOGGING
 
 		// TheSuperHackers @info Debug initialization can happen very early.
 		// Determine the client instance id before creating the log file with an instance specific name.
@@ -424,7 +424,7 @@ void DebugInit(int flags)
 		{
 			DebugLog("Log %s opened: %s", theLogFileName, getCurrentTimeString());
 		}
-	#endif
+#endif
 	}
 
 }
@@ -715,19 +715,19 @@ double SimpleProfiler::getAverageTime()
 	of processing is possible, even by throwing an exception.
 */
 
-	#define RELEASECRASH_FILE_NAME				"ReleaseCrashInfo.txt"
-	#define RELEASECRASH_FILE_NAME_PREV		"ReleaseCrashInfoPrev.txt"
+#define RELEASECRASH_FILE_NAME				"ReleaseCrashInfo.txt"
+#define RELEASECRASH_FILE_NAME_PREV		"ReleaseCrashInfoPrev.txt"
 
-	static FILE *theReleaseCrashLogFile = nullptr;
+static FILE *theReleaseCrashLogFile = nullptr;
 
-	static void releaseCrashLogOutput(const char *buffer)
+static void releaseCrashLogOutput(const char *buffer)
+{
+	if (theReleaseCrashLogFile)
 	{
-		if (theReleaseCrashLogFile)
-		{
-			fprintf(theReleaseCrashLogFile, "%s\n", buffer);
-			fflush(theReleaseCrashLogFile);
-		}
+		fprintf(theReleaseCrashLogFile, "%s\n", buffer);
+		fflush(theReleaseCrashLogFile);
 	}
+}
 
 
 static void TriggerMiniDump()
@@ -769,7 +769,7 @@ void ReleaseCrash(const char *reason)
 	strlcpy(curbuf, TheGlobalData->getPath_UserData().str(), ARRAY_SIZE(curbuf));
 	strlcat(curbuf, RELEASECRASH_FILE_NAME, ARRAY_SIZE(curbuf));
 
- 	remove(prevbuf);
+	remove(prevbuf);
 	if (rename(curbuf, prevbuf) != 0)
 	{
 #ifdef DEBUG_LOGGING
@@ -815,9 +815,9 @@ void ReleaseCrash(const char *reason)
 //	::MessageBox(nullptr, "You have encountered a serious error.  Serious errors can be caused by many things including viruses, overheated hardware and hardware that does not meet the minimum specifications for the game. Please visit the forums at www.generals.ea.com for suggested courses of action or consult your manual for Technical Support contact information.", "Technical Difficulties...", MB_OK|MB_TASKMODAL|MB_ICONERROR);
 
 // crash error message changed again 8/22/03 M Lorenzen... made this message box modal to the system so it will appear on top of any task-modal windows, splash-screen, etc.
-  ::MessageBox(nullptr, "You have encountered a serious error.  Serious errors can be caused by many things including viruses, overheated hardware and hardware that does not meet the minimum specifications for the game. Please visit the forums at www.generals.ea.com for suggested courses of action or consult your manual for Technical Support contact information.",
-   "Technical Difficulties...",
-   MB_OK|MB_SYSTEMMODAL|MB_ICONERROR);
+	::MessageBox(nullptr, "You have encountered a serious error.  Serious errors can be caused by many things including viruses, overheated hardware and hardware that does not meet the minimum specifications for the game. Please visit the forums at www.generals.ea.com for suggested courses of action or consult your manual for Technical Support contact information.",
+	             "Technical Difficulties...",
+	             MB_OK|MB_SYSTEMMODAL|MB_ICONERROR);
 
 
 #endif
@@ -857,7 +857,7 @@ void ReleaseCrashLocalized(const AsciiString& p, const AsciiString& m)
 	strlcpy(curbuf, TheGlobalData->getPath_UserData().str(), ARRAY_SIZE(curbuf));
 	strlcat(curbuf, RELEASECRASH_FILE_NAME, ARRAY_SIZE(curbuf));
 
- 	remove(prevbuf);
+	remove(prevbuf);
 	if (rename(curbuf, prevbuf) != 0)
 	{
 #ifdef DEBUG_LOGGING

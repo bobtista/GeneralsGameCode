@@ -60,25 +60,25 @@
 
 //-------------------------------------------------------------------------------------------------
 AudioEventRTS::AudioEventRTS()
-									: m_eventName(AsciiString::TheEmptyString),
-										m_priority(AP_NORMAL),
-										m_volume(-1.0),
-										m_timeOfDay(TIME_OF_DAY_AFTERNOON),
-										m_ownerType(OT_INVALID),
-										m_shouldFade(false),
-										m_isLogicalAudio(false),
-										m_filenameToLoad(AsciiString::TheEmptyString),
-										m_eventInfo(nullptr),
-										m_playingHandle(0),
-										m_killThisHandle(0),
-										m_pitchShift(1.0),
-										m_volumeShift(0.0),
-										m_loopCount(1),
-										m_playingAudioIndex(-1),
-										m_allCount(0),
-										m_playerIndex(-1),
-										m_delay(0.0f),
-										m_uninterruptible(FALSE)
+	: m_eventName(AsciiString::TheEmptyString),
+	  m_priority(AP_NORMAL),
+	  m_volume(-1.0),
+	  m_timeOfDay(TIME_OF_DAY_AFTERNOON),
+	  m_ownerType(OT_INVALID),
+	  m_shouldFade(false),
+	  m_isLogicalAudio(false),
+	  m_filenameToLoad(AsciiString::TheEmptyString),
+	  m_eventInfo(nullptr),
+	  m_playingHandle(0),
+	  m_killThisHandle(0),
+	  m_pitchShift(1.0),
+	  m_volumeShift(0.0),
+	  m_loopCount(1),
+	  m_playingAudioIndex(-1),
+	  m_allCount(0),
+	  m_playerIndex(-1),
+	  m_delay(0.0f),
+	  m_uninterruptible(FALSE)
 {
 	m_attackName.clear();
 	m_decayName.clear();
@@ -87,25 +87,25 @@ AudioEventRTS::AudioEventRTS()
 
 //-------------------------------------------------------------------------------------------------
 AudioEventRTS::AudioEventRTS( const AsciiString& eventName )
-									: m_eventName(eventName),
-										m_priority(AP_NORMAL),
-										m_volume(-1.0),
-										m_timeOfDay(TIME_OF_DAY_AFTERNOON),
-										m_ownerType(OT_INVALID),
-										m_shouldFade(false),
-										m_isLogicalAudio(false),
-										m_filenameToLoad(AsciiString::TheEmptyString),
-										m_eventInfo(nullptr),
-										m_playingHandle(0),
-										m_killThisHandle(0),
-										m_pitchShift(1.0),
-										m_volumeShift(0.0),
-										m_loopCount(1),
-										m_playingAudioIndex(-1),
-										m_allCount(0),
-										m_playerIndex(-1),
-										m_delay(0.0f),
-										m_uninterruptible(FALSE)
+	: m_eventName(eventName),
+	  m_priority(AP_NORMAL),
+	  m_volume(-1.0),
+	  m_timeOfDay(TIME_OF_DAY_AFTERNOON),
+	  m_ownerType(OT_INVALID),
+	  m_shouldFade(false),
+	  m_isLogicalAudio(false),
+	  m_filenameToLoad(AsciiString::TheEmptyString),
+	  m_eventInfo(nullptr),
+	  m_playingHandle(0),
+	  m_killThisHandle(0),
+	  m_pitchShift(1.0),
+	  m_volumeShift(0.0),
+	  m_loopCount(1),
+	  m_playingAudioIndex(-1),
+	  m_allCount(0),
+	  m_playerIndex(-1),
+	  m_delay(0.0f),
+	  m_uninterruptible(FALSE)
 {
 	m_attackName.clear();
 	m_decayName.clear();
@@ -114,26 +114,26 @@ AudioEventRTS::AudioEventRTS( const AsciiString& eventName )
 
 //-------------------------------------------------------------------------------------------------
 AudioEventRTS::AudioEventRTS( const AsciiString& eventName, ObjectID ownerID )
-									: m_eventName(eventName),
-										m_priority(AP_NORMAL),
-										m_volume(-1.0),
-										m_timeOfDay(TIME_OF_DAY_AFTERNOON),
-										m_objectID(ownerID),
-										m_ownerType(OT_INVALID),
-										m_shouldFade(false),
-										m_isLogicalAudio(false),
-										m_filenameToLoad(AsciiString::TheEmptyString),
-										m_eventInfo(nullptr),
-										m_playingHandle(0),
-										m_killThisHandle(0),
-										m_pitchShift(1.0),
-										m_volumeShift(0.0),
-										m_loopCount(1),
-										m_playingAudioIndex(-1),
-										m_allCount(0),
-										m_playerIndex(-1),
-										m_delay(0.0f),
-										m_uninterruptible(FALSE)
+	: m_eventName(eventName),
+	  m_priority(AP_NORMAL),
+	  m_volume(-1.0),
+	  m_timeOfDay(TIME_OF_DAY_AFTERNOON),
+	  m_objectID(ownerID),
+	  m_ownerType(OT_INVALID),
+	  m_shouldFade(false),
+	  m_isLogicalAudio(false),
+	  m_filenameToLoad(AsciiString::TheEmptyString),
+	  m_eventInfo(nullptr),
+	  m_playingHandle(0),
+	  m_killThisHandle(0),
+	  m_pitchShift(1.0),
+	  m_volumeShift(0.0),
+	  m_loopCount(1),
+	  m_playingAudioIndex(-1),
+	  m_allCount(0),
+	  m_playerIndex(-1),
+	  m_delay(0.0f),
+	  m_uninterruptible(FALSE)
 {
 	m_attackName.clear();
 	m_decayName.clear();
@@ -150,26 +150,26 @@ AudioEventRTS::AudioEventRTS( const AsciiString& eventName, ObjectID ownerID )
 
 //-------------------------------------------------------------------------------------------------
 AudioEventRTS::AudioEventRTS( const AsciiString& eventName, DrawableID drawableID )
-									: m_eventName(eventName),
-										m_priority(AP_NORMAL),
-										m_volume(-1.0),
-										m_timeOfDay(TIME_OF_DAY_AFTERNOON),
-										m_drawableID(drawableID),
-										m_ownerType(OT_INVALID),
-										m_shouldFade(false),
-										m_isLogicalAudio(false),
-										m_filenameToLoad(AsciiString::TheEmptyString),
-										m_eventInfo(nullptr),
-										m_playingHandle(0),
-										m_killThisHandle(0),
-										m_pitchShift(1.0),
-										m_volumeShift(0.0),
-										m_loopCount(1),
-										m_playingAudioIndex(-1),
-										m_allCount(0),
-										m_playerIndex(-1),
-										m_delay(0.0f),
-										m_uninterruptible(FALSE)
+	: m_eventName(eventName),
+	  m_priority(AP_NORMAL),
+	  m_volume(-1.0),
+	  m_timeOfDay(TIME_OF_DAY_AFTERNOON),
+	  m_drawableID(drawableID),
+	  m_ownerType(OT_INVALID),
+	  m_shouldFade(false),
+	  m_isLogicalAudio(false),
+	  m_filenameToLoad(AsciiString::TheEmptyString),
+	  m_eventInfo(nullptr),
+	  m_playingHandle(0),
+	  m_killThisHandle(0),
+	  m_pitchShift(1.0),
+	  m_volumeShift(0.0),
+	  m_loopCount(1),
+	  m_playingAudioIndex(-1),
+	  m_allCount(0),
+	  m_playerIndex(-1),
+	  m_delay(0.0f),
+	  m_uninterruptible(FALSE)
 {
 	m_attackName.clear();
 	m_decayName.clear();
@@ -186,25 +186,25 @@ AudioEventRTS::AudioEventRTS( const AsciiString& eventName, DrawableID drawableI
 
 //-------------------------------------------------------------------------------------------------
 AudioEventRTS::AudioEventRTS( const AsciiString& eventName, const Coord3D *positionOfAudio )
-									: m_eventName(eventName),
-										m_priority(AP_NORMAL),
-										m_volume(-1.0),
-										m_timeOfDay(TIME_OF_DAY_AFTERNOON),
-										m_ownerType(OT_Positional),
-										m_shouldFade(false),
-										m_isLogicalAudio(false),
-										m_filenameToLoad(AsciiString::TheEmptyString),
-										m_eventInfo(nullptr),
-										m_playingHandle(0),
-										m_killThisHandle(0),
-										m_pitchShift(1.0),
-										m_volumeShift(0.0),
-										m_loopCount(1),
-										m_playingAudioIndex(-1),
-										m_allCount(0),
-										m_playerIndex(-1),
-										m_delay(0.0f),
-										m_uninterruptible(FALSE)
+	: m_eventName(eventName),
+	  m_priority(AP_NORMAL),
+	  m_volume(-1.0),
+	  m_timeOfDay(TIME_OF_DAY_AFTERNOON),
+	  m_ownerType(OT_Positional),
+	  m_shouldFade(false),
+	  m_isLogicalAudio(false),
+	  m_filenameToLoad(AsciiString::TheEmptyString),
+	  m_eventInfo(nullptr),
+	  m_playingHandle(0),
+	  m_killThisHandle(0),
+	  m_pitchShift(1.0),
+	  m_volumeShift(0.0),
+	  m_loopCount(1),
+	  m_playingAudioIndex(-1),
+	  m_allCount(0),
+	  m_playerIndex(-1),
+	  m_delay(0.0f),
+	  m_uninterruptible(FALSE)
 {
 	m_positionOfAudio.set( positionOfAudio );
 	m_attackName.clear();
@@ -726,33 +726,33 @@ const Coord3D *AudioEventRTS::getCurrentPosition()
 {
 	switch (m_ownerType)
 	{
-	case OT_Positional:
-		return &m_positionOfAudio;
+		case OT_Positional:
+			return &m_positionOfAudio;
 
-	case OT_Object:
-		if (Object *obj = TheGameLogic->findObjectByID(m_objectID))
-		{
-			m_positionOfAudio.set( obj->getPosition() );
-		}
-		else
-		{
-			m_ownerType = OT_Dead;
-		}
-		return &m_positionOfAudio;
+		case OT_Object:
+			if (Object *obj = TheGameLogic->findObjectByID(m_objectID))
+			{
+				m_positionOfAudio.set( obj->getPosition() );
+			}
+			else
+			{
+				m_ownerType = OT_Dead;
+			}
+			return &m_positionOfAudio;
 
-	case OT_Drawable:
-		if (Drawable *draw = TheGameClient->findDrawableByID(m_drawableID))
-		{
-			m_positionOfAudio.set( draw->getPosition() );
-		}
-		else
-		{
-			m_ownerType = OT_Dead;
-		}
-		return &m_positionOfAudio;
+		case OT_Drawable:
+			if (Drawable *draw = TheGameClient->findDrawableByID(m_drawableID))
+			{
+				m_positionOfAudio.set( draw->getPosition() );
+			}
+			else
+			{
+				m_ownerType = OT_Dead;
+			}
+			return &m_positionOfAudio;
 
-	case OT_Dead:
-		return &m_positionOfAudio;
+		case OT_Dead:
+			return &m_positionOfAudio;
 	}
 
 	return nullptr;

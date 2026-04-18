@@ -150,7 +150,7 @@ void SmudgeSet::resetDraw()
 Smudge *SmudgeSet::addSmudgeToSet(Smudge::Identifier identifier)
 {
 	DEBUG_ASSERTCRASH(m_usedSmudgeMap.find(identifier) == m_usedSmudgeMap.end(),
-		("SmudgeSet::addSmudgeToSet: identifier already present"));
+	                  ("SmudgeSet::addSmudgeToSet: identifier already present"));
 
 	Smudge* smudge = m_freeSmudgeList.Head();
 	if (smudge) {

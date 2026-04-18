@@ -151,18 +151,18 @@ void Keyboard::updateKeys()
 		if( m_keys[ index ].key == KEY_TAB )
 		{
 			if( BitIsSet( m_keyStatus[ KEY_LALT ].state, KEY_STATE_DOWN ) ||
-					BitIsSet( m_keyStatus[ KEY_RALT ].state, KEY_STATE_DOWN ) )
+			        BitIsSet( m_keyStatus[ KEY_RALT ].state, KEY_STATE_DOWN ) )
 			{
 				m_keys[index].status = KeyboardIO::STATUS_USED;
 			}
 		}
 		else if( m_keys[ index ].key == KEY_CAPS	 ||
-						 m_keys[ index ].key == KEY_LCTRL  ||
-						 m_keys[ index ].key == KEY_RCTRL	 ||
-						 m_keys[ index ].key == KEY_LSHIFT ||
-						 m_keys[ index ].key == KEY_RSHIFT ||
-						 m_keys[ index ].key == KEY_LALT	 ||
-						 m_keys[ index ].key == KEY_RALT )
+		         m_keys[ index ].key == KEY_LCTRL  ||
+		         m_keys[ index ].key == KEY_RCTRL	 ||
+		         m_keys[ index ].key == KEY_LSHIFT ||
+		         m_keys[ index ].key == KEY_RSHIFT ||
+		         m_keys[ index ].key == KEY_LALT	 ||
+		         m_keys[ index ].key == KEY_RALT )
 
 		{
 
@@ -266,7 +266,7 @@ void Keyboard::initKeyNames()
 {
 	Int i;
 
-	#define _set_keyname_(k,s,s2,z) (m_keyNames[z].stdKey = k, m_keyNames[z].shifted = s, m_keyNames[z].shifted2 = s2)
+#define _set_keyname_(k,s,s2,z) (m_keyNames[z].stdKey = k, m_keyNames[z].shifted = s, m_keyNames[z].shifted2 = s2)
 
 	/*
 	 * Initialize the keyboard key-names array.
@@ -344,10 +344,10 @@ void Keyboard::initKeyNames()
 	Int low = (UnsignedInt)kLayout & 0xFFFF;
 	LanguageID currentLanguage = OurLanguage;
 	if(low == 0x040c
-		 || low == 0x080c
-		 || low == 0x0c0c
-		 || low == 0x100c
-		 || low == 0x140c)
+	        || low == 0x080c
+	        || low == 0x0c0c
+	        || low == 0x100c
+	        || low == 0x140c)
 		currentLanguage = LANGUAGE_ID_FRENCH;
 
 	switch( currentLanguage )
@@ -973,11 +973,11 @@ WideChar Keyboard::translateKey( WideChar keyCode )
 //-------------------------------------------------------------------------------------------------
 Bool Keyboard::isShift()
 {
-		if( m_modifiers & KEY_STATE_LSHIFT || m_modifiers & KEY_STATE_RSHIFT || m_modifiers & KEY_STATE_SHIFT2 )
-		{
-			return TRUE;
-		}
-		return FALSE;
+	if( m_modifiers & KEY_STATE_LSHIFT || m_modifiers & KEY_STATE_RSHIFT || m_modifiers & KEY_STATE_SHIFT2 )
+	{
+		return TRUE;
+	}
+	return FALSE;
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -985,11 +985,11 @@ Bool Keyboard::isShift()
 //-------------------------------------------------------------------------------------------------
 Bool Keyboard::isCtrl()
 {
-		if( m_modifiers & KEY_STATE_LCONTROL || m_modifiers & KEY_STATE_RCONTROL )
-		{
-			return TRUE;
-		}
-		return FALSE;
+	if( m_modifiers & KEY_STATE_LCONTROL || m_modifiers & KEY_STATE_RCONTROL )
+	{
+		return TRUE;
+	}
+	return FALSE;
 }
 
 //-------------------------------------------------------------------------------------------------

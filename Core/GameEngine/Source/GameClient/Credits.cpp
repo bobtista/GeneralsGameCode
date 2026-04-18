@@ -163,8 +163,8 @@ void CreditsManager::load()
 		m_scrollRate = 1;
 
 	GameFont *font = TheFontLibrary->getFont(TheGlobalLanguageData->m_creditsNormalFont.name,
-														TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsNormalFont.size),
-														TheGlobalLanguageData->m_creditsNormalFont.bold);
+	                 TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsNormalFont.size),
+	                 TheGlobalLanguageData->m_creditsNormalFont.bold);
 
 	m_normalFontHeight = font ? font->height : 0;
 }
@@ -231,7 +231,7 @@ void CreditsManager::update()
 	ICoord2D pos;
 	switch (cLine->m_style)
 	{
-	case CREDIT_STYLE_TITLE:
+		case CREDIT_STYLE_TITLE:
 		{
 			cLine->m_color = m_titleColor;
 
@@ -241,8 +241,8 @@ void CreditsManager::update()
 				if(!ds)
 					return;
 				ds->setFont(TheFontLibrary->getFont(TheGlobalLanguageData->m_creditsTitleFont.name,
-														TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsTitleFont.size),
-														TheGlobalLanguageData->m_creditsTitleFont.bold));
+				                                    TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsTitleFont.size),
+				                                    TheGlobalLanguageData->m_creditsTitleFont.bold));
 				ds->setText(cLine->m_text);
 				ds->getSize(&pos.x,&pos.y);
 				cLine->m_height = pos.y;
@@ -252,7 +252,7 @@ void CreditsManager::update()
 			}
 		}
 		break;
-	case CREDIT_STYLE_POSITION:
+		case CREDIT_STYLE_POSITION:
 		{
 			cLine->m_color = m_positionColor;
 
@@ -262,8 +262,8 @@ void CreditsManager::update()
 				if(!ds)
 					return;
 				ds->setFont(TheFontLibrary->getFont(TheGlobalLanguageData->m_creditsPositionFont.name,
-														TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsPositionFont.size),
-														TheGlobalLanguageData->m_creditsPositionFont.bold));
+				                                    TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsPositionFont.size),
+				                                    TheGlobalLanguageData->m_creditsPositionFont.bold));
 				ds->setText(cLine->m_text);
 				ds->getSize(&pos.x,&pos.y);
 				cLine->m_height = pos.y;
@@ -273,28 +273,7 @@ void CreditsManager::update()
 			}
 		}
 		break;
-	case CREDIT_STYLE_NORMAL:
-	 {
-			cLine->m_color = m_normalColor;
-
-			if(TheGlobalLanguageData && !cLine->m_text.isEmpty())
-			{
-				DisplayString *ds = TheDisplayStringManager->newDisplayString();
-				if(!ds)
-					return;
-				ds->setFont(TheFontLibrary->getFont(TheGlobalLanguageData->m_creditsNormalFont.name,
-														TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsNormalFont.size),
-														TheGlobalLanguageData->m_creditsNormalFont.bold));
-				ds->setText(cLine->m_text);
-				ds->getSize(&pos.x,&pos.y);
-				cLine->m_height = pos.y;
-				cLine->m_pos.x = TheDisplay->getWidth()/2 - pos.x/2 ;
-				cLine->m_pos.y = start + (cLine->m_height * offsetStartMultiplier);
-				cLine->m_displayString = ds;
-			}
-		}
-		break;
-	case CREDIT_STYLE_COLUMN:
+		case CREDIT_STYLE_NORMAL:
 		{
 			cLine->m_color = m_normalColor;
 
@@ -304,8 +283,29 @@ void CreditsManager::update()
 				if(!ds)
 					return;
 				ds->setFont(TheFontLibrary->getFont(TheGlobalLanguageData->m_creditsNormalFont.name,
-														TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsNormalFont.size),
-														TheGlobalLanguageData->m_creditsNormalFont.bold));
+				                                    TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsNormalFont.size),
+				                                    TheGlobalLanguageData->m_creditsNormalFont.bold));
+				ds->setText(cLine->m_text);
+				ds->getSize(&pos.x,&pos.y);
+				cLine->m_height = pos.y;
+				cLine->m_pos.x = TheDisplay->getWidth()/2 - pos.x/2 ;
+				cLine->m_pos.y = start + (cLine->m_height * offsetStartMultiplier);
+				cLine->m_displayString = ds;
+			}
+		}
+		break;
+		case CREDIT_STYLE_COLUMN:
+		{
+			cLine->m_color = m_normalColor;
+
+			if(TheGlobalLanguageData && !cLine->m_text.isEmpty())
+			{
+				DisplayString *ds = TheDisplayStringManager->newDisplayString();
+				if(!ds)
+					return;
+				ds->setFont(TheFontLibrary->getFont(TheGlobalLanguageData->m_creditsNormalFont.name,
+				                                    TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsNormalFont.size),
+				                                    TheGlobalLanguageData->m_creditsNormalFont.bold));
 				ds->setText(cLine->m_text);
 				ds->getSize(&pos.x,&pos.y);
 				cLine->m_height = pos.y;
@@ -319,8 +319,8 @@ void CreditsManager::update()
 				if(!ds)
 					return;
 				ds->setFont(TheFontLibrary->getFont(TheGlobalLanguageData->m_creditsNormalFont.name,
-														TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsNormalFont.size),
-														TheGlobalLanguageData->m_creditsNormalFont.bold));
+				                                    TheGlobalLanguageData->adjustFontSize(TheGlobalLanguageData->m_creditsNormalFont.size),
+				                                    TheGlobalLanguageData->m_creditsNormalFont.bold));
 				ds->setText(cLine->m_secondText);
 				ds->getSize(&pos.x,&pos.y);
 				cLine->m_height = pos.y;
@@ -331,7 +331,7 @@ void CreditsManager::update()
 			}
 		}
 		break;
-	case CREDIT_STYLE_BLANK:
+		case CREDIT_STYLE_BLANK:
 		{
 			cLine->m_height = m_normalFontHeight;
 			cLine->m_pos.y = start + (cLine->m_height * offsetStartMultiplier);
@@ -372,15 +372,15 @@ void CreditsManager::draw()
 		Int bColor= GameMakeColor( 0,0,0, a * perc);
 
 		switch (cLine->m_style) {
-		case CREDIT_STYLE_TITLE:
-		case CREDIT_STYLE_POSITION:
-		case CREDIT_STYLE_NORMAL:
+			case CREDIT_STYLE_TITLE:
+			case CREDIT_STYLE_POSITION:
+			case CREDIT_STYLE_NORMAL:
 			{
 				if(cLine->m_displayString)
 					cLine->m_displayString->draw(cLine->m_pos.x,cLine->m_pos.y,color, bColor, 1,1 );
 			}
 			break;
-		case CREDIT_STYLE_COLUMN:
+			case CREDIT_STYLE_COLUMN:
 			{
 				Int chunk = TheDisplay->getWidth()/3;
 				ICoord2D pos;
@@ -432,33 +432,33 @@ void CreditsManager::addText( AsciiString text )
 		case CREDIT_STYLE_TITLE:
 		case CREDIT_STYLE_POSITION:
 		case CREDIT_STYLE_NORMAL:
+		{
+			cLine->m_text = getUnicodeString(text);
+			cLine->m_style = m_currentStyle;
+			m_creditLineList.push_back(cLine);
+		}
+		break;
+		case CREDIT_STYLE_COLUMN:
+		{
+			CreditsLineList::reverse_iterator rIt = m_creditLineList.rbegin();
+			CreditsLine *rcLine = *rIt;
+			if(rIt == m_creditLineList.rend() || rcLine->m_style != CREDIT_STYLE_COLUMN
+			        || (rcLine->m_style == CREDIT_STYLE_COLUMN && rcLine->m_done == TRUE))
 			{
 				cLine->m_text = getUnicodeString(text);
-				cLine->m_style = m_currentStyle;
+				cLine->m_style = CREDIT_STYLE_COLUMN;
+				cLine->m_useSecond = TRUE;
 				m_creditLineList.push_back(cLine);
 			}
-			break;
-		case CREDIT_STYLE_COLUMN:
+			else
 			{
-				CreditsLineList::reverse_iterator rIt = m_creditLineList.rbegin();
-				CreditsLine *rcLine = *rIt;
-				if(rIt == m_creditLineList.rend() || rcLine->m_style != CREDIT_STYLE_COLUMN
-				   || (rcLine->m_style == CREDIT_STYLE_COLUMN && rcLine->m_done == TRUE))
-				{
-					cLine->m_text = getUnicodeString(text);
-					cLine->m_style = CREDIT_STYLE_COLUMN;
-					cLine->m_useSecond = TRUE;
-					m_creditLineList.push_back(cLine);
-				}
-				else
-				{
-					rcLine->m_secondText = getUnicodeString(text);
-					rcLine->m_done = TRUE;
-					delete cLine;
-				}
-
+				rcLine->m_secondText = getUnicodeString(text);
+				rcLine->m_done = TRUE;
+				delete cLine;
 			}
-			break;
+
+		}
+		break;
 		default:
 			DEBUG_CRASH( ("CreditsManager::addText we tried to add a credit text with the wrong style before it.  Style is %d", m_currentStyle) );
 			delete cLine;

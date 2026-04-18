@@ -230,15 +230,15 @@ void GameSpyInfo::setGameOptions()
 				// add in AI players
 				switch (slot->getState())
 				{
-				case SLOT_EASY_AI:
-					playerName = "CE";
-					break;
-				case SLOT_MED_AI:
-					playerName = "CM";
-					break;
-				case SLOT_BRUTAL_AI:
-					playerName = "CH";
-					break;
+					case SLOT_EASY_AI:
+						playerName = "CE";
+						break;
+					case SLOT_MED_AI:
+						playerName = "CM";
+						break;
+					case SLOT_BRUTAL_AI:
+						playerName = "CH";
+						break;
 				}
 				req.gameOptsPlayerNames[i] = playerName.str(); // name is unused - we go off of the profileID
 				req.gameOptions.wins[req.gameOptions.numObservers+req.gameOptions.numPlayers] = 0;
@@ -387,7 +387,7 @@ void GameSpyInfo::joinBestGroupRoom()
 		{
 			GameSpyGroupRoom room = iter->second;
 			DEBUG_LOG(("Group room %d: %s (%d, %d, %d, %d)", room.m_groupID, room.m_name.str(), room.m_numWaiting, room.m_maxWaiting,
-				room.m_numGames, room.m_numPlaying));
+			           room.m_numGames, room.m_numPlaying));
 
 			if (TheGameSpyConfig->getQMChannel() != room.m_groupID && minPlayers > 25 && room.m_numWaiting < minPlayers)
 			{
@@ -517,19 +517,19 @@ void GameSpyInfo::markAsStagingRoomHost()
 	m_localStagingRoomID = 0;
 	m_joinedStagingRoom = FALSE; m_isHosting = TRUE;
 
-  // There are a few options we don't want to reset when we are hosting (they carry over
-  // from the the create game dialog).
-  // Interesting fact: oldFactionsOnly will be carried over correctly if I remove these
-  // lines. UseStats won't be. I have no idea why.
-  Int useStats = m_localStagingRoom.getUseStats();
-  Bool oldFactionsOnly = m_localStagingRoom.oldFactionsOnly();
+	// There are a few options we don't want to reset when we are hosting (they carry over
+	// from the the create game dialog).
+	// Interesting fact: oldFactionsOnly will be carried over correctly if I remove these
+	// lines. UseStats won't be. I have no idea why.
+	Int useStats = m_localStagingRoom.getUseStats();
+	Bool oldFactionsOnly = m_localStagingRoom.oldFactionsOnly();
 
-  m_localStagingRoom.reset();
+	m_localStagingRoom.reset();
 	m_localStagingRoom.enterGame();
 	m_localStagingRoom.setSeed(GetTickCount());
 
-  m_localStagingRoom.setUseStats( useStats );
-  m_localStagingRoom.setOldFactionsOnly( oldFactionsOnly );
+	m_localStagingRoom.setUseStats( useStats );
+	m_localStagingRoom.setOldFactionsOnly( oldFactionsOnly );
 
 	GameSlot newSlot;
 	UnicodeString uName;
@@ -562,7 +562,7 @@ void GameSpyInfo::markAsStagingRoomJoiner( Int game )
 #ifdef DEBUG_CRASHING
 		Bool res =
 #endif
-		ParseAsciiStringToGameInfo(&m_localStagingRoom, options);
+		    ParseAsciiStringToGameInfo(&m_localStagingRoom, options);
 		DEBUG_ASSERTCRASH(res, ("Could not parse game info \"%s\"", options.str()));
 		m_localStagingRoom.setInGame();
 		m_localStagingRoom.setLocalName(m_localName);
@@ -724,7 +724,7 @@ Bool GameSpyInfo::isIgnored( AsciiString nick )
 
 IgnoreList GameSpyInfo::returnIgnoreList()
 {
- return m_ignoreList;
+	return m_ignoreList;
 }
 
 void GameSpyInfo::addToSavedIgnoreList( Int profileID, AsciiString nick)
@@ -856,7 +856,7 @@ void GameSpyInfo::updateAdditionalGameSpyDisconnections(Int count)
 			DEBUG_LOG(("nthTemplate = %X(%s)", nthTemplate, nthTemplate->getName().str()));
 			if (nthTemplate == myTemplate)
 			{
-					break;
+				break;
 			}
 		}
 
@@ -905,8 +905,8 @@ void GameSpyInfo::updateAdditionalGameSpyDisconnections(Int count)
 		TheGameSpyPSMessageQueue->addResponse(newResp);
 
 		// cache our stuff for easy reading next time
-   		GameSpyMiscPreferences mPref;
-   		mPref.setCachedStats(GameSpyPSMessageQueueInterface::formatPlayerKVPairs(stats).c_str());
-   		mPref.write();
+		GameSpyMiscPreferences mPref;
+		mPref.setCachedStats(GameSpyPSMessageQueueInterface::formatPlayerKVPairs(stats).c_str());
+		mPref.write();
 	}
 }

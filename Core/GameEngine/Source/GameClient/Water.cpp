@@ -43,16 +43,16 @@ const FieldParse WaterSetting::m_waterSettingFieldParseTable[] =
 
 	{ "SkyTexture",									INI::parseAsciiString,			nullptr, offsetof( WaterSetting, m_skyTextureFile ) },
 	{ "WaterTexture",								INI::parseAsciiString,			nullptr, offsetof( WaterSetting, m_waterTextureFile ) },
-  { "Vertex00Color",							INI::parseRGBAColorInt,			nullptr, offsetof( WaterSetting, m_vertex00Diffuse ) },
+	{ "Vertex00Color",							INI::parseRGBAColorInt,			nullptr, offsetof( WaterSetting, m_vertex00Diffuse ) },
 	{ "Vertex10Color",							INI::parseRGBAColorInt,			nullptr, offsetof( WaterSetting, m_vertex10Diffuse ) },
 	{ "Vertex01Color",							INI::parseRGBAColorInt,			nullptr, offsetof( WaterSetting, m_vertex01Diffuse ) },
-  { "Vertex11Color",							INI::parseRGBAColorInt,			nullptr, offsetof( WaterSetting, m_vertex11Diffuse ) },
+	{ "Vertex11Color",							INI::parseRGBAColorInt,			nullptr, offsetof( WaterSetting, m_vertex11Diffuse ) },
 	{ "DiffuseColor",								INI::parseRGBAColorInt,			nullptr, offsetof( WaterSetting, m_waterDiffuseColor ) },
-  { "TransparentDiffuseColor",		INI::parseRGBAColorInt,			nullptr, offsetof( WaterSetting, m_transparentWaterDiffuse ) },
-  { "UScrollPerMS",								INI::parseReal,							nullptr, offsetof( WaterSetting, m_uScrollPerMs ) },
-  { "VScrollPerMS",								INI::parseReal,							nullptr, offsetof( WaterSetting, m_vScrollPerMs ) },
+	{ "TransparentDiffuseColor",		INI::parseRGBAColorInt,			nullptr, offsetof( WaterSetting, m_transparentWaterDiffuse ) },
+	{ "UScrollPerMS",								INI::parseReal,							nullptr, offsetof( WaterSetting, m_uScrollPerMs ) },
+	{ "VScrollPerMS",								INI::parseReal,							nullptr, offsetof( WaterSetting, m_vScrollPerMs ) },
 	{ "SkyTexelsPerUnit",						INI::parseReal,							nullptr, offsetof( WaterSetting, m_skyTexelsPerUnit ) },
-  { "WaterRepeatCount",						INI::parseInt,							nullptr, offsetof( WaterSetting, m_waterRepeatCount ) },
+	{ "WaterRepeatCount",						INI::parseInt,							nullptr, offsetof( WaterSetting, m_waterRepeatCount ) },
 
 	{ nullptr,													nullptr,												nullptr, 0 },
 

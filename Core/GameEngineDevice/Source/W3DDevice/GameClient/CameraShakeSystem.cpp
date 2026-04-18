@@ -106,10 +106,10 @@ const Vector3 AXIS_ROTATION	= Vector3(DEG_TO_RADF(7.5f),DEG_TO_RADF(15.0f),DEG_T
 ************************************************************************************************/
 CameraShakeSystemClass::CameraShakerClass::CameraShakerClass
 (
-	const Vector3 & position,
-	float radius,
-	float duration,
-	float intensity
+    const Vector3 & position,
+    float radius,
+    float duration,
+    float intensity
 ) :
 	Position(position),
 	Radius(radius),
@@ -199,10 +199,10 @@ CameraShakeSystemClass::~CameraShakeSystemClass()
 
 void CameraShakeSystemClass::Add_Camera_Shake
 (
-	const Vector3 & position,
-	float radius,
-	float duration,
-	float power
+    const Vector3 & position,
+    float radius,
+    float duration,
+    float power
 )
 {
 	//WWMEMLOG(MEM_PHYSICSDATA);
@@ -226,7 +226,7 @@ bool CameraShakeSystemClass::IsCameraShaking()
 	MultiListIterator<CameraShakerClass> iterator(&CameraShakerList);
 	for (iterator.First(); !iterator.Is_Done(); iterator.Next()) {
 		CameraShakerClass * obj = iterator.Peek_Obj();
-		if (obj){
+		if (obj) {
 			return (true);
 		}
 	}

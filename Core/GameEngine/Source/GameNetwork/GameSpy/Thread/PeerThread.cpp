@@ -799,8 +799,8 @@ static void QRServerKeyCallback
 		break;
 #if !RTS_GENERALS
   case USE_STATS_KEY:
-    ADDINT(t->useStats());
-    break;
+	ADDINT(t->useStats());
+	break;
 #endif
 	case LADIP_KEY:
 		ADD(t->ladderIP().c_str());
@@ -947,7 +947,7 @@ static void QRKeyListCallback
 		qr2_keybuffer_add(keyBuffer, PW_KEY);
 		qr2_keybuffer_add(keyBuffer, OBS_KEY);
 #if !RTS_GENERALS
-    qr2_keybuffer_add(keyBuffer, USE_STATS_KEY);
+	qr2_keybuffer_add(keyBuffer, USE_STATS_KEY);
 #endif
 		qr2_keybuffer_add(keyBuffer, LADIP_KEY);
 		qr2_keybuffer_add(keyBuffer, LADPORT_KEY);
@@ -1235,7 +1235,7 @@ void PeerThreadClass::Thread_Function()
 		PW_KEY,
 		OBS_KEY,
 #if !RTS_GENERALS
-    USE_STATS_KEY,
+	USE_STATS_KEY,
 #endif
 		LADIP_KEY,
 		LADPORT_KEY,
@@ -1652,7 +1652,7 @@ void PeerThreadClass::Thread_Function()
 						s_wantStateChangedHeartbeat = FALSE;
 						m_isHosting = TRUE;
 						m_allowObservers = incomingRequest.stagingRoomCreation.allowObservers;
-            m_useStats = incomingRequest.stagingRoomCreation.useStats;
+			m_useStats = incomingRequest.stagingRoomCreation.useStats;
 						m_mapName = "";
 						for (Int i=0; i<MAX_SLOTS; ++i)
 						{
@@ -2886,7 +2886,7 @@ static void listingGamesCallback(PEER peer, PEERBool success, const char * name,
 	{
 		Bool hasPassword = (Bool)SBServerGetIntValue(server, PW_STR, FALSE);
 		Bool allowObservers = (Bool)SBServerGetIntValue(server, OBS_STR, FALSE);
-    Bool usesStats = (Bool)SBServerGetIntValue(server, USE_STATS_STR, TRUE);
+	Bool usesStats = (Bool)SBServerGetIntValue(server, USE_STATS_STR, TRUE);
 		const char *verStr = SBServerGetStringValue(server, "gamever", "000000");
 		const char *exeStr = SBServerGetStringValue(server, EXECRC_STR, "000000");
 		const char *iniStr = SBServerGetStringValue(server, INICRC_STR, "000000");
@@ -2898,7 +2898,7 @@ static void listingGamesCallback(PEER peer, PEERBool success, const char * name,
 		UnsignedInt iniVal = strtoul(iniStr, nullptr, 10);
 		resp.stagingRoom.requiresPassword = hasPassword;
 		resp.stagingRoom.allowObservers = allowObservers;
-    resp.stagingRoom.useStats = usesStats;
+	resp.stagingRoom.useStats = usesStats;
 		resp.stagingRoom.version = verVal;
 		resp.stagingRoom.exeCRC = exeVal;
 		resp.stagingRoom.iniCRC = iniVal;

@@ -73,7 +73,7 @@ enum {
 	COLUMN_PASSWORD,
 	COLUMN_OBSERVER,
 #if !RTS_GENERALS
-  COLUMN_USE_STATS,
+	COLUMN_USE_STATS,
 #endif
 	COLUMN_PING,
 };
@@ -187,15 +187,15 @@ static NameKeyType listboxLobbyGamesLargeID = NAMEKEY_INVALID;
 static GameWindow *parent = nullptr;
 //static GameWindow *parentGameListSmall = nullptr;
 static GameWindow *parentGameListLarge = nullptr;
-       //GameWindow *listboxLobbyGamesSmall = nullptr;
-       GameWindow *listboxLobbyGamesLarge = nullptr;
-       //GameWindow *listboxLobbyGameInfo = nullptr;
+//GameWindow *listboxLobbyGamesSmall = nullptr;
+GameWindow *listboxLobbyGamesLarge = nullptr;
+//GameWindow *listboxLobbyGameInfo = nullptr;
 
 static const Image *pingImages[3] = { nullptr, nullptr, nullptr };
 
 static void gameTooltip(GameWindow *window,
-													WinInstanceData *instData,
-													UnsignedInt mouse)
+                        WinInstanceData *instData,
+                        UnsignedInt mouse)
 {
 	Int x, y, row, col;
 	x = LOLONGTOSHORT(mouse);
@@ -222,9 +222,9 @@ static void gameTooltip(GameWindow *window,
 #if 0 //def DEBUG_LOGGING
 		UnicodeString s;
 		s.format(L"Ping is %d ms (cutoffs are %d ms and %d ms\n%hs local pings\n%hs remote pings",
-			room->getPingAsInt(), TheGameSpyConfig->getPingCutoffGood(), TheGameSpyConfig->getPingCutoffBad(),
-			TheGameSpyInfo->getPingString().str(), room->getPingString().str()
-		);
+		         room->getPingAsInt(), TheGameSpyConfig->getPingCutoffGood(), TheGameSpyConfig->getPingCutoffBad(),
+		         TheGameSpyInfo->getPingString().str(), room->getPingString().str()
+		        );
 		TheMouse->setCursorTooltip( s, 10, nullptr, 2.0f ); // the text and width are the only params used.  the others are the default values.
 #else
 		TheMouse->setCursorTooltip( TheGameText->fetch("TOOLTIP:PingInfo"), 10, nullptr, 2.0f ); // the text and width are the only params used.  the others are the default values.
@@ -250,18 +250,18 @@ static void gameTooltip(GameWindow *window,
 		return;
 	}
 #if !RTS_GENERALS
-  if (col == COLUMN_USE_STATS)
-  {
-    if ( room->getUseStats() )
-    {
-      TheMouse->setCursorTooltip( TheGameText->fetch("TOOLTIP:UseStatsOn") );
-    }
-    else
-    {
-      TheMouse->setCursorTooltip( TheGameText->fetch("TOOLTIP:UseStatsOff") );
-    }
-    return;
-  }
+	if (col == COLUMN_USE_STATS)
+	{
+		if ( room->getUseStats() )
+		{
+			TheMouse->setCursorTooltip( TheGameText->fetch("TOOLTIP:UseStatsOn") );
+		}
+		else
+		{
+			TheMouse->setCursorTooltip( TheGameText->fetch("TOOLTIP:UseStatsOff") );
+		}
+		return;
+	}
 #endif
 
 	UnicodeString tooltip;
@@ -325,18 +325,18 @@ static void gameTooltip(GameWindow *window,
 			++numPlayers;
 			switch(slot->getState())
 			{
-			case SLOT_EASY_AI:
-				tooltip.concat(L'\n');
-				tooltip.concat(TheGameText->fetch("GUI:EasyAI"));
-				break;
-			case SLOT_MED_AI:
-				tooltip.concat(L'\n');
-				tooltip.concat(TheGameText->fetch("GUI:MediumAI"));
-				break;
-			case SLOT_BRUTAL_AI:
-				tooltip.concat(L'\n');
-				tooltip.concat(TheGameText->fetch("GUI:HardAI"));
-				break;
+				case SLOT_EASY_AI:
+					tooltip.concat(L'\n');
+					tooltip.concat(TheGameText->fetch("GUI:EasyAI"));
+					break;
+				case SLOT_MED_AI:
+					tooltip.concat(L'\n');
+					tooltip.concat(TheGameText->fetch("GUI:MediumAI"));
+					break;
+				case SLOT_BRUTAL_AI:
+					tooltip.concat(L'\n');
+					tooltip.concat(TheGameText->fetch("GUI:HardAI"));
+					break;
 			}
 		}
 	}
@@ -509,18 +509,18 @@ struct GameSortStruct
 
 		switch(theGameSortType)
 		{
-		case GAMESORT_ALPHA_ASCENDING:
-			return wcsicmp(g1->getGameName().str(), g2->getGameName().str()) < 0;
-			break;
-		case GAMESORT_ALPHA_DESCENDING:
-			return wcsicmp(g1->getGameName().str(),g2->getGameName().str()) > 0;
-			break;
-		case GAMESORT_PING_ASCENDING:
-			return g1->getPingAsInt() < g2->getPingAsInt();
-			break;
-		case GAMESORT_PING_DESCENDING:
-			return g1->getPingAsInt() > g2->getPingAsInt();
-			break;
+			case GAMESORT_ALPHA_ASCENDING:
+				return wcsicmp(g1->getGameName().str(), g2->getGameName().str()) < 0;
+				break;
+			case GAMESORT_ALPHA_DESCENDING:
+				return wcsicmp(g1->getGameName().str(),g2->getGameName().str()) > 0;
+				break;
+			case GAMESORT_PING_ASCENDING:
+				return g1->getPingAsInt() < g2->getPingAsInt();
+				break;
+			case GAMESORT_PING_DESCENDING:
+				return g1->getPingAsInt() > g2->getPingAsInt();
+				break;
 		}
 		return false;
 	}
@@ -647,15 +647,15 @@ static Int insertGame( GameWindow *win, GameSpyStagingRoom *game, Bool showMap )
 	}
 
 #if !RTS_GENERALS
-  {
-    if (game->getUseStats())
-    {
-      if (const Image *img = TheMappedImageCollection->findImageByName("GoodStatsIcon"))
-      {
-        GadgetListBoxAddEntryImage(win, img, index, COLUMN_USE_STATS, img->getImageHeight(), img->getImageWidth());
-      }
-    }
-  }
+	{
+		if (game->getUseStats())
+		{
+			if (const Image *img = TheMappedImageCollection->findImageByName("GoodStatsIcon"))
+			{
+				GadgetListBoxAddEntryImage(win, img, index, COLUMN_USE_STATS, img->getImageHeight(), img->getImageWidth());
+			}
+		}
+	}
 #endif
 
 	s.format(L"%d", game->getPingAsInt());
@@ -732,7 +732,7 @@ void RefreshGameListBox( GameWindow *win, Bool showMap )
 	// restore selection
 	GadgetListBoxSetSelected(win, indexToSelect); // even for -1, so we can disable the 'Join Game' button
 //	if(prevPos > 10)
-		GadgetListBoxSetTopVisibleEntry( win, prevPos  );//+ 1
+	GadgetListBoxSetTopVisibleEntry( win, prevPos  );//+ 1
 
 	if (indexToSelect < 0 && selectedID)
 	{
@@ -891,8 +891,8 @@ void playerTemplateComboBoxTooltip(GameWindow *wndComboBox, WinInstanceData *ins
 	UnicodeString ustringTooltip;
 	if (templateNum == -1)
 	{
-			// the "Random" template is always first
-			ustringTooltip = TheGameText->fetch("TOOLTIP:BioStrategyLong_Random");
+		// the "Random" template is always first
+		ustringTooltip = TheGameText->fetch("TOOLTIP:BioStrategyLong_Random");
 	}
 	else
 	{
@@ -922,8 +922,8 @@ void playerTemplateListBoxTooltip(GameWindow *wndListBox, WinInstanceData *instD
 	UnicodeString ustringTooltip;
 	if (templateNum == -1)
 	{
-			// the "Random" template is always first
-			ustringTooltip = TheGameText->fetch("TOOLTIP:BioStrategyLong_Random");
+		// the "Random" template is always first
+		ustringTooltip = TheGameText->fetch("TOOLTIP:BioStrategyLong_Random");
 	}
 	else
 	{

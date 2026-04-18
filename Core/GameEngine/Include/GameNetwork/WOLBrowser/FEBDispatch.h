@@ -31,7 +31,7 @@
 
 #if defined __MINGW32__
 #include "Utility/atl_compat.h"
-#include "Utility/comsupp_compat.h" 
+#include "Utility/comsupp_compat.h"
 #endif
 
 #include <atlbase.h>
@@ -43,18 +43,18 @@ extern CComModule _Module;
 
 template <class T, class C, const IID *I>
 class FEBDispatch :
-public CComObjectRootEx<CComSingleThreadModel>,
-public CComCoClass<T>,
-public C
+	public CComObjectRootEx<CComSingleThreadModel>,
+	public CComCoClass<T>,
+	public C
 {
 public:
 
 	BEGIN_COM_MAP(T)
-		COM_INTERFACE_ENTRY(C)
-		COM_INTERFACE_ENTRY_AGGREGATE(IID_IDispatch, m_dispatch)
+	COM_INTERFACE_ENTRY(C)
+	COM_INTERFACE_ENTRY_AGGREGATE(IID_IDispatch, m_dispatch)
 	END_COM_MAP()
 
-		FEBDispatch()
+	FEBDispatch()
 	{
 		m_ptinfo = nullptr;
 		m_dispatch = nullptr;

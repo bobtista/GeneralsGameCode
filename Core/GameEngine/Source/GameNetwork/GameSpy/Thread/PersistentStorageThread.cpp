@@ -703,8 +703,8 @@ static void getPersistentDataCallback(int localid, int profileid, persisttype_t 
 			addedInDiscons4 = 10;
 
 		DEBUG_LOG(("addedInDesync=%d,%d,%d, addedInDiscon=%d,%d,%d",
-			addedInDesyncs2, addedInDesyncs3, addedInDesyncs4,
-			addedInDiscons2, addedInDiscons3, addedInDiscons4));
+		           addedInDesyncs2, addedInDesyncs3, addedInDesyncs4,
+		           addedInDiscons2, addedInDiscons3, addedInDiscons4));
 
 		if (addedInDesyncs2 || addedInDesyncs3 || addedInDesyncs4 || addedInDiscons2 || addedInDiscons3 || addedInDiscons4)
 		{
@@ -806,274 +806,274 @@ static void getPreorderCallback(int localid, int profileid, persisttype_t type, 
 void PSThreadClass::Thread_Function()
 {
 	try {
-	/*********
-	First step, set our game authentication info
-	We could do:
-	Generals:
-		strcpy(gcd_gamename,"ccgenerals");
-		strcpy(gcd_secret_key,"h5T2f6");
-	ZeroHour:
-		strcpy(gcd_gamename,"ccgenzh");
-		strcpy(gcd_secret_key,"D6s9k3");
-	or
-	Generals:
-		strcpy(gcd_gamename,"ccgeneralsb");
-		strcpy(gcd_secret_key,"g3T9s2");
-	ZeroHour:
-		strcpy(gcd_gamename,"ccgeneralsb");
-		strcpy(gcd_secret_key,"whatever the key is");
-	...but this is more secure:
-	**********/
-	/**
-	gcd_gamename[0]='c';gcd_gamename[1]='c';gcd_gamename[2]='g';gcd_gamename[3]='e';
-	gcd_gamename[4]='n';gcd_gamename[5]='e';gcd_gamename[6]='r';gcd_gamename[7]='a';
-	gcd_gamename[8]='l';gcd_gamename[9]='s';gcd_gamename[10]='b';gcd_gamename[11]='\0';
-	gcd_secret_key[0]='g';gcd_secret_key[1]='3';gcd_secret_key[2]='T';gcd_secret_key[3]='9';
-	gcd_secret_key[4]='s';gcd_secret_key[5]='2';gcd_secret_key[6]='\0';
-	/**/
+		/*********
+		First step, set our game authentication info
+		We could do:
+		Generals:
+			strcpy(gcd_gamename,"ccgenerals");
+			strcpy(gcd_secret_key,"h5T2f6");
+		ZeroHour:
+			strcpy(gcd_gamename,"ccgenzh");
+			strcpy(gcd_secret_key,"D6s9k3");
+		or
+		Generals:
+			strcpy(gcd_gamename,"ccgeneralsb");
+			strcpy(gcd_secret_key,"g3T9s2");
+		ZeroHour:
+			strcpy(gcd_gamename,"ccgeneralsb");
+			strcpy(gcd_secret_key,"whatever the key is");
+		...but this is more secure:
+		**********/
+		/**
+		gcd_gamename[0]='c';gcd_gamename[1]='c';gcd_gamename[2]='g';gcd_gamename[3]='e';
+		gcd_gamename[4]='n';gcd_gamename[5]='e';gcd_gamename[6]='r';gcd_gamename[7]='a';
+		gcd_gamename[8]='l';gcd_gamename[9]='s';gcd_gamename[10]='b';gcd_gamename[11]='\0';
+		gcd_secret_key[0]='g';gcd_secret_key[1]='3';gcd_secret_key[2]='T';gcd_secret_key[3]='9';
+		gcd_secret_key[4]='s';gcd_secret_key[5]='2';gcd_secret_key[6]='\0';
+		/**/
 #if RTS_GENERALS
-	gcd_gamename[0]='c';gcd_gamename[1]='c';gcd_gamename[2]='g';gcd_gamename[3]='e';
-	gcd_gamename[4]='n';gcd_gamename[5]='e';gcd_gamename[6]='r';gcd_gamename[7]='a';
-	gcd_gamename[8]='l';gcd_gamename[9]='s';gcd_gamename[10]='\0';
-	gcd_secret_key[0]='h';gcd_secret_key[1]='5';gcd_secret_key[2]='T';gcd_secret_key[3]='2';
-	gcd_secret_key[4]='f';gcd_secret_key[5]='6';gcd_secret_key[6]='\0';
+		gcd_gamename[0]='c'; gcd_gamename[1]='c'; gcd_gamename[2]='g'; gcd_gamename[3]='e';
+		gcd_gamename[4]='n'; gcd_gamename[5]='e'; gcd_gamename[6]='r'; gcd_gamename[7]='a';
+		gcd_gamename[8]='l'; gcd_gamename[9]='s'; gcd_gamename[10]='\0';
+		gcd_secret_key[0]='h'; gcd_secret_key[1]='5'; gcd_secret_key[2]='T'; gcd_secret_key[3]='2';
+		gcd_secret_key[4]='f'; gcd_secret_key[5]='6'; gcd_secret_key[6]='\0';
 #elif RTS_ZEROHOUR
-	gcd_gamename[0]='c';gcd_gamename[1]='c';gcd_gamename[2]='g';gcd_gamename[3]='e';
-	gcd_gamename[4]='n';gcd_gamename[5]='z';gcd_gamename[6]='h';gcd_gamename[7]='\0';
-	gcd_secret_key[0]='D';gcd_secret_key[1]='6';gcd_secret_key[2]='s';gcd_secret_key[3]='9';
-	gcd_secret_key[4]='k';gcd_secret_key[5]='3';gcd_secret_key[6]='\0';
+		gcd_gamename[0]='c'; gcd_gamename[1]='c'; gcd_gamename[2]='g'; gcd_gamename[3]='e';
+		gcd_gamename[4]='n'; gcd_gamename[5]='z'; gcd_gamename[6]='h'; gcd_gamename[7]='\0';
+		gcd_secret_key[0]='D'; gcd_secret_key[1]='6'; gcd_secret_key[2]='s'; gcd_secret_key[3]='9';
+		gcd_secret_key[4]='k'; gcd_secret_key[5]='3'; gcd_secret_key[6]='\0';
 #endif
-	/**/
+		/**/
 
-	//strcpy(StatsServerHostname, "sdkdev.gamespy.com");
+		//strcpy(StatsServerHostname, "sdkdev.gamespy.com");
 
-	PSRequest req;
-	while ( running )
-	{
-		// deal with requests
-		if (TheGameSpyPSMessageQueue->getRequest(req))
+		PSRequest req;
+		while ( running )
 		{
-			switch (req.requestType)
+			// deal with requests
+			if (TheGameSpyPSMessageQueue->getRequest(req))
 			{
-			case PSRequest::PSREQUEST_SENDGAMERESTOGAMESPY:
+				switch (req.requestType)
 				{
-					if (tryConnect())
+					case PSRequest::PSREQUEST_SENDGAMERESTOGAMESPY:
 					{
-						NewGame(0);
+						if (tryConnect())
+						{
+							NewGame(0);
 #ifdef DEBUG_LOGGING
-						Int res =
+							Int res =
 #endif // DEBUG_LOGGING
-							SendGameSnapShot(nullptr, req.results.c_str(), SNAP_FINAL);
-						DEBUG_LOG(("Just sent game results - res was %d", res));
-						FreeGame(nullptr);
+							    SendGameSnapShot(nullptr, req.results.c_str(), SNAP_FINAL);
+							DEBUG_LOG(("Just sent game results - res was %d", res));
+							FreeGame(nullptr);
+						}
 					}
-				}
-				break;
-			case PSRequest::PSREQUEST_READPLAYERSTATS:
-				{
-					if (!MESSAGE_QUEUE->getLocalPlayerID())
+					break;
+					case PSRequest::PSREQUEST_READPLAYERSTATS:
 					{
-						MESSAGE_QUEUE->setLocalPlayerID(req.player.id); // first request is for ourselves
-						MESSAGE_QUEUE->setEmail(req.email);
-						MESSAGE_QUEUE->setNick(req.nick);
-						MESSAGE_QUEUE->setPassword(req.password);
-						DEBUG_LOG(("Setting email/nick/password = %s/%s/%s", req.email.c_str(), req.nick.c_str(), req.password.c_str()));
+						if (!MESSAGE_QUEUE->getLocalPlayerID())
+						{
+							MESSAGE_QUEUE->setLocalPlayerID(req.player.id); // first request is for ourselves
+							MESSAGE_QUEUE->setEmail(req.email);
+							MESSAGE_QUEUE->setNick(req.nick);
+							MESSAGE_QUEUE->setPassword(req.password);
+							DEBUG_LOG(("Setting email/nick/password = %s/%s/%s", req.email.c_str(), req.nick.c_str(), req.password.c_str()));
+						}
+						DEBUG_LOG(("Processing PSRequest::PSREQUEST_READPLAYERSTATS"));
+						if (tryConnect())
+						{
+							incrOpCount();
+							gsi_char keys[] = "";
+							GetPersistDataValues(0, req.player.id, pd_public_rw, 0, keys, getPersistentDataCallback, this);
+						}
 					}
-					DEBUG_LOG(("Processing PSRequest::PSREQUEST_READPLAYERSTATS"));
-					if (tryConnect())
+					break;
+					case PSRequest::PSREQUEST_UPDATEPLAYERLOCALE:
 					{
-						incrOpCount();
-						gsi_char keys[] = "";
-						GetPersistDataValues(0, req.player.id, pd_public_rw, 0, keys, getPersistentDataCallback, this);
+						DEBUG_LOG(("Processing PSRequest::PSREQUEST_UPDATEPLAYERLOCALE"));
+						if (tryConnect() && tryLogin(req.player.id, req.nick, req.password, req.email))
+						{
+							char kvbuf[256];
+							sprintf(kvbuf, "\\locale\\%d", req.player.locale);
+							incrOpCount();
+							SetPersistDataValues(0, req.player.id, pd_public_rw, 0, kvbuf, setPersistentDataLocaleCallback, this);
+						}
 					}
-				}
-				break;
-			case PSRequest::PSREQUEST_UPDATEPLAYERLOCALE:
-				{
-					DEBUG_LOG(("Processing PSRequest::PSREQUEST_UPDATEPLAYERLOCALE"));
-					if (tryConnect() && tryLogin(req.player.id, req.nick, req.password, req.email))
+					break;
+					case PSRequest::PSREQUEST_UPDATEPLAYERSTATS:
 					{
-						char kvbuf[256];
-						sprintf(kvbuf, "\\locale\\%d", req.player.locale);
-						incrOpCount();
-						SetPersistDataValues(0, req.player.id, pd_public_rw, 0, kvbuf, setPersistentDataLocaleCallback, this);
-					}
-				}
-				break;
-			case PSRequest::PSREQUEST_UPDATEPLAYERSTATS:
-				{
-					/*
-					** NOTE THAT THIS IS HIGHLY DEPENDENT ON INI ORDERING FOR THE PLAYERTEMPLATES!!!
-					*/
-					DEBUG_LOG(("Processing PSRequest::PSREQUEST_UPDATEPLAYERSTATS"));
-					UserPreferences pref;
-					AsciiString userPrefFilename;
-					userPrefFilename.format("GeneralsOnline\\MiscPref%d.ini", MESSAGE_QUEUE->getLocalPlayerID());
-					DEBUG_LOG(("using the file %s", userPrefFilename.str()));
-					pref.load(userPrefFilename);
-					Int addedInDesyncs2 = pref.getInt("0", 0);
-					DEBUG_LOG(("addedInDesyncs2 = %d", addedInDesyncs2));
-					if (addedInDesyncs2 < 0)
-						addedInDesyncs2 = 10;
-					Int addedInDesyncs3 = pref.getInt("1", 0);
-					DEBUG_LOG(("addedInDesyncs3 = %d", addedInDesyncs3));
-					if (addedInDesyncs3 < 0)
-						addedInDesyncs3 = 10;
-					Int addedInDesyncs4 = pref.getInt("2", 0);
-					DEBUG_LOG(("addedInDesyncs4 = %d", addedInDesyncs4));
-					if (addedInDesyncs4 < 0)
-						addedInDesyncs4 = 10;
-					Int addedInDiscons2 = pref.getInt("3", 0);
-					DEBUG_LOG(("addedInDiscons2 = %d", addedInDiscons2));
-					if (addedInDiscons2 < 0)
-						addedInDiscons2 = 10;
-					Int addedInDiscons3 = pref.getInt("4", 0);
-					DEBUG_LOG(("addedInDiscons3 = %d", addedInDiscons3));
-					if (addedInDiscons3 < 0)
-						addedInDiscons3 = 10;
-					Int addedInDiscons4 = pref.getInt("5", 0);
-					DEBUG_LOG(("addedInDiscons4 = %d", addedInDiscons4));
-					if (addedInDiscons4 < 0)
-						addedInDiscons4 = 10;
+						/*
+						** NOTE THAT THIS IS HIGHLY DEPENDENT ON INI ORDERING FOR THE PLAYERTEMPLATES!!!
+						*/
+						DEBUG_LOG(("Processing PSRequest::PSREQUEST_UPDATEPLAYERSTATS"));
+						UserPreferences pref;
+						AsciiString userPrefFilename;
+						userPrefFilename.format("GeneralsOnline\\MiscPref%d.ini", MESSAGE_QUEUE->getLocalPlayerID());
+						DEBUG_LOG(("using the file %s", userPrefFilename.str()));
+						pref.load(userPrefFilename);
+						Int addedInDesyncs2 = pref.getInt("0", 0);
+						DEBUG_LOG(("addedInDesyncs2 = %d", addedInDesyncs2));
+						if (addedInDesyncs2 < 0)
+							addedInDesyncs2 = 10;
+						Int addedInDesyncs3 = pref.getInt("1", 0);
+						DEBUG_LOG(("addedInDesyncs3 = %d", addedInDesyncs3));
+						if (addedInDesyncs3 < 0)
+							addedInDesyncs3 = 10;
+						Int addedInDesyncs4 = pref.getInt("2", 0);
+						DEBUG_LOG(("addedInDesyncs4 = %d", addedInDesyncs4));
+						if (addedInDesyncs4 < 0)
+							addedInDesyncs4 = 10;
+						Int addedInDiscons2 = pref.getInt("3", 0);
+						DEBUG_LOG(("addedInDiscons2 = %d", addedInDiscons2));
+						if (addedInDiscons2 < 0)
+							addedInDiscons2 = 10;
+						Int addedInDiscons3 = pref.getInt("4", 0);
+						DEBUG_LOG(("addedInDiscons3 = %d", addedInDiscons3));
+						if (addedInDiscons3 < 0)
+							addedInDiscons3 = 10;
+						Int addedInDiscons4 = pref.getInt("5", 0);
+						DEBUG_LOG(("addedInDiscons4 = %d", addedInDiscons4));
+						if (addedInDiscons4 < 0)
+							addedInDiscons4 = 10;
 
-					DEBUG_LOG(("req.addDesync=%d, req.addDiscon=%d, addedInDesync=%d,%d,%d, addedInDiscon=%d,%d,%d",
-						req.addDesync, req.addDiscon, addedInDesyncs2, addedInDesyncs3, addedInDesyncs4,
-						addedInDiscons2, addedInDiscons3, addedInDiscons4));
+						DEBUG_LOG(("req.addDesync=%d, req.addDiscon=%d, addedInDesync=%d,%d,%d, addedInDiscon=%d,%d,%d",
+						           req.addDesync, req.addDiscon, addedInDesyncs2, addedInDesyncs3, addedInDesyncs4,
+						           addedInDiscons2, addedInDiscons3, addedInDiscons4));
 
-					if (req.addDesync || req.addDiscon)
-					{
-						AsciiString val;
-						if (req.lastHouse == 2)
+						if (req.addDesync || req.addDiscon)
 						{
-							val.format("%d", addedInDesyncs2 + req.addDesync);
-							pref["0"] = val;
-							val.format("%d", addedInDiscons2 + req.addDiscon);
-							pref["3"] = val;
-							DEBUG_LOG(("house 2 req.addDesync || req.addDiscon: %d %d",
-								addedInDesyncs2 + req.addDesync, addedInDiscons2 + req.addDiscon));
+							AsciiString val;
+							if (req.lastHouse == 2)
+							{
+								val.format("%d", addedInDesyncs2 + req.addDesync);
+								pref["0"] = val;
+								val.format("%d", addedInDiscons2 + req.addDiscon);
+								pref["3"] = val;
+								DEBUG_LOG(("house 2 req.addDesync || req.addDiscon: %d %d",
+								           addedInDesyncs2 + req.addDesync, addedInDiscons2 + req.addDiscon));
+							}
+							else if (req.lastHouse == 3)
+							{
+								val.format("%d", addedInDesyncs3 + req.addDesync);
+								pref["1"] = val;
+								val.format("%d", addedInDiscons3 + req.addDiscon);
+								pref["4"] = val;
+								DEBUG_LOG(("house 3 req.addDesync || req.addDiscon: %d %d",
+								           addedInDesyncs3 + req.addDesync, addedInDiscons3 + req.addDiscon));
+							}
+							else
+							{
+								val.format("%d", addedInDesyncs4 + req.addDesync);
+								pref["2"] = val;
+								val.format("%d", addedInDiscons4 + req.addDiscon);
+								pref["5"] = val;
+								DEBUG_LOG(("house 4 req.addDesync || req.addDiscon: %d %d",
+								           addedInDesyncs4 + req.addDesync, addedInDiscons4 + req.addDiscon));
+							}
+							pref.write();
+							if (req.password.empty())
+								return;
 						}
-						else if (req.lastHouse == 3)
+						if (!req.player.id)
 						{
-							val.format("%d", addedInDesyncs3 + req.addDesync);
-							pref["1"] = val;
-							val.format("%d", addedInDiscons3 + req.addDiscon);
-							pref["4"] = val;
-							DEBUG_LOG(("house 3 req.addDesync || req.addDiscon: %d %d",
-								addedInDesyncs3 + req.addDesync, addedInDiscons3 + req.addDiscon));
-						}
-						else
-						{
-							val.format("%d", addedInDesyncs4 + req.addDesync);
-							pref["2"] = val;
-							val.format("%d", addedInDiscons4 + req.addDiscon);
-							pref["5"] = val;
-							DEBUG_LOG(("house 4 req.addDesync || req.addDiscon: %d %d",
-								addedInDesyncs4 + req.addDesync, addedInDiscons4 + req.addDiscon));
-						}
-						pref.write();
-						if (req.password.empty())
+							DEBUG_LOG(("Bailing because ID is null!"));
 							return;
-					}
-					if (!req.player.id)
-					{
-						DEBUG_LOG(("Bailing because ID is null!"));
-						return;
-					}
-					req.player.desyncs[2] += addedInDesyncs2;
-					req.player.games[2] += addedInDesyncs2;
-					req.player.discons[2] += addedInDiscons2;
-					req.player.games[2] += addedInDiscons2;
-					req.player.desyncs[3] += addedInDesyncs3;
-					req.player.games[3] += addedInDesyncs3;
-					req.player.discons[3] += addedInDiscons3;
-					req.player.games[3] += addedInDiscons3;
-					req.player.desyncs[4] += addedInDesyncs4;
-					req.player.games[4] += addedInDesyncs4;
-					req.player.discons[4] += addedInDiscons4;
-					req.player.games[4] += addedInDiscons4;
-					DEBUG_LOG(("House2: %d/%d/%d, House3: %d/%d/%d, House4: %d/%d/%d",
-						req.player.desyncs[2], req.player.discons[2], req.player.games[2],
-						req.player.desyncs[3], req.player.discons[3], req.player.games[3],
-						req.player.desyncs[4], req.player.discons[4], req.player.games[4]
-						));
-					if (tryConnect() && tryLogin(req.player.id, req.nick, req.password, req.email))
-					{
-						DEBUG_LOG(("Logged in!"));
-						if (TheGameSpyPSMessageQueue)
-							TheGameSpyPSMessageQueue->trackPlayerStats(req.player);
-
-						char *munkeeHack = strdup(GameSpyPSMessageQueueInterface::formatPlayerKVPairs(req.player).c_str()); // GS takes a char* for some reason
-						incrOpCount();
-						DEBUG_LOG(("Setting values %s", munkeeHack));
-						SetPersistDataValues(0, req.player.id, pd_public_rw, 0, munkeeHack, setPersistentDataCallback, this);
-						free(munkeeHack);
-					}
-					else
-					{
-						DEBUG_LOG(("Cannot connect!"));
-						//if (IsStatsConnected())
-							//CloseStatsConnection();
-					}
-				}
-				break;
-			case PSRequest::PSREQUEST_READCDKEYSTATS:
-				{
-					DEBUG_LOG(("Processing PSRequest::PSREQUEST_READCDKEYSTATS"));
-					if (tryConnect())
-					{
-						incrOpCount();
-						CDAuthInfo cdAuthInfo;
-						cdAuthInfo.done = FALSE;
-						cdAuthInfo.success = FALSE;
-						cdAuthInfo.id = 0;
-						char cdkeyHash[33] = "";
-						char validationToken[33] = "";
-						char *munkeeHack = strdup(req.cdkey.c_str()); // GenerateAuth takes a char*, not a const char* :P
-
-						GenerateAuth(GetChallenge(nullptr), munkeeHack, validationToken); // validation token
-						GenerateAuth("", munkeeHack, cdkeyHash); // cdkey hash
-
-						free (munkeeHack);
-
-						PreAuthenticatePlayerCD( 0, "preorder", cdkeyHash, validationToken, preAuthCDCallback , &cdAuthInfo);
-
-						while (running && IsStatsConnected() && !cdAuthInfo.done)
-							PersistThink();
-
-						DEBUG_LOG(("Looking for preorder status for %d (success=%d, done=%d) from CDKey %s with hash %s",
-							cdAuthInfo.id, cdAuthInfo.success, cdAuthInfo.done, req.cdkey.c_str(), cdkeyHash));
-						if (cdAuthInfo.done && cdAuthInfo.success)
+						}
+						req.player.desyncs[2] += addedInDesyncs2;
+						req.player.games[2] += addedInDesyncs2;
+						req.player.discons[2] += addedInDiscons2;
+						req.player.games[2] += addedInDiscons2;
+						req.player.desyncs[3] += addedInDesyncs3;
+						req.player.games[3] += addedInDesyncs3;
+						req.player.discons[3] += addedInDiscons3;
+						req.player.games[3] += addedInDiscons3;
+						req.player.desyncs[4] += addedInDesyncs4;
+						req.player.games[4] += addedInDesyncs4;
+						req.player.discons[4] += addedInDiscons4;
+						req.player.games[4] += addedInDiscons4;
+						DEBUG_LOG(("House2: %d/%d/%d, House3: %d/%d/%d, House4: %d/%d/%d",
+						           req.player.desyncs[2], req.player.discons[2], req.player.games[2],
+						           req.player.desyncs[3], req.player.discons[3], req.player.games[3],
+						           req.player.desyncs[4], req.player.discons[4], req.player.games[4]
+						          ));
+						if (tryConnect() && tryLogin(req.player.id, req.nick, req.password, req.email))
 						{
-							gsi_char keys[] = "\\preorder";
-							GetPersistDataValues(0, cdAuthInfo.id, pd_public_ro, 0, keys, getPreorderCallback, this);
+							DEBUG_LOG(("Logged in!"));
+							if (TheGameSpyPSMessageQueue)
+								TheGameSpyPSMessageQueue->trackPlayerStats(req.player);
+
+							char *munkeeHack = strdup(GameSpyPSMessageQueueInterface::formatPlayerKVPairs(req.player).c_str()); // GS takes a char* for some reason
+							incrOpCount();
+							DEBUG_LOG(("Setting values %s", munkeeHack));
+							SetPersistDataValues(0, req.player.id, pd_public_rw, 0, munkeeHack, setPersistentDataCallback, this);
+							free(munkeeHack);
 						}
 						else
-							decrOpCount();
+						{
+							DEBUG_LOG(("Cannot connect!"));
+							//if (IsStatsConnected())
+							//CloseStatsConnection();
+						}
 					}
+					break;
+					case PSRequest::PSREQUEST_READCDKEYSTATS:
+					{
+						DEBUG_LOG(("Processing PSRequest::PSREQUEST_READCDKEYSTATS"));
+						if (tryConnect())
+						{
+							incrOpCount();
+							CDAuthInfo cdAuthInfo;
+							cdAuthInfo.done = FALSE;
+							cdAuthInfo.success = FALSE;
+							cdAuthInfo.id = 0;
+							char cdkeyHash[33] = "";
+							char validationToken[33] = "";
+							char *munkeeHack = strdup(req.cdkey.c_str()); // GenerateAuth takes a char*, not a const char* :P
+
+							GenerateAuth(GetChallenge(nullptr), munkeeHack, validationToken); // validation token
+							GenerateAuth("", munkeeHack, cdkeyHash); // cdkey hash
+
+							free (munkeeHack);
+
+							PreAuthenticatePlayerCD( 0, "preorder", cdkeyHash, validationToken, preAuthCDCallback, &cdAuthInfo);
+
+							while (running && IsStatsConnected() && !cdAuthInfo.done)
+								PersistThink();
+
+							DEBUG_LOG(("Looking for preorder status for %d (success=%d, done=%d) from CDKey %s with hash %s",
+							           cdAuthInfo.id, cdAuthInfo.success, cdAuthInfo.done, req.cdkey.c_str(), cdkeyHash));
+							if (cdAuthInfo.done && cdAuthInfo.success)
+							{
+								gsi_char keys[] = "\\preorder";
+								GetPersistDataValues(0, cdAuthInfo.id, pd_public_ro, 0, keys, getPreorderCallback, this);
+							}
+							else
+								decrOpCount();
+						}
+					}
+					break;
 				}
-				break;
 			}
-		}
 
-		// update the network
-		if (IsStatsConnected())
-		{
-			PersistThink();
-			if (m_opCount <= 0)
+			// update the network
+			if (IsStatsConnected())
 			{
-				DEBUG_ASSERTCRASH(m_opCount == 0, ("Negative operations pending!!!"));
-				DEBUG_LOG(("m_opCount = %d - closing connection", m_opCount));
-				CloseStatsConnection();
-				m_opCount = 0;
+				PersistThink();
+				if (m_opCount <= 0)
+				{
+					DEBUG_ASSERTCRASH(m_opCount == 0, ("Negative operations pending!!!"));
+					DEBUG_LOG(("m_opCount = %d - closing connection", m_opCount));
+					CloseStatsConnection();
+					m_opCount = 0;
+				}
 			}
+
+			// end our timeslice
+			Switch_Thread();
 		}
 
-		// end our timeslice
-		Switch_Thread();
-	}
-
-	if (IsStatsConnected())
-		CloseStatsConnection();
+		if (IsStatsConnected())
+			CloseStatsConnection();
 	} catch ( ... ) {
 		DEBUG_CRASH(("Exception in storage thread!"));
 	}

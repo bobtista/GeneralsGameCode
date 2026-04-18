@@ -52,7 +52,7 @@ class PathfindCell;
 #undef RETAIL_COMPATIBLE_PATHFINDING_ALLOCATION
 #endif
 
-  typedef UnsignedShort zoneStorageType;
+typedef UnsignedShort zoneStorageType;
 
 
 //----------------------------------------------------------------------------------------------------------
@@ -418,7 +418,7 @@ private:
 	UnsignedInt m_obstacleIsTransparent : 1;  ///< True if obstacle is transparent (undefined if obstacleid is invalid)
 
 	zoneStorageType m_zone : 14;              ///< Zone. Each zone is a set of adjacent terrain type.  If from & to in the same zone, you can successfully pathfind.  If not,
-	                                          /// you still may be able to if you can cross multiple terrain types.
+	/// you still may be able to if you can cross multiple terrain types.
 	UnsignedShort m_aircraftGoal : 1;         ///< This is an aircraft goal cell.
 	UnsignedShort m_pinched : 1;              ///< This cell is surrounded by obstacle cells.
 	UnsignedByte m_type : 4;                  ///< what type of cell terrain this is.
@@ -466,8 +466,8 @@ public:
 	void doDebugIcons() ;
 #endif
 protected:
-	void classifyLayerMapCell( Int i, Int j , PathfindCell *cell, Bridge *theBridge);
-	void classifyWallMapCell( Int i, Int j, PathfindCell *cell , ObjectID *wallPieces, Int numPieces);
+	void classifyLayerMapCell( Int i, Int j, PathfindCell *cell, Bridge *theBridge);
+	void classifyWallMapCell( Int i, Int j, PathfindCell *cell, ObjectID *wallPieces, Int numPieces);
 
 private:
 	PathfindCell *m_blockOfMapCells;		///< Pathfinding map - contains iconic representation of the map
@@ -526,7 +526,7 @@ protected:
 
 	zoneStorageType m_firstZone; // First zone in this block.
 	UnsignedShort m_numZones;	 // Number of zones in this block.  If == 1, there is only one zone, and
-														 // no zone equivalency arrays will be allocated.
+	// no zone equivalency arrays will be allocated.
 
 	UnsignedShort m_zonesAllocated;
 	zoneStorageType *m_groundCliffZones;
@@ -552,7 +552,7 @@ public:
 	enum {INITIAL_ZONES = 256};
 	enum {ZONE_BLOCK_SIZE = 10};	// Zones are calculated in blocks of 20x20.  This way, the raw zone numbers can be used to
 	enum {UNINITIALIZED_ZONE = 0};
-																// compute hierarchically between the 20x20 blocks of cells. jba.
+	// compute hierarchically between the 20x20 blocks of cells. jba.
 	PathfindZoneManager();
 	~PathfindZoneManager();
 
@@ -612,25 +612,25 @@ private:
 class PathfindServicesInterface {
 public:
 	virtual Path *findPath( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
-		const Coord3D *to )=0;	///< Find a short, valid path between given locations
+	                        const Coord3D *to )=0;	///< Find a short, valid path between given locations
 	/** Find a short, valid path to a location NEAR the to location.
 		This succeeds when the destination is unreachable (like inside a building).
 		If the destination is unreachable, it will adjust the to point.  */
 	virtual Path *findClosestPath( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
-		Coord3D *to, Bool blocked, Real pathCostMultiplier, Bool moveAllies )=0;
+	                               Coord3D *to, Bool blocked, Real pathCostMultiplier, Bool moveAllies )=0;
 
 	/** Find a short, valid path to a location that obj can attack victim from.  */
 	virtual Path *findAttackPath( const Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
-		const Object *victim, const Coord3D* victimPos, const Weapon *weapon )=0;
+	                              const Object *victim, const Coord3D* victimPos, const Weapon *weapon )=0;
 
 	/** Patch to the exiting path from the current position, either because we became blocked,
-  or because we had to move off the path to avoid other units. */
+	or because we had to move off the path to avoid other units. */
 	virtual Path *patchPath( const Object *obj, const LocomotorSet& locomotorSet,
-		Path *originalPath, Bool blocked ) = 0;
+	                         Path *originalPath, Bool blocked ) = 0;
 
 	/** Find a short, valid path to a location that is away from the repulsors.  */
 	virtual Path *findSafePath( const Object *obj, const LocomotorSet& locomotorSet,
-		const Coord3D *from, const Coord3D* repulsorPos1, const Coord3D* repulsorPos2, Real repulsorRadius ) = 0;
+	                            const Coord3D *from, const Coord3D* repulsorPos1, const Coord3D* repulsorPos2, Real repulsorRadius ) = 0;
 
 };
 
@@ -646,20 +646,20 @@ private:
 		This succeeds when the destination is unreachable (like inside a building).
 		If the destination is unreachable, it will adjust the to point.  */
 	virtual Path *findClosestPath( Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
-		Coord3D *to, Bool blocked, Real pathCostMultiplier, Bool moveAllies ) override;
+	                               Coord3D *to, Bool blocked, Real pathCostMultiplier, Bool moveAllies ) override;
 
 	/** Find a short, valid path to a location that obj can attack victim from.  */
 	virtual Path *findAttackPath( const Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
-		const Object *victim, const Coord3D* victimPos, const Weapon *weapon ) override;
+	                              const Object *victim, const Coord3D* victimPos, const Weapon *weapon ) override;
 
 	/** Find a short, valid path to a location that is away from the repulsors.  */
 	virtual Path *findSafePath( const Object *obj, const LocomotorSet& locomotorSet,
-		const Coord3D *from, const Coord3D* repulsorPos1, const Coord3D* repulsorPos2, Real repulsorRadius ) override;
+	                            const Coord3D *from, const Coord3D* repulsorPos1, const Coord3D* repulsorPos2, Real repulsorRadius ) override;
 
 	/** Patch to the exiting path from the current position, either because we became blocked,
-  or because we had to move off the path to avoid other units. */
+	or because we had to move off the path to avoid other units. */
 	virtual Path *patchPath( const Object *obj, const LocomotorSet& locomotorSet,
-		Path *originalPath, Bool blocked ) override;
+	                         Path *originalPath, Bool blocked ) override;
 
 public:
 	Pathfinder();
@@ -675,7 +675,7 @@ public:
 	Bool clientSafeQuickDoesPathExist( const LocomotorSet& locomotorSet, const Coord3D *from, const Coord3D *to );  ///< Can we build any path at all between the locations	(terrain & buildings check - fast)
 	Bool clientSafeQuickDoesPathExistForUI( const LocomotorSet& locomotorSet, const Coord3D *from, const Coord3D *to );  ///< Can we build any path at all between the locations	(terrain only - fast)
 	Bool slowDoesPathExist( Object *obj, const Coord3D *from,
-		const Coord3D *to, ObjectID ignoreObject=INVALID_ID );  ///< Can we build any path at all between the locations	(terrain, buildings & units check - slower)
+	                        const Coord3D *to, ObjectID ignoreObject=INVALID_ID );  ///< Can we build any path at all between the locations	(terrain, buildings & units check - slower)
 
 	Bool queueForPath(ObjectID id);	 ///< The object wants to request a pathfind, so put it on the list to process.
 	void processPathfindQueue(); ///< Process some or all of the queued pathfinds.
@@ -684,7 +684,7 @@ public:
 	/** Returns an aircraft path to the goal.  */
 	Path *getAircraftPath( const Object *obj, const Coord3D *to);
 	Path *findGroundPath( const Coord3D *from, const Coord3D *to, Int pathRadius,
-		Bool crusher);	///< Find a short, valid path of the desired width on the ground.
+	                      Bool crusher);	///< Find a short, valid path of the desired width on the ground.
 
 	void addObjectToPathfindMap( class Object *obj );				///< Classify the given object's cells in the map
 	void removeObjectFromPathfindMap( class Object *obj );	///< De-classify the given object's cells in the map
@@ -701,7 +701,7 @@ public:
 	// NOTE - The object MUST NOT MOVE between the call to createAWall... and removeWall...
 	// or BAD THINGS will happen.  jba.
 	void createAWallFromMyFootprint( Object *obj ) {internal_classifyObjectFootprint(obj, true);}  // Temporarily treat this object as an obstacle.
-	void removeWallFromMyFootprint( Object *obj ){internal_classifyObjectFootprint(obj, false);}   // Undo createAWallFromMyFootprint.
+	void removeWallFromMyFootprint( Object *obj ) {internal_classifyObjectFootprint(obj, false);}  // Undo createAWallFromMyFootprint.
 
 	Path *getMoveAwayFromPath(Object *obj, Object *otherObj, Path *pathToAvoid, Object *otherObj2, Path *pathToAvoid2);
 
@@ -733,13 +733,13 @@ public:
 	Bool isAttackViewBlockedByObstacle(const Object* obj, const Coord3D& attackerPos,  const Object* victim, const Coord3D& victimPos);	///< Return true if the straight line between the given points contains any obstacle, and thus blocks vision
 
 	Bool isLinePassable( const Object *obj, LocomotorSurfaceTypeMask acceptableSurfaces,
-		PathfindLayerEnum layer, const Coord3D& startWorld, const Coord3D& endWorld,
-		Bool blocked, Bool allowPinched );	///< Return true if the straight line between the given points is passable
+	                     PathfindLayerEnum layer, const Coord3D& startWorld, const Coord3D& endWorld,
+	                     Bool blocked, Bool allowPinched );	///< Return true if the straight line between the given points is passable
 
 	void moveAlliesAwayFromDestination( Object *obj,const Coord3D& destination);
 
 	Bool isGroundPathPassable( Bool isCrusher, const Coord3D& startWorld, PathfindLayerEnum startLayer,
-		const Coord3D& endWorld, Int pathDiameter);	///< Return true if the straight line between the given points is passable
+	                           const Coord3D& endWorld, Int pathDiameter);	///< Return true if the straight line between the given points is passable
 
 	// for debugging
 	const Coord3D *getDebugPathPosition();
@@ -754,14 +754,14 @@ public:
 
 	// Adjusts the destination to a spot near dest that is not occupied by other units.
 	Bool adjustDestination(Object *obj, const LocomotorSet& locomotorSet,
-		Coord3D *dest, const Coord3D *groupDest=nullptr);
+	                       Coord3D *dest, const Coord3D *groupDest=nullptr);
 
 	// Adjusts the destination to a spot near dest for landing that is not occupied by other units.
 	Bool adjustToLandingDestination(Object *obj, Coord3D *dest);
 
 	// Adjusts the destination to a spot that can attack target that is not occupied by other units.
 	Bool adjustTargetDestination(const Object *obj, const Object *target, const Coord3D *targetPos,
-		const Weapon *weapon, Coord3D *dest);
+	                             const Weapon *weapon, Coord3D *dest);
 
 	// Adjusts destination to a spot near dest that is possible to path to.
 	Bool adjustToPossibleDestination(Object *obj, const LocomotorSet& locomotorSet, Coord3D *dest);
@@ -788,38 +788,38 @@ protected:
 	Path *findClosestHierarchicalPath( Bool isHuman, const LocomotorSet& locomotorSet, const Coord3D *from, const Coord3D *to, Bool crusher);
 	Path *internal_findHierarchicalPath( Bool isHuman, const LocomotorSurfaceTypeMask locomotorSurface, const Coord3D *from, const Coord3D *to, Bool crusher, Bool closestOK);
 	void processHierarchicalCell( const ICoord2D &scanCell, const ICoord2D &deltaPathfindCell,
-																PathfindCell *parentCell,
-																PathfindCell *goalCell, zoneStorageType parentZone,
-																zoneStorageType *examinedZones, Int &numExZones,
-																Bool crusher, Int &cellCount);
+	                              PathfindCell *parentCell,
+	                              PathfindCell *goalCell, zoneStorageType parentZone,
+	                              zoneStorageType *examinedZones, Int &numExZones,
+	                              Bool crusher, Int &cellCount);
 	Bool checkForAdjust(Object *, const LocomotorSet& locomotorSet, Bool isHuman, Int cellX, Int cellY,
-		PathfindLayerEnum layer, Int iRadius, Bool center,Coord3D *dest, const Coord3D *groupDest) ;
+	                    PathfindLayerEnum layer, Int iRadius, Bool center,Coord3D *dest, const Coord3D *groupDest) ;
 	Bool checkForLanding(Int cellX, Int cellY,
-		PathfindLayerEnum layer, Int iRadius, Bool center,Coord3D *dest) ;
+	                     PathfindLayerEnum layer, Int iRadius, Bool center,Coord3D *dest) ;
 	Bool checkForTarget(const Object *obj, 	Int cellX, Int cellY, const Weapon *weapon,
-																const Object *victim, const Coord3D *victimPos,
-																Int iRadius, Bool center,Coord3D *dest) ;
+	                    const Object *victim, const Coord3D *victimPos,
+	                    Int iRadius, Bool center,Coord3D *dest) ;
 	Bool checkForPossible(Bool isCrusher, Int fromZone,  Bool center, const LocomotorSet& locomotorSet,
-		Int cellX, Int cellY, PathfindLayerEnum layer, Coord3D *dest, Bool startingInObstacle) ;
+	                      Int cellX, Int cellY, PathfindLayerEnum layer, Coord3D *dest, Bool startingInObstacle) ;
 	void getRadiusAndCenter(const Object *obj, Int &iRadius, Bool &center);
 	void adjustCoordToCell(Int cellX, Int cellY, Bool centerInCell, Coord3D &pos, PathfindLayerEnum layer);
 	Bool checkDestination(const Object *obj, Int cellX, Int cellY, PathfindLayerEnum layer, Int iRadius, Bool centerInCell);
 	Bool checkForMovement(const Object *obj, TCheckMovementInfo &info);
 	Bool segmentIntersectsTallBuilding(const PathNode *curNode, PathNode *nextNode,
-		ObjectID ignoreBuilding, Coord3D *insertPos1, Coord3D *insertPos2, Coord3D *insertPos3);	///< Return true if the straight line between the given points intersects a tall building.
+	                                   ObjectID ignoreBuilding, Coord3D *insertPos1, Coord3D *insertPos2, Coord3D *insertPos3);	///< Return true if the straight line between the given points intersects a tall building.
 	Bool circleClipsTallBuilding(const Coord3D *from, const Coord3D *to, Real radius, ObjectID ignoreBuilding, Coord3D *adjustTo);	///< Return true if the circle at the end of the line between the given points intersects a tall building.
 
 	enum {NO_ATTACK=0};
 	Int examineNeighboringCells(PathfindCell *parentCell, PathfindCell *goalCell,
-										const LocomotorSet& locomotorSet, Bool isHumanPlayer,
-										Bool centerInCell, Int radius, const ICoord2D &startCellNdx,
-										const Object *obj, Int attackDistance);
+	                            const LocomotorSet& locomotorSet, Bool isHumanPlayer,
+	                            Bool centerInCell, Int radius, const ICoord2D &startCellNdx,
+	                            const Object *obj, Int attackDistance);
 
 	Int checkPathCost(Object *obj, const LocomotorSet& locomotorSet, const Coord3D *from,
-		const Coord3D *to);
+	                  const Coord3D *to);
 
 	void tightenPath(Object *obj, const LocomotorSet& locomotorSet, Coord3D *from,
-		const Coord3D *to);
+	                 const Coord3D *to);
 
 	/**
 		return 0 to continue iterating the line, nonzero to terminate the iteration.
@@ -828,19 +828,19 @@ protected:
 	*/
 	typedef Int (*CellAlongLineProc)(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
 	Int iterateCellsAlongLine(const Coord3D& startWorld, const Coord3D& endWorld,
-		PathfindLayerEnum layer, CellAlongLineProc proc, void* userData);
+	                          PathfindLayerEnum layer, CellAlongLineProc proc, void* userData);
 
 	Int iterateCellsAlongLine(const ICoord2D &start, const ICoord2D &end,
-		PathfindLayerEnum layer, CellAlongLineProc proc, void* userData);
+	                          PathfindLayerEnum layer, CellAlongLineProc proc, void* userData);
 
 	static Int linePassableCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
 	static Int groundPathPassableCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
 	static Int lineBlockedByObstacleCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
 	static Int tightenPathCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
 	static Int attackBlockedByObstacleCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
- 	static Int examineCellsCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
- 	static Int groundCellsCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
- 	static Int moveAlliesDestinationCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
+	static Int examineCellsCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
+	static Int groundCellsCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
+	static Int moveAlliesDestinationCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
 
 	static Int segmentIntersectsBuildingCallback(Pathfinder* pathfinder, PathfindCell* from, PathfindCell* to, Int to_x, Int to_y, void* userData);
 
@@ -857,18 +857,18 @@ protected:
 	void worldToGrid( const Coord3D *pos, ICoord2D *cellIndex );
 
 	Bool evaluateCell(PathfindCell* newCell, PathfindCell *parentCell,
-									const LocomotorSet& locomotorSet,
-									 Bool centerInCell, Int radius,
-									 const Object *obj, Int attackDistance);
+	                  const LocomotorSet& locomotorSet,
+	                  Bool centerInCell, Int radius,
+	                  const Object *obj, Int attackDistance);
 
 	Path *buildActualPath( const Object *obj, LocomotorSurfaceTypeMask acceptableSurfaces,
-		const Coord3D *fromPos, PathfindCell *goalCell, Bool center, Bool blocked );	///< Work backwards from goal cell to construct final path
+	                       const Coord3D *fromPos, PathfindCell *goalCell, Bool center, Bool blocked );	///< Work backwards from goal cell to construct final path
 	Path *buildGroundPath( Bool isCrusher,const Coord3D *fromPos, PathfindCell *goalCell,
-		Bool center, Int pathDiameter );	///< Work backwards from goal cell to construct final path
+	                       Bool center, Int pathDiameter );	///< Work backwards from goal cell to construct final path
 	Path *buildHierarchicalPath( const Coord3D *fromPos, PathfindCell *goalCell);	///< Work backwards from goal cell to construct final path
 
 	void  prependCells( Path *path, const Coord3D *fromPos,
-																	PathfindCell *goalCell, Bool center ); ///< Add pathfind cells to a path.
+	                    PathfindCell *goalCell, Bool center ); ///< Add pathfind cells to a path.
 
 	void debugShowSearch( Bool pathFound );				///< Show all cells touched in the last search
 	static LocomotorSurfaceTypeMask validLocomotorSurfacesForCellType(PathfindCell::CellType t);
@@ -978,7 +978,7 @@ inline void Pathfinder::removeObjectFromPathfindMap( class Object *obj )
 inline PathfindCell *Pathfinder::getCell( PathfindLayerEnum layer, Int x, Int y )
 {
 	if (x >= m_extent.lo.x && x <= m_extent.hi.x &&
-		y >= m_extent.lo.y && y <= m_extent.hi.y)
+	        y >= m_extent.lo.y && y <= m_extent.hi.y)
 	{
 		PathfindCell *cell = nullptr;
 		if (layer > LAYER_GROUND && layer <= LAYER_LAST)

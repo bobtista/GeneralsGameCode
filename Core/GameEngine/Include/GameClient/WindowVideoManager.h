@@ -103,7 +103,7 @@ public:
 	void setWindowState( WindowVideoStates state );
 
 	void init( GameWindow *win, AsciiString movieName, WindowVideoPlayType playType,VideoBuffer *videoBuffer,
-	VideoStreamInterface *videoStream);
+	           VideoStreamInterface *videoStream);
 
 private:
 	WindowVideoPlayType m_playType;
@@ -146,11 +146,11 @@ private:
 	// use special class for hashing, since std::hash won't compile for arbitrary ptrs
 	struct hashConstGameWindowPtr
 	{
-	size_t operator()(ConstGameWindowPtr p) const
-	{
-		std::hash<UnsignedInt> hasher;
-		return hasher((UnsignedInt)p);
-	}
+		size_t operator()(ConstGameWindowPtr p) const
+		{
+			std::hash<UnsignedInt> hasher;
+			return hasher((UnsignedInt)p);
+		}
 	};
 
 	typedef std::hash_map< ConstGameWindowPtr, WindowVideo *, hashConstGameWindowPtr, std::equal_to<ConstGameWindowPtr> > WindowVideoMap;
@@ -166,14 +166,14 @@ private:
 //-----------------------------------------------------------------------------
 // INLINING ///////////////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
-inline VideoStreamInterface *WindowVideo::getVideoStream(){ return m_videoStream; };
-inline VideoBuffer *WindowVideo::getVideoBuffer(){ return m_videoBuffer; };
-inline GameWindow *WindowVideo::getWin(){ return m_win; };
-inline AsciiString WindowVideo::getMovieName(){ return m_movieName; };
-inline WindowVideoPlayType WindowVideo::getPlayType (){ return m_playType; };
-inline WindowVideoStates WindowVideo::getState(){ return m_state; };
+inline VideoStreamInterface *WindowVideo::getVideoStream() { return m_videoStream; };
+inline VideoBuffer *WindowVideo::getVideoBuffer() { return m_videoBuffer; };
+inline GameWindow *WindowVideo::getWin() { return m_win; };
+inline AsciiString WindowVideo::getMovieName() { return m_movieName; };
+inline WindowVideoPlayType WindowVideo::getPlayType () { return m_playType; };
+inline WindowVideoStates WindowVideo::getState() { return m_state; };
 
-inline void WindowVideo::setPlayType(WindowVideoPlayType playType){ m_playType = playType; };
+inline void WindowVideo::setPlayType(WindowVideoPlayType playType) { m_playType = playType; };
 
 
 

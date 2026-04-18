@@ -81,18 +81,18 @@ enum WindowMsgHandledType CPP_11(: Int) { MSG_IGNORED, MSG_HANDLED };
 // callback types -------------------------------------------------------------
 typedef void (*GameWinMsgBoxFunc)(); //used for the Message box callbacks.
 typedef void (*GameWinDrawFunc)( GameWindow *,
-																 WinInstanceData * );
+                                 WinInstanceData * );
 typedef void (*GameWinTooltipFunc)( GameWindow *,
-																		WinInstanceData *,
-																		UnsignedInt );
+                                    WinInstanceData *,
+                                    UnsignedInt );
 typedef WindowMsgHandledType (*GameWinInputFunc)( GameWindow *,
-																	UnsignedInt,
-																	WindowMsgData,
-																	WindowMsgData );
+        UnsignedInt,
+        WindowMsgData,
+        WindowMsgData );
 typedef WindowMsgHandledType (*GameWinSystemFunc)( GameWindow *,
-																	 UnsignedInt,
-																	 WindowMsgData,
-																	 WindowMsgData );
+        UnsignedInt,
+        WindowMsgData,
+        WindowMsgData );
 
 enum
 {
@@ -204,9 +204,9 @@ enum
 struct WindowMessageBoxData
 {
 	GameWinMsgBoxFunc yesCallback; ///<Function pointer to the Yes Button Callback
-  GameWinMsgBoxFunc noCallback;///<Function pointer to the No Button Callback
-  GameWinMsgBoxFunc okCallback;///<Function pointer to the Ok Button Callback
-  GameWinMsgBoxFunc cancelCallback;///<Function pointer to the Cancel Button Callback
+	GameWinMsgBoxFunc noCallback;///<Function pointer to the No Button Callback
+	GameWinMsgBoxFunc okCallback;///<Function pointer to the Ok Button Callback
+	GameWinMsgBoxFunc cancelCallback;///<Function pointer to the Cancel Button Callback
 };
 
 // GameWindowEditData ---------------------------------------------------------
@@ -229,7 +229,7 @@ class GameWindow : public MemoryPoolObject
 {
 	MEMORY_POOL_GLUE_ABC( GameWindow )						///< this abstract class needs memory pool hooks
 
-friend class GameWindowManager;
+	friend class GameWindowManager;
 
 public:
 
@@ -251,7 +251,7 @@ public:
 	Int winBringToTop();  ///< bring this window to the top of the win list
 	Int winEnable( Bool enable );  /**< enable/disable a window, a disbled
 																 window can be seen but accepts no input */
-  Bool winGetEnabled(); ///< Is window enabled?
+	Bool winGetEnabled(); ///< Is window enabled?
 	Int winHide( Bool hide );  ///< hide/unhide a window
 	Bool winIsHidden();  ///< is this window hidden/
 	UnsignedInt winSetStatus( UnsignedInt status );  ///< set status bits
@@ -297,8 +297,8 @@ public:
 	void winGetDrawOffset( Int *x, Int *y );  ///< get draw offset
 	void winSetHiliteState( Bool state );  ///< set hilite state
 	void winSetTooltip( UnicodeString tip );  ///< set tooltip text
-  Int  getTooltipDelay() { return m_instData.m_tooltipDelay; } ///< get tooltip delay
-  void setTooltipDelay(Int delay) { m_instData.m_tooltipDelay = delay; } ///< set tooltip delay
+	Int  getTooltipDelay() { return m_instData.m_tooltipDelay; } ///< get tooltip delay
+	void setTooltipDelay(Int delay) { m_instData.m_tooltipDelay = delay; } ///< set tooltip delay
 
 	//-----------------------------------------------------------------------------
 	// text methods
@@ -352,8 +352,8 @@ public:
 	Int winSetDrawFunc( GameWinDrawFunc draw );  ///< set draw
 	Int winSetTooltipFunc( GameWinTooltipFunc tooltip );  ///< set tooltip
 	Int winSetCallbacks( GameWinInputFunc input,
-											 GameWinDrawFunc draw,
-											 GameWinTooltipFunc tooltip );  ///< set draw, input, tooltip
+	                     GameWinDrawFunc draw,
+	                     GameWinTooltipFunc tooltip );  ///< set draw, input, tooltip
 
 	// pick correlation ---------------------------------------------------------
 	Bool winPointInWindow( Int x, Int y );  /**is point inside this window?
@@ -367,7 +367,7 @@ public:
 	the enabled status of the child */
 	GameWindow *winPointInAnyChild( Int x, Int y, Bool ignoreHidden, Bool ignoreEnableCheck = FALSE );
 
-  // get the callbacks for a window -------------------------------------------
+	// get the callbacks for a window -------------------------------------------
 	GameWinInputFunc		winGetInputFunc();
 	GameWinSystemFunc		winGetSystemFunc();
 	GameWinDrawFunc			winGetDrawFunc();
@@ -397,7 +397,7 @@ protected:
 	Int m_status;      									// Status bits for this window
 	ICoord2D  m_size;						     	  // Width and height of the window
 	IRegion2D m_region;      					  // Current region occupied by window.
-																			// Low x,y is the window's origin
+	// Low x,y is the window's origin
 	Int m_cursorX;											// window cursor X position if any
 	Int m_cursorY;											// window cursor Y position if any
 
@@ -405,7 +405,7 @@ protected:
 	WinInstanceData m_instData;					// Class data, varies by window type
 	void *m_inputData;								  // Client data
 
-  // user defined callbacks
+	// user defined callbacks
 	GameWinInputFunc			m_input;					///< callback for input
 	GameWinSystemFunc			m_system;					///< callback for system messages
 	GameWinDrawFunc				m_draw;						///< callback for drawing
@@ -482,22 +482,22 @@ enum
 
 // EXTERNALS //////////////////////////////////////////////////////////////////
 extern void GameWinDefaultDraw( GameWindow *window,
-																WinInstanceData *instData );
+                                WinInstanceData *instData );
 extern WindowMsgHandledType GameWinDefaultSystem( GameWindow *window,
-																	UnsignedInt msg,
-																  WindowMsgData mData1,
-																	WindowMsgData mData2 );
+        UnsignedInt msg,
+        WindowMsgData mData1,
+        WindowMsgData mData2 );
 extern WindowMsgHandledType GameWinDefaultInput( GameWindow *window,
-																 UnsignedInt msg,
-																 WindowMsgData mData1,
-																 WindowMsgData mData2 );
+        UnsignedInt msg,
+        WindowMsgData mData1,
+        WindowMsgData mData2 );
 extern WindowMsgHandledType GameWinBlockInput( GameWindow *window,
-																 UnsignedInt msg,
-																 WindowMsgData mData1,
-																 WindowMsgData mData2 );
+        UnsignedInt msg,
+        WindowMsgData mData1,
+        WindowMsgData mData2 );
 extern void GameWinDefaultTooltip( GameWindow *window,
-																	 WinInstanceData *instData,
-																	 UnsignedInt mouse );
+                                   WinInstanceData *instData,
+                                   UnsignedInt mouse );
 
 extern const char *const WindowStatusNames[];
 extern const char *const WindowStyleNames[];

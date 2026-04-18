@@ -206,63 +206,63 @@ Bool GameResultsQueue::areGameResultsBeingSent()
 void GameResultsThreadClass::Thread_Function()
 {
 	try {
-	GameResultsRequest req;
+		GameResultsRequest req;
 
-	WSADATA wsaData;
+		WSADATA wsaData;
 
-	// Fire up winsock (prob already done, but doesn't matter)
-	WORD wVersionRequested = MAKEWORD(1, 1);
-	WSAStartup( wVersionRequested, &wsaData );
+		// Fire up winsock (prob already done, but doesn't matter)
+		WORD wVersionRequested = MAKEWORD(1, 1);
+		WSAStartup( wVersionRequested, &wsaData );
 
-	while ( running )
-	{
-		// deal with requests
-		if (TheGameResultsQueue && TheGameResultsQueue->getRequest(req))
+		while ( running )
 		{
-			// resolve the hostname
-			const char *hostnameBuffer = req.hostname.c_str();
-			UnsignedInt IP = 0xFFFFFFFF;
-			if (isdigit(hostnameBuffer[0]))
+			// deal with requests
+			if (TheGameResultsQueue && TheGameResultsQueue->getRequest(req))
 			{
-				IP = inet_addr(hostnameBuffer);
-				in_addr hostNode;
-				hostNode.s_addr = IP;
-				DEBUG_LOG(("sending game results to %s - IP = %s", hostnameBuffer, inet_ntoa(hostNode) ));
-			}
-			else
-			{
-				HOSTENT *hostStruct;
-				in_addr *hostNode;
-				hostStruct = gethostbyname(hostnameBuffer);
-				if (hostStruct == nullptr)
+				// resolve the hostname
+				const char *hostnameBuffer = req.hostname.c_str();
+				UnsignedInt IP = 0xFFFFFFFF;
+				if (isdigit(hostnameBuffer[0]))
 				{
-					DEBUG_LOG(("sending game results to %s - host lookup failed", hostnameBuffer));
-
-					// Even though this failed to resolve IP, still need to send a
-					//   callback.
-					IP = 0xFFFFFFFF;   // flag for IP resolve failed
+					IP = inet_addr(hostnameBuffer);
+					in_addr hostNode;
+					hostNode.s_addr = IP;
+					DEBUG_LOG(("sending game results to %s - IP = %s", hostnameBuffer, inet_ntoa(hostNode) ));
 				}
 				else
 				{
-					hostNode = (in_addr *) hostStruct->h_addr;
-					IP = hostNode->s_addr;
-					DEBUG_LOG(("sending game results to %s IP = %s", hostnameBuffer, inet_ntoa(*hostNode) ));
+					HOSTENT *hostStruct;
+					in_addr *hostNode;
+					hostStruct = gethostbyname(hostnameBuffer);
+					if (hostStruct == nullptr)
+					{
+						DEBUG_LOG(("sending game results to %s - host lookup failed", hostnameBuffer));
+
+						// Even though this failed to resolve IP, still need to send a
+						//   callback.
+						IP = 0xFFFFFFFF;   // flag for IP resolve failed
+					}
+					else
+					{
+						hostNode = (in_addr *) hostStruct->h_addr;
+						IP = hostNode->s_addr;
+						DEBUG_LOG(("sending game results to %s IP = %s", hostnameBuffer, inet_ntoa(*hostNode) ));
+					}
 				}
+
+				int result = sendGameResults( IP, req.port, req.results );
+				GameResultsResponse resp;
+				resp.hostname = req.hostname;
+				resp.port = req.port;
+				resp.sentOk = (result == req.results.length());
+
 			}
 
-			int result = sendGameResults( IP, req.port, req.results );
-			GameResultsResponse resp;
-			resp.hostname = req.hostname;
-			resp.port = req.port;
-			resp.sentOk = (result == req.results.length());
-
+			// end our timeslice
+			Switch_Thread();
 		}
 
-		// end our timeslice
-		Switch_Thread();
-	}
-
-	WSACleanup();
+		WSACleanup();
 	} catch ( ... ) {
 		DEBUG_CRASH(("Exception in results thread!"));
 	}
@@ -277,58 +277,58 @@ static const char *getWSAErrorString( Int error )
 {
 	switch (error)
 	{
-		CASE(WSABASEERR)
-		CASE(WSAEINTR)
-		CASE(WSAEBADF)
-		CASE(WSAEACCES)
-		CASE(WSAEFAULT)
-		CASE(WSAEINVAL)
-		CASE(WSAEMFILE)
-		CASE(WSAEWOULDBLOCK)
-		CASE(WSAEINPROGRESS)
-		CASE(WSAEALREADY)
-		CASE(WSAENOTSOCK)
-		CASE(WSAEDESTADDRREQ)
-		CASE(WSAEMSGSIZE)
-		CASE(WSAEPROTOTYPE)
-		CASE(WSAENOPROTOOPT)
-		CASE(WSAEPROTONOSUPPORT)
-		CASE(WSAESOCKTNOSUPPORT)
-		CASE(WSAEOPNOTSUPP)
-		CASE(WSAEPFNOSUPPORT)
-		CASE(WSAEAFNOSUPPORT)
-		CASE(WSAEADDRINUSE)
-		CASE(WSAEADDRNOTAVAIL)
-		CASE(WSAENETDOWN)
-		CASE(WSAENETUNREACH)
-		CASE(WSAENETRESET)
-		CASE(WSAECONNABORTED)
-		CASE(WSAECONNRESET)
-		CASE(WSAENOBUFS)
-		CASE(WSAEISCONN)
-		CASE(WSAENOTCONN)
-		CASE(WSAESHUTDOWN)
-		CASE(WSAETOOMANYREFS)
-		CASE(WSAETIMEDOUT)
-		CASE(WSAECONNREFUSED)
-		CASE(WSAELOOP)
-		CASE(WSAENAMETOOLONG)
-		CASE(WSAEHOSTDOWN)
-		CASE(WSAEHOSTUNREACH)
-		CASE(WSAENOTEMPTY)
-		CASE(WSAEPROCLIM)
-		CASE(WSAEUSERS)
-		CASE(WSAEDQUOT)
-		CASE(WSAESTALE)
-		CASE(WSAEREMOTE)
-		CASE(WSAEDISCON)
-		CASE(WSASYSNOTREADY)
-		CASE(WSAVERNOTSUPPORTED)
-		CASE(WSANOTINITIALISED)
-		CASE(WSAHOST_NOT_FOUND)
-		CASE(WSATRY_AGAIN)
-		CASE(WSANO_RECOVERY)
-		CASE(WSANO_DATA)
+			CASE(WSABASEERR)
+			CASE(WSAEINTR)
+			CASE(WSAEBADF)
+			CASE(WSAEACCES)
+			CASE(WSAEFAULT)
+			CASE(WSAEINVAL)
+			CASE(WSAEMFILE)
+			CASE(WSAEWOULDBLOCK)
+			CASE(WSAEINPROGRESS)
+			CASE(WSAEALREADY)
+			CASE(WSAENOTSOCK)
+			CASE(WSAEDESTADDRREQ)
+			CASE(WSAEMSGSIZE)
+			CASE(WSAEPROTOTYPE)
+			CASE(WSAENOPROTOOPT)
+			CASE(WSAEPROTONOSUPPORT)
+			CASE(WSAESOCKTNOSUPPORT)
+			CASE(WSAEOPNOTSUPP)
+			CASE(WSAEPFNOSUPPORT)
+			CASE(WSAEAFNOSUPPORT)
+			CASE(WSAEADDRINUSE)
+			CASE(WSAEADDRNOTAVAIL)
+			CASE(WSAENETDOWN)
+			CASE(WSAENETUNREACH)
+			CASE(WSAENETRESET)
+			CASE(WSAECONNABORTED)
+			CASE(WSAECONNRESET)
+			CASE(WSAENOBUFS)
+			CASE(WSAEISCONN)
+			CASE(WSAENOTCONN)
+			CASE(WSAESHUTDOWN)
+			CASE(WSAETOOMANYREFS)
+			CASE(WSAETIMEDOUT)
+			CASE(WSAECONNREFUSED)
+			CASE(WSAELOOP)
+			CASE(WSAENAMETOOLONG)
+			CASE(WSAEHOSTDOWN)
+			CASE(WSAEHOSTUNREACH)
+			CASE(WSAENOTEMPTY)
+			CASE(WSAEPROCLIM)
+			CASE(WSAEUSERS)
+			CASE(WSAEDQUOT)
+			CASE(WSAESTALE)
+			CASE(WSAEREMOTE)
+			CASE(WSAEDISCON)
+			CASE(WSASYSNOTREADY)
+			CASE(WSAVERNOTSUPPORTED)
+			CASE(WSANOTINITIALISED)
+			CASE(WSAHOST_NOT_FOUND)
+			CASE(WSATRY_AGAIN)
+			CASE(WSANO_RECOVERY)
+			CASE(WSANO_DATA)
 		default:
 			return "Not a Winsock error";
 	}

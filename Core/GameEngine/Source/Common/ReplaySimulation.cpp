@@ -95,7 +95,7 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 					UnsignedInt gameTimeSec = TheGameLogic->getFrame() / LOGICFRAMES_PER_SECOND;
 					UnsignedInt realTimeSec = (GetTickCount()-startTimeMillis) / 1000;
 					printf("Elapsed Time: %02d:%02d Game Time: %02d:%02d/%02d:%02d\n",
-							realTimeSec/60, realTimeSec%60, gameTimeSec/60, gameTimeSec%60, totalTimeSec/60, totalTimeSec%60);
+					       realTimeSec/60, realTimeSec%60, gameTimeSec/60, gameTimeSec%60, totalTimeSec/60, totalTimeSec%60);
 					fflush(stdout);
 				}
 				TheGameLogic->UPDATE();
@@ -108,7 +108,7 @@ int ReplaySimulation::simulateReplaysInThisProcess(const std::vector<AsciiString
 			UnsignedInt gameTimeSec = TheGameLogic->getFrame() / LOGICFRAMES_PER_SECOND;
 			UnsignedInt realTimeSec = (GetTickCount()-startTimeMillis) / 1000;
 			printf("Elapsed Time: %02d:%02d Game Time: %02d:%02d/%02d:%02d\n",
-					realTimeSec/60, realTimeSec%60, gameTimeSec/60, gameTimeSec%60, totalTimeSec/60, totalTimeSec%60);
+			       realTimeSec/60, realTimeSec%60, gameTimeSec/60, gameTimeSec%60, totalTimeSec/60, totalTimeSec%60);
 			fflush(stdout);
 		}
 		else
@@ -172,10 +172,10 @@ int ReplaySimulation::simulateReplaysInWorkerProcesses(const std::vector<AsciiSt
 			filenameWide.translate(filenames[filenamePositionStarted]);
 			UnicodeString command;
 			command.format(L"\"%s\"%s%s -replay \"%s\"",
-				exePath,
-				TheGlobalData->m_windowed ? L" -win" : L"",
-				TheGlobalData->m_headless ? L" -headless" : L"",
-				filenameWide.str());
+			               exePath,
+			               TheGlobalData->m_windowed ? L" -win" : L"",
+			               TheGlobalData->m_headless ? L" -headless" : L"",
+			               filenameWide.str());
 
 			processes.push_back(WorkerProcess());
 			processes.back().startProcess(command);

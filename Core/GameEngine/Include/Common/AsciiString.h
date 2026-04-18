@@ -94,11 +94,11 @@ private:
 		char* peek() { return (char*)(this+1); }
 	};
 
-	#ifdef RTS_DEBUG
+#ifdef RTS_DEBUG
 	void validate() const;
-	#else
+#else
 	void validate() const { }
-	#endif
+#endif
 
 protected:
 	AsciiStringData* m_data;   // pointer to ref counted string data

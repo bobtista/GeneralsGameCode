@@ -83,7 +83,7 @@ enum ObjectStatusTypes CPP_11(: Int)
 	OBJECT_STATUS_RIDER7,
 	OBJECT_STATUS_RIDER8,
 	OBJECT_STATUS_FAERIE_FIRE,			///< Anyone shooting at you shoots faster than normal
-  OBJECT_STATUS_MISSILE_KILLING_SELF, ///< Object (likely a missile or bomb) is *BUSTING* its way through the *BUNKER*, building or ground, awaiting death at the bottom.
+	OBJECT_STATUS_MISSILE_KILLING_SELF, ///< Object (likely a missile or bomb) is *BUSTING* its way through the *BUNKER*, building or ground, awaiting death at the bottom.
 	OBJECT_STATUS_REASSIGN_PARKING,			///< Jet is trying to get a better parking assignment.
 	OBJECT_STATUS_BOOBY_TRAPPED,				///< We need to know we have a booby trap on us so we can detonate it from many different code segments
 	OBJECT_STATUS_IMMOBILE,							///< Do not move!

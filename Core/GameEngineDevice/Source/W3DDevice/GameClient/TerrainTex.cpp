@@ -69,7 +69,7 @@ texture of the desired height and mip level. */
 //=============================================================================
 TerrainTextureClass::TerrainTextureClass(int height) :
 	TextureClass(TEXTURE_WIDTH, height,
-		WW3D_FORMAT_A1R5G5B5, MIP_LEVELS_3 )
+	             WW3D_FORMAT_A1R5G5B5, MIP_LEVELS_3 )
 {
 }
 
@@ -81,7 +81,7 @@ texture of the desired height and mip level. */
 //=============================================================================
 TerrainTextureClass::TerrainTextureClass(int height, int width) :
 	TextureClass(width, height,
-		WW3D_FORMAT_A1R5G5B5, MIP_LEVELS_ALL )
+	             WW3D_FORMAT_A1R5G5B5, MIP_LEVELS_ALL )
 {
 }
 
@@ -141,7 +141,7 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 				pBGR += (tilePixelExtent-1-j)*TILE_BYTES_PER_PIXEL*tilePixelExtent; // invert to match.
 				Int row = position.y+j;
 				UnsignedByte *pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*surface_desc.Width*pixelBytes;
+				                      (row)*surface_desc.Width*pixelBytes;
 
 				Int column = position.x;
 				pBGRX += column*pixelBytes;
@@ -164,7 +164,7 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 			for (j=0; j<width; j++) {
 				Int row = origin.y+j;
 				UnsignedByte *pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*surface_desc.Width*pixelBytes;
+				                      (row)*surface_desc.Width*pixelBytes;
 
 				Int column = origin.x;
 				pBGRX += column*pixelBytes;
@@ -179,13 +179,13 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 				// copy before.
 				Int row = origin.y-j-1;
 				UnsignedByte *pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*surface_desc.Width*pixelBytes;
+				                      (row)*surface_desc.Width*pixelBytes;
 				UnsignedByte *target = pBGRX+(origin.x-4)*pixelBytes;
 				memcpy(target, target+width*surface_desc.Width*pixelBytes, (width+8)*pixelBytes);
 				// copy after.
 				row = origin.y+j;
 				pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*surface_desc.Width*pixelBytes;
+				        (row)*surface_desc.Width*pixelBytes;
 				target = pBGRX+(origin.x-4)*pixelBytes;
 				memcpy(target+width*surface_desc.Width*pixelBytes, target, (width+8)*pixelBytes);
 			}
@@ -275,7 +275,7 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 						row += TILE_OFFSET/2;
 						row += TILE_OFFSET*(cellY/2);
 						UnsignedByte *pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-									(row)*surface_desc.Width*pixelBytes;
+						                      (row)*surface_desc.Width*pixelBytes;
 
 						Int column = cellX*tilePixelExtent;
 						column += TILE_OFFSET*(cellX/2);
@@ -296,14 +296,14 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 
 		for (cellY = 0; cellY < numRows; cellY++) {
 			for (cellX = 0; cellX < tilesPerRow; cellX++) {
-			// Duplicate 4 rows of pixels before and after.
+				// Duplicate 4 rows of pixels before and after.
 				Int j;
 				for (j=0; j<tilePixelExtent; j++) {
 					Int row = cellY*tilePixelExtent+j;
 					row += TILE_OFFSET/2;
 					row += TILE_OFFSET*(cellY/2);
 					UnsignedByte *pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-								(row)*surface_desc.Width*pixelBytes;
+					                      (row)*surface_desc.Width*pixelBytes;
 
 					Int column = cellX*tilePixelExtent;
 					column += TILE_OFFSET*(cellX/2);
@@ -327,24 +327,24 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 				}
 			}
 		}
- 		for (cellY = 0; cellY < numRows; cellY++) {
+		for (cellY = 0; cellY < numRows; cellY++) {
 			Int rowBytes = surface_desc.Width*pixelBytes;
 			Int row = cellY*tilePixelExtent;
 			row += TILE_OFFSET/2;
 			row += TILE_OFFSET*(cellY/2);
 			if ( (cellY&1) == 0) {
 				UnsignedByte *pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*rowBytes;
+				                      (row)*rowBytes;
 				row += 2*tilePixelExtent;
 				UnsignedByte *pBase = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*rowBytes;
+				                      (row)*rowBytes;
 				memcpy(pBGRX-4*rowBytes, pBase-4*rowBytes, 4*rowBytes);
 			} else {
 				UnsignedByte *pBase = ((UnsignedByte*)locked_rect.pBits) +
-							(row-tilePixelExtent)*rowBytes;
+				                      (row-tilePixelExtent)*rowBytes;
 				row += tilePixelExtent;
 				UnsignedByte *pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*rowBytes;
+				                      (row)*rowBytes;
 				memcpy(pBGRX, pBase, 4*rowBytes);
 			}
 		}
@@ -412,7 +412,7 @@ Bool TerrainTextureClass::updateFlat(WorldHeightMap *htMap, Int xCell, Int yCell
 				Int k, l;
 				for (k=pixelsPerCell-1; k>=0; k--) {
 					UnsignedByte *pBGRX = pBGRX_data + (pixelsPerCell*(cellWidth-cellY-1)+k)*surface_desc.Width*pixelBytes +
-						cellX*pixelsPerCell*pixelBytes;
+					                      cellX*pixelsPerCell*pixelBytes;
 					for (l=0; l<pixelsPerCell; l++) {
 						*((Short*)pBGRX) = 0x8000 + ((pBGR[2]>>3)<<10) + ((pBGR[1]>>3)<<5) + (pBGR[0]>>3);
 						pBGRX +=pixelBytes;
@@ -487,7 +487,7 @@ saving lots of texture memory, and preventing seams between blended tiles. */
 //=============================================================================
 AlphaTerrainTextureClass::AlphaTerrainTextureClass( TextureClass *pBaseTex ):
 	TextureClass(8, 8,
-		WW3D_FORMAT_A1R5G5B5, MIP_LEVELS_1 )
+	             WW3D_FORMAT_A1R5G5B5, MIP_LEVELS_1 )
 {
 	// Attach the base texture's d3d texture.
 	IDirect3DTexture8 * d3d_tex = pBaseTex->Peek_D3D_Texture();
@@ -620,7 +620,7 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 		}
 		else
 		{
-  			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
+			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
@@ -648,7 +648,7 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 /** Constructor. Calls parent constructor to load the .tga texture. */
 //=============================================================================
 LightMapTerrainTextureClass::LightMapTerrainTextureClass(AsciiString name, MipCountType mipLevelCount) :
-TextureClass(name.isEmpty()?"TSNoiseUrb.tga":name.str(),name.isEmpty()?"TSNoiseUrb.tga":name.str(), mipLevelCount )
+	TextureClass(name.isEmpty()?"TSNoiseUrb.tga":name.str(),name.isEmpty()?"TSNoiseUrb.tga":name.str(), mipLevelCount )
 {
 	Get_Filter().Set_Min_Filter(TextureFilterClass::FILTER_TYPE_BEST);
 	Get_Filter().Set_Mag_Filter(TextureFilterClass::FILTER_TYPE_BEST);
@@ -812,7 +812,7 @@ int AlphaEdgeTextureClass::update(WorldHeightMap *htMap)
 				UnsignedByte *pBGR = htMap->getEdgeTile(tileNdx)->getRGBDataForWidth(tilePixelExtent);
 				pBGR += (tilePixelExtent-1-j)*TILE_BYTES_PER_PIXEL*tilePixelExtent; // invert to match.
 				UnsignedByte *pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*surface_desc.Width*pixelBytes;
+				                      (row)*surface_desc.Width*pixelBytes;
 				pBGRX += column*pixelBytes;
 
 				for (i=0; i<tilePixelExtent; i++) {

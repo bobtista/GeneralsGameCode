@@ -60,7 +60,7 @@ static std::filesystem::path fixFilenameFromWindowsPath(const Char *filename, In
 	// For cases where a write is happening, we should check if the parent path exists, if so, let it through, since the file may not exist yet.
 	std::error_code ec;
 	if (!std::filesystem::exists(path, ec) &&
-		((!(access & File::WRITE)) || ((access & File::WRITE) && !std::filesystem::exists(path.parent_path(), ec))))
+	        ((!(access & File::WRITE)) || ((access & File::WRITE) && !std::filesystem::exists(path.parent_path(), ec))))
 	{
 		// Traverse path to try and match case-insensitively
 		std::filesystem::path parent = path.parent_path();
@@ -241,7 +241,7 @@ void StdLocalFileSystem::getFileListInDirectory(const AsciiString& currentDirect
 	while (!done)	{
 		std::string filenameStr = iter->path().filename().string();
 		if (!iter->is_directory() && iter->path().extension() == searchExt &&
-			(strcmp(filenameStr.c_str(), ".") != 0 && strcmp(filenameStr.c_str(), "..") != 0)) {
+		        (strcmp(filenameStr.c_str(), ".") != 0 && strcmp(filenameStr.c_str(), "..") != 0)) {
 			// if we haven't already, add this filename to the list.
 			// a stl set should only allow one copy of each filename
 			AsciiString newFilename = iter->path().string().c_str();
@@ -268,7 +268,7 @@ void StdLocalFileSystem::getFileListInDirectory(const AsciiString& currentDirect
 		while (!done) {
 			std::string filenameStr = iter->path().filename().string();
 			if(iter->is_directory() &&
-				(strcmp(filenameStr.c_str(), ".") != 0 && strcmp(filenameStr.c_str(), "..") != 0)) {
+			        (strcmp(filenameStr.c_str(), ".") != 0 && strcmp(filenameStr.c_str(), "..") != 0)) {
 				AsciiString tempsearchstr(filenameStr.c_str());
 
 				// recursively add files in subdirectories if required.

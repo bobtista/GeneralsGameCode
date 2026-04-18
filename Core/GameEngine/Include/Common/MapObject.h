@@ -39,10 +39,10 @@ class WorldHeightMapInterfaceClass
 {
 public:
 
-  virtual Int getBorderSize() = 0;
-  virtual Real getSeismicZVelocity(Int xIndex, Int yIndex) const = 0;
-  virtual void setSeismicZVelocity(Int xIndex, Int yIndex, Real value) = 0;
-  virtual Real getBilinearSampleSeismicZVelocity( Int x, Int y) = 0;
+	virtual Int getBorderSize() = 0;
+	virtual Real getSeismicZVelocity(Int xIndex, Int yIndex) const = 0;
+	virtual void setSeismicZVelocity(Int xIndex, Int yIndex, Real value) = 0;
+	virtual Real getBilinearSampleSeismicZVelocity( Int x, Int y) = 0;
 
 };
 
@@ -112,7 +112,7 @@ public:
 
 public:
 	MapObject(Coord3D loc, AsciiString name, Real angle, Int flags, const Dict* props,
-						const ThingTemplate *thingTemplate );
+	          const ThingTemplate *thingTemplate );
 	//~MapObject();		///< Note that deleting the head of a list deletes all linked objects in the list.
 
 public:

@@ -313,7 +313,7 @@ NATConnectionState NAT::connectionUpdate() {
 				if (slot != nullptr) {
 					UnsignedInt ip = slot->getIP();
 					DEBUG_LOG(("NAT::connectionUpdate - sending keep alive to node %d at %d.%d.%d.%d:%d", node,
-											PRINTF_IP_AS_4_INTS(ip), slot->getPort()));
+					           PRINTF_IP_AS_4_INTS(ip), slot->getPort()));
 					m_transport->queueSend(ip, slot->getPort(), (const unsigned char *)"KEEPALIVE", strlen("KEEPALIVE") + 1);
 				}
 			}
@@ -331,7 +331,7 @@ NATConnectionState NAT::connectionUpdate() {
 			UnsignedInt ip = m_transport->m_inBuffer[i].addr;
 #endif
 			DEBUG_LOG(("NAT::connectionUpdate - got a packet from %d.%d.%d.%d:%d, length = %d",
-									PRINTF_IP_AS_4_INTS(ip), m_transport->m_inBuffer[i].port, m_transport->m_inBuffer[i].length));
+			           PRINTF_IP_AS_4_INTS(ip), m_transport->m_inBuffer[i].port, m_transport->m_inBuffer[i].length));
 			UnsignedByte *data = m_transport->m_inBuffer[i].data;
 			if (memcmp(data, "PROBE", strlen("PROBE")) == 0) {
 				Int fromNode = atoi((char *)data + strlen("PROBE"));
@@ -347,13 +347,13 @@ NATConnectionState NAT::connectionUpdate() {
 						UnsignedInt slotIP = targetSlot->getIP();
 #endif
 						DEBUG_LOG(("NAT::connectionUpdate - incoming packet has different from address than we expected, incoming: %d.%d.%d.%d expected: %d.%d.%d.%d",
-												PRINTF_IP_AS_4_INTS(fromIP),
-												PRINTF_IP_AS_4_INTS(slotIP)));
+						           PRINTF_IP_AS_4_INTS(fromIP),
+						           PRINTF_IP_AS_4_INTS(slotIP)));
 						targetSlot->setIP(fromIP);
 					}
 					if (m_transport->m_inBuffer[i].port != targetSlot->getPort()) {
 						DEBUG_LOG(("NAT::connectionUpdate - incoming packet came from a different port than we expected, incoming: %d expected: %d",
-												m_transport->m_inBuffer[i].port, targetSlot->getPort()));
+						           m_transport->m_inBuffer[i].port, targetSlot->getPort()));
 						targetSlot->setPort(m_transport->m_inBuffer[i].port);
 						m_sourcePorts[m_targetNodeNumber] = m_transport->m_inBuffer[i].port;
 					}
@@ -365,7 +365,7 @@ NATConnectionState NAT::connectionUpdate() {
 			if (memcmp(data, "KEEPALIVE", strlen("KEEPALIVE")) == 0) {
 				// keep alive packet, just toss it.
 				DEBUG_LOG(("NAT::connectionUpdate - got keepalive from %d.%d.%d.%d:%d",
-										PRINTF_IP_AS_4_INTS(ip), m_transport->m_inBuffer[i].port));
+				           PRINTF_IP_AS_4_INTS(ip), m_transport->m_inBuffer[i].port));
 				m_transport->m_inBuffer[i].length = 0;
 			}
 		}
@@ -422,7 +422,7 @@ NATConnectionState NAT::connectionUpdate() {
 				} else {
 					if (TheFirewallHelper != nullptr) {
 						DEBUG_LOG(("NAT::connectionUpdate - trying to send to the mangler again. mangler address: %d.%d.%d.%d, from port: %d, packet ID:%d",
-							PRINTF_IP_AS_4_INTS(m_manglerAddress), m_spareSocketPort, m_packetID));
+						           PRINTF_IP_AS_4_INTS(m_manglerAddress), m_spareSocketPort, m_packetID));
 						TheFirewallHelper->sendToManglerFromPort(m_manglerAddress, m_spareSocketPort, m_packetID);
 					}
 //					m_manglerRetryTime = TheGameSpyConfig->getRetryInterval() + timeGetTime();
@@ -607,7 +607,7 @@ void NAT::attachSlotList(GameSlot *slotList[], Int localSlot, UnsignedInt localI
 	m_localIP = localIP;
 	m_transport = new Transport;
 	DEBUG_LOG(("NAT::attachSlotList - initializing the transport socket with address %d.%d.%d.%d:%d",
-							PRINTF_IP_AS_4_INTS(m_localIP), getSlotPort(localSlot)));
+	           PRINTF_IP_AS_4_INTS(m_localIP), getSlotPort(localSlot)));
 
 	m_startingPortNumber = NETWORK_BASE_PORT_NUMBER + ((timeGetTime() / 1000) % 20000);
 	DEBUG_LOG(("NAT::attachSlotList - using %d as the starting port number", m_startingPortNumber));
@@ -677,11 +677,11 @@ void NAT::doThisConnectionRound() {
 #endif
 
 				DEBUG_LOG(("NAT::doThisConnectionRound - Target slot has IP %d.%d.%d.%d  Local slot has IP %d.%d.%d.%d",
-							PRINTF_IP_AS_4_INTS(targetIP),
-							PRINTF_IP_AS_4_INTS(localIP)));
+				           PRINTF_IP_AS_4_INTS(targetIP),
+				           PRINTF_IP_AS_4_INTS(localIP)));
 
 				if (((targetSlot->getNATBehavior() & FirewallHelperClass::FIREWALL_TYPE_NETGEAR_BUG) == 0) &&
-						((localSlot->getNATBehavior() & FirewallHelperClass::FIREWALL_TYPE_NETGEAR_BUG) != 0)) {
+				        ((localSlot->getNATBehavior() & FirewallHelperClass::FIREWALL_TYPE_NETGEAR_BUG) != 0)) {
 
 					// we have a netgear bug type behavior and the target does not, so we need them to send to us
 					// first to avoid having our NAT table reset.
@@ -714,7 +714,7 @@ void NAT::doThisConnectionRound() {
 
 void NAT::sendAProbe(UnsignedInt ip, UnsignedShort port, Int fromNode) {
 	DEBUG_LOG(("NAT::sendAProbe - sending a probe from port %d to %d.%d.%d.%d:%d", getSlotPort(m_connectionNodes[m_localNodeNumber].m_slotIndex),
-							PRINTF_IP_AS_4_INTS(ip), port));
+	           PRINTF_IP_AS_4_INTS(ip), port));
 	AsciiString str;
 	str.format("PROBE%d", fromNode);
 	m_transport->queueSend(ip, port, (unsigned char *)str.str(), str.getLength() + 1);
@@ -752,8 +752,8 @@ void NAT::sendMangledSourcePort() {
 #endif
 		DEBUG_LOG(("NAT::sendMangledSourcePort - target and I are behind the same NAT, no mangling"));
 		DEBUG_LOG(("NAT::sendMangledSourcePort - I am %ls, target is %ls, my IP is %d.%d.%d.%d, target IP is %d.%d.%d.%d", localSlot->getName().str(), targetSlot->getName().str(),
-								PRINTF_IP_AS_4_INTS(localip),
-								PRINTF_IP_AS_4_INTS(targetip)));
+		           PRINTF_IP_AS_4_INTS(localip),
+		           PRINTF_IP_AS_4_INTS(targetip)));
 
 		sendMangledPortNumberToTarget(sourcePort, targetSlot);
 		m_sourcePorts[m_targetNodeNumber] = sourcePort;
@@ -780,7 +780,7 @@ void NAT::sendMangledSourcePort() {
 	// if this is the case, and we've already worked out what our mangled port number is
 	// then we don't have to figure it out again.
 	if (((fwType & FirewallHelperClass::FIREWALL_TYPE_DESTINATION_PORT_DELTA) == 0) &&
-			((fwType & FirewallHelperClass::FIREWALL_TYPE_SMART_MANGLING) == 0)) {
+	        ((fwType & FirewallHelperClass::FIREWALL_TYPE_SMART_MANGLING) == 0)) {
 		DEBUG_LOG(("NAT::sendMangledSourcePort - our firewall doesn't NAT based on destination address, checking for old connections from this address"));
 		if (m_previousSourcePort != 0) {
 			DEBUG_LOG(("NAT::sendMangledSourcePort - Previous source port was %d, using that one", m_previousSourcePort));
@@ -815,7 +815,7 @@ void NAT::sendMangledSourcePort() {
 	memcpy(&m_manglerAddress, &(hostInfo->h_addr_list[0][0]), 4);
 	m_manglerAddress = ntohl(m_manglerAddress);
 	DEBUG_LOG(("NAT::sendMangledSourcePort - mangler %s address is %d.%d.%d.%d", manglerName,
-							PRINTF_IP_AS_4_INTS(m_manglerAddress)));
+	           PRINTF_IP_AS_4_INTS(m_manglerAddress)));
 
 	DEBUG_LOG(("NAT::sendMangledSourcePort - NAT behavior = 0x%08x", fwType));
 
@@ -997,12 +997,12 @@ void NAT::gotMangledPort(Int nodeNumber, UnsignedShort mangledPort) {
 	targetSlot->setPort(mangledPort);
 	DEBUG_LOG(("NAT::gotMangledPort - got mangled port number %d from our target node (%ls)", mangledPort, targetSlot->getName().str()));
 	if (((localSlot->getNATBehavior() & FirewallHelperClass::FIREWALL_TYPE_NETGEAR_BUG) == 0) || (m_beenProbed == TRUE) ||
-			(((localSlot->getNATBehavior() & FirewallHelperClass::FIREWALL_TYPE_NETGEAR_BUG) != 0) && ((targetSlot->getNATBehavior() & FirewallHelperClass::FIREWALL_TYPE_NETGEAR_BUG) != 0))) {
+	        (((localSlot->getNATBehavior() & FirewallHelperClass::FIREWALL_TYPE_NETGEAR_BUG) != 0) && ((targetSlot->getNATBehavior() & FirewallHelperClass::FIREWALL_TYPE_NETGEAR_BUG) != 0))) {
 #ifdef DEBUG_LOGGING
 		UnsignedInt ip = targetSlot->getIP();
 #endif
 		DEBUG_LOG(("NAT::gotMangledPort - don't have a netgear or we have already been probed, or both my target and I have a netgear, send a PROBE. Sending to %d.%d.%d.%d:%d",
-								PRINTF_IP_AS_4_INTS(ip), targetSlot->getPort()));
+		           PRINTF_IP_AS_4_INTS(ip), targetSlot->getPort()));
 
 		sendAProbe(targetSlot->getIP(), targetSlot->getPort(), m_localNodeNumber);
 		notifyTargetOfProbe(targetSlot);
@@ -1107,14 +1107,14 @@ void NAT::notifyUsersOfConnectionFailed(Int nodeIndex) {
 	PeerRequest req;
 	AsciiString options;
 	options.format("CONNFAILED%d", nodeIndex);
-/*
-	req.peerRequestType = PeerRequest::PEERREQUEST_UTMROOM;
-	req.UTM.isStagingRoom = TRUE;
-	req.id = "NAT/";
-	req.options = options.str();
+	/*
+		req.peerRequestType = PeerRequest::PEERREQUEST_UTMROOM;
+		req.UTM.isStagingRoom = TRUE;
+		req.id = "NAT/";
+		req.options = options.str();
 
-	DEBUG_LOG(("NAT::notifyUsersOfConnectionFailed - sending %s to room", options.str()));
-*/
+		DEBUG_LOG(("NAT::notifyUsersOfConnectionFailed - sending %s to room", options.str()));
+	*/
 
 	req.peerRequestType = PeerRequest::PEERREQUEST_UTMPLAYER;
 	req.UTM.isStagingRoom = TRUE;
@@ -1185,13 +1185,13 @@ void NAT::processGlobalMessage(Int slotNum, const char *options) {
 		// we should get the node number of the player who's connection is done from the options
 		// and mark that down as part of the connectionStates.
 		const char *c = ptr + strlen("CONNDONE");
-/*		while (*c != ' ') {
-			++c;
-		}
-		while (*c == ' ') {
-			++c;
-		}
-*/		Int node;
+		/*		while (*c != ' ') {
+					++c;
+				}
+				while (*c == ' ') {
+					++c;
+				}
+		*/		Int node;
 		Int sendingNode;
 		sscanf(c, "%d %d\n", &node, &sendingNode);
 
@@ -1233,7 +1233,7 @@ void NAT::processGlobalMessage(Int slotNum, const char *options) {
 		UnsignedShort port = (UnsignedShort)intport;
 
 		DEBUG_LOG(("NAT::processGlobalMessage - got port message from node %d, port: %d, internal address: %d.%d.%d.%d", node, port,
-								PRINTF_IP_AS_4_INTS(addr)));
+		           PRINTF_IP_AS_4_INTS(addr)));
 
 		if ((node >= 0) && (node < m_numNodes)) {
 			if (port < 1024) {
@@ -1275,7 +1275,7 @@ void NAT::setConnectionState(Int nodeNumber, NATConnectionState state) {
 			if (m_slotList[i]->isHuman()) {
 				if (i != m_connectionNodes[m_localNodeNumber].m_slotIndex) {
 					if (i == slotIndex) {
-					 break;
+						break;
 					}
 					++slot;
 				}

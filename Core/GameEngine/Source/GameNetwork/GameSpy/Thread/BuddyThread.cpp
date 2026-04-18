@@ -258,133 +258,133 @@ GPProfile GameSpyBuddyMessageQueue::getLocalProfileID()
 void BuddyThreadClass::Thread_Function()
 {
 	try {
-	GPConnection gpCon;
-	GPConnection *con = &gpCon;
+		GPConnection gpCon;
+		GPConnection *con = &gpCon;
 #if RTS_GENERALS
-	const int productID = 675;
+		const int productID = 675;
 #elif RTS_ZEROHOUR
-	const int productID = 823;
+		const int productID = 823;
 #endif
-	gpInitialize( con, productID, 0, GP_PARTNERID_GAMESPY );
-	m_isConnected = m_isConnecting = false;
+		gpInitialize( con, productID, 0, GP_PARTNERID_GAMESPY );
+		m_isConnected = m_isConnecting = false;
 
-	gpSetCallback( con, GP_ERROR,								callbackWrapper,	(void *)CALLBACK_ERROR );
-	gpSetCallback( con, GP_RECV_BUDDY_MESSAGE,	callbackWrapper,	(void *)CALLBACK_RECVMESSAGE );
-	gpSetCallback( con, GP_RECV_BUDDY_REQUEST,	callbackWrapper,	(void *)CALLBACK_RECVREQUEST );
-	gpSetCallback( con, GP_RECV_BUDDY_STATUS,		callbackWrapper,	(void *)CALLBACK_RECVSTATUS );
+		gpSetCallback( con, GP_ERROR,								callbackWrapper,	(void *)CALLBACK_ERROR );
+		gpSetCallback( con, GP_RECV_BUDDY_MESSAGE,	callbackWrapper,	(void *)CALLBACK_RECVMESSAGE );
+		gpSetCallback( con, GP_RECV_BUDDY_REQUEST,	callbackWrapper,	(void *)CALLBACK_RECVREQUEST );
+		gpSetCallback( con, GP_RECV_BUDDY_STATUS,		callbackWrapper,	(void *)CALLBACK_RECVSTATUS );
 
-	GPEnum lastStatus = GP_OFFLINE;
-	std::string lastStatusString;
+		GPEnum lastStatus = GP_OFFLINE;
+		std::string lastStatusString;
 
-	BuddyRequest incomingRequest;
-	while ( running )
-	{
-		// deal with requests
-		if (TheGameSpyBuddyMessageQueue->getRequest(incomingRequest))
+		BuddyRequest incomingRequest;
+		while ( running )
 		{
-			switch (incomingRequest.buddyRequestType)
+			// deal with requests
+			if (TheGameSpyBuddyMessageQueue->getRequest(incomingRequest))
 			{
-			case BuddyRequest::BUDDYREQUEST_LOGIN:
-				m_isConnecting = true;
-				m_nick = incomingRequest.arg.login.nick;
-				m_email = incomingRequest.arg.login.email;
-				m_pass = incomingRequest.arg.login.password;
-				m_isConnected = (gpConnect( con, incomingRequest.arg.login.nick, incomingRequest.arg.login.email,
-					incomingRequest.arg.login.password, (incomingRequest.arg.login.hasFirewall)?GP_FIREWALL:GP_NO_FIREWALL,
-					GP_BLOCKING, callbackWrapper, (void *)CALLBACK_CONNECT ) == GP_NO_ERROR);
-				m_isConnecting = false;
-				break;
-
-			case BuddyRequest::BUDDYREQUEST_RELOGIN:
-				m_isConnecting = true;
-				m_isConnected = (gpConnect( con, m_nick.c_str(), m_email.c_str(), m_pass.c_str(), GP_FIREWALL,
-					GP_BLOCKING, callbackWrapper, (void *)CALLBACK_CONNECT ) == GP_NO_ERROR);
-				m_isConnecting = false;
-				break;
-			case BuddyRequest::BUDDYREQUEST_DELETEACCT:
-				m_isdeleting =  true;
-				// TheSuperHackers @tweak OmniBlade API was updated since Generals released to require a callback. Passing -1 will make our wrapper ignore this.
-				gpDeleteProfile( con, callbackWrapper, (void *)(-1) );
-				break;
-			case BuddyRequest::BUDDYREQUEST_LOGOUT:
-				m_isConnecting = m_isConnected = false;
-				gpDisconnect( con );
-				break;
-			case BuddyRequest::BUDDYREQUEST_MESSAGE:
+				switch (incomingRequest.buddyRequestType)
 				{
-					std::string s = WideCharStringToMultiByte( incomingRequest.arg.message.text );
-					DEBUG_LOG(("Sending a buddy message to %d [%s]", incomingRequest.arg.message.recipient, s.c_str()));
-					gpSendBuddyMessage( con, incomingRequest.arg.message.recipient, s.c_str() );
-				}
-				break;
-			case BuddyRequest::BUDDYREQUEST_LOGINNEW:
-				{
-					m_isConnecting = true;
-					m_nick = incomingRequest.arg.login.nick;
-					m_email = incomingRequest.arg.login.email;
-					m_pass = incomingRequest.arg.login.password;
-					m_isNewAccount = TRUE;
-					// TheSuperHackers @tweak OmniBlade API was updated since Generals release to require uniquenick which is the same as nick and cdkey is an empty string here.
-					m_isConnected = (gpConnectNewUser( con, incomingRequest.arg.login.nick, incomingRequest.arg.login.nick, incomingRequest.arg.login.email,
-						incomingRequest.arg.login.password, "", (incomingRequest.arg.login.hasFirewall)?GP_FIREWALL:GP_NO_FIREWALL,
-						GP_BLOCKING, callbackWrapper, (void *)CALLBACK_CONNECT ) == GP_NO_ERROR);
-					if (m_isNewAccount) // if we didn't re-login
-					{
-						gpSetInfoMask( con, GP_MASK_NONE ); // don't share info
-					}
-					m_isConnecting = false;
-				}
-				break;
-			case BuddyRequest::BUDDYREQUEST_ADDBUDDY:
-				{
-					std::string s = WideCharStringToMultiByte( incomingRequest.arg.addbuddy.text );
-					gpSendBuddyRequest( con, incomingRequest.arg.addbuddy.id, s.c_str() );
-				}
-				break;
-			case BuddyRequest::BUDDYREQUEST_DELBUDDY:
-				{
-					gpDeleteBuddy( con, incomingRequest.arg.profile.id );
-				}
-				break;
-			case BuddyRequest::BUDDYREQUEST_OKADD:
-				{
-					gpAuthBuddyRequest( con, incomingRequest.arg.profile.id );
-				}
-				break;
-			case BuddyRequest::BUDDYREQUEST_DENYADD:
-				{
-					gpDenyBuddyRequest( con, incomingRequest.arg.profile.id );
-				}
-				break;
-			case BuddyRequest::BUDDYREQUEST_SETSTATUS:
-				{
-					//don't blast our 'Loading' status with 'Online'.
-					if (lastStatus == GP_PLAYING && lastStatusString == "Loading" && incomingRequest.arg.status.status == GP_ONLINE)
+					case BuddyRequest::BUDDYREQUEST_LOGIN:
+						m_isConnecting = true;
+						m_nick = incomingRequest.arg.login.nick;
+						m_email = incomingRequest.arg.login.email;
+						m_pass = incomingRequest.arg.login.password;
+						m_isConnected = (gpConnect( con, incomingRequest.arg.login.nick, incomingRequest.arg.login.email,
+						                            incomingRequest.arg.login.password, (incomingRequest.arg.login.hasFirewall)?GP_FIREWALL:GP_NO_FIREWALL,
+						                            GP_BLOCKING, callbackWrapper, (void *)CALLBACK_CONNECT ) == GP_NO_ERROR);
+						m_isConnecting = false;
 						break;
 
-					DEBUG_LOG(("BUDDYREQUEST_SETSTATUS: status is now %d:%s/%s",
-						incomingRequest.arg.status.status, incomingRequest.arg.status.statusString, incomingRequest.arg.status.locationString));
-					gpSetStatus( con, incomingRequest.arg.status.status, incomingRequest.arg.status.statusString,
-						incomingRequest.arg.status.locationString );
-					lastStatus = incomingRequest.arg.status.status;
-					lastStatusString = incomingRequest.arg.status.statusString;
+					case BuddyRequest::BUDDYREQUEST_RELOGIN:
+						m_isConnecting = true;
+						m_isConnected = (gpConnect( con, m_nick.c_str(), m_email.c_str(), m_pass.c_str(), GP_FIREWALL,
+						                            GP_BLOCKING, callbackWrapper, (void *)CALLBACK_CONNECT ) == GP_NO_ERROR);
+						m_isConnecting = false;
+						break;
+					case BuddyRequest::BUDDYREQUEST_DELETEACCT:
+						m_isdeleting =  true;
+						// TheSuperHackers @tweak OmniBlade API was updated since Generals released to require a callback. Passing -1 will make our wrapper ignore this.
+						gpDeleteProfile( con, callbackWrapper, (void *)(-1) );
+						break;
+					case BuddyRequest::BUDDYREQUEST_LOGOUT:
+						m_isConnecting = m_isConnected = false;
+						gpDisconnect( con );
+						break;
+					case BuddyRequest::BUDDYREQUEST_MESSAGE:
+					{
+						std::string s = WideCharStringToMultiByte( incomingRequest.arg.message.text );
+						DEBUG_LOG(("Sending a buddy message to %d [%s]", incomingRequest.arg.message.recipient, s.c_str()));
+						gpSendBuddyMessage( con, incomingRequest.arg.message.recipient, s.c_str() );
+					}
+					break;
+					case BuddyRequest::BUDDYREQUEST_LOGINNEW:
+					{
+						m_isConnecting = true;
+						m_nick = incomingRequest.arg.login.nick;
+						m_email = incomingRequest.arg.login.email;
+						m_pass = incomingRequest.arg.login.password;
+						m_isNewAccount = TRUE;
+						// TheSuperHackers @tweak OmniBlade API was updated since Generals release to require uniquenick which is the same as nick and cdkey is an empty string here.
+						m_isConnected = (gpConnectNewUser( con, incomingRequest.arg.login.nick, incomingRequest.arg.login.nick, incomingRequest.arg.login.email,
+						                                   incomingRequest.arg.login.password, "", (incomingRequest.arg.login.hasFirewall)?GP_FIREWALL:GP_NO_FIREWALL,
+						                                   GP_BLOCKING, callbackWrapper, (void *)CALLBACK_CONNECT ) == GP_NO_ERROR);
+						if (m_isNewAccount) // if we didn't re-login
+						{
+							gpSetInfoMask( con, GP_MASK_NONE ); // don't share info
+						}
+						m_isConnecting = false;
+					}
+					break;
+					case BuddyRequest::BUDDYREQUEST_ADDBUDDY:
+					{
+						std::string s = WideCharStringToMultiByte( incomingRequest.arg.addbuddy.text );
+						gpSendBuddyRequest( con, incomingRequest.arg.addbuddy.id, s.c_str() );
+					}
+					break;
+					case BuddyRequest::BUDDYREQUEST_DELBUDDY:
+					{
+						gpDeleteBuddy( con, incomingRequest.arg.profile.id );
+					}
+					break;
+					case BuddyRequest::BUDDYREQUEST_OKADD:
+					{
+						gpAuthBuddyRequest( con, incomingRequest.arg.profile.id );
+					}
+					break;
+					case BuddyRequest::BUDDYREQUEST_DENYADD:
+					{
+						gpDenyBuddyRequest( con, incomingRequest.arg.profile.id );
+					}
+					break;
+					case BuddyRequest::BUDDYREQUEST_SETSTATUS:
+					{
+						//don't blast our 'Loading' status with 'Online'.
+						if (lastStatus == GP_PLAYING && lastStatusString == "Loading" && incomingRequest.arg.status.status == GP_ONLINE)
+							break;
+
+						DEBUG_LOG(("BUDDYREQUEST_SETSTATUS: status is now %d:%s/%s",
+						           incomingRequest.arg.status.status, incomingRequest.arg.status.statusString, incomingRequest.arg.status.locationString));
+						gpSetStatus( con, incomingRequest.arg.status.status, incomingRequest.arg.status.statusString,
+						             incomingRequest.arg.status.locationString );
+						lastStatus = incomingRequest.arg.status.status;
+						lastStatusString = incomingRequest.arg.status.statusString;
+					}
+					break;
 				}
-				break;
 			}
+
+			// update the network
+			GPEnum isConnected = GP_CONNECTED;
+			GPResult res = GP_NO_ERROR;
+			res = gpIsConnected( con, &isConnected );
+			if ( isConnected == GP_CONNECTED && res == GP_NO_ERROR )
+				gpProcess( con );
+
+			// end our timeslice
+			Switch_Thread();
 		}
 
-		// update the network
-		GPEnum isConnected = GP_CONNECTED;
-		GPResult res = GP_NO_ERROR;
-		res = gpIsConnected( con, &isConnected );
-		if ( isConnected == GP_CONNECTED && res == GP_NO_ERROR )
-			gpProcess( con );
-
-		// end our timeslice
-		Switch_Thread();
-	}
-
-	gpDestroy( con );
+		gpDestroy( con );
 	} catch ( ... ) {
 		DEBUG_CRASH(("Exception in buddy thread!"));
 	}
@@ -399,71 +399,71 @@ void BuddyThreadClass::errorCallback( GPConnection *con, GPErrorArg *arg )
 	char errorCodeString[256];
 	char resultString[256];
 
-	#define RESULT(x) case x: strcpy(resultString, #x); break;
+#define RESULT(x) case x: strcpy(resultString, #x); break;
 	switch(arg->result)
 	{
-		RESULT(GP_NO_ERROR)
-		RESULT(GP_MEMORY_ERROR)
-		RESULT(GP_PARAMETER_ERROR)
-		RESULT(GP_NETWORK_ERROR)
-		RESULT(GP_SERVER_ERROR)
-	default:
-		strcpy(resultString, "Unknown result!");
+			RESULT(GP_NO_ERROR)
+			RESULT(GP_MEMORY_ERROR)
+			RESULT(GP_PARAMETER_ERROR)
+			RESULT(GP_NETWORK_ERROR)
+			RESULT(GP_SERVER_ERROR)
+		default:
+			strcpy(resultString, "Unknown result!");
 	}
-	#undef RESULT
+#undef RESULT
 
-	#define ERRORCODE(x) case x: strcpy(errorCodeString, #x); break;
+#define ERRORCODE(x) case x: strcpy(errorCodeString, #x); break;
 	switch(arg->errorCode)
 	{
-		ERRORCODE(GP_GENERAL)
-		ERRORCODE(GP_PARSE)
-		ERRORCODE(GP_NOT_LOGGED_IN)
-		ERRORCODE(GP_BAD_SESSKEY)
-		ERRORCODE(GP_DATABASE)
-		ERRORCODE(GP_NETWORK)
-		ERRORCODE(GP_FORCED_DISCONNECT)
-		ERRORCODE(GP_CONNECTION_CLOSED)
-		ERRORCODE(GP_LOGIN)
-		ERRORCODE(GP_LOGIN_TIMEOUT)
-		ERRORCODE(GP_LOGIN_BAD_NICK)
-		ERRORCODE(GP_LOGIN_BAD_EMAIL)
-		ERRORCODE(GP_LOGIN_BAD_PASSWORD)
-		ERRORCODE(GP_LOGIN_BAD_PROFILE)
-		ERRORCODE(GP_LOGIN_PROFILE_DELETED)
-		ERRORCODE(GP_LOGIN_CONNECTION_FAILED)
-		ERRORCODE(GP_LOGIN_SERVER_AUTH_FAILED)
-		ERRORCODE(GP_NEWUSER)
-		ERRORCODE(GP_NEWUSER_BAD_NICK)
-		ERRORCODE(GP_NEWUSER_BAD_PASSWORD)
-		ERRORCODE(GP_UPDATEUI)
-		ERRORCODE(GP_UPDATEUI_BAD_EMAIL)
-		ERRORCODE(GP_NEWPROFILE)
-		ERRORCODE(GP_NEWPROFILE_BAD_NICK)
-		ERRORCODE(GP_NEWPROFILE_BAD_OLD_NICK)
-		ERRORCODE(GP_UPDATEPRO)
-		ERRORCODE(GP_UPDATEPRO_BAD_NICK)
-		ERRORCODE(GP_ADDBUDDY)
-		ERRORCODE(GP_ADDBUDDY_BAD_FROM)
-		ERRORCODE(GP_ADDBUDDY_BAD_NEW)
-		ERRORCODE(GP_ADDBUDDY_ALREADY_BUDDY)
-		ERRORCODE(GP_AUTHADD)
-		ERRORCODE(GP_AUTHADD_BAD_FROM)
-		ERRORCODE(GP_AUTHADD_BAD_SIG)
-		ERRORCODE(GP_STATUS)
-		ERRORCODE(GP_BM)
-		ERRORCODE(GP_BM_NOT_BUDDY)
-		ERRORCODE(GP_GETPROFILE)
-		ERRORCODE(GP_GETPROFILE_BAD_PROFILE)
-		ERRORCODE(GP_DELBUDDY)
-		ERRORCODE(GP_DELBUDDY_NOT_BUDDY)
-		ERRORCODE(GP_DELPROFILE)
-		ERRORCODE(GP_DELPROFILE_LAST_PROFILE)
-		ERRORCODE(GP_SEARCH)
-		ERRORCODE(GP_SEARCH_CONNECTION_FAILED)
-	default:
-		strcpy(errorCodeString, "Unknown error code!");
+			ERRORCODE(GP_GENERAL)
+			ERRORCODE(GP_PARSE)
+			ERRORCODE(GP_NOT_LOGGED_IN)
+			ERRORCODE(GP_BAD_SESSKEY)
+			ERRORCODE(GP_DATABASE)
+			ERRORCODE(GP_NETWORK)
+			ERRORCODE(GP_FORCED_DISCONNECT)
+			ERRORCODE(GP_CONNECTION_CLOSED)
+			ERRORCODE(GP_LOGIN)
+			ERRORCODE(GP_LOGIN_TIMEOUT)
+			ERRORCODE(GP_LOGIN_BAD_NICK)
+			ERRORCODE(GP_LOGIN_BAD_EMAIL)
+			ERRORCODE(GP_LOGIN_BAD_PASSWORD)
+			ERRORCODE(GP_LOGIN_BAD_PROFILE)
+			ERRORCODE(GP_LOGIN_PROFILE_DELETED)
+			ERRORCODE(GP_LOGIN_CONNECTION_FAILED)
+			ERRORCODE(GP_LOGIN_SERVER_AUTH_FAILED)
+			ERRORCODE(GP_NEWUSER)
+			ERRORCODE(GP_NEWUSER_BAD_NICK)
+			ERRORCODE(GP_NEWUSER_BAD_PASSWORD)
+			ERRORCODE(GP_UPDATEUI)
+			ERRORCODE(GP_UPDATEUI_BAD_EMAIL)
+			ERRORCODE(GP_NEWPROFILE)
+			ERRORCODE(GP_NEWPROFILE_BAD_NICK)
+			ERRORCODE(GP_NEWPROFILE_BAD_OLD_NICK)
+			ERRORCODE(GP_UPDATEPRO)
+			ERRORCODE(GP_UPDATEPRO_BAD_NICK)
+			ERRORCODE(GP_ADDBUDDY)
+			ERRORCODE(GP_ADDBUDDY_BAD_FROM)
+			ERRORCODE(GP_ADDBUDDY_BAD_NEW)
+			ERRORCODE(GP_ADDBUDDY_ALREADY_BUDDY)
+			ERRORCODE(GP_AUTHADD)
+			ERRORCODE(GP_AUTHADD_BAD_FROM)
+			ERRORCODE(GP_AUTHADD_BAD_SIG)
+			ERRORCODE(GP_STATUS)
+			ERRORCODE(GP_BM)
+			ERRORCODE(GP_BM_NOT_BUDDY)
+			ERRORCODE(GP_GETPROFILE)
+			ERRORCODE(GP_GETPROFILE_BAD_PROFILE)
+			ERRORCODE(GP_DELBUDDY)
+			ERRORCODE(GP_DELBUDDY_NOT_BUDDY)
+			ERRORCODE(GP_DELPROFILE)
+			ERRORCODE(GP_DELPROFILE_LAST_PROFILE)
+			ERRORCODE(GP_SEARCH)
+			ERRORCODE(GP_SEARCH_CONNECTION_FAILED)
+		default:
+			strcpy(errorCodeString, "Unknown error code!");
 	}
-	#undef ERRORCODE
+#undef ERRORCODE
 
 	if(arg->fatal)
 	{
@@ -571,42 +571,42 @@ void BuddyThreadClass::connectCallback( GPConnection *con, GPConnectResponseArg 
 			resp.discon.reason = DISCONNECT_COULDNOTCONNECT;
 			switch (m_lastErrorCode)
 			{
-			case GP_LOGIN_TIMEOUT:
-				resp.discon.reason = DISCONNECT_GP_LOGIN_TIMEOUT;
-				break;
-			case GP_LOGIN_BAD_NICK:
-				resp.discon.reason = DISCONNECT_GP_LOGIN_BAD_NICK;
-				break;
-			case GP_LOGIN_BAD_EMAIL:
-				resp.discon.reason = DISCONNECT_GP_LOGIN_BAD_EMAIL;
-				break;
-			case GP_LOGIN_BAD_PASSWORD:
-				resp.discon.reason = DISCONNECT_GP_LOGIN_BAD_PASSWORD;
-				break;
-			case GP_LOGIN_BAD_PROFILE:
-				resp.discon.reason = DISCONNECT_GP_LOGIN_BAD_PROFILE;
-				break;
-			case GP_LOGIN_PROFILE_DELETED:
-				resp.discon.reason = DISCONNECT_GP_LOGIN_PROFILE_DELETED;
-				break;
-			case GP_LOGIN_CONNECTION_FAILED:
-				resp.discon.reason = DISCONNECT_GP_LOGIN_CONNECTION_FAILED;
-				break;
-			case GP_LOGIN_SERVER_AUTH_FAILED:
-				resp.discon.reason = DISCONNECT_GP_LOGIN_SERVER_AUTH_FAILED;
-				break;
-			case GP_NEWUSER_BAD_NICK:
-				resp.discon.reason = DISCONNECT_GP_NEWUSER_BAD_NICK;
-				break;
-			case GP_NEWUSER_BAD_PASSWORD:
-				resp.discon.reason = DISCONNECT_GP_NEWUSER_BAD_PASSWORD;
-				break;
-			case GP_NEWPROFILE_BAD_NICK:
-				resp.discon.reason = DISCONNECT_GP_NEWPROFILE_BAD_NICK;
-				break;
-			case GP_NEWPROFILE_BAD_OLD_NICK:
-				resp.discon.reason = DISCONNECT_GP_NEWPROFILE_BAD_OLD_NICK;
-				break;
+				case GP_LOGIN_TIMEOUT:
+					resp.discon.reason = DISCONNECT_GP_LOGIN_TIMEOUT;
+					break;
+				case GP_LOGIN_BAD_NICK:
+					resp.discon.reason = DISCONNECT_GP_LOGIN_BAD_NICK;
+					break;
+				case GP_LOGIN_BAD_EMAIL:
+					resp.discon.reason = DISCONNECT_GP_LOGIN_BAD_EMAIL;
+					break;
+				case GP_LOGIN_BAD_PASSWORD:
+					resp.discon.reason = DISCONNECT_GP_LOGIN_BAD_PASSWORD;
+					break;
+				case GP_LOGIN_BAD_PROFILE:
+					resp.discon.reason = DISCONNECT_GP_LOGIN_BAD_PROFILE;
+					break;
+				case GP_LOGIN_PROFILE_DELETED:
+					resp.discon.reason = DISCONNECT_GP_LOGIN_PROFILE_DELETED;
+					break;
+				case GP_LOGIN_CONNECTION_FAILED:
+					resp.discon.reason = DISCONNECT_GP_LOGIN_CONNECTION_FAILED;
+					break;
+				case GP_LOGIN_SERVER_AUTH_FAILED:
+					resp.discon.reason = DISCONNECT_GP_LOGIN_SERVER_AUTH_FAILED;
+					break;
+				case GP_NEWUSER_BAD_NICK:
+					resp.discon.reason = DISCONNECT_GP_NEWUSER_BAD_NICK;
+					break;
+				case GP_NEWUSER_BAD_PASSWORD:
+					resp.discon.reason = DISCONNECT_GP_NEWUSER_BAD_PASSWORD;
+					break;
+				case GP_NEWPROFILE_BAD_NICK:
+					resp.discon.reason = DISCONNECT_GP_NEWPROFILE_BAD_NICK;
+					break;
+				case GP_NEWPROFILE_BAD_OLD_NICK:
+					resp.discon.reason = DISCONNECT_GP_NEWPROFILE_BAD_OLD_NICK;
+					break;
 			}
 			TheGameSpyPeerMessageQueue->addResponse(resp);
 		}

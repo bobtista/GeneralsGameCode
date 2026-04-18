@@ -95,9 +95,9 @@ const FieldParse TerrainRoadType::m_terrainBridgeFieldParseTable[] =
 	* Label = Transition:<Damage|Repair> ToState:<BODYTYPE> EffectNum:<INT> OCL:<OCL NAME> */
 // ------------------------------------------------------------------------------------------------
 /*static*/ void TerrainRoadType::parseTransitionToOCL( INI *ini,
-																											 void *instance,
-																											 void *store,
-																											 const void *userData )
+        void *instance,
+        void *store,
+        const void *userData )
 {
 	const char *token;
 	TerrainRoadType *theInstance = (TerrainRoadType *)instance;
@@ -151,9 +151,9 @@ const FieldParse TerrainRoadType::m_terrainBridgeFieldParseTable[] =
 	* Label = Transition:<Damage|Repair> ToState:<BODYTYPE> EffectNum:<INT> FX:<FXLIST NAME> */
 // ------------------------------------------------------------------------------------------------
 /*static*/ void TerrainRoadType::parseTransitionToFX( INI *ini,
-																											void *instance,
-																											void *store,
-																											const void *userData )
+        void *instance,
+        void *store,
+        const void *userData )
 {
 	const char *token;
 	TerrainRoadType *theInstance = (TerrainRoadType *)instance;

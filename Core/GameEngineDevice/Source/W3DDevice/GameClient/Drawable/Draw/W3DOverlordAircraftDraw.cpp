@@ -58,19 +58,19 @@ W3DOverlordAircraftDrawModuleData::~W3DOverlordAircraftDrawModuleData()
 //-------------------------------------------------------------------------------------------------
 void W3DOverlordAircraftDrawModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  W3DModelDrawModuleData::buildFieldParse(p);
+	W3DModelDrawModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 W3DOverlordAircraftDraw::W3DOverlordAircraftDraw( Thing *thing, const ModuleData* moduleData )
-: W3DModelDraw( thing, moduleData )
+	: W3DModelDraw( thing, moduleData )
 {
 }
 
@@ -89,22 +89,22 @@ void W3DOverlordAircraftDraw::doDrawModule(const Matrix3D* transformMtx)
 	// It depends on us because our renderObject is only made correct in the act of drawing.
 	Object *me = getDrawable()->getObject();
 	if( me
-		&& me->getContain()
-		&& me->getContain()->friend_getRider()
-		&& me->getContain()->friend_getRider()->getDrawable()
-		)
+	        && me->getContain()
+	        && me->getContain()->friend_getRider()
+	        && me->getContain()->friend_getRider()->getDrawable()
+	  )
 	{
 		Drawable *riderDraw = me->getContain()->friend_getRider()->getDrawable();
-    if ( riderDraw )
-    {
-      TintEnvelope *env = getDrawable()->getColorTintEnvelope();
-      if ( env )
-        riderDraw->setColorTintEnvelope( *env );
+		if ( riderDraw )
+		{
+			TintEnvelope *env = getDrawable()->getColorTintEnvelope();
+			if ( env )
+				riderDraw->setColorTintEnvelope( *env );
 
-      riderDraw->notifyDrawableDependencyCleared();
-      riderDraw->draw();
-    }
-    DEBUG_ASSERTCRASH( riderDraw, ("OverlordAircraftDraw finds no rider's drawable") );
+			riderDraw->notifyDrawableDependencyCleared();
+			riderDraw->draw();
+		}
+		DEBUG_ASSERTCRASH( riderDraw, ("OverlordAircraftDraw finds no rider's drawable") );
 
 	}
 }
@@ -117,10 +117,10 @@ void W3DOverlordAircraftDraw::setHidden(Bool h)
 	// We need to hide our rider, since he won't realize he's being contained in a contained container
 	Object *me = getDrawable()->getObject();
 	if( me
-		&& me->getContain()
-		&& me->getContain()->friend_getRider()
-		&& me->getContain()->friend_getRider()->getDrawable()
-		)
+	        && me->getContain()
+	        && me->getContain()->friend_getRider()
+	        && me->getContain()->friend_getRider()->getDrawable()
+	  )
 	{
 		me->getContain()->friend_getRider()->getDrawable()->setDrawableHidden(h);
 	}

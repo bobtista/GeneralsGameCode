@@ -493,39 +493,39 @@ size_t NetPacketGameCommandData::getSize(const NetCommandMsg &msg)
 		const GameMessageArgumentDataType type = arg->getType();
 		switch (type)
 		{
-		case ARGUMENTDATATYPE_INTEGER:
-			size += arg->getArgCount() * sizeof(Int);
-			break;
-		case ARGUMENTDATATYPE_REAL:
-			size += arg->getArgCount() * sizeof(Real);
-			break;
-		case ARGUMENTDATATYPE_BOOLEAN:
-			size += arg->getArgCount() * sizeof(Bool);
-			break;
-		case ARGUMENTDATATYPE_OBJECTID:
-			size += arg->getArgCount() * sizeof(ObjectID);
-			break;
-		case ARGUMENTDATATYPE_DRAWABLEID:
-			size += arg->getArgCount() * sizeof(DrawableID);
-			break;
-		case ARGUMENTDATATYPE_TEAMID:
-			size += arg->getArgCount() * sizeof(UnsignedInt);
-			break;
-		case ARGUMENTDATATYPE_LOCATION:
-			size += arg->getArgCount() * sizeof(Coord3D);
-			break;
-		case ARGUMENTDATATYPE_PIXEL:
-			size += arg->getArgCount() * sizeof(ICoord2D);
-			break;
-		case ARGUMENTDATATYPE_PIXELREGION:
-			size += arg->getArgCount() * sizeof(IRegion2D);
-			break;
-		case ARGUMENTDATATYPE_TIMESTAMP:
-			size += arg->getArgCount() * sizeof(UnsignedInt);
-			break;
-		case ARGUMENTDATATYPE_WIDECHAR:
-			size += arg->getArgCount() * sizeof(WideChar);
-			break;
+			case ARGUMENTDATATYPE_INTEGER:
+				size += arg->getArgCount() * sizeof(Int);
+				break;
+			case ARGUMENTDATATYPE_REAL:
+				size += arg->getArgCount() * sizeof(Real);
+				break;
+			case ARGUMENTDATATYPE_BOOLEAN:
+				size += arg->getArgCount() * sizeof(Bool);
+				break;
+			case ARGUMENTDATATYPE_OBJECTID:
+				size += arg->getArgCount() * sizeof(ObjectID);
+				break;
+			case ARGUMENTDATATYPE_DRAWABLEID:
+				size += arg->getArgCount() * sizeof(DrawableID);
+				break;
+			case ARGUMENTDATATYPE_TEAMID:
+				size += arg->getArgCount() * sizeof(UnsignedInt);
+				break;
+			case ARGUMENTDATATYPE_LOCATION:
+				size += arg->getArgCount() * sizeof(Coord3D);
+				break;
+			case ARGUMENTDATATYPE_PIXEL:
+				size += arg->getArgCount() * sizeof(ICoord2D);
+				break;
+			case ARGUMENTDATATYPE_PIXELREGION:
+				size += arg->getArgCount() * sizeof(IRegion2D);
+				break;
+			case ARGUMENTDATATYPE_TIMESTAMP:
+				size += arg->getArgCount() * sizeof(UnsignedInt);
+				break;
+			case ARGUMENTDATATYPE_WIDECHAR:
+				size += arg->getArgCount() * sizeof(WideChar);
+				break;
 		}
 		arg = arg->getNext();
 	}
@@ -562,39 +562,39 @@ size_t NetPacketGameCommandData::copyBytes(UnsignedByte *buffer, const NetComman
 		GameMessageArgumentType arg = *gmsg->getArgument(i);
 		switch (type)
 		{
-		case ARGUMENTDATATYPE_INTEGER:
-			size += network::writePrimitive(buffer + size, arg.integer);
-			break;
-		case ARGUMENTDATATYPE_REAL:
-			size += network::writePrimitive(buffer + size, arg.real);
-			break;
-		case ARGUMENTDATATYPE_BOOLEAN:
-			size += network::writePrimitive(buffer + size, arg.boolean);
-			break;
-		case ARGUMENTDATATYPE_OBJECTID:
-			size += network::writePrimitive(buffer + size, arg.objectID);
-			break;
-		case ARGUMENTDATATYPE_DRAWABLEID:
-			size += network::writePrimitive(buffer + size, arg.drawableID);
-			break;
-		case ARGUMENTDATATYPE_TEAMID:
-			size += network::writePrimitive(buffer + size, arg.teamID);
-			break;
-		case ARGUMENTDATATYPE_LOCATION:
-			size += network::writePrimitive(buffer + size, arg.location);
-			break;
-		case ARGUMENTDATATYPE_PIXEL:
-			size += network::writePrimitive(buffer + size, arg.pixel);
-			break;
-		case ARGUMENTDATATYPE_PIXELREGION:
-			size += network::writePrimitive(buffer + size, arg.pixelRegion);
-			break;
-		case ARGUMENTDATATYPE_TIMESTAMP:
-			size += network::writePrimitive(buffer + size, arg.timestamp);
-			break;
-		case ARGUMENTDATATYPE_WIDECHAR:
-			size += network::writePrimitive(buffer + size, arg.wChar);
-			break;
+			case ARGUMENTDATATYPE_INTEGER:
+				size += network::writePrimitive(buffer + size, arg.integer);
+				break;
+			case ARGUMENTDATATYPE_REAL:
+				size += network::writePrimitive(buffer + size, arg.real);
+				break;
+			case ARGUMENTDATATYPE_BOOLEAN:
+				size += network::writePrimitive(buffer + size, arg.boolean);
+				break;
+			case ARGUMENTDATATYPE_OBJECTID:
+				size += network::writePrimitive(buffer + size, arg.objectID);
+				break;
+			case ARGUMENTDATATYPE_DRAWABLEID:
+				size += network::writePrimitive(buffer + size, arg.drawableID);
+				break;
+			case ARGUMENTDATATYPE_TEAMID:
+				size += network::writePrimitive(buffer + size, arg.teamID);
+				break;
+			case ARGUMENTDATATYPE_LOCATION:
+				size += network::writePrimitive(buffer + size, arg.location);
+				break;
+			case ARGUMENTDATATYPE_PIXEL:
+				size += network::writePrimitive(buffer + size, arg.pixel);
+				break;
+			case ARGUMENTDATATYPE_PIXELREGION:
+				size += network::writePrimitive(buffer + size, arg.pixelRegion);
+				break;
+			case ARGUMENTDATATYPE_TIMESTAMP:
+				size += network::writePrimitive(buffer + size, arg.timestamp);
+				break;
+			case ARGUMENTDATATYPE_WIDECHAR:
+				size += network::writePrimitive(buffer + size, arg.wChar);
+				break;
 		}
 	}
 

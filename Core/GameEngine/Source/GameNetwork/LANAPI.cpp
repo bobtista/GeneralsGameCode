@@ -68,7 +68,7 @@ LANGame::LANGame()
 LANAPI::LANAPI() : m_transport(nullptr)
 {
 	DEBUG_LOG(("LANAPI::LANAPI() - max game option size is %d, sizeof(LANMessage)=%d, MAX_LANAPI_PACKET_SIZE=%d",
-		m_lanMaxOptionsLength, sizeof(LANMessage), MAX_LANAPI_PACKET_SIZE));
+	           m_lanMaxOptionsLength, sizeof(LANMessage), MAX_LANAPI_PACKET_SIZE));
 
 	m_lastResendTime = 0;
 	//
@@ -360,73 +360,73 @@ void LANAPI::update()
 			switch (msg->messageType)
 			{
 				// Location specification
-			case LANMessage::MSG_REQUEST_LOCATIONS:		// Hey, where is everybody?
-				DEBUG_LOG(("LANAPI::update - got a MSG_REQUEST_LOCATIONS from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
-				handleRequestLocations( msg, senderIP );
-				break;
-			case LANMessage::MSG_GAME_ANNOUNCE:				// Here someone is, and here's his game info!
-				DEBUG_LOG(("LANAPI::update - got a MSG_GAME_ANNOUNCE from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
-				handleGameAnnounce( msg, senderIP );
-				break;
-			case LANMessage::MSG_LOBBY_ANNOUNCE:			// Hey, I'm in the lobby!
-				DEBUG_LOG(("LANAPI::update - got a MSG_LOBBY_ANNOUNCE from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
-				handleLobbyAnnounce( msg, senderIP );
-				break;
-			case LANMessage::MSG_REQUEST_GAME_INFO:
-				DEBUG_LOG(("LANAPI::update - got a MSG_REQUEST_GAME_INFO from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
-				handleRequestGameInfo( msg, senderIP );
-				break;
+				case LANMessage::MSG_REQUEST_LOCATIONS:		// Hey, where is everybody?
+					DEBUG_LOG(("LANAPI::update - got a MSG_REQUEST_LOCATIONS from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
+					handleRequestLocations( msg, senderIP );
+					break;
+				case LANMessage::MSG_GAME_ANNOUNCE:				// Here someone is, and here's his game info!
+					DEBUG_LOG(("LANAPI::update - got a MSG_GAME_ANNOUNCE from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
+					handleGameAnnounce( msg, senderIP );
+					break;
+				case LANMessage::MSG_LOBBY_ANNOUNCE:			// Hey, I'm in the lobby!
+					DEBUG_LOG(("LANAPI::update - got a MSG_LOBBY_ANNOUNCE from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
+					handleLobbyAnnounce( msg, senderIP );
+					break;
+				case LANMessage::MSG_REQUEST_GAME_INFO:
+					DEBUG_LOG(("LANAPI::update - got a MSG_REQUEST_GAME_INFO from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
+					handleRequestGameInfo( msg, senderIP );
+					break;
 
 				// Joining games
-			case LANMessage::MSG_REQUEST_JOIN:				// Let me in!  Let me in!
-				DEBUG_LOG(("LANAPI::update - got a MSG_REQUEST_JOIN from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
-				handleRequestJoin( msg, senderIP );
-				break;
-			case LANMessage::MSG_JOIN_ACCEPT:					// Okay, you can join.
-				DEBUG_LOG(("LANAPI::update - got a MSG_JOIN_ACCEPT from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
-				handleJoinAccept( msg, senderIP );
-				break;
-			case LANMessage::MSG_JOIN_DENY:						// Go away!  We don't want any!
-				DEBUG_LOG(("LANAPI::update - got a MSG_JOIN_DENY from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
-				handleJoinDeny( msg, senderIP );
-				break;
+				case LANMessage::MSG_REQUEST_JOIN:				// Let me in!  Let me in!
+					DEBUG_LOG(("LANAPI::update - got a MSG_REQUEST_JOIN from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
+					handleRequestJoin( msg, senderIP );
+					break;
+				case LANMessage::MSG_JOIN_ACCEPT:					// Okay, you can join.
+					DEBUG_LOG(("LANAPI::update - got a MSG_JOIN_ACCEPT from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
+					handleJoinAccept( msg, senderIP );
+					break;
+				case LANMessage::MSG_JOIN_DENY:						// Go away!  We don't want any!
+					DEBUG_LOG(("LANAPI::update - got a MSG_JOIN_DENY from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
+					handleJoinDeny( msg, senderIP );
+					break;
 
 				// Leaving games, lobby
-			case LANMessage::MSG_REQUEST_GAME_LEAVE:				// I'm outa here!
-				DEBUG_LOG(("LANAPI::update - got a MSG_REQUEST_GAME_LEAVE from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
-				handleRequestGameLeave( msg, senderIP );
-				break;
-			case LANMessage::MSG_REQUEST_LOBBY_LEAVE:				// I'm outa here!
-				DEBUG_LOG(("LANAPI::update - got a MSG_REQUEST_LOBBY_LEAVE from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
-				handleRequestLobbyLeave( msg, senderIP );
-				break;
+				case LANMessage::MSG_REQUEST_GAME_LEAVE:				// I'm outa here!
+					DEBUG_LOG(("LANAPI::update - got a MSG_REQUEST_GAME_LEAVE from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
+					handleRequestGameLeave( msg, senderIP );
+					break;
+				case LANMessage::MSG_REQUEST_LOBBY_LEAVE:				// I'm outa here!
+					DEBUG_LOG(("LANAPI::update - got a MSG_REQUEST_LOBBY_LEAVE from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
+					handleRequestLobbyLeave( msg, senderIP );
+					break;
 
 				// Game options, chat, etc
-			case LANMessage::MSG_SET_ACCEPT:					// I'm cool with everything as is.
-				handleSetAccept( msg, senderIP );
-				break;
-			case LANMessage::MSG_MAP_AVAILABILITY:		// Map status
-				handleHasMap( msg, senderIP );
-				break;
-			case LANMessage::MSG_CHAT:								// Just spouting my mouth off.
-				handleChat( msg, senderIP );
-				break;
-			case LANMessage::MSG_GAME_START:					// Hold on; we're starting!
-				handleGameStart( msg, senderIP );
-				break;
-			case LANMessage::MSG_GAME_START_TIMER:
-				handleGameStartTimer( msg, senderIP );
-				break;
-			case LANMessage::MSG_GAME_OPTIONS:				// Here's some info about the game.
-				DEBUG_LOG(("LANAPI::update - got a MSG_GAME_OPTIONS from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
-				handleGameOptions( msg, senderIP );
-				break;
-			case LANMessage::MSG_INACTIVE:		// someone is telling us that we're inactive.
-				handleInActive( msg, senderIP );
-				break;
+				case LANMessage::MSG_SET_ACCEPT:					// I'm cool with everything as is.
+					handleSetAccept( msg, senderIP );
+					break;
+				case LANMessage::MSG_MAP_AVAILABILITY:		// Map status
+					handleHasMap( msg, senderIP );
+					break;
+				case LANMessage::MSG_CHAT:								// Just spouting my mouth off.
+					handleChat( msg, senderIP );
+					break;
+				case LANMessage::MSG_GAME_START:					// Hold on; we're starting!
+					handleGameStart( msg, senderIP );
+					break;
+				case LANMessage::MSG_GAME_START_TIMER:
+					handleGameStartTimer( msg, senderIP );
+					break;
+				case LANMessage::MSG_GAME_OPTIONS:				// Here's some info about the game.
+					DEBUG_LOG(("LANAPI::update - got a MSG_GAME_OPTIONS from %d.%d.%d.%d", PRINTF_IP_AS_4_INTS(senderIP)));
+					handleGameOptions( msg, senderIP );
+					break;
+				case LANMessage::MSG_INACTIVE:		// someone is telling us that we're inactive.
+					handleInActive( msg, senderIP );
+					break;
 
-			default:
-				DEBUG_LOG(("Unknown LAN message type %d", msg->messageType));
+				default:
+					DEBUG_LOG(("Unknown LAN message type %d", msg->messageType));
 			}
 
 			// Mark it as read
@@ -560,26 +560,26 @@ void LANAPI::update()
 	{
 		switch (m_pendingAction)
 		{
-		case ACT_JOIN:
-			OnGameJoin(RET_TIMEOUT, nullptr);
-			m_pendingAction = ACT_NONE;
-			m_currentGame = nullptr;
-			m_inLobby = true;
-			break;
-		case ACT_LEAVE:
-			OnPlayerLeave(m_name);
-			m_pendingAction = ACT_NONE;
-			m_currentGame = nullptr;
-			m_inLobby = true;
-			break;
-		case ACT_JOINDIRECTCONNECT:
-			OnGameJoin(RET_TIMEOUT, nullptr);
-			m_pendingAction = ACT_NONE;
-			m_currentGame = nullptr;
-			m_inLobby = true;
-			break;
-		default:
-			m_pendingAction = ACT_NONE;
+			case ACT_JOIN:
+				OnGameJoin(RET_TIMEOUT, nullptr);
+				m_pendingAction = ACT_NONE;
+				m_currentGame = nullptr;
+				m_inLobby = true;
+				break;
+			case ACT_LEAVE:
+				OnPlayerLeave(m_name);
+				m_pendingAction = ACT_NONE;
+				m_currentGame = nullptr;
+				m_inLobby = true;
+				break;
+			case ACT_JOINDIRECTCONNECT:
+				OnGameJoin(RET_TIMEOUT, nullptr);
+				m_pendingAction = ACT_NONE;
+				m_currentGame = nullptr;
+				m_inLobby = true;
+				break;
+			default:
+				m_pendingAction = ACT_NONE;
 		}
 	}
 
@@ -919,30 +919,30 @@ void LANAPI::RequestGameCreate( UnicodeString gameName, Bool isDirectConnect )
 	m_currentGame = myGame;
 
 /// @todo: Need to initialize the players elsewere.
-/*	for (int player = 1; player < MAX_SLOTS; ++player)
-	{
-		myGame->setPlayerName(player, L"");
-		myGame->setIP(player, 0);
-		myGame->setAccepted(player, false);
-	}*/
+	/*	for (int player = 1; player < MAX_SLOTS; ++player)
+		{
+			myGame->setPlayerName(player, L"");
+			myGame->setIP(player, 0);
+			myGame->setAccepted(player, false);
+		}*/
 
 	// Add the game to the local game list
 	addGame(myGame);
 
 	// Send an announcement
 	//RequestSlotList();
-/*
-	LANMessage msg;
-	wcslcpy(msg.name, m_name.str(), ARRAY_SIZE(msg.name));
-	wcscpy(msg.GameInfo.gameName, myGame->getName().str());
-	for (player=0; player<MAX_SLOTS; ++player)
-	{
-		wcscpy(msg.GameInfo.name[player], myGame->getPlayerName(player).str());
-		msg.GameInfo.ip[player] = myGame->getIP(player);
-		msg.GameInfo.playerAccepted[player] = myGame->getAccepted(player);
-	}
-	msg.messageType = LANMessage::MSG_GAME_ANNOUNCE;
-*/
+	/*
+		LANMessage msg;
+		wcslcpy(msg.name, m_name.str(), ARRAY_SIZE(msg.name));
+		wcscpy(msg.GameInfo.gameName, myGame->getName().str());
+		for (player=0; player<MAX_SLOTS; ++player)
+		{
+			wcscpy(msg.GameInfo.name[player], myGame->getPlayerName(player).str());
+			msg.GameInfo.ip[player] = myGame->getIP(player);
+			msg.GameInfo.playerAccepted[player] = myGame->getAccepted(player);
+		}
+		msg.messageType = LANMessage::MSG_GAME_ANNOUNCE;
+	*/
 	OnGameCreate(LANAPIInterface::RET_OK);
 }
 

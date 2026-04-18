@@ -71,7 +71,7 @@ void XferLoad::open( AsciiString identifier )
 	{
 
 		DEBUG_CRASH(( "Cannot open file '%s' cause we've already got '%s' open",
-									identifier.str(), m_identifier.str() ));
+		              identifier.str(), m_identifier.str() ));
 		throw XFER_FILE_ALREADY_OPEN;
 
 	}
@@ -123,7 +123,7 @@ Int XferLoad::beginBlock()
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_fileFP != nullptr, ("Xfer begin block - file pointer for '%s' is null",
-										 m_identifier.str()) );
+	                   m_identifier.str()) );
 
 	// read block size
 	XferBlockSize blockSize;
@@ -156,11 +156,11 @@ void XferLoad::skip( Int dataSize )
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_fileFP != nullptr, ("XferLoad::skip - file pointer for '%s' is null",
-										 m_identifier.str()) );
+	                   m_identifier.str()) );
 
 	// sanity
 	DEBUG_ASSERTCRASH( dataSize >=0, ("XferLoad::skip - dataSize '%d' must be greater than 0",
-										 dataSize) );
+	                                  dataSize) );
 
 	// skip datasize in the file from the current position
 	if( fseek( m_fileFP, dataSize, SEEK_CUR ) != 0 )
@@ -245,7 +245,7 @@ void XferLoad::xferImplementation( void *data, Int dataSize )
 
 	// sanity
 	DEBUG_ASSERTCRASH( m_fileFP != nullptr, ("XferLoad - file pointer for '%s' is null",
-										 m_identifier.str()) );
+	                   m_identifier.str()) );
 
 	// read data from file
 	if( fread( data, dataSize, 1, m_fileFP ) != 1 )

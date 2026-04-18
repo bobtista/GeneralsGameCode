@@ -75,45 +75,45 @@ class WaterTransparencySetting : public Overridable
 {
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE( WaterTransparencySetting, "WaterTransparencySetting"  )
 
-	public:
-		Real m_transparentWaterDepth;
-		Real m_minWaterOpacity;
-		RGBColor m_standingWaterColor;
-		RGBColor m_radarColor;
-		Bool m_additiveBlend;
-		AsciiString m_standingWaterTexture;
+public:
+	Real m_transparentWaterDepth;
+	Real m_minWaterOpacity;
+	RGBColor m_standingWaterColor;
+	RGBColor m_radarColor;
+	Bool m_additiveBlend;
+	AsciiString m_standingWaterTexture;
 
-		AsciiString m_skyboxTextureN;
-		AsciiString m_skyboxTextureE;
-		AsciiString m_skyboxTextureS;
-		AsciiString m_skyboxTextureW;
-		AsciiString m_skyboxTextureT;
+	AsciiString m_skyboxTextureN;
+	AsciiString m_skyboxTextureE;
+	AsciiString m_skyboxTextureS;
+	AsciiString m_skyboxTextureW;
+	AsciiString m_skyboxTextureT;
 
-	public:
-		WaterTransparencySetting()
-		{
-			m_transparentWaterDepth = 3.0f;
-			m_minWaterOpacity = 1.0f;
-			m_standingWaterColor.red = 1.0f;
-			m_standingWaterColor.green = 1.0f;
-			m_standingWaterColor.blue = 1.0f;
-			m_radarColor.red = 0.55f;
-			m_radarColor.green = 0.55f;
-			m_radarColor.blue = 1.0f;
-			m_standingWaterTexture = "TWWater01.tga";
-			m_additiveBlend = FALSE;
+public:
+	WaterTransparencySetting()
+	{
+		m_transparentWaterDepth = 3.0f;
+		m_minWaterOpacity = 1.0f;
+		m_standingWaterColor.red = 1.0f;
+		m_standingWaterColor.green = 1.0f;
+		m_standingWaterColor.blue = 1.0f;
+		m_radarColor.red = 0.55f;
+		m_radarColor.green = 0.55f;
+		m_radarColor.blue = 1.0f;
+		m_standingWaterTexture = "TWWater01.tga";
+		m_additiveBlend = FALSE;
 
-			m_skyboxTextureN = "TSMorningN.tga";
-			m_skyboxTextureE = "TSMorningE.tga";
-			m_skyboxTextureS = "TSMorningS.tga";
-			m_skyboxTextureW = "TSMorningW.tga";
-			m_skyboxTextureT = "TSMorningT.tga";
-		}
+		m_skyboxTextureN = "TSMorningN.tga";
+		m_skyboxTextureE = "TSMorningE.tga";
+		m_skyboxTextureS = "TSMorningS.tga";
+		m_skyboxTextureW = "TSMorningW.tga";
+		m_skyboxTextureT = "TSMorningT.tga";
+	}
 
-		static const FieldParse m_waterTransparencySettingFieldParseTable[];		///< the parse table for INI definition
+	static const FieldParse m_waterTransparencySettingFieldParseTable[];		///< the parse table for INI definition
 
-		/// Get the INI parsing table for loading
-		const FieldParse *getFieldParse() const { return m_waterTransparencySettingFieldParseTable; }
+	/// Get the INI parsing table for loading
+	const FieldParse *getFieldParse() const { return m_waterTransparencySettingFieldParseTable; }
 };
 
 EMPTY_DTOR(WaterTransparencySetting)

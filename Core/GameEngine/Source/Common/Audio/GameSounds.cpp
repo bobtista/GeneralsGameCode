@@ -232,7 +232,7 @@ Bool SoundManager::canPlayNow( AudioEventRTS *event )
 			const Int localPlayerIndex = rts::getObservedOrLocalPlayer()->getPlayerIndex();
 
 			if( (event->getAudioEventInfo()->m_type & ST_SHROUDED) &&
-					 ThePartitionManager->getShroudStatusForPlayer(localPlayerIndex, pos) != CELLSHROUD_CLEAR )
+			        ThePartitionManager->getShroudStatusForPlayer(localPlayerIndex, pos) != CELLSHROUD_CLEAR )
 			{
 #ifdef INTENSIVE_AUDIO_DEBUG
 				DEBUG_LOG(("- culled due to shroud."));
@@ -252,7 +252,7 @@ Bool SoundManager::canPlayNow( AudioEventRTS *event )
 		else
 		{
 #ifdef INTENSIVE_AUDIO_DEBUG
-		DEBUG_LOG(("- culled due to voice."));
+			DEBUG_LOG(("- culled due to voice."));
 #endif
 			return false;
 		}

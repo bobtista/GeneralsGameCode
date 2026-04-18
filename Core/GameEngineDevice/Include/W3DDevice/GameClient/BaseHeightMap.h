@@ -120,7 +120,7 @@ public:
 	virtual int initHeightData(Int width, Int height, WorldHeightMap *pMap, RefRenderObjListIterator *pLightsIterator, Bool updateExtraPassTiles=TRUE);
 	virtual Int freeMapResources();	///< free resources used to render heightmap
 	virtual void updateCenter(CameraClass *camera, RefRenderObjListIterator *pLightsIterator);
- 	virtual void adjustTerrainLOD(Int adj);
+	virtual void adjustTerrainLOD(Int adj);
 	virtual void doPartialUpdate(const IRegion2D &partialRange, WorldHeightMap *htMap, RefRenderObjListIterator *pLightsIterator) = 0;
 	virtual void staticLightingChanged();
 	virtual void oversizeTerrain(Int tilesToOversize);
@@ -128,7 +128,7 @@ public:
 
   void redirectToHeightmap( WorldHeightMap *pMap )
   {
-    REF_PTR_RELEASE( m_map );
+	REF_PTR_RELEASE( m_map );
 	  REF_PTR_SET(m_map, pMap);	//update our heightmap pointer in case it changed since last call.
   }
 

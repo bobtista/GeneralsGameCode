@@ -217,7 +217,7 @@ public:
 	static void parseObjectCreationListDefinition( INI* ini );
 	static void parseMultiplayerSettingsDefinition( INI* ini );
 	static void parseMultiplayerColorDefinition( INI* ini );
-  static void parseMultiplayerStartingMoneyChoiceDefinition( INI* ini );
+	static void parseMultiplayerStartingMoneyChoiceDefinition( INI* ini );
 	static void parseOnlineChatColorDefinition( INI* ini );
 	static void parseMapCacheDefinition( INI* ini );
 	static void parseVideoDefinition( INI* ini );
@@ -237,8 +237,8 @@ public:
 	static void parseMiscAudio( INI *ini );
 	static void parseStaticGameLODDefinition( INI *ini);
 	static void parseDynamicGameLODDefinition( INI *ini);
-	static void parseStaticGameLODLevel( INI* ini, void * , void *store, const void*);
-	static void parseDynamicGameLODLevel( INI* ini, void * , void *store, const void*);
+	static void parseStaticGameLODLevel( INI* ini, void *, void *store, const void*);
+	static void parseDynamicGameLODLevel( INI* ini, void *, void *store, const void*);
 	static void parseLODPreset( INI* ini);
 	static void parseBenchProfile( INI* ini);
 	static void parseEvaEvent( INI* ini );

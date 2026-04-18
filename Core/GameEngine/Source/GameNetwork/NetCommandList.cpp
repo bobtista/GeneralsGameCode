@@ -150,11 +150,11 @@ NetCommandRef * NetCommandList::addMessage(NetCommandMsg *cmdMsg) {
 		// efficiency.
 		NetCommandRef *theNext = m_lastMessageInserted->getNext();
 		if ((m_lastMessageInserted->getCommand()->getNetCommandType() == msg->getCommand()->getNetCommandType()) &&
-			(m_lastMessageInserted->getCommand()->getPlayerID() == msg->getCommand()->getPlayerID()) &&
-			(m_lastMessageInserted->getCommand()->getID() < msg->getCommand()->getID()) &&
-			((theNext == nullptr) || ((theNext->getCommand()->getNetCommandType() > msg->getCommand()->getNetCommandType()) ||
-			 (theNext->getCommand()->getPlayerID() > msg->getCommand()->getPlayerID()) ||
-			 (theNext->getCommand()->getID() > msg->getCommand()->getID())))) {
+		        (m_lastMessageInserted->getCommand()->getPlayerID() == msg->getCommand()->getPlayerID()) &&
+		        (m_lastMessageInserted->getCommand()->getID() < msg->getCommand()->getID()) &&
+		        ((theNext == nullptr) || ((theNext->getCommand()->getNetCommandType() > msg->getCommand()->getNetCommandType()) ||
+		                                  (theNext->getCommand()->getPlayerID() > msg->getCommand()->getPlayerID()) ||
+		                                  (theNext->getCommand()->getID() > msg->getCommand()->getID())))) {
 
 			// Make sure this command isn't already in the list.
 			if (isEqualCommandMsg(m_lastMessageInserted->getCommand(), msg->getCommand())) {
@@ -317,7 +317,7 @@ NetCommandRef * NetCommandList::addMessage(NetCommandMsg *cmdMsg) {
 	}
 
 	// Make sure this command isn't already in the list.
-		if (isEqualCommandMsg(tempmsg->getCommand(), msg->getCommand())) {
+	if (isEqualCommandMsg(tempmsg->getCommand(), msg->getCommand())) {
 
 		// This command is already in the list, don't duplicate it.
 		deleteInstance(msg);

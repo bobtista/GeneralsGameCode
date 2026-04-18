@@ -45,7 +45,7 @@ static const Int g_lanGameNameLength = 16; // reduced length because of game opt
 static const Int g_lanGameNameReservedLength = 16; // save N wchars for ID info
 static const Int g_lanMaxChatLength = 100;
 static const Int m_lanMaxOptionsLength = MAX_LANAPI_PACKET_SIZE - ( 8 + (g_lanGameNameLength+1)*2 + 4 + (g_lanPlayerNameLength+1)*2
-																														+ (g_lanLoginNameLength+1) + (g_lanHostNameLength+1) );
+    + (g_lanLoginNameLength+1) + (g_lanHostNameLength+1) );
 static const Int g_maxSerialLength = 23; // including the trailing '\0'
 
 struct LANMessage;
@@ -119,7 +119,7 @@ public:
 	virtual void OnAccept( UnsignedInt playerIP, Bool status ) = 0;																///< Someone's accept status changed
 	virtual void OnHasMap( UnsignedInt playerIP, Bool status ) = 0;																///< Someone's map status changed
 	virtual void OnChat( UnicodeString player, UnsignedInt ip,
-											 UnicodeString message, ChatType format ) = 0;														///< Chat message from someone
+	                     UnicodeString message, ChatType format ) = 0;														///< Chat message from someone
 	virtual void OnGameStart() = 0;																													///< The game is starting
 	virtual void OnGameStartTimer( Int seconds ) = 0;
 	virtual void OnGameOptions( UnsignedInt playerIP, Int playerSlot, AsciiString options ) = 0;	///< Someone sent game options
@@ -319,7 +319,7 @@ public:
 	virtual void OnAccept( UnsignedInt playerIP, Bool status ) override;																///< Someone's accept status changed
 	virtual void OnHasMap( UnsignedInt playerIP, Bool status ) override;																///< Someone's map status changed
 	virtual void OnChat( UnicodeString player, UnsignedInt ip,
-											 UnicodeString message, ChatType format ) override;														///< Chat message from someone
+	                     UnicodeString message, ChatType format ) override;														///< Chat message from someone
 	virtual void OnGameStart() override;																													///< The game is starting
 	virtual void OnGameStartTimer( Int seconds ) override;
 	virtual void OnGameOptions( UnsignedInt playerIP, Int playerSlot, AsciiString options ) override;	///< Someone sent game options

@@ -103,15 +103,15 @@ void INI::parseHeaderTemplateDefinition( INI *ini )
 }
 
 HeaderTemplate::HeaderTemplate() :
-m_font(nullptr),
-m_point(0),
-m_bold(FALSE)
+	m_font(nullptr),
+	m_point(0),
+	m_bold(FALSE)
 {
 	m_fontName.clear();
 	m_name.clear();
 }
 
-HeaderTemplate::~HeaderTemplate(){}
+HeaderTemplate::~HeaderTemplate() {}
 
 HeaderTemplateManager::HeaderTemplateManager()
 {}

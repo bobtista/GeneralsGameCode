@@ -59,8 +59,8 @@ protected:
 	Real *m_latencyList;				///< A record of the round trip latencies of the frame info packets to the packet router.  Values in seconds.
 	time_t *m_pendingLatencies;																///< The latencies of frame info packets that are "in the air."
 	Real m_averageLatency;																		///< The current average latency, this is used to save calculation time.
-																														///< When a new latency value is received, the old one is subtracted out and the new
-																														///< one is added in.
+	///< When a new latency value is received, the old one is subtracted out and the new
+	///< one is added in.
 
 	// packet arrival cushion variables.
 	// Keeps track of the cushion for the incoming commands.

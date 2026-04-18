@@ -68,7 +68,7 @@ struct KeyboardIO
 	enum StatusType CPP_11(: UnsignedByte)
 	{
 		STATUS_UNUSED		= 0x00,					// Key has not been used
-		STATUS_USED			= 0x01					// Key has been eaten
+		 STATUS_USED			= 0x01					// Key has been eaten
 	};
 
 	void setUsed() { status = STATUS_USED; }
@@ -119,7 +119,7 @@ public:
 	KeyboardIO *getFirstKey();							///< get first key ready for processing
 	KeyboardIO *findKey( KeyDefType key, KeyboardIO::StatusType status ); ///< get key ready for processing, can return nullptr
 	void setKeyStatusData( KeyDefType key,
-												 KeyboardIO::StatusType data );   ///< set key status
+	                       KeyboardIO::StatusType data );   ///< set key status
 	WideChar translateKey( WideChar keyCode );		///< translate key code to printable UNICODE char
 	WideChar getPrintableKey( KeyDefType key, Int state );
 	enum { MAX_KEY_STATES = 3};

@@ -197,14 +197,14 @@ Bool W3DMouse::loadD3DCursorTextures(MouseCursor cursor)
 		m_currentFrames = 1;
 	}
 	else
-	for (Int i=0; i<animFrames; i++)
-	{
-		snprintf(FrameName, ARRAY_SIZE(FrameName), "%s%04d.tga", baseName, i);
-		if ((cursorTextures[cursor][i]=am->Get_Texture(FrameName)) != nullptr)
-		{	m_currentD3DSurface[m_currentFrames]=cursorTextures[cursor][i]->Get_Surface_Level();
-			m_currentFrames++;
+		for (Int i=0; i<animFrames; i++)
+		{
+			snprintf(FrameName, ARRAY_SIZE(FrameName), "%s%04d.tga", baseName, i);
+			if ((cursorTextures[cursor][i]=am->Get_Texture(FrameName)) != nullptr)
+			{	m_currentD3DSurface[m_currentFrames]=cursorTextures[cursor][i]->Get_Surface_Level();
+				m_currentFrames++;
+			}
 		}
-	}
 	return TRUE;
 }
 
@@ -519,7 +519,7 @@ void W3DMouse::draw()
 		if (image)
 		{
 			TheDisplay->drawImage(image,m_currMouse.pos.x-m_currentHotSpot.x,m_currMouse.pos.y-m_currentHotSpot.y,
-				m_currMouse.pos.x+image->getImageWidth()-m_currentHotSpot.x, m_currMouse.pos.y+image->getImageHeight()-m_currentHotSpot.y);
+			                      m_currMouse.pos.x+image->getImageWidth()-m_currentHotSpot.x, m_currMouse.pos.y+image->getImageHeight()-m_currentHotSpot.y);
 		}
 	}
 	else if (m_currentRedrawMode == RM_WINDOWS)

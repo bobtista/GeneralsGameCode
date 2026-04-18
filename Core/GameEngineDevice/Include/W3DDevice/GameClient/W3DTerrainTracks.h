@@ -62,7 +62,7 @@ public:
 	virtual int						Class_ID() const override;
 	virtual void					Render(RenderInfoClass & rinfo) override;
 	virtual void					Get_Obj_Space_Bounding_Sphere(SphereClass & sphere) const override;
-    virtual void					Get_Obj_Space_Bounding_Box(AABoxClass & aabox) const override;
+	virtual void					Get_Obj_Space_Bounding_Box(AABoxClass & aabox) const override;
 
 	Int freeTerrainTracksResources();	///<free W3D assets used for this track
 	void init( Real width, Real length, const Char *texturename);	///<allocate W3D resources and set size
@@ -79,7 +79,7 @@ protected:
 	Int			m_totalEdgesAdded;		///<number of edges ever added to this track
 	const Drawable	*m_ownerDrawable;	///<logical object that's laying down tread marks.
 
-	struct edgeInfo{
+	struct edgeInfo {
 		Vector3	endPointPos[2];			///<the 2 endpoints on the edge
 		Vector2	endPointUV[2];			///< uv coordinates at each end point
 		Int		timeAdded;				///< time when edge was created.

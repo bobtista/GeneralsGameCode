@@ -283,7 +283,7 @@ public:
 
 	mutable ModelConditionVector			m_conditionStates;
 	mutable SparseMatchFinder< ModelConditionInfo, ModelConditionFlags >
-																		m_conditionStateMap;
+	m_conditionStateMap;
 	mutable TransitionMap							m_transitionMap;
 	std::vector<AsciiString>					m_extraPublicBones;
 	AsciiString												m_trackFile;						///< if present, leaves tracks using this texture
@@ -306,16 +306,16 @@ public:
 #endif
 	mutable Byte											m_validated;
 
-  Bool                              m_particlesAttachedToAnimatedBones;
+	Bool                              m_particlesAttachedToAnimatedBones;
 
-  Bool                              m_receivesDynamicLights; ///< just like it sounds... it sets a property of Drawable, actually
+	Bool                              m_receivesDynamicLights; ///< just like it sounds... it sets a property of Drawable, actually
 
 
 	W3DModelDrawModuleData();
 	virtual ~W3DModelDrawModuleData() override;
 	void validateStuffForTimeAndWeather(const Drawable* draw, Bool night, Bool snowy) const;
 	static void buildFieldParse(MultiIniFieldParse& p);
- 	AsciiString getBestModelNameForWB(const ModelConditionFlags& c) const;
+	AsciiString getBestModelNameForWB(const ModelConditionFlags& c) const;
 	const ModelConditionInfo* findBestInfo(const ModelConditionFlags& c) const;
 	void preloadAssets( TimeOfDay timeOfDay, Real scale ) const;
 #ifdef CACHE_ATTACH_BONE
@@ -330,9 +330,9 @@ private:
 	static void parseConditionState( INI* ini, void *instance, void * /*store*/, const void* /*userData*/ );
 
 public:
- 	virtual void crc( Xfer *xfer ) override;
- 	virtual void xfer( Xfer *xfer ) override;
- 	virtual void loadPostProcess() override;
+	virtual void crc( Xfer *xfer ) override;
+	virtual void xfer( Xfer *xfer ) override;
+	virtual void loadPostProcess() override;
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -347,7 +347,7 @@ public:
 	W3DModelDraw( Thing *thing, const ModuleData* moduleData );
 	// virtual destructor prototype provided by memory pool declaration
 
-  /// preloading assets
+	/// preloading assets
 	virtual void preloadAssets( TimeOfDay timeOfDay ) override;
 
 	/// the draw method
@@ -431,7 +431,7 @@ public:
 
 protected:
 
-	virtual void onRenderObjRecreated(){};
+	virtual void onRenderObjRecreated() {};
 
 	const ModelConditionInfo* getCurState() const { return m_curState; }
 

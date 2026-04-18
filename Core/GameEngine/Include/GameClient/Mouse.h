@@ -145,9 +145,9 @@ enum CursorCaptureMode_ CPP_11(: CursorCaptureMode)
 	CursorCaptureMode_EnabledInFullscreenMenu = 1<<3, // Captures the cursor when in menu while the app is fullscreen
 
 	CursorCaptureMode_Default =
-		CursorCaptureMode_EnabledInWindowedGame |
-		CursorCaptureMode_EnabledInFullscreenGame |
-		CursorCaptureMode_EnabledInFullscreenMenu,
+	    CursorCaptureMode_EnabledInWindowedGame |
+	    CursorCaptureMode_EnabledInFullscreenGame |
+	    CursorCaptureMode_EnabledInFullscreenMenu,
 };
 
 // Mouse ----------------------------------------------------------------------
@@ -293,8 +293,8 @@ public:
 	// access methods for the mouse data
 	const MouseIO *getMouseStatus() { return &m_currMouse; }							///< get current mouse status
 
-  Int  getCursorTooltipDelay() { return m_tooltipDelay; }
-  void setCursorTooltipDelay(Int delay) { m_tooltipDelay = delay; }
+	Int  getCursorTooltipDelay() { return m_tooltipDelay; }
+	void setCursorTooltipDelay(Int delay) { m_tooltipDelay = delay; }
 
 	void setCursorTooltip( UnicodeString tooltip, Int tooltipDelay = -1, const RGBColor *color = nullptr, Real width = 1.0f );		///< set tooltip string at cursor
 	void setMouseText( UnicodeString text, const RGBAColorInt *color, const RGBAColorInt *dropColor );					///< set the cursor text, *NOT* the tooltip text
@@ -405,7 +405,7 @@ protected:
 	RGBAColorInt m_cursorTextColor;							///< color of the cursor text
 	RGBAColorInt m_cursorTextDropColor;					///< color of the cursor text drop shadow
 
-  Int m_tooltipDelay;                                ///< millisecond delay for tooltips
+	Int m_tooltipDelay;                                ///< millisecond delay for tooltips
 
 	Int m_highlightPos;
 	UnsignedInt m_highlightUpdateStart;

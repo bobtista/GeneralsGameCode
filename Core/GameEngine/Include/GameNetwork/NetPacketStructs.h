@@ -109,13 +109,13 @@ typedef UnsignedByte NetPacketFieldType;
 
 namespace NetPacketFieldTypes
 {
-	constexpr const NetPacketFieldType CommandType = 'T';
-	constexpr const NetPacketFieldType Relay = 'R';
-	constexpr const NetPacketFieldType Frame = 'F';
-	constexpr const NetPacketFieldType PlayerId = 'P';
-	constexpr const NetPacketFieldType CommandId = 'C';
-	constexpr const NetPacketFieldType Data = 'D';
-	constexpr const NetPacketFieldType Repeat = 'Z';
+constexpr const NetPacketFieldType CommandType = 'T';
+constexpr const NetPacketFieldType Relay = 'R';
+constexpr const NetPacketFieldType Frame = 'F';
+constexpr const NetPacketFieldType PlayerId = 'P';
+constexpr const NetPacketFieldType CommandId = 'C';
+constexpr const NetPacketFieldType Data = 'D';
+constexpr const NetPacketFieldType Repeat = 'Z';
 }
 
 ////////////////////////////////////////////////////////////////////////////////

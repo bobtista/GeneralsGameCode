@@ -258,7 +258,7 @@ void FFmpegFile::seekFrame(int frame_idx)
 	// Note: not tested, since not used ingame
 	for (const auto &stream : m_streams) {
 		Int64 timestamp = av_q2d(m_fmtCtx->streams[stream.stream_idx]->time_base) * frame_idx
-			* av_q2d(m_fmtCtx->streams[stream.stream_idx]->avg_frame_rate);
+		                  * av_q2d(m_fmtCtx->streams[stream.stream_idx]->avg_frame_rate);
 		int result = av_seek_frame(m_fmtCtx, stream.stream_idx, timestamp, AVSEEK_FLAG_ANY);
 		if (result < 0) {
 			char error_buffer[1024];

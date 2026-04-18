@@ -176,39 +176,39 @@ GameMessage *NetGameCommandMsg::constructGameMessage() const
 
 		switch (arg->m_type) {
 
-		case ARGUMENTDATATYPE_INTEGER:
-			retval->appendIntegerArgument(arg->m_data.integer);
-			break;
-		case ARGUMENTDATATYPE_REAL:
-			retval->appendRealArgument(arg->m_data.real);
-			break;
-		case ARGUMENTDATATYPE_BOOLEAN:
-			retval->appendBooleanArgument(arg->m_data.boolean);
-			break;
-		case ARGUMENTDATATYPE_OBJECTID:
-			retval->appendObjectIDArgument(arg->m_data.objectID);
-			break;
-		case ARGUMENTDATATYPE_DRAWABLEID:
-			retval->appendDrawableIDArgument(arg->m_data.drawableID);
-			break;
-		case ARGUMENTDATATYPE_TEAMID:
-			retval->appendTeamIDArgument(arg->m_data.teamID);
-			break;
-		case ARGUMENTDATATYPE_LOCATION:
-			retval->appendLocationArgument(arg->m_data.location);
-			break;
-		case ARGUMENTDATATYPE_PIXEL:
-			retval->appendPixelArgument(arg->m_data.pixel);
-			break;
-		case ARGUMENTDATATYPE_PIXELREGION:
-			retval->appendPixelRegionArgument(arg->m_data.pixelRegion);
-			break;
-		case ARGUMENTDATATYPE_TIMESTAMP:
-			retval->appendTimestampArgument(arg->m_data.timestamp);
-			break;
-		case ARGUMENTDATATYPE_WIDECHAR:
-			retval->appendWideCharArgument(arg->m_data.wChar);
-			break;
+			case ARGUMENTDATATYPE_INTEGER:
+				retval->appendIntegerArgument(arg->m_data.integer);
+				break;
+			case ARGUMENTDATATYPE_REAL:
+				retval->appendRealArgument(arg->m_data.real);
+				break;
+			case ARGUMENTDATATYPE_BOOLEAN:
+				retval->appendBooleanArgument(arg->m_data.boolean);
+				break;
+			case ARGUMENTDATATYPE_OBJECTID:
+				retval->appendObjectIDArgument(arg->m_data.objectID);
+				break;
+			case ARGUMENTDATATYPE_DRAWABLEID:
+				retval->appendDrawableIDArgument(arg->m_data.drawableID);
+				break;
+			case ARGUMENTDATATYPE_TEAMID:
+				retval->appendTeamIDArgument(arg->m_data.teamID);
+				break;
+			case ARGUMENTDATATYPE_LOCATION:
+				retval->appendLocationArgument(arg->m_data.location);
+				break;
+			case ARGUMENTDATATYPE_PIXEL:
+				retval->appendPixelArgument(arg->m_data.pixel);
+				break;
+			case ARGUMENTDATATYPE_PIXELREGION:
+				retval->appendPixelRegionArgument(arg->m_data.pixelRegion);
+				break;
+			case ARGUMENTDATATYPE_TIMESTAMP:
+				retval->appendTimestampArgument(arg->m_data.timestamp);
+				break;
+			case ARGUMENTDATATYPE_WIDECHAR:
+				retval->appendWideCharArgument(arg->m_data.wChar);
+				break;
 
 		}
 

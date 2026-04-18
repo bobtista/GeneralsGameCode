@@ -81,30 +81,30 @@ void dumpBufferToLog(const void *vBuf, Int len, const char *fname, Int line)
  */
 UnsignedInt ResolveIP(AsciiString host)
 {
-  struct hostent *hostStruct;
-  struct in_addr *hostNode;
+	struct hostent *hostStruct;
+	struct in_addr *hostNode;
 
-  if (host.isEmpty())
-  {
-	  DEBUG_LOG(("ResolveIP(): Can't resolve null"));
-	  return 0;
-  }
+	if (host.isEmpty())
+	{
+		DEBUG_LOG(("ResolveIP(): Can't resolve null"));
+		return 0;
+	}
 
-  // String such as "127.0.0.1"
-  if (isdigit(host.getCharAt(0)))
-  {
-    return ( ntohl(inet_addr(host.str())) );
-  }
+	// String such as "127.0.0.1"
+	if (isdigit(host.getCharAt(0)))
+	{
+		return ( ntohl(inet_addr(host.str())) );
+	}
 
-  // String such as "localhost"
-  hostStruct = gethostbyname(host.str());
-  if (hostStruct == nullptr)
-  {
-	  DEBUG_LOG(("ResolveIP(): Can't resolve %s", host.str()));
-	  return 0;
-  }
-  hostNode = (struct in_addr *) hostStruct->h_addr;
-  return ( ntohl(hostNode->s_addr) );
+	// String such as "localhost"
+	hostStruct = gethostbyname(host.str());
+	if (hostStruct == nullptr)
+	{
+		DEBUG_LOG(("ResolveIP(): Can't resolve %s", host.str()));
+		return 0;
+	}
+	hostNode = (struct in_addr *) hostStruct->h_addr;
+	return ( ntohl(hostNode->s_addr) );
 }
 
 /**
@@ -121,23 +121,23 @@ UnsignedShort GenerateNextCommandID() {
  */
 Bool DoesCommandRequireACommandID(NetCommandType type) {
 	if ((type == NETCOMMANDTYPE_GAMECOMMAND) ||
-			(type == NETCOMMANDTYPE_FRAMEINFO) ||
-			(type == NETCOMMANDTYPE_PLAYERLEAVE) ||
-			(type == NETCOMMANDTYPE_DESTROYPLAYER) ||
-			(type == NETCOMMANDTYPE_RUNAHEADMETRICS) ||
-			(type == NETCOMMANDTYPE_RUNAHEAD) ||
-			(type == NETCOMMANDTYPE_CHAT) ||
-			(type == NETCOMMANDTYPE_DISCONNECTVOTE) ||
-			(type == NETCOMMANDTYPE_LOADCOMPLETE) ||
-			(type == NETCOMMANDTYPE_TIMEOUTSTART) ||
-			(type == NETCOMMANDTYPE_WRAPPER) ||
-			(type == NETCOMMANDTYPE_FILE) ||
-			(type == NETCOMMANDTYPE_FILEANNOUNCE) ||
-			(type == NETCOMMANDTYPE_FILEPROGRESS) ||
-			(type == NETCOMMANDTYPE_DISCONNECTPLAYER) ||
-			(type == NETCOMMANDTYPE_DISCONNECTFRAME) ||
-			(type == NETCOMMANDTYPE_DISCONNECTSCREENOFF) ||
-			(type == NETCOMMANDTYPE_FRAMERESENDREQUEST))
+	        (type == NETCOMMANDTYPE_FRAMEINFO) ||
+	        (type == NETCOMMANDTYPE_PLAYERLEAVE) ||
+	        (type == NETCOMMANDTYPE_DESTROYPLAYER) ||
+	        (type == NETCOMMANDTYPE_RUNAHEADMETRICS) ||
+	        (type == NETCOMMANDTYPE_RUNAHEAD) ||
+	        (type == NETCOMMANDTYPE_CHAT) ||
+	        (type == NETCOMMANDTYPE_DISCONNECTVOTE) ||
+	        (type == NETCOMMANDTYPE_LOADCOMPLETE) ||
+	        (type == NETCOMMANDTYPE_TIMEOUTSTART) ||
+	        (type == NETCOMMANDTYPE_WRAPPER) ||
+	        (type == NETCOMMANDTYPE_FILE) ||
+	        (type == NETCOMMANDTYPE_FILEANNOUNCE) ||
+	        (type == NETCOMMANDTYPE_FILEPROGRESS) ||
+	        (type == NETCOMMANDTYPE_DISCONNECTPLAYER) ||
+	        (type == NETCOMMANDTYPE_DISCONNECTFRAME) ||
+	        (type == NETCOMMANDTYPE_DISCONNECTSCREENOFF) ||
+	        (type == NETCOMMANDTYPE_FRAMERESENDREQUEST))
 	{
 		return TRUE;
 	}
@@ -149,24 +149,24 @@ Bool DoesCommandRequireACommandID(NetCommandType type) {
  */
 Bool CommandRequiresAck(NetCommandMsg *msg) {
 	if ((msg->getNetCommandType() == NETCOMMANDTYPE_GAMECOMMAND) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_PLAYERLEAVE) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_DESTROYPLAYER) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_RUNAHEADMETRICS) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_RUNAHEAD) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_CHAT) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTVOTE) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTPLAYER) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_LOADCOMPLETE) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_TIMEOUTSTART) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_WRAPPER) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_FILE) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_FILEANNOUNCE) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_FILEPROGRESS) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTPLAYER) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTFRAME) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTSCREENOFF) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_FRAMERESENDREQUEST))
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_FRAMEINFO) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_PLAYERLEAVE) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_DESTROYPLAYER) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_RUNAHEADMETRICS) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_RUNAHEAD) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_CHAT) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTVOTE) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTPLAYER) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_LOADCOMPLETE) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_TIMEOUTSTART) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_WRAPPER) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_FILE) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_FILEANNOUNCE) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_FILEPROGRESS) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTPLAYER) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTFRAME) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTSCREENOFF) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_FRAMERESENDREQUEST))
 	{
 		return TRUE;
 	}
@@ -175,10 +175,10 @@ Bool CommandRequiresAck(NetCommandMsg *msg) {
 
 Bool IsCommandSynchronized(NetCommandType type) {
 	if ((type == NETCOMMANDTYPE_GAMECOMMAND) ||
-			(type == NETCOMMANDTYPE_FRAMEINFO) ||
-			(type == NETCOMMANDTYPE_PLAYERLEAVE) ||
-			(type == NETCOMMANDTYPE_DESTROYPLAYER) ||
-			(type == NETCOMMANDTYPE_RUNAHEAD))
+	        (type == NETCOMMANDTYPE_FRAMEINFO) ||
+	        (type == NETCOMMANDTYPE_PLAYERLEAVE) ||
+	        (type == NETCOMMANDTYPE_DESTROYPLAYER) ||
+	        (type == NETCOMMANDTYPE_RUNAHEAD))
 	{
 		return TRUE;
 	}
@@ -192,15 +192,15 @@ Bool IsCommandSynchronized(NetCommandType type) {
  */
 Bool CommandRequiresDirectSend(NetCommandMsg *msg) {
 	if ((msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTVOTE) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTPLAYER) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_LOADCOMPLETE) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_TIMEOUTSTART) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_FILE) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_FILEANNOUNCE) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_FILEPROGRESS) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTFRAME) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTSCREENOFF) ||
-			(msg->getNetCommandType() == NETCOMMANDTYPE_FRAMERESENDREQUEST)) {
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTPLAYER) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_LOADCOMPLETE) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_TIMEOUTSTART) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_FILE) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_FILEANNOUNCE) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_FILEPROGRESS) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTFRAME) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_DISCONNECTSCREENOFF) ||
+	        (msg->getNetCommandType() == NETCOMMANDTYPE_FRAMERESENDREQUEST)) {
 		return TRUE;
 	}
 	return FALSE;
@@ -209,67 +209,67 @@ Bool CommandRequiresDirectSend(NetCommandMsg *msg) {
 const char* GetNetCommandTypeAsString(NetCommandType type) {
 
 	switch (type) {
-	case NETCOMMANDTYPE_ACKBOTH:
-		return "NETCOMMANDTYPE_ACKBOTH";
-	case NETCOMMANDTYPE_ACKSTAGE1:
-		return "NETCOMMANDTYPE_ACKSTAGE1";
-	case NETCOMMANDTYPE_ACKSTAGE2:
-		return "NETCOMMANDTYPE_ACKSTAGE2";
-	case NETCOMMANDTYPE_FRAMEINFO:
-		return "NETCOMMANDTYPE_FRAMEINFO";
-	case NETCOMMANDTYPE_GAMECOMMAND:
-		return "NETCOMMANDTYPE_GAMECOMMAND";
-	case NETCOMMANDTYPE_PLAYERLEAVE:
-		return "NETCOMMANDTYPE_PLAYERLEAVE";
-	case NETCOMMANDTYPE_RUNAHEADMETRICS:
-		return "NETCOMMANDTYPE_RUNAHEADMETRICS";
-	case NETCOMMANDTYPE_RUNAHEAD:
-		return "NETCOMMANDTYPE_RUNAHEAD";
-	case NETCOMMANDTYPE_DESTROYPLAYER:
-		return "NETCOMMANDTYPE_DESTROYPLAYER";
-	case NETCOMMANDTYPE_KEEPALIVE:
-		return "NETCOMMANDTYPE_KEEPALIVE";
-	case NETCOMMANDTYPE_DISCONNECTCHAT:
-		return "NETCOMMANDTYPE_DISCONNECTCHAT";
-	case NETCOMMANDTYPE_CHAT:
-		return "NETCOMMANDTYPE_CHAT";
-	case NETCOMMANDTYPE_MANGLERQUERY:
-		return "NETCOMMANDTYPE_MANGLERQUERY";
-	case NETCOMMANDTYPE_MANGLERRESPONSE:
-		return "NETCOMMANDTYPE_MANGLERRESPONSE";
-	case NETCOMMANDTYPE_PROGRESS:
-		return "NETCOMMANDTYPE_PROGRESS";
-	case NETCOMMANDTYPE_LOADCOMPLETE:
-		return "NETCOMMANDTYPE_LOADCOMPLETE";
-	case NETCOMMANDTYPE_TIMEOUTSTART:
-		return "NETCOMMANDTYPE_TIMEOUTSTART";
-	case NETCOMMANDTYPE_WRAPPER:
-		return "NETCOMMANDTYPE_WRAPPER";
-	case NETCOMMANDTYPE_FILE:
-		return "NETCOMMANDTYPE_FILE";
-	case NETCOMMANDTYPE_FILEANNOUNCE:
-		return "NETCOMMANDTYPE_FILEANNOUNCE";
-	case NETCOMMANDTYPE_FILEPROGRESS:
-		return "NETCOMMANDTYPE_FILEPROGRESS";
-	case NETCOMMANDTYPE_DISCONNECTKEEPALIVE:
-		return "NETCOMMANDTYPE_DISCONNECTKEEPALIVE";
-	case NETCOMMANDTYPE_DISCONNECTPLAYER:
-		return "NETCOMMANDTYPE_DISCONNECTPLAYER";
-	case NETCOMMANDTYPE_PACKETROUTERQUERY:
-		return "NETCOMMANDTYPE_PACKETROUTERQUERY";
-	case NETCOMMANDTYPE_PACKETROUTERACK:
-		return "NETCOMMANDTYPE_PACKETROUTERACK";
-	case NETCOMMANDTYPE_DISCONNECTVOTE:
-		return "NETCOMMANDTYPE_DISCONNECTVOTE";
-	case NETCOMMANDTYPE_DISCONNECTFRAME:
-		return "NETCOMMANDTYPE_DISCONNECTFRAME";
-	case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
-		return "NETCOMMANDTYPE_DISCONNECTSCREENOFF";
-	case NETCOMMANDTYPE_FRAMERESENDREQUEST:
-		return "NETCOMMANDTYPE_FRAMERESENDREQUEST";
-	default:
-		DEBUG_CRASH(("Unknown NetCommandType in GetNetCommandTypeAsString"));
-		return "UNKNOWN";
+		case NETCOMMANDTYPE_ACKBOTH:
+			return "NETCOMMANDTYPE_ACKBOTH";
+		case NETCOMMANDTYPE_ACKSTAGE1:
+			return "NETCOMMANDTYPE_ACKSTAGE1";
+		case NETCOMMANDTYPE_ACKSTAGE2:
+			return "NETCOMMANDTYPE_ACKSTAGE2";
+		case NETCOMMANDTYPE_FRAMEINFO:
+			return "NETCOMMANDTYPE_FRAMEINFO";
+		case NETCOMMANDTYPE_GAMECOMMAND:
+			return "NETCOMMANDTYPE_GAMECOMMAND";
+		case NETCOMMANDTYPE_PLAYERLEAVE:
+			return "NETCOMMANDTYPE_PLAYERLEAVE";
+		case NETCOMMANDTYPE_RUNAHEADMETRICS:
+			return "NETCOMMANDTYPE_RUNAHEADMETRICS";
+		case NETCOMMANDTYPE_RUNAHEAD:
+			return "NETCOMMANDTYPE_RUNAHEAD";
+		case NETCOMMANDTYPE_DESTROYPLAYER:
+			return "NETCOMMANDTYPE_DESTROYPLAYER";
+		case NETCOMMANDTYPE_KEEPALIVE:
+			return "NETCOMMANDTYPE_KEEPALIVE";
+		case NETCOMMANDTYPE_DISCONNECTCHAT:
+			return "NETCOMMANDTYPE_DISCONNECTCHAT";
+		case NETCOMMANDTYPE_CHAT:
+			return "NETCOMMANDTYPE_CHAT";
+		case NETCOMMANDTYPE_MANGLERQUERY:
+			return "NETCOMMANDTYPE_MANGLERQUERY";
+		case NETCOMMANDTYPE_MANGLERRESPONSE:
+			return "NETCOMMANDTYPE_MANGLERRESPONSE";
+		case NETCOMMANDTYPE_PROGRESS:
+			return "NETCOMMANDTYPE_PROGRESS";
+		case NETCOMMANDTYPE_LOADCOMPLETE:
+			return "NETCOMMANDTYPE_LOADCOMPLETE";
+		case NETCOMMANDTYPE_TIMEOUTSTART:
+			return "NETCOMMANDTYPE_TIMEOUTSTART";
+		case NETCOMMANDTYPE_WRAPPER:
+			return "NETCOMMANDTYPE_WRAPPER";
+		case NETCOMMANDTYPE_FILE:
+			return "NETCOMMANDTYPE_FILE";
+		case NETCOMMANDTYPE_FILEANNOUNCE:
+			return "NETCOMMANDTYPE_FILEANNOUNCE";
+		case NETCOMMANDTYPE_FILEPROGRESS:
+			return "NETCOMMANDTYPE_FILEPROGRESS";
+		case NETCOMMANDTYPE_DISCONNECTKEEPALIVE:
+			return "NETCOMMANDTYPE_DISCONNECTKEEPALIVE";
+		case NETCOMMANDTYPE_DISCONNECTPLAYER:
+			return "NETCOMMANDTYPE_DISCONNECTPLAYER";
+		case NETCOMMANDTYPE_PACKETROUTERQUERY:
+			return "NETCOMMANDTYPE_PACKETROUTERQUERY";
+		case NETCOMMANDTYPE_PACKETROUTERACK:
+			return "NETCOMMANDTYPE_PACKETROUTERACK";
+		case NETCOMMANDTYPE_DISCONNECTVOTE:
+			return "NETCOMMANDTYPE_DISCONNECTVOTE";
+		case NETCOMMANDTYPE_DISCONNECTFRAME:
+			return "NETCOMMANDTYPE_DISCONNECTFRAME";
+		case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
+			return "NETCOMMANDTYPE_DISCONNECTSCREENOFF";
+		case NETCOMMANDTYPE_FRAMERESENDREQUEST:
+			return "NETCOMMANDTYPE_FRAMERESENDREQUEST";
+		default:
+			DEBUG_CRASH(("Unknown NetCommandType in GetNetCommandTypeAsString"));
+			return "UNKNOWN";
 	}
 
 }

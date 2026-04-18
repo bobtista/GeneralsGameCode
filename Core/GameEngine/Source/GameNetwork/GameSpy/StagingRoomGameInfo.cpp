@@ -208,7 +208,7 @@ Bool GetLocalChatConnectionAddress(AsciiString serverName, UnsignedShort serverP
 	/*
 	** Get the function pointers into the .dll
 	*/
-	SnmpExtensionInitPtr = (int (__stdcall *)(unsigned long,void ** ,AsnObjectIdentifier *)) GetProcAddress(mib_ii_dll, "SnmpExtensionInit");
+	SnmpExtensionInitPtr = (int (__stdcall *)(unsigned long,void **,AsnObjectIdentifier *)) GetProcAddress(mib_ii_dll, "SnmpExtensionInit");
 	SnmpExtensionQueryPtr = (int (__stdcall *)(unsigned char,SnmpVarBindList *,long *,long *)) GetProcAddress(mib_ii_dll, "SnmpExtensionQuery");
 	SnmpUtilMemAllocPtr = (void *(__stdcall *)(unsigned long)) GetProcAddress(snmpapi_dll, "SnmpUtilMemAlloc");
 	SnmpUtilMemFreePtr = (void (__stdcall *)(void *)) GetProcAddress(snmpapi_dll, "SnmpUtilMemFree");
@@ -281,7 +281,7 @@ Bool GetLocalChatConnectionAddress(AsciiString serverName, UnsignedShort serverP
 	while (true) {
 
 		if (!SnmpExtensionQueryPtr(SNMP_PDU_GETNEXT, bind_list_ptr, &error_status, &error_index)) {
-		//if (!SnmpExtensionQueryPtr(ASN_RFC1157_GETNEXTREQUEST, bind_list_ptr, &error_status, &error_index)) {
+			//if (!SnmpExtensionQueryPtr(ASN_RFC1157_GETNEXTREQUEST, bind_list_ptr, &error_status, &error_index)) {
 			DEBUG_LOG(("SnmpExtensionQuery returned false"));
 			SnmpUtilMemFreePtr(bind_list_ptr);
 			SnmpUtilMemFreePtr(bind_ptr);
@@ -641,7 +641,7 @@ AsciiString GameSpyStagingRoom::generateGameSpyGameResultsPacket()
 
 	AsciiString results;
 	results.format("\\seed\\%d\\hostname\\%s\\mapname\\%s\\numplayers\\%d\\duration\\%d\\gamemode\\exiting\\localplayer\\%d",
-		getSeed(), m_GameSpySlot[0].getLoginName().str(), mapName.str(), numPlayers, endFrame, localSlotNum);
+	               getSeed(), m_GameSpySlot[0].getLoginName().str(), mapName.str(), numPlayers, endFrame, localSlotNum);
 
 	Int playerID = 0;
 	for (i=0; i<MAX_SLOTS; ++i)
@@ -670,8 +670,8 @@ AsciiString GameSpyStagingRoom::generateGameSpyGameResultsPacket()
 
 			AsciiString playerStr;
 			playerStr.format("\\player_%d\\%s\\pid_%d\\%d\\team_%d\\%d\\result_%d\\%s\\side_%d\\%s",
-				playerID, playerName.str(), playerID, gsPlayerID, playerID, slot->getTeamNumber(),
-				playerID, result.str(), playerID, side.str());
+			                 playerID, playerName.str(), playerID, gsPlayerID, playerID, slot->getTeamNumber(),
+			                 playerID, result.str(), playerID, side.str());
 			results.concat(playerStr);
 
 			++playerID;
@@ -720,8 +720,8 @@ AsciiString GameSpyStagingRoom::generateLadderGameResultsPacket()
 
 	AsciiString results;
 	results.format("seed=%d,slotNum=%d,sawDesync=%d,sawGameEnd=%d,winningTeam=%d,disconEnd=%d,duration=%d,numPlayers=%d,isQM=%d,map=%s",
-		getSeed(), localSlotNum, TheNetwork->sawCRCMismatch(), sawGameEnd, winningTeam, (numTeamsAtGameEnd < 2),
-		endFrame, numPlayers, m_isQM, TheGameState->realMapPathToPortableMapPath(getMap()).str());
+	               getSeed(), localSlotNum, TheNetwork->sawCRCMismatch(), sawGameEnd, winningTeam, (numTeamsAtGameEnd < 2),
+	               endFrame, numPlayers, m_isQM, TheGameState->realMapPathToPortableMapPath(getMap()).str());
 
 	AsciiString tempStr;
 	tempStr.format(",ladderIP=%s,ladderPort=%d", getLadderIP().str(), getLadderPort());
@@ -752,20 +752,20 @@ AsciiString GameSpyStagingRoom::generateLadderGameResultsPacket()
 
 			AsciiString playerStr;
 			playerStr.format(",player%d=%s,playerID%d=%d,locale%d=%d",
-				playerID, playerName.str(), playerID, gsPlayerID, playerID, stats.locale);
+			                 playerID, playerName.str(), playerID, gsPlayerID, playerID, stats.locale);
 			results.concat(playerStr);
 			playerStr.format(",unitsKilled%d=%d,unitsLost%d=%d,unitsBuilt%d=%d",
-				playerID, unitsKilled, playerID, unitsLost, playerID, unitsBuilt);
+			                 playerID, unitsKilled, playerID, unitsLost, playerID, unitsBuilt);
 			results.concat(playerStr);
 			playerStr.format(",buildingsKilled%d=%d,buildingsLost%d=%d,buildingsBuilt%d=%d",
-				playerID, buildingsKilled, playerID, buildingsLost, playerID, buildingsBuilt);
+			                 playerID, buildingsKilled, playerID, buildingsLost, playerID, buildingsBuilt);
 			results.concat(playerStr);
 #if RTS_GENERALS
 			playerStr.format(",fps%d=%d,cash%d=%d,capturedTech%d=%d,discon%d=%d,side%d=%s,team%d=%d",
-				playerID, fps, playerID, earnings, playerID, techCaptured, playerID, disconnected, playerID, p[i]->getPlayerTemplate()->getSide().str(), playerID, slot->getTeamNumber());
+			                 playerID, fps, playerID, earnings, playerID, techCaptured, playerID, disconnected, playerID, p[i]->getPlayerTemplate()->getSide().str(), playerID, slot->getTeamNumber());
 #elif RTS_ZEROHOUR
 			playerStr.format(",fps%d=%d,cash%d=%d,capturedTech%d=%d,discon%d=%d,side%d=%s",
-				playerID, fps, playerID, earnings, playerID, techCaptured, playerID, disconnected, playerID, p[i]->getPlayerTemplate()->getSide().str());
+			                 playerID, fps, playerID, earnings, playerID, techCaptured, playerID, disconnected, playerID, p[i]->getPlayerTemplate()->getSide().str());
 #endif
 			results.concat(playerStr);
 
@@ -862,7 +862,7 @@ void GameSpyStagingRoom::launchGame()
 	req.arg.status.status = GP_PLAYING;
 	strcpy(req.arg.status.statusString, "Loading");
 	strlcpy(req.arg.status.locationString, WideCharStringToMultiByte(getGameName().str()).c_str(),
-		ARRAY_SIZE(req.arg.status.locationString));
+	        ARRAY_SIZE(req.arg.status.locationString));
 	TheGameSpyBuddyMessageQueue->addRequest(req);
 
 	delete TheNAT;

@@ -61,9 +61,9 @@ W3DLaserDrawModuleData::W3DLaserDrawModuleData()
 {
 	m_innerBeamWidth = 0.0f;         //The total width of beam
 	m_outerBeamWidth = 1.0f;         //The total width of beam
-  m_numBeams = 1;                 //Number of overlapping cylinders that make the beam. 1 beam will just use inner data.
-  m_maxIntensityFrames = 0;				//Laser stays at max intensity for specified time in ms.
-  m_fadeFrames = 0;               //Laser will fade and delete.
+	m_numBeams = 1;                 //Number of overlapping cylinders that make the beam. 1 beam will just use inner data.
+	m_maxIntensityFrames = 0;				//Laser stays at max intensity for specified time in ms.
+	m_fadeFrames = 0;               //Laser will fade and delete.
 	m_scrollRate = 0.0f;
 	m_tile = false;
 	m_segments = 1;
@@ -82,7 +82,7 @@ W3DLaserDrawModuleData::~W3DLaserDrawModuleData()
 //-------------------------------------------------------------------------------------------------
 void W3DLaserDrawModuleData::buildFieldParse(MultiIniFieldParse& p)
 {
-  ModuleData::buildFieldParse(p);
+	ModuleData::buildFieldParse(p);
 
 	static const FieldParse dataFieldParse[] =
 	{
@@ -97,12 +97,12 @@ void W3DLaserDrawModuleData::buildFieldParse(MultiIniFieldParse& p)
 		{ "ScrollRate",						INI::parseReal,									nullptr, offsetof( W3DLaserDrawModuleData, m_scrollRate ) },
 		{ "Tile",									INI::parseBool,									nullptr, offsetof( W3DLaserDrawModuleData, m_tile ) },
 		{ "Segments",							INI::parseUnsignedInt,					nullptr, offsetof( W3DLaserDrawModuleData, m_segments ) },
-    { "ArcHeight",						INI::parseReal,									nullptr, offsetof( W3DLaserDrawModuleData, m_arcHeight ) },
+		{ "ArcHeight",						INI::parseReal,									nullptr, offsetof( W3DLaserDrawModuleData, m_arcHeight ) },
 		{ "SegmentOverlapRatio",	INI::parseReal,									nullptr, offsetof( W3DLaserDrawModuleData, m_segmentOverlapRatio ) },
 		{ "TilingScalar",					INI::parseReal,									nullptr, offsetof( W3DLaserDrawModuleData, m_tilingScalar ) },
 		{ nullptr, nullptr, nullptr, 0 }
 	};
-  p.add(dataFieldParse);
+	p.add(dataFieldParse);
 }
 
 
@@ -357,9 +357,9 @@ void W3DLaserDraw::doDrawModule(const Matrix3D* transformMtx)
 
 				//This makes the laser skim the ground rather than penetrate it!
 				laserPoints[ 0 ].Set( segmentStart.x, segmentStart.y,
-					MAX( segmentStart.z, 2.0f + TheTerrainLogic->getGroundHeight(segmentStart.x, segmentStart.y) ) );
+				                      MAX( segmentStart.z, 2.0f + TheTerrainLogic->getGroundHeight(segmentStart.x, segmentStart.y) ) );
 				laserPoints[ 1 ].Set( segmentEnd.x, segmentEnd.y,
-					MAX( segmentEnd.z, 2.0f + TheTerrainLogic->getGroundHeight(segmentEnd.x, segmentEnd.y) ) );
+				                      MAX( segmentEnd.z, 2.0f + TheTerrainLogic->getGroundHeight(segmentEnd.x, segmentEnd.y) ) );
 
 			}
 			else

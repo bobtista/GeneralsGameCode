@@ -52,139 +52,139 @@ NetCommandRef * NetPacket::ConstructNetCommandMsgFromRawData(UnsignedByte *data,
 
 		switch (data[offset]) {
 
-		case NetPacketFieldTypes::CommandType:
-			++offset;
-			memcpy(&commandTypeByte, data + offset, sizeof(commandTypeByte));
-			offset += sizeof(commandTypeByte);
-			commandType = static_cast<NetCommandType>(commandTypeByte);
-			break;
-
-		case NetPacketFieldTypes::Relay:
-			++offset;
-			memcpy(&relay, data + offset, sizeof(relay));
-			offset += sizeof(relay);
-			break;
-
-		case NetPacketFieldTypes::Frame:
-			++offset;
-			memcpy(&frame, data + offset, sizeof(frame));
-			offset += sizeof(frame);
-			break;
-
-		case NetPacketFieldTypes::PlayerId:
-			++offset;
-			memcpy(&playerID, data + offset, sizeof(playerID));
-			offset += sizeof(playerID);
-			break;
-
-		case NetPacketFieldTypes::CommandId:
-			++offset;
-			memcpy(&commandID, data + offset, sizeof(commandID));
-			offset += sizeof(commandID);
-			break;
-
-		case NetPacketFieldTypes::Data:
-			++offset;
-
-			switch (commandType) {
-
-			case NETCOMMANDTYPE_GAMECOMMAND:
-				msg = readGameMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_ACKBOTH:
-				msg = readAckBothMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_ACKSTAGE1:
-				msg = readAckStage1Message(data, offset);
-				break;
-			case NETCOMMANDTYPE_ACKSTAGE2:
-				msg = readAckStage2Message(data, offset);
-				break;
-			case NETCOMMANDTYPE_FRAMEINFO:
-				msg = readFrameMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_PLAYERLEAVE:
-				msg = readPlayerLeaveMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_RUNAHEADMETRICS:
-				msg = readRunAheadMetricsMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_RUNAHEAD:
-				msg = readRunAheadMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_DESTROYPLAYER:
-				msg = readDestroyPlayerMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_KEEPALIVE:
-				msg = readKeepAliveMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_DISCONNECTKEEPALIVE:
-				msg = readDisconnectKeepAliveMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_DISCONNECTPLAYER:
-				msg = readDisconnectPlayerMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_PACKETROUTERQUERY:
-				msg = readPacketRouterQueryMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_PACKETROUTERACK:
-				msg = readPacketRouterAckMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_DISCONNECTCHAT:
-				msg = readDisconnectChatMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_DISCONNECTVOTE:
-				msg = readDisconnectVoteMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_CHAT:
-				msg = readChatMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_PROGRESS:
-				msg = readProgressMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_LOADCOMPLETE:
-				msg = readLoadCompleteMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_TIMEOUTSTART:
-				msg = readTimeOutGameStartMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_WRAPPER:
-				msg = readWrapperMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_FILE:
-				msg = readFileMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_FILEANNOUNCE:
-				msg = readFileAnnounceMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_FILEPROGRESS:
-				msg = readFileProgressMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_DISCONNECTFRAME:
-				msg = readDisconnectFrameMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
-				msg = readDisconnectScreenOffMessage(data, offset);
-				break;
-			case NETCOMMANDTYPE_FRAMERESENDREQUEST:
-				msg = readFrameResendRequestMessage(data, offset);
+			case NetPacketFieldTypes::CommandType:
+				++offset;
+				memcpy(&commandTypeByte, data + offset, sizeof(commandTypeByte));
+				offset += sizeof(commandTypeByte);
+				commandType = static_cast<NetCommandType>(commandTypeByte);
 				break;
 
-			}
+			case NetPacketFieldTypes::Relay:
+				++offset;
+				memcpy(&relay, data + offset, sizeof(relay));
+				offset += sizeof(relay);
+				break;
 
-			msg->setExecutionFrame(frame);
-			msg->setID(commandID);
-			msg->setPlayerID(playerID);
-			msg->setNetCommandType(commandType);
+			case NetPacketFieldTypes::Frame:
+				++offset;
+				memcpy(&frame, data + offset, sizeof(frame));
+				offset += sizeof(frame);
+				break;
 
-			ref = NEW_NETCOMMANDREF(msg);
+			case NetPacketFieldTypes::PlayerId:
+				++offset;
+				memcpy(&playerID, data + offset, sizeof(playerID));
+				offset += sizeof(playerID);
+				break;
 
-			ref->setRelay(relay);
+			case NetPacketFieldTypes::CommandId:
+				++offset;
+				memcpy(&commandID, data + offset, sizeof(commandID));
+				offset += sizeof(commandID);
+				break;
 
-			msg->detach();
-			msg = nullptr;
+			case NetPacketFieldTypes::Data:
+				++offset;
 
-			return ref;
+				switch (commandType) {
+
+					case NETCOMMANDTYPE_GAMECOMMAND:
+						msg = readGameMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_ACKBOTH:
+						msg = readAckBothMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_ACKSTAGE1:
+						msg = readAckStage1Message(data, offset);
+						break;
+					case NETCOMMANDTYPE_ACKSTAGE2:
+						msg = readAckStage2Message(data, offset);
+						break;
+					case NETCOMMANDTYPE_FRAMEINFO:
+						msg = readFrameMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_PLAYERLEAVE:
+						msg = readPlayerLeaveMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_RUNAHEADMETRICS:
+						msg = readRunAheadMetricsMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_RUNAHEAD:
+						msg = readRunAheadMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_DESTROYPLAYER:
+						msg = readDestroyPlayerMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_KEEPALIVE:
+						msg = readKeepAliveMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTKEEPALIVE:
+						msg = readDisconnectKeepAliveMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTPLAYER:
+						msg = readDisconnectPlayerMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_PACKETROUTERQUERY:
+						msg = readPacketRouterQueryMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_PACKETROUTERACK:
+						msg = readPacketRouterAckMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTCHAT:
+						msg = readDisconnectChatMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTVOTE:
+						msg = readDisconnectVoteMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_CHAT:
+						msg = readChatMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_PROGRESS:
+						msg = readProgressMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_LOADCOMPLETE:
+						msg = readLoadCompleteMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_TIMEOUTSTART:
+						msg = readTimeOutGameStartMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_WRAPPER:
+						msg = readWrapperMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_FILE:
+						msg = readFileMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_FILEANNOUNCE:
+						msg = readFileAnnounceMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_FILEPROGRESS:
+						msg = readFileProgressMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTFRAME:
+						msg = readDisconnectFrameMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
+						msg = readDisconnectScreenOffMessage(data, offset);
+						break;
+					case NETCOMMANDTYPE_FRAMERESENDREQUEST:
+						msg = readFrameResendRequestMessage(data, offset);
+						break;
+
+				}
+
+				msg->setExecutionFrame(frame);
+				msg->setID(commandID);
+				msg->setPlayerID(playerID);
+				msg->setNetCommandType(commandType);
+
+				ref = NEW_NETCOMMANDREF(msg);
+
+				ref->setRelay(relay);
+
+				msg->detach();
+				msg = nullptr;
+
+				return ref;
 
 		}
 
@@ -543,267 +543,267 @@ NetCommandList * NetPacket::getCommandList() {
 
 		switch(m_packet[i]) {
 
-		case NetPacketFieldTypes::CommandType:
-			++i;
-			memcpy(&commandType, m_packet + i, sizeof(UnsignedByte));
-			i += sizeof(UnsignedByte);
-			break;
-		case NetPacketFieldTypes::Frame:
-			++i;
-			memcpy(&frame, m_packet + i, sizeof(UnsignedInt));
-			i += sizeof(UnsignedInt);
-			break;
-		case NetPacketFieldTypes::PlayerId:
-			++i;
-			memcpy(&playerID, m_packet + i, sizeof(UnsignedByte));
-			i += sizeof(UnsignedByte);
-			break;
-		case NetPacketFieldTypes::Relay:
-			++i;
-			memcpy(&relay, m_packet + i, sizeof(UnsignedByte));
-			i += sizeof(UnsignedByte);
-			break;
-		case NetPacketFieldTypes::CommandId:
-			++i;
-			memcpy(&commandID, m_packet + i, sizeof(UnsignedShort));
-			i += sizeof(UnsignedShort);
-			break;
-		case NetPacketFieldTypes::Data: {
-			++i;
+			case NetPacketFieldTypes::CommandType:
+				++i;
+				memcpy(&commandType, m_packet + i, sizeof(UnsignedByte));
+				i += sizeof(UnsignedByte);
+				break;
+			case NetPacketFieldTypes::Frame:
+				++i;
+				memcpy(&frame, m_packet + i, sizeof(UnsignedInt));
+				i += sizeof(UnsignedInt);
+				break;
+			case NetPacketFieldTypes::PlayerId:
+				++i;
+				memcpy(&playerID, m_packet + i, sizeof(UnsignedByte));
+				i += sizeof(UnsignedByte);
+				break;
+			case NetPacketFieldTypes::Relay:
+				++i;
+				memcpy(&relay, m_packet + i, sizeof(UnsignedByte));
+				i += sizeof(UnsignedByte);
+				break;
+			case NetPacketFieldTypes::CommandId:
+				++i;
+				memcpy(&commandID, m_packet + i, sizeof(UnsignedShort));
+				i += sizeof(UnsignedShort);
+				break;
+			case NetPacketFieldTypes::Data: {
+				++i;
 
-			NetCommandMsg *msg = nullptr;
+				NetCommandMsg *msg = nullptr;
 
-			//DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::getCommandList() - command of type %d(%s)", commandType, GetNetCommandTypeAsString((NetCommandType)commandType)));
+				//DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::getCommandList() - command of type %d(%s)", commandType, GetNetCommandTypeAsString((NetCommandType)commandType)));
 
-			switch((NetCommandType)commandType)
-			{
-			case NETCOMMANDTYPE_GAMECOMMAND:
-				msg = readGameMessage(m_packet, i);
-				//DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read game command from player %d for frame %d", playerID, frame));
-				break;
-			case NETCOMMANDTYPE_ACKBOTH:
-				msg = readAckBothMessage(m_packet, i);
-				break;
-			case NETCOMMANDTYPE_ACKSTAGE1:
-				msg = readAckStage1Message(m_packet, i);
-				break;
-			case NETCOMMANDTYPE_ACKSTAGE2:
-				msg = readAckStage2Message(m_packet, i);
-				break;
-			case NETCOMMANDTYPE_FRAMEINFO:
-				msg = readFrameMessage(m_packet, i);
-				// frameinfodebug
-				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read frame %d from player %d, command count = %d, relay = 0x%X", frame, playerID, ((NetFrameCommandMsg *)msg)->getCommandCount(), relay));
-				break;
-			case NETCOMMANDTYPE_PLAYERLEAVE:
-				msg = readPlayerLeaveMessage(m_packet, i);
+				switch((NetCommandType)commandType)
+				{
+					case NETCOMMANDTYPE_GAMECOMMAND:
+						msg = readGameMessage(m_packet, i);
+						//DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read game command from player %d for frame %d", playerID, frame));
+						break;
+					case NETCOMMANDTYPE_ACKBOTH:
+						msg = readAckBothMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_ACKSTAGE1:
+						msg = readAckStage1Message(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_ACKSTAGE2:
+						msg = readAckStage2Message(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_FRAMEINFO:
+						msg = readFrameMessage(m_packet, i);
+						// frameinfodebug
+						DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read frame %d from player %d, command count = %d, relay = 0x%X", frame, playerID, ((NetFrameCommandMsg *)msg)->getCommandCount(), relay));
+						break;
+					case NETCOMMANDTYPE_PLAYERLEAVE:
+						msg = readPlayerLeaveMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read player leave message from player %d for execution on frame %d", playerID, frame));
-				break;
-			case NETCOMMANDTYPE_RUNAHEADMETRICS:
-				msg = readRunAheadMetricsMessage(m_packet, i);
-				break;
-			case NETCOMMANDTYPE_RUNAHEAD:
-				msg = readRunAheadMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_RUNAHEADMETRICS:
+						msg = readRunAheadMetricsMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_RUNAHEAD:
+						msg = readRunAheadMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read run ahead message from player %d for execution on frame %d", playerID, frame));
-				break;
-			case NETCOMMANDTYPE_DESTROYPLAYER:
-				msg = readDestroyPlayerMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_DESTROYPLAYER:
+						msg = readDestroyPlayerMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read CRC info message from player %d for execution on frame %d", playerID, frame));
-				break;
-			case NETCOMMANDTYPE_KEEPALIVE:
-				msg = readKeepAliveMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_KEEPALIVE:
+						msg = readKeepAliveMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read keep alive message from player %d", playerID));
-				break;
-			case NETCOMMANDTYPE_DISCONNECTKEEPALIVE:
-				msg = readDisconnectKeepAliveMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTKEEPALIVE:
+						msg = readDisconnectKeepAliveMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read keep alive message from player %d", playerID));
-				break;
-			case NETCOMMANDTYPE_DISCONNECTPLAYER:
-				msg = readDisconnectPlayerMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTPLAYER:
+						msg = readDisconnectPlayerMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read disconnect player message from player %d", playerID));
-				break;
-			case NETCOMMANDTYPE_PACKETROUTERQUERY:
-				msg = readPacketRouterQueryMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_PACKETROUTERQUERY:
+						msg = readPacketRouterQueryMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read packet router query message from player %d", playerID));
-				break;
-			case NETCOMMANDTYPE_PACKETROUTERACK:
-				msg = readPacketRouterAckMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_PACKETROUTERACK:
+						msg = readPacketRouterAckMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read packet router ack message from player %d", playerID));
-				break;
-			case NETCOMMANDTYPE_DISCONNECTCHAT:
-				msg = readDisconnectChatMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTCHAT:
+						msg = readDisconnectChatMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read disconnect chat message from player %d", playerID));
-				break;
-			case NETCOMMANDTYPE_DISCONNECTVOTE:
-				msg = readDisconnectVoteMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTVOTE:
+						msg = readDisconnectVoteMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read disconnect vote message from player %d", playerID));
-				break;
-			case NETCOMMANDTYPE_CHAT:
-				msg = readChatMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_CHAT:
+						msg = readChatMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read chat message from player %d", playerID));
-				break;
-			case NETCOMMANDTYPE_PROGRESS:
-				msg = readProgressMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_PROGRESS:
+						msg = readProgressMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read Progress message from player %d", playerID));
-				break;
-			case NETCOMMANDTYPE_LOADCOMPLETE:
-				msg = readLoadCompleteMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_LOADCOMPLETE:
+						msg = readLoadCompleteMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read LoadComplete message from player %d", playerID));
-				break;
-			case NETCOMMANDTYPE_TIMEOUTSTART:
-				msg = readTimeOutGameStartMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_TIMEOUTSTART:
+						msg = readTimeOutGameStartMessage(m_packet, i);
 //				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read TimeOutGameStart message from player %d", playerID));
-				break;
-			case NETCOMMANDTYPE_WRAPPER:
-				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read Wrapper message from player %d", playerID));
-				msg = readWrapperMessage(m_packet, i);
-				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("Done reading Wrapper message from player %d - wrapped command was %d", playerID,
-					((NetWrapperCommandMsg *)msg)->getWrappedCommandID()));
-				break;
-			case NETCOMMANDTYPE_FILE:
-				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read file message from player %d", playerID));
-				msg = readFileMessage(m_packet, i);
-				break;
-			case NETCOMMANDTYPE_FILEANNOUNCE:
-				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read file announce message from player %d", playerID));
-				msg = readFileAnnounceMessage(m_packet, i);
-				break;
-			case NETCOMMANDTYPE_FILEPROGRESS:
-				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read file progress message from player %d", playerID));
-				msg = readFileProgressMessage(m_packet, i);
-				break;
-			case NETCOMMANDTYPE_DISCONNECTFRAME:
-				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read disconnect frame message from player %d", playerID));
-				msg = readDisconnectFrameMessage(m_packet, i);
-				break;
-			case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
-				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read disconnect screen off message from player %d", playerID));
-				msg = readDisconnectScreenOffMessage(m_packet, i);
-				break;
-			case NETCOMMANDTYPE_FRAMERESENDREQUEST:
-				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read frame resend request message from player %d", playerID));
-				msg = readFrameResendRequestMessage(m_packet, i);
-				break;
-			}
+						break;
+					case NETCOMMANDTYPE_WRAPPER:
+						DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read Wrapper message from player %d", playerID));
+						msg = readWrapperMessage(m_packet, i);
+						DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("Done reading Wrapper message from player %d - wrapped command was %d", playerID,
+						                                  ((NetWrapperCommandMsg *)msg)->getWrappedCommandID()));
+						break;
+					case NETCOMMANDTYPE_FILE:
+						DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read file message from player %d", playerID));
+						msg = readFileMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_FILEANNOUNCE:
+						DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read file announce message from player %d", playerID));
+						msg = readFileAnnounceMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_FILEPROGRESS:
+						DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read file progress message from player %d", playerID));
+						msg = readFileProgressMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTFRAME:
+						DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read disconnect frame message from player %d", playerID));
+						msg = readDisconnectFrameMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_DISCONNECTSCREENOFF:
+						DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read disconnect screen off message from player %d", playerID));
+						msg = readDisconnectScreenOffMessage(m_packet, i);
+						break;
+					case NETCOMMANDTYPE_FRAMERESENDREQUEST:
+						DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("read frame resend request message from player %d", playerID));
+						msg = readFrameResendRequestMessage(m_packet, i);
+						break;
+				}
 
-			if (msg == nullptr) {
-				DEBUG_CRASH(("Didn't read a message from the packet. Things are about to go wrong."));
-				continue;
-			}
+				if (msg == nullptr) {
+					DEBUG_CRASH(("Didn't read a message from the packet. Things are about to go wrong."));
+					continue;
+				}
 
-			// set the info
-			msg->setExecutionFrame(frame);
-			msg->setPlayerID(playerID);
-			msg->setNetCommandType((NetCommandType)commandType);
-			msg->setID(commandID);
-
-//			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("frame = %d, player = %d, command type = %d, id = %d", frame, playerID, commandType, commandID));
-
-			// increment to the next command ID.
-			if (DoesCommandRequireACommandID((NetCommandType)commandType)) {
-				++commandID;
-			}
-
-			// add the message to the list.
-			NetCommandRef *ref = retval->addMessage(msg);
-			if (ref != nullptr) {
-				ref->setRelay(relay);
-			} else {
-				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::getCommandList - failed to set relay for message %d", msg->getID()));
-			}
-
-			deleteInstance(lastCommand);
-			lastCommand = newInstance(NetCommandRef)(msg);
-
-			msg->detach();  // Need to detach from new NetCommandMsg created by the "readXMessage" above.
-
-			// since the message is part of the list now, we don't have to keep track of it.  So we'll just set it to null.
-			msg = nullptr;
-			break;
-		}
-
-		case 'Z': {
-
-			++i;
-			// Repeat the last command, doing some funky cool byte-saving stuff
-			if (lastCommand == nullptr) {
-				DEBUG_CRASH(("Got a repeat command with no command to repeat."));
-			}
-
-			NetCommandMsg *msg = nullptr;
-
-			switch(commandType) {
-
-			case NETCOMMANDTYPE_ACKSTAGE1: {
-				msg = newInstance(NetAckStage1CommandMsg)();
-				NetAckStage1CommandMsg* laststageone = (NetAckStage1CommandMsg*)(lastCommand->getCommand());
-				((NetAckStage1CommandMsg*)msg)->setCommandID(laststageone->getCommandID() + 1);
-				((NetAckStage1CommandMsg*)msg)->setOriginalPlayerID(laststageone->getOriginalPlayerID());
-				break;
-			}
-			case NETCOMMANDTYPE_ACKSTAGE2: {
-				msg = newInstance(NetAckStage2CommandMsg)();
-				NetAckStage2CommandMsg* laststagetwo = (NetAckStage2CommandMsg*)(lastCommand->getCommand());
-				((NetAckStage2CommandMsg*)msg)->setCommandID(laststagetwo->getCommandID() + 1);
-				((NetAckStage2CommandMsg*)msg)->setOriginalPlayerID(laststagetwo->getOriginalPlayerID());
-				break;
-			}
-			case NETCOMMANDTYPE_ACKBOTH: {
-				msg = newInstance(NetAckBothCommandMsg)();
-				NetAckBothCommandMsg* lastboth = (NetAckBothCommandMsg*)(lastCommand->getCommand());
-				((NetAckBothCommandMsg*)msg)->setCommandID(lastboth->getCommandID() + 1);
-				((NetAckBothCommandMsg*)msg)->setOriginalPlayerID(lastboth->getOriginalPlayerID());
-				break;
-			}
-			case NETCOMMANDTYPE_FRAMEINFO: {
-				msg = newInstance(NetFrameCommandMsg)();
-				++frame; // this is set below.
-				((NetFrameCommandMsg*)msg)->setCommandCount(0);
-				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("Read a repeated frame command, frame = %d, player = %d, commandID = %d", frame, playerID, commandID));
-				break;
-			}
-			default:
-				DEBUG_CRASH(("Trying to repeat a command that shouldn't be repeated."));
-				continue;
-
-			}
-
-			msg->setExecutionFrame(frame);
-			msg->setPlayerID(playerID);
-			msg->setNetCommandType((NetCommandType)commandType);
-			msg->setID(commandID);
+				// set the info
+				msg->setExecutionFrame(frame);
+				msg->setPlayerID(playerID);
+				msg->setNetCommandType((NetCommandType)commandType);
+				msg->setID(commandID);
 
 //			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("frame = %d, player = %d, command type = %d, id = %d", frame, playerID, commandType, commandID));
 
-			// increment to the next command ID.
-			if (DoesCommandRequireACommandID((NetCommandType)commandType)) {
-				++commandID;
+				// increment to the next command ID.
+				if (DoesCommandRequireACommandID((NetCommandType)commandType)) {
+					++commandID;
+				}
+
+				// add the message to the list.
+				NetCommandRef *ref = retval->addMessage(msg);
+				if (ref != nullptr) {
+					ref->setRelay(relay);
+				} else {
+					DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::getCommandList - failed to set relay for message %d", msg->getID()));
+				}
+
+				deleteInstance(lastCommand);
+				lastCommand = newInstance(NetCommandRef)(msg);
+
+				msg->detach();  // Need to detach from new NetCommandMsg created by the "readXMessage" above.
+
+				// since the message is part of the list now, we don't have to keep track of it.  So we'll just set it to null.
+				msg = nullptr;
+				break;
 			}
 
-			// add the message to the list.
-			NetCommandRef *ref = retval->addMessage(msg);
-			if (ref != nullptr) {
-				ref->setRelay(relay);
-			}
+			case 'Z': {
 
-			deleteInstance(lastCommand);
+				++i;
+				// Repeat the last command, doing some funky cool byte-saving stuff
+				if (lastCommand == nullptr) {
+					DEBUG_CRASH(("Got a repeat command with no command to repeat."));
+				}
+
+				NetCommandMsg *msg = nullptr;
+
+				switch(commandType) {
+
+					case NETCOMMANDTYPE_ACKSTAGE1: {
+						msg = newInstance(NetAckStage1CommandMsg)();
+						NetAckStage1CommandMsg* laststageone = (NetAckStage1CommandMsg*)(lastCommand->getCommand());
+						((NetAckStage1CommandMsg*)msg)->setCommandID(laststageone->getCommandID() + 1);
+						((NetAckStage1CommandMsg*)msg)->setOriginalPlayerID(laststageone->getOriginalPlayerID());
+						break;
+					}
+					case NETCOMMANDTYPE_ACKSTAGE2: {
+						msg = newInstance(NetAckStage2CommandMsg)();
+						NetAckStage2CommandMsg* laststagetwo = (NetAckStage2CommandMsg*)(lastCommand->getCommand());
+						((NetAckStage2CommandMsg*)msg)->setCommandID(laststagetwo->getCommandID() + 1);
+						((NetAckStage2CommandMsg*)msg)->setOriginalPlayerID(laststagetwo->getOriginalPlayerID());
+						break;
+					}
+					case NETCOMMANDTYPE_ACKBOTH: {
+						msg = newInstance(NetAckBothCommandMsg)();
+						NetAckBothCommandMsg* lastboth = (NetAckBothCommandMsg*)(lastCommand->getCommand());
+						((NetAckBothCommandMsg*)msg)->setCommandID(lastboth->getCommandID() + 1);
+						((NetAckBothCommandMsg*)msg)->setOriginalPlayerID(lastboth->getOriginalPlayerID());
+						break;
+					}
+					case NETCOMMANDTYPE_FRAMEINFO: {
+						msg = newInstance(NetFrameCommandMsg)();
+						++frame; // this is set below.
+						((NetFrameCommandMsg*)msg)->setCommandCount(0);
+						DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("Read a repeated frame command, frame = %d, player = %d, commandID = %d", frame, playerID, commandID));
+						break;
+					}
+					default:
+						DEBUG_CRASH(("Trying to repeat a command that shouldn't be repeated."));
+						continue;
+
+				}
+
+				msg->setExecutionFrame(frame);
+				msg->setPlayerID(playerID);
+				msg->setNetCommandType((NetCommandType)commandType);
+				msg->setID(commandID);
+
+//			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("frame = %d, player = %d, command type = %d, id = %d", frame, playerID, commandType, commandID));
+
+				// increment to the next command ID.
+				if (DoesCommandRequireACommandID((NetCommandType)commandType)) {
+					++commandID;
+				}
+
+				// add the message to the list.
+				NetCommandRef *ref = retval->addMessage(msg);
+				if (ref != nullptr) {
+					ref->setRelay(relay);
+				}
+
+				deleteInstance(lastCommand);
 //			lastCommand = newInstance(NetCommandRef)(msg);
-			lastCommand = NEW_NETCOMMANDREF(msg);
+				lastCommand = NEW_NETCOMMANDREF(msg);
 
-			msg->detach();  // Need to detach from new NetCommandMsg created by the "readXMessage" above.
+				msg->detach();  // Need to detach from new NetCommandMsg created by the "readXMessage" above.
 
-			// since the message is part of the list now, we don't have to keep track of it.  So we'll just set it to null.
-			msg = nullptr;
-			break;
-		}
+				// since the message is part of the list now, we don't have to keep track of it.  So we'll just set it to null.
+				msg = nullptr;
+				break;
+			}
 
-		default:
-			// we don't recognize this command, but we have to increment i so we don't fall into an infinite loop.
-			DEBUG_CRASH(("Unrecognized packet entry, ignoring."));
-			DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::getCommandList - Unrecognized packet entry at index %d", i));
-			dumpPacketToLog();
-			++i;
-			break;
+			default:
+				// we don't recognize this command, but we have to increment i so we don't fall into an infinite loop.
+				DEBUG_CRASH(("Unrecognized packet entry, ignoring."));
+				DEBUG_LOG_LEVEL(DEBUG_LEVEL_NET, ("NetPacket::getCommandList - Unrecognized packet entry at index %d", i));
+				dumpPacketToLog();
+				++i;
+				break;
 
 		}
 
@@ -890,93 +890,93 @@ void NetPacket::readGameMessageArgumentFromPacket(GameMessageArgumentDataType ty
 
 	switch (type) {
 
-	case ARGUMENTDATATYPE_INTEGER:
-		Int theint;
-		memcpy(&theint, data + i, sizeof(theint));
-		i += sizeof(theint);
-		arg.integer = theint;
-		msg->addArgument(type, arg);
-		break;
+		case ARGUMENTDATATYPE_INTEGER:
+			Int theint;
+			memcpy(&theint, data + i, sizeof(theint));
+			i += sizeof(theint);
+			arg.integer = theint;
+			msg->addArgument(type, arg);
+			break;
 
-	case ARGUMENTDATATYPE_REAL:
-		Real thereal;
-		memcpy(&thereal, data + i, sizeof(thereal));
-		i += sizeof(thereal);
-		arg.real = thereal;
-		msg->addArgument(type, arg);
-		break;
+		case ARGUMENTDATATYPE_REAL:
+			Real thereal;
+			memcpy(&thereal, data + i, sizeof(thereal));
+			i += sizeof(thereal);
+			arg.real = thereal;
+			msg->addArgument(type, arg);
+			break;
 
-	case ARGUMENTDATATYPE_BOOLEAN:
-		Bool thebool;
-		memcpy(&thebool, data + i, sizeof(thebool));
-		i += sizeof(thebool);
-		arg.boolean = thebool;
-		msg->addArgument(type, arg);
-		break;
+		case ARGUMENTDATATYPE_BOOLEAN:
+			Bool thebool;
+			memcpy(&thebool, data + i, sizeof(thebool));
+			i += sizeof(thebool);
+			arg.boolean = thebool;
+			msg->addArgument(type, arg);
+			break;
 
-	case ARGUMENTDATATYPE_OBJECTID:
-		ObjectID theobjectid;
-		memcpy(&theobjectid, data + i, sizeof(theobjectid));
-		i += sizeof(theobjectid);
-		arg.objectID = theobjectid;
-		msg->addArgument(type, arg);
-		break;
+		case ARGUMENTDATATYPE_OBJECTID:
+			ObjectID theobjectid;
+			memcpy(&theobjectid, data + i, sizeof(theobjectid));
+			i += sizeof(theobjectid);
+			arg.objectID = theobjectid;
+			msg->addArgument(type, arg);
+			break;
 
-	case ARGUMENTDATATYPE_DRAWABLEID:
-		DrawableID thedrawableid;
-		memcpy(&thedrawableid, data + i, sizeof(thedrawableid));
-		i += sizeof(thedrawableid);
-		arg.drawableID = thedrawableid;
-		msg->addArgument(type, arg);
-		break;
+		case ARGUMENTDATATYPE_DRAWABLEID:
+			DrawableID thedrawableid;
+			memcpy(&thedrawableid, data + i, sizeof(thedrawableid));
+			i += sizeof(thedrawableid);
+			arg.drawableID = thedrawableid;
+			msg->addArgument(type, arg);
+			break;
 
-	case ARGUMENTDATATYPE_TEAMID:
-		UnsignedInt theunsignedint;
-		memcpy(&theunsignedint, data + i, sizeof(theunsignedint));
-		i += sizeof(theunsignedint);
-		arg.teamID = theunsignedint;
-		msg->addArgument(type, arg);
-		break;
+		case ARGUMENTDATATYPE_TEAMID:
+			UnsignedInt theunsignedint;
+			memcpy(&theunsignedint, data + i, sizeof(theunsignedint));
+			i += sizeof(theunsignedint);
+			arg.teamID = theunsignedint;
+			msg->addArgument(type, arg);
+			break;
 
-	case ARGUMENTDATATYPE_LOCATION:
-		Coord3D coord;
-		memcpy(&coord, data + i, sizeof(coord));
-		i += sizeof(coord);
-		arg.location = coord;
-		msg->addArgument(type, arg);
-		break;
+		case ARGUMENTDATATYPE_LOCATION:
+			Coord3D coord;
+			memcpy(&coord, data + i, sizeof(coord));
+			i += sizeof(coord);
+			arg.location = coord;
+			msg->addArgument(type, arg);
+			break;
 
-	case ARGUMENTDATATYPE_PIXEL:
-		ICoord2D pixel;
-		memcpy(&pixel, data + i, sizeof(pixel));
-		i += sizeof(pixel);
-		arg.pixel = pixel;
-		msg->addArgument(type, arg);
-		break;
+		case ARGUMENTDATATYPE_PIXEL:
+			ICoord2D pixel;
+			memcpy(&pixel, data + i, sizeof(pixel));
+			i += sizeof(pixel);
+			arg.pixel = pixel;
+			msg->addArgument(type, arg);
+			break;
 
-	case ARGUMENTDATATYPE_PIXELREGION:
-		IRegion2D reg;
-		memcpy(&reg, data + i, sizeof(reg));
-		i += sizeof(reg);
-		arg.pixelRegion = reg;
-		msg->addArgument(type, arg);
-		break;
+		case ARGUMENTDATATYPE_PIXELREGION:
+			IRegion2D reg;
+			memcpy(&reg, data + i, sizeof(reg));
+			i += sizeof(reg);
+			arg.pixelRegion = reg;
+			msg->addArgument(type, arg);
+			break;
 
-	case ARGUMENTDATATYPE_TIMESTAMP:
-		UnsignedInt stamp;
-		memcpy(&stamp, data + i, sizeof(stamp));
-		i += sizeof(stamp);
-		arg.timestamp = stamp;
-		msg->addArgument(type, arg);
-		break;
+		case ARGUMENTDATATYPE_TIMESTAMP:
+			UnsignedInt stamp;
+			memcpy(&stamp, data + i, sizeof(stamp));
+			i += sizeof(stamp);
+			arg.timestamp = stamp;
+			msg->addArgument(type, arg);
+			break;
 
-	case ARGUMENTDATATYPE_WIDECHAR:
-		WideChar c;
-		memcpy(&c, data + i, sizeof(c));
-		i += sizeof(c);
-		arg.wChar = c;
-		msg->addArgument(type, arg);
-		break;
+		case ARGUMENTDATATYPE_WIDECHAR:
+			WideChar c;
+			memcpy(&c, data + i, sizeof(c));
+			i += sizeof(c);
+			arg.wChar = c;
+			msg->addArgument(type, arg);
+			break;
 
 	}
 

@@ -65,7 +65,7 @@ const FieldParse MiscAudio::m_fieldParseTable[] =
 	{ "RepairSparks",													INI::parseAudioEventRTS, nullptr, offsetof( MiscAudio, m_repairSparks ) },
 	{ "SabotageShutDownBuilding",							INI::parseAudioEventRTS, nullptr, offsetof( MiscAudio, m_sabotageShutDownBuilding ) },
 	{ "SabotageResetTimeBuilding",						INI::parseAudioEventRTS, nullptr, offsetof( MiscAudio, m_sabotageResetTimerBuilding ) },
-  { "AircraftWheelScreech",									INI::parseAudioEventRTS, nullptr, offsetof( MiscAudio, m_aircraftWheelScreech ) },
+	{ "AircraftWheelScreech",									INI::parseAudioEventRTS, nullptr, offsetof( MiscAudio, m_aircraftWheelScreech ) },
 
 	{ nullptr, nullptr, nullptr, 0 }
 };

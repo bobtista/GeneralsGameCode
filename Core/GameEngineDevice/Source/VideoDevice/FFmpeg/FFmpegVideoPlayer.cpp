@@ -42,8 +42,8 @@
 #include "VideoDevice/FFmpeg/FFmpegFile.h"
 
 extern "C" {
-	#include <libavcodec/avcodec.h>
-	#include <libswscale/swscale.h>
+#include <libavcodec/avcodec.h>
+#include <libswscale/swscale.h>
 }
 
 #ifdef RTS_HAS_OPENAL
@@ -212,7 +212,7 @@ VideoStreamInterface* FFmpegVideoPlayer::createStream( File* file )
 		Int mod = (Int) ((TheAudio->getVolume(AudioAffect_Speech) * 0.8f) * 100) + 1;
 		[[maybe_unused]]  Int volume = (32768 * mod) / 100;
 		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - About to set volume (%g -> %d -> %d",
-			TheAudio->getVolume(AudioAffect_Speech), mod, volume));
+		           TheAudio->getVolume(AudioAffect_Speech), mod, volume));
 		//BinkSetVolume( stream->m_handle,0, volume);
 		DEBUG_LOG(("FFmpegVideoPlayer::createStream() - set volume"));
 	}
@@ -306,7 +306,7 @@ void FFmpegVideoPlayer::initializeBinkWithMiles()
 //============================================================================
 
 FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
-: m_ffmpegFile(file)
+	: m_ffmpegFile(file)
 {
 	m_ffmpegFile->setFrameCallback(onFrame);
 	m_ffmpegFile->setUserData(this);
@@ -321,7 +321,7 @@ FFmpegVideoStream::FFmpegVideoStream(FFmpegFile* file)
 	while (m_good && m_gotFrame == false)
 		m_good = m_ffmpegFile->decodePacket();
 
- #ifdef RTS_USE_OPENAL
+#ifdef RTS_USE_OPENAL
 	// Start audio playback
 	audioStream->play();
 #endif
@@ -462,16 +462,16 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 	}
 
 	m_swsContext = sws_getCachedContext(m_swsContext,
-		width(),
-		height(),
-		static_cast<AVPixelFormat>(m_frame->format),
-		buffer->width(),
-		buffer->height(),
-		dst_pix_fmt,
-		SWS_BICUBIC,
-		nullptr,
-		nullptr,
-		nullptr);
+	                                    width(),
+	                                    height(),
+	                                    static_cast<AVPixelFormat>(m_frame->format),
+	                                    buffer->width(),
+	                                    buffer->height(),
+	                                    dst_pix_fmt,
+	                                    SWS_BICUBIC,
+	                                    nullptr,
+	                                    nullptr,
+	                                    nullptr);
 
 	uint8_t *buffer_data = static_cast<uint8_t *>(buffer->lock());
 	if (buffer_data == nullptr) {
@@ -482,7 +482,7 @@ void FFmpegVideoStream::frameRender( VideoBuffer *buffer )
 	int dst_strides[] = { (int)buffer->pitch() };
 	uint8_t *dst_data[] = { buffer_data };
 	[[maybe_unused]] int result =
-		sws_scale(m_swsContext, m_frame->data, m_frame->linesize, 0, height(), dst_data, dst_strides);
+	    sws_scale(m_swsContext, m_frame->data, m_frame->linesize, 0, height(), dst_data, dst_strides);
 	DEBUG_ASSERTLOG(result >= 0, ("Failed to scale frame"));
 	buffer->unlock();
 }
