@@ -103,13 +103,13 @@ bool Utf8_Validate(const char* str, size_t length)
 size_t Utf16Le_To_Utf8_Len(const wchar_t* src, size_t srcLen)
 {
 	const int bytes = WideCharToMultiByte(CP_UTF8, 0, src, (int)srcLen, nullptr, 0, nullptr, nullptr);
-	return (bytes > 0) ? (size_t)bytes : 0;
+	return (bytes >= 0) ? (size_t)bytes : 0;
 }
 
 size_t Utf8_To_Utf16Le_Len(const char* src, size_t srcLen)
 {
 	const int wchars = MultiByteToWideChar(CP_UTF8, 0, src, (int)srcLen, nullptr, 0);
-	return (wchars > 0) ? (size_t)wchars : 0;
+	return (wchars >= 0) ? (size_t)wchars : 0;
 }
 
 size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen)
