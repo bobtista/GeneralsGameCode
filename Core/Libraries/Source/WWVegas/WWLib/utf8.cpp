@@ -102,43 +102,51 @@ bool Utf8_Validate(const char* str, size_t length)
 
 size_t Utf16Le_To_Utf8_Len(const wchar_t* src, size_t srcLen)
 {
-	int bytes = WideCharToMultiByte(CP_UTF8, 0, src, (int)srcLen, nullptr, 0, nullptr, nullptr);
+	const int bytes = WideCharToMultiByte(CP_UTF8, 0, src, (int)srcLen, nullptr, 0, nullptr, nullptr);
 	return (bytes > 0) ? (size_t)bytes : 0;
 }
 
 size_t Utf8_To_Utf16Le_Len(const char* src, size_t srcLen)
 {
-	int wchars = MultiByteToWideChar(CP_UTF8, 0, src, (int)srcLen, nullptr, 0);
+	const int wchars = MultiByteToWideChar(CP_UTF8, 0, src, (int)srcLen, nullptr, 0);
 	return (wchars > 0) ? (size_t)wchars : 0;
 }
 
 size_t Utf16Le_To_Utf8(char* dest, size_t destLen, const wchar_t* src, size_t srcLen)
 {
-	WWASSERT(destLen >= Utf16Le_To_Utf8_Len(src, srcLen));
 	const int written = WideCharToMultiByte(CP_UTF8, 0, src, (int)srcLen, dest, (int)destLen, nullptr, nullptr);
+	WWASSERT(written > 0 && (size_t)written <= destLen);
 	if (written <= 0)
 	{
 		if (destLen > 0)
+		{
 			dest[0] = '\0';
+		}
 		return 0;
 	}
 	if ((size_t)written < destLen)
+	{
 		dest[written] = '\0';
+	}
 	return (size_t)written;
 }
 
 size_t Utf8_To_Utf16Le(wchar_t* dest, size_t destLen, const char* src, size_t srcLen)
 {
-	WWASSERT(destLen >= Utf8_To_Utf16Le_Len(src, srcLen));
 	const int written = MultiByteToWideChar(CP_UTF8, 0, src, (int)srcLen, dest, (int)destLen);
+	WWASSERT(written > 0 && (size_t)written <= destLen);
 	if (written <= 0)
 	{
 		if (destLen > 0)
+		{
 			dest[0] = L'\0';
+		}
 		return 0;
 	}
 	if ((size_t)written < destLen)
+	{
 		dest[written] = L'\0';
+	}
 	return (size_t)written;
 }
 
