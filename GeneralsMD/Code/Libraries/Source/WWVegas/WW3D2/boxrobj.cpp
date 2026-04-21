@@ -98,6 +98,8 @@
 #include "coltest.h"
 #include "inttest.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8fvf.h"
@@ -508,13 +510,13 @@ void BoxRenderObjClass::render_box(RenderInfoClass & rinfo,const Vector3 & cente
 		DX8Wrapper::Set_Shader(_BoxShader);
 		DX8Wrapper::Set_Texture(0,nullptr);
 
-		DX8Wrapper::Set_Index_Buffer(ibaccess,0);
-		DX8Wrapper::Set_Vertex_Buffer(vbaccess);
+		g_renderBackend->Set_Index_Buffer(ibaccess, 0);
+		g_renderBackend->Set_Vertex_Buffer(vbaccess);
 
 		SphereClass sphere;
 		Get_Obj_Space_Bounding_Sphere(sphere);
 
-		DX8Wrapper::Draw_Triangles(buffer_type,0,NUM_BOX_FACES,0,NUM_BOX_VERTS);
+		g_renderBackend->Draw_Triangles(buffer_type, 0, NUM_BOX_FACES, 0, NUM_BOX_VERTS);
 	}
 }
 

@@ -250,6 +250,52 @@ public:
                                             const void * /*data*/,
                                             unsigned int /*size_bytes*/) {}
 
+    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 sub-range
+    // capture. Rigid mesh category containers fill their shared VB / IB
+    // via AppendLockClass one sub-range at a time. BgfxBackend creates a
+    // bgfx dynamic buffer the first time it sees a VB / IB and updates
+    // the sub-range in place. start_vertex / start_index is in elements
+    // (verts or shorts), size_bytes is in bytes.
+    virtual void Capture_Vertex_Sub_Range(const VertexBufferClass * /*vb*/,
+                                          const void * /*data*/,
+                                          unsigned int /*start_vertex*/,
+                                          unsigned int /*size_bytes*/) {}
+    virtual void Capture_Index_Sub_Range(const IndexBufferClass * /*ib*/,
+                                         const void * /*data*/,
+                                         unsigned int /*start_index*/,
+                                         unsigned int /*size_bytes*/) {}
+
+    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.12 sorted
+    // draw pass routing. SortingRendererClass::Flush_Sorting_Pool wraps
+    // its per-batch draw loop in Begin/End_Sorted_Batch_Pass and calls
+    // Capture_Sorted_Batch_Transforms once per batch inside the loop.
+    // BgfxBackend uses this to route the sorted submits to a dedicated
+    // bgfx view id so per-batch matrices cannot stomp the opaque view.
+    // Empty defaults = no-op on DX8Backend.
+    virtual void Begin_Sorted_Batch_Pass() {}
+    virtual void End_Sorted_Batch_Pass() {}
+    virtual void Capture_Sorted_Batch_Transforms(const Matrix4x4 & /*world*/,
+                                                 const Matrix4x4 & /*view*/) {}
+
+    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 sorted
+    // direct-draw path hook. DX8Wrapper::Draw_Sorting_IB_VB handles
+    // draws whose currently-bound VB/IB are sorting-type (CPU arrays)
+    // by creating an internal dynamic VB/IB, copying a slice out of
+    // the sorting buffers at (vba_offset+index_base_offset+min_vertex_index),
+    // and issuing the dx8 draw against those inner buffers. The bgfx
+    // backend never sees the sorting-VB path otherwise because the
+    // outer Set_Vertex_Buffer captured the full sorting VB. This hook
+    // lets Draw_Sorting_IB_VB hand the freshly populated inner dynamic
+    // VB/IB access classes to the render backend so BgfxBackend can
+    // claim their pending transient buffers and submit a correctly
+    // remapped draw (start_index=0, min_vertex_index=0). Sets an
+    // internal skip flag so the outer Draw_Triangles does not also
+    // emit a stale submit. Empty default = no-op on DX8Backend.
+    virtual void Submit_Sorted_Draw(const DynamicVBAccessClass & /*dyn_vb*/,
+                                    const DynamicIBAccessClass & /*dyn_ib*/,
+                                    unsigned short /*polygon_count*/,
+                                    unsigned short /*vertex_count*/) {}
+
     // -------------------------------------------------------------------------
     // State: shaders, materials, textures
     // -------------------------------------------------------------------------
