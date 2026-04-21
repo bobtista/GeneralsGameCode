@@ -76,6 +76,67 @@ struct RenderBackendViewport
     float max_z;
 };
 
+// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3B interface extension
+// to unblock W3DStatusCircle fade effects and FlatHeightMap shroud trickery
+// without exposing raw D3DRENDERSTATETYPE in the interface. See PHASE3B.md.
+//
+// Values chosen to match D3DBLENDOP_* / D3DBLEND_* directly so the DX8Backend
+// can cast without a branch. Modern backends translate these to their native
+// blend-state representation.
+
+enum BlendOp
+{
+    RB_BLEND_OP_ADD          = 1, // D3DBLENDOP_ADD
+    RB_BLEND_OP_SUBTRACT     = 2, // D3DBLENDOP_SUBTRACT
+    RB_BLEND_OP_REV_SUBTRACT = 3, // D3DBLENDOP_REVSUBTRACT
+    RB_BLEND_OP_MIN          = 4, // D3DBLENDOP_MIN
+    RB_BLEND_OP_MAX          = 5  // D3DBLENDOP_MAX
+};
+
+enum BlendFactor
+{
+    RB_BLEND_ZERO            = 1,  // D3DBLEND_ZERO
+    RB_BLEND_ONE             = 2,  // D3DBLEND_ONE
+    RB_BLEND_SRC_COLOR       = 3,  // D3DBLEND_SRCCOLOR
+    RB_BLEND_INV_SRC_COLOR   = 4,  // D3DBLEND_INVSRCCOLOR
+    RB_BLEND_SRC_ALPHA       = 5,  // D3DBLEND_SRCALPHA
+    RB_BLEND_INV_SRC_ALPHA   = 6,  // D3DBLEND_INVSRCALPHA
+    RB_BLEND_DEST_ALPHA      = 7,  // D3DBLEND_DESTALPHA
+    RB_BLEND_INV_DEST_ALPHA  = 8,  // D3DBLEND_INVDESTALPHA
+    RB_BLEND_DEST_COLOR      = 9,  // D3DBLEND_DESTCOLOR
+    RB_BLEND_INV_DEST_COLOR  = 10, // D3DBLEND_INVDESTCOLOR
+    RB_BLEND_SRC_ALPHA_SAT   = 11  // D3DBLEND_SRCALPHASAT
+};
+
+// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3F stencil state
+// extension. Generic CompareFunc enum is also reusable for depth-test
+// comparison in a future phase. See PHASE3F.md.
+enum CompareFunc
+{
+    // Values match D3DCMP_* 1..8 directly so DX8Backend can cast.
+    RB_CMP_NEVER         = 1,
+    RB_CMP_LESS          = 2,
+    RB_CMP_EQUAL         = 3,
+    RB_CMP_LESS_EQUAL    = 4,
+    RB_CMP_GREATER       = 5,
+    RB_CMP_NOT_EQUAL     = 6,
+    RB_CMP_GREATER_EQUAL = 7,
+    RB_CMP_ALWAYS        = 8
+};
+
+enum StencilOp
+{
+    // Values match D3DSTENCILOP_* 1..8 directly so DX8Backend can cast.
+    RB_STENCIL_OP_KEEP     = 1,
+    RB_STENCIL_OP_ZERO     = 2,
+    RB_STENCIL_OP_REPLACE  = 3,
+    RB_STENCIL_OP_INCR_SAT = 4,
+    RB_STENCIL_OP_DECR_SAT = 5,
+    RB_STENCIL_OP_INVERT   = 6,
+    RB_STENCIL_OP_INCR     = 7,
+    RB_STENCIL_OP_DECR     = 8
+};
+
 // -----------------------------------------------------------------------------
 // IRenderBackend — abstract W3D-facing rendering interface
 // -----------------------------------------------------------------------------
@@ -125,9 +186,11 @@ public:
     virtual void Begin_Scene() = 0;
     virtual void End_Scene(bool flip_frame) = 0;
     virtual void Flip_To_Primary() = 0;
+    // Defaults match DX8Wrapper::Clear so existing call sites that supplied
+    // only the first 3-4 arguments compile unchanged after migration.
     virtual void Clear(bool clear_color, bool clear_z_stencil,
                        const Vector3 & color,
-                       float dest_alpha, float z, unsigned int stencil) = 0;
+                       float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0) = 0;
     virtual void Set_Viewport(const RenderBackendViewport & viewport) = 0;
 
     // -------------------------------------------------------------------------
@@ -152,6 +215,37 @@ public:
     virtual void Apply_Render_State_Changes() = 0;
     virtual void Apply_Default_State() = 0;
     virtual void Invalidate_Cached_Render_States() = 0;
+
+    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3B typed blend +
+    // color-write setters (see PHASE3B.md). These exist so subsystems that
+    // previously called DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP / ...)
+    // can migrate without the interface re-exposing the raw D3DRENDERSTATETYPE.
+    virtual void Set_Blend_Op(BlendOp op) = 0;
+    virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) = 0;
+    virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) = 0;
+    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3E. Natural complement
+    // to the Phase 3B blend extension. See PHASE3E.md.
+    virtual void Set_Alpha_Blend_Enable(bool enable) = 0;
+
+    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D hardware cursor
+    // extension. Lets W3DMouse drive the device's hardware cursor without
+    // touching IDirect3DDevice8 directly. See PHASE3D.md.
+    virtual void Show_Hardware_Cursor(bool show) = 0;
+    virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface) = 0;
+    virtual void Set_Hardware_Cursor_Position(int x, int y) = 0;
+
+    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3F stencil state
+    // group. Each method maps 1:1 onto an existing D3DRS_STENCIL* state. The
+    // CompareFunc and StencilOp enums above are reusable for future depth
+    // and stencil work. See PHASE3F.md.
+    virtual void Set_Stencil_Enable(bool enable) = 0;
+    virtual void Set_Stencil_Func(CompareFunc func) = 0;
+    virtual void Set_Stencil_Ref(unsigned int ref) = 0;
+    virtual void Set_Stencil_Mask(unsigned int mask) = 0;
+    virtual void Set_Stencil_Write_Mask(unsigned int mask) = 0;
+    virtual void Set_Stencil_Pass_Op(StencilOp op) = 0;
+    virtual void Set_Stencil_Fail_Op(StencilOp op) = 0;
+    virtual void Set_Stencil_ZFail_Op(StencilOp op) = 0;
 
     // -------------------------------------------------------------------------
     // Transforms
