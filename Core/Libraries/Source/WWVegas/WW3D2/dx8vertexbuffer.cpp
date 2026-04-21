@@ -901,6 +901,15 @@ DynamicVBAccessClass::WriteLockClass::~WriteLockClass()
 		WWASSERT(!dx8_lock);
 		WWDEBUG_SAY(("DynamicVertexBuffer->Unlock()"));
 #endif
+		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2
+		// write-side capture for bgfx backend. Copy the locked sub-range
+		// into a bgfx transient VB before we Unlock. DX8Backend inherits
+		// an empty default so this is a no-op in the dx8 build.
+		if (g_renderBackend != NULL && Vertices != NULL) {
+			const unsigned int total_bytes = DynamicVBAccess->Get_Vertex_Count() *
+				DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size();
+			g_renderBackend->Capture_Dynamic_Vertex_Data(DynamicVBAccess, Vertices, total_bytes);
+		}
 		DX8_Assert();
 		DX8_ErrorCode(static_cast<DX8VertexBufferClass*>(DynamicVBAccess->VertexBuffer)->Get_DX8_Vertex_Buffer()->Unlock());
 		break;
