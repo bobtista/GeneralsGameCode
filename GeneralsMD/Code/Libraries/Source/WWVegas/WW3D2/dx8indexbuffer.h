@@ -41,6 +41,7 @@
 #include "always.h"
 #include "wwdebug.h"
 #include "sphere.h"
+#include "IRenderBackend.h"
 
 class DX8Wrapper;
 class SortingRendererClass;
@@ -107,6 +108,10 @@ protected:
 	mutable int					engine_refs;
 	unsigned short				index_count;		// number of indices
 	unsigned						type;
+	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
+	// resource handle. Parallel to the class-specific D3D pointer stored in
+	// DX8IndexBufferClass::IndexBuffer.
+	RenderResource			m_backendHandle;
 };
 
 

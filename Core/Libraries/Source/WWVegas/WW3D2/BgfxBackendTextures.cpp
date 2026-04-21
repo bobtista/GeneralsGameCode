@@ -36,8 +36,8 @@
 #include "BgfxBackend.h"
 #include "BgfxBackendState.h"
 
-namespace {
-
+// External linkage so BgfxBackend.cpp can reference this from its Phase 5
+// Create_Texture implementation.
 bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt)
 {
     switch (fmt)
@@ -78,8 +78,6 @@ static void ForceOpaqueIfProceduralX8R8G8B8(TextureClass * tex2d,
     for (unsigned i = 0; i < pixelCount; ++i)
         px[i * 4 + 3] = 0xff;
 }
-
-}  // end anonymous namespace
 
 // External linkage: called from BgfxBackend.cpp's Set_Texture path.
 bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
