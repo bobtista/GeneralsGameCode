@@ -69,6 +69,8 @@
 #include "chunkio.h"
 #include "dx8renderer.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "sortingrenderer.h"
 #include "coltest.h"
 
@@ -223,20 +225,22 @@ void SceneClass::Render(RenderInfoClass & rinfo)
 	else {
 		bool old_enable=WW3D::Is_Texturing_Enabled();
 
-		DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
+		// TheSuperHackers @refactor bobtista 21/04/2026 Route fill mode +
+		// Z-bias through g_renderBackend so bgfx sees the state.
+		g_renderBackend->Set_Z_Bias(0);
 		Customized_Render(rinfo);
 		switch (Get_Extra_Pass_Polygon_Mode()) {
 		case EXTRA_PASS_LINE:
 			WW3D::Enable_Texturing(false);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 7);
+			g_renderBackend->Set_Fill_Mode(RB_FILL_WIREFRAME);
+			g_renderBackend->Set_Z_Bias(7);
 			Customized_Render(rinfo);
 			break;
 		case EXTRA_PASS_CLEAR_LINE:
 			DX8Wrapper::Clear(true, false, Vector3(0.0f,0.0f,0.0f));	// Clear color but not z
 			WW3D::Enable_Texturing(false);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 7);
+			g_renderBackend->Set_Fill_Mode(RB_FILL_WIREFRAME);
+			g_renderBackend->Set_Z_Bias(7);
 			Customized_Render(rinfo);
 			break;
 		}
