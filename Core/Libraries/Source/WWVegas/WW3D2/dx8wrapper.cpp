@@ -57,6 +57,7 @@
 #include "dx8indexbuffer.h"
 #include "dx8renderer.h"
 #include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "ww3d.h"
 #include "camera.h"
 #include "wwstring.h"
@@ -374,6 +375,24 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	*/
 	Compute_Caps(D3DFormat_To_WW3DFormat(DisplayFormat));
 
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.14
+	// Construct and initialize the render backend BEFORE the engine
+	// subsystem _Init() calls below. Several of them (notably
+	// PointGroupClass::_Init and BoxRenderObjClass::Init) allocate
+	// static index / vertex buffers and populate them via the Write
+	// lock classes, whose destructors call g_renderBackend->Capture_*
+	// to mirror the data into the bgfx caches. If the backend is not
+	// fully initialized (g_bgfxInitialized == false) at that moment
+	// those buffers are never captured and every later bgfx draw that
+	// binds them misses the cache and silently skips submission -
+	// which is why particles, lasers, tracers, and debris were
+	// invisible in the bgfx popup even though the underlying W3D
+	// effect modules ran. The d3d8 device and HWND are already valid
+	// by the time this function is called, so it is safe to run the
+	// backend's real Initialize() here, well before the _Init() calls.
+	Init_Render_Backend();
+	g_renderBackend->Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
+
    /*
 	** Initialize any other subsystems inside of WW3D
 	*/
@@ -391,17 +410,6 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	TextureLoader::Init();
 
 	Set_Default_Global_Render_States();
-
-	// TheSuperHackers @refactor bobtista 10/04/2026 Construct the global
-	// IRenderBackend instance now that the D3D device is ready. See
-	// Core/Libraries/Source/WWVegas/WW3D2/RENDER_BACKEND.md.
-	Init_Render_Backend();
-
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 1.
-	// Hand the HWND and current back-buffer dimensions to the render backend
-	// so it can perform any API-specific initialization (bgfx::init for the
-	// bgfx backend, no-op for DX8Backend). See PHASE4.md.
-	g_renderBackend->Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
 }
 
 inline DWORD F2DW(float f) { return *((unsigned*)&f); }
@@ -2022,6 +2030,20 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 		polygon_count));
 
 	DX8_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
+
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 hand the
+	// internal dynamic VB/IB to the render backend so a bgfx co-resident
+	// can submit the same draw using its transient captures of these
+	// inner buffers. The Write locks above already fired the backend's
+	// Capture_Dynamic_* hooks, so pending transients are keyed by
+	// &dyn_vb_access / &dyn_ib_access. The backend remaps the outer
+	// Draw_Triangles args (start_index=0, min_vertex_index=0) and sets
+	// an internal skip flag so the outer BgfxBackend::Draw_Triangles
+	// does not emit a stale second submit. No-op on DX8Backend.
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Submit_Sorted_Draw(dyn_vb_access, dyn_ib_access,
+			polygon_count, vertex_count);
+	}
 }
 
 // ----------------------------------------------------------------------------

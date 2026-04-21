@@ -63,6 +63,8 @@
 #include "simplevec.h"
 #include "texture.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "dx8caps.h"
 
 #define DISABLE_CLIPPING	0
@@ -354,9 +356,9 @@ void RigidDecalMeshClass::Render()
 	while (next_poly_index < Polys.Count()) {
 		next_poly_index = Process_Material_Run(cur_poly_index);
 
-		DX8Wrapper::Set_Index_Buffer(dynamic_ib,0);
-		DX8Wrapper::Set_Vertex_Buffer(dynamic_vb);
-		DX8Wrapper::Draw_Triangles(	3*cur_poly_index,
+		g_renderBackend->Set_Index_Buffer(dynamic_ib, 0);
+		g_renderBackend->Set_Vertex_Buffer(dynamic_vb);
+		g_renderBackend->Draw_Triangles(3*cur_poly_index,
 												(next_poly_index - cur_poly_index), // poly count
 												Polys[cur_poly_index].I,
 												1 + Polys[next_poly_index-1].K - Polys[cur_poly_index].I);
@@ -852,9 +854,9 @@ void SkinDecalMeshClass::Render()
 	while (next_poly_index < Polys.Count()) {
 		next_poly_index = Process_Material_Run(cur_poly_index);
 
-		DX8Wrapper::Set_Index_Buffer(dynamic_ib,0);
-		DX8Wrapper::Set_Vertex_Buffer(dynamic_vb);
-		DX8Wrapper::Draw_Triangles(3*cur_poly_index,
+		g_renderBackend->Set_Index_Buffer(dynamic_ib, 0);
+		g_renderBackend->Set_Vertex_Buffer(dynamic_vb);
+		g_renderBackend->Draw_Triangles(3*cur_poly_index,
 											(next_poly_index - cur_poly_index), // poly count
 											Polys[cur_poly_index].I,
 											1 + Polys[next_poly_index-1].K - Polys[cur_poly_index].I);

@@ -128,6 +128,13 @@ bgfx::UniformHandle g_sTex0        = BGFX_INVALID_HANDLE;
 bgfx::UniformHandle g_sTex1        = BGFX_INVALID_HANDLE;
 bgfx::UniformHandle g_sTex2        = BGFX_INVALID_HANDLE;
 bgfx::UniformHandle g_sTex3        = BGFX_INVALID_HANDLE;
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.9 material
+// diffuse uniform. Carries the VertexMaterialClass::Get_Diffuse color
+// + opacity from Set_Material into the fragment shader so team colors
+// (which the W3D engine writes into the material diffuse channel) and
+// alpha fades modulate the output.
+bgfx::UniformHandle g_uMatDiffuse  = BGFX_INVALID_HANDLE;
+float               g_currentMatDiffuse[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 // Alpha-test parameters consumed by fs_textured_lit_atest. .x is the
 // reference threshold in [0, 1]; engine writes ShaderClass alpha-ref / 255.
 // Named u_atestParams (not u_alphaRef) to avoid bgfx_shader.sh's internal
@@ -538,9 +545,16 @@ bool BuildBgfxLayoutForFVF(const FVFInfoClass & fvf, bgfx::VertexLayout & out)
 // session; if it bites us we'll add a generation counter or hook the
 // destructor.
 
-std::unordered_map<const VertexBufferClass *, bgfx::VertexBufferHandle> g_vbCache;
-std::unordered_map<const IndexBufferClass *,  bgfx::IndexBufferHandle>  g_ibCache;
-std::unordered_map<const TextureBaseClass *,  bgfx::TextureHandle>      g_textureCache;
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 switched from
+// static bgfx VB/IB handles to dynamic ones. Rigid mesh category containers
+// fill their shared VB / IB one sub-range at a time via AppendLockClass,
+// which requires in-place sub-range updates that only dynamic bgfx buffers
+// support. Full-buffer writes (WriteLockClass) also go through the same
+// dynamic path - created once, updated with bgfx::update as the engine
+// rewrites the buffer.
+std::unordered_map<const VertexBufferClass *, bgfx::DynamicVertexBufferHandle> g_vbCache;
+std::unordered_map<const IndexBufferClass *,  bgfx::DynamicIndexBufferHandle>  g_ibCache;
+std::unordered_map<const TextureBaseClass *,  bgfx::TextureHandle>             g_textureCache;
 
 // The bgfx texture currently bound to stage 0 by Set_Texture. Used by
 // SubmitEngineDraw - falls back to g_defaultWhiteTexture if invalid.
@@ -553,9 +567,9 @@ bool g_loggedFirstBgfxTextureCreate = false;
 // The most recent buffers and offsets cached from Set_Vertex_Buffer /
 // Set_Index_Buffer. Read by Draw_Triangles when it issues the bgfx
 // submit. Cleared (made invalid) on Shutdown.
-bgfx::VertexBufferHandle g_currentBgfxVB    = BGFX_INVALID_HANDLE;
-bgfx::IndexBufferHandle  g_currentBgfxIB    = BGFX_INVALID_HANDLE;
-unsigned short           g_currentIBOffset  = 0;
+bgfx::DynamicVertexBufferHandle g_currentBgfxVB    = BGFX_INVALID_HANDLE;
+bgfx::DynamicIndexBufferHandle  g_currentBgfxIB    = BGFX_INVALID_HANDLE;
+unsigned short                  g_currentIBOffset  = 0;
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2 transient
 // (dynamic) buffer state. Capture_Dynamic_Vertex_Data allocs a bgfx
@@ -617,6 +631,43 @@ bool  g_loggedFirstSetWorld = false;
 // "is bgfx alive" sentinel; view 1 is engine geometry under engine
 // transforms. Both render to the popup back buffer.
 const bgfx::ViewId kBgfxEngineView = 1;
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.12 dedicated
+// view id for sorted draws. View 2's view matrix is permanently
+// identity and its projection tracks view 1's. Per-batch sort
+// transforms get pre-multiplied into g_bgfxSortWorld so view 2 never
+// needs setViewTransform updates per batch - which is critical,
+// because bgfx::setViewTransform is per-view-for-the-whole-frame and
+// would otherwise stomp view 1's camera view if shared.
+const bgfx::ViewId kBgfxEngineSortView = 2;
+
+// True between Begin_Sorted_Batch_Pass and End_Sorted_Batch_Pass;
+// SubmitEngineDraw routes to kBgfxEngineSortView and uses
+// g_bgfxSortWorld while this is set.
+bool  g_inSortFlush = false;
+
+// Per-batch effective world for sorted draws: the pre-multiplied
+// sortView * sortWorld (in bgfx column-major form) captured from the
+// engine's render_state by Capture_Sorted_Batch_Transforms.
+float g_bgfxSortWorld[16];
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 Set by
+// Submit_Sorted_Draw after it emits the bgfx submit for a sorting VB
+// direct draw. The outer BgfxBackend::Draw_Triangles consumes this
+// flag to skip its SubmitEngineDraw - the draw was already issued
+// with correctly remapped args against the inner dynamic buffers,
+// so falling through would emit a second, incorrect submit.
+bool  g_skipNextSubmitEngineDraw = false;
+
+
+// Snapshot of g_bgfxProj at the time the sort flush runs. The engine
+// calls Set_Projection_Transform_With_Z_Bias multiple times per frame
+// (camera, water reflections, shadows). The LAST call may use a tiny
+// near-field frustum that clips all sort geometry. We capture the
+// projection at sort-flush time (when it's still the camera projection)
+// and re-apply it to view 2 at End_Scene time.
+float g_bgfxSortProj[16];
+bool  g_bgfxSortProjCaptured = false;
 
 void IdentityMatrix(float * out)
 {
@@ -692,155 +743,6 @@ void ApplyPopupAspectCorrection(float * proj)
 // (Capture_Vertex_Data / Capture_Index_Data) called from the engine
 // at write-lock time. See Phase 4C.4 in the comments below.
 constexpr bool kBgfxSkipBufferRead = true;
-
-bgfx::VertexBufferHandle EnsureBgfxVertexBuffer(const VertexBufferClass * vb)
-{
-    if (vb == nullptr)
-    {
-        return BGFX_INVALID_HANDLE;
-    }
-    auto it = g_vbCache.find(vb);
-    if (it != g_vbCache.end())
-    {
-        return it->second;
-    }
-
-    if (kBgfxSkipBufferRead)
-    {
-        g_vbCache[vb] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    if (vb->Type() != BUFFER_TYPE_DX8)
-    {
-        // Sorting / dynamic buffers handled by a different path; mark
-        // as cached-invalid so we do not retry every draw.
-        g_vbCache[vb] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    bgfx::VertexLayout layout;
-    if (!BuildBgfxLayoutForFVF(vb->FVF_Info(), layout))
-    {
-        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxVertexBuffer: layout build failed "
-                     "for fvf=0x%08x", vb->FVF_Info().Get_FVF()));
-        g_vbCache[vb] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    const unsigned vertexCount = vb->Get_Vertex_Count();
-    const unsigned strideBytes = vb->FVF_Info().Get_FVF_Size();
-    const unsigned totalBytes  = vertexCount * strideBytes;
-    if (totalBytes == 0)
-    {
-        g_vbCache[vb] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    DX8VertexBufferClass * dxVb =
-        const_cast<DX8VertexBufferClass *>(static_cast<const DX8VertexBufferClass *>(vb));
-    IDirect3DVertexBuffer8 * d3dVb = dxVb->Get_DX8_Vertex_Buffer();
-    if (d3dVb == nullptr)
-    {
-        g_vbCache[vb] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    BYTE * srcData = nullptr;
-    HRESULT hr = d3dVb->Lock(0, 0, &srcData, D3DLOCK_READONLY);
-    if (FAILED(hr) || srcData == nullptr)
-    {
-        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxVertexBuffer: d3d8 Lock failed hr=0x%08x",
-                     static_cast<unsigned>(hr)));
-        g_vbCache[vb] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    const bgfx::Memory * mem  = bgfx::copy(srcData, totalBytes);
-    d3dVb->Unlock();
-
-    bgfx::VertexBufferHandle h = bgfx::createVertexBuffer(mem, layout);
-    g_vbCache[vb] = h;
-
-    if (!g_loggedFirstBgfxVbCreate)
-    {
-        g_loggedFirstBgfxVbCreate = true;
-        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxVertexBuffer first create "
-                     "fvf=0x%08x stride=%u verts=%u bytes=%u handle=%s",
-                     vb->FVF_Info().Get_FVF(),
-                     strideBytes, vertexCount, totalBytes,
-                     bgfx::isValid(h) ? "ok" : "FAILED"));
-    }
-    return h;
-}
-
-bgfx::IndexBufferHandle EnsureBgfxIndexBuffer(const IndexBufferClass * ib)
-{
-    if (ib == nullptr)
-    {
-        return BGFX_INVALID_HANDLE;
-    }
-    auto it = g_ibCache.find(ib);
-    if (it != g_ibCache.end())
-    {
-        return it->second;
-    }
-
-    if (kBgfxSkipBufferRead)
-    {
-        g_ibCache[ib] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    if (ib->Type() != BUFFER_TYPE_DX8)
-    {
-        g_ibCache[ib] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    const unsigned indexCount = ib->Get_Index_Count();
-    const unsigned totalBytes = indexCount * sizeof(uint16_t);
-    if (totalBytes == 0)
-    {
-        g_ibCache[ib] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    DX8IndexBufferClass * dxIb =
-        const_cast<DX8IndexBufferClass *>(static_cast<const DX8IndexBufferClass *>(ib));
-    IDirect3DIndexBuffer8 * d3dIb = dxIb->Get_DX8_Index_Buffer();
-    if (d3dIb == nullptr)
-    {
-        g_ibCache[ib] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    BYTE * srcData = nullptr;
-    HRESULT hr = d3dIb->Lock(0, 0, &srcData, D3DLOCK_READONLY);
-    if (FAILED(hr) || srcData == nullptr)
-    {
-        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxIndexBuffer: d3d8 Lock failed hr=0x%08x",
-                     static_cast<unsigned>(hr)));
-        g_ibCache[ib] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    const bgfx::Memory * mem = bgfx::copy(srcData, totalBytes);
-    d3dIb->Unlock();
-
-    bgfx::IndexBufferHandle h = bgfx::createIndexBuffer(mem);
-    g_ibCache[ib] = h;
-
-    if (!g_loggedFirstBgfxIbCreate)
-    {
-        g_loggedFirstBgfxIbCreate = true;
-        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxIndexBuffer first create "
-                     "indices=%u bytes=%u handle=%s",
-                     indexCount, totalBytes,
-                     bgfx::isValid(h) ? "ok" : "FAILED"));
-    }
-    return h;
-}
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4F.2 texture
 // capture. Unlike vertex buffers, W3D textures default to POOL_MANAGED,
@@ -1098,7 +1000,10 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     initArgs.type = bgfx::RendererType::Count;  // auto-select (D3D11 on Windows)
     initArgs.resolution.width = static_cast<uint32_t>(kBgfxWindowWidth);
     initArgs.resolution.height = static_cast<uint32_t>(kBgfxWindowHeight);
-    initArgs.resolution.reset = BGFX_RESET_NONE;
+    // Phase 4G.10 enable 4x MSAA on the bgfx framebuffer. Without this,
+    // polygon boundaries between terrain tiles, rock shorelines, and
+    // unit silhouettes alias hard at the popup's lower resolution.
+    initArgs.resolution.reset = BGFX_RESET_MSAA_X4;
     initArgs.platformData = pd;
 
     if (!bgfx::init(initArgs))
@@ -1111,6 +1016,15 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     }
 
     g_bgfxInitialized = true;
+
+    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 force
+    // a bgfx::reset() after init so the MSAA flag actually takes effect.
+    // On D3D11 bgfx needs an explicit reset call to rebuild the swapchain
+    // with a multi-sampled back buffer; setting resolution.reset in the
+    // Init struct alone isn't enough in every bgfx build.
+    bgfx::reset(static_cast<uint32_t>(kBgfxWindowWidth),
+                static_cast<uint32_t>(kBgfxWindowHeight),
+                BGFX_RESET_MSAA_X4);
 
     // Configure view 0 to clear the debug window to a dark teal so it's
     // visually obvious bgfx is running and alive. View 0 holds the test
@@ -1137,6 +1051,20 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
                       static_cast<uint16_t>(kBgfxWindowWidth),
                       static_cast<uint16_t>(kBgfxWindowHeight));
 
+    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.12 sorted
+    // draws view. No clear (reuses view 1's color + depth so sorted
+    // particles z-test correctly against opaque geometry), same rect.
+    // View matrix is permanently identity; projection tracks view 1's
+    // via Set_Projection_Transform_With_Z_Bias.
+    bgfx::setViewClear(kBgfxEngineSortView,
+                       BGFX_CLEAR_NONE,
+                       0x00000000,
+                       1.0f,
+                       0);
+    bgfx::setViewRect(kBgfxEngineSortView, 0, 0,
+                      static_cast<uint16_t>(kBgfxWindowWidth),
+                      static_cast<uint16_t>(kBgfxWindowHeight));
+
     // Default the cached transforms to identity until the engine writes
     // real values via Set_Transform. This keeps the first few engine
     // submits well-defined even if they fire before any matrices are
@@ -1144,7 +1072,17 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     IdentityMatrix(g_bgfxWorld);
     IdentityMatrix(g_bgfxView);
     IdentityMatrix(g_bgfxProj);
+    IdentityMatrix(g_bgfxSortWorld);
     g_bgfxViewProjDirty = true;
+
+    // Sort view gets identity view + current projection. setViewTransform
+    // persists for the life of the bgfx view; we re-apply the projection
+    // in Set_Projection_Transform_With_Z_Bias whenever it changes.
+    {
+        float identityView[16];
+        IdentityMatrix(identityView);
+        bgfx::setViewTransform(kBgfxEngineSortView, identityView, g_bgfxProj);
+    }
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.3 create the
     // passthrough shader program and vertex layout so End_Scene can submit
@@ -1184,6 +1122,7 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     g_sTex1        = bgfx::createUniform("s_tex1",        bgfx::UniformType::Sampler);
     g_sTex2        = bgfx::createUniform("s_tex2",        bgfx::UniformType::Sampler);
     g_sTex3        = bgfx::createUniform("s_tex3",        bgfx::UniformType::Sampler);
+    g_uMatDiffuse  = bgfx::createUniform("u_matDiffuse",  bgfx::UniformType::Vec4);
     g_uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
 
     // Phase 4F.1 default 1x1 white texture (opaque ABGR=0xffffffff).
@@ -1323,6 +1262,11 @@ void BgfxBackend::Shutdown()
             bgfx::destroy(g_sTex3);
             g_sTex3 = BGFX_INVALID_HANDLE;
         }
+        if (bgfx::isValid(g_uMatDiffuse))
+        {
+            bgfx::destroy(g_uMatDiffuse);
+            g_uMatDiffuse = BGFX_INVALID_HANDLE;
+        }
         if (bgfx::isValid(g_uAtestParams))
         {
             bgfx::destroy(g_uAtestParams);
@@ -1386,56 +1330,6 @@ void BgfxBackend::Shutdown()
 // / Get_Back_Buffer / Set_Gamma) are inherited from DX8Backend.
 
 // -- Frame lifecycle ---------------------------------------------------------
-//
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.3. Begin_Scene
-// submits a rotating view setup for view 0. End_Scene submits a test
-// triangle via the passthrough shader then calls bgfx::frame() to present.
-// This is the first real bgfx draw call from Phase 4 code. Future phases
-// replace the test triangle with actual scene geometry submitted through
-// the IRenderBackend draw methods.
-
-namespace
-{
-void SubmitTestTriangle()
-{
-    if (!bgfx::isValid(g_passthroughProgram))
-    {
-        return;
-    }
-
-    if (bgfx::getAvailTransientVertexBuffer(3, g_triangleLayout) < 3)
-    {
-        return;
-    }
-
-    // Explicitly set view 0's transforms to identity each frame. Without
-    // this, u_modelViewProj in the vertex shader is whatever bgfx happens
-    // to have from a previous view transform call (undefined on first use).
-    static const float identity[16] = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    };
-    bgfx::setViewTransform(0, identity, identity);
-
-    bgfx::TransientVertexBuffer tvb;
-    bgfx::allocTransientVertexBuffer(&tvb, 3, g_triangleLayout);
-    TriangleVertex * verts = reinterpret_cast<TriangleVertex *>(tvb.data);
-
-    // Triangle in clip space. Z = 0.5 puts it safely inside D3D11's [0,1]
-    // depth range away from both near and far clip planes. Format of the
-    // color field is ABGR packed (bgfx convention): 0xAABBGGRR as a u32.
-    verts[0].x =  0.0f;  verts[0].y =  0.5f;  verts[0].z = 0.5f;  verts[0].abgr = 0xff0000ff; // red   top
-    verts[1].x =  0.5f;  verts[1].y = -0.5f;  verts[1].z = 0.5f;  verts[1].abgr = 0xff00ff00; // green right
-    verts[2].x = -0.5f;  verts[2].y = -0.5f;  verts[2].z = 0.5f;  verts[2].abgr = 0xffff0000; // blue  left
-
-    bgfx::setVertexBuffer(0, &tvb);
-    // No culling — eliminate winding-order confusion while diagnosing.
-    bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
-    bgfx::submit(0, g_passthroughProgram);
-}
-}
 
 void BgfxBackend::Begin_Scene()
 {
@@ -1444,6 +1338,8 @@ void BgfxBackend::Begin_Scene()
         return;
     }
     bgfx::touch(0);
+    bgfx::touch(kBgfxEngineView);
+    bgfx::touch(kBgfxEngineSortView);
 }
 
 void BgfxBackend::End_Scene(bool /*flip_frame*/)
@@ -1452,7 +1348,20 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     {
         return;
     }
-    SubmitTestTriangle();
+    // Re-apply the camera projection to the sort view. The engine calls
+    // Set_Projection_Transform_With_Z_Bias multiple times per frame
+    // (camera, water reflections, shadows). The last call often uses a
+    // tiny near-field frustum that clips all sort geometry. Since bgfx's
+    // setViewTransform is retroactive for the whole frame, we re-apply
+    // the projection that was active at sort-flush time.
+    if (g_bgfxSortProjCaptured)
+    {
+        float identityView[16];
+        IdentityMatrix(identityView);
+        bgfx::setViewTransform(kBgfxEngineSortView, identityView, g_bgfxSortProj);
+        g_bgfxSortProjCaptured = false;
+    }
+
     bgfx::frame();
 
     // Transient buffers are freed at bgfx::frame time. Invalidate the
@@ -1472,17 +1381,6 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
 {
     DX8Backend::Set_Vertex_Buffer(vb, stream);
 
-    if (!g_loggedFirstSetVertexBuffer && vb != nullptr)
-    {
-        g_loggedFirstSetVertexBuffer = true;
-        const FVFInfoClass & fvf = vb->FVF_Info();
-        WWDEBUG_SAY(("[BgfxBackend] Set_Vertex_Buffer first call (static VB path) "
-                     "fvf=0x%08x size=%u verts=%u type=%u",
-                     fvf.Get_FVF(),
-                     fvf.Get_FVF_Size(),
-                     vb->Get_Vertex_Count(),
-                     vb->Type()));
-    }
     // Phase 4C.4: cache is populated by Capture_Vertex_Data on the engine's
     // own write lock. Set_Vertex_Buffer just looks up whatever is already
     // there. Engine VBs that have not been written via the WriteLockClass
@@ -1497,6 +1395,37 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
     else
     {
         g_currentBgfxVB = BGFX_INVALID_HANDLE;
+        // On-demand capture for static VBs that were never captured
+        // via WriteLockClass (e.g. rotor meshes loaded at startup).
+        // Lock the D3D VB, copy the data into a bgfx dynamic VB, and
+        // cache it for future use.
+        if (vb != nullptr && g_bgfxInitialized
+            && (vb->Type() == BUFFER_TYPE_DX8))
+        {
+            DX8VertexBufferClass * dx8vb =
+                static_cast<DX8VertexBufferClass *>(
+                    const_cast<VertexBufferClass *>(vb));
+            IDirect3DVertexBuffer8 * d3dvb = dx8vb->Get_DX8_Vertex_Buffer();
+            if (d3dvb != nullptr)
+            {
+                const unsigned int stride = vb->FVF_Info().Get_FVF_Size();
+                const unsigned int num_verts = vb->Get_Vertex_Count();
+                const unsigned int bytes = num_verts * stride;
+                BYTE * data = nullptr;
+                HRESULT hr = d3dvb->Lock(0, bytes, &data, D3DLOCK_READONLY);
+                if (SUCCEEDED(hr) && data != nullptr)
+                {
+                    Capture_Vertex_Data(vb, data, bytes);
+                    d3dvb->Unlock();
+                    // Re-lookup after capture
+                    auto it2 = g_vbCache.find(vb);
+                    if (it2 != g_vbCache.end())
+                    {
+                        g_currentBgfxVB = it2->second;
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -1541,6 +1470,32 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
     else
     {
         g_currentBgfxIB = BGFX_INVALID_HANDLE;
+        // On-demand capture for static IBs not yet in cache.
+        if (ib != nullptr && g_bgfxInitialized
+            && (ib->Type() == BUFFER_TYPE_DX8))
+        {
+            DX8IndexBufferClass * dx8ib =
+                static_cast<DX8IndexBufferClass *>(
+                    const_cast<IndexBufferClass *>(ib));
+            IDirect3DIndexBuffer8 * d3dib = dx8ib->Get_DX8_Index_Buffer();
+            if (d3dib != nullptr)
+            {
+                const unsigned int num_indices = ib->Get_Index_Count();
+                const unsigned int bytes = num_indices * sizeof(unsigned short);
+                BYTE * data = nullptr;
+                HRESULT hr = d3dib->Lock(0, bytes, &data, D3DLOCK_READONLY);
+                if (SUCCEEDED(hr) && data != nullptr)
+                {
+                    Capture_Index_Data(ib, data, bytes);
+                    d3dib->Unlock();
+                    auto it2 = g_ibCache.find(ib);
+                    if (it2 != g_ibCache.end())
+                    {
+                        g_currentBgfxIB = it2->second;
+                    }
+                }
+            }
+        }
     }
     g_currentIBOffset = index_base_offset;
 }
@@ -1563,8 +1518,20 @@ void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned sh
     g_currentIBOffset = index_base_offset;
 }
 
-// Set_Index_Buffer_Index_Offset is inherited from DX8Backend so the dx8
-// device sees the binding.
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.8 override
+// Set_Index_Buffer_Index_Offset so we capture the per-mesh base vertex
+// offset. DX8PolygonRendererClass::Render calls this once per mesh
+// before Draw_Triangles to shift which vertex slot in the shared
+// category VB each index resolves to. Without this override the call
+// forwards to DX8Backend -> DX8Wrapper and the bgfx path keeps using
+// the stale offset from Set_Index_Buffer, so every mesh inside the
+// same rigid FVF category would draw using the first mesh's vertex
+// slots. Must call the base so the dx8 device still gets the update.
+void BgfxBackend::Set_Index_Buffer_Index_Offset(unsigned int offset)
+{
+    DX8Backend::Set_Index_Buffer_Index_Offset(offset);
+    g_currentIBOffset = static_cast<unsigned short>(offset);
+}
 
 // -- Phase 4C.4 write-side capture -------------------------------------------
 //
@@ -1580,6 +1547,54 @@ void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned sh
 // lock, which the engine has to do anyway and which the driver handles
 // correctly because it is a real WRITE lock.
 
+namespace
+{
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 dynamic buffer
+// ensure helpers. Return the cached dynamic VB / IB handle for the given
+// engine buffer, creating it sized to the full capacity on first sight.
+// Returned handle is guaranteed valid on success; invalid handle on
+// failure. Used by both the full-buffer (WriteLockClass) and sub-range
+// (AppendLockClass) capture paths.
+bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClass * vb)
+{
+    auto it = g_vbCache.find(vb);
+    if (it != g_vbCache.end() && bgfx::isValid(it->second))
+    {
+        return it->second;
+    }
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vb->FVF_Info(), layout))
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+    const uint32_t num_verts = static_cast<uint32_t>(vb->Get_Vertex_Count());
+    if (num_verts == 0)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+    bgfx::DynamicVertexBufferHandle h = bgfx::createDynamicVertexBuffer(num_verts, layout);
+    g_vbCache[vb] = h;
+    return h;
+}
+
+bgfx::DynamicIndexBufferHandle EnsureDynamicIndexBuffer(const IndexBufferClass * ib)
+{
+    auto it = g_ibCache.find(ib);
+    if (it != g_ibCache.end() && bgfx::isValid(it->second))
+    {
+        return it->second;
+    }
+    const uint32_t num_indices = static_cast<uint32_t>(ib->Get_Index_Count());
+    if (num_indices == 0)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+    bgfx::DynamicIndexBufferHandle h = bgfx::createDynamicIndexBuffer(num_indices);
+    g_ibCache[ib] = h;
+    return h;
+}
+}
+
 void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
                                       const void * data,
                                       unsigned int size_bytes)
@@ -1588,37 +1603,23 @@ void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
     {
         return;
     }
-
-    bgfx::VertexLayout layout;
-    if (!BuildBgfxLayoutForFVF(vb->FVF_Info(), layout))
+    bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
+    if (!bgfx::isValid(h))
     {
         return;
     }
-
-    // Replace any prior cached handle for the same VB pointer. The engine
-    // can rewrite a VB's contents (e.g. dynamic terrain or animated meshes
-    // that go through the same VertexBufferClass instance over its lifetime),
-    // so the new write supersedes whatever bgfx had.
-    auto it = g_vbCache.find(vb);
-    if (it != g_vbCache.end() && bgfx::isValid(it->second))
-    {
-        bgfx::destroy(it->second);
-    }
-
     const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
-    bgfx::VertexBufferHandle h = bgfx::createVertexBuffer(mem, layout);
-    g_vbCache[vb] = h;
+    bgfx::update(h, 0, mem);
 
     if (!g_loggedFirstBgfxVbCreate)
     {
         g_loggedFirstBgfxVbCreate = true;
-        WWDEBUG_SAY(("[BgfxBackend] Capture_Vertex_Data first create "
-                     "fvf=0x%08x stride=%u verts=%u bytes=%u handle=%s",
+        WWDEBUG_SAY(("[BgfxBackend] Capture_Vertex_Data first update "
+                     "fvf=0x%08x stride=%u verts=%u bytes=%u",
                      vb->FVF_Info().Get_FVF(),
                      vb->FVF_Info().Get_FVF_Size(),
                      vb->Get_Vertex_Count(),
-                     size_bytes,
-                     bgfx::isValid(h) ? "ok" : "FAILED"));
+                     size_bytes));
     }
 }
 
@@ -1630,26 +1631,284 @@ void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
     {
         return;
     }
-
-    auto it = g_ibCache.find(ib);
-    if (it != g_ibCache.end() && bgfx::isValid(it->second))
+    bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
+    if (!bgfx::isValid(h))
     {
-        bgfx::destroy(it->second);
+        return;
     }
-
     const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
-    bgfx::IndexBufferHandle h = bgfx::createIndexBuffer(mem);
-    g_ibCache[ib] = h;
+    bgfx::update(h, 0, mem);
 
     if (!g_loggedFirstBgfxIbCreate)
     {
         g_loggedFirstBgfxIbCreate = true;
-        WWDEBUG_SAY(("[BgfxBackend] Capture_Index_Data first create "
-                     "indices=%u bytes=%u handle=%s",
+        WWDEBUG_SAY(("[BgfxBackend] Capture_Index_Data first update "
+                     "indices=%u bytes=%u",
                      ib->Get_Index_Count(),
-                     size_bytes,
-                     bgfx::isValid(h) ? "ok" : "FAILED"));
+                     size_bytes));
     }
+}
+
+void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
+                                           const void * data,
+                                           unsigned int start_vertex,
+                                           unsigned int size_bytes)
+{
+    if (!g_bgfxInitialized || vb == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+    bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
+    if (!bgfx::isValid(h))
+    {
+        return;
+    }
+    const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    bgfx::update(h, start_vertex, mem);
+
+}
+
+void BgfxBackend::Capture_Index_Sub_Range(const IndexBufferClass * ib,
+                                          const void * data,
+                                          unsigned int start_index,
+                                          unsigned int size_bytes)
+{
+    if (!g_bgfxInitialized || ib == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+    bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
+    if (!bgfx::isValid(h))
+    {
+        return;
+    }
+    const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    bgfx::update(h, start_index, mem);
+
+}
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.12 sorted
+// draw pass routing. The sort flush calls Begin / Capture / End
+// around its per-batch draw loop. Begin flips the routing flag so
+// SubmitEngineDraw pushes submits into kBgfxEngineSortView using
+// g_bgfxSortWorld; End flips it back. Capture computes the per-batch
+// effective world matrix and stores it in bgfx column-major form.
+//
+// Matrix math: W3D Matrix4x4 is row-major with row vectors, so the
+// engine pipeline is v' = v * sortWorld * sortView. In column-vector
+// form that is (sortView^T * sortWorld^T) * v, i.e. bgfx's world
+// matrix must be sortView^T * sortWorld^T. We compute the combined
+// row-major product sortWorld * sortView directly into bgfx
+// column-major layout (the transpose is baked into the index
+// pattern), avoiding an intermediate copy.
+static bool g_loggedFirstSortBegin   = false;
+static bool g_loggedFirstSortCapture = false;
+
+void BgfxBackend::Begin_Sorted_Batch_Pass()
+{
+    g_inSortFlush = true;
+
+    // Capture the projection NOW (while it's still the camera projection).
+    // Later Set_Projection calls (water, shadows) may overwrite g_bgfxProj
+    // with a tiny frustum. We re-apply this saved projection at End_Scene.
+    if (!g_bgfxSortProjCaptured)
+    {
+        std::memcpy(g_bgfxSortProj, g_bgfxProj, sizeof(g_bgfxSortProj));
+        g_bgfxSortProjCaptured = true;
+    }
+
+    if (!g_loggedFirstSortBegin)
+    {
+        g_loggedFirstSortBegin = true;
+        WWDEBUG_SAY(("[BgfxBackend] Begin_Sorted_Batch_Pass first fire "
+                     "transVB=%d transIB=%d",
+                     int(g_currentUseTransientVB),
+                     int(g_currentUseTransientIB)));
+    }
+}
+
+void BgfxBackend::End_Sorted_Batch_Pass()
+{
+    g_inSortFlush = false;
+}
+
+void BgfxBackend::Capture_Sorted_Batch_Transforms(const Matrix4x4 & sortWorld,
+                                                  const Matrix4x4 & sortView)
+{
+    // Compute the D3D row-major product sortWorld * sortView, then store
+    // it as row-major float[16] (r*4+c). bgfx on D3D11 interprets the
+    // raw bytes as column-major HLSL float4x4, which makes mul(M, v) use
+    // the ROWS of our stored matrix — matching D3D's row-vector convention.
+    // The previous [c*4+r] storage put the translation at the W component
+    // of each column (indices 3,7,11) instead of row 3 (indices 12,13,14),
+    // which works for identity transforms (particles) but breaks for mesh
+    // transforms with translation (helicopter rotors).
+    for (int r = 0; r < 4; ++r)
+    {
+        for (int c = 0; c < 4; ++c)
+        {
+            float s = 0.0f;
+            for (int k = 0; k < 4; ++k)
+            {
+                s += sortWorld[r][k] * sortView[k][c];
+            }
+            g_bgfxSortWorld[r * 4 + c] = s;
+        }
+    }
+
+    if (!g_loggedFirstSortCapture)
+    {
+        g_loggedFirstSortCapture = true;
+        WWDEBUG_SAY(("[BgfxBackend] Capture_Sorted_Batch_Transforms first "
+                     "sortWorld row0=%.3f,%.3f,%.3f,%.3f sortView row0=%.3f,%.3f,%.3f,%.3f",
+                     sortWorld[0][0], sortWorld[0][1], sortWorld[0][2], sortWorld[0][3],
+                     sortView[0][0],  sortView[0][1],  sortView[0][2],  sortView[0][3]));
+        WWDEBUG_SAY(("[BgfxBackend]   combined (column-major) col0=%.3f,%.3f,%.3f,%.3f col3=%.3f,%.3f,%.3f,%.3f",
+                     g_bgfxSortWorld[0],  g_bgfxSortWorld[1],  g_bgfxSortWorld[2],  g_bgfxSortWorld[3],
+                     g_bgfxSortWorld[12], g_bgfxSortWorld[13], g_bgfxSortWorld[14], g_bgfxSortWorld[15]));
+    }
+}
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 sorted VB
+// direct-draw submit. Called from DX8Wrapper::Draw_Sorting_IB_VB after
+// it populates an internal dynamic VB and dynamic IB by copying a slice
+// of the sorting VB/IB with the correct vba_offset / iba_offset /
+// index_base_offset / min_vertex_index arithmetic. The engine's lock
+// destructors already fired Capture_Dynamic_* for those inner buffers,
+// so g_pendingDynVB / g_pendingDynIB hold their transients keyed by
+// the exact access-class pointers we were just handed.
+//
+// We pull those transients into local draw state, emit a single bgfx
+// submit to the sorted view with the inner buffers and remapped args
+// (start_index=0, min_vertex_index=0, count relative to the inner
+// buffers), and set g_skipNextSubmitEngineDraw so the outer Draw_Triangles
+// does not emit a second, incorrect submit using the old sorting-VB
+// args.
+static bool g_loggedFirstSortedDirectSubmit = false;
+
+void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
+                                     const DynamicIBAccessClass & dyn_ib,
+                                     unsigned short polygon_count,
+                                     unsigned short vertex_count)
+{
+    if (!g_bgfxInitialized)
+    {
+        return;
+    }
+
+    // The inner dynamic buffers' WriteLockClass dtors already ran, so
+    // Capture_Dynamic_Vertex_Data / Capture_Dynamic_Index_Data should
+    // have stashed their transients keyed by &dyn_vb / &dyn_ib.
+    if (!g_pendingDynVB.valid || g_pendingDynVB.owner != &dyn_vb)
+    {
+        if (!g_loggedFirstSortedDirectSubmit)
+        {
+            g_loggedFirstSortedDirectSubmit = true;
+            WWDEBUG_SAY(("[BgfxBackend] Submit_Sorted_Draw SKIP: pendingDynVB not "
+                         "claimable (valid=%d ownerMatch=%d)",
+                         int(g_pendingDynVB.valid),
+                         int(g_pendingDynVB.owner == &dyn_vb)));
+        }
+        return;
+    }
+    if (!g_pendingDynIB.valid || g_pendingDynIB.owner != &dyn_ib)
+    {
+        if (!g_loggedFirstSortedDirectSubmit)
+        {
+            g_loggedFirstSortedDirectSubmit = true;
+            WWDEBUG_SAY(("[BgfxBackend] Submit_Sorted_Draw SKIP: pendingDynIB not "
+                         "claimable (valid=%d ownerMatch=%d)",
+                         int(g_pendingDynIB.valid),
+                         int(g_pendingDynIB.owner == &dyn_ib)));
+        }
+        return;
+    }
+
+    const bgfx::TransientVertexBuffer vb = g_pendingDynVB.tvb;
+    const bgfx::TransientIndexBuffer  ib = g_pendingDynIB.tib;
+    g_pendingDynVB.valid = false;
+    g_pendingDynIB.valid = false;
+
+    if (!bgfx::isValid(g_currentBgfxProgram))
+    {
+        g_skipNextSubmitEngineDraw = true;
+        return;
+    }
+
+    // Sort view's view+proj were set up at init (identity view,
+    // projection tracks opaque view via Set_Projection_Transform_With_Z_Bias).
+    // World is the current g_bgfxSortWorld if we are inside a sort batch,
+    // otherwise the regular g_bgfxWorld (rigid FVF category with sorting=true
+    // has no batch-wrapped Apply_Render_State - it uses the per-mesh world
+    // set by the caller via g_renderBackend->Set_Transform).
+    const float * worldMtx = g_inSortFlush ? g_bgfxSortWorld : g_bgfxWorld;
+    bgfx::setTransform(worldMtx);
+
+    bgfx::setVertexBuffer(0, &vb, 0, vertex_count);
+    bgfx::setIndexBuffer(&ib, 0, static_cast<uint32_t>(polygon_count) * 3);
+
+    const uint32_t kSamplerFlags = 0;
+    if (bgfx::isValid(g_sTex0))
+    {
+        const bgfx::TextureHandle bound =
+            bgfx::isValid(g_currentBgfxTexture0) ? g_currentBgfxTexture0 : g_defaultWhiteTexture;
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(0, g_sTex0, bound, kSamplerFlags);
+        }
+    }
+    if (bgfx::isValid(g_sTex1))
+    {
+        const bgfx::TextureHandle bound =
+            bgfx::isValid(g_currentBgfxTexture1) ? g_currentBgfxTexture1 : g_defaultWhiteTexture;
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(1, g_sTex1, bound, kSamplerFlags);
+        }
+    }
+    if (bgfx::isValid(g_sTex2))
+    {
+        const bgfx::TextureHandle bound =
+            bgfx::isValid(g_currentBgfxTexture2) ? g_currentBgfxTexture2 : g_defaultWhiteTexture;
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(2, g_sTex2, bound, kSamplerFlags);
+        }
+    }
+    if (bgfx::isValid(g_sTex3))
+    {
+        const bgfx::TextureHandle bound =
+            bgfx::isValid(g_currentBgfxTexture3) ? g_currentBgfxTexture3 : g_defaultWhiteTexture;
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(3, g_sTex3, bound, kSamplerFlags);
+        }
+    }
+
+    if (bgfx::isValid(g_uMatDiffuse))
+    {
+        bgfx::setUniform(g_uMatDiffuse, g_currentMatDiffuse);
+    }
+
+    uint64_t state = (g_currentBgfxState != 0)
+        ? g_currentBgfxState
+        : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+
+    bgfx::setState(state);
+
+    bgfx::submit(kBgfxEngineSortView, g_currentBgfxProgram);
+
+    if (!g_loggedFirstSortedDirectSubmit)
+    {
+        g_loggedFirstSortedDirectSubmit = true;
+        WWDEBUG_SAY(("[BgfxBackend] Submit_Sorted_Draw first fire "
+                     "(polys=%u verts=%u worldCol3=%.2f,%.2f,%.2f state=0x%016llx)",
+                     polygon_count, vertex_count,
+                     worldMtx[12], worldMtx[13], worldMtx[14],
+                     static_cast<unsigned long long>(state)));
+    }
+
+    g_skipNextSubmitEngineDraw = true;
 }
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2 dynamic
@@ -1708,6 +1967,7 @@ void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
                      num_verts,
                      bytes));
     }
+
 }
 
 void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
@@ -1745,6 +2005,7 @@ void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
                      num_indices,
                      bytes));
     }
+
 }
 
 // -- State: shaders, materials, textures ------------------------------------
@@ -1773,6 +2034,34 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
     }
 }
 
+void BgfxBackend::Set_Material(const VertexMaterialClass * material)
+{
+    DX8Backend::Set_Material(material);
+
+    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.9 capture
+    // material diffuse + opacity so the fragment shader can tint output
+    // with team colors. Generals writes the player color into the
+    // VertexMaterialClass diffuse channel; without this override bgfx
+    // meshes render with stale or default colors and units are either
+    // washed-out white or tinted by whatever the previous draw used.
+    if (material != nullptr)
+    {
+        Vector3 diffuse(1.0f, 1.0f, 1.0f);
+        material->Get_Diffuse(&diffuse);
+        g_currentMatDiffuse[0] = diffuse.X;
+        g_currentMatDiffuse[1] = diffuse.Y;
+        g_currentMatDiffuse[2] = diffuse.Z;
+        g_currentMatDiffuse[3] = material->Get_Opacity();
+    }
+    else
+    {
+        g_currentMatDiffuse[0] = 1.0f;
+        g_currentMatDiffuse[1] = 1.0f;
+        g_currentMatDiffuse[2] = 1.0f;
+        g_currentMatDiffuse[3] = 1.0f;
+    }
+}
+
 void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 {
     DX8Backend::Set_Texture(stage, texture);
@@ -1796,7 +2085,7 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
     }
 }
 
-// Get_Shader, Set_Material, Apply_Render_State_Changes, Apply_Default_State,
+// Get_Shader, Apply_Render_State_Changes, Apply_Default_State,
 // Invalidate_Cached_Render_States, Set_Blend_Op, Set_Blend_Factors,
 // Set_Color_Write_Enable, Set_Alpha_Blend_Enable, hardware cursor, and
 // Set_Stencil_* are all inherited from DX8Backend and forward unchanged
@@ -1904,12 +2193,39 @@ void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
     W3DMatrix4ToBgfx(matrix, g_bgfxProj);
     ApplyPopupAspectCorrection(g_bgfxProj);
     g_bgfxViewProjDirty = true;
+
+    // View 2's projection is now set at End_Scene time from the saved
+    // sort-flush projection (g_bgfxSortProj). This avoids the issue
+    // where later Set_Projection calls (water, shadows) overwrite view
+    // 2's projection with a tiny near-field frustum.
     if (!g_loggedFirstSetProj)
     {
         g_loggedFirstSetProj = true;
         WWDEBUG_SAY(("[BgfxBackend] Set_Projection_Transform_With_Z_Bias first call "
                      "row0=%.3f,%.3f,%.3f,%.3f",
                      matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3]));
+        // Dump full bgfx column-major projection for Z debugging
+        WWDEBUG_SAY(("[BgfxBackend] PROJ bgfx col-major: "
+                     "col0=%.4f,%.4f,%.4f,%.4f "
+                     "col1=%.4f,%.4f,%.4f,%.4f "
+                     "col2=%.4f,%.4f,%.4f,%.4f "
+                     "col3=%.4f,%.4f,%.4f,%.4f",
+                     g_bgfxProj[0],  g_bgfxProj[1],  g_bgfxProj[2],  g_bgfxProj[3],
+                     g_bgfxProj[4],  g_bgfxProj[5],  g_bgfxProj[6],  g_bgfxProj[7],
+                     g_bgfxProj[8],  g_bgfxProj[9],  g_bgfxProj[10], g_bgfxProj[11],
+                     g_bgfxProj[12], g_bgfxProj[13], g_bgfxProj[14], g_bgfxProj[15]));
+        // Manual clip-space computation for a known sort vertex
+        // v = (-170.29, -5.09, -499.62, 1.0)
+        float vx=-170.29f, vy=-5.09f, vz=-499.62f, vw=1.0f;
+        float cx = g_bgfxProj[0]*vx + g_bgfxProj[4]*vy + g_bgfxProj[8]*vz  + g_bgfxProj[12]*vw;
+        float cy = g_bgfxProj[1]*vx + g_bgfxProj[5]*vy + g_bgfxProj[9]*vz  + g_bgfxProj[13]*vw;
+        float cz = g_bgfxProj[2]*vx + g_bgfxProj[6]*vy + g_bgfxProj[10]*vz + g_bgfxProj[14]*vw;
+        float cw = g_bgfxProj[3]*vx + g_bgfxProj[7]*vy + g_bgfxProj[11]*vz + g_bgfxProj[15]*vw;
+        WWDEBUG_SAY(("[BgfxBackend] PROJ TEST: clip=%.2f,%.2f,%.2f,%.2f ndc=%.4f,%.4f,%.4f",
+                     cx, cy, cz, cw,
+                     cw != 0.0f ? cx/cw : 0.0f,
+                     cw != 0.0f ? cy/cw : 0.0f,
+                     cw != 0.0f ? cz/cw : 0.0f));
     }
 }
 
@@ -1954,10 +2270,19 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
 
+    // Phase 4G.12: route to the dedicated sorted view when the sort
+    // flush has activated it. The sort view's view+proj were set at
+    // init and are refreshed by Set_Projection_Transform_With_Z_Bias,
+    // so it never needs a per-submit setViewTransform - only view 1
+    // (the opaque view) uses the dirty flag.
+    const bgfx::ViewId submitView = g_inSortFlush ? kBgfxEngineSortView : kBgfxEngineView;
+    const float *      worldMtx   = g_inSortFlush ? g_bgfxSortWorld     : g_bgfxWorld;
+
     // Push the engine view+projection when they change. setViewTransform
     // applies until the next change so we do not need to call it per
-    // submit, only when the engine has updated either matrix.
-    if (g_bgfxViewProjDirty)
+    // submit, only when the engine has updated either matrix. Sort view
+    // draws never touch g_bgfxView so the opaque view is never stomped.
+    if (!g_inSortFlush && g_bgfxViewProjDirty)
     {
         bgfx::setViewTransform(kBgfxEngineView, g_bgfxView, g_bgfxProj);
         g_bgfxViewProjDirty = false;
@@ -1965,15 +2290,44 @@ void SubmitEngineDraw(unsigned short start_index,
 
     // World matrix is per-submit. bgfx consumes the value at submit time
     // and resets the per-draw transform after each submit.
-    bgfx::setTransform(g_bgfxWorld);
+    bgfx::setTransform(worldMtx);
 
+    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.7 offset
+    // semantics. DX8Wrapper::Set_Index_Buffer_Index_Offset and
+    // Set_Vertex_Buffer(DynamicVBAccessClass) set a d3d8 BaseVertexIndex
+    // (passed to SetIndices). d3d8 implicitly adds that value to every
+    // index during the draw, i.e. effective_vertex = VB[IB[start+i] +
+    // base]. The bgfx equivalent is setVertexBuffer's _startVertex
+    // parameter, NOT an IB offset. Previously SubmitEngineDraw was
+    // incorrectly adding g_currentIBOffset to the IB start - that
+    // shifted which indices were read instead of which vertex they
+    // resolved to, so meshes with a non-zero base_vertex_offset drew
+    // garbled geometry from other meshes' vertex data.
+    const uint32_t base_vertex = static_cast<uint32_t>(g_currentIBOffset);
     if (g_currentUseTransientVB)
     {
-        bgfx::setVertexBuffer(0, &g_currentTransientVB, min_vertex_index, vertex_count);
+        if (g_inSortFlush)
+        {
+            // Sort flush: use 2-arg overload (binds entire buffer).
+            // Sort indices are absolute offsets into the full transient,
+            // so no base vertex offset is needed. The 4-arg overload
+            // would restrict the vertex range and clip high indices.
+            bgfx::setVertexBuffer(0, &g_currentTransientVB);
+        }
+        else
+        {
+            // Skin/dynamic draws: apply base_vertex as startVertex.
+            // Each mesh part within the shared transient VB has a
+            // different base offset (from Set_Index_Buffer_Index_Offset).
+            // Without this, all mesh parts read from vertex 0 and
+            // infantry/vehicles are invisible or garbled.
+            bgfx::setVertexBuffer(0, &g_currentTransientVB,
+                                  base_vertex, vertex_count);
+        }
     }
     else
     {
-        bgfx::setVertexBuffer(0, g_currentBgfxVB, min_vertex_index, vertex_count);
+        bgfx::setVertexBuffer(0, g_currentBgfxVB, base_vertex, vertex_count);
     }
 
     if (g_currentUseTransientIB)
@@ -1985,7 +2339,7 @@ void SubmitEngineDraw(unsigned short start_index,
     else
     {
         bgfx::setIndexBuffer(g_currentBgfxIB,
-                             static_cast<uint32_t>(g_currentIBOffset) + start_index,
+                             start_index,
                              static_cast<uint32_t>(polygon_count) * 3);
     }
 
@@ -1996,6 +2350,21 @@ void SubmitEngineDraw(unsigned short start_index,
     // is migrated. For stage 1, white is also the multiplicative
     // identity, so single-texture draws (which don't bind stage 1) are
     // unaffected by the second sample.
+    //
+    // Phase 4G.9 force trilinear filtering on all sampler stages.
+    // DX8Wrapper normally sets per-stage MIN/MAG/MIP filters via
+    // Set_DX8_Texture_Stage_State which bypasses g_renderBackend, so
+    // the bgfx samplers use their creation-time default (often point).
+    // Jamming BGFX_SAMPLER_MIN_ANISOTROPIC | MAG_ANISOTROPIC | MIP_LINEAR
+    // at bind time makes diagonal terrain edges, rocks, and unit
+    // textures stop looking blocky.
+    // Pass 0 = use the sampler's creation-time defaults, which is
+    // linear min/mag + mip-linear (trilinear) if the texture has
+    // mipmaps. Passing an explicit MIP_POINT here was forcing nearest-
+    // neighbor mip selection, breaking mipmap smoothing and making
+    // distant terrain patches look blocky. Let bgfx pick the best
+    // filter it can for each texture.
+    const uint32_t kSamplerFlags = 0;
     if (bgfx::isValid(g_sTex0))
     {
         const bgfx::TextureHandle bound =
@@ -2004,7 +2373,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(0, g_sTex0, bound);
+            bgfx::setTexture(0, g_sTex0, bound, kSamplerFlags);
         }
     }
     if (bgfx::isValid(g_sTex1))
@@ -2015,7 +2384,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(1, g_sTex1, bound);
+            bgfx::setTexture(1, g_sTex1, bound, kSamplerFlags);
         }
     }
     if (bgfx::isValid(g_sTex2))
@@ -2026,7 +2395,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(2, g_sTex2, bound);
+            bgfx::setTexture(2, g_sTex2, bound, kSamplerFlags);
         }
     }
     if (bgfx::isValid(g_sTex3))
@@ -2037,25 +2406,43 @@ void SubmitEngineDraw(unsigned short start_index,
                 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(3, g_sTex3, bound);
+            bgfx::setTexture(3, g_sTex3, bound, kSamplerFlags);
         }
+    }
+
+    // Phase 4G.9 push the material diffuse (team color + opacity) so
+    // the fragment shader can tint output. Updated by Set_Material.
+    if (bgfx::isValid(g_uMatDiffuse))
+    {
+        bgfx::setUniform(g_uMatDiffuse, g_currentMatDiffuse);
     }
 
     // Use the cached state if it was built; otherwise fall back to a
     // sane default that at least lets the draw run.
-    const uint64_t state = (g_currentBgfxState != 0)
+    uint64_t state = (g_currentBgfxState != 0)
         ? g_currentBgfxState
         : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+
+    // Phase 4G.15: disable depth test for sort view draws. Sort
+    // particles are pre-transformed to view space with identity
+    // world/view, so their Z values don't match the opaque view's
+    // depth buffer (which used the real camera view transform).
+    if (submitView == kBgfxEngineSortView)
+    {
+        state &= ~BGFX_STATE_DEPTH_TEST_MASK;
+        state |= BGFX_STATE_DEPTH_TEST_ALWAYS;
+    }
+
     bgfx::setState(state);
 
-    bgfx::submit(kBgfxEngineView, g_currentBgfxProgram);
+    bgfx::submit(submitView, g_currentBgfxProgram);
 
     if (!g_loggedFirstBgfxSubmit)
     {
         g_loggedFirstBgfxSubmit = true;
         WWDEBUG_SAY(("[BgfxBackend] First engine bgfx::submit "
                      "(view=%u start=%u polys=%u min_v=%u count=%u state=0x%016llx)",
-                     static_cast<unsigned>(kBgfxEngineView),
+                     static_cast<unsigned>(submitView),
                      start_index, polygon_count,
                      min_vertex_index, vertex_count,
                      static_cast<unsigned long long>(state)));
@@ -2076,6 +2463,15 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
         WWDEBUG_SAY(("[BgfxBackend] Draw_Triangles first call (polys=%u verts=%u)",
                      polygon_count, vertex_count));
     }
+
+    // Phase 4G.13: if DX8Wrapper::Draw_Sorting_IB_VB already submitted
+    // the draw with correctly remapped args against its internal dynamic
+    // buffers, skip the outer submit.
+    if (g_skipNextSubmitEngineDraw)
+    {
+        g_skipNextSubmitEngineDraw = false;
+        return;
+    }
     SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
 }
 
@@ -2092,6 +2488,11 @@ void BgfxBackend::Draw_Triangles(unsigned int buffer_type,
         g_loggedFirstDrawTriangles = true;
         WWDEBUG_SAY(("[BgfxBackend] Draw_Triangles first call typed (polys=%u verts=%u)",
                      polygon_count, vertex_count));
+    }
+    if (g_skipNextSubmitEngineDraw)
+    {
+        g_skipNextSubmitEngineDraw = false;
+        return;
     }
     SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
 }
