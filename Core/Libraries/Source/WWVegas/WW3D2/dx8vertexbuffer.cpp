@@ -207,7 +207,15 @@ VertexBufferClass::WriteLockClass::~WriteLockClass()
 	// Unlock the source pointer becomes invalid, so this is the last
 	// safe moment. The bgfx backend snapshots the bytes; the dx8 backend
 	// ignores the call.
-	if (g_renderBackend != NULL && Vertices != NULL && VertexBuffer->Type() == BUFFER_TYPE_DX8) {
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 also
+	// capture BUFFER_TYPE_SORTING writes: sorting FVF category containers
+	// back their shared VB with a SortingVertexBufferClass (CPU array),
+	// and DX8RigidFVFCategoryContainer::Render() passes it straight to
+	// g_renderBackend->Set_Vertex_Buffer. Without capturing the writes
+	// that path misses the bgfx VB cache entirely and rotors/explosions/
+	// tracers never draw.
+	if (g_renderBackend != NULL && Vertices != NULL &&
+		(VertexBuffer->Type() == BUFFER_TYPE_DX8 || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
 		const unsigned int total_bytes = VertexBuffer->Get_Vertex_Count() * VertexBuffer->FVF_Info().Get_FVF_Size();
 		g_renderBackend->Capture_Vertex_Data(VertexBuffer, Vertices, total_bytes);
 	}
@@ -236,7 +244,9 @@ VertexBufferClass::WriteLockClass::~WriteLockClass()
 
 VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuffer,unsigned start_index, unsigned index_range)
 	:
-	VertexBufferLockClass(VertexBuffer)
+	VertexBufferLockClass(VertexBuffer),
+	AppendStartIndex(start_index),
+	AppendIndexRange(index_range)
 {
 	DX8_THREAD_ASSERT();
 	WWASSERT(VertexBuffer);
@@ -277,12 +287,23 @@ VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuf
 VertexBufferClass::AppendLockClass::~AppendLockClass()
 {
 	DX8_THREAD_ASSERT();
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4: append locks
-	// are intentionally NOT captured for the bgfx backend. The Vertices
-	// pointer here is offset to a sub-range, not the start of the VB, so we
-	// cannot do a "snapshot the whole buffer" copy from it. Append locks
-	// are rare in the static rendering path; if a buffer is exclusively
-	// updated via append locks the bgfx backend will simply skip drawing it.
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 write-side
+	// sub-range capture for bgfx backend. Rigid mesh category containers
+	// fill their shared VB one sub-range at a time via AppendLockClass,
+	// so without this hook unit/vehicle geometry never reaches bgfx.
+	// Vertices points to the start of the locked sub-range and
+	// AppendStartIndex / AppendIndexRange describe its extent. BgfxBackend
+	// uses this to update a bgfx dynamic VB at the matching vertex offset.
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 capture
+	// sorting VB sub-range writes as well. Sorting FVF category containers
+	// fill their shared SortingVertexBufferClass via AppendLockClass one
+	// mesh at a time, just like the rigid DX8 path.
+	if (g_renderBackend != NULL && Vertices != NULL &&
+		(VertexBuffer->Type() == BUFFER_TYPE_DX8 || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
+		const unsigned int fvf_size = VertexBuffer->FVF_Info().Get_FVF_Size();
+		const unsigned int size_bytes = AppendIndexRange * fvf_size;
+		g_renderBackend->Capture_Vertex_Sub_Range(VertexBuffer, Vertices, AppendStartIndex, size_bytes);
+	}
 	switch (VertexBuffer->Type()) {
 	case BUFFER_TYPE_DX8:
 		DX8_Assert();
