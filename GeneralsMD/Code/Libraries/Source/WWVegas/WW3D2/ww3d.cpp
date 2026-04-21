@@ -861,7 +861,7 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 		vp.MinZ = 0.0f;
 		vp.MaxZ = 1.0f;
 		DX8Wrapper::Set_Viewport(&vp);
-		DX8Wrapper::Clear(clear, clearz, color, dest_alpha);
+		g_renderBackend->Clear(clear, clearz, color, dest_alpha);
 	}
 
 	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 3.
@@ -973,7 +973,7 @@ WW3DErrorType WW3D::Render(SceneClass * scene,CameraClass * cam,bool clear,bool 
 
 	// Clear the viewport
 	if (clear || clearz) {
-		DX8Wrapper::Clear(clear, clearz, color);
+		g_renderBackend->Clear(clear, clearz, color);
 	}
 
 	// TheSuperHackers @refactor bobtista 21/04/2026 Route fill mode through
@@ -2141,5 +2141,5 @@ void WW3D::Reset_Current_Static_Sort_Lists_To_Default()
 
 void WW3D::Set_Gamma(float gamma,float bright,float contrast,bool calibrate)
 {
-	DX8Wrapper::Set_Gamma(gamma,bright,contrast,calibrate);
+	g_renderBackend->Set_Gamma(gamma,bright,contrast,calibrate,true);
 }
