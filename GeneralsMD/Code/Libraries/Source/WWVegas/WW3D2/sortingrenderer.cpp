@@ -392,8 +392,17 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 		return;	//no point changing lights if they are ignored.
   //prevLight = render_state.lightsHash;
 
-	g_renderBackend->Capture_Sorted_Batch_Light(
-		render_state.Lights[0], render_state.LightEnable[0]);
+	{
+		const D3DLIGHT8 & src = render_state.Lights[0];
+		RenderBackendLight rbLight;
+		rbLight.direction[0] = src.Direction.x;
+		rbLight.direction[1] = src.Direction.y;
+		rbLight.direction[2] = src.Direction.z;
+		rbLight.diffuse[0] = src.Diffuse.r;
+		rbLight.diffuse[1] = src.Diffuse.g;
+		rbLight.diffuse[2] = src.Diffuse.b;
+		g_renderBackend->Capture_Sorted_Batch_Light(rbLight, render_state.LightEnable[0]);
+	}
 
 	if (render_state.LightEnable[0]) {
 		DX8Wrapper::Set_DX8_Light(0,&render_state.Lights[0]);
