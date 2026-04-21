@@ -1,4 +1,4 @@
-$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace
+$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV
 
 #include <bgfx_shader.sh>
 
@@ -8,7 +8,10 @@ SAMPLER2D(s_tex2, 2);
 SAMPLER2D(s_tex3, 3);
 // Phase 4I.2 CSM: D16 shadow map with hardware PCF comparison.
 SAMPLER2DSHADOW(s_shadowMap, 4);
+// Terrain cloud-shadow scroll texture (BASE_NOISE1/NOISE12 paths on DX8).
+SAMPLER2D(s_cloudMap, 5);
 uniform vec4 u_matDiffuse;
+uniform vec4 u_matEmissive; // material emissive / self-illumination color
 uniform vec4 u_atestParams;
 uniform vec4 u_tssOps0; // (priColorOp, priAlphaOp, secColorOp, secAlphaOp)
 uniform vec4 u_tssOps1; // (priColorArg1Src, priAlphaArg1Src, secColorArg1Src, secAlphaArg1Src)
@@ -17,6 +20,8 @@ uniform vec4 u_lightColors[4]; // per-light diffuse color (rgb)
 uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
 uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
 uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
+uniform vec4 u_grayscaleEnable; // .x > 0.5 = convert final color to luminance (disabled button state)
+uniform vec4 u_cloudParams; // xy = scroll, z = stretch, w > 0.5 = modulate cloud into output
 
 // TSS operation IDs (must match BgfxBackend.cpp encoding)
 #define TSS_DISABLE         0.0
@@ -199,14 +204,24 @@ void main()
 	}
 
 	// --- Lighting ---
-	if (priColorOp > 2.5 && priColorOp < 5.5 && u_lightingEnabled.x > 0.5)
+	// Extended from the original (MODULATE/ADD only) to also include
+	// SELECTARG2 (priColorOp=2): when a lit mesh has texturing disabled,
+	// W3D translates its shader to SELECTARG2. Our shader used to ignore
+	// the lit path in that case and pass through raw vertex color —
+	// which is black on meshes authored expecting D3D's T&L pipeline to
+	// overwrite it (e.g. the SCMoveHint.w3d "move here" indicator).
+	// priColorOp=1 (SELECTARG1) is deliberately NOT included: that case
+	// is texturing_enabled + gradient_disabled, which outputs tex0
+	// directly as a baked-lit texture (shell map, pre-lit terrain). Lit
+	// replacement breaks those.
+	bool needsLit = (priColorOp > 2.5 && priColorOp < 5.5)
+	             || (priColorOp > 1.5 && priColorOp < 2.5);
+	if (needsLit && u_lightingEnabled.x > 0.5)
 	{
 		// Material has lighting enabled. D3D's T&L pipeline REPLACES the
 		// vertex color with the computed lit result. Our vertex shader
 		// passes through the raw vertex attribute which is meaningless
-		// for lit meshes. Undo the TSS modulate with vertex color by
-		// dividing it out, then apply proper lighting.
-		// Simpler approach: recompute current as tex-only * lighting.
+		// for lit meshes. Recompute current as tex-only * lighting.
 		vec4 texOnly = tex0;
 		if (secColorOp > 0.5)
 		{
@@ -233,6 +248,12 @@ void main()
 		// Pre-lit or unlit: vertex color contains baked lighting.
 		current *= u_matDiffuse;
 	}
+
+	// Self-illumination / emissive. D3D fixed-function adds the material
+	// emissive on top of the lit output, which is how self-glowing meshes
+	// (like SCMoveHint.w3d "move here" indicator) get their color when
+	// no light reaches them.
+	current.rgb += u_matEmissive.rgb;
 
 	// --- Alpha test ---
 	if (u_atestParams.x > 0.0 && current.a < u_atestParams.x)
@@ -267,6 +288,28 @@ void main()
 		float visibility = (s0 + s1 + s2 + s3) * 0.25;
 		float shadowFactor = mix(0.6, 1.0, visibility);
 		current.rgb *= shadowFactor;
+	}
+
+	// Cloud-shadow modulation. DX8 ST_TERRAIN_BASE_NOISE1 / _NOISE12
+	// renders a second pass with the cloud texture sampled in camera-space
+	// (via D3DTS_TEXTURE0 = inv(view) * scale + translate(scroll)) and
+	// multiplies it into the base color. We pre-compute the UV in the
+	// vertex shader (world-space XY * stretch + scroll offset) and
+	// modulate here. Enabled per-draw by the backend — grass/tree draws
+	// leave u_cloudParams.w = 0.
+	if (u_cloudParams.w > 0.5)
+	{
+		vec3 cloudSample = texture2D(s_cloudMap, v_cloudUV).rgb;
+		current.rgb *= cloudSample;
+	}
+
+	// Grayscale output for disabled button state. Matches the D3D8 path
+	// (render2d.cpp) which used D3DTOP_DOTPRODUCT3 with TFACTOR=0x80A5CA8E
+	// to dot-product RGB with luminance weights (0.299, 0.587, 0.114).
+	if (u_grayscaleEnable.x > 0.5)
+	{
+		float luma = dot(current.rgb, vec3(0.299, 0.587, 0.114));
+		current.rgb = vec3(luma, luma, luma);
 	}
 
 	gl_FragColor = current;

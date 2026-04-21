@@ -156,6 +156,16 @@ int g_bgfxHeight = 600;
 // succeeds, destroyed in Shutdown before bgfx::shutdown.
 bgfx::ProgramHandle g_passthroughProgram = BGFX_INVALID_HANDLE;
 
+// TheSuperHackers @fix bobtista 20/04/2026 Static vertex buffer used to
+// force a fullscreen black draw on view 0 each frame. bgfx's setViewClear
+// does not emit ClearRenderTargetView for our backbuffer view when the
+// view is only activated via bgfx::touch — confirmed via RenderDoc export
+// (zero ClearRenderTargetView calls per frame). A real submit on view 0
+// makes bgfx process the view fully, clearing and covering the backbuffer
+// so persisted pixels from prior frames don't leak (e.g., flickering
+// yellow strips under the control bar).
+bgfx::VertexBufferHandle g_fullscreenClearVB = BGFX_INVALID_HANDLE;
+
 // TheSuperHackers @refactor bobtista 12/04/2026 Phase 5A uber shader
 // program. Single program handles all TSS combinations via uniforms.
 bgfx::ProgramHandle g_uberProgram = BGFX_INVALID_HANDLE;
@@ -320,6 +330,19 @@ bgfx::UniformHandle g_sTex3        = BGFX_INVALID_HANDLE;
 // alpha fades modulate the output.
 bgfx::UniformHandle g_uMatDiffuse  = BGFX_INVALID_HANDLE;
 float               g_currentMatDiffuse[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+// TheSuperHackers @feature bobtista 20/04/2026 Material emissive uniform.
+// D3D8 fixed-function adds the material's emissive color to the lit
+// output (D3DRS_EMISSIVEMATERIALSOURCE, MATERIAL.Emissive). Self-
+// illuminating meshes like the "move here" hint rely on this to produce
+// their glow color even when no light reaches them. fs_uber needs this
+// term or such meshes render black.
+bgfx::UniformHandle g_uMatEmissive = BGFX_INVALID_HANDLE;
+float               g_currentMatEmissive[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+// Grayscale output override for disabled 2D UI elements (Render2DClass::Enable_Grayscale).
+// D3D8 path uses D3DTOP_DOTPRODUCT3 + TFACTOR=0x80A5CA8E (luminance weights); bgfx path
+// applies the dot-product at the end of fs_uber when g_currentGrayscaleEnable[0] > 0.5.
+bgfx::UniformHandle g_uGrayscaleEnable = BGFX_INVALID_HANDLE;
+float               g_currentGrayscaleEnable[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 // Alpha-test parameters consumed by fs_textured_lit_atest. .x is the
 // reference threshold in [0, 1]; engine writes ShaderClass alpha-ref / 255.
 // Named u_atestParams (not u_alphaRef) to avoid bgfx_shader.sh's internal
@@ -359,6 +382,16 @@ float               g_currentTexcoordSelect[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
 // transform matrix. bgfx has no equivalent, so we upload the full texture
 // matrix and let the vertex shader compute the UVs explicitly.
 bgfx::UniformHandle g_uShroudParams = BGFX_INVALID_HANDLE;
+
+// TheSuperHackers @feature bobtista 20/04/2026 Cloud-shadow modulation
+// for terrain (DX8 ST_TERRAIN_BASE_NOISE1 / _NOISE12). Scroll offset
+// advances each frame from TerrainShader2Stage::m_xOffset/m_yOffset;
+// the fragment shader multiplies the sampled cloud color into the base.
+// .xy = scroll offset, .z = world→UV stretch, .w > 0.5 = enable.
+bgfx::UniformHandle g_uCloudParams      = BGFX_INVALID_HANDLE;
+bgfx::UniformHandle g_sCloudMap         = BGFX_INVALID_HANDLE;
+float               g_currentCloudParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+bgfx::TextureHandle g_currentCloudTex   = BGFX_INVALID_HANDLE;
 // .y = terrain blend flag: when > 0, shader does lerp(tex0, tex1, vertex_alpha)
 // using UV set 0 for tex0 and UV set 1 for tex1
 
@@ -970,6 +1003,20 @@ std::unordered_map<const VertexBufferClass *, BgfxVbCacheEntry> g_vbCache;
 std::unordered_map<const IndexBufferClass *,  BgfxIbCacheEntry> g_ibCache;
 std::unordered_map<const TextureBaseClass *,  bgfx::TextureHandle>             g_textureCache;
 
+// TheSuperHackers @fix bobtista 19/04/2026 Track D3D8 texture pointers
+// and dimensions alongside TextureClass* to detect stale cache entries
+// (address reuse) and enable in-place updates for same-sized textures.
+struct D3DPtrInfo { IDirect3DBaseTexture8 * ptr; uint16_t w; uint16_t h; };
+std::unordered_map<const TextureBaseClass *, D3DPtrInfo> g_d3dPtrCache;
+
+// TheSuperHackers @fix bobtista 19/04/2026 Deferred texture destruction.
+// When a stale texture cache entry is detected (D3D8 pointer changed), the
+// old bgfx handle can't be destroyed immediately because in-flight draws
+// may still reference it. Double-buffer: collect in current frame, destroy
+// after the NEXT bgfx::frame() (2 frames later = guaranteed safe).
+static std::vector<bgfx::TextureHandle> g_deferredTextureDestroys;     // current frame
+static std::vector<bgfx::TextureHandle> g_deferredTextureDestroysPrev; // previous frame (safe to destroy)
+
 // The bgfx texture currently bound to stage 0 by Set_Texture. Used by
 // SubmitEngineDraw - falls back to g_defaultWhiteTexture if invalid.
 bgfx::TextureHandle g_currentBgfxTexture0 = BGFX_INVALID_HANDLE;
@@ -1220,10 +1267,115 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     {
         return BGFX_INVALID_HANDLE;
     }
+    IDirect3DBaseTexture8 * curD3D = tex->Peek_D3D_Base_Texture();
+
     auto it = g_textureCache.find(tex);
     if (it != g_textureCache.end())
     {
-        return it->second;
+        auto d3dIt = g_d3dPtrCache.find(tex);
+        bool d3dPtrMatch = (d3dIt != g_d3dPtrCache.end() && d3dIt->second.ptr == curD3D);
+        if (d3dPtrMatch)
+        {
+            return it->second;
+        }
+        // D3D8 texture pointer changed — the TextureClass* address was reused
+        // for a different texture, OR the engine invalidated via
+        // Invalidate_Cached_Texture after writing new pixels (e.g. video
+        // frame, font atlas). Try to UPDATE the existing bgfx handle in
+        // place (no handle churn) if dimensions and format match.
+        // Only fall back to destroy+recreate if they differ.
+        // TheSuperHackers @bugfix bobtista 20/04/2026 Capture the stored
+        // dimensions BEFORE overwriting the cache entry — the in-place
+        // update path below checks against them, and the iterator aliases
+        // the same entry we are about to stomp.
+        uint16_t cachedW = 0;
+        uint16_t cachedH = 0;
+        if (d3dIt != g_d3dPtrCache.end())
+        {
+            cachedW = d3dIt->second.w;
+            cachedH = d3dIt->second.h;
+        }
+        g_d3dPtrCache[tex] = { curD3D, 0, 0 };
+        if (bgfx::isValid(it->second))
+        {
+            TextureClass * tex2d = tex->As_TextureClass();
+            if (tex2d != nullptr && tex->Get_Pool() != TextureBaseClass::POOL_DEFAULT)
+            {
+                IDirect3DTexture8 * d3dTex = static_cast<IDirect3DTexture8 *>(curD3D);
+                D3DSURFACE_DESC desc;
+                if (SUCCEEDED(d3dTex->GetLevelDesc(0, &desc)))
+                {
+                    const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(tex2d->Get_Texture_Format());
+                    // Check if dimensions match the existing bgfx handle
+                    if (desc.Width == cachedW
+                        && desc.Height == cachedH
+                        && bgfxFmt != bgfx::TextureFormat::Unknown)
+                    {
+                        D3DLOCKED_RECT locked = { 0 };
+                        if (SUCCEEDED(d3dTex->LockRect(0, &locked, NULL, D3DLOCK_READONLY)))
+                        {
+                            const bool isCompressed = (bgfxFmt >= bgfx::TextureFormat::BC1 && bgfxFmt <= bgfx::TextureFormat::BC7);
+                            const unsigned bpp = isCompressed ? 0 :
+                                (bgfxFmt == bgfx::TextureFormat::BGRA4 || bgfxFmt == bgfx::TextureFormat::R5G6B5 || bgfxFmt == bgfx::TextureFormat::BGR5A1) ? 2 :
+                                (bgfxFmt == bgfx::TextureFormat::A8 || bgfxFmt == bgfx::TextureFormat::R8) ? 1 : 4;
+                            const unsigned expectedPitch = isCompressed ? 0 : desc.Width * bpp;
+                            const unsigned numRows = isCompressed ? ((desc.Height + 3) / 4) : desc.Height;
+                            const unsigned srcPitch = static_cast<unsigned>(locked.Pitch);
+                            const unsigned rowBytes = (expectedPitch > 0) ? expectedPitch : srcPitch;
+                            const unsigned totalBytes = numRows * rowBytes;
+                            const bgfx::Memory * mem = bgfx::alloc(totalBytes);
+                            if (srcPitch == expectedPitch || isCompressed)
+                                std::memcpy(mem->data, locked.pBits, totalBytes);
+                            else
+                                for (unsigned row = 0; row < numRows; ++row)
+                                    std::memcpy(mem->data + row * rowBytes,
+                                        static_cast<const uint8_t*>(locked.pBits) + row * srcPitch, rowBytes);
+                            d3dTex->UnlockRect(0);
+
+                            // TheSuperHackers @bugfix bobtista 20/04/2026
+                            // D3D8 samples the alpha channel of X8R8G8B8
+                            // textures as 1.0 regardless of memory content
+                            // (the "X" component is ignored). bgfx's BGRA8
+                            // format has no such convention and samples the
+                            // raw memory byte, which for FFmpeg video
+                            // frames (AV_PIX_FMT_BGR0) is 0 — making
+                            // SRC_ALPHA blended draws invisible. Force
+                            // alpha to 0xFF ONLY for procedurally-created
+                            // X8R8G8B8 textures (no file path — e.g. video
+                            // buffers). TGA-loaded X8R8G8B8 textures may
+                            // have real alpha data the game relies on
+                            // (scorch marks, decals), so leave those alone.
+                            if (tex2d->Get_Texture_Format() == WW3D_FORMAT_X8R8G8B8
+                                && bgfxFmt == bgfx::TextureFormat::BGRA8
+                                && tex2d->Get_Full_Path().Is_Empty())
+                            {
+                                uint8_t * px = mem->data;
+                                const unsigned pixelCount = (expectedPitch / 4) * numRows;
+                                for (unsigned i = 0; i < pixelCount; ++i)
+                                    px[i * 4 + 3] = 0xff;
+                            }
+
+                            bgfx::updateTexture2D(it->second, 0, 0, 0, 0,
+                                static_cast<uint16_t>(desc.Width),
+                                static_cast<uint16_t>(desc.Height), mem);
+                            // Store dimensions so subsequent invalidations
+                            // can still match the in-place update path.
+                            g_d3dPtrCache[tex] = { curD3D,
+                                static_cast<uint16_t>(desc.Width),
+                                static_cast<uint16_t>(desc.Height) };
+                            return it->second; // Reused handle, no churn
+                        }
+                    }
+                }
+            }
+            // Dimensions or format changed — must destroy and recreate
+            g_deferredTextureDestroys.push_back(it->second);
+        }
+        g_textureCache.erase(it);
+    }
+    else
+    {
+        g_d3dPtrCache[tex] = { curD3D, 0, 0 };
     }
 
     // Only handle TextureClass (regular 2D) for now. Cube and volume
@@ -1251,16 +1403,6 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
             return fbIt->second.colorTex;
         }
 
-        static int s_poolDefaultCount = 0;
-        if (s_poolDefaultCount < 10)
-        {
-            ++s_poolDefaultCount;
-            WWDEBUG_SAY(("[BgfxBackend] POOL_DEFAULT texture skipped #%d: %s %dx%d fmt=%d",
-                         s_poolDefaultCount,
-                         tex2d->Get_Full_Path().str(),
-                         tex2d->Get_Width(), tex2d->Get_Height(),
-                         static_cast<int>(tex2d->Get_Texture_Format())));
-        }
         g_renderTargetSet[tex] = true;
         return BGFX_INVALID_HANDLE;
     }
@@ -1366,34 +1508,127 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     }
     d3dTex->UnlockRect(0);
 
+    // TheSuperHackers @fix bobtista 20/04/2026 Team-colored textures
+    // (name prefixed with "#<color>#" via W3DAssetManager's Munge_Texture_Name)
+    // go through Remap_Palette which forces alpha to 0xff on every pixel.
+    // The original TGA stored its "transparent" regions as pure-black RGB
+    // with full alpha, relying on a D3D8-era color-key-on-RGB mechanism
+    // (or implicit alpha-test on luminance) that we haven't reproduced in
+    // bgfx. Without it, the black background paints over the stone bib
+    // around sub-faction emblems (the long-standing "black rectangle"
+    // bug). Emulate color-keying at upload time: for #-prefixed BGRA8
+    // textures, scan the pixel data and set alpha=0 on any pixel whose
+    // RGB is all zero. Scorch marks / shadows use different names so are
+    // unaffected.
+    if (!isCompressed && bgfxFmt == bgfx::TextureFormat::BGRA8)
     {
-        static int s_texLog = 0;
-        if (s_texLog++ < 200)
+        TextureClass * t = tex->As_TextureClass();
+        const char * texName = t ? t->Get_Full_Path().str() : nullptr;
+        if (texName != nullptr && texName[0] == '#')
         {
-            TextureClass * t = tex->As_TextureClass();
-            WWDEBUG_SAY(("[TEX CREATE #%d] '%s' %ux%u d3dfmt=%d bgfxFmt=%d "
-                "srcPitch=%u expPitch=%u rows=%u bytes=%u comp=%d",
-                s_texLog,
-                t ? (const char*)t->Get_Full_Path() : "?",
-                desc.Width, desc.Height,
-                static_cast<int>(desc.Format),
-                static_cast<int>(bgfxFmt),
-                srcPitch, expectedPitch, numRows, totalBytes,
-                isCompressed ? 1 : 0));
+            uint8_t * pix = mem->data;
+            const unsigned pixelCount = expectedPitch / 4 * numRows;
+            for (unsigned i = 0; i < pixelCount; ++i)
+            {
+                // BGRA8: byte order B, G, R, A. Transparent if B=G=R=0.
+                if (pix[i * 4 + 0] == 0 && pix[i * 4 + 1] == 0 && pix[i * 4 + 2] == 0)
+                {
+                    pix[i * 4 + 3] = 0;
+                }
+            }
         }
     }
 
+    // TheSuperHackers @bugfix bobtista 20/04/2026 See matching in-place
+    // path above. D3D8's X8R8G8B8 ignores the "X" byte and samples alpha
+    // as 1.0; bgfx BGRA8 samples it literally. Video buffers (FFmpeg
+    // BGR0) are written with alpha=0 and would draw as transparent.
+    // Force 0xFF for procedurally-created X8R8G8B8 textures only (empty
+    // path); TGA-loaded X8R8G8B8 textures may carry real alpha data the
+    // game relies on (scorch marks, decals) so leave those untouched.
+    if (!isCompressed
+        && bgfxFmt == bgfx::TextureFormat::BGRA8
+        && tex2d->Get_Texture_Format() == WW3D_FORMAT_X8R8G8B8
+        && tex2d->Get_Full_Path().Is_Empty())
+    {
+        uint8_t * px = mem->data;
+        const unsigned pixelCount = (expectedPitch / 4) * numRows;
+        for (unsigned i = 0; i < pixelCount; ++i)
+            px[i * 4 + 3] = 0xff;
+    }
+
+    // TheSuperHackers @fix bobtista 19/04/2026 Create textures WITHOUT
+    // initial data so they are mutable. Passing data to createTexture2D
+    // makes the texture immutable, silently rejecting later updates (font
+    // atlas glyph additions, dynamic texture changes). Create empty, then
+    // upload via updateTexture2D.
     bgfx::TextureHandle h = bgfx::createTexture2D(
         static_cast<uint16_t>(desc.Width),
         static_cast<uint16_t>(desc.Height),
         false, 1,
         bgfxFmt,
         BGFX_TEXTURE_NONE | BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC,
-        mem);
+        nullptr);
+    if (bgfx::isValid(h) && mem != nullptr)
+    {
+        bgfx::updateTexture2D(h, 0, 0, 0, 0,
+            static_cast<uint16_t>(desc.Width),
+            static_cast<uint16_t>(desc.Height),
+            mem);
+    }
 
     g_textureCache[tex] = h;
+    // Record dimensions so future reuse can update in place
+    g_d3dPtrCache[tex] = { curD3D, static_cast<uint16_t>(desc.Width), static_cast<uint16_t>(desc.Height) };
     return h;
 }
+} // close anonymous namespace for Invalidate_Cached_Texture
+
+void BgfxBackend::Invalidate_Cached_Texture(TextureBaseClass * texture)
+{
+    if (texture == nullptr)
+        return;
+    // Set the D3D pointer to nullptr (sentinel) so the next EnsureBgfxTexture
+    // call detects a "change" and re-uploads pixel data. KEEP the dimensions
+    // so the in-place update path can check if the bgfx handle is reusable.
+    auto d3dIt = g_d3dPtrCache.find(texture);
+    if (d3dIt != g_d3dPtrCache.end())
+        d3dIt->second.ptr = nullptr;
+}
+
+void BgfxBackend::Release_Cached_Texture(TextureBaseClass * texture)
+{
+    if (texture == nullptr)
+        return;
+    // Called from TextureBaseClass::~TextureBaseClass before the D3D8
+    // texture is released. Queue the bgfx handle for deferred destruction
+    // (in-flight draws may still reference it this frame) and erase the
+    // cache entries so a later allocation reusing this TextureBaseClass*
+    // address cannot inherit the stale handle.
+    auto it = g_textureCache.find(texture);
+    if (it != g_textureCache.end())
+    {
+        if (bgfx::isValid(it->second))
+            g_deferredTextureDestroys.push_back(it->second);
+        g_textureCache.erase(it);
+    }
+    g_d3dPtrCache.erase(texture);
+    g_renderTargetSet.erase(texture);
+
+    // Framebuffer-backed textures (render targets) own a framebuffer whose
+    // color attachment IS the cached handle above. Destroying the
+    // framebuffer also destroys its attached textures, so we do that
+    // immediately and do NOT queue the colorTex for deferred destroy.
+    auto fbIt = g_framebufferCache.find(texture);
+    if (fbIt != g_framebufferCache.end())
+    {
+        if (bgfx::isValid(fbIt->second.fb))
+            bgfx::destroy(fbIt->second.fb);
+        g_framebufferCache.erase(fbIt);
+    }
+}
+
+namespace { // reopen anonymous namespace
 
 bgfx::ProgramHandle g_currentBgfxProgram = BGFX_INVALID_HANDLE;
 uint64_t            g_currentBgfxState   = 0;
@@ -1607,9 +1842,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // triangle (Phase 4B sentinel).
     bgfx::setViewClear(kBgfxDebugView,
                        BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
-                       0x1a3b5cff,  // dark teal, 0xRRGGBBAA
+                       0x000000ff,  // black
                        1.0f,
                        0);
+    bgfx::setViewFrameBuffer(kBgfxDebugView, BGFX_INVALID_HANDLE);
     bgfx::setViewRect(kBgfxDebugView, 0, 0,
                       static_cast<uint16_t>(g_bgfxWidth),
                       static_cast<uint16_t>(g_bgfxHeight));
@@ -1754,11 +1990,25 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         WWDEBUG_SAY(("[BgfxBackend] passthrough shader createShader FAILED."));
     }
 
+    // Fullscreen-clear VB. Single triangle in NDC that covers the entire
+    // clip-space rectangle; submitted to view 0 every frame (Begin_Scene).
+    {
+        struct ClearVert { float x, y, z; uint32_t rgba; };
+        static const ClearVert verts[3] = {
+            { -1.0f, -3.0f, 0.0f, 0xff000000u },
+            { -1.0f,  1.0f, 0.0f, 0xff000000u },
+            {  3.0f,  1.0f, 0.0f, 0xff000000u },
+        };
+        g_fullscreenClearVB = bgfx::createVertexBuffer(
+            bgfx::makeRef(verts, sizeof(verts)), g_triangleLayout);
+    }
+
     g_sTex0        = bgfx::createUniform("s_tex0",        bgfx::UniformType::Sampler);
     g_sTex1        = bgfx::createUniform("s_tex1",        bgfx::UniformType::Sampler);
     g_sTex2        = bgfx::createUniform("s_tex2",        bgfx::UniformType::Sampler);
     g_sTex3        = bgfx::createUniform("s_tex3",        bgfx::UniformType::Sampler);
     g_uMatDiffuse  = bgfx::createUniform("u_matDiffuse",  bgfx::UniformType::Vec4);
+    g_uMatEmissive = bgfx::createUniform("u_matEmissive", bgfx::UniformType::Vec4);
     g_uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
     g_uTssOps0     = bgfx::createUniform("u_tssOps0",     bgfx::UniformType::Vec4);
     g_uTssOps1     = bgfx::createUniform("u_tssOps1",     bgfx::UniformType::Vec4);
@@ -1767,7 +2017,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uSceneAmbient  = bgfx::createUniform("u_sceneAmbient",   bgfx::UniformType::Vec4);
     g_uLightingEnabled = bgfx::createUniform("u_lightingEnabled", bgfx::UniformType::Vec4);
     g_uTexcoordSelect  = bgfx::createUniform("u_texcoordSelect",  bgfx::UniformType::Vec4);
+    g_uGrayscaleEnable = bgfx::createUniform("u_grayscaleEnable", bgfx::UniformType::Vec4);
     g_uShroudParams = bgfx::createUniform("u_shroudParams", bgfx::UniformType::Vec4);
+    g_uCloudParams  = bgfx::createUniform("u_cloudParams",  bgfx::UniformType::Vec4);
+    g_sCloudMap     = bgfx::createUniform("s_cloudMap",     bgfx::UniformType::Sampler);
 
     // Default 1x1 white texture. Used as fallback for missing textures.
     // Multiplying by white is the identity operation.
@@ -1914,8 +2167,8 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         // stale shadow map. Explicit order: shadow map first, then the
         // rest of the views in their natural ascending order.
         const bgfx::ViewId order[] = {
+            kBgfxDebugView,           // 0 — full-canvas clear quad, MUST run first
             kBgfxShadowMapView,       // 8 — shadow caster depth pass
-            kBgfxDebugView,            // test/passthrough
             kBgfxRTTView,             // 3
             kBgfxEngineView,          // 1
             kBgfxShadowVolumeView,    // 6 — stencil shadow volume fill
@@ -1984,6 +2237,7 @@ void BgfxBackend::Shutdown()
     if (g_bgfxInitialized)
     {
         DestroyBgfxHandle(g_passthroughProgram);
+        DestroyBgfxHandle(g_fullscreenClearVB);
         DestroyBgfxHandle(g_uberProgram);
         DestroyBgfxHandle(g_treeProgram);
         DestroyBgfxHandle(g_uSwayTable);
@@ -2003,6 +2257,8 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uLightingEnabled);
         DestroyBgfxHandle(g_uTexcoordSelect);
         DestroyBgfxHandle(g_uShroudParams);
+        DestroyBgfxHandle(g_uCloudParams);
+        DestroyBgfxHandle(g_sCloudMap);
         DestroyBgfxHandle(g_shadowVolumeProgram);
         DestroyBgfxHandle(g_shadowApplyProgram);
         DestroyBgfxHandle(g_shadowCasterProgram);
@@ -2073,6 +2329,58 @@ void BgfxBackend::Shutdown()
 // Device state queries (Is_Device_Lost / Has_Stencil / Get_Back_Buffer_Format
 // / Get_Back_Buffer / Set_Gamma) are inherited from DX8Backend.
 
+// -- Viewport ----------------------------------------------------------------
+
+void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
+{
+    // Do NOT call DX8Backend::Set_Viewport here — this method is called
+    // FROM DX8Wrapper::Set_Viewport, so the D3D8 viewport is already set.
+    // Calling the base class would cause infinite recursion.
+
+    if (!g_bgfxInitialized)
+        return;
+
+    // TheSuperHackers @fix bobtista 19/04/2026 Sync bgfx view rects with the
+    // game's viewport. Without this, bgfx uses the full window for the 3D
+    // scene while the game's picking/camera uses a smaller viewport (excluding
+    // the control bar), causing a vertical click offset when selecting units.
+    const uint16_t x = static_cast<uint16_t>(viewport.x);
+    const uint16_t y = static_cast<uint16_t>(viewport.y);
+    const uint16_t w = static_cast<uint16_t>(viewport.width);
+    const uint16_t h = static_cast<uint16_t>(viewport.height);
+
+    // TheSuperHackers @fix bobtista 20/04/2026 DX8Wrapper::Set_Viewport
+    // is called from TWO very different contexts each frame:
+    //   1. CameraClass::Apply() with the tactical 3D viewport
+    //      (e.g., 1280x640 when the control bar is visible)
+    //   2. Render2DClass::Render() with the full-canvas viewport
+    //      (1280x800) for 2D UI drawing
+    // The 2D UI has its own bgfx view (kBgfxUIView) so its rect is
+    // independent. If we let the Render2DClass call stomp the 3D engine
+    // views with the full-canvas rect, the 3D scene renders stretched
+    // while the picking code still normalizes mouse Y through the
+    // 640-tall tactical view — producing a vertical click offset that
+    // scales with Y position. Ignore updates whose dimensions match the
+    // full bgfx canvas: the 3D engine views should keep the smaller
+    // tactical rect set by CameraClass::Apply.
+    const bool isFullCanvas =
+        (x == 0 && y == 0 &&
+         static_cast<int>(w) == g_bgfxWidth &&
+         static_cast<int>(h) == g_bgfxHeight);
+    if (isFullCanvas)
+    {
+        return;
+    }
+
+    bgfx::setViewRect(kBgfxEngineView, x, y, w, h);
+    bgfx::setViewRect(kBgfxEngineSortView, x, y, w, h);
+    bgfx::setViewRect(kBgfxWaterView, x, y, w, h);
+    bgfx::setViewRect(kBgfxEffectOverlayView, x, y, w, h);
+    bgfx::setViewRect(kBgfxShadowVolumeView, x, y, w, h);
+    bgfx::setViewRect(kBgfxShadowApplyView, x, y, w, h);
+    bgfx::setViewRect(kBgfxRTTView, x, y, w, h);
+}
+
 // -- Frame lifecycle ---------------------------------------------------------
 
 void BgfxBackend::Begin_Scene()
@@ -2081,6 +2389,16 @@ void BgfxBackend::Begin_Scene()
     {
         return;
     }
+
+    // Destroy PREVIOUS frame's deferred textures. These were queued in
+    // frame N-1, survived through bgfx::frame() at End_Scene of frame N-1,
+    // so all in-flight draws referencing them are guaranteed complete.
+    for (auto & h : g_deferredTextureDestroysPrev)
+    {
+        if (bgfx::isValid(h))
+            bgfx::destroy(h);
+    }
+    g_deferredTextureDestroysPrev.clear();
     // Show the DX8 reference popup after a few frames, giving the game's
     // input system time to fully initialize. Showing too early steals focus
     // and permanently blocks mouse capture.
@@ -2130,7 +2448,28 @@ void BgfxBackend::Begin_Scene()
         }
     }
 
-    bgfx::touch(kBgfxDebugView);
+    // TheSuperHackers @fix bobtista 20/04/2026 Force a real draw on view 0
+    // each frame so bgfx actually processes the view and covers the
+    // backbuffer. Without this, touch-only activation leaves the backbuffer
+    // with stale content from prior frames — visible as flickering yellow
+    // strips from the chat button animation leaking under the control bar.
+    if (bgfx::isValid(g_passthroughProgram) && bgfx::isValid(g_fullscreenClearVB))
+    {
+        float identity[16];
+        IdentityMatrix(identity);
+        bgfx::setViewRect(kBgfxDebugView, 0, 0,
+                          static_cast<uint16_t>(g_bgfxWidth),
+                          static_cast<uint16_t>(g_bgfxHeight));
+        bgfx::setViewTransform(kBgfxDebugView, identity, identity);
+        bgfx::setVertexBuffer(0, g_fullscreenClearVB);
+        bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
+                       | BGFX_STATE_DEPTH_TEST_ALWAYS);
+        bgfx::submit(kBgfxDebugView, g_passthroughProgram);
+    }
+    else
+    {
+        bgfx::touch(kBgfxDebugView);
+    }
     bgfx::touch(kBgfxEngineView);
     bgfx::touch(kBgfxEngineSortView);
     bgfx::touch(kBgfxWaterView);
@@ -2189,11 +2528,18 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                       static_cast<uint16_t>(g_bgfxWidth),
                       static_cast<uint16_t>(g_bgfxHeight));
 
-    // Phase 4I.2: shadow map (view 8) renders FIRST so the depth
-    // texture is populated before the scene samples it. Then RTT (3),
-    // engine opaque (1), shadow volume fill (6), shadow darken (7),
-    // water (4), sort (2), effect overlay (5), UI overlay (10) last.
+    // Phase 4I.2: debug view (0) runs FIRST to emit the backbuffer
+    // clear quad, then shadow map (view 8) so its depth texture is
+    // populated before the scene samples it. Then RTT (3), engine
+    // opaque (1), shadow volume fill (6), shadow darken (7), water (4),
+    // sort (2), effect overlay (5), UI overlay (10) last.
+    // TheSuperHackers @bugfix bobtista 20/04/2026 view 0 MUST be
+    // included — when omitted, bgfx defers it to the end with a 1x1
+    // viewport, and the full-canvas clear never fires (causing
+    // flickering UI leftovers under the control bar on frames where
+    // that area is not overdrawn).
     bgfx::ViewId viewOrder[] = {
+        kBgfxDebugView,            // 0 — full-canvas clear quad, must run first
         kBgfxShadowMapView,        // 8 — shadow caster depth pass
         kBgfxRTTView,              // 3
         kBgfxEngineView,           // 1
@@ -2207,6 +2553,13 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(viewOrder), viewOrder);
 
     bgfx::frame();
+
+    // Rotate deferred texture destroy buffers. Current frame's deferred
+    // handles move to "prev" — they'll be destroyed at the NEXT Begin_Scene
+    // after one more bgfx::frame() guarantees all references are gone.
+    g_deferredTextureDestroysPrev.insert(g_deferredTextureDestroysPrev.end(),
+        g_deferredTextureDestroys.begin(), g_deferredTextureDestroys.end());
+    g_deferredTextureDestroys.clear();
 
     // Transient buffers are freed at bgfx::frame time. Invalidate the
     // pending and current slots so nothing next frame tries to reuse
@@ -2835,6 +3188,8 @@ static void UploadMaterialUniforms()
     if (bgfx::isValid(g_uMatDiffuse))
     {
         bgfx::setUniform(g_uMatDiffuse, g_currentMatDiffuse);
+        if (bgfx::isValid(g_uMatEmissive))
+            bgfx::setUniform(g_uMatEmissive, g_currentMatEmissive);
     }
 
     if (bgfx::isValid(g_uTssOps0))
@@ -2849,6 +3204,19 @@ static void UploadMaterialUniforms()
     {
         float atestParams[4] = { g_currentAtestRef, 0.0f, 0.0f, 0.0f };
         bgfx::setUniform(g_uAtestParams, atestParams);
+    }
+    if (bgfx::isValid(g_uGrayscaleEnable))
+    {
+        bgfx::setUniform(g_uGrayscaleEnable, g_currentGrayscaleEnable);
+    }
+    if (bgfx::isValid(g_uCloudParams))
+    {
+        bgfx::setUniform(g_uCloudParams, g_currentCloudParams);
+    }
+    if (bgfx::isValid(g_sCloudMap) && bgfx::isValid(g_currentCloudTex))
+    {
+        // WRAP addressing matches the DX8 cloud pass at W3DShaderManager.cpp:1742.
+        bgfx::setTexture(5, g_sCloudMap, g_currentCloudTex, BGFX_SAMPLER_NONE);
     }
 }
 
@@ -2959,6 +3327,19 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     }
 
     bgfx::setState(state);
+
+    // TheSuperHackers @fix bobtista 19/04/2026 fs_uber declares
+    // SAMPLER2DSHADOW(s_shadowMap, 4); bgfx resets texture bindings per
+    // submit, so slot 4 must be rebound for EVERY submit that uses the
+    // uber program — not just the opaque path at SubmitEngineDraw. D3D11
+    // debug layer raises DEVICE_DRAW_SAMPLER_MISMATCH (#390, 0x87A) when
+    // a draw reaches the shader with slot 4 empty, because the default
+    // sampler is not comparison-capable.
+    if (bgfx::isValid(g_shadowMapDepth) && bgfx::isValid(g_sShadowMap))
+    {
+        bgfx::setTexture(4, g_sShadowMap, g_shadowMapDepth);
+    }
+
     bgfx::submit(kBgfxEngineSortView, g_currentBgfxProgram);
 
     // Phase 4I.2 CSM: also submit sorted geometry as shadow caster.
@@ -3080,8 +3461,23 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
     // washed-out white or tinted by whatever the previous draw used.
     if (material != nullptr)
     {
+        // TheSuperHackers @bugfix bobtista 20/04/2026 Honor
+        // VertexMaterialClass's Diffuse_Color_Source. When set to COLOR1
+        // (D3DMCS_COLOR1), D3D's FF pipeline uses the VERTEX diffuse as
+        // the material's effective diffuse and ignores material->Get_Diffuse.
+        // This is the PRELIT_DIFFUSE preset used by projected shadow decals,
+        // HUD/2D overlays, etc. Without this guard, fs_uber's
+        // `current *= u_matDiffuse` darkens the decals with whatever stale
+        // or default color the material carries (often black), producing
+        // the "black scorch-like patches" on the beach where alpha decals
+        // are batched. Force matDiffuse=1 so vertex color passes through.
         Vector3 diffuse(1.0f, 1.0f, 1.0f);
-        material->Get_Diffuse(&diffuse);
+        const VertexMaterialClass::ColorSourceType diffuseSource =
+            const_cast<VertexMaterialClass *>(material)->Get_Diffuse_Color_Source();
+        if (diffuseSource == VertexMaterialClass::MATERIAL)
+        {
+            material->Get_Diffuse(&diffuse);
+        }
         g_currentMatDiffuse[0] = diffuse.X;
         g_currentMatDiffuse[1] = diffuse.Y;
         g_currentMatDiffuse[2] = diffuse.Z;
@@ -3090,6 +3486,17 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
         // (terrain, pre-lit meshes), vertex colors already contain the
         // lit result and the shader must NOT apply N.L on top.
         g_currentLightingEnabled[0] = material->Get_Lighting() ? 1.0f : 0.0f;
+        // Emissive color — self-illumination. Self-glow meshes (e.g.
+        // SCMoveHint.w3d "move here" indicator) set the material emissive
+        // to their glow color and rely on D3D fixed-function adding it
+        // on top of the lit diffuse. Without this, they render black
+        // because the lit math produces 0 and there's no emissive term.
+        Vector3 emissive(0.0f, 0.0f, 0.0f);
+        material->Get_Emissive(&emissive);
+        g_currentMatEmissive[0] = emissive.X;
+        g_currentMatEmissive[1] = emissive.Y;
+        g_currentMatEmissive[2] = emissive.Z;
+        g_currentMatEmissive[3] = 0.0f;
     }
     else
     {
@@ -3097,6 +3504,10 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
         g_currentMatDiffuse[1] = 1.0f;
         g_currentMatDiffuse[2] = 1.0f;
         g_currentMatDiffuse[3] = 1.0f;
+        g_currentMatEmissive[0] = 0.0f;
+        g_currentMatEmissive[1] = 0.0f;
+        g_currentMatEmissive[2] = 0.0f;
+        g_currentMatEmissive[3] = 0.0f;
         // Null material means no material-driven lighting. Dazzle and
         // similar effect overlays call Set_Material(nullptr) and bake
         // their per-vertex intensity into diffuse.rgb; the lit path in
@@ -3128,24 +3539,23 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
             g_renderTargetSet.count(texture) > 0)
         {
             h = g_defaultWhiteTexture;
-            static int s_loggedRTFallback = 0;
-            if (s_loggedRTFallback < 5)
+            static bool s_loggedRTFallback = false;
+            if (!s_loggedRTFallback)
             {
-                ++s_loggedRTFallback;
+                s_loggedRTFallback = true;
                 TextureClass * t2d_fb = texture->As_TextureClass();
                 WWDEBUG_SAY(("[BgfxBackend] RT FALLBACK: stage=%u using white fallback for %s",
                              stage,
                              t2d_fb ? t2d_fb->Get_Full_Path().str() : "(null)"));
             }
         }
-        // Log when an invalid texture goes to white fallback
         if (!bgfx::isValid(h) && texture != nullptr &&
             g_renderTargetSet.count(texture) == 0)
         {
-            static int s_loggedWhiteFallback = 0;
-            if (s_loggedWhiteFallback < 5)
+            static bool s_loggedWhiteFallback = false;
+            if (!s_loggedWhiteFallback)
             {
-                ++s_loggedWhiteFallback;
+                s_loggedWhiteFallback = true;
                 TextureClass * t2d_fb = texture->As_TextureClass();
                 WWDEBUG_SAY(("[BgfxBackend] WHITE FALLBACK: stage=%u tex=%s pool=%d",
                              stage,
@@ -3154,6 +3564,7 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
             }
         }
         TextureClass * t2d_name = texture ? texture->As_TextureClass() : nullptr;
+
         // Capture the source texture's wrap mode into bgfx sampler flags
         // so we can pass it at bind time. Without this, WRAP is the
         // default and ramp/LUT textures with CLAMP semantics produce
@@ -3186,6 +3597,41 @@ void BgfxBackend::Set_Ambient(const Vector3 & color)
     g_currentSceneAmbient[0] = color.X;
     g_currentSceneAmbient[1] = color.Y;
     g_currentSceneAmbient[2] = color.Z;
+}
+
+// TheSuperHackers @fix bobtista 20/04/2026 Set_Blend_Factors goes through
+// the g_renderBackend abstraction so callers (water code in particular)
+// can change the blend mode between draws. The DX8Backend default only
+// updates D3D render state, leaving bgfx's own g_blendOverrideBits stale.
+// Water rendering relies on this to restore SRC_ALPHA / INV_SRC_ALPHA
+// blending after its DESTALPHA shoreline pass. Without this override the
+// DESTALPHA state set by Override_Material_Opacity() persists into the
+// next draw (e.g. the small faction-emblem quad on the command-center
+// bib), producing a black rectangle where the emblem background should
+// be transparent. Translate the BlendFactor enum values to bgfx bits and
+// update the blend override so subsequent bgfx submits see the change.
+void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
+{
+    DX8Backend::Set_Blend_Factors(src, dest);
+
+    static const uint64_t kBlendMap[9] = {
+        0,
+        BGFX_STATE_BLEND_ZERO,           // 1 = RB_BLEND_ZERO
+        BGFX_STATE_BLEND_ONE,            // 2 = RB_BLEND_ONE
+        BGFX_STATE_BLEND_SRC_COLOR,      // 3
+        BGFX_STATE_BLEND_INV_SRC_COLOR,  // 4
+        BGFX_STATE_BLEND_SRC_ALPHA,      // 5 = RB_BLEND_SRC_ALPHA
+        BGFX_STATE_BLEND_INV_SRC_ALPHA,  // 6 = RB_BLEND_INV_SRC_ALPHA
+        BGFX_STATE_BLEND_DST_ALPHA,      // 7 = RB_BLEND_DEST_ALPHA
+        BGFX_STATE_BLEND_INV_DST_ALPHA   // 8 = RB_BLEND_INV_DEST_ALPHA
+    };
+    const unsigned s = static_cast<unsigned>(src);
+    const unsigned d = static_cast<unsigned>(dest);
+    if (s >= 1 && s <= 8 && d >= 1 && d <= 8)
+    {
+        g_blendOverrideActive = true;
+        g_blendOverrideBits = BGFX_STATE_BLEND_FUNC(kBlendMap[s], kBlendMap[d]);
+    }
 }
 
 void BgfxBackend::Override_Blend(unsigned srcBlend, unsigned dstBlend)
@@ -3256,11 +3702,17 @@ void BgfxBackend::Override_Terrain_Blend(bool enable)
 
 void BgfxBackend::Override_Material_Opacity(float opacity)
 {
+    // TheSuperHackers @fix bobtista 20/04/2026 Only override opacity.
+    // Previously this also forced DESTALPHA blend as a bgfx-side stand-in
+    // for the D3D8 shoreline-alpha water feather. That stale DESTALPHA +
+    // matDiffuse.a=0.5 state leaked into the next draw (a small quad on
+    // the command-center bib, captured in RenderDoc as a water-textured
+    // draw producing pure black). The water code already sets DESTALPHA
+    // explicitly via Set_Blend_Factors when soft water edge is enabled,
+    // and BgfxBackend::Set_Blend_Factors now propagates that to bgfx. So
+    // this override only needs to handle the opacity uniform.
     g_currentMatDiffuse[3] = opacity;
     g_waterOverrideActive = true;
-    g_blendOverrideActive = true;
-    g_blendOverrideBits = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_DST_ALPHA,
-                                                  BGFX_STATE_BLEND_INV_DST_ALPHA);
 }
 
 void BgfxBackend::Begin_Effect_Overlay()
@@ -3285,6 +3737,29 @@ void BgfxBackend::Set_Tree_Shader_Constants(const float swayTable[11][4],
 void BgfxBackend::Set_Tree_Vertex_Shader_Active(bool active)
 {
     g_treeShaderActive = active;
+}
+
+void BgfxBackend::Set_Grayscale_Mode(bool enable)
+{
+    g_currentGrayscaleEnable[0] = enable ? 1.0f : 0.0f;
+}
+
+void BgfxBackend::Set_Cloud_Shadow_Params(bool enable, float scroll_x, float scroll_y,
+                                          float stretch, TextureClass * cloud_tex)
+{
+    g_currentCloudParams[0] = scroll_x;
+    g_currentCloudParams[1] = scroll_y;
+    g_currentCloudParams[2] = stretch;
+    g_currentCloudParams[3] = enable ? 1.0f : 0.0f;
+
+    if (enable && cloud_tex != nullptr)
+    {
+        g_currentCloudTex = EnsureBgfxTexture(cloud_tex);
+    }
+    else
+    {
+        g_currentCloudTex = BGFX_INVALID_HANDLE;
+    }
 }
 
 void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha)
@@ -3336,12 +3811,6 @@ void BgfxBackend::Set_Shadow_Light_Position(float x, float y, float z)
     g_shadowSunPosZ = z;
     g_shadowSunPosSet = true;
     g_shadowLightCaptured = false;
-    static int s_slpLog = 0;
-    if (s_slpLog++ < 5)
-    {
-        WWDEBUG_SAY(("[CSM] Set_Shadow_Light_Position(%.1f, %.1f, %.1f)",
-            x, y, z));
-    }
 }
 
 void BgfxBackend::Set_Shadow_Volume_Shader_Active(bool active)
@@ -3907,6 +4376,7 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         submitView = kBgfxEngineView;
     }
+
     const float *      worldMtx   = g_inSortFlush ? g_bgfxSortWorld     : g_bgfxWorld;
 
     // Push the engine view+projection when they change. setViewTransform
@@ -4021,6 +4491,34 @@ void SubmitEngineDraw(unsigned short start_index,
     // neighbor mip selection, breaking mipmap smoothing and making
     // distant terrain patches look blocky. Let bgfx pick the best
     // filter it can for each texture.
+
+    // TheSuperHackers @fix bobtista 19/04/2026 During sort flush, the
+    // sorting renderer's Apply_Render_State calls DX8Wrapper::Set_Texture
+    // which has a cache check — if the texture pointer matches the cached
+    // one, it skips BgfxBackend::Set_Texture entirely. This leaves
+    // g_currentBgfxTexture0-3 stale (e.g., pointing at font glyphs instead
+    // of particle textures). Force-sync bgfx handles from DX8Wrapper's
+    // current state before each sorted draw.
+    if (g_inSortFlush)
+    {
+        RenderStateStruct sortRS;
+        DX8Wrapper::Get_Render_State(sortRS);
+
+        for (int si = 0; si < 4; ++si)
+        {
+            bgfx::TextureHandle h = EnsureBgfxTexture(
+                static_cast<TextureClass *>(sortRS.Textures[si]));
+            if (!bgfx::isValid(h))
+                h = g_defaultWhiteTexture;
+            switch (si)
+            {
+                case 0: g_currentBgfxTexture0 = h; break;
+                case 1: g_currentBgfxTexture1 = h; break;
+                case 2: g_currentBgfxTexture2 = h; break;
+                case 3: g_currentBgfxTexture3 = h; break;
+            }
+        }
+    }
     BindTextureStages();
     UploadMaterialUniforms();
     // Read current D3D light state per-draw. Set_Light_Environment and
@@ -4213,9 +4711,7 @@ void SubmitEngineDraw(unsigned short start_index,
     float lightVP[16];
     bx::mtxMul(lightVP, g_shadowLightView, g_shadowLightProj);
 
-    if (bgfx::isValid(g_uShadowLightViewProj)
-        && bgfx::isValid(g_shadowMapDepth)
-        && bgfx::isValid(g_sShadowMap))
+    if (bgfx::isValid(g_uShadowLightViewProj))
     {
         // Compose model * lightView * lightProj per-draw.
         // Use the CORRECT model matrix: g_bgfxSortWorldRaw for sorted
@@ -4224,6 +4720,15 @@ void SubmitEngineDraw(unsigned short start_index,
         const float * modelMtx = g_inSortFlush ? g_bgfxSortWorldRaw : worldMtx;
         bx::mtxMul(shadowMVP, modelMtx, lightVP);
         bgfx::setUniform(g_uShadowLightViewProj, shadowMVP);
+    }
+
+    // TheSuperHackers @fix bobtista 19/04/2026 bind s_shadowMap
+    // independently of the matrix uniform. fs_uber declares the
+    // comparison sampler unconditionally, so slot 4 must be bound for
+    // every submit of the uber program regardless of whether the
+    // lightViewProj uniform is present.
+    if (bgfx::isValid(g_shadowMapDepth) && bgfx::isValid(g_sShadowMap))
+    {
         bgfx::setTexture(4, g_sShadowMap, g_shadowMapDepth);
     }
 
