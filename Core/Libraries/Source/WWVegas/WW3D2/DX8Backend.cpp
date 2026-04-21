@@ -38,6 +38,20 @@ DX8Backend::~DX8Backend()
 {
 }
 
+// -- Backend lifecycle -------------------------------------------------------
+//
+// DX8Backend is a passive forwarder: DX8Wrapper::Init has already done the
+// real device creation before this runs, so there is nothing to do here.
+// These exist so the abstract interface has a uniform lifecycle hook.
+
+void DX8Backend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
+{
+}
+
+void DX8Backend::Shutdown()
+{
+}
+
 // -- Device state queries ----------------------------------------------------
 
 bool DX8Backend::Is_Device_Lost() const
@@ -66,15 +80,23 @@ void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calib
 }
 
 // -- Frame lifecycle ---------------------------------------------------------
+//
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 2b.
+// Begin_Scene/End_Scene are intentionally empty during the bgfx cutover.
+// ww3d.cpp's WW3D::Begin_Render/End_Render call DX8Wrapper::Begin_Scene /
+// End_Scene directly because the D3D8 device is still the primary renderer
+// in both the =dx8 and =bgfx builds. The g_renderBackend->Begin_Scene /
+// End_Scene pair is a parallel per-frame hook used by BgfxBackend to call
+// bgfx::touch / bgfx::frame alongside the DX8 pipeline. When DX8 is finally
+// removed (post-Phase 4) these will re-acquire their original forwarding
+// behavior. See PHASE4.md.
 
 void DX8Backend::Begin_Scene()
 {
-    DX8Wrapper::Begin_Scene();
 }
 
-void DX8Backend::End_Scene(bool flip_frame)
+void DX8Backend::End_Scene(bool /*flip_frame*/)
 {
-    DX8Wrapper::End_Scene(flip_frame);
 }
 
 void DX8Backend::Flip_To_Primary()
