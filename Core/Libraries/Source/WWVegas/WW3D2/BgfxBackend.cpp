@@ -77,6 +77,7 @@
 // Single program handles all TSS combinations via uniforms. Replaces the
 // Phase 4D.1 per-preset shader pairs.
 #include "vs_uber_dx11.bin.h"
+#include "vs_trees_dx11.bin.h"
 #include "fs_uber_dx11.bin.h"
 
 namespace
@@ -113,6 +114,20 @@ bgfx::ProgramHandle g_passthroughProgram = BGFX_INVALID_HANDLE;
 // TheSuperHackers @refactor bobtista 12/04/2026 Phase 5A uber shader
 // program. Single program handles all TSS combinations via uniforms.
 bgfx::ProgramHandle g_uberProgram = BGFX_INVALID_HANDLE;
+
+// TheSuperHackers @refactor bobtista 14/04/2026 Phase 4H tree / grass
+// vertex shader program (port of Trees.nvv). Uses vs_trees + fs_uber.
+// Activated by Set_Tree_Vertex_Shader_Active when W3DTreeBuffer wants
+// to render swaying grass; reverts to g_uberProgram otherwise.
+bgfx::ProgramHandle g_treeProgram = BGFX_INVALID_HANDLE;
+bgfx::UniformHandle g_uSwayTable     = BGFX_INVALID_HANDLE;
+bgfx::UniformHandle g_uShroudOffset  = BGFX_INVALID_HANDLE;
+bgfx::UniformHandle g_uShroudScale   = BGFX_INVALID_HANDLE;
+// Sway table: 11 entries (no-sway at index 0, MAX_SWAY_TYPES=10 active).
+float g_currentSwayTable[11][4] = {{0}};
+float g_currentShroudOffset[4]  = { 0.0f, 0.0f, 0.0f, 0.0f };
+float g_currentShroudScale[4]   = { 0.0f, 0.0f, 1.0f, 1.0f };
+bool  g_treeShaderActive = false;
 
 // Sampler uniform shared by all textured fragment shaders. Bound to stage 0.
 bgfx::UniformHandle g_sTex0        = BGFX_INVALID_HANDLE;
@@ -1398,6 +1413,24 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
         WWDEBUG_SAY(("[BgfxBackend] uber shader createShader FAILED."));
     }
 
+    // Phase 4H tree/grass sway vertex shader program. Reuses fs_uber.
+    const bgfx::Memory * vsTreesMem = bgfx::makeRef(vs_trees_dx11, sizeof(vs_trees_dx11));
+    const bgfx::Memory * fsUberMem2 = bgfx::makeRef(fs_uber_dx11, sizeof(fs_uber_dx11));
+    bgfx::ShaderHandle vsTrees = bgfx::createShader(vsTreesMem);
+    bgfx::ShaderHandle fsUber2 = bgfx::createShader(fsUberMem2);
+    if (bgfx::isValid(vsTrees) && bgfx::isValid(fsUber2))
+    {
+        bgfx::setName(vsTrees, "vs_trees");
+        g_treeProgram = bgfx::createProgram(vsTrees, fsUber2, true);
+    }
+    else
+    {
+        WWDEBUG_SAY(("[BgfxBackend] tree shader createShader FAILED."));
+    }
+    g_uSwayTable    = bgfx::createUniform("u_swayTable",    bgfx::UniformType::Vec4, 11);
+    g_uShroudOffset = bgfx::createUniform("u_shroudOffset", bgfx::UniformType::Vec4);
+    g_uShroudScale  = bgfx::createUniform("u_shroudScale",  bgfx::UniformType::Vec4);
+
     const bgfx::RendererType::Enum selected = bgfx::getRendererType();
     const char * rendererName = bgfx::getRendererName(selected);
     const bgfx::Caps * caps = bgfx::getCaps();
@@ -1433,6 +1466,26 @@ void BgfxBackend::Shutdown()
         {
             bgfx::destroy(g_uberProgram);
             g_uberProgram = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_treeProgram))
+        {
+            bgfx::destroy(g_treeProgram);
+            g_treeProgram = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_uSwayTable))
+        {
+            bgfx::destroy(g_uSwayTable);
+            g_uSwayTable = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_uShroudOffset))
+        {
+            bgfx::destroy(g_uShroudOffset);
+            g_uShroudOffset = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_uShroudScale))
+        {
+            bgfx::destroy(g_uShroudScale);
+            g_uShroudScale = BGFX_INVALID_HANDLE;
         }
         if (bgfx::isValid(g_sTex0))
         {
@@ -2281,6 +2334,13 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
         g_currentMatDiffuse[1] = 1.0f;
         g_currentMatDiffuse[2] = 1.0f;
         g_currentMatDiffuse[3] = 1.0f;
+        // Null material means no material-driven lighting. Dazzle and
+        // similar effect overlays call Set_Material(nullptr) and bake
+        // their per-vertex intensity into diffuse.rgb; the lit path in
+        // fs_uber would ignore that baked color and output tex * lit,
+        // producing bright flashes where the dazzle should be invisible.
+        // Force the unlit path so vertex diffuse modulates the output.
+        g_currentLightingEnabled[0] = 0.0f;
     }
 }
 
@@ -2444,6 +2504,20 @@ void BgfxBackend::Begin_Effect_Overlay()
 void BgfxBackend::End_Effect_Overlay()
 {
     g_effectOverlayActive = false;
+}
+
+void BgfxBackend::Set_Tree_Shader_Constants(const float swayTable[11][4],
+                                            const float shroudOffset[4],
+                                            const float shroudScale[4])
+{
+    std::memcpy(g_currentSwayTable,    swayTable,    sizeof(g_currentSwayTable));
+    std::memcpy(g_currentShroudOffset, shroudOffset, sizeof(g_currentShroudOffset));
+    std::memcpy(g_currentShroudScale,  shroudScale,  sizeof(g_currentShroudScale));
+}
+
+void BgfxBackend::Set_Tree_Vertex_Shader_Active(bool active)
+{
+    g_treeShaderActive = active;
 }
 
 void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha)
@@ -2963,7 +3037,21 @@ void SubmitEngineDraw(unsigned short start_index,
 
     bgfx::setState(state);
 
-    bgfx::submit(submitView, g_currentBgfxProgram);
+    // Phase 4H tree / grass sway shader takes over the program slot
+    // and uploads its own constants when active. Otherwise fall back
+    // to whatever ShaderClass picked (g_currentBgfxProgram).
+    bgfx::ProgramHandle program = g_currentBgfxProgram;
+    if (g_treeShaderActive && bgfx::isValid(g_treeProgram))
+    {
+        program = g_treeProgram;
+        if (bgfx::isValid(g_uSwayTable))
+            bgfx::setUniform(g_uSwayTable, g_currentSwayTable, 11);
+        if (bgfx::isValid(g_uShroudOffset))
+            bgfx::setUniform(g_uShroudOffset, g_currentShroudOffset);
+        if (bgfx::isValid(g_uShroudScale))
+            bgfx::setUniform(g_uShroudScale, g_currentShroudScale);
+    }
+    bgfx::submit(submitView, program);
 }
 }
 
