@@ -85,6 +85,7 @@
 #include "bwrender.h"
 #include "assetmgr.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
 
 
 // DEBUG DEBUG
@@ -1136,7 +1137,7 @@ bool TexProjectClass::Compute_Texture
 		/*
 		** Set the render target
 		*/
-		DX8Wrapper::Set_Render_Target_With_Z (rtarget,ztarget);
+		WW3D::Get_Render_Backend()->Set_Render_Target_With_Z(rtarget, ztarget);
 
 		/*
 		** Set up the camera
