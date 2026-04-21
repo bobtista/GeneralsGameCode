@@ -236,6 +236,20 @@ public:
                                     const void * /*data*/,
                                     unsigned int /*size_bytes*/) {}
 
+    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2 dynamic
+    // capture hooks. Same pattern as above but for DynamicVBAccessClass /
+    // DynamicIBAccessClass. The data pointer and size describe just the
+    // sub-range the caller locked - not the entire dynamic ring buffer.
+    // BgfxBackend copies the sub-range into a per-frame transient buffer
+    // keyed by the access class pointer, so the next Set_Vertex_Buffer /
+    // Set_Index_Buffer call on the same access class instance picks it up.
+    virtual void Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * /*vba*/,
+                                             const void * /*data*/,
+                                             unsigned int /*size_bytes*/) {}
+    virtual void Capture_Dynamic_Index_Data(const DynamicIBAccessClass * /*iba*/,
+                                            const void * /*data*/,
+                                            unsigned int /*size_bytes*/) {}
+
     // -------------------------------------------------------------------------
     // State: shaders, materials, textures
     // -------------------------------------------------------------------------
