@@ -57,11 +57,8 @@
 #include <bgfx/platform.h>
 #include <bx/math.h>
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 3. BgfxBackend
-// now creates its own top-level popup window and hands that HWND to bgfx::init.
-// Required because Windows DWM promotes whichever swapchain is actively
-// presenting to a HWND, so sharing the game's HWND with DX8 loses DX8's
-// output. A separate HWND sidesteps the conflict entirely. See PHASE4.md.
+// TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. bgfx takes the main
+// game window. A secondary popup is created for D3D8 reference output.
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -143,18 +140,20 @@ BgfxLoggingCallback g_bgfxCallback;
 // End_Scene / Shutdown can skip bgfx calls if init was never reached.
 bool g_bgfxInitialized = false;
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 3. The
-// popup window BgfxBackend owns and hands to bgfx::init. Null until
-// Initialize runs, nulled again by Shutdown.
+// TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. bgfx now renders
+// into the main game window. The DX8 reference popup is a secondary window
+// where the D3D8 device is moved so its output remains visible for debugging.
 HWND g_bgfxWindow = nullptr;
+HWND g_dx8ReferenceWindow = nullptr;
 
 const wchar_t * const kBgfxWindowClass = L"GGC_BgfxDebugWindow";
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4F.3 popup
-// dimensions chosen to match the game's 1.6 aspect ratio (1280x800)
-// so engine geometry rendered with the game's projection matrix
-// does not look horizontally squished.
-const int kBgfxWindowWidth  = 1024;
-const int kBgfxWindowHeight = 768;
+const int kDX8RefWindowWidth  = 800;
+const int kDX8RefWindowHeight = 600;
+
+// TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. bgfx resolution
+// matches the main game window. Set during Initialize from GetClientRect.
+int g_bgfxWidth  = 800;
+int g_bgfxHeight = 600;
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.3 program handle
 // for the passthrough shader pair. Created once in Initialize after bgfx::init
@@ -348,6 +347,10 @@ float               g_atestOverrideRef   = 0.0f;
 bool                g_suppressBgfxDraw   = false;
 int                 g_colorWriteOverride = -1;
 bool                g_effectOverlayActive = false;
+// TheSuperHackers @feature bobtista 16/04/2026 Phase 4L 2D overlay active flag.
+// Set by Set_View_Identity (Render2DClass enters 2D mode), cleared by
+// Set_Transform(VIEW) when a real camera view is restored or at Begin_Scene.
+bool                g_2DOverlayActive = false;
 
 // UV set selection: when > 0, the fragment shader samples stage 0
 // from v_texcoord1 instead of v_texcoord0. Set by the terrain shader
@@ -1090,6 +1093,11 @@ const bgfx::ViewId kBgfxShadowApplyView  = 7;
 // Phase 4I.2 CSM caster pass view. Depth-only render target, renders
 // opaque casters from the sun's perspective into a D24 shadow map.
 const bgfx::ViewId kBgfxShadowMapView    = 8;
+// TheSuperHackers @feature bobtista 16/04/2026 Phase 4L dedicated view for
+// 2D UI overlay draws (Render2DClass). Sequential mode preserves draw order;
+// identity view+projection so screen-space quads render at their authored
+// positions. Composites over the 3D scene as the last view in the order.
+const bgfx::ViewId kBgfxUIView           = 10;
 const uint16_t kShadowMapResolution      = 4096;
 const float kShadowOrthoSize             = 1200.0f;
 const float kShadowCameraDistance        = 2000.0f;
@@ -1166,42 +1174,9 @@ void W3DMatrix3DToBgfx(const Matrix3D & m, float * out)
     out[3]  = 0.0f;    out[7]  = 0.0f;    out[11] = 0.0f;    out[15] = 1.0f;
 }
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.1 aspect ratio
-// correction. The engine computes the projection matrix for the main
-// game window's aspect ratio. The bgfx popup has a fixed 800x500
-// framebuffer (aspect 1.6), so applying the engine's projection
-// directly stretches geometry horizontally when the game runs at a
-// different aspect (e.g. 1024x768 = 1.33, or 1280x720 = 1.78). Rescale
-// column 0 by (gameAspect / popupAspect) so the popup shows the same
-// field of view the engine is rendering to the main window.
-//
-// The game aspect is extracted from the projection itself: for a
-// standard perspective matrix proj[0][0] = cot(fov/2)/aspect and
-// proj[1][1] = cot(fov/2), so gameAspect = proj[1][1] / proj[0][0].
-// Avoids touching DX8Wrapper's protected resolution accessors and
-// works even when the engine later reshapes the backbuffer.
-void ApplyPopupAspectCorrection(float * proj)
-{
-    // Column-major: proj[0] is (col 0, row 0), proj[5] is (col 1, row 1).
-    const float p00 = proj[0];
-    const float p11 = proj[5];
-    if (p00 <= 0.0f || p11 <= 0.0f)
-    {
-        return;
-    }
-    const float gameAspect  = p11 / p00;
-    const float popupAspect = static_cast<float>(kBgfxWindowWidth) /
-                              static_cast<float>(kBgfxWindowHeight);
-    if (popupAspect <= 0.0f)
-    {
-        return;
-    }
-    const float scale = gameAspect / popupAspect;
-    proj[0] *= scale;
-    proj[1] *= scale;
-    proj[2] *= scale;
-    proj[3] *= scale;
-}
+// TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. Aspect correction
+// is no longer needed because bgfx renders into the same window as the game.
+// The engine's projection matrix already matches the bgfx framebuffer aspect.
 
 // TheSuperHackers @bugfix bobtista 11/04/2026 Phase 4C.3 buffer copy
 // kill switch. The Intel UHD Graphics driver corrupts the dx8 GPU
@@ -1563,8 +1538,10 @@ static void UpdateShadowLightTransform()
     g_shadowLightCaptured = true;
 }
 
-// Create the bgfx debug popup window. Returns the HWND or nullptr on failure.
-HWND CreateBgfxDebugWindow()
+// TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. Create a secondary
+// popup window for the DX8 reference output. The D3D8 device is moved here
+// so its rendering remains visible alongside bgfx on the main window.
+HWND CreateDX8ReferenceWindow()
 {
     if (!RegisterBgfxDebugWindowClass())
     {
@@ -1574,26 +1551,28 @@ HWND CreateBgfxDebugWindow()
     const DWORD style   = WS_OVERLAPPEDWINDOW;
     const DWORD exStyle = WS_EX_NOACTIVATE;
 
-    RECT rc = { 0, 0, kBgfxWindowWidth, kBgfxWindowHeight };
+    RECT rc = { 0, 0, kDX8RefWindowWidth, kDX8RefWindowHeight };
     AdjustWindowRectEx(&rc, style, FALSE, exStyle);
     const int frameW = rc.right - rc.left;
     const int frameH = rc.bottom - rc.top;
 
-    // Place the popup on the right edge of the primary monitor so the
-    // game's default top-left window and the bgfx popup are side by side
-    // without manual dragging. Fall back to (100,100) if the screen is
-    // narrower than the popup (multi-monitor edge case / RDP session).
     const int screenW = GetSystemMetrics(SM_CXSCREEN);
     const int screenH = GetSystemMetrics(SM_CYSCREEN);
     int posX = screenW - frameW - 10;
     int posY = 40;
-    if (posX < 0) posX = 100;
-    if (posY + frameH > screenH) posY = 10;
+    if (posX < 0)
+    {
+        posX = 100;
+    }
+    if (posY + frameH > screenH)
+    {
+        posY = 10;
+    }
 
     HWND hwnd = CreateWindowExW(
         exStyle,
         kBgfxWindowClass,
-        L"bgfx backend [Phase 4]",
+        L"DX8 reference",
         style,
         posX, posY,
         frameW, frameH,
@@ -1604,8 +1583,8 @@ HWND CreateBgfxDebugWindow()
 
     if (hwnd == nullptr)
     {
-        WWDEBUG_SAY(("[BgfxBackend] CreateWindowExW failed, GetLastError=%lu.",
-                     GetLastError()));
+        WWDEBUG_SAY(("[BgfxBackend] CreateWindowExW for DX8 reference failed, "
+                     "GetLastError=%lu.", GetLastError()));
         return nullptr;
     }
 
@@ -1614,7 +1593,7 @@ HWND CreateBgfxDebugWindow()
 }
 }
 
-void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
+void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 {
     if (g_bgfxInitialized)
     {
@@ -1622,17 +1601,32 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
         return;
     }
 
-    g_bgfxWindow = CreateBgfxDebugWindow();
+    // TheSuperHackers @feature bobtista 16/04/2026 Phase 4K. bgfx takes the
+    // main game window; DX8 moves to a secondary popup for reference.
+    g_bgfxWindow = static_cast<HWND>(hwnd);
     if (g_bgfxWindow == nullptr)
     {
-        WWDEBUG_SAY(("[BgfxBackend] Could not create debug window. "
-                     "Backend will remain dormant."));
+        WWDEBUG_SAY(("[BgfxBackend] hwnd is null. Backend will remain dormant."));
         return;
     }
 
-    // Force bgfx into single-threaded rendering mode by calling
-    // bgfx::renderFrame BEFORE bgfx::init. Makes bgfx::frame() fully
-    // synchronous on the calling thread. See PHASE4.md.
+    RECT clientRect;
+    if (GetClientRect(g_bgfxWindow, &clientRect))
+    {
+        g_bgfxWidth  = clientRect.right  - clientRect.left;
+        g_bgfxHeight = clientRect.bottom - clientRect.top;
+    }
+    if (g_bgfxWidth <= 0)
+    {
+        g_bgfxWidth = 800;
+    }
+    if (g_bgfxHeight <= 0)
+    {
+        g_bgfxHeight = 600;
+    }
+    WWDEBUG_SAY(("[BgfxBackend] Using main game window %p (%dx%d) for bgfx.",
+                 g_bgfxWindow, g_bgfxWidth, g_bgfxHeight));
+
     bgfx::renderFrame();
 
     bgfx::PlatformData pd;
@@ -1644,21 +1638,16 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     bgfx::setPlatformData(pd);
 
     bgfx::Init initArgs;
-    initArgs.type = bgfx::RendererType::Count;  // auto-select (D3D11 on Windows)
+    initArgs.type = bgfx::RendererType::Count;
     initArgs.callback = &g_bgfxCallback;
-    initArgs.resolution.width = static_cast<uint32_t>(kBgfxWindowWidth);
-    initArgs.resolution.height = static_cast<uint32_t>(kBgfxWindowHeight);
-    // Phase 4G.10 enable 4x MSAA on the bgfx framebuffer. Without this,
-    // polygon boundaries between terrain tiles, rock shorelines, and
-    // unit silhouettes alias hard at the popup's lower resolution.
+    initArgs.resolution.width = static_cast<uint32_t>(g_bgfxWidth);
+    initArgs.resolution.height = static_cast<uint32_t>(g_bgfxHeight);
     initArgs.resolution.reset = BGFX_RESET_NONE;
     initArgs.platformData = pd;
 
     if (!bgfx::init(initArgs))
     {
-        WWDEBUG_SAY(("[BgfxBackend] bgfx::init FAILED on debug window. "
-                     "Backend will remain dormant."));
-        DestroyWindow(g_bgfxWindow);
+        WWDEBUG_SAY(("[BgfxBackend] bgfx::init FAILED. Backend will remain dormant."));
         g_bgfxWindow = nullptr;
         return;
     }
@@ -1674,8 +1663,8 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     // for the DESTALPHA water blending technique. Without this, the
     // swap chain may use an opaque format (e.g. BGRX8) where alpha
     // is always 1.0, making destination-alpha blending ineffective.
-    bgfx::reset(static_cast<uint32_t>(kBgfxWindowWidth),
-                static_cast<uint32_t>(kBgfxWindowHeight),
+    bgfx::reset(static_cast<uint32_t>(g_bgfxWidth),
+                static_cast<uint32_t>(g_bgfxHeight),
                 BGFX_RESET_NONE,
                 bgfx::TextureFormat::RGBA8);
 
@@ -1688,8 +1677,8 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
                        1.0f,
                        0);
     bgfx::setViewRect(kBgfxDebugView, 0, 0,
-                      static_cast<uint16_t>(kBgfxWindowWidth),
-                      static_cast<uint16_t>(kBgfxWindowHeight));
+                      static_cast<uint16_t>(g_bgfxWidth),
+                      static_cast<uint16_t>(g_bgfxHeight));
 
     // View 1 is the engine geometry view. Same render target, but its
     // own clear/depth and (eventually) its own view+projection matrices
@@ -1710,8 +1699,8 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     // Default sort can place decals before terrain → overwritten.
     bgfx::setViewMode(kBgfxEngineView, bgfx::ViewMode::Sequential);
     bgfx::setViewRect(kBgfxEngineView, 0, 0,
-                      static_cast<uint16_t>(kBgfxWindowWidth),
-                      static_cast<uint16_t>(kBgfxWindowHeight));
+                      static_cast<uint16_t>(g_bgfxWidth),
+                      static_cast<uint16_t>(g_bgfxHeight));
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.12 sorted
     // draws view. No clear (reuses view 1's color + depth so sorted
@@ -1724,8 +1713,8 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
                        1.0f,
                        0);
     bgfx::setViewRect(kBgfxEngineSortView, 0, 0,
-                      static_cast<uint16_t>(kBgfxWindowWidth),
-                      static_cast<uint16_t>(kBgfxWindowHeight));
+                      static_cast<uint16_t>(g_bgfxWidth),
+                      static_cast<uint16_t>(g_bgfxHeight));
 
     // Effect overlay view for dazzle draws with NDC-space vertices.
     // Permanent identity view + identity projection; reuses the
@@ -1736,8 +1725,8 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
                        1.0f,
                        0);
     bgfx::setViewRect(kBgfxEffectOverlayView, 0, 0,
-                      static_cast<uint16_t>(kBgfxWindowWidth),
-                      static_cast<uint16_t>(kBgfxWindowHeight));
+                      static_cast<uint16_t>(g_bgfxWidth),
+                      static_cast<uint16_t>(g_bgfxHeight));
     {
         float identityMtx[16];
         IdentityMatrix(identityMtx);
@@ -1750,21 +1739,35 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     // dirty-flag logic alongside view 1.
     bgfx::setViewClear(kBgfxShadowVolumeView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
     bgfx::setViewRect(kBgfxShadowVolumeView, 0, 0,
-                      static_cast<uint16_t>(kBgfxWindowWidth),
-                      static_cast<uint16_t>(kBgfxWindowHeight));
+                      static_cast<uint16_t>(g_bgfxWidth),
+                      static_cast<uint16_t>(g_bgfxHeight));
     bgfx::setViewMode(kBgfxShadowVolumeView, bgfx::ViewMode::Sequential);
 
     // Phase 4I shadow darken apply pass. Sequential, identity transforms
     // (the fullscreen quad is authored in clip space).
     bgfx::setViewClear(kBgfxShadowApplyView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
     bgfx::setViewRect(kBgfxShadowApplyView, 0, 0,
-                      static_cast<uint16_t>(kBgfxWindowWidth),
-                      static_cast<uint16_t>(kBgfxWindowHeight));
+                      static_cast<uint16_t>(g_bgfxWidth),
+                      static_cast<uint16_t>(g_bgfxHeight));
     bgfx::setViewMode(kBgfxShadowApplyView, bgfx::ViewMode::Sequential);
     {
         float identityMtx[16];
         IdentityMatrix(identityMtx);
         bgfx::setViewTransform(kBgfxShadowApplyView, identityMtx, identityMtx);
+    }
+
+    // Phase 4L UI overlay view. Sequential mode preserves draw order for
+    // 2D quads; identity view+projection; no clear so it composites over
+    // the 3D scene.
+    bgfx::setViewClear(kBgfxUIView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxUIView, 0, 0,
+                      static_cast<uint16_t>(g_bgfxWidth),
+                      static_cast<uint16_t>(g_bgfxHeight));
+    bgfx::setViewMode(kBgfxUIView, bgfx::ViewMode::Sequential);
+    {
+        float identityMtx[16];
+        IdentityMatrix(identityMtx);
+        bgfx::setViewTransform(kBgfxUIView, identityMtx, identityMtx);
     }
 
     // Default the cached transforms to identity until the engine writes
@@ -1986,6 +1989,7 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
             kBgfxWaterView,           // 4
             kBgfxEngineSortView,      // 2
             kBgfxEffectOverlayView,   // 5
+            kBgfxUIView,              // 10 — 2D UI overlay (last)
         };
         bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(order), order);
         WWDEBUG_SAY(("[CSM] view order set: shadow map (view %u) runs first",
@@ -2008,9 +2012,9 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     const bgfx::RendererType::Enum selected = bgfx::getRendererType();
     const char * rendererName = bgfx::getRendererName(selected);
     const bgfx::Caps * caps = bgfx::getCaps();
-    WWDEBUG_SAY(("[BgfxBackend] bgfx::init OK on debug window "
+    WWDEBUG_SAY(("[BgfxBackend] bgfx::init OK on main window "
                  "(renderer=%s, %dx%d, hwnd=%p, passthrough=%s, uber=%s).",
-                 rendererName, kBgfxWindowWidth, kBgfxWindowHeight,
+                 rendererName, g_bgfxWidth, g_bgfxHeight,
                  g_bgfxWindow,
                  bgfx::isValid(g_passthroughProgram) ? "ok" : "FAILED",
                  bgfx::isValid(g_uberProgram)        ? "ok" : "FAILED"));
@@ -2025,6 +2029,24 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
                  rgba8Supported ? 1 : 0, bgra8Supported ? 1 : 0,
                  caps->homogeneousDepth ? 1 : 0,
                  caps->originBottomLeft ? 1 : 0));
+
+    // TheSuperHackers @feature bobtista 16/04/2026 Phase 4K. Create a DX8
+    // reference popup and move the D3D8 device to it so both renderers
+    // are visible simultaneously.
+    g_dx8ReferenceWindow = CreateDX8ReferenceWindow();
+    if (g_dx8ReferenceWindow != nullptr)
+    {
+        DX8Wrapper::Set_Device_Window(g_dx8ReferenceWindow,
+                                      kDX8RefWindowWidth,
+                                      kDX8RefWindowHeight);
+        WWDEBUG_SAY(("[BgfxBackend] DX8 device moved to reference window %p (%dx%d).",
+                     g_dx8ReferenceWindow, kDX8RefWindowWidth, kDX8RefWindowHeight));
+    }
+    else
+    {
+        WWDEBUG_SAY(("[BgfxBackend] Could not create DX8 reference window. "
+                     "DX8 stays on main window."));
+    }
 }
 
 template<typename H>
@@ -2123,10 +2145,13 @@ void BgfxBackend::Shutdown()
         WWDEBUG_SAY(("[BgfxBackend] bgfx::shutdown complete."));
     }
 
-    if (g_bgfxWindow != nullptr)
+    // Phase 4K: bgfx window is the main game window, do not destroy it.
+    g_bgfxWindow = nullptr;
+
+    if (g_dx8ReferenceWindow != nullptr)
     {
-        DestroyWindow(g_bgfxWindow);
-        g_bgfxWindow = nullptr;
+        DestroyWindow(g_dx8ReferenceWindow);
+        g_dx8ReferenceWindow = nullptr;
     }
 }
 
@@ -2149,11 +2174,13 @@ void BgfxBackend::Begin_Scene()
     bgfx::touch(kBgfxShadowVolumeView);
     bgfx::touch(kBgfxShadowApplyView);
     bgfx::touch(kBgfxShadowMapView);
+    bgfx::touch(kBgfxUIView);
     // Phase 4I.2 CSM: light transform updated lazily at first draw
     // (see SubmitEngineDraw), not here, because g_bgfxView is still
     // identity at Begin_Scene time.
     g_shadowLightCaptured = false;
-    bgfx::setViewRect(kBgfxWaterView, 0, 0, kBgfxWindowWidth, kBgfxWindowHeight);
+    g_2DOverlayActive = false;
+    bgfx::setViewRect(kBgfxWaterView, 0, 0, g_bgfxWidth, g_bgfxHeight);
     // No clear on water view — it composites over the opaque scene.
     bgfx::setViewClear(kBgfxWaterView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
     g_renderToTexture = false;
@@ -2187,10 +2214,21 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         g_bgfxSortProjCaptured = false;
     }
 
+    // Phase 4L: push identity transforms and current rect to the UI view
+    // so 2D overlay draws land in screen space over the 3D scene.
+    {
+        float identityMtx[16];
+        IdentityMatrix(identityMtx);
+        bgfx::setViewTransform(kBgfxUIView, identityMtx, identityMtx);
+    }
+    bgfx::setViewRect(kBgfxUIView, 0, 0,
+                      static_cast<uint16_t>(g_bgfxWidth),
+                      static_cast<uint16_t>(g_bgfxHeight));
+
     // Phase 4I.2: shadow map (view 8) renders FIRST so the depth
     // texture is populated before the scene samples it. Then RTT (3),
     // engine opaque (1), shadow volume fill (6), shadow darken (7),
-    // water (4), sort (2), effect overlay (5).
+    // water (4), sort (2), effect overlay (5), UI overlay (10) last.
     bgfx::ViewId viewOrder[] = {
         kBgfxShadowMapView,        // 8 — shadow caster depth pass
         kBgfxRTTView,              // 3
@@ -2200,6 +2238,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         kBgfxWaterView,            // 4
         kBgfxEngineSortView,       // 2
         kBgfxEffectOverlayView,    // 5
+        kBgfxUIView,               // 10 — 2D UI overlay (last)
     };
     bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(viewOrder), viewOrder);
 
@@ -2788,6 +2827,7 @@ void BgfxBackend::Capture_Sorted_Batch_Light(const D3DLIGHT8 & light, bool enabl
 
 static void BindTextureStages()
 {
+    // bgfx default (flags=0) is bilinear filtering. No explicit flags needed.
     if (bgfx::isValid(g_sTex0))
     {
         const bgfx::TextureHandle bound =
@@ -2933,6 +2973,17 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     uint64_t state = (g_currentBgfxState != 0)
         ? g_currentBgfxState
         : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+
+    // TheSuperHackers @fix bobtista 16/04/2026 Override cull mode from
+    // D3D device state — same as SubmitEngineDraw.
+    {
+        unsigned d3dCull = DX8Wrapper::Get_DX8_Render_State(D3DRS_CULLMODE);
+        state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
+        if (d3dCull == 2) // D3DCULL_CW
+            state |= BGFX_STATE_CULL_CW;
+        else if (d3dCull == 3) // D3DCULL_CCW
+            state |= BGFX_STATE_CULL_CCW;
+    }
 
     // Apply color write mask override — same as SubmitEngineDraw.
     // Without this, sorted particles/effects write alpha, destroying
@@ -3730,10 +3781,10 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
         case RB_TRANSFORM_VIEW:
             W3DMatrix4ToBgfx(m, g_bgfxView);
             g_bgfxViewProjDirty = true;
+            g_2DOverlayActive = false;
             break;
         case RB_TRANSFORM_PROJECTION:
             W3DMatrix4ToBgfx(m, g_bgfxProj);
-            ApplyPopupAspectCorrection(g_bgfxProj);
             g_bgfxViewProjDirty = true;
             break;
         default:
@@ -3753,6 +3804,7 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
         case RB_TRANSFORM_VIEW:
             W3DMatrix3DToBgfx(m, g_bgfxView);
             g_bgfxViewProjDirty = true;
+            g_2DOverlayActive = false;
             break;
         default:
             break;
@@ -3773,6 +3825,7 @@ void BgfxBackend::Set_View_Identity()
     DX8Backend::Set_View_Identity();
     IdentityMatrix(g_bgfxView);
     g_bgfxViewProjDirty = true;
+    g_2DOverlayActive = true;
 }
 
 void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
@@ -3781,7 +3834,6 @@ void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
     DX8Backend::Set_Projection_Transform_With_Z_Bias(matrix, znear, zfar);
 
     W3DMatrix4ToBgfx(matrix, g_bgfxProj);
-    ApplyPopupAspectCorrection(g_bgfxProj);
     g_bgfxViewProjDirty = true;
 
 }
@@ -3845,7 +3897,11 @@ void SubmitEngineDraw(unsigned short start_index,
     // so it never needs a per-submit setViewTransform - only view 1
     // (the opaque view) uses the dirty flag.
     bgfx::ViewId submitView;
-    if (g_renderToTexture)
+    if (g_2DOverlayActive)
+    {
+        submitView = kBgfxUIView;
+    }
+    else if (g_renderToTexture)
     {
         submitView = kBgfxRTTView;
     }
@@ -3871,7 +3927,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // applies until the next change so we do not need to call it per
     // submit, only when the engine has updated either matrix. Sort view
     // draws never touch g_bgfxView so the opaque view is never stomped.
-    if (!g_inSortFlush && !g_renderToTexture && g_bgfxViewProjDirty)
+    if (!g_inSortFlush && !g_renderToTexture && !g_2DOverlayActive && g_bgfxViewProjDirty)
     {
         // Capture the camera view+proj at the first opaque draw of each
         // frame. Later Set_Projection calls (water, shadows, sneak attack)
@@ -4108,6 +4164,20 @@ void SubmitEngineDraw(unsigned short start_index,
         : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
     state |= BGFX_STATE_MSAA;
 
+    // TheSuperHackers @fix bobtista 16/04/2026 Override cull mode from
+    // D3D device state. ShaderClass::Apply() may change D3DRS_CULLMODE
+    // directly (e.g. water reflection inversion) without going through
+    // g_renderBackend->Set_Cull_Mode().
+    {
+        unsigned d3dCull = DX8Wrapper::Get_DX8_Render_State(D3DRS_CULLMODE);
+        state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
+        if (d3dCull == 2) // D3DCULL_CW
+            state |= BGFX_STATE_CULL_CW;
+        else if (d3dCull == 3) // D3DCULL_CCW
+            state |= BGFX_STATE_CULL_CCW;
+        // D3DCULL_NONE (1) = no cull bits set
+    }
+
     // Apply post-ShaderClass blend override (terrain blend, W3DCustomEdging, etc.)
     if (g_blendOverrideActive)
     {
@@ -4193,7 +4263,8 @@ void SubmitEngineDraw(unsigned short start_index,
     // the per-view transform (set in UpdateShadowLightTransform) so
     // the caster rasterizes from the light's POV.
     const bool isShadowCaster =
-        (submitView == kBgfxEngineView || submitView == kBgfxEngineSortView);
+        (submitView == kBgfxEngineView || submitView == kBgfxEngineSortView)
+        && !g_2DOverlayActive;
     const bool hasVB = g_currentUseTransientVB || bgfx::isValid(g_currentBgfxVB);
     if (isShadowCaster
         && bgfx::isValid(g_shadowCasterProgram)

@@ -826,7 +826,14 @@ void W3DDisplay::init()
 		WW3D::Set_Collision_Box_Display_Mask(0x00);	///<set to 0xff to make collision boxes visible
 		WW3D::Enable_Static_Sort_Lists(true);
 		WW3D::Set_Thumbnail_Enabled(false);
+		// TheSuperHackers @fix bobtista 16/04/2026 D3D8 half-pixel UV bias
+		// causes sub-pixel misalignment on D3D11/bgfx, producing visible
+		// gaps in menu button outlines. Only apply on legacy D3D8.
+#if defined(GGC_RENDER_BACKEND_BGFX)
+		WW3D::Set_Screen_UV_Bias( FALSE );
+#else
 		WW3D::Set_Screen_UV_Bias( TRUE );  ///< this makes text look good :)
+#endif
 		WW3D::Set_Texture_Bitdepth(32);
 
 		setWindowed( TheGlobalData->m_windowed );

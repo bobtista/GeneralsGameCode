@@ -1295,6 +1295,30 @@ bool DX8Wrapper::Set_Device_Resolution(int width,int height,int bits,int windowe
 	}
 }
 
+// TheSuperHackers @feature bobtista 16/04/2026 Move the DX8 device to a
+// different window. Updates the present parameters and resets the device so
+// it renders into the given hwnd at the specified dimensions.
+void DX8Wrapper::Set_Device_Window(HWND hwnd, int width, int height)
+{
+	if (D3DDevice == nullptr)
+	{
+		return;
+	}
+
+	// TheSuperHackers @refactor bobtista 18/04/2026 Phase 4K move the D3D8
+	// device to a reference popup window. Keep the original backbuffer
+	// resolution so the game's UI layout calculations stay correct —
+	// D3D8 stretches the output to fit the popup window automatically.
+	_Hwnd = hwnd;
+	_PresentParameters.hDeviceWindow = hwnd;
+	_PresentParameters.Windowed = TRUE;
+
+	WWDEBUG_SAY(("DX8Wrapper::Set_Device_Window moving device to hwnd=%p (%dx%d), "
+	             "keeping backbuffer at %dx%d.",
+	             hwnd, width, height, ResolutionWidth, ResolutionHeight));
+	Reset_Device(true);
+}
+
 void DX8Wrapper::Get_Device_Resolution(int & set_w,int & set_h,int & set_bits,bool & set_windowed)
 {
 	WWASSERT(IsInitted);
