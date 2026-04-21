@@ -259,16 +259,11 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # z_ww3d2 inherit the include directory and build order dependency.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_passthrough.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_passthrough.sc)
-    # TheSuperHackers @refactor bobtista 11/04/2026 Phase 4D.1 preset
-    # shader pairs - lit textured (bucket A), unlit textured (bucket B)
-    # and alpha-tested variant (bucket D). See PHASE4_INVENTORY.md.
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_textured_lit.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_textured_lit.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_textured_unlit.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_textured_unlit.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_textured_lit_atest.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_solid_lit.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_solid_lit.sc)
+    # TheSuperHackers @refactor bobtista 12/04/2026 Phase 5A uber shader
+    # pair. Single program handles all TSS combinations via uniforms.
+    # Replaces the Phase 4D.1 per-preset shader pairs.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_uber.sc)
     target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
 elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
     target_sources(corei_ww3d2 INTERFACE
