@@ -163,6 +163,66 @@ void DiligentBackend::Invalidate_Cached_Render_States()
 {
 }
 
+void DiligentBackend::Set_Blend_Op(BlendOp /*op*/)
+{
+}
+
+void DiligentBackend::Set_Blend_Factors(BlendFactor /*src*/, BlendFactor /*dest*/)
+{
+}
+
+void DiligentBackend::Set_Color_Write_Enable(bool /*red*/, bool /*green*/, bool /*blue*/, bool /*alpha*/)
+{
+}
+
+void DiligentBackend::Set_Alpha_Blend_Enable(bool /*enable*/)
+{
+}
+
+void DiligentBackend::Show_Hardware_Cursor(bool /*show*/)
+{
+}
+
+void DiligentBackend::Set_Hardware_Cursor_Image(int /*hotspot_x*/, int /*hotspot_y*/, SurfaceClass * /*surface*/)
+{
+}
+
+void DiligentBackend::Set_Hardware_Cursor_Position(int /*x*/, int /*y*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Enable(bool /*enable*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Func(CompareFunc /*func*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Ref(unsigned int /*ref*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Mask(unsigned int /*mask*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Write_Mask(unsigned int /*mask*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Pass_Op(StencilOp /*op*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_Fail_Op(StencilOp /*op*/)
+{
+}
+
+void DiligentBackend::Set_Stencil_ZFail_Op(StencilOp /*op*/)
+{
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void DiligentBackend::Set_Transform(TransformKind /*transform*/, const Matrix4x4 & /*m*/)
