@@ -278,10 +278,9 @@ static void UpdateShadowStencilState()
 // up and running (it queries the active renderer for the pos type).
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.1 standard
-// vertex layouts. One per common FVF format (see PHASE4_INVENTORY.md
-// FVF table). Initialized in Initialize, used by Phase 4C.2's vertex
-// buffer creation path. Names follow the FVF tags - P=position,
-// N=normal, D=diffuse (color0), T<n>=texcoord<n>.
+// vertex layouts. One per common FVF format. Initialized in Initialize,
+// used by Phase 4C.2's vertex buffer creation path. Names follow the FVF
+// tags - P=position, N=normal, D=diffuse (color0), T<n>=texcoord<n>.
 
 void BuildStandardVertexLayouts()
 {
@@ -356,7 +355,7 @@ BgfxBackend::BgfxBackend()
     WWDEBUG_SAY(("[BgfxBackend] Phase 4 session 1 backend constructed. "
                  "Most IRenderBackend methods are still no-ops; DX8Wrapper "
                  "still owns the real device. bgfx is initialized in Noop "
-                 "renderer mode only. See PHASE4.md."));
+                 "renderer mode only."));
 }
 
 BgfxBackend::~BgfxBackend()
@@ -372,7 +371,7 @@ BgfxBackend::~BgfxBackend()
 // DX8's output. Using a separate window sidesteps the conflict entirely:
 // DX8 owns the main game window, bgfx owns a small debug popup next to it.
 // Once we're ready to make bgfx the primary renderer we'll destroy the
-// debug window and point bgfx at the main HWND. See PHASE4.md.
+// debug window and point bgfx at the main HWND.
 
 namespace
 {
@@ -416,7 +415,7 @@ bool RegisterBgfxDebugWindowClass()
 // bgfx state bits). Defined but not yet called by any draw path - the
 // wiring lands in a later session along with the per-stage TSS uber-shader.
 //
-// Mapping rules (see PHASE4_INVENTORY.md preset table):
+// Mapping rules:
 //   - alpha-test enabled & textured & lit -> g_texturedLitAtestProgram
 //   - textured & lit                      -> g_texturedLitProgram
 //   - textured & !lit                     -> g_texturedUnlitProgram

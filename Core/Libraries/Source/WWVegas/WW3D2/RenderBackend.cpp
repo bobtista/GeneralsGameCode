@@ -30,7 +30,6 @@
 // (a legacy build that hasn't included render-backend.cmake) we default to
 // DX8 so the legacy path keeps working unchanged.
 //
-// See RENDER_BACKEND.md and PHASE2.md.
 
 #include "RenderBackend.h"
 

@@ -242,7 +242,7 @@ void DebugHintObject::Render(RenderInfoClass & rinfo)
 	if (!rinfo.Camera.Cull_Sphere(bounds))
 	{
 		// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-		// through the IRenderBackend abstraction. See PHASE3.md.
+		// through the IRenderBackend abstraction.
 		g_renderBackend->Set_Material(m_vertexMaterialClass);
 		g_renderBackend->Set_Shader(m_shaderClass);
 		g_renderBackend->Set_Texture(0, nullptr);

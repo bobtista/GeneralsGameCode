@@ -30,7 +30,7 @@
 //
 // This header MUST NOT be included from any VC6 translation unit. The
 // VC6 build always uses DX8Backend; the bgfx backend requires MSVC 2022+
-// and C++17. See RENDER_BACKEND.md and PHASE4.md.
+// and C++17.
 
 #pragma once
 
