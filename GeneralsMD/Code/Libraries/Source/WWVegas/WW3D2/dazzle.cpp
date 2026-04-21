@@ -1225,6 +1225,11 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 	WW3D::Get_Render_Backend()->Set_View_Identity();
 	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_PROJECTION,Matrix4x4(true));
 
+	// Route dazzle draws to the sort view so they render AFTER water
+	// and other overlay effects. Otherwise they land on the opaque view
+	// and get hidden behind the DESTALPHA water pass.
+	WW3D::Get_Render_Backend()->Begin_Effect_Overlay();
+
 	if (halo_poly_count) {
 		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access, dazzle_vertex_count);
 		WW3D::Get_Render_Backend()->Set_Shader(default_halo_shader);
@@ -1245,6 +1250,8 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 		WW3D::Get_Render_Backend()->Set_Texture(0,lensflare->Get_Texture());
 		WW3D::Get_Render_Backend()->Draw_Triangles(0, lensflare_poly_count, 0, vertex_count);
 	}
+
+	WW3D::Get_Render_Backend()->End_Effect_Overlay();
 
 	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_PROJECTION,old_projection_transform);
 	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,old_view_transform);
