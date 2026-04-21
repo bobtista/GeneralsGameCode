@@ -40,6 +40,8 @@
 #include "wwprofile.h"
 #include "wwmemlog.h"
 #include "dx8wrapper.h"
+#include "IRenderBackend.h"
+#include "RenderBackend.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////////
@@ -372,6 +374,12 @@ Render2DSentenceClass::Build_Textures ()
 		//
 		DX8Wrapper::_Copy_DX8_Rects (curr_surface->Peek_D3D_Surface (), nullptr, 0, texture_surface->Peek_D3D_Surface (), nullptr);
 		REF_PTR_RELEASE (texture_surface);
+
+		// TheSuperHackers @fix bobtista 19/04/2026 Invalidate the bgfx texture
+		// cache after CopyRects updates the font atlas. Without this, bgfx's
+		// cached copy has stale glyph data from the previous sentence build.
+		if (g_renderBackend != nullptr)
+			g_renderBackend->Invalidate_Cached_Texture(new_texture);
 
 		//
 		//	Assign this texture to any renderers that need it
