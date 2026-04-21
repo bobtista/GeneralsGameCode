@@ -32,6 +32,8 @@
 #include "WWLib/simplevec.h"
 #include "WW3D2/dx8wrapper.h"
 #include "WWMath/vector2i.h"
+#include "WW3D2/RenderBackend.h"
+#include "WW3D2/surfaceclass.h"
 #include "Common/MapObject.h"
 #include "Common/PerfTimer.h"
 #include "W3DDevice/GameClient/HeightMap.h"
@@ -462,7 +464,11 @@ void W3DShroud::render(CameraClass *cam)
 	if (!m_shroudData)
 		return; //nothing to update from.  Must be in reset state.
 
-	if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
+	// TheSuperHackers @refactor bobtista 10/04/2026 Replaced the
+	// raw _Get_D3D_Device8()->TestCooperativeLevel() check with the abstracted
+	// device-lost flag on IRenderBackend. Same intent: skip rendering this
+	// frame if the device isn't ready.
+	if (WW3D::Get_Render_Backend()->Is_Device_Lost())
 		return;	//device not ready to render anything
 
 #if defined(RTS_DEBUG)
