@@ -276,6 +276,7 @@ public:
     virtual void End_Sorted_Batch_Pass() {}
     virtual void Capture_Sorted_Batch_Transforms(const Matrix4x4 & /*world*/,
                                                  const Matrix4x4 & /*view*/) {}
+    virtual void Capture_Sorted_Batch_Light(const D3DLIGHT8 & /*light*/, bool /*enabled*/) {}
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 sorted
     // direct-draw path hook. DX8Wrapper::Draw_Sorting_IB_VB handles
