@@ -1971,7 +1971,6 @@ void BaseHeightMapRenderObjClass::updateScorches()
 		for (j=minY; j<maxY; j++) {
 			for (i=minX; i<maxX; i++) {
 				if (m_curNumScorchVertices >= MAX_SCORCH_VERTEX) return;
-				curVb->diffuse = diffuse;
 				Real theZ;
 				theZ = amtToFloat+((float)getClipHeight(i+m_map->getBorderSizeInline(),j+m_map->getBorderSizeInline())*MAP_HEIGHT_SCALE);
 				// The scorchmarks are spaced out by 1.5 in the texture.
@@ -1984,6 +1983,27 @@ void BaseHeightMapRenderObjClass::updateScorches()
 				curVb->x = X;
 				curVb->y = Y;
 				curVb->z = theZ;
+
+				// TheSuperHackers @fix bobtista 20/04/2026 Corner cells of the scorch grid overshoot the
+				// atlas tile and sample the neighboring scorch; zero vertex alpha outside the unit radius
+				// on the shader-pipeline path so those fragments render transparent.
+				bool useBgfxAlphaMask = (g_renderBackend != nullptr
+					&& g_renderBackend->Has_Shader_Pipeline());
+				if (useBgfxAlphaMask)
+				{
+					Real dx = (X - loc.X) / radius;
+					Real dy = (Y - loc.Y) / radius;
+					if (dx*dx + dy*dy > 1.0f) {
+						curVb->diffuse = diffuse & 0x00FFFFFF;
+					} else {
+						curVb->diffuse = diffuse;
+					}
+				}
+				else
+				{
+					curVb->diffuse = diffuse;
+				}
+
 				curVb++;
 				m_curNumScorchVertices++;
 			}
