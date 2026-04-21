@@ -52,6 +52,7 @@
 #include "GameLogic/GameLogic.h"
 #include "Common/MapObject.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/RenderBackend.h"
 
 #if defined(RTS_DEBUG)
 
@@ -215,14 +216,16 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 	//
 	Bool anyVanished = false;
 	if (m_numDebugIcons==0) return;
-	DX8Wrapper::Apply_Render_State_Changes();
+	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
+	// through the IRenderBackend abstraction.
+	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
 
-	DX8Wrapper::Set_Material(m_vertexMaterialClass);
-	DX8Wrapper::Set_Texture(0, nullptr);
-	DX8Wrapper::Apply_Render_State_Changes();
+	WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
+	WW3D::Get_Render_Backend()->Set_Texture(0, nullptr);
+	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
 
 	Matrix3D tm(Transform);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);
 
 	Int numRect = m_numDebugIcons;
 	static Real offset = 30;
@@ -303,10 +306,10 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 		}
 		}
 		if (numVertex == 0) break;
-		DX8Wrapper::Set_Shader(ShaderClass(SC_ALPHA));
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
-		DX8Wrapper::Set_Vertex_Buffer(vb_access);
-		DX8Wrapper::Draw_Triangles(	0,curIndex/3, 0,	numVertex);	//draw a quad, 2 triangles, 4 verts
+		WW3D::Get_Render_Backend()->Set_Shader(ShaderClass(SC_ALPHA));
+		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
+		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
+		WW3D::Get_Render_Backend()->Draw_Triangles(	0,curIndex/3, 0,	numVertex);	//draw a quad, 2 triangles, 4 verts
 	}
 
 	if (anyVanished) {
