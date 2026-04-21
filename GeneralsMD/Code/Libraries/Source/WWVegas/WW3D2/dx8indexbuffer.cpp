@@ -224,7 +224,11 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 	// index data into the active render backend BEFORE unlocking. After
 	// Unlock the source pointer is invalid. The bgfx backend snapshots
 	// the bytes; the dx8 backend ignores the call.
-	if (g_renderBackend != NULL && indices != NULL && index_buffer->Type() == BUFFER_TYPE_DX8) {
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 include
+	// BUFFER_TYPE_SORTING so sorting FVF category containers feed their
+	// shared IB into the bgfx dynamic IB cache alongside the rigid path.
+	if (g_renderBackend != NULL && indices != NULL &&
+		(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
 		const unsigned int total_bytes = index_buffer->Get_Index_Count() * sizeof(unsigned short);
 		g_renderBackend->Capture_Index_Data(index_buffer, indices, total_bytes);
 	}
@@ -246,7 +250,9 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 
 IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffer_,unsigned start_index, unsigned index_range)
 	:
-	index_buffer(index_buffer_)
+	index_buffer(index_buffer_),
+	AppendStartIndex(start_index),
+	AppendIndexRange(index_range)
 {
 	DX8_THREAD_ASSERT();
 	WWASSERT(start_index+index_range<=index_buffer->Get_Index_Count());
@@ -276,6 +282,17 @@ IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffe
 IndexBufferClass::AppendLockClass::~AppendLockClass()
 {
 	DX8_THREAD_ASSERT();
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 write-side
+	// sub-range capture for bgfx backend. Rigid mesh category containers
+	// fill their shared IB via AppendLockClass; without this hook mesh
+	// indices never reach bgfx and units silently fail to render.
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 capture
+	// sorting IB sub-range writes for sorting FVF category containers.
+	if (g_renderBackend != NULL && indices != NULL &&
+		(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
+		const unsigned int size_bytes = AppendIndexRange * sizeof(unsigned short);
+		g_renderBackend->Capture_Index_Sub_Range(index_buffer, indices, AppendStartIndex, size_bytes);
+	}
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_DX8:
 		DX8_Assert();

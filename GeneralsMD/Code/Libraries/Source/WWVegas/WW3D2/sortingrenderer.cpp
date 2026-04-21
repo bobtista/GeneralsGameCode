@@ -42,6 +42,8 @@
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "vertmaterial.h"
 #include "texture.h"
 #include "d3d8.h"
@@ -217,7 +219,7 @@ void SortingRendererClass::Insert_Triangles(
 	unsigned short vertex_count)
 {
 	if (!WW3D::Is_Sorting_Enabled()) {
-		DX8Wrapper::Draw_Triangles(start_index,polygon_count,min_vertex_index,vertex_count);
+		g_renderBackend->Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
 		return;
 	}
 
@@ -355,18 +357,36 @@ void SortingRendererClass::Insert_To_Sorting_Pool(SortingNodeStruct* state)
 
 static void Apply_Render_State(RenderStateStruct& render_state)
 {
-	DX8Wrapper::Set_Shader(render_state.shader);
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.11 route
+	// sorted batch state through g_renderBackend so the bgfx backend
+	// sees the per-batch shader/material/texture/world/view. Previously
+	// these went straight to DX8Wrapper, so the bgfx side kept whatever
+	// state the last opaque draw left behind and sorted particles,
+	// rotors, tracers, and explosions never showed up.
+	g_renderBackend->Set_Shader(render_state.shader);
 
-	DX8Wrapper::Set_Material(render_state.material);
+	g_renderBackend->Set_Material(render_state.material);
 
 	for (int i=0;i<DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass();++i)
 	{
-		DX8Wrapper::Set_Texture(i,render_state.Textures[i]);
+		g_renderBackend->Set_Texture(i,render_state.Textures[i]);
 	}
 
-	DX8Wrapper::_Set_DX8_Transform(D3DTS_WORLD,render_state.world);
-	DX8Wrapper::_Set_DX8_Transform(D3DTS_VIEW,render_state.view);
+	// Must use _Set_DX8_Transform (direct device write) not the
+	// render_state-dirty-flag path: the sort loop does not run
+	// Apply_Render_State_Changes between batches, so the dirty-flag
+	// route would leave each batch with the previous batch's device
+	// transform and things like helicopter rotors disappear.
+	DX8Wrapper::_Set_DX8_Transform(D3DTS_WORLD, render_state.world);
+	DX8Wrapper::_Set_DX8_Transform(D3DTS_VIEW,  render_state.view);
 
+	// Phase 4G.12: feed the bgfx backend the same per-batch transforms
+	// via a dedicated capture hook. BgfxBackend pre-multiplies them
+	// into an effective world matrix and submits to its own view id
+	// so the opaque view is never stomped. No-op on DX8Backend.
+	g_renderBackend->Capture_Sorted_Batch_Transforms(
+		reinterpret_cast<const Matrix4x4&>(render_state.world),
+		reinterpret_cast<const Matrix4x4&>(render_state.view));
 
 	if (!render_state.material->Get_Lighting())
 		return;	//no point changing lights if they are ignored.
@@ -543,10 +563,14 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 	// Set index buffer and render!
 
-	DX8Wrapper::Set_Index_Buffer(dyn_ib_access,0); // Override with this buffer (do something to prevent need for this!)
-	DX8Wrapper::Set_Vertex_Buffer(dyn_vb_access); // Override with this buffer (do something to prevent need for this!)
+	g_renderBackend->Set_Index_Buffer(dyn_ib_access, 0); // Override with this buffer (do something to prevent need for this!)
+	g_renderBackend->Set_Vertex_Buffer(dyn_vb_access); // Override with this buffer (do something to prevent need for this!)
 
 	DX8Wrapper::Apply_Render_State_Changes();
+
+	// Phase 4G.12: route bgfx submits through the dedicated sort view
+	// id for the rest of this flush. No-op on DX8Backend.
+	g_renderBackend->Begin_Sorted_Batch_Pass();
 
 	unsigned count_to_render=1;
 	unsigned start_index=0;
@@ -556,7 +580,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			SortingNodeStruct* state=overlapping_nodes[node_id];
 			Apply_Render_State(state->sorting_state);
 
-			DX8Wrapper::Draw_Triangles(
+			g_renderBackend->Draw_Triangles(
 				start_index*3,
 				count_to_render,
 				state->min_vertex_index,
@@ -574,12 +598,16 @@ void SortingRendererClass::Flush_Sorting_Pool()
 		SortingNodeStruct* state=overlapping_nodes[node_id];
 		Apply_Render_State(state->sorting_state);
 
-		DX8Wrapper::Draw_Triangles(
+		g_renderBackend->Draw_Triangles(
 			start_index*3,
 			count_to_render,
 			state->min_vertex_index,
 			state->vertex_count);
 	}
+
+	// Phase 4G.12: sort flush complete, resume routing bgfx submits
+	// through the main engine view id.
+	g_renderBackend->End_Sorted_Batch_Pass();
 
 	// Release all references and return nodes back to the clean list for the frame...
 	for (node_id=0;node_id<overlapping_node_count;++node_id) {
@@ -613,8 +641,31 @@ void SortingRendererClass::Flush()
 			Insert_To_Sorting_Pool(state);
 		}
 		else {
+			g_renderBackend->Set_Shader(state->sorting_state.shader);
+			g_renderBackend->Set_Material(state->sorting_state.material);
+			for (int t = 0; t < DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass(); ++t)
+			{
+				g_renderBackend->Set_Texture(t, state->sorting_state.Textures[t]);
+			}
+			g_renderBackend->Set_Vertex_Buffer(state->sorting_state.vertex_buffers[0], 0);
+			g_renderBackend->Set_Index_Buffer(state->sorting_state.index_buffer,
+				state->sorting_state.index_base_offset);
+			g_renderBackend->Set_Index_Buffer_Index_Offset(state->sorting_state.vba_offset);
+
+			// Restore DX8 render state: the g_renderBackend calls above
+			// forwarded to DX8Wrapper which corrupted vba_offset/iba_offset
+			// (Set_Vertex_Buffer resets vba_offset to 0). Re-applying the
+			// saved state fixes this for the DX8 draw path.
 			DX8Wrapper::Set_Render_State(state->sorting_state);
-			DX8Wrapper::Draw_Triangles(state->start_index,state->polygon_count,state->min_vertex_index,state->vertex_count);
+
+			// Use the sort view for transforms to avoid stomping view 1.
+			g_renderBackend->Begin_Sorted_Batch_Pass();
+			g_renderBackend->Capture_Sorted_Batch_Transforms(
+				reinterpret_cast<const Matrix4x4&>(state->sorting_state.world),
+				reinterpret_cast<const Matrix4x4&>(state->sorting_state.view));
+
+			g_renderBackend->Draw_Triangles(state->start_index, state->polygon_count, state->min_vertex_index, state->vertex_count);
+			g_renderBackend->End_Sorted_Batch_Pass();
 			DX8Wrapper::Release_Render_State();
 			Release_Refs(state);
 			clean_list.Add_Head(state);
@@ -626,8 +677,8 @@ void SortingRendererClass::Flush()
 	Flush_Sorting_Pool();
 	DX8Wrapper::_Enable_Triangle_Draw(old_enable);
 
-	DX8Wrapper::Set_Index_Buffer(nullptr,0);
-	DX8Wrapper::Set_Vertex_Buffer(nullptr);
+	g_renderBackend->Set_Index_Buffer(nullptr, 0);
+	g_renderBackend->Set_Vertex_Buffer(nullptr, 0);
 	total_sorting_vertices=0;
 
 	DynamicIBAccessClass::_Reset(false);
@@ -682,7 +733,7 @@ void SortingRendererClass::Insert_VolumeParticle(
 	unsigned short layerCount)
 {
 	if (!WW3D::Is_Sorting_Enabled()) {
-		DX8Wrapper::Draw_Triangles(start_index,polygon_count,min_vertex_index,vertex_count);
+		g_renderBackend->Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
 		return;
 	}
 

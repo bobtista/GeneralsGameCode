@@ -90,6 +90,8 @@
 #include "dx8indexbuffer.h"
 #include "sortingrenderer.h"
 #include "visrasterizer.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 
 static bool Sphere_Array_Valid = false;
 
@@ -468,9 +470,9 @@ void SphereRenderObjClass::render_sphere()
 	} else {
 		SphereShader.Set_Texturing (ShaderClass::TEXTURING_DISABLE);
 	}
-	DX8Wrapper::Set_Shader(SphereShader);
-	DX8Wrapper::Set_Texture(0,SphereTexture);
-	DX8Wrapper::Set_Material(SphereMaterial);
+	g_renderBackend->Set_Shader(SphereShader);
+	g_renderBackend->Set_Texture(0,SphereTexture);
+	g_renderBackend->Set_Material(SphereMaterial);
 
 	// Enable sorting if the primitive is translucent, alpha testing is not enabled, and sorting is enabled globally.
 	const bool sort = (SphereShader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (SphereShader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
@@ -517,13 +519,13 @@ void SphereRenderObjClass::render_sphere()
 		}
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(vb);
-	DX8Wrapper::Set_Index_Buffer(ib,0);
+	g_renderBackend->Set_Vertex_Buffer(vb);
+	g_renderBackend->Set_Index_Buffer(ib,0);
 
 	if (sort) {
 		SortingRendererClass::Insert_Triangles(Get_Bounding_Sphere(), 0, mesh.face_ct, 0, mesh.Vertex_ct);
 	} else {
-		DX8Wrapper::Draw_Triangles(0,mesh.face_ct,0,mesh.Vertex_ct);
+		g_renderBackend->Draw_Triangles(0,mesh.face_ct,0,mesh.Vertex_ct);
 	}
 
 }
@@ -670,12 +672,12 @@ void SphereRenderObjClass::Render(RenderInfoClass & rinfo)
 							1.0f, 0.0f, 0.0f, cpos.Z);
 
 			tm.Scale(real_scale);
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,ident);
-			DX8Wrapper::Set_Transform(D3DTS_VIEW,tm);
+			g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,ident);
+			g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW, tm);
 			render_sphere();
-			DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+			g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW, view);
 		} else {
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,temp);
+			g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,temp);
 			render_sphere();
 		}
 	}

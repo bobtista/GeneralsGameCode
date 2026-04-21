@@ -71,6 +71,7 @@ public:
     virtual void Set_Vertex_Buffer(const DynamicVBAccessClass & vba);
     virtual void Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset);
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset);
+    virtual void Set_Index_Buffer_Index_Offset(unsigned int offset);
 
     // Phase 4C.4 write-side capture hooks. DX8Backend inherits the
     // empty default from IRenderBackend; BgfxBackend captures the data
@@ -90,6 +91,22 @@ public:
     virtual void Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
                                             const void * data,
                                             unsigned int size_bytes);
+    virtual void Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
+                                          const void * data,
+                                          unsigned int start_vertex,
+                                          unsigned int size_bytes);
+    virtual void Capture_Index_Sub_Range(const IndexBufferClass * ib,
+                                         const void * data,
+                                         unsigned int start_index,
+                                         unsigned int size_bytes);
+    virtual void Begin_Sorted_Batch_Pass();
+    virtual void End_Sorted_Batch_Pass();
+    virtual void Capture_Sorted_Batch_Transforms(const Matrix4x4 & world,
+                                                 const Matrix4x4 & view);
+    virtual void Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
+                                    const DynamicIBAccessClass & dyn_ib,
+                                    unsigned short polygon_count,
+                                    unsigned short vertex_count);
 
     // -- State: shaders, materials, textures ---------------------------------
     //
@@ -98,6 +115,7 @@ public:
     // forward so the dx8 device also sees the change.
 
     virtual void Set_Shader(const ShaderClass & shader);
+    virtual void Set_Material(const VertexMaterialClass * material);
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture);
 
     // -- Transforms -----------------------------------------------------------
@@ -129,7 +147,7 @@ public:
                                 unsigned short vertex_count);
 
     // Everything else (Is_Device_Lost, Has_Stencil, Get_Back_Buffer*,
-    // Set_Gamma, Flip_To_Primary, Clear, Set_Viewport, Set_Index_Buffer_Index_Offset,
+    // Set_Gamma, Flip_To_Primary, Clear, Set_Viewport,
     // Get_Shader, Set_Material, Apply_Render_State_Changes,
     // Apply_Default_State, Invalidate_Cached_Render_States, Set_Blend_*,
     // Set_Color_Write_Enable, Set_Alpha_Blend_Enable, Show/Set_Hardware_Cursor*,

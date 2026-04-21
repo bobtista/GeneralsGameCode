@@ -48,6 +48,8 @@
 #include "dx8fvf.h"
 #include "dx8caps.h"
 #include "dx8rendererdebugger.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "wwdebug.h"
 #include "wwprofile.h"
 #include "wwmemlog.h"
@@ -348,8 +350,8 @@ void DX8RigidFVFCategoryContainer::Render_Delayed_Procedural_Material_Passes()
 	if (!Any_Delayed_Passes_To_Render()) return;
 	AnyDelayedPassesToRender=false;
 
-	DX8Wrapper::Set_Vertex_Buffer(vertex_buffer);
-	DX8Wrapper::Set_Index_Buffer(index_buffer,0);
+	g_renderBackend->Set_Vertex_Buffer(vertex_buffer, 0);
+	g_renderBackend->Set_Index_Buffer(index_buffer, 0);
 
 	SNAPSHOT_SAY(("DX8RigidFVFCategoryContainer::Render_Delayed_Procedural_Material_Passes()"));
 
@@ -805,8 +807,8 @@ void DX8RigidFVFCategoryContainer::Render()
 	if (!Anything_To_Render()) return;
 	AnythingToRender=false;
 
-	DX8Wrapper::Set_Vertex_Buffer(vertex_buffer);
-	DX8Wrapper::Set_Index_Buffer(index_buffer,0);
+	g_renderBackend->Set_Vertex_Buffer(vertex_buffer, 0);
+	g_renderBackend->Set_Index_Buffer(index_buffer, 0);
 
 	SNAPSHOT_SAY(("DX8RigidFVFCategoryContainer::Render()"));
 	for (unsigned p=0;p<passes;++p) {
@@ -1294,7 +1296,7 @@ void DX8SkinFVFCategoryContainer::Render()
 	}
 	AnythingToRender=false;
 
-	DX8Wrapper::Set_Vertex_Buffer(nullptr);	// Free up the reference to the current vertex buffer
+	g_renderBackend->Set_Vertex_Buffer(nullptr, 0);	// Free up the reference to the current vertex buffer
 														// (in case it is the dynamic, which may have to be resized)
 
 	//'Generals' customization to allow more than 65535 vertices
@@ -1365,7 +1367,13 @@ void DX8SkinFVFCategoryContainer::Render()
 						verts[v].diffuse=*diffuse++;
 					}
 					else {
-						verts[v].diffuse=0;
+						// TheSuperHackers @fix bobtista 12/04/2026 Opaque white
+						// so the bgfx fragment shader (which multiplies by vertex
+						// diffuse) does not zero out the output. The DX8 fixed-
+						// function pipeline ignores vertex diffuse when the TSS
+						// selects texture-only, but our bgfx shaders always
+						// multiply. Team color comes through u_matDiffuse.
+						verts[v].diffuse=0xFFFFFFFF;
 					}
 					if (uv0) {
 						verts[v].u1=(*uv0)[0];
@@ -1400,8 +1408,17 @@ void DX8SkinFVFCategoryContainer::Render()
 
 		SNAPSHOT_SAY(("Set vb: %x ib: %x",&vb.FVF_Info(),index_buffer));
 
-		DX8Wrapper::Set_Vertex_Buffer(vb);
-		DX8Wrapper::Set_Index_Buffer(index_buffer,0);
+		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.7 skin
+		// vertices come out of Get_Deformed_Vertices already in world
+		// space (the HTree bone matrices include the container's world
+		// transform), so the draw must use an identity world matrix.
+		// On the dx8 path this works because DX8Wrapper's cached world
+		// state happens to be identity at this point in the frame; on
+		// the bgfx path we need to explicitly push identity so the
+		// backend does not inherit the last rigid mesh's transform.
+		g_renderBackend->Set_World_Identity();
+		g_renderBackend->Set_Vertex_Buffer(vb);
+		g_renderBackend->Set_Index_Buffer(index_buffer, 0);
 
 		//Flush the meshes which fit in the vertex buffer, applying all texture variations
 		for (unsigned pass=0;pass<passes;++pass) {
@@ -1685,7 +1702,7 @@ void DX8TextureCategoryClass::Render()
 		for (unsigned i=0;i<MeshMatDescClass::MAX_TEX_STAGES;++i)
 		{
 			SNAPSHOT_SAY(("Set_Texture(%d,%s)",i,Peek_Texture(i) ? Peek_Texture(i)->Get_Texture_Name().str() : "null"));
-			DX8Wrapper::Set_Texture(i,Peek_Texture(i));
+			g_renderBackend->Set_Texture(i, Peek_Texture(i));
 		}
 
 	#ifdef WWDEBUG
@@ -1694,7 +1711,7 @@ void DX8TextureCategoryClass::Render()
 
 	SNAPSHOT_SAY(("Set_Material(%s)",Peek_Material() ? Peek_Material()->Get_Name() : "null"));
 	VertexMaterialClass *vmaterial=(VertexMaterialClass *)Peek_Material();	//ugly cast from const but we'll restore it after changes so okay. -MW
-	DX8Wrapper::Set_Material(vmaterial);
+	g_renderBackend->Set_Material(vmaterial);
 
 	SNAPSHOT_SAY(("Set_Shader(%x)",Get_Shader().Get_Bits()));
 	ShaderClass theShader = Get_Shader();
@@ -1707,12 +1724,12 @@ void DX8TextureCategoryClass::Render()
 	//this will cause sorting errors on this mesh.
 	//theAlphaShader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
 
-	DX8Wrapper::Set_Shader(theShader);
+	g_renderBackend->Set_Shader(theShader);
 
 	if (m_gForceMultiply && theShader.Get_Dst_Blend_Func() == ShaderClass::DSTBLEND_ZERO) {
 		theShader.Set_Dst_Blend_Func(ShaderClass::DSTBLEND_SRC_COLOR);
 		theShader.Set_Src_Blend_Func(ShaderClass::SRCBLEND_ZERO);
-		DX8Wrapper::Set_Shader(theShader);
+		g_renderBackend->Set_Shader(theShader);
 		//VertexMaterialClass *material = VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 		//DX8Wrapper::Set_Material(material);
 		//REF_PTR_RELEASE(material);
@@ -1850,11 +1867,11 @@ void DX8TextureCategoryClass::Render()
 
 		if (identity) {
 			SNAPSHOT_SAY(("Set_World_Identity"));
-			DX8Wrapper::Set_World_Identity();
+			g_renderBackend->Set_World_Identity();
 		}
 		else {
 			SNAPSHOT_SAY(("Set_World_Transform"));
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,*world_transform);
+			g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD, *world_transform);
 		}
 
 
@@ -1901,7 +1918,7 @@ void DX8TextureCategoryClass::Render()
 						theAlphaShader = theShader;	//keep using additive blending.
 					}
 					vmaterial->Set_Opacity(mesh->Get_Alpha_Override());
-					DX8Wrapper::Set_Shader(theAlphaShader);
+					g_renderBackend->Set_Shader(theAlphaShader);
 					DX8Wrapper::Apply_Render_State_Changes();
 					DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,(int)((float)0x60*mesh->Get_Alpha_Override()));
 
@@ -1910,7 +1927,7 @@ void DX8TextureCategoryClass::Render()
 					DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x60);
 					vmaterial->Set_Opacity(oldOpacity);	//restore previous value
 					vmaterial->Set_Diffuse(oldDiffuse.X,oldDiffuse.Y,oldDiffuse.Z);
-					DX8Wrapper::Set_Shader(theShader);	//restore previous value
+					g_renderBackend->Set_Shader(theShader);	//restore previous value
 				}
 				else
 					renderer->Render(mesh->Get_Base_Vertex_Offset());
@@ -1919,8 +1936,8 @@ void DX8TextureCategoryClass::Render()
 				{	oldMapper->Set_LastUsedSyncTime(oldUVOffsetSyncTime);
 					oldMapper->Set_Current_UV_Offset(oldUVOffset);
 				}
-				DX8Wrapper::Set_Material(nullptr);	//force a reset of vertex material since we secretly changed opacity
-				DX8Wrapper::Set_Material(vmaterial);	//restore previous material.
+				g_renderBackend->Set_Material(nullptr);	//force a reset of vertex material since we secretly changed opacity
+				g_renderBackend->Set_Material(vmaterial);	//restore previous material.
 			}
 			else
 				renderer->Render(mesh->Get_Base_Vertex_Offset());
@@ -2201,8 +2218,8 @@ void DX8MeshRendererClass::Flush()
 		Render_FVF_Category_Container_List_Delayed_Passes(*texture_category_container_lists_rigid[i]);
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(nullptr);
-	DX8Wrapper::Set_Index_Buffer(nullptr,0);
+	g_renderBackend->Set_Vertex_Buffer(nullptr, 0);
+	g_renderBackend->Set_Index_Buffer(nullptr, 0);
 }
 
 

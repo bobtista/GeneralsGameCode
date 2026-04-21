@@ -34,6 +34,8 @@
 #include "Vector3i.h"
 #include "RANDOM.h"
 #include "v3_rnd.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 
 
 /* We have chunking logic which handles N segments at a time. To simplify the subdivision logic,
@@ -314,8 +316,8 @@ void StreakRendererClass::RenderStreak
 	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,identity);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW, identity);
 
 	/*
 	** Handle texture UV offset animation (done once for entire line).
@@ -1303,7 +1305,7 @@ void StreakRendererClass::RenderStreak
 
 		VertexMaterialClass *mat;
 		mat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		DX8Wrapper::Set_Material(mat);
+		g_renderBackend->Set_Material(mat);
 		REF_PTR_RELEASE(mat);
 
 		// If Texture is non-null enable texturing in shader - otherwise disable.
@@ -1372,10 +1374,10 @@ void StreakRendererClass::RenderStreak
 		}
 
 
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
-		DX8Wrapper::Set_Vertex_Buffer(Verts);
-		DX8Wrapper::Set_Texture(0,Texture);
-		DX8Wrapper::Set_Shader(shader);
+		g_renderBackend->Set_Index_Buffer(ib_access,0);
+		g_renderBackend->Set_Vertex_Buffer(Verts);
+		g_renderBackend->Set_Texture(0,Texture);
+		g_renderBackend->Set_Shader(shader);
 
 		if (sorting)
 		{
@@ -1383,12 +1385,12 @@ void StreakRendererClass::RenderStreak
 		}
 		else
 		{
-			DX8Wrapper::Draw_Triangles(0,triangleIndex,0,vnum);
+			g_renderBackend->Draw_Triangles(0,triangleIndex,0,vnum);
 		}
 
 	}
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,view);
 
 }
 
