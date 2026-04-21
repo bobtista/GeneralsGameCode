@@ -33,9 +33,17 @@
 #include "dx8fvf.h"
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
+#include "dx8wrapper.h"
+#include "matrix3d.h"
+#include "matrix4.h"
 #include "shader.h"
 #include "vector3.h"
 #include "wwdebug.h"
+
+#include <cstring>
+#include <d3d8.h>
+
+#include <unordered_map>
 
 // Including the bgfx header here is intentional: it forces a compile-time
 // dependency on the bgfx headers when GGC_RENDER_BACKEND=bgfx. If bgfx
@@ -120,6 +128,14 @@ bgfx::UniformHandle g_sTex0        = BGFX_INVALID_HANDLE;
 // Named u_atestParams (not u_alphaRef) to avoid bgfx_shader.sh's internal
 // u_alphaRef4 conflict. See fs_textured_lit_atest.sc for details.
 bgfx::UniformHandle g_uAtestParams = BGFX_INVALID_HANDLE;
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4F.1 default 1x1
+// white texture. Real Set_Texture wiring is not in place yet, so the
+// textured shaders need SOMETHING bound to s_tex0 or D3D11 returns
+// undefined values. A 1x1 opaque white texture is a sensible default
+// because the fragment shader does texColor * v_color0 - white * vc
+// gives the vertex color through unmodified.
+bgfx::TextureHandle g_defaultWhiteTexture = BGFX_INVALID_HANDLE;
 
 // Vertex layout used by the test triangle. Position + packed RGBA color.
 // Initialized in Initialize since bgfx::VertexLayout::begin needs bgfx to be
@@ -504,6 +520,246 @@ bool BuildBgfxLayoutForFVF(const FVFInfoClass & fvf, bgfx::VertexLayout & out)
 
 [[maybe_unused]] const auto kFvfLayoutAnchor = &BuildBgfxLayoutForFVF;
 
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.3 vertex/index
+// buffer caches. The engine recycles VertexBufferClass / IndexBufferClass
+// instances throughout its lifetime, so we cache the bgfx handle keyed
+// by the source pointer. On first encounter we lock the source buffer
+// for read, copy bytes via bgfx::copy(), and create a bgfx static buffer.
+// Cache is destroyed wholesale in Shutdown - we don't try to react to
+// VertexBufferClass destruction yet, which means handles may outlive
+// their source until shutdown. That's fine for the prototype.
+//
+// Pointer reuse is theoretically possible but unlikely in a single
+// session; if it bites us we'll add a generation counter or hook the
+// destructor.
+
+std::unordered_map<const VertexBufferClass *, bgfx::VertexBufferHandle> g_vbCache;
+std::unordered_map<const IndexBufferClass *,  bgfx::IndexBufferHandle>  g_ibCache;
+
+// The most recent buffers and offsets cached from Set_Vertex_Buffer /
+// Set_Index_Buffer. Read by Draw_Triangles when it issues the bgfx
+// submit. Cleared (made invalid) on Shutdown.
+bgfx::VertexBufferHandle g_currentBgfxVB    = BGFX_INVALID_HANDLE;
+bgfx::IndexBufferHandle  g_currentBgfxIB    = BGFX_INVALID_HANDLE;
+unsigned short           g_currentIBOffset  = 0;
+
+bool g_loggedFirstBgfxVbCreate = false;
+bool g_loggedFirstBgfxIbCreate = false;
+bool g_loggedFirstBgfxSubmit   = false;
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4E.4 transform
+// capture. The engine calls Set_Transform with world / view / projection
+// matrices in W3D row-major form (Vector4 Row[4]). bgfx wants column-
+// major float[16] for setViewTransform / setTransform. We convert with
+// a transpose copy. Whether the resulting matrices produce visually
+// correct geometry depends on multiplication order conventions; if
+// things look mirrored or upside-down, the row-vector vs column-vector
+// convention is the next thing to investigate.
+//
+// We capture all three matrices and apply them per-submit. View and
+// projection are written via setViewTransform on view 1; world is set
+// per-submit via setTransform.
+float g_bgfxWorld[16];
+float g_bgfxView[16];
+float g_bgfxProj[16];
+bool  g_bgfxViewProjDirty = true;
+bool  g_loggedFirstSetView = false;
+bool  g_loggedFirstSetProj = false;
+bool  g_loggedFirstSetWorld = false;
+
+// Engine geometry submits to its own view so it does not collide with
+// the test triangle on view 0. View 0 keeps the test triangle for the
+// "is bgfx alive" sentinel; view 1 is engine geometry under engine
+// transforms. Both render to the popup back buffer.
+const bgfx::ViewId kBgfxEngineView = 1;
+
+void IdentityMatrix(float * out)
+{
+    out[0]  = 1.0f; out[1]  = 0.0f; out[2]  = 0.0f; out[3]  = 0.0f;
+    out[4]  = 0.0f; out[5]  = 1.0f; out[6]  = 0.0f; out[7]  = 0.0f;
+    out[8]  = 0.0f; out[9]  = 0.0f; out[10] = 1.0f; out[11] = 0.0f;
+    out[12] = 0.0f; out[13] = 0.0f; out[14] = 0.0f; out[15] = 1.0f;
+}
+
+// W3D Matrix4x4 stores Vector4 Row[4] in row-major order. bgfx wants
+// column-major float[16]. Transpose-copy.
+void W3DMatrix4ToBgfx(const Matrix4x4 & m, float * out)
+{
+    out[0]  = m[0][0]; out[4]  = m[0][1]; out[8]  = m[0][2]; out[12] = m[0][3];
+    out[1]  = m[1][0]; out[5]  = m[1][1]; out[9]  = m[1][2]; out[13] = m[1][3];
+    out[2]  = m[2][0]; out[6]  = m[2][1]; out[10] = m[2][2]; out[14] = m[2][3];
+    out[3]  = m[3][0]; out[7]  = m[3][1]; out[11] = m[3][2]; out[15] = m[3][3];
+}
+
+// W3D Matrix3D stores Vector4 Row[3] - the bottom row is implicitly
+// (0,0,0,1). Same transpose convention as Matrix4x4 but the missing
+// row needs to be filled in.
+void W3DMatrix3DToBgfx(const Matrix3D & m, float * out)
+{
+    out[0]  = m[0][0]; out[4]  = m[0][1]; out[8]  = m[0][2]; out[12] = m[0][3];
+    out[1]  = m[1][0]; out[5]  = m[1][1]; out[9]  = m[1][2]; out[13] = m[1][3];
+    out[2]  = m[2][0]; out[6]  = m[2][1]; out[10] = m[2][2]; out[14] = m[2][3];
+    out[3]  = 0.0f;    out[7]  = 0.0f;    out[11] = 0.0f;    out[15] = 1.0f;
+}
+
+// TheSuperHackers @bugfix bobtista 11/04/2026 Phase 4C.3 buffer copy
+// kill switch. The Intel UHD Graphics driver corrupts the dx8 GPU
+// copy of POOL_DEFAULT vertex buffers even when we lock with
+// D3DLOCK_READONLY. The read-side path is fully disabled; bgfx VBs
+// are now populated by the write-side capture hooks
+// (Capture_Vertex_Data / Capture_Index_Data) called from the engine
+// at write-lock time. See Phase 4C.4 in the comments below.
+constexpr bool kBgfxSkipBufferRead = true;
+
+bgfx::VertexBufferHandle EnsureBgfxVertexBuffer(const VertexBufferClass * vb)
+{
+    if (vb == nullptr)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+    auto it = g_vbCache.find(vb);
+    if (it != g_vbCache.end())
+    {
+        return it->second;
+    }
+
+    if (kBgfxSkipBufferRead)
+    {
+        g_vbCache[vb] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    if (vb->Type() != BUFFER_TYPE_DX8)
+    {
+        // Sorting / dynamic buffers handled by a different path; mark
+        // as cached-invalid so we do not retry every draw.
+        g_vbCache[vb] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vb->FVF_Info(), layout))
+    {
+        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxVertexBuffer: layout build failed "
+                     "for fvf=0x%08x", vb->FVF_Info().Get_FVF()));
+        g_vbCache[vb] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    const unsigned vertexCount = vb->Get_Vertex_Count();
+    const unsigned strideBytes = vb->FVF_Info().Get_FVF_Size();
+    const unsigned totalBytes  = vertexCount * strideBytes;
+    if (totalBytes == 0)
+    {
+        g_vbCache[vb] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    DX8VertexBufferClass * dxVb =
+        const_cast<DX8VertexBufferClass *>(static_cast<const DX8VertexBufferClass *>(vb));
+    IDirect3DVertexBuffer8 * d3dVb = dxVb->Get_DX8_Vertex_Buffer();
+    if (d3dVb == nullptr)
+    {
+        g_vbCache[vb] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    BYTE * srcData = nullptr;
+    HRESULT hr = d3dVb->Lock(0, 0, &srcData, D3DLOCK_READONLY);
+    if (FAILED(hr) || srcData == nullptr)
+    {
+        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxVertexBuffer: d3d8 Lock failed hr=0x%08x",
+                     static_cast<unsigned>(hr)));
+        g_vbCache[vb] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    const bgfx::Memory * mem  = bgfx::copy(srcData, totalBytes);
+    d3dVb->Unlock();
+
+    bgfx::VertexBufferHandle h = bgfx::createVertexBuffer(mem, layout);
+    g_vbCache[vb] = h;
+
+    if (!g_loggedFirstBgfxVbCreate)
+    {
+        g_loggedFirstBgfxVbCreate = true;
+        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxVertexBuffer first create "
+                     "fvf=0x%08x stride=%u verts=%u bytes=%u handle=%s",
+                     vb->FVF_Info().Get_FVF(),
+                     strideBytes, vertexCount, totalBytes,
+                     bgfx::isValid(h) ? "ok" : "FAILED"));
+    }
+    return h;
+}
+
+bgfx::IndexBufferHandle EnsureBgfxIndexBuffer(const IndexBufferClass * ib)
+{
+    if (ib == nullptr)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+    auto it = g_ibCache.find(ib);
+    if (it != g_ibCache.end())
+    {
+        return it->second;
+    }
+
+    if (kBgfxSkipBufferRead)
+    {
+        g_ibCache[ib] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    if (ib->Type() != BUFFER_TYPE_DX8)
+    {
+        g_ibCache[ib] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    const unsigned indexCount = ib->Get_Index_Count();
+    const unsigned totalBytes = indexCount * sizeof(uint16_t);
+    if (totalBytes == 0)
+    {
+        g_ibCache[ib] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    DX8IndexBufferClass * dxIb =
+        const_cast<DX8IndexBufferClass *>(static_cast<const DX8IndexBufferClass *>(ib));
+    IDirect3DIndexBuffer8 * d3dIb = dxIb->Get_DX8_Index_Buffer();
+    if (d3dIb == nullptr)
+    {
+        g_ibCache[ib] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    BYTE * srcData = nullptr;
+    HRESULT hr = d3dIb->Lock(0, 0, &srcData, D3DLOCK_READONLY);
+    if (FAILED(hr) || srcData == nullptr)
+    {
+        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxIndexBuffer: d3d8 Lock failed hr=0x%08x",
+                     static_cast<unsigned>(hr)));
+        g_ibCache[ib] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    const bgfx::Memory * mem = bgfx::copy(srcData, totalBytes);
+    d3dIb->Unlock();
+
+    bgfx::IndexBufferHandle h = bgfx::createIndexBuffer(mem);
+    g_ibCache[ib] = h;
+
+    if (!g_loggedFirstBgfxIbCreate)
+    {
+        g_loggedFirstBgfxIbCreate = true;
+        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxIndexBuffer first create "
+                     "indices=%u bytes=%u handle=%s",
+                     indexCount, totalBytes,
+                     bgfx::isValid(h) ? "ok" : "FAILED"));
+    }
+    return h;
+}
+
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4D.3 Set_Shader
 // telemetry. The bgfx backend caches the picked program and state bits
 // for the most recent ShaderClass it received, and tracks the unique
@@ -641,7 +897,8 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     g_bgfxInitialized = true;
 
     // Configure view 0 to clear the debug window to a dark teal so it's
-    // visually obvious bgfx is running and alive.
+    // visually obvious bgfx is running and alive. View 0 holds the test
+    // triangle (Phase 4B sentinel).
     bgfx::setViewClear(0,
                        BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
                        0x1a3b5cff,  // dark teal, 0xRRGGBBAA
@@ -650,6 +907,28 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     bgfx::setViewRect(0, 0, 0,
                       static_cast<uint16_t>(kBgfxWindowWidth),
                       static_cast<uint16_t>(kBgfxWindowHeight));
+
+    // View 1 is the engine geometry view. Same render target, but its
+    // own clear/depth and (eventually) its own view+projection matrices
+    // captured from the engine's Set_Transform calls. Drawn after view 0
+    // so engine geometry overlays the test triangle.
+    bgfx::setViewClear(kBgfxEngineView,
+                       BGFX_CLEAR_DEPTH,
+                       0x00000000,
+                       1.0f,
+                       0);
+    bgfx::setViewRect(kBgfxEngineView, 0, 0,
+                      static_cast<uint16_t>(kBgfxWindowWidth),
+                      static_cast<uint16_t>(kBgfxWindowHeight));
+
+    // Default the cached transforms to identity until the engine writes
+    // real values via Set_Transform. This keeps the first few engine
+    // submits well-defined even if they fire before any matrices are
+    // captured.
+    IdentityMatrix(g_bgfxWorld);
+    IdentityMatrix(g_bgfxView);
+    IdentityMatrix(g_bgfxProj);
+    g_bgfxViewProjDirty = true;
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.3 create the
     // passthrough shader program and vertex layout so End_Scene can submit
@@ -687,6 +966,14 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     // program, so we must NOT manually destroy them later.
     g_sTex0        = bgfx::createUniform("s_tex0",        bgfx::UniformType::Sampler);
     g_uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
+
+    // Phase 4F.1 default 1x1 white texture (opaque ABGR=0xffffffff).
+    static const uint8_t kWhitePixel[4] = { 0xff, 0xff, 0xff, 0xff };
+    g_defaultWhiteTexture = bgfx::createTexture2D(
+        1, 1, false, 1,
+        bgfx::TextureFormat::RGBA8,
+        BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT,
+        bgfx::copy(kWhitePixel, sizeof(kWhitePixel)));
 
     const bgfx::Memory * vsLitMem      = bgfx::makeRef(vs_textured_lit_dx11,
                                                        sizeof(vs_textured_lit_dx11));
@@ -807,6 +1094,32 @@ void BgfxBackend::Shutdown()
             bgfx::destroy(g_uAtestParams);
             g_uAtestParams = BGFX_INVALID_HANDLE;
         }
+        if (bgfx::isValid(g_defaultWhiteTexture))
+        {
+            bgfx::destroy(g_defaultWhiteTexture);
+            g_defaultWhiteTexture = BGFX_INVALID_HANDLE;
+        }
+        // Phase 4C.3 cached engine buffers. Destroy before bgfx::shutdown
+        // so the handles outlive nothing.
+        for (auto & kv : g_vbCache)
+        {
+            if (bgfx::isValid(kv.second))
+            {
+                bgfx::destroy(kv.second);
+            }
+        }
+        g_vbCache.clear();
+        for (auto & kv : g_ibCache)
+        {
+            if (bgfx::isValid(kv.second))
+            {
+                bgfx::destroy(kv.second);
+            }
+        }
+        g_ibCache.clear();
+        g_currentBgfxVB    = BGFX_INVALID_HANDLE;
+        g_currentBgfxIB    = BGFX_INVALID_HANDLE;
+        g_currentIBOffset  = 0;
         bgfx::shutdown();
         g_bgfxInitialized = false;
         WWDEBUG_SAY(("[BgfxBackend] bgfx::shutdown complete."));
@@ -945,18 +1258,20 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int /
                      fvf.Get_FVF_Size(),
                      vb->Get_Vertex_Count(),
                      vb->Type()));
-
-        // Phase 4C.2 verification: build a bgfx layout from this FVF and
-        // log whether the resulting stride matches the source. If it does
-        // we can confidently start creating real bgfx vertex buffers from
-        // VertexBufferClass instances in a follow-up commit.
-        bgfx::VertexLayout layout;
-        const bool ok       = BuildBgfxLayoutForFVF(fvf, layout);
-        const unsigned want = fvf.Get_FVF_Size();
-        const unsigned got  = layout.getStride();
-        WWDEBUG_SAY(("[BgfxBackend] FVF -> bgfx layout %s "
-                     "(stride want=%u got=%u)",
-                     ok ? "OK" : "MISMATCH", want, got));
+    }
+    // Phase 4C.4: cache is populated by Capture_Vertex_Data on the engine's
+    // own write lock. Set_Vertex_Buffer just looks up whatever is already
+    // there. Engine VBs that have not been written via the WriteLockClass
+    // path yet (e.g. those filled by raw d3d8 calls) will miss the cache
+    // and the bgfx submit will be skipped.
+    auto it = g_vbCache.find(vb);
+    if (it != g_vbCache.end())
+    {
+        g_currentBgfxVB = it->second;
+    }
+    else
+    {
+        g_currentBgfxVB = BGFX_INVALID_HANDLE;
     }
 }
 
@@ -975,7 +1290,7 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
     }
 }
 
-void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short /*index_base_offset*/)
+void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset)
 {
     if (!g_loggedFirstSetIndexBuffer && ib != nullptr)
     {
@@ -985,6 +1300,16 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short /
                      ib->Get_Index_Count(),
                      ib->Type()));
     }
+    auto it = g_ibCache.find(ib);
+    if (it != g_ibCache.end())
+    {
+        g_currentBgfxIB = it->second;
+    }
+    else
+    {
+        g_currentBgfxIB = BGFX_INVALID_HANDLE;
+    }
+    g_currentIBOffset = index_base_offset;
 }
 
 void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short /*index_base_offset*/)
@@ -1001,6 +1326,92 @@ void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned sh
 
 void BgfxBackend::Set_Index_Buffer_Index_Offset(unsigned int /*offset*/)
 {
+}
+
+// -- Phase 4C.4 write-side capture -------------------------------------------
+//
+// Called from VertexBufferClass::WriteLockClass / IndexBufferClass::WriteLockClass
+// destructors after the engine has finished writing data through the
+// CPU-mapped lock pointer. The pointer is still valid (Unlock has not yet
+// been called) so we can safely copy the bytes into bgfx-managed memory and
+// stamp out a static bgfx VB/IB. Cached by source pointer; reused on every
+// subsequent Set_Vertex_Buffer that references the same engine VB.
+//
+// Cleanly bypasses the Intel UHD POOL_DEFAULT lock corruption: we never lock
+// the source d3d8 buffer ourselves. We piggyback on the engine's own write
+// lock, which the engine has to do anyway and which the driver handles
+// correctly because it is a real WRITE lock.
+
+void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
+                                      const void * data,
+                                      unsigned int size_bytes)
+{
+    if (!g_bgfxInitialized || vb == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vb->FVF_Info(), layout))
+    {
+        return;
+    }
+
+    // Replace any prior cached handle for the same VB pointer. The engine
+    // can rewrite a VB's contents (e.g. dynamic terrain or animated meshes
+    // that go through the same VertexBufferClass instance over its lifetime),
+    // so the new write supersedes whatever bgfx had.
+    auto it = g_vbCache.find(vb);
+    if (it != g_vbCache.end() && bgfx::isValid(it->second))
+    {
+        bgfx::destroy(it->second);
+    }
+
+    const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    bgfx::VertexBufferHandle h = bgfx::createVertexBuffer(mem, layout);
+    g_vbCache[vb] = h;
+
+    if (!g_loggedFirstBgfxVbCreate)
+    {
+        g_loggedFirstBgfxVbCreate = true;
+        WWDEBUG_SAY(("[BgfxBackend] Capture_Vertex_Data first create "
+                     "fvf=0x%08x stride=%u verts=%u bytes=%u handle=%s",
+                     vb->FVF_Info().Get_FVF(),
+                     vb->FVF_Info().Get_FVF_Size(),
+                     vb->Get_Vertex_Count(),
+                     size_bytes,
+                     bgfx::isValid(h) ? "ok" : "FAILED"));
+    }
+}
+
+void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
+                                     const void * data,
+                                     unsigned int size_bytes)
+{
+    if (!g_bgfxInitialized || ib == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+
+    auto it = g_ibCache.find(ib);
+    if (it != g_ibCache.end() && bgfx::isValid(it->second))
+    {
+        bgfx::destroy(it->second);
+    }
+
+    const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    bgfx::IndexBufferHandle h = bgfx::createIndexBuffer(mem);
+    g_ibCache[ib] = h;
+
+    if (!g_loggedFirstBgfxIbCreate)
+    {
+        g_loggedFirstBgfxIbCreate = true;
+        WWDEBUG_SAY(("[BgfxBackend] Capture_Index_Data first create "
+                     "indices=%u bytes=%u handle=%s",
+                     ib->Get_Index_Count(),
+                     size_bytes,
+                     bgfx::isValid(h) ? "ok" : "FAILED"));
+    }
 }
 
 // -- State: shaders, materials, textures ------------------------------------
@@ -1128,12 +1539,75 @@ void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp /*op*/)
 
 // -- Transforms --------------------------------------------------------------
 
-void BgfxBackend::Set_Transform(TransformKind /*transform*/, const Matrix4x4 & /*m*/)
+void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
 {
+    switch (transform)
+    {
+        case RB_TRANSFORM_WORLD:
+            W3DMatrix4ToBgfx(m, g_bgfxWorld);
+            if (!g_loggedFirstSetWorld)
+            {
+                g_loggedFirstSetWorld = true;
+                WWDEBUG_SAY(("[BgfxBackend] Set_Transform first WORLD (Matrix4x4) "
+                             "row0=%.3f,%.3f,%.3f,%.3f",
+                             m[0][0], m[0][1], m[0][2], m[0][3]));
+            }
+            break;
+        case RB_TRANSFORM_VIEW:
+            W3DMatrix4ToBgfx(m, g_bgfxView);
+            g_bgfxViewProjDirty = true;
+            if (!g_loggedFirstSetView)
+            {
+                g_loggedFirstSetView = true;
+                WWDEBUG_SAY(("[BgfxBackend] Set_Transform first VIEW (Matrix4x4) "
+                             "row0=%.3f,%.3f,%.3f,%.3f",
+                             m[0][0], m[0][1], m[0][2], m[0][3]));
+            }
+            break;
+        case RB_TRANSFORM_PROJECTION:
+            W3DMatrix4ToBgfx(m, g_bgfxProj);
+            g_bgfxViewProjDirty = true;
+            if (!g_loggedFirstSetProj)
+            {
+                g_loggedFirstSetProj = true;
+                WWDEBUG_SAY(("[BgfxBackend] Set_Transform first PROJ (Matrix4x4) "
+                             "row0=%.3f,%.3f,%.3f,%.3f",
+                             m[0][0], m[0][1], m[0][2], m[0][3]));
+            }
+            break;
+        default:
+            break;
+    }
 }
 
-void BgfxBackend::Set_Transform(TransformKind /*transform*/, const Matrix3D & /*m*/)
+void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
 {
+    switch (transform)
+    {
+        case RB_TRANSFORM_WORLD:
+            W3DMatrix3DToBgfx(m, g_bgfxWorld);
+            if (!g_loggedFirstSetWorld)
+            {
+                g_loggedFirstSetWorld = true;
+                WWDEBUG_SAY(("[BgfxBackend] Set_Transform first WORLD (Matrix3D) "
+                             "row0=%.3f,%.3f,%.3f,%.3f",
+                             m[0][0], m[0][1], m[0][2], m[0][3]));
+            }
+            break;
+        case RB_TRANSFORM_VIEW:
+            W3DMatrix3DToBgfx(m, g_bgfxView);
+            g_bgfxViewProjDirty = true;
+            if (!g_loggedFirstSetView)
+            {
+                g_loggedFirstSetView = true;
+                WWDEBUG_SAY(("[BgfxBackend] Set_Transform first VIEW (Matrix3D) "
+                             "row0=%.3f,%.3f,%.3f,%.3f",
+                             m[0][0], m[0][1], m[0][2], m[0][3]));
+            }
+            break;
+        default:
+            break;
+    }
 }
 
 void BgfxBackend::Get_Transform(TransformKind /*transform*/, Matrix4x4 & /*m*/)
@@ -1142,10 +1616,13 @@ void BgfxBackend::Get_Transform(TransformKind /*transform*/, Matrix4x4 & /*m*/)
 
 void BgfxBackend::Set_World_Identity()
 {
+    IdentityMatrix(g_bgfxWorld);
 }
 
 void BgfxBackend::Set_View_Identity()
 {
+    IdentityMatrix(g_bgfxView);
+    g_bgfxViewProjDirty = true;
 }
 
 bool BgfxBackend::Is_World_Identity()
@@ -1158,9 +1635,18 @@ bool BgfxBackend::Is_View_Identity()
     return true;
 }
 
-void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & /*matrix*/,
+void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
                                                        float /*znear*/, float /*zfar*/)
 {
+    W3DMatrix4ToBgfx(matrix, g_bgfxProj);
+    g_bgfxViewProjDirty = true;
+    if (!g_loggedFirstSetProj)
+    {
+        g_loggedFirstSetProj = true;
+        WWDEBUG_SAY(("[BgfxBackend] Set_Projection_Transform_With_Z_Bias first call "
+                     "row0=%.3f,%.3f,%.3f,%.3f",
+                     matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3]));
+    }
 }
 
 // -- Lighting and fog --------------------------------------------------------
@@ -1199,9 +1685,90 @@ LightEnvironmentClass * BgfxBackend::Get_Light_Environment() const
 
 // -- Draw calls --------------------------------------------------------------
 
-void BgfxBackend::Draw_Triangles(unsigned short /*start_index*/,
+namespace
+{
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.3 actual bgfx
+// submit. Called from both Draw_Triangles overloads when we have a
+// valid cached VB + IB + program. State and program were cached by
+// Set_Shader; the buffers were cached by Set_Vertex_Buffer /
+// Set_Index_Buffer. Submits to view 0, the same view the test
+// triangle uses, so the popup will show both overlapping until we
+// move engine geometry to its own view.
+//
+// View transforms remain identity. Engine geometry is in world
+// coordinates which will be far off-screen under an identity
+// projection - so this draws "nothing visible" except as a way to
+// prove the submit pipeline works without crashing. Real
+// view/projection wiring lands in the next session.
+void SubmitEngineDraw(unsigned short start_index,
+                      unsigned short polygon_count,
+                      unsigned short min_vertex_index,
+                      unsigned short vertex_count)
+{
+    if (!g_bgfxInitialized)
+    {
+        return;
+    }
+    if (!bgfx::isValid(g_currentBgfxVB) ||
+        !bgfx::isValid(g_currentBgfxIB) ||
+        !bgfx::isValid(g_currentBgfxProgram))
+    {
+        return;
+    }
+
+    // Push the engine view+projection when they change. setViewTransform
+    // applies until the next change so we do not need to call it per
+    // submit, only when the engine has updated either matrix.
+    if (g_bgfxViewProjDirty)
+    {
+        bgfx::setViewTransform(kBgfxEngineView, g_bgfxView, g_bgfxProj);
+        g_bgfxViewProjDirty = false;
+    }
+
+    // World matrix is per-submit. bgfx consumes the value at submit time
+    // and resets the per-draw transform after each submit.
+    bgfx::setTransform(g_bgfxWorld);
+
+    bgfx::setVertexBuffer(0, g_currentBgfxVB, min_vertex_index, vertex_count);
+    bgfx::setIndexBuffer(g_currentBgfxIB,
+                         static_cast<uint32_t>(g_currentIBOffset) + start_index,
+                         static_cast<uint32_t>(polygon_count) * 3);
+
+    // Bind the default 1x1 white texture to stage 0. Real Set_Texture
+    // wiring is not in place yet, so this is a placeholder so the
+    // textured shaders have a valid sampler. The shader does
+    // texColor * v_color0 so white-on-vertex-color renders the vertex
+    // color through unmodified.
+    if (bgfx::isValid(g_defaultWhiteTexture) && bgfx::isValid(g_sTex0))
+    {
+        bgfx::setTexture(0, g_sTex0, g_defaultWhiteTexture);
+    }
+
+    // Use the cached state if it was built; otherwise fall back to a
+    // sane default that at least lets the draw run.
+    const uint64_t state = (g_currentBgfxState != 0)
+        ? g_currentBgfxState
+        : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+    bgfx::setState(state);
+
+    bgfx::submit(kBgfxEngineView, g_currentBgfxProgram);
+
+    if (!g_loggedFirstBgfxSubmit)
+    {
+        g_loggedFirstBgfxSubmit = true;
+        WWDEBUG_SAY(("[BgfxBackend] First engine bgfx::submit "
+                     "(view=%u start=%u polys=%u min_v=%u count=%u state=0x%016llx)",
+                     static_cast<unsigned>(kBgfxEngineView),
+                     start_index, polygon_count,
+                     min_vertex_index, vertex_count,
+                     static_cast<unsigned long long>(state)));
+    }
+}
+}
+
+void BgfxBackend::Draw_Triangles(unsigned short start_index,
                                  unsigned short polygon_count,
-                                 unsigned short /*min_vertex_index*/,
+                                 unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
     if (!g_loggedFirstDrawTriangles)
@@ -1210,12 +1777,13 @@ void BgfxBackend::Draw_Triangles(unsigned short /*start_index*/,
         WWDEBUG_SAY(("[BgfxBackend] Draw_Triangles first call (polys=%u verts=%u)",
                      polygon_count, vertex_count));
     }
+    SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
 }
 
 void BgfxBackend::Draw_Triangles(unsigned int /*buffer_type*/,
-                                 unsigned short /*start_index*/,
+                                 unsigned short start_index,
                                  unsigned short polygon_count,
-                                 unsigned short /*min_vertex_index*/,
+                                 unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
     if (!g_loggedFirstDrawTriangles)
@@ -1224,6 +1792,7 @@ void BgfxBackend::Draw_Triangles(unsigned int /*buffer_type*/,
         WWDEBUG_SAY(("[BgfxBackend] Draw_Triangles first call typed (polys=%u verts=%u)",
                      polygon_count, vertex_count));
     }
+    SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
 }
 
 void BgfxBackend::Draw_Strip(unsigned short /*start_index*/,
