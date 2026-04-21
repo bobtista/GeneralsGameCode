@@ -489,7 +489,7 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 #endif
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-	// through the IRenderBackend abstraction. See PHASE3.md.
+	// through the IRenderBackend abstraction.
 	g_renderBackend->Set_Light_Environment(rinfo.light_environment);
 
 	// Force shaders to update.

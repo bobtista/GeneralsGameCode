@@ -53,7 +53,7 @@ DiligentBackend::DiligentBackend()
                  "[DiligentBackend] Phase 2 stub backend constructed. "
                  "Most IRenderBackend methods are no-ops; the game will NOT "
                  "render correctly through this backend yet. "
-                 "See PHASE2.md.\n");
+                 "\n");
 }
 
 DiligentBackend::~DiligentBackend()

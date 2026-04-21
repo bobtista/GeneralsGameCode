@@ -133,7 +133,7 @@ void W3DBridge::renderBridge(Bool wireframe)
 {
 	if (m_visible && m_numPolygons && m_numVertex) {
 		// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-		// through the IRenderBackend abstraction. See PHASE3.md.
+		// through the IRenderBackend abstraction.
 		if (!wireframe) g_renderBackend->Set_Texture(0,m_bridgeTexture);
 		// Draw all the bridges.
 		g_renderBackend->Draw_Triangles(	m_firstIndex, m_numPolygons, m_firstVertex,	m_numVertex);
@@ -1156,7 +1156,7 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 	}
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-	// through the IRenderBackend abstraction. See PHASE3.md.
+	// through the IRenderBackend abstraction.
 	g_renderBackend->Set_Material(m_vertexMaterial);
 	// Setup the vertex buffer, shader & texture.
 	g_renderBackend->Set_Index_Buffer(m_indexBridge,0);
@@ -1189,7 +1189,7 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 	{
 		//Reset to a known shader.
 		// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-		// through the IRenderBackend abstraction. See PHASE3.md.
+		// through the IRenderBackend abstraction.
 		g_renderBackend->Invalidate_Cached_Render_States();
 		g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueShader);
 		g_renderBackend->Set_Material(m_vertexMaterial);

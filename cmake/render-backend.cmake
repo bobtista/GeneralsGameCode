@@ -1,8 +1,7 @@
 # cmake/render-backend.cmake
 #
 # TheSuperHackers @refactor bobtista 10/04/2026 Selects the rendering backend
-# for WW3D2 at configure time. See Core/Libraries/Source/WWVegas/WW3D2/RENDER_BACKEND.md
-# for the full multi-phase plan and PHASE2.md for this phase's scope.
+# for WW3D2 at configure time.
 #
 # Valid values:
 #   dx8      - existing DirectX 8 backend. Default. VC6-compatible. Windows only.
