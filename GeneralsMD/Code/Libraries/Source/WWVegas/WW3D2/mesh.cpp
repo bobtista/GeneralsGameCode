@@ -829,7 +829,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 	Vector3 oldEmissive(-1,-1,-1);
 
 	if (LightEnvironment != nullptr) {
-		DX8Wrapper::Set_Light_Environment(LightEnvironment);
+		WW3D::Get_Render_Backend()->Set_Light_Environment(LightEnvironment);
 	}
 
 	if (Model->Get_Flag(MeshModelClass::SKIN)) {
