@@ -217,7 +217,7 @@ void SceneClass::Render(RenderInfoClass & rinfo)
 	// Any stuff that needs to get done before anything else
 	Pre_Render_Processing(rinfo);
 
-	DX8Wrapper::Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
+	g_renderBackend->Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
 
 	if (Get_Extra_Pass_Polygon_Mode()==EXTRA_PASS_DISABLE) {
 		Customized_Render(rinfo);
@@ -237,7 +237,7 @@ void SceneClass::Render(RenderInfoClass & rinfo)
 			Customized_Render(rinfo);
 			break;
 		case EXTRA_PASS_CLEAR_LINE:
-			DX8Wrapper::Clear(true, false, Vector3(0.0f,0.0f,0.0f));	// Clear color but not z
+			g_renderBackend->Clear(true, false, Vector3(0.0f,0.0f,0.0f));	// Clear color but not z
 			WW3D::Enable_Texturing(false);
 			g_renderBackend->Set_Fill_Mode(RB_FILL_WIREFRAME);
 			g_renderBackend->Set_Z_Bias(7);
