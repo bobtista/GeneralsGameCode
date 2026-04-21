@@ -249,6 +249,8 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_sources(corei_ww3d2 INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendState.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendTextures.cpp
     )
 
     # TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.1 shader

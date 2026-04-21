@@ -41,6 +41,16 @@ uniform vec4 u_cloudParams; // xy = scroll, z = stretch, w > 0.5 = modulate clou
 #define SRC_DIFFUSE  1.0
 #define SRC_CURRENT  2.0
 
+// Shadow map size — must match kShadowMapResolution in BgfxBackend.cpp.
+#define SHADOW_MAP_RESOLUTION 4096.0
+// Shadow map depth bias. Terrain uses a larger value to kill self-shadow acne on near-flat slopes; general meshes need a tighter value so curved / thin geometry keeps its contact shadow.
+#define SHADOW_BIAS_TERRAIN 0.005
+#define SHADOW_BIAS_GENERAL 0.002
+// BT.601 luminance weights (matches the BGRA bytes of the D3D8 TFACTOR=0x80A5CA8E cascade used by the disabled-button grayscale path).
+#define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
+// Multiplier applied to shadowed pixels. 1.0 = unshadowed, 0.0 = fully black; we darken to 60% for visible but not crushed shadows.
+#define SHADOW_DARKNESS 0.6
+
 vec3 applyColorOp(float op, vec3 arg1, vec3 arg2)
 {
 	// SELECTARG1
@@ -73,7 +83,23 @@ float applyAlphaOp(float op, float arg1, float arg2)
 	if (op < 5.5) return arg1 + arg2;
 	if (op < 6.5) return arg1 + arg2 - 0.5;
 	if (op < 7.5) return arg1 - arg2;
+	// BLENDTEXALPHA / BLENDCURALPHA (8, 9) — handled specially by caller.
+	// ADDSMOOTH — emitted by secAlphaOp under DETAILALPHA_INVSCALE; keep in sync with applyColorOp.
+	if (op > 9.5 && op < 10.5) return arg1 + arg2 - arg1 * arg2;
 	return arg1;
+}
+
+// 4-tap PCF sample of the shadow map. Returns a shadow factor in [SHADOW_DARKNESS, 1]. Same logic for terrain and general meshes; only the bias differs.
+float sampleShadow(vec2 shadowUV, float refZ, float bias)
+{
+	float biasedZ = refZ - bias;
+	float texelSize = 1.0 / SHADOW_MAP_RESOLUTION;
+	float s0 = shadow2D(s_shadowMap, vec3(shadowUV + vec2(-0.5, -0.5) * texelSize, biasedZ));
+	float s1 = shadow2D(s_shadowMap, vec3(shadowUV + vec2( 0.5, -0.5) * texelSize, biasedZ));
+	float s2 = shadow2D(s_shadowMap, vec3(shadowUV + vec2(-0.5,  0.5) * texelSize, biasedZ));
+	float s3 = shadow2D(s_shadowMap, vec3(shadowUV + vec2( 0.5,  0.5) * texelSize, biasedZ));
+	float visibility = (s0 + s1 + s2 + s3) * 0.25;
+	return mix(SHADOW_DARKNESS, 1.0, visibility);
 }
 
 void main()
@@ -112,15 +138,7 @@ void main()
 			&& tshadowUV.y >= 0.0 && tshadowUV.y <= 1.0
 			&& trefZ >= 0.0 && trefZ <= 1.0)
 		{
-			float tbiasedZ = trefZ - 0.005;
-			float texelSize = 1.0 / 4096.0;
-			float s0 = shadow2D(s_shadowMap, vec3(tshadowUV + vec2(-0.5, -0.5) * texelSize, tbiasedZ));
-			float s1 = shadow2D(s_shadowMap, vec3(tshadowUV + vec2( 0.5, -0.5) * texelSize, tbiasedZ));
-			float s2 = shadow2D(s_shadowMap, vec3(tshadowUV + vec2(-0.5,  0.5) * texelSize, tbiasedZ));
-			float s3 = shadow2D(s_shadowMap, vec3(tshadowUV + vec2( 0.5,  0.5) * texelSize, tbiasedZ));
-			float tvisibility = (s0 + s1 + s2 + s3) * 0.25;
-			float tshadowFactor = mix(0.6, 1.0, tvisibility);
-			result.rgb *= tshadowFactor;
+			result.rgb *= sampleShadow(tshadowUV, trefZ, SHADOW_BIAS_TERRAIN);
 		}
 
 		gl_FragColor = result;
@@ -279,15 +297,7 @@ void main()
 		&& shadowUV.y >= 0.0 && shadowUV.y <= 1.0
 		&& refZ >= 0.0 && refZ <= 1.0)
 	{
-		float biasedZ = refZ - 0.002;
-		float texelSize = 1.0 / 4096.0;
-		float s0 = shadow2D(s_shadowMap, vec3(shadowUV + vec2(-0.5, -0.5) * texelSize, biasedZ));
-		float s1 = shadow2D(s_shadowMap, vec3(shadowUV + vec2( 0.5, -0.5) * texelSize, biasedZ));
-		float s2 = shadow2D(s_shadowMap, vec3(shadowUV + vec2(-0.5,  0.5) * texelSize, biasedZ));
-		float s3 = shadow2D(s_shadowMap, vec3(shadowUV + vec2( 0.5,  0.5) * texelSize, biasedZ));
-		float visibility = (s0 + s1 + s2 + s3) * 0.25;
-		float shadowFactor = mix(0.6, 1.0, visibility);
-		current.rgb *= shadowFactor;
+		current.rgb *= sampleShadow(shadowUV, refZ, SHADOW_BIAS_GENERAL);
 	}
 
 	// Cloud-shadow modulation. DX8 ST_TERRAIN_BASE_NOISE1 / _NOISE12
@@ -308,7 +318,7 @@ void main()
 	// to dot-product RGB with luminance weights (0.299, 0.587, 0.114).
 	if (u_grayscaleEnable.x > 0.5)
 	{
-		float luma = dot(current.rgb, vec3(0.299, 0.587, 0.114));
+		float luma = dot(current.rgb, LUMA_WEIGHTS);
 		current.rgb = vec3(luma, luma, luma);
 	}
 
