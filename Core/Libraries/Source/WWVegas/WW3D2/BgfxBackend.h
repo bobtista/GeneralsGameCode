@@ -120,6 +120,17 @@ public:
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture);
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env);
     virtual void Set_Ambient(const Vector3 & color);
+    virtual void Override_Blend(unsigned srcBlend, unsigned dstBlend);
+    virtual void Override_Alpha_Test(bool enable, unsigned ref, unsigned func);
+    virtual void Override_Alpha_Blend_Enable(bool enable);
+    virtual void Override_Texcoord_Index(unsigned stage, unsigned uvIndex);
+    virtual void Override_Terrain_Blend(bool enable);
+    virtual void Override_Material_Opacity(float opacity);
+    virtual void Begin_Effect_Overlay();
+    virtual void End_Effect_Overlay();
+    virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha);
+    virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture = nullptr);
+    virtual void Clear_State_Overrides();
 
     // -- Transforms -----------------------------------------------------------
     //
@@ -157,6 +168,6 @@ public:
     // Set_Stencil_*, Get_Transform, Set_Light*, Set/Get_Ambient,
     // Set/Get_Fog*, Set/Get_Light_Environment, Draw_Strip, Set_Vertex_Shader,
     // Set_Pixel_Shader, *_Constant, Create_Render_Target,
-    // Set_Render_Target_With_Z, Is_Render_To_Texture, Set/Get_Shadow_Map)
+    // Is_Render_To_Texture, Set/Get_Shadow_Map)
     // is inherited from DX8Backend and forwards to DX8Wrapper unchanged.
 };

@@ -1225,6 +1225,11 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 	g_renderBackend->Set_View_Identity();
 	g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,Matrix4x4(true));
 
+	// Route dazzle draws to the sort view so they render AFTER water
+	// and other overlay effects. Otherwise they land on the opaque view
+	// and get hidden behind the DESTALPHA water pass.
+	g_renderBackend->Begin_Effect_Overlay();
+
 	if (halo_poly_count) {
 		g_renderBackend->Set_Index_Buffer(ib_access, dazzle_vertex_count);
 		g_renderBackend->Set_Shader(default_halo_shader);
@@ -1249,6 +1254,8 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 		SphereClass sphere(Vector3(0.0f,0.0f,0.0f),0.0f);
 		g_renderBackend->Draw_Triangles(0, lensflare_poly_count, 0, vertex_count);
 	}
+
+	g_renderBackend->End_Effect_Overlay();
 
 	g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,old_projection_transform);
 	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,old_view_transform);
