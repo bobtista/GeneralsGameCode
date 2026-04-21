@@ -1859,10 +1859,42 @@ void BgfxBackend::Begin_Scene()
     // identity at Begin_Scene time.
     g_frame.shadowLightCaptured = false;
     g_views.overlay2DActive = false;
-    bgfx::setViewRect(kBgfxWaterView, 0, 0, g_device.width, g_device.height);
+    // TheSuperHackers @fix bobtista 21/04/2026 Reset ALL 3D view rects to
+    // full canvas at Begin_Scene, not just water view. Previously only the
+    // water view was reset here, so when a frame did not call Set_Viewport
+    // (e.g. the post-game shell map whose full-canvas camera hits the
+    // isFullCanvas early-return below), the engine/sort/overlay/shadow
+    // views retained the tactical rect (1280x640 excluding the HUD) from
+    // the last in-game frame. Water view at full canvas composited over
+    // an engine view that only wrote to the top 640 — the bottom 160 got
+    // the debug view's alpha=1 clear and water blended opaque there via
+    // DESTALPHA, while the top had low dest alpha from terrain writes
+    // and water blended invisible. Matching reset keeps the views in sync.
+    bgfx::setViewRect(kBgfxEngineView,        0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxEngineSortView,    0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxWaterView,         0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxEffectOverlayView, 0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxShadowVolumeView,  0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxShadowApplyView,   0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxRTTView,           0, 0, g_device.width, g_device.height);
     // No clear on water view — it composites over the opaque scene.
     bgfx::setViewClear(kBgfxWaterView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
     g_views.renderToTexture = false;
+
+    // TheSuperHackers @fix bobtista 21/04/2026 Reset the terrain-blend flag
+    // at Begin_Scene. Clear_State_Overrides (called from Set_Shader)
+    // deliberately preserves g_draw.texcoordSelect[1] because
+    // Override_Terrain_Blend is invoked by the shader manager BEFORE
+    // Set_Shader — clearing it there would wipe the flag every draw. But
+    // nothing was actually resetting it per-frame, so if in-game terrain
+    // rendering ever left it at 1.0 (e.g., on the final frame before a
+    // map transition), it leaked across Begin_Scene and caused subsequent
+    // water draws on the shell map to take the fs_uber terrain-blend path
+    // (u_texcoordSelect.y > 0.5), which mixes s_tex0+s_tex1 with hardcoded
+    // alpha=1 and discards pixels based on TSS alpha — producing large
+    // missing-water areas on the post-game shellmap while DX8 rendered
+    // correctly.
+    g_draw.texcoordSelect[1] = 0.0f;
 }
 
 void BgfxBackend::End_Scene(bool /*flip_frame*/)
@@ -3440,7 +3472,7 @@ void BgfxBackend::Clear_State_Overrides()
     // Override_Terrain_Blend is called from the shader manager BEFORE
     // Set_Shader, so clearing it in Set_Shader (which calls us) would
     // undo the terrain blend flag every frame. Terrain blend is reset
-    // at Begin_Scene and by Override_Terrain_Blend(false) explicitly.
+    // at Begin_Scene (above) and by Override_Terrain_Blend(false).
 }
 
 void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
