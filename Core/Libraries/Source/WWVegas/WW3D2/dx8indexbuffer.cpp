@@ -466,6 +466,13 @@ DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 	DX8_THREAD_ASSERT();
 	switch (DynamicIBAccess->Get_Type()) {
 	case BUFFER_TYPE_DYNAMIC_DX8:
+		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2
+		// write-side capture for bgfx backend. Copy locked sub-range
+		// into a bgfx transient IB before Unlock.
+		if (g_renderBackend != NULL && Indices != NULL) {
+			const unsigned int total_bytes = DynamicIBAccess->Get_Index_Count() * sizeof(unsigned short);
+			g_renderBackend->Capture_Dynamic_Index_Data(DynamicIBAccess, Indices, total_bytes);
+		}
 		DX8_Assert();
 		DX8_ErrorCode(static_cast<DX8IndexBufferClass*>(DynamicIBAccess->IndexBuffer)->Get_DX8_Index_Buffer()->Unlock());
 		break;
