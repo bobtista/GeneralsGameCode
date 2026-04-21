@@ -829,11 +829,11 @@ void W3DDisplay::init()
 		// TheSuperHackers @fix bobtista 16/04/2026 D3D8 half-pixel UV bias
 		// causes sub-pixel misalignment on D3D11/bgfx, producing visible
 		// gaps in menu button outlines. Only apply on legacy D3D8.
-#if defined(GGC_RENDER_BACKEND_BGFX)
-		WW3D::Set_Screen_UV_Bias( FALSE );
-#else
-		WW3D::Set_Screen_UV_Bias( TRUE );  ///< this makes text look good :)
-#endif
+		// Runtime check keeps the =dx8 path byte-identical to main and
+		// avoids compile-time backend branching per project convention.
+		const bool shaderPipeline =
+			(g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline());
+		WW3D::Set_Screen_UV_Bias( shaderPipeline ? FALSE : TRUE );  ///< TRUE makes text look good on D3D8
 		WW3D::Set_Texture_Bitdepth(32);
 
 		setWindowed( TheGlobalData->m_windowed );
@@ -2012,6 +2012,8 @@ AGAIN:
 				}
 				if( m_copyrightDisplayString )
 				{
+					static int s_copyLog = 0;
+					if (s_copyLog < 3) { s_copyLog++; FILE *f = fopen("C:\\tmp\\bgfx_diag.txt", "a"); if(f) { fprintf(f, "COPYRIGHT DRAW #%d w=%d h=%d\n", s_copyLog, getWidth(), getHeight()); fclose(f); } }
 					Int x, y, dX, dY;
 					m_copyrightDisplayString->getSize(&dX, &dY);
 					x = (getWidth() / 2) - (dX /2);
