@@ -248,7 +248,7 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 
 // ----------------------------------------------------------------------------
 
-IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffer_,unsigned start_index, unsigned index_range)
+IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffer_,unsigned start_index, unsigned index_range, unsigned flags)
 	:
 	index_buffer(index_buffer_),
 	AppendStartIndex(start_index),
@@ -266,7 +266,7 @@ IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffe
 			start_index*sizeof(unsigned short),
 			index_range*sizeof(unsigned short),
 			(unsigned char**)&indices,
-			0));
+			flags));
 		break;
 	case BUFFER_TYPE_SORTING:
 		indices=static_cast<SortingIndexBufferClass*>(index_buffer)->index_buffer+start_index;

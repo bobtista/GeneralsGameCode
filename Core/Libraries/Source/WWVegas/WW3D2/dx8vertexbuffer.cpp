@@ -242,7 +242,7 @@ VertexBufferClass::WriteLockClass::~WriteLockClass()
 //
 // ----------------------------------------------------------------------------
 
-VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuffer,unsigned start_index, unsigned index_range)
+VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuffer,unsigned start_index, unsigned index_range, unsigned flags)
 	:
 	VertexBufferLockClass(VertexBuffer),
 	AppendStartIndex(start_index),
@@ -271,7 +271,7 @@ VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuf
 			start_index*VertexBuffer->FVF_Info().Get_FVF_Size(),
 			index_range*VertexBuffer->FVF_Info().Get_FVF_Size(),
 			(unsigned char**)&Vertices,
-			0));	// Default (no) flags
+			flags));
 		break;
 	case BUFFER_TYPE_SORTING:
 		Vertices=static_cast<SortingVertexBufferClass*>(VertexBuffer)->VertexBuffer+start_index;
