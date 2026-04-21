@@ -534,11 +534,11 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 {
 	// TheSuperHackers @refactor bobtista 10/04/2026 Tear down the render
 	// backend before the D3D device is released so any backend-owned
-	// resources get released first. See RENDER_BACKEND.md.
+	// resources get released first.
 	if (g_renderBackend != nullptr)
 	{
 		// Phase 4 session 1. Symmetric counterpart to the Initialize call
-		// in Do_Onetime_Device_Dependent_Inits. See PHASE4.md.
+		// in Do_Onetime_Device_Dependent_Inits.
 		g_renderBackend->Shutdown();
 	}
 	Shutdown_Render_Backend();

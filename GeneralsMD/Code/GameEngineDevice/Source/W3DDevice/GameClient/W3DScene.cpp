@@ -1271,7 +1271,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	// new stencil state extension. The remaining low-level Set_DX8_Render_State
 	// calls (D3DRS_ZBIAS, COLORWRITEENABLE, FILLMODE, ZENABLE/ZFUNC,
 	// SRCBLEND/DESTBLEND pairs, AMBIENT) and the raw m_pDev->* device pointer
-	// access points stay on DX8Wrapper::* until a future phase. See PHASE3F.md.
+	// access points stay on DX8Wrapper::* until a future phase.
 	g_renderBackend->Set_Shader(PlayerColorShader);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	g_renderBackend->Set_Material(vmat);

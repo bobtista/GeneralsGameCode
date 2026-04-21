@@ -109,7 +109,7 @@ protected:
 	Byte *m_shroudData;						///<holds amount of shroud per cell.
 	// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3C migrated this from
 	// raw IDirect3DSurface8* to SurfaceClass* so the shroud system no longer
-	// touches D3D8 directly. See PHASE3C.md.
+	// touches D3D8 directly.
 	SurfaceClass *m_pSrcTexture;			///<stores sysmem copy of visible shroud.
 	void *m_srcTextureData;					///<pointer to shroud data
 	UnsignedInt m_srcTexturePitch;			///<width (in bytes) of shroud data buffer.

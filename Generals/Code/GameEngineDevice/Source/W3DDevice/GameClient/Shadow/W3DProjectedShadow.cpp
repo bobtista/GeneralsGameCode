@@ -265,7 +265,7 @@ Bool W3DProjectedShadowManager::ReAcquireResources()
 	// route the high-level Create_Render_Target through g_renderBackend. The
 	// raw m_pDev->CreateIndexBuffer / CreateVertexBuffer calls below stay on
 	// the IDirect3DDevice8 device pointer because they need a substantial
-	// allocation abstraction we don't have yet. See PHASE3E.md.
+	// allocation abstraction we don't have yet.
 	m_renderTargetHasAlpha=TRUE;
 	if ((m_dynamicRenderTarget=g_renderBackend->Create_Render_Target (DEFAULT_RENDER_TARGET_WIDTH, DEFAULT_RENDER_TARGET_HEIGHT, WW3D_FORMAT_A8R8G8B8)) == nullptr)
 	{
@@ -632,7 +632,6 @@ static void RenderVBTile(TextureClass *text, Real ox, Real oy, Real ou, Real ov,
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3E: route the
 	// high-level binding/draw calls and the blend state through g_renderBackend.
-	// See PHASE3E.md.
 	g_renderBackend->Set_Index_Buffer(ib_access,0);
 	g_renderBackend->Set_Vertex_Buffer(vb_access);
 	g_renderBackend->Set_Texture(0, text);
@@ -698,7 +697,7 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 	// calls below are routed through g_renderBackend. The raw m_pDev->X() calls
 	// later in this function (SetIndices, SetStreamSource, SetVertexShader,
 	// SetRenderState, DrawIndexedPrimitive) remain on IDirect3DDevice8 because
-	// they belong to the deeply-coupled inner rendering loop. See PHASE3E.md.
+	// they belong to the deeply-coupled inner rendering loop.
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	g_renderBackend->Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);

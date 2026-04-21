@@ -89,7 +89,7 @@ void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calib
 // End_Scene pair is a parallel per-frame hook used by BgfxBackend to call
 // bgfx::touch / bgfx::frame alongside the DX8 pipeline. When DX8 is finally
 // removed (post-Phase 4) these will re-acquire their original forwarding
-// behavior. See PHASE4.md.
+// behavior.
 
 void DX8Backend::Begin_Scene()
 {
