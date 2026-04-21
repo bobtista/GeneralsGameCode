@@ -85,6 +85,11 @@ public:
 	{
 		IndexBufferClass* index_buffer;
 		unsigned short* indices;
+		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6
+		// stored so the destructor can report the locked sub-range to
+		// the bgfx write-side capture hook. Not used by the dx8 path.
+		unsigned AppendStartIndex;
+		unsigned AppendIndexRange;
 	public:
 		AppendLockClass(IndexBufferClass* index_buffer,unsigned start_index, unsigned index_range);
 		~AppendLockClass();
