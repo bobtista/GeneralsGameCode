@@ -320,7 +320,6 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 1 introduced the
 		// IRenderBackend migration for this function; Phase 3B completed it by
 		// routing the fade blend-op overrides through the new interface API.
-		// See Core/Libraries/Source/WWVegas/WW3D2/RENDER_BACKEND.md.
 
 		//Apply the shader and material
 		g_renderBackend->Set_Material(m_vertexMaterialClass);

@@ -161,7 +161,7 @@ void RoadType::applyTexture()
 {
  	W3DShaderManager::setTexture(0,m_roadTexture);
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-	// through the IRenderBackend abstraction. See PHASE3.md.
+	// through the IRenderBackend abstraction.
 	g_renderBackend->Set_Index_Buffer(m_indexRoad,0);
 	g_renderBackend->Set_Vertex_Buffer(m_vertexRoad,0);
 }
@@ -3335,7 +3335,7 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 			if (loadBuffers) loadRoadsInVertexAndIndexBuffers();
 			if (m_roadTypes[i].getNumIndices() == 0) continue;
 			// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-			// through the IRenderBackend abstraction. See PHASE3.md.
+			// through the IRenderBackend abstraction.
 			if (wireframe) {
 				m_roadTypes[i].applyTexture();
 				g_renderBackend->Set_Texture(0,nullptr);

@@ -890,7 +890,7 @@ Try improving the fit to vertical surfaces like cliffs.
 	{
 		ShaderClass::Invalidate();
 		// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-		// through the IRenderBackend abstraction. See PHASE3.md.
+		// through the IRenderBackend abstraction.
 		g_renderBackend->Set_Material(m_vertexMaterialClass);
 		g_renderBackend->Set_Shader(m_shaderClass);
 		g_renderBackend->Set_Index_Buffer(m_indexBuffer,0);

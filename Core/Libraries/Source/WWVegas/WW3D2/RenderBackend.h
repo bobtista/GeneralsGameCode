@@ -19,7 +19,7 @@
 // TheSuperHackers @refactor bobtista 10/04/2026 Backend-agnostic access point
 // for the global IRenderBackend instance. Engine-side code should include
 // this header (not IRenderBackend.h or DX8Backend.h directly) to use the
-// render backend. See RENDER_BACKEND.md.
+// render backend.
 
 #pragma once
 

@@ -6,7 +6,7 @@
 #
 # Pulls in DiligentCore (the minimum subset; no DiligentTools, DiligentFX,
 # or DiligentSamples) via FetchContent, pinned to a specific SHA for
-# reproducibility. See PHASE2.md.
+# reproducibility.
 #
 # This file is NOT included when GGC_RENDER_BACKEND is dx8 or bgfx.
 

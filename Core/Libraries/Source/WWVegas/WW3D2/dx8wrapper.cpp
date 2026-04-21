@@ -58,7 +58,6 @@
 #include "dx8renderer.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
-#include "StubD3D8Device.h"
 #include "ww3d.h"
 #include "camera.h"
 #include "wwstring.h"
@@ -90,13 +89,6 @@
 
 #include "shdlib.h"
 
-#include <cstdio>
-
-#if defined(GGC_BGFX_STANDALONE)
-#include "TARGA.h"
-#include "ww3dformat.h"
-#endif
-
 const int DEFAULT_RESOLUTION_WIDTH = 640;
 const int DEFAULT_RESOLUTION_HEIGHT = 480;
 const int DEFAULT_BIT_DEPTH = 32;
@@ -105,20 +97,6 @@ const D3DMULTISAMPLE_TYPE DEFAULT_MSAA = D3DMULTISAMPLE_NONE;
 
 DX8FrameStatistics DX8Wrapper::FrameStatistics;
 static DX8FrameStatistics LastFrameStatistics;
-
-static void Log_Missing_Texture_File(const char *reason, const char *filename)
-{
-	char message[512];
-	snprintf(
-		message,
-		sizeof(message),
-		"Missing texture %s: %s\n",
-		reason ? reason : "load failed",
-		filename ? filename : "(null)");
-	fprintf(stderr, "%s", message);
-	fflush(stderr);
-	OutputDebugString(message);
-}
 
 bool DX8Wrapper_IsWindowed = true;
 
@@ -290,14 +268,11 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	** Initialize all variables!
 	*/
 
-	// TheSuperHackers @feature bobtista 19/04/2026 When bgfx is
+	// TheSuperHackers @feature bobtista 19/04/2026 Phase 4K: when bgfx is
 	// the active render backend, D3D8 uses a secondary reference window
 	// so bgfx can take the main game HWND without DXGI swapchain conflict.
 	// Save the original game HWND for bgfx before redirecting D3D8.
-	// In standalone mode the D3D8 device is a stub that doesn't
-	// render anywhere, so the ref popup is useless — it only sits on top of
-	// the real game window and hides the bgfx output.
-#if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	_GameHwndForBgfx = (HWND)hwnd;
 	{
 		HINSTANCE hInst = GetModuleHandleW(nullptr);
@@ -365,23 +340,6 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	Invalidate_Cached_Render_States();
 
 	if (!lite) {
-#if defined(GGC_BGFX_STANDALONE)
-		// TheSuperHackers @refactor bobtista 22/04/2026 Standalone
-		// mode uses a no-op stub IDirect3DDevice8. Skip the LoadLibrary /
-		// Direct3DCreate8 path entirely so d3d8.dll is not a runtime dep.
-		// See StubD3D8Device.cpp for the stub implementation. DX8Wrapper's
-		// state tracking (render_state updates) still runs; the underlying
-		// device calls execute against the stub and do nothing. bgfx handles
-		// the real rendering via its own D3D11 backend.
-		WWDEBUG_SAY(("Using stub D3D8 interface (standalone)"));
-		D3DInterface = CreateStubD3D8Interface();
-		if (D3DInterface == nullptr) {
-			return false;
-		}
-		IsInitted = true;
-		Enumerate_Devices();
-		WWDEBUG_SAY(("DX8Wrapper Init completed (stub mode)"));
-#else
 		D3D8Lib = LoadLibrary("D3D8.DLL");
 
 		if (D3D8Lib == nullptr) return false;	// Return false at this point if init failed
@@ -411,7 +369,6 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 		WWDEBUG_SAY(("Enumerate devices"));
 		Enumerate_Devices();
 		WWDEBUG_SAY(("DX8Wrapper Init completed"));
-#endif
 	}
 
 	return(true);
@@ -431,9 +388,8 @@ void DX8Wrapper::Shutdown()
 
 	}
 
-#if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	// TheSuperHackers @fix bobtista 20/04/2026 Destroy the DX8 reference window and its WNDCLASS created in Init so repeated Init/Shutdown cycles don't leak.
-	// Standalone doesn't create a ref window, so nothing to tear down here.
 	if (_Hwnd != nullptr && _Hwnd != _GameHwndForBgfx)
 	{
 		::DestroyWindow(_Hwnd);
@@ -476,8 +432,8 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	*/
 	Compute_Caps(D3DFormat_To_WW3DFormat(DisplayFormat));
 
-	// TheSuperHackers @refactor bobtista 11/04/2026 Construct and
-	// initialize the render backend BEFORE the engine
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.14
+	// Construct and initialize the render backend BEFORE the engine
 	// subsystem _Init() calls below. Several of them (notably
 	// PointGroupClass::_Init and BoxRenderObjClass::Init) allocate
 	// static index / vertex buffers and populate them via the Write
@@ -492,12 +448,10 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	// by the time this function is called, so it is safe to run the
 	// backend's real Initialize() here, well before the _Init() calls.
 	Init_Render_Backend();
-#if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	// Pass the original game HWND to bgfx, not the DX8 reference window.
 	g_renderBackend->Initialize(_GameHwndForBgfx, ResolutionWidth, ResolutionHeight);
 #else
-	// Standalone bgfx and legacy DX8 both render to the real game HWND
-	// (there's no separate ref popup to redirect around).
 	g_renderBackend->Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
 #endif
 
@@ -583,8 +537,8 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	// resources get released first.
 	if (g_renderBackend != nullptr)
 	{
-		// Symmetric counterpart to the Initialize call in
-		// Do_Onetime_Device_Dependent_Inits.
+		// Phase 4 session 1. Symmetric counterpart to the Initialize call
+		// in Do_Onetime_Device_Dependent_Inits.
 		g_renderBackend->Shutdown();
 	}
 	Shutdown_Render_Backend();
@@ -854,19 +808,11 @@ void DX8Wrapper::Enumerate_Devices()
 			desc.set_driver_name(id.Driver);
 
 			char buf[64];
-#ifdef _WIN32
 			sprintf(buf,"%d.%d.%d.%d", //"%04x.%04x.%04x.%04x",
 				HIWORD(id.DriverVersion.HighPart),
 				LOWORD(id.DriverVersion.HighPart),
 				HIWORD(id.DriverVersion.LowPart),
 				LOWORD(id.DriverVersion.LowPart));
-#else
-			sprintf(buf,"%d.%d.%d.%d", //"%04x.%04x.%04x.%04x",
-				HIWORD(id.DriverVersionHighPart),
-				LOWORD(id.DriverVersionHighPart),
-				HIWORD(id.DriverVersionLowPart),
-				LOWORD(id.DriverVersionLowPart));
-#endif
 
 			desc.set_driver_version(buf);
 
@@ -1072,7 +1018,7 @@ void DX8Wrapper::Resize_And_Position_Window()
 	}
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 19/04/2026 Also resize the
+	// TheSuperHackers @feature bobtista 19/04/2026 Phase 4K: also resize the
 	// main game window (used by bgfx) to match the game's resolution. Without
 	// this, the game window stays at its initial size and mouse coordinates
 	// don't match the game's UI coordinate system.
@@ -1134,7 +1080,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	if (bits != -1)		BitDepth = bits;
 	if (windowed != -1)	IsWindowed = (windowed != 0);
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 16/04/2026 D3D8 reference
+	// TheSuperHackers @feature bobtista 16/04/2026 Phase 4K: D3D8 reference
 	// window must always use windowed mode. Fullscreen-exclusive would steal
 	// input focus from the main game window where bgfx renders.
 	IsWindowed = true;
@@ -1463,7 +1409,7 @@ void DX8Wrapper::Set_Device_Window(HWND hwnd, int width, int height)
 		return;
 	}
 
-	// TheSuperHackers @refactor bobtista 18/04/2026 Move the D3D8
+	// TheSuperHackers @refactor bobtista 18/04/2026 Phase 4K move the D3D8
 	// device to a reference popup window. Keep the original backbuffer
 	// resolution so the game's UI layout calculations stay correct —
 	// D3D8 stretches the output to fit the popup window automatically.
@@ -2033,7 +1979,6 @@ void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 	DX8_THREAD_ASSERT();
 	DX8CALL(SetViewport(pViewport));
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
 	// TheSuperHackers @fix bobtista 19/04/2026 Notify g_renderBackend so bgfx
 	// view rects stay in sync with the D3D8 viewport. CameraClass::Apply()
 	// calls this directly, bypassing g_renderBackend->Set_Viewport().
@@ -2048,7 +1993,6 @@ void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 		rbvp.max_z  = pViewport->MaxZ;
 		g_renderBackend->Set_Viewport(rbvp);
 	}
-#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -2230,7 +2174,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 
 	DX8_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
 
-	// TheSuperHackers @refactor bobtista 11/04/2026 Hand the
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 hand the
 	// internal dynamic VB/IB to the render backend so a bgfx co-resident
 	// can submit the same draw using its transient captures of these
 	// inner buffers. The Write locks above already fired the backend's
@@ -2270,7 +2214,7 @@ void DX8Wrapper::Draw(
 
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 	if (WW3D::Is_Snapshot_Activated()) {
-		DWORD passes=0;
+		unsigned long passes=0;
 		SNAPSHOT_SAY(("ValidateDevice:"));
 		HRESULT res=D3DDevice->ValidateDevice(&passes);
 		switch (res) {
@@ -2711,184 +2655,6 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	return texture;
 }
 
-#if defined(GGC_BGFX_STANDALONE)
-// TheSuperHackers @refactor bobtista 22/04/2026 Stage 5 —
-// In standalone we replace D3DXCreateTextureFromFileExA with a direct
-// Targa decoder + stub-device CreateTexture + LockRect write. The goal
-// is to (a) remove D3DX as a black-box in the standalone pixel path so
-// remaining visual bugs don't depend on D3DX internals interacting with
-// our stub and (b) start the work of dropping d3dx8.lib from the link.
-// For non-.tga files (e.g. .dds) we fall back to D3DX; it still works
-// because d3dx8 is statically linked.
-static IDirect3DTexture8 * LoadTextureStandalone_TGA(
-	const char * filename,
-	MipCountType mip_level_count)
-{
-	Targa targa;
-	if (targa.Open(filename, TGA_READMODE) != 0)
-		return nullptr;
-
-	// W3D uses Y-flipped TGA (D3D texels top-down).
-	targa.Header.ImageDescriptor ^= TGAIDF_YORIGIN;
-
-	WW3DFormat src_format = WW3D_FORMAT_UNKNOWN;
-	unsigned src_bpp = 0;
-	Get_WW3D_Format(src_format, src_bpp, targa);
-	if (src_format == WW3D_FORMAT_UNKNOWN)
-		return nullptr;
-
-	const unsigned src_w = targa.Header.Width;
-	const unsigned src_h = targa.Header.Height;
-	if (src_w == 0 || src_h == 0)
-		return nullptr;
-
-	// Decide destination format: 32-bit TGA gets A8R8G8B8, 24-bit gets X8R8G8B8.
-	// All other cases up-convert to A8R8G8B8 so the stub scratch layout (width*4)
-	// matches what EnsureBgfxTexture expects.
-	const bool has_alpha = (targa.Header.PixelDepth == 32)
-		|| (src_format == WW3D_FORMAT_A8R8G8B8)
-		|| (src_format == WW3D_FORMAT_A4R4G4B4)
-		|| (src_format == WW3D_FORMAT_A1R5G5B5);
-	const D3DFORMAT d3d_fmt = has_alpha ? D3DFMT_A8R8G8B8 : D3DFMT_X8R8G8B8;
-
-	// How many mip levels do we actually produce? If caller asked for
-	// MIP_LEVELS_1, just one; otherwise full chain down to 1x1.
-	DWORD levels = 1;
-	if (mip_level_count != MIP_LEVELS_1)
-	{
-		unsigned m = src_w > src_h ? src_w : src_h;
-		while (m > 1) { m >>= 1; ++levels; }
-	}
-
-	IDirect3DTexture8 * texture = nullptr;
-	HRESULT hr = DX8Wrapper::_Get_D3D_Device8()->CreateTexture(
-		src_w, src_h, levels, 0, d3d_fmt, D3DPOOL_MANAGED, &texture);
-	if (hr != D3D_OK || texture == nullptr)
-		return nullptr;
-
-	// Decode file into an internally-allocated buffer owned by targa.
-	// TGA class flips Y-orientation itself based on ImageDescriptor.
-	if (targa.Load(filename, TGAF_IMAGE, false) != 0)
-	{
-		texture->Release();
-		return nullptr;
-	}
-
-	const uint8_t * src = reinterpret_cast<const uint8_t *>(targa.GetImage());
-	if (src == nullptr)
-	{
-		texture->Release();
-		return nullptr;
-	}
-
-	D3DLOCKED_RECT locked = { 0 };
-	if (FAILED(texture->LockRect(0, &locked, nullptr, 0)))
-	{
-		texture->Release();
-		return nullptr;
-	}
-
-	// Convert/copy source pixels into the texture's level-0 scratch.
-	// Targa memory layout is the same little-endian BGRA byte order as
-	// D3D8 A8R8G8B8/X8R8G8B8 so we can straight-copy for 32-bit and
-	// fill alpha=0xFF for 24-bit.
-	const unsigned dst_pitch = static_cast<unsigned>(locked.Pitch);
-	uint8_t * dst = static_cast<uint8_t *>(locked.pBits);
-	if (src_bpp == 4)
-	{
-		for (unsigned y = 0; y < src_h; ++y)
-		{
-			std::memcpy(dst + y * dst_pitch, src + y * src_w * 4, src_w * 4);
-		}
-	}
-	else if (src_bpp == 3)
-	{
-		for (unsigned y = 0; y < src_h; ++y)
-		{
-			const uint8_t * s = src + y * src_w * 3;
-			uint8_t * d = dst + y * dst_pitch;
-			for (unsigned x = 0; x < src_w; ++x)
-			{
-				d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; d[3] = 0xFF;
-				s += 3; d += 4;
-			}
-		}
-	}
-	else
-	{
-		// Other bit depths (16-bit, paletted) — reject; D3DX fallback
-		// will handle these rarer cases.
-		texture->UnlockRect(0);
-		texture->Release();
-		return nullptr;
-	}
-	texture->UnlockRect(0);
-
-	// Generate mip levels via 2x2 box filter (per channel independent).
-	UINT prev_w = src_w;
-	UINT prev_h = src_h;
-	for (DWORD level = 1; level < levels; ++level)
-	{
-		UINT lw = prev_w >> 1; if (lw == 0) lw = 1;
-		UINT lh = prev_h >> 1; if (lh == 0) lh = 1;
-
-		D3DLOCKED_RECT src_l = { 0 };
-		D3DLOCKED_RECT dst_l = { 0 };
-		if (FAILED(texture->LockRect(level - 1, &src_l, nullptr, 0))) break;
-		if (FAILED(texture->LockRect(level, &dst_l, nullptr, 0)))
-		{
-			texture->UnlockRect(level - 1);
-			break;
-		}
-
-		// Clamp the second sample coordinate so 1D parent mips (width==1
-		// or height==1) don't read past their row/column. Matches the
-		// edge-aware box filter in D3DXStandaloneStubs.cpp.
-		const UINT parent_w = prev_w;
-		const UINT parent_h = prev_h;
-		const uint8_t * spx = static_cast<const uint8_t *>(src_l.pBits);
-		uint8_t * dpx = static_cast<uint8_t *>(dst_l.pBits);
-		for (UINT y = 0; y < lh; ++y)
-		{
-			const UINT y0 = 2 * y;
-			const UINT y1 = (y0 + 1 < parent_h) ? (y0 + 1) : y0;
-			for (UINT x = 0; x < lw; ++x)
-			{
-				const UINT x0 = 2 * x;
-				const UINT x1 = (x0 + 1 < parent_w) ? (x0 + 1) : x0;
-				const uint8_t * p00 = spx + y0 * src_l.Pitch + x0 * 4;
-				const uint8_t * p10 = spx + y0 * src_l.Pitch + x1 * 4;
-				const uint8_t * p01 = spx + y1 * src_l.Pitch + x0 * 4;
-				const uint8_t * p11 = spx + y1 * src_l.Pitch + x1 * 4;
-				uint8_t * d = dpx + y * dst_l.Pitch + x * 4;
-				d[0] = static_cast<uint8_t>((p00[0] + p10[0] + p01[0] + p11[0] + 2) >> 2);
-				d[1] = static_cast<uint8_t>((p00[1] + p10[1] + p01[1] + p11[1] + 2) >> 2);
-				d[2] = static_cast<uint8_t>((p00[2] + p10[2] + p01[2] + p11[2] + 2) >> 2);
-				d[3] = static_cast<uint8_t>((p00[3] + p10[3] + p01[3] + p11[3] + 2) >> 2);
-			}
-		}
-		texture->UnlockRect(level);
-		texture->UnlockRect(level - 1);
-		prev_w = lw;
-		prev_h = lh;
-	}
-
-	return texture;
-}
-
-static bool HasTgaExtension(const char * filename)
-{
-	if (filename == nullptr) return false;
-	const size_t n = std::strlen(filename);
-	if (n < 4) return false;
-	const char * ext = filename + n - 4;
-	return (ext[0] == '.') &&
-		(ext[1] == 't' || ext[1] == 'T') &&
-		(ext[2] == 'g' || ext[2] == 'G') &&
-		(ext[3] == 'a' || ext[3] == 'A');
-}
-#endif // GGC_BGFX_STANDALONE
-
 IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 (
 	const char *filename,
@@ -2898,29 +2664,6 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 	IDirect3DTexture8 *texture = nullptr;
-
-#if defined(GGC_BGFX_STANDALONE)
-	// Bypass D3DX for TGA files in standalone. The D3DX upload path
-	// occasionally produced bad pixel data against our stub device
-	// (unknown internal cause) which showed as dark bands / black
-	// regions on terrain. Direct TGA -> stub LockRect is deterministic.
-	if (HasTgaExtension(filename))
-	{
-		texture = LoadTextureStandalone_TGA(filename, mip_level_count);
-		if (texture != nullptr)
-		{
-			D3DSURFACE_DESC desc;
-			texture->GetLevelDesc(0, &desc);
-			if (desc.Format == D3DFMT_P8) {
-				Log_Missing_Texture_File("paletted TGA", filename);
-				texture->Release();
-				return MissingTexture::_Get_Missing_Texture();
-			}
-			return texture;
-		}
-		// fall through to D3DX fallback if TGA loader failed
-	}
-#endif
 
 	// NOTE: If the original image format is not supported as a texture format, it will
 	// automatically be converted to an appropriate format.
@@ -2944,7 +2687,6 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 		&texture);
 
 	if (result != D3D_OK) {
-		Log_Missing_Texture_File("D3DX fallback", filename);
 		return MissingTexture::_Get_Missing_Texture();
 	}
 
@@ -2952,7 +2694,6 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	D3DSURFACE_DESC desc;
 	texture->GetLevelDesc(0,&desc);
 	if (desc.Format==D3DFMT_P8) {
-		Log_Missing_Texture_File("paletted D3DX", filename);
 		texture->Release();
 		return MissingTexture::_Get_Missing_Texture();
 	}
@@ -3344,10 +3085,8 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 				ext[3]='s';
 			}
 			file_auto_ptr myfile2(_TheFileFactory,compressed_name);
-			if (!myfile2->Is_Available()) {
-				Log_Missing_Texture_File("surface file", filename_);
+			if (!myfile2->Is_Available())
 				return MissingTexture::_Create_Missing_Surface();
-			}
 		}
 	}
 

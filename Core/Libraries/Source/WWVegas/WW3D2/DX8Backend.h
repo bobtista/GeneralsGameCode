@@ -21,7 +21,7 @@
 // existing DX8Wrapper static facade. It adds zero new rendering logic and
 // performs zero behavior changes — it is pure adaptation so the rest of the
 // engine can start talking to an IRenderBackend pointer while still running
-// on the established DX8 path. See RENDER_BACKEND.md.
+// on the established DX8 path.
 
 #pragma once
 
