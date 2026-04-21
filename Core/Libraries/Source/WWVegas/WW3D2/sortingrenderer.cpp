@@ -395,6 +395,9 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 		return;	//no point changing lights if they are ignored.
   //prevLight = render_state.lightsHash;
 
+	WW3D::Get_Render_Backend()->Capture_Sorted_Batch_Light(
+		render_state.Lights[0], render_state.LightEnable[0]);
+
 	if (render_state.LightEnable[0]) {
 		DX8Wrapper::Set_DX8_Light(0,&render_state.Lights[0]);
 		if (render_state.LightEnable[1]) {
@@ -689,8 +692,8 @@ void SortingRendererClass::Flush()
 	DynamicVBAccessClass::_Reset(false);
 
 
-	Renderer::Set_Transform(RenderTransform_View,old_view);
-	Renderer::Set_Transform(RenderTransform_World,old_world);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,old_view);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,old_world);
 
 }
 

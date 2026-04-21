@@ -301,7 +301,7 @@ void RigidDecalMeshClass::Render()
 	** transform between the time that the mesh is rendered and the time that the decal
 	** mesh is rendered...  It shouldn't happen though.
 	*/
-	Renderer::Set_Transform(RenderTransform_World,Parent->Get_Transform());
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Parent->Get_Transform());
 
 	/*
 	** Copy the vertices into the dynamic vb
@@ -386,9 +386,9 @@ void RigidDecalMeshClass::Render()
  *=============================================================================================*/
 int RigidDecalMeshClass::Process_Material_Run(int start_index)
 {
-	DX8Wrapper::Set_Texture(0,Textures[start_index]);
-	DX8Wrapper::Set_Material(VertexMaterials[Polys[start_index].I]);
-	DX8Wrapper::Set_Shader(Shaders[start_index]);
+	WW3D::Get_Render_Backend()->Set_Texture(0,Textures[start_index]);
+	WW3D::Get_Render_Backend()->Set_Material(VertexMaterials[Polys[start_index].I]);
+	WW3D::Get_Render_Backend()->Set_Shader(Shaders[start_index]);
 
 	int next_index = start_index;
 	while (	(next_index < Polys.Count()) &&
@@ -791,7 +791,7 @@ void SkinDecalMeshClass::Render()
 	/*
 	** Skin decals coordinates are in world space
 	*/
-	Renderer::Set_Transform(RenderTransform_World,Matrix3D::Identity);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Matrix3D::Identity);
 
 	/*
 	** Skin decals have to get the deformed vertices of their parent meshes.  For this
@@ -884,9 +884,9 @@ void SkinDecalMeshClass::Render()
  *=============================================================================================*/
 int SkinDecalMeshClass::Process_Material_Run(int start_index)
 {
-	DX8Wrapper::Set_Texture(0,Textures[start_index]);
-	DX8Wrapper::Set_Material(VertexMaterials[Polys[start_index].I]);
-	DX8Wrapper::Set_Shader(Shaders[start_index]);
+	WW3D::Get_Render_Backend()->Set_Texture(0,Textures[start_index]);
+	WW3D::Get_Render_Backend()->Set_Material(VertexMaterials[Polys[start_index].I]);
+	WW3D::Get_Render_Backend()->Set_Shader(Shaders[start_index]);
 
 	int next_index = start_index;
 	while (	(next_index < Polys.Count()) &&
