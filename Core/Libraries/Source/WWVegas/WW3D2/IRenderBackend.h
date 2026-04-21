@@ -124,6 +124,15 @@ enum CompareFunc
     RB_CMP_ALWAYS        = 8
 };
 
+// TheSuperHackers @refactor bobtista 14/04/2026 Phase 4F. D3DFILLMODE
+// values match D3DFILL_* so DX8Backend can cast directly.
+enum FillMode
+{
+    RB_FILL_POINT     = 1,   // D3DFILL_POINT
+    RB_FILL_WIREFRAME = 2,   // D3DFILL_WIREFRAME
+    RB_FILL_SOLID     = 3    // D3DFILL_SOLID
+};
+
 enum StencilOp
 {
     // Values match D3DSTENCILOP_* 1..8 directly so DX8Backend can cast.
@@ -340,6 +349,23 @@ public:
     virtual void Set_Stencil_Pass_Op(StencilOp op) = 0;
     virtual void Set_Stencil_Fail_Op(StencilOp op) = 0;
     virtual void Set_Stencil_ZFail_Op(StencilOp op) = 0;
+
+    // TheSuperHackers @refactor bobtista 14/04/2026 Phase 4F.1 / 4F.2
+    // render-state remainders. These wrap the last D3DRS_* values still
+    // being set directly by the terrain / scene / water / snow code
+    // (ZBIAS, FILLMODE, ZENABLE/ZFUNC, COLORWRITEENABLE as DWORD mask).
+    // The DWORD variant of Set_Color_Write_Mask coexists with the
+    // boolean Set_Color_Write_Enable — callers that receive a saved
+    // bitmask from GetRenderState use this, callers that know the four
+    // channel flags use the boolean form.
+    virtual void Set_Z_Bias(int bias) = 0;
+    virtual void Set_Fill_Mode(FillMode mode) = 0;
+    virtual void Set_Depth_Test_Enable(bool enable) = 0;
+    virtual void Set_Depth_Write_Enable(bool enable) = 0;
+    virtual void Set_Depth_Func(CompareFunc func) = 0;
+    virtual void Set_Color_Write_Mask(unsigned mask) = 0;
+    virtual void Set_Lighting_Enable(bool enable) = 0;
+    virtual void Set_Texture_Factor(unsigned argb) = 0;
 
     // -------------------------------------------------------------------------
     // Transforms
