@@ -34,6 +34,7 @@
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8wrapper.h"
+#include "lightenvironment.h"
 #include "matrix3d.h"
 #include "matrix4.h"
 #include "shader.h"
@@ -137,6 +138,38 @@ bgfx::UniformHandle g_uTssOps1    = BGFX_INVALID_HANDLE;
 float               g_currentTssOps0[4] = { 3.0f, 3.0f, 0.0f, 0.0f }; // default: MODULATE color+alpha, no secondary
 float               g_currentTssOps1[4] = { 0.0f, 0.0f, 0.0f, 0.0f }; // default: arg1=TEXTURE for all
 float               g_currentAtestRef   = 0.0f; // alpha test reference, 0 = disabled
+
+// Phase 5B: lighting uniforms. The engine supports up to 4 lights
+// (typically 1 directional sun + 0-3 point lights). We pack light data
+// into vec4 arrays and push them per-draw so the uber fragment shader
+// can evaluate real N.L lighting instead of the hardcoded fake sun.
+// 4 lights packed into vec4 arrays (one element per light).
+// u_lightDirs[i].xyz = direction toward light, .w = enabled flag
+// u_lightColors[i].rgb = diffuse color
+bgfx::UniformHandle g_uLightDirs      = BGFX_INVALID_HANDLE;
+bgfx::UniformHandle g_uLightColors    = BGFX_INVALID_HANDLE;
+bgfx::UniformHandle g_uSceneAmbient   = BGFX_INVALID_HANDLE;
+bgfx::UniformHandle g_uLightingEnabled = BGFX_INVALID_HANDLE;
+// Defaults match the old hardcoded sun: direction TOWARD light (positive),
+// white diffuse, reasonable ambient. These are used until the first
+// Set_Light_Environment call provides real game lights.
+float               g_currentLightDirs[4][4]   = {
+    { 0.35f, 0.55f, 0.75f, 1.0f },
+    { 0.0f, 0.0f, 0.0f, 0.0f },
+    { 0.0f, 0.0f, 0.0f, 0.0f },
+    { 0.0f, 0.0f, 0.0f, 0.0f }
+};
+float               g_currentLightColors[4][4] = {
+    { 0.75f, 0.75f, 0.75f, 1.0f },
+    { 0.0f, 0.0f, 0.0f, 0.0f },
+    { 0.0f, 0.0f, 0.0f, 0.0f },
+    { 0.0f, 0.0f, 0.0f, 0.0f }
+};
+float               g_currentSceneAmbient[4] = { 0.45f, 0.45f, 0.45f, 1.0f };
+// Phase 5B: tracks whether the current material has lighting enabled.
+// When false, the vertex color contains pre-baked lighting (terrain)
+// and the fragment shader should NOT apply N.L lighting on top.
+float               g_currentLightingEnabled[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4F.1 default 1x1
 // white texture. Real Set_Texture wiring is not in place yet, so the
@@ -752,6 +785,14 @@ float g_bgfxWorld[16];
 float g_bgfxView[16];
 float g_bgfxProj[16];
 bool  g_bgfxViewProjDirty = true;
+
+// Snapshot of g_bgfxView and g_bgfxProj captured at the first opaque
+// draw of each frame. Re-applied to view 1 at End_Scene to prevent
+// later Set_Projection calls (water, shadows, sneak attack) from
+// retroactively stomping the camera projection via setViewTransform.
+float g_bgfxCameraView[16];
+float g_bgfxCameraProj[16];
+bool  g_bgfxCameraCaptured = false;
 bool  g_loggedFirstSetView = false;
 bool  g_loggedFirstSetProj = false;
 bool  g_loggedFirstSetWorld = false;
@@ -928,9 +969,11 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
 
     if (tex->Get_Pool() == TextureBaseClass::POOL_DEFAULT)
     {
-        // POOL_DEFAULT textures (render targets, dynamic) need a
-        // different code path. Skip for now.
-        g_textureCache[tex] = BGFX_INVALID_HANDLE;
+        // POOL_DEFAULT textures are GPU-only render targets (water
+        // reflections). Skip for now — Phase 5C will add proper
+        // render-to-texture via bgfx framebuffers. Don't cache the
+        // failure so we re-check each frame (the texture might not
+        // be initialized on the first check).
         return BGFX_INVALID_HANDLE;
     }
 
@@ -1248,8 +1291,13 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     g_uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
     g_uTssOps0     = bgfx::createUniform("u_tssOps0",     bgfx::UniformType::Vec4);
     g_uTssOps1     = bgfx::createUniform("u_tssOps1",     bgfx::UniformType::Vec4);
+    g_uLightDirs   = bgfx::createUniform("u_lightDirs",   bgfx::UniformType::Vec4, 4);
+    g_uLightColors = bgfx::createUniform("u_lightColors", bgfx::UniformType::Vec4, 4);
+    g_uSceneAmbient  = bgfx::createUniform("u_sceneAmbient",   bgfx::UniformType::Vec4);
+    g_uLightingEnabled = bgfx::createUniform("u_lightingEnabled", bgfx::UniformType::Vec4);
 
-    // Phase 4F.1 default 1x1 white texture (opaque ABGR=0xffffffff).
+    // Default 1x1 white texture. Used as fallback for missing textures.
+    // Multiplying by white is the identity operation.
     static const uint8_t kWhitePixel[4] = { 0xff, 0xff, 0xff, 0xff };
     g_defaultWhiteTexture = bgfx::createTexture2D(
         1, 1, false, 1,
@@ -1337,6 +1385,26 @@ void BgfxBackend::Shutdown()
             bgfx::destroy(g_uTssOps1);
             g_uTssOps1 = BGFX_INVALID_HANDLE;
         }
+        if (bgfx::isValid(g_uLightDirs))
+        {
+            bgfx::destroy(g_uLightDirs);
+            g_uLightDirs = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_uLightColors))
+        {
+            bgfx::destroy(g_uLightColors);
+            g_uLightColors = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_uSceneAmbient))
+        {
+            bgfx::destroy(g_uSceneAmbient);
+            g_uSceneAmbient = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_uLightingEnabled))
+        {
+            bgfx::destroy(g_uLightingEnabled);
+            g_uLightingEnabled = BGFX_INVALID_HANDLE;
+        }
         if (bgfx::isValid(g_defaultWhiteTexture))
         {
             bgfx::destroy(g_defaultWhiteTexture);
@@ -1413,12 +1481,18 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     {
         return;
     }
-    // Re-apply the camera projection to the sort view. The engine calls
+    // Re-apply captured camera transforms to both views. The engine calls
     // Set_Projection_Transform_With_Z_Bias multiple times per frame
-    // (camera, water reflections, shadows). The last call often uses a
-    // tiny near-field frustum that clips all sort geometry. Since bgfx's
-    // setViewTransform is retroactive for the whole frame, we re-apply
-    // the projection that was active at sort-flush time.
+    // (camera, water reflections, shadows, sneak attack). Since bgfx's
+    // setViewTransform is retroactive for the whole frame, the last call
+    // would stomp earlier draws. We re-apply the camera projection that
+    // was active at the first opaque draw (view 1) and at sort-flush
+    // time (view 2).
+    if (g_bgfxCameraCaptured)
+    {
+        bgfx::setViewTransform(kBgfxEngineView, g_bgfxCameraView, g_bgfxCameraProj);
+        g_bgfxCameraCaptured = false;
+    }
     if (g_bgfxSortProjCaptured)
     {
         float identityView[16];
@@ -1834,6 +1908,26 @@ void BgfxBackend::Capture_Sorted_Batch_Transforms(const Matrix4x4 & sortWorld,
     }
 }
 
+void BgfxBackend::Capture_Sorted_Batch_Light(const D3DLIGHT8 & light, bool enabled)
+{
+    // Sort batch lights are always light 0 (the primary directional).
+    // Scene ambient was already captured by Set_Light_Environment.
+    if (enabled)
+    {
+        g_currentLightDirs[0][0] = light.Direction.x;
+        g_currentLightDirs[0][1] = light.Direction.y;
+        g_currentLightDirs[0][2] = light.Direction.z;
+        g_currentLightDirs[0][3] = 1.0f;
+        g_currentLightColors[0][0] = light.Diffuse.r;
+        g_currentLightColors[0][1] = light.Diffuse.g;
+        g_currentLightColors[0][2] = light.Diffuse.b;
+    }
+    else
+    {
+        g_currentLightDirs[0][3] = 0.0f;
+    }
+}
+
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 sorted VB
 // direct-draw submit. Called from DX8Wrapper::Draw_Sorting_IB_VB after
 // it populates an internal dynamic VB and dynamic IB by copying a slice
@@ -2126,6 +2220,10 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
         g_currentMatDiffuse[1] = diffuse.Y;
         g_currentMatDiffuse[2] = diffuse.Z;
         g_currentMatDiffuse[3] = material->Get_Opacity();
+        // Track whether this material uses hardware lighting. When false
+        // (terrain, pre-lit meshes), vertex colors already contain the
+        // lit result and the shader must NOT apply N.L on top.
+        g_currentLightingEnabled[0] = material->Get_Lighting() ? 1.0f : 0.0f;
     }
     else
     {
@@ -2156,6 +2254,49 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
         case 2: g_currentBgfxTexture2 = EnsureBgfxTexture(texture); break;
         case 3: g_currentBgfxTexture3 = EnsureBgfxTexture(texture); break;
         default: break;
+    }
+}
+
+void BgfxBackend::Set_Ambient(const Vector3 & color)
+{
+    DX8Backend::Set_Ambient(color);
+    g_currentSceneAmbient[0] = color.X;
+    g_currentSceneAmbient[1] = color.Y;
+    g_currentSceneAmbient[2] = color.Z;
+}
+
+void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
+{
+    DX8Backend::Set_Light_Environment(light_env);
+
+    if (light_env != nullptr)
+    {
+        const Vector3 & ambient = light_env->Get_Equivalent_Ambient();
+        g_currentSceneAmbient[0] = ambient.X;
+        g_currentSceneAmbient[1] = ambient.Y;
+        g_currentSceneAmbient[2] = ambient.Z;
+
+        const int count = light_env->Get_Light_Count();
+        for (int i = 0; i < 4; ++i)
+        {
+            if (i < count)
+            {
+                const Vector3 & dir = light_env->Get_Light_Direction(i);
+                const Vector3 & dif = light_env->Get_Light_Diffuse(i);
+                g_currentLightDirs[i][0] = -dir.X;
+                g_currentLightDirs[i][1] = -dir.Y;
+                g_currentLightDirs[i][2] = -dir.Z;
+                g_currentLightDirs[i][3] = 1.0f; // enabled
+                g_currentLightColors[i][0] = dif.X;
+                g_currentLightColors[i][1] = dif.Y;
+                g_currentLightColors[i][2] = dif.Z;
+                g_currentLightColors[i][3] = 1.0f;
+            }
+            else
+            {
+                g_currentLightDirs[i][3] = 0.0f; // disabled
+            }
+        }
     }
 }
 
@@ -2358,6 +2499,16 @@ void SubmitEngineDraw(unsigned short start_index,
     // draws never touch g_bgfxView so the opaque view is never stomped.
     if (!g_inSortFlush && g_bgfxViewProjDirty)
     {
+        // Capture the camera view+proj at the first opaque draw of each
+        // frame. Later Set_Projection calls (water, shadows, sneak attack)
+        // may overwrite g_bgfxProj with a different frustum. We re-apply
+        // the camera projection to view 1 at End_Scene time.
+        if (!g_bgfxCameraCaptured)
+        {
+            std::memcpy(g_bgfxCameraView, g_bgfxView, sizeof(g_bgfxCameraView));
+            std::memcpy(g_bgfxCameraProj, g_bgfxProj, sizeof(g_bgfxCameraProj));
+            g_bgfxCameraCaptured = true;
+        }
         bgfx::setViewTransform(kBgfxEngineView, g_bgfxView, g_bgfxProj);
         g_bgfxViewProjDirty = false;
     }
@@ -2508,21 +2659,91 @@ void SubmitEngineDraw(unsigned short start_index,
         float atestParams[4] = { g_currentAtestRef, 0.0f, 0.0f, 0.0f };
         bgfx::setUniform(g_uAtestParams, atestParams);
     }
+    // Phase 5B: read the CURRENT D3D light state directly from DX8Wrapper's
+    // render_state. This captures lights regardless of how they were set
+    // (Set_Light_Environment, Set_DX8_Light, or game-level light setup).
+    {
+        RenderStateStruct rs;
+        DX8Wrapper::Get_Render_State(rs);
+        for (int li = 0; li < 4; ++li)
+        {
+            if (rs.LightEnable[li])
+            {
+                const D3DLIGHT8 & dl = rs.Lights[li];
+                // D3D8 Direction points FROM light toward surface.
+                // D3D internally negates for N.L. We must negate too.
+                g_currentLightDirs[li][0] = -dl.Direction.x;
+                g_currentLightDirs[li][1] = -dl.Direction.y;
+                g_currentLightDirs[li][2] = -dl.Direction.z;
+                g_currentLightDirs[li][3] = 1.0f;
+                g_currentLightColors[li][0] = dl.Diffuse.r;
+                g_currentLightColors[li][1] = dl.Diffuse.g;
+                g_currentLightColors[li][2] = dl.Diffuse.b;
+                g_currentLightColors[li][3] = 1.0f;
+            }
+            else
+            {
+                g_currentLightDirs[li][3] = 0.0f;
+            }
+        }
+        // Read scene ambient from D3DRS_AMBIENT (packed D3DCOLOR = ARGB)
+        const unsigned ambientColor = DX8Wrapper::Get_DX8_Render_State(D3DRS_AMBIENT);
+        static bool s_loggedLightRead = false;
+        if (!s_loggedLightRead && rs.LightEnable[0])
+        {
+            s_loggedLightRead = true;
+            WWDEBUG_SAY(("[BgfxBackend] LIGHT READ: amb=0x%08x lights=%d%d%d%d "
+                         "dir0=%.2f,%.2f,%.2f dif0=%.2f,%.2f,%.2f",
+                         ambientColor,
+                         int(rs.LightEnable[0]), int(rs.LightEnable[1]),
+                         int(rs.LightEnable[2]), int(rs.LightEnable[3]),
+                         rs.Lights[0].Direction.x, rs.Lights[0].Direction.y,
+                         rs.Lights[0].Direction.z,
+                         rs.Lights[0].Diffuse.r, rs.Lights[0].Diffuse.g,
+                         rs.Lights[0].Diffuse.b));
+        }
+        g_currentSceneAmbient[0] = ((ambientColor >> 16) & 0xFF) / 255.0f;
+        g_currentSceneAmbient[1] = ((ambientColor >>  8) & 0xFF) / 255.0f;
+        g_currentSceneAmbient[2] = ((ambientColor >>  0) & 0xFF) / 255.0f;
+    }
+    if (bgfx::isValid(g_uLightDirs))
+        bgfx::setUniform(g_uLightDirs, g_currentLightDirs, 4);
+    if (bgfx::isValid(g_uLightColors))
+        bgfx::setUniform(g_uLightColors, g_currentLightColors, 4);
+    if (bgfx::isValid(g_uSceneAmbient))
+        bgfx::setUniform(g_uSceneAmbient, g_currentSceneAmbient);
+    if (bgfx::isValid(g_uLightingEnabled))
+        bgfx::setUniform(g_uLightingEnabled, g_currentLightingEnabled);
 
     // Use the cached state if it was built; otherwise fall back to a
-    // sane default that at least lets the draw run.
+    // sane default that at least lets the draw run. Enable MSAA on all
+    // draws so the 4x MSAA framebuffer actually smooths edges.
     uint64_t state = (g_currentBgfxState != 0)
         ? g_currentBgfxState
         : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+    state |= BGFX_STATE_MSAA;
 
-    // Phase 4G.15: disable depth test for sort view draws. Sort
-    // particles are pre-transformed to view space with identity
-    // world/view, so their Z values don't match the opaque view's
-    // depth buffer (which used the real camera view transform).
+    // Sort view depth handling: particles are pre-transformed to view
+    // space with identity world/view, so their Z values don't match the
+    // opaque depth buffer — they need DEPTH_TEST_ALWAYS. But mesh-based
+    // sorted draws (water, rotors) have real world transforms and should
+    // use normal depth testing to avoid drawing on top of opaque geometry.
+    // Distinguish by checking if the sort world matrix is identity
+    // (particles) vs non-identity (meshes).
     if (submitView == kBgfxEngineSortView)
     {
-        state &= ~BGFX_STATE_DEPTH_TEST_MASK;
-        state |= BGFX_STATE_DEPTH_TEST_ALWAYS;
+        const bool isIdentityWorld =
+            g_bgfxSortWorld[0] == 1.0f && g_bgfxSortWorld[5] == 1.0f &&
+            g_bgfxSortWorld[10] == 1.0f && g_bgfxSortWorld[15] == 1.0f &&
+            g_bgfxSortWorld[12] == 0.0f && g_bgfxSortWorld[13] == 0.0f &&
+            g_bgfxSortWorld[14] == 0.0f;
+        if (isIdentityWorld)
+        {
+            // Particles: view-space positions, skip depth test
+            state &= ~BGFX_STATE_DEPTH_TEST_MASK;
+            state |= BGFX_STATE_DEPTH_TEST_ALWAYS;
+        }
+        // else: mesh-based sorted draw, use the shader's depth compare
     }
 
     bgfx::setState(state);
