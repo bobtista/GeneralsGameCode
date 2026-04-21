@@ -170,6 +170,23 @@ public:
     virtual ~IRenderBackend() {}
 
     // -------------------------------------------------------------------------
+    // Backend lifecycle
+    // -------------------------------------------------------------------------
+    //
+    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 1.
+    // Initialize is called once after DX8Wrapper has finished its own device
+    // setup, with the game's main HWND and current back-buffer dimensions.
+    // DX8Backend treats it as a no-op (DX8Wrapper still owns the real device).
+    // BgfxBackend uses it to call bgfx::init. Shutdown is the symmetric
+    // teardown, called before DX8Wrapper releases its device.
+    //
+    // These are in addition to the existing per-scene Begin_Scene / End_Scene
+    // pair, which are called every frame.
+
+    virtual void Initialize(void * hwnd, int width, int height) = 0;
+    virtual void Shutdown() = 0;
+
+    // -------------------------------------------------------------------------
     // Device state queries
     // -------------------------------------------------------------------------
 
