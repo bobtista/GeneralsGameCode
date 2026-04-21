@@ -123,6 +123,14 @@
             }
         },
         {
+            "name": "win32-debug-bgfx",
+            "inherits": "win32-debug",
+            "displayName": "Windows 32bit Debug (bgfx stub backend)",
+            "cacheVariables": {
+                "GGC_RENDER_BACKEND": "bgfx"
+            }
+        },
+        {
             "name": "win32-vcpkg",
             "inherits": "default-vcpkg",
             "hidden": false,

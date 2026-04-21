@@ -658,6 +658,7 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 		Invalidate_Cached_Render_States();
 		Set_Default_Global_Render_States();
 		SHD_INIT_SHADERS;
+		IsDeviceLost=false;
 		WWDEBUG_SAY(("Device reset completed"));
 		return true;
 	}
