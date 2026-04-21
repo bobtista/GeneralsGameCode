@@ -244,6 +244,7 @@ target_include_directories(z_ww3d2 PRIVATE
 
 target_compile_definitions(z_ww3d2 PRIVATE
     $<$<BOOL:${IS_VS6_BUILD}>:WINVER=0x0500>
+    GGC_ALLOW_DX8WRAPPER
 )
 
 target_precompile_headers(z_ww3d2 PRIVATE
