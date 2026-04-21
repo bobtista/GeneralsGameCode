@@ -826,14 +826,6 @@ void W3DDisplay::init()
 		WW3D::Set_Collision_Box_Display_Mask(0x00);	///<set to 0xff to make collision boxes visible
 		WW3D::Enable_Static_Sort_Lists(true);
 		WW3D::Set_Thumbnail_Enabled(false);
-		// TheSuperHackers @fix bobtista 16/04/2026 D3D8 half-pixel UV bias
-		// causes sub-pixel misalignment on D3D11/bgfx, producing visible
-		// gaps in menu button outlines. Only apply on legacy D3D8.
-		// Runtime check keeps the =dx8 path byte-identical to main and
-		// avoids compile-time backend branching per project convention.
-		const bool shaderPipeline =
-			(g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline());
-		WW3D::Set_Screen_UV_Bias( shaderPipeline ? FALSE : TRUE );  ///< TRUE makes text look good on D3D8
 		WW3D::Set_Texture_Bitdepth(32);
 
 		setWindowed( TheGlobalData->m_windowed );
@@ -922,6 +914,11 @@ void W3DDisplay::init()
 			DEBUG_CRASH( ("Unable to set render device") );
 			return;
 		}
+
+		// TheSuperHackers @fix bobtista 21/04/2026 D3D8 half-pixel UV bias causes sub-pixel misalignment on D3D11/bgfx (visible stripes on UI atlases from half-texel sampling offsets). Call this AFTER Set_Render_Device because the render backend is only constructed by Do_Onetime_Device_Dependent_Inits which Set_Render_Device triggers — calling earlier would read g_renderBackend=nullptr and incorrectly enable the bias on bgfx.
+		const bool shaderPipeline =
+			(g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline());
+		WW3D::Set_Screen_UV_Bias( shaderPipeline ? FALSE : TRUE );  ///< TRUE makes text look good on D3D8
 
 		//Check if level was never set and default to setting most suitable for system.
 		if (TheGameLODManager->getStaticLODLevel() == STATIC_GAME_LOD_UNKNOWN)

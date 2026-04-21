@@ -81,17 +81,17 @@ bool DiligentBackend::Is_Device_Lost() const
     return false;
 }
 
-bool DiligentBackend::Has_Stencil()
+bool DiligentBackend::Has_Stencil() const
 {
     return false;
 }
 
-WW3DFormat DiligentBackend::Get_Back_Buffer_Format()
+WW3DFormat DiligentBackend::Get_Back_Buffer_Format() const
 {
     return WW3D_FORMAT_UNKNOWN;
 }
 
-SurfaceClass * DiligentBackend::Get_Back_Buffer(unsigned int /*num*/)
+SurfaceClass * DiligentBackend::Get_Back_Buffer(unsigned int /*num*/) const
 {
     return nullptr;
 }
@@ -283,7 +283,7 @@ void DiligentBackend::Set_Transform(TransformKind /*transform*/, const Matrix3D 
 {
 }
 
-void DiligentBackend::Get_Transform(TransformKind /*transform*/, Matrix4x4 & /*m*/)
+void DiligentBackend::Get_Transform(TransformKind /*transform*/, Matrix4x4 & /*m*/) const
 {
 }
 
@@ -295,12 +295,12 @@ void DiligentBackend::Set_View_Identity()
 {
 }
 
-bool DiligentBackend::Is_World_Identity()
+bool DiligentBackend::Is_World_Identity() const
 {
     return true;
 }
 
-bool DiligentBackend::Is_View_Identity()
+bool DiligentBackend::Is_View_Identity() const
 {
     return true;
 }
@@ -397,7 +397,7 @@ void DiligentBackend::Set_Render_Target_With_Z(TextureClass * /*texture*/, ZText
 {
 }
 
-bool DiligentBackend::Is_Render_To_Texture()
+bool DiligentBackend::Is_Render_To_Texture() const
 {
     return false;
 }
@@ -406,7 +406,7 @@ void DiligentBackend::Set_Shadow_Map(int /*idx*/, ZTextureClass * /*ztex*/)
 {
 }
 
-ZTextureClass * DiligentBackend::Get_Shadow_Map(int /*idx*/)
+ZTextureClass * DiligentBackend::Get_Shadow_Map(int /*idx*/) const
 {
     return nullptr;
 }
