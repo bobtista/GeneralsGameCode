@@ -128,6 +128,12 @@ public:
     virtual void Override_Material_Opacity(float opacity);
     virtual void Begin_Effect_Overlay();
     virtual void End_Effect_Overlay();
+
+    // Phase 4H tree / grass sway shader hooks (see IRenderBackend.h).
+    virtual void Set_Tree_Shader_Constants(const float swayTable[11][4],
+                                           const float shroudOffset[4],
+                                           const float shroudScale[4]);
+    virtual void Set_Tree_Vertex_Shader_Active(bool active);
     virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha);
     virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture = nullptr);
     virtual void Clear_State_Overrides();
