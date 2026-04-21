@@ -392,6 +392,9 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 		return;	//no point changing lights if they are ignored.
   //prevLight = render_state.lightsHash;
 
+	g_renderBackend->Capture_Sorted_Batch_Light(
+		render_state.Lights[0], render_state.LightEnable[0]);
+
 	if (render_state.LightEnable[0]) {
 		DX8Wrapper::Set_DX8_Light(0,&render_state.Lights[0]);
 		if (render_state.LightEnable[1]) {
@@ -685,8 +688,8 @@ void SortingRendererClass::Flush()
 	DynamicVBAccessClass::_Reset(false);
 
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,old_view);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,old_world);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,old_view);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,old_world);
 
 }
 

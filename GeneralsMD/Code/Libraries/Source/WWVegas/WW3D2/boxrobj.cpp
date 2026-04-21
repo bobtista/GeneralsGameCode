@@ -506,9 +506,9 @@ void BoxRenderObjClass::render_box(RenderInfoClass & rinfo,const Vector3 & cente
 		/*
 		** Apply the shader and material
 		*/
-		DX8Wrapper::Set_Material(_BoxMaterial);
-		DX8Wrapper::Set_Shader(_BoxShader);
-		DX8Wrapper::Set_Texture(0,nullptr);
+		g_renderBackend->Set_Material(_BoxMaterial);
+		g_renderBackend->Set_Shader(_BoxShader);
+		g_renderBackend->Set_Texture(0,nullptr);
 
 		g_renderBackend->Set_Index_Buffer(ibaccess, 0);
 		g_renderBackend->Set_Vertex_Buffer(vbaccess);
@@ -706,7 +706,7 @@ void AABoxRenderObjClass::Render(RenderInfoClass & rinfo)
 {
 	Matrix3D temp(1);
 	temp.Translate(Transform.Get_Translation());
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,temp);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,temp);
 	render_box(rinfo,ObjSpaceCenter,ObjSpaceExtent);
 }
 
@@ -1090,7 +1090,7 @@ int OBBoxRenderObjClass::Class_ID() const
  *=============================================================================================*/
 void OBBoxRenderObjClass::Render(RenderInfoClass & rinfo)
 {
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,Transform);
 	render_box(rinfo,ObjSpaceCenter,ObjSpaceExtent);
 }
 
