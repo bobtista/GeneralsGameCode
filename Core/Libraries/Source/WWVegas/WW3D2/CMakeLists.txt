@@ -264,6 +264,10 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # Replaces the Phase 4D.1 per-preset shader pairs.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_uber.sc)
+    # TheSuperHackers @refactor bobtista 14/04/2026 Phase 4H ported
+    # Trees.nvv (grass/blade sway vertex shader). Reuses fs_uber for
+    # the fragment side.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_trees.sc)
     target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
 elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
     target_sources(corei_ww3d2 INTERFACE
