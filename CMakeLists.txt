@@ -66,6 +66,10 @@ include(cmake/config.cmake)
 include(cmake/gamespy.cmake)
 include(cmake/lzhl.cmake)
 
+# Rendering backend selection. Must come after config.cmake (which sets
+# IS_VS6_BUILD) and before Core is added (which references the backend flag).
+include(cmake/render-backend.cmake)
+
 if (IS_VS6_BUILD)
     # The original max sdk does not compile against a modern compiler.
     # If there is a desire to make this work, then a fixed max sdk needs to be created.

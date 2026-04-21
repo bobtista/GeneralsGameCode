@@ -43,6 +43,8 @@ set(WW3D2_SRC
     distlod.cpp
     distlod.h
     dllist.h
+    DX8Backend.cpp
+    DX8Backend.h
     dx8caps.cpp
     dx8caps.h
     #dx8fvf.cpp
@@ -90,6 +92,7 @@ set(WW3D2_SRC
     htree.h
     #htreemgr.cpp
     #htreemgr.h
+    IRenderBackend.h
     intersec.cpp
     intersec.h
     intersec.inl
@@ -155,6 +158,8 @@ set(WW3D2_SRC
     proto.h
     proxy.h
     rddesc.h
+    RenderBackend.cpp
+    RenderBackend.h
     #render2d.cpp
     #render2d.h
     render2dsentence.cpp
@@ -237,6 +242,28 @@ add_library(corei_ww3d2 INTERFACE)
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
+# TheSuperHackers @refactor bobtista 10/04/2026 Conditionally include the
+# active render backend's source files. See cmake/render-backend.cmake and
+# Core/Libraries/Source/WWVegas/WW3D2/PHASE2.md.
+if(GGC_RENDER_BACKEND STREQUAL "bgfx")
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.h
+    )
+elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/DiligentBackend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/DiligentBackend.h
+    )
+endif()
+
+# Propagate the active backend's compile define to every translation unit
+# that pulls in WW3D2, so that RenderBackend.cpp and any future callers can
+# #if on GGC_RENDER_BACKEND_DX8 / _BGFX / _DILIGENT.
+if(DEFINED GGC_RENDER_BACKEND_COMPILE_DEFINE)
+    target_compile_definitions(corei_ww3d2 INTERFACE ${GGC_RENDER_BACKEND_COMPILE_DEFINE})
+endif()
+
 if (MSVC AND NOT IS_VS6_BUILD)
     target_link_libraries(corei_ww3d2 INTERFACE
         comsuppw
@@ -248,3 +275,14 @@ target_link_libraries(corei_ww3d2 INTERFACE
     core_wwlib
     core_wwmath
 )
+
+# Link the backend's native libraries into whoever consumes corei_ww3d2.
+if(GGC_RENDER_BACKEND STREQUAL "bgfx")
+    target_link_libraries(corei_ww3d2 INTERFACE bgfx bx bimg)
+elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
+    target_link_libraries(corei_ww3d2 INTERFACE
+        Diligent-GraphicsEngineD3D11-static
+        Diligent-Common
+        Diligent-GraphicsTools
+    )
+endif()
