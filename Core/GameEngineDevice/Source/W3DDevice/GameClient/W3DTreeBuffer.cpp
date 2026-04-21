@@ -1759,6 +1759,38 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		}
 
 		g_renderBackend->Set_Vertex_Shader(m_dwTreeVertexShader);
+
+		// TheSuperHackers @refactor bobtista 14/04/2026 Phase 4H push
+		// the same constants we just gave the DX8 vertex shader into
+		// the bgfx tree program. swayTable[0] is the no-sway slot
+		// (matches DX8 c8); [1..MAX_SWAY_TYPES] are the per-wave
+		// offsets (DX8 c9..c8+MAX_SWAY_TYPES). DX8Backend ignores this.
+		{
+			float swayTable[11][4];
+			swayTable[0][0] = 0.0f; swayTable[0][1] = 0.0f;
+			swayTable[0][2] = 0.0f; swayTable[0][3] = 0.0f;
+			for (i = 0; i < MAX_SWAY_TYPES; ++i) {
+				swayTable[i + 1][0] = swayFactor[i].X;
+				swayTable[i + 1][1] = swayFactor[i].Y;
+				swayTable[i + 1][2] = swayFactor[i].Z;
+				swayTable[i + 1][3] = 0.0f;
+			}
+			float shroudOffsetVec[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+			float shroudScaleVec[4]  = { 0.0f, 0.0f, 1.0f, 1.0f };
+			W3DShroud * shroud2 = TheTerrainRenderObject
+				? TheTerrainRenderObject->getShroud() : nullptr;
+			if (shroud2 != nullptr) {
+				const Real cw = shroud2->getCellWidth();
+				const Real ch = shroud2->getCellHeight();
+				shroudOffsetVec[0] = -(float)shroud2->getDrawOriginX() + cw;
+				shroudOffsetVec[1] = -(float)shroud2->getDrawOriginY() + ch;
+				shroudScaleVec[0]  = 1.0f / (cw * shroud2->getTextureWidth());
+				shroudScaleVec[1]  = 1.0f / (ch * shroud2->getTextureHeight());
+			}
+			g_renderBackend->Set_Tree_Shader_Constants(swayTable, shroudOffsetVec, shroudScaleVec);
+			g_renderBackend->Set_Tree_Vertex_Shader_Active(true);
+		}
+
 #if 0
 		g_renderBackend->Set_Pixel_Shader(m_dwTreePixelShader);
 		// a.c. 6/16 - allow switching between normal and 2X mode for terrain
@@ -1793,6 +1825,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 
 	g_renderBackend->Set_Vertex_Shader(DX8_FVF_XYZNDUV1);
 	g_renderBackend->Set_Pixel_Shader(0);
+	g_renderBackend->Set_Tree_Vertex_Shader_Active(false);
 	g_renderBackend->Invalidate_Cached_Render_States();	//code above mucks around with W3D states so make sure we reset
 
 }

@@ -367,6 +367,20 @@ public:
     virtual void Set_Lighting_Enable(bool enable) = 0;
     virtual void Set_Texture_Factor(unsigned argb) = 0;
 
+    // TheSuperHackers @refactor bobtista 14/04/2026 Phase 4H tree /
+    // grass sway vertex shader hooks. DX8 backends ignore these (they
+    // use the real DX8 vertex shader DWORD via Set_Vertex_Shader). bgfx
+    // backend uses them to drive its ported vs_trees program. Call
+    // order: Set_Tree_Shader_Constants first (per-frame constants),
+    // then Set_Tree_Vertex_Shader_Active(true) around the grass draws,
+    // then Set_Tree_Vertex_Shader_Active(false) after.
+    // swayTable must have 11 float4 entries: [0] = no-sway (0,0,0,0),
+    // [1..10] = per-wave offsets.
+    virtual void Set_Tree_Shader_Constants(const float swayTable[11][4],
+                                           const float shroudOffset[4],
+                                           const float shroudScale[4]) {}
+    virtual void Set_Tree_Vertex_Shader_Active(bool active) {}
+
     // -------------------------------------------------------------------------
     // Transforms
     // -------------------------------------------------------------------------
