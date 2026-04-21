@@ -976,16 +976,18 @@ WW3DErrorType WW3D::Render(SceneClass * scene,CameraClass * cam,bool clear,bool 
 		DX8Wrapper::Clear(clear, clearz, color);
 	}
 
-	// set the rendering mode
+	// TheSuperHackers @refactor bobtista 21/04/2026 Route fill mode through
+	// g_renderBackend so bgfx sees the state (previous raw DX8Wrapper calls
+	// were invisible to the bgfx backend).
 	switch(scene->Get_Polygon_Mode()) {
 		case SceneClass::POINT:
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_POINT);
+			g_renderBackend->Set_Fill_Mode(RB_FILL_POINT);
 			break;
 		case SceneClass::LINE:
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
+			g_renderBackend->Set_Fill_Mode(RB_FILL_WIREFRAME);
 			break;
 		case SceneClass::FILL:
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_SOLID);
+			g_renderBackend->Set_Fill_Mode(RB_FILL_SOLID);
 			break;
 	}
 
@@ -1039,7 +1041,7 @@ WW3DErrorType WW3D::Render(
 	rinfo.Camera.Apply();
 
 	// set the rendering mode
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_SOLID);
+	g_renderBackend->Set_Fill_Mode(RB_FILL_SOLID);
 
 	// Install the lighting environment if one is supplied
 	if (rinfo.light_environment != nullptr) {
