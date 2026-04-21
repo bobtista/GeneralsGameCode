@@ -267,8 +267,8 @@ Int ScreenDefaultFilter::set(FilterModes mode)
 	g_renderBackend->Set_Texture(0,nullptr);
 	g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC,D3DCMP_ALWAYS);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZWRITEENABLE,FALSE);
+	g_renderBackend->Set_Depth_Func(RB_CMP_ALWAYS);
+	g_renderBackend->Set_Depth_Write_Enable(false);
 	g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
 	return true;
@@ -445,8 +445,8 @@ Int ScreenBWFilter::set(FilterModes mode)
 		g_renderBackend->Set_Texture(0,nullptr);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC,D3DCMP_ALWAYS);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZWRITEENABLE,FALSE);
+		g_renderBackend->Set_Depth_Func(RB_CMP_ALWAYS);
+		g_renderBackend->Set_Depth_Write_Enable(false);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		hr=DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_dwBWPixelShader);
@@ -585,7 +585,7 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 	//Draw B&W version first
 	if (DX8Wrapper::Get_Current_Caps()->Support_Dot3())
 	{	//Override W3D states with customizations for grayscale
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x80A5CA8E);
+		g_renderBackend->Set_Texture_Factor(0x80A5CA8E);
 		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG0, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
 		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
@@ -596,7 +596,7 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 	}
 	else
 	{	//doesn't have DOT3 blend mode so fake it another way.
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x60606060);
+		g_renderBackend->Set_Texture_Factor(0x60606060);
 		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
 		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -667,8 +667,8 @@ Int ScreenBWFilterDOT3::set(FilterModes mode)
 		g_renderBackend->Set_Texture(0,nullptr);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC,D3DCMP_ALWAYS);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZWRITEENABLE,FALSE);
+		g_renderBackend->Set_Depth_Func(RB_CMP_ALWAYS);
+		g_renderBackend->Set_Depth_Write_Enable(false);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		return true;
@@ -905,8 +905,8 @@ Int ScreenCrossFadeFilter::set(FilterModes mode)
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_MIPFILTER, D3DTEXF_NONE);
 		}
 
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC,D3DCMP_ALWAYS);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZWRITEENABLE,FALSE);
+		g_renderBackend->Set_Depth_Func(RB_CMP_ALWAYS);
+		g_renderBackend->Set_Depth_Write_Enable(false);
 
 		return true;
 	}
@@ -1010,13 +1010,11 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 
 
 	if (m_additive) {
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_ONE);
+		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_ONE);
 	} else {
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 	}
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,false);
+	g_renderBackend->Set_Alpha_Blend_Enable(false);
 	//draw polygons like this is very inefficient but for only 2 triangles, it's
 	//not worth bothering with index/vertex buffers.
 	g_renderBackend->Apply_Render_State_Changes();
@@ -1088,7 +1086,7 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 	pDev->SetTextureStageState(0,D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
 	pDev->SetTextureStageState(0,D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
 	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,true);
+	g_renderBackend->Set_Alpha_Blend_Enable(true);
 
 	g_renderBackend->Apply_Render_State_Changes();
 	{
@@ -1178,8 +1176,8 @@ Int ScreenMotionBlurFilter::set(FilterModes mode)
 		g_renderBackend->Set_Texture(1,nullptr);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC,D3DCMP_ALWAYS);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZWRITEENABLE,FALSE);
+		g_renderBackend->Set_Depth_Func(RB_CMP_ALWAYS);
+		g_renderBackend->Set_Depth_Write_Enable(false);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 	}
 	return TRUE;
@@ -1250,7 +1248,7 @@ Int ShroudTextureShader::set(Int stage)
 
 	DX8Wrapper::Set_DX8_Texture_Stage_State(stage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 	DX8Wrapper::Set_DX8_Texture_Stage_State(stage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC,D3DCMP_EQUAL);
+	g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
 
 	//We need to scale so shroud texel stretches over one full terrain cell.  Each texel
 	//is 1/128 the size of full texture. (assuming 128x128 vid-mem texture).
@@ -1295,7 +1293,7 @@ Int ShroudTextureShader::set(Int stage)
 void ShroudTextureShader::reset()
 {
 	g_renderBackend->Set_Texture(m_stageOfSet,nullptr);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC,D3DCMP_LESSEQUAL);
+	g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	DX8Wrapper::Set_DX8_Texture_Stage_State(m_stageOfSet,  D3DTSS_TEXCOORDINDEX, m_stageOfSet);
 	DX8Wrapper::Set_DX8_Texture_Stage_State(m_stageOfSet,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 }
@@ -1388,7 +1386,7 @@ void FlatShroudTextureShader::reset()
 {
 	if (m_stageOfSet < MAX_TEXTURE_STAGES)
 		g_renderBackend->Set_Texture(m_stageOfSet,nullptr);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC,D3DCMP_LESSEQUAL);
+	g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	DX8Wrapper::Set_DX8_Texture_Stage_State(m_stageOfSet,  D3DTSS_TEXCOORDINDEX, m_stageOfSet);
 	DX8Wrapper::Set_DX8_Texture_Stage_State(m_stageOfSet,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 }
@@ -1741,9 +1739,8 @@ Int TerrainShader2Stage::set(Int pass)
 			DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
 
 			//blend into frame buffer
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,true);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_ZERO);
+			g_renderBackend->Set_Alpha_Blend_Enable(true);
+			g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 
 			D3DXMATRIX inv;
 			float det;
@@ -2327,13 +2324,12 @@ Int RoadShaderPixelShader::set(Int pass)
 	//tell pixel shader which UV set to use for each stage
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC,D3DCMP_LESSEQUAL);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZWRITEENABLE,FALSE);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING, FALSE);
+	g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
+	g_renderBackend->Set_Depth_Write_Enable(false);
+	g_renderBackend->Set_Lighting_Enable(false);
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,true);	//blend roads into terrain
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+	g_renderBackend->Set_Alpha_Blend_Enable(true);	//blend roads into terrain
+	g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 	g_renderBackend->Override_Alpha_Blend_Enable(true);
 
 	D3DXMATRIX curView;
@@ -2429,9 +2425,9 @@ Int RoadShader2Stage::set(Int pass)
 	//Force system to apply world/view transforms.
 	g_renderBackend->Apply_Render_State_Changes();
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC,D3DCMP_LESSEQUAL);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZWRITEENABLE,FALSE);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING, FALSE);
+	g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
+	g_renderBackend->Set_Depth_Write_Enable(false);
+	g_renderBackend->Set_Lighting_Enable(false);
 
 	// Modulate the diffuse color with the texture as lighting comes from diffuse.
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
@@ -2442,13 +2438,12 @@ Int RoadShader2Stage::set(Int pass)
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
 
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,true);	//blend roads into terrain
+	g_renderBackend->Set_Alpha_Blend_Enable(true);	//blend roads into terrain
 	g_renderBackend->Override_Alpha_Blend_Enable(true);
 
 	if (pass == 0)
 	{
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 
 		if (W3DShaderManager::getCurrentShader() >= W3DShaderManager::ST_ROAD_BASE_NOISE1)
 		{	//second texture unit will contain a noise pass
@@ -2557,8 +2552,7 @@ Int RoadShader2Stage::set(Int pass)
 
 		//Modulate into existing roads with clouds applied. - only apply where roads are transparent by
 		//using road texture as a mask.
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_ZERO);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_SRCCOLOR);
+		g_renderBackend->Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_SRC_COLOR);
 
 		DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE0, curView);
 	}
@@ -3429,7 +3423,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 0 );
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,false);
+			g_renderBackend->Set_Alpha_Blend_Enable(false);
 			break;
 		case 1:
 			// Noise/cloud pass
@@ -3449,9 +3443,8 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
 
 			//blend into frame buffer
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,true);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_ZERO);
+			g_renderBackend->Set_Alpha_Blend_Enable(true);
+			g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 
 			D3DXMATRIX inv;
 			float det;
