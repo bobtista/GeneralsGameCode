@@ -1895,6 +1895,21 @@ void BgfxBackend::Begin_Scene()
     // missing-water areas on the post-game shellmap while DX8 rendered
     // correctly.
     g_draw.texcoordSelect[1] = 0.0f;
+
+    // TheSuperHackers @fix bobtista 21/04/2026 Reset transient view flags
+    // defensively at Begin_Scene. Each flag has an intended begin/end pair
+    // (Begin_Effect_Overlay/End_Effect_Overlay, Set_Shadow_Volume_Shader_Active
+    // true/false, etc.), but engine code paths can skip the end call when a
+    // map transition or early-exit interrupts a frame. Relying on the end
+    // call matches the water-view-rect bug we just fixed: the next frame
+    // inherits stuck state and renders incorrectly. overlay2DActive and
+    // renderToTexture were already reset above; these match that policy.
+    g_views.waterOverrideActive      = false;
+    g_views.effectOverlayActive      = false;
+    g_views.inSortFlush              = false;
+    g_views.treeShaderActive         = false;
+    g_views.shadowVolumeActive       = false;
+    g_views.skipNextSubmitEngineDraw = false;
 }
 
 void BgfxBackend::End_Scene(bool /*flip_frame*/)
