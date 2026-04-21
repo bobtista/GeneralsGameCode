@@ -86,6 +86,7 @@ TextureBaseClass::TextureBaseClass
 )
 :	MipLevelCount(mip_level_count),
 	D3DTexture(nullptr),
+	m_backendHandle(kInvalidRenderResource),
 	Initialized(false),
    Name(""),
 	FullPath(""),

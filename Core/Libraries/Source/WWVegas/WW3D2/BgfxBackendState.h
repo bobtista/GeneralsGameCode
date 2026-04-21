@@ -292,6 +292,49 @@ struct BgfxCaches
     std::vector<bgfx::TextureHandle> deferredDestroysPrev; // previous frame, safe to destroy
 };
 
+// --- Phase 5 asset-ingress resource table -----------------------------------
+//
+// Resources created via IRenderBackend::Create_Texture / Create_Vertex_Buffer
+// etc. are tracked here. RenderResource.id is a monotonically-assigned index
+// into BgfxPhase5Resources::table; table[id] holds the bgfx handle(s) plus
+// an optional D3D8 mirror pointer for the ref-popup build.
+
+enum BgfxPhase5Kind
+{
+    BGFX_RR_KIND_NONE        = 0,
+    BGFX_RR_KIND_TEXTURE     = 1,
+    BGFX_RR_KIND_VB          = 2,
+    BGFX_RR_KIND_IB          = 3,
+    BGFX_RR_KIND_DYN_VB      = 4,
+    BGFX_RR_KIND_DYN_IB      = 5
+};
+
+struct BgfxPhase5Entry
+{
+    BgfxPhase5Kind kind;
+    bgfx::TextureHandle              texture;
+    bgfx::VertexBufferHandle         vb;
+    bgfx::IndexBufferHandle          ib;
+    bgfx::DynamicVertexBufferHandle  dvb;
+    bgfx::DynamicIndexBufferHandle   dib;
+    void * d3d_mirror;               // IDirect3D*8* cast to void*, ref-popup only; nullptr in standalone
+    unsigned int size_bytes;         // for dynamic buffers — size of the backing allocation
+    // Dynamic Map/Unmap: if using_transient is true, tvb/tib is live for this frame
+    bool using_transient_vb;
+    bool using_transient_ib;
+    bgfx::TransientVertexBuffer      tvb;
+    bgfx::TransientIndexBuffer       tib;
+};
+
+struct BgfxPhase5Resources
+{
+    // id 0 is reserved for kInvalidRenderResource. Allocate starting at 1.
+    std::unordered_map<unsigned __int64, BgfxPhase5Entry> table;
+    unsigned __int64 next_id;
+};
+
+extern BgfxPhase5Resources g_phase5;
+
 // --- Shared globals ---------------------------------------------------------
 // Defined in BgfxBackend.cpp.
 extern BgfxDevice     g_device;

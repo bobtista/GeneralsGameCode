@@ -83,6 +83,55 @@ struct RenderBackendViewport
     float max_z;
 };
 
+// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 asset ingress types.
+// These let W3D asset loaders produce CPU-side pixel / vertex / index data
+// and hand it to whichever backend is active, without the loaders caring
+// about D3D8 specifics. Each backend creates its own native GPU resource
+// from the bytes and returns an opaque RenderResource handle.
+
+// Opaque handle into any backend's resource table. Backends encode their
+// native handle (D3D pointer cast to uint64, bgfx handle index, etc.) into
+// the id field. Other code treats it as opaque. id == 0 means invalid.
+struct RenderResource
+{
+    unsigned __int64 id;
+};
+
+// A single mip level's pixel data for Create_Texture. For compressed
+// formats (DXT1/3/5), pitch is set to 0 — backends compute the compressed
+// row size from block dimensions and the format enum.
+struct MipSlice
+{
+    const void *   data;
+    unsigned int   pitch;       // row pitch in bytes; 0 for compressed
+    unsigned int   size_bytes;  // total bytes at this mip level
+    unsigned short width;
+    unsigned short height;
+};
+
+struct TextureDesc
+{
+    unsigned short   width;
+    unsigned short   height;
+    WW3DFormat       format;
+    unsigned char    mip_count;
+    bool             is_render_target;
+    const MipSlice * mips;       // array of length mip_count; nullptr when is_render_target
+};
+
+struct VertexLayoutDesc
+{
+    unsigned int fvf;       // D3DFVF bitmap; each backend translates to its native format
+    unsigned int stride;    // bytes per vertex
+};
+
+struct BufferDesc
+{
+    unsigned int     size_bytes;
+    VertexLayoutDesc layout;    // ignored for index buffers
+    bool             dynamic;
+};
+
 // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3B interface extension
 // to unblock W3DStatusCircle fade effects and FlatHeightMap shroud trickery
 // without exposing raw D3DRENDERSTATETYPE in the interface.
@@ -604,4 +653,39 @@ public:
     virtual bool Is_Render_To_Texture() const = 0;
     virtual void Set_Shadow_Map(int idx, ZTextureClass * ztex) = 0;
     virtual ZTextureClass * Get_Shadow_Map(int idx) const = 0;
+
+    // -------------------------------------------------------------------------
+    // Resource creation (Phase 5 asset ingress)
+    // -------------------------------------------------------------------------
+    //
+    // These methods let asset loaders produce CPU-side pixel / vertex / index
+    // data and hand it to whichever backend is active. Each backend creates
+    // its native GPU resource from the bytes and returns an opaque
+    // RenderResource handle.
+    //
+    // W3D asset wrapper classes (TextureBaseClass, VertexBufferClass,
+    // IndexBufferClass) store the returned handle beside their existing
+    // IDirect3D*8 * field; the D3D8 pointer stays populated in ref-popup
+    // builds so the DX8 reference window renders from the same data.
+
+    virtual RenderResource Create_Texture(const TextureDesc & desc) = 0;
+    virtual RenderResource Create_Vertex_Buffer(const BufferDesc & desc,
+                                                const void *       initial_data) = 0;
+    virtual RenderResource Create_Index_Buffer(const BufferDesc & desc,
+                                               const void *       initial_data,
+                                               bool               indices_are_32bit) = 0;
+    virtual RenderResource Create_Dynamic_Vertex_Buffer(const BufferDesc & desc) = 0;
+    virtual RenderResource Create_Dynamic_Index_Buffer(const BufferDesc & desc,
+                                                       bool               indices_are_32bit) = 0;
+    virtual void * Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard) = 0;
+    virtual void   Unmap_Dynamic(RenderResource h) = 0;
+    virtual void   Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) = 0;
+    virtual void   Destroy_Resource(RenderResource h) = 0;
+    virtual void   Begin_Dynamic_Frame() {}
 };
+
+// Sentinel for invalid handles. Placed at namespace scope so it is reachable
+// without an instance.
+inline bool operator==(const RenderResource & a, const RenderResource & b) { return a.id == b.id; }
+inline bool operator!=(const RenderResource & a, const RenderResource & b) { return a.id != b.id; }
+static const RenderResource kInvalidRenderResource = { 0 };
