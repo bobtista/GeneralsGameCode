@@ -101,6 +101,8 @@ BgfxOverrides  g_overrides;
 BgfxViewFlags  g_views;
 BgfxFrame      g_frame;
 BgfxCaches     g_caches;
+// Phase 5 asset-ingress resource side-table. id 0 is reserved invalid.
+BgfxPhase5Resources g_phase5 = { {}, 1 };
 
 namespace
 {
@@ -4190,3 +4192,253 @@ void BgfxBackend::Draw_Strip(unsigned short start_index,
 // Set_Vertex_Shader_Constant, Set_Pixel_Shader_Constant), and render targets
 // (Create_Render_Target, Set_Render_Target_With_Z, Is_Render_To_Texture,
 // Set_Shadow_Map, Get_Shadow_Map) are inherited from DX8Backend.
+
+// ===========================================================================
+// Phase 5 asset-ingress resource creation
+// ===========================================================================
+//
+// Each method creates BOTH the bgfx resource and (via the DX8Backend base)
+// the D3D8 resource, so the ref-popup build sees both. The returned
+// RenderResource.id is a monotonically-increasing key into g_phase5.table;
+// the entry holds the bgfx handle(s) and the D3D8 pointer stored as a
+// void* "d3d_mirror" for eventual DX8-specific use (e.g. the texture class
+// still populating its D3DTexture field in ref-popup builds).
+//
+// Forward declaration — defined in BgfxBackendTextures.cpp.
+bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt);
+
+namespace {
+
+unsigned __int64 AllocPhase5Id()
+{
+    const unsigned __int64 id = g_phase5.next_id++;
+    if (g_phase5.next_id == 0) {
+        // Roll-over guard — rarely hit; start back at 1 to avoid colliding
+        // with kInvalidRenderResource.
+        g_phase5.next_id = 1;
+    }
+    return id;
+}
+
+// Copy a MipSlice into a bgfx::Memory buffer sized for the slice.
+const bgfx::Memory * CopySliceToBgfxMemory(const MipSlice & slice)
+{
+    if (slice.data == nullptr || slice.size_bytes == 0) {
+        return nullptr;
+    }
+    return bgfx::copy(slice.data, slice.size_bytes);
+}
+
+} // namespace
+
+RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
+{
+    // Mirror to DX8 first so the ref popup's D3D8 texture exists.
+    RenderResource dx8_rr = DX8Backend::Create_Texture(desc);
+
+    BgfxPhase5Entry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_TEXTURE;
+    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
+    entry.texture = BGFX_INVALID_HANDLE;
+
+    if (!desc.is_render_target && desc.mips != nullptr && desc.mip_count > 0) {
+        const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(desc.format);
+        if (bgfxFmt != bgfx::TextureFormat::Unknown) {
+            // For now, upload mip 0 and let bgfx's immutable-texture path
+            // handle the rest. Multi-mip static upload will land with
+            // Stage 1 when the loader changes feed us full mip chains.
+            const bgfx::Memory * mem = CopySliceToBgfxMemory(desc.mips[0]);
+            if (mem != nullptr) {
+                const uint64_t texFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+                entry.texture = bgfx::createTexture2D(
+                    desc.width, desc.height,
+                    desc.mip_count > 1,  // hasMips
+                    1, bgfxFmt, texFlags, mem);
+            }
+        }
+    }
+    // Render targets are allocated separately through Set_Render_Target_With_Z.
+
+    RenderResource rr;
+    rr.id = AllocPhase5Id();
+    g_phase5.table[rr.id] = entry;
+    return rr;
+}
+
+RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data)
+{
+    RenderResource dx8_rr = DX8Backend::Create_Vertex_Buffer(desc, initial_data);
+
+    BgfxPhase5Entry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_VB;
+    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
+    entry.size_bytes = desc.size_bytes;
+    entry.vb = BGFX_INVALID_HANDLE;
+    // Static bgfx VB creation requires a layout. We build one lazily from
+    // the FVF in a later stage; for now record the entry and leave vb
+    // invalid — bgfx callers go through existing VB caches keyed by the
+    // VertexBufferClass*, not this handle, until Stage 2 rewires them.
+    (void)initial_data;
+    RenderResource rr;
+    rr.id = AllocPhase5Id();
+    g_phase5.table[rr.id] = entry;
+    return rr;
+}
+
+RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit)
+{
+    RenderResource dx8_rr = DX8Backend::Create_Index_Buffer(desc, initial_data, indices_are_32bit);
+
+    BgfxPhase5Entry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_IB;
+    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
+    entry.size_bytes = desc.size_bytes;
+    entry.ib = BGFX_INVALID_HANDLE;
+    // Same as vertex buffers — bgfx-side creation is deferred to Stage 2.
+    (void)initial_data;
+    (void)indices_are_32bit;
+
+    RenderResource rr;
+    rr.id = AllocPhase5Id();
+    g_phase5.table[rr.id] = entry;
+    return rr;
+}
+
+RenderResource BgfxBackend::Create_Dynamic_Vertex_Buffer(const BufferDesc & desc)
+{
+    RenderResource dx8_rr = DX8Backend::Create_Dynamic_Vertex_Buffer(desc);
+
+    BgfxPhase5Entry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_DYN_VB;
+    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
+    entry.size_bytes = desc.size_bytes;
+    entry.dvb = BGFX_INVALID_HANDLE;
+    // Dynamic VBs in bgfx are implemented on-the-fly via Map_Dynamic
+    // allocating a transient buffer per map. The dvb handle here is a
+    // reservation placeholder for the non-transient path if ever needed.
+
+    RenderResource rr;
+    rr.id = AllocPhase5Id();
+    g_phase5.table[rr.id] = entry;
+    return rr;
+}
+
+RenderResource BgfxBackend::Create_Dynamic_Index_Buffer(const BufferDesc & desc, bool indices_are_32bit)
+{
+    RenderResource dx8_rr = DX8Backend::Create_Dynamic_Index_Buffer(desc, indices_are_32bit);
+
+    BgfxPhase5Entry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_DYN_IB;
+    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
+    entry.size_bytes = desc.size_bytes;
+    entry.dib = BGFX_INVALID_HANDLE;
+
+    RenderResource rr;
+    rr.id = AllocPhase5Id();
+    g_phase5.table[rr.id] = entry;
+    return rr;
+}
+
+void * BgfxBackend::Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard)
+{
+    auto it = g_phase5.table.find(h.id);
+    if (it == g_phase5.table.end()) {
+        return nullptr;
+    }
+    BgfxPhase5Entry & entry = it->second;
+    // Return the D3D8-mapped pointer. On Unmap, we will snapshot the written
+    // bytes into a bgfx transient buffer before the D3D unlock happens.
+    RenderResource dx8_rr;
+    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
+    return DX8Backend::Map_Dynamic(dx8_rr, offset, size, discard);
+}
+
+void BgfxBackend::Unmap_Dynamic(RenderResource h)
+{
+    auto it = g_phase5.table.find(h.id);
+    if (it == g_phase5.table.end()) {
+        return;
+    }
+    BgfxPhase5Entry & entry = it->second;
+    RenderResource dx8_rr;
+    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
+    DX8Backend::Unmap_Dynamic(dx8_rr);
+    // Stage 3 will add the bgfx transient allocation + snapshot here.
+}
+
+void BgfxBackend::Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
+{
+    auto it = g_phase5.table.find(h.id);
+    if (it == g_phase5.table.end()) {
+        return;
+    }
+    BgfxPhase5Entry & entry = it->second;
+    RenderResource dx8_rr;
+    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
+    DX8Backend::Update_Sub_Range(dx8_rr, offset, data, size);
+}
+
+void BgfxBackend::Destroy_Resource(RenderResource h)
+{
+    auto it = g_phase5.table.find(h.id);
+    if (it == g_phase5.table.end()) {
+        return;
+    }
+    BgfxPhase5Entry & entry = it->second;
+
+    // Destroy bgfx side.
+    switch (entry.kind) {
+        case BGFX_RR_KIND_TEXTURE:
+            if (bgfx::isValid(entry.texture)) {
+                g_caches.deferredDestroys.push_back(entry.texture);
+            }
+            break;
+        case BGFX_RR_KIND_VB:
+            if (bgfx::isValid(entry.vb)) {
+                bgfx::destroy(entry.vb);
+            }
+            break;
+        case BGFX_RR_KIND_IB:
+            if (bgfx::isValid(entry.ib)) {
+                bgfx::destroy(entry.ib);
+            }
+            break;
+        case BGFX_RR_KIND_DYN_VB:
+            if (bgfx::isValid(entry.dvb)) {
+                bgfx::destroy(entry.dvb);
+            }
+            break;
+        case BGFX_RR_KIND_DYN_IB:
+            if (bgfx::isValid(entry.dib)) {
+                bgfx::destroy(entry.dib);
+            }
+            break;
+        case BGFX_RR_KIND_NONE:
+        default:
+            break;
+    }
+
+    // Release the D3D8 mirror.
+    RenderResource dx8_rr;
+    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
+    DX8Backend::Destroy_Resource(dx8_rr);
+
+    g_phase5.table.erase(it);
+}
+
+void BgfxBackend::Begin_Dynamic_Frame()
+{
+    // Clear per-frame transient tracking on dynamic entries. The transient
+    // buffers themselves are owned by bgfx's ring allocator.
+    for (auto & kv : g_phase5.table) {
+        BgfxPhase5Entry & entry = kv.second;
+        entry.using_transient_vb = false;
+        entry.using_transient_ib = false;
+    }
+    DX8Backend::Begin_Dynamic_Frame();
+}

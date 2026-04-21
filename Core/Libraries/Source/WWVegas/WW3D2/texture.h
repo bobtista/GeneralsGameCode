@@ -48,6 +48,7 @@
 #include "wwstring.h"
 #include "vector3.h"
 #include "texturefilter.h"
+#include "IRenderBackend.h"
 
 struct IDirect3DBaseTexture8;
 struct IDirect3DTexture8;
@@ -231,6 +232,14 @@ private:
 
 	// Direct3D texture object
 	IDirect3DBaseTexture8 *D3DTexture;
+
+	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
+	// resource handle. Populated by the asset loader after it calls
+	// g_renderBackend->Create_Texture(). Parallel to D3DTexture (which is
+	// still populated in DX8-only and ref-popup builds so the existing
+	// D3D8-specific code paths keep working). Readers that want to stay
+	// backend-neutral should prefer m_backendHandle over D3DTexture.
+	RenderResource m_backendHandle;
 
 	// Name
 	StringClass Name;

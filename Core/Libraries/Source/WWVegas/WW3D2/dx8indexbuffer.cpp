@@ -79,6 +79,7 @@ IndexBufferClass::IndexBufferClass(unsigned type_, unsigned short index_count_)
 	type(type_),
 	engine_refs(0)
 {
+	m_backendHandle = kInvalidRenderResource;
 	WWASSERT(type==BUFFER_TYPE_DX8 || type==BUFFER_TYPE_SORTING);
 	WWASSERT(index_count);
 
