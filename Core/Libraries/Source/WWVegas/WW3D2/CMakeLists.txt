@@ -258,6 +258,16 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # z_ww3d2 inherit the include directory and build order dependency.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_passthrough.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_passthrough.sc)
+    # TheSuperHackers @refactor bobtista 11/04/2026 preset
+    # shader pairs - lit textured (bucket A), unlit textured (bucket B)
+    # and alpha-tested variant (bucket D).
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_textured_lit.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_textured_lit.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_textured_unlit.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_textured_unlit.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_textured_lit_atest.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_solid_lit.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_solid_lit.sc)
     target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
 endif()
 
