@@ -98,6 +98,7 @@ public:
     virtual void Set_Color_Write_Mask(unsigned mask);
     virtual void Set_Lighting_Enable(bool enable);
     virtual void Set_Texture_Factor(unsigned argb);
+    virtual void Set_Cull_Mode(CullMode mode);
 
     // -- Transforms -----------------------------------------------------------
 

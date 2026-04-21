@@ -728,6 +728,17 @@ void GameEngine::init()
 			}
 		}
 
+		// TheSuperHackers @feature bobtista 17/04/2026 Load a save game file
+		// from the command line. Deferred to the first update tick via
+		// MSG_NEW_GAME so the game loop and UI systems are fully initialized
+		// before the load occurs. The actual loadGame() call happens in the
+		// update() method when m_loadSaveGame is non-empty.
+		if (TheGlobalData->m_loadSaveGame.isEmpty() == FALSE)
+		{
+			TheWritableGlobalData->m_shellMapOn = FALSE;
+			TheWritableGlobalData->m_playIntro = FALSE;
+		}
+
 		//
 		if (TheMapCache && TheGlobalData->m_shellMapOn)
 		{
@@ -741,7 +752,7 @@ void GameEngine::init()
 			}
 		}
 
-		if(!TheGlobalData->m_playIntro)
+		if(!TheGlobalData->m_playIntro && TheGlobalData->m_loadSaveGame.isEmpty())
 			TheWritableGlobalData->m_afterIntro = TRUE;
 
 	}
@@ -765,7 +776,7 @@ void GameEngine::init()
 		RELEASE_CRASH(("Uncaught Exception during initialization."));
 	}
 
-	if(!TheGlobalData->m_playIntro)
+	if(!TheGlobalData->m_playIntro && TheGlobalData->m_loadSaveGame.isEmpty())
 		TheWritableGlobalData->m_afterIntro = TRUE;
 
 	resetSubsystems();
@@ -942,6 +953,38 @@ void GameEngine::execute()
 #if defined(RTS_DEBUG)
 	DWORD startTime = timeGetTime() / 1000;
 #endif
+
+	// TheSuperHackers @feature bobtista 17/04/2026 Deferred save game load.
+	// Load before the main loop. The shell/intro are already suppressed by
+	// m_shellMapOn=FALSE and m_playIntro=FALSE set in init(). After loading,
+	// hide all shell UI so the game is immediately playable.
+	if (TheGlobalData->m_loadSaveGame.isEmpty() == FALSE)
+	{
+		AvailableGameInfo gameInfo;
+		gameInfo.filename = TheGlobalData->m_loadSaveGame;
+		gameInfo.next = nullptr;
+		gameInfo.prev = nullptr;
+
+		AsciiString fullPath = TheGameState->getFilePathInSaveDirectory(gameInfo.filename);
+		TheGameState->getSaveGameInfoFromFile(fullPath, &gameInfo.saveGameInfo);
+
+		TheGameLogic->prepareNewGame(GAME_SINGLE_PLAYER, DIFFICULTY_NORMAL, 0);
+
+		if (TheGameState->loadGame(gameInfo) == SC_OK)
+		{
+			if (TheShell)
+			{
+				TheShell->hideShell();
+			}
+			TheWritableGlobalData->m_afterIntro = FALSE;
+		}
+		else
+		{
+			DEBUG_LOG(("Failed to load save game '%s'", TheGlobalData->m_loadSaveGame.str()));
+			TheWritableGlobalData->m_loadSaveGame.clear();
+			m_quitting = TRUE;
+		}
+	}
 
 	// pretty basic for now
 	while( !m_quitting )

@@ -133,6 +133,14 @@ enum FillMode
     RB_FILL_SOLID     = 3    // D3DFILL_SOLID
 };
 
+// Values match D3DCULL_* so DX8Backend can cast directly.
+enum CullMode
+{
+    RB_CULL_NONE = 1,  // D3DCULL_NONE
+    RB_CULL_CW   = 2,  // D3DCULL_CW
+    RB_CULL_CCW  = 3   // D3DCULL_CCW
+};
+
 enum StencilOp
 {
     // Values match D3DSTENCILOP_* 1..8 directly so DX8Backend can cast.
@@ -366,6 +374,7 @@ public:
     virtual void Set_Color_Write_Mask(unsigned mask) = 0;
     virtual void Set_Lighting_Enable(bool enable) = 0;
     virtual void Set_Texture_Factor(unsigned argb) = 0;
+    virtual void Set_Cull_Mode(CullMode mode) = 0;
 
     // TheSuperHackers @refactor bobtista 14/04/2026 Phase 4H tree /
     // grass sway vertex shader hooks. DX8 backends ignore these (they
@@ -442,6 +451,92 @@ public:
                             unsigned short index_count,
                             unsigned short min_vertex_index,
                             unsigned short vertex_count) = 0;
+
+    // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I lets the
+    // caller request that the very next Draw_Triangles dispatches only
+    // to the DX8 reference path, skipping the bgfx submit. Used by
+    // stencil shadow volume passes that have no bgfx shader/state yet
+    // and would otherwise render as garbage geometry on the bgfx view.
+    // No-op in non-bgfx backends.
+    virtual void Skip_Next_Bgfx_Submit() {}
+
+    // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I toggles the
+    // stencil shadow volume program + state override. When active, bgfx
+    // submits shadow extrusion geometry using vs_shadow_volume/
+    // fs_shadow_volume with color writes disabled and the engine's
+    // stencil state mapped into bgfx state bits. No-op in non-bgfx
+    // backends. The caller sets active before the shadow volume draw
+    // and clears it immediately after.
+    virtual void Set_Shadow_Volume_Shader_Active(bool /*active*/) {}
+
+    // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I fullscreen
+    // shadow darkening pass. Draws a screen-space quad with stencil
+    // test ref<=stencil && (stencil & read_mask) and DEST_COLOR*SRC
+    // blend so stenciled pixels multiply against the shadow color.
+    // shadow_color is ARGB like the engine's getShadowColor() return.
+    // No-op in non-bgfx backends (DX8 already draws this via raw m_pDev
+    // calls in W3DVolumetricShadow::renderStencilShadows).
+    virtual void Apply_Stencil_Shadow_Darken(unsigned /*shadow_color*/,
+                                             unsigned /*stencil_read_mask*/,
+                                             unsigned /*stencil_ref*/) {}
+
+    // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I close the
+    // shadow volume for bgfx rendering. The engine constructs shadow
+    // volumes as OPEN TUBES (silhouette side walls only, no caps). DX8
+    // tolerates this; bgfx/D3D11 doesn't because the stencil algorithm
+    // on open volumes depends on sub-pixel rasterizer rules that differ
+    // between the APIs. This hook is called AFTER the side-wall
+    // Draw_Triangles for a shadow volume, and lets the backend generate
+    // and submit front+back caps (fan-triangulated silhouette at caster
+    // level + reversed-winding extruded level) so bgfx's stencil algo
+    // sees a closed 2-manifold. Single-strip assumption: silhouette
+    // vertices are at absolute buffer offsets strip_start_vertex + 2*i
+    // (caster level) and strip_start_vertex + 2*i + 1 (extruded).
+    // No-op in the DX8 backend — DX8 rendering is unchanged.
+    virtual void Submit_Shadow_Volume_Caps(unsigned /*strip_start_vertex*/,
+                                           unsigned /*num_silhouette_verts*/) {}
+
+    // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I close the
+    // shadow volume with caller-provided triangulation. cap_indices[]
+    // contains N triangles worth of LOCAL silhouette-vertex indices
+    // (each triangle is 3 shorts, values in [0, num_silhouette_verts)).
+    // BgfxBackend converts them to absolute VB indices: front cap at
+    // strip_start_vertex + 2*i, back cap at strip_start_vertex + 2*i + 1
+    // with reversed winding. The caller (W3DVolumetricShadow) performs
+    // ear-clipping on the silhouette projected to 2D perpendicular to
+    // light, producing a correct triangulation for non-convex casters.
+    // No-op in DX8 backend.
+    virtual void Submit_Shadow_Volume_Triangulated_Caps(
+        unsigned /*strip_start_vertex*/,
+        const short * /*local_cap_indices*/,
+        unsigned /*cap_index_count*/) {}
+
+    // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4I.2 CSM:
+    // the engine's shadow system places the sun at a world-space
+    // position for shadow casting (from TerrainLighting data). This
+    // differs from the N.L shading light direction. BgfxBackend uses
+    // this position for its shadow map ortho projection.
+    virtual void Set_Shadow_Light_Position(float /*x*/, float /*y*/, float /*z*/) {}
+
+    // TheSuperHackers @feature bobtista 17/04/2026 Shroud texture capture
+    // for bgfx. The shroud system's destination texture is POOL_DEFAULT
+    // which bgfx cannot lock. This hook lets W3DShroud push the system-
+    // memory pixel data and the destination TextureClass pointer so the
+    // bgfx backend can create/update a matching bgfx texture and wire it
+    // into the texture cache. dst_width/dst_height are the full destination
+    // texture dimensions; src_width/src_height are the actual pixel data
+    // extents; dst_x/dst_y are the offset within the destination where the
+    // source rect is placed. No-op on DX8Backend.
+    virtual void Capture_Shroud_Texture(TextureClass * /*dst_texture*/,
+                                        const void * /*pixel_data*/,
+                                        unsigned /*dst_width*/,
+                                        unsigned /*dst_height*/,
+                                        unsigned /*src_width*/,
+                                        unsigned /*src_height*/,
+                                        unsigned /*dst_x*/,
+                                        unsigned /*dst_y*/,
+                                        unsigned /*pitch*/,
+                                        WW3DFormat /*format*/) {}
 
     // -------------------------------------------------------------------------
     // Programmable pipeline (GPU vertex / pixel shaders)
