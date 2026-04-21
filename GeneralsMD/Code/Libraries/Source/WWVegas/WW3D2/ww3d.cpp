@@ -869,7 +869,7 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 	// DX8Backend::Begin_Scene is empty and this is a no-op vcall; in the
 	// =bgfx build BgfxBackend::Begin_Scene calls bgfx::touch(0) against
 	// bgfx's own debug window (not the game's main HWND, so DX8 keeps
-	// ownership of the main swapchain). See PHASE4.md.
+	// ownership of the main swapchain).
 	if (g_renderBackend != nullptr)
 	{
 		g_renderBackend->Begin_Scene();
@@ -1121,7 +1121,7 @@ WW3DErrorType WW3D::End_Render(bool flip_frame)
 	// Parallel per-frame hook. BgfxBackend::End_Scene calls bgfx::frame()
 	// which submits and Presents to bgfx's debug window. Since bgfx owns
 	// its own HWND there's no swap race with DX8Wrapper::End_Scene on the
-	// game's main HWND. See PHASE4.md.
+	// game's main HWND.
 	if (g_renderBackend != nullptr)
 	{
 		WWPROFILE("g_renderBackend::End_Scene");
