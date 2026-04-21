@@ -103,6 +103,7 @@ public:
     virtual void End_Sorted_Batch_Pass();
     virtual void Capture_Sorted_Batch_Transforms(const Matrix4x4 & world,
                                                  const Matrix4x4 & view);
+    virtual void Capture_Sorted_Batch_Light(const D3DLIGHT8 & light, bool enabled);
     virtual void Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
                                     const DynamicIBAccessClass & dyn_ib,
                                     unsigned short polygon_count,
@@ -117,6 +118,8 @@ public:
     virtual void Set_Shader(const ShaderClass & shader);
     virtual void Set_Material(const VertexMaterialClass * material);
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture);
+    virtual void Set_Light_Environment(LightEnvironmentClass * light_env);
+    virtual void Set_Ambient(const Vector3 & color);
 
     // -- Transforms -----------------------------------------------------------
     //
