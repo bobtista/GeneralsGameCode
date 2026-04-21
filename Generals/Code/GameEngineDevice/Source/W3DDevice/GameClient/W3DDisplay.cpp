@@ -90,6 +90,8 @@ static void drawFramerateBar();
 #include "WW3D2/dx8caps.h"
 #include "WW3D2/ww3dformat.h"
 #include "WW3D2/agg_def.h"
+#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/RenderBackend.h"
 #include "WW3D2/render2dsentence.h"
 #include "WW3D2/sortingrenderer.h"
 #include "WW3D2/textureloader.h"
@@ -497,7 +499,7 @@ void W3DDisplay::setGamma(Real gamma, Real bright, Real contrast, Bool calibrate
 	if (m_windowed)
 		return;	//we don't allow gamma to change in window because it would affect desktop.
 
-	DX8Wrapper::Set_Gamma(gamma,bright,contrast,calibrate, false);
+	g_renderBackend->Set_Gamma(gamma,bright,contrast,calibrate, false);
 }
 
 /** Set resolution of display */
