@@ -367,6 +367,22 @@ public:
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) = 0;
     virtual LightEnvironmentClass * Get_Light_Environment() const = 0;
 
+    // Post-ShaderClass render state overrides. The terrain edge blending
+    // and other systems set D3D blend/alpha-test state AFTER ShaderClass
+    // applies. These methods let the bgfx backend capture the overrides.
+    // Empty defaults = forward to DX8Wrapper only (DX8Backend behavior).
+    virtual void Override_Blend(unsigned srcBlend, unsigned dstBlend) {}
+    virtual void Override_Alpha_Test(bool enable, unsigned ref, unsigned func) {}
+    virtual void Override_Alpha_Blend_Enable(bool enable) {}
+    virtual void Override_Texcoord_Index(unsigned stage, unsigned uvIndex) {}
+    virtual void Override_Terrain_Blend(bool enable) {}
+    virtual void Override_Material_Opacity(float opacity) {}
+    // Route subsequent draws to the sort view instead of the opaque view.
+    // Used by dazzle/lens-flare effects that need to render on top of water.
+    virtual void Begin_Effect_Overlay() {}
+    virtual void End_Effect_Overlay() {}
+    virtual void Clear_State_Overrides() {}
+
     // -------------------------------------------------------------------------
     // Draw calls
     // -------------------------------------------------------------------------

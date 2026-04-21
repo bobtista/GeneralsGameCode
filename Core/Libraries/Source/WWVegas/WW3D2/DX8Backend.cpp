@@ -427,7 +427,8 @@ void DX8Backend::Set_Pixel_Shader_Constant(int reg, const void * data, int count
 
 TextureClass * DX8Backend::Create_Render_Target(int width, int height, WW3DFormat format)
 {
-    return DX8Wrapper::Create_Render_Target(width, height, format);
+    TextureClass * tex = DX8Wrapper::Create_Render_Target(width, height, format);
+    return tex;
 }
 
 void DX8Backend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture)
