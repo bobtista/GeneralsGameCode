@@ -480,7 +480,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 
 		Int numPolys = (endX - startX)*(endY - startY)*2;	//2 triangles per cell
 
-		WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0, 8);	//should reject background pixels
+		WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0, RB_CMP_ALWAYS);	//should reject background pixels
 		WW3D::Get_Render_Backend()->Set_Stencil_Enable(true);
 		WW3D::Get_Render_Backend()->Set_Stencil_Func(RB_CMP_ALWAYS);
 		WW3D::Get_Render_Backend()->Set_Stencil_Ref(0x1);
@@ -509,7 +509,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 			WW3D::Get_Render_Backend()->Set_Shadow_Volume_Shader_Active(false);
 		}
 
-		WW3D::Get_Render_Backend()->Override_Alpha_Test(false, 0, 0);	//should reject background pixels
+		WW3D::Get_Render_Backend()->Override_Alpha_Test(false, 0, RB_CMP_ALWAYS);	//disable atest
 		WW3D::Get_Render_Backend()->Set_Stencil_Enable(false);
 //    m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
 		WW3D::Get_Render_Backend()->Set_Lighting_Enable(true);
