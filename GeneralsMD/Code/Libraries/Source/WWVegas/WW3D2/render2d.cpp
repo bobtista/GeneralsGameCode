@@ -54,6 +54,7 @@
 #include "vertmaterial.h"
 #include "dx8fvf.h"
 #include "dx8caps.h"
+#include "RenderBackend.h"
 #include "WWDebug/wwprofile.h"
 #include "WWDebug/wwmemlog.h"
 #include "assetmgr.h"
@@ -606,8 +607,8 @@ void Render2DClass::Render()
 	Matrix4x4 view,proj;
 	Matrix4x4 identity(true);
 
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
-	DX8Wrapper::Get_Transform(D3DTS_PROJECTION,proj);
+	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW,view);
+	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_PROJECTION,proj);
 
 	//
 	//	Configure the viewport for entire screen
@@ -623,15 +624,15 @@ void Render2DClass::Render()
 	vp.MinZ		= 0;
 	vp.MaxZ		= 1;
 	DX8Wrapper::Set_Viewport(&vp);
-	DX8Wrapper::Set_Texture(0,Texture);
+	WW3D::Get_Render_Backend()->Set_Texture(0,Texture);
 
 	VertexMaterialClass *vm=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-	DX8Wrapper::Set_Material(vm);
+	WW3D::Get_Render_Backend()->Set_Material(vm);
 	REF_PTR_RELEASE(vm);
 
-	DX8Wrapper::Set_World_Identity();
-	DX8Wrapper::Set_View_Identity();
-	DX8Wrapper::Set_Transform(D3DTS_PROJECTION,identity);
+	WW3D::Get_Render_Backend()->Set_World_Identity();
+	WW3D::Get_Render_Backend()->Set_View_Identity();
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_PROJECTION,identity);
 
 	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,Vertices.Count());
 	{
@@ -658,13 +659,13 @@ void Render2DClass::Render()
 			mem[i]=Indices[i];
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(vb);
-	DX8Wrapper::Set_Index_Buffer(ib,0);
+	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb);
+	WW3D::Get_Render_Backend()->Set_Index_Buffer(ib,0);
 
 	if (IsGrayScale)
 	{	//special case added to draw grayscale non-alpha blended images.
-		DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-		DX8Wrapper::Apply_Render_State_Changes();	//force update of all regular W3D states.
+		WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetOpaqueShader);
+		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update of all regular W3D states.
 		if (DX8Wrapper::Get_Current_Caps()->Support_Dot3())
 		{	//Override W3D states with customizations for grayscale
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x80A5CA8E);
@@ -689,11 +690,11 @@ void Render2DClass::Render()
 		}
 	}
 	else
-		DX8Wrapper::Set_Shader(Shader);
-	DX8Wrapper::Draw_Triangles(0,Indices.Count()/3,0,Vertices.Count());
+		WW3D::Get_Render_Backend()->Set_Shader(Shader);
+	WW3D::Get_Render_Backend()->Draw_Triangles(0,Indices.Count()/3,0,Vertices.Count());
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
-	DX8Wrapper::Set_Transform(D3DTS_PROJECTION,proj);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,view);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_PROJECTION,proj);
 	if (IsGrayScale)
 		ShaderClass::Invalidate();	//force both stages to be reset.
 
@@ -854,4 +855,3 @@ Vector2	Render2DTextClass::Get_Text_Extents( const WCHAR * text )
 
 	return extent;
 }
-
