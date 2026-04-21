@@ -89,6 +89,8 @@
 #include "mesh.h"
 #include <assert.h>
 #include "w3d_file.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "assetmgr.h"
 #include "w3derr.h"
 #include "wwdebug.h"
@@ -852,10 +854,10 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 			}
 		}
 		pass->Install_Materials();
-		DX8Wrapper::Set_Index_Buffer(ib,0);
+		g_renderBackend->Set_Index_Buffer(ib, 0);
 
 		SNAPSHOT_SAY(("Set_World_Identity"));
-		DX8Wrapper::Set_World_Identity();
+		g_renderBackend->Set_World_Identity();
 
 		DX8PolygonRendererListIterator it(&Model->PolygonRendererList);
 		while (!it.Is_Done()) {
@@ -945,10 +947,10 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 			int vertex_offset = Model->PolygonRendererList.Peek_Head()->Get_Vertex_Offset();
 			pass->Install_Materials();
 
-			DX8Wrapper::Set_Transform(D3DTS_WORLD,Get_Transform());
-			DX8Wrapper::Set_Index_Buffer(dynamic_ib,vertex_offset);
+			g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD, Get_Transform());
+			g_renderBackend->Set_Index_Buffer(dynamic_ib, vertex_offset);
 
-			DX8Wrapper::Draw_Triangles(
+			g_renderBackend->Draw_Triangles(
 				0,
 				temp_apt.Count(),
 				min_v,
@@ -978,10 +980,10 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 			}
 		}
 		pass->Install_Materials();
-		DX8Wrapper::Set_Index_Buffer(ib,0);
+		g_renderBackend->Set_Index_Buffer(ib, 0);
 
 		SNAPSHOT_SAY(("Set_World_Transform"));
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,Transform);
+		g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD, Transform);
 
 		DX8PolygonRendererListIterator it(&Model->PolygonRendererList);
 		while (!it.Is_Done()) {
