@@ -1658,6 +1658,14 @@ void TerrainShader2Stage::updateNoise2(D3DXMATRIX *destMatrix,D3DXMATRIX *curVie
 
 Int TerrainShader2Stage::set(Int pass)
 {
+	static bool s_loggedTerrainShader = false;
+	if (!s_loggedTerrainShader)
+	{
+		s_loggedTerrainShader = true;
+		WWDEBUG_SAY(("[BgfxBackend] TerrainShader2Stage::set first fire pass=%d", pass));
+	}
+	g_renderBackend->Override_Terrain_Blend(true);
+
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
 
@@ -1694,8 +1702,8 @@ Int TerrainShader2Stage::set(Int pass)
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,false);
+			g_renderBackend->Override_Texcoord_Index(0, 0);
+			g_renderBackend->Override_Alpha_Blend_Enable(false);
 			break;
 		case 1:
 			W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(1));
@@ -1707,11 +1715,10 @@ Int TerrainShader2Stage::set(Int pass)
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 1 );
+			g_renderBackend->Override_Texcoord_Index(0, 1);
 			// Blend the result using the alpha. (came from diffuse mod texture)
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,true);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+			g_renderBackend->Override_Alpha_Blend_Enable(true);
+			g_renderBackend->Override_Blend(D3DBLEND_SRCALPHA, D3DBLEND_INVSRCALPHA);
 			// Disable stage 2.
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
@@ -1827,6 +1834,14 @@ Int TerrainShader8Stage::set(Int pass)
 {
 	if (pass == 0)
 	{
+		static bool s_logged8Stage = false;
+		if (!s_logged8Stage)
+		{
+			s_logged8Stage = true;
+			WWDEBUG_SAY(("[BgfxBackend] TerrainShader8Stage::set first fire"));
+		}
+		g_renderBackend->Override_Terrain_Blend(true);
+
 		//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 		g_renderBackend->Apply_Render_State_Changes();
 
@@ -2026,6 +2041,8 @@ Int TerrainShaderPixelShader::init()
 
 Int TerrainShaderPixelShader::set(Int pass)
 {
+	g_renderBackend->Override_Terrain_Blend(true);
+
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
 
@@ -2317,6 +2334,7 @@ Int RoadShaderPixelShader::set(Int pass)
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,true);	//blend roads into terrain
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_SRCALPHA);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_INVSRCALPHA);
+	g_renderBackend->Override_Alpha_Blend_Enable(true);
 
 	D3DXMATRIX curView;
 	DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
@@ -2425,6 +2443,7 @@ Int RoadShader2Stage::set(Int pass)
 
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,true);	//blend roads into terrain
+	g_renderBackend->Override_Alpha_Blend_Enable(true);
 
 	if (pass == 0)
 	{
@@ -2882,7 +2901,7 @@ void W3DShaderManager::startRenderToTexture()
 		if (m_currentFilter == FT_VIEW_MOTION_BLUR_FILTER || m_currentFilter == FT_VIEW_CROSSFADE)
 		{	//these filters rely on the previous frame being visible so we must be careful about clearing
 			//frame buffer.  Only clear the alpha channel
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_ALPHA);	//only clear alpha
+			g_renderBackend->Set_Color_Write_Enable(false, false, false, true);	//only clear alpha
 			ShaderClass shader=ShaderClass::_PresetOpaqueSolidShader;
 			shader.Set_Depth_Compare(ShaderClass::PASS_ALWAYS);
 			shader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
@@ -2893,7 +2912,7 @@ void W3DShaderManager::startRenderToTexture()
 			REF_PTR_RELEASE(vmat);	//no need to keep a reference since it's a preset.
 
 			drawViewport(0x00ffffff | (((Int)(TheWaterTransparency->m_minWaterOpacity*255.0f)) <<24));
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_RED|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_BLUE);	//disable writes to alpha
+			g_renderBackend->Set_Color_Write_Enable(true, true, true, false);	//disable writes to alpha
 		}
 		else	//normal clear that overwrites everything.
 			g_renderBackend->Clear(true, false, Vector3( 0.0f, 0.0f, 0.0f ), TheWaterTransparency->m_minWaterOpacity);
@@ -3312,6 +3331,9 @@ void FlatTerrainShader2Stage::reset()
 
 Int FlatTerrainShader2Stage::set(Int pass)
 {
+	static bool s_loggedFlat2 = false;
+	if (!s_loggedFlat2) { s_loggedFlat2 = true; WWDEBUG_SAY(("[BgfxBackend] FlatTerrainShader2Stage::set first fire pass=%d", pass)); }
+	g_renderBackend->Override_Terrain_Blend(true);
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
 
@@ -3583,6 +3605,7 @@ Int FlatTerrainShaderPixelShader::init()
 
 Int FlatTerrainShaderPixelShader::set(Int pass)
 {
+	g_renderBackend->Override_Terrain_Blend(true);
 	//setup base pass
 	Int curStage = 1;
 	// setup terrain [3/31/2003]
