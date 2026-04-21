@@ -62,6 +62,8 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/assetmgr.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/RenderBackend.h"
 
 //number of vertex pages allocated - allows double buffering of vertex updates.
 //while one is being rendered, another is being updated.  Improves HW parallelism.
@@ -473,8 +475,8 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 
 	Int idxCount=(m_y-1)*(m_x*2+2) - 2;	//index count
 
-	DX8Wrapper::Set_Index_Buffer(TheWaterTracksRenderSystem->m_indexBuffer,batchStart);
-	DX8Wrapper::Draw_Strip(0,idxCount-2,0,m_x*m_y);	//there are always n-2 primitives for n index strip.
+	WW3D::Get_Render_Backend()->Set_Index_Buffer(TheWaterTracksRenderSystem->m_indexBuffer,batchStart);
+	WW3D::Get_Render_Backend()->Draw_Strip(0,idxCount-2,0,m_x*m_y);	//there are always n-2 primitives for n index strip.
 
 	return batchStart+m_x*m_y;	//return new offset into unused area of vertex buffer
 }
@@ -886,15 +888,15 @@ Try improving the fit to vertical surfaces like cliffs.
 	diffuseLight=REAL_TO_INT(shadeB) | (REAL_TO_INT(shadeG) << 8) | (REAL_TO_INT(shadeR) << 16);
 
 	Matrix3D tm(1);	///set to identity
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,tm);	//position the water surface
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
 
-	DX8Wrapper::Set_Material(m_vertexMaterialClass);
-	DX8Wrapper::Set_Shader(m_shaderClass);
+	WW3D::Get_Render_Backend()->Set_Material(m_vertexMaterialClass);
+	WW3D::Get_Render_Backend()->Set_Shader(m_shaderClass);
 
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexBuffer);
+	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexBuffer);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZBIAS,8);
 	//Force apply of render states so we can override them.
-	DX8Wrapper::Apply_Render_State_Changes();
+	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
 
 	if (TheTerrainRenderObject->getShroud())
 	{
@@ -919,7 +921,7 @@ Try improving the fit to vertical surfaces like cliffs.
 	while( mod )
 	{
 		if (LastTextureType != mod->m_type)
-			DX8Wrapper::Set_Texture(0,mod->m_stageZeroTexture);
+			WW3D::Get_Render_Backend()->Set_Texture(0,mod->m_stageZeroTexture);
 
 		Int vertsRendered=mod->render(m_vertexBuffer,m_batchStart);
 
@@ -1296,7 +1298,7 @@ void TestWaterUpdate()
 				Real ydiff=terrainPointEnd.y - terrainPointStart.y;
 				if (sqrt (xdiff * xdiff + ydiff * ydiff) <= waveTypeInfo[currentWaveType].m_finalWidth)
 				{	TheDisplay->drawLine(mouseAnchor.x, mouseAnchor.y, screenPoint.x, screenPoint.y,1,0xffccccff);
-					DX8Wrapper::Invalidate_Cached_Render_States();
+					WW3D::Get_Render_Backend()->Invalidate_Cached_Render_States();
 					ShaderClass::Invalidate();
 				}
 
