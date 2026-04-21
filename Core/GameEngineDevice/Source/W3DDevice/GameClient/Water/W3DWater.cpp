@@ -1523,8 +1523,11 @@ void WaterRenderObjClass::renderMirror(CameraClass *cam)
 
 	WW3D::End_Render(false);
 
-	// Change the rendertarget back to the main backbuffer
-	DX8Wrapper::Set_Render_Target((IDirect3DSurface8 *)nullptr);
+	// TheSuperHackers @fix bobtista 21/04/2026 Route through g_renderBackend
+	// so the bgfx backend's renderToTexture flag gets reset. Same pattern as
+	// TexProjectClass::Compute_Texture — the raw DX8Wrapper bypass left
+	// renderToTexture stuck at true after the reflection pass.
+	g_renderBackend->Set_Render_Target_With_Z(nullptr, nullptr);
 }
 
 //-------------------------------------------------------------------------------------------------
