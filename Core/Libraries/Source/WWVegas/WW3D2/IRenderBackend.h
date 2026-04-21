@@ -19,7 +19,7 @@
 // TheSuperHackers @refactor bobtista 10/04/2026 Introduce IRenderBackend
 // abstract interface so WW3D2 rendering can be re-targeted to modern backends
 // (bgfx, Diligent, etc.) while the existing DX8 path stays functional as the
-// reference implementation. See Core/Libraries/Source/WWVegas/WW3D2/RENDER_BACKEND.md.
+// reference implementation.
 
 #pragma once
 
@@ -85,7 +85,7 @@ struct RenderBackendViewport
 
 // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3B interface extension
 // to unblock W3DStatusCircle fade effects and FlatHeightMap shroud trickery
-// without exposing raw D3DRENDERSTATETYPE in the interface. See PHASE3B.md.
+// without exposing raw D3DRENDERSTATETYPE in the interface.
 //
 // Values chosen to match D3DBLENDOP_* / D3DBLEND_* directly so the DX8Backend
 // can cast without a branch. Modern backends translate these to their native
@@ -117,7 +117,7 @@ enum BlendFactor
 
 // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3F stencil state
 // extension. Generic CompareFunc enum is also reusable for depth-test
-// comparison in a future phase. See PHASE3F.md.
+// comparison in a future phase.
 enum CompareFunc
 {
     // Values match D3DCMP_* 1..8 directly so DX8Backend can cast.
@@ -354,19 +354,19 @@ public:
     virtual void Invalidate_Cached_Render_States() = 0;
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3B typed blend +
-    // color-write setters (see PHASE3B.md). These exist so subsystems that
+    // color-write setters. These exist so subsystems that
     // previously called DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP / ...)
     // can migrate without the interface re-exposing the raw D3DRENDERSTATETYPE.
     virtual void Set_Blend_Op(BlendOp op) = 0;
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) = 0;
     virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) = 0;
     // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3E. Natural complement
-    // to the Phase 3B blend extension. See PHASE3E.md.
+    // to the Phase 3B blend extension.
     virtual void Set_Alpha_Blend_Enable(bool enable) = 0;
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D hardware cursor
     // extension. Lets W3DMouse drive the device's hardware cursor without
-    // touching IDirect3DDevice8 directly. See PHASE3D.md.
+    // touching IDirect3DDevice8 directly.
     virtual void Show_Hardware_Cursor(bool show) = 0;
     virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface) = 0;
     virtual void Set_Hardware_Cursor_Position(int x, int y) = 0;
@@ -374,7 +374,7 @@ public:
     // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3F stencil state
     // group. Each method maps 1:1 onto an existing D3DRS_STENCIL* state. The
     // CompareFunc and StencilOp enums above are reusable for future depth
-    // and stencil work. See PHASE3F.md.
+    // and stencil work.
     virtual void Set_Stencil_Enable(bool enable) = 0;
     virtual void Set_Stencil_Func(CompareFunc func) = 0;
     virtual void Set_Stencil_Ref(unsigned int ref) = 0;

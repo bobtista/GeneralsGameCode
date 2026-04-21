@@ -3589,7 +3589,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		// calls below are routed through g_renderBackend. The raw m_pDev->SetRenderState
 		// and m_pDev->SetTextureStageState calls in the same function remain on the
 		// IDirect3DDevice8 device pointer because they belong to the deeply-coupled
-		// stencil-volume rendering inner loop. See PHASE3E.md for the deferred-work
+		// stencil-volume rendering inner loop. for the deferred-work
 		// list and the reasoning behind the partial migration.
 
 		//Set W3D to some known state
@@ -3783,7 +3783,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		//for other effects.
 
 		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3E partial migration:
-		// same pattern as the main shadow-render branch above. See PHASE3E.md.
+		// same pattern as the main shadow-render branch above.
 
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);

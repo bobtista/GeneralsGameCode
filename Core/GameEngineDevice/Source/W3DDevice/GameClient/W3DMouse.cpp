@@ -111,7 +111,7 @@ W3DMouse::~W3DMouse()
 {
 	// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D: route the
 	// hardware cursor hide through the IRenderBackend cursor API instead
-	// of touching IDirect3DDevice8 directly. See PHASE3D.md. Null guard
+	// of touching IDirect3DDevice8 directly. Null guard
 	// is defensive against unusual destruction orderings.
 	if (g_renderBackend != nullptr)
 	{
@@ -395,7 +395,6 @@ void W3DMouse::setCursor( MouseCursor cursor )
 		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D: route all
 		// hardware cursor calls through the IRenderBackend cursor API. The
 		// previous code grabbed IDirect3DDevice8 directly via DX8Wrapper.
-		// See PHASE3D.md.
 		Bool doImageChange=FALSE;
 
 		if (g_renderBackend != nullptr)
@@ -492,7 +491,7 @@ void W3DMouse::draw()
 	{
 		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D: route the
 		// per-frame cursor positioning + animation through the IRenderBackend
-		// cursor API. See PHASE3D.md.
+		// cursor API.
 		//called from update thread or rendering loop.  Tells D3D where
 		//to draw the mouse cursor.
 		if (g_renderBackend != nullptr)
