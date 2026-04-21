@@ -47,6 +47,8 @@
 #include "WWLib/RANDOM.h"
 #include "WWMath/v3_rnd.h"
 #include "meshgeometry.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 
 
 /* We have chunking logic which handles N segments at a time. To simplify the subdivision logic,
@@ -221,8 +223,8 @@ void SegLineRendererClass::Render
 	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,identity);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW, identity);
 
 	/*
 	** Handle texture UV offset animation (done once for entire line).
@@ -1174,23 +1176,23 @@ void SegLineRendererClass::Render
 			}
 		}
 
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
-		DX8Wrapper::Set_Vertex_Buffer(Verts);
-		DX8Wrapper::Set_Material(mat);
-		DX8Wrapper::Set_Texture(0,Texture);
-		DX8Wrapper::Set_Shader(shader);
+		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
+		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(Verts);
+		WW3D::Get_Render_Backend()->Set_Material(mat);
+		WW3D::Get_Render_Backend()->Set_Texture(0,Texture);
+		WW3D::Get_Render_Backend()->Set_Shader(shader);
 
 		if (sorting) {
 			SortingRendererClass::Insert_Triangles(obj_sphere,0,tidx,0,vnum);
 		} else {
-			DX8Wrapper::Draw_Triangles(0,tidx,0,vnum);
+			WW3D::Get_Render_Backend()->Draw_Triangles(0,tidx,0,vnum);
 		}
 
 		REF_PTR_RELEASE(mat);
 
 	}
 
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,view);
 
 }
 
