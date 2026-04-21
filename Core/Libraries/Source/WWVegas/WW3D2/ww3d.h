@@ -46,6 +46,7 @@ class		SceneClass;
 class		CameraClass;
 class		ShaderClass;
 class		DX8Wrapper;
+class		IRenderBackend;
 
 struct	RenderStatistics;
 class		FrameGrabClass;
@@ -112,6 +113,10 @@ public:
 	static WW3DErrorType		Init(void * hwnd, char *defaultpal = nullptr, bool lite = false);
 	static WW3DErrorType		Shutdown();
 	static bool					Is_Initted()								{ return IsInitted; }
+
+	// The active rendering backend. Created in Renderer::Init and destroyed in
+	// Renderer::Shutdown, so it is never null in between.
+	static IRenderBackend *	Get_Render_Backend();
 
 	static int					Get_Render_Device_Count();
 	static const char *		Get_Render_Device_Name(int device_index);
