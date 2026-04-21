@@ -367,7 +367,7 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 	WW3D::Get_Render_Backend()->Set_Texture(1,edgeTex);
 	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
 
-	WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x7B, D3DCMP_LESSEQUAL);
+	WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x7B, RB_CMP_LESS_EQUAL);
 	WW3D::Get_Render_Backend()->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 
 	WW3D::Get_Render_Backend()->Set_Texture(0,edgeTex);
@@ -375,7 +375,7 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 	// Draw the custom edge.
 	WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
 
-	WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x84, D3DCMP_GREATEREQUAL);
+	WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x84, RB_CMP_GREATER_EQUAL);
 	WW3D::Get_Render_Backend()->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 
 #if 0 // Dumps out unmasked data.
@@ -403,8 +403,8 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2 );
 		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1 );
 #endif
-		WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x80, D3DCMP_NOTEQUAL);
-		WW3D::Get_Render_Backend()->Override_Blend(D3DBLEND_DESTCOLOR, D3DBLEND_ZERO);
+		WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
+		WW3D::Get_Render_Backend()->Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 		WW3D::Get_Render_Backend()->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 	}
 	if (noiseTexture) {
@@ -414,8 +414,8 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 		WW3D::Get_Render_Backend()->Set_Texture(1,edgeTex);
 		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
 
-		WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x80, D3DCMP_NOTEQUAL);
-		WW3D::Get_Render_Backend()->Override_Blend(D3DBLEND_DESTCOLOR, D3DBLEND_ZERO);
+		WW3D::Get_Render_Backend()->Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
+		WW3D::Get_Render_Backend()->Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 		WW3D::Get_Render_Backend()->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 	}
 }

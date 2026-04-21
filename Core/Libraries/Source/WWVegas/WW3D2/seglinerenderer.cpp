@@ -220,7 +220,7 @@ void SegLineRendererClass::Render
 )
 {
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW,view);
 
 	Matrix4x4 identity(true);
 	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,identity);
