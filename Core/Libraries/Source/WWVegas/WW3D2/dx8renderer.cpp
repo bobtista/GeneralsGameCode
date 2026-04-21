@@ -1734,6 +1734,8 @@ void DX8TextureCategoryClass::Render()
 		//DX8Wrapper::Set_Material(material);
 		//REF_PTR_RELEASE(material);
 		DX8Wrapper::Apply_Render_State_Changes();
+		// Override SRCBLEND to DESTCOLOR for multiply mode. DESTBLEND
+		// stays at whatever ShaderClass set (typically SRCCOLOR).
 		DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
 	}
 
