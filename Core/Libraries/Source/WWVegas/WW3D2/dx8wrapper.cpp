@@ -110,6 +110,9 @@ int DX8Wrapper_PreserveFPU = 0;
 ***********************************************************************************/
 
 static HWND						_Hwnd															= nullptr;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+static HWND						_GameHwndForBgfx										= nullptr;
+#endif
 bool								DX8Wrapper::IsInitted									= false;
 bool								DX8Wrapper::_EnableTriangleDraw						= true;
 
@@ -264,6 +267,38 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	/*
 	** Initialize all variables!
 	*/
+
+	// TheSuperHackers @feature bobtista 19/04/2026 Phase 4K: when bgfx is
+	// the active render backend, D3D8 uses a secondary reference window
+	// so bgfx can take the main game HWND without DXGI swapchain conflict.
+	// Save the original game HWND for bgfx before redirecting D3D8.
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	_GameHwndForBgfx = (HWND)hwnd;
+	{
+		WNDCLASSEXW wc = {};
+		wc.cbSize = sizeof(WNDCLASSEXW);
+		wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+		wc.lpfnWndProc = DefWindowProcW;
+		wc.hInstance = GetModuleHandleW(nullptr);
+		wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+		wc.lpszClassName = L"GGC_DX8RefWindow";
+		RegisterClassExW(&wc);
+
+		// Create the window hidden — it will be shown later after
+		// the game's input system is fully initialized. Creating it
+		// visible during Init steals focus and blocks mouse capture.
+		HWND refWnd = CreateWindowExW(
+			WS_EX_NOACTIVATE, L"GGC_DX8RefWindow", L"DX8 reference",
+			WS_OVERLAPPEDWINDOW,
+			CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
+			nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
+		if (refWnd)
+		{
+			hwnd = refWnd;
+		}
+	}
+#endif
+
 	_Hwnd = (HWND)hwnd;
 	_MainThreadID=ThreadClass::_Get_Current_Thread_ID();
 	WWDEBUG_SAY(("DX8Wrapper main thread: 0x%x",_MainThreadID));
@@ -391,7 +426,12 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	// by the time this function is called, so it is safe to run the
 	// backend's real Initialize() here, well before the _Init() calls.
 	Init_Render_Backend();
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// Pass the original game HWND to bgfx, not the DX8 reference window.
+	g_renderBackend->Initialize(_GameHwndForBgfx, ResolutionWidth, ResolutionHeight);
+#else
 	g_renderBackend->Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
+#endif
 
    /*
 	** Initialize any other subsystems inside of WW3D
@@ -954,6 +994,42 @@ void DX8Wrapper::Resize_And_Position_Window()
 			DEBUG_LOG(("Window positioned to x:%d y:%d, resized to w:%d h:%d", left, top, width, height));
 		}
 	}
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @feature bobtista 19/04/2026 Phase 4K: also resize the
+	// main game window (used by bgfx) to match the game's resolution. Without
+	// this, the game window stays at its initial size and mouse coordinates
+	// don't match the game's UI coordinate system.
+	if (_GameHwndForBgfx && _GameHwndForBgfx != _Hwnd)
+	{
+		RECT gameRect = { 0 };
+		::GetClientRect(_GameHwndForBgfx, &gameRect);
+		if ((gameRect.right - gameRect.left) != ResolutionWidth ||
+			(gameRect.bottom - gameRect.top) != ResolutionHeight)
+		{
+			RECT r = { 0, 0, ResolutionWidth, ResolutionHeight };
+			DWORD dwstyle = ::GetWindowLong(_GameHwndForBgfx, GWL_STYLE);
+			AdjustWindowRect(&r, dwstyle, FALSE);
+			int w = r.right - r.left;
+			int h = r.bottom - r.top;
+
+			MONITORINFO mi = {sizeof(MONITORINFO)};
+			GetMonitorInfo(MonitorFromWindow(_GameHwndForBgfx, MONITOR_DEFAULTTOPRIMARY), &mi);
+			int l = (mi.rcWork.left + mi.rcWork.right - w) / 2;
+			int t = (mi.rcWork.top + mi.rcWork.bottom - h) / 2;
+
+			RECT rc;
+			rc.left = l - r.left;
+			rc.top = t - r.top;
+			rc.right = rc.left + ResolutionWidth;
+			rc.bottom = rc.top + ResolutionHeight;
+			MoveRectIntoOtherRect(rc, mi.rcMonitor, &l, &t);
+
+			::SetWindowPos(_GameHwndForBgfx, nullptr, l, t, w, h, SWP_NOZORDER);
+			WWDEBUG_SAY(("Bgfx game window resized to %dx%d at (%d,%d)", w, h, l, t));
+		}
+	}
+#endif
 }
 
 bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int windowed,
@@ -981,6 +1057,12 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 
 	if (bits != -1)		BitDepth = bits;
 	if (windowed != -1)	IsWindowed = (windowed != 0);
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @feature bobtista 16/04/2026 Phase 4K: D3D8 reference
+	// window must always use windowed mode. Fullscreen-exclusive would steal
+	// input focus from the main game window where bgfx renders.
+	IsWindowed = true;
+#endif
 	DX8Wrapper_IsWindowed = IsWindowed;
 
 	WWDEBUG_SAY(("Attempting Set_Render_Device: name: %s (%s:%s), width: %d, height: %d, windowed: %d",
