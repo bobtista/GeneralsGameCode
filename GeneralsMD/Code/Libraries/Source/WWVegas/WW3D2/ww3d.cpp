@@ -991,7 +991,7 @@ WW3DErrorType WW3D::Render(SceneClass * scene,CameraClass * cam,bool clear,bool 
 
 	// Set the global ambient light value here.  If the scene is using the LightEnvironment system
 	// this setting will get overridden.
-	DX8Wrapper::Set_Ambient(scene->Get_Ambient_Light());
+	g_renderBackend->Set_Ambient(scene->Get_Ambient_Light());
 
 	// render the scene
 
@@ -1043,7 +1043,7 @@ WW3DErrorType WW3D::Render(
 
 	// Install the lighting environment if one is supplied
 	if (rinfo.light_environment != nullptr) {
-		DX8Wrapper::Set_Light_Environment(rinfo.light_environment);
+		g_renderBackend->Set_Light_Environment(rinfo.light_environment);
 	}
 
 	// Render the object
