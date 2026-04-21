@@ -54,6 +54,8 @@
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/dx8caps.h"
+#include "WW3D2/RenderBackend.h"
+#include "WW3D2/IRenderBackend.h"
 #include "WWMath/vector2i.h"
 
 
@@ -761,7 +763,9 @@ void W3DRadar::renderObjectList( const RadarObject *listHead, TextureClass *text
 
 	surface->Unlock();
 	REF_PTR_RELEASE(surface);
-
+	// TheSuperHackers @fix bobtista 21/04/2026 The object-overlay texture (team-colored unit / building dots) is updated via Lock / Draw_Pixel / Unlock. bgfx caches textures by TextureBaseClass* so an explicit invalidation is needed each frame to re-upload.
+	if (g_renderBackend != nullptr && texture != nullptr)
+		g_renderBackend->Invalidate_Cached_Texture(texture);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1385,6 +1389,9 @@ void W3DRadar::setShroudLevel(Int shroudX, Int shroudY, CellShroudStatus setting
 
 		surface->Unlock();
 		REF_PTR_RELEASE(surface);
+		// TheSuperHackers @fix bobtista 21/04/2026 Per-cell shroud updates done outside a begin/endSetShroudLevel envelope need to invalidate bgfx's texture cache so modified pixels upload. Without this the radar shroud never reveals as units move.
+		if (g_renderBackend != nullptr && m_shroudTexture != nullptr)
+			g_renderBackend->Invalidate_Cached_Texture(m_shroudTexture);
 	}
 	else
 	{
@@ -1430,6 +1437,9 @@ void W3DRadar::endSetShroudLevel()
 		m_shroudSurfacePixelSize = 0;
 	}
 	REF_PTR_RELEASE(m_shroudSurface);
+	// TheSuperHackers @fix bobtista 21/04/2026 The radar updates its shroud via direct Lock/Draw_Pixel/Unlock on the D3D8 surface. bgfx caches the texture by TextureBaseClass* and needs an explicit invalidation to re-upload the modified pixels.
+	if (g_renderBackend != nullptr && m_shroudTexture != nullptr)
+		g_renderBackend->Invalidate_Cached_Texture(m_shroudTexture);
 }
 
 //-------------------------------------------------------------------------------------------------
