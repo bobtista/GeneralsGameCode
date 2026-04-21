@@ -55,6 +55,8 @@
 #include "W3DDevice/GameClient/TerrainTex.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/RenderBackend.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/camera.h"
 
@@ -763,18 +765,18 @@ void W3DTerrainBackground::drawVisiblePolys(RenderInfoClass & rinfo, Bool disabl
 		return;
 	}
 	// Setup the vertex buffer, shader & texture.
-	DX8Wrapper::Set_Index_Buffer(m_indexTerrain,0);
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexTerrain);
+	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexTerrain,0);
+	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexTerrain);
   if (!disableTextures) {
 		if (m_terrainTexture4X) {
-			DX8Wrapper::Set_Texture(1, m_terrainTexture4X);
+			WW3D::Get_Render_Backend()->Set_Texture(1, m_terrainTexture4X);
 		}	else if (m_terrainTexture2X) {
-			DX8Wrapper::Set_Texture(1, m_terrainTexture2X);
+			WW3D::Get_Render_Backend()->Set_Texture(1, m_terrainTexture2X);
 		}	else {
-			DX8Wrapper::Set_Texture(1, m_terrainTexture);
+			WW3D::Get_Render_Backend()->Set_Texture(1, m_terrainTexture);
 		}
 	}
-	DX8Wrapper::Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
+	WW3D::Get_Render_Backend()->Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
 #else
 	if (m_curNumTerrainIndices == 0) {
 		return;
@@ -783,18 +785,18 @@ void W3DTerrainBackground::drawVisiblePolys(RenderInfoClass & rinfo, Bool disabl
 		return;
 	}
 	// Setup the vertex buffer, shader & texture.
-	DX8Wrapper::Set_Index_Buffer(m_indexTerrain,0);
-	DX8Wrapper::Set_Vertex_Buffer(m_vertexTerrain);
+	WW3D::Get_Render_Backend()->Set_Index_Buffer(m_indexTerrain,0);
+	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(m_vertexTerrain);
   if (!disableTextures) {
 		if (m_terrainTexture4X) {
-			DX8Wrapper::Set_Texture(0, m_terrainTexture4X);
+			WW3D::Get_Render_Backend()->Set_Texture(0, m_terrainTexture4X);
 		}	else if (m_terrainTexture2X) {
-			DX8Wrapper::Set_Texture(0, m_terrainTexture2X);
+			WW3D::Get_Render_Backend()->Set_Texture(0, m_terrainTexture2X);
 		}	else {
-			DX8Wrapper::Set_Texture(0, m_terrainTexture);
+			WW3D::Get_Render_Backend()->Set_Texture(0, m_terrainTexture);
 		}
 	}
-	DX8Wrapper::Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
+	WW3D::Get_Render_Backend()->Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
 #endif
 }
 
