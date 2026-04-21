@@ -51,12 +51,17 @@ class LightEnvironmentClass;
 class Matrix4x4;
 class Matrix3D;
 class Vector3;
-struct _D3DLIGHT8;
-typedef struct _D3DLIGHT8 D3DLIGHT8;
 
 // -----------------------------------------------------------------------------
 // POD types owned by the interface
 // -----------------------------------------------------------------------------
+
+// A single light captured for a sorted batch. Backend-neutral subset of D3DLIGHT8: only the fields consumed by the shader (direction vector + diffuse RGB). Direction follows the D3D8 convention — from the light toward the surface.
+struct RenderBackendLight
+{
+    float direction[3];
+    float diffuse[3];
+};
 
 enum TransformKind
 {
@@ -229,9 +234,9 @@ public:
     // -------------------------------------------------------------------------
 
     virtual bool Is_Device_Lost() const = 0;
-    virtual bool Has_Stencil() = 0;
-    virtual WW3DFormat Get_Back_Buffer_Format() = 0;
-    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) = 0;
+    virtual bool Has_Stencil() const = 0;
+    virtual WW3DFormat Get_Back_Buffer_Format() const = 0;
+    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const = 0;
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) = 0;
 
     // -------------------------------------------------------------------------
@@ -314,7 +319,7 @@ public:
     virtual void End_Sorted_Batch_Pass() {}
     virtual void Capture_Sorted_Batch_Transforms(const Matrix4x4 & /*world*/,
                                                  const Matrix4x4 & /*view*/) {}
-    virtual void Capture_Sorted_Batch_Light(const D3DLIGHT8 & /*light*/, bool /*enabled*/) {}
+    virtual void Capture_Sorted_Batch_Light(const RenderBackendLight & /*light*/, bool /*enabled*/) {}
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 sorted
     // direct-draw path hook. DX8Wrapper::Draw_Sorting_IB_VB handles
@@ -435,11 +440,11 @@ public:
 
     virtual void Set_Transform(TransformKind transform, const Matrix4x4 & m) = 0;
     virtual void Set_Transform(TransformKind transform, const Matrix3D & m) = 0;
-    virtual void Get_Transform(TransformKind transform, Matrix4x4 & m) = 0;
+    virtual void Get_Transform(TransformKind transform, Matrix4x4 & m) const = 0;
     virtual void Set_World_Identity() = 0;
     virtual void Set_View_Identity() = 0;
-    virtual bool Is_World_Identity() = 0;
-    virtual bool Is_View_Identity() = 0;
+    virtual bool Is_World_Identity() const = 0;
+    virtual bool Is_View_Identity() const = 0;
     virtual void Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
                                                       float znear, float zfar) = 0;
 
@@ -459,8 +464,8 @@ public:
     // and other systems set D3D blend/alpha-test state AFTER ShaderClass
     // applies. These methods let the bgfx backend capture the overrides.
     // Empty defaults = forward to DX8Wrapper only (DX8Backend behavior).
-    virtual void Override_Blend(unsigned srcBlend, unsigned dstBlend) {}
-    virtual void Override_Alpha_Test(bool enable, unsigned ref, unsigned func) {}
+    virtual void Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend) {}
+    virtual void Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func) {}
     virtual void Override_Alpha_Blend_Enable(bool enable) {}
     virtual void Override_Texcoord_Index(unsigned stage, unsigned uvIndex) {}
     virtual void Override_Terrain_Blend(bool enable) {}
@@ -596,7 +601,7 @@ public:
 
     virtual TextureClass * Create_Render_Target(int width, int height, WW3DFormat format = WW3D_FORMAT_UNKNOWN) = 0;
     virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture = nullptr) = 0;
-    virtual bool Is_Render_To_Texture() = 0;
+    virtual bool Is_Render_To_Texture() const = 0;
     virtual void Set_Shadow_Map(int idx, ZTextureClass * ztex) = 0;
-    virtual ZTextureClass * Get_Shadow_Map(int idx) = 0;
+    virtual ZTextureClass * Get_Shadow_Map(int idx) const = 0;
 };

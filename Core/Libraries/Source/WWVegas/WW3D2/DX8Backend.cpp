@@ -59,17 +59,17 @@ bool DX8Backend::Is_Device_Lost() const
     return DX8Wrapper::Is_Device_Lost();
 }
 
-bool DX8Backend::Has_Stencil()
+bool DX8Backend::Has_Stencil() const
 {
     return DX8Wrapper::Has_Stencil();
 }
 
-WW3DFormat DX8Backend::Get_Back_Buffer_Format()
+WW3DFormat DX8Backend::Get_Back_Buffer_Format() const
 {
     return DX8Wrapper::getBackBufferFormat();
 }
 
-SurfaceClass * DX8Backend::Get_Back_Buffer(unsigned int num)
+SurfaceClass * DX8Backend::Get_Back_Buffer(unsigned int num) const
 {
     return DX8Wrapper::_Get_DX8_Back_Buffer(num);
 }
@@ -352,7 +352,7 @@ void DX8Backend::Set_Transform(TransformKind transform, const Matrix3D & m)
     DX8Wrapper::Set_Transform(static_cast<D3DTRANSFORMSTATETYPE>(transform), m);
 }
 
-void DX8Backend::Get_Transform(TransformKind transform, Matrix4x4 & m)
+void DX8Backend::Get_Transform(TransformKind transform, Matrix4x4 & m) const
 {
     DX8Wrapper::Get_Transform(static_cast<D3DTRANSFORMSTATETYPE>(transform), m);
 }
@@ -367,12 +367,12 @@ void DX8Backend::Set_View_Identity()
     DX8Wrapper::Set_View_Identity();
 }
 
-bool DX8Backend::Is_World_Identity()
+bool DX8Backend::Is_World_Identity() const
 {
     return DX8Wrapper::Is_World_Identity();
 }
 
-bool DX8Backend::Is_View_Identity()
+bool DX8Backend::Is_View_Identity() const
 {
     return DX8Wrapper::Is_View_Identity();
 }
@@ -481,7 +481,7 @@ void DX8Backend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass 
     DX8Wrapper::Set_Render_Target_With_Z(texture, ztexture);
 }
 
-bool DX8Backend::Is_Render_To_Texture()
+bool DX8Backend::Is_Render_To_Texture() const
 {
     return DX8Wrapper::Is_Render_To_Texture();
 }
@@ -491,7 +491,7 @@ void DX8Backend::Set_Shadow_Map(int idx, ZTextureClass * ztex)
     DX8Wrapper::Set_Shadow_Map(idx, ztex);
 }
 
-ZTextureClass * DX8Backend::Get_Shadow_Map(int idx)
+ZTextureClass * DX8Backend::Get_Shadow_Map(int idx) const
 {
     return DX8Wrapper::Get_Shadow_Map(idx);
 }
