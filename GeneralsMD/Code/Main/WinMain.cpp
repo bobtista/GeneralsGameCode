@@ -568,8 +568,10 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 					return 0;
 
 				// ignore when window is not active
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 				if( !isWinMainActive )
 					return 0;
+#endif
 
 				Int x = (Int)LOWORD( lParam );
 				Int y = (Int)HIWORD( lParam );
