@@ -28,6 +28,7 @@
 #include "WW3D2/dx8wrapper.h"
 
 class AABoxClass;
+class SurfaceClass;
 class WorldHeightMap;
 
 typedef UnsignedByte W3DShroudLevel;

@@ -169,6 +169,66 @@ void BgfxBackend::Invalidate_Cached_Render_States()
 {
 }
 
+void BgfxBackend::Set_Blend_Op(BlendOp /*op*/)
+{
+}
+
+void BgfxBackend::Set_Blend_Factors(BlendFactor /*src*/, BlendFactor /*dest*/)
+{
+}
+
+void BgfxBackend::Set_Color_Write_Enable(bool /*red*/, bool /*green*/, bool /*blue*/, bool /*alpha*/)
+{
+}
+
+void BgfxBackend::Set_Alpha_Blend_Enable(bool /*enable*/)
+{
+}
+
+void BgfxBackend::Show_Hardware_Cursor(bool /*show*/)
+{
+}
+
+void BgfxBackend::Set_Hardware_Cursor_Image(int /*hotspot_x*/, int /*hotspot_y*/, SurfaceClass * /*surface*/)
+{
+}
+
+void BgfxBackend::Set_Hardware_Cursor_Position(int /*x*/, int /*y*/)
+{
+}
+
+void BgfxBackend::Set_Stencil_Enable(bool /*enable*/)
+{
+}
+
+void BgfxBackend::Set_Stencil_Func(CompareFunc /*func*/)
+{
+}
+
+void BgfxBackend::Set_Stencil_Ref(unsigned int /*ref*/)
+{
+}
+
+void BgfxBackend::Set_Stencil_Mask(unsigned int /*mask*/)
+{
+}
+
+void BgfxBackend::Set_Stencil_Write_Mask(unsigned int /*mask*/)
+{
+}
+
+void BgfxBackend::Set_Stencil_Pass_Op(StencilOp /*op*/)
+{
+}
+
+void BgfxBackend::Set_Stencil_Fail_Op(StencilOp /*op*/)
+{
+}
+
+void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp /*op*/)
+{
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void BgfxBackend::Set_Transform(TransformKind /*transform*/, const Matrix4x4 & /*m*/)
