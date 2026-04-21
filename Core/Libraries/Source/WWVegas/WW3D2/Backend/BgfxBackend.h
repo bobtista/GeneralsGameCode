@@ -16,24 +16,26 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 10/04/2026 DX8Backend is the reference
-// implementation of IRenderBackend that owns the DX8Wrapper lifecycle and
-// forwards every rendering method to the existing DX8Wrapper static facade.
-// It adds zero new rendering logic and performs zero behavior changes — it is
-// pure adaptation so the rest of the engine can start talking to an
-// IRenderBackend pointer while still running on the established DX8 path.
-// See RENDER_BACKEND.md.
+// TheSuperHackers @refactor bobtista 10/04/2026 BgfxBackend is the
+// IRenderBackend implementation that targets bgfx (DX11 on Windows,
+// Vulkan on Linux, Metal on macOS). This provides a stub shell that
+// compiles and links against bgfx but implements every virtual method
+// as a no-op. Later work fills in real implementations subsystem by
+// subsystem as the engine is migrated off DX8Wrapper statics.
+//
+// This header MUST NOT be included from any VC6 translation unit. The
+// VC6 build always uses DX8Backend; the bgfx backend requires MSVC 2022+
+// and C++17. See RENDER_BACKEND.md.
 
 #pragma once
 
 #include "IRenderBackend.h"
 
-class DX8Backend : public IRenderBackend
+class BgfxBackend : public IRenderBackend
 {
 public:
-    static DX8Backend * Create(void * window, bool lite);
-
-    virtual ~DX8Backend();
+    BgfxBackend();
+    virtual ~BgfxBackend();
 
     // -- Device state queries -------------------------------------------------
 
@@ -122,9 +124,4 @@ public:
     virtual bool Is_Render_To_Texture();
     virtual void Set_Shadow_Map(int idx, ZTextureClass * ztex);
     virtual ZTextureClass * Get_Shadow_Map(int idx);
-
-private:
-    explicit DX8Backend(bool lite);
-
-    bool Lite;
 };
