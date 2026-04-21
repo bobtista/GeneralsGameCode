@@ -45,6 +45,12 @@
 #include "thread.h"
 #include "wwmemlog.h"
 
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture index
+// data into the active render backend at write-lock time. See the
+// matching comment in dx8vertexbuffer.cpp.
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
+
 #define DEFAULT_IB_SIZE 5000
 
 static bool _DynamicSortingIndexArrayInUse=false;
@@ -214,6 +220,14 @@ IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* index_buffer_
 IndexBufferClass::WriteLockClass::~WriteLockClass()
 {
 	DX8_THREAD_ASSERT();
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture
+	// index data into the active render backend BEFORE unlocking. After
+	// Unlock the source pointer is invalid. The bgfx backend snapshots
+	// the bytes; the dx8 backend ignores the call.
+	if (g_renderBackend != NULL && indices != NULL && index_buffer->Type() == BUFFER_TYPE_DX8) {
+		const unsigned int total_bytes = index_buffer->Get_Index_Count() * sizeof(unsigned short);
+		g_renderBackend->Capture_Index_Data(index_buffer, indices, total_bytes);
+	}
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_DX8:
 		DX8_Assert();
