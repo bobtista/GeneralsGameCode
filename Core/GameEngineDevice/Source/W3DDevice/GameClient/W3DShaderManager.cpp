@@ -227,6 +227,7 @@ Bool ScreenDefaultFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool
 	Int xpos, ypos, width, height;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
+	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
 	TheTacticalView->getOrigin(&xpos,&ypos);
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
@@ -276,7 +277,7 @@ Int ScreenDefaultFilter::set(FilterModes mode)
 
 void ScreenDefaultFilter::reset()
 {
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);	//previously rendered frame inside this texture
+	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
 
@@ -366,6 +367,7 @@ Bool ScreenBWFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doE
 	Int xpos, ypos, width, height;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
+	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
 	TheTacticalView->getOrigin(&xpos,&ypos);
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
@@ -494,7 +496,7 @@ Int ScreenBWFilter::set(FilterModes mode)
 
 void ScreenBWFilter::reset()
 {
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);	//previously rendered frame inside this texture
+	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);
 	DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);	//turn off pixel shader
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
@@ -603,6 +605,7 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 	}
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
+	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
 
 	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
 
@@ -678,7 +681,7 @@ Int ScreenBWFilterDOT3::set(FilterModes mode)
 
 void ScreenBWFilterDOT3::reset()
 {
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);	//previously rendered frame inside this texture
+	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
 
@@ -820,6 +823,7 @@ Bool ScreenCrossFadeFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bo
 	Real radius = 0.0f;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
+	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
 	if (mode == FM_VIEW_CROSSFADE_CIRCLE)
 	{	W3DShaderManager_BindStageTexture(1, m_fadePatternTexture);
 		//Use the current fade level to scale the mask texture, for other modes the texture
@@ -917,7 +921,7 @@ void ScreenCrossFadeFilter::reset()
 {
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);	//previously rendered frame inside this texture
+	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
 
@@ -987,6 +991,7 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 	Int xpos, ypos, width, height;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
+	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
 	TheTacticalView->getOrigin(&xpos,&ypos);
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
@@ -1185,7 +1190,7 @@ Int ScreenMotionBlurFilter::set(FilterModes mode)
 
 void ScreenMotionBlurFilter::reset()
 {
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);	//previously rendered frame inside this texture
+	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
 
@@ -1597,19 +1602,10 @@ Int TerrainShader2Stage::init()
 	W3DShaders[W3DShaderManager::ST_TERRAIN_BASE_NOISE1]=&terrainShader2Stage;
 	W3DShaders[W3DShaderManager::ST_TERRAIN_BASE_NOISE2]=&terrainShader2Stage;
 	W3DShaders[W3DShaderManager::ST_TERRAIN_BASE_NOISE12]=&terrainShader2Stage;
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 19/04/2026 bgfx does terrain blend
-	// in a single pass. Cloud/noise passes (2,3) are not yet supported.
-	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE]=1;
-	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE1]=1;
-	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE2]=1;
-	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE12]=1;
-#else
 	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE]=2;
 	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE1]=3;
 	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE2]=3;
 	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE12]=3;
-#endif
 
 	return TRUE;
 }
@@ -1620,8 +1616,8 @@ void TerrainShader2Stage::reset()
 	ShaderClass::Invalidate();
 
 	//Free references to textures
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0, nullptr);
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(1, nullptr);
+	W3DShaderManager_BindStageTexture(0, nullptr);
+	W3DShaderManager_BindStageTexture(1, nullptr);
 
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
@@ -1672,14 +1668,6 @@ Int TerrainShader2Stage::set(Int pass)
 		s_loggedTerrainShader = true;
 		WWDEBUG_SAY(("[W3DShaderManager] TerrainShader2Stage::set first fire pass=%d", pass));
 	}
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 19/04/2026 bgfx blends base and
-	// per-tile textures in a single pass via the uber shader's terrain
-	// blend path. Pass 0 has stage 0 = base texture (from shader manager)
-	// and stage 1 = per-tile blend texture (from drawVisiblePolys).
-	g_renderBackend->Override_Terrain_Blend(true);
-#endif
-
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
 
@@ -1824,11 +1812,6 @@ Int TerrainShader2Stage::set(Int pass)
 
 Int TerrainShader8Stage::init()
 {
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 19/04/2026 8-stage multi-texture
-	// is invisible to bgfx. Fall through to the 2Stage variant.
-	return FALSE;
-#endif
 	ChipsetType res;
 
 	//this shader will also use the 2Stage shader for some of the passes so initialize it too.
@@ -1983,8 +1966,8 @@ void TerrainShader8Stage::reset()
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 4, D3DTSS_COLOROP, D3DTOP_DISABLE);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 4, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0, nullptr);
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(1, nullptr);
+	W3DShaderManager_BindStageTexture(0, nullptr);
+	W3DShaderManager_BindStageTexture(1, nullptr);
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
 
@@ -2011,11 +1994,6 @@ Int TerrainShaderPixelShader::init()
 	Int res;
 #ifdef DISABLE_PIXEL_SHADERS
 	return false;
-#endif
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 19/04/2026 D3D8 pixel shaders are
-	// invisible to bgfx. Fall through to the 2Stage variant.
-	return FALSE;
 #endif
 	//this shader will also use the 2Stage shader for some of the passes so initialize it too.
 	if (terrainShader2Stage.init() && (res=W3DShaderManager::getChipset()) >= DC_GENERIC_PIXEL_SHADER_1_1)
@@ -2065,9 +2043,11 @@ Int TerrainShaderPixelShader::init()
 
 Int TerrainShaderPixelShader::set(Int pass)
 {
-	// Do not set terrain blend — the D3D8 pixel shader binds textures
-	// differently than what the bgfx terrain blend path expects. The
-	// normal TSS path handles the texture operations correctly.
+	// TheSuperHackers @feature bobtista 19/04/2026 Enable terrain blend for
+	// bgfx. This variant binds base (stage 0) and blend (stage 1) textures
+	// via g_renderBackend, so the bgfx uber shader can blend them correctly.
+	if (g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline())
+		g_renderBackend->Override_Terrain_Blend(true);
 
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
@@ -2176,13 +2156,13 @@ Int TerrainShaderPixelShader::set(Int pass)
 void TerrainShaderPixelShader::reset()
 {
 	g_renderBackend->Override_Terrain_Blend(false);
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(2,nullptr);	//release reference to any texture
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(3,nullptr);	//release reference to any texture
+	W3DShaderManager_BindStageTexture(2, nullptr);
+	W3DShaderManager_BindStageTexture(3, nullptr);
 
 	DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);	//turn off pixel shader
 
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0, nullptr);
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(1, nullptr);
+	W3DShaderManager_BindStageTexture(0, nullptr);
+	W3DShaderManager_BindStageTexture(1, nullptr);
 
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
@@ -2772,6 +2752,26 @@ void W3DShaderManager::updateCloud()
 	terrainShader2Stage.updateCloud();
 }
 
+// TheSuperHackers @feature bobtista 20/04/2026 Push cloud-shadow state
+// through g_renderBackend so the bgfx backend can modulate the scrolling
+// cloud texture into terrain color from its uber shader (equivalent of
+// the DX8 ST_TERRAIN_BASE_NOISE1 / _NOISE12 multi-pass path). DX8Backend
+// ignores this — DX8 drives its own TSS cascade as before.
+void W3DShaderManager::pushCloudShadowToBackend(Bool enabled, TextureClass * cloudTex)
+{
+	if (g_renderBackend == nullptr)
+	{
+		return;
+	}
+	const float stretch = (float)(1.0 / (63.0 * MAP_XY_FACTOR / 2.0));
+	g_renderBackend->Set_Cloud_Shadow_Params(
+		enabled ? true : false,
+		terrainShader2Stage.m_xOffset,
+		terrainShader2Stage.m_yOffset,
+		stretch,
+		cloudTex);
+}
+
 // W3DShaderManager::getShaderPasses =======================================================
 /** Return number of renderig passes required in perform the desired shader on current
 	hardware.  App will need to re-render the polygons this many times to complete the
@@ -3329,17 +3329,10 @@ Int FlatTerrainShader2Stage::init()
 	W3DShaders[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE1]=&flatTerrainShader2Stage;
 	W3DShaders[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE2]=&flatTerrainShader2Stage;
 	W3DShaders[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12]=&flatTerrainShader2Stage;
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE]=1;
-	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE1]=1;
-	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE2]=1;
-	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12]=1;
-#else
 	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE]=1;
 	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE1]=2;
 	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE2]=2;
 	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12]=2;
-#endif
 
 	return TRUE;
 }
@@ -3350,8 +3343,8 @@ void FlatTerrainShader2Stage::reset()
 	ShaderClass::Invalidate();
 
 	//Free references to textures
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0, nullptr);
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(1, nullptr);
+	W3DShaderManager_BindStageTexture(0, nullptr);
+	W3DShaderManager_BindStageTexture(1, nullptr);
 
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
@@ -3365,9 +3358,8 @@ Int FlatTerrainShader2Stage::set(Int pass)
 {
 	static bool s_loggedFlat2 = false;
 	if (!s_loggedFlat2) { s_loggedFlat2 = true; WWDEBUG_SAY(("[W3DShaderManager] FlatTerrainShader2Stage::set first fire pass=%d", pass)); }
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	g_renderBackend->Override_Terrain_Blend(true);
-#endif
+	if (g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline())
+		g_renderBackend->Override_Terrain_Blend(true);
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
 
@@ -3585,14 +3577,6 @@ Int FlatTerrainShaderPixelShader::init()
 	return false;
 #endif
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 19/04/2026 D3D8 pixel shaders are
-	// invisible to the bgfx backend. Skip pixel shader terrain variants so
-	// the 2Stage fallback is used — it sets proper TSS ops that the bgfx
-	// uber shader can interpret.
-	return FALSE;
-#endif
-
 	//this shader will also use the 2Stage shader for some of the passes so initialize it too.
 	if ((res=W3DShaderManager::getChipset()) >= DC_GENERIC_PIXEL_SHADER_1_1)
 	{
@@ -3802,13 +3786,13 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 void FlatTerrainShaderPixelShader::reset()
 {
 	g_renderBackend->Override_Terrain_Blend(false);
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(2,nullptr);	//release reference to any texture
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(3,nullptr);	//release reference to any texture
+	W3DShaderManager_BindStageTexture(2, nullptr);
+	W3DShaderManager_BindStageTexture(3, nullptr);
 
 	DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);	//turn off pixel shader
 
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0, nullptr);
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(1, nullptr);
+	W3DShaderManager_BindStageTexture(0, nullptr);
+	W3DShaderManager_BindStageTexture(1, nullptr);
 
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);

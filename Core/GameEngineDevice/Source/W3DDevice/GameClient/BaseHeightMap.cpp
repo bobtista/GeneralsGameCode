@@ -1951,7 +1951,6 @@ void BaseHeightMapRenderObjClass::updateScorches()
 		for (j=minY; j<maxY; j++) {
 			for (i=minX; i<maxX; i++) {
 				if (m_curNumScorchVertices >= MAX_SCORCH_VERTEX) return;
-				curVb->diffuse = diffuse;
 				Real theZ;
 				theZ = amtToFloat+((float)getClipHeight(i+m_map->getBorderSizeInline(),j+m_map->getBorderSizeInline())*MAP_HEIGHT_SCALE);
 				// The scorchmarks are spaced out by 1.5 in the texture.
@@ -1964,6 +1963,39 @@ void BaseHeightMapRenderObjClass::updateScorches()
 				curVb->x = X;
 				curVb->y = Y;
 				curVb->z = theZ;
+
+				// TheSuperHackers @fix bobtista 20/04/2026 The scorch mesh
+				// is a rectangular grid covering the scorch's bounding box.
+				// Due to FLOOR/CEIL rounding to terrain cells, corner
+				// cells extend past the scorch's 1.0 unit-radius. Their
+				// atlas UVs overshoot the scorch's valid band and sample
+				// the adjacent scorch image in the atlas. DX8 hides this
+				// via transparent gaps between atlas tiles, but bgfx
+				// samples the neighboring tile's edge texel and produces
+				// visible partial "phantom" scorches beside real ones.
+				// Zero the vertex alpha on the bgfx path for cells outside
+				// the unit radius so those fragments render transparent.
+				// Gated by Has_Shader_Pipeline() so DX8 keeps the original
+				// full-alpha vertices — DX8's TSS uses SELECTARG1 on
+				// texture alpha so this is functionally equivalent, but we
+				// keep DX8 data byte-identical to main as a principle.
+				bool useBgfxAlphaMask = (g_renderBackend != nullptr
+					&& g_renderBackend->Has_Shader_Pipeline());
+				if (useBgfxAlphaMask)
+				{
+					Real dx = (X - loc.X) / radius;
+					Real dy = (Y - loc.Y) / radius;
+					if (dx*dx + dy*dy > 1.0f) {
+						curVb->diffuse = diffuse & 0x00FFFFFF;
+					} else {
+						curVb->diffuse = diffuse;
+					}
+				}
+				else
+				{
+					curVb->diffuse = diffuse;
+				}
+
 				curVb++;
 				m_curNumScorchVertices++;
 			}
