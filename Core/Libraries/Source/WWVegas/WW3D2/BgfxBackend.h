@@ -226,4 +226,24 @@ public:
     // Set_Pixel_Shader, *_Constant, Create_Render_Target,
     // Is_Render_To_Texture, Set/Get_Shadow_Map)
     // is inherited from DX8Backend and forwards to DX8Wrapper unchanged.
+
+    // -- Resource creation (Phase 5 asset ingress) ---------------------------
+    //
+    // Each override first forwards to DX8Backend so the ref-popup build's
+    // D3D8 resource is created in parallel (that is how the DX8 reference
+    // window stays in sync with bgfx). Then creates the corresponding bgfx
+    // resource. The returned RenderResource.id encodes an index into a
+    // backend-local side table that maps to the pair of (bgfx handle, D3D8
+    // pointer).
+
+    virtual RenderResource Create_Texture(const TextureDesc & desc) override;
+    virtual RenderResource Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data) override;
+    virtual RenderResource Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit) override;
+    virtual RenderResource Create_Dynamic_Vertex_Buffer(const BufferDesc & desc) override;
+    virtual RenderResource Create_Dynamic_Index_Buffer(const BufferDesc & desc, bool indices_are_32bit) override;
+    virtual void * Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard) override;
+    virtual void   Unmap_Dynamic(RenderResource h) override;
+    virtual void   Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) override;
+    virtual void   Destroy_Resource(RenderResource h) override;
+    virtual void   Begin_Dynamic_Frame() override;
 };

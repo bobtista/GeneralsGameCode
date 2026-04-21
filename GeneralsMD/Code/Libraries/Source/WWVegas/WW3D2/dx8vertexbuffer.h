@@ -42,6 +42,7 @@
 #include "always.h"
 #include "wwdebug.h"
 #include "dx8fvf.h"
+#include "IRenderBackend.h"
 
 const unsigned dynamic_fvf_type=D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX2|D3DFVF_DIFFUSE;
 
@@ -125,6 +126,12 @@ protected:
 	unsigned short					VertexCount;
 	mutable int						engine_refs;
 	FVFInfoClass*					fvf_info;
+	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
+	// resource handle. Set by derived classes after calling
+	// g_renderBackend->Create_Vertex_Buffer. Parallel to the class-specific
+	// D3D pointer stored in DX8VertexBufferClass::VertexBuffer, which stays
+	// populated in ref-popup builds.
+	RenderResource					m_backendHandle;
 };
 
 
