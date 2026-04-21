@@ -82,6 +82,7 @@ W3DShroud::W3DShroud()
 	m_dstTextureHeight=m_numMaxVisibleCellsY=0;
 	m_boderShroudLevel = (W3DShroudLevel)TheGlobalData->m_shroudAlpha;	//assume border is black
 	m_clearDstTexture = TRUE;	//force clearing of destination texture;
+	m_shroudDirty = TRUE;
 
 	m_cellWidth=DEFAULT_SHROUD_CELL_SIZE;
 	m_cellHeight=DEFAULT_SHROUD_CELL_SIZE;
@@ -288,6 +289,7 @@ void W3DShroud::setShroudLevel(Int x, Int y, W3DShroudLevel level, Bool textureO
 
 	if (x < m_numCellsX && y < m_numCellsY)
 	{
+		m_shroudDirty = TRUE;
 		if (level < TheGlobalData->m_shroudAlpha)
 			level = TheGlobalData->m_shroudAlpha;
 
@@ -349,7 +351,7 @@ void W3DShroud::setShroudLevel(Int x, Int y, W3DShroudLevel level, Bool textureO
 ///Quickly sets the shroud level of entire map to a single value
 void W3DShroud::fillShroudData(W3DShroudLevel level)
 {
-
+	m_shroudDirty = TRUE;
 	Int x,y;
 	UnsignedShort pixel;
 
@@ -725,6 +727,35 @@ void W3DShroud::render(CameraClass *cam)
 				srcRect.right - srcRect.left,
 				srcRect.bottom - srcRect.top,
 				m_pSrcTexture);
+	}
+
+	// TheSuperHackers @feature bobtista 17/04/2026 Push shroud pixel data to
+	// the bgfx backend so it can mirror the POOL_DEFAULT destination texture.
+	// m_srcTextureData is the persistently-mapped system-memory surface that
+	// the shroud system writes into; we read from it after the CopyRects above
+	// has pushed the same data to the DX8 video-memory copy.
+	if (g_renderBackend != nullptr && m_pSrcTexture != nullptr && m_pDstTexture != nullptr && m_shroudDirty)
+	{
+		m_shroudDirty = FALSE;
+		SurfaceClass::SurfaceDescription srcDesc;
+		m_pSrcTexture->Get_Description(srcDesc);
+		g_renderBackend->Capture_Shroud_Texture(
+			m_pDstTexture,
+			m_srcTextureData,
+			m_dstTextureWidth, m_dstTextureHeight,
+			visEndX - visStartX, visEndY - visStartY,
+			dstPoint.x, dstPoint.y,
+			m_srcTexturePitch,
+			srcDesc.Format);
+	}
+	else
+	{
+		static int s_shroudSkipLog = 0;
+		if (s_shroudSkipLog++ < 3)
+		{
+			WWDEBUG_SAY(("[SHROUD CAP] SKIPPED: backend=%p src=%p dst=%p",
+				g_renderBackend, m_pSrcTexture, m_pDstTexture));
+		}
 	}
 
 	REF_PTR_RELEASE (pDestSurface);

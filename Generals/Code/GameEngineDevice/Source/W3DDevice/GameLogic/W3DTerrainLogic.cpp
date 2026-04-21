@@ -164,9 +164,10 @@ Bool W3DTerrainLogic::loadMap( AsciiString filename , Bool query )
 	if( TerrainLogic::loadMap( filename, query ) == false )
 		return FALSE;
 
-	// Map file now contains lighting & time of day info.
-	if( TheWritableGlobalData->setTimeOfDay( TheGlobalData->m_timeOfDay ) )
-		TheGameClient->setTimeOfDay( TheGlobalData->m_timeOfDay );
+	// TheSuperHackers @fix bobtista 16/04/2026 Always re-propagate sun direction on map load
+	// so the bgfx shadow light position is set even when TOD does not change between maps.
+	TheWritableGlobalData->setTimeOfDay( TheGlobalData->m_timeOfDay );
+	TheGameClient->setTimeOfDay( TheGlobalData->m_timeOfDay );
 
 	return TRUE;  // success
 
