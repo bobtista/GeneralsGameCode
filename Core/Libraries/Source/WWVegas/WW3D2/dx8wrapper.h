@@ -544,6 +544,9 @@ public:
 	static WW3DFormat	getBackBufferFormat();
 	static bool Reset_Device(bool reload_assets=true);
 
+	// TheSuperHackers @feature bobtista 16/04/2026 Move DX8 device to a different window
+	static void Set_Device_Window(HWND hwnd, int width, int height);
+
 	static const DX8Caps*	Get_Current_Caps() { WWASSERT(CurrentCaps); return CurrentCaps; }
 
 	static bool Registry_Save_Render_Device( const char * sub_key );
