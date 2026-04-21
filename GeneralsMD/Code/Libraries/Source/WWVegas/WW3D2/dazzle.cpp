@@ -58,6 +58,8 @@
 #include "persistfactory.h"
 #include "ww3dids.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "sortingrenderer.h"
@@ -1201,7 +1203,7 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 		return;
 	}
 
-	DX8Wrapper::Set_Vertex_Buffer(vb_access);
+	g_renderBackend->Set_Vertex_Buffer(vb_access);
 
 	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,poly_count*3);
 	{
@@ -1224,28 +1226,28 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 	DX8Wrapper::Set_Transform(D3DTS_PROJECTION,Matrix4x4(true));
 
 	if (halo_poly_count) {
-		DX8Wrapper::Set_Index_Buffer(ib_access,dazzle_vertex_count);
+		g_renderBackend->Set_Index_Buffer(ib_access, dazzle_vertex_count);
 		DX8Wrapper::Set_Shader(default_halo_shader);
 		DX8Wrapper::Set_Texture(0,types[type]->Get_Halo_Texture());
 		SphereClass sphere(Get_Position(),0.1f);
 
-		DX8Wrapper::Draw_Triangles(0,halo_poly_count,0,vertex_count);
+		g_renderBackend->Draw_Triangles(0, halo_poly_count, 0, vertex_count);
 	}
 
 	if (dazzle_poly_count) {
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
+		g_renderBackend->Set_Index_Buffer(ib_access, 0);
 		DX8Wrapper::Set_Shader(default_dazzle_shader);
 		DX8Wrapper::Set_Texture(0,types[type]->Get_Dazzle_Texture());
 		SphereClass sphere(Vector3(0.0f,0.0f,0.0f),0.0f);
-		DX8Wrapper::Draw_Triangles(0,dazzle_poly_count,0,vertex_count);
+		g_renderBackend->Draw_Triangles(0, dazzle_poly_count, 0, vertex_count);
 	}
 
 	if (lensflare_poly_count) {
-		DX8Wrapper::Set_Index_Buffer(ib_access,dazzle_vertex_count+halo_vertex_count);
+		g_renderBackend->Set_Index_Buffer(ib_access, dazzle_vertex_count+halo_vertex_count);
 		DX8Wrapper::Set_Shader(default_dazzle_shader);
 		DX8Wrapper::Set_Texture(0,lensflare->Get_Texture());
 		SphereClass sphere(Vector3(0.0f,0.0f,0.0f),0.0f);
-		DX8Wrapper::Draw_Triangles(0,lensflare_poly_count,0,vertex_count);
+		g_renderBackend->Draw_Triangles(0, lensflare_poly_count, 0, vertex_count);
 	}
 
 	DX8Wrapper::Set_Transform(D3DTS_PROJECTION,old_projection_transform);
