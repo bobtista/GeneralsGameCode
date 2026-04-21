@@ -101,7 +101,12 @@ public:
 	class AppendLockClass : public VertexBufferLockClass
 	{
 	public:
-		AppendLockClass(VertexBufferClass* vertex_buffer,unsigned start_index, unsigned index_range);
+		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I added
+		// optional `flags` (e.g. D3DLOCK_DISCARD / D3DLOCK_NOOVERWRITE)
+		// for the dynamic shadow buffer's per-batch append pattern. Default
+		// of 0 keeps existing one-shot DX8VertexBufferClass::Copy callers
+		// unchanged.
+		AppendLockClass(VertexBufferClass* vertex_buffer,unsigned start_index, unsigned index_range, unsigned flags=0);
 		~AppendLockClass();
 	protected:
 		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6

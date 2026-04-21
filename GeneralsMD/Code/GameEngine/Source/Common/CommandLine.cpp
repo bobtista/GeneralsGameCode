@@ -691,6 +691,16 @@ Int parseFile(char *args[], int num)
 	return 2;
 }
 
+// TheSuperHackers @feature bobtista 17/04/2026 Load a save game file from the command line
+Int parseLoadSave(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_loadSaveGame = args[1];
+	}
+	return 2;
+}
+
 
 Int parsePreloadEverything( char *args[], int num )
 {
@@ -1268,6 +1278,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-munkee", parseMunkee },
 	{ "-displayDebug", parseDisplayDebug },
 	{ "-file", parseFile },
+	{ "-loadsave", parseLoadSave },
 
 //	{ "-preload", parsePreload },
 

@@ -269,6 +269,10 @@ void DiligentBackend::Set_Texture_Factor(unsigned /*argb*/)
 {
 }
 
+void DiligentBackend::Set_Cull_Mode(CullMode /*mode*/)
+{
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void DiligentBackend::Set_Transform(TransformKind /*transform*/, const Matrix4x4 & /*m*/)
