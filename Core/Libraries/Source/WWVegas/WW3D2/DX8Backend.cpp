@@ -165,6 +165,114 @@ void DX8Backend::Invalidate_Cached_Render_States()
     DX8Wrapper::Invalidate_Cached_Render_States();
 }
 
+void DX8Backend::Set_Blend_Op(BlendOp op)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP, static_cast<unsigned>(op));
+}
+
+void DX8Backend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,  static_cast<unsigned>(src));
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, static_cast<unsigned>(dest));
+}
+
+void DX8Backend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha)
+{
+    unsigned mask = 0;
+    if (red)
+    {
+        mask |= D3DCOLORWRITEENABLE_RED;
+    }
+    if (green)
+    {
+        mask |= D3DCOLORWRITEENABLE_GREEN;
+    }
+    if (blue)
+    {
+        mask |= D3DCOLORWRITEENABLE_BLUE;
+    }
+    if (alpha)
+    {
+        mask |= D3DCOLORWRITEENABLE_ALPHA;
+    }
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE, mask);
+}
+
+void DX8Backend::Set_Alpha_Blend_Enable(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE, enable ? TRUE : FALSE);
+}
+
+void DX8Backend::Show_Hardware_Cursor(bool show)
+{
+    IDirect3DDevice8 * pDev = DX8Wrapper::_Get_D3D_Device8();
+    if (pDev != nullptr)
+    {
+        pDev->ShowCursor(show ? TRUE : FALSE);
+    }
+}
+
+void DX8Backend::Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface)
+{
+    IDirect3DDevice8 * pDev = DX8Wrapper::_Get_D3D_Device8();
+    if (pDev != nullptr && surface != nullptr)
+    {
+        pDev->SetCursorProperties(
+            static_cast<UINT>(hotspot_x),
+            static_cast<UINT>(hotspot_y),
+            surface->Peek_D3D_Surface());
+    }
+}
+
+void DX8Backend::Set_Hardware_Cursor_Position(int x, int y)
+{
+    IDirect3DDevice8 * pDev = DX8Wrapper::_Get_D3D_Device8();
+    if (pDev != nullptr)
+    {
+        pDev->SetCursorPosition(x, y, D3DCURSOR_IMMEDIATE_UPDATE);
+    }
+}
+
+void DX8Backend::Set_Stencil_Enable(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_STENCILENABLE, enable ? TRUE : FALSE);
+}
+
+void DX8Backend::Set_Stencil_Func(CompareFunc func)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_STENCILFUNC, static_cast<unsigned>(func));
+}
+
+void DX8Backend::Set_Stencil_Ref(unsigned int ref)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_STENCILREF, ref);
+}
+
+void DX8Backend::Set_Stencil_Mask(unsigned int mask)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_STENCILMASK, mask);
+}
+
+void DX8Backend::Set_Stencil_Write_Mask(unsigned int mask)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_STENCILWRITEMASK, mask);
+}
+
+void DX8Backend::Set_Stencil_Pass_Op(StencilOp op)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_STENCILPASS, static_cast<unsigned>(op));
+}
+
+void DX8Backend::Set_Stencil_Fail_Op(StencilOp op)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_STENCILFAIL, static_cast<unsigned>(op));
+}
+
+void DX8Backend::Set_Stencil_ZFail_Op(StencilOp op)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_STENCILZFAIL, static_cast<unsigned>(op));
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void DX8Backend::Set_Transform(TransformKind transform, const Matrix4x4 & m)

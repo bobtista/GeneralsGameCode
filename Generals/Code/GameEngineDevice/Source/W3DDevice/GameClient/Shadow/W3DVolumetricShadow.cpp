@@ -43,6 +43,7 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/RenderBackend.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -3286,15 +3287,23 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		nShadowIndicesInBuf = 0xffff;
 		nShadowVertsInBuf = 0xffff;
 
+		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3E partial migration:
+		// the high-level Set_Material/Set_Shader/Set_Texture/Apply_Render_State_Changes
+		// calls below are routed through g_renderBackend. The raw m_pDev->SetRenderState
+		// and m_pDev->SetTextureStageState calls in the same function remain on the
+		// IDirect3DDevice8 device pointer because they belong to the deeply-coupled
+		// stencil-volume rendering inner loop. See PHASE3E.md for the deferred-work
+		// list and the reasoning behind the partial migration.
+
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		DX8Wrapper::Set_Material(vmat);
+		g_renderBackend->Set_Material(vmat);
 		REF_PTR_RELEASE(vmat);
 
-		DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-		DX8Wrapper::Set_Texture(0,nullptr);	//turn off textures
-		DX8Wrapper::Set_Texture(1,nullptr);	//turn off textures
-		DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
+		g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueShader);
+		g_renderBackend->Set_Texture(0,nullptr);	//turn off textures
+		g_renderBackend->Set_Texture(1,nullptr);	//turn off textures
+		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		// turn off z writing
 		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
@@ -3448,6 +3457,11 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		//m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
 
 
+		// Phase 3E note: oldColorWriteEnable is a captured DWORD bitmask read
+		// directly via m_pDev->GetRenderState earlier in this function. The
+		// restore can't go through Set_Color_Write_Enable(r,g,b,a) without
+		// re-decoding the bitmask, so it stays on Set_DX8_Render_State. The
+		// whole save/restore pair migrates together in a future phase.
 		if (oldColorWriteEnable != 0x12345678)
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,oldColorWriteEnable);
 
@@ -3463,24 +3477,27 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , FALSE);
 		m_pDev->SetRenderState(D3DRS_LIGHTING, FALSE);
 
-		DX8Wrapper::Invalidate_Cached_Render_States();
+		g_renderBackend->Invalidate_Cached_Render_States();
 	}
 	else
 	if (forceStencilFill)
 	{	//no shadows to render, but still need to fill stencil buffer
 		//for other effects.
 
+		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3E partial migration:
+		// same pattern as the main shadow-render branch above. See PHASE3E.md.
+
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		DX8Wrapper::Set_Material(vmat);
+		g_renderBackend->Set_Material(vmat);
 		REF_PTR_RELEASE(vmat);
-		DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);
-		DX8Wrapper::Set_Texture(0,nullptr);
-		DX8Wrapper::Apply_Render_State_Changes();	//force update of view and projection matrices
+		g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueShader);
+		g_renderBackend->Set_Texture(0,nullptr);
+		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		renderStencilShadows();
 
-		DX8Wrapper::Invalidate_Cached_Render_States();
+		g_renderBackend->Invalidate_Cached_Render_States();
 	}
 
 }
@@ -3655,7 +3672,7 @@ void W3DVolumetricShadowManager::reset()
 // ============================================================================
 W3DVolumetricShadow* W3DVolumetricShadowManager::addShadow(RenderObjClass *robj, Shadow::ShadowTypeInfo *shadowInfo, Drawable *draw)
 {
-	if (!DX8Wrapper::Has_Stencil() || !robj || !TheGlobalData->m_useShadowVolumes)
+	if (!g_renderBackend->Has_Stencil() || !robj || !TheGlobalData->m_useShadowVolumes)
 		return nullptr;	//right now we require a stencil buffer
 
 	W3DShadowGeometry *sg=nullptr;
