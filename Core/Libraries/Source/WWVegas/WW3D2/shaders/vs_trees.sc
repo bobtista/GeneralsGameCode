@@ -1,5 +1,5 @@
 $input  a_position, a_normal, a_color0, a_texcoord0
-$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace
+$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV
 
 #include <bgfx_shader.sh>
 
@@ -50,6 +50,12 @@ void main()
 	v_texcoord1 = (a_position.xy + u_shroudOffset.xy) * u_shroudScale.xy;
 
 	v_normal = vec3(0.0, 0.0, 1.0);  // grass billboards always face up
+
+	// Cloud UV — grass doesn't get cloud shadows on DX8 (it's a terrain-
+	// only effect) but fs_uber is shared, so we need to write something.
+	// u_cloudParams.w controls the enable flag and is gated per-draw by
+	// the backend; this value is effectively unused for grass draws.
+	v_cloudUV = a_position.xy;
 
 	v_lightspace = mul(u_shadowLightViewProj, vec4(a_position, 1.0));
 }

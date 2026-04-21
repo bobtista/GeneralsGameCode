@@ -605,9 +605,16 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 				shadowTex ? (const char*)shadowTex->Get_Full_Path() : "null",
 				(int)type));
 		}
-		// TheSuperHackers @refactor bobtista 16/04/2026 skip
-		// bgfx submit for projected shadow decals since CSM handles shadows.
-		WW3D::Get_Render_Backend()->Skip_Next_Bgfx_Submit();
+		// TheSuperHackers @fix bobtista 19/04/2026 Skip bgfx submit only
+		// for SHADOW_DECAL (modulate-blend unit shadow blob) — CSM
+		// replaces that. SHADOW_ALPHA_DECAL and SHADOW_ADDITIVE_DECAL are
+		// UI decals (faction icons, satellite circle, move indicators,
+		// radius cursors) — their UVs are baked per-vertex in queueDecal,
+		// so they can submit directly to bgfx as regular textured tris.
+		if (type == SHADOW_DECAL)
+		{
+			WW3D::Get_Render_Backend()->Skip_Next_Bgfx_Submit();
+		}
 		WW3D::Get_Render_Backend()->Draw_Triangles(nShadowDecalStartBatchIndex, nShadowDecalPolysInBatch, 0, nShadowDecalVertsInBatch);
 	}
 
