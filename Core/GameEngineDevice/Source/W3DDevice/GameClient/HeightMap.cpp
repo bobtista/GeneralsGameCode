@@ -1886,6 +1886,12 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 		W3DShaderManager::updateCloud();
 	}
 
+	// TheSuperHackers @feature bobtista 20/04/2026 Push cloud state to the
+	// render backend each frame. bgfx samples this in fs_uber to modulate
+	// terrain colour; DX8 ignores it (still uses its own multi-pass TSS).
+	// Gated off when doCloud==false so terrain renders without modulation.
+	W3DShaderManager::pushCloudShadowToBackend(doCloud, doCloud ? m_stageTwoTexture : nullptr);
+
 	Matrix3D tm(Transform);
 #if 0 // There is some weirdness sometimes with the dx8 static buffers.
 			// This usually fixes terrain flashing.  jba.
@@ -1937,18 +1943,9 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 
 	Bool doMultiPassWireFrame=FALSE;
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 19/04/2026 the alpha mask
-	// and shroud early-return paths use D3D8 pixel shaders (shroud.pso) that
-	// bgfx cannot interpret. Skip them entirely so terrain always renders
-	// through the normal W3DShaderManager path which sets proper TSS ops.
-	if (false)
-	{
-#else
 	if (((RTS3DScene *)rinfo.Camera.Get_User_Data())->getCustomPassMode() == SCENE_PASS_ALPHA_MASK ||
 		((SceneClass *)rinfo.Camera.Get_User_Data())->Get_Extra_Pass_Polygon_Mode() == SceneClass::EXTRA_PASS_CLEAR_LINE)
 	{
-#endif
 			if (WW3D::Is_Texturing_Enabled())
 			{	//first pass where we just fill the z-buffer
 
@@ -2118,17 +2115,12 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 		if (TheTerrainTracksRenderObjClassSystem)
 			TheTerrainTracksRenderObjClassSystem->flush();
 
-#if !defined(GGC_RENDER_BACKEND_BGFX)
-		// TheSuperHackers @feature bobtista 19/04/2026 shroud
-		// overlay pass uses D3D8 pixel shaders. Skip for bgfx — shroud
-		// is handled separately via the bgfx uber shader's shroud path.
 		if (m_shroud && rinfo.Additional_Pass_Count())
 		{
 			rinfo.Peek_Additional_Pass(0)->Install_Materials();
 			renderTerrainPass(&rinfo.Camera);
 			rinfo.Peek_Additional_Pass(0)->UnInstall_Materials();
 		}
-#endif
 
 		ShaderClass::Invalidate();
 		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();
@@ -2148,6 +2140,9 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	ShaderClass::Invalidate();
 	WW3D::Get_Render_Backend()->Set_Material(nullptr);
 
+	// Scope the cloud state to this function — clear before returning so
+	// subsequent 3D draws (units, trees, effects) don't get modulated.
+	W3DShaderManager::pushCloudShadowToBackend(false, nullptr);
 }
 
 
