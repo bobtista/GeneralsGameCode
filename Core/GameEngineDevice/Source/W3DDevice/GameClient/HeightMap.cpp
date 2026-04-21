@@ -1983,10 +1983,10 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 				devicePasses=1;	//one pass solid, next in wireframe.
 				g_renderBackend->Apply_Render_State_Changes();
 				DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR );
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR,0xff808080);
+				g_renderBackend->Set_Texture_Factor(0xff808080);
 				doMultiPassWireFrame=TRUE;
 				renderTerrainPass(&rinfo.Camera);
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR,0xff008000);
+				g_renderBackend->Set_Texture_Factor(0xff008000);
 				return;
 			}
 	}
