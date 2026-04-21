@@ -267,6 +267,16 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # Trees.nvv (grass/blade sway vertex shader). Reuses fs_uber for
     # the fragment side.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_trees.sc)
+    # TheSuperHackers @refactor bobtista 15/04/2026 stencil
+    # shadow volume shader pair. XYZ-only verts, no color output.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_volume.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_volume.sc)
+    # shadow darkening apply pass (fullscreen quad blend).
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_apply.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_apply.sc)
+    # CSM (cascaded shadow maps) — depth-only caster pass.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_caster.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_caster.sc)
     target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
 endif()
 
