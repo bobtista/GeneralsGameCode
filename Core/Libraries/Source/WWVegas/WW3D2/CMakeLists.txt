@@ -249,6 +249,16 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.h
     )
+
+    # TheSuperHackers @refactor bobtista 11/04/2026 shader
+    # compilation. Only compile these shaders for the bgfx build. The
+    # ggc_compile_bgfx_shader helper (cmake/bgfx.cmake) creates the
+    # ggc_bgfx_shaders STATIC library on first call and attaches every
+    # generated .bin.h to it. corei_ww3d2 links it INTERFACE so g_ww3d2 /
+    # z_ww3d2 inherit the include directory and build order dependency.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_passthrough.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_passthrough.sc)
+    target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
 endif()
 
 # Propagate the active backend's compile define to every translation unit
