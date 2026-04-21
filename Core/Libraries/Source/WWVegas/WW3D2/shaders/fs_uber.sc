@@ -1,4 +1,4 @@
-$input v_color0, v_texcoord0, v_texcoord1, v_normal
+$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace
 
 #include <bgfx_shader.sh>
 
@@ -6,6 +6,8 @@ SAMPLER2D(s_tex0, 0);
 SAMPLER2D(s_tex1, 1);
 SAMPLER2D(s_tex2, 2);
 SAMPLER2D(s_tex3, 3);
+// Phase 4I.2 CSM: D16 shadow map with hardware PCF comparison.
+SAMPLER2DSHADOW(s_shadowMap, 4);
 uniform vec4 u_matDiffuse;
 uniform vec4 u_atestParams;
 uniform vec4 u_tssOps0; // (priColorOp, priAlphaOp, secColorOp, secAlphaOp)
@@ -43,7 +45,7 @@ vec3 applyColorOp(float op, vec3 arg1, vec3 arg2)
 	// MODULATE
 	if (op < 3.5) return arg1 * arg2;
 	// MODULATE2X
-	if (op < 4.5) return arg1 * arg2 * 2.0;
+	if (op < 4.5) return min(arg1 * arg2 * 2.0, vec3_splat(1.0));
 	// ADD
 	if (op < 5.5) return arg1 + arg2;
 	// ADDSIGNED
@@ -53,7 +55,7 @@ vec3 applyColorOp(float op, vec3 arg1, vec3 arg2)
 	// BLENDTEXALPHA — handled specially by caller
 	// BLENDCURALPHA — handled specially by caller
 	// ADDSMOOTH
-	if (op < 10.5) return arg1 + arg2 - arg1 * arg2;
+	if (op > 9.5 && op < 10.5) return arg1 + arg2 - arg1 * arg2;
 	return arg1;
 }
 
@@ -62,7 +64,7 @@ float applyAlphaOp(float op, float arg1, float arg2)
 	if (op < 1.5) return arg1;
 	if (op < 2.5) return arg2;
 	if (op < 3.5) return arg1 * arg2;
-	if (op < 4.5) return arg1 * arg2 * 2.0;
+	if (op < 4.5) return min(arg1 * arg2 * 2.0, 1.0);
 	if (op < 5.5) return arg1 + arg2;
 	if (op < 6.5) return arg1 + arg2 - 0.5;
 	if (op < 7.5) return arg1 - arg2;
@@ -91,6 +93,29 @@ void main()
 		if (u_atestParams.x > 0.0 && result.a < u_atestParams.x)
 		{
 			discard;
+		}
+
+		vec3 tlsNDC = v_lightspace.xyz / v_lightspace.w;
+		vec2 tshadowUV = tlsNDC.xy * 0.5 + 0.5;
+#if BGFX_SHADER_LANGUAGE_HLSL
+		tshadowUV.y = 1.0 - tshadowUV.y;
+		float trefZ = tlsNDC.z;
+#else
+		float trefZ = tlsNDC.z * 0.5 + 0.5;
+#endif
+		if (tshadowUV.x >= 0.0 && tshadowUV.x <= 1.0
+			&& tshadowUV.y >= 0.0 && tshadowUV.y <= 1.0
+			&& trefZ >= 0.0 && trefZ <= 1.0)
+		{
+			float tbiasedZ = trefZ - 0.005;
+			float texelSize = 1.0 / 4096.0;
+			float s0 = shadow2D(s_shadowMap, vec3(tshadowUV + vec2(-0.5, -0.5) * texelSize, tbiasedZ));
+			float s1 = shadow2D(s_shadowMap, vec3(tshadowUV + vec2( 0.5, -0.5) * texelSize, tbiasedZ));
+			float s2 = shadow2D(s_shadowMap, vec3(tshadowUV + vec2(-0.5,  0.5) * texelSize, tbiasedZ));
+			float s3 = shadow2D(s_shadowMap, vec3(tshadowUV + vec2( 0.5,  0.5) * texelSize, tbiasedZ));
+			float tvisibility = (s0 + s1 + s2 + s3) * 0.25;
+			float tshadowFactor = mix(0.6, 1.0, tvisibility);
+			result.rgb *= tshadowFactor;
 		}
 
 		gl_FragColor = result;
@@ -213,6 +238,35 @@ void main()
 	if (u_atestParams.x > 0.0 && current.a < u_atestParams.x)
 	{
 		discard;
+	}
+
+	// Phase 4I.2 CSM shadow lookup. v_lightspace is the fragment's
+	// position in light clip space. Perspective divide to NDC, map to
+	// [0,1] texcoords, compare against shadow map depth via
+	// sampler2DShadow (hardware PCF). Darken by shadow color if
+	// occluded. Skip if the fragment is outside the shadow map bounds.
+	vec3 lsNDC = v_lightspace.xyz / v_lightspace.w;
+	vec2 shadowUV = lsNDC.xy * 0.5 + 0.5;
+#if BGFX_SHADER_LANGUAGE_HLSL
+	// D3D's NDC Y is flipped vs texture Y.
+	shadowUV.y = 1.0 - shadowUV.y;
+	float refZ = lsNDC.z;
+#else
+	float refZ = lsNDC.z * 0.5 + 0.5;
+#endif
+	if (shadowUV.x >= 0.0 && shadowUV.x <= 1.0
+		&& shadowUV.y >= 0.0 && shadowUV.y <= 1.0
+		&& refZ >= 0.0 && refZ <= 1.0)
+	{
+		float biasedZ = refZ - 0.002;
+		float texelSize = 1.0 / 4096.0;
+		float s0 = shadow2D(s_shadowMap, vec3(shadowUV + vec2(-0.5, -0.5) * texelSize, biasedZ));
+		float s1 = shadow2D(s_shadowMap, vec3(shadowUV + vec2( 0.5, -0.5) * texelSize, biasedZ));
+		float s2 = shadow2D(s_shadowMap, vec3(shadowUV + vec2(-0.5,  0.5) * texelSize, biasedZ));
+		float s3 = shadow2D(s_shadowMap, vec3(shadowUV + vec2( 0.5,  0.5) * texelSize, biasedZ));
+		float visibility = (s0 + s1 + s2 + s3) * 0.25;
+		float shadowFactor = mix(0.6, 1.0, visibility);
+		current.rgb *= shadowFactor;
 	}
 
 	gl_FragColor = current;
