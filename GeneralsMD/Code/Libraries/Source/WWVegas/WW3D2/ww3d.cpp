@@ -109,6 +109,7 @@
 #include "rddesc.h"
 #include "Vector3i.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
 #include "TARGA.h"
 #include "sortingrenderer.h"
 #include "thread.h"
@@ -863,6 +864,14 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 		DX8Wrapper::Clear(clear, clearz, color, dest_alpha);
 	}
 
+	// TheSuperHackers @refactor bobtista 11/04/2026 Per-frame hook that
+	// forwards Begin_Scene to the active render backend (a no-op on DX8,
+	// where Begin_Scene is empty).
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Begin_Scene();
+	}
+
 	// Notify D3D that we are beginning to render the frame
 	DX8Wrapper::Begin_Scene();
 
@@ -1104,6 +1113,15 @@ WW3DErrorType WW3D::End_Render(bool flip_frame)
 	SortingRendererClass::Flush();
 
 	IsRendering = false;
+
+	// TheSuperHackers @refactor bobtista 11/04/2026 Per-frame hook that
+	// forwards End_Scene to the active render backend; BgfxBackend::End_Scene
+	// calls bgfx::frame() to submit and present the frame.
+	if (g_renderBackend != nullptr)
+	{
+		WWPROFILE("g_renderBackend::End_Scene");
+		g_renderBackend->End_Scene(flip_frame);
+	}
 
 	{
 		WWPROFILE("DX8Wrapper::End_Scene");
