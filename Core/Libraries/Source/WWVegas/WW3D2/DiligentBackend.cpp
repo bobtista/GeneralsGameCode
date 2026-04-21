@@ -60,6 +60,20 @@ DiligentBackend::~DiligentBackend()
 {
 }
 
+// -- Backend lifecycle -------------------------------------------------------
+//
+// Phase 4 session 1. Diligent stub tracks the interface but does no real
+// initialization. Phase 5+ will fill this in if/when we commit to Diligent
+// as a real backend alongside bgfx.
+
+void DiligentBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
+{
+}
+
+void DiligentBackend::Shutdown()
+{
+}
+
 // -- Device state queries ----------------------------------------------------
 
 bool DiligentBackend::Is_Device_Lost() const
