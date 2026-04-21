@@ -578,7 +578,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 	g_renderBackend->Set_Index_Buffer(dyn_ib_access, 0); // Override with this buffer (do something to prevent need for this!)
 	g_renderBackend->Set_Vertex_Buffer(dyn_vb_access); // Override with this buffer (do something to prevent need for this!)
 
-	DX8Wrapper::Apply_Render_State_Changes();
+	g_renderBackend->Apply_Render_State_Changes();
 
 	// Phase 4G.12: route bgfx submits through the dedicated sort view
 	// id for the rest of this flush. No-op on DX8Backend.
