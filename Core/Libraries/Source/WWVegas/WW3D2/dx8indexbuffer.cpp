@@ -220,11 +220,10 @@ IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* index_buffer_
 IndexBufferClass::WriteLockClass::~WriteLockClass()
 {
 	DX8_THREAD_ASSERT();
-	// TheSuperHackers @refactor bobtista 11/04/2026 capture
-	// index data into the active render backend BEFORE unlocking. After
-	// Unlock the source pointer is invalid. The bgfx backend snapshots
-	// the bytes; the dx8 backend ignores the call.
-	if (g_renderBackend != NULL && indices != NULL && index_buffer->Type() == BUFFER_TYPE_DX8) {
+	// TheSuperHackers @refactor bobtista 11/04/2026 Capture index data (including
+	// BUFFER_TYPE_SORTING) into the render backend before Unlock invalidates the pointer.
+	if (g_renderBackend != NULL && indices != NULL &&
+		(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
 		const unsigned int total_bytes = index_buffer->Get_Index_Count() * sizeof(unsigned short);
 		g_renderBackend->Capture_Index_Data(index_buffer, indices, total_bytes);
 	}
@@ -246,7 +245,9 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 
 IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffer_,unsigned start_index, unsigned index_range)
 	:
-	index_buffer(index_buffer_)
+	index_buffer(index_buffer_),
+	AppendStartIndex(start_index),
+	AppendIndexRange(index_range)
 {
 	DX8_THREAD_ASSERT();
 	WWASSERT(start_index+index_range<=index_buffer->Get_Index_Count());
@@ -276,6 +277,13 @@ IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffe
 IndexBufferClass::AppendLockClass::~AppendLockClass()
 {
 	DX8_THREAD_ASSERT();
+	// TheSuperHackers @refactor bobtista 11/04/2026 Capture rigid and sorting IB sub-range
+	// writes for the bgfx backend; without this hook mesh indices never reach bgfx.
+	if (g_renderBackend != NULL && indices != NULL &&
+		(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
+		const unsigned int size_bytes = AppendIndexRange * sizeof(unsigned short);
+		g_renderBackend->Capture_Index_Sub_Range(index_buffer, indices, AppendStartIndex, size_bytes);
+	}
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_DX8:
 		DX8_Assert();

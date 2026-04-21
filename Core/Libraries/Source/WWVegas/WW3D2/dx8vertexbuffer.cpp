@@ -202,12 +202,10 @@ VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass* VertexBuffe
 VertexBufferClass::WriteLockClass::~WriteLockClass()
 {
 	DX8_THREAD_ASSERT();
-	// TheSuperHackers @refactor bobtista 11/04/2026 capture
-	// vertex data into the active render backend BEFORE unlocking. After
-	// Unlock the source pointer becomes invalid, so this is the last
-	// safe moment. The bgfx backend snapshots the bytes; the dx8 backend
-	// ignores the call.
-	if (g_renderBackend != NULL && Vertices != NULL && VertexBuffer->Type() == BUFFER_TYPE_DX8) {
+	// TheSuperHackers @refactor bobtista 11/04/2026 Capture STATIC and SORTING vertex writes
+	// into the render backend before Unlock invalidates the source pointer.
+	if (g_renderBackend != NULL && Vertices != NULL &&
+		(VertexBuffer->Type() == BUFFER_TYPE_DX8 || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
 		const unsigned int total_bytes = VertexBuffer->Get_Vertex_Count() * VertexBuffer->FVF_Info().Get_FVF_Size();
 		g_renderBackend->Capture_Vertex_Data(VertexBuffer, Vertices, total_bytes);
 	}
@@ -236,7 +234,9 @@ VertexBufferClass::WriteLockClass::~WriteLockClass()
 
 VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuffer,unsigned start_index, unsigned index_range)
 	:
-	VertexBufferLockClass(VertexBuffer)
+	VertexBufferLockClass(VertexBuffer),
+	AppendStartIndex(start_index),
+	AppendIndexRange(index_range)
 {
 	DX8_THREAD_ASSERT();
 	WWASSERT(VertexBuffer);
@@ -277,12 +277,14 @@ VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuf
 VertexBufferClass::AppendLockClass::~AppendLockClass()
 {
 	DX8_THREAD_ASSERT();
-	// TheSuperHackers @refactor bobtista 11/04/2026 append locks
-	// are intentionally NOT captured for the bgfx backend. The Vertices
-	// pointer here is offset to a sub-range, not the start of the VB, so we
-	// cannot do a "snapshot the whole buffer" copy from it. Append locks
-	// are rare in the static rendering path; if a buffer is exclusively
-	// updated via append locks the bgfx backend will simply skip drawing it.
+	// TheSuperHackers @refactor bobtista 11/04/2026 Capture the locked sub-range for STATIC
+	// and SORTING buffers; BgfxBackend updates its dynamic VB at the matching vertex offset.
+	if (g_renderBackend != NULL && Vertices != NULL &&
+		(VertexBuffer->Type() == BUFFER_TYPE_DX8 || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
+		const unsigned int fvf_size = VertexBuffer->FVF_Info().Get_FVF_Size();
+		const unsigned int size_bytes = AppendIndexRange * fvf_size;
+		g_renderBackend->Capture_Vertex_Sub_Range(VertexBuffer, Vertices, AppendStartIndex, size_bytes);
+	}
 	switch (VertexBuffer->Type()) {
 	case BUFFER_TYPE_DX8:
 		DX8_Assert();

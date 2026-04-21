@@ -88,6 +88,8 @@
 #include "dx8fvf.h"
 #include "d3dx8math.h"
 #include "sortingrenderer.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 
 // Upgraded to DX8 2/2/01 HY
 
@@ -919,12 +921,12 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	// so set world and view matrices to identity and render
 
 	Matrix4x4 identity(true);
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,identity);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW, identity);
 
-	DX8Wrapper::Set_Material(PointMaterial);
-	DX8Wrapper::Set_Shader(Shader);
-	DX8Wrapper::Set_Texture(0,Texture);
+	g_renderBackend->Set_Material(PointMaterial);
+	g_renderBackend->Set_Shader(Shader);
+	g_renderBackend->Set_Texture(0,Texture);
 
 	// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 	// TheSuperHackers @bugfix stephanmeesters 30/06/2026 However, do not apply sorting to ground-aligned particles.
@@ -980,8 +982,8 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 			}
 		}
 
-		DX8Wrapper::Set_Index_Buffer (indexbuffer, 0);
-		DX8Wrapper::Set_Vertex_Buffer (PointVerts);
+		g_renderBackend->Set_Index_Buffer (indexbuffer, 0);
+		g_renderBackend->Set_Vertex_Buffer (PointVerts);
 
 		if ( sort )
 		{
@@ -989,14 +991,14 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 		}
 		else
 		{
-			DX8Wrapper::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
+			g_renderBackend->Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
 		}
 
 		current+=delta;
 	}
 
 	// restore the matrices
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,view);
 }
 
 
@@ -1833,12 +1835,12 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		// so set world and view matrices to identity and render
 
 		Matrix4x4 identity(true);
-		DX8Wrapper::Set_Transform(D3DTS_WORLD,identity);
-		DX8Wrapper::Set_Transform(D3DTS_VIEW,identity);
+		g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,identity);
+		g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW, identity);
 
-		DX8Wrapper::Set_Material(PointMaterial);
-		DX8Wrapper::Set_Shader(Shader);
-		DX8Wrapper::Set_Texture(0,Texture);
+		g_renderBackend->Set_Material(PointMaterial);
+		g_renderBackend->Set_Shader(Shader);
+		g_renderBackend->Set_Texture(0,Texture);
 
 		// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 		// TheSuperHackers @info Volumetric particles, both billboarded and ground-aligned, must have sorting enabled to
@@ -1896,8 +1898,8 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 				}
 			}
 
-			DX8Wrapper::Set_Index_Buffer (indexbuffer, 0);
-			DX8Wrapper::Set_Vertex_Buffer (PointVerts);
+			g_renderBackend->Set_Index_Buffer (indexbuffer, 0);
+			g_renderBackend->Set_Vertex_Buffer (PointVerts);
 
 			/// @todo lorenzen sez: precompute these params, above
 
@@ -1905,7 +1907,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 			if ( sort )
 					SortingRendererClass::Insert_Triangles (0, delta / verticesperprimitive, 0, delta);
 			else
-				DX8Wrapper::Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
+				g_renderBackend->Draw_Triangles (0, delta / verticesperprimitive, 0, delta);
 
 
 			current+=delta;
@@ -1919,5 +1921,5 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 
 	// restore the matrices
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,view);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,view);
 }
