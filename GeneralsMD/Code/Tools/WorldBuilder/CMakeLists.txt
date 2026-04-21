@@ -230,7 +230,7 @@ target_link_libraries(z_worldbuilder PRIVATE
 
 if(WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows")
     target_link_options(z_worldbuilder PRIVATE /NODEFAULTLIB:libci.lib /NODEFAULTLIB:libc.lib)
-    target_compile_definitions(z_worldbuilder PRIVATE _AFXDLL)
+    target_compile_definitions(z_worldbuilder PRIVATE _AFXDLL GGC_ALLOW_DX8WRAPPER)
     target_sources(z_worldbuilder PRIVATE res/WorldBuilder.rc)
     set_target_properties(z_worldbuilder PROPERTIES OUTPUT_NAME "WorldBuilderZH${RTS_BUILD_OUTPUT_SUFFIX}")
 else()
