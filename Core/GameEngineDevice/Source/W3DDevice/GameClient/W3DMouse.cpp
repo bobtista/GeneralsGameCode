@@ -30,6 +30,7 @@
 
 #include "Common/GameMemory.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/RenderBackend.h"
 #include "WW3D2/rendobj.h"
 #include "WW3D2/hanim.h"
 #include "WW3D2/camera.h"
@@ -108,11 +109,13 @@ W3DMouse::W3DMouse()
 
 W3DMouse::~W3DMouse()
 {
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	if (m_pDev)
+	// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D: route the
+	// hardware cursor hide through the IRenderBackend cursor API instead
+	// of touching IDirect3DDevice8 directly. See PHASE3D.md. Null guard
+	// is defensive against unusual destruction orderings.
+	if (g_renderBackend != nullptr)
 	{
-		m_pDev->ShowCursor(FALSE);	//kill DX8 cursor
+		g_renderBackend->Show_Hardware_Cursor(false);	//kill DX8 cursor
 		Win32Mouse::setCursor(ARROW); //enable default windows cursor
 	}
 
@@ -389,12 +392,15 @@ void W3DMouse::setCursor( MouseCursor cursor )
 	{
 		SetCursor(nullptr);	//Kill Windows Cursor
 
-		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
+		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D: route all
+		// hardware cursor calls through the IRenderBackend cursor API. The
+		// previous code grabbed IDirect3DDevice8 directly via DX8Wrapper.
+		// See PHASE3D.md.
 		Bool doImageChange=FALSE;
 
-		if (m_pDev != nullptr)
+		if (g_renderBackend != nullptr)
 		{
-			m_pDev->ShowCursor(FALSE);	//disable DX8 cursor
+			g_renderBackend->Show_Hardware_Cursor(false);	//disable DX8 cursor
 			if (cursor != m_currentD3DCursor)
 			{	if (!isThread)
 				{	releaseD3DCursorTextures(m_currentD3DCursor);
@@ -410,12 +416,13 @@ void W3DMouse::setCursor( MouseCursor cursor )
 		//it didn't change.  This is needed to prevent the cursor from flickering.
 		if (doImageChange)
 		{
-			HRESULT res;
 			m_currentHotSpot = m_cursorInfo[cursor].hotSpotPosition;
 			m_currentFMS = m_cursorInfo[cursor].fps/1000.0f;
 			m_currentAnimFrame = 0;	//reset animation when cursor changes
-			res = m_pDev->SetCursorProperties(m_currentHotSpot.x,m_currentHotSpot.y,m_currentD3DSurface[(Int)m_currentAnimFrame]->Peek_D3D_Surface());
-			m_pDev->ShowCursor(TRUE);	//Enable DX8 cursor
+			g_renderBackend->Set_Hardware_Cursor_Image(
+				m_currentHotSpot.x, m_currentHotSpot.y,
+				m_currentD3DSurface[(Int)m_currentAnimFrame]);
+			g_renderBackend->Show_Hardware_Cursor(true);	//Enable DX8 cursor
 			m_currentD3DFrame=(Int)m_currentAnimFrame;
 			m_currentD3DCursor = cursor;
 			m_lastAnimTime=timeGetTime();
@@ -483,11 +490,13 @@ void W3DMouse::draw()
 
 	if (m_currentRedrawMode == RM_DX8 && m_currentD3DCursor != NONE)
 	{
+		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D: route the
+		// per-frame cursor positioning + animation through the IRenderBackend
+		// cursor API. See PHASE3D.md.
 		//called from update thread or rendering loop.  Tells D3D where
 		//to draw the mouse cursor.
-		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-		if (m_pDev)
-		{	m_pDev->ShowCursor(TRUE);	//Enable DX8 cursor
+		if (g_renderBackend != nullptr)
+		{	g_renderBackend->Show_Hardware_Cursor(true);	//Enable DX8 cursor
 
 			if (TheDisplay && !TheDisplay->getWindowed())
 			{	//if we're full-screen, need to manually move cursor image
@@ -495,7 +504,7 @@ void W3DMouse::draw()
 
 				GetCursorPos( &ptCursor );
 				ScreenToClient( ApplicationHWnd, &ptCursor );
-				m_pDev->SetCursorPosition( ptCursor.x, ptCursor.y, D3DCURSOR_IMMEDIATE_UPDATE);
+				g_renderBackend->Set_Hardware_Cursor_Position(ptCursor.x, ptCursor.y);
 			}
 			//Check if animated cursor and new frame
 			if (m_currentFrames > 1)
@@ -508,7 +517,9 @@ void W3DMouse::draw()
 				if ((Int)m_currentAnimFrame != m_currentD3DFrame)
 				{
 					m_currentD3DFrame=(Int)m_currentAnimFrame;
-					m_pDev->SetCursorProperties(m_currentHotSpot.x,m_currentHotSpot.y,m_currentD3DSurface[m_currentD3DFrame]->Peek_D3D_Surface());
+					g_renderBackend->Set_Hardware_Cursor_Image(
+						m_currentHotSpot.x, m_currentHotSpot.y,
+						m_currentD3DSurface[m_currentD3DFrame]);
 				}
 			}
 		}

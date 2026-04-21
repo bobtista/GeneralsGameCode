@@ -31,6 +31,8 @@
 #include "camera.h"
 #include "simplevec.h"
 #include "dx8wrapper.h"
+#include "WW3D2/RenderBackend.h"
+#include "WW3D2/surfaceclass.h"
 #include "Common/MapObject.h"
 #include "Common/PerfTimer.h"
 #include "W3DDevice/GameClient/HeightMap.h"
@@ -93,8 +95,7 @@ W3DShroud::~W3DShroud()
 {
 	ReleaseResources();
 
-	if (m_pSrcTexture)
-		m_pSrcTexture->Release();
+	REF_PTR_RELEASE(m_pSrcTexture);
 
 	delete [] m_finalFogData;
 	delete [] m_currentFogData;
@@ -155,26 +156,27 @@ void W3DShroud::init(WorldHeightMap *pMap, Real worldCellSizeX, Real worldCellSi
  	memset(m_finalFogData,0,srcWidth*srcHeight);
 #endif
 
+	// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3C: allocate the
+	// shroud sysmem surface through SurfaceClass instead of raw IDirect3DSurface8.
+	// SurfaceClass's (w, h, format) constructor wraps _Create_DX8_Surface so the
+	// underlying allocation is identical and the lock-then-cache-pointer trick
+	// the rest of this file relies on continues to work. See PHASE3C.md.
 #if defined(RTS_DEBUG)
 	if (TheGlobalData && TheGlobalData->m_fogOfWarOn)
-		m_pSrcTexture = DX8Wrapper::_Create_DX8_Surface(srcWidth,srcHeight, WW3D_FORMAT_A4R4G4B4);
+		m_pSrcTexture = new SurfaceClass(srcWidth, srcHeight, WW3D_FORMAT_A4R4G4B4);
 	else
 #endif
-		m_pSrcTexture = DX8Wrapper::_Create_DX8_Surface(srcWidth,srcHeight, WW3D_FORMAT_R5G6B5);
+		m_pSrcTexture = new SurfaceClass(srcWidth, srcHeight, WW3D_FORMAT_R5G6B5);
 
 	DEBUG_ASSERTCRASH( m_pSrcTexture != nullptr, ("Failed to Allocate Shroud Src Surface"));
 
-	D3DLOCKED_RECT rect;
-
-	//Get a pointer to source surface pixels.
-	HRESULT res = m_pSrcTexture->LockRect(&rect,nullptr,D3DLOCK_NO_DIRTY_UPDATE);
-	m_pSrcTexture->UnlockRect();
-
-	DEBUG_ASSERTCRASH( res == D3D_OK, ("Failed to lock shroud src surface"));
-	res = 0;// just to avoid compiler warnings
-
-	m_srcTextureData=rect.pBits;
-	m_srcTexturePitch=rect.Pitch;
+	//Get a pointer to source surface pixels. We lock-then-unlock and keep the
+	//pointer alive for the lifetime of the surface, matching the original DX8
+	//behavior; the system-memory backing stays valid after the unlock.
+	int srcPitch = 0;
+	m_srcTextureData = m_pSrcTexture->Lock(&srcPitch);
+	m_pSrcTexture->Unlock();
+	m_srcTexturePitch = static_cast<UnsignedInt>(srcPitch);
 
 	//clear entire texture to black
 	memset(m_srcTextureData,0,m_srcTexturePitch*srcHeight);
@@ -203,11 +205,7 @@ void W3DShroud::init(WorldHeightMap *pMap, Real worldCellSizeX, Real worldCellSi
 void W3DShroud::reset()
 {
 	//Free old shroud data since it may no longer fit new map.
-	if (m_pSrcTexture)
-	{
-		m_pSrcTexture->Release();
-		m_pSrcTexture=nullptr;
-	}
+	REF_PTR_RELEASE(m_pSrcTexture);
 
 	delete [] m_finalFogData;
 	m_finalFogData=nullptr;
@@ -476,27 +474,31 @@ void W3DShroud::fillBorderShroudData(W3DShroudLevel level, SurfaceClass* pDestSu
 		dstPoint.y=y;
 		dstPoint.x=0;
 
+		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3C: replace
+		// _Copy_DX8_Rects with SurfaceClass::Copy. The src/dest math is the
+		// same; SurfaceClass::Copy(dstx, dsty, srcx, srcy, w, h, src) maps
+		// directly onto the (srcRect, dstPoint) pair the original DX8 call used.
 		for (x=0; x<numFullCopies; x++)
 		{
 			dstPoint.x = x * srcRect.right;	//advance to next set of pixel in row.
 
-			DX8Wrapper::_Copy_DX8_Rects(
-				m_pSrcTexture,
-				&srcRect,
-				1,
-				pDestSurface->Peek_D3D_Surface(),
-				&dstPoint);
+			pDestSurface->Copy(
+				dstPoint.x, dstPoint.y,
+				srcRect.left, srcRect.top,
+				srcRect.right - srcRect.left,
+				srcRect.bottom - srcRect.top,
+				m_pSrcTexture);
 		}
 		if (numExtraPixels)
 		{	Int oldVal=srcRect.right;
 			dstPoint.x = numFullCopies * oldVal;
 			srcRect.right = numExtraPixels;
-			DX8Wrapper::_Copy_DX8_Rects(
-				m_pSrcTexture,
-				&srcRect,
-				1,
-				pDestSurface->Peek_D3D_Surface(),
-				&dstPoint);
+			pDestSurface->Copy(
+				dstPoint.x, dstPoint.y,
+				srcRect.left, srcRect.top,
+				srcRect.right - srcRect.left,
+				srcRect.bottom - srcRect.top,
+				m_pSrcTexture);
 			srcRect.right = oldVal;
 		}
 	}
@@ -526,7 +528,11 @@ void W3DShroud::render(CameraClass *cam)
 	if (!m_pSrcTexture)
 		return; //nothing to update from.  Must be in reset state.
 
-	if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
+	// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3C: replaced the
+	// raw _Get_D3D_Device8()->TestCooperativeLevel() check with the abstracted
+	// device-lost flag on IRenderBackend. Same intent: skip rendering this
+	// frame if the device isn't ready.
+	if (g_renderBackend->Is_Device_Lost())
 		return;	//device not ready to render anything
 
 #if defined(RTS_DEBUG)
@@ -711,12 +717,14 @@ void W3DShroud::render(CameraClass *cam)
 
 	{
 		//USE_PERF_TIMER(shroudCopy)
-		DX8Wrapper::_Copy_DX8_Rects(
-				m_pSrcTexture,
-				&srcRect,
-				1,
-				pDestSurface->Peek_D3D_Surface(),
-				&dstPoint);
+		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3C: SurfaceClass::Copy
+		// in place of _Copy_DX8_Rects.
+		pDestSurface->Copy(
+				dstPoint.x, dstPoint.y,
+				srcRect.left, srcRect.top,
+				srcRect.right - srcRect.left,
+				srcRect.bottom - srcRect.top,
+				m_pSrcTexture);
 	}
 
 	REF_PTR_RELEASE (pDestSurface);
