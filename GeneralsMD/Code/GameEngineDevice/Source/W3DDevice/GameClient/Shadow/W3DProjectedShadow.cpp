@@ -480,7 +480,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 
 		Int numPolys = (endX - startX)*(endY - startY)*2;	//2 triangles per cell
 
-		g_renderBackend->Override_Alpha_Test(true, 0, 8);	//should reject background pixels
+		g_renderBackend->Override_Alpha_Test(true, 0, RB_CMP_ALWAYS);	//should reject background pixels
 		g_renderBackend->Set_Stencil_Enable(true);
 		g_renderBackend->Set_Stencil_Func(RB_CMP_ALWAYS);
 		g_renderBackend->Set_Stencil_Ref(0x1);
@@ -509,7 +509,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 			g_renderBackend->Set_Shadow_Volume_Shader_Active(false);
 		}
 
-		g_renderBackend->Override_Alpha_Test(false, 0, 0);	//should reject background pixels
+		g_renderBackend->Override_Alpha_Test(false, 0, RB_CMP_ALWAYS);	//disable atest
 		g_renderBackend->Set_Stencil_Enable(false);
 //    m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
 		g_renderBackend->Set_Lighting_Enable(true);
