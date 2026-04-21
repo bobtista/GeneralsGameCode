@@ -197,7 +197,7 @@ public:
     // Vertex / index buffers
     // -------------------------------------------------------------------------
 
-    virtual void Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream) = 0;
+    virtual void Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream = 0) = 0;
     virtual void Set_Vertex_Buffer(const DynamicVBAccessClass & vba) = 0;
     virtual void Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset) = 0;
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset) = 0;
@@ -310,8 +310,8 @@ public:
     // Render targets
     // -------------------------------------------------------------------------
 
-    virtual TextureClass * Create_Render_Target(int width, int height, WW3DFormat format) = 0;
-    virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture) = 0;
+    virtual TextureClass * Create_Render_Target(int width, int height, WW3DFormat format = WW3D_FORMAT_UNKNOWN) = 0;
+    virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture = nullptr) = 0;
     virtual bool Is_Render_To_Texture() = 0;
     virtual void Set_Shadow_Map(int idx, ZTextureClass * ztex) = 0;
     virtual ZTextureClass * Get_Shadow_Map(int idx) = 0;
