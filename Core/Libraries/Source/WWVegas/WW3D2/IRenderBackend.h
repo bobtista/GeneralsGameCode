@@ -51,6 +51,8 @@ class LightEnvironmentClass;
 class Matrix4x4;
 class Matrix3D;
 class Vector3;
+struct _D3DLIGHT8;
+typedef struct _D3DLIGHT8 D3DLIGHT8;
 
 // -----------------------------------------------------------------------------
 // POD types owned by the interface
@@ -185,6 +187,25 @@ class IRenderBackend
 {
 public:
     virtual ~IRenderBackend() {}
+
+    // TheSuperHackers @feature bobtista 19/04/2026 Runtime check for whether
+    // the backend uses its own shader pipeline (bgfx). When true, certain
+    // D3D8-specific rendering paths (pixel shaders, shroud passes) should be
+    // skipped or replaced with backend-compatible alternatives.
+    virtual bool Has_Shader_Pipeline() const { return false; }
+
+    // TheSuperHackers @feature bobtista 19/04/2026 Invalidate a cached
+    // texture so the backend re-reads its data on next use. Called after
+    // _Copy_DX8_Rects updates a texture's GPU data (font atlas rebuilds).
+    virtual void Invalidate_Cached_Texture(TextureBaseClass * /*texture*/) {}
+
+    // TheSuperHackers @feature bobtista 20/04/2026 Release a cached
+    // texture. Called from TextureBaseClass::~TextureBaseClass before the
+    // D3D8 texture is released, so bgfx's cache never holds a dangling
+    // TextureBaseClass* that a later allocation could alias (ABA). The
+    // backend must queue the handle for deferred destruction (in-flight
+    // draws may still reference it) and erase its cache entries.
+    virtual void Release_Cached_Texture(TextureBaseClass * /*texture*/) {}
 
     // -------------------------------------------------------------------------
     // Backend lifecycle
@@ -389,6 +410,24 @@ public:
                                            const float shroudOffset[4],
                                            const float shroudScale[4]) {}
     virtual void Set_Tree_Vertex_Shader_Active(bool active) {}
+
+    // TheSuperHackers @feature bobtista 20/04/2026 Phase 4K grayscale
+    // output for disabled 2D UI elements (Render2DClass::Enable_Grayscale).
+    // DX8 backend is a no-op — render2d.cpp still programs the D3D8
+    // DOTPRODUCT3/MODULATE TSS cascade directly for the legacy path.
+    // bgfx backend drives a luminance-conversion uniform in fs_uber.
+    virtual void Set_Grayscale_Mode(bool enable) {}
+
+    // TheSuperHackers @feature bobtista 20/04/2026 Cloud-shadow
+    // modulation state. Engine calls this per frame to hand over the
+    // scrolling cloud offset (in world-XY units that match the
+    // TerrainShader2Stage::m_xOffset/m_yOffset domain) + the stretch
+    // factor (= 1 / (63 * MAP_XY_FACTOR / 2) on DX8). DX8 backend
+    // default no-op: DX8 still drives its own TSS-based cloud pass.
+    // bgfx backend wires these into u_cloudParams/s_cloudMap which
+    // fs_uber multiplies into the final terrain color.
+    virtual void Set_Cloud_Shadow_Params(bool enable, float scroll_x, float scroll_y,
+                                         float stretch, TextureClass * cloud_tex) {}
 
     // -------------------------------------------------------------------------
     // Transforms

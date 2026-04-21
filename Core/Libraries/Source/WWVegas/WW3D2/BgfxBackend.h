@@ -42,6 +42,10 @@ public:
     BgfxBackend();
     virtual ~BgfxBackend();
 
+    virtual bool Has_Shader_Pipeline() const override { return true; }
+    virtual void Invalidate_Cached_Texture(TextureBaseClass * texture) override;
+    virtual void Release_Cached_Texture(TextureBaseClass * texture) override;
+
     // -- Backend lifecycle ----------------------------------------------------
     //
     // Initialize creates the bgfx popup window and calls bgfx::init.
@@ -60,6 +64,7 @@ public:
 
     virtual void Begin_Scene() override;
     virtual void End_Scene(bool flip_frame) override;
+    virtual void Set_Viewport(const RenderBackendViewport & viewport) override;
 
     // -- Vertex / index buffers -----------------------------------------------
     //
@@ -120,6 +125,7 @@ public:
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture) override;
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) override;
     virtual void Set_Ambient(const Vector3 & color) override;
+    virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) override;
     virtual void Override_Blend(unsigned srcBlend, unsigned dstBlend) override;
     virtual void Override_Alpha_Test(bool enable, unsigned ref, unsigned func) override;
     virtual void Override_Alpha_Blend_Enable(bool enable) override;
@@ -134,6 +140,9 @@ public:
                                            const float shroudOffset[4],
                                            const float shroudScale[4]) override;
     virtual void Set_Tree_Vertex_Shader_Active(bool active) override;
+    virtual void Set_Grayscale_Mode(bool enable) override;
+    virtual void Set_Cloud_Shadow_Params(bool enable, float scroll_x, float scroll_y,
+                                         float stretch, TextureClass * cloud_tex) override;
     virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) override;
     virtual void Set_Color_Write_Mask(unsigned mask) override;
     virtual void Skip_Next_Bgfx_Submit() override;

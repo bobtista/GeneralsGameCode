@@ -79,6 +79,7 @@ public:
 	static void init();	///<determine optimal shaders for current device.
 	static void shutdown();	///<release resources used by shaders
 	static void updateCloud();	///<update the cloud position once every render frame.
+	static void pushCloudShadowToBackend(Bool enabled, TextureClass * cloudTex);	///<push cloud scroll + stretch + texture to g_renderBackend (bgfx modulates in uber shader).
 
 	static ChipsetType getChipset();	///<return current device chipset.
 	static GraphicsVenderID getCurrentVendor() {return m_currentVendor;}	///<return current card vendor.
