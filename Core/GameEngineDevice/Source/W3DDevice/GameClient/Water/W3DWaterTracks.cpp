@@ -894,7 +894,7 @@ Try improving the fit to vertical surfaces like cliffs.
 	g_renderBackend->Set_Shader(m_shaderClass);
 
 	g_renderBackend->Set_Vertex_Buffer(m_vertexBuffer);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZBIAS,8);
+	g_renderBackend->Set_Z_Bias(8);
 	//Force apply of render states so we can override them.
 	g_renderBackend->Apply_Render_State_Changes();
 
@@ -911,7 +911,7 @@ Try improving the fit to vertical surfaces like cliffs.
 
 		//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 		//write to the zbuffer.  Change to LESSEQUAL.
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+		g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	}
 
 	Int LastTextureType=-1;
@@ -930,11 +930,11 @@ Try improving the fit to vertical surfaces like cliffs.
 		mod = mod->m_nextSystem;
 	}
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZBIAS,0);
+	g_renderBackend->Set_Z_Bias(0);
 
 	if (TheTerrainRenderObject->getShroud())
 	{	//we used the shroud shader, so reset it.
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, D3DCMP_EQUAL);
+		g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
 		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 	}
 }
