@@ -111,6 +111,7 @@
 #include "rddesc.h"
 #include "WWMath/Vector3i.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
 #include "WWLib/TARGA.h"
 #include "sortingrenderer.h"
 #include "WWLib/thread.h"
@@ -870,6 +871,14 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 		Get_Render_Backend()->Clear(clear, clearz, color, dest_alpha);
 	}
 
+	// TheSuperHackers @refactor bobtista 11/04/2026 Per-frame hook that
+	// forwards Begin_Scene to the active render backend (a no-op on DX8,
+	// where Begin_Scene is empty).
+	if (WW3D::Get_Render_Backend() != nullptr)
+	{
+		WW3D::Get_Render_Backend()->Begin_Scene();
+	}
+
 	// Notify D3D that we are beginning to render the frame
 	Get_Render_Backend()->Begin_Scene();
 
@@ -1111,6 +1120,15 @@ WW3DErrorType WW3D::End_Render(bool flip_frame)
 	SortingRendererClass::Flush();
 
 	IsRendering = false;
+
+	// TheSuperHackers @refactor bobtista 11/04/2026 Per-frame hook that
+	// forwards End_Scene to the active render backend; BgfxBackend::End_Scene
+	// calls bgfx::frame() to submit and present the frame.
+	if (WW3D::Get_Render_Backend() != nullptr)
+	{
+		WWPROFILE("WW3D::Get_Render_Backend()::End_Scene");
+		WW3D::Get_Render_Backend()->End_Scene(flip_frame);
+	}
 
 	{
 		WWPROFILE("IRenderBackend::End_Scene");
