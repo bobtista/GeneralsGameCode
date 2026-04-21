@@ -121,6 +121,7 @@ protected:
 	Real m_drawOriginY;
 	Bool m_drawFogOfWar;					///<switch to draw alternate fog style instead of solid black
 	Bool m_clearDstTexture;				///<flag indicating we must clear video memory destination texture
+	Bool m_shroudDirty;					///<true when setShroudLevel has written new data since last render
 	W3DShroudLevel m_boderShroudLevel;			///<color used to clear the shroud border
 	W3DShroudLevel *m_finalFogData;			///<copy of logical shroud in an easier to access array.
 	W3DShroudLevel *m_currentFogData;		///<copy of intermediate logical shroud while it's interpolated.
