@@ -396,6 +396,12 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	// IRenderBackend instance now that the D3D device is ready. See
 	// Core/Libraries/Source/WWVegas/WW3D2/RENDER_BACKEND.md.
 	Init_Render_Backend();
+
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 1.
+	// Hand the HWND and current back-buffer dimensions to the render backend
+	// so it can perform any API-specific initialization (bgfx::init for the
+	// bgfx backend, no-op for DX8Backend). See PHASE4.md.
+	g_renderBackend->Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
 }
 
 inline DWORD F2DW(float f) { return *((unsigned*)&f); }
@@ -459,6 +465,12 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	// TheSuperHackers @refactor bobtista 10/04/2026 Tear down the render
 	// backend before the D3D device is released so any backend-owned
 	// resources get released first. See RENDER_BACKEND.md.
+	if (g_renderBackend != nullptr)
+	{
+		// Phase 4 session 1. Symmetric counterpart to the Initialize call
+		// in Do_Onetime_Device_Dependent_Inits. See PHASE4.md.
+		g_renderBackend->Shutdown();
+	}
 	Shutdown_Render_Backend();
 
 	/*
