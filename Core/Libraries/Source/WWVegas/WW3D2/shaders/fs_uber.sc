@@ -10,6 +10,10 @@ uniform vec4 u_matDiffuse;
 uniform vec4 u_atestParams;
 uniform vec4 u_tssOps0; // (priColorOp, priAlphaOp, secColorOp, secAlphaOp)
 uniform vec4 u_tssOps1; // (priColorArg1Src, priAlphaArg1Src, secColorArg1Src, secAlphaArg1Src)
+uniform vec4 u_lightDirs[4];    // per-light direction (xyz=toward light, w=enabled)
+uniform vec4 u_lightColors[4]; // per-light diffuse color (rgb)
+uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
+uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
 
 // TSS operation IDs (must match BgfxBackend.cpp encoding)
 #define TSS_DISABLE         0.0
@@ -138,17 +142,37 @@ void main()
 	current *= tex2 * tex3;
 
 	// --- Lighting ---
-	if (priColorOp > 2.5 && priColorOp < 5.5)
+	if (priColorOp > 2.5 && priColorOp < 5.5 && u_lightingEnabled.x > 0.5)
 	{
-		vec3  sunDir   = normalize(vec3(0.35, 0.55, 0.75));
-		float ambient  = 0.45;
-		float nDotL    = max(0.0, dot(normalize(v_normal), sunDir));
-		float lighting = min(1.0, ambient + nDotL * 0.75);
-		current.rgb *= lighting;
-	}
+		// Material has lighting enabled. D3D's T&L pipeline REPLACES the
+		// vertex color with the computed lit result. Our vertex shader
+		// passes through the raw vertex attribute which is meaningless
+		// for lit meshes. Undo the TSS modulate with vertex color by
+		// dividing it out, then apply proper lighting.
+		// Simpler approach: recompute current as tex-only * lighting.
+		vec4 texOnly = tex0;
+		if (secColorOp > 0.5) texOnly *= tex1;
+		texOnly *= tex2 * tex3;
 
-	// --- Material diffuse tint (team colors, opacity) ---
-	current *= u_matDiffuse;
+		vec3 nrm = normalize(v_normal);
+		vec3 litColor = u_sceneAmbient.rgb * u_matDiffuse.rgb;
+		for (int li = 0; li < 4; ++li)
+		{
+			if (u_lightDirs[li].w > 0.5)
+			{
+				vec3  ldir = normalize(u_lightDirs[li].xyz);
+				float nDotL = max(0.0, dot(nrm, ldir));
+				litColor += u_lightColors[li].rgb * u_matDiffuse.rgb * nDotL;
+			}
+		}
+		current = vec4(texOnly.rgb * min(vec3_splat(1.0), litColor),
+		               texOnly.a * u_matDiffuse.a);
+	}
+	else
+	{
+		// Pre-lit or unlit: vertex color contains baked lighting.
+		current *= u_matDiffuse;
+	}
 
 	// --- Alpha test ---
 	if (u_atestParams.x > 0.0 && current.a < u_atestParams.x)
