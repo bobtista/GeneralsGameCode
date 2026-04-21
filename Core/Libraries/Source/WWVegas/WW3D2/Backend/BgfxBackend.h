@@ -68,6 +68,13 @@ public:
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset);
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset);
 
+    virtual void Capture_Vertex_Data(const VertexBufferClass * vb,
+                                     const void * data,
+                                     unsigned int size_bytes);
+    virtual void Capture_Index_Data(const IndexBufferClass * ib,
+                                    const void * data,
+                                    unsigned int size_bytes);
+
     // -- State: shaders, materials, textures ---------------------------------
 
     virtual void Set_Shader(const ShaderClass & shader);
