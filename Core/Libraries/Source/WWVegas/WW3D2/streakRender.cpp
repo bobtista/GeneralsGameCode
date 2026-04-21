@@ -314,7 +314,7 @@ void StreakRendererClass::RenderStreak
 )
 {
 	Matrix4x4 view;
-	Renderer::Get_Transform(RenderTransform_View,view);
+	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW,view);
 
 	Matrix4x4 identity(true);
 	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,identity);
