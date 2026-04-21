@@ -318,11 +318,9 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 		if (m_needUpdate) {
 			updateCircleVB();
 		}
-		// TheSuperHackers @refactor bobtista 10/04/2026 First Phase 1 call site
-		// migrated to IRenderBackend. High-level W3D-facing calls route through
-		// the global backend pointer; the remaining raw D3DRS_* state calls
-		// below still go through DX8Wrapper:: directly because IRenderBackend
-		// does not expose the low-level D3D8 state API in Phase 1.
+		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 1 introduced the
+		// IRenderBackend migration for this function; Phase 3B completed it by
+		// routing the fade blend-op overrides through the new interface API.
 		// See Core/Libraries/Source/WWVegas/WW3D2/RENDER_BACKEND.md.
 
 		//Apply the shader and material
@@ -369,22 +367,21 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 			g_renderBackend->Draw_Triangles(	0,2, 0,	(2*3));
 			break;
 		case ScriptEngine::FADE_SUBTRACT:
-			// Low-level blend op not yet abstracted by IRenderBackend (Phase 1 skips D3DRS_*).
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP, D3DBLENDOP_REVSUBTRACT );
+			// TheSuperHackers @refactor bobtista 10/04/2026 Route the remaining
+			// blend-op override through the Phase 3B IRenderBackend extension.
+			g_renderBackend->Set_Blend_Op(RB_BLEND_OP_REV_SUBTRACT);
 			g_renderBackend->Draw_Triangles(	0,2, 0,	(2*3));
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP, D3DBLENDOP_ADD );
+			g_renderBackend->Set_Blend_Op(RB_BLEND_OP_ADD);
 			break;
 		case ScriptEngine::FADE_SATURATE:
 			// 4x multiply
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_SRCCOLOR);
+			g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_SRC_COLOR);
 			g_renderBackend->Draw_Triangles(	0,2, 0,	(2*3));
 			g_renderBackend->Draw_Triangles(	0,2, 0,	(2*3));
 			break;
 		case ScriptEngine::FADE_MULTIPLY:
 			// Straight multiply
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_ZERO);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,D3DBLEND_SRCCOLOR);
+			g_renderBackend->Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_SRC_COLOR);
 			g_renderBackend->Draw_Triangles(	0,2, 0,	(2*3));
 			break;
 	}
