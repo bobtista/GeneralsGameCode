@@ -2906,6 +2906,14 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 	g_renderBackend->Set_Texture(0,m_riverTexture);	//set to blue
 
 	setupJbaWaterShader();
+	{
+		ShaderClass waterShader = ShaderClass::_PresetAlphaShader;
+		waterShader.Set_Cull_Mode(ShaderClass::CULL_MODE_DISABLE);
+		waterShader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
+		g_renderBackend->Set_Shader(waterShader);
+	}
+	g_renderBackend->Override_Alpha_Blend_Enable(true);
+	g_renderBackend->Override_Material_Opacity(0.5f);
 
 	//In additive blending we need to use the alpha at the edges of river to darken
 	//rgb instead.
@@ -2940,7 +2948,6 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 
 void WaterRenderObjClass::setupFlatWaterShader()
 {
-
 	g_renderBackend->Set_Texture(0,m_riverTexture);
 	if (!TheWaterTransparency->m_additiveBlend)
 		g_renderBackend->Set_Shader(ShaderClass::_PresetAlphaShader);
@@ -3266,7 +3273,24 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 	g_renderBackend->Set_Index_Buffer(ib_access,0);
 	g_renderBackend->Set_Vertex_Buffer(vb_access);
 
-	setupFlatWaterShader();// lorenzen sez use the alpha shader
+	// setupFlatWaterShader sets texture, material, and calls
+	// Set_Shader(_PresetAlphaShader) which enables CULL_CW in bgfx.
+	// The water code later sets D3DCULL_NONE via direct D3D8 call but
+	// bgfx can't see that. Re-apply shader with cull disabled so the
+	// flat water surface is visible regardless of triangle winding.
+	setupFlatWaterShader();
+	{
+		ShaderClass waterShader = ShaderClass::_PresetAlphaShader;
+		waterShader.Set_Cull_Mode(ShaderClass::CULL_MODE_DISABLE);
+		waterShader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
+		g_renderBackend->Set_Shader(waterShader);
+	}
+	g_renderBackend->Override_Alpha_Blend_Enable(true);
+	// The DX8 path uses DESTALPHA blending from the shoreline pass to
+	// control water opacity. bgfx can't replicate that. Force 50%
+	// material opacity so water renders semi-transparent instead.
+	// Only affects the bgfx uniform — DX8 vertex data is unchanged.
+	g_renderBackend->Override_Material_Opacity(0.5f);
 
 	//If video card supports it and it's enabled, feather the water edge using destination alpha
 	if (DX8Wrapper::getBackBufferFormat() == WW3D_FORMAT_A8R8G8B8 && TheGlobalData->m_showSoftWaterEdge && TheWaterTransparency->m_transparentWaterDepth !=0)
@@ -3280,27 +3304,8 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 	DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_CULLMODE, &cull);
 	DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 
-
-
-//#ifdef FEATHER_WATER // the NEW WATER a'la LORENZEN
-
-//	int layer = 0;//LORENZEN
-//	for (layer = 0; layer < FEATHER_LAYER_COUNT; ++layer)//LORENZEN
-//#endif // FEATHER_WATER
 	{
-//#ifdef WAVY_WATER // the NEW WATER a'la LORENZEN
-
-		//increment the depth of the water's surface for every vert in the buffer
-//#ifdef  FEATHER_WATER
-//		VertexFormatXYZNDUV2 *vertBuf = vertexBufferStart;
-//		while (vertBuf < vertexBufferStart + vCount * uCount)
-//		{
-//			vertBuf->z *= FEATHER_LAYER_THICKNESS;
-//			++vertBuf;
-//		}
-//#endif // FEATHER_WATER
-//#endif //WAVY_WATER
-		g_renderBackend->Draw_Triangles(	0,rectangleCount*2, 0,	(rectangleCount+1)*2);//lorenzen thinks this is where to itereate the soft shoreline effect
+		g_renderBackend->Draw_Triangles(	0,rectangleCount*2, 0,	(rectangleCount+1)*2);
 	}
 
 
