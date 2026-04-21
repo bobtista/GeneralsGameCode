@@ -377,6 +377,17 @@ void DX8Wrapper::Shutdown()
 
 	}
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @fix bobtista 20/04/2026 Destroy the DX8 reference window and its WNDCLASS created in Init so repeated Init/Shutdown cycles don't leak.
+	if (_Hwnd != nullptr && _Hwnd != _GameHwndForBgfx)
+	{
+		::DestroyWindow(_Hwnd);
+	}
+	_Hwnd = nullptr;
+	::UnregisterClassW(L"GGC_DX8RefWindow", GetModuleHandleW(nullptr));
+	_GameHwndForBgfx = nullptr;
+#endif
+
 	if (CurrentCaps)
 	{
 		int max=CurrentCaps->Get_Max_Textures_Per_Pass();
@@ -1956,6 +1967,21 @@ void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 {
 	DX8_THREAD_ASSERT();
 	DX8CALL(SetViewport(pViewport));
+
+	// TheSuperHackers @fix bobtista 19/04/2026 Notify g_renderBackend so bgfx
+	// view rects stay in sync with the D3D8 viewport. CameraClass::Apply()
+	// calls this directly, bypassing g_renderBackend->Set_Viewport().
+	if (g_renderBackend != nullptr && pViewport != nullptr)
+	{
+		RenderBackendViewport rbvp;
+		rbvp.x      = pViewport->X;
+		rbvp.y      = pViewport->Y;
+		rbvp.width  = pViewport->Width;
+		rbvp.height = pViewport->Height;
+		rbvp.min_z  = pViewport->MinZ;
+		rbvp.max_z  = pViewport->MaxZ;
+		g_renderBackend->Set_Viewport(rbvp);
+	}
 }
 
 // ----------------------------------------------------------------------------

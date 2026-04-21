@@ -57,6 +57,7 @@
 #include "meshmatdesc.h"
 #include "texturethumbnail.h"
 #include "wwprofile.h"
+#include "RenderBackend.h"
 
 const unsigned DEFAULT_INACTIVATION_TIME=20000;
 
@@ -118,6 +119,16 @@ TextureBaseClass::~TextureBaseClass()
 	TextureLoadTask=nullptr;
 	delete ThumbnailLoadTask;
 	ThumbnailLoadTask=nullptr;
+
+	// TheSuperHackers @fix bobtista 20/04/2026 Notify the render backend
+	// before the D3D8 texture goes away. bgfx caches a handle keyed on
+	// this TextureBaseClass* address; if the memory is reallocated for
+	// a different texture later, the old handle would be served for the
+	// new object (ABA). Releasing the cache entry here closes that window.
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Release_Cached_Texture(this);
+	}
 
 	if (D3DTexture)
 	{
