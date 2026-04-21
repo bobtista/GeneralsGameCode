@@ -1957,9 +1957,18 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 
 	Bool doMultiPassWireFrame=FALSE;
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @feature bobtista 19/04/2026 Phase 4K: the alpha mask
+	// and shroud early-return paths use D3D8 pixel shaders (shroud.pso) that
+	// bgfx cannot interpret. Skip them entirely so terrain always renders
+	// through the normal W3DShaderManager path which sets proper TSS ops.
+	if (false)
+	{
+#else
 	if (((RTS3DScene *)rinfo.Camera.Get_User_Data())->getCustomPassMode() == SCENE_PASS_ALPHA_MASK ||
 		((SceneClass *)rinfo.Camera.Get_User_Data())->Get_Extra_Pass_Polygon_Mode() == SceneClass::EXTRA_PASS_CLEAR_LINE)
 	{
+#endif
 			if (WW3D::Is_Texturing_Enabled())
 			{	//first pass where we just fill the z-buffer
 
@@ -2141,12 +2150,17 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 		if (TheTerrainTracksRenderObjClassSystem)
 			TheTerrainTracksRenderObjClassSystem->flush();
 
+#if !defined(GGC_RENDER_BACKEND_BGFX)
+		// TheSuperHackers @feature bobtista 19/04/2026 Phase 4K: shroud
+		// overlay pass uses D3D8 pixel shaders. Skip for bgfx — shroud
+		// is handled separately via the bgfx uber shader's shroud path.
 		if (m_shroud && rinfo.Additional_Pass_Count())
 		{
 			rinfo.Peek_Additional_Pass(0)->Install_Materials();
 			renderTerrainPass(&rinfo.Camera);
 			rinfo.Peek_Additional_Pass(0)->UnInstall_Materials();
 		}
+#endif
 
 		ShaderClass::Invalidate();
 		g_renderBackend->Apply_Render_State_Changes();

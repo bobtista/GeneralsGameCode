@@ -144,11 +144,7 @@ bool g_bgfxInitialized = false;
 // into the main game window. The DX8 reference popup is a secondary window
 // where the D3D8 device is moved so its output remains visible for debugging.
 HWND g_bgfxWindow = nullptr;
-HWND g_dx8ReferenceWindow = nullptr;
-
 const wchar_t * const kBgfxWindowClass = L"GGC_BgfxDebugWindow";
-const int kDX8RefWindowWidth  = 800;
-const int kDX8RefWindowHeight = 600;
 
 // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. bgfx resolution
 // matches the main game window. Set during Initialize from GetClientRect.
@@ -1538,59 +1534,6 @@ static void UpdateShadowLightTransform()
     g_shadowLightCaptured = true;
 }
 
-// TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. Create a secondary
-// popup window for the DX8 reference output. The D3D8 device is moved here
-// so its rendering remains visible alongside bgfx on the main window.
-HWND CreateDX8ReferenceWindow()
-{
-    if (!RegisterBgfxDebugWindowClass())
-    {
-        return nullptr;
-    }
-
-    const DWORD style   = WS_OVERLAPPEDWINDOW;
-    const DWORD exStyle = WS_EX_NOACTIVATE;
-
-    RECT rc = { 0, 0, kDX8RefWindowWidth, kDX8RefWindowHeight };
-    AdjustWindowRectEx(&rc, style, FALSE, exStyle);
-    const int frameW = rc.right - rc.left;
-    const int frameH = rc.bottom - rc.top;
-
-    const int screenW = GetSystemMetrics(SM_CXSCREEN);
-    const int screenH = GetSystemMetrics(SM_CYSCREEN);
-    int posX = screenW - frameW - 10;
-    int posY = 40;
-    if (posX < 0)
-    {
-        posX = 100;
-    }
-    if (posY + frameH > screenH)
-    {
-        posY = 10;
-    }
-
-    HWND hwnd = CreateWindowExW(
-        exStyle,
-        kBgfxWindowClass,
-        L"DX8 reference",
-        style,
-        posX, posY,
-        frameW, frameH,
-        nullptr,
-        nullptr,
-        GetModuleHandleW(nullptr),
-        nullptr);
-
-    if (hwnd == nullptr)
-    {
-        WWDEBUG_SAY(("[BgfxBackend] CreateWindowExW for DX8 reference failed, "
-                     "GetLastError=%lu.", GetLastError()));
-        return nullptr;
-    }
-
-    ShowWindow(hwnd, SW_SHOWNOACTIVATE);
-    return hwnd;
-}
 }
 
 void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
@@ -1654,19 +1597,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 
     g_bgfxInitialized = true;
 
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 force
-    // a bgfx::reset() after init so the MSAA flag actually takes effect.
-    // On D3D11 bgfx needs an explicit reset call to rebuild the swapchain
-    // with a multi-sampled back buffer; setting resolution.reset in the
-    // Init struct alone isn't enough in every bgfx build.
-    // Force RGBA8 back buffer format so the alpha channel is available
-    // for the DESTALPHA water blending technique. Without this, the
-    // swap chain may use an opaque format (e.g. BGRX8) where alpha
-    // is always 1.0, making destination-alpha blending ineffective.
-    bgfx::reset(static_cast<uint32_t>(g_bgfxWidth),
-                static_cast<uint32_t>(g_bgfxHeight),
-                BGFX_RESET_NONE,
-                bgfx::TextureFormat::RGBA8);
+    // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. The explicit
+    // bgfx::reset() after init is removed because it triggers a DXGI
+    // assertion when bgfx owns the main game HWND. The init call already
+    // configured the resolution and format correctly.
 
     // Configure view 0 to clear the debug window to a dark teal so it's
     // visually obvious bgfx is running and alive. View 0 holds the test
@@ -2030,23 +1964,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
                  caps->homogeneousDepth ? 1 : 0,
                  caps->originBottomLeft ? 1 : 0));
 
-    // TheSuperHackers @feature bobtista 16/04/2026 Phase 4K. Create a DX8
-    // reference popup and move the D3D8 device to it so both renderers
-    // are visible simultaneously.
-    g_dx8ReferenceWindow = CreateDX8ReferenceWindow();
-    if (g_dx8ReferenceWindow != nullptr)
-    {
-        DX8Wrapper::Set_Device_Window(g_dx8ReferenceWindow,
-                                      kDX8RefWindowWidth,
-                                      kDX8RefWindowHeight);
-        WWDEBUG_SAY(("[BgfxBackend] DX8 device moved to reference window %p (%dx%d).",
-                     g_dx8ReferenceWindow, kDX8RefWindowWidth, kDX8RefWindowHeight));
-    }
-    else
-    {
-        WWDEBUG_SAY(("[BgfxBackend] Could not create DX8 reference window. "
-                     "DX8 stays on main window."));
-    }
+    // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. DX8 now creates
+    // its own secondary reference window in DX8Wrapper::Init, so no need to
+    // create or move anything here.
 }
 
 template<typename H>
@@ -2146,13 +2066,8 @@ void BgfxBackend::Shutdown()
     }
 
     // Phase 4K: bgfx window is the main game window, do not destroy it.
+    // DX8's secondary reference window is owned by DX8Wrapper.
     g_bgfxWindow = nullptr;
-
-    if (g_dx8ReferenceWindow != nullptr)
-    {
-        DestroyWindow(g_dx8ReferenceWindow);
-        g_dx8ReferenceWindow = nullptr;
-    }
 }
 
 // Device state queries (Is_Device_Lost / Has_Stencil / Get_Back_Buffer_Format
@@ -2166,6 +2081,55 @@ void BgfxBackend::Begin_Scene()
     {
         return;
     }
+    // Show the DX8 reference popup after a few frames, giving the game's
+    // input system time to fully initialize. Showing too early steals focus
+    // and permanently blocks mouse capture.
+    {
+        static int s_dx8RefFrameCount = 0;
+        if (s_dx8RefFrameCount >= 0)
+        {
+            s_dx8RefFrameCount++;
+            if (s_dx8RefFrameCount > 30)
+            {
+                s_dx8RefFrameCount = -1;
+                HWND dx8Hwnd = FindWindowW(L"GGC_DX8RefWindow", nullptr);
+                if (dx8Hwnd)
+                {
+                    ShowWindow(dx8Hwnd, SW_SHOWNA);
+                }
+                // Re-assert focus on the main game window. Use SetFocus
+                // instead of SetForegroundWindow which has restrictions
+                // on Windows that can cause it to silently fail.
+                if (g_bgfxWindow)
+                {
+                    SetForegroundWindow(g_bgfxWindow);
+                    SetFocus(g_bgfxWindow);
+                }
+            }
+        }
+    }
+
+    // Check if the game window was resized (e.g., by Set_Render_Device) and
+    // update bgfx's swapchain to match. Without this, bgfx renders at the
+    // old resolution while the game expects the new one.
+    if (g_bgfxWindow)
+    {
+        RECT cr;
+        if (GetClientRect(g_bgfxWindow, &cr))
+        {
+            int w = cr.right - cr.left;
+            int h = cr.bottom - cr.top;
+            if (w > 0 && h > 0 && (w != g_bgfxWidth || h != g_bgfxHeight))
+            {
+                WWDEBUG_SAY(("[BgfxBackend] Window resized %dx%d -> %dx%d, calling bgfx::reset.",
+                             g_bgfxWidth, g_bgfxHeight, w, h));
+                g_bgfxWidth = w;
+                g_bgfxHeight = h;
+                bgfx::reset(g_bgfxWidth, g_bgfxHeight, BGFX_RESET_NONE);
+            }
+        }
+    }
+
     bgfx::touch(kBgfxDebugView);
     bgfx::touch(kBgfxEngineView);
     bgfx::touch(kBgfxEngineSortView);
@@ -3723,7 +3687,11 @@ void BgfxBackend::Clear_State_Overrides()
     g_suppressBgfxDraw = false;
     g_colorWriteOverride = -1;
     g_currentTexcoordSelect[0] = 0.0f;
-    g_currentTexcoordSelect[1] = 0.0f;
+    // Do NOT clear g_currentTexcoordSelect[1] (terrain blend) here.
+    // Override_Terrain_Blend is called from the shader manager BEFORE
+    // Set_Shader, so clearing it in Set_Shader (which calls us) would
+    // undo the terrain blend flag every frame. Terrain blend is reset
+    // at Begin_Scene and by Override_Terrain_Blend(false) explicitly.
 }
 
 void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
@@ -3896,8 +3864,26 @@ void SubmitEngineDraw(unsigned short start_index,
     // init and are refreshed by Set_Projection_Transform_With_Z_Bias,
     // so it never needs a per-submit setViewTransform - only view 1
     // (the opaque view) uses the dirty flag.
+    // Secondary 2D detection: if the view matrix is identity and the
+    // projection has no perspective (w-divide), this is a 2D overlay
+    // draw even if Set_View_Identity wasn't called. This catches draws
+    // where DX8 state restores clear g_2DOverlayActive between the
+    // Set_View_Identity call and the actual Draw_Triangles.
+    bool is2D = g_2DOverlayActive;
+    if (!is2D && !g_renderToTexture && !g_waterOverrideActive
+        && !g_effectOverlayActive && !g_inSortFlush)
+    {
+        // Check if view matrix is identity (2D mode)
+        const float *v = g_bgfxView;
+        if (v[0] == 1.0f && v[5] == 1.0f && v[10] == 1.0f && v[15] == 1.0f
+            && v[1] == 0.0f && v[2] == 0.0f && v[4] == 0.0f && v[6] == 0.0f)
+        {
+            is2D = true;
+        }
+    }
+
     bgfx::ViewId submitView;
-    if (g_2DOverlayActive)
+    if (is2D)
     {
         submitView = kBgfxUIView;
     }
