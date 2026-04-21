@@ -47,6 +47,14 @@
 #include "wwmemlog.h"
 #include <d3dx8core.h>
 
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture vertex
+// data into the active render backend at write-lock time. The bgfx backend
+// uses this to populate its own bgfx vertex buffer cache without having
+// to lock the source d3d8 buffer (which corrupts POOL_DEFAULT VBs on
+// some Intel UHD drivers). DX8 backend ignores the call.
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
+
 #define DEFAULT_VB_SIZE 5000
 
 static bool _DynamicSortingVertexArrayInUse=false;
@@ -194,6 +202,15 @@ VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass* VertexBuffe
 VertexBufferClass::WriteLockClass::~WriteLockClass()
 {
 	DX8_THREAD_ASSERT();
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture
+	// vertex data into the active render backend BEFORE unlocking. After
+	// Unlock the source pointer becomes invalid, so this is the last
+	// safe moment. The bgfx backend snapshots the bytes; the dx8 backend
+	// ignores the call.
+	if (g_renderBackend != NULL && Vertices != NULL && VertexBuffer->Type() == BUFFER_TYPE_DX8) {
+		const unsigned int total_bytes = VertexBuffer->Get_Vertex_Count() * VertexBuffer->FVF_Info().Get_FVF_Size();
+		g_renderBackend->Capture_Vertex_Data(VertexBuffer, Vertices, total_bytes);
+	}
 	switch (VertexBuffer->Type()) {
 	case BUFFER_TYPE_DX8:
 #ifdef VERTEX_BUFFER_LOG
@@ -260,6 +277,12 @@ VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuf
 VertexBufferClass::AppendLockClass::~AppendLockClass()
 {
 	DX8_THREAD_ASSERT();
+	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4: append locks
+	// are intentionally NOT captured for the bgfx backend. The Vertices
+	// pointer here is offset to a sub-range, not the start of the VB, so we
+	// cannot do a "snapshot the whole buffer" copy from it. Append locks
+	// are rare in the static rendering path; if a buffer is exclusively
+	// updated via append locks the bgfx backend will simply skip drawing it.
 	switch (VertexBuffer->Type()) {
 	case BUFFER_TYPE_DX8:
 		DX8_Assert();

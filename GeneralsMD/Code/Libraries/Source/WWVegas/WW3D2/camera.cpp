@@ -76,6 +76,13 @@
 #include "matrix4.h"
 #include "dx8wrapper.h"
 
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4E.4 route the
+// camera's view + projection matrices through the active render backend
+// instead of straight to DX8Wrapper, so the bgfx backend can capture
+// them. The dx8 backend forwards to DX8Wrapper unchanged.
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
+
 
 /***********************************************************************************************
  * CameraClass::CameraClass -- constructor                                                     *
@@ -749,8 +756,8 @@ void CameraClass::Apply()
 
 	Matrix4x4 d3dprojection;
 	Get_D3D_Projection_Matrix(&d3dprojection);
-	DX8Wrapper::Set_Projection_Transform_With_Z_Bias(d3dprojection,ZNear,ZFar);
-	DX8Wrapper::Set_Transform(D3DTS_VIEW,CameraInvTransform);
+	g_renderBackend->Set_Projection_Transform_With_Z_Bias(d3dprojection,ZNear,ZFar);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,CameraInvTransform);
 }
 
 void CameraClass::Set_Clip_Planes(float znear,float zfar)

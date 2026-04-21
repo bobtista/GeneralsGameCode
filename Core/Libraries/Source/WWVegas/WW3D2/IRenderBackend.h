@@ -220,6 +220,22 @@ public:
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset) = 0;
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset) = 0;
 
+    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 write-side
+    // capture hooks. The W3D engine writes vertex/index data through
+    // VertexBufferClass::WriteLockClass / IndexBufferClass::WriteLockClass
+    // (and the various Copy() helpers). At unlock time the data is sitting
+    // in a CPU-mapped pointer that the engine just wrote into - that is
+    // the safe moment for the bgfx backend to grab a copy and create its
+    // own GPU buffer. The DX8 backend ignores these calls; only BgfxBackend
+    // uses them. Default empty implementations so existing call sites that
+    // do not need them are not forced to override.
+    virtual void Capture_Vertex_Data(const VertexBufferClass * /*vb*/,
+                                     const void * /*data*/,
+                                     unsigned int /*size_bytes*/) {}
+    virtual void Capture_Index_Data(const IndexBufferClass * /*ib*/,
+                                    const void * /*data*/,
+                                    unsigned int /*size_bytes*/) {}
+
     // -------------------------------------------------------------------------
     // State: shaders, materials, textures
     // -------------------------------------------------------------------------
