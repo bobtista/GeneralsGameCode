@@ -36,6 +36,9 @@
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 #include <assert.h>
+#include <map>
+#include <utility>
+#include <vector>
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
 #include "always.h"
@@ -43,6 +46,8 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx8vertexbuffer.h"
+#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
@@ -108,8 +113,17 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 	#define SHADOW_DYNAMIC_VOLUME_FVF	D3DFVF_XYZ
 #endif
 
-LPDIRECT3DVERTEXBUFFER8 shadowVertexBufferD3D=nullptr;		///<D3D vertex buffer
-LPDIRECT3DINDEXBUFFER8	shadowIndexBufferD3D=nullptr;	///<D3D index buffer
+// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I wrap the
+// dynamic shadow volume buffers in W3D classes so g_renderBackend->
+// Set_Vertex_Buffer / Set_Index_Buffer / Draw_Triangles can route them
+// through the bgfx capture hooks. Lock semantics preserved via the new
+// flags parameter on AppendLockClass (D3DLOCK_NOOVERWRITE for partial
+// appends, D3DLOCK_DISCARD via WriteLockClass on wrap-around).
+// Forward declaration (implementation further down in the file).
+static int EarClip2D(const float * xy, int N, short * out_indices);
+
+DX8VertexBufferClass * shadowVertexBuffer = nullptr;
+DX8IndexBufferClass  * shadowIndexBuffer  = nullptr;
 int nShadowVertsInBuf=0;	//model vetices in vertex buffer
 int nShadowStartBatchVertex=0;
 int nShadowIndicesInBuf=0;	//model vetices in vertex buffer
@@ -1352,16 +1366,14 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	if( numVerts == 0 || numPolys == 0 )
 		return;
 
-	D3DMATRIX dxmWorld = To_D3DMATRIX(*meshXform);
-	m_pDev->SetTransform(D3DTS_WORLD,&dxmWorld);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD, *meshXform);
 
 	W3DBufferManager::W3DVertexBufferSlot *vbSlot=m_shadowVolumeVB[lightIndex][ meshIndex ];
 	if (!vbSlot)
 		return;
 	if (vbSlot->m_VB->m_DX8VertexBuffer->Get_DX8_Vertex_Buffer() != lastActiveVertexBuffer)
 	{	lastActiveVertexBuffer=vbSlot->m_VB->m_DX8VertexBuffer->Get_DX8_Vertex_Buffer();
-		m_pDev->SetStreamSource(0,lastActiveVertexBuffer,
-			vbSlot->m_VB->m_DX8VertexBuffer->FVF_Info().Get_FVF_Size());	//12 bytes per vertex.
+		g_renderBackend->Set_Vertex_Buffer(vbSlot->m_VB->m_DX8VertexBuffer, 0);
 	}
 
 	DEBUG_ASSERTCRASH(vbSlot->m_size >= numVerts,("Overflowing Shadow Vertex Buffer Slot"));
@@ -1372,14 +1384,20 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 
 	DEBUG_ASSERTCRASH(ibSlot->m_size >= numIndex,("Overflowing Shadow Index Buffer Slot"));
 
-	m_pDev->SetIndices(ibSlot->m_IB->m_DX8IndexBuffer->Get_DX8_Index_Buffer(),vbSlot->m_start);
+	g_renderBackend->Set_Index_Buffer(ibSlot->m_IB->m_DX8IndexBuffer, vbSlot->m_start);
 
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
-		m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,numVerts,ibSlot->m_start,numPolys);
+		g_renderBackend->Set_Shadow_Volume_Shader_Active(true);
+		g_renderBackend->Draw_Triangles(ibSlot->m_start, numPolys, 0, numVerts);
+		g_renderBackend->Set_Shadow_Volume_Shader_Active(false);
 	}
 
+	// No Set_*_Buffer(nullptr) cleanup here: static shadow volume VBs
+	// come from W3DBufferManager, are NOT AppendLock'd each frame, and
+	// the lastActiveVertexBuffer optimization above assumes the cached
+	// binding persists across calls. Clearing it would desync the cache.
 }
 
 void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex, const Matrix3D *meshXform)
@@ -1414,71 +1432,73 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 		return;
 
 
-	if (nShadowVertsInBuf > (SHADOW_VERTEX_SIZE-numVerts))	//check if room for model verts
-	{	//flush the buffer by drawing the contents and re-locking again
-		if (shadowVertexBufferD3D->Lock(0,numVerts*sizeof(SHADOW_DYNAMIC_VOLUME_VERTEX),(unsigned char**)&pvVertices,D3DLOCK_DISCARD) != D3D_OK)
-			return;
-		nShadowVertsInBuf=0;
-		nShadowStartBatchVertex=0;
+	// Wrap-around (DISCARD) when the buffer can't fit this batch.
+	const bool wrapVerts = (nShadowVertsInBuf > (SHADOW_VERTEX_SIZE - numVerts));
+	if (wrapVerts) {
+		nShadowVertsInBuf = 0;
+		nShadowStartBatchVertex = 0;
 	}
-	else
-	{	if (shadowVertexBufferD3D->Lock(nShadowVertsInBuf*sizeof(SHADOW_DYNAMIC_VOLUME_VERTEX),numVerts*sizeof(SHADOW_DYNAMIC_VOLUME_VERTEX), (unsigned char**)&pvVertices,D3DLOCK_NOOVERWRITE) != D3D_OK)
-			return;
-	}
-#ifdef SV_DEBUG
-	srand(0x1345465);
-#endif
-	if(pvVertices)
 	{
+		const unsigned vbFlags = wrapVerts ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		VertexBufferClass::AppendLockClass vbLock(shadowVertexBuffer, nShadowVertsInBuf, numVerts, vbFlags);
+		pvVertices = (SHADOW_DYNAMIC_VOLUME_VERTEX *)vbLock.Get_Vertex_Array();
 #ifdef SV_DEBUG
-		for (Int i=0; i<numVerts; i++)
+		srand(0x1345465);
+#endif
+		if (pvVertices)
 		{
-			(*((Vector3 *)pvVertices))=*geometry->GetVertex(i);	//cast is valid since both start with xyz
-			pvVertices->diffuse=(rand()%255) | ((rand()%255)<<8) | ((rand()%255)<<16);
-			pvVertices++;
-		}
+#ifdef SV_DEBUG
+			for (Int i=0; i<numVerts; i++)
+			{
+				(*((Vector3 *)pvVertices))=*geometry->GetVertex(i);
+				pvVertices->diffuse=(rand()%255) | ((rand()%255)<<8) | ((rand()%255)<<16);
+				pvVertices++;
+			}
 #else
-		memcpy(pvVertices,geometry->GetVertex(0),numVerts*sizeof(SHADOW_DYNAMIC_VOLUME_VERTEX));
+			memcpy(pvVertices,geometry->GetVertex(0),numVerts*sizeof(SHADOW_DYNAMIC_VOLUME_VERTEX));
 #endif
+		}
 	}
 
-	shadowVertexBufferD3D->Unlock();
-
-	if (nShadowIndicesInBuf > (SHADOW_INDEX_SIZE-numIndex))	//check if room for model verts
-	{	//flush the buffer by drawing the contents and re-locking again
-		if (shadowIndexBufferD3D->Lock(0,numIndex*sizeof(short),(unsigned char**)&pvIndices,D3DLOCK_DISCARD) != D3D_OK)
-			return;
-		nShadowIndicesInBuf=0;
-		nShadowStartBatchIndex=0;
+	const bool wrapIndices = (nShadowIndicesInBuf > (SHADOW_INDEX_SIZE - numIndex));
+	if (wrapIndices) {
+		nShadowIndicesInBuf = 0;
+		nShadowStartBatchIndex = 0;
 	}
-	else
-	{	if (shadowIndexBufferD3D->Lock(nShadowIndicesInBuf*sizeof(short),numIndex*sizeof(short), (unsigned char**)&pvIndices,D3DLOCK_NOOVERWRITE) != D3D_OK)
-			return;
-	}
-
-
-	if(pvIndices)
 	{
-		memcpy(pvIndices,geometry->GetPolygonIndex(0,(short *)pvIndices),numPolys*3*sizeof(short));
+		const unsigned ibFlags = wrapIndices ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		IndexBufferClass::AppendLockClass ibLock(shadowIndexBuffer, nShadowIndicesInBuf, numIndex, ibFlags);
+		pvIndices = ibLock.Get_Index_Array();
+		if (pvIndices)
+		{
+			memcpy(pvIndices,geometry->GetPolygonIndex(0,(short *)pvIndices),numPolys*3*sizeof(short));
+		}
 	}
 
-	shadowIndexBufferD3D->Unlock();
-
-	m_pDev->SetIndices(shadowIndexBufferD3D,nShadowStartBatchVertex);
-
-	D3DMATRIX dxmWorld = To_D3DMATRIX(*meshXform);
-	m_pDev->SetTransform(D3DTS_WORLD,&dxmWorld);
-
-	if (shadowVertexBufferD3D != lastActiveVertexBuffer)
-	{	m_pDev->SetStreamSource(0,shadowVertexBufferD3D,sizeof(SHADOW_DYNAMIC_VOLUME_VERTEX));
-		lastActiveVertexBuffer = shadowVertexBufferD3D;
-	}
+	// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I route through
+	// g_renderBackend so DX8Wrapper flushes cached stencil/blend state
+	// before the shadow draw. Clear texture stages to prevent stale
+	// terrain textures from bleeding onto the stencil volume verts.
+	g_renderBackend->Set_Texture(0, nullptr);
+	g_renderBackend->Set_Texture(1, nullptr);
+	g_renderBackend->Set_Index_Buffer(shadowIndexBuffer, nShadowStartBatchVertex);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD, *meshXform);
+	g_renderBackend->Set_Vertex_Buffer(shadowVertexBuffer, 0);
+	g_renderBackend->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
+	lastActiveVertexBuffer = shadowVertexBuffer->Get_DX8_Vertex_Buffer();
 
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
-		m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,numVerts,nShadowStartBatchIndex,numPolys);
+		g_renderBackend->Set_Shadow_Volume_Shader_Active(true);
+		g_renderBackend->Draw_Triangles(nShadowStartBatchIndex, numPolys, 0, numVerts);
+		g_renderBackend->Set_Shadow_Volume_Shader_Active(false);
 	}
+
+	// Release engine refs on the shadow ring buffers so the next
+	// AppendLockClass (which asserts !Engine_Refs) can proceed.
+	g_renderBackend->Set_Vertex_Buffer(nullptr, 0);
+	g_renderBackend->Set_Index_Buffer(nullptr, 0);
 
 	nShadowVertsInBuf += numVerts;
 	nShadowStartBatchVertex=nShadowVertsInBuf;
@@ -1564,70 +1584,67 @@ void W3DVolumetricShadow::RenderMeshVolumeBounds(Int meshIndex, Int lightIndex, 
 		return;
 
 
-	if (nShadowVertsInBuf > (SHADOW_VERTEX_SIZE-numVerts))	//check if room for model verts
-	{	//flush the buffer by drawing the contents and re-locking again
-		if (shadowVertexBufferD3D->Lock(0,numVerts*sizeof(SHADOW_DYNAMIC_VOLUME_VERTEX),(unsigned char**)&pvVertices,D3DLOCK_DISCARD) != D3D_OK)
-			return;
-		nShadowVertsInBuf=0;
-		nShadowStartBatchVertex=0;
+	const bool wrapVerts = (nShadowVertsInBuf > (SHADOW_VERTEX_SIZE - numVerts));
+	if (wrapVerts) {
+		nShadowVertsInBuf = 0;
+		nShadowStartBatchVertex = 0;
 	}
-	else
-	{	if (shadowVertexBufferD3D->Lock(nShadowVertsInBuf*sizeof(SHADOW_DYNAMIC_VOLUME_VERTEX),numVerts*sizeof(SHADOW_DYNAMIC_VOLUME_VERTEX), (unsigned char**)&pvVertices,D3DLOCK_NOOVERWRITE) != D3D_OK)
-			return;
-	}
-	srand(0x1345465);
-	if(pvVertices)
-	{	for (Int i=0; i<8; i++)
-		{
-			pvVertices->x=verts[i][0];
-			pvVertices->y=verts[i][1];
-			pvVertices->z=verts[i][2];
-#ifdef SV_DEBUG
-			pvVertices->diffuse=(rand()%255) | ((rand()%255)<<8) | ((rand()%255)<<16);
-#endif
-			pvVertices++;
-		}
-	}
-
-	shadowVertexBufferD3D->Unlock();
-
-	if (nShadowIndicesInBuf > (SHADOW_INDEX_SIZE-numIndex))	//check if room for model verts
-	{	//flush the buffer by drawing the contents and re-locking again
-		if (shadowIndexBufferD3D->Lock(0,numIndex*sizeof(short),(unsigned char**)&pvIndices,D3DLOCK_DISCARD) != D3D_OK)
-			return;
-		nShadowIndicesInBuf=0;
-		nShadowStartBatchIndex=0;
-	}
-	else
-	{	if (shadowIndexBufferD3D->Lock(nShadowIndicesInBuf*sizeof(short),numIndex*sizeof(short), (unsigned char**)&pvIndices,D3DLOCK_NOOVERWRITE) != D3D_OK)
-			return;
-	}
-
-
-	if(pvIndices)
 	{
-		for (Int i=0; i<numPolys; i++,pvIndices+=3)
-		{
-			pvIndices[0] = _BoxFaces[i][0];
-			pvIndices[1] = _BoxFaces[i][1];
-			pvIndices[2] = _BoxFaces[i][2];
+		const unsigned vbFlags = wrapVerts ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		VertexBufferClass::AppendLockClass vbLock(shadowVertexBuffer, nShadowVertsInBuf, numVerts, vbFlags);
+		pvVertices = (SHADOW_DYNAMIC_VOLUME_VERTEX *)vbLock.Get_Vertex_Array();
+		srand(0x1345465);
+		if (pvVertices)
+		{	for (Int i=0; i<8; i++)
+			{
+				pvVertices->x=verts[i][0];
+				pvVertices->y=verts[i][1];
+				pvVertices->z=verts[i][2];
+#ifdef SV_DEBUG
+				pvVertices->diffuse=(rand()%255) | ((rand()%255)<<8) | ((rand()%255)<<16);
+#endif
+				pvVertices++;
+			}
 		}
 	}
 
-	shadowIndexBufferD3D->Unlock();
+	const bool wrapIndices = (nShadowIndicesInBuf > (SHADOW_INDEX_SIZE - numIndex));
+	if (wrapIndices) {
+		nShadowIndicesInBuf = 0;
+		nShadowStartBatchIndex = 0;
+	}
+	{
+		const unsigned ibFlags = wrapIndices ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		IndexBufferClass::AppendLockClass ibLock(shadowIndexBuffer, nShadowIndicesInBuf, numIndex, ibFlags);
+		pvIndices = ibLock.Get_Index_Array();
+		if (pvIndices)
+		{
+			for (Int i=0; i<numPolys; i++,pvIndices+=3)
+			{
+				pvIndices[0] = _BoxFaces[i][0];
+				pvIndices[1] = _BoxFaces[i][1];
+				pvIndices[2] = _BoxFaces[i][2];
+			}
+		}
+	}
 
-	m_pDev->SetIndices(shadowIndexBufferD3D,nShadowStartBatchVertex);
-
+	g_renderBackend->Set_Texture(0, nullptr);
+	g_renderBackend->Set_Texture(1, nullptr);
+	g_renderBackend->Set_Index_Buffer(shadowIndexBuffer, nShadowStartBatchVertex);
 
 	//todo: replace this with mesh transform
-	Matrix4x4 mWorld(1);	//identity since boxes are pre-transformed to world space.
-	D3DMATRIX dxmWorld = To_D3DMATRIX(mWorld);
-	m_pDev->SetTransform(D3DTS_WORLD,&dxmWorld);
+	Matrix3D mWorld(true);	//identity since boxes are pre-transformed to world space.
+	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD, mWorld);
 
-	m_pDev->SetStreamSource(0,shadowVertexBufferD3D,sizeof(SHADOW_DYNAMIC_VOLUME_VERTEX));
-	m_pDev->SetVertexShader(SHADOW_DYNAMIC_VOLUME_FVF);
+	g_renderBackend->Set_Vertex_Buffer(shadowVertexBuffer, 0);
+	g_renderBackend->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
 
-	m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLELIST,0,numVerts,nShadowStartBatchIndex,numPolys);
+	g_renderBackend->Set_Shadow_Volume_Shader_Active(true);
+	g_renderBackend->Draw_Triangles(nShadowStartBatchIndex, numPolys, 0, numVerts);
+	g_renderBackend->Set_Shadow_Volume_Shader_Active(false);
+
+	g_renderBackend->Set_Vertex_Buffer(nullptr, 0);
+	g_renderBackend->Set_Index_Buffer(nullptr, 0);
 
 	nShadowVertsInBuf += numVerts;
 	nShadowStartBatchVertex=nShadowVertsInBuf;
@@ -2553,6 +2570,130 @@ void W3DVolumetricShadow::buildSilhouette(Int meshIndex, Vector3 *lightPosObject
 // buffer - to be rendered via a dynamic vertex buffer.
 //
 // ============================================================================
+// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I ear-clipping
+// 2D polygon triangulation. Used to close shadow volume caps for bgfx
+// stencil correctness. Input: 2D XY coordinates of N polygon vertices
+// in loop order. Output: triangle indices (each triangle = 3 shorts
+// referring to local indices [0..N-1]). Returns total index count
+// written, or 0 on failure (non-simple polygon, degenerate).
+static int EarClip2D(const float * xy, int N, short * out_indices)
+{
+	if (N < 3) return 0;
+	if (N == 3)
+	{
+		out_indices[0] = 0; out_indices[1] = 1; out_indices[2] = 2;
+		return 3;
+	}
+
+	// Determine polygon winding via shoelace signed area.
+	float signedArea = 0.0f;
+	for (int i = 0; i < N; ++i)
+	{
+		int j = (i + 1) % N;
+		signedArea += xy[i*2]   * xy[j*2+1];
+		signedArea -= xy[j*2]   * xy[i*2+1];
+	}
+	const bool polygonCCW = (signedArea > 0.0f);
+
+	std::vector<int> poly(N);
+	for (int i = 0; i < N; ++i) poly[i] = i;
+
+	int outCount = 0;
+	int safetyMax = N * N;
+	while (static_cast<int>(poly.size()) > 3 && safetyMax-- > 0)
+	{
+		bool foundEar = false;
+		const int M = static_cast<int>(poly.size());
+		for (int i = 0; i < M; ++i)
+		{
+			const int iPrev = poly[(i + M - 1) % M];
+			const int iCurr = poly[i];
+			const int iNext = poly[(i + 1) % M];
+			const float ax = xy[iPrev*2], ay = xy[iPrev*2+1];
+			const float bx = xy[iCurr*2], by = xy[iCurr*2+1];
+			const float cx = xy[iNext*2], cy = xy[iNext*2+1];
+			const float cross = (bx - ax) * (cy - ay) - (by - ay) * (cx - ax);
+			// Must match polygon winding to be a convex corner (ear candidate).
+			if ((polygonCCW && cross <= 0.0f) || (!polygonCCW && cross >= 0.0f))
+			{
+				continue;
+			}
+			// No other vertex may lie inside triangle (iPrev, iCurr, iNext).
+			bool hasInside = false;
+			for (int j = 0; j < M; ++j)
+			{
+				const int iTest = poly[j];
+				if (iTest == iPrev || iTest == iCurr || iTest == iNext) continue;
+				const float px = xy[iTest*2], py = xy[iTest*2+1];
+				const float d1 = (px - bx) * (ay - by) - (ax - bx) * (py - by);
+				const float d2 = (px - cx) * (by - cy) - (bx - cx) * (py - cy);
+				const float d3 = (px - ax) * (cy - ay) - (cx - ax) * (py - ay);
+				const bool hasNeg = (d1 < 0.0f) || (d2 < 0.0f) || (d3 < 0.0f);
+				const bool hasPos = (d1 > 0.0f) || (d2 > 0.0f) || (d3 > 0.0f);
+				if (!(hasNeg && hasPos))
+				{
+					hasInside = true;
+					break;
+				}
+			}
+			if (!hasInside)
+			{
+				out_indices[outCount++] = static_cast<short>(iPrev);
+				out_indices[outCount++] = static_cast<short>(iCurr);
+				out_indices[outCount++] = static_cast<short>(iNext);
+				poly.erase(poly.begin() + i);
+				foundEar = true;
+				break;
+			}
+		}
+		if (!foundEar) return 0; // Non-simple polygon.
+	}
+	if (poly.size() == 3)
+	{
+		out_indices[outCount++] = static_cast<short>(poly[0]);
+		out_indices[outCount++] = static_cast<short>(poly[1]);
+		out_indices[outCount++] = static_cast<short>(poly[2]);
+	}
+	return outCount;
+}
+
+// TheSuperHackers @debug bobtista 15/04/2026 Phase 4I mesh edge-
+// manifold audit. A closed 2-manifold has every undirected edge used
+// by EXACTLY TWO triangles. Open tubes have some edges used once (the
+// "rim" edges). Logs the first N distinct audits per construction path.
+static void AuditShadowVolumeEdges(Geometry * shadowVolume, int vertexCount,
+                                   int polygonCount, const char * tag)
+{
+	static int s_auditCount = 0;
+	if (s_auditCount++ >= 20) return;
+
+	std::map<std::pair<int,int>, int> edgeCount;
+	for (int p = 0; p < polygonCount; ++p)
+	{
+		short idx[3];
+		shadowVolume->GetPolygonIndex(p, idx);
+		for (int e = 0; e < 3; ++e)
+		{
+			int a = idx[e];
+			int b = idx[(e+1) % 3];
+			if (a > b) std::swap(a, b);
+			edgeCount[std::make_pair(a, b)]++;
+		}
+	}
+	int used1 = 0, used2 = 0, usedOther = 0;
+	for (auto & kv : edgeCount)
+	{
+		if (kv.second == 1) ++used1;
+		else if (kv.second == 2) ++used2;
+		else ++usedOther;
+	}
+	WWDEBUG_SAY(("[SHADOW MESH AUDIT] %s verts=%d tris=%d edges=%zu "
+	             "used_once=%d used_twice=%d used_3+=%d %s",
+	             tag, vertexCount, polygonCount, edgeCount.size(),
+	             used1, used2, usedOther,
+	             (used1 == 0 && usedOther == 0) ? "CLOSED_MANIFOLD" : "OPEN_OR_NON_MANIFOLD"));
+}
+
 void W3DVolumetricShadow::constructVolume( Vector3 *lightPosObject,Real shadowExtrudeDistance, Int volumeIndex, Int meshIndex )
 {
 	Geometry *shadowVolume;
@@ -2769,6 +2910,8 @@ void W3DVolumetricShadow::constructVolume( Vector3 *lightPosObject,Real shadowEx
 
 	shadowVolume->SetNumActivePolygon(polygonCount);
 	shadowVolume->SetNumActiveVertex(vertexCount);
+
+	AuditShadowVolumeEdges(shadowVolume, vertexCount, polygonCount, "constructVolume(dynamic)");
 }
 
 // constructVolumeVB ==========================================================
@@ -3390,6 +3533,16 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
 		m_pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANSLITVERTEX));
 
+	// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I issue the
+	// matching darken pass on the bgfx backend. DX8 already drew the
+	// quad above via raw m_pDev; bgfx never saw those raw calls, so ask
+	// the backend to draw its own fullscreen darkening quad with the
+	// same stencil test (LEQUAL ref=1 mask=~shadowMask).
+	g_renderBackend->Apply_Stencil_Shadow_Darken(
+		TheW3DShadowManager->getShadowColor(),
+		~TheW3DShadowManager->getStencilShadowMask(),
+		0x1);
+
 	m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
 	m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );
 	// turn off the stencil buffer
@@ -3492,27 +3645,30 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 			m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
 			m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , TRUE);
 		}
-		m_pDev->SetRenderState( D3DRS_STENCILENABLE, TRUE );
+		g_renderBackend->Set_Stencil_Enable(true);
 	#endif
-		//Any pixels with stencil already set to 128 contains a potential occluder.  If this pixels also has any of the player
-		//color stencil bits also set, it means that it's an occluded player color and we need to NOT render shadows here.  We
-		//do this determination by comparing the value in the combined bits against a value containing only a potential occluder.
-		//If the value of just the potential occluder bit is >= than the combined bits, then we know none of the player color
-		//bits were set and it's okay to render shadow.
+		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I migrate
+		// stencil + cull state via g_renderBackend so BgfxBackend's
+		// capture hooks observe the same values the DX8 reference path
+		// applies. Vertex shader stays raw - DX8Wrapper's Apply will set
+		// it from the vertex buffer's FVF when Set_Vertex_Buffer is
+		// called inside RenderVolume, so the explicit call here is
+		// redundant on the DX8 side but kept for safety on paths that
+		// bypass Set_Vertex_Buffer.
 		if (TheW3DShadowManager->getStencilShadowMask() == 0x80808080)
-			m_pDev->SetRenderState( D3DRS_STENCILFUNC,     D3DCMP_NOTEQUAL );	//in this mode, MSB indicates occluded player pixels.
+			g_renderBackend->Set_Stencil_Func(RB_CMP_NOT_EQUAL);
 		else
-			m_pDev->SetRenderState( D3DRS_STENCILFUNC,     D3DCMP_GREATEREQUAL );	//in this mode, multiple bits indicate occluded player pixels.
-		m_pDev->SetRenderState( D3DRS_STENCILREF,      0x80808080 );			//isolate MSB, it's used to indicate pixels containing potential occluders.
-		m_pDev->SetRenderState( D3DRS_STENCILMASK,     TheW3DShadowManager->getStencilShadowMask());	//isolate upper bits containing PotentialOccluderBit|PlayerColorBits
-		m_pDev->SetRenderState( D3DRS_STENCILWRITEMASK,0xffffffff );
-		m_pDev->SetRenderState( D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP );
-		m_pDev->SetRenderState( D3DRS_STENCILFAIL,  D3DSTENCILOP_KEEP );
-		m_pDev->SetRenderState( D3DRS_STENCILPASS,  D3DSTENCILOP_INCR );
+			g_renderBackend->Set_Stencil_Func(RB_CMP_GREATER_EQUAL);
+		g_renderBackend->Set_Stencil_Ref(0x80808080);
+		g_renderBackend->Set_Stencil_Mask(TheW3DShadowManager->getStencilShadowMask());
+		g_renderBackend->Set_Stencil_Write_Mask(0xffffffff);
+		g_renderBackend->Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
+		g_renderBackend->Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
+		g_renderBackend->Set_Stencil_Pass_Op(RB_STENCIL_OP_INCR);
 
 		m_pDev->SetVertexShader(SHADOW_DYNAMIC_VOLUME_FVF);
 
-		m_pDev->SetRenderState(D3DRS_CULLMODE,D3DCULL_CW);
+		g_renderBackend->Set_Cull_Mode(RB_CULL_CW);
 //		m_pDev->SetRenderState(D3DRS_ZBIAS,1);	///@todo: See if this helps or makes things worse.
 		//m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
 
@@ -3561,14 +3717,14 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		}
 
 		// change the stencil op to decrement
-		m_pDev->SetRenderState( D3DRS_STENCILPASS,  D3DSTENCILOP_DECRSAT);
+		g_renderBackend->Set_Stencil_Pass_Op(RB_STENCIL_OP_DECR_SAT);
 
 		//
 		// invert normals of shadow volumes so we can decrement in the
 		// stencil buffer and render
 		//
 
-		m_pDev->SetRenderState(D3DRS_CULLMODE,D3DCULL_CCW);
+		g_renderBackend->Set_Cull_Mode(RB_CULL_CCW);
 
 		for (nextVb=TheW3DBufferManager->getNextVertexBuffer(nullptr,W3DBufferManager::VBM_FVF_XYZ);nextVb != nullptr; nextVb=TheW3DBufferManager->getNextVertexBuffer(nextVb,W3DBufferManager::VBM_FVF_XYZ))
 		{
@@ -3596,7 +3752,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 			nextVb->m_renderTaskList=nullptr;
 		}
 
-		m_pDev->SetRenderState(D3DRS_CULLMODE,D3DCULL_CW);
+		g_renderBackend->Set_Cull_Mode(RB_CULL_CW);
 //		m_pDev->SetRenderState(D3DRS_ZBIAS,0);	///@todo: See if this helps or makes things worse.
 		//m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
 
@@ -3736,12 +3892,8 @@ W3DVolumetricShadowManager::~W3DVolumetricShadowManager()
 /** Releases all W3D/D3D assets before a reset.. */
 void W3DVolumetricShadowManager::ReleaseResources()
 {
-	if (shadowIndexBufferD3D)
-		shadowIndexBufferD3D->Release();
-	if (shadowVertexBufferD3D)
-		shadowVertexBufferD3D->Release();
-	shadowIndexBufferD3D=nullptr;
-	shadowVertexBufferD3D=nullptr;
+	REF_PTR_RELEASE(shadowIndexBuffer);
+	REF_PTR_RELEASE(shadowVertexBuffer);
 	if (TheW3DBufferManager)
 	{	TheW3DBufferManager->ReleaseResources();
 		invalidateCachedLightPositions();	//vertex buffers need to be refilled.
@@ -3753,31 +3905,14 @@ Bool W3DVolumetricShadowManager::ReAcquireResources()
 {
 	ReleaseResources();
 
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	DEBUG_ASSERTCRASH(m_pDev, ("Trying to ReAcquireResources on W3DVolumetricShadowManager without device"));
-
-	if (FAILED(m_pDev->CreateIndexBuffer
-	(
-		SHADOW_INDEX_SIZE*sizeof(WORD),
-		D3DUSAGE_WRITEONLY|D3DUSAGE_DYNAMIC,
-		D3DFMT_INDEX16,
-		D3DPOOL_DEFAULT,
-		&shadowIndexBufferD3D
-	)))
+	shadowIndexBuffer = NEW_REF(DX8IndexBufferClass, (SHADOW_INDEX_SIZE, DX8IndexBufferClass::USAGE_DYNAMIC));
+	if (shadowIndexBuffer == nullptr)
 		return FALSE;
 
-	if (shadowVertexBufferD3D == nullptr)
-	{	// Create vertex buffer
-
-		if (FAILED(m_pDev->CreateVertexBuffer
-		(
-			SHADOW_VERTEX_SIZE*sizeof(SHADOW_DYNAMIC_VOLUME_VERTEX),
-			D3DUSAGE_WRITEONLY|D3DUSAGE_DYNAMIC,
-			0,
-			D3DPOOL_DEFAULT,
-			&shadowVertexBufferD3D
-		)))
+	if (shadowVertexBuffer == nullptr)
+	{
+		shadowVertexBuffer = NEW_REF(DX8VertexBufferClass, (SHADOW_DYNAMIC_VOLUME_FVF, SHADOW_VERTEX_SIZE, DX8VertexBufferClass::USAGE_DYNAMIC));
+		if (shadowVertexBuffer == nullptr)
 			return FALSE;
 	}
 

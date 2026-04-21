@@ -335,6 +335,11 @@ void DX8Backend::Set_Texture_Factor(unsigned argb)
     DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, argb);
 }
 
+void DX8Backend::Set_Cull_Mode(CullMode mode)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, static_cast<unsigned>(mode));
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void DX8Backend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
