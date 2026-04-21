@@ -1,5 +1,5 @@
 $input  a_position, a_normal, a_color0, a_texcoord0
-$output v_color0, v_texcoord0, v_texcoord1, v_normal
+$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace
 
 #include <bgfx_shader.sh>
 
@@ -20,6 +20,7 @@ $output v_color0, v_texcoord0, v_texcoord1, v_normal
 uniform vec4 u_swayTable[MAX_SWAY_TYPES_PLUS1];
 uniform vec4 u_shroudOffset;
 uniform vec4 u_shroudScale;
+uniform mat4 u_shadowLightViewProj;
 
 void main()
 {
@@ -49,4 +50,6 @@ void main()
 	v_texcoord1 = (a_position.xy + u_shroudOffset.xy) * u_shroudScale.xy;
 
 	v_normal = vec3(0.0, 0.0, 1.0);  // grass billboards always face up
+
+	v_lightspace = mul(u_shadowLightViewProj, vec4(a_position, 1.0));
 }
