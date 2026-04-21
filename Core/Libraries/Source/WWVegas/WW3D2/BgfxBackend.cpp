@@ -37,7 +37,9 @@
 #include "matrix3d.h"
 #include "matrix4.h"
 #include "shader.h"
+#include "texture.h"
 #include "vector3.h"
+#include "ww3dformat.h"
 #include "wwdebug.h"
 
 #include <cstring>
@@ -89,10 +91,6 @@ namespace
 // is misconfigured.
 [[maybe_unused]] const auto kBgfxLinkAnchor = &bgfx::getCaps;
 
-// Shared static vector returned from Get_Ambient(). Phase 3 will replace
-// this with real per-frame ambient tracking.
-const Vector3 kZeroVec3(0.0f, 0.0f, 0.0f);
-
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 1. Tracks
 // whether bgfx::init has been called successfully, so Begin_Scene /
 // End_Scene / Shutdown can skip bgfx calls if init was never reached.
@@ -104,8 +102,12 @@ bool g_bgfxInitialized = false;
 HWND g_bgfxWindow = nullptr;
 
 const wchar_t * const kBgfxWindowClass = L"GGC_BgfxDebugWindow";
-const int kBgfxWindowWidth  = 512;
-const int kBgfxWindowHeight = 384;
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4F.3 popup
+// dimensions chosen to match the game's 1.6 aspect ratio (1280x800)
+// so engine geometry rendered with the game's projection matrix
+// does not look horizontally squished.
+const int kBgfxWindowWidth  = 800;
+const int kBgfxWindowHeight = 500;
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.3 program handle
 // for the passthrough shader pair. Created once in Initialize after bgfx::init
@@ -123,6 +125,9 @@ bgfx::ProgramHandle g_solidLitProgram         = BGFX_INVALID_HANDLE;
 
 // Sampler uniform shared by all textured fragment shaders. Bound to stage 0.
 bgfx::UniformHandle g_sTex0        = BGFX_INVALID_HANDLE;
+bgfx::UniformHandle g_sTex1        = BGFX_INVALID_HANDLE;
+bgfx::UniformHandle g_sTex2        = BGFX_INVALID_HANDLE;
+bgfx::UniformHandle g_sTex3        = BGFX_INVALID_HANDLE;
 // Alpha-test parameters consumed by fs_textured_lit_atest. .x is the
 // reference threshold in [0, 1]; engine writes ShaderClass alpha-ref / 255.
 // Named u_atestParams (not u_alphaRef) to avoid bgfx_shader.sh's internal
@@ -535,6 +540,15 @@ bool BuildBgfxLayoutForFVF(const FVFInfoClass & fvf, bgfx::VertexLayout & out)
 
 std::unordered_map<const VertexBufferClass *, bgfx::VertexBufferHandle> g_vbCache;
 std::unordered_map<const IndexBufferClass *,  bgfx::IndexBufferHandle>  g_ibCache;
+std::unordered_map<const TextureBaseClass *,  bgfx::TextureHandle>      g_textureCache;
+
+// The bgfx texture currently bound to stage 0 by Set_Texture. Used by
+// SubmitEngineDraw - falls back to g_defaultWhiteTexture if invalid.
+bgfx::TextureHandle g_currentBgfxTexture0 = BGFX_INVALID_HANDLE;
+bgfx::TextureHandle g_currentBgfxTexture1 = BGFX_INVALID_HANDLE;
+bgfx::TextureHandle g_currentBgfxTexture2 = BGFX_INVALID_HANDLE;
+bgfx::TextureHandle g_currentBgfxTexture3 = BGFX_INVALID_HANDLE;
+bool g_loggedFirstBgfxTextureCreate = false;
 
 // The most recent buffers and offsets cached from Set_Vertex_Buffer /
 // Set_Index_Buffer. Read by Draw_Triangles when it issues the bgfx
@@ -543,9 +557,40 @@ bgfx::VertexBufferHandle g_currentBgfxVB    = BGFX_INVALID_HANDLE;
 bgfx::IndexBufferHandle  g_currentBgfxIB    = BGFX_INVALID_HANDLE;
 unsigned short           g_currentIBOffset  = 0;
 
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2 transient
+// (dynamic) buffer state. Capture_Dynamic_Vertex_Data allocs a bgfx
+// transient VB and records the owning DynamicVBAccessClass pointer so
+// the matching Set_Vertex_Buffer(DynamicVBAccessClass&) call can claim
+// it. The transient buffers are auto-freed at bgfx::frame time; we
+// only track validity within the current frame.
+struct PendingTransientVB
+{
+    bool                        valid;
+    const DynamicVBAccessClass * owner;
+    bgfx::TransientVertexBuffer  tvb;
+};
+struct PendingTransientIB
+{
+    bool                        valid;
+    const DynamicIBAccessClass * owner;
+    bgfx::TransientIndexBuffer   tib;
+};
+PendingTransientVB g_pendingDynVB = { false, nullptr, {} };
+PendingTransientIB g_pendingDynIB = { false, nullptr, {} };
+
+// Current draw call uses transient buffers if these are set. They
+// shadow the static VB/IB handles above - SubmitEngineDraw picks the
+// transient path when these are true.
+bool                        g_currentUseTransientVB = false;
+bgfx::TransientVertexBuffer g_currentTransientVB    = {};
+bool                        g_currentUseTransientIB = false;
+bgfx::TransientIndexBuffer  g_currentTransientIB    = {};
+
 bool g_loggedFirstBgfxVbCreate = false;
 bool g_loggedFirstBgfxIbCreate = false;
 bool g_loggedFirstBgfxSubmit   = false;
+bool g_loggedFirstDynVbCapture = false;
+bool g_loggedFirstDynIbCapture = false;
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4E.4 transform
 // capture. The engine calls Set_Transform with world / view / projection
@@ -600,6 +645,43 @@ void W3DMatrix3DToBgfx(const Matrix3D & m, float * out)
     out[1]  = m[1][0]; out[5]  = m[1][1]; out[9]  = m[1][2]; out[13] = m[1][3];
     out[2]  = m[2][0]; out[6]  = m[2][1]; out[10] = m[2][2]; out[14] = m[2][3];
     out[3]  = 0.0f;    out[7]  = 0.0f;    out[11] = 0.0f;    out[15] = 1.0f;
+}
+
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.1 aspect ratio
+// correction. The engine computes the projection matrix for the main
+// game window's aspect ratio. The bgfx popup has a fixed 800x500
+// framebuffer (aspect 1.6), so applying the engine's projection
+// directly stretches geometry horizontally when the game runs at a
+// different aspect (e.g. 1024x768 = 1.33, or 1280x720 = 1.78). Rescale
+// column 0 by (gameAspect / popupAspect) so the popup shows the same
+// field of view the engine is rendering to the main window.
+//
+// The game aspect is extracted from the projection itself: for a
+// standard perspective matrix proj[0][0] = cot(fov/2)/aspect and
+// proj[1][1] = cot(fov/2), so gameAspect = proj[1][1] / proj[0][0].
+// Avoids touching DX8Wrapper's protected resolution accessors and
+// works even when the engine later reshapes the backbuffer.
+void ApplyPopupAspectCorrection(float * proj)
+{
+    // Column-major: proj[0] is (col 0, row 0), proj[5] is (col 1, row 1).
+    const float p00 = proj[0];
+    const float p11 = proj[5];
+    if (p00 <= 0.0f || p11 <= 0.0f)
+    {
+        return;
+    }
+    const float gameAspect  = p11 / p00;
+    const float popupAspect = static_cast<float>(kBgfxWindowWidth) /
+                              static_cast<float>(kBgfxWindowHeight);
+    if (popupAspect <= 0.0f)
+    {
+        return;
+    }
+    const float scale = gameAspect / popupAspect;
+    proj[0] *= scale;
+    proj[1] *= scale;
+    proj[2] *= scale;
+    proj[3] *= scale;
 }
 
 // TheSuperHackers @bugfix bobtista 11/04/2026 Phase 4C.3 buffer copy
@@ -760,6 +842,142 @@ bgfx::IndexBufferHandle EnsureBgfxIndexBuffer(const IndexBufferClass * ib)
     return h;
 }
 
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4F.2 texture
+// capture. Unlike vertex buffers, W3D textures default to POOL_MANAGED,
+// which is safe to lock with D3DLOCK_READONLY on the Intel UHD driver.
+// We can read the source d3d8 texture data on demand from inside
+// Set_Texture without an engine-side write hook. POOL_DEFAULT textures
+// (render targets, dynamic textures) are skipped to avoid the same
+// corruption that hit vertex buffers.
+
+bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt)
+{
+    switch (fmt)
+    {
+        case WW3D_FORMAT_A8R8G8B8:
+        case WW3D_FORMAT_X8R8G8B8:
+            // D3D8 stores ARGB as 0xAARRGGBB which on little-endian
+            // memory is BB GG RR AA - matches bgfx BGRA8 byte order.
+            return bgfx::TextureFormat::BGRA8;
+        case WW3D_FORMAT_R5G6B5:    return bgfx::TextureFormat::R5G6B5;
+        case WW3D_FORMAT_A1R5G5B5:  return bgfx::TextureFormat::BGR5A1;
+        case WW3D_FORMAT_A4R4G4B4:  return bgfx::TextureFormat::BGRA4;
+        case WW3D_FORMAT_A8:        return bgfx::TextureFormat::A8;
+        case WW3D_FORMAT_L8:        return bgfx::TextureFormat::R8;
+        case WW3D_FORMAT_DXT1:      return bgfx::TextureFormat::BC1;
+        case WW3D_FORMAT_DXT2:
+        case WW3D_FORMAT_DXT3:      return bgfx::TextureFormat::BC2;
+        case WW3D_FORMAT_DXT4:
+        case WW3D_FORMAT_DXT5:      return bgfx::TextureFormat::BC3;
+        default:                    return bgfx::TextureFormat::Unknown;
+    }
+}
+
+bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
+{
+    if (tex == nullptr)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+    auto it = g_textureCache.find(tex);
+    if (it != g_textureCache.end())
+    {
+        return it->second;
+    }
+
+    // Only handle TextureClass (regular 2D) for now. Cube and volume
+    // textures take a different path and would need their own helpers.
+    TextureClass * tex2d = tex->As_TextureClass();
+    if (tex2d == nullptr)
+    {
+        g_textureCache[tex] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    if (tex->Get_Pool() == TextureBaseClass::POOL_DEFAULT)
+    {
+        // POOL_DEFAULT textures (render targets, dynamic) need a
+        // different code path. Skip for now.
+        g_textureCache[tex] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(tex2d->Get_Texture_Format());
+    if (bgfxFmt == bgfx::TextureFormat::Unknown)
+    {
+        g_textureCache[tex] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    IDirect3DBaseTexture8 * baseTex = tex->Peek_D3D_Base_Texture();
+    if (baseTex == nullptr)
+    {
+        // Texture not yet uploaded to D3D - the background loader thread
+        // may not have finished. DO NOT cache the failure: we want to
+        // retry on the next Set_Texture call so the bgfx handle gets
+        // populated as soon as the engine finishes loading. Otherwise a
+        // texture that was simply slow to load would stay white forever.
+        return BGFX_INVALID_HANDLE;
+    }
+
+    IDirect3DTexture8 * d3dTex = static_cast<IDirect3DTexture8 *>(baseTex);
+
+    D3DSURFACE_DESC desc;
+    if (FAILED(d3dTex->GetLevelDesc(0, &desc)))
+    {
+        g_textureCache[tex] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    D3DLOCKED_RECT locked = { 0 };
+    HRESULT hr = d3dTex->LockRect(0, &locked, NULL, D3DLOCK_READONLY);
+    if (FAILED(hr) || locked.pBits == NULL)
+    {
+        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxTexture LockRect failed hr=0x%08x", static_cast<unsigned>(hr)));
+        g_textureCache[tex] = BGFX_INVALID_HANDLE;
+        return BGFX_INVALID_HANDLE;
+    }
+
+    // Compute the byte size of the surface. For uncompressed formats it
+    // is height * pitch. For DXT it is height/4 * pitch (block-compressed).
+    const bool isCompressed =
+        bgfxFmt == bgfx::TextureFormat::BC1 ||
+        bgfxFmt == bgfx::TextureFormat::BC2 ||
+        bgfxFmt == bgfx::TextureFormat::BC3;
+
+    unsigned heightBlocks = desc.Height;
+    if (isCompressed)
+    {
+        heightBlocks = (desc.Height + 3) / 4;
+    }
+    const unsigned totalBytes = heightBlocks * static_cast<unsigned>(locked.Pitch);
+
+    const bgfx::Memory * mem = bgfx::copy(locked.pBits, totalBytes);
+    d3dTex->UnlockRect(0);
+
+    bgfx::TextureHandle h = bgfx::createTexture2D(
+        static_cast<uint16_t>(desc.Width),
+        static_cast<uint16_t>(desc.Height),
+        false, 1,
+        bgfxFmt,
+        BGFX_TEXTURE_NONE | BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC,
+        mem);
+
+    g_textureCache[tex] = h;
+
+    if (!g_loggedFirstBgfxTextureCreate)
+    {
+        g_loggedFirstBgfxTextureCreate = true;
+        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxTexture first create "
+                     "%dx%d ww3dfmt=%u bytes=%u handle=%s",
+                     desc.Width, desc.Height,
+                     static_cast<unsigned>(tex2d->Get_Texture_Format()),
+                     totalBytes,
+                     bgfx::isValid(h) ? "ok" : "FAILED"));
+    }
+    return h;
+}
+
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4D.3 Set_Shader
 // telemetry. The bgfx backend caches the picked program and state bits
 // for the most recent ShaderClass it received, and tracks the unique
@@ -804,9 +1022,7 @@ const char * ProgramDebugName(bgfx::ProgramHandle h)
 // Per-method "first call" flags so we can confirm the engine is routing
 // each entry point through the bgfx backend at least once. Logged once,
 // then suppressed to keep WWDebug.txt readable.
-bool g_loggedFirstApplyRenderState = false;
 bool g_loggedFirstSetTexture       = false;
-bool g_loggedFirstSetMaterial      = false;
 bool g_loggedFirstDrawTriangles    = false;
 bool g_loggedFirstSetVertexBuffer  = false;
 bool g_loggedFirstSetIndexBuffer   = false;
@@ -965,6 +1181,9 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     // createProgram(..., true) hands ownership of its shader handles to the
     // program, so we must NOT manually destroy them later.
     g_sTex0        = bgfx::createUniform("s_tex0",        bgfx::UniformType::Sampler);
+    g_sTex1        = bgfx::createUniform("s_tex1",        bgfx::UniformType::Sampler);
+    g_sTex2        = bgfx::createUniform("s_tex2",        bgfx::UniformType::Sampler);
+    g_sTex3        = bgfx::createUniform("s_tex3",        bgfx::UniformType::Sampler);
     g_uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
 
     // Phase 4F.1 default 1x1 white texture (opaque ABGR=0xffffffff).
@@ -1089,6 +1308,21 @@ void BgfxBackend::Shutdown()
             bgfx::destroy(g_sTex0);
             g_sTex0 = BGFX_INVALID_HANDLE;
         }
+        if (bgfx::isValid(g_sTex1))
+        {
+            bgfx::destroy(g_sTex1);
+            g_sTex1 = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_sTex2))
+        {
+            bgfx::destroy(g_sTex2);
+            g_sTex2 = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_sTex3))
+        {
+            bgfx::destroy(g_sTex3);
+            g_sTex3 = BGFX_INVALID_HANDLE;
+        }
         if (bgfx::isValid(g_uAtestParams))
         {
             bgfx::destroy(g_uAtestParams);
@@ -1117,9 +1351,25 @@ void BgfxBackend::Shutdown()
             }
         }
         g_ibCache.clear();
-        g_currentBgfxVB    = BGFX_INVALID_HANDLE;
-        g_currentBgfxIB    = BGFX_INVALID_HANDLE;
-        g_currentIBOffset  = 0;
+        for (auto & kv : g_textureCache)
+        {
+            if (bgfx::isValid(kv.second))
+            {
+                bgfx::destroy(kv.second);
+            }
+        }
+        g_textureCache.clear();
+        g_currentBgfxVB         = BGFX_INVALID_HANDLE;
+        g_currentBgfxIB         = BGFX_INVALID_HANDLE;
+        g_currentBgfxTexture0   = BGFX_INVALID_HANDLE;
+        g_currentBgfxTexture1   = BGFX_INVALID_HANDLE;
+        g_currentBgfxTexture2   = BGFX_INVALID_HANDLE;
+        g_currentBgfxTexture3   = BGFX_INVALID_HANDLE;
+        g_currentIBOffset       = 0;
+        g_currentUseTransientVB = false;
+        g_currentUseTransientIB = false;
+        g_pendingDynVB.valid    = false;
+        g_pendingDynIB.valid    = false;
         bgfx::shutdown();
         g_bgfxInitialized = false;
         WWDEBUG_SAY(("[BgfxBackend] bgfx::shutdown complete."));
@@ -1132,32 +1382,8 @@ void BgfxBackend::Shutdown()
     }
 }
 
-// -- Device state queries ----------------------------------------------------
-
-bool BgfxBackend::Is_Device_Lost() const
-{
-    return false;
-}
-
-bool BgfxBackend::Has_Stencil()
-{
-    return false;
-}
-
-WW3DFormat BgfxBackend::Get_Back_Buffer_Format()
-{
-    return WW3D_FORMAT_UNKNOWN;
-}
-
-SurfaceClass * BgfxBackend::Get_Back_Buffer(unsigned int /*num*/)
-{
-    return nullptr;
-}
-
-void BgfxBackend::Set_Gamma(float /*gamma*/, float /*bright*/, float /*contrast*/,
-                            bool /*calibrate*/, bool /*uselimit*/)
-{
-}
+// Device state queries (Is_Device_Lost / Has_Stencil / Get_Back_Buffer_Format
+// / Get_Back_Buffer / Set_Gamma) are inherited from DX8Backend.
 
 // -- Frame lifecycle ---------------------------------------------------------
 //
@@ -1228,26 +1454,24 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     }
     SubmitTestTriangle();
     bgfx::frame();
+
+    // Transient buffers are freed at bgfx::frame time. Invalidate the
+    // pending and current slots so nothing next frame tries to reuse
+    // a dead handle.
+    g_pendingDynVB.valid    = false;
+    g_pendingDynIB.valid    = false;
+    g_currentUseTransientVB = false;
+    g_currentUseTransientIB = false;
 }
 
-void BgfxBackend::Flip_To_Primary()
-{
-}
-
-void BgfxBackend::Clear(bool /*clear_color*/, bool /*clear_z_stencil*/,
-                        const Vector3 & /*color*/,
-                        float /*dest_alpha*/, float /*z*/, unsigned int /*stencil*/)
-{
-}
-
-void BgfxBackend::Set_Viewport(const RenderBackendViewport & /*viewport*/)
-{
-}
+// Flip_To_Primary, Clear, Set_Viewport are inherited from DX8Backend.
 
 // -- Vertex / index buffers --------------------------------------------------
 
-void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int /*stream*/)
+void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)
 {
+    DX8Backend::Set_Vertex_Buffer(vb, stream);
+
     if (!g_loggedFirstSetVertexBuffer && vb != nullptr)
     {
         g_loggedFirstSetVertexBuffer = true;
@@ -1264,6 +1488,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int /
     // there. Engine VBs that have not been written via the WriteLockClass
     // path yet (e.g. those filled by raw d3d8 calls) will miss the cache
     // and the bgfx submit will be skipped.
+    g_currentUseTransientVB = false;
     auto it = g_vbCache.find(vb);
     if (it != g_vbCache.end())
     {
@@ -1277,21 +1502,28 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int /
 
 void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 {
-    if (!g_loggedFirstSetVertexBuffer)
+    DX8Backend::Set_Vertex_Buffer(vba);
+
+    // Phase 4G.2: if the matching Capture_Dynamic_Vertex_Data already
+    // allocated a transient VB for this access class, claim it for the
+    // next draw. Otherwise miss the cache and skip the bgfx submit.
+    if (g_pendingDynVB.valid && g_pendingDynVB.owner == &vba)
     {
-        g_loggedFirstSetVertexBuffer = true;
-        const FVFInfoClass & fvf = vba.FVF_Info();
-        WWDEBUG_SAY(("[BgfxBackend] Set_Vertex_Buffer first call (dynamic VB path) "
-                     "fvf=0x%08x size=%u verts=%u type=%u",
-                     fvf.Get_FVF(),
-                     fvf.Get_FVF_Size(),
-                     vba.Get_Vertex_Count(),
-                     vba.Get_Type()));
+        g_currentUseTransientVB = true;
+        g_currentTransientVB    = g_pendingDynVB.tvb;
+        g_pendingDynVB.valid    = false;
+    }
+    else
+    {
+        g_currentUseTransientVB = false;
+        g_currentBgfxVB         = BGFX_INVALID_HANDLE;
     }
 }
 
 void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset)
 {
+    DX8Backend::Set_Index_Buffer(ib, index_base_offset);
+
     if (!g_loggedFirstSetIndexBuffer && ib != nullptr)
     {
         g_loggedFirstSetIndexBuffer = true;
@@ -1300,6 +1532,7 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
                      ib->Get_Index_Count(),
                      ib->Type()));
     }
+    g_currentUseTransientIB = false;
     auto it = g_ibCache.find(ib);
     if (it != g_ibCache.end())
     {
@@ -1312,21 +1545,26 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
     g_currentIBOffset = index_base_offset;
 }
 
-void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short /*index_base_offset*/)
+void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset)
 {
-    if (!g_loggedFirstSetIndexBuffer)
+    DX8Backend::Set_Index_Buffer(iba, index_base_offset);
+
+    if (g_pendingDynIB.valid && g_pendingDynIB.owner == &iba)
     {
-        g_loggedFirstSetIndexBuffer = true;
-        WWDEBUG_SAY(("[BgfxBackend] Set_Index_Buffer first call (dynamic IB path) "
-                     "indices=%u type=%u",
-                     iba.Get_Index_Count(),
-                     iba.Get_Type()));
+        g_currentUseTransientIB = true;
+        g_currentTransientIB    = g_pendingDynIB.tib;
+        g_pendingDynIB.valid    = false;
     }
+    else
+    {
+        g_currentUseTransientIB = false;
+        g_currentBgfxIB         = BGFX_INVALID_HANDLE;
+    }
+    g_currentIBOffset = index_base_offset;
 }
 
-void BgfxBackend::Set_Index_Buffer_Index_Offset(unsigned int /*offset*/)
-{
-}
+// Set_Index_Buffer_Index_Offset is inherited from DX8Backend so the dx8
+// device sees the binding.
 
 // -- Phase 4C.4 write-side capture -------------------------------------------
 //
@@ -1414,10 +1652,107 @@ void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
     }
 }
 
+// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2 dynamic
+// capture. DynamicVBAccessClass / DynamicIBAccessClass are CPU-side
+// views onto a ring buffer that changes every frame (particles, sprites,
+// skinned meshes, HUD). Creating a bgfx VB per frame would churn the
+// GPU allocator, so the bgfx side uses transient buffers which are
+// auto-freed at the next bgfx::frame.
+//
+// Flow: engine's WriteLockClass destructor calls this with the locked
+// sub-range. We alloc a transient buffer of exactly that size, memcpy
+// the data in, and stash the handle keyed by the access class pointer.
+// The matching Set_Vertex_Buffer(DynamicVBAccessClass&) later sees its
+// own pointer in g_pendingDynVB and claims the transient for the draw.
+
+void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
+                                              const void * data,
+                                              unsigned int size_bytes)
+{
+    if (!g_bgfxInitialized || vba == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vba->FVF_Info(), layout))
+    {
+        return;
+    }
+
+    const uint32_t num_verts = static_cast<uint32_t>(vba->Get_Vertex_Count());
+    if (num_verts == 0)
+    {
+        return;
+    }
+    if (bgfx::getAvailTransientVertexBuffer(num_verts, layout) < num_verts)
+    {
+        g_pendingDynVB.valid = false;
+        return;
+    }
+
+    bgfx::allocTransientVertexBuffer(&g_pendingDynVB.tvb, num_verts, layout);
+    const uint32_t copy_bytes = num_verts * layout.getStride();
+    const uint32_t bytes = (size_bytes < copy_bytes) ? size_bytes : copy_bytes;
+    std::memcpy(g_pendingDynVB.tvb.data, data, bytes);
+    g_pendingDynVB.owner = vba;
+    g_pendingDynVB.valid = true;
+
+    if (!g_loggedFirstDynVbCapture)
+    {
+        g_loggedFirstDynVbCapture = true;
+        WWDEBUG_SAY(("[BgfxBackend] Capture_Dynamic_Vertex_Data first "
+                     "fvf=0x%08x stride=%u verts=%u bytes=%u",
+                     vba->FVF_Info().Get_FVF(),
+                     layout.getStride(),
+                     num_verts,
+                     bytes));
+    }
+}
+
+void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
+                                             const void * data,
+                                             unsigned int size_bytes)
+{
+    if (!g_bgfxInitialized || iba == nullptr || data == nullptr || size_bytes == 0)
+    {
+        return;
+    }
+
+    const uint32_t num_indices = static_cast<uint32_t>(iba->Get_Index_Count());
+    if (num_indices == 0)
+    {
+        return;
+    }
+    if (bgfx::getAvailTransientIndexBuffer(num_indices) < num_indices)
+    {
+        g_pendingDynIB.valid = false;
+        return;
+    }
+
+    bgfx::allocTransientIndexBuffer(&g_pendingDynIB.tib, num_indices);
+    const uint32_t copy_bytes = num_indices * sizeof(uint16_t);
+    const uint32_t bytes = (size_bytes < copy_bytes) ? size_bytes : copy_bytes;
+    std::memcpy(g_pendingDynIB.tib.data, data, bytes);
+    g_pendingDynIB.owner = iba;
+    g_pendingDynIB.valid = true;
+
+    if (!g_loggedFirstDynIbCapture)
+    {
+        g_loggedFirstDynIbCapture = true;
+        WWDEBUG_SAY(("[BgfxBackend] Capture_Dynamic_Index_Data first "
+                     "indices=%u bytes=%u",
+                     num_indices,
+                     bytes));
+    }
+}
+
 // -- State: shaders, materials, textures ------------------------------------
 
 void BgfxBackend::Set_Shader(const ShaderClass & shader)
 {
+    DX8Backend::Set_Shader(shader);
+
     // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4D.3 cache the
     // picked program and state bits for the next draw call, and log any
     // shader bit pattern we have not seen before (capped at kMaxLoggedPresets
@@ -1438,109 +1773,41 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
     }
 }
 
-void BgfxBackend::Get_Shader(ShaderClass & /*shader*/)
+void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 {
-}
+    DX8Backend::Set_Texture(stage, texture);
 
-void BgfxBackend::Set_Material(const VertexMaterialClass * /*material*/)
-{
-    if (!g_loggedFirstSetMaterial)
-    {
-        g_loggedFirstSetMaterial = true;
-        WWDEBUG_SAY(("[BgfxBackend] Set_Material first call"));
-    }
-}
-
-void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * /*texture*/)
-{
     if (!g_loggedFirstSetTexture)
     {
         g_loggedFirstSetTexture = true;
         WWDEBUG_SAY(("[BgfxBackend] Set_Texture first call (stage=%u)", stage));
     }
-}
-
-void BgfxBackend::Apply_Render_State_Changes()
-{
-    if (!g_loggedFirstApplyRenderState)
+    // Phase 4G.3 / 4G.4: stages 0-3 wired. Covers terrain base + detail
+    // + cloud + noise, the standard 4-stage layout used by the
+    // FlatHeightMap pixel shader family. Stages above 3 still fall
+    // through unmigrated.
+    switch (stage)
     {
-        g_loggedFirstApplyRenderState = true;
-        WWDEBUG_SAY(("[BgfxBackend] Apply_Render_State_Changes first call"));
+        case 0: g_currentBgfxTexture0 = EnsureBgfxTexture(texture); break;
+        case 1: g_currentBgfxTexture1 = EnsureBgfxTexture(texture); break;
+        case 2: g_currentBgfxTexture2 = EnsureBgfxTexture(texture); break;
+        case 3: g_currentBgfxTexture3 = EnsureBgfxTexture(texture); break;
+        default: break;
     }
 }
 
-void BgfxBackend::Apply_Default_State()
-{
-}
-
-void BgfxBackend::Invalidate_Cached_Render_States()
-{
-}
-
-void BgfxBackend::Set_Blend_Op(BlendOp /*op*/)
-{
-}
-
-void BgfxBackend::Set_Blend_Factors(BlendFactor /*src*/, BlendFactor /*dest*/)
-{
-}
-
-void BgfxBackend::Set_Color_Write_Enable(bool /*red*/, bool /*green*/, bool /*blue*/, bool /*alpha*/)
-{
-}
-
-void BgfxBackend::Set_Alpha_Blend_Enable(bool /*enable*/)
-{
-}
-
-void BgfxBackend::Show_Hardware_Cursor(bool /*show*/)
-{
-}
-
-void BgfxBackend::Set_Hardware_Cursor_Image(int /*hotspot_x*/, int /*hotspot_y*/, SurfaceClass * /*surface*/)
-{
-}
-
-void BgfxBackend::Set_Hardware_Cursor_Position(int /*x*/, int /*y*/)
-{
-}
-
-void BgfxBackend::Set_Stencil_Enable(bool /*enable*/)
-{
-}
-
-void BgfxBackend::Set_Stencil_Func(CompareFunc /*func*/)
-{
-}
-
-void BgfxBackend::Set_Stencil_Ref(unsigned int /*ref*/)
-{
-}
-
-void BgfxBackend::Set_Stencil_Mask(unsigned int /*mask*/)
-{
-}
-
-void BgfxBackend::Set_Stencil_Write_Mask(unsigned int /*mask*/)
-{
-}
-
-void BgfxBackend::Set_Stencil_Pass_Op(StencilOp /*op*/)
-{
-}
-
-void BgfxBackend::Set_Stencil_Fail_Op(StencilOp /*op*/)
-{
-}
-
-void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp /*op*/)
-{
-}
+// Get_Shader, Set_Material, Apply_Render_State_Changes, Apply_Default_State,
+// Invalidate_Cached_Render_States, Set_Blend_Op, Set_Blend_Factors,
+// Set_Color_Write_Enable, Set_Alpha_Blend_Enable, hardware cursor, and
+// Set_Stencil_* are all inherited from DX8Backend and forward unchanged
+// to DX8Wrapper.
 
 // -- Transforms --------------------------------------------------------------
 
 void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
 {
+    DX8Backend::Set_Transform(transform, m);
+
     switch (transform)
     {
         case RB_TRANSFORM_WORLD:
@@ -1566,6 +1833,7 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
             break;
         case RB_TRANSFORM_PROJECTION:
             W3DMatrix4ToBgfx(m, g_bgfxProj);
+            ApplyPopupAspectCorrection(g_bgfxProj);
             g_bgfxViewProjDirty = true;
             if (!g_loggedFirstSetProj)
             {
@@ -1582,6 +1850,8 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
 
 void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
 {
+    DX8Backend::Set_Transform(transform, m);
+
     switch (transform)
     {
         case RB_TRANSFORM_WORLD:
@@ -1610,35 +1880,29 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
     }
 }
 
-void BgfxBackend::Get_Transform(TransformKind /*transform*/, Matrix4x4 & /*m*/)
-{
-}
+// Get_Transform / Is_World_Identity / Is_View_Identity are inherited
+// from DX8Backend.
 
 void BgfxBackend::Set_World_Identity()
 {
+    DX8Backend::Set_World_Identity();
     IdentityMatrix(g_bgfxWorld);
 }
 
 void BgfxBackend::Set_View_Identity()
 {
+    DX8Backend::Set_View_Identity();
     IdentityMatrix(g_bgfxView);
     g_bgfxViewProjDirty = true;
 }
 
-bool BgfxBackend::Is_World_Identity()
-{
-    return true;
-}
-
-bool BgfxBackend::Is_View_Identity()
-{
-    return true;
-}
-
 void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
-                                                       float /*znear*/, float /*zfar*/)
+                                                       float znear, float zfar)
 {
+    DX8Backend::Set_Projection_Transform_With_Z_Bias(matrix, znear, zfar);
+
     W3DMatrix4ToBgfx(matrix, g_bgfxProj);
+    ApplyPopupAspectCorrection(g_bgfxProj);
     g_bgfxViewProjDirty = true;
     if (!g_loggedFirstSetProj)
     {
@@ -1649,39 +1913,9 @@ void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
     }
 }
 
-// -- Lighting and fog --------------------------------------------------------
-
-void BgfxBackend::Set_Light(unsigned int /*index*/, const LightClass & /*light*/)
-{
-}
-
-void BgfxBackend::Set_Ambient(const Vector3 & /*color*/)
-{
-}
-
-const Vector3 & BgfxBackend::Get_Ambient() const
-{
-    return kZeroVec3;
-}
-
-void BgfxBackend::Set_Fog(bool /*enable*/, const Vector3 & /*color*/,
-                          float /*start*/, float /*end*/)
-{
-}
-
-bool BgfxBackend::Get_Fog_Enable() const
-{
-    return false;
-}
-
-void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * /*light_env*/)
-{
-}
-
-LightEnvironmentClass * BgfxBackend::Get_Light_Environment() const
-{
-    return nullptr;
-}
+// Lighting and fog (Set_Light, Set_Ambient, Get_Ambient, Set_Fog,
+// Get_Fog_Enable, Set_Light_Environment, Get_Light_Environment) are
+// inherited from DX8Backend.
 
 // -- Draw calls --------------------------------------------------------------
 
@@ -1709,9 +1943,13 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         return;
     }
-    if (!bgfx::isValid(g_currentBgfxVB) ||
-        !bgfx::isValid(g_currentBgfxIB) ||
-        !bgfx::isValid(g_currentBgfxProgram))
+    if (!bgfx::isValid(g_currentBgfxProgram))
+    {
+        return;
+    }
+    const bool have_vb = g_currentUseTransientVB || bgfx::isValid(g_currentBgfxVB);
+    const bool have_ib = g_currentUseTransientIB || bgfx::isValid(g_currentBgfxIB);
+    if (!have_vb || !have_ib)
     {
         return;
     }
@@ -1729,19 +1967,78 @@ void SubmitEngineDraw(unsigned short start_index,
     // and resets the per-draw transform after each submit.
     bgfx::setTransform(g_bgfxWorld);
 
-    bgfx::setVertexBuffer(0, g_currentBgfxVB, min_vertex_index, vertex_count);
-    bgfx::setIndexBuffer(g_currentBgfxIB,
-                         static_cast<uint32_t>(g_currentIBOffset) + start_index,
-                         static_cast<uint32_t>(polygon_count) * 3);
-
-    // Bind the default 1x1 white texture to stage 0. Real Set_Texture
-    // wiring is not in place yet, so this is a placeholder so the
-    // textured shaders have a valid sampler. The shader does
-    // texColor * v_color0 so white-on-vertex-color renders the vertex
-    // color through unmodified.
-    if (bgfx::isValid(g_defaultWhiteTexture) && bgfx::isValid(g_sTex0))
+    if (g_currentUseTransientVB)
     {
-        bgfx::setTexture(0, g_sTex0, g_defaultWhiteTexture);
+        bgfx::setVertexBuffer(0, &g_currentTransientVB, min_vertex_index, vertex_count);
+    }
+    else
+    {
+        bgfx::setVertexBuffer(0, g_currentBgfxVB, min_vertex_index, vertex_count);
+    }
+
+    if (g_currentUseTransientIB)
+    {
+        bgfx::setIndexBuffer(&g_currentTransientIB,
+                             start_index,
+                             static_cast<uint32_t>(polygon_count) * 3);
+    }
+    else
+    {
+        bgfx::setIndexBuffer(g_currentBgfxIB,
+                             static_cast<uint32_t>(g_currentIBOffset) + start_index,
+                             static_cast<uint32_t>(polygon_count) * 3);
+    }
+
+    // Phase 4F.2 / 4G.3 bind engine textures on stages 0 and 1 by
+    // Set_Texture, falling back to the 1x1 white default if no real
+    // texture is cached. The default white * vertex color = vertex color,
+    // which keeps untextured draws visible until every texture path
+    // is migrated. For stage 1, white is also the multiplicative
+    // identity, so single-texture draws (which don't bind stage 1) are
+    // unaffected by the second sample.
+    if (bgfx::isValid(g_sTex0))
+    {
+        const bgfx::TextureHandle bound =
+            bgfx::isValid(g_currentBgfxTexture0)
+                ? g_currentBgfxTexture0
+                : g_defaultWhiteTexture;
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(0, g_sTex0, bound);
+        }
+    }
+    if (bgfx::isValid(g_sTex1))
+    {
+        const bgfx::TextureHandle bound =
+            bgfx::isValid(g_currentBgfxTexture1)
+                ? g_currentBgfxTexture1
+                : g_defaultWhiteTexture;
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(1, g_sTex1, bound);
+        }
+    }
+    if (bgfx::isValid(g_sTex2))
+    {
+        const bgfx::TextureHandle bound =
+            bgfx::isValid(g_currentBgfxTexture2)
+                ? g_currentBgfxTexture2
+                : g_defaultWhiteTexture;
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(2, g_sTex2, bound);
+        }
+    }
+    if (bgfx::isValid(g_sTex3))
+    {
+        const bgfx::TextureHandle bound =
+            bgfx::isValid(g_currentBgfxTexture3)
+                ? g_currentBgfxTexture3
+                : g_defaultWhiteTexture;
+        if (bgfx::isValid(bound))
+        {
+            bgfx::setTexture(3, g_sTex3, bound);
+        }
     }
 
     // Use the cached state if it was built; otherwise fall back to a
@@ -1771,6 +2068,8 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
                                  unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
+    DX8Backend::Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
+
     if (!g_loggedFirstDrawTriangles)
     {
         g_loggedFirstDrawTriangles = true;
@@ -1780,12 +2079,14 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
     SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
 }
 
-void BgfxBackend::Draw_Triangles(unsigned int /*buffer_type*/,
+void BgfxBackend::Draw_Triangles(unsigned int buffer_type,
                                  unsigned short start_index,
                                  unsigned short polygon_count,
                                  unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
+    DX8Backend::Draw_Triangles(buffer_type, start_index, polygon_count, min_vertex_index, vertex_count);
+
     if (!g_loggedFirstDrawTriangles)
     {
         g_loggedFirstDrawTriangles = true;
@@ -1795,52 +2096,7 @@ void BgfxBackend::Draw_Triangles(unsigned int /*buffer_type*/,
     SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
 }
 
-void BgfxBackend::Draw_Strip(unsigned short /*start_index*/,
-                             unsigned short /*index_count*/,
-                             unsigned short /*min_vertex_index*/,
-                             unsigned short /*vertex_count*/)
-{
-}
-
-// -- Programmable pipeline ---------------------------------------------------
-
-void BgfxBackend::Set_Vertex_Shader(unsigned long /*vertex_shader*/)
-{
-}
-
-void BgfxBackend::Set_Pixel_Shader(unsigned long /*pixel_shader*/)
-{
-}
-
-void BgfxBackend::Set_Vertex_Shader_Constant(int /*reg*/, const void * /*data*/, int /*count*/)
-{
-}
-
-void BgfxBackend::Set_Pixel_Shader_Constant(int /*reg*/, const void * /*data*/, int /*count*/)
-{
-}
-
-// -- Render targets ----------------------------------------------------------
-
-TextureClass * BgfxBackend::Create_Render_Target(int /*width*/, int /*height*/, WW3DFormat /*format*/)
-{
-    return nullptr;
-}
-
-void BgfxBackend::Set_Render_Target_With_Z(TextureClass * /*texture*/, ZTextureClass * /*ztexture*/)
-{
-}
-
-bool BgfxBackend::Is_Render_To_Texture()
-{
-    return false;
-}
-
-void BgfxBackend::Set_Shadow_Map(int /*idx*/, ZTextureClass * /*ztex*/)
-{
-}
-
-ZTextureClass * BgfxBackend::Get_Shadow_Map(int /*idx*/)
-{
-    return nullptr;
-}
+// Draw_Strip, the programmable pipeline (Set_Vertex_Shader, Set_Pixel_Shader,
+// Set_Vertex_Shader_Constant, Set_Pixel_Shader_Constant), and render targets
+// (Create_Render_Target, Set_Render_Target_With_Z, Is_Render_To_Texture,
+// Set_Shadow_Map, Get_Shadow_Map) are inherited from DX8Backend.
