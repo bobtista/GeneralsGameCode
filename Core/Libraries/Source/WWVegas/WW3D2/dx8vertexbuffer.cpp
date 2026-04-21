@@ -88,6 +88,7 @@ VertexBufferClass::VertexBufferClass(unsigned type_, unsigned FVF, unsigned shor
 	type(type_),
 	engine_refs(0)
 {
+	m_backendHandle = kInvalidRenderResource;
 	WWMEMLOG(MEM_RENDERER);
 	WWASSERT(VertexCount);
 	WWASSERT(type==BUFFER_TYPE_DX8 || type==BUFFER_TYPE_SORTING);

@@ -410,3 +410,16 @@ ZTextureClass * DiligentBackend::Get_Shadow_Map(int /*idx*/) const
 {
     return nullptr;
 }
+
+// -- Resource creation (Phase 5 asset ingress — stubs) -----------------------
+
+RenderResource DiligentBackend::Create_Texture(const TextureDesc & /*desc*/)              { return kInvalidRenderResource; }
+RenderResource DiligentBackend::Create_Vertex_Buffer(const BufferDesc & /*desc*/, const void * /*initial_data*/) { return kInvalidRenderResource; }
+RenderResource DiligentBackend::Create_Index_Buffer(const BufferDesc & /*desc*/, const void * /*initial_data*/, bool /*indices_are_32bit*/) { return kInvalidRenderResource; }
+RenderResource DiligentBackend::Create_Dynamic_Vertex_Buffer(const BufferDesc & /*desc*/) { return kInvalidRenderResource; }
+RenderResource DiligentBackend::Create_Dynamic_Index_Buffer(const BufferDesc & /*desc*/, bool /*indices_are_32bit*/) { return kInvalidRenderResource; }
+void * DiligentBackend::Map_Dynamic(RenderResource /*h*/, unsigned int /*offset*/, unsigned int /*size*/, bool /*discard*/) { return nullptr; }
+void DiligentBackend::Unmap_Dynamic(RenderResource /*h*/) {}
+void DiligentBackend::Update_Sub_Range(RenderResource /*h*/, unsigned int /*offset*/, const void * /*data*/, unsigned int /*size*/) {}
+void DiligentBackend::Destroy_Resource(RenderResource /*h*/) {}
+void DiligentBackend::Begin_Dynamic_Frame() {}
