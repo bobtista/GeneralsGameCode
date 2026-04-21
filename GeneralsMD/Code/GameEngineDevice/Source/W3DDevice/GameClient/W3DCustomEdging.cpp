@@ -367,7 +367,7 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 	g_renderBackend->Set_Texture(1,edgeTex);
 	g_renderBackend->Apply_Render_State_Changes();
 
-	g_renderBackend->Override_Alpha_Test(true, 0x7B, D3DCMP_LESSEQUAL);
+	g_renderBackend->Override_Alpha_Test(true, 0x7B, RB_CMP_LESS_EQUAL);
 	g_renderBackend->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 
 	g_renderBackend->Set_Texture(0,edgeTex);
@@ -375,7 +375,7 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 	// Draw the custom edge.
 	g_renderBackend->Apply_Render_State_Changes();
 
-	g_renderBackend->Override_Alpha_Test(true, 0x84, D3DCMP_GREATEREQUAL);
+	g_renderBackend->Override_Alpha_Test(true, 0x84, RB_CMP_GREATER_EQUAL);
 	g_renderBackend->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 
 #if 0 // Dumps out unmasked data.
@@ -403,8 +403,8 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2 );
 		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1 );
 #endif
-		g_renderBackend->Override_Alpha_Test(true, 0x80, D3DCMP_NOTEQUAL);
-		g_renderBackend->Override_Blend(D3DBLEND_DESTCOLOR, D3DBLEND_ZERO);
+		g_renderBackend->Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
+		g_renderBackend->Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 		g_renderBackend->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 	}
 	if (noiseTexture) {
@@ -414,8 +414,8 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 		g_renderBackend->Set_Texture(1,edgeTex);
 		g_renderBackend->Apply_Render_State_Changes();
 
-		g_renderBackend->Override_Alpha_Test(true, 0x80, D3DCMP_NOTEQUAL);
-		g_renderBackend->Override_Blend(D3DBLEND_DESTCOLOR, D3DBLEND_ZERO);
+		g_renderBackend->Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
+		g_renderBackend->Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 		g_renderBackend->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 	}
 }
