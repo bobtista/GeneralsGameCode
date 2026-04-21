@@ -275,27 +275,38 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	_GameHwndForBgfx = (HWND)hwnd;
 	{
-		WNDCLASSEXW wc = {};
-		wc.cbSize = sizeof(WNDCLASSEXW);
-		wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-		wc.lpfnWndProc = DefWindowProcW;
-		wc.hInstance = GetModuleHandleW(nullptr);
-		wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
-		wc.lpszClassName = L"GGC_DX8RefWindow";
-		RegisterClassExW(&wc);
+		HINSTANCE hInst = GetModuleHandleW(nullptr);
+		// Idempotent registration: RegisterClassExW fails if the class already exists (e.g. Init/Shutdown/Init cycles where Shutdown missed the unregister). GetClassInfoExW probe keeps the path recoverable.
+		WNDCLASSEXW existing = {};
+		existing.cbSize = sizeof(WNDCLASSEXW);
+		if (!GetClassInfoExW(hInst, L"GGC_DX8RefWindow", &existing))
+		{
+			WNDCLASSEXW wc = {};
+			wc.cbSize = sizeof(WNDCLASSEXW);
+			wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
+			wc.lpfnWndProc = DefWindowProcW;
+			wc.hInstance = hInst;
+			wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
+			wc.lpszClassName = L"GGC_DX8RefWindow";
+			if (RegisterClassExW(&wc) == 0)
+			{
+				WWDEBUG_SAY(("[DX8Wrapper] RegisterClassExW(GGC_DX8RefWindow) failed lastError=0x%lx", (unsigned long)GetLastError()));
+				return false;
+			}
+		}
 
-		// Create the window hidden — it will be shown later after
-		// the game's input system is fully initialized. Creating it
-		// visible during Init steals focus and blocks mouse capture.
+		// Create the window hidden — it will be shown later after the game's input system is fully initialized. Creating it visible during Init steals focus and blocks mouse capture. Initial 800x600 is a placeholder; Resize_And_Position_Window will move and size it to match the main game window once the resolution is known.
 		HWND refWnd = CreateWindowExW(
 			WS_EX_NOACTIVATE, L"GGC_DX8RefWindow", L"DX8 reference",
 			WS_OVERLAPPEDWINDOW,
 			CW_USEDEFAULT, CW_USEDEFAULT, 800, 600,
-			nullptr, nullptr, GetModuleHandleW(nullptr), nullptr);
-		if (refWnd)
+			nullptr, nullptr, hInst, nullptr);
+		if (refWnd == nullptr)
 		{
-			hwnd = refWnd;
+			WWDEBUG_SAY(("[DX8Wrapper] CreateWindowExW(GGC_DX8RefWindow) failed lastError=0x%lx", (unsigned long)GetLastError()));
+			return false;
 		}
+		hwnd = refWnd;
 	}
 #endif
 
