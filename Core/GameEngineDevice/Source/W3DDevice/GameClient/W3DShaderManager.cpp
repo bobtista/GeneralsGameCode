@@ -1594,19 +1594,29 @@ Int TerrainShader2Stage::init()
 	//no special device validation needed - anything in our min spec should handle this.
 
 	W3DShaders[W3DShaderManager::ST_TERRAIN_BASE]=&terrainShader2Stage;
-	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE]=2;
 	W3DShaders[W3DShaderManager::ST_TERRAIN_BASE_NOISE1]=&terrainShader2Stage;
-	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE1]=3;
 	W3DShaders[W3DShaderManager::ST_TERRAIN_BASE_NOISE2]=&terrainShader2Stage;
-	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE2]=3;
 	W3DShaders[W3DShaderManager::ST_TERRAIN_BASE_NOISE12]=&terrainShader2Stage;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @feature bobtista 19/04/2026 bgfx does terrain blend
+	// in a single pass. Cloud/noise passes (2,3) are not yet supported.
+	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE]=1;
+	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE1]=1;
+	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE2]=1;
+	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE12]=1;
+#else
+	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE]=2;
+	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE1]=3;
+	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE2]=3;
 	W3DShadersPassCount[W3DShaderManager::ST_TERRAIN_BASE_NOISE12]=3;
+#endif
 
 	return TRUE;
 }
 
 void TerrainShader2Stage::reset()
 {
+	g_renderBackend->Override_Terrain_Blend(false);
 	ShaderClass::Invalidate();
 
 	//Free references to textures
@@ -1660,9 +1670,15 @@ Int TerrainShader2Stage::set(Int pass)
 	if (!s_loggedTerrainShader)
 	{
 		s_loggedTerrainShader = true;
-		WWDEBUG_SAY(("[BgfxBackend] TerrainShader2Stage::set first fire pass=%d", pass));
+		WWDEBUG_SAY(("[W3DShaderManager] TerrainShader2Stage::set first fire pass=%d", pass));
 	}
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @feature bobtista 19/04/2026 bgfx blends base and
+	// per-tile textures in a single pass via the uber shader's terrain
+	// blend path. Pass 0 has stage 0 = base texture (from shader manager)
+	// and stage 1 = per-tile blend texture (from drawVisiblePolys).
 	g_renderBackend->Override_Terrain_Blend(true);
+#endif
 
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
@@ -1808,6 +1824,11 @@ Int TerrainShader2Stage::set(Int pass)
 
 Int TerrainShader8Stage::init()
 {
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @feature bobtista 19/04/2026 8-stage multi-texture
+	// is invisible to bgfx. Fall through to the 2Stage variant.
+	return FALSE;
+#endif
 	ChipsetType res;
 
 	//this shader will also use the 2Stage shader for some of the passes so initialize it too.
@@ -1835,7 +1856,7 @@ Int TerrainShader8Stage::set(Int pass)
 		if (!s_logged8Stage)
 		{
 			s_logged8Stage = true;
-			WWDEBUG_SAY(("[BgfxBackend] TerrainShader8Stage::set first fire"));
+			WWDEBUG_SAY(("[W3DShaderManager] TerrainShader8Stage::set first fire"));
 		}
 		g_renderBackend->Override_Terrain_Blend(true);
 
@@ -1954,6 +1975,7 @@ Int TerrainShader8Stage::set(Int pass)
 
 void TerrainShader8Stage::reset()
 {
+	g_renderBackend->Override_Terrain_Blend(false);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 2, D3DTSS_COLOROP, D3DTOP_DISABLE);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 2, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 3, D3DTSS_COLOROP, D3DTOP_DISABLE);
@@ -1989,6 +2011,11 @@ Int TerrainShaderPixelShader::init()
 	Int res;
 #ifdef DISABLE_PIXEL_SHADERS
 	return false;
+#endif
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @feature bobtista 19/04/2026 D3D8 pixel shaders are
+	// invisible to bgfx. Fall through to the 2Stage variant.
+	return FALSE;
 #endif
 	//this shader will also use the 2Stage shader for some of the passes so initialize it too.
 	if (terrainShader2Stage.init() && (res=W3DShaderManager::getChipset()) >= DC_GENERIC_PIXEL_SHADER_1_1)
@@ -2038,7 +2065,9 @@ Int TerrainShaderPixelShader::init()
 
 Int TerrainShaderPixelShader::set(Int pass)
 {
-	g_renderBackend->Override_Terrain_Blend(true);
+	// Do not set terrain blend — the D3D8 pixel shader binds textures
+	// differently than what the bgfx terrain blend path expects. The
+	// normal TSS path handles the texture operations correctly.
 
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
@@ -2146,6 +2175,7 @@ Int TerrainShaderPixelShader::set(Int pass)
 
 void TerrainShaderPixelShader::reset()
 {
+	g_renderBackend->Override_Terrain_Blend(false);
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(2,nullptr);	//release reference to any texture
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(3,nullptr);	//release reference to any texture
 
@@ -3296,19 +3326,27 @@ Int FlatTerrainShader2Stage::init()
 	//no special device validation needed - anything in our min spec should handle this.
 
 	W3DShaders[W3DShaderManager::ST_FLAT_TERRAIN_BASE]=&flatTerrainShader2Stage;
-	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE]=1;
 	W3DShaders[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE1]=&flatTerrainShader2Stage;
-	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE1]=2;
 	W3DShaders[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE2]=&flatTerrainShader2Stage;
-	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE2]=2;
 	W3DShaders[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12]=&flatTerrainShader2Stage;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE]=1;
+	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE1]=1;
+	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE2]=1;
+	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12]=1;
+#else
+	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE]=1;
+	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE1]=2;
+	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE2]=2;
 	W3DShadersPassCount[W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12]=2;
+#endif
 
 	return TRUE;
 }
 
 void FlatTerrainShader2Stage::reset()
 {
+	g_renderBackend->Override_Terrain_Blend(false);
 	ShaderClass::Invalidate();
 
 	//Free references to textures
@@ -3326,8 +3364,10 @@ void FlatTerrainShader2Stage::reset()
 Int FlatTerrainShader2Stage::set(Int pass)
 {
 	static bool s_loggedFlat2 = false;
-	if (!s_loggedFlat2) { s_loggedFlat2 = true; WWDEBUG_SAY(("[BgfxBackend] FlatTerrainShader2Stage::set first fire pass=%d", pass)); }
+	if (!s_loggedFlat2) { s_loggedFlat2 = true; WWDEBUG_SAY(("[W3DShaderManager] FlatTerrainShader2Stage::set first fire pass=%d", pass)); }
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	g_renderBackend->Override_Terrain_Blend(true);
+#endif
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
 
@@ -3545,6 +3585,14 @@ Int FlatTerrainShaderPixelShader::init()
 	return false;
 #endif
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @feature bobtista 19/04/2026 D3D8 pixel shaders are
+	// invisible to the bgfx backend. Skip pixel shader terrain variants so
+	// the 2Stage fallback is used — it sets proper TSS ops that the bgfx
+	// uber shader can interpret.
+	return FALSE;
+#endif
+
 	//this shader will also use the 2Stage shader for some of the passes so initialize it too.
 	if ((res=W3DShaderManager::getChipset()) >= DC_GENERIC_PIXEL_SHADER_1_1)
 	{
@@ -3598,7 +3646,8 @@ Int FlatTerrainShaderPixelShader::init()
 
 Int FlatTerrainShaderPixelShader::set(Int pass)
 {
-	g_renderBackend->Override_Terrain_Blend(true);
+	// Do not set terrain blend — flat terrain uses a single texture
+	// with vertex-colored lighting, not a two-texture blend.
 	//setup base pass
 	Int curStage = 1;
 	// setup terrain [3/31/2003]
@@ -3752,6 +3801,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 
 void FlatTerrainShaderPixelShader::reset()
 {
+	g_renderBackend->Override_Terrain_Blend(false);
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(2,nullptr);	//release reference to any texture
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(3,nullptr);	//release reference to any texture
 

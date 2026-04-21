@@ -70,6 +70,12 @@ include(cmake/lzhl.cmake)
 # IS_VS6_BUILD) and before Core is added (which references the backend flag).
 include(cmake/render-backend.cmake)
 
+# TheSuperHackers @build bobtista 19/04/2026 Propagate the render backend
+# compile define globally so all targets can #if on it, not just WW3D2.
+if(DEFINED GGC_RENDER_BACKEND_COMPILE_DEFINE)
+    add_compile_definitions(${GGC_RENDER_BACKEND_COMPILE_DEFINE})
+endif()
+
 if (IS_VS6_BUILD)
     # The original max sdk does not compile against a modern compiler.
     # If there is a desire to make this work, then a fixed max sdk needs to be created.
