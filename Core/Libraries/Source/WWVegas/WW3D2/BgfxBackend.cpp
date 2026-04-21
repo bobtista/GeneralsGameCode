@@ -39,6 +39,7 @@
 #include "matrix4.h"
 #include "shader.h"
 #include "texture.h"
+#include "texturefilter.h"
 #include "vector3.h"
 #include "ww3dformat.h"
 #include "wwdebug.h"
@@ -101,8 +102,8 @@ const wchar_t * const kBgfxWindowClass = L"GGC_BgfxDebugWindow";
 // dimensions chosen to match the game's 1.6 aspect ratio (1280x800)
 // so engine geometry rendered with the game's projection matrix
 // does not look horizontally squished.
-const int kBgfxWindowWidth  = 800;
-const int kBgfxWindowHeight = 500;
+const int kBgfxWindowWidth  = 1024;
+const int kBgfxWindowHeight = 768;
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.3 program handle
 // for the passthrough shader pair. Created once in Initialize after bgfx::init
@@ -139,6 +140,24 @@ float               g_currentTssOps0[4] = { 3.0f, 3.0f, 0.0f, 0.0f }; // default
 float               g_currentTssOps1[4] = { 0.0f, 0.0f, 0.0f, 0.0f }; // default: arg1=TEXTURE for all
 float               g_currentAtestRef   = 0.0f; // alpha test reference, 0 = disabled
 
+// Post-ShaderClass blend/alpha-test overrides. Set by Override_Blend /
+// Override_Alpha_Test, cleared by Clear_State_Overrides (called from Set_Shader).
+bool                g_blendOverrideActive = false;
+uint64_t            g_blendOverrideBits  = 0;
+bool                g_atestOverrideActive = false;
+float               g_atestOverrideRef   = 0.0f;
+bool                g_suppressBgfxDraw   = false;
+int                 g_colorWriteOverride = -1;
+bool                g_effectOverlayActive = false;
+
+// UV set selection: when > 0, the fragment shader samples stage 0
+// from v_texcoord1 instead of v_texcoord0. Set by the terrain shader
+// when it changes D3DTSS_TEXCOORDINDEX to 1 for the blend pass.
+bgfx::UniformHandle g_uTexcoordSelect = BGFX_INVALID_HANDLE;
+float               g_currentTexcoordSelect[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+// .y = terrain blend flag: when > 0, shader does lerp(tex0, tex1, vertex_alpha)
+// using UV set 0 for tex0 and UV set 1 for tex1
+
 // Phase 5B: lighting uniforms. The engine supports up to 4 lights
 // (typically 1 directional sun + 0-3 point lights). We pack light data
 // into vec4 arrays and push them per-draw so the uber fragment shader
@@ -166,6 +185,11 @@ float               g_currentLightColors[4][4] = {
     { 0.0f, 0.0f, 0.0f, 0.0f }
 };
 float               g_currentSceneAmbient[4] = { 0.45f, 0.45f, 0.45f, 1.0f };
+
+// Phase 5B UV animation: texture transform for stage 0.
+// Packed as (scaleU, scaleV, offsetU, offsetV). Default = identity (1,1,0,0).
+bgfx::UniformHandle g_uTexTransform0 = BGFX_INVALID_HANDLE;
+float               g_currentTexTransform0[4] = { 1.0f, 1.0f, 0.0f, 0.0f };
 // Phase 5B: tracks whether the current material has lighting enabled.
 // When false, the vertex color contains pre-baked lighting (terrain)
 // and the fragment shader should NOT apply N.L lighting on top.
@@ -178,6 +202,19 @@ float               g_currentLightingEnabled[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
 // because the fragment shader does texColor * v_color0 - white * vc
 // gives the vertex color through unmodified.
 bgfx::TextureHandle g_defaultWhiteTexture = BGFX_INVALID_HANDLE;
+bgfx::TextureHandle g_defaultTransparentTexture = BGFX_INVALID_HANDLE;
+// Track which engine textures are render targets so we can use the
+// transparent fallback instead of white.
+std::unordered_map<const TextureBaseClass *, bool> g_renderTargetSet;
+
+struct BgfxFramebufferEntry
+{
+    bgfx::FrameBufferHandle fb;
+    bgfx::TextureHandle     colorTex;
+    uint16_t                width;
+    uint16_t                height;
+};
+std::unordered_map<const TextureBaseClass *, BgfxFramebufferEntry> g_framebufferCache;
 
 // Vertex layout used by the test triangle. Position + packed RGBA color.
 // Initialized in Initialize since bgfx::VertexLayout::begin needs bgfx to be
@@ -723,9 +760,21 @@ std::unordered_map<const TextureBaseClass *,  bgfx::TextureHandle>             g
 // SubmitEngineDraw - falls back to g_defaultWhiteTexture if invalid.
 bgfx::TextureHandle g_currentBgfxTexture0 = BGFX_INVALID_HANDLE;
 bgfx::TextureHandle g_currentBgfxTexture1 = BGFX_INVALID_HANDLE;
+// Track texture names for diagnostics
+const char * g_currentTexName0 = "";
+const char * g_currentTexName1 = "";
 bgfx::TextureHandle g_currentBgfxTexture2 = BGFX_INVALID_HANDLE;
 bgfx::TextureHandle g_currentBgfxTexture3 = BGFX_INVALID_HANDLE;
-bool g_loggedFirstBgfxTextureCreate = false;
+
+// Per-stage sampler flags captured from the source TextureClass's
+// Get_U/V_Addr_Mode in Set_Texture. Default 0 = use bgfx's creation-time
+// default (usually linear filter + wrap). Shoreline LUT needs CLAMP
+// because its U coord can exceed [0,1] and WRAP produces a visible
+// stripe/checker artifact at the boundary.
+uint32_t g_currentSamplerFlags0 = 0;
+uint32_t g_currentSamplerFlags1 = 0;
+uint32_t g_currentSamplerFlags2 = 0;
+uint32_t g_currentSamplerFlags3 = 0;
 
 // The most recent buffers and offsets cached from Set_Vertex_Buffer /
 // Set_Index_Buffer. Read by Draw_Triangles when it issues the bgfx
@@ -763,12 +812,6 @@ bgfx::TransientVertexBuffer g_currentTransientVB    = {};
 bool                        g_currentUseTransientIB = false;
 bgfx::TransientIndexBuffer  g_currentTransientIB    = {};
 
-bool g_loggedFirstBgfxVbCreate = false;
-bool g_loggedFirstBgfxIbCreate = false;
-bool g_loggedFirstBgfxSubmit   = false;
-bool g_loggedFirstDynVbCapture = false;
-bool g_loggedFirstDynIbCapture = false;
-
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4E.4 transform
 // capture. The engine calls Set_Transform with world / view / projection
 // matrices in W3D row-major form (Vector4 Row[4]). bgfx wants column-
@@ -793,9 +836,6 @@ bool  g_bgfxViewProjDirty = true;
 float g_bgfxCameraView[16];
 float g_bgfxCameraProj[16];
 bool  g_bgfxCameraCaptured = false;
-bool  g_loggedFirstSetView = false;
-bool  g_loggedFirstSetProj = false;
-bool  g_loggedFirstSetWorld = false;
 
 // Engine geometry submits to its own view so it does not collide with
 // the test triangle on view 0. View 0 keeps the test triangle for the
@@ -811,6 +851,19 @@ const bgfx::ViewId kBgfxEngineView = 1;
 // because bgfx::setViewTransform is per-view-for-the-whole-frame and
 // would otherwise stomp view 1's camera view if shared.
 const bgfx::ViewId kBgfxEngineSortView = 2;
+const bgfx::ViewId kBgfxRTTView = 3;
+const bgfx::ViewId kBgfxWaterView = 4;
+// Effect overlay view for dazzle / lens flare / muzzle flash draws that
+// submit vertices already in clip/NDC space. These require identity
+// view and identity projection to render correctly. Routing them
+// through the sort view (which has the camera perspective projection)
+// re-projects their NDC coords and pushes them off-screen.
+const bgfx::ViewId kBgfxEffectOverlayView = 5;
+
+// Render-to-texture state. Set by Set_Render_Target_With_Z, cleared
+// when the back buffer is restored. SubmitEngineDraw routes to
+// kBgfxRTTView while this is true.
+bool g_renderToTexture = false;
 
 // True between Begin_Sorted_Batch_Pass and End_Sorted_Batch_Pass;
 // SubmitEngineDraw routes to kBgfxEngineSortView and uses
@@ -830,6 +883,9 @@ float g_bgfxSortWorld[16];
 // so falling through would emit a second, incorrect submit.
 bool  g_skipNextSubmitEngineDraw = false;
 
+// Water override — set by Override_Material_Opacity, consumed by
+// SubmitEngineDraw to route to the water view and apply DESTALPHA blend.
+bool g_waterOverrideActive = false;
 
 // Snapshot of g_bgfxProj at the time the sort flush runs. The engine
 // calls Set_Projection_Transform_With_Z_Bias multiple times per frame
@@ -969,17 +1025,45 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
 
     if (tex->Get_Pool() == TextureBaseClass::POOL_DEFAULT)
     {
-        // POOL_DEFAULT textures are GPU-only render targets (water
-        // reflections). Skip for now — Phase 5C will add proper
-        // render-to-texture via bgfx framebuffers. Don't cache the
-        // failure so we re-check each frame (the texture might not
-        // be initialized on the first check).
+        auto fbIt = g_framebufferCache.find(tex);
+        if (fbIt != g_framebufferCache.end())
+        {
+            static bool s_loggedRTTResolve = false;
+            if (!s_loggedRTTResolve)
+            {
+                s_loggedRTTResolve = true;
+                WWDEBUG_SAY(("[BgfxBackend] RTT RESOLVE: POOL_DEFAULT tex=%p "
+                             "resolved to framebuffer color texture %dx%d",
+                             tex, fbIt->second.width, fbIt->second.height));
+            }
+            return fbIt->second.colorTex;
+        }
+
+        static int s_poolDefaultCount = 0;
+        if (s_poolDefaultCount < 10)
+        {
+            ++s_poolDefaultCount;
+            WWDEBUG_SAY(("[BgfxBackend] POOL_DEFAULT texture skipped #%d: %s %dx%d fmt=%d",
+                         s_poolDefaultCount,
+                         tex2d->Get_Full_Path().str(),
+                         tex2d->Get_Width(), tex2d->Get_Height(),
+                         static_cast<int>(tex2d->Get_Texture_Format())));
+        }
+        g_renderTargetSet[tex] = true;
         return BGFX_INVALID_HANDLE;
     }
 
     const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(tex2d->Get_Texture_Format());
     if (bgfxFmt == bgfx::TextureFormat::Unknown)
     {
+        static bool s_loggedUnknownFmt = false;
+        if (!s_loggedUnknownFmt)
+        {
+            s_loggedUnknownFmt = true;
+            WWDEBUG_SAY(("[BgfxBackend] UNKNOWN texture format: %s ww3dfmt=%d",
+                         tex2d->Get_Full_Path().str(),
+                         static_cast<int>(tex2d->Get_Texture_Format())));
+        }
         g_textureCache[tex] = BGFX_INVALID_HANDLE;
         return BGFX_INVALID_HANDLE;
     }
@@ -987,11 +1071,6 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     IDirect3DBaseTexture8 * baseTex = tex->Peek_D3D_Base_Texture();
     if (baseTex == nullptr)
     {
-        // Texture not yet uploaded to D3D - the background loader thread
-        // may not have finished. DO NOT cache the failure: we want to
-        // retry on the next Set_Texture call so the bgfx handle gets
-        // populated as soon as the engine finishes loading. Otherwise a
-        // texture that was simply slow to load would stay white forever.
         return BGFX_INVALID_HANDLE;
     }
 
@@ -1039,65 +1118,11 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
         mem);
 
     g_textureCache[tex] = h;
-
-    if (!g_loggedFirstBgfxTextureCreate)
-    {
-        g_loggedFirstBgfxTextureCreate = true;
-        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxTexture first create "
-                     "%dx%d ww3dfmt=%u bytes=%u handle=%s",
-                     desc.Width, desc.Height,
-                     static_cast<unsigned>(tex2d->Get_Texture_Format()),
-                     totalBytes,
-                     bgfx::isValid(h) ? "ok" : "FAILED"));
-    }
     return h;
 }
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4D.3 Set_Shader
-// telemetry. The bgfx backend caches the picked program and state bits
-// for the most recent ShaderClass it received, and tracks the unique
-// shader bit patterns it has seen so we can log them once each. This
-// is diagnostic only - no draw call uses these yet, but it confirms
-// that the engine is calling Set_Shader on the bgfx backend and gives
-// us real preset coverage data without touching rendering.
 bgfx::ProgramHandle g_currentBgfxProgram = BGFX_INVALID_HANDLE;
 uint64_t            g_currentBgfxState   = 0;
-
-const int kMaxLoggedPresets = 32;
-unsigned int g_loggedPresetBits[kMaxLoggedPresets] = { 0 };
-int          g_loggedPresetCount = 0;
-
-bool RecordPresetIfNew(unsigned int bits)
-{
-    for (int i = 0; i < g_loggedPresetCount; ++i)
-    {
-        if (g_loggedPresetBits[i] == bits)
-        {
-            return false;
-        }
-    }
-    if (g_loggedPresetCount < kMaxLoggedPresets)
-    {
-        g_loggedPresetBits[g_loggedPresetCount++] = bits;
-        return true;
-    }
-    return false;
-}
-
-const char * ProgramDebugName(bgfx::ProgramHandle h)
-{
-    if (h.idx == g_passthroughProgram.idx) return "passthrough";
-    if (h.idx == g_uberProgram.idx)        return "uber";
-    return "?";
-}
-
-// Per-method "first call" flags so we can confirm the engine is routing
-// each entry point through the bgfx backend at least once. Logged once,
-// then suppressed to keep WWDebug.txt readable.
-bool g_loggedFirstSetTexture       = false;
-bool g_loggedFirstDrawTriangles    = false;
-bool g_loggedFirstSetVertexBuffer  = false;
-bool g_loggedFirstSetIndexBuffer   = false;
 
 // Create the bgfx debug popup window. Returns the HWND or nullptr on failure.
 HWND CreateBgfxDebugWindow()
@@ -1112,14 +1137,27 @@ HWND CreateBgfxDebugWindow()
 
     RECT rc = { 0, 0, kBgfxWindowWidth, kBgfxWindowHeight };
     AdjustWindowRectEx(&rc, style, FALSE, exStyle);
+    const int frameW = rc.right - rc.left;
+    const int frameH = rc.bottom - rc.top;
+
+    // Place the popup on the right edge of the primary monitor so the
+    // game's default top-left window and the bgfx popup are side by side
+    // without manual dragging. Fall back to (100,100) if the screen is
+    // narrower than the popup (multi-monitor edge case / RDP session).
+    const int screenW = GetSystemMetrics(SM_CXSCREEN);
+    const int screenH = GetSystemMetrics(SM_CYSCREEN);
+    int posX = screenW - frameW - 10;
+    int posY = 40;
+    if (posX < 0) posX = 100;
+    if (posY + frameH > screenH) posY = 10;
 
     HWND hwnd = CreateWindowExW(
         exStyle,
         kBgfxWindowClass,
         L"bgfx backend [Phase 4]",
         style,
-        100, 100,
-        rc.right - rc.left, rc.bottom - rc.top,
+        posX, posY,
+        frameW, frameH,
         nullptr,
         nullptr,
         GetModuleHandleW(nullptr),
@@ -1192,9 +1230,14 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     // On D3D11 bgfx needs an explicit reset call to rebuild the swapchain
     // with a multi-sampled back buffer; setting resolution.reset in the
     // Init struct alone isn't enough in every bgfx build.
+    // Force RGBA8 back buffer format so the alpha channel is available
+    // for the DESTALPHA water blending technique. Without this, the
+    // swap chain may use an opaque format (e.g. BGRX8) where alpha
+    // is always 1.0, making destination-alpha blending ineffective.
     bgfx::reset(static_cast<uint32_t>(kBgfxWindowWidth),
                 static_cast<uint32_t>(kBgfxWindowHeight),
-                BGFX_RESET_MSAA_X4);
+                BGFX_RESET_MSAA_X4,
+                bgfx::TextureFormat::RGBA8);
 
     // Configure view 0 to clear the debug window to a dark teal so it's
     // visually obvious bgfx is running and alive. View 0 holds the test
@@ -1212,9 +1255,14 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     // own clear/depth and (eventually) its own view+projection matrices
     // captured from the engine's Set_Transform calls. Drawn after view 0
     // so engine geometry overlays the test triangle.
+    // Clear depth AND color. The color clear initializes the framebuffer
+    // alpha to ~0.7 (m_minWaterOpacity) for the DESTALPHA water technique.
+    // Without this, deep water areas without shoreline tiles have alpha=0
+    // (transparent) and the water polygon edge creates a visible zigzag.
+    // The RGB clear is black; terrain overwrites it with its own color.
     bgfx::setViewClear(kBgfxEngineView,
-                       BGFX_CLEAR_DEPTH,
-                       0x00000000,
+                       BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
+                       0x000000ff,  // Alpha=1.0 matches TransparentWaterMinOpacity=1.0 from INI
                        1.0f,
                        0);
     bgfx::setViewRect(kBgfxEngineView, 0, 0,
@@ -1234,6 +1282,23 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     bgfx::setViewRect(kBgfxEngineSortView, 0, 0,
                       static_cast<uint16_t>(kBgfxWindowWidth),
                       static_cast<uint16_t>(kBgfxWindowHeight));
+
+    // Effect overlay view for dazzle draws with NDC-space vertices.
+    // Permanent identity view + identity projection; reuses the
+    // backbuffer + depth from earlier views. No clear.
+    bgfx::setViewClear(kBgfxEffectOverlayView,
+                       BGFX_CLEAR_NONE,
+                       0x00000000,
+                       1.0f,
+                       0);
+    bgfx::setViewRect(kBgfxEffectOverlayView, 0, 0,
+                      static_cast<uint16_t>(kBgfxWindowWidth),
+                      static_cast<uint16_t>(kBgfxWindowHeight));
+    {
+        float identityMtx[16];
+        IdentityMatrix(identityMtx);
+        bgfx::setViewTransform(kBgfxEffectOverlayView, identityMtx, identityMtx);
+    }
 
     // Default the cached transforms to identity until the engine writes
     // real values via Set_Transform. This keeps the first few engine
@@ -1295,6 +1360,8 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
     g_uLightColors = bgfx::createUniform("u_lightColors", bgfx::UniformType::Vec4, 4);
     g_uSceneAmbient  = bgfx::createUniform("u_sceneAmbient",   bgfx::UniformType::Vec4);
     g_uLightingEnabled = bgfx::createUniform("u_lightingEnabled", bgfx::UniformType::Vec4);
+    g_uTexcoordSelect  = bgfx::createUniform("u_texcoordSelect",  bgfx::UniformType::Vec4);
+    g_uTexTransform0   = bgfx::createUniform("u_texTransform0",   bgfx::UniformType::Vec4);
 
     // Default 1x1 white texture. Used as fallback for missing textures.
     // Multiplying by white is the identity operation.
@@ -1304,6 +1371,16 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
         bgfx::TextureFormat::RGBA8,
         BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT,
         bgfx::copy(kWhitePixel, sizeof(kWhitePixel)));
+    // Water fallback for render target textures (water reflections).
+    // Semi-opaque dark blue simulates the water surface so the hull below
+    // is partially hidden and water ripple particles blend naturally.
+    // RGBA: (30, 50, 70, 180) = dark blue-grey, ~70% opaque.
+    static const uint8_t kWaterPixel[4] = { 0x1e, 0x32, 0x46, 0xb4 };
+    g_defaultTransparentTexture = bgfx::createTexture2D(
+        1, 1, false, 1,
+        bgfx::TextureFormat::RGBA8,
+        BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT,
+        bgfx::copy(kWaterPixel, sizeof(kWaterPixel)));
 
     // Phase 5A uber shader program — single program for all engine draws.
     const bgfx::Memory * vsUberMem = bgfx::makeRef(vs_uber_dx11, sizeof(vs_uber_dx11));
@@ -1323,12 +1400,24 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
 
     const bgfx::RendererType::Enum selected = bgfx::getRendererType();
     const char * rendererName = bgfx::getRendererName(selected);
+    const bgfx::Caps * caps = bgfx::getCaps();
     WWDEBUG_SAY(("[BgfxBackend] bgfx::init OK on debug window "
                  "(renderer=%s, %dx%d, hwnd=%p, passthrough=%s, uber=%s).",
                  rendererName, kBgfxWindowWidth, kBgfxWindowHeight,
                  g_bgfxWindow,
                  bgfx::isValid(g_passthroughProgram) ? "ok" : "FAILED",
                  bgfx::isValid(g_uberProgram)        ? "ok" : "FAILED"));
+    // Log whether RGBA8 is supported as a render target (needed for
+    // DESTALPHA water technique — back buffer must have alpha channel).
+    const bool rgba8Supported = (caps->formats[bgfx::TextureFormat::RGBA8] &
+                                  BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) != 0;
+    const bool bgra8Supported = (caps->formats[bgfx::TextureFormat::BGRA8] &
+                                  BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) != 0;
+    WWDEBUG_SAY(("[BgfxBackend] Caps: RGBA8_FB=%d BGRA8_FB=%d "
+                 "homogeneousDepth=%d originBottomLeft=%d",
+                 rgba8Supported ? 1 : 0, bgra8Supported ? 1 : 0,
+                 caps->homogeneousDepth ? 1 : 0,
+                 caps->originBottomLeft ? 1 : 0));
 }
 
 void BgfxBackend::Shutdown()
@@ -1405,11 +1494,35 @@ void BgfxBackend::Shutdown()
             bgfx::destroy(g_uLightingEnabled);
             g_uLightingEnabled = BGFX_INVALID_HANDLE;
         }
+        if (bgfx::isValid(g_uTexTransform0))
+        {
+            bgfx::destroy(g_uTexTransform0);
+            g_uTexTransform0 = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_uTexcoordSelect))
+        {
+            bgfx::destroy(g_uTexcoordSelect);
+            g_uTexcoordSelect = BGFX_INVALID_HANDLE;
+        }
         if (bgfx::isValid(g_defaultWhiteTexture))
         {
             bgfx::destroy(g_defaultWhiteTexture);
             g_defaultWhiteTexture = BGFX_INVALID_HANDLE;
         }
+        if (bgfx::isValid(g_defaultTransparentTexture))
+        {
+            bgfx::destroy(g_defaultTransparentTexture);
+            g_defaultTransparentTexture = BGFX_INVALID_HANDLE;
+        }
+        g_renderTargetSet.clear();
+        for (auto & kv : g_framebufferCache)
+        {
+            if (bgfx::isValid(kv.second.fb))
+            {
+                bgfx::destroy(kv.second.fb);
+            }
+        }
+        g_framebufferCache.clear();
         // Phase 4C.3 cached engine buffers. Destroy before bgfx::shutdown
         // so the handles outlive nothing.
         for (auto & kv : g_vbCache)
@@ -1473,6 +1586,12 @@ void BgfxBackend::Begin_Scene()
     bgfx::touch(0);
     bgfx::touch(kBgfxEngineView);
     bgfx::touch(kBgfxEngineSortView);
+    bgfx::touch(kBgfxWaterView);
+    bgfx::touch(kBgfxEffectOverlayView);
+    bgfx::setViewRect(kBgfxWaterView, 0, 0, kBgfxWindowWidth, kBgfxWindowHeight);
+    // No clear on water view — it composites over the opaque scene.
+    bgfx::setViewClear(kBgfxWaterView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    g_renderToTexture = false;
 }
 
 void BgfxBackend::End_Scene(bool /*flip_frame*/)
@@ -1491,6 +1610,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     if (g_bgfxCameraCaptured)
     {
         bgfx::setViewTransform(kBgfxEngineView, g_bgfxCameraView, g_bgfxCameraProj);
+        bgfx::setViewTransform(kBgfxWaterView, g_bgfxCameraView, g_bgfxCameraProj);
         g_bgfxCameraCaptured = false;
     }
     if (g_bgfxSortProjCaptured)
@@ -1500,6 +1620,13 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         bgfx::setViewTransform(kBgfxEngineSortView, identityView, g_bgfxSortProj);
         g_bgfxSortProjCaptured = false;
     }
+
+    // View 3 (RTT) renders first. View 1 draws opaque scene.
+    // View 4 (water) draws DESTALPHA overlay. View 2 (sort).
+    // View 5 (effect overlay / dazzle) last so lens flares sit on top.
+    bgfx::ViewId viewOrder[] = { kBgfxRTTView, kBgfxEngineView, kBgfxWaterView,
+                                 kBgfxEngineSortView, kBgfxEffectOverlayView };
+    bgfx::setViewOrder(0, 5, viewOrder);
 
     bgfx::frame();
 
@@ -1592,14 +1719,6 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
 {
     DX8Backend::Set_Index_Buffer(ib, index_base_offset);
 
-    if (!g_loggedFirstSetIndexBuffer && ib != nullptr)
-    {
-        g_loggedFirstSetIndexBuffer = true;
-        WWDEBUG_SAY(("[BgfxBackend] Set_Index_Buffer first call (static IB path) "
-                     "indices=%u type=%u",
-                     ib->Get_Index_Count(),
-                     ib->Type()));
-    }
     g_currentUseTransientIB = false;
     auto it = g_ibCache.find(ib);
     if (it != g_ibCache.end())
@@ -1742,6 +1861,7 @@ void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
     {
         return;
     }
+
     bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
     if (!bgfx::isValid(h))
     {
@@ -1749,17 +1869,6 @@ void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
     }
     const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
     bgfx::update(h, 0, mem);
-
-    if (!g_loggedFirstBgfxVbCreate)
-    {
-        g_loggedFirstBgfxVbCreate = true;
-        WWDEBUG_SAY(("[BgfxBackend] Capture_Vertex_Data first update "
-                     "fvf=0x%08x stride=%u verts=%u bytes=%u",
-                     vb->FVF_Info().Get_FVF(),
-                     vb->FVF_Info().Get_FVF_Size(),
-                     vb->Get_Vertex_Count(),
-                     size_bytes));
-    }
 }
 
 void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
@@ -1777,15 +1886,6 @@ void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
     }
     const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
     bgfx::update(h, 0, mem);
-
-    if (!g_loggedFirstBgfxIbCreate)
-    {
-        g_loggedFirstBgfxIbCreate = true;
-        WWDEBUG_SAY(("[BgfxBackend] Capture_Index_Data first update "
-                     "indices=%u bytes=%u",
-                     ib->Get_Index_Count(),
-                     size_bytes));
-    }
 }
 
 void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
@@ -1840,29 +1940,14 @@ void BgfxBackend::Capture_Index_Sub_Range(const IndexBufferClass * ib,
 // row-major product sortWorld * sortView directly into bgfx
 // column-major layout (the transpose is baked into the index
 // pattern), avoiding an intermediate copy.
-static bool g_loggedFirstSortBegin   = false;
-static bool g_loggedFirstSortCapture = false;
 
 void BgfxBackend::Begin_Sorted_Batch_Pass()
 {
     g_inSortFlush = true;
-
-    // Capture the projection NOW (while it's still the camera projection).
-    // Later Set_Projection calls (water, shadows) may overwrite g_bgfxProj
-    // with a tiny frustum. We re-apply this saved projection at End_Scene.
     if (!g_bgfxSortProjCaptured)
     {
         std::memcpy(g_bgfxSortProj, g_bgfxProj, sizeof(g_bgfxSortProj));
         g_bgfxSortProjCaptured = true;
-    }
-
-    if (!g_loggedFirstSortBegin)
-    {
-        g_loggedFirstSortBegin = true;
-        WWDEBUG_SAY(("[BgfxBackend] Begin_Sorted_Batch_Pass first fire "
-                     "transVB=%d transIB=%d",
-                     int(g_currentUseTransientVB),
-                     int(g_currentUseTransientIB)));
     }
 }
 
@@ -1895,28 +1980,18 @@ void BgfxBackend::Capture_Sorted_Batch_Transforms(const Matrix4x4 & sortWorld,
         }
     }
 
-    if (!g_loggedFirstSortCapture)
-    {
-        g_loggedFirstSortCapture = true;
-        WWDEBUG_SAY(("[BgfxBackend] Capture_Sorted_Batch_Transforms first "
-                     "sortWorld row0=%.3f,%.3f,%.3f,%.3f sortView row0=%.3f,%.3f,%.3f,%.3f",
-                     sortWorld[0][0], sortWorld[0][1], sortWorld[0][2], sortWorld[0][3],
-                     sortView[0][0],  sortView[0][1],  sortView[0][2],  sortView[0][3]));
-        WWDEBUG_SAY(("[BgfxBackend]   combined (column-major) col0=%.3f,%.3f,%.3f,%.3f col3=%.3f,%.3f,%.3f,%.3f",
-                     g_bgfxSortWorld[0],  g_bgfxSortWorld[1],  g_bgfxSortWorld[2],  g_bgfxSortWorld[3],
-                     g_bgfxSortWorld[12], g_bgfxSortWorld[13], g_bgfxSortWorld[14], g_bgfxSortWorld[15]));
-    }
 }
 
 void BgfxBackend::Capture_Sorted_Batch_Light(const D3DLIGHT8 & light, bool enabled)
 {
     // Sort batch lights are always light 0 (the primary directional).
     // Scene ambient was already captured by Set_Light_Environment.
+    // D3D8 Direction points FROM light toward surface; negate for N.L.
     if (enabled)
     {
-        g_currentLightDirs[0][0] = light.Direction.x;
-        g_currentLightDirs[0][1] = light.Direction.y;
-        g_currentLightDirs[0][2] = light.Direction.z;
+        g_currentLightDirs[0][0] = -light.Direction.x;
+        g_currentLightDirs[0][1] = -light.Direction.y;
+        g_currentLightDirs[0][2] = -light.Direction.z;
         g_currentLightDirs[0][3] = 1.0f;
         g_currentLightColors[0][0] = light.Diffuse.r;
         g_currentLightColors[0][1] = light.Diffuse.g;
@@ -1943,7 +2018,6 @@ void BgfxBackend::Capture_Sorted_Batch_Light(const D3DLIGHT8 & light, bool enabl
 // buffers), and set g_skipNextSubmitEngineDraw so the outer Draw_Triangles
 // does not emit a second, incorrect submit using the old sorting-VB
 // args.
-static bool g_loggedFirstSortedDirectSubmit = false;
 
 void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
                                      const DynamicIBAccessClass & dyn_ib,
@@ -1960,9 +2034,10 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     // have stashed their transients keyed by &dyn_vb / &dyn_ib.
     if (!g_pendingDynVB.valid || g_pendingDynVB.owner != &dyn_vb)
     {
-        if (!g_loggedFirstSortedDirectSubmit)
+        static bool s_loggedSkipVB = false;
+        if (!s_loggedSkipVB)
         {
-            g_loggedFirstSortedDirectSubmit = true;
+            s_loggedSkipVB = true;
             WWDEBUG_SAY(("[BgfxBackend] Submit_Sorted_Draw SKIP: pendingDynVB not "
                          "claimable (valid=%d ownerMatch=%d)",
                          int(g_pendingDynVB.valid),
@@ -1972,9 +2047,10 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     }
     if (!g_pendingDynIB.valid || g_pendingDynIB.owner != &dyn_ib)
     {
-        if (!g_loggedFirstSortedDirectSubmit)
+        static bool s_loggedSkipIB = false;
+        if (!s_loggedSkipIB)
         {
-            g_loggedFirstSortedDirectSubmit = true;
+            s_loggedSkipIB = true;
             WWDEBUG_SAY(("[BgfxBackend] Submit_Sorted_Draw SKIP: pendingDynIB not "
                          "claimable (valid=%d ownerMatch=%d)",
                          int(g_pendingDynIB.valid),
@@ -2006,14 +2082,13 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     bgfx::setVertexBuffer(0, &vb, 0, vertex_count);
     bgfx::setIndexBuffer(&ib, 0, static_cast<uint32_t>(polygon_count) * 3);
 
-    const uint32_t kSamplerFlags = 0;
     if (bgfx::isValid(g_sTex0))
     {
         const bgfx::TextureHandle bound =
             bgfx::isValid(g_currentBgfxTexture0) ? g_currentBgfxTexture0 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(0, g_sTex0, bound, kSamplerFlags);
+            bgfx::setTexture(0, g_sTex0, bound, g_currentSamplerFlags0);
         }
     }
     if (bgfx::isValid(g_sTex1))
@@ -2022,7 +2097,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
             bgfx::isValid(g_currentBgfxTexture1) ? g_currentBgfxTexture1 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(1, g_sTex1, bound, kSamplerFlags);
+            bgfx::setTexture(1, g_sTex1, bound, g_currentSamplerFlags1);
         }
     }
     if (bgfx::isValid(g_sTex2))
@@ -2031,7 +2106,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
             bgfx::isValid(g_currentBgfxTexture2) ? g_currentBgfxTexture2 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(2, g_sTex2, bound, kSamplerFlags);
+            bgfx::setTexture(2, g_sTex2, bound, g_currentSamplerFlags2);
         }
     }
     if (bgfx::isValid(g_sTex3))
@@ -2040,7 +2115,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
             bgfx::isValid(g_currentBgfxTexture3) ? g_currentBgfxTexture3 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(3, g_sTex3, bound, kSamplerFlags);
+            bgfx::setTexture(3, g_sTex3, bound, g_currentSamplerFlags3);
         }
     }
 
@@ -2067,19 +2142,17 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         ? g_currentBgfxState
         : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
 
-    bgfx::setState(state);
-
-    bgfx::submit(kBgfxEngineSortView, g_currentBgfxProgram);
-
-    if (!g_loggedFirstSortedDirectSubmit)
+    // Apply color write mask override — same as SubmitEngineDraw.
+    // Without this, sorted particles/effects write alpha, destroying
+    // the shoreline depth gradient used by DESTALPHA water blending.
+    if (g_colorWriteOverride >= 0)
     {
-        g_loggedFirstSortedDirectSubmit = true;
-        WWDEBUG_SAY(("[BgfxBackend] Submit_Sorted_Draw first fire "
-                     "(polys=%u verts=%u worldCol3=%.2f,%.2f,%.2f state=0x%016llx)",
-                     polygon_count, vertex_count,
-                     worldMtx[12], worldMtx[13], worldMtx[14],
-                     static_cast<unsigned long long>(state)));
+        state &= ~(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+        state |= static_cast<uint64_t>(g_colorWriteOverride);
     }
+
+    bgfx::setState(state);
+    bgfx::submit(kBgfxEngineSortView, g_currentBgfxProgram);
 
     g_skipNextSubmitEngineDraw = true;
 }
@@ -2130,17 +2203,6 @@ void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
     g_pendingDynVB.owner = vba;
     g_pendingDynVB.valid = true;
 
-    if (!g_loggedFirstDynVbCapture)
-    {
-        g_loggedFirstDynVbCapture = true;
-        WWDEBUG_SAY(("[BgfxBackend] Capture_Dynamic_Vertex_Data first "
-                     "fvf=0x%08x stride=%u verts=%u bytes=%u",
-                     vba->FVF_Info().Get_FVF(),
-                     layout.getStride(),
-                     num_verts,
-                     bytes));
-    }
-
 }
 
 void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
@@ -2169,16 +2231,6 @@ void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
     std::memcpy(g_pendingDynIB.tib.data, data, bytes);
     g_pendingDynIB.owner = iba;
     g_pendingDynIB.valid = true;
-
-    if (!g_loggedFirstDynIbCapture)
-    {
-        g_loggedFirstDynIbCapture = true;
-        WWDEBUG_SAY(("[BgfxBackend] Capture_Dynamic_Index_Data first "
-                     "indices=%u bytes=%u",
-                     num_indices,
-                     bytes));
-    }
-
 }
 
 // -- State: shaders, materials, textures ------------------------------------
@@ -2190,16 +2242,7 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
     g_currentBgfxProgram = g_uberProgram;
     g_currentBgfxState   = BuildBgfxStateForShader(shader);
     BuildTssOpsForShader(shader, g_currentTssOps0, g_currentTssOps1, &g_currentAtestRef);
-
-    if (RecordPresetIfNew(shader.Get_Bits()))
-    {
-        WWDEBUG_SAY(("[BgfxBackend] Set_Shader new preset bits=0x%08x -> "
-                     "tssOps=(%.0f,%.0f,%.0f,%.0f) state=0x%016llx",
-                     shader.Get_Bits(),
-                     g_currentTssOps0[0], g_currentTssOps0[1],
-                     g_currentTssOps0[2], g_currentTssOps0[3],
-                     static_cast<unsigned long long>(g_currentBgfxState)));
-    }
+    Clear_State_Overrides();
 }
 
 void BgfxBackend::Set_Material(const VertexMaterialClass * material)
@@ -2224,6 +2267,13 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
         // (terrain, pre-lit meshes), vertex colors already contain the
         // lit result and the shader must NOT apply N.L on top.
         g_currentLightingEnabled[0] = material->Get_Lighting() ? 1.0f : 0.0f;
+        // Reset texture transform to identity. The mapper's Apply() will
+        // set it if UV animation is needed. Without this reset, a previous
+        // draw's UV scroll would persist into the next draw.
+        g_currentTexTransform0[0] = 1.0f;
+        g_currentTexTransform0[1] = 1.0f;
+        g_currentTexTransform0[2] = 0.0f;
+        g_currentTexTransform0[3] = 0.0f;
     }
     else
     {
@@ -2238,22 +2288,68 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 {
     DX8Backend::Set_Texture(stage, texture);
 
-    if (!g_loggedFirstSetTexture)
-    {
-        g_loggedFirstSetTexture = true;
-        WWDEBUG_SAY(("[BgfxBackend] Set_Texture first call (stage=%u)", stage));
-    }
     // Phase 4G.3 / 4G.4: stages 0-3 wired. Covers terrain base + detail
     // + cloud + noise, the standard 4-stage layout used by the
     // FlatHeightMap pixel shader family. Stages above 3 still fall
     // through unmigrated.
-    switch (stage)
     {
-        case 0: g_currentBgfxTexture0 = EnsureBgfxTexture(texture); break;
-        case 1: g_currentBgfxTexture1 = EnsureBgfxTexture(texture); break;
-        case 2: g_currentBgfxTexture2 = EnsureBgfxTexture(texture); break;
-        case 3: g_currentBgfxTexture3 = EnsureBgfxTexture(texture); break;
-        default: break;
+        bgfx::TextureHandle h = EnsureBgfxTexture(texture);
+        // If the texture is INVALID and it's a render target, use the
+        // water-colored fallback instead of white.
+        if (!bgfx::isValid(h) && texture != nullptr &&
+            g_renderTargetSet.count(texture) > 0)
+        {
+            h = g_defaultTransparentTexture;
+            static int s_loggedRTFallback = 0;
+            if (s_loggedRTFallback < 5)
+            {
+                ++s_loggedRTFallback;
+                TextureClass * t2d_fb = texture->As_TextureClass();
+                WWDEBUG_SAY(("[BgfxBackend] RT FALLBACK: stage=%u using dark blue fallback for %s",
+                             stage,
+                             t2d_fb ? t2d_fb->Get_Full_Path().str() : "(null)"));
+            }
+        }
+        // Log when an invalid texture goes to white fallback
+        if (!bgfx::isValid(h) && texture != nullptr &&
+            g_renderTargetSet.count(texture) == 0)
+        {
+            static int s_loggedWhiteFallback = 0;
+            if (s_loggedWhiteFallback < 5)
+            {
+                ++s_loggedWhiteFallback;
+                TextureClass * t2d_fb = texture->As_TextureClass();
+                WWDEBUG_SAY(("[BgfxBackend] WHITE FALLBACK: stage=%u tex=%s pool=%d",
+                             stage,
+                             t2d_fb ? t2d_fb->Get_Full_Path().str() : "(null)",
+                             texture->Get_Pool()));
+            }
+        }
+        TextureClass * t2d_name = texture ? texture->As_TextureClass() : nullptr;
+        const char * texName = t2d_name ? t2d_name->Get_Full_Path().str() : "";
+        // Capture the source texture's wrap mode into bgfx sampler flags
+        // so we can pass it at bind time. Without this, WRAP is the
+        // default and ramp/LUT textures with CLAMP semantics produce
+        // visible stripe artifacts at U>=1 (the shoreline checkerboard).
+        uint32_t samplerFlags = 0;
+        if (t2d_name != nullptr)
+        {
+            const TextureFilterClass & flt = t2d_name->Get_Filter();
+            if (flt.Get_U_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
+                samplerFlags |= BGFX_SAMPLER_U_CLAMP;
+            if (flt.Get_V_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
+                samplerFlags |= BGFX_SAMPLER_V_CLAMP;
+        }
+        switch (stage)
+        {
+            case 0: g_currentBgfxTexture0 = h; g_currentTexName0 = texName;
+                    g_currentSamplerFlags0 = samplerFlags; break;
+            case 1: g_currentBgfxTexture1 = h; g_currentTexName1 = texName;
+                    g_currentSamplerFlags1 = samplerFlags; break;
+            case 2: g_currentBgfxTexture2 = h; g_currentSamplerFlags2 = samplerFlags; break;
+            case 3: g_currentBgfxTexture3 = h; g_currentSamplerFlags3 = samplerFlags; break;
+            default: break;
+        }
     }
 }
 
@@ -2263,6 +2359,159 @@ void BgfxBackend::Set_Ambient(const Vector3 & color)
     g_currentSceneAmbient[0] = color.X;
     g_currentSceneAmbient[1] = color.Y;
     g_currentSceneAmbient[2] = color.Z;
+}
+
+void BgfxBackend::Override_Blend(unsigned srcBlend, unsigned dstBlend)
+{
+    static const uint64_t kBlendMap[9] = {
+        0,
+        BGFX_STATE_BLEND_ZERO,           // 1
+        BGFX_STATE_BLEND_ONE,            // 2
+        BGFX_STATE_BLEND_SRC_COLOR,      // 3
+        BGFX_STATE_BLEND_INV_SRC_COLOR,  // 4
+        BGFX_STATE_BLEND_SRC_ALPHA,      // 5
+        BGFX_STATE_BLEND_INV_SRC_ALPHA,  // 6
+        BGFX_STATE_BLEND_DST_ALPHA,      // 7
+        BGFX_STATE_BLEND_INV_DST_ALPHA   // 8
+    };
+    if (srcBlend >= 1 && srcBlend <= 8 && dstBlend >= 1 && dstBlend <= 8)
+    {
+        g_blendOverrideActive = true;
+        g_blendOverrideBits = BGFX_STATE_BLEND_FUNC(kBlendMap[srcBlend], kBlendMap[dstBlend]);
+    }
+    else
+    {
+        static bool s_loggedBlendBad = false;
+        if (!s_loggedBlendBad)
+        {
+            s_loggedBlendBad = true;
+            WWDEBUG_SAY(("[BgfxBackend] BLEND OVERRIDE BAD VALUES: src=%u dst=%u (out of range 1-8)",
+                         srcBlend, dstBlend));
+        }
+    }
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND, srcBlend);
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, dstBlend);
+}
+
+void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, unsigned func)
+{
+    g_atestOverrideActive = enable;
+    g_atestOverrideRef = enable ? (ref / 255.0f) : 0.0f;
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, enable ? TRUE : FALSE);
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF, ref);
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC, func);
+}
+
+void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
+{
+    if (enable)
+    {
+        g_blendOverrideActive = true;
+        g_blendOverrideBits = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
+                                                     BGFX_STATE_BLEND_INV_SRC_ALPHA);
+    }
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE, enable ? TRUE : FALSE);
+}
+
+void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
+{
+    if (stage == 0)
+    {
+        g_currentTexcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
+    }
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, uvIndex);
+}
+
+void BgfxBackend::Override_Terrain_Blend(bool enable)
+{
+    g_currentTexcoordSelect[1] = enable ? 1.0f : 0.0f;
+}
+
+void BgfxBackend::Override_Material_Opacity(float opacity)
+{
+    g_currentMatDiffuse[3] = opacity;
+    g_waterOverrideActive = true;
+    g_blendOverrideActive = true;
+    g_blendOverrideBits = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_DST_ALPHA,
+                                                  BGFX_STATE_BLEND_INV_DST_ALPHA);
+}
+
+void BgfxBackend::Begin_Effect_Overlay()
+{
+    g_effectOverlayActive = true;
+}
+
+void BgfxBackend::End_Effect_Overlay()
+{
+    g_effectOverlayActive = false;
+}
+
+void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha)
+{
+    DX8Backend::Set_Color_Write_Enable(red, green, blue, alpha);
+    uint64_t mask = 0;
+    if (red)   mask |= BGFX_STATE_WRITE_R;
+    if (green) mask |= BGFX_STATE_WRITE_G;
+    if (blue)  mask |= BGFX_STATE_WRITE_B;
+    if (alpha) mask |= BGFX_STATE_WRITE_A;
+    g_colorWriteOverride = static_cast<int>(mask);
+    g_suppressBgfxDraw = false;
+}
+
+void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture)
+{
+    DX8Backend::Set_Render_Target_With_Z(texture, ztexture);
+
+    if (texture == nullptr || !g_bgfxInitialized)
+    {
+        g_renderToTexture = false;
+        return;
+    }
+
+    auto it = g_framebufferCache.find(texture);
+    if (it == g_framebufferCache.end())
+    {
+        TextureClass * tex2d = texture->As_TextureClass();
+        const uint16_t w = tex2d ? static_cast<uint16_t>(tex2d->Get_Width())  : 64;
+        const uint16_t h = tex2d ? static_cast<uint16_t>(tex2d->Get_Height()) : 64;
+
+        bgfx::TextureHandle colorTex = bgfx::createTexture2D(
+            w, h, false, 1, bgfx::TextureFormat::RGBA8,
+            BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        bgfx::TextureHandle depthTex = bgfx::createTexture2D(
+            w, h, false, 1, bgfx::TextureFormat::D24S8,
+            BGFX_TEXTURE_RT_WRITE_ONLY);
+
+        bgfx::TextureHandle attachments[2] = { colorTex, depthTex };
+        bgfx::FrameBufferHandle fb = bgfx::createFrameBuffer(2, attachments, true);
+
+        BgfxFramebufferEntry entry = { fb, colorTex, w, h };
+        g_framebufferCache[texture] = entry;
+        it = g_framebufferCache.find(texture);
+
+        WWDEBUG_SAY(("[BgfxBackend] RTT framebuffer created %dx%d for tex=%p",
+                     w, h, texture));
+    }
+
+    const BgfxFramebufferEntry & entry = it->second;
+
+    bgfx::setViewFrameBuffer(kBgfxRTTView, entry.fb);
+    bgfx::setViewRect(kBgfxRTTView, 0, 0, entry.width, entry.height);
+    bgfx::setViewClear(kBgfxRTTView,
+                        BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
+                        0x000000ff, 1.0f, 0);
+    bgfx::touch(kBgfxRTTView);
+
+    g_renderToTexture = true;
+}
+
+void BgfxBackend::Clear_State_Overrides()
+{
+    g_blendOverrideActive = false;
+    g_atestOverrideActive = false;
+    g_suppressBgfxDraw = false;
+    g_currentTexcoordSelect[0] = 0.0f;
+    g_currentTexcoordSelect[1] = 0.0f;
 }
 
 void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
@@ -2316,36 +2565,15 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
     {
         case RB_TRANSFORM_WORLD:
             W3DMatrix4ToBgfx(m, g_bgfxWorld);
-            if (!g_loggedFirstSetWorld)
-            {
-                g_loggedFirstSetWorld = true;
-                WWDEBUG_SAY(("[BgfxBackend] Set_Transform first WORLD (Matrix4x4) "
-                             "row0=%.3f,%.3f,%.3f,%.3f",
-                             m[0][0], m[0][1], m[0][2], m[0][3]));
-            }
             break;
         case RB_TRANSFORM_VIEW:
             W3DMatrix4ToBgfx(m, g_bgfxView);
             g_bgfxViewProjDirty = true;
-            if (!g_loggedFirstSetView)
-            {
-                g_loggedFirstSetView = true;
-                WWDEBUG_SAY(("[BgfxBackend] Set_Transform first VIEW (Matrix4x4) "
-                             "row0=%.3f,%.3f,%.3f,%.3f",
-                             m[0][0], m[0][1], m[0][2], m[0][3]));
-            }
             break;
         case RB_TRANSFORM_PROJECTION:
             W3DMatrix4ToBgfx(m, g_bgfxProj);
             ApplyPopupAspectCorrection(g_bgfxProj);
             g_bgfxViewProjDirty = true;
-            if (!g_loggedFirstSetProj)
-            {
-                g_loggedFirstSetProj = true;
-                WWDEBUG_SAY(("[BgfxBackend] Set_Transform first PROJ (Matrix4x4) "
-                             "row0=%.3f,%.3f,%.3f,%.3f",
-                             m[0][0], m[0][1], m[0][2], m[0][3]));
-            }
             break;
         default:
             break;
@@ -2360,24 +2588,10 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
     {
         case RB_TRANSFORM_WORLD:
             W3DMatrix3DToBgfx(m, g_bgfxWorld);
-            if (!g_loggedFirstSetWorld)
-            {
-                g_loggedFirstSetWorld = true;
-                WWDEBUG_SAY(("[BgfxBackend] Set_Transform first WORLD (Matrix3D) "
-                             "row0=%.3f,%.3f,%.3f,%.3f",
-                             m[0][0], m[0][1], m[0][2], m[0][3]));
-            }
             break;
         case RB_TRANSFORM_VIEW:
             W3DMatrix3DToBgfx(m, g_bgfxView);
             g_bgfxViewProjDirty = true;
-            if (!g_loggedFirstSetView)
-            {
-                g_loggedFirstSetView = true;
-                WWDEBUG_SAY(("[BgfxBackend] Set_Transform first VIEW (Matrix3D) "
-                             "row0=%.3f,%.3f,%.3f,%.3f",
-                             m[0][0], m[0][1], m[0][2], m[0][3]));
-            }
             break;
         default:
             break;
@@ -2409,39 +2623,6 @@ void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
     ApplyPopupAspectCorrection(g_bgfxProj);
     g_bgfxViewProjDirty = true;
 
-    // View 2's projection is now set at End_Scene time from the saved
-    // sort-flush projection (g_bgfxSortProj). This avoids the issue
-    // where later Set_Projection calls (water, shadows) overwrite view
-    // 2's projection with a tiny near-field frustum.
-    if (!g_loggedFirstSetProj)
-    {
-        g_loggedFirstSetProj = true;
-        WWDEBUG_SAY(("[BgfxBackend] Set_Projection_Transform_With_Z_Bias first call "
-                     "row0=%.3f,%.3f,%.3f,%.3f",
-                     matrix[0][0], matrix[0][1], matrix[0][2], matrix[0][3]));
-        // Dump full bgfx column-major projection for Z debugging
-        WWDEBUG_SAY(("[BgfxBackend] PROJ bgfx col-major: "
-                     "col0=%.4f,%.4f,%.4f,%.4f "
-                     "col1=%.4f,%.4f,%.4f,%.4f "
-                     "col2=%.4f,%.4f,%.4f,%.4f "
-                     "col3=%.4f,%.4f,%.4f,%.4f",
-                     g_bgfxProj[0],  g_bgfxProj[1],  g_bgfxProj[2],  g_bgfxProj[3],
-                     g_bgfxProj[4],  g_bgfxProj[5],  g_bgfxProj[6],  g_bgfxProj[7],
-                     g_bgfxProj[8],  g_bgfxProj[9],  g_bgfxProj[10], g_bgfxProj[11],
-                     g_bgfxProj[12], g_bgfxProj[13], g_bgfxProj[14], g_bgfxProj[15]));
-        // Manual clip-space computation for a known sort vertex
-        // v = (-170.29, -5.09, -499.62, 1.0)
-        float vx=-170.29f, vy=-5.09f, vz=-499.62f, vw=1.0f;
-        float cx = g_bgfxProj[0]*vx + g_bgfxProj[4]*vy + g_bgfxProj[8]*vz  + g_bgfxProj[12]*vw;
-        float cy = g_bgfxProj[1]*vx + g_bgfxProj[5]*vy + g_bgfxProj[9]*vz  + g_bgfxProj[13]*vw;
-        float cz = g_bgfxProj[2]*vx + g_bgfxProj[6]*vy + g_bgfxProj[10]*vz + g_bgfxProj[14]*vw;
-        float cw = g_bgfxProj[3]*vx + g_bgfxProj[7]*vy + g_bgfxProj[11]*vz + g_bgfxProj[15]*vw;
-        WWDEBUG_SAY(("[BgfxBackend] PROJ TEST: clip=%.2f,%.2f,%.2f,%.2f ndc=%.4f,%.4f,%.4f",
-                     cx, cy, cz, cw,
-                     cw != 0.0f ? cx/cw : 0.0f,
-                     cw != 0.0f ? cy/cw : 0.0f,
-                     cw != 0.0f ? cz/cw : 0.0f));
-    }
 }
 
 // Lighting and fog (Set_Light, Set_Ambient, Get_Ambient, Set_Fog,
@@ -2470,6 +2651,17 @@ void SubmitEngineDraw(unsigned short start_index,
                       unsigned short min_vertex_index,
                       unsigned short vertex_count)
 {
+    if (g_suppressBgfxDraw)
+    {
+        return;
+    }
+    // Detect when the engine has restored the back buffer. The water/shadow
+    // code calls DX8Wrapper::Set_Render_Target(nullptr) directly, bypassing
+    // g_renderBackend. Poll the DX8 state to keep g_renderToTexture in sync.
+    if (g_renderToTexture && !DX8Wrapper::Is_Render_To_Texture())
+    {
+        g_renderToTexture = false;
+    }
     if (!g_bgfxInitialized)
     {
         return;
@@ -2490,14 +2682,34 @@ void SubmitEngineDraw(unsigned short start_index,
     // init and are refreshed by Set_Projection_Transform_With_Z_Bias,
     // so it never needs a per-submit setViewTransform - only view 1
     // (the opaque view) uses the dirty flag.
-    const bgfx::ViewId submitView = g_inSortFlush ? kBgfxEngineSortView : kBgfxEngineView;
+    bgfx::ViewId submitView;
+    if (g_renderToTexture)
+    {
+        submitView = kBgfxRTTView;
+    }
+    else if (g_waterOverrideActive)
+    {
+        submitView = kBgfxWaterView;
+    }
+    else if (g_effectOverlayActive)
+    {
+        submitView = kBgfxEffectOverlayView;
+    }
+    else if (g_inSortFlush)
+    {
+        submitView = kBgfxEngineSortView;
+    }
+    else
+    {
+        submitView = kBgfxEngineView;
+    }
     const float *      worldMtx   = g_inSortFlush ? g_bgfxSortWorld     : g_bgfxWorld;
 
     // Push the engine view+projection when they change. setViewTransform
     // applies until the next change so we do not need to call it per
     // submit, only when the engine has updated either matrix. Sort view
     // draws never touch g_bgfxView so the opaque view is never stomped.
-    if (!g_inSortFlush && g_bgfxViewProjDirty)
+    if (!g_inSortFlush && !g_renderToTexture && g_bgfxViewProjDirty)
     {
         // Capture the camera view+proj at the first opaque draw of each
         // frame. Later Set_Projection calls (water, shadows, sneak attack)
@@ -2510,6 +2722,12 @@ void SubmitEngineDraw(unsigned short start_index,
             g_bgfxCameraCaptured = true;
         }
         bgfx::setViewTransform(kBgfxEngineView, g_bgfxView, g_bgfxProj);
+        g_bgfxViewProjDirty = false;
+    }
+    // During RTT, push the current (reflected/shadow) view+proj to the RTT view.
+    if (g_renderToTexture && g_bgfxViewProjDirty)
+    {
+        bgfx::setViewTransform(kBgfxRTTView, g_bgfxView, g_bgfxProj);
         g_bgfxViewProjDirty = false;
     }
 
@@ -2589,7 +2807,6 @@ void SubmitEngineDraw(unsigned short start_index,
     // neighbor mip selection, breaking mipmap smoothing and making
     // distant terrain patches look blocky. Let bgfx pick the best
     // filter it can for each texture.
-    const uint32_t kSamplerFlags = 0;
     if (bgfx::isValid(g_sTex0))
     {
         const bgfx::TextureHandle bound =
@@ -2598,7 +2815,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(0, g_sTex0, bound, kSamplerFlags);
+            bgfx::setTexture(0, g_sTex0, bound, g_currentSamplerFlags0);
         }
     }
     if (bgfx::isValid(g_sTex1))
@@ -2609,7 +2826,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(1, g_sTex1, bound, kSamplerFlags);
+            bgfx::setTexture(1, g_sTex1, bound, g_currentSamplerFlags1);
         }
     }
     if (bgfx::isValid(g_sTex2))
@@ -2620,7 +2837,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(2, g_sTex2, bound, kSamplerFlags);
+            bgfx::setTexture(2, g_sTex2, bound, g_currentSamplerFlags2);
         }
     }
     if (bgfx::isValid(g_sTex3))
@@ -2631,7 +2848,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 : g_defaultWhiteTexture;
         if (bgfx::isValid(bound))
         {
-            bgfx::setTexture(3, g_sTex3, bound, kSamplerFlags);
+            bgfx::setTexture(3, g_sTex3, bound, g_currentSamplerFlags3);
         }
     }
 
@@ -2659,9 +2876,11 @@ void SubmitEngineDraw(unsigned short start_index,
         float atestParams[4] = { g_currentAtestRef, 0.0f, 0.0f, 0.0f };
         bgfx::setUniform(g_uAtestParams, atestParams);
     }
-    // Phase 5B: read the CURRENT D3D light state directly from DX8Wrapper's
-    // render_state. This captures lights regardless of how they were set
-    // (Set_Light_Environment, Set_DX8_Light, or game-level light setup).
+    // Read current D3D light state per-draw. Set_Light_Environment and
+    // Set_Ambient capture some paths, but many callers set lights via
+    // DX8Wrapper::Set_DX8_Light or Apply_Render_State_Changes directly,
+    // bypassing g_renderBackend. Reading the device state here ensures
+    // bgfx always has the correct lights regardless of how they were set.
     {
         RenderStateStruct rs;
         DX8Wrapper::Get_Render_State(rs);
@@ -2670,8 +2889,6 @@ void SubmitEngineDraw(unsigned short start_index,
             if (rs.LightEnable[li])
             {
                 const D3DLIGHT8 & dl = rs.Lights[li];
-                // D3D8 Direction points FROM light toward surface.
-                // D3D internally negates for N.L. We must negate too.
                 g_currentLightDirs[li][0] = -dl.Direction.x;
                 g_currentLightDirs[li][1] = -dl.Direction.y;
                 g_currentLightDirs[li][2] = -dl.Direction.z;
@@ -2686,22 +2903,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 g_currentLightDirs[li][3] = 0.0f;
             }
         }
-        // Read scene ambient from D3DRS_AMBIENT (packed D3DCOLOR = ARGB)
         const unsigned ambientColor = DX8Wrapper::Get_DX8_Render_State(D3DRS_AMBIENT);
-        static bool s_loggedLightRead = false;
-        if (!s_loggedLightRead && rs.LightEnable[0])
-        {
-            s_loggedLightRead = true;
-            WWDEBUG_SAY(("[BgfxBackend] LIGHT READ: amb=0x%08x lights=%d%d%d%d "
-                         "dir0=%.2f,%.2f,%.2f dif0=%.2f,%.2f,%.2f",
-                         ambientColor,
-                         int(rs.LightEnable[0]), int(rs.LightEnable[1]),
-                         int(rs.LightEnable[2]), int(rs.LightEnable[3]),
-                         rs.Lights[0].Direction.x, rs.Lights[0].Direction.y,
-                         rs.Lights[0].Direction.z,
-                         rs.Lights[0].Diffuse.r, rs.Lights[0].Diffuse.g,
-                         rs.Lights[0].Diffuse.b));
-        }
         g_currentSceneAmbient[0] = ((ambientColor >> 16) & 0xFF) / 255.0f;
         g_currentSceneAmbient[1] = ((ambientColor >>  8) & 0xFF) / 255.0f;
         g_currentSceneAmbient[2] = ((ambientColor >>  0) & 0xFF) / 255.0f;
@@ -2715,51 +2917,53 @@ void SubmitEngineDraw(unsigned short start_index,
     if (bgfx::isValid(g_uLightingEnabled))
         bgfx::setUniform(g_uLightingEnabled, g_currentLightingEnabled);
 
-    // Use the cached state if it was built; otherwise fall back to a
-    // sane default that at least lets the draw run. Enable MSAA on all
-    // draws so the 4x MSAA framebuffer actually smooths edges.
+    if (bgfx::isValid(g_uTexcoordSelect))
+        bgfx::setUniform(g_uTexcoordSelect, g_currentTexcoordSelect);
+
     uint64_t state = (g_currentBgfxState != 0)
         ? g_currentBgfxState
         : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
     state |= BGFX_STATE_MSAA;
 
-    // Sort view depth handling: particles are pre-transformed to view
-    // space with identity world/view, so their Z values don't match the
-    // opaque depth buffer — they need DEPTH_TEST_ALWAYS. But mesh-based
-    // sorted draws (water, rotors) have real world transforms and should
-    // use normal depth testing to avoid drawing on top of opaque geometry.
-    // Distinguish by checking if the sort world matrix is identity
-    // (particles) vs non-identity (meshes).
-    if (submitView == kBgfxEngineSortView)
+    // Apply post-ShaderClass blend override (terrain blend, W3DCustomEdging, etc.)
+    if (g_blendOverrideActive)
     {
-        const bool isIdentityWorld =
-            g_bgfxSortWorld[0] == 1.0f && g_bgfxSortWorld[5] == 1.0f &&
-            g_bgfxSortWorld[10] == 1.0f && g_bgfxSortWorld[15] == 1.0f &&
-            g_bgfxSortWorld[12] == 0.0f && g_bgfxSortWorld[13] == 0.0f &&
-            g_bgfxSortWorld[14] == 0.0f;
-        if (isIdentityWorld)
+        state &= ~BGFX_STATE_BLEND_MASK;
+        state |= g_blendOverrideBits;
+    }
+    // Apply post-ShaderClass alpha test override
+    if (g_atestOverrideActive)
+    {
+        if (bgfx::isValid(g_uAtestParams))
         {
-            // Particles: view-space positions, skip depth test
-            state &= ~BGFX_STATE_DEPTH_TEST_MASK;
-            state |= BGFX_STATE_DEPTH_TEST_ALWAYS;
+            float atestParams[4] = { g_atestOverrideRef, 0.0f, 0.0f, 0.0f };
+            bgfx::setUniform(g_uAtestParams, atestParams);
         }
-        // else: mesh-based sorted draw, use the shader's depth compare
+    }
+
+    // Sort view uses the same projection as the opaque view, so particle
+    // Z values (in view space) produce the same depth as opaque geometry
+    // at the same world position. Use the shader's normal depth compare
+    // (typically LEQUAL) for correct depth testing against opaque geometry.
+    // No DEPTH_TEST_ALWAYS override needed.
+
+    // Apply color write mask override from Set_Color_Write_Enable.
+    // This handles both alpha-only writes (shoreline depth gradient)
+    // and RGB-only writes (terrain with alpha writes disabled).
+    if (g_colorWriteOverride >= 0)
+    {
+        state &= ~(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+        state |= static_cast<uint64_t>(g_colorWriteOverride);
+    }
+
+    if (g_waterOverrideActive)
+    {
+        g_waterOverrideActive = false;
     }
 
     bgfx::setState(state);
 
     bgfx::submit(submitView, g_currentBgfxProgram);
-
-    if (!g_loggedFirstBgfxSubmit)
-    {
-        g_loggedFirstBgfxSubmit = true;
-        WWDEBUG_SAY(("[BgfxBackend] First engine bgfx::submit "
-                     "(view=%u start=%u polys=%u min_v=%u count=%u state=0x%016llx)",
-                     static_cast<unsigned>(submitView),
-                     start_index, polygon_count,
-                     min_vertex_index, vertex_count,
-                     static_cast<unsigned long long>(state)));
-    }
 }
 }
 
@@ -2769,13 +2973,6 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
                                  unsigned short vertex_count)
 {
     DX8Backend::Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
-
-    if (!g_loggedFirstDrawTriangles)
-    {
-        g_loggedFirstDrawTriangles = true;
-        WWDEBUG_SAY(("[BgfxBackend] Draw_Triangles first call (polys=%u verts=%u)",
-                     polygon_count, vertex_count));
-    }
 
     // Phase 4G.13: if DX8Wrapper::Draw_Sorting_IB_VB already submitted
     // the draw with correctly remapped args against its internal dynamic
@@ -2796,12 +2993,6 @@ void BgfxBackend::Draw_Triangles(unsigned int buffer_type,
 {
     DX8Backend::Draw_Triangles(buffer_type, start_index, polygon_count, min_vertex_index, vertex_count);
 
-    if (!g_loggedFirstDrawTriangles)
-    {
-        g_loggedFirstDrawTriangles = true;
-        WWDEBUG_SAY(("[BgfxBackend] Draw_Triangles first call typed (polys=%u verts=%u)",
-                     polygon_count, vertex_count));
-    }
     if (g_skipNextSubmitEngineDraw)
     {
         g_skipNextSubmitEngineDraw = false;
