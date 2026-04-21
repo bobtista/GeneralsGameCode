@@ -98,6 +98,8 @@
 #include "coltest.h"
 #include "inttest.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8fvf.h"
@@ -508,10 +510,10 @@ void BoxRenderObjClass::render_box(RenderInfoClass & rinfo,const Vector3 & cente
 		DX8Wrapper::Set_Shader(_BoxShader);
 		DX8Wrapper::Set_Texture(0,nullptr);
 
-		DX8Wrapper::Set_Index_Buffer(ibaccess,0);
-		DX8Wrapper::Set_Vertex_Buffer(vbaccess);
+		WW3D::Get_Render_Backend()->Set_Index_Buffer(ibaccess, 0);
+		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vbaccess);
 
-		DX8Wrapper::Draw_Triangles(buffer_type,0,NUM_BOX_FACES,0,NUM_BOX_VERTS);
+		WW3D::Get_Render_Backend()->Draw_Triangles(buffer_type, 0, NUM_BOX_FACES, 0, NUM_BOX_VERTS);
 	}
 }
 
@@ -1384,5 +1386,3 @@ RenderObjClass * BoxPrototypeClass::Create()
 ** Global instance of the box loader
 */
 BoxLoaderClass _BoxLoader;
-
-
