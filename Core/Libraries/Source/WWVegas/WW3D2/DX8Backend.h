@@ -33,6 +33,11 @@ public:
     DX8Backend();
     virtual ~DX8Backend();
 
+    // -- Backend lifecycle ----------------------------------------------------
+
+    virtual void Initialize(void * hwnd, int width, int height);
+    virtual void Shutdown();
+
     // -- Device state queries -------------------------------------------------
 
     virtual bool Is_Device_Lost() const;
