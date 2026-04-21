@@ -108,7 +108,7 @@ public:
     virtual void End_Sorted_Batch_Pass() override;
     virtual void Capture_Sorted_Batch_Transforms(const Matrix4x4 & world,
                                                  const Matrix4x4 & view) override;
-    virtual void Capture_Sorted_Batch_Light(const D3DLIGHT8 & light, bool enabled) override;
+    virtual void Capture_Sorted_Batch_Light(const RenderBackendLight & light, bool enabled) override;
     virtual void Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
                                     const DynamicIBAccessClass & dyn_ib,
                                     unsigned short polygon_count,
@@ -126,8 +126,8 @@ public:
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) override;
     virtual void Set_Ambient(const Vector3 & color) override;
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) override;
-    virtual void Override_Blend(unsigned srcBlend, unsigned dstBlend) override;
-    virtual void Override_Alpha_Test(bool enable, unsigned ref, unsigned func) override;
+    virtual void Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend) override;
+    virtual void Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func) override;
     virtual void Override_Alpha_Blend_Enable(bool enable) override;
     virtual void Override_Texcoord_Index(unsigned stage, unsigned uvIndex) override;
     virtual void Override_Terrain_Blend(bool enable) override;
