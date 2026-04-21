@@ -43,6 +43,8 @@
 #include "vertmaterial.h"
 #include "dx8wrapper.h"
 #include "WWMath/wwmath.h"
+#include "WW3D2/RenderBackend.h"
+#include "WW3D2/IRenderBackend.h"
 #include "rinfo.h"
 #include "camera.h"
 #include "dx8indexbuffer.h"
@@ -465,13 +467,13 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 		}
 	}
 
-	DX8Wrapper::Set_Index_Buffer(iba, 0);
-	DX8Wrapper::Set_Vertex_Buffer(vba);
+	WW3D::Get_Render_Backend()->Set_Index_Buffer(iba, 0);
+	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vba);
 
 	if (sort) {
 		SortingRendererClass::Insert_Triangles(0, num_tris, 0, num_vertices);
 	} else {
-		DX8Wrapper::Draw_Triangles(0, num_tris, 0, num_vertices);
+		WW3D::Get_Render_Backend()->Draw_Triangles(0, num_tris, 0, num_vertices);
 	}
 
 	// restore the matrices
