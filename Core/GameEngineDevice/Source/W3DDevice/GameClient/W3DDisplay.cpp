@@ -95,6 +95,8 @@ static void drawFramerateBar();
 #include "WW3D2/dx8caps.h"
 #include "WW3D2/ww3dformat.h"
 #include "WW3D2/agg_def.h"
+#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/RenderBackend.h"
 #include "WW3D2/render2dsentence.h"
 #include "WW3D2/sortingrenderer.h"
 #include "WW3D2/textureloader.h"
