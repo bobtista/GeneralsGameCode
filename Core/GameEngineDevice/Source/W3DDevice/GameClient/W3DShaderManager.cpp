@@ -1720,7 +1720,7 @@ Int TerrainShader2Stage::set(Int pass)
 			g_renderBackend->Override_Texcoord_Index(0, 1);
 			// Blend the result using the alpha. (came from diffuse mod texture)
 			g_renderBackend->Override_Alpha_Blend_Enable(true);
-			g_renderBackend->Override_Blend(D3DBLEND_SRCALPHA, D3DBLEND_INVSRCALPHA);
+			g_renderBackend->Override_Blend(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 			// Disable stage 2.
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );

@@ -41,9 +41,9 @@ public:
     // -- Device state queries -------------------------------------------------
 
     virtual bool Is_Device_Lost() const;
-    virtual bool Has_Stencil();
-    virtual WW3DFormat Get_Back_Buffer_Format();
-    virtual SurfaceClass * Get_Back_Buffer(unsigned int num);
+    virtual bool Has_Stencil() const;
+    virtual WW3DFormat Get_Back_Buffer_Format() const;
+    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const;
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit);
 
     // -- Frame lifecycle ------------------------------------------------------
@@ -104,11 +104,11 @@ public:
 
     virtual void Set_Transform(TransformKind transform, const Matrix4x4 & m);
     virtual void Set_Transform(TransformKind transform, const Matrix3D & m);
-    virtual void Get_Transform(TransformKind transform, Matrix4x4 & m);
+    virtual void Get_Transform(TransformKind transform, Matrix4x4 & m) const;
     virtual void Set_World_Identity();
     virtual void Set_View_Identity();
-    virtual bool Is_World_Identity();
-    virtual bool Is_View_Identity();
+    virtual bool Is_World_Identity() const;
+    virtual bool Is_View_Identity() const;
     virtual void Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix, float znear, float zfar);
 
     // -- Lighting and fog -----------------------------------------------------
@@ -148,7 +148,7 @@ public:
 
     virtual TextureClass * Create_Render_Target(int width, int height, WW3DFormat format);
     virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture);
-    virtual bool Is_Render_To_Texture();
+    virtual bool Is_Render_To_Texture() const;
     virtual void Set_Shadow_Map(int idx, ZTextureClass * ztex);
-    virtual ZTextureClass * Get_Shadow_Map(int idx);
+    virtual ZTextureClass * Get_Shadow_Map(int idx) const;
 };
