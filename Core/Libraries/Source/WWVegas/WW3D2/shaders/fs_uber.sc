@@ -1,4 +1,4 @@
-$input v_color0, v_texcoord0, v_normal
+$input v_color0, v_texcoord0, v_texcoord1, v_normal
 
 #include <bgfx_shader.sh>
 
@@ -14,6 +14,7 @@ uniform vec4 u_lightDirs[4];    // per-light direction (xyz=toward light, w=enab
 uniform vec4 u_lightColors[4]; // per-light diffuse color (rgb)
 uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
 uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
+uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
 
 // TSS operation IDs (must match BgfxBackend.cpp encoding)
 #define TSS_DISABLE         0.0
@@ -70,11 +71,36 @@ float applyAlphaOp(float op, float arg1, float arg2)
 
 void main()
 {
+	vec4 diffuse = v_color0;
+
+	// --- Terrain pixel shader path ---
+	// The D3D8 terrain system uses a hardware pixel shader (terrain.nvp)
+	// that completely replaces the TSS pipeline:
+	//   tex t0              ; sample tex0 with UV set 0
+	//   tex t1              ; sample tex1 with UV set 1
+	//   lrp r0, v0.a, t1, t0  ; mix(t0, t1, vertex_alpha)
+	//   mul r0, r0, v0        ; multiply by diffuse (baked lighting)
+	if (u_texcoordSelect.y > 0.5)
+	{
+		vec4 baseTex  = texture2D(s_tex0, v_texcoord0);
+		vec4 blendTex = texture2D(s_tex1, v_texcoord1);
+		float blendAlpha = diffuse.a;
+		vec3 blended = mix(baseTex.rgb, blendTex.rgb, blendAlpha);
+		vec4 result = vec4(blended * diffuse.rgb, 1.0);
+
+		if (u_atestParams.x > 0.0 && result.a < u_atestParams.x)
+		{
+			discard;
+		}
+
+		gl_FragColor = result;
+		return;
+	}
+
 	vec4 tex0 = texture2D(s_tex0, v_texcoord0);
 	vec4 tex1 = texture2D(s_tex1, v_texcoord0);
 	vec4 tex2 = texture2D(s_tex2, v_texcoord0);
 	vec4 tex3 = texture2D(s_tex3, v_texcoord0);
-	vec4 diffuse = v_color0;
 
 	// --- Stage 0: Primary (texture0 vs diffuse) ---
 	float priColorOp = u_tssOps0.x;
@@ -138,8 +164,14 @@ void main()
 		current.a = applyAlphaOp(secAlphaOp, secAArg1, secAArg2);
 	}
 
-	// --- Stages 2-3: simple multiply (engine rarely uses independent ops here) ---
-	current *= tex2 * tex3;
+	// --- Stages 2-3: only multiply when stage 1 is active (stages 2-3
+	// piggyback on the secondary stage enable). When disabled, D3D8
+	// skips these stages entirely. Multiplying by stale/unset textures
+	// would zero out the result (e.g. water draws that only use stage 0).
+	if (secColorOp > 0.5)
+	{
+		current *= tex2 * tex3;
+	}
 
 	// --- Lighting ---
 	if (priColorOp > 2.5 && priColorOp < 5.5 && u_lightingEnabled.x > 0.5)
@@ -151,8 +183,11 @@ void main()
 		// dividing it out, then apply proper lighting.
 		// Simpler approach: recompute current as tex-only * lighting.
 		vec4 texOnly = tex0;
-		if (secColorOp > 0.5) texOnly *= tex1;
-		texOnly *= tex2 * tex3;
+		if (secColorOp > 0.5)
+		{
+			texOnly *= tex1;
+			texOnly *= tex2 * tex3;
+		}
 
 		vec3 nrm = normalize(v_normal);
 		vec3 litColor = u_sceneAmbient.rgb * u_matDiffuse.rgb;
