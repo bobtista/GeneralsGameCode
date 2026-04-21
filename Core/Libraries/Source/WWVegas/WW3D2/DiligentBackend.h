@@ -93,6 +93,16 @@ public:
     virtual void Set_Stencil_Fail_Op(StencilOp op);
     virtual void Set_Stencil_ZFail_Op(StencilOp op);
 
+    // Phase 4F render-state extension.
+    virtual void Set_Z_Bias(int bias);
+    virtual void Set_Fill_Mode(FillMode mode);
+    virtual void Set_Depth_Test_Enable(bool enable);
+    virtual void Set_Depth_Write_Enable(bool enable);
+    virtual void Set_Depth_Func(CompareFunc func);
+    virtual void Set_Color_Write_Mask(unsigned mask);
+    virtual void Set_Lighting_Enable(bool enable);
+    virtual void Set_Texture_Factor(unsigned argb);
+
     // -- Transforms -----------------------------------------------------------
 
     virtual void Set_Transform(TransformKind transform, const Matrix4x4 & m);

@@ -237,6 +237,38 @@ void DiligentBackend::Set_Stencil_ZFail_Op(StencilOp /*op*/)
 {
 }
 
+void DiligentBackend::Set_Z_Bias(int /*bias*/)
+{
+}
+
+void DiligentBackend::Set_Fill_Mode(FillMode /*mode*/)
+{
+}
+
+void DiligentBackend::Set_Depth_Test_Enable(bool /*enable*/)
+{
+}
+
+void DiligentBackend::Set_Depth_Write_Enable(bool /*enable*/)
+{
+}
+
+void DiligentBackend::Set_Depth_Func(CompareFunc /*func*/)
+{
+}
+
+void DiligentBackend::Set_Color_Write_Mask(unsigned /*mask*/)
+{
+}
+
+void DiligentBackend::Set_Lighting_Enable(bool /*enable*/)
+{
+}
+
+void DiligentBackend::Set_Texture_Factor(unsigned /*argb*/)
+{
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void DiligentBackend::Set_Transform(TransformKind /*transform*/, const Matrix4x4 & /*m*/)

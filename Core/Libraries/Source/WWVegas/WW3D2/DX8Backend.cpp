@@ -295,6 +295,46 @@ void DX8Backend::Set_Stencil_ZFail_Op(StencilOp op)
     DX8Wrapper::Set_DX8_Render_State(D3DRS_STENCILZFAIL, static_cast<unsigned>(op));
 }
 
+void DX8Backend::Set_Z_Bias(int bias)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ZBIAS, static_cast<unsigned>(bias));
+}
+
+void DX8Backend::Set_Fill_Mode(FillMode mode)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE, static_cast<unsigned>(mode));
+}
+
+void DX8Backend::Set_Depth_Test_Enable(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ZENABLE, enable ? TRUE : FALSE);
+}
+
+void DX8Backend::Set_Depth_Write_Enable(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ZWRITEENABLE, enable ? TRUE : FALSE);
+}
+
+void DX8Backend::Set_Depth_Func(CompareFunc func)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, static_cast<unsigned>(func));
+}
+
+void DX8Backend::Set_Color_Write_Mask(unsigned mask)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE, mask);
+}
+
+void DX8Backend::Set_Lighting_Enable(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING, enable ? TRUE : FALSE);
+}
+
+void DX8Backend::Set_Texture_Factor(unsigned argb)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, argb);
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void DX8Backend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
