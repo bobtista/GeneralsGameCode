@@ -71,17 +71,11 @@
 #include "vs_passthrough_dx11.bin.h"
 #include "fs_passthrough_dx11.bin.h"
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4D.1 preset shader
-// programs. These cover the three most common ShaderClass preset buckets
-// (lit textured, unlit textured, alpha-tested lit textured). See
-// PHASE4_INVENTORY.md for the bucket analysis.
-#include "vs_textured_lit_dx11.bin.h"
-#include "fs_textured_lit_dx11.bin.h"
-#include "vs_textured_unlit_dx11.bin.h"
-#include "fs_textured_unlit_dx11.bin.h"
-#include "fs_textured_lit_atest_dx11.bin.h"
-#include "vs_solid_lit_dx11.bin.h"
-#include "fs_solid_lit_dx11.bin.h"
+// TheSuperHackers @refactor bobtista 12/04/2026 Phase 5A uber shader pair.
+// Single program handles all TSS combinations via uniforms. Replaces the
+// Phase 4D.1 per-preset shader pairs.
+#include "vs_uber_dx11.bin.h"
+#include "fs_uber_dx11.bin.h"
 
 namespace
 {
@@ -114,14 +108,9 @@ const int kBgfxWindowHeight = 500;
 // succeeds, destroyed in Shutdown before bgfx::shutdown.
 bgfx::ProgramHandle g_passthroughProgram = BGFX_INVALID_HANDLE;
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4D.1 preset shader
-// programs. Created in Initialize, destroyed in Shutdown. Not yet used by
-// any draw call - that wiring lands in a later session along with the
-// ShaderClass preset -> ProgramHandle mapping table.
-bgfx::ProgramHandle g_texturedLitProgram      = BGFX_INVALID_HANDLE;
-bgfx::ProgramHandle g_texturedUnlitProgram    = BGFX_INVALID_HANDLE;
-bgfx::ProgramHandle g_texturedLitAtestProgram = BGFX_INVALID_HANDLE;
-bgfx::ProgramHandle g_solidLitProgram         = BGFX_INVALID_HANDLE;
+// TheSuperHackers @refactor bobtista 12/04/2026 Phase 5A uber shader
+// program. Single program handles all TSS combinations via uniforms.
+bgfx::ProgramHandle g_uberProgram = BGFX_INVALID_HANDLE;
 
 // Sampler uniform shared by all textured fragment shaders. Bound to stage 0.
 bgfx::UniformHandle g_sTex0        = BGFX_INVALID_HANDLE;
@@ -140,6 +129,14 @@ float               g_currentMatDiffuse[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 // Named u_atestParams (not u_alphaRef) to avoid bgfx_shader.sh's internal
 // u_alphaRef4 conflict. See fs_textured_lit_atest.sc for details.
 bgfx::UniformHandle g_uAtestParams = BGFX_INVALID_HANDLE;
+
+// Phase 5A TSS operation uniforms. Encode the DX8 texture stage state
+// operations so the uber fragment shader can evaluate them at runtime.
+bgfx::UniformHandle g_uTssOps0    = BGFX_INVALID_HANDLE;
+bgfx::UniformHandle g_uTssOps1    = BGFX_INVALID_HANDLE;
+float               g_currentTssOps0[4] = { 3.0f, 3.0f, 0.0f, 0.0f }; // default: MODULATE color+alpha, no secondary
+float               g_currentTssOps1[4] = { 0.0f, 0.0f, 0.0f, 0.0f }; // default: arg1=TEXTURE for all
+float               g_currentAtestRef   = 0.0f; // alpha test reference, 0 = disabled
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4F.1 default 1x1
 // white texture. Real Set_Texture wiring is not in place yet, so the
@@ -356,29 +353,162 @@ uint64_t TranslateDepthCompare(ShaderClass::DepthCompareType cmp)
     }
 }
 
-bgfx::ProgramHandle PickProgramForShader(const ShaderClass & shader)
-{
-    const bool textured = (shader.Get_Texturing()        != ShaderClass::TEXTURING_DISABLE);
-    const bool lit      = (shader.Get_Primary_Gradient() != ShaderClass::GRADIENT_DISABLE);
-    const bool atest    = (shader.Get_Alpha_Test()       != ShaderClass::ALPHATEST_DISABLE);
+// Phase 5A: extract TSS operation IDs from ShaderClass preset bits.
+// Maps the same logic as shader.cpp's Apply() into float IDs that the
+// uber fragment shader evaluates at runtime.
+//
+// TSS op IDs must match the #defines in fs_uber.sc:
+//   0=DISABLE 1=SELECTARG1 2=SELECTARG2 3=MODULATE 4=MODULATE2X
+//   5=ADD 6=ADDSIGNED 7=SUBTRACT 8=BLENDTEXALPHA 9=BLENDCURALPHA 10=ADDSMOOTH
+// Arg source IDs: 0=TEXTURE 1=DIFFUSE 2=CURRENT
 
-    if (atest && textured)
+void BuildTssOpsForShader(const ShaderClass & shader,
+                          float * ops0, float * ops1, float * atestRef)
+{
+    float priColorOp  = 3.0f; // MODULATE
+    float priAlphaOp  = 3.0f; // MODULATE
+    float priCArg1Src = 0.0f; // TEXTURE
+    float priAArg1Src = 0.0f; // TEXTURE
+    float secColorOp  = 0.0f; // DISABLE
+    float secAlphaOp  = 0.0f; // DISABLE
+    float secCArg1Src = 0.0f; // TEXTURE
+    float secAArg1Src = 0.0f; // TEXTURE
+
+    if (shader.Get_Texturing() == ShaderClass::TEXTURING_ENABLE)
     {
-        return g_texturedLitAtestProgram;
+        switch (shader.Get_Primary_Gradient())
+        {
+            case ShaderClass::GRADIENT_DISABLE:
+                priColorOp  = 1.0f; // SELECTARG1
+                priAlphaOp  = 1.0f; // SELECTARG1
+                priCArg1Src = 0.0f; // TEXTURE
+                priAArg1Src = 0.0f; // TEXTURE
+                break;
+            default:
+            case ShaderClass::GRADIENT_MODULATE:
+                priColorOp  = 3.0f; // MODULATE
+                priAlphaOp  = 3.0f; // MODULATE
+                priCArg1Src = 0.0f; // TEXTURE
+                priAArg1Src = 0.0f; // TEXTURE
+                break;
+            case ShaderClass::GRADIENT_ADD:
+                priColorOp  = 5.0f; // ADD
+                priAlphaOp  = 3.0f; // MODULATE (alpha always modulates)
+                priCArg1Src = 0.0f; // TEXTURE
+                priAArg1Src = 0.0f; // TEXTURE
+                break;
+            case ShaderClass::GRADIENT_MODULATE2X:
+                priColorOp  = 4.0f; // MODULATE2X
+                priAlphaOp  = 3.0f; // MODULATE
+                priCArg1Src = 0.0f; // TEXTURE
+                priAArg1Src = 0.0f; // TEXTURE
+                break;
+            case ShaderClass::GRADIENT_BUMPENVMAP:
+            case ShaderClass::GRADIENT_BUMPENVMAPLUMINANCE:
+                priColorOp  = 1.0f; // SELECTARG1
+                priAlphaOp  = 1.0f; // SELECTARG1
+                priCArg1Src = 1.0f; // DIFFUSE
+                priAArg1Src = 1.0f; // DIFFUSE
+                break;
+        }
+
+        switch (shader.Get_Post_Detail_Color_Func())
+        {
+            default:
+            case ShaderClass::DETAILCOLOR_DISABLE:
+                secColorOp = 0.0f;
+                break;
+            case ShaderClass::DETAILCOLOR_DETAIL:
+                secColorOp  = 1.0f; // SELECTARG1
+                secCArg1Src = 0.0f; // TEXTURE
+                break;
+            case ShaderClass::DETAILCOLOR_SCALE:
+                secColorOp  = 3.0f; // MODULATE
+                secCArg1Src = 0.0f; // TEXTURE
+                break;
+            case ShaderClass::DETAILCOLOR_INVSCALE:
+                secColorOp  = 10.0f; // ADDSMOOTH
+                secCArg1Src = 0.0f;  // TEXTURE
+                break;
+            case ShaderClass::DETAILCOLOR_ADD:
+                secColorOp  = 5.0f; // ADD
+                secCArg1Src = 0.0f; // TEXTURE
+                break;
+            case ShaderClass::DETAILCOLOR_SUB:
+                secColorOp  = 7.0f; // SUBTRACT (current - tex)
+                secCArg1Src = 2.0f; // CURRENT as arg1 (so result = current - tex)
+                break;
+            case ShaderClass::DETAILCOLOR_SUBR:
+                secColorOp  = 7.0f; // SUBTRACT (tex - current)
+                secCArg1Src = 0.0f; // TEXTURE
+                break;
+            case ShaderClass::DETAILCOLOR_BLEND:
+                secColorOp  = 9.0f; // BLENDCURRENTALPHA
+                secCArg1Src = 0.0f; // TEXTURE
+                break;
+            case ShaderClass::DETAILCOLOR_DETAILBLEND:
+                secColorOp  = 8.0f; // BLENDTEXTUREALPHA
+                secCArg1Src = 0.0f; // TEXTURE
+                break;
+        }
+
+        switch (shader.Get_Post_Detail_Alpha_Func())
+        {
+            default:
+            case ShaderClass::DETAILALPHA_DISABLE:
+                secAlphaOp = 0.0f;
+                break;
+            case ShaderClass::DETAILALPHA_DETAIL:
+                secAlphaOp  = 1.0f; // SELECTARG1
+                secAArg1Src = 0.0f; // TEXTURE
+                break;
+            case ShaderClass::DETAILALPHA_SCALE:
+                secAlphaOp  = 3.0f; // MODULATE
+                secAArg1Src = 0.0f; // TEXTURE
+                break;
+            case ShaderClass::DETAILALPHA_INVSCALE:
+                secAlphaOp  = 10.0f; // ADDSMOOTH
+                secAArg1Src = 0.0f;  // TEXTURE
+                break;
+        }
     }
-    if (textured && lit)
+    else
     {
-        return g_texturedLitProgram;
+        switch (shader.Get_Primary_Gradient())
+        {
+            case ShaderClass::GRADIENT_DISABLE:
+                priColorOp = 0.0f; // DISABLE (output black/default)
+                priAlphaOp = 0.0f;
+                break;
+            default:
+            case ShaderClass::GRADIENT_MODULATE:
+            case ShaderClass::GRADIENT_ADD:
+                priColorOp  = 2.0f; // SELECTARG2
+                priAlphaOp  = 2.0f; // SELECTARG2
+                priCArg1Src = 0.0f;
+                priAArg1Src = 0.0f;
+                break;
+        }
     }
-    if (textured && !lit)
+
+    ops0[0] = priColorOp;
+    ops0[1] = priAlphaOp;
+    ops0[2] = secColorOp;
+    ops0[3] = secAlphaOp;
+
+    ops1[0] = priCArg1Src;
+    ops1[1] = priAArg1Src;
+    ops1[2] = secCArg1Src;
+    ops1[3] = secAArg1Src;
+
+    if (shader.Get_Alpha_Test() != ShaderClass::ALPHATEST_DISABLE)
     {
-        return g_texturedUnlitProgram;
+        *atestRef = 0x60 / 255.0f;
     }
-    if (!textured && lit)
+    else
     {
-        return g_solidLitProgram;
+        *atestRef = 0.0f;
     }
-    return g_passthroughProgram;
 }
 
 uint64_t BuildBgfxStateForShader(const ShaderClass & shader)
@@ -412,7 +542,7 @@ uint64_t BuildBgfxStateForShader(const ShaderClass & shader)
     return state;
 }
 
-[[maybe_unused]] const auto kShaderTranslationAnchor = &PickProgramForShader;
+[[maybe_unused]] const auto kShaderTranslationAnchor = &BuildTssOpsForShader;
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.2 generic FVF
 // to bgfx::VertexLayout translator. Walks the FVFInfoClass offset
@@ -913,11 +1043,8 @@ bool RecordPresetIfNew(unsigned int bits)
 
 const char * ProgramDebugName(bgfx::ProgramHandle h)
 {
-    if (h.idx == g_passthroughProgram.idx)      return "passthrough";
-    if (h.idx == g_texturedLitProgram.idx)      return "textured_lit";
-    if (h.idx == g_texturedUnlitProgram.idx)    return "textured_unlit";
-    if (h.idx == g_texturedLitAtestProgram.idx) return "textured_lit_atest";
-    if (h.idx == g_solidLitProgram.idx)         return "solid_lit";
+    if (h.idx == g_passthroughProgram.idx) return "passthrough";
+    if (h.idx == g_uberProgram.idx)        return "uber";
     return "?";
 }
 
@@ -1113,17 +1240,14 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
         WWDEBUG_SAY(("[BgfxBackend] passthrough shader createShader FAILED."));
     }
 
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4D.1 build the
-    // three preset shader programs. They share two vertex shaders and three
-    // fragment shaders. The lit-atest program reuses vs_textured_lit. Each
-    // createProgram(..., true) hands ownership of its shader handles to the
-    // program, so we must NOT manually destroy them later.
     g_sTex0        = bgfx::createUniform("s_tex0",        bgfx::UniformType::Sampler);
     g_sTex1        = bgfx::createUniform("s_tex1",        bgfx::UniformType::Sampler);
     g_sTex2        = bgfx::createUniform("s_tex2",        bgfx::UniformType::Sampler);
     g_sTex3        = bgfx::createUniform("s_tex3",        bgfx::UniformType::Sampler);
     g_uMatDiffuse  = bgfx::createUniform("u_matDiffuse",  bgfx::UniformType::Vec4);
     g_uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
+    g_uTssOps0     = bgfx::createUniform("u_tssOps0",     bgfx::UniformType::Vec4);
+    g_uTssOps1     = bgfx::createUniform("u_tssOps1",     bgfx::UniformType::Vec4);
 
     // Phase 4F.1 default 1x1 white texture (opaque ABGR=0xffffffff).
     static const uint8_t kWhitePixel[4] = { 0xff, 0xff, 0xff, 0xff };
@@ -1133,84 +1257,30 @@ void BgfxBackend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
         BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT,
         bgfx::copy(kWhitePixel, sizeof(kWhitePixel)));
 
-    const bgfx::Memory * vsLitMem      = bgfx::makeRef(vs_textured_lit_dx11,
-                                                       sizeof(vs_textured_lit_dx11));
-    const bgfx::Memory * fsLitMem      = bgfx::makeRef(fs_textured_lit_dx11,
-                                                       sizeof(fs_textured_lit_dx11));
-    const bgfx::Memory * vsUnlitMem    = bgfx::makeRef(vs_textured_unlit_dx11,
-                                                       sizeof(vs_textured_unlit_dx11));
-    const bgfx::Memory * fsUnlitMem    = bgfx::makeRef(fs_textured_unlit_dx11,
-                                                       sizeof(fs_textured_unlit_dx11));
-    const bgfx::Memory * fsAtestMem    = bgfx::makeRef(fs_textured_lit_atest_dx11,
-                                                       sizeof(fs_textured_lit_atest_dx11));
-
-    bgfx::ShaderHandle vsLit   = bgfx::createShader(vsLitMem);
-    bgfx::ShaderHandle fsLit   = bgfx::createShader(fsLitMem);
-    bgfx::ShaderHandle vsUnlit = bgfx::createShader(vsUnlitMem);
-    bgfx::ShaderHandle fsUnlit = bgfx::createShader(fsUnlitMem);
-    bgfx::ShaderHandle fsAtest = bgfx::createShader(fsAtestMem);
-
-    if (bgfx::isValid(vsLit) && bgfx::isValid(fsLit))
+    // Phase 5A uber shader program — single program for all engine draws.
+    const bgfx::Memory * vsUberMem = bgfx::makeRef(vs_uber_dx11, sizeof(vs_uber_dx11));
+    const bgfx::Memory * fsUberMem = bgfx::makeRef(fs_uber_dx11, sizeof(fs_uber_dx11));
+    bgfx::ShaderHandle vsUber = bgfx::createShader(vsUberMem);
+    bgfx::ShaderHandle fsUber = bgfx::createShader(fsUberMem);
+    if (bgfx::isValid(vsUber) && bgfx::isValid(fsUber))
     {
-        bgfx::setName(vsLit, "vs_textured_lit");
-        bgfx::setName(fsLit, "fs_textured_lit");
-        // vsLit is also used by the atest program; createProgram(..., true)
-        // would destroy it after the first call. Pass false here, then
-        // again for the atest program; we destroy vsLit ourselves below.
-        g_texturedLitProgram = bgfx::createProgram(vsLit, fsLit, false);
+        bgfx::setName(vsUber, "vs_uber");
+        bgfx::setName(fsUber, "fs_uber");
+        g_uberProgram = bgfx::createProgram(vsUber, fsUber, true);
     }
-    if (bgfx::isValid(vsUnlit) && bgfx::isValid(fsUnlit))
+    else
     {
-        bgfx::setName(vsUnlit, "vs_textured_unlit");
-        bgfx::setName(fsUnlit, "fs_textured_unlit");
-        g_texturedUnlitProgram = bgfx::createProgram(vsUnlit, fsUnlit, true);
-    }
-    if (bgfx::isValid(vsLit) && bgfx::isValid(fsAtest))
-    {
-        bgfx::setName(fsAtest, "fs_textured_lit_atest");
-        g_texturedLitAtestProgram = bgfx::createProgram(vsLit, fsAtest, false);
-    }
-    // Now safe to release standalone shader handles - the programs hold
-    // their own internal refs.
-    if (bgfx::isValid(vsLit))
-    {
-        bgfx::destroy(vsLit);
-    }
-    if (bgfx::isValid(fsLit))
-    {
-        bgfx::destroy(fsLit);
-    }
-    if (bgfx::isValid(fsAtest))
-    {
-        bgfx::destroy(fsAtest);
-    }
-
-    // Solid lit shader (bucket C) - vertex color only, no texture sample.
-    const bgfx::Memory * vsSolidMem = bgfx::makeRef(vs_solid_lit_dx11,
-                                                    sizeof(vs_solid_lit_dx11));
-    const bgfx::Memory * fsSolidMem = bgfx::makeRef(fs_solid_lit_dx11,
-                                                    sizeof(fs_solid_lit_dx11));
-    bgfx::ShaderHandle vsSolid = bgfx::createShader(vsSolidMem);
-    bgfx::ShaderHandle fsSolid = bgfx::createShader(fsSolidMem);
-    if (bgfx::isValid(vsSolid) && bgfx::isValid(fsSolid))
-    {
-        bgfx::setName(vsSolid, "vs_solid_lit");
-        bgfx::setName(fsSolid, "fs_solid_lit");
-        g_solidLitProgram = bgfx::createProgram(vsSolid, fsSolid, true);
+        WWDEBUG_SAY(("[BgfxBackend] uber shader createShader FAILED."));
     }
 
     const bgfx::RendererType::Enum selected = bgfx::getRendererType();
     const char * rendererName = bgfx::getRendererName(selected);
     WWDEBUG_SAY(("[BgfxBackend] bgfx::init OK on debug window "
-                 "(renderer=%s, %dx%d, hwnd=%p, passthrough=%s, "
-                 "lit=%s, unlit=%s, lit_atest=%s, solid=%s).",
+                 "(renderer=%s, %dx%d, hwnd=%p, passthrough=%s, uber=%s).",
                  rendererName, kBgfxWindowWidth, kBgfxWindowHeight,
                  g_bgfxWindow,
-                 bgfx::isValid(g_passthroughProgram)      ? "ok" : "FAILED",
-                 bgfx::isValid(g_texturedLitProgram)      ? "ok" : "FAILED",
-                 bgfx::isValid(g_texturedUnlitProgram)    ? "ok" : "FAILED",
-                 bgfx::isValid(g_texturedLitAtestProgram) ? "ok" : "FAILED",
-                 bgfx::isValid(g_solidLitProgram)         ? "ok" : "FAILED"));
+                 bgfx::isValid(g_passthroughProgram) ? "ok" : "FAILED",
+                 bgfx::isValid(g_uberProgram)        ? "ok" : "FAILED"));
 }
 
 void BgfxBackend::Shutdown()
@@ -1222,25 +1292,10 @@ void BgfxBackend::Shutdown()
             bgfx::destroy(g_passthroughProgram);
             g_passthroughProgram = BGFX_INVALID_HANDLE;
         }
-        if (bgfx::isValid(g_texturedLitProgram))
+        if (bgfx::isValid(g_uberProgram))
         {
-            bgfx::destroy(g_texturedLitProgram);
-            g_texturedLitProgram = BGFX_INVALID_HANDLE;
-        }
-        if (bgfx::isValid(g_texturedUnlitProgram))
-        {
-            bgfx::destroy(g_texturedUnlitProgram);
-            g_texturedUnlitProgram = BGFX_INVALID_HANDLE;
-        }
-        if (bgfx::isValid(g_texturedLitAtestProgram))
-        {
-            bgfx::destroy(g_texturedLitAtestProgram);
-            g_texturedLitAtestProgram = BGFX_INVALID_HANDLE;
-        }
-        if (bgfx::isValid(g_solidLitProgram))
-        {
-            bgfx::destroy(g_solidLitProgram);
-            g_solidLitProgram = BGFX_INVALID_HANDLE;
+            bgfx::destroy(g_uberProgram);
+            g_uberProgram = BGFX_INVALID_HANDLE;
         }
         if (bgfx::isValid(g_sTex0))
         {
@@ -1271,6 +1326,16 @@ void BgfxBackend::Shutdown()
         {
             bgfx::destroy(g_uAtestParams);
             g_uAtestParams = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_uTssOps0))
+        {
+            bgfx::destroy(g_uTssOps0);
+            g_uTssOps0 = BGFX_INVALID_HANDLE;
+        }
+        if (bgfx::isValid(g_uTssOps1))
+        {
+            bgfx::destroy(g_uTssOps1);
+            g_uTssOps1 = BGFX_INVALID_HANDLE;
         }
         if (bgfx::isValid(g_defaultWhiteTexture))
         {
@@ -1890,6 +1955,20 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         bgfx::setUniform(g_uMatDiffuse, g_currentMatDiffuse);
     }
 
+    if (bgfx::isValid(g_uTssOps0))
+    {
+        bgfx::setUniform(g_uTssOps0, g_currentTssOps0);
+    }
+    if (bgfx::isValid(g_uTssOps1))
+    {
+        bgfx::setUniform(g_uTssOps1, g_currentTssOps1);
+    }
+    if (bgfx::isValid(g_uAtestParams))
+    {
+        float atestParams[4] = { g_currentAtestRef, 0.0f, 0.0f, 0.0f };
+        bgfx::setUniform(g_uAtestParams, atestParams);
+    }
+
     uint64_t state = (g_currentBgfxState != 0)
         ? g_currentBgfxState
         : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
@@ -2014,22 +2093,17 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
 {
     DX8Backend::Set_Shader(shader);
 
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4D.3 cache the
-    // picked program and state bits for the next draw call, and log any
-    // shader bit pattern we have not seen before (capped at kMaxLoggedPresets
-    // to keep WWDebug.txt readable). No draw call consumes the cached state
-    // yet - this is purely diagnostic so we can confirm the engine is
-    // routing Set_Shader through the bgfx backend and see which preset
-    // buckets the game actually uses.
-    g_currentBgfxProgram = PickProgramForShader(shader);
+    g_currentBgfxProgram = g_uberProgram;
     g_currentBgfxState   = BuildBgfxStateForShader(shader);
+    BuildTssOpsForShader(shader, g_currentTssOps0, g_currentTssOps1, &g_currentAtestRef);
 
     if (RecordPresetIfNew(shader.Get_Bits()))
     {
         WWDEBUG_SAY(("[BgfxBackend] Set_Shader new preset bits=0x%08x -> "
-                     "program=%s state=0x%016llx",
+                     "tssOps=(%.0f,%.0f,%.0f,%.0f) state=0x%016llx",
                      shader.Get_Bits(),
-                     ProgramDebugName(g_currentBgfxProgram),
+                     g_currentTssOps0[0], g_currentTssOps0[1],
+                     g_currentTssOps0[2], g_currentTssOps0[3],
                      static_cast<unsigned long long>(g_currentBgfxState)));
     }
 }
@@ -2415,6 +2489,24 @@ void SubmitEngineDraw(unsigned short start_index,
     if (bgfx::isValid(g_uMatDiffuse))
     {
         bgfx::setUniform(g_uMatDiffuse, g_currentMatDiffuse);
+    }
+
+    // Phase 5A: push TSS operation uniforms so the uber fragment shader
+    // knows how to combine texture stages.
+    if (bgfx::isValid(g_uTssOps0))
+    {
+        bgfx::setUniform(g_uTssOps0, g_currentTssOps0);
+    }
+    if (bgfx::isValid(g_uTssOps1))
+    {
+        bgfx::setUniform(g_uTssOps1, g_currentTssOps1);
+    }
+    // Phase 5A: push alpha test reference. Previously created but never
+    // set per-draw — now extracted from ShaderClass in Set_Shader.
+    if (bgfx::isValid(g_uAtestParams))
+    {
+        float atestParams[4] = { g_currentAtestRef, 0.0f, 0.0f, 0.0f };
+        bgfx::setUniform(g_uAtestParams, atestParams);
     }
 
     // Use the cached state if it was built; otherwise fall back to a
