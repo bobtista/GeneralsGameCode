@@ -993,8 +993,8 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			//a projected alpha texture which will later be used to determine where
 			//wireframe should be visible.
 			///@todo: Clearing to black may not be needed if the scene already did the clear.
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_ALPHA);
-			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
+			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_ALPHA);
+			WW3D::Get_Render_Backend()->Set_Z_Bias(0);
 			//Since all objects will be rendered with same material, disable resetting until all are done.
 			m_maskMaterialPass->setAllowUninstall(FALSE);
 
@@ -1003,7 +1003,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			m_maskMaterialPass->setAllowUninstall(TRUE);
 			m_maskMaterialPass->UnInstall_Materials();
 
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
 
 			ShaderClass::Invalidate();
 		}
@@ -1018,8 +1018,8 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			//wireframe should be visible.
 			///@todo: Clearing to black may not be needed if the scene already did the clear.
 			WW3D::Get_Render_Backend()->Clear(true, false, Vector3(0.0f,0.0f,0.0f),1.0f);	// Clear color but not z
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_ALPHA);
-			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
+			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_ALPHA);
+			WW3D::Get_Render_Backend()->Set_Z_Bias(0);
 
 			//We're only filling the z-buffer so ignore normal textures and state changes to speed things up.
 			m_customPassMode = SCENE_PASS_ALPHA_MASK;
@@ -1031,10 +1031,10 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			m_maskMaterialPass->setAllowUninstall(TRUE);
 			m_maskMaterialPass->UnInstall_Materials();
 
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
 			WW3D::Enable_Coloring(0xff008000);
 			WW3D::Enable_Texturing(false);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
+			WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_WIREFRAME);
 
 			//Move maximum z-buffer value in a little to shift all z-values closer
 			//and thus forcing line to appear on top of previous pass.
@@ -1046,7 +1046,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 //			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 4);
 			Customized_Render(rinfo);	//render wireframe where z-test passes
 			Flush(rinfo);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_SOLID);
+			WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_SOLID);
 
 			rinfo.Camera.Set_Zbuffer_Range(nearZ, farZ);
 			rinfo.Camera.Apply();
@@ -1062,32 +1062,32 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			//old W3D custom rendering code.
 
 			//Disable writes to color buffer to save memory bandwidth - we only need Z.
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,0);
-			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
+			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(0);
+			WW3D::Get_Render_Backend()->Set_Z_Bias(0);
 			Customized_Render(rinfo);
 			Flush(rinfo);
 			//Re-enable writes to color buffer.
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
 
 			switch (Get_Extra_Pass_Polygon_Mode()) {
 			case EXTRA_PASS_LINE:
 				WW3D::Enable_Texturing(false);
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-				DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 7);
+				WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_WIREFRAME);
+				WW3D::Get_Render_Backend()->Set_Z_Bias(7);
 				Customized_Render(rinfo);
 				break;
 			case EXTRA_PASS_CLEAR_LINE:
 				WW3D::Get_Render_Backend()->Clear(true, false, Vector3(0.0f,0.0f,0.0f), 0.0f);	// Clear color but not z
 				WW3D::Enable_Texturing(false);
 				WW3D::Enable_Coloring(0xff008000);
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-				DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 7);
+				WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_WIREFRAME);
+				WW3D::Get_Render_Backend()->Set_Z_Bias(7);
 				Customized_Render(rinfo);
 				break;
 			}
 			Flush(rinfo);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_SOLID);
-			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
+			WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_SOLID);
+			WW3D::Get_Render_Backend()->Set_Z_Bias(0);
 			WW3D::Enable_Texturing(old_enable);
 			WW3D::Enable_Coloring(0);
 			ShaderClass::Invalidate();
@@ -1289,7 +1289,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 
 	// Set stencil states
 	WW3D::Get_Render_Backend()->Set_Stencil_Enable(true);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZENABLE, TRUE );
+	WW3D::Get_Render_Backend()->Set_Depth_Test_Enable(true);
 	DWORD	oldColorWriteEnable=0x12345678;
 	if (clear)
 	{
@@ -1302,13 +1302,13 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		WW3D::Get_Render_Backend()->Set_Stencil_ZFail_Op(RB_STENCIL_OP_REPLACE);
 		WW3D::Get_Render_Backend()->Set_Stencil_Pass_Op(RB_STENCIL_OP_REPLACE);	//pixels which had occluded player colors, get MSB set.
 		WW3D::Get_Render_Backend()->Set_Stencil_Fail_Op(RB_STENCIL_OP_ZERO);	//pixels which had no occluded player colors are cleared.
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, D3DCMP_NEVER  );	//fail all access to the frame buffer to improve memory bandwidth
+		WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_NEVER);	//fail all access to the frame buffer to improve memory bandwidth
 
 		//disable writes to color buffer
 		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
 		{
 			DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,0);
+			WW3D::Get_Render_Backend()->Set_Color_Write_Mask(0);
 		}
 		else
 		{
@@ -1339,10 +1339,10 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	WW3D::Get_Render_Backend()->Set_Stencil_Enable(false);
 	WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(false);	//restore shader state
 	WW3D::Get_Render_Backend()->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ZERO);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, D3DCMP_ALWAYS);
+	WW3D::Get_Render_Backend()->Set_Depth_Func(RB_CMP_ALWAYS);
 
 	if (oldColorWriteEnable != 0x12345678)
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,oldColorWriteEnable);
+		WW3D::Get_Render_Backend()->Set_Color_Write_Mask(oldColorWriteEnable);
 
 }
 
@@ -1399,7 +1399,7 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 		}
 
 		WW3D::Get_Render_Backend()->Set_Stencil_Enable(true);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZENABLE, TRUE );
+		WW3D::Get_Render_Backend()->Set_Depth_Test_Enable(true);
 		WW3D::Get_Render_Backend()->Set_Stencil_Mask(0xffffffff);
 		WW3D::Get_Render_Backend()->Set_Stencil_Write_Mask(0xffffffff);
 		//Always store player index into stencil unless it is occluded by another
@@ -1483,7 +1483,7 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 		//Stencil buffer is now filled with color indices of potentially occluded objects.  We now draw
 		//occluder objects so they cover up and modify stencil MSB wherever they are in front of other objects.
 		WW3D::Get_Render_Backend()->Set_Stencil_Enable(true);
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ZENABLE, TRUE );
+		WW3D::Get_Render_Backend()->Set_Depth_Test_Enable(true);
 		WW3D::Get_Render_Backend()->Set_Stencil_Ref(0xffffffff);
 		WW3D::Get_Render_Backend()->Set_Stencil_Mask(0xffffffff);	//isolate lowest player color
 		WW3D::Get_Render_Backend()->Set_Stencil_Write_Mask(0x80);	//only write to MSB
@@ -1566,7 +1566,7 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 	//Reset scene ambient because we sometimes mess around with it to make objects
 	//glow, etc. when processing drawables.  This is a good place to do it because this
 	//function gets called right after we flush regular render objects.
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENT,DX8Wrapper::Convert_Color(this->Get_Ambient_Light(),0.0f));
+	WW3D::Get_Render_Backend()->Set_Ambient(this->Get_Ambient_Light());
 }
 
 /*Version which does not require stencil buffer*/
@@ -1585,7 +1585,7 @@ void RTS3DScene::flushOccludedObjects(RenderInfoClass & rinfo)
 		{
 			//Set all stencil pixels of potentially occluded objects to 128.
 			WW3D::Get_Render_Backend()->Set_Stencil_Enable(true);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_ZENABLE, TRUE );
+			WW3D::Get_Render_Backend()->Set_Depth_Test_Enable(true);
 			WW3D::Get_Render_Backend()->Set_Stencil_Ref(128);
 			WW3D::Get_Render_Backend()->Set_Stencil_Mask(0xffffffff);
 			WW3D::Get_Render_Backend()->Set_Stencil_Write_Mask(0xffffffff);
@@ -1639,7 +1639,7 @@ void RTS3DScene::flushOccludedObjects(RenderInfoClass & rinfo)
 	//Reset scene ambient because we sometimes mess around with it to make objects
 	//glow, etc. when processing drawables.  This is a good place to do it because this
 	//function gets called right after we flush regular render objects.
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENT,DX8Wrapper::Convert_Color(this->Get_Ambient_Light(),0.0f));
+	WW3D::Get_Render_Backend()->Set_Ambient(this->Get_Ambient_Light());
 }
 
 void RTS3DScene::flushTranslucentObjects(RenderInfoClass & rinfo)
@@ -1671,7 +1671,7 @@ void RTS3DScene::flushTranslucentObjects(RenderInfoClass & rinfo)
 	//Reset scene ambient because we sometimes mess around with it to make objects
 	//glow, etc. when processing drawables.  This is a good place to do it because this
 	//function gets called right after we flush regular render objects.
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENT,DX8Wrapper::Convert_Color(this->Get_Ambient_Light(),0.0f));
+	WW3D::Get_Render_Backend()->Set_Ambient(this->Get_Ambient_Light());
 }
 
 //=============================================================================
