@@ -35,6 +35,8 @@
 #include "WWMath/Vector3i.h"
 #include "WWLib/RANDOM.h"
 #include "WWMath/v3_rnd.h"
+#include "WW3D2/RenderBackend.h"
+#include "WW3D2/IRenderBackend.h"
 
 
 /* We have chunking logic which handles N segments at a time. To simplify the subdivision logic,
@@ -315,8 +317,8 @@ void StreakRendererClass::RenderStreak
 	Renderer::Get_Transform(RenderTransform_View,view);
 
 	Matrix4x4 identity(true);
-	Renderer::Set_Transform(RenderTransform_World,identity);
-	Renderer::Set_Transform(RenderTransform_View,identity);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,identity);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW, identity);
 
 	/*
 	** Handle texture UV offset animation (done once for entire line).
@@ -1305,7 +1307,7 @@ void StreakRendererClass::RenderStreak
 
 		VertexMaterialClass *mat;
 		mat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		DX8Wrapper::Set_Material(mat);
+		WW3D::Get_Render_Backend()->Set_Material(mat);
 		REF_PTR_RELEASE(mat);
 
 		// If Texture is non-null enable texturing in shader - otherwise disable.
@@ -1359,10 +1361,10 @@ void StreakRendererClass::RenderStreak
 		}
 
 
-		DX8Wrapper::Set_Index_Buffer(ib_access,0);
-		DX8Wrapper::Set_Vertex_Buffer(Verts);
-		DX8Wrapper::Set_Texture(0,Texture);
-		DX8Wrapper::Set_Shader(shader);
+		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib_access,0);
+		WW3D::Get_Render_Backend()->Set_Vertex_Buffer(Verts);
+		WW3D::Get_Render_Backend()->Set_Texture(0,Texture);
+		WW3D::Get_Render_Backend()->Set_Shader(shader);
 
 		if (sorting)
 		{
@@ -1370,12 +1372,12 @@ void StreakRendererClass::RenderStreak
 		}
 		else
 		{
-			DX8Wrapper::Draw_Triangles(0,triangleIndex,0,vnum);
+			WW3D::Get_Render_Backend()->Draw_Triangles(0,triangleIndex,0,vnum);
 		}
 
 	}
 
-	Renderer::Set_Transform(RenderTransform_View,view);
+	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,view);
 
 }
 
