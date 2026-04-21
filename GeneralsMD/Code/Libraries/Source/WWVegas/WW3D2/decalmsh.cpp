@@ -300,7 +300,7 @@ void RigidDecalMeshClass::Render()
 	** transform between the time that the mesh is rendered and the time that the decal
 	** mesh is rendered...  It shouldn't happen though.
 	*/
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Parent->Get_Transform());
+	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,Parent->Get_Transform());
 
 	/*
 	** Copy the vertices into the dynamic vb
@@ -385,9 +385,9 @@ void RigidDecalMeshClass::Render()
  *=============================================================================================*/
 int RigidDecalMeshClass::Process_Material_Run(int start_index)
 {
-	DX8Wrapper::Set_Texture(0,Textures[start_index]);
-	DX8Wrapper::Set_Material(VertexMaterials[Polys[start_index].I]);
-	DX8Wrapper::Set_Shader(Shaders[start_index]);
+	g_renderBackend->Set_Texture(0,Textures[start_index]);
+	g_renderBackend->Set_Material(VertexMaterials[Polys[start_index].I]);
+	g_renderBackend->Set_Shader(Shaders[start_index]);
 
 	int next_index = start_index;
 	while (	(next_index < Polys.Count()) &&
@@ -790,7 +790,7 @@ void SkinDecalMeshClass::Render()
 	/*
 	** Skin decals coordinates are in world space
 	*/
-	DX8Wrapper::Set_Transform(D3DTS_WORLD,Matrix3D::Identity);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,Matrix3D::Identity);
 
 	/*
 	** Skin decals have to get the deformed vertices of their parent meshes.  For this
@@ -883,9 +883,9 @@ void SkinDecalMeshClass::Render()
  *=============================================================================================*/
 int SkinDecalMeshClass::Process_Material_Run(int start_index)
 {
-	DX8Wrapper::Set_Texture(0,Textures[start_index]);
-	DX8Wrapper::Set_Material(VertexMaterials[Polys[start_index].I]);
-	DX8Wrapper::Set_Shader(Shaders[start_index]);
+	g_renderBackend->Set_Texture(0,Textures[start_index]);
+	g_renderBackend->Set_Material(VertexMaterials[Polys[start_index].I]);
+	g_renderBackend->Set_Shader(Shaders[start_index]);
 
 	int next_index = start_index;
 	while (	(next_index < Polys.Count()) &&
