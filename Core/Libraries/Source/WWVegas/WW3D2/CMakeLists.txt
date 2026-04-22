@@ -240,16 +240,12 @@ set(WW3D2_SRC
 
 add_library(corei_ww3d2 INTERFACE)
 
-# TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.1 note:
-# Standalone mode (GGC_BGFX_STANDALONE=ON) swaps BgfxBackend's base class
-# from DX8Backend to IRenderBackend via preprocessor (see BgfxBackend.h).
-# DX8Backend.cpp STAYS in the build because in practice a lot of game
-# code still reads DX8Wrapper's render_state (sorting renderer, mesh
-# renderer, etc.), which is populated by DX8Backend::Set_Vertex_Buffer /
-# Set_Shader / etc. Excluding DX8Backend.cpp without also migrating the
-# ~130 DX8Wrapper:: call sites in game code breaks rendering. That full
-# migration is Phase 5.2; the standalone preset plus the class-hierarchy
-# split in place today are the prerequisites for it.
+# TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 —
+# In standalone mode (GGC_BGFX_STANDALONE=ON), BgfxBackend still inherits
+# from DX8Backend so DX8Wrapper's render_state tracking stays intact
+# (sorting renderer etc. rely on it). The only runtime difference is that
+# DX8Wrapper runs against a no-op stub IDirect3DDevice8 instead of a real
+# D3D8 device (see StubD3D8Device.cpp, wired in below).
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
@@ -262,6 +258,14 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.h
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendState.h
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendTextures.cpp
+    )
+
+    # Phase 5.2 — standalone-mode stub D3D8 device. The file itself is
+    # entirely wrapped in #if GGC_BGFX_STANDALONE so compiling it in ref-popup
+    # mode is a harmless no-op. Adding unconditionally keeps CMake simple.
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.h
     )
 
     # TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.1 shader
