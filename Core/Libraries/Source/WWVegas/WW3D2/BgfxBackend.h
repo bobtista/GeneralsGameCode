@@ -34,25 +34,19 @@
 
 #pragma once
 
-// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 5 —
-// preprocessor base-swap. In the default ref-popup build, BgfxBackend
-// inherits from DX8Backend so every virtual not explicitly overridden
-// falls through to DX8Wrapper (which is how the DX8 reference window
-// stays in sync for side-by-side debugging). In the standalone build
-// (GGC_BGFX_STANDALONE=ON) the base class becomes IRenderBackend so the
-// backend has no D3D8 dependency in its vtable. Every virtual must then
-// be overridden directly — inheriting from DX8Backend is not allowed
-// because DX8Backend.cpp is excluded from the standalone link graph.
+#include "DX8Backend.h"
 
-#if defined(GGC_BGFX_STANDALONE)
-#  include "IRenderBackend.h"
-#  define BGFX_BACKEND_BASE IRenderBackend
-#else
-#  include "DX8Backend.h"
-#  define BGFX_BACKEND_BASE DX8Backend
-#endif
+// TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 — BgfxBackend
+// always inherits from DX8Backend. The earlier Phase 5.1 preprocessor
+// base-class swap was reverted because it broke DX8Wrapper's state
+// tracking (which the sorting renderer and others read back). Instead,
+// standalone mode (GGC_BGFX_STANDALONE) keeps the class hierarchy and
+// just swaps DX8Wrapper's D3D8 device for a no-op stub at Init time
+// (see StubD3D8Device.h). DX8Wrapper continues to populate render_state
+// exactly as in ref-popup mode; its D3D calls execute against the stub
+// and do nothing.
 
-class BgfxBackend : public BGFX_BACKEND_BASE
+class BgfxBackend : public DX8Backend
 {
 public:
     BgfxBackend();
@@ -242,11 +236,6 @@ public:
     // Set_Pixel_Shader, *_Constant, Create_Render_Target,
     // Is_Render_To_Texture, Set/Get_Shadow_Map)
     // is inherited from DX8Backend and forwards to DX8Wrapper unchanged.
-
-    // In standalone mode BgfxBackend no longer inherits DX8Backend's
-    // Get_Ambient, and the interface requires an override because a
-    // const Vector3 & return has no safe default.
-    virtual const Vector3 & Get_Ambient() const override;
 
     // -- Resource creation (Phase 5 asset ingress) ---------------------------
     //
