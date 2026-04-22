@@ -72,6 +72,7 @@ set(WW3D2_SRC
     font3d.h
     formconv.cpp
     formconv.h
+    FramGrab.cpp
     framgrab.h
     hanim.cpp
     hanim.h
@@ -188,6 +189,8 @@ set(WW3D2_SRC
     #sortingrenderer.cpp
     #sortingrenderer.h
     soundlibrarybridge.h
+    soundrobj.cpp
+    soundrobj.h
     sphereobj.cpp
     sphereobj.h
     static_sort_list.cpp
@@ -235,22 +238,18 @@ set(WW3D2_SRC
     ww3dtrig.h
 )
 
-if(WIN32)
-    list(APPEND WW3D2_SRC
-        FramGrab.cpp
-        soundrobj.cpp
-        soundrobj.h
-    )
-endif()
-
 add_library(corei_ww3d2 INTERFACE)
 
-# TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 —
-# In standalone mode (GGC_BGFX_STANDALONE=ON), BgfxBackend still inherits
-# from DX8Backend so DX8Wrapper's render_state tracking stays intact
-# (sorting renderer etc. rely on it). The only runtime difference is that
-# DX8Wrapper runs against a no-op stub IDirect3DDevice8 instead of a real
-# D3D8 device (see StubD3D8Device.cpp, wired in below).
+# TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.1 note:
+# Standalone mode (GGC_BGFX_STANDALONE=ON) swaps BgfxBackend's base class
+# from DX8Backend to IRenderBackend via preprocessor (see BgfxBackend.h).
+# DX8Backend.cpp STAYS in the build because in practice a lot of game
+# code still reads DX8Wrapper's render_state (sorting renderer, mesh
+# renderer, etc.), which is populated by DX8Backend::Set_Vertex_Buffer /
+# Set_Shader / etc. Excluding DX8Backend.cpp without also migrating the
+# ~130 DX8Wrapper:: call sites in game code breaks rendering. That full
+# migration is Phase 5.2; the standalone preset plus the class-hierarchy
+# split in place today are the prerequisites for it.
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
@@ -264,26 +263,6 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendState.h
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendTextures.cpp
     )
-
-    # Phase 5.2 — standalone-mode stub D3D8 device. The file itself is
-    # entirely wrapped in #if GGC_BGFX_STANDALONE so compiling it in ref-popup
-    # mode is a harmless no-op. Adding unconditionally keeps CMake simple.
-    target_sources(corei_ww3d2 INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.h
-    )
-
-    # TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 Stage 5 —
-    # In-tree implementations of the D3DX8 helpers the engine calls
-    # (matrix math, mip filter, surface copy, FVF size, error string).
-    # Compiled only for standalone builds, which don't link d3dx8.lib.
-    # Ref-popup builds still pull those symbols from d3dx8.lib and skip
-    # this file entirely.
-    if(GGC_BGFX_STANDALONE)
-        target_sources(corei_ww3d2 INTERFACE
-            ${CMAKE_CURRENT_SOURCE_DIR}/D3DXStandaloneStubs.cpp
-        )
-    endif()
 
     # TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.1 shader
     # compilation. Only compile these shaders for the bgfx build. The
@@ -309,31 +288,20 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # Phase 4I shadow darkening apply pass (fullscreen quad blend).
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_apply.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_apply.sc)
-    # TheSuperHackers @feature bobtista 27/04/2026 Scene-color composite
-    # pass. World/effects render to an offscreen framebuffer, then this
-    # identity pass copies it to the swapchain before UI draws.
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_scene_composite.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_scene_composite.sc)
-    # TheSuperHackers @feature bobtista 27/04/2026 Readable scene-depth
-    # pass. Opaque world draws populate an R32F texture for future post
-    # effects and soft particles.
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_scene_depth.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_scene_depth.sc)
-    # TheSuperHackers @feature bobtista 27/04/2026 Dedicated smudge /
-    # heat-haze pass. This samples the scene-color snapshot without going
-    # through the fixed-function uber shader.
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_smudge.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_smudge.sc)
-    get_property(GGC_BGFX_GENERATED_SHADER_HEADERS GLOBAL PROPERTY GGC_BGFX_SHADER_HEADERS)
-    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.cpp PROPERTIES
-        OBJECT_DEPENDS "${GGC_BGFX_GENERATED_SHADER_HEADERS}"
-    )
+    # Phase 4I.2 CSM (cascaded shadow maps) — depth-only caster pass.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_caster.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_caster.sc)
     target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
+elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/DiligentBackend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/DiligentBackend.h
+    )
 endif()
 
 # Propagate the active backend's compile define to every translation unit
 # that pulls in WW3D2, so that RenderBackend.cpp and any future callers can
-# #if on GGC_RENDER_BACKEND_DX8 / _BGFX.
+# #if on GGC_RENDER_BACKEND_DX8 / _BGFX / _DILIGENT.
 if(DEFINED GGC_RENDER_BACKEND_COMPILE_DEFINE)
     target_compile_definitions(corei_ww3d2 INTERFACE ${GGC_RENDER_BACKEND_COMPILE_DEFINE})
 endif()
@@ -350,20 +318,13 @@ target_link_libraries(corei_ww3d2 INTERFACE
     core_wwmath
 )
 
-if(APPLE)
-    target_link_libraries(corei_ww3d2 INTERFACE
-        "-framework CoreGraphics"
-        "-framework CoreText"
-        "-framework CoreFoundation"
-    )
-endif()
-
 # Link the backend's native libraries into whoever consumes corei_ww3d2.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_link_libraries(corei_ww3d2 INTERFACE bgfx bx bimg)
-    # TheSuperHackers @build bobtista 29/04/2026 BgfxBackend.cpp pulls SDL3 headers
-    # to query the native window pointer for bgfx::PlatformData on macOS/Linux.
-    if(SAGE_USE_SDL3)
-        target_link_libraries(corei_ww3d2 INTERFACE sdl3lib)
-    endif()
+elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
+    target_link_libraries(corei_ww3d2 INTERFACE
+        Diligent-GraphicsEngineD3D11-static
+        Diligent-Common
+        Diligent-GraphicsTools
+    )
 endif()
