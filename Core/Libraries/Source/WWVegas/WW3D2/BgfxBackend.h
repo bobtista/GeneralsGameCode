@@ -34,9 +34,25 @@
 
 #pragma once
 
-#include "DX8Backend.h"
+// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 5 —
+// preprocessor base-swap. In the default ref-popup build, BgfxBackend
+// inherits from DX8Backend so every virtual not explicitly overridden
+// falls through to DX8Wrapper (which is how the DX8 reference window
+// stays in sync for side-by-side debugging). In the standalone build
+// (GGC_BGFX_STANDALONE=ON) the base class becomes IRenderBackend so the
+// backend has no D3D8 dependency in its vtable. Every virtual must then
+// be overridden directly — inheriting from DX8Backend is not allowed
+// because DX8Backend.cpp is excluded from the standalone link graph.
 
-class BgfxBackend : public DX8Backend
+#if defined(GGC_BGFX_STANDALONE)
+#  include "IRenderBackend.h"
+#  define BGFX_BACKEND_BASE IRenderBackend
+#else
+#  include "DX8Backend.h"
+#  define BGFX_BACKEND_BASE DX8Backend
+#endif
+
+class BgfxBackend : public BGFX_BACKEND_BASE
 {
 public:
     BgfxBackend();
