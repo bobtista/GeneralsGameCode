@@ -56,32 +56,22 @@ elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_DILIGENT=1")
 endif()
 
-if(GGC_RENDER_BACKEND STREQUAL "bgfx")
-    if(NOT DEFINED GGC_BGFX_RENDERER)
-        if(APPLE)
-            set(GGC_BGFX_RENDERER "metal" CACHE STRING "bgfx renderer for GGC_RENDER_BACKEND=bgfx")
-        else()
-            set(GGC_BGFX_RENDERER "dx11" CACHE STRING "bgfx renderer for GGC_RENDER_BACKEND=bgfx")
-        endif()
-    endif()
-    set_property(CACHE GGC_BGFX_RENDERER PROPERTY STRINGS dx11 metal vulkan)
-
-    if(NOT GGC_BGFX_RENDERER STREQUAL "dx11" AND
-       NOT GGC_BGFX_RENDERER STREQUAL "metal" AND
-       NOT GGC_BGFX_RENDERER STREQUAL "vulkan")
-        message(FATAL_ERROR
-            "Invalid GGC_BGFX_RENDERER: '${GGC_BGFX_RENDERER}'. "
-            "Must be one of: dx11, metal, vulkan.")
-    endif()
-
-    if(GGC_BGFX_RENDERER STREQUAL "metal")
-        add_compile_definitions(GGC_BGFX_RENDERER_METAL=1)
-    elseif(GGC_BGFX_RENDERER STREQUAL "vulkan")
-        add_compile_definitions(GGC_BGFX_RENDERER_VULKAN=1)
-    else()
-        add_compile_definitions(GGC_BGFX_RENDERER_DX11=1)
-    endif()
-    message(STATUS "bgfx renderer target: ${GGC_BGFX_RENDERER}")
+# TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 5 — standalone
+# bgfx build. When ON, BgfxBackend inherits from IRenderBackend directly
+# instead of DX8Backend, and the DX8 reference popup is disabled. This is
+# the path toward removing d3d8.dll / d3dx8.dll from the bgfx build's link
+# graph; today it still links against DX8 because the asset loaders haven't
+# been migrated yet (see Phase 5.1 follow-up). The define is compiled in so
+# code can conditionally exclude DX8-specific mirroring via
+# #if defined(GGC_BGFX_STANDALONE).
+option(GGC_BGFX_STANDALONE "bgfx without the DX8 reference popup; standalone base class for BgfxBackend" OFF)
+if(GGC_BGFX_STANDALONE AND NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
+    message(FATAL_ERROR
+        "GGC_BGFX_STANDALONE=ON requires GGC_RENDER_BACKEND=bgfx.")
+endif()
+if(GGC_BGFX_STANDALONE)
+    add_compile_definitions(GGC_BGFX_STANDALONE=1)
+    message(STATUS "Bgfx standalone mode enabled — ref popup disabled.")
 endif()
 
 # Pull in the backend's dependency module if it has one. dx8 has no module
