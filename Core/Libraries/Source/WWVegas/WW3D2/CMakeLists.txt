@@ -240,6 +240,17 @@ set(WW3D2_SRC
 
 add_library(corei_ww3d2 INTERFACE)
 
+# TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.1 note:
+# Standalone mode (GGC_BGFX_STANDALONE=ON) swaps BgfxBackend's base class
+# from DX8Backend to IRenderBackend via preprocessor (see BgfxBackend.h).
+# DX8Backend.cpp STAYS in the build because in practice a lot of game
+# code still reads DX8Wrapper's render_state (sorting renderer, mesh
+# renderer, etc.), which is populated by DX8Backend::Set_Vertex_Buffer /
+# Set_Shader / etc. Excluding DX8Backend.cpp without also migrating the
+# ~130 DX8Wrapper:: call sites in game code breaks rendering. That full
+# migration is Phase 5.2; the standalone preset plus the class-hierarchy
+# split in place today are the prerequisites for it.
+
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
 # TheSuperHackers @refactor bobtista 10/04/2026 Conditionally include the
