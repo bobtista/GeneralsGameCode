@@ -164,4 +164,8 @@ public:
     virtual void   Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size);
     virtual void   Destroy_Resource(RenderResource h);
     virtual void   Begin_Dynamic_Frame();
+
+    virtual RenderResource Register_Loaded_Texture(TextureBaseClass * tex);
+    virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * vb);
+    virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * ib);
 };

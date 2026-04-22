@@ -29,6 +29,7 @@
 #include "matrix3d.h"
 #include "light.h"
 #include "lightenvironment.h"
+#include "texture.h"
 #include <cstring>
 
 DX8Backend::DX8Backend()
@@ -659,4 +660,35 @@ void DX8Backend::Begin_Dynamic_Frame()
     // D3D8 dynamic buffers are managed by the runtime — nothing to reset
     // per-frame at the backend level. Ring-lifetime tracking stays in the
     // caller (DynamicVBAccessClass / DynamicIBAccessClass).
+}
+
+// Phase 5 Option 1 transitional: the legacy loader already has the D3D8
+// resource; we just wrap its pointer in a RenderResource.
+
+RenderResource DX8Backend::Register_Loaded_Texture(TextureBaseClass * tex)
+{
+    RenderResource rr;
+    rr.id = (tex != nullptr)
+        ? reinterpret_cast<unsigned __int64>(tex->Peek_D3D_Base_Texture())
+        : 0;
+    return rr;
+}
+
+RenderResource DX8Backend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb)
+{
+    // VertexBufferClass base doesn't expose the D3D pointer; only
+    // DX8VertexBufferClass does. For Stage 1, we only need something
+    // non-zero so callers can tell the handle was populated — use the
+    // VB pointer itself as the id. Bgfx's side table handles the
+    // backend-specific mapping.
+    RenderResource rr;
+    rr.id = reinterpret_cast<unsigned __int64>(vb);
+    return rr;
+}
+
+RenderResource DX8Backend::Register_Loaded_Index_Buffer(IndexBufferClass * ib)
+{
+    RenderResource rr;
+    rr.id = reinterpret_cast<unsigned __int64>(ib);
+    return rr;
 }
