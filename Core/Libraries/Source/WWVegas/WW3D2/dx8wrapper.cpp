@@ -273,7 +273,10 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	// the active render backend, D3D8 uses a secondary reference window
 	// so bgfx can take the main game HWND without DXGI swapchain conflict.
 	// Save the original game HWND for bgfx before redirecting D3D8.
-#if defined(GGC_RENDER_BACKEND_BGFX)
+	// Phase 5.2: in standalone mode the D3D8 device is a stub that doesn't
+	// render anywhere, so the ref popup is useless — it only sits on top of
+	// the real game window and hides the bgfx output.
+#if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
 	_GameHwndForBgfx = (HWND)hwnd;
 	{
 		HINSTANCE hInst = GetModuleHandleW(nullptr);
@@ -407,8 +410,9 @@ void DX8Wrapper::Shutdown()
 
 	}
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
+#if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
 	// TheSuperHackers @fix bobtista 20/04/2026 Destroy the DX8 reference window and its WNDCLASS created in Init so repeated Init/Shutdown cycles don't leak.
+	// Standalone doesn't create a ref window, so nothing to tear down here.
 	if (_Hwnd != nullptr && _Hwnd != _GameHwndForBgfx)
 	{
 		::DestroyWindow(_Hwnd);
@@ -467,10 +471,12 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	// by the time this function is called, so it is safe to run the
 	// backend's real Initialize() here, well before the _Init() calls.
 	Init_Render_Backend();
-#if defined(GGC_RENDER_BACKEND_BGFX)
+#if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
 	// Pass the original game HWND to bgfx, not the DX8 reference window.
 	g_renderBackend->Initialize(_GameHwndForBgfx, ResolutionWidth, ResolutionHeight);
 #else
+	// Standalone bgfx and legacy DX8 both render to the real game HWND
+	// (there's no separate ref popup to redirect around).
 	g_renderBackend->Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
 #endif
 

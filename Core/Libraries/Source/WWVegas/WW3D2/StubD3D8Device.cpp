@@ -30,11 +30,31 @@
 
 #include <atomic>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 
 namespace
 {
+
+// TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 — scratch buffers
+// must bypass the game's overridden global operator new[] (see
+// GameMemory.cpp: new[] routes through TheDynamicMemoryAllocator). Stub
+// surfaces can be tens of MB (e.g. a 4096x4096 shadow map = 64 MB) and
+// allocating them through the pool corrupts pool metadata. std::calloc is
+// not overridden when RTS_MEMORYPOOL_OVERRIDE_MALLOC=OFF (the default).
+struct StubAllocDeleter
+{
+	void operator()(uint8_t* p) const noexcept { std::free(p); }
+};
+using StubScratch = std::unique_ptr<uint8_t[], StubAllocDeleter>;
+
+static StubScratch AllocScratch(size_t bytes)
+{
+	if (bytes == 0) bytes = 4;
+	void* p = std::calloc(bytes, 1);
+	return StubScratch(static_cast<uint8_t*>(p));
+}
 
 class StubD3D8Device;
 
@@ -44,25 +64,61 @@ static void FillCaps(D3DCAPS8& caps)
 	caps.DeviceType = D3DDEVTYPE_HAL;
 	caps.AdapterOrdinal = 0;
 	caps.Caps = 0;
-	caps.Caps2 = D3DCAPS2_CANRENDERWINDOWED | D3DCAPS2_DYNAMICTEXTURES;
+	caps.Caps2 = D3DCAPS2_CANRENDERWINDOWED | D3DCAPS2_DYNAMICTEXTURES | D3DCAPS2_FULLSCREENGAMMA | D3DCAPS2_CANCALIBRATEGAMMA;
 	caps.Caps3 = 0;
-	caps.PresentationIntervals = D3DPRESENT_INTERVAL_DEFAULT | D3DPRESENT_INTERVAL_IMMEDIATE;
-	caps.CursorCaps = 0;
-	caps.DevCaps = D3DDEVCAPS_HWTRANSFORMANDLIGHT | D3DDEVCAPS_PUREDEVICE | D3DDEVCAPS_DRAWPRIMTLVERTEX;
-	caps.PrimitiveMiscCaps = 0xFFFFFFFF;
-	caps.RasterCaps = 0xFFFFFFFF;
-	caps.ZCmpCaps = 0xFF;
-	caps.SrcBlendCaps = 0xFFFFFFFF;
-	caps.DestBlendCaps = 0xFFFFFFFF;
-	caps.AlphaCmpCaps = 0xFF;
-	caps.ShadeCaps = 0xFFFFFFFF;
-	caps.TextureCaps = 0xFFFFFFFF;
-	caps.TextureFilterCaps = 0xFFFFFFFF;
-	caps.CubeTextureFilterCaps = 0xFFFFFFFF;
-	caps.VolumeTextureFilterCaps = 0xFFFFFFFF;
-	caps.TextureAddressCaps = 0xFF;
-	caps.VolumeTextureAddressCaps = 0xFF;
-	caps.LineCaps = 0xFF;
+	caps.PresentationIntervals = D3DPRESENT_INTERVAL_DEFAULT | D3DPRESENT_INTERVAL_IMMEDIATE | D3DPRESENT_INTERVAL_ONE;
+	caps.CursorCaps = D3DCURSORCAPS_COLOR | D3DCURSORCAPS_LOWRES;
+	caps.DevCaps = D3DDEVCAPS_HWTRANSFORMANDLIGHT | D3DDEVCAPS_PUREDEVICE | D3DDEVCAPS_DRAWPRIMTLVERTEX
+		| D3DDEVCAPS_EXECUTESYSTEMMEMORY | D3DDEVCAPS_EXECUTEVIDEOMEMORY
+		| D3DDEVCAPS_TLVERTEXSYSTEMMEMORY | D3DDEVCAPS_TLVERTEXVIDEOMEMORY
+		| D3DDEVCAPS_TEXTURESYSTEMMEMORY | D3DDEVCAPS_TEXTUREVIDEOMEMORY
+		| D3DDEVCAPS_CANRENDERAFTERFLIP | D3DDEVCAPS_TEXTURENONLOCALVIDMEM
+		| D3DDEVCAPS_DRAWPRIMITIVES2 | D3DDEVCAPS_DRAWPRIMITIVES2EX
+		| D3DDEVCAPS_HWRASTERIZATION;
+	caps.PrimitiveMiscCaps = D3DPMISCCAPS_MASKZ | D3DPMISCCAPS_LINEPATTERNREP
+		| D3DPMISCCAPS_CULLNONE | D3DPMISCCAPS_CULLCW | D3DPMISCCAPS_CULLCCW
+		| D3DPMISCCAPS_COLORWRITEENABLE | D3DPMISCCAPS_CLIPTLVERTS
+		| D3DPMISCCAPS_TSSARGTEMP | D3DPMISCCAPS_BLENDOP;
+	caps.RasterCaps = D3DPRASTERCAPS_DITHER | D3DPRASTERCAPS_ZTEST
+		| D3DPRASTERCAPS_FOGVERTEX | D3DPRASTERCAPS_FOGTABLE
+		| D3DPRASTERCAPS_MIPMAPLODBIAS | D3DPRASTERCAPS_ZBIAS
+		| D3DPRASTERCAPS_ANISOTROPY | D3DPRASTERCAPS_WFOG | D3DPRASTERCAPS_ZFOG
+		| D3DPRASTERCAPS_COLORPERSPECTIVE;
+	caps.ZCmpCaps = D3DPCMPCAPS_NEVER | D3DPCMPCAPS_LESS | D3DPCMPCAPS_EQUAL
+		| D3DPCMPCAPS_LESSEQUAL | D3DPCMPCAPS_GREATER | D3DPCMPCAPS_NOTEQUAL
+		| D3DPCMPCAPS_GREATEREQUAL | D3DPCMPCAPS_ALWAYS;
+	caps.SrcBlendCaps = D3DPBLENDCAPS_ZERO | D3DPBLENDCAPS_ONE
+		| D3DPBLENDCAPS_SRCCOLOR | D3DPBLENDCAPS_INVSRCCOLOR
+		| D3DPBLENDCAPS_SRCALPHA | D3DPBLENDCAPS_INVSRCALPHA
+		| D3DPBLENDCAPS_DESTALPHA | D3DPBLENDCAPS_INVDESTALPHA
+		| D3DPBLENDCAPS_DESTCOLOR | D3DPBLENDCAPS_INVDESTCOLOR
+		| D3DPBLENDCAPS_SRCALPHASAT | D3DPBLENDCAPS_BOTHSRCALPHA
+		| D3DPBLENDCAPS_BOTHINVSRCALPHA;
+	caps.DestBlendCaps = caps.SrcBlendCaps;
+	caps.AlphaCmpCaps = caps.ZCmpCaps;
+	caps.ShadeCaps = D3DPSHADECAPS_COLORGOURAUDRGB | D3DPSHADECAPS_SPECULARGOURAUDRGB
+		| D3DPSHADECAPS_ALPHAGOURAUDBLEND | D3DPSHADECAPS_FOGGOURAUD;
+	// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 — DO NOT set
+	// D3DPTEXTURECAPS_POW2 or D3DPTEXTURECAPS_SQUAREONLY here; those are
+	// RESTRICTIONS, not features. D3DXCreateTexture reads these and rounds
+	// rectangular textures down to the largest legal square (e.g. 2048x1
+	// collapsed to 1x1) — which wedged the terrain alpha-edge texture.
+	caps.TextureCaps = D3DPTEXTURECAPS_PERSPECTIVE | D3DPTEXTURECAPS_ALPHA
+		| D3DPTEXTURECAPS_TEXREPEATNOTSCALEDBYSIZE | D3DPTEXTURECAPS_ALPHAPALETTE
+		| D3DPTEXTURECAPS_PROJECTED | D3DPTEXTURECAPS_CUBEMAP
+		| D3DPTEXTURECAPS_VOLUMEMAP | D3DPTEXTURECAPS_MIPMAP
+		| D3DPTEXTURECAPS_MIPVOLUMEMAP | D3DPTEXTURECAPS_MIPCUBEMAP;
+	caps.TextureFilterCaps = D3DPTFILTERCAPS_MINFPOINT | D3DPTFILTERCAPS_MINFLINEAR
+		| D3DPTFILTERCAPS_MINFANISOTROPIC | D3DPTFILTERCAPS_MIPFPOINT
+		| D3DPTFILTERCAPS_MIPFLINEAR | D3DPTFILTERCAPS_MAGFPOINT
+		| D3DPTFILTERCAPS_MAGFLINEAR | D3DPTFILTERCAPS_MAGFANISOTROPIC;
+	caps.CubeTextureFilterCaps = caps.TextureFilterCaps;
+	caps.VolumeTextureFilterCaps = caps.TextureFilterCaps;
+	caps.TextureAddressCaps = D3DPTADDRESSCAPS_WRAP | D3DPTADDRESSCAPS_MIRROR
+		| D3DPTADDRESSCAPS_CLAMP | D3DPTADDRESSCAPS_BORDER
+		| D3DPTADDRESSCAPS_INDEPENDENTUV | D3DPTADDRESSCAPS_MIRRORONCE;
+	caps.VolumeTextureAddressCaps = caps.TextureAddressCaps;
+	caps.LineCaps = D3DLINECAPS_TEXTURE | D3DLINECAPS_ZTEST | D3DLINECAPS_BLEND | D3DLINECAPS_ALPHACMP | D3DLINECAPS_FOG;
 	caps.MaxTextureWidth = 4096;
 	caps.MaxTextureHeight = 4096;
 	caps.MaxVolumeExtent = 256;
@@ -75,12 +131,26 @@ static void FillCaps(D3DCAPS8& caps)
 	caps.GuardBandRight = 32768.0f;
 	caps.GuardBandBottom = 32768.0f;
 	caps.ExtentsAdjust = 0.0f;
-	caps.StencilCaps = 0xFF;
+	caps.StencilCaps = D3DSTENCILCAPS_KEEP | D3DSTENCILCAPS_ZERO | D3DSTENCILCAPS_REPLACE
+		| D3DSTENCILCAPS_INCRSAT | D3DSTENCILCAPS_DECRSAT | D3DSTENCILCAPS_INVERT
+		| D3DSTENCILCAPS_INCR | D3DSTENCILCAPS_DECR;
 	caps.FVFCaps = 8 | D3DFVFCAPS_PSIZE;
-	caps.TextureOpCaps = 0xFFFFFFFF;
+	caps.TextureOpCaps = D3DTEXOPCAPS_DISABLE | D3DTEXOPCAPS_SELECTARG1 | D3DTEXOPCAPS_SELECTARG2
+		| D3DTEXOPCAPS_MODULATE | D3DTEXOPCAPS_MODULATE2X | D3DTEXOPCAPS_MODULATE4X
+		| D3DTEXOPCAPS_ADD | D3DTEXOPCAPS_ADDSIGNED | D3DTEXOPCAPS_ADDSIGNED2X
+		| D3DTEXOPCAPS_SUBTRACT | D3DTEXOPCAPS_ADDSMOOTH
+		| D3DTEXOPCAPS_BLENDDIFFUSEALPHA | D3DTEXOPCAPS_BLENDTEXTUREALPHA
+		| D3DTEXOPCAPS_BLENDFACTORALPHA | D3DTEXOPCAPS_BLENDTEXTUREALPHAPM
+		| D3DTEXOPCAPS_BLENDCURRENTALPHA | D3DTEXOPCAPS_PREMODULATE
+		| D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR | D3DTEXOPCAPS_MODULATECOLOR_ADDALPHA
+		| D3DTEXOPCAPS_MODULATEINVALPHA_ADDCOLOR | D3DTEXOPCAPS_MODULATEINVCOLOR_ADDALPHA
+		| D3DTEXOPCAPS_BUMPENVMAP | D3DTEXOPCAPS_BUMPENVMAPLUMINANCE
+		| D3DTEXOPCAPS_DOTPRODUCT3 | D3DTEXOPCAPS_MULTIPLYADD | D3DTEXOPCAPS_LERP;
 	caps.MaxTextureBlendStages = 8;
 	caps.MaxSimultaneousTextures = 4;
-	caps.VertexProcessingCaps = 0xFFFFFFFF;
+	caps.VertexProcessingCaps = D3DVTXPCAPS_TEXGEN | D3DVTXPCAPS_MATERIALSOURCE7
+		| D3DVTXPCAPS_DIRECTIONALLIGHTS | D3DVTXPCAPS_POSITIONALLIGHTS
+		| D3DVTXPCAPS_LOCALVIEWER | D3DVTXPCAPS_TWEENING;
 	caps.MaxActiveLights = 8;
 	caps.MaxUserClipPlanes = 6;
 	caps.MaxVertexBlendMatrices = 4;
@@ -102,11 +172,24 @@ static void FillCaps(D3DCAPS8& caps)
 class StubD3D8Surface final : public IDirect3DSurface8
 {
 public:
+	// Owning ctor — allocates its own scratch buffer (for render targets,
+	// depth stencil surfaces, image surfaces).
 	StubD3D8Surface(IDirect3DDevice8* device, IUnknown* container, UINT width, UINT height, D3DFORMAT format)
-		: m_refCount(1), m_device(device), m_container(container), m_width(width), m_height(height), m_format(format)
+		: m_refCount(1), m_device(device), m_container(container), m_width(width), m_height(height), m_format(format),
+		  m_ownedScratch(AllocScratch(static_cast<size_t>(width) * height * 4)),
+		  m_scratchPtr(m_ownedScratch.get())
 	{
-		const size_t bytes = static_cast<size_t>(width) * height * 4;
-		m_scratch.reset(new uint8_t[bytes > 0 ? bytes : 4]);
+	}
+	// Borrowing ctor — reuses the container's scratch buffer. Used when a
+	// texture's GetSurfaceLevel(0) hands back a surface view; the game's
+	// writes through the surface must land in the same memory that the
+	// bgfx backend later reads via the texture's LockRect. Real D3D8
+	// aliases level 0 this way; the owning/borrowing split mirrors that.
+	StubD3D8Surface(IDirect3DDevice8* device, IUnknown* container, UINT width, UINT height, D3DFORMAT format, uint8_t* borrowedScratch)
+		: m_refCount(1), m_device(device), m_container(container), m_width(width), m_height(height), m_format(format),
+		  m_ownedScratch(),
+		  m_scratchPtr(borrowedScratch)
+	{
 	}
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
@@ -157,7 +240,7 @@ public:
 	{
 		if (pLockedRect == nullptr) return E_POINTER;
 		pLockedRect->Pitch = static_cast<INT>(m_width * 4);
-		pLockedRect->pBits = m_scratch.get();
+		pLockedRect->pBits = m_scratchPtr;
 		return D3D_OK;
 	}
 	STDMETHOD(UnlockRect)() override { return D3D_OK; }
@@ -169,7 +252,8 @@ private:
 	UINT m_width;
 	UINT m_height;
 	D3DFORMAT m_format;
-	std::unique_ptr<uint8_t[]> m_scratch;
+	StubScratch m_ownedScratch;
+	uint8_t* m_scratchPtr;
 };
 
 // ---------------------------------------------------------------------------
@@ -179,9 +263,9 @@ class StubD3D8VertexBuffer final : public IDirect3DVertexBuffer8
 {
 public:
 	StubD3D8VertexBuffer(IDirect3DDevice8* device, UINT length, DWORD usage, DWORD fvf, D3DPOOL pool)
-		: m_refCount(1), m_device(device), m_length(length), m_usage(usage), m_fvf(fvf), m_pool(pool)
+		: m_refCount(1), m_device(device), m_length(length), m_usage(usage), m_fvf(fvf), m_pool(pool),
+		  m_scratch(AllocScratch(length))
 	{
-		m_scratch.reset(new uint8_t[length > 0 ? length : 4]);
 	}
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
@@ -239,7 +323,7 @@ private:
 	DWORD m_usage;
 	DWORD m_fvf;
 	D3DPOOL m_pool;
-	std::unique_ptr<uint8_t[]> m_scratch;
+	StubScratch m_scratch;
 };
 
 // ---------------------------------------------------------------------------
@@ -249,9 +333,9 @@ class StubD3D8IndexBuffer final : public IDirect3DIndexBuffer8
 {
 public:
 	StubD3D8IndexBuffer(IDirect3DDevice8* device, UINT length, DWORD usage, D3DFORMAT format, D3DPOOL pool)
-		: m_refCount(1), m_device(device), m_length(length), m_usage(usage), m_format(format), m_pool(pool)
+		: m_refCount(1), m_device(device), m_length(length), m_usage(usage), m_format(format), m_pool(pool),
+		  m_scratch(AllocScratch(length))
 	{
-		m_scratch.reset(new uint8_t[length > 0 ? length : 4]);
 	}
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
@@ -308,7 +392,7 @@ private:
 	DWORD m_usage;
 	D3DFORMAT m_format;
 	D3DPOOL m_pool;
-	std::unique_ptr<uint8_t[]> m_scratch;
+	StubScratch m_scratch;
 };
 
 // ---------------------------------------------------------------------------
@@ -318,10 +402,9 @@ class StubD3D8Texture final : public IDirect3DTexture8
 {
 public:
 	StubD3D8Texture(IDirect3DDevice8* device, UINT width, UINT height, DWORD usage, D3DFORMAT format, D3DPOOL pool)
-		: m_refCount(1), m_device(device), m_width(width), m_height(height), m_usage(usage), m_format(format), m_pool(pool), m_surface(nullptr)
+		: m_refCount(1), m_device(device), m_width(width), m_height(height), m_usage(usage), m_format(format), m_pool(pool), m_surface(nullptr),
+		  m_scratch(AllocScratch(static_cast<size_t>(width) * height * 4))
 	{
-		const size_t bytes = static_cast<size_t>(width) * height * 4;
-		m_scratch.reset(new uint8_t[bytes > 0 ? bytes : 4]);
 	}
 	~StubD3D8Texture()
 	{
@@ -379,7 +462,11 @@ public:
 		if (ppSurfaceLevel == nullptr) return E_POINTER;
 		if (m_surface == nullptr)
 		{
-			m_surface = new StubD3D8Surface(m_device, static_cast<IDirect3DTexture8*>(this), m_width, m_height, m_format);
+			// Real D3D8 aliases surface level 0 with the texture's primary
+			// storage — writes via the surface are visible through a
+			// subsequent texture-level LockRect. EnsureBgfxTexture relies
+			// on that aliasing when it uploads texture pixels to bgfx.
+			m_surface = new StubD3D8Surface(m_device, static_cast<IDirect3DTexture8*>(this), m_width, m_height, m_format, m_scratch.get());
 		}
 		m_surface->AddRef();
 		*ppSurfaceLevel = m_surface;
@@ -404,7 +491,7 @@ private:
 	D3DFORMAT m_format;
 	D3DPOOL m_pool;
 	IDirect3DSurface8* m_surface;
-	std::unique_ptr<uint8_t[]> m_scratch;
+	StubScratch m_scratch;
 };
 
 // ---------------------------------------------------------------------------
@@ -414,10 +501,9 @@ class StubD3D8CubeTexture final : public IDirect3DCubeTexture8
 {
 public:
 	StubD3D8CubeTexture(IDirect3DDevice8* device, UINT edge, D3DFORMAT format)
-		: m_refCount(1), m_device(device), m_edge(edge), m_format(format)
+		: m_refCount(1), m_device(device), m_edge(edge), m_format(format),
+		  m_scratch(AllocScratch(static_cast<size_t>(edge) * edge * 4))
 	{
-		const size_t bytes = static_cast<size_t>(edge) * edge * 4;
-		m_scratch.reset(new uint8_t[bytes > 0 ? bytes : 4]);
 	}
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
@@ -469,7 +555,7 @@ public:
 	STDMETHOD(GetCubeMapSurface)(D3DCUBEMAP_FACES, UINT, IDirect3DSurface8** ppSurface) override
 	{
 		if (ppSurface == nullptr) return E_POINTER;
-		*ppSurface = new StubD3D8Surface(m_device, static_cast<IDirect3DCubeTexture8*>(this), m_edge, m_edge, m_format);
+		*ppSurface = new StubD3D8Surface(m_device, static_cast<IDirect3DCubeTexture8*>(this), m_edge, m_edge, m_format, m_scratch.get());
 		return D3D_OK;
 	}
 	STDMETHOD(LockRect)(D3DCUBEMAP_FACES, UINT, D3DLOCKED_RECT* pLockedRect, CONST RECT*, DWORD) override
@@ -487,7 +573,7 @@ private:
 	IDirect3DDevice8* m_device;
 	UINT m_edge;
 	D3DFORMAT m_format;
-	std::unique_ptr<uint8_t[]> m_scratch;
+	StubScratch m_scratch;
 };
 
 // ---------------------------------------------------------------------------
@@ -497,10 +583,9 @@ class StubD3D8VolumeTexture final : public IDirect3DVolumeTexture8
 {
 public:
 	StubD3D8VolumeTexture(IDirect3DDevice8* device, UINT width, UINT height, UINT depth, D3DFORMAT format)
-		: m_refCount(1), m_device(device), m_width(width), m_height(height), m_depth(depth), m_format(format)
+		: m_refCount(1), m_device(device), m_width(width), m_height(height), m_depth(depth), m_format(format),
+		  m_scratch(AllocScratch(static_cast<size_t>(width) * height * depth * 4))
 	{
-		const size_t bytes = static_cast<size_t>(width) * height * depth * 4;
-		m_scratch.reset(new uint8_t[bytes > 0 ? bytes : 4]);
 	}
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
@@ -573,7 +658,7 @@ private:
 	UINT m_height;
 	UINT m_depth;
 	D3DFORMAT m_format;
-	std::unique_ptr<uint8_t[]> m_scratch;
+	StubScratch m_scratch;
 };
 
 // ---------------------------------------------------------------------------
@@ -768,8 +853,83 @@ public:
 		return D3D_OK;
 	}
 
-	STDMETHOD(CopyRects)(IDirect3DSurface8*, CONST RECT*, UINT, IDirect3DSurface8*, CONST POINT*) override { return D3D_OK; }
-	STDMETHOD(UpdateTexture)(IDirect3DBaseTexture8*, IDirect3DBaseTexture8*) override { return D3D_OK; }
+	// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 — D3DX8 loads
+	// texture files via Create (MANAGED) + Create (SYSTEMMEM scratch) +
+	// UpdateTexture(scratch → managed). A no-op UpdateTexture leaves
+	// the managed texture empty, which is why infantry / fonts / HUD
+	// textures were rendering black. Lock both sides and memcpy.
+	STDMETHOD(CopyRects)(IDirect3DSurface8* src, CONST RECT* srcRects, UINT count, IDirect3DSurface8* dst, CONST POINT* dstPts) override
+	{
+		if (src == nullptr || dst == nullptr) return D3D_OK;
+		D3DSURFACE_DESC sd, dd;
+		if (FAILED(src->GetDesc(&sd)) || FAILED(dst->GetDesc(&dd))) return D3D_OK;
+		D3DLOCKED_RECT sl = {}, dl = {};
+		if (FAILED(src->LockRect(&sl, nullptr, 0))) return D3D_OK;
+		if (FAILED(dst->LockRect(&dl, nullptr, 0))) { src->UnlockRect(); return D3D_OK; }
+		if (count == 0 || srcRects == nullptr)
+		{
+			const UINT h = sd.Height < dd.Height ? sd.Height : dd.Height;
+			const UINT rowBytes = (sd.Width < dd.Width ? sd.Width : dd.Width) * 4;
+			for (UINT y = 0; y < h; ++y)
+			{
+				std::memcpy(
+					static_cast<uint8_t*>(dl.pBits) + y * dl.Pitch,
+					static_cast<const uint8_t*>(sl.pBits) + y * sl.Pitch,
+					rowBytes);
+			}
+		}
+		else
+		{
+			for (UINT i = 0; i < count; ++i)
+			{
+				const RECT& r = srcRects[i];
+				const LONG dx = dstPts ? dstPts[i].x : r.left;
+				const LONG dy = dstPts ? dstPts[i].y : r.top;
+				const LONG rw = r.right - r.left;
+				const LONG rh = r.bottom - r.top;
+				for (LONG y = 0; y < rh; ++y)
+				{
+					std::memcpy(
+						static_cast<uint8_t*>(dl.pBits) + (dy + y) * dl.Pitch + dx * 4,
+						static_cast<const uint8_t*>(sl.pBits) + (r.top + y) * sl.Pitch + r.left * 4,
+						rw * 4);
+				}
+			}
+		}
+		dst->UnlockRect();
+		src->UnlockRect();
+		return D3D_OK;
+	}
+	STDMETHOD(UpdateTexture)(IDirect3DBaseTexture8* src, IDirect3DBaseTexture8* dst) override
+	{
+		if (src == nullptr || dst == nullptr) return D3D_OK;
+		if (src->GetType() != D3DRTYPE_TEXTURE || dst->GetType() != D3DRTYPE_TEXTURE) return D3D_OK;
+		IDirect3DTexture8* st = static_cast<IDirect3DTexture8*>(src);
+		IDirect3DTexture8* dt = static_cast<IDirect3DTexture8*>(dst);
+		DWORD srcLevels = st->GetLevelCount();
+		DWORD dstLevels = dt->GetLevelCount();
+		DWORD levels = srcLevels < dstLevels ? srcLevels : dstLevels;
+		for (DWORD i = 0; i < levels; ++i)
+		{
+			D3DSURFACE_DESC sd, dd;
+			if (FAILED(st->GetLevelDesc(i, &sd)) || FAILED(dt->GetLevelDesc(i, &dd))) break;
+			D3DLOCKED_RECT sl = {}, dl = {};
+			if (FAILED(st->LockRect(i, &sl, nullptr, 0))) break;
+			if (FAILED(dt->LockRect(i, &dl, nullptr, 0))) { st->UnlockRect(i); break; }
+			const UINT h = sd.Height < dd.Height ? sd.Height : dd.Height;
+			const UINT rowBytes = (sd.Width < dd.Width ? sd.Width : dd.Width) * 4;
+			for (UINT y = 0; y < h; ++y)
+			{
+				std::memcpy(
+					static_cast<uint8_t*>(dl.pBits) + y * dl.Pitch,
+					static_cast<const uint8_t*>(sl.pBits) + y * sl.Pitch,
+					rowBytes);
+			}
+			dt->UnlockRect(i);
+			st->UnlockRect(i);
+		}
+		return D3D_OK;
+	}
 	STDMETHOD(GetFrontBuffer)(IDirect3DSurface8*) override { return D3D_OK; }
 	STDMETHOD(SetRenderTarget)(IDirect3DSurface8*, IDirect3DSurface8*) override { return D3D_OK; }
 	STDMETHOD(GetRenderTarget)(IDirect3DSurface8** ppRenderTarget) override
