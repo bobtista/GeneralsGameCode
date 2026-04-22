@@ -58,6 +58,7 @@
 #include "dx8renderer.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+#include "StubD3D8Device.h"
 #include "ww3d.h"
 #include "camera.h"
 #include "wwstring.h"
@@ -340,6 +341,23 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	Invalidate_Cached_Render_States();
 
 	if (!lite) {
+#if defined(GGC_BGFX_STANDALONE)
+		// TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 — standalone
+		// mode uses a no-op stub IDirect3DDevice8. Skip the LoadLibrary /
+		// Direct3DCreate8 path entirely so d3d8.dll is not a runtime dep.
+		// See StubD3D8Device.cpp for the stub implementation. DX8Wrapper's
+		// state tracking (render_state updates) still runs; the underlying
+		// device calls execute against the stub and do nothing. bgfx handles
+		// the real rendering via its own D3D11 backend.
+		WWDEBUG_SAY(("[Phase 5.2] Using stub D3D8 interface (standalone)"));
+		D3DInterface = CreateStubD3D8Interface();
+		if (D3DInterface == nullptr) {
+			return false;
+		}
+		IsInitted = true;
+		Enumerate_Devices();
+		WWDEBUG_SAY(("DX8Wrapper Init completed (stub mode)"));
+#else
 		D3D8Lib = LoadLibrary("D3D8.DLL");
 
 		if (D3D8Lib == nullptr) return false;	// Return false at this point if init failed
@@ -369,6 +387,7 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 		WWDEBUG_SAY(("Enumerate devices"));
 		Enumerate_Devices();
 		WWDEBUG_SAY(("DX8Wrapper Init completed"));
+#endif
 	}
 
 	return(true);
