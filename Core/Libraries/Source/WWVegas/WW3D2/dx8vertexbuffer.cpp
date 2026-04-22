@@ -449,6 +449,12 @@ DX8VertexBufferClass::~DX8VertexBufferClass()
 	_DX8VertexBufferCount--;
 	WWDEBUG_SAY(("Current vertex buffer count: %d",_DX8VertexBufferCount));
 #endif
+	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 2 — release
+	// the backend-neutral handle before the D3D8 resource goes away.
+	if (m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
+		g_renderBackend->Destroy_Resource(m_backendHandle);
+		m_backendHandle = kInvalidRenderResource;
+	}
 	VertexBuffer->Release();
 }
 
@@ -494,6 +500,10 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 		(usage&USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED,
 		&VertexBuffer);
 	if (SUCCEEDED(ret)) {
+		// Phase 5 Stage 2: populate backend-neutral handle.
+		if (g_renderBackend != nullptr) {
+			m_backendHandle = g_renderBackend->Register_Loaded_Vertex_Buffer(this);
+		}
 		return;
 	}
 
@@ -520,6 +530,9 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 
 	if (SUCCEEDED(ret)) {
 		WWDEBUG_SAY(("...Vertex buffer creation successful"));
+		if (g_renderBackend != nullptr) {
+			m_backendHandle = g_renderBackend->Register_Loaded_Vertex_Buffer(this);
+		}
 	}
 
 	// If it still fails it is fatal
