@@ -243,6 +243,11 @@ public:
     // Is_Render_To_Texture, Set/Get_Shadow_Map)
     // is inherited from DX8Backend and forwards to DX8Wrapper unchanged.
 
+    // In standalone mode BgfxBackend no longer inherits DX8Backend's
+    // Get_Ambient, and the interface requires an override because a
+    // const Vector3 & return has no safe default.
+    virtual const Vector3 & Get_Ambient() const override;
+
     // -- Resource creation (Phase 5 asset ingress) ---------------------------
     //
     // Each override first forwards to DX8Backend so the ref-popup build's
