@@ -33,6 +33,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include <unordered_map>
 
 namespace
 {
@@ -980,10 +981,33 @@ public:
 	STDMETHOD(BeginScene)() override { return D3D_OK; }
 	STDMETHOD(EndScene)() override { return D3D_OK; }
 	STDMETHOD(Clear)(DWORD, CONST D3DRECT*, DWORD, D3DCOLOR, float, DWORD) override { return D3D_OK; }
-	STDMETHOD(SetTransform)(D3DTRANSFORMSTATETYPE, CONST D3DMATRIX*) override { return D3D_OK; }
-	STDMETHOD(GetTransform)(D3DTRANSFORMSTATETYPE, D3DMATRIX* pMatrix) override
+	STDMETHOD(SetTransform)(D3DTRANSFORMSTATETYPE state, CONST D3DMATRIX* m) override
 	{
-		if (pMatrix) std::memset(pMatrix, 0, sizeof(*pMatrix));
+		// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 —
+		// W3DWater and W3DTreeBuffer read back the current view/world
+		// transform via DX8Wrapper::_Get_DX8_Transform, compute inverses
+		// and feed shader constants. A GetTransform that returns zero
+		// yields a singular matrix (det = 0), producing NaN shader
+		// inputs and visible banding artifacts on terrain water/tree
+		// passes. Record what the game sets so GetTransform can return
+		// the real matrix.
+		if (m) m_transforms[static_cast<DWORD>(state)] = *m;
+		return D3D_OK;
+	}
+	STDMETHOD(GetTransform)(D3DTRANSFORMSTATETYPE state, D3DMATRIX* pMatrix) override
+	{
+		if (pMatrix == nullptr) return E_POINTER;
+		auto it = m_transforms.find(static_cast<DWORD>(state));
+		if (it != m_transforms.end())
+		{
+			*pMatrix = it->second;
+		}
+		else
+		{
+			// Identity default.
+			std::memset(pMatrix, 0, sizeof(*pMatrix));
+			pMatrix->_11 = pMatrix->_22 = pMatrix->_33 = pMatrix->_44 = 1.0f;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(MultiplyTransform)(D3DTRANSFORMSTATETYPE, CONST D3DMATRIX*) override { return D3D_OK; }
@@ -1148,6 +1172,7 @@ private:
 	UINT m_height;
 	IDirect3DSurface8* m_backBuffer;
 	IDirect3DSurface8* m_depthStencil;
+	std::unordered_map<DWORD, D3DMATRIX> m_transforms;
 };
 
 // ---------------------------------------------------------------------------
