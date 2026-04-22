@@ -246,4 +246,10 @@ public:
     virtual void   Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) override;
     virtual void   Destroy_Resource(RenderResource h) override;
     virtual void   Begin_Dynamic_Frame() override;
+
+    // Transitional: populate m_backendHandle on resources created via the
+    // legacy D3D8 loader. See IRenderBackend.h for context.
+    virtual RenderResource Register_Loaded_Texture(TextureBaseClass * tex) override;
+    virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * vb) override;
+    virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * ib) override;
 };

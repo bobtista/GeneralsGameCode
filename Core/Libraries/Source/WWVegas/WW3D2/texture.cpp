@@ -129,6 +129,11 @@ TextureBaseClass::~TextureBaseClass()
 	if (g_renderBackend != nullptr)
 	{
 		g_renderBackend->Release_Cached_Texture(this);
+		// Phase 5 Stage 1: also release the backend-neutral resource.
+		if (m_backendHandle != kInvalidRenderResource) {
+			g_renderBackend->Destroy_Resource(m_backendHandle);
+			m_backendHandle = kInvalidRenderResource;
+		}
 	}
 
 	if (D3DTexture)
@@ -285,6 +290,22 @@ void TextureBaseClass::Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex)
 	D3DTexture = tex;
 	if (D3DTexture != nullptr) {
 		D3DTexture->AddRef();
+	}
+
+	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 1 —
+	// populate the backend-neutral handle after the legacy D3D8 loader
+	// finished creating the D3D8 texture. The backend either stores a
+	// wrapper around the D3D pointer (DX8) or creates a parallel bgfx
+	// texture via the peek path (bgfx). Skip when tex is null — that's
+	// a release, not a load.
+	if (D3DTexture != nullptr && g_renderBackend != nullptr) {
+		if (m_backendHandle != kInvalidRenderResource) {
+			g_renderBackend->Destroy_Resource(m_backendHandle);
+		}
+		m_backendHandle = g_renderBackend->Register_Loaded_Texture(this);
+	} else if (D3DTexture == nullptr && m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
+		g_renderBackend->Destroy_Resource(m_backendHandle);
+		m_backendHandle = kInvalidRenderResource;
 	}
 }
 
