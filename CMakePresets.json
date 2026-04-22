@@ -131,6 +131,14 @@
             }
         },
         {
+            "name": "win32-debug-bgfx-standalone",
+            "inherits": "win32-debug-bgfx",
+            "displayName": "Windows 32bit Debug (bgfx standalone - DX8 ref popup off, BgfxBackend inherits IRenderBackend directly)",
+            "cacheVariables": {
+                "GGC_BGFX_STANDALONE": "ON"
+            }
+        },
+        {
             "name": "win32-debug-diligent",
             "inherits": "win32-debug",
             "displayName": "Windows 32bit Debug (diligent stub backend)",
