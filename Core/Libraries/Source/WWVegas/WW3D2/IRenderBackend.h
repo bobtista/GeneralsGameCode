@@ -97,6 +97,12 @@ struct RenderResource
     unsigned __int64 id;
 };
 
+inline bool operator==(const RenderResource & a, const RenderResource & b) { return a.id == b.id; }
+inline bool operator!=(const RenderResource & a, const RenderResource & b) { return a.id != b.id; }
+
+// Sentinel for invalid handles, used by the default transitional hooks.
+static const RenderResource kInvalidRenderResource = { 0 };
+
 // A single mip level's pixel data for Create_Texture. For compressed
 // formats (DXT1/3/5), pitch is set to 0 — backends compute the compressed
 // row size from block dimensions and the format enum.
@@ -682,10 +688,23 @@ public:
     virtual void   Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) = 0;
     virtual void   Destroy_Resource(RenderResource h) = 0;
     virtual void   Begin_Dynamic_Frame() {}
+
+    // -------------------------------------------------------------------------
+    // Transitional "register loaded resource" hooks (Phase 5 Option 1)
+    // -------------------------------------------------------------------------
+    //
+    // Populate a backend-neutral handle AFTER the legacy loader has already
+    // created the D3D8 resource. These are called from the end of the
+    // asset-loader flow so m_backendHandle is populated going forward.
+    // Stage 5 will remove the legacy D3D8 loader path and these hooks
+    // disappear with it — at that point everything goes through the
+    // Create_* methods above.
+    //
+    // Default: return invalid handle (no-op for backends that don't care
+    // about adopting existing D3D resources).
+
+    virtual RenderResource Register_Loaded_Texture(TextureBaseClass * /*tex*/) { return kInvalidRenderResource; }
+    virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * /*vb*/) { return kInvalidRenderResource; }
+    virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * /*ib*/) { return kInvalidRenderResource; }
 };
 
-// Sentinel for invalid handles. Placed at namespace scope so it is reachable
-// without an instance.
-inline bool operator==(const RenderResource & a, const RenderResource & b) { return a.id == b.id; }
-inline bool operator!=(const RenderResource & a, const RenderResource & b) { return a.id != b.id; }
-static const RenderResource kInvalidRenderResource = { 0 };
