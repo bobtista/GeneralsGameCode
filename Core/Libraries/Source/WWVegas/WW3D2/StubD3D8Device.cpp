@@ -398,17 +398,39 @@ private:
 // ---------------------------------------------------------------------------
 // Texture (2D)
 // ---------------------------------------------------------------------------
+static DWORD ComputeFullMipLevels(UINT w, UINT h)
+{
+	DWORD levels = 1;
+	UINT m = w > h ? w : h;
+	while (m > 1) { m >>= 1; ++levels; }
+	return levels;
+}
+
 class StubD3D8Texture final : public IDirect3DTexture8
 {
 public:
-	StubD3D8Texture(IDirect3DDevice8* device, UINT width, UINT height, DWORD usage, D3DFORMAT format, D3DPOOL pool)
-		: m_refCount(1), m_device(device), m_width(width), m_height(height), m_usage(usage), m_format(format), m_pool(pool), m_surface(nullptr),
-		  m_scratch(AllocScratch(static_cast<size_t>(width) * height * 4))
+	StubD3D8Texture(IDirect3DDevice8* device, UINT width, UINT height, UINT requestedLevels, DWORD usage, D3DFORMAT format, D3DPOOL pool)
+		: m_refCount(1), m_device(device), m_width(width), m_height(height), m_usage(usage), m_format(format), m_pool(pool)
 	{
+		// D3D8 convention: Levels == 0 means "all mips down to 1x1".
+		m_levels = requestedLevels == 0 ? ComputeFullMipLevels(width, height) : requestedLevels;
+		if (m_levels > 16) m_levels = 16;
+		m_levelScratch.reset(new StubScratch[m_levels]);
+		m_surfaces.reset(new IDirect3DSurface8*[m_levels]);
+		for (DWORD i = 0; i < m_levels; ++i)
+		{
+			UINT lw = width  >> i; if (lw == 0) lw = 1;
+			UINT lh = height >> i; if (lh == 0) lh = 1;
+			m_levelScratch[i] = AllocScratch(static_cast<size_t>(lw) * lh * 4);
+			m_surfaces[i] = nullptr;
+		}
 	}
 	~StubD3D8Texture()
 	{
-		if (m_surface) m_surface->Release();
+		for (DWORD i = 0; i < m_levels; ++i)
+		{
+			if (m_surfaces[i]) m_surfaces[i]->Release();
+		}
 	}
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
@@ -443,40 +465,48 @@ public:
 	STDMETHOD_(D3DRESOURCETYPE, GetType)() override { return D3DRTYPE_TEXTURE; }
 	STDMETHOD_(DWORD, SetLOD)(DWORD) override { return 0; }
 	STDMETHOD_(DWORD, GetLOD)() override { return 0; }
-	STDMETHOD_(DWORD, GetLevelCount)() override { return 1; }
-	STDMETHOD(GetLevelDesc)(UINT, D3DSURFACE_DESC* pDesc) override
+	STDMETHOD_(DWORD, GetLevelCount)() override { return m_levels; }
+	STDMETHOD(GetLevelDesc)(UINT level, D3DSURFACE_DESC* pDesc) override
 	{
 		if (pDesc == nullptr) return E_POINTER;
+		if (level >= m_levels) level = m_levels - 1;
+		UINT lw = m_width  >> level; if (lw == 0) lw = 1;
+		UINT lh = m_height >> level; if (lh == 0) lh = 1;
 		pDesc->Format = m_format;
 		pDesc->Type = D3DRTYPE_SURFACE;
 		pDesc->Usage = m_usage;
 		pDesc->Pool = m_pool;
-		pDesc->Size = m_width * m_height * 4;
+		pDesc->Size = lw * lh * 4;
 		pDesc->MultiSampleType = D3DMULTISAMPLE_NONE;
-		pDesc->Width = m_width;
-		pDesc->Height = m_height;
+		pDesc->Width = lw;
+		pDesc->Height = lh;
 		return D3D_OK;
 	}
-	STDMETHOD(GetSurfaceLevel)(UINT, IDirect3DSurface8** ppSurfaceLevel) override
+	STDMETHOD(GetSurfaceLevel)(UINT level, IDirect3DSurface8** ppSurfaceLevel) override
 	{
 		if (ppSurfaceLevel == nullptr) return E_POINTER;
-		if (m_surface == nullptr)
+		if (level >= m_levels) level = m_levels - 1;
+		if (m_surfaces[level] == nullptr)
 		{
-			// Real D3D8 aliases surface level 0 with the texture's primary
-			// storage — writes via the surface are visible through a
+			// Real D3D8 aliases surface level N with the texture's level-N
+			// storage. Writes via the surface must be visible through a
 			// subsequent texture-level LockRect. EnsureBgfxTexture relies
-			// on that aliasing when it uploads texture pixels to bgfx.
-			m_surface = new StubD3D8Surface(m_device, static_cast<IDirect3DTexture8*>(this), m_width, m_height, m_format, m_scratch.get());
+			// on this aliasing when it uploads texture pixels to bgfx.
+			UINT lw = m_width  >> level; if (lw == 0) lw = 1;
+			UINT lh = m_height >> level; if (lh == 0) lh = 1;
+			m_surfaces[level] = new StubD3D8Surface(m_device, static_cast<IDirect3DTexture8*>(this), lw, lh, m_format, m_levelScratch[level].get());
 		}
-		m_surface->AddRef();
-		*ppSurfaceLevel = m_surface;
+		m_surfaces[level]->AddRef();
+		*ppSurfaceLevel = m_surfaces[level];
 		return D3D_OK;
 	}
-	STDMETHOD(LockRect)(UINT, D3DLOCKED_RECT* pLockedRect, CONST RECT*, DWORD) override
+	STDMETHOD(LockRect)(UINT level, D3DLOCKED_RECT* pLockedRect, CONST RECT*, DWORD) override
 	{
 		if (pLockedRect == nullptr) return E_POINTER;
-		pLockedRect->Pitch = static_cast<INT>(m_width * 4);
-		pLockedRect->pBits = m_scratch.get();
+		if (level >= m_levels) level = m_levels - 1;
+		UINT lw = m_width >> level; if (lw == 0) lw = 1;
+		pLockedRect->Pitch = static_cast<INT>(lw * 4);
+		pLockedRect->pBits = m_levelScratch[level].get();
 		return D3D_OK;
 	}
 	STDMETHOD(UnlockRect)(UINT) override { return D3D_OK; }
@@ -490,8 +520,9 @@ private:
 	DWORD m_usage;
 	D3DFORMAT m_format;
 	D3DPOOL m_pool;
-	IDirect3DSurface8* m_surface;
-	StubScratch m_scratch;
+	DWORD m_levels;
+	std::unique_ptr<StubScratch[]> m_levelScratch;
+	std::unique_ptr<IDirect3DSurface8*[]> m_surfaces;
 };
 
 // ---------------------------------------------------------------------------
@@ -804,10 +835,10 @@ public:
 	STDMETHOD_(void, SetGammaRamp)(DWORD, CONST D3DGAMMARAMP*) override {}
 	STDMETHOD_(void, GetGammaRamp)(D3DGAMMARAMP*) override {}
 
-	STDMETHOD(CreateTexture)(UINT Width, UINT Height, UINT, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DTexture8** ppTexture) override
+	STDMETHOD(CreateTexture)(UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DTexture8** ppTexture) override
 	{
 		if (ppTexture == nullptr) return E_POINTER;
-		*ppTexture = new StubD3D8Texture(this, Width, Height, Usage, Format, Pool);
+		*ppTexture = new StubD3D8Texture(this, Width, Height, Levels, Usage, Format, Pool);
 		return D3D_OK;
 	}
 	STDMETHOD(CreateVolumeTexture)(UINT Width, UINT Height, UINT Depth, UINT, DWORD, D3DFORMAT Format, D3DPOOL, IDirect3DVolumeTexture8** ppVolumeTexture) override
