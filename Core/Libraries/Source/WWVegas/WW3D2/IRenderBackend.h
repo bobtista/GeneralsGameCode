@@ -281,42 +281,42 @@ public:
     // These are in addition to the existing per-scene Begin_Scene / End_Scene
     // pair, which are called every frame.
 
-    virtual void Initialize(void * hwnd, int width, int height) = 0;
-    virtual void Shutdown() = 0;
+    virtual void Initialize(void * hwnd, int width, int height) {}
+    virtual void Shutdown() {}
 
     // -------------------------------------------------------------------------
     // Device state queries
     // -------------------------------------------------------------------------
 
-    virtual bool Is_Device_Lost() const = 0;
-    virtual bool Has_Stencil() const = 0;
-    virtual WW3DFormat Get_Back_Buffer_Format() const = 0;
-    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const = 0;
-    virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) = 0;
+    virtual bool Is_Device_Lost() const { return false; }
+    virtual bool Has_Stencil() const { return false; }
+    virtual WW3DFormat Get_Back_Buffer_Format() const { return WW3D_FORMAT_UNKNOWN; }
+    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const { return nullptr; }
+    virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) {}
 
     // -------------------------------------------------------------------------
     // Frame lifecycle
     // -------------------------------------------------------------------------
 
-    virtual void Begin_Scene() = 0;
-    virtual void End_Scene(bool flip_frame) = 0;
-    virtual void Flip_To_Primary() = 0;
+    virtual void Begin_Scene() {}
+    virtual void End_Scene(bool flip_frame) {}
+    virtual void Flip_To_Primary() {}
     // Defaults match DX8Wrapper::Clear so existing call sites that supplied
     // only the first 3-4 arguments compile unchanged after migration.
     virtual void Clear(bool clear_color, bool clear_z_stencil,
                        const Vector3 & color,
-                       float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0) = 0;
-    virtual void Set_Viewport(const RenderBackendViewport & viewport) = 0;
+                       float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0) {}
+    virtual void Set_Viewport(const RenderBackendViewport & viewport) {}
 
     // -------------------------------------------------------------------------
     // Vertex / index buffers
     // -------------------------------------------------------------------------
 
-    virtual void Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream = 0) = 0;
-    virtual void Set_Vertex_Buffer(const DynamicVBAccessClass & vba) = 0;
-    virtual void Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset) = 0;
-    virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset) = 0;
-    virtual void Set_Index_Buffer_Index_Offset(unsigned int offset) = 0;
+    virtual void Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream = 0) {}
+    virtual void Set_Vertex_Buffer(const DynamicVBAccessClass & vba) {}
+    virtual void Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset) {}
+    virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset) {}
+    virtual void Set_Index_Buffer_Index_Offset(unsigned int offset) {}
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 write-side
     // capture hooks. The W3D engine writes vertex/index data through
@@ -399,45 +399,45 @@ public:
     // State: shaders, materials, textures
     // -------------------------------------------------------------------------
 
-    virtual void Set_Shader(const ShaderClass & shader) = 0;
-    virtual void Get_Shader(ShaderClass & shader) = 0;
-    virtual void Set_Material(const VertexMaterialClass * material) = 0;
-    virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture) = 0;
+    virtual void Set_Shader(const ShaderClass & shader) {}
+    virtual void Get_Shader(ShaderClass & shader) {}
+    virtual void Set_Material(const VertexMaterialClass * material) {}
+    virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture) {}
 
-    virtual void Apply_Render_State_Changes() = 0;
-    virtual void Apply_Default_State() = 0;
-    virtual void Invalidate_Cached_Render_States() = 0;
+    virtual void Apply_Render_State_Changes() {}
+    virtual void Apply_Default_State() {}
+    virtual void Invalidate_Cached_Render_States() {}
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3B typed blend +
     // color-write setters. These exist so subsystems that
     // previously called DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP / ...)
     // can migrate without the interface re-exposing the raw D3DRENDERSTATETYPE.
-    virtual void Set_Blend_Op(BlendOp op) = 0;
-    virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) = 0;
-    virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) = 0;
+    virtual void Set_Blend_Op(BlendOp op) {}
+    virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) {}
+    virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) {}
     // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3E. Natural complement
     // to the Phase 3B blend extension.
-    virtual void Set_Alpha_Blend_Enable(bool enable) = 0;
+    virtual void Set_Alpha_Blend_Enable(bool enable) {}
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D hardware cursor
     // extension. Lets W3DMouse drive the device's hardware cursor without
     // touching IDirect3DDevice8 directly.
-    virtual void Show_Hardware_Cursor(bool show) = 0;
-    virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface) = 0;
-    virtual void Set_Hardware_Cursor_Position(int x, int y) = 0;
+    virtual void Show_Hardware_Cursor(bool show) {}
+    virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface) {}
+    virtual void Set_Hardware_Cursor_Position(int x, int y) {}
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3F stencil state
     // group. Each method maps 1:1 onto an existing D3DRS_STENCIL* state. The
     // CompareFunc and StencilOp enums above are reusable for future depth
     // and stencil work.
-    virtual void Set_Stencil_Enable(bool enable) = 0;
-    virtual void Set_Stencil_Func(CompareFunc func) = 0;
-    virtual void Set_Stencil_Ref(unsigned int ref) = 0;
-    virtual void Set_Stencil_Mask(unsigned int mask) = 0;
-    virtual void Set_Stencil_Write_Mask(unsigned int mask) = 0;
-    virtual void Set_Stencil_Pass_Op(StencilOp op) = 0;
-    virtual void Set_Stencil_Fail_Op(StencilOp op) = 0;
-    virtual void Set_Stencil_ZFail_Op(StencilOp op) = 0;
+    virtual void Set_Stencil_Enable(bool enable) {}
+    virtual void Set_Stencil_Func(CompareFunc func) {}
+    virtual void Set_Stencil_Ref(unsigned int ref) {}
+    virtual void Set_Stencil_Mask(unsigned int mask) {}
+    virtual void Set_Stencil_Write_Mask(unsigned int mask) {}
+    virtual void Set_Stencil_Pass_Op(StencilOp op) {}
+    virtual void Set_Stencil_Fail_Op(StencilOp op) {}
+    virtual void Set_Stencil_ZFail_Op(StencilOp op) {}
 
     // TheSuperHackers @refactor bobtista 14/04/2026 Phase 4F.1 / 4F.2
     // render-state remainders. These wrap the last D3DRS_* values still
@@ -447,15 +447,15 @@ public:
     // boolean Set_Color_Write_Enable — callers that receive a saved
     // bitmask from GetRenderState use this, callers that know the four
     // channel flags use the boolean form.
-    virtual void Set_Z_Bias(int bias) = 0;
-    virtual void Set_Fill_Mode(FillMode mode) = 0;
-    virtual void Set_Depth_Test_Enable(bool enable) = 0;
-    virtual void Set_Depth_Write_Enable(bool enable) = 0;
-    virtual void Set_Depth_Func(CompareFunc func) = 0;
-    virtual void Set_Color_Write_Mask(unsigned mask) = 0;
-    virtual void Set_Lighting_Enable(bool enable) = 0;
-    virtual void Set_Texture_Factor(unsigned argb) = 0;
-    virtual void Set_Cull_Mode(CullMode mode) = 0;
+    virtual void Set_Z_Bias(int bias) {}
+    virtual void Set_Fill_Mode(FillMode mode) {}
+    virtual void Set_Depth_Test_Enable(bool enable) {}
+    virtual void Set_Depth_Write_Enable(bool enable) {}
+    virtual void Set_Depth_Func(CompareFunc func) {}
+    virtual void Set_Color_Write_Mask(unsigned mask) {}
+    virtual void Set_Lighting_Enable(bool enable) {}
+    virtual void Set_Texture_Factor(unsigned argb) {}
+    virtual void Set_Cull_Mode(CullMode mode) {}
 
     // TheSuperHackers @refactor bobtista 14/04/2026 Phase 4H tree /
     // grass sway vertex shader hooks. DX8 backends ignore these (they
@@ -493,27 +493,29 @@ public:
     // Transforms
     // -------------------------------------------------------------------------
 
-    virtual void Set_Transform(TransformKind transform, const Matrix4x4 & m) = 0;
-    virtual void Set_Transform(TransformKind transform, const Matrix3D & m) = 0;
-    virtual void Get_Transform(TransformKind transform, Matrix4x4 & m) const = 0;
-    virtual void Set_World_Identity() = 0;
-    virtual void Set_View_Identity() = 0;
-    virtual bool Is_World_Identity() const = 0;
-    virtual bool Is_View_Identity() const = 0;
+    virtual void Set_Transform(TransformKind transform, const Matrix4x4 & m) {}
+    virtual void Set_Transform(TransformKind transform, const Matrix3D & m) {}
+    virtual void Get_Transform(TransformKind transform, Matrix4x4 & m) const {}
+    virtual void Set_World_Identity() {}
+    virtual void Set_View_Identity() {}
+    virtual bool Is_World_Identity() const { return false; }
+    virtual bool Is_View_Identity() const { return false; }
     virtual void Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
-                                                      float znear, float zfar) = 0;
+                                                      float znear, float zfar) {}
 
     // -------------------------------------------------------------------------
     // Lighting and fog
     // -------------------------------------------------------------------------
 
-    virtual void Set_Light(unsigned int index, const LightClass & light) = 0;
-    virtual void Set_Ambient(const Vector3 & color) = 0;
+    virtual void Set_Light(unsigned int index, const LightClass & light) {}
+    virtual void Set_Ambient(const Vector3 & color) {}
+    // Returns a reference — no sensible default without the Vector3 constructor.
+    // Standalone backends must override; ref-popup DX8Backend provides the real value.
     virtual const Vector3 & Get_Ambient() const = 0;
-    virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end) = 0;
-    virtual bool Get_Fog_Enable() const = 0;
-    virtual void Set_Light_Environment(LightEnvironmentClass * light_env) = 0;
-    virtual LightEnvironmentClass * Get_Light_Environment() const = 0;
+    virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end) {}
+    virtual bool Get_Fog_Enable() const { return false; }
+    virtual void Set_Light_Environment(LightEnvironmentClass * light_env) {}
+    virtual LightEnvironmentClass * Get_Light_Environment() const { return nullptr; }
 
     // Post-ShaderClass render state overrides. The terrain edge blending
     // and other systems set D3D blend/alpha-test state AFTER ShaderClass
@@ -538,18 +540,18 @@ public:
     virtual void Draw_Triangles(unsigned short start_index,
                                 unsigned short polygon_count,
                                 unsigned short min_vertex_index,
-                                unsigned short vertex_count) = 0;
+                                unsigned short vertex_count) {}
 
     virtual void Draw_Triangles(unsigned int buffer_type,
                                 unsigned short start_index,
                                 unsigned short polygon_count,
                                 unsigned short min_vertex_index,
-                                unsigned short vertex_count) = 0;
+                                unsigned short vertex_count) {}
 
     virtual void Draw_Strip(unsigned short start_index,
                             unsigned short index_count,
                             unsigned short min_vertex_index,
-                            unsigned short vertex_count) = 0;
+                            unsigned short vertex_count) {}
 
     // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I lets the
     // caller request that the very next Draw_Triangles dispatches only
@@ -645,20 +647,20 @@ public:
     // will re-interpret the handles internally; the interface treats the
     // shader id as an opaque unsigned long.
 
-    virtual void Set_Vertex_Shader(unsigned long vertex_shader) = 0;
-    virtual void Set_Pixel_Shader(unsigned long pixel_shader) = 0;
-    virtual void Set_Vertex_Shader_Constant(int reg, const void * data, int count) = 0;
-    virtual void Set_Pixel_Shader_Constant(int reg, const void * data, int count) = 0;
+    virtual void Set_Vertex_Shader(unsigned long vertex_shader) {}
+    virtual void Set_Pixel_Shader(unsigned long pixel_shader) {}
+    virtual void Set_Vertex_Shader_Constant(int reg, const void * data, int count) {}
+    virtual void Set_Pixel_Shader_Constant(int reg, const void * data, int count) {}
 
     // -------------------------------------------------------------------------
     // Render targets
     // -------------------------------------------------------------------------
 
-    virtual TextureClass * Create_Render_Target(int width, int height, WW3DFormat format = WW3D_FORMAT_UNKNOWN) = 0;
-    virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture = nullptr) = 0;
-    virtual bool Is_Render_To_Texture() const = 0;
-    virtual void Set_Shadow_Map(int idx, ZTextureClass * ztex) = 0;
-    virtual ZTextureClass * Get_Shadow_Map(int idx) const = 0;
+    virtual TextureClass * Create_Render_Target(int width, int height, WW3DFormat format = WW3D_FORMAT_UNKNOWN) { return nullptr; }
+    virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture = nullptr) {}
+    virtual bool Is_Render_To_Texture() const { return false; }
+    virtual void Set_Shadow_Map(int idx, ZTextureClass * ztex) {}
+    virtual ZTextureClass * Get_Shadow_Map(int idx) const { return nullptr; }
 
     // -------------------------------------------------------------------------
     // Resource creation (Phase 5 asset ingress)
@@ -674,19 +676,19 @@ public:
     // IDirect3D*8 * field; the D3D8 pointer stays populated in ref-popup
     // builds so the DX8 reference window renders from the same data.
 
-    virtual RenderResource Create_Texture(const TextureDesc & desc) = 0;
+    virtual RenderResource Create_Texture(const TextureDesc & desc) { return kInvalidRenderResource; }
     virtual RenderResource Create_Vertex_Buffer(const BufferDesc & desc,
-                                                const void *       initial_data) = 0;
+                                                const void *       initial_data) { return kInvalidRenderResource; }
     virtual RenderResource Create_Index_Buffer(const BufferDesc & desc,
                                                const void *       initial_data,
-                                               bool               indices_are_32bit) = 0;
-    virtual RenderResource Create_Dynamic_Vertex_Buffer(const BufferDesc & desc) = 0;
+                                               bool               indices_are_32bit) { return kInvalidRenderResource; }
+    virtual RenderResource Create_Dynamic_Vertex_Buffer(const BufferDesc & desc) { return kInvalidRenderResource; }
     virtual RenderResource Create_Dynamic_Index_Buffer(const BufferDesc & desc,
-                                                       bool               indices_are_32bit) = 0;
-    virtual void * Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard) = 0;
-    virtual void   Unmap_Dynamic(RenderResource h) = 0;
-    virtual void   Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) = 0;
-    virtual void   Destroy_Resource(RenderResource h) = 0;
+                                                       bool               indices_are_32bit) { return kInvalidRenderResource; }
+    virtual void * Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard) { return nullptr; }
+    virtual void Unmap_Dynamic(RenderResource h) {}
+    virtual void Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) {}
+    virtual void Destroy_Resource(RenderResource h) {}
     virtual void   Begin_Dynamic_Frame() {}
 
     // -------------------------------------------------------------------------
