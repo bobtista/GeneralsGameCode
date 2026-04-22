@@ -4451,14 +4451,18 @@ RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
         return kInvalidRenderResource;
     }
     // Ensure the bgfx-side texture exists (peek+lock+upload from the D3D8
-    // mirror that the legacy loader already created).
-    bgfx::TextureHandle bgfxTex = EnsureBgfxTexture(tex);
+    // mirror that the legacy loader already created). The returned handle
+    // is owned by g_caches.texture (keyed on TextureBaseClass*), NOT by
+    // this phase5 entry — Release_Cached_Texture in the dtor queues it
+    // for deferred destroy. We leave entry.texture invalid so
+    // Destroy_Resource doesn't try to destroy the same handle twice.
+    EnsureBgfxTexture(tex);
 
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind       = BGFX_RR_KIND_TEXTURE;
-    entry.texture    = bgfxTex;
-    entry.d3d_mirror = tex->Peek_D3D_Base_Texture();
+    entry.texture    = BGFX_INVALID_HANDLE;
+    entry.d3d_mirror = nullptr;
 
     RenderResource rr;
     rr.id = AllocPhase5Id();
@@ -4471,11 +4475,16 @@ RenderResource BgfxBackend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb
     if (vb == nullptr) {
         return kInvalidRenderResource;
     }
+    // IMPORTANT: do NOT store the VertexBufferClass* as d3d_mirror —
+    // Destroy_Resource would cast it to IUnknown* and call Release(), which
+    // lands on whatever the third virtual of VertexBufferClass happens to
+    // be and crashes. The VB's D3D resource lifetime is owned by the
+    // DX8VertexBufferClass dtor; we have no cleanup to do on the DX8 side.
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_VB;
     entry.vb = BGFX_INVALID_HANDLE;
-    entry.d3d_mirror = vb;
+    entry.d3d_mirror = nullptr;
 
     RenderResource rr;
     rr.id = AllocPhase5Id();
@@ -4488,11 +4497,13 @@ RenderResource BgfxBackend::Register_Loaded_Index_Buffer(IndexBufferClass * ib)
     if (ib == nullptr) {
         return kInvalidRenderResource;
     }
+    // Same rationale as Register_Loaded_Vertex_Buffer — leave d3d_mirror
+    // null so Destroy_Resource's DX8-side Release does nothing.
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_IB;
     entry.ib = BGFX_INVALID_HANDLE;
-    entry.d3d_mirror = ib;
+    entry.d3d_mirror = nullptr;
 
     RenderResource rr;
     rr.id = AllocPhase5Id();
