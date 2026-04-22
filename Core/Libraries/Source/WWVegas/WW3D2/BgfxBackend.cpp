@@ -4442,3 +4442,60 @@ void BgfxBackend::Begin_Dynamic_Frame()
     }
     DX8Backend::Begin_Dynamic_Frame();
 }
+
+// -- Phase 5 transitional Register_Loaded_* ---------------------------------
+
+RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
+{
+    if (tex == nullptr) {
+        return kInvalidRenderResource;
+    }
+    // Ensure the bgfx-side texture exists (peek+lock+upload from the D3D8
+    // mirror that the legacy loader already created).
+    bgfx::TextureHandle bgfxTex = EnsureBgfxTexture(tex);
+
+    BgfxPhase5Entry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind       = BGFX_RR_KIND_TEXTURE;
+    entry.texture    = bgfxTex;
+    entry.d3d_mirror = tex->Peek_D3D_Base_Texture();
+
+    RenderResource rr;
+    rr.id = AllocPhase5Id();
+    g_phase5.table[rr.id] = entry;
+    return rr;
+}
+
+RenderResource BgfxBackend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb)
+{
+    if (vb == nullptr) {
+        return kInvalidRenderResource;
+    }
+    BgfxPhase5Entry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_VB;
+    entry.vb = BGFX_INVALID_HANDLE;
+    entry.d3d_mirror = vb;
+
+    RenderResource rr;
+    rr.id = AllocPhase5Id();
+    g_phase5.table[rr.id] = entry;
+    return rr;
+}
+
+RenderResource BgfxBackend::Register_Loaded_Index_Buffer(IndexBufferClass * ib)
+{
+    if (ib == nullptr) {
+        return kInvalidRenderResource;
+    }
+    BgfxPhase5Entry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_IB;
+    entry.ib = BGFX_INVALID_HANDLE;
+    entry.d3d_mirror = ib;
+
+    RenderResource rr;
+    rr.id = AllocPhase5Id();
+    g_phase5.table[rr.id] = entry;
+    return rr;
+}

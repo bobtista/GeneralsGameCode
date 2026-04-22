@@ -337,6 +337,10 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 		&index_buffer);
 
 	if (SUCCEEDED(ret)) {
+		// Phase 5 Stage 2: populate backend-neutral handle.
+		if (g_renderBackend != nullptr) {
+			m_backendHandle = g_renderBackend->Register_Loaded_Index_Buffer(this);
+		}
 		return;
 	}
 
@@ -360,6 +364,9 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 
 	if (SUCCEEDED(ret)) {
 		WWDEBUG_SAY(("...Index buffer creation successful"));
+		if (g_renderBackend != nullptr) {
+			m_backendHandle = g_renderBackend->Register_Loaded_Index_Buffer(this);
+		}
 	}
 
 	// If it still fails it is fatal
@@ -370,6 +377,11 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 
 DX8IndexBufferClass::~DX8IndexBufferClass()
 {
+	// Phase 5 Stage 2: release backend-neutral handle before D3D8.
+	if (m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
+		g_renderBackend->Destroy_Resource(m_backendHandle);
+		m_backendHandle = kInvalidRenderResource;
+	}
 	index_buffer->Release();
 }
 
