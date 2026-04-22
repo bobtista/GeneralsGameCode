@@ -104,6 +104,19 @@ BgfxCaches     g_caches;
 // Phase 5 asset-ingress resource side-table. id 0 is reserved invalid.
 BgfxPhase5Resources g_phase5 = { {}, 1 };
 
+// TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.1 dual-build macro.
+// In the ref-popup build, BgfxBackend inherits from DX8Backend and forwards
+// to it so the DX8 reference window sees every state change. In standalone
+// mode (GGC_BGFX_STANDALONE=ON) BgfxBackend inherits from IRenderBackend
+// directly (DX8Backend is excluded from the link graph), so DX8Backend::X
+// qualified calls become unresolved references. The macro expands to the
+// statement in ref-popup mode and to a no-op in standalone mode.
+#if defined(GGC_BGFX_STANDALONE)
+  #define DX8_MIRROR_STMT(...) ((void)0)
+#else
+  #define DX8_MIRROR_STMT(...) __VA_ARGS__
+#endif
+
 namespace
 {
 // Anchor a reference to one bgfx symbol so the linker must resolve bgfx
@@ -2001,8 +2014,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
 
 void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)
 {
-    DX8Backend::Set_Vertex_Buffer(vb, stream);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Vertex_Buffer(vb, stream));
     // Phase 4C.4: cache is populated by Capture_Vertex_Data on the engine's
     // own write lock. Set_Vertex_Buffer just looks up whatever is already
     // there. Engine VBs that have not been written via the WriteLockClass
@@ -2053,8 +2065,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
 
 void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 {
-    DX8Backend::Set_Vertex_Buffer(vba);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Vertex_Buffer(vba));
     // Phase 4G.2: if the matching Capture_Dynamic_Vertex_Data already
     // allocated a transient VB for this access class, claim it for the
     // next draw. Otherwise miss the cache and skip the bgfx submit.
@@ -2073,8 +2084,7 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 
 void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset)
 {
-    DX8Backend::Set_Index_Buffer(ib, index_base_offset);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Index_Buffer(ib, index_base_offset));
     g_draw.useTransientIB = false;
     auto it = g_caches.ib.find(ib);
     if (it != g_caches.ib.end())
@@ -2116,8 +2126,7 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
 
 void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset)
 {
-    DX8Backend::Set_Index_Buffer(iba, index_base_offset);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Index_Buffer(iba, index_base_offset));
     if (g_draw.pendingIB.valid && g_draw.pendingIB.owner == &iba)
     {
         g_draw.useTransientIB = true;
@@ -2143,7 +2152,7 @@ void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned sh
 // slots. Must call the base so the dx8 device still gets the update.
 void BgfxBackend::Set_Index_Buffer_Index_Offset(unsigned int offset)
 {
-    DX8Backend::Set_Index_Buffer_Index_Offset(offset);
+    DX8_MIRROR_STMT(DX8Backend::Set_Index_Buffer_Index_Offset(offset));
     g_draw.ibOffset = static_cast<unsigned short>(offset);
 }
 
@@ -2791,8 +2800,7 @@ void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
 
 void BgfxBackend::Set_Shader(const ShaderClass & shader)
 {
-    DX8Backend::Set_Shader(shader);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Shader(shader));
     g_draw.program = g_device.uberProgram;
     g_draw.state   = BuildBgfxStateForShader(shader);
     BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef);
@@ -2801,8 +2809,7 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
 
 void BgfxBackend::Set_Material(const VertexMaterialClass * material)
 {
-    DX8Backend::Set_Material(material);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Material(material));
     // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.9 capture
     // material diffuse + opacity so the fragment shader can tint output
     // with team colors. Generals writes the player color into the
@@ -2870,8 +2877,7 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
 
 void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 {
-    DX8Backend::Set_Texture(stage, texture);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Texture(stage, texture));
     // Phase 4G.3 / 4G.4: stages 0-3 wired. Covers terrain base + detail
     // + cloud + noise, the standard 4-stage layout used by the
     // FlatHeightMap pixel shader family. Stages above 3 still fall
@@ -2943,7 +2949,7 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 
 void BgfxBackend::Set_Ambient(const Vector3 & color)
 {
-    DX8Backend::Set_Ambient(color);
+    DX8_MIRROR_STMT(DX8Backend::Set_Ambient(color));
     g_draw.sceneAmbient[0] = color.X;
     g_draw.sceneAmbient[1] = color.Y;
     g_draw.sceneAmbient[2] = color.Z;
@@ -2965,8 +2971,7 @@ static const uint64_t kBgfxBlendMap[9] = {
 // TheSuperHackers @fix bobtista 20/04/2026 The DX8Backend default only updates D3D render state, leaving bgfx's g_overrides.blendBits stale. Water rendering relies on this to restore SRC_ALPHA / INV_SRC_ALPHA blending after its DESTALPHA shoreline pass — otherwise the DESTALPHA state set by Override_Material_Opacity() persists into the next draw (e.g. the faction-emblem quad on the command-center bib), painting it black.
 void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 {
-    DX8Backend::Set_Blend_Factors(src, dest);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Blend_Factors(src, dest));
     const unsigned s = static_cast<unsigned>(src);
     const unsigned d = static_cast<unsigned>(dest);
     if (s >= 1 && s <= 8 && d >= 1 && d <= 8)
@@ -3096,7 +3101,7 @@ void BgfxBackend::Set_Cloud_Shadow_Params(bool enable, float scroll_x, float scr
 
 void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha)
 {
-    DX8Backend::Set_Color_Write_Enable(red, green, blue, alpha);
+    DX8_MIRROR_STMT(DX8Backend::Set_Color_Write_Enable(red, green, blue, alpha));
     uint64_t mask = 0;
     if (red)   mask |= BGFX_STATE_WRITE_R;
     if (green) mask |= BGFX_STATE_WRITE_G;
@@ -3113,7 +3118,7 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
 // shadow volumes drawing as solid black geometry.
 void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 {
-    DX8Backend::Set_Color_Write_Mask(mask);
+    DX8_MIRROR_STMT(DX8Backend::Set_Color_Write_Mask(mask));
     uint64_t bgfxMask = 0;
     if (mask & D3DCOLORWRITEENABLE_RED)   bgfxMask |= BGFX_STATE_WRITE_R;
     if (mask & D3DCOLORWRITEENABLE_GREEN) bgfxMask |= BGFX_STATE_WRITE_G;
@@ -3133,7 +3138,7 @@ void BgfxBackend::Skip_Next_Bgfx_Submit()
 // is unnecessary and it clobbers team colors.
 void BgfxBackend::Set_Texture_Factor(unsigned argb)
 {
-    DX8Backend::Set_Texture_Factor(argb);
+    DX8_MIRROR_STMT(DX8Backend::Set_Texture_Factor(argb));
 }
 
 void BgfxBackend::Set_Shadow_Light_Position(float x, float y, float z)
@@ -3295,8 +3300,7 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
                                               unsigned stencil_read_mask,
                                               unsigned stencil_ref)
 {
-    DX8Backend::Apply_Stencil_Shadow_Darken(shadow_color, stencil_read_mask, stencil_ref);
-
+    DX8_MIRROR_STMT(DX8Backend::Apply_Stencil_Shadow_Darken(shadow_color, stencil_read_mask, stencil_ref));
     if (!g_device.initialized || !bgfx::isValid(g_device.shadowApplyProgram))
         return;
 
@@ -3347,62 +3351,62 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 
 void BgfxBackend::Set_Stencil_Enable(bool enable)
 {
-    DX8Backend::Set_Stencil_Enable(enable);
+    DX8_MIRROR_STMT(DX8Backend::Set_Stencil_Enable(enable));
     g_draw.stencilEnabled = enable;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Func(CompareFunc f)
 {
-    DX8Backend::Set_Stencil_Func(f);
+    DX8_MIRROR_STMT(DX8Backend::Set_Stencil_Func(f));
     g_draw.stencilFuncBits = MapCmpFuncToBgfxStencilTest(static_cast<int>(f));
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Ref(unsigned ref)
 {
-    DX8Backend::Set_Stencil_Ref(ref);
+    DX8_MIRROR_STMT(DX8Backend::Set_Stencil_Ref(ref));
     g_draw.stencilRef = ref;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Mask(unsigned mask)
 {
-    DX8Backend::Set_Stencil_Mask(mask);
+    DX8_MIRROR_STMT(DX8Backend::Set_Stencil_Mask(mask));
     g_draw.stencilReadMask = mask;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Write_Mask(unsigned mask)
 {
-    DX8Backend::Set_Stencil_Write_Mask(mask);
+    DX8_MIRROR_STMT(DX8Backend::Set_Stencil_Write_Mask(mask));
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Pass_Op(StencilOp op)
 {
-    DX8Backend::Set_Stencil_Pass_Op(op);
+    DX8_MIRROR_STMT(DX8Backend::Set_Stencil_Pass_Op(op));
     g_draw.stencilPassOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_PASS_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Fail_Op(StencilOp op)
 {
-    DX8Backend::Set_Stencil_Fail_Op(op);
+    DX8_MIRROR_STMT(DX8Backend::Set_Stencil_Fail_Op(op));
     g_draw.stencilFailOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_FAIL_S_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp op)
 {
-    DX8Backend::Set_Stencil_ZFail_Op(op);
+    DX8_MIRROR_STMT(DX8Backend::Set_Stencil_ZFail_Op(op));
     g_draw.stencilZFailOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_FAIL_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Cull_Mode(CullMode mode)
 {
-    DX8Backend::Set_Cull_Mode(mode);
+    DX8_MIRROR_STMT(DX8Backend::Set_Cull_Mode(mode));
     switch (mode)
     {
         case RB_CULL_CW:  g_draw.cullModeBits = 1; break;
@@ -3414,7 +3418,7 @@ void BgfxBackend::Set_Cull_Mode(CullMode mode)
 
 void BgfxBackend::Set_Depth_Func(CompareFunc func)
 {
-    DX8Backend::Set_Depth_Func(func);
+    DX8_MIRROR_STMT(DX8Backend::Set_Depth_Func(func));
     static const uint64_t kDepthMap[] = {
         0,                              // 0 (unused)
         BGFX_STATE_DEPTH_TEST_NEVER,    // RB_CMP_NEVER = 1
@@ -3436,8 +3440,7 @@ void BgfxBackend::Set_Depth_Func(CompareFunc func)
 
 void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture)
 {
-    DX8Backend::Set_Render_Target_With_Z(texture, ztexture);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Render_Target_With_Z(texture, ztexture));
     if (texture == nullptr || !g_device.initialized)
     {
         g_views.renderToTexture = false;
@@ -3494,8 +3497,7 @@ void BgfxBackend::Clear_State_Overrides()
 
 void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
 {
-    DX8Backend::Set_Light_Environment(light_env);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Light_Environment(light_env));
     if (light_env != nullptr)
     {
         const Vector3 & ambient = light_env->Get_Equivalent_Ambient();
@@ -3537,8 +3539,7 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
 
 void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
 {
-    DX8Backend::Set_Transform(transform, m);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Transform(transform, m));
     switch (transform)
     {
         case RB_TRANSFORM_WORLD:
@@ -3560,8 +3561,7 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
 
 void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
 {
-    DX8Backend::Set_Transform(transform, m);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Transform(transform, m));
     switch (transform)
     {
         case RB_TRANSFORM_WORLD:
@@ -3582,13 +3582,13 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
 
 void BgfxBackend::Set_World_Identity()
 {
-    DX8Backend::Set_World_Identity();
+    DX8_MIRROR_STMT(DX8Backend::Set_World_Identity());
     IdentityMatrix(g_frame.world);
 }
 
 void BgfxBackend::Set_View_Identity()
 {
-    DX8Backend::Set_View_Identity();
+    DX8_MIRROR_STMT(DX8Backend::Set_View_Identity());
     IdentityMatrix(g_frame.view);
     g_frame.cameraProjDirty = true;
     g_views.overlay2DActive = true;
@@ -3597,8 +3597,7 @@ void BgfxBackend::Set_View_Identity()
 void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
                                                        float znear, float zfar)
 {
-    DX8Backend::Set_Projection_Transform_With_Z_Bias(matrix, znear, zfar);
-
+    DX8_MIRROR_STMT(DX8Backend::Set_Projection_Transform_With_Z_Bias(matrix, znear, zfar));
     W3DMatrix4ToBgfx(matrix, g_frame.proj);
     g_frame.cameraProjDirty = true;
 
@@ -4140,8 +4139,7 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
                                  unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
-    DX8Backend::Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
-
+    DX8_MIRROR_STMT(DX8Backend::Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count));
     // Phase 4G.13: if DX8Wrapper::Draw_Sorting_IB_VB already submitted
     // the draw with correctly remapped args against its internal dynamic
     // buffers, skip the outer submit.
@@ -4159,8 +4157,7 @@ void BgfxBackend::Draw_Triangles(unsigned int buffer_type,
                                  unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
-    DX8Backend::Draw_Triangles(buffer_type, start_index, polygon_count, min_vertex_index, vertex_count);
-
+    DX8_MIRROR_STMT(DX8Backend::Draw_Triangles(buffer_type, start_index, polygon_count, min_vertex_index, vertex_count));
     if (g_views.skipNextSubmitEngineDraw)
     {
         g_views.skipNextSubmitEngineDraw = false;
@@ -4177,8 +4174,7 @@ void BgfxBackend::Draw_Strip(unsigned short start_index,
                              unsigned short min_vertex_index,
                              unsigned short vertex_count)
 {
-    DX8Backend::Draw_Strip(start_index, index_count, min_vertex_index, vertex_count);
-
+    DX8_MIRROR_STMT(DX8Backend::Draw_Strip(start_index, index_count, min_vertex_index, vertex_count));
     if (g_views.skipNextSubmitEngineDraw)
     {
         g_views.skipNextSubmitEngineDraw = false;
@@ -4234,7 +4230,11 @@ const bgfx::Memory * CopySliceToBgfxMemory(const MipSlice & slice)
 RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
 {
     // Mirror to DX8 first so the ref popup's D3D8 texture exists.
+#if defined(GGC_BGFX_STANDALONE)
+    RenderResource dx8_rr = kInvalidRenderResource;
+#else
     RenderResource dx8_rr = DX8Backend::Create_Texture(desc);
+#endif
 
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
@@ -4268,7 +4268,12 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
 
 RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data)
 {
+#if defined(GGC_BGFX_STANDALONE)
+    RenderResource dx8_rr = kInvalidRenderResource;
+    (void)initial_data;
+#else
     RenderResource dx8_rr = DX8Backend::Create_Vertex_Buffer(desc, initial_data);
+#endif
 
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
@@ -4289,7 +4294,13 @@ RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const 
 
 RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit)
 {
+#if defined(GGC_BGFX_STANDALONE)
+    RenderResource dx8_rr = kInvalidRenderResource;
+    (void)initial_data;
+    (void)indices_are_32bit;
+#else
     RenderResource dx8_rr = DX8Backend::Create_Index_Buffer(desc, initial_data, indices_are_32bit);
+#endif
 
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
@@ -4309,7 +4320,11 @@ RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const v
 
 RenderResource BgfxBackend::Create_Dynamic_Vertex_Buffer(const BufferDesc & desc)
 {
+#if defined(GGC_BGFX_STANDALONE)
+    RenderResource dx8_rr = kInvalidRenderResource;
+#else
     RenderResource dx8_rr = DX8Backend::Create_Dynamic_Vertex_Buffer(desc);
+#endif
 
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
@@ -4329,7 +4344,12 @@ RenderResource BgfxBackend::Create_Dynamic_Vertex_Buffer(const BufferDesc & desc
 
 RenderResource BgfxBackend::Create_Dynamic_Index_Buffer(const BufferDesc & desc, bool indices_are_32bit)
 {
+#if defined(GGC_BGFX_STANDALONE)
+    RenderResource dx8_rr = kInvalidRenderResource;
+    (void)indices_are_32bit;
+#else
     RenderResource dx8_rr = DX8Backend::Create_Dynamic_Index_Buffer(desc, indices_are_32bit);
+#endif
 
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
@@ -4355,7 +4375,12 @@ void * BgfxBackend::Map_Dynamic(RenderResource h, unsigned int offset, unsigned 
     // bytes into a bgfx transient buffer before the D3D unlock happens.
     RenderResource dx8_rr;
     dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
+#if defined(GGC_BGFX_STANDALONE)
+    (void)dx8_rr; (void)offset; (void)size; (void)discard;
+    return nullptr;   // Standalone Map_Dynamic is a Stage 3 follow-up.
+#else
     return DX8Backend::Map_Dynamic(dx8_rr, offset, size, discard);
+#endif
 }
 
 void BgfxBackend::Unmap_Dynamic(RenderResource h)
@@ -4367,7 +4392,7 @@ void BgfxBackend::Unmap_Dynamic(RenderResource h)
     BgfxPhase5Entry & entry = it->second;
     RenderResource dx8_rr;
     dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
-    DX8Backend::Unmap_Dynamic(dx8_rr);
+    DX8_MIRROR_STMT(DX8Backend::Unmap_Dynamic(dx8_rr));
     // Stage 3 will add the bgfx transient allocation + snapshot here.
 }
 
@@ -4380,7 +4405,7 @@ void BgfxBackend::Update_Sub_Range(RenderResource h, unsigned int offset, const 
     BgfxPhase5Entry & entry = it->second;
     RenderResource dx8_rr;
     dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
-    DX8Backend::Update_Sub_Range(dx8_rr, offset, data, size);
+    DX8_MIRROR_STMT(DX8Backend::Update_Sub_Range(dx8_rr, offset, data, size));
 }
 
 void BgfxBackend::Destroy_Resource(RenderResource h)
@@ -4426,8 +4451,7 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
     // Release the D3D8 mirror.
     RenderResource dx8_rr;
     dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
-    DX8Backend::Destroy_Resource(dx8_rr);
-
+    DX8_MIRROR_STMT(DX8Backend::Destroy_Resource(dx8_rr));
     g_phase5.table.erase(it);
 }
 
@@ -4440,7 +4464,18 @@ void BgfxBackend::Begin_Dynamic_Frame()
         entry.using_transient_vb = false;
         entry.using_transient_ib = false;
     }
-    DX8Backend::Begin_Dynamic_Frame();
+    DX8_MIRROR_STMT(DX8Backend::Begin_Dynamic_Frame());
+}
+
+const Vector3 & BgfxBackend::Get_Ambient() const
+{
+    // Required override in standalone mode (no DX8Backend base).
+#if !defined(GGC_BGFX_STANDALONE)
+    return DX8Backend::Get_Ambient();
+#else
+    static const Vector3 k_zero(0.0f, 0.0f, 0.0f);
+    return k_zero;
+#endif
 }
 
 // -- Phase 5 transitional Register_Loaded_* ---------------------------------
