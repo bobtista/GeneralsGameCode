@@ -16,7 +16,5 @@ FetchContent_MakeAvailable(dx8)
 # stay as well. Ref-popup builds are unaffected.
 if(GGC_BGFX_STANDALONE)
     set_property(TARGET d3d8lib PROPERTY INTERFACE_LINK_LIBRARIES "")
-    if(WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows")
-        target_link_libraries(d3d8lib INTERFACE dinput8 dxguid)
-    endif()
+    target_link_libraries(d3d8lib INTERFACE dinput8 dxguid)
 endif()
