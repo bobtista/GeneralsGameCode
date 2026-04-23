@@ -2030,6 +2030,20 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 
  		if (m_disableTextures)
  			devicePasses=1;	//force to 1 lighting-only pass
+#if defined(GGC_BGFX_STANDALONE)
+		// TheSuperHackers @bugfix bobtista 23/04/2026 Phase 5.2 — force
+		// single-pass terrain in bgfx standalone. The legacy multipass
+		// path (base + alpha overlay + cloud/noise MODULATE) relies on
+		// D3DTSS_TCI_CAMERASPACEPOSITION + D3DTTFF_COUNT2 texcoord
+		// generation that the bgfx fixed-function fallback does not
+		// emulate, producing black triangular patches on beach tiles and
+		// matching bright patches on water (the MODULATE pass read from
+		// garbage UVs and multiplied terrain by ~0 or >1). fs_uber already
+		// handles cloud shadowing in a single pass via g_draw.cloudTex
+		// pushed by W3DShaderManager::pushCloudShadowToBackend, so the
+		// multi-pass replay is not needed for correctness.
+		devicePasses = 1;
+#endif
 
  		//Specify all textures that this shader may need.
  		W3DShaderManager::setTexture(0,m_stageZeroTexture);
