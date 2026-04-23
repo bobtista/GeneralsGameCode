@@ -12,7 +12,6 @@ target_link_libraries(z_generals PRIVATE
     comctl32
     core_debug
     core_profile_legacy
-    d3dx8
     dinput8
     dxguid
     imm32
@@ -25,13 +24,13 @@ target_link_libraries(z_generals PRIVATE
 )
 
 # TheSuperHackers @build bobtista 22/04/2026 Phase 5.2 Stage 5 —
-# In standalone bgfx mode the D3D8 device is a stub (StubD3D8Device.cpp)
-# and the `Direct3DCreate8` / `LoadLibrary("D3D8.DLL")` path is compiled
-# out of dx8wrapper.cpp. That leaves no unresolved symbols from d3d8.lib,
-# so we can drop it from the link. d3dx8 stays for now because
-# D3DXCreateTextureFromFileExA and matrix helpers are still used.
+# In standalone bgfx mode all D3D8/D3DX8 symbol references resolve to
+# in-tree implementations: StubD3D8Device.cpp replaces Direct3DCreate8
+# and the IDirect3D* vtables, D3DXStandaloneStubs.cpp replaces the
+# D3DX matrix/texture helpers. Neither d3d8.lib nor d3dx8.lib is
+# needed in the link. Ref-popup keeps both.
 if(NOT GGC_BGFX_STANDALONE)
-    target_link_libraries(z_generals PRIVATE d3d8)
+    target_link_libraries(z_generals PRIVATE d3d8 d3dx8)
 endif()
 
 # TODO Originally referred to build host and user, replace with git info perhaps?
