@@ -90,6 +90,11 @@
 
 #include "shdlib.h"
 
+#if defined(GGC_BGFX_STANDALONE)
+#include "TARGA.h"
+#include "ww3dformat.h"
+#endif
+
 const int DEFAULT_RESOLUTION_WIDTH = 640;
 const int DEFAULT_RESOLUTION_HEIGHT = 480;
 const int DEFAULT_BIT_DEPTH = 32;
@@ -2680,6 +2685,175 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	return texture;
 }
 
+#if defined(GGC_BGFX_STANDALONE)
+// TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 Stage 5 —
+// In standalone we replace D3DXCreateTextureFromFileExA with a direct
+// Targa decoder + stub-device CreateTexture + LockRect write. The goal
+// is to (a) remove D3DX as a black-box in the standalone pixel path so
+// remaining visual bugs don't depend on D3DX internals interacting with
+// our stub and (b) start the work of dropping d3dx8.lib from the link.
+// For non-.tga files (e.g. .dds) we fall back to D3DX; it still works
+// because d3dx8 is statically linked.
+static IDirect3DTexture8 * LoadTextureStandalone_TGA(
+	const char * filename,
+	MipCountType mip_level_count)
+{
+	Targa targa;
+	if (targa.Open(filename, TGA_READMODE) != 0)
+		return nullptr;
+
+	// W3D uses Y-flipped TGA (D3D texels top-down).
+	targa.Header.ImageDescriptor ^= TGAIDF_YORIGIN;
+
+	WW3DFormat src_format = WW3D_FORMAT_UNKNOWN;
+	unsigned src_bpp = 0;
+	Get_WW3D_Format(src_format, src_bpp, targa);
+	if (src_format == WW3D_FORMAT_UNKNOWN)
+		return nullptr;
+
+	const unsigned src_w = targa.Header.Width;
+	const unsigned src_h = targa.Header.Height;
+	if (src_w == 0 || src_h == 0)
+		return nullptr;
+
+	// Decide destination format: 32-bit TGA gets A8R8G8B8, 24-bit gets X8R8G8B8.
+	// All other cases up-convert to A8R8G8B8 so the stub scratch layout (width*4)
+	// matches what EnsureBgfxTexture expects.
+	const bool has_alpha = (targa.Header.PixelDepth == 32)
+		|| (src_format == WW3D_FORMAT_A8R8G8B8)
+		|| (src_format == WW3D_FORMAT_A4R4G4B4)
+		|| (src_format == WW3D_FORMAT_A1R5G5B5);
+	const D3DFORMAT d3d_fmt = has_alpha ? D3DFMT_A8R8G8B8 : D3DFMT_X8R8G8B8;
+
+	// How many mip levels do we actually produce? If caller asked for
+	// MIP_LEVELS_1, just one; otherwise full chain down to 1x1.
+	DWORD levels = 1;
+	if (mip_level_count != MIP_LEVELS_1)
+	{
+		unsigned m = src_w > src_h ? src_w : src_h;
+		while (m > 1) { m >>= 1; ++levels; }
+	}
+
+	IDirect3DTexture8 * texture = nullptr;
+	HRESULT hr = DX8Wrapper::_Get_D3D_Device8()->CreateTexture(
+		src_w, src_h, levels, 0, d3d_fmt, D3DPOOL_MANAGED, &texture);
+	if (hr != D3D_OK || texture == nullptr)
+		return nullptr;
+
+	// Decode file into an internally-allocated buffer owned by targa.
+	// TGA class flips Y-orientation itself based on ImageDescriptor.
+	if (targa.Load(filename, TGAF_IMAGE, false) != 0)
+	{
+		texture->Release();
+		return nullptr;
+	}
+
+	const uint8_t * src = reinterpret_cast<const uint8_t *>(targa.GetImage());
+	if (src == nullptr)
+	{
+		texture->Release();
+		return nullptr;
+	}
+
+	D3DLOCKED_RECT locked = { 0 };
+	if (FAILED(texture->LockRect(0, &locked, nullptr, 0)))
+	{
+		texture->Release();
+		return nullptr;
+	}
+
+	// Convert/copy source pixels into the texture's level-0 scratch.
+	// Targa memory layout is the same little-endian BGRA byte order as
+	// D3D8 A8R8G8B8/X8R8G8B8 so we can straight-copy for 32-bit and
+	// fill alpha=0xFF for 24-bit.
+	const unsigned dst_pitch = static_cast<unsigned>(locked.Pitch);
+	uint8_t * dst = static_cast<uint8_t *>(locked.pBits);
+	if (src_bpp == 4)
+	{
+		for (unsigned y = 0; y < src_h; ++y)
+		{
+			std::memcpy(dst + y * dst_pitch, src + y * src_w * 4, src_w * 4);
+		}
+	}
+	else if (src_bpp == 3)
+	{
+		for (unsigned y = 0; y < src_h; ++y)
+		{
+			const uint8_t * s = src + y * src_w * 3;
+			uint8_t * d = dst + y * dst_pitch;
+			for (unsigned x = 0; x < src_w; ++x)
+			{
+				d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; d[3] = 0xFF;
+				s += 3; d += 4;
+			}
+		}
+	}
+	else
+	{
+		// Other bit depths (16-bit, paletted) — reject; D3DX fallback
+		// will handle these rarer cases.
+		texture->UnlockRect(0);
+		texture->Release();
+		return nullptr;
+	}
+	texture->UnlockRect(0);
+
+	// Generate mip levels via 2x2 box filter (per channel independent).
+	UINT prev_w = src_w;
+	UINT prev_h = src_h;
+	for (DWORD level = 1; level < levels; ++level)
+	{
+		UINT lw = prev_w >> 1; if (lw == 0) lw = 1;
+		UINT lh = prev_h >> 1; if (lh == 0) lh = 1;
+
+		D3DLOCKED_RECT src_l = { 0 };
+		D3DLOCKED_RECT dst_l = { 0 };
+		if (FAILED(texture->LockRect(level - 1, &src_l, nullptr, 0))) break;
+		if (FAILED(texture->LockRect(level, &dst_l, nullptr, 0)))
+		{
+			texture->UnlockRect(level - 1);
+			break;
+		}
+
+		const uint8_t * spx = static_cast<const uint8_t *>(src_l.pBits);
+		uint8_t * dpx = static_cast<uint8_t *>(dst_l.pBits);
+		for (UINT y = 0; y < lh; ++y)
+		{
+			for (UINT x = 0; x < lw; ++x)
+			{
+				const uint8_t * p00 = spx + (2*y    ) * src_l.Pitch + (2*x    ) * 4;
+				const uint8_t * p10 = spx + (2*y    ) * src_l.Pitch + (2*x + 1) * 4;
+				const uint8_t * p01 = spx + (2*y + 1) * src_l.Pitch + (2*x    ) * 4;
+				const uint8_t * p11 = spx + (2*y + 1) * src_l.Pitch + (2*x + 1) * 4;
+				uint8_t * d = dpx + y * dst_l.Pitch + x * 4;
+				d[0] = static_cast<uint8_t>((p00[0] + p10[0] + p01[0] + p11[0] + 2) >> 2);
+				d[1] = static_cast<uint8_t>((p00[1] + p10[1] + p01[1] + p11[1] + 2) >> 2);
+				d[2] = static_cast<uint8_t>((p00[2] + p10[2] + p01[2] + p11[2] + 2) >> 2);
+				d[3] = static_cast<uint8_t>((p00[3] + p10[3] + p01[3] + p11[3] + 2) >> 2);
+			}
+		}
+		texture->UnlockRect(level);
+		texture->UnlockRect(level - 1);
+		prev_w = lw;
+		prev_h = lh;
+	}
+
+	return texture;
+}
+
+static bool HasTgaExtension(const char * filename)
+{
+	if (filename == nullptr) return false;
+	const size_t n = std::strlen(filename);
+	if (n < 4) return false;
+	const char * ext = filename + n - 4;
+	return (ext[0] == '.') &&
+		(ext[1] == 't' || ext[1] == 'T') &&
+		(ext[2] == 'g' || ext[2] == 'G') &&
+		(ext[3] == 'a' || ext[3] == 'A');
+}
+#endif // GGC_BGFX_STANDALONE
+
 IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 (
 	const char *filename,
@@ -2689,6 +2863,28 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 	IDirect3DTexture8 *texture = nullptr;
+
+#if defined(GGC_BGFX_STANDALONE)
+	// Bypass D3DX for TGA files in standalone. The D3DX upload path
+	// occasionally produced bad pixel data against our stub device
+	// (unknown internal cause) which showed as dark bands / black
+	// regions on terrain. Direct TGA -> stub LockRect is deterministic.
+	if (HasTgaExtension(filename))
+	{
+		texture = LoadTextureStandalone_TGA(filename, mip_level_count);
+		if (texture != nullptr)
+		{
+			D3DSURFACE_DESC desc;
+			texture->GetLevelDesc(0, &desc);
+			if (desc.Format == D3DFMT_P8) {
+				texture->Release();
+				return MissingTexture::_Get_Missing_Texture();
+			}
+			return texture;
+		}
+		// fall through to D3DX fallback if TGA loader failed
+	}
+#endif
 
 	// NOTE: If the original image format is not supported as a texture format, it will
 	// automatically be converted to an appropriate format.
