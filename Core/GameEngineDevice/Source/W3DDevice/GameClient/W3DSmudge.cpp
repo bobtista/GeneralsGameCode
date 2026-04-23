@@ -204,6 +204,19 @@ error:
 
 Bool W3DSmudgeManager::testHardwareSupport()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 — the smudge
+	// effect works by CopyRects'ing the DX8 backbuffer into a texture
+	// and sampling that texture with view-space UVs. In standalone, the
+	// stub device's backbuffer scratch is never written (bgfx renders
+	// to its own framebuffer), so the sampled "background" is always
+	// zero. Modulated by the smudge shader, that's solid black drawn
+	// over terrain at every active smudge — the camera-aligned dark
+	// bands on beach scenes. Until we wire a bgfx framebuffer-readback
+	// path, disable smudges entirely in standalone builds.
+	m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
+	return FALSE;
+#else
 	if (m_hardwareSupportStatus == SMUDGE_SUPPORT_UNKNOWN)
 	{	//we have not done the test yet.
 
@@ -308,6 +321,7 @@ Bool W3DSmudgeManager::testHardwareSupport()
 	}
 
 	return (SMUDGE_SUPPORT_YES == m_hardwareSupportStatus);
+#endif // GGC_BGFX_STANDALONE
 }
 
 void W3DSmudgeManager::render(RenderInfoClass &rinfo)
