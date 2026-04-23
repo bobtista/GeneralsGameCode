@@ -212,11 +212,19 @@ void main()
 		current.a = applyAlphaOp(secAlphaOp, secAArg1, secAArg2);
 	}
 
-	// --- Stages 2-3: only multiply when stage 1 is active (stages 2-3
-	// piggyback on the secondary stage enable). When disabled, D3D8
-	// skips these stages entirely. Multiplying by stale/unset textures
-	// would zero out the result (e.g. water draws that only use stage 0).
-	if (secColorOp > 0.5)
+	// --- Stages 2-3: legacy multi-stage multiply path. In the bgfx
+	// backend the terrain pixel-shader branch handles cloud+noise by
+	// itself (u_texcoordSelect.y > 0.5 at the top of main). Non-terrain
+	// meshes (vehicles, buildings, infantry) only bind stage 0/1 and
+	// inherit stale cloud/noise handles from the previous terrain draw
+	// — multiplying by them turned tank turrets and GLA quad-cannon
+	// tops pure black.
+	// TheSuperHackers @bugfix bobtista 23/04/2026 Phase 5.2 gate the
+	// stage 2/3 multiply on the terrain texcoord select so only the
+	// legacy DX8 multipass path (which never takes this branch in
+	// standalone — terrain uses the pixel-shader branch above) can
+	// opt back in.
+	if (secColorOp > 0.5 && u_texcoordSelect.y > 0.5)
 	{
 		current *= tex2 * tex3;
 	}
@@ -244,7 +252,9 @@ void main()
 		if (secColorOp > 0.5)
 		{
 			texOnly *= tex1;
-			texOnly *= tex2 * tex3;
+			// Same terrain-only gate as the non-lit branch above.
+			if (u_texcoordSelect.y > 0.5)
+				texOnly *= tex2 * tex3;
 		}
 
 		vec3 nrm = normalize(v_normal);
