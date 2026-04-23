@@ -328,16 +328,30 @@ extern "C" HRESULT WINAPI D3DXFilterTexture(
 			texture->UnlockRect(level - 1);
 			break;
 		}
+		// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 — the 2x2
+		// box filter previously read (2y+1, 2x+1) unconditionally, which
+		// indexes past the end of any parent mip that is 1 pixel wide or
+		// tall. Terrain alpha-edge textures (2048x1, 1x1024, etc.) hit
+		// this and produced garbage bytes sampled from heap padding
+		// during mip generation, showing up as dark camera-aligned bands
+		// on terrain. Clamp the second sample to the parent's extent so
+		// 1D edges average with themselves instead.
+		const UINT parent_w = prev_w;
+		const UINT parent_h = prev_h;
 		const uint8_t * src = static_cast<const uint8_t *>(src_lr.pBits);
 		uint8_t * dst = static_cast<uint8_t *>(dst_lr.pBits);
 		for (UINT y = 0; y < lh; ++y)
 		{
+			const UINT y0 = 2 * y;
+			const UINT y1 = (y0 + 1 < parent_h) ? (y0 + 1) : y0;
 			for (UINT x = 0; x < lw; ++x)
 			{
-				const uint8_t * p00 = src + (2*y    ) * src_lr.Pitch + (2*x    ) * 4;
-				const uint8_t * p10 = src + (2*y    ) * src_lr.Pitch + (2*x + 1) * 4;
-				const uint8_t * p01 = src + (2*y + 1) * src_lr.Pitch + (2*x    ) * 4;
-				const uint8_t * p11 = src + (2*y + 1) * src_lr.Pitch + (2*x + 1) * 4;
+				const UINT x0 = 2 * x;
+				const UINT x1 = (x0 + 1 < parent_w) ? (x0 + 1) : x0;
+				const uint8_t * p00 = src + y0 * src_lr.Pitch + x0 * 4;
+				const uint8_t * p10 = src + y0 * src_lr.Pitch + x1 * 4;
+				const uint8_t * p01 = src + y1 * src_lr.Pitch + x0 * 4;
+				const uint8_t * p11 = src + y1 * src_lr.Pitch + x1 * 4;
 				uint8_t * d = dst + y * dst_lr.Pitch + x * 4;
 				d[0] = static_cast<uint8_t>((p00[0] + p10[0] + p01[0] + p11[0] + 2) >> 2);
 				d[1] = static_cast<uint8_t>((p00[1] + p10[1] + p01[1] + p11[1] + 2) >> 2);
