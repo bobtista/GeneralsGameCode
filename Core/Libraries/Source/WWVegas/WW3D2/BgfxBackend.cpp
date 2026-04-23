@@ -1899,6 +1899,24 @@ void BgfxBackend::Begin_Scene()
     // correctly.
     g_draw.texcoordSelect[1] = 0.0f;
 
+    // TheSuperHackers @bugfix bobtista 23/04/2026 Phase 5.2 — clear the
+    // cached sampler bindings at the start of every frame. Without this,
+    // whatever slot-0 texture the last frame's final 2D UI draw bound
+    // (e.g. a font-atlas handle carrying debug-clock glyphs) persists
+    // into the next frame's 3D passes. Any 3D draw that doesn't
+    // explicitly call Set_Texture(0, ...) then samples the font atlas
+    // as its base texture, producing a tiled-glyph pattern on terrain
+    // and water (RenderDoc confirmed: fs_uber tex0 = TH 76, a 64x64
+    // BGRA4 "20:31:56" clock atlas, during a water draw with thousands
+    // of indices). BindTextureStages at submit time still falls back to
+    // defaultWhiteTexture if a slot is invalid, so clearing here just
+    // guarantees no stale handle survives the frame boundary.
+    for (int i = 0; i < 4; ++i)
+    {
+        g_draw.tex[i] = BGFX_INVALID_HANDLE;
+        g_draw.samplerFlags[i] = 0;
+    }
+
     // TheSuperHackers @fix bobtista 21/04/2026 Reset transient view flags
     // defensively at Begin_Scene. Each flag has an intended begin/end pair
     // (Begin_Effect_Overlay/End_Effect_Overlay, Set_Shadow_Volume_Shader_Active
