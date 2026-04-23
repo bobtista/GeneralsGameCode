@@ -2036,6 +2036,24 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  		W3DShaderManager::setTexture(1,m_stageZeroTexture);
  		W3DShaderManager::setTexture(2,m_stageTwoTexture);	//cloud
  		W3DShaderManager::setTexture(3,m_stageThreeTexture);//noise
+
+#if defined(GGC_BGFX_STANDALONE)
+		// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 — the 2D
+		// UI pass (debug clock, menu elements) leaves bgfx sampler slot 0
+		// bound to a font-atlas texture. Terrain draws in the shell map
+		// don't re-bind slot 0 themselves (the shader's internal set()
+		// path relies on DX8 TSS state, which standalone's stub doesn't
+		// drive), so fs_uber samples the clock glyphs as the terrain
+		// base texture — producing the tiled-text pattern visible on
+		// water and sand. RenderDoc pixel history on a "pattern" pixel
+		// showed tex0 = font-atlas handle (e.g. TH 76 = "20:31:56").
+		// Force all four terrain stages to the correct textures before
+		// the draw so no 2D-UI binding can leak into the 3D pass.
+		g_renderBackend->Set_Texture(0, m_stageZeroTexture);
+		g_renderBackend->Set_Texture(1, m_stageZeroTexture);
+		g_renderBackend->Set_Texture(2, m_stageTwoTexture);
+		g_renderBackend->Set_Texture(3, m_stageThreeTexture);
+#endif
 		//Disable writes to destination alpha channel (if there is one)
 		if (DX8Wrapper::getBackBufferFormat() == WW3D_FORMAT_A8R8G8B8)
 			g_renderBackend->Set_Color_Write_Enable(true, true, true, false);
