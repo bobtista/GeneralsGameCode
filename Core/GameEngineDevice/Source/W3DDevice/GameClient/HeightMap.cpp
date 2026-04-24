@@ -2444,6 +2444,14 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
  			}
 
 			Int devicePasses=W3DShaderManager::getShaderPasses(st);
+#if defined(GGC_BGFX_STANDALONE)
+			// TheSuperHackers @bugfix bobtista 24/04/2026 Phase 5.2 — same
+			// rationale as the main terrain pass loop: cloud/noise multipass
+			// uses D3DTSS_TCI_CAMERASPACEPOSITION texcoord gen the bgfx
+			// fixed-function fallback does not emulate, so pass 2+ of the
+			// extra-blend / road tile draws paint garbage (often black).
+			devicePasses = 1;
+#endif
 
 			for (Int pass=0; pass < devicePasses; pass++)
 			{
