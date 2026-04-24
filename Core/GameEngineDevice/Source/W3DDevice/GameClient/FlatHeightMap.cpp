@@ -530,6 +530,16 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  	if (m_disableTextures)
  		devicePasses=1;	//force to 1 lighting-only pass
 
+#if defined(GGC_BGFX_STANDALONE)
+	// TheSuperHackers @bugfix bobtista 24/04/2026 Phase 5.2 — force
+	// single-pass terrain in bgfx standalone. Same rationale as HeightMap:
+	// the legacy DX8 multipass cloud+noise path uses
+	// D3DTSS_TCI_CAMERASPACEPOSITION + TTFF_COUNT2 texcoord generation
+	// the bgfx fixed-function fallback does not emulate, producing
+	// big bright/dark patches on terrain.
+	devicePasses = 1;
+#endif
+
  	//Specify all textures that this shader may need.
  	W3DShaderManager::setTexture(0,m_stageZeroTexture);
 	if (m_shroud && rinfo.Additional_Pass_Count() && !m_disableTextures)
