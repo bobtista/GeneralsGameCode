@@ -3248,6 +3248,14 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
  	//Find number of passes required to render current shader
 	devicePasses=W3DShaderManager::getShaderPasses(st);
 
+#if defined(GGC_BGFX_STANDALONE)
+	// TheSuperHackers @bugfix bobtista 24/04/2026 Phase 5.2 — roads use
+	// the same cloud/noise multipass family as terrain; bgfx's fixed
+	// function fallback does not emulate TCI_CAMERASPACEPOSITION, so
+	// pass 2+ reads from garbage UVs and paints terrain/road tiles black.
+	devicePasses = 1;
+#endif
+
 	W3DShaderManager::setTexture(1,cloudTexture);	//cloud
 	W3DShaderManager::setTexture(2,noiseTexture);	//noise/lightmap
 

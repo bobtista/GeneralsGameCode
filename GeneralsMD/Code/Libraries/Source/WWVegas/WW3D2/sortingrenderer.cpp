@@ -384,6 +384,10 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 	// via a dedicated capture hook. BgfxBackend pre-multiplies them
 	// into an effective world matrix and submits to its own view id
 	// so the opaque view is never stomped. No-op on DX8Backend.
+	// render_state.world / .view are D3DMATRIX (16 floats, row-major) —
+	// same layout and size as Matrix4x4, so the reinterpret_cast is
+	// size-safe (Codex flagged this but it's a false alarm: these are
+	// D3DMATRIX, not Matrix3D).
 	g_renderBackend->Capture_Sorted_Batch_Transforms(
 		reinterpret_cast<const Matrix4x4&>(render_state.world),
 		reinterpret_cast<const Matrix4x4&>(render_state.view));
@@ -675,6 +679,26 @@ void SortingRendererClass::Flush()
 			g_renderBackend->Capture_Sorted_Batch_Transforms(
 				reinterpret_cast<const Matrix4x4&>(state->sorting_state.world),
 				reinterpret_cast<const Matrix4x4&>(state->sorting_state.view));
+
+			// TheSuperHackers @bugfix bobtista 24/04/2026 Phase 5.2 — capture
+			// the sort batch's light state too. Without this, lit sorted
+			// meshes (translucent vehicles, particles) reuse the previous
+			// draw's light direction/color, which is visible as wrong-
+			// direction lighting on sort-flushed draws.
+			if (state->sorting_state.material != nullptr
+				&& state->sorting_state.material->Get_Lighting())
+			{
+				const D3DLIGHT8 & src = state->sorting_state.Lights[0];
+				RenderBackendLight rbLight;
+				rbLight.direction[0] = src.Direction.x;
+				rbLight.direction[1] = src.Direction.y;
+				rbLight.direction[2] = src.Direction.z;
+				rbLight.diffuse[0]   = src.Diffuse.r;
+				rbLight.diffuse[1]   = src.Diffuse.g;
+				rbLight.diffuse[2]   = src.Diffuse.b;
+				g_renderBackend->Capture_Sorted_Batch_Light(
+					rbLight, state->sorting_state.LightEnable[0]);
+			}
 
 			g_renderBackend->Draw_Triangles(state->start_index, state->polygon_count, state->min_vertex_index, state->vertex_count);
 			g_renderBackend->End_Sorted_Batch_Pass();
