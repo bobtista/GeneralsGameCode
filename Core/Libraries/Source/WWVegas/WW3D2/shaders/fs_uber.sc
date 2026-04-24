@@ -317,10 +317,19 @@ void main()
 	// vertex shader (world-space XY * stretch + scroll offset) and
 	// modulate here. Enabled per-draw by the backend — grass/tree draws
 	// leave u_cloudParams.w = 0.
+	// TheSuperHackers @bugfix bobtista 24/04/2026 Phase 5.2 — cloud shadow
+	// modulate with a floor. The raw `current *= cloudSample` path wipes
+	// pixels to pure black wherever the cloud texture has near-zero RGB,
+	// producing the scrolling black bands on the beach and black
+	// motorbike wheels. Real D3D8 cloud shadows darken by at most ~50%;
+	// clamp the multiplier so the darkest shadow preserves 50% of the
+	// original terrain brightness. Also guard against sample returning
+	// garbage zeros (upload edge cases, sampler border reads) by taking
+	// max() against a safe floor.
 	if (u_cloudParams.w > 0.5)
 	{
 		vec3 cloudSample = texture2D(s_cloudMap, v_cloudUV).rgb;
-		current.rgb *= cloudSample;
+		current.rgb *= max(cloudSample, vec3_splat(0.75));
 	}
 
 	// Grayscale output for disabled button state. Matches the D3D8 path
