@@ -3357,9 +3357,15 @@ void FlatTerrainShader2Stage::reset()
 Int FlatTerrainShader2Stage::set(Int pass)
 {
 	static bool s_loggedFlat2 = false;
-	if (!s_loggedFlat2) { s_loggedFlat2 = true; WWDEBUG_SAY(("[W3DShaderManager] FlatTerrainShader2Stage::set first fire pass=%d", pass)); }
+	if (!s_loggedFlat2)
+	{
+		s_loggedFlat2 = true;
+		WWDEBUG_SAY(("[W3DShaderManager] FlatTerrainShader2Stage::set first fire pass=%d", pass));
+	}
 	if (g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline())
+	{
 		g_renderBackend->Override_Terrain_Blend(true);
+	}
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
 
