@@ -595,16 +595,6 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(nShadowDecalPolysInBatch,nShadowDecalVertsInBatch,ShaderClass::_PresetOpaqueShader);
-		static int s_decalLog = 0;
-		if (s_decalLog++ < 10)
-		{
-			TextureClass * shadowTex = texture ? texture->getTexture() : nullptr;
-			WWDEBUG_SAY(("[DECAL] flush polys=%d verts=%d tex=%p texName='%s' type=%d",
-				nShadowDecalPolysInBatch, nShadowDecalVertsInBatch,
-				shadowTex,
-				shadowTex ? (const char*)shadowTex->Get_Full_Path() : "null",
-				(int)type));
-		}
 		// TheSuperHackers @fix bobtista 19/04/2026 Skip bgfx submit only
 		// for SHADOW_DECAL (modulate-blend unit shadow blob) — CSM
 		// replaces that. SHADOW_ALPHA_DECAL and SHADOW_ADDITIVE_DECAL are
