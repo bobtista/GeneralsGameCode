@@ -920,30 +920,20 @@ const Image* ControlBar::calculateVeterancyOverlayForThing( const ThingTemplate 
 		return nullptr;
 	}
 
-	//See if the thingTemplate has a VeterancyGainCreate
-	//This is HORROR CODE and needs to be optimized!
-	const VeterancyGainCreateModuleData *data = nullptr;
-	AsciiString modName;
-	const ModuleInfo& mi = thingTemplate->getBehaviorModuleInfo();
-	for( Int modIdx = 0; modIdx < mi.getCount(); ++modIdx )
+	// TheSuperHackers @perf bobtista 26/04/2026 Use the typed cache resolved at INI-load time instead
+	// of a per-tick string search through every behavior module on the template.
+	const std::vector<const VeterancyGainCreateModuleData*>& veterancyData = thingTemplate->getVeterancyGainCreateData();
+	for( size_t modIdx = 0; modIdx < veterancyData.size(); ++modIdx )
 	{
-		modName = mi.getNthName(modIdx);
-		if( !modName.compare( "VeterancyGainCreate" ) )
-		{
-			data = (const VeterancyGainCreateModuleData*)mi.getNthData( modIdx );
+		const VeterancyGainCreateModuleData *data = veterancyData[modIdx];
 
-			//It does, so see if the player has that upgrade
-			if( data )
+		//If no science is specified, he gets it automatically (or check the science).
+		if( data->m_scienceRequired == SCIENCE_INVALID || player->hasScience( data->m_scienceRequired ) )
+		{
+			//We do! So now check to see what the veterancy level would be.
+			if( data->m_startingLevel > level )
 			{
-				//If no science is specified, he gets it automatically (or check the science).
-				if( data->m_scienceRequired == SCIENCE_INVALID || player->hasScience( data->m_scienceRequired ) )
-				{
-					//We do! So now check to see what the veterancy level would be.
-					if( data->m_startingLevel > level )
-					{
-						level = data->m_startingLevel;
-					}
-				}
+				level = data->m_startingLevel;
 			}
 		}
 	}

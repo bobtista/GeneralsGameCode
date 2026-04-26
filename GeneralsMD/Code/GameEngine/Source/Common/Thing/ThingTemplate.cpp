@@ -66,6 +66,7 @@
 #include "GameLogic/Armor.h"
 #include "GameLogic/Module/AIUpdate.h"
 #include "GameLogic/Module/SpecialPowerModule.h"
+#include "GameLogic/Module/VeterancyGainCreate.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/Powers.h"
 #include "GameLogic/Weapon.h"
@@ -1304,6 +1305,22 @@ void ThingTemplate::resolveNames()
 			m_buttonImage = TheMappedImageCollection->findImageByName( m_buttonImageName );
 			DEBUG_ASSERTCRASH( m_buttonImage, ("%s is looking for ButtonImage %s but can't find it. Skipping...", getName().str(), m_buttonImageName.str() ) );
 			m_buttonImageName.clear();	// we're done with this, so nuke it
+		}
+	}
+
+	// TheSuperHackers @perf bobtista 26/04/2026 Resolve VeterancyGainCreate module data once
+	// per template so the control bar's veterancy overlay query is O(matches) instead of an
+	// O(modules) string search per UI tick per visible button.
+	{
+		static const NameKeyType veterancyKey = NAMEKEY("VeterancyGainCreate");
+		m_veterancyGainCreateData.clear();
+		const Int count = m_behaviorModuleInfo.getCount();
+		for (Int idx = 0; idx < count; ++idx)
+		{
+			if (m_behaviorModuleInfo.getNthNameKey(idx) == veterancyKey)
+			{
+				m_veterancyGainCreateData.push_back(static_cast<const VeterancyGainCreateModuleData*>(m_behaviorModuleInfo.getNthData(idx)));
+			}
 		}
 	}
 

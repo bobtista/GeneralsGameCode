@@ -57,6 +57,7 @@ class ProductionPrerequisite;
 struct FieldParse;
 class Player;
 class INI;
+class VeterancyGainCreateModuleData;
 enum RadarPriorityType CPP_11(: Int);
 enum ScienceType CPP_11(: Int);
 enum EditorSortingType CPP_11(: Int);
@@ -251,6 +252,7 @@ private:
 	struct Nugget
 	{
 		AsciiString first;
+		NameKeyType firstKey;
 		AsciiString m_moduleTag;
 		const ModuleData* second;
 		Int interfaceMask;
@@ -260,6 +262,7 @@ private:
 
 		Nugget(const AsciiString& n, const AsciiString& moduleTag, const ModuleData* d, Int i, Bool inh, Bool oblk)
 		: first(n),
+			firstKey(NAMEKEY(n)),
 			m_moduleTag(moduleTag),
 			second(d),
 			interfaceMask(i),
@@ -303,6 +306,15 @@ public:
 		return AsciiString::TheEmptyString;
 	}
 
+	NameKeyType getNthNameKey(size_t i) const
+	{
+		if (i < m_info.size())
+		{
+			return m_info[i].firstKey;
+		}
+		return NAMEKEY_INVALID;
+	}
+
 	AsciiString getNthTag(size_t i) const
 	{
 		if (i >= 0 && i < m_info.size())
@@ -317,6 +329,18 @@ public:
 		if (i >= 0 && i < m_info.size())
 		{
 			return m_info[i].second;
+		}
+		return nullptr;
+	}
+
+	const ModuleData* findFirstByName(NameKeyType key) const
+	{
+		for (size_t i = 0; i < m_info.size(); ++i)
+		{
+			if (m_info[i].firstKey == key)
+			{
+				return m_info[i].second;
+			}
 		}
 		return nullptr;
 	}
@@ -451,6 +475,10 @@ public:
 	const ModuleInfo& getBehaviorModuleInfo() const { return m_behaviorModuleInfo; }
 	const ModuleInfo& getDrawModuleInfo() const { return m_drawModuleInfo; }
 	const ModuleInfo& getClientUpdateModuleInfo() const { return m_clientUpdateModuleInfo; }
+
+	// TheSuperHackers @perf bobtista 26/04/2026 Cached at resolveNames() so the control bar can
+	// skip a per-tick string-search through every behavior module on every visible button.
+	const std::vector<const VeterancyGainCreateModuleData*>& getVeterancyGainCreateData() const { return m_veterancyGainCreateData; }
 
 	const Image *getSelectedPortraitImage() const { return m_selectedPortraitImage; }
 	const Image *getButtonImage() const { return m_buttonImage; }
@@ -688,6 +716,7 @@ private:
 	ModuleInfo				m_behaviorModuleInfo;
 	ModuleInfo				m_drawModuleInfo;
 	ModuleInfo				m_clientUpdateModuleInfo;
+	std::vector<const VeterancyGainCreateModuleData*>	m_veterancyGainCreateData;
 
 	// ---- Misc Arrays-of-things
 	Int											m_skillPointValues[LEVEL_COUNT];
