@@ -1181,10 +1181,18 @@ public:
 		if (pPlane) std::memset(pPlane, 0, 4 * sizeof(float));
 		return D3D_OK;
 	}
-	STDMETHOD(SetRenderState)(D3DRENDERSTATETYPE, DWORD) override { return D3D_OK; }
-	STDMETHOD(GetRenderState)(D3DRENDERSTATETYPE, DWORD* pValue) override
+	STDMETHOD(SetRenderState)(D3DRENDERSTATETYPE state, DWORD value) override
 	{
-		if (pValue) *pValue = 0;
+		m_renderStates[static_cast<DWORD>(state)] = value;
+		return D3D_OK;
+	}
+	STDMETHOD(GetRenderState)(D3DRENDERSTATETYPE state, DWORD* pValue) override
+	{
+		if (pValue)
+		{
+			auto it = m_renderStates.find(static_cast<DWORD>(state));
+			*pValue = (it != m_renderStates.end()) ? it->second : 0;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(BeginStateBlock)() override { return D3D_OK; }
@@ -1319,6 +1327,7 @@ private:
 	IDirect3DSurface8* m_backBuffer;
 	IDirect3DSurface8* m_depthStencil;
 	std::unordered_map<DWORD, D3DMATRIX> m_transforms;
+	std::unordered_map<DWORD, DWORD> m_renderStates;
 	std::unordered_map<StageStateKey, DWORD, StageStateKeyHash> m_textureStageStates;
 };
 
