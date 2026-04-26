@@ -948,10 +948,12 @@ namespace { // reopen anonymous namespace
 // g_frame.shadowLightView / g_frame.shadowLightProj (bgfx column-major), then
 // pushes them to the shadow map view. Not yet tied to the engine's
 // actual sun direction — Phase 4I.2 Session D hooks that up.
+static const float kSunDistanceFromGround = 10000.0f;
+
 static void UpdateShadowLightTransform()
 {
     // The engine's shadow sun position (from W3DShadowManager) is
-    // normalize(-terrainLightPos) * SUN_DISTANCE_FROM_GROUND (10000).
+    // normalize(-terrainLightPos) * kSunDistanceFromGround.
     // Extract the DIRECTION by normalizing, then place the light eye
     // at a reasonable distance along that direction from the look-at.
     // Read the sun direction from the D3D device's light 0 each frame.
@@ -975,9 +977,9 @@ static void UpdateShadowLightTransform()
             const float ll = std::sqrt(lx*lx + ly*ly + lz*lz);
             if (ll > 0.001f)
             {
-                sunX = lx * (10000.0f / ll);
-                sunY = ly * (10000.0f / ll);
-                sunZ = lz * (10000.0f / ll);
+                sunX = lx * (kSunDistanceFromGround / ll);
+                sunY = ly * (kSunDistanceFromGround / ll);
+                sunZ = lz * (kSunDistanceFromGround / ll);
             }
         }
     }
