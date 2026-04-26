@@ -750,12 +750,8 @@ void W3DShroud::render(CameraClass *cam)
 	}
 	else
 	{
-		static int s_shroudSkipLog = 0;
-		if (s_shroudSkipLog++ < 3)
-		{
-			WWDEBUG_SAY(("[SHROUD CAP] SKIPPED: backend=%p src=%p dst=%p",
-				g_renderBackend, m_pSrcTexture, m_pDstTexture));
-		}
+		WWDEBUG_SAY(("[SHROUD CAP] SKIPPED: backend=%p src=%p dst=%p",
+			g_renderBackend, m_pSrcTexture, m_pDstTexture));
 	}
 
 	REF_PTR_RELEASE (pDestSurface);
