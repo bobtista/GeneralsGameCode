@@ -380,14 +380,9 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 	DX8Wrapper::_Set_DX8_Transform(D3DTS_WORLD, render_state.world);
 	DX8Wrapper::_Set_DX8_Transform(D3DTS_VIEW,  render_state.view);
 
-	// Phase 4G.12: feed the bgfx backend the same per-batch transforms
-	// via a dedicated capture hook. BgfxBackend pre-multiplies them
-	// into an effective world matrix and submits to its own view id
-	// so the opaque view is never stomped. No-op on DX8Backend.
-	// render_state.world / .view are D3DMATRIX (16 floats, row-major) —
-	// same layout and size as Matrix4x4, so the reinterpret_cast is
-	// size-safe (Codex flagged this but it's a false alarm: these are
-	// D3DMATRIX, not Matrix3D).
+	// TheSuperHackers @info bobtista 26/04/2026 render_state.world / .view
+	// are D3DMATRIX (16 floats, row-major) — same layout as Matrix4x4.
+	static_assert(sizeof(D3DMATRIX) == sizeof(Matrix4x4), "D3DMATRIX and Matrix4x4 must be the same size for reinterpret_cast");
 	g_renderBackend->Capture_Sorted_Batch_Transforms(
 		reinterpret_cast<const Matrix4x4&>(render_state.world),
 		reinterpret_cast<const Matrix4x4&>(render_state.view));
