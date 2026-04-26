@@ -1,4 +1,4 @@
-$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV
+$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV
 
 #include <bgfx_shader.sh>
 
@@ -22,6 +22,7 @@ uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is
 uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
 uniform vec4 u_grayscaleEnable; // .x > 0.5 = convert final color to luminance (disabled button state)
 uniform vec4 u_cloudParams; // xy = scroll, z = stretch, w > 0.5 = modulate cloud into output
+uniform vec4 u_shadowParams; // .x > 0.5 = receive CSM shadows
 
 // TSS operation IDs (must match BgfxBackend.cpp encoding)
 #define TSS_DISABLE         0.0
@@ -134,7 +135,8 @@ void main()
 #else
 		float trefZ = tlsNDC.z * 0.5 + 0.5;
 #endif
-		if (tshadowUV.x >= 0.0 && tshadowUV.x <= 1.0
+		if (u_shadowParams.x > 0.5
+			&& tshadowUV.x >= 0.0 && tshadowUV.x <= 1.0
 			&& tshadowUV.y >= 0.0 && tshadowUV.y <= 1.0
 			&& trefZ >= 0.0 && trefZ <= 1.0)
 		{
@@ -145,8 +147,8 @@ void main()
 		return;
 	}
 
-	vec4 tex0 = texture2D(s_tex0, v_texcoord0);
-	vec4 tex1 = texture2D(s_tex1, v_texcoord0);
+	vec4 tex0 = texture2D(s_tex0, v_stage0UV);
+	vec4 tex1 = texture2D(s_tex1, v_stage1UV);
 	vec4 tex2 = texture2D(s_tex2, v_texcoord0);
 	vec4 tex3 = texture2D(s_tex3, v_texcoord0);
 
@@ -303,7 +305,11 @@ void main()
 #else
 	float refZ = lsNDC.z * 0.5 + 0.5;
 #endif
-	if (shadowUV.x >= 0.0 && shadowUV.x <= 1.0
+	// TheSuperHackers @bugfix bobtista 27/04/2026 CSM shadows are enabled
+	// per draw so UI and render-target passes do not get darkened as if
+	// they were world geometry.
+	if (u_shadowParams.x > 0.5
+		&& shadowUV.x >= 0.0 && shadowUV.x <= 1.0
 		&& shadowUV.y >= 0.0 && shadowUV.y <= 1.0
 		&& refZ >= 0.0 && refZ <= 1.0)
 	{
@@ -326,10 +332,21 @@ void main()
 	// original terrain brightness. Also guard against sample returning
 	// garbage zeros (upload edge cases, sampler border reads) by taking
 	// max() against a safe floor.
-	if (u_cloudParams.w > 0.5)
+	// TheSuperHackers @bugfix bobtista 24/04/2026 Phase 5.2 — cloud
+	// modulate disabled in bgfx standalone. A/B testing with the
+	// diagnostic output-cloud-directly path confirmed the cloud texture
+	// sample + worldPos.xy * stretch UV computation produces
+	// sharp rectangular-looking darker bands across terrain, unlike
+	// the smooth organic cloud shadow the D3D8 reference path renders.
+	// Both shadow-only and cloud-disabled tests render cleanly; the
+	// cloud-only mode shows the bands even with aggressive clamping
+	// ([0.5,1.0] modulator range). Reinstate once the UV computation
+	// or cloud texture upload mismatch between ref and standalone is
+	// tracked down.
+	if (false && u_cloudParams.w > 0.5)
 	{
 		vec3 cloudSample = texture2D(s_cloudMap, v_cloudUV).rgb;
-		current.rgb *= max(cloudSample, vec3_splat(0.75));
+		current.rgb *= vec3_splat(0.5) + cloudSample * 0.5;
 	}
 
 	// Grayscale output for disabled button state. Matches the D3D8 path
