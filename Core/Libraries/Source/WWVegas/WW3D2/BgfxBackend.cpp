@@ -16,17 +16,10 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 10/04/2026 BgfxBackend Phase 2 stub.
-//
-// Every virtual method is a no-op (void) or returns a sensible default
-// (non-void). The class exists to prove the compile-time backend selection
-// mechanism works and to verify that bgfx itself can be fetched, built,
-// and linked against WW3D2. Phase 3 fills in real implementations as
-// individual rendering subsystems are migrated off DX8Wrapper statics.
-//
-// We deliberately #include <bgfx/bgfx.h> and reference one bgfx symbol so
-// that if the FetchContent + link pipeline is broken, we get a compile or
-// link error during Phase 2 rather than discovering it deep inside Phase 3.
+// TheSuperHackers @refactor bobtista 10/04/2026 BgfxBackend.
+// IRenderBackend implementation that drives bgfx as the primary
+// rendering backend, translating the engine's DX8-era draw calls
+// into bgfx submits with a fixed-function-emulating uber shader.
 
 #include "BgfxBackend.h"
 
@@ -49,10 +42,6 @@
 
 #include <unordered_map>
 
-// Including the bgfx header here is intentional: it forces a compile-time
-// dependency on the bgfx headers when GGC_RENDER_BACKEND=bgfx. If bgfx
-// isn't available the build fails here, which is the right place to
-// catch dependency problems.
 #include <bgfx/bgfx.h>
 #include <bgfx/platform.h>
 #include <bx/math.h>
@@ -111,12 +100,6 @@ BgfxPhase5Resources g_phase5 = { {}, 1 };
 
 namespace
 {
-// Anchor a reference to one bgfx symbol so the linker must resolve bgfx
-// symbols even though every virtual method below is a no-op. This turns a
-// "bgfx built but never used" scenario into a loud link failure if anything
-// is misconfigured.
-[[maybe_unused]] const auto kBgfxLinkAnchor = &bgfx::getCaps;
-
 // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I bgfx callback
 // so fatal errors and debug trace messages land in DebugLogFileD.txt
 // instead of silently firing bx::debugBreak. Without this, internal
@@ -154,9 +137,6 @@ public:
 };
 
 BgfxLoggingCallback g_bgfxCallback;
-
-// The DX8 reference popup's window class name. Registered / unregistered in DX8Wrapper's window setup when bgfx is the primary renderer.
-const wchar_t * const kBgfxWindowClass = L"GGC_BgfxDebugWindow";
 
 static uint32_t MapCmpFuncToBgfxStencilTest(int f)
 {
@@ -348,21 +328,11 @@ void BuildStandardVertexLayouts()
         .end();
 }
 
-struct TriangleVertex
-{
-    float x;
-    float y;
-    float z;
-    uint32_t abgr;
-};
 }
 
 BgfxBackend::BgfxBackend()
 {
-    WWDEBUG_SAY(("[BgfxBackend] Phase 4 session 1 backend constructed. "
-                 "Most IRenderBackend methods are still no-ops; DX8Wrapper "
-                 "still owns the real device. bgfx is initialized in Noop "
-                 "renderer mode only."));
+    WWDEBUG_SAY(("[BgfxBackend] Backend constructed."));
 }
 
 BgfxBackend::~BgfxBackend()
@@ -370,53 +340,9 @@ BgfxBackend::~BgfxBackend()
 }
 
 // -- Backend lifecycle -------------------------------------------------------
-//
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 3. BgfxBackend
-// creates its own top-level popup window and hands that HWND to bgfx::init.
-// Session 2b proved that DWM promotes whichever swapchain is actively
-// presenting to the game's main HWND, so sharing one window with DX8 loses
-// DX8's output. Using a separate window sidesteps the conflict entirely:
-// DX8 owns the main game window, bgfx owns a small debug popup next to it.
-// Once we're ready to make bgfx the primary renderer we'll destroy the
-// debug window and point bgfx at the main HWND.
 
 namespace
 {
-// Minimal window procedure for the bgfx debug window. DefWindowProc handles
-// everything we care about for a pure rendering target (close, resize, focus).
-LRESULT CALLBACK BgfxDebugWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-    return DefWindowProcW(hwnd, msg, wParam, lParam);
-}
-
-// Register a window class for the bgfx debug window. Returns true on success
-// or if the class was already registered.
-bool RegisterBgfxDebugWindowClass()
-{
-    WNDCLASSEXW wc;
-    ZeroMemory(&wc, sizeof(wc));
-    wc.cbSize        = sizeof(WNDCLASSEXW);
-    wc.style         = CS_HREDRAW | CS_VREDRAW | CS_OWNDC;
-    wc.lpfnWndProc   = BgfxDebugWndProc;
-    wc.hInstance     = GetModuleHandleW(nullptr);
-    wc.hCursor       = LoadCursor(nullptr, IDC_ARROW);
-    wc.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
-    wc.lpszClassName = kBgfxWindowClass;
-
-    if (RegisterClassExW(&wc) == 0)
-    {
-        const DWORD err = GetLastError();
-        if (err == ERROR_CLASS_ALREADY_EXISTS)
-        {
-            return true;
-        }
-        WWDEBUG_SAY(("[BgfxBackend] RegisterClassExW failed, GetLastError=%lu.",
-                     err));
-        return false;
-    }
-    return true;
-}
-
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4D.2 ShaderClass
 // translation table. Maps a ShaderClass instance to (program handle,
 // bgfx state bits). Defined but not yet called by any draw path - the
@@ -669,8 +595,6 @@ uint64_t BuildBgfxStateForShader(const ShaderClass & shader)
     return state;
 }
 
-[[maybe_unused]] const auto kShaderTranslationAnchor = &BuildTssOpsForShader;
-
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.2 generic FVF
 // to bgfx::VertexLayout translator. Walks the FVFInfoClass offset
 // table and emits attributes in offset order. Handles arbitrary FVF
@@ -786,8 +710,6 @@ bool BuildBgfxLayoutForFVF(const FVFInfoClass & fvf, bgfx::VertexLayout & out)
     out.end();
     return out.getStride() == totalSize;
 }
-
-[[maybe_unused]] const auto kFvfLayoutAnchor = &BuildBgfxLayoutForFVF;
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.3 vertex/index
 // buffer caches. The engine recycles VertexBufferClass / IndexBufferClass
@@ -985,14 +907,6 @@ void W3DMatrix3DToBgfx(const Matrix3D & m, float * out)
 // The engine's projection matrix already matches the bgfx framebuffer aspect.
 
 // TheSuperHackers @bugfix bobtista 11/04/2026 Phase 4C.3 buffer copy
-// kill switch. The Intel UHD Graphics driver corrupts the dx8 GPU
-// copy of POOL_DEFAULT vertex buffers even when we lock with
-// D3DLOCK_READONLY. The read-side path is fully disabled; bgfx VBs
-// are now populated by the write-side capture hooks
-// (Capture_Vertex_Data / Capture_Index_Data) called from the engine
-// at write-lock time. See Phase 4C.4 in the comments below.
-constexpr bool kBgfxSkipBufferRead = true;
-
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4F.2 texture
 // capture. Unlike vertex buffers, W3D textures default to POOL_MANAGED,
 // which is safe to lock with D3DLOCK_READONLY on the Intel UHD driver.
