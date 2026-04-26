@@ -101,7 +101,7 @@ static inline void W3DShaderManager_BindStageTexture(unsigned stage, TextureClas
 {
 	IDirect3DTexture8 * raw = (tex != NULL) ? tex->Peek_D3D_Texture() : NULL;
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(stage, raw);
-	if (g_renderBackend != NULL)
+	if (g_renderBackend != nullptr)
 	{
 		g_renderBackend->Set_Texture(stage, tex);
 	}
@@ -233,7 +233,10 @@ Bool ScreenDefaultFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool
 	Int xpos, ypos, width, height;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 	TheTacticalView->getOrigin(&xpos,&ypos);
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
@@ -378,7 +381,10 @@ Bool ScreenBWFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doE
 	Int xpos, ypos, width, height;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 	TheTacticalView->getOrigin(&xpos,&ypos);
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
@@ -621,7 +627,10 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 	}
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 
 	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
 
@@ -844,7 +853,10 @@ Bool ScreenCrossFadeFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bo
 	Real radius = 0.0f;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 	if (mode == FM_VIEW_CROSSFADE_CIRCLE)
 	{	W3DShaderManager_BindStageTexture(1, m_fadePatternTexture);
 		//Use the current fade level to scale the mask texture, for other modes the texture
@@ -1017,7 +1029,10 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 	Int xpos, ypos, width, height;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 	TheTacticalView->getOrigin(&xpos,&ypos);
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
