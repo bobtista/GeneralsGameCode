@@ -332,22 +332,18 @@ void main()
 	// original terrain brightness. Also guard against sample returning
 	// garbage zeros (upload edge cases, sampler border reads) by taking
 	// max() against a safe floor.
-	// TheSuperHackers @bugfix bobtista 24/04/2026 Phase 5.2 — cloud
-	// modulate disabled in bgfx standalone. A/B testing with the
-	// diagnostic output-cloud-directly path confirmed the cloud texture
-	// sample + worldPos.xy * stretch UV computation produces
-	// sharp rectangular-looking darker bands across terrain, unlike
-	// the smooth organic cloud shadow the D3D8 reference path renders.
-	// Both shadow-only and cloud-disabled tests render cleanly; the
-	// cloud-only mode shows the bands even with aggressive clamping
-	// ([0.5,1.0] modulator range). Reinstate once the UV computation
-	// or cloud texture upload mismatch between ref and standalone is
-	// tracked down.
-	if (false && u_cloudParams.w > 0.5)
+	// TheSuperHackers @bugfix bobtista 24/04/2026 Cloud shadow modulate
+	// disabled: the UV computation produces rectangular dark bands instead
+	// of smooth organic shadows. Reinstate when the UV mismatch with the
+	// D3D8 reference path is resolved.
+#define BGFX_ENABLE_CLOUD_MODULATE 0
+#if BGFX_ENABLE_CLOUD_MODULATE
+	if (u_cloudParams.w > 0.5)
 	{
 		vec3 cloudSample = texture2D(s_cloudMap, v_cloudUV).rgb;
 		current.rgb *= vec3_splat(0.5) + cloudSample * 0.5;
 	}
+#endif
 
 	// Grayscale output for disabled button state. Matches the D3D8 path
 	// (render2d.cpp) which used D3DTOP_DOTPRODUCT3 with TFACTOR=0x80A5CA8E
