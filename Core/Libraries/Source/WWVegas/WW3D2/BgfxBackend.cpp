@@ -966,7 +966,10 @@ static void UpdateShadowLightTransform()
         sunX = 500.0f; sunY = 800.0f; sunZ = 1500.0f;
     }
     const float sunLen = std::sqrt(sunX*sunX + sunY*sunY + sunZ*sunZ);
-    if (sunLen < 0.001f) return;
+    if (sunLen < 0.001f)
+    {
+        return;
+    }
     // Normalized direction FROM origin TOWARD sun.
     const float sdx = sunX / sunLen;
     const float sdy = sunY / sunLen;
@@ -1273,8 +1276,14 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     }
     else
     {
-        if (bgfx::isValid(vsHandle)) bgfx::destroy(vsHandle);
-        if (bgfx::isValid(fsHandle)) bgfx::destroy(fsHandle);
+        if (bgfx::isValid(vsHandle))
+        {
+            bgfx::destroy(vsHandle);
+        }
+        if (bgfx::isValid(fsHandle))
+        {
+            bgfx::destroy(fsHandle);
+        }
         WWDEBUG_SAY(("[BgfxBackend] passthrough shader createShader FAILED."));
     }
 
@@ -1349,8 +1358,14 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     }
     else
     {
-        if (bgfx::isValid(vsUber)) bgfx::destroy(vsUber);
-        if (bgfx::isValid(fsUber)) bgfx::destroy(fsUber);
+        if (bgfx::isValid(vsUber))
+        {
+            bgfx::destroy(vsUber);
+        }
+        if (bgfx::isValid(fsUber))
+        {
+            bgfx::destroy(fsUber);
+        }
         WWDEBUG_SAY(("[BgfxBackend] uber shader createShader FAILED."));
     }
 
@@ -1366,8 +1381,14 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     }
     else
     {
-        if (bgfx::isValid(vsTrees)) bgfx::destroy(vsTrees);
-        if (bgfx::isValid(fsUber2)) bgfx::destroy(fsUber2);
+        if (bgfx::isValid(vsTrees))
+        {
+            bgfx::destroy(vsTrees);
+        }
+        if (bgfx::isValid(fsUber2))
+        {
+            bgfx::destroy(fsUber2);
+        }
         WWDEBUG_SAY(("[BgfxBackend] tree shader createShader FAILED."));
     }
     // Phase 4I stencil shadow volume program. XYZ-only verts, no color output.
@@ -1383,8 +1404,14 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     }
     else
     {
-        if (bgfx::isValid(vsShadow)) bgfx::destroy(vsShadow);
-        if (bgfx::isValid(fsShadow)) bgfx::destroy(fsShadow);
+        if (bgfx::isValid(vsShadow))
+        {
+            bgfx::destroy(vsShadow);
+        }
+        if (bgfx::isValid(fsShadow))
+        {
+            bgfx::destroy(fsShadow);
+        }
         WWDEBUG_SAY(("[BgfxBackend] shadow volume shader createShader FAILED."));
     }
 
@@ -1401,8 +1428,14 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     }
     else
     {
-        if (bgfx::isValid(vsApply)) bgfx::destroy(vsApply);
-        if (bgfx::isValid(fsApply)) bgfx::destroy(fsApply);
+        if (bgfx::isValid(vsApply))
+        {
+            bgfx::destroy(vsApply);
+        }
+        if (bgfx::isValid(fsApply))
+        {
+            bgfx::destroy(fsApply);
+        }
         WWDEBUG_SAY(("[BgfxBackend] shadow apply shader createShader FAILED."));
     }
     g_uniforms.uShadowColor = bgfx::createUniform("u_shadowColor", bgfx::UniformType::Vec4);
@@ -1421,8 +1454,14 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     }
     else
     {
-        if (bgfx::isValid(vsCaster)) bgfx::destroy(vsCaster);
-        if (bgfx::isValid(fsCaster)) bgfx::destroy(fsCaster);
+        if (bgfx::isValid(vsCaster))
+        {
+            bgfx::destroy(vsCaster);
+        }
+        if (bgfx::isValid(fsCaster))
+        {
+            bgfx::destroy(fsCaster);
+        }
         WWDEBUG_SAY(("[BgfxBackend] CSM caster shader createShader FAILED."));
     }
 
@@ -1625,9 +1664,19 @@ void BgfxBackend::Shutdown()
         g_draw.pendingIB.valid    = false;
         // Flush both deferred-destroy queues — bgfx::shutdown() tolerates stale handles but strict debug builds may assert.
         for (auto & h : g_caches.deferredDestroys)
-            if (bgfx::isValid(h)) bgfx::destroy(h);
+        {
+            if (bgfx::isValid(h))
+            {
+                bgfx::destroy(h);
+            }
+        }
         for (auto & h : g_caches.deferredDestroysPrev)
-            if (bgfx::isValid(h)) bgfx::destroy(h);
+        {
+            if (bgfx::isValid(h))
+            {
+                bgfx::destroy(h);
+            }
+        }
         g_caches.deferredDestroys.clear();
         g_caches.deferredDestroysPrev.clear();
         bgfx::shutdown();
