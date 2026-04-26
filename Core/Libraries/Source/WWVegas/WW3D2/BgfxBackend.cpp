@@ -100,6 +100,26 @@ BgfxPhase5Resources g_phase5 = { {}, 1 };
 
 namespace
 {
+// TSS operation IDs matching fs_uber.sc #defines. Used in BuildTssOpsForShader
+// and UpdateTextureStageOps to encode fixed-function texture stage state as
+// float uniforms consumed by the uber fragment shader.
+static const float kTssDisable       =  0.0f;
+static const float kTssSelectArg1    =  1.0f;
+static const float kTssSelectArg2    =  2.0f;
+static const float kTssModulate      =  3.0f;
+static const float kTssModulate2x    =  4.0f;
+static const float kTssAdd           =  5.0f;
+static const float kTssAddSigned     =  6.0f;
+static const float kTssSubtract      =  7.0f;
+static const float kTssBlendTexAlpha =  8.0f;
+static const float kTssBlendCurAlpha =  9.0f;
+static const float kTssAddSmooth     = 10.0f;
+
+// TSS argument source IDs (packed into arg1/arg2 uniform channels).
+static const float kTssArgTexture =  0.0f;
+static const float kTssArgDiffuse =  1.0f;
+static const float kTssArgCurrent =  2.0f;
+
 // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I bgfx callback
 // so fatal errors and debug trace messages land in DebugLogFileD.txt
 // instead of silently firing bx::debugBreak. Without this, internal
@@ -142,14 +162,14 @@ static uint32_t MapCmpFuncToBgfxStencilTest(int f)
 {
     switch (f)
     {
-        case 1: return BGFX_STENCIL_TEST_NEVER;
-        case 2: return BGFX_STENCIL_TEST_LESS;
-        case 3: return BGFX_STENCIL_TEST_EQUAL;
-        case 4: return BGFX_STENCIL_TEST_LEQUAL;
-        case 5: return BGFX_STENCIL_TEST_GREATER;
-        case 6: return BGFX_STENCIL_TEST_NOTEQUAL;
-        case 7: return BGFX_STENCIL_TEST_GEQUAL;
-        case 8: default: return BGFX_STENCIL_TEST_ALWAYS;
+        case D3DCMP_NEVER:        return BGFX_STENCIL_TEST_NEVER;
+        case D3DCMP_LESS:         return BGFX_STENCIL_TEST_LESS;
+        case D3DCMP_EQUAL:        return BGFX_STENCIL_TEST_EQUAL;
+        case D3DCMP_LESSEQUAL:    return BGFX_STENCIL_TEST_LEQUAL;
+        case D3DCMP_GREATER:      return BGFX_STENCIL_TEST_GREATER;
+        case D3DCMP_NOTEQUAL:     return BGFX_STENCIL_TEST_NOTEQUAL;
+        case D3DCMP_GREATEREQUAL: return BGFX_STENCIL_TEST_GEQUAL;
+        case D3DCMP_ALWAYS: default: return BGFX_STENCIL_TEST_ALWAYS;
     }
 }
 
@@ -159,15 +179,15 @@ static uint32_t MapStencilOpToBgfx(int op, uint32_t shift)
     uint32_t ord;
     switch (op)
     {
-        case 1:  ord = 1; break; // D3DSTENCILOP_KEEP
-        case 2:  ord = 0; break; // D3DSTENCILOP_ZERO
-        case 3:  ord = 2; break; // D3DSTENCILOP_REPLACE
-        case 4:  ord = 4; break; // D3DSTENCILOP_INCRSAT
-        case 5:  ord = 6; break; // D3DSTENCILOP_DECRSAT
-        case 6:  ord = 7; break; // D3DSTENCILOP_INVERT
-        case 7:  ord = 3; break; // D3DSTENCILOP_INCR
-        case 8:  ord = 5; break; // D3DSTENCILOP_DECR
-        default: ord = 1; break;
+        case D3DSTENCILOP_KEEP:    ord = 1; break;
+        case D3DSTENCILOP_ZERO:    ord = 0; break;
+        case D3DSTENCILOP_REPLACE: ord = 2; break;
+        case D3DSTENCILOP_INCRSAT: ord = 4; break;
+        case D3DSTENCILOP_DECRSAT: ord = 6; break;
+        case D3DSTENCILOP_INVERT:  ord = 7; break;
+        case D3DSTENCILOP_INCR:    ord = 3; break;
+        case D3DSTENCILOP_DECR:    ord = 5; break;
+        default:                   ord = 1; break;
     }
     return ord << shift;
 }
@@ -432,36 +452,36 @@ void BuildTssOpsForShader(const ShaderClass & shader,
         switch (shader.Get_Primary_Gradient())
         {
             case ShaderClass::GRADIENT_DISABLE:
-                priColorOp  = 1.0f; // SELECTARG1
-                priAlphaOp  = 1.0f; // SELECTARG1
-                priCArg1Src = 0.0f; // TEXTURE
-                priAArg1Src = 0.0f; // TEXTURE
+                priColorOp  = kTssSelectArg1;
+                priAlphaOp  = kTssSelectArg1;
+                priCArg1Src = kTssArgTexture;
+                priAArg1Src = kTssArgTexture;
                 break;
             default:
             case ShaderClass::GRADIENT_MODULATE:
-                priColorOp  = 3.0f; // MODULATE
-                priAlphaOp  = 3.0f; // MODULATE
-                priCArg1Src = 0.0f; // TEXTURE
-                priAArg1Src = 0.0f; // TEXTURE
+                priColorOp  = kTssModulate;
+                priAlphaOp  = kTssModulate;
+                priCArg1Src = kTssArgTexture;
+                priAArg1Src = kTssArgTexture;
                 break;
             case ShaderClass::GRADIENT_ADD:
-                priColorOp  = 5.0f; // ADD
-                priAlphaOp  = 3.0f; // MODULATE (alpha always modulates)
-                priCArg1Src = 0.0f; // TEXTURE
-                priAArg1Src = 0.0f; // TEXTURE
+                priColorOp  = kTssAdd;
+                priAlphaOp  = kTssModulate;
+                priCArg1Src = kTssArgTexture;
+                priAArg1Src = kTssArgTexture;
                 break;
             case ShaderClass::GRADIENT_MODULATE2X:
-                priColorOp  = 4.0f; // MODULATE2X
-                priAlphaOp  = 3.0f; // MODULATE
-                priCArg1Src = 0.0f; // TEXTURE
-                priAArg1Src = 0.0f; // TEXTURE
+                priColorOp  = kTssModulate2x;
+                priAlphaOp  = kTssModulate;
+                priCArg1Src = kTssArgTexture;
+                priAArg1Src = kTssArgTexture;
                 break;
             case ShaderClass::GRADIENT_BUMPENVMAP:
             case ShaderClass::GRADIENT_BUMPENVMAPLUMINANCE:
-                priColorOp  = 1.0f; // SELECTARG1
-                priAlphaOp  = 1.0f; // SELECTARG1
-                priCArg1Src = 1.0f; // DIFFUSE
-                priAArg1Src = 1.0f; // DIFFUSE
+                priColorOp  = kTssSelectArg1;
+                priAlphaOp  = kTssSelectArg1;
+                priCArg1Src = kTssArgDiffuse;
+                priAArg1Src = kTssArgDiffuse;
                 break;
         }
 
@@ -469,39 +489,39 @@ void BuildTssOpsForShader(const ShaderClass & shader,
         {
             default:
             case ShaderClass::DETAILCOLOR_DISABLE:
-                secColorOp = 0.0f;
+                secColorOp = kTssDisable;
                 break;
             case ShaderClass::DETAILCOLOR_DETAIL:
-                secColorOp  = 1.0f; // SELECTARG1
-                secCArg1Src = 0.0f; // TEXTURE
+                secColorOp  = kTssSelectArg1;
+                secCArg1Src = kTssArgTexture;
                 break;
             case ShaderClass::DETAILCOLOR_SCALE:
-                secColorOp  = 3.0f; // MODULATE
-                secCArg1Src = 0.0f; // TEXTURE
+                secColorOp  = kTssModulate;
+                secCArg1Src = kTssArgTexture;
                 break;
             case ShaderClass::DETAILCOLOR_INVSCALE:
-                secColorOp  = 10.0f; // ADDSMOOTH
-                secCArg1Src = 0.0f;  // TEXTURE
+                secColorOp  = kTssAddSmooth;
+                secCArg1Src = kTssArgTexture;
                 break;
             case ShaderClass::DETAILCOLOR_ADD:
-                secColorOp  = 5.0f; // ADD
-                secCArg1Src = 0.0f; // TEXTURE
+                secColorOp  = kTssAdd;
+                secCArg1Src = kTssArgTexture;
                 break;
             case ShaderClass::DETAILCOLOR_SUB:
-                secColorOp  = 7.0f; // SUBTRACT (current - tex)
-                secCArg1Src = 2.0f; // CURRENT as arg1 (so result = current - tex)
+                secColorOp  = kTssSubtract;
+                secCArg1Src = kTssArgCurrent; // result = current - tex
                 break;
             case ShaderClass::DETAILCOLOR_SUBR:
-                secColorOp  = 7.0f; // SUBTRACT (tex - current)
-                secCArg1Src = 0.0f; // TEXTURE
+                secColorOp  = kTssSubtract;
+                secCArg1Src = kTssArgTexture; // result = tex - current
                 break;
             case ShaderClass::DETAILCOLOR_BLEND:
-                secColorOp  = 9.0f; // BLENDCURRENTALPHA
-                secCArg1Src = 0.0f; // TEXTURE
+                secColorOp  = kTssBlendCurAlpha;
+                secCArg1Src = kTssArgTexture;
                 break;
             case ShaderClass::DETAILCOLOR_DETAILBLEND:
-                secColorOp  = 8.0f; // BLENDTEXTUREALPHA
-                secCArg1Src = 0.0f; // TEXTURE
+                secColorOp  = kTssBlendTexAlpha;
+                secCArg1Src = kTssArgTexture;
                 break;
         }
 
@@ -509,19 +529,19 @@ void BuildTssOpsForShader(const ShaderClass & shader,
         {
             default:
             case ShaderClass::DETAILALPHA_DISABLE:
-                secAlphaOp = 0.0f;
+                secAlphaOp = kTssDisable;
                 break;
             case ShaderClass::DETAILALPHA_DETAIL:
-                secAlphaOp  = 1.0f; // SELECTARG1
-                secAArg1Src = 0.0f; // TEXTURE
+                secAlphaOp  = kTssSelectArg1;
+                secAArg1Src = kTssArgTexture;
                 break;
             case ShaderClass::DETAILALPHA_SCALE:
-                secAlphaOp  = 3.0f; // MODULATE
-                secAArg1Src = 0.0f; // TEXTURE
+                secAlphaOp  = kTssModulate;
+                secAArg1Src = kTssArgTexture;
                 break;
             case ShaderClass::DETAILALPHA_INVSCALE:
-                secAlphaOp  = 10.0f; // ADDSMOOTH
-                secAArg1Src = 0.0f;  // TEXTURE
+                secAlphaOp  = kTssAddSmooth;
+                secAArg1Src = kTssArgTexture;
                 break;
         }
     }
@@ -530,16 +550,16 @@ void BuildTssOpsForShader(const ShaderClass & shader,
         switch (shader.Get_Primary_Gradient())
         {
             case ShaderClass::GRADIENT_DISABLE:
-                priColorOp = 0.0f; // DISABLE (output black/default)
-                priAlphaOp = 0.0f;
+                priColorOp = kTssDisable;
+                priAlphaOp = kTssDisable;
                 break;
             default:
             case ShaderClass::GRADIENT_MODULATE:
             case ShaderClass::GRADIENT_ADD:
-                priColorOp  = 2.0f; // SELECTARG2
-                priAlphaOp  = 2.0f; // SELECTARG2
-                priCArg1Src = 0.0f;
-                priAArg1Src = 0.0f;
+                priColorOp  = kTssSelectArg2;
+                priAlphaOp  = kTssSelectArg2;
+                priCArg1Src = kTssArgTexture;
+                priAArg1Src = kTssArgTexture;
                 break;
         }
     }
@@ -2800,9 +2820,9 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     {
         unsigned d3dCull = DX8Wrapper::Get_DX8_Render_State(D3DRS_CULLMODE);
         state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
-        if (d3dCull == 2) // D3DCULL_CW
+        if (d3dCull == D3DCULL_CW)
             state |= BGFX_STATE_CULL_CW;
-        else if (d3dCull == 3) // D3DCULL_CCW
+        else if (d3dCull == D3DCULL_CCW)
             state |= BGFX_STATE_CULL_CCW;
     }
 
@@ -4123,9 +4143,9 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         unsigned d3dCull = DX8Wrapper::Get_DX8_Render_State(D3DRS_CULLMODE);
         state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
-        if (d3dCull == 2) // D3DCULL_CW
+        if (d3dCull == D3DCULL_CW)
             state |= BGFX_STATE_CULL_CW;
-        else if (d3dCull == 3) // D3DCULL_CCW
+        else if (d3dCull == D3DCULL_CCW)
             state |= BGFX_STATE_CULL_CCW;
         // D3DCULL_NONE (1) = no cull bits set
     }
