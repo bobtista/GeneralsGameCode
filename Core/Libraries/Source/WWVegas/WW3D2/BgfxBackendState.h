@@ -134,13 +134,21 @@ struct BgfxUniforms
 
     // Misc per-draw flags / params
     bgfx::UniformHandle uTexcoordSelect      = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uTexcoordSelect2     = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uTexcoordSource      = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uVertexColorFlags    = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uGrayscaleEnable     = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uSwayTable           = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShroudOffset        = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShroudScale         = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShroudParams        = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uCloudParams         = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uTexTransform0       = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uTexTransform1       = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uTex1Transform0      = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uTex1Transform1      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShadowLightViewProj = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uShadowParams        = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShadowColor         = BGFX_INVALID_HANDLE;
     // Polygon-offset equivalent for stencil-shadow-volume passes. bgfx has no state bit for polygon offset, so the post-projection Z bias is applied in vs_shadow_volume.sc. .x is the offset; negative = toward the camera.
     bgfx::UniformHandle uShadowBias          = BGFX_INVALID_HANDLE;
@@ -191,6 +199,13 @@ struct BgfxDraw
     float tssOps1[4]          = { 0.0f, 0.0f, 0.0f, 0.0f };
     float atestRef            = 0.0f;
     float texcoordSelect[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float texcoordSelect2[4]  = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float texcoordSource[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float vertexColorFlags[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
+    float texTransform0[4]    = { 1.0f, 0.0f, 0.0f, 0.0f };
+    float texTransform1[4]    = { 0.0f, 1.0f, 0.0f, 0.0f };
+    float tex1Transform0[4]   = { 1.0f, 0.0f, 0.0f, 0.0f };
+    float tex1Transform1[4]   = { 0.0f, 1.0f, 0.0f, 0.0f };
     float cloudParams[4]      = { 0.0f, 0.0f, 0.0f, 0.0f };
     bgfx::TextureHandle cloudTex = BGFX_INVALID_HANDLE;
     float lightDirs[4][4] = {
@@ -210,6 +225,7 @@ struct BgfxDraw
     float swayTable[11][4]    = {{0}};
     float shroudOffset[4]     = { 0.0f, 0.0f, 0.0f, 0.0f };
     float shroudScale[4]      = { 0.0f, 0.0f, 1.0f, 1.0f };
+    float shadowParams[4]     = { 1.0f, 0.0f, 0.0f, 0.0f };
 };
 
 // Overrides: transient per-shader overrides. Reset by Clear_State_Overrides (called from Set_Shader).

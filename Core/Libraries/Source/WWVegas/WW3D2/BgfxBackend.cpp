@@ -59,8 +59,12 @@
 
 // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. bgfx takes the main
 // game window. A secondary popup is created for D3D8 reference output.
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.2 compiled shader
@@ -1387,9 +1391,16 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uSceneAmbient  = bgfx::createUniform("u_sceneAmbient",   bgfx::UniformType::Vec4);
     g_uniforms.uLightingEnabled = bgfx::createUniform("u_lightingEnabled", bgfx::UniformType::Vec4);
     g_uniforms.uTexcoordSelect  = bgfx::createUniform("u_texcoordSelect",  bgfx::UniformType::Vec4);
+    g_uniforms.uTexcoordSelect2 = bgfx::createUniform("u_texcoordSelect2", bgfx::UniformType::Vec4);
+    g_uniforms.uTexcoordSource  = bgfx::createUniform("u_texcoordSource",  bgfx::UniformType::Vec4);
+    g_uniforms.uVertexColorFlags = bgfx::createUniform("u_vertexColorFlags", bgfx::UniformType::Vec4);
     g_uniforms.uGrayscaleEnable = bgfx::createUniform("u_grayscaleEnable", bgfx::UniformType::Vec4);
     g_uniforms.uShroudParams = bgfx::createUniform("u_shroudParams", bgfx::UniformType::Vec4);
     g_uniforms.uCloudParams  = bgfx::createUniform("u_cloudParams",  bgfx::UniformType::Vec4);
+    g_uniforms.uTexTransform0 = bgfx::createUniform("u_texTransform0", bgfx::UniformType::Vec4);
+    g_uniforms.uTexTransform1 = bgfx::createUniform("u_texTransform1", bgfx::UniformType::Vec4);
+    g_uniforms.uTex1Transform0 = bgfx::createUniform("u_tex1Transform0", bgfx::UniformType::Vec4);
+    g_uniforms.uTex1Transform1 = bgfx::createUniform("u_tex1Transform1", bgfx::UniformType::Vec4);
     g_uniforms.sCloudMap     = bgfx::createUniform("s_cloudMap",     bgfx::UniformType::Sampler);
 
     // Default 1x1 white texture. Used as fallback for missing textures.
@@ -1559,6 +1570,8 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 
     g_uniforms.uShadowLightViewProj = bgfx::createUniform("u_shadowLightViewProj",
                                                  bgfx::UniformType::Mat4);
+    g_uniforms.uShadowParams        = bgfx::createUniform("u_shadowParams",
+                                                 bgfx::UniformType::Vec4);
     g_uniforms.sShadowMap           = bgfx::createUniform("s_shadowMap",
                                                  bgfx::UniformType::Sampler);
 
@@ -1626,8 +1639,15 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uSceneAmbient);
         DestroyBgfxHandle(g_uniforms.uLightingEnabled);
         DestroyBgfxHandle(g_uniforms.uTexcoordSelect);
+        DestroyBgfxHandle(g_uniforms.uTexcoordSelect2);
+        DestroyBgfxHandle(g_uniforms.uTexcoordSource);
+        DestroyBgfxHandle(g_uniforms.uVertexColorFlags);
         DestroyBgfxHandle(g_uniforms.uShroudParams);
         DestroyBgfxHandle(g_uniforms.uCloudParams);
+        DestroyBgfxHandle(g_uniforms.uTexTransform0);
+        DestroyBgfxHandle(g_uniforms.uTexTransform1);
+        DestroyBgfxHandle(g_uniforms.uTex1Transform0);
+        DestroyBgfxHandle(g_uniforms.uTex1Transform1);
         DestroyBgfxHandle(g_uniforms.sCloudMap);
         DestroyBgfxHandle(g_device.shadowVolumeProgram);
         DestroyBgfxHandle(g_device.shadowApplyProgram);
@@ -1637,6 +1657,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uShadowColor);
         DestroyBgfxHandle(g_uniforms.uShadowBias);
         DestroyBgfxHandle(g_uniforms.uShadowLightViewProj);
+        DestroyBgfxHandle(g_uniforms.uShadowParams);
         DestroyBgfxHandle(g_uniforms.sShadowMap);
         DestroyBgfxHandle(g_uniforms.uMatEmissive);
         DestroyBgfxHandle(g_uniforms.uGrayscaleEnable);
@@ -2027,6 +2048,12 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
     // path yet (e.g. those filled by raw d3d8 calls) will miss the cache
     // and the bgfx submit will be skipped.
     g_draw.useTransientVB = false;
+    // TheSuperHackers @bugfix bobtista 27/04/2026 D3D8 supplies a white
+    // diffuse color when the bound FVF has no COLOR0 element. bgfx
+    // missing attributes read as zero, so tell the shader when it must
+    // substitute the fixed-function default.
+    g_draw.vertexColorFlags[0] = (vb != nullptr
+        && (vb->FVF_Info().Get_FVF() & D3DFVF_DIFFUSE)) ? 1.0f : 0.0f;
     auto it = g_caches.vb.find(vb);
     if (it != g_caches.vb.end())
     {
@@ -2072,6 +2099,8 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
 void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 {
     DX8Backend::Set_Vertex_Buffer(vba);
+    g_draw.vertexColorFlags[0] =
+        (vba.FVF_Info().Get_FVF() & D3DFVF_DIFFUSE) ? 1.0f : 0.0f;
     // Phase 4G.2: if the matching Capture_Dynamic_Vertex_Data already
     // allocated a transient VB for this access class, claim it for the
     // next draw. Otherwise miss the cache and skip the bgfx submit.
@@ -2548,6 +2577,99 @@ static void BindTextureStages()
     }
 }
 
+static float GetTexcoordSource(unsigned texcoordGen)
+{
+    if (texcoordGen == D3DTSS_TCI_CAMERASPACENORMAL)
+    {
+        return 1.0f;
+    }
+    if (texcoordGen == D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR)
+    {
+        return 2.0f;
+    }
+    if (texcoordGen == D3DTSS_TCI_CAMERASPACEPOSITION)
+    {
+        return 3.0f;
+    }
+    return 0.0f;
+}
+
+static void SetIdentityTextureTransform(float * row0, float * row1)
+{
+    row0[0] = 1.0f;
+    row0[1] = 0.0f;
+    row0[2] = 0.0f;
+    row0[3] = 0.0f;
+    row1[0] = 0.0f;
+    row1[1] = 1.0f;
+    row1[2] = 0.0f;
+    row1[3] = 0.0f;
+}
+
+static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
+{
+    D3DMATRIX texMtx;
+    DX8Wrapper::_Get_DX8_Transform(
+        static_cast<D3DTRANSFORMSTATETYPE>(D3DTS_TEXTURE0 + stage), texMtx);
+    row0[0] = texMtx.m[0][0];
+    row0[1] = texMtx.m[1][0];
+    row0[2] = texMtx.m[2][0];
+    row0[3] = texMtx.m[3][0];
+    row1[0] = texMtx.m[0][1];
+    row1[1] = texMtx.m[1][1];
+    row1[2] = texMtx.m[2][1];
+    row1[3] = texMtx.m[3][1];
+}
+
+static void UpdateTextureTransforms()
+{
+    // TheSuperHackers @bugfix bobtista 25/04/2026 Honor material-stage texture
+    // matrices in the bgfx uber shader. W3D atlas mappers animate tank
+    // treads, bike wheels, and other sub-materials by setting
+    // D3DTS_TEXTUREn plus D3DTTFF_COUNT2. Passing raw UVs sampled the
+    // unused black padding in those atlases; stage 1 matters for detail
+    // and environment-mapped sub-materials.
+    const unsigned texcoordIndex =
+        DX8Wrapper::Get_DX8_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX);
+    const unsigned uvIndex = texcoordIndex & 0xFFFF;
+    const unsigned texcoordGen = texcoordIndex & 0xFFFF0000;
+    g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
+    g_draw.texcoordSource[0] = GetTexcoordSource(texcoordGen);
+
+    const unsigned texFlags =
+        DX8Wrapper::Get_DX8_Texture_Stage_State(0, D3DTSS_TEXTURETRANSFORMFLAGS);
+    if ((texFlags & D3DTTFF_COUNT2) == D3DTTFF_COUNT2)
+    {
+        g_draw.texcoordSelect[3] = 1.0f;
+        ReadTextureTransform(0, g_draw.texTransform0, g_draw.texTransform1);
+    }
+    else
+    {
+        g_draw.texcoordSelect[3] = 0.0f;
+        SetIdentityTextureTransform(g_draw.texTransform0, g_draw.texTransform1);
+    }
+
+    const unsigned texcoordIndex1 =
+        DX8Wrapper::Get_DX8_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX);
+    const unsigned uvIndex1 = texcoordIndex1 & 0xFFFF;
+    const unsigned texcoordGen1 = texcoordIndex1 & 0xFFFF0000;
+    g_draw.texcoordSelect2[0] = (uvIndex1 == 1) ? 1.0f : 0.0f;
+    g_draw.texcoordSource[1] = GetTexcoordSource(texcoordGen1);
+
+    const unsigned texFlags1 =
+        DX8Wrapper::Get_DX8_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS);
+    if ((texFlags1 & D3DTTFF_COUNT2) == D3DTTFF_COUNT2)
+    {
+        g_draw.texcoordSelect2[1] = 1.0f;
+        ReadTextureTransform(1, g_draw.tex1Transform0, g_draw.tex1Transform1);
+    }
+    else
+    {
+        g_draw.texcoordSelect2[1] = 0.0f;
+        SetIdentityTextureTransform(g_draw.tex1Transform0, g_draw.tex1Transform1);
+    }
+}
+
 static void UploadMaterialUniforms()
 {
     if (bgfx::isValid(g_uniforms.uMatDiffuse))
@@ -2567,8 +2689,21 @@ static void UploadMaterialUniforms()
     }
     if (bgfx::isValid(g_uniforms.uAtestParams))
     {
-        float atestParams[4] = { g_draw.atestRef, 0.0f, 0.0f, 0.0f };
+        const float effectiveAtestRef = g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef;
+        float atestParams[4] = { effectiveAtestRef, 0.0f, 0.0f, 0.0f };
         bgfx::setUniform(g_uniforms.uAtestParams, atestParams);
+    }
+    if (bgfx::isValid(g_uniforms.uTexcoordSource))
+    {
+        bgfx::setUniform(g_uniforms.uTexcoordSource, g_draw.texcoordSource);
+    }
+    if (bgfx::isValid(g_uniforms.uVertexColorFlags))
+    {
+        bgfx::setUniform(g_uniforms.uVertexColorFlags, g_draw.vertexColorFlags);
+    }
+    if (bgfx::isValid(g_uniforms.uTexcoordSelect2))
+    {
+        bgfx::setUniform(g_uniforms.uTexcoordSelect2, g_draw.texcoordSelect2);
     }
     if (bgfx::isValid(g_uniforms.uGrayscaleEnable))
     {
@@ -2577,6 +2712,26 @@ static void UploadMaterialUniforms()
     if (bgfx::isValid(g_uniforms.uCloudParams))
     {
         bgfx::setUniform(g_uniforms.uCloudParams, g_draw.cloudParams);
+    }
+    if (bgfx::isValid(g_uniforms.uShadowParams))
+    {
+        bgfx::setUniform(g_uniforms.uShadowParams, g_draw.shadowParams);
+    }
+    if (bgfx::isValid(g_uniforms.uTexTransform0))
+    {
+        bgfx::setUniform(g_uniforms.uTexTransform0, g_draw.texTransform0);
+    }
+    if (bgfx::isValid(g_uniforms.uTexTransform1))
+    {
+        bgfx::setUniform(g_uniforms.uTexTransform1, g_draw.texTransform1);
+    }
+    if (bgfx::isValid(g_uniforms.uTex1Transform0))
+    {
+        bgfx::setUniform(g_uniforms.uTex1Transform0, g_draw.tex1Transform0);
+    }
+    if (bgfx::isValid(g_uniforms.uTex1Transform1))
+    {
+        bgfx::setUniform(g_uniforms.uTex1Transform1, g_draw.tex1Transform1);
     }
     if (bgfx::isValid(g_uniforms.sCloudMap) && bgfx::isValid(g_draw.cloudTex))
     {
@@ -2665,7 +2820,13 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     bgfx::setIndexBuffer(&ib, 0, static_cast<uint32_t>(polygon_count) * 3);
 
     BindTextureStages();
+    UpdateTextureTransforms();
+    g_draw.shadowParams[0] = 0.0f;
     UploadMaterialUniforms();
+    if (bgfx::isValid(g_uniforms.uTexcoordSelect))
+    {
+        bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
+    }
 
     uint64_t state = (g_draw.state != 0)
         ? g_draw.state
@@ -2946,8 +3107,10 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
                     g_draw.samplerFlags[0] = samplerFlags; break;
             case 1: g_draw.tex[1] = h;
                     g_draw.samplerFlags[1] = samplerFlags; break;
-            case 2: g_draw.tex[2] = h; g_draw.samplerFlags[2] = samplerFlags; break;
-            case 3: g_draw.tex[3] = h; g_draw.samplerFlags[3] = samplerFlags; break;
+            case 2: g_draw.tex[2] = h;
+                    g_draw.samplerFlags[2] = samplerFlags; break;
+            case 3: g_draw.tex[3] = h;
+                    g_draw.samplerFlags[3] = samplerFlags; break;
             default: break;
         }
     }
@@ -3710,6 +3873,11 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         submitView = kBgfxEngineView;
     }
+    // TheSuperHackers @bugfix bobtista 27/04/2026 Only world draws should
+    // receive CSM shadows. The menu, FPS counter, RTT passes, water, and
+    // effect overlays reuse the uber shader but are not in light space,
+    // so sampling the shadow map there fades the UI.
+    g_draw.shadowParams[0] = (submitView == kBgfxEngineView) ? 1.0f : 0.0f;
 
     const float *      worldMtx   = g_views.inSortFlush ? g_frame.sortWorld     : g_frame.world;
 
@@ -3840,8 +4008,8 @@ void SubmitEngineDraw(unsigned short start_index,
 
         for (int si = 0; si < 4; ++si)
         {
-            bgfx::TextureHandle h = EnsureBgfxTexture(
-                static_cast<TextureClass *>(sortRS.Textures[si]));
+            TextureClass * sortTex = static_cast<TextureClass *>(sortRS.Textures[si]);
+            bgfx::TextureHandle h = EnsureBgfxTexture(sortTex);
             if (!bgfx::isValid(h))
                 h = g_device.defaultWhiteTexture;
             switch (si)
@@ -3854,6 +4022,7 @@ void SubmitEngineDraw(unsigned short start_index,
         }
     }
     BindTextureStages();
+    UpdateTextureTransforms();
     UploadMaterialUniforms();
     // Read current D3D light state per-draw. Set_Light_Environment and
     // Set_Ambient capture some paths, but many callers set lights via
@@ -3975,7 +4144,9 @@ void SubmitEngineDraw(unsigned short start_index,
     }
 
     if (bgfx::isValid(g_uniforms.uTexcoordSelect))
+    {
         bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
+    }
 
     uint64_t state = (g_draw.state != 0)
         ? g_draw.state
@@ -4002,16 +4173,6 @@ void SubmitEngineDraw(unsigned short start_index,
         state &= ~BGFX_STATE_BLEND_MASK;
         state |= g_overrides.blendBits;
     }
-    // Apply post-ShaderClass alpha test override
-    if (g_overrides.atestActive)
-    {
-        if (bgfx::isValid(g_uniforms.uAtestParams))
-        {
-            float atestParams[4] = { g_overrides.atestRef, 0.0f, 0.0f, 0.0f };
-            bgfx::setUniform(g_uniforms.uAtestParams, atestParams);
-        }
-    }
-
     // Sort view uses the same projection as the opaque view, so particle
     // Z values (in view space) produce the same depth as opaque geometry
     // at the same world position. Use the shader's normal depth compare
