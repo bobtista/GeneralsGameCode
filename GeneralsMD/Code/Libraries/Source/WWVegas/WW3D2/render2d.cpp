@@ -705,19 +705,13 @@ void Render2DClass::Render()
 		g_renderBackend->Set_Grayscale_Mode(false);
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
-	// TheSuperHackers @bugfix bobtista 23/04/2026 Phase 5.2 — unbind slot 0
-	// after every 2D UI draw in standalone bgfx. Without this, the UI
-	// atlas this Render2DClass just bound persists as bgfx sampler 0 into
-	// subsequent 3D draws. Any 3D mesh (object, terrain, water) that
-	// doesn't explicitly call Set_Texture(0, ...) samples the UI atlas
-	// instead of its own base texture — which showed up as repeating
-	// glyph/button blobs on beach sand, water, and carrier deck.
-	// BindTextureStages at submit time falls back to defaultWhiteTexture
-	// when slot 0 is BGFX_INVALID_HANDLE, so this is safe for callers
-	// that forgot to bind.
-	g_renderBackend->Set_Texture(0, nullptr);
-#endif
+	// TheSuperHackers @bugfix bobtista 23/04/2026 Unbind slot 0 after 2D UI
+	// draws so the UI atlas cannot leak into subsequent 3D draws via the
+	// shader pipeline's sampler cache.
+	if (g_renderBackend->Has_Shader_Pipeline())
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 }
 
 
