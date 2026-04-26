@@ -1512,6 +1512,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         bgfx::setViewRect(kBgfxShadowMapView, 0, 0, kShadowMapResolution, kShadowMapResolution);
         bgfx::setViewFrameBuffer(kBgfxShadowMapView, g_device.shadowMapFB);
         bgfx::setViewMode(kBgfxShadowMapView, bgfx::ViewMode::Sequential);
+        // Pass inverse shadow map resolution to the shader via u_shadowParams.y
+        // so the PCF kernel texel size stays in sync with the texture.
+        g_draw.shadowParams[1] = 1.0f / static_cast<float>(kShadowMapResolution);
+
         WWDEBUG_SAY(("[CSM] shadow map FB=%u tex=%u valid=%d",
                      g_device.shadowMapFB.idx, g_device.shadowMapDepth.idx,
                      bgfx::isValid(g_device.shadowMapFB) ? 1 : 0));
