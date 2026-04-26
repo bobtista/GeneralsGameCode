@@ -2929,7 +2929,7 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 		g_renderBackend->Set_Shader(waterShader);
 	}
 	g_renderBackend->Override_Alpha_Blend_Enable(true);
-	g_renderBackend->Override_Material_Opacity(0.5f);
+	g_renderBackend->Override_Material_Opacity(WATER_MESH_OPACITY);
 
 	//In additive blending we need to use the alpha at the edges of river to darken
 	//rgb instead.
@@ -3315,7 +3315,7 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 	// control water opacity. bgfx can't replicate that. Force 50%
 	// material opacity so water renders semi-transparent instead.
 	// Only affects the bgfx uniform — DX8 vertex data is unchanged.
-	g_renderBackend->Override_Material_Opacity(0.5f);
+	g_renderBackend->Override_Material_Opacity(WATER_MESH_OPACITY);
 
 	//If video card supports it and it's enabled, feather the water edge using destination alpha
 	if (DX8Wrapper::getBackBufferFormat() == WW3D_FORMAT_A8R8G8B8 && TheGlobalData->m_showSoftWaterEdge && TheWaterTransparency->m_transparentWaterDepth !=0)
