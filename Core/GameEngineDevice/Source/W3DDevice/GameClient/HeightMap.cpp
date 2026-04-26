@@ -2030,20 +2030,15 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 
  		if (m_disableTextures)
  			devicePasses=1;	//force to 1 lighting-only pass
-#if defined(GGC_BGFX_STANDALONE)
-		// TheSuperHackers @bugfix bobtista 23/04/2026 Phase 5.2 — force
-		// single-pass terrain in bgfx standalone. The legacy multipass
-		// path (base + alpha overlay + cloud/noise MODULATE) relies on
-		// D3DTSS_TCI_CAMERASPACEPOSITION + D3DTTFF_COUNT2 texcoord
-		// generation that the bgfx fixed-function fallback does not
-		// emulate, producing black triangular patches on beach tiles and
-		// matching bright patches on water (the MODULATE pass read from
-		// garbage UVs and multiplied terrain by ~0 or >1). fs_uber already
-		// handles cloud shadowing in a single pass via g_draw.cloudTex
-		// pushed by W3DShaderManager::pushCloudShadowToBackend, so the
-		// multi-pass replay is not needed for correctness.
-		devicePasses = 1;
-#endif
+		// TheSuperHackers @bugfix bobtista 23/04/2026 Force single-pass
+		// terrain when using the shader pipeline. The legacy multipass
+		// path relies on D3DTSS_TCI_CAMERASPACEPOSITION texcoord generation
+		// that the uber shader does not emulate. Cloud shadowing is already
+		// handled in a single pass via pushCloudShadowToBackend.
+		if (g_renderBackend->Has_Shader_Pipeline())
+		{
+			devicePasses = 1;
+		}
 
  		//Specify all textures that this shader may need.
  		W3DShaderManager::setTexture(0,m_stageZeroTexture);
@@ -2051,23 +2046,16 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  		W3DShaderManager::setTexture(2,m_stageTwoTexture);	//cloud
  		W3DShaderManager::setTexture(3,m_stageThreeTexture);//noise
 
-#if defined(GGC_BGFX_STANDALONE)
-		// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 — the 2D
-		// UI pass (debug clock, menu elements) leaves bgfx sampler slot 0
-		// bound to a font-atlas texture. Terrain draws in the shell map
-		// don't re-bind slot 0 themselves (the shader's internal set()
-		// path relies on DX8 TSS state, which standalone's stub doesn't
-		// drive), so fs_uber samples the clock glyphs as the terrain
-		// base texture — producing the tiled-text pattern visible on
-		// water and sand. RenderDoc pixel history on a "pattern" pixel
-		// showed tex0 = font-atlas handle (e.g. TH 76 = "20:31:56").
-		// Force all four terrain stages to the correct textures before
-		// the draw so no 2D-UI binding can leak into the 3D pass.
-		g_renderBackend->Set_Texture(0, m_stageZeroTexture);
-		g_renderBackend->Set_Texture(1, m_stageZeroTexture);
-		g_renderBackend->Set_Texture(2, m_stageTwoTexture);
-		g_renderBackend->Set_Texture(3, m_stageThreeTexture);
-#endif
+		// TheSuperHackers @bugfix bobtista 22/04/2026 Explicitly bind
+		// terrain textures to the shader pipeline so 2D-UI atlas bindings
+		// from the previous pass cannot leak into the 3D terrain draw.
+		if (g_renderBackend->Has_Shader_Pipeline())
+		{
+			g_renderBackend->Set_Texture(0, m_stageZeroTexture);
+			g_renderBackend->Set_Texture(1, m_stageZeroTexture);
+			g_renderBackend->Set_Texture(2, m_stageTwoTexture);
+			g_renderBackend->Set_Texture(3, m_stageThreeTexture);
+		}
 		//Disable writes to destination alpha channel (if there is one)
 		if (DX8Wrapper::getBackBufferFormat() == WW3D_FORMAT_A8R8G8B8)
 			g_renderBackend->Set_Color_Write_Enable(true, true, true, false);
@@ -2444,14 +2432,13 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
  			}
 
 			Int devicePasses=W3DShaderManager::getShaderPasses(st);
-#if defined(GGC_BGFX_STANDALONE)
-			// TheSuperHackers @bugfix bobtista 24/04/2026 Phase 5.2 — same
-			// rationale as the main terrain pass loop: cloud/noise multipass
-			// uses D3DTSS_TCI_CAMERASPACEPOSITION texcoord gen the bgfx
-			// fixed-function fallback does not emulate, so pass 2+ of the
-			// extra-blend / road tile draws paint garbage (often black).
-			devicePasses = 1;
-#endif
+			// TheSuperHackers @bugfix bobtista 24/04/2026 Same rationale as
+			// the main terrain pass: shader pipeline cannot emulate the
+			// D3DTSS_TCI_CAMERASPACEPOSITION texcoord generation.
+			if (g_renderBackend->Has_Shader_Pipeline())
+			{
+				devicePasses = 1;
+			}
 
 			for (Int pass=0; pass < devicePasses; pass++)
 			{
