@@ -115,6 +115,52 @@ static UINT BytesPerPixel(D3DFORMAT fmt)
 	}
 }
 
+// TheSuperHackers @bugfix bobtista 27/04/2026 Compressed D3D textures lock
+// by block rows, not pixel rows. Reporting them as width*4 made bgfx upload
+// skip chunks of DXT atlas data and fill the gaps with black.
+static bool IsCompressedFormat(D3DFORMAT fmt)
+{
+	switch (fmt)
+	{
+	case D3DFMT_DXT1:
+	case D3DFMT_DXT2:
+	case D3DFMT_DXT3:
+	case D3DFMT_DXT4:
+	case D3DFMT_DXT5:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static UINT BlockBytes(D3DFORMAT fmt)
+{
+	return (fmt == D3DFMT_DXT1) ? 8 : 16;
+}
+
+static UINT SurfacePitch(D3DFORMAT fmt, UINT width)
+{
+	if (IsCompressedFormat(fmt))
+	{
+		return ((width + 3) / 4) * BlockBytes(fmt);
+	}
+	return width * BytesPerPixel(fmt);
+}
+
+static UINT SurfaceRows(D3DFORMAT fmt, UINT height)
+{
+	if (IsCompressedFormat(fmt))
+	{
+		return (height + 3) / 4;
+	}
+	return height;
+}
+
+static UINT SurfaceStorageSize(D3DFORMAT fmt, UINT width, UINT height)
+{
+	return SurfacePitch(fmt, width) * SurfaceRows(fmt, height);
+}
+
 class StubD3D8Device;
 
 static void FillCaps(D3DCAPS8& caps)
@@ -235,7 +281,7 @@ public:
 	// depth stencil surfaces, image surfaces).
 	StubD3D8Surface(IDirect3DDevice8* device, IUnknown* container, UINT width, UINT height, D3DFORMAT format)
 		: m_refCount(1), m_device(device), m_container(container), m_width(width), m_height(height), m_format(format),
-		  m_ownedScratch(AllocScratch(static_cast<size_t>(width) * height * BytesPerPixel(format))),
+		  m_ownedScratch(AllocScratch(SurfaceStorageSize(format, width, height))),
 		  m_scratchPtr(m_ownedScratch.get())
 	{
 	}
@@ -285,12 +331,11 @@ public:
 	STDMETHOD(GetDesc)(D3DSURFACE_DESC* pDesc) override
 	{
 		if (pDesc == nullptr) return E_POINTER;
-		const UINT bpp = BytesPerPixel(m_format);
 		pDesc->Format = m_format;
 		pDesc->Type = D3DRTYPE_SURFACE;
 		pDesc->Usage = 0;
 		pDesc->Pool = D3DPOOL_DEFAULT;
-		pDesc->Size = m_width * m_height * bpp;
+		pDesc->Size = SurfaceStorageSize(m_format, m_width, m_height);
 		pDesc->MultiSampleType = D3DMULTISAMPLE_NONE;
 		pDesc->Width = m_width;
 		pDesc->Height = m_height;
@@ -299,7 +344,7 @@ public:
 	STDMETHOD(LockRect)(D3DLOCKED_RECT* pLockedRect, CONST RECT*, DWORD) override
 	{
 		if (pLockedRect == nullptr) return E_POINTER;
-		pLockedRect->Pitch = static_cast<INT>(m_width * BytesPerPixel(m_format));
+		pLockedRect->Pitch = static_cast<INT>(SurfacePitch(m_format, m_width));
 		pLockedRect->pBits = m_scratchPtr;
 		return D3D_OK;
 	}
@@ -475,14 +520,13 @@ public:
 		// D3D8 convention: Levels == 0 means "all mips down to 1x1".
 		m_levels = requestedLevels == 0 ? ComputeFullMipLevels(width, height) : requestedLevels;
 		if (m_levels > 16) m_levels = 16;
-		const UINT bpp = BytesPerPixel(format);
 		m_levelScratch.reset(new StubScratch[m_levels]);
 		m_surfaces.reset(new IDirect3DSurface8*[m_levels]);
 		for (DWORD i = 0; i < m_levels; ++i)
 		{
 			UINT lw = width  >> i; if (lw == 0) lw = 1;
 			UINT lh = height >> i; if (lh == 0) lh = 1;
-			m_levelScratch[i] = AllocScratch(static_cast<size_t>(lw) * lh * bpp);
+			m_levelScratch[i] = AllocScratch(SurfaceStorageSize(format, lw, lh));
 			m_surfaces[i] = nullptr;
 		}
 	}
@@ -533,12 +577,11 @@ public:
 		if (level >= m_levels) level = m_levels - 1;
 		UINT lw = m_width  >> level; if (lw == 0) lw = 1;
 		UINT lh = m_height >> level; if (lh == 0) lh = 1;
-		const UINT bpp = BytesPerPixel(m_format);
 		pDesc->Format = m_format;
 		pDesc->Type = D3DRTYPE_SURFACE;
 		pDesc->Usage = m_usage;
 		pDesc->Pool = m_pool;
-		pDesc->Size = lw * lh * bpp;
+		pDesc->Size = SurfaceStorageSize(m_format, lw, lh);
 		pDesc->MultiSampleType = D3DMULTISAMPLE_NONE;
 		pDesc->Width = lw;
 		pDesc->Height = lh;
@@ -567,7 +610,7 @@ public:
 		if (pLockedRect == nullptr) return E_POINTER;
 		if (level >= m_levels) level = m_levels - 1;
 		UINT lw = m_width >> level; if (lw == 0) lw = 1;
-		pLockedRect->Pitch = static_cast<INT>(lw * BytesPerPixel(m_format));
+		pLockedRect->Pitch = static_cast<INT>(SurfacePitch(m_format, lw));
 		pLockedRect->pBits = m_levelScratch[level].get();
 		return D3D_OK;
 	}
@@ -595,7 +638,7 @@ class StubD3D8CubeTexture final : public IDirect3DCubeTexture8
 public:
 	StubD3D8CubeTexture(IDirect3DDevice8* device, UINT edge, D3DFORMAT format)
 		: m_refCount(1), m_device(device), m_edge(edge), m_format(format),
-		  m_scratch(AllocScratch(static_cast<size_t>(edge) * edge * BytesPerPixel(format)))
+		  m_scratch(AllocScratch(SurfaceStorageSize(format, edge, edge)))
 	{
 	}
 
@@ -635,12 +678,11 @@ public:
 	STDMETHOD(GetLevelDesc)(UINT, D3DSURFACE_DESC* pDesc) override
 	{
 		if (pDesc == nullptr) return E_POINTER;
-		const UINT bpp = BytesPerPixel(m_format);
 		pDesc->Format = m_format;
 		pDesc->Type = D3DRTYPE_SURFACE;
 		pDesc->Usage = 0;
 		pDesc->Pool = D3DPOOL_DEFAULT;
-		pDesc->Size = m_edge * m_edge * bpp;
+		pDesc->Size = SurfaceStorageSize(m_format, m_edge, m_edge);
 		pDesc->MultiSampleType = D3DMULTISAMPLE_NONE;
 		pDesc->Width = m_edge;
 		pDesc->Height = m_edge;
@@ -655,7 +697,7 @@ public:
 	STDMETHOD(LockRect)(D3DCUBEMAP_FACES, UINT, D3DLOCKED_RECT* pLockedRect, CONST RECT*, DWORD) override
 	{
 		if (pLockedRect == nullptr) return E_POINTER;
-		pLockedRect->Pitch = static_cast<INT>(m_edge * BytesPerPixel(m_format));
+		pLockedRect->Pitch = static_cast<INT>(SurfacePitch(m_format, m_edge));
 		pLockedRect->pBits = m_scratch.get();
 		return D3D_OK;
 	}
@@ -808,6 +850,24 @@ private:
 // ---------------------------------------------------------------------------
 class StubD3D8Device final : public IDirect3DDevice8
 {
+	struct StageStateKey
+	{
+		DWORD stage;
+		DWORD type;
+
+		bool operator==(const StageStateKey & rhs) const
+		{
+			return stage == rhs.stage && type == rhs.type;
+		}
+	};
+	struct StageStateKeyHash
+	{
+		size_t operator()(const StageStateKey & key) const
+		{
+			return (static_cast<size_t>(key.stage) << 8) ^ static_cast<size_t>(key.type);
+		}
+	};
+
 public:
 	StubD3D8Device(IDirect3D8* parent, HWND focusWindow, UINT width, UINT height)
 		: m_refCount(1), m_parent(parent), m_focusWindow(focusWindow), m_width(width), m_height(height),
@@ -959,14 +1019,15 @@ public:
 		if (src == nullptr || dst == nullptr) return D3D_OK;
 		D3DSURFACE_DESC sd, dd;
 		if (FAILED(src->GetDesc(&sd)) || FAILED(dst->GetDesc(&dd))) return D3D_OK;
-		const UINT bpp = BytesPerPixel(sd.Format);
 		D3DLOCKED_RECT sl = {}, dl = {};
 		if (FAILED(src->LockRect(&sl, nullptr, 0))) return D3D_OK;
 		if (FAILED(dst->LockRect(&dl, nullptr, 0))) { src->UnlockRect(); return D3D_OK; }
 		if (count == 0 || srcRects == nullptr)
 		{
-			const UINT h = sd.Height < dd.Height ? sd.Height : dd.Height;
-			const UINT rowBytes = (sd.Width < dd.Width ? sd.Width : dd.Width) * bpp;
+			const UINT h = SurfaceRows(sd.Format, sd.Height) < SurfaceRows(dd.Format, dd.Height)
+				? SurfaceRows(sd.Format, sd.Height) : SurfaceRows(dd.Format, dd.Height);
+			const UINT rowBytes = SurfacePitch(sd.Format, sd.Width) < SurfacePitch(dd.Format, dd.Width)
+				? SurfacePitch(sd.Format, sd.Width) : SurfacePitch(dd.Format, dd.Width);
 			for (UINT y = 0; y < h; ++y)
 			{
 				std::memcpy(
@@ -977,6 +1038,13 @@ public:
 		}
 		else
 		{
+			if (IsCompressedFormat(sd.Format) || IsCompressedFormat(dd.Format))
+			{
+				dst->UnlockRect();
+				src->UnlockRect();
+				return D3D_OK;
+			}
+			const UINT bpp = BytesPerPixel(sd.Format);
 			for (UINT i = 0; i < count; ++i)
 			{
 				const RECT& r = srcRects[i];
@@ -1010,12 +1078,13 @@ public:
 		{
 			D3DSURFACE_DESC sd, dd;
 			if (FAILED(st->GetLevelDesc(i, &sd)) || FAILED(dt->GetLevelDesc(i, &dd))) break;
-			const UINT bpp = BytesPerPixel(sd.Format);
 			D3DLOCKED_RECT sl = {}, dl = {};
 			if (FAILED(st->LockRect(i, &sl, nullptr, 0))) break;
 			if (FAILED(dt->LockRect(i, &dl, nullptr, 0))) { st->UnlockRect(i); break; }
-			const UINT h = sd.Height < dd.Height ? sd.Height : dd.Height;
-			const UINT rowBytes = (sd.Width < dd.Width ? sd.Width : dd.Width) * bpp;
+			const UINT h = SurfaceRows(sd.Format, sd.Height) < SurfaceRows(dd.Format, dd.Height)
+				? SurfaceRows(sd.Format, sd.Height) : SurfaceRows(dd.Format, dd.Height);
+			const UINT rowBytes = SurfacePitch(sd.Format, sd.Width) < SurfacePitch(dd.Format, dd.Width)
+				? SurfacePitch(sd.Format, sd.Width) : SurfacePitch(dd.Format, dd.Width);
 			for (UINT y = 0; y < h; ++y)
 			{
 				std::memcpy(
@@ -1144,12 +1213,23 @@ public:
 		return D3D_OK;
 	}
 	STDMETHOD(SetTexture)(DWORD, IDirect3DBaseTexture8*) override { return D3D_OK; }
-	STDMETHOD(GetTextureStageState)(DWORD, D3DTEXTURESTAGESTATETYPE, DWORD* pValue) override
+	STDMETHOD(GetTextureStageState)(DWORD stage, D3DTEXTURESTAGESTATETYPE type, DWORD* pValue) override
 	{
-		if (pValue) *pValue = 0;
+		if (pValue == nullptr)
+		{
+			return E_POINTER;
+		}
+		const StageStateKey key = { stage, static_cast<DWORD>(type) };
+		std::unordered_map<StageStateKey, DWORD, StageStateKeyHash>::const_iterator it = m_textureStageStates.find(key);
+		*pValue = (it != m_textureStageStates.end()) ? it->second : 0;
 		return D3D_OK;
 	}
-	STDMETHOD(SetTextureStageState)(DWORD, D3DTEXTURESTAGESTATETYPE, DWORD) override { return D3D_OK; }
+	STDMETHOD(SetTextureStageState)(DWORD stage, D3DTEXTURESTAGESTATETYPE type, DWORD value) override
+	{
+		const StageStateKey key = { stage, static_cast<DWORD>(type) };
+		m_textureStageStates[key] = value;
+		return D3D_OK;
+	}
 	STDMETHOD(ValidateDevice)(DWORD* pNumPasses) override
 	{
 		if (pNumPasses) *pNumPasses = 1;
@@ -1239,6 +1319,7 @@ private:
 	IDirect3DSurface8* m_backBuffer;
 	IDirect3DSurface8* m_depthStencil;
 	std::unordered_map<DWORD, D3DMATRIX> m_transforms;
+	std::unordered_map<StageStateKey, DWORD, StageStateKeyHash> m_textureStageStates;
 };
 
 // ---------------------------------------------------------------------------
