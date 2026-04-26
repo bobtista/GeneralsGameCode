@@ -2519,6 +2519,41 @@ void BgfxBackend::Capture_Sorted_Batch_Light(const RenderBackendLight & light, b
     }
 }
 
+// TheSuperHackers @refactor bobtista 26/04/2026 Shared submit helpers used by
+// both Submit_Sorted_Draw and SubmitEngineDraw to avoid duplicated blocks.
+static uint64_t ApplyCullModeOverride(uint64_t state)
+{
+    unsigned d3dCull = DX8Wrapper::Get_DX8_Render_State(D3DRS_CULLMODE);
+    state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
+    if (d3dCull == D3DCULL_CW)
+    {
+        state |= BGFX_STATE_CULL_CW;
+    }
+    else if (d3dCull == D3DCULL_CCW)
+    {
+        state |= BGFX_STATE_CULL_CCW;
+    }
+    return state;
+}
+
+static uint64_t ApplyColorWriteOverride(uint64_t state)
+{
+    if (g_overrides.colorWriteOverride >= 0)
+    {
+        state &= ~(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+        state |= static_cast<uint64_t>(g_overrides.colorWriteOverride);
+    }
+    return state;
+}
+
+static void BindShadowMapTexture()
+{
+    if (bgfx::isValid(g_device.shadowMapDepth) && bgfx::isValid(g_uniforms.sShadowMap))
+    {
+        bgfx::setTexture(4, g_uniforms.sShadowMap, g_device.shadowMapDepth);
+    }
+}
+
 static void BindTextureStages()
 {
     // bgfx default (flags=0) is bilinear filtering. No explicit flags needed.
@@ -2815,39 +2850,11 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         ? g_draw.state
         : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
 
-    // TheSuperHackers @fix bobtista 16/04/2026 Override cull mode from
-    // D3D device state — same as SubmitEngineDraw.
-    {
-        unsigned d3dCull = DX8Wrapper::Get_DX8_Render_State(D3DRS_CULLMODE);
-        state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
-        if (d3dCull == D3DCULL_CW)
-            state |= BGFX_STATE_CULL_CW;
-        else if (d3dCull == D3DCULL_CCW)
-            state |= BGFX_STATE_CULL_CCW;
-    }
-
-    // Apply color write mask override — same as SubmitEngineDraw.
-    // Without this, sorted particles/effects write alpha, destroying
-    // the shoreline depth gradient used by DESTALPHA water blending.
-    if (g_overrides.colorWriteOverride >= 0)
-    {
-        state &= ~(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
-        state |= static_cast<uint64_t>(g_overrides.colorWriteOverride);
-    }
+    state = ApplyCullModeOverride(state);
+    state = ApplyColorWriteOverride(state);
 
     bgfx::setState(state);
-
-    // TheSuperHackers @fix bobtista 19/04/2026 fs_uber declares
-    // SAMPLER2DSHADOW(s_shadowMap, 4); bgfx resets texture bindings per
-    // submit, so slot 4 must be rebound for EVERY submit that uses the
-    // uber program — not just the opaque path at SubmitEngineDraw. D3D11
-    // debug layer raises DEVICE_DRAW_SAMPLER_MISMATCH (#390, 0x87A) when
-    // a draw reaches the shader with slot 4 empty, because the default
-    // sampler is not comparison-capable.
-    if (bgfx::isValid(g_device.shadowMapDepth) && bgfx::isValid(g_uniforms.sShadowMap))
-    {
-        bgfx::setTexture(4, g_uniforms.sShadowMap, g_device.shadowMapDepth);
-    }
+    BindShadowMapTexture();
 
     bgfx::submit(kBgfxEngineSortView, g_draw.program);
 
@@ -4136,40 +4143,15 @@ void SubmitEngineDraw(unsigned short start_index,
         : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
     state |= BGFX_STATE_MSAA;
 
-    // TheSuperHackers @fix bobtista 16/04/2026 Override cull mode from
-    // D3D device state. ShaderClass::Apply() may change D3DRS_CULLMODE
-    // directly (e.g. water reflection inversion) without going through
-    // g_renderBackend->Set_Cull_Mode().
-    {
-        unsigned d3dCull = DX8Wrapper::Get_DX8_Render_State(D3DRS_CULLMODE);
-        state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
-        if (d3dCull == D3DCULL_CW)
-            state |= BGFX_STATE_CULL_CW;
-        else if (d3dCull == D3DCULL_CCW)
-            state |= BGFX_STATE_CULL_CCW;
-        // D3DCULL_NONE (1) = no cull bits set
-    }
+    state = ApplyCullModeOverride(state);
 
-    // Apply post-ShaderClass blend override (terrain blend, W3DCustomEdging, etc.)
     if (g_overrides.blendActive)
     {
         state &= ~BGFX_STATE_BLEND_MASK;
         state |= g_overrides.blendBits;
     }
-    // Sort view uses the same projection as the opaque view, so particle
-    // Z values (in view space) produce the same depth as opaque geometry
-    // at the same world position. Use the shader's normal depth compare
-    // (typically LEQUAL) for correct depth testing against opaque geometry.
-    // No DEPTH_TEST_ALWAYS override needed.
 
-    // Apply color write mask override from Set_Color_Write_Enable.
-    // This handles both alpha-only writes (shoreline depth gradient)
-    // and RGB-only writes (terrain with alpha writes disabled).
-    if (g_overrides.colorWriteOverride >= 0)
-    {
-        state &= ~(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
-        state |= static_cast<uint64_t>(g_overrides.colorWriteOverride);
-    }
+    state = ApplyColorWriteOverride(state);
 
     if (g_views.waterOverrideActive)
     {
@@ -4200,15 +4182,7 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::setUniform(g_uniforms.uShadowLightViewProj, shadowMVP);
     }
 
-    // TheSuperHackers @fix bobtista 19/04/2026 bind s_shadowMap
-    // independently of the matrix uniform. fs_uber declares the
-    // comparison sampler unconditionally, so slot 4 must be bound for
-    // every submit of the uber program regardless of whether the
-    // lightViewProj uniform is present.
-    if (bgfx::isValid(g_device.shadowMapDepth) && bgfx::isValid(g_uniforms.sShadowMap))
-    {
-        bgfx::setTexture(4, g_uniforms.sShadowMap, g_device.shadowMapDepth);
-    }
+    BindShadowMapTexture();
 
     // Phase 4H tree / grass sway shader takes over the program slot
     // and uploads its own constants when active. Otherwise fall back
