@@ -42,8 +42,8 @@ uniform vec4 u_shadowParams; // .x > 0.5 = receive CSM shadows
 #define SRC_DIFFUSE  1.0
 #define SRC_CURRENT  2.0
 
-// Shadow map size — must match kShadowMapResolution in BgfxBackend.cpp.
-#define SHADOW_MAP_RESOLUTION 4096.0
+// Shadow map inverse resolution, passed from C++ via u_shadowParams.y
+// to avoid hardcoding the texture size in both shader and backend.
 // Shadow map depth bias. Terrain uses a larger value to kill self-shadow acne on near-flat slopes; general meshes need a tighter value so curved / thin geometry keeps its contact shadow.
 #define SHADOW_BIAS_TERRAIN 0.005
 #define SHADOW_BIAS_GENERAL 0.002
@@ -94,7 +94,7 @@ float applyAlphaOp(float op, float arg1, float arg2)
 float sampleShadow(vec2 shadowUV, float refZ, float bias)
 {
 	float biasedZ = refZ - bias;
-	float texelSize = 1.0 / SHADOW_MAP_RESOLUTION;
+	float texelSize = u_shadowParams.y;
 	float s0 = shadow2D(s_shadowMap, vec3(shadowUV + vec2(-0.5, -0.5) * texelSize, biasedZ));
 	float s1 = shadow2D(s_shadowMap, vec3(shadowUV + vec2( 0.5, -0.5) * texelSize, biasedZ));
 	float s2 = shadow2D(s_shadowMap, vec3(shadowUV + vec2(-0.5,  0.5) * texelSize, biasedZ));
