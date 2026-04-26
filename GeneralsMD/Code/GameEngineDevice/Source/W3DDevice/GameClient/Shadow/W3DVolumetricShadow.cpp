@@ -2657,6 +2657,7 @@ static int EarClip2D(const float * xy, int N, short * out_indices)
 	return outCount;
 }
 
+#if defined(RTS_DEBUG)
 // TheSuperHackers @debug bobtista 15/04/2026 Phase 4I mesh edge-
 // manifold audit. A closed 2-manifold has every undirected edge used
 // by EXACTLY TWO triangles. Open tubes have some edges used once (the
@@ -2665,7 +2666,10 @@ static void AuditShadowVolumeEdges(Geometry * shadowVolume, int vertexCount,
                                    int polygonCount, const char * tag)
 {
 	static int s_auditCount = 0;
-	if (s_auditCount++ >= 20) return;
+	if (s_auditCount++ >= 20)
+	{
+		return;
+	}
 
 	std::map<std::pair<int,int>, int> edgeCount;
 	for (int p = 0; p < polygonCount; ++p)
@@ -2676,7 +2680,10 @@ static void AuditShadowVolumeEdges(Geometry * shadowVolume, int vertexCount,
 		{
 			int a = idx[e];
 			int b = idx[(e+1) % 3];
-			if (a > b) std::swap(a, b);
+			if (a > b)
+			{
+				std::swap(a, b);
+			}
 			edgeCount[std::make_pair(a, b)]++;
 		}
 	}
@@ -2693,6 +2700,7 @@ static void AuditShadowVolumeEdges(Geometry * shadowVolume, int vertexCount,
 	             used1, used2, usedOther,
 	             (used1 == 0 && usedOther == 0) ? "CLOSED_MANIFOLD" : "OPEN_OR_NON_MANIFOLD"));
 }
+#endif
 
 void W3DVolumetricShadow::constructVolume( Vector3 *lightPosObject,Real shadowExtrudeDistance, Int volumeIndex, Int meshIndex )
 {
@@ -2911,7 +2919,9 @@ void W3DVolumetricShadow::constructVolume( Vector3 *lightPosObject,Real shadowEx
 	shadowVolume->SetNumActivePolygon(polygonCount);
 	shadowVolume->SetNumActiveVertex(vertexCount);
 
+#if defined(RTS_DEBUG)
 	AuditShadowVolumeEdges(shadowVolume, vertexCount, polygonCount, "constructVolume(dynamic)");
+#endif
 }
 
 // constructVolumeVB ==========================================================
