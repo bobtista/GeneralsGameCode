@@ -71,17 +71,27 @@ static void ForceOpaqueIfProceduralX8R8G8B8(TextureClass * tex2d,
     unsigned expectedPitch, unsigned numRows)
 {
     if (tex2d == nullptr || mem == nullptr)
+    {
         return;
+    }
     if (bgfxFmt != bgfx::TextureFormat::BGRA8)
+    {
         return;
+    }
     if (tex2d->Get_Texture_Format() != WW3D_FORMAT_X8R8G8B8)
+    {
         return;
+    }
     if (!tex2d->Get_Full_Path().Is_Empty())
+    {
         return;
+    }
     uint8_t * px = mem->data;
     const unsigned pixelCount = (expectedPitch / 4) * numRows;
     for (unsigned i = 0; i < pixelCount; ++i)
+    {
         px[i * 4 + 3] = 0xff;
+    }
 }
 
 static bool IsCompressedBgfxFormat(bgfx::TextureFormat::Enum bgfxFmt)
@@ -416,19 +426,25 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
 void BgfxBackend::Invalidate_Cached_Texture(TextureBaseClass * texture)
 {
     if (texture == nullptr)
+    {
         return;
+    }
     // Set the D3D pointer to nullptr (sentinel) so the next EnsureBgfxTexture
     // call detects a "change" and re-uploads pixel data. KEEP the dimensions
     // so the in-place update path can check if the bgfx handle is reusable.
     auto d3dIt = g_caches.d3dPtr.find(texture);
     if (d3dIt != g_caches.d3dPtr.end())
+    {
         d3dIt->second.ptr = nullptr;
+    }
 }
 
 void BgfxBackend::Release_Cached_Texture(TextureBaseClass * texture)
 {
     if (texture == nullptr)
+    {
         return;
+    }
     // Called from TextureBaseClass::~TextureBaseClass before the D3D8
     // texture is released. Queue the bgfx handle for deferred destruction
     // (in-flight draws may still reference it this frame) and erase the
@@ -438,7 +454,9 @@ void BgfxBackend::Release_Cached_Texture(TextureBaseClass * texture)
     if (it != g_caches.texture.end())
     {
         if (bgfx::isValid(it->second))
+        {
             g_caches.deferredDestroys.push_back(it->second);
+        }
         g_caches.texture.erase(it);
     }
     g_caches.d3dPtr.erase(texture);
@@ -452,7 +470,9 @@ void BgfxBackend::Release_Cached_Texture(TextureBaseClass * texture)
     if (fbIt != g_caches.framebuffer.end())
     {
         if (bgfx::isValid(fbIt->second.fb))
+        {
             bgfx::destroy(fbIt->second.fb);
+        }
         g_caches.framebuffer.erase(fbIt);
     }
 }
@@ -503,7 +523,9 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
             if (oldIt != g_caches.texture.end())
             {
                 if (bgfx::isValid(oldIt->second))
+                {
                     g_caches.deferredDestroys.push_back(oldIt->second);
+                }
                 g_caches.texture.erase(oldIt);
             }
             g_caches.d3dPtr.erase(s_lastShroudDst);
