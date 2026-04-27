@@ -24,7 +24,7 @@
 // vertex/index buffer cache, pick a bgfx program from a ShaderClass,
 // etc.) and calls the base class first to keep the dx8 device functional.
 //
-// After the Phase 4K cutover the dx8 device goes away and the base class
+// After the cutover the dx8 device goes away and the base class
 // forwards become no-ops. Until then, this dual path is what keeps the
 // dx8 main game window rendering correctly in the bgfx build.
 //
@@ -36,8 +36,8 @@
 
 #include "DX8Backend.h"
 
-// TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 — BgfxBackend
-// always inherits from DX8Backend. The earlier Phase 5.1 preprocessor
+// TheSuperHackers @refactor bobtista 22/04/2026 BgfxBackend
+// always inherits from DX8Backend. The earlier preprocessor
 // base-class swap was reverted because it broke DX8Wrapper's state
 // tracking (which the sorting renderer and others read back). Instead,
 // standalone mode (GGC_BGFX_STANDALONE) keeps the class hierarchy and
@@ -88,10 +88,10 @@ public:
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset) override;
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset) override;
 
-    // Phase 4C.4 write-side capture hooks. DX8Backend inherits the
+    // Write-side capture hooks. DX8Backend inherits the
     // empty default from IRenderBackend; BgfxBackend captures the data
     // into the cache for use by Set_Vertex_Buffer / Set_Index_Buffer.
-    // Phase 4G.2 adds the dynamic variants for DynamicVBAccessClass /
+    // Adds the dynamic variants for DynamicVBAccessClass /
     // DynamicIBAccessClass which get copied into bgfx transient buffers.
 
     virtual void Capture_Vertex_Data(const VertexBufferClass * vb,
@@ -149,7 +149,7 @@ public:
     virtual bool Begin_Smudge_Distortion() override;
     virtual void End_Smudge_Distortion() override;
 
-    // Phase 4H tree / grass sway shader hooks (see IRenderBackend.h).
+    // Tree / grass sway shader hooks (see IRenderBackend.h).
     virtual void Set_Tree_Shader_Constants(const float swayTable[11][4],
                                            const float shroudOffset[4],
                                            const float shroudScale[4]) override;
@@ -185,7 +185,7 @@ public:
 
     virtual void Set_Depth_Func(CompareFunc func) override;
 
-    // Phase 4I bgfx stencil state capture.
+    // bgfx stencil state capture.
     virtual void Set_Stencil_Enable(bool enable) override;
     virtual void Set_Stencil_Func(CompareFunc f) override;
     virtual void Set_Stencil_Ref(unsigned ref) override;
@@ -241,7 +241,7 @@ public:
     // Is_Render_To_Texture, Set/Get_Shadow_Map)
     // is inherited from DX8Backend and forwards to DX8Wrapper unchanged.
 
-    // -- Resource creation (Phase 5 asset ingress) ---------------------------
+    // -- Resource creation (asset ingress) ---------------------------
     //
     // Each override first forwards to DX8Backend so the ref-popup build's
     // D3D8 resource is created in parallel (that is how the DX8 reference

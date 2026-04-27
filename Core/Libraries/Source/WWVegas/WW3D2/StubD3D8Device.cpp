@@ -16,7 +16,7 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 Stage 1
+// TheSuperHackers @refactor bobtista 22/04/2026 Stage 1
 // No-op implementations of the Direct3D 8 COM interfaces. These stubs allow
 // DX8Wrapper to be driven against a synthetic Direct3D 8 device without
 // loading d3d8.dll at runtime. Every method returns S_OK / D3D_OK and does
@@ -41,7 +41,7 @@
 namespace
 {
 
-// TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 — scratch buffers
+// TheSuperHackers @refactor bobtista 22/04/2026 Scratch buffers
 // must bypass the game's overridden global operator new[] (see
 // GameMemory.cpp: new[] routes through TheDynamicMemoryAllocator). Stub
 // surfaces can be tens of MB (e.g. a 4096x4096 shadow map = 64 MB) and
@@ -60,7 +60,7 @@ static StubScratch AllocScratch(size_t bytes)
 	return StubScratch(static_cast<uint8_t*>(p));
 }
 
-// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 — stub Lock/Desc
+// TheSuperHackers @bugfix bobtista 22/04/2026 Stub Lock/Desc
 // previously reported pitch = width*4 regardless of format. Terrain uses
 // D3DFMT_A1R5G5B5 (2 bytes/pixel); upload paths (EnsureBgfxTexture,
 // D3DXFilterTexture) trust the reported pitch as source stride, so a
@@ -210,7 +210,7 @@ static void FillCaps(D3DCAPS8& caps)
 	caps.AlphaCmpCaps = caps.ZCmpCaps;
 	caps.ShadeCaps = D3DPSHADECAPS_COLORGOURAUDRGB | D3DPSHADECAPS_SPECULARGOURAUDRGB
 		| D3DPSHADECAPS_ALPHAGOURAUDBLEND | D3DPSHADECAPS_FOGGOURAUD;
-	// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 — DO NOT set
+	// TheSuperHackers @bugfix bobtista 22/04/2026 DO NOT set
 	// D3DPTEXTURECAPS_POW2 or D3DPTEXTURECAPS_SQUAREONLY here; those are
 	// RESTRICTIONS, not features. D3DXCreateTexture reads these and rounds
 	// rectangular textures down to the largest legal square (e.g. 2048x1
@@ -1016,7 +1016,7 @@ public:
 		return D3D_OK;
 	}
 
-	// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 — D3DX8 loads
+	// TheSuperHackers @bugfix bobtista 22/04/2026 D3DX8 loads
 	// texture files via Create (MANAGED) + Create (SYSTEMMEM scratch) +
 	// UpdateTexture(scratch → managed). A no-op UpdateTexture leaves
 	// the managed texture empty, which is why infantry / fonts / HUD
@@ -1126,8 +1126,8 @@ public:
 	STDMETHOD(Clear)(DWORD, CONST D3DRECT*, DWORD, D3DCOLOR, float, DWORD) override { return D3D_OK; }
 	STDMETHOD(SetTransform)(D3DTRANSFORMSTATETYPE state, CONST D3DMATRIX* m) override
 	{
-		// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 —
-		// W3DWater and W3DTreeBuffer read back the current view/world
+		// TheSuperHackers @bugfix bobtista 22/04/2026 W3DWater and
+		// W3DTreeBuffer read back the current view/world
 		// transform via DX8Wrapper::_Get_DX8_Transform, compute inverses
 		// and feed shader constants. A GetTransform that returns zero
 		// yields a singular matrix (det = 0), producing NaN shader
