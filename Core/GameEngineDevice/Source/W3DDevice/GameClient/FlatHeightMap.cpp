@@ -487,6 +487,9 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 		return;
 	}
 #endif
+	// TheSuperHackers @bugfix bobtista 28/04/2026 Keep flat terrain in sync
+	// with the bgfx cloudmap path used by regular terrain.
+	W3DShaderManager::pushCloudShadowToBackend(doCloud, doCloud ? m_stageTwoTexture : nullptr);
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
 	// through the IRenderBackend abstraction.
@@ -650,6 +653,7 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	m_stageTwoTexture->restore();
 	ShaderClass::Invalidate();
 	g_renderBackend->Set_Material(nullptr);
+	W3DShaderManager::pushCloudShadowToBackend(false, nullptr);
 
 }
 
