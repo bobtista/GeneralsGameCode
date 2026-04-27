@@ -46,7 +46,7 @@
 #include <bgfx/platform.h>
 #include <bx/math.h>
 
-// TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. bgfx takes the main
+// TheSuperHackers @refactor bobtista 16/04/2026 bgfx takes the main
 // game window. A secondary popup is created for D3D8 reference output.
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -56,7 +56,7 @@
 #endif
 #include <windows.h>
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.2 compiled shader
+// TheSuperHackers @refactor bobtista 11/04/2026 Compiled shader
 // bytecode. These headers are generated at build time by ggc_compile_bgfx_shader
 // (cmake/bgfx.cmake) and end up in the target's binary dir. They define
 // vs_passthrough_dx11[] and fs_passthrough_dx11[] as static const uint8_t
@@ -64,14 +64,14 @@
 #include "vs_passthrough_dx11.bin.h"
 #include "fs_passthrough_dx11.bin.h"
 
-// TheSuperHackers @refactor bobtista 12/04/2026 Phase 5A uber shader pair.
+// TheSuperHackers @refactor bobtista 12/04/2026 Uber shader pair.
 // Single program handles all TSS combinations via uniforms. Replaces the
-// Phase 4D.1 per-preset shader pairs.
+// Per-preset shader pairs.
 #include "vs_uber_dx11.bin.h"
 #include "vs_trees_dx11.bin.h"
 #include "fs_uber_dx11.bin.h"
 
-// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I stencil shadow
+// TheSuperHackers @refactor bobtista 15/04/2026 Stencil shadow
 // volume program. Vertex shader is a trivial XYZ->clip transform; fragment
 // writes nothing visible because color writes are disabled for the pass.
 #include "vs_shadow_volume_dx11.bin.h"
@@ -79,7 +79,7 @@
 #include "vs_shadow_apply_dx11.bin.h"
 #include "fs_shadow_apply_dx11.bin.h"
 
-// Phase 4I.2 CSM caster pass shaders.
+// CSM caster pass shaders.
 #include "vs_shadow_caster_dx11.bin.h"
 #include "fs_shadow_caster_dx11.bin.h"
 #include "vs_scene_composite_dx11.bin.h"
@@ -105,7 +105,7 @@ BgfxOverrides  g_overrides;
 BgfxViewFlags  g_views;
 BgfxFrame      g_frame;
 BgfxCaches     g_caches;
-// Phase 5 asset-ingress resource side-table. id 0 is reserved invalid.
+// Asset-ingress resource side-table. id 0 is reserved invalid.
 BgfxPhase5Resources g_phase5 = { {}, 1 };
 
 
@@ -131,7 +131,7 @@ static const float kTssArgTexture =  0.0f;
 static const float kTssArgDiffuse =  1.0f;
 static const float kTssArgCurrent =  2.0f;
 
-// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I bgfx callback
+// TheSuperHackers @refactor bobtista 15/04/2026 bgfx callback
 // so fatal errors and debug trace messages land in DebugLogFileD.txt
 // instead of silently firing bx::debugBreak. Without this, internal
 // bgfx validation failures produce only a raw breakpoint with no text.
@@ -223,7 +223,7 @@ static void UpdateShadowStencilState()
 // Sway table: 11 entries (no-sway at index 0, MAX_SWAY_TYPES=10 active).
 
 // Sampler uniform shared by all textured fragment shaders. Bound to stage 0.
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.9 material
+// TheSuperHackers @refactor bobtista 11/04/2026 Material
 // diffuse uniform. Carries the VertexMaterialClass::Get_Diffuse color
 // + opacity from Set_Material into the fragment shader so team colors
 // (which the W3D engine writes into the material diffuse channel) and
@@ -242,12 +242,12 @@ static void UpdateShadowStencilState()
 // Named u_atestParams (not u_alphaRef) to avoid bgfx_shader.sh's internal
 // u_alphaRef4 conflict. See fs_textured_lit_atest.sc for details.
 
-// Phase 5A TSS operation uniforms. Encode the DX8 texture stage state
+// TSS operation uniforms. Encode the DX8 texture stage state
 // operations so the uber fragment shader can evaluate them at runtime.
 
 // Post-ShaderClass blend/alpha-test overrides. Set by Override_Blend /
 // Override_Alpha_Test, cleared by Clear_State_Overrides (called from Set_Shader).
-// TheSuperHackers @feature bobtista 16/04/2026 Phase 4L 2D overlay active flag.
+// TheSuperHackers @feature bobtista 16/04/2026 2D overlay active flag.
 // Set by Set_View_Identity (Render2DClass enters 2D mode), cleared by
 // Set_Transform(VIEW) when a real camera view is restored or at Begin_Scene.
 
@@ -268,7 +268,7 @@ static void UpdateShadowStencilState()
 // .y = terrain blend flag: when > 0, shader does lerp(tex0, tex1, vertex_alpha)
 // using UV set 0 for tex0 and UV set 1 for tex1
 
-// Phase 5B: lighting uniforms. The engine supports up to 4 lights
+// Lighting uniforms. The engine supports up to 4 lights
 // (typically 1 directional sun + 0-3 point lights). We pack light data
 // into vec4 arrays and push them per-draw so the uber fragment shader
 // can evaluate real N.L lighting instead of the hardcoded fake sun.
@@ -278,11 +278,11 @@ static void UpdateShadowStencilState()
 // Defaults match the old hardcoded sun: direction TOWARD light (positive),
 // white diffuse, reasonable ambient. These are used until the first
 // Set_Light_Environment call provides real game lights.
-// Phase 5B: tracks whether the current material has lighting enabled.
+// Tracks whether the current material has lighting enabled.
 // When false, the vertex color contains pre-baked lighting (terrain)
 // and the fragment shader should NOT apply N.L lighting on top.
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4F.1 default 1x1
+// TheSuperHackers @refactor bobtista 11/04/2026 Default 1x1
 // white texture. Real Set_Texture wiring is not in place yet, so the
 // textured shaders need SOMETHING bound to s_tex0 or D3D11 returns
 // undefined values. A 1x1 opaque white texture is a sensible default
@@ -295,9 +295,9 @@ static void UpdateShadowStencilState()
 // Initialized in Initialize since bgfx::VertexLayout::begin needs bgfx to be
 // up and running (it queries the active renderer for the pos type).
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.1 standard
+// TheSuperHackers @refactor bobtista 11/04/2026 Standard
 // vertex layouts. One per common FVF format. Initialized in Initialize,
-// used by Phase 4C.2's vertex buffer creation path. Names follow the FVF
+// used by's vertex buffer creation path. Names follow the FVF
 // tags - P=position, N=normal, D=diffuse (color0), T<n>=texcoord<n>.
 
 // TheSuperHackers @refactor bobtista 26/04/2026 Shader program creation
@@ -401,10 +401,9 @@ BgfxBackend::~BgfxBackend()
 
 namespace
 {
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4D.2 ShaderClass
+// TheSuperHackers @refactor bobtista 11/04/2026 ShaderClass
 // translation table. Maps a ShaderClass instance to (program handle,
-// bgfx state bits). Defined but not yet called by any draw path - the
-// wiring lands in a later session along with the per-stage TSS uber-shader.
+// bgfx state bits).
 //
 // Mapping rules:
 //   - alpha-test enabled & textured & lit -> g_texturedLitAtestProgram
@@ -461,7 +460,7 @@ uint64_t TranslateDepthCompare(ShaderClass::DepthCompareType cmp)
     }
 }
 
-// Phase 5A: extract TSS operation IDs from ShaderClass preset bits.
+// Extract TSS operation IDs from ShaderClass preset bits.
 // Maps the same logic as shader.cpp's Apply() into float IDs that the
 // uber fragment shader evaluates at runtime.
 //
@@ -653,7 +652,7 @@ uint64_t BuildBgfxStateForShader(const ShaderClass & shader)
     return state;
 }
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.2 generic FVF
+// TheSuperHackers @refactor bobtista 11/04/2026 Generic FVF
 // to bgfx::VertexLayout translator. Walks the FVFInfoClass offset
 // table and emits attributes in offset order. Handles arbitrary FVF
 // combinations including padding and unused texcoord stages by issuing
@@ -799,7 +798,7 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
     return out.getStride() == totalSize;
 }
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.3 vertex/index
+// TheSuperHackers @refactor bobtista 11/04/2026 Vertex/index
 // buffer caches. The engine recycles VertexBufferClass / IndexBufferClass
 // instances throughout its lifetime, so we cache the bgfx handle keyed
 // by the source pointer. On first encounter we lock the source buffer
@@ -812,14 +811,14 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // session; if it bites us we'll add a generation counter or hook the
 // destructor.
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 switched from
+// TheSuperHackers @refactor bobtista 11/04/2026 Switched from
 // static bgfx VB/IB handles to dynamic ones. Rigid mesh category containers
 // fill their shared VB / IB one sub-range at a time via AppendLockClass,
 // which requires in-place sub-range updates that only dynamic bgfx buffers
 // support. Full-buffer writes (WriteLockClass) also go through the same
 // dynamic path - created once, updated with bgfx::update as the engine
 // rewrites the buffer.
-// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I cache entries
+// TheSuperHackers @refactor bobtista 15/04/2026 Cache entries
 // store (handle, num_verts, stride) so we can detect the case where the
 // engine destroys a VertexBufferClass and reuses the memory address for
 // a new VB with different dimensions — otherwise we'd hand back a stale
@@ -846,7 +845,7 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // Set_Index_Buffer. Read by Draw_Triangles when it issues the bgfx
 // submit. Cleared (made invalid) on Shutdown.
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2 transient
+// TheSuperHackers @refactor bobtista 11/04/2026 Transient
 // (dynamic) buffer state. Capture_Dynamic_Vertex_Data allocs a bgfx
 // transient VB and records the owning DynamicVBAccessClass pointer so
 // the matching Set_Vertex_Buffer(DynamicVBAccessClass&) call can claim
@@ -856,7 +855,7 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // shadow the static VB/IB handles above - SubmitEngineDraw picks the
 // transient path when these are true.
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4E.4 transform
+// TheSuperHackers @refactor bobtista 11/04/2026 Transform
 // capture. The engine calls Set_Transform with world / view / projection
 // matrices in W3D row-major form (Vector4 Row[4]). bgfx wants column-
 // major float[16] for setViewTransform / setTransform. We convert with
@@ -881,7 +880,7 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 const bgfx::ViewId kBgfxDebugView  = 0;
 const bgfx::ViewId kBgfxEngineView = 1;
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.12 dedicated
+// TheSuperHackers @refactor bobtista 11/04/2026 Dedicated
 // view id for sorted draws. View 2's view matrix is permanently
 // identity and its projection tracks view 1's. Per-batch sort
 // transforms get pre-multiplied into g_frame.sortWorld so view 2 never
@@ -897,7 +896,7 @@ const bgfx::ViewId kBgfxWaterView = 4;
 // through the sort view (which has the camera perspective projection)
 // re-projects their NDC coords and pushes them off-screen.
 const bgfx::ViewId kBgfxEffectOverlayView = 5;
-// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I dedicated
+// TheSuperHackers @refactor bobtista 15/04/2026 Dedicated
 // views for stencil shadow volumes + darken-apply pass. Running in
 // sequential order on the same framebuffer as view 1 guarantees:
 //  - Opaque geometry in view 1 has populated the depth buffer before
@@ -912,7 +911,7 @@ const bgfx::ViewId kBgfxEffectOverlayView = 5;
 // view's attachments and the engine view already cleared them.
 const bgfx::ViewId kBgfxShadowVolumeView = 6;
 const bgfx::ViewId kBgfxShadowApplyView  = 7;
-// Phase 4I.2 CSM caster pass view. Depth-only render target, renders
+// CSM caster pass view. Depth-only render target, renders
 // opaque casters from the sun's perspective into a D24 shadow map.
 const bgfx::ViewId kBgfxShadowMapView    = 8;
 // TheSuperHackers @feature bobtista 27/04/2026 Scene composite view. World,
@@ -924,7 +923,7 @@ const bgfx::ViewId kBgfxSceneCompositeView = 9;
 // distorted samples back into the scene framebuffer before final composite.
 const bgfx::ViewId kBgfxSmudgeCopyView      = 12;
 const bgfx::ViewId kBgfxSmudgeView          = 13;
-// TheSuperHackers @feature bobtista 16/04/2026 Phase 4L dedicated view for
+// TheSuperHackers @feature bobtista 16/04/2026 Dedicated view for
 // 2D UI overlay draws (Render2DClass). Sequential mode preserves draw order;
 // identity view+projection so screen-space quads render at their authored
 // positions. Composites over the 3D scene as the last view in the order.
@@ -959,12 +958,12 @@ const int kDX8RefWindowShowDelayFrames   = 30;
 // Per-batch effective world for sorted draws: the pre-multiplied
 // sortView * sortWorld (in bgfx column-major form) captured from the
 // engine's render_state by Capture_Sorted_Batch_Transforms.
-// Phase 4I.2 CSM: raw model-to-world matrix for sorted draws, WITHOUT
+// CSM: raw model-to-world matrix for sorted draws, WITHOUT
 // the camera view baked in. Used for shadow caster submissions where
 // the light's view+proj replaces the camera's. g_frame.sortWorld has
 // model*cameraView which contaminates the light-space transform.
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 Set by
+// TheSuperHackers @refactor bobtista 11/04/2026 Set by
 // Submit_Sorted_Draw after it emits the bgfx submit for a sorting VB
 // direct draw. The outer BgfxBackend::Draw_Triangles consumes this
 // flag to skip its SubmitEngineDraw - the draw was already issued
@@ -1051,12 +1050,12 @@ static void GetSoftParticleParams(float * params)
 #endif
 }
 
-// TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. Aspect correction
+// TheSuperHackers @refactor bobtista 16/04/2026 Aspect correction
 // is no longer needed because bgfx renders into the same window as the game.
 // The engine's projection matrix already matches the bgfx framebuffer aspect.
 
-// TheSuperHackers @bugfix bobtista 11/04/2026 Phase 4C.3 buffer copy
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4F.2 texture
+// TheSuperHackers @bugfix bobtista 11/04/2026 Buffer copy
+// TheSuperHackers @refactor bobtista 11/04/2026 Texture
 // capture. Unlike vertex buffers, W3D textures default to POOL_MANAGED,
 // which is safe to lock with D3DLOCK_READONLY on the Intel UHD driver.
 // We can read the source d3d8 texture data on demand from inside
@@ -1070,13 +1069,13 @@ static void GetSoftParticleParams(float * params)
 namespace { // reopen anonymous namespace
 
 
-// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I.2 CSM light
+// TheSuperHackers @refactor bobtista 15/04/2026 CSM light
 // transform computation. Called once per frame to build an ortho
 // projection from a hardcoded sun direction, fitted to a generous
 // world-space box centered on the tactical view. Stores results in
 // g_frame.shadowLightView / g_frame.shadowLightProj (bgfx column-major), then
 // pushes them to the shadow map view. Not yet tied to the engine's
-// actual sun direction — Phase 4I.2 Session D hooks that up.
+// actual sun direction —Session D hooks that up.
 static const float kSunDistanceFromGround = 10000.0f;
 
 // TheSuperHackers @info bobtista 28/04/2026 Fallback sun direction used
@@ -1417,7 +1416,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         return;
     }
 
-    // TheSuperHackers @feature bobtista 16/04/2026 Phase 4K. bgfx takes the
+    // TheSuperHackers @feature bobtista 16/04/2026 bgfx takes the
     // main game window; DX8 moves to a secondary popup for reference.
     g_device.window = static_cast<HWND>(hwnd);
     if (g_device.window == nullptr)
@@ -1475,7 +1474,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 
     g_device.initialized = true;
 
-    // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. The explicit
+    // TheSuperHackers @refactor bobtista 16/04/2026 The explicit
     // bgfx::reset() after init is removed because it triggers a DXGI
     // assertion when bgfx owns the main game HWND. The init call already
     // configured the resolution and format correctly.
@@ -1486,7 +1485,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 
     // Configure view 0 to clear the debug window to a dark teal so it's
     // visually obvious bgfx is running and alive. View 0 holds the test
-    // triangle (Phase 4B sentinel).
+    // triangle (sentinel).
     bgfx::setViewClear(kBgfxDebugView,
                        BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
                        0x000000ff,  // black
@@ -1519,7 +1518,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
                       static_cast<uint16_t>(g_device.width),
                       static_cast<uint16_t>(g_device.height));
 
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.12 sorted
+    // TheSuperHackers @refactor bobtista 11/04/2026 Sorted
     // draws view. No clear (reuses view 1's color + depth so sorted
     // particles z-test correctly against opaque geometry), same rect.
     // View matrix is permanently identity; projection tracks view 1's
@@ -1550,7 +1549,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         bgfx::setViewTransform(kBgfxEffectOverlayView, identityMtx, identityMtx);
     }
 
-    // Phase 4I shadow-volume view. Sequential so the two-pass algorithm
+    // Shadow-volume view. Sequential so the two-pass algorithm
     // (front INCR / back DECR) runs in submit order. No clear. View
     // transform is pushed per-frame from the engine camera via the
     // dirty-flag logic alongside view 1.
@@ -1560,7 +1559,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
                       static_cast<uint16_t>(g_device.height));
     bgfx::setViewMode(kBgfxShadowVolumeView, bgfx::ViewMode::Sequential);
 
-    // Phase 4I shadow darken apply pass. Sequential, identity transforms
+    // Shadow darken apply pass. Sequential, identity transforms
     // (the fullscreen quad is authored in clip space).
     bgfx::setViewClear(kBgfxShadowApplyView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
     bgfx::setViewRect(kBgfxShadowApplyView, 0, 0,
@@ -1606,7 +1605,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         bgfx::setViewTransform(kBgfxSmudgeView, identityMtx, identityMtx);
     }
 
-    // Phase 4L UI overlay view. Sequential mode preserves draw order for
+    // UI overlay view. Sequential mode preserves draw order for
     // 2D quads; identity view+projection; no clear so it composites over
     // the 3D scene.
     bgfx::setViewClear(kBgfxUIView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
@@ -1640,7 +1639,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         bgfx::setViewTransform(kBgfxEngineSortView, identityView, g_frame.proj);
     }
 
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.3 create the
+    // TheSuperHackers @refactor bobtista 11/04/2026 Create the
     // passthrough shader program and vertex layout so End_Scene can submit
     // a test triangle. If shader creation fails the backend still runs but
     // the triangle is skipped.
@@ -1788,7 +1787,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
                      g_device.shadowMapFB.idx, g_device.shadowMapDepth.idx,
                      bgfx::isValid(g_device.shadowMapFB) ? 1 : 0));
 
-        // Phase 4I.2 view ORDER: shadow map (view 8) MUST render before
+        // View ORDER: shadow map (view 8) MUST render before
         // the engine view (view 1) samples it in fs_uber. By default
         // bgfx renders views in view-id order (0, 1, 2, ...) — view 8
         // would run AFTER view 1, and the scene would sample empty /
@@ -1851,7 +1850,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
                  caps->homogeneousDepth ? 1 : 0,
                  caps->originBottomLeft ? 1 : 0));
 
-    // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. DX8 now creates
+    // TheSuperHackers @refactor bobtista 16/04/2026 DX8 now creates
     // its own secondary reference window in DX8Wrapper::Init, so no need to
     // create or move anything here.
 }
@@ -1935,7 +1934,7 @@ void BgfxBackend::Shutdown()
             }
         }
         g_caches.framebuffer.clear();
-        // Phase 4C.3 cached engine buffers. Destroy before bgfx::shutdown
+        // Cached engine buffers. Destroy before bgfx::shutdown
         // so the handles outlive nothing.
         for (auto & kv : g_caches.vb)
         {
@@ -2013,7 +2012,7 @@ void BgfxBackend::Shutdown()
         WWDEBUG_SAY(("[BgfxBackend] bgfx::shutdown complete."));
     }
 
-    // Phase 4K: bgfx window is the main game window, do not destroy it.
+    // bgfx window is the main game window, do not destroy it.
     // DX8's secondary reference window is owned by DX8Wrapper.
     g_device.window = nullptr;
 }
@@ -2183,7 +2182,7 @@ void BgfxBackend::Begin_Scene()
     }
     bgfx::touch(kBgfxSceneCompositeView);
     bgfx::touch(kBgfxUIView);
-    // Phase 4I.2 CSM: light transform updated lazily at first draw
+    // CSM: light transform updated lazily at first draw
     // (see SubmitEngineDraw), not here, because g_frame.view is still
     // identity at Begin_Scene time.
     g_frame.shadowLightCaptured = false;
@@ -2235,7 +2234,7 @@ void BgfxBackend::Begin_Scene()
     // correctly.
     g_draw.texcoordSelect[1] = 0.0f;
 
-    // TheSuperHackers @bugfix bobtista 23/04/2026 Phase 5.2 — clear the
+    // TheSuperHackers @bugfix bobtista 23/04/2026 Clear the
     // cached sampler bindings at the start of every frame. Without this,
     // whatever slot-0 texture the last frame's final 2D UI draw bound
     // (e.g. a font-atlas handle carrying debug-clock glyphs) persists
@@ -2299,7 +2298,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         bgfx::setViewTransform(kBgfxEngineSortView, identityView, g_frame.sortProj);
         g_frame.sortProjCaptured = false;
     }
-    // Phase 4L: push identity transforms and current rect to the UI view
+    // Push identity transforms and current rect to the UI view
     // so 2D overlay draws land in screen space over the 3D scene.
     {
         float identityMtx[16];
@@ -2310,13 +2309,13 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                       static_cast<uint16_t>(g_device.width),
                       static_cast<uint16_t>(g_device.height));
 
-    // Phase 4I.2: debug view (0) runs FIRST to emit the backbuffer
+    // Debug view (0) runs FIRST to emit the backbuffer
     // clear quad, then shadow map (view 8) so its depth texture is
     // populated before the scene samples it. Then RTT (3), engine
     // opaque (1), shadow volume fill (6), shadow darken (7), water (4),
     // sort (2), effect overlay (5), heat-haze smudge copy/draw (12/13),
     // scene composite (9), UI overlay (10) last.
-    // TheSuperHackers @bugfix bobtista 20/04/2026 view 0 MUST be
+    // TheSuperHackers @bugfix bobtista 20/04/2026 View 0 MUST be
     // included — when omitted, bgfx defers it to the end with a 1x1
     // viewport, and the full-canvas clear never fires (causing
     // flickering UI leftovers under the control bar on frames where
@@ -2366,7 +2365,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
 void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)
 {
     DX8Backend::Set_Vertex_Buffer(vb, stream);
-    // Phase 4C.4: cache is populated by Capture_Vertex_Data on the engine's
+    // Cache is populated by Capture_Vertex_Data on the engine's
     // own write lock. Set_Vertex_Buffer just looks up whatever is already
     // there. Engine VBs that have not been written via the WriteLockClass
     // path yet (e.g. those filled by raw d3d8 calls) will miss the cache
@@ -2425,7 +2424,7 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
     DX8Backend::Set_Vertex_Buffer(vba);
     g_draw.vertexColorFlags[0] =
         (vba.FVF_Info().Get_FVF() & D3DFVF_DIFFUSE) ? 1.0f : 0.0f;
-    // Phase 4G.2: if the matching Capture_Dynamic_Vertex_Data already
+    // If the matching Capture_Dynamic_Vertex_Data already
     // allocated a transient VB for this access class, claim it for the
     // next draw. Otherwise miss the cache and skip the bgfx submit.
     if (g_draw.pendingVB.valid && g_draw.pendingVB.owner == &vba)
@@ -2500,7 +2499,7 @@ void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned sh
     g_draw.ibOffset = index_base_offset;
 }
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.8 override
+// TheSuperHackers @refactor bobtista 11/04/2026 Override
 // Set_Index_Buffer_Index_Offset so we capture the per-mesh base vertex
 // offset. DX8PolygonRendererClass::Render calls this once per mesh
 // before Draw_Triangles to shift which vertex slot in the shared
@@ -2515,7 +2514,7 @@ void BgfxBackend::Set_Index_Buffer_Index_Offset(unsigned int offset)
     g_draw.ibOffset = static_cast<unsigned short>(offset);
 }
 
-// -- Phase 4C.4 write-side capture -------------------------------------------
+// -- Write-side capture ----------------------------------------------------
 //
 // Called from VertexBufferClass::WriteLockClass / IndexBufferClass::WriteLockClass
 // destructors after the engine has finished writing data through the
@@ -2531,7 +2530,7 @@ void BgfxBackend::Set_Index_Buffer_Index_Offset(unsigned int offset)
 
 namespace
 {
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 dynamic buffer
+// TheSuperHackers @refactor bobtista 11/04/2026 Dynamic buffer
 // ensure helpers. Return the cached dynamic VB / IB handle for the given
 // engine buffer, creating it sized to the full capacity on first sight.
 // Returned handle is guaranteed valid on success; invalid handle on
@@ -2774,7 +2773,7 @@ void BgfxBackend::Capture_Index_Sub_Range(const IndexBufferClass * ib,
 
 }
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.12 sorted
+// TheSuperHackers @refactor bobtista 11/04/2026 Sorted
 // draw pass routing. The sort flush calls Begin / Capture / End
 // around its per-batch draw loop. Begin flips the routing flag so
 // SubmitEngineDraw pushes submits into kBgfxEngineSortView using
@@ -2825,7 +2824,7 @@ void BgfxBackend::Capture_Sorted_Batch_Transforms(const Matrix4x4 & sortWorld,
                 s += sortWorld[r][k] * sortView[k][c];
             }
             g_frame.sortWorld[r * 4 + c] = s;
-            // Phase 4I.2: store raw model (no camera view baked in)
+            // Store raw model (no camera view baked in)
             // for shadow caster submissions.
         }
     }
@@ -3204,7 +3203,7 @@ static void UploadMaterialUniforms()
     }
 }
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 sorted VB
+// TheSuperHackers @refactor bobtista 11/04/2026 Sorted VB
 // direct-draw submit. Called from DX8Wrapper::Draw_Sorting_IB_VB after
 // it populates an internal dynamic VB and dynamic IB by copying a slice
 // of the sorting VB/IB with the correct vba_offset / iba_offset /
@@ -3313,7 +3312,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     g_views.skipNextSubmitEngineDraw = true;
 }
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2 dynamic
+// TheSuperHackers @refactor bobtista 11/04/2026 Dynamic
 // capture. DynamicVBAccessClass / DynamicIBAccessClass are CPU-side
 // views onto a ring buffer that changes every frame (particles, sprites,
 // skinned meshes, HUD). Creating a bgfx VB per frame would churn the
@@ -3403,7 +3402,7 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
 void BgfxBackend::Set_Material(const VertexMaterialClass * material)
 {
     DX8Backend::Set_Material(material);
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.9 capture
+    // TheSuperHackers @refactor bobtista 11/04/2026 Capture
     // material diffuse + opacity so the fragment shader can tint output
     // with team colors. Generals writes the player color into the
     // VertexMaterialClass diffuse channel; without this override bgfx
@@ -3502,13 +3501,13 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
 void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 {
     DX8Backend::Set_Texture(stage, texture);
-    // Phase 4G.3 / 4G.4: stages 0-3 wired. Covers terrain base + detail
+    // Stages 0-3 wired. Covers terrain base + detail
     // + cloud + noise, the standard 4-stage layout used by the
     // FlatHeightMap pixel shader family. Stages above 3 still fall
     // through unmigrated.
     {
         bgfx::TextureHandle h = EnsureBgfxTexture(texture);
-        // TheSuperHackers @bugfix bobtista 16/04/2026 Phase 4I.2 use white
+        // TheSuperHackers @bugfix bobtista 16/04/2026 Use white
         // fallback for render target textures instead of dark blue. The
         // blue fallback was intended for water reflections but applies to
         // ALL unresolved RT textures, tinting the entire world blue.
@@ -3767,7 +3766,7 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
     g_overrides.suppressDraw = false;
 }
 
-// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I mirror the
+// TheSuperHackers @refactor bobtista 15/04/2026 Mirror the
 // DWORD variant into g_overrides.colorWriteOverride so stencil shadow volume
 // passes that call Set_Color_Write_Mask(0) actually disable bgfx color
 // writes. Previously the call fell through to DX8Backend only, leaving
@@ -4302,19 +4301,10 @@ void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
 
 namespace
 {
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.3 actual bgfx
-// submit. Called from both Draw_Triangles overloads when we have a
-// valid cached VB + IB + program. State and program were cached by
-// Set_Shader; the buffers were cached by Set_Vertex_Buffer /
-// Set_Index_Buffer. Submits to view 0, the same view the test
-// triangle uses, so the popup will show both overlapping until we
-// move engine geometry to its own view.
-//
-// View transforms remain identity. Engine geometry is in world
-// coordinates which will be far off-screen under an identity
-// projection - so this draws "nothing visible" except as a way to
-// prove the submit pipeline works without crashing. Real
-// view/projection wiring lands in the next session.
+// TheSuperHackers @refactor bobtista 11/04/2026 bgfx submit. Called from
+// both Draw_Triangles overloads when we have a valid cached VB + IB +
+// program. State and program were cached by Set_Shader; the buffers were
+// cached by Set_Vertex_Buffer / Set_Index_Buffer.
 void SubmitEngineDraw(unsigned short start_index,
                       unsigned short polygon_count,
                       unsigned short min_vertex_index,
@@ -4348,7 +4338,7 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
 
-    // Phase 4G.12: route to the dedicated sorted view when the sort
+    // Route to the dedicated sorted view when the sort
     // flush has activated it. The sort view's view+proj were set at
     // init and are refreshed by Set_Projection_Transform_With_Z_Bias,
     // so it never needs a per-submit setViewTransform - only view 1
@@ -4425,7 +4415,7 @@ void SubmitEngineDraw(unsigned short start_index,
             std::memcpy(g_frame.cameraProj, g_frame.proj, sizeof(g_frame.cameraProj));
             g_frame.cameraCaptured = true;
         }
-        // Phase 4I.2 CSM: update light transform every frame so
+        // CSM: update light transform every frame so
         // shadows follow the camera as it pans/zooms.
         if (!g_frame.shadowLightCaptured)
         {
@@ -4456,7 +4446,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // and resets the per-draw transform after each submit.
     bgfx::setTransform(worldMtx);
 
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.7 offset
+    // TheSuperHackers @refactor bobtista 11/04/2026 Offset
     // semantics. DX8Wrapper::Set_Index_Buffer_Index_Offset and
     // Set_Vertex_Buffer(DynamicVBAccessClass) set a d3d8 BaseVertexIndex
     // (passed to SetIndices). d3d8 implicitly adds that value to every
@@ -4533,7 +4523,7 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
 
-    // Phase 4F.2 / 4G.3 bind engine textures on stages 0 and 1 by
+    // Bind engine textures on stages 0 and 1 by
     // Set_Texture, falling back to the 1x1 white default if no real
     // texture is cached. The default white * vertex color = vertex color,
     // which keeps untextured draws visible until every texture path
@@ -4541,7 +4531,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // identity, so single-texture draws (which don't bind stage 1) are
     // unaffected by the second sample.
     //
-    // Phase 4G.9 force trilinear filtering on all sampler stages.
+    // Force trilinear filtering on all sampler stages.
     // DX8Wrapper normally sets per-stage MIN/MAG/MIP filters via
     // Set_DX8_Texture_Stage_State which bypasses g_renderBackend, so
     // the bgfx samplers use their creation-time default (often point).
@@ -4631,7 +4621,7 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::setUniform(g_uniforms.uSceneAmbient, g_draw.sceneAmbient);
     if (bgfx::isValid(g_uniforms.uLightingEnabled))
     {
-        // TheSuperHackers @bugfix bobtista 15/04/2026 force lighting off
+        // TheSuperHackers @bugfix bobtista 15/04/2026 Force lighting off
         // for additive-blend draws. Particle / dazzle / scanner sprites
         // bake their per-vertex intensity attenuation into vertex diffuse
         // (DazzleRenderObjClass and the particle system do this). The
@@ -4744,7 +4734,7 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
 
-    // Phase 4I.2 CSM caster pass. Submit world and sort-flush geometry
+    // CSM caster pass. Submit world and sort-flush geometry
     // to the shadow map view (view 8). Skip RTT, water, and effect
     // overlay (those are non-shadow-casters by design). Keep this broad:
     // several legacy opaque paths do not advertise bgfx WRITE_Z in their
@@ -4793,7 +4783,7 @@ void SubmitEngineDraw(unsigned short start_index,
                           && isBlended
                           && IsStandardAlphaBlend(state));
 
-    // Phase 4H tree / grass sway shader takes over the program slot
+    // Tree / grass sway shader takes over the program slot
     // and uploads its own constants when active. Otherwise fall back
     // to whatever ShaderClass picked (g_draw.program).
     bgfx::ProgramHandle program = g_draw.program;
@@ -4903,7 +4893,7 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
                                  unsigned short vertex_count)
 {
     DX8Backend::Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
-    // Phase 4G.13: if DX8Wrapper::Draw_Sorting_IB_VB already submitted
+    // If DX8Wrapper::Draw_Sorting_IB_VB already submitted
     // the draw with correctly remapped args against its internal dynamic
     // buffers, skip the outer submit.
     if (g_views.skipNextSubmitEngineDraw)
@@ -4953,7 +4943,7 @@ void BgfxBackend::Draw_Strip(unsigned short start_index,
 // Set_Shadow_Map, Get_Shadow_Map) are inherited from DX8Backend.
 
 // ===========================================================================
-// Phase 5 asset-ingress resource creation
+// Asset-ingress resource creation
 // ===========================================================================
 //
 // Each method creates BOTH the bgfx resource and (via the DX8Backend base)
@@ -5005,8 +4995,8 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
         const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(desc.format);
         if (bgfxFmt != bgfx::TextureFormat::Unknown) {
             // For now, upload mip 0 and let bgfx's immutable-texture path
-            // handle the rest. Multi-mip static upload will land with
-            // Stage 1 when the loader changes feed us full mip chains.
+            // handle the rest. Multi-mip static upload lands once the
+            // loader changes feed full mip chains.
             const bgfx::Memory * mem = CopySliceToBgfxMemory(desc.mips[0]);
             if (mem != nullptr) {
                 const uint64_t texFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
@@ -5201,7 +5191,7 @@ void BgfxBackend::Begin_Dynamic_Frame()
     DX8Backend::Begin_Dynamic_Frame();
 }
 
-// -- Phase 5 transitional Register_Loaded_* ---------------------------------
+// -- Transitional Register_Loaded_* ----------------------------------------
 
 RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
 {
