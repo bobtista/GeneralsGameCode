@@ -356,7 +356,7 @@ struct BgfxCaches
     std::vector<bgfx::TextureHandle> deferredDestroysPrev; // previous frame, safe to destroy
 };
 
-// --- Phase 5 asset-ingress resource table -----------------------------------
+// ---asset-ingress resource table -----------------------------------
 //
 // Resources created via IRenderBackend::Create_Texture / Create_Vertex_Buffer
 // etc. are tracked here. RenderResource.id is a monotonically-assigned index
