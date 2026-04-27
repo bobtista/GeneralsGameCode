@@ -55,7 +55,10 @@ using StubScratch = std::unique_ptr<uint8_t[], StubAllocDeleter>;
 
 static StubScratch AllocScratch(size_t bytes)
 {
-	if (bytes == 0) bytes = 4;
+	if (bytes == 0)
+	{
+		bytes = 4;
+	}
 	void* p = std::calloc(bytes, 1);
 	return StubScratch(static_cast<uint8_t*>(p));
 }
@@ -306,7 +309,10 @@ public:
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
 	{
-		if (ppv == nullptr) return E_POINTER;
+		if (ppv == nullptr)
+		{
+			return E_POINTER;
+		}
 		if (riid == IID_IDirect3DSurface8 || riid == IID_IUnknown) { *ppv = this; AddRef(); return S_OK; }
 		*ppv = nullptr;
 		return E_NOINTERFACE;
@@ -315,14 +321,23 @@ public:
 	STDMETHOD_(ULONG, Release)() override
 	{
 		ULONG r = --m_refCount;
-		if (r == 0) delete this;
+		if (r == 0)
+		{
+			delete this;
+		}
 		return r;
 	}
 	STDMETHOD(GetDevice)(IDirect3DDevice8** ppDevice) override
 	{
-		if (ppDevice == nullptr) return E_POINTER;
+		if (ppDevice == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppDevice = m_device;
-		if (m_device) m_device->AddRef();
+		if (m_device)
+		{
+			m_device->AddRef();
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetPrivateData)(REFGUID, CONST void*, DWORD, DWORD) override { return D3D_OK; }
@@ -330,14 +345,23 @@ public:
 	STDMETHOD(FreePrivateData)(REFGUID) override { return D3D_OK; }
 	STDMETHOD(GetContainer)(REFIID, void** ppContainer) override
 	{
-		if (ppContainer == nullptr) return E_POINTER;
+		if (ppContainer == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppContainer = m_container;
-		if (m_container) m_container->AddRef();
+		if (m_container)
+		{
+			m_container->AddRef();
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(GetDesc)(D3DSURFACE_DESC* pDesc) override
 	{
-		if (pDesc == nullptr) return E_POINTER;
+		if (pDesc == nullptr)
+		{
+			return E_POINTER;
+		}
 		pDesc->Format = m_format;
 		pDesc->Type = D3DRTYPE_SURFACE;
 		pDesc->Usage = 0;
@@ -350,7 +374,10 @@ public:
 	}
 	STDMETHOD(LockRect)(D3DLOCKED_RECT* pLockedRect, CONST RECT*, DWORD) override
 	{
-		if (pLockedRect == nullptr) return E_POINTER;
+		if (pLockedRect == nullptr)
+		{
+			return E_POINTER;
+		}
 		pLockedRect->Pitch = static_cast<INT>(SurfacePitch(m_format, m_width));
 		pLockedRect->pBits = m_scratchPtr;
 		return D3D_OK;
@@ -382,7 +409,10 @@ public:
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
 	{
-		if (ppv == nullptr) return E_POINTER;
+		if (ppv == nullptr)
+		{
+			return E_POINTER;
+		}
 		if (riid == IID_IDirect3DVertexBuffer8 || riid == IID_IDirect3DResource8 || riid == IID_IUnknown)
 		{ *ppv = this; AddRef(); return S_OK; }
 		*ppv = nullptr;
@@ -392,14 +422,23 @@ public:
 	STDMETHOD_(ULONG, Release)() override
 	{
 		ULONG r = --m_refCount;
-		if (r == 0) delete this;
+		if (r == 0)
+		{
+			delete this;
+		}
 		return r;
 	}
 	STDMETHOD(GetDevice)(IDirect3DDevice8** ppDevice) override
 	{
-		if (ppDevice == nullptr) return E_POINTER;
+		if (ppDevice == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppDevice = m_device;
-		if (m_device) m_device->AddRef();
+		if (m_device)
+		{
+			m_device->AddRef();
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetPrivateData)(REFGUID, CONST void*, DWORD, DWORD) override { return D3D_OK; }
@@ -411,14 +450,20 @@ public:
 	STDMETHOD_(D3DRESOURCETYPE, GetType)() override { return D3DRTYPE_VERTEXBUFFER; }
 	STDMETHOD(Lock)(UINT OffsetToLock, UINT, BYTE** ppbData, DWORD) override
 	{
-		if (ppbData == nullptr) return E_POINTER;
+		if (ppbData == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppbData = m_scratch.get() + OffsetToLock;
 		return D3D_OK;
 	}
 	STDMETHOD(Unlock)() override { return D3D_OK; }
 	STDMETHOD(GetDesc)(D3DVERTEXBUFFER_DESC* pDesc) override
 	{
-		if (pDesc == nullptr) return E_POINTER;
+		if (pDesc == nullptr)
+		{
+			return E_POINTER;
+		}
 		pDesc->Format = D3DFMT_VERTEXDATA;
 		pDesc->Type = D3DRTYPE_VERTEXBUFFER;
 		pDesc->Usage = m_usage;
@@ -452,7 +497,10 @@ public:
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
 	{
-		if (ppv == nullptr) return E_POINTER;
+		if (ppv == nullptr)
+		{
+			return E_POINTER;
+		}
 		if (riid == IID_IDirect3DIndexBuffer8 || riid == IID_IDirect3DResource8 || riid == IID_IUnknown)
 		{ *ppv = this; AddRef(); return S_OK; }
 		*ppv = nullptr;
@@ -462,14 +510,23 @@ public:
 	STDMETHOD_(ULONG, Release)() override
 	{
 		ULONG r = --m_refCount;
-		if (r == 0) delete this;
+		if (r == 0)
+		{
+			delete this;
+		}
 		return r;
 	}
 	STDMETHOD(GetDevice)(IDirect3DDevice8** ppDevice) override
 	{
-		if (ppDevice == nullptr) return E_POINTER;
+		if (ppDevice == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppDevice = m_device;
-		if (m_device) m_device->AddRef();
+		if (m_device)
+		{
+			m_device->AddRef();
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetPrivateData)(REFGUID, CONST void*, DWORD, DWORD) override { return D3D_OK; }
@@ -481,14 +538,20 @@ public:
 	STDMETHOD_(D3DRESOURCETYPE, GetType)() override { return D3DRTYPE_INDEXBUFFER; }
 	STDMETHOD(Lock)(UINT OffsetToLock, UINT, BYTE** ppbData, DWORD) override
 	{
-		if (ppbData == nullptr) return E_POINTER;
+		if (ppbData == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppbData = m_scratch.get() + OffsetToLock;
 		return D3D_OK;
 	}
 	STDMETHOD(Unlock)() override { return D3D_OK; }
 	STDMETHOD(GetDesc)(D3DINDEXBUFFER_DESC* pDesc) override
 	{
-		if (pDesc == nullptr) return E_POINTER;
+		if (pDesc == nullptr)
+		{
+			return E_POINTER;
+		}
 		pDesc->Format = m_format;
 		pDesc->Type = D3DRTYPE_INDEXBUFFER;
 		pDesc->Usage = m_usage;
@@ -526,7 +589,10 @@ public:
 	{
 		// D3D8 convention: Levels == 0 means "all mips down to 1x1".
 		m_levels = requestedLevels == 0 ? ComputeFullMipLevels(width, height) : requestedLevels;
-		if (m_levels > 16) m_levels = 16;
+		if (m_levels > 16)
+		{
+			m_levels = 16;
+		}
 		m_levelScratch.reset(new StubScratch[m_levels]);
 		m_surfaces.reset(new IDirect3DSurface8*[m_levels]);
 		for (DWORD i = 0; i < m_levels; ++i)
@@ -541,13 +607,19 @@ public:
 	{
 		for (DWORD i = 0; i < m_levels; ++i)
 		{
-			if (m_surfaces[i]) m_surfaces[i]->Release();
+			if (m_surfaces[i])
+			{
+				m_surfaces[i]->Release();
+			}
 		}
 	}
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
 	{
-		if (ppv == nullptr) return E_POINTER;
+		if (ppv == nullptr)
+		{
+			return E_POINTER;
+		}
 		if (riid == IID_IDirect3DTexture8 || riid == IID_IDirect3DBaseTexture8 ||
 			riid == IID_IDirect3DResource8 || riid == IID_IUnknown)
 		{ *ppv = this; AddRef(); return S_OK; }
@@ -558,14 +630,23 @@ public:
 	STDMETHOD_(ULONG, Release)() override
 	{
 		ULONG r = --m_refCount;
-		if (r == 0) delete this;
+		if (r == 0)
+		{
+			delete this;
+		}
 		return r;
 	}
 	STDMETHOD(GetDevice)(IDirect3DDevice8** ppDevice) override
 	{
-		if (ppDevice == nullptr) return E_POINTER;
+		if (ppDevice == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppDevice = m_device;
-		if (m_device) m_device->AddRef();
+		if (m_device)
+		{
+			m_device->AddRef();
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetPrivateData)(REFGUID, CONST void*, DWORD, DWORD) override { return D3D_OK; }
@@ -580,8 +661,14 @@ public:
 	STDMETHOD_(DWORD, GetLevelCount)() override { return m_levels; }
 	STDMETHOD(GetLevelDesc)(UINT level, D3DSURFACE_DESC* pDesc) override
 	{
-		if (pDesc == nullptr) return E_POINTER;
-		if (level >= m_levels) level = m_levels - 1;
+		if (pDesc == nullptr)
+		{
+			return E_POINTER;
+		}
+		if (level >= m_levels)
+		{
+			level = m_levels - 1;
+		}
 		UINT lw = m_width  >> level; if (lw == 0) lw = 1;
 		UINT lh = m_height >> level; if (lh == 0) lh = 1;
 		pDesc->Format = m_format;
@@ -596,8 +683,14 @@ public:
 	}
 	STDMETHOD(GetSurfaceLevel)(UINT level, IDirect3DSurface8** ppSurfaceLevel) override
 	{
-		if (ppSurfaceLevel == nullptr) return E_POINTER;
-		if (level >= m_levels) level = m_levels - 1;
+		if (ppSurfaceLevel == nullptr)
+		{
+			return E_POINTER;
+		}
+		if (level >= m_levels)
+		{
+			level = m_levels - 1;
+		}
 		if (m_surfaces[level] == nullptr)
 		{
 			// Real D3D8 aliases surface level N with the texture's level-N
@@ -614,8 +707,14 @@ public:
 	}
 	STDMETHOD(LockRect)(UINT level, D3DLOCKED_RECT* pLockedRect, CONST RECT*, DWORD) override
 	{
-		if (pLockedRect == nullptr) return E_POINTER;
-		if (level >= m_levels) level = m_levels - 1;
+		if (pLockedRect == nullptr)
+		{
+			return E_POINTER;
+		}
+		if (level >= m_levels)
+		{
+			level = m_levels - 1;
+		}
 		UINT lw = m_width >> level; if (lw == 0) lw = 1;
 		pLockedRect->Pitch = static_cast<INT>(SurfacePitch(m_format, lw));
 		pLockedRect->pBits = m_levelScratch[level].get();
@@ -651,7 +750,10 @@ public:
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
 	{
-		if (ppv == nullptr) return E_POINTER;
+		if (ppv == nullptr)
+		{
+			return E_POINTER;
+		}
 		if (riid == IID_IDirect3DCubeTexture8 || riid == IID_IDirect3DBaseTexture8 ||
 			riid == IID_IDirect3DResource8 || riid == IID_IUnknown)
 		{ *ppv = this; AddRef(); return S_OK; }
@@ -662,14 +764,23 @@ public:
 	STDMETHOD_(ULONG, Release)() override
 	{
 		ULONG r = --m_refCount;
-		if (r == 0) delete this;
+		if (r == 0)
+		{
+			delete this;
+		}
 		return r;
 	}
 	STDMETHOD(GetDevice)(IDirect3DDevice8** ppDevice) override
 	{
-		if (ppDevice == nullptr) return E_POINTER;
+		if (ppDevice == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppDevice = m_device;
-		if (m_device) m_device->AddRef();
+		if (m_device)
+		{
+			m_device->AddRef();
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetPrivateData)(REFGUID, CONST void*, DWORD, DWORD) override { return D3D_OK; }
@@ -684,7 +795,10 @@ public:
 	STDMETHOD_(DWORD, GetLevelCount)() override { return 1; }
 	STDMETHOD(GetLevelDesc)(UINT, D3DSURFACE_DESC* pDesc) override
 	{
-		if (pDesc == nullptr) return E_POINTER;
+		if (pDesc == nullptr)
+		{
+			return E_POINTER;
+		}
 		pDesc->Format = m_format;
 		pDesc->Type = D3DRTYPE_SURFACE;
 		pDesc->Usage = 0;
@@ -697,13 +811,19 @@ public:
 	}
 	STDMETHOD(GetCubeMapSurface)(D3DCUBEMAP_FACES, UINT, IDirect3DSurface8** ppSurface) override
 	{
-		if (ppSurface == nullptr) return E_POINTER;
+		if (ppSurface == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppSurface = new StubD3D8Surface(m_device, static_cast<IDirect3DCubeTexture8*>(this), m_edge, m_edge, m_format, m_scratch.get());
 		return D3D_OK;
 	}
 	STDMETHOD(LockRect)(D3DCUBEMAP_FACES, UINT, D3DLOCKED_RECT* pLockedRect, CONST RECT*, DWORD) override
 	{
-		if (pLockedRect == nullptr) return E_POINTER;
+		if (pLockedRect == nullptr)
+		{
+			return E_POINTER;
+		}
 		pLockedRect->Pitch = static_cast<INT>(SurfacePitch(m_format, m_edge));
 		pLockedRect->pBits = m_scratch.get();
 		return D3D_OK;
@@ -733,7 +853,10 @@ public:
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
 	{
-		if (ppv == nullptr) return E_POINTER;
+		if (ppv == nullptr)
+		{
+			return E_POINTER;
+		}
 		if (riid == IID_IDirect3DVolumeTexture8 || riid == IID_IDirect3DBaseTexture8 ||
 			riid == IID_IDirect3DResource8 || riid == IID_IUnknown)
 		{ *ppv = this; AddRef(); return S_OK; }
@@ -744,14 +867,23 @@ public:
 	STDMETHOD_(ULONG, Release)() override
 	{
 		ULONG r = --m_refCount;
-		if (r == 0) delete this;
+		if (r == 0)
+		{
+			delete this;
+		}
 		return r;
 	}
 	STDMETHOD(GetDevice)(IDirect3DDevice8** ppDevice) override
 	{
-		if (ppDevice == nullptr) return E_POINTER;
+		if (ppDevice == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppDevice = m_device;
-		if (m_device) m_device->AddRef();
+		if (m_device)
+		{
+			m_device->AddRef();
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetPrivateData)(REFGUID, CONST void*, DWORD, DWORD) override { return D3D_OK; }
@@ -766,7 +898,10 @@ public:
 	STDMETHOD_(DWORD, GetLevelCount)() override { return 1; }
 	STDMETHOD(GetLevelDesc)(UINT, D3DVOLUME_DESC* pDesc) override
 	{
-		if (pDesc == nullptr) return E_POINTER;
+		if (pDesc == nullptr)
+		{
+			return E_POINTER;
+		}
 		const UINT bpp = BytesPerPixel(m_format);
 		pDesc->Format = m_format;
 		pDesc->Type = D3DRTYPE_VOLUME;
@@ -780,13 +915,19 @@ public:
 	}
 	STDMETHOD(GetVolumeLevel)(UINT, IDirect3DVolume8** ppVolumeLevel) override
 	{
-		if (ppVolumeLevel == nullptr) return E_POINTER;
+		if (ppVolumeLevel == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppVolumeLevel = nullptr;
 		return D3D_OK;
 	}
 	STDMETHOD(LockBox)(UINT, D3DLOCKED_BOX* pLockedVolume, CONST D3DBOX*, DWORD) override
 	{
-		if (pLockedVolume == nullptr) return E_POINTER;
+		if (pLockedVolume == nullptr)
+		{
+			return E_POINTER;
+		}
 		const UINT bpp = BytesPerPixel(m_format);
 		pLockedVolume->RowPitch = static_cast<INT>(m_width * bpp);
 		pLockedVolume->SlicePitch = static_cast<INT>(m_width * m_height * bpp);
@@ -815,16 +956,25 @@ public:
 	StubD3D8SwapChain(IDirect3DDevice8* device, IDirect3DSurface8* backBuffer)
 		: m_refCount(1), m_device(device), m_backBuffer(backBuffer)
 	{
-		if (m_backBuffer) m_backBuffer->AddRef();
+		if (m_backBuffer)
+		{
+			m_backBuffer->AddRef();
+		}
 	}
 	~StubD3D8SwapChain()
 	{
-		if (m_backBuffer) m_backBuffer->Release();
+		if (m_backBuffer)
+		{
+			m_backBuffer->Release();
+		}
 	}
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
 	{
-		if (ppv == nullptr) return E_POINTER;
+		if (ppv == nullptr)
+		{
+			return E_POINTER;
+		}
 		if (riid == IID_IDirect3DSwapChain8 || riid == IID_IUnknown)
 		{ *ppv = this; AddRef(); return S_OK; }
 		*ppv = nullptr;
@@ -834,15 +984,24 @@ public:
 	STDMETHOD_(ULONG, Release)() override
 	{
 		ULONG r = --m_refCount;
-		if (r == 0) delete this;
+		if (r == 0)
+		{
+			delete this;
+		}
 		return r;
 	}
 	STDMETHOD(Present)(CONST RECT*, CONST RECT*, HWND, CONST RGNDATA*) override { return D3D_OK; }
 	STDMETHOD(GetBackBuffer)(UINT, D3DBACKBUFFER_TYPE, IDirect3DSurface8** ppBackBuffer) override
 	{
-		if (ppBackBuffer == nullptr) return E_POINTER;
+		if (ppBackBuffer == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppBackBuffer = m_backBuffer;
-		if (m_backBuffer) m_backBuffer->AddRef();
+		if (m_backBuffer)
+		{
+			m_backBuffer->AddRef();
+		}
 		return D3D_OK;
 	}
 
@@ -880,20 +1039,35 @@ public:
 		: m_refCount(1), m_parent(parent), m_focusWindow(focusWindow), m_width(width), m_height(height),
 		  m_backBuffer(nullptr), m_depthStencil(nullptr)
 	{
-		if (m_parent) m_parent->AddRef();
+		if (m_parent)
+		{
+			m_parent->AddRef();
+		}
 		m_backBuffer = new StubD3D8Surface(this, nullptr, width, height, D3DFMT_A8R8G8B8);
 		m_depthStencil = new StubD3D8Surface(this, nullptr, width, height, D3DFMT_D24S8);
 	}
 	~StubD3D8Device()
 	{
-		if (m_depthStencil) m_depthStencil->Release();
-		if (m_backBuffer) m_backBuffer->Release();
-		if (m_parent) m_parent->Release();
+		if (m_depthStencil)
+		{
+			m_depthStencil->Release();
+		}
+		if (m_backBuffer)
+		{
+			m_backBuffer->Release();
+		}
+		if (m_parent)
+		{
+			m_parent->Release();
+		}
 	}
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
 	{
-		if (ppv == nullptr) return E_POINTER;
+		if (ppv == nullptr)
+		{
+			return E_POINTER;
+		}
 		if (riid == IID_IDirect3DDevice8 || riid == IID_IUnknown)
 		{ *ppv = this; AddRef(); return S_OK; }
 		*ppv = nullptr;
@@ -903,7 +1077,10 @@ public:
 	STDMETHOD_(ULONG, Release)() override
 	{
 		ULONG r = --m_refCount;
-		if (r == 0) delete this;
+		if (r == 0)
+		{
+			delete this;
+		}
 		return r;
 	}
 
@@ -912,20 +1089,32 @@ public:
 	STDMETHOD(ResourceManagerDiscardBytes)(DWORD) override { return D3D_OK; }
 	STDMETHOD(GetDirect3D)(IDirect3D8** ppD3D8) override
 	{
-		if (ppD3D8 == nullptr) return E_POINTER;
+		if (ppD3D8 == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppD3D8 = m_parent;
-		if (m_parent) m_parent->AddRef();
+		if (m_parent)
+		{
+			m_parent->AddRef();
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(GetDeviceCaps)(D3DCAPS8* pCaps) override
 	{
-		if (pCaps == nullptr) return E_POINTER;
+		if (pCaps == nullptr)
+		{
+			return E_POINTER;
+		}
 		FillCaps(*pCaps);
 		return D3D_OK;
 	}
 	STDMETHOD(GetDisplayMode)(D3DDISPLAYMODE* pMode) override
 	{
-		if (pMode == nullptr) return E_POINTER;
+		if (pMode == nullptr)
+		{
+			return E_POINTER;
+		}
 		pMode->Width = m_width;
 		pMode->Height = m_height;
 		pMode->RefreshRate = 60;
@@ -934,7 +1123,10 @@ public:
 	}
 	STDMETHOD(GetCreationParameters)(D3DDEVICE_CREATION_PARAMETERS* pParameters) override
 	{
-		if (pParameters == nullptr) return E_POINTER;
+		if (pParameters == nullptr)
+		{
+			return E_POINTER;
+		}
 		pParameters->AdapterOrdinal = 0;
 		pParameters->DeviceType = D3DDEVTYPE_HAL;
 		pParameters->hFocusWindow = m_focusWindow;
@@ -946,7 +1138,10 @@ public:
 	STDMETHOD_(BOOL, ShowCursor)(BOOL) override { return TRUE; }
 	STDMETHOD(CreateAdditionalSwapChain)(D3DPRESENT_PARAMETERS*, IDirect3DSwapChain8** pSwapChain) override
 	{
-		if (pSwapChain == nullptr) return E_POINTER;
+		if (pSwapChain == nullptr)
+		{
+			return E_POINTER;
+		}
 		*pSwapChain = new StubD3D8SwapChain(this, m_backBuffer);
 		return D3D_OK;
 	}
@@ -954,9 +1149,15 @@ public:
 	STDMETHOD(Present)(CONST RECT*, CONST RECT*, HWND, CONST RGNDATA*) override { return D3D_OK; }
 	STDMETHOD(GetBackBuffer)(UINT, D3DBACKBUFFER_TYPE, IDirect3DSurface8** ppBackBuffer) override
 	{
-		if (ppBackBuffer == nullptr) return E_POINTER;
+		if (ppBackBuffer == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppBackBuffer = m_backBuffer;
-		if (m_backBuffer) m_backBuffer->AddRef();
+		if (m_backBuffer)
+		{
+			m_backBuffer->AddRef();
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(GetRasterStatus)(D3DRASTER_STATUS* pRasterStatus) override
@@ -969,49 +1170,73 @@ public:
 
 	STDMETHOD(CreateTexture)(UINT Width, UINT Height, UINT Levels, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DTexture8** ppTexture) override
 	{
-		if (ppTexture == nullptr) return E_POINTER;
+		if (ppTexture == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppTexture = new StubD3D8Texture(this, Width, Height, Levels, Usage, Format, Pool);
 		return D3D_OK;
 	}
 	STDMETHOD(CreateVolumeTexture)(UINT Width, UINT Height, UINT Depth, UINT, DWORD, D3DFORMAT Format, D3DPOOL, IDirect3DVolumeTexture8** ppVolumeTexture) override
 	{
-		if (ppVolumeTexture == nullptr) return E_POINTER;
+		if (ppVolumeTexture == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppVolumeTexture = new StubD3D8VolumeTexture(this, Width, Height, Depth, Format);
 		return D3D_OK;
 	}
 	STDMETHOD(CreateCubeTexture)(UINT EdgeLength, UINT, DWORD, D3DFORMAT Format, D3DPOOL, IDirect3DCubeTexture8** ppCubeTexture) override
 	{
-		if (ppCubeTexture == nullptr) return E_POINTER;
+		if (ppCubeTexture == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppCubeTexture = new StubD3D8CubeTexture(this, EdgeLength, Format);
 		return D3D_OK;
 	}
 	STDMETHOD(CreateVertexBuffer)(UINT Length, DWORD Usage, DWORD FVF, D3DPOOL Pool, IDirect3DVertexBuffer8** ppVertexBuffer) override
 	{
-		if (ppVertexBuffer == nullptr) return E_POINTER;
+		if (ppVertexBuffer == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppVertexBuffer = new StubD3D8VertexBuffer(this, Length, Usage, FVF, Pool);
 		return D3D_OK;
 	}
 	STDMETHOD(CreateIndexBuffer)(UINT Length, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DIndexBuffer8** ppIndexBuffer) override
 	{
-		if (ppIndexBuffer == nullptr) return E_POINTER;
+		if (ppIndexBuffer == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppIndexBuffer = new StubD3D8IndexBuffer(this, Length, Usage, Format, Pool);
 		return D3D_OK;
 	}
 	STDMETHOD(CreateRenderTarget)(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE, BOOL, IDirect3DSurface8** ppSurface) override
 	{
-		if (ppSurface == nullptr) return E_POINTER;
+		if (ppSurface == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppSurface = new StubD3D8Surface(this, nullptr, Width, Height, Format);
 		return D3D_OK;
 	}
 	STDMETHOD(CreateDepthStencilSurface)(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE, IDirect3DSurface8** ppSurface) override
 	{
-		if (ppSurface == nullptr) return E_POINTER;
+		if (ppSurface == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppSurface = new StubD3D8Surface(this, nullptr, Width, Height, Format);
 		return D3D_OK;
 	}
 	STDMETHOD(CreateImageSurface)(UINT Width, UINT Height, D3DFORMAT Format, IDirect3DSurface8** ppSurface) override
 	{
-		if (ppSurface == nullptr) return E_POINTER;
+		if (ppSurface == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppSurface = new StubD3D8Surface(this, nullptr, Width, Height, Format);
 		return D3D_OK;
 	}
@@ -1023,11 +1248,20 @@ public:
 	// textures were rendering black. Lock both sides and memcpy.
 	STDMETHOD(CopyRects)(IDirect3DSurface8* src, CONST RECT* srcRects, UINT count, IDirect3DSurface8* dst, CONST POINT* dstPts) override
 	{
-		if (src == nullptr || dst == nullptr) return D3D_OK;
+		if (src == nullptr || dst == nullptr)
+		{
+			return D3D_OK;
+		}
 		D3DSURFACE_DESC sd, dd;
-		if (FAILED(src->GetDesc(&sd)) || FAILED(dst->GetDesc(&dd))) return D3D_OK;
+		if (FAILED(src->GetDesc(&sd)) || FAILED(dst->GetDesc(&dd)))
+		{
+			return D3D_OK;
+		}
 		D3DLOCKED_RECT sl = {}, dl = {};
-		if (FAILED(src->LockRect(&sl, nullptr, 0))) return D3D_OK;
+		if (FAILED(src->LockRect(&sl, nullptr, 0)))
+		{
+			return D3D_OK;
+		}
 		if (FAILED(dst->LockRect(&dl, nullptr, 0))) { src->UnlockRect(); return D3D_OK; }
 		if (count == 0 || srcRects == nullptr)
 		{
@@ -1075,8 +1309,14 @@ public:
 	}
 	STDMETHOD(UpdateTexture)(IDirect3DBaseTexture8* src, IDirect3DBaseTexture8* dst) override
 	{
-		if (src == nullptr || dst == nullptr) return D3D_OK;
-		if (src->GetType() != D3DRTYPE_TEXTURE || dst->GetType() != D3DRTYPE_TEXTURE) return D3D_OK;
+		if (src == nullptr || dst == nullptr)
+		{
+			return D3D_OK;
+		}
+		if (src->GetType() != D3DRTYPE_TEXTURE || dst->GetType() != D3DRTYPE_TEXTURE)
+		{
+			return D3D_OK;
+		}
 		IDirect3DTexture8* st = static_cast<IDirect3DTexture8*>(src);
 		IDirect3DTexture8* dt = static_cast<IDirect3DTexture8*>(dst);
 		DWORD srcLevels = st->GetLevelCount();
@@ -1085,9 +1325,15 @@ public:
 		for (DWORD i = 0; i < levels; ++i)
 		{
 			D3DSURFACE_DESC sd, dd;
-			if (FAILED(st->GetLevelDesc(i, &sd)) || FAILED(dt->GetLevelDesc(i, &dd))) break;
+			if (FAILED(st->GetLevelDesc(i, &sd)) || FAILED(dt->GetLevelDesc(i, &dd)))
+			{
+				break;
+			}
 			D3DLOCKED_RECT sl = {}, dl = {};
-			if (FAILED(st->LockRect(i, &sl, nullptr, 0))) break;
+			if (FAILED(st->LockRect(i, &sl, nullptr, 0)))
+			{
+				break;
+			}
 			if (FAILED(dt->LockRect(i, &dl, nullptr, 0))) { st->UnlockRect(i); break; }
 			const UINT h = SurfaceRows(sd.Format, sd.Height) < SurfaceRows(dd.Format, dd.Height)
 				? SurfaceRows(sd.Format, sd.Height) : SurfaceRows(dd.Format, dd.Height);
@@ -1109,16 +1355,28 @@ public:
 	STDMETHOD(SetRenderTarget)(IDirect3DSurface8*, IDirect3DSurface8*) override { return D3D_OK; }
 	STDMETHOD(GetRenderTarget)(IDirect3DSurface8** ppRenderTarget) override
 	{
-		if (ppRenderTarget == nullptr) return E_POINTER;
+		if (ppRenderTarget == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppRenderTarget = m_backBuffer;
-		if (m_backBuffer) m_backBuffer->AddRef();
+		if (m_backBuffer)
+		{
+			m_backBuffer->AddRef();
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(GetDepthStencilSurface)(IDirect3DSurface8** ppZStencilSurface) override
 	{
-		if (ppZStencilSurface == nullptr) return E_POINTER;
+		if (ppZStencilSurface == nullptr)
+		{
+			return E_POINTER;
+		}
 		*ppZStencilSurface = m_depthStencil;
-		if (m_depthStencil) m_depthStencil->AddRef();
+		if (m_depthStencil)
+		{
+			m_depthStencil->AddRef();
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(BeginScene)() override { return D3D_OK; }
@@ -1134,12 +1392,18 @@ public:
 		// inputs and visible banding artifacts on terrain water/tree
 		// passes. Record what the game sets so GetTransform can return
 		// the real matrix.
-		if (m) m_transforms[static_cast<DWORD>(state)] = *m;
+		if (m)
+		{
+			m_transforms[static_cast<DWORD>(state)] = *m;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(GetTransform)(D3DTRANSFORMSTATETYPE state, D3DMATRIX* pMatrix) override
 	{
-		if (pMatrix == nullptr) return E_POINTER;
+		if (pMatrix == nullptr)
+		{
+			return E_POINTER;
+		}
 		auto it = m_transforms.find(static_cast<DWORD>(state));
 		if (it != m_transforms.end())
 		{
@@ -1168,25 +1432,37 @@ public:
 	STDMETHOD(SetMaterial)(CONST D3DMATERIAL8*) override { return D3D_OK; }
 	STDMETHOD(GetMaterial)(D3DMATERIAL8* pMaterial) override
 	{
-		if (pMaterial) std::memset(pMaterial, 0, sizeof(*pMaterial));
+		if (pMaterial)
+		{
+			std::memset(pMaterial, 0, sizeof(*pMaterial));
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetLight)(DWORD, CONST D3DLIGHT8*) override { return D3D_OK; }
 	STDMETHOD(GetLight)(DWORD, D3DLIGHT8* pLight) override
 	{
-		if (pLight) std::memset(pLight, 0, sizeof(*pLight));
+		if (pLight)
+		{
+			std::memset(pLight, 0, sizeof(*pLight));
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(LightEnable)(DWORD, BOOL) override { return D3D_OK; }
 	STDMETHOD(GetLightEnable)(DWORD, BOOL* pEnable) override
 	{
-		if (pEnable) *pEnable = FALSE;
+		if (pEnable)
+		{
+			*pEnable = FALSE;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetClipPlane)(DWORD, CONST float*) override { return D3D_OK; }
 	STDMETHOD(GetClipPlane)(DWORD, float* pPlane) override
 	{
-		if (pPlane) std::memset(pPlane, 0, 4 * sizeof(float));
+		if (pPlane)
+		{
+			std::memset(pPlane, 0, 4 * sizeof(float));
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetRenderState)(D3DRENDERSTATETYPE state, DWORD value) override
@@ -1206,7 +1482,10 @@ public:
 	STDMETHOD(BeginStateBlock)() override { return D3D_OK; }
 	STDMETHOD(EndStateBlock)(DWORD* pToken) override
 	{
-		if (pToken) *pToken = 0;
+		if (pToken)
+		{
+			*pToken = 0;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(ApplyStateBlock)(DWORD) override { return D3D_OK; }
@@ -1214,18 +1493,27 @@ public:
 	STDMETHOD(DeleteStateBlock)(DWORD) override { return D3D_OK; }
 	STDMETHOD(CreateStateBlock)(D3DSTATEBLOCKTYPE, DWORD* pToken) override
 	{
-		if (pToken) *pToken = 0;
+		if (pToken)
+		{
+			*pToken = 0;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetClipStatus)(CONST D3DCLIPSTATUS8*) override { return D3D_OK; }
 	STDMETHOD(GetClipStatus)(D3DCLIPSTATUS8* pClipStatus) override
 	{
-		if (pClipStatus) std::memset(pClipStatus, 0, sizeof(*pClipStatus));
+		if (pClipStatus)
+		{
+			std::memset(pClipStatus, 0, sizeof(*pClipStatus));
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(GetTexture)(DWORD, IDirect3DBaseTexture8** ppTexture) override
 	{
-		if (ppTexture) *ppTexture = nullptr;
+		if (ppTexture)
+		{
+			*ppTexture = nullptr;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetTexture)(DWORD, IDirect3DBaseTexture8*) override { return D3D_OK; }
@@ -1248,7 +1536,10 @@ public:
 	}
 	STDMETHOD(ValidateDevice)(DWORD* pNumPasses) override
 	{
-		if (pNumPasses) *pNumPasses = 1;
+		if (pNumPasses)
+		{
+			*pNumPasses = 1;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(GetInfo)(DWORD, void*, DWORD) override { return D3D_OK; }
@@ -1257,7 +1548,10 @@ public:
 	STDMETHOD(SetCurrentTexturePalette)(UINT) override { return D3D_OK; }
 	STDMETHOD(GetCurrentTexturePalette)(UINT* PaletteNumber) override
 	{
-		if (PaletteNumber) *PaletteNumber = 0;
+		if (PaletteNumber)
+		{
+			*PaletteNumber = 0;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(DrawPrimitive)(D3DPRIMITIVETYPE, UINT, UINT) override { return D3D_OK; }
@@ -1267,13 +1561,19 @@ public:
 	STDMETHOD(ProcessVertices)(UINT, UINT, UINT, IDirect3DVertexBuffer8*, DWORD) override { return D3D_OK; }
 	STDMETHOD(CreateVertexShader)(CONST DWORD*, CONST DWORD*, DWORD* pHandle, DWORD) override
 	{
-		if (pHandle) *pHandle = 1;
+		if (pHandle)
+		{
+			*pHandle = 1;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetVertexShader)(DWORD) override { return D3D_OK; }
 	STDMETHOD(GetVertexShader)(DWORD* pHandle) override
 	{
-		if (pHandle) *pHandle = 0;
+		if (pHandle)
+		{
+			*pHandle = 0;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(DeleteVertexShader)(DWORD) override { return D3D_OK; }
@@ -1281,37 +1581,61 @@ public:
 	STDMETHOD(GetVertexShaderConstant)(DWORD, void*, DWORD) override { return D3D_OK; }
 	STDMETHOD(GetVertexShaderDeclaration)(DWORD, void*, DWORD* pSizeOfData) override
 	{
-		if (pSizeOfData) *pSizeOfData = 0;
+		if (pSizeOfData)
+		{
+			*pSizeOfData = 0;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(GetVertexShaderFunction)(DWORD, void*, DWORD* pSizeOfData) override
 	{
-		if (pSizeOfData) *pSizeOfData = 0;
+		if (pSizeOfData)
+		{
+			*pSizeOfData = 0;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetStreamSource)(UINT, IDirect3DVertexBuffer8*, UINT) override { return D3D_OK; }
 	STDMETHOD(GetStreamSource)(UINT, IDirect3DVertexBuffer8** ppStreamData, UINT* pStride) override
 	{
-		if (ppStreamData) *ppStreamData = nullptr;
-		if (pStride) *pStride = 0;
+		if (ppStreamData)
+		{
+			*ppStreamData = nullptr;
+		}
+		if (pStride)
+		{
+			*pStride = 0;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetIndices)(IDirect3DIndexBuffer8*, UINT) override { return D3D_OK; }
 	STDMETHOD(GetIndices)(IDirect3DIndexBuffer8** ppIndexData, UINT* pBaseVertexIndex) override
 	{
-		if (ppIndexData) *ppIndexData = nullptr;
-		if (pBaseVertexIndex) *pBaseVertexIndex = 0;
+		if (ppIndexData)
+		{
+			*ppIndexData = nullptr;
+		}
+		if (pBaseVertexIndex)
+		{
+			*pBaseVertexIndex = 0;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(CreatePixelShader)(CONST DWORD*, DWORD* pHandle) override
 	{
-		if (pHandle) *pHandle = 1;
+		if (pHandle)
+		{
+			*pHandle = 1;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(SetPixelShader)(DWORD) override { return D3D_OK; }
 	STDMETHOD(GetPixelShader)(DWORD* pHandle) override
 	{
-		if (pHandle) *pHandle = 0;
+		if (pHandle)
+		{
+			*pHandle = 0;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(DeletePixelShader)(DWORD) override { return D3D_OK; }
@@ -1319,7 +1643,10 @@ public:
 	STDMETHOD(GetPixelShaderConstant)(DWORD, void*, DWORD) override { return D3D_OK; }
 	STDMETHOD(GetPixelShaderFunction)(DWORD, void*, DWORD* pSizeOfData) override
 	{
-		if (pSizeOfData) *pSizeOfData = 0;
+		if (pSizeOfData)
+		{
+			*pSizeOfData = 0;
+		}
 		return D3D_OK;
 	}
 	STDMETHOD(DrawRectPatch)(UINT, CONST float*, CONST D3DRECTPATCH_INFO*) override { return D3D_OK; }
@@ -1349,7 +1676,10 @@ public:
 
 	STDMETHOD(QueryInterface)(REFIID riid, void** ppv) override
 	{
-		if (ppv == nullptr) return E_POINTER;
+		if (ppv == nullptr)
+		{
+			return E_POINTER;
+		}
 		if (riid == IID_IDirect3D8 || riid == IID_IUnknown)
 		{ *ppv = this; AddRef(); return S_OK; }
 		*ppv = nullptr;
@@ -1359,7 +1689,10 @@ public:
 	STDMETHOD_(ULONG, Release)() override
 	{
 		ULONG r = --m_refCount;
-		if (r == 0) delete this;
+		if (r == 0)
+		{
+			delete this;
+		}
 		return r;
 	}
 
@@ -1367,7 +1700,10 @@ public:
 	STDMETHOD_(UINT, GetAdapterCount)() override { return 1; }
 	STDMETHOD(GetAdapterIdentifier)(UINT, DWORD, D3DADAPTER_IDENTIFIER8* pIdentifier) override
 	{
-		if (pIdentifier == nullptr) return E_POINTER;
+		if (pIdentifier == nullptr)
+		{
+			return E_POINTER;
+		}
 		std::memset(pIdentifier, 0, sizeof(*pIdentifier));
 		std::strncpy(pIdentifier->Driver, "StubD3D8", sizeof(pIdentifier->Driver) - 1);
 		std::strncpy(pIdentifier->Description, "Generals bgfx standalone stub", sizeof(pIdentifier->Description) - 1);
@@ -1382,7 +1718,10 @@ public:
 	STDMETHOD_(UINT, GetAdapterModeCount)(UINT) override { return 1; }
 	STDMETHOD(EnumAdapterModes)(UINT, UINT, D3DDISPLAYMODE* pMode) override
 	{
-		if (pMode == nullptr) return E_POINTER;
+		if (pMode == nullptr)
+		{
+			return E_POINTER;
+		}
 		pMode->Width = 1920;
 		pMode->Height = 1080;
 		pMode->RefreshRate = 60;
@@ -1391,7 +1730,10 @@ public:
 	}
 	STDMETHOD(GetAdapterDisplayMode)(UINT, D3DDISPLAYMODE* pMode) override
 	{
-		if (pMode == nullptr) return E_POINTER;
+		if (pMode == nullptr)
+		{
+			return E_POINTER;
+		}
 		pMode->Width = 1920;
 		pMode->Height = 1080;
 		pMode->RefreshRate = 60;
@@ -1404,20 +1746,32 @@ public:
 	STDMETHOD(CheckDepthStencilMatch)(UINT, D3DDEVTYPE, D3DFORMAT, D3DFORMAT, D3DFORMAT) override { return S_OK; }
 	STDMETHOD(GetDeviceCaps)(UINT, D3DDEVTYPE, D3DCAPS8* pCaps) override
 	{
-		if (pCaps == nullptr) return E_POINTER;
+		if (pCaps == nullptr)
+		{
+			return E_POINTER;
+		}
 		FillCaps(*pCaps);
 		return D3D_OK;
 	}
 	STDMETHOD_(HMONITOR, GetAdapterMonitor)(UINT) override { return NULL; }
 	STDMETHOD(CreateDevice)(UINT, D3DDEVTYPE, HWND hFocusWindow, DWORD, D3DPRESENT_PARAMETERS* pPresentationParameters, IDirect3DDevice8** ppReturnedDeviceInterface) override
 	{
-		if (ppReturnedDeviceInterface == nullptr) return E_POINTER;
+		if (ppReturnedDeviceInterface == nullptr)
+		{
+			return E_POINTER;
+		}
 		UINT width = 1920;
 		UINT height = 1080;
 		if (pPresentationParameters)
 		{
-			if (pPresentationParameters->BackBufferWidth) width = pPresentationParameters->BackBufferWidth;
-			if (pPresentationParameters->BackBufferHeight) height = pPresentationParameters->BackBufferHeight;
+			if (pPresentationParameters->BackBufferWidth)
+			{
+				width = pPresentationParameters->BackBufferWidth;
+			}
+			if (pPresentationParameters->BackBufferHeight)
+			{
+				height = pPresentationParameters->BackBufferHeight;
+			}
 		}
 		*ppReturnedDeviceInterface = new StubD3D8Device(this, hFocusWindow, width, height);
 		return D3D_OK;

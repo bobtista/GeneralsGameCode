@@ -773,9 +773,18 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
     for (unsigned i = 0; i < numTex && i < 8; ++i)
     {
         unsigned componentCount = 2;
-        if      ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE1(i)) == D3DFVF_TEXCOORDSIZE1(i)) componentCount = 1;
-        else if ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE3(i)) == D3DFVF_TEXCOORDSIZE3(i)) componentCount = 3;
-        else if ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE4(i)) == D3DFVF_TEXCOORDSIZE4(i)) componentCount = 4;
+        if ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE1(i)) == D3DFVF_TEXCOORDSIZE1(i))
+        {
+            componentCount = 1;
+        }
+        else if ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE3(i)) == D3DFVF_TEXCOORDSIZE3(i))
+        {
+            componentCount = 3;
+        }
+        else if ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE4(i)) == D3DFVF_TEXCOORDSIZE4(i))
+        {
+            componentCount = 4;
+        }
         // else default 2
 
         AddAttribAtOffset(out, cursor, fvf.Get_Tex_Offset(i),
@@ -1264,9 +1273,13 @@ static bool CreateSceneFramebuffer()
     if (!bgfx::isValid(fb))
     {
         if (bgfx::isValid(colorTex))
+        {
             bgfx::destroy(colorTex);
+        }
         if (bgfx::isValid(depthTex))
+        {
             bgfx::destroy(depthTex);
+        }
         WWDEBUG_SAY(("[BgfxBackend] Scene framebuffer creation FAILED (%dx%d).",
                      w, h));
         return false;
@@ -1317,9 +1330,13 @@ static bool CreateSceneFramebuffer()
     else
     {
         if (bgfx::isValid(readableDepthTex))
+        {
             bgfx::destroy(readableDepthTex);
+        }
         if (bgfx::isValid(readableDepthTest))
+        {
             bgfx::destroy(readableDepthTest);
+        }
         WWDEBUG_SAY(("[BgfxBackend] Readable scene depth creation FAILED (%dx%d).",
                      w, h));
     }
@@ -2029,7 +2046,9 @@ void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
     // Calling the base class would cause infinite recursion.
 
     if (!g_device.initialized)
+    {
         return;
+    }
 
     // TheSuperHackers @fix bobtista 19/04/2026 Sync bgfx view rects with the
     // game's viewport. Without this, bgfx uses the full window for the 3D
@@ -2090,7 +2109,9 @@ void BgfxBackend::Begin_Scene()
     for (auto & h : g_caches.deferredDestroysPrev)
     {
         if (bgfx::isValid(h))
+        {
             bgfx::destroy(h);
+        }
     }
     g_caches.deferredDestroysPrev.clear();
     // Show the DX8 reference popup after a few frames, giving the game's
@@ -3553,9 +3574,13 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
         {
             const TextureFilterClass & flt = t2d_name->Get_Filter();
             if (flt.Get_U_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
+            {
                 samplerFlags |= BGFX_SAMPLER_U_CLAMP;
+            }
             if (flt.Get_V_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
+            {
                 samplerFlags |= BGFX_SAMPLER_V_CLAMP;
+            }
         }
         switch (stage)
         {
@@ -3758,10 +3783,22 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
 {
     DX8Backend::Set_Color_Write_Enable(red, green, blue, alpha);
     uint64_t mask = 0;
-    if (red)   mask |= BGFX_STATE_WRITE_R;
-    if (green) mask |= BGFX_STATE_WRITE_G;
-    if (blue)  mask |= BGFX_STATE_WRITE_B;
-    if (alpha) mask |= BGFX_STATE_WRITE_A;
+    if (red)
+    {
+        mask |= BGFX_STATE_WRITE_R;
+    }
+    if (green)
+    {
+        mask |= BGFX_STATE_WRITE_G;
+    }
+    if (blue)
+    {
+        mask |= BGFX_STATE_WRITE_B;
+    }
+    if (alpha)
+    {
+        mask |= BGFX_STATE_WRITE_A;
+    }
     g_overrides.colorWriteOverride = static_cast<int>(mask);
     g_overrides.suppressDraw = false;
 }
@@ -3775,10 +3812,22 @@ void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 {
     DX8Backend::Set_Color_Write_Mask(mask);
     uint64_t bgfxMask = 0;
-    if (mask & D3DCOLORWRITEENABLE_RED)   bgfxMask |= BGFX_STATE_WRITE_R;
-    if (mask & D3DCOLORWRITEENABLE_GREEN) bgfxMask |= BGFX_STATE_WRITE_G;
-    if (mask & D3DCOLORWRITEENABLE_BLUE)  bgfxMask |= BGFX_STATE_WRITE_B;
-    if (mask & D3DCOLORWRITEENABLE_ALPHA) bgfxMask |= BGFX_STATE_WRITE_A;
+    if (mask & D3DCOLORWRITEENABLE_RED)
+    {
+        bgfxMask |= BGFX_STATE_WRITE_R;
+    }
+    if (mask & D3DCOLORWRITEENABLE_GREEN)
+    {
+        bgfxMask |= BGFX_STATE_WRITE_G;
+    }
+    if (mask & D3DCOLORWRITEENABLE_BLUE)
+    {
+        bgfxMask |= BGFX_STATE_WRITE_B;
+    }
+    if (mask & D3DCOLORWRITEENABLE_ALPHA)
+    {
+        bgfxMask |= BGFX_STATE_WRITE_A;
+    }
     g_overrides.colorWriteOverride = static_cast<int>(bgfxMask);
     g_overrides.suppressDraw = false;
 }
@@ -3939,8 +3988,14 @@ void BgfxBackend::Submit_Shadow_Volume_Triangulated_Caps(
 
     // Mirror the side-wall submit's state.
     uint64_t state = BGFX_STATE_DEPTH_TEST_LEQUAL;
-    if (g_draw.cullModeBits == 1)      state |= BGFX_STATE_CULL_CW;
-    else if (g_draw.cullModeBits == 2) state |= BGFX_STATE_CULL_CCW;
+    if (g_draw.cullModeBits == 1)
+    {
+        state |= BGFX_STATE_CULL_CW;
+    }
+    else if (g_draw.cullModeBits == 2)
+    {
+        state |= BGFX_STATE_CULL_CCW;
+    }
     bgfx::setState(state);
     bgfx::setStencil(g_draw.shadowStencilFront, g_draw.shadowStencilBack);
 
@@ -3957,7 +4012,9 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 {
     DX8Backend::Apply_Stencil_Shadow_Darken(shadow_color, stencil_read_mask, stencil_ref);
     if (!g_device.initialized || !bgfx::isValid(g_device.shadowApplyProgram))
+    {
         return;
+    }
 
     bgfx::TransientVertexBuffer tvb;
     bgfx::TransientIndexBuffer tib;
@@ -3965,7 +4022,9 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
     layout.begin().add(bgfx::Attrib::Position, 3, bgfx::AttribType::Float).end();
 
     if (!bgfx::allocTransientBuffers(&tvb, layout, 4, &tib, 6))
+    {
         return;
+    }
 
     float * verts = (float *)tvb.data;
     verts[0] = -1.0f; verts[1] = -1.0f; verts[2] = 0.0f;
@@ -3986,7 +4045,9 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
     color[2] = static_cast<float>((shadow_color      ) & 0xFF) / 255.0f;
     color[3] = static_cast<float>((shadow_color >> 24) & 0xFF) / 255.0f;
     if (bgfx::isValid(g_uniforms.uShadowColor))
+    {
         bgfx::setUniform(g_uniforms.uShadowColor, color);
+    }
 
     uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
         | BGFX_STATE_DEPTH_TEST_ALWAYS
@@ -4618,7 +4679,9 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     UploadLightUniforms();
     if (bgfx::isValid(g_uniforms.uSceneAmbient))
+    {
         bgfx::setUniform(g_uniforms.uSceneAmbient, g_draw.sceneAmbient);
+    }
     if (bgfx::isValid(g_uniforms.uLightingEnabled))
     {
         // TheSuperHackers @bugfix bobtista 15/04/2026 Force lighting off
@@ -4674,12 +4737,16 @@ void SubmitEngineDraw(unsigned short start_index,
                     // Manual 4x4 multiply: ts = view * texMtx (D3D row-major)
                     D3DMATRIX ts;
                     for (int rr = 0; rr < 4; rr++)
+                    {
                         for (int cc = 0; cc < 4; cc++)
                         {
                             ts.m[rr][cc] = 0;
                             for (int k = 0; k < 4; k++)
+                            {
                                 ts.m[rr][cc] += viewMtx.m[rr][k] * texMtx.m[k][cc];
+                            }
                         }
+                    }
                     // ts = T * S: scale on diagonal, translated scale in row 3
                     float shroudParams[4] = {
                         (ts.m[0][0] != 0.0f) ? ts.m[3][0] / ts.m[0][0] : 0.0f,
@@ -4688,7 +4755,9 @@ void SubmitEngineDraw(unsigned short start_index,
                         ts.m[1][1]
                     };
                     if (bgfx::isValid(g_uniforms.uShroudParams))
+                    {
                         bgfx::setUniform(g_uniforms.uShroudParams, shroudParams);
+                    }
                 }
             }
         }
@@ -4791,11 +4860,17 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         program = g_device.treeProgram;
         if (bgfx::isValid(g_uniforms.uSwayTable))
+        {
             bgfx::setUniform(g_uniforms.uSwayTable, g_draw.swayTable, kSwayTableEntries);
+        }
         if (bgfx::isValid(g_uniforms.uShroudOffset))
+        {
             bgfx::setUniform(g_uniforms.uShroudOffset, g_draw.shroudOffset);
+        }
         if (bgfx::isValid(g_uniforms.uShroudScale))
+        {
             bgfx::setUniform(g_uniforms.uShroudScale, g_draw.shroudScale);
+        }
     }
     bgfx::submit(submitView, program);
 
@@ -4822,13 +4897,17 @@ void SubmitEngineDraw(unsigned short start_index,
                                   vertex_count);
         }
         if (g_draw.useTransientIB)
+        {
             bgfx::setIndexBuffer(&g_draw.transientIB,
                                  start_index,
                                  indexCount);
+        }
         else
+        {
             bgfx::setIndexBuffer(g_draw.ib,
                                  start_index,
                                  indexCount);
+        }
         bgfx::setTransform(worldMtx);
         const uint64_t depthState =
             BGFX_STATE_WRITE_RGB
@@ -4847,11 +4926,15 @@ void SubmitEngineDraw(unsigned short start_index,
         if (g_draw.useTransientVB)
         {
             if (g_views.inSortFlush)
+            {
                 bgfx::setVertexBuffer(0, &g_draw.transientVB);
+            }
             else
+            {
                 bgfx::setVertexBuffer(0, &g_draw.transientVB,
                                       static_cast<uint32_t>(g_draw.ibOffset),
                                       vertex_count);
+            }
         }
         else
         {
@@ -4860,13 +4943,17 @@ void SubmitEngineDraw(unsigned short start_index,
                                   vertex_count);
         }
         if (g_draw.useTransientIB)
+        {
             bgfx::setIndexBuffer(&g_draw.transientIB,
                                  start_index,
                                  indexCount);
+        }
         else
+        {
             bgfx::setIndexBuffer(g_draw.ib,
                                  start_index,
                                  indexCount);
+        }
         {
             const float * casterModel = g_views.inSortFlush ? g_frame.sortWorldRaw : worldMtx;
             float casterMVP[16];
