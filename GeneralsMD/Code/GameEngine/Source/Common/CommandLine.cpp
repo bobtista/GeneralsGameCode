@@ -673,6 +673,17 @@ Int parsePreload( char *args[], int num )
 #endif
 
 
+// TheSuperHackers @feature bobtista 17/04/2026 Load a save game file from the command line
+Int parseLoadSave(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_loadSaveGame = args[1];
+	}
+	return 2;
+}
+
+
 #if defined(RTS_DEBUG)
 Int parseDisplayDebug(char *args[], int)
 {
@@ -690,17 +701,6 @@ Int parseFile(char *args[], int num)
 	}
 	return 2;
 }
-
-// TheSuperHackers @feature bobtista 17/04/2026 Load a save game file from the command line
-Int parseLoadSave(char *args[], int num)
-{
-	if (num > 1)
-	{
-		TheWritableGlobalData->m_loadSaveGame = args[1];
-	}
-	return 2;
-}
-
 
 Int parsePreloadEverything( char *args[], int num )
 {
@@ -1183,6 +1183,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },
+	{ "-loadsave", parseLoadSave },
 
 	// TheSuperHackers @feature xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
 	{ "-forcefullviewport", parseFullViewport },
@@ -1278,7 +1279,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-munkee", parseMunkee },
 	{ "-displayDebug", parseDisplayDebug },
 	{ "-file", parseFile },
-	{ "-loadsave", parseLoadSave },
 
 //	{ "-preload", parsePreload },
 
