@@ -1133,6 +1133,11 @@ void RTS3DScene::updatePlayerColorPasses()
 
 #define ZBias 0.0001f
 
+// TheSuperHackers @info bobtista 28/04/2026 D3DRS_ZBIAS units (0..16) used
+// to push wireframe overlay draws toward the camera so they stay visible
+// over the underlying solid pass. Was a raw 7 in the legacy DX8 path.
+#define WIREFRAME_OVERLAY_ZBIAS 7
+
 //DECLARE_PERF_TIMER(NonTerrainRender)
 void RTS3DScene::Render(RenderInfoClass & rinfo)
 {
@@ -1160,7 +1165,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			//a projected alpha texture which will later be used to determine where
 			//wireframe should be visible.
 			///@todo: Clearing to black may not be needed if the scene already did the clear.
-			g_renderBackend->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_ALPHA);
+			g_renderBackend->Set_Color_Write_Mask(RB_COLOR_ALPHA);
 			g_renderBackend->Set_Z_Bias(0);
 			//Since all objects will be rendered with same material, disable resetting until all are done.
 			m_maskMaterialPass->setAllowUninstall(FALSE);
@@ -1170,7 +1175,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			m_maskMaterialPass->setAllowUninstall(TRUE);
 			m_maskMaterialPass->UnInstall_Materials();
 
-			g_renderBackend->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			g_renderBackend->Set_Color_Write_Mask(RB_COLOR_RGB);
 
 			ShaderClass::Invalidate();
 		}
@@ -1185,7 +1190,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			//wireframe should be visible.
 			///@todo: Clearing to black may not be needed if the scene already did the clear.
 			g_renderBackend->Clear(true, false, Vector3(0.0f,0.0f,0.0f),1.0f);	// Clear color but not z
-			g_renderBackend->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_ALPHA);
+			g_renderBackend->Set_Color_Write_Mask(RB_COLOR_ALPHA);
 			g_renderBackend->Set_Z_Bias(0);
 
 			//We're only filling the z-buffer so ignore normal textures and state changes to speed things up.
@@ -1198,7 +1203,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			m_maskMaterialPass->setAllowUninstall(TRUE);
 			m_maskMaterialPass->UnInstall_Materials();
 
-			g_renderBackend->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			g_renderBackend->Set_Color_Write_Mask(RB_COLOR_RGB);
 			WW3D::Enable_Coloring(0xff008000);
 			WW3D::Enable_Texturing(false);
 			g_renderBackend->Set_Fill_Mode(RB_FILL_WIREFRAME);
@@ -1234,13 +1239,13 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			Customized_Render(rinfo);
 			Flush(rinfo);
 			//Re-enable writes to color buffer.
-			g_renderBackend->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			g_renderBackend->Set_Color_Write_Mask(RB_COLOR_RGB);
 
 			switch (Get_Extra_Pass_Polygon_Mode()) {
 			case EXTRA_PASS_LINE:
 				WW3D::Enable_Texturing(false);
 				g_renderBackend->Set_Fill_Mode(RB_FILL_WIREFRAME);
-				g_renderBackend->Set_Z_Bias(7);
+				g_renderBackend->Set_Z_Bias(WIREFRAME_OVERLAY_ZBIAS);
 				Customized_Render(rinfo);
 				break;
 			case EXTRA_PASS_CLEAR_LINE:
@@ -1248,7 +1253,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 				WW3D::Enable_Texturing(false);
 				WW3D::Enable_Coloring(0xff008000);
 				g_renderBackend->Set_Fill_Mode(RB_FILL_WIREFRAME);
-				g_renderBackend->Set_Z_Bias(7);
+				g_renderBackend->Set_Z_Bias(WIREFRAME_OVERLAY_ZBIAS);
 				Customized_Render(rinfo);
 				break;
 			}

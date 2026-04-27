@@ -579,7 +579,7 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 //Hard Shadows using stencil
 /*	m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_ZERO);
 	m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
-	g_renderBackend->Override_Alpha_Test(true, 0, 8);	//should reject background pixels
+	g_renderBackend->Override_Alpha_Test(true, 0, RB_CMP_ALWAYS);	//should reject background pixels
 	g_renderBackend->Set_Stencil_Enable(true);
 */
 /*	g_renderBackend->Set_Stencil_Func(RB_CMP_ALWAYS);
