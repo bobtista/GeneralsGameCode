@@ -582,6 +582,10 @@ void GameClient::update()
 
 			TheShell->showShellMap(TRUE);
 			TheShell->showShell();
+			// TheSuperHackers @bugfix bobtista 27/04/2026 Resume rendering after
+			// startup movie cancellation. With the shell map enabled, MainMenuInit
+			// may not run before the first shell-map frames.
+			TheWritableGlobalData->m_breakTheMovie = FALSE;
 			TheWritableGlobalData->m_afterIntro = FALSE;
 		}
 	}

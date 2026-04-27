@@ -2009,6 +2009,7 @@ void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 	DX8_THREAD_ASSERT();
 	DX8CALL(SetViewport(pViewport));
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	// TheSuperHackers @fix bobtista 19/04/2026 Notify g_renderBackend so bgfx
 	// view rects stay in sync with the D3D8 viewport. CameraClass::Apply()
 	// calls this directly, bypassing g_renderBackend->Set_Viewport().
@@ -2023,6 +2024,7 @@ void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 		rbvp.max_z  = pViewport->MaxZ;
 		g_renderBackend->Set_Viewport(rbvp);
 	}
+#endif
 }
 
 // ----------------------------------------------------------------------------
