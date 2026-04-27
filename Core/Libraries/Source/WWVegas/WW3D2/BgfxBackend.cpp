@@ -289,6 +289,33 @@ static void UpdateShadowStencilState()
 // used by Phase 4C.2's vertex buffer creation path. Names follow the FVF
 // tags - P=position, N=normal, D=diffuse (color0), T<n>=texcoord<n>.
 
+// TheSuperHackers @refactor bobtista 26/04/2026 Shader program creation
+// helper. Creates a bgfx program from compiled bytecode, sets debug names,
+// and cleans up on failure.
+bgfx::ProgramHandle CreateShaderProgram(
+    const uint8_t * vsData, uint32_t vsSize, const char * vsName,
+    const uint8_t * fsData, uint32_t fsSize, const char * fsName)
+{
+    bgfx::ShaderHandle vs = bgfx::createShader(bgfx::makeRef(vsData, vsSize));
+    bgfx::ShaderHandle fs = bgfx::createShader(bgfx::makeRef(fsData, fsSize));
+    if (bgfx::isValid(vs) && bgfx::isValid(fs))
+    {
+        bgfx::setName(vs, vsName);
+        bgfx::setName(fs, fsName);
+        return bgfx::createProgram(vs, fs, true);
+    }
+    if (bgfx::isValid(vs))
+    {
+        bgfx::destroy(vs);
+    }
+    if (bgfx::isValid(fs))
+    {
+        bgfx::destroy(fs);
+    }
+    WWDEBUG_SAY(("[BgfxBackend] %s + %s createShader FAILED.", vsName, fsName));
+    return BGFX_INVALID_HANDLE;
+}
+
 void BuildStandardVertexLayouts()
 {
     g_device.layoutP
@@ -1284,30 +1311,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 
     BuildStandardVertexLayouts();
 
-    const bgfx::Memory * vsMem = bgfx::makeRef(vs_passthrough_dx11,
-                                               sizeof(vs_passthrough_dx11));
-    const bgfx::Memory * fsMem = bgfx::makeRef(fs_passthrough_dx11,
-                                               sizeof(fs_passthrough_dx11));
-    bgfx::ShaderHandle vsHandle = bgfx::createShader(vsMem);
-    bgfx::ShaderHandle fsHandle = bgfx::createShader(fsMem);
-    if (bgfx::isValid(vsHandle) && bgfx::isValid(fsHandle))
-    {
-        bgfx::setName(vsHandle, "vs_passthrough");
-        bgfx::setName(fsHandle, "fs_passthrough");
-        g_device.passthroughProgram = bgfx::createProgram(vsHandle, fsHandle, true);
-    }
-    else
-    {
-        if (bgfx::isValid(vsHandle))
-        {
-            bgfx::destroy(vsHandle);
-        }
-        if (bgfx::isValid(fsHandle))
-        {
-            bgfx::destroy(fsHandle);
-        }
-        WWDEBUG_SAY(("[BgfxBackend] passthrough shader createShader FAILED."));
-    }
+    g_device.passthroughProgram = CreateShaderProgram(
+        vs_passthrough_dx11, sizeof(vs_passthrough_dx11), "vs_passthrough",
+        fs_passthrough_dx11, sizeof(fs_passthrough_dx11), "fs_passthrough");
 
     // Fullscreen-clear VB. Single triangle in NDC that covers the entire
     // clip-space rectangle; submitted to view 0 every frame (Begin_Scene).
@@ -1367,125 +1373,27 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT,
         bgfx::copy(kWaterPixel, sizeof(kWaterPixel)));
 
-    // Phase 5A uber shader program — single program for all engine draws.
-    const bgfx::Memory * vsUberMem = bgfx::makeRef(vs_uber_dx11, sizeof(vs_uber_dx11));
-    const bgfx::Memory * fsUberMem = bgfx::makeRef(fs_uber_dx11, sizeof(fs_uber_dx11));
-    bgfx::ShaderHandle vsUber = bgfx::createShader(vsUberMem);
-    bgfx::ShaderHandle fsUber = bgfx::createShader(fsUberMem);
-    if (bgfx::isValid(vsUber) && bgfx::isValid(fsUber))
-    {
-        bgfx::setName(vsUber, "vs_uber");
-        bgfx::setName(fsUber, "fs_uber");
-        g_device.uberProgram = bgfx::createProgram(vsUber, fsUber, true);
-    }
-    else
-    {
-        if (bgfx::isValid(vsUber))
-        {
-            bgfx::destroy(vsUber);
-        }
-        if (bgfx::isValid(fsUber))
-        {
-            bgfx::destroy(fsUber);
-        }
-        WWDEBUG_SAY(("[BgfxBackend] uber shader createShader FAILED."));
-    }
+    g_device.uberProgram = CreateShaderProgram(
+        vs_uber_dx11, sizeof(vs_uber_dx11), "vs_uber",
+        fs_uber_dx11, sizeof(fs_uber_dx11), "fs_uber");
 
-    // Phase 4H tree/grass sway vertex shader program. Reuses fs_uber.
-    const bgfx::Memory * vsTreesMem = bgfx::makeRef(vs_trees_dx11, sizeof(vs_trees_dx11));
-    const bgfx::Memory * fsUberMem2 = bgfx::makeRef(fs_uber_dx11, sizeof(fs_uber_dx11));
-    bgfx::ShaderHandle vsTrees = bgfx::createShader(vsTreesMem);
-    bgfx::ShaderHandle fsUber2 = bgfx::createShader(fsUberMem2);
-    if (bgfx::isValid(vsTrees) && bgfx::isValid(fsUber2))
-    {
-        bgfx::setName(vsTrees, "vs_trees");
-        g_device.treeProgram = bgfx::createProgram(vsTrees, fsUber2, true);
-    }
-    else
-    {
-        if (bgfx::isValid(vsTrees))
-        {
-            bgfx::destroy(vsTrees);
-        }
-        if (bgfx::isValid(fsUber2))
-        {
-            bgfx::destroy(fsUber2);
-        }
-        WWDEBUG_SAY(("[BgfxBackend] tree shader createShader FAILED."));
-    }
-    // Phase 4I stencil shadow volume program. XYZ-only verts, no color output.
-    const bgfx::Memory * vsShadowMem = bgfx::makeRef(vs_shadow_volume_dx11, sizeof(vs_shadow_volume_dx11));
-    const bgfx::Memory * fsShadowMem = bgfx::makeRef(fs_shadow_volume_dx11, sizeof(fs_shadow_volume_dx11));
-    bgfx::ShaderHandle vsShadow = bgfx::createShader(vsShadowMem);
-    bgfx::ShaderHandle fsShadow = bgfx::createShader(fsShadowMem);
-    if (bgfx::isValid(vsShadow) && bgfx::isValid(fsShadow))
-    {
-        bgfx::setName(vsShadow, "vs_shadow_volume");
-        bgfx::setName(fsShadow, "fs_shadow_volume");
-        g_device.shadowVolumeProgram = bgfx::createProgram(vsShadow, fsShadow, true);
-    }
-    else
-    {
-        if (bgfx::isValid(vsShadow))
-        {
-            bgfx::destroy(vsShadow);
-        }
-        if (bgfx::isValid(fsShadow))
-        {
-            bgfx::destroy(fsShadow);
-        }
-        WWDEBUG_SAY(("[BgfxBackend] shadow volume shader createShader FAILED."));
-    }
+    g_device.treeProgram = CreateShaderProgram(
+        vs_trees_dx11, sizeof(vs_trees_dx11), "vs_trees",
+        fs_uber_dx11, sizeof(fs_uber_dx11), "fs_uber");
 
-    // Phase 4I shadow darken apply program. Fullscreen clip-space quad.
-    const bgfx::Memory * vsApplyMem = bgfx::makeRef(vs_shadow_apply_dx11, sizeof(vs_shadow_apply_dx11));
-    const bgfx::Memory * fsApplyMem = bgfx::makeRef(fs_shadow_apply_dx11, sizeof(fs_shadow_apply_dx11));
-    bgfx::ShaderHandle vsApply = bgfx::createShader(vsApplyMem);
-    bgfx::ShaderHandle fsApply = bgfx::createShader(fsApplyMem);
-    if (bgfx::isValid(vsApply) && bgfx::isValid(fsApply))
-    {
-        bgfx::setName(vsApply, "vs_shadow_apply");
-        bgfx::setName(fsApply, "fs_shadow_apply");
-        g_device.shadowApplyProgram = bgfx::createProgram(vsApply, fsApply, true);
-    }
-    else
-    {
-        if (bgfx::isValid(vsApply))
-        {
-            bgfx::destroy(vsApply);
-        }
-        if (bgfx::isValid(fsApply))
-        {
-            bgfx::destroy(fsApply);
-        }
-        WWDEBUG_SAY(("[BgfxBackend] shadow apply shader createShader FAILED."));
-    }
+    g_device.shadowVolumeProgram = CreateShaderProgram(
+        vs_shadow_volume_dx11, sizeof(vs_shadow_volume_dx11), "vs_shadow_volume",
+        fs_shadow_volume_dx11, sizeof(fs_shadow_volume_dx11), "fs_shadow_volume");
+
+    g_device.shadowApplyProgram = CreateShaderProgram(
+        vs_shadow_apply_dx11, sizeof(vs_shadow_apply_dx11), "vs_shadow_apply",
+        fs_shadow_apply_dx11, sizeof(fs_shadow_apply_dx11), "fs_shadow_apply");
     g_uniforms.uShadowColor = bgfx::createUniform("u_shadowColor", bgfx::UniformType::Vec4);
     g_uniforms.uShadowBias  = bgfx::createUniform("u_shadowBias",  bgfx::UniformType::Vec4);
 
-    // Phase 4I.2 CSM caster program + shadow map render target.
-    const bgfx::Memory * vsCasterMem = bgfx::makeRef(vs_shadow_caster_dx11, sizeof(vs_shadow_caster_dx11));
-    const bgfx::Memory * fsCasterMem = bgfx::makeRef(fs_shadow_caster_dx11, sizeof(fs_shadow_caster_dx11));
-    bgfx::ShaderHandle vsCaster = bgfx::createShader(vsCasterMem);
-    bgfx::ShaderHandle fsCaster = bgfx::createShader(fsCasterMem);
-    if (bgfx::isValid(vsCaster) && bgfx::isValid(fsCaster))
-    {
-        bgfx::setName(vsCaster, "vs_shadow_caster");
-        bgfx::setName(fsCaster, "fs_shadow_caster");
-        g_device.shadowCasterProgram = bgfx::createProgram(vsCaster, fsCaster, true);
-    }
-    else
-    {
-        if (bgfx::isValid(vsCaster))
-        {
-            bgfx::destroy(vsCaster);
-        }
-        if (bgfx::isValid(fsCaster))
-        {
-            bgfx::destroy(fsCaster);
-        }
-        WWDEBUG_SAY(("[BgfxBackend] CSM caster shader createShader FAILED."));
-    }
+    g_device.shadowCasterProgram = CreateShaderProgram(
+        vs_shadow_caster_dx11, sizeof(vs_shadow_caster_dx11), "vs_shadow_caster",
+        fs_shadow_caster_dx11, sizeof(fs_shadow_caster_dx11), "fs_shadow_caster");
 
     // Shadow map depth render target. 1024x1024 D24 with compare-less
     // sampling for hardware PCF (sampler2DShadow in fs_uber).
