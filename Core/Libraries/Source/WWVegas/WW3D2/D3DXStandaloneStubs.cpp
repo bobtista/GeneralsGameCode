@@ -45,18 +45,28 @@
 
 extern "C" D3DXMATRIX * WINAPI D3DXMatrixTranspose(D3DXMATRIX * out, CONST D3DXMATRIX * in)
 {
-	if (out == nullptr || in == nullptr) return out;
+	if (out == nullptr || in == nullptr)
+	{
+		return out;
+	}
 	D3DXMATRIX tmp;
 	for (int r = 0; r < 4; ++r)
+	{
 		for (int c = 0; c < 4; ++c)
+		{
 			tmp.m[c][r] = in->m[r][c];
+		}
+	}
 	*out = tmp;
 	return out;
 }
 
 extern "C" D3DXMATRIX * WINAPI D3DXMatrixMultiply(D3DXMATRIX * out, CONST D3DXMATRIX * a, CONST D3DXMATRIX * b)
 {
-	if (out == nullptr || a == nullptr || b == nullptr) return out;
+	if (out == nullptr || a == nullptr || b == nullptr)
+	{
+		return out;
+	}
 	D3DXMATRIX tmp;
 	for (int r = 0; r < 4; ++r)
 	{
@@ -75,7 +85,10 @@ extern "C" D3DXMATRIX * WINAPI D3DXMatrixMultiply(D3DXMATRIX * out, CONST D3DXMA
 
 extern "C" D3DXMATRIX * WINAPI D3DXMatrixScaling(D3DXMATRIX * out, FLOAT sx, FLOAT sy, FLOAT sz)
 {
-	if (out == nullptr) return nullptr;
+	if (out == nullptr)
+	{
+		return nullptr;
+	}
 	std::memset(out, 0, sizeof(*out));
 	out->_11 = sx;
 	out->_22 = sy;
@@ -86,7 +99,10 @@ extern "C" D3DXMATRIX * WINAPI D3DXMatrixScaling(D3DXMATRIX * out, FLOAT sx, FLO
 
 extern "C" D3DXMATRIX * WINAPI D3DXMatrixTranslation(D3DXMATRIX * out, FLOAT x, FLOAT y, FLOAT z)
 {
-	if (out == nullptr) return nullptr;
+	if (out == nullptr)
+	{
+		return nullptr;
+	}
 	std::memset(out, 0, sizeof(*out));
 	out->_11 = out->_22 = out->_33 = out->_44 = 1.0f;
 	out->_41 = x;
@@ -97,7 +113,10 @@ extern "C" D3DXMATRIX * WINAPI D3DXMatrixTranslation(D3DXMATRIX * out, FLOAT x, 
 
 extern "C" D3DXMATRIX * WINAPI D3DXMatrixRotationZ(D3DXMATRIX * out, FLOAT angle)
 {
-	if (out == nullptr) return nullptr;
+	if (out == nullptr)
+	{
+		return nullptr;
+	}
 	std::memset(out, 0, sizeof(*out));
 	const FLOAT c = std::cos(angle);
 	const FLOAT s = std::sin(angle);
@@ -113,7 +132,10 @@ extern "C" D3DXMATRIX * WINAPI D3DXMatrixRotationZ(D3DXMATRIX * out, FLOAT angle
 // pDeterminant when non-null.
 extern "C" D3DXMATRIX * WINAPI D3DXMatrixInverse(D3DXMATRIX * out, FLOAT * det_out, CONST D3DXMATRIX * in)
 {
-	if (out == nullptr || in == nullptr) return nullptr;
+	if (out == nullptr || in == nullptr)
+	{
+		return nullptr;
+	}
 	const FLOAT * m = &in->m[0][0];
 	FLOAT inv[16];
 	inv[ 0] =  m[5]*m[10]*m[15] - m[5]*m[11]*m[14] - m[9]*m[6]*m[15]
@@ -150,11 +172,20 @@ extern "C" D3DXMATRIX * WINAPI D3DXMatrixInverse(D3DXMATRIX * out, FLOAT * det_o
 	         + m[4]*m[2]*m[ 9] + m[ 8]*m[1]*m[ 6] - m[ 8]*m[2]*m[ 5];
 
 	FLOAT d = m[0]*inv[0] + m[1]*inv[4] + m[2]*inv[8] + m[3]*inv[12];
-	if (det_out != nullptr) *det_out = d;
-	if (d == 0.0f) return nullptr;
+	if (det_out != nullptr)
+	{
+		*det_out = d;
+	}
+	if (d == 0.0f)
+	{
+		return nullptr;
+	}
 	const FLOAT inv_d = 1.0f / d;
 	FLOAT * out_m = &out->m[0][0];
-	for (int i = 0; i < 16; ++i) out_m[i] = inv[i] * inv_d;
+	for (int i = 0; i < 16; ++i)
+	{
+		out_m[i] = inv[i] * inv_d;
+	}
 	return out;
 }
 
@@ -166,7 +197,10 @@ extern "C" D3DXMATRIX * WINAPI D3DXMatrixInverse(D3DXMATRIX * out, FLOAT * det_o
 
 extern "C" D3DXVECTOR4 * WINAPI D3DXVec3Transform(D3DXVECTOR4 * out, CONST D3DXVECTOR3 * v, CONST D3DXMATRIX * m)
 {
-	if (out == nullptr || v == nullptr || m == nullptr) return out;
+	if (out == nullptr || v == nullptr || m == nullptr)
+	{
+		return out;
+	}
 	D3DXVECTOR4 tmp;
 	tmp.x = v->x * m->_11 + v->y * m->_21 + v->z * m->_31 + m->_41;
 	tmp.y = v->x * m->_12 + v->y * m->_22 + v->z * m->_32 + m->_42;
@@ -178,7 +212,10 @@ extern "C" D3DXVECTOR4 * WINAPI D3DXVec3Transform(D3DXVECTOR4 * out, CONST D3DXV
 
 extern "C" D3DXVECTOR4 * WINAPI D3DXVec4Transform(D3DXVECTOR4 * out, CONST D3DXVECTOR4 * v, CONST D3DXMATRIX * m)
 {
-	if (out == nullptr || v == nullptr || m == nullptr) return out;
+	if (out == nullptr || v == nullptr || m == nullptr)
+	{
+		return out;
+	}
 	D3DXVECTOR4 tmp;
 	tmp.x = v->x * m->_11 + v->y * m->_21 + v->z * m->_31 + v->w * m->_41;
 	tmp.y = v->x * m->_12 + v->y * m->_22 + v->z * m->_32 + v->w * m->_42;
@@ -206,10 +243,22 @@ extern "C" UINT WINAPI D3DXGetFVFVertexSize(DWORD fvf)
 	case D3DFVF_XYZB5:  size += 3 * sizeof(float) + 5 * sizeof(float); break;
 	default: break;
 	}
-	if (fvf & D3DFVF_NORMAL)   size += 3 * sizeof(float);
-	if (fvf & D3DFVF_PSIZE)    size += sizeof(float);
-	if (fvf & D3DFVF_DIFFUSE)  size += sizeof(DWORD);
-	if (fvf & D3DFVF_SPECULAR) size += sizeof(DWORD);
+	if (fvf & D3DFVF_NORMAL)
+	{
+		size += 3 * sizeof(float);
+	}
+	if (fvf & D3DFVF_PSIZE)
+	{
+		size += sizeof(float);
+	}
+	if (fvf & D3DFVF_DIFFUSE)
+	{
+		size += sizeof(DWORD);
+	}
+	if (fvf & D3DFVF_SPECULAR)
+	{
+		size += sizeof(DWORD);
+	}
 	const DWORD tex_count = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
 	// Default 2 floats per set — D3DFVF_TEXCOORDSIZE1..4 overrides aren't
 	// used anywhere in the engine.
@@ -224,7 +273,10 @@ extern "C" UINT WINAPI D3DXGetFVFVertexSize(DWORD fvf)
 
 extern "C" HRESULT WINAPI D3DXGetErrorStringA(HRESULT hr, LPSTR pBuffer, UINT BufferLen)
 {
-	if (pBuffer == nullptr || BufferLen == 0) return D3D_OK;
+	if (pBuffer == nullptr || BufferLen == 0)
+	{
+		return D3D_OK;
+	}
 	const char * msg;
 	switch (static_cast<UINT>(hr))
 	{
@@ -256,9 +308,18 @@ extern "C" HRESULT WINAPI D3DXCreateTexture(
 	D3DPOOL pool,
 	LPDIRECT3DTEXTURE8 * out_texture)
 {
-	if (device == nullptr || out_texture == nullptr) return E_POINTER;
-	if (mip_levels == D3DX_DEFAULT) mip_levels = 0;
-	if (format == D3DFMT_UNKNOWN) format = D3DFMT_A8R8G8B8;
+	if (device == nullptr || out_texture == nullptr)
+	{
+		return E_POINTER;
+	}
+	if (mip_levels == D3DX_DEFAULT)
+	{
+		mip_levels = 0;
+	}
+	if (format == D3DFMT_UNKNOWN)
+	{
+		format = D3DFMT_A8R8G8B8;
+	}
 	return device->CreateTexture(width, height, mip_levels, usage, format, pool, out_texture);
 }
 
@@ -271,9 +332,18 @@ extern "C" HRESULT WINAPI D3DXCreateCubeTexture(
 	D3DPOOL pool,
 	LPDIRECT3DCUBETEXTURE8 * out_texture)
 {
-	if (device == nullptr || out_texture == nullptr) return E_POINTER;
-	if (mip_levels == D3DX_DEFAULT) mip_levels = 0;
-	if (format == D3DFMT_UNKNOWN) format = D3DFMT_A8R8G8B8;
+	if (device == nullptr || out_texture == nullptr)
+	{
+		return E_POINTER;
+	}
+	if (mip_levels == D3DX_DEFAULT)
+	{
+		mip_levels = 0;
+	}
+	if (format == D3DFMT_UNKNOWN)
+	{
+		format = D3DFMT_A8R8G8B8;
+	}
 	return device->CreateCubeTexture(size, mip_levels, usage, format, pool, out_texture);
 }
 
@@ -288,9 +358,18 @@ extern "C" HRESULT WINAPI D3DXCreateVolumeTexture(
 	D3DPOOL pool,
 	LPDIRECT3DVOLUMETEXTURE8 * out_texture)
 {
-	if (device == nullptr || out_texture == nullptr) return E_POINTER;
-	if (mip_levels == D3DX_DEFAULT) mip_levels = 0;
-	if (format == D3DFMT_UNKNOWN) format = D3DFMT_A8R8G8B8;
+	if (device == nullptr || out_texture == nullptr)
+	{
+		return E_POINTER;
+	}
+	if (mip_levels == D3DX_DEFAULT)
+	{
+		mip_levels = 0;
+	}
+	if (format == D3DFMT_UNKNOWN)
+	{
+		format = D3DFMT_A8R8G8B8;
+	}
 	return device->CreateVolumeTexture(width, height, depth, mip_levels, usage, format, pool, out_texture);
 }
 
@@ -349,15 +428,30 @@ extern "C" HRESULT WINAPI D3DXFilterTexture(
 	UINT src_level,
 	DWORD /*filter*/)
 {
-	if (base_texture == nullptr) return E_POINTER;
-	if (base_texture->GetType() != D3DRTYPE_TEXTURE) return D3D_OK;
+	if (base_texture == nullptr)
+	{
+		return E_POINTER;
+	}
+	if (base_texture->GetType() != D3DRTYPE_TEXTURE)
+	{
+		return D3D_OK;
+	}
 	LPDIRECT3DTEXTURE8 texture = static_cast<LPDIRECT3DTEXTURE8>(base_texture);
 	const DWORD levels = texture->GetLevelCount();
-	if (src_level == D3DX_DEFAULT) src_level = 0;
-	if (src_level >= levels) return D3D_OK;
+	if (src_level == D3DX_DEFAULT)
+	{
+		src_level = 0;
+	}
+	if (src_level >= levels)
+	{
+		return D3D_OK;
+	}
 
 	D3DSURFACE_DESC src_desc = {};
-	if (FAILED(texture->GetLevelDesc(src_level, &src_desc))) return E_FAIL;
+	if (FAILED(texture->GetLevelDesc(src_level, &src_desc)))
+	{
+		return E_FAIL;
+	}
 	UINT prev_w = src_desc.Width;
 	UINT prev_h = src_desc.Height;
 	const D3DFORMAT fmt = src_desc.Format;
@@ -382,7 +476,10 @@ extern "C" HRESULT WINAPI D3DXFilterTexture(
 		UINT lh = prev_h >> 1; if (lh == 0) lh = 1;
 		D3DLOCKED_RECT src_lr = { 0 };
 		D3DLOCKED_RECT dst_lr = { 0 };
-		if (FAILED(texture->LockRect(level - 1, &src_lr, nullptr, 0))) break;
+		if (FAILED(texture->LockRect(level - 1, &src_lr, nullptr, 0)))
+		{
+			break;
+		}
 		if (FAILED(texture->LockRect(level, &dst_lr, nullptr, 0)))
 		{
 			texture->UnlockRect(level - 1);
@@ -423,11 +520,17 @@ extern "C" HRESULT WINAPI D3DXFilterTexture(
 					const uint16_t p11 = *reinterpret_cast<const uint16_t *>(src + y1 * src_lr.Pitch + x1 * 2);
 					uint16_t * d = reinterpret_cast<uint16_t *>(dst + y * dst_lr.Pitch + x * 2);
 					if (fmt == D3DFMT_R5G6B5)
+					{
 						*d = Filter_R5G6B5_4(p00, p10, p01, p11);
+					}
 					else if (fmt == D3DFMT_A4R4G4B4 || fmt == D3DFMT_X4R4G4B4)
+					{
 						*d = Filter_A4R4G4B4_4(p00, p10, p01, p11);
+					}
 					else
+					{
 						*d = Filter_A1R5G5B5_4(p00, p10, p01, p11);
+					}
 				}
 				else
 				{
@@ -463,10 +566,19 @@ extern "C" HRESULT WINAPI D3DXLoadSurfaceFromSurface(
 	DWORD /*filter*/,
 	D3DCOLOR /*color_key*/)
 {
-	if (dst == nullptr || src == nullptr) return E_POINTER;
+	if (dst == nullptr || src == nullptr)
+	{
+		return E_POINTER;
+	}
 	D3DSURFACE_DESC sd = {}, dd = {};
-	if (FAILED(src->GetDesc(&sd))) return E_FAIL;
-	if (FAILED(dst->GetDesc(&dd))) return E_FAIL;
+	if (FAILED(src->GetDesc(&sd)))
+	{
+		return E_FAIL;
+	}
+	if (FAILED(dst->GetDesc(&dd)))
+	{
+		return E_FAIL;
+	}
 
 	UINT bpp;
 	switch (sd.Format)
@@ -505,7 +617,10 @@ extern "C" HRESULT WINAPI D3DXLoadSurfaceFromSurface(
 
 	D3DLOCKED_RECT sl = { 0 };
 	D3DLOCKED_RECT dl = { 0 };
-	if (FAILED(src->LockRect(&sl, nullptr, 0))) return E_FAIL;
+	if (FAILED(src->LockRect(&sl, nullptr, 0)))
+	{
+		return E_FAIL;
+	}
 	if (FAILED(dst->LockRect(&dl, nullptr, 0)))
 	{
 		src->UnlockRect();
@@ -545,7 +660,10 @@ extern "C" HRESULT WINAPI D3DXCreateTextureFromFileExA(
 	PALETTEENTRY * /*palette*/,
 	LPDIRECT3DTEXTURE8 * out_texture)
 {
-	if (out_texture != nullptr) *out_texture = nullptr;
+	if (out_texture != nullptr)
+	{
+		*out_texture = nullptr;
+	}
 	static bool s_logged = false;
 	if (!s_logged)
 	{
@@ -574,9 +692,18 @@ extern "C" HRESULT WINAPI D3DXAssembleShader(
 		s_logged = true;
 		WWDEBUG_SAY(("[D3DXStub] D3DXAssembleShader stubbed (bgfx uses its own shaders)"));
 	}
-	if (constants) *constants = nullptr;
-	if (compiled_shader) *compiled_shader = nullptr;
-	if (errors) *errors = nullptr;
+	if (constants)
+	{
+		*constants = nullptr;
+	}
+	if (compiled_shader)
+	{
+		*compiled_shader = nullptr;
+	}
+	if (errors)
+	{
+		*errors = nullptr;
+	}
 	return E_NOTIMPL;
 }
 
