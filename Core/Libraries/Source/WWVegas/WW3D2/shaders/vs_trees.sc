@@ -1,5 +1,5 @@
 $input  a_position, a_normal, a_color0, a_texcoord0
-$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV
+$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV, v_worldPos
 
 #include <bgfx_shader.sh>
 
@@ -40,6 +40,7 @@ void main()
 	vec3 swayed = a_position + height * wave.xyz;
 
 	gl_Position = mul(u_modelViewProj, vec4(swayed, 1.0));
+	v_worldPos = swayed;
 
 	// Original: oD0 = v2 * v1.yyyw (replicate color scale). In bgfx
 	// the diffuse comes in as BGRA on D3D paths — keep the same

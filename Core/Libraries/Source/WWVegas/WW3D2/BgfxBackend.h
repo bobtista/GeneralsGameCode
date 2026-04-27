@@ -142,8 +142,12 @@ public:
     virtual void Override_Texcoord_Index(unsigned stage, unsigned uvIndex) override;
     virtual void Override_Terrain_Blend(bool enable) override;
     virtual void Override_Material_Opacity(float opacity) override;
+    virtual void Begin_Water_Overlay() override;
+    virtual void End_Water_Overlay() override;
     virtual void Begin_Effect_Overlay() override;
     virtual void End_Effect_Overlay() override;
+    virtual bool Begin_Smudge_Distortion() override;
+    virtual void End_Smudge_Distortion() override;
 
     // Phase 4H tree / grass sway shader hooks (see IRenderBackend.h).
     virtual void Set_Tree_Shader_Constants(const float swayTable[11][4],

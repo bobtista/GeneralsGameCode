@@ -82,8 +82,19 @@
 // Phase 4I.2 CSM caster pass shaders.
 #include "vs_shadow_caster_dx11.bin.h"
 #include "fs_shadow_caster_dx11.bin.h"
+#include "vs_scene_composite_dx11.bin.h"
+#include "fs_scene_composite_dx11.bin.h"
+#include "vs_scene_depth_dx11.bin.h"
+#include "fs_scene_depth_dx11.bin.h"
+#include "vs_smudge_dx11.bin.h"
+#include "fs_smudge_dx11.bin.h"
 
 #include "BgfxBackendState.h"
+
+#ifdef RTS_ZEROHOUR
+extern "C" void GGC_GetBgfxPostProcessParams(float * params);
+extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
+#endif
 
 // Render-state globals. Defined here (external linkage), declared `extern`
 // in BgfxBackendState.h so BgfxBackendTextures.cpp can reference them.
@@ -874,16 +885,36 @@ const bgfx::ViewId kBgfxShadowApplyView  = 7;
 // Phase 4I.2 CSM caster pass view. Depth-only render target, renders
 // opaque casters from the sun's perspective into a D24 shadow map.
 const bgfx::ViewId kBgfxShadowMapView    = 8;
+// TheSuperHackers @feature bobtista 27/04/2026 Scene composite view. World,
+// water, sorted translucency, and effect overlays render into an offscreen
+// scene framebuffer; this view copies scene color to the swapchain before UI.
+const bgfx::ViewId kBgfxSceneCompositeView = 9;
+// TheSuperHackers @feature bobtista 27/04/2026 Native bgfx smudge/heat-haze
+// views. The copy view snapshots scene color, then the draw view writes
+// distorted samples back into the scene framebuffer before final composite.
+const bgfx::ViewId kBgfxSmudgeCopyView      = 12;
+const bgfx::ViewId kBgfxSmudgeView          = 13;
 // TheSuperHackers @feature bobtista 16/04/2026 Phase 4L dedicated view for
 // 2D UI overlay draws (Render2DClass). Sequential mode preserves draw order;
 // identity view+projection so screen-space quads render at their authored
 // positions. Composites over the 3D scene as the last view in the order.
 const bgfx::ViewId kBgfxUIView           = 10;
+// TheSuperHackers @feature bobtista 27/04/2026 Readable scene-depth view.
+// Opaque world draws are duplicated here into an R32F target so later post
+// and particle passes can sample depth without touching the D24S8 stencil
+// surface used by the main scene framebuffer.
+const bgfx::ViewId kBgfxSceneDepthView   = 11;
+const uint8_t kBgfxSceneDepthSamplerStage = 6;
 const uint16_t kShadowMapResolution      = 4096;
 const float kShadowOrthoSize             = 1200.0f;
+const float kSoftParticleDepthFadeScale  = 80.0f;
 const float kShadowCameraDistance        = 2000.0f;
 const float kShadowOrthoFarMargin        = 1000.0f;
 const int kSwayTableEntries              = 11;
+const float kPostSharpenAmount           = 0.08f;
+const float kPostSaturation              = 1.015f;
+const float kPostContrast                = 1.01f;
+const float kPostFxaaAmount              = 0.35f;
 // Frames to wait before showing the DX8 reference popup. The game's input system and shell menu need a beat after device init to fully settle; popping the ref window earlier steals focus and blocks mouse capture. ~0.5s at 60fps.
 const int kDX8RefWindowShowDelayFrames   = 30;
 
@@ -947,6 +978,47 @@ void W3DMatrix3DToBgfx(const Matrix3D & m, float * out)
     out[1]  = m[1][0]; out[5]  = m[1][1]; out[9]  = m[1][2]; out[13] = m[1][3];
     out[2]  = m[2][0]; out[6]  = m[2][1]; out[10] = m[2][2]; out[14] = m[2][3];
     out[3]  = 0.0f;    out[7]  = 0.0f;    out[11] = 0.0f;    out[15] = 1.0f;
+}
+
+static float ClampPostValue(float value, float minValue, float maxValue)
+{
+    if (value < minValue)
+    {
+        return minValue;
+    }
+    if (value > maxValue)
+    {
+        return maxValue;
+    }
+    return value;
+}
+
+static void GetPostParams(float * params)
+{
+    params[0] = kPostSharpenAmount;
+    params[1] = kPostSaturation;
+    params[2] = kPostContrast;
+    params[3] = kPostFxaaAmount;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxPostProcessParams(params);
+    params[0] = ClampPostValue(params[0], 0.0f, 1.0f);
+    params[1] = ClampPostValue(params[1], 0.0f, 2.0f);
+    params[2] = ClampPostValue(params[2], 0.0f, 2.0f);
+    params[3] = ClampPostValue(params[3], 0.0f, 1.0f);
+#endif
+}
+
+static void GetSoftParticleParams(float * params)
+{
+    params[0] = 1.0f;
+    params[1] = kSoftParticleDepthFadeScale;
+    params[2] = 0.0f;
+    params[3] = 0.0f;
+#ifdef RTS_ZEROHOUR
+    GGC_GetBgfxSoftParticleParams(params);
+    params[0] = params[0] > 0.5f ? 1.0f : 0.0f;
+    params[1] = ClampPostValue(params[1], 0.0f, 500.0f);
+#endif
 }
 
 // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4K. Aspect correction
@@ -1104,9 +1176,195 @@ static void UpdateShadowLightTransform()
         g_frame.shadowLightProj[12] += offsetX;
         g_frame.shadowLightProj[13] += offsetY;
     }
-
     bgfx::setViewTransform(kBgfxShadowMapView, g_frame.shadowLightView, g_frame.shadowLightProj);
     g_frame.shadowLightCaptured = true;
+}
+
+static void DestroySceneFramebuffer()
+{
+    if (bgfx::isValid(g_device.sceneFB))
+    {
+        bgfx::destroy(g_device.sceneFB);
+    }
+    if (bgfx::isValid(g_device.sceneReadableDepthFB))
+    {
+        bgfx::destroy(g_device.sceneReadableDepthFB);
+    }
+    if (bgfx::isValid(g_device.sceneSmudgeCopy))
+    {
+        bgfx::destroy(g_device.sceneSmudgeCopy);
+    }
+    g_device.sceneFB = BGFX_INVALID_HANDLE;
+    g_device.sceneColor = BGFX_INVALID_HANDLE;
+    g_device.sceneDepth = BGFX_INVALID_HANDLE;
+    g_device.sceneSmudgeCopy = BGFX_INVALID_HANDLE;
+    g_device.sceneReadableDepthFB = BGFX_INVALID_HANDLE;
+    g_device.sceneReadableDepth = BGFX_INVALID_HANDLE;
+    g_device.sceneReadableDepthTest = BGFX_INVALID_HANDLE;
+    g_device.sceneWidth = 0;
+    g_device.sceneHeight = 0;
+}
+
+static bool CreateSceneFramebuffer()
+{
+    DestroySceneFramebuffer();
+
+    const uint16_t w = static_cast<uint16_t>(g_device.width > 0 ? g_device.width : 1);
+    const uint16_t h = static_cast<uint16_t>(g_device.height > 0 ? g_device.height : 1);
+    const uint64_t colorFlags = BGFX_TEXTURE_RT
+        | BGFX_SAMPLER_POINT
+        | BGFX_SAMPLER_U_CLAMP
+        | BGFX_SAMPLER_V_CLAMP;
+    bgfx::TextureHandle colorTex = bgfx::createTexture2D(
+        w, h, false, 1, bgfx::TextureFormat::RGBA8, colorFlags);
+    bgfx::TextureHandle depthTex = bgfx::createTexture2D(
+        w, h, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+
+    bgfx::TextureHandle attachments[2] = { colorTex, depthTex };
+    bgfx::FrameBufferHandle fb = bgfx::createFrameBuffer(2, attachments, true);
+    if (!bgfx::isValid(fb))
+    {
+        if (bgfx::isValid(colorTex))
+            bgfx::destroy(colorTex);
+        if (bgfx::isValid(depthTex))
+            bgfx::destroy(depthTex);
+        WWDEBUG_SAY(("[BgfxBackend] Scene framebuffer creation FAILED (%dx%d).",
+                     w, h));
+        return false;
+    }
+
+    g_device.sceneFB = fb;
+    g_device.sceneColor = colorTex;
+    g_device.sceneDepth = depthTex;
+    g_device.sceneSmudgeCopy = bgfx::createTexture2D(
+        w, h, false, 1, bgfx::TextureFormat::RGBA8,
+        BGFX_TEXTURE_BLIT_DST
+        | BGFX_SAMPLER_U_CLAMP
+        | BGFX_SAMPLER_V_CLAMP);
+    g_device.sceneWidth = w;
+    g_device.sceneHeight = h;
+    bgfx::setName(g_device.sceneColor, "sceneColorRGBA8");
+    bgfx::setName(g_device.sceneDepth, "sceneDepthD24S8");
+    if (bgfx::isValid(g_device.sceneSmudgeCopy))
+    {
+        bgfx::setName(g_device.sceneSmudgeCopy, "sceneSmudgeCopyRGBA8");
+    }
+
+    // TheSuperHackers @feature bobtista 27/04/2026 Keep the main scene
+    // D24S8 attachment write-only for stencil shadows, and build a separate
+    // sampleable R32F depth texture for post effects and soft particles.
+    const uint64_t readableDepthFlags = BGFX_TEXTURE_RT
+        | BGFX_SAMPLER_POINT
+        | BGFX_SAMPLER_U_CLAMP
+        | BGFX_SAMPLER_V_CLAMP;
+    bgfx::TextureHandle readableDepthTex = bgfx::createTexture2D(
+        w, h, false, 1, bgfx::TextureFormat::R32F, readableDepthFlags);
+    bgfx::TextureHandle readableDepthTest = bgfx::createTexture2D(
+        w, h, false, 1, bgfx::TextureFormat::D24S8, BGFX_TEXTURE_RT_WRITE_ONLY);
+    bgfx::FrameBufferHandle depthFB = BGFX_INVALID_HANDLE;
+    if (bgfx::isValid(readableDepthTex) && bgfx::isValid(readableDepthTest))
+    {
+        bgfx::TextureHandle depthAttachments[2] = { readableDepthTex, readableDepthTest };
+        depthFB = bgfx::createFrameBuffer(2, depthAttachments, true);
+    }
+    if (bgfx::isValid(depthFB))
+    {
+        g_device.sceneReadableDepthFB = depthFB;
+        g_device.sceneReadableDepth = readableDepthTex;
+        g_device.sceneReadableDepthTest = readableDepthTest;
+        bgfx::setName(g_device.sceneReadableDepth, "sceneReadableDepthR32F");
+        bgfx::setName(g_device.sceneReadableDepthTest, "sceneReadableDepthD24S8");
+    }
+    else
+    {
+        if (bgfx::isValid(readableDepthTex))
+            bgfx::destroy(readableDepthTex);
+        if (bgfx::isValid(readableDepthTest))
+            bgfx::destroy(readableDepthTest);
+        WWDEBUG_SAY(("[BgfxBackend] Readable scene depth creation FAILED (%dx%d).",
+                     w, h));
+    }
+
+    WWDEBUG_SAY(("[BgfxBackend] Scene framebuffer created %dx%d.", w, h));
+    return true;
+}
+
+static void ApplySceneFramebufferToViews()
+{
+    const bool useSceneFramebuffer =
+        bgfx::isValid(g_device.sceneFB)
+        && bgfx::isValid(g_device.sceneColor)
+        && bgfx::isValid(g_device.sceneCompositeProgram);
+    bgfx::FrameBufferHandle sceneFB = BGFX_INVALID_HANDLE;
+    if (useSceneFramebuffer)
+    {
+        sceneFB = g_device.sceneFB;
+    }
+    if (!useSceneFramebuffer)
+    {
+        bgfx::setViewFrameBuffer(kBgfxSceneCompositeView, BGFX_INVALID_HANDLE);
+    }
+    bgfx::setViewFrameBuffer(kBgfxEngineView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxEngineSortView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxWaterView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxEffectOverlayView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxShadowVolumeView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxShadowApplyView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxSmudgeCopyView, BGFX_INVALID_HANDLE);
+    bgfx::setViewFrameBuffer(kBgfxSmudgeView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxSceneCompositeView, BGFX_INVALID_HANDLE);
+    bgfx::setViewFrameBuffer(kBgfxSceneDepthView, g_device.sceneReadableDepthFB);
+    bgfx::setViewFrameBuffer(kBgfxUIView, BGFX_INVALID_HANDLE);
+}
+
+static void SubmitSceneComposite()
+{
+    if (!bgfx::isValid(g_device.sceneFB)
+        || !bgfx::isValid(g_device.sceneColor)
+        || !bgfx::isValid(g_device.sceneCompositeProgram)
+        || !bgfx::isValid(g_device.fullscreenClearVB)
+        || !bgfx::isValid(g_uniforms.sTex0))
+    {
+        bgfx::touch(kBgfxSceneCompositeView);
+        return;
+    }
+
+    float identity[16];
+    IdentityMatrix(identity);
+    bgfx::setViewTransform(kBgfxSceneCompositeView, identity, identity);
+    bgfx::setViewRect(kBgfxSceneCompositeView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneColor,
+                     BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+    if (bgfx::isValid(g_uniforms.sSceneDepth) && bgfx::isValid(g_device.sceneReadableDepth))
+    {
+        bgfx::setTexture(1, g_uniforms.sSceneDepth, g_device.sceneReadableDepth,
+                         BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+    }
+    // TheSuperHackers @feature bobtista 27/04/2026 Post controls come from
+    // Zero Hour GameData when available; the local defaults are deliberately
+    // subtle so the scene keeps the original Zero Hour art direction.
+    float postParams[4];
+    GetPostParams(postParams);
+    const float postTexelSize[4] = {
+        1.0f / static_cast<float>(g_device.width),
+        1.0f / static_cast<float>(g_device.height),
+        0.0f,
+        0.0f
+    };
+    if (bgfx::isValid(g_uniforms.uPostParams))
+    {
+        bgfx::setUniform(g_uniforms.uPostParams, postParams);
+    }
+    if (bgfx::isValid(g_uniforms.uPostTexelSize))
+    {
+        bgfx::setUniform(g_uniforms.uPostTexelSize, postTexelSize);
+    }
+    bgfx::setVertexBuffer(0, g_device.fullscreenClearVB);
+    bgfx::setState(BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
+                   | BGFX_STATE_DEPTH_TEST_ALWAYS);
+    bgfx::submit(kBgfxSceneCompositeView, g_device.sceneCompositeProgram);
 }
 
 }
@@ -1162,6 +1420,11 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     initArgs.resolution.height = static_cast<uint32_t>(g_device.height);
     initArgs.resolution.reset = BGFX_RESET_NONE;
     initArgs.platformData = pd;
+    // TheSuperHackers @bugfix bobtista 27/04/2026 Keep bgfx on a normal
+    // D3D11 device even in game Debug builds. The D3D debug layer raises
+    // DXGI-facility exceptions inside bgfx::frame before the engine can
+    // reach shellmap or command-line save loads.
+    initArgs.debug = false;
 
     if (!bgfx::init(initArgs))
     {
@@ -1176,6 +1439,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // bgfx::reset() after init is removed because it triggers a DXGI
     // assertion when bgfx owns the main game HWND. The init call already
     // configured the resolution and format correctly.
+    // TheSuperHackers @feature bobtista 27/04/2026 Create the full-canvas
+    // scene framebuffer. 3D views render here first, then view 9 composites
+    // the scene to the swapchain before UI draws.
+    CreateSceneFramebuffer();
 
     // Configure view 0 to clear the debug window to a dark teal so it's
     // visually obvious bgfx is running and alive. View 0 holds the test
@@ -1266,6 +1533,39 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         bgfx::setViewTransform(kBgfxShadowApplyView, identityMtx, identityMtx);
     }
 
+    bgfx::setViewClear(kBgfxSceneDepthView,
+                       BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
+                       0xffffffffu,
+                       1.0f,
+                       0);
+    bgfx::setViewRect(kBgfxSceneDepthView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxSceneDepthView, bgfx::ViewMode::Default);
+
+    bgfx::setViewClear(kBgfxSceneCompositeView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxSceneCompositeView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxSceneCompositeView, bgfx::ViewMode::Sequential);
+    bgfx::setViewClear(kBgfxSmudgeCopyView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxSmudgeCopyView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxSmudgeCopyView, bgfx::ViewMode::Sequential);
+    bgfx::setViewClear(kBgfxSmudgeView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxSmudgeView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxSmudgeView, bgfx::ViewMode::Sequential);
+    {
+        float identityMtx[16];
+        IdentityMatrix(identityMtx);
+        bgfx::setViewTransform(kBgfxSceneCompositeView, identityMtx, identityMtx);
+        bgfx::setViewTransform(kBgfxSmudgeCopyView, identityMtx, identityMtx);
+        bgfx::setViewTransform(kBgfxSmudgeView, identityMtx, identityMtx);
+    }
+
     // Phase 4L UI overlay view. Sequential mode preserves draw order for
     // 2D quads; identity view+projection; no clear so it composites over
     // the 3D scene.
@@ -1279,6 +1579,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         IdentityMatrix(identityMtx);
         bgfx::setViewTransform(kBgfxUIView, identityMtx, identityMtx);
     }
+    ApplySceneFramebufferToViews();
 
     // Default the cached transforms to identity until the engine writes
     // real values via Set_Transform. This keeps the first few engine
@@ -1315,6 +1616,17 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         vs_passthrough_dx11, sizeof(vs_passthrough_dx11), "vs_passthrough",
         fs_passthrough_dx11, sizeof(fs_passthrough_dx11), "fs_passthrough");
 
+    g_device.sceneCompositeProgram = CreateShaderProgram(
+        vs_scene_composite_dx11, sizeof(vs_scene_composite_dx11), "vs_scene_composite",
+        fs_scene_composite_dx11, sizeof(fs_scene_composite_dx11), "fs_scene_composite");
+    g_device.sceneDepthProgram = CreateShaderProgram(
+        vs_scene_depth_dx11, sizeof(vs_scene_depth_dx11), "vs_scene_depth",
+        fs_scene_depth_dx11, sizeof(fs_scene_depth_dx11), "fs_scene_depth");
+    g_device.smudgeProgram = CreateShaderProgram(
+        vs_smudge_dx11, sizeof(vs_smudge_dx11), "vs_smudge",
+        fs_smudge_dx11, sizeof(fs_smudge_dx11), "fs_smudge");
+    ApplySceneFramebufferToViews();
+
     // Fullscreen-clear VB. Single triangle in NDC that covers the entire
     // clip-space rectangle; submitted to view 0 every frame (Begin_Scene).
     {
@@ -1332,13 +1644,18 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.sTex1        = bgfx::createUniform("s_tex1",        bgfx::UniformType::Sampler);
     g_uniforms.sTex2        = bgfx::createUniform("s_tex2",        bgfx::UniformType::Sampler);
     g_uniforms.sTex3        = bgfx::createUniform("s_tex3",        bgfx::UniformType::Sampler);
+    g_uniforms.sSceneDepth  = bgfx::createUniform("s_sceneDepth",  bgfx::UniformType::Sampler);
     g_uniforms.uMatDiffuse  = bgfx::createUniform("u_matDiffuse",  bgfx::UniformType::Vec4);
+    g_uniforms.uMatAmbient  = bgfx::createUniform("u_matAmbient",  bgfx::UniformType::Vec4);
     g_uniforms.uMatEmissive = bgfx::createUniform("u_matEmissive", bgfx::UniformType::Vec4);
     g_uniforms.uAtestParams = bgfx::createUniform("u_atestParams", bgfx::UniformType::Vec4);
     g_uniforms.uTssOps0     = bgfx::createUniform("u_tssOps0",     bgfx::UniformType::Vec4);
     g_uniforms.uTssOps1     = bgfx::createUniform("u_tssOps1",     bgfx::UniformType::Vec4);
     g_uniforms.uLightDirs   = bgfx::createUniform("u_lightDirs",   bgfx::UniformType::Vec4, 4);
     g_uniforms.uLightColors = bgfx::createUniform("u_lightColors", bgfx::UniformType::Vec4, 4);
+    g_uniforms.uLightAmbients = bgfx::createUniform("u_lightAmbients", bgfx::UniformType::Vec4, 4);
+    g_uniforms.uLightPositions = bgfx::createUniform("u_lightPositions", bgfx::UniformType::Vec4, 4);
+    g_uniforms.uLightParams = bgfx::createUniform("u_lightParams", bgfx::UniformType::Vec4, 4);
     g_uniforms.uSceneAmbient  = bgfx::createUniform("u_sceneAmbient",   bgfx::UniformType::Vec4);
     g_uniforms.uLightingEnabled = bgfx::createUniform("u_lightingEnabled", bgfx::UniformType::Vec4);
     g_uniforms.uTexcoordSelect  = bgfx::createUniform("u_texcoordSelect",  bgfx::UniformType::Vec4);
@@ -1390,6 +1707,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         fs_shadow_apply_dx11, sizeof(fs_shadow_apply_dx11), "fs_shadow_apply");
     g_uniforms.uShadowColor = bgfx::createUniform("u_shadowColor", bgfx::UniformType::Vec4);
     g_uniforms.uShadowBias  = bgfx::createUniform("u_shadowBias",  bgfx::UniformType::Vec4);
+    g_uniforms.uPostParams = bgfx::createUniform("u_postParams", bgfx::UniformType::Vec4);
+    g_uniforms.uPostTexelSize = bgfx::createUniform("u_postTexelSize", bgfx::UniformType::Vec4);
+    g_uniforms.uSoftParticleParams = bgfx::createUniform("u_softParticleParams", bgfx::UniformType::Vec4);
 
     g_device.shadowCasterProgram = CreateShaderProgram(
         vs_shadow_caster_dx11, sizeof(vs_shadow_caster_dx11), "vs_shadow_caster",
@@ -1439,11 +1759,15 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
             kBgfxShadowMapView,       // 8 — shadow caster depth pass
             kBgfxRTTView,             // 3
             kBgfxEngineView,          // 1
+            kBgfxSceneDepthView,      // 11 — readable opaque scene depth
             kBgfxShadowVolumeView,    // 6 — stencil shadow volume fill
             kBgfxShadowApplyView,     // 7 — stencil shadow darken
             kBgfxWaterView,           // 4
             kBgfxEngineSortView,      // 2
             kBgfxEffectOverlayView,   // 5
+            kBgfxSmudgeCopyView,      // 12 — scene-color snapshot for heat haze
+            kBgfxSmudgeView,          // 13 — heat-haze/smudge distortion
+            kBgfxSceneCompositeView,  // 9 — scene color to swapchain
             kBgfxUIView,              // 10 — 2D UI overlay (last)
         };
         bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(order), order);
@@ -1507,6 +1831,9 @@ void BgfxBackend::Shutdown()
     if (g_device.initialized)
     {
         DestroyBgfxHandle(g_device.passthroughProgram);
+        DestroyBgfxHandle(g_device.sceneCompositeProgram);
+        DestroyBgfxHandle(g_device.sceneDepthProgram);
+        DestroyBgfxHandle(g_device.smudgeProgram);
         DestroyBgfxHandle(g_device.fullscreenClearVB);
         DestroyBgfxHandle(g_device.uberProgram);
         DestroyBgfxHandle(g_device.treeProgram);
@@ -1517,12 +1844,17 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.sTex1);
         DestroyBgfxHandle(g_uniforms.sTex2);
         DestroyBgfxHandle(g_uniforms.sTex3);
+        DestroyBgfxHandle(g_uniforms.sSceneDepth);
         DestroyBgfxHandle(g_uniforms.uMatDiffuse);
+        DestroyBgfxHandle(g_uniforms.uMatAmbient);
         DestroyBgfxHandle(g_uniforms.uAtestParams);
         DestroyBgfxHandle(g_uniforms.uTssOps0);
         DestroyBgfxHandle(g_uniforms.uTssOps1);
         DestroyBgfxHandle(g_uniforms.uLightDirs);
         DestroyBgfxHandle(g_uniforms.uLightColors);
+        DestroyBgfxHandle(g_uniforms.uLightAmbients);
+        DestroyBgfxHandle(g_uniforms.uLightPositions);
+        DestroyBgfxHandle(g_uniforms.uLightParams);
         DestroyBgfxHandle(g_uniforms.uSceneAmbient);
         DestroyBgfxHandle(g_uniforms.uLightingEnabled);
         DestroyBgfxHandle(g_uniforms.uTexcoordSelect);
@@ -1541,7 +1873,11 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_device.shadowCasterProgram);
         DestroyBgfxHandle(g_device.shadowMapFB);
         DestroyBgfxHandle(g_device.shadowMapDepth);
+        DestroySceneFramebuffer();
         DestroyBgfxHandle(g_uniforms.uShadowColor);
+        DestroyBgfxHandle(g_uniforms.uPostParams);
+        DestroyBgfxHandle(g_uniforms.uPostTexelSize);
+        DestroyBgfxHandle(g_uniforms.uSoftParticleParams);
         DestroyBgfxHandle(g_uniforms.uShadowBias);
         DestroyBgfxHandle(g_uniforms.uShadowLightViewProj);
         DestroyBgfxHandle(g_uniforms.uShadowParams);
@@ -1675,6 +2011,9 @@ void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
     bgfx::setViewRect(kBgfxEffectOverlayView, x, y, w, h);
     bgfx::setViewRect(kBgfxShadowVolumeView, x, y, w, h);
     bgfx::setViewRect(kBgfxShadowApplyView, x, y, w, h);
+    bgfx::setViewRect(kBgfxSceneDepthView, x, y, w, h);
+    bgfx::setViewRect(kBgfxSmudgeCopyView, x, y, w, h);
+    bgfx::setViewRect(kBgfxSmudgeView, x, y, w, h);
     bgfx::setViewRect(kBgfxRTTView, x, y, w, h);
 }
 
@@ -1738,9 +2077,12 @@ void BgfxBackend::Begin_Scene()
             {
                 WWDEBUG_SAY(("[BgfxBackend] Window resized %dx%d -> %dx%d, calling bgfx::reset.",
                              g_device.width, g_device.height, w, h));
+                DestroySceneFramebuffer();
                 g_device.width = w;
                 g_device.height = h;
                 bgfx::reset(g_device.width, g_device.height, BGFX_RESET_NONE);
+                CreateSceneFramebuffer();
+                ApplySceneFramebufferToViews();
             }
         }
     }
@@ -1774,6 +2116,13 @@ void BgfxBackend::Begin_Scene()
     bgfx::touch(kBgfxShadowVolumeView);
     bgfx::touch(kBgfxShadowApplyView);
     bgfx::touch(kBgfxShadowMapView);
+    bgfx::touch(kBgfxSmudgeCopyView);
+    bgfx::touch(kBgfxSmudgeView);
+    if (bgfx::isValid(g_device.sceneReadableDepthFB))
+    {
+        bgfx::touch(kBgfxSceneDepthView);
+    }
+    bgfx::touch(kBgfxSceneCompositeView);
     bgfx::touch(kBgfxUIView);
     // Phase 4I.2 CSM: light transform updated lazily at first draw
     // (see SubmitEngineDraw), not here, because g_frame.view is still
@@ -1797,10 +2146,20 @@ void BgfxBackend::Begin_Scene()
     bgfx::setViewRect(kBgfxEffectOverlayView, 0, 0, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxShadowVolumeView,  0, 0, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxShadowApplyView,   0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxSceneDepthView,    0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxSceneCompositeView, 0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxSmudgeCopyView,    0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxSmudgeView,        0, 0, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxRTTView,           0, 0, g_device.width, g_device.height);
     // No clear on water view — it composites over the opaque scene.
     bgfx::setViewClear(kBgfxWaterView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    // TheSuperHackers @bugfix bobtista 28/04/2026 Preserve water submit
+    // order. Shore foam/water-track quads are submitted after the water
+    // surface; bgfx default sorting can place the surface last and cover
+    // the foam.
+    bgfx::setViewMode(kBgfxWaterView, bgfx::ViewMode::Sequential);
     g_views.renderToTexture = false;
+    g_views.smudgeActive = false;
 
     // TheSuperHackers @fix bobtista 21/04/2026 Reset the terrain-blend flag
     // at Begin_Scene. Clear_State_Overrides (called from Set_Shader)
@@ -1844,7 +2203,9 @@ void BgfxBackend::Begin_Scene()
     // inherits stuck state and renders incorrectly. overlay2DActive and
     // renderToTexture were already reset above; these match that policy.
     g_views.waterOverrideActive      = false;
+    g_views.waterOverlayActive       = false;
     g_views.effectOverlayActive      = false;
+    g_views.smudgeActive             = false;
     g_views.inSortFlush              = false;
     g_views.treeShaderActive         = false;
     g_views.shadowVolumeActive       = false;
@@ -1869,6 +2230,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         bgfx::setViewTransform(kBgfxEngineView, g_frame.cameraView, g_frame.cameraProj);
         bgfx::setViewTransform(kBgfxWaterView, g_frame.cameraView, g_frame.cameraProj);
         bgfx::setViewTransform(kBgfxShadowVolumeView, g_frame.cameraView, g_frame.cameraProj);
+        bgfx::setViewTransform(kBgfxSceneDepthView, g_frame.cameraView, g_frame.cameraProj);
         g_frame.cameraCaptured = false;
     }
     if (g_frame.sortProjCaptured)
@@ -1878,7 +2240,6 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         bgfx::setViewTransform(kBgfxEngineSortView, identityView, g_frame.sortProj);
         g_frame.sortProjCaptured = false;
     }
-
     // Phase 4L: push identity transforms and current rect to the UI view
     // so 2D overlay draws land in screen space over the 3D scene.
     {
@@ -1894,7 +2255,8 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     // clear quad, then shadow map (view 8) so its depth texture is
     // populated before the scene samples it. Then RTT (3), engine
     // opaque (1), shadow volume fill (6), shadow darken (7), water (4),
-    // sort (2), effect overlay (5), UI overlay (10) last.
+    // sort (2), effect overlay (5), heat-haze smudge copy/draw (12/13),
+    // scene composite (9), UI overlay (10) last.
     // TheSuperHackers @bugfix bobtista 20/04/2026 view 0 MUST be
     // included — when omitted, bgfx defers it to the end with a 1x1
     // viewport, and the full-canvas clear never fires (causing
@@ -1905,14 +2267,20 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         kBgfxShadowMapView,        // 8 — shadow caster depth pass
         kBgfxRTTView,              // 3
         kBgfxEngineView,           // 1
+        kBgfxSceneDepthView,       // 11 — readable opaque scene depth
         kBgfxShadowVolumeView,     // 6 — stencil shadow volume fill
         kBgfxShadowApplyView,      // 7 — stencil shadow darken
         kBgfxWaterView,            // 4
         kBgfxEngineSortView,       // 2
         kBgfxEffectOverlayView,    // 5
+        kBgfxSmudgeCopyView,       // 12 — scene-color snapshot for heat haze
+        kBgfxSmudgeView,           // 13 — heat-haze/smudge distortion
+        kBgfxSceneCompositeView,   // 9 — scene color to swapchain
         kBgfxUIView,               // 10 — 2D UI overlay (last)
     };
     bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(viewOrder), viewOrder);
+
+    SubmitSceneComposite();
 
     bgfx::frame();
 
@@ -2426,10 +2794,18 @@ void BgfxBackend::Capture_Sorted_Batch_Light(const RenderBackendLight & light, b
         g_draw.lightColors[0][0] = light.diffuse[0];
         g_draw.lightColors[0][1] = light.diffuse[1];
         g_draw.lightColors[0][2] = light.diffuse[2];
+        g_draw.lightAmbients[0][0] = 0.0f;
+        g_draw.lightAmbients[0][1] = 0.0f;
+        g_draw.lightAmbients[0][2] = 0.0f;
+        g_draw.lightParams[0][0] = 0.0f;
+        g_draw.lightParams[0][1] = 0.0f;
+        g_draw.lightParams[0][2] = 0.0f;
+        g_draw.lightParams[0][3] = 1.0f;
     }
     else
     {
         g_draw.lightDirs[0][3] = 0.0f;
+        g_draw.lightParams[0][3] = 0.0f;
     }
 }
 
@@ -2465,6 +2841,75 @@ static void BindShadowMapTexture()
     if (bgfx::isValid(g_device.shadowMapDepth) && bgfx::isValid(g_uniforms.sShadowMap))
     {
         bgfx::setTexture(4, g_uniforms.sShadowMap, g_device.shadowMapDepth);
+    }
+}
+
+static bool IsStandardAlphaBlend(uint64_t state)
+{
+    const uint64_t kAlphaSA_ISA = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
+                                                         BGFX_STATE_BLEND_INV_SRC_ALPHA);
+    return (state & BGFX_STATE_BLEND_MASK) == kAlphaSA_ISA;
+}
+
+static void BindSoftParticleDepth(bool enable)
+{
+    float params[4];
+    GetSoftParticleParams(params);
+
+    if (!enable || params[1] <= 0.0f)
+    {
+        params[0] = 0.0f;
+    }
+
+    if (params[0] > 0.5f
+        && g_device.width > 0
+        && g_device.height > 0
+        && bgfx::isValid(g_device.sceneReadableDepth)
+        && bgfx::isValid(g_uniforms.sSceneDepth))
+    {
+        params[0] = 1.0f;
+        params[2] = 1.0f / static_cast<float>(g_device.width);
+        params[3] = 1.0f / static_cast<float>(g_device.height);
+        bgfx::setTexture(kBgfxSceneDepthSamplerStage, g_uniforms.sSceneDepth,
+                         g_device.sceneReadableDepth,
+                         BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+    }
+    else
+    {
+        params[0] = 0.0f;
+    }
+
+    if (bgfx::isValid(g_uniforms.uSoftParticleParams))
+    {
+        // TheSuperHackers @feature bobtista 27/04/2026 Use the readable
+        // opaque scene-depth target for conservative soft particles. This
+        // starts with standard alpha-blended sorted draws only so additive
+        // lasers, fire, and scanner effects keep their legacy intensity.
+        bgfx::setUniform(g_uniforms.uSoftParticleParams, params);
+    }
+}
+
+static void UploadLightUniforms()
+{
+    if (bgfx::isValid(g_uniforms.uLightDirs))
+    {
+        bgfx::setUniform(g_uniforms.uLightDirs, g_draw.lightDirs, 4);
+    }
+    if (bgfx::isValid(g_uniforms.uLightColors))
+    {
+        bgfx::setUniform(g_uniforms.uLightColors, g_draw.lightColors, 4);
+    }
+    if (bgfx::isValid(g_uniforms.uLightAmbients))
+    {
+        bgfx::setUniform(g_uniforms.uLightAmbients, g_draw.lightAmbients, 4);
+    }
+    if (bgfx::isValid(g_uniforms.uLightPositions))
+    {
+        bgfx::setUniform(g_uniforms.uLightPositions, g_draw.lightPositions, 4);
+    }
+    if (bgfx::isValid(g_uniforms.uLightParams))
+    {
+        bgfx::setUniform(g_uniforms.uLightParams, g_draw.lightParams, 4);
     }
 }
 
@@ -2629,8 +3074,14 @@ static void UploadMaterialUniforms()
     if (bgfx::isValid(g_uniforms.uMatDiffuse))
     {
         bgfx::setUniform(g_uniforms.uMatDiffuse, g_draw.matDiffuse);
-        if (bgfx::isValid(g_uniforms.uMatEmissive))
-            bgfx::setUniform(g_uniforms.uMatEmissive, g_draw.matEmissive);
+    }
+    if (bgfx::isValid(g_uniforms.uMatAmbient))
+    {
+        bgfx::setUniform(g_uniforms.uMatAmbient, g_draw.matAmbient);
+    }
+    if (bgfx::isValid(g_uniforms.uMatEmissive))
+    {
+        bgfx::setUniform(g_uniforms.uMatEmissive, g_draw.matEmissive);
     }
 
     if (bgfx::isValid(g_uniforms.uTssOps0))
@@ -2781,6 +3232,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     {
         bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
     }
+    UploadLightUniforms();
 
     uint64_t state = (g_draw.state != 0)
         ? g_draw.state
@@ -2790,25 +3242,14 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     state = ApplyColorWriteOverride(state);
 
     bgfx::setState(state);
-    BindShadowMapTexture();
+    BindSoftParticleDepth(IsStandardAlphaBlend(state));
 
     bgfx::submit(kBgfxEngineSortView, g_draw.program);
 
-    // Phase 4I.2 CSM: also submit sorted geometry as shadow caster.
-    if (bgfx::isValid(g_device.shadowCasterProgram)
-        && bgfx::isValid(g_device.shadowMapFB))
-    {
-        bgfx::setVertexBuffer(0, &vb);
-        bgfx::setIndexBuffer(&ib, 0,
-                             static_cast<uint32_t>(polygon_count) * 3);
-        bgfx::setTransform(g_frame.sortWorldRaw);
-        const uint64_t casterState =
-            BGFX_STATE_WRITE_Z
-            | BGFX_STATE_DEPTH_TEST_LESS
-            | BGFX_STATE_CULL_CW;
-        bgfx::setState(casterState);
-        bgfx::submit(kBgfxShadowMapView, g_device.shadowCasterProgram);
-    }
+    // TheSuperHackers @bugfix bobtista 28/04/2026 Sorted draws are mostly
+    // translucent particles, water spray, dazzles, and other billboard
+    // effects. Do not submit them to the CSM shadow map; otherwise their
+    // quads become visible as blocky moving shadows.
 
     g_views.skipNextSubmitEngineDraw = true;
 }
@@ -2922,16 +3363,40 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
         // the "black scorch-like patches" on the beach where alpha decals
         // are batched. Force matDiffuse=1 so vertex color passes through.
         Vector3 diffuse(1.0f, 1.0f, 1.0f);
+        Vector3 ambient(1.0f, 1.0f, 1.0f);
         const VertexMaterialClass::ColorSourceType diffuseSource =
             const_cast<VertexMaterialClass *>(material)->Get_Diffuse_Color_Source();
+        const VertexMaterialClass::ColorSourceType ambientSource =
+            const_cast<VertexMaterialClass *>(material)->Get_Ambient_Color_Source();
+        const VertexMaterialClass::ColorSourceType emissiveSource =
+            const_cast<VertexMaterialClass *>(material)->Get_Emissive_Color_Source();
         if (diffuseSource == VertexMaterialClass::MATERIAL)
         {
             material->Get_Diffuse(&diffuse);
+        }
+        if (ambientSource == VertexMaterialClass::MATERIAL)
+        {
+            material->Get_Ambient(&ambient);
         }
         g_draw.matDiffuse[0] = diffuse.X;
         g_draw.matDiffuse[1] = diffuse.Y;
         g_draw.matDiffuse[2] = diffuse.Z;
         g_draw.matDiffuse[3] = material->Get_Opacity();
+        g_draw.matAmbient[0] = ambient.X;
+        g_draw.matAmbient[1] = ambient.Y;
+        g_draw.matAmbient[2] = ambient.Z;
+        g_draw.matAmbient[3] = 1.0f;
+        // TheSuperHackers @bugfix bobtista 27/04/2026 Preserve the
+        // fixed-function material color-source states for bgfx lighting.
+        // Some animated meshes use vertex color as ambient/emissive tint;
+        // treating those as material white makes effects such as police
+        // lights render white instead of their authored red/blue frames.
+        g_draw.vertexColorFlags[1] =
+            (diffuseSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
+        g_draw.vertexColorFlags[2] =
+            (ambientSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
+        g_draw.vertexColorFlags[3] =
+            (emissiveSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
         // Track whether this material uses hardware lighting. When false
         // (terrain, pre-lit meshes), vertex colors already contain the
         // lit result and the shader must NOT apply N.L on top.
@@ -2954,10 +3419,17 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
         g_draw.matDiffuse[1] = 1.0f;
         g_draw.matDiffuse[2] = 1.0f;
         g_draw.matDiffuse[3] = 1.0f;
+        g_draw.matAmbient[0] = 1.0f;
+        g_draw.matAmbient[1] = 1.0f;
+        g_draw.matAmbient[2] = 1.0f;
+        g_draw.matAmbient[3] = 1.0f;
         g_draw.matEmissive[0] = 0.0f;
         g_draw.matEmissive[1] = 0.0f;
         g_draw.matEmissive[2] = 0.0f;
         g_draw.matEmissive[3] = 0.0f;
+        g_draw.vertexColorFlags[1] = 0.0f;
+        g_draw.vertexColorFlags[2] = 0.0f;
+        g_draw.vertexColorFlags[3] = 0.0f;
         // Null material means no material-driven lighting. Dazzle and
         // similar effect overlays call Set_Material(nullptr) and bake
         // their per-vertex intensity into diffuse.rgb; the lit path in
@@ -3147,6 +3619,16 @@ void BgfxBackend::Override_Material_Opacity(float opacity)
     g_views.waterOverrideActive = true;
 }
 
+void BgfxBackend::Begin_Water_Overlay()
+{
+    g_views.waterOverlayActive = true;
+}
+
+void BgfxBackend::End_Water_Overlay()
+{
+    g_views.waterOverlayActive = false;
+}
+
 void BgfxBackend::Begin_Effect_Overlay()
 {
     g_views.effectOverlayActive = true;
@@ -3155,6 +3637,26 @@ void BgfxBackend::Begin_Effect_Overlay()
 void BgfxBackend::End_Effect_Overlay()
 {
     g_views.effectOverlayActive = false;
+}
+
+bool BgfxBackend::Begin_Smudge_Distortion()
+{
+    if (!bgfx::isValid(g_device.sceneColor)
+        || !bgfx::isValid(g_device.sceneSmudgeCopy)
+        || !bgfx::isValid(g_device.smudgeProgram))
+    {
+        return false;
+    }
+
+    bgfx::blit(kBgfxSmudgeCopyView, g_device.sceneSmudgeCopy, 0, 0,
+               g_device.sceneColor);
+    g_views.smudgeActive = true;
+    return true;
+}
+
+void BgfxBackend::End_Smudge_Distortion()
+{
+    g_views.smudgeActive = false;
 }
 
 void BgfxBackend::Set_Tree_Shader_Constants(const float swayTable[11][4],
@@ -3606,19 +4108,54 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
             if (i < count)
             {
                 const Vector3 & dir = light_env->Get_Light_Direction(i);
-                const Vector3 & dif = light_env->Get_Light_Diffuse(i);
                 g_draw.lightDirs[i][0] = -dir.X;
                 g_draw.lightDirs[i][1] = -dir.Y;
                 g_draw.lightDirs[i][2] = -dir.Z;
                 g_draw.lightDirs[i][3] = 1.0f; // enabled
-                g_draw.lightColors[i][0] = dif.X;
-                g_draw.lightColors[i][1] = dif.Y;
-                g_draw.lightColors[i][2] = dif.Z;
+                if (light_env->isPointLight(i))
+                {
+                    const Vector3 & dif = light_env->getPointDiffuse(i);
+                    const Vector3 & amb = light_env->getPointAmbient(i);
+                    const Vector3 & pos = light_env->getPointCenter(i);
+                    g_draw.lightColors[i][0] = dif.X;
+                    g_draw.lightColors[i][1] = dif.Y;
+                    g_draw.lightColors[i][2] = dif.Z;
+                    g_draw.lightAmbients[i][0] = amb.X;
+                    g_draw.lightAmbients[i][1] = amb.Y;
+                    g_draw.lightAmbients[i][2] = amb.Z;
+                    g_draw.lightPositions[i][0] = pos.X;
+                    g_draw.lightPositions[i][1] = pos.Y;
+                    g_draw.lightPositions[i][2] = pos.Z;
+                    g_draw.lightParams[i][0] = light_env->getPointIrad(i);
+                    g_draw.lightParams[i][1] = light_env->getPointOrad(i);
+                    g_draw.lightParams[i][2] = 1.0f;
+                    g_draw.lightParams[i][3] = 1.0f;
+                }
+                else
+                {
+                    const Vector3 & dif = light_env->Get_Light_Diffuse(i);
+                    g_draw.lightColors[i][0] = dif.X;
+                    g_draw.lightColors[i][1] = dif.Y;
+                    g_draw.lightColors[i][2] = dif.Z;
+                    g_draw.lightAmbients[i][0] = 0.0f;
+                    g_draw.lightAmbients[i][1] = 0.0f;
+                    g_draw.lightAmbients[i][2] = 0.0f;
+                    g_draw.lightPositions[i][0] = 0.0f;
+                    g_draw.lightPositions[i][1] = 0.0f;
+                    g_draw.lightPositions[i][2] = 0.0f;
+                    g_draw.lightParams[i][0] = 0.0f;
+                    g_draw.lightParams[i][1] = 0.0f;
+                    g_draw.lightParams[i][2] = 0.0f;
+                    g_draw.lightParams[i][3] = 1.0f;
+                }
                 g_draw.lightColors[i][3] = 1.0f;
             }
             else
             {
                 g_draw.lightDirs[i][3] = 0.0f; // disabled
+                g_draw.lightColors[i][3] = 0.0f;
+                g_draw.lightAmbients[i][3] = 0.0f;
+                g_draw.lightParams[i][3] = 0.0f;
             }
         }
     }
@@ -3722,7 +4259,8 @@ namespace
 void SubmitEngineDraw(unsigned short start_index,
                       unsigned short polygon_count,
                       unsigned short min_vertex_index,
-                      unsigned short vertex_count)
+                      unsigned short vertex_count,
+                      bool triangle_strip = false)
 {
     if (g_overrides.suppressDraw)
     {
@@ -3763,6 +4301,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // Set_View_Identity call and the actual Draw_Triangles.
     bool is2D = g_views.overlay2DActive;
     if (!is2D && !g_views.renderToTexture && !g_views.waterOverrideActive
+        && !g_views.waterOverlayActive
         && !g_views.effectOverlayActive && !g_views.inSortFlush)
     {
         // Check if view matrix is identity (2D mode)
@@ -3775,7 +4314,11 @@ void SubmitEngineDraw(unsigned short start_index,
     }
 
     bgfx::ViewId submitView;
-    if (is2D)
+    if (g_views.smudgeActive)
+    {
+        submitView = kBgfxSmudgeView;
+    }
+    else if (is2D)
     {
         submitView = kBgfxUIView;
     }
@@ -3783,7 +4326,7 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         submitView = kBgfxRTTView;
     }
-    else if (g_views.waterOverrideActive)
+    else if (g_views.waterOverrideActive || g_views.waterOverlayActive)
     {
         submitView = kBgfxWaterView;
     }
@@ -3834,6 +4377,7 @@ void SubmitEngineDraw(unsigned short start_index,
         // view+proj so the extrusion geometry lands where the opaque
         // geometry in view 1 landed.
         bgfx::setViewTransform(kBgfxShadowVolumeView, g_frame.view, g_frame.proj);
+        bgfx::setViewTransform(kBgfxSceneDepthView, g_frame.view, g_frame.proj);
         g_frame.cameraProjDirty = false;
     }
     // During RTT, push the current (reflected/shadow) view+proj to the RTT view.
@@ -3841,6 +4385,12 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         bgfx::setViewTransform(kBgfxRTTView, g_frame.view, g_frame.proj);
         g_frame.cameraProjDirty = false;
+    }
+    if (g_views.smudgeActive)
+    {
+        float identityView[16];
+        IdentityMatrix(identityView);
+        bgfx::setViewTransform(kBgfxSmudgeView, identityView, g_frame.proj);
     }
 
     // World matrix is per-submit. bgfx consumes the value at submit time
@@ -3885,17 +4435,43 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::setVertexBuffer(0, g_draw.vb, base_vertex, vertex_count);
     }
 
+    const uint32_t indexCount = triangle_strip
+        ? static_cast<uint32_t>(polygon_count) + 2
+        : static_cast<uint32_t>(polygon_count) * 3;
+
     if (g_draw.useTransientIB)
     {
         bgfx::setIndexBuffer(&g_draw.transientIB,
                              start_index,
-                             static_cast<uint32_t>(polygon_count) * 3);
+                             indexCount);
     }
     else
     {
         bgfx::setIndexBuffer(g_draw.ib,
                              start_index,
-                             static_cast<uint32_t>(polygon_count) * 3);
+                             indexCount);
+    }
+
+    if (g_views.smudgeActive)
+    {
+        if (bgfx::isValid(g_device.smudgeProgram)
+            && bgfx::isValid(g_device.sceneSmudgeCopy)
+            && bgfx::isValid(g_uniforms.sTex0))
+        {
+            bgfx::setTexture(0, g_uniforms.sTex0, g_device.sceneSmudgeCopy,
+                             BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+            bgfx::setState(BGFX_STATE_WRITE_RGB
+                           | BGFX_STATE_DEPTH_TEST_ALWAYS
+                           | BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
+                                                   BGFX_STATE_BLEND_INV_SRC_ALPHA)
+                           | BGFX_STATE_MSAA);
+            bgfx::submit(kBgfxSmudgeView, g_device.smudgeProgram);
+        }
+        else
+        {
+            bgfx::discard(BGFX_DISCARD_ALL);
+        }
+        return;
     }
 
     // Phase 4F.2 / 4G.3 bind engine textures on stages 0 and 1 by
@@ -3971,10 +4547,25 @@ void SubmitEngineDraw(unsigned short start_index,
                 g_draw.lightColors[li][1] = dl.Diffuse.g;
                 g_draw.lightColors[li][2] = dl.Diffuse.b;
                 g_draw.lightColors[li][3] = 1.0f;
+                g_draw.lightAmbients[li][0] = dl.Ambient.r;
+                g_draw.lightAmbients[li][1] = dl.Ambient.g;
+                g_draw.lightAmbients[li][2] = dl.Ambient.b;
+                g_draw.lightAmbients[li][3] = 1.0f;
+                g_draw.lightPositions[li][0] = dl.Position.x;
+                g_draw.lightPositions[li][1] = dl.Position.y;
+                g_draw.lightPositions[li][2] = dl.Position.z;
+                g_draw.lightPositions[li][3] = 1.0f;
+                g_draw.lightParams[li][0] = 0.0f;
+                g_draw.lightParams[li][1] = dl.Range;
+                g_draw.lightParams[li][2] = (dl.Type == D3DLIGHT_POINT || dl.Type == D3DLIGHT_SPOT) ? 1.0f : 0.0f;
+                g_draw.lightParams[li][3] = 1.0f;
             }
             else
             {
                 g_draw.lightDirs[li][3] = 0.0f;
+                g_draw.lightColors[li][3] = 0.0f;
+                g_draw.lightAmbients[li][3] = 0.0f;
+                g_draw.lightParams[li][3] = 0.0f;
             }
         }
         const unsigned ambientColor = DX8Wrapper::Get_DX8_Render_State(D3DRS_AMBIENT);
@@ -3982,10 +4573,7 @@ void SubmitEngineDraw(unsigned short start_index,
         g_draw.sceneAmbient[1] = ((ambientColor >>  8) & 0xFF) / 255.0f;
         g_draw.sceneAmbient[2] = ((ambientColor >>  0) & 0xFF) / 255.0f;
     }
-    if (bgfx::isValid(g_uniforms.uLightDirs))
-        bgfx::setUniform(g_uniforms.uLightDirs, g_draw.lightDirs, 4);
-    if (bgfx::isValid(g_uniforms.uLightColors))
-        bgfx::setUniform(g_uniforms.uLightColors, g_draw.lightColors, 4);
+    UploadLightUniforms();
     if (bgfx::isValid(g_uniforms.uSceneAmbient))
         bgfx::setUniform(g_uniforms.uSceneAmbient, g_draw.sceneAmbient);
     if (bgfx::isValid(g_uniforms.uLightingEnabled))
@@ -4006,10 +4594,8 @@ void SubmitEngineDraw(unsigned short start_index,
         // TheSuperHackers @fix bobtista 16/04/2026 Also force lighting off for alpha-blend
         // particles (SRC_ALPHA/INV_SRC_ALPHA) when priColorOp is SELECTARG1 (GRADIENT_DISABLE),
         // so the lit path does not ignore vertex color on particles that bake intensity into it.
-        const uint64_t kAlphaSA_ISA = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
-                                                             BGFX_STATE_BLEND_INV_SRC_ALPHA);
         if (blendBitsForLight == kAddONE_ONE || blendBitsForLight == kAddSA_ONE
-            || (blendBitsForLight == kAlphaSA_ISA && g_draw.tssOps0[0] < 1.5f))
+            || (IsStandardAlphaBlend(g_draw.state) && g_draw.tssOps0[0] < 1.5f))
         {
             float forced[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
             bgfx::setUniform(g_uniforms.uLightingEnabled, forced);
@@ -4088,6 +4674,11 @@ void SubmitEngineDraw(unsigned short start_index,
     }
 
     state = ApplyColorWriteOverride(state);
+    if (triangle_strip)
+    {
+        state &= ~BGFX_STATE_PT_MASK;
+        state |= BGFX_STATE_PT_TRISTRIP;
+    }
 
     if (g_views.waterOverrideActive)
     {
@@ -4100,25 +4691,54 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
 
+    // Phase 4I.2 CSM caster pass. Submit world and sort-flush geometry
+    // to the shadow map view (view 8). Skip RTT, water, and effect
+    // overlay (those are non-shadow-casters by design). Keep this broad:
+    // several legacy opaque paths do not advertise bgfx WRITE_Z in their
+    // translated state even though the DX8 draw participates in depth.
+    const bool writesDepth = (state & BGFX_STATE_WRITE_Z) != 0;
+    const bool isBlended = (state & BGFX_STATE_BLEND_MASK) != 0;
+    const bool isAlphaTested = (g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef) > 0.0f;
+    // TheSuperHackers @bugfix bobtista 28/04/2026 Keep CSM casting broad
+    // for the main world view. Legacy W3D state can report blend/alpha-test
+    // bits on ordinary world draws, so filtering those here removes every
+    // useful caster. Particle billboard protection is handled by keeping
+    // sorted/effect views out of the caster pass.
+    const bool isShadowCaster =
+        submitView == kBgfxEngineView
+        && !g_views.overlay2DActive;
+    const bool isSceneDepthCaster =
+        submitView == kBgfxEngineView
+        && !g_views.overlay2DActive
+        && writesDepth
+        && !isBlended
+        && !isAlphaTested;
+    const bool receivesShadow = (g_draw.shadowParams[0] > 0.5f);
+
     bgfx::setState(state);
 
-    // Phase 4I.2 CSM: compute light view-projection once for both
-    // receiver uniform and caster submit.
     float lightVP[16];
     bx::mtxMul(lightVP, g_frame.shadowLightView, g_frame.shadowLightProj);
 
-    if (bgfx::isValid(g_uniforms.uShadowLightViewProj))
+    if (bgfx::isValid(g_uniforms.uShadowLightViewProj)
+        && (receivesShadow || isShadowCaster))
     {
-        // Compose model * lightView * lightProj per-draw.
-        // Use the CORRECT model matrix: g_frame.sortWorldRaw for sorted
-        // draws (no camera view baked in), g_frame.world for opaque.
         float shadowMVP[16];
         const float * modelMtx = g_views.inSortFlush ? g_frame.sortWorldRaw : worldMtx;
         bx::mtxMul(shadowMVP, modelMtx, lightVP);
         bgfx::setUniform(g_uniforms.uShadowLightViewProj, shadowMVP);
     }
 
-    BindShadowMapTexture();
+    // TheSuperHackers @performance bobtista 27/04/2026 Non-world draws set
+    // u_shadowParams.x to zero, so they never sample the shadow map. Avoid
+    // binding it for UI, RTT, water, and effect-overlay submits.
+    if (receivesShadow)
+    {
+        BindShadowMapTexture();
+    }
+    BindSoftParticleDepth(submitView == kBgfxEngineSortView
+                          && isBlended
+                          && IsStandardAlphaBlend(state));
 
     // Phase 4H tree / grass sway shader takes over the program slot
     // and uploads its own constants when active. Otherwise fall back
@@ -4136,15 +4756,46 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     bgfx::submit(submitView, program);
 
-    // Phase 4I.2 CSM caster pass. Submit opaque and sort-flush geometry
-    // to the shadow map view (view 8). Skip RTT, water, and effect
-    // overlay (those are non-shadow-casters by design). bgfx preserves
-    // the per-view transform (set in UpdateShadowLightTransform) so
-    // the caster rasterizes from the light's POV.
-    const bool isShadowCaster =
-        (submitView == kBgfxEngineView || submitView == kBgfxEngineSortView)
-        && !g_views.overlay2DActive;
     const bool hasVB = g_draw.useTransientVB || bgfx::isValid(g_draw.vb);
+    if (isSceneDepthCaster
+        && bgfx::isValid(g_device.sceneDepthProgram)
+        && bgfx::isValid(g_device.sceneReadableDepthFB)
+        && hasVB)
+    {
+        // TheSuperHackers @feature bobtista 27/04/2026 Duplicate opaque
+        // non-alpha-tested world geometry into a sampleable R32F scene-depth
+        // target. Alpha-tested draws are skipped until the depth shader also
+        // mirrors fs_uber's texture alpha discard.
+        if (g_draw.useTransientVB)
+        {
+            bgfx::setVertexBuffer(0, &g_draw.transientVB,
+                                  static_cast<uint32_t>(g_draw.ibOffset),
+                                  vertex_count);
+        }
+        else
+        {
+            bgfx::setVertexBuffer(0, g_draw.vb,
+                                  static_cast<uint32_t>(g_draw.ibOffset),
+                                  vertex_count);
+        }
+        if (g_draw.useTransientIB)
+            bgfx::setIndexBuffer(&g_draw.transientIB,
+                                 start_index,
+                                 indexCount);
+        else
+            bgfx::setIndexBuffer(g_draw.ib,
+                                 start_index,
+                                 indexCount);
+        bgfx::setTransform(worldMtx);
+        const uint64_t depthState =
+            BGFX_STATE_WRITE_RGB
+            | BGFX_STATE_WRITE_Z
+            | BGFX_STATE_DEPTH_TEST_LESS
+            | (state & BGFX_STATE_CULL_MASK)
+            | (state & BGFX_STATE_PT_MASK);
+        bgfx::setState(depthState);
+        bgfx::submit(kBgfxSceneDepthView, g_device.sceneDepthProgram);
+    }
     if (isShadowCaster
         && bgfx::isValid(g_device.shadowCasterProgram)
         && hasVB)
@@ -4168,26 +4819,25 @@ void SubmitEngineDraw(unsigned short start_index,
         if (g_draw.useTransientIB)
             bgfx::setIndexBuffer(&g_draw.transientIB,
                                  start_index,
-                                 static_cast<uint32_t>(polygon_count) * 3);
+                                 indexCount);
         else
             bgfx::setIndexBuffer(g_draw.ib,
                                  start_index,
-                                 static_cast<uint32_t>(polygon_count) * 3);
-        // Use the world transform used by the just-issued engine
-        // submit. For sort-flush draws that's g_frame.sortWorld (which
-        // has the sort's batch transform baked in). For regular
-        // opaque it's g_frame.world.
-        bgfx::setTransform(worldMtx);
+                                 indexCount);
         {
-            float casterMVP[16];
             const float * casterModel = g_views.inSortFlush ? g_frame.sortWorldRaw : worldMtx;
+            float casterMVP[16];
             bx::mtxMul(casterMVP, casterModel, lightVP);
-            bgfx::setUniform(g_uniforms.uShadowLightViewProj, casterMVP);
+            if (bgfx::isValid(g_uniforms.uShadowLightViewProj))
+            {
+                bgfx::setUniform(g_uniforms.uShadowLightViewProj, casterMVP);
+            }
         }
         const uint64_t casterState =
             BGFX_STATE_WRITE_Z
             | BGFX_STATE_DEPTH_TEST_LESS
-            | BGFX_STATE_CULL_CW;
+            | BGFX_STATE_CULL_CW
+            | (state & BGFX_STATE_PT_MASK);
         bgfx::setState(casterState);
         bgfx::submit(kBgfxShadowMapView, g_device.shadowCasterProgram);
     }
@@ -4241,7 +4891,7 @@ void BgfxBackend::Draw_Strip(unsigned short start_index,
         return;
     }
 
-    SubmitEngineDraw(start_index, index_count, min_vertex_index, vertex_count);
+    SubmitEngineDraw(start_index, index_count, min_vertex_index, vertex_count, true);
 }
 
 // The programmable pipeline (Set_Vertex_Shader, Set_Pixel_Shader,
