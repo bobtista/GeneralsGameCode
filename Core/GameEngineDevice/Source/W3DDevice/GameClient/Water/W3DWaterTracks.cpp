@@ -319,6 +319,7 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 			return batchStart;
 		batchStart=0;	//reset start of page to first vertex
 	}
+	VertexFormatXYZDUV1 *lockedVerts=vb;
 
 	//Adjust wave position in a non-linear way so that it slows down as it hits the target.  Using 1/4 sine wave
 	//seems to work okay since it maxes out at 1.0 at our final position.
@@ -470,6 +471,12 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 		vb->u1=1.0f;
 	vb->v1=1.0f;
 	vb++;
+
+	// TheSuperHackers @bugfix bobtista 28/04/2026 This path locks the raw
+	// DX8 dynamic buffer directly, bypassing VertexBufferClass::AppendLockClass.
+	// Mirror that capture hook so bgfx receives the shoreline wave vertices.
+	if (g_renderBackend)
+		g_renderBackend->Capture_Vertex_Sub_Range(vertexBuffer,lockedVerts,batchStart,m_x*m_y*vertexBuffer->FVF_Info().Get_FVF_Size());
 
 	vertexBuffer->Get_DX8_Vertex_Buffer()->Unlock();
 
@@ -897,6 +904,11 @@ Try improving the fit to vertical surfaces like cliffs.
 	g_renderBackend->Set_Z_Bias(8);
 	//Force apply of render states so we can override them.
 	g_renderBackend->Apply_Render_State_Changes();
+	// TheSuperHackers @bugfix bobtista 28/04/2026 Water-track wave quads
+	// are submitted after the water surface in legacy draw order. bgfx
+	// executes views by id, so keep them in the water view instead of the
+	// earlier opaque world view where the water pass would cover them.
+	g_renderBackend->Begin_Water_Overlay();
 
 	if (TheTerrainRenderObject->getShroud())
 	{
@@ -931,6 +943,7 @@ Try improving the fit to vertical surfaces like cliffs.
 	}
 
 	g_renderBackend->Set_Z_Bias(0);
+	g_renderBackend->End_Water_Overlay();
 
 	if (TheTerrainRenderObject->getShroud())
 	{	//we used the shroud shader, so reset it.
