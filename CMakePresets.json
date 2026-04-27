@@ -115,6 +115,22 @@
             }
         },
         {
+            "name": "win32-bgfx",
+            "inherits": "win32",
+            "displayName": "Windows 32bit Release (bgfx stub backend)",
+            "cacheVariables": {
+                "GGC_RENDER_BACKEND": "bgfx"
+            }
+        },
+        {
+            "name": "win32-bgfx-standalone",
+            "inherits": "win32-bgfx",
+            "displayName": "Windows 32bit Release (bgfx standalone - DX8 ref popup off, BgfxBackend inherits IRenderBackend directly)",
+            "cacheVariables": {
+                "GGC_BGFX_STANDALONE": "ON"
+            }
+        },
+        {
             "name": "win32-debug",
             "inherits": "win32",
             "displayName": "Windows 32bit Debug",
@@ -264,6 +280,23 @@
             "configuration": "Release"
         },
         {
+            "name": "win32-bgfx",
+            "configurePreset": "win32-bgfx",
+            "displayName": "Build Windows 32bit Release (bgfx stub backend)",
+            "description": "Build Windows 32bit Release (bgfx stub backend)",
+            "configuration": "Release"
+        },
+        {
+            "name": "win32-bgfx-standalone",
+            "configurePreset": "win32-bgfx-standalone",
+            "displayName": "Build Windows 32bit Release (bgfx standalone)",
+            "description": "Build Windows 32bit Release (bgfx standalone)",
+            "configuration": "Release",
+            "targets": [
+                "z_generals"
+            ]
+        },
+        {
             "name": "win32-debug",
             "configurePreset": "win32-debug",
             "displayName": "Build Windows 32bit Debug",
@@ -406,6 +439,32 @@
                 {
                     "type": "build",
                     "name": "win32-profile"
+                }
+            ]
+        },
+        {
+            "name": "win32-bgfx",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "win32-bgfx"
+                },
+                {
+                    "type": "build",
+                    "name": "win32-bgfx"
+                }
+            ]
+        },
+        {
+            "name": "win32-bgfx-standalone",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "win32-bgfx-standalone"
+                },
+                {
+                    "type": "build",
+                    "name": "win32-bgfx-standalone"
                 }
             ]
         },
