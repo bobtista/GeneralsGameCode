@@ -54,39 +54,69 @@ uniform vec4 u_shadowParams; // .x > 0.5 = receive CSM shadows
 
 vec3 applyColorOp(float op, vec3 arg1, vec3 arg2)
 {
-	// SELECTARG1
-	if (op < 1.5) return arg1;
-	// SELECTARG2
-	if (op < 2.5) return arg2;
-	// MODULATE
-	if (op < 3.5) return arg1 * arg2;
-	// MODULATE2X
-	if (op < 4.5) return min(arg1 * arg2 * 2.0, vec3_splat(1.0));
-	// ADD
-	if (op < 5.5) return arg1 + arg2;
-	// ADDSIGNED
-	if (op < 6.5) return arg1 + arg2 - vec3_splat(0.5);
-	// SUBTRACT
-	if (op < 7.5) return arg1 - arg2;
-	// BLENDTEXALPHA — handled specially by caller
-	// BLENDCURALPHA — handled specially by caller
-	// ADDSMOOTH
-	if (op > 9.5 && op < 10.5) return arg1 + arg2 - arg1 * arg2;
+	// Binary split to reduce worst-case from 7 sequential comparisons to 4.
+	if (op < 5.5)
+	{
+		if (op < 2.5)
+		{
+			return (op < 1.5) ? arg1 : arg2;
+		}
+		if (op < 3.5)
+		{
+			return arg1 * arg2;
+		}
+		if (op < 4.5)
+		{
+			return min(arg1 * arg2 * 2.0, vec3_splat(1.0));
+		}
+		return arg1 + arg2;
+	}
+	// ADDSIGNED(6), SUBTRACT(7), BLENDTEX(8)/BLENDCUR(9) handled by caller, ADDSMOOTH(10)
+	if (op < 6.5)
+	{
+		return arg1 + arg2 - vec3_splat(0.5);
+	}
+	if (op < 7.5)
+	{
+		return arg1 - arg2;
+	}
+	if (op > 9.5)
+	{
+		return arg1 + arg2 - arg1 * arg2;
+	}
 	return arg1;
 }
 
 float applyAlphaOp(float op, float arg1, float arg2)
 {
-	if (op < 1.5) return arg1;
-	if (op < 2.5) return arg2;
-	if (op < 3.5) return arg1 * arg2;
-	if (op < 4.5) return min(arg1 * arg2 * 2.0, 1.0);
-	if (op < 5.5) return arg1 + arg2;
-	if (op < 6.5) return arg1 + arg2 - 0.5;
-	if (op < 7.5) return arg1 - arg2;
-	// BLENDTEXALPHA / BLENDCURALPHA (8, 9) — handled specially by caller.
-	// ADDSMOOTH — emitted by secAlphaOp under DETAILALPHA_INVSCALE; keep in sync with applyColorOp.
-	if (op > 9.5 && op < 10.5) return arg1 + arg2 - arg1 * arg2;
+	if (op < 5.5)
+	{
+		if (op < 2.5)
+		{
+			return (op < 1.5) ? arg1 : arg2;
+		}
+		if (op < 3.5)
+		{
+			return arg1 * arg2;
+		}
+		if (op < 4.5)
+		{
+			return min(arg1 * arg2 * 2.0, 1.0);
+		}
+		return arg1 + arg2;
+	}
+	if (op < 6.5)
+	{
+		return arg1 + arg2 - 0.5;
+	}
+	if (op < 7.5)
+	{
+		return arg1 - arg2;
+	}
+	if (op > 9.5)
+	{
+		return arg1 + arg2 - arg1 * arg2;
+	}
 	return arg1;
 }
 
@@ -152,66 +182,99 @@ void main()
 	vec4 tex2 = texture2D(s_tex2, v_texcoord0);
 	vec4 tex3 = texture2D(s_tex3, v_texcoord0);
 
-	// --- Stage 0: Primary (texture0 vs diffuse) ---
+	// --- TSS stage evaluation ---
+	// u_tssOps0 = (priColorOp, priAlphaOp, secColorOp, secAlphaOp)
+	// u_tssOps1 = (priCArg1Src, priAArg1Src, secCArg1Src, secAArg1Src)
 	float priColorOp = u_tssOps0.x;
-	float priAlphaOp = u_tssOps0.y;
+	float secColorOp = u_tssOps0.z;
+	float secAlphaOp = u_tssOps0.w;
 	float priArg1Src = u_tssOps1.x;
-	float priAlphaArg1Src = u_tssOps1.y;
 
-	// Determine arg1/arg2 for primary stage
-	vec4 priArg1 = (priArg1Src < 0.5) ? tex0 : diffuse;
-	vec4 priArg2 = (priArg1Src < 0.5) ? diffuse : tex0;
-	vec4 priAlphaA1 = (priAlphaArg1Src < 0.5) ? tex0 : diffuse;
-	vec4 priAlphaA2 = (priAlphaArg1Src < 0.5) ? diffuse : tex0;
+	vec4 current;
 
-	vec3 priColor;
-	float priAlpha;
+	// Fast paths for the most common TSS combos. These are uniform branches
+	// (all fragments in a draw take the same path) so the GPU skips the
+	// not-taken side entirely. For the ~90% of draws that hit a fast path,
+	// applyColorOp/applyAlphaOp and the secondary stage are never entered.
 
-	if (priColorOp < 0.5)
+	if (priColorOp > 2.5 && priColorOp < 3.5
+		&& secColorOp < 0.5 && secAlphaOp < 0.5
+		&& priArg1Src < 0.5)
 	{
-		// DISABLE — pass through diffuse (no texture)
-		priColor = diffuse.rgb;
-		priAlpha = diffuse.a;
+		// Fast path: MODULATE primary, DISABLE secondary (~80% of draws).
+		// tex0 * diffuse for both color and alpha.
+		current = vec4(tex0.rgb * diffuse.rgb, tex0.a * diffuse.a);
+	}
+	else if (priColorOp > 0.5 && priColorOp < 1.5
+		&& secColorOp < 0.5 && secAlphaOp < 0.5
+		&& priArg1Src < 0.5)
+	{
+		// Fast path: SELECTARG1 primary, DISABLE secondary.
+		// Texture only — shell map, pre-lit terrain, baked-lit textures.
+		current = tex0;
+	}
+	else if (priColorOp > 1.5 && priColorOp < 2.5
+		&& secColorOp < 0.5 && secAlphaOp < 0.5)
+	{
+		// Fast path: SELECTARG2 primary, DISABLE secondary.
+		// Diffuse only — untextured lit meshes.
+		current = diffuse;
 	}
 	else
 	{
-		priColor = applyColorOp(priColorOp, priArg1.rgb, priArg2.rgb);
-		priAlpha = applyAlphaOp(priAlphaOp, priAlphaA1.a, priAlphaA2.a);
-	}
+		// General TSS path — handles all remaining combinations via
+		// applyColorOp/applyAlphaOp. This covers detail textures,
+		// additive blending, bump env map fallback, etc.
+		float priAlphaOp = u_tssOps0.y;
+		float priAlphaArg1Src = u_tssOps1.y;
 
-	vec4 current = vec4(priColor, priAlpha);
+		vec4 priArg1 = (priArg1Src < 0.5) ? tex0 : diffuse;
+		vec4 priArg2 = (priArg1Src < 0.5) ? diffuse : tex0;
+		vec4 priAlphaA1 = (priAlphaArg1Src < 0.5) ? tex0 : diffuse;
+		vec4 priAlphaA2 = (priAlphaArg1Src < 0.5) ? diffuse : tex0;
 
-	// --- Stage 1: Secondary/Detail (texture1 vs primary result) ---
-	float secColorOp = u_tssOps0.z;
-	float secAlphaOp = u_tssOps0.w;
+		vec3 priColor;
+		float priAlpha;
 
-	if (secColorOp > 0.5)
-	{
-		vec3 secArg1 = tex1.rgb;
-		vec3 secArg2 = current.rgb;
-
-		// Handle BLENDTEXTUREALPHA and BLENDCURRENTALPHA specially
-		if (secColorOp > 7.5 && secColorOp < 8.5)
+		if (priColorOp < 0.5)
 		{
-			// BLENDTEXTUREALPHA: lerp(arg2, arg1, tex1.a)
-			current.rgb = mix(secArg2, secArg1, tex1.a);
-		}
-		else if (secColorOp > 8.5 && secColorOp < 9.5)
-		{
-			// BLENDCURRENTALPHA: lerp(arg2, arg1, current.a)
-			current.rgb = mix(secArg2, secArg1, current.a);
+			priColor = diffuse.rgb;
+			priAlpha = diffuse.a;
 		}
 		else
 		{
-			current.rgb = applyColorOp(secColorOp, secArg1, secArg2);
+			priColor = applyColorOp(priColorOp, priArg1.rgb, priArg2.rgb);
+			priAlpha = applyAlphaOp(priAlphaOp, priAlphaA1.a, priAlphaA2.a);
 		}
-	}
 
-	if (secAlphaOp > 0.5)
-	{
-		float secAArg1 = tex1.a;
-		float secAArg2 = current.a;
-		current.a = applyAlphaOp(secAlphaOp, secAArg1, secAArg2);
+		current = vec4(priColor, priAlpha);
+
+		// Secondary/detail stage
+		if (secColorOp > 0.5)
+		{
+			vec3 secArg1 = tex1.rgb;
+			vec3 secArg2 = current.rgb;
+
+			if (secColorOp > 7.5 && secColorOp < 8.5)
+			{
+				current.rgb = mix(secArg2, secArg1, tex1.a);
+			}
+			else if (secColorOp > 8.5 && secColorOp < 9.5)
+			{
+				current.rgb = mix(secArg2, secArg1, current.a);
+			}
+			else
+			{
+				current.rgb = applyColorOp(secColorOp, secArg1, secArg2);
+			}
+		}
+
+		if (secAlphaOp > 0.5)
+		{
+			float secAArg1 = tex1.a;
+			float secAArg2 = current.a;
+			current.a = applyAlphaOp(secAlphaOp, secAArg1, secAArg2);
+		}
 	}
 
 	// --- Stages 2-3: legacy multi-stage multiply path. In the bgfx
