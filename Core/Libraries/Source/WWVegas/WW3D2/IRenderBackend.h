@@ -527,10 +527,14 @@ public:
     virtual void Override_Texcoord_Index(unsigned stage, unsigned uvIndex) {}
     virtual void Override_Terrain_Blend(bool enable) {}
     virtual void Override_Material_Opacity(float opacity) {}
+    virtual void Begin_Water_Overlay() {}
+    virtual void End_Water_Overlay() {}
     // Route subsequent draws to the sort view instead of the opaque view.
     // Used by dazzle/lens-flare effects that need to render on top of water.
     virtual void Begin_Effect_Overlay() {}
     virtual void End_Effect_Overlay() {}
+    virtual bool Begin_Smudge_Distortion() { return false; }
+    virtual void End_Smudge_Distortion() {}
     virtual void Clear_State_Overrides() {}
 
     // -------------------------------------------------------------------------

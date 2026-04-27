@@ -1,12 +1,10 @@
 $input  a_position, a_normal, a_color0, a_texcoord0, a_texcoord1
-$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV
+$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV, v_worldPos
 
 #include <bgfx_shader.sh>
 
-// Phase 4I.2 CSM: per-draw model*lightView*lightProj, pre-composed
-// by the backend with the CORRECT model matrix (raw world for sorted
-// draws, regular world for opaque). Avoids u_model contamination
-// where sorted draws bake camera view into u_model.
+// Phase 4I.2 CSM: model-to-light clip matrix, composed by the backend
+// from the current draw's model matrix and the cached light view/proj.
 uniform mat4 u_shadowLightViewProj;
 uniform vec4 u_texcoordSelect;
 uniform vec4 u_texcoordSelect2; // .x > 0.5 = use texcoord1 for stage 1, .y > 0.5 = stage 1 transform active
@@ -30,6 +28,7 @@ void main()
 	v_stage1UV  = (u_texcoordSelect2.x > 0.5) ? a_texcoord1 : a_texcoord0;
 	v_normal    = mul(u_model[0], vec4(a_normal, 0.0)).xyz;
 	vec4 worldPos = mul(u_model[0], vec4(a_position, 1.0));
+	v_worldPos = worldPos.xyz;
 
 	if (u_texcoordSelect.w > 0.5)
 	{
