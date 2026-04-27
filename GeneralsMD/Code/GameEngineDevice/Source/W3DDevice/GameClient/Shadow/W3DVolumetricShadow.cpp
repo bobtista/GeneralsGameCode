@@ -2587,16 +2587,21 @@ static int EarClip2D(const float * xy, int N, short * out_indices)
 
 	// Determine polygon winding via shoelace signed area.
 	float signedArea = 0.0f;
-	for (int i = 0; i < N; ++i)
+	int i;
+	int j;
+	for (i = 0; i < N; ++i)
 	{
-		int j = (i + 1) % N;
-		signedArea += xy[i*2]   * xy[j*2+1];
-		signedArea -= xy[j*2]   * xy[i*2+1];
+		int nextIndex = (i + 1) % N;
+		signedArea += xy[i*2]   * xy[nextIndex*2+1];
+		signedArea -= xy[nextIndex*2]   * xy[i*2+1];
 	}
 	const bool polygonCCW = (signedArea > 0.0f);
 
 	std::vector<int> poly(N);
-	for (int i = 0; i < N; ++i) poly[i] = i;
+	for (i = 0; i < N; ++i)
+	{
+		poly[i] = i;
+	}
 
 	int outCount = 0;
 	int safetyMax = N * N;
@@ -2604,7 +2609,7 @@ static int EarClip2D(const float * xy, int N, short * out_indices)
 	{
 		bool foundEar = false;
 		const int M = static_cast<int>(poly.size());
-		for (int i = 0; i < M; ++i)
+		for (i = 0; i < M; ++i)
 		{
 			const int iPrev = poly[(i + M - 1) % M];
 			const int iCurr = poly[i];
@@ -2620,10 +2625,13 @@ static int EarClip2D(const float * xy, int N, short * out_indices)
 			}
 			// No other vertex may lie inside triangle (iPrev, iCurr, iNext).
 			bool hasInside = false;
-			for (int j = 0; j < M; ++j)
+			for (j = 0; j < M; ++j)
 			{
 				const int iTest = poly[j];
-				if (iTest == iPrev || iTest == iCurr || iTest == iNext) continue;
+				if (iTest == iPrev || iTest == iCurr || iTest == iNext)
+				{
+					continue;
+				}
 				const float px = xy[iTest*2], py = xy[iTest*2+1];
 				const float d1 = (px - bx) * (ay - by) - (ax - bx) * (py - by);
 				const float d2 = (px - cx) * (by - cy) - (bx - cx) * (py - cy);
