@@ -1079,6 +1079,15 @@ namespace { // reopen anonymous namespace
 // actual sun direction — Phase 4I.2 Session D hooks that up.
 static const float kSunDistanceFromGround = 10000.0f;
 
+// TheSuperHackers @info bobtista 28/04/2026 Fallback sun direction used
+// when neither Set_Shadow_Light_Position nor an enabled D3D light has
+// supplied one. Rough north-east + above placement that matches the
+// time-of-day light most maps default to; arbitrary but non-zero so
+// CSM always has a valid look-at axis.
+static const float kFallbackSunPosX = 500.0f;
+static const float kFallbackSunPosY = 800.0f;
+static const float kFallbackSunPosZ = 1500.0f;
+
 static void UpdateShadowLightTransform()
 {
     // The engine's shadow sun position (from W3DShadowManager) is
@@ -1113,7 +1122,9 @@ static void UpdateShadowLightTransform()
     }
     if (sunX == 0.0f && sunY == 0.0f && sunZ == 0.0f)
     {
-        sunX = 500.0f; sunY = 800.0f; sunZ = 1500.0f;
+        sunX = kFallbackSunPosX;
+        sunY = kFallbackSunPosY;
+        sunZ = kFallbackSunPosZ;
     }
     const float sunLen = std::sqrt(sunX*sunX + sunY*sunY + sunZ*sunZ);
     if (sunLen < 0.001f)
