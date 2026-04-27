@@ -18,7 +18,7 @@
 
 // TheSuperHackers @refactor bobtista 10/04/2026 Introduce IRenderBackend
 // abstract interface so WW3D2 rendering can be re-targeted to modern backends
-// (bgfx, Diligent, etc.) while the existing DX8 path stays functional as the
+// (bgfx, etc.) while the existing DX8 path stays functional as the
 // reference implementation.
 
 #pragma once
@@ -184,6 +184,20 @@ enum CompareFunc
     RB_CMP_NOT_EQUAL     = 6,
     RB_CMP_GREATER_EQUAL = 7,
     RB_CMP_ALWAYS        = 8
+};
+
+// TheSuperHackers @refactor bobtista 28/04/2026 Channel masks for
+// Set_Color_Write_Mask. Values match D3DCOLORWRITEENABLE_* so DX8Backend
+// can cast directly. Game code that wants to disable color writes
+// entirely should pass 0; for ALL channels use RB_COLOR_RGBA.
+enum ColorWriteMask
+{
+    RB_COLOR_RED    = 1,  // D3DCOLORWRITEENABLE_RED
+    RB_COLOR_GREEN  = 2,  // D3DCOLORWRITEENABLE_GREEN
+    RB_COLOR_BLUE   = 4,  // D3DCOLORWRITEENABLE_BLUE
+    RB_COLOR_ALPHA  = 8,  // D3DCOLORWRITEENABLE_ALPHA
+    RB_COLOR_RGB    = RB_COLOR_RED | RB_COLOR_GREEN | RB_COLOR_BLUE,
+    RB_COLOR_RGBA   = RB_COLOR_RGB | RB_COLOR_ALPHA
 };
 
 // TheSuperHackers @refactor bobtista 14/04/2026 Phase 4F. D3DFILLMODE

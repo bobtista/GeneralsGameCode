@@ -323,16 +323,11 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_smudge.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_smudge.sc)
     target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
-elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
-    target_sources(corei_ww3d2 INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/DiligentBackend.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/DiligentBackend.h
-    )
 endif()
 
 # Propagate the active backend's compile define to every translation unit
 # that pulls in WW3D2, so that RenderBackend.cpp and any future callers can
-# #if on GGC_RENDER_BACKEND_DX8 / _BGFX / _DILIGENT.
+# #if on GGC_RENDER_BACKEND_DX8 / _BGFX.
 if(DEFINED GGC_RENDER_BACKEND_COMPILE_DEFINE)
     target_compile_definitions(corei_ww3d2 INTERFACE ${GGC_RENDER_BACKEND_COMPILE_DEFINE})
 endif()
@@ -352,10 +347,4 @@ target_link_libraries(corei_ww3d2 INTERFACE
 # Link the backend's native libraries into whoever consumes corei_ww3d2.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_link_libraries(corei_ww3d2 INTERFACE bgfx bx bimg)
-elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
-    target_link_libraries(corei_ww3d2 INTERFACE
-        Diligent-GraphicsEngineD3D11-static
-        Diligent-Common
-        Diligent-GraphicsTools
-    )
 endif()

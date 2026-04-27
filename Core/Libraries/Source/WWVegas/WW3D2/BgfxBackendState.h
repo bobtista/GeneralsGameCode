@@ -74,8 +74,11 @@ struct BgfxDevice
 {
     bool initialized = false;
     HWND window      = nullptr;
-    int  width       = 800;
-    int  height      = 600;
+    // Set to 0 so any read before Initialize() trips obvious downstream
+    // sentinels (clip rects = 0x0, no allocation). The previous 800x600
+    // placeholder masked uninitialized-use bugs.
+    int  width       = 0;
+    int  height      = 0;
     // bgfx debug-log callback is a file-local global in BgfxBackend.cpp (g_bgfxCallback); it needs the full BgfxLoggingCallback class definition and only BgfxBackend.cpp uses it.
 
     // Programs

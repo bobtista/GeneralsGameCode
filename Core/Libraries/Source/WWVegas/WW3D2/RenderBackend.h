@@ -31,10 +31,9 @@
 extern IRenderBackend * g_renderBackend;
 
 // Create the render backend. Called by DX8Wrapper::Do_Onetime_Device_Dependent_Inits
-// after the D3D device has been successfully created.
-//
-// Phase 1 always creates a DX8Backend. Phase 2 will add a compile-time
-// option to select between DX8Backend, BgfxBackend, and DiligentBackend.
+// after the D3D device has been successfully created. The concrete backend
+// (DX8Backend or BgfxBackend) is selected at compile time via the
+// GGC_RENDER_BACKEND CMake flag.
 void Init_Render_Backend();
 
 // Destroy the render backend. Called by DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns

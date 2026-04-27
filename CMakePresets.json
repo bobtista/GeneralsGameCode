@@ -155,14 +155,6 @@
             }
         },
         {
-            "name": "win32-debug-diligent",
-            "inherits": "win32-debug",
-            "displayName": "Windows 32bit Debug (diligent stub backend)",
-            "cacheVariables": {
-                "GGC_RENDER_BACKEND": "diligent"
-            }
-        },
-        {
             "name": "win32-vcpkg",
             "inherits": "default-vcpkg",
             "hidden": false,

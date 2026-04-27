@@ -4,27 +4,24 @@
 # for WW3D2 at configure time.
 #
 # Valid values:
-#   dx8      - existing DirectX 8 backend. Default. VC6-compatible. Windows only.
-#   bgfx     - bgfx abstraction over DX11/Vulkan/Metal/GL. Cross-platform. MSVC 2022+.
-#   diligent - Diligent Engine abstraction over DX11/Vulkan/Metal. Cross-platform. MSVC 2022+.
+#   dx8  - existing DirectX 8 backend. Default. VC6-compatible. Windows only.
+#   bgfx - bgfx abstraction over DX11/Vulkan/Metal/GL. Cross-platform. MSVC 2022+.
 #
-# When set to bgfx or diligent, the corresponding dependency module is
-# included from cmake/bgfx.cmake or cmake/diligent.cmake. Neither is
-# fetched when dx8 is selected.
+# When set to bgfx the dependency module is included from cmake/bgfx.cmake.
+# It is not fetched when dx8 is selected.
 #
 # This file must be included from the top-level CMakeLists.txt after the
 # project() call but before the WW3D2 source subdirectories are added.
 
 set(GGC_RENDER_BACKEND "dx8" CACHE STRING
-    "Rendering backend for WW3D2: dx8 (default), bgfx, or diligent")
-set_property(CACHE GGC_RENDER_BACKEND PROPERTY STRINGS dx8 bgfx diligent)
+    "Rendering backend for WW3D2: dx8 (default) or bgfx")
+set_property(CACHE GGC_RENDER_BACKEND PROPERTY STRINGS dx8 bgfx)
 
 if(NOT GGC_RENDER_BACKEND STREQUAL "dx8" AND
-   NOT GGC_RENDER_BACKEND STREQUAL "bgfx" AND
-   NOT GGC_RENDER_BACKEND STREQUAL "diligent")
+   NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
     message(FATAL_ERROR
         "Invalid GGC_RENDER_BACKEND: '${GGC_RENDER_BACKEND}'. "
-        "Must be one of: dx8, bgfx, diligent.")
+        "Must be one of: dx8, bgfx.")
 endif()
 
 message(STATUS "WW3D2 render backend: ${GGC_RENDER_BACKEND}")
@@ -52,8 +49,6 @@ if(GGC_RENDER_BACKEND STREQUAL "dx8")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_DX8=1")
 elseif(GGC_RENDER_BACKEND STREQUAL "bgfx")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_BGFX=1")
-elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
-    set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_DILIGENT=1")
 endif()
 
 # TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 5 — standalone
@@ -79,6 +74,4 @@ endif()
 # CMakeLists.txt unconditionally for the min-dx8-sdk.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     include(cmake/bgfx.cmake)
-elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
-    include(cmake/diligent.cmake)
 endif()
