@@ -28,6 +28,8 @@
 
 #if defined(GGC_BGFX_STANDALONE)
 
+#include "DXTUtils.h"
+
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
@@ -142,7 +144,7 @@ static UINT SurfacePitch(D3DFORMAT fmt, UINT width)
 {
 	if (IsCompressedFormat(fmt))
 	{
-		return ((width + 3) / 4) * BlockBytes(fmt);
+		return DXT_SurfacePitch(width, BlockBytes(fmt));
 	}
 	return width * BytesPerPixel(fmt);
 }
@@ -151,13 +153,17 @@ static UINT SurfaceRows(D3DFORMAT fmt, UINT height)
 {
 	if (IsCompressedFormat(fmt))
 	{
-		return (height + 3) / 4;
+		return DXT_SurfaceRows(height);
 	}
 	return height;
 }
 
 static UINT SurfaceStorageSize(D3DFORMAT fmt, UINT width, UINT height)
 {
+	if (IsCompressedFormat(fmt))
+	{
+		return DXT_SurfaceStorageSize(width, height, BlockBytes(fmt));
+	}
 	return SurfacePitch(fmt, width) * SurfaceRows(fmt, height);
 }
 
