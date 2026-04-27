@@ -29,6 +29,7 @@
 #if defined(GGC_BGFX_STANDALONE)
 
 #include "DXTUtils.h"
+#include "wwdebug.h"
 
 #include <atomic>
 #include <cstdint>
@@ -1046,9 +1047,10 @@ public:
 		{
 			if (IsCompressedFormat(sd.Format) || IsCompressedFormat(dd.Format))
 			{
+				WWDEBUG_SAY(("[StubD3D8] CopyRects: compressed rect copy not implemented, skipping"));
 				dst->UnlockRect();
 				src->UnlockRect();
-				return D3D_OK;
+				return E_NOTIMPL;
 			}
 			const UINT bpp = BytesPerPixel(sd.Format);
 			for (UINT i = 0; i < count; ++i)
