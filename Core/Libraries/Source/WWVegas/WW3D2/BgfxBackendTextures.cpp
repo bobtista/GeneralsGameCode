@@ -84,6 +84,125 @@ static void ForceOpaqueIfProceduralX8R8G8B8(TextureClass * tex2d,
         px[i * 4 + 3] = 0xff;
 }
 
+static bool IsCompressedBgfxFormat(bgfx::TextureFormat::Enum bgfxFmt)
+{
+    return bgfxFmt == bgfx::TextureFormat::BC1
+        || bgfxFmt == bgfx::TextureFormat::BC2
+        || bgfxFmt == bgfx::TextureFormat::BC3;
+}
+
+static unsigned GetBytesPerPixel(bgfx::TextureFormat::Enum bgfxFmt)
+{
+    switch (bgfxFmt)
+    {
+        case bgfx::TextureFormat::BGRA4:
+        case bgfx::TextureFormat::R5G6B5:
+        case bgfx::TextureFormat::BGR5A1:
+            return 2;
+        case bgfx::TextureFormat::A8:
+        case bgfx::TextureFormat::R8:
+            return 1;
+        default:
+            return 4;
+    }
+}
+
+static bool CopyTextureLevel(TextureClass * tex2d,
+    bgfx::TextureFormat::Enum bgfxFmt,
+    IDirect3DTexture8 * d3dTex,
+    unsigned level,
+    bgfx::Memory const ** outMem,
+    uint16_t * outWidth,
+    uint16_t * outHeight)
+{
+    if (tex2d == nullptr || d3dTex == nullptr || outMem == nullptr
+        || outWidth == nullptr || outHeight == nullptr)
+    {
+        return false;
+    }
+
+    D3DSURFACE_DESC desc;
+    if (FAILED(d3dTex->GetLevelDesc(level, &desc)))
+    {
+        return false;
+    }
+
+    D3DLOCKED_RECT locked = { 0 };
+    HRESULT hr = d3dTex->LockRect(level, &locked, NULL, D3DLOCK_READONLY);
+    if (FAILED(hr) || locked.pBits == NULL)
+    {
+        return false;
+    }
+
+    const bool isCompressed = IsCompressedBgfxFormat(bgfxFmt);
+    unsigned expectedPitch = 0;
+    unsigned numRows = 0;
+    if (isCompressed)
+    {
+        const unsigned blockSize = (bgfxFmt == bgfx::TextureFormat::BC1) ? 8 : 16;
+        expectedPitch = DXT_SurfacePitch(desc.Width, blockSize);
+        numRows = DXT_SurfaceRows(desc.Height);
+    }
+    else
+    {
+        expectedPitch = desc.Width * GetBytesPerPixel(bgfxFmt);
+        numRows = desc.Height;
+    }
+
+    const unsigned totalBytes = numRows * expectedPitch;
+    const unsigned srcPitch = static_cast<unsigned>(locked.Pitch);
+    const bgfx::Memory * mem = bgfx::alloc(totalBytes);
+    if (srcPitch == expectedPitch)
+    {
+        std::memcpy(mem->data, locked.pBits, totalBytes);
+    }
+    else
+    {
+        const unsigned copyPitch = (srcPitch < expectedPitch) ? srcPitch : expectedPitch;
+        const uint8_t * src = static_cast<const uint8_t *>(locked.pBits);
+        uint8_t * dst = mem->data;
+        for (unsigned row = 0; row < numRows; ++row)
+        {
+            std::memcpy(dst, src, copyPitch);
+            if (copyPitch < expectedPitch)
+            {
+                std::memset(dst + copyPitch, 0, expectedPitch - copyPitch);
+            }
+            src += srcPitch;
+            dst += expectedPitch;
+        }
+    }
+    d3dTex->UnlockRect(level);
+
+    if (!isCompressed && bgfxFmt == bgfx::TextureFormat::BGRA8)
+    {
+        const char * texName = tex2d->Get_Full_Path().str();
+        if (texName != nullptr && texName[0] == '#')
+        {
+            uint8_t * pix = mem->data;
+            const unsigned pixelCount = expectedPitch / 4 * numRows;
+            for (unsigned i = 0; i < pixelCount; ++i)
+            {
+                // BGRA8: byte order B, G, R, A. Transparent if B=G=R=0.
+                if (pix[i * 4 + 0] == 0 && pix[i * 4 + 1] == 0 && pix[i * 4 + 2] == 0)
+                {
+                    pix[i * 4 + 3] = 0;
+                }
+            }
+        }
+    }
+
+    if (!isCompressed)
+    {
+        ForceOpaqueIfProceduralX8R8G8B8(tex2d, bgfxFmt, mem, expectedPitch, numRows);
+    }
+
+    *outMem = mem;
+    *outWidth = static_cast<uint16_t>(desc.Width);
+    *outHeight = static_cast<uint16_t>(desc.Height);
+    return true;
+}
+
 // External linkage: called from BgfxBackend.cpp's Set_Texture path.
 bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
 {
@@ -135,32 +254,25 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
                         && desc.Height == cachedH
                         && bgfxFmt != bgfx::TextureFormat::Unknown)
                     {
-                        D3DLOCKED_RECT locked = { 0 };
-                        if (SUCCEEDED(d3dTex->LockRect(0, &locked, NULL, D3DLOCK_READONLY)))
+                        const unsigned mipCount = d3dTex->GetLevelCount();
+                        bool updatedAllLevels = true;
+                        for (unsigned mip = 0; mip < mipCount; ++mip)
                         {
-                            const bool isCompressed = (bgfxFmt >= bgfx::TextureFormat::BC1 && bgfxFmt <= bgfx::TextureFormat::BC7);
-                            const unsigned bpp = isCompressed ? 0 :
-                                (bgfxFmt == bgfx::TextureFormat::BGRA4 || bgfxFmt == bgfx::TextureFormat::R5G6B5 || bgfxFmt == bgfx::TextureFormat::BGR5A1) ? 2 :
-                                (bgfxFmt == bgfx::TextureFormat::A8 || bgfxFmt == bgfx::TextureFormat::R8) ? 1 : 4;
-                            const unsigned expectedPitch = isCompressed ? 0 : desc.Width * bpp;
-                            const unsigned numRows = isCompressed ? DXT_SurfaceRows(desc.Height) : desc.Height;
-                            const unsigned srcPitch = static_cast<unsigned>(locked.Pitch);
-                            const unsigned rowBytes = (expectedPitch > 0) ? expectedPitch : srcPitch;
-                            const unsigned totalBytes = numRows * rowBytes;
-                            const bgfx::Memory * mem = bgfx::alloc(totalBytes);
-                            if (srcPitch == expectedPitch || isCompressed)
-                                std::memcpy(mem->data, locked.pBits, totalBytes);
-                            else
-                                for (unsigned row = 0; row < numRows; ++row)
-                                    std::memcpy(mem->data + row * rowBytes,
-                                        static_cast<const uint8_t*>(locked.pBits) + row * srcPitch, rowBytes);
-                            d3dTex->UnlockRect(0);
-
-                            ForceOpaqueIfProceduralX8R8G8B8(tex2d, bgfxFmt, mem, expectedPitch, numRows);
-
-                            bgfx::updateTexture2D(it->second, 0, 0, 0, 0,
-                                static_cast<uint16_t>(desc.Width),
-                                static_cast<uint16_t>(desc.Height), mem);
+                            const bgfx::Memory * mem = nullptr;
+                            uint16_t mipWidth = 0;
+                            uint16_t mipHeight = 0;
+                            if (!CopyTextureLevel(tex2d, bgfxFmt, d3dTex, mip,
+                                                  &mem, &mipWidth, &mipHeight))
+                            {
+                                updatedAllLevels = false;
+                                break;
+                            }
+                            bgfx::updateTexture2D(it->second, 0,
+                                static_cast<uint8_t>(mip), 0, 0,
+                                mipWidth, mipHeight, mem);
+                        }
+                        if (updatedAllLevels)
+                        {
                             // Store dimensions so subsequent invalidations
                             // can still match the in-place update path.
                             g_caches.d3dPtr[tex] = { curD3D,
@@ -254,127 +366,46 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
         return BGFX_INVALID_HANDLE;
     }
 
-    D3DLOCKED_RECT locked = { 0 };
-    HRESULT hr = d3dTex->LockRect(0, &locked, NULL, D3DLOCK_READONLY);
-    if (FAILED(hr) || locked.pBits == NULL)
-    {
-        WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxTexture LockRect failed hr=0x%08x", static_cast<unsigned>(hr)));
-        g_caches.texture[tex] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
-
-    // TheSuperHackers @bugfix bobtista 16/04/2026 Compute tightly-packed row
-    // pitch that bgfx expects and re-pack if the D3D8 locked pitch differs
-    // (drivers may add row padding for alignment). bgfx asserts that the
-    // memory size equals its internal storageSize, so we must match exactly.
-    const bool isCompressed =
-        bgfxFmt == bgfx::TextureFormat::BC1 ||
-        bgfxFmt == bgfx::TextureFormat::BC2 ||
-        bgfxFmt == bgfx::TextureFormat::BC3;
-
-    unsigned expectedPitch = 0;
-    unsigned numRows = 0;
-    if (isCompressed)
-    {
-        const unsigned blockSize = (bgfxFmt == bgfx::TextureFormat::BC1) ? 8 : 16;
-        expectedPitch = DXT_SurfacePitch(desc.Width, blockSize);
-        numRows = DXT_SurfaceRows(desc.Height);
-    }
-    else
-    {
-        unsigned bpp = 0;
-        switch (bgfxFmt)
-        {
-            case bgfx::TextureFormat::BGRA8: bpp = 32; break;
-            case bgfx::TextureFormat::R5G6B5: bpp = 16; break;
-            case bgfx::TextureFormat::BGR5A1: bpp = 16; break;
-            case bgfx::TextureFormat::BGRA4: bpp = 16; break;
-            case bgfx::TextureFormat::A8: bpp = 8; break;
-            case bgfx::TextureFormat::R8: bpp = 8; break;
-            default: bpp = 32; break;
-        }
-        expectedPitch = desc.Width * bpp / 8;
-        numRows = desc.Height;
-    }
-
-    const unsigned totalBytes = numRows * expectedPitch;
-    const unsigned srcPitch = static_cast<unsigned>(locked.Pitch);
-
-    const bgfx::Memory * mem = bgfx::alloc(totalBytes);
-    if (srcPitch == expectedPitch)
-    {
-        std::memcpy(mem->data, locked.pBits, totalBytes);
-    }
-    else
-    {
-        const unsigned copyPitch = (srcPitch < expectedPitch) ? srcPitch : expectedPitch;
-        const uint8_t * src = static_cast<const uint8_t *>(locked.pBits);
-        uint8_t * dst = mem->data;
-        for (unsigned row = 0; row < numRows; ++row)
-        {
-            std::memcpy(dst, src, copyPitch);
-            if (copyPitch < expectedPitch)
-            {
-                std::memset(dst + copyPitch, 0, expectedPitch - copyPitch);
-            }
-            src += srcPitch;
-            dst += expectedPitch;
-        }
-    }
-    d3dTex->UnlockRect(0);
-
-    // TheSuperHackers @fix bobtista 20/04/2026 Team-colored textures
-    // (name prefixed with "#<color>#" via W3DAssetManager's Munge_Texture_Name)
-    // go through Remap_Palette which forces alpha to 0xff on every pixel.
-    // The original TGA stored its "transparent" regions as pure-black RGB
-    // with full alpha, relying on a D3D8-era color-key-on-RGB mechanism
-    // (or implicit alpha-test on luminance) that we haven't reproduced in
-    // bgfx. Without it, the black background paints over the stone bib
-    // around sub-faction emblems (the long-standing "black rectangle"
-    // bug). Emulate color-keying at upload time: for #-prefixed BGRA8
-    // textures, scan the pixel data and set alpha=0 on any pixel whose
-    // RGB is all zero. Scorch marks / shadows use different names so are
-    // unaffected.
-    if (!isCompressed && bgfxFmt == bgfx::TextureFormat::BGRA8)
-    {
-        TextureClass * t = tex->As_TextureClass();
-        const char * texName = t ? t->Get_Full_Path().str() : nullptr;
-        if (texName != nullptr && texName[0] == '#')
-        {
-            uint8_t * pix = mem->data;
-            const unsigned pixelCount = expectedPitch / 4 * numRows;
-            for (unsigned i = 0; i < pixelCount; ++i)
-            {
-                // BGRA8: byte order B, G, R, A. Transparent if B=G=R=0.
-                if (pix[i * 4 + 0] == 0 && pix[i * 4 + 1] == 0 && pix[i * 4 + 2] == 0)
-                {
-                    pix[i * 4 + 3] = 0;
-                }
-            }
-        }
-    }
-
-    if (!isCompressed)
-        ForceOpaqueIfProceduralX8R8G8B8(tex2d, bgfxFmt, mem, expectedPitch, numRows);
-
     // TheSuperHackers @fix bobtista 19/04/2026 Create textures WITHOUT
     // initial data so they are mutable. Passing data to createTexture2D
     // makes the texture immutable, silently rejecting later updates (font
     // atlas glyph additions, dynamic texture changes). Create empty, then
     // upload via updateTexture2D.
+    // TheSuperHackers @bugfix bobtista 27/04/2026 Preserve the source
+    // D3D texture mip chain. Several tiny additive effect textures, such
+    // as the police-car red/blue lights, rely on their authored mipmaps
+    // to average colored fringes instead of sampling only a white level-0
+    // hotspot when minified.
+    const unsigned mipCount = d3dTex->GetLevelCount();
     bgfx::TextureHandle h = bgfx::createTexture2D(
         static_cast<uint16_t>(desc.Width),
         static_cast<uint16_t>(desc.Height),
-        false, 1,
+        mipCount > 1, 1,
         bgfxFmt,
         BGFX_TEXTURE_NONE | BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC,
         nullptr);
-    if (bgfx::isValid(h) && mem != nullptr)
+    if (bgfx::isValid(h))
     {
-        bgfx::updateTexture2D(h, 0, 0, 0, 0,
-            static_cast<uint16_t>(desc.Width),
-            static_cast<uint16_t>(desc.Height),
-            mem);
+        bool uploadedAllLevels = true;
+        for (unsigned mip = 0; mip < mipCount; ++mip)
+        {
+            const bgfx::Memory * mem = nullptr;
+            uint16_t mipWidth = 0;
+            uint16_t mipHeight = 0;
+            if (!CopyTextureLevel(tex2d, bgfxFmt, d3dTex, mip,
+                                  &mem, &mipWidth, &mipHeight))
+            {
+                uploadedAllLevels = false;
+                break;
+            }
+            bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
+                mipWidth, mipHeight, mem);
+        }
+        if (!uploadedAllLevels)
+        {
+            g_caches.deferredDestroys.push_back(h);
+            h = BGFX_INVALID_HANDLE;
+        }
     }
 
     g_caches.texture[tex] = h;
@@ -455,6 +486,10 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
     // and recreates m_pDstTexture). Without this, the old bgfx handle
     // stays in g_caches.texture keyed by the freed pointer, and if the
     // address is reused, updateTexture2D crashes with mismatched dimensions.
+    // TheSuperHackers @performance bobtista 27/04/2026 Use the same
+    // deferred bgfx texture destruction path as the general texture cache.
+    // Shroud/radar textures can be replaced while prior frame submits are
+    // still in flight, so immediate destroy is unsafe churn.
     static TextureClass * s_lastShroudDst = nullptr;
     static unsigned s_lastShroudW = 0;
     static unsigned s_lastShroudH = 0;
@@ -468,9 +503,10 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
             if (oldIt != g_caches.texture.end())
             {
                 if (bgfx::isValid(oldIt->second))
-                    bgfx::destroy(oldIt->second);
+                    g_caches.deferredDestroys.push_back(oldIt->second);
                 g_caches.texture.erase(oldIt);
             }
+            g_caches.d3dPtr.erase(s_lastShroudDst);
             g_caches.renderTarget.erase(s_lastShroudDst);
         }
         s_lastShroudDst = dst_texture;
@@ -521,6 +557,12 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
     {
         return;
     }
+    // TheSuperHackers @bugfix bobtista 27/04/2026 Keep shroud/radar updates
+    // conservative. The engine's dirty rect can omit persistent explored
+    // radar state after captures/buildings change ownership, so partial bgfx
+    // uploads leave stale shroud on the radar. Rebuild the full texture from
+    // the supplied source rect plus white fill every update, matching the
+    // known-good path.
     const bgfx::Memory * mem = bgfx::alloc(fullSize);
     std::memset(mem->data, 0xFF, fullSize);
     const unsigned rowBytes = src_width * bpp;
@@ -533,7 +575,8 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
             std::memcpy(mem->data + dstOffset, static_cast<const uint8_t *>(pixel_data) + srcOffset, rowBytes);
         }
     }
-    bgfx::updateTexture2D(h, 0, 0, 0, 0,
+    bgfx::updateTexture2D(h, 0, 0,
+                          0, 0,
                           static_cast<uint16_t>(dst_width),
                           static_cast<uint16_t>(dst_height),
                           mem, static_cast<uint16_t>(dst_width * bpp));
