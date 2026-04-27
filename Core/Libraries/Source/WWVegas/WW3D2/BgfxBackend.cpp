@@ -2565,6 +2565,19 @@ static void UpdateTextureTransforms()
         DX8Wrapper::Get_DX8_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX);
     const unsigned uvIndex = texcoordIndex & 0xFFFF;
     const unsigned texcoordGen = texcoordIndex & 0xFFFF0000;
+    // TheSuperHackers @info bobtista 26/04/2026 Only UV sets 0 and 1 are
+    // supported. D3D8 allows up to 8 UV sets via D3DTSS_TEXCOORDINDEX but
+    // the uber shader only has v_texcoord0/v_texcoord1. Extend if any
+    // material is found using UV set 2+.
+    if (uvIndex > 1)
+    {
+        static bool s_loggedUV2 = false;
+        if (!s_loggedUV2)
+        {
+            s_loggedUV2 = true;
+            WWDEBUG_SAY(("[BgfxBackend] Stage 0 TEXCOORDINDEX uses UV set %u (only 0/1 supported)", uvIndex));
+        }
+    }
     g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
     g_draw.texcoordSource[0] = GetTexcoordSource(texcoordGen);
 
@@ -2585,6 +2598,15 @@ static void UpdateTextureTransforms()
         DX8Wrapper::Get_DX8_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX);
     const unsigned uvIndex1 = texcoordIndex1 & 0xFFFF;
     const unsigned texcoordGen1 = texcoordIndex1 & 0xFFFF0000;
+    if (uvIndex1 > 1)
+    {
+        static bool s_loggedUV2_s1 = false;
+        if (!s_loggedUV2_s1)
+        {
+            s_loggedUV2_s1 = true;
+            WWDEBUG_SAY(("[BgfxBackend] Stage 1 TEXCOORDINDEX uses UV set %u (only 0/1 supported)", uvIndex1));
+        }
+    }
     g_draw.texcoordSelect2[0] = (uvIndex1 == 1) ? 1.0f : 0.0f;
     g_draw.texcoordSource[1] = GetTexcoordSource(texcoordGen1);
 
