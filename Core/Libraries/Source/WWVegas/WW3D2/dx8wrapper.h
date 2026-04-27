@@ -321,6 +321,12 @@ public:
 	static void Get_Render_State(RenderStateStruct& state);
 	static void Set_Render_State(const RenderStateStruct& state);
 	static void Release_Render_State();
+	// TheSuperHackers @perf bobtista 28/04/2026 Const-ref peek avoids the
+	// RenderStateStruct copy assignment, which does REF_PTR_SET on material,
+	// MAX_VERTEX_STREAMS vertex buffers, the index buffer, and every entry
+	// of Textures[MAX_TEXTURE_STAGES]. Read-only callers (e.g. per-draw
+	// light/texture sync in BgfxBackend) should use this instead.
+	static const RenderStateStruct & Peek_Render_State() { return render_state; }
 
 	static void Set_DX8_Material(const D3DMATERIAL8* mat);
 
