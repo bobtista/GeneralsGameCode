@@ -83,14 +83,14 @@ void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calib
 
 // -- Frame lifecycle ---------------------------------------------------------
 //
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 2b.
+// TheSuperHackers @refactor bobtista 11/04/2026 Session 2b.
 // Begin_Scene/End_Scene are intentionally empty during the bgfx cutover.
 // ww3d.cpp's WW3D::Begin_Render/End_Render call DX8Wrapper::Begin_Scene /
 // End_Scene directly because the D3D8 device is still the primary renderer
 // in both the =dx8 and =bgfx builds. The g_renderBackend->Begin_Scene /
 // End_Scene pair is a parallel per-frame hook used by BgfxBackend to call
 // bgfx::touch / bgfx::frame alongside the DX8 pipeline. When DX8 is finally
-// removed (post-Phase 4) these will re-acquire their original forwarding
+// removed (post-) these will re-acquire their original forwarding
 // behavior.
 
 void DX8Backend::Begin_Scene()
@@ -498,7 +498,7 @@ ZTextureClass * DX8Backend::Get_Shadow_Map(int idx) const
     return DX8Wrapper::Get_Shadow_Map(idx);
 }
 
-// -- Resource creation (Phase 5 asset ingress) -------------------------------
+// -- Resource creation (asset ingress) -------------------------------
 //
 // RenderResource.id encoding for DX8Backend: the raw IDirect3D*8 pointer
 // cast to uint64. This keeps the handle trivially invertible back to the
@@ -667,7 +667,7 @@ void DX8Backend::Begin_Dynamic_Frame()
     // caller (DynamicVBAccessClass / DynamicIBAccessClass).
 }
 
-// Phase 5 Option 1 transitional: the legacy DX8 path already owns these
+// Option 1 transitional: the legacy DX8 path already owns these
 // resources through TextureBaseClass / DX8VertexBufferClass /
 // DX8IndexBufferClass. DX8Backend must stay a passive forwarding adapter,
 // so registered legacy resources do not get an owning RenderResource.

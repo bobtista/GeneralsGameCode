@@ -13,7 +13,7 @@
 **	GNU General Public License for more details.
 */
 
-// TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 Stage 5 —
+// TheSuperHackers @refactor bobtista 22/04/2026 Stage 5 —
 // Minimal in-tree implementations of the D3DX8 helper functions the
 // engine actually calls, so the standalone bgfx build can drop the
 // d3dx8.lib static-link dependency entirely. This file only compiles
@@ -299,7 +299,7 @@ extern "C" HRESULT WINAPI D3DXCreateVolumeTexture(
 // packed 16-bit formats (A1R5G5B5, R5G6B5, A4R4G4B4) get correct channel
 // averaging instead of byte-wise garbage.
 //
-// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 — terrain textures
+// TheSuperHackers @bugfix bobtista 22/04/2026 Terrain textures
 // use D3DFMT_A1R5G5B5 (2 bpp). The previous 32bpp-only implementation
 // both (a) read at a 32bpp stride that did not match what the stub now
 // reports for 16bpp surfaces, and (b) averaged bytes as if they were
