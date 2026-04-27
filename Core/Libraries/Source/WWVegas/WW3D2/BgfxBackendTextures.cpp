@@ -41,7 +41,7 @@
 #include "BgfxBackendState.h"
 #include "DXTUtils.h"
 
-// External linkage so BgfxBackend.cpp can reference this from its Phase 5
+// External linkage so BgfxBackend.cpp can reference this from its
 // Create_Texture implementation.
 bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt)
 {
@@ -481,7 +481,7 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
     const unsigned bpp = (bgfxFmt == bgfx::TextureFormat::BGRA4 ||
                           bgfxFmt == bgfx::TextureFormat::R5G6B5) ? 2 : 4;
 
-    // TheSuperHackers @bugfix bobtista 17/04/2026 invalidate stale cache
+    // TheSuperHackers @bugfix bobtista 17/04/2026 Invalidate stale cache
     // entries when the shroud texture pointer changes (save/load destroys
     // and recreates m_pDstTexture). Without this, the old bgfx handle
     // stays in g_caches.texture keyed by the freed pointer, and if the

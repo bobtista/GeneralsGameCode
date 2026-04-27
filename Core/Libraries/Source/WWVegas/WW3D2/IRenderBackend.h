@@ -83,7 +83,7 @@ struct RenderBackendViewport
     float max_z;
 };
 
-// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 asset ingress types.
+// TheSuperHackers @refactor bobtista 21/04/2026 Asset ingress types.
 // These let W3D asset loaders produce CPU-side pixel / vertex / index data
 // and hand it to whichever backend is active, without the loaders caring
 // about D3D8 specifics. Each backend creates its own native GPU resource
@@ -138,7 +138,7 @@ struct BufferDesc
     bool             dynamic;
 };
 
-// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3B interface extension
+// TheSuperHackers @refactor bobtista 10/04/2026 Interface extension
 // to unblock W3DStatusCircle fade effects and FlatHeightMap shroud trickery
 // without exposing raw D3DRENDERSTATETYPE in the interface.
 //
@@ -170,9 +170,9 @@ enum BlendFactor
     RB_BLEND_SRC_ALPHA_SAT   = 11  // D3DBLEND_SRCALPHASAT
 };
 
-// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3F stencil state
+// TheSuperHackers @refactor bobtista 10/04/2026 Stencil state
 // extension. Generic CompareFunc enum is also reusable for depth-test
-// comparison in a future phase.
+// comparison.
 enum CompareFunc
 {
     // Values match D3DCMP_* 1..8 directly so DX8Backend can cast.
@@ -200,7 +200,7 @@ enum ColorWriteMask
     RB_COLOR_RGBA   = RB_COLOR_RGB | RB_COLOR_ALPHA
 };
 
-// TheSuperHackers @refactor bobtista 14/04/2026 Phase 4F. D3DFILLMODE
+// TheSuperHackers @refactor bobtista 14/04/2026 D3DFILLMODE
 // values match D3DFILL_* so DX8Backend can cast directly.
 enum FillMode
 {
@@ -240,7 +240,8 @@ enum StencilOp
 // D3D8-specific entry points on DX8Wrapper (Set_DX8_Render_State,
 // _Create_DX8_Texture, _Get_D3D_Device8, etc.) are NOT exposed here and
 // remain reachable only through DX8Wrapper's static methods. Code that
-// needs them is DX8-only and must be migrated during later phases.
+// needs them is DX8-only and must be migrated to a backend-neutral entry
+// point before it can run on a non-DX8 backend.
 //
 // **Method names intentionally match the existing DX8Wrapper names** so
 // that migrating callers is a mechanical `DX8Wrapper::X(...)` →
@@ -285,8 +286,8 @@ public:
     // Backend lifecycle
     // -------------------------------------------------------------------------
     //
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 1.
-    // Initialize is called once after DX8Wrapper has finished its own device
+    // TheSuperHackers @refactor bobtista 11/04/2026 Initialize is called
+    // once after DX8Wrapper has finished its own device
     // setup, with the game's main HWND and current back-buffer dimensions.
     // DX8Backend treats it as a no-op (DX8Wrapper still owns the real device).
     // BgfxBackend uses it to call bgfx::init. Shutdown is the symmetric
@@ -332,7 +333,7 @@ public:
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset) {}
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset) {}
 
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 write-side
+    // TheSuperHackers @refactor bobtista 11/04/2026 Write-side
     // capture hooks. The W3D engine writes vertex/index data through
     // VertexBufferClass::WriteLockClass / IndexBufferClass::WriteLockClass
     // (and the various Copy() helpers). At unlock time the data is sitting
@@ -348,7 +349,7 @@ public:
                                     const void * /*data*/,
                                     unsigned int /*size_bytes*/) {}
 
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2 dynamic
+    // TheSuperHackers @refactor bobtista 11/04/2026 Dynamic
     // capture hooks. Same pattern as above but for DynamicVBAccessClass /
     // DynamicIBAccessClass. The data pointer and size describe just the
     // sub-range the caller locked - not the entire dynamic ring buffer.
@@ -362,7 +363,7 @@ public:
                                             const void * /*data*/,
                                             unsigned int /*size_bytes*/) {}
 
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 sub-range
+    // TheSuperHackers @refactor bobtista 11/04/2026 Sub-range
     // capture. Rigid mesh category containers fill their shared VB / IB
     // via AppendLockClass one sub-range at a time. BgfxBackend creates a
     // bgfx dynamic buffer the first time it sees a VB / IB and updates
@@ -377,7 +378,7 @@ public:
                                          unsigned int /*start_index*/,
                                          unsigned int /*size_bytes*/) {}
 
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.12 sorted
+    // TheSuperHackers @refactor bobtista 11/04/2026 Sorted
     // draw pass routing. SortingRendererClass::Flush_Sorting_Pool wraps
     // its per-batch draw loop in Begin/End_Sorted_Batch_Pass and calls
     // Capture_Sorted_Batch_Transforms once per batch inside the loop.
@@ -390,7 +391,7 @@ public:
                                                  const Matrix4x4 & /*view*/) {}
     virtual void Capture_Sorted_Batch_Light(const RenderBackendLight & /*light*/, bool /*enabled*/) {}
 
-    // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 sorted
+    // TheSuperHackers @refactor bobtista 11/04/2026 Sorted
     // direct-draw path hook. DX8Wrapper::Draw_Sorting_IB_VB handles
     // draws whose currently-bound VB/IB are sorting-type (CPU arrays)
     // by creating an internal dynamic VB/IB, copying a slice out of
@@ -422,25 +423,25 @@ public:
     virtual void Apply_Default_State() {}
     virtual void Invalidate_Cached_Render_States() {}
 
-    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3B typed blend +
+    // TheSuperHackers @refactor bobtista 10/04/2026 Typed blend +
     // color-write setters. These exist so subsystems that
     // previously called DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP / ...)
     // can migrate without the interface re-exposing the raw D3DRENDERSTATETYPE.
     virtual void Set_Blend_Op(BlendOp op) {}
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) {}
     virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) {}
-    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3E. Natural complement
-    // to the Phase 3B blend extension.
+    // TheSuperHackers @refactor bobtista 10/04/2026 Natural complement
+    // to theblend extension.
     virtual void Set_Alpha_Blend_Enable(bool enable) {}
 
-    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D hardware cursor
+    // TheSuperHackers @refactor bobtista 10/04/2026 Hardware cursor
     // extension. Lets W3DMouse drive the device's hardware cursor without
     // touching IDirect3DDevice8 directly.
     virtual void Show_Hardware_Cursor(bool show) {}
     virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface) {}
     virtual void Set_Hardware_Cursor_Position(int x, int y) {}
 
-    // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3F stencil state
+    // TheSuperHackers @refactor bobtista 10/04/2026 Stencil state
     // group. Each method maps 1:1 onto an existing D3DRS_STENCIL* state. The
     // CompareFunc and StencilOp enums above are reusable for future depth
     // and stencil work.
@@ -453,8 +454,8 @@ public:
     virtual void Set_Stencil_Fail_Op(StencilOp op) {}
     virtual void Set_Stencil_ZFail_Op(StencilOp op) {}
 
-    // TheSuperHackers @refactor bobtista 14/04/2026 Phase 4F.1 / 4F.2
-    // render-state remainders. These wrap the last D3DRS_* values still
+    // TheSuperHackers @refactor bobtista 14/04/2026 Render-state remainders.
+    // These wrap the last D3DRS_* values still
     // being set directly by the terrain / scene / water / snow code
     // (ZBIAS, FILLMODE, ZENABLE/ZFUNC, COLORWRITEENABLE as DWORD mask).
     // The DWORD variant of Set_Color_Write_Mask coexists with the
@@ -471,7 +472,7 @@ public:
     virtual void Set_Texture_Factor(unsigned argb) {}
     virtual void Set_Cull_Mode(CullMode mode) {}
 
-    // TheSuperHackers @refactor bobtista 14/04/2026 Phase 4H tree /
+    // TheSuperHackers @refactor bobtista 14/04/2026 Tree /
     // grass sway vertex shader hooks. DX8 backends ignore these (they
     // use the real DX8 vertex shader DWORD via Set_Vertex_Shader). bgfx
     // backend uses them to drive its ported vs_trees program. Call
@@ -485,7 +486,7 @@ public:
                                            const float shroudScale[4]) {}
     virtual void Set_Tree_Vertex_Shader_Active(bool active) {}
 
-    // TheSuperHackers @feature bobtista 20/04/2026 Phase 4K grayscale
+    // TheSuperHackers @feature bobtista 20/04/2026 Grayscale
     // output for disabled 2D UI elements (Render2DClass::Enable_Grayscale).
     // DX8 backend is a no-op — render2d.cpp still programs the D3D8
     // DOTPRODUCT3/MODULATE TSS cascade directly for the legacy path.
@@ -571,7 +572,7 @@ public:
                             unsigned short min_vertex_index,
                             unsigned short vertex_count) {}
 
-    // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I lets the
+    // TheSuperHackers @refactor bobtista 15/04/2026 Lets the
     // caller request that the very next Draw_Triangles dispatches only
     // to the DX8 reference path, skipping the bgfx submit. Used by
     // stencil shadow volume passes that have no bgfx shader/state yet
@@ -579,7 +580,7 @@ public:
     // No-op in non-bgfx backends.
     virtual void Skip_Next_Bgfx_Submit() {}
 
-    // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I toggles the
+    // TheSuperHackers @refactor bobtista 15/04/2026 Toggles the
     // stencil shadow volume program + state override. When active, bgfx
     // submits shadow extrusion geometry using vs_shadow_volume/
     // fs_shadow_volume with color writes disabled and the engine's
@@ -588,7 +589,7 @@ public:
     // and clears it immediately after.
     virtual void Set_Shadow_Volume_Shader_Active(bool /*active*/) {}
 
-    // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I fullscreen
+    // TheSuperHackers @refactor bobtista 15/04/2026 Fullscreen
     // shadow darkening pass. Draws a screen-space quad with stencil
     // test ref<=stencil && (stencil & read_mask) and DEST_COLOR*SRC
     // blend so stenciled pixels multiply against the shadow color.
@@ -599,7 +600,7 @@ public:
                                              unsigned /*stencil_read_mask*/,
                                              unsigned /*stencil_ref*/) {}
 
-    // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I close the
+    // TheSuperHackers @refactor bobtista 15/04/2026 Close the
     // shadow volume for bgfx rendering. The engine constructs shadow
     // volumes as OPEN TUBES (silhouette side walls only, no caps). DX8
     // tolerates this; bgfx/D3D11 doesn't because the stencil algorithm
@@ -615,7 +616,7 @@ public:
     virtual void Submit_Shadow_Volume_Caps(unsigned /*strip_start_vertex*/,
                                            unsigned /*num_silhouette_verts*/) {}
 
-    // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I close the
+    // TheSuperHackers @refactor bobtista 15/04/2026 Close the
     // shadow volume with caller-provided triangulation. cap_indices[]
     // contains N triangles worth of LOCAL silhouette-vertex indices
     // (each triangle is 3 shorts, values in [0, num_silhouette_verts)).
@@ -630,7 +631,7 @@ public:
         const short * /*local_cap_indices*/,
         unsigned /*cap_index_count*/) {}
 
-    // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4I.2 CSM:
+    // TheSuperHackers @refactor bobtista 16/04/2026 CSM:
     // the engine's shadow system places the sun at a world-space
     // position for shadow casting (from TerrainLighting data). This
     // differs from the N.L shading light direction. BgfxBackend uses
@@ -681,7 +682,7 @@ public:
     virtual ZTextureClass * Get_Shadow_Map(int idx) const { return nullptr; }
 
     // -------------------------------------------------------------------------
-    // Resource creation (Phase 5 asset ingress)
+    // Resource creation (asset ingress)
     // -------------------------------------------------------------------------
     //
     // These methods let asset loaders produce CPU-side pixel / vertex / index
@@ -710,15 +711,14 @@ public:
     virtual void   Begin_Dynamic_Frame() {}
 
     // -------------------------------------------------------------------------
-    // Transitional "register loaded resource" hooks (Phase 5 Option 1)
+    // Transitional "register loaded resource" hooks (Option 1)
     // -------------------------------------------------------------------------
     //
     // Populate a backend-neutral handle AFTER the legacy loader has already
     // created the D3D8 resource. These are called from the end of the
     // asset-loader flow so m_backendHandle is populated going forward.
-    // Stage 5 will remove the legacy D3D8 loader path and these hooks
-    // disappear with it — at that point everything goes through the
-    // Create_* methods above.
+    // Once the legacy D3D8 loader path is gone, these hooks disappear with
+    // it and everything goes through the Create_* methods above.
     //
     // Default: return invalid handle (no-op for backends that don't care
     // about adopting existing D3D resources).

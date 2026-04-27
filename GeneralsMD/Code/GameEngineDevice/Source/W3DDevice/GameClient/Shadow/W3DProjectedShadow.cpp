@@ -611,8 +611,6 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 	g_renderBackend->Set_Vertex_Buffer(nullptr, 0);
 	g_renderBackend->Set_Index_Buffer(nullptr, 0);
 
-//	g_renderBackend->Override_Alpha_Test(false, 0, 0);	//should reject background pixels
-//	g_renderBackend->Set_Stencil_Enable(false);
 //m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
 
 

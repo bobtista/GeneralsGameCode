@@ -79,7 +79,7 @@
 // Turn this on to turn off pixel shaders. jba[4/3/2003]
 #define do_not_DISABLE_PIXEL_SHADERS 1
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.5 shader-pass
+// TheSuperHackers @refactor bobtista 11/04/2026 Shader-pass
 // texture binding helper. W3DShaderManager historically binds textures
 // for its custom shader passes by calling _Get_D3D_Device8()->SetTexture
 // directly, bypassing DX8Wrapper's render-state cache and the
