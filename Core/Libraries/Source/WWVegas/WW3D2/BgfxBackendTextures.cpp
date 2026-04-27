@@ -39,6 +39,7 @@
 
 #include "BgfxBackend.h"
 #include "BgfxBackendState.h"
+#include "DXTUtils.h"
 
 // External linkage so BgfxBackend.cpp can reference this from its Phase 5
 // Create_Texture implementation.
@@ -142,7 +143,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
                                 (bgfxFmt == bgfx::TextureFormat::BGRA4 || bgfxFmt == bgfx::TextureFormat::R5G6B5 || bgfxFmt == bgfx::TextureFormat::BGR5A1) ? 2 :
                                 (bgfxFmt == bgfx::TextureFormat::A8 || bgfxFmt == bgfx::TextureFormat::R8) ? 1 : 4;
                             const unsigned expectedPitch = isCompressed ? 0 : desc.Width * bpp;
-                            const unsigned numRows = isCompressed ? ((desc.Height + 3) / 4) : desc.Height;
+                            const unsigned numRows = isCompressed ? DXT_SurfaceRows(desc.Height) : desc.Height;
                             const unsigned srcPitch = static_cast<unsigned>(locked.Pitch);
                             const unsigned rowBytes = (expectedPitch > 0) ? expectedPitch : srcPitch;
                             const unsigned totalBytes = numRows * rowBytes;
@@ -275,11 +276,9 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     unsigned numRows = 0;
     if (isCompressed)
     {
-        const unsigned blockWidth = 4;
-        const unsigned blockHeight = 4;
         const unsigned blockSize = (bgfxFmt == bgfx::TextureFormat::BC1) ? 8 : 16;
-        expectedPitch = ((desc.Width + blockWidth - 1) / blockWidth) * blockSize;
-        numRows = (desc.Height + blockHeight - 1) / blockHeight;
+        expectedPitch = DXT_SurfacePitch(desc.Width, blockSize);
+        numRows = DXT_SurfaceRows(desc.Height);
     }
     else
     {
