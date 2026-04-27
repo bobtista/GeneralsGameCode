@@ -685,7 +685,37 @@ void AddAttribAtOffset(bgfx::VertexLayout & layout,
     cursor += attr_size_bytes;
 }
 
+// TheSuperHackers @perf bobtista 28/04/2026 Cache built layouts keyed by
+// FVF bits. FVFInfoClass derives all offsets from the FVF bits in its
+// constructor, so two instances with the same Get_FVF() produce identical
+// layouts. Hit on every dynamic capture (particles, lines, 2D quads) and
+// every static VB upload — the engine churns through a handful of FVF
+// combos repeatedly.
+static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::VertexLayout & out);
+
 bool BuildBgfxLayoutForFVF(const FVFInfoClass & fvf, bgfx::VertexLayout & out)
+{
+    struct CachedLayout
+    {
+        bgfx::VertexLayout layout;
+        bool ok;
+    };
+    static std::unordered_map<unsigned, CachedLayout> s_cache;
+    const unsigned key = fvf.Get_FVF();
+    std::unordered_map<unsigned, CachedLayout>::iterator it = s_cache.find(key);
+    if (it != s_cache.end())
+    {
+        out = it->second.layout;
+        return it->second.ok;
+    }
+    CachedLayout entry;
+    entry.ok = BuildBgfxLayoutForFVFUncached(fvf, entry.layout);
+    out = entry.layout;
+    s_cache[key] = entry;
+    return entry.ok;
+}
+
+static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::VertexLayout & out)
 {
     const unsigned bits      = fvf.Get_FVF();
     const unsigned totalSize = fvf.Get_FVF_Size();
@@ -1066,8 +1096,7 @@ static void UpdateShadowLightTransform()
     float sunY = g_frame.shadowSunPosY;
     float sunZ = g_frame.shadowSunPosZ;
     {
-        RenderStateStruct rs;
-        DX8Wrapper::Get_Render_State(rs);
+        const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
         if (rs.LightEnable[0])
         {
             const float lx = -rs.Lights[0].Direction.x;
@@ -1949,6 +1978,25 @@ void BgfxBackend::Shutdown()
         }
         g_caches.deferredDestroys.clear();
         g_caches.deferredDestroysPrev.clear();
+        // TheSuperHackers @bugfix bobtista 28/04/2026 Drain phase5 table.
+        // Register_Loaded_VB/IB/Dynamic_VB/Dynamic_IB allocate bgfx
+        // resources that game code is supposed to release via
+        // Destroy_Resource, but if shutdown beats teardown they leak. The
+        // texture entries are owned by g_caches.texture (already drained
+        // above) so we skip BGFX_RR_KIND_TEXTURE here.
+        for (auto & kv : g_phase5.table)
+        {
+            BgfxPhase5Entry & entry = kv.second;
+            switch (entry.kind)
+            {
+                case BGFX_RR_KIND_VB:     DestroyBgfxHandle(entry.vb);  break;
+                case BGFX_RR_KIND_IB:     DestroyBgfxHandle(entry.ib);  break;
+                case BGFX_RR_KIND_DYN_VB: DestroyBgfxHandle(entry.dvb); break;
+                case BGFX_RR_KIND_DYN_IB: DestroyBgfxHandle(entry.dib); break;
+                default: break;
+            }
+        }
+        g_phase5.table.clear();
         bgfx::shutdown();
         g_device.initialized = false;
         WWDEBUG_SAY(("[BgfxBackend] bgfx::shutdown complete."));
@@ -2287,9 +2335,9 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     // Rotate deferred texture destroy buffers. Current frame's deferred
     // handles move to "prev" — they'll be destroyed at the NEXT Begin_Scene
     // after one more bgfx::frame() guarantees all references are gone.
-    g_caches.deferredDestroysPrev.insert(g_caches.deferredDestroysPrev.end(),
-        g_caches.deferredDestroys.begin(), g_caches.deferredDestroys.end());
-    g_caches.deferredDestroys.clear();
+    // Begin_Scene drained prev, so it is empty here; swap is cheaper than
+    // insert+clear and avoids any vector growth.
+    g_caches.deferredDestroysPrev.swap(g_caches.deferredDestroys);
 
     // Transient buffers are freed at bgfx::frame time. Invalidate the
     // pending and current slots so nothing next frame tries to reuse
@@ -4505,22 +4553,17 @@ void SubmitEngineDraw(unsigned short start_index,
     // current state before each sorted draw.
     if (g_views.inSortFlush)
     {
-        RenderStateStruct sortRS;
-        DX8Wrapper::Get_Render_State(sortRS);
+        const RenderStateStruct & sortRS = DX8Wrapper::Peek_Render_State();
 
         for (int si = 0; si < 4; ++si)
         {
             TextureClass * sortTex = static_cast<TextureClass *>(sortRS.Textures[si]);
             bgfx::TextureHandle h = EnsureBgfxTexture(sortTex);
             if (!bgfx::isValid(h))
-                h = g_device.defaultWhiteTexture;
-            switch (si)
             {
-                case 0: g_draw.tex[0] = h; break;
-                case 1: g_draw.tex[1] = h; break;
-                case 2: g_draw.tex[2] = h; break;
-                case 3: g_draw.tex[3] = h; break;
+                h = g_device.defaultWhiteTexture;
             }
+            g_draw.tex[si] = h;
         }
     }
     BindTextureStages();
@@ -4532,8 +4575,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // bypassing g_renderBackend. Reading the device state here ensures
     // bgfx always has the correct lights regardless of how they were set.
     {
-        RenderStateStruct rs;
-        DX8Wrapper::Get_Render_State(rs);
+        const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
         for (int li = 0; li < 4; ++li)
         {
             if (rs.LightEnable[li])
@@ -5138,13 +5180,13 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
 
 void BgfxBackend::Begin_Dynamic_Frame()
 {
-    // Clear per-frame transient tracking on dynamic entries. The transient
-    // buffers themselves are owned by bgfx's ring allocator.
-    for (auto & kv : g_phase5.table) {
-        BgfxPhase5Entry & entry = kv.second;
-        entry.using_transient_vb = false;
-        entry.using_transient_ib = false;
-    }
+    // TheSuperHackers @perf bobtista 28/04/2026 The earlier per-frame walk
+    // over g_phase5.table to clear using_transient_vb/ib was pure waste —
+    // those flags are never set anywhere (Map_Dynamic still goes through
+    // the DX8 mirror) and entries are memset to zero on creation. When
+    // Map_Dynamic actually allocates bgfx transient buffers, it must also
+    // push the entry id into a side list so we can scope this clear to
+    // the entries actually touched last frame.
     DX8Backend::Begin_Dynamic_Frame();
 }
 
