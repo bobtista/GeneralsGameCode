@@ -30,7 +30,7 @@
 #include "light.h"
 #include "lightenvironment.h"
 #include "texture.h"
-#include <cstring>
+#include <string.h>
 
 DX8Backend::DX8Backend()
 {
@@ -522,11 +522,11 @@ RenderResource DX8Backend::Create_Texture(const TextureDesc & desc)
             D3DLOCKED_RECT locked;
             if (SUCCEEDED(tex->LockRect(level, &locked, nullptr, 0))) {
                 if (slice.pitch != 0 && static_cast<unsigned>(locked.Pitch) == slice.pitch) {
-                    std::memcpy(locked.pBits, slice.data, slice.size_bytes);
+                    memcpy(locked.pBits, slice.data, slice.size_bytes);
                 } else if (slice.pitch != 0) {
                     const unsigned rows = slice.size_bytes / slice.pitch;
                     for (unsigned row = 0; row < rows; ++row) {
-                        std::memcpy(
+                        memcpy(
                             static_cast<unsigned char *>(locked.pBits) + row * locked.Pitch,
                             static_cast<const unsigned char *>(slice.data) + row * slice.pitch,
                             slice.pitch);
@@ -534,7 +534,7 @@ RenderResource DX8Backend::Create_Texture(const TextureDesc & desc)
                 } else {
                     // Compressed: the caller's size_bytes already accounts
                     // for block-compressed row packing.
-                    std::memcpy(locked.pBits, slice.data, slice.size_bytes);
+                    memcpy(locked.pBits, slice.data, slice.size_bytes);
                 }
                 tex->UnlockRect(level);
             }
@@ -554,10 +554,12 @@ RenderResource DX8Backend::Create_Vertex_Buffer(const BufferDesc & desc, const v
     DX8Wrapper::_Get_D3D_Device8()->CreateVertexBuffer(
         desc.size_bytes, usage, desc.layout.fvf, pool, &vb);
 
-    if (vb != nullptr && initial_data != nullptr) {
+    if (vb != nullptr && initial_data != nullptr)
+    {
         unsigned char * dst = nullptr;
-        if (SUCCEEDED(vb->Lock(0, desc.size_bytes, &dst, 0))) {
-            std::memcpy(dst, initial_data, desc.size_bytes);
+        if (SUCCEEDED(vb->Lock(0, desc.size_bytes, &dst, 0)))
+        {
+            memcpy(dst, initial_data, desc.size_bytes);
             vb->Unlock();
         }
     }
@@ -576,10 +578,12 @@ RenderResource DX8Backend::Create_Index_Buffer(const BufferDesc & desc, const vo
     DX8Wrapper::_Get_D3D_Device8()->CreateIndexBuffer(
         desc.size_bytes, usage, fmt, pool, &ib);
 
-    if (ib != nullptr && initial_data != nullptr) {
+    if (ib != nullptr && initial_data != nullptr)
+    {
         unsigned char * dst = nullptr;
-        if (SUCCEEDED(ib->Lock(0, desc.size_bytes, &dst, 0))) {
-            std::memcpy(dst, initial_data, desc.size_bytes);
+        if (SUCCEEDED(ib->Lock(0, desc.size_bytes, &dst, 0)))
+        {
+            memcpy(dst, initial_data, desc.size_bytes);
             ib->Unlock();
         }
     }
@@ -642,7 +646,7 @@ void DX8Backend::Update_Sub_Range(RenderResource h, unsigned int offset, const v
     }
     unsigned char * dst = nullptr;
     if (SUCCEEDED(buf->Lock(offset, size, &dst, D3DLOCK_NOOVERWRITE))) {
-        std::memcpy(dst, data, size);
+        memcpy(dst, data, size);
         buf->Unlock();
     }
 }
@@ -650,7 +654,8 @@ void DX8Backend::Update_Sub_Range(RenderResource h, unsigned int offset, const v
 void DX8Backend::Destroy_Resource(RenderResource h)
 {
     IUnknown * obj = reinterpret_cast<IUnknown *>(h.id);
-    if (obj != nullptr) {
+    if (obj != nullptr)
+    {
         obj->Release();
     }
 }
@@ -662,33 +667,22 @@ void DX8Backend::Begin_Dynamic_Frame()
     // caller (DynamicVBAccessClass / DynamicIBAccessClass).
 }
 
-// Phase 5 Option 1 transitional: the legacy loader already has the D3D8
-// resource; we just wrap its pointer in a RenderResource.
+// Phase 5 Option 1 transitional: the legacy DX8 path already owns these
+// resources through TextureBaseClass / DX8VertexBufferClass /
+// DX8IndexBufferClass. DX8Backend must stay a passive forwarding adapter,
+// so registered legacy resources do not get an owning RenderResource.
 
-RenderResource DX8Backend::Register_Loaded_Texture(TextureBaseClass * tex)
+RenderResource DX8Backend::Register_Loaded_Texture(TextureBaseClass * /*tex*/)
 {
-    RenderResource rr;
-    rr.id = (tex != nullptr)
-        ? reinterpret_cast<unsigned __int64>(tex->Peek_D3D_Base_Texture())
-        : 0;
-    return rr;
+    return kInvalidRenderResource;
 }
 
-RenderResource DX8Backend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb)
+RenderResource DX8Backend::Register_Loaded_Vertex_Buffer(VertexBufferClass * /*vb*/)
 {
-    // VertexBufferClass base doesn't expose the D3D pointer; only
-    // DX8VertexBufferClass does. For Stage 1, we only need something
-    // non-zero so callers can tell the handle was populated — use the
-    // VB pointer itself as the id. Bgfx's side table handles the
-    // backend-specific mapping.
-    RenderResource rr;
-    rr.id = reinterpret_cast<unsigned __int64>(vb);
-    return rr;
+    return kInvalidRenderResource;
 }
 
-RenderResource DX8Backend::Register_Loaded_Index_Buffer(IndexBufferClass * ib)
+RenderResource DX8Backend::Register_Loaded_Index_Buffer(IndexBufferClass * /*ib*/)
 {
-    RenderResource rr;
-    rr.id = reinterpret_cast<unsigned __int64>(ib);
-    return rr;
+    return kInvalidRenderResource;
 }
