@@ -307,6 +307,21 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # Phase 4I.2 CSM (cascaded shadow maps) — depth-only caster pass.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_caster.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_caster.sc)
+    # TheSuperHackers @feature bobtista 27/04/2026 Scene-color composite
+    # pass. World/effects render to an offscreen framebuffer, then this
+    # identity pass copies it to the swapchain before UI draws.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_scene_composite.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_scene_composite.sc)
+    # TheSuperHackers @feature bobtista 27/04/2026 Readable scene-depth
+    # pass. Opaque world draws populate an R32F texture for future post
+    # effects and soft particles.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_scene_depth.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_scene_depth.sc)
+    # TheSuperHackers @feature bobtista 27/04/2026 Dedicated smudge /
+    # heat-haze pass. This samples the scene-color snapshot without going
+    # through the fixed-function uber shader.
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_smudge.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_smudge.sc)
     target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
 elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
     target_sources(corei_ww3d2 INTERFACE
