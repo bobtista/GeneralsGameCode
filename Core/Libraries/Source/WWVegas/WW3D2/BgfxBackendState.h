@@ -85,10 +85,26 @@ struct BgfxDevice
     bgfx::ProgramHandle shadowCasterProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle shadowVolumeProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle shadowApplyProgram  = BGFX_INVALID_HANDLE;
+    bgfx::ProgramHandle sceneCompositeProgram = BGFX_INVALID_HANDLE;
+    bgfx::ProgramHandle sceneDepthProgram = BGFX_INVALID_HANDLE;
+    bgfx::ProgramHandle smudgeProgram = BGFX_INVALID_HANDLE;
 
     // Shadow map RT
     bgfx::FrameBufferHandle shadowMapFB    = BGFX_INVALID_HANDLE;
     bgfx::TextureHandle     shadowMapDepth = BGFX_INVALID_HANDLE;
+
+    // Scene color/depth RT. World, water, sorted translucency, and effects
+    // render here, then a fullscreen composite pass copies the scene to the
+    // backbuffer before UI draws.
+    bgfx::FrameBufferHandle sceneFB    = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     sceneColor = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     sceneDepth = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     sceneSmudgeCopy = BGFX_INVALID_HANDLE;
+    bgfx::FrameBufferHandle sceneReadableDepthFB = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     sceneReadableDepth = BGFX_INVALID_HANDLE;
+    bgfx::TextureHandle     sceneReadableDepthTest = BGFX_INVALID_HANDLE;
+    uint16_t                sceneWidth = 0;
+    uint16_t                sceneHeight = 0;
 
     // Default textures + helper VB
     bgfx::TextureHandle       defaultWhiteTexture       = BGFX_INVALID_HANDLE;
@@ -118,9 +134,11 @@ struct BgfxUniforms
     bgfx::UniformHandle sTex3      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sShadowMap = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sCloudMap  = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle sSceneDepth = BGFX_INVALID_HANDLE;
 
     // Material / TSS
     bgfx::UniformHandle uMatDiffuse  = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uMatAmbient  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uMatEmissive = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uAtestParams = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTssOps0     = BGFX_INVALID_HANDLE;
@@ -129,6 +147,9 @@ struct BgfxUniforms
     // Lighting
     bgfx::UniformHandle uLightDirs       = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uLightColors     = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uLightAmbients   = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uLightPositions  = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uLightParams     = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uSceneAmbient    = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uLightingEnabled = BGFX_INVALID_HANDLE;
 
@@ -150,6 +171,9 @@ struct BgfxUniforms
     bgfx::UniformHandle uShadowLightViewProj = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShadowParams        = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShadowColor         = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uPostParams          = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uPostTexelSize       = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uSoftParticleParams  = BGFX_INVALID_HANDLE;
     // Polygon-offset equivalent for stencil-shadow-volume passes. bgfx has no state bit for polygon offset, so the post-projection Z bias is applied in vs_shadow_volume.sc. .x is the offset; negative = toward the camera.
     bgfx::UniformHandle uShadowBias          = BGFX_INVALID_HANDLE;
 };
@@ -193,6 +217,7 @@ struct BgfxDraw
 
     // Uniform VALUES pushed via bgfx::setUniform per submit
     float matDiffuse[4]       = { 1.0f, 1.0f, 1.0f, 1.0f };
+    float matAmbient[4]       = { 1.0f, 1.0f, 1.0f, 1.0f };
     float matEmissive[4]      = { 0.0f, 0.0f, 0.0f, 0.0f };
     float grayscaleEnable[4]  = { 0.0f, 0.0f, 0.0f, 0.0f };
     float tssOps0[4]          = { 3.0f, 3.0f, 0.0f, 0.0f };
@@ -219,6 +244,24 @@ struct BgfxDraw
         { 0.0f,  0.0f,  0.0f,  0.0f },
         { 0.0f,  0.0f,  0.0f,  0.0f },
         { 0.0f,  0.0f,  0.0f,  0.0f }
+    };
+    float lightAmbients[4][4] = {
+        { 0.0f, 0.0f, 0.0f, 1.0f },
+        { 0.0f, 0.0f, 0.0f, 0.0f },
+        { 0.0f, 0.0f, 0.0f, 0.0f },
+        { 0.0f, 0.0f, 0.0f, 0.0f }
+    };
+    float lightPositions[4][4] = {
+        { 0.0f, 0.0f, 0.0f, 0.0f },
+        { 0.0f, 0.0f, 0.0f, 0.0f },
+        { 0.0f, 0.0f, 0.0f, 0.0f },
+        { 0.0f, 0.0f, 0.0f, 0.0f }
+    };
+    float lightParams[4][4] = {
+        { 0.0f, 0.0f, 0.0f, 1.0f },
+        { 0.0f, 0.0f, 0.0f, 0.0f },
+        { 0.0f, 0.0f, 0.0f, 0.0f },
+        { 0.0f, 0.0f, 0.0f, 0.0f }
     };
     float sceneAmbient[4]     = { 0.45f, 0.45f, 0.45f, 1.0f };
     float lightingEnabled[4]  = { 1.0f, 0.0f, 0.0f, 0.0f };
@@ -261,7 +304,9 @@ struct BgfxViewFlags
     bool overlay2DActive           = false;
     bool renderToTexture           = false;
     bool waterOverrideActive       = false;
+    bool waterOverlayActive        = false;
     bool effectOverlayActive       = false;
+    bool smudgeActive              = false;
     bool inSortFlush               = false;
     bool treeShaderActive          = false;
     bool shadowVolumeActive        = false;

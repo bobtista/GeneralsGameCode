@@ -30,6 +30,7 @@
 #include "Lib/BaseType.h"
 #include "always.h"
 #include "W3DDevice/GameClient/W3DSmudge.h"
+#include "Common/GlobalData.h"
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "Common/GameMemory.h"
 #include "GameClient/View.h"
@@ -205,17 +206,11 @@ error:
 Bool W3DSmudgeManager::testHardwareSupport()
 {
 #if defined(GGC_BGFX_STANDALONE)
-	// TheSuperHackers @bugfix bobtista 22/04/2026 Phase 5.2 — the smudge
-	// effect works by CopyRects'ing the DX8 backbuffer into a texture
-	// and sampling that texture with view-space UVs. In standalone, the
-	// stub device's backbuffer scratch is never written (bgfx renders
-	// to its own framebuffer), so the sampled "background" is always
-	// zero. Modulated by the smudge shader, that's solid black drawn
-	// over terrain at every active smudge — the camera-aligned dark
-	// bands on beach scenes. Until we wire a bgfx framebuffer-readback
-	// path, disable smudges entirely in standalone builds.
-	m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
-	return FALSE;
+	// TheSuperHackers @feature bobtista 27/04/2026 Standalone bgfx samples
+	// the scene-color framebuffer directly for smudge/heat-haze distortion,
+	// so it no longer needs the old DX8 CopyRects support test.
+	m_hardwareSupportStatus = SMUDGE_SUPPORT_YES;
+	return TRUE;
 #else
 	if (m_hardwareSupportStatus == SMUDGE_SUPPORT_UNKNOWN)
 	{	//we have not done the test yet.
@@ -330,6 +325,14 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	if (!testHardwareSupport())
 		return;
 
+	SurfaceClass::SurfaceDescription surface_desc;
+	Bool bgfxSmudgeActive = FALSE;
+
+#if defined(GGC_BGFX_STANDALONE)
+	surface_desc.Format = WW3D_FORMAT_UNKNOWN;
+	surface_desc.Width = TheDisplay->getWidth();
+	surface_desc.Height = TheDisplay->getHeight();
+#else
 	SurfaceClass *backBuffer = DX8Wrapper::_Get_DX8_Back_Buffer();
 
 	if (!backBuffer)
@@ -343,8 +346,8 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 		return;
 	}
 
-	SurfaceClass::SurfaceDescription surface_desc;
 	backBuffer->Get_Description(surface_desc);
+#endif
 
 	CameraClass &camera=rinfo.Camera;
 	Vector3 vsVert;
@@ -357,7 +360,11 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 		Vector3(0.5f, 0.5f, 0.0f)
 	};
 
+#if defined(GGC_BGFX_STANDALONE)
+#define THE_COLOR (0x00ffffff)
+#else
 #define THE_COLOR (0x00ffeedd)
+#endif
 
 	UnsignedInt vertexDiffuse[5]={THE_COLOR,THE_COLOR,THE_COLOR,THE_COLOR,THE_COLOR};
 
@@ -444,27 +451,37 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 	if (!count)
 	{
+#if !defined(GGC_BGFX_STANDALONE)
 		REF_PTR_RELEASE(background);
 		REF_PTR_RELEASE(backBuffer);
+#endif
 		return;	//nothing to render.
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	//Copy the area of backbuffer occupied by smudges into an alternate buffer.
 	background->Copy(0,0,0,0,surface_desc.Width,surface_desc.Height,backBuffer);
 
 	REF_PTR_RELEASE(background);
 	REF_PTR_RELEASE(backBuffer);
+#else
+	if (!g_renderBackend || !g_renderBackend->Begin_Smudge_Distortion())
+		return;
+
+	bgfxSmudgeActive = TRUE;
+#endif
 
 	Matrix4x4 identity(true);
 	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,identity);
 	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,identity);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,proj);
 
 	g_renderBackend->Set_Index_Buffer(m_indexBuffer,0);
 	//g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueSpriteShader);
 
 	g_renderBackend->Set_Shader(ShaderClass::_PresetAlphaShader);
 
-	g_renderBackend->Set_Texture(0,m_backgroundTexture);
+	g_renderBackend->Set_Texture(0,bgfxSmudgeActive ? nullptr : m_backgroundTexture);
 	//Need these states in case texture is non-power-of-2
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
@@ -519,7 +536,24 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 					}
 
 					//Set center vertex opacity.
-					vertexDiffuse[4] = ((Int)(smudge->m_opacity * 255.0f) << 24) | THE_COLOR;
+					Real opacity = smudge->m_opacity;
+#if defined(GGC_BGFX_STANDALONE)
+#if defined(RTS_ZEROHOUR)
+					if (TheGlobalData)
+					{
+						opacity *= TheGlobalData->m_bgfxHeatHazeOpacityScale;
+						if (opacity < 0.0f)
+						{
+							opacity = 0.0f;
+						}
+						else if (opacity > 1.0f)
+						{
+							opacity = 1.0f;
+						}
+					}
+#endif
+#endif
+					vertexDiffuse[4] = ((Int)(opacity * 255.0f) << 24) | THE_COLOR;
 
 					for (Int i=0; i<5; i++)
 					{
@@ -568,4 +602,6 @@ flushSmudges:
 	DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_MODULATE);
 	DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_MODULATE);
 
+	if (bgfxSmudgeActive)
+		g_renderBackend->End_Smudge_Distortion();
 }
