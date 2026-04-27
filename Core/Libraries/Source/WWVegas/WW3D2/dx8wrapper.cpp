@@ -274,11 +274,11 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	** Initialize all variables!
 	*/
 
-	// TheSuperHackers @feature bobtista 19/04/2026 Phase 4K: when bgfx is
+	// TheSuperHackers @feature bobtista 19/04/2026 When bgfx is
 	// the active render backend, D3D8 uses a secondary reference window
 	// so bgfx can take the main game HWND without DXGI swapchain conflict.
 	// Save the original game HWND for bgfx before redirecting D3D8.
-	// Phase 5.2: in standalone mode the D3D8 device is a stub that doesn't
+	// In standalone mode the D3D8 device is a stub that doesn't
 	// render anywhere, so the ref popup is useless — it only sits on top of
 	// the real game window and hides the bgfx output.
 #if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
@@ -350,14 +350,14 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 
 	if (!lite) {
 #if defined(GGC_BGFX_STANDALONE)
-		// TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 — standalone
+		// TheSuperHackers @refactor bobtista 22/04/2026 Standalone
 		// mode uses a no-op stub IDirect3DDevice8. Skip the LoadLibrary /
 		// Direct3DCreate8 path entirely so d3d8.dll is not a runtime dep.
 		// See StubD3D8Device.cpp for the stub implementation. DX8Wrapper's
 		// state tracking (render_state updates) still runs; the underlying
 		// device calls execute against the stub and do nothing. bgfx handles
 		// the real rendering via its own D3D11 backend.
-		WWDEBUG_SAY(("[Phase 5.2] Using stub D3D8 interface (standalone)"));
+		WWDEBUG_SAY(("Using stub D3D8 interface (standalone)"));
 		D3DInterface = CreateStubD3D8Interface();
 		if (D3DInterface == nullptr) {
 			return false;
@@ -460,8 +460,8 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	*/
 	Compute_Caps(D3DFormat_To_WW3DFormat(DisplayFormat));
 
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.14
-	// Construct and initialize the render backend BEFORE the engine
+	// TheSuperHackers @refactor bobtista 11/04/2026 Construct and
+	// initialize the render backend BEFORE the engine
 	// subsystem _Init() calls below. Several of them (notably
 	// PointGroupClass::_Init and BoxRenderObjClass::Init) allocate
 	// static index / vertex buffers and populate them via the Write
@@ -567,8 +567,8 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	// resources get released first.
 	if (g_renderBackend != nullptr)
 	{
-		// Phase 4 session 1. Symmetric counterpart to the Initialize call
-		// in Do_Onetime_Device_Dependent_Inits.
+		// Symmetric counterpart to the Initialize call in
+		// Do_Onetime_Device_Dependent_Inits.
 		g_renderBackend->Shutdown();
 	}
 	Shutdown_Render_Backend();
@@ -1048,7 +1048,7 @@ void DX8Wrapper::Resize_And_Position_Window()
 	}
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 19/04/2026 Phase 4K: also resize the
+	// TheSuperHackers @feature bobtista 19/04/2026 Also resize the
 	// main game window (used by bgfx) to match the game's resolution. Without
 	// this, the game window stays at its initial size and mouse coordinates
 	// don't match the game's UI coordinate system.
@@ -1110,7 +1110,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	if (bits != -1)		BitDepth = bits;
 	if (windowed != -1)	IsWindowed = (windowed != 0);
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 16/04/2026 Phase 4K: D3D8 reference
+	// TheSuperHackers @feature bobtista 16/04/2026 D3D8 reference
 	// window must always use windowed mode. Fullscreen-exclusive would steal
 	// input focus from the main game window where bgfx renders.
 	IsWindowed = true;
@@ -1439,7 +1439,7 @@ void DX8Wrapper::Set_Device_Window(HWND hwnd, int width, int height)
 		return;
 	}
 
-	// TheSuperHackers @refactor bobtista 18/04/2026 Phase 4K move the D3D8
+	// TheSuperHackers @refactor bobtista 18/04/2026 Move the D3D8
 	// device to a reference popup window. Keep the original backbuffer
 	// resolution so the game's UI layout calculations stay correct —
 	// D3D8 stretches the output to fit the popup window automatically.
@@ -2206,7 +2206,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 
 	DX8_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
 
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.13 hand the
+	// TheSuperHackers @refactor bobtista 11/04/2026 Hand the
 	// internal dynamic VB/IB to the render backend so a bgfx co-resident
 	// can submit the same draw using its transient captures of these
 	// inner buffers. The Write locks above already fired the backend's
@@ -2688,7 +2688,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 }
 
 #if defined(GGC_BGFX_STANDALONE)
-// TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 Stage 5 —
+// TheSuperHackers @refactor bobtista 22/04/2026 Stage 5 —
 // In standalone we replace D3DXCreateTextureFromFileExA with a direct
 // Targa decoder + stub-device CreateTexture + LockRect write. The goal
 // is to (a) remove D3DX as a black-box in the standalone pixel path so
