@@ -126,6 +126,7 @@ public:
 protected:
 	DX8VertexBufferClass		*m_vertexBuffer;	///<vertex buffer used to draw all tracks
 	DX8IndexBufferClass			*m_indexBuffer;	///<indices defining triangles in maximum length track
+	DX8IndexBufferClass			*m_batchIndexBuffer;	///<indices defining batched quads
 	VertexMaterialClass	  	  *m_vertexMaterialClass;	///< vertex lighting material
 	ShaderClass m_shaderClass; ///<shader or rendering state for heightmap
 
@@ -137,4 +138,5 @@ protected:
 	Int		m_batchStart;			///< start of unused vertices in vertex buffer
 	Real	m_level;				///< water level
 	void releaseTrack( WaterTracksObj *mod );	///<returns track object to free store.
+	void drawBatch(Int firstVertex, Int trackCount, TextureClass *texture);
 };
