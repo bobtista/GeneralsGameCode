@@ -117,6 +117,222 @@ static unsigned GetBytesPerPixel(bgfx::TextureFormat::Enum bgfxFmt)
     }
 }
 
+static bool IsTerrainAtlasTexture(TextureClass * tex2d,
+    const D3DSURFACE_DESC & desc,
+    bgfx::TextureFormat::Enum bgfxFmt)
+{
+	// TheSuperHackers @bugfix bobtista 28/04/2026 The terrain texture is a
+	// sparse tile atlas with black unused space between classes. D3D8's
+	// terrain path relies on tile-aware source mips and authored borders,
+	// while bgfx creates a full mip chain whenever mips are enabled. Upload a
+	// complete atlas-safe chain only for textures explicitly tagged by the
+	// terrain atlas builder.
+	return tex2d != nullptr
+		&& desc.Format == D3DFMT_A1R5G5B5
+		&& bgfxFmt == bgfx::TextureFormat::BGR5A1
+		&& tex2d->Has_Atlas_Regions();
+}
+
+static unsigned GetFullMipCount(unsigned width, unsigned height)
+{
+	unsigned count = 1;
+	while (width > 1 || height > 1)
+	{
+		width = (width > 1) ? width >> 1 : 1;
+		height = (height > 1) ? height >> 1 : 1;
+		++count;
+	}
+	return count;
+}
+
+static bool IsTerrainAtlasRegionPixelValid(const std::vector<TextureClass::TextureAtlasRegion> & regions,
+	unsigned x, unsigned y, unsigned level)
+{
+	const unsigned scale = 1u << level;
+	for (unsigned i = 0; i < regions.size(); ++i)
+	{
+		const TextureClass::TextureAtlasRegion & region = regions[i];
+		const unsigned x0 = region.X / scale;
+		const unsigned y0 = region.Y / scale;
+		const unsigned x1 = (region.X + region.Width + scale - 1) / scale;
+		const unsigned y1 = (region.Y + region.Height + scale - 1) / scale;
+		if (x >= x0 && x < x1 && y >= y0 && y < y1)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static uint16_t FilterTerrainAtlasA1R5G5B5(const uint16_t samples[4], const bool validSamples[4], bool & valid)
+{
+    unsigned count = 0;
+    unsigned red = 0;
+    unsigned green = 0;
+    unsigned blue = 0;
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        if (validSamples[i])
+        {
+            count++;
+            red += (samples[i] >> 10) & 0x1f;
+            green += (samples[i] >> 5) & 0x1f;
+            blue += samples[i] & 0x1f;
+        }
+    }
+    if (count == 0)
+    {
+		valid = false;
+        return 0;
+    }
+	valid = true;
+    red = (red + count / 2) / count;
+    green = (green + count / 2) / count;
+    blue = (blue + count / 2) / count;
+    return static_cast<uint16_t>(0x8000 | (red << 10) | (green << 5) | blue);
+}
+
+static void BuildTerrainAtlasMip(const std::vector<uint16_t> & src,
+    unsigned srcWidth, unsigned srcHeight, std::vector<uint16_t> & dst,
+    std::vector<unsigned char> & validMask, unsigned dstWidth,
+	unsigned dstHeight, const std::vector<TextureClass::TextureAtlasRegion> & regions,
+	unsigned sourceLevel)
+{
+    for (unsigned y = 0; y < dstHeight; ++y)
+    {
+        const unsigned y0 = y * 2;
+        const unsigned y1 = (y0 + 1 < srcHeight) ? y0 + 1 : y0;
+        for (unsigned x = 0; x < dstWidth; ++x)
+        {
+            const unsigned x0 = x * 2;
+            const unsigned x1 = (x0 + 1 < srcWidth) ? x0 + 1 : x0;
+			const uint16_t samples[4] = {
+				src[y0 * srcWidth + x0],
+				src[y0 * srcWidth + x1],
+				src[y1 * srcWidth + x0],
+				src[y1 * srcWidth + x1]
+			};
+			const bool validSamples[4] = {
+				IsTerrainAtlasRegionPixelValid(regions, x0, y0, sourceLevel),
+				IsTerrainAtlasRegionPixelValid(regions, x1, y0, sourceLevel),
+				IsTerrainAtlasRegionPixelValid(regions, x0, y1, sourceLevel),
+				IsTerrainAtlasRegionPixelValid(regions, x1, y1, sourceLevel)
+			};
+			bool valid = false;
+            dst[y * dstWidth + x] = FilterTerrainAtlasA1R5G5B5(samples, validSamples, valid);
+			validMask[y * dstWidth + x] = valid ? 1 : 0;
+        }
+    }
+}
+
+static void BleedTerrainAtlasMipGaps(std::vector<uint16_t> & pixels,
+    std::vector<unsigned char> & validMask, unsigned width, unsigned height)
+{
+    if (width == 0 || height == 0)
+    {
+        return;
+    }
+
+    bool anyValid = false;
+    for (unsigned i = 0; i < width * height; ++i)
+    {
+        if (validMask[i] != 0)
+        {
+            anyValid = true;
+            break;
+        }
+    }
+    if (!anyValid)
+    {
+        return;
+    }
+
+	uint16_t fallback = 0;
+	for (unsigned i = 0; i < width * height; ++i)
+	{
+		if (validMask[i] != 0)
+		{
+			fallback = pixels[i];
+			break;
+		}
+	}
+
+    for (unsigned y = 0; y < height; ++y)
+    {
+        uint16_t last = 0;
+        for (unsigned x = 0; x < width; ++x)
+        {
+            const unsigned index = y * width + x;
+            if (validMask[index] != 0)
+            {
+                last = pixels[index];
+            }
+            else if (last != 0)
+            {
+                pixels[index] = last;
+				validMask[index] = 1;
+            }
+        }
+
+        last = 0;
+        for (unsigned x = width; x > 0; --x)
+        {
+            const unsigned index = y * width + x - 1;
+            if (validMask[index] != 0)
+            {
+                last = pixels[index];
+            }
+            else if (last != 0)
+            {
+                pixels[index] = last;
+				validMask[index] = 1;
+            }
+        }
+    }
+
+    for (unsigned x = 0; x < width; ++x)
+    {
+        uint16_t last = 0;
+        for (unsigned y = 0; y < height; ++y)
+        {
+            const unsigned index = y * width + x;
+            if (validMask[index] != 0)
+            {
+                last = pixels[index];
+            }
+            else if (last != 0)
+            {
+                pixels[index] = last;
+				validMask[index] = 1;
+            }
+        }
+
+        last = 0;
+        for (unsigned y = height; y > 0; --y)
+        {
+            const unsigned index = (y - 1) * width + x;
+            if (validMask[index] != 0)
+            {
+                last = pixels[index];
+            }
+            else if (last != 0)
+            {
+                pixels[index] = last;
+				validMask[index] = 1;
+            }
+        }
+    }
+
+	for (unsigned i = 0; i < width * height; ++i)
+	{
+		if (validMask[i] == 0)
+		{
+			pixels[i] = fallback;
+		}
+	}
+}
+
 static bool CopyTextureLevel(TextureClass * tex2d,
     bgfx::TextureFormat::Enum bgfxFmt,
     IDirect3DTexture8 * d3dTex,
@@ -213,6 +429,56 @@ static bool CopyTextureLevel(TextureClass * tex2d,
     return true;
 }
 
+static bool UploadTerrainAtlasMips(TextureClass * tex2d,
+	bgfx::TextureHandle h, IDirect3DTexture8 * d3dTex, unsigned mipCount)
+{
+	std::vector<uint16_t> prev;
+	unsigned prevWidth = 0;
+	unsigned prevHeight = 0;
+	unsigned fullMipCount = mipCount;
+
+    for (unsigned mip = 0; mip < mipCount; ++mip)
+    {
+		const bgfx::Memory * mem = nullptr;
+		uint16_t mipWidth = 0;
+		uint16_t mipHeight = 0;
+		if (!CopyTextureLevel(tex2d, bgfx::TextureFormat::BGR5A1, d3dTex, mip,
+							  &mem, &mipWidth, &mipHeight))
+		{
+			return false;
+		}
+		prev.resize(mipWidth * mipHeight);
+		std::memcpy(&prev[0], mem->data, prev.size() * sizeof(uint16_t));
+		prevWidth = mipWidth;
+		prevHeight = mipHeight;
+		bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
+			mipWidth, mipHeight, mem);
+		if (mip == 0)
+		{
+			fullMipCount = GetFullMipCount(mipWidth, mipHeight);
+		}
+    }
+
+	for (unsigned mip = mipCount; mip < fullMipCount; ++mip)
+	{
+		const unsigned nextWidth = (prevWidth > 1) ? prevWidth >> 1 : 1;
+		const unsigned nextHeight = (prevHeight > 1) ? prevHeight >> 1 : 1;
+		std::vector<uint16_t> next(nextWidth * nextHeight);
+		std::vector<unsigned char> validMask(nextWidth * nextHeight);
+		BuildTerrainAtlasMip(prev, prevWidth, prevHeight, next, validMask,
+			nextWidth, nextHeight, tex2d->Get_Atlas_Regions(), mip - 1);
+		BleedTerrainAtlasMipGaps(next, validMask, nextWidth, nextHeight);
+		const bgfx::Memory * nextMem = bgfx::copy(&next[0], static_cast<uint32_t>(next.size() * sizeof(uint16_t)));
+		bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
+			static_cast<uint16_t>(nextWidth), static_cast<uint16_t>(nextHeight),
+			nextMem, static_cast<uint16_t>(nextWidth * sizeof(uint16_t)));
+		prev.swap(next);
+		prevWidth = nextWidth;
+		prevHeight = nextHeight;
+	}
+    return true;
+}
+
 // External linkage: called from BgfxBackend.cpp's Set_Texture path.
 bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
 {
@@ -258,7 +524,8 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
                 D3DSURFACE_DESC desc;
                 if (SUCCEEDED(d3dTex->GetLevelDesc(0, &desc)))
                 {
-                    const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(tex2d->Get_Texture_Format());
+					const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(tex2d->Get_Texture_Format());
+					const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, desc, bgfxFmt);
                     // Check if dimensions match the existing bgfx handle
                     if (desc.Width == cachedW
                         && desc.Height == cachedH
@@ -266,20 +533,27 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
                     {
                         const unsigned mipCount = d3dTex->GetLevelCount();
                         bool updatedAllLevels = true;
-                        for (unsigned mip = 0; mip < mipCount; ++mip)
+                        if (terrainAtlasSafeMips)
                         {
-                            const bgfx::Memory * mem = nullptr;
-                            uint16_t mipWidth = 0;
-                            uint16_t mipHeight = 0;
-                            if (!CopyTextureLevel(tex2d, bgfxFmt, d3dTex, mip,
-                                                  &mem, &mipWidth, &mipHeight))
+                            updatedAllLevels = UploadTerrainAtlasMips(tex2d, it->second, d3dTex, mipCount);
+                        }
+                        else
+                        {
+                            for (unsigned mip = 0; mip < mipCount; ++mip)
                             {
-                                updatedAllLevels = false;
-                                break;
+                                const bgfx::Memory * mem = nullptr;
+                                uint16_t mipWidth = 0;
+                                uint16_t mipHeight = 0;
+                                if (!CopyTextureLevel(tex2d, bgfxFmt, d3dTex, mip,
+                                                      &mem, &mipWidth, &mipHeight))
+                                {
+                                    updatedAllLevels = false;
+                                    break;
+                                }
+                                bgfx::updateTexture2D(it->second, 0,
+                                    static_cast<uint8_t>(mip), 0, 0,
+                                    mipWidth, mipHeight, mem);
                             }
-                            bgfx::updateTexture2D(it->second, 0,
-                                static_cast<uint8_t>(mip), 0, 0,
-                                mipWidth, mipHeight, mem);
                         }
                         if (updatedAllLevels)
                         {
@@ -386,7 +660,8 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     // as the police-car red/blue lights, rely on their authored mipmaps
     // to average colored fringes instead of sampling only a white level-0
     // hotspot when minified.
-    const unsigned mipCount = d3dTex->GetLevelCount();
+	const unsigned mipCount = d3dTex->GetLevelCount();
+	const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, desc, bgfxFmt);
     bgfx::TextureHandle h = bgfx::createTexture2D(
         static_cast<uint16_t>(desc.Width),
         static_cast<uint16_t>(desc.Height),
@@ -397,19 +672,26 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     if (bgfx::isValid(h))
     {
         bool uploadedAllLevels = true;
-        for (unsigned mip = 0; mip < mipCount; ++mip)
+        if (terrainAtlasSafeMips)
         {
-            const bgfx::Memory * mem = nullptr;
-            uint16_t mipWidth = 0;
-            uint16_t mipHeight = 0;
-            if (!CopyTextureLevel(tex2d, bgfxFmt, d3dTex, mip,
-                                  &mem, &mipWidth, &mipHeight))
+            uploadedAllLevels = UploadTerrainAtlasMips(tex2d, h, d3dTex, mipCount);
+        }
+        else
+        {
+            for (unsigned mip = 0; mip < mipCount; ++mip)
             {
-                uploadedAllLevels = false;
-                break;
+                const bgfx::Memory * mem = nullptr;
+                uint16_t mipWidth = 0;
+                uint16_t mipHeight = 0;
+                if (!CopyTextureLevel(tex2d, bgfxFmt, d3dTex, mip,
+                                      &mem, &mipWidth, &mipHeight))
+                {
+                    uploadedAllLevels = false;
+                    break;
+                }
+                bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
+                    mipWidth, mipHeight, mem);
             }
-            bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
-                mipWidth, mipHeight, mem);
         }
         if (!uploadedAllLevels)
         {
