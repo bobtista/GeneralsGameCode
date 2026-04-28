@@ -51,6 +51,9 @@ bool W3DProfilerFrameCapture::ShouldReuseLastCapture(UnsignedInt currentTimeMs) 
 
 void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt displayHeight)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	return;
+#else
 	if (!PROFILER_IS_CONNECTED)
 		return;
 
@@ -250,6 +253,7 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 	intermediateTexture = nullptr;
 	REF_PTR_RELEASE(surfaceClass);
 	REF_PTR_RELEASE(renderTarget);
+#endif
 }
 
 #endif // PROFILER_ENABLED
