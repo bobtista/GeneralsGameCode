@@ -27,6 +27,9 @@
 #include "GameClient/ParticleSys.h"
 #include "GameLogic/GameLogic.h"
 #include "GameNetwork/NetworkInterface.h"
+#if defined(SAGE_USE_OPENAL)
+#include "OpenALAudioDevice/OpenALAudioManager.h"
+#endif
 #include "SDL3Device/GameClient/SDL3Keyboard.h"
 #include "SDL3Device/GameClient/SDL3Mouse.h"
 #include "StdDevice/Common/StdBIGFileSystem.h"
@@ -232,7 +235,12 @@ WebBrowser *SDL3GameEngine::createWebBrowser()
 
 AudioManager *SDL3GameEngine::createAudioManager(Bool dummy)
 {
-	// TheSuperHackers @info bobtista 28/05/2026 Audio backend is wired up in the openal-audio topic; this stub here is intentional until that topic lands.
+#if defined(SAGE_USE_OPENAL)
+	if (!dummy)
+	{
+		return NEW OpenALAudioManager;
+	}
+#endif
 	return NULL;
 }
 
