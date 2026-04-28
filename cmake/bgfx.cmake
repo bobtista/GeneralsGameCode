@@ -45,8 +45,8 @@ endforeach()
 # a uint8_t array, which we then #include from BgfxBackend.cpp and hand to
 # bgfx::createShader via bgfx::makeRef.
 #
-# For Phase 4 we only target Direct3D 11 on Windows (profile s_5_0). Later
-# phases can add GLSL / SPIR-V / Metal variants if we need non-Windows hosts.
+# Shader output follows GGC_BGFX_RENDERER. DX11 remains the Windows default;
+# Metal is the macOS default.
 #
 # Usage in callers:
 #   ggc_compile_bgfx_shader(<source.sc>)   # once per shader file
@@ -112,8 +112,22 @@ function(ggc_compile_bgfx_shader source_sc)
         message(FATAL_ERROR "ggc_compile_bgfx_shader: '${_sc_name}' must start with vs_ or fs_.")
     endif()
 
-    set(_out_header "${GGC_BGFX_SHADERS_OUT_DIR}/${_sc_name}_dx11.bin.h")
-    set(_varname "${_sc_name}_dx11")
+    if(GGC_BGFX_RENDERER STREQUAL "metal")
+        set(_shader_suffix "metal")
+        set(_shader_platform "osx")
+        set(_shader_profile "metal")
+    elseif(GGC_BGFX_RENDERER STREQUAL "vulkan")
+        set(_shader_suffix "spirv")
+        set(_shader_platform "linux")
+        set(_shader_profile "spirv")
+    else()
+        set(_shader_suffix "dx11")
+        set(_shader_platform "windows")
+        set(_shader_profile "s_5_0")
+    endif()
+
+    set(_out_header "${GGC_BGFX_SHADERS_OUT_DIR}/${_sc_name}_${_shader_suffix}.bin.h")
+    set(_varname "${_sc_name}_${_shader_suffix}")
     set(_varying_def "${_sc_dir}/varying.def.sc")
 
     add_custom_command(
@@ -123,8 +137,8 @@ function(ggc_compile_bgfx_shader source_sc)
             -o "${_out_header}"
             --bin2c "${_varname}"
             -i "${GGC_BGFX_SHADER_INCLUDE_DIR}"
-            --platform windows
-            --profile s_5_0
+            --platform "${_shader_platform}"
+            --profile "${_shader_profile}"
             --type "${_shader_type}"
             --varyingdef "${_varying_def}"
             -O 3
