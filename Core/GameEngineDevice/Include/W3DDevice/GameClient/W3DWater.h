@@ -38,6 +38,8 @@
 #include "Common/GameType.h"
 #include "Common/Snapshot.h"
 
+#include <vector>
+
 #define INVALID_WATER_HEIGHT 0.0f	///water height guaranteed to be below all terrain.
 
 #define NUM_BUMP_FRAMES 32	///number of animation frames in bump map
@@ -219,6 +221,11 @@ protected:
 
 	TimeOfDay m_tod;	///<time of day setting for reflected cloud layer
 
+	struct WaterTrapezoidBatchEntry
+	{
+		Vector3 points[4];
+	};
+
 	struct Setting
 	{
 		TextureClass	*skyTexture;
@@ -238,6 +245,7 @@ protected:
 	Setting m_settings[ TIME_OF_DAY_COUNT ];	///< settings for each time of day
 	void drawRiverWater(PolygonTrigger *pTrig);
 	void drawTrapezoidWater(Vector3 points[4]);
+	void drawTrapezoidWaterBatch(const std::vector<WaterTrapezoidBatchEntry> &trapezoids);
 	void loadSetting ( Setting *skySetting, TimeOfDay timeOfDay );	///<init sky/water settings from GDF
 	void renderSky();	///<draw the sky layer (clouds, stars, etc.)
 	void testCurvedWater();	///<draw the sky layer (clouds, stars, etc.)
