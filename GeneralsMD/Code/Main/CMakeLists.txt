@@ -1,4 +1,8 @@
-add_executable(z_generals WIN32)
+if(WIN32)
+    add_executable(z_generals WIN32)
+else()
+    add_executable(z_generals)
+endif()
 
 # Use a binary name that doesn't conflict with original game.
 if("${CMAKE_SYSTEM}" MATCHES "Windows")
@@ -8,20 +12,29 @@ else()
 endif()
 
 target_link_libraries(z_generals PRIVATE
-    binkstub
-    comctl32
     core_debug
     core_profile_legacy
-    dinput8
-    dxguid
-    imm32
-    milesstub
-    vfw32
-    winmm
     z_gameengine
     z_gameenginedevice
     zi_always
 )
+
+if(WIN32)
+    target_link_libraries(z_generals PRIVATE
+        binkstub
+        comctl32
+        dinput8
+        dxguid
+        imm32
+        milesstub
+        vfw32
+        winmm
+    )
+endif()
+
+if(SAGE_USE_SDL3)
+    target_link_libraries(z_generals PRIVATE sdl3lib)
+endif()
 
 # TheSuperHackers @build bobtista 22/04/2026 Phase 5.2 Stage 5 —
 # In standalone bgfx mode all D3D8/D3DX8 symbol references resolve to
@@ -63,8 +76,9 @@ target_include_directories(z_generals PRIVATE
 )
 
 target_sources(z_generals PRIVATE
-    WinMain.cpp
-    WinMain.h
+    $<$<BOOL:${WIN32}>:WinMain.cpp>
+    $<$<BOOL:${WIN32}>:WinMain.h>
+    $<$<AND:$<NOT:$<BOOL:${WIN32}>>,$<BOOL:${SAGE_USE_SDL3}>>:SDL3Main.cpp>
 )
 
 # RC files optional for MinGW builds
