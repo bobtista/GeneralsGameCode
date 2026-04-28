@@ -73,6 +73,20 @@ endif()
 include(cmake/lzhl.cmake)
 include(cmake/stb.cmake)
 
+if(SAGE_USE_SDL3)
+    include(cmake/sdl3.cmake)
+endif()
+
+# Rendering backend selection. Must come after config.cmake (which sets
+# IS_VS6_BUILD) and before Core is added (which references the backend flag).
+include(cmake/render-backend.cmake)
+
+# TheSuperHackers @build bobtista 19/04/2026 Propagate the render backend
+# compile define globally so all targets can #if on it, not just WW3D2.
+if(DEFINED GGC_RENDER_BACKEND_COMPILE_DEFINE)
+    add_compile_definitions(${GGC_RENDER_BACKEND_COMPILE_DEFINE})
+endif()
+
 if(RTS_BUILD_OPTION_PROFILE_TRACY)
     include(cmake/tracy.cmake)
 else()
