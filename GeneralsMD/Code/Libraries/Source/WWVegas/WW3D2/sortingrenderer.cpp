@@ -51,6 +51,7 @@
 #include "statistics.h"
 #include <wwprofile.h>
 #include <algorithm>
+#include <cstring>
 
 
 bool SortingRendererClass::_EnableTriangleDraw=true;
@@ -433,6 +434,67 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 
 // ----------------------------------------------------------------------------
 
+static bool Render_State_Matches(const RenderStateStruct& left, const RenderStateStruct& right)
+{
+	if (left.shader.Get_Bits() != right.shader.Get_Bits())
+	{
+		return false;
+	}
+
+	if (left.material != right.material)
+	{
+		return false;
+	}
+
+	for (int texture_index=0; texture_index<DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass(); ++texture_index)
+	{
+		if (left.Textures[texture_index] != right.Textures[texture_index])
+		{
+			return false;
+		}
+	}
+
+	if (std::memcmp(&left.world,&right.world,sizeof(left.world)) != 0)
+	{
+		return false;
+	}
+
+	if (std::memcmp(&left.view,&right.view,sizeof(left.view)) != 0)
+	{
+		return false;
+	}
+
+	for (int light_index=0; light_index<4; ++light_index)
+	{
+		if (left.LightEnable[light_index] != right.LightEnable[light_index])
+		{
+			return false;
+		}
+
+		if (left.LightEnable[light_index] && std::memcmp(&left.Lights[light_index],&right.Lights[light_index],sizeof(left.Lights[light_index])) != 0)
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+// ----------------------------------------------------------------------------
+
+static void Draw_Sorted_Run(unsigned start_index, unsigned count_to_render, SortingNodeStruct* state)
+{
+	Apply_Render_State(state->sorting_state);
+
+	g_renderBackend->Draw_Triangles(
+		start_index*3,
+		count_to_render,
+		0,
+		overlapping_vertex_count);
+}
+
+// ----------------------------------------------------------------------------
+
 void SortingRendererClass::Flush_Sorting_Pool()
 {
 	if (!overlapping_node_count) return;
@@ -585,35 +647,23 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 	unsigned count_to_render=1;
 	unsigned start_index=0;
-	unsigned node_id=tis[0].idx;
+	SortingNodeStruct* state=overlapping_nodes[tis[0].idx];
 	for (unsigned i=1;i<overlapping_polygon_count;++i) {
-		if (node_id!=tis[i].idx) {
-			SortingNodeStruct* state=overlapping_nodes[node_id];
-			Apply_Render_State(state->sorting_state);
-
-			g_renderBackend->Draw_Triangles(
-				start_index*3,
-				count_to_render,
-				state->min_vertex_index,
-				state->vertex_count);
+		SortingNodeStruct* next_state=overlapping_nodes[tis[i].idx];
+		if (!Render_State_Matches(state->sorting_state,next_state->sorting_state))
+		{
+			Draw_Sorted_Run(start_index,count_to_render,state);
 
 			count_to_render=0;
 			start_index=i;
-			node_id=tis[i].idx;
+			state=next_state;
 		}
 		count_to_render++;	//keep track of number of polygons of same kind
 	}
 
 	// Render any remaining polygons...
 	if (count_to_render) {
-		SortingNodeStruct* state=overlapping_nodes[node_id];
-		Apply_Render_State(state->sorting_state);
-
-		g_renderBackend->Draw_Triangles(
-			start_index*3,
-			count_to_render,
-			state->min_vertex_index,
-			state->vertex_count);
+		Draw_Sorted_Run(start_index,count_to_render,state);
 	}
 
 	// Phase 4G.12: sort flush complete, resume routing bgfx submits
@@ -621,7 +671,8 @@ void SortingRendererClass::Flush_Sorting_Pool()
 	g_renderBackend->End_Sorted_Batch_Pass();
 
 	// Release all references and return nodes back to the clean list for the frame...
-	for (node_id=0;node_id<overlapping_node_count;++node_id) {
+	for (unsigned node_id=0;node_id<overlapping_node_count;++node_id)
+	{
 		SortingNodeStruct* state=overlapping_nodes[node_id];
 		Release_Refs(state);
 		clean_list.Add_Head(state);

@@ -480,12 +480,19 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 
 	vertexBuffer->Get_DX8_Vertex_Buffer()->Unlock();
 
-	Int idxCount=(m_y-1)*(m_x*2+2) - 2;	//index count
-
-	g_renderBackend->Set_Index_Buffer(TheWaterTracksRenderSystem->m_indexBuffer,batchStart);
-	g_renderBackend->Draw_Strip(0,idxCount-2,0,m_x*m_y);	//there are always n-2 primitives for n index strip.
-
 	return batchStart+m_x*m_y;	//return new offset into unused area of vertex buffer
+}
+
+void WaterTracksRenderSystem::drawBatch(Int firstVertex, Int trackCount, TextureClass *texture)
+{
+	if (trackCount <= 0)
+	{
+		return;
+	}
+
+	g_renderBackend->Set_Texture(0,texture);
+	g_renderBackend->Set_Index_Buffer(m_batchIndexBuffer,firstVertex);
+	g_renderBackend->Draw_Triangles(0,trackCount*2,0,trackCount*WATER_STRIP_X*WATER_STRIP_Y);
 }
 
 //=============================================================================
@@ -611,6 +618,7 @@ WaterTracksRenderSystem::WaterTracksRenderSystem()
 	m_usedModules = nullptr;
 	m_freeModules = nullptr;
 	m_indexBuffer = nullptr;
+	m_batchIndexBuffer = nullptr;
 	m_vertexMaterialClass = nullptr;
 	m_vertexBuffer = nullptr;
 	m_stripSizeX=WATER_STRIP_X;
@@ -646,6 +654,7 @@ void WaterTracksRenderSystem::ReAcquireResources()
 
 	// just for paranoia's sake.
 	REF_PTR_RELEASE(m_indexBuffer);
+	REF_PTR_RELEASE(m_batchIndexBuffer);
 	REF_PTR_RELEASE(m_vertexBuffer);
 
 	//Will need m_y-1 strips, each of length m_x*2.
@@ -680,6 +689,24 @@ void WaterTracksRenderSystem::ReAcquireResources()
 		}
 	}
 
+	m_batchIndexBuffer=NEW_REF(DX8IndexBufferClass,(WATER_VB_PAGES*2*3));
+	{
+		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_batchIndexBuffer);
+		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
+
+		for (i=0; i<WATER_VB_PAGES; i++)
+		{
+			UnsignedShort vertexBase = static_cast<UnsignedShort>(i*WATER_STRIP_X*WATER_STRIP_Y);
+			ib[0] = vertexBase+2;
+			ib[1] = vertexBase;
+			ib[2] = vertexBase+3;
+			ib[3] = vertexBase;
+			ib[4] = vertexBase+1;
+			ib[5] = vertexBase+3;
+			ib += 6;
+		}
+	}
+
 	m_vertexBuffer=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,m_stripSizeX*m_stripSizeY*WATER_VB_PAGES,DX8VertexBufferClass::USAGE_DYNAMIC));
 	m_batchStart=0;
 }
@@ -692,6 +719,7 @@ void WaterTracksRenderSystem::ReAcquireResources()
 void WaterTracksRenderSystem::ReleaseResources()
 {
 	REF_PTR_RELEASE(m_indexBuffer);
+	REF_PTR_RELEASE(m_batchIndexBuffer);
 	REF_PTR_RELEASE(m_vertexBuffer);
 	// Note - it is ok to not release the material, as it is a w3d object that
 	// has no dx8 resources. jba.
@@ -926,21 +954,51 @@ Try improving the fit to vertical surfaces like cliffs.
 		g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	}
 
-	Int LastTextureType=-1;
-
 	WaterTracksObj *mod=m_usedModules;
+	TextureClass *batchTexture=nullptr;
+	Int batchTextureType=-1;
+	Int batchFirstVertex=0;
+	Int batchTrackCount=0;
+	const Int maxBatchVertices = WATER_VB_PAGES*WATER_STRIP_X*WATER_STRIP_Y;
 
 	while( mod )
 	{
-		if (LastTextureType != mod->m_type)
-			g_renderBackend->Set_Texture(0,mod->m_stageZeroTexture);
+		Bool textureChanged = batchTrackCount > 0 && batchTextureType != mod->m_type;
+		Bool pageFull = m_batchStart >= maxBatchVertices - mod->m_x*mod->m_y;
+		if (textureChanged || pageFull)
+		{
+			drawBatch(batchFirstVertex,batchTrackCount,batchTexture);
+			batchTexture=nullptr;
+			batchTextureType=-1;
+			batchTrackCount=0;
+			if (pageFull)
+			{
+				m_batchStart = 0xffff;
+			}
+		}
+
+		Int trackVertexStart = m_batchStart;
+		if (trackVertexStart >= maxBatchVertices - mod->m_x*mod->m_y)
+		{
+			trackVertexStart = 0;
+		}
 
 		Int vertsRendered=mod->render(m_vertexBuffer,m_batchStart);
+
+		if (batchTrackCount == 0)
+		{
+			batchTexture=mod->m_stageZeroTexture;
+			batchTextureType=mod->m_type;
+			batchFirstVertex=trackVertexStart;
+		}
+		batchTrackCount++;
 
 		m_batchStart = vertsRendered;	//advance past vertices already in buffer
 
 		mod = mod->m_nextSystem;
 	}
+
+	drawBatch(batchFirstVertex,batchTrackCount,batchTexture);
 
 	g_renderBackend->Set_Z_Bias(0);
 	g_renderBackend->End_Water_Overlay();
