@@ -353,6 +353,7 @@ WaterRenderObjClass::WaterRenderObjClass()
 	m_dx=0;
 	m_dy=0;
 	m_indexBuffer=nullptr;
+	m_waterMeshIndexBuffer=nullptr;
 	m_waterTrackSystem = nullptr;
 	m_doWaterGrid = FALSE;
 	m_meshVertexMaterialClass=nullptr;
@@ -737,6 +738,7 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 
 	// Create index buffer
 	WORD* pIndices;
+	UnsignedShort *backendIndices=nullptr;
 
 	if (FAILED(hr=m_pDev->CreateIndexBuffer
 	(
@@ -757,6 +759,11 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 	)))
 		return hr;
 
+	REF_PTR_RELEASE(m_waterMeshIndexBuffer);
+	m_waterMeshIndexBuffer=NEW_REF(DX8IndexBufferClass,(m_numIndices));
+	DX8IndexBufferClass::WriteLockClass lockBackendIndexBuffer(m_waterMeshIndexBuffer);
+	backendIndices=lockBackendIndexBuffer.Get_Index_Array();
+
 	Int i,j,k;
 
 	for (i=0,j=0,k=0; i<m_numIndices; j++)
@@ -765,6 +772,11 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 		{
 			pIndices[i]=(UnsignedShort) k+sizeX;
 			pIndices[i+1]=(UnsignedShort) k;
+			if (backendIndices != nullptr)
+			{
+				backendIndices[i]=(UnsignedShort) k+sizeX;
+				backendIndices[i+1]=(UnsignedShort) k;
+			}
 		}
 		//Generate 4 degenerate triangle to connect current strip to next strip/row of map
 		//To do this, we just repeat the last index of first strip and first index of new strip.
@@ -773,6 +785,11 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 		{
 			pIndices[i]=k-1;
 			pIndices[i+1]=k+sizeX;
+			if (backendIndices != nullptr)
+			{
+				backendIndices[i]=k-1;
+				backendIndices[i+1]=k+sizeX;
+			}
 			i+=2;
 		}
 	}
@@ -829,6 +846,7 @@ void WaterRenderObjClass::ReleaseResources()
 {
 
 	REF_PTR_RELEASE(m_indexBuffer);
+	REF_PTR_RELEASE(m_waterMeshIndexBuffer);
 
 	REF_PTR_RELEASE(m_pReflectionTexture);
 	SAFE_RELEASE(m_vertexBufferD3D);
@@ -1586,7 +1604,15 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 
 		case WATER_TYPE_2_PVSHADER:
 			//Pixel/Vertex Shader based water which uses an off-screen rendered reflection texture
+#if defined(GGC_BGFX_STANDALONE)
+			// TheSuperHackers @refactor bobtista 28/04/2026 The old PV shader
+			// sea renderer submits raw D3D8 shader draws. Standalone bgfx uses
+			// the regular water path until the bump/reflection sea shader is
+			// rebuilt natively.
+			renderWater();
+#else
 			drawSea(rinfo);	//draw water surface
+#endif
 			break;
 
 		case WATER_TYPE_1_FB_REFLECTION:
@@ -2331,6 +2357,16 @@ void WaterRenderObjClass::renderWaterMesh()
 	PhasePerFrameY -= 0.1f;
 #endif
 
+#if defined(GGC_BGFX_STANDALONE)
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,(unsigned short)(mx*my));
+	{
+		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
+		VertexFormatXYZNDUV2 *vb=lock.Get_Formatted_Vertex_Array();
+		if (vb == nullptr)
+		{
+			return;
+		}
+#else
 	MaterMeshVertexFormat *vb;
 	if (m_vertexBufferD3DOffset < m_numVertices)
 	{	//we have room in current VB, append new verts
@@ -2343,6 +2379,7 @@ void WaterRenderObjClass::renderWaterMesh()
 			return;
 		m_vertexBufferD3DOffset=0;	//reset start of page to first vertex
 	}
+#endif
 	Int diffuse;
 	diffuse = setting->waterDiffuse&0x00ffffff;
 	Int alpha = (setting->waterDiffuse & 0xff000000)>>24;
@@ -2377,6 +2414,10 @@ void WaterRenderObjClass::renderWaterMesh()
 			vb->nx = C.X;
 			vb->ny = C.X;
 			vb->nz = C.X;
+#elif defined(GGC_BGFX_STANDALONE)
+			vb->nx = 0.0f;
+			vb->ny = 0.0f;
+			vb->nz = 1.0f;
 #endif
 			Real x = (float)i*cellSizeX;
 			vb->x=	x;
@@ -2407,7 +2448,11 @@ void WaterRenderObjClass::renderWaterMesh()
 		}
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	}
+#else
 	m_vertexBufferD3D->Unlock();
+#endif
 
 	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,Transform);	//position the water surface
 	g_renderBackend->Set_Material(m_meshVertexMaterialClass);
@@ -2443,9 +2488,18 @@ void WaterRenderObjClass::renderWaterMesh()
 
 //	m_pDev->SetRenderState(D3DRS_ZFUNC,D3DCMP_ALWAYS);	//used to display grid under map.
 
+#if defined(GGC_BGFX_STANDALONE)
+	if (m_waterMeshIndexBuffer == nullptr)
+	{
+		return;
+	}
+	g_renderBackend->Set_Index_Buffer(m_waterMeshIndexBuffer,0);
+	g_renderBackend->Set_Vertex_Buffer(vb_access);
+#else
 	m_pDev->SetIndices(m_indexBufferD3D,m_vertexBufferD3DOffset);
 	m_pDev->SetStreamSource(0,m_vertexBufferD3D,sizeof(MaterMeshVertexFormat));
 	m_pDev->SetVertexShader(WATER_MESH_FVF);
+#endif
 
 
 	if (TheTerrainRenderObject->getShroud() && !m_trapezoidWaterPixelShader)
@@ -2462,13 +2516,25 @@ void WaterRenderObjClass::renderWaterMesh()
 
 		//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 		//write to the zbuffer.  Change to LESSEQUAL.
+#if defined(GGC_BGFX_STANDALONE)
+		g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
+		g_renderBackend->Draw_Strip(0,m_numIndices-2,0,mx*my);
+		g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
+#else
 		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
 		m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP,0,mx*my,0,m_numIndices-2);
 		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_EQUAL);
+#endif
 		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 	}
 	else
+#if defined(GGC_BGFX_STANDALONE)
+	{
+		g_renderBackend->Draw_Strip(0,m_numIndices-2,0,mx*my);
+	}
+#else
 		m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP,0,mx*my,0,m_numIndices-2);
+#endif
 
 	Debug_Statistics::Record_DX8_Polys_And_Vertices(m_numIndices-2,mx*my,ShaderClass::_PresetOpaqueShader);
 
