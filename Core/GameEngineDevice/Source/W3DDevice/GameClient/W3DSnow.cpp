@@ -78,7 +78,11 @@ Bool W3DSnowManager::ReAcquireResources()
 	if (!TheWeatherSetting->m_snowEnabled)
 		return TRUE;	//no need for resources if snow is disabled.
 
-	if (TheWeatherSetting->m_usePointSprites && DX8Wrapper::Get_Current_Caps()->Support_PointSprites())
+	Bool usePointSpritePath = TheWeatherSetting->m_usePointSprites && DX8Wrapper::Get_Current_Caps()->Support_PointSprites();
+#if defined(GGC_BGFX_STANDALONE)
+	usePointSpritePath = FALSE;
+#endif
+	if (usePointSpritePath)
 	{
 		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
 
@@ -327,7 +331,11 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 	if (!TheWeatherSetting->m_snowEnabled || !m_isVisible)
 		return;
 
+#if defined(GGC_BGFX_STANDALONE)
+	Int usePointSprites = FALSE;
+#else
 	Int usePointSprites = DX8Wrapper::Get_Current_Caps()->Support_PointSprites() && TheWeatherSetting->m_usePointSprites;
+#endif
 
 	//make sure the noise table is powers of 2 in dimensions.
 	WWASSERT(ISPOW2(SNOW_NOISE_X) && ISPOW2(SNOW_NOISE_Y));
