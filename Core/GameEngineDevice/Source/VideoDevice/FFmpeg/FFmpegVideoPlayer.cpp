@@ -63,7 +63,11 @@ extern "C" {
 //         Defines
 //----------------------------------------------------------------------------
 #define VIDEO_LANG_PATH_FORMAT "Data/%s/Movies/%s.%s"
+#if defined(_WIN32)
 #define VIDEO_PATH	"Data\\Movies"
+#else
+#define VIDEO_PATH	"Data/Movies"
+#endif
 #define VIDEO_EXT		"bik"
 
 
