@@ -54,6 +54,8 @@
 //-----------------------------------------------------------------------------
 
 #include "dx8wrapper.h"
+#include "dx8indexbuffer.h"
+#include "dx8vertexbuffer.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
 #include "assetmgr.h"
@@ -215,6 +217,10 @@ Bool ScreenDefaultFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool
 	if (!tex) return false;
 	if (!set(mode)) return false;
 
+#if defined(GGC_BGFX_STANDALONE)
+	reset();
+	return true;
+#else
 	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
 
 	struct _TRANS_LIT_TEX_VERTEX {
@@ -260,6 +266,7 @@ Bool ScreenDefaultFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool
 
 	reset();
 	return true;
+#endif
 }
 
 Int ScreenDefaultFilter::set(FilterModes mode)
@@ -358,6 +365,10 @@ Bool ScreenBWFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doE
 	if (!tex) return false;
 	if (!set(mode)) return false;
 
+#if defined(GGC_BGFX_STANDALONE)
+	reset();
+	return true;
+#else
 	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
 
 	struct _TRANS_LIT_TEX_VERTEX {
@@ -403,6 +414,7 @@ Bool ScreenBWFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doE
 
 	reset();
 	return true;
+#endif
 }
 
 Int ScreenBWFilter::set(FilterModes mode)
@@ -551,6 +563,10 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 	if (!tex) return false;
 	if (!set(mode)) return false;
 
+#if defined(GGC_BGFX_STANDALONE)
+	reset();
+	return true;
+#else
 	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
 
 	struct _TRANS_LIT_TEX_VERTEX {
@@ -631,6 +647,7 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 
 	reset();
 	return true;
+#endif
 }
 
 Int ScreenBWFilterDOT3::set(FilterModes mode)
@@ -817,6 +834,10 @@ Bool ScreenCrossFadeFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bo
 	if (!tex) return false;
 	if (!set(mode)) return false;
 
+#if defined(GGC_BGFX_STANDALONE)
+	reset();
+	return true;
+#else
 	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
 
 	struct _TRANS_LIT_TEX_VERTEX {
@@ -890,6 +911,7 @@ Bool ScreenCrossFadeFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bo
 
 	reset();
 	return true;
+#endif
 }
 
 Int ScreenCrossFadeFilter::set(FilterModes mode)
@@ -990,6 +1012,10 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 	if (!tex) return false;
 	if (!set(mode)) return false;
 
+#if defined(GGC_BGFX_STANDALONE)
+	reset();
+	return false;
+#else
 	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
 
 	Bool continueEffect = true;
@@ -1146,6 +1172,7 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 		m_zoomToValid = false;
 	}
 	return continueEffect;
+#endif
 }
 
 Bool ScreenMotionBlurFilter::setup(FilterModes mode)
@@ -2859,6 +2886,75 @@ Bool W3DShaderManager::filterSetup(FilterTypes filter, FilterModes mode)
 /*Draws 2 triangles covering the viewport given the current render states*/
 void W3DShaderManager::drawViewport(Int color)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	Matrix4x4 view,proj;
+	Matrix4x4 identity(true);
+
+	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW,view);
+	g_renderBackend->Get_Transform(RB_TRANSFORM_PROJECTION,proj);
+	g_renderBackend->Set_World_Identity();
+	g_renderBackend->Set_View_Identity();
+	g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,identity);
+
+	Int xpos, ypos, width, height;
+
+	TheTacticalView->getOrigin(&xpos,&ypos);
+	width=TheTacticalView->getWidth();
+	height=TheTacticalView->getHeight();
+
+	const Real displayHalfWidth = (Real)TheDisplay->getWidth() * 0.5f;
+	const Real displayHalfHeight = (Real)TheDisplay->getHeight() * -0.5f;
+	const Real left = ((Real)xpos / displayHalfWidth) - 1.0f;
+	const Real right = ((Real)(xpos+width) / displayHalfWidth) - 1.0f;
+	const Real top = ((Real)ypos / displayHalfHeight) + 1.0f;
+	const Real bottom = ((Real)(ypos+height) / displayHalfHeight) + 1.0f;
+
+	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,4);
+	{
+		DynamicVBAccessClass::WriteLockClass lock(&vb);
+		VertexFormatXYZNDUV2 *verts=lock.Get_Formatted_Vertex_Array();
+		if (verts != nullptr)
+		{
+			verts[0].x=right; verts[0].y=bottom; verts[0].z=0.0f;
+			verts[1].x=right; verts[1].y=top; verts[1].z=0.0f;
+			verts[2].x=left; verts[2].y=bottom; verts[2].z=0.0f;
+			verts[3].x=left; verts[3].y=top; verts[3].z=0.0f;
+
+			for (Int i=0; i<4; i++)
+			{
+				verts[i].nx=0.0f;
+				verts[i].ny=0.0f;
+				verts[i].nz=1.0f;
+				verts[i].diffuse=color;
+				verts[i].u1=0.0f;
+				verts[i].v1=0.0f;
+				verts[i].u2=0.0f;
+				verts[i].v2=0.0f;
+			}
+		}
+	}
+
+	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX8,6);
+	{
+		DynamicIBAccessClass::WriteLockClass lock(&ib);
+		unsigned short *indices=lock.Get_Index_Array();
+		if (indices != nullptr)
+		{
+			indices[0]=0;
+			indices[1]=1;
+			indices[2]=2;
+			indices[3]=2;
+			indices[4]=1;
+			indices[5]=3;
+		}
+	}
+
+	g_renderBackend->Set_Vertex_Buffer(vb);
+	g_renderBackend->Set_Index_Buffer(ib,0);
+	g_renderBackend->Draw_Triangles(0,2,0,4);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,view);
+	g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,proj);
+#else
 	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
 
 	struct _TRANS_LIT_TEX_VERTEX {
@@ -2896,6 +2992,7 @@ void W3DShaderManager::drawViewport(Int color)
 	pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
 
 	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
+#endif
 }
 
 // W3DShaderManager::startRenderToTexture =======================================================
