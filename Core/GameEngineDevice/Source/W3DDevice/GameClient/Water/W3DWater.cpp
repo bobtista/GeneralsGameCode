@@ -2023,6 +2023,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 //-------------------------------------------------------------------------------------------------
 void WaterRenderObjClass::renderWater()
 {
+	std::vector<WaterTrapezoidBatchEntry> trapezoids;
+
 	for (PolygonTrigger *pTrig=PolygonTrigger::getFirstPolygonTrigger(); pTrig; pTrig = pTrig->getNext()) {
 		if (pTrig->isWaterArea()) {
 			if (pTrig->getNumPoints()>2) {
@@ -2049,20 +2051,31 @@ void WaterRenderObjClass::renderWater()
 					{
 						for (int r = 0; r < TheGlobalData->m_featherWater; ++r)
 						{
-							drawTrapezoidWater(points);
+							WaterTrapezoidBatchEntry entry;
+							entry.points[0] = points[0];
+							entry.points[1] = points[1];
+							entry.points[2] = points[2];
+							entry.points[3] = points[3];
+							trapezoids.push_back(entry);
 							points[0].Z += (FEATHER_THICKNESS/TheGlobalData->m_featherWater);
 						}
 					}
 
 					else
-						drawTrapezoidWater(points);
-
-
+					{
+						WaterTrapezoidBatchEntry entry;
+						entry.points[0] = points[0];
+						entry.points[1] = points[1];
+						entry.points[2] = points[2];
+						entry.points[3] = points[3];
+						trapezoids.push_back(entry);
+					}
 				}
 			}
 		}
 	}
 
+	drawTrapezoidWaterBatch(trapezoids);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -3071,6 +3084,379 @@ void WaterRenderObjClass::setupFlatWaterShader()
 //-------------------------------------------------------------------------------------------------
 //Draw a 4 sided flat water area.
 //-------------------------------------------------------------------------------------------------
+static void GetWaterTrapezoidCounts(Vector3 points[4], Int &uCount, Int &vCount, Int &rectangleCount)
+{
+	Vector3 origin(points[0]);
+	Vector3 uVec1(points[1]);
+	Vector3 vVec1(points[3]);
+	Vector3 uVec2(points[2]);
+	Vector3 vVec2(points[2]);
+	uVec2 -= vVec1;
+	vVec2	-= uVec1;
+	uVec1 -= origin;
+	vVec1 -= origin;
+	uCount = (uVec1.Length()+uVec2.Length()) / (8*MAP_XY_FACTOR);
+	if (uCount<1)
+	{
+		uCount = 1;
+	}
+	vCount = (vVec1.Length()+vVec2.Length()) / (8*MAP_XY_FACTOR);
+	if (vCount<1)
+	{
+		vCount = 1;
+	}
+
+	if (uCount>50)
+	{
+		uCount = 50;
+	}
+	if (vCount>50)
+	{
+		vCount = 50;
+	}
+
+	rectangleCount = uCount*vCount;
+	uCount++;
+	vCount++;
+}
+
+void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezoidBatchEntry> &trapezoids)
+{
+	if (trapezoids.empty())
+	{
+		return;
+	}
+
+	Real	waterFactor=150;
+	Real shadeR=TheWaterTransparency->m_standingWaterColor.red;
+	Real shadeG=TheWaterTransparency->m_standingWaterColor.green;
+	Real shadeB=TheWaterTransparency->m_standingWaterColor.blue;
+
+	//If the water color is not overridden, use legacy lighting code.
+	if ( shadeR==1.0f && shadeG==1.0f && shadeB==1.0f)
+	{
+		shadeR = TheGlobalData->m_terrainAmbient[0].red;
+		shadeG = TheGlobalData->m_terrainAmbient[0].green;
+		shadeB = TheGlobalData->m_terrainAmbient[0].blue;
+
+		//Add in diffuse lighting from each terrain light
+		for (Int lightIndex=0; lightIndex < TheGlobalData->m_numGlobalLights; lightIndex++)
+		{
+			if (-TheGlobalData->m_terrainLightPos[lightIndex].z > 0)
+			{
+				shadeR += -TheGlobalData->m_terrainLightPos[lightIndex].z * TheGlobalData->m_terrainDiffuse[lightIndex].red;
+				shadeG += -TheGlobalData->m_terrainLightPos[lightIndex].z * TheGlobalData->m_terrainDiffuse[lightIndex].green;
+				shadeB += -TheGlobalData->m_terrainLightPos[lightIndex].z * TheGlobalData->m_terrainDiffuse[lightIndex].blue;
+			}
+		}
+
+		//Get water material colors
+		Real waterShadeR = (m_settings[m_tod].waterDiffuse & 0xff) / 255.0f;
+		Real waterShadeG = ((m_settings[m_tod].waterDiffuse >> 8) & 0xff) / 255.0f;
+		Real waterShadeB = ((m_settings[m_tod].waterDiffuse >> 16) & 0xff) / 255.0f;
+
+		shadeR=shadeR*waterShadeR*255.0f;
+		shadeG=shadeG*waterShadeG*255.0f;
+		shadeB=shadeB*waterShadeB*255.0f;
+	}
+	else
+	{
+		shadeR=shadeR*255.0f;
+		shadeG=shadeG*255.0f;
+		shadeB=shadeB*255.0f;
+
+		if (shadeR == 0 && shadeG == 0 && shadeB == 0)
+		{
+			//special case where we disable lighting
+			shadeR=255;
+			shadeG=255;
+			shadeB=255;
+		}
+	}
+
+	Int diffuse=REAL_TO_INT(shadeB) | (REAL_TO_INT(shadeG) << 8) | (REAL_TO_INT(shadeR) << 16);
+
+	//Keep diffuse from lighting calculations but substitute custom alpha
+	diffuse |= m_settings[m_tod].waterDiffuse & 0xff000000;	//copy alpha/opacity from ini setting
+
+	const size_t maxBatchElements = 60000;
+	size_t batchStart = 0;
+	while (batchStart < trapezoids.size())
+	{
+		size_t batchEnd = batchStart;
+		size_t totalVertices = 0;
+		size_t totalIndices = 0;
+		Int totalRectangleCount = 0;
+		while (batchEnd < trapezoids.size())
+		{
+			Vector3 points[4];
+			points[0] = trapezoids[batchEnd].points[0];
+			points[1] = trapezoids[batchEnd].points[1];
+			points[2] = trapezoids[batchEnd].points[2];
+			points[3] = trapezoids[batchEnd].points[3];
+			Int uCount;
+			Int vCount;
+			Int rectangleCount;
+			GetWaterTrapezoidCounts(points, uCount, vCount, rectangleCount);
+			const size_t patchVertices = uCount * vCount;
+			const size_t patchIndices = rectangleCount * 6;
+			if (batchEnd > batchStart
+				&& (totalVertices + patchVertices > maxBatchElements
+					|| totalIndices + patchIndices > maxBatchElements))
+			{
+				break;
+			}
+			totalVertices += patchVertices;
+			totalIndices += patchIndices;
+			totalRectangleCount += rectangleCount;
+			batchEnd++;
+		}
+
+		UnsignedShort batchIndexCount = static_cast<UnsignedShort>(totalIndices);
+		UnsignedShort batchVertexCount = static_cast<UnsignedShort>(totalVertices);
+
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,batchIndexCount);
+		{
+			DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
+			UnsignedShort *curIb = lockib.Get_Index_Array();
+			UnsignedShort vertexBase = 0;
+			for (size_t patchIndex = batchStart; patchIndex < batchEnd; ++patchIndex)
+			{
+				Vector3 points[4];
+				points[0] = trapezoids[patchIndex].points[0];
+				points[1] = trapezoids[patchIndex].points[1];
+				points[2] = trapezoids[patchIndex].points[2];
+				points[3] = trapezoids[patchIndex].points[3];
+				Int uCount;
+				Int vCount;
+				Int rectangleCount;
+				GetWaterTrapezoidCounts(points, uCount, vCount, rectangleCount);
+				for (Int j=0; j<vCount-1; j++)
+				{
+					for (Int i=0; i<uCount-1; i++)
+					{
+						//triangle 1
+						curIb[0] = vertexBase + (j)*uCount + i;
+						curIb[1] = vertexBase + (j+1)*uCount + i+1;
+						curIb[2] = vertexBase + (j+1)*uCount + i;
+
+						//triangle 2
+						curIb[3] = vertexBase + (j)*uCount + i;
+						curIb[4] = vertexBase + (j)*uCount + i+1;
+						curIb[5] = vertexBase + (j+1)*uCount + i+1;
+
+						curIb += 6;	//skip the 6 indices we just added.
+					}
+				}
+				vertexBase += static_cast<UnsignedShort>(uCount * vCount);
+			}
+		}
+
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,batchVertexCount);
+		{
+			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
+			VertexFormatXYZNDUV2* vb=lock.Get_Formatted_Vertex_Array();
+			for (size_t patchIndex = batchStart; patchIndex < batchEnd; ++patchIndex)
+			{
+				Vector3 points[4];
+				points[0] = trapezoids[patchIndex].points[0];
+				points[1] = trapezoids[patchIndex].points[1];
+				points[2] = trapezoids[patchIndex].points[2];
+				points[3] = trapezoids[patchIndex].points[3];
+				Int uCount;
+				Int vCount;
+				Int rectangleCount;
+				GetWaterTrapezoidCounts(points, uCount, vCount, rectangleCount);
+				Vector3 origin(points[0]);
+				Vector3 uVec1(points[1]);
+				Vector3 vVec1(points[3]);
+				Vector3 uVec2(points[2]);
+				Vector3 vVec2(points[2]);
+				uVec2 -= vVec1;
+				vVec2	-= uVec1;
+				uVec1 -= origin;
+				vVec1 -= origin;
+
+				if ( TheGlobalData->m_featherWater )
+				{
+					Real phase = 0;
+					Real mapCoeff = PI/(4*MAP_XY_FACTOR);
+					Real wave = 0;
+					Real amplitude = 0.5f;
+
+					Int Alpha = 0;
+					if ( TheGlobalData->m_featherWater == 5)
+					{
+						Alpha = 80;
+					}
+					if ( TheGlobalData->m_featherWater == 4)
+					{
+						Alpha = 110;
+					}
+					if ( TheGlobalData->m_featherWater == 3)
+					{
+						Alpha = 140;
+					}
+					if ( TheGlobalData->m_featherWater == 2)
+					{
+						Alpha = 200;
+					}
+					if ( TheGlobalData->m_featherWater == 1)
+					{
+						Alpha = 255;
+					}
+
+					//Keep diffuse from lighting calculations but substitute custom alpha
+					Int customDiffuse = (diffuse & 0x00ffffff) | (Alpha<< 24);//(0x80 << 16)|(0x90 << 8)|0xa0;
+
+					for (Int j=0; j<vCount; j++)
+					{
+						Real dv = j;
+						dv /= (vCount-1);
+						for (Int i=0; i<uCount; i++)
+						{
+							Real du = i;
+							du /= (uCount-1);
+							Vector3 vertex = origin;
+							vertex += uVec1*du;
+							vertex += vVec1*dv;
+							vertex += (dv)*(du)*(vVec2-vVec1);
+
+							vb->x=vertex.X;
+							vb->y=vertex.Y;
+
+							// common to all the waving effects
+							phase = 25 * m_riverVOrigin + vertex.X * mapCoeff;
+							wave = (sin(phase) - 1.0f) * amplitude;
+
+							vb->z = (vertex.Z + wave);
+							vb->diffuse = customDiffuse;
+							vb->u1 = (vertex.X/waterFactor) + 0.02*cos(11*m_riverVOrigin)*wave;
+							vb->v1 = (vertex.Y/waterFactor) + 0.02*cos(5*m_riverVOrigin)*wave;
+							vb->u2 = vertex.X/BUMP_SIZE;
+							vb->v2 = vertex.Y/BUMP_SIZE + 0.3f*vertex.X/BUMP_SIZE;
+							vb->nx = 0;
+							vb->ny = 0;
+							vb->nz = 1.0f;
+							vb++;
+						}
+					}
+				}
+				else
+				{
+					//Pulling some constants out of the inner loops to improve performance -MW
+					Real constA=0.02*cos(11*m_riverVOrigin);
+					Real constB=0.02*cos(5*m_riverVOrigin);
+					Real constC=25*m_riverVOrigin;
+					Real ooWaterFactor = 1.0f/waterFactor;
+					const Real constD=PI/(4*MAP_XY_FACTOR);
+					Real constE=1.0f/(Real)(vCount-1);
+					Real constF=1.0f/(Real)(uCount-1);
+
+					for (Int j=0; j<vCount; j++)
+					{
+						Real dv = (Real)j * constE;
+
+						for (Int i=0; i<uCount; i++)
+						{
+							Real du = (Real)i * constF;
+							Vector3 vertex = origin;
+							vertex += uVec1*du;
+							vertex += vVec1*dv;
+							vertex += (dv)*(du)*(vVec2-vVec1);
+
+							vb->x=vertex.X;
+							vb->y=vertex.Y;
+							vb->z=vertex.Z;
+
+							vb->diffuse= diffuse;
+							vb->u1=vertex.X*ooWaterFactor + constA*WWMath::Fast_Sin(constC+vertex.X*constD);
+							vb->v1=vertex.Y*ooWaterFactor + constB*WWMath::Fast_Sin(constC+vertex.Y*constD);
+							vb->u2 = vertex.X/BUMP_SIZE;
+							vb->v2 = (vertex.Y+0.3f*vertex.X)/BUMP_SIZE;
+							vb->nx = 0;
+							vb->ny = 0;
+							vb->nz = 1.0f;
+							vb++;
+						}
+					}
+				}
+			}
+		}
+
+		Matrix3D tm(1);
+
+		g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,tm);	//position the water surface
+		g_renderBackend->Set_Index_Buffer(ib_access,0);
+		g_renderBackend->Set_Vertex_Buffer(vb_access);
+
+		setupFlatWaterShader();
+		{
+			ShaderClass waterShader = ShaderClass::_PresetAlphaShader;
+			waterShader.Set_Cull_Mode(ShaderClass::CULL_MODE_DISABLE);
+			waterShader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
+			g_renderBackend->Set_Shader(waterShader);
+		}
+		g_renderBackend->Override_Alpha_Blend_Enable(true);
+		g_renderBackend->Override_Material_Opacity(WATER_MESH_OPACITY);
+
+		if (DX8Wrapper::getBackBufferFormat() == WW3D_FORMAT_A8R8G8B8 && TheGlobalData->m_showSoftWaterEdge && TheWaterTransparency->m_transparentWaterDepth !=0)
+		{
+			if (TheWaterTransparency->m_additiveBlend)
+			{
+				g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_ONE);
+			}
+			else
+			{
+				g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
+			}
+		}
+
+		DWORD cull;
+		DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_CULLMODE, &cull);
+		g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
+
+		g_renderBackend->Draw_Triangles(	0,totalRectangleCount*2, 0,	batchVertexCount);
+
+		if (m_riverWaterPixelShader)
+		{
+			DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);
+		}
+		//Restore alpha blend to default values since we may have changed them to feather edges.
+		if (!TheWaterTransparency->m_additiveBlend)
+		{
+			g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
+		}
+		else
+		{
+			g_renderBackend->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ONE);
+		}
+
+		if (TheTerrainRenderObject->getShroud())
+		{
+			if (m_trapezoidWaterPixelShader)
+			{
+				W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
+				W3DWater_BindTexture(3, nullptr);
+				DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_EQUAL);
+			}
+			else
+			{
+				W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
+				W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
+				g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
+				DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+				g_renderBackend->Draw_Triangles(	0,totalRectangleCount*2, 0,	batchVertexCount);
+				DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_EQUAL);
+				W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
+			}
+		}
+		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_CULLMODE, cull);
+
+		batchStart = batchEnd;
+	}
+}
+
 void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 {
 	Vector3 origin(points[0]);
