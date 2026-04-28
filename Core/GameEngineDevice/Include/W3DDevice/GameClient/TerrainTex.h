@@ -44,6 +44,9 @@ class TerrainTextureClass : public TextureClass
 	W3DMPO_GLUE(TerrainTextureClass)
 protected:
 	virtual void Apply(unsigned int stage) override;
+	void UpdateTerrainAtlasRegions(WorldHeightMap *htMap, unsigned int textureWidth, unsigned int textureHeight, unsigned int textureFormat);
+	void WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, IDirect3DTexture8 *texture, unsigned int level);
+	void WriteTerrainAtlasMipLevels(WorldHeightMap *htMap, IDirect3DTexture8 *texture);
 
 public:
 		/// Create texture for a height map.

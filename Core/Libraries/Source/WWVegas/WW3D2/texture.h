@@ -49,6 +49,7 @@
 #include "vector3.h"
 #include "texturefilter.h"
 #include "IRenderBackend.h"
+#include <vector>
 
 struct IDirect3DBaseTexture8;
 struct IDirect3DTexture8;
@@ -276,6 +277,14 @@ class TextureClass : public TextureBaseClass
 //	friend DX8Wrapper;
 
 public:
+	struct TextureAtlasRegion
+	{
+		unsigned X;
+		unsigned Y;
+		unsigned Width;
+		unsigned Height;
+	};
+
 
 	// Create texture with desired height, width and format.
 	TextureClass
@@ -327,6 +336,18 @@ public:
 	virtual TexAssetType Get_Asset_Type() const override { return TEX_REGULAR; }
 
 	virtual void Init() override;
+	void Clear_Atlas_Regions() { AtlasRegions.clear(); }
+	void Add_Atlas_Region(unsigned x, unsigned y, unsigned width, unsigned height)
+	{
+		TextureAtlasRegion region;
+		region.X = x;
+		region.Y = y;
+		region.Width = width;
+		region.Height = height;
+		AtlasRegions.push_back(region);
+	}
+	bool Has_Atlas_Regions() const { return !AtlasRegions.empty(); }
+	const std::vector<TextureAtlasRegion> &Get_Atlas_Regions() const { return AtlasRegions; }
 
 	// Background texture loader will call this when texture has been loaded
 	virtual void Apply_New_Surface(IDirect3DBaseTexture8* tex, bool initialized, bool disable_auto_invalidation = false) override;	// If the parameter is true, the texture will be flagged as initialised
@@ -352,6 +373,7 @@ protected:
 
 	// legacy
 	TextureFilterClass	Filter;
+	std::vector<TextureAtlasRegion> AtlasRegions;
 };
 
 class ZTextureClass : public TextureBaseClass
