@@ -66,6 +66,10 @@ include(cmake/config.cmake)
 include(cmake/gamespy.cmake)
 include(cmake/lzhl.cmake)
 
+if(SAGE_USE_SDL3)
+    include(cmake/sdl3.cmake)
+endif()
+
 # Rendering backend selection. Must come after config.cmake (which sets
 # IS_VS6_BUILD) and before Core is added (which references the backend flag).
 include(cmake/render-backend.cmake)

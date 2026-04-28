@@ -195,6 +195,24 @@
             "displayName": "Unix 32bit VCPKG Release"
         },
         {
+            "name": "macos-generalsmd-sdl3-bgfx",
+            "inherits": "default",
+            "hidden": false,
+            "displayName": "macOS GeneralsMD SDL3 bgfx Release",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "RTS_BUILD_GENERALS": "OFF",
+                "RTS_BUILD_GENERALS_TOOLS": "OFF",
+                "RTS_BUILD_ZEROHOUR": "ON",
+                "RTS_BUILD_ZEROHOUR_TOOLS": "OFF",
+                "RTS_BUILD_CORE_TOOLS": "OFF",
+                "SAGE_USE_SDL3": "ON",
+                "GGC_RENDER_BACKEND": "bgfx",
+                "GGC_BGFX_STANDALONE": "ON"
+            }
+        },
+        {
             "name": "mingw-w64-i686",
             "displayName": "MinGW-w64 32-bit (i686) Release",
             "generator": "Unix Makefiles",

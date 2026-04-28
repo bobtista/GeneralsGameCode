@@ -192,6 +192,25 @@ set(GAMEENGINEDEVICE_SRC
 #    Source/Win32Device/GameClient/Win32Mouse.cpp
 )
 
+if(NOT WIN32)
+    list(REMOVE_ITEM GAMEENGINEDEVICE_SRC
+        Include/Win32Device/Common/Win32GameEngine.h
+        Source/Win32Device/Common/Win32GameEngine.cpp
+        Source/Win32Device/Common/Win32OSDisplay.cpp
+    )
+endif()
+
+if(SAGE_USE_SDL3)
+    list(APPEND GAMEENGINEDEVICE_SRC
+        Include/SDL3GameEngine.h
+        Include/SDL3Device/GameClient/SDL3Keyboard.h
+        Include/SDL3Device/GameClient/SDL3Mouse.h
+        Source/SDL3GameEngine.cpp
+        Source/SDL3Device/GameClient/SDL3Keyboard.cpp
+        Source/SDL3Device/GameClient/SDL3Mouse.cpp
+    )
+endif()
+
 add_library(z_gameenginedevice STATIC)
 
 target_sources(z_gameenginedevice PRIVATE ${GAMEENGINEDEVICE_SRC})
@@ -200,14 +219,16 @@ target_include_directories(z_gameenginedevice PUBLIC
     Include
 )
 
-target_precompile_headers(z_gameenginedevice PRIVATE
-    [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
-    [["Common/STLTypedefs.h"]]
-    [["Common/SubsystemInterface.h"]]
-    [["INI.h"]]
-    [["WWCommon.h"]]
-    <windows.h>
-)
+if(WIN32)
+    target_precompile_headers(z_gameenginedevice PRIVATE
+        [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
+        [["Common/STLTypedefs.h"]]
+        [["Common/SubsystemInterface.h"]]
+        [["INI.h"]]
+        [["WWCommon.h"]]
+        <windows.h>
+    )
+endif()
 
 target_link_libraries(z_gameenginedevice PRIVATE
     corei_gameenginedevice_private
@@ -219,3 +240,7 @@ target_link_libraries(z_gameenginedevice PUBLIC
     corei_gameenginedevice_public
     z_gameengine
 )
+
+if(SAGE_USE_SDL3)
+    target_link_libraries(z_gameenginedevice PUBLIC sdl3lib)
+endif()
