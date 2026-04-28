@@ -227,6 +227,12 @@ protected:
 		Vector3 points[4];
 	};
 
+	struct SeaPatchBatchEntry
+	{
+		Int patchX;
+		Int patchY;
+	};
+
 	struct Setting
 	{
 		TextureClass	*skyTexture;
@@ -255,6 +261,7 @@ protected:
 	HRESULT initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass *pBumpSource);	///<copies data into bump-map format.
 	void renderMirror(CameraClass *cam);	///< Draw reflected scene into texture
 	void drawSea(RenderInfoClass & rinfo);	///< Draw the surface of the water
+	void drawSeaBatch(RenderInfoClass & rinfo);	///< Draw the sea through the render backend
 	///bounding box of frustum clipped polygon plane
 	Bool getClippedWaterPlane(CameraClass *cam, AABoxClass *box);
 
