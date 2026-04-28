@@ -12,6 +12,8 @@
 
 #if defined(SAGE_USE_SDL3)
 
+#include "SDL3GameEngine.h"
+
 SDL3Mouse::SDL3Mouse() :
 	m_nextGetIndex(0),
 	m_nextFreeIndex(0)
@@ -62,17 +64,26 @@ void SDL3Mouse::setCursor(MouseCursor cursor)
 void SDL3Mouse::setPosition(Int x, Int y)
 {
 	Mouse::setPosition(x, y);
-	SDL_WarpMouseInWindow(NULL, static_cast<float>(x), static_cast<float>(y));
+	if (TheSDL3Window != NULL)
+	{
+		SDL_WarpMouseInWindow(TheSDL3Window, static_cast<float>(x), static_cast<float>(y));
+	}
 }
 
 void SDL3Mouse::capture()
 {
-	SDL_SetWindowRelativeMouseMode(SDL_GetMouseFocus(), true);
+	if (TheSDL3Window != NULL)
+	{
+		SDL_SetWindowRelativeMouseMode(TheSDL3Window, true);
+	}
 }
 
 void SDL3Mouse::releaseCapture()
 {
-	SDL_SetWindowRelativeMouseMode(SDL_GetMouseFocus(), false);
+	if (TheSDL3Window != NULL)
+	{
+		SDL_SetWindowRelativeMouseMode(TheSDL3Window, false);
+	}
 }
 
 UnsignedByte SDL3Mouse::getMouseEvent(MouseIO *result, Bool flush)
@@ -83,7 +94,7 @@ UnsignedByte SDL3Mouse::getMouseEvent(MouseIO *result, Bool flush)
 	}
 
 	*result = m_buffer[m_nextGetIndex];
-	if (!flush)
+	if (flush)
 	{
 		m_nextGetIndex = (m_nextGetIndex + 1) % NUM_MOUSE_EVENTS;
 	}
