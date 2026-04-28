@@ -17,6 +17,13 @@
 #include "Common/version.h"
 #include "SDL3GameEngine.h"
 
+namespace
+{
+	const char * const kWindowTitle = "Command & Conquer Generals Zero Hour";
+	const int kDefaultWindowWidth = 800;
+	const int kDefaultWindowHeight = 600;
+}
+
 int __argc = 0;
 char **__argv = NULL;
 
@@ -36,7 +43,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	TheSDL3Window = SDL_CreateWindow("Command & Conquer Generals Zero Hour", 800, 600, SDL_WINDOW_RESIZABLE);
+	TheSDL3Window = SDL_CreateWindow(kWindowTitle, kDefaultWindowWidth, kDefaultWindowHeight, SDL_WINDOW_RESIZABLE);
 	if (TheSDL3Window == NULL)
 	{
 		SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
