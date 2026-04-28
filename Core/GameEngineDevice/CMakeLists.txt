@@ -194,6 +194,27 @@ set(GAMEENGINEDEVICE_SRC
     Source/Win32Device/GameClient/Win32Mouse.cpp
 )
 
+if(NOT WIN32)
+    list(REMOVE_ITEM GAMEENGINEDEVICE_SRC
+        Include/MilesAudioDevice/MilesAudioManager.h
+        Include/VideoDevice/Bink/BinkVideoPlayer.h
+        Include/Win32Device/Common/Win32BIGFile.h
+        Include/Win32Device/Common/Win32BIGFileSystem.h
+        Include/Win32Device/Common/Win32LocalFile.h
+        Include/Win32Device/Common/Win32LocalFileSystem.h
+        Include/Win32Device/GameClient/Win32DIKeyboard.h
+        Include/Win32Device/GameClient/Win32Mouse.h
+        Source/MilesAudioDevice/MilesAudioManager.cpp
+        Source/VideoDevice/Bink/BinkVideoPlayer.cpp
+        Source/Win32Device/Common/Win32BIGFile.cpp
+        Source/Win32Device/Common/Win32BIGFileSystem.cpp
+        Source/Win32Device/Common/Win32LocalFile.cpp
+        Source/Win32Device/Common/Win32LocalFileSystem.cpp
+        Source/Win32Device/GameClient/Win32DIKeyboard.cpp
+        Source/Win32Device/GameClient/Win32Mouse.cpp
+    )
+endif()
+
 # Add C++ 17 FileSystem implementation for non-VS6 builds
 if(NOT IS_VS6_BUILD)
     list(APPEND GAMEENGINEDEVICE_SRC
@@ -223,11 +244,16 @@ target_link_libraries(corei_gameenginedevice_private INTERFACE
 )
 
 target_link_libraries(corei_gameenginedevice_public INTERFACE
-    binkstub
     corei_gameengine_public
-    d3d8lib
-    milesstub
 )
+
+if(WIN32)
+    target_link_libraries(corei_gameenginedevice_public INTERFACE
+        binkstub
+        d3d8lib
+        milesstub
+    )
+endif()
 
 if(RTS_BUILD_OPTION_FFMPEG)
     find_package(FFMPEG REQUIRED)
