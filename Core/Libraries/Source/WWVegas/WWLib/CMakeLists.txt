@@ -101,6 +101,8 @@ set(WWLIB_SRC
     ref_ptr.h
     refcount.cpp
     refcount.h
+    registryini.cpp
+    registryini.h
     #regexpr.cpp
     #regexpr.h
     #search.h
@@ -172,15 +174,32 @@ set_target_properties(core_wwlib PROPERTIES OUTPUT_NAME wwlib)
 
 target_sources(core_wwlib PRIVATE ${WWLIB_SRC})
 
-target_precompile_headers(core_wwlib PRIVATE
-    [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
-    [["WWLib/always.h"]]
-    [["WWLib/STLUtils.h"]]
-    [["WWLib/win.h"]]
-    [["WWLib/WWCommon.h"]]
-    [["WWLib/wwstring.h"]]
-    <windows.h>
+target_include_directories(core_wwlib PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
 )
+
+# TheSuperHackers @build bobtista 28/04/2026 Skip <windows.h> in the
+# precompiled header on non-Windows builds so wwlib can compile on Linux/macOS.
+if(WIN32)
+    target_precompile_headers(core_wwlib PRIVATE
+        [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
+        [["WWLib/always.h"]]
+        [["WWLib/STLUtils.h"]]
+        [["WWLib/win.h"]]
+        [["WWLib/WWCommon.h"]]
+        [["WWLib/wwstring.h"]]
+        <windows.h>
+    )
+else()
+    target_precompile_headers(core_wwlib PRIVATE
+        [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
+        [["WWLib/always.h"]]
+        [["WWLib/STLUtils.h"]]
+        [["WWLib/win.h"]]
+        [["WWLib/WWCommon.h"]]
+        [["WWLib/wwstring.h"]]
+    )
+endif()
 
 target_link_libraries(core_wwlib PRIVATE
     core_wwcommon
