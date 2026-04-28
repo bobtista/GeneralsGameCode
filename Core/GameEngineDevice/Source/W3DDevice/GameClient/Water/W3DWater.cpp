@@ -918,6 +918,11 @@ void WaterRenderObjClass::ReAcquireResources()
 	else
 	if (m_waterType == WATER_TYPE_2_PVSHADER)
 	{	//pixel/vertex shader based water assets.
+#if defined(GGC_BGFX_STANDALONE)
+		// TheSuperHackers @performance bobtista 28/04/2026 Standalone bgfx
+		// builds batch the sea patch grid through transient backend buffers
+		// instead of creating the old raw D3D8 shader resources.
+#else
 		if (FAILED(hr=generateIndexBuffer(PATCH_SIZE,PATCH_SIZE)))
 			return;
 
@@ -944,6 +949,7 @@ void WaterRenderObjClass::ReAcquireResources()
 
 		// Create reflection texture
 		m_pReflectionTexture = g_renderBackend->Create_Render_Target (SEA_REFLECTION_SIZE, SEA_REFLECTION_SIZE);
+#endif
 	}
 
 	if (m_waterTrackSystem)
@@ -1390,8 +1396,10 @@ void WaterRenderObjClass::replaceSkyboxTexture(const AsciiString& oldTexName, co
 void WaterRenderObjClass::setTimeOfDay(TimeOfDay tod)
 {
 	m_tod=tod;
+#if !defined(GGC_BGFX_STANDALONE)
 	if (m_waterType == WATER_TYPE_2_PVSHADER)
 		generateVertexBuffer(PATCH_SIZE,PATCH_SIZE,sizeof(SEA_PATCH_VERTEX),true);	//update the water mesh with new lighting/alpha
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1462,9 +1470,11 @@ void WaterRenderObjClass::loadSetting( Setting *setting, TimeOfDay timeOfDay )
 //-------------------------------------------------------------------------------------------------
 void WaterRenderObjClass::updateRenderTargetTextures(CameraClass *cam)
 {
+#if !defined(GGC_BGFX_STANDALONE)
 	if (m_waterType == WATER_TYPE_2_PVSHADER && getClippedWaterPlane(cam, nullptr) &&
 		TheTerrainRenderObject && TheTerrainRenderObject->getMap())
 		renderMirror(cam);	//generate texture containing reflected scene
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1605,11 +1615,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 		case WATER_TYPE_2_PVSHADER:
 			//Pixel/Vertex Shader based water which uses an off-screen rendered reflection texture
 #if defined(GGC_BGFX_STANDALONE)
-			// TheSuperHackers @refactor bobtista 28/04/2026 The old PV shader
-			// sea renderer submits raw D3D8 shader draws. Standalone bgfx uses
-			// the regular water path until the bump/reflection sea shader is
-			// rebuilt natively.
-			renderWater();
+			drawSeaBatch(rinfo);
 #else
 			drawSea(rinfo);	//draw water surface
 #endif
@@ -1830,6 +1836,161 @@ Bool WaterRenderObjClass::getClippedWaterPlane(CameraClass *cam, AABoxClass *box
 	}
 
 	return FALSE;	//water plane is not visible
+}
+
+void WaterRenderObjClass::drawSeaBatch(RenderInfoClass & rinfo)
+{
+	AABoxClass	seaBox;
+
+	if (!getClippedWaterPlane(&rinfo.Camera,&seaBox))
+	{
+		return;	//the sea is not visible
+	}
+
+	std::vector<SeaPatchBatchEntry> patches;
+
+	Int patchX;
+	Int patchY;
+	Real patchWorldWidth = PATCH_WIDTH * PATCH_SCALE;
+
+	for (patchY=(Int)((seaBox.Center.Y-seaBox.Extent.Y)/patchWorldWidth);
+		(patchY*patchWorldWidth)<(seaBox.Center.Y+seaBox.Extent.Y); patchY++)
+	{
+		for (patchX=(Int)((seaBox.Center.X-seaBox.Extent.X)/patchWorldWidth);
+			(patchX*patchWorldWidth)<(seaBox.Center.X+seaBox.Extent.X); patchX++)
+		{
+			SeaPatchBatchEntry entry;
+			entry.patchX = patchX;
+			entry.patchY = patchY;
+			patches.push_back(entry);
+		}
+	}
+
+	if (patches.empty())
+	{
+		return;
+	}
+
+	const size_t maxBatchElements = 60000;
+	const size_t patchVertexCount = PATCH_SIZE * PATCH_SIZE;
+	const size_t patchRectangleCount = PATCH_WIDTH * PATCH_WIDTH;
+	const size_t patchIndexCount = patchRectangleCount * 6;
+	const Real inverseBumpSize = 1.0f / BUMP_SIZE;
+	size_t batchStart = 0;
+	while (batchStart < patches.size())
+	{
+		size_t batchEnd = batchStart;
+		size_t totalVertices = 0;
+		size_t totalIndices = 0;
+		while (batchEnd < patches.size())
+		{
+			if (batchEnd > batchStart
+				&& (totalVertices + patchVertexCount > maxBatchElements
+					|| totalIndices + patchIndexCount > maxBatchElements))
+			{
+				break;
+			}
+			totalVertices += patchVertexCount;
+			totalIndices += patchIndexCount;
+			batchEnd++;
+		}
+
+		UnsignedShort batchIndexCount = static_cast<UnsignedShort>(totalIndices);
+		UnsignedShort batchVertexCount = static_cast<UnsignedShort>(totalVertices);
+		UnsignedShort batchTriangleCount = static_cast<UnsignedShort>(totalIndices / 3);
+
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,batchIndexCount);
+		{
+			DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
+			UnsignedShort *curIb = lockib.Get_Index_Array();
+			UnsignedShort vertexBase = 0;
+			for (size_t patchIndex = batchStart; patchIndex < batchEnd; ++patchIndex)
+			{
+				for (Int j=0; j<PATCH_WIDTH; j++)
+				{
+					for (Int i=0; i<PATCH_WIDTH; i++)
+					{
+						curIb[0] = vertexBase + (j)*PATCH_SIZE + i;
+						curIb[1] = vertexBase + (j+1)*PATCH_SIZE + i+1;
+						curIb[2] = vertexBase + (j+1)*PATCH_SIZE + i;
+
+						curIb[3] = vertexBase + (j)*PATCH_SIZE + i;
+						curIb[4] = vertexBase + (j)*PATCH_SIZE + i+1;
+						curIb[5] = vertexBase + (j+1)*PATCH_SIZE + i+1;
+
+						curIb += 6;
+					}
+				}
+				vertexBase += static_cast<UnsignedShort>(patchVertexCount);
+			}
+		}
+
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,batchVertexCount);
+		{
+			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
+			VertexFormatXYZNDUV2* vb=lock.Get_Formatted_Vertex_Array();
+			for (size_t patchIndex = batchStart; patchIndex < batchEnd; ++patchIndex)
+			{
+				Real originX = patches[patchIndex].patchX * patchWorldWidth;
+				Real originY = patches[patchIndex].patchY * patchWorldWidth;
+
+				for (Int j=0; j<PATCH_SIZE; j++)
+				{
+					Real y = originY + (j * PATCH_SCALE);
+					for (Int i=0; i<PATCH_SIZE; i++)
+					{
+						Real x = originX + (i * PATCH_SCALE);
+
+						vb->x=x;
+						vb->y=y;
+						vb->z=m_level;
+						vb->diffuse=m_settings[m_tod].transparentWaterDiffuse;
+						vb->u1=(Real)i*PATCH_UV_SCALE + m_uOffset;
+						vb->v1=(Real)j*PATCH_UV_SCALE + m_vOffset;
+						vb->u2=x*inverseBumpSize;
+						vb->v2=(y+0.3f*x)*inverseBumpSize;
+						vb->nx=0.0f;
+						vb->ny=0.0f;
+						vb->nz=1.0f;
+						vb++;
+					}
+				}
+			}
+		}
+
+		Matrix3D tm(1);
+		g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,tm);
+		g_renderBackend->Set_Index_Buffer(ib_access,0);
+		g_renderBackend->Set_Vertex_Buffer(vb_access);
+		g_renderBackend->Set_Texture(0,m_settings[m_tod].waterTexture);
+		g_renderBackend->Set_Texture(1,nullptr);
+		g_renderBackend->Set_Texture(2,nullptr);
+		g_renderBackend->Set_Texture(3,nullptr);
+		g_renderBackend->Set_Material(m_vertexMaterialClass);
+		{
+			ShaderClass waterShader = ShaderClass::_PresetAlphaShader;
+			waterShader.Set_Cull_Mode(ShaderClass::CULL_MODE_DISABLE);
+			waterShader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
+			g_renderBackend->Set_Shader(waterShader);
+		}
+		g_renderBackend->Override_Alpha_Blend_Enable(true);
+		g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
+		g_renderBackend->Draw_Triangles(0,batchTriangleCount,0,batchVertexCount);
+
+		if (TheTerrainRenderObject->getShroud())
+		{
+			W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
+			W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
+			g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
+			g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
+			g_renderBackend->Draw_Triangles(0,batchTriangleCount,0,batchVertexCount);
+			g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
+			W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
+		}
+
+		g_renderBackend->Clear_State_Overrides();
+		batchStart = batchEnd;
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
