@@ -58,6 +58,214 @@
 /******************************************************************************
 						TerrainTextureClass
 ******************************************************************************/
+static void InvalidateGeneratedTerrainTexture(TextureBaseClass *texture)
+{
+	if (g_renderBackend != nullptr)
+	{
+		// TheSuperHackers @bugfix bobtista 28/04/2026 Generated terrain
+		// textures are populated through direct surface LockRect writes.
+		// Tell bgfx to re-upload after the atlas and mip chain are complete,
+		// otherwise standalone can keep sampling an earlier partially-black
+		// cache entry.
+		g_renderBackend->Invalidate_Cached_Texture(texture);
+	}
+}
+
+void TerrainTextureClass::UpdateTerrainAtlasRegions(WorldHeightMap *htMap, unsigned int textureWidth, unsigned int textureHeight, unsigned int textureFormat)
+{
+	Clear_Atlas_Regions();
+	if (htMap == nullptr)
+	{
+		return;
+	}
+
+	const Int borderPixels = TILE_OFFSET / 2;
+	if (textureFormat != D3DFMT_A1R5G5B5)
+	{
+		return;
+	}
+
+	for (Int texClass = 0; texClass < htMap->m_numTextureClasses; texClass++)
+	{
+		Int width = htMap->m_textureClasses[texClass].width * TILE_PIXEL_EXTENT;
+		ICoord2D origin = htMap->m_textureClasses[texClass].positionInTexture;
+		if (origin.x <= 0)
+		{
+			continue;
+		}
+
+		Int x = origin.x - borderPixels;
+		Int y = origin.y - borderPixels;
+		Int regionWidth = width + borderPixels * 2;
+		Int regionHeight = width + borderPixels * 2;
+		if (x < 0)
+		{
+			regionWidth += x;
+			x = 0;
+		}
+		if (y < 0)
+		{
+			regionHeight += y;
+			y = 0;
+		}
+		if (x + regionWidth > static_cast<Int>(textureWidth))
+		{
+			regionWidth = static_cast<Int>(textureWidth) - x;
+		}
+		if (y + regionHeight > static_cast<Int>(textureHeight))
+		{
+			regionHeight = static_cast<Int>(textureHeight) - y;
+		}
+		if (regionWidth <= 0 || regionHeight <= 0)
+		{
+			continue;
+		}
+
+		Add_Atlas_Region(static_cast<unsigned>(x), static_cast<unsigned>(y),
+			static_cast<unsigned>(regionWidth), static_cast<unsigned>(regionHeight));
+	}
+}
+
+void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, IDirect3DTexture8 *texture, unsigned int level)
+{
+	if (htMap == nullptr || texture == nullptr || level == 0)
+	{
+		return;
+	}
+
+	const Int tilePixelExtent = TILE_PIXEL_EXTENT >> level;
+	if (tilePixelExtent <= 0)
+	{
+		return;
+	}
+
+	IDirect3DSurface8 *surface_level;
+	D3DSURFACE_DESC surface_desc;
+	D3DLOCKED_RECT locked_rect;
+	DX8_ErrorCode(texture->GetSurfaceLevel(level, &surface_level));
+	DX8_ErrorCode(surface_level->GetDesc(&surface_desc));
+	if (surface_desc.Format != D3DFMT_A1R5G5B5)
+	{
+		surface_level->Release();
+		return;
+	}
+
+	DX8_ErrorCode(surface_level->LockRect(&locked_rect, nullptr, 0));
+
+	const Int pixelBytes = 2;
+	for (Int tileNdx = 0; tileNdx < htMap->m_numBitmapTiles; tileNdx++)
+	{
+		TileData *pTile = htMap->getSourceTile(tileNdx);
+		if (!pTile)
+		{
+			continue;
+		}
+		UnsignedByte *pTileData = pTile->getRGBDataForWidth(tilePixelExtent);
+		if (pTileData == nullptr)
+		{
+			continue;
+		}
+
+		ICoord2D position = pTile->m_tileLocationInTexture;
+		if (position.x <= 0)
+		{
+			continue;
+		}
+
+		const Int mipColumn = position.x >> level;
+		const Int mipRow = position.y >> level;
+		for (Int j = 0; j < tilePixelExtent; j++)
+		{
+			const Int row = mipRow + j;
+			if (row < 0 || row >= static_cast<Int>(surface_desc.Height))
+			{
+				continue;
+			}
+			UnsignedByte *pBGR = pTileData + (tilePixelExtent - 1 - j) * TILE_BYTES_PER_PIXEL * tilePixelExtent;
+			UnsignedByte *pBGRX = static_cast<UnsignedByte *>(locked_rect.pBits) + row * locked_rect.Pitch + mipColumn * pixelBytes;
+			for (Int i = 0; i < tilePixelExtent; i++)
+			{
+				const Int column = mipColumn + i;
+				if (column >= 0 && column < static_cast<Int>(surface_desc.Width))
+				{
+					*((Short*)pBGRX) = 0x8000 + ((pBGR[2]>>3)<<10) + ((pBGR[1]>>3)<<5) + (pBGR[0]>>3);
+				}
+				pBGRX += pixelBytes;
+				pBGR += TILE_BYTES_PER_PIXEL;
+			}
+		}
+	}
+
+	const Int borderPixels = ((TILE_OFFSET / 2) >> level) > 0 ? ((TILE_OFFSET / 2) >> level) : 1;
+	for (Int texClass = 0; texClass < htMap->m_numTextureClasses; texClass++)
+	{
+		Int width = htMap->m_textureClasses[texClass].width * tilePixelExtent;
+		ICoord2D origin = htMap->m_textureClasses[texClass].positionInTexture;
+		if (origin.x <= 0)
+		{
+			continue;
+		}
+
+		origin.x >>= level;
+		origin.y >>= level;
+		if (origin.x - borderPixels < 0
+			|| origin.y - borderPixels < 0
+			|| origin.x + width + borderPixels > static_cast<Int>(surface_desc.Width)
+			|| origin.y + width + borderPixels > static_cast<Int>(surface_desc.Height))
+		{
+			continue;
+		}
+
+		for (Int y = 0; y < width; y++)
+		{
+			UnsignedByte *row = static_cast<UnsignedByte *>(locked_rect.pBits) + (origin.y + y) * locked_rect.Pitch;
+			for (Int b = 1; b <= borderPixels; b++)
+			{
+				memcpy(row + (origin.x - b) * pixelBytes,
+					   row + (origin.x + width - b) * pixelBytes,
+					   pixelBytes);
+			}
+			for (Int b = 0; b < borderPixels; b++)
+			{
+				memcpy(row + (origin.x + width + b) * pixelBytes,
+					   row + (origin.x + b) * pixelBytes,
+					   pixelBytes);
+			}
+		}
+
+		const Int copyBytes = (width + borderPixels * 2) * pixelBytes;
+		for (Int b = 1; b <= borderPixels; b++)
+		{
+			UnsignedByte *dst = static_cast<UnsignedByte *>(locked_rect.pBits) + (origin.y - b) * locked_rect.Pitch + (origin.x - borderPixels) * pixelBytes;
+			UnsignedByte *src = static_cast<UnsignedByte *>(locked_rect.pBits) + (origin.y + width - b) * locked_rect.Pitch + (origin.x - borderPixels) * pixelBytes;
+			memcpy(dst, src, copyBytes);
+		}
+		for (Int b = 0; b < borderPixels; b++)
+		{
+			UnsignedByte *dst = static_cast<UnsignedByte *>(locked_rect.pBits) + (origin.y + width + b) * locked_rect.Pitch + (origin.x - borderPixels) * pixelBytes;
+			UnsignedByte *src = static_cast<UnsignedByte *>(locked_rect.pBits) + (origin.y + b) * locked_rect.Pitch + (origin.x - borderPixels) * pixelBytes;
+			memcpy(dst, src, copyBytes);
+		}
+	}
+
+	surface_level->UnlockRect();
+	surface_level->Release();
+}
+
+void TerrainTextureClass::WriteTerrainAtlasMipLevels(WorldHeightMap *htMap, IDirect3DTexture8 *texture)
+{
+	if (texture == nullptr)
+	{
+		return;
+	}
+
+	const unsigned int mipCount = texture->GetLevelCount();
+	for (unsigned int level = 1; level < mipCount; level++)
+	{
+		WriteTerrainAtlasMipLevel(htMap, texture, level);
+	}
+}
+
 //-----------------------------------------------------------------------------
 //         Public Functions
 //-----------------------------------------------------------------------------
@@ -197,6 +405,9 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 	surface_level->UnlockRect();
 	surface_level->Release();
 	DX8_ErrorCode(D3DXFilterTexture(Peek_D3D_Texture(), nullptr, 0, D3DX_FILTER_BOX));
+	UpdateTerrainAtlasRegions(htMap, surface_desc.Width, surface_desc.Height, surface_desc.Format);
+	WriteTerrainAtlasMipLevels(htMap, Peek_D3D_Texture());
+	InvalidateGeneratedTerrainTexture(this);
 	if (WW3D::Get_Texture_Reduction()) {
 		Peek_D3D_Texture()->SetLOD(WW3D::Get_Texture_Reduction());
 	}
