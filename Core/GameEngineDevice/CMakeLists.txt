@@ -265,9 +265,7 @@ if(RTS_BUILD_OPTION_FFMPEG)
             Source/VideoDevice/FFmpeg/FFmpegFile.cpp
             Source/VideoDevice/FFmpeg/FFmpegVideoPlayer.cpp
         )
-        target_include_directories(corei_gameenginedevice_private INTERFACE ${FFMPEG_INCLUDE_DIRS})
-        target_link_directories(corei_gameenginedevice_private INTERFACE ${FFMPEG_LIBRARY_DIRS})
-        target_link_libraries(corei_gameenginedevice_private INTERFACE ${FFMPEG_LIBRARIES})
+        target_link_libraries(corei_gameenginedevice_private INTERFACE FFMPEG::FFMPEG)
         target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_FFMPEG)
     endif()
 endif()
