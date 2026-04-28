@@ -20,7 +20,7 @@ struct ALCcontext;
 class OpenALAudioManager : public AudioManager
 {
 public:
-	OpenALAudioManager();
+	explicit OpenALAudioManager(Bool dummy = false);
 	virtual ~OpenALAudioManager() override;
 
 #if defined(RTS_DEBUG)
@@ -77,6 +77,7 @@ protected:
 private:
 	ALCdevice *m_device;
 	ALCcontext *m_context;
+	Bool m_dummy;
 	UnsignedInt m_selectedProvider;
 	UnsignedInt m_speakerType;
 	AsciiString m_musicTrackName;
