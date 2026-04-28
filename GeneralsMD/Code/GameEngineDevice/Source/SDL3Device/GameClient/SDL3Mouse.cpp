@@ -14,6 +14,8 @@
 
 #include "SDL3GameEngine.h"
 
+SDL_Window *TheSDL3Window = NULL;
+
 SDL3Mouse::SDL3Mouse() :
 	m_nextGetIndex(0),
 	m_nextFreeIndex(0)

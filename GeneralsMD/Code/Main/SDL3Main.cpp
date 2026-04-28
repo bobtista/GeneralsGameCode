@@ -27,7 +27,6 @@ namespace
 int __argc = 0;
 char **__argv = NULL;
 
-SDL_Window *TheSDL3Window = NULL;
 void *ApplicationHWnd = NULL;
 
 extern Int GameMain();

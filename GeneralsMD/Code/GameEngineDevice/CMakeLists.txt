@@ -202,13 +202,17 @@ endif()
 
 if(SAGE_USE_SDL3)
     list(APPEND GAMEENGINEDEVICE_SRC
-        Include/SDL3GameEngine.h
         Include/SDL3Device/GameClient/SDL3Keyboard.h
         Include/SDL3Device/GameClient/SDL3Mouse.h
-        Source/SDL3GameEngine.cpp
         Source/SDL3Device/GameClient/SDL3Keyboard.cpp
         Source/SDL3Device/GameClient/SDL3Mouse.cpp
     )
+    if(NOT WIN32)
+        list(APPEND GAMEENGINEDEVICE_SRC
+            Include/SDL3GameEngine.h
+            Source/SDL3GameEngine.cpp
+        )
+    endif()
 endif()
 
 add_library(z_gameenginedevice STATIC)
