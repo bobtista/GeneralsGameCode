@@ -48,6 +48,9 @@
 #include <bgfx/bgfx.h>
 #include <bgfx/platform.h>
 #include <bx/math.h>
+#if defined(SAGE_USE_SDL3)
+#include <SDL3/SDL.h>
+#endif
 
 // TheSuperHackers @refactor bobtista 16/04/2026 bgfx takes the main
 // game window. A secondary popup is created for D3D8 reference output.
@@ -61,9 +64,27 @@
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Compiled shader
 // bytecode. These headers are generated at build time by ggc_compile_bgfx_shader
-// (cmake/bgfx.cmake) and end up in the target's binary dir. They define
-// vs_passthrough_dx11[] and fs_passthrough_dx11[] as static const uint8_t
-// arrays we hand to bgfx::createShader via bgfx::makeRef.
+// (cmake/bgfx.cmake) and end up in the target's binary dir.
+#if defined(GGC_BGFX_RENDERER_METAL)
+#include "vs_passthrough_metal.bin.h"
+#include "fs_passthrough_metal.bin.h"
+#include "vs_uber_metal.bin.h"
+#include "vs_trees_metal.bin.h"
+#include "fs_uber_metal.bin.h"
+#include "vs_shadow_volume_metal.bin.h"
+#include "fs_shadow_volume_metal.bin.h"
+#include "vs_shadow_apply_metal.bin.h"
+#include "fs_shadow_apply_metal.bin.h"
+#include "vs_shadow_caster_metal.bin.h"
+#include "fs_shadow_caster_metal.bin.h"
+#include "vs_scene_composite_metal.bin.h"
+#include "fs_scene_composite_metal.bin.h"
+#include "vs_scene_depth_metal.bin.h"
+#include "fs_scene_depth_metal.bin.h"
+#include "vs_smudge_metal.bin.h"
+#include "fs_smudge_metal.bin.h"
+#define GGC_BGFX_SHADER(name) name##_metal
+#else
 #include "vs_passthrough_dx11.bin.h"
 #include "fs_passthrough_dx11.bin.h"
 
@@ -91,6 +112,8 @@
 #include "fs_scene_depth_dx11.bin.h"
 #include "vs_smudge_dx11.bin.h"
 #include "fs_smudge_dx11.bin.h"
+#define GGC_BGFX_SHADER(name) name##_dx11
+#endif
 
 #include "BgfxBackendState.h"
 
@@ -779,6 +802,36 @@ bgfx::ProgramHandle CreateShaderProgram(
     }
     WWDEBUG_SAY(("[BgfxBackend] %s + %s createShader FAILED.", vsName, fsName));
     return BGFX_INVALID_HANDLE;
+}
+
+bgfx::RendererType::Enum GetConfiguredRendererType()
+{
+#if defined(GGC_BGFX_RENDERER_METAL)
+    return bgfx::RendererType::Metal;
+#elif defined(GGC_BGFX_RENDERER_VULKAN)
+    return bgfx::RendererType::Vulkan;
+#else
+    return bgfx::RendererType::Direct3D11;
+#endif
+}
+
+void *GetNativeWindowHandle(void *window)
+{
+#if defined(SAGE_USE_SDL3)
+    SDL_Window *sdlWindow = static_cast<SDL_Window *>(window);
+    if (sdlWindow != NULL)
+    {
+        SDL_PropertiesID props = SDL_GetWindowProperties(sdlWindow);
+#if defined(__APPLE__)
+        return SDL_GetPointerProperty(props, SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, NULL);
+#elif defined(_WIN32)
+        return SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, window);
+#else
+        return window;
+#endif
+    }
+#endif
+    return window;
 }
 
 void BuildStandardVertexLayouts()
@@ -1954,14 +2007,14 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 
     bgfx::PlatformData pd;
     pd.ndt = nullptr;
-    pd.nwh = g_device.window;
+    pd.nwh = GetNativeWindowHandle(g_device.window);
     pd.context = nullptr;
     pd.backBuffer = nullptr;
     pd.backBufferDS = nullptr;
     bgfx::setPlatformData(pd);
 
     bgfx::Init initArgs;
-    initArgs.type = bgfx::RendererType::Count;
+    initArgs.type = GetConfiguredRendererType();
     initArgs.callback = &g_bgfxCallback;
     initArgs.resolution.width = static_cast<uint32_t>(g_device.width);
     initArgs.resolution.height = static_cast<uint32_t>(g_device.height);
@@ -2168,18 +2221,18 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     BuildStandardVertexLayouts();
 
     g_device.passthroughProgram = CreateShaderProgram(
-        vs_passthrough_dx11, sizeof(vs_passthrough_dx11), "vs_passthrough",
-        fs_passthrough_dx11, sizeof(fs_passthrough_dx11), "fs_passthrough");
+        GGC_BGFX_SHADER(vs_passthrough), sizeof(GGC_BGFX_SHADER(vs_passthrough)), "vs_passthrough",
+        GGC_BGFX_SHADER(fs_passthrough), sizeof(GGC_BGFX_SHADER(fs_passthrough)), "fs_passthrough");
 
     g_device.sceneCompositeProgram = CreateShaderProgram(
-        vs_scene_composite_dx11, sizeof(vs_scene_composite_dx11), "vs_scene_composite",
-        fs_scene_composite_dx11, sizeof(fs_scene_composite_dx11), "fs_scene_composite");
+        GGC_BGFX_SHADER(vs_scene_composite), sizeof(GGC_BGFX_SHADER(vs_scene_composite)), "vs_scene_composite",
+        GGC_BGFX_SHADER(fs_scene_composite), sizeof(GGC_BGFX_SHADER(fs_scene_composite)), "fs_scene_composite");
     g_device.sceneDepthProgram = CreateShaderProgram(
-        vs_scene_depth_dx11, sizeof(vs_scene_depth_dx11), "vs_scene_depth",
-        fs_scene_depth_dx11, sizeof(fs_scene_depth_dx11), "fs_scene_depth");
+        GGC_BGFX_SHADER(vs_scene_depth), sizeof(GGC_BGFX_SHADER(vs_scene_depth)), "vs_scene_depth",
+        GGC_BGFX_SHADER(fs_scene_depth), sizeof(GGC_BGFX_SHADER(fs_scene_depth)), "fs_scene_depth");
     g_device.smudgeProgram = CreateShaderProgram(
-        vs_smudge_dx11, sizeof(vs_smudge_dx11), "vs_smudge",
-        fs_smudge_dx11, sizeof(fs_smudge_dx11), "fs_smudge");
+        GGC_BGFX_SHADER(vs_smudge), sizeof(GGC_BGFX_SHADER(vs_smudge)), "vs_smudge",
+        GGC_BGFX_SHADER(fs_smudge), sizeof(GGC_BGFX_SHADER(fs_smudge)), "fs_smudge");
     ApplySceneFramebufferToViews();
 
     // Fullscreen-clear VB. Single triangle in NDC that covers the entire
@@ -2250,20 +2303,20 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         bgfx::copy(kWaterPixel, sizeof(kWaterPixel)));
 
     g_device.uberProgram = CreateShaderProgram(
-        vs_uber_dx11, sizeof(vs_uber_dx11), "vs_uber",
-        fs_uber_dx11, sizeof(fs_uber_dx11), "fs_uber");
+        GGC_BGFX_SHADER(vs_uber), sizeof(GGC_BGFX_SHADER(vs_uber)), "vs_uber",
+        GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
 
     g_device.treeProgram = CreateShaderProgram(
-        vs_trees_dx11, sizeof(vs_trees_dx11), "vs_trees",
-        fs_uber_dx11, sizeof(fs_uber_dx11), "fs_uber");
+        GGC_BGFX_SHADER(vs_trees), sizeof(GGC_BGFX_SHADER(vs_trees)), "vs_trees",
+        GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
 
     g_device.shadowVolumeProgram = CreateShaderProgram(
-        vs_shadow_volume_dx11, sizeof(vs_shadow_volume_dx11), "vs_shadow_volume",
-        fs_shadow_volume_dx11, sizeof(fs_shadow_volume_dx11), "fs_shadow_volume");
+        GGC_BGFX_SHADER(vs_shadow_volume), sizeof(GGC_BGFX_SHADER(vs_shadow_volume)), "vs_shadow_volume",
+        GGC_BGFX_SHADER(fs_shadow_volume), sizeof(GGC_BGFX_SHADER(fs_shadow_volume)), "fs_shadow_volume");
 
     g_device.shadowApplyProgram = CreateShaderProgram(
-        vs_shadow_apply_dx11, sizeof(vs_shadow_apply_dx11), "vs_shadow_apply",
-        fs_shadow_apply_dx11, sizeof(fs_shadow_apply_dx11), "fs_shadow_apply");
+        GGC_BGFX_SHADER(vs_shadow_apply), sizeof(GGC_BGFX_SHADER(vs_shadow_apply)), "vs_shadow_apply",
+        GGC_BGFX_SHADER(fs_shadow_apply), sizeof(GGC_BGFX_SHADER(fs_shadow_apply)), "fs_shadow_apply");
     g_uniforms.uShadowColor = bgfx::createUniform("u_shadowColor", bgfx::UniformType::Vec4);
     g_uniforms.uShadowBias  = bgfx::createUniform("u_shadowBias",  bgfx::UniformType::Vec4);
     g_uniforms.uPostParams = bgfx::createUniform("u_postParams", bgfx::UniformType::Vec4);
@@ -2271,8 +2324,8 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uSoftParticleParams = bgfx::createUniform("u_softParticleParams", bgfx::UniformType::Vec4);
 
     g_device.shadowCasterProgram = CreateShaderProgram(
-        vs_shadow_caster_dx11, sizeof(vs_shadow_caster_dx11), "vs_shadow_caster",
-        fs_shadow_caster_dx11, sizeof(fs_shadow_caster_dx11), "fs_shadow_caster");
+        GGC_BGFX_SHADER(vs_shadow_caster), sizeof(GGC_BGFX_SHADER(vs_shadow_caster)), "vs_shadow_caster",
+        GGC_BGFX_SHADER(fs_shadow_caster), sizeof(GGC_BGFX_SHADER(fs_shadow_caster)), "fs_shadow_caster");
 
     // Shadow map depth render target. 1024x1024 D24 with compare-less
     // sampling for hardware PCF (sampler2DShadow in fs_uber).
