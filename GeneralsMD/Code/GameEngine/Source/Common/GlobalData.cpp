@@ -32,6 +32,11 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+#ifdef _UNIX
+#include <filesystem>
+#include <stdlib.h>
+#endif
+
 #include "ww3d.h"
 #include "texturefilter.h"
 
@@ -1459,6 +1464,51 @@ UnsignedInt GlobalData::generateExeCRC()
 
 AsciiString GlobalData::BuildUserDataPathFromRegistry()
 {
+#ifdef _UNIX
+	// TheSuperHackers @feature bobtista 28/04/2026 Non-Windows user data
+	// directory. Adapted from fbraz3/GeneralsX (Bender 01/04/2026).
+	//   macOS: ~/Library/Application Support/Command and Conquer Generals Zero Hour Data/
+	//   Linux: $XDG_DATA_HOME/Command and Conquer Generals Zero Hour Data/
+	//          (falls back to ~/.local/share/...)
+	const char *kLeafName = "Command and Conquer Generals Zero Hour Data";
+
+	std::filesystem::path basePath;
+	const char *home = getenv("HOME");
+
+#ifdef __APPLE__
+	if (home != nullptr && home[0] != '\0')
+	{
+		basePath = std::filesystem::path(home) / "Library" / "Application Support";
+	}
+#else
+	const char *xdgDataHome = getenv("XDG_DATA_HOME");
+	if (xdgDataHome != nullptr && xdgDataHome[0] != '\0')
+	{
+		basePath = std::filesystem::path(xdgDataHome);
+	}
+	else if (home != nullptr && home[0] != '\0')
+	{
+		basePath = std::filesystem::path(home) / ".local" / "share";
+	}
+#endif
+
+	if (basePath.empty())
+	{
+		basePath = ".";
+	}
+
+	std::filesystem::path fullPath = basePath / kLeafName;
+	std::error_code ec;
+	std::filesystem::create_directories(fullPath, ec);
+
+	AsciiString userDataDir = fullPath.string().c_str();
+	if (!userDataDir.endsWith("/"))
+	{
+		userDataDir.concat('/');
+	}
+
+	return userDataDir;
+#else
 #if defined(_MSC_VER) && (_MSC_VER < 1300)
 	// VC6 lacks FOLDERID_Documents and KF_FLAG_DEFAULT
 	const GUID FOLDERID_Documents = { 0xFDD39AD0, 0x238F, 0x46AF, 0xAD, 0xB4, 0x6C, 0x85, 0x48, 0x03, 0x69, 0xC7 };
@@ -1513,4 +1563,5 @@ AsciiString GlobalData::BuildUserDataPathFromRegistry()
 	}
 
 	return myDocumentsDirectory;
+#endif // _UNIX
 }
