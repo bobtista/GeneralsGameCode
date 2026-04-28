@@ -42,6 +42,10 @@ StdLocalFileSystem::~StdLocalFileSystem() {
 }
 
 //DECLARE_PERF_TIMER(StdLocalFileSystem_openFile)
+StdLocalFileSystem::StdLocalFileSystem() = default;
+
+StdLocalFileSystem::~StdLocalFileSystem() = default;
+
 static std::filesystem::path fixFilenameFromWindowsPath(const Char *filename, Int access)
 {
 	std::string fixedFilename(filename);
