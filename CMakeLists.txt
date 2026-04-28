@@ -76,6 +76,10 @@ if(DEFINED GGC_RENDER_BACKEND_COMPILE_DEFINE)
     add_compile_definitions(${GGC_RENDER_BACKEND_COMPILE_DEFINE})
 endif()
 
+if(SAGE_USE_SDL3)
+    include(cmake/sdl3.cmake)
+endif()
+
 if (IS_VS6_BUILD)
     # The original max sdk does not compile against a modern compiler.
     # If there is a desire to make this work, then a fixed max sdk needs to be created.
