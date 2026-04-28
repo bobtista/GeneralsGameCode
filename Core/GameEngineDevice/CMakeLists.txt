@@ -229,6 +229,13 @@ if(NOT IS_VS6_BUILD)
     )
 endif()
 
+if(SAGE_USE_OPENAL)
+    list(APPEND GAMEENGINEDEVICE_SRC
+        Include/OpenALAudioDevice/OpenALAudioManager.h
+        Source/OpenALAudioDevice/OpenALAudioManager.cpp
+    )
+endif()
+
 add_library(corei_gameenginedevice_private INTERFACE)
 add_library(corei_gameenginedevice_public INTERFACE)
 
@@ -253,6 +260,10 @@ if(WIN32)
         d3d8lib
         milesstub
     )
+endif()
+
+if(SAGE_USE_OPENAL)
+    target_link_libraries(corei_gameenginedevice_public INTERFACE OpenAL::OpenAL)
 endif()
 
 if(RTS_BUILD_OPTION_FFMPEG)
