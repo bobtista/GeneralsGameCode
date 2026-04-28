@@ -60,6 +60,18 @@ if(FFMPEG_FOUND)
     if(PC_FFMPEG_LIBRARY_DIRS)
         set(FFMPEG_LIBRARY_DIRS ${PC_FFMPEG_LIBRARY_DIRS})
     endif()
+    if(NOT TARGET FFMPEG::FFMPEG)
+        add_library(FFMPEG::FFMPEG INTERFACE IMPORTED)
+        set_target_properties(FFMPEG::FFMPEG PROPERTIES
+            INTERFACE_INCLUDE_DIRECTORIES "${FFMPEG_INCLUDE_DIRS}"
+            INTERFACE_LINK_LIBRARIES "${FFMPEG_LIBRARIES}"
+        )
+        if(FFMPEG_LIBRARY_DIRS)
+            set_target_properties(FFMPEG::FFMPEG PROPERTIES
+                INTERFACE_LINK_DIRECTORIES "${FFMPEG_LIBRARY_DIRS}"
+            )
+        endif()
+    endif()
 endif()
 
 mark_as_advanced(
