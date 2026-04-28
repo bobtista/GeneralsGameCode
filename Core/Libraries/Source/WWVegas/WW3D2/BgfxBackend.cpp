@@ -51,6 +51,7 @@
 
 // TheSuperHackers @refactor bobtista 16/04/2026 bgfx takes the main
 // game window. A secondary popup is created for D3D8 reference output.
+#if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
@@ -58,6 +59,7 @@
 #define NOMINMAX
 #endif
 #include <windows.h>
+#endif
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Compiled shader
 // bytecode. These headers are generated at build time by ggc_compile_bgfx_shader
@@ -363,19 +365,26 @@ bgfx::RendererType::Enum GetConfiguredRendererType()
 
 void *GetNativeWindowHandle(void *window)
 {
+    if (window == NULL)
+    {
+        return NULL;
+    }
 #if defined(SAGE_USE_SDL3)
     SDL_Window *sdlWindow = static_cast<SDL_Window *>(window);
-    if (sdlWindow != NULL)
-    {
-        SDL_PropertiesID props = SDL_GetWindowProperties(sdlWindow);
+    SDL_PropertiesID props = SDL_GetWindowProperties(sdlWindow);
 #if defined(__APPLE__)
-        return SDL_GetPointerProperty(props, SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, NULL);
-#elif defined(_WIN32)
-        return SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, window);
-#else
-        return window;
-#endif
+    void *nativeWindow = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_COCOA_WINDOW_POINTER, NULL);
+    if (nativeWindow != NULL)
+    {
+        return nativeWindow;
     }
+#elif defined(_WIN32)
+    void *nativeWindow = SDL_GetPointerProperty(props, SDL_PROP_WINDOW_WIN32_HWND_POINTER, NULL);
+    if (nativeWindow != NULL)
+    {
+        return nativeWindow;
+    }
+#endif
 #endif
     return window;
 }
