@@ -100,6 +100,8 @@ set(WWLIB_SRC
     ref_ptr.h
     refcount.cpp
     refcount.h
+    registryini.cpp
+    registryini.h
     #regexpr.cpp
     #regexpr.h
     #search.h
@@ -175,15 +177,28 @@ target_include_directories(core_wwlib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_precompile_headers(core_wwlib PRIVATE
-    [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
-    always.h
-    STLUtils.h
-    win.h
-    WWCommon.h
-    wwstring.h
-    <windows.h>
-)
+# TheSuperHackers @build bobtista 28/04/2026 Skip <windows.h> in the
+# precompiled header on non-Windows builds so wwlib can compile on Linux/macOS.
+if(WIN32)
+    target_precompile_headers(core_wwlib PRIVATE
+        [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
+        always.h
+        STLUtils.h
+        win.h
+        WWCommon.h
+        wwstring.h
+        <windows.h>
+    )
+else()
+    target_precompile_headers(core_wwlib PRIVATE
+        [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
+        always.h
+        STLUtils.h
+        win.h
+        WWCommon.h
+        wwstring.h
+    )
+endif()
 
 target_link_libraries(core_wwlib PRIVATE
     core_wwcommon
