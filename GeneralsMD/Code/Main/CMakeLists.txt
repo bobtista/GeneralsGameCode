@@ -1,4 +1,8 @@
-add_executable(z_generals WIN32)
+if(WIN32)
+    add_executable(z_generals WIN32)
+else()
+    add_executable(z_generals)
+endif()
 
 # Use a binary name that doesn't conflict with original game.
 if("${CMAKE_SYSTEM}" MATCHES "Windows")
@@ -8,23 +12,31 @@ else()
 endif()
 
 target_link_libraries(z_generals PRIVATE
-    binkstub
-    comctl32
     core_debug
     core_profile_legacy
-    d3d8
-    d3dx8
-    dinput8
-    dxguid
-    imm32
-    milesstub
-    vfw32
-    winmm
     z_gameengine
     z_gameenginedevice
     zi_always
 )
 
+if(WIN32)
+    target_link_libraries(z_generals PRIVATE
+        binkstub
+        d3d8
+        d3dx8
+        comctl32
+        dinput8
+        dxguid
+        imm32
+        milesstub
+        vfw32
+        winmm
+    )
+endif()
+
+if(SAGE_USE_SDL3)
+    target_link_libraries(z_generals PRIVATE sdl3lib)
+endif()
 # TODO Originally referred to build host and user, replace with git info perhaps?
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/GeneratedVersion.h
 "#pragma once
@@ -55,8 +67,9 @@ target_include_directories(z_generals PRIVATE
 )
 
 target_sources(z_generals PRIVATE
-    WinMain.cpp
-    WinMain.h
+    $<$<BOOL:${WIN32}>:WinMain.cpp>
+    $<$<BOOL:${WIN32}>:WinMain.h>
+    $<$<AND:$<NOT:$<BOOL:${WIN32}>>,$<BOOL:${SAGE_USE_SDL3}>>:SDL3Main.cpp>
 )
 
 # RC files optional for MinGW builds
