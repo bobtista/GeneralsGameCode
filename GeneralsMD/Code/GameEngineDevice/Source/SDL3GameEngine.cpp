@@ -230,10 +230,7 @@ WebBrowser *SDL3GameEngine::createWebBrowser()
 AudioManager *SDL3GameEngine::createAudioManager(Bool dummy)
 {
 #if defined(SAGE_USE_OPENAL)
-    if (!dummy)
-    {
-        return NEW OpenALAudioManager;
-    }
+    return NEW OpenALAudioManager(dummy);
 #endif
     return NULL;
 }
