@@ -51,7 +51,7 @@
 #include "Common/Recorder.h"
 #include "GameClient/MessageBox.h"
 
-#if defined(DEBUG_CRC) && !RETAIL_COMPATIBLE_NETWORKING
+#if defined(DEBUG_CRC)
 Int NET_CRC_INTERVAL = 1;
 #else
 Int NET_CRC_INTERVAL = 100;

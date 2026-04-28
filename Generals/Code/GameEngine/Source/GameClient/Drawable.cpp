@@ -1544,8 +1544,8 @@ void Drawable::calcPhysicsXformTreads(const Locomotor* locomotor, PhysicsXformIn
 				up.normalize();
 
 				Coord3D prp;
-				prp.crossProduct(v, up, prp);
-				normal.crossProduct(prp, v, normal);
+				prp.crossProduct(&v, &up, &prp);
+				normal.crossProduct(&prp, &v, &normal);
 
 				// compute unit normal
 				normal.normalize();
@@ -3819,7 +3819,7 @@ void Drawable::startAmbientSound(BodyDamageType dt, TimeOfDay tod)
 			{
 				// Check if it's close enough to try playing (optimization)
 				Coord3D vector = *getPosition();
-				vector.sub(*TheAudio->getListenerPosition());
+				vector.sub(TheAudio->getListenerPosition());
 				Real distSqr = vector.lengthSqr();
 				if (distSqr < sqr(info->m_maxDistance))
 				{

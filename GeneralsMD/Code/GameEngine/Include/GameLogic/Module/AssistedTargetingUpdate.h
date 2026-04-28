@@ -46,6 +46,8 @@ public:
 	{
 		m_clipSize = 1;
 		m_weaponSlot = PRIMARY_WEAPON;
+		m_laserFromAssistedName.clear();
+		m_laserToTargetName.clear();
 	}
 
 	static void buildFieldParse(MultiIniFieldParse& p);

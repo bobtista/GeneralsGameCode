@@ -529,7 +529,7 @@ StateReturnType AIRappelState::onEnter()
 		obj->setLayer(layerAtDest);
 
 	AIUpdateInterface* ai = obj->getAI();
-	Real MAX_RAPPEL_RATE = fabs(TheGlobalData->m_gravity) * LOGICFRAMES_PER_SECOND * 2.5f;
+	Real MAX_RAPPEL_RATE = WWMath::FAbsOrigin(TheGlobalData->m_gravity) * LOGICFRAMES_PER_SECOND * 2.5f;
 	m_rappelRate = -min(ai->getDesiredSpeed(), MAX_RAPPEL_RATE);
 
 	return STATE_CONTINUE;
@@ -3705,7 +3705,7 @@ StateReturnType AIAttackMoveToState::update()
 		{
 			return ret;
 		}
-		DEBUG_LOG(("AIAttackMoveToState::update Distance from goal %f, retrying.", sqrt(distSqr)));
+		DEBUG_LOG(("AIAttackMoveToState::update Distance from goal %f, retrying.", WWMath::SqrtOrigin(distSqr)));
 
 		ret = STATE_CONTINUE;
 		m_retryCount--;
@@ -3952,7 +3952,7 @@ void AIFollowWaypointPathState::computeGoal(Bool useGroupOffsets)
 	{
 		dx = dest.x - m_priorWaypoint->getLocation()->x;
 		dy = dest.y - m_priorWaypoint->getLocation()->y;
-		angle = atan2(dy, dx);
+		angle = WWMath::Atan2Origin(dy, dx);
 		Real deltaAngle = angle - m_angle;
 		Real s = sin(deltaAngle);
 		Real c = cos(deltaAngle);
@@ -3963,7 +3963,7 @@ void AIFollowWaypointPathState::computeGoal(Bool useGroupOffsets)
 	}
 	else
 	{
-		angle = atan2(dy, dx);
+		angle = WWMath::Atan2Origin(dy, dx);
 	}
 	m_angle = angle;
 #endif
@@ -3984,7 +3984,7 @@ void AIFollowWaypointPathState::computeGoal(Bool useGroupOffsets)
 	}
 	Region3D extent;
 	TheTerrainLogic->getMaximumPathfindExtent(&extent);
-	if (!extent.isInRegionNoZ(m_goalPosition))
+	if (!extent.isInRegionNoZ(&m_goalPosition))
 	{
 		setAdjustsDestination(false);    // moving off the map.
 		ai->getCurLocomotor()->setAllowInvalidPosition(true);    // allow it to move off the map.
@@ -5143,7 +5143,7 @@ StateReturnType AIAttackAimAtTargetState::update()
 		// DEBUG_LOG(("AIM: desired %f, actual %f, delta %f, aimDelta %f, goalpos %f %f",rad2deg(obj->getOrientation() + relAngle),rad2deg(obj->getOrientation()),rad2deg(relAngle),rad2deg(aimDelta),victim->getPosition()->x,victim->getPosition()->y));
 		if (m_canTurnInPlace)
 		{
-			if (fabs(relAngle) > aimDelta)
+			if (WWMath::FAbsOrigin(relAngle) > aimDelta)
 			{
 				Real desiredAngle = source->getOrientation() + relAngle;
 				sourceAI->setLocomotorGoalOrientation(desiredAngle);
@@ -5155,7 +5155,7 @@ StateReturnType AIAttackAimAtTargetState::update()
 			sourceAI->setLocomotorGoalPositionExplicit(m_isAttackingObject ? *victim->getPosition() : *getMachineGoalPosition());
 		}
 
-		if (fabs(relAngle) < aimDelta /*&& !m_preAttackFrames*/)
+		if (WWMath::FAbsOrigin(relAngle) < aimDelta /*&& !m_preAttackFrames*/)
 		{
 			AIUpdateInterface* victimAI = victim ? victim->getAI() : nullptr;
 			// add ourself as a targeter BEFORE calling isTemporarilyPreventingAimSuccess().
@@ -7246,7 +7246,7 @@ StateReturnType AIFaceState::update()
 	Real relAngle = ThePartitionManager->getRelativeAngle2D(obj, pos);
 
 	const Real REL_THRESH = 0.035f;    // about 2 degrees. (getRelativeAngle2D is current only accurate to about 1.25 degrees)
-	if (fabs(relAngle) < REL_THRESH)
+	if (WWMath::FAbsOrigin(relAngle) < REL_THRESH)
 	{
 		return STATE_SUCCESS;
 	}

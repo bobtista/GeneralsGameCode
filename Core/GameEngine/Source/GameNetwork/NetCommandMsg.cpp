@@ -94,8 +94,12 @@ Int NetCommandMsg::getSortNumber() const
  */
 NetGameCommandMsg::NetGameCommandMsg()
 {
+	m_argSize = 0;
+	m_numArgs = 0;
 	m_type = (GameMessage::Type)0;
 	m_commandType = NETCOMMANDTYPE_GAMECOMMAND;
+	m_argList = nullptr;
+	m_argTail = nullptr;
 }
 
 /**
@@ -105,16 +109,12 @@ NetGameCommandMsg::NetGameCommandMsg()
 NetGameCommandMsg::NetGameCommandMsg(GameMessage* msg)
 {
 	m_commandType = NETCOMMANDTYPE_GAMECOMMAND;
+
 	m_type = msg->getType();
-
-	const size_t argsCount = msg->getArgumentCount();
-	m_argList.reserve(argsCount);
-
-	for (size_t i = 0; i < argsCount; ++i)
+	Int count = msg->getArgumentCount();
+	for (Int i = 0; i < count; ++i)
 	{
-		GameMessageArgumentDataType argType = msg->getArgumentDataType(i);
-		const GameMessageArgumentType* arg = msg->getArgument(i);
-		addArgument(argType, *arg);
+		addArgument(msg->getArgumentDataType(i), *(msg->getArgument(i)));
 	}
 }
 
@@ -123,9 +123,12 @@ NetGameCommandMsg::NetGameCommandMsg(GameMessage* msg)
  */
 NetGameCommandMsg::~NetGameCommandMsg()
 {
-	for (size_t i = 0; i < m_argList.size(); ++i)
+	GameMessageArgument* arg = m_argList;
+	while (arg != nullptr)
 	{
-		deleteInstance(m_argList[i]);
+		m_argList = m_argList->m_next;
+		deleteInstance(arg);
+		arg = m_argList;
 	}
 }
 
@@ -134,10 +137,22 @@ NetGameCommandMsg::~NetGameCommandMsg()
  */
 void NetGameCommandMsg::addArgument(const GameMessageArgumentDataType type, GameMessageArgumentType arg)
 {
+	if (m_argTail == nullptr)
+	{
+		m_argList = newInstance(GameMessageArgument);
+		m_argTail = m_argList;
+		m_argList->m_data = arg;
+		m_argList->m_type = type;
+		m_argList->m_next = nullptr;
+		return;
+	}
+
 	GameMessageArgument* newArg = newInstance(GameMessageArgument);
 	newArg->m_data = arg;
 	newArg->m_type = type;
-	m_argList.push_back(newArg);
+	newArg->m_next = nullptr;
+	m_argTail->m_next = newArg;
+	m_argTail = newArg;
 }
 
 // here's where we figure out which slot corresponds to which player
@@ -167,9 +182,10 @@ GameMessage* NetGameCommandMsg::constructGameMessage() const
 	name.format("player%d", getPlayerID());
 	retval->friend_setPlayerIndex(ThePlayerList->findPlayerWithNameKey(TheNameKeyGenerator->nameToKey(name))->getPlayerIndex());
 
-	for (size_t i = 0; i < m_argList.size(); ++i)
+	GameMessageArgument* arg = m_argList;
+	while (arg != nullptr)
 	{
-		const GameMessageArgument* arg = m_argList[i];
+
 		switch (arg->m_type)
 		{
 
@@ -207,6 +223,8 @@ GameMessage* NetGameCommandMsg::constructGameMessage() const
 				retval->appendWideCharArgument(arg->m_data.wChar);
 				break;
 		}
+
+		arg = arg->m_next;
 	}
 	return retval;
 }

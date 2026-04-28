@@ -843,7 +843,7 @@ LegalBuildCode BuildAssistant::isLocationLegalToBuild(const Coord3D* worldPos,
 	/* You just can't never build off the map, regardless of options.  jba. */
 	Region3D mapExtent;
 	TheTerrainLogic->getMaximumPathfindExtent(&mapExtent);
-	if (!mapExtent.isInRegionNoZ(*worldPos))
+	if (!mapExtent.isInRegionNoZ(worldPos))
 	{
 		return LBC_RESTRICTED_TERRAIN;
 	}
@@ -1380,7 +1380,7 @@ Bool BuildAssistant::moveObjectsForConstruction(const ThingTemplate* whatToBuild
 	Bool anyUnmovables = false;
 	MemoryPoolObjectHolder hold(iter);
 
-	Real radius = sqrt(pow(gi.getMajorRadius(), 2) + pow(gi.getMinorRadius(), 2));
+	Real radius = WWMath::SqrtOrigin(WWMath::PowOrigin(gi.getMajorRadius(), 2) + WWMath::PowOrigin(gi.getMinorRadius(), 2));
 	radius *= 1.4f;    // Fudge the distance,
 
 	for (Object* them = iter->first(); them; them = iter->next())

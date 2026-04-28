@@ -128,7 +128,7 @@ void LaserUpdate::updateStartPos()
 			//       create a nasty assert.
 			// TheGameClient->destroyDrawable( getDrawable() );
 
-			m_startPos.set(*parentDrawable->getPosition());
+			m_startPos.set(parentDrawable->getPosition());
 			DEBUG_CRASH(("LaserUpdate::updateStartPos() -- Drawable %s is expecting to find a bone %s but can't. Defaulting to position of drawable.",
 			             parentDrawable->getTemplate()->getName().str(), m_parentBoneName.str()));
 
@@ -399,8 +399,8 @@ void LaserUpdate::initLaser(const Object* parent, const Object* target, const Co
 	Coord3D posToUse;
 	if (parent == nullptr)
 	{
-		posToUse.set(*startPos);
-		posToUse.add(*endPos);
+		posToUse.set(startPos);
+		posToUse.add(endPos);
 		posToUse.scale(0.5);
 	}
 	else

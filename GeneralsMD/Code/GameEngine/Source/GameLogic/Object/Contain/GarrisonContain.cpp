@@ -288,7 +288,7 @@ Bool GarrisonContain::calcBestGarrisonPosition(Coord3D* sourcePos, const Coord3D
 		return FALSE;
 	}
 
-	sourcePos->set(m_garrisonPoint[conditionIndex][placeIndex]);
+	sourcePos->set(&(m_garrisonPoint[conditionIndex][placeIndex]));
 	return TRUE;
 }
 

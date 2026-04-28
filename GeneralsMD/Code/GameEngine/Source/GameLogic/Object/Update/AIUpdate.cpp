@@ -1330,8 +1330,8 @@ Bool AIUpdateInterface::blockedBy(Object* other)
 	// If we are near our final goal, don't get stuck.
 	if (goalCell.x > 0 && goalCell.y > 0)
 	{
-		Real dx = fabs(goalPos.x - pos.x);
-		Real dy = fabs(goalPos.y - pos.y);
+		Real dx = WWMath::FAbsOrigin(goalPos.x - pos.x);
+		Real dy = WWMath::FAbsOrigin(goalPos.y - pos.y);
 		if (dx < PATHFIND_CELL_SIZE_F && dy < PATHFIND_CELL_SIZE_F)
 		{
 			return FALSE;    // If we're approaching our goal, ignore obstacles.
@@ -1467,7 +1467,7 @@ Bool AIUpdateInterface::needToRotate()
 		deltaAngle = ThePartitionManager->getRelativeAngle2D(getObject(), &info.posOnPath);
 	}
 
-	if (fabs(deltaAngle) > PI / 30)
+	if (WWMath::FAbsOrigin(deltaAngle) > PI / 30)
 	{
 		return TRUE;
 	}
@@ -1753,11 +1753,11 @@ Bool AIUpdateInterface::computePath(PathfindServicesInterface* pathServices, Coo
 	m_retryPath = false;
 	Region3D extent;
 	TheTerrainLogic->getMaximumPathfindExtent(&extent);
-	if (!extent.isInRegionNoZ(*destination))
+	if (!extent.isInRegionNoZ(destination))
 	{
 		// We're going off the map.
 		Coord3D pos = *getObject()->getPosition();
-		if (!extent.isInRegionNoZ(pos))
+		if (!extent.isInRegionNoZ(&pos))
 		{
 			// We're starting off the map.  Since we're off the map, we can't pathfind so just build a path.
 			return computeQuickPath(destination);
@@ -2074,7 +2074,7 @@ Bool AIUpdateInterface::computeAttackPath(PathfindServicesInterface* pathService
 				// If the move is a short distance, just do a find closest path to our current
 				// position.  This will unstack us if we are on top of another unit. jba.
 				Coord3D objPos = *getObject()->getPosition();
-				goal.sub(objPos);
+				goal.sub(&objPos);
 				if (goal.length() < 3 * PATHFIND_CELL_SIZE_F)
 				{
 					destroyPath();
@@ -2371,7 +2371,7 @@ UpdateSleepTime AIUpdateInterface::doLocomotor()
 						}
 						else
 						{
-							Real dist = sqrtf(dSqr);
+							Real dist = WWMath::SqrtfOrigin(dSqr);
 							if (dist < 1)
 								dist = 1;
 							pos.x += 2 * PATHFIND_CELL_SIZE_F * dx / (dist * LOGICFRAMES_PER_SECOND);
@@ -2568,7 +2568,7 @@ Real AIUpdateInterface::getLocomotorDistanceToGoal()
 					dest = m_path->getLastNode()->getPosition();
 				}
 				Real distance = ThePartitionManager->getDistanceSquared(me, dest, FROM_CENTER_3D);
-				return sqrt(distance);    // Other paths return dots of normalized vectors, so one sqrt ain't so bad
+				return WWMath::SqrtOrigin(distance);    // Other paths return dots of normalized vectors, so one sqrt ain't so bad
 			}
 			else
 			{
@@ -2603,7 +2603,7 @@ Real AIUpdateInterface::getLocomotorDistanceToGoal()
 				{
 					if (sqr(dist) > distSqr)
 					{
-						return sqrt(distSqr);
+						return WWMath::SqrtOrigin(distSqr);
 					}
 					else
 					{
@@ -2612,7 +2612,7 @@ Real AIUpdateInterface::getLocomotorDistanceToGoal()
 				}
 
 				if (dist < PATHFIND_CELL_SIZE_F || sqr(dist) < distSqr)
-					return sqrtf(distSqr);
+					return WWMath::SqrtfOrigin(distSqr);
 				else
 					return dist;
 			}
@@ -4156,7 +4156,7 @@ void AIUpdateInterface::privateGuardPosition(const Coord3D* pos, GuardMode guard
 		// Clip to playable area.
 		Region3D r;
 		TheTerrainLogic->getExtent(&r);
-		if (!r.isInRegionNoZ(adjPos))
+		if (!r.isInRegionNoZ(&adjPos))
 			adjPos = TheTerrainLogic->findClosestEdgePoint(&adjPos);
 	}
 	m_locationToGuard = adjPos;

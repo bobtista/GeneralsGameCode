@@ -315,19 +315,19 @@ public:
 
 		for (int chunk = numChunks - 1; chunk >= 0; --chunk)
 		{
-			UnsignedInt64 val = 0;
+			unsigned long long val = 0;
 			for (int bit = 0; bit < 64 && (chunk * 64 + bit) < NUMBITS; ++bit)
 			{
 				if (m_bits.test(chunk * 64 + bit))
-					val |= (UnsignedInt64)(1) << bit;
+					val |= (unsigned long long)(1) << bit;
 			}
 
 			if (val != 0 || chunk == 0 || printedAny)
 			{
 				if (printedAny)
-					snprintf(chunkBuf, sizeof(chunkBuf), "%016I64X", val);
+					snprintf(chunkBuf, sizeof(chunkBuf), "%016llX", val);
 				else
-					snprintf(chunkBuf, sizeof(chunkBuf), "%I64X", val);
+					snprintf(chunkBuf, sizeof(chunkBuf), "%llX", val);
 
 				result.concat(chunkBuf);
 				printedAny = true;

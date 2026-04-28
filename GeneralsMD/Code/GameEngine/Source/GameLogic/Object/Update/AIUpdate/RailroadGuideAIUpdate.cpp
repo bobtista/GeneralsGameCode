@@ -296,7 +296,7 @@ void RailroadBehavior::onCollide(Object* other, const Coord3D* loc, const Coord3
 	if (!m_whistleSound.isCurrentlyPlaying())
 		m_whistleSound.setPlayingHandle(TheAudio->addAudioEvent(&m_whistleSound));
 
-	Real dist = (Real)sqrtf(dlt.x * dlt.x + dlt.y * dlt.y + dlt.z * dlt.z);
+	Real dist = (Real)WWMath::SqrtfOrigin(dlt.x * dlt.x + dlt.y * dlt.y + dlt.z * dlt.z);
 	Real usRadius = obj->getGeometryInfo().getMajorRadius();
 	Real themRadius = other->getGeometryInfo().getMajorRadius();
 	Real overlap = ((usRadius + themRadius) - dist) + 1;    // the plus 1 makes them go just outside of me.
@@ -324,7 +324,7 @@ void RailroadBehavior::onCollide(Object* other, const Coord3D* loc, const Coord3
 
 	// figure out the relative slope between them and me
 	Coord3D delta = *theirLoc;
-	delta.sub(*myLoc);
+	delta.sub(myLoc);
 	delta.normalize();
 	Real dot = delta.x * myDir->x + delta.y * myDir->y + delta.z * myDir->z;
 
@@ -373,7 +373,7 @@ void RailroadBehavior::onCollide(Object* other, const Coord3D* loc, const Coord3
 
 	const Coord3D up = { 0, 0, 1 };
 	Coord3D cross;
-	myDir->crossProduct(*myDir, up, cross);
+	myDir->crossProduct(myDir, &up, &cross);
 
 	delta.normalize();
 	Real deviationCOG = cross.x * delta.x + cross.y * delta.y + cross.z * delta.z;
@@ -429,8 +429,8 @@ void RailroadBehavior::playImpactSound(Object* victim, const Coord3D* impactPosi
 	impact.setPosition(impactPosition);
 	if (theirPhys)
 	{
-		vel += fabs(theirPhys->getVelocity()->length());
-		mass += fabs(theirPhys->getMass());
+		vel += WWMath::FAbsOrigin(theirPhys->getVelocity()->length());
+		mass += WWMath::FAbsOrigin(theirPhys->getMass());
 
 		vel /= 2;
 		mass /= 2;    // average of him and me
@@ -524,7 +524,7 @@ void RailroadBehavior::loadTrackData()
 		trackPoint.m_isStation = scanner->getName().endsWith("Station");
 		trackPoint.m_isDisembark = scanner->getName().endsWith("Disembark");
 		trackPoint.m_isPingPong = FALSE;
-		trackPoint.m_position.set(*scanner->getLocation());
+		trackPoint.m_position.set(scanner->getLocation());
 		trackPoint.m_handle = scanner->getID();
 		track->push_back(trackPoint);
 	}
@@ -558,7 +558,7 @@ void RailroadBehavior::loadTrackData()
 				trackPoint.m_isStation = anotherWaypoint->getName().endsWith("Station");
 				trackPoint.m_isPingPong = scanner->getName().endsWith("PingPong");
 				trackPoint.m_isDisembark = scanner->getName().endsWith("Disembark");
-				trackPoint.m_position.set(*anotherWaypoint->getLocation());
+				trackPoint.m_position.set(anotherWaypoint->getLocation());
 				trackPoint.m_handle = scanner->getID();
 				track->push_back(trackPoint);
 			}
@@ -628,7 +628,7 @@ UpdateSleepTime RailroadBehavior::update()
 		if (m_conductorState == APPLY_BRAKES)
 		{
 			conductorPullInfo.speed *= modData->m_braking;
-			if (fabs(conductorPullInfo.speed) < 0.1f)
+			if (WWMath::FAbsOrigin(conductorPullInfo.speed) < 0.1f)
 			{
 				conductorPullInfo.speed = 0;
 				///////////////////////////////////////( &m_hissySteamSound );
@@ -842,7 +842,7 @@ void RailroadBehavior::createCarriages()
 	Coord3D myHitchLoc = *self->getPosition();
 	Coord3D hitchOffset = *self->getUnitDirectionVector2D();    // copy that
 	hitchOffset.scale(-maxRadius);    // negative, since I want the back, not the front
-	myHitchLoc.add(hitchOffset);
+	myHitchLoc.add(&hitchOffset);
 
 	PartitionFilterIsValidCarriage pfivc(self, md);
 	PartitionFilter* filters[] = { &pfivc, nullptr };
@@ -986,7 +986,7 @@ void RailroadBehavior::hitchNewCarriagebyProximity(ObjectID locoID, TrainTrack* 
 	Coord3D myHitchLoc = *self->getPosition();
 	Coord3D hitchOffset = *self->getUnitDirectionVector2D();    // copy that
 	hitchOffset.scale(-maxRadius);    // negative, since I want the back, not the front
-	myHitchLoc.add(hitchOffset);
+	myHitchLoc.add(&hitchOffset);
 
 	PartitionFilterIsValidCarriage pfivc(self, md);
 	PartitionFilter* filters[] = { &pfivc, nullptr };
@@ -1080,10 +1080,10 @@ void alignToTerrain(Real angle, const Coord3D& pos, const Coord3D& normal, Matri
 		x.normalize();
 	}
 
-	DEBUG_ASSERTCRASH(fabs(x.x * z.x + x.y * z.y + x.z * z.z) < 0.0001, ("dot is not zero"));
+	DEBUG_ASSERTCRASH(WWMath::FAbsOrigin(x.x * z.x + x.y * z.y + x.z * z.z) < 0.0001, ("dot is not zero"));
 
 	// now computing the y vector is trivial.
-	y.crossProduct(z, x, y);
+	y.crossProduct(&z, &x, &y);
 	y.normalize();
 
 	mtx.Set(x.x, y.x, z.x, pos.x,
@@ -1140,7 +1140,7 @@ void RailroadBehavior::updatePositionTrackDistance(PullInfo* pullerInfo, PullInf
 	trackPosDelta.z = 0;
 	Real dx = pullerInfo->towHitchPosition.x - turnPos.x;
 	Real dy = pullerInfo->towHitchPosition.y - turnPos.y;
-	Real desiredAngle = atan2(dy, dx);
+	Real desiredAngle = WWMath::Atan2Origin(dy, dx);
 
 	Real relAngle = stdAngleDiff(desiredAngle, obj->getTransformMatrix()->Get_Z_Rotation());
 
@@ -1298,10 +1298,10 @@ void RailroadBehavior::FindPosByPathDistance(Coord3D* pos, const Real dist, cons
 
 				Coord3D delta = nextPoint->m_position;
 
-				delta.sub(thisPointPos);
+				delta.sub(&thisPointPos);
 				delta.normalize();
 				delta.scale(difference);
-				thisPointPos.add(delta);
+				thisPointPos.add(&delta);
 
 				*pos = thisPointPos;    // copy out
 				return;

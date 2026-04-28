@@ -258,7 +258,7 @@ protected:
 	ContainedItemsList m_containList;    ///< the list of contained objects
 	UnsignedInt m_containListSize;    ///< size of contained list
 private:
-	typedef std::map< ObjectID, ObjectEnterExitType, std::less<ObjectID> /**/> ObjectEnterExitMap;
+	typedef std::map< ObjectID, ObjectEnterExitType, std::less<ObjectID> > ObjectEnterExitMap;
 
 	ObjectEnterExitMap m_objectEnterExitInfo;
 	UnsignedInt m_stealthUnitsContained;    ///< number of stealth units that can't be seen by enemy players.

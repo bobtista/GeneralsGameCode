@@ -282,7 +282,7 @@ public:
 			Real dy = primary->y - secondary->y;
 
 			// Calc length
-			Real length = sqrt(dx * dx + dy * dy);
+			Real length = WWMath::SqrtOrigin(dx * dx + dy * dy);
 
 			// Normalize length
 			dx /= length;
@@ -325,9 +325,9 @@ public:
 
 			Coord3D startPos = *primary;
 			Coord3D moveToPos = *secondary;
-			startPos.add(offset);
+			startPos.add(&offset);
 			// Also give our moveToPos the same offset to maintain perfect formation.
-			moveToPos.add(offset);
+			moveToPos.add(&offset);
 
 			Coord3D targetPos = *secondary;
 
@@ -346,7 +346,7 @@ public:
 				targetPos.y += randomRadius * Sin(randomAngle);
 			}
 
-			Real orient = atan2(moveToPos.y - startPos.y, moveToPos.x - startPos.x);
+			Real orient = WWMath::Atan2Origin(moveToPos.y - startPos.y, moveToPos.x - startPos.x);
 			if (m_data.m_distToTarget > 0)
 			{
 				const Real SLOP = 1.5f;
@@ -1076,7 +1076,7 @@ protected:
 
 				objUp->applyForce(&force);
 				if (m_orientInForceDirection)
-					orientation = atan2(force.y, force.x);
+					orientation = WWMath::Atan2Origin(force.y, force.x);
 			}
 		}
 
@@ -1163,7 +1163,7 @@ protected:
 				objUp->applyForce(&force);
 				if (m_orientInForceDirection)
 				{
-					orientation = atan2(force.y, force.x);
+					orientation = WWMath::Atan2Origin(force.y, force.x);
 				}
 				DUMPREAL(orientation);
 				objUp->setAngles(orientation, 0, 0);

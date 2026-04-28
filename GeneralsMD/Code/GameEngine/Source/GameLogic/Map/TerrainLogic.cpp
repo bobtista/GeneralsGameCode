@@ -1491,7 +1491,7 @@ void makeAlignToNormalMatrix(Real angle, const Coord3D& pos, const Coord3D& norm
 	/*
 	  It is extremely important that the resulting matrix is such that
 	  the xvector points in the angle we specified; specifically,
-	  that atan2(xvec.y, xvec.x) == angle. So we must construct
+	  that WWMath::Atan2Origin(xvec.y, xvec.x) == angle. So we must construct
 	  the matrix carefully to ensure this!
 	*/
 	x.x = Cos(angle);
@@ -1512,10 +1512,10 @@ void makeAlignToNormalMatrix(Real angle, const Coord3D& pos, const Coord3D& norm
 		x.normalize();
 	}
 
-	DEBUG_ASSERTCRASH(fabs(x.x * z.x + x.y * z.y + x.z * z.z) < 0.0001, ("dot is not zero (%f)", fabs(x.x * z.x + x.y * z.y + x.z * z.z)));
+	DEBUG_ASSERTCRASH(WWMath::FAbsOrigin(x.x * z.x + x.y * z.y + x.z * z.z) < 0.0001, ("dot is not zero (%f)", WWMath::FAbsOrigin(x.x * z.x + x.y * z.y + x.z * z.z)));
 
 	// now computing the y vector is trivial.
-	y.crossProduct(z, x, y);
+	y.crossProduct(&z, &x, &y);
 	y.normalize();
 
 	mtx.Set(x.x, y.x, z.x, pos.x,
@@ -1668,7 +1668,7 @@ PolygonTrigger* TerrainLogic::getTriggerAreaByName(AsciiString name)
 {
 	for (PolygonTrigger* pTrig = PolygonTrigger::getFirstPolygonTrigger(); pTrig; pTrig = pTrig->getNext())
 	{
-		const AsciiString& trigName = pTrig->getTriggerName();
+		AsciiString trigName = pTrig->getTriggerName();
 		if (name == trigName)
 			return pTrig;
 	}
@@ -1721,14 +1721,14 @@ PathfindLayerEnum TerrainLogic::getLayerForDestination(const Coord3D* pos)
 {
 	Bridge* pBridge = getFirstBridge();
 	PathfindLayerEnum bestLayer = LAYER_GROUND;
-	Real bestDistance = fabs(pos->z - getGroundHeight(pos->x, pos->y));
+	Real bestDistance = WWMath::FAbsOrigin(pos->z - getGroundHeight(pos->x, pos->y));
 
 	if (bestDistance > TheAI->pathfinder()->getWallHeight() / 2)
 	{
 		// check wall.
 		if (TheAI->pathfinder()->isPointOnWall(pos))
 		{
-			Real delta = fabs(pos->z - TheAI->pathfinder()->getWallHeight());
+			Real delta = WWMath::FAbsOrigin(pos->z - TheAI->pathfinder()->getWallHeight());
 			if (delta < bestDistance)
 			{
 				bestLayer = (PathfindLayerEnum)LAYER_WALL;
@@ -1741,7 +1741,7 @@ PathfindLayerEnum TerrainLogic::getLayerForDestination(const Coord3D* pos)
 	{
 		if (pBridge->isPointOnBridge(pos))
 		{
-			Real delta = fabs(pos->z - pBridge->getBridgeHeight(pos, nullptr));
+			Real delta = WWMath::FAbsOrigin(pos->z - pBridge->getBridgeHeight(pos, nullptr));
 			if (delta < bestDistance)
 			{
 				bestLayer = pBridge->getLayer();
@@ -1768,7 +1768,7 @@ PathfindLayerEnum TerrainLogic::getHighestLayerForDestination(const Coord3D* pos
 		{
 			Real delta = pos->z - TheAI->pathfinder()->getWallHeight();
 			// must be ABOVE (or on) the wall for this call. (srj)
-			if (delta >= 0 && fabs(delta) < fabs(bestDistance))
+			if (delta >= 0 && WWMath::FAbsOrigin(delta) < WWMath::FAbsOrigin(bestDistance))
 			{
 				bestLayer = (PathfindLayerEnum)LAYER_WALL;
 				bestDistance = delta;
@@ -1786,7 +1786,7 @@ PathfindLayerEnum TerrainLogic::getHighestLayerForDestination(const Coord3D* pos
 		{
 			Real delta = pos->z - pBridge->getBridgeHeight(pos, nullptr);
 			// must be ABOVE (or on) the bridge for this call. (srj)
-			if (delta >= 0 && fabs(delta) < fabs(bestDistance))
+			if (delta >= 0 && WWMath::FAbsOrigin(delta) < WWMath::FAbsOrigin(bestDistance))
 			{
 				bestLayer = pBridge->getLayer();
 				bestDistance = delta;
@@ -1845,7 +1845,7 @@ Bool TerrainLogic::objectInteractsWithBridgeLayer(Object* obj, Int layer, Bool c
 			if (match)
 			{
 				Real bridgeHeight = pBridge->getBridgeHeight(obj->getPosition(), nullptr);
-				Real delta = fabs(obj->getPosition()->z - bridgeHeight);
+				Real delta = WWMath::FAbsOrigin(obj->getPosition()->z - bridgeHeight);
 				if (delta > LAYER_Z_CLOSE_ENOUGH_F)
 				{
 					return false;
@@ -1900,7 +1900,7 @@ Bool TerrainLogic::objectInteractsWithBridgeEnd(Object* obj, Int layer) const
 			if (match)
 			{
 				Real bridgeHeight = pBridge->getBridgeHeight(obj->getPosition(), nullptr);
-				Real delta = fabs(obj->getPosition()->z - bridgeHeight);
+				Real delta = WWMath::FAbsOrigin(obj->getPosition()->z - bridgeHeight);
 				if (delta > LAYER_Z_CLOSE_ENOUGH_F)
 				{
 					return false;
@@ -2129,10 +2129,10 @@ Coord3D TerrainLogic::findClosestEdgePoint(const Coord3D* closestTo) const
 	getExtent(&mapExtent);
 
 	Real distances[4];
-	distances[0] = fabs(closestTo->y - mapExtent.lo.y);    // top
-	distances[1] = fabs(closestTo->x - mapExtent.hi.x);    // right
-	distances[2] = fabs(closestTo->y - mapExtent.hi.y);    // bottom
-	distances[3] = fabs(closestTo->x - mapExtent.lo.x);    // left
+	distances[0] = WWMath::FAbsOrigin(closestTo->y - mapExtent.lo.y);    // top
+	distances[1] = WWMath::FAbsOrigin(closestTo->x - mapExtent.hi.x);    // right
+	distances[2] = WWMath::FAbsOrigin(closestTo->y - mapExtent.hi.y);    // bottom
+	distances[3] = WWMath::FAbsOrigin(closestTo->x - mapExtent.lo.x);    // left
 	Real bestDistance = distances[0];
 	Int bestDistanceIndex = 0;
 	for (Int lameIndex = 1; lameIndex < 4; lameIndex++)
@@ -2419,8 +2419,8 @@ void TerrainLogic::setWaterHeight(const WaterHandle* water, Real height, Real da
 		center.z = 0.0f;    // irrelevant
 
 		// the max radius to scan around us is the diagonal of the bounding region
-		Real maxDist = sqrt(affectedRegion.width() * affectedRegion.width() +
-		                    affectedRegion.height() * affectedRegion.height());
+		Real maxDist = WWMath::SqrtOrigin(affectedRegion.width() * affectedRegion.width() +
+		                                  affectedRegion.height() * affectedRegion.height());
 
 		// scan the objects in the area of the water affected
 		ObjectIterator* iter = ThePartitionManager->iterateObjectsInRange(&center,
@@ -2946,7 +2946,7 @@ void TerrainLogic::createCraterInTerrain(Object* obj)
 			deltaX = (i * MAP_XY_FACTOR) - pos->x;
 			deltaY = (j * MAP_XY_FACTOR) - pos->y;
 
-			Real distance = sqrt(sqr(deltaX) + sqr(deltaY));
+			Real distance = WWMath::SqrtOrigin(sqr(deltaX) + sqr(deltaY));
 
 			if (distance < radius)    // inside circle
 			{

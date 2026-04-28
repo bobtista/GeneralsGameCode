@@ -808,7 +808,7 @@ static void populateRandomStartPosition(GameInfo* game)
 				{
 					Coord3D p1 = c1->second;
 					Coord3D p2 = c2->second;
-					startSpotDistance[i][j] = sqrt(sqr(p1.x - p2.x) + sqr(p1.y - p2.y));
+					startSpotDistance[i][j] = WWMath::SqrtOrigin(sqr(p1.x - p2.x) + sqr(p1.y - p2.y));
 				}
 			}
 			else
@@ -1966,7 +1966,7 @@ void GameLogic::tryStartNewGame(Bool loadingSaveGame)
 			{
 				TheDisplay->draw();
 				setFPMode();
-				TheFramePacer->update();
+				Sleep(33);
 			}
 		}
 	}
@@ -2340,26 +2340,15 @@ void GameLogic::processCommandList(CommandList* list)
 			}
 			else
 			{
-				Bool hasReferenceCRC = FALSE;
-				UnsignedInt referenceCRC = 0;
-
-				for (CachedCRCMap::const_iterator it = m_cachedCRCs.begin(); it != m_cachedCRCs.end(); ++it)
+				// DEBUG_LOG(("Comparing %d CRCs on frame %d", m_cachedCRCs.size(), m_frame));
+				std::map<Int, UnsignedInt>::const_iterator crcIt = m_cachedCRCs.begin();
+				Int validatorCRC = crcIt->second;
+				// DEBUG_LOG(("Validator CRC from player %d is %8.8X", crcIt->first, validatorCRC));
+				while (++crcIt != m_cachedCRCs.end())
 				{
-					// TheSuperHackers @bugfix Caball009 14/06/2026 Check if player is still connected,
-					// to avoid spurious mismatches at low CRC intervals, e.g. every frame.
-					if (!TheNetwork->isPlayerConnected(it->first))
-						continue;
-
-					const UnsignedInt crc = it->second;
-
-					if (!hasReferenceCRC)
-					{
-						hasReferenceCRC = TRUE;
-						referenceCRC = crc;
-						continue;
-					}
-
-					if (referenceCRC != crc)
+					Int validatedCRC = crcIt->second;
+					// DEBUG_LOG(("CRC to validate is from player %d: %8.8X", crcIt->first, validatedCRC));
+					if (validatorCRC != validatedCRC)
 					{
 						DEBUG_CRASH(("CRC mismatch!"));
 						sawCRCMismatch = TRUE;
@@ -2372,7 +2361,7 @@ void GameLogic::processCommandList(CommandList* list)
 		{
 #ifdef DEBUG_LOGGING
 			DEBUG_LOG(("CRC Mismatch - saw %d CRCs from %d players", m_cachedCRCs.size(), numPlayers));
-			for (CachedCRCMap::const_iterator crcIt = m_cachedCRCs.begin(); crcIt != m_cachedCRCs.end(); ++crcIt)
+			for (std::map<Int, UnsignedInt>::const_iterator crcIt = m_cachedCRCs.begin(); crcIt != m_cachedCRCs.end(); ++crcIt)
 			{
 				Player* player = ThePlayerList->getNthPlayer(crcIt->first);
 				DEBUG_LOG(("CRC from player %d (%ls) = %X", crcIt->first,
@@ -3299,12 +3288,6 @@ void GameLogic::update()
 	{
 		TheScriptEngine->UPDATE();
 	}
-
-	// TheSuperHackers @info Updates the frozen time status because it may have changed after the script engine update.
-	TheFramePacer->setTimeFrozen(TheGameEngine->isTimeFrozen());
-
-	if (TheFramePacer->isTimeFrozen())
-		return;
 
 	// Note - TerrainLogic update needs to happen after ScriptEngine update, but before object updates.  jba.
 	// This way changes in bridges are noted in the script engine before being cleared in TerrainLogic->update

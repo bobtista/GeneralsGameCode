@@ -115,6 +115,9 @@ void AssistedTargetingUpdate::makeFeedbackLaser(const ThingTemplate* laserTempla
 	if (!laser)
 		return;
 
+	// Give it a good basis in reality to ensure it can draw when on screen.
+	laser->setPosition(from->getPosition());
+
 	Drawable* draw = laser->getDrawable();
 	static const NameKeyType key_LaserUpdate = NAMEKEY("LaserUpdate");
 	LaserUpdate* update = (LaserUpdate*)draw->findClientUpdateModule(key_LaserUpdate);
@@ -124,9 +127,6 @@ void AssistedTargetingUpdate::makeFeedbackLaser(const ThingTemplate* laserTempla
 		return;
 	}
 
-	// Give it a good basis in reality to ensure it can draw when on screen.
-	laser->setPosition(from->getPosition());
-
 	update->initLaser(getObject(), to, from->getPosition(), to->getPosition(), "");
 }
 
@@ -134,10 +134,12 @@ void AssistedTargetingUpdate::makeFeedbackLaser(const ThingTemplate* laserTempla
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime AssistedTargetingUpdate::update()
 {
+
 	const AssistedTargetingUpdateModuleData* d = getAssistedTargetingUpdateModuleData();
 
 	m_laserFromAssisted = TheThingFactory->findTemplate(d->m_laserFromAssistedName);
-	m_laserToTarget = TheThingFactory->findTemplate(d->m_laserToTargetName);
+
+	m_laserToTarget = TheThingFactory->findTemplate(d->m_laserFromAssistedName);
 
 	return UPDATE_SLEEP_FOREVER;
 }
@@ -177,7 +179,7 @@ void AssistedTargetingUpdate::loadPostProcess()
 	const AssistedTargetingUpdateModuleData* d = getAssistedTargetingUpdateModuleData();
 
 	m_laserFromAssisted = TheThingFactory->findTemplate(d->m_laserFromAssistedName);
-	m_laserToTarget = TheThingFactory->findTemplate(d->m_laserToTargetName);
+	m_laserToTarget = TheThingFactory->findTemplate(d->m_laserFromAssistedName);
 
 	// extend base class
 	UpdateModule::loadPostProcess();

@@ -276,12 +276,6 @@ GameEngine::~GameEngine()
 	delete TheSubsystemList;
 	TheSubsystemList = nullptr;
 
-	delete TheSkirmishGameInfo;
-	TheSkirmishGameInfo = nullptr;
-
-	delete TheChallengeGameInfo;
-	TheChallengeGameInfo = nullptr;
-
 	delete TheNetwork;
 	TheNetwork = nullptr;
 
@@ -787,7 +781,7 @@ void GameEngine::resetSubsystems()
 /// -----------------------------------------------------------------------------------------------
 Bool GameEngine::canUpdateGameLogic(UnsignedInt logicTimeQueryFlags)
 {
-	// This updates the paused game status of the game logic.
+	// Must be first.
 	TheGameLogic->preUpdate();
 
 	TheFramePacer->setTimeFrozen(isTimeFrozen());
@@ -881,15 +875,20 @@ void GameEngine::update()
 			}
 		}
 
-		// TheSuperHackers @info Ignores frozen time because the script engine needs updating in the logic update regardless.
-		if (canUpdateGameLogic(FramePacer::IgnoreFrozenTime))
-		{
-			TheGameLogic->UPDATE();
+		const Bool canUpdate = canUpdateGameLogic(FramePacer::IgnoreFrozenTime | FramePacer::IgnoreHaltedGame);
+		const Bool canUpdateLogic = canUpdate && !TheFramePacer->isGameHalted() && !TheFramePacer->isTimeFrozen();
+		const Bool canUpdateScript = canUpdate && !TheFramePacer->isGameHalted();
 
-			if (!TheFramePacer->isTimeFrozen())
-			{
-				TheGameClient->step();
-			}
+		if (canUpdateLogic)
+		{
+			TheGameClient->step();
+			TheGameLogic->UPDATE();
+		}
+		else if (canUpdateScript)
+		{
+			// TheSuperHackers @info Still update the Script Engine to allow
+			// for scripted camera movements while the time is frozen.
+			TheScriptEngine->UPDATE();
 		}
 	}
 }

@@ -796,9 +796,9 @@ void Path::optimizeGroundPath(Bool crusher, Int pathDiameter)
 inline Bool isReallyClose(const Coord3D& a, const Coord3D& b)
 {
 	const Real CLOSE_ENOUGH = 0.1f;
-	return fabs(a.x - b.x) <= CLOSE_ENOUGH &&
-	       fabs(a.y - b.y) <= CLOSE_ENOUGH &&
-	       fabs(a.z - b.z) <= CLOSE_ENOUGH;
+	return WWMath::FAbsOrigin(a.x - b.x) <= CLOSE_ENOUGH &&
+	       WWMath::FAbsOrigin(a.y - b.y) <= CLOSE_ENOUGH &&
+	       WWMath::FAbsOrigin(a.z - b.z) <= CLOSE_ENOUGH;
 }
 
 /**
@@ -989,7 +989,7 @@ void Path::computePointOnPath(
 		// compute distance of point from this path segment
 		Real toDistSqr = sqr(toPos.x) + sqr(toPos.y);
 		Real offsetDistSq = toDistSqr - sqr(alongPathDist);
-		Real offsetDist = (offsetDistSq <= 0.0) ? 0.0 : sqrt(offsetDistSq);
+		Real offsetDist = (offsetDistSq <= 0.0) ? 0.0 : WWMath::SqrtOrigin(offsetDistSq);
 
 		// If we are basically on the path, return the next path node as the movement goal.
 		// However, the farther off the path we get, the movement goal becomes closer to our
@@ -1081,8 +1081,8 @@ void Path::computePointOnPath(
 				out.posOnPath.x = closeNodePos->x + alongPathDist * segmentDirNorm.x;
 				out.posOnPath.y = closeNodePos->y + alongPathDist * segmentDirNorm.y;
 				out.posOnPath.z = closeNodePos->z;
-				Real dx = fabs(pos.x - out.posOnPath.x);
-				Real dy = fabs(pos.y - out.posOnPath.y);
+				Real dx = WWMath::FAbsOrigin(pos.x - out.posOnPath.x);
+				Real dy = WWMath::FAbsOrigin(pos.y - out.posOnPath.y);
 				if (dx < 1 && dy < 1 && closeNode->getNextOptimized() && closeNode->getNextOptimized()->getNextOptimized())
 				{
 					out.posOnPath = *closeNode->getNextOptimized()->getNextOptimized()->getPosition();
@@ -2243,7 +2243,7 @@ UnsignedInt PathfindCell::costToGoal(PathfindCell* goal)
 	Int dy = m_info->m_pos.y - goal->getYIndex();
 #define NO_REAL_DIST
 #ifdef REAL_DIST
-	Int cost = COST_ORTHOGONAL * sqrt(dx * dx + dy * dy);
+	Int cost = COST_ORTHOGONAL * WWMath::SqrtOrigin(dx * dx + dy * dy);
 #else
 	if (dx < 0)
 		dx = -dx;
@@ -2273,7 +2273,7 @@ UnsignedInt PathfindCell::costToHierGoal(PathfindCell* goal)
 	}
 	Int dx = m_info->m_pos.x - goal->getXIndex();
 	Int dy = m_info->m_pos.y - goal->getYIndex();
-	Int cost = REAL_TO_INT_FLOOR(COST_ORTHOGONAL * sqrt(dx * dx + dy * dy) + 0.5f);
+	Int cost = REAL_TO_INT_FLOOR(COST_ORTHOGONAL * WWMath::SqrtOrigin(dx * dx + dy * dy) + 0.5f);
 	return cost;
 }
 
@@ -4441,8 +4441,8 @@ Bool PathfindLayer::isPointOnWall(ObjectID* wallPieces, Int numPieces, const Coo
 		Real pty = pt->y - obj->getPosition()->y;
 
 		// inverse-rotate it to the right coord system
-		Real ptx_new = (Real)fabs(ptx * c - pty * s);
-		Real pty_new = (Real)fabs(ptx * s + pty * c);
+		Real ptx_new = (Real)WWMath::FAbsOrigin(ptx * c - pty * s);
+		Real pty_new = (Real)WWMath::FAbsOrigin(ptx * s + pty * c);
 
 		if (ptx_new <= major && pty_new <= minor)
 		{
@@ -6047,21 +6047,23 @@ Bool Pathfinder::checkForAdjust(Object* obj, const LocomotorSet& locomotorSet, B
 	if (checkDestination(obj, cellX, cellY, layer, iRadius, center))
 	{
 		adjustCoordToCell(cellX, cellY, center, adjustDest, cellP->getLayer());
+		Bool pathExists;
 		Bool adjustedPathExists;
 		if (obj->isKindOf(KINDOF_AIRCRAFT))
 		{
+			pathExists = true;
 			adjustedPathExists = true;
 		}
 		else
 		{
-			Bool pathExists = clientSafeQuickDoesPathExist(locomotorSet, obj->getPosition(), dest);
-			if (!pathExists && clientSafeQuickDoesPathExist(locomotorSet, dest, &adjustDest))
+			pathExists = clientSafeQuickDoesPathExist(locomotorSet, obj->getPosition(), dest);
+			adjustedPathExists = clientSafeQuickDoesPathExist(locomotorSet, obj->getPosition(), &adjustDest);
+			if (!pathExists)
 			{
-				adjustedPathExists = true;
-			}
-			else
-			{
-				adjustedPathExists = clientSafeQuickDoesPathExist(locomotorSet, obj->getPosition(), &adjustDest);
+				if (clientSafeQuickDoesPathExist(locomotorSet, dest, &adjustDest))
+				{
+					adjustedPathExists = true;
+				}
 			}
 		}
 		if (adjustedPathExists)
@@ -6124,9 +6126,9 @@ Bool Pathfinder::adjustToLandingDestination(Object* obj, Coord3D* dest)
 	TheTerrainLogic->getMaximumPathfindExtent(&extent);
 	// If the object is off the map & the goal is off the map, it is a scripted setup, so just
 	// go to the dest.
-	if (!extent.isInRegionNoZ(*dest))
+	if (!extent.isInRegionNoZ(dest))
 	{
-		if (!extent.isInRegionNoZ(*obj->getPosition()))
+		if (!extent.isInRegionNoZ(obj->getPosition()))
 		{
 			return true;
 		}
@@ -6215,76 +6217,71 @@ Bool Pathfinder::adjustDestination(Object* obj, const LocomotorSet& locomotorSet
 	Bool center;
 	getRadiusAndCenter(obj, iRadius, center);
 	ICoord2D cell;
-	Coord3D cellDest = *dest;
+	Coord3D adjustDest = *dest;
 	if (!center)
 	{
-		cellDest.x += PATHFIND_CELL_SIZE_F / 2;
-		cellDest.y += PATHFIND_CELL_SIZE_F / 2;
+		adjustDest.x += PATHFIND_CELL_SIZE_F / 2;
+		adjustDest.y += PATHFIND_CELL_SIZE_F / 2;
 	}
-	worldToCell(&cellDest, &cell);
+	worldToCell(&adjustDest, &cell);
 	PathfindLayerEnum layer = TheTerrainLogic->getLayerForDestination(dest);
 	if (groupDest)
 	{
 		layer = TheTerrainLogic->getLayerForDestination(groupDest);
 	}
 
-	Int i = cell.x;
-	Int j = cell.y;
-	// Check the center cell
-#if RETAIL_COMPATIBLE_PATHFINDING
+	Int limit = MAX_ADJUSTMENT_CELL_COUNT;
+	Int i, j;
+	i = cell.x;
+	j = cell.y;
 	if (checkForAdjust(obj, locomotorSet, isHuman, i, j, layer, iRadius, center, dest, groupDest))
 	{
 		return true;
 	}
-#else
-	Coord3D adjustDest = *dest;
-	if (checkForAdjust(obj, locomotorSet, isHuman, i, j, layer, iRadius, center, &adjustDest, groupDest))
-	{
-		// TheSuperHackers @bugfix stephanmeesters 15/06/2026 Destination adjustment always snaps to the nearest grid cell
-		// even when no adjustment is necessary because there are no obstructions. For single units this adjustment
-		// can be skipped in order to provide more accurate movement, which is especially noticeable for chinooks.
-		const Bool singleUnit = obj && obj->getGroup() && obj->getGroup()->getCount() == 1;
-		const Bool useExactDestination = isHuman && singleUnit;
-		if (!useExactDestination)
-		{
-			*dest = adjustDest;
-		}
-		return true;
-	}
-#endif
 
-	// TheSuperHackers @info Expanding counter-clockwise spiral search around center cell C. Each full lap walks right->up->left->down.
-	// After every pair of directions (right+up, then left+down) length of the segment grows by 1.
-	//
-	//    <------  12
-	//    4  3  2  11
-	//    5  C  1  10
-	//    6  7  8  9
-	//
-	Int limit = MAX_ADJUSTMENT_CELL_COUNT;
-	Int segmentLength = 1;
-	const ICoord2D directions[4] = { { 1, 0 }, { 0, 1 }, { -1, 0 }, { 0, -1 } };
+	Int delta = 1;
+	Int count;
 	while (limit > 0)
 	{
-		for (Int dir = 0; dir < 4; dir++)
+		for (count = delta; count > 0; count--)
 		{
-			for (Int count = segmentLength; count > 0; count--)
+			i++;
+			limit--;
+			if (checkForAdjust(obj, locomotorSet, isHuman, i, j, layer, iRadius, center, dest, groupDest))
 			{
-				i += directions[dir].x;
-				j += directions[dir].y;
-				limit--;
-				if (checkForAdjust(obj, locomotorSet, isHuman, i, j, layer, iRadius, center, dest, groupDest))
-				{
-					return true;
-				}
-			}
-			if (dir & 1)
-			{
-				segmentLength++;
+				return true;
 			}
 		}
+		for (count = delta; count > 0; count--)
+		{
+			j++;
+			limit--;
+			if (checkForAdjust(obj, locomotorSet, isHuman, i, j, layer, iRadius, center, dest, groupDest))
+			{
+				return true;
+			}
+		}
+		delta++;
+		for (count = delta; count > 0; count--)
+		{
+			i--;
+			limit--;
+			if (checkForAdjust(obj, locomotorSet, isHuman, i, j, layer, iRadius, center, dest, groupDest))
+			{
+				return true;
+			}
+		}
+		for (count = delta; count > 0; count--)
+		{
+			j--;
+			limit--;
+			if (checkForAdjust(obj, locomotorSet, isHuman, i, j, layer, iRadius, center, dest, groupDest))
+			{
+				return true;
+			}
+		}
+		delta++;
 	}
-
 	if (groupDest)
 	{
 		// Didn't work, so just do simple adjust.
@@ -7224,7 +7221,7 @@ Int Pathfinder::examineNeighboringCells(PathfindCell* parentCell, PathfindCell* 
 			toPos.y = newCellCoord.y * PATHFIND_CELL_SIZE_F;
 			toPos.z = TheTerrainLogic->getGroundHeight(toPos.x, toPos.y);
 
-			if (fabs(fromPos.z - toPos.z) < PATHFIND_CELL_SIZE_F)
+			if (WWMath::FAbsOrigin(fromPos.z - toPos.z) < PATHFIND_CELL_SIZE_F)
 			{
 				newCostSoFar += 7 * COST_DIAGONAL;
 			}
@@ -7257,7 +7254,7 @@ Int Pathfinder::examineNeighboringCells(PathfindCell* parentCell, PathfindCell* 
 			{
 				dx = newCellCoord.x - goalCell->getXIndex();
 				dy = newCellCoord.y - goalCell->getYIndex();
-				costRemaining = COST_ORTHOGONAL * sqrt(dx * dx + dy * dy);
+				costRemaining = COST_ORTHOGONAL * WWMath::SqrtOrigin(dx * dx + dy * dy);
 				costRemaining -= attackDistance / 2;
 				if (costRemaining < 0)
 					costRemaining = 0;
@@ -7613,7 +7610,7 @@ Path* Pathfinder::internalFindPath(Object* obj, const LocomotorSet& locomotorSet
 		dx = from->x - to->x;
 		dy = from->y - to->y;
 
-		Int count = sqrt(dx * dx + dy * dy) / (PATHFIND_CELL_SIZE_F / 2);
+		Int count = WWMath::SqrtOrigin(dx * dx + dy * dy) / (PATHFIND_CELL_SIZE_F / 2);
 		if (count < 2)
 			count = 2;
 		Int i;
@@ -8380,7 +8377,7 @@ Path* Pathfinder::findGroundPath(const Coord3D* from,
 		dx = from->x - to->x;
 		dy = from->y - to->y;
 
-		Int count = sqrt(dx * dx + dy * dy) / (PATHFIND_CELL_SIZE_F / 2);
+		Int count = WWMath::SqrtOrigin(dx * dx + dy * dy) / (PATHFIND_CELL_SIZE_F / 2);
 		if (count < 2)
 			count = 2;
 		Int i;
@@ -9157,7 +9154,7 @@ Path* Pathfinder::internal_findHierarchicalPath(Bool isHuman, const LocomotorSur
 		dx = from->x - to->x;
 		dy = from->y - to->y;
 
-		Int count = sqrt(dx * dx + dy * dy) / (PATHFIND_CELL_SIZE_F / 2);
+		Int count = WWMath::SqrtOrigin(dx * dx + dy * dy) / (PATHFIND_CELL_SIZE_F / 2);
 		if (count < 2)
 			count = 2;
 		Int i;
@@ -9831,7 +9828,11 @@ Path* Pathfinder::findClosestPath(Object* obj, const LocomotorSet& locomotorSet,
 			if ((goalCell->getObstacleID() == ignoreCell->getObstacleID()) && (goalCell->getObstacleID() != INVALID_ID))
 			{
 				Object* newObstacle = TheGameLogic->findObjectByID(goalCell->getObstacleID());
+#if RTS_GENERALS
+				if (newObstacle != nullptr && newObstacle->isKindOf(KINDOF_AIRFIELD))
+#else
 				if (newObstacle != nullptr && newObstacle->isKindOf(KINDOF_FS_AIRFIELD))
+#endif
 				{
 					m_ignoreObstacleID = goalCell->getObstacleID();
 					goalOnObstacle = true;
@@ -12514,7 +12515,7 @@ Path* Pathfinder::findSafePath(const Object* obj, const LocomotorSet& locomotorS
 			if (cellCount > MAX_CELLS)
 			{
 #ifdef INTENSE_DEBUG
-				DEBUG_LOG(("Took intermediate path, dist %f, goal dist %f", sqrt(farthestDistanceSqr), repulsorRadius));
+				DEBUG_LOG(("Took intermediate path, dist %f, goal dist %f", WWMath::SqrtOrigin(farthestDistanceSqr), repulsorRadius));
 #endif
 				ok = true;    // Already a big search, just take this one.
 			}

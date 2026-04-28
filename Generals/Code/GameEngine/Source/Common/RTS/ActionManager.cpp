@@ -167,7 +167,7 @@ Bool ActionManager::canGetRepairedAt(const Object* obj, const Object* repairDest
 	{
 		// aircraft require an airfield.
 		if (!obj->isAboveTerrain() ||
-		    repairDest->isKindOf(KINDOF_FS_AIRFIELD) == FALSE)
+		    repairDest->isKindOf(KINDOF_AIRFIELD) == FALSE)
 			return FALSE;
 	}
 	else
@@ -560,7 +560,7 @@ Bool ActionManager::canEnterObject(const Object* obj, const Object* objectToEnte
 	}
 
 	// Special case for aircraft.
-	if (obj->isKindOf(KINDOF_AIRCRAFT) && objectToEnter->isKindOf(KINDOF_FS_AIRFIELD))
+	if (obj->isKindOf(KINDOF_AIRCRAFT) && objectToEnter->isKindOf(KINDOF_AIRFIELD))
 	{
 		if (!obj->isAboveTerrain())
 			return FALSE;

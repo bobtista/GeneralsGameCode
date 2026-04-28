@@ -30,7 +30,6 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include <stdlib.h>
 
-#include "Common/FramePacer.h"
 #include "Common/STLTypedefs.h"
 #include "Common/Thing.h"
 #include "Common/Xfer.h"
@@ -100,9 +99,7 @@ W3DPoliceCarDraw::~W3DPoliceCarDraw()
 void W3DPoliceCarDraw::doDrawModule(const Matrix3D* transformMtx)
 {
 	const Real floatAmt = 8.0f;
-
-	// TheSuperHackers @tweak bobtista 24/06/2026 The police car light animation time step is now decoupled from the render update.
-	const Real animAmt = 0.25f * TheFramePacer->getActualLogicTimeScaleOverFpsRatio();
+	const Real animAmt = 0.25;
 
 	// get pointers to our render objects that we'll need
 	RenderObjClass* policeCarRenderObj = getRenderObject();

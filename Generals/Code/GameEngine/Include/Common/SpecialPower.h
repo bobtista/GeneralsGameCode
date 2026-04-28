@@ -44,7 +44,6 @@ class ObjectCreationList;
 class Object;
 enum ScienceType CPP_11( : Int);
 struct FieldParse;
-enum AcademyClassificationType CPP_11( : Int);
 
 // For SpecialPowerType and SpecialPowerMaskType::s_bitNameList. Part of detangling.
 #include "Common/SpecialPowerType.h"
@@ -121,7 +120,6 @@ public:
 	Real getViewObjectRange() const { return getFO()->m_viewObjectRange; }
 	Real getRadiusCursorRadius() const { return getFO()->m_radiusCursorRadius; }
 	Bool isShortcutPower() const { return getFO()->m_shortcutPower; }
-	AcademyClassificationType getAcademyClassificationType() const { return m_academyClassificationType; }
 
 private:
 	const SpecialPowerTemplate* getFO() const { return (const SpecialPowerTemplate*)friend_getFinalOverride(); }
@@ -133,7 +131,6 @@ private:
 	ScienceType m_requiredScience;    ///< science required (if any) to actually execute this power
 	AudioEventRTS m_initiateSound;    ///< sound to play when initiated
 	AudioEventRTS m_initiateAtLocationSound;    ///< sound to play at target location (if any)
-	AcademyClassificationType m_academyClassificationType;    ///< A value used by the academy to evaluate advice based on what players do.
 	UnsignedInt m_detectionTime;    ///< (frames) after using infiltration power (defection, etc.),
 	                                ///< how long it takes for ex comrades to realize it on their own
 	UnsignedInt m_viewObjectDuration;    ///< Lifetime of a looking object we slap down so you can watch the effect

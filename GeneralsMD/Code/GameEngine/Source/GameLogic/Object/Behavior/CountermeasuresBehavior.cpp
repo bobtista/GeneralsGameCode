@@ -158,8 +158,8 @@ ObjectID CountermeasuresBehavior::calculateCountermeasureToDivertTo(const Object
 	Real closestFlareDist = 1e15f;
 	Object* closestFlare = nullptr;
 
-	const UnsignedInt volleySize = max(data->m_volleySize, 1u);
-	UnsignedInt volleyFlaresCounted = 0;
+	const int volleySize = data->m_volleySize;
+	int volleyFlaresCounted = 0;
 
 	// Flares are pushed to the front of the list, but we only want to acquire the "newest" of the flares, therefore
 	// Start at the end of the list and go towards the beginning.
@@ -181,13 +181,9 @@ ObjectID CountermeasuresBehavior::calculateCountermeasureToDivertTo(const Object
 			// The non retail behaviour corrects the code to iterate through all flares in the volley
 			break;
 #else
-			++volleyFlaresCounted;
+			volleyFlaresCounted++;
 #endif
 		}
-
-#if RETAIL_COMPATIBLE_CRC
-		++volleyFlaresCounted;
-#endif
 	}
 
 	if (closestFlare)
