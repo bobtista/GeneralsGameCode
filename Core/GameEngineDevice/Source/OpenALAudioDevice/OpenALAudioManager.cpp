@@ -17,10 +17,17 @@
 #include <AL/al.h>
 #include <AL/alc.h>
 
-OpenALAudioManager::OpenALAudioManager() :
+namespace
+{
+	const UnsignedInt kOpenALProviderIndex = 0;
+	const char * const kOpenALProviderName = "OpenAL Soft";
+}
+
+OpenALAudioManager::OpenALAudioManager(Bool dummy) :
 	m_device(NULL),
 	m_context(NULL),
-	m_selectedProvider(0),
+	m_dummy(dummy),
+	m_selectedProvider(kOpenALProviderIndex),
 	m_speakerType(0),
 	m_musicTrackName(AsciiString::TheEmptyString)
 {
@@ -40,7 +47,10 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface *, void *, FILE
 
 void OpenALAudioManager::init()
 {
-	openDevice();
+	if (!m_dummy)
+	{
+		openDevice();
+	}
 	AudioManager::init();
 }
 
@@ -56,7 +66,6 @@ void OpenALAudioManager::update()
 
 void OpenALAudioManager::stopAudio(AudioAffect)
 {
-	alSourceStop(0);
 }
 
 void OpenALAudioManager::pauseAudio(AudioAffect)
@@ -102,7 +111,7 @@ AsciiString OpenALAudioManager::getMusicTrackName() const
 
 void OpenALAudioManager::openDevice()
 {
-	if (m_device != NULL)
+	if (m_dummy || m_device != NULL)
 	{
 		return;
 	}
@@ -149,25 +158,28 @@ UnsignedInt OpenALAudioManager::getProviderCount() const
 
 AsciiString OpenALAudioManager::getProviderName(UnsignedInt providerNum) const
 {
-	if (providerNum == 0)
+	if (providerNum == kOpenALProviderIndex)
 	{
-		return AsciiString("OpenAL Soft");
+		return AsciiString(kOpenALProviderName);
 	}
 	return AsciiString::TheEmptyString;
 }
 
 UnsignedInt OpenALAudioManager::getProviderIndex(AsciiString providerName) const
 {
-	if (providerName.compareNoCase("OpenAL Soft") == 0)
+	if (providerName.compareNoCase(kOpenALProviderName) == 0)
 	{
-		return 0;
+		return kOpenALProviderIndex;
 	}
 	return PROVIDER_ERROR;
 }
 
 void OpenALAudioManager::selectProvider(UnsignedInt providerNdx)
 {
-	m_selectedProvider = providerNdx;
+	if (providerNdx < getProviderCount())
+	{
+		m_selectedProvider = providerNdx;
+	}
 }
 
 void OpenALAudioManager::unselectProvider()
