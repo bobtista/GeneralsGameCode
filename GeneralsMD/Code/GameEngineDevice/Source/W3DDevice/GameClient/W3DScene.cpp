@@ -46,6 +46,7 @@
 #include "GameClient/Drawable.h"
 #include "GameClient/ParticleSys.h"
 #include "GameClient/Color.h"
+#include "GameClient/Display.h"
 #include "GameClient/View.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DScene.h"
@@ -58,6 +59,8 @@
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/sortingrenderer.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/light.h"
 #include "WW3D2/matpass.h"
@@ -1283,6 +1286,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	REF_PTR_RELEASE(vmat);
 	g_renderBackend->Apply_Render_State_Changes();	//force update all render states
 
+#if !defined(GGC_BGFX_STANDALONE)
 	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
 
 	if (!m_pDev)
@@ -1291,6 +1295,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	//draw polygons like this is very inefficient but for only 2 triangles, it's
 	//not worth bothering with index/vertex buffers.
 	m_pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+#endif
 
 	// Set stencil states
 	g_renderBackend->Set_Stencil_Enable(true);
@@ -1338,7 +1343,67 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	}
 
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+#if defined(GGC_BGFX_STANDALONE)
+	{
+		Matrix4x4 view,proj;
+		Matrix4x4 identity(true);
+
+		g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW,view);
+		g_renderBackend->Get_Transform(RB_TRANSFORM_PROJECTION,proj);
+		g_renderBackend->Set_World_Identity();
+		g_renderBackend->Set_View_Identity();
+		g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,identity);
+
+		const Real displayHalfWidth = (Real)TheDisplay->getWidth() * 0.5f;
+		const Real displayHalfHeight = (Real)TheDisplay->getHeight() * -0.5f;
+
+		DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,4);
+		{
+			DynamicVBAccessClass::WriteLockClass lock(&vb);
+			VertexFormatXYZNDUV2 *verts=lock.Get_Formatted_Vertex_Array();
+			if (verts != nullptr)
+			{
+				for (Int i=0; i<4; i++)
+				{
+					verts[i].x=(v[i].p.X / displayHalfWidth) - 1.0f;
+					verts[i].y=(v[i].p.Y / displayHalfHeight) + 1.0f;
+					verts[i].z=0.0f;
+					verts[i].nx=0.0f;
+					verts[i].ny=0.0f;
+					verts[i].nz=1.0f;
+					verts[i].diffuse=v[i].color;
+					verts[i].u1=0.0f;
+					verts[i].v1=0.0f;
+					verts[i].u2=0.0f;
+					verts[i].v2=0.0f;
+				}
+			}
+		}
+
+		DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX8,6);
+		{
+			DynamicIBAccessClass::WriteLockClass lock(&ib);
+			unsigned short *indices=lock.Get_Index_Array();
+			if (indices != nullptr)
+			{
+				indices[0]=0;
+				indices[1]=1;
+				indices[2]=2;
+				indices[3]=2;
+				indices[4]=1;
+				indices[5]=3;
+			}
+		}
+
+		g_renderBackend->Set_Vertex_Buffer(vb);
+		g_renderBackend->Set_Index_Buffer(ib,0);
+		g_renderBackend->Draw_Triangles(0,2,0,4);
+		g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,view);
+		g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,proj);
+	}
+#else
 		m_pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANSLITVERTEX));
+#endif
 
 	// turn off the stencil buffer
 	g_renderBackend->Set_Stencil_Enable(false);

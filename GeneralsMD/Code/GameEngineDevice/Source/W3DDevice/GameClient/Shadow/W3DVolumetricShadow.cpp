@@ -3516,9 +3516,10 @@ void W3DVolumetricShadowManager::renderStencilShadows()
     v[3].p = D3DXVECTOR4(  xpos,  0, 0.0f, 1.0f );
     v[0].color = TheW3DShadowManager->getShadowColor();
     v[1].color = TheW3DShadowManager->getShadowColor();
-    v[2].color = TheW3DShadowManager->getShadowColor();
+	v[2].color = TheW3DShadowManager->getShadowColor();
     v[3].color = TheW3DShadowManager->getShadowColor();
 
+#if !defined(GGC_BGFX_STANDALONE)
 	//draw polygons like this is very inefficient but for only 2 triangles, it's
 	//not worth bothering with index/vertex buffers.
 	m_pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
@@ -3550,6 +3551,7 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
 		m_pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANSLITVERTEX));
+#endif
 
 	// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I issue the
 	// matching darken pass on the bgfx backend. DX8 already drew the
@@ -3561,10 +3563,12 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 		~TheW3DShadowManager->getStencilShadowMask(),
 		0x1);
 
+#if !defined(GGC_BGFX_STANDALONE)
 	m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
 	m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );
 	// turn off the stencil buffer
 	m_pDev->SetRenderState( D3DRS_STENCILENABLE, FALSE );
+#endif
 
 }
 
