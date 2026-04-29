@@ -665,7 +665,6 @@ set(GAMEENGINE_SRC
 #    Source/Common/System/List.cpp
     Source/Common/System/LocalFile.cpp
     Source/Common/System/LocalFileSystem.cpp
-    Source/Common/System/MiniDumper.cpp
     Source/Common/System/ObjectStatusTypes.cpp
 #    Source/Common/System/QuotedPrintable.cpp
     Source/Common/System/Radar.cpp
@@ -1168,6 +1167,12 @@ else()
     list(APPEND GAMEENGINE_SRC
         Source/Common/System/GameMemoryNull.cpp
         Include/Common/GameMemoryNull.h
+    )
+endif()
+
+if(WIN32)
+    list(APPEND GAMEENGINE_SRC
+        Source/Common/System/MiniDumper.cpp
     )
 endif()
 
