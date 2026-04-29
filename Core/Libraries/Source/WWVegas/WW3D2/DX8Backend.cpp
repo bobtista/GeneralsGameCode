@@ -32,6 +32,7 @@
 #include "light.h"
 #include "lightenvironment.h"
 #include "texture.h"
+#include <cstdint>
 #include <string.h>
 
 DX8Backend::DX8Backend()
@@ -641,7 +642,7 @@ RenderResource DX8Backend::Create_Texture(const TextureDesc & desc)
     }
 
     RenderResource rr;
-    rr.id = reinterpret_cast<unsigned __int64>(tex);
+    rr.id = reinterpret_cast<std::uint64_t>(tex);
     return rr;
 }
 
@@ -664,7 +665,7 @@ RenderResource DX8Backend::Create_Vertex_Buffer(const BufferDesc & desc, const v
     }
 
     RenderResource rr;
-    rr.id = reinterpret_cast<unsigned __int64>(vb);
+    rr.id = reinterpret_cast<std::uint64_t>(vb);
     return rr;
 }
 
@@ -688,7 +689,7 @@ RenderResource DX8Backend::Create_Index_Buffer(const BufferDesc & desc, const vo
     }
 
     RenderResource rr;
-    rr.id = reinterpret_cast<unsigned __int64>(ib);
+    rr.id = reinterpret_cast<std::uint64_t>(ib);
     return rr;
 }
 

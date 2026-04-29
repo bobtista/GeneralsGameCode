@@ -838,11 +838,19 @@ void DX8Wrapper::Enumerate_Devices()
 			desc.set_driver_name(id.Driver);
 
 			char buf[64];
+#ifdef _WIN32
 			sprintf(buf,"%d.%d.%d.%d", //"%04x.%04x.%04x.%04x",
 				HIWORD(id.DriverVersion.HighPart),
 				LOWORD(id.DriverVersion.HighPart),
 				HIWORD(id.DriverVersion.LowPart),
 				LOWORD(id.DriverVersion.LowPart));
+#else
+			sprintf(buf,"%d.%d.%d.%d", //"%04x.%04x.%04x.%04x",
+				HIWORD(id.DriverVersionHighPart),
+				LOWORD(id.DriverVersionHighPart),
+				HIWORD(id.DriverVersionLowPart),
+				LOWORD(id.DriverVersionLowPart));
+#endif
 
 			desc.set_driver_version(buf);
 

@@ -29,6 +29,9 @@
 #if defined(GGC_BGFX_STANDALONE)
 
 #include <d3d8.h>
+#ifndef _WIN32
+#include "d3d8_iids.h"
+#endif
 
 // Entry point. Returns a newly AddRef'd IDirect3D8 stub. Caller releases.
 IDirect3D8* CreateStubD3D8Interface();
