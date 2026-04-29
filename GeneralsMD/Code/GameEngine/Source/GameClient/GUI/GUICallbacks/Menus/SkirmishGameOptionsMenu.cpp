@@ -1581,7 +1581,7 @@ WindowMsgHandledType SkirmishGameOptionsMenuSystem( GameWindow *window, Unsigned
 		case GSM_SLIDER_TRACK:
 		{
 			GameWindow *control = (GameWindow *)mData1;
-			Int sliderPos = (Int)mData2;
+			Int sliderPos = (Int)(intptr_t)mData2;
 			Int controlID = control->winGetWindowId();
 			if(controlID == sliderGameSpeedID)
 			{

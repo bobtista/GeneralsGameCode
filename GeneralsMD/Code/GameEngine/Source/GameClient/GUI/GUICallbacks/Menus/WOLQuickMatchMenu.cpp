@@ -1854,7 +1854,7 @@ WindowMsgHandledType WOLQuickMatchMenuSystem( GameWindow *window, UnsignedInt ms
 			{
 				GameWindow *control = (GameWindow *)mData1;
 				Int controlID = control->winGetWindowId();
-				Int selected = (Int)mData2;
+				Int selected = (Int)(intptr_t)mData2;
 
 				if ( controlID == listboxMapSelectID )
 				{

@@ -1000,7 +1000,7 @@ WindowMsgHandledType WOLBuddyOverlaySystem( GameWindow *window, UnsignedInt msg,
 
 							// get text of buddy name
 						buddyName = GadgetListBoxGetText( listboxWindow, rowSelected,0 );
-						GPProfile buddyID = (GPProfile)GadgetListBoxGetItemData( listboxWindow, rowSelected, 0 );
+						GPProfile buddyID = (GPProfile)(intptr_t)GadgetListBoxGetItemData( listboxWindow, rowSelected, 0 );
 
 						Int index = -1;
 						gpGetBuddyIndex(TheGPConnection, buddyID, &index);
