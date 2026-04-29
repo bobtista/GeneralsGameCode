@@ -219,16 +219,28 @@ target_include_directories(z_gameenginedevice PUBLIC
     Include
 )
 
-if(WIN32)
-    target_precompile_headers(z_gameenginedevice PRIVATE
-        [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
-        [["Common/STLTypedefs.h"]]
-        [["Common/SubsystemInterface.h"]]
-        [["INI.h"]]
-        [["WWCommon.h"]]
-        <windows.h>
+# TheSuperHackers @build bobtista 29/04/2026 Force the win32 compat shims to
+# the front of the include path so our stub <dinput.h> wins over the dx8 SDK
+# version that ships with d3d8lib (the SDK header references CLSID_*/IID_*
+# symbols that don't exist on non-Win and unconditionally fail to parse).
+if(NOT WIN32)
+    target_include_directories(z_gameenginedevice BEFORE PRIVATE
+        ${CMAKE_SOURCE_DIR}/Core/Libraries/Source/WWVegas/compat/win32_shims
     )
 endif()
+
+# TheSuperHackers @build bobtista 29/04/2026 Make the precompiled header
+# unconditional. <windows.h> resolves to the win32 compat shim on macOS/Linux
+# (compat/win32_shims is on core_wwvegas's INTERFACE include path), so the same
+# PCH list works everywhere.
+target_precompile_headers(z_gameenginedevice PRIVATE
+    [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
+    <windows.h>
+    [["Common/STLTypedefs.h"]]
+    [["Common/SubsystemInterface.h"]]
+    [["INI.h"]]
+    [["WWCommon.h"]]
+)
 
 target_link_libraries(z_gameenginedevice PRIVATE
     corei_gameenginedevice_private
