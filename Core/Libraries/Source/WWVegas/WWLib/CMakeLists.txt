@@ -150,6 +150,7 @@ set(WWLIB_SRC
 
 if(WIN32)
     list(APPEND WWLIB_SRC
+        DbgHelpLoader.cpp
         mpu.cpp
         MPU.h
         rcfile.cpp
@@ -160,6 +161,13 @@ if(WIN32)
         verchk.h
         WWCOMUtil.cpp
         WWCOMUtil.h
+)
+else()
+    # TheSuperHackers @build bobtista 29/04/2026 Stub the legacy WWLib
+    # RegistryClass on non-Win so DX8Wrapper / W3DDisplay still link.
+    list(APPEND WWLIB_SRC
+        registry.h
+        registry_unix_stub.cpp
     )
 endif()
 
