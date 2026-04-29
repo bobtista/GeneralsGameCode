@@ -1737,4 +1737,3 @@ const char * HTreeIterator::Current_Item_Name()
 	return WW3DAssetManager::Get_Instance()->HTreeManager.Get_Tree(Index)->Get_Name();
 }
 
-
