@@ -39,7 +39,11 @@
 #include "always.h"
 #include "wwdebug.h"
 #include "mutex.h"
+#ifdef _WIN32
 #include <malloc.h>
+#else
+#include <cstdlib>
+#endif
 #include <stddef.h> //size_t & ptrdiff_t definition
 
 ///////////////////////////////////////////////////////////////////////////////
