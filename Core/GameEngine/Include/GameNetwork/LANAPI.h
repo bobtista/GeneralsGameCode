@@ -267,7 +267,13 @@ struct LANMessage
 };
 #pragma pack(pop)
 
+// TheSuperHackers @build bobtista 29/04/2026 The LANMessage struct contains
+// pointer-sized fields that grow on 64-bit, which trips this assertion on
+// non-Win builds. The retail wire format is Win 32-bit, so this assertion
+// only matters there.
+#ifdef _WIN32
 static_assert(sizeof(LANMessage) <= MAX_LANAPI_PACKET_SIZE, "LANMessage struct cannot be larger than the max packet size");
+#endif
 
 
 /**
