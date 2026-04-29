@@ -8,9 +8,16 @@ target_compile_definitions(core_wwcommon INTERFACE
 
 target_link_libraries(core_wwcommon INTERFACE
     d3d8lib
-    milesstub
     stlport
 )
+
+# TheSuperHackers @build bobtista 29/04/2026 milesstub is Win-only (the
+# Miles Sound System SDK stub). On non-Win we use OpenAL instead.
+if(WIN32)
+    target_link_libraries(core_wwcommon INTERFACE
+        milesstub
+    )
+endif()
 
 target_include_directories(core_wwcommon INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -22,6 +29,16 @@ target_include_directories(core_wwcommon INTERFACE
     WWMath
     WWSaveLoad
 )
+
+if(NOT WIN32)
+    # TheSuperHackers @build bobtista 29/04/2026 BEFORE so the compat shims
+    # (e.g. dinput.h) take priority over headers that come along for the ride
+    # via FetchContent (the dx8 SDK ships a Win-flavored dinput.h that fails
+    # to parse on macOS/Linux).
+    target_include_directories(core_wwcommon BEFORE INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/compat/win32_shims
+    )
+endif()
 
 add_subdirectory(WW3D2)
 add_subdirectory(WWAudio)
@@ -45,6 +62,16 @@ target_include_directories(core_wwvegas INTERFACE
     WWMath
     WWSaveLoad
 )
+
+# TheSuperHackers @build bobtista 29/04/2026 Propagate the win32 shim include
+# path through core_wwvegas so consumers (z_gameengine, etc.) can resolve
+# <windows.h> and friends to the compat layer without each linking core_wwcommon
+# transitively. core_wwlib only links core_wwcommon PRIVATE.
+if(NOT WIN32)
+    target_include_directories(core_wwvegas BEFORE INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/compat/win32_shims
+    )
+endif()
 
 target_link_libraries(core_wwvegas INTERFACE
     # core_ww3d2
