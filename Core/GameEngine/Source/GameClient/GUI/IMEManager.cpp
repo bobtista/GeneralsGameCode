@@ -47,6 +47,16 @@
 
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
+// TheSuperHackers @build bobtista 29/04/2026 IMEManager is a Win-only IME
+// (asian input) integration tied to ImmCreateContext / WM_IME_* messages.
+// Stub the public surface on non-Win; SDL3 will eventually provide a portable
+// composition path.
+#ifndef _WIN32
+#include "GameClient/IMEManager.h"
+IMEManagerInterface *TheIMEManager = nullptr;
+IMEManagerInterface *CreateIMEManagerInterface() { return nullptr; }
+#else
+
 #include "mbstring.h"
 
 #include "Common/Debug.h"
@@ -1598,3 +1608,5 @@ void IMEManager::updateStatusWindow()
 
 }
 
+
+#endif // _WIN32 (IMEManager Win body)
