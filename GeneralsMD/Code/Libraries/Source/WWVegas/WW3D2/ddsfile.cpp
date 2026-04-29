@@ -23,7 +23,14 @@
 #include "bufffile.h"
 #include "bitmaphandler.h"
 #include "colorspace.h"
-#include <ddraw.h>
+
+#ifndef DDSCAPS2_CUBEMAP
+#define DDSCAPS2_CUBEMAP 0x00000200L
+#endif
+
+#ifndef DDSCAPS2_VOLUME
+#define DDSCAPS2_VOLUME 0x00200000L
+#endif
 
 // ----------------------------------------------------------------------------
 
