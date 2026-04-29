@@ -21,6 +21,7 @@
 #include "bittype.h"
 #include <string.h>
 #include <ctype.h>
+#include <wctype.h>
 
 
 // Declaration
