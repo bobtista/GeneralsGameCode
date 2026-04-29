@@ -656,7 +656,6 @@ set(GAMEENGINE_SRC
     Source/Common/System/SaveGame/GameState.cpp
     Source/Common/System/SaveGame/GameStateMap.cpp
 #    Source/Common/System/Snapshot.cpp
-    Source/Common/System/StackDump.cpp
 #    Source/Common/System/StreamingArchiveFile.cpp
 #    Source/Common/System/SubsystemInterface.cpp
     Source/Common/System/Trig.cpp
@@ -1147,6 +1146,12 @@ else()
     )
 endif()
 
+if(WIN32)
+    list(APPEND GAMEENGINE_SRC
+        Source/Common/System/StackDump.cpp
+    )
+endif()
+
 
 add_library(z_gameengine STATIC)
 
@@ -1159,6 +1164,14 @@ target_include_directories(z_gameengine PUBLIC
 target_include_directories(z_gameengine PRIVATE
     Include/Precompiled
 )
+
+# TheSuperHackers @build bobtista 29/04/2026 Force win32 compat shims to the
+# front of the include path so our stub <dinput.h> wins over the dx8 SDK one.
+if(NOT WIN32)
+    target_include_directories(z_gameengine BEFORE PRIVATE
+        ${CMAKE_SOURCE_DIR}/Core/Libraries/Source/WWVegas/compat/win32_shims
+    )
+endif()
 
 target_link_libraries(z_gameengine PRIVATE
     corei_gameengine_private

@@ -391,7 +391,7 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 		// ------------------------------------------------------------------------
 		case GSM_SET_SLIDER:
 		{
-			Int newPos = (Int)mData1;
+			Int newPos = (Int)(intptr_t)mData1;
 			GameWindow *child = window->winGetChild();
 
 			// TheSuperHackers @fix No longer reject out of bounds positions to prevent
@@ -416,8 +416,8 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 
 			window->winGetSize( &size.x, &size.y );
 
-			s->minVal = (Int)mData1;
-			s->maxVal = (Int)mData2;
+			s->minVal = (Int)(intptr_t)mData1;
+			s->maxVal = (Int)(intptr_t)mData2;
 			s->numTicks = (Real)(size.x - HORIZONTAL_SLIDER_THUMB_WIDTH)/(Real)(s->maxVal - s->minVal);
 			s->position = s->minVal;
 
@@ -460,8 +460,8 @@ WindowMsgHandledType GadgetHorizontalSliderSystem( GameWindow *window, UnsignedI
 		// ------------------------------------------------------------------------
 		case GGM_RESIZED:
 		{
-//			Int width = (Int)mData1;
-			Int height = (Int)mData2;
+//			Int width = (Int)(intptr_t)mData1;
+			Int height = (Int)(intptr_t)mData2;
 			GameWindow *thumb = window->winGetChild();
 
 			if( thumb )

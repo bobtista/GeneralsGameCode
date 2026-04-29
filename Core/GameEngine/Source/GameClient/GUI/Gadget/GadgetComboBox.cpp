@@ -383,7 +383,7 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 				if( !listBox->winIsHidden() && mData2 == TRUE )
 					comboData->dontHide = TRUE;
 
-				GadgetListBoxSetSelected(listBox, (Int)mData1);
+				GadgetListBoxSetSelected(listBox, (Int)(intptr_t)mData1);
 			}
 			break;
 		}
@@ -406,7 +406,7 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 		{
 			if(comboData->listBox)
 			{
-				GadgetListBoxSetItemData(comboData->listBox, (void *)mData2, (Int)mData1 );
+				GadgetListBoxSetItemData(comboData->listBox, (void *)mData2, (Int)(intptr_t)mData1 );
 			}
 
 			break;
@@ -560,8 +560,8 @@ WindowMsgHandledType GadgetComboBoxSystem( GameWindow *window, UnsignedInt msg,
 		// ------------------------------------------------------------------------
 		case GGM_RESIZED:
 		{
-			Int width = (Int)mData1;
-			Int height = (Int)mData2;
+			Int width = (Int)(intptr_t)mData1;
+			Int height = (Int)(intptr_t)mData2;
 			ICoord2D dropDownSize;
 
 			// get needed window sizes
