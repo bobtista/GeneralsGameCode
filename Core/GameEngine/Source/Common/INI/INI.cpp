@@ -59,7 +59,10 @@
 #include "GameLogic/ScriptEngine.h"
 #include "GameLogic/Weapon.h"
 
-#if __cplusplus >= 201611L
+// TheSuperHackers @build bobtista 29/04/2026 Apple Clang's libc++ marks the
+// floating-point overloads of std::from_chars as deleted. Fall back to the
+// sscanf path on Apple so float/double parsing keeps working there.
+#if __cplusplus >= 201611L && !defined(__APPLE__)
 #define USE_STD_FROM_CHARS_PARSING 1
 #else
 #define USE_STD_FROM_CHARS_PARSING 0

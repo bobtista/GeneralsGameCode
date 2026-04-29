@@ -20,7 +20,11 @@
 
 #ifdef DISABLE_GAMEMEMORY
 
+#ifdef _WIN32
 #include <malloc.h>
+#else
+#include <cstdlib>
+#endif
 
 #include "Common/GameMemory.h"
 
