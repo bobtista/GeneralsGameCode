@@ -452,7 +452,7 @@ WindowMsgHandledType PopupLadderSelectSystem( GameWindow *window, UnsignedInt ms
 		{
 			GameWindow *control = (GameWindow *)mData1;
 			Int controlID = control->winGetWindowId();
-			Int selectPos = (Int)mData2;
+			Int selectPos = (Int)(intptr_t)mData2;
 			GadgetListBoxSetSelected(control, &selectPos);
 
       if( controlID == listboxLadderSelectID )

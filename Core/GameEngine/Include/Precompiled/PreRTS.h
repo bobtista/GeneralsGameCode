@@ -44,19 +44,30 @@ class STLSpecialAlloc;
 #if defined(__GNUC__) && defined(_WIN32)
     #include <Utility/atl_compat.h>
 #endif
+// TheSuperHackers @build bobtista 29/04/2026 Win-only system headers gated on
+// _WIN32 so the precompiled header parses on macOS/Linux. Cross-platform
+// substitutes are provided by Core/Libraries/Source/WWVegas/compat/win32_shims.
+#ifdef _WIN32
 #include <atlbase.h>
+#endif
 #include <windows.h>
 
 #include <assert.h>
 #include <ctype.h>
 #include <direct.h>
+#ifdef _WIN32
 #include <excpt.h>
+#endif
 #include <float.h>
 #include <Utility/fstream_adapter.h>
+#ifdef _WIN32
 #include <imagehlp.h>
+#endif
 #include <io.h>
 #include <limits.h>
+#ifdef _WIN32
 #include <lmcons.h>
+#endif
 #if defined(_MSC_VER) && _MSC_VER < 1300
 #include <mapicode.h>
 #endif
@@ -64,30 +75,40 @@ class STLSpecialAlloc;
 #include <memory.h>
 #include <mmsystem.h>
 #include <objbase.h>
+#ifdef _WIN32
 #include <ocidl.h>
+#endif
 #include <process.h>
+#ifdef _WIN32
 #include <shellapi.h>
 #include <shlobj.h>
 #include <shlguid.h>
 #include <snmp.h>
+#endif
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/timeb.h>
 #include <sys/types.h>
+#ifdef _WIN32
 #include <tchar.h>
+#endif
 #include <time.h>
+#ifdef _WIN32
 #include <vfw.h>
 #include <winerror.h>
 #include <wininet.h>
 #include <winreg.h>
+#endif
 
 #ifndef DIRECTINPUT_VERSION
 #	define DIRECTINPUT_VERSION	0x800
 #endif
 
+#ifdef _WIN32
 #include <dinput.h>
+#endif
 
 //------------------------------------------------------------------------------------ STL Includes
 // srj sez: no, include STLTypesdefs below, instead, thanks

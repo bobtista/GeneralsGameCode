@@ -78,7 +78,9 @@ static GameWindow *staticTextMessage = nullptr;
 static GameWindow *buttonOk = nullptr;
 
 
-static Bool pause = FALSE;
+// TheSuperHackers @build bobtista 29/04/2026 Renamed from `pause` to avoid
+// colliding with the POSIX `pause()` function declared in <unistd.h>.
+static Bool s_pause = FALSE;
 //-----------------------------------------------------------------------------
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////
 //-----------------------------------------------------------------------------
@@ -124,7 +126,7 @@ void InGamePopupMessageInit( WindowLayout *layout, void *userData )
 	staticTextMessage->winSetSize( pMData->width - 4, height + 7);
 	buttonOk->winSetPosition(pMData->width - widthOk - 2, height + 7 + 2 + 2);
 	staticTextMessage->winSetEnabledTextColors(pMData->textColor, 0);
-	pause = pMData->pause;
+	s_pause = pMData->pause;
 	if(pMData->pause)
 		TheWindowManager->winSetModal( parent );
 
@@ -228,7 +230,7 @@ WindowMsgHandledType InGamePopupMessageSystem( GameWindow *window, UnsignedInt m
 
       if( controlID == buttonOkID )
 			{
-				if(!pause)
+				if(!s_pause)
 					TheMessageStream->appendMessage( GameMessage::MSG_CLEAR_INGAME_POPUP_MESSAGE );
 				else
 					TheInGameUI->clearPopupMessageData();

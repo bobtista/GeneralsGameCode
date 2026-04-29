@@ -1838,7 +1838,7 @@ WindowMsgHandledType WOLLobbyMenuSystem( GameWindow *window, UnsignedInt msg,
 //					break;
 //
 //			GameWindow *control = (GameWindow *)mData1;
-//			Int val = (Int)mData2;
+//			Int val = (Int)(intptr_t)mData2;
 //			Int controlID = control->winGetWindowId();
 //			if (controlID == sliderChatAdjustID)
 //			{
