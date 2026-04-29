@@ -71,10 +71,15 @@ GameSpyGameSlot::GameSpyGameSlot()
 ** Function definitions for the MIB-II entry points.
 */
 
+// TheSuperHackers @build bobtista 29/04/2026 SNMP MIB-II is Win-only; the
+// chat-connection address fallback below is wrapped to call into Win SNMP
+// libraries only on Windows.
+#ifdef _WIN32
 BOOL (__stdcall *SnmpExtensionInitPtr)(IN DWORD dwUpTimeReference, OUT HANDLE *phSubagentTrapEvent, OUT AsnObjectIdentifier *pFirstSupportedRegion);
 BOOL (__stdcall *SnmpExtensionQueryPtr)(IN BYTE bPduType, IN OUT RFC1157VarBindList *pVarBindList, OUT AsnInteger32 *pErrorStatus, OUT AsnInteger32 *pErrorIndex);
 LPVOID (__stdcall *SnmpUtilMemAllocPtr)(IN DWORD bytes);
 VOID (__stdcall *SnmpUtilMemFreePtr)(IN LPVOID pMem);
+#endif
 
 typedef struct tConnInfoStruct {
 	unsigned int State;
@@ -100,6 +105,13 @@ typedef struct tConnInfoStruct {
  *=============================================================================================*/
 Bool GetLocalChatConnectionAddress(AsciiString serverName, UnsignedShort serverPort, UnsignedInt& localIP)
 {
+#ifndef _WIN32
+	// TheSuperHackers @build bobtista 29/04/2026 The Win path probes
+	// SNMP MIB-II to discover which interface is talking to the chat server;
+	// non-Win builds skip this lookup and let networking pick a default.
+	(void)serverName; (void)serverPort; (void)localIP;
+	return false;
+#else
 	//return false;
 	/*
 	** Local defines.
@@ -431,6 +443,7 @@ Bool GetLocalChatConnectionAddress(AsciiString serverName, UnsignedShort serverP
 	FreeLibrary(snmpapi_dll);
 	FreeLibrary(mib_ii_dll);
 	return(found);
+#endif // _WIN32
 }
 
 // GameSpyGameSlot ----------------------------------------

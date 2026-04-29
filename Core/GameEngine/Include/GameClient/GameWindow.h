@@ -73,7 +73,11 @@ enum { WIN_COLOR_UNDEFINED = GAME_COLOR_UNDEFINED };
 
 // WindowMsgData --------------------------------------------------------------
 //-----------------------------------------------------------------------------
-typedef UnsignedInt WindowMsgData;
+// TheSuperHackers @build bobtista 29/04/2026 uintptr_t so callers that stuff
+// pointers through WindowMsgData (e.g. GadgetTextEntrySetText casting a
+// UnicodeString*) don't lose the upper 32 bits on 64-bit builds.
+#include <cstdint>
+typedef uintptr_t WindowMsgData;
 
 //-----------------------------------------------------------------------------
 enum WindowMsgHandledType CPP_11(: Int) { MSG_IGNORED, MSG_HANDLED };
