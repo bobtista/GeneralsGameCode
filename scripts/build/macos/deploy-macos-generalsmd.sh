@@ -17,6 +17,8 @@ runtime_dir="${GGC_MACOS_RUNTIME_DIR:-${HOME}/TheSuperHackers/GeneralsZH}"
 
 readonly binary_name="generalszh"
 candidate_binaries=(
+    "${binary_dir}/GeneralsMD/${config}/${binary_name}"
+    "${binary_dir}/GeneralsMD/${binary_name}"
     "${binary_dir}/GeneralsMD/Code/Main/${config}/${binary_name}"
     "${binary_dir}/GeneralsMD/Code/Main/${binary_name}"
     "${binary_dir}/${config}/${binary_name}"
