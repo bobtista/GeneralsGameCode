@@ -25,6 +25,10 @@
 ////// W3DWebBrowser.cpp ///////////////
 // July 2002 Bryan Cleveland
 
+// TheSuperHackers @build bobtista 29/04/2026 W3DWebBrowser bridges the Win
+// IE embed via IDispatch / CComQIPtr. Skip on non-Win.
+#ifdef _WIN32
+
 #include "W3DDevice/GameClient/W3DWebBrowser.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/textureloader.h"
@@ -76,3 +80,5 @@ void W3DWebBrowser::closeBrowserWindow(GameWindow *win)
 {
 	DX8WebBrowser::DestroyBrowser(win->winGetInstanceData()->m_decoratedNameString.str());
 }
+
+#endif // _WIN32 (W3DWebBrowser Win impl)
