@@ -1139,7 +1139,7 @@ void checkQR2Queries( PEER peer, SOCKET sock )
 		if (SOCKET_ERROR == error || 0 == error)
 			return;
 		//else we have data
-		error = recvfrom(sock, indata, INBUF_LEN - 1, 0, (struct sockaddr *)&saddr, &saddrlen);
+		error = recvfrom(sock, indata, INBUF_LEN - 1, 0, (struct sockaddr *)&saddr, (socklen_t *)&saddrlen);
 		if (error != SOCKET_ERROR)
 		{
 			indata[error] = '\0';
