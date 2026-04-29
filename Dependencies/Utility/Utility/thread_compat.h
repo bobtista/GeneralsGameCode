@@ -18,16 +18,16 @@
 
 // This file contains thread related functions for compatibility with non-windows platforms.
 #pragma once
+#include <functional>
 #include <pthread.h>
 #include <unistd.h>
 
 inline int GetCurrentThreadId()
 {
-  return pthread_self();
+  return static_cast<int>(std::hash<pthread_t>{}(pthread_self()) & 0x7fffffff);
 }
 
 inline void Sleep(int ms)
 {
   usleep(ms * 1000);
 }
-
