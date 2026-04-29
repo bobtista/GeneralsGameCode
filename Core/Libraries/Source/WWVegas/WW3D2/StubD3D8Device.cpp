@@ -1739,7 +1739,13 @@ public:
 		std::memset(pIdentifier, 0, sizeof(*pIdentifier));
 		std::strncpy(pIdentifier->Driver, "StubD3D8", sizeof(pIdentifier->Driver) - 1);
 		std::strncpy(pIdentifier->Description, "Generals bgfx standalone stub", sizeof(pIdentifier->Description) - 1);
+		// TheSuperHackers @build bobtista 29/04/2026 The DX8 SDK declares
+		// DriverVersion as LARGE_INTEGER only on _WIN32; non-Windows builds
+		// see two DWORDs instead. memset already zeroed both paths so the
+		// explicit assignment can be skipped on non-Windows.
+#ifdef _WIN32
 		pIdentifier->DriverVersion.QuadPart = 0;
+#endif
 		pIdentifier->VendorId = 0;
 		pIdentifier->DeviceId = 0;
 		pIdentifier->SubSysId = 0;

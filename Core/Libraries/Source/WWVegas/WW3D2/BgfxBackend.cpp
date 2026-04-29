@@ -40,6 +40,7 @@
 #include "wwmath.h"
 
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <d3d8.h>
 
@@ -48,6 +49,9 @@
 #include <bgfx/bgfx.h>
 #include <bgfx/platform.h>
 #include <bx/math.h>
+#ifdef __APPLE__
+#include <dlfcn.h>
+#endif
 #if defined(SAGE_USE_SDL3)
 #include <SDL3/SDL.h>
 #endif
@@ -554,17 +558,21 @@ public:
 
     void fatal(const char * filePath, uint16_t line, bgfx::Fatal::Enum code, const char * str) override
     {
-        WWDEBUG_SAY(("[BgfxBackend] FATAL code=%d at %s:%u: %s",
-                     static_cast<int>(code), filePath ? filePath : "?", line, str ? str : "?"));
+        // TheSuperHackers @build bobtista 30/04/2026 Always print bgfx fatal
+        // messages to stderr — WWDEBUG_SAY is a no-op in release builds, but
+        // we want diagnostics for the macOS bring-up.
+        std::fprintf(stderr, "[bgfx] FATAL code=%d at %s:%u: %s\n",
+                     static_cast<int>(code), filePath ? filePath : "?", line, str ? str : "?");
+        std::fflush(stderr);
     }
     void traceVargs(const char * filePath, uint16_t line, const char * format, va_list argList) override
     {
         char buf[512];
         std::vsnprintf(buf, sizeof(buf), format, argList);
-        // Strip trailing newline for single-line log output.
         size_t len = std::strlen(buf);
         while (len > 0 && (buf[len-1] == '\n' || buf[len-1] == '\r')) { buf[--len] = '\0'; }
-        WWDEBUG_SAY(("[bgfx] %s:%u: %s", filePath ? filePath : "?", line, buf));
+        std::fprintf(stderr, "[bgfx] %s:%u: %s\n", filePath ? filePath : "?", line, buf);
+        std::fflush(stderr);
     }
     void profilerBegin(const char *, uint32_t, const char *, uint16_t) override {}
     void profilerBeginLiteral(const char *, uint32_t, const char *, uint16_t) override {}
@@ -2033,7 +2041,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // D3D11 device even in game Debug builds. The D3D debug layer raises
     // DXGI-facility exceptions inside bgfx::frame before the engine can
     // reach shellmap or command-line save loads.
-    initArgs.debug = false;
+    // TheSuperHackers @build bobtista 30/04/2026 Allow GGC_BGFX_DEBUG=1 to
+    // turn on bgfx's verbose diagnostics for macOS bring-up.
+    initArgs.debug = std::getenv("GGC_BGFX_DEBUG") != nullptr;
 
     if (!bgfx::init(initArgs))
     {
@@ -2699,6 +2709,9 @@ void BgfxBackend::Begin_Scene()
     // Show the DX8 reference popup after a few frames, giving the game's
     // input system time to fully initialize. Showing too early steals focus
     // and permanently blocks mouse capture.
+    // TheSuperHackers @build bobtista 29/04/2026 No DX8 ref popup on
+    // non-Windows builds (no Win32 windowing API).
+#ifdef _WIN32
     {
         static int s_dx8RefFrameCount = 0;
         if (s_dx8RefFrameCount >= 0)
@@ -2723,6 +2736,7 @@ void BgfxBackend::Begin_Scene()
             }
         }
     }
+#endif
 
     // Check if the game window was resized (e.g., by Set_Render_Device) and
     // update bgfx's swapchain to match. Without this, bgfx renders at the
