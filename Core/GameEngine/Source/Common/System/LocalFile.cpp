@@ -369,7 +369,7 @@ Int LocalFile::readChar()
 	Int ret = read( &character, sizeof(character) );
 
 	if (ret == sizeof(character))
-		return (Int)character;
+		return (Int)(intptr_t)character;
 
 	return EOF;
 }
@@ -385,7 +385,7 @@ Int LocalFile::readWideChar()
 	Int ret = read( &character, sizeof(character) );
 
 	if (ret == sizeof(character))
-		return (Int)character;
+		return (Int)(intptr_t)character;
 
 	return WEOF;
 }
