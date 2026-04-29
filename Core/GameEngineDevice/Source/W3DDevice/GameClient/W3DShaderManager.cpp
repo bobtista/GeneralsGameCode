@@ -3114,7 +3114,13 @@ ChipsetType W3DShaderManager::getChipset()
 		D3DADAPTER_IDENTIFIER8 did;
 		::ZeroMemory(&did, sizeof(D3DADAPTER_IDENTIFIER8));
 	/*	HRESULT res = */ d3d8Interface->GetAdapterIdentifier(0,D3DENUM_NO_WHQL_LEVEL,&did);
+#ifdef _WIN32
 		*((LARGE_INTEGER*)&m_driverVersion) = did.DriverVersion;
+#else
+		// TheSuperHackers @build bobtista 29/04/2026 The dx8 SDK splits
+		// DriverVersion into Lo/Hi DWORDs on non-Win.
+		m_driverVersion = (static_cast<unsigned long long>(did.DriverVersionHighPart) << 32) | did.DriverVersionLowPart;
+#endif
 
 		if(did.VendorId == DC_NVIDIA_VENDOR_ID)
 		{
