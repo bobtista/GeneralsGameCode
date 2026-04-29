@@ -24,7 +24,11 @@ typedef const char* LPCSTR;
 typedef char* LPSTR;
 
 // String functions
-inline char *_strlwr(char *str) {
+// TheSuperHackers @build bobtista 29/04/2026 extern "C" so the linkage matches
+// gamespy's gsplatform.h declaration of _strlwr (it wraps its non-Win shim in
+// `extern "C"` and our previous unmangled C++ declaration tripped the
+// "different language linkage" diagnostic).
+extern "C" inline char *_strlwr(char *str) {
   for (int i = 0; str[i] != '\0'; i++) {
     str[i] = tolower(str[i]);
   }
