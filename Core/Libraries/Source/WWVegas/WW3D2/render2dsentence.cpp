@@ -1285,7 +1285,10 @@ void
 FontCharsClass::Blit_Char (WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, int y)
 {
 	const FontCharsClassCharDataStruct	* data = Get_Char_Data( ch );
-	if ( data != nullptr && data->Width != 0 ) {
+	// TheSuperHackers @build bobtista 30/04/2026 Skip blit when Buffer is
+	// null — the non-Win Store_GDI_Char stub returns width-only entries with
+	// no rasterized glyph yet.
+	if ( data != nullptr && data->Width != 0 && data->Buffer != nullptr ) {
 
 		//
 		//	Setup the src and destination pointers
@@ -1320,6 +1323,23 @@ FontCharsClass::Blit_Char (WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, i
 const FontCharsClassCharDataStruct *
 FontCharsClass::Store_GDI_Char (WCHAR ch)
 {
+#ifndef _WIN32
+	// TheSuperHackers @build bobtista 30/04/2026 GDI font rasterization is
+	// Win-only. Return a synthetic char with width = PointSize so layout code
+	// can still compute extents; glyphs render as blanks until SDL_ttf or a
+	// FreeType backend lands.
+	FontCharsClassCharDataStruct *char_data = W3DNEW FontCharsClassCharDataStruct;
+	char_data->Value = ch;
+	char_data->Width = static_cast<short>(PointSize);
+	char_data->Buffer = nullptr;
+	if (ch < 256) {
+		ASCIICharArray[ch] = char_data;
+	} else {
+		Grow_Unicode_Array(ch);
+		UnicodeCharArray[ch - FirstUnicodeChar] = char_data;
+	}
+	return char_data;
+#else
 	int width	= PointSize * 2;
 	int height	= PointSize * 2;
 
@@ -1437,6 +1457,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	//	Return the index of the entry we just added
 	//
 	return char_data;
+#endif // _WIN32
 }
 
 

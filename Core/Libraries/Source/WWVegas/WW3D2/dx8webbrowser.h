@@ -45,12 +45,12 @@
 //
 // ***********************************
 
-#if ENABLE_EMBEDDED_BROWSER
-
 // These options must match the browser option bits defined in the BrowserEngine code.
 // Look in febrowserengine.h
 #define BROWSEROPTION_SCROLLBARS		0x0001
 #define BROWSEROPTION_3DBORDER		0x0002
+
+#if ENABLE_EMBEDDED_BROWSER
 
 struct IDirect3DDevice8;
 
@@ -88,6 +88,21 @@ public:
 private:
 	// The window handle of the application.  This is initialized by Initialize().
 	static				HWND						hWnd;
+};
+
+#else
+
+class DX8WebBrowser
+{
+public:
+	static bool Initialize(const char* = 0, const char* = 0, const char* = 0, const char* = 0) { return false; }
+	static void Shutdown() {}
+	static void Update() {}
+	static void Render(int) {}
+	static void CreateBrowser(const char*, const char*, int, int, int, int, int = 0, LONG = BROWSEROPTION_SCROLLBARS | BROWSEROPTION_3DBORDER, void* = nullptr) {}
+	static void DestroyBrowser(const char*) {}
+	static bool Is_Browser_Open(const char*) { return false; }
+	static void Navigate(const char*, const char*) {}
 };
 
 #endif
