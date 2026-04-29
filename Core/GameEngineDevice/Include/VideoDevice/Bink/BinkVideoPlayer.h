@@ -46,7 +46,14 @@
 //----------------------------------------------------------------------------
 
 #include "GameClient/VideoPlayer.h"
+// TheSuperHackers @build bobtista 29/04/2026 Bink SDK is Win-only and we
+// don't ship it on macOS/Linux; FFmpeg is the active backend there. Provide
+// stub HBINK so the class declarations parse.
+#ifdef _WIN32
 #include "bink.h"
+#else
+typedef struct BINK *HBINK;
+#endif
 
 //----------------------------------------------------------------------------
 //           Forward References

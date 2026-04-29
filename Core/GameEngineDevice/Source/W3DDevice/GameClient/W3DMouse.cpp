@@ -389,7 +389,7 @@ void W3DMouse::setCursor( MouseCursor cursor )
 	//make sure Windows didn't reset our cursor
 	if (m_currentRedrawMode == RM_DX8)
 	{
-		SetCursor(nullptr);	//Kill Windows Cursor
+		::SetCursor(nullptr);	//Kill Windows Cursor
 
 		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3D: route all
 		// hardware cursor calls through the IRenderBackend cursor API. The
@@ -500,8 +500,8 @@ void W3DMouse::draw()
 			{	//if we're full-screen, need to manually move cursor image
 				POINT ptCursor;
 
-				GetCursorPos( &ptCursor );
-				ScreenToClient( ApplicationHWnd, &ptCursor );
+				::GetCursorPos( &ptCursor );
+				::ScreenToClient( ApplicationHWnd, &ptCursor );
 				g_renderBackend->Set_Hardware_Cursor_Position(ptCursor.x, ptCursor.y);
 			}
 			//Check if animated cursor and new frame
