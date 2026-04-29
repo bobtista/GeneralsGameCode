@@ -59,6 +59,11 @@
 #	define DIRECTINPUT_VERSION	0x800
 #endif
 
+// TheSuperHackers @build bobtista 29/04/2026 dinput.h is real Win SDK on
+// Windows; on non-Win it resolves to the compat stub at
+// Core/Libraries/Source/WWVegas/compat/win32_shims/dinput.h, which defines the
+// DIK_* keycode constants as a portable enum (values don't have to match the
+// Win SDK since the engine only uses them via the KEY_* enum mapping).
 #include <dinput.h>
 #include <Lib/BaseType.h>
 
