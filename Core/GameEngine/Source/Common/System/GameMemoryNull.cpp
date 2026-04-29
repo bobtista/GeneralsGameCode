@@ -18,7 +18,11 @@
 
 #include "PreRTS.h"
 
+#ifdef _WIN32
 #include <malloc.h>
+#else
+#include <cstdlib>
+#endif
 
 #include "Common/GameMemoryNull.h"
 

@@ -43,11 +43,18 @@
 #pragma once
 
 #include "Common/SubsystemInterface.h"
+// TheSuperHackers @build bobtista 29/04/2026 ATL + EA browser dispatch are
+// Win-only. Non-Win builds get the same WebBrowser interface but the actual
+// browser embed has no implementation; consumers see a no-op.
+#ifdef _WIN32
 #include <atlbase.h>
+#endif
 #include <windows.h>
 #include <Common/GameMemory.h>
+#ifdef _WIN32
 #include "EABrowserDispatch/BrowserDispatch.h"
 #include "FEBDispatch.h"
+#endif
 #include <Lib/BaseType.h>
 
 class GameWindow;
@@ -74,6 +81,7 @@ public:
 
 
 
+#ifdef _WIN32
 class WebBrowser :
 		public FEBDispatch<WebBrowser, IBrowserDispatch, &IID_IBrowserDispatch>,
 		public SubsystemInterface
@@ -122,3 +130,31 @@ class WebBrowser :
 	};
 
 extern CComObject<WebBrowser> *TheWebBrowser;
+#else
+// TheSuperHackers @build bobtista 29/04/2026 Non-Win stub. The real
+// WebBrowser is an ATL/EA-IBrowserDispatch COM object embedding a Win
+// IE/WebBrowser control. There is no equivalent on macOS/Linux yet, so
+// expose just the surface that game code touches (TheWebBrowser nullptr
+// check, findURL/makeNewURL).
+class WebBrowser : public SubsystemInterface
+{
+public:
+	virtual void init() override {}
+	virtual void reset() override {}
+	virtual void update() override {}
+
+	virtual Bool createBrowserWindow(const char * /*tag*/, GameWindow * /*win*/) { return false; }
+	virtual void closeBrowserWindow(GameWindow * /*win*/) {}
+
+	WebBrowserURL *makeNewURL(AsciiString /*tag*/) { return nullptr; }
+	WebBrowserURL *findURL(AsciiString /*tag*/) { return nullptr; }
+
+protected:
+	WebBrowser() : m_urlList(nullptr) {}
+	virtual ~WebBrowser() override {}
+
+	WebBrowserURL *m_urlList;
+};
+
+extern WebBrowser *TheWebBrowser;
+#endif
