@@ -23,6 +23,10 @@ option(RTS_MEMORYPOOL_DEBUG_INTENSE_DMA_BOOKKEEPING "Prints statistics for memor
 # Memory dump options
 option(RTS_CRASHDUMP_ENABLE "Enables writing crash dumps on unhandled exceptions or release crash failures." ON)
 
+if(NOT WIN32)
+    set(RTS_CRASHDUMP_ENABLE OFF CACHE BOOL "Enables writing crash dumps on unhandled exceptions or release crash failures." FORCE)
+endif()
+
 # Game Memory features
 add_feature_info(GameMemoryEnable RTS_GAMEMEMORY_ENABLE "Build with the original game memory implementation")
 
