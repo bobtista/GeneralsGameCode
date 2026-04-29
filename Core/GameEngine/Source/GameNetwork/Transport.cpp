@@ -349,14 +349,13 @@ Bool Transport::doRecv()
 						(Int)(TheGlobalData->m_latencyAmplitude * sin(now * TheGlobalData->m_latencyPeriod)) +
 						GameClientRandomValue(-TheGlobalData->m_latencyNoise, TheGlobalData->m_latencyNoise);
 					m_delayedInBuffer[bufferIndex].message.length = incomingMessage.length;
-					m_delayedInBuffer[bufferIndex].message.addr = ntohl(from.sin_addr.S_un.S_addr);
+					m_delayedInBuffer[bufferIndex].message.addr = ntohl(from.sin_addr.s_addr);
 					m_delayedInBuffer[bufferIndex].message.port = ntohs(from.sin_port);
 					memcpy(&m_delayedInBuffer[bufferIndex].message, buf, len);
 					++bufferIndex;
 					break;
 				}
 			}
-
 			continue;
 		}
 #endif
@@ -367,7 +366,7 @@ Bool Transport::doRecv()
 			{
 				// Empty slot; use it
 				m_inBuffer[bufferIndex].length = incomingMessage.length;
-				m_inBuffer[bufferIndex].addr = ntohl(from.sin_addr.S_un.S_addr);
+				m_inBuffer[bufferIndex].addr = ntohl(from.sin_addr.s_addr);
 				m_inBuffer[bufferIndex].port = ntohs(from.sin_port);
 				memcpy(&m_inBuffer[bufferIndex], buf, len);
 				++bufferIndex;
@@ -511,6 +510,5 @@ Real Transport::getUnknownPacketsPerSecond()
 	}
 	return val / (MAX_TRANSPORT_STATISTICS_SECONDS-1);
 }
-
 
 
