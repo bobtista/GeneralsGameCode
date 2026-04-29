@@ -122,9 +122,13 @@ typedef uint32_t SwapType32;
 typedef uint64_t SwapType64;
 
 #elif defined(__APPLE__)
-typedef UInt16 SwapType16;
-typedef UInt32 SwapType32;
-typedef UInt64 SwapType64;
+// TheSuperHackers @build bobtista 29/04/2026 Use the same uint*_t aliases as
+// other POSIX platforms; the previous CoreServices UInt* names aren't pulled
+// in by our compat layer and produced "unknown type name" errors on Apple
+// Clang without a CoreServices include.
+typedef uint16_t SwapType16;
+typedef uint32_t SwapType32;
+typedef uint64_t SwapType64;
 
 #elif defined(__OpenBSD__)
 typedef uint16_t SwapType16;
