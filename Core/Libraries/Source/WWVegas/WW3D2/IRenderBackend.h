@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "ww3dformat.h"
 
 // -----------------------------------------------------------------------------
@@ -94,7 +96,7 @@ struct RenderBackendViewport
 // the id field. Other code treats it as opaque. id == 0 means invalid.
 struct RenderResource
 {
-    unsigned __int64 id;
+    std::uint64_t id;
 };
 
 inline bool operator==(const RenderResource & a, const RenderResource & b) { return a.id == b.id; }
@@ -736,4 +738,3 @@ public:
     virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * /*vb*/) { return kInvalidRenderResource; }
     virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * /*ib*/) { return kInvalidRenderResource; }
 };
-
