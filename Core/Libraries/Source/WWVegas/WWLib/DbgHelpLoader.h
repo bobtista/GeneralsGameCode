@@ -20,6 +20,8 @@
 
 #include "always.h"
 
+#ifdef _WIN32
+
 #include <win.h>
 #include <imagehlp.h> // Must be included after Windows.h
 #include <set>
@@ -214,3 +216,86 @@ private:
 	bool m_failed;
 	bool m_loadedFromSystem;
 };
+
+#else
+
+#ifndef WINAPI
+#define WINAPI
+#endif
+
+using BOOL = int;
+using DWORD = unsigned long;
+using LPDWORD = DWORD*;
+using HANDLE = void*;
+using LPSTR = char*;
+using LPVOID = void*;
+struct IMAGEHLP_SYMBOL;
+using PIMAGEHLP_SYMBOL = IMAGEHLP_SYMBOL*;
+struct IMAGEHLP_LINE;
+using PIMAGEHLP_LINE = IMAGEHLP_LINE*;
+struct STACKFRAME;
+using LPSTACKFRAME = STACKFRAME*;
+using PREAD_PROCESS_MEMORY_ROUTINE = void*;
+using PFUNCTION_TABLE_ACCESS_ROUTINE = void*;
+using PGET_MODULE_BASE_ROUTINE = void*;
+using PTRANSLATE_ADDRESS_ROUTINE = void*;
+
+#ifdef RTS_ENABLE_CRASHDUMP
+enum MINIDUMP_TYPE : unsigned int {};
+struct MINIDUMP_EXCEPTION_INFORMATION;
+using PMINIDUMP_EXCEPTION_INFORMATION = MINIDUMP_EXCEPTION_INFORMATION*;
+struct MINIDUMP_USER_STREAM_INFORMATION;
+using PMINIDUMP_USER_STREAM_INFORMATION = MINIDUMP_USER_STREAM_INFORMATION*;
+struct MINIDUMP_CALLBACK_INFORMATION;
+using PMINIDUMP_CALLBACK_INFORMATION = MINIDUMP_CALLBACK_INFORMATION*;
+#endif
+
+class DbgHelpLoader
+{
+public:
+	static bool isLoaded() { return false; }
+	static bool isLoadedFromSystem() { return false; }
+	static bool isFailed() { return true; }
+
+	static bool load() { return false; }
+	static void unload() {}
+
+	static BOOL WINAPI symInitialize(HANDLE, LPSTR, BOOL) { return 0; }
+	static BOOL WINAPI symCleanup(HANDLE) { return 0; }
+	static BOOL WINAPI symLoadModule(HANDLE, HANDLE, LPSTR, LPSTR, DWORD, DWORD) { return 0; }
+	static DWORD WINAPI symGetModuleBase(HANDLE, DWORD) { return 0; }
+	static BOOL WINAPI symUnloadModule(HANDLE, DWORD) { return 0; }
+	static BOOL WINAPI symGetSymFromAddr(HANDLE, DWORD, LPDWORD, PIMAGEHLP_SYMBOL) { return 0; }
+	static BOOL WINAPI symGetLineFromAddr(HANDLE, DWORD, LPDWORD, PIMAGEHLP_LINE) { return 0; }
+	static DWORD WINAPI symSetOptions(DWORD) { return 0; }
+	static LPVOID WINAPI symFunctionTableAccess(HANDLE, DWORD) { return nullptr; }
+	static BOOL WINAPI stackWalk(
+		DWORD,
+		HANDLE,
+		HANDLE,
+		LPSTACKFRAME,
+		LPVOID,
+		PREAD_PROCESS_MEMORY_ROUTINE,
+		PFUNCTION_TABLE_ACCESS_ROUTINE,
+		PGET_MODULE_BASE_ROUTINE,
+		PTRANSLATE_ADDRESS_ROUTINE)
+	{
+		return 0;
+	}
+
+#ifdef RTS_ENABLE_CRASHDUMP
+	static BOOL WINAPI miniDumpWriteDump(
+		HANDLE,
+		DWORD,
+		HANDLE,
+		MINIDUMP_TYPE,
+		PMINIDUMP_EXCEPTION_INFORMATION,
+		PMINIDUMP_USER_STREAM_INFORMATION,
+		PMINIDUMP_CALLBACK_INFORMATION)
+	{
+		return 0;
+	}
+#endif
+};
+
+#endif
