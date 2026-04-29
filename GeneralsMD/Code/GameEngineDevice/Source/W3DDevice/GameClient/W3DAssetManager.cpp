@@ -44,6 +44,8 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include <WWLib/always.h>
+#include <cstddef>
+#include <cstdint>
 #include "W3DDevice/GameClient/W3DAssetManager.h"
 #include "WW3D2/proto.h"
 #include "WW3D2/rendobj.h"
@@ -152,7 +154,7 @@ W3DAssetManager::~W3DAssetManager()
 }
 
 #ifdef DUMP_PERF_STATS
-__int64 Total_Get_Texture_Time=0;
+std::int64_t Total_Get_Texture_Time = 0;
 #endif
 
 TextureClass *	W3DAssetManager::Get_Texture
@@ -190,7 +192,7 @@ TextureClass *W3DAssetManager::Get_Texture(
 )
 {
 	#ifdef DUMP_PERF_STATS
-	__int64 startTime64,endTime64;
+	std::int64_t startTime64, endTime64;
 	GetPrecisionTimer(&startTime64);
 	#endif
 
@@ -705,7 +707,7 @@ TextureClass * W3DAssetManager::Recolor_Texture_One_Time(TextureClass *texture, 
 }
 
 #ifdef DUMP_PERF_STATS
-__int64 Total_Create_Render_Obj_Time=0;
+std::int64_t Total_Create_Render_Obj_Time = 0;
 #endif
 //---------------------------------------------------------------------
 /** Generals specific code to generate customized render objects for each team color
@@ -720,7 +722,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 )
 {
 	#ifdef DUMP_PERF_STATS
-	__int64 startTime64,endTime64;
+	std::int64_t startTime64, endTime64;
 	GetPrecisionTimer(&startTime64);
 	#endif
 
@@ -778,7 +780,8 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 		const char *mesh_name = strchr (name, '.');
 		if (mesh_name != nullptr)
 		{
-			lstrcpyn(filename, name, ((int)mesh_name) - ((int)name) + 1);
+			const std::ptrdiff_t mesh_name_length = mesh_name - name;
+			lstrcpyn(filename, name, static_cast<int>(mesh_name_length) + 1);
 			lstrcat(filename, ".w3d");
 		} else {
 			snprintf( filename, ARRAY_SIZE(filename), "%s.w3d", name);
@@ -968,7 +971,7 @@ void W3DAssetManager::Recolor_Vertex_Material(VertexMaterialClass *vmat, const i
 }
 
 #ifdef DUMP_PERF_STATS
-__int64 Total_Load_3D_Assets=0;
+std::int64_t Total_Load_3D_Assets = 0;
 static Int Load_3D_Asset_Recursions=0;
 #endif
 //---------------------------------------------------------------------
@@ -977,7 +980,7 @@ bool W3DAssetManager::Load_3D_Assets( const char * filename )
 #ifdef DUMP_PERF_STATS
 		Load_3D_Asset_Recursions++;
 
-		__int64 startTime64,endTime64;
+		std::int64_t startTime64, endTime64;
 		GetPrecisionTimer(&startTime64);
 #endif
 
@@ -1028,7 +1031,7 @@ bool W3DAssetManager::Load_3D_Assets( const char * filename )
 }
 
 #ifdef DUMP_PERF_STATS
-__int64 Total_Get_HAnim_Time=0;
+std::int64_t Total_Get_HAnim_Time = 0;
 static Int HAnim_Recursions=0;
 #endif
 //---------------------------------------------------------------------
@@ -1037,7 +1040,7 @@ HAnimClass *	W3DAssetManager::Get_HAnim(const char * name)
 #ifdef DUMP_PERF_STATS
 	HAnim_Recursions++;
 
-	__int64 startTime64,endTime64;
+	std::int64_t startTime64, endTime64;
 	GetPrecisionTimer(&startTime64);
 #endif
 	WWPROFILE( "WW3DAssetManager::Get_HAnim" );
@@ -1383,13 +1386,14 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(const char * name,float scal
 		char filename [MAX_PATH];
 		char *mesh_name = ::strchr (name, '.');
 		if (mesh_name != nullptr) {
-			::lstrcpyn (filename, name, ((int)mesh_name) - ((int)name) + 1);
+			const std::ptrdiff_t mesh_name_length = mesh_name - name;
+			::lstrcpyn(filename, name, static_cast<int>(mesh_name_length) + 1);
 			if (isGranny)
 				::lstrcat (filename, ".gr2");
 			else
 				::lstrcat (filename, ".w3d");
 		} else {
-			sprintf( filename, "%s.w3d", name);
+			snprintf(filename, ARRAY_SIZE(filename), "%s.w3d", name);
 		}
 
 		// If we can't find it, try the parent directory
