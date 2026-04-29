@@ -94,7 +94,11 @@
 #include	"win.h"
 #include "XPIPE.h"
 #include "XSTRAW.h"
+#ifdef _WIN32
 #include <malloc.h>
+#else
+#include <cstdlib>
+#endif
 #ifdef _UNIX
 #include <ctype.h>
 #endif
@@ -2291,4 +2295,3 @@ void	INIClass::Keep_Blank_Entries (bool keep_blanks)
 {
 	KeepBlankEntries = keep_blanks;
 }
-
