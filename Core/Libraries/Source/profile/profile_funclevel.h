@@ -29,6 +29,29 @@
 
 #pragma once
 
+// Platform-specific 64-bit type compatibility
+#ifdef _WIN32
+    // Windows: _int64 is native MSVC type
+    typedef unsigned _int64 u64;
+    typedef _int64 i64;
+#else
+    // Linux: Use C++11 standard types
+    #include <cstdint>
+    typedef uint64_t u64;
+    typedef int64_t i64;
+    // Define _int64 for use in (unsigned _int64) patterns
+    // Only define if not already defined by types_compat.h
+    #ifndef _int64
+    typedef int64_t _int64;
+    #endif
+#endif
+#include <Utility/intrin_compat.h>
+#include <cstdint>
+
+// TheSuperHackers @build bobtista 29/04/2026 The compat win32 shim already
+// maps __int64 / _int64 to long long via #define; do not add a redundant
+// typedef here (would expand to "typedef int64_t long long" via the macro).
+
 /**
   \brief The function level profiler.
 
@@ -124,7 +147,9 @@ public:
       \param frame number of recorded frame, or Total
       \return number of calls
     */
-    unsigned _int64 GetCalls(unsigned frame) const;
+    // GeneralsX @refactor BenderAI 10/02/2026
+    // Changed from unsigned _int64 (MSVC-specific) to u64 (platform typedef)
+    u64 GetCalls(unsigned frame) const;
 
     /**
       \brief Determine time spend in this function and its children.
@@ -132,7 +157,7 @@ public:
       \param frame number of recorded frame, or Total
       \return time spend (in CPU ticks)
     */
-    unsigned _int64 GetTime(unsigned frame) const;
+    u64 GetTime(unsigned frame) const;
 
     /**
       \brief Determine time spend in this function only (exclude
@@ -141,7 +166,7 @@ public:
       \param frame number of recorded frame, or Total
       \return time spend in this function alone (in CPU ticks)
     */
-    unsigned _int64 GetFunctionTime(unsigned frame) const;
+    u64 GetFunctionTime(unsigned frame) const;
 
     /**
       \brief Determine the list of caller Ids.
@@ -180,9 +205,10 @@ public:
 
       \return profile thread ID
     */
-    unsigned GetId() const
+  // GeneralsX @refactor BenderAI 10/02/2026 Use uintptr_t to avoid pointer precision loss on 64-bit
+  uintptr_t GetId() const
     {
-      return unsigned(m_threadID);
+      return (uintptr_t)m_threadID;
     }
 
   private:
