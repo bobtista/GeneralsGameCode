@@ -4,9 +4,15 @@ add_library(z_wwcommon INTERFACE)
 target_link_libraries(z_wwcommon INTERFACE
     core_wwcommon
     d3d8lib
-    milesloader
     stlport
 )
+
+# TheSuperHackers @build bobtista 29/04/2026 milesloader is Win-only.
+if(WIN32)
+    target_link_libraries(z_wwcommon INTERFACE
+        milesloader
+    )
+endif()
 
 target_include_directories(z_wwcommon INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
