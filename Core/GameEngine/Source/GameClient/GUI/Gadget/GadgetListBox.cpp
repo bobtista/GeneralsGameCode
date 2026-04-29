@@ -1395,7 +1395,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 		{
 			Int i;
 
-			if( list->endPos <= (Int)mData1 )
+			if( list->endPos <= (Int)(intptr_t)mData1 )
 				break;
 
 			ListEntryCell *cells = list->listData[mData1].cell;
@@ -1423,9 +1423,9 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 
 				while( list->selections[i] >= 0 )
 				{
-					if( (Int)mData1 < list->selections[i] )
+					if( (Int)(intptr_t)mData1 < list->selections[i] )
 						list->selections[i]--;
-					else if ( (Int)mData1 == list->selections[i] )
+					else if ( (Int)(intptr_t)mData1 == list->selections[i] )
 					{
 						removeSelection( list, i );
 						i--;									// compensate for lost entry
@@ -1436,9 +1436,9 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			}
 			else
 			{
-				if( (Int)mData1 < list->selectPos )
+				if( (Int)(intptr_t)mData1 < list->selectPos )
 					list->selectPos--;
-				else if ( (Int)mData1 == list->selectPos )
+				else if ( (Int)(intptr_t)mData1 == list->selectPos )
 					list->selectPos = -1;
 			}
 
@@ -1554,7 +1554,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 		case GLM_TOGGLE_MULTI_SELECTION:
 		{
 
-			if( (Int)mData1 < 0 )
+			if( (Int)(intptr_t)mData1 < 0 )
 			{
 				// a negative number will purge the entire list.
 				if( list->multiSelect )
@@ -1578,7 +1578,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 
 				while( list->selections[i] >= 0 )
 				{
-					if( list->selections[i] == (Int)mData1 )
+					if( list->selections[i] == (Int)(intptr_t)mData1 )
 					{
 						removeSelection( list, i );
 						removed = TRUE;
@@ -1590,7 +1590,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 
 				if( removed == FALSE )
 				{
-					list->selections[i] = (Int)mData1;
+					list->selections[i] = (Int)(intptr_t)mData1;
 					list->selections[i+1] = -1;
 				}
 			}
@@ -1607,7 +1607,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 		case GLM_SET_SELECTION:
 		{
 			const Int *selectList = (const Int *)mData1;
-			Int selectCount = (Int)mData2;
+			Int selectCount = (Int)(intptr_t)mData2;
 			DEBUG_ASSERTCRASH( list->multiSelect || selectCount == 1, ("Bad selection size"));
 
 			if( selectList[0] < 0 || list->listLength <= selectList[0] )
@@ -1701,7 +1701,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 		case GLM_SCROLL_BUFFER:
 		{
 
-			if( list->endPos < (Int)mData1 )
+			if( list->endPos < (Int)(intptr_t)mData1 )
 				break;
 
 			//
@@ -1715,7 +1715,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			//
 			ListEntryCell *cells = nullptr;
 			Int i = 0;
-			for (; i < (Int)mData1; i++)
+			for (; i < (Int)(intptr_t)mData1; i++)
 			{
 				cells = list->listData[i].cell;
 
@@ -1749,7 +1749,7 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 			//
 			// remove the display or links to images after the shift
 			//
-			for(i = 0; i < (Int)mData1; i ++)
+			for(i = 0; i < (Int)(intptr_t)mData1; i ++)
 			{
 				list->listData[list->endPos + i].cell = nullptr;
 			}
@@ -1761,8 +1761,8 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 
 				while( list->selections[i] >= 0 )
 				{
-					if( (Int)mData1 >= list->selections[i] )
-						list->selections[i] -= (Int)mData1;
+					if( (Int)(intptr_t)mData1 >= list->selections[i] )
+						list->selections[i] -= (Int)(intptr_t)mData1;
 					else
 					{
 						removeSelection( list, i );
@@ -1792,7 +1792,10 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 		{
 
 			if( list->multiSelect )
-				*(Int*)mData2 = (Int)list->selections;
+				// TheSuperHackers @build bobtista 29/04/2026 selections is a
+				// pointer; route the cast through intptr_t so it truncates to
+				// Int cleanly on 64-bit.
+				*(Int*)mData2 = (Int)(intptr_t)list->selections;
 			else
 				*(Int*)mData2 = list->selectPos;
 
@@ -1822,8 +1825,8 @@ WindowMsgHandledType GadgetListBoxSystem( GameWindow *window, UnsignedInt msg,
 		// ------------------------------------------------------------------------
 		case GGM_RESIZED:
 		{
-			Int width = (Int)mData1;
-			Int height = (Int)mData2;
+			Int width = (Int)(intptr_t)mData1;
+			Int height = (Int)(intptr_t)mData2;
 			ICoord2D downSize = {0, 0};
 			ICoord2D upSize = {0, 0};
 			ICoord2D sliderSize = {0, 0};
