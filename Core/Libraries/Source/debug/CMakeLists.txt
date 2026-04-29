@@ -21,24 +21,31 @@ set(DEBUG_SRC
     "internal.h"
 )
 
-add_library(core_debug STATIC)
+# TheSuperHackers @build bobtista 29/04/2026 core_debug is Windows-only.
+# debug_debug.cpp self-#errors on non-Win/MSVC and the Win API surface
+# (SetUnhandledExceptionFilter, ReadFile, MessageBox, ...) does not have a
+# meaningful POSIX analog. Consumers that link core_debug must guard the
+# link on WIN32. Matches the fbraz3/GeneralsX approach.
+if(WIN32)
+    add_library(core_debug STATIC)
 
-target_sources(core_debug PRIVATE ${DEBUG_SRC})
+    target_sources(core_debug PRIVATE ${DEBUG_SRC})
 
-target_include_directories(core_debug INTERFACE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
+    target_include_directories(core_debug INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+    )
 
-target_precompile_headers(core_debug PRIVATE
-    [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
-    "debug.h"
-    "internal.h"
-    "internal_except.h"
-    "internal_io.h"
-    <windows.h>
-)
+    target_precompile_headers(core_debug PRIVATE
+        [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
+        "debug.h"
+        "internal.h"
+        "internal_except.h"
+        "internal_io.h"
+        <windows.h>
+    )
 
-target_link_libraries(core_debug PRIVATE
-    core_wwcommon
-    corei_always
-)
+    target_link_libraries(core_debug PRIVATE
+        core_wwcommon
+        corei_always
+    )
+endif()
