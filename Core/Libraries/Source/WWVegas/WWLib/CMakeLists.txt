@@ -34,7 +34,6 @@ set(WWLIB_SRC
     cstraw.h
     DbgHelpGuard.cpp
     DbgHelpGuard.h
-    DbgHelpLoader.cpp
     DbgHelpLoader.h
     DbgHelpLoader_minidump.h
     Except.cpp
@@ -155,6 +154,7 @@ set(WWLIB_SRC
 
 if(WIN32)
     list(APPEND WWLIB_SRC
+        DbgHelpLoader.cpp
         mpu.cpp
         MPU.h
         rcfile.cpp
@@ -165,6 +165,13 @@ if(WIN32)
         verchk.h
         WWCOMUtil.cpp
         WWCOMUtil.h
+)
+else()
+    # TheSuperHackers @build bobtista 29/04/2026 Stub the legacy WWLib
+    # RegistryClass on non-Win so DX8Wrapper / W3DDisplay still link.
+    list(APPEND WWLIB_SRC
+        registry.h
+        registry_unix_stub.cpp
     )
 endif()
 
@@ -192,6 +199,7 @@ if(WIN32)
 else()
     target_precompile_headers(core_wwlib PRIVATE
         [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
+        <windows.h>
         always.h
         STLUtils.h
         win.h
