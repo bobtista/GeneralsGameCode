@@ -45,6 +45,9 @@
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
 // SYSTEM INCLUDES
+#if defined(__APPLE__)
+#include <malloc/malloc.h>		// malloc_size for foreign-pointer detection
+#endif
 
 // USER INCLUDES
 #include "Common/GameMemory.h"
@@ -2276,6 +2279,29 @@ void DynamicMemoryAllocator::freeBytes(void* pBlockPtr)
 {
 	if (!pBlockPtr)
 		return;
+
+#if defined(__APPLE__)
+	// TheSuperHackers @bugfix bobtista 30/04/2026 Apple libraries
+	// (AGX/Metal, libdispatch, libc++, ...) call the global operator
+	// delete on internal pointers that were never allocated by our
+	// MemoryPool. Examples observed: small inline values like 0x5e,
+	// destructed-but-still-around objects, etc. We must NOT subtract
+	// the MemoryPoolSingleBlock header off such a pointer and read
+	// m_owningBlob - that crashes in unmapped memory. malloc_size()
+	// returns the underlying allocation size for any pointer that came
+	// out of the system malloc family (which is what Apple uses for
+	// its internal new), and 0 for everything else. Our pool's blob
+	// memory is also backed by malloc, so pool sub-block pointers
+	// fall *inside* a malloc'd blob and still report a non-zero
+	// malloc_size - they continue down the pool path. Pointers with
+	// malloc_size==0 are bogus / non-heap and we silently drop them
+	// (matches the C++ rule that delete on a non-heap pointer is UB,
+	// and our least-bad action is to leak rather than crash).
+	if (malloc_size(pBlockPtr) == 0)
+	{
+		return;
+	}
+#endif
 
 	ScopedCriticalSection scopedCriticalSection(TheDmaCriticalSection);
 
