@@ -19,7 +19,20 @@
 #if defined(__APPLE__)
 #include <SDL3/SDL_metal.h>
 #endif
+#include <cstdio>
+#include <cstdlib>
 #include <string>
+
+// TheSuperHackers @info bobtista 30/04/2026 Release builds strip
+// WWDEBUG_SAY, so during macOS bring-up we emit a small set of stderr
+// breadcrumbs so we can see where init reaches even when the window
+// never comes up. Set GGC_TRACE=1 to enable.
+#define GGC_TRACE(fmt, ...) do { \
+    if (std::getenv("GGC_TRACE") != NULL) { \
+        std::fprintf(stderr, "[ggc] " fmt "\n", ##__VA_ARGS__); \
+        std::fflush(stderr); \
+    } \
+} while (0)
 
 #include "Common/CommandLine.h"
 #include "Common/Debug.h"
@@ -92,6 +105,8 @@ int main(int argc, char **argv)
 	__argc = argc;
 	__argv = argv;
 
+	GGC_TRACE("main entered argc=%d", argc);
+
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Build a Win32-style
 	// command-line string from argv so GetCommandLineA() in the compat
 	// shim returns the real arguments. The engine's parseCommandLine
@@ -128,11 +143,13 @@ int main(int argc, char **argv)
 	}
 	g_compatCommandLine = s_compatCommandLineStorage.c_str();
 
+	GGC_TRACE("calling SDL_Init");
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
 	{
 		SDL_Log("SDL_Init failed: %s", SDL_GetError());
 		return 1;
 	}
+	GGC_TRACE("SDL_Init OK");
 
 	Uint32 windowFlags = SDL_WINDOW_RESIZABLE;
 #if defined(__APPLE__)
@@ -180,6 +197,7 @@ int main(int argc, char **argv)
 		SDL_SetWindowFullscreen(TheSDL3Window, true);
 		SDL_SyncWindow(TheSDL3Window);
 	}
+	GGC_TRACE("SDL_CreateWindow OK window=%p", (void*)TheSDL3Window);
 
 	ApplicationHWnd = TheSDL3Window;
 
@@ -190,10 +208,13 @@ int main(int argc, char **argv)
 	// the NSWindow and races with SDL3 for control of the contentView's
 	// layer, which manifests as intermittent AGX driver compilation
 	// crashes in AGCDeserializedReply on macOS Tahoe / Apple Silicon.
+	GGC_TRACE("calling SDL_Metal_CreateView");
 	TheSDL3MetalView = SDL_Metal_CreateView(TheSDL3Window);
 	if (TheSDL3MetalView != NULL)
 	{
 		TheSDL3MetalLayer = SDL_Metal_GetLayer(TheSDL3MetalView);
+		GGC_TRACE("SDL_Metal_CreateView OK view=%p layer=%p",
+		          (void*)TheSDL3MetalView, TheSDL3MetalLayer);
 	}
 	else
 	{
@@ -209,7 +230,10 @@ int main(int argc, char **argv)
 		AsciiString(VERSION_BUILDUSER), AsciiString(VERSION_BUILDLOC),
 		AsciiString(__TIME__), AsciiString(__DATE__));
 
+	GGC_TRACE("calling parseCommandLineForStartup cmdline='%s'", g_compatCommandLine);
 	CommandLine::parseCommandLineForStartup();
+	GGC_TRACE("parseCommandLineForStartup OK headless=%d",
+	          (TheGlobalData != NULL && TheGlobalData->m_headless) ? 1 : 0);
 
 	// TheSuperHackers @bugfix bobtista 30/04/2026 -headless asks for
 	// engine-only execution (no rendering, no audio); on Apple Silicon
