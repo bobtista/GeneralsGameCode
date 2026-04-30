@@ -16,6 +16,7 @@
 #include <windows.h>
 
 #include <SDL3/SDL.h>
+#include <string>
 
 #include "Common/CommandLine.h"
 #include "Common/GameEngine.h"
@@ -35,6 +36,13 @@ namespace
 
 int __argc = 0;
 char **__argv = NULL;
+
+// TheSuperHackers @bugfix bobtista 30/04/2026 Backing storage for the
+// compat shim's GetCommandLineA(). Populated in main() before any
+// CommandLine::parse* call so the engine sees the real arg vector
+// joined into a single Win32-style command-line string.
+const char *g_compatCommandLine = "";
+static std::string s_compatCommandLineStorage;
 
 // TheSuperHackers @build bobtista 29/04/2026 Globals normally provided by the
 // Win-side WinMain.cpp.
@@ -65,6 +73,46 @@ int main(int argc, char **argv)
 {
 	__argc = argc;
 	__argv = argv;
+
+	// TheSuperHackers @bugfix bobtista 30/04/2026 Build a Win32-style
+	// command-line string from argv so GetCommandLineA() in the compat
+	// shim returns the real arguments. parseCommandLine tokenises by
+	// whitespace and respects double quotes, so wrap any arg that
+	// contains a space and escape embedded quotes.
+	for (int i = 1; i < argc; ++i)
+	{
+		if (i > 1)
+		{
+			s_compatCommandLineStorage += ' ';
+		}
+		const char *a = argv[i];
+		bool needsQuote = false;
+		for (const char *p = a; *p != '\0'; ++p)
+		{
+			if (*p == ' ' || *p == '\t')
+			{
+				needsQuote = true;
+				break;
+			}
+		}
+		if (needsQuote)
+		{
+			s_compatCommandLineStorage += '"';
+		}
+		for (const char *p = a; *p != '\0'; ++p)
+		{
+			if (*p == '"')
+			{
+				s_compatCommandLineStorage += '\\';
+			}
+			s_compatCommandLineStorage += *p;
+		}
+		if (needsQuote)
+		{
+			s_compatCommandLineStorage += '"';
+		}
+	}
+	g_compatCommandLine = s_compatCommandLineStorage.c_str();
 
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
 	{
