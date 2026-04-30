@@ -16,6 +16,9 @@
 #include <windows.h>
 
 #include <SDL3/SDL.h>
+#if defined(__APPLE__)
+#include <SDL3/SDL_metal.h>
+#endif
 #include <string>
 
 #include "Common/CommandLine.h"
@@ -66,6 +69,18 @@ void OSDisplaySetBusyState(Bool /*busyDisplay*/, Bool /*busySystem*/) {}
 
 SDL_Window *TheSDL3Window = NULL;
 void *ApplicationHWnd = NULL;
+// TheSuperHackers @bugfix bobtista 30/04/2026 macOS-only: keep the
+// SDL_Metal view alive for the lifetime of the bgfx renderer, and
+// publish its CAMetalLayer pointer here so BgfxBackend's
+// GetNativeWindowHandle can hand it to bgfx as platformData.nwh
+// instead of an NSWindow. Passing the NSWindow lets bgfx try to
+// install its own CAMetalLayer on the contentView, which fights with
+// the layer SDL3 already created and trips the Apple AGX driver
+// during pipeline-state compile.
+#if defined(__APPLE__)
+SDL_MetalView TheSDL3MetalView = NULL;
+void *TheSDL3MetalLayer = NULL;
+#endif
 
 extern Int GameMain();
 
@@ -162,6 +177,24 @@ int main(int argc, char **argv)
 
 	ApplicationHWnd = TheSDL3Window;
 
+#if defined(__APPLE__)
+	// TheSuperHackers @bugfix bobtista 30/04/2026 Use SDL3's official
+	// Metal-view helper so we own a CAMetalLayer-backed NSView and can
+	// hand bgfx the CAMetalLayer directly. Without this, bgfx receives
+	// the NSWindow and races with SDL3 for control of the contentView's
+	// layer, which manifests as intermittent AGX driver compilation
+	// crashes in AGCDeserializedReply on macOS Tahoe / Apple Silicon.
+	TheSDL3MetalView = SDL_Metal_CreateView(TheSDL3Window);
+	if (TheSDL3MetalView != NULL)
+	{
+		TheSDL3MetalLayer = SDL_Metal_GetLayer(TheSDL3MetalView);
+	}
+	else
+	{
+		SDL_Log("SDL_Metal_CreateView failed: %s", SDL_GetError());
+	}
+#endif
+
 	// TheSuperHackers @build bobtista 30/04/2026 Mirror the early-init the
 	// Win path does in WinMain.cpp: build TheVersion, then run command-line
 	// parsing so TheWritableGlobalData exists before GameEngine::init runs.
@@ -173,6 +206,15 @@ int main(int argc, char **argv)
 	CommandLine::parseCommandLineForStartup();
 
 	Int result = GameMain();
+
+#if defined(__APPLE__)
+	if (TheSDL3MetalView != NULL)
+	{
+		SDL_Metal_DestroyView(TheSDL3MetalView);
+		TheSDL3MetalView = NULL;
+		TheSDL3MetalLayer = NULL;
+	}
+#endif
 
 	SDL_DestroyWindow(TheSDL3Window);
 	TheSDL3Window = NULL;
