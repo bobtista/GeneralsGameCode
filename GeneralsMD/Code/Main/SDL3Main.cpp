@@ -25,6 +25,7 @@
 #include "Common/Debug.h"
 #include "Common/GameEngine.h"
 #include "Common/GameMemory.h"
+#include "Common/GlobalData.h"
 #include "Common/version.h"
 #include "GameClient/ClientInstance.h"
 #include "SDL3GameEngine.h"
