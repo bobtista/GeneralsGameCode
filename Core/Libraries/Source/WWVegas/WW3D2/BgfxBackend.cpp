@@ -145,6 +145,14 @@ BgfxCaches     g_caches;
 // Asset-ingress resource side-table. id 0 is reserved invalid.
 BgfxPhase5Resources g_phase5 = { {}, 1 };
 
+#if defined(__APPLE__) && defined(SAGE_USE_SDL3)
+// TheSuperHackers @bugfix bobtista 30/04/2026 Owned by SDL3Main.cpp
+// (filled in main() right after SDL_Metal_CreateView). Kept at global
+// scope here so GetNativeWindowHandle below can reach it across the
+// surrounding anonymous namespace.
+extern void *TheSDL3MetalLayer;
+#endif
+
 
 namespace
 {
@@ -832,6 +840,18 @@ void *GetNativeWindowHandle(void *window)
         return NULL;
     }
 #if defined(SAGE_USE_SDL3)
+#if defined(__APPLE__)
+    // TheSuperHackers @bugfix bobtista 30/04/2026 SDL_Metal_CreateView
+    // gives us a CAMetalLayer that bgfx can take as platformData.nwh
+    // directly. Passing the NSWindow instead lets bgfx try to install
+    // its own CAMetalLayer on the contentView, which fights with
+    // SDL3's own layer setup and intermittently crashes Apple's AGX
+    // driver in AGCDeserializedReply during pipeline-state compile.
+    if (::TheSDL3MetalLayer != NULL)
+    {
+        return ::TheSDL3MetalLayer;
+    }
+#endif
     SDL_Window *sdlWindow = static_cast<SDL_Window *>(window);
     SDL_PropertiesID props = SDL_GetWindowProperties(sdlWindow);
 #if defined(__APPLE__)
