@@ -12,6 +12,8 @@
 
 #if defined(SAGE_USE_SDL3)
 
+#include <cstdlib>
+
 #include "SDL3GameEngine.h"
 
 SDL3Mouse::SDL3Mouse() :
@@ -73,12 +75,13 @@ void SDL3Mouse::setPosition(Int x, Int y)
 void SDL3Mouse::capture()
 {
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Win32Mouse calls
-	// ClipCursor(&windowRect) - it confines the cursor to the window
-	// while leaving mouse events flowing normally. SDL3's analog is
-	// SDL_SetWindowMouseGrab, NOT SDL_SetWindowRelativeMouseMode (which
-	// is the FPS hide+lock primitive) and not SDL_CaptureMouse (which
-	// only routes events when the cursor has already left the window).
-	if (TheSDL3Window != NULL)
+	// ClipCursor(&windowRect); SDL3's analog is SDL_SetWindowMouseGrab.
+	// Disabled by default on macOS while we are still debugging window
+	// foregrounding - calling SDL_SetWindowMouseGrab early in init
+	// appears to suppress the window from coming up at all on M4 +
+	// macOS Tahoe. GGC_MOUSE_GRAB=1 turns it on for users who want the
+	// edge-scroll-clip behaviour back.
+	if (TheSDL3Window != NULL && std::getenv("GGC_MOUSE_GRAB") != NULL)
 	{
 		SDL_SetWindowMouseGrab(TheSDL3Window, true);
 	}
