@@ -12,6 +12,8 @@
 
 #if defined(SAGE_USE_SDL3)
 
+#include <cstdlib>
+
 #include "Common/AudioRequest.h"
 #include "Common/GameAudio.h"
 #include "GameClient/Keyboard.h"
@@ -228,6 +230,17 @@ WebBrowser *SDL3GameEngine::createWebBrowser()
 AudioManager *SDL3GameEngine::createAudioManager(Bool dummy)
 {
 #if defined(SAGE_USE_OPENAL)
+	// TheSuperHackers @bugfix bobtista 30/04/2026 GGC_NO_AUDIO=1 forces
+	// the dummy audio manager even when not headless. macOS Tahoe
+	// intermittently crashes inside CoreAudio's notification dispatch
+	// (HALC_ProxyNotifications, malloc-double-free) shortly after the
+	// game reaches the shell map. Letting users disable audio entirely
+	// is a clean way to keep the engine running while the audio path
+	// is sorted out. The flag matches the existing GGC_MACOS_* style.
+	if (std::getenv("GGC_NO_AUDIO") != NULL)
+	{
+		dummy = TRUE;
+	}
 	return NEW OpenALAudioManager(dummy);
 #endif
 	return NULL;
