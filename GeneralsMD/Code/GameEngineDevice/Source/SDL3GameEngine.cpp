@@ -236,7 +236,8 @@ AudioManager *SDL3GameEngine::createAudioManager(Bool dummy)
 	// (HALC_ProxyNotifications, malloc-double-free) shortly after the
 	// game reaches the shell map. Letting users disable audio entirely
 	// is a clean way to keep the engine running while the audio path
-	// is sorted out. The flag matches the existing GGC_MACOS_* style.
+	// is sorted out. Variable is unprefixed because the toggle benefits
+	// any SDL3+OpenAL platform, not just macOS.
 	if (std::getenv("GGC_NO_AUDIO") != NULL)
 	{
 		dummy = TRUE;

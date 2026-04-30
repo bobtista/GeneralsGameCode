@@ -123,11 +123,12 @@ function(ggc_compile_bgfx_shader source_sc)
         set(_shader_suffix "metal")
         set(_shader_platform "osx")
         # TheSuperHackers @bugfix bobtista 30/04/2026 The bare "metal"
-        # profile compiles to MSL 1.0 which Apple Silicon's AGX driver
-        # has dropped support for in macOS Sequoia: pipeline state
-        # creation faults inside MTLCompiler when the runtime tries to
-        # JIT-compile such old MSL. metal22 (MSL 2.2 / iOS 13 / macOS
-        # 10.15) is the lowest profile that still ingests cleanly.
+        # profile compiles to MSL 1.0, which Apple Silicon's AGX driver
+        # has effectively deprecated on macOS Tahoe (pipeline-state
+        # compiles fault inside MTLCompiler). Target metal30-14
+        # (MSL 3.0 / macOS 14) which the M1/M2/M3/M4 family all support
+        # and the runtime accepts cleanly. metal22-11 also works on
+        # older systems if M-family compatibility ever matters.
         set(_shader_profile "metal30-14")
     elseif(GGC_BGFX_RENDERER STREQUAL "vulkan")
         set(_shader_suffix "spirv")

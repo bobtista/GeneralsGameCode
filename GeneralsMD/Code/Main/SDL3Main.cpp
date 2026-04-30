@@ -94,9 +94,12 @@ int main(int argc, char **argv)
 
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Build a Win32-style
 	// command-line string from argv so GetCommandLineA() in the compat
-	// shim returns the real arguments. parseCommandLine tokenises by
-	// whitespace and respects double quotes, so wrap any arg that
-	// contains a space and escape embedded quotes.
+	// shim returns the real arguments. The engine's parseCommandLine
+	// tokenises with nextParam(buf, "\" "), i.e. ' ' and '"' are the
+	// only separators and there is no backslash escape - so we just
+	// wrap any arg that contains a space in double quotes. Args that
+	// contain BOTH a space and a literal '"' are unsupported by the
+	// engine parser itself, so we don't try to encode them either.
 	for (int i = 1; i < argc; ++i)
 	{
 		if (i > 1)
@@ -107,7 +110,7 @@ int main(int argc, char **argv)
 		bool needsQuote = false;
 		for (const char *p = a; *p != '\0'; ++p)
 		{
-			if (*p == ' ' || *p == '\t')
+			if (*p == ' ')
 			{
 				needsQuote = true;
 				break;
@@ -117,14 +120,7 @@ int main(int argc, char **argv)
 		{
 			s_compatCommandLineStorage += '"';
 		}
-		for (const char *p = a; *p != '\0'; ++p)
-		{
-			if (*p == '"')
-			{
-				s_compatCommandLineStorage += '\\';
-			}
-			s_compatCommandLineStorage += *p;
-		}
+		s_compatCommandLineStorage += a;
 		if (needsQuote)
 		{
 			s_compatCommandLineStorage += '"';
