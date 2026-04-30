@@ -1,22 +1,41 @@
 # macOS Native Build — Status & Resume Notes
 
-**Last updated:** 2026-04-28
+**Last updated:** 2026-04-30
 **Working directory:** `/Users/bobbybattista/Code/GeneralsGameCode-work`
 **Active branch:** `bobtista/build/macos-bundle`
 **Target:** GeneralsMD (Zero Hour) on Apple Silicon arm64
 
 ## Current status
 
-| Stage                  | Status | Notes                                                                                  |
-| ---------------------- | ------ | -------------------------------------------------------------------------------------- |
-| Configure (CMake)      | OK     | `macos-generalsmd-sdl3-bgfx` preset                                                    |
-| Compile + link         | OK     | `generalszh` Mach-O 64-bit arm64, ~16 MB                                               |
-| Engine init            | OK     | Subsystems initialise; INI/Big files load                                              |
-| Headless mode          | OK     | `-headless` survives 10s+ runtime smoke                                                |
-| Window appears         | OK     | SDL3 + Metal-backed CAMetalLayer surface                                               |
-| First-frame Metal draw | BLOCK  | Deterministic SIGSEGV inside Apple AGX driver (`AGCDeserializedReply` ctor) on submit  |
+| Stage                  | Status      | Notes                                                                                  |
+| ---------------------- | ----------- | -------------------------------------------------------------------------------------- |
+| Configure (CMake)      | OK          | `macos-generalsmd-sdl3-bgfx` preset                                                    |
+| Compile + link         | OK          | `generalszh` Mach-O 64-bit arm64, ~16 MB                                               |
+| Engine init            | OK          | Subsystems initialise; INI/Big files load                                              |
+| Headless mode          | OK          | `-headless` actually parses now (was previously a no-op)                               |
+| Window appears         | OK          | SDL3 + Metal-backed CAMetalLayer surface                                               |
+| Metal sampler bindings | OK          | fs_uber slots 4-6 always bound — Metal validator no longer asserts                     |
+| First-frame Metal draw | INTERMITTENT| Apple AGX intermittently crashes compiling its own helper shaders (~80% startup fail)  |
 
-Runtime smoke shows the engine is fully alive — the wall is bgfx → Metal pipeline-state compile when the first internal blit/clear program runs.
+When the AGX driver wins the race, the engine runs indefinitely — proven by 174s+ stable runs. When it loses, `AGX: Internal error during function compilation` fires inside `AGCDeserializedReply::~AGCDeserializedReply` on a background dispatch queue.
+
+## What got fixed in this pass (2026-04-30)
+
+1. **`-headless` (and every other flag) now actually parses.** The compat shim's `GetCommandLineA()` was returning `""`, so all of paramsForStartup silently became no-ops. Wired it up to argv via `g_compatCommandLine` populated in `SDL3Main.cpp`. Side effects:
+    - Audio init no longer runs in headless mode (was crashing inside `OpenALAudioManager::openDevice` → `alcCreateContext` → CoreAudio malloc abort).
+    - `-replay`, `-noshellmap`, `-xres`, etc. now do what they say.
+2. **fs_uber sampler slots 4-6 always bound.** `s_shadowMap`, `s_cloudMap`, `s_sceneDepth` are declared in fs_uber.sc but were only bound when the corresponding feature was active. D3D11 tolerated unbound declared samplers; Metal validation raises "missing Sampler binding" and AGX faults internally without the validator. Fixed by:
+    - `BindShadowMapTexture()` now called unconditionally for uber draws.
+    - `BindShadowMapTexture()` added to the sort-view path (was only on the main-view path).
+    - `BindSoftParticleDepth()` falls back to `defaultWhiteTexture` for slot 6 when soft particles are disabled.
+    - `UploadMaterialUniforms()` falls back to `defaultWhiteTexture` for slot 5 when no cloud texture is set.
+3. **Shadow-map FB clear no longer requests a color clear.** The shadow FB has only a D32F depth attachment; bgfx's `BGFX_CLEAR_COLOR` flag was driving an invalid fast-clear pipeline for a non-existent color attachment. Switched to `BGFX_CLEAR_DEPTH` only, matching bgfx's own `15-shadowmaps-simple` example.
+4. **bgfx bumped to current `c480227` head** (was `668550d` from months ago) and shader profile bumped from bare `metal` (MSL 1.0) to `metal30-14` (MSL 3.0). Picks up `#3683` (depth/stencil store action with MSAA on swap chain) and `#3685` (Metal dynamic buffer alignment).
+5. **AGX pre-warm loop at end of `BgfxBackend::Initialize` (Apple-only).** Touches every configured view across 8 frames to push AGX's per-FB EndOfTile / BlitFastClear shader compilation into init time and let the background dispatch queue settle before the engine's first real frame. Helps but does not fully eliminate the race.
+
+## Goal
+
+Build and run a Mac-native (Apple Silicon arm64) GeneralsMD. Replace Win-only deps with cross-platform equivalents:
 
 ## Goal
 
@@ -105,40 +124,54 @@ Logs:
 └── (RegistryIni and user data live in ~/Library/Application Support/TheSuperHackers/)
 ```
 
-## What's blocked: bgfx Metal first-frame submit
+## What's blocked: AGX driver compilation race
 
 ### Symptom
 
-First call into `bgfx::frame()` after the renderer is up reliably faults inside `AGCDeserializedReply`'s constructor in Apple's AGX Metal driver while compiling/loading a render pipeline state for `BlitFastClearProgramVariant` (an internal bgfx clear shader).
+Most launches die ~0.7s after init with `EXC_BAD_ACCESS` on the `com.apple.root.default-qos` dispatch queue inside `AGCDeserializedReply`'s ctor or dtor while AGX is parsing a compile reply for one of its INTERNAL helper programs (`_agc.background.constant_program`, `BlitVertexFastClearProgramKey`, `EndOfTileProgram`). With `MTL_DEBUG_LAYER=1` Apple prints:
 
 ```
-EXC_BAD_ACCESS (SIGSEGV)  KERN_INVALID_ADDRESS at 0xce845bfa4837b9ee
-Frames (top of stack):
-  AGCDeserializedReply::AGCDeserializedReply(...)
-  AGCDecodeAndStripReply / agc_internal_pipeline_compile
-  -[_MTLRenderPipelineState newRenderPipelineStateWithDescriptor:...]
-  bgfx::mtl::RendererContextMtl::createRenderPipelineState(...)
-  bgfx::mtl::RendererContextMtl::submitBlit(...)
-  bgfx::mtl::RendererContextMtl::submit(...)   ← first frame
-  bgfx::frame()
+AGX: Internal error during function compilation (MTLCompilerErrorCompilationError).
+<hex dump of failed shader bytecode>
+EXC_BAD_ACCESS  address=0x7265765f74696c62  ← ASCII "blit_ver" reversed
 ```
 
-Fault address is **identical across runs** (`0xce845bfa4837b9ee`) — looks like a poisoned/uninitialised pointer being dereferenced rather than memory pressure or race.
+Stack:
+```
+AGCDeserializedReply::AGCDeserializedReply()::__hash_table::__emplace_unique_key_args
+AGX::Compiler::compileProgram<AGX::BackgroundObjectProgramKey, AGCDeserializedReply>
+_dispatch_call_block_and_release  ← background queue
+```
+
+### What this is (and isn't)
+
+It is **not** the original "missing sampler binding" or "depth-only color clear" issue — both have been fixed and the Metal validator is satisfied. The remaining failure is an Apple driver bug in the AGX compiler's reply parser: when the runtime asks AGX to compile one of its built-in helper shaders for a particular framebuffer attachment combination, the compile sometimes fails and the destructor of the failed `AGCDeserializedReply` dereferences a pointer that is actually a string fragment (`"blit_ver..."` little-endian). Same address comes back across runs because it's reading the same shader name string that was stored where a pointer was expected.
+
+It IS reproducible across:
+- bgfx pinned commit and bgfx HEAD (`c480227`).
+- Shader profiles `metal22-11` and `metal30-14`.
+- With or without the depth-only shadow framebuffer.
+- With the pre-warm loop and without it (pre-warm widens the success window but does not close it).
+
+When AGX wins the race the engine runs indefinitely — `~3 minutes` continuous run captured.
 
 ### What we tried
 
 - `SDL_WINDOW_METAL` flag on window creation so bgfx Metal sees a CAMetalLayer-backed view (kept).
-- Passed NSWindow vs. NSView `[contentView]` via `objc_msgSend` dlsym (reverted; no behaviour change).
-- Built with `bgfx::Init::debug = true` and `BGFX_DEBUG_PROFILER` — no extra signal in log.
-- Confirmed headless mode (no bgfx init) is stable.
+- Always-bind fs_uber sampler slots 4-6 with safe fallbacks (committed; eliminated the validator assertion).
+- Drop `BGFX_CLEAR_COLOR` from the depth-only shadow map view (committed; eliminated `findOrCreateBlitProgramVariant<...VertexFastClear>` crash on that specific FB).
+- Bump `bgfx.cmake` from `668550d` to `c480227`, bump shader profile to `metal30-14` (committed).
+- A/B-disable the shadow map FB via `GGC_NO_SHADOWMAP=1` env var: did not change the failure rate, ruled out shadow FB as the trigger.
+- Init pre-warm loop that touches every view for 8 frames at end of `BgfxBackend::Initialize` (committed; widens the success window).
 
 ### Likely directions for next session
 
-1. Bump bgfx submodule from pinned commit `668550dc7c47c71860a39c5ef4c162e79294c93f` to current; the Metal backend has been actively patched.
-2. Build a minimal bgfx sample (bgfx's own `00-helloworld`) against the same SDK to confirm bgfx Metal works on this hardware.
-3. Disable the internal `BlitFastClear` path or hand-build a simpler clear-screen pipeline to bisect.
-4. Run under Metal API validation (Xcode env `MTL_DEBUG_LAYER=1`, `MTL_SHADER_VALIDATION=1`).
-5. Inspect `MTLRenderPipelineDescriptor` bgfx hands the driver — pixel formats, attachment count, stencil format may not match the drawable.
+1. Build bgfx's own `00-helloworld` against the same SDK and run on this Mac. If it crashes too → confirms it's a driver-level issue that even minimal bgfx hits, file an Apple Feedback Assistant report.
+2. Walk down the framebuffer count: temporarily skip `kBgfxSceneDepthView` (R32F + write-only D24S8 combo) and the smudge framebuffers, run several trials, see if the failure rate drops. If it does, the culprit is one of those FB attachment combos.
+3. Try `MTLRenderPassDescriptor.tileWidth/tileHeight` set explicitly — bgfx may be letting AGX pick tile dimensions that cross a driver limit for our attachment formats.
+4. Try forcing `BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT` on the readable depth's depth-test attachment instead of `BGFX_TEXTURE_RT_WRITE_ONLY` — the write-only flag may push AGX into a code path that has the bug.
+5. Write a 50-line standalone Metal program that creates a render pipeline state for each of our 14 FB configurations in sequence, log which one fails. Extract that into an Apple Feedback radar.
+6. Last resort: a launch-loop wrapper script that retries the binary up to N times if it exits with 138/139 within 5s, since the rest of the pipeline is now stable.
 
 ## Key files & directories
 
