@@ -86,10 +86,26 @@ readonly max_attempts="${GGC_MACOS_LAUNCH_ATTEMPTS:-25}"
 readonly fast_fail_seconds="${GGC_MACOS_FAST_FAIL_SECONDS:-15}"
 readonly retry_sleep="${GGC_MACOS_RETRY_SLEEP:-0.3}"
 
+# TheSuperHackers @bugfix bobtista 30/04/2026 Forward Ctrl+C / SIGTERM
+# to whichever generalszh attempt is currently running, so quitting the
+# wrapper does not leak background game processes (each one holds a GPU
+# context and keeps a window open).
+child_pid=""
+forward_signal() {
+    if [[ -n "${child_pid}" ]] && kill -0 "${child_pid}" 2>/dev/null; then
+        kill -"$1" "${child_pid}" 2>/dev/null || true
+    fi
+}
+trap 'forward_signal TERM; exit 130' INT
+trap 'forward_signal TERM; exit 143' TERM
+
 for ((attempt=1; attempt<=max_attempts; ++attempt)); do
     start_epoch=$(date +%s)
-    "${script_dir}/generalszh" "$@"
+    "${script_dir}/generalszh" "$@" &
+    child_pid=$!
+    wait "${child_pid}"
     rc=$?
+    child_pid=""
     end_epoch=$(date +%s)
     elapsed=$((end_epoch - start_epoch))
 
