@@ -2562,7 +2562,6 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
                 bgfx::touch(allViews[i]);
             }
             bgfx::frame();
-<<<<<<< HEAD
             if (trace)
             {
                 std::fprintf(stderr, "[ggc] pre-warm pass %d done\n", pass);
