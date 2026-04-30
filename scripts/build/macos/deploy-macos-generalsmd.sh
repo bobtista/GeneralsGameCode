@@ -82,30 +82,24 @@ if [[ "${GGC_MACOS_NO_RETRY:-0}" == "1" ]]; then
     exec "${script_dir}/generalszh" "$@"
 fi
 
-readonly max_attempts="${GGC_MACOS_LAUNCH_ATTEMPTS:-25}"
+readonly max_attempts="${GGC_MACOS_LAUNCH_ATTEMPTS:-100}"
 readonly fast_fail_seconds="${GGC_MACOS_FAST_FAIL_SECONDS:-15}"
 readonly retry_sleep="${GGC_MACOS_RETRY_SLEEP:-0.3}"
 
-# TheSuperHackers @bugfix bobtista 30/04/2026 Forward Ctrl+C / SIGTERM
-# to whichever generalszh attempt is currently running, so quitting the
-# wrapper does not leak background game processes (each one holds a GPU
-# context and keeps a window open).
-child_pid=""
-forward_signal() {
-    if [[ -n "${child_pid}" ]] && kill -0 "${child_pid}" 2>/dev/null; then
-        kill -"$1" "${child_pid}" 2>/dev/null || true
-    fi
-}
-trap 'forward_signal TERM; exit 130' INT
-trap 'forward_signal TERM; exit 143' TERM
-
+# TheSuperHackers @build bobtista 30/04/2026 Run generalszh in the
+# foreground (no background+wait). Ctrl+C in the controlling terminal
+# is sent to the whole process group, so the child is taken down with
+# the wrapper and no zombies are left. Backgrounding the child broke
+# WindowServer foreground association on macOS - the dock icon appeared
+# but no window ever came up. The last attempt is exec'd to flatten
+# the process tree once we know the AGX race has been won.
 for ((attempt=1; attempt<=max_attempts; ++attempt)); do
     start_epoch=$(date +%s)
-    "${script_dir}/generalszh" "$@" &
-    child_pid=$!
-    wait "${child_pid}"
+    if [[ ${attempt} -eq ${max_attempts} ]]; then
+        exec "${script_dir}/generalszh" "$@"
+    fi
+    "${script_dir}/generalszh" "$@"
     rc=$?
-    child_pid=""
     end_epoch=$(date +%s)
     elapsed=$((end_epoch - start_epoch))
 
