@@ -277,7 +277,14 @@ typedef IDispatch *LPDISPATCH;
 #endif
 
 inline unsigned int GetDoubleClickTime() { return 500; }
-inline const char *GetCommandLineA() { return ""; }
+// TheSuperHackers @bugfix bobtista 30/04/2026 The non-Win entry point
+// (SDL3Main.cpp) populates g_compatCommandLine with the argv joined by
+// spaces so the engine's parseCommandLine helpers (which expect the
+// Win32 GetCommandLineA single-string format) see the actual flags.
+// Without this every -headless / -replay / -xres flag silently became
+// a no-op on macOS, leaving audio + rendering in their default modes.
+extern const char *g_compatCommandLine;
+inline const char *GetCommandLineA() { return g_compatCommandLine != nullptr ? g_compatCommandLine : ""; }
 inline DWORD GetModuleFileName(HMODULE, char *, DWORD size) { (void)size; return 0; }
 inline DWORD GetModuleFileNameA(HMODULE, char *, DWORD size) { (void)size; return 0; }
 inline void GetLocalTime(SYSTEMTIME *t) { if (t) { *t = SYSTEMTIME{}; } }
