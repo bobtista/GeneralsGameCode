@@ -72,19 +72,24 @@ void SDL3Mouse::setPosition(Int x, Int y)
 
 void SDL3Mouse::capture()
 {
-	// TheSuperHackers @bugfix bobtista 30/04/2026 The Win32 path uses
-	// SetCapture(hwnd) which only routes mouse events to this window
-	// even when the cursor leaves it. SDL_SetWindowRelativeMouseMode is
-	// the FPS-style hide-and-lock-cursor primitive, which is wrong for
-	// an RTS - it left the user unable to move the cursor at all on
-	// macOS. SDL_CaptureMouse is the right analog: events flow here
-	// while the cursor stays visible and free.
-	SDL_CaptureMouse(true);
+	// TheSuperHackers @bugfix bobtista 30/04/2026 Win32Mouse calls
+	// ClipCursor(&windowRect) - it confines the cursor to the window
+	// while leaving mouse events flowing normally. SDL3's analog is
+	// SDL_SetWindowMouseGrab, NOT SDL_SetWindowRelativeMouseMode (which
+	// is the FPS hide+lock primitive) and not SDL_CaptureMouse (which
+	// only routes events when the cursor has already left the window).
+	if (TheSDL3Window != NULL)
+	{
+		SDL_SetWindowMouseGrab(TheSDL3Window, true);
+	}
 }
 
 void SDL3Mouse::releaseCapture()
 {
-	SDL_CaptureMouse(false);
+	if (TheSDL3Window != NULL)
+	{
+		SDL_SetWindowMouseGrab(TheSDL3Window, false);
+	}
 }
 
 UnsignedByte SDL3Mouse::getMouseEvent(MouseIO *result, Bool flush)
