@@ -128,7 +128,7 @@ function(ggc_compile_bgfx_shader source_sc)
         # creation faults inside MTLCompiler when the runtime tries to
         # JIT-compile such old MSL. metal22 (MSL 2.2 / iOS 13 / macOS
         # 10.15) is the lowest profile that still ingests cleanly.
-        set(_shader_profile "metal22-11")
+        set(_shader_profile "metal30-14")
     elseif(GGC_BGFX_RENDERER STREQUAL "vulkan")
         set(_shader_suffix "spirv")
         set(_shader_platform "linux")
