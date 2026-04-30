@@ -847,7 +847,9 @@ void *GetNativeWindowHandle(void *window)
     // its own CAMetalLayer on the contentView, which fights with
     // SDL3's own layer setup and intermittently crashes Apple's AGX
     // driver in AGCDeserializedReply during pipeline-state compile.
-    if (::TheSDL3MetalLayer != NULL)
+    // GGC_MACOS_USE_NSWINDOW=1 forces the legacy NSWindow path so we
+    // can A/B-test which form the local Apple Silicon variant prefers.
+    if (::TheSDL3MetalLayer != NULL && std::getenv("GGC_MACOS_USE_NSWINDOW") == nullptr)
     {
         return ::TheSDL3MetalLayer;
     }
@@ -2490,7 +2492,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // when we can absorb the cost, and lets the AGX background queue
     // drain before the engine kicks off its real frame loop. Cheap on
     // Windows D3D11 — bgfx::touch is a no-op when the view has no work.
+    // GGC_MACOS_NO_PREWARM=1 disables the loop for A/B testing.
 #if defined(__APPLE__)
+    if (std::getenv("GGC_MACOS_NO_PREWARM") == nullptr)
     {
         const bgfx::ViewId allViews[] = {
             kBgfxDebugView, kBgfxEngineView, kBgfxEngineSortView,
