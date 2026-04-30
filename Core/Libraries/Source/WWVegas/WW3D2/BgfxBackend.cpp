@@ -2458,6 +2458,38 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // TheSuperHackers @refactor bobtista 16/04/2026 DX8 now creates
     // its own secondary reference window in DX8Wrapper::Init, so no need to
     // create or move anything here.
+
+    // TheSuperHackers @bugfix bobtista 30/04/2026 macOS / Apple Silicon
+    // workaround: the AGX driver compiles per-framebuffer EndOfTile and
+    // BlitFastClear helper shaders on a background dispatch queue the
+    // first time each render pass is encoded. Several of those compiles
+    // running concurrently against our 14-view setup hit a race in the
+    // driver's reply-parsing hash table and crash with EXC_BAD_ACCESS in
+    // AGCDeserializedReply. Pre-touching every configured view a few
+    // times here forces those compiles to happen one-by-one during init,
+    // when we can absorb the cost, and lets the AGX background queue
+    // drain before the engine kicks off its real frame loop. Cheap on
+    // Windows D3D11 — bgfx::touch is a no-op when the view has no work.
+#if defined(__APPLE__)
+    {
+        const bgfx::ViewId allViews[] = {
+            kBgfxDebugView, kBgfxEngineView, kBgfxEngineSortView,
+            kBgfxRTTView, kBgfxWaterView, kBgfxEffectOverlayView,
+            kBgfxShadowVolumeView, kBgfxShadowApplyView,
+            kBgfxShadowMapView, kBgfxSceneDepthView,
+            kBgfxSmudgeCopyView, kBgfxSmudgeView,
+            kBgfxSceneCompositeView, kBgfxUIView,
+        };
+        for (int pass = 0; pass < 8; ++pass)
+        {
+            for (size_t i = 0; i < sizeof(allViews) / sizeof(allViews[0]); ++i)
+            {
+                bgfx::touch(allViews[i]);
+            }
+            bgfx::frame();
+        }
+    }
+#endif
 }
 
 template<typename H>
