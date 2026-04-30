@@ -2364,11 +2364,17 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     {
         bgfx::setName(g_device.shadowMapDepth, "shadowMapD32F");
         g_device.shadowMapFB = bgfx::createFrameBuffer(1, &g_device.shadowMapDepth, true);
-        // Clear both color (R32F=1.0 = far plane) and depth for the
-        // caster pass's own depth test. 0x3f800000 = float 1.0 as RGBA.
+        // TheSuperHackers @bugfix bobtista 30/04/2026 The shadow map FB
+        // has only a D32F depth attachment (no color), so requesting
+        // BGFX_CLEAR_COLOR forces bgfx to drive a "fast clear" path for
+        // a non-existent color attachment. On Apple Silicon AGX this
+        // crashes inside findOrCreateBlitProgramVariant<...VertexFastClear>
+        // when the EndOfTile program variant is populated. Clearing only
+        // depth matches bgfx's own shadow-map example (15-shadowmaps-simple)
+        // and keeps the caster pass's depth test correct on its own.
         bgfx::setViewClear(kBgfxShadowMapView,
-                           BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
-                           0xffffffffu,  // RGBA all bits set ≈ max depth
+                           BGFX_CLEAR_DEPTH,
+                           0,
                            1.0f, 0);
         bgfx::setViewRect(kBgfxShadowMapView, 0, 0, kShadowMapResolution, kShadowMapResolution);
         bgfx::setViewFrameBuffer(kBgfxShadowMapView, g_device.shadowMapFB);
@@ -3614,6 +3620,13 @@ static uint64_t ApplyColorWriteOverride(uint64_t state)
 
 static void BindShadowMapTexture()
 {
+    // TheSuperHackers @bugfix bobtista 30/04/2026 fs_uber declares
+    // SAMPLER2DSHADOW(s_shadowMap, 4) so Metal validation requires a
+    // depth + comparison-sampler binding on EVERY draw using fs_uber,
+    // even when u_shadowParams.x = 0 makes the shader skip the sample.
+    // shadowMapDepth itself doubles as the safe fallback because it is
+    // a D32F texture created with BGFX_SAMPLER_COMPARE_LEQUAL at init
+    // and stays valid for the lifetime of the device.
     if (bgfx::isValid(g_device.shadowMapDepth) && bgfx::isValid(g_uniforms.sShadowMap))
     {
         bgfx::setTexture(4, g_uniforms.sShadowMap, g_device.shadowMapDepth);
@@ -3679,6 +3692,18 @@ static void BindSoftParticleDepth(bool enable)
     else
     {
         params[0] = 0.0f;
+        // TheSuperHackers @bugfix bobtista 30/04/2026 fs_uber declares
+        // SAMPLER2D(s_sceneDepth, 6); Metal validation requires slot 6
+        // to be bound on every draw even though u_softParticleParams.x
+        // = 0 makes the shader skip the sample. defaultWhiteTexture is
+        // a 1x1 RGBA8 placeholder that satisfies the validator without
+        // creating a read/write hazard against the real depth target.
+        if (bgfx::isValid(g_uniforms.sSceneDepth) && bgfx::isValid(g_device.defaultWhiteTexture))
+        {
+            bgfx::setTexture(kBgfxSceneDepthSamplerStage, g_uniforms.sSceneDepth,
+                             g_device.defaultWhiteTexture,
+                             BGFX_SAMPLER_POINT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        }
     }
 
     if (bgfx::isValid(g_uniforms.uSoftParticleParams))
@@ -4036,11 +4061,22 @@ static void UploadMaterialUniforms()
     {
         bgfx::setUniform(g_uniforms.uZBias, g_draw.zBias);
     }
-    if (bgfx::isValid(g_uniforms.sCloudMap) && bgfx::isValid(g_draw.cloudTex))
+    if (bgfx::isValid(g_uniforms.sCloudMap))
     {
         // WRAP addressing matches the DX8 cloud pass at W3DShaderManager.cpp:1742.
-        bgfx::setTexture(5, g_uniforms.sCloudMap, g_draw.cloudTex, BGFX_SAMPLER_NONE);
-        g_stats.textureBinds++;
+        // TheSuperHackers @bugfix bobtista 30/04/2026 fs_uber declares
+        // SAMPLER2D(s_cloudMap, 5); Metal validation requires slot 5
+        // to be bound on every draw even when u_cloudParams.w = 0
+        // disables the cloud blend. Fall back to defaultWhiteTexture
+        // when no cloud texture has been set yet (early frames, UI).
+        bgfx::TextureHandle h = bgfx::isValid(g_draw.cloudTex)
+            ? g_draw.cloudTex
+            : g_device.defaultWhiteTexture;
+        if (bgfx::isValid(h))
+        {
+            bgfx::setTexture(5, g_uniforms.sCloudMap, h, BGFX_SAMPLER_NONE);
+            g_stats.textureBinds++;
+        }
     }
 }
 
@@ -4260,6 +4296,10 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
 
     bgfx::setState(state);
     BindSoftParticleDepth(IsSoftParticleCandidate(state));
+    // TheSuperHackers @bugfix bobtista 30/04/2026 Sorted-view draws
+    // also use g_draw.program (uberProgram) and therefore inherit
+    // fs_uber's slot-4 SAMPLER2DSHADOW binding requirement on Metal.
+    BindShadowMapTexture();
 
     bgfx::submit(kBgfxEngineSortView, g_draw.program);
     g_stats.baseSubmits++;
@@ -5849,13 +5889,13 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::setUniform(g_uniforms.uShadowLightViewProj, shadowMVP);
     }
 
-    // TheSuperHackers @performance bobtista 27/04/2026 Non-world draws set
-    // u_shadowParams.x to zero, so they never sample the shadow map. Avoid
-    // binding it for UI, RTT, water, and effect-overlay submits.
-    if (receivesShadow)
-    {
-        BindShadowMapTexture();
-    }
+    // TheSuperHackers @bugfix bobtista 30/04/2026 fs_uber declares
+    // SAMPLER2DSHADOW(s_shadowMap, 4) so Metal validation requires slot
+    // 4 bound on every draw using fs_uber, even non-world UI/RTT/water/
+    // effect-overlay submits where u_shadowParams.x = 0 makes the
+    // shader skip the comparison sample. BindShadowMapTexture is cheap
+    // and reuses the existing shadow map texture as the binding.
+    BindShadowMapTexture();
     BindSoftParticleDepth(submitView == kBgfxEngineSortView
                           && isBlended
                           && IsSoftParticleCandidate(state));
