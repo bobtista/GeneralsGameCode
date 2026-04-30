@@ -2058,6 +2058,19 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     initArgs.resolution.width = static_cast<uint32_t>(g_device.width);
     initArgs.resolution.height = static_cast<uint32_t>(g_device.height);
     initArgs.resolution.reset = BGFX_RESET_NONE;
+#if defined(__APPLE__)
+    // TheSuperHackers @bugfix bobtista 30/04/2026 BGFX_RESET_FLUSH_AFTER_RENDER
+    // serializes Metal command buffer submission instead of pipelining a
+    // frame ahead. AGX on M4 / macOS Tahoe loses internal helper-shader
+    // compiles when many command encoders are in flight; flushing after
+    // each render call lets the background compile queue drain. The flag
+    // costs ~1 frame of latency but is harmless. GGC_MACOS_NO_FLUSH=1
+    // disables it for A/B testing.
+    if (std::getenv("GGC_MACOS_NO_FLUSH") == nullptr)
+    {
+        initArgs.resolution.reset |= BGFX_RESET_FLUSH_AFTER_RENDER;
+    }
+#endif
     initArgs.platformData = pd;
     // TheSuperHackers @bugfix bobtista 27/04/2026 Keep bgfx on a normal
     // D3D11 device even in game Debug builds. The D3D debug layer raises
