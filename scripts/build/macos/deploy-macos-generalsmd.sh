@@ -63,12 +63,54 @@ fi
 echo "  Writing run.sh wrapper..."
 cat > "${runtime_dir}/run.sh" <<'WRAPPER'
 #!/usr/bin/env bash
-# TheSuperHackers @build bobtista 28/04/2026 GeneralsMD macOS launch wrapper.
-set -euo pipefail
+# TheSuperHackers @build bobtista 30/04/2026 GeneralsMD macOS launch wrapper.
+#
+# Apple's AGX shader compiler intermittently faults inside
+# AGCDeserializedReply when bgfx asks it to compile per-framebuffer
+# helper shaders for our 14-view setup. The fault is on a background
+# dispatch queue, lands in the first 1-2s of run-time, and can't be
+# caught from inside the process. The engine itself is fine once it
+# wins the race - 174s+ continuous runs captured. Until Apple fixes
+# the driver bug, the practical workaround is to retry on a fast-fail
+# exit code. Set GGC_MACOS_NO_RETRY=1 to disable.
+set -uo pipefail
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 cd "${script_dir}"
 export DYLD_LIBRARY_PATH="${script_dir}:${DYLD_LIBRARY_PATH:-}"
-exec "${script_dir}/generalszh" "$@"
+
+if [[ "${GGC_MACOS_NO_RETRY:-0}" == "1" ]]; then
+    exec "${script_dir}/generalszh" "$@"
+fi
+
+readonly max_attempts="${GGC_MACOS_LAUNCH_ATTEMPTS:-25}"
+readonly fast_fail_seconds="${GGC_MACOS_FAST_FAIL_SECONDS:-15}"
+readonly retry_sleep="${GGC_MACOS_RETRY_SLEEP:-0.3}"
+
+for ((attempt=1; attempt<=max_attempts; ++attempt)); do
+    start_epoch=$(date +%s)
+    "${script_dir}/generalszh" "$@"
+    rc=$?
+    end_epoch=$(date +%s)
+    elapsed=$((end_epoch - start_epoch))
+
+    # Clean exits and slow failures get propagated as-is.
+    if [[ ${rc} -eq 0 ]] || [[ ${elapsed} -ge ${fast_fail_seconds} ]]; then
+        exit ${rc}
+    fi
+
+    # Only retry on the fast-fail signal exits we attribute to the AGX race.
+    if [[ ${rc} -ne 134 && ${rc} -ne 138 && ${rc} -ne 139 ]]; then
+        exit ${rc}
+    fi
+
+    if [[ ${attempt} -lt ${max_attempts} ]]; then
+        echo "[run.sh] AGX startup race lost (exit ${rc} in ${elapsed}s); retrying ${attempt}/${max_attempts}..." >&2
+        sleep "${retry_sleep}"
+    fi
+done
+
+echo "[run.sh] Gave up after ${max_attempts} attempts. Set GGC_MACOS_NO_RETRY=1 or raise GGC_MACOS_LAUNCH_ATTEMPTS." >&2
+exit ${rc}
 WRAPPER
 chmod +x "${runtime_dir}/run.sh"
 
