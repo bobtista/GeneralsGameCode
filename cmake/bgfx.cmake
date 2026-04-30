@@ -24,7 +24,14 @@ set(BGFX_CUSTOM_TARGETS       OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
     bgfx_cmake
     GIT_REPOSITORY https://github.com/bkaradzic/bgfx.cmake.git
-    GIT_TAG        668550dc7c47c71860a39c5ef4c162e79294c93f
+    # TheSuperHackers @bugfix bobtista 30/04/2026 Bumped from 668550d
+    # to current HEAD to pick up bgfx Metal fixes — most importantly
+    # #3683 (depth/stencil store action on the main swap chain w/ MSAA)
+    # and #3685 (dynamic buffer alignment on Metal). Older bgfx pin
+    # produced a malformed Metal pipeline descriptor which Apple's AGX
+    # driver crashed on while compiling the BlitVertexFastClear and
+    # EndOfTile helper shaders.
+    GIT_TAG        c480227693fccc749c36994d175bace20ba2fce2
     # Nested submodules (bgfx, bx, bimg) are cloned recursively by FetchContent.
     GIT_SUBMODULES_RECURSE TRUE
 )
@@ -115,7 +122,13 @@ function(ggc_compile_bgfx_shader source_sc)
     if(GGC_BGFX_RENDERER STREQUAL "metal")
         set(_shader_suffix "metal")
         set(_shader_platform "osx")
-        set(_shader_profile "metal")
+        # TheSuperHackers @bugfix bobtista 30/04/2026 The bare "metal"
+        # profile compiles to MSL 1.0 which Apple Silicon's AGX driver
+        # has dropped support for in macOS Sequoia: pipeline state
+        # creation faults inside MTLCompiler when the runtime tries to
+        # JIT-compile such old MSL. metal22 (MSL 2.2 / iOS 13 / macOS
+        # 10.15) is the lowest profile that still ingests cleanly.
+        set(_shader_profile "metal22-11")
     elseif(GGC_BGFX_RENDERER STREQUAL "vulkan")
         set(_shader_suffix "spirv")
         set(_shader_platform "linux")
