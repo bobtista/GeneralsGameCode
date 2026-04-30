@@ -15,9 +15,9 @@
 | Headless mode          | OK          | `-headless` actually parses now (was previously a no-op)                               |
 | Window appears         | OK          | SDL3 + Metal-backed CAMetalLayer surface                                               |
 | Metal sampler bindings | OK          | fs_uber slots 4-6 always bound — Metal validator no longer asserts                     |
-| First-frame Metal draw | INTERMITTENT| Apple AGX intermittently crashes compiling its own helper shaders (~80% startup fail)  |
+| First-frame Metal draw | INTERMITTENT| Apple AGX intermittently crashes compiling helper + uber shaders. `run.sh` retries up to 25× to absorb |
 
-When the AGX driver wins the race, the engine runs indefinitely — proven by 174s+ stable runs. When it loses, `AGX: Internal error during function compilation` fires inside `AGCDeserializedReply::~AGCDeserializedReply` on a background dispatch queue.
+When the AGX driver wins the race, the engine runs indefinitely — proven by 174s+ stable runs. When it loses, `AGX: Internal error during function compilation` fires inside `AGCDeserializedReply::~AGCDeserializedReply` on a background dispatch queue. The deployed `run.sh` wrapper now restarts the binary on a fast-fail SIGSEGV/SIGABRT, so most user launches still complete in seconds.
 
 ## What got fixed in this pass (2026-04-30)
 
@@ -32,6 +32,8 @@ When the AGX driver wins the race, the engine runs indefinitely — proven by 17
 3. **Shadow-map FB clear no longer requests a color clear.** The shadow FB has only a D32F depth attachment; bgfx's `BGFX_CLEAR_COLOR` flag was driving an invalid fast-clear pipeline for a non-existent color attachment. Switched to `BGFX_CLEAR_DEPTH` only, matching bgfx's own `15-shadowmaps-simple` example.
 4. **bgfx bumped to current `c480227` head** (was `668550d` from months ago) and shader profile bumped from bare `metal` (MSL 1.0) to `metal30-14` (MSL 3.0). Picks up `#3683` (depth/stencil store action with MSAA on swap chain) and `#3685` (Metal dynamic buffer alignment).
 5. **AGX pre-warm loop at end of `BgfxBackend::Initialize` (Apple-only).** Touches every configured view across 8 frames to push AGX's per-FB EndOfTile / BlitFastClear shader compilation into init time and let the background dispatch queue settle before the engine's first real frame. Helps but does not fully eliminate the race.
+6. **bgfx now receives the SDL3 CAMetalLayer instead of the NSWindow.** Previously `pd.nwh` was the `SDL_PROP_WINDOW_COCOA_WINDOW_POINTER`, which made bgfx race with `SDL_WINDOW_METAL`'s own contentView setup for control of the layer. Switched to the SDL-recommended pattern: `SDL_Metal_CreateView` after window creation, `SDL_Metal_GetLayer` to extract the `CAMetalLayer*`, hand that to bgfx. Lifted ~10% startup success to ~30%.
+7. **Launch retry wrapper.** `run.sh` now restarts `generalszh` up to `GGC_MACOS_LAUNCH_ATTEMPTS=25` times when it dies with SIGSEGV / SIGABRT inside the `GGC_MACOS_FAST_FAIL_SECONDS=15` startup window. `GGC_MACOS_NO_RETRY=1` disables the loop. The engine is stable post-init (174s+ runs proven), so this is the practical workaround until Apple ships a fix.
 
 ## Goal
 
