@@ -82,9 +82,13 @@ if [[ "${GGC_MACOS_NO_RETRY:-0}" == "1" ]]; then
     exec "${script_dir}/generalszh" "$@"
 fi
 
-readonly max_attempts="${GGC_MACOS_LAUNCH_ATTEMPTS:-100}"
+readonly max_attempts="${GGC_MACOS_LAUNCH_ATTEMPTS:-200}"
 readonly fast_fail_seconds="${GGC_MACOS_FAST_FAIL_SECONDS:-15}"
-readonly retry_sleep="${GGC_MACOS_RETRY_SLEEP:-0.3}"
+readonly retry_sleep="${GGC_MACOS_RETRY_SLEEP:-0.1}"
+
+echo "[run.sh] Apple Silicon AGX startup race in play; the wrapper will" >&2
+echo "[run.sh] silently relaunch on fast SIGSEGV/SIGABRT until one wins." >&2
+echo "[run.sh] First successful launch is usually within 1-30 attempts." >&2
 
 # TheSuperHackers @build bobtista 30/04/2026 Run generalszh in the
 # foreground (no background+wait). Ctrl+C in the controlling terminal
@@ -108,8 +112,12 @@ for ((attempt=1; attempt<=max_attempts; ++attempt)); do
         exit ${rc}
     fi
 
-    # Only retry on the fast-fail signal exits we attribute to the AGX race.
+    # Only retry on the fast-fail signal exits we attribute to the AGX
+    # race. SIGABRT(134), SIGBUS(138), and SIGSEGV(139). NOT SIGKILL(137)
+    # - that's almost always the user pressing Ctrl-quit / killing the
+    # dock icon, and a retry loop on it would be unbreakable.
     if [[ ${rc} -ne 134 && ${rc} -ne 138 && ${rc} -ne 139 ]]; then
+        echo "[run.sh] generalszh exited with ${rc} after ${elapsed}s; not retrying." >&2
         exit ${rc}
     fi
 
@@ -119,8 +127,11 @@ for ((attempt=1; attempt<=max_attempts; ++attempt)); do
     fi
 done
 
+# The for-loop's last iteration always exec's, so this is unreachable;
+# kept only as a defensive trap in case the loop structure is ever
+# refactored to drop the exec-on-last-attempt special case.
 echo "[run.sh] Gave up after ${max_attempts} attempts. Set GGC_MACOS_NO_RETRY=1 or raise GGC_MACOS_LAUNCH_ATTEMPTS." >&2
-exit ${rc}
+exit "${rc:-1}"
 WRAPPER
 chmod +x "${runtime_dir}/run.sh"
 
