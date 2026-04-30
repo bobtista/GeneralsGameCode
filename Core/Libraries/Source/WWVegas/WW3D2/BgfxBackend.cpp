@@ -824,6 +824,28 @@ bgfx::ProgramHandle CreateShaderProgram(
 
 bgfx::RendererType::Enum GetConfiguredRendererType()
 {
+#if defined(__APPLE__)
+    // TheSuperHackers @bugfix bobtista 30/04/2026 GGC_BGFX_RENDERER lets
+    // us A/B-test backends at run time on macOS. Apple's Metal JIT
+    // compiler (AGX/MTLCompiler) has multiple intermittent crash bugs
+    // on macOS Tahoe + M4 - hand-compiling fragment shaders, EOT
+    // helpers, and constant-clear programs all crash with EXC_BAD_ACCESS
+    // at different rates per launch. OpenGL backend goes through a
+    // separate (older, deprecated, but stable) driver path so it is
+    // useful as a fallback. "metal" / "gl" / "vulkan" supported.
+    const char *override_ = std::getenv("GGC_BGFX_RENDERER");
+    if (override_ != nullptr)
+    {
+        if (std::strcmp(override_, "gl") == 0 || std::strcmp(override_, "opengl") == 0)
+        {
+            return bgfx::RendererType::OpenGL;
+        }
+        if (std::strcmp(override_, "vulkan") == 0)
+        {
+            return bgfx::RendererType::Vulkan;
+        }
+    }
+#endif
 #if defined(GGC_BGFX_RENDERER_METAL)
     return bgfx::RendererType::Metal;
 #elif defined(GGC_BGFX_RENDERER_VULKAN)
@@ -2010,6 +2032,13 @@ static void SubmitSceneComposite()
 
 void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 {
+#if defined(__APPLE__)
+    if (std::getenv("GGC_TRACE") != nullptr)
+    {
+        std::fprintf(stderr, "[ggc] BgfxBackend::Initialize hwnd=%p\n", hwnd);
+        std::fflush(stderr);
+    }
+#endif
     if (g_device.initialized)
     {
         WWDEBUG_SAY(("[BgfxBackend] Initialize called twice; ignoring."));
@@ -2080,6 +2109,14 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // turn on bgfx's verbose diagnostics for macOS bring-up.
     initArgs.debug = std::getenv("GGC_BGFX_DEBUG") != nullptr;
 
+#if defined(__APPLE__)
+    if (std::getenv("GGC_TRACE") != nullptr)
+    {
+        std::fprintf(stderr, "[ggc] calling bgfx::init nwh=%p\n", pd.nwh);
+        std::fflush(stderr);
+    }
+#endif
+
     if (!bgfx::init(initArgs))
     {
         WWDEBUG_SAY(("[BgfxBackend] bgfx::init FAILED. Backend will remain dormant."));
@@ -2088,6 +2125,14 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     }
 
     g_device.initialized = true;
+
+#if defined(__APPLE__)
+    if (std::getenv("GGC_TRACE") != nullptr)
+    {
+        std::fprintf(stderr, "[ggc] bgfx::init OK\n");
+        std::fflush(stderr);
+    }
+#endif
 
     // TheSuperHackers @refactor bobtista 16/04/2026 The explicit
     // bgfx::reset() after init is removed because it triggers a DXGI
@@ -2494,21 +2539,21 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     // its own secondary reference window in DX8Wrapper::Init, so no need to
     // create or move anything here.
 
-    // TheSuperHackers @bugfix bobtista 30/04/2026 macOS / Apple Silicon
-    // workaround: the AGX driver compiles per-framebuffer EndOfTile and
-    // BlitFastClear helper shaders on a background dispatch queue the
-    // first time each render pass is encoded. Several of those compiles
-    // running concurrently against our 14-view setup hit a race in the
-    // driver's reply-parsing hash table and crash with EXC_BAD_ACCESS in
-    // AGCDeserializedReply. Pre-touching every configured view a few
-    // times here forces those compiles to happen one-by-one during init,
-    // when we can absorb the cost, and lets the AGX background queue
-    // drain before the engine kicks off its real frame loop. Cheap on
-    // Windows D3D11 — bgfx::touch is a no-op when the view has no work.
-    // GGC_MACOS_NO_PREWARM=1 disables the loop for A/B testing.
+    // TheSuperHackers @bugfix bobtista 30/04/2026 The pre-warm loop was
+    // intended to serialize AGX helper-shader compilation during init,
+    // but in practice it touches 14 views in a single frame and the
+    // resulting fan-out of parallel EndOfTile / BlitFastClear compiles
+    // is exactly the race we were trying to avoid. Disabled by default;
+    // GGC_MACOS_PREWARM=1 turns it back on for experimentation.
 #if defined(__APPLE__)
-    if (std::getenv("GGC_MACOS_NO_PREWARM") == nullptr)
+    if (std::getenv("GGC_MACOS_PREWARM") != nullptr)
     {
+        const bool trace = std::getenv("GGC_TRACE") != nullptr;
+        if (trace)
+        {
+            std::fprintf(stderr, "[ggc] pre-warm loop start\n");
+            std::fflush(stderr);
+        }
         const bgfx::ViewId allViews[] = {
             kBgfxDebugView, kBgfxEngineView, kBgfxEngineSortView,
             kBgfxRTTView, kBgfxWaterView, kBgfxEffectOverlayView,
@@ -2524,6 +2569,16 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
                 bgfx::touch(allViews[i]);
             }
             bgfx::frame();
+            if (trace)
+            {
+                std::fprintf(stderr, "[ggc] pre-warm pass %d done\n", pass);
+                std::fflush(stderr);
+            }
+        }
+        if (trace)
+        {
+            std::fprintf(stderr, "[ggc] pre-warm loop done\n");
+            std::fflush(stderr);
         }
     }
 #endif
