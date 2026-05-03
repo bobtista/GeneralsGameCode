@@ -2353,6 +2353,10 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 	// If we are now starting a multiplayer or skirmish game, let us set the local players selectionto be the command center
 	// We'll ask the Recorder, so we survive replays
+	// TheSuperHackers @bugfix bobtista 13/07/2026 Run this in replay playback too. Skipping it
+	// desynced every replay, because the auto-selection consumes AI group ids that the recorded
+	// commands then allocate differently. The client-side selection is skipped instead, which
+	// keeps the normal player HUD from covering the replay player list.
 	if( TheRecorder->isMultiplayer() )
 	{
 		// Iterate through each player's objects, and ask if the object

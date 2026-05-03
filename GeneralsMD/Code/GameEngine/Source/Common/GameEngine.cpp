@@ -933,6 +933,30 @@ void GameEngine::update()
 			TheGameClient->UPDATE();
 			TheMessageStream->propagateMessages();
 
+			// TheSuperHackers @bugfix bobtista 30/04/2026 Defer visual
+			// command-line replay loading until after the no-logo shell startup
+			// runs. The replay menu starts playback from live shell UI state,
+			// and direct loading before that leaves replay/control-bar windows
+			// in a different state.
+			if (TheGlobalData->m_loadReplayGame.isEmpty() == FALSE)
+			{
+				AsciiString replayGame = TheGlobalData->m_loadReplayGame;
+				TheWritableGlobalData->m_loadReplayGame.clear();
+
+				if (TheRecorder->playbackFile(replayGame))
+				{
+					if (TheShell)
+					{
+						TheShell->hideShell();
+					}
+				}
+				else
+				{
+					DEBUG_LOG(("Failed to load replay '%s'", replayGame.str()));
+					m_quitting = TRUE;
+				}
+			}
+
 			if (TheNetwork != nullptr)
 			{
 				TheNetwork->UPDATE();
