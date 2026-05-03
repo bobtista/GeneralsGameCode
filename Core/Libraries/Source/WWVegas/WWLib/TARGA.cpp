@@ -83,6 +83,9 @@
 #include <algorithm>
 #include <utility>
 
+static_assert(sizeof(TGA2Footer) == 26, "TGA 2.0 footer must match on-disk size.");
+static_assert(sizeof(TGA2Extension) == 495, "TGA 2.0 extension must match on-disk size.");
+
 /****************************************************************************
 *
 * NAME

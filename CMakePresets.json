@@ -186,6 +186,7 @@
                 "RTS_BUILD_OPTION_FFMPEG": "ON",
                 "SAGE_USE_SDL3": "ON",
                 "SAGE_USE_OPENAL": "ON",
+                "RTS_GAMEMEMORY_ENABLE": "OFF",
                 "GGC_RENDER_BACKEND": "bgfx",
                 "GGC_BGFX_RENDERER": "metal",
                 "GGC_BGFX_STANDALONE": "ON"
