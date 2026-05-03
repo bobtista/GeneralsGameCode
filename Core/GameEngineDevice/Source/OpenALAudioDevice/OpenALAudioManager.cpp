@@ -1792,7 +1792,7 @@ void OpenALAudioManager::selectProvider(UnsignedInt providerNdx)
 		return;
 	}
 
-	if (providerNdx == m_selectedProvider)
+	if (providerNdx == m_selectedProvider && isValidProvider())
 	{
 		return;
 	}
@@ -1866,7 +1866,7 @@ void OpenALAudioManager::selectProvider(UnsignedInt providerNdx)
 		m_selectedProvider = PROVIDER_ERROR;
 		// try to select a failsafe
 		providerNdx = getProviderIndex("Miles Fast 2D Positional Audio");
-		success = TRUE;
+		success = providerNdx < m_providerCount;
 	}
 
 	if (success)
