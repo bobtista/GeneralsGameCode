@@ -1084,6 +1084,13 @@ Bool isOfficialMap( AsciiString mapName )
 const MapMetaData *MapCache::findMap(AsciiString mapName)
 {
 	mapName.toLower();
+#ifndef _WIN32
+	{
+		std::string normalized(mapName.str());
+		std::replace(normalized.begin(), normalized.end(), '\\', '/');
+		mapName.set(normalized.c_str());
+	}
+#endif
 	MapCache::iterator it = find(mapName);
 	if (it == end())
 		return nullptr;
@@ -1161,7 +1168,8 @@ Image *getMapPreviewImage( AsciiString mapName )
 	if(!image)
 	{
 
-		if(!TheFileSystem->doesFileExist(tgaName.str()))
+		Bool sourceExists = TheFileSystem->doesFileExist(tgaName.str());
+		if(!sourceExists)
 			return nullptr;
 		AsciiString mapPreviewDir;
 		mapPreviewDir.format(MAP_PREVIEW_DIR_PATH, TheGlobalData->getPath_UserData().str());
@@ -1173,7 +1181,7 @@ Image *getMapPreviewImage( AsciiString mapName )
 
 		if (success)
 		{
-    	image = newInstance(Image);
+			image = newInstance(Image);
 			image->setName(tempName);
 			//image->setFullPath("mission.tga");
 			image->setFilename(name);
@@ -1329,4 +1337,3 @@ void findDrawPositions( Int startX, Int startY, Int width, Int height, Region3D 
 	lr->y += startY;
 
 }
-
