@@ -152,38 +152,6 @@ void LanguageFilter::unHaxor(UnicodeString &word) {
 
 // returning true means that there are more words in the file.
 Bool LanguageFilter::readWord(File *file1, WideChar *buf) {
-#ifdef _WIN32
-	Int index = 0;
-	Bool retval = TRUE;
-	Int val = 0;
-
-	WideChar c;
-
-	val = file1->read(&c, sizeof(WideChar));
-	if ((val == -1) || (val == 0)) {
-		buf[index] = 0;
-		return FALSE;
-	}
-	buf[index] = c;
-
-	while (buf[index] != L' ') {
-		++index;
-		val = file1->read(&c, sizeof(WideChar));
-		if ((val == -1) || (val == 0)) {
-			c = WEOF;
-		}
-
-		if ((c == WEOF) || (c == L' ')) {
-			buf[index] = 0;
-			if (c == WEOF) {
-				retval = FALSE;
-			}
-			break;
-		}
-		buf[index] = c;
-	}
-	return retval;
-#else
 	constexpr Int MAX_BAD_WORD_CHARS = 127;
 	Int index = 0;
 	Bool retval = TRUE;
@@ -219,7 +187,6 @@ Bool LanguageFilter::readWord(File *file1, WideChar *buf) {
 		buf[index] = c;
 	}
 	return retval;
-#endif
 }
 
 LanguageFilter * createLanguageFilter()
