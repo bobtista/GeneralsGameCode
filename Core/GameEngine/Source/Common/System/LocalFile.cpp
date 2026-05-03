@@ -381,12 +381,21 @@ Int LocalFile::readChar()
 
 Int LocalFile::readWideChar()
 {
+#ifdef _WIN32
 	WideChar character = L'\0';
 
 	Int ret = read( &character, sizeof(character) );
 
 	if (ret == sizeof(character))
 		return (Int)(intptr_t)character;
+#else
+	UnsignedShort character = 0;
+
+	Int ret = read( &character, sizeof(character) );
+
+	if (ret == sizeof(character))
+		return (Int)character;
+#endif
 
 	return WEOF;
 }
@@ -440,7 +449,14 @@ Int LocalFile::writeFormat( const WideChar* format, ... )
 	Int length = vswprintf(buffer, sizeof(buffer) / sizeof(WideChar), format, args);
 	va_end(args);
 
+#ifdef _WIN32
 	return write( buffer, length * sizeof(WideChar) );
+#else
+	UnsignedShort diskBuffer[1024];
+	for( Int i = 0; i < length; ++i )
+		diskBuffer[ i ] = (UnsignedShort)buffer[ i ];
+	return write( diskBuffer, length * sizeof(UnsignedShort) );
+#endif
 }
 
 //=================================================================
@@ -462,9 +478,16 @@ Int LocalFile::writeChar( const Char* character )
 
 Int LocalFile::writeChar( const WideChar* character )
 {
+#ifdef _WIN32
 	if ( write( character, sizeof(WideChar) ) == sizeof(WideChar) ) {
 		return (Int)(intptr_t)character;
 	}
+#else
+	UnsignedShort diskCharacter = (UnsignedShort)(*character);
+	if ( write( &diskCharacter, sizeof(diskCharacter) ) == sizeof(diskCharacter) ) {
+		return (Int)(intptr_t)character;
+	}
+#endif
 
 	return WEOF;
 }

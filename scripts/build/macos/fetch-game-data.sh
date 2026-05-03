@@ -5,8 +5,9 @@ set -euo pipefail
 # Zero Hour game data files (INI rules, .wnd UI defs, language strings) from
 # TheSuperHackers/GeneralsGamePatch into the macOS runtime directory.
 #
-# Retail .big files (Maps, Models, Textures, Audio, Music, Speech) are NOT
-# in that repo — copy them from your retail Zero Hour install separately.
+# Retail .big files (Maps, Models, Textures, Audio, Music, Speech, Shaders)
+# are NOT in that repo. Copy both the base Generals and Zero Hour archives from
+# your retail install separately.
 #
 # Default runtime dir: ~/TheSuperHackers/GeneralsZH/
 # Override with GGC_MACOS_RUNTIME_DIR=/path/to/install/dir
@@ -45,10 +46,13 @@ done
 echo ""
 echo "Source-controlled game data staged."
 echo ""
-echo "You still need the retail .big files from your Zero Hour install:"
-echo "  INIZH.big       WindowZH.big    EnglishZH.big   (or German/French/etc.)"
-echo "  MapsZH.big      W3DZH.big       TexturesZH.big"
-echo "  MusicZH.big     SpeechZH.big    AudioZH.big"
+echo "You still need retail .big files from both Generals and Zero Hour:"
+echo "  Zero Hour: INIZH.big  WindowZH.big  EnglishZH.big  MapsZH.big"
+echo "             W3DZH.big  TexturesZH.big  MusicZH.big  SpeechEnglishZH.big"
+echo "             AudioZH.big  AudioEnglishZH.big"
+echo "  Generals:  INI.big  Window.big  English.big  Maps.big  W3D.big"
+echo "             Textures.big  Music.big  SpeechEnglish.big  Audio.big"
+echo "             AudioEnglish.big  Shaders.big"
 echo ""
 echo "Drop them next to the binary at:"
 echo "  ${runtime_dir}/"

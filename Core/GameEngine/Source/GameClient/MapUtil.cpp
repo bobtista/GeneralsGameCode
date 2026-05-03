@@ -500,7 +500,11 @@ void MapCache::loadMapsFromMapCacheINI( const AsciiString &mapDir )
 {
 	INI ini;
 	AsciiString fname;
+#ifdef _WIN32
 	fname.format("%s\\%s", mapDir.str(), m_mapCacheName);
+#else
+	fname.format("%s/%s", mapDir.str(), m_mapCacheName);
+#endif
 
 	if (TheFileSystem->doesFileExist(fname.str()))
 	{
@@ -515,7 +519,11 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 	FilenameList filepathList;
 	FilenameListIter filepathIt;
 	AsciiString toplevelPattern;
+#ifdef _WIN32
 	toplevelPattern.format("%s\\", mapDir.str());
+#else
+	toplevelPattern.format("%s/", mapDir.str());
+#endif
 	Bool mapListChanged = FALSE;
 	AsciiString filenamepattern;
 	filenamepattern.format("*.%s", getMapExtension().str());
@@ -531,9 +539,16 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 		filepathLower.toLower();
 
 		const char *szFilenameLower = filepathLower.reverseFind('\\');
+#ifndef _WIN32
+		const char *szFwd = filepathLower.reverseFind('/');
+		if (szFwd && (!szFilenameLower || szFwd > szFilenameLower))
+		{
+			szFilenameLower = szFwd;
+		}
+#endif
 		if (!szFilenameLower)
 		{
-			DEBUG_CRASH(("Couldn't find \\ in map name!"));
+			DEBUG_CRASH(("Couldn't find path separator in map name!"));
 			continue;
 		}
 
@@ -547,7 +562,11 @@ Bool MapCache::loadMapsFromDisk( const AsciiString &mapDir, Bool isOfficial, Boo
 			continue;
 		}
 
+#ifdef _WIN32
 		endingStr.format("%s\\%s%s", filenameLower.str(), filenameLower.str(), mapExtension);
+#else
+		endingStr.format("%s/%s%s", filenameLower.str(), filenameLower.str(), mapExtension);
+#endif
 
 		if (!filepathLower.endsWithNoCase(endingStr.str()))
 		{
@@ -592,7 +611,19 @@ Bool MapCache::addMap(
 			{
 				// unofficial maps or maps without names
 				AsciiString tempdisplayname;
+#ifdef _WIN32
 				tempdisplayname = fname.reverseFind('\\') + 1;
+#else
+				{
+					const char* sep = fname.reverseFind('\\');
+					const char* fwd = fname.reverseFind('/');
+					if (fwd && (!sep || fwd > sep))
+					{
+						sep = fwd;
+					}
+					tempdisplayname = sep ? sep + 1 : fname.str();
+				}
+#endif
 				(*this)[lowerFname].m_displayName.translate(tempdisplayname);
 				if (md.m_numPlayers >= 2)
 				{
@@ -1081,6 +1112,13 @@ Bool isOfficialMap( AsciiString mapName )
 const MapMetaData *MapCache::findMap(AsciiString mapName)
 {
 	mapName.toLower();
+#ifndef _WIN32
+	{
+		std::string normalized(mapName.str());
+		std::replace(normalized.begin(), normalized.end(), '\\', '/');
+		mapName.set(normalized.c_str());
+	}
+#endif
 	MapCache::iterator it = find(mapName);
 	if (it == end())
 		return nullptr;
@@ -1156,7 +1194,7 @@ Image *getMapPreviewImage( AsciiString mapName )
 	for(Int i = 0; i < portableName.getLength(); ++i)
 	{
 		char c = portableName.getCharAt(i);
-		if (c == '\\' || c == ':')
+		if (c == '\\' || c == '/' || c == ':')
 			tempName.concat('_');
 		else
 			tempName.concat(c);
@@ -1173,7 +1211,8 @@ Image *getMapPreviewImage( AsciiString mapName )
 	if(!image)
 	{
 
-		if(!TheFileSystem->doesFileExist(tgaName.str()))
+		Bool sourceExists = TheFileSystem->doesFileExist(tgaName.str());
+		if(!sourceExists)
 			return nullptr;
 		AsciiString mapPreviewDir;
 		mapPreviewDir.format(MAP_PREVIEW_DIR_PATH, TheGlobalData->getPath_UserData().str());
@@ -1194,7 +1233,7 @@ Image *getMapPreviewImage( AsciiString mapName )
 
 		if (success)
 		{
-    	image = newInstance(Image);
+			image = newInstance(Image);
 			image->setName(tempName);
 			//image->setFullPath("mission.tga");
 			image->setFilename(name);
@@ -1349,4 +1388,3 @@ void findDrawPositions( Int startX, Int startY, Int width, Int height, Region3D 
 	lr->y += startY;
 
 }
-

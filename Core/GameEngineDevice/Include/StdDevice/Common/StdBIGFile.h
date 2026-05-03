@@ -31,6 +31,7 @@
 #include "Common/ArchiveFile.h"
 #include "Common/AsciiString.h"
 #include "Common/List.h"
+#include "mutex.h"
 
 class StdBIGFile : public ArchiveFile
 {
@@ -48,6 +49,7 @@ class StdBIGFile : public ArchiveFile
 
 	protected:
 
-		AsciiString		m_name;		///< BIG file name
-		AsciiString		m_path;		///< BIG file path
-};
+			AsciiString		m_name;		///< BIG file name
+			AsciiString		m_path;		///< BIG file path
+			CriticalSectionClass m_fileLock;
+	};
