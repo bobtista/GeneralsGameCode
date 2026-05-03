@@ -8,7 +8,7 @@
 **	(at your option) any later version.
 */
 
-// TheSuperHackers @refactor bobtista 21/04/2026 Shared render-state structs for the bgfx backend. Included by BgfxBackend.cpp (which defines the instances) and BgfxBackendTextures.cpp (which references them). See BgfxBackend.cpp for the design rationale of the 7-struct split.
+// TheSuperHackers @refactor bobtista 21/04/2026 Shared render-state structs for the bgfx backend. Included by BgfxBackend.cpp (which defines the instances) and BgfxBackendTextures.cpp (which references them). See BgfxBackend.cpp for the design rationale of the 8-struct split.
 #pragma once
 
 #include <cstdint>
@@ -67,7 +67,7 @@ struct PendingTransientIB
     bgfx::TransientIndexBuffer   tib;
 };
 
-// --- The 7 render-state structs --------------------------------------------
+// --- The 8 render-state structs --------------------------------------------
 
 // Device: created in Initialize(), released in Shutdown(). Never reset during frames.
 struct BgfxDevice
@@ -169,8 +169,12 @@ struct BgfxUniforms
     bgfx::UniformHandle uCloudParams         = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTexTransform0       = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTexTransform1       = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uTexTransform0Z      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTex1Transform0      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTex1Transform1      = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uTex1TransformZ      = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uTexProjected        = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uZBias               = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShadowLightViewProj = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShadowParams        = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShadowColor         = BGFX_INVALID_HANDLE;
@@ -232,8 +236,15 @@ struct BgfxDraw
     float vertexColorFlags[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
     float texTransform0[4]    = { 1.0f, 0.0f, 0.0f, 0.0f };
     float texTransform1[4]    = { 0.0f, 1.0f, 0.0f, 0.0f };
+    float texTransform0Z[4]   = { 0.0f, 0.0f, 1.0f, 0.0f };
     float tex1Transform0[4]   = { 1.0f, 0.0f, 0.0f, 0.0f };
     float tex1Transform1[4]   = { 0.0f, 1.0f, 0.0f, 0.0f };
+    float tex1TransformZ[4]   = { 0.0f, 0.0f, 1.0f, 0.0f };
+    // .x > 0.5 = stage 0 uses D3DTTFF_PROJECTED|D3DTTFF_COUNT3 — divide UV.xy
+    // by the third texcoord output produced from texTransform0Z. .y same for
+    // stage 1. Used by TexProjectClass perspective projection of building
+    // floor emblems / faction icons.
+    float texProjected[4]     = { 0.0f, 0.0f, 0.0f, 0.0f };
     float cloudParams[4]      = { 0.0f, 0.0f, 0.0f, 0.0f };
     bgfx::TextureHandle cloudTex = BGFX_INVALID_HANDLE;
     float lightDirs[4][4] = {
@@ -268,6 +279,14 @@ struct BgfxDraw
     };
     float sceneAmbient[4]     = { 0.45f, 0.45f, 0.45f, 1.0f };
     float lightingEnabled[4]  = { 1.0f, 0.0f, 0.0f, 0.0f };
+    bool  fvfHasNormal        = false;
+    // .x = post-projection clip-space Z offset (negative pushes toward camera)
+    // applied in vs_uber.sc as gl_Position.z -= u_zBias.x * gl_Position.w. Sourced
+    // from D3DRS_ZBIAS at submit time so legacy paths that set the wrapper state
+    // directly (DX8MeshRendererClass::Render_Decal_Meshes uses ZBIAS=8 to keep
+    // floor emblems and decals from z-fighting with the terrain they sit on)
+    // get equivalent behaviour under the bgfx pipeline.
+    float zBias[4]            = { 0.0f, 0.0f, 0.0f, 0.0f };
     float swayTable[11][4]    = {{0}};
     float shroudOffset[4]     = { 0.0f, 0.0f, 0.0f, 0.0f };
     float shroudScale[4]      = { 0.0f, 0.0f, 1.0f, 1.0f };
@@ -306,6 +325,7 @@ struct BgfxViewFlags
 {
     bool overlay2DActive           = false;
     bool renderToTexture           = false;
+    TextureClass * renderTargetTexture = nullptr;
     bool waterOverrideActive       = false;
     bool waterOverlayActive        = false;
     bool effectOverlayActive       = false;
@@ -341,6 +361,47 @@ struct BgfxFrame
     float shadowSunPosY      = 0.0f;
     float shadowSunPosZ      = 1500.0f;
     bool  shadowSunPosSet    = false;
+};
+
+// Stats: per-frame backend counters used by debug builds to profile draw/state churn.
+struct BgfxStats
+{
+    uint32_t frameIndex = 0;
+    uint32_t drawCalls = 0;
+    uint32_t skippedDraws = 0;
+
+    uint32_t baseSubmits = 0;
+    uint32_t sceneDepthSubmits = 0;
+    uint32_t shadowMapSubmits = 0;
+    uint32_t shadowVolumeSubmits = 0;
+    uint32_t shadowApplySubmits = 0;
+    uint32_t smudgeSubmits = 0;
+    uint32_t sceneCompositeSubmits = 0;
+    uint32_t debugSubmits = 0;
+
+    uint32_t uiDraws = 0;
+    uint32_t worldDraws = 0;
+    uint32_t waterDraws = 0;
+    uint32_t sortedDraws = 0;
+    uint32_t effectDraws = 0;
+    uint32_t rttDraws = 0;
+    uint32_t smudgeDraws = 0;
+
+    uint32_t textureBinds = 0;
+    uint32_t textureCreates = 0;
+    uint32_t textureUploads = 0;
+    uint32_t textureCopies = 0;
+    uint32_t materialUniformUploads = 0;
+    uint32_t lightUniformUploads = 0;
+    uint32_t textureTransformUpdates = 0;
+    uint32_t renderStateCopies = 0;
+
+    uint32_t transientVbAllocations = 0;
+    uint32_t transientIbAllocations = 0;
+    uint32_t transientVbDraws = 0;
+    uint32_t transientIbDraws = 0;
+    uint32_t dynamicVbAllocations = 0;
+    uint32_t dynamicIbAllocations = 0;
 };
 
 // Caches: long-lived resource maps.
@@ -407,6 +468,7 @@ extern BgfxDraw       g_draw;
 extern BgfxOverrides  g_overrides;
 extern BgfxViewFlags  g_views;
 extern BgfxFrame      g_frame;
+extern BgfxStats      g_stats;
 extern BgfxCaches     g_caches;
 
 // --- Helpers shared across BgfxBackend*.cpp ---------------------------------

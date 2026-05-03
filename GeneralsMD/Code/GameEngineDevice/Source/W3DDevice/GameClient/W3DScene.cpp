@@ -1345,6 +1345,14 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
 #if defined(GGC_BGFX_STANDALONE)
 	{
+		// TheSuperHackers @bugfix bobtista 30/04/2026 Route the player-color
+		// stencil wash through the dedicated effect-overlay view so its
+		// stencil-tested clip-space quad lands on the scene framebuffer
+		// before composite. Without an explicit opt-in the bgfx backend has
+		// to guess (vertex bounds + stencil enabled), and the heuristic also
+		// caught innocent UI quads — pulling control-bar art under the world.
+		g_renderBackend->Begin_Effect_Overlay();
+
 		Matrix4x4 view,proj;
 		Matrix4x4 identity(true);
 
@@ -1400,6 +1408,8 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		g_renderBackend->Draw_Triangles(0,2,0,4);
 		g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,view);
 		g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,proj);
+
+		g_renderBackend->End_Effect_Overlay();
 	}
 #else
 		m_pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANSLITVERTEX));
