@@ -84,7 +84,7 @@ extern "C" void GGC_GetBgfxPostProcessParams(float * params)
 		return;
 	}
 
-	if (!TheGlobalData->m_bgfxPostProcessing)
+	if (!TheGlobalData->m_bgfxPostProcessing || TheGlobalData->m_bgfxNoPostFx)
 	{
 		params[0] = 0.0f;
 		params[1] = 1.0f;
@@ -97,6 +97,65 @@ extern "C" void GGC_GetBgfxPostProcessParams(float * params)
 		params[1] = TheGlobalData->m_bgfxPostSaturation;
 		params[2] = TheGlobalData->m_bgfxPostContrast;
 		params[3] = TheGlobalData->m_bgfxPostFxaaAmount;
+	}
+}
+
+extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noCsm, int * noPostFx)
+{
+	if (logStats)
+	{
+		*logStats = 0;
+	}
+	if (noSceneFramebuffer)
+	{
+		*noSceneFramebuffer = 0;
+	}
+	if (noCsm)
+	{
+		*noCsm = 0;
+	}
+	if (noPostFx)
+	{
+		*noPostFx = 0;
+	}
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	if (logStats)
+	{
+		*logStats = TheGlobalData->m_bgfxLogStats ? 1 : 0;
+	}
+	if (noSceneFramebuffer)
+	{
+		*noSceneFramebuffer = TheGlobalData->m_bgfxNoSceneFramebuffer ? 1 : 0;
+	}
+	if (noCsm)
+	{
+		*noCsm = TheGlobalData->m_bgfxNoCsm ? 1 : 0;
+	}
+	if (noPostFx)
+	{
+		*noPostFx = TheGlobalData->m_bgfxNoPostFx ? 1 : 0;
+	}
+}
+
+extern "C" int GGC_GetBgfxScreenshotFrame()
+{
+	return TheGlobalData ? TheGlobalData->m_bgfxScreenshotAfter : 0;
+}
+
+extern "C" const char * GGC_GetBgfxScreenshotPath()
+{
+	return TheGlobalData ? TheGlobalData->m_bgfxScreenshotPath.str() : "";
+}
+
+extern "C" void GGC_ClearBgfxScreenshotRequest()
+{
+	if (TheWritableGlobalData)
+	{
+		TheWritableGlobalData->m_bgfxScreenshotAfter = 0;
 	}
 }
 
@@ -167,6 +226,10 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
 	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
+	{ "BgfxLogStats",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxLogStats ) },
+	{ "BgfxNoSceneFramebuffer",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoSceneFramebuffer ) },
+	{ "BgfxNoCsm",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoCsm ) },
+	{ "BgfxNoPostFx",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoPostFx ) },
 	{ "TextureReductionFactor",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_textureReductionFactor ) },
 	{ "UseBehindBuildingMarker",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_enableBehindBuildingMarkers ) },
 	{ "WaterPositionX",							INI::parseReal,				nullptr,			offsetof( GlobalData, m_waterPositionX ) },
@@ -730,6 +793,12 @@ GlobalData::GlobalData()
 	m_bgfxSoftParticles = FALSE;
 	m_bgfxSoftParticleFadeScale = 80.0f;
 	m_bgfxHeatHazeOpacityScale = 1.0f;
+	m_bgfxLogStats = FALSE;
+	m_bgfxNoSceneFramebuffer = FALSE;
+	m_bgfxNoCsm = FALSE;
+	m_bgfxNoPostFx = FALSE;
+	m_bgfxScreenshotAfter = 0;
+	m_bgfxScreenshotPath = "";
 	m_textureReductionFactor = -1;
 	m_enableBehindBuildingMarkers = TRUE;
 	m_scriptDebug = FALSE;
@@ -1062,6 +1131,7 @@ GlobalData::GlobalData()
 	m_initialFile.clear();
 	m_pendingFile.clear();
 	m_loadSaveGame.clear();
+	m_loadReplayGame.clear();
 
 	m_simulateReplays.clear();
 	m_simulateReplayJobs = SIMULATE_REPLAYS_SEQUENTIAL;

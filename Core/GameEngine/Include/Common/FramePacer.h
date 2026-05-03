@@ -39,6 +39,7 @@ public:
 	~FramePacer();
 
 	void update(); ///< Signal that the app/render update is done and wait for the fps limit if applicable.
+	void enablePerformanceLog(Bool enable); ///< Enable or disable one-second frame timing CSV output.
 
 	void setFramesPerSecondLimit( Int fps ); ///< Set the update fps limit.
 	Int  getFramesPerSecondLimit() const; ///< Get the update fps limit.
@@ -68,17 +69,27 @@ public:
 
 protected:
 
+	void flushPerformanceLogWindow();
+	void updatePerformanceLog();
+
 	FrameRateLimit m_frameRateLimit;
 
 	Int m_maxFPS; ///< Maximum frames per second for rendering
 	Int m_logicTimeScaleFPS; ///< Maximum frames per second for logic time scale
 
 	Real m_updateTime; ///< Last update delta time in seconds
+	Real m_performanceLogElapsedSeconds;
+	Real m_performanceLogWindowSeconds;
+	Real m_performanceLogWindowMinMs;
+	Real m_performanceLogWindowMaxMs;
 
 	Bool m_enableFpsLimit;
 	Bool m_enableLogicTimeScale;
 	Bool m_isTimeFrozen;
 	Bool m_isGameHalted;
+	Bool m_enablePerformanceLog;
+	UnsignedInt m_performanceLogFrameCount;
+	UnsignedInt m_performanceLogWindowFrames;
 };
 
 extern FramePacer* TheFramePacer;
