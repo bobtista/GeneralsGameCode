@@ -309,6 +309,13 @@ void StatsCollector::createFileName()
 //	const MapMetaData *m =  TheMapCache->findMap(TheGlobalData->m_mapName);
 	AsciiString name = TheGlobalData->m_mapName;
 	const char *fname = name.reverseFind('\\');
+#ifndef _WIN32
+	const char *fwdSlash = name.reverseFind('/');
+	if (fwdSlash && (!fname || fwdSlash > fname))
+	{
+		fname = fwdSlash;
+	}
+#endif
 	if (fname)
 		name = fname+1;
 	name.truncateBy(4); // ".map"

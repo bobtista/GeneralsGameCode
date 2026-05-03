@@ -191,6 +191,27 @@ static Waypoint * findNamedWaypoint(AsciiString name)
 	return nullptr;
 }
 
+#ifndef _WIN32
+static Bool findMapObjectWaypointLocation(AsciiString name, Coord3D *loc)
+{
+	if (!loc)
+		return false;
+
+	for (MapObject *obj = MapObject::getFirstMapObject(); obj; obj = obj->getNext())
+	{
+		Bool exists = false;
+		AsciiString waypointName = obj->getProperties()->getAsciiString(TheKey_waypointName, &exists);
+		if (exists && waypointName == name)
+		{
+			*loc = *obj->getLocation();
+			return true;
+		}
+	}
+
+	return false;
+}
+#endif
+
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
 void setFPMode()
@@ -238,6 +259,34 @@ const char* toString(GameMode mode)
 			return "GAME_UNKNOWN";
 	}
 }
+
+#ifndef _WIN32
+static void ggcForceNonObserverLocalPlayer(GameMode mode)
+{
+	if (mode == GAME_REPLAY || !ThePlayerList)
+		return;
+
+	Player *local = ThePlayerList->getLocalPlayer();
+	if (local && !local->isPlayerObserver())
+		return;
+
+	for (Int i = 0; i < ThePlayerList->getPlayerCount(); ++i)
+	{
+		Player *candidate = ThePlayerList->getNthPlayer(i);
+		if (!candidate || candidate == ThePlayerList->getNeutralPlayer() || candidate->isPlayerObserver())
+			continue;
+
+		const PlayerTemplate *candidateTemplate = candidate->getPlayerTemplate();
+		if (candidate->getSide() == "Civilian" ||
+			(candidateTemplate && candidateTemplate->getName() == "FactionCivilian"))
+			continue;
+
+		candidate->setPlayerType(PLAYER_HUMAN, false);
+		ThePlayerList->setLocalPlayer(candidate);
+		return;
+	}
+}
+#endif
 
 // ------------------------------------------------------------------------------------------------
 /** GameLogic class constructor */
@@ -556,11 +605,25 @@ static void placeNetworkBuildingsForPlayer(Int slotNum, const GameSlot *pSlot, P
 
 	Waypoint *waypoint = findNamedWaypoint(waypointName);
 	Waypoint *rallyWaypoint = findNamedWaypoint(rallyWaypointName);
+#ifndef _WIN32
+	Coord3D waypointFallbackLoc;
+	Coord3D rallyFallbackLoc;
+	Bool waypointFallbackFound = waypoint == nullptr ? findMapObjectWaypointLocation(waypointName, &waypointFallbackLoc) : false;
+	Bool rallyFallbackFound = rallyWaypoint == nullptr ? findMapObjectWaypointLocation(rallyWaypointName, &rallyFallbackLoc) : false;
+#endif
+#ifdef _WIN32
 	DEBUG_ASSERTCRASH(waypoint, ("Player %d has no starting waypoint (Player_%d_Start)", slotNum, startPos));
 	if (!waypoint)
 		return;
 
 	Coord3D pos = *waypoint->getLocation();
+#else
+	DEBUG_ASSERTCRASH(waypoint || waypointFallbackFound, ("Player %d has no starting waypoint (Player_%d_Start)", slotNum, startPos));
+	if (!waypoint && !waypointFallbackFound)
+		return;
+
+	Coord3D pos = waypoint ? *waypoint->getLocation() : waypointFallbackLoc;
+#endif
 	pos.z = TheTerrainLogic->getGroundHeight( pos.x, pos.y );
 
 	AsciiString buildingTemplateName = pTemplate->getStartingBuilding();
@@ -588,6 +651,13 @@ static void placeNetworkBuildingsForPlayer(Int slotNum, const GameSlot *pSlot, P
 		pos = *rallyWaypoint->getLocation();
 		pos.z = TheTerrainLogic->getGroundHeight( pos.x, pos.y );
 	}
+#ifndef _WIN32
+	else if (rallyFallbackFound)
+	{
+		pos = rallyFallbackLoc;
+		pos.z = TheTerrainLogic->getGroundHeight( pos.x, pos.y );
+	}
+#endif
 
 	for (Int i=0; i<MAX_MP_STARTING_UNITS; ++i)
 	{
@@ -727,7 +797,11 @@ static void populateRandomSideAndColor( GameInfo *game )
 	for (i = 0; i < ThePlayerTemplateStore->getPlayerTemplateCount(); ++i)
 	{
 		const PlayerTemplate* ptTest = ThePlayerTemplateStore->getNthPlayerTemplate(i);
-		if (!ptTest || ptTest->getStartingBuilding().isEmpty())
+		if (!ptTest
+#ifndef _WIN32
+			|| ptTest->isObserver()
+#endif
+			|| ptTest->getStartingBuilding().isEmpty())
 			continue;
 
 		if ( game->oldFactionsOnly() && !ptTest->isOldFaction() )
@@ -747,6 +821,24 @@ static void populateRandomSideAndColor( GameInfo *game )
 
 		startSlots.push_back(i);
 	}
+
+#ifndef _WIN32
+	if (startSlots.empty())
+	{
+		DEBUG_CRASH(("No unlocked playable factions were available for random skirmish selection."));
+		for (i = 0; i < ThePlayerTemplateStore->getPlayerTemplateCount(); ++i)
+		{
+			const PlayerTemplate* ptTest = ThePlayerTemplateStore->getNthPlayerTemplate(i);
+			if (!ptTest || ptTest->isObserver() || ptTest->getStartingBuilding().isEmpty())
+				continue;
+
+			if ( game->oldFactionsOnly() && !ptTest->isOldFaction() )
+				continue;
+
+			startSlots.push_back(i);
+		}
+	}
+#endif
 #endif
 
 	for (i=0; i<MAX_SLOTS; ++i)
@@ -763,6 +855,11 @@ static void populateRandomSideAndColor( GameInfo *game )
 		{
 			DEBUG_ASSERTCRASH(playerTemplateIdx == PLAYERTEMPLATE_RANDOM, ("Non-random bad playerTemplate %d in slot %d", playerTemplateIdx, i));
 #ifdef MORE_RANDOM
+#ifndef _WIN32
+			if (startSlots.empty())
+				break;
+#endif
+
 			// our RNG is basically shit -- horribly nonrandom at the start of the sequence.
 			// get a few values at random to get rid of the dreck.
 			// there's no mathematical basis for this, but empirically, it helps a lot.
@@ -806,6 +903,28 @@ static void populateRandomSideAndColor( GameInfo *game )
 		}
 	}
 }
+
+#ifndef _WIN32
+static Int findFirstPlayablePlayerTemplateIndex(GameInfo *game)
+{
+	if (!game)
+		return -1;
+
+	for (Int i = 0; i < ThePlayerTemplateStore->getPlayerTemplateCount(); ++i)
+	{
+		const PlayerTemplate* pt = ThePlayerTemplateStore->getNthPlayerTemplate(i);
+		if (!pt || pt->isObserver() || pt->getStartingBuilding().isEmpty())
+			continue;
+
+		if (game->oldFactionsOnly() && !pt->isOldFaction())
+			continue;
+
+		return i;
+	}
+
+	return -1;
+}
+#endif
 
 // ------------------------------------------------------------------------------------------------
 // ------------------------------------------------------------------------------------------------
@@ -1369,7 +1488,13 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	DEBUG_LOG(("%s", Buf));
 	#endif
 
+#ifdef _WIN32
 	Int localSlot = 0;
+#else
+	Int localSlot = TheGameInfo ? TheGameInfo->getLocalSlotNum() : 0;
+	if (localSlot < 0)
+		localSlot = 0;
+#endif
 	Int progressCount = LOAD_PROGRESS_SIDE_POPULATION;
 	if (TheGameInfo)
 	{
@@ -1402,11 +1527,34 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			d.setAsciiString(TheKey_playerName, playerName);
 			d.setBool(TheKey_playerIsHuman, slot->isHuman());
 			d.setUnicodeString(TheKey_playerDisplayName, slot->getName());
+#ifdef _WIN32
 			const PlayerTemplate* pt;
 			if (slot->getPlayerTemplate() >= 0)
 				pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
 			else
 				pt = ThePlayerTemplateStore->findPlayerTemplate( TheNameKeyGenerator->nameToKey("FactionObserver") );
+#else
+			const PlayerTemplate* pt = nullptr;
+			if (slot->getPlayerTemplate() == PLAYERTEMPLATE_OBSERVER)
+			{
+				pt = ThePlayerTemplateStore->findPlayerTemplate( TheNameKeyGenerator->nameToKey("FactionObserver") );
+			}
+			else if (slot->getPlayerTemplate() >= 0)
+			{
+				pt = ThePlayerTemplateStore->getNthPlayerTemplate(slot->getPlayerTemplate());
+			}
+			else
+			{
+				const Int fallbackTemplate = findFirstPlayablePlayerTemplateIndex(TheGameInfo);
+				if (fallbackTemplate >= 0)
+				{
+					DEBUG_CRASH(("Slot %d still had unresolved random playerTemplate %d; using playable template %d.",
+						i, slot->getPlayerTemplate(), fallbackTemplate));
+					slot->setPlayerTemplate(fallbackTemplate);
+					pt = ThePlayerTemplateStore->getNthPlayerTemplate(fallbackTemplate);
+				}
+			}
+#endif
 			if (pt)
 			{
 				d.setAsciiString(TheKey_playerFaction, KEYNAME(pt->getNameKey()));
@@ -1476,7 +1624,11 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 			d.setInt(TheKey_multiplayerStartIndex, slot->getStartPos());
 //			d.setBool(TheKey_multiplayerIsLocal, slot->isLocalPlayer());
 //			d.setBool(TheKey_multiplayerIsLocal, slot->getIP() == game->getLocalIP());
+#ifdef _WIN32
 			d.setBool(TheKey_multiplayerIsLocal, slot->isHuman() && (slot->getName().compare(TheGameInfo->getSlot(TheGameInfo->getLocalSlotNum())->getName().str()) == 0));
+#else
+			d.setBool(TheKey_multiplayerIsLocal, slot->isHuman() && i == localSlot);
+#endif
 
 /*
 			if (slot->getIP() == game->getLocalIP())
@@ -1497,9 +1649,13 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 				}
 			}
 
+#ifdef _WIN32
 			AsciiString slotNameAscii;
 			slotNameAscii.translate(slot->getName());
 			if (slot->isHuman() && TheGameInfo->getSlotNum(slotNameAscii) == TheGameInfo->getLocalSlotNum()) {
+#else
+			if (slot->isHuman() && i == localSlot) {
+#endif
 				localSlot = i;
 			}
 			TheSidesList->addSide(&d);
@@ -1554,6 +1710,9 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// update the player list to match the new map.
 	TheTeamFactory->reset();
 	ThePlayerList->newGame();
+#ifndef _WIN32
+	ggcForceNonObserverLocalPlayer(m_gameMode);
+#endif
 
 	// update the loadscreen
 	updateLoadProgress(LOAD_PROGRESS_POST_PLAYER_LIST_RESET);

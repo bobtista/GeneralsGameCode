@@ -500,7 +500,16 @@ void SidesList::prepareForMP_or_Skirmish()
 			// Don't remove FactionCivilian.
 			continue;
 		}
+#ifdef _WIN32
 		if (m_numSides == 1) break;	// can't remove the last side.
+#else
+		if (m_numSides == 1)
+		{
+			m_sides[0].clear();
+			m_numSides = 0;
+			break;
+		}
+#endif
 		removeSide(i);
 		i--;
 	}
