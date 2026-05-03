@@ -373,8 +373,12 @@ void main()
 				litColor += (u_lightAmbients[li].rgb * matAmbient + u_lightColors[li].rgb * nDotL * matDiffuse) * atten;
 			}
 		}
+		// Keep the fixed-function alpha combiner result. Some lit decals
+		// use stage 0 for recolored RGB and stage 1 only as an alpha mask;
+		// recomputing alpha from tex0/texOnly draws their black padding or
+		// can hide the decal entirely.
 		current = vec4(texOnly.rgb * min(vec3_splat(1.0), litColor),
-		               texOnly.a * u_matDiffuse.a);
+		               current.a * u_matDiffuse.a);
 	}
 	else
 	{
