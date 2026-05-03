@@ -72,7 +72,6 @@ set(WW3D2_SRC
     font3d.h
     formconv.cpp
     formconv.h
-    FramGrab.cpp
     framgrab.h
     hanim.cpp
     hanim.h
@@ -189,8 +188,6 @@ set(WW3D2_SRC
     sortingrenderer.cpp
     sortingrenderer.h
     soundlibrarybridge.h
-    soundrobj.cpp
-    soundrobj.h
     sphereobj.cpp
     sphereobj.h
     static_sort_list.cpp
@@ -238,6 +235,14 @@ set(WW3D2_SRC
     ww3dtrig.h
 )
 
+if(WIN32)
+    list(APPEND WW3D2_SRC
+        FramGrab.cpp
+        soundrobj.cpp
+        soundrobj.h
+    )
+endif()
+
 add_library(corei_ww3d2 INTERFACE)
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
@@ -251,6 +256,18 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendState.h
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendTextures.cpp
     )
+
+    # TheSuperHackers @refactor bobtista 22/04/2026
+    # In-tree implementations of the D3DX8 helpers the engine calls
+    # (matrix math, mip filter, surface copy, FVF size, error string).
+    # Compiled only for standalone builds, which don't link d3dx8.lib.
+    # Ref-popup builds still pull those symbols from d3dx8.lib and skip
+    # this file entirely.
+    if(GGC_BGFX_STANDALONE)
+        target_sources(corei_ww3d2 INTERFACE
+            ${CMAKE_CURRENT_SOURCE_DIR}/D3DXStandaloneStubs.cpp
+        )
+    endif()
 
     # TheSuperHackers @refactor bobtista 11/04/2026 shader
     # compilation. Only compile these shaders for the bgfx build. The
@@ -302,9 +319,22 @@ target_link_libraries(corei_ww3d2 INTERFACE
     core_wwmath
 )
 
+if(APPLE)
+    target_link_libraries(corei_ww3d2 INTERFACE
+        "-framework CoreGraphics"
+        "-framework CoreText"
+        "-framework CoreFoundation"
+    )
+endif()
+
 # Link the backend's native libraries into whoever consumes corei_ww3d2.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_link_libraries(corei_ww3d2 INTERFACE bgfx bx bimg)
+    # TheSuperHackers @build bobtista 29/04/2026 BgfxBackend.cpp pulls SDL3 headers
+    # to query the native window pointer for bgfx::PlatformData on macOS/Linux.
+    if(SAGE_USE_SDL3)
+        target_link_libraries(corei_ww3d2 INTERFACE sdl3lib)
+    endif()
     # TheSuperHackers @perf bobtista 24/06/2026 When the Tracy profiler is built
     # in (RTS_BUILD_OPTION_PROFILE_TRACY=ON), turn on bgfx's internal profiler
     # callbacks so its submit/encode work can be forwarded into the same Tracy
