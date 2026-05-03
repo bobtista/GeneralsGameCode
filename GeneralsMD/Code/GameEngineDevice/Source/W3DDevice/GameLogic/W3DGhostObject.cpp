@@ -126,6 +126,12 @@ void W3DRenderObjectSnapshot::update(RenderObjClass *robj, DrawableInfo *drawInf
 {
 	REF_PTR_RELEASE(m_robj);
 
+	if( robj == nullptr )
+	{
+		m_robj = nullptr;
+		return;
+	}
+
 	if( cloneParentRobj == TRUE )
 	{
 		m_robj = robj->Clone();
@@ -157,6 +163,10 @@ void W3DRenderObjectSnapshot::update(RenderObjClass *robj, DrawableInfo *drawInf
 // ------------------------------------------------------------------------------------------------
 Bool W3DRenderObjectSnapshot::addToScene()
 {
+	if (!m_robj)
+	{
+		return false;
+	}
 	if (!m_robj->Is_In_Scene())
 	{
 		W3DDisplay::m_3DScene->Add_Render_Object(m_robj);
@@ -169,6 +179,10 @@ Bool W3DRenderObjectSnapshot::addToScene()
 // ------------------------------------------------------------------------------------------------
 Bool W3DRenderObjectSnapshot::removeFromScene()
 {
+	if (!m_robj)
+	{
+		return false;
+	}
 	return m_robj->Remove();
 }
 
@@ -206,13 +220,16 @@ void W3DRenderObjectSnapshot::xfer( Xfer *xfer )
 
 	// transform on the main render object
 	Matrix3D transform;
-	transform = m_robj->Get_Transform();
+	if( m_robj )
+	{
+		transform = m_robj->Get_Transform();
+	}
 	xfer->xferUser( &transform, sizeof( Matrix3D ) );
-	if( xfer->getXferMode() == XFER_LOAD )
+	if( m_robj && xfer->getXferMode() == XFER_LOAD )
 		m_robj->Set_Transform( transform );
 
 	// how many sub objects of data will follow
-	Int subObjectCount = m_robj->Get_Num_Sub_Objects();
+	Int subObjectCount = m_robj ? m_robj->Get_Num_Sub_Objects() : 0;
 	xfer->xferInt( &subObjectCount );
 
 	Bool visible;
@@ -240,7 +257,7 @@ void W3DRenderObjectSnapshot::xfer( Xfer *xfer )
 			xfer->xferAsciiString( &subObjectName );
 
 			// find this sub object on the object
-			subObject = m_robj->Get_Sub_Object_By_Name( subObjectName.str() );
+			subObject = m_robj ? m_robj->Get_Sub_Object_By_Name( subObjectName.str() ) : nullptr;
 
 		}
 
@@ -281,7 +298,10 @@ void W3DRenderObjectSnapshot::xfer( Xfer *xfer )
 	}
 
 	// tell W3D that the transforms for our sub objects are all OK cause we've done them ourselves
-	m_robj->Set_Sub_Object_Transforms_Dirty( FALSE );
+	if( m_robj )
+	{
+		m_robj->Set_Sub_Object_Transforms_Dirty( FALSE );
+	}
 
 }
 
@@ -781,7 +801,10 @@ void W3DGhostObject::xfer( Xfer *xfer )
 
 			// read shroudedness previous and set
 			xfer->xferUser( &status, sizeof( ObjectShroudStatus ) );
-			m_partitionData->friend_setShroudednessPrevious( playerIndex, status );
+			if( m_partitionData )
+			{
+				m_partitionData->friend_setShroudednessPrevious( playerIndex, status );
+			}
 		}
 	}
 }
@@ -1214,10 +1237,13 @@ void W3DGhostObjectManager::xfer( Xfer *xfer )
 					("W3DGhostObjectManager::xfer - Could not create ghost object for object '%s'", object->getTemplate()->getName().str()) );
 
 				// link the ghost object and logical object together through partition/ghostObject dat
-				DEBUG_ASSERTCRASH( object->friend_getPartitionData()->getGhostObject() == nullptr,
-					("W3DGhostObjectManager::xfer - Ghost object already on object '%s'", object->getTemplate()->getName().str()) );
+				if( object->friend_getPartitionData() )
+				{
+					DEBUG_ASSERTCRASH( object->friend_getPartitionData()->getGhostObject() == nullptr,
+						("W3DGhostObjectManager::xfer - Ghost object already on object '%s'", object->getTemplate()->getName().str()) );
 
-				object->friend_getPartitionData()->friend_setGhostObject( ghostObject );
+					object->friend_getPartitionData()->friend_setGhostObject( ghostObject );
+				}
 			}
 			else
 			{
@@ -1225,11 +1251,21 @@ void W3DGhostObjectManager::xfer( Xfer *xfer )
 				ghostObject = addGhostObject( nullptr, nullptr );
 
 				// register ghost object object with partition system and fill out partition data
-				ThePartitionManager->registerGhostObject( ghostObject );
+				if( ghostObject )
+				{
+					ThePartitionManager->registerGhostObject( ghostObject );
+				}
 			}
 
 			// read ghost object data
-			xfer->xferSnapshot( ghostObject );
+			if( ghostObject )
+			{
+				xfer->xferSnapshot( ghostObject );
+			}
+			else
+			{
+				throw INI_INVALID_DATA;
+			}
 		}
 	}
 }
