@@ -378,6 +378,7 @@ void main()
 			}
 		}
 		vec4 litDiffuse = vec4(min(vec3_splat(1.0), litColor), u_matDiffuse.a);
+		float litAlpha = current.a * u_matDiffuse.a;
 		if (priColorOp > 0.5 && priColorOp < 1.5)
 		{
 			current = tex0;
@@ -388,17 +389,20 @@ void main()
 		}
 		else if (priColorOp > 2.5 && priColorOp < 3.5)
 		{
-			current = vec4(tex0.rgb * litDiffuse.rgb, tex0.a * litDiffuse.a);
+			// Keep the fixed-function alpha combiner result. Some lit decals
+			// use stage 0 for recolored RGB and stage 1 only as an alpha mask;
+			// recomputing alpha from tex0 draws their black padding.
+			current = vec4(tex0.rgb * litDiffuse.rgb, litAlpha);
 		}
 		else if (priColorOp > 3.5 && priColorOp < 4.5)
 		{
 			current = vec4(min(tex0.rgb * litDiffuse.rgb * 2.0, vec3_splat(1.0)),
-			               tex0.a * litDiffuse.a);
+			               litAlpha);
 		}
 		else if (priColorOp > 4.5 && priColorOp < 5.5)
 		{
 			current = vec4(min(tex0.rgb + litDiffuse.rgb, vec3_splat(1.0)),
-			               tex0.a * litDiffuse.a);
+			               litAlpha);
 		}
 		else
 		{
