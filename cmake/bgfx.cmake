@@ -167,4 +167,5 @@ function(ggc_compile_bgfx_shader source_sc)
         GENERATED TRUE
         HEADER_FILE_ONLY TRUE
     )
+    set_property(GLOBAL APPEND PROPERTY GGC_BGFX_SHADER_HEADERS "${_out_header}")
 endfunction()
