@@ -274,6 +274,13 @@ public:
     // _Copy_DX8_Rects updates a texture's GPU data (font atlas rebuilds).
     virtual void Invalidate_Cached_Texture(TextureBaseClass * /*texture*/) {}
 
+    // Copy a backend render target into a regular cached texture. Legacy
+    // projector code renders into a temporary POOL_DEFAULT target, copies it
+    // into another POOL_DEFAULT TextureClass, then samples that destination.
+    // DX8 owns both GPU resources, but bgfx needs an explicit cache bridge.
+    virtual void Copy_Render_Target_To_Texture(TextureClass * /*dst_texture*/,
+                                               TextureClass * /*src_render_target*/) {}
+
     // TheSuperHackers @feature bobtista 20/04/2026 Release a cached
     // texture. Called from TextureBaseClass::~TextureBaseClass before the
     // D3D8 texture is released, so bgfx's cache never holds a dangling

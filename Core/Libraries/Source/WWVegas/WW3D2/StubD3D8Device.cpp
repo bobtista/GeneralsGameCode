@@ -1281,25 +1281,57 @@ public:
 		{
 			if (IsCompressedFormat(sd.Format) || IsCompressedFormat(dd.Format))
 			{
-				WWDEBUG_SAY(("[StubD3D8] CopyRects: compressed rect copy not implemented, skipping"));
-				dst->UnlockRect();
-				src->UnlockRect();
-				return E_NOTIMPL;
-			}
-			const UINT bpp = BytesPerPixel(sd.Format);
-			for (UINT i = 0; i < count; ++i)
-			{
-				const RECT& r = srcRects[i];
-				const LONG dx = dstPts ? dstPts[i].x : r.left;
-				const LONG dy = dstPts ? dstPts[i].y : r.top;
-				const LONG rw = r.right - r.left;
-				const LONG rh = r.bottom - r.top;
-				for (LONG y = 0; y < rh; ++y)
+				if (sd.Format != dd.Format || !IsCompressedFormat(sd.Format) || !IsCompressedFormat(dd.Format))
 				{
-					std::memcpy(
-						static_cast<uint8_t*>(dl.pBits) + (dy + y) * dl.Pitch + dx * bpp,
-						static_cast<const uint8_t*>(sl.pBits) + (r.top + y) * sl.Pitch + r.left * bpp,
-						rw * bpp);
+					dst->UnlockRect();
+					src->UnlockRect();
+					return D3DERR_INVALIDCALL;
+				}
+				// TheSuperHackers @bugfix bobtista 28/04/2026 Support
+				// block-aligned DXT rect copies. Terrain atlases are populated
+				// through CopyRects from compressed tiles; skipping those rects
+				// leaves black atlas cells that bgfx samples as large dark
+				// patches in standalone.
+				const UINT blockBytes = BlockBytes(sd.Format);
+				for (UINT i = 0; i < count; ++i)
+				{
+					const RECT& r = srcRects[i];
+					const LONG dx = dstPts ? dstPts[i].x : r.left;
+					const LONG dy = dstPts ? dstPts[i].y : r.top;
+					const UINT srcBlockLeft = static_cast<UINT>(r.left) / 4;
+					const UINT srcBlockTop = static_cast<UINT>(r.top) / 4;
+					const UINT srcBlockRight = (static_cast<UINT>(r.right) + 3) / 4;
+					const UINT srcBlockBottom = (static_cast<UINT>(r.bottom) + 3) / 4;
+					const UINT dstBlockX = static_cast<UINT>(dx) / 4;
+					const UINT dstBlockY = static_cast<UINT>(dy) / 4;
+					const UINT blockRows = srcBlockBottom - srcBlockTop;
+					const UINT rowBytes = (srcBlockRight - srcBlockLeft) * blockBytes;
+					for (UINT y = 0; y < blockRows; ++y)
+					{
+						std::memcpy(
+							static_cast<uint8_t*>(dl.pBits) + (dstBlockY + y) * dl.Pitch + dstBlockX * blockBytes,
+							static_cast<const uint8_t*>(sl.pBits) + (srcBlockTop + y) * sl.Pitch + srcBlockLeft * blockBytes,
+							rowBytes);
+					}
+				}
+			}
+			else
+			{
+				const UINT bpp = BytesPerPixel(sd.Format);
+				for (UINT i = 0; i < count; ++i)
+				{
+					const RECT& r = srcRects[i];
+					const LONG dx = dstPts ? dstPts[i].x : r.left;
+					const LONG dy = dstPts ? dstPts[i].y : r.top;
+					const LONG rw = r.right - r.left;
+					const LONG rh = r.bottom - r.top;
+					for (LONG y = 0; y < rh; ++y)
+					{
+						std::memcpy(
+							static_cast<uint8_t*>(dl.pBits) + (dy + y) * dl.Pitch + dx * bpp,
+							static_cast<const uint8_t*>(sl.pBits) + (r.top + y) * sl.Pitch + r.left * bpp,
+							rw * bpp);
+					}
 				}
 			}
 		}

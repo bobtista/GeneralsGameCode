@@ -152,7 +152,7 @@ class W3DShadowTexture : public RefCountClass, public	HashableClass
 	public:
 
 		W3DShadowTexture()
-		{	m_lastLightPosition.Set(0,0,0); m_lastObjectOrientation.Make_Identity();
+		{	m_texture=nullptr; m_lastLightPosition.Set(1.0e30f,1.0e30f,1.0e30f); m_lastObjectOrientation.Make_Identity();
 			m_shadowUV[0].Set(1.0f,0.0f,0.0f);	//u runs along world x axis
 			m_shadowUV[1].Set(0.0f,-1.0f,0.0f);	//v runs along world -y axis
 		}
@@ -469,14 +469,14 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 
 		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I route
 		// buffers/shader through DX8Wrapper cache so cached stencil/blend
-		// state flushes on Draw_Triangles. Explicitly clear texture stages
-		// so the previous terrain draw's textures don't bleed through.
-		g_renderBackend->Set_Texture(0, nullptr);
-		g_renderBackend->Set_Texture(1, nullptr);
+		// state flushes on Draw_Triangles. The caller has just installed the
+		// TexProjectClass material pass; keep its projected texture stages
+		// intact so bgfx can render building floor emblems onto the terrain.
 		g_renderBackend->Set_Index_Buffer(shadowIndexBuffer, nShadowStartBatchVertex);
 		g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD, reinterpret_cast<const Matrix4x4&>(mWorld));
 		g_renderBackend->Set_Vertex_Buffer(shadowVertexBuffer, 0);
 		g_renderBackend->Set_Vertex_Shader(SHADOW_VOLUME_FVF);
+		g_renderBackend->Override_Terrain_Blend(false);
 
 		Int numPolys = (endX - startX)*(endY - startY)*2;	//2 triangles per cell
 
@@ -498,15 +498,12 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 		if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
 		{
 			Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
-			// TheSuperHackers @bugfix bobtista 17/04/2026 skip the bgfx submit
-			// for the projected terrain shadow pass. This DX8-specific stencil
-			// darkening technique routes through Set_Shadow_Volume_Shader_Active
-			// which submits terrain grid quads to the stencil shadow view,
-			// corrupting the stencil buffer and producing dark lines on terrain.
-			g_renderBackend->Skip_Next_Bgfx_Submit();
-			g_renderBackend->Set_Shadow_Volume_Shader_Active(true);
+			// TheSuperHackers @bugfix bobtista 01/05/2026 Submit projected
+			// terrain shadows as regular material draws in bgfx. Routing these
+			// flat receiver quads through the shadow-volume path drops the
+			// projector texture entirely; the normal uber path has the texture
+			// transform and blend state needed for floor emblems.
 			g_renderBackend->Draw_Triangles(nShadowStartBatchIndex, numPolys, 0, numVerts);
-			g_renderBackend->Set_Shadow_Volume_Shader_Active(false);
 		}
 
 		g_renderBackend->Override_Alpha_Test(false, 0, RB_CMP_ALWAYS);	//disable atest
@@ -595,13 +592,11 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(nShadowDecalPolysInBatch,nShadowDecalVertsInBatch,ShaderClass::_PresetOpaqueShader);
-		// TheSuperHackers @fix bobtista 19/04/2026 Skip bgfx submit only
-		// for SHADOW_DECAL (modulate-blend unit shadow blob) — CSM
-		// replaces that. SHADOW_ALPHA_DECAL and SHADOW_ADDITIVE_DECAL are
-		// UI decals (faction icons, satellite circle, move indicators,
-		// radius cursors) — their UVs are baked per-vertex in queueDecal,
-		// so they can submit directly to bgfx as regular textured tris.
-		if (type == SHADOW_DECAL)
+		// TheSuperHackers @bugfix bobtista 30/04/2026 Skip only the
+		// default blob shadow texture. SHADOW_DECAL also carries authored
+		// ground decals such as faction floor emblems, which still need to
+		// render in the bgfx path.
+		if (type == SHADOW_DECAL && texture && _stricmp(texture->Get_Name(), "shadow.tga") == 0)
 		{
 			g_renderBackend->Skip_Next_Bgfx_Submit();
 		}
@@ -1162,12 +1157,14 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 		{
 			if (shadow->m_isEnabled && !shadow->m_isInvisibleEnabled)
 			{
+				if (shadow->m_type != SHADOW_DECAL)
+					shadow->update();
 				if (shadow->m_type & SHADOW_DECAL)
 				{
 					if (lastShadowDecalTexture == nullptr)
-						lastShadowDecalTexture=m_shadowList->m_shadowTexture[0];
+						lastShadowDecalTexture=shadow->m_shadowTexture[0];
 					if (lastShadowType == SHADOW_NONE)
-						lastShadowType = m_shadowList->m_type;
+						lastShadowType = shadow->m_type;
 
 					if (shadow->m_shadowTexture[0] != lastShadowDecalTexture ||
 						shadow->m_type != lastShadowType)
@@ -1176,7 +1173,7 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 						lastShadowType=shadow->m_type;
 					}
 					///@todo: may need to fix this if shadows are large enough to be seen while object is not visible
-					if (shadow->m_robj->Is_Really_Visible())
+					if (shadow->m_robj == nullptr || shadow->m_robj->Is_Really_Visible() || shadow->m_type == SHADOW_DECAL)
 					{	//queueSimpleDecal(shadow);
 						queueDecal(shadow);	//only draw shadow if casting object is visible
 						projectionCount++;
@@ -1215,6 +1212,7 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 					TexProjectClass *projector=shadow->getShadowProjector();
 
 					//terrain is always visible and affected by all shadows so must render
+					g_renderBackend->Invalidate_Cached_Render_States();
 					projector->Peek_Material_Pass()->Install_Materials();
 					g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 					if (renderProjectedTerrainShadow(shadow, aaBox))
@@ -1277,9 +1275,9 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 			if (shadow->m_isEnabled && !shadow->m_isInvisibleEnabled)
 			{
 				if (lastShadowDecalTexture == nullptr)
-					lastShadowDecalTexture=m_decalList->m_shadowTexture[0];
+					lastShadowDecalTexture=shadow->m_shadowTexture[0];
 				if (lastShadowType == SHADOW_NONE)
-					lastShadowType = m_decalList->m_type;
+					lastShadowType = shadow->m_type;
 
 				if (shadow->m_shadowTexture[0] != lastShadowDecalTexture ||
 					shadow->m_type != lastShadowType)
@@ -1984,6 +1982,8 @@ void W3DProjectedShadow::updateTexture(Vector3 &lightPos)
 		oldSurface->Copy(0,0,0,0,DEFAULT_RENDER_TARGET_WIDTH,DEFAULT_RENDER_TARGET_HEIGHT,newSurface);
 		REF_PTR_RELEASE(newSurface);
 		REF_PTR_RELEASE(oldSurface);
+		g_renderBackend->Copy_Render_Target_To_Texture(m_shadowTexture[0]->getTexture(), TheW3DProjectedShadowManager->getRenderTarget());
+		m_shadowProjector->Set_Texture(m_shadowTexture[0]->getTexture());
 		m_shadowTexture[0]->updateBounds(TheW3DShadowManager->getLightPosWorld(0),m_robj);	//update local shadow bounds
 	}
 	else
@@ -2199,7 +2199,7 @@ Bool W3DShadowTextureManager::addTexture(W3DShadowTexture *newTexture)
 void W3DShadowTextureManager::invalidateCachedLightPositions()
 {
 	// step through each of our shadow textures and update previous light position.
-	Vector3 idVec(0,0,0);
+	Vector3 idVec(1.0e30f,1.0e30f,1.0e30f);
 
 	W3DShadowTextureManagerIterator it( *this );
 	for( it.First(); !it.Is_Done(); it.Next() )

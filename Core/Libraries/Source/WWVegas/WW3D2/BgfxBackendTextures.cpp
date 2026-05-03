@@ -41,6 +41,11 @@
 #include "BgfxBackendState.h"
 #include "DXTUtils.h"
 
+namespace
+{
+static const bgfx::ViewId kBgfxRTTTextureCopyView = 3;
+}
+
 // External linkage so BgfxBackend.cpp can reference this from its
 // Create_Texture implementation.
 bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt)
@@ -91,6 +96,38 @@ static void ForceOpaqueIfProceduralX8R8G8B8(TextureClass * tex2d,
     for (unsigned i = 0; i < pixelCount; ++i)
     {
         px[i * 4 + 3] = 0xff;
+    }
+}
+
+static void ApplyTeamColorTextureKey(TextureClass * tex2d,
+    bgfx::TextureFormat::Enum bgfxFmt, const bgfx::Memory * mem,
+    unsigned expectedPitch, unsigned numRows)
+{
+    if (tex2d == nullptr || mem == nullptr)
+    {
+        return;
+    }
+    if (bgfxFmt != bgfx::TextureFormat::BGRA8)
+    {
+        return;
+    }
+
+    const char * texName = tex2d->Get_Full_Path().str();
+    if (texName == nullptr || texName[0] != '#')
+    {
+        return;
+    }
+
+    uint8_t * pix = mem->data;
+    const unsigned pixelCount = expectedPitch / 4 * numRows;
+    for (unsigned i = 0; i < pixelCount; ++i)
+    {
+        // TheSuperHackers @fix bobtista 29/04/2026 Team-colored textures
+        // use exact black RGB as a transparent matte in the D3D8 path.
+        if (pix[i * 4 + 0] == 0 && pix[i * 4 + 1] == 0 && pix[i * 4 + 2] == 0)
+        {
+            pix[i * 4 + 3] = 0;
+        }
     }
 }
 
@@ -400,32 +437,16 @@ static bool CopyTextureLevel(TextureClass * tex2d,
     }
     d3dTex->UnlockRect(level);
 
-    if (!isCompressed && bgfxFmt == bgfx::TextureFormat::BGRA8)
-    {
-        const char * texName = tex2d->Get_Full_Path().str();
-        if (texName != nullptr && texName[0] == '#')
-        {
-            uint8_t * pix = mem->data;
-            const unsigned pixelCount = expectedPitch / 4 * numRows;
-            for (unsigned i = 0; i < pixelCount; ++i)
-            {
-                // BGRA8: byte order B, G, R, A. Transparent if B=G=R=0.
-                if (pix[i * 4 + 0] == 0 && pix[i * 4 + 1] == 0 && pix[i * 4 + 2] == 0)
-                {
-                    pix[i * 4 + 3] = 0;
-                }
-            }
-        }
-    }
-
     if (!isCompressed)
     {
+        ApplyTeamColorTextureKey(tex2d, bgfxFmt, mem, expectedPitch, numRows);
         ForceOpaqueIfProceduralX8R8G8B8(tex2d, bgfxFmt, mem, expectedPitch, numRows);
     }
 
     *outMem = mem;
     *outWidth = static_cast<uint16_t>(desc.Width);
     *outHeight = static_cast<uint16_t>(desc.Height);
+    g_stats.textureCopies++;
     return true;
 }
 
@@ -453,6 +474,7 @@ static bool UploadTerrainAtlasMips(TextureClass * tex2d,
 		prevHeight = mipHeight;
 		bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
 			mipWidth, mipHeight, mem);
+		g_stats.textureUploads++;
 		if (mip == 0)
 		{
 			fullMipCount = GetFullMipCount(mipWidth, mipHeight);
@@ -472,6 +494,7 @@ static bool UploadTerrainAtlasMips(TextureClass * tex2d,
 		bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
 			static_cast<uint16_t>(nextWidth), static_cast<uint16_t>(nextHeight),
 			nextMem, static_cast<uint16_t>(nextWidth * sizeof(uint16_t)));
+		g_stats.textureUploads++;
 		prev.swap(next);
 		prevWidth = nextWidth;
 		prevHeight = nextHeight;
@@ -518,7 +541,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
         if (bgfx::isValid(it->second))
         {
             TextureClass * tex2d = tex->As_TextureClass();
-            if (tex2d != nullptr && tex->Get_Pool() != TextureBaseClass::POOL_DEFAULT)
+            if (tex2d != nullptr)
             {
                 IDirect3DTexture8 * d3dTex = static_cast<IDirect3DTexture8 *>(curD3D);
                 D3DSURFACE_DESC desc;
@@ -553,6 +576,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
                                 bgfx::updateTexture2D(it->second, 0,
                                     static_cast<uint8_t>(mip), 0, 0,
                                     mipWidth, mipHeight, mem);
+                                g_stats.textureUploads++;
                             }
                         }
                         if (updatedAllLevels)
@@ -602,8 +626,11 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
             return fbIt->second.colorTex;
         }
 
-        g_caches.renderTarget[tex] = true;
-        return BGFX_INVALID_HANDLE;
+        if (curD3D == nullptr)
+        {
+            g_caches.renderTarget[tex] = true;
+            return BGFX_INVALID_HANDLE;
+        }
     }
 
     const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(tex2d->Get_Texture_Format());
@@ -671,6 +698,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
         nullptr);
     if (bgfx::isValid(h))
     {
+        g_stats.textureCreates++;
         bool uploadedAllLevels = true;
         if (terrainAtlasSafeMips)
         {
@@ -691,6 +719,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
                 }
                 bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
                     mipWidth, mipHeight, mem);
+                g_stats.textureUploads++;
             }
         }
         if (!uploadedAllLevels)
@@ -719,6 +748,67 @@ void BgfxBackend::Invalidate_Cached_Texture(TextureBaseClass * texture)
     {
         d3dIt->second.ptr = nullptr;
     }
+}
+
+void BgfxBackend::Copy_Render_Target_To_Texture(TextureClass * dst_texture,
+                                                TextureClass * src_render_target)
+{
+    if (!g_device.initialized || dst_texture == nullptr || src_render_target == nullptr)
+    {
+        return;
+    }
+
+    auto srcIt = g_caches.framebuffer.find(src_render_target);
+    if (srcIt == g_caches.framebuffer.end() || !bgfx::isValid(srcIt->second.colorTex))
+    {
+        return;
+    }
+
+    const uint16_t width = srcIt->second.width;
+    const uint16_t height = srcIt->second.height;
+    auto dstIt = g_caches.texture.find(dst_texture);
+    bool createTexture = (dstIt == g_caches.texture.end() || !bgfx::isValid(dstIt->second));
+    if (!createTexture)
+    {
+        auto dimIt = g_caches.d3dPtr.find(dst_texture);
+        if (dimIt == g_caches.d3dPtr.end()
+            || dimIt->second.w != width
+            || dimIt->second.h != height)
+        {
+            g_caches.deferredDestroys.push_back(dstIt->second);
+            g_caches.texture.erase(dstIt);
+            createTexture = true;
+        }
+    }
+
+    if (createTexture)
+    {
+        bgfx::TextureHandle h = bgfx::createTexture2D(
+            width, height, false, 1,
+            bgfx::TextureFormat::RGBA8,
+            BGFX_TEXTURE_BLIT_DST | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        g_caches.texture[dst_texture] = h;
+        if (bgfx::isValid(h))
+        {
+            g_stats.textureCreates++;
+            bgfx::setName(h, "projectedShadowCopy");
+        }
+    }
+
+    bgfx::TextureHandle dstHandle = g_caches.texture[dst_texture];
+    if (!bgfx::isValid(dstHandle))
+    {
+        return;
+    }
+
+    bgfx::blit(kBgfxRTTTextureCopyView, dstHandle, 0, 0, srcIt->second.colorTex);
+    g_stats.textureCopies++;
+    g_caches.d3dPtr[dst_texture] = {
+        dst_texture->Peek_D3D_Base_Texture(),
+        width,
+        height
+    };
+    g_caches.renderTarget.erase(dst_texture);
 }
 
 void BgfxBackend::Release_Cached_Texture(TextureBaseClass * texture)
@@ -799,7 +889,7 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
         || dst_width != s_lastShroudW
         || dst_height != s_lastShroudH)
     {
-        if (s_lastShroudDst != nullptr)
+        if (s_lastShroudDst != nullptr && s_lastShroudDst != dst_texture)
         {
             auto oldIt = g_caches.texture.find(s_lastShroudDst);
             if (oldIt != g_caches.texture.end())
@@ -813,6 +903,22 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
             g_caches.d3dPtr.erase(s_lastShroudDst);
             g_caches.renderTarget.erase(s_lastShroudDst);
         }
+        // TheSuperHackers @bugfix bobtista 29/04/2026 Also invalidate the
+        // new shroud destination pointer. TextureClass addresses can be reused
+        // by replay/save loads after unrelated textures were cached, and the
+        // old bgfx handle would then be mistaken for the shroud texture.
+        auto currentIt = g_caches.texture.find(dst_texture);
+        if (currentIt != g_caches.texture.end())
+        {
+            if (bgfx::isValid(currentIt->second))
+            {
+                g_caches.deferredDestroys.push_back(currentIt->second);
+            }
+            g_caches.texture.erase(currentIt);
+        }
+        g_caches.d3dPtr.erase(dst_texture);
+        g_caches.renderTarget.erase(dst_texture);
+
         s_lastShroudDst = dst_texture;
         s_lastShroudW = dst_width;
         s_lastShroudH = dst_height;

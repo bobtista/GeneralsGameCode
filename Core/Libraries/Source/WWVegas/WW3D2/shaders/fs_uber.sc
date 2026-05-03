@@ -1,4 +1,4 @@
-$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV, v_worldPos
+$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV, v_sceneDepth, v_worldPos
 
 #include <bgfx_shader.sh>
 
@@ -25,11 +25,13 @@ uniform vec4 u_lightParams[4]; // x inner range, y outer/range, z > 0.5 point, w
 uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
 uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
 uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
+uniform vec4 u_texProjected; // .x > 0.5 = stage 0 projected, .y > 0.5 = stage 1 projected
 uniform vec4 u_vertexColorFlags; // .y/.z/.w: diffuse/ambient/emissive source is COLOR1
 uniform vec4 u_grayscaleEnable; // .x > 0.5 = convert final color to luminance (disabled button state)
 uniform vec4 u_cloudParams; // xy = scroll, z = stretch, w > 0.5 = modulate cloud into output
 uniform vec4 u_shadowParams; // .x > 0.5 = receive CSM shadows
 uniform vec4 u_softParticleParams; // .x enable, .y fade scale, zw inverse scene size
+uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
 
 // TSS operation IDs (must match BgfxBackend.cpp encoding)
 #define TSS_DISABLE         0.0
@@ -54,6 +56,7 @@ uniform vec4 u_softParticleParams; // .x enable, .y fade scale, zw inverse scene
 // Shadow map depth bias. Terrain uses a larger value to kill self-shadow acne on near-flat slopes; general meshes need a tighter value so curved / thin geometry keeps its contact shadow.
 #define SHADOW_BIAS_TERRAIN 0.005
 #define SHADOW_BIAS_GENERAL 0.002
+#define CLOUD_SHADOW_MIN 0.72
 // BT.601 luminance weights (matches the BGRA bytes of the D3D8 TFACTOR=0x80A5CA8E cascade used by the disabled-button grayscale path).
 #define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
 // Multiplier applied to shadowed pixels. 1.0 = unshadowed, 0.0 = fully black; we darken to 60% for visible but not crushed shadows.
@@ -143,13 +146,22 @@ float sampleShadow(vec2 shadowUV, float refZ, float bias)
 vec3 sampleCloudShadow(vec2 cloudUV)
 {
 	vec3 cloudSample = texture2D(s_cloudMap, cloudUV).rgb;
-	return max(cloudSample, vec3_splat(0.50));
+	return max(cloudSample, vec3_splat(CLOUD_SHADOW_MIN));
 }
 
 void main()
 {
 	vec4 diffuse = v_color0;
-
+	vec2 stage0UV = v_stage0UV;
+	vec2 stage1UV = v_stage1UV;
+	if (u_texProjected.x > 0.5 && abs(v_sceneDepth.x) > 1e-6)
+	{
+		stage0UV /= v_sceneDepth.x;
+	}
+	if (u_texProjected.y > 0.5 && abs(v_sceneDepth.y) > 1e-6)
+	{
+		stage1UV /= v_sceneDepth.y;
+	}
 	// --- Terrain pixel shader path ---
 	// The D3D8 terrain system uses a hardware pixel shader (terrain.nvp)
 	// that completely replaces the TSS pipeline:
@@ -159,8 +171,8 @@ void main()
 	//   mul r0, r0, v0        ; multiply by diffuse (baked lighting)
 	if (u_texcoordSelect.y > 0.5)
 	{
-		vec4 baseTex  = texture2D(s_tex0, v_texcoord0);
-		vec4 blendTex = texture2D(s_tex1, v_texcoord1);
+		vec4 baseTex  = texture2D(s_tex0, (u_texProjected.x > 0.5) ? stage0UV : v_texcoord0);
+		vec4 blendTex = texture2D(s_tex1, (u_texProjected.y > 0.5) ? stage1UV : v_texcoord1);
 		float blendAlpha = diffuse.a;
 		vec3 blended = mix(baseTex.rgb, blendTex.rgb, blendAlpha);
 		vec4 result = vec4(blended * diffuse.rgb, 1.0);
@@ -198,8 +210,8 @@ void main()
 		return;
 	}
 
-	vec4 tex0 = texture2D(s_tex0, v_stage0UV);
-	vec4 tex1 = texture2D(s_tex1, v_stage1UV);
+	vec4 tex0 = texture2D(s_tex0, stage0UV);
+	vec4 tex1 = texture2D(s_tex1, stage1UV);
 	vec4 tex2 = texture2D(s_tex2, v_texcoord0);
 	vec4 tex3 = texture2D(s_tex3, v_texcoord0);
 
@@ -340,14 +352,6 @@ void main()
 		vec3 matDiffuse = (u_vertexColorFlags.y > 0.5) ? diffuse.rgb : u_matDiffuse.rgb;
 		vec3 matAmbient = (u_vertexColorFlags.z > 0.5) ? diffuse.rgb : u_matAmbient.rgb;
 		vec3 matEmissive = (u_vertexColorFlags.w > 0.5) ? diffuse.rgb : u_matEmissive.rgb;
-		vec4 texOnly = tex0;
-		if (secColorOp > 0.5)
-		{
-			texOnly *= tex1;
-			// Same terrain-only gate as the non-lit branch above.
-			if (u_texcoordSelect.y > 0.5)
-				texOnly *= tex2 * tex3;
-		}
 
 		vec3 nrm = normalize(v_normal);
 		// D3D fixed-function folds emissive into the material color before
@@ -373,8 +377,61 @@ void main()
 				litColor += (u_lightAmbients[li].rgb * matAmbient + u_lightColors[li].rgb * nDotL * matDiffuse) * atten;
 			}
 		}
-		current = vec4(texOnly.rgb * min(vec3_splat(1.0), litColor),
-		               texOnly.a * u_matDiffuse.a);
+		vec4 litDiffuse = vec4(min(vec3_splat(1.0), litColor), u_matDiffuse.a);
+		if (priColorOp > 0.5 && priColorOp < 1.5)
+		{
+			current = tex0;
+		}
+		else if (priColorOp > 1.5 && priColorOp < 2.5)
+		{
+			current = litDiffuse;
+		}
+		else if (priColorOp > 2.5 && priColorOp < 3.5)
+		{
+			current = vec4(tex0.rgb * litDiffuse.rgb, tex0.a * litDiffuse.a);
+		}
+		else if (priColorOp > 3.5 && priColorOp < 4.5)
+		{
+			current = vec4(min(tex0.rgb * litDiffuse.rgb * 2.0, vec3_splat(1.0)),
+			               tex0.a * litDiffuse.a);
+		}
+		else if (priColorOp > 4.5 && priColorOp < 5.5)
+		{
+			current = vec4(min(tex0.rgb + litDiffuse.rgb, vec3_splat(1.0)),
+			               tex0.a * litDiffuse.a);
+		}
+		else
+		{
+			float priAlphaArg1Src = u_tssOps1.y;
+			vec4 priArg1 = (priArg1Src < 0.5) ? tex0 : litDiffuse;
+			vec4 priArg2 = (priArg1Src < 0.5) ? litDiffuse : tex0;
+			vec4 priAlphaA1 = (priAlphaArg1Src < 0.5) ? tex0 : litDiffuse;
+			vec4 priAlphaA2 = (priAlphaArg1Src < 0.5) ? litDiffuse : tex0;
+			current = vec4(applyColorOp(priColorOp, priArg1.rgb, priArg2.rgb),
+			               applyAlphaOp(priAlphaOp, priAlphaA1.a, priAlphaA2.a));
+		}
+
+		if (secColorOp > 0.5)
+		{
+			if (secColorOp > 7.5 && secColorOp < 8.5)
+			{
+				current.rgb = mix(current.rgb, tex1.rgb, tex1.a);
+			}
+			else if (secColorOp > 8.5 && secColorOp < 9.5)
+			{
+				current.rgb = mix(current.rgb, tex1.rgb, current.a);
+			}
+			else
+			{
+				current.rgb = applyColorOp(secColorOp, tex1.rgb, current.rgb);
+			}
+			if (u_texcoordSelect.y > 0.5)
+				current *= tex2 * tex3;
+		}
+		if (secAlphaOp > 0.5)
+		{
+			current.a = applyAlphaOp(secAlphaOp, tex1.a, current.a);
+		}
 	}
 	else
 	{
@@ -429,31 +486,13 @@ void main()
 		current.rgb *= sampleShadow(shadowUV, refZ, SHADOW_BIAS_GENERAL);
 	}
 
-	// Cloud-shadow modulation. DX8 ST_TERRAIN_BASE_NOISE1 / _NOISE12
-	// renders a second pass with the cloud texture sampled in camera-space
-	// (via D3DTS_TEXTURE0 = inv(view) * scale + translate(scroll)) and
-	// multiplies it into the base color. We pre-compute the UV in the
-	// vertex shader (world-space XY * stretch + scroll offset) and
-	// modulate here. Enabled per-draw by the backend — grass/tree draws
-	// leave u_cloudParams.w = 0.
-	// TheSuperHackers @bugfix bobtista 24/04/2026 Phase 5.2 — cloud shadow
-	// modulate with a floor. The raw `current *= cloudSample` path wipes
-	// pixels to pure black wherever the cloud texture has near-zero RGB,
-	// producing the scrolling black bands on the beach and black
-	// motorbike wheels. Real D3D8 cloud shadows darken by at most ~50%;
-	// clamp the multiplier so the darkest shadow preserves 50% of the
-	// original terrain brightness. Also guard against sample returning
-	// garbage zeros (upload edge cases, sampler border reads) by taking
-	// max() against a safe floor.
-	// TheSuperHackers @bugfix bobtista 28/04/2026 Re-enable terrain
-	// cloudmap shadows with a conservative floor. Earlier bgfx builds
-	// multiplied directly by the cloud texture and could turn terrain into
-	// hard dark bands when the sampled texel was near black. The legacy
-	// effect is subtle, so keep the modulation bounded.
-	if (u_cloudParams.w > 0.5)
-	{
-		current.rgb *= sampleCloudShadow(v_cloudUV);
-	}
+	// TheSuperHackers @bugfix bobtista 30/04/2026 Cloud-shadow modulation
+	// is terrain-only in DX8 (ST_TERRAIN_BASE_NOISE1 / _NOISE12). The
+	// terrain pixel-shader branch above handles its own cloud sampling and
+	// returns before reaching this point. Don't apply cloud here — the
+	// generic material path renders buildings/units/effects, none of which
+	// receive cloud shadows in DX8, and v_cloudUV is undefined for them so
+	// sampleCloudShadow's floor constant just darkens them uniformly.
 
 	// Grayscale output for disabled button state. Matches the D3D8 path
 	// (render2d.cpp) which used D3DTOP_DOTPRODUCT3 with TFACTOR=0x80A5CA8E

@@ -54,6 +54,8 @@ public:
 
     virtual bool Has_Shader_Pipeline() const override { return true; }
     virtual void Invalidate_Cached_Texture(TextureBaseClass * texture) override;
+    virtual void Copy_Render_Target_To_Texture(TextureClass * dst_texture,
+                                               TextureClass * src_render_target) override;
     virtual void Release_Cached_Texture(TextureBaseClass * texture) override;
 
     // -- Backend lifecycle ----------------------------------------------------
@@ -74,6 +76,9 @@ public:
 
     virtual void Begin_Scene() override;
     virtual void End_Scene(bool flip_frame) override;
+    virtual void Clear(bool clear_color, bool clear_z_stencil,
+                       const Vector3 & color,
+                       float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0) override;
     virtual void Set_Viewport(const RenderBackendViewport & viewport) override;
 
     // -- Vertex / index buffers -----------------------------------------------
@@ -159,6 +164,7 @@ public:
                                          float stretch, TextureClass * cloud_tex) override;
     virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) override;
     virtual void Set_Color_Write_Mask(unsigned mask) override;
+    virtual void Set_Lighting_Enable(bool enable) override;
     virtual void Skip_Next_Bgfx_Submit() override;
     virtual void Set_Shadow_Volume_Shader_Active(bool active) override;
     virtual void Apply_Stencil_Shadow_Darken(unsigned shadow_color,
