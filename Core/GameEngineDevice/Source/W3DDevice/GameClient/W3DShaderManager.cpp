@@ -1274,6 +1274,12 @@ Int ShroudTextureShader::init()
 //Setup a texture projection in the given stage that applies our shroud.
 Int ShroudTextureShader::set(Int stage)
 {
+	// TheSuperHackers @bugfix bobtista 28/04/2026 Shroud reuses terrain
+	// vertex buffers, but it is a projected multiplicative overlay, not the
+	// terrain pixel-shader blend pass. Clear the bgfx terrain override so the
+	// shroud pass cannot inherit terrain sampling state from the base pass.
+	g_renderBackend->Override_Terrain_Blend(false);
+
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	g_renderBackend->Set_Material(vmat);
@@ -1374,6 +1380,10 @@ Int FlatShroudTextureShader::init()
 //Setup a texture projection in the given stage that applies our shroud.
 Int FlatShroudTextureShader::set(Int stage)
 {
+	// TheSuperHackers @bugfix bobtista 28/04/2026 Flat shroud is also a
+	// projected overlay and must not inherit the bgfx terrain blend branch.
+	g_renderBackend->Override_Terrain_Blend(false);
+
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	if (stage < 2)
 		g_renderBackend->Set_Texture(stage, W3DShaderManager::getShaderTexture(stage));
