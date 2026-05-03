@@ -180,7 +180,13 @@ public:
 
 	#define W3DMPO_GLUE(ARGCLASS)
 
-	class W3DMPO { };
+	class W3DMPO
+	{
+	protected:
+		virtual void glueEnforcer() const { }
+	public:
+		virtual ~W3DMPO() { }
+	};
 
 #endif // (gth) removing the generals memory stuff from W3D
 

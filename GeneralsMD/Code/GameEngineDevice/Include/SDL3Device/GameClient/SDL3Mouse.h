@@ -16,6 +16,10 @@
 
 #include "GameClient/Mouse.h"
 
+class Image;
+class TextureClass;
+class SurfaceClass;
+
 class SDL3Mouse : public Mouse
 {
 public:
@@ -25,8 +29,10 @@ public:
 	virtual void init() override;
 	virtual void reset() override;
 	virtual void initCursorResources() override;
+	virtual void draw() override;
 	virtual void setCursor(MouseCursor cursor) override;
 	virtual void setPosition(Int x, Int y) override;
+	virtual void setVisibility(Bool visible) override;
 
 	void addSDL3MotionEvent(const SDL_MouseMotionEvent &event);
 	void addSDL3ButtonEvent(const SDL_MouseButtonEvent &event);
@@ -39,10 +45,26 @@ protected:
 
 private:
 	void pushEvent(const MouseIO &event);
+	const Image *getCursorImage(MouseCursor cursor);
+	TextureClass *getCursorTexture(MouseCursor cursor, Int frame);
+	SDL_Cursor *getSDLColorCursor(MouseCursor cursor, Int frame);
+	SDL_Cursor *createSDLANICursor(MouseCursor cursor, Int frame);
+	SDL_Cursor *createSDLColorCursor(TextureClass *texture, const ICoord2D &hotSpot);
+	Int getCursorTextureFrame(MouseCursor cursor);
+	void drawFallbackCursor(MouseCursor cursor);
+	void logCursorLookup(MouseCursor cursor, const Image *image, TextureClass *texture);
+	void syncSystemCursorVisibility();
 
 	MouseIO m_buffer[NUM_MOUSE_EVENTS];
 	UnsignedInt m_nextGetIndex;
 	UnsignedInt m_nextFreeIndex;
+	const Image *m_cursorImages[NUM_MOUSE_CURSORS];
+	TextureClass *m_cursorTextures[NUM_MOUSE_CURSORS][MAX_2D_CURSOR_ANIM_FRAMES];
+	SDL_Cursor *m_sdlCursors[NUM_MOUSE_CURSORS][MAX_2D_CURSOR_ANIM_FRAMES];
+	MouseCursor m_lastAppliedSDLCursor;
+	Int m_lastAppliedSDLFrame;
+	Real m_currentAnimFrame;
+	UnsignedInt m_lastAnimTime;
 };
 
 #endif

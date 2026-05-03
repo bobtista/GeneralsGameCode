@@ -324,6 +324,10 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # through the fixed-function uber shader.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_smudge.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_smudge.sc)
+    get_property(GGC_BGFX_GENERATED_SHADER_HEADERS GLOBAL PROPERTY GGC_BGFX_SHADER_HEADERS)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.cpp PROPERTIES
+        OBJECT_DEPENDS "${GGC_BGFX_GENERATED_SHADER_HEADERS}"
+    )
     target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
 endif()
 
@@ -345,6 +349,14 @@ target_link_libraries(corei_ww3d2 INTERFACE
     core_wwlib
     core_wwmath
 )
+
+if(APPLE)
+    target_link_libraries(corei_ww3d2 INTERFACE
+        "-framework CoreGraphics"
+        "-framework CoreText"
+        "-framework CoreFoundation"
+    )
+endif()
 
 # Link the backend's native libraries into whoever consumes corei_ww3d2.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")

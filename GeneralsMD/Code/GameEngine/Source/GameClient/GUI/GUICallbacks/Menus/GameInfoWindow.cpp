@@ -119,6 +119,15 @@ void RefreshGameInfoWindow(GameInfo *gameInfo, UnicodeString gameName)
 	{
 		// can happen if the map will have to be transferred... so use the leaf name (srj)
 		const char *noPath = gameInfo->getMap().reverseFind('\\');
+#ifndef _WIN32
+		{
+			const char *fwd = gameInfo->getMap().reverseFind('/');
+			if (fwd && (!noPath || fwd > noPath))
+			{
+				noPath = fwd;
+			}
+		}
+#endif
 		if (noPath)
 		{
 			++noPath;

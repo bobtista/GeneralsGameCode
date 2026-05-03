@@ -42,6 +42,9 @@
 #include "GameClient/MapUtil.h"
 #include "GameLogic/GameLogic.h"
 
+#include <cstdio>
+#include <cstdlib>
+
 //-------------------------------------------------------------------------------------------------
 void W3DCameoMovieDraw( GameWindow *window, WinInstanceData *instData )
 {
@@ -730,10 +733,27 @@ void W3DDrawMapPreview( GameWindow *window, WinInstanceData *instData)
 
 	}
 
-	if(!BitIsSet(window->winGetStatus(), WIN_STATUS_IMAGE) || !window->winGetEnabledImage(0))
-		TheDisplay->drawFillRect(ul.x, ul.y, lr.x -ul.x, lr.y-ul.y, lineColor);
-	else
-		TheDisplay->drawImage(window->winGetEnabledImage(0) , ul.x, ul.y, lr.x, lr.y );
+		if(!BitIsSet(window->winGetStatus(), WIN_STATUS_IMAGE) || !window->winGetEnabledImage(0))
+			TheDisplay->drawFillRect(ul.x, ul.y, lr.x -ul.x, lr.y-ul.y, lineColor);
+		else
+		{
+			if (getenv("GGC_MAP_PREVIEW_DIAG") != nullptr)
+			{
+				const Image *preview = window->winGetEnabledImage(0);
+				FILE *f = fopen("ggc_map_preview_diag.txt", "a");
+				if (f != nullptr)
+				{
+					fprintf(f, "draw preview name='%s' filename='%s' win=(%d,%d %dx%d) draw=(%d,%d)-(%d,%d) extent=(%f,%f)-(%f,%f)\n",
+						preview ? preview->getName().str() : "(null)",
+						preview ? preview->getFilename().str() : "(null)",
+						pixelX, pixelY, width, height, ul.x, ul.y, lr.x, lr.y,
+						mmData->m_extent.lo.x, mmData->m_extent.lo.y,
+						mmData->m_extent.hi.x, mmData->m_extent.hi.y);
+					fclose(f);
+				}
+			}
+			TheDisplay->drawImage(window->winGetEnabledImage(0) , ul.x, ul.y, lr.x, lr.y );
+		}
 
 	const Image *image = TheMappedImageCollection->findImageByName("TecBuilding");
 	ICoord2DList::iterator it = TheSupplyAndTechImageLocations.m_techPosList.begin();

@@ -120,6 +120,48 @@
 
 #include "shdlib.h"
 
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+namespace
+{
+static bool WW3DLoadDiagEnabled()
+{
+	static int enabled = -1;
+	if (enabled == -1)
+	{
+		enabled = getenv("GGC_WW3D_LOAD_DIAG") != nullptr ? 1 : 0;
+	}
+	return enabled != 0;
+}
+
+static FILE *WW3DLoadDiagFile()
+{
+	static FILE *fp = nullptr;
+	if (fp == nullptr && WW3DLoadDiagEnabled())
+	{
+		fp = fopen("ggc_ww3d_load_diag.txt", "wt");
+	}
+	return fp;
+}
+
+static void WW3DLoadDiagLog(const char *fmt, ...)
+{
+	FILE *fp = WW3DLoadDiagFile();
+	if (fp == nullptr)
+	{
+		return;
+	}
+
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(fp, fmt, args);
+	va_end(args);
+	fflush(fp);
+}
+}
+
 /*
 ** Static member variable which keeps track of the single instanced asset manager
 */
@@ -650,13 +692,26 @@ bool WW3DAssetManager::Load_3D_Assets( const char * filename )
 bool WW3DAssetManager::Load_3D_Assets(FileClass & w3dfile)
 {
 	WWPROFILE( "WW3DAssetManager::Load_3D_Assets" );
+	WW3DLoadDiagLog("file-load-begin name=%s available=%d\n", w3dfile.File_Name(), w3dfile.Is_Available() ? 1 : 0);
 	if (!w3dfile.Open()) {
+		WW3DLoadDiagLog("file-open-fail name=%s\n", w3dfile.File_Name());
 		return false;
 	}
+	WW3DLoadDiagLog("file-open-ok name=%s size=%d\n", w3dfile.File_Name(), w3dfile.Size());
 
 	ChunkLoadClass cload(&w3dfile);
+	int chunk_count = 0;
 
 	while (cload.Open_Chunk()) {
+		++chunk_count;
+		if (chunk_count <= 80)
+		{
+			WW3DLoadDiagLog("chunk name=%s index=%d id=0x%08x len=%u\n",
+				w3dfile.File_Name(),
+				chunk_count,
+				cload.Cur_Chunk_ID(),
+				cload.Cur_Chunk_Length());
+		}
 
 		switch (cload.Cur_Chunk_ID()) {
 
@@ -671,7 +726,17 @@ bool WW3DAssetManager::Load_3D_Assets(FileClass & w3dfile)
 				break;
 
 			default:
-				Load_Prototype(cload);
+				{
+					bool protoLoaded = Load_Prototype(cload);
+					if (chunk_count <= 80)
+					{
+						WW3DLoadDiagLog("prototype-load name=%s index=%d id=0x%08x result=%d\n",
+							w3dfile.File_Name(),
+							chunk_count,
+							cload.Cur_Chunk_ID(),
+							protoLoaded ? 1 : 0);
+					}
+				}
 				break;
 		}
 
@@ -679,6 +744,7 @@ bool WW3DAssetManager::Load_3D_Assets(FileClass & w3dfile)
 	}
 
 	w3dfile.Close();
+	WW3DLoadDiagLog("file-load-end name=%s chunks=%d\n", w3dfile.File_Name(), chunk_count);
 
 	return true;
 }
@@ -1725,4 +1791,3 @@ const char * HTreeIterator::Current_Item_Name()
 {
 	return WW3DAssetManager::Get_Instance()->HTreeManager.Get_Tree(Index)->Get_Name();
 }
-
