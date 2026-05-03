@@ -2352,7 +2352,10 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 
 	// If we are now starting a multiplayer or skirmish game, let us set the local players selectionto be the command center
 	// We'll ask the Recorder, so we survive replays
-	if( TheRecorder->isMultiplayer() )
+	// TheSuperHackers @bugfix bobtista 30/04/2026 Replays use the observer
+	// control bar. Auto-selecting command centers here pushes the normal
+	// player HUD over the replay player list.
+	if( TheRecorder->isMultiplayer() && m_gameMode != GAME_REPLAY )
 	{
 		// Iterate through each player's objects, and ask if the object
 		//is a command center, and if so, select it for that player

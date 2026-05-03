@@ -32,11 +32,6 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"	// This must go first in EVERY cpp file in the GameEngine
 
-#ifdef _UNIX
-#include <filesystem>
-#include <stdlib.h>
-#endif
-
 #include "ww3d.h"
 #include "texturefilter.h"
 
@@ -72,6 +67,117 @@ GlobalData* TheWritableGlobalData = nullptr;				///< The global data singleton
 
 //-------------------------------------------------------------------------------------------------
 GlobalData* GlobalData::m_theOriginal = nullptr;
+
+extern "C" void GGC_GetBgfxPostProcessParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 0.08f;
+	params[1] = 1.015f;
+	params[2] = 1.01f;
+	params[3] = 0.35f;
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	if (!TheGlobalData->m_bgfxPostProcessing || TheGlobalData->m_bgfxNoPostFx)
+	{
+		params[0] = 0.0f;
+		params[1] = 1.0f;
+		params[2] = 1.0f;
+		params[3] = 0.0f;
+	}
+	else
+	{
+		params[0] = TheGlobalData->m_bgfxPostSharpenAmount;
+		params[1] = TheGlobalData->m_bgfxPostSaturation;
+		params[2] = TheGlobalData->m_bgfxPostContrast;
+		params[3] = TheGlobalData->m_bgfxPostFxaaAmount;
+	}
+}
+
+extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noCsm, int * noPostFx)
+{
+	if (logStats)
+	{
+		*logStats = 0;
+	}
+	if (noSceneFramebuffer)
+	{
+		*noSceneFramebuffer = 0;
+	}
+	if (noCsm)
+	{
+		*noCsm = 0;
+	}
+	if (noPostFx)
+	{
+		*noPostFx = 0;
+	}
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	if (logStats)
+	{
+		*logStats = TheGlobalData->m_bgfxLogStats ? 1 : 0;
+	}
+	if (noSceneFramebuffer)
+	{
+		*noSceneFramebuffer = TheGlobalData->m_bgfxNoSceneFramebuffer ? 1 : 0;
+	}
+	if (noCsm)
+	{
+		*noCsm = TheGlobalData->m_bgfxNoCsm ? 1 : 0;
+	}
+	if (noPostFx)
+	{
+		*noPostFx = TheGlobalData->m_bgfxNoPostFx ? 1 : 0;
+	}
+}
+
+extern "C" int GGC_GetBgfxScreenshotFrame()
+{
+	return TheGlobalData ? TheGlobalData->m_bgfxScreenshotAfter : 0;
+}
+
+extern "C" const char * GGC_GetBgfxScreenshotPath()
+{
+	return TheGlobalData ? TheGlobalData->m_bgfxScreenshotPath.str() : "";
+}
+
+extern "C" void GGC_ClearBgfxScreenshotRequest()
+{
+	if (TheWritableGlobalData)
+	{
+		TheWritableGlobalData->m_bgfxScreenshotAfter = 0;
+	}
+}
+
+extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
+{
+	if (!params)
+	{
+		return;
+	}
+
+	params[0] = 1.0f;
+	params[1] = 80.0f;
+	params[2] = 0.0f;
+	params[3] = 0.0f;
+	if (!TheGlobalData)
+	{
+		return;
+	}
+
+	params[0] = TheGlobalData->m_bgfxSoftParticles ? 1.0f : 0.0f;
+	params[1] = TheGlobalData->m_bgfxSoftParticleFadeScale;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // PRIVATE DATA ///////////////////////////////////////////////////////////////////////////////////
@@ -109,6 +215,21 @@ GlobalData* GlobalData::m_theOriginal = nullptr;
 	{ "DownwindAngle",							INI::parseReal,				nullptr,			offsetof( GlobalData, m_downwindAngle ) },
 	{ "UseShadowVolumes",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_useShadowVolumes ) },
 	{ "UseShadowDecals",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_useShadowDecals ) },
+	// TheSuperHackers @feature bobtista 27/04/2026 bgfx scene-composite
+	// post-process controls. Values are intentionally subtle by default
+	// so Zero Hour keeps its original visual identity.
+	{ "BgfxPostProcessing",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxPostProcessing ) },
+	{ "BgfxPostSharpenAmount",			INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxPostSharpenAmount ) },
+	{ "BgfxPostSaturation",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxPostSaturation ) },
+	{ "BgfxPostContrast",					INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxPostContrast ) },
+	{ "BgfxPostFxaaAmount",				INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxPostFxaaAmount ) },
+	{ "BgfxSoftParticles",				INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticles ) },
+	{ "BgfxSoftParticleFadeScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxSoftParticleFadeScale ) },
+	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
+	{ "BgfxLogStats",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxLogStats ) },
+	{ "BgfxNoSceneFramebuffer",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoSceneFramebuffer ) },
+	{ "BgfxNoCsm",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoCsm ) },
+	{ "BgfxNoPostFx",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoPostFx ) },
 	{ "TextureReductionFactor",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_textureReductionFactor ) },
 	{ "UseBehindBuildingMarker",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_enableBehindBuildingMarkers ) },
 	{ "WaterPositionX",							INI::parseReal,				nullptr,			offsetof( GlobalData, m_waterPositionX ) },
@@ -664,6 +785,20 @@ GlobalData::GlobalData()
 	m_downwindAngle = ( -0.785f );//Northeast!
 	m_useShadowVolumes = FALSE;
 	m_useShadowDecals = FALSE;
+	m_bgfxPostProcessing = TRUE;
+	m_bgfxPostSharpenAmount = 0.08f;
+	m_bgfxPostSaturation = 1.015f;
+	m_bgfxPostContrast = 1.01f;
+	m_bgfxPostFxaaAmount = 0.35f;
+	m_bgfxSoftParticles = FALSE;
+	m_bgfxSoftParticleFadeScale = 80.0f;
+	m_bgfxHeatHazeOpacityScale = 1.0f;
+	m_bgfxLogStats = FALSE;
+	m_bgfxNoSceneFramebuffer = FALSE;
+	m_bgfxNoCsm = FALSE;
+	m_bgfxNoPostFx = FALSE;
+	m_bgfxScreenshotAfter = 0;
+	m_bgfxScreenshotPath = "";
 	m_textureReductionFactor = -1;
 	m_enableBehindBuildingMarkers = TRUE;
 	m_scriptDebug = FALSE;
@@ -996,6 +1131,7 @@ GlobalData::GlobalData()
 	m_initialFile.clear();
 	m_pendingFile.clear();
 	m_loadSaveGame.clear();
+	m_loadReplayGame.clear();
 
 	m_simulateReplays.clear();
 	m_simulateReplayJobs = SIMULATE_REPLAYS_SEQUENTIAL;
