@@ -733,7 +733,7 @@ DWORD WINAPI asyncGethostbynameThreadFunc( void * szName )
 int asyncGethostbyname(char * szName)
 {
 	static int            stat = 0;
-	static unsigned long  threadid;
+	static DWORD          threadid;
 
 	if( stat == 0 )
 	{
