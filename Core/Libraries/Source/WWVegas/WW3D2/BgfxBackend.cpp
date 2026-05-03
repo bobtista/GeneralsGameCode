@@ -4650,6 +4650,11 @@ void BgfxBackend::Set_Ambient(const Vector3 & color)
     g_draw.sceneAmbient[2] = color.Z;
 }
 
+void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float end)
+{
+    DX8Backend::Set_Fog(enable, color, start, end);
+}
+
 // Maps WW3D BlendFactor enum (1..8) to bgfx blend-factor bits. Index 0 unused.
 static const uint64_t kBgfxBlendMap[9] = {
     0,
@@ -4725,6 +4730,107 @@ void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
         g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
     }
     DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, uvIndex);
+}
+
+void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
+{
+    D3DMATRIX d3dMtx;
+    for (int r = 0; r < 4; ++r)
+    {
+        for (int c = 0; c < 4; ++c)
+        {
+            d3dMtx.m[r][c] = matrix[r][c];
+        }
+    }
+
+    DX8Wrapper::_Set_DX8_Transform(
+        static_cast<D3DTRANSFORMSTATETYPE>(D3DTS_TEXTURE0 + stage), d3dMtx);
+
+    if (stage == 0)
+    {
+        ReadTextureTransform(0, g_draw.texTransform0, g_draw.texTransform1);
+        ReadTextureTransformZ(0, g_draw.texTransform0Z);
+        g_draw.texcoordSelect[3] = 1.0f;
+    }
+    else if (stage == 1)
+    {
+        ReadTextureTransform(1, g_draw.tex1Transform0, g_draw.tex1Transform1);
+        ReadTextureTransformZ(1, g_draw.tex1TransformZ);
+        g_draw.texcoordSelect2[1] = 1.0f;
+    }
+}
+
+void BgfxBackend::Clear_Texture_Transform(unsigned stage)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, stage);
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+
+    if (stage < 4)
+    {
+        g_draw.texcoordSource[stage] = 0.0f;
+        g_draw.texProjected[stage] = 0.0f;
+    }
+
+    if (stage == 0)
+    {
+        g_draw.texcoordSelect[3] = 0.0f;
+        SetIdentityTextureTransform(g_draw.texTransform0, g_draw.texTransform1);
+        g_draw.texTransform0Z[0] = 0.0f;
+        g_draw.texTransform0Z[1] = 0.0f;
+        g_draw.texTransform0Z[2] = 1.0f;
+        g_draw.texTransform0Z[3] = 0.0f;
+    }
+    else if (stage == 1)
+    {
+        g_draw.texcoordSelect2[1] = 0.0f;
+        SetIdentityTextureTransform(g_draw.tex1Transform0, g_draw.tex1Transform1);
+        g_draw.tex1TransformZ[0] = 0.0f;
+        g_draw.tex1TransformZ[1] = 0.0f;
+        g_draw.tex1TransformZ[2] = 1.0f;
+        g_draw.tex1TransformZ[3] = 0.0f;
+    }
+}
+
+void BgfxBackend::Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
+{
+    const unsigned tci = cameraPosEnabled
+        ? (D3DTSS_TCI_CAMERASPACEPOSITION | stage)
+        : stage;
+
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, tci);
+    if (stage < 4)
+    {
+        g_draw.texcoordSource[stage] = cameraPosEnabled ? 3.0f : 0.0f;
+    }
+}
+
+void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSU,
+        clampU ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP);
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSV,
+        clampV ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP);
+
+    if (stage < 4)
+    {
+        g_draw.samplerFlags[stage] &= ~(BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        if (clampU)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_U_CLAMP;
+        }
+        if (clampV)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_V_CLAMP;
+        }
+    }
+}
+
+void BgfxBackend::Set_Shroud_Texture_Pass_Active(bool active, unsigned stage)
+{
+    if (!active || stage != 0)
+    {
+        g_draw.texcoordSelect[2] = 0.0f;
+    }
 }
 
 void BgfxBackend::Override_Terrain_Blend(bool enable)
