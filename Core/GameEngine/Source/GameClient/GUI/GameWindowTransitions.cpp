@@ -169,12 +169,27 @@ Bool TransitionWindow::init()
 	m_winID = TheNameKeyGenerator->nameToKey(m_winName);
 	m_win		= TheWindowManager->winGetWindowFromId(nullptr, m_winID);
 	m_currentFrameDelay = m_frameDelay;
-//	DEBUG_ASSERTCRASH( m_win, ("TransitionWindow::init Failed to find window %s", m_winName.str()));
-//	if( !m_win )
-//		return FALSE;
+#if !defined(_WIN32)
+	// Some non-Windows data/layout combinations do not create every window
+	// referenced by transition INI groups. The original Windows path assumes
+	// those references are valid; keep that behavior there, but avoid leaving
+	// a null transition object queued for the next frame on SDL/macOS.
+	if( !m_win )
+	{
+		delete m_transition;
+		m_transition = nullptr;
+		return FALSE;
+	}
+#endif
 
 	delete m_transition;
 	m_transition = getTransitionForStyle( m_style );
+#if !defined(_WIN32)
+	if( !m_transition )
+	{
+		return FALSE;
+	}
+#endif
 	m_transition->init(m_win);
 
 	// TheSuperHackers @fix Mauller 15/05/2025 Link TransitionWindow to the GameWindow so the GameWindow can unlink itself when it is destroyed
@@ -186,6 +201,12 @@ Bool TransitionWindow::init()
 
 void TransitionWindow::update( Int frame )
 {
+#if !defined(_WIN32)
+	// TransitionGroup::init() return values are ignored by the legacy caller,
+	// so a failed TransitionWindow::init() must be harmless during update.
+	if( !m_transition )
+		return;
+#endif
 	if(frame < m_currentFrameDelay || frame > (m_currentFrameDelay + m_transition->getFrameLength()))
 		return;
 
@@ -509,6 +530,14 @@ void GameWindowTransitionsHandler::setGroup(AsciiString groupName, Bool immediat
 void GameWindowTransitionsHandler::reverse( AsciiString groupName )
 {
 	TransitionGroup *g = findGroup(groupName);
+#if !defined(_WIN32)
+	// Missing transition groups can happen with incomplete retail data on
+	// non-Windows builds; on Windows preserve the original assert/crash path.
+	if( !g )
+	{
+		return;
+	}
+#endif
 	if( m_currentGroup == g )
 	{
 		m_currentGroup->reverse();
@@ -606,4 +635,3 @@ void GameWindowTransitionsHandler::parseWindow( INI* ini, void *instance, void *
 	ini->initFromINI(transWin, myFieldParse);
 	((TransitionGroup*)instance)->addWindow(transWin);
 }
-
