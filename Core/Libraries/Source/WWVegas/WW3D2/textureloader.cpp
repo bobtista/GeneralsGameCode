@@ -59,6 +59,7 @@
 #include "ddsfile.h"
 #include "bitmaphandler.h"
 #include "wwprofile.h"
+#include <cstdio>
 
 bool TextureLoader::TextureLoadSuspended;
 int TextureLoader::TextureInactiveOverrideTime = 0;
@@ -223,6 +224,20 @@ static SynchronizedTextureLoadTaskListClass	_BackgroundQueue;
 static TextureLoadTaskListClass					_TexLoadFreeList;
 static TextureLoadTaskListClass					_CubeTexLoadFreeList;
 static TextureLoadTaskListClass					_VolTexLoadFreeList;
+
+static void Log_Texture_Load_Failure(const char *reason, const char *filename)
+{
+	char message[512];
+	snprintf(
+		message,
+		sizeof(message),
+		"Missing texture %s: %s\n",
+		reason ? reason : "load failed",
+		filename ? filename : "(null)");
+	fprintf(stderr, "%s", message);
+	fflush(stderr);
+	OutputDebugString(message);
+}
 
 
 // The background texture loading thread.
@@ -420,6 +435,7 @@ IDirect3DTexture8* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 
 	// If no thumb is found return a missing texture
 	if (!thumb) {
+		Log_Texture_Load_Failure("thumbnail", filename);
 		return MissingTexture::_Get_Missing_Texture();
 	}
 
@@ -538,7 +554,10 @@ IDirect3DSurface8* TextureLoader::Load_Surface_Immediate(
 
 	// Make sure the file can be opened. If not, return missing texture.
 	Targa targa;
-	if (TARGA_ERROR_HANDLER(targa.Open(filename, TGA_READMODE),filename)) return MissingTexture::_Create_Missing_Surface();
+	if (TARGA_ERROR_HANDLER(targa.Open(filename, TGA_READMODE),filename)) {
+		Log_Texture_Load_Failure("surface open", filename);
+		return MissingTexture::_Create_Missing_Surface();
+	}
 
 	// DX8 uses image upside down compared to TGA
 	targa.Header.ImageDescriptor ^= TGAIDF_YORIGIN;
@@ -561,7 +580,10 @@ IDirect3DSurface8* TextureLoader::Load_Surface_Immediate(
 	// NOTE: We load the palette but we do not yet support paletted textures!
 	char palette[256*4];
 	targa.SetPalette(palette);
-	if (TARGA_ERROR_HANDLER(targa.Load(filename, TGAF_IMAGE, false),filename)) return MissingTexture::_Create_Missing_Surface();
+	if (TARGA_ERROR_HANDLER(targa.Load(filename, TGAF_IMAGE, false),filename)) {
+		Log_Texture_Load_Failure("surface load", filename);
+		return MissingTexture::_Create_Missing_Surface();
+	}
 
 	unsigned char* src_surface=(unsigned char*)targa.GetImage();
 
@@ -1276,6 +1298,7 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 	WWASSERT(TextureLoader::Is_DX8_Thread());
 	WWASSERT(!D3DTexture);
 
+	Log_Texture_Load_Failure("task", Texture ? Texture->Get_Full_Path().str() : nullptr);
 	D3DTexture = MissingTexture::_Get_Missing_Texture();
 	Apply(true);
 }
