@@ -807,7 +807,11 @@ void GameState::loadQueuedSaveGame()
 AsciiString GameState::getSaveDirectory() const
 {
 	AsciiString tmp = TheGlobalData->getPath_UserData();
+#ifdef _WIN32
 	tmp.concat("Save\\");
+#else
+	tmp.concat("Save/");
+#endif
 	return tmp;
 }
 
@@ -840,6 +844,13 @@ Bool GameState::isInSaveDirectory(const AsciiString& path) const
 AsciiString GameState::getMapLeafName(const AsciiString& in) const
 {
 	const char* p = getLastPathSeparator(in.str());
+#ifndef _WIN32
+	const char* fwd = strrchr(in.str(), '/');
+	if (fwd && (!p || fwd > p))
+	{
+		p = fwd;
+	}
+#endif
 	if (p)
 	{
 		//
@@ -859,11 +870,15 @@ AsciiString GameState::getMapLeafName(const AsciiString& in) const
 }
 
 // ------------------------------------------------------------------------------------------------
-static const char* findLastBackslashInRangeInclusive(const char* start, const char* end)
+static const char* findLastSeparatorInRangeInclusive(const char* start, const char* end)
 {
 	while (end >= start)
 	{
+#ifdef _WIN32
 		if (*end == '\\')
+#else
+		if (*end == '\\' || *end == '/')
+#endif
 			return end;
 		--end;
 	}
@@ -875,10 +890,10 @@ static AsciiString getMapLeafAndDirName(const AsciiString& in)
 {
 	const char* start = in.str();
 	const char* end = in.str() + in.getLength() - 1;
-	const char* p = findLastBackslashInRangeInclusive(start, end);
+	const char* p = findLastSeparatorInRangeInclusive(start, end);
 	if (p)
 	{
-		const char* p2 = findLastBackslashInRangeInclusive(start, p-1);
+		const char* p2 = findLastSeparatorInRangeInclusive(start, p-1);
 		if (p2)
 		{
 			// we have something like:
@@ -952,7 +967,11 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 	{
 		// the map dir DOES NOT end with "\\", must add it
 		prefix = TheMapCache->getMapDir();
+#ifdef _WIN32
 		prefix.concat("\\");
+#else
+		prefix.concat("/");
+#endif
 		containingBasePath = prefix;
 		prefix.concat(getMapLeafAndDirName(in));
 	}
@@ -960,7 +979,11 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 	{
 		// the map dir DOES NOT end with "\\", must add it
 		prefix = TheMapCache->getUserMapDir();
+#ifdef _WIN32
 		prefix.concat("\\");
+#else
+		prefix.concat("/");
+#endif
 		containingBasePath = prefix;
 		prefix.concat(getMapLeafAndDirName(in));
 	}
@@ -970,6 +993,14 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 		// Empty string represents a failure, either caused by an invalid prefix or a relative path leading outside the base path.
 		return AsciiString::TheEmptyString;
 	}
+
+#ifndef _WIN32
+	{
+		std::string normalized(prefix.str());
+		std::replace(normalized.begin(), normalized.end(), '\\', '/');
+		prefix.set(normalized.c_str());
+	}
+#endif
 
 	if (!FileSystem::isPathInDirectory(prefix, containingBasePath))
 	{

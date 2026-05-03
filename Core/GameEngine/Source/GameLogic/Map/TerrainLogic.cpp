@@ -1206,6 +1206,11 @@ Bool TerrainLogic::loadMap( AsciiString filename, Bool query )
 	// Add waypoint objects.
 	MapObject *pObj;
 	for (pObj = MapObject::getFirstMapObject(); pObj; pObj = pObj->getNext()) {
+#ifndef _WIN32
+		if (!pObj->isWaypoint() && pObj->getProperties()->getType(TheKey_waypointID) == Dict::DICT_INT) {
+			pObj->setIsWaypoint();
+		}
+#endif
 		if (pObj->isWaypoint()) {
 			addWaypoint(pObj);
 		}
@@ -2995,4 +3000,3 @@ void TerrainLogic::loadPostProcess()
 	}
 
 }
-
