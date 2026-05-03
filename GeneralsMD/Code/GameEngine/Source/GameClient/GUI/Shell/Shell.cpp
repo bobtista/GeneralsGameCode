@@ -528,8 +528,10 @@ void Shell::showShell( Bool runInit )
 void Shell::showShellMap(Bool useShellMap )
 {
 	// we don't want any of this to show if we're loading straight into a file
-	if (TheGlobalData->m_initialFile.isNotEmpty() || !TheGameLogic || !TheGlobalData->m_simulateReplays.empty() || TheGlobalData->m_loadSaveGame.isNotEmpty())
+	if (TheGlobalData->m_initialFile.isNotEmpty() || !TheGameLogic || !TheGlobalData->m_simulateReplays.empty() || TheGlobalData->m_loadSaveGame.isNotEmpty() || TheGlobalData->m_loadReplayGame.isNotEmpty())
+	{
 		return;
+	}
 	if(useShellMap && TheGlobalData->m_shellMapOn)
 	{
 		// we're already in a shell game, return
