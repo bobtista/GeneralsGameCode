@@ -3,7 +3,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#define _access access
 #define _stat stat
 
 // GeneralsX @build BenderAI 10/02/2026 - Win32 file API → POSIX
@@ -11,11 +10,27 @@
 
 #include <unistd.h>
 #include <climits>
+#include <algorithm>
 #include <cstring>
 #include <filesystem>
 #include <dirent.h>
 #include <fnmatch.h>
+#include <string>
 
+inline std::string NormalizeWin32PathForHost(const char* path) {
+  std::string normalized(path ? path : "");
+  std::replace(normalized.begin(), normalized.end(), '\\', '/');
+  return normalized;
+}
+
+inline int _access(const char* path, int mode) {
+  const std::string normalized = NormalizeWin32PathForHost(path);
+  return access(normalized.c_str(), mode);
+}
+#else
+#define _access access
+#endif
+#ifndef _WIN32
 // GeneralsX @TheSuperHackers @build BenderAI 11/02/2026 Windows _mkdir → POSIX mkdir (with default perms)
 inline int _mkdir(const char* path)  {
     return mkdir(path, 0755); // rwxr-xr-x
@@ -42,7 +57,8 @@ inline uint32_t GetCurrentDirectory(uint32_t buflen, char* buf) {
 // SetCurrentDirectory - change working directory
 inline int SetCurrentDirectory(const char* path) {
   try {
-    std::filesystem::current_path(path);
+    const std::string normalized = NormalizeWin32PathForHost(path);
+    std::filesystem::current_path(normalized);
     return 1; // TRUE
   } catch (...) {
     return 0; // FALSE
@@ -54,7 +70,8 @@ inline int SetCurrentDirectory(const char* path) {
 // DeleteFile - delete file
 inline int DeleteFile(const char* path) {
   try {
-    return std::filesystem::remove(path) ? 1 : 0;
+    const std::string normalized = NormalizeWin32PathForHost(path);
+    return std::filesystem::remove(normalized) ? 1 : 0;
   } catch (...) {
     return 0; // FALSE
   }
@@ -64,10 +81,12 @@ inline int DeleteFile(const char* path) {
 // Replay save system needs this to duplicate .rep files
 inline int CopyFile(const char* existingFile, const char* newFile, int failIfExists) {
   try {
+    const std::string normalizedExisting = NormalizeWin32PathForHost(existingFile);
+    const std::string normalizedNew = NormalizeWin32PathForHost(newFile);
     std::filesystem::copy_options opts = failIfExists 
       ? std::filesystem::copy_options::none 
       : std::filesystem::copy_options::overwrite_existing;
-    std::filesystem::copy_file(existingFile, newFile, opts);
+    std::filesystem::copy_file(normalizedExisting, normalizedNew, opts);
     return 1; // TRUE
   } catch (...) {
     return 0; // FALSE
@@ -155,7 +174,8 @@ inline void* FindFirstFile(const char* pattern, WIN32_FIND_DATA* findData) {
 
   // Parse pattern into directory and filename mask
   try {
-    std::filesystem::path p(pattern);
+    const std::string normalizedPattern = NormalizeWin32PathForHost(pattern);
+    std::filesystem::path p(normalizedPattern);
     std::string dir = p.parent_path().string();
     std::string mask = p.filename().string();
 

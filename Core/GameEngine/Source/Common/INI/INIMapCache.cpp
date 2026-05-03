@@ -195,6 +195,13 @@ void INI::parseMapCacheDefinition( INI* ini )
 	{
 		AsciiString lowerName = name;
 		lowerName.toLower();
+#ifndef _WIN32
+		{
+			std::string normalized(lowerName.str());
+			std::replace(normalized.begin(), normalized.end(), '\\', '/');
+			lowerName.set(normalized.c_str());
+		}
+#endif
 		md.m_fileName = lowerName;
 //		DEBUG_LOG(("INI::parseMapCacheDefinition - adding %s to map cache", lowerName.str()));
 		(*TheMapCache)[lowerName] = md;

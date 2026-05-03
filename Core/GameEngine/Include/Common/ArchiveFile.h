@@ -30,6 +30,7 @@
 
 #include "Common/AsciiString.h"
 #include "Common/ArchiveFileSystem.h"
+#include "mutex.h"
 
 class File;
 
@@ -71,6 +72,7 @@ protected:
 	FileInfo m_fileInfo; ///< file info of the archive file on disk.
 	AsciiString m_name; ///< archive file name
 	AsciiString m_path; ///< archive file path
+	CriticalSectionClass m_fileLock; ///< serializes reads of m_file across threads
 
 private:
 	DetailedArchivedDirectoryInfo m_rootDirectory;

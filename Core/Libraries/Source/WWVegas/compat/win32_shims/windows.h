@@ -601,11 +601,13 @@ typedef struct _EXCEPTION_POINTERS {
 #ifndef CreateDirectory
 inline int CreateDirectory(const char *p, void * /*attrs*/)
 {
-    return mkdir(p, 0755) == 0;
+    const std::string normalized = NormalizeWin32PathForHost(p);
+    return mkdir(normalized.c_str(), 0755) == 0;
 }
 inline int CreateDirectoryA(const char *p, void * /*attrs*/)
 {
-    return mkdir(p, 0755) == 0;
+    const std::string normalized = NormalizeWin32PathForHost(p);
+    return mkdir(normalized.c_str(), 0755) == 0;
 }
 #endif
 
