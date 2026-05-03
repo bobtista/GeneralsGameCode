@@ -155,6 +155,19 @@ static UnicodeString createReplayName(const AsciiString& filename)
 
 //-------------------------------------------------------------------------------------------------
 
+static const char *findPathLeaf(const AsciiString& path)
+{
+	const char* slash = path.reverseFind('\\');
+#ifndef _WIN32
+	const char* forwardSlash = path.reverseFind('/');
+	if (forwardSlash && (!slash || forwardSlash > slash))
+		slash = forwardSlash;
+#endif
+	return slash ? slash + 1 : path.str();
+}
+
+//-------------------------------------------------------------------------------------------------
+
 static UnicodeString createMapName(const AsciiString& filename, const ReplayGameInfo& info, const MapMetaData *mapData)
 {
 	UnicodeString mapName;
@@ -162,8 +175,12 @@ static UnicodeString createMapName(const AsciiString& filename, const ReplayGame
 	{
 		// TheSuperHackers @bugfix helmutbuhler 08/03/2025 Just use the filename.
 		// Displaying a long map path string would break the map list gui.
+#ifdef _WIN32
 		const char* filename = info.getMap().reverseFind('\\');
 		mapName.translate(filename ? filename + 1 : info.getMap());
+#else
+		mapName.translate(findPathLeaf(info.getMap()));
+#endif
 	}
 	else
 	{
@@ -278,7 +295,11 @@ void PopulateReplayFileListbox(GameWindow *listbox)
 	for (it = replayFilenames.begin(); it != replayFilenames.end(); ++it)
 	{
 		// just want the filename
+#ifdef _WIN32
 		asciistr.set((*it).reverseFind('\\') + 1);
+#else
+		asciistr.set(findPathLeaf(*it));
+#endif
 
 		RecorderClass::ReplayHeader header;
 		ReplayGameInfo info;
@@ -826,4 +847,3 @@ void copyReplay()
 	}
 
 }
-

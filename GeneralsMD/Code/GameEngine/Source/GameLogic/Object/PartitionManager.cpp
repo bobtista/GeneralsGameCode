@@ -1364,6 +1364,12 @@ void PartitionCell::removeLooker(Int playerIndex)
 	else
 	{
 		DEBUG_ASSERTCRASH( m_shroudLevel[playerIndex].m_currentShroud < 0, ("Someone is RemoveLooker-ing on a cell that is not looked at.  This will make a permanent shroud blob.") );
+#ifndef _WIN32
+		if( m_shroudLevel[playerIndex].m_currentShroud >= 0 )
+		{
+			return;
+		}
+#endif
 		m_shroudLevel[playerIndex].m_currentShroud++;
 	}
 	CellShroudStatus newShroud = getShroudStatusForPlayer( playerIndex );
@@ -6049,4 +6055,3 @@ SightingInfo::~SightingInfo()
 {
 
 }
-

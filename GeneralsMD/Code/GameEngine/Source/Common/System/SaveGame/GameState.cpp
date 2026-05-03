@@ -666,6 +666,9 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 
 	// construct path to file
 	AsciiString filepath = getFilePathInSaveDirectory(gameInfo.filename);
+#ifndef _WIN32
+	std::string filepathForError = filepath.str();
+#endif
 
 	// open the save file
 	XferLoad xferLoad;
@@ -719,7 +722,11 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 
 		// print error message to the user
 		UnicodeString ufilepath;
+#ifdef _WIN32
 		ufilepath.translate(filepath);
+#else
+		ufilepath.translate(filepathForError.c_str());
+#endif
 
 		UnicodeString msg;
 		msg.format( TheGameText->fetch("GUI:ErrorLoadingGame"), ufilepath.str() );
@@ -761,7 +768,11 @@ SaveCode GameState::loadGame( AvailableGameInfo gameInfo )
 AsciiString GameState::getSaveDirectory() const
 {
 	AsciiString tmp = TheGlobalData->getPath_UserData();
+#ifdef _WIN32
 	tmp.concat("Save\\");
+#else
+	tmp.concat("Save/");
+#endif
 	return tmp;
 }
 
@@ -783,6 +794,13 @@ Bool GameState::isInSaveDirectory(const AsciiString& path) const
 AsciiString GameState::getMapLeafName(const AsciiString& in) const
 {
 	const char* p = strrchr(in.str(), '\\');
+#ifndef _WIN32
+	const char* fwd = strrchr(in.str(), '/');
+	if (fwd && (!p || fwd > p))
+	{
+		p = fwd;
+	}
+#endif
 	if (p)
 	{
 		//
@@ -802,11 +820,15 @@ AsciiString GameState::getMapLeafName(const AsciiString& in) const
 }
 
 // ------------------------------------------------------------------------------------------------
-static const char* findLastBackslashInRangeInclusive(const char* start, const char* end)
+static const char* findLastSeparatorInRangeInclusive(const char* start, const char* end)
 {
 	while (end >= start)
 	{
+#ifdef _WIN32
 		if (*end == '\\')
+#else
+		if (*end == '\\' || *end == '/')
+#endif
 			return end;
 		--end;
 	}
@@ -818,10 +840,10 @@ static AsciiString getMapLeafAndDirName(const AsciiString& in)
 {
 	const char* start = in.str();
 	const char* end = in.str() + in.getLength() - 1;
-	const char* p = findLastBackslashInRangeInclusive(start, end);
+	const char* p = findLastSeparatorInRangeInclusive(start, end);
 	if (p)
 	{
-		const char* p2 = findLastBackslashInRangeInclusive(start, p-1);
+		const char* p2 = findLastSeparatorInRangeInclusive(start, p-1);
 		if (p2)
 		{
 			// we have something like:
@@ -895,7 +917,11 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 	{
 		// the map dir DOES NOT end with "\\", must add it
 		prefix = TheMapCache->getMapDir();
+#ifdef _WIN32
 		prefix.concat("\\");
+#else
+		prefix.concat("/");
+#endif
 		containingBasePath = prefix;
 		prefix.concat(getMapLeafAndDirName(in));
 	}
@@ -903,7 +929,11 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 	{
 		// the map dir DOES NOT end with "\\", must add it
 		prefix = TheMapCache->getUserMapDir();
+#ifdef _WIN32
 		prefix.concat("\\");
+#else
+		prefix.concat("/");
+#endif
 		containingBasePath = prefix;
 		prefix.concat(getMapLeafAndDirName(in));
 	}
@@ -913,6 +943,14 @@ AsciiString GameState::portableMapPathToRealMapPath(const AsciiString& in) const
 		// Empty string represents a failure, either caused by an invalid prefix or a relative path leading outside the base path.
 		return AsciiString::TheEmptyString;
 	}
+
+#ifndef _WIN32
+	{
+		std::string normalized(prefix.str());
+		std::replace(normalized.begin(), normalized.end(), '\\', '/');
+		prefix.set(normalized.c_str());
+	}
+#endif
 
 	if (!FileSystem::isPathInDirectory(prefix, containingBasePath))
 	{
@@ -1608,11 +1646,18 @@ void GameState::xfer( Xfer *xfer )
 	if (exists == FALSE || saveGameInfo->mapLabel == AsciiString::TheEmptyString)
 	{
 		const char* p = TheGlobalData->m_mapName.reverseFind('\\');
+#ifndef _WIN32
+		const char* fwd = TheGlobalData->m_mapName.reverseFind('/');
+		if (fwd && (!p || fwd > p))
+		{
+			p = fwd;
+		}
+#endif
 		if (p == nullptr)
 			saveGameInfo->mapLabel = TheGlobalData->m_mapName;
 		else
 		{
-			p++;  // skip the '\' we're on
+			p++;  // skip the separator we're on
 			saveGameInfo->mapLabel.set(p);
 		}
 	}

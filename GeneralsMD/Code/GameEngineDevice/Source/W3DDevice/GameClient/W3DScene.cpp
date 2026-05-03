@@ -32,6 +32,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
+#include <stdio.h>
 #include <stdlib.h>
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
@@ -78,6 +79,102 @@ extern void PrepareShadows();
 extern void DoTrees(RenderInfoClass & rinfo);
 extern void DoShadows(RenderInfoClass & rinfo, Bool stencilPass);
 extern void DoParticles(RenderInfoClass & rinfo);
+
+namespace
+{
+struct SceneDiagCounters
+{
+	Int visibilityTotal = 0;
+	Int visibilityFrustumVisible = 0;
+	Int visibilityHiddenRobj = 0;
+	Int visibilityDrawableHidden = 0;
+	Int visibilityDrawableShrouded = 0;
+	Int visibilityDrawableVisible = 0;
+	Int visibilityTerrain = 0;
+	Int mainLoopVisible = 0;
+	Int mainLoopDirectRender = 0;
+	Int mainLoopDelayed = 0;
+	Int renderOneCalls = 0;
+	Int renderOneNoDrawable = 0;
+	Int renderOneDrawable = 0;
+	Int renderOneHiddenSkip = 0;
+	Int renderOneClear = 0;
+	Int renderOneFogged = 0;
+	Int renderOneShrouded = 0;
+};
+
+static SceneDiagCounters g_sceneDiag;
+
+static Bool SceneDiagEnabled()
+{
+	static Int enabled = -1;
+	if (enabled == -1)
+	{
+		enabled = getenv("GGC_SCENE_DIAG") != nullptr ? 1 : 0;
+	}
+	return enabled != 0;
+}
+
+static FILE *SceneDiagFile()
+{
+	static FILE *fp = nullptr;
+	if (fp == nullptr && SceneDiagEnabled())
+	{
+		fp = fopen("ggc_scene_diag.txt", "wt");
+	}
+	return fp;
+}
+
+static void SceneDiagReset()
+{
+	if (!SceneDiagEnabled())
+	{
+		return;
+	}
+	g_sceneDiag = SceneDiagCounters();
+}
+
+static void SceneDiagWrite(Bool drawTerrainOnly, Int numPotentialOccluders, Int numPotentialOccludees,
+	Int numNonOccluderOrOccludee, Int translucentObjectsCount)
+{
+	FILE *fp = SceneDiagFile();
+	if (fp == nullptr)
+	{
+		return;
+	}
+	const Int frame = TheGameLogic ? TheGameLogic->getFrame() : -1;
+	fprintf(fp,
+		"frame=%d stencil=%d terrainOnly=%d potOcc=%d potOccee=%d nonOcc=%d trans=%d "
+		"visTotal=%d visFrustum=%d visHiddenRobj=%d visDrawableHidden=%d visDrawableShrouded=%d visDrawableVisible=%d visTerrain=%d "
+		"mainVisible=%d mainDirect=%d mainDelayed=%d "
+		"renderOne=%d renderOneDrawable=%d renderOneNoDrawable=%d renderHiddenSkip=%d renderClear=%d renderFogged=%d renderShrouded=%d\n",
+		frame,
+		g_renderBackend && g_renderBackend->Has_Stencil() ? 1 : 0,
+		drawTerrainOnly,
+		numPotentialOccluders,
+		numPotentialOccludees,
+		numNonOccluderOrOccludee,
+		translucentObjectsCount,
+		g_sceneDiag.visibilityTotal,
+		g_sceneDiag.visibilityFrustumVisible,
+		g_sceneDiag.visibilityHiddenRobj,
+		g_sceneDiag.visibilityDrawableHidden,
+		g_sceneDiag.visibilityDrawableShrouded,
+		g_sceneDiag.visibilityDrawableVisible,
+		g_sceneDiag.visibilityTerrain,
+		g_sceneDiag.mainLoopVisible,
+		g_sceneDiag.mainLoopDirectRender,
+		g_sceneDiag.mainLoopDelayed,
+		g_sceneDiag.renderOneCalls,
+		g_sceneDiag.renderOneDrawable,
+		g_sceneDiag.renderOneNoDrawable,
+		g_sceneDiag.renderOneHiddenSkip,
+		g_sceneDiag.renderOneClear,
+		g_sceneDiag.renderOneFogged,
+		g_sceneDiag.renderOneShrouded);
+	fflush(fp);
+}
+}
 
 // No texturing, no zbuffer reading/writing, primary gradient, no
 // blending, no fogging - mostly for use in solid-colored opaque objects.
@@ -455,31 +552,62 @@ void RTS3DScene::Visibility_Check(CameraClass * camera)
 	else
 	{
 
-		// Loop over all top-level RenderObjects in this scene. If the bounding sphere is not in front
-		// of all the frustum planes, it is invisible.
-		for (it.First(); !it.Is_Done(); it.Next()) {
+	// Loop over all top-level RenderObjects in this scene. If the bounding sphere is not in front
+	// of all the frustum planes, it is invisible.
+	for (it.First(); !it.Is_Done(); it.Next()) {
 
-			robj = it.Peek_Obj();
+		robj = it.Peek_Obj();
+		if (SceneDiagEnabled())
+		{
+			g_sceneDiag.visibilityTotal++;
+			if (robj->Class_ID() == RenderObjClass::CLASSID_TILEMAP)
+			{
+				g_sceneDiag.visibilityTerrain++;
+			}
+		}
 
-			if (robj->Is_Force_Visible()) {
-				robj->Set_Visible(true);
-			} else if (robj->Is_Hidden()) {
-				robj->Set_Visible(false);
-			} else {
+		if (robj->Is_Force_Visible()) {
+			robj->Set_Visible(true);
+		} else if (robj->Is_Hidden()) {
+			if (SceneDiagEnabled())
+			{
+				g_sceneDiag.visibilityHiddenRobj++;
+			}
+			robj->Set_Visible(false);
+		} else {
 
-				bool isVisible=!camera->Cull_Sphere(robj->Get_Bounding_Sphere());
+			bool isVisible=!camera->Cull_Sphere(robj->Get_Bounding_Sphere());
+			if (SceneDiagEnabled() && isVisible)
+			{
+				g_sceneDiag.visibilityFrustumVisible++;
+			}
 
-				if (isVisible)
-				{
+			if (isVisible)
+			{
 					//need to keep track of occluders and occludees for subsequent code.
 					drawInfo = (DrawableInfo *)robj->Get_User_Data();
 					if (drawInfo && (draw=drawInfo->m_drawable) != nullptr)
 					{
 						if (draw->isDrawableEffectivelyHidden() || draw->getFullyObscuredByShroud())
 						{
+							if (SceneDiagEnabled())
+							{
+								if (draw->isDrawableEffectivelyHidden())
+								{
+									g_sceneDiag.visibilityDrawableHidden++;
+								}
+								if (draw->getFullyObscuredByShroud())
+								{
+									g_sceneDiag.visibilityDrawableShrouded++;
+								}
+							}
 							isVisible = FALSE;
 						  robj->Set_Visible(isVisible);
-            }
+	            }
+						else if (SceneDiagEnabled())
+						{
+							g_sceneDiag.visibilityDrawableVisible++;
+						}
 						//assume normal rendering.
 						drawInfo->m_flags = DrawableInfo::ERF_IS_NORMAL;	//clear any rendering flags that may be in effect.
 
@@ -586,6 +714,10 @@ void RTS3DScene::renderSpecificDrawables(RenderInfoClass &rinfo, Int numDrawable
 //=============================================================================
 void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, Int localPlayerIndex)
 {
+	if (SceneDiagEnabled())
+	{
+		g_sceneDiag.renderOneCalls++;
+	}
 	Drawable *draw = nullptr;
 	DrawableInfo *drawInfo = nullptr;
 	Bool drawableHidden=FALSE;
@@ -620,6 +752,10 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 	Vector3 ambient = Get_Ambient_Light();
 	if (draw && (drawableHidden=draw->isDrawableEffectivelyHidden()) != TRUE)
 	{
+		if (SceneDiagEnabled())
+		{
+			g_sceneDiag.renderOneDrawable++;
+		}
 #ifdef NOT_IN_USE
 		const Vector3* drawAmbient = draw->getAmbientLight();
 		if (drawAmbient)
@@ -747,7 +883,17 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 	{
 		//either no drawable or it is hidden
 		if (drawableHidden)
+		{
+			if (SceneDiagEnabled())
+			{
+				g_sceneDiag.renderOneHiddenSkip++;
+			}
 			return;	//don't bother with anything else
+		}
+		if (SceneDiagEnabled())
+		{
+			g_sceneDiag.renderOneNoDrawable++;
+		}
 
 		//Render object without a drawable.  Must be either some fluff/debug object or a ghostObject.
 		if (ss == OBJECTSHROUD_FOGGED)
@@ -813,10 +959,25 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 			{
 				if (ss <= OBJECTSHROUD_CLEAR)
 				{
+					if (SceneDiagEnabled())
+					{
+						g_sceneDiag.renderOneClear++;
+					}
 					robj->Render(rinfo);
 				}
 				else
 				{
+					if (SceneDiagEnabled())
+					{
+						if (ss == OBJECTSHROUD_FOGGED)
+						{
+							g_sceneDiag.renderOneFogged++;
+						}
+						else
+						{
+							g_sceneDiag.renderOneShrouded++;
+						}
+					}
 					rinfo.Push_Material_Pass(m_shroudMaterialPass);
 					robj->Render(rinfo);
 					rinfo.Pop_Material_Pass();
@@ -976,6 +1137,7 @@ void RTS3DScene::updatePlayerColorPasses()
 void RTS3DScene::Render(RenderInfoClass & rinfo)
 {
 	//USE_PERF_TIMER(NonTerrainRender)
+	SceneDiagReset();
 	g_renderBackend->Set_Fog(FogEnabled, FogColor, FogStart, FogEnd);
 
 	//Override the behind building selection if it's not available on current hardware (needs stencil).
@@ -984,13 +1146,15 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 	if (Get_Extra_Pass_Polygon_Mode() == EXTRA_PASS_DISABLE)
 	{
 		if (m_customPassMode == SCENE_PASS_DEFAULT)
-		{
-			//Regular rendering pass with no effects
-			updatePlayerColorPasses();///@todo: this probably doesn't need to be done each frame.
-			updateFixedLightEnvironments(rinfo);
-			Customized_Render(rinfo);
-			Flush(rinfo);
-		}
+			{
+				//Regular rendering pass with no effects
+				updatePlayerColorPasses();///@todo: this probably doesn't need to be done each frame.
+				updateFixedLightEnvironments(rinfo);
+				Customized_Render(rinfo);
+				Flush(rinfo);
+				SceneDiagWrite(m_drawTerrainOnly, m_numPotentialOccluders, m_numPotentialOccludees,
+					m_numNonOccluderOrOccludee, m_translucentObjectsCount);
+			}
 		else if (m_customPassMode == SCENE_PASS_ALPHA_MASK)
 		{
 			//a projected alpha texture which will later be used to determine where
@@ -1184,6 +1348,10 @@ void RTS3DScene::Customized_Render( RenderInfoClass &rinfo )
 			continue;	//we already rendered terrain
 
 		if (robj->Is_Really_Visible()) {
+			if (SceneDiagEnabled())
+			{
+				g_sceneDiag.mainLoopVisible++;
+			}
 			DrawableInfo *drawInfo = (DrawableInfo *)robj->Get_User_Data();
 			Drawable *draw=nullptr;
 			if (drawInfo)
@@ -1193,7 +1361,17 @@ void RTS3DScene::Customized_Render( RenderInfoClass &rinfo )
 #else
 			if (!(draw && drawInfo->m_flags & (DrawableInfo::ERF_DELAYED_RENDER|DrawableInfo::ERF_POTENTIAL_OCCLUDER|DrawableInfo::ERF_IS_NON_OCCLUDER_OR_OCCLUDEE)))	//in this mode we delay almost all objects in order to do correct sorting with stencil.
 #endif
+			{
+				if (SceneDiagEnabled())
+				{
+					g_sceneDiag.mainLoopDirectRender++;
+				}
 				renderOneObject(rinfo, robj, localPlayerIndex);
+			}
+			else if (SceneDiagEnabled())
+			{
+				g_sceneDiag.mainLoopDelayed++;
+			}
 		}
 	}
 
@@ -2090,4 +2268,3 @@ void RTS3DScene::Visibility_Check(CameraClass * camera)
 
  *
  */
-

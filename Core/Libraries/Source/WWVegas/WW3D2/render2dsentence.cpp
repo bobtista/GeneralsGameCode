@@ -43,6 +43,21 @@
 #include "IRenderBackend.h"
 #include "RenderBackend.h"
 
+#if defined(__APPLE__)
+#if defined(interface)
+#define GGC_RESTORE_INTERFACE_MACRO
+#undef interface
+#endif
+#include <CoreGraphics/CoreGraphics.h>
+#include <CoreText/CoreText.h>
+#if defined(GGC_RESTORE_INTERFACE_MACRO)
+#define interface struct
+#undef GGC_RESTORE_INTERFACE_MACRO
+#endif
+#include <cmath>
+#include <vector>
+#endif
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 //	Local constants
@@ -50,6 +65,53 @@
 #define no_TEST_PLACEMENT 1	 // Shows alignment markers for text.
 
 #define TEXTURE_OFFSET 2
+
+#if defined(__APPLE__)
+namespace
+{
+int Apple_Font_Pixel_Size(int point_size)
+{
+	return max(1, MulDiv(point_size, 96, 72));
+}
+
+CFStringRef Create_Font_Name(const char *font_name)
+{
+	const char *resolved_name = (font_name != nullptr && strcmp(font_name, "Generals") == 0) ? "Arial" : font_name;
+	if (resolved_name == nullptr || resolved_name[0] == '\0') {
+		resolved_name = "Arial";
+	}
+
+	return CFStringCreateWithCString(kCFAllocatorDefault, resolved_name, kCFStringEncodingUTF8);
+}
+
+CTFontRef Create_Apple_Font(const char *font_name, int point_size, bool is_bold)
+{
+	CFStringRef name = Create_Font_Name(font_name);
+	if (name == nullptr) {
+		return nullptr;
+	}
+
+	CTFontRef base_font = CTFontCreateWithName(name, Apple_Font_Pixel_Size(point_size), nullptr);
+	CFRelease(name);
+	if (base_font == nullptr) {
+		return nullptr;
+	}
+
+	if (!is_bold) {
+		return base_font;
+	}
+
+	CTFontRef bold_font = CTFontCreateCopyWithSymbolicTraits(
+		base_font,
+		0.0,
+		nullptr,
+		kCTFontBoldTrait,
+		kCTFontBoldTrait);
+	CFRelease(base_font);
+	return bold_font;
+}
+}
+#endif
 ////////////////////////////////////////////////////////////////////////////////////
 //
 //	Render2DSentenceClass
@@ -1213,6 +1275,11 @@ FontCharsClass::~FontCharsClass ()
 const FontCharsClassCharDataStruct *
 FontCharsClass::Get_Char_Data (WCHAR ch)
 {
+#if defined(__APPLE__)
+	if (ch < 0 || ch > 0xFFFF) {
+		ch = '?';
+	}
+#endif
 	const FontCharsClassCharDataStruct *retval = nullptr;
 
 	if ( ch < 256 )
@@ -1286,7 +1353,10 @@ void
 FontCharsClass::Blit_Char (WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, int y)
 {
 	const FontCharsClassCharDataStruct	* data = Get_Char_Data( ch );
-	if ( data != nullptr && data->Width != 0 ) {
+	// TheSuperHackers @build bobtista 30/04/2026 Skip blit when Buffer is
+	// null — the non-Win Store_GDI_Char stub returns width-only entries with
+	// no rasterized glyph yet.
+	if ( data != nullptr && data->Width != 0 && data->Buffer != nullptr ) {
 
 		//
 		//	Setup the src and destination pointers
@@ -1321,6 +1391,102 @@ FontCharsClass::Blit_Char (WCHAR ch, uint16 *dest_ptr, int dest_stride, int x, i
 const FontCharsClassCharDataStruct *
 FontCharsClass::Store_GDI_Char (WCHAR ch)
 {
+#if defined(__APPLE__)
+	CTFontRef font = Create_Apple_Font(GDIFontName.Peek_Buffer(), PointSize, IsBold);
+	if (font == nullptr) {
+		return nullptr;
+	}
+
+	UniChar character = (ch >= 0 && ch <= 0xFFFF) ? static_cast<UniChar>(ch) : static_cast<UniChar>(0xFFFD);
+	CGGlyph glyph = 0;
+	if (!CTFontGetGlyphsForCharacters(font, &character, &glyph, 1) || glyph == 0) {
+		character = static_cast<UniChar>('?');
+		CTFontGetGlyphsForCharacters(font, &character, &glyph, 1);
+	}
+
+	CGSize advance = CGSizeZero;
+	CTFontGetAdvancesForGlyphs(font, kCTFontOrientationHorizontal, &glyph, &advance, 1);
+	CGRect bounds = CTFontGetBoundingRectsForGlyphs(font, kCTFontOrientationHorizontal, &glyph, nullptr, 1);
+
+	int left_pad = 0;
+	if (bounds.origin.x < 0.0) {
+		left_pad = static_cast<int>(std::ceil(-bounds.origin.x));
+	}
+	int glyph_width = static_cast<int>(std::ceil(bounds.size.width)) + left_pad + PixelOverlap + 1;
+	int advance_width = static_cast<int>(std::ceil(advance.width)) + PixelOverlap;
+	int char_width = max(1, max(glyph_width, advance_width));
+	int bitmap_height = max(1, CharHeight);
+
+	std::vector<uint8> glyph_bitmap(static_cast<size_t>(char_width) * static_cast<size_t>(bitmap_height), 0);
+	CGColorSpaceRef color_space = CGColorSpaceCreateDeviceGray();
+	CGContextRef context = CGBitmapContextCreate(
+		glyph_bitmap.data(),
+		char_width,
+		bitmap_height,
+		8,
+		char_width,
+		color_space,
+		kCGImageAlphaNone);
+	CGColorSpaceRelease(color_space);
+
+	if (context != nullptr) {
+		CGContextSetGrayFillColor(context, 0.0, 1.0);
+		CGContextFillRect(context, CGRectMake(0, 0, char_width, bitmap_height));
+		CGContextSetShouldAntialias(context, true);
+		CGContextSetAllowsAntialiasing(context, true);
+		CGContextSetGrayFillColor(context, 1.0, 1.0);
+		CGContextSetTextMatrix(context, CGAffineTransformIdentity);
+		CGPoint glyph_position = CGPointMake(left_pad, max(1, bitmap_height - CharAscent));
+		CTFontDrawGlyphs(font, &glyph, &glyph_position, 1, context);
+		CGContextRelease(context);
+	}
+
+	CFRelease(font);
+
+	Update_Current_Buffer(char_width);
+	uint16 *curr_buffer_p = BufferList[BufferList.Count() - 1]->Buffer;
+	curr_buffer_p += CurrPixelOffset;
+
+	for (int row = 0; row < bitmap_height; ++row) {
+		for (int col = 0; col < char_width; ++col) {
+			int source_row = row;
+			uint8 pixel_value = glyph_bitmap[static_cast<size_t>(source_row) * static_cast<size_t>(char_width) + col];
+			uint16 pixel_color = (pixel_value != 0) ? 0x0FFF : 0;
+			uint8 alpha_value = ((pixel_value >> 4) & 0xF);
+			*curr_buffer_p++ = pixel_color | (alpha_value << 12);
+		}
+	}
+
+	FontCharsClassCharDataStruct *char_data = W3DNEW FontCharsClassCharDataStruct;
+	char_data->Value = ch;
+	char_data->Width = static_cast<short>(char_width);
+	char_data->Buffer = BufferList[BufferList.Count() - 1]->Buffer + CurrPixelOffset;
+
+	if (ch < 256) {
+		ASCIICharArray[ch] = char_data;
+	} else {
+		Grow_Unicode_Array(ch);
+		UnicodeCharArray[ch - FirstUnicodeChar] = char_data;
+	}
+
+	CurrPixelOffset += ((char_width + PixelOverlap) * CharHeight);
+	return char_data;
+#elif !defined(_WIN32)
+	// GDI font rasterization is Win-only. Return a synthetic char with width
+	// so layout code can still compute extents on platforms without a native
+	// glyph backend.
+	FontCharsClassCharDataStruct *char_data = W3DNEW FontCharsClassCharDataStruct;
+	char_data->Value = ch;
+	char_data->Width = static_cast<short>(PointSize);
+	char_data->Buffer = nullptr;
+	if (ch < 256) {
+		ASCIICharArray[ch] = char_data;
+	} else {
+		Grow_Unicode_Array(ch);
+		UnicodeCharArray[ch - FirstUnicodeChar] = char_data;
+	}
+	return char_data;
+#else
 	int width	= PointSize * 2;
 	int height	= PointSize * 2;
 
@@ -1438,6 +1604,7 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	//	Return the index of the entry we just added
 	//
 	return char_data;
+#endif // _WIN32
 }
 
 
@@ -1483,6 +1650,28 @@ FontCharsClass::Update_Current_Buffer (int char_width)
 bool
 FontCharsClass::Create_GDI_Font (const char *font_name)
 {
+#if defined(__APPLE__)
+	bool doingGenerals = font_name != nullptr && strcmp(font_name, "Generals") == 0;
+	int font_height = Apple_Font_Pixel_Size(PointSize);
+
+	PixelOverlap = font_height / 8;
+	if (PixelOverlap < 0) PixelOverlap = 0;
+	if (PixelOverlap > 4) PixelOverlap = 4;
+
+	CTFontRef font = Create_Apple_Font(font_name, PointSize, IsBold);
+	if (font == nullptr) {
+		return false;
+	}
+
+	CharAscent = max(1, static_cast<int>(std::ceil(CTFontGetAscent(font))));
+	int descent = max(1, static_cast<int>(std::ceil(CTFontGetDescent(font))));
+	int leading = max(0, static_cast<int>(std::ceil(CTFontGetLeading(font))));
+	CharHeight = max(1, CharAscent + descent + leading);
+	CharOverhang = doingGenerals ? 0 : 0;
+
+	CFRelease(font);
+	return true;
+#else
 	HDC screen_dc = ::GetDC ((HWND)WW3D::Get_Window());
 
 	const char *fontToUseForGenerals = "Arial";
@@ -1576,6 +1765,7 @@ FontCharsClass::Create_GDI_Font (const char *font_name)
 	}
 
 	return GDIFont != nullptr && GDIBitmap != nullptr;
+#endif
 }
 
 
