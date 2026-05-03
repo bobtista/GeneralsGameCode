@@ -45,7 +45,6 @@
 // GLOBALS ////////////////////////////////////////////////////////////////////////////////////////
 GameStateMap *TheGameStateMap = nullptr;
 
-
 // METHODS ////////////////////////////////////////////////////////////////////////////////////////
 
 // ------------------------------------------------------------------------------------------------
@@ -131,7 +130,12 @@ static void embedPristineMap( AsciiString map, Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 static void embedInUseMap( AsciiString map, Xfer *xfer )
 {
+#ifdef _WIN32
 	FILE *fp = fopen( map.str(), "rb" );
+#else
+	const std::string normalizedPath = NormalizeWin32PathForHost( map.str() );
+	FILE *fp = fopen( normalizedPath.c_str(), "rb" );
+#endif
 
 	// sanity
 	if( fp == nullptr )
@@ -191,7 +195,12 @@ static void extractAndSaveMap( AsciiString mapToSave, Xfer *xfer )
 	UnsignedInt dataSize;
 
 	// open handle to output file
+#ifdef _WIN32
 	FILE *fp = fopen( mapToSave.str(), "w+b" );
+#else
+	const std::string normalizedPath = NormalizeWin32PathForHost( mapToSave.str() );
+	FILE *fp = fopen( normalizedPath.c_str(), "w+b" );
+#endif
 	if( fp == nullptr )
 	{
 
