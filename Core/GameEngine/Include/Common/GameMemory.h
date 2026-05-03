@@ -324,6 +324,7 @@ public:
 	MemoryPool *getNextPoolInList();					///< return next pool in linked list
 	void addToList(MemoryPool **pHead);				///< add this pool to head of the linked list
 	void removeFromList(MemoryPool **pHead);	///< remove this pool from the linked list
+	Bool ownsUserBlockPointer(void *pBlock);
 	#ifdef MEMORYPOOL_DEBUG
 		static void debugPoolInfoReport( MemoryPool *pool, FILE *fp = nullptr );	///< dump a report about this pool to the logfile
 		const char *debugGetBlockTagString(void *pBlock);		///< return the tagstring for the given block (assumed to belong to this pool)
@@ -413,6 +414,7 @@ private:
 
 	/// return the best pool for the given allocSize, or null if none are suitable
 	MemoryPool *findPoolForSize(Int allocSize);
+	Bool ownsUserBlockPointer(void *pBlock);
 
 public:
 
@@ -859,6 +861,10 @@ extern void userMemoryAdjustPoolSize(const char *poolName, Int& initialAllocatio
 
 	extern void * __cdecl operator new[]	(size_t size);
 	extern void __cdecl operator delete[]	(void *p);
+#if defined(__APPLE__)
+	extern void __cdecl operator delete		(void *p, size_t size);
+	extern void __cdecl operator delete[]	(void *p, size_t size);
+#endif
 
 	// additional overloads to account for VC/MFC funky versions
 	extern void* __cdecl operator new(size_t nSize, const char *, int);
