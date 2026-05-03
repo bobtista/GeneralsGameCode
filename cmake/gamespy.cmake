@@ -8,3 +8,7 @@ FetchContent_Declare(
 )
 
 FetchContent_MakeAvailable(gamespy)
+
+if(APPLE AND TARGET gsinterface)
+    target_compile_definitions(gsinterface INTERFACE _MACOSX)
+endif()
