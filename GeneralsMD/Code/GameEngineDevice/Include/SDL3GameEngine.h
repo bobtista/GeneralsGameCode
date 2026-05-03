@@ -48,12 +48,15 @@ protected:
 private:
 	void pollSDL3Events();
 	void handleKeyboardEvent(const SDL_KeyboardEvent &event);
+	void handleTextInputEvent(const SDL_TextInputEvent &event);
 	void handleMouseMotionEvent(const SDL_MouseMotionEvent &event);
 	void handleMouseButtonEvent(const SDL_MouseButtonEvent &event);
 	void handleMouseWheelEvent(const SDL_MouseWheelEvent &event);
 	void handleWindowEvent(const SDL_WindowEvent &event);
+	void updateTextInputState();
 
 	SDL_Window *m_sdlWindow;
+	Bool m_textInputActive;
 };
 
 #endif
