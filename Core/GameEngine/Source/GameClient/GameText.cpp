@@ -940,21 +940,17 @@ Bool GameTextManager::parseCSF( const Char *filename )
 				goto quit;
 			}
 
-			file->read ( &len, sizeof ( Int ) );
+				file->read ( &len, sizeof ( Int ) );
 
-			if ( len )
-			{
-#ifdef _WIN32
-				file->read ( m_tbuffer, len*sizeof(WideChar) );
-#else
-				for (Int i = 0; i < len; ++i)
+				if ( len )
 				{
-					UnsignedShort ch = 0;
-					file->read(&ch, sizeof(ch));
-					m_tbuffer[i] = static_cast<WideChar>(ch);
+					for (Int i = 0; i < len; ++i)
+					{
+						UnsignedShort ch = 0;
+						file->read(&ch, sizeof(ch));
+						m_tbuffer[i] = static_cast<WideChar>(ch);
+					}
 				}
-#endif
-			}
 
 			if ( num == 0 )
 			{
@@ -966,15 +962,11 @@ Bool GameTextManager::parseCSF( const Char *filename )
 
 					ptr = m_tbuffer;
 
-					while ( *ptr )
-					{
-#ifdef _WIN32
-						*ptr = ~*ptr;
-#else
-						*ptr = static_cast<WideChar>(static_cast<UnsignedShort>(~static_cast<UnsignedShort>(*ptr)));
-#endif
-						ptr++;
-					}
+						while ( *ptr )
+						{
+							*ptr = static_cast<WideChar>(static_cast<UnsignedShort>(~static_cast<UnsignedShort>(*ptr)));
+							ptr++;
+						}
 				}
 
 				stripSpaces ( m_tbuffer );

@@ -50,6 +50,8 @@
 #include "W3DDevice/GameClient/W3DFileSystem.h"
 
 #include <io.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 // DEFINES ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -67,6 +69,44 @@ typedef enum
 	FILE_TYPE_TGA,
 	FILE_TYPE_DDS,
 } GameFileType;
+
+namespace
+{
+static Bool W3DFileDiagEnabled()
+{
+	static Int enabled = -1;
+	if (enabled == -1)
+	{
+		enabled = getenv("GGC_W3D_FILE_DIAG") != nullptr ? 1 : 0;
+	}
+	return enabled != 0;
+}
+
+static FILE *W3DFileDiagFile()
+{
+	static FILE *fp = nullptr;
+	if (fp == nullptr && W3DFileDiagEnabled())
+	{
+		fp = fopen("ggc_w3d_file_diag.txt", "wt");
+	}
+	return fp;
+}
+
+static void W3DFileDiagProbe(const char *stage, const char *requested, const char *path, Bool exists)
+{
+	FILE *fp = W3DFileDiagFile();
+	if (fp == nullptr)
+	{
+		return;
+	}
+	fprintf(fp, "%s requested=%s path=%s exists=%d\n",
+		stage ? stage : "<null>",
+		requested ? requested : "<null>",
+		path ? path : "<null>",
+		exists);
+	fflush(fp);
+}
+}
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -187,6 +227,10 @@ char const * GameFileClass::Set_Name( char const *filename )
 
 	// see if the file exists
 	m_fileExists = TheFileSystem->doesFileExist( m_filePath );
+	if (W3DFileDiagEnabled() && fileType == FILE_TYPE_W3D)
+	{
+		W3DFileDiagProbe("localized", filename, m_filePath, m_fileExists);
+	}
 
 
 
@@ -215,6 +259,10 @@ char const * GameFileClass::Set_Name( char const *filename )
 
 		// see if the file exists
 		m_fileExists = TheFileSystem->doesFileExist( m_filePath );
+		if (W3DFileDiagEnabled() && fileType == FILE_TYPE_W3D)
+		{
+			W3DFileDiagProbe("main", filename, m_filePath, m_fileExists);
+		}
 	}
 
 
@@ -311,7 +359,16 @@ char const * GameFileClass::Set_Name( char const *filename )
 
 		// see if the file exists
 		m_fileExists = TheFileSystem->doesFileExist( m_filePath );
+		if (W3DFileDiagEnabled() && fileType == FILE_TYPE_W3D)
+		{
+			W3DFileDiagProbe("user", filename, m_filePath, m_fileExists);
+		}
 
+	}
+
+	if (W3DFileDiagEnabled() && fileType == FILE_TYPE_W3D && m_fileExists == FALSE)
+	{
+		W3DFileDiagProbe("missing-final", filename, m_filePath, m_fileExists);
 	}
 
 	return m_filename;
