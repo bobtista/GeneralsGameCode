@@ -223,8 +223,6 @@ private:
 #define WINAPI
 #endif
 
-using BOOL = int;
-using DWORD = unsigned long;
 using LPDWORD = DWORD*;
 using HANDLE = void*;
 using LPSTR = char*;
