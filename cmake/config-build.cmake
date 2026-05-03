@@ -76,7 +76,7 @@ if(SAGE_USE_SDL3)
 endif()
 
 if(SAGE_USE_OPENAL)
-    target_compile_definitions(core_config INTERFACE SAGE_USE_OPENAL)
+    target_compile_definitions(core_config INTERFACE SAGE_USE_OPENAL RTS_HAS_OPENAL RTS_USE_OPENAL)
 endif()
 
 if(RTS_BUILD_OPTION_DEBUG)
