@@ -1038,6 +1038,17 @@ void RecorderClass::handleCRCMessage(UnsignedInt newCRC, Int playerIndex, Bool f
 		//	playbackCRC, newCRC, TheGameLogic->getFrame()-m_crcInfo->GetQueueSize()-1, playerIndex));
 		if (TheGameLogic->getFrame() > 0 && newCRC != playbackCRC && !m_crcInfo->sawCRCMismatch())
 		{
+			if (TheDebugIgnoreSyncErrors)
+			{
+				static Bool loggedReplayCRCIgnore = FALSE;
+				if (!loggedReplayCRCIgnore)
+				{
+					DEBUG_LOG(("RecorderClass::handleCRCMessage() - ignoring replay CRC mismatch due to -ignoresync."));
+					loggedReplayCRCIgnore = TRUE;
+				}
+				return;
+			}
+
 			//Kris: Patch 1.01 November 10, 2003 (integrated changes from Matt Campbell)
 			// Since we don't seem to have any *visible* desyncs when replaying games, but get this warning
 			// virtually every replay, the assumption is our CRC checking is faulty.  Since we're at the
