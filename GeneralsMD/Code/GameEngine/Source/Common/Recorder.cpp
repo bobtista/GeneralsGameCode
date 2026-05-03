@@ -1602,6 +1602,13 @@ AsciiString RecorderClass::getLastReplayFileName()
 			AsciiString fullPlusNum;
 			AsciiString mapName = game->getMap();
 			const char *fname = mapName.reverseFind('\\');
+#ifndef _WIN32
+			const char *fwdSlash = mapName.reverseFind('/');
+			if (fwdSlash && (!fname || fwdSlash > fname))
+			{
+				fname = fwdSlash;
+			}
+#endif
 			if (fname)
 				mapName = fname+1;
 			for (Int i=0; i<MAX_SLOTS; ++i)

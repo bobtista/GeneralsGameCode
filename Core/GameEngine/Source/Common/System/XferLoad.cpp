@@ -80,7 +80,12 @@ void XferLoad::open( AsciiString identifier )
 	Xfer::open( identifier );
 
 	// open the file
+#ifdef _WIN32
 	m_fileFP = fopen( identifier.str(), "rb" );
+#else
+	const std::string normalizedPath = NormalizeWin32PathForHost( identifier.str() );
+	m_fileFP = fopen( normalizedPath.c_str(), "rb" );
+#endif
 	if( m_fileFP == nullptr )
 	{
 
@@ -228,8 +233,18 @@ void XferLoad::xferUnicodeString( UnicodeString *unicodeStringData )
 	const Int MAX_XFER_LOAD_STRING_BUFFER = 1024;
 	static WideChar buffer[ MAX_XFER_LOAD_STRING_BUFFER ];
 
+#ifdef _WIN32
 	if( len > 0 )
 		xferUser( buffer, sizeof( WideChar ) * len );
+#else
+	static UnsignedShort diskBuffer[ MAX_XFER_LOAD_STRING_BUFFER ];
+	if( len > 0 )
+	{
+		xferUser( diskBuffer, sizeof( UnsignedShort ) * len );
+		for( Int i = 0; i < len; ++i )
+			buffer[ i ] = (WideChar)diskBuffer[ i ];
+	}
+#endif
 	buffer[ len ] = 0;  // terminate
 
 	// save into unicode string
@@ -257,4 +272,3 @@ void XferLoad::xferImplementation( void *data, Int dataSize )
 	}
 
 }
-
