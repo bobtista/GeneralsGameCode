@@ -120,7 +120,12 @@ void XferSave::open( AsciiString identifier )
 	Xfer::open( identifier );
 
 	// open the file
+#ifdef _WIN32
 	m_fileFP = fopen( identifier.str(), "w+b" );
+#else
+	const std::string normalizedPath = NormalizeWin32PathForHost( identifier.str() );
+	m_fileFP = fopen( normalizedPath.c_str(), "w+b" );
+#endif
 	if( m_fileFP == nullptr )
 	{
 
@@ -331,8 +336,18 @@ void XferSave::xferUnicodeString( UnicodeString *unicodeStringData )
 	xferUnsignedByte( &len );
 
 	// save string data
+#ifdef _WIN32
 	if( len > 0 )
 		xferUser( (void *)unicodeStringData->str(), sizeof( WideChar ) * len );
+#else
+	if( len > 0 )
+	{
+		UnsignedShort diskBuffer[ 256 ];
+		for( Int i = 0; i < len; ++i )
+			diskBuffer[ i ] = (UnsignedShort)unicodeStringData->str()[ i ];
+		xferUser( diskBuffer, sizeof( UnsignedShort ) * len );
+	}
+#endif
 
 }
 

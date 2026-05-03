@@ -357,7 +357,15 @@ void DataChunkOutput::writeUnicodeString( UnicodeString theString )
 {
 	UnsignedShort len = theString.getLength();
 	::fwrite( (const char *)&len, sizeof(UnsignedShort) , 1, m_tmp_file );
+#ifdef _WIN32
 	::fwrite( theString.str(), len*sizeof(WideChar) , 1, m_tmp_file );
+#else
+	UnsignedShort *diskBuffer = new UnsignedShort[len];
+	for( Int i = 0; i < len; ++i )
+		diskBuffer[i] = (UnsignedShort)theString.str()[i];
+	::fwrite( diskBuffer, len*sizeof(UnsignedShort) , 1, m_tmp_file );
+	delete [] diskBuffer;
+#endif
 }
 
 void DataChunkOutput::writeNameKey( const NameKeyType key )
@@ -966,12 +974,25 @@ UnicodeString DataChunkInput::readUnicodeString()
 	DEBUG_ASSERTCRASH(m_chunkStack->dataLeft>=sizeof(UnsignedShort), ("Read past end of chunk."));
 	m_file->read( &len, sizeof(UnsignedShort) );
 	decrementDataLeft( sizeof(UnsignedShort) );
+#ifdef _WIN32
 	DEBUG_ASSERTCRASH(m_chunkStack->dataLeft>=len, ("Read past end of chunk."));
+#else
+	DEBUG_ASSERTCRASH(m_chunkStack->dataLeft>=len*sizeof(UnsignedShort), ("Read past end of chunk."));
+#endif
 	UnicodeString theString;
 	if (len>0) {
 		WideChar *str = theString.getBufferForRead(len);
+#ifdef _WIN32
 		m_file->read( (char*)str, len*sizeof(WideChar) );
 		decrementDataLeft( len*sizeof(WideChar) );
+#else
+		UnsignedShort *diskBuffer = new UnsignedShort[len];
+		m_file->read( (char*)diskBuffer, len*sizeof(UnsignedShort) );
+		decrementDataLeft( len*sizeof(UnsignedShort) );
+		for( Int i = 0; i < len; ++i )
+			str[i] = (WideChar)diskBuffer[i];
+		delete [] diskBuffer;
+#endif
 		// add null delimiter to string.  Note that getBufferForRead allocates space for terminating null.
 		str[len] = '\000';
 	}

@@ -1146,6 +1146,15 @@ void TerrainLogic::enableWaterGrid( Bool enable )
 
 			// create stripped map name
 			c = strrchr( TheGlobalData->m_mapName.str(), '\\' );
+#ifndef _WIN32
+			{
+				const char *fwd = strrchr( TheGlobalData->m_mapName.str(), '/' );
+				if (fwd && (!c || fwd > c))
+				{
+					c = fwd;
+				}
+			}
+#endif
 			if( c )
 				strippedMapNameOnly.set( c );
 			else
@@ -1153,6 +1162,15 @@ void TerrainLogic::enableWaterGrid( Bool enable )
 
 			// create stripped compare name
 			c = strrchr( TheGlobalData->m_vertexWaterAvailableMaps[ i ].str(), '\\' );
+#ifndef _WIN32
+			{
+				const char *fwd = strrchr( TheGlobalData->m_vertexWaterAvailableMaps[ i ].str(), '/' );
+				if (fwd && (!c || fwd > c))
+				{
+					c = fwd;
+				}
+			}
+#endif
 			if( c )
 				strippedCompareMapNameOnly.set( c );
 			else
@@ -1221,6 +1239,11 @@ Bool TerrainLogic::loadMap( AsciiString filename, Bool query )
 	// Add waypoint objects.
 	MapObject *pObj;
 	for (pObj = MapObject::getFirstMapObject(); pObj; pObj = pObj->getNext()) {
+#ifndef _WIN32
+		if (!pObj->isWaypoint() && pObj->getProperties()->getType(TheKey_waypointID) == Dict::DICT_INT) {
+			pObj->setIsWaypoint();
+		}
+#endif
 		if (pObj->isWaypoint()) {
 			addWaypoint(pObj);
 		}
@@ -2997,4 +3020,3 @@ void TerrainLogic::loadPostProcess()
 	}
 
 }
-
