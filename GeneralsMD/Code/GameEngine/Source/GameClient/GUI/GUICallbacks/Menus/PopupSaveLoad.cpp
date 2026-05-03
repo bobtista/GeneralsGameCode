@@ -460,6 +460,13 @@ static void setEditDescription( GameWindow *editControl )
 	else
 	{
 		const char *mapName = TheGlobalData->m_mapName.reverseFind( '\\' );
+#ifndef _WIN32
+		const char *fwdSlash = TheGlobalData->m_mapName.reverseFind( '/' );
+		if (fwdSlash && (!mapName || fwdSlash > mapName))
+		{
+			mapName = fwdSlash;
+		}
+#endif
 
 		if( mapName )
 			defaultDesc.format( L"%S", mapName + 1 );

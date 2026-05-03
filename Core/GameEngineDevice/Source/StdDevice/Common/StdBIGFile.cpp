@@ -74,10 +74,13 @@ File* StdBIGFile::openFile( const Char *filename, Int access )
 		ramFile = newInstance( RAMFile );
 
 	ramFile->deleteOnClose();
-	if (ramFile->openFromArchive(m_file, fileInfo->m_filename, fileInfo->m_offset, fileInfo->m_size) == FALSE) {
-		ramFile->close();
-		ramFile = nullptr;
-		return nullptr;
+	{
+		CriticalSectionClass::LockClass lock(m_fileLock);
+		if (ramFile->openFromArchive(m_file, fileInfo->m_filename, fileInfo->m_offset, fileInfo->m_size) == FALSE) {
+			ramFile->close();
+			ramFile = nullptr;
+			return nullptr;
+		}
 	}
 
 	if ((access & File::WRITE) == 0) {
@@ -165,4 +168,3 @@ Bool StdBIGFile::getFileInfo(const AsciiString& filename, FileInfo *fileInfo) co
 
 	return TRUE;
 }
-

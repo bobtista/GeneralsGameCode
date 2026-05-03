@@ -15,30 +15,27 @@
 | Headless mode          | OK          | `-headless` actually parses now (was previously a no-op)                               |
 | Window appears         | OK          | SDL3 + Metal-backed CAMetalLayer surface                                               |
 | Metal sampler bindings | OK          | fs_uber slots 4-6 always bound — Metal validator no longer asserts                     |
-| First-frame Metal draw | INTERMITTENT| Mostly fixed: our `operator delete` was hijacking Apple lib pointers, malloc_size guard now forwards them safely. Residual AGX driver compile bug remains; `run.sh` absorbs with retry. ~1 retry typical on M4. |
+| First-frame Metal draw | OK          | Five consecutive deployed launches reached `bgfx::frame() #2` without retry. |
 
-When the AGX driver wins the race, the engine runs indefinitely — proven by 174s+ stable runs. When it loses, `AGX: Internal error during function compilation` fires inside `AGCDeserializedReply::~AGCDeserializedReply` on a background dispatch queue. The deployed `run.sh` wrapper now restarts the binary on a fast-fail SIGSEGV/SIGABRT, so most user launches still complete in seconds.
+The previous retry-loop workaround is removed. The launch failures were on our side: the macOS preset was still using the process-wide GameMemory replacement allocator, the command-line shim dropped `argv[0]` so `-headless` never parsed, and the renderer was enabling first-frame depth framebuffer paths that are not required for startup.
 
 ## What got fixed in this pass (2026-04-30)
 
 1. **`-headless` (and every other flag) now actually parses.** The compat shim's `GetCommandLineA()` was returning `""`, so all of paramsForStartup silently became no-ops. Wired it up to argv via `g_compatCommandLine` populated in `SDL3Main.cpp`. Side effects:
     - Audio init no longer runs in headless mode (was crashing inside `OpenALAudioManager::openDevice` → `alcCreateContext` → CoreAudio malloc abort).
     - `-replay`, `-noshellmap`, `-xres`, etc. now do what they say.
-2. **fs_uber sampler slots 4-6 always bound.** `s_shadowMap`, `s_cloudMap`, `s_sceneDepth` are declared in fs_uber.sc but were only bound when the corresponding feature was active. D3D11 tolerated unbound declared samplers; Metal validation raises "missing Sampler binding" and AGX faults internally without the validator. Fixed by:
+2. **fs_uber sampler slots 4-6 always bound.** `s_shadowMap`, `s_cloudMap`, `s_sceneDepth` are declared in fs_uber.sc but were only bound when the corresponding feature was active. D3D11 tolerated unbound declared samplers; Metal validation correctly reports the missing bindings. Fixed by:
     - `BindShadowMapTexture()` now called unconditionally for uber draws.
     - `BindShadowMapTexture()` added to the sort-view path (was only on the main-view path).
     - `BindSoftParticleDepth()` falls back to `defaultWhiteTexture` for slot 6 when soft particles are disabled.
     - `UploadMaterialUniforms()` falls back to `defaultWhiteTexture` for slot 5 when no cloud texture is set.
 3. **Shadow-map FB clear no longer requests a color clear.** The shadow FB has only a D32F depth attachment; bgfx's `BGFX_CLEAR_COLOR` flag was driving an invalid fast-clear pipeline for a non-existent color attachment. Switched to `BGFX_CLEAR_DEPTH` only, matching bgfx's own `15-shadowmaps-simple` example.
 4. **bgfx bumped to current `c480227` head** (was `668550d` from months ago) and shader profile bumped from bare `metal` (MSL 1.0) to `metal30-14` (MSL 3.0). Picks up `#3683` (depth/stencil store action with MSAA on swap chain) and `#3685` (Metal dynamic buffer alignment).
-5. **AGX pre-warm loop at end of `BgfxBackend::Initialize` (Apple-only).** Touches every configured view across 8 frames to push AGX's per-FB EndOfTile / BlitFastClear shader compilation into init time and let the background dispatch queue settle before the engine's first real frame. Helps but does not fully eliminate the race.
-6. **bgfx now receives the SDL3 CAMetalLayer instead of the NSWindow.** Previously `pd.nwh` was the `SDL_PROP_WINDOW_COCOA_WINDOW_POINTER`, which made bgfx race with `SDL_WINDOW_METAL`'s own contentView setup for control of the layer. Switched to the SDL-recommended pattern: `SDL_Metal_CreateView` after window creation, `SDL_Metal_GetLayer` to extract the `CAMetalLayer*`, hand that to bgfx. Lifted ~10% startup success to ~30%.
-7. **Launch retry wrapper.** `run.sh` now restarts `generalszh` up to `GGC_MACOS_LAUNCH_ATTEMPTS=200` times when it dies with SIGSEGV / SIGABRT inside the `GGC_MACOS_FAST_FAIL_SECONDS=15` startup window. `GGC_MACOS_NO_RETRY=1` disables the loop.
-8. **The actual root-cause fix: `operator delete` malloc_size guard.** Our engine overrides global `operator new/delete` to route through `TheDynamicMemoryAllocator`. On macOS, Apple's libraries (AGX/Metal driver, CoreFoundation, libc++ STL, libdispatch, OpenAL via CoreAudio) routinely allocate internal C++ objects with system `new` and free them with system `delete`. Our override hijacked those frees, called `MemoryPoolSingleBlock::recoverBlockFromUserData(p)` on a non-pool pointer, and crashed reading `m_owningBlob` in unmapped memory. The fault address `0x5e` we kept seeing was a small inline value Apple was passing to `delete`, NOT a real heap pointer. Fix: `if (malloc_size(p) == 0) return;` at the top of `DynamicMemoryAllocator::freeBytes` on Apple. `malloc_size` returns 0 for non-heap pointers, so we silently no-op those (the C++ rule that delete on a non-heap pointer is UB is satisfied by leaking that pointer rather than crashing). This single fix:
-    - Eliminated the OpenAL/CoreAudio menu-screen crash (was the same `operator delete` hijack)
-    - Made the engine routinely complete its first frame and reach the menu
-    - Took the per-launch success rate from ~0% to enough that 1-3 wrapper retries reliably get a working session
-9. The remaining intermittent AGX compile failure is a genuine Apple driver bug we cannot fix from our side. The wrapper absorbs it.
+5. **Pre-warm is opt-in again.** The pre-warm loop touched many views during init and made startup harder to reason about. `GGC_MACOS_PREWARM=1` keeps it available for renderer experiments.
+6. **bgfx now receives the SDL3 CAMetalLayer instead of the NSWindow.** Previously `pd.nwh` was the `SDL_PROP_WINDOW_COCOA_WINDOW_POINTER`, which made bgfx and SDL3 disagree about Metal layer ownership. The SDL-recommended pattern is now used: `SDL_Metal_CreateView`, `SDL_Metal_GetLayer`, hand that `CAMetalLayer*` to bgfx.
+7. **Launch retry wrapper removed.** `run.sh` now just sets `DYLD_LIBRARY_PATH`, `cd`s into the runtime dir, and `exec`s `generalszh`.
+8. **macOS preset disables GameMemory.** The original global replacement `operator new/delete` can be interposed into libc++, Metal/CoreFoundation, libdispatch, and OpenAL/CoreAudio. That made allocator ownership ambiguous during system-library teardown. The macOS preset now builds with `RTS_GAMEMEMORY_ENABLE=OFF`. The GameMemory implementation also has an exact ownership check and Apple sized-delete overloads if someone intentionally re-enables it for investigation.
+9. **Advanced depth framebuffers are opt-in.** The readable R32F depth framebuffer and depth-only shadow framebuffer are disabled by default on macOS via `GGC_NO_READABLE_DEPTH` / `GGC_NO_SHADOWMAP_FB`, unless `GGC_MACOS_ENABLE_ADVANCED_DEPTH_FBS=1` is set.
 
 ## Goal
 
@@ -103,7 +100,7 @@ Pulls `Patch104pZH/GameFilesOriginalZH/{Data,Window,Art}` into the runtime dir.
 
 ### `.big` files
 
-The user has the original install on PC and copied `INIZH.big`, `Maps.big`, etc. into `~/TheSuperHackers/GeneralsZH/`. Loose `Data/`, `Window/`, `Art/` from the patch repo coexist with `.big` files.
+Copy both base Generals and Zero Hour retail archives into `~/TheSuperHackers/GeneralsZH/`. Zero Hour-only archives are not enough: legacy shader bytecode comes from `Shaders.big`, and the base-game archives (`INI.big`, `Textures.big`, `W3D.big`, etc.) are still referenced by the expansion. Loose `Data/`, `Window/`, `Art/` from the patch repo coexist with `.big` files.
 
 ### Run
 
@@ -131,11 +128,11 @@ Logs:
 └── (RegistryIni and user data live in ~/Library/Application Support/TheSuperHackers/)
 ```
 
-## What's blocked: AGX driver compilation race
+## Previous startup failure
 
 ### Symptom
 
-Most launches die ~0.7s after init with `EXC_BAD_ACCESS` on the `com.apple.root.default-qos` dispatch queue inside `AGCDeserializedReply`'s ctor or dtor while AGX is parsing a compile reply for one of its INTERNAL helper programs (`_agc.background.constant_program`, `BlitVertexFastClearProgramKey`, `EndOfTileProgram`). With `MTL_DEBUG_LAYER=1` Apple prints:
+Before the allocator and startup fixes, most launches died around first-frame submission with `EXC_BAD_ACCESS` on a background dispatch queue inside Metal/AGX helper-program setup. With `MTL_DEBUG_LAYER=1` Apple printed:
 
 ```
 AGX: Internal error during function compilation (MTLCompilerErrorCompilationError).
@@ -150,17 +147,14 @@ AGX::Compiler::compileProgram<AGX::BackgroundObjectProgramKey, AGCDeserializedRe
 _dispatch_call_block_and_release  ← background queue
 ```
 
-### What this is (and isn't)
+### Current read
 
-It is **not** the original "missing sampler binding" or "depth-only color clear" issue — both have been fixed and the Metal validator is satisfied. The remaining failure is an Apple driver bug in the AGX compiler's reply parser: when the runtime asks AGX to compile one of its built-in helper shaders for a particular framebuffer attachment combination, the compile sometimes fails and the destructor of the failed `AGCDeserializedReply` dereferences a pointer that is actually a string fragment (`"blit_ver..."` little-endian). Same address comes back across runs because it's reading the same shader name string that was stored where a pointer was expected.
+Do not treat this as a proven Apple driver bug. The evidence now points at our process setup:
+- GameMemory's process-wide replacement allocator was crossing into system library allocation/deallocation paths.
+- `-headless` did not parse because the argv-to-GetCommandLine shim omitted `argv[0]`.
+- The Metal path was enabling optional depth framebuffers during startup and then using a retry loop to paper over first-frame instability.
 
-It IS reproducible across:
-- bgfx pinned commit and bgfx HEAD (`c480227`).
-- Shader profiles `metal22-11` and `metal30-14`.
-- With or without the depth-only shadow framebuffer.
-- With the pre-warm loop and without it (pre-warm widens the success window but does not close it).
-
-When AGX wins the race the engine runs indefinitely — `~3 minutes` continuous run captured.
+With the macOS preset using the null memory manager, the command line fixed, advanced depth framebuffers disabled by default, and the retry wrapper removed, five consecutive deployed wrapper launches reached `bgfx::frame() #2`.
 
 ### What we tried
 
@@ -168,17 +162,14 @@ When AGX wins the race the engine runs indefinitely — `~3 minutes` continuous 
 - Always-bind fs_uber sampler slots 4-6 with safe fallbacks (committed; eliminated the validator assertion).
 - Drop `BGFX_CLEAR_COLOR` from the depth-only shadow map view (committed; eliminated `findOrCreateBlitProgramVariant<...VertexFastClear>` crash on that specific FB).
 - Bump `bgfx.cmake` from `668550d` to `c480227`, bump shader profile to `metal30-14` (committed).
-- A/B-disable the shadow map FB via `GGC_NO_SHADOWMAP=1` env var: did not change the failure rate, ruled out shadow FB as the trigger.
-- Init pre-warm loop that touches every view for 8 frames at end of `BgfxBackend::Initialize` (committed; widens the success window).
+- Disable the readable-depth and shadow-map framebuffer paths by default on macOS; `GGC_MACOS_ENABLE_ADVANCED_DEPTH_FBS=1` opts back in.
+- Init pre-warm loop that touches every view for 8 frames at end of `BgfxBackend::Initialize`; now disabled by default because it adds startup work and obscures the real first-frame path.
 
 ### Likely directions for next session
 
-1. Build bgfx's own `00-helloworld` against the same SDK and run on this Mac. If it crashes too → confirms it's a driver-level issue that even minimal bgfx hits, file an Apple Feedback Assistant report.
-2. Walk down the framebuffer count: temporarily skip `kBgfxSceneDepthView` (R32F + write-only D24S8 combo) and the smudge framebuffers, run several trials, see if the failure rate drops. If it does, the culprit is one of those FB attachment combos.
-3. Try `MTLRenderPassDescriptor.tileWidth/tileHeight` set explicitly — bgfx may be letting AGX pick tile dimensions that cross a driver limit for our attachment formats.
-4. Try forcing `BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT` on the readable depth's depth-test attachment instead of `BGFX_TEXTURE_RT_WRITE_ONLY` — the write-only flag may push AGX into a code path that has the bug.
-5. Write a 50-line standalone Metal program that creates a render pipeline state for each of our 14 FB configurations in sequence, log which one fails. Extract that into an Apple Feedback radar.
-6. Last resort: a launch-loop wrapper script that retries the binary up to N times if it exits with 138/139 within 5s, since the rest of the pipeline is now stable.
+1. Re-enable `GGC_MACOS_ENABLE_ADVANCED_DEPTH_FBS=1` in a focused renderer session and fix the readable-depth/shadow-map attachment path without changing launcher behavior.
+2. Keep GameMemory disabled for the macOS app unless the replacement allocator is redesigned to avoid process-wide interposition.
+3. Remove or narrow the startup `GGC_TRACE` logging once the macOS smoke path is no longer under active investigation.
 
 ## Key files & directories
 

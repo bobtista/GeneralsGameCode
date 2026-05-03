@@ -90,6 +90,8 @@
 
 #include "shdlib.h"
 
+#include <cstdio>
+
 #if defined(GGC_BGFX_STANDALONE)
 #include "TARGA.h"
 #include "ww3dformat.h"
@@ -103,6 +105,20 @@ const D3DMULTISAMPLE_TYPE DEFAULT_MSAA = D3DMULTISAMPLE_NONE;
 
 DX8FrameStatistics DX8Wrapper::FrameStatistics;
 static DX8FrameStatistics LastFrameStatistics;
+
+static void Log_Missing_Texture_File(const char *reason, const char *filename)
+{
+	char message[512];
+	snprintf(
+		message,
+		sizeof(message),
+		"Missing texture %s: %s\n",
+		reason ? reason : "load failed",
+		filename ? filename : "(null)");
+	fprintf(stderr, "%s", message);
+	fflush(stderr);
+	OutputDebugString(message);
+}
 
 bool DX8Wrapper_IsWindowed = true;
 
@@ -2254,7 +2270,7 @@ void DX8Wrapper::Draw(
 
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 	if (WW3D::Is_Snapshot_Activated()) {
-		unsigned long passes=0;
+		DWORD passes=0;
 		SNAPSHOT_SAY(("ValidateDevice:"));
 		HRESULT res=D3DDevice->ValidateDevice(&passes);
 		switch (res) {
@@ -2896,6 +2912,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 			D3DSURFACE_DESC desc;
 			texture->GetLevelDesc(0, &desc);
 			if (desc.Format == D3DFMT_P8) {
+				Log_Missing_Texture_File("paletted TGA", filename);
 				texture->Release();
 				return MissingTexture::_Get_Missing_Texture();
 			}
@@ -2927,6 +2944,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 		&texture);
 
 	if (result != D3D_OK) {
+		Log_Missing_Texture_File("D3DX fallback", filename);
 		return MissingTexture::_Get_Missing_Texture();
 	}
 
@@ -2934,6 +2952,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	D3DSURFACE_DESC desc;
 	texture->GetLevelDesc(0,&desc);
 	if (desc.Format==D3DFMT_P8) {
+		Log_Missing_Texture_File("paletted D3DX", filename);
 		texture->Release();
 		return MissingTexture::_Get_Missing_Texture();
 	}
@@ -3325,8 +3344,10 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 				ext[3]='s';
 			}
 			file_auto_ptr myfile2(_TheFileFactory,compressed_name);
-			if (!myfile2->Is_Available())
+			if (!myfile2->Is_Available()) {
+				Log_Missing_Texture_File("surface file", filename_);
 				return MissingTexture::_Create_Missing_Surface();
+			}
 		}
 	}
 

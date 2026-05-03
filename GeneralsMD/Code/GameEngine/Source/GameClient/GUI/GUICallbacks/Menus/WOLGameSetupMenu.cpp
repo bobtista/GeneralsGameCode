@@ -971,10 +971,25 @@ void WOLDisplayGameOptions()
 	else
 	{
 		AsciiString s = TheGameSpyInfo->getCurrentStagingRoom()->getMap();
+#ifdef _WIN32
 		if (s.reverseFind('\\'))
 		{
 			s = s.reverseFind('\\') + 1;
 		}
+#else
+		{
+			const char* sep = s.reverseFind('\\');
+			const char* fwd = s.reverseFind('/');
+			if (fwd && (!sep || fwd > sep))
+			{
+				sep = fwd;
+			}
+			if (sep)
+			{
+				s = sep + 1;
+			}
+		}
+#endif
 		UnicodeString mapDisplay;
 		mapDisplay.translate(s);
 		GadgetStaticTextSetText(textEntryMapDisplay, mapDisplay);

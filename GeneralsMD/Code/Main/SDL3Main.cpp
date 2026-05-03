@@ -87,10 +87,9 @@ void *ApplicationHWnd = NULL;
 // SDL_Metal view alive for the lifetime of the bgfx renderer, and
 // publish its CAMetalLayer pointer here so BgfxBackend's
 // GetNativeWindowHandle can hand it to bgfx as platformData.nwh
-// instead of an NSWindow. Passing the NSWindow lets bgfx try to
-// install its own CAMetalLayer on the contentView, which fights with
-// the layer SDL3 already created and trips the Apple AGX driver
-// during pipeline-state compile.
+// instead of an NSWindow. Passing the NSWindow makes bgfx and SDL3
+// disagree about who owns the Metal layer, which destabilizes the
+// first command-buffer submissions.
 #if defined(__APPLE__)
 SDL_MetalView TheSDL3MetalView = NULL;
 void *TheSDL3MetalLayer = NULL;
@@ -105,17 +104,30 @@ int main(int argc, char **argv)
 
 	GGC_TRACE("main entered argc=%d", argc);
 
+#if defined(__APPLE__)
+	// The Metal backend currently starts reliably only when the experimental
+	// readable-depth and shadow-map framebuffers are disabled. Set the same
+	// defaults for direct binary launches and run.sh launches; renderer work
+	// can opt back in with GGC_MACOS_ENABLE_ADVANCED_DEPTH_FBS=1.
+	if (std::getenv("GGC_MACOS_ENABLE_ADVANCED_DEPTH_FBS") == NULL)
+	{
+		setenv("GGC_NO_READABLE_DEPTH", "1", 0);
+		setenv("GGC_NO_SHADOWMAP_FB", "1", 0);
+	}
+#endif
+
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Build a Win32-style
 	// command-line string from argv so GetCommandLineA() in the compat
-	// shim returns the real arguments. The engine's parseCommandLine
-	// tokenises with nextParam(buf, "\" "), i.e. ' ' and '"' are the
-	// only separators and there is no backslash escape - so we just
-	// wrap any arg that contains a space in double quotes. Args that
-	// contain BOTH a space and a literal '"' are unsupported by the
-	// engine parser itself, so we don't try to encode them either.
-	for (int i = 1; i < argc; ++i)
+	// shim returns the real arguments. The legacy parser skips token 0
+	// because Win32 GetCommandLineA includes the executable path, so keep
+	// argv[0] here as well. It tokenises with nextParam(buf, "\" "), i.e.
+	// ' ' and '"' are the only separators and there is no backslash escape
+	// - so we just wrap any arg that contains a space in double quotes.
+	// Args that contain BOTH a space and a literal '"' are unsupported by
+	// the engine parser itself, so we don't try to encode them either.
+	for (int i = 0; i < argc; ++i)
 	{
-		if (i > 1)
+		if (i > 0)
 		{
 			s_compatCommandLineStorage += ' ';
 		}
@@ -150,9 +162,8 @@ int main(int argc, char **argv)
 	GGC_TRACE("SDL_Init OK");
 
 	// TheSuperHackers @build bobtista 30/04/2026 SDL_WINDOW_METAL is required
-	// so bgfx's Metal backend can fetch a CAMetalLayer-backed NSView from the
-	// SDL window. Without it, bgfx submits to a non-Metal NSView and the
-	// AGX driver crashes during the first command-buffer encode.
+	// so bgfx's Metal backend can render through a CAMetalLayer-backed SDL
+	// window.
 	GGC_TRACE("calling SDL_CreateWindow");
 	TheSDL3Window = SDL_CreateWindow(kWindowTitle, kDefaultWindowWidth, kDefaultWindowHeight, SDL_WINDOW_RESIZABLE | SDL_WINDOW_METAL);
 	if (TheSDL3Window == NULL)
@@ -170,8 +181,7 @@ int main(int argc, char **argv)
 	// Metal-view helper so we own a CAMetalLayer-backed NSView and can
 	// hand bgfx the CAMetalLayer directly. Without this, bgfx receives
 	// the NSWindow and races with SDL3 for control of the contentView's
-	// layer, which manifests as intermittent AGX driver compilation
-	// crashes in AGCDeserializedReply on macOS Tahoe / Apple Silicon.
+	// layer during first-frame setup.
 	GGC_TRACE("calling SDL_Metal_CreateView");
 	TheSDL3MetalView = SDL_Metal_CreateView(TheSDL3Window);
 	if (TheSDL3MetalView != NULL)
@@ -200,12 +210,10 @@ int main(int argc, char **argv)
 	          (TheGlobalData != NULL && TheGlobalData->m_headless) ? 1 : 0);
 
 	// TheSuperHackers @bugfix bobtista 30/04/2026 -headless asks for
-	// engine-only execution (no rendering, no audio); on Apple Silicon
-	// macOS Tahoe even initialising bgfx Metal trips the AGX driver
-	// bug, so explicitly null out ApplicationHWnd here so the renderer
-	// chain (W3DDisplay::init -> WW3D::Init -> DX8Wrapper::Init ->
-	// BgfxBackend::Initialize) bails on null hwnd before any Metal
-	// pipeline state is constructed.
+	// engine-only execution (no rendering, no audio), so explicitly null out
+	// ApplicationHWnd here so the renderer chain (W3DDisplay::init ->
+	// WW3D::Init -> DX8Wrapper::Init -> BgfxBackend::Initialize) bails on
+	// null hwnd before any Metal state is constructed.
 	if (TheGlobalData != NULL && TheGlobalData->m_headless)
 	{
 		ApplicationHWnd = NULL;

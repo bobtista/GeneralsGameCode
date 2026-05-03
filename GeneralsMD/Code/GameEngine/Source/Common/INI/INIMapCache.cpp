@@ -149,7 +149,19 @@ void INI::parseMapCacheDefinition( INI* ini )
 	{
 		// maps without localized name tags
 		AsciiString tempdisplayname;
+#ifdef _WIN32
 		tempdisplayname = name.reverseFind('\\') + 1;
+#else
+		{
+			const char* sep = name.reverseFind('\\');
+			const char* fwd = name.reverseFind('/');
+			if (fwd && (!sep || fwd > sep))
+			{
+				sep = fwd;
+			}
+			tempdisplayname = sep ? sep + 1 : name.str();
+		}
+#endif
 		md.m_displayName.translate(tempdisplayname);
 		if (md.m_numPlayers >= 2)
 		{
@@ -196,6 +208,13 @@ void INI::parseMapCacheDefinition( INI* ini )
 	{
 		AsciiString lowerName = name;
 		lowerName.toLower();
+#ifndef _WIN32
+		{
+			std::string normalized(lowerName.str());
+			std::replace(normalized.begin(), normalized.end(), '\\', '/');
+			lowerName.set(normalized.c_str());
+		}
+#endif
 		md.m_fileName = lowerName;
 //		DEBUG_LOG(("INI::parseMapCacheDefinition - adding %s to map cache", lowerName.str()));
 		(*TheMapCache)[lowerName] = md;
