@@ -44,8 +44,11 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include <always.h>
+#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
+#include <stdio.h>
+#include <stdlib.h>
 #include "W3DDevice/GameClient/W3DAssetManager.h"
 #include "proto.h"
 #include "rendobj.h"
@@ -71,6 +74,43 @@
 #include "Common/GlobalData.h"
 #include "Common/GameCommon.h"
 
+namespace
+{
+static Bool W3DAssetDiagEnabled()
+{
+	static Int enabled = -1;
+	if (enabled == -1)
+	{
+		enabled = getenv("GGC_W3D_ASSET_DIAG") != nullptr ? 1 : 0;
+	}
+	return enabled != 0;
+}
+
+static FILE *W3DAssetDiagFile()
+{
+	static FILE *fp = nullptr;
+	if (fp == nullptr && W3DAssetDiagEnabled())
+	{
+		fp = fopen("ggc_w3d_asset_diag.txt", "wt");
+	}
+	return fp;
+}
+
+static void W3DAssetDiagLog(const char *fmt, ...)
+{
+	FILE *fp = W3DAssetDiagFile();
+	if (fp == nullptr)
+	{
+		return;
+	}
+
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(fp, fmt, args);
+	va_end(args);
+	fflush(fp);
+}
+}
 
 //---------------------------------------------------------------------
 // Constants
@@ -727,7 +767,9 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 	// base case, no scale or color
 	if (!reallyscale && !reallycolor && !reallytexture)
 	{
+		W3DAssetDiagLog("create-base-delegate name=%s scale=%g color=%08x texture=%d\n", name, scale, color, reallytexture ? 1 : 0);
 		RenderObjClass *robj=WW3DAssetManager::Create_Render_Obj(name);
+		W3DAssetDiagLog("create-base-result name=%s robj=%p\n", name, robj);
 	#ifdef DUMP_PERF_STATS
 		GetPrecisionTimer(&endTime64);
 		Total_Create_Render_Obj_Time += endTime64-startTime64;
@@ -764,6 +806,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 
 	// Try to find a prototype
 	PrototypeClass * proto = Find_Prototype(name);
+	W3DAssetDiagLog("create-custom-start name=%s scale=%g color=%08x protoBefore=%p\n", name, scale, color, proto);
 
 	Set_WW3D_Load_On_Demand(true); // Auto Load.
 	if (WW3D_Load_On_Demand && proto == nullptr)
@@ -781,13 +824,17 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 		}
 
 		// If we can't find it, try the parent directory
-		if ( Load_3D_Assets( filename ) == false )
+		bool loaded = Load_3D_Assets( filename );
+		W3DAssetDiagLog("create-custom-load name=%s filename=%s loaded=%d\n", name, filename, loaded ? 1 : 0);
+		if ( loaded == false )
 		{
 			StringClass	new_filename = StringClass("..\\") + filename;
-			Load_3D_Assets(new_filename);
+			bool parentLoaded = Load_3D_Assets(new_filename);
+			W3DAssetDiagLog("create-custom-load-parent name=%s filename=%s loaded=%d\n", name, new_filename.str(), parentLoaded ? 1 : 0);
 		}
 
 		proto = Find_Prototype(name);		// try again
+		W3DAssetDiagLog("create-custom-after-load name=%s protoAfter=%p\n", name, proto);
 	}
 
 	if (proto == nullptr)
@@ -805,6 +852,7 @@ RenderObjClass * W3DAssetManager::Create_Render_Obj(
 	}
 
 	rendobj = proto->Create();
+	W3DAssetDiagLog("create-custom-proto-create name=%s proto=%p robj=%p\n", name, proto, rendobj);
 
 	if (!rendobj)
 	{
@@ -995,7 +1043,9 @@ bool W3DAssetManager::Load_3D_Assets( const char * filename )
 		return TRUE;	//this file has already been loaded.
 	}
 
+	W3DAssetDiagLog("load-begin filename=%s\n", filename);
 	bool result = WW3DAssetManager::Load_3D_Assets(filename);
+	W3DAssetDiagLog("load-end filename=%s result=%d\n", filename, result ? 1 : 0);
 
 #if defined(RTS_DEBUG)
 	if (result && TheGlobalData->m_preloadReport)

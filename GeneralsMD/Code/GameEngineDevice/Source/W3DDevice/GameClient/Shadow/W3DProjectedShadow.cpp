@@ -60,6 +60,9 @@
 #include "W3DDevice/GameClient/Module/W3DModelDraw.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
 
+#include <cstdio>
+#include <cstdlib>
+
 
 /** @todo: We're going to have a pool of a couple rendertargets to use
 in rare cases when dynamic shadows need to be generated.  Maybe we can
@@ -112,6 +115,23 @@ int	nShadowDecalPolysInBatch=0;
 int	nShadowDecalVertsInBatch=0;
 int SHADOW_DECAL_VERTEX_SIZE=32768;
 int SHADOW_DECAL_INDEX_SIZE=65535;
+
+static bool DecalDiagEnabled()
+{
+	return std::getenv("GGC_DECAL_DIAG") != nullptr;
+}
+
+static const char *ShadowTypeDebugName(ShadowType type)
+{
+	switch (type)
+	{
+		case SHADOW_DECAL: return "SHADOW_DECAL";
+		case SHADOW_ALPHA_DECAL: return "SHADOW_ALPHA_DECAL";
+		case SHADOW_ADDITIVE_DECAL: return "SHADOW_ADDITIVE_DECAL";
+		case SHADOW_PROJECTION: return "SHADOW_PROJECTION";
+		default: return "SHADOW_OTHER";
+	}
+}
 
 
 class W3DShadowTexture;	//forward reference
@@ -531,6 +551,20 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 		return;
 	}
 
+	if (DecalDiagEnabled())
+	{
+		TextureClass *tex = texture ? texture->getTexture() : nullptr;
+		std::fprintf(stderr,
+			"[GGC_DECAL] flush type=%s name=%s tex=%s verts=%d polys=%d startV=%d startI=%d\n",
+			ShadowTypeDebugName(type),
+			texture ? texture->Get_Name() : "(null-shadow-texture)",
+			tex ? tex->Get_Full_Path().str() : "(null-texture)",
+			nShadowDecalVertsInBatch,
+			nShadowDecalPolysInBatch,
+			nShadowDecalStartBatchVertex,
+			nShadowDecalStartBatchIndex);
+	}
+
 	if (!DX8Wrapper::_Get_D3D_Device8())
 		return;	//no D3D Device to render
 
@@ -827,6 +861,28 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 
 		Int numVerts = vertsPerRow *vertsPerColumn;	//number of terrain vertices
 		Int numIndex=(endX - startX) * (endY-startY)*6;	//6 indices per terrain cell (2 triangles).
+
+		if (DecalDiagEnabled())
+		{
+			std::fprintf(stderr,
+				"[GGC_DECAL] queue type=%s name=%s robj=%s visible=%d pos=(%.2f,%.2f,%.2f) cells=%d,%d..%d,%d verts=%d indices=%d diffuse=0x%08x size=(%.2f,%.2f)\n",
+				ShadowTypeDebugName(shadow->m_type),
+				shadow->m_shadowTexture[0] ? shadow->m_shadowTexture[0]->Get_Name() : "(null-shadow-texture)",
+				robj ? robj->Get_Name() : "(none)",
+				robj ? (robj->Is_Really_Visible() ? 1 : 0) : 1,
+				objPos.X,
+				objPos.Y,
+				objPos.Z,
+				startX,
+				startY,
+				endX,
+				endY,
+				numVerts,
+				numIndex,
+				static_cast<unsigned>(shadow->m_diffuse),
+				shadow->m_decalSizeX,
+				shadow->m_decalSizeY);
+		}
 
 		SHADOW_DECAL_VERTEX* pvVertices;
 		UnsignedShort *pvIndices;

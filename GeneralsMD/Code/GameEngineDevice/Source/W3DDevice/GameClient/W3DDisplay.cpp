@@ -34,6 +34,7 @@
 static void drawFramerateBar();
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
+#include <cstdio>
 #include <numeric>
 #include <stdlib.h>
 #include <windows.h>
@@ -2765,6 +2766,28 @@ void W3DDisplay::drawImage( const Image *image, Int startX, Int startY,
 		tex = (TextureClass *)(image->getRawTextureData());
 	else
 		tex = WW3DAssetManager::Get_Instance()->Get_Texture(image->getFilename().str(), MIP_LEVELS_1);
+	if (getenv("GGC_MAP_PREVIEW_DIAG") != nullptr && image->getFilename().endsWith(".tga"))
+	{
+		AsciiString imageName = image->getName();
+		AsciiString filename = image->getFilename();
+		if (imageName.startsWith("maps_") || imageName.startsWith("userdata_maps_") ||
+			filename.startsWith("maps_") || filename.startsWith("userdata_maps_"))
+		{
+			FILE *f = fopen("ggc_map_preview_diag.txt", "a");
+			if (f != nullptr)
+			{
+				fprintf(f, "drawImage name='%s' filename='%s' status=0x%x tex=%p texInit=%d texFmt=%d texPath='%s' imageSize=%dx%d texSize=%dx%d screen=(%d,%d)-(%d,%d) mode=%d color=0x%08x\n",
+					imageName.str(), filename.str(), image->getStatus(), tex,
+					tex ? tex->Is_Initialized() : 0,
+					tex ? static_cast<int>(tex->Get_Texture_Format()) : -1,
+					tex ? tex->Get_Full_Path().str() : "(null)",
+					image->getImageSize()->x, image->getImageSize()->y,
+					image->getTextureSize()->x, image->getTextureSize()->y,
+					startX, startY, endX, endY, static_cast<int>(mode), color);
+				fclose(f);
+			}
+		}
+	}
 
 	Bool grayscale = (mode == DRAW_IMAGE_GRAYSCALE);
 	setup2DRenderState(tex, mode, grayscale);
@@ -2904,9 +2927,20 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 
 	// first try to use the native format
 
+#if defined(__APPLE__)
+	// bgfx uploads D3D-style X8R8G8B8 video buffers as BGRA8, which preserves
+	// the BGR0 frames FFmpeg produces on little-endian macOS. Avoid 16-bit
+	// R5G6B5 here; it is both slower in swscale and currently renders with
+	// swapped-looking colors through the bgfx texture path.
+	if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+	{
+		format = VideoBuffer::TYPE_X8R8G8B8;
+	}
+#endif
+
 	WW3DFormat displayFormat = DX8Wrapper::getBackBufferFormat();
 
-	if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
+	if ( format == VideoBuffer::TYPE_UNKNOWN && DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
 	{
 		format = W3DVideoBuffer::W3DFormatToType( displayFormat );
 	}
@@ -2936,8 +2970,10 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 		}
 	}
 	// on low mem machines, render every video in 16bit
+#if !defined(__APPLE__)
 	if (TheGameLODManager && (!TheGameLODManager->didMemPass() || W3DShaderManager::getChipset() == DC_GEFORCE2))
 		format = VideoBuffer::TYPE_R5G6B5;
+#endif
 
 	W3DVideoBuffer *buffer = NEW W3DVideoBuffer( format );
 

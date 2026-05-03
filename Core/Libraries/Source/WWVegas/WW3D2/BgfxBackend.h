@@ -140,6 +140,7 @@ public:
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture) override;
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) override;
     virtual void Set_Ambient(const Vector3 & color) override;
+    virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end) override;
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) override;
     virtual void Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend) override;
     virtual void Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func) override;
@@ -147,6 +148,11 @@ public:
     virtual void Override_Texcoord_Index(unsigned stage, unsigned uvIndex) override;
     virtual void Override_Terrain_Blend(bool enable) override;
     virtual void Override_Material_Opacity(float opacity) override;
+    virtual void Set_Texture_Transform(unsigned stage, const Matrix4x4& matrix) override;
+    virtual void Clear_Texture_Transform(unsigned stage) override;
+    virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled) override;
+    virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) override;
+    virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) override;
     virtual void Begin_Water_Overlay() override;
     virtual void End_Water_Overlay() override;
     virtual void Begin_Effect_Overlay() override;

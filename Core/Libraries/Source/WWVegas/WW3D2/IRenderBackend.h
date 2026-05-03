@@ -551,6 +551,11 @@ public:
     virtual void Override_Texcoord_Index(unsigned stage, unsigned uvIndex) {}
     virtual void Override_Terrain_Blend(bool enable) {}
     virtual void Override_Material_Opacity(float opacity) {}
+    virtual void Set_Texture_Transform(unsigned stage, const Matrix4x4& matrix) {}
+    virtual void Clear_Texture_Transform(unsigned stage) {}
+    virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled) {}
+    virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) {}
+    virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) {}
     virtual void Begin_Water_Overlay() {}
     virtual void End_Water_Overlay() {}
     // Route subsequent draws to the sort view instead of the opaque view.

@@ -44,6 +44,9 @@
 #include "Common/GlobalData.h"
 #include "GameLogic/PartitionManager.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+
 
 //-----------------------------------------------------------------------------
 
@@ -734,15 +737,60 @@ void W3DShroud::render(CameraClass *cam)
 	// m_srcTextureData is the persistently-mapped system-memory surface that
 	// the shroud system writes into; we read from it after the CopyRects above
 	// has pushed the same data to the DX8 video-memory copy.
-	if (g_renderBackend != nullptr && m_pSrcTexture != nullptr && m_pDstTexture != nullptr && m_shroudDirty)
-	{
-		m_shroudDirty = FALSE;
-		SurfaceClass::SurfaceDescription srcDesc;
-		m_pSrcTexture->Get_Description(srcDesc);
-		g_renderBackend->Capture_Shroud_Texture(
-			m_pDstTexture,
-			m_srcTextureData,
-			m_dstTextureWidth, m_dstTextureHeight,
+		if (g_renderBackend != nullptr && m_pSrcTexture != nullptr && m_pDstTexture != nullptr && m_shroudDirty)
+		{
+			m_shroudDirty = FALSE;
+			SurfaceClass::SurfaceDescription srcDesc;
+			m_pSrcTexture->Get_Description(srcDesc);
+			if (std::getenv("GGC_SHROUD_DIAG") != nullptr)
+			{
+				static int s_shroudDiagCount = 0;
+				if (s_shroudDiagCount < 32)
+				{
+					const unsigned short *pixels = reinterpret_cast<const unsigned short *>(m_srcTextureData);
+					const unsigned pitchPixels = m_srcTexturePitch / sizeof(unsigned short);
+					unsigned minPixel = 0xffff;
+					unsigned maxPixel = 0;
+					unsigned blackCount = 0;
+					unsigned whiteCount = 0;
+					unsigned darkCount = 0;
+					unsigned brightCount = 0;
+					for (Int yy = visStartY; yy < visEndY; ++yy)
+					{
+						for (Int xx = visStartX; xx < visEndX; ++xx)
+						{
+							const unsigned pixel = pixels[yy * pitchPixels + xx];
+							if (pixel < minPixel) minPixel = pixel;
+							if (pixel > maxPixel) maxPixel = pixel;
+							if (pixel == 0x0000) ++blackCount;
+							if (pixel == 0xffff) ++whiteCount;
+							const unsigned r = (pixel >> 11) & 0x1f;
+							const unsigned g = (pixel >> 5) & 0x3f;
+							const unsigned b = pixel & 0x1f;
+							const unsigned lum = r * 2 + g + b * 2;
+							if (lum < 24) ++darkCount;
+							if (lum > 140) ++brightCount;
+						}
+					}
+					if (FILE *diag = std::fopen("ggc_shroud_diag.txt", "a"))
+					{
+						std::fprintf(diag,
+							"upload=%d srcRect=(%d,%d)-(%d,%d) dst=%ux%u srcFmt=%d pitch=%u min=0x%04x max=0x%04x black=%u white=%u dark=%u bright=%u origin=(%.2f,%.2f) cell=(%.2f,%.2f)\n",
+							s_shroudDiagCount,
+							srcRect.left, srcRect.top, srcRect.right, srcRect.bottom,
+							m_dstTextureWidth, m_dstTextureHeight, static_cast<int>(srcDesc.Format),
+							m_srcTexturePitch, minPixel, maxPixel, blackCount, whiteCount,
+							darkCount, brightCount, m_drawOriginX, m_drawOriginY,
+							m_cellWidth, m_cellHeight);
+						std::fclose(diag);
+					}
+					++s_shroudDiagCount;
+				}
+			}
+			g_renderBackend->Capture_Shroud_Texture(
+				m_pDstTexture,
+				m_srcTextureData,
+				m_dstTextureWidth, m_dstTextureHeight,
 			visEndX - visStartX, visEndY - visStartY,
 			dstPoint.x, dstPoint.y,
 			m_srcTexturePitch,

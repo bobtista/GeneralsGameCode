@@ -42,8 +42,68 @@
 #include "Win32Device/Common/Win32BIGFileSystem.h"
 #include "Utility/endian_compat.h"
 
+#include <algorithm>
+#include <cstring>
+#include <vector>
 
 static const char *BIGFileIdentifier = "BIGF";
+
+// Zero Hour can run with both Generals and ZH archives in one directory.
+// Load the higher-priority archives first because ArchiveFileSystem keeps the
+// first copy of a path when overwrite is false.
+static AsciiString GetBigFilename(AsciiString filename)
+{
+	const char *path = filename.str();
+	const char *slash = strrchr(path, '\\');
+	const char *forwardSlash = strrchr(path, '/');
+	if (forwardSlash != nullptr && (slash == nullptr || forwardSlash > slash))
+	{
+		slash = forwardSlash;
+	}
+
+	AsciiString result = slash != nullptr ? slash + 1 : path;
+	result.toLower();
+	return result;
+}
+
+static Int GetBIGLoadPriority(AsciiString filename)
+{
+	AsciiString baseName = GetBigFilename(filename);
+
+	if (baseName.compareNoCase("patchzh.big") == 0)
+	{
+		return 10;
+	}
+	if (baseName.endsWithNoCase("zh.big"))
+	{
+		return 20;
+	}
+	if (baseName.compareNoCase("patch.big") == 0
+		|| baseName.compareNoCase("patchdata.big") == 0
+		|| baseName.compareNoCase("patchini.big") == 0)
+	{
+		return 30;
+	}
+	if (baseName.compareNoCase("audio.big") == 0
+		|| baseName.compareNoCase("audioenglish.big") == 0
+		|| baseName.compareNoCase("english.big") == 0
+		|| baseName.compareNoCase("gensec.big") == 0
+		|| baseName.compareNoCase("ini.big") == 0
+		|| baseName.compareNoCase("maps.big") == 0
+		|| baseName.compareNoCase("music.big") == 0
+		|| baseName.compareNoCase("shaders.big") == 0
+		|| baseName.compareNoCase("speech.big") == 0
+		|| baseName.compareNoCase("speechenglish.big") == 0
+		|| baseName.compareNoCase("terrain.big") == 0
+		|| baseName.compareNoCase("textures.big") == 0
+		|| baseName.compareNoCase("w3d.big") == 0
+		|| baseName.compareNoCase("window.big") == 0)
+	{
+		return 40;
+	}
+
+	return 0;
+}
 
 Win32BIGFileSystem::Win32BIGFileSystem() : ArchiveFileSystem() {
 }
@@ -212,10 +272,20 @@ Bool Win32BIGFileSystem::loadBigFilesFromDirectory(AsciiString dir, AsciiString 
 
 	FilenameList filenameList;
 	TheLocalFileSystem->getFileListInDirectory(dir, "", fileMask, filenameList, TRUE);
+	std::vector<AsciiString> sortedFiles(filenameList.begin(), filenameList.end());
+	std::sort(sortedFiles.begin(), sortedFiles.end(), [](const AsciiString& a, const AsciiString& b) {
+		Int priorityA = GetBIGLoadPriority(a);
+		Int priorityB = GetBIGLoadPriority(b);
+		if (priorityA != priorityB)
+		{
+			return priorityA < priorityB;
+		}
+		return a.compareNoCase(b) < 0;
+	});
 
 	Bool actuallyAdded = FALSE;
-	FilenameListIter it = filenameList.begin();
-	while (it != filenameList.end()) {
+	std::vector<AsciiString>::iterator it = sortedFiles.begin();
+	while (it != sortedFiles.end()) {
 #if RTS_ZEROHOUR
 		// TheSuperHackers @bugfix bobtista 18/11/2025 Skip duplicate INIZH.big in Data\INI to prevent CRC mismatches.
 		// English, Chinese, and Korean SKUs shipped with two INIZH.big files (one in Run directory, one in Run\Data\INI).
