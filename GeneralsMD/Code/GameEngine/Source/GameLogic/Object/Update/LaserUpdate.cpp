@@ -44,6 +44,49 @@
 #include "GameLogic/Module/LaserUpdate.h"
 #include "WWMath/vector3.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static Bool shouldLogLaserUpdateForDrawable(const Drawable *draw)
+{
+	if ((std::getenv("GGC_LASER_DIAG") == nullptr && std::getenv("GGC_LASER_DIAG_ALL") == nullptr) || draw == nullptr || draw->getTemplate() == nullptr)
+		return FALSE;
+	if (std::getenv("GGC_LASER_DIAG_ALL") != nullptr)
+		return TRUE;
+
+	const char *name = draw->getTemplate()->getName().str();
+	return name != nullptr && std::strstr(name, "PatriotBinaryDataStream") != nullptr;
+}
+
+static void logLaserUpdateEvent(const char *event, const Drawable *draw, DrawableID parentID, DrawableID targetID, const Coord3D *startPos, const Coord3D *endPos, Real widthScale)
+{
+	if (!shouldLogLaserUpdateForDrawable(draw))
+		return;
+
+	const Object *obj = draw->getObject();
+	if (FILE *diag = std::fopen("ggc_laser_update_diag.txt", "a"))
+	{
+		std::fprintf(diag,
+			"%s frame=%u drawable=%u object=%u template=%s parentDrawable=%u targetDrawable=%u destroyed=%d widthScale=%.3f start=(%.2f,%.2f,%.2f) end=(%.2f,%.2f,%.2f)\n",
+			event,
+			TheGameLogic != nullptr ? TheGameLogic->getFrame() : 0,
+			static_cast<unsigned>(draw->getID()),
+			obj != nullptr ? static_cast<unsigned>(obj->getID()) : 0,
+			draw->getTemplate() != nullptr ? draw->getTemplate()->getName().str() : "<null>",
+			static_cast<unsigned>(parentID),
+			static_cast<unsigned>(targetID),
+			obj != nullptr ? obj->isDestroyed() : 0,
+			widthScale,
+			startPos != nullptr ? startPos->x : 0.0f,
+			startPos != nullptr ? startPos->y : 0.0f,
+			startPos != nullptr ? startPos->z : 0.0f,
+			endPos != nullptr ? endPos->x : 0.0f,
+			endPos != nullptr ? endPos->y : 0.0f,
+			endPos != nullptr ? endPos->z : 0.0f);
+		std::fclose(diag);
+	}
+}
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -93,12 +136,14 @@ LaserUpdate::LaserUpdate( Thing *thing, const ModuleData* moduleData ) : ClientU
 	m_parentID = INVALID_DRAWABLE_ID;
 	m_targetID = INVALID_DRAWABLE_ID;
 	m_parentBoneName.clear();
+	logLaserUpdateEvent("update-create", getDrawable(), m_parentID, m_targetID, &m_startPos, &m_endPos, m_laserRadius.getWidthScale());
 }
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
 LaserUpdate::~LaserUpdate()
 {
+	logLaserUpdateEvent("update-destroy", getDrawable(), m_parentID, m_targetID, &m_startPos, &m_endPos, m_laserRadius.getWidthScale());
 
 	if( m_particleSystemID )
 		TheParticleSystemManager->destroyParticleSystemByID( m_particleSystemID );
@@ -202,6 +247,8 @@ void LaserUpdate::clientUpdate()
 	updateStartPos();
 	updateEndPos();
 	m_dirty |= m_laserRadius.updateRadius();
+	if (TheGameLogic != nullptr && (TheGameLogic->getFrame() % 30) == 0)
+		logLaserUpdateEvent("update-frame", getDrawable(), m_parentID, m_targetID, &m_startPos, &m_endPos, m_laserRadius.getWidthScale());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -420,6 +467,7 @@ void LaserUpdate::initLaser( const Object *parent, const Object *target, const C
 	}
 
 	m_dirty = true;
+	logLaserUpdateEvent("initLaser", getDrawable(), m_parentID, m_targetID, &m_startPos, &m_endPos, m_laserRadius.getWidthScale());
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -507,5 +555,6 @@ void LaserUpdate::loadPostProcess()
 
 	// extend base class
 	ClientUpdateModule::loadPostProcess();
+	logLaserUpdateEvent("loadPostProcess", getDrawable(), m_parentID, m_targetID, &m_startPos, &m_endPos, m_laserRadius.getWidthScale());
 
 }
