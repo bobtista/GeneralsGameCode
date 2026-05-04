@@ -80,6 +80,11 @@
 #include "GameClient/Line2D.h"
 #include "GameClient/ControlBar.h"
 
+#include <algorithm>
+#include <stdio.h>
+#include <stdlib.h>
+#include <vector>
+
 #ifdef RTS_DEBUG
 //#include "GameClient/InGameUI.h"	// for debugHints
 #endif
@@ -114,6 +119,53 @@ const Real HUGE_DIST_SQR = (HUGE_DIST*HUGE_DIST);
 
 //-----------------------------------------------------------------------------
 static PartitionContactList* TheContactList = nullptr;
+
+static Bool shouldLogShroudContext()
+{
+	return std::getenv("GGC_SHROUD_CONTEXT_DIAG") != nullptr;
+}
+
+static void logShroudContextEvent(const char *event, Real centerX, Real centerY, Real radius, PlayerMaskType playerMask, UnsignedInt data)
+{
+	if (!shouldLogShroudContext())
+		return;
+
+	if (FILE *diag = std::fopen("ggc_shroud_context_diag.txt", "a"))
+	{
+		std::fprintf(diag,
+			"%s frame=%u center=(%.2f,%.2f) radius=%.2f mask=0x%x data=%u\n",
+			event,
+			TheGameLogic != nullptr ? TheGameLogic->getFrame() : 0,
+			centerX,
+			centerY,
+			radius,
+			static_cast<unsigned>(playerMask),
+			data);
+		std::fclose(diag);
+	}
+}
+
+static void logShroudContext(const char *event, Int playerIndex, Int cellX, Int cellY, Int oldValue, Int newValue, CellShroudStatus oldStatus, CellShroudStatus newStatus)
+{
+	if (!shouldLogShroudContext())
+		return;
+
+	if (FILE *diag = std::fopen("ggc_shroud_context_diag.txt", "a"))
+	{
+		std::fprintf(diag,
+			"%s frame=%u player=%d cell=(%d,%d) value=%d->%d status=%d->%d\n",
+			event,
+			TheGameLogic != nullptr ? TheGameLogic->getFrame() : 0,
+			playerIndex,
+			cellX,
+			cellY,
+			oldValue,
+			newValue,
+			static_cast<int>(oldStatus),
+			static_cast<int>(newStatus));
+		std::fclose(diag);
+	}
+}
 
 //-----------------------------------------------------------------------------
 //         Local Types
@@ -1305,6 +1357,7 @@ void PartitionCell::addLooker(Int playerIndex)
 void PartitionCell::removeLooker(Int playerIndex)
 {
 	CellShroudStatus oldShroud = getShroudStatusForPlayer( playerIndex );
+	const Int oldCurrentShroud = m_shroudLevel[playerIndex].m_currentShroud;
 	// the increasing Algorithm: a -1 goes up to min(1,activeLevel), otherwise it just gets incremented
 	if( m_shroudLevel[playerIndex].m_currentShroud == -1 )
 		m_shroudLevel[playerIndex].m_currentShroud = min( m_shroudLevel[playerIndex].m_activeShroudLevel, (Short)1 );
@@ -1314,6 +1367,7 @@ void PartitionCell::removeLooker(Int playerIndex)
 		m_shroudLevel[playerIndex].m_currentShroud++;
 	}
 	CellShroudStatus newShroud = getShroudStatusForPlayer( playerIndex );
+	logShroudContext("removeLooker", playerIndex, m_cellX, m_cellY, oldCurrentShroud, m_shroudLevel[playerIndex].m_currentShroud, oldShroud, newShroud);
 
 //	DEBUG_LOG(( "REMOVE %d, %d.  CS = %d, AS = %d for player %d.",
 //							m_cellX,
@@ -3102,6 +3156,9 @@ void PartitionManager::refreshShroudForLocalPlayer()
 	if (m_totalCellCount != 0)
 	{
 		const Int playerIndex = rts::getObservedOrLocalPlayer()->getPlayerIndex();
+		Int clearCount = 0;
+		Int foggedCount = 0;
+		Int shroudedCount = 0;
 		TheRadar->beginSetShroudLevel();
 
 		for (int i = 0; i < m_totalCellCount; ++i)
@@ -3109,11 +3166,32 @@ void PartitionManager::refreshShroudForLocalPlayer()
 			const Int x = m_cells[i].getCellX();
 			const Int y = m_cells[i].getCellY();
 			const CellShroudStatus status = m_cells[i].getShroudStatusForPlayer(playerIndex);
+			if (status == CELLSHROUD_CLEAR)
+				clearCount++;
+			else if (status == CELLSHROUD_FOGGED)
+				foggedCount++;
+			else if (status == CELLSHROUD_SHROUDED)
+				shroudedCount++;
 			TheDisplay->setShroudLevel(x, y, status);
 			TheRadar->setShroudLevel(x, y, status);
 			m_cells[i].invalidateShroudedStatusForAllCois(playerIndex);
 		}
 		TheRadar->endSetShroudLevel();
+		if (shouldLogShroudContext())
+		{
+			if (FILE *diag = std::fopen("ggc_shroud_context_diag.txt", "a"))
+			{
+				std::fprintf(diag,
+					"refreshShroud frame=%u player=%d cells=%d clear=%d fogged=%d shrouded=%d\n",
+					TheGameLogic != nullptr ? TheGameLogic->getFrame() : 0,
+					playerIndex,
+					m_totalCellCount,
+					clearCount,
+					foggedCount,
+					shroudedCount);
+				std::fclose(diag);
+			}
+		}
 	}
 }
 
@@ -4080,6 +4158,7 @@ void PartitionManager::processPendingUndoShroudRevealQueue( Bool considerTimesta
 	while( !m_pendingUndoShroudReveals.empty() && (m_pendingUndoShroudReveals.front()->m_data < compareTime) )
 	{
 		SightingInfo *thisInfo = m_pendingUndoShroudReveals.front();
+		logShroudContextEvent("processPendingUndoShroudReveal", thisInfo->m_where.x, thisInfo->m_where.y, thisInfo->m_howFar, thisInfo->m_forWhom, thisInfo->m_data);
 
 		undoShroudReveal( thisInfo->m_where.x, thisInfo->m_where.y, thisInfo->m_howFar, thisInfo->m_forWhom );
 
@@ -4112,6 +4191,8 @@ void PartitionManager::resetPendingUndoShroudRevealQueue()
 //-----------------------------------------------------------------------------
 void PartitionManager::undoShroudReveal(Real centerX, Real centerY, Real radius, PlayerMaskType playerMask)
 {
+	logShroudContextEvent("undoShroudReveal", centerX, centerY, radius, playerMask, 0);
+
 	Int cellCenterX, cellCenterY;
 	worldToCell(centerX, centerY, &cellCenterX, &cellCenterY);
 
@@ -4134,6 +4215,13 @@ void PartitionManager::undoShroudReveal(Real centerX, Real centerY, Real radius,
 //-----------------------------------------------------------------------------
 void PartitionManager::queueUndoShroudReveal(Real centerX, Real centerY, Real radius, PlayerMaskType playerMask)
 {
+	if ((TheGameLogic != nullptr && TheGameLogic->isLoadingSave())
+		|| (TheGameState != nullptr && TheGameState->isInLoadGame()))
+	{
+		logShroudContextEvent("discardLoadingSaveUndoShroudReveal", centerX, centerY, radius, playerMask, 0);
+		return;
+	}
+
 	UnsignedInt now = TheGameLogic->getFrame();
 	SightingInfo *newInfo = newInstance(SightingInfo);
 
@@ -4142,6 +4230,8 @@ void PartitionManager::queueUndoShroudReveal(Real centerX, Real centerY, Real ra
 	newInfo->m_howFar = radius;
 	newInfo->m_forWhom = playerMask;
 	newInfo->m_data = now + TheGlobalData->m_unlookPersistDuration;
+
+	logShroudContextEvent("queueUndoShroudReveal", centerX, centerY, radius, playerMask, newInfo->m_data);
 
 	m_pendingUndoShroudReveals.push(newInfo);
 }
@@ -4741,6 +4831,19 @@ void PartitionManager::xfer( Xfer *xfer )
 			// in a queued unlook, so we actually have stuff in here at the start.  I am fairly certain that setTeam should wait
 			// until loadPostProcess, but I ain't gonna change it now.
 //			DEBUG_ASSERTCRASH(m_pendingUndoShroudReveals.empty(), ("At load, we appear to not be in a reset state.") );
+			//
+			// The serialized partition state and serialized pending queue are
+			// authoritative. Any entries already present here were queued by
+			// object/team restore side effects before the partition manager had
+			// loaded its saved state. Keeping those load artifacts causes a
+			// delayed mass unlook a few seconds after loading a save.
+			while (!m_pendingUndoShroudReveals.empty())
+			{
+				SightingInfo *loadArtifact = m_pendingUndoShroudReveals.front();
+				logShroudContextEvent("discardLoadArtifactUndoShroudReveal", loadArtifact->m_where.x, loadArtifact->m_where.y, loadArtifact->m_howFar, loadArtifact->m_forWhom, loadArtifact->m_data);
+				deleteInstance(loadArtifact);
+				m_pendingUndoShroudReveals.pop();
+			}
 
 			// I have to split this up though, since on Load I need to make new instances.
 			for( Int infoIndex = 0; infoIndex < queueSize; infoIndex++ )
@@ -4748,6 +4851,27 @@ void PartitionManager::xfer( Xfer *xfer )
 				SightingInfo *newInfo = newInstance(SightingInfo);
 				xfer->xferSnapshot(newInfo);
 				m_pendingUndoShroudReveals.push(newInfo);
+				logShroudContextEvent("loadPendingUndoShroudReveal", newInfo->m_where.x, newInfo->m_where.y, newInfo->m_howFar, newInfo->m_forWhom, newInfo->m_data);
+			}
+
+			// setTeam/on-load maintenance may queue new delayed unlooks before
+			// the saved queue is read. The processing code assumes the queue is
+			// ordered by deadline, so restore that invariant after combining the
+			// pre-load and saved entries.
+			std::vector<SightingInfo *> pending;
+			while (!m_pendingUndoShroudReveals.empty())
+			{
+				pending.push_back(m_pendingUndoShroudReveals.front());
+				m_pendingUndoShroudReveals.pop();
+			}
+			std::stable_sort(pending.begin(), pending.end(),
+				[](const SightingInfo *a, const SightingInfo *b)
+				{
+					return a->m_data < b->m_data;
+				});
+			for (SightingInfo *info : pending)
+			{
+				m_pendingUndoShroudReveals.push(info);
 			}
 		}
 		else
