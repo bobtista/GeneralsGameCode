@@ -236,19 +236,27 @@ typedef UnsignedInt DeathTypeFlags;
 const DeathTypeFlags DEATH_TYPE_FLAGS_ALL = 0xffffffff;
 const DeathTypeFlags DEATH_TYPE_FLAGS_NONE = 0x00000000;
 
+inline UnsignedInt getDeathTypeFlagBit(DeathType dt)
+{
+	// The original dx8 build encoded DEATH_NORMAL through a 32-bit shift count
+	// wraparound: 1 << (0 - 1) became bit 31 on x86. Make that behavior defined
+	// so Clang/non-x86 builds match the reference game logic.
+	return dt == DEATH_NORMAL ? 31 : static_cast<UnsignedInt>(dt - 1);
+}
+
 inline Bool getDeathTypeFlag(DeathTypeFlags flags, DeathType dt)
 {
-	return (flags & (1UL << (dt - 1))) != 0;
+	return (flags & (1UL << getDeathTypeFlagBit(dt))) != 0;
 }
 
 inline DeathTypeFlags setDeathTypeFlag(DeathTypeFlags flags, DeathType dt)
 {
-	return (flags | (1UL << (dt - 1)));
+	return (flags | (1UL << getDeathTypeFlagBit(dt)));
 }
 
 inline DeathTypeFlags clearDeathTypeFlag(DeathTypeFlags flags, DeathType dt)
 {
-	return (flags & ~(1UL << (dt - 1)));
+	return (flags & ~(1UL << getDeathTypeFlagBit(dt)));
 }
 
 //-------------------------------------------------------------------------------------------------
