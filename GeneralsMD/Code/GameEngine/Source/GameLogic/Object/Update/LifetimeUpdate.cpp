@@ -35,7 +35,7 @@
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Module/LifetimeUpdate.h"
 #include "GameLogic/Object.h"
-
+#include "Common/ThingTemplate.h"
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -84,8 +84,16 @@ UnsignedInt LifetimeUpdate::calcSleepDelay(UnsignedInt minFrames, UnsignedInt ma
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime LifetimeUpdate::update()
 {
+	Object *obj = getObject();
+
+	if (obj->isEffectivelyDead())
+	{
+		TheGameLogic->destroyObject(obj);
+		return UPDATE_SLEEP_FOREVER;
+	}
+
 	// Kill (NOT destroy) if time is up
-	getObject()->kill();
+	obj->kill();
 	return UPDATE_SLEEP_FOREVER;
 }
 
@@ -126,8 +134,17 @@ void LifetimeUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void LifetimeUpdate::loadPostProcess()
 {
-
 	// extend base class
 	UpdateModule::loadPostProcess();
 
+	Object *obj = getObject();
+	UnsignedInt now = TheGameLogic->getFrame();
+	if (now == 0)
+		now = 1;
+
+	UnsignedInt wakeFrame = m_dieFrame;
+	if (obj->isEffectivelyDead() || wakeFrame < now)
+		wakeFrame = now;
+
+	friend_setNextCallFrame(wakeFrame);
 }
