@@ -35,7 +35,41 @@
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Module/LifetimeUpdate.h"
 #include "GameLogic/Object.h"
+#include "Common/ThingTemplate.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static Bool shouldLogLifetimeUpdateForObject(const Object *obj)
+{
+	if ((std::getenv("GGC_LIFETIME_DIAG") == nullptr && std::getenv("GGC_LASER_DIAG_ALL") == nullptr) || obj == nullptr || obj->getTemplate() == nullptr)
+		return FALSE;
+
+	const char *name = obj->getTemplate()->getName().str();
+	return std::getenv("GGC_LIFETIME_DIAG") != nullptr || (name != nullptr && std::strstr(name, "Laser") != nullptr);
+}
+
+static void logLifetimeUpdateEvent(const char *event, const Object *obj, UnsignedInt delay, UnsignedInt dieFrame)
+{
+	if (!shouldLogLifetimeUpdateForObject(obj))
+		return;
+
+	if (FILE *diag = std::fopen("ggc_lifetime_diag.txt", "a"))
+	{
+		std::fprintf(diag,
+			"%s frame=%u object=%u template=%s delay=%u dieFrame=%u destroyed=%d effectivelyDead=%d\n",
+			event,
+			TheGameLogic != nullptr ? TheGameLogic->getFrame() : 0,
+			obj != nullptr ? static_cast<unsigned>(obj->getID()) : 0,
+			obj != nullptr && obj->getTemplate() != nullptr ? obj->getTemplate()->getName().str() : "<null>",
+			delay,
+			dieFrame,
+			obj != nullptr ? obj->isDestroyed() : 0,
+			obj != nullptr ? obj->isEffectivelyDead() : 0);
+		std::fclose(diag);
+	}
+}
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -54,6 +88,7 @@ LifetimeUpdate::LifetimeUpdate( Thing *thing, const ModuleData* moduleData ) : U
 	}
 
 	setWakeFrame(getObject(), UPDATE_SLEEP(delay));
+	logLifetimeUpdateEvent("create", getObject(), delay, m_dieFrame);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -68,6 +103,7 @@ void LifetimeUpdate::setLifetimeRange( UnsignedInt minFrames, UnsignedInt maxFra
 {
 	UnsignedInt delay = calcSleepDelay(minFrames, maxFrames);
 	setWakeFrame(getObject(), UPDATE_SLEEP(delay));
+	logLifetimeUpdateEvent("set-range", getObject(), delay, m_dieFrame);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -84,8 +120,18 @@ UnsignedInt LifetimeUpdate::calcSleepDelay(UnsignedInt minFrames, UnsignedInt ma
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime LifetimeUpdate::update()
 {
+	Object *obj = getObject();
+
+	if (obj->isEffectivelyDead())
+	{
+		logLifetimeUpdateEvent("destroy-effectively-dead", obj, 0, m_dieFrame);
+		TheGameLogic->destroyObject(obj);
+		return UPDATE_SLEEP_FOREVER;
+	}
+
 	// Kill (NOT destroy) if time is up
-	getObject()->kill();
+	logLifetimeUpdateEvent("kill", obj, 0, m_dieFrame);
+	obj->kill();
 	return UPDATE_SLEEP_FOREVER;
 }
 
@@ -126,8 +172,18 @@ void LifetimeUpdate::xfer( Xfer *xfer )
 // ------------------------------------------------------------------------------------------------
 void LifetimeUpdate::loadPostProcess()
 {
-
 	// extend base class
 	UpdateModule::loadPostProcess();
 
+	Object *obj = getObject();
+	UnsignedInt now = TheGameLogic->getFrame();
+	if (now == 0)
+		now = 1;
+
+	UnsignedInt wakeFrame = m_dieFrame;
+	if (obj->isEffectivelyDead() || wakeFrame < now)
+		wakeFrame = now;
+
+	friend_setNextCallFrame(wakeFrame);
+	logLifetimeUpdateEvent("load-post", obj, wakeFrame - now, m_dieFrame);
 }
