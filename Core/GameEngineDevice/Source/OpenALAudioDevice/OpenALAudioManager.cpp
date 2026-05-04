@@ -2916,6 +2916,11 @@ Bool OpenALAudioManager::startNextLoop(PlayingAudio* looping)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::playStream(AudioEventRTS* event, OpenALAudioStream* stream)
 {
+	if (!event || !stream)
+		return;
+
+	stream->setVolume(getEffectiveVolume(event));
+
 	// Force it to the beginning
 	if (event->getAudioEventInfo()->m_soundType == AT_Music) {
 		//alSourcei(stream->getSource(), AL_LOOPING, AL_TRUE);
@@ -2935,6 +2940,7 @@ ALuint OpenALAudioManager::playSample(AudioEventRTS* event, PlayingAudio* audio)
 	if (bufferHandle) {
 		alSourcei(audio->m_source, AL_SOURCE_RELATIVE, AL_TRUE);
 		alSourcei(audio->m_source, AL_BUFFER, (ALuint)(uintptr_t)bufferHandle);
+		alSourcef(audio->m_source, AL_GAIN, getEffectiveVolume(event));
 		alSourcePlay(audio->m_source);
 	}
 
@@ -2971,6 +2977,7 @@ ALuint OpenALAudioManager::playSample3D(AudioEventRTS* event, PlayingAudio* samp
 			Real z = pos->z;
 			alSource3f(source, AL_POSITION, x, y, z);
 			alSourcei(source, AL_BUFFER, handle);
+			alSourcef(source, AL_GAIN, getEffectiveVolume(event));
 			DEBUG_LOG(("Playing 3D sample '%s' at %f, %f, %f\n", event->getEventName().str(), x, y, z));
 
 			// Start playback
