@@ -30,10 +30,44 @@
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
 #include "PreRTS.h"
 #include "Common/RandomValue.h"
+#include "Common/ThingTemplate.h"
 #include "Common/Xfer.h"
 #include "GameLogic/GameLogic.h"
 #include "GameLogic/Object.h"
 #include "GameLogic/Module/DeletionUpdate.h"
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+static Bool shouldLogDeletionUpdateForObject(const Object *obj)
+{
+	if (std::getenv("GGC_LASER_DIAG") == nullptr || obj == nullptr || obj->getTemplate() == nullptr)
+		return FALSE;
+
+	const char *name = obj->getTemplate()->getName().str();
+	return name != nullptr && std::strstr(name, "PatriotBinaryDataStream") != nullptr;
+}
+
+static void logDeletionUpdateEvent(const char *event, const Object *obj, UnsignedInt delay, UnsignedInt dieFrame)
+{
+	if (!shouldLogDeletionUpdateForObject(obj))
+		return;
+
+	if (FILE *diag = std::fopen("ggc_laser_lifetime_diag.txt", "a"))
+	{
+		std::fprintf(diag,
+			"%s frame=%u object=%u template=%s delay=%u dieFrame=%u destroyed=%d\n",
+			event,
+			TheGameLogic != nullptr ? TheGameLogic->getFrame() : 0,
+			obj != nullptr ? static_cast<unsigned>(obj->getID()) : 0,
+			obj != nullptr && obj->getTemplate() != nullptr ? obj->getTemplate()->getName().str() : "<null>",
+			delay,
+			dieFrame,
+			obj != nullptr ? obj->isDestroyed() : 0);
+		std::fclose(diag);
+	}
+}
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -43,6 +77,7 @@ DeletionUpdate::DeletionUpdate( Thing *thing, const ModuleData* moduleData ) : U
 	const DeletionUpdateModuleData* d = getDeletionUpdateModuleData();
 	UnsignedInt delay = calcSleepDelay(d->m_minFrames, d->m_maxFrames);
 	setWakeFrame(getObject(), UPDATE_SLEEP(delay));
+	logDeletionUpdateEvent("create", getObject(), delay, m_dieFrame);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -81,6 +116,7 @@ UnsignedInt DeletionUpdate::calcSleepDelay(UnsignedInt minFrames, UnsignedInt ma
 //-------------------------------------------------------------------------------------------------
 UpdateSleepTime DeletionUpdate::update()
 {
+	logDeletionUpdateEvent("destroy", getObject(), 0, m_dieFrame);
 	// Destroy (NOT kill) if time is up
 #if defined RTS_DEBUG  && defined CRISS_CROSS_GEOMETRY
 	Object *obj = getObject();
