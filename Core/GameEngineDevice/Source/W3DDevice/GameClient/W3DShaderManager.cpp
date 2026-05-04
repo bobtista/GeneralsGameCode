@@ -2332,6 +2332,13 @@ Int RoadShaderPixelShader::shutdown()
 
 Int RoadShaderPixelShader::init()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	// bgfx cannot execute the legacy D3D8 roadnoise2.pso bytecode. Let the
+	// two-stage road shader register the road variants so bgfx receives a
+	// fixed-function state cascade it can translate.
+	roadShader2Stage.init();
+	return FALSE;
+#else
 	Int res;
 
 	//this shader will also use the 2Stage shader for some of the passes so initialize it too.
@@ -2363,10 +2370,15 @@ Int RoadShaderPixelShader::init()
 		}
 	}
 	return FALSE;
+#endif
 }
 
 Int RoadShaderPixelShader::set(Int pass)
 {
+	if (g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline())
+	{
+		g_renderBackend->Override_Terrain_Blend(false);
+	}
 	g_renderBackend->Set_Texture(0,W3DShaderManager::getShaderTexture(0));
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
@@ -2470,6 +2482,10 @@ Int RoadShader2Stage::init()
 
 Int RoadShader2Stage::set(Int pass)
 {
+	if (g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline())
+	{
+		g_renderBackend->Override_Terrain_Blend(false);
+	}
 	//First stage always contains base texture.
 	g_renderBackend->Set_Texture(0,W3DShaderManager::getShaderTexture(0));
 	//Force system to apply world/view transforms.

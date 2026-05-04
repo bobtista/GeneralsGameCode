@@ -183,6 +183,8 @@ public:
                                         unsigned dst_height,
                                         unsigned src_width,
                                         unsigned src_height,
+                                        unsigned src_x,
+                                        unsigned src_y,
                                         unsigned dst_x,
                                         unsigned dst_y,
                                         unsigned pitch,

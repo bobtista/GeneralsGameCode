@@ -744,6 +744,7 @@ void W3DShroud::render(CameraClass *cam)
 			m_srcTextureData,
 			m_dstTextureWidth, m_dstTextureHeight,
 			visEndX - visStartX, visEndY - visStartY,
+			visStartX, visStartY,
 			dstPoint.x, dstPoint.y,
 			m_srcTexturePitch,
 			srcDesc.Format);

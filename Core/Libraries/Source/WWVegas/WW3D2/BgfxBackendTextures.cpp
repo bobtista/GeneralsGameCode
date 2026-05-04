@@ -854,6 +854,8 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
                                           unsigned dst_height,
                                           unsigned src_width,
                                           unsigned src_height,
+                                          unsigned src_x,
+                                          unsigned src_y,
                                           unsigned dst_x,
                                           unsigned dst_y,
                                           unsigned pitch,
@@ -979,8 +981,9 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
     for (unsigned row = 0; row < src_height; ++row)
     {
         const unsigned dstOffset = ((dst_y + row) * dst_width + dst_x) * bpp;
-        const unsigned srcOffset = row * pitch;
-        if (dstOffset + rowBytes <= fullSize && srcOffset + rowBytes <= src_height * pitch)
+        const unsigned srcOffset = (src_y + row) * pitch + src_x * bpp;
+        const unsigned srcSize = (src_y + src_height) * pitch;
+        if (dstOffset + rowBytes <= fullSize && srcOffset + rowBytes <= srcSize)
         {
             std::memcpy(mem->data + dstOffset, static_cast<const uint8_t *>(pixel_data) + srcOffset, rowBytes);
         }

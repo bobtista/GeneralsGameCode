@@ -3968,6 +3968,75 @@ static void UploadMaterialUniforms()
     }
 }
 
+// Mirror the material fields used by fs_uber without applying DX8 state.
+// This is called from Set_Material and again at submit time because
+// DX8Wrapper::Draw can apply pending material state directly through
+// VertexMaterialClass::Apply after the bgfx backend saw the original setter.
+static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
+{
+    if (material != nullptr)
+    {
+        Vector3 diffuse(1.0f, 1.0f, 1.0f);
+        Vector3 ambient(1.0f, 1.0f, 1.0f);
+        const VertexMaterialClass::ColorSourceType diffuseSource =
+            const_cast<VertexMaterialClass *>(material)->Get_Diffuse_Color_Source();
+        const VertexMaterialClass::ColorSourceType ambientSource =
+            const_cast<VertexMaterialClass *>(material)->Get_Ambient_Color_Source();
+        const VertexMaterialClass::ColorSourceType emissiveSource =
+            const_cast<VertexMaterialClass *>(material)->Get_Emissive_Color_Source();
+        if (diffuseSource == VertexMaterialClass::MATERIAL)
+        {
+            material->Get_Diffuse(&diffuse);
+        }
+        if (ambientSource == VertexMaterialClass::MATERIAL)
+        {
+            material->Get_Ambient(&ambient);
+        }
+        g_draw.matDiffuse[0] = diffuse.X;
+        g_draw.matDiffuse[1] = diffuse.Y;
+        g_draw.matDiffuse[2] = diffuse.Z;
+        g_draw.matDiffuse[3] = material->Get_Opacity();
+        g_draw.matAmbient[0] = ambient.X;
+        g_draw.matAmbient[1] = ambient.Y;
+        g_draw.matAmbient[2] = ambient.Z;
+        g_draw.matAmbient[3] = 1.0f;
+        g_draw.vertexColorFlags[1] =
+            (diffuseSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
+        g_draw.vertexColorFlags[2] =
+            (ambientSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
+        g_draw.vertexColorFlags[3] =
+            (emissiveSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
+        g_draw.lightingEnabled[0] =
+            (material->Get_Lighting() && !WW3D::Is_Coloring_Enabled()) ? 1.0f : 0.0f;
+
+        Vector3 emissive(0.0f, 0.0f, 0.0f);
+        material->Get_Emissive(&emissive);
+        g_draw.matEmissive[0] = emissive.X;
+        g_draw.matEmissive[1] = emissive.Y;
+        g_draw.matEmissive[2] = emissive.Z;
+        g_draw.matEmissive[3] = 0.0f;
+    }
+    else
+    {
+        g_draw.matDiffuse[0] = 1.0f;
+        g_draw.matDiffuse[1] = 1.0f;
+        g_draw.matDiffuse[2] = 1.0f;
+        g_draw.matDiffuse[3] = 1.0f;
+        g_draw.matAmbient[0] = 1.0f;
+        g_draw.matAmbient[1] = 1.0f;
+        g_draw.matAmbient[2] = 1.0f;
+        g_draw.matAmbient[3] = 1.0f;
+        g_draw.matEmissive[0] = 0.0f;
+        g_draw.matEmissive[1] = 0.0f;
+        g_draw.matEmissive[2] = 0.0f;
+        g_draw.matEmissive[3] = 0.0f;
+        g_draw.vertexColorFlags[1] = 0.0f;
+        g_draw.vertexColorFlags[2] = 0.0f;
+        g_draw.vertexColorFlags[3] = 0.0f;
+        g_draw.lightingEnabled[0] = 0.0f;
+    }
+}
+
 // TheSuperHackers @refactor bobtista 11/04/2026 Sorted VB
 // direct-draw submit. Called from DX8Wrapper::Draw_Sorting_IB_VB after
 // it populates an internal dynamic VB and dynamic IB by copying a slice
@@ -4059,11 +4128,14 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     }
     BindTextureStages();
     UpdateTextureTransforms();
-    if (g_views.inSortFlush && IsSortedMaterialDecal(g_draw.state))
+    if (IsSortedMaterialDecal(g_draw.state))
     {
-        // Terrain rendering leaves this flag set until reset by the shader
-        // manager. Sorted material decals use the fixed-function TSS path and
-        // must not inherit the terrain pixel-shader branch.
+        // Terrain rendering leaves this flag set until reset by the
+        // shader manager. Sorted material decals, including command-center
+        // driveway emblems, use the fixed-function TSS path and must not
+        // inherit the terrain pixel-shader branch. Submit_Sorted_Draw can
+        // be reached by rigid sorting draws even when g_views.inSortFlush
+        // is false, so key this reset to the draw signature itself.
         g_draw.texcoordSelect[1] = 0.0f;
     }
     g_draw.shadowParams[0] = 0.0f;
@@ -4223,105 +4295,7 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
 void BgfxBackend::Set_Material(const VertexMaterialClass * material)
 {
     DX8Backend::Set_Material(material);
-    // TheSuperHackers @refactor bobtista 11/04/2026 Capture
-    // material diffuse + opacity so the fragment shader can tint output
-    // with team colors. Generals writes the player color into the
-    // VertexMaterialClass diffuse channel; without this override bgfx
-    // meshes render with stale or default colors and units are either
-    // washed-out white or tinted by whatever the previous draw used.
-    if (material != nullptr)
-    {
-        // TheSuperHackers @bugfix bobtista 20/04/2026 Honor
-        // VertexMaterialClass's Diffuse_Color_Source. When set to COLOR1
-        // (D3DMCS_COLOR1), D3D's FF pipeline uses the VERTEX diffuse as
-        // the material's effective diffuse and ignores material->Get_Diffuse.
-        // This is the PRELIT_DIFFUSE preset used by projected shadow decals,
-        // HUD/2D overlays, etc. Without this guard, fs_uber's
-        // `current *= u_matDiffuse` darkens the decals with whatever stale
-        // or default color the material carries (often black), producing
-        // the "black scorch-like patches" on the beach where alpha decals
-        // are batched. Force matDiffuse=1 so vertex color passes through.
-        Vector3 diffuse(1.0f, 1.0f, 1.0f);
-        Vector3 ambient(1.0f, 1.0f, 1.0f);
-        const VertexMaterialClass::ColorSourceType diffuseSource =
-            const_cast<VertexMaterialClass *>(material)->Get_Diffuse_Color_Source();
-        const VertexMaterialClass::ColorSourceType ambientSource =
-            const_cast<VertexMaterialClass *>(material)->Get_Ambient_Color_Source();
-        const VertexMaterialClass::ColorSourceType emissiveSource =
-            const_cast<VertexMaterialClass *>(material)->Get_Emissive_Color_Source();
-        if (diffuseSource == VertexMaterialClass::MATERIAL)
-        {
-            material->Get_Diffuse(&diffuse);
-        }
-        if (ambientSource == VertexMaterialClass::MATERIAL)
-        {
-            material->Get_Ambient(&ambient);
-        }
-        g_draw.matDiffuse[0] = diffuse.X;
-        g_draw.matDiffuse[1] = diffuse.Y;
-        g_draw.matDiffuse[2] = diffuse.Z;
-        g_draw.matDiffuse[3] = material->Get_Opacity();
-        g_draw.matAmbient[0] = ambient.X;
-        g_draw.matAmbient[1] = ambient.Y;
-        g_draw.matAmbient[2] = ambient.Z;
-        g_draw.matAmbient[3] = 1.0f;
-        // TheSuperHackers @bugfix bobtista 27/04/2026 Preserve the
-        // fixed-function material color-source states for bgfx lighting.
-        // Some animated meshes use vertex color as ambient/emissive tint;
-        // treating those as material white makes effects such as police
-        // lights render white instead of their authored red/blue frames.
-        g_draw.vertexColorFlags[1] =
-            (diffuseSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
-        g_draw.vertexColorFlags[2] =
-            (ambientSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
-        g_draw.vertexColorFlags[3] =
-            (emissiveSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
-        // Track whether this material uses hardware lighting. When false
-        // (terrain, pre-lit meshes), vertex colors already contain the
-        // lit result and the shader must NOT apply N.L on top.
-        // TheSuperHackers @bugfix bobtista 29/04/2026 Match
-        // VertexMaterialClass::Apply: active WW3D coloring disables DX8
-        // fixed-function lighting so team-color decals/emblems render at
-        // their remapped color instead of being shaded down by scene lights.
-        g_draw.lightingEnabled[0] =
-            (material->Get_Lighting() && !WW3D::Is_Coloring_Enabled()) ? 1.0f : 0.0f;
-        // Emissive color — self-illumination. Self-glow meshes (e.g.
-        // SCMoveHint.w3d "move here" indicator) set the material emissive
-        // to their glow color and rely on D3D fixed-function adding it
-        // on top of the lit diffuse. Without this, they render black
-        // because the lit math produces 0 and there's no emissive term.
-        Vector3 emissive(0.0f, 0.0f, 0.0f);
-        material->Get_Emissive(&emissive);
-        g_draw.matEmissive[0] = emissive.X;
-        g_draw.matEmissive[1] = emissive.Y;
-        g_draw.matEmissive[2] = emissive.Z;
-        g_draw.matEmissive[3] = 0.0f;
-    }
-    else
-    {
-        g_draw.matDiffuse[0] = 1.0f;
-        g_draw.matDiffuse[1] = 1.0f;
-        g_draw.matDiffuse[2] = 1.0f;
-        g_draw.matDiffuse[3] = 1.0f;
-        g_draw.matAmbient[0] = 1.0f;
-        g_draw.matAmbient[1] = 1.0f;
-        g_draw.matAmbient[2] = 1.0f;
-        g_draw.matAmbient[3] = 1.0f;
-        g_draw.matEmissive[0] = 0.0f;
-        g_draw.matEmissive[1] = 0.0f;
-        g_draw.matEmissive[2] = 0.0f;
-        g_draw.matEmissive[3] = 0.0f;
-        g_draw.vertexColorFlags[1] = 0.0f;
-        g_draw.vertexColorFlags[2] = 0.0f;
-        g_draw.vertexColorFlags[3] = 0.0f;
-        // Null material means no material-driven lighting. Dazzle and
-        // similar effect overlays call Set_Material(nullptr) and bake
-        // their per-vertex intensity into diffuse.rgb; the lit path in
-        // fs_uber would ignore that baked color and output tex * lit,
-        // producing bright flashes where the dazzle should be invisible.
-        // Force the unlit path so vertex diffuse modulates the output.
-        g_draw.lightingEnabled[0] = 0.0f;
-    }
+    CaptureMaterialStateForBgfx(material);
 }
 
 void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
@@ -5277,6 +5251,10 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         submitView = kBgfxSmudgeView;
     }
+    else if (g_views.effectOverlayActive)
+    {
+        submitView = kBgfxEffectOverlayView;
+    }
     else if (is2D)
     {
         submitView = kBgfxUIView;
@@ -5288,10 +5266,6 @@ void SubmitEngineDraw(unsigned short start_index,
     else if (g_views.waterOverrideActive || g_views.waterOverlayActive)
     {
         submitView = kBgfxWaterView;
-    }
-    else if (g_views.effectOverlayActive)
-    {
-        submitView = kBgfxEffectOverlayView;
     }
     else if (g_views.inSortFlush)
     {
@@ -5318,7 +5292,6 @@ void SubmitEngineDraw(unsigned short start_index,
     // broad faces visibly too dark compared with vehicles and the DX8 path.
     g_draw.shadowParams[0] =
         (submitView == kBgfxEngineView && g_draw.texcoordSelect[1] > 0.5f) ? 1.0f : 0.0f;
-
     // Push the engine view+projection when they change. setViewTransform
     // applies until the next change so we do not need to call it per
     // submit, only when the engine has updated either matrix. Sort view
@@ -5499,7 +5472,13 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     BindTextureStages();
     UpdateTextureTransforms();
-    if (g_views.inSortFlush && IsSortedMaterialDecal(g_draw.state))
+    // DX8Wrapper::Draw applies pending render-state changes before this
+    // submit, and material application can happen there without going
+    // through BgfxBackend::Set_Material. Refresh from the authoritative
+    // DX8 render state so bgfx does not light a mesh with stale material
+    // color-source or lighting flags from a previous draw.
+    CaptureMaterialStateForBgfx(DX8Wrapper::Peek_Render_State().material);
+    if (submitView == kBgfxEngineSortView && IsSortedMaterialDecal(g_draw.state))
     {
         // Terrain rendering leaves this flag set until reset by the shader
         // manager. Sorted material decals use the fixed-function TSS path and
@@ -5624,36 +5603,14 @@ void SubmitEngineDraw(unsigned short start_index,
         // ABBTCMDHQS.SWORD) typically carry their final color baked into the
         // recolored tex0 — no per-vertex lighting expected. DX8 ran with
         // D3DRS_LIGHTING off globally so these decals were never lit there.
-        // Force unlit here to match. Effect on the floor emblem specifically
-        // is unverified — the SWORD draw path didn't surface in our test
-        // replay state, so this is defensive parity rather than a confirmed
-        // emblem fix.
+        // Force unlit here to match, including command-center driveway
+        // emblems after player-color remapping.
         const bool isSortedDecal = IsSortedMaterialDecal(g_draw.state);
         if (blendBitsForLight == kAddONE_ONE || blendBitsForLight == kAddSA_ONE
             || (IsStandardAlphaBlend(g_draw.state) && g_draw.tssOps0[0] < 1.5f)
             || isSortedDecal)
         {
             float forced[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-            bgfx::setUniform(g_uniforms.uLightingEnabled, forced);
-        }
-        else if (submitView == kBgfxEngineView
-                 && g_draw.fvfHasNormal
-                 && g_draw.lightingEnabled[0] < 0.5f)
-        {
-            // TheSuperHackers @bugfix bobtista 30/04/2026 Force shader
-            // lighting on for opaque world meshes that carry normals even
-            // when material->Get_Lighting() is false. The DX8 reference
-            // pipeline disables D3DRS_LIGHTING globally and computes per-
-            // vertex lighting in vertex shaders that take the engine's
-            // light environment as constants — so meshes with normals
-            // (buildings, units) end up lit regardless of the material
-            // flag. Mirror that here so bgfx doesn't render those meshes
-            // through the unlit branch (which yields texture * vertex_color
-            // and turns building diffuse-bound vertex colors into black).
-            // UI quads, smoke billboards, and pre-lit screens lack normals
-            // so they keep the original lightingEnabled = 0 and skip this
-            // override.
-            float forced[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
             bgfx::setUniform(g_uniforms.uLightingEnabled, forced);
         }
         else
@@ -5788,8 +5745,18 @@ void SubmitEngineDraw(unsigned short start_index,
         && !isAlphaTested;
     const bool receivesShadow = !diagnostics.noCsm && (g_draw.shadowParams[0] > 0.5f);
 
+    const bool sortedMaterialDecal = submitView == kBgfxEngineSortView
+        && IsSortedMaterialDecal(state);
+    // Sort-flushed material decals (command-center driveway emblems, upgrade
+    // floor marks) are ordinary alpha decals. The wrapper can still have
+    // stencil state cached from shroud/player-color passes; applying it here
+    // clips revealed decals out completely.
+    const bool applyStencil = g_draw.stencilEnabled
+        && submitView != kBgfxUIView
+        && !sortedMaterialDecal;
+
     bgfx::setState(state);
-    if (g_draw.stencilEnabled)
+    if (applyStencil)
     {
         bgfx::setStencil(BuildCurrentStencilState());
     }
