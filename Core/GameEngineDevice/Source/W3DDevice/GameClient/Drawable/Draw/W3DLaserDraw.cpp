@@ -29,7 +29,9 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // INCLUDES ///////////////////////////////////////////////////////////////////////////////////////
+#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "Common/Thing.h"
 #include "Common/ThingTemplate.h"
@@ -54,6 +56,67 @@
 
 
 // PUBLIC FUNCTIONS ///////////////////////////////////////////////////////////////////////////////
+
+static Bool shouldLogLaserDrawForDrawable(const Drawable *draw)
+{
+	if ((std::getenv("GGC_LASER_DIAG") == nullptr && std::getenv("GGC_LASER_DIAG_ALL") == nullptr) || draw == nullptr || draw->getTemplate() == nullptr)
+		return FALSE;
+	if (std::getenv("GGC_LASER_DIAG_ALL") != nullptr)
+		return TRUE;
+
+	const char *name = draw->getTemplate()->getName().str();
+	return name != nullptr && std::strstr(name, "PatriotBinaryDataStream") != nullptr;
+}
+
+static Bool shouldDrawLaserOverWorldDepth(const Drawable *draw)
+{
+#if defined(GGC_BGFX_STANDALONE)
+	if (draw == nullptr || draw->getTemplate() == nullptr)
+		return FALSE;
+
+	const char *name = draw->getTemplate()->getName().str();
+	return name != nullptr && std::strstr(name, "ParticleUplinkCannon_") != nullptr;
+#else
+	return FALSE;
+#endif
+}
+
+static ShaderClass getLaserShaderForDrawable(const Drawable *draw)
+{
+	ShaderClass shader = ShaderClass::_PresetAdditiveShader;
+	if (shouldDrawLaserOverWorldDepth(draw))
+	{
+		shader.Set_Depth_Compare(ShaderClass::PASS_ALWAYS);
+	}
+	return shader;
+}
+
+static void logLaserDrawEvent(const char *event, const Drawable *draw, const Coord3D *startPos, const Coord3D *endPos, Real widthScale)
+{
+	if (!shouldLogLaserDrawForDrawable(draw))
+		return;
+
+	const Object *obj = draw->getObject();
+	if (FILE *diag = std::fopen("ggc_laser_draw_diag.txt", "a"))
+	{
+		std::fprintf(diag,
+			"%s frame=%u drawable=%u object=%u template=%s visibleObjDestroyed=%d widthScale=%.3f start=(%.2f,%.2f,%.2f) end=(%.2f,%.2f,%.2f)\n",
+			event,
+			TheGameLogic != nullptr ? TheGameLogic->getFrame() : 0,
+			static_cast<unsigned>(draw->getID()),
+			obj != nullptr ? static_cast<unsigned>(obj->getID()) : 0,
+			draw->getTemplate() != nullptr ? draw->getTemplate()->getName().str() : "<null>",
+			obj != nullptr ? obj->isDestroyed() : 0,
+			widthScale,
+			startPos != nullptr ? startPos->x : 0.0f,
+			startPos != nullptr ? startPos->y : 0.0f,
+			startPos != nullptr ? startPos->z : 0.0f,
+			endPos != nullptr ? endPos->x : 0.0f,
+			endPos != nullptr ? endPos->y : 0.0f,
+			endPos != nullptr ? endPos->z : 0.0f);
+		std::fclose(diag);
+	}
+}
 
 //-------------------------------------------------------------------------------------------------
 //-------------------------------------------------------------------------------------------------
@@ -120,6 +183,7 @@ W3DLaserDraw::W3DLaserDraw( Thing *thing, const ModuleData* moduleData ) :
 	Int i;
 
 	const W3DLaserDrawModuleData *data = getW3DLaserDrawModuleData();
+	logLaserDrawEvent("draw-create", getDrawable(), nullptr, nullptr, 0.0f);
 
 	m_texture = WW3DAssetManager::Get_Instance()->Get_Texture( data->m_textureName.str() );
 	if (m_texture)
@@ -190,7 +254,7 @@ W3DLaserDraw::W3DLaserDraw( Thing *thing, const ModuleData* moduleData ) :
 			if( line )
 			{
 				line->Set_Texture( m_texture );
-				line->Set_Shader( ShaderClass::_PresetAdditiveShader );	//pick the alpha blending mode you want - see shader.h for others.
+				line->Set_Shader( getLaserShaderForDrawable(getDrawable()) );	//pick the alpha blending mode you want - see shader.h for others.
 				line->Set_Width( width );
 				line->Set_Color( Vector3( red, green, blue ) );
 				line->Set_UV_Offset_Rate( Vector2(0.0f, data->m_scrollRate) );	//amount to scroll texture on each draw
@@ -220,6 +284,7 @@ W3DLaserDraw::W3DLaserDraw( Thing *thing, const ModuleData* moduleData ) :
 W3DLaserDraw::~W3DLaserDraw()
 {
 	const W3DLaserDrawModuleData *data = getW3DLaserDrawModuleData();
+	logLaserDrawEvent("draw-destroy", getDrawable(), nullptr, nullptr, 0.0f);
 
 	for( UnsignedInt i = 0; i < data->m_numBeams * data->m_segments; i++ )
 	{
@@ -262,6 +327,8 @@ void W3DLaserDraw::doDrawModule(const Matrix3D* transformMtx)
 		DEBUG_CRASH( ("W3DLaserDraw::doDrawModule() expects its owner drawable %s to have a ClientUpdate = LaserUpdate module.", draw->getTemplate()->getName().str() ));
 		return;
 	}
+	if (TheGameLogic != nullptr && (TheGameLogic->getFrame() % 30) == 0)
+		logLaserDrawEvent("draw-frame", draw, update->getStartPos(), update->getEndPos(), update->getWidthScale());
 
 	//If the update has moved the laser, it requires a reset of the laser.
 	if (update->isDirty() || m_selfDirty)
@@ -414,6 +481,7 @@ void W3DLaserDraw::doDrawModule(const Matrix3D* transformMtx)
 				}
 
 				m_line3D[ index ]->Set_Width( width );
+				m_line3D[ index ]->Set_Shader( getLaserShaderForDrawable(draw) );
 				m_line3D[ index ]->Set_Points( 2, &laserPoints[0] );
 			}
 		}

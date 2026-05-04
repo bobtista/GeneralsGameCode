@@ -40,7 +40,8 @@ void main()
 	vec3 swayed = a_position + height * wave.xyz;
 
 	gl_Position = mul(u_modelViewProj, vec4(swayed, 1.0));
-	v_worldPos = swayed;
+	vec4 worldPos = mul(u_model[0], vec4(swayed, 1.0));
+	v_worldPos = worldPos.xyz;
 
 	// Original: oD0 = v2 * v1.yyyw (replicate color scale). In bgfx
 	// the diffuse comes in as BGRA on D3D paths — keep the same
@@ -64,5 +65,5 @@ void main()
 	// the backend; this value is effectively unused for grass draws.
 	v_cloudUV = a_position.xy;
 
-	v_lightspace = mul(u_shadowLightViewProj, vec4(a_position, 1.0));
+	v_lightspace = mul(u_shadowLightViewProj, worldPos);
 }

@@ -62,6 +62,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
 
 /** @todo: We're going to have a pool of a couple rendertargets to use
@@ -131,6 +132,11 @@ static const char *ShadowTypeDebugName(ShadowType type)
 		case SHADOW_PROJECTION: return "SHADOW_PROJECTION";
 		default: return "SHADOW_OTHER";
 	}
+}
+
+static bool ShouldSkipDefaultBlobShadows()
+{
+	return std::getenv("GGC_BGFX_SKIP_BLOB_SHADOWS") != nullptr;
 }
 
 
@@ -630,7 +636,8 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 		// default blob shadow texture. SHADOW_DECAL also carries authored
 		// ground decals such as faction floor emblems, which still need to
 		// render in the bgfx path.
-		if (type == SHADOW_DECAL && texture && _stricmp(texture->Get_Name(), "shadow.tga") == 0)
+		if (type == SHADOW_DECAL && texture && _stricmp(texture->Get_Name(), "shadow.tga") == 0
+			&& ShouldSkipDefaultBlobShadows())
 		{
 			g_renderBackend->Skip_Next_Bgfx_Submit();
 		}
