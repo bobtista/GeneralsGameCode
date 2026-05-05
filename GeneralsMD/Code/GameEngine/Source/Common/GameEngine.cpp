@@ -748,7 +748,11 @@ void GameEngine::init()
 			MapCache::const_iterator it = TheMapCache->find(lowerName);
 			if (it == TheMapCache->end())
 			{
-				TheWritableGlobalData->m_shellMapOn = FALSE;
+				const Bool shellMapFileExists = TheFileSystem && TheFileSystem->doesFileExist(TheGlobalData->m_shellMapName.str());
+				if (!shellMapFileExists)
+				{
+					TheWritableGlobalData->m_shellMapOn = FALSE;
+				}
 			}
 		}
 
