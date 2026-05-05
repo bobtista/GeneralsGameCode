@@ -187,7 +187,7 @@ public:
 	BenchProfile *newBenchProfile();
 	Bool didMemPass();
 	void setReallyLowMHz(Int mhz) { m_reallyLowMHz = mhz; }
-	Bool isReallyLowMHz() const { return m_cpuFreq < m_reallyLowMHz; }
+	Bool isReallyLowMHz() const { return m_cpuFreq > 0 && m_cpuFreq < m_reallyLowMHz; }
 
 	StaticGameLODInfo m_staticGameLODInfo[STATIC_GAME_LOD_COUNT];
 	DynamicGameLODInfo m_dynamicGameLODInfo[DYNAMIC_GAME_LOD_COUNT];
