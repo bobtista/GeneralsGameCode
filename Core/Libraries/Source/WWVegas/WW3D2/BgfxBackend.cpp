@@ -4046,7 +4046,6 @@ static void UpdateAlphaMaskedShadowDecalMode()
     const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
     const uint64_t multiplicativeBlend =
         BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
-
     g_draw.texcoordSelect2[2] =
         IsDefaultBlobShadowTexture(rs.Textures[0])
         && ((g_draw.state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend)
@@ -4608,8 +4607,12 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
             (ambientSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
         g_draw.vertexColorFlags[3] =
             (emissiveSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
+        const unsigned d3dLighting = DX8Wrapper::Get_DX8_Render_State(D3DRS_LIGHTING);
         g_draw.lightingEnabled[0] =
-            (material->Get_Lighting() && !WW3D::Is_Coloring_Enabled()) ? 1.0f : 0.0f;
+            (material->Get_Lighting()
+             && d3dLighting != 0
+             && d3dLighting != 0x12345678
+             && !WW3D::Is_Coloring_Enabled()) ? 1.0f : 0.0f;
 
         Vector3 emissive(0.0f, 0.0f, 0.0f);
         material->Get_Emissive(&emissive);
