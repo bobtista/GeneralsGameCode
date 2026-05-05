@@ -2435,16 +2435,15 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         bgfx::TextureFormat::RGBA8,
         BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT,
         bgfx::copy(kWhitePixel, sizeof(kWhitePixel)));
-    // Water fallback for render target textures (water reflections).
-    // Semi-opaque dark blue simulates the water surface so the hull below
-    // is partially hidden and water ripple particles blend naturally.
-    // RGBA: (30, 50, 70, 180) = dark blue-grey, ~70% opaque.
-    static const uint8_t kWaterPixel[4] = { 0x1e, 0x32, 0x46, 0xb4 };
+    // Transparent fallback for missing blended textures. The legacy missing
+    // texture is useful on opaque geometry, but particle/effect draws can
+    // amplify it into large black/magenta quads.
+    static const uint8_t kTransparentPixel[4] = { 0x00, 0x00, 0x00, 0x00 };
     g_device.defaultTransparentTexture = bgfx::createTexture2D(
         1, 1, false, 1,
         bgfx::TextureFormat::RGBA8,
         BGFX_TEXTURE_NONE | BGFX_SAMPLER_POINT,
-        bgfx::copy(kWaterPixel, sizeof(kWaterPixel)));
+        bgfx::copy(kTransparentPixel, sizeof(kTransparentPixel)));
 
     g_device.uberProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_uber), sizeof(GGC_BGFX_SHADER(vs_uber)), "vs_uber",
@@ -3072,6 +3071,7 @@ void BgfxBackend::Begin_Scene()
     {
         g_draw.tex[i] = BGFX_INVALID_HANDLE;
         g_draw.samplerFlags[i] = 0;
+        g_draw.textureIsMissing[i] = false;
     }
 
     // TheSuperHackers @fix bobtista 21/04/2026 Reset transient view flags
@@ -3841,6 +3841,17 @@ static bool IsSortedMaterialDecal(uint64_t state)
         && g_draw.tssOps0[3] > 0.5f;
 }
 
+static bool ShouldHideMissingTextureForCurrentDraw(uint64_t state)
+{
+    // Keep missing textures visible on opaque geometry so bad assets are still
+    // diagnosable. In blended/sorted/effect passes, the checker texture becomes
+    // the artifact itself, e.g. missing spy-satellite smoke particles drawing
+    // black radiating blocks.
+    return (state & BGFX_STATE_BLEND_MASK) != 0
+        || g_views.inSortFlush
+        || g_views.effectOverlayActive;
+}
+
 static bool ShouldLogBgfxShroudPass()
 {
     return std::getenv("GGC_BGFX_SHROUD_PASS_DIAG") != nullptr;
@@ -4057,7 +4068,9 @@ static void BindTextureStages()
     if (bgfx::isValid(g_uniforms.sTex0))
     {
         const bgfx::TextureHandle bound =
-            bgfx::isValid(g_draw.tex[0]) ? g_draw.tex[0] : g_device.defaultWhiteTexture;
+            g_draw.textureIsMissing[0] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+                ? g_device.defaultTransparentTexture
+                : (bgfx::isValid(g_draw.tex[0]) ? g_draw.tex[0] : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(0, g_uniforms.sTex0, bound, GetCurrentStageSamplerFlags(0));
@@ -4067,7 +4080,9 @@ static void BindTextureStages()
     if (bgfx::isValid(g_uniforms.sTex1))
     {
         const bgfx::TextureHandle bound =
-            bgfx::isValid(g_draw.tex[1]) ? g_draw.tex[1] : g_device.defaultWhiteTexture;
+            g_draw.textureIsMissing[1] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+                ? g_device.defaultTransparentTexture
+                : (bgfx::isValid(g_draw.tex[1]) ? g_draw.tex[1] : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(1, g_uniforms.sTex1, bound, GetCurrentStageSamplerFlags(1));
@@ -4077,7 +4092,9 @@ static void BindTextureStages()
     if (bgfx::isValid(g_uniforms.sTex2))
     {
         const bgfx::TextureHandle bound =
-            bgfx::isValid(g_draw.tex[2]) ? g_draw.tex[2] : g_device.defaultWhiteTexture;
+            g_draw.textureIsMissing[2] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+                ? g_device.defaultTransparentTexture
+                : (bgfx::isValid(g_draw.tex[2]) ? g_draw.tex[2] : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(2, g_uniforms.sTex2, bound, GetCurrentStageSamplerFlags(2));
@@ -4087,7 +4104,9 @@ static void BindTextureStages()
     if (bgfx::isValid(g_uniforms.sTex3))
     {
         const bgfx::TextureHandle bound =
-            bgfx::isValid(g_draw.tex[3]) ? g_draw.tex[3] : g_device.defaultWhiteTexture;
+            g_draw.textureIsMissing[3] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+                ? g_device.defaultTransparentTexture
+                : (bgfx::isValid(g_draw.tex[3]) ? g_draw.tex[3] : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(3, g_uniforms.sTex3, bound, GetCurrentStageSamplerFlags(3));
@@ -4112,6 +4131,7 @@ static void SyncSortTexturesFromDx8State()
             h = g_device.defaultWhiteTexture;
         }
         g_draw.tex[si] = h;
+        g_draw.textureIsMissing[si] = sortTex != nullptr && sortTex->Is_Missing_Texture();
     }
 }
 
@@ -4773,13 +4793,17 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
         switch (stage)
         {
             case 0: g_draw.tex[0] = h;
-                    g_draw.samplerFlags[0] = samplerFlags; break;
+                    g_draw.samplerFlags[0] = samplerFlags;
+                    g_draw.textureIsMissing[0] = texture != nullptr && texture->Is_Missing_Texture(); break;
             case 1: g_draw.tex[1] = h;
-                    g_draw.samplerFlags[1] = samplerFlags; break;
+                    g_draw.samplerFlags[1] = samplerFlags;
+                    g_draw.textureIsMissing[1] = texture != nullptr && texture->Is_Missing_Texture(); break;
             case 2: g_draw.tex[2] = h;
-                    g_draw.samplerFlags[2] = samplerFlags; break;
+                    g_draw.samplerFlags[2] = samplerFlags;
+                    g_draw.textureIsMissing[2] = texture != nullptr && texture->Is_Missing_Texture(); break;
             case 3: g_draw.tex[3] = h;
-                    g_draw.samplerFlags[3] = samplerFlags; break;
+                    g_draw.samplerFlags[3] = samplerFlags;
+                    g_draw.textureIsMissing[3] = texture != nullptr && texture->Is_Missing_Texture(); break;
             default: break;
         }
     }
