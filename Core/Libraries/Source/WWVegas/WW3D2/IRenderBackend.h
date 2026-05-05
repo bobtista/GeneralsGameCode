@@ -645,6 +645,11 @@ public:
         const short * /*local_cap_indices*/,
         unsigned /*cap_index_count*/) {}
 
+    // DX8's original stencil-volume path used open side-wall tubes. Modern
+    // backends need closed volumes because near-plane clipping otherwise
+    // leaves unbalanced stencil counts. Default false keeps DX8 unchanged.
+    virtual bool Needs_Closed_Shadow_Volumes() const { return false; }
+
     // TheSuperHackers @refactor bobtista 16/04/2026 CSM:
     // the engine's shadow system places the sun at a world-space
     // position for shadow casting (from TerrainLighting data). This

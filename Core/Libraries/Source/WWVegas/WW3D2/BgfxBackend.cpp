@@ -237,7 +237,7 @@ static BgfxShadowMode GetBgfxShadowMode()
             return BgfxShadowMode::Csm;
         }
     }
-    return BgfxShadowMode::Csm;
+    return BgfxShadowMode::Stencil;
 }
 
 static bool BgfxCsmShadowsEnabled()
@@ -2132,6 +2132,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     initArgs.resolution.width = static_cast<uint32_t>(g_device.width);
     initArgs.resolution.height = static_cast<uint32_t>(g_device.height);
     initArgs.resolution.reset = BGFX_RESET_NONE;
+    if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
+    {
+        initArgs.resolution.reset |= BGFX_RESET_DEPTH_CLAMP;
+    }
 #if defined(__APPLE__)
     // TheSuperHackers @bugfix bobtista 30/04/2026 BGFX_RESET_FLUSH_AFTER_RENDER
     // serializes Metal command buffer submission instead of pipelining a
@@ -2470,82 +2474,78 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         GGC_BGFX_SHADER(vs_shadow_caster), sizeof(GGC_BGFX_SHADER(vs_shadow_caster)), "vs_shadow_caster",
         GGC_BGFX_SHADER(fs_shadow_caster), sizeof(GGC_BGFX_SHADER(fs_shadow_caster)), "fs_shadow_caster");
 
-    // Shadow map depth render target. 1024x1024 D24 with compare-less
-    // sampling for hardware PCF (sampler2DShadow in fs_uber).
-    // Shadow map: D32F depth texture with comparison sampler for
-    // hardware PCF (matches bgfx example 16). D32F gives full float
-    // precision, eliminating shadow acne from depth quantization.
-    if (BgfxCsmShadowsEnabled())
-    {
+    // Shadow map depth render target. CSM is optional and defaults off, but
+    // fs_uber still declares s_shadowMap. Keep a compare-depth texture valid
+    // even when CSM rendering is disabled so Metal validation has a legal
+    // binding while u_shadowParams.x keeps the shader branch off.
     const uint64_t depthFlags = BGFX_TEXTURE_RT
         | BGFX_SAMPLER_COMPARE_LEQUAL
         | BGFX_SAMPLER_U_CLAMP
         | BGFX_SAMPLER_V_CLAMP;
-    g_device.shadowMapDepth = bgfx::createTexture2D(
-        kShadowMapResolution, kShadowMapResolution, false, 1,
-        bgfx::TextureFormat::D32F, depthFlags);
-    if (bgfx::isValid(g_device.shadowMapDepth))
+    if (BgfxCsmShadowsEnabled())
     {
-        bgfx::setName(g_device.shadowMapDepth, "shadowMapD32F");
-        g_device.shadowMapFB = bgfx::createFrameBuffer(1, &g_device.shadowMapDepth, true);
-        // TheSuperHackers @bugfix bobtista 30/04/2026 The shadow map FB
-        // has only a D32F depth attachment (no color), so requesting
-        // BGFX_CLEAR_COLOR forces bgfx to drive a "fast clear" path for
-        // a non-existent color attachment. On Apple Silicon AGX this
-        // crashes inside findOrCreateBlitProgramVariant<...VertexFastClear>
-        // when the EndOfTile program variant is populated. Clearing only
-        // depth matches bgfx's own shadow-map example (15-shadowmaps-simple)
-        // and keeps the caster pass's depth test correct on its own.
-        bgfx::setViewClear(kBgfxShadowMapView,
-                           BGFX_CLEAR_DEPTH,
-                           0,
-                           1.0f, 0);
-        bgfx::setViewRect(kBgfxShadowMapView, 0, 0, kShadowMapResolution, kShadowMapResolution);
-        bgfx::setViewFrameBuffer(kBgfxShadowMapView, g_device.shadowMapFB);
-        bgfx::setViewMode(kBgfxShadowMapView, bgfx::ViewMode::Sequential);
-        // Pass inverse shadow map resolution to the shader via u_shadowParams.y
-        // so the PCF kernel texel size stays in sync with the texture.
-        g_draw.shadowParams[1] = 1.0f / static_cast<float>(kShadowMapResolution);
+        g_device.shadowMapDepth = bgfx::createTexture2D(
+            kShadowMapResolution, kShadowMapResolution, false, 1,
+            bgfx::TextureFormat::D32F, depthFlags);
+        if (bgfx::isValid(g_device.shadowMapDepth))
+        {
+            bgfx::setName(g_device.shadowMapDepth, "shadowMapD32F");
+            g_device.shadowMapFB = bgfx::createFrameBuffer(1, &g_device.shadowMapDepth, true);
+            // The shadow map FB has only a D32F depth attachment. Clearing only
+            // depth matches bgfx's own shadow-map examples and avoids Apple
+            // fast-clear paths for a non-existent color attachment.
+            bgfx::setViewClear(kBgfxShadowMapView,
+                               BGFX_CLEAR_DEPTH,
+                               0,
+                               1.0f, 0);
+            bgfx::setViewRect(kBgfxShadowMapView, 0, 0, kShadowMapResolution, kShadowMapResolution);
+            bgfx::setViewFrameBuffer(kBgfxShadowMapView, g_device.shadowMapFB);
+            bgfx::setViewMode(kBgfxShadowMapView, bgfx::ViewMode::Sequential);
+            g_draw.shadowParams[1] = 1.0f / static_cast<float>(kShadowMapResolution);
 
-        WWDEBUG_SAY(("[CSM] shadow map FB=%u tex=%u valid=%d",
-                     g_device.shadowMapFB.idx, g_device.shadowMapDepth.idx,
-                     bgfx::isValid(g_device.shadowMapFB) ? 1 : 0));
-
-        // View ORDER: shadow map (view 8) MUST render before
-        // the engine view (view 1) samples it in fs_uber. By default
-        // bgfx renders views in view-id order (0, 1, 2, ...) — view 8
-        // would run AFTER view 1, and the scene would sample empty /
-        // stale shadow map. Explicit order: shadow map first, then the
-        // rest of the views in their natural ascending order.
-        const bgfx::ViewId order[] = {
-            kBgfxDebugView,           // 0 — full-canvas clear quad, MUST run first
-            kBgfxShadowMapView,       // 8 — shadow caster depth pass
-            kBgfxRTTView,             // 3
-            kBgfxEngineView,          // 1
-            kBgfxSceneDepthView,      // 11 — readable opaque scene depth
-            kBgfxShadowVolumeView,    // 6 — stencil shadow volume fill
-            kBgfxShadowApplyView,     // 7 — stencil shadow darken
-            kBgfxWaterView,           // 4
-            kBgfxEngineSortView,      // 2
-            kBgfxEffectOverlayView,   // 5
-            kBgfxSmudgeCopyView,      // 12 — scene-color snapshot for heat haze
-            kBgfxSmudgeView,          // 13 — heat-haze/smudge distortion
-            kBgfxSceneCompositeView,  // 9 — scene color to swapchain
-            kBgfxUIView,              // 10 — 2D UI overlay (last)
-        };
-        bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(order), order);
-        WWDEBUG_SAY(("[CSM] view order set: shadow map (view %u) runs first",
-                     kBgfxShadowMapView));
+            WWDEBUG_SAY(("[CSM] shadow map FB=%u tex=%u valid=%d",
+                         g_device.shadowMapFB.idx, g_device.shadowMapDepth.idx,
+                         bgfx::isValid(g_device.shadowMapFB) ? 1 : 0));
+        }
+        else
+        {
+            WWDEBUG_SAY(("[BgfxBackend] CSM shadow map texture creation FAILED."));
+        }
     }
     else
     {
-        WWDEBUG_SAY(("[BgfxBackend] CSM shadow map texture creation FAILED."));
-    }
-    }
-    else
-    {
+        g_device.shadowMapDepth = bgfx::createTexture2D(
+            1, 1, false, 1,
+            bgfx::TextureFormat::D32F, depthFlags);
+        if (bgfx::isValid(g_device.shadowMapDepth))
+        {
+            bgfx::setName(g_device.shadowMapDepth, "shadowMapDisabledFallback");
+        }
+        g_draw.shadowParams[0] = 0.0f;
+        g_draw.shadowParams[1] = 1.0f;
         WWDEBUG_SAY(("[BgfxBackend] CSM shadow map disabled."));
     }
+
+    // Keep view order explicit whether CSM is enabled or not. Stencil shadow
+    // volumes, sorted decals/effects, scene-depth copies, post effects, and UI
+    // all depend on stable ordering even when the CSM view submits nothing.
+    const bgfx::ViewId order[] = {
+        kBgfxDebugView,
+        kBgfxShadowMapView,
+        kBgfxRTTView,
+        kBgfxEngineView,
+        kBgfxSceneDepthView,
+        kBgfxShadowVolumeView,
+        kBgfxShadowApplyView,
+        kBgfxWaterView,
+        kBgfxEngineSortView,
+        kBgfxEffectOverlayView,
+        kBgfxSmudgeCopyView,
+        kBgfxSmudgeView,
+        kBgfxSceneCompositeView,
+        kBgfxUIView,
+    };
+    bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(order), order);
 
     g_uniforms.uShadowLightViewProj = bgfx::createUniform("u_shadowLightViewProj",
                                                  bgfx::UniformType::Mat4);
@@ -2929,7 +2929,18 @@ void BgfxBackend::Begin_Scene()
                 DestroySceneFramebuffer();
                 g_device.width = w;
                 g_device.height = h;
-                bgfx::reset(g_device.width, g_device.height, BGFX_RESET_NONE);
+                uint32_t resetFlags = BGFX_RESET_NONE;
+                if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
+                {
+                    resetFlags |= BGFX_RESET_DEPTH_CLAMP;
+                }
+#if defined(__APPLE__)
+                if (std::getenv("GGC_MACOS_NO_FLUSH") == nullptr)
+                {
+                    resetFlags |= BGFX_RESET_FLUSH_AFTER_RENDER;
+                }
+#endif
+                bgfx::reset(g_device.width, g_device.height, resetFlags);
                 CreateSceneFramebuffer();
                 ApplySceneFramebufferToViews();
             }
@@ -3427,6 +3438,37 @@ void BgfxBackend::Set_Index_Buffer_Index_Offset(unsigned int offset)
 
 namespace
 {
+static void LogBgfxBufferUpdate(const char *kind,
+                                const void *owner,
+                                const void *src,
+                                unsigned int offset,
+                                unsigned int size_bytes,
+                                uint16_t handle_idx,
+                                const bgfx::Memory *mem)
+{
+    if (std::getenv("GGC_BGFX_BUFFER_UPDATE_DIAG") == nullptr)
+    {
+        return;
+    }
+
+    if (FILE *diag = std::fopen("ggc_bgfx_buffer_update_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s frame=%u owner=%p src=%p offset=%u size=%u handle=%u mem=%p memData=%p memSize=%u\n",
+                     kind,
+                     g_stats.frameIndex,
+                     owner,
+                     src,
+                     offset,
+                     size_bytes,
+                     handle_idx,
+                     static_cast<const void *>(mem),
+                     mem != nullptr ? static_cast<const void *>(mem->data) : nullptr,
+                     mem != nullptr ? mem->size : 0);
+        std::fclose(diag);
+    }
+}
+
 // TheSuperHackers @refactor bobtista 11/04/2026 Dynamic buffer
 // ensure helpers. Return the cached dynamic VB / IB handle for the given
 // engine buffer, creating it sized to the full capacity on first sight.
@@ -3562,6 +3604,7 @@ void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
         return;
     }
     const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    LogBgfxBufferUpdate("vb-full", vb, data, 0, size_bytes, h.idx, mem);
     bgfx::update(h, 0, mem);
 }
 
@@ -3591,6 +3634,7 @@ void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
         return;
     }
     const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    LogBgfxBufferUpdate("ib-full", ib, data, 0, size_bytes, h.idx, mem);
     bgfx::update(h, 0, mem);
 }
 
@@ -3635,6 +3679,7 @@ void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
         return;
     }
     const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    LogBgfxBufferUpdate("vb-range", vb, data, start_vertex, size_bytes, h.idx, mem);
     bgfx::update(h, start_vertex, mem);
 
 }
@@ -3668,6 +3713,7 @@ void BgfxBackend::Capture_Index_Sub_Range(const IndexBufferClass * ib,
         return;
     }
     const bgfx::Memory * mem = bgfx::copy(data, size_bytes);
+    LogBgfxBufferUpdate("ib-range", ib, data, start_index, size_bytes, h.idx, mem);
     bgfx::update(h, start_index, mem);
 
 }
@@ -3815,6 +3861,100 @@ static bool LegacyStencilShadowsEnabled()
 {
     return BgfxStencilShadowsEnabled()
         || std::getenv("GGC_ENABLE_LEGACY_STENCIL_SHADOWS") != nullptr;
+}
+
+static bool ShouldLogBgfxStencilShadows()
+{
+    return std::getenv("GGC_STENCIL_SHADOW_DIAG") != nullptr
+        || std::getenv("GGC_SHADOW_PATH_DIAG") != nullptr;
+}
+
+static uint64_t BgfxShadowVolumeDepthState()
+{
+    const char *depth = std::getenv("GGC_BGFX_STENCIL_DEPTH");
+    if (depth != nullptr && std::strcmp(depth, "less") == 0)
+    {
+        return BGFX_STATE_DEPTH_TEST_LESS;
+    }
+    if (depth != nullptr && std::strcmp(depth, "always") == 0)
+    {
+        return BGFX_STATE_DEPTH_TEST_ALWAYS;
+    }
+    return BGFX_STATE_DEPTH_TEST_LEQUAL;
+}
+
+static bool BgfxTwoSidedStencilVolumes()
+{
+    return std::getenv("GGC_BGFX_STENCIL_TWO_SIDED") != nullptr;
+}
+
+static unsigned BgfxShadowCullModeBits()
+{
+    // The legacy volume pass sets D3D cull state directly around its
+    // increment/decrement stencil passes. The normal bgfx cull mapping matches
+    // W3D mesh rendering, but shadow volumes need the opposite face for the
+    // DX8 z-pass stencil convention. Leaving this uninverted makes static
+    // volume shadows stamp broad false-positive regions over buildings and
+    // spy-satellite reveal decals.
+    if (std::getenv("GGC_BGFX_STENCIL_NO_INVERT_CULL") != nullptr)
+    {
+        return g_draw.cullModeBits;
+    }
+    if (g_draw.cullModeBits == 1)
+    {
+        return 2;
+    }
+    if (g_draw.cullModeBits == 2)
+    {
+        return 1;
+    }
+    return g_draw.cullModeBits;
+}
+
+static void BindShadowVolumeBiasUniform()
+{
+    if (!bgfx::isValid(g_uniforms.uShadowBias))
+    {
+        return;
+    }
+
+    float bias[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+    if (std::getenv("GGC_BGFX_STENCIL_CLAMP_CLIP") != nullptr)
+    {
+        bias[1] = 1.0f;
+    }
+    bgfx::setUniform(g_uniforms.uShadowBias, bias);
+}
+
+static bool BgfxSwapTwoSidedStencilVolumeOps()
+{
+    const char *algo = std::getenv("GGC_BGFX_STENCIL_ALGO");
+    return algo != nullptr && std::strcmp(algo, "zpass-swap") == 0;
+}
+
+static void LogBgfxStencilShadowEvent(const char *event, const char *reason,
+                                      unsigned countA, unsigned countB)
+{
+    if (!ShouldLogBgfxStencilShadows())
+    {
+        return;
+    }
+
+    if (FILE *diag = std::fopen("ggc_stencil_shadow_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s frame=%u enabled=%d mode=%d active=%d submits=%u a=%u b=%u reason=%s\n",
+                     event,
+                     g_stats.frameIndex,
+                     LegacyStencilShadowsEnabled() ? 1 : 0,
+                     static_cast<int>(GetBgfxShadowMode()),
+                     g_views.shadowVolumeActive ? 1 : 0,
+                     g_stats.shadowVolumeSubmits,
+                     countA,
+                     countB,
+                     reason != nullptr ? reason : "");
+        std::fclose(diag);
+    }
 }
 
 static bool IsStandardAlphaBlend(uint64_t state)
@@ -5215,6 +5355,8 @@ void BgfxBackend::Submit_Shadow_Volume_Caps(unsigned strip_start_vertex,
         || !bgfx::isValid(g_draw.vb)
         || num_silhouette_verts < 3)
     {
+        LogBgfxStencilShadowEvent("caps-skip", "disabled-or-invalid",
+                                  num_silhouette_verts, 0);
         return;
     }
 
@@ -5223,6 +5365,8 @@ void BgfxBackend::Submit_Shadow_Volume_Caps(unsigned strip_start_vertex,
 
     if (bgfx::getAvailTransientIndexBuffer(total_indices) < total_indices)
     {
+        LogBgfxStencilShadowEvent("caps-skip", "no-transient-index-buffer",
+                                  num_silhouette_verts, total_indices);
         return;
     }
 
@@ -5253,11 +5397,13 @@ void BgfxBackend::Submit_Shadow_Volume_Caps(unsigned strip_start_vertex,
     if (g_draw.stencilPassOpBits == BGFX_STENCIL_OP_PASS_Z_DECR
         || g_draw.stencilPassOpBits == BGFX_STENCIL_OP_PASS_Z_DECRSAT)
     {
+        LogBgfxStencilShadowEvent("caps-skip", "second-pass-two-sided",
+                                  num_silhouette_verts, total_indices);
         return;
     }
 
     // No face culling, two-sided stencil matching the side-wall submit.
-    uint64_t state = BGFX_STATE_DEPTH_TEST_LEQUAL;
+    uint64_t state = BgfxShadowVolumeDepthState();
     bgfx::setState(state);
     const uint32_t commonBits = g_draw.stencilFuncBits
         | BGFX_STENCIL_FUNC_REF(g_draw.stencilRef & 0xFF)
@@ -5270,9 +5416,12 @@ void BgfxBackend::Submit_Shadow_Volume_Caps(unsigned strip_start_vertex,
     bgfx::setVertexBuffer(0, g_draw.vb);
     bgfx::setIndexBuffer(&tib);
     bgfx::setTransform(g_frame.world);
+    BindShadowVolumeBiasUniform();
 
     bgfx::submit(kBgfxShadowVolumeView, g_device.shadowVolumeProgram);
     g_stats.shadowVolumeSubmits++;
+    LogBgfxStencilShadowEvent("caps-submit", nullptr,
+                              num_silhouette_verts, total_indices);
 }
 
 void BgfxBackend::Submit_Shadow_Volume_Triangulated_Caps(
@@ -5288,6 +5437,8 @@ void BgfxBackend::Submit_Shadow_Volume_Triangulated_Caps(
         || local_cap_indices == nullptr
         || cap_index_count < 3)
     {
+        LogBgfxStencilShadowEvent("tri-caps-skip", "disabled-or-invalid",
+                                  cap_index_count, 0);
         return;
     }
 
@@ -5296,6 +5447,8 @@ void BgfxBackend::Submit_Shadow_Volume_Triangulated_Caps(
 
     if (bgfx::getAvailTransientIndexBuffer(total_indices) < total_indices)
     {
+        LogBgfxStencilShadowEvent("tri-caps-skip", "no-transient-index-buffer",
+                                  cap_index_count, total_indices);
         return;
     }
 
@@ -5329,7 +5482,7 @@ void BgfxBackend::Submit_Shadow_Volume_Triangulated_Caps(
     }
 
     // Mirror the side-wall submit's state.
-    uint64_t state = BGFX_STATE_DEPTH_TEST_LEQUAL;
+    uint64_t state = BgfxShadowVolumeDepthState();
     if (g_draw.cullModeBits == 1)
     {
         state |= BGFX_STATE_CULL_CW;
@@ -5344,9 +5497,18 @@ void BgfxBackend::Submit_Shadow_Volume_Triangulated_Caps(
     bgfx::setVertexBuffer(0, g_draw.vb);
     bgfx::setIndexBuffer(&tib);
     bgfx::setTransform(g_frame.world);
+    BindShadowVolumeBiasUniform();
 
     bgfx::submit(kBgfxShadowVolumeView, g_device.shadowVolumeProgram);
     g_stats.shadowVolumeSubmits++;
+    LogBgfxStencilShadowEvent("tri-caps-submit", nullptr,
+                              cap_index_count, total_indices);
+}
+
+bool BgfxBackend::Needs_Closed_Shadow_Volumes() const
+{
+    return LegacyStencilShadowsEnabled()
+        && std::getenv("GGC_BGFX_CLOSED_SHADOW_VOLUMES") != nullptr;
 }
 
 void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
@@ -5355,9 +5517,12 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 {
     DX8Backend::Apply_Stencil_Shadow_Darken(shadow_color, stencil_read_mask, stencil_ref);
     if (!LegacyStencilShadowsEnabled()
+        || std::getenv("GGC_BGFX_STENCIL_NO_APPLY") != nullptr
         || !g_device.initialized
         || !bgfx::isValid(g_device.shadowApplyProgram))
     {
+        LogBgfxStencilShadowEvent("darken-skip", "disabled-or-invalid",
+                                  stencil_read_mask, stencil_ref);
         return;
     }
     // The legacy DX8 shadow manager draws its volume geometry through raw D3D
@@ -5369,6 +5534,8 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
     // shadow stencil first.
     if (g_stats.shadowVolumeSubmits == 0)
     {
+        LogBgfxStencilShadowEvent("darken-skip", "no-volume-submits",
+                                  stencil_read_mask, stencil_ref);
         return;
     }
 
@@ -5379,6 +5546,8 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 
     if (!bgfx::allocTransientBuffers(&tvb, layout, 4, &tib, 6))
     {
+        LogBgfxStencilShadowEvent("darken-skip", "no-transient-buffers",
+                                  stencil_read_mask, stencil_ref);
         return;
     }
     g_stats.transientVbAllocations++;
@@ -5412,7 +5581,10 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
         | BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_DST_COLOR, BGFX_STATE_BLEND_ZERO);
     bgfx::setState(state);
 
-    uint32_t stencil = BGFX_STENCIL_TEST_LEQUAL
+    // DX8 used D3DCMP_LESSEQUAL with ref=1, which tests ref <= stencil and
+    // therefore darkens only pixels whose shadow count is at least one. bgfx's
+    // test macro is expressed as stencil >= ref for that same condition.
+    uint32_t stencil = BGFX_STENCIL_TEST_GEQUAL
         | BGFX_STENCIL_FUNC_REF(stencil_ref & 0xFF)
         | BGFX_STENCIL_FUNC_RMASK(stencil_read_mask & 0xFF)
         | BGFX_STENCIL_OP_FAIL_S_KEEP
@@ -5422,6 +5594,8 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 
     bgfx::submit(kBgfxShadowApplyView, g_device.shadowApplyProgram);
     g_stats.shadowApplySubmits++;
+    LogBgfxStencilShadowEvent("darken-submit", nullptr,
+                              stencil_read_mask, stencil_ref);
 }
 
 void BgfxBackend::Set_Stencil_Enable(bool enable)
@@ -6278,6 +6452,58 @@ void SubmitEngineDraw(unsigned short start_index,
 
     if (g_views.shadowVolumeActive && bgfx::isValid(g_device.shadowVolumeProgram))
     {
+        if (LegacyStencilShadowsEnabled())
+        {
+            if (BgfxTwoSidedStencilVolumes()
+                && (g_draw.stencilPassOpBits == BGFX_STENCIL_OP_PASS_Z_DECR
+                    || g_draw.stencilPassOpBits == BGFX_STENCIL_OP_PASS_Z_DECRSAT))
+            {
+                g_stats.skippedDraws++;
+                bgfx::discard(BGFX_DISCARD_ALL);
+                return;
+            }
+            uint64_t volumeState = BgfxShadowVolumeDepthState() | (state & BGFX_STATE_PT_MASK);
+            const unsigned shadowCullModeBits = BgfxShadowCullModeBits();
+            if (!BgfxTwoSidedStencilVolumes() && shadowCullModeBits == 1)
+            {
+                volumeState |= BGFX_STATE_CULL_CW;
+            }
+            else if (!BgfxTwoSidedStencilVolumes() && shadowCullModeBits == 2)
+            {
+                volumeState |= BGFX_STATE_CULL_CCW;
+            }
+            bgfx::setState(volumeState);
+            if (BgfxTwoSidedStencilVolumes())
+            {
+                const uint32_t common = g_draw.stencilFuncBits
+                    | BGFX_STENCIL_FUNC_REF(g_draw.stencilRef & 0xFF)
+                    | BGFX_STENCIL_FUNC_RMASK(g_draw.stencilReadMask & 0xFF)
+                    | g_draw.stencilFailOpBits
+                    | g_draw.stencilZFailOpBits;
+                if (BgfxSwapTwoSidedStencilVolumeOps())
+                {
+                    bgfx::setStencil(common | BGFX_STENCIL_OP_PASS_Z_DECRSAT,
+                                     common | BGFX_STENCIL_OP_PASS_Z_INCR);
+                }
+                else
+                {
+                    bgfx::setStencil(common | BGFX_STENCIL_OP_PASS_Z_INCR,
+                                     common | BGFX_STENCIL_OP_PASS_Z_DECRSAT);
+                }
+            }
+            else
+            {
+                bgfx::setStencil(BuildCurrentStencilState());
+            }
+            BindShadowVolumeBiasUniform();
+            bgfx::submit(kBgfxShadowVolumeView, g_device.shadowVolumeProgram);
+            g_stats.shadowVolumeSubmits++;
+            LogBgfxStencilShadowEvent("side-wall-submit", nullptr,
+                                      polygon_count, vertex_count);
+            return;
+        }
+        LogBgfxStencilShadowEvent("side-wall-skip", "legacy-stencil-disabled",
+                                  polygon_count, vertex_count);
         g_stats.skippedDraws++;
         bgfx::discard(BGFX_DISCARD_ALL);
         return;
