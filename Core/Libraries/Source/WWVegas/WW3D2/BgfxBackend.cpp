@@ -4017,6 +4017,43 @@ static const char * TextureDebugName(TextureBaseClass * texture)
     return tex2d ? tex2d->Get_Full_Path().str() : "(null)";
 }
 
+static bool IsDefaultBlobShadowTexture(TextureBaseClass * texture)
+{
+    TextureClass * tex2d = texture ? texture->As_TextureClass() : nullptr;
+    if (tex2d == nullptr)
+    {
+        return false;
+    }
+
+    const char *name = tex2d->Get_Full_Path().str();
+    const char *base = name;
+    for (const char *p = name; *p != '\0'; ++p)
+    {
+        if (*p == '\\' || *p == '/')
+        {
+            base = p + 1;
+        }
+    }
+
+    return stricmp(base, "shadow.tga") == 0
+        || stricmp(base, "shadow.dds") == 0
+        || stricmp(base, "shadowi.tga") == 0
+        || stricmp(base, "shadowi.dds") == 0;
+}
+
+static void UpdateAlphaMaskedShadowDecalMode()
+{
+    const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
+    const uint64_t multiplicativeBlend =
+        BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
+
+    g_draw.texcoordSelect2[2] =
+        IsDefaultBlobShadowTexture(rs.Textures[0])
+        && ((g_draw.state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend)
+            ? 1.0f
+            : 0.0f;
+}
+
 static void LogBgfxCsmCaster(unsigned short polygonCount,
                              unsigned short vertexCount,
                              uint64_t state,
@@ -4715,6 +4752,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
             g_draw.zBias[0] = kSortedDecalZBias;
         }
     }
+    UpdateAlphaMaskedShadowDecalMode();
     UploadMaterialUniforms();
     if (bgfx::isValid(g_uniforms.uTexcoordSelect))
     {
@@ -6253,6 +6291,7 @@ void SubmitEngineDraw(unsigned short start_index,
             g_draw.zBias[0] = kSortedDecalZBias;
         }
     }
+    UpdateAlphaMaskedShadowDecalMode();
     UploadMaterialUniforms();
     // Read current D3D light state per-draw. Set_Light_Environment and
     // Set_Ambient capture some paths, but many callers set lights via
