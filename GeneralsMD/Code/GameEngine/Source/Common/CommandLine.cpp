@@ -860,7 +860,6 @@ Int parseWinCursors(char *args[], int num)
 Int parseQuickStart( char *args[], int num )
 {
 	parseNoLogo( args, num );
-	parseNoShellMap( args, num );
 	parseNoWindowAnimation( args, num );
 	return 1;
 }
