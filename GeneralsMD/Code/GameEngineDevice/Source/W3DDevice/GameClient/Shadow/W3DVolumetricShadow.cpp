@@ -172,7 +172,9 @@ static bool BgfxUseShadowVolumeZFail()
 		return false;
 
 	const char *algo = std::getenv("GGC_BGFX_STENCIL_ALGO");
-	return algo == nullptr || std::strcmp(algo, "zpass") != 0;
+	return algo != nullptr
+		&& (std::strcmp(algo, "zfail") == 0
+			|| std::strcmp(algo, "zfail-swap") == 0);
 }
 
 static bool BgfxSwapShadowVolumeZFailOps()

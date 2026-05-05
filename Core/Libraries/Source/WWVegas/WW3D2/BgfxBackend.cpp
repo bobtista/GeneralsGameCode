@@ -2267,10 +2267,12 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     }
 
     // Shadow-volume view. Sequential so the two-pass algorithm
-    // (front INCR / back DECR) runs in submit order. No clear. View
-    // transform is pushed per-frame from the engine camera via the
-    // dirty-flag logic alongside view 1.
-    bgfx::setViewClear(kBgfxShadowVolumeView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    // (front INCR / back DECR) runs in submit order. Clear stencil here,
+    // on the same view that writes/tests it; clearing only the earlier
+    // engine view does not establish the Metal stencil attachment for this
+    // pass reliably. View transform is pushed per-frame from the engine
+    // camera via the dirty-flag logic alongside view 1.
+    bgfx::setViewClear(kBgfxShadowVolumeView, BGFX_CLEAR_STENCIL, 0, 1.0f, 0);
     bgfx::setViewRect(kBgfxShadowVolumeView, 0, 0,
                       static_cast<uint16_t>(g_device.width),
                       static_cast<uint16_t>(g_device.height));
@@ -3869,6 +3871,21 @@ static bool ShouldLogBgfxStencilShadows()
         || std::getenv("GGC_SHADOW_PATH_DIAG") != nullptr;
 }
 
+static bool BgfxPreMeshStencilShadows()
+{
+    // bgfx view order is global, not call-order based. Submitting the legacy
+    // stencil volumes into the engine view preserves the W3D call order used
+    // by the bgfx path: terrain/projected decals first, stencil darken next,
+    // opaque meshes later. That keeps volume shadows on terrain without
+    // multiplying the lighting on units/buildings/effects.
+    return std::getenv("GGC_BGFX_LEGACY_POSTMESH_STENCIL_SHADOWS") == nullptr;
+}
+
+static bgfx::ViewId BgfxShadowVolumeSubmitView()
+{
+    return BgfxPreMeshStencilShadows() ? kBgfxEngineView : kBgfxShadowVolumeView;
+}
+
 static uint64_t BgfxShadowVolumeDepthState()
 {
     const char *depth = std::getenv("GGC_BGFX_STENCIL_DEPTH");
@@ -3890,13 +3907,10 @@ static bool BgfxTwoSidedStencilVolumes()
 
 static unsigned BgfxShadowCullModeBits()
 {
-    // The legacy volume pass sets D3D cull state directly around its
-    // increment/decrement stencil passes. The normal bgfx cull mapping matches
-    // W3D mesh rendering, but shadow volumes need the opposite face for the
-    // DX8 z-pass stencil convention. Leaving this uninverted makes static
-    // volume shadows stamp broad false-positive regions over buildings and
-    // spy-satellite reveal decals.
-    if (std::getenv("GGC_BGFX_STENCIL_NO_INVERT_CULL") != nullptr)
+    // Use the same face selection as the W3D/DX8 shadow-volume pass. The
+    // earlier bgfx-only inversion made the default z-pass counts cancel out
+    // on useful receivers, leaving vehicles and aircraft without shadows.
+    if (std::getenv("GGC_BGFX_STENCIL_INVERT_CULL") == nullptr)
     {
         return g_draw.cullModeBits;
     }
@@ -5459,7 +5473,7 @@ void BgfxBackend::Submit_Shadow_Volume_Caps(unsigned strip_start_vertex,
     bgfx::setTransform(g_frame.world);
     BindShadowVolumeBiasUniform();
 
-    bgfx::submit(kBgfxShadowVolumeView, g_device.shadowVolumeProgram);
+    bgfx::submit(BgfxShadowVolumeSubmitView(), g_device.shadowVolumeProgram);
     g_stats.shadowVolumeSubmits++;
     LogBgfxStencilShadowEvent("caps-submit", nullptr,
                               num_silhouette_verts, total_indices);
@@ -5540,7 +5554,7 @@ void BgfxBackend::Submit_Shadow_Volume_Triangulated_Caps(
     bgfx::setTransform(g_frame.world);
     BindShadowVolumeBiasUniform();
 
-    bgfx::submit(kBgfxShadowVolumeView, g_device.shadowVolumeProgram);
+    bgfx::submit(BgfxShadowVolumeSubmitView(), g_device.shadowVolumeProgram);
     g_stats.shadowVolumeSubmits++;
     LogBgfxStencilShadowEvent("tri-caps-submit", nullptr,
                               cap_index_count, total_indices);
@@ -5548,13 +5562,8 @@ void BgfxBackend::Submit_Shadow_Volume_Triangulated_Caps(
 
 bool BgfxBackend::Needs_Closed_Shadow_Volumes() const
 {
-    // D3D8 tolerated the original open shadow-volume tubes because the
-    // fixed-function path effectively clipped them in a way that kept the
-    // stencil counts balanced. bgfx/Metal needs closed volumes for the z-fail
-    // algorithm; open volumes leave large unbalanced stencil regions that
-    // show up as black slabs during reveal powers and make units appear dark.
     return LegacyStencilShadowsEnabled()
-        && std::getenv("GGC_BGFX_OPEN_SHADOW_VOLUMES") == nullptr;
+        && std::getenv("GGC_BGFX_CLOSED_SHADOW_VOLUMES") != nullptr;
 }
 
 void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
@@ -5624,21 +5633,22 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 
     uint64_t state = BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A
         | BGFX_STATE_DEPTH_TEST_ALWAYS
+        | BGFX_STATE_MSAA
         | BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_DST_COLOR, BGFX_STATE_BLEND_ZERO);
     bgfx::setState(state);
 
-    // DX8 used D3DCMP_LESSEQUAL with ref=1, which tests ref <= stencil and
-    // therefore darkens only pixels whose shadow count is at least one. bgfx's
-    // test macro is expressed as stencil >= ref for that same condition.
-    uint32_t stencil = BGFX_STENCIL_TEST_GEQUAL
-        | BGFX_STENCIL_FUNC_REF(stencil_ref & 0xFF)
+    // Shadow volumes leave a non-zero count in stencil where the fullscreen
+    // darken quad should apply. Use an explicit front/back state because the
+    // clip-space quad winding differs across backends.
+    uint32_t stencil = BGFX_STENCIL_TEST_NOTEQUAL
+        | BGFX_STENCIL_FUNC_REF(0)
         | BGFX_STENCIL_FUNC_RMASK(stencil_read_mask & 0xFF)
         | BGFX_STENCIL_OP_FAIL_S_KEEP
         | BGFX_STENCIL_OP_FAIL_Z_KEEP
         | BGFX_STENCIL_OP_PASS_Z_KEEP;
-    bgfx::setStencil(stencil);
+    bgfx::setStencil(stencil, stencil);
 
-    bgfx::submit(kBgfxShadowApplyView, g_device.shadowApplyProgram);
+    bgfx::submit(BgfxShadowVolumeSubmitView(), g_device.shadowApplyProgram);
     g_stats.shadowApplySubmits++;
     LogBgfxStencilShadowEvent("darken-submit", nullptr,
                               stencil_read_mask, stencil_ref);
@@ -6543,7 +6553,7 @@ void SubmitEngineDraw(unsigned short start_index,
                 bgfx::setStencil(BuildCurrentStencilState());
             }
             BindShadowVolumeBiasUniform();
-            bgfx::submit(kBgfxShadowVolumeView, g_device.shadowVolumeProgram);
+            bgfx::submit(BgfxShadowVolumeSubmitView(), g_device.shadowVolumeProgram);
             g_stats.shadowVolumeSubmits++;
             LogBgfxStencilShadowEvent("side-wall-submit", nullptr,
                                       polygon_count, vertex_count);
