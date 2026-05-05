@@ -4305,23 +4305,25 @@ static void BindTextureStages()
     }
 }
 
-static void SyncSortTexturesFromDx8State()
+static void SyncTextureStagesFromDx8State()
 {
-    // The sort renderer can skip BgfxBackend::Set_Texture when the D3D cache
-    // already holds the requested pointer. Force the bgfx texture handles from
-    // the wrapper's current render state before sorted geometry submits.
-    const RenderStateStruct & sortRS = DX8Wrapper::Peek_Render_State();
+    // Some legacy paths still apply textures through DX8Wrapper directly. If
+    // the wrapper cache already holds that pointer, BgfxBackend::Set_Texture is
+    // never called, leaving bgfx's texture handle or missing-texture flag stale.
+    // Sync from the wrapper's authoritative render state immediately before
+    // binding samplers so blended/effect draws can hide missing placeholders.
+    const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
 
     for (int si = 0; si < 4; ++si)
     {
-        TextureClass * sortTex = static_cast<TextureClass *>(sortRS.Textures[si]);
-        bgfx::TextureHandle h = EnsureBgfxTexture(sortTex);
+        TextureBaseClass * tex = rs.Textures[si];
+        bgfx::TextureHandle h = EnsureBgfxTexture(tex);
         if (!bgfx::isValid(h))
         {
             h = g_device.defaultWhiteTexture;
         }
         g_draw.tex[si] = h;
-        g_draw.textureIsMissing[si] = sortTex != nullptr && sortTex->Is_Missing_Texture();
+        g_draw.textureIsMissing[si] = tex != nullptr && tex->Is_Missing_Texture();
     }
 }
 
@@ -4743,7 +4745,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
 
     if (g_views.inSortFlush)
     {
-        SyncSortTexturesFromDx8State();
+        SyncTextureStagesFromDx8State();
     }
     BindTextureStages();
     UpdateTextureTransforms();
@@ -6258,12 +6260,12 @@ void SubmitEngineDraw(unsigned short start_index,
     // which has a cache check — if the texture pointer matches the cached
     // one, it skips BgfxBackend::Set_Texture entirely. This leaves
     // g_draw.tex[0]-3 stale (e.g., pointing at font glyphs instead
-    // of particle textures). Force-sync bgfx handles from DX8Wrapper's
-    // current state before each sorted draw.
-    if (g_views.inSortFlush)
-    {
-        SyncSortTexturesFromDx8State();
-    }
+    // of particle textures).
+    // TheSuperHackers @bugfix bobtista 06/05/2026 This is not limited to sort
+    // flushes: spy-satellite reveal particles can reach bgfx with stale
+    // missing-texture flags, so the missing EXRedSmokePuff placeholder draws as
+    // black blocks instead of being suppressed as a transparent blended effect.
+    SyncTextureStagesFromDx8State();
     BindTextureStages();
     UpdateTextureTransforms();
     // DX8Wrapper::Draw applies pending render-state changes before this
