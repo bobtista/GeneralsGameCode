@@ -5760,8 +5760,13 @@ void BgfxBackend::Submit_Shadow_Volume_Triangulated_Caps(
 
 bool BgfxBackend::Needs_Closed_Shadow_Volumes() const
 {
+    // D3D8 tolerated the original open shadow-volume tubes because the
+    // fixed-function path effectively clipped them in a way that kept the
+    // stencil counts balanced. bgfx/Metal needs closed volumes for the z-fail
+    // algorithm; open volumes leave large unbalanced stencil regions that
+    // show up as black slabs during reveal powers and make units appear dark.
     return LegacyStencilShadowsEnabled()
-        && std::getenv("GGC_BGFX_CLOSED_SHADOW_VOLUMES") != nullptr;
+        && std::getenv("GGC_BGFX_OPEN_SHADOW_VOLUMES") == nullptr;
 }
 
 void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
