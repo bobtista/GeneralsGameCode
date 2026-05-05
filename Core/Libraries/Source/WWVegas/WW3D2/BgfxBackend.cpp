@@ -4957,6 +4957,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         }
         g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState) ? 1.0f : 0.0f;
     }
+    UpdateAlphaMaskedShadowDecalMode();
     UploadMaterialUniforms();
     if (bgfx::isValid(g_uniforms.uTexcoordSelect))
     {
@@ -6520,6 +6521,7 @@ void SubmitEngineDraw(unsigned short start_index,
         }
         g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState) ? 1.0f : 0.0f;
     }
+    UpdateAlphaMaskedShadowDecalMode();
     UploadMaterialUniforms();
     // Read current D3D light state per-draw. Set_Light_Environment and
     // Set_Ambient capture some paths, but many callers set lights via
