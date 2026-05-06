@@ -43,13 +43,31 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	TheSDL3Window = SDL_CreateWindow(kWindowTitle, kDefaultWindowWidth, kDefaultWindowHeight, SDL_WINDOW_RESIZABLE);
+	Uint32 windowFlags = SDL_WINDOW_RESIZABLE;
+#if defined(__APPLE__)
+	windowFlags |= SDL_WINDOW_METAL;
+#endif
+	int windowW = kDefaultWindowWidth;
+	int windowH = kDefaultWindowHeight;
+	{
+		const SDL_DisplayID primaryDisplay = SDL_GetPrimaryDisplay();
+		const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(primaryDisplay);
+		if (desktopMode != nullptr && desktopMode->w > 0 && desktopMode->h > 0)
+		{
+			windowW = desktopMode->w;
+			windowH = desktopMode->h;
+		}
+	}
+	TheSDL3Window = SDL_CreateWindow(kWindowTitle, windowW, windowH, windowFlags);
 	if (TheSDL3Window == NULL)
 	{
 		SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
 		SDL_Quit();
 		return 1;
 	}
+	SDL_SetWindowFullscreenMode(TheSDL3Window, nullptr);
+	SDL_SetWindowFullscreen(TheSDL3Window, true);
+	SDL_SyncWindow(TheSDL3Window);
 
 	ApplicationHWnd = TheSDL3Window;
 
