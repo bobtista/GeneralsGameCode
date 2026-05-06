@@ -59,6 +59,11 @@
 #include "GameClient/Drawable.h"
 #include "W3DDevice/GameClient/Module/W3DModelDraw.h"
 #include "W3DDevice/GameClient/W3DShadow.h"
+#include "Common/ThingTemplate.h"
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 
 
 /** @todo: We're going to have a pool of a couple rendertargets to use
@@ -112,6 +117,80 @@ int	nShadowDecalPolysInBatch=0;
 int	nShadowDecalVertsInBatch=0;
 int SHADOW_DECAL_VERTEX_SIZE=32768;
 int SHADOW_DECAL_INDEX_SIZE=65535;
+
+static bool DecalDiagEnabled()
+{
+	return std::getenv("GGC_DECAL_DIAG") != nullptr;
+}
+
+static bool ShadowPathDiagEnabled()
+{
+	return std::getenv("GGC_SHADOW_PATH_DIAG") != nullptr;
+}
+
+static const char *ShadowTypeDebugName(ShadowType type)
+{
+	switch (type)
+	{
+		case SHADOW_DECAL: return "SHADOW_DECAL";
+		case SHADOW_ALPHA_DECAL: return "SHADOW_ALPHA_DECAL";
+		case SHADOW_ADDITIVE_DECAL: return "SHADOW_ADDITIVE_DECAL";
+		case SHADOW_PROJECTION: return "SHADOW_PROJECTION";
+		default: return "SHADOW_OTHER";
+	}
+}
+
+static const char *DrawableTemplateName(const Drawable *draw)
+{
+	return draw != nullptr && draw->getTemplate() != nullptr
+		? draw->getTemplate()->getName().str()
+		: "(null-drawable)";
+}
+
+static void LogProjectedShadowPath(const char *event,
+	RenderObjClass *robj,
+	Drawable *draw,
+	const Shadow::ShadowTypeInfo *shadowInfo,
+	ShadowType resolvedType,
+	const char *textureName,
+	Bool allowWorldAlign,
+	Bool allowSunDirection,
+	Real sizeX,
+	Real sizeY,
+	Real offsetX,
+	Real offsetY)
+{
+	if (!ShadowPathDiagEnabled())
+		return;
+
+	if (FILE *diag = std::fopen("ggc_shadow_path_diag.txt", "a"))
+	{
+		const ShadowType requestedType = shadowInfo != nullptr ? shadowInfo->m_type : SHADOW_NONE;
+		std::fprintf(diag,
+			"%s projected resolved=%s resolvedMask=0x%x requested=%s requestedMask=0x%x texture=%s robj=%s drawable=%u template=%s worldAlign=%d sunDirection=%d size=(%.2f,%.2f) offset=(%.2f,%.2f)\n",
+			event,
+			ShadowTypeDebugName(resolvedType),
+			static_cast<unsigned>(resolvedType),
+			ShadowTypeDebugName(requestedType),
+			static_cast<unsigned>(requestedType),
+			textureName != nullptr ? textureName : "(null-texture)",
+			robj != nullptr && robj->Get_Name() != nullptr ? robj->Get_Name() : "(null-robj)",
+			draw != nullptr ? static_cast<unsigned>(draw->getID()) : 0,
+			DrawableTemplateName(draw),
+			allowWorldAlign ? 1 : 0,
+			allowSunDirection ? 1 : 0,
+			sizeX,
+			sizeY,
+			offsetX,
+			offsetY);
+		std::fclose(diag);
+	}
+}
+
+static bool ShouldSkipDefaultBlobShadows()
+{
+	return std::getenv("GGC_BGFX_SKIP_BLOB_SHADOWS") != nullptr;
+}
 
 
 class W3DShadowTexture;	//forward reference
@@ -531,6 +610,20 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 		return;
 	}
 
+	if (DecalDiagEnabled())
+	{
+		TextureClass *tex = texture ? texture->getTexture() : nullptr;
+		std::fprintf(stderr,
+			"[GGC_DECAL] flush type=%s name=%s tex=%s verts=%d polys=%d startV=%d startI=%d\n",
+			ShadowTypeDebugName(type),
+			texture ? texture->Get_Name() : "(null-shadow-texture)",
+			tex ? tex->Get_Full_Path().str() : "(null-texture)",
+			nShadowDecalVertsInBatch,
+			nShadowDecalPolysInBatch,
+			nShadowDecalStartBatchVertex,
+			nShadowDecalStartBatchIndex);
+	}
+
 	if (!DX8Wrapper::_Get_D3D_Device8())
 		return;	//no D3D Device to render
 
@@ -538,6 +631,10 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 	g_renderBackend->Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
 	g_renderBackend->Set_Texture(0,texture->getTexture());
+	// Decal textures are authored with transparent/black padding outside the
+	// useful image. The load path marks them clamp, but bgfx samples from the
+	// current stage state at submit time, so make the intended state explicit.
+	g_renderBackend->Set_Texture_Clamp_Mode(0, true, true);
 
 //	DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);	//good for debugging, draws without alpha
 	switch (type)
@@ -596,7 +693,8 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 		// default blob shadow texture. SHADOW_DECAL also carries authored
 		// ground decals such as faction floor emblems, which still need to
 		// render in the bgfx path.
-		if (type == SHADOW_DECAL && texture && _stricmp(texture->Get_Name(), "shadow.tga") == 0)
+		if (type == SHADOW_DECAL && texture && _stricmp(texture->Get_Name(), "shadow.tga") == 0
+			&& ShouldSkipDefaultBlobShadows())
 		{
 			g_renderBackend->Skip_Next_Bgfx_Submit();
 		}
@@ -827,6 +925,28 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 
 		Int numVerts = vertsPerRow *vertsPerColumn;	//number of terrain vertices
 		Int numIndex=(endX - startX) * (endY-startY)*6;	//6 indices per terrain cell (2 triangles).
+
+		if (DecalDiagEnabled())
+		{
+			std::fprintf(stderr,
+				"[GGC_DECAL] queue type=%s name=%s robj=%s visible=%d pos=(%.2f,%.2f,%.2f) cells=%d,%d..%d,%d verts=%d indices=%d diffuse=0x%08x size=(%.2f,%.2f)\n",
+				ShadowTypeDebugName(shadow->m_type),
+				shadow->m_shadowTexture[0] ? shadow->m_shadowTexture[0]->Get_Name() : "(null-shadow-texture)",
+				robj ? robj->Get_Name() : "(none)",
+				robj ? (robj->Is_Really_Visible() ? 1 : 0) : 1,
+				objPos.X,
+				objPos.Y,
+				objPos.Z,
+				startX,
+				startY,
+				endX,
+				endY,
+				numVerts,
+				numIndex,
+				static_cast<unsigned>(shadow->m_diffuse),
+				shadow->m_decalSizeX,
+				shadow->m_decalSizeY);
+		}
 
 		SHADOW_DECAL_VERTEX* pvVertices;
 		UnsignedShort *pvIndices;
@@ -1311,6 +1431,7 @@ Shadow* W3DProjectedShadowManager::addDecal(Shadow::ShadowTypeInfo *shadowInfo)
 
 	Bool	allowSunDirection=FALSE;
 	Char texture_name[ARRAY_SIZE(shadowInfo->m_ShadowName)];
+	texture_name[0] = '\0';
 
 	if (!shadowInfo)
 		return nullptr;	//right now we require hardware render-to-texture support
@@ -1374,6 +1495,9 @@ Shadow* W3DProjectedShadowManager::addDecal(Shadow::ShadowTypeInfo *shadowInfo)
 	shadow->m_flags	= allowSunDirection;
 
 	shadow->init();
+	LogProjectedShadowPath("addDecal-free", nullptr, nullptr, shadowInfo,
+		shadowType, texture_name, allowWorldAlign, allowSunDirection,
+		decalSizeX, decalSizeY, 0.0f, 0.0f);
 
 	// add to our shadow list through the shadow next links, insert next to other shadows using same texture
 
@@ -1416,6 +1540,7 @@ Shadow* W3DProjectedShadowManager::addDecal(RenderObjClass *robj, Shadow::Shadow
 
 	Bool	allowSunDirection=FALSE;
 	Char texture_name[ARRAY_SIZE(shadowInfo->m_ShadowName)];
+	texture_name[0] = '\0';
 
 	if (!robj || !shadowInfo)
 		return nullptr;	//right now we require hardware render-to-texture support
@@ -1497,6 +1622,9 @@ Shadow* W3DProjectedShadowManager::addDecal(RenderObjClass *robj, Shadow::Shadow
 	shadow->m_flags	= allowSunDirection;
 
 	shadow->init();
+	LogProjectedShadowPath("addDecal-robj", robj, nullptr, shadowInfo,
+		shadowType, texture_name, allowWorldAlign, allowSunDirection,
+		decalSizeX, decalSizeY, decalOffsetX, decalOffsetY);
 
 	// add to our shadow list through the shadow next links, insert next to other shadows using same texture
 
@@ -1538,6 +1666,7 @@ W3DProjectedShadow* W3DProjectedShadowManager::addShadow(RenderObjClass *robj, S
 
 	Bool	allowSunDirection=FALSE;
 	Char texture_name[ARRAY_SIZE(shadowInfo->m_ShadowName)];
+	texture_name[0] = '\0';
 
 
 	if (!m_dynamicRenderTarget || !robj || !TheGlobalData->m_useShadowDecals)
@@ -1686,6 +1815,9 @@ W3DProjectedShadow* W3DProjectedShadowManager::addShadow(RenderObjClass *robj, S
 	shadow->m_flags	= allowSunDirection;
 
 	shadow->init();
+	LogProjectedShadowPath("addShadow", robj, draw, shadowInfo,
+		shadowType, texture_name, allowWorldAlign, allowSunDirection,
+		decalSizeX, decalSizeY, decalOffsetX, decalOffsetY);
 
 	// add to our shadow list through the shadow next links, insert next to other shadows using same texture
 

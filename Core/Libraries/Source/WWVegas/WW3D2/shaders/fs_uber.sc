@@ -25,6 +25,7 @@ uniform vec4 u_lightParams[4]; // x inner range, y outer/range, z > 0.5 point, w
 uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
 uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
 uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
+uniform vec4 u_texcoordSelect2; // .z > 0.5 = default blob shadow alpha-mask multiply
 uniform vec4 u_texProjected; // .x > 0.5 = stage 0 projected, .y > 0.5 = stage 1 projected
 uniform vec4 u_vertexColorFlags; // .y/.z/.w: diffuse/ambient/emissive source is COLOR1
 uniform vec4 u_grayscaleEnable; // .x > 0.5 = convert final color to luminance (disabled button state)
@@ -443,6 +444,15 @@ void main()
 		current *= u_matDiffuse;
 	}
 
+	// Additive black texels are mathematical no-ops in the D3D8 fixed-function
+	// path. Discard them before output so large additive projector/effect
+	// meshes with black matte pixels cannot contribute visible black fragments
+	// on bgfx backends.
+	if (u_texcoordSelect2.w > 0.5 && max(max(current.r, current.g), current.b) <= 0.003)
+	{
+		discard;
+	}
+
 	// --- Alpha test ---
 	if (u_atestParams.x > 0.0 && current.a < u_atestParams.x)
 	{
@@ -497,6 +507,18 @@ void main()
 	// generic material path renders buildings/units/effects, none of which
 	// receive cloud shadows in DX8, and v_cloudUV is undefined for them so
 	// sampleCloudShadow's floor constant just darkens them uniformly.
+
+	if (u_texcoordSelect2.z > 0.5)
+	{
+		// Default W3D blob shadow decals are rendered with a multiplicative
+		// blend where the shader output is the destination-color multiplier.
+		// Their useful mask is in texture alpha; outside the mask, RGB can be
+		// black. Convert alpha=0 to a neutral multiplier so transparent padding
+		// does not draw as solid black rectangles.
+		float mask = clamp(tex0.a * diffuse.a, 0.0, 1.0);
+		current.rgb = mix(vec3_splat(1.0), current.rgb, mask);
+		current.a = 1.0;
+	}
 
 	// Grayscale output for disabled button state. Matches the D3D8 path
 	// (render2d.cpp) which used D3DTOP_DOTPRODUCT3 with TFACTOR=0x80A5CA8E
