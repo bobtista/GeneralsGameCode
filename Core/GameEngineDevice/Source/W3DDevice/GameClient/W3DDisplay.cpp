@@ -881,6 +881,22 @@ void W3DDisplay::init()
 			}
 			}
 
+#if defined(SAGE_USE_SDL3)
+			extern SDL_Window *TheSDL3Window;
+			if (TheSDL3Window != nullptr)
+			{
+				int wPts = 0, hPts = 0;
+				SDL_GetWindowSize(TheSDL3Window, &wPts, &hPts);
+				if (wPts > 0 && hPts > 0)
+				{
+					setWidth(wPts);
+					setHeight(hPts);
+					TheWritableGlobalData->m_xResolution = wPts;
+					TheWritableGlobalData->m_yResolution = hPts;
+				}
+			}
+#endif
+
 			// TheSuperHackers @feature Mauller 13/03/2026 Add native MSAA support, must be set before creating render device
 			WW3D::Set_MSAA_Mode((WW3D::MultiSampleModeEnum)TheWritableGlobalData->m_antiAliasLevel);
 
