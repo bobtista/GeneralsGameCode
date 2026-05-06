@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "ww3dformat.h"
 
 // -----------------------------------------------------------------------------
@@ -94,7 +96,7 @@ struct RenderBackendViewport
 // the id field. Other code treats it as opaque. id == 0 means invalid.
 struct RenderResource
 {
-    unsigned __int64 id;
+    std::uint64_t id;
 };
 
 inline bool operator==(const RenderResource & a, const RenderResource & b) { return a.id == b.id; }
@@ -549,6 +551,11 @@ public:
     virtual void Override_Texcoord_Index(unsigned stage, unsigned uvIndex) {}
     virtual void Override_Terrain_Blend(bool enable) {}
     virtual void Override_Material_Opacity(float opacity) {}
+    virtual void Set_Texture_Transform(unsigned stage, const Matrix4x4& matrix) {}
+    virtual void Clear_Texture_Transform(unsigned stage) {}
+    virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled) {}
+    virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) {}
+    virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) {}
     virtual void Begin_Water_Overlay() {}
     virtual void End_Water_Overlay() {}
     // Route subsequent draws to the sort view instead of the opaque view.
@@ -638,6 +645,11 @@ public:
         const short * /*local_cap_indices*/,
         unsigned /*cap_index_count*/) {}
 
+    // DX8's original stencil-volume path used open side-wall tubes. Modern
+    // backends need closed volumes because near-plane clipping otherwise
+    // leaves unbalanced stencil counts. Default false keeps DX8 unchanged.
+    virtual bool Needs_Closed_Shadow_Volumes() const { return false; }
+
     // TheSuperHackers @refactor bobtista 16/04/2026 CSM:
     // the engine's shadow system places the sun at a world-space
     // position for shadow casting (from TerrainLighting data). This
@@ -660,6 +672,8 @@ public:
                                         unsigned /*dst_height*/,
                                         unsigned /*src_width*/,
                                         unsigned /*src_height*/,
+                                        unsigned /*src_x*/,
+                                        unsigned /*src_y*/,
                                         unsigned /*dst_x*/,
                                         unsigned /*dst_y*/,
                                         unsigned /*pitch*/,
@@ -734,4 +748,3 @@ public:
     virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * /*vb*/) { return kInvalidRenderResource; }
     virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * /*ib*/) { return kInvalidRenderResource; }
 };
-

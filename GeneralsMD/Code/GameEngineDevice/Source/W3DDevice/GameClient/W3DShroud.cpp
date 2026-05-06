@@ -42,7 +42,11 @@
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/textureloader.h"
 #include "Common/GlobalData.h"
+#include "GameLogic/GameLogic.h"
 #include "GameLogic/PartitionManager.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 
 //-----------------------------------------------------------------------------
@@ -731,27 +735,84 @@ void W3DShroud::render(CameraClass *cam)
 
 	// TheSuperHackers @feature bobtista 17/04/2026 Push shroud pixel data to
 	// the bgfx backend so it can mirror the POOL_DEFAULT destination texture.
-	// m_srcTextureData is the persistently-mapped system-memory surface that
-	// the shroud system writes into; we read from it after the CopyRects above
-	// has pushed the same data to the DX8 video-memory copy.
-	if (g_renderBackend != nullptr && m_pSrcTexture != nullptr && m_pDstTexture != nullptr && m_shroudDirty)
+	// DX8 only needs the surface copy above when the shroud changed. Bgfx cannot
+	// sample the DX8 destination surface, so keep its mirror synchronized with the
+	// current render window even when no individual shroud cell changed this frame.
+	const Bool shouldCaptureForBgfx = g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline();
+	if (g_renderBackend != nullptr && m_pSrcTexture != nullptr && m_pDstTexture != nullptr && (m_shroudDirty || shouldCaptureForBgfx))
 	{
 		m_shroudDirty = FALSE;
 		SurfaceClass::SurfaceDescription srcDesc;
 		m_pSrcTexture->Get_Description(srcDesc);
+		if (std::getenv("GGC_SHROUD_DIAG") != nullptr)
+		{
+			static int s_shroudDiagCount = 0;
+			int shroudDiagLimit = 32;
+			if (const char *limitEnv = std::getenv("GGC_SHROUD_DIAG_LIMIT"))
+			{
+				const int parsedLimit = std::atoi(limitEnv);
+				if (parsedLimit > 0)
+				{
+					shroudDiagLimit = parsedLimit;
+				}
+			}
+			if (s_shroudDiagCount < shroudDiagLimit)
+			{
+				const unsigned short *pixels = reinterpret_cast<const unsigned short *>(m_srcTextureData);
+				const unsigned pitchPixels = m_srcTexturePitch / sizeof(unsigned short);
+				unsigned checksum = 2166136261u;
+				unsigned minPixel = 0xffff;
+				unsigned maxPixel = 0;
+				unsigned blackCount = 0;
+				unsigned whiteCount = 0;
+				unsigned darkCount = 0;
+				unsigned brightCount = 0;
+				for (Int yy = visStartY; yy < visEndY; ++yy)
+				{
+					for (Int xx = visStartX; xx < visEndX; ++xx)
+					{
+						const unsigned pixel = pixels[yy * pitchPixels + xx];
+						checksum ^= pixel & 0xff;
+						checksum *= 16777619u;
+						checksum ^= (pixel >> 8) & 0xff;
+						checksum *= 16777619u;
+						if (pixel < minPixel) minPixel = pixel;
+						if (pixel > maxPixel) maxPixel = pixel;
+						if (pixel == 0x0000) ++blackCount;
+						if (pixel == 0xffff) ++whiteCount;
+						const unsigned r = (pixel >> 11) & 0x1f;
+						const unsigned g = (pixel >> 5) & 0x3f;
+						const unsigned b = pixel & 0x1f;
+						const unsigned lum = r * 2 + g + b * 2;
+						if (lum < 24) ++darkCount;
+						if (lum > 140) ++brightCount;
+					}
+				}
+				if (FILE *diag = std::fopen("ggc_shroud_diag.txt", "a"))
+				{
+					std::fprintf(diag,
+						"upload=%d frame=%u srcRect=(%d,%d)-(%d,%d) dst=%ux%u srcFmt=%d pitch=%u checksum=0x%08x min=0x%04x max=0x%04x black=%u white=%u dark=%u bright=%u origin=(%.2f,%.2f) cell=(%.2f,%.2f)\n",
+						s_shroudDiagCount,
+						TheGameLogic != nullptr ? TheGameLogic->getFrame() : 0,
+						srcRect.left, srcRect.top, srcRect.right, srcRect.bottom,
+						m_dstTextureWidth, m_dstTextureHeight, static_cast<int>(srcDesc.Format),
+						m_srcTexturePitch, checksum, minPixel, maxPixel, blackCount, whiteCount,
+						darkCount, brightCount, m_drawOriginX, m_drawOriginY,
+						m_cellWidth, m_cellHeight);
+					std::fclose(diag);
+				}
+				++s_shroudDiagCount;
+			}
+		}
 		g_renderBackend->Capture_Shroud_Texture(
 			m_pDstTexture,
 			m_srcTextureData,
 			m_dstTextureWidth, m_dstTextureHeight,
 			visEndX - visStartX, visEndY - visStartY,
+			visStartX, visStartY,
 			dstPoint.x, dstPoint.y,
 			m_srcTexturePitch,
 			srcDesc.Format);
-	}
-	else
-	{
-		WWDEBUG_SAY(("[SHROUD CAP] SKIPPED: backend=%p src=%p dst=%p",
-			g_renderBackend, m_pSrcTexture, m_pDstTexture));
 	}
 
 	REF_PTR_RELEASE (pDestSurface);

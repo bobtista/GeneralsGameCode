@@ -3,8 +3,9 @@ $output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v
 
 #include <bgfx_shader.sh>
 
-// Phase 4I.2 CSM: model-to-light clip matrix, composed by the backend
-// from the current draw's model matrix and the cached light view/proj.
+// Phase 4I.2 CSM: world-to-light clip matrix. The shader computes worldPos
+// through bgfx's normal u_model path, then applies this view-projection so
+// shadow receivers use the same transform convention as ordinary scene draws.
 uniform mat4 u_shadowLightViewProj;
 uniform vec4 u_texcoordSelect;
 uniform vec4 u_texcoordSelect2; // .x > 0.5 = use texcoord1 for stage 1, .y > 0.5 = stage 1 transform active
@@ -122,7 +123,8 @@ void main()
 	// STRETCH_FACTOR plus an animating translation.
 	v_cloudUV = worldPos.xy * u_cloudParams.z + u_cloudParams.xy;
 
-	// Phase 4I.2: light-space position using the pre-composed matrix
-	// that already includes the correct model-to-world transform.
-	v_lightspace = mul(u_shadowLightViewProj, vec4(a_position, 1.0));
+	// Phase 4I.2: light-space position from world position. Keeping the
+	// model transform separate avoids custom MVP-order drift between the
+	// caster and receiver paths.
+	v_lightspace = mul(u_shadowLightViewProj, worldPos);
 }
