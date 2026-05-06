@@ -79,6 +79,38 @@ cmake --build build/win32 --config Release
 ./scripts/docker-install.sh --detect # Install to your game
 ```
 
+**macOS (Apple Silicon / Intel)**
+
+Prerequisites: Xcode command line tools, CMake, and Homebrew packages:
+```bash
+xcode-select --install
+brew install cmake ninja dylibbundler ffmpeg sdl3 openal-soft
+```
+
+Build and deploy:
+```bash
+scripts/build/macos/build-macos-generalsmd.sh
+```
+
+This configures the bgfx/Metal + SDL3 + OpenAL build, compiles it, bundles dylib dependencies, and deploys to `~/TheSuperHackers/GeneralsZH/`.
+
+Before launching, you need the retail game data files. First, fetch the open-source game data (INI, UI, Art):
+```bash
+scripts/build/macos/fetch-game-data.sh
+```
+
+Then copy the retail `.big` files from both Generals and Zero Hour into `~/TheSuperHackers/GeneralsZH/`. You need at minimum:
+- **Zero Hour:** `INIZH.big`, `W3DZH.big`, `TexturesZH.big`, `MapsZH.big`, `WindowZH.big`, `EnglishZH.big`
+- **Generals:** `INI.big`, `W3D.big`, `Textures.big`, `Maps.big`, `Window.big`, `English.big`
+- **Optional (audio):** `MusicZH.big`, `AudioZH.big`, `Music.big`, `Audio.big`
+
+Launch with:
+```bash
+~/TheSuperHackers/GeneralsZH/run.sh
+```
+
+Set `GGC_NO_AUDIO=1` to skip audio if you don't have the audio `.big` files.
+
 ### Dependency management
 
 The repository uses a vcpkg manifest (`vcpkg.json`) paired with a lockfile (`vcpkg-lock.json`). When you add or upgrade
