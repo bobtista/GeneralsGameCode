@@ -6660,6 +6660,13 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
 
+    if (ShouldSkipHiddenMissingStage0Draw(state))
+    {
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
+
     if (g_views.shadowVolumeActive && bgfx::isValid(g_device.shadowVolumeProgram))
     {
         if (LegacyStencilShadowsEnabled())
