@@ -4896,7 +4896,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
             blendState &= ~BGFX_STATE_BLEND_MASK;
             blendState |= g_overrides.blendBits;
         }
-        g_draw.texcoordSelect2[3] = IsOneOneAdditiveBlend(blendState) ? 1.0f : 0.0f;
+        g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState) ? 1.0f : 0.0f;
     }
     UploadMaterialUniforms();
     if (bgfx::isValid(g_uniforms.uTexcoordSelect))
@@ -6457,6 +6457,12 @@ void SubmitEngineDraw(unsigned short start_index,
         g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState) ? 1.0f : 0.0f;
     }
     UpdateAlphaMaskedShadowDecalMode();
+    if (IsMultiplicativeBlend(g_draw.state) && (g_draw.state & BGFX_STATE_WRITE_Z) == 0)
+    {
+        g_stats.skippedDraws++;
+        bgfx::discard(BGFX_DISCARD_ALL);
+        return;
+    }
     {
         uint64_t blendState = g_draw.state;
         if (g_overrides.blendActive)
@@ -6464,7 +6470,7 @@ void SubmitEngineDraw(unsigned short start_index,
             blendState &= ~BGFX_STATE_BLEND_MASK;
             blendState |= g_overrides.blendBits;
         }
-        g_draw.texcoordSelect2[3] = IsOneOneAdditiveBlend(blendState) ? 1.0f : 0.0f;
+        g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState) ? 1.0f : 0.0f;
     }
     UploadMaterialUniforms();
     // Read current D3D light state per-draw. Set_Light_Environment and
