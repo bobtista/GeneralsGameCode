@@ -243,4 +243,24 @@ GameEngine *CreateGameEngine()
 	return NEW SDL3GameEngine;
 }
 
+BOOL GGC_GetClientRect_SDL3(HWND hwnd, LPRECT rect)
+{
+	if (rect == nullptr)
+	{
+		return FALSE;
+	}
+	rect->left = 0;
+	rect->top = 0;
+	rect->right = 0;
+	rect->bottom = 0;
+	if (TheSDL3Window != nullptr)
+	{
+		int w = 0, h = 0;
+		SDL_GetWindowSize(TheSDL3Window, &w, &h);
+		rect->right = w;
+		rect->bottom = h;
+	}
+	return TRUE;
+}
+
 #endif
