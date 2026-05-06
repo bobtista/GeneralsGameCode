@@ -583,7 +583,11 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
             cachedH = d3dIt->second.h;
         }
         g_caches.d3dPtr[tex] = { curD3D, 0, 0 };
-        if (bgfx::isValid(it->second))
+        // Options changes can release/recreate the D3D texture under a still
+        // live TextureClass. If the new pointer is temporarily null, skip the
+        // in-place update path and fall through to the normal invalid/fallback
+        // handling instead of dereferencing it below.
+        if (curD3D != nullptr && bgfx::isValid(it->second))
         {
             TextureClass * tex2d = tex->As_TextureClass();
             if (tex2d != nullptr)
