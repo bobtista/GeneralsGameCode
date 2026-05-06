@@ -1,5 +1,5 @@
 $input  a_position, a_normal, a_color0, a_texcoord0
-$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV, v_worldPos
+$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV, v_stage2UV, v_stage3UV, v_worldPos
 
 #include <bgfx_shader.sh>
 
@@ -40,7 +40,8 @@ void main()
 	vec3 swayed = a_position + height * wave.xyz;
 
 	gl_Position = mul(u_modelViewProj, vec4(swayed, 1.0));
-	v_worldPos = swayed;
+	vec4 worldPos = mul(u_model[0], vec4(swayed, 1.0));
+	v_worldPos = worldPos.xyz;
 
 	// Original: oD0 = v2 * v1.yyyw (replicate color scale). In bgfx
 	// the diffuse comes in as BGRA on D3D paths — keep the same
@@ -51,6 +52,8 @@ void main()
 	v_texcoord0 = a_texcoord0;
 	v_stage0UV = a_texcoord0;
 	v_stage1UV = a_texcoord0;
+	v_stage2UV = a_texcoord0;
+	v_stage3UV = a_texcoord0;
 	// Shroud UV: (v0.xy + c32.xy) * c33.xy.
 	v_texcoord1 = (a_position.xy + u_shroudOffset.xy) * u_shroudScale.xy;
 
@@ -62,5 +65,5 @@ void main()
 	// the backend; this value is effectively unused for grass draws.
 	v_cloudUV = a_position.xy;
 
-	v_lightspace = mul(u_shadowLightViewProj, vec4(a_position, 1.0));
+	v_lightspace = mul(u_shadowLightViewProj, worldPos);
 }

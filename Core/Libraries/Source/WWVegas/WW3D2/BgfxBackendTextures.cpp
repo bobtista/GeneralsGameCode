@@ -154,6 +154,45 @@ static unsigned GetBytesPerPixel(bgfx::TextureFormat::Enum bgfxFmt)
     }
 }
 
+static bgfx::TextureFormat::Enum GetBgfxTextureUploadFormat(TextureClass * tex2d)
+{
+    const WW3DFormat fmt = tex2d != nullptr ? tex2d->Get_Texture_Format() : WW3D_FORMAT_UNKNOWN;
+    if (fmt == WW3D_FORMAT_A4R4G4B4)
+    {
+        // D3D A4R4G4B4 is packed as 0xARGB. bgfx::BGRA4 is not a reliable
+        // byte-for-byte substitute across renderers, so expand authored 4-bit
+        // alpha textures to BGRA8 before upload. This preserves transparent
+        // matte pixels used by projected decals such as spy satellite grids.
+        return bgfx::TextureFormat::BGRA8;
+    }
+    return TranslateWW3DFormat(fmt);
+}
+
+static void ExpandA4R4G4B4ToBGRA8(const D3DLOCKED_RECT & locked,
+    unsigned width, unsigned height, const bgfx::Memory * mem)
+{
+    const uint8_t * srcRow = static_cast<const uint8_t *>(locked.pBits);
+    uint8_t * dst = mem->data;
+    for (unsigned y = 0; y < height; ++y)
+    {
+        const uint16_t * src = reinterpret_cast<const uint16_t *>(srcRow);
+        for (unsigned x = 0; x < width; ++x)
+        {
+            const uint16_t p = src[x];
+            const uint8_t a = static_cast<uint8_t>(((p >> 12) & 0x0f) * 17);
+            const uint8_t r = static_cast<uint8_t>(((p >> 8) & 0x0f) * 17);
+            const uint8_t g = static_cast<uint8_t>(((p >> 4) & 0x0f) * 17);
+            const uint8_t b = static_cast<uint8_t>((p & 0x0f) * 17);
+            dst[0] = b;
+            dst[1] = g;
+            dst[2] = r;
+            dst[3] = a;
+            dst += 4;
+        }
+        srcRow += locked.Pitch;
+    }
+}
+
 static bool IsTerrainAtlasTexture(TextureClass * tex2d,
     const D3DSURFACE_DESC & desc,
     bgfx::TextureFormat::Enum bgfxFmt)
@@ -415,7 +454,13 @@ static bool CopyTextureLevel(TextureClass * tex2d,
     const unsigned totalBytes = numRows * expectedPitch;
     const unsigned srcPitch = static_cast<unsigned>(locked.Pitch);
     const bgfx::Memory * mem = bgfx::alloc(totalBytes);
-    if (srcPitch == expectedPitch)
+    if (tex2d->Get_Texture_Format() == WW3D_FORMAT_A4R4G4B4
+        && bgfxFmt == bgfx::TextureFormat::BGRA8
+        && !isCompressed)
+    {
+        ExpandA4R4G4B4ToBGRA8(locked, desc.Width, desc.Height, mem);
+    }
+    else if (srcPitch == expectedPitch)
     {
         std::memcpy(mem->data, locked.pBits, totalBytes);
     }
@@ -547,7 +592,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
                 D3DSURFACE_DESC desc;
                 if (SUCCEEDED(d3dTex->GetLevelDesc(0, &desc)))
                 {
-					const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(tex2d->Get_Texture_Format());
+					const bgfx::TextureFormat::Enum bgfxFmt = GetBgfxTextureUploadFormat(tex2d);
 					const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, desc, bgfxFmt);
                     // Check if dimensions match the existing bgfx handle
                     if (desc.Width == cachedW
@@ -633,7 +678,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
         }
     }
 
-    const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(tex2d->Get_Texture_Format());
+    const bgfx::TextureFormat::Enum bgfxFmt = GetBgfxTextureUploadFormat(tex2d);
     if (bgfxFmt == bgfx::TextureFormat::Unknown)
     {
         static bool s_loggedUnknownFmt = false;
@@ -854,6 +899,8 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
                                           unsigned dst_height,
                                           unsigned src_width,
                                           unsigned src_height,
+                                          unsigned src_x,
+                                          unsigned src_y,
                                           unsigned dst_x,
                                           unsigned dst_y,
                                           unsigned pitch,
@@ -979,8 +1026,9 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
     for (unsigned row = 0; row < src_height; ++row)
     {
         const unsigned dstOffset = ((dst_y + row) * dst_width + dst_x) * bpp;
-        const unsigned srcOffset = row * pitch;
-        if (dstOffset + rowBytes <= fullSize && srcOffset + rowBytes <= src_height * pitch)
+        const unsigned srcOffset = (src_y + row) * pitch + src_x * bpp;
+        const unsigned srcSize = (src_y + src_height) * pitch;
+        if (dstOffset + rowBytes <= fullSize && srcOffset + rowBytes <= srcSize)
         {
             std::memcpy(mem->data + dstOffset, static_cast<const uint8_t *>(pixel_data) + srcOffset, rowBytes);
         }

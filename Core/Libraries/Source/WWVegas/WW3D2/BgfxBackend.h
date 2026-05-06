@@ -140,6 +140,7 @@ public:
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture) override;
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) override;
     virtual void Set_Ambient(const Vector3 & color) override;
+    virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end) override;
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) override;
     virtual void Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend) override;
     virtual void Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func) override;
@@ -147,6 +148,11 @@ public:
     virtual void Override_Texcoord_Index(unsigned stage, unsigned uvIndex) override;
     virtual void Override_Terrain_Blend(bool enable) override;
     virtual void Override_Material_Opacity(float opacity) override;
+    virtual void Set_Texture_Transform(unsigned stage, const Matrix4x4& matrix) override;
+    virtual void Clear_Texture_Transform(unsigned stage) override;
+    virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled) override;
+    virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) override;
+    virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) override;
     virtual void Begin_Water_Overlay() override;
     virtual void End_Water_Overlay() override;
     virtual void Begin_Effect_Overlay() override;
@@ -176,6 +182,7 @@ public:
         unsigned strip_start_vertex,
         const short * local_cap_indices,
         unsigned cap_index_count) override;
+    virtual bool Needs_Closed_Shadow_Volumes() const override;
     virtual void Set_Shadow_Light_Position(float x, float y, float z) override;
     virtual void Capture_Shroud_Texture(TextureClass * dst_texture,
                                         const void * pixel_data,
@@ -183,6 +190,8 @@ public:
                                         unsigned dst_height,
                                         unsigned src_width,
                                         unsigned src_height,
+                                        unsigned src_x,
+                                        unsigned src_y,
                                         unsigned dst_x,
                                         unsigned dst_y,
                                         unsigned pitch,
