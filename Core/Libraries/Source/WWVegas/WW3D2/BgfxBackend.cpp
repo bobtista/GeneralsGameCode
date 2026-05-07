@@ -4022,6 +4022,26 @@ static bool IsSortedMaterialDecal(uint64_t state)
         && g_draw.tssOps0[3] > 0.5f;
 }
 
+static uint64_t ApplySortedMaterialDecalDepthState(uint64_t state)
+{
+    if (!IsSortedMaterialDecal(state))
+    {
+        return state;
+    }
+
+    // W3DBibBuffer's legacy shader is PASS_ALWAYS because the DX8 path relied
+    // on draw order plus fixed-function z-bias for driveway bibs/faction
+    // emblems. In bgfx these draws are routed through the sorted view after
+    // units, so PASS_ALWAYS makes the ground decal alpha-blend over bulldozers
+    // as they exit the command center. Keep the decal z-bias that prevents
+    // coplanar ground fighting, but still test against scene depth so vehicles
+    // and other opaque meshes occlude the decal.
+    state &= ~BGFX_STATE_DEPTH_TEST_MASK;
+    state |= BGFX_STATE_DEPTH_TEST_LEQUAL;
+    state &= ~BGFX_STATE_WRITE_Z;
+    return state;
+}
+
 static bool ShouldHideMissingTextureForCurrentDraw(uint64_t state)
 {
     // Keep missing textures visible on opaque geometry so bad assets are still
@@ -4048,6 +4068,11 @@ static bool ShouldLogBgfxCsmCasters()
     return std::getenv("GGC_BGFX_CSM_CASTER_DIAG") != nullptr;
 }
 
+static bool ShouldLogBgfxSortedDecals()
+{
+    return std::getenv("GGC_BGFX_SORTED_DECAL_DIAG") != nullptr;
+}
+
 static int BgfxCsmCasterDiagStartFrame()
 {
     if (const char * env = std::getenv("GGC_BGFX_CSM_CASTER_DIAG_FRAME"))
@@ -4061,6 +4086,42 @@ static const char * TextureDebugName(TextureBaseClass * texture)
 {
     TextureClass * tex2d = texture ? texture->As_TextureClass() : nullptr;
     return tex2d ? tex2d->Get_Full_Path().str() : "(null)";
+}
+
+static void LogBgfxSortedMaterialDecal(const char *event,
+                                       bgfx::ViewId view,
+                                       unsigned short polygonCount,
+                                       unsigned short vertexCount,
+                                       uint64_t state)
+{
+    if (!ShouldLogBgfxSortedDecals() || !IsSortedMaterialDecal(g_draw.state))
+    {
+        return;
+    }
+
+    const RenderStateStruct &rs = DX8Wrapper::Peek_Render_State();
+    if (FILE *diag = std::fopen("ggc_bgfx_sorted_decal_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s frame=%u view=%u polys=%u verts=%u state=0x%llx final=0x%llx depth=0x%llx zbias=%.6f rawZBias=%u tex0=%s tex1=%s tss0=(%.1f,%.1f,%.1f,%.1f) texSel=(%.1f,%.1f,%.1f,%.1f)\n",
+                     event,
+                     g_stats.frameIndex,
+                     static_cast<unsigned>(view),
+                     static_cast<unsigned>(polygonCount),
+                     static_cast<unsigned>(vertexCount),
+                     static_cast<unsigned long long>(g_draw.state),
+                     static_cast<unsigned long long>(state),
+                     static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
+                     g_draw.zBias[0],
+                     DX8Wrapper::Get_DX8_Render_State(D3DRS_ZBIAS),
+                     TextureDebugName(rs.Textures[0]),
+                     TextureDebugName(rs.Textures[1]),
+                     g_draw.tssOps0[0], g_draw.tssOps0[1],
+                     g_draw.tssOps0[2], g_draw.tssOps0[3],
+                     g_draw.texcoordSelect[0], g_draw.texcoordSelect[1],
+                     g_draw.texcoordSelect[2], g_draw.texcoordSelect[3]);
+        std::fclose(diag);
+    }
 }
 
 static bool IsDefaultBlobShadowTexture(TextureBaseClass * texture)
@@ -4185,11 +4246,28 @@ static void LogBgfxShroudPass(const char *event,
 }
 
 // NDC z-pull applied to coplanar sorted decals so they win the LEQUAL test
-// against the opaque sub-mesh they sit on. ~0.005 is large enough that small
-// FP differences from bgfx's projection rounding can't push the decal back
-// behind its host surface, but small enough that the decal stays visually
-// glued to the surface instead of floating over nearby geometry.
-static const float kSortedDecalZBias = 0.005f;
+// against the opaque sub-mesh they sit on. Keep this much smaller than the
+// generic D3DRS_ZBIAS conversion: a large clip-space pull makes command-center
+// floor emblems render in front of bulldozers as they leave the building.
+static const float kSortedDecalMinZBias = 0.00025f;
+static const float kSortedDecalMaxZBias = 0.00075f;
+
+static void ClampSortedMaterialDecalZBias()
+{
+    if (!IsSortedMaterialDecal(g_draw.state))
+    {
+        return;
+    }
+
+    if (g_draw.zBias[0] < kSortedDecalMinZBias)
+    {
+        g_draw.zBias[0] = kSortedDecalMinZBias;
+    }
+    else if (g_draw.zBias[0] > kSortedDecalMaxZBias)
+    {
+        g_draw.zBias[0] = kSortedDecalMaxZBias;
+    }
+}
 
 static void BindSoftParticleDepth(bool enable)
 {
@@ -4798,10 +4876,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
         g_draw.zBias[1] = 0.0f;
-        if (IsSortedMaterialDecal(g_draw.state) && g_draw.zBias[0] < kSortedDecalZBias)
-        {
-            g_draw.zBias[0] = kSortedDecalZBias;
-        }
+        ClampSortedMaterialDecalZBias();
     }
     UpdateAlphaMaskedShadowDecalMode();
     {
@@ -4849,6 +4924,9 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         state |= g_overrides.blendBits;
     }
     state = ApplyColorWriteOverride(state);
+    state = ApplySortedMaterialDecalDepthState(state);
+    LogBgfxSortedMaterialDecal("submit-sorted", kBgfxEngineSortView,
+                               polygon_count, vertex_count, state);
 
     bgfx::setState(state);
     BindSoftParticleDepth(IsSoftParticleCandidate(state));
@@ -6345,15 +6423,10 @@ void SubmitEngineDraw(unsigned short start_index,
         // strategy center floor emblem (ABBTCMDHQS.SWORD) sit coplanar with
         // an opaque sub-mesh. DX8 LEQUAL wins ties; bgfx's projection rounds
         // slightly so the decal ends up just behind the slab and is occluded.
-        // Pull the NDC z toward the camera so coplanar decals beat the
-        // surface they sit on without disturbing draws that set a real
-        // D3DRS_ZBIAS. IsSortedMaterialDecal is the same heuristic the
-        // backend already uses to suppress the terrain pixel-shader path on
-        // sorted decals, so the detection already matches this geometry.
-        if (IsSortedMaterialDecal(g_draw.state) && g_draw.zBias[0] < kSortedDecalZBias)
-        {
-            g_draw.zBias[0] = kSortedDecalZBias;
-        }
+        // Pull the NDC z slightly toward the camera so coplanar decals beat
+        // the surface they sit on, but clamp the pull tightly so the ground
+        // decal still loses to vehicles sitting above it.
+        ClampSortedMaterialDecalZBias();
     }
     UpdateAlphaMaskedShadowDecalMode();
     if (IsMultiplicativeBlend(g_draw.state)
@@ -6574,6 +6647,9 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         g_views.waterOverrideActive = false;
     }
+    state = ApplySortedMaterialDecalDepthState(state);
+    LogBgfxSortedMaterialDecal("submit-engine", submitView,
+                               polygon_count, vertex_count, state);
 
     if (ShouldSkipHiddenMissingStage0Draw(state))
     {
