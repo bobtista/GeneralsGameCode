@@ -58,6 +58,17 @@ int main(int argc, char **argv)
 			windowH = desktopMode->h;
 		}
 	}
+	bool wantWindowed = false;
+	for (int argi = 1; argi < argc; ++argi)
+	{
+		if (strcmp(argv[argi], "-win") == 0)
+		{
+			wantWindowed = true;
+			windowW = kDefaultWindowWidth;
+			windowH = kDefaultWindowHeight;
+			break;
+		}
+	}
 	TheSDL3Window = SDL_CreateWindow(kWindowTitle, windowW, windowH, windowFlags);
 	if (TheSDL3Window == NULL)
 	{
@@ -65,9 +76,12 @@ int main(int argc, char **argv)
 		SDL_Quit();
 		return 1;
 	}
-	SDL_SetWindowFullscreenMode(TheSDL3Window, nullptr);
-	SDL_SetWindowFullscreen(TheSDL3Window, true);
-	SDL_SyncWindow(TheSDL3Window);
+	if (!wantWindowed)
+	{
+		SDL_SetWindowFullscreenMode(TheSDL3Window, nullptr);
+		SDL_SetWindowFullscreen(TheSDL3Window, true);
+		SDL_SyncWindow(TheSDL3Window);
+	}
 
 	ApplicationHWnd = TheSDL3Window;
 
