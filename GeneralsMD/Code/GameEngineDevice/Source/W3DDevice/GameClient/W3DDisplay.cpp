@@ -492,26 +492,23 @@ inline Bool isResolutionSupported(const ResolutionDescClass &res)
 /*Return number of screen modes supported by the current device*/
 Int W3DDisplay::getDisplayModeCount()
 {
+#if defined(SAGE_USE_SDL3)
+	extern SDL_Window *TheSDL3Window;
+	if (TheSDL3Window != nullptr)
+	{
+		const SDL_DisplayID display = SDL_GetDisplayForWindow(TheSDL3Window);
+		int count = 0;
+		SDL_DisplayMode **modes = SDL_GetFullscreenDisplayModes(display, &count);
+		SDL_free(modes);
+		return count;
+	}
+#endif
 	const RenderDeviceDescClass &devDesc=WW3D::Get_Render_Device_Desc(0);
 	const DynamicVectorClass <ResolutionDescClass> &resolutions=devDesc.Enumerate_Resolutions();
 
 	Int numResolutions=0;
-/*	Bool needStencil=false;
-	Bool needDestinationAlpha=false;
-	Int minBitDepth=16;
-
-	//Walk through all resolutions and determine which ones are compatible with other settings
-	//chosen by user.  For example, 32-bit may be required for shadows, occlusion, soft water edge, etc.
-	if (TheGlobalData->m_useShadowVolumes || (TheGlobalData->m_enableBehindBuildingMarkers && TheGameLogic->getShowBehindBuildingMarkers()))
-		needStencil=true;
-
-	if (TheGlobalData->m_showSoftWaterEdge)
-	{	minBitDepth=32;
-	}
-*/
 	for (int res = 0; res < resolutions.Count ();  res ++)
 	{
-		// Is this the resolution we are looking for?
 		if (isResolutionSupported(resolutions[res]))
 		{
 			numResolutions++;
@@ -523,17 +520,33 @@ Int W3DDisplay::getDisplayModeCount()
 
 void W3DDisplay::getDisplayModeDescription(Int modeIndex, Int *xres, Int *yres, Int *bitDepth)
 {
+#if defined(SAGE_USE_SDL3)
+	extern SDL_Window *TheSDL3Window;
+	if (TheSDL3Window != nullptr)
+	{
+		const SDL_DisplayID display = SDL_GetDisplayForWindow(TheSDL3Window);
+		int count = 0;
+		SDL_DisplayMode **modes = SDL_GetFullscreenDisplayModes(display, &count);
+		if (modes != nullptr && modeIndex >= 0 && modeIndex < count)
+		{
+			*xres = modes[modeIndex]->w;
+			*yres = modes[modeIndex]->h;
+			*bitDepth = SDL_BITSPERPIXEL(modes[modeIndex]->format);
+		}
+		SDL_free(modes);
+		return;
+	}
+#endif
 	Int numResolutions=0;
 	const RenderDeviceDescClass &devDesc=WW3D::Get_Render_Device_Desc(0);
 	const DynamicVectorClass <ResolutionDescClass> &resolutions=devDesc.Enumerate_Resolutions();
 
 	for (int res = 0; res < resolutions.Count ();  res ++)
 	{
-		// Is this the resolution we are looking for?
 		if (isResolutionSupported(resolutions[res]))
 		{
 			if (numResolutions == modeIndex)
-			{	//found the mode
+			{
 				*xres=resolutions[res].Width;
 				*yres=resolutions[res].Height;
 				*bitDepth=resolutions[res].BitDepth;
@@ -563,6 +576,17 @@ Bool W3DDisplay::setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt
 
 	if (WW3D_ERROR_OK == WW3D::Set_Device_Resolution(xres,yres,bitdepth,windowed,true))
 	{
+#if defined(SAGE_USE_SDL3)
+		extern SDL_Window *TheSDL3Window;
+		if (TheSDL3Window != nullptr)
+		{
+			if (windowed)
+			{
+				SDL_SetWindowFullscreen(TheSDL3Window, false);
+				SDL_SetWindowSize(TheSDL3Window, xres, yres);
+			}
+		}
+#endif
 		Render2DClass::Set_Screen_Resolution(RectClass(0, 0, xres, yres));
 		Display::setDisplayMode(xres, yres, bitdepth, windowed);
 		return TRUE;
