@@ -6356,7 +6356,9 @@ void SubmitEngineDraw(unsigned short start_index,
         }
     }
     UpdateAlphaMaskedShadowDecalMode();
-    if (IsMultiplicativeBlend(g_draw.state) && (g_draw.state & BGFX_STATE_WRITE_Z) == 0)
+    if (IsMultiplicativeBlend(g_draw.state)
+        && (g_draw.state & BGFX_STATE_WRITE_Z) == 0
+        && (g_draw.state & BGFX_STATE_DEPTH_TEST_MASK) != BGFX_STATE_DEPTH_TEST_EQUAL)
     {
         g_stats.skippedDraws++;
         bgfx::discard(BGFX_DISCARD_ALL);
