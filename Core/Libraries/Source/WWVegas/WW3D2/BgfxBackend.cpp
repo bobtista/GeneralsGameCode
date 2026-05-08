@@ -3051,6 +3051,11 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     g_draw.useTransientIB = false;
 }
 
+WW3DFormat BgfxBackend::Get_Back_Buffer_Format() const
+{
+    return WW3D_FORMAT_A8R8G8B8;
+}
+
 // -- Vertex / index buffers --------------------------------------------------
 
 void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)

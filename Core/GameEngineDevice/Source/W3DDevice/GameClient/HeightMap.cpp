@@ -2057,7 +2057,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 			g_renderBackend->Set_Texture(3, m_stageThreeTexture);
 		}
 		//Disable writes to destination alpha channel (if there is one)
-		if (DX8Wrapper::getBackBufferFormat() == WW3D_FORMAT_A8R8G8B8)
+		if (g_renderBackend->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8)
 			g_renderBackend->Set_Color_Write_Enable(true, true, true, false);
 	}
 
