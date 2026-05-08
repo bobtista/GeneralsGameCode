@@ -46,6 +46,7 @@
 #include "INI.h"
 #include "XSTRAW.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
 
 
 static unsigned int unique=1;
@@ -951,9 +952,9 @@ void VertexMaterialClass::Apply() const
 	DX8Wrapper::Set_DX8_Material(Material);
 
 	if (WW3D::Is_Coloring_Enabled())
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING,FALSE);
+		g_renderBackend->Set_Lighting_Enable(false);
 	else
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING,UseLighting);
+		g_renderBackend->Set_Lighting_Enable(UseLighting);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENTMATERIALSOURCE,AmbientColorSource);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_DIFFUSEMATERIALSOURCE,DiffuseColorSource);
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_EMISSIVEMATERIALSOURCE,EmissiveColorSource);
@@ -981,7 +982,7 @@ void VertexMaterialClass::Apply_Null()
 		1.0f									// power
 	};
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING,FALSE);
+	g_renderBackend->Set_Lighting_Enable(false);
 	DX8Wrapper::Set_DX8_Material(&default_settings);
 
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENTMATERIALSOURCE,D3DMCS_MATERIAL);
