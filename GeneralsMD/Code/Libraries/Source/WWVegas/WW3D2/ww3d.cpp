@@ -866,7 +866,7 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 
 	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4 session 3.
 	// Parallel per-frame hook for the bgfx backend. In the =dx8 build
-	// DX8Backend::Begin_Scene is empty and this is a no-op vcall; in the
+		// the DX8 base Begin_Scene is empty and this is a no-op vcall; in the
 	// =bgfx build BgfxBackend::Begin_Scene calls bgfx::touch(0) against
 	// bgfx's own debug window (not the game's main HWND, so DX8 keeps
 	// ownership of the main swapchain).
