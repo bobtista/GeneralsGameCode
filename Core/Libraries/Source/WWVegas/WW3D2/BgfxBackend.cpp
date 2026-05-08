@@ -2598,7 +2598,7 @@ void BgfxBackend::Shutdown()
 
 void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
 {
-    // Do NOT call DX8Backend::Set_Viewport here — this method is called
+    // Do NOT call the DX8 base viewport setter here - this method is called
     // FROM DX8Wrapper::Set_Viewport, so the D3D8 viewport is already set.
     // Calling the base class would cause infinite recursion.
 
@@ -6907,12 +6907,10 @@ void BgfxBackend::Draw_Strip(unsigned short start_index,
 // Asset-ingress resource creation
 // ===========================================================================
 //
-// Each method creates BOTH the bgfx resource and (via the DX8Backend base)
-// the D3D8 resource, so the ref-popup build sees both. The returned
-// RenderResource.id is a monotonically-increasing key into g_phase5.table;
-// the entry holds the bgfx handle(s) and the D3D8 pointer stored as a
-// void* "d3d_mirror" for eventual DX8-specific use (e.g. the texture class
-// still populating its D3DTexture field in ref-popup builds).
+// The returned RenderResource.id is a monotonically-increasing key into
+// g_phase5.table; the entry holds the bgfx handle(s). Legacy loaded resources
+// still enter through Register_Loaded_* and the older caches keyed by their
+// owner objects.
 //
 // Forward declaration — defined in BgfxBackendTextures.cpp.
 bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt);
@@ -6943,13 +6941,10 @@ const bgfx::Memory * CopySliceToBgfxMemory(const MipSlice & slice)
 
 RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
 {
-    // Mirror to DX8 first so the ref popup's D3D8 texture exists.
-    RenderResource dx8_rr = DX8Backend::Create_Texture(desc);
-
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_TEXTURE;
-    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
+    entry.d3d_mirror = nullptr;
     entry.texture = BGFX_INVALID_HANDLE;
 
     if (!desc.is_render_target && desc.mips != nullptr && desc.mip_count > 0) {
@@ -6978,12 +6973,10 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
 
 RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data)
 {
-    RenderResource dx8_rr = DX8Backend::Create_Vertex_Buffer(desc, initial_data);
-
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_VB;
-    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
+    entry.d3d_mirror = nullptr;
     entry.size_bytes = desc.size_bytes;
     entry.vb = BGFX_INVALID_HANDLE;
     // Static bgfx VB creation requires a layout. We build one lazily from
@@ -6999,12 +6992,10 @@ RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const 
 
 RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit)
 {
-    RenderResource dx8_rr = DX8Backend::Create_Index_Buffer(desc, initial_data, indices_are_32bit);
-
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_IB;
-    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
+    entry.d3d_mirror = nullptr;
     entry.size_bytes = desc.size_bytes;
     entry.ib = BGFX_INVALID_HANDLE;
     // Same as vertex buffers — bgfx-side creation is deferred to Stage 2.
@@ -7019,12 +7010,10 @@ RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const v
 
 RenderResource BgfxBackend::Create_Dynamic_Vertex_Buffer(const BufferDesc & desc)
 {
-    RenderResource dx8_rr = DX8Backend::Create_Dynamic_Vertex_Buffer(desc);
-
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_DYN_VB;
-    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
+    entry.d3d_mirror = nullptr;
     entry.size_bytes = desc.size_bytes;
     entry.dvb = BGFX_INVALID_HANDLE;
     // Dynamic VBs in bgfx are implemented on-the-fly via Map_Dynamic
@@ -7039,12 +7028,10 @@ RenderResource BgfxBackend::Create_Dynamic_Vertex_Buffer(const BufferDesc & desc
 
 RenderResource BgfxBackend::Create_Dynamic_Index_Buffer(const BufferDesc & desc, bool indices_are_32bit)
 {
-    RenderResource dx8_rr = DX8Backend::Create_Dynamic_Index_Buffer(desc, indices_are_32bit);
-
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_DYN_IB;
-    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
+    entry.d3d_mirror = nullptr;
     entry.size_bytes = desc.size_bytes;
     entry.dib = BGFX_INVALID_HANDLE;
 
@@ -7056,16 +7043,14 @@ RenderResource BgfxBackend::Create_Dynamic_Index_Buffer(const BufferDesc & desc,
 
 void * BgfxBackend::Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard)
 {
+    (void)offset;
+    (void)size;
+    (void)discard;
     auto it = g_phase5.table.find(h.id);
     if (it == g_phase5.table.end()) {
         return nullptr;
     }
-    BgfxPhase5Entry & entry = it->second;
-    // Return the D3D8-mapped pointer. On Unmap, we will snapshot the written
-    // bytes into a bgfx transient buffer before the D3D unlock happens.
-    RenderResource dx8_rr;
-    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
-    return DX8Backend::Map_Dynamic(dx8_rr, offset, size, discard);
+    return nullptr;
 }
 
 void BgfxBackend::Unmap_Dynamic(RenderResource h)
@@ -7074,23 +7059,17 @@ void BgfxBackend::Unmap_Dynamic(RenderResource h)
     if (it == g_phase5.table.end()) {
         return;
     }
-    BgfxPhase5Entry & entry = it->second;
-    RenderResource dx8_rr;
-    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
-    DX8Backend::Unmap_Dynamic(dx8_rr);
-    // Stage 3 will add the bgfx transient allocation + snapshot here.
 }
 
 void BgfxBackend::Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
 {
+    (void)offset;
+    (void)data;
+    (void)size;
     auto it = g_phase5.table.find(h.id);
     if (it == g_phase5.table.end()) {
         return;
     }
-    BgfxPhase5Entry & entry = it->second;
-    RenderResource dx8_rr;
-    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
-    DX8Backend::Update_Sub_Range(dx8_rr, offset, data, size);
 }
 
 void BgfxBackend::Destroy_Resource(RenderResource h)
@@ -7157,10 +7136,6 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
             break;
     }
 
-    // Release the D3D8 mirror.
-    RenderResource dx8_rr;
-    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
-    DX8Backend::Destroy_Resource(dx8_rr);
     g_phase5.table.erase(it);
 }
 
@@ -7168,12 +7143,10 @@ void BgfxBackend::Begin_Dynamic_Frame()
 {
     // TheSuperHackers @perf bobtista 28/04/2026 The earlier per-frame walk
     // over g_phase5.table to clear using_transient_vb/ib was pure waste —
-    // those flags are never set anywhere (Map_Dynamic still goes through
-    // the DX8 mirror) and entries are memset to zero on creation. When
-    // Map_Dynamic actually allocates bgfx transient buffers, it must also
+    // those flags are never set anywhere and entries are memset to zero on
+    // creation. When Map_Dynamic actually allocates bgfx transient buffers, it must also
     // push the entry id into a side list so we can scope this clear to
     // the entries actually touched last frame.
-    DX8Backend::Begin_Dynamic_Frame();
 }
 
 // -- Transitional Register_Loaded_* ----------------------------------------
