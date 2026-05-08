@@ -189,9 +189,9 @@ static void LogProjectedShadowPath(const char *event,
 
 static bool ShouldSkipDefaultBlobShadows()
 {
-	return std::getenv("GGC_BGFX_SKIP_BLOB_SHADOWS") != nullptr;
+	return std::getenv("GGC_BGFX_ENABLE_DIAGNOSTIC_OVERRIDES") != nullptr
+		&& std::getenv("GGC_BGFX_SKIP_BLOB_SHADOWS") != nullptr;
 }
-
 
 class W3DShadowTexture;	//forward reference
 class W3DShadowTextureManager;	//forward reference
@@ -271,6 +271,40 @@ class W3DShadowTexture : public RefCountClass, public	HashableClass
 		SphereClass	m_areaEffectSphere;			///<boundary defining object-space volume affected by shadow.
 		Vector3		m_shadowUV[2];		///world-space vectors defining the u and v texture coordinate axis.
 };
+
+static bool IsDefaultInfantryBlobShadowName(const char *name)
+{
+	return name != nullptr
+		&& (_stricmp(name, "shadowi.tga") == 0
+			|| _stricmp(name, "shadowi.dds") == 0);
+}
+
+static bool IsDefaultInfantryBlobShadowDecal(W3DShadowTexture *texture, ShadowType type)
+{
+	return type == SHADOW_DECAL
+		&& texture != nullptr
+		&& IsDefaultInfantryBlobShadowName(texture->Get_Name());
+}
+
+static RenderBackendProjectedDecalMode GetProjectedDecalMode(W3DShadowTexture *texture, ShadowType type)
+{
+	if (IsDefaultInfantryBlobShadowDecal(texture, type))
+	{
+		return RB_PROJECTED_DECAL_BLOB_SHADOW;
+	}
+
+	switch (type)
+	{
+		case SHADOW_ADDITIVE_DECAL:
+			return RB_PROJECTED_DECAL_ADDITIVE;
+		case SHADOW_ALPHA_DECAL:
+			return RB_PROJECTED_DECAL_ALPHA;
+		case SHADOW_DECAL:
+			return RB_PROJECTED_DECAL_MULTIPLY;
+		default:
+			return RB_PROJECTED_DECAL_NONE;
+	}
+}
 
 /*
 ** An Iterator to get to all loaded W3DShadowGeometries in a W3DShadowGeometryManager
@@ -693,12 +727,15 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 		// default blob shadow texture. SHADOW_DECAL also carries authored
 		// ground decals such as faction floor emblems, which still need to
 		// render in the bgfx path.
-		if (type == SHADOW_DECAL && texture && _stricmp(texture->Get_Name(), "shadow.tga") == 0
-			&& ShouldSkipDefaultBlobShadows())
+		const RenderBackendProjectedDecalMode projectedDecalMode = GetProjectedDecalMode(texture, type);
+		const bool isDefaultBlobShadowDecal = projectedDecalMode == RB_PROJECTED_DECAL_BLOB_SHADOW;
+		if (isDefaultBlobShadowDecal && ShouldSkipDefaultBlobShadows())
 		{
 			g_renderBackend->Skip_Next_Bgfx_Submit();
 		}
+		g_renderBackend->Set_Projected_Decal_Mode(projectedDecalMode);
 		g_renderBackend->Draw_Triangles(nShadowDecalStartBatchIndex, nShadowDecalPolysInBatch, 0, nShadowDecalVertsInBatch);
+		g_renderBackend->Set_Projected_Decal_Mode(RB_PROJECTED_DECAL_NONE);
 	}
 
 	g_renderBackend->Set_Vertex_Buffer(nullptr, 0);

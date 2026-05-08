@@ -1285,6 +1285,7 @@ Int ShroudTextureShader::set(Int stage)
 	g_renderBackend->Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);	//no need to keep a reference since it's a preset.
 	g_renderBackend->Set_Texture(stage, W3DShaderManager::getShaderTexture(0));	//shroud always stored in texture 0
+	g_renderBackend->Set_Shroud_Texture_Pass_Active(true, stage);
 
 	if (stage == 0)
 	{
@@ -1345,6 +1346,7 @@ Int ShroudTextureShader::set(Int stage)
 
 void ShroudTextureShader::reset()
 {
+	g_renderBackend->Set_Shroud_Texture_Pass_Active(false, m_stageOfSet);
 	g_renderBackend->Set_Texture(m_stageOfSet,nullptr);
 	g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	DX8Wrapper::Set_DX8_Texture_Stage_State(m_stageOfSet,  D3DTSS_TEXCOORDINDEX, m_stageOfSet);
@@ -3941,7 +3943,6 @@ void FlatTerrainShaderPixelShader::reset()
 
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
-
 
 
 

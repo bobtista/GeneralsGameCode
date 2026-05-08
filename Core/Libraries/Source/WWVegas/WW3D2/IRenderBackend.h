@@ -75,6 +75,15 @@ enum TransformKind
     RB_TRANSFORM_WORLD      = 256 // D3DTS_WORLD
 };
 
+enum RenderBackendProjectedDecalMode
+{
+    RB_PROJECTED_DECAL_NONE = 0,
+    RB_PROJECTED_DECAL_BLOB_SHADOW = 1,
+    RB_PROJECTED_DECAL_ADDITIVE = 2,
+    RB_PROJECTED_DECAL_ALPHA = 3,
+    RB_PROJECTED_DECAL_MULTIPLY = 4
+};
+
 struct RenderBackendViewport
 {
     unsigned int x;
@@ -593,6 +602,13 @@ public:
     // and would otherwise render as garbage geometry on the bgfx view.
     // No-op in non-bgfx backends.
     virtual void Skip_Next_Bgfx_Submit() {}
+
+    // TheSuperHackers @refactor bobtista 07/05/2026 Marks the W3D projected
+    // shadow decal flush. bgfx uses this pass provenance to distinguish real
+    // blob shadows from effect draws that may bind the same texture names.
+    // No-op in non-bgfx backends.
+    virtual void Set_Projected_Shadow_Decal_Active(bool /*active*/) {}
+    virtual void Set_Projected_Decal_Mode(RenderBackendProjectedDecalMode /*mode*/) {}
 
     // TheSuperHackers @refactor bobtista 15/04/2026 Toggles the
     // stencil shadow volume program + state override. When active, bgfx
