@@ -1791,15 +1791,6 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 			g_renderBackend->Set_Tree_Vertex_Shader_Active(true);
 		}
 
-#if 0
-		g_renderBackend->Set_Pixel_Shader(m_dwTreePixelShader);
-		// a.c. 6/16 - allow switching between normal and 2X mode for terrain
-		Real mulTwoX = 0.5f;
-		if(TheGlobalData && TheGlobalData->m_useOverbright)
-			mulTwoX = 1.0f;
-		DX8Wrapper::_Get_D3D_Device8()->SetPixelShaderConstant(1, D3DXVECTOR4(mulTwoX, mulTwoX, mulTwoX, mulTwoX), 1);
-#endif
-
 	} else {
 		g_renderBackend->Set_Vertex_Shader(DX8_FVF_XYZNDUV1);
 	}
@@ -2067,6 +2058,5 @@ void W3DTreeBuffer::loadPostProcess()
 {
 	// empty. jba [8/11/2003]
 }
-
 
 
