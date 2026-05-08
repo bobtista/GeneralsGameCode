@@ -87,6 +87,9 @@ public:
 	const FVFInfoClass& FVF_Info() const { return *fvf_info; }
 	unsigned short Get_Vertex_Count() const { return VertexCount; }
 	unsigned Type() const { return type; }
+	const unsigned char * Peek_CPU_Buffer_Data() const { return CPUBufferData; }
+	unsigned Get_CPU_Buffer_Size() const { return CPUBufferSize; }
+	bool Has_CPU_Buffer_Data() const { return CPUBufferValid; }
 
 	void Add_Engine_Ref() const;
 	void Release_Engine_Ref() const;
@@ -126,12 +129,16 @@ protected:
 	unsigned short					VertexCount;
 	mutable int						engine_refs;
 	FVFInfoClass*					fvf_info;
+	unsigned char*					CPUBufferData;
+	unsigned						CPUBufferSize;
+	bool							CPUBufferValid;
 	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Set by derived classes after calling
 	// g_renderBackend->Create_Vertex_Buffer. Parallel to the class-specific
 	// D3D pointer stored in DX8VertexBufferClass::VertexBuffer, which stays
 	// populated in ref-popup builds.
 	RenderResource					m_backendHandle;
+	void Update_CPU_Buffer_Data(unsigned byte_offset, const void * data, unsigned size);
 };
 
 
