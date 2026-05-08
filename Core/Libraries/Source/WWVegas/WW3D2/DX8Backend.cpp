@@ -561,6 +561,11 @@ void DX8Backend::Set_Fog(bool enable, const Vector3 & color, float start, float 
     DX8Wrapper::Set_Fog(enable, color, start, end);
 }
 
+void DX8Backend::Set_Fog_Enable(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_FOGENABLE, enable ? TRUE : FALSE);
+}
+
 bool DX8Backend::Get_Fog_Enable() const
 {
     return DX8Wrapper::Get_Fog_Enable();
