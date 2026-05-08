@@ -25,6 +25,7 @@
 // Forward declarations — full headers are included by the .cpp files that need the method bodies.
 class TextureBaseClass;
 class TextureClass;
+class VertexMaterialClass;
 class VertexBufferClass;
 class IndexBufferClass;
 class DynamicVBAccessClass;
@@ -193,6 +194,7 @@ struct BgfxDraw
     uint32_t samplerFlags[4] = { 0, 0, 0, 0 };
     bool textureIsMissing[4] = { false, false, false, false };
     TextureBaseClass * sourceTextures[4] = { nullptr, nullptr, nullptr, nullptr };
+    const VertexMaterialClass * sourceMaterial = nullptr;
 
     // Buffers (static + transient variants)
     bgfx::DynamicVertexBufferHandle vb       = BGFX_INVALID_HANDLE;
