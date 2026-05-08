@@ -172,6 +172,8 @@ public:
     virtual void Set_Color_Write_Mask(unsigned mask) override;
     virtual void Set_Lighting_Enable(bool enable) override;
     virtual void Skip_Next_Bgfx_Submit() override;
+    virtual void Set_Projected_Shadow_Decal_Active(bool active) override;
+    virtual void Set_Projected_Decal_Mode(RenderBackendProjectedDecalMode mode) override;
     virtual void Set_Shadow_Volume_Shader_Active(bool active) override;
     virtual void Apply_Stencil_Shadow_Darken(unsigned shadow_color,
                                              unsigned stencil_read_mask,
