@@ -64,6 +64,9 @@ public:
 	unsigned short Get_Index_Count() const { return index_count; }
 
 	unsigned Type() const { return type; }
+	const unsigned char * Peek_CPU_Buffer_Data() const { return CPUBufferData; }
+	unsigned Get_CPU_Buffer_Size() const { return CPUBufferSize; }
+	bool Has_CPU_Buffer_Data() const { return CPUBufferValid; }
 
 	void Add_Engine_Ref() const;
 	void Release_Engine_Ref() const;
@@ -106,10 +109,14 @@ protected:
 	mutable int					engine_refs;
 	unsigned short				index_count;		// number of indices
 	unsigned						type;
+	unsigned char*				CPUBufferData;
+	unsigned					CPUBufferSize;
+	bool						CPUBufferValid;
 	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Parallel to the class-specific D3D pointer stored in
 	// DX8IndexBufferClass::IndexBuffer.
 	RenderResource			m_backendHandle;
+	void Update_CPU_Buffer_Data(unsigned byte_offset, const void * data, unsigned size);
 };
 
 
