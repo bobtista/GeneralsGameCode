@@ -2654,6 +2654,81 @@ void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
     bgfx::setViewRect(kBgfxRTTView, x, y, w, h);
 }
 
+// -- View capture / post-effect primitives ----------------------------------
+
+bool BgfxBackend::Initialize_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+    // Native bgfx post effects use the scene framebuffer directly. The legacy
+    // W3DShaderManager filter capture path is intentionally reported as
+    // unsupported until those filters are ported to scene-composite passes.
+    return false;
+}
+
+void BgfxBackend::Release_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+}
+
+bool BgfxBackend::Supports_View_Capture(RenderBackendViewCaptureKind kind) const
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Begin_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::End_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Is_View_Capture_Active(RenderBackendViewCaptureKind kind) const
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Has_View_Capture(RenderBackendViewCaptureKind kind) const
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Bind_View_Capture_Texture(RenderBackendViewCaptureKind kind, unsigned int stage)
+{
+    (void)kind;
+    (void)stage;
+    return false;
+}
+
+bool BgfxBackend::Draw_View_Capture_Quad(RenderBackendViewCaptureKind kind,
+                                         const RenderBackendScreenVertex * vertices,
+                                         unsigned int vertex_count,
+                                         bool use_second_uv)
+{
+    (void)kind;
+    (void)vertices;
+    (void)vertex_count;
+    (void)use_second_uv;
+    return false;
+}
+
+bool BgfxBackend::Draw_Screen_Quad(const RenderBackendScreenVertex * vertices,
+                                   unsigned int vertex_count,
+                                   bool use_second_uv)
+{
+    (void)vertices;
+    (void)vertex_count;
+    (void)use_second_uv;
+    return false;
+}
+
 // -- Frame lifecycle ---------------------------------------------------------
 
 void BgfxBackend::Begin_Scene()
