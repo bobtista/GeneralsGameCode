@@ -38,7 +38,7 @@
 // ***********************************
 // Set this to 0 to remove all embedded browser code.
 //
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(GGC_RENDER_BACKEND_BGFX)
 #define ENABLE_EMBEDDED_BROWSER		1
 #else
 #define ENABLE_EMBEDDED_BROWSER		0
