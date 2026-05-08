@@ -142,6 +142,7 @@ public:
     virtual void Clear_Texture_Transform(unsigned stage) override;
     virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled) override;
     virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) override;
+    virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
     virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) override;
     virtual void Begin_Water_Overlay() override;
     virtual void End_Water_Overlay() override;
