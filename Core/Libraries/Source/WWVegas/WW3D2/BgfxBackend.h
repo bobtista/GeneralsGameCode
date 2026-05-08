@@ -59,6 +59,7 @@ public:
 
     virtual void Begin_Scene() override;
     virtual void End_Scene(bool flip_frame) override;
+    virtual WW3DFormat Get_Back_Buffer_Format() const override;
     virtual void Clear(bool clear_color, bool clear_z_stencil,
                        const Vector3 & color,
                        float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0) override;
