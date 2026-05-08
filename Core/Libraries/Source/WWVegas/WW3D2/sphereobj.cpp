@@ -661,7 +661,7 @@ void SphereRenderObjClass::Render(RenderInfoClass & rinfo)
 		// Camera Align
 		if (Flags & USE_CAMERA_ALIGN) {
 			Matrix4x4 view,ident(true);
-			DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+			g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, view);
 
 			Vector4 wpos(Transform[0][3],Transform[1][3],Transform[2][3],1);
 			Vector4 cpos;
