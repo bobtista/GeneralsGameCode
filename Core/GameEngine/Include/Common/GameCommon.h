@@ -47,6 +47,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 //#define _CAMPEA_DEMO
 
 // ----------------------------------------------------------------------------------------------
@@ -287,23 +289,31 @@ typedef UnsignedInt VeterancyLevelFlags;
 const VeterancyLevelFlags VETERANCY_LEVEL_FLAGS_ALL = 0xffffffff;
 const VeterancyLevelFlags VETERANCY_LEVEL_FLAGS_NONE = 0x00000000;
 
+inline UnsignedInt getVeterancyLevelFlagBit(VeterancyLevel dt)
+{
+	// Match the original dx8/x86 behavior for LEVEL_REGULAR: the old
+	// 1 << (0 - 1) expression wrapped to bit 31 there, but is undefined
+	// on Clang and can reject regular units from die modules.
+	return dt == LEVEL_REGULAR ? 31 : static_cast<UnsignedInt>(dt - 1);
+}
+
 inline Bool getVeterancyLevelFlag(VeterancyLevelFlags flags, VeterancyLevel dt)
 {
-	return (flags & (1UL << (dt - 1))) != 0;
+	return (flags & (1UL << getVeterancyLevelFlagBit(dt))) != 0;
 }
 
 inline VeterancyLevelFlags setVeterancyLevelFlag(VeterancyLevelFlags flags, VeterancyLevel dt)
 {
-	return (flags | (1UL << (dt - 1)));
+	return (flags | (1UL << getVeterancyLevelFlagBit(dt)));
 }
 
 inline VeterancyLevelFlags clearVeterancyLevelFlag(VeterancyLevelFlags flags, VeterancyLevel dt)
 {
-	return (flags & ~(1UL << (dt - 1)));
+	return (flags & ~(1UL << getVeterancyLevelFlagBit(dt)));
 }
 
 // ----------------------------------------------------------------------------------------------
-#define BOGUSPTR(p) ((((unsigned int)(p)) & 1) != 0)
+#define BOGUSPTR(p) (((reinterpret_cast<std::uintptr_t>(p)) & 1U) != 0)
 
 // ----------------------------------------------------------------------------------------------
 #define MAKE_DLINK_HEAD(OBJCLASS, LISTNAME)																						\

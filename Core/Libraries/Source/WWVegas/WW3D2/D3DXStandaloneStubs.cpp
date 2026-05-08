@@ -253,11 +253,11 @@ extern "C" UINT WINAPI D3DXGetFVFVertexSize(DWORD fvf)
 	}
 	if (fvf & D3DFVF_DIFFUSE)
 	{
-		size += sizeof(uint32_t);
+		size += sizeof(DWORD);
 	}
 	if (fvf & D3DFVF_SPECULAR)
 	{
-		size += sizeof(uint32_t);
+		size += sizeof(DWORD);
 	}
 	const DWORD tex_count = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
 	// Default 2 floats per set — D3DFVF_TEXCOORDSIZE1..4 overrides aren't

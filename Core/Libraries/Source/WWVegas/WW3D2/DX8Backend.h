@@ -21,7 +21,7 @@
 // existing DX8Wrapper static facade. It adds zero new rendering logic and
 // performs zero behavior changes — it is pure adaptation so the rest of the
 // engine can start talking to an IRenderBackend pointer while still running
-// on the established DX8 path. See RENDER_BACKEND.md.
+// on the established DX8 path.
 
 #pragma once
 
@@ -70,6 +70,7 @@ public:
     virtual void Get_Shader(ShaderClass & shader);
     virtual void Set_Material(const VertexMaterialClass * material);
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture);
+    virtual void Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * texture);
     virtual void Upload_Texture_Region(
         TextureClass * dst_texture,
         unsigned int dst_level,
@@ -85,6 +86,10 @@ public:
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest);
     virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha);
     virtual void Set_Alpha_Blend_Enable(bool enable);
+    virtual void Set_Alpha_Test_Enable(bool enable);
+    virtual void Set_Alpha_Test_Reference(unsigned ref);
+    virtual void Set_Alpha_Test_Function(CompareFunc func);
+    virtual void Set_Normalize_Normals(bool enable);
     virtual void Show_Hardware_Cursor(bool show);
     virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface);
     virtual void Set_Hardware_Cursor_Position(int x, int y);
@@ -134,6 +139,7 @@ public:
     // -- Lighting and fog -----------------------------------------------------
 
     virtual void Set_Light(unsigned int index, const LightClass & light);
+    virtual void Clear_Light(unsigned int index);
     virtual void Set_Ambient(const Vector3 & color);
     virtual const Vector3 & Get_Ambient() const;
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end);
@@ -171,4 +177,21 @@ public:
     virtual bool Is_Render_To_Texture() const;
     virtual void Set_Shadow_Map(int idx, ZTextureClass * ztex);
     virtual ZTextureClass * Get_Shadow_Map(int idx) const;
+
+    // -- Resource creation (Phase 5 asset ingress) ---------------------------
+
+    virtual RenderResource Create_Texture(const TextureDesc & desc);
+    virtual RenderResource Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data);
+    virtual RenderResource Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit);
+    virtual RenderResource Create_Dynamic_Vertex_Buffer(const BufferDesc & desc);
+    virtual RenderResource Create_Dynamic_Index_Buffer(const BufferDesc & desc, bool indices_are_32bit);
+    virtual void * Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard);
+    virtual void   Unmap_Dynamic(RenderResource h);
+    virtual void   Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size);
+    virtual void   Destroy_Resource(RenderResource h);
+    virtual void   Begin_Dynamic_Frame();
+
+    virtual RenderResource Register_Loaded_Texture(TextureBaseClass * tex);
+    virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * vb);
+    virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * ib);
 };

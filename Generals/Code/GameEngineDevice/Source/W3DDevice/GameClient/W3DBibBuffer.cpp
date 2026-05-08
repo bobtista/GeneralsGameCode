@@ -425,7 +425,7 @@ void W3DBibBuffer::renderBibs()
 		return;
 	}
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-	// through the IRenderBackend abstraction. See PHASE3.md.
+	// through the IRenderBackend abstraction.
 	// Setup the vertex buffer, shader & texture.
 	g_renderBackend->Set_Index_Buffer(m_indexBib,0);
 	g_renderBackend->Set_Vertex_Buffer(m_vertexBib,0);

@@ -2030,12 +2030,32 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 
  		if (m_disableTextures)
  			devicePasses=1;	//force to 1 lighting-only pass
+		// TheSuperHackers @bugfix bobtista 23/04/2026 Force single-pass
+		// terrain when using the shader pipeline. The legacy multipass
+		// path relies on D3DTSS_TCI_CAMERASPACEPOSITION texcoord generation
+		// that the uber shader does not emulate. Cloud shadowing is already
+		// handled in a single pass via pushCloudShadowToBackend.
+		if (g_renderBackend->Has_Shader_Pipeline())
+		{
+			devicePasses = 1;
+		}
 
  		//Specify all textures that this shader may need.
  		W3DShaderManager::setTexture(0,m_stageZeroTexture);
  		W3DShaderManager::setTexture(1,m_stageZeroTexture);
  		W3DShaderManager::setTexture(2,m_stageTwoTexture);	//cloud
  		W3DShaderManager::setTexture(3,m_stageThreeTexture);//noise
+
+		// TheSuperHackers @bugfix bobtista 22/04/2026 Explicitly bind
+		// terrain textures to the shader pipeline so 2D-UI atlas bindings
+		// from the previous pass cannot leak into the 3D terrain draw.
+		if (g_renderBackend->Has_Shader_Pipeline())
+		{
+			g_renderBackend->Set_Texture(0, m_stageZeroTexture);
+			g_renderBackend->Set_Texture(1, m_stageZeroTexture);
+			g_renderBackend->Set_Texture(2, m_stageTwoTexture);
+			g_renderBackend->Set_Texture(3, m_stageThreeTexture);
+		}
 		//Disable writes to destination alpha channel (if there is one)
 		if (DX8Wrapper::getBackBufferFormat() == WW3D_FORMAT_A8R8G8B8)
 			g_renderBackend->Set_Color_Write_Enable(true, true, true, false);
@@ -2412,6 +2432,13 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
  			}
 
 			Int devicePasses=W3DShaderManager::getShaderPasses(st);
+			// TheSuperHackers @bugfix bobtista 24/04/2026 Same rationale as
+			// the main terrain pass: shader pipeline cannot emulate the
+			// D3DTSS_TCI_CAMERASPACEPOSITION texcoord generation.
+			if (g_renderBackend->Has_Shader_Pipeline())
+			{
+				devicePasses = 1;
+			}
 
 			for (Int pass=0; pass < devicePasses; pass++)
 			{

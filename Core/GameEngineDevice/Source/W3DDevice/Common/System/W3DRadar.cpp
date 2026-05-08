@@ -104,8 +104,12 @@ void W3DRadar::initializeTextureFormats()
 {
 	const WW3DFormat terrainFormats[] =
 	{
-		WW3D_FORMAT_R8G8B8,
+		// TheSuperHackers @bugfix bobtista 26/04/2026 Prefer an opaque
+		// 32-bit radar terrain texture in standalone. bgfx can upload
+		// X8R8G8B8 directly, while R8G8B8 has no native bgfx texture
+		// format and falls back to the backend's white placeholder.
 		WW3D_FORMAT_X8R8G8B8,
+		WW3D_FORMAT_R8G8B8,
 		WW3D_FORMAT_R5G6B5,
 		WW3D_FORMAT_X1R5G5B5,
 		WW3D_FORMAT_UNKNOWN				// keep this one last
@@ -1286,6 +1290,10 @@ void W3DRadar::buildTerrainTexture( TerrainLogic *terrain )
 	// all done with the surface
 	surface->Unlock();
 	REF_PTR_RELEASE(surface);
+	if (g_renderBackend != nullptr && m_terrainTexture != nullptr)
+	{
+		g_renderBackend->Invalidate_Cached_Texture(m_terrainTexture);
+	}
 
 }
 
@@ -1314,6 +1322,10 @@ void W3DRadar::clearShroud()
 
 	surface->Unlock();
 	REF_PTR_RELEASE(surface);
+	if (g_renderBackend != nullptr && m_shroudTexture != nullptr)
+	{
+		g_renderBackend->Invalidate_Cached_Texture(m_shroudTexture);
+	}
 }
 
 // ------------------------------------------------------------------------------------------------

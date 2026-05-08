@@ -946,8 +946,8 @@ void DazzleRenderObjClass::Render(RenderInfoClass & rinfo)
 //			visibility = _VisibilityHandler->Compute_Dazzle_Visibility(rinfo,this,position);
 
 			Matrix4x4 view_transform,projection_transform;
-			DX8Wrapper::Get_Transform(D3DTS_VIEW,view_transform);
-			DX8Wrapper::Get_Transform(D3DTS_PROJECTION,projection_transform);
+			g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, view_transform);
+			g_renderBackend->Get_Transform(RB_TRANSFORM_PROJECTION, projection_transform);
 			Vector3 camera_loc(rinfo.Camera.Get_Position());
 			Vector3 camera_dir(-view_transform[2][0],-view_transform[2][1],-view_transform[2][2]);
 //			Matrix3D cam(rinfo.Camera.Get_Transform());
@@ -1023,9 +1023,9 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 	Matrix4x4 view_transform;
 	Matrix4x4 world_transform;
 	Matrix4x4 projection_transform;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view_transform);
-	DX8Wrapper::Get_Transform(D3DTS_WORLD,world_transform);
-	DX8Wrapper::Get_Transform(D3DTS_PROJECTION,projection_transform);
+	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, view_transform);
+	g_renderBackend->Get_Transform(RB_TRANSFORM_WORLD, world_transform);
+	g_renderBackend->Get_Transform(RB_TRANSFORM_PROJECTION, projection_transform);
 	old_view_transform=view_transform;
 	old_world_transform=world_transform;
 	old_projection_transform=projection_transform;

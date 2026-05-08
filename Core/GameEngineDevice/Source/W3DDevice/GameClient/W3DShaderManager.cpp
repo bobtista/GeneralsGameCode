@@ -81,29 +81,16 @@
 // Turn this on to turn off pixel shaders. jba[4/3/2003]
 #define do_not_DISABLE_PIXEL_SHADERS 1
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.5 shader-pass
-// texture binding helper. W3DShaderManager historically binds textures
-// for its custom shader passes by calling _Get_D3D_Device8()->SetTexture
-// directly, bypassing DX8Wrapper's render-state cache and the
-// g_renderBackend abstraction. The direct-bind is required because
-// Apply_Render_State_Changes is not called between passes, so the
-// legacy code stays. But this means the bgfx backend never sees the
-// terrain / water / shroud / noise textures for these passes and
-// renders white where the shader expected a sampled image.
-//
-// This helper keeps the immediate d3d bind (dx8 fast path) and also
-// notifies g_renderBackend->Set_Texture so BgfxBackend captures the
-// binding into its own sampler state. On the dx8 backend the render-
-// backend call bounces through DX8Wrapper::Set_Texture which caches
-// and dirties the state for the next normal draw - harmless because
-// the direct bind already put the correct texture on the device.
+// TheSuperHackers @refactor bobtista 11/04/2026 Shader-pass
+// texture binding helper. Custom shader passes draw immediately after
+// setup, without an Apply_Render_State_Changes step, so the bind must
+// reach the active backend immediately instead of only dirtying deferred
+// wrapper state.
 static inline void W3DShaderManager_BindStageTexture(unsigned stage, TextureClass * tex)
 {
-	IDirect3DTexture8 * raw = (tex != NULL) ? tex->Peek_D3D_Texture() : NULL;
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(stage, raw);
-	if (g_renderBackend != NULL)
+	if (g_renderBackend != nullptr)
 	{
-		g_renderBackend->Set_Texture(stage, tex);
+		g_renderBackend->Bind_Texture_Immediate(stage, tex);
 	}
 }
 
@@ -233,7 +220,10 @@ Bool ScreenDefaultFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool
 	Int xpos, ypos, width, height;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 	TheTacticalView->getOrigin(&xpos,&ypos);
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
@@ -378,7 +368,10 @@ Bool ScreenBWFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doE
 	Int xpos, ypos, width, height;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 	TheTacticalView->getOrigin(&xpos,&ypos);
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
@@ -621,7 +614,10 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 	}
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 
 	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
 
@@ -844,7 +840,10 @@ Bool ScreenCrossFadeFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bo
 	Real radius = 0.0f;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 	if (mode == FM_VIEW_CROSSFADE_CIRCLE)
 	{	W3DShaderManager_BindStageTexture(1, m_fadePatternTexture);
 		//Use the current fade level to scale the mask texture, for other modes the texture
@@ -1017,7 +1016,10 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 	Int xpos, ypos, width, height;
 
 	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // clear bgfx cache for raw D3D tex
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 	TheTacticalView->getOrigin(&xpos,&ypos);
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
@@ -1259,11 +1261,18 @@ Int ShroudTextureShader::init()
 //Setup a texture projection in the given stage that applies our shroud.
 Int ShroudTextureShader::set(Int stage)
 {
+	// TheSuperHackers @bugfix bobtista 28/04/2026 Shroud reuses terrain
+	// vertex buffers, but it is a projected multiplicative overlay, not the
+	// terrain pixel-shader blend pass. Clear the bgfx terrain override so the
+	// shroud pass cannot inherit terrain sampling state from the base pass.
+	g_renderBackend->Override_Terrain_Blend(false);
+
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	g_renderBackend->Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);	//no need to keep a reference since it's a preset.
 	g_renderBackend->Set_Texture(stage, W3DShaderManager::getShaderTexture(0));	//shroud always stored in texture 0
+	g_renderBackend->Set_Shroud_Texture_Pass_Active(true, stage);
 
 	if (stage == 0)
 	{
@@ -1324,6 +1333,7 @@ Int ShroudTextureShader::set(Int stage)
 
 void ShroudTextureShader::reset()
 {
+	g_renderBackend->Set_Shroud_Texture_Pass_Active(false, m_stageOfSet);
 	g_renderBackend->Set_Texture(m_stageOfSet,nullptr);
 	g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	DX8Wrapper::Set_DX8_Texture_Stage_State(m_stageOfSet,  D3DTSS_TEXCOORDINDEX, m_stageOfSet);
@@ -1359,6 +1369,10 @@ Int FlatShroudTextureShader::init()
 //Setup a texture projection in the given stage that applies our shroud.
 Int FlatShroudTextureShader::set(Int stage)
 {
+	// TheSuperHackers @bugfix bobtista 28/04/2026 Flat shroud is also a
+	// projected overlay and must not inherit the bgfx terrain blend branch.
+	g_renderBackend->Override_Terrain_Blend(false);
+
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	if (stage < 2)
 		g_renderBackend->Set_Texture(stage, W3DShaderManager::getShaderTexture(stage));
@@ -1689,12 +1703,6 @@ void TerrainShader2Stage::updateNoise2(D3DXMATRIX *destMatrix,D3DXMATRIX *curVie
 
 Int TerrainShader2Stage::set(Int pass)
 {
-	static bool s_loggedTerrainShader = false;
-	if (!s_loggedTerrainShader)
-	{
-		s_loggedTerrainShader = true;
-		WWDEBUG_SAY(("[W3DShaderManager] TerrainShader2Stage::set first fire pass=%d", pass));
-	}
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
 
@@ -1862,12 +1870,6 @@ Int TerrainShader8Stage::set(Int pass)
 {
 	if (pass == 0)
 	{
-		static bool s_logged8Stage = false;
-		if (!s_logged8Stage)
-		{
-			s_logged8Stage = true;
-			WWDEBUG_SAY(("[W3DShaderManager] TerrainShader8Stage::set first fire"));
-		}
 		g_renderBackend->Override_Terrain_Blend(true);
 
 		//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
@@ -2319,6 +2321,13 @@ Int RoadShaderPixelShader::shutdown()
 
 Int RoadShaderPixelShader::init()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	// bgfx cannot execute the legacy D3D8 roadnoise2.pso bytecode. Let the
+	// two-stage road shader register the road variants so bgfx receives a
+	// fixed-function state cascade it can translate.
+	roadShader2Stage.init();
+	return FALSE;
+#else
 	Int res;
 
 	//this shader will also use the 2Stage shader for some of the passes so initialize it too.
@@ -2350,10 +2359,15 @@ Int RoadShaderPixelShader::init()
 		}
 	}
 	return FALSE;
+#endif
 }
 
 Int RoadShaderPixelShader::set(Int pass)
 {
+	if (g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline())
+	{
+		g_renderBackend->Override_Terrain_Blend(false);
+	}
 	g_renderBackend->Set_Texture(0,W3DShaderManager::getShaderTexture(0));
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
@@ -2457,6 +2471,10 @@ Int RoadShader2Stage::init()
 
 Int RoadShader2Stage::set(Int pass)
 {
+	if (g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline())
+	{
+		g_renderBackend->Override_Terrain_Blend(false);
+	}
 	//First stage always contains base texture.
 	g_renderBackend->Set_Texture(0,W3DShaderManager::getShaderTexture(0));
 	//Force system to apply world/view transforms.
@@ -3101,7 +3119,13 @@ ChipsetType W3DShaderManager::getChipset()
 		D3DADAPTER_IDENTIFIER8 did;
 		::ZeroMemory(&did, sizeof(D3DADAPTER_IDENTIFIER8));
 	/*	HRESULT res = */ d3d8Interface->GetAdapterIdentifier(0,D3DENUM_NO_WHQL_LEVEL,&did);
+#ifdef _WIN32
 		*((LARGE_INTEGER*)&m_driverVersion) = did.DriverVersion;
+#else
+		// TheSuperHackers @build bobtista 29/04/2026 The dx8 SDK splits
+		// DriverVersion into Lo/Hi DWORDs on non-Win.
+		m_driverVersion = (static_cast<unsigned long long>(did.DriverVersionHighPart) << 32) | did.DriverVersionLowPart;
+#endif
 
 		if(did.VendorId == DC_NVIDIA_VENDOR_ID)
 		{
@@ -3453,10 +3477,10 @@ void FlatTerrainShader2Stage::reset()
 
 Int FlatTerrainShader2Stage::set(Int pass)
 {
-	static bool s_loggedFlat2 = false;
-	if (!s_loggedFlat2) { s_loggedFlat2 = true; WWDEBUG_SAY(("[W3DShaderManager] FlatTerrainShader2Stage::set first fire pass=%d", pass)); }
 	if (g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline())
+	{
 		g_renderBackend->Override_Terrain_Blend(true);
+	}
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
 
@@ -3906,8 +3930,6 @@ void FlatTerrainShaderPixelShader::reset()
 
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
-
-
 
 
 
