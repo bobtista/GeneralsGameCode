@@ -3804,8 +3804,6 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 
 	// Use alpha blending to draw the transparent shadow
     g_renderBackend->Set_Alpha_Blend_Enable(true);
-//  m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA );
-//  m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
 		g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 
 
@@ -3875,23 +3873,13 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 	if (m_shadowList && TheGlobalData->m_useShadowVolumes)
 	{
 
-		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-		if (!m_pDev)
+		if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 			return;	//need device to render anything.
 
  		//According to Nvidia there's a D3D bug that happens if you don't start with a
  		//new dynamic VB each frame - so we force a DISCARD by overflowing the counter.
  		nShadowIndicesInBuf = 0xffff;
  		nShadowVertsInBuf = 0xffff;
-
-		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3E partial migration:
-		// the high-level Set_Material/Set_Shader/Set_Texture/Apply_Render_State_Changes
-		// calls below are routed through g_renderBackend. The raw m_pDev->SetRenderState
-		// and m_pDev->SetTextureStageState calls in the same function remain on the
-		// IDirect3DDevice8 device pointer because they belong to the deeply-coupled
-		// stencil-volume rendering inner loop. for the deferred-work
-		// list and the reasoning behind the partial migration.
 
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
@@ -3908,7 +3896,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 	  g_renderBackend->Set_Depth_Test_Enable(true);
 		g_renderBackend->Set_Depth_Write_Enable(false);
 		g_renderBackend->Set_Alpha_Test_Enable(false);
-		m_pDev->SetRenderState(D3DRS_FOGENABLE, FALSE);
+		g_renderBackend->Set_Fog_Enable(false);
 
 
 		// setup the TMU to default
@@ -3976,8 +3964,6 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		g_renderBackend->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
 
 		g_renderBackend->Set_Cull_Mode(RB_CULL_CW);
-//		m_pDev->SetRenderState(D3DRS_ZBIAS,1);	///@todo: See if this helps or makes things worse.
-		//m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
 
 
 		lastActiveVertexBuffer=nullptr;	//reset
@@ -4067,8 +4053,6 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		}
 
 		g_renderBackend->Set_Cull_Mode(RB_CULL_CW);
-//		m_pDev->SetRenderState(D3DRS_ZBIAS,0);	///@todo: See if this helps or makes things worse.
-		//m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
 
 
 		// Phase 4F: restore the captured DWORD mask via the new DWORD
