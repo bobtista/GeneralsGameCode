@@ -1122,12 +1122,16 @@ void W3DTreeBuffer::freeTreeBuffers()
 		REF_PTR_RELEASE(m_indexTree[i]);
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (m_dwTreePixelShader)
 		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_dwTreePixelShader);
+#endif
 	m_dwTreePixelShader = 0;
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (m_dwTreeVertexShader)
 		DX8Wrapper::_Get_D3D_Device8()->DeleteVertexShader(m_dwTreeVertexShader);
+#endif
 	m_dwTreeVertexShader = 0;
 }
 
@@ -1230,6 +1234,12 @@ void W3DTreeBuffer::allocateTreeBuffers()
 		m_curNumTreeIndices[i]=0;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	// The bgfx backend uses its native tree program. Keep the legacy handles
+	// truthy so the existing tree-shader branch still feeds sway/shroud data.
+	m_dwTreeVertexShader = 1;
+	m_dwTreePixelShader = 1;
+#else
 		//shader decleration
 	// DX8_FVF_XYZNDUV1
 	DWORD Declaration[] =
@@ -1250,6 +1260,7 @@ void W3DTreeBuffer::allocateTreeBuffers()
 	hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\Trees.pso", &Declaration[0], 0, false, &m_dwTreePixelShader);
 	if (FAILED(hr))
 		return;
+#endif
 }
 
 //=============================================================================
@@ -2058,5 +2069,4 @@ void W3DTreeBuffer::loadPostProcess()
 {
 	// empty. jba [8/11/2003]
 }
-
 
