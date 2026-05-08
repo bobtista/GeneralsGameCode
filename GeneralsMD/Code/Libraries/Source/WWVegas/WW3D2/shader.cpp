@@ -45,6 +45,7 @@
 #include "wwdebug.h"
 #include "dx8wrapper.h"
 #include "dx8caps.h"
+#include "RenderBackend.h"
 
 
 bool ShaderClass::ShaderDirty=true;
@@ -456,11 +457,10 @@ void ShaderClass::Apply()
 
 		if(sf != D3DBLEND_ONE || df != D3DBLEND_ZERO)
 		{
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,sf);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND,df);
+			g_renderBackend->Set_Blend_Factors(static_cast<BlendFactor>(sf), static_cast<BlendFactor>(df));
 			blendOn = TRUE;
 		}
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,blendOn);
+		g_renderBackend->Set_Alpha_Blend_Enable(blendOn);
 
 		BOOL alphaTest = FALSE;
 
@@ -1018,16 +1018,16 @@ void ShaderClass::Apply()
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_SPECULARENABLE,BOOL(Get_Secondary_Gradient()));
 
 	// DEPTH COMPARE FUNCTION
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC,D3DCMPFUNC(int(Get_Depth_Compare())+1));
+	g_renderBackend->Set_Depth_Func(static_cast<CompareFunc>(int(Get_Depth_Compare())+1));
 
 	// DEPTH MASK
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZWRITEENABLE,BOOL(Get_Depth_Mask()));
+	g_renderBackend->Set_Depth_Write_Enable(Get_Depth_Mask());
 
 	// DITHERING
 //	DX8Wrapper::Set_DX8_Render_State(D3DRS_DITHERENABLE,BOOL(Get_Dither_Mask()));
 
 	// CULLMODE
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE,Get_Cull_Mode() ? _PolygonCullMode : D3DCULL_NONE);
+	g_renderBackend->Set_Cull_Mode(static_cast<CullMode>(Get_Cull_Mode() ? _PolygonCullMode : D3DCULL_NONE));
 
 	// NPATCHES
 	if (diff&ShaderClass::MASK_NPATCHENABLE) {
@@ -1259,4 +1259,3 @@ const StringClass& ShaderClass::Get_Description(StringClass& str) const
 	}
 	return str;
 }
-

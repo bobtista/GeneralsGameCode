@@ -672,7 +672,7 @@ void Render2DClass::Render()
 		g_renderBackend->Set_Grayscale_Mode(true);
 		if (DX8Wrapper::Get_Current_Caps()->Support_Dot3())
 		{	//Override W3D states with customizations for grayscale
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x80A5CA8E);
+			g_renderBackend->Set_Texture_Factor(0x80A5CA8E);
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG0, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
@@ -684,7 +684,7 @@ void Render2DClass::Render()
 		}
 		else
 		{	//doesn't have DOT3 blend mode so fake it another way.
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x60606060);
+			g_renderBackend->Set_Texture_Factor(0x60606060);
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
 			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -869,4 +869,3 @@ Vector2	Render2DTextClass::Get_Text_Extents( const WCHAR * text )
 
 	return extent;
 }
-
