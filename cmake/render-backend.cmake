@@ -52,14 +52,15 @@ elseif(GGC_RENDER_BACKEND STREQUAL "bgfx")
 endif()
 
 # TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 5 — standalone
-# bgfx build. When ON, BgfxBackend inherits from IRenderBackend directly
-# instead of DX8Backend, and the DX8 reference popup is disabled. This is
-# the path toward removing d3d8.dll / d3dx8.dll from the bgfx build's link
-# graph; today it still links against DX8 because the asset loaders haven't
-# been migrated yet (see Phase 5.1 follow-up). The define is compiled in so
-# code can conditionally exclude DX8-specific mirroring via
-# #if defined(GGC_BGFX_STANDALONE).
-option(GGC_BGFX_STANDALONE "bgfx without the DX8 reference popup; standalone base class for BgfxBackend" OFF)
+# bgfx build. When ON, the DX8 reference popup and real d3d8/d3dx8 runtime
+# links are disabled. This does NOT yet remove the legacy DX8Wrapper state
+# model: BgfxBackend still inherits from DX8Backend and standalone mode runs
+# DX8Wrapper against in-tree no-op D3D8/D3DX stubs so old call sites keep
+# updating the render-state/resource caches that bgfx translates.
+#
+# Removing those compatibility stubs requires the staged migration tracked in
+# docs/BUILD/BGFX_DX8_REMOVAL_PLAN.md.
+option(GGC_BGFX_STANDALONE "bgfx without the DX8 reference popup or real D3D8 runtime" OFF)
 if(GGC_BGFX_STANDALONE AND NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
     message(FATAL_ERROR
         "GGC_BGFX_STANDALONE=ON requires GGC_RENDER_BACKEND=bgfx.")

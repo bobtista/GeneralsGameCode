@@ -70,6 +70,7 @@ public:
     virtual void Get_Shader(ShaderClass & shader);
     virtual void Set_Material(const VertexMaterialClass * material);
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture);
+    virtual void Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * texture);
     virtual void Apply_Render_State_Changes();
     virtual void Apply_Default_State();
     virtual void Invalidate_Cached_Render_States();
@@ -114,6 +115,7 @@ public:
     // -- Lighting and fog -----------------------------------------------------
 
     virtual void Set_Light(unsigned int index, const LightClass & light);
+    virtual void Clear_Light(unsigned int index);
     virtual void Set_Ambient(const Vector3 & color);
     virtual const Vector3 & Get_Ambient() const;
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end);
