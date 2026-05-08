@@ -1465,10 +1465,7 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	Geometry *geometry;
 	Int numVerts, numPolys, numIndex;
 
-	//Get D3D Device used by W3D for quicker access.
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	if (!m_pDev)
+	if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 		return;
 
 	geometry = m_shadowVolume[lightIndex][ meshIndex ];
@@ -1529,10 +1526,7 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 	SHADOW_DYNAMIC_VOLUME_VERTEX* pvVertices;
 	UnsignedShort *pvIndices;
 
-	//Get D3D Device used by W3D for quicker access.
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	if (!m_pDev)
+	if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 		return;
 
 
