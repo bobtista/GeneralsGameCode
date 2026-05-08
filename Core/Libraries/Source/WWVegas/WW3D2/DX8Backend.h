@@ -81,6 +81,7 @@ public:
     virtual void Set_Alpha_Test_Enable(bool enable);
     virtual void Set_Alpha_Test_Reference(unsigned ref);
     virtual void Set_Alpha_Test_Function(CompareFunc func);
+    virtual void Set_Normalize_Normals(bool enable);
     virtual void Show_Hardware_Cursor(bool show);
     virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface);
     virtual void Set_Hardware_Cursor_Position(int x, int y);
