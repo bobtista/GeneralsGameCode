@@ -83,13 +83,21 @@ void W3DSmudgeManager::ReAcquireResources()
 {
 	ReleaseResources();
 
-	SurfaceClass *surface=DX8Wrapper::_Get_DX8_Back_Buffer();
 	SurfaceClass::SurfaceDescription surface_desc;
 
+#if defined(GGC_BGFX_STANDALONE)
+	surface_desc.Format = WW3D_FORMAT_UNKNOWN;
+	surface_desc.Width = TheDisplay ? TheDisplay->getWidth() : 0;
+	surface_desc.Height = TheDisplay ? TheDisplay->getHeight() : 0;
+#else
+	SurfaceClass *surface = g_renderBackend ? g_renderBackend->Get_Back_Buffer(0) : nullptr;
+	if (!surface)
+		return;
 	surface->Get_Description(surface_desc);
 	REF_PTR_RELEASE(surface);
 
 	m_backgroundTexture = MSGNEW("TextureClass") TextureClass(surface_desc.Width,surface_desc.Height,surface_desc.Format,MIP_LEVELS_1,TextureClass::POOL_DEFAULT, true);
+#endif
 
 	m_backBufferWidth = surface_desc.Width;
 	m_backBufferHeight = surface_desc.Height;
@@ -348,7 +356,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	surface_desc.Width = TheDisplay->getWidth();
 	surface_desc.Height = TheDisplay->getHeight();
 #else
-	SurfaceClass *backBuffer = DX8Wrapper::_Get_DX8_Back_Buffer();
+	SurfaceClass *backBuffer = g_renderBackend ? g_renderBackend->Get_Back_Buffer(0) : nullptr;
 
 	if (!backBuffer)
 		return;
@@ -498,12 +506,12 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 	g_renderBackend->Set_Texture(0,bgfxSmudgeActive ? nullptr : m_backgroundTexture);
 	//Need these states in case texture is non-power-of-2
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSW, D3DTADDRESS_CLAMP);
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
+	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSW, D3DTADDRESS_CLAMP);
+	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
+	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	g_renderBackend->Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
@@ -511,7 +519,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 	//Disable reading texture alpha since it's undefined.
 	//DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG2);
+	g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG2);
 
 	Int smudgesRemaining=count;
 	set=m_usedSmudgeSetList.Head();	//first smudge set that needs rendering.
