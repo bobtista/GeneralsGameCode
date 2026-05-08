@@ -111,7 +111,8 @@ public:
     virtual void Set_Color_Write_Mask(unsigned mask);
     virtual void Set_Lighting_Enable(bool enable);
     virtual void Set_Texture_Factor(unsigned argb);
-    virtual void Set_Cull_Mode(CullMode mode);
+    virtual CullMode Get_Cull_Mode() const override;
+    virtual void Set_Cull_Mode(CullMode mode) override;
 
     // TheSuperHackers @bugfix bobtista 01/06/2026 Forward Override_* state
     // overrides 1:1 to the legacy DX8Wrapper render-state calls so the dx8
