@@ -247,13 +247,6 @@ endif()
 
 add_library(corei_ww3d2 INTERFACE)
 
-# TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 —
-# In standalone mode (GGC_BGFX_STANDALONE=ON), BgfxBackend still inherits
-# from DX8Backend so DX8Wrapper's render_state tracking stays intact
-# (sorting renderer etc. rely on it). The only runtime difference is that
-# DX8Wrapper runs against a no-op stub IDirect3DDevice8 instead of a real
-# D3D8 device (see StubD3D8Device.cpp, wired in below).
-
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
 # TheSuperHackers @refactor bobtista 10/04/2026 Conditionally include the
