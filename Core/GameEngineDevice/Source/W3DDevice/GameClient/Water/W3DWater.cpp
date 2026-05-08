@@ -2699,7 +2699,7 @@ void WaterRenderObjClass::renderWaterMesh()
 
 //	m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
 
-	if (m_trapezoidWaterPixelShader) DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);
+	if (m_trapezoidWaterPixelShader) g_renderBackend->Set_Pixel_Shader(0);
 
 	m_vertexBufferD3DOffset += mx*my;	//advance past vertices already in buffer
 
@@ -3174,7 +3174,7 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 	if (TheWaterTransparency->m_additiveBlend)
 		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_ONE);
 
-	if (m_riverWaterPixelShader) DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_riverWaterPixelShader);
+	if (m_riverWaterPixelShader) g_renderBackend->Set_Pixel_Shader(m_riverWaterPixelShader);
 	CullMode cull = g_renderBackend->Get_Cull_Mode();
 	g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
 
@@ -3188,7 +3188,7 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 		g_renderBackend->Set_Fill_Mode(RB_FILL_SOLID);
 	}
 
-	if (m_riverWaterPixelShader) DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);
+	if (m_riverWaterPixelShader) g_renderBackend->Set_Pixel_Shader(0);
 
 	//restore blend mode to what W3D expects.
 	// TheSuperHackers @fix bobtista 20/04/2026 The flat water path below
@@ -3644,7 +3644,7 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 
 		if (m_riverWaterPixelShader)
 		{
-			DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);
+			g_renderBackend->Set_Pixel_Shader(0);
 		}
 		//Restore alpha blend to default values since we may have changed them to feather edges.
 		if (!TheWaterTransparency->m_additiveBlend)
@@ -3947,7 +3947,7 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 
 
 
-	if (m_riverWaterPixelShader) DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);
+	if (m_riverWaterPixelShader) g_renderBackend->Set_Pixel_Shader(0);
 	//Restore alpha blend to default values since we may have changed them to feather edges.
 	if (!TheWaterTransparency->m_additiveBlend)
 	{
