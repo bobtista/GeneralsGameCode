@@ -14,21 +14,27 @@ That is enough for macOS/Metal to run without a real Direct3D device. It is not
 the same as removing DX8 from the bgfx build. The bgfx renderer still depends on
 the legacy DX8-shaped state and resource model.
 
+Recent progress on `bobtista/remove-dx8-bgfx`:
+
+- `BgfxBackend` now inherits `IRenderBackend` directly instead of `DX8Backend`.
+- `BgfxBackend.cpp` no longer forwards through `DX8Backend` or peeks
+  `DX8Wrapper` state directly.
+- The bgfx CMake target no longer compiles `DX8Backend.cpp` or
+  `dx8webbrowser.cpp`.
+- Static vertex/index buffers and texture uploads are sourced from CPU-side
+  snapshots instead of bgfx locking D3D mirror resources directly.
+
 ## Why DX8 Cannot Be Deleted Yet
 
-`BgfxBackend` still inherits from `DX8Backend`. Its overrides call
-`DX8Backend::...` first for many state changes so `DX8Wrapper` continues to
-maintain:
+`BgfxBackend` is detached from `DX8Backend`, but bgfx-compiled engine code still
+uses `DX8Wrapper` as the fixed-function state and resource compatibility layer.
+`DX8Wrapper` continues to maintain:
 
 - current shader, material, textures, vertex buffers, and index buffer
 - world/view/projection transforms
 - light and fog state
 - render states and texture-stage states
 - D3D-shaped mirror resources for transitional texture/buffer ownership
-
-`BgfxBackend` also reads `DX8Wrapper::Peek_Render_State()` directly for pass
-classification and draw translation. Examples include blob shadows, reveal
-grid filtering, material capture, and texture-name diagnostics.
 
 Separately, several game and WW3D2 systems still call `DX8Wrapper` or raw
 `IDirect3DDevice8` APIs directly. The highest-priority areas are:
@@ -77,9 +83,8 @@ The resource classes also still expose D3D-shaped storage:
    can then become one consumer of that state instead of the owner.
 
 5. **Make `BgfxBackend` inherit `IRenderBackend` directly.**
-   Only do this after phase 4. Replacing `DX8Backend::...` base calls with
-   direct `DX8Wrapper::...` calls would remove one class but not the DX8
-   dependency; it would also hide the real remaining work.
+   Completed on `bobtista/remove-dx8-bgfx`. `BgfxBackend` now owns its cached
+   state and no longer uses `DX8Backend` as a forwarding base.
 
 6. **Split resources from D3D object ownership.**
    Texture/surface/VB/IB classes should store backend-neutral handles as the
@@ -103,16 +108,17 @@ The useful trend is not zero immediately. The useful trend is fewer direct raw
 device calls outside the legacy DX8 implementation, fewer `DX8Backend::...`
 base calls from `BgfxBackend`, and fewer D3D-shaped public resource APIs.
 
-Current measured state on `bobtista/remove-dx8-bgfx` after the first migration
-commits:
+Current measured state on `bobtista/remove-dx8-bgfx` after detaching
+`BgfxBackend`, removing `DX8Backend.cpp` from the bgfx target, and moving the
+first resource uploads to CPU snapshots:
 
 - `raw_device`: 256 hits
-- `dx8wrapper_low_level`: 1025 hits
-- `dx8wrapper_high_level`: 72 hits
-- `d3d_public_type`: 3382 hits
-- `bgfx_dx8backend_base_call`: 54 hits
-- `bgfx_peek_dx8_state`: 9 hits
-- total categorized hits: 4798
+- `dx8wrapper_low_level`: 992 hits
+- `dx8wrapper_high_level`: 37 hits
+- `d3d_public_type`: 3368 hits
+- `bgfx_dx8backend_base_call`: 0 hits
+- `bgfx_peek_dx8_state`: 0 hits
+- total categorized hits: 4653
 
 Completed low-risk migrations:
 
@@ -123,7 +129,18 @@ Completed low-risk migrations:
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
   `DX8Wrapper::Set_DX8_Render_State` calls.
+- `BgfxBackend` render-state, transform, material/light, clear, stencil-shadow,
+  shader texture, buffer, and texture paths no longer depend on
+  `DX8Backend`.
+- The bgfx target does not compile `DX8Backend.cpp` or `dx8webbrowser.cpp`.
 
-The `bgfx_dx8backend_base_call` count increased slightly because alpha-test now
-has explicit `BgfxBackend` overrides that forward to `DX8Backend` while updating
-bgfx state. That is expected until phase 4/5 removes the DX8Wrapper state owner.
+Next migration focus:
+
+- Replace remaining raw device call sites outside `dx8wrapper.cpp`, especially
+  shader-manager, water, snow, and shadow paths.
+- Move `DX8Wrapper`'s render-state arrays into a backend-neutral owner so
+  call sites can keep fixed-function semantics without requiring a D3D-shaped
+  wrapper.
+- Split texture/surface/VB/IB primary ownership from `IDirect3D*8` objects so
+  the bgfx build can eventually drop `StubD3D8Device.cpp` and the min-DX8
+  headers entirely.
