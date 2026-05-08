@@ -15,9 +15,6 @@
 #include <unordered_map>
 #include <vector>
 
-// d3d8 types leak into D3DPtrInfo (we shadow the D3D8 base-texture pointer).
-#include <d3d8.h>
-
 #include <bgfx/bgfx.h>
 
 #include "ww3dformat.h"
@@ -52,7 +49,7 @@ struct BgfxIbCacheEntry {
     uint32_t num_indices;
 };
 
-struct D3DPtrInfo { IDirect3DBaseTexture8 * ptr; uint16_t w; uint16_t h; };
+struct TextureCacheInfo { unsigned revision; uint16_t w; uint16_t h; };
 
 struct PendingTransientVB
 {
@@ -409,7 +406,7 @@ struct BgfxCaches
     std::unordered_map<const VertexBufferClass *, BgfxVbCacheEntry>      vb;
     std::unordered_map<const IndexBufferClass  *, BgfxIbCacheEntry>      ib;
     std::unordered_map<const TextureBaseClass  *, bgfx::TextureHandle>   texture;
-    std::unordered_map<const TextureBaseClass  *, D3DPtrInfo>            d3dPtr;
+    std::unordered_map<const TextureBaseClass  *, TextureCacheInfo>      textureInfo;
     std::unordered_map<const TextureBaseClass  *, BgfxFramebufferEntry>  framebuffer;
     std::unordered_map<const TextureBaseClass  *, bool>                  renderTarget;
     std::vector<bgfx::TextureHandle> deferredDestroys;     // current frame
