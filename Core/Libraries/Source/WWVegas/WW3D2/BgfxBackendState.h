@@ -200,6 +200,7 @@ struct BgfxDraw
     };
     uint32_t samplerFlags[4] = { 0, 0, 0, 0 };
     bool textureIsMissing[4] = { false, false, false, false };
+    TextureBaseClass * sourceTextures[4] = { nullptr, nullptr, nullptr, nullptr };
 
     // Buffers (static + transient variants)
     bgfx::DynamicVertexBufferHandle vb       = BGFX_INVALID_HANDLE;
