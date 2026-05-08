@@ -5049,6 +5049,11 @@ void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float
     (void)end;
 }
 
+void BgfxBackend::Set_Fog_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(D3DRS_FOGENABLE, enable ? TRUE : FALSE);
+}
+
 void BgfxBackend::Set_Light(unsigned int index, const LightClass & light)
 {
     if (index >= 4)
