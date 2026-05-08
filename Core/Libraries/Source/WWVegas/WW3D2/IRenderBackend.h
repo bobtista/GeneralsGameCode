@@ -398,6 +398,14 @@ public:
                                   unsigned int /*vertex_count*/,
                                   bool /*use_second_uv*/) { return false; }
 
+    virtual bool Capture_Back_Buffer_RGBA(unsigned int /*display_width*/,
+                                          unsigned int /*display_height*/,
+                                          unsigned int /*image_size*/,
+                                          unsigned char * /*output_pixels*/,
+                                          unsigned int /*output_capacity*/,
+                                          unsigned int * /*output_width*/,
+                                          unsigned int * /*output_height*/) { return false; }
+
     // -------------------------------------------------------------------------
     // Vertex / index buffers
     // -------------------------------------------------------------------------
