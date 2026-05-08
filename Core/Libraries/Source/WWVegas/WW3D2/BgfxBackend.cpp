@@ -2488,6 +2488,10 @@ void BgfxBackend::Shutdown()
         g_draw.tex[1]   = BGFX_INVALID_HANDLE;
         g_draw.tex[2]   = BGFX_INVALID_HANDLE;
         g_draw.tex[3]   = BGFX_INVALID_HANDLE;
+        g_draw.sourceTextures[0] = nullptr;
+        g_draw.sourceTextures[1] = nullptr;
+        g_draw.sourceTextures[2] = nullptr;
+        g_draw.sourceTextures[3] = nullptr;
         g_draw.ibOffset       = 0;
         g_draw.useTransientVB = false;
         g_draw.useTransientIB = false;
@@ -2823,6 +2827,7 @@ void BgfxBackend::Begin_Scene()
         g_draw.tex[i] = BGFX_INVALID_HANDLE;
         g_draw.samplerFlags[i] = 0;
         g_draw.textureIsMissing[i] = false;
+        g_draw.sourceTextures[i] = nullptr;
     }
 
     // TheSuperHackers @fix bobtista 21/04/2026 Reset transient view flags
@@ -3881,11 +3886,10 @@ static void LogBgfxRevealDraw(const char *event,
         return;
     }
 
-    const RenderStateStruct &rs = DX8Wrapper::Peek_Render_State();
-    const char *tex0 = TextureDebugName(rs.Textures[0]);
-    const char *tex1 = TextureDebugName(rs.Textures[1]);
-    const char *tex2 = TextureDebugName(rs.Textures[2]);
-    const char *tex3 = TextureDebugName(rs.Textures[3]);
+    const char *tex0 = TextureDebugName(g_draw.sourceTextures[0]);
+    const char *tex1 = TextureDebugName(g_draw.sourceTextures[1]);
+    const char *tex2 = TextureDebugName(g_draw.sourceTextures[2]);
+    const char *tex3 = TextureDebugName(g_draw.sourceTextures[3]);
     const bool relevantTexture =
         IsRevealRelevantTextureName(tex0)
         || IsRevealRelevantTextureName(tex1)
@@ -3951,7 +3955,6 @@ static void LogBgfxSortedMaterialDecal(const char *event,
         return;
     }
 
-    const RenderStateStruct &rs = DX8Wrapper::Peek_Render_State();
     if (FILE *diag = std::fopen("ggc_bgfx_sorted_decal_diag.txt", "a"))
     {
         std::fprintf(diag,
@@ -3966,8 +3969,8 @@ static void LogBgfxSortedMaterialDecal(const char *event,
                      static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
                      g_draw.zBias[0],
                      RenderStateCache::Get_Render_State(D3DRS_ZBIAS),
-                     TextureDebugName(rs.Textures[0]),
-                     TextureDebugName(rs.Textures[1]),
+                     TextureDebugName(g_draw.sourceTextures[0]),
+                     TextureDebugName(g_draw.sourceTextures[1]),
                      g_draw.tssOps0[0], g_draw.tssOps0[1],
                      g_draw.tssOps0[2], g_draw.tssOps0[3],
                      g_draw.texcoordSelect[0], g_draw.texcoordSelect[1],
@@ -4024,7 +4027,6 @@ static bool IsDefaultBlobShadowTexture(TextureBaseClass * texture)
 
 static void UpdateAlphaMaskedShadowDecalMode()
 {
-    const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
     const uint64_t multiplicativeBlend =
         BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
     uint64_t state = g_draw.state;
@@ -4034,7 +4036,7 @@ static void UpdateAlphaMaskedShadowDecalMode()
         state |= g_overrides.blendBits;
     }
     const bool isAlphaMaskedShadow =
-        IsDefaultBlobShadowTexture(rs.Textures[0])
+        IsDefaultBlobShadowTexture(g_draw.sourceTextures[0])
         && ((state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend);
     g_draw.texcoordSelect2[2] = isAlphaMaskedShadow ? 1.0f : 0.0f;
 }
@@ -4048,7 +4050,6 @@ static RenderBackendProjectedDecalMode GetEffectiveProjectedDecalModeForCurrentD
         return mode;
     }
 
-    const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
     const uint64_t multiplicativeBlend =
         BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
     uint64_t state = g_draw.state;
@@ -4058,7 +4059,7 @@ static RenderBackendProjectedDecalMode GetEffectiveProjectedDecalModeForCurrentD
         state |= g_overrides.blendBits;
     }
     const bool validBlobShadow =
-        IsDefaultInfantryBlobShadowTexture(rs.Textures[0])
+        IsDefaultInfantryBlobShadowTexture(g_draw.sourceTextures[0])
         && ((state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend);
 
     return validBlobShadow ? RB_PROJECTED_DECAL_BLOB_SHADOW : RB_PROJECTED_DECAL_MULTIPLY;
@@ -4325,6 +4326,7 @@ static void SyncTextureStagesFromDx8State()
         }
         g_draw.tex[si] = h;
         g_draw.textureIsMissing[si] = missingOrUnavailable;
+        g_draw.sourceTextures[si] = tex;
     }
 }
 
@@ -4821,7 +4823,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
 
     if (ShouldAllowBgfxDiagnosticDrawOverrides()
         && std::getenv("GGC_BGFX_SKIP_REVEAL_GRID") != nullptr
-        && IsRevealGridTexture(DX8Wrapper::Peek_Render_State().Textures[0]))
+        && IsRevealGridTexture(g_draw.sourceTextures[0]))
     {
         g_stats.skippedDraws++;
         bgfx::discard(BGFX_DISCARD_ALL);
@@ -5015,15 +5017,19 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
         switch (stage)
         {
             case 0: g_draw.tex[0] = h;
+                    g_draw.sourceTextures[0] = texture;
                     g_draw.samplerFlags[0] = samplerFlags;
                     g_draw.textureIsMissing[0] = missingOrUnavailable; break;
             case 1: g_draw.tex[1] = h;
+                    g_draw.sourceTextures[1] = texture;
                     g_draw.samplerFlags[1] = samplerFlags;
                     g_draw.textureIsMissing[1] = missingOrUnavailable; break;
             case 2: g_draw.tex[2] = h;
+                    g_draw.sourceTextures[2] = texture;
                     g_draw.samplerFlags[2] = samplerFlags;
                     g_draw.textureIsMissing[2] = missingOrUnavailable; break;
             case 3: g_draw.tex[3] = h;
+                    g_draw.sourceTextures[3] = texture;
                     g_draw.samplerFlags[3] = samplerFlags;
                     g_draw.textureIsMissing[3] = missingOrUnavailable; break;
             default: break;
@@ -6668,7 +6674,7 @@ void SubmitEngineDraw(unsigned short start_index,
 
     if (ShouldAllowBgfxDiagnosticDrawOverrides()
         && std::getenv("GGC_BGFX_SKIP_REVEAL_GRID") != nullptr
-        && IsRevealGridTexture(DX8Wrapper::Peek_Render_State().Textures[0]))
+        && IsRevealGridTexture(g_draw.sourceTextures[0]))
     {
         g_stats.skippedDraws++;
         bgfx::discard(BGFX_DISCARD_ALL);
