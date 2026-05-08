@@ -2591,9 +2591,6 @@ void BgfxBackend::Shutdown()
     g_device.window = nullptr;
 }
 
-// Device state queries (Is_Device_Lost / Has_Stencil / Get_Back_Buffer_Format
-// / Get_Back_Buffer / Set_Gamma) are inherited from DX8Backend.
-
 // -- Viewport ----------------------------------------------------------------
 
 void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
@@ -3054,8 +3051,6 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     g_draw.useTransientIB = false;
 }
 
-// Flip_To_Primary, Clear, Set_Viewport are inherited from DX8Backend.
-
 // -- Vertex / index buffers --------------------------------------------------
 
 void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)
@@ -3174,10 +3169,10 @@ void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned sh
 // Set_Index_Buffer_Index_Offset so we capture the per-mesh base vertex
 // offset. DX8PolygonRendererClass::Render calls this once per mesh
 // before Draw_Triangles to shift which vertex slot in the shared
-// category VB each index resolves to. Without this override the call
-// forwards to DX8Backend -> DX8Wrapper and the bgfx path keeps using
-// the stale offset from Set_Index_Buffer, so every mesh inside the
-// same rigid FVF category would draw using the first mesh's vertex slots.
+// category VB each index resolves to. Without this override the bgfx
+// path keeps using the stale offset from Set_Index_Buffer, so every
+// mesh inside the same rigid FVF category would draw using the first
+// mesh's vertex slots.
 void BgfxBackend::Set_Index_Buffer_Index_Offset(unsigned int offset)
 {
     g_draw.ibOffset = static_cast<unsigned short>(offset);
@@ -5034,6 +5029,13 @@ void BgfxBackend::Set_Ambient(const Vector3 & color)
     g_draw.sceneAmbient[2] = color.Z;
 }
 
+const Vector3 & BgfxBackend::Get_Ambient() const
+{
+    static Vector3 ambient;
+    ambient.Set(g_draw.sceneAmbient[0], g_draw.sceneAmbient[1], g_draw.sceneAmbient[2]);
+    return ambient;
+}
+
 void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float end)
 {
     (void)enable;
@@ -5131,7 +5133,11 @@ static uint64_t TranslateBlendOp(BlendOp op)
     }
 }
 
-// TheSuperHackers @fix bobtista 20/04/2026 The DX8Backend default only updates D3D render state, leaving bgfx's g_overrides.blendBits stale. Water rendering relies on this to restore SRC_ALPHA / INV_SRC_ALPHA blending after its DESTALPHA shoreline pass — otherwise the DESTALPHA state set by Override_Material_Opacity() persists into the next draw (e.g. the faction-emblem quad on the command-center bib), painting it black.
+// TheSuperHackers @fix bobtista 20/04/2026 Water rendering relies on this
+// to restore SRC_ALPHA / INV_SRC_ALPHA blending after its DESTALPHA shoreline
+// pass. Otherwise the DESTALPHA state set by Override_Material_Opacity()
+// persists into the next draw (e.g. the faction-emblem quad on the
+// command-center bib), painting it black.
 void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 {
     RenderStateCache::Set_Render_State(D3DRS_SRCBLEND, static_cast<unsigned>(src));
@@ -5484,9 +5490,7 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
 
 // TheSuperHackers @refactor bobtista 15/04/2026 Mirror the
 // DWORD variant into g_overrides.colorWriteOverride so stencil shadow volume
-// passes that call Set_Color_Write_Mask(0) actually disable bgfx color
-// writes. Previously the call fell through to DX8Backend only, leaving
-// shadow volumes drawing as solid black geometry.
+// passes that call Set_Color_Write_Mask(0) actually disable bgfx color writes.
 void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 {
     RenderStateCache::Set_Render_State(D3DRS_COLORWRITEENABLE, mask);
@@ -6044,12 +6048,6 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
     }
 }
 
-// Get_Shader, Apply_Render_State_Changes, Apply_Default_State,
-// Invalidate_Cached_Render_States, Set_Blend_Op, Set_Blend_Factors,
-// Set_Color_Write_Enable, Set_Alpha_Blend_Enable, hardware cursor, and
-// Set_Stencil_* are all inherited from DX8Backend and forward unchanged
-// to DX8Wrapper.
-
 // -- Transforms --------------------------------------------------------------
 
 void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
@@ -6133,8 +6131,6 @@ void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
     g_frame.cameraProjDirty = true;
 
 }
-
-// Get_Fog_Enable / Get_Light_Environment are inherited from DX8Backend.
 
 // -- Draw calls --------------------------------------------------------------
 
@@ -6871,11 +6867,6 @@ void BgfxBackend::Draw_Strip(unsigned short start_index,
 
     SubmitEngineDraw(start_index, index_count, min_vertex_index, vertex_count, true);
 }
-
-// The programmable pipeline (Set_Vertex_Shader, Set_Pixel_Shader,
-// Set_Vertex_Shader_Constant, Set_Pixel_Shader_Constant), and render targets
-// (Create_Render_Target, Set_Render_Target_With_Z, Is_Render_To_Texture,
-// Set_Shadow_Map, Get_Shadow_Map) are inherited from DX8Backend.
 
 // ===========================================================================
 // Asset-ingress resource creation
