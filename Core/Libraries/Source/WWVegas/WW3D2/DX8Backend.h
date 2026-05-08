@@ -136,6 +136,7 @@ public:
     virtual void Set_Color_Write_Mask(unsigned mask) override;
     virtual void Set_Lighting_Enable(bool enable);
     virtual void Set_Texture_Factor(unsigned argb);
+    virtual void Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
     virtual CullMode Get_Cull_Mode() const override;
     virtual void Set_Cull_Mode(CullMode mode) override;

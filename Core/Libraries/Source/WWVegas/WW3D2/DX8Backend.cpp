@@ -898,6 +898,13 @@ void DX8Backend::Set_Texture_Factor(unsigned argb)
     DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, argb);
 }
 
+void DX8Backend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
+{
+    DX8Wrapper::_Set_DX8_Transform(
+        static_cast<D3DTRANSFORMSTATETYPE>(D3DTS_TEXTURE0 + stage),
+        To_D3DMATRIX(matrix));
+}
+
 void DX8Backend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
 {
     DX8Wrapper::Set_DX8_Texture_Stage_State(

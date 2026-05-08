@@ -81,6 +81,28 @@ static inline void W3DWater_BindTexture(unsigned stage, TextureClass * tex)
 		g_renderBackend->Bind_Texture_Immediate(stage, tex);
 }
 
+static inline void W3DWater_GetD3DXTransform(TransformKind transform, D3DXMATRIX & matrix)
+{
+	if (g_renderBackend == nullptr)
+		return;
+
+	Matrix4x4 backendMatrix;
+	g_renderBackend->Get_Transform(transform, backendMatrix);
+	matrix = To_D3DXMATRIX(backendMatrix);
+}
+
+static inline void W3DWater_SetD3DXTransform(TransformKind transform, const D3DXMATRIX & matrix)
+{
+	if (g_renderBackend != nullptr)
+		g_renderBackend->Set_Transform(transform, To_Matrix4x4(matrix));
+}
+
+static inline void W3DWater_SetTextureTransform(unsigned stage, const D3DXMATRIX & matrix)
+{
+	if (g_renderBackend != nullptr)
+		g_renderBackend->Set_Texture_Transform(stage, To_Matrix4x4(matrix));
+}
+
 #define MIPMAP_BUMP_TEXTURE
 
 // DEFINES ////////////////////////////////////////////////////////////////////////////////////////
@@ -267,7 +289,7 @@ void WaterRenderObjClass::setupJbaWaterShader()
 		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
 
 		D3DXMATRIX curView;
-		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
+		W3DWater_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
 		D3DXMATRIX inv;
 		float det;
 		D3DXMatrixInverse(&inv, &det, &curView);
@@ -276,7 +298,7 @@ void WaterRenderObjClass::setupJbaWaterShader()
 		D3DXMATRIX destMatrix = inv * scale;
 		D3DXMatrixTranslation(&scale, m_riverVOrigin, m_riverVOrigin,0);
 		destMatrix = destMatrix*scale;
-		DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE2, destMatrix);
+		W3DWater_SetTextureTransform(2, destMatrix);
 
 	}
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR );
@@ -1691,7 +1713,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 
 				//get current view matrix
 				D3DXMATRIX curView;
-				DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
+				W3DWater_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
 
 				//get inverse of view matrix(= view to world matrix)
 				D3DXMATRIX inv;
@@ -1717,7 +1739,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
 				// Set texture generation matrix for stage 1
-				DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE1, inv);
+				W3DWater_SetTextureTransform(1, inv);
 
 				// Disable bilinear filtering
 				DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
@@ -2046,8 +2068,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 
 	rinfo.Camera.Get_Transform().Get_Translation(&camTran);
 
-	DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, matView);
-	DX8Wrapper::_Get_DX8_Transform(D3DTS_PROJECTION, matProj);
+	W3DWater_GetD3DXTransform(RB_TRANSFORM_VIEW, matView);
+	W3DWater_GetD3DXTransform(RB_TRANSFORM_PROJECTION, matProj);
 
 	//default setup from Kenny's demo
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
@@ -2189,8 +2211,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
 	//Restore old transforms
-	DX8Wrapper::_Set_DX8_Transform(D3DTS_VIEW, matView);
-	DX8Wrapper::_Set_DX8_Transform(D3DTS_PROJECTION, matProj);
+	W3DWater_SetD3DXTransform(RB_TRANSFORM_VIEW, matView);
+	W3DWater_SetD3DXTransform(RB_TRANSFORM_PROJECTION, matProj);
 
 	g_renderBackend->Set_Pixel_Shader(0);	//turn off pixel shader
 	g_renderBackend->Set_Vertex_Shader(DX8_FVF_XYZDUV1);	//turn off custom vertex shader
@@ -2214,7 +2236,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 
 				D3DXMatrixMultiply(&matTemp, &patchMatrix, &matWW3D);
 
-				DX8Wrapper::_Set_DX8_Transform(D3DTS_WORLD, matTemp);
+				W3DWater_SetD3DXTransform(RB_TRANSFORM_WORLD, matTemp);
 
 				m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP,0,m_numVertices,0,m_numIndices);
 			}
@@ -3306,7 +3328,7 @@ void WaterRenderObjClass::setupFlatWaterShader()
 		DX8Wrapper::Set_DX8_Texture_Stage_State(2,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
 
 		D3DXMATRIX curView;
-		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
+		W3DWater_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
 		D3DXMATRIX inv;
 		float det;
 		D3DXMatrixInverse(&inv, &det, &curView);
@@ -3315,7 +3337,7 @@ void WaterRenderObjClass::setupFlatWaterShader()
 		D3DXMATRIX destMatrix = inv * scale;
 		D3DXMatrixTranslation(&scale, m_riverVOrigin, m_riverVOrigin,0);
 		destMatrix = destMatrix*scale;
-		DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE2, destMatrix);
+		W3DWater_SetTextureTransform(2, destMatrix);
 
 	}
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR );
