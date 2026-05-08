@@ -43,8 +43,6 @@ set(WW3D2_SRC
     distlod.cpp
     distlod.h
     dllist.h
-    DX8Backend.cpp
-    DX8Backend.h
     dx8caps.cpp
     dx8caps.h
     dx8fvf.cpp
@@ -243,6 +241,13 @@ set(WW3D2_SRC
 add_library(corei_ww3d2 INTERFACE)
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
+
+if(GGC_RENDER_BACKEND STREQUAL "dx8")
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/DX8Backend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/DX8Backend.h
+    )
+endif()
 
 # TheSuperHackers @refactor bobtista 10/04/2026 Conditionally include the
 # active render backend's source files. See cmake/render-backend.cmake and
