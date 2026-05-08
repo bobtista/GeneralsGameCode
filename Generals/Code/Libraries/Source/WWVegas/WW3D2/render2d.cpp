@@ -592,6 +592,7 @@ void Render2DClass::Render()
 	{	//special case added to draw grayscale non-alpha blended images.
 		g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueShader);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of all regular W3D states.
+		g_renderBackend->Set_Grayscale_Mode(true);
 		if (DX8Wrapper::Get_Current_Caps()->Support_Dot3())
 		{	//Override W3D states with customizations for grayscale
 			DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x80A5CA8E);
@@ -625,7 +626,10 @@ void Render2DClass::Render()
 	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,view);
 	g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,proj);
 	if (IsGrayScale)
+	{
 		ShaderClass::Invalidate();	//force both stages to be reset.
+		g_renderBackend->Set_Grayscale_Mode(false);
+	}
 
 }
 
@@ -782,4 +786,3 @@ Vector2	Render2DTextClass::Get_Text_Extents( const WCHAR * text )
 
 	return extent;
 }
-

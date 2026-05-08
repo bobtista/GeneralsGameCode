@@ -1,31 +1,27 @@
 # cmake/render-backend.cmake
 #
 # TheSuperHackers @refactor bobtista 10/04/2026 Selects the rendering backend
-# for WW3D2 at configure time. See Core/Libraries/Source/WWVegas/WW3D2/RENDER_BACKEND.md
-# for the full multi-phase plan and PHASE2.md for this phase's scope.
+# for WW3D2 at configure time.
 #
 # Valid values:
-#   dx8      - existing DirectX 8 backend. Default. VC6-compatible. Windows only.
-#   bgfx     - bgfx abstraction over DX11/Vulkan/Metal/GL. Cross-platform. MSVC 2022+.
-#   diligent - Diligent Engine abstraction over DX11/Vulkan/Metal. Cross-platform. MSVC 2022+.
+#   dx8  - existing DirectX 8 backend. Default. VC6-compatible. Windows only.
+#   bgfx - bgfx abstraction over DX11/Vulkan/Metal/GL. Cross-platform. MSVC 2022+.
 #
-# When set to bgfx or diligent, the corresponding dependency module is
-# included from cmake/bgfx.cmake or cmake/diligent.cmake. Neither is
-# fetched when dx8 is selected.
+# When set to bgfx the dependency module is included from cmake/bgfx.cmake.
+# It is not fetched when dx8 is selected.
 #
 # This file must be included from the top-level CMakeLists.txt after the
 # project() call but before the WW3D2 source subdirectories are added.
 
 set(GGC_RENDER_BACKEND "dx8" CACHE STRING
-    "Rendering backend for WW3D2: dx8 (default), bgfx, or diligent")
-set_property(CACHE GGC_RENDER_BACKEND PROPERTY STRINGS dx8 bgfx diligent)
+    "Rendering backend for WW3D2: dx8 (default) or bgfx")
+set_property(CACHE GGC_RENDER_BACKEND PROPERTY STRINGS dx8 bgfx)
 
 if(NOT GGC_RENDER_BACKEND STREQUAL "dx8" AND
-   NOT GGC_RENDER_BACKEND STREQUAL "bgfx" AND
-   NOT GGC_RENDER_BACKEND STREQUAL "diligent")
+   NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
     message(FATAL_ERROR
         "Invalid GGC_RENDER_BACKEND: '${GGC_RENDER_BACKEND}'. "
-        "Must be one of: dx8, bgfx, diligent.")
+        "Must be one of: dx8, bgfx.")
 endif()
 
 message(STATUS "WW3D2 render backend: ${GGC_RENDER_BACKEND}")
@@ -53,36 +49,25 @@ if(GGC_RENDER_BACKEND STREQUAL "dx8")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_DX8=1")
 elseif(GGC_RENDER_BACKEND STREQUAL "bgfx")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_BGFX=1")
-elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
-    set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_DILIGENT=1")
 endif()
 
-if(GGC_RENDER_BACKEND STREQUAL "bgfx")
-    if(NOT DEFINED GGC_BGFX_RENDERER)
-        if(APPLE)
-            set(GGC_BGFX_RENDERER "metal" CACHE STRING "bgfx renderer for GGC_RENDER_BACKEND=bgfx")
-        else()
-            set(GGC_BGFX_RENDERER "dx11" CACHE STRING "bgfx renderer for GGC_RENDER_BACKEND=bgfx")
-        endif()
-    endif()
-    set_property(CACHE GGC_BGFX_RENDERER PROPERTY STRINGS dx11 metal vulkan)
-
-    if(NOT GGC_BGFX_RENDERER STREQUAL "dx11" AND
-       NOT GGC_BGFX_RENDERER STREQUAL "metal" AND
-       NOT GGC_BGFX_RENDERER STREQUAL "vulkan")
-        message(FATAL_ERROR
-            "Invalid GGC_BGFX_RENDERER: '${GGC_BGFX_RENDERER}'. "
-            "Must be one of: dx11, metal, vulkan.")
-    endif()
-
-    if(GGC_BGFX_RENDERER STREQUAL "metal")
-        add_compile_definitions(GGC_BGFX_RENDERER_METAL=1)
-    elseif(GGC_BGFX_RENDERER STREQUAL "vulkan")
-        add_compile_definitions(GGC_BGFX_RENDERER_VULKAN=1)
-    else()
-        add_compile_definitions(GGC_BGFX_RENDERER_DX11=1)
-    endif()
-    message(STATUS "bgfx renderer target: ${GGC_BGFX_RENDERER}")
+# TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 5 — standalone
+# bgfx build. When ON, the DX8 reference popup and real d3d8/d3dx8 runtime
+# links are disabled. This does NOT yet remove the legacy DX8Wrapper state
+# model: BgfxBackend still inherits from DX8Backend and standalone mode runs
+# DX8Wrapper against in-tree no-op D3D8/D3DX stubs so old call sites keep
+# updating the render-state/resource caches that bgfx translates.
+#
+# Removing those compatibility stubs requires the staged migration tracked in
+# docs/BUILD/BGFX_DX8_REMOVAL_PLAN.md.
+option(GGC_BGFX_STANDALONE "bgfx without the DX8 reference popup or real D3D8 runtime" OFF)
+if(GGC_BGFX_STANDALONE AND NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
+    message(FATAL_ERROR
+        "GGC_BGFX_STANDALONE=ON requires GGC_RENDER_BACKEND=bgfx.")
+endif()
+if(GGC_BGFX_STANDALONE)
+    add_compile_definitions(GGC_BGFX_STANDALONE=1)
+    message(STATUS "Bgfx standalone mode enabled — ref popup disabled.")
 endif()
 
 # Pull in the backend's dependency module if it has one. dx8 has no module
@@ -90,6 +75,4 @@ endif()
 # CMakeLists.txt unconditionally for the min-dx8-sdk.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     include(cmake/bgfx.cmake)
-elseif(GGC_RENDER_BACKEND STREQUAL "diligent")
-    include(cmake/diligent.cmake)
 endif()

@@ -487,9 +487,12 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 		return;
 	}
 #endif
+	// TheSuperHackers @bugfix bobtista 28/04/2026 Keep flat terrain in sync
+	// with the bgfx cloudmap path used by regular terrain.
+	W3DShaderManager::pushCloudShadowToBackend(doCloud, doCloud ? m_stageTwoTexture : nullptr);
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-	// through the IRenderBackend abstraction. See PHASE3.md.
+	// through the IRenderBackend abstraction.
 	g_renderBackend->Set_Light_Environment(rinfo.light_environment);
 
 	// Force shaders to update.
@@ -529,6 +532,13 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 
  	if (m_disableTextures)
  		devicePasses=1;	//force to 1 lighting-only pass
+
+	// TheSuperHackers @bugfix bobtista 24/04/2026 Same rationale as HeightMap:
+	// shader pipeline cannot emulate D3DTSS_TCI_CAMERASPACEPOSITION.
+	if (g_renderBackend->Has_Shader_Pipeline())
+	{
+		devicePasses = 1;
+	}
 
  	//Specify all textures that this shader may need.
  	W3DShaderManager::setTexture(0,m_stageZeroTexture);
@@ -643,6 +653,7 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	m_stageTwoTexture->restore();
 	ShaderClass::Invalidate();
 	g_renderBackend->Set_Material(nullptr);
+	W3DShaderManager::pushCloudShadowToBackend(false, nullptr);
 
 }
 

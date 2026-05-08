@@ -5,9 +5,9 @@
 #
 # Pulls in bgfx via the community bgfx.cmake wrapper, which internally
 # fetches bgfx/bx/bimg as git submodules. We pin a specific bgfx.cmake
-# SHA for reproducibility. See PHASE2.md.
+# SHA for reproducibility.
 #
-# This file is NOT included when GGC_RENDER_BACKEND is dx8 or diligent.
+# This file is NOT included when GGC_RENDER_BACKEND is dx8.
 
 # Disable bgfx features we don't need. These must be set BEFORE
 # FetchContent_MakeAvailable so bgfx.cmake picks them up at configure time.

@@ -2043,7 +2043,12 @@ AGAIN:
 	do {
 
 		// update all views of the world - recomputes data which will affect drawing
-		if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) == D3D_OK)
+#if defined(GGC_RENDER_BACKEND_BGFX)
+		const Bool renderDeviceReady = (g_renderBackend != nullptr && !g_renderBackend->Is_Device_Lost());
+#else
+		const Bool renderDeviceReady = (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) == D3D_OK);
+#endif
+		if (renderDeviceReady)
 		{	//Checking if we have the device before updating views because the heightmap crashes otherwise while
 			//trying to refresh the visible terrain geometry.
 //			if(TheGlobalData->m_loadScreenRender != TRUE)
@@ -2117,8 +2122,6 @@ AGAIN:
 				}
 				if( m_copyrightDisplayString )
 				{
-					static int s_copyLog = 0;
-					if (s_copyLog < 3) { s_copyLog++; FILE *f = fopen("C:\\tmp\\bgfx_diag.txt", "a"); if(f) { fprintf(f, "COPYRIGHT DRAW #%d w=%d h=%d\n", s_copyLog, getWidth(), getHeight()); fclose(f); } }
 					Int x, y, dX, dY;
 					m_copyrightDisplayString->getSize(&dX, &dY);
 					x = (getWidth() / 2) - (dX /2);

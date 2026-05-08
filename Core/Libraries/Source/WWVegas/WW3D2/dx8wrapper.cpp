@@ -90,8 +90,6 @@
 
 #include "shdlib.h"
 
-#include <cstdio>
-
 #if defined(GGC_BGFX_STANDALONE)
 #include "TARGA.h"
 #include "ww3dformat.h"
@@ -105,20 +103,6 @@ const D3DMULTISAMPLE_TYPE DEFAULT_MSAA = D3DMULTISAMPLE_NONE;
 
 DX8FrameStatistics DX8Wrapper::FrameStatistics;
 static DX8FrameStatistics LastFrameStatistics;
-
-static void Log_Missing_Texture_File(const char *reason, const char *filename)
-{
-	char message[512];
-	snprintf(
-		message,
-		sizeof(message),
-		"Missing texture %s: %s\n",
-		reason ? reason : "load failed",
-		filename ? filename : "(null)");
-	fprintf(stderr, "%s", message);
-	fflush(stderr);
-	OutputDebugString(message);
-}
 
 bool DX8Wrapper_IsWindowed = true;
 
@@ -163,8 +147,6 @@ Vector3							DX8Wrapper::Ambient_Color;
 // shader system additions KJM ^
 
 bool								DX8Wrapper::world_identity;
-unsigned							DX8Wrapper::RenderStates[256];
-unsigned							DX8Wrapper::TextureStageStates[MAX_TEXTURE_STAGES][32];
 IDirect3DBaseTexture8 *		DX8Wrapper::Textures[MAX_TEXTURE_STAGES];
 RenderStateStruct				DX8Wrapper::render_state;
 unsigned							DX8Wrapper::render_state_changed;
@@ -187,8 +169,6 @@ int								DX8Wrapper::ZBias;
 float								DX8Wrapper::ZNear;
 float								DX8Wrapper::ZFar;
 D3DMATRIX						DX8Wrapper::ProjectionMatrix;
-D3DMATRIX						DX8Wrapper::DX8Transforms[D3DTS_WORLD+1];
-
 DX8Caps*							DX8Wrapper::CurrentCaps = nullptr;
 
 // Hack test... this disables rendering of batches of too few polygons.
@@ -279,8 +259,7 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 
 	// zero memory
 	memset(Textures,0,sizeof(IDirect3DBaseTexture8*)*MAX_TEXTURE_STAGES);
-	memset(RenderStates,0,sizeof(unsigned)*256);
-	memset(TextureStageStates,0,sizeof(unsigned)*32*MAX_TEXTURE_STAGES);
+	RenderStateCache::Clear();
 	memset(Vertex_Shader_Constants,0,sizeof(Vector4)*MAX_VERTEX_SHADER_CONSTANTS);
 	memset(Pixel_Shader_Constants,0,sizeof(Vector4)*MAX_PIXEL_SHADER_CONSTANTS);
 	memset(&render_state,0,sizeof(RenderStateStruct));
@@ -546,17 +525,11 @@ void DX8Wrapper::Set_Default_Global_Render_States()
 void DX8Wrapper::Invalidate_Cached_Render_States()
 {
 	render_state_changed=0;
+	RenderStateCache::Invalidate();
 
 	int a;
-	for (a=0;a<sizeof(RenderStates)/sizeof(unsigned);++a) {
-		RenderStates[a]=0x12345678;
-	}
 	for (a=0;a<MAX_TEXTURE_STAGES;++a)
 	{
-		for (int b=0; b<32;b++)
-		{
-			TextureStageStates[a][b]=0x12345678;
-		}
 		//Need to explicitly set texture to null, otherwise app will not be able to
 		//set it to null because of redundant state checker. MW
 		if (_Get_D3D_Device8())
@@ -572,8 +545,6 @@ void DX8Wrapper::Invalidate_Cached_Render_States()
 	//Need to explicitly set render_state texture pointers to null. MW
 	Release_Render_State();
 
-	// (gth) clear the matrix shadows too
-	memset(&DX8Transforms, 0, sizeof(DX8Transforms));
 }
 
 void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
@@ -2270,7 +2241,7 @@ void DX8Wrapper::Draw(
 
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 	if (WW3D::Is_Snapshot_Activated()) {
-		DWORD passes=0;
+		unsigned long passes=0;
 		SNAPSHOT_SAY(("ValidateDevice:"));
 		HRESULT res=D3DDevice->ValidateDevice(&passes);
 		switch (res) {
@@ -2712,8 +2683,8 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 }
 
 #if defined(GGC_BGFX_STANDALONE)
-// TheSuperHackers @refactor bobtista 22/04/2026 Stage 5 —
-// In standalone we replace D3DXCreateTextureFromFileExA with a direct
+// TheSuperHackers @refactor bobtista 22/04/2026 In standalone we replace
+// D3DXCreateTextureFromFileExA with a direct
 // Targa decoder + stub-device CreateTexture + LockRect write. The goal
 // is to (a) remove D3DX as a black-box in the standalone pixel path so
 // remaining visual bugs don't depend on D3DX internals interacting with
@@ -2912,7 +2883,6 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 			D3DSURFACE_DESC desc;
 			texture->GetLevelDesc(0, &desc);
 			if (desc.Format == D3DFMT_P8) {
-				Log_Missing_Texture_File("paletted TGA", filename);
 				texture->Release();
 				return MissingTexture::_Get_Missing_Texture();
 			}
@@ -2944,7 +2914,6 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 		&texture);
 
 	if (result != D3D_OK) {
-		Log_Missing_Texture_File("D3DX fallback", filename);
 		return MissingTexture::_Get_Missing_Texture();
 	}
 
@@ -2952,7 +2921,6 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	D3DSURFACE_DESC desc;
 	texture->GetLevelDesc(0,&desc);
 	if (desc.Format==D3DFMT_P8) {
-		Log_Missing_Texture_File("paletted D3DX", filename);
 		texture->Release();
 		return MissingTexture::_Get_Missing_Texture();
 	}
@@ -3344,10 +3312,8 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 				ext[3]='s';
 			}
 			file_auto_ptr myfile2(_TheFileFactory,compressed_name);
-			if (!myfile2->Is_Available()) {
-				Log_Missing_Texture_File("surface file", filename_);
+			if (!myfile2->Is_Available())
 				return MissingTexture::_Create_Missing_Surface();
-			}
 		}
 	}
 
@@ -3491,7 +3457,7 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 	{
 		int light_count = light_env->Get_Light_Count();
 		unsigned int color=Convert_Color(light_env->Get_Equivalent_Ambient(),0.0f);
-		if (RenderStates[D3DRS_AMBIENT]!=color)
+		if (RenderStateCache::Get_Render_State(D3DRS_AMBIENT)!=color)
 		{
 			Set_DX8_Render_State(D3DRS_AMBIENT,color);
 //buggy Radeon 9700 driver doesn't apply new ambient unless the material also changes.

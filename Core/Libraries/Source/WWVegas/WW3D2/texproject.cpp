@@ -1164,7 +1164,14 @@ bool TexProjectClass::Compute_Texture
 		WW3D::End_Render(false);
 		WW3D::Activate_Snapshot(snapshot);	// End_Render() ends the shapsnot, so restore the state
 
-		DX8Wrapper::Set_Render_Target((IDirect3DSurface8 *)nullptr);
+		// TheSuperHackers @fix bobtista 21/04/2026 Route the end-of-RTT-pass
+		// render target clear through g_renderBackend so the bgfx backend's
+		// renderToTexture flag gets reset. Previously this bypassed the
+		// backend via DX8Wrapper::Set_Render_Target, leaving renderToTexture
+		// stuck at true after TexProject's compute pass — subsequent draws
+		// were misrouted to the RTT view instead of the main scene, visible
+		// as the faction icon on the command-center bib rendering black.
+		g_renderBackend->Set_Render_Target_With_Z(nullptr, nullptr);
 
 	}
 

@@ -44,6 +44,7 @@
 #include "sphere.h"
 #include "thread.h"
 #include "wwmemlog.h"
+#include <cstring>
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture index
 // data into the active render backend at write-lock time. See the
@@ -75,10 +76,14 @@ static int _IndexBufferTotalSize;
 
 IndexBufferClass::IndexBufferClass(unsigned type_, unsigned short index_count_)
 	:
-	index_count(index_count_),
-	type(type_),
-	engine_refs(0)
+		index_count(index_count_),
+		type(type_),
+		engine_refs(0),
+		CPUBufferData(nullptr),
+		CPUBufferSize(0),
+		CPUBufferValid(false)
 {
+	m_backendHandle = kInvalidRenderResource;
 	WWASSERT(type==BUFFER_TYPE_DX8 || type==BUFFER_TYPE_SORTING);
 	WWASSERT(index_count);
 
@@ -99,13 +104,14 @@ IndexBufferClass::~IndexBufferClass()
 	_IndexBufferCount--;
 	_IndexBufferTotalIndices-=index_count;
 	_IndexBufferTotalSize-=index_count*sizeof(unsigned short);
-#ifdef VERTEX_BUFFER_LOG
-	WWDEBUG_SAY(("Delete IB, %d indices, size %d bytes",index_count,index_count*sizeof(unsigned short)));
-	WWDEBUG_SAY(("Total IB count: %d, total %d indices, total size %d bytes",
-		_IndexBufferCount,
-		_IndexBufferTotalIndices,
-		_IndexBufferTotalSize));
-#endif
+	#ifdef VERTEX_BUFFER_LOG
+		WWDEBUG_SAY(("Delete IB, %d indices, size %d bytes",index_count,index_count*sizeof(unsigned short)));
+		WWDEBUG_SAY(("Total IB count: %d, total %d indices, total size %d bytes",
+			_IndexBufferCount,
+			_IndexBufferTotalIndices,
+			_IndexBufferTotalSize));
+	#endif
+	delete[] CPUBufferData;
 }
 
 unsigned IndexBufferClass::Get_Total_Buffer_Count()
@@ -121,6 +127,28 @@ unsigned IndexBufferClass::Get_Total_Allocated_Indices()
 unsigned IndexBufferClass::Get_Total_Allocated_Memory()
 {
 	return _IndexBufferTotalSize;
+}
+
+void IndexBufferClass::Update_CPU_Buffer_Data(unsigned byte_offset, const void * data, unsigned size)
+{
+	if (data == nullptr || size == 0) {
+		return;
+	}
+
+	const unsigned total_size = index_count * sizeof(unsigned short);
+	if (byte_offset > total_size || size > total_size - byte_offset) {
+		WWASSERT(0);
+		return;
+	}
+
+	if (CPUBufferData == nullptr) {
+		CPUBufferData = W3DNEWARRAY unsigned char[total_size];
+		std::memset(CPUBufferData, 0, total_size);
+		CPUBufferSize = total_size;
+	}
+
+	std::memcpy(CPUBufferData + byte_offset, data, size);
+	CPUBufferValid = true;
 }
 
 void IndexBufferClass::Add_Engine_Ref() const
@@ -227,11 +255,14 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 include
 	// BUFFER_TYPE_SORTING so sorting FVF category containers feed their
 	// shared IB into the bgfx dynamic IB cache alongside the rigid path.
-	if (g_renderBackend != NULL && indices != NULL &&
-		(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
-		const unsigned int total_bytes = index_buffer->Get_Index_Count() * sizeof(unsigned short);
-		g_renderBackend->Capture_Index_Data(index_buffer, indices, total_bytes);
-	}
+		if (indices != NULL &&
+			(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
+			const unsigned int total_bytes = index_buffer->Get_Index_Count() * sizeof(unsigned short);
+			index_buffer->Update_CPU_Buffer_Data(0, indices, total_bytes);
+			if (g_renderBackend != NULL) {
+				g_renderBackend->Capture_Index_Data(index_buffer, indices, total_bytes);
+			}
+		}
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_DX8:
 		DX8_Assert();
@@ -288,11 +319,14 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 	// indices never reach bgfx and units silently fail to render.
 	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 capture
 	// sorting IB sub-range writes for sorting FVF category containers.
-	if (g_renderBackend != NULL && indices != NULL &&
-		(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
-		const unsigned int size_bytes = AppendIndexRange * sizeof(unsigned short);
-		g_renderBackend->Capture_Index_Sub_Range(index_buffer, indices, AppendStartIndex, size_bytes);
-	}
+		if (indices != NULL &&
+			(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
+			const unsigned int size_bytes = AppendIndexRange * sizeof(unsigned short);
+			index_buffer->Update_CPU_Buffer_Data(AppendStartIndex * sizeof(unsigned short), indices, size_bytes);
+			if (g_renderBackend != NULL) {
+				g_renderBackend->Capture_Index_Sub_Range(index_buffer, indices, AppendStartIndex, size_bytes);
+			}
+		}
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_DX8:
 		DX8_Assert();
@@ -336,6 +370,10 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 		&index_buffer);
 
 	if (SUCCEEDED(ret)) {
+		// Phase 5 Stage 2: populate backend-neutral handle.
+		if (g_renderBackend != nullptr) {
+			m_backendHandle = g_renderBackend->Register_Loaded_Index_Buffer(this);
+		}
 		return;
 	}
 
@@ -359,6 +397,9 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 
 	if (SUCCEEDED(ret)) {
 		WWDEBUG_SAY(("...Index buffer creation successful"));
+		if (g_renderBackend != nullptr) {
+			m_backendHandle = g_renderBackend->Register_Loaded_Index_Buffer(this);
+		}
 	}
 
 	// If it still fails it is fatal
@@ -369,6 +410,11 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 
 DX8IndexBufferClass::~DX8IndexBufferClass()
 {
+	// Phase 5 Stage 2: release backend-neutral handle before D3D8.
+	if (m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
+		g_renderBackend->Destroy_Resource(m_backendHandle);
+		m_backendHandle = kInvalidRenderResource;
+	}
 	index_buffer->Release();
 }
 
