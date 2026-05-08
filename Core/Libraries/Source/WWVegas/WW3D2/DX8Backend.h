@@ -127,6 +127,7 @@ public:
     virtual void Set_Ambient(const Vector3 & color);
     virtual const Vector3 & Get_Ambient() const;
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end);
+    virtual void Set_Fog_Enable(bool enable) override;
     virtual bool Get_Fog_Enable() const;
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env);
     virtual LightEnvironmentClass * Get_Light_Environment() const;
