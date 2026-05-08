@@ -5904,6 +5904,11 @@ void BgfxBackend::Set_Fill_Mode(FillMode mode)
     RenderStateCache::Set_Render_State(D3DRS_FILLMODE, static_cast<unsigned>(mode));
 }
 
+void BgfxBackend::Set_Shade_Mode(ShadeMode mode)
+{
+    RenderStateCache::Set_Render_State(D3DRS_SHADEMODE, static_cast<unsigned>(mode));
+}
+
 void BgfxBackend::Set_Depth_Test_Enable(bool enable)
 {
     RenderStateCache::Set_Render_State(D3DRS_ZENABLE, enable ? TRUE : FALSE);

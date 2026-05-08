@@ -3824,7 +3824,7 @@ void W3DVolumetricShadowManager::renderStencilShadows()
     g_renderBackend->Set_Stencil_Ref(0x1);
 
 
-	m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);
+	g_renderBackend->Set_Shade_Mode(RB_SHADE_FLAT);
 
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
 		m_pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANSLITVERTEX));
@@ -3841,7 +3841,7 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 		0x1);
 
 #if !defined(GGC_BGFX_STANDALONE)
-	m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
+	g_renderBackend->Set_Shade_Mode(RB_SHADE_GOURAUD);
 	g_renderBackend->Set_Alpha_Blend_Enable(false);
 	// turn off the stencil buffer
 	g_renderBackend->Set_Stencil_Enable(false);
@@ -3912,7 +3912,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 
 
 		// setup the TMU to default
-		m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);
+		g_renderBackend->Set_Shade_Mode(RB_SHADE_FLAT);
 		g_renderBackend->Set_Lighting_Enable(false);
 		m_pDev->SetTextureStageState( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
 		m_pDev->SetTextureStageState( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
@@ -4087,7 +4087,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		LogVolumetricShadowPath("renderShadows-end", nullptr, nullptr, nullptr,
 			numRenderedShadows, "volumes");
 
-		m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
+		g_renderBackend->Set_Shade_Mode(RB_SHADE_GOURAUD);
 		g_renderBackend->Set_Alpha_Blend_Enable(false);
 		g_renderBackend->Set_Lighting_Enable(false);
 

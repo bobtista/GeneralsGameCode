@@ -193,6 +193,7 @@ public:
 
     virtual void Set_Z_Bias(int bias) override;
     virtual void Set_Fill_Mode(FillMode mode) override;
+    virtual void Set_Shade_Mode(ShadeMode mode) override;
     virtual void Set_Depth_Test_Enable(bool enable) override;
     virtual void Set_Depth_Write_Enable(bool enable) override;
     virtual void Set_Depth_Func(CompareFunc func) override;
