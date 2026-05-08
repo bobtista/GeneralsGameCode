@@ -46,6 +46,7 @@
 #include "thread.h"
 #include "wwmemlog.h"
 #include <d3dx8core.h>
+#include <cstring>
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture vertex
 // data into the active render backend at write-lock time. The bgfx backend
@@ -84,10 +85,14 @@ static int _VertexBufferTotalSize;
 
 VertexBufferClass::VertexBufferClass(unsigned type_, unsigned FVF, unsigned short vertex_count_)
 	:
-	VertexCount(vertex_count_),
-	type(type_),
-	engine_refs(0)
+		VertexCount(vertex_count_),
+		type(type_),
+		engine_refs(0),
+		CPUBufferData(nullptr),
+		CPUBufferSize(0),
+		CPUBufferValid(false)
 {
+	m_backendHandle = kInvalidRenderResource;
 	WWMEMLOG(MEM_RENDERER);
 	WWASSERT(VertexCount);
 	WWASSERT(type==BUFFER_TYPE_DX8 || type==BUFFER_TYPE_SORTING);
@@ -120,7 +125,8 @@ VertexBufferClass::~VertexBufferClass()
 		_VertexBufferCount,
 		_VertexBufferTotalVertices,
 		_VertexBufferTotalSize));
-#endif
+	#endif
+	delete[] CPUBufferData;
 	delete fvf_info;
 }
 
@@ -137,6 +143,28 @@ unsigned VertexBufferClass::Get_Total_Allocated_Vertices()
 unsigned VertexBufferClass::Get_Total_Allocated_Memory()
 {
 	return _VertexBufferTotalSize;
+}
+
+void VertexBufferClass::Update_CPU_Buffer_Data(unsigned byte_offset, const void * data, unsigned size)
+{
+	if (data == nullptr || size == 0) {
+		return;
+	}
+
+	const unsigned total_size = VertexCount * fvf_info->Get_FVF_Size();
+	if (byte_offset > total_size || size > total_size - byte_offset) {
+		WWASSERT(0);
+		return;
+	}
+
+	if (CPUBufferData == nullptr) {
+		CPUBufferData = W3DNEWARRAY unsigned char[total_size];
+		std::memset(CPUBufferData, 0, total_size);
+		CPUBufferSize = total_size;
+	}
+
+	std::memcpy(CPUBufferData + byte_offset, data, size);
+	CPUBufferValid = true;
 }
 
 
@@ -214,11 +242,14 @@ VertexBufferClass::WriteLockClass::~WriteLockClass()
 	// g_renderBackend->Set_Vertex_Buffer. Without capturing the writes
 	// that path misses the bgfx VB cache entirely and rotors/explosions/
 	// tracers never draw.
-	if (g_renderBackend != NULL && Vertices != NULL &&
-		(VertexBuffer->Type() == BUFFER_TYPE_DX8 || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
-		const unsigned int total_bytes = VertexBuffer->Get_Vertex_Count() * VertexBuffer->FVF_Info().Get_FVF_Size();
-		g_renderBackend->Capture_Vertex_Data(VertexBuffer, Vertices, total_bytes);
-	}
+		if (Vertices != NULL &&
+			(VertexBuffer->Type() == BUFFER_TYPE_DX8 || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
+			const unsigned int total_bytes = VertexBuffer->Get_Vertex_Count() * VertexBuffer->FVF_Info().Get_FVF_Size();
+			VertexBuffer->Update_CPU_Buffer_Data(0, Vertices, total_bytes);
+			if (g_renderBackend != NULL) {
+				g_renderBackend->Capture_Vertex_Data(VertexBuffer, Vertices, total_bytes);
+			}
+		}
 	switch (VertexBuffer->Type()) {
 	case BUFFER_TYPE_DX8:
 #ifdef VERTEX_BUFFER_LOG
@@ -298,12 +329,15 @@ VertexBufferClass::AppendLockClass::~AppendLockClass()
 	// sorting VB sub-range writes as well. Sorting FVF category containers
 	// fill their shared SortingVertexBufferClass via AppendLockClass one
 	// mesh at a time, just like the rigid DX8 path.
-	if (g_renderBackend != NULL && Vertices != NULL &&
-		(VertexBuffer->Type() == BUFFER_TYPE_DX8 || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
-		const unsigned int fvf_size = VertexBuffer->FVF_Info().Get_FVF_Size();
-		const unsigned int size_bytes = AppendIndexRange * fvf_size;
-		g_renderBackend->Capture_Vertex_Sub_Range(VertexBuffer, Vertices, AppendStartIndex, size_bytes);
-	}
+		if (Vertices != NULL &&
+			(VertexBuffer->Type() == BUFFER_TYPE_DX8 || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
+			const unsigned int fvf_size = VertexBuffer->FVF_Info().Get_FVF_Size();
+			const unsigned int size_bytes = AppendIndexRange * fvf_size;
+			VertexBuffer->Update_CPU_Buffer_Data(AppendStartIndex * fvf_size, Vertices, size_bytes);
+			if (g_renderBackend != NULL) {
+				g_renderBackend->Capture_Vertex_Sub_Range(VertexBuffer, Vertices, AppendStartIndex, size_bytes);
+			}
+		}
 	switch (VertexBuffer->Type()) {
 	case BUFFER_TYPE_DX8:
 		DX8_Assert();
@@ -448,6 +482,12 @@ DX8VertexBufferClass::~DX8VertexBufferClass()
 	_DX8VertexBufferCount--;
 	WWDEBUG_SAY(("Current vertex buffer count: %d",_DX8VertexBufferCount));
 #endif
+	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 2 — release
+	// the backend-neutral handle before the D3D8 resource goes away.
+	if (m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
+		g_renderBackend->Destroy_Resource(m_backendHandle);
+		m_backendHandle = kInvalidRenderResource;
+	}
 	VertexBuffer->Release();
 }
 
@@ -493,6 +533,10 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 		(usage&USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED,
 		&VertexBuffer);
 	if (SUCCEEDED(ret)) {
+		// Phase 5 Stage 2: populate backend-neutral handle.
+		if (g_renderBackend != nullptr) {
+			m_backendHandle = g_renderBackend->Register_Loaded_Vertex_Buffer(this);
+		}
 		return;
 	}
 
@@ -519,6 +563,9 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 
 	if (SUCCEEDED(ret)) {
 		WWDEBUG_SAY(("...Vertex buffer creation successful"));
+		if (g_renderBackend != nullptr) {
+			m_backendHandle = g_renderBackend->Register_Loaded_Vertex_Buffer(this);
+		}
 	}
 
 	// If it still fails it is fatal
@@ -954,4 +1001,3 @@ unsigned short DynamicVBAccessClass::Get_Default_Vertex_Count()
 {
 	return _DynamicDX8VertexBufferSize;
 }
-

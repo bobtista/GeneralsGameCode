@@ -48,6 +48,8 @@
 #include "wwstring.h"
 #include "vector3.h"
 #include "texturefilter.h"
+#include "IRenderBackend.h"
+#include <vector>
 
 struct IDirect3DBaseTexture8;
 struct IDirect3DTexture8;
@@ -155,9 +157,21 @@ public:
 	// This utility function processes the texture reduction (used during rendering)
 	void Invalidate();
 
-	// texture accessors (dx8)
-	IDirect3DBaseTexture8 *Peek_D3D_Base_Texture() const;
-	void Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex);
+		// texture accessors (dx8)
+		IDirect3DBaseTexture8 *Peek_D3D_Base_Texture() const;
+		void Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex);
+		struct TextureMipSnapshot
+		{
+			unsigned Width;
+			unsigned Height;
+			unsigned Pitch;
+			WW3DFormat Format;
+			std::vector<unsigned char> Data;
+		};
+		const std::vector<TextureMipSnapshot>& Get_CPU_Texture_Mips() const { return CPUTextureMips; }
+		bool Has_CPU_Texture_Mips() const { return !CPUTextureMips.empty(); }
+		unsigned Get_CPU_Texture_Revision() const { return CPUTextureRevision; }
+		void Refresh_CPU_Texture_Snapshot() { Capture_CPU_Texture_Snapshot(D3DTexture); }
 
 	PoolType Get_Pool() const { return Pool; }
 
@@ -229,8 +243,20 @@ protected:
 
 private:
 
-	// Direct3D texture object
-	IDirect3DBaseTexture8 *D3DTexture;
+		// Direct3D texture object
+		IDirect3DBaseTexture8 *D3DTexture;
+		std::vector<TextureMipSnapshot> CPUTextureMips;
+		unsigned CPUTextureRevision;
+		void Capture_CPU_Texture_Snapshot(IDirect3DBaseTexture8* tex);
+		void Clear_CPU_Texture_Snapshot();
+
+		// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
+	// resource handle. Populated by the asset loader after it calls
+	// g_renderBackend->Create_Texture(). Parallel to D3DTexture (which is
+	// still populated in DX8-only and ref-popup builds so the existing
+	// D3D8-specific code paths keep working). Readers that want to stay
+	// backend-neutral should prefer m_backendHandle over D3DTexture.
+	RenderResource m_backendHandle;
 
 	// Name
 	StringClass Name;
@@ -267,6 +293,14 @@ class TextureClass : public TextureBaseClass
 //	friend DX8Wrapper;
 
 public:
+	struct TextureAtlasRegion
+	{
+		unsigned X;
+		unsigned Y;
+		unsigned Width;
+		unsigned Height;
+	};
+
 
 	// Create texture with desired height, width and format.
 	TextureClass
@@ -318,6 +352,18 @@ public:
 	virtual TexAssetType Get_Asset_Type() const override { return TEX_REGULAR; }
 
 	virtual void Init() override;
+	void Clear_Atlas_Regions() { AtlasRegions.clear(); }
+	void Add_Atlas_Region(unsigned x, unsigned y, unsigned width, unsigned height)
+	{
+		TextureAtlasRegion region;
+		region.X = x;
+		region.Y = y;
+		region.Width = width;
+		region.Height = height;
+		AtlasRegions.push_back(region);
+	}
+	bool Has_Atlas_Regions() const { return !AtlasRegions.empty(); }
+	const std::vector<TextureAtlasRegion> &Get_Atlas_Regions() const { return AtlasRegions; }
 
 	// Background texture loader will call this when texture has been loaded
 	virtual void Apply_New_Surface(IDirect3DBaseTexture8* tex, bool initialized, bool disable_auto_invalidation = false) override;	// If the parameter is true, the texture will be flagged as initialised
@@ -343,6 +389,7 @@ protected:
 
 	// legacy
 	TextureFilterClass	Filter;
+	std::vector<TextureAtlasRegion> AtlasRegions;
 };
 
 class ZTextureClass : public TextureBaseClass

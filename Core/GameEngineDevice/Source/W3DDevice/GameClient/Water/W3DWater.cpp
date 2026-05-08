@@ -77,10 +77,8 @@
 // tex to clear the bgfx cache (prevents stale texture artifacts).
 static inline void W3DWater_BindTexture(unsigned stage, TextureClass * tex)
 {
-	IDirect3DTexture8 * raw = (tex != nullptr) ? tex->Peek_D3D_Texture() : nullptr;
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(stage, raw);
 	if (g_renderBackend != nullptr)
-		g_renderBackend->Set_Texture(stage, tex);
+		g_renderBackend->Bind_Texture_Immediate(stage, tex);
 }
 
 #define MIPMAP_BUMP_TEXTURE
@@ -1553,8 +1551,11 @@ void WaterRenderObjClass::renderMirror(CameraClass *cam)
 
 	WW3D::End_Render(false);
 
-	// Change the rendertarget back to the main backbuffer
-	DX8Wrapper::Set_Render_Target((IDirect3DSurface8 *)nullptr);
+	// TheSuperHackers @fix bobtista 21/04/2026 Route through g_renderBackend
+	// so the bgfx backend's renderToTexture flag gets reset. Same pattern as
+	// TexProjectClass::Compute_Texture — the raw DX8Wrapper bypass left
+	// renderToTexture stuck at true after the reflection pass.
+	g_renderBackend->Set_Render_Target_With_Z(nullptr, nullptr);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1707,9 +1708,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAARG2, D3DTA_CURRENT );	//previous stage texture
 				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );	//modulate with clipping texture
 
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x00);
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_NOTEQUAL);	//pass pixels who's alpha is not zero
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, true);	//test pixels if transparent(clipped) before rendering.
+				g_renderBackend->Set_Alpha_Test(true, 0x00, RB_CMP_NOT_EQUAL);	//pass pixels who's alpha is not zero
 
 				// Set clipping texture
 				m_alphaClippingTexture->Set_U_Addr_Mode(TextureClass::TEXTURE_ADDRESS_CLAMP);
@@ -1762,7 +1761,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 
 				//disable texture coordinate generation
 				DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, false);	//disable alpha testing
+				g_renderBackend->Set_Alpha_Test_Enable(false);	//disable alpha testing
 			#endif
 
 				ShaderClass::Invert_Backface_Culling(false);	//return culling back to normal
@@ -2632,10 +2631,10 @@ void WaterRenderObjClass::renderWaterMesh()
 	g_renderBackend->Set_Texture(0,setting->waterTexture);
 	g_renderBackend->Set_Texture(1,setting->waterTexture);
 
-	DX8Wrapper::Set_Light(0,*m_meshLight);
-	DX8Wrapper::Set_Light(1,nullptr);
-	DX8Wrapper::Set_Light(2,nullptr);
-	DX8Wrapper::Set_Light(3,nullptr);
+	g_renderBackend->Set_Light(0,*m_meshLight);
+	g_renderBackend->Clear_Light(1);
+	g_renderBackend->Clear_Light(2);
+	g_renderBackend->Clear_Light(3);
 /*
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENT,0);	//turn off scene ambient
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_SPECULARENABLE,TRUE);
@@ -3168,7 +3167,7 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 		g_renderBackend->Set_Shader(waterShader);
 	}
 	g_renderBackend->Override_Alpha_Blend_Enable(true);
-	g_renderBackend->Override_Material_Opacity(0.5f);
+	g_renderBackend->Override_Material_Opacity(WATER_MESH_OPACITY);
 
 	//In additive blending we need to use the alpha at the edges of river to darken
 	//rgb instead.
@@ -3927,7 +3926,7 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 	// control water opacity. bgfx can't replicate that. Force 50%
 	// material opacity so water renders semi-transparent instead.
 	// Only affects the bgfx uniform — DX8 vertex data is unchanged.
-	g_renderBackend->Override_Material_Opacity(0.5f);
+	g_renderBackend->Override_Material_Opacity(WATER_MESH_OPACITY);
 
 	//If video card supports it and it's enabled, feather the water edge using destination alpha
 	if (DX8Wrapper::getBackBufferFormat() == WW3D_FORMAT_A8R8G8B8 && TheGlobalData->m_showSoftWaterEdge && TheWaterTransparency->m_transparentWaterDepth !=0)
@@ -4144,5 +4143,3 @@ void WaterRenderObjClass::loadPostProcess()
 {
 
 }
-
-

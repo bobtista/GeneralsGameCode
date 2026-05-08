@@ -217,7 +217,7 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 	Bool anyVanished = false;
 	if (m_numDebugIcons==0) return;
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-	// through the IRenderBackend abstraction. See PHASE3.md.
+	// through the IRenderBackend abstraction.
 	g_renderBackend->Apply_Render_State_Changes();
 
 	g_renderBackend->Set_Material(m_vertexMaterialClass);

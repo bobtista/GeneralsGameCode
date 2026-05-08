@@ -616,10 +616,10 @@ static void FlushBgfxStatsLogWindow()
         const double transVb = g_bgfxStatsLog.bgfxTransientVbUsed / frames;
         const double transIb = g_bgfxStatsLog.bgfxTransientIbUsed / frames;
         std::fprintf(stderr,
-            "BGFX_PERF: %.1fs fps=%.1f cpu=%.2fms draws=%u uploads=%.0f texMem=%lldKB transVB=%.0f transIB=%.0f\n",
+            "BGFX_PERF: %.1fs fps=%.1f cpu=%.2fms draws=%u uploads=%.0f texMem=%lldKB transVB=%.0f transIB=%.0f instSaved=%u\n",
             g_bgfxStatsLog.elapsedSeconds, fps, cpuMs, draws, uploads,
             static_cast<long long>(g_bgfxStatsLog.textureMemoryUsed / 1024),
-            transVb, transIb);
+            transVb, transIb, g_bgfxStatsLog.instancedSavedDrawCalls);
         PerfSessionAccumulate(g_bgfxStatsLog.windowSeconds, g_bgfxStatsLog.frames,
                               cpuMs, fps, draws, g_bgfxStatsLog.textureUploads,
                               g_bgfxStatsLog.textureMemoryUsed, transVb, transIb);
@@ -1221,6 +1221,22 @@ uint64_t TranslateDepthCompare(ShaderClass::DepthCompareType cmp)
         case ShaderClass::PASS_GEQUAL:   return BGFX_STATE_DEPTH_TEST_GEQUAL;
         case ShaderClass::PASS_ALWAYS:   return BGFX_STATE_DEPTH_TEST_ALWAYS;
         default:                         return BGFX_STATE_DEPTH_TEST_LEQUAL;
+    }
+}
+
+CompareFunc MapShaderDepthCompareToBackendCompare(ShaderClass::DepthCompareType cmp)
+{
+    switch (cmp)
+    {
+        case ShaderClass::PASS_NEVER:    return RB_CMP_NEVER;
+        case ShaderClass::PASS_LESS:     return RB_CMP_LESS;
+        case ShaderClass::PASS_EQUAL:    return RB_CMP_EQUAL;
+        case ShaderClass::PASS_LEQUAL:   return RB_CMP_LESS_EQUAL;
+        case ShaderClass::PASS_GREATER:  return RB_CMP_GREATER;
+        case ShaderClass::PASS_NOTEQUAL: return RB_CMP_NOT_EQUAL;
+        case ShaderClass::PASS_GEQUAL:   return RB_CMP_GREATER_EQUAL;
+        case ShaderClass::PASS_ALWAYS:   return RB_CMP_ALWAYS;
+        default:                         return RB_CMP_LESS_EQUAL;
     }
 }
 
@@ -2211,24 +2227,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     initArgs.resolution.width = static_cast<uint32_t>(g_device.width);
     initArgs.resolution.height = static_cast<uint32_t>(g_device.height);
     initArgs.resolution.reset = BGFX_RESET_NONE;
+    if (std::getenv("GGC_BGFX_MSAA") != nullptr)
     {
-        int msaaLevel = 0;
-        const char * msaaEnv = std::getenv("GGC_BGFX_MSAA");
-        if (msaaEnv != nullptr)
-        {
-            msaaLevel = std::atoi(msaaEnv);
-            if (msaaLevel <= 0) { msaaLevel = 4; }
-        }
-        if (msaaLevel >= 16) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X16; }
-        else if (msaaLevel >= 8) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X8; }
-        else if (msaaLevel >= 4) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X4; }
-        else if (msaaLevel >= 2) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X2; }
-        g_device.msaaResetFlags = initArgs.resolution.reset & (BGFX_RESET_MSAA_X2 | BGFX_RESET_MSAA_X4 | BGFX_RESET_MSAA_X8 | BGFX_RESET_MSAA_X16);
-    }
-    g_device.srgbEnabled = std::getenv("GGC_BGFX_SRGB") != nullptr;
-    if (g_device.srgbEnabled)
-    {
-        initArgs.resolution.reset |= BGFX_RESET_SRGB_BACKBUFFER;
+        initArgs.resolution.reset |= BGFX_RESET_MSAA_X4;
     }
     if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
     {
@@ -3031,6 +3032,17 @@ bool BgfxBackend::Capture_Back_Buffer_RGBA(unsigned int display_width,
     return false;
 }
 
+bool BgfxBackend::Request_Native_Screen_Shot(const char * path)
+{
+    if (!g_device.initialized || path == nullptr || path[0] == '\0')
+    {
+        return false;
+    }
+
+    bgfx::requestScreenShot(BGFX_INVALID_HANDLE, path);
+    return true;
+}
+
 // -- Frame lifecycle ---------------------------------------------------------
 
 void BgfxBackend::Begin_Scene()
@@ -3104,8 +3116,7 @@ void BgfxBackend::Begin_Scene()
                 DestroySceneFramebuffer();
                 g_device.width = w;
                 g_device.height = h;
-                uint32_t resetFlags = BGFX_RESET_NONE | g_device.msaaResetFlags
-                    | (g_device.srgbEnabled ? BGFX_RESET_SRGB_BACKBUFFER : 0);
+                uint32_t resetFlags = BGFX_RESET_NONE;
                 if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
                 {
                     resetFlags |= BGFX_RESET_DEPTH_CLAMP;
@@ -3255,6 +3266,7 @@ void BgfxBackend::Begin_Scene()
     {
         g_draw.tex[i] = BGFX_INVALID_HANDLE;
         g_draw.samplerFlags[i] = 0;
+        g_draw.mipFilterDisabled[i] = false;
         g_draw.textureIsMissing[i] = false;
         g_draw.sourceTextures[i] = nullptr;
     }
@@ -3391,7 +3403,14 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     // gameplay state of interest, since early frames are loading screens.
 #ifdef RTS_ZEROHOUR
     {
-        const int captureFrame = GGC_GetBgfxScreenshotFrame();
+        int captureFrame = GGC_GetBgfxScreenshotFrame();
+        if (captureFrame <= 0)
+        {
+            if (const char * frameEnv = std::getenv("GGC_BGFX_SCREENSHOT_AFTER"))
+            {
+                captureFrame = std::atoi(frameEnv);
+            }
+        }
         uint32_t interval = 500;
         if (const char * intervalEnv = std::getenv("GGC_BGFX_SCREENSHOT_INTERVAL"))
         {
@@ -3408,6 +3427,10 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         {
             s_lastShotFrame = g_stats.frameIndex;
             const char * basePath = GGC_GetBgfxScreenshotPath();
+            if ((basePath == nullptr || basePath[0] == '\0'))
+            {
+                basePath = std::getenv("GGC_BGFX_SCREENSHOT_PATH");
+            }
             if (basePath != nullptr && basePath[0] != '\0')
             {
                 char numbered[512];
@@ -5199,7 +5222,7 @@ static void LogBgfxSortedMaterialDecal(const char *event,
                      static_cast<unsigned long long>(state),
                      static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
                      g_draw.zBias[0],
-                     RenderStateCache::Get_Render_State(RS::ZBIAS),
+                     g_draw.zBiasUnits,
                      TextureDebugName(g_draw.sourceTextures[0]),
                      TextureDebugName(g_draw.sourceTextures[1]),
                      g_draw.tssOps0[0], g_draw.tssOps0[1],
@@ -5458,51 +5481,12 @@ static void BindSoftParticleDepth(bool enable)
 
 static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
 {
-    uint32_t flags = 0;
-    const unsigned addressU = RenderStateCache::Get_Texture_Stage_State(stage, TSS::ADDRESSU);
-    const unsigned addressV = RenderStateCache::Get_Texture_Stage_State(stage, TSS::ADDRESSV);
-    const unsigned minFilter = RenderStateCache::Get_Texture_Stage_State(stage, TSS::MINFILTER);
-    const unsigned magFilter = RenderStateCache::Get_Texture_Stage_State(stage, TSS::MAGFILTER);
-    const unsigned mipFilter = RenderStateCache::Get_Texture_Stage_State(stage, TSS::MIPFILTER);
-
-    if (addressU == kTextureAddressClamp || addressU == kTextureAddressBorder)
-    {
-        flags |= BGFX_SAMPLER_U_CLAMP;
-    }
-    if (addressV == kTextureAddressClamp || addressV == kTextureAddressBorder)
-    {
-        flags |= BGFX_SAMPLER_V_CLAMP;
-    }
-
-    if (minFilter == kTextureSamplePoint)
-    {
-        flags |= BGFX_SAMPLER_MIN_POINT;
-    }
-    else if (minFilter == kTextureSampleAnisotropic)
-    {
-        flags |= BGFX_SAMPLER_MIN_ANISOTROPIC;
-    }
-
-    if (magFilter == kTextureSamplePoint)
-    {
-        flags |= BGFX_SAMPLER_MAG_POINT;
-    }
-    else if (magFilter == kTextureSampleAnisotropic)
-    {
-        flags |= BGFX_SAMPLER_MAG_ANISOTROPIC;
-    }
-
-    if (mipFilter == kTextureSamplePoint)
-    {
-        flags |= BGFX_SAMPLER_MIP_POINT;
-    }
-
-    return flags;
+    return (stage < 4) ? g_draw.samplerFlags[stage] : 0;
 }
 
 static bool IsCurrentStageMipFilterDisabled(unsigned stage)
 {
-    return RenderStateCache::Get_Texture_Stage_State(stage, TSS::MIPFILTER) == kTextureSampleNone;
+    return stage < 4 && g_draw.mipFilterDisabled[stage];
 }
 
 static bool ShouldBindSortedParticleBaseMip(unsigned stage)
@@ -5687,8 +5671,7 @@ static void UpdateTextureTransforms()
     // cached texture transform plus two-coordinate transform mode. Passing raw UVs sampled the
     // unused black padding in those atlases; stage 1 matters for detail
     // and environment-mapped sub-materials.
-    const unsigned texcoordIndex =
-        RenderStateCache::Get_Texture_Stage_State(0, TSS::TEXCOORDINDEX);
+    const unsigned texcoordIndex = g_draw.texcoordIndex[0];
     const unsigned uvIndex = texcoordIndex & 0xFFFF;
     const unsigned texcoordGen = texcoordIndex & 0xFFFF0000;
     // TheSuperHackers @info bobtista 26/04/2026 Only UV sets 0 and 1 are
@@ -5707,8 +5690,7 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
     g_draw.texcoordSource[0] = GetTexcoordSource(texcoordGen);
 
-    const unsigned texFlags =
-        RenderStateCache::Get_Texture_Stage_State(0, TSS::TEXTURETRANSFORMFLAGS);
+    const unsigned texFlags = g_draw.textureTransformFlags[0];
     const unsigned texCount = texFlags & 0xFFu;
     const bool texProjected0 = (texFlags & kTextureTransformProjected) != 0
         && texCount >= kTextureTransformCount3;
@@ -5728,8 +5710,7 @@ static void UpdateTextureTransforms()
     }
     g_draw.texProjected[0] = texProjected0 ? 1.0f : 0.0f;
 
-    const unsigned texcoordIndex1 =
-        RenderStateCache::Get_Texture_Stage_State(1, TSS::TEXCOORDINDEX);
+    const unsigned texcoordIndex1 = g_draw.texcoordIndex[1];
     const unsigned uvIndex1 = texcoordIndex1 & 0xFFFF;
     const unsigned texcoordGen1 = texcoordIndex1 & 0xFFFF0000;
     if (uvIndex1 > 1)
@@ -5744,8 +5725,7 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSelect2[0] = (uvIndex1 == 1) ? 1.0f : 0.0f;
     g_draw.texcoordSource[1] = GetTexcoordSource(texcoordGen1);
 
-    const unsigned texFlags1 =
-        RenderStateCache::Get_Texture_Stage_State(1, TSS::TEXTURETRANSFORMFLAGS);
+    const unsigned texFlags1 = g_draw.textureTransformFlags[1];
     const unsigned texCount1 = texFlags1 & 0xFFu;
     const bool texProjected1 = (texFlags1 & kTextureTransformProjected) != 0
         && texCount1 >= kTextureTransformCount3;
@@ -5765,13 +5745,11 @@ static void UpdateTextureTransforms()
     }
     g_draw.texProjected[1] = texProjected1 ? 1.0f : 0.0f;
 
-    const unsigned texcoordIndex2 =
-        RenderStateCache::Get_Texture_Stage_State(2, TSS::TEXCOORDINDEX);
+    const unsigned texcoordIndex2 = g_draw.texcoordIndex[2];
     const unsigned texcoordGen2 = texcoordIndex2 & 0xFFFF0000;
     g_draw.texcoordSource[2] = GetTexcoordSource(texcoordGen2);
 
-    const unsigned texFlags2 =
-        RenderStateCache::Get_Texture_Stage_State(2, TSS::TEXTURETRANSFORMFLAGS);
+    const unsigned texFlags2 = g_draw.textureTransformFlags[2];
     const unsigned texCount2 = texFlags2 & 0xFFu;
     if (texCount2 >= kTextureTransformCount2)
     {
@@ -5801,7 +5779,11 @@ static void UploadMaterialUniforms()
 
     if (bgfx::isValid(g_uniforms.uTssOps0))
     {
-        bgfx::setUniform(g_uniforms.uTssOps0, g_draw.tssOps0);
+        float tssOps0[4] = {
+            g_draw.tssOps0[0], g_draw.tssOps0[1],
+            g_draw.shaderTssOps0[2], g_draw.shaderTssOps0[3]
+        };
+        bgfx::setUniform(g_uniforms.uTssOps0, tssOps0);
     }
     if (bgfx::isValid(g_uniforms.uTssOps1))
     {
@@ -6083,10 +6065,8 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         g_draw.texcoordSelect[1] = 0.0f;
     }
     {
-        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(RS::ZBIAS);
-        const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
-        g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
+        g_draw.zBias[0] = static_cast<float>(g_draw.zBiasUnits) * kZBiasPerUnit;
         const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(GetEffectiveDrawState());
         const bool normalBiasFromGeometry =
             g_draw.normalBias[0] != 0.0f
@@ -6456,13 +6436,20 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
     const uint64_t srcBits = TranslateBlendFactor(shader.Get_Src_Blend_Func());
     const uint64_t dstBits = TranslateBlendFactor(shader.Get_Dst_Blend_Func());
     g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(srcBits, dstBits);
+    g_draw.shaderBlendFuncBits = g_draw.blendFuncBits;
     g_draw.blendEquationBits = BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
-    g_draw.alphaBlendEnabled = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
+    {
+        bool newBlend = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
+        g_draw.alphaBlendEnabled = newBlend;
+        g_draw.shaderAlphaBlendEnabled = newBlend;
+    }
     g_draw.alphaBlendExplicitlySet = false;
     g_draw.depthTestEnabled = true;
     g_draw.depthWriteEnabled = shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_ENABLE;
     g_draw.depthFuncBits = TranslateDepthCompare(shader.Get_Depth_Compare());
+    g_draw.depthFunc = static_cast<unsigned>(MapShaderDepthCompareToBackendCompare(shader.Get_Depth_Compare()));
     BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef, &g_draw.atestFunc);
+    BuildTssOpsForShader(shader, g_draw.shaderTssOps0, g_draw.shaderTssOps1, &g_draw.shaderAtestRef, &g_draw.shaderAtestFunc);
     g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
     g_draw.legacyPixelShaderMode[0] = static_cast<float>(RB_LEGACY_PIXEL_SHADER_NONE);
     Clear_State_Overrides();
@@ -6537,40 +6524,32 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
                              texture->Get_Pool()));
             }
         }
-        // Capture the source texture's wrap mode into bgfx sampler flags
-        // so we can pass it at bind time. Without this, WRAP is the
-        // default and ramp/LUT textures with CLAMP semantics produce
-        // visible stripe artifacts at U>=1 (the shoreline checkerboard).
-        uint32_t samplerFlags = 0;
-        if (t2d_name != nullptr)
-        {
-            const TextureFilterClass & flt = t2d_name->Get_Filter();
-            if (flt.Get_U_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
-            {
-                samplerFlags |= BGFX_SAMPLER_U_CLAMP;
-            }
-            if (flt.Get_V_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
-            {
-                samplerFlags |= BGFX_SAMPLER_V_CLAMP;
-            }
-        }
+        // TextureFilterClass::Apply() updates the semantic sampler state above.
+        // Preserve those bits when recording the bind; bridge atlases and thin
+        // particles depend on mip filtering staying disabled after Set_Texture.
+        const uint32_t samplerFlags = stage < 4 ? g_draw.samplerFlags[stage] : 0;
+        const bool mipFilterDisabled = stage < 4 && g_draw.mipFilterDisabled[stage];
         switch (stage)
         {
             case 0: g_draw.tex[0] = h;
                     g_draw.sourceTextures[0] = texture;
                     g_draw.samplerFlags[0] = samplerFlags;
+                    g_draw.mipFilterDisabled[0] = mipFilterDisabled;
                     g_draw.textureIsMissing[0] = missingOrUnavailable; break;
             case 1: g_draw.tex[1] = h;
                     g_draw.sourceTextures[1] = texture;
                     g_draw.samplerFlags[1] = samplerFlags;
+                    g_draw.mipFilterDisabled[1] = mipFilterDisabled;
                     g_draw.textureIsMissing[1] = missingOrUnavailable; break;
             case 2: g_draw.tex[2] = h;
                     g_draw.sourceTextures[2] = texture;
                     g_draw.samplerFlags[2] = samplerFlags;
+                    g_draw.mipFilterDisabled[2] = mipFilterDisabled;
                     g_draw.textureIsMissing[2] = missingOrUnavailable; break;
             case 3: g_draw.tex[3] = h;
                     g_draw.sourceTextures[3] = texture;
                     g_draw.samplerFlags[3] = samplerFlags;
+                    g_draw.mipFilterDisabled[3] = mipFilterDisabled;
                     g_draw.textureIsMissing[3] = missingOrUnavailable; break;
             default: break;
         }
@@ -6822,6 +6801,10 @@ void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
 
 void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
 {
+    if (stage < 4)
+    {
+        g_draw.texcoordIndex[stage] = uvIndex;
+    }
     if (stage == 0)
     {
         g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
@@ -6855,6 +6838,8 @@ void BgfxBackend::Clear_Texture_Transform(unsigned stage)
 
     if (stage < 4)
     {
+        g_draw.texcoordIndex[stage] = stage;
+        g_draw.textureTransformFlags[stage] = kTextureTransformDisable;
         g_draw.texcoordSource[stage] = 0.0f;
         g_draw.texProjected[stage] = 0.0f;
     }
@@ -6903,6 +6888,7 @@ void BgfxBackend::Set_Texture_Coord_Source(unsigned stage,
     RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, tci);
     if (stage < 4)
     {
+        g_draw.texcoordIndex[stage] = tci;
         g_draw.texcoordSource[stage] = static_cast<float>(source);
     }
     if (stage == 0)
@@ -6923,6 +6909,7 @@ void BgfxBackend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_coun
     RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, flags);
     if (stage < 4)
     {
+        g_draw.textureTransformFlags[stage] = flags;
         g_draw.texProjected[stage] = projected && coord_count >= 3 ? 1.0f : 0.0f;
     }
 }
@@ -7154,18 +7141,56 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
             g_draw.samplerFlags[stage] |= BGFX_SAMPLER_V_CLAMP;
         }
     }
-    else if (stage == 3 && state == TSS::TEXCOORDINDEX)
+    else if (state == TSS::MINFILTER)
     {
+        g_draw.samplerFlags[stage] &= ~(BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MIN_ANISOTROPIC);
+        if (value == kTextureSamplePoint)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIN_POINT;
+        }
+        else if (value == kTextureSampleAnisotropic)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIN_ANISOTROPIC;
+        }
+    }
+    else if (state == TSS::MAGFILTER)
+    {
+        g_draw.samplerFlags[stage] &= ~(BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MAG_ANISOTROPIC);
+        if (value == kTextureSamplePoint)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MAG_POINT;
+        }
+        else if (value == kTextureSampleAnisotropic)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MAG_ANISOTROPIC;
+        }
+    }
+    else if (state == TSS::MIPFILTER)
+    {
+        g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_MIP_POINT;
+        g_draw.mipFilterDisabled[stage] = value == kTextureSampleNone;
+        if (value == kTextureSamplePoint)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIP_POINT;
+        }
+    }
+    else if (state == TSS::TEXCOORDINDEX)
+    {
+        g_draw.texcoordIndex[stage] = value;
         const unsigned uvIndex = value & 0xFFFFu;
         const unsigned texcoordGen = value & 0xFFFF0000u;
-        if (texcoordGen == kTexcoordGenCameraPosition)
+        if (stage == 3 && texcoordGen == kTexcoordGenCameraPosition)
         {
             g_draw.texcoordSource[3] = 3.0f;
         }
-        else
+        else if (stage == 3)
         {
             g_draw.texcoordSource[3] = (uvIndex == 1) ? 1.0f : 0.0f;
         }
+    }
+    else if (state == TSS::TEXTURETRANSFORMFLAGS)
+    {
+        g_draw.textureTransformFlags[stage] = value;
     }
 }
 
@@ -7855,6 +7880,7 @@ void BgfxBackend::Set_Cull_Mode(CullMode mode)
 void BgfxBackend::Set_Z_Bias(int bias)
 {
     RenderStateCache::Set_Render_State(RS::ZBIAS, static_cast<unsigned>(bias));
+    g_draw.zBiasUnits = static_cast<unsigned>(bias) & 0xFFu;
 }
 
 void BgfxBackend::Set_Normal_Bias(float bias)
@@ -7887,6 +7913,7 @@ void BgfxBackend::Set_Depth_Write_Enable(bool enable)
 void BgfxBackend::Set_Depth_Func(CompareFunc func)
 {
     RenderStateCache::Set_Render_State(RS::ZFUNC, static_cast<unsigned>(func));
+    g_draw.depthFunc = static_cast<unsigned>(func);
     static const uint64_t kDepthMap[] = {
         0,                              // 0 (unused)
         BGFX_STATE_DEPTH_TEST_NEVER,    // RB_CMP_NEVER = 1
@@ -8193,6 +8220,17 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
     g_stats.drawCalls++;
+    if (!g_draw.alphaBlendExplicitlySet)
+    {
+        g_draw.alphaBlendEnabled = g_draw.shaderAlphaBlendEnabled;
+        if (g_draw.alphaBlendEnabled)
+        {
+            g_draw.blendFuncBits = g_draw.shaderBlendFuncBits;
+        }
+        g_draw.atestRef = g_draw.shaderAtestRef;
+        g_draw.atestFunc = g_draw.shaderAtestFunc;
+        g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
+    }
     if (!bgfx::isValid(g_draw.program))
     {
         LogBgfxEffectSubmit("submit-engine",
@@ -8536,10 +8574,8 @@ void SubmitEngineDraw(unsigned short start_index,
     // u_zBias to the GPU. Setting g_draw.zBias afterward leaves the uniform
     // at the previous (or default) value and defeats the whole fix.
     {
-        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(RS::ZBIAS);
-        const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
-        g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
+        g_draw.zBias[0] = static_cast<float>(g_draw.zBiasUnits) * kZBiasPerUnit;
         const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(routeState);
         const bool normalBiasFromGeometry =
             !is2D
@@ -8581,22 +8617,6 @@ void SubmitEngineDraw(unsigned short start_index,
         UpdateAlphaMaskAndSortedEffectModes(blendState);
     }
     UploadMaterialUniforms();
-    // TheSuperHackers @bugfix bobtista 30/04/2026 Read cached ambient per
-    // draw. Some callers still push ambient straight through DX8Wrapper
-    // without going through g_renderBackend->Set_Ambient, so the cached
-    // g_draw.sceneAmbient can drift and buildings render black.
-    // The wrapper marks unwritten state with 0x12345678 (dx8wrapper.cpp:536);
-    // ignore that sentinel and keep the cached value instead of treating
-    // the marker bytes as a real color.
-    {
-        const unsigned ambientColor = RenderStateCache::Get_Render_State(RS::AMBIENT);
-        if (ambientColor != 0x12345678)
-        {
-            g_draw.sceneAmbient[0] = ((ambientColor >> 16) & 0xFF) / 255.0f;
-            g_draw.sceneAmbient[1] = ((ambientColor >>  8) & 0xFF) / 255.0f;
-            g_draw.sceneAmbient[2] = ((ambientColor >>  0) & 0xFF) / 255.0f;
-        }
-    }
     if (g_draw.lightDirs[0][3] < 0.5f)
     {
         const auto &rs = FixedFunctionState::Render_State();
@@ -8663,9 +8683,9 @@ void SubmitEngineDraw(unsigned short start_index,
     // be true to avoid false positives from other effects that set TCI bits.
     bool shroudDetected = false;
     {
-        unsigned depthFunc = RenderStateCache::Get_Render_State(RS::ZFUNC);
+        unsigned depthFunc = g_draw.depthFunc;
         const unsigned stg = 0;
-        unsigned tci = RenderStateCache::Get_Texture_Stage_State(stg, TSS::TEXCOORDINDEX);
+        unsigned tci = g_draw.texcoordIndex[stg];
         float shroudParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
         // Projected terrain receivers and cloud/noise stages also use
         // TCI_CAMERASPACEPOSITION. Only the actual shroud overlay uses the

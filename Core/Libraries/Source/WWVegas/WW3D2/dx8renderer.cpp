@@ -1736,7 +1736,7 @@ void DX8TextureCategoryClass::Render()
 		DX8Wrapper::Apply_Render_State_Changes();
 		// Override SRCBLEND to DESTCOLOR for multiply mode. DESTBLEND
 		// stays at whatever ShaderClass set (typically SRCCOLOR).
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
+		g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_SRC_COLOR);
 	}
 
 
@@ -1775,7 +1775,7 @@ void DX8TextureCategoryClass::Render()
 					// Disable texturing on all stages and passes.
 					for (i = 0; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 					{
-						DX8Wrapper::Set_Texture (i, nullptr);
+						g_renderBackend->Set_Texture(i, nullptr);
 					}
 					break;
 
@@ -1785,11 +1785,11 @@ void DX8TextureCategoryClass::Render()
 					if (pass == mesh->Peek_Model()->Get_Pass_Count() - 1) {
 						for (i = 0; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 						{
-							DX8Wrapper::Set_Texture (i, Peek_Texture (i));
+							g_renderBackend->Set_Texture(i, Peek_Texture(i));
 						}
 					} else {
 						for (i = 0; i < MAX_TEXTURE_STAGES; i++) {
-							DX8Wrapper::Set_Texture (i, nullptr);
+							g_renderBackend->Set_Texture(i, nullptr);
 						}
 					}
 					break;
@@ -1797,17 +1797,17 @@ void DX8TextureCategoryClass::Render()
 				case MeshGeometryClass::PRELIT_LIGHTMAP_MULTI_TEXTURE:
 
 					// Disable texturing on all but the zeroth stage of each pass.
-					DX8Wrapper::Set_Texture (0, Peek_Texture (0));
+					g_renderBackend->Set_Texture(0, Peek_Texture(0));
 					for (i = 1; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 					{
-						DX8Wrapper::Set_Texture (i, nullptr);
+						g_renderBackend->Set_Texture(i, nullptr);
 					}
 					break;
 
 				default:
 					for (i = 0; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 					{
-						DX8Wrapper::Set_Texture (i, Peek_Texture (i));
+						g_renderBackend->Set_Texture(i, Peek_Texture(i));
 					}
 					break;
 			}
@@ -1879,7 +1879,7 @@ void DX8TextureCategoryClass::Render()
 
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_NORMALIZENORMALS, TRUE);
+			g_renderBackend->Set_Normalize_Normals(true);
 //--------------------------------------------------------------------
 		/*
 		** Render mesh using either sorting or immediate pipeline
@@ -1922,11 +1922,11 @@ void DX8TextureCategoryClass::Render()
 					vmaterial->Set_Opacity(mesh->Get_Alpha_Override());
 					g_renderBackend->Set_Shader(theAlphaShader);
 					DX8Wrapper::Apply_Render_State_Changes();
-					DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,(int)((float)0x60*mesh->Get_Alpha_Override()));
+					g_renderBackend->Set_Alpha_Test_Reference((int)((float)0x60*mesh->Get_Alpha_Override()));
 
 					renderer->Render(mesh->Get_Base_Vertex_Offset());
 
-					DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x60);
+					g_renderBackend->Set_Alpha_Test_Reference(0x60);
 					vmaterial->Set_Opacity(oldOpacity);	//restore previous value
 					vmaterial->Set_Diffuse(oldDiffuse.X,oldDiffuse.Y,oldDiffuse.Z);
 					g_renderBackend->Set_Shader(theShader);	//restore previous value
@@ -2000,7 +2000,7 @@ void DX8TextureCategoryClass::Render()
 		}
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_NORMALIZENORMALS, FALSE);
+			g_renderBackend->Set_Normalize_Normals(false);
 //--------------------------------------------------------------------
 
 
@@ -2291,7 +2291,7 @@ void DX8MeshRendererClass::Render_Decal_Meshes()
 	DecalMeshClass * decal_mesh = visible_decal_meshes;
 	if (!decal_mesh) return;
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZBIAS,8);
+	g_renderBackend->Set_Z_Bias(8);
 
 	while (decal_mesh != nullptr) {
 		decal_mesh->Render();
@@ -2299,7 +2299,7 @@ void DX8MeshRendererClass::Render_Decal_Meshes()
 	}
 	visible_decal_meshes = nullptr;
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZBIAS,0);
+	g_renderBackend->Set_Z_Bias(0);
 }
 
 // ----------------------------------------------------------------------------
@@ -2351,10 +2351,5 @@ void DX8MeshRendererClass::Invalidate( bool shutdown)
 
 	texture_category_container_lists_rigid.Delete_All();
 }
-
-
-
-
-
 
 
