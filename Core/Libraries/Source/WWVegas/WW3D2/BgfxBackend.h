@@ -144,9 +144,11 @@ public:
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end) override;
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) override;
     virtual void Set_Blend_Op(BlendOp op) override;
+    virtual void Set_Alpha_Blend_Enable(bool enable) override;
     virtual void Set_Alpha_Test_Enable(bool enable) override;
     virtual void Set_Alpha_Test_Reference(unsigned ref) override;
     virtual void Set_Alpha_Test_Function(CompareFunc func) override;
+    virtual void Set_Normalize_Normals(bool enable) override;
     virtual void Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend) override;
     virtual void Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func) override;
     virtual void Override_Alpha_Blend_Enable(bool enable) override;
@@ -204,6 +206,10 @@ public:
                                         WW3DFormat format) override;
     virtual void Set_Texture_Factor(unsigned argb) override;
 
+    virtual void Set_Z_Bias(int bias) override;
+    virtual void Set_Fill_Mode(FillMode mode) override;
+    virtual void Set_Depth_Test_Enable(bool enable) override;
+    virtual void Set_Depth_Write_Enable(bool enable) override;
     virtual void Set_Depth_Func(CompareFunc func) override;
 
     // bgfx stencil state capture.
