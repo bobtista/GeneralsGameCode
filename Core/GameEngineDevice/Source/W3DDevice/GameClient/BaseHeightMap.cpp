@@ -1425,7 +1425,11 @@ RenderObjClass *	 BaseHeightMapRenderObjClass::Clone() const
 //=============================================================================
 void BaseHeightMapRenderObjClass::loadRoadsAndBridges(W3DTerrainLogic *pTerrainLogic, Bool saveGame)
 {
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (g_renderBackend != nullptr && g_renderBackend->Is_Device_Lost())
+#else
 	if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
+#endif
 		return;	//device not ready to render anything
 
 #ifdef DO_ROADS
