@@ -692,6 +692,14 @@ HRESULT WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Int ver
 		m_numVertices=sizeX*sizeY;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	if (!doStatic)
+	{
+		m_vertexBufferD3DOffset=0;
+		return S_OK;
+	}
+#endif
+
 	if (m_vertexBufferD3D == nullptr)
 	{	// Create vertex buffer
 
@@ -747,7 +755,7 @@ HRESULT WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Int ver
 //-------------------------------------------------------------------------------------------------
 HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 {
-	HRESULT hr;
+	HRESULT hr=S_OK;
 
 	//Will need SizeY-1 strips, each of length SizeX*2 (2 indices per strip segment).
 	//Will also need 2 extra indices to connect each strip to next one (except last strip)
@@ -758,9 +766,10 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 	//old way
 
 	// Create index buffer
-	WORD* pIndices;
+	WORD* pIndices=nullptr;
 	UnsignedShort *backendIndices=nullptr;
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (FAILED(hr=m_pDev->CreateIndexBuffer
 	(
 		(m_numIndices+2)*sizeof(WORD),
@@ -779,6 +788,7 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 		0
 	)))
 		return hr;
+#endif
 
 	REF_PTR_RELEASE(m_waterMeshIndexBuffer);
 	m_waterMeshIndexBuffer=NEW_REF(DX8IndexBufferClass,(m_numIndices));
@@ -791,8 +801,11 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 	{
 		for (;k<(sizeX*(j+1)); k++,i+=2)
 		{
-			pIndices[i]=(UnsignedShort) k+sizeX;
-			pIndices[i+1]=(UnsignedShort) k;
+			if (pIndices != nullptr)
+			{
+				pIndices[i]=(UnsignedShort) k+sizeX;
+				pIndices[i+1]=(UnsignedShort) k;
+			}
 			if (backendIndices != nullptr)
 			{
 				backendIndices[i]=(UnsignedShort) k+sizeX;
@@ -804,8 +817,11 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 		//Any triangles with repeated vertices will be skipped during rendering.
 		if (i<m_numIndices) //check if there is at least 1 more strip to go
 		{
-			pIndices[i]=k-1;
-			pIndices[i+1]=k+sizeX;
+			if (pIndices != nullptr)
+			{
+				pIndices[i]=k-1;
+				pIndices[i+1]=k+sizeX;
+			}
 			if (backendIndices != nullptr)
 			{
 				backendIndices[i]=k-1;
@@ -855,7 +871,9 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 		s_toggle=!s_toggle;
 	}
 */
+#if !defined(GGC_BGFX_STANDALONE)
 	if (FAILED(hr=m_indexBufferD3D->Unlock())) return hr;
+#endif
 
 	return S_OK;
 }
@@ -924,7 +942,11 @@ void WaterRenderObjClass::ReAcquireResources()
 		ib[5]=1;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	m_pDev=nullptr;
+#else
 	m_pDev=DX8Wrapper::_Get_D3D_Device8();
+#endif
 
 	//We're using the same grid for either 3D Water Mesh or Pixel/Vertex shader.  Just
 	//allocate the right size depending on usage
