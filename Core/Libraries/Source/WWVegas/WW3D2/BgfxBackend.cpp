@@ -81,8 +81,6 @@
 #include "fs_shadow_volume_metal.bin.h"
 #include "vs_shadow_apply_metal.bin.h"
 #include "fs_shadow_apply_metal.bin.h"
-#include "vs_shadow_caster_metal.bin.h"
-#include "fs_shadow_caster_metal.bin.h"
 #include "vs_scene_composite_metal.bin.h"
 #include "fs_scene_composite_metal.bin.h"
 #include "vs_scene_depth_metal.bin.h"
@@ -109,9 +107,6 @@
 #include "vs_shadow_apply_dx11.bin.h"
 #include "fs_shadow_apply_dx11.bin.h"
 
-// CSM caster pass shaders.
-#include "vs_shadow_caster_dx11.bin.h"
-#include "fs_shadow_caster_dx11.bin.h"
 #include "vs_scene_composite_dx11.bin.h"
 #include "fs_scene_composite_dx11.bin.h"
 #include "vs_scene_depth_dx11.bin.h"
@@ -125,7 +120,7 @@
 
 #ifdef RTS_ZEROHOUR
 extern "C" void GGC_GetBgfxPostProcessParams(float * params);
-extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noCsm, int * noPostFx);
+extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx);
 extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
 extern "C" int  GGC_GetBgfxScreenshotFrame();
 extern "C" const char * GGC_GetBgfxScreenshotPath();
@@ -187,22 +182,19 @@ struct BgfxDiagnosticFlags
 {
     bool logStats;
     bool noSceneFramebuffer;
-    bool noCsm;
     bool noPostFx;
 };
 
 static BgfxDiagnosticFlags GetBgfxDiagnosticFlags()
 {
-    BgfxDiagnosticFlags flags = { false, false, false, false };
+    BgfxDiagnosticFlags flags = { false, false, false };
 #ifdef RTS_ZEROHOUR
     int logStats = 0;
     int noSceneFramebuffer = 0;
-    int noCsm = 0;
     int noPostFx = 0;
-    GGC_GetBgfxDiagnosticFlags(&logStats, &noSceneFramebuffer, &noCsm, &noPostFx);
+    GGC_GetBgfxDiagnosticFlags(&logStats, &noSceneFramebuffer, &noPostFx);
     flags.logStats = logStats != 0;
     flags.noSceneFramebuffer = noSceneFramebuffer != 0;
-    flags.noCsm = noCsm != 0;
     flags.noPostFx = noPostFx != 0;
 #endif
     return flags;
@@ -210,9 +202,7 @@ static BgfxDiagnosticFlags GetBgfxDiagnosticFlags()
 
 enum class BgfxShadowMode
 {
-    Csm,
     Stencil,
-    Both,
     None
 };
 
@@ -224,33 +214,18 @@ static BgfxShadowMode GetBgfxShadowMode()
         {
             return BgfxShadowMode::Stencil;
         }
-        if (std::strcmp(mode, "both") == 0)
-        {
-            return BgfxShadowMode::Both;
-        }
         if (std::strcmp(mode, "none") == 0 || std::strcmp(mode, "off") == 0)
         {
             return BgfxShadowMode::None;
-        }
-        if (std::strcmp(mode, "csm") == 0)
-        {
-            return BgfxShadowMode::Csm;
         }
     }
     return BgfxShadowMode::Stencil;
 }
 
-static bool BgfxCsmShadowsEnabled()
-{
-    const BgfxShadowMode mode = GetBgfxShadowMode();
-    return (mode == BgfxShadowMode::Csm || mode == BgfxShadowMode::Both)
-        && !GetBgfxDiagnosticFlags().noCsm;
-}
-
 static bool BgfxStencilShadowsEnabled()
 {
     const BgfxShadowMode mode = GetBgfxShadowMode();
-    return mode == BgfxShadowMode::Stencil || mode == BgfxShadowMode::Both;
+    return mode == BgfxShadowMode::Stencil;
 }
 
 static bool IsBgfxStatsLoggingEnabled()
@@ -286,7 +261,6 @@ struct BgfxStatsLogWindow
     uint32_t backendSkipped;
     uint32_t baseSubmits;
     uint32_t sceneDepthSubmits;
-    uint32_t shadowMapSubmits;
     uint32_t shadowVolumeSubmits;
     uint32_t shadowApplySubmits;
     uint32_t smudgeSubmits;
@@ -356,7 +330,6 @@ static void ResetBgfxStatsLogWindow()
     g_bgfxStatsLog.backendSkipped = 0;
     g_bgfxStatsLog.baseSubmits = 0;
     g_bgfxStatsLog.sceneDepthSubmits = 0;
-    g_bgfxStatsLog.shadowMapSubmits = 0;
     g_bgfxStatsLog.shadowVolumeSubmits = 0;
     g_bgfxStatsLog.shadowApplySubmits = 0;
     g_bgfxStatsLog.smudgeSubmits = 0;
@@ -404,7 +377,7 @@ static void InitializeBgfxStatsLog()
     FILE * file = fopen("C:\\tmp\\bgfx_perf\\PerfLog_BgfxStats.csv", "wt");
     if (file != nullptr)
     {
-        fprintf(file, "elapsed_seconds,window_seconds,window_frames,bgfx_num_draw_avg,bgfx_num_blit_avg,bgfx_cpu_frame_ms_avg,bgfx_gpu_ms_avg,bgfx_wait_render_ms_avg,bgfx_wait_submit_ms_avg,backend_draws_avg,backend_skipped_avg,base_submits_avg,scene_depth_submits_avg,shadow_map_submits_avg,shadow_volume_submits_avg,shadow_apply_submits_avg,smudge_submits_avg,scene_composite_submits_avg,debug_submits_avg,world_draws_avg,ui_draws_avg,water_draws_avg,sorted_draws_avg,effect_draws_avg,rtt_draws_avg,smudge_draws_avg,texture_binds_avg,texture_creates_avg,texture_uploads_avg,texture_copies_avg,material_uniforms_avg,light_uniforms_avg,texture_transform_updates_avg,render_state_copies_avg,transient_vb_alloc_avg,transient_ib_alloc_avg,transient_vb_draw_avg,transient_ib_draw_avg,dynamic_vb_alloc_avg,dynamic_ib_alloc_avg,bgfx_transient_vb_used_avg,bgfx_transient_ib_used_avg,bgfx_texture_memory,bgfx_rt_memory,bgfx_num_textures,bgfx_num_framebuffers\n");
+        fprintf(file, "elapsed_seconds,window_seconds,window_frames,bgfx_num_draw_avg,bgfx_num_blit_avg,bgfx_cpu_frame_ms_avg,bgfx_gpu_ms_avg,bgfx_wait_render_ms_avg,bgfx_wait_submit_ms_avg,backend_draws_avg,backend_skipped_avg,base_submits_avg,scene_depth_submits_avg,shadow_volume_submits_avg,shadow_apply_submits_avg,smudge_submits_avg,scene_composite_submits_avg,debug_submits_avg,world_draws_avg,ui_draws_avg,water_draws_avg,sorted_draws_avg,effect_draws_avg,rtt_draws_avg,smudge_draws_avg,texture_binds_avg,texture_creates_avg,texture_uploads_avg,texture_copies_avg,material_uniforms_avg,light_uniforms_avg,texture_transform_updates_avg,render_state_copies_avg,transient_vb_alloc_avg,transient_ib_alloc_avg,transient_vb_draw_avg,transient_ib_draw_avg,dynamic_vb_alloc_avg,dynamic_ib_alloc_avg,bgfx_transient_vb_used_avg,bgfx_transient_ib_used_avg,bgfx_texture_memory,bgfx_rt_memory,bgfx_num_textures,bgfx_num_framebuffers\n");
         fclose(file);
     }
     else
@@ -438,7 +411,6 @@ static void FlushBgfxStatsLogWindow()
             static_cast<double>(g_bgfxStatsLog.backendSkipped) / frames,
             static_cast<double>(g_bgfxStatsLog.baseSubmits) / frames,
             static_cast<double>(g_bgfxStatsLog.sceneDepthSubmits) / frames,
-            static_cast<double>(g_bgfxStatsLog.shadowMapSubmits) / frames,
             static_cast<double>(g_bgfxStatsLog.shadowVolumeSubmits) / frames,
             static_cast<double>(g_bgfxStatsLog.shadowApplySubmits) / frames,
             static_cast<double>(g_bgfxStatsLog.smudgeSubmits) / frames,
@@ -527,7 +499,6 @@ static void UpdateBgfxStatsLog()
     g_bgfxStatsLog.backendSkipped += g_stats.skippedDraws;
     g_bgfxStatsLog.baseSubmits += g_stats.baseSubmits;
     g_bgfxStatsLog.sceneDepthSubmits += g_stats.sceneDepthSubmits;
-    g_bgfxStatsLog.shadowMapSubmits += g_stats.shadowMapSubmits;
     g_bgfxStatsLog.shadowVolumeSubmits += g_stats.shadowVolumeSubmits;
     g_bgfxStatsLog.shadowApplySubmits += g_stats.shadowApplySubmits;
     g_bgfxStatsLog.smudgeSubmits += g_stats.smudgeSubmits;
@@ -566,13 +537,12 @@ static void LogFrameStats()
 #ifdef RTS_DEBUG
     if (g_stats.frameIndex <= 10 || (g_stats.frameIndex % 60) == 0)
     {
-        WWDEBUG_SAY(("[BGFX PERF] frame=%u draws=%u skipped=%u submits(base/depth/shadow/vol/apply/smudge/comp/debug)=%u/%u/%u/%u/%u/%u/%u/%u views(world/ui/water/sort/effect/rtt/smudge)=%u/%u/%u/%u/%u/%u/%u binds=%u uniforms(mat/light)=%u/%u texxf=%u rsCopies=%u transientAlloc(vb/ib)=%u/%u transientDraw(vb/ib)=%u/%u dynAlloc(vb/ib)=%u/%u",
+        WWDEBUG_SAY(("[BGFX PERF] frame=%u draws=%u skipped=%u submits(base/depth/vol/apply/smudge/comp/debug)=%u/%u/%u/%u/%u/%u/%u views(world/ui/water/sort/effect/rtt/smudge)=%u/%u/%u/%u/%u/%u/%u binds=%u uniforms(mat/light)=%u/%u texxf=%u rsCopies=%u transientAlloc(vb/ib)=%u/%u transientDraw(vb/ib)=%u/%u dynAlloc(vb/ib)=%u/%u",
             g_stats.frameIndex,
             g_stats.drawCalls,
             g_stats.skippedDraws,
             g_stats.baseSubmits,
             g_stats.sceneDepthSubmits,
-            g_stats.shadowMapSubmits,
             g_stats.shadowVolumeSubmits,
             g_stats.shadowApplySubmits,
             g_stats.smudgeSubmits,
@@ -1544,9 +1514,6 @@ const bgfx::ViewId kBgfxEffectOverlayView = 5;
 // view's attachments and the engine view already cleared them.
 const bgfx::ViewId kBgfxShadowVolumeView = 6;
 const bgfx::ViewId kBgfxShadowApplyView  = 7;
-// CSM caster pass view. Depth-only render target, renders
-// opaque casters from the sun's perspective into a D24 shadow map.
-const bgfx::ViewId kBgfxShadowMapView    = 8;
 // TheSuperHackers @feature bobtista 27/04/2026 Scene composite view. World,
 // water, sorted translucency, and effect overlays render into an offscreen
 // scene framebuffer; this view copies scene color to the swapchain before UI.
@@ -1567,11 +1534,7 @@ const bgfx::ViewId kBgfxUIView           = 10;
 // surface used by the main scene framebuffer.
 const bgfx::ViewId kBgfxSceneDepthView   = 11;
 const uint8_t kBgfxSceneDepthSamplerStage = 6;
-const uint16_t kShadowMapResolution      = 4096;
-const float kShadowOrthoSize             = 1200.0f;
 const float kSoftParticleDepthFadeScale  = 80.0f;
-const float kShadowCameraDistance        = 2000.0f;
-const float kShadowOrthoFarMargin        = 1000.0f;
 const int kSwayTableEntries              = 11;
 const float kPostSharpenAmount           = 0.08f;
 const float kPostSaturation              = 1.015f;
@@ -1591,11 +1554,6 @@ const int kDX8RefWindowShowDelayFrames   = 30;
 // Per-batch effective world for sorted draws: the pre-multiplied
 // sortView * sortWorld (in bgfx column-major form) captured from the
 // engine's render_state by Capture_Sorted_Batch_Transforms.
-// CSM: raw model-to-world matrix for sorted draws, WITHOUT
-// the camera view baked in. Used for shadow caster submissions where
-// the light's view+proj replaces the camera's. g_frame.sortWorld has
-// model*cameraView which contaminates the light-space transform.
-
 // TheSuperHackers @refactor bobtista 11/04/2026 Set by
 // Submit_Sorted_Draw after it emits the bgfx submit for a sorting VB
 // direct draw. The outer BgfxBackend::Draw_Triangles consumes this
@@ -1719,164 +1677,6 @@ static bool IsReadableSceneDepthEnabled()
 
 
 namespace { // reopen anonymous namespace
-
-
-// TheSuperHackers @refactor bobtista 15/04/2026 CSM light
-// transform computation. Called once per frame to build an ortho
-// projection from a hardcoded sun direction, fitted to a generous
-// world-space box centered on the tactical view. Stores results in
-// g_frame.shadowLightView / g_frame.shadowLightProj (bgfx column-major), then
-// pushes them to the shadow map view. Not yet tied to the engine's
-// actual sun direction —Session D hooks that up.
-static const float kSunDistanceFromGround = 10000.0f;
-
-// TheSuperHackers @info bobtista 28/04/2026 Fallback sun direction used
-// when neither Set_Shadow_Light_Position nor an enabled D3D light has
-// supplied one. Rough north-east + above placement that matches the
-// time-of-day light most maps default to; arbitrary but non-zero so
-// CSM always has a valid look-at axis.
-static const float kFallbackSunPosX = 500.0f;
-static const float kFallbackSunPosY = 800.0f;
-static const float kFallbackSunPosZ = 1500.0f;
-
-static void UpdateShadowLightTransform()
-{
-    // The engine's shadow sun position (from W3DShadowManager) is
-    // normalize(-terrainLightPos) * kSunDistanceFromGround.
-    // Extract the DIRECTION by normalizing, then place the light eye
-    // at a reasonable distance along that direction from the look-at.
-    float sunX = 0.0f;
-    float sunY = 0.0f;
-    float sunZ = 0.0f;
-    bool haveSun = g_frame.shadowSunPosSet;
-    if (haveSun)
-    {
-        sunX = g_frame.shadowSunPosX;
-        sunY = g_frame.shadowSunPosY;
-        sunZ = g_frame.shadowSunPosZ;
-    }
-    else
-    {
-        // TheSuperHackers @bugfix bobtista 28/04/2026 Only use the D3D
-        // device light as a fallback when the shadow manager has not supplied
-        // its sun. Per-object and replay restore paths can leave unrelated
-        // lights in slot 0; letting those override the shadow sun makes CSM
-        // shadows jump to odd, too-low angles.
-        const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
-        if (rs.LightEnable[0] && rs.Lights[0].Type == D3DLIGHT_DIRECTIONAL)
-        {
-            const float lx = -rs.Lights[0].Direction.x;
-            const float ly = -rs.Lights[0].Direction.y;
-            const float lz = -rs.Lights[0].Direction.z;
-            const float ll = std::sqrt(lx*lx + ly*ly + lz*lz);
-            if (ll > 0.001f)
-            {
-                sunX = lx * (kSunDistanceFromGround / ll);
-                sunY = ly * (kSunDistanceFromGround / ll);
-                sunZ = lz * (kSunDistanceFromGround / ll);
-                haveSun = true;
-            }
-        }
-    }
-    if (!haveSun)
-    {
-        sunX = kFallbackSunPosX;
-        sunY = kFallbackSunPosY;
-        sunZ = kFallbackSunPosZ;
-    }
-    const float sunLen = std::sqrt(sunX*sunX + sunY*sunY + sunZ*sunZ);
-    if (sunLen < 0.001f)
-    {
-        return;
-    }
-    // Normalized direction FROM origin TOWARD sun.
-    const float sdx = sunX / sunLen;
-    const float sdy = sunY / sunLen;
-    const float sdz = sunZ / sunLen;
-
-    // Extract camera position from the captured view matrix.
-    float viewTx = g_frame.view[12];
-    float viewTy = g_frame.view[13];
-    float viewTz = g_frame.view[14];
-    float camPosX = -(g_frame.view[0]*viewTx + g_frame.view[1]*viewTy + g_frame.view[2]*viewTz);
-    float camPosY = -(g_frame.view[4]*viewTx + g_frame.view[5]*viewTy + g_frame.view[6]*viewTz);
-    float camPosZ = -(g_frame.view[8]*viewTx + g_frame.view[9]*viewTy + g_frame.view[10]*viewTz);
-
-    // Compute where the camera looks at on the ground plane (Z=0).
-    // The 3rd row of the bgfx view matrix (column-major: indices
-    // 2, 6, 10) is the view-space Z axis in world coordinates.
-    // For this engine (Z-up, DX8 left-handed), it points BACKWARD
-    // (away from the scene), so negate to get FORWARD (toward scene).
-    float fwdX = -g_frame.view[2];
-    float fwdY = -g_frame.view[6];
-    float fwdZ = -g_frame.view[10];
-    // Ray-plane intersection: t = -camPosZ / fwdZ
-    float atX = camPosX;
-    float atY = camPosY;
-    const float atZ = 0.0f;
-    if (std::fabs(fwdZ) > 0.001f)
-    {
-        float t = -camPosZ / fwdZ;
-        if (t > 0.0f && t < 10000.0f)
-        {
-            atX = camPosX + fwdX * t;
-            atY = camPosY + fwdY * t;
-        }
-    }
-
-    // Place light eye along the sun direction from the look-at point.
-    const float eyeX = atX + sdx * kShadowCameraDistance;
-    const float eyeY = atY + sdy * kShadowCameraDistance;
-    const float eyeZ = atZ + sdz * kShadowCameraDistance;
-    const float upX = 0.0f, upY = 0.0f, upZ = 1.0f;
-
-    // Explicit left-handed to match bx::mtxOrtho's D3D convention
-    // (positive Z = forward, near/far > 0). Right-handed (bx default)
-    // flips Z, putting the scene at negative view-space Z which falls
-    // outside the [near, far] clip range → refZ ≈ 1.0 for everything.
-    bx::mtxLookAt(g_frame.shadowLightView,
-                  bx::Vec3(eyeX, eyeY, eyeZ),
-                  bx::Vec3(atX, atY, atZ),
-                  bx::Vec3(upX, upY, upZ),
-                  bx::Handedness::Left);
-
-    // Ortho in light-space coordinates. The visible scene spans wider
-    // in light-space than camera-space due to the oblique angle.
-    // 1200 units with 2048 resolution = ~1.2 units/texel.
-    const float orthoNear  = 1.0f;
-    const float orthoFar   = kShadowCameraDistance + kShadowOrthoFarMargin;
-    const bgfx::Caps * caps = bgfx::getCaps();
-    bx::mtxOrtho(g_frame.shadowLightProj,
-                 -kShadowOrthoSize, +kShadowOrthoSize,
-                 -kShadowOrthoSize, +kShadowOrthoSize,
-                 orthoNear, orthoFar,
-                 0.0f,
-                 caps ? caps->homogeneousDepth : false);
-
-    // Shadow map stabilization: snap the combined view-projection to
-    // texel boundaries so the shadow map doesn't sub-pixel-shift as the
-    // camera pans (causes pixelated wobbling on shadow edges).
-    // Approach: transform the world origin through view*proj to get its
-    // shadow-map texel position, round to the nearest integer texel, and
-    // apply the fractional offset back into the projection matrix.
-    {
-        float lightVP[16];
-        bx::mtxMul(lightVP, g_frame.shadowLightView, g_frame.shadowLightProj);
-        // Row-vector: (0,0,0,1) * VP = (VP[12], VP[13], VP[14], VP[15])
-        // VP[12..13] are the clip-space position of the world origin.
-        const float halfRes = static_cast<float>(kShadowMapResolution) * 0.5f;
-        const float texelX = lightVP[12] * halfRes;
-        const float texelY = lightVP[13] * halfRes;
-        const float snappedX = std::round(texelX);
-        const float snappedY = std::round(texelY);
-        const float offsetX = (snappedX - texelX) / halfRes;
-        const float offsetY = (snappedY - texelY) / halfRes;
-        g_frame.shadowLightProj[12] += offsetX;
-        g_frame.shadowLightProj[13] += offsetY;
-    }
-    bgfx::setViewTransform(kBgfxShadowMapView, g_frame.shadowLightView, g_frame.shadowLightProj);
-    g_frame.shadowLightCaptured = true;
-}
 
 static void DestroySceneFramebuffer()
 {
@@ -2484,68 +2284,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uPostTexelSize = bgfx::createUniform("u_postTexelSize", bgfx::UniformType::Vec4);
     g_uniforms.uSoftParticleParams = bgfx::createUniform("u_softParticleParams", bgfx::UniformType::Vec4);
 
-    g_device.shadowCasterProgram = CreateShaderProgram(
-        GGC_BGFX_SHADER(vs_shadow_caster), sizeof(GGC_BGFX_SHADER(vs_shadow_caster)), "vs_shadow_caster",
-        GGC_BGFX_SHADER(fs_shadow_caster), sizeof(GGC_BGFX_SHADER(fs_shadow_caster)), "fs_shadow_caster");
-
-    // Shadow map depth render target. CSM is optional and defaults off, but
-    // fs_uber still declares s_shadowMap. Keep a compare-depth texture valid
-    // even when CSM rendering is disabled so Metal validation has a legal
-    // binding while u_shadowParams.x keeps the shader branch off.
-    const uint64_t depthFlags = BGFX_TEXTURE_RT
-        | BGFX_SAMPLER_COMPARE_LEQUAL
-        | BGFX_SAMPLER_U_CLAMP
-        | BGFX_SAMPLER_V_CLAMP;
-    if (BgfxCsmShadowsEnabled())
-    {
-        g_device.shadowMapDepth = bgfx::createTexture2D(
-            kShadowMapResolution, kShadowMapResolution, false, 1,
-            bgfx::TextureFormat::D32F, depthFlags);
-        if (bgfx::isValid(g_device.shadowMapDepth))
-        {
-            bgfx::setName(g_device.shadowMapDepth, "shadowMapD32F");
-            g_device.shadowMapFB = bgfx::createFrameBuffer(1, &g_device.shadowMapDepth, true);
-            // The shadow map FB has only a D32F depth attachment. Clearing only
-            // depth matches bgfx's own shadow-map examples and avoids Apple
-            // fast-clear paths for a non-existent color attachment.
-            bgfx::setViewClear(kBgfxShadowMapView,
-                               BGFX_CLEAR_DEPTH,
-                               0,
-                               1.0f, 0);
-            bgfx::setViewRect(kBgfxShadowMapView, 0, 0, kShadowMapResolution, kShadowMapResolution);
-            bgfx::setViewFrameBuffer(kBgfxShadowMapView, g_device.shadowMapFB);
-            bgfx::setViewMode(kBgfxShadowMapView, bgfx::ViewMode::Sequential);
-            g_draw.shadowParams[1] = 1.0f / static_cast<float>(kShadowMapResolution);
-
-            WWDEBUG_SAY(("[CSM] shadow map FB=%u tex=%u valid=%d",
-                         g_device.shadowMapFB.idx, g_device.shadowMapDepth.idx,
-                         bgfx::isValid(g_device.shadowMapFB) ? 1 : 0));
-        }
-        else
-        {
-            WWDEBUG_SAY(("[BgfxBackend] CSM shadow map texture creation FAILED."));
-        }
-    }
-    else
-    {
-        g_device.shadowMapDepth = bgfx::createTexture2D(
-            1, 1, false, 1,
-            bgfx::TextureFormat::D32F, depthFlags);
-        if (bgfx::isValid(g_device.shadowMapDepth))
-        {
-            bgfx::setName(g_device.shadowMapDepth, "shadowMapDisabledFallback");
-        }
-        g_draw.shadowParams[0] = 0.0f;
-        g_draw.shadowParams[1] = 1.0f;
-        WWDEBUG_SAY(("[BgfxBackend] CSM shadow map disabled."));
-    }
-
-    // Keep view order explicit whether CSM is enabled or not. Stencil shadow
-    // volumes, sorted decals/effects, scene-depth copies, post effects, and UI
-    // all depend on stable ordering even when the CSM view submits nothing.
+    // Keep view order explicit. Stencil shadow volumes, sorted decals/effects,
+    // scene-depth copies, post effects, and UI all depend on stable ordering.
     const bgfx::ViewId order[] = {
         kBgfxDebugView,
-        kBgfxShadowMapView,
         kBgfxRTTView,
         kBgfxEngineView,
         kBgfxSceneDepthView,
@@ -2560,13 +2302,6 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         kBgfxUIView,
     };
     bgfx::setViewOrder(kBgfxDebugView, BX_COUNTOF(order), order);
-
-    g_uniforms.uShadowLightViewProj = bgfx::createUniform("u_shadowLightViewProj",
-                                                 bgfx::UniformType::Mat4);
-    g_uniforms.uShadowParams        = bgfx::createUniform("u_shadowParams",
-                                                 bgfx::UniformType::Vec4);
-    g_uniforms.sShadowMap           = bgfx::createUniform("s_shadowMap",
-                                                 bgfx::UniformType::Sampler);
 
     g_uniforms.uSwayTable    = bgfx::createUniform("u_swayTable",    bgfx::UniformType::Vec4, kSwayTableEntries);
     g_uniforms.uShroudOffset = bgfx::createUniform("u_shroudOffset", bgfx::UniformType::Vec4);
@@ -2616,7 +2351,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
             kBgfxDebugView, kBgfxEngineView, kBgfxEngineSortView,
             kBgfxRTTView, kBgfxWaterView, kBgfxEffectOverlayView,
             kBgfxShadowVolumeView, kBgfxShadowApplyView,
-            kBgfxShadowMapView, kBgfxSceneDepthView,
+            kBgfxSceneDepthView,
             kBgfxSmudgeCopyView, kBgfxSmudgeView,
             kBgfxSceneCompositeView, kBgfxUIView,
         };
@@ -2701,18 +2436,12 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.sCloudMap);
         DestroyBgfxHandle(g_device.shadowVolumeProgram);
         DestroyBgfxHandle(g_device.shadowApplyProgram);
-        DestroyBgfxHandle(g_device.shadowCasterProgram);
-        DestroyBgfxHandle(g_device.shadowMapFB);
-        DestroyBgfxHandle(g_device.shadowMapDepth);
         DestroySceneFramebuffer();
         DestroyBgfxHandle(g_uniforms.uShadowColor);
         DestroyBgfxHandle(g_uniforms.uPostParams);
         DestroyBgfxHandle(g_uniforms.uPostTexelSize);
         DestroyBgfxHandle(g_uniforms.uSoftParticleParams);
         DestroyBgfxHandle(g_uniforms.uShadowBias);
-        DestroyBgfxHandle(g_uniforms.uShadowLightViewProj);
-        DestroyBgfxHandle(g_uniforms.uShadowParams);
-        DestroyBgfxHandle(g_uniforms.sShadowMap);
         DestroyBgfxHandle(g_uniforms.uMatEmissive);
         DestroyBgfxHandle(g_uniforms.uGrayscaleEnable);
         DestroyBgfxHandle(g_device.defaultWhiteTexture);
@@ -2991,7 +2720,6 @@ void BgfxBackend::Begin_Scene()
     bgfx::touch(kBgfxEffectOverlayView);
     bgfx::touch(kBgfxShadowVolumeView);
     bgfx::touch(kBgfxShadowApplyView);
-    bgfx::touch(kBgfxShadowMapView);
     bgfx::touch(kBgfxSmudgeCopyView);
     bgfx::touch(kBgfxSmudgeView);
     if (bgfx::isValid(g_device.sceneReadableDepthFB))
@@ -3000,10 +2728,6 @@ void BgfxBackend::Begin_Scene()
     }
     bgfx::touch(kBgfxSceneCompositeView);
     bgfx::touch(kBgfxUIView);
-    // CSM: light transform updated lazily at first draw
-    // (see SubmitEngineDraw), not here, because g_frame.view is still
-    // identity at Begin_Scene time.
-    g_frame.shadowLightCaptured = false;
     g_views.overlay2DActive = false;
     // TheSuperHackers @fix bobtista 21/04/2026 Reset ALL 3D view rects to
     // full canvas at Begin_Scene, not just water view. Previously only the
@@ -3194,12 +2918,10 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                       static_cast<uint16_t>(g_device.width),
                       static_cast<uint16_t>(g_device.height));
 
-    // Debug view (0) runs FIRST to emit the backbuffer
-    // clear quad, then shadow map (view 8) so its depth texture is
-    // populated before the scene samples it. Then RTT (3), engine
-    // opaque (1), shadow volume fill (6), shadow darken (7), water (4),
-    // sort (2), effect overlay (5), heat-haze smudge copy/draw (12/13),
-    // scene composite (9), UI overlay (10) last.
+    // Debug view (0) runs FIRST to emit the backbuffer clear quad. Then RTT
+    // (3), engine opaque (1), scene depth (11), shadow volume fill (6), shadow
+    // darken (7), water (4), sort (2), effect overlay (5), heat-haze smudge
+    // copy/draw (12/13), scene composite (9), UI overlay (10) last.
     // TheSuperHackers @bugfix bobtista 20/04/2026 View 0 MUST be
     // included — when omitted, bgfx defers it to the end with a 1x1
     // viewport, and the full-canvas clear never fires (causing
@@ -3207,7 +2929,6 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     // that area is not overdrawn).
     bgfx::ViewId viewOrder[] = {
         kBgfxDebugView,            // 0 — full-canvas clear quad, must run first
-        kBgfxShadowMapView,        // 8 — shadow caster depth pass
         kBgfxRTTView,              // 3
         kBgfxEngineView,           // 1
         kBgfxSceneDepthView,       // 11 — readable opaque scene depth
@@ -3867,22 +3588,6 @@ static uint64_t ApplyBlendEquation(uint64_t state)
     return state;
 }
 
-static void BindShadowMapTexture()
-{
-    // TheSuperHackers @bugfix bobtista 30/04/2026 fs_uber declares
-    // SAMPLER2DSHADOW(s_shadowMap, 4) so Metal validation requires a
-    // depth + comparison-sampler binding on EVERY draw using fs_uber,
-    // even when u_shadowParams.x = 0 makes the shader skip the sample.
-    // shadowMapDepth itself doubles as the safe fallback because it is
-    // a D32F texture created with BGFX_SAMPLER_COMPARE_LEQUAL at init
-    // and stays valid for the lifetime of the device.
-    if (bgfx::isValid(g_device.shadowMapDepth) && bgfx::isValid(g_uniforms.sShadowMap))
-    {
-        bgfx::setTexture(4, g_uniforms.sShadowMap, g_device.shadowMapDepth);
-        g_stats.textureBinds++;
-    }
-}
-
 static bool LegacyStencilShadowsEnabled()
 {
     return BgfxStencilShadowsEnabled()
@@ -4106,11 +3811,6 @@ static bool ShouldLogBgfxShroudPass()
     return std::getenv("GGC_BGFX_SHROUD_PASS_DIAG") != nullptr;
 }
 
-static bool ShouldLogBgfxCsmCasters()
-{
-    return std::getenv("GGC_BGFX_CSM_CASTER_DIAG") != nullptr;
-}
-
 static bool ShouldLogBgfxSortedDecals()
 {
     return std::getenv("GGC_BGFX_SORTED_DECAL_DIAG") != nullptr;
@@ -4129,15 +3829,6 @@ static bool ShouldLogBgfxRevealDiagVerbose()
 static bool ShouldAllowBgfxDiagnosticDrawOverrides()
 {
     return std::getenv("GGC_BGFX_ENABLE_DIAGNOSTIC_OVERRIDES") != nullptr;
-}
-
-static int BgfxCsmCasterDiagStartFrame()
-{
-    if (const char * env = std::getenv("GGC_BGFX_CSM_CASTER_DIAG_FRAME"))
-    {
-        return std::atoi(env);
-    }
-    return 0;
 }
 
 static const char * TextureDebugName(TextureBaseClass * texture)
@@ -4403,53 +4094,6 @@ static uint64_t ApplyProjectedAdditiveDecalDrawState(uint64_t state)
     // intermediate scene target, so keep additive decal alpha isolated while
     // preserving the original RGB ONE/ONE blend.
     return state & ~BGFX_STATE_WRITE_A;
-}
-
-static void LogBgfxCsmCaster(unsigned short polygonCount,
-                             unsigned short vertexCount,
-                             uint64_t state,
-                             bool writesDepth,
-                             bool isBlended,
-                             bool isAlphaTested,
-                             bool isTerrainDraw)
-{
-    if (!ShouldLogBgfxCsmCasters())
-    {
-        return;
-    }
-    const int startFrame = BgfxCsmCasterDiagStartFrame();
-    if (startFrame > 0 && static_cast<int>(g_stats.frameIndex) < startFrame)
-    {
-        return;
-    }
-    if (startFrame > 0 && static_cast<int>(g_stats.frameIndex) > startFrame + 10)
-    {
-        return;
-    }
-
-    const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
-    if (FILE * diag = std::fopen("ggc_bgfx_csm_caster_diag.txt", "a"))
-    {
-        std::fprintf(diag,
-                     "frame=%u polys=%u verts=%u state=0x%llx wz=%d blend=%d atest=%d terrain=%d texSel=(%.1f,%.1f,%.1f,%.1f) tss0=(%.1f,%.1f,%.1f,%.1f) tex0=%s tex1=%s tex2=%s tex3=%s\n",
-                     g_stats.frameIndex,
-                     static_cast<unsigned>(polygonCount),
-                     static_cast<unsigned>(vertexCount),
-                     static_cast<unsigned long long>(state),
-                     writesDepth ? 1 : 0,
-                     isBlended ? 1 : 0,
-                     isAlphaTested ? 1 : 0,
-                     isTerrainDraw ? 1 : 0,
-                     g_draw.texcoordSelect[0], g_draw.texcoordSelect[1],
-                     g_draw.texcoordSelect[2], g_draw.texcoordSelect[3],
-                     g_draw.tssOps0[0], g_draw.tssOps0[1],
-                     g_draw.tssOps0[2], g_draw.tssOps0[3],
-                     TextureDebugName(rs.Textures[0]),
-                     TextureDebugName(rs.Textures[1]),
-                     TextureDebugName(rs.Textures[2]),
-                     TextureDebugName(rs.Textures[3]));
-        std::fclose(diag);
-    }
 }
 
 static void LogBgfxShroudPass(const char *event,
@@ -4885,16 +4529,6 @@ static void UploadMaterialUniforms()
     {
         bgfx::setUniform(g_uniforms.uCloudParams, g_draw.cloudParams);
     }
-    if (bgfx::isValid(g_uniforms.uShadowParams))
-    {
-        float shadowParams[4];
-        std::memcpy(shadowParams, g_draw.shadowParams, sizeof(shadowParams));
-        if (!BgfxCsmShadowsEnabled())
-        {
-            shadowParams[0] = 0.0f;
-        }
-        bgfx::setUniform(g_uniforms.uShadowParams, shadowParams);
-    }
     if (bgfx::isValid(g_uniforms.uTexTransform0))
     {
         bgfx::setUniform(g_uniforms.uTexTransform0, g_draw.texTransform0);
@@ -5121,7 +4755,6 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         // is false, so key this reset to the draw signature itself.
         g_draw.texcoordSelect[1] = 0.0f;
     }
-    g_draw.shadowParams[0] = 0.0f;
     {
         const unsigned zbiasRaw = DX8Wrapper::Get_DX8_Render_State(D3DRS_ZBIAS);
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
@@ -5206,23 +4839,12 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
 
     bgfx::setState(state);
     BindSoftParticleDepth(IsSoftParticleCandidate(state));
-    // TheSuperHackers @bugfix bobtista 30/04/2026 Sorted-view draws
-    // also use g_draw.program (uberProgram) and therefore inherit
-    // fs_uber's slot-4 SAMPLER2DSHADOW binding requirement on Metal.
-    BindShadowMapTexture();
-
     bgfx::submit(kBgfxEngineSortView, g_draw.program);
     LogBgfxRevealDraw("submit-sorted", kBgfxEngineSortView,
                       polygon_count, vertex_count, state, "submit");
     g_stats.baseSubmits++;
     g_stats.transientVbDraws++;
     g_stats.transientIbDraws++;
-
-    // TheSuperHackers @bugfix bobtista 28/04/2026 Sorted draws are mostly
-    // translucent particles, water spray, dazzles, and other billboard
-    // effects. Do not submit them to the CSM shadow map; otherwise their
-    // quads become visible as blocky moving shadows.
-
     g_views.skipNextSubmitEngineDraw = true;
 }
 
@@ -5821,15 +5443,6 @@ void BgfxBackend::Set_Projected_Decal_Mode(RenderBackendProjectedDecalMode mode)
 void BgfxBackend::Set_Texture_Factor(unsigned argb)
 {
     DX8Backend::Set_Texture_Factor(argb);
-}
-
-void BgfxBackend::Set_Shadow_Light_Position(float x, float y, float z)
-{
-    g_frame.shadowSunPosX = x;
-    g_frame.shadowSunPosY = y;
-    g_frame.shadowSunPosZ = z;
-    g_frame.shadowSunPosSet = true;
-    g_frame.shadowLightCaptured = false;
 }
 
 void BgfxBackend::Set_Shadow_Volume_Shader_Active(bool active)
@@ -6534,12 +6147,6 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::discard(BGFX_DISCARD_ALL);
         return;
     }
-    // TheSuperHackers @bugfix bobtista 01/05/2026 Keep bgfx CSM receive on
-    // terrain only. The DX8 reference does not apply this extra shadow-map
-    // darkening to regular W3D meshes; letting buildings receive it makes
-    // broad faces visibly too dark compared with vehicles and the DX8 path.
-    g_draw.shadowParams[0] =
-        (submitView == kBgfxEngineView && g_draw.texcoordSelect[1] > 0.5f) ? 1.0f : 0.0f;
     // Push the engine view+projection when they change. setViewTransform
     // applies until the next change so we do not need to call it per
     // submit, only when the engine has updated either matrix. Sort view
@@ -6555,12 +6162,6 @@ void SubmitEngineDraw(unsigned short start_index,
             std::memcpy(g_frame.cameraView, g_frame.view, sizeof(g_frame.cameraView));
             std::memcpy(g_frame.cameraProj, g_frame.proj, sizeof(g_frame.cameraProj));
             g_frame.cameraCaptured = true;
-        }
-        // CSM: update light transform every frame so
-        // shadows follow the camera as it pans/zooms.
-        if (!g_frame.shadowLightCaptured)
-        {
-            UpdateShadowLightTransform();
         }
         bgfx::setViewTransform(kBgfxEngineView, g_frame.view, g_frame.proj);
         // Shadow-volume view shares the engine camera; push the same
@@ -7074,46 +6675,15 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
 
-    // CSM caster pass. Submit world and sort-flush geometry
-    // to the shadow map view (view 8). Skip RTT, water, and effect
-    // overlay (those are non-shadow-casters by design). Keep this broad:
-    // several legacy opaque paths do not advertise bgfx WRITE_Z in their
-    // translated state even though the DX8 draw participates in depth.
     const bool writesDepth = (state & BGFX_STATE_WRITE_Z) != 0;
     const bool isBlended = (state & BGFX_STATE_BLEND_MASK) != 0;
     const bool isAlphaTested = (g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef) > 0.0f;
-    // CSM caster pass should only include real 3D depth-writing geometry.
-    // Roads, parking lines, projected decals, cloud/noise quads, and other
-    // flat overlay draws render through the main world view too, but they do
-    // not write depth. If they enter the shadow map they become large sliding
-    // rectangular "shadows" as the light camera follows the view. Skip
-    // alpha-tested passes as well because the depth-only caster shader does
-    // not evaluate texture alpha, so fences/signs/scaffold cards would cast
-    // solid rectangles.
-    // TheSuperHackers @bugfix bobtista 28/04/2026 Terrain receives CSM
-    // shadows, but should not cast into the CSM map. The legacy DX8 path did
-    // not project whole heightfields as long sun shadows; doing so makes
-    // cliffs and mountains paint large black regions across the camera view.
-    const bool isTerrainDraw = g_draw.texcoordSelect[1] > 0.5f;
-    const bool isShadowCaster =
-        BgfxCsmShadowsEnabled()
-        && submitView == kBgfxEngineView
-        && !g_views.overlay2DActive
-        && writesDepth
-        && !isAlphaTested
-        && !isTerrainDraw;
-    if (isShadowCaster)
-    {
-        LogBgfxCsmCaster(polygon_count, vertex_count, state,
-                         writesDepth, isBlended, isAlphaTested, isTerrainDraw);
-    }
     const bool isSceneDepthCaster =
         submitView == kBgfxEngineView
         && !g_views.overlay2DActive
         && writesDepth
         && !isBlended
         && !isAlphaTested;
-    const bool receivesShadow = BgfxCsmShadowsEnabled() && (g_draw.shadowParams[0] > 0.5f);
 
     // Sorted translucent/effect draws (particles, lasers, material decals)
     // are submitted after the world pass and should not inherit stale stencil
@@ -7135,22 +6705,6 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::setStencil(BuildCurrentStencilState());
     }
 
-    float lightVP[16];
-    bx::mtxMul(lightVP, g_frame.shadowLightView, g_frame.shadowLightProj);
-
-    if (bgfx::isValid(g_uniforms.uShadowLightViewProj)
-        && (receivesShadow || isShadowCaster))
-    {
-        bgfx::setUniform(g_uniforms.uShadowLightViewProj, lightVP);
-    }
-
-    // TheSuperHackers @bugfix bobtista 30/04/2026 fs_uber declares
-    // SAMPLER2DSHADOW(s_shadowMap, 4) so Metal validation requires slot
-    // 4 bound on every draw using fs_uber, even non-world UI/RTT/water/
-    // effect-overlay submits where u_shadowParams.x = 0 makes the
-    // shader skip the comparison sample. BindShadowMapTexture is cheap
-    // and reuses the existing shadow map texture as the binding.
-    BindShadowMapTexture();
     BindSoftParticleDepth(submitView == kBgfxEngineSortView
                           && isBlended
                           && IsSoftParticleCandidate(state));
@@ -7224,51 +6778,6 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::setState(depthState);
         bgfx::submit(kBgfxSceneDepthView, g_device.sceneDepthProgram);
         g_stats.sceneDepthSubmits++;
-    }
-    if (isShadowCaster
-        && bgfx::isValid(g_device.shadowCasterProgram)
-        && hasVB)
-    {
-        // Re-bind VB/IB/transform (bgfx consumes them per-submit).
-        if (g_draw.useTransientVB)
-        {
-            if (g_views.inSortFlush)
-            {
-                bgfx::setVertexBuffer(0, &g_draw.transientVB);
-            }
-            else
-            {
-                bgfx::setVertexBuffer(0, &g_draw.transientVB,
-                                      static_cast<uint32_t>(g_draw.ibOffset),
-                                      bindVertexCount);
-            }
-        }
-        else
-        {
-            bgfx::setVertexBuffer(0, g_draw.vb,
-                                  static_cast<uint32_t>(g_draw.ibOffset),
-                                  bindVertexCount);
-        }
-        if (g_draw.useTransientIB)
-        {
-            bgfx::setIndexBuffer(&g_draw.transientIB,
-                                 start_index,
-                                 indexCount);
-        }
-        else
-        {
-            bgfx::setIndexBuffer(g_draw.ib,
-                                 start_index,
-                                 indexCount);
-        }
-        const uint64_t casterState =
-            BGFX_STATE_WRITE_Z
-            | BGFX_STATE_DEPTH_TEST_LESS
-            | BGFX_STATE_CULL_CW
-            | (state & BGFX_STATE_PT_MASK);
-        bgfx::setState(casterState);
-        bgfx::submit(kBgfxShadowMapView, g_device.shadowCasterProgram);
-        g_stats.shadowMapSubmits++;
     }
 }
 }

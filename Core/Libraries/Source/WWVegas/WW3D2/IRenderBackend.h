@@ -666,13 +666,6 @@ public:
     // leaves unbalanced stencil counts. Default false keeps DX8 unchanged.
     virtual bool Needs_Closed_Shadow_Volumes() const { return false; }
 
-    // TheSuperHackers @refactor bobtista 16/04/2026 CSM:
-    // the engine's shadow system places the sun at a world-space
-    // position for shadow casting (from TerrainLighting data). This
-    // differs from the N.L shading light direction. BgfxBackend uses
-    // this position for its shadow map ortho projection.
-    virtual void Set_Shadow_Light_Position(float /*x*/, float /*y*/, float /*z*/) {}
-
     // TheSuperHackers @feature bobtista 17/04/2026 Shroud texture capture
     // for bgfx. The shroud system's destination texture is POOL_DEFAULT
     // which bgfx cannot lock. This hook lets W3DShroud push the system-

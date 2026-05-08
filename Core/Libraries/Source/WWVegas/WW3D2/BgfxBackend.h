@@ -186,7 +186,6 @@ public:
         const short * local_cap_indices,
         unsigned cap_index_count) override;
     virtual bool Needs_Closed_Shadow_Volumes() const override;
-    virtual void Set_Shadow_Light_Position(float x, float y, float z) override;
     virtual void Capture_Shroud_Texture(TextureClass * dst_texture,
                                         const void * pixel_data,
                                         unsigned dst_width,

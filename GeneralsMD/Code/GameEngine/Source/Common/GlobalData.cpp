@@ -100,7 +100,7 @@ extern "C" void GGC_GetBgfxPostProcessParams(float * params)
 	}
 }
 
-extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noCsm, int * noPostFx)
+extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuffer, int * noPostFx)
 {
 	if (logStats)
 	{
@@ -109,10 +109,6 @@ extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuf
 	if (noSceneFramebuffer)
 	{
 		*noSceneFramebuffer = 0;
-	}
-	if (noCsm)
-	{
-		*noCsm = 0;
 	}
 	if (noPostFx)
 	{
@@ -130,10 +126,6 @@ extern "C" void GGC_GetBgfxDiagnosticFlags(int * logStats, int * noSceneFramebuf
 	if (noSceneFramebuffer)
 	{
 		*noSceneFramebuffer = TheGlobalData->m_bgfxNoSceneFramebuffer ? 1 : 0;
-	}
-	if (noCsm)
-	{
-		*noCsm = TheGlobalData->m_bgfxNoCsm ? 1 : 0;
 	}
 	if (noPostFx)
 	{
@@ -228,7 +220,6 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxHeatHazeOpacityScale",	INI::parseReal,				nullptr,			offsetof( GlobalData, m_bgfxHeatHazeOpacityScale ) },
 	{ "BgfxLogStats",						INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxLogStats ) },
 	{ "BgfxNoSceneFramebuffer",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoSceneFramebuffer ) },
-	{ "BgfxNoCsm",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoCsm ) },
 	{ "BgfxNoPostFx",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoPostFx ) },
 	{ "TextureReductionFactor",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_textureReductionFactor ) },
 	{ "UseBehindBuildingMarker",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_enableBehindBuildingMarkers ) },
@@ -795,7 +786,6 @@ GlobalData::GlobalData()
 	m_bgfxHeatHazeOpacityScale = 1.0f;
 	m_bgfxLogStats = FALSE;
 	m_bgfxNoSceneFramebuffer = FALSE;
-	m_bgfxNoCsm = FALSE;
 	m_bgfxNoPostFx = FALSE;
 	m_bgfxScreenshotAfter = 0;
 	m_bgfxScreenshotPath = "";

@@ -1091,13 +1091,6 @@ Int parseBgfxNoSceneFramebuffer(char *args[], int num)
 	return 1;
 }
 
-Int parseBgfxNoCsm(char *args[], int num)
-{
-	TheWritableGlobalData->m_bgfxNoCsm = TRUE;
-
-	return 1;
-}
-
 Int parseBgfxNoPostFx(char *args[], int num)
 {
 	TheWritableGlobalData->m_bgfxNoPostFx = TRUE;
@@ -1280,7 +1273,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-logFrameTimes", parseLogFrameTimes },
 	{ "-logBgfxStats", parseLogBgfxStats },
 	{ "-bgfxNoSceneFramebuffer", parseBgfxNoSceneFramebuffer },
-	{ "-bgfxNoCsm", parseBgfxNoCsm },
 	{ "-bgfxNoPostFx", parseBgfxNoPostFx },
 	{ "-bgfxScreenshotAfter", parseBgfxScreenshotAfter },
 

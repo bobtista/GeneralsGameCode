@@ -257,11 +257,6 @@ void W3DShadowManager::setLightPosition(Int lightIndex, Real x, Real y, Real z)
 		return;	///@todo: Add support for multiple lights
 
 	LightPosWorld[lightIndex]=Vector3(x,y,z);
-
-	// TheSuperHackers @refactor bobtista 16/04/2026 Phase 4I.2 forward
-	// the shadow sun position to the render backend so bgfx's CSM uses
-	// the same light direction as DX8's stencil shadow system.
-	g_renderBackend->Set_Shadow_Light_Position(x, y, z);
 }
 
 void W3DShadowManager::setTimeOfDay(TimeOfDay tod)

@@ -1,5 +1,5 @@
 $input  a_position, a_normal, a_color0, a_texcoord0
-$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV, v_stage2UV, v_stage3UV, v_worldPos
+$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_cloudUV, v_stage0UV, v_stage1UV, v_stage2UV, v_stage3UV, v_worldPos
 
 #include <bgfx_shader.sh>
 
@@ -21,7 +21,6 @@ uniform vec4 u_swayTable[MAX_SWAY_TYPES_PLUS1];
 uniform vec4 u_shroudOffset;
 uniform vec4 u_shroudScale;
 uniform vec4 u_vertexColorFlags; // .x > 0.5 = FVF supplies COLOR0; else use D3D8's white default
-uniform mat4 u_shadowLightViewProj;
 
 void main()
 {
@@ -64,6 +63,4 @@ void main()
 	// u_cloudParams.w controls the enable flag and is gated per-draw by
 	// the backend; this value is effectively unused for grass draws.
 	v_cloudUV = a_position.xy;
-
-	v_lightspace = mul(u_shadowLightViewProj, worldPos);
 }
