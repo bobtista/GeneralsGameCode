@@ -14,11 +14,13 @@
 
 unsigned RenderStateCache::RenderStates[RenderStateCache::RENDER_STATE_COUNT];
 unsigned RenderStateCache::TextureStageStates[RenderStateCache::TEXTURE_STAGE_COUNT][RenderStateCache::TEXTURE_STAGE_STATE_COUNT];
+D3DMATRIX RenderStateCache::Transforms[RenderStateCache::TRANSFORM_COUNT];
 
 void RenderStateCache::Clear()
 {
 	memset(RenderStates, 0, sizeof(RenderStates));
 	memset(TextureStageStates, 0, sizeof(TextureStageStates));
+	memset(Transforms, 0, sizeof(Transforms));
 }
 
 void RenderStateCache::Invalidate()
@@ -34,6 +36,8 @@ void RenderStateCache::Invalidate()
 			TextureStageStates[stage][state] = INVALID_STATE_VALUE;
 		}
 	}
+
+	memset(Transforms, 0, sizeof(Transforms));
 }
 
 unsigned RenderStateCache::Get_Render_State(unsigned state)
@@ -79,5 +83,25 @@ bool RenderStateCache::Set_Texture_Stage_State(unsigned stage, unsigned state, u
 	}
 
 	TextureStageStates[stage][state] = value;
+	return true;
+}
+
+void RenderStateCache::Get_Transform(unsigned transform, D3DMATRIX & matrix)
+{
+	if (transform >= TRANSFORM_COUNT) {
+		memset(&matrix, 0, sizeof(matrix));
+		return;
+	}
+
+	matrix = Transforms[transform];
+}
+
+bool RenderStateCache::Set_Transform(unsigned transform, const D3DMATRIX & matrix)
+{
+	if (transform >= TRANSFORM_COUNT) {
+		return false;
+	}
+
+	Transforms[transform] = matrix;
 	return true;
 }
