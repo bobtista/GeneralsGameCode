@@ -30,6 +30,7 @@
 #include "lightenvironment.h"
 #include "matrix3d.h"
 #include "matrix4.h"
+#include "RenderStateCache.h"
 #include "shader.h"
 #include "texture.h"
 #include "texturefilter.h"
@@ -3558,7 +3559,7 @@ void BgfxBackend::Capture_Sorted_Batch_Light(const RenderBackendLight & light, b
 // both Submit_Sorted_Draw and SubmitEngineDraw to avoid duplicated blocks.
 static uint64_t ApplyCullModeOverride(uint64_t state)
 {
-    unsigned d3dCull = DX8Wrapper::Get_DX8_Render_State(D3DRS_CULLMODE);
+    unsigned d3dCull = RenderStateCache::Get_Render_State(D3DRS_CULLMODE);
     state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
     if (d3dCull == D3DCULL_CW)
     {
@@ -3964,7 +3965,7 @@ static void LogBgfxSortedMaterialDecal(const char *event,
                      static_cast<unsigned long long>(state),
                      static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
                      g_draw.zBias[0],
-                     DX8Wrapper::Get_DX8_Render_State(D3DRS_ZBIAS),
+                     RenderStateCache::Get_Render_State(D3DRS_ZBIAS),
                      TextureDebugName(rs.Textures[0]),
                      TextureDebugName(rs.Textures[1]),
                      g_draw.tssOps0[0], g_draw.tssOps0[1],
@@ -4212,8 +4213,8 @@ static void BindSoftParticleDepth(bool enable)
 static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
 {
     uint32_t flags = 0;
-    const unsigned addressU = DX8Wrapper::Get_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSU);
-    const unsigned addressV = DX8Wrapper::Get_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSV);
+    const unsigned addressU = RenderStateCache::Get_Texture_Stage_State(stage, D3DTSS_ADDRESSU);
+    const unsigned addressV = RenderStateCache::Get_Texture_Stage_State(stage, D3DTSS_ADDRESSV);
 
     if (addressU == D3DTADDRESS_CLAMP || addressU == D3DTADDRESS_BORDER)
     {
@@ -4396,7 +4397,7 @@ static void UpdateTextureTransforms()
     // unused black padding in those atlases; stage 1 matters for detail
     // and environment-mapped sub-materials.
     const unsigned texcoordIndex =
-        DX8Wrapper::Get_DX8_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX);
+        RenderStateCache::Get_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX);
     const unsigned uvIndex = texcoordIndex & 0xFFFF;
     const unsigned texcoordGen = texcoordIndex & 0xFFFF0000;
     // TheSuperHackers @info bobtista 26/04/2026 Only UV sets 0 and 1 are
@@ -4416,7 +4417,7 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSource[0] = GetTexcoordSource(texcoordGen);
 
     const unsigned texFlags =
-        DX8Wrapper::Get_DX8_Texture_Stage_State(0, D3DTSS_TEXTURETRANSFORMFLAGS);
+        RenderStateCache::Get_Texture_Stage_State(0, D3DTSS_TEXTURETRANSFORMFLAGS);
     const unsigned texCount = texFlags & 0xFFu;
     const bool texProjected0 = (texFlags & D3DTTFF_PROJECTED) != 0
         && texCount >= D3DTTFF_COUNT3;
@@ -4437,7 +4438,7 @@ static void UpdateTextureTransforms()
     g_draw.texProjected[0] = texProjected0 ? 1.0f : 0.0f;
 
     const unsigned texcoordIndex1 =
-        DX8Wrapper::Get_DX8_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX);
+        RenderStateCache::Get_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX);
     const unsigned uvIndex1 = texcoordIndex1 & 0xFFFF;
     const unsigned texcoordGen1 = texcoordIndex1 & 0xFFFF0000;
     if (uvIndex1 > 1)
@@ -4453,7 +4454,7 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSource[1] = GetTexcoordSource(texcoordGen1);
 
     const unsigned texFlags1 =
-        DX8Wrapper::Get_DX8_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS);
+        RenderStateCache::Get_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS);
     const unsigned texCount1 = texFlags1 & 0xFFu;
     const bool texProjected1 = (texFlags1 & D3DTTFF_PROJECTED) != 0
         && texCount1 >= D3DTTFF_COUNT3;
@@ -4618,7 +4619,7 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
             (ambientSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
         g_draw.vertexColorFlags[3] =
             (emissiveSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
-        const unsigned d3dLighting = DX8Wrapper::Get_DX8_Render_State(D3DRS_LIGHTING);
+        const unsigned d3dLighting = RenderStateCache::Get_Render_State(D3DRS_LIGHTING);
         g_draw.lightingEnabled[0] =
             (material->Get_Lighting()
              && d3dLighting != 0
@@ -4756,7 +4757,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         g_draw.texcoordSelect[1] = 0.0f;
     }
     {
-        const unsigned zbiasRaw = DX8Wrapper::Get_DX8_Render_State(D3DRS_ZBIAS);
+        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(D3DRS_ZBIAS);
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
@@ -6364,7 +6365,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // u_zBias to the GPU. Setting g_draw.zBias afterward leaves the uniform
     // at the previous (or default) value and defeats the whole fix.
     {
-        const unsigned zbiasRaw = DX8Wrapper::Get_DX8_Render_State(D3DRS_ZBIAS);
+        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(D3DRS_ZBIAS);
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
@@ -6461,7 +6462,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // ignore that sentinel and keep the cached value instead of treating
     // the marker bytes as a real color.
     {
-        const unsigned ambientColor = DX8Wrapper::Get_DX8_Render_State(D3DRS_AMBIENT);
+        const unsigned ambientColor = RenderStateCache::Get_Render_State(D3DRS_AMBIENT);
         if (ambientColor != 0x12345678)
         {
             g_draw.sceneAmbient[0] = ((ambientColor >> 16) & 0xFF) / 255.0f;
@@ -6518,9 +6519,9 @@ void SubmitEngineDraw(unsigned short start_index,
     // be true to avoid false positives from other effects that set TCI bits.
     {
         bool shroudDetected = false;
-        unsigned depthFunc = DX8Wrapper::Get_DX8_Render_State(D3DRS_ZFUNC);
+        unsigned depthFunc = RenderStateCache::Get_Render_State(D3DRS_ZFUNC);
         const unsigned stg = 0;
-        unsigned tci = DX8Wrapper::Get_DX8_Texture_Stage_State(stg, D3DTSS_TEXCOORDINDEX);
+        unsigned tci = RenderStateCache::Get_Texture_Stage_State(stg, D3DTSS_TEXCOORDINDEX);
         float shroudParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
         // Projected terrain receivers and cloud/noise stages also use
         // TCI_CAMERASPACEPOSITION. Only the actual shroud overlay uses the
