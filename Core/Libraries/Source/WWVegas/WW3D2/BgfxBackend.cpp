@@ -6855,7 +6855,6 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
                                  unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
-    DX8Backend::Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
     // If DX8Wrapper::Draw_Sorting_IB_VB already submitted
     // the draw with correctly remapped args against its internal dynamic
     // buffers, skip the outer submit.
@@ -6873,7 +6872,7 @@ void BgfxBackend::Draw_Triangles(unsigned int buffer_type,
                                  unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
-    DX8Backend::Draw_Triangles(buffer_type, start_index, polygon_count, min_vertex_index, vertex_count);
+    (void)buffer_type;
     if (g_views.skipNextSubmitEngineDraw)
     {
         g_views.skipNextSubmitEngineDraw = false;
@@ -6890,7 +6889,6 @@ void BgfxBackend::Draw_Strip(unsigned short start_index,
                              unsigned short min_vertex_index,
                              unsigned short vertex_count)
 {
-    DX8Backend::Draw_Strip(start_index, index_count, min_vertex_index, vertex_count);
     if (g_views.skipNextSubmitEngineDraw)
     {
         g_views.skipNextSubmitEngineDraw = false;
