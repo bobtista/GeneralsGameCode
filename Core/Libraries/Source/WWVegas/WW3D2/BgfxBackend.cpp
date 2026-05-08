@@ -5409,6 +5409,12 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
     }
 }
 
+void BgfxBackend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * texture)
+{
+    DX8Backend::Bind_Texture_Immediate(stage, texture);
+    Set_Texture(stage, texture);
+}
+
 void BgfxBackend::Set_Ambient(const Vector3 & color)
 {
     DX8Backend::Set_Ambient(color);
