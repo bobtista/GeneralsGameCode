@@ -78,6 +78,9 @@ public:
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest);
     virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha);
     virtual void Set_Alpha_Blend_Enable(bool enable);
+    virtual void Set_Alpha_Test_Enable(bool enable);
+    virtual void Set_Alpha_Test_Reference(unsigned ref);
+    virtual void Set_Alpha_Test_Function(CompareFunc func);
     virtual void Show_Hardware_Cursor(bool show);
     virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface);
     virtual void Set_Hardware_Cursor_Position(int x, int y);

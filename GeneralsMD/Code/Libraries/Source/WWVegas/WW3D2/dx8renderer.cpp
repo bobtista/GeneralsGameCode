@@ -1922,11 +1922,11 @@ void DX8TextureCategoryClass::Render()
 					vmaterial->Set_Opacity(mesh->Get_Alpha_Override());
 					g_renderBackend->Set_Shader(theAlphaShader);
 					DX8Wrapper::Apply_Render_State_Changes();
-					DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,(int)((float)0x60*mesh->Get_Alpha_Override()));
+					g_renderBackend->Set_Alpha_Test_Reference((int)((float)0x60*mesh->Get_Alpha_Override()));
 
 					renderer->Render(mesh->Get_Base_Vertex_Offset());
 
-					DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x60);
+					g_renderBackend->Set_Alpha_Test_Reference(0x60);
 					vmaterial->Set_Opacity(oldOpacity);	//restore previous value
 					vmaterial->Set_Diffuse(oldDiffuse.X,oldDiffuse.Y,oldDiffuse.Z);
 					g_renderBackend->Set_Shader(theShader);	//restore previous value
@@ -2297,8 +2297,6 @@ void DX8MeshRendererClass::Invalidate( bool shutdown)
 
 	texture_category_container_lists_rigid.Delete_All();
 }
-
-
 
 
 
