@@ -220,6 +220,14 @@ enum FillMode
     RB_FILL_SOLID     = 3    // D3DFILL_SOLID
 };
 
+// Values match D3DSHADE_* so DX8Backend can cast directly.
+enum ShadeMode
+{
+    RB_SHADE_FLAT    = 1,  // D3DSHADE_FLAT
+    RB_SHADE_GOURAUD = 2,  // D3DSHADE_GOURAUD
+    RB_SHADE_PHONG   = 3   // D3DSHADE_PHONG
+};
+
 // Values match D3DCULL_* so DX8Backend can cast directly.
 enum CullMode
 {
@@ -496,6 +504,7 @@ public:
     // channel flags use the boolean form.
     virtual void Set_Z_Bias(int bias) {}
     virtual void Set_Fill_Mode(FillMode mode) {}
+    virtual void Set_Shade_Mode(ShadeMode mode) {}
     virtual void Set_Depth_Test_Enable(bool enable) {}
     virtual void Set_Depth_Write_Enable(bool enable) {}
     virtual void Set_Depth_Func(CompareFunc func) {}

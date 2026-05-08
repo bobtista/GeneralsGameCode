@@ -334,6 +334,11 @@ void DX8Backend::Set_Fill_Mode(FillMode mode)
     DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE, static_cast<unsigned>(mode));
 }
 
+void DX8Backend::Set_Shade_Mode(ShadeMode mode)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_SHADEMODE, static_cast<unsigned>(mode));
+}
+
 void DX8Backend::Set_Depth_Test_Enable(bool enable)
 {
     DX8Wrapper::Set_DX8_Render_State(D3DRS_ZENABLE, enable ? TRUE : FALSE);

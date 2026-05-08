@@ -97,6 +97,7 @@ public:
     // Phase 4F render-state extension (see IRenderBackend.h).
     virtual void Set_Z_Bias(int bias);
     virtual void Set_Fill_Mode(FillMode mode);
+    virtual void Set_Shade_Mode(ShadeMode mode);
     virtual void Set_Depth_Test_Enable(bool enable);
     virtual void Set_Depth_Write_Enable(bool enable);
     virtual void Set_Depth_Func(CompareFunc func);
