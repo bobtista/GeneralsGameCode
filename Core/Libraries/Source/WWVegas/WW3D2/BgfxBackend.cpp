@@ -5087,7 +5087,8 @@ static uint64_t TranslateBlendOp(BlendOp op)
 // TheSuperHackers @fix bobtista 20/04/2026 The DX8Backend default only updates D3D render state, leaving bgfx's g_overrides.blendBits stale. Water rendering relies on this to restore SRC_ALPHA / INV_SRC_ALPHA blending after its DESTALPHA shoreline pass — otherwise the DESTALPHA state set by Override_Material_Opacity() persists into the next draw (e.g. the faction-emblem quad on the command-center bib), painting it black.
 void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 {
-    DX8Backend::Set_Blend_Factors(src, dest);
+    RenderStateCache::Set_Render_State(D3DRS_SRCBLEND, static_cast<unsigned>(src));
+    RenderStateCache::Set_Render_State(D3DRS_DESTBLEND, static_cast<unsigned>(dest));
     const unsigned s = static_cast<unsigned>(src);
     const unsigned d = static_cast<unsigned>(dest);
     if (s >= 1 && s <= 11 && d >= 1 && d <= 11)
@@ -5098,26 +5099,36 @@ void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 
 void BgfxBackend::Set_Blend_Op(BlendOp op)
 {
-    DX8Backend::Set_Blend_Op(op);
+    RenderStateCache::Set_Render_State(D3DRS_BLENDOP, static_cast<unsigned>(op));
     g_draw.blendEquationBits = TranslateBlendOp(op);
+}
+
+void BgfxBackend::Set_Alpha_Blend_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(D3DRS_ALPHABLENDENABLE, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Alpha_Test_Enable(bool enable)
 {
-    DX8Backend::Set_Alpha_Test_Enable(enable);
+    RenderStateCache::Set_Render_State(D3DRS_ALPHATESTENABLE, enable ? TRUE : FALSE);
     g_draw.atestEnabled = enable;
 }
 
 void BgfxBackend::Set_Alpha_Test_Reference(unsigned ref)
 {
-    DX8Backend::Set_Alpha_Test_Reference(ref);
+    RenderStateCache::Set_Render_State(D3DRS_ALPHAREF, ref);
     g_draw.atestRef = ref / 255.0f;
 }
 
 void BgfxBackend::Set_Alpha_Test_Function(CompareFunc func)
 {
-    DX8Backend::Set_Alpha_Test_Function(func);
+    RenderStateCache::Set_Render_State(D3DRS_ALPHAFUNC, static_cast<unsigned>(func));
     g_draw.atestFunc = static_cast<float>(func);
+}
+
+void BgfxBackend::Set_Normalize_Normals(bool enable)
+{
+    RenderStateCache::Set_Render_State(D3DRS_NORMALIZENORMALS, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
@@ -5385,7 +5396,6 @@ void BgfxBackend::Set_Cloud_Shadow_Params(bool enable, float scroll_x, float scr
 
 void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha)
 {
-    DX8Backend::Set_Color_Write_Enable(red, green, blue, alpha);
     uint64_t mask = 0;
     if (red)
     {
@@ -5403,6 +5413,24 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
     {
         mask |= BGFX_STATE_WRITE_A;
     }
+    unsigned d3dMask = 0;
+    if (red)
+    {
+        d3dMask |= D3DCOLORWRITEENABLE_RED;
+    }
+    if (green)
+    {
+        d3dMask |= D3DCOLORWRITEENABLE_GREEN;
+    }
+    if (blue)
+    {
+        d3dMask |= D3DCOLORWRITEENABLE_BLUE;
+    }
+    if (alpha)
+    {
+        d3dMask |= D3DCOLORWRITEENABLE_ALPHA;
+    }
+    RenderStateCache::Set_Render_State(D3DRS_COLORWRITEENABLE, d3dMask);
     g_overrides.colorWriteOverride = static_cast<int>(mask);
     g_overrides.suppressDraw = false;
 }
@@ -5414,7 +5442,7 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
 // shadow volumes drawing as solid black geometry.
 void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 {
-    DX8Backend::Set_Color_Write_Mask(mask);
+    RenderStateCache::Set_Render_State(D3DRS_COLORWRITEENABLE, mask);
     uint64_t bgfxMask = 0;
     if (mask & D3DCOLORWRITEENABLE_RED)
     {
@@ -5438,7 +5466,7 @@ void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 
 void BgfxBackend::Set_Lighting_Enable(bool enable)
 {
-    DX8Backend::Set_Lighting_Enable(enable);
+    RenderStateCache::Set_Render_State(D3DRS_LIGHTING, enable ? TRUE : FALSE);
     g_draw.lightingEnabled[0] = enable ? 1.0f : 0.0f;
 }
 
@@ -5463,7 +5491,7 @@ void BgfxBackend::Set_Projected_Decal_Mode(RenderBackendProjectedDecalMode mode)
 // is unnecessary and it clobbers team colors.
 void BgfxBackend::Set_Texture_Factor(unsigned argb)
 {
-    DX8Backend::Set_Texture_Factor(argb);
+    RenderStateCache::Set_Render_State(D3DRS_TEXTUREFACTOR, argb);
 }
 
 void BgfxBackend::Set_Shadow_Volume_Shader_Active(bool active)
@@ -5736,62 +5764,62 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 
 void BgfxBackend::Set_Stencil_Enable(bool enable)
 {
-    DX8Backend::Set_Stencil_Enable(enable);
+    RenderStateCache::Set_Render_State(D3DRS_STENCILENABLE, enable ? TRUE : FALSE);
     g_draw.stencilEnabled = enable;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Func(CompareFunc f)
 {
-    DX8Backend::Set_Stencil_Func(f);
+    RenderStateCache::Set_Render_State(D3DRS_STENCILFUNC, static_cast<unsigned>(f));
     g_draw.stencilFuncBits = MapCmpFuncToBgfxStencilTest(static_cast<int>(f));
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Ref(unsigned ref)
 {
-    DX8Backend::Set_Stencil_Ref(ref);
+    RenderStateCache::Set_Render_State(D3DRS_STENCILREF, ref);
     g_draw.stencilRef = ref;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Mask(unsigned mask)
 {
-    DX8Backend::Set_Stencil_Mask(mask);
+    RenderStateCache::Set_Render_State(D3DRS_STENCILMASK, mask);
     g_draw.stencilReadMask = mask;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Write_Mask(unsigned mask)
 {
-    DX8Backend::Set_Stencil_Write_Mask(mask);
+    RenderStateCache::Set_Render_State(D3DRS_STENCILWRITEMASK, mask);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Pass_Op(StencilOp op)
 {
-    DX8Backend::Set_Stencil_Pass_Op(op);
+    RenderStateCache::Set_Render_State(D3DRS_STENCILPASS, static_cast<unsigned>(op));
     g_draw.stencilPassOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_PASS_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Fail_Op(StencilOp op)
 {
-    DX8Backend::Set_Stencil_Fail_Op(op);
+    RenderStateCache::Set_Render_State(D3DRS_STENCILFAIL, static_cast<unsigned>(op));
     g_draw.stencilFailOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_FAIL_S_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp op)
 {
-    DX8Backend::Set_Stencil_ZFail_Op(op);
+    RenderStateCache::Set_Render_State(D3DRS_STENCILZFAIL, static_cast<unsigned>(op));
     g_draw.stencilZFailOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_FAIL_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Cull_Mode(CullMode mode)
 {
-    DX8Backend::Set_Cull_Mode(mode);
+    RenderStateCache::Set_Render_State(D3DRS_CULLMODE, static_cast<unsigned>(mode));
     switch (mode)
     {
         case RB_CULL_CW:  g_draw.cullModeBits = 1; break;
@@ -5801,9 +5829,29 @@ void BgfxBackend::Set_Cull_Mode(CullMode mode)
     }
 }
 
+void BgfxBackend::Set_Z_Bias(int bias)
+{
+    RenderStateCache::Set_Render_State(D3DRS_ZBIAS, static_cast<unsigned>(bias));
+}
+
+void BgfxBackend::Set_Fill_Mode(FillMode mode)
+{
+    RenderStateCache::Set_Render_State(D3DRS_FILLMODE, static_cast<unsigned>(mode));
+}
+
+void BgfxBackend::Set_Depth_Test_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(D3DRS_ZENABLE, enable ? TRUE : FALSE);
+}
+
+void BgfxBackend::Set_Depth_Write_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(D3DRS_ZWRITEENABLE, enable ? TRUE : FALSE);
+}
+
 void BgfxBackend::Set_Depth_Func(CompareFunc func)
 {
-    DX8Backend::Set_Depth_Func(func);
+    RenderStateCache::Set_Render_State(D3DRS_ZFUNC, static_cast<unsigned>(func));
     static const uint64_t kDepthMap[] = {
         0,                              // 0 (unused)
         BGFX_STATE_DEPTH_TEST_NEVER,    // RB_CMP_NEVER = 1
