@@ -2729,6 +2729,24 @@ bool BgfxBackend::Draw_Screen_Quad(const RenderBackendScreenVertex * vertices,
     return false;
 }
 
+bool BgfxBackend::Capture_Back_Buffer_RGBA(unsigned int display_width,
+                                           unsigned int display_height,
+                                           unsigned int image_size,
+                                           unsigned char * output_pixels,
+                                           unsigned int output_capacity,
+                                           unsigned int * output_width,
+                                           unsigned int * output_height)
+{
+    (void)display_width;
+    (void)display_height;
+    (void)image_size;
+    (void)output_pixels;
+    (void)output_capacity;
+    (void)output_width;
+    (void)output_height;
+    return false;
+}
+
 // -- Frame lifecycle ---------------------------------------------------------
 
 void BgfxBackend::Begin_Scene()
