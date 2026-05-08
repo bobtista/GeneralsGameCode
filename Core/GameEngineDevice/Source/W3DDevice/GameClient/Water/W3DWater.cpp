@@ -1756,25 +1756,25 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
 
 				// Use CameraSpace vertices as input to matrix and use texture wrap mode from stage 1
-				DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION|1);
+				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION|1);
 				// Two output coordinates are used.
-				DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
 				// Set texture generation matrix for stage 1
 				W3DWater_SetTextureTransform(1, inv);
 
 				// Disable bilinear filtering
-				DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-				DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_POINT);
+				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
+				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_POINT);
 
 				// Pass stage 0 texture data untouched(by modulating with white)
-				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );	//stage 1 texture
-				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );	//previous stage texture
-				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );	//module with white => does nothing
+				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );	//stage 1 texture
+				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );	//previous stage texture
+				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );	//module with white => does nothing
 
-				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );	//stage 1 texture
-				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAARG2, D3DTA_CURRENT );	//previous stage texture
-				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );	//modulate with clipping texture
+				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );	//stage 1 texture
+				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG2, D3DTA_CURRENT );	//previous stage texture
+				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );	//modulate with clipping texture
 
 				g_renderBackend->Set_Alpha_Test(true, 0x00, RB_CMP_NOT_EQUAL);	//pass pixels who's alpha is not zero
 
@@ -2737,10 +2737,10 @@ void WaterRenderObjClass::renderWaterMesh()
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 1);
 
 		//modulate with shroud texture
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );	//stage 1 texture
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );	//previous stage texture
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
+		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );	//stage 1 texture
+		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );	//previous stage texture
+		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
+		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
 
 		//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 		//write to the zbuffer.  Change to LESSEQUAL.
