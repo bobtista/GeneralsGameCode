@@ -882,7 +882,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Get the world and view matrices
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, view);
 
 	// Transform the point locations from worldspace to camera space if needed
 	// (i.e. if they are not already in camera space):
@@ -1205,7 +1205,7 @@ void PointGroupClass::Update_Arrays(
 				Matrix4x4 view;
 				Vector4 result;
 				if (!Billboard) {
-					DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+					g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, view);
 				}
 
 				// Scale vertex offsets and add them to point locations to get vertex locations
@@ -1692,7 +1692,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 		// Get the world and view matrices
 		Matrix4x4 view;
-		DX8Wrapper::Get_Transform(D3DTS_VIEW,view);
+		g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, view);
 
 
 

@@ -132,8 +132,7 @@ public:
     // -- State: shaders, materials, textures ---------------------------------
     //
     // Set_Shader picks a bgfx program and state mask from the preset bits.
-    // Set_Texture caches the texture handle. Both call the base DX8Backend
-    // forward so the dx8 device also sees the change.
+    // Set_Texture caches the texture handle for bgfx submission.
 
     virtual void Set_Shader(const ShaderClass & shader) override;
     virtual void Set_Material(const VertexMaterialClass * material) override;
@@ -236,8 +235,11 @@ public:
 
     virtual void Set_Transform(TransformKind transform, const Matrix4x4 & m) override;
     virtual void Set_Transform(TransformKind transform, const Matrix3D & m) override;
+    virtual void Get_Transform(TransformKind transform, Matrix4x4 & m) const override;
     virtual void Set_World_Identity() override;
     virtual void Set_View_Identity() override;
+    virtual bool Is_World_Identity() const override;
+    virtual bool Is_View_Identity() const override;
     virtual void Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix, float znear, float zfar) override;
 
     // -- Draw calls -----------------------------------------------------------
