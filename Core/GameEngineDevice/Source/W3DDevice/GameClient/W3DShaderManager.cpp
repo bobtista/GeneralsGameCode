@@ -274,7 +274,7 @@ Int ScreenDefaultFilter::set(FilterModes mode)
 
 void ScreenDefaultFilter::reset()
 {
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);
+	W3DShaderManager_BindStageTexture(0, nullptr);
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
 
@@ -406,8 +406,6 @@ Bool ScreenBWFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doE
 
 Int ScreenBWFilter::set(FilterModes mode)
 {
-	HRESULT hr;
-
 	if (mode > FM_NULL_MODE)
 	{	//rendering a quad with redirected rendering surface tinted by pixel shader
 
@@ -456,8 +454,9 @@ Int ScreenBWFilter::set(FilterModes mode)
 		g_renderBackend->Set_Depth_Write_Enable(false);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
-		hr=DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_dwBWPixelShader);
-		DX8Wrapper::_Get_D3D_Device8()->SetPixelShaderConstant(0,   D3DXVECTOR4(0.3f, 0.59f, 0.11f, 1.0f), 1);
+		g_renderBackend->Set_Pixel_Shader(m_dwBWPixelShader);
+		const D3DXVECTOR4 luminanceWeights(0.3f, 0.59f, 0.11f, 1.0f);
+		g_renderBackend->Set_Pixel_Shader_Constant(0, &luminanceWeights, 1);
 
 		D3DXVECTOR4	color(1.0f,1.0f,1.0f,1.0f);	//multiply color
 
@@ -485,8 +484,9 @@ Int ScreenBWFilter::set(FilterModes mode)
 			color.z = 0.0f;
 		}
 
-		DX8Wrapper::_Get_D3D_Device8()->SetPixelShaderConstant(1,   color, 1);
-		DX8Wrapper::_Get_D3D_Device8()->SetPixelShaderConstant(2,	D3DXVECTOR4(m_curFadeValue, m_curFadeValue, m_curFadeValue, 1.0f), 1);
+		g_renderBackend->Set_Pixel_Shader_Constant(1, &color, 1);
+		const D3DXVECTOR4 fadeValue(m_curFadeValue, m_curFadeValue, m_curFadeValue, 1.0f);
+		g_renderBackend->Set_Pixel_Shader_Constant(2, &fadeValue, 1);
 /*		DX8Wrapper::_Get_D3D_Device8()->SetPixelShaderConstant(2,   D3DXVECTOR4(150.0f/255.0f, 150.0f/255.0f, 150.0f/255.0f, 0.0f), 1);
 		DX8Wrapper::_Get_D3D_Device8()->SetPixelShaderConstant(3,   D3DXVECTOR4((765.0f/450.0f)/3, (765.0f/450.0f)/3, (765.0f/450.0f)/3, 1.0f), 1);
 		DX8Wrapper::_Get_D3D_Device8()->SetPixelShaderConstant(4,   D3DXVECTOR4(0.5f, 0.5f, 0.5f, 0), 1);
@@ -501,8 +501,8 @@ Int ScreenBWFilter::set(FilterModes mode)
 
 void ScreenBWFilter::reset()
 {
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);
-	DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);	//turn off pixel shader
+	W3DShaderManager_BindStageTexture(0, nullptr);
+	g_renderBackend->Set_Pixel_Shader(0);	//turn off pixel shader
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
 
@@ -694,7 +694,7 @@ Int ScreenBWFilterDOT3::set(FilterModes mode)
 
 void ScreenBWFilterDOT3::reset()
 {
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);
+	W3DShaderManager_BindStageTexture(0, nullptr);
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
 
@@ -942,7 +942,7 @@ void ScreenCrossFadeFilter::reset()
 {
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);
+	W3DShaderManager_BindStageTexture(0, nullptr);
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
 
@@ -1219,7 +1219,7 @@ Int ScreenMotionBlurFilter::set(FilterModes mode)
 
 void ScreenMotionBlurFilter::reset()
 {
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,nullptr);
+	W3DShaderManager_BindStageTexture(0, nullptr);
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
 
@@ -2135,7 +2135,7 @@ Int TerrainShaderPixelShader::set(Int pass)
 			DX8Wrapper::Set_DX8_Texture_Stage_State(3,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
 			W3DShaderManager_BindStageTexture(2, W3DShaderManager::getShaderTexture(2));
 			W3DShaderManager_BindStageTexture(3, W3DShaderManager::getShaderTexture(3));
-			DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_dwBaseNoise2PixelShader);
+			g_renderBackend->Set_Pixel_Shader(m_dwBaseNoise2PixelShader);
 
 			DX8Wrapper::Set_DX8_Texture_Stage_State(2, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
 			DX8Wrapper::Set_DX8_Texture_Stage_State(2, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
@@ -2155,7 +2155,7 @@ Int TerrainShaderPixelShader::set(Int pass)
 		}
 		else
 		{	//single noise texture shader
-			DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_dwBaseNoise1PixelShader);
+			g_renderBackend->Set_Pixel_Shader(m_dwBaseNoise1PixelShader);
 
 			if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_TERRAIN_BASE_NOISE1)
 			{	//cloud map
@@ -2176,7 +2176,7 @@ Int TerrainShaderPixelShader::set(Int pass)
 	}
 	else
 	{	//just base texturing
-		DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_dwBasePixelShader);
+		g_renderBackend->Set_Pixel_Shader(m_dwBasePixelShader);
 	}
 
 	return TRUE;
@@ -2188,7 +2188,7 @@ void TerrainShaderPixelShader::reset()
 	W3DShaderManager_BindStageTexture(2, nullptr);
 	W3DShaderManager_BindStageTexture(3, nullptr);
 
-	DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);	//turn off pixel shader
+	g_renderBackend->Set_Pixel_Shader(0);	//turn off pixel shader
 
 	W3DShaderManager_BindStageTexture(0, nullptr);
 	W3DShaderManager_BindStageTexture(1, nullptr);
@@ -2412,7 +2412,7 @@ Int RoadShaderPixelShader::set(Int pass)
 	g_renderBackend->Set_Texture(1,W3DShaderManager::getShaderTexture(1));
 	g_renderBackend->Set_Texture(2,W3DShaderManager::getShaderTexture(2));
 
-	DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_dwBaseNoise2PixelShader);
+	g_renderBackend->Set_Pixel_Shader(m_dwBaseNoise2PixelShader);
 
 	DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
 	DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
@@ -2436,7 +2436,7 @@ Int RoadShaderPixelShader::set(Int pass)
 void RoadShaderPixelShader::reset()
 {
 
-	DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);	//turn off pixel shader
+	g_renderBackend->Set_Pixel_Shader(0);	//turn off pixel shader
 
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
@@ -3915,13 +3915,13 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 		if (curStage==1) curStage++;
 	}
 	if (curStage<2) {
-		DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_dwBase0PixelShader);
+		g_renderBackend->Set_Pixel_Shader(m_dwBase0PixelShader);
 	}	else if (curStage==2) {
-		DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_dwBasePixelShader);
+		g_renderBackend->Set_Pixel_Shader(m_dwBasePixelShader);
 	}	else if (curStage==3) {
-		DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_dwBaseNoise1PixelShader);
+		g_renderBackend->Set_Pixel_Shader(m_dwBaseNoise1PixelShader);
 	}else if (curStage==4) {
-		DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_dwBaseNoise2PixelShader);
+		g_renderBackend->Set_Pixel_Shader(m_dwBaseNoise2PixelShader);
 	}
 	DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ALPHABLENDENABLE, false);
 	g_renderBackend->Apply_Render_State_Changes();
@@ -3935,7 +3935,7 @@ void FlatTerrainShaderPixelShader::reset()
 	W3DShaderManager_BindStageTexture(2, nullptr);
 	W3DShaderManager_BindStageTexture(3, nullptr);
 
-	DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);	//turn off pixel shader
+	g_renderBackend->Set_Pixel_Shader(0);	//turn off pixel shader
 
 	W3DShaderManager_BindStageTexture(0, nullptr);
 	W3DShaderManager_BindStageTexture(1, nullptr);
@@ -3955,4 +3955,3 @@ void FlatTerrainShaderPixelShader::reset()
 
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
-
