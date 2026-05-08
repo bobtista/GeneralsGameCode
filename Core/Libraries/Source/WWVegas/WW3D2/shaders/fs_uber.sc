@@ -1,4 +1,4 @@
-$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_cloudUV, v_stage0UV, v_stage1UV, v_stage2UV, v_sceneDepth, v_worldPos
+$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_cloudUV, v_stage0UV, v_stage1UV, v_sceneDepth, v_worldPos
 
 #include <bgfx_shader.sh>
 
@@ -23,15 +23,11 @@ uniform vec4 u_lightParams[4]; // x inner range, y outer/range, z > 0.5 point, w
 uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
 uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
 uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
-uniform vec4 u_texcoordSelect2; // .z > 1.5 = sorted rotor mask, .w > 0.5 = additive blend draw
-uniform vec4 u_texcoordSource; // .w selects legacy water stage-3 UV source
-uniform vec4 u_shroudParams; // xy = offset, zw = scale
+uniform vec4 u_texcoordSelect2; // .w > 0.5 = additive blend draw
 uniform vec4 u_projectedDecalMode; // .x = RenderBackendProjectedDecalMode
-uniform vec4 u_legacyPixelShaderMode; // .x = RenderBackendLegacyPixelShaderMode
 uniform vec4 u_texProjected; // .x > 0.5 = stage 0 projected, .y > 0.5 = stage 1 projected
 uniform vec4 u_vertexColorFlags; // .y/.z/.w: diffuse/ambient/emissive source is COLOR1
 uniform vec4 u_grayscaleEnable; // .x > 0.5 = convert final color to luminance (disabled button state)
-uniform vec4 u_objectShroudDim; // .x = object-status fog/shroud dim multiplier, .z = base-texture alpha-mask cutoff
 uniform vec4 u_cloudParams; // xy = scroll, z = stretch, w > 0.5 = modulate cloud into output
 uniform vec4 u_softParticleParams; // .x enable, .y fade scale, zw inverse scene size
 uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
@@ -57,8 +53,6 @@ uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
 // RenderBackendProjectedDecalMode values from IRenderBackend.h.
 #define PROJECTED_DECAL_BLOB_SHADOW 1.0
 #define PROJECTED_DECAL_ADDITIVE    2.0
-#define PROJECTED_DECAL_ALPHA       3.0
-#define PROJECTED_DECAL_MULTIPLY    4.0
 
 #define CLOUD_SHADOW_MIN 0.72
 // BT.601 luminance weights (matches the BGRA bytes of the D3D8 TFACTOR=0x80A5CA8E cascade used by the disabled-button grayscale path).
@@ -68,7 +62,6 @@ uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
 // bgfx it can survive as visible matte fragments unless discarded.
 // Half of one 8-bit color step is "rounds to black" in authored effect mattes.
 #define ADDITIVE_MATTE_EPSILON (0.5 / 255.0)
-#define ALPHA_MASK_EPSILON (0.5 / 255.0)
 // Multiplier applied to shadowed pixels. 1.0 = unshadowed, 0.0 = fully black; we darken to 60% for visible but not crushed shadows.
 #define SHADOW_DARKNESS 0.6
 
@@ -175,7 +168,6 @@ void main()
 	{
 		stage1UV /= v_sceneDepth.y;
 	}
-	vec2 baseStage0UV = v_texcoord0;
 	// --- Terrain pixel shader path ---
 	// The D3D8 terrain system uses a hardware pixel shader (terrain.nvp)
 	// that completely replaces the TSS pipeline:
@@ -185,7 +177,7 @@ void main()
 	//   mul r0, r0, v0        ; multiply by diffuse (baked lighting)
 	if (u_texcoordSelect.y > 0.5)
 	{
-		vec4 baseTex  = texture2D(s_tex0, (u_texProjected.x > 0.5) ? stage0UV : baseStage0UV);
+		vec4 baseTex  = texture2D(s_tex0, (u_texProjected.x > 0.5) ? stage0UV : v_texcoord0);
 		vec4 blendTex = texture2D(s_tex1, (u_texProjected.y > 0.5) ? stage1UV : v_texcoord1);
 		float blendAlpha = diffuse.a;
 		vec3 blended = mix(baseTex.rgb, blendTex.rgb, blendAlpha);
@@ -211,113 +203,8 @@ void main()
 
 	vec4 tex0 = texture2D(s_tex0, stage0UV);
 	vec4 tex1 = texture2D(s_tex1, stage1UV);
-	vec4 tex2 = texture2D(s_tex2, v_stage2UV);
-	vec2 stage3UV = v_texcoord0;
-	if (u_texcoordSource.w > 2.5)
-	{
-		stage3UV = (v_worldPos.xy + u_shroudParams.xy) * u_shroudParams.zw;
-	}
-	else if (u_texcoordSource.w > 0.5 && u_texcoordSource.w < 1.5)
-	{
-		stage3UV = v_texcoord1;
-	}
-	vec4 tex3 = texture2D(s_tex3, stage3UV);
-
-	if (u_texcoordSelect2.z > 2.5)
-	{
-		// Sneak Attack ground dirt is authored as a sorted translucent W3D
-		// quad. Use the texture alpha directly; inherited material opacity can
-		// be zero on this replay path and erase the broad dirt stain.
-		float alpha = clamp(tex0.a * diffuse.a, 0.0, 1.0);
-		if (alpha <= ALPHA_MASK_EPSILON)
-		{
-			discard;
-		}
-		gl_FragColor = vec4(tex0.rgb * diffuse.rgb, alpha);
-		return;
-	}
-
-	if (u_texcoordSelect2.z > 1.5)
-	{
-		// Chinook rotor blur is authored as a sorted translucent mask. Keep
-		// it out of the generic material path so stale vehicle material alpha
-		// cannot erase the cards after the sorted pool is replayed.
-		float mask = max(tex0.a, dot(tex0.rgb, LUMA_WEIGHTS));
-		float alpha = clamp(mask * diffuse.a, 0.0, 1.0);
-		if (alpha <= ALPHA_MASK_EPSILON)
-		{
-			discard;
-		}
-		vec3 color = tex0.rgb * diffuse.rgb;
-		if (max(max(color.r, color.g), color.b) <= ADDITIVE_MATTE_EPSILON)
-		{
-			color = vec3_splat(mask) * diffuse.rgb;
-		}
-		gl_FragColor = vec4(color, alpha);
-		return;
-	}
-
-	if (u_texcoordSelect.z > 0.5)
-	{
-		// Projected shroud overlays are destination multipliers. The terrain
-		// vertex buffer they reuse carries baked terrain diffuse, but the DX8
-		// shroud pass contributes only the shroud texture multiplier here.
-		vec4 shroud = tex0;
-		if (u_objectShroudDim.y > 0.5)
-		{
-			float maskAlpha = texture2D(s_tex1, v_texcoord0).a;
-			if (maskAlpha < u_objectShroudDim.z)
-			{
-				discard;
-			}
-			shroud.a *= maskAlpha;
-		}
-		if (u_objectShroudDim.x < 0.999)
-		{
-			shroud.rgb *= u_objectShroudDim.x;
-		}
-		gl_FragColor = shroud;
-		return;
-	}
-
-	if (u_legacyPixelShaderMode.x > 0.5)
-	{
-		vec4 water = vec4(tex0.rgb * diffuse.rgb, tex0.a * diffuse.a);
-		if (u_legacyPixelShaderMode.x > 2.5 && u_legacyPixelShaderMode.x < 3.5)
-		{
-			// The trapezoid-water vertex format carries the authored
-			// world-space noise UV in TEXCOORD1. The legacy D3D path also
-			// derives this sample through TCI_CAMERASPACEPOSITION, but using
-			// the explicit UV keeps bgfx out of a fragile generated-coordinate
-			// path and matches the same world-space mapping.
-			vec4 waterNoise = texture2D(s_tex2, v_texcoord1);
-			// Trapezoid / standing water ps.1.1:
-			//   r0 = diffuse * t0
-			//   r0.rgb += t1.rgb * t2.rgb
-			//   r0.rgb *= t3.rgb
-			water.rgb += tex1.rgb * waterNoise.rgb;
-			water.rgb *= tex3.rgb;
-		}
-		else if (u_legacyPixelShaderMode.x > 0.5 && u_legacyPixelShaderMode.x < 1.5)
-		{
-			// River water ps.1.1 uses the same sparkle/noise contribution
-			// and adds the stage-3 shroud contribution before the final add.
-			water.rgb += tex3.rgb;
-			water.a *= tex3.a;
-			water.rgb += tex1.rgb * tex2.rgb;
-		}
-		gl_FragColor = water;
-		return;
-	}
-
-	if (u_projectedDecalMode.x > 0.5
-		&& (stage0UV.x < 0.0 || stage0UV.x > 1.0 || stage0UV.y < 0.0 || stage0UV.y > 1.0))
-	{
-		// W3D projects decals onto terrain cell meshes that can extend beyond
-		// the decal image. DX8 treats that area as non-contributing; clamping the
-		// bgfx sample instead can repeat dark texture padding into blocky patches.
-		discard;
-	}
+	vec4 tex2 = texture2D(s_tex2, v_texcoord0);
+	vec4 tex3 = texture2D(s_tex3, v_texcoord0);
 
 	if (u_projectedDecalMode.x > (PROJECTED_DECAL_ADDITIVE - 0.5)
 		&& u_projectedDecalMode.x < (PROJECTED_DECAL_ADDITIVE + 0.5))
@@ -337,23 +224,6 @@ void main()
 		return;
 	}
 
-	if (u_projectedDecalMode.x > (PROJECTED_DECAL_ALPHA - 0.5)
-		&& u_projectedDecalMode.x < (PROJECTED_DECAL_ALPHA + 0.5))
-	{
-		// W3D projected alpha decals (selection/guard/reveal overlays) use
-		// the fixed-function stage-0 texture modulated by vertex diffuse and
-		// the draw's SRC_ALPHA/INV_SRC_ALPHA blend. Keep them out of the
-		// generic TSS path so stale secondary-stage/shadow state cannot turn
-		// transparent matte pixels into dark geometry.
-		float alpha = clamp(tex0.a * diffuse.a, 0.0, 1.0);
-		if (alpha <= (0.5 / 255.0))
-		{
-			discard;
-		}
-		gl_FragColor = vec4(tex0.rgb * diffuse.rgb, alpha);
-		return;
-	}
-
 	if (u_projectedDecalMode.x > (PROJECTED_DECAL_BLOB_SHADOW - 0.5)
 		&& u_projectedDecalMode.x < (PROJECTED_DECAL_BLOB_SHADOW + 0.5))
 	{
@@ -366,21 +236,6 @@ void main()
 		float mask = clamp(tex0.a * diffuse.a, 0.0, 1.0);
 		vec3 blob = tex0.rgb * diffuse.rgb;
 		gl_FragColor = vec4(mix(vec3_splat(1.0), blob, mask), 1.0);
-		return;
-	}
-
-	if (u_projectedDecalMode.x > (PROJECTED_DECAL_MULTIPLY - 0.5)
-		&& u_projectedDecalMode.x < (PROJECTED_DECAL_MULTIPLY + 0.5))
-	{
-		// Non-blob projected shadows use W3D's preset multiplicative
-		// fixed-function shader: COLOROP=MODULATE and blend ZERO/SRC_COLOR.
-		// Their textures can still carry black RGB in transparent padding.
-		// DX8's texture/decal setup lets that padding contribute as neutral
-		// destination color; in bgfx it must be made explicit or large shadow
-		// receiver meshes stamp blocky black patches around the actual mask.
-		float mask = clamp(tex0.a * diffuse.a, 0.0, 1.0);
-		vec3 multiplier = tex0.rgb * diffuse.rgb;
-		gl_FragColor = vec4(mix(vec3_splat(1.0), multiplier, mask), 1.0);
 		return;
 	}
 
