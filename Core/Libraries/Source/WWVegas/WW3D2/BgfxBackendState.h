@@ -15,6 +15,9 @@
 #include <unordered_map>
 #include <vector>
 
+// d3d8 types leak into D3DPtrInfo (we shadow the D3D8 base-texture pointer).
+#include <d3d8.h>
+
 #include <bgfx/bgfx.h>
 
 #include "ww3dformat.h"
@@ -22,7 +25,6 @@
 // Forward declarations — full headers are included by the .cpp files that need the method bodies.
 class TextureBaseClass;
 class TextureClass;
-class VertexMaterialClass;
 class VertexBufferClass;
 class IndexBufferClass;
 class DynamicVBAccessClass;
@@ -49,23 +51,13 @@ struct BgfxIbCacheEntry {
     uint32_t num_indices;
 };
 
-struct TextureCacheInfo
-{
-    unsigned revision;
-    uint16_t w;
-    uint16_t h;
-    int sourceFormat = 0;
-    int createFormat = 0;
-    uint16_t mipCount = 0;
-    uint16_t uploadVariant = 0;
-};
+struct D3DPtrInfo { IDirect3DBaseTexture8 * ptr; uint16_t w; uint16_t h; };
 
 struct PendingTransientVB
 {
     bool                        valid;
     const DynamicVBAccessClass * owner;
     bgfx::TransientVertexBuffer  tvb;
-    bool                        coplanarNormalBias;
 };
 
 struct PendingTransientIB
@@ -82,7 +74,6 @@ struct BgfxDevice
 {
     bool initialized = false;
     HWND window      = nullptr;
-    bool mainWindowShown = false;
     // Set to 0 so any read before Initialize() trips obvious downstream
     // sentinels (clip rects = 0x0, no allocation). The previous 800x600
     // placeholder masked uninitialized-use bugs.
@@ -166,7 +157,6 @@ struct BgfxUniforms
     bgfx::UniformHandle uTexcoordSource      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uVertexColorFlags    = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uGrayscaleEnable     = BGFX_INVALID_HANDLE;
-    bgfx::UniformHandle uObjectShroudDim     = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uSwayTable           = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShroudOffset        = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShroudScale         = BGFX_INVALID_HANDLE;
@@ -178,10 +168,7 @@ struct BgfxUniforms
     bgfx::UniformHandle uTex1Transform0      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTex1Transform1      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTex1TransformZ      = BGFX_INVALID_HANDLE;
-    bgfx::UniformHandle uTex2Transform0      = BGFX_INVALID_HANDLE;
-    bgfx::UniformHandle uTex2Transform1      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTexProjected        = BGFX_INVALID_HANDLE;
-    bgfx::UniformHandle uLegacyPixelShaderMode = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uZBias               = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShadowColor         = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uPostParams          = BGFX_INVALID_HANDLE;
@@ -197,13 +184,6 @@ struct BgfxDraw
     // Pipeline state
     bgfx::ProgramHandle program = BGFX_INVALID_HANDLE;
     uint64_t            state   = 0;
-    uint64_t            blendFuncBits = 0;
-    bool                alphaBlendEnabled = false;
-    bool                alphaBlendExplicitlySet = false;
-    bool                depthTestEnabled = true;
-    bool                depthWriteEnabled = true;
-    uint64_t            depthFuncBits = BGFX_STATE_DEPTH_TEST_LEQUAL;
-    unsigned            depthFunc = 4;
 
     // Textures + per-stage sampler flags
     bgfx::TextureHandle tex[4] = {
@@ -211,31 +191,18 @@ struct BgfxDraw
         BGFX_INVALID_HANDLE, BGFX_INVALID_HANDLE
     };
     uint32_t samplerFlags[4] = { 0, 0, 0, 0 };
-    bool mipFilterDisabled[4] = { false, false, false, false };
-    unsigned texcoordIndex[4] = { 0, 1, 2, 3 };
-    unsigned textureTransformFlags[4] = { 0, 0, 0, 0 };
     bool textureIsMissing[4] = { false, false, false, false };
-    TextureBaseClass * sourceTextures[4] = { nullptr, nullptr, nullptr, nullptr };
-    const VertexMaterialClass * sourceMaterial = nullptr;
-    bool explicitMaterialState = false;
 
     // Buffers (static + transient variants)
     bgfx::DynamicVertexBufferHandle vb       = BGFX_INVALID_HANDLE;
     bgfx::DynamicIndexBufferHandle  ib       = BGFX_INVALID_HANDLE;
-    bgfx::VertexBufferHandle        staticVB = BGFX_INVALID_HANDLE;
-    bgfx::IndexBufferHandle         staticIB = BGFX_INVALID_HANDLE;
     unsigned short                  ibOffset = 0;
-    bool                        useStaticVB = false;
-    bool                        useStaticIB = false;
     bool                        useTransientVB = false;
     bgfx::TransientVertexBuffer transientVB    = {};
     bool                        useTransientIB = false;
     bgfx::TransientIndexBuffer  transientIB    = {};
-    PendingTransientVB pendingVB = { false, nullptr, {}, false };
+    PendingTransientVB pendingVB = { false, nullptr, {} };
     PendingTransientIB pendingIB = { false, nullptr, {} };
-    const DynamicVBAccessClass * activeTransientVBOwner = nullptr;
-    const DynamicIBAccessClass * activeTransientIBOwner = nullptr;
-    bool activeVertexNormalBias = false;
 
     // Cull + stencil
     int      cullModeBits       = 0; // 0=NONE, 1=CW, 2=CCW
@@ -257,15 +224,8 @@ struct BgfxDraw
     float grayscaleEnable[4]  = { 0.0f, 0.0f, 0.0f, 0.0f };
     float tssOps0[4]          = { 3.0f, 3.0f, 0.0f, 0.0f };
     float tssOps1[4]          = { 0.0f, 0.0f, 0.0f, 0.0f };
-    float shaderTssOps0[4]    = { 3.0f, 3.0f, 0.0f, 0.0f };
-    float shaderTssOps1[4]    = { 0.0f, 0.0f, 0.0f, 0.0f };
-    bool atestEnabled         = false;
     float atestRef            = 0.0f;
     float atestFunc           = 0.0f;
-    bool shaderAlphaBlendEnabled = false;
-    uint64_t shaderBlendFuncBits = 0;
-    float shaderAtestRef      = 0.0f;
-    float shaderAtestFunc     = 0.0f;
     float texcoordSelect[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
     // .x/.y are used by vs_uber for stage-1 UV routing and transform state.
     // .w tags additive blend draws for black-matte discard in fs_uber.
@@ -279,9 +239,7 @@ struct BgfxDraw
     float tex1Transform0[4]   = { 1.0f, 0.0f, 0.0f, 0.0f };
     float tex1Transform1[4]   = { 0.0f, 1.0f, 0.0f, 0.0f };
     float tex1TransformZ[4]   = { 0.0f, 0.0f, 1.0f, 0.0f };
-    float tex2Transform0[4]   = { 1.0f, 0.0f, 0.0f, 0.0f };
-    float tex2Transform1[4]   = { 0.0f, 1.0f, 0.0f, 0.0f };
-    // .x > 0.5 = stage 0 uses projected 3-component texture coords - divide UV.xy
+    // .x > 0.5 = stage 0 uses D3DTTFF_PROJECTED|D3DTTFF_COUNT3 — divide UV.xy
     // by the third texcoord output produced from texTransform0Z. .y same for
     // stage 1. Used by TexProjectClass perspective projection of building
     // floor emblems / faction icons.
@@ -323,21 +281,14 @@ struct BgfxDraw
     bool  fvfHasNormal        = false;
     // .x = post-projection clip-space Z offset (negative pushes toward camera)
     // applied in vs_uber.sc as gl_Position.z -= u_zBias.x * gl_Position.w. Sourced
-    // from cached z-bias at submit time so legacy paths that set the wrapper state
+    // from D3DRS_ZBIAS at submit time so legacy paths that set the wrapper state
     // directly (DX8MeshRendererClass::Render_Decal_Meshes uses ZBIAS=8 to keep
     // floor emblems and decals from z-fighting with the terrain they sit on)
     // get equivalent behaviour under the bgfx pipeline.
     float zBias[4]            = { 0.0f, 0.0f, 0.0f, 0.0f };
-    unsigned zBiasUnits       = 0;
-    float normalBias[4]       = { 0.0f, 0.0f, 0.0f, 0.0f };
-    float legacyPixelShaderMode[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     float swayTable[11][4]    = {{0}};
     float shroudOffset[4]     = { 0.0f, 0.0f, 0.0f, 0.0f };
     float shroudScale[4]      = { 0.0f, 0.0f, 1.0f, 1.0f };
-    float shroudTextureParams[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-    float objectShroudDim[4]  = { 1.0f, 0.0f, 0.0f, 0.0f };
-    bool shroudTextureParamsValid = false;
-    bool delayedObjectShroudPass = false;
 };
 
 // Overrides: transient per-shader overrides. Reset by Clear_State_Overrides (called from Set_Shader).
@@ -345,8 +296,6 @@ struct BgfxOverrides
 {
     bool     blendActive        = false;
     uint64_t blendBits          = 0;
-    bool     blendEnableActive  = false;
-    bool     blendEnableValue   = false;
     bool     atestActive        = false;
     float    atestRef           = 0.0f;
     float    atestFunc          = 0.0f;
@@ -357,8 +306,6 @@ struct BgfxOverrides
     {
         blendActive        = false;
         blendBits          = 0;
-        blendEnableActive  = false;
-        blendEnableValue   = false;
         atestActive        = false;
         atestRef           = 0.0f;
         atestFunc          = 0.0f;
@@ -370,12 +317,6 @@ struct BgfxOverrides
     {
         blendActive = true;
         blendBits   = bits;
-    }
-
-    void SetBlendEnable(bool enable)
-    {
-        blendEnableActive = true;
-        blendEnableValue = enable;
     }
 };
 
@@ -393,14 +334,10 @@ struct BgfxViewFlags
     bool treeShaderActive          = false;
     bool shadowVolumeActive        = false;
     bool shroudTexturePassActive   = false;
-    bool objectShroudTexturePassActive = false;
     unsigned shroudTexturePassStage = 0;
     bool projectedShadowDecalActive = false;
     unsigned projectedDecalMode    = 0;
     bool skipNextSubmitEngineDraw  = false;
-    bool pointGroupRenderActive    = false;
-    bool streakRenderActive        = false;
-    unsigned sortedBatchDrawFlags  = 0;
 };
 
 // Frame: per-frame matrices and captured view/proj copies.
@@ -468,9 +405,7 @@ struct BgfxCaches
     std::unordered_map<const VertexBufferClass *, BgfxVbCacheEntry>      vb;
     std::unordered_map<const IndexBufferClass  *, BgfxIbCacheEntry>      ib;
     std::unordered_map<const TextureBaseClass  *, bgfx::TextureHandle>   texture;
-    std::unordered_map<const TextureBaseClass  *, TextureCacheInfo>      textureInfo;
-    std::unordered_map<const TextureBaseClass  *, bgfx::TextureHandle>   textureBaseMip;
-    std::unordered_map<const TextureBaseClass  *, TextureCacheInfo>      textureBaseMipInfo;
+    std::unordered_map<const TextureBaseClass  *, D3DPtrInfo>            d3dPtr;
     std::unordered_map<const TextureBaseClass  *, BgfxFramebufferEntry>  framebuffer;
     std::unordered_map<const TextureBaseClass  *, bool>                  renderTarget;
     std::vector<bgfx::TextureHandle> deferredDestroys;     // current frame
@@ -482,7 +417,7 @@ struct BgfxCaches
 // Resources created via IRenderBackend::Create_Texture / Create_Vertex_Buffer
 // etc. are tracked here. RenderResource.id is a monotonically-assigned index
 // into BgfxPhase5Resources::table; table[id] holds the bgfx handle(s) plus
-// an optional legacy mirror pointer for the ref-popup build.
+// an optional D3D8 mirror pointer for the ref-popup build.
 
 enum BgfxPhase5Kind
 {
@@ -498,14 +433,11 @@ struct BgfxPhase5Entry
 {
     BgfxPhase5Kind kind;
     bgfx::TextureHandle              texture;
-    bgfx::FrameBufferHandle          fb;
     bgfx::VertexBufferHandle         vb;
     bgfx::IndexBufferHandle          ib;
     bgfx::DynamicVertexBufferHandle  dvb;
     bgfx::DynamicIndexBufferHandle   dib;
-    uint16_t width;
-    uint16_t height;
-    void * d3d_mirror;               // raw legacy mirror pointer, ref-popup only; nullptr in standalone
+    void * d3d_mirror;               // IDirect3D*8* cast to void*, ref-popup only; nullptr in standalone
     void * owner;                    // TextureBaseClass/VertexBufferClass/IndexBufferClass for loaded-resource caches
     unsigned int size_bytes;         // for dynamic buffers — size of the backing allocation
     // Dynamic Map/Unmap: if using_transient is true, tvb/tib is live for this frame
@@ -518,8 +450,8 @@ struct BgfxPhase5Entry
 struct BgfxPhase5Resources
 {
     // id 0 is reserved for kInvalidRenderResource. Allocate starting at 1.
-    std::unordered_map<uint64_t, BgfxPhase5Entry> table;
-    uint64_t next_id;
+    std::unordered_map<unsigned __int64, BgfxPhase5Entry> table;
+    unsigned __int64 next_id;
 };
 
 extern BgfxPhase5Resources g_phase5;
@@ -537,4 +469,4 @@ extern BgfxCaches     g_caches;
 
 // --- Helpers shared across BgfxBackend*.cpp ---------------------------------
 // Defined in BgfxBackendTextures.cpp.
-bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly = false);
+bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex);
