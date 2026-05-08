@@ -464,6 +464,7 @@ public:
         Set_Alpha_Test_Function(func);
         Set_Alpha_Test_Enable(enable);
     }
+    virtual void Set_Normalize_Normals(bool enable) {}
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Hardware cursor
     // extension. Lets W3DMouse drive the device's hardware cursor without
