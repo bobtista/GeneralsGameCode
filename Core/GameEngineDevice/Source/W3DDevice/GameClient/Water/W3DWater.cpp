@@ -2075,7 +2075,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	m_pDev->SetTextureStageState( 2, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 	m_pDev->SetTextureStageState( 2, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
-	m_pDev->SetRenderState(D3DRS_ZWRITEENABLE , FALSE);
+	g_renderBackend->Set_Depth_Write_Enable(false);
 
 	D3DXMATRIX mat;
 	memset(&mat,0,sizeof(D3DXMATRIX));
@@ -2098,10 +2098,9 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 //	m_pDev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_ONE );
 //	m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR );
 
-	m_pDev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_SRCALPHA );
-	m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
+	g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 
-	m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , TRUE);
+	g_renderBackend->Set_Alpha_Blend_Enable(true);
 	W3DWater_BindTexture(1, m_pReflectionTexture);
 
 //	m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);//LORENZEN
@@ -2138,7 +2137,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 		}
 	}
 //	m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
-	m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , FALSE);
+	g_renderBackend->Set_Alpha_Blend_Enable(false);
 	W3DWater_BindTexture(0, nullptr);	//release reference to bump texture
 	W3DWater_BindTexture(1, nullptr);	//release reference to reflection texture
 	W3DWater_BindTexture(2, nullptr);	//release reference to reflection texture
@@ -2147,7 +2146,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	m_pDev->SetTextureStageState( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
 	m_pDev->SetTextureStageState( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 	m_pDev->SetTextureStageState( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|1);
-	m_pDev->SetRenderState(D3DRS_ZWRITEENABLE , TRUE);
+	g_renderBackend->Set_Depth_Write_Enable(true);
 
 	m_pDev->SetTextureStageState(1, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
 	m_pDev->SetTextureStageState(1, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
