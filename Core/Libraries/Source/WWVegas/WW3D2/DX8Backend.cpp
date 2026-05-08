@@ -29,7 +29,10 @@
 #include "matrix3d.h"
 #include "light.h"
 #include "lightenvironment.h"
+#include "surfaceclass.h"
 #include "texture.h"
+#include <cstdint>
+#include <d3dx8core.h>
 #include <string.h>
 
 namespace
@@ -44,6 +47,7 @@ struct DX8ViewCaptureState
 };
 
 static DX8ViewCaptureState g_tacticalViewCapture = { nullptr, nullptr, nullptr, nullptr, false };
+static DWORD g_profilerSwizzleShader = 0;
 
 static DX8ViewCaptureState * GetViewCaptureState(RenderBackendViewCaptureKind kind)
 {
@@ -78,6 +82,41 @@ static DWORD GetScreenQuadFVF(bool use_second_uv)
 {
     return D3DFVF_XYZRHW | D3DFVF_DIFFUSE | (use_second_uv ? D3DFVF_TEX2 : D3DFVF_TEX1);
 }
+
+static bool EnsureProfilerSwizzleShader()
+{
+    if (g_profilerSwizzleShader != 0) {
+        return true;
+    }
+
+    ID3DXBuffer * compiledShader = nullptr;
+    const char * shader =
+        "ps.1.4\n"
+        "texld r0, t0\n"
+        "mov r1.a, r0.r\n"
+        "mov r2.a, r0.g\n"
+        "mov r3.a, r0.b\n"
+        "mul r0.rgb, r3.a, c0\n"
+        "mad r0.rgb, r2.a, c1, r0\n"
+        "mad r0.rgb, r1.a, c2, r0\n";
+
+    HRESULT hr = D3DXAssembleShader(shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
+    if (FAILED(hr) || compiledShader == nullptr) {
+        return false;
+    }
+
+    hr = DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader(
+        reinterpret_cast<const DWORD *>(compiledShader->GetBufferPointer()),
+        &g_profilerSwizzleShader);
+    compiledShader->Release();
+
+    if (FAILED(hr)) {
+        g_profilerSwizzleShader = 0;
+        return false;
+    }
+
+    return true;
+}
 }
 
 DX8Backend::DX8Backend()
@@ -101,6 +140,10 @@ void DX8Backend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
 void DX8Backend::Shutdown()
 {
     Release_View_Capture(RB_VIEW_CAPTURE_TACTICAL);
+    if (g_profilerSwizzleShader != 0 && DX8Wrapper::_Get_D3D_Device8() != nullptr) {
+        DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(g_profilerSwizzleShader);
+        g_profilerSwizzleShader = 0;
+    }
 }
 
 // -- Device state queries ----------------------------------------------------
@@ -334,6 +377,203 @@ bool DX8Backend::Draw_Screen_Quad(const RenderBackendScreenVertex * vertices,
     device->SetVertexShader(GetScreenQuadFVF(use_second_uv));
     HRESULT hr = device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(RenderBackendScreenVertex));
     return hr == S_OK;
+}
+
+bool DX8Backend::Capture_Back_Buffer_RGBA(unsigned int display_width,
+                                          unsigned int display_height,
+                                          unsigned int image_size,
+                                          unsigned char * output_pixels,
+                                          unsigned int output_capacity,
+                                          unsigned int * output_width,
+                                          unsigned int * output_height)
+{
+    if (display_width == 0 || display_height == 0 || image_size == 0 ||
+        output_pixels == nullptr || output_width == nullptr || output_height == nullptr ||
+        !EnsureProfilerSwizzleShader())
+    {
+        return false;
+    }
+
+    const float aspect_ratio = static_cast<float>(display_height) / static_cast<float>(display_width);
+    unsigned int capture_height = static_cast<unsigned int>((image_size * aspect_ratio) + 0.5f);
+    if (capture_height > image_size) {
+        capture_height = image_size;
+    }
+    if (capture_height == 0) {
+        return false;
+    }
+
+    const unsigned int row_bytes = image_size * 4;
+    const unsigned int required_bytes = row_bytes * capture_height;
+    if (output_capacity < required_bytes) {
+        return false;
+    }
+    *output_width = 0;
+    *output_height = 0;
+
+    bool result = false;
+    TextureClass * render_target = nullptr;
+    SurfaceClass * surface_class = nullptr;
+    SurfaceClass * back_buffer = nullptr;
+    IDirect3DTexture8 * intermediate_texture = nullptr;
+    IDirect3DSurface8 * intermediate_surface = nullptr;
+    IDirect3DSurface8 * small_render_target_surface = nullptr;
+    D3DVIEWPORT8 restore_viewport;
+    memset(&restore_viewport, 0, sizeof(restore_viewport));
+    bool viewport_valid = false;
+    bool render_target_changed = false;
+    bool shader_changed = false;
+    bool texture_changed = false;
+
+    render_target = DX8Wrapper::Create_Render_Target(image_size, image_size, WW3D_FORMAT_A8R8G8B8);
+    surface_class = NEW_REF(SurfaceClass, (image_size, capture_height, WW3D_FORMAT_A8R8G8B8));
+    back_buffer = DX8Wrapper::_Get_DX8_Back_Buffer();
+    if (render_target == nullptr || surface_class == nullptr || back_buffer == nullptr) {
+        goto cleanup;
+    }
+
+    IDirect3DSurface8 * back_buffer_surface;
+    back_buffer_surface = back_buffer->Peek_D3D_Surface();
+    if (back_buffer_surface == nullptr) {
+        goto cleanup;
+    }
+
+    D3DSURFACE_DESC back_buffer_desc;
+    if (FAILED(back_buffer_surface->GetDesc(&back_buffer_desc))) {
+        goto cleanup;
+    }
+
+    if (FAILED(DX8Wrapper::_Get_D3D_Device8()->CreateTexture(
+            back_buffer_desc.Width,
+            back_buffer_desc.Height,
+            1,
+            D3DUSAGE_RENDERTARGET,
+            back_buffer_desc.Format,
+            D3DPOOL_DEFAULT,
+            &intermediate_texture)) ||
+        intermediate_texture == nullptr)
+    {
+        goto cleanup;
+    }
+
+    if (FAILED(intermediate_texture->GetSurfaceLevel(0, &intermediate_surface)) ||
+        intermediate_surface == nullptr)
+    {
+        goto cleanup;
+    }
+    DX8Wrapper::_Copy_DX8_Rects(back_buffer_surface, nullptr, 0, intermediate_surface, nullptr);
+
+    small_render_target_surface = render_target->Get_D3D_Surface_Level();
+    if (small_render_target_surface == nullptr) {
+        goto cleanup;
+    }
+    DX8Wrapper::Set_Render_Target(small_render_target_surface, false);
+    render_target_changed = true;
+
+    IDirect3DDevice8 * device;
+    device = DX8Wrapper::_Get_D3D_Device8();
+    if (device == nullptr || FAILED(device->GetViewport(&restore_viewport))) {
+        goto cleanup;
+    }
+    viewport_valid = true;
+
+    D3DVIEWPORT8 viewport;
+    viewport.X = 0;
+    viewport.Y = 0;
+    viewport.Width = image_size;
+    viewport.Height = capture_height;
+    viewport.MinZ = 0.0f;
+    viewport.MaxZ = 1.0f;
+    DX8Wrapper::Set_Viewport(&viewport);
+
+    DX8Wrapper::Set_Pixel_Shader(g_profilerSwizzleShader);
+    shader_changed = true;
+    static const float kMaskR[4] = {1.0f, 0.0f, 0.0f, 0.0f};
+    static const float kMaskG[4] = {0.0f, 1.0f, 0.0f, 0.0f};
+    static const float kMaskB[4] = {0.0f, 0.0f, 1.0f, 0.0f};
+    Set_Pixel_Shader_Constant(0, kMaskR, 1);
+    Set_Pixel_Shader_Constant(1, kMaskG, 1);
+    Set_Pixel_Shader_Constant(2, kMaskB, 1);
+
+    struct QuadVertex
+    {
+        float x, y, z, rhw;
+        float u, v;
+    } vtx[4];
+    const float left = -0.5f;
+    const float top = -0.5f;
+    const float right = static_cast<float>(image_size) - 0.5f;
+    const float bottom = static_cast<float>(capture_height) - 0.5f;
+    vtx[0] = {right, bottom, 0.0f, 1.0f, 1.0f, 1.0f};
+    vtx[1] = {right, top,    0.0f, 1.0f, 1.0f, 0.0f};
+    vtx[2] = {left,  bottom, 0.0f, 1.0f, 0.0f, 1.0f};
+    vtx[3] = {left,  top,    0.0f, 1.0f, 0.0f, 0.0f};
+    DX8Wrapper::Set_DX8_Texture(0, intermediate_texture);
+    texture_changed = true;
+    DX8Wrapper::Set_Vertex_Shader(D3DFVF_XYZRHW | D3DFVF_TEX1);
+    if (FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vtx, sizeof(QuadVertex)))) {
+        goto cleanup;
+    }
+
+    RECT src_rect;
+    src_rect.left = 0;
+    src_rect.top = 0;
+    src_rect.right = image_size;
+    src_rect.bottom = capture_height;
+    POINT dst_point;
+    dst_point.x = 0;
+    dst_point.y = 0;
+    DX8Wrapper::_Copy_DX8_Rects(
+        small_render_target_surface,
+        &src_rect,
+        1,
+        surface_class->Peek_D3D_Surface(),
+        &dst_point);
+
+    int pitch = 0;
+    void * bits = surface_class->Lock(&pitch);
+    if (bits == nullptr) {
+        goto cleanup;
+    }
+
+    for (unsigned int row = 0; row < capture_height; ++row)
+    {
+        memcpy(output_pixels + row * row_bytes,
+               static_cast<const unsigned char *>(bits) + row * pitch,
+               row_bytes);
+    }
+    surface_class->Unlock();
+
+    *output_width = image_size;
+    *output_height = capture_height;
+    result = true;
+
+cleanup:
+    if (shader_changed) {
+        DX8Wrapper::Set_Pixel_Shader(0);
+    }
+    if (texture_changed) {
+        DX8Wrapper::Set_DX8_Texture(0, nullptr);
+    }
+    if (viewport_valid) {
+        DX8Wrapper::Set_Viewport(&restore_viewport);
+    }
+    if (render_target_changed) {
+        DX8Wrapper::Set_Render_Target(static_cast<IDirect3DSurface8 *>(nullptr));
+    }
+    if (small_render_target_surface != nullptr) {
+        small_render_target_surface->Release();
+    }
+    if (intermediate_surface != nullptr) {
+        intermediate_surface->Release();
+    }
+    if (intermediate_texture != nullptr) {
+        intermediate_texture->Release();
+    }
+    REF_PTR_RELEASE(back_buffer);
+    REF_PTR_RELEASE(surface_class);
+    REF_PTR_RELEASE(render_target);
+    return result;
 }
 
 // -- Vertex / index buffers --------------------------------------------------
