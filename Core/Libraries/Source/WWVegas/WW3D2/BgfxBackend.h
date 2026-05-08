@@ -16,37 +16,20 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 11/04/2026 BgfxBackend inherits from
-// DX8Backend so the dx8 device stays correctly programmed for as long as
-// the bgfx and dx8 backends are co-resident. The base class implementation
-// of every method forwards to DX8Wrapper. BgfxBackend overrides the
-// methods that need bgfx-specific extras (capture matrices, build a
-// vertex/index buffer cache, pick a bgfx program from a ShaderClass,
-// etc.) and calls the base class first to keep the dx8 device functional.
+// TheSuperHackers @refactor bobtista 11/04/2026 BgfxBackend.
+// IRenderBackend implementation that drives bgfx directly. Earlier cutover
+// stages inherited DX8Backend so every bgfx call also programmed a D3D8
+// mirror device; bgfx now owns the render-state, transform, buffer, and
+// texture snapshots it needs, so this backend no longer depends on that base.
 //
-// After the cutover the dx8 device goes away and the base class
-// forwards become no-ops. Until then, this dual path is what keeps the
-// dx8 main game window rendering correctly in the bgfx build.
-//
-// This header MUST NOT be included from any VC6 translation unit. The
-// VC6 build always uses DX8Backend; the bgfx backend requires MSVC 2022+
-// and C++17.
+// This header MUST NOT be included from any VC6 translation unit. The VC6
+// build always uses DX8Backend; the bgfx backend requires MSVC 2022+ and C++17.
 
 #pragma once
 
-#include "DX8Backend.h"
+#include "IRenderBackend.h"
 
-// TheSuperHackers @refactor bobtista 22/04/2026 BgfxBackend
-// always inherits from DX8Backend. The earlier preprocessor
-// base-class swap was reverted because it broke DX8Wrapper's state
-// tracking (which the sorting renderer and others read back). Instead,
-// standalone mode (GGC_BGFX_STANDALONE) keeps the class hierarchy and
-// just swaps DX8Wrapper's D3D8 device for a no-op stub at Init time
-// (see StubD3D8Device.h). DX8Wrapper continues to populate render_state
-// exactly as in ref-popup mode; its D3D calls execute against the stub
-// and do nothing.
-
-class BgfxBackend : public DX8Backend
+class BgfxBackend : public IRenderBackend
 {
 public:
     BgfxBackend();
@@ -62,7 +45,7 @@ public:
     //
     // Initialize creates the bgfx popup window and calls bgfx::init.
     // Shutdown tears down all bgfx resources before bgfx::shutdown.
-    // Both override DX8Backend's empty stubs.
+    // Both override IRenderBackend's empty stubs.
 
     virtual void Initialize(void * hwnd, int width, int height) override;
     virtual void Shutdown() override;
@@ -83,9 +66,7 @@ public:
 
     // -- Vertex / index buffers -----------------------------------------------
     //
-    // Override only the static-VB / IB setters to record the bgfx cache
-    // hit (or miss) for the current draw. The base DX8Backend forwards
-    // are still called so the d3d8 device sees the binding too.
+    // Record the bgfx cache hit (or miss) for the current draw.
 
     virtual void Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream) override;
     virtual void Set_Vertex_Buffer(const DynamicVBAccessClass & vba) override;
@@ -93,9 +74,8 @@ public:
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset) override;
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset) override;
 
-    // Write-side capture hooks. DX8Backend inherits the
-    // empty default from IRenderBackend; BgfxBackend captures the data
-    // into the cache for use by Set_Vertex_Buffer / Set_Index_Buffer.
+    // Write-side capture hooks. BgfxBackend captures the data into the cache
+    // for use by Set_Vertex_Buffer / Set_Index_Buffer.
     // Adds the dynamic variants for DynamicVBAccessClass /
     // DynamicIBAccessClass which get copied into bgfx transient buffers.
 
@@ -142,6 +122,7 @@ public:
     virtual void Clear_Light(unsigned int index) override;
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) override;
     virtual void Set_Ambient(const Vector3 & color) override;
+    virtual const Vector3 & Get_Ambient() const override;
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end) override;
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) override;
     virtual void Set_Blend_Op(BlendOp op) override;
@@ -230,8 +211,7 @@ public:
     // -- Transforms -----------------------------------------------------------
     //
     // Captures the engine's view / projection / world matrices into bgfx
-    // column-major form, then forwards to the base DX8Backend so the dx8
-    // device also gets the matrices set.
+    // column-major form.
 
     virtual void Set_Transform(TransformKind transform, const Matrix4x4 & m) override;
     virtual void Set_Transform(TransformKind transform, const Matrix3D & m) override;
@@ -244,9 +224,8 @@ public:
 
     // -- Draw calls -----------------------------------------------------------
     //
-    // Issues a real bgfx::submit on view 1 if the cache lookup found a
-    // valid VB+IB+program for the current state, then forwards to the
-    // base DX8Backend so the dx8 device also draws the geometry.
+    // Issues a real bgfx::submit if the cache lookup found a valid
+    // VB+IB+program for the current state.
 
     virtual void Draw_Triangles(unsigned short start_index,
                                 unsigned short polygon_count,
@@ -262,25 +241,10 @@ public:
                             unsigned short min_vertex_index,
                             unsigned short vertex_count) override;
 
-    // Everything else (Is_Device_Lost, Has_Stencil, Get_Back_Buffer*,
-    // Set_Gamma, Flip_To_Primary, Clear, Set_Viewport,
-    // Get_Shader, Set_Material, Apply_Render_State_Changes,
-    // Apply_Default_State, Invalidate_Cached_Render_States, Set_Blend_*,
-    // Set_Color_Write_Enable, Set_Alpha_Blend_Enable, Show/Set_Hardware_Cursor*,
-    // Set_Stencil_*, Get_Transform, Set_Light*, Set/Get_Ambient,
-    // Set/Get_Fog*, Set/Get_Light_Environment, Set_Vertex_Shader,
-    // Set_Pixel_Shader, *_Constant, Create_Render_Target,
-    // Is_Render_To_Texture, Set/Get_Shadow_Map)
-    // is inherited from DX8Backend and forwards to DX8Wrapper unchanged.
-
     // -- Resource creation (asset ingress) ---------------------------
     //
-    // Each override first forwards to DX8Backend so the ref-popup build's
-    // D3D8 resource is created in parallel (that is how the DX8 reference
-    // window stays in sync with bgfx). Then creates the corresponding bgfx
-    // resource. The returned RenderResource.id encodes an index into a
-    // backend-local side table that maps to the pair of (bgfx handle, D3D8
-    // pointer).
+    // Creates the corresponding bgfx resource. The returned RenderResource.id
+    // encodes an index into a backend-local side table.
 
     virtual RenderResource Create_Texture(const TextureDesc & desc) override;
     virtual RenderResource Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data) override;
