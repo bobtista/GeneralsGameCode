@@ -169,8 +169,6 @@ int								DX8Wrapper::ZBias;
 float								DX8Wrapper::ZNear;
 float								DX8Wrapper::ZFar;
 D3DMATRIX						DX8Wrapper::ProjectionMatrix;
-D3DMATRIX						DX8Wrapper::DX8Transforms[D3DTS_WORLD+1];
-
 DX8Caps*							DX8Wrapper::CurrentCaps = nullptr;
 
 // Hack test... this disables rendering of batches of too few polygons.
@@ -547,8 +545,6 @@ void DX8Wrapper::Invalidate_Cached_Render_States()
 	//Need to explicitly set render_state texture pointers to null. MW
 	Release_Render_State();
 
-	// (gth) clear the matrix shadows too
-	memset(&DX8Transforms, 0, sizeof(DX8Transforms));
 }
 
 void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
