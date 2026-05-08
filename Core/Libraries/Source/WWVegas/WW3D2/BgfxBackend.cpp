@@ -5872,6 +5872,11 @@ void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp op)
     UpdateShadowStencilState();
 }
 
+CullMode BgfxBackend::Get_Cull_Mode() const
+{
+    return static_cast<CullMode>(RenderStateCache::Get_Render_State(D3DRS_CULLMODE));
+}
+
 void BgfxBackend::Set_Cull_Mode(CullMode mode)
 {
     RenderStateCache::Set_Render_State(D3DRS_CULLMODE, static_cast<unsigned>(mode));
