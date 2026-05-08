@@ -470,18 +470,16 @@ void ShaderClass::Apply()
 
 			if(sf == D3DBLEND_INVSRCALPHA)
 			{
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0xff - alphareference);
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_LESSEQUAL);
+				g_renderBackend->Set_Alpha_Test(true, 0xff - alphareference, RB_CMP_LESS_EQUAL);
 			}
 			else
 			{
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,alphareference);
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_GREATEREQUAL);
+				g_renderBackend->Set_Alpha_Test(true, alphareference, RB_CMP_GREATER_EQUAL);
 			}
 			blendAlpha = true;
 			alphaTest = TRUE;
 		}
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE,alphaTest);
+		g_renderBackend->Set_Alpha_Test_Enable(alphaTest);
 
 		diff &= ~(ShaderClass::MASK_COLORMASK | ShaderClass::MASK_SRCBLEND | ShaderClass::MASK_DSTBLEND | ShaderClass::MASK_ALPHATEST);
 		if(!diff)
@@ -1037,7 +1035,7 @@ void ShaderClass::Apply()
 	}
 
 	// Enable/disable alpha test
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE,BOOL(Get_Alpha_Test()));
+	g_renderBackend->Set_Alpha_Test_Enable(Get_Alpha_Test() == ShaderClass::ALPHATEST_ENABLE);
 
 	// Enable/disable stencil test
 	// Not supported yet
