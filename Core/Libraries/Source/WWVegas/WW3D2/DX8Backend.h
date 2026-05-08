@@ -170,6 +170,14 @@ public:
 
     // -- Programmable pipeline ------------------------------------------------
 
+    virtual bool Create_Vertex_Shader(const unsigned int * declaration,
+                                      const unsigned int * shader,
+                                      unsigned int usage,
+                                      unsigned long * handle) override;
+    virtual bool Create_Pixel_Shader(const unsigned int * shader,
+                                     unsigned long * handle) override;
+    virtual void Delete_Vertex_Shader(unsigned long vertex_shader) override;
+    virtual void Delete_Pixel_Shader(unsigned long pixel_shader) override;
     virtual void Set_Vertex_Shader(unsigned long vertex_shader);
     virtual void Set_Pixel_Shader(unsigned long pixel_shader);
     virtual void Set_Vertex_Shader_Constant(int reg, const void * data, int count);
