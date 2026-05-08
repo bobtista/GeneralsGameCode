@@ -12,7 +12,6 @@ else()
 endif()
 
 target_link_libraries(z_generals PRIVATE
-    core_debug
     core_profile_legacy
     z_gameengine
     z_gameenginedevice
@@ -23,6 +22,7 @@ if(WIN32)
     target_link_libraries(z_generals PRIVATE
         binkstub
         comctl32
+        core_debug
         dinput8
         dxguid
         imm32
