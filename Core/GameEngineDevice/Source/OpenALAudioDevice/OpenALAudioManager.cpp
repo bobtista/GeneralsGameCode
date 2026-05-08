@@ -580,7 +580,7 @@ void OpenALAudioManager::stopAudio(AudioAffect which)
 		for (it = m_playingStreams.begin(); it != m_playingStreams.end(); ++it) {
 			playing = *it;
 			// GeneralsX @bugfix BenderAI 11/03/2026 - guard against null audioEventRTS/info
-			if (playing && playing->m_audioEventRTS && playing->m_audioEventRTS->getAudioEventInfo()) {
+			if (playing && playing->m_stream && playing->m_audioEventRTS && playing->m_audioEventRTS->getAudioEventInfo()) {
 				if (playing->m_audioEventRTS->getAudioEventInfo()->m_soundType == AT_Music) {
 					if (!BitIsSet(which, AudioAffect_Music)) {
 						continue;
@@ -628,7 +628,7 @@ void OpenALAudioManager::pauseAudio(AudioAffect which)
 		for (it = m_playingStreams.begin(); it != m_playingStreams.end(); ++it) {
 			playing = *it;
 			// GeneralsX @bugfix BenderAI 11/03/2026 - guard against null audioEventRTS/info
-			if (playing && playing->m_audioEventRTS && playing->m_audioEventRTS->getAudioEventInfo()) {
+			if (playing && playing->m_stream && playing->m_audioEventRTS && playing->m_audioEventRTS->getAudioEventInfo()) {
 				if (playing->m_audioEventRTS->getAudioEventInfo()->m_soundType == AT_Music) {
 					if (!BitIsSet(which, AudioAffect_Music)) {
 						continue;
@@ -694,7 +694,7 @@ void OpenALAudioManager::resumeAudio(AudioAffect which)
 		for (it = m_playingStreams.begin(); it != m_playingStreams.end(); ++it) {
 			playing = *it;
 			// GeneralsX @bugfix BenderAI 11/03/2026 - guard against null audioEventRTS/info
-			if (playing && playing->m_audioEventRTS && playing->m_audioEventRTS->getAudioEventInfo()) {
+			if (playing && playing->m_stream && playing->m_audioEventRTS && playing->m_audioEventRTS->getAudioEventInfo()) {
 				if (playing->m_audioEventRTS->getAudioEventInfo()->m_soundType == AT_Music) {
 					if (!BitIsSet(which, AudioAffect_Music)) {
 						continue;
@@ -1229,6 +1229,7 @@ void OpenALAudioManager::stopAllAudioImmediately(void)
 	for (it = m_playingSounds.begin(); it != m_playingSounds.end(); ) {
 		playing = *it;
 		if (!playing) {
+			it = m_playingSounds.erase(it);
 			continue;
 		}
 
@@ -1239,6 +1240,7 @@ void OpenALAudioManager::stopAllAudioImmediately(void)
 	for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ) {
 		playing = *it;
 		if (!playing) {
+			it = m_playing3DSounds.erase(it);
 			continue;
 		}
 
@@ -1249,6 +1251,7 @@ void OpenALAudioManager::stopAllAudioImmediately(void)
 	for (it = m_playingStreams.begin(); it != m_playingStreams.end(); ) {
 		playing = (*it);
 		if (!playing) {
+			it = m_playingStreams.erase(it);
 			continue;
 		}
 
@@ -1259,6 +1262,7 @@ void OpenALAudioManager::stopAllAudioImmediately(void)
 	for (it = m_fadingAudio.begin(); it != m_fadingAudio.end(); ) {
 		playing = (*it);
 		if (!playing) {
+			it = m_fadingAudio.erase(it);
 			continue;
 		}
 
@@ -1319,7 +1323,7 @@ void OpenALAudioManager::freeAllOpenALHandles(void)
 void OpenALAudioManager::adjustPlayingVolume(PlayingAudio* audio)
 {
 	// GeneralsX @bugfix BenderAI 11/03/2026 - guard against null m_audioEventRTS
-	if (!audio->m_audioEventRTS)
+	if (!audio || !audio->m_audioEventRTS)
 		return;
 	Real desiredVolume = audio->m_audioEventRTS->getVolume() * audio->m_audioEventRTS->getVolumeShift();
 	if (audio->m_type == PAT_Sample) {
@@ -1331,6 +1335,9 @@ void OpenALAudioManager::adjustPlayingVolume(PlayingAudio* audio)
 
 	}
 	else if (audio->m_type == PAT_Stream) {
+		if (!audio->m_stream)
+			return;
+
 		// GeneralsX @bugfix BenderAI 11/03/2026 - guard against null audioEventRTS/info
 		const AudioEventInfo* info = (audio->m_audioEventRTS ? audio->m_audioEventRTS->getAudioEventInfo() : nullptr);
 		if (info && info->m_soundType == AT_Music) {
@@ -1603,10 +1610,16 @@ void OpenALAudioManager::closeDevice(void)
 	alcMakeContextCurrent(nullptr);
 
 	if (m_alcContext)
+	{
 		alcDestroyContext(m_alcContext);
+		m_alcContext = NULL;
+	}
 
 	if (m_alcDevice)
+	{
 		alcCloseDevice(m_alcDevice);
+		m_alcDevice = NULL;
+	}
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -1963,11 +1976,12 @@ Bool OpenALAudioManager::doesViolateLimit(AudioEventRTS* event) const
 	if (!event->isPositionalAudio()) {
 		// 2-D
 		for (it = m_playingSounds.begin(); it != m_playingSounds.end(); ++it) {
-			if (!(*it)->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
-			if ((*it)->m_audioEventRTS->getEventName() == event->getEventName()) {
+			PlayingAudio* playing = *it;
+			if (!playing || !playing->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
+			if (playing->m_audioEventRTS->getEventName() == event->getEventName()) {
 				if (totalCount == 0) {
 					// This is the oldest audio of this type playing.
-					event->setHandleToKill((*it)->m_audioEventRTS->getPlayingHandle());
+					event->setHandleToKill(playing->m_audioEventRTS->getPlayingHandle());
 				}
 				++totalCount;
 			}
@@ -1976,11 +1990,12 @@ Bool OpenALAudioManager::doesViolateLimit(AudioEventRTS* event) const
 	else {
 		// 3-D
 		for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ++it) {
-			if (!(*it)->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
-			if ((*it)->m_audioEventRTS->getEventName() == event->getEventName()) {
+			PlayingAudio* playing = *it;
+			if (!playing || !playing->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
+			if (playing->m_audioEventRTS->getEventName() == event->getEventName()) {
 				if (totalCount == 0) {
 					// This is the oldest audio of this type playing.
-					event->setHandleToKill((*it)->m_audioEventRTS->getPlayingHandle());
+					event->setHandleToKill(playing->m_audioEventRTS->getPlayingHandle());
 				}
 				++totalCount;
 			}
@@ -2042,8 +2057,9 @@ Bool OpenALAudioManager::isPlayingAlready(AudioEventRTS* event) const
 	if (!event->isPositionalAudio()) {
 		// 2-D
 		for (it = m_playingSounds.begin(); it != m_playingSounds.end(); ++it) {
-			if (!(*it)->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
-			if ((*it)->m_audioEventRTS->getEventName() == event->getEventName()) {
+			PlayingAudio* playing = *it;
+			if (!playing || !playing->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
+			if (playing->m_audioEventRTS->getEventName() == event->getEventName()) {
 				return true;
 			}
 		}
@@ -2051,8 +2067,9 @@ Bool OpenALAudioManager::isPlayingAlready(AudioEventRTS* event) const
 	else {
 		// 3-D
 		for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ++it) {
-			if (!(*it)->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
-			if ((*it)->m_audioEventRTS->getEventName() == event->getEventName()) {
+			PlayingAudio* playing = *it;
+			if (!playing || !playing->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
+			if (playing->m_audioEventRTS->getEventName() == event->getEventName()) {
 				return true;
 			}
 		}
@@ -2071,18 +2088,20 @@ Bool OpenALAudioManager::isObjectPlayingVoice(UnsignedInt objID) const
 	std::list<PlayingAudio*>::const_iterator it;
 	// 2-D
 	for (it = m_playingSounds.begin(); it != m_playingSounds.end(); ++it) {
-		if (!(*it)->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
-		const AudioEventInfo* info = (*it)->m_audioEventRTS->getAudioEventInfo();
-		if (info && (*it)->m_audioEventRTS->getObjectID() == objID && (info->m_type & ST_VOICE)) {
+		PlayingAudio* playing = *it;
+		if (!playing || !playing->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
+		const AudioEventInfo* info = playing->m_audioEventRTS->getAudioEventInfo();
+		if (info && playing->m_audioEventRTS->getObjectID() == objID && (info->m_type & ST_VOICE)) {
 			return true;
 		}
 	}
 
 	// 3-D
 	for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ++it) {
-		if (!(*it)->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
-		const AudioEventInfo* info = (*it)->m_audioEventRTS->getAudioEventInfo();
-		if (info && (*it)->m_audioEventRTS->getObjectID() == objID && (info->m_type & ST_VOICE)) {
+		PlayingAudio* playing = *it;
+		if (!playing || !playing->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
+		const AudioEventInfo* info = playing->m_audioEventRTS->getAudioEventInfo();
+		if (info && playing->m_audioEventRTS->getObjectID() == objID && (info->m_type & ST_VOICE)) {
 			return true;
 		}
 	}
@@ -2109,7 +2128,9 @@ AudioEventRTS* OpenALAudioManager::findLowestPrioritySound(AudioEventRTS* event)
 		//3D
 		for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ++it)
 		{
-			AudioEventRTS* itEvent = (*it)->m_audioEventRTS;
+			PlayingAudio* playing = *it;
+			if (!playing) continue;
+			AudioEventRTS* itEvent = playing->m_audioEventRTS;
 			if (!itEvent) continue; // GeneralsX @bugfix BenderAI 11/03/2026
 			const AudioEventInfo* itInfo = itEvent->getAudioEventInfo();
 			if (!itInfo) continue;
@@ -2133,7 +2154,9 @@ AudioEventRTS* OpenALAudioManager::findLowestPrioritySound(AudioEventRTS* event)
 		//2D
 		for (it = m_playingSounds.begin(); it != m_playingSounds.end(); ++it)
 		{
-			AudioEventRTS* itEvent = (*it)->m_audioEventRTS;
+			PlayingAudio* playing = *it;
+			if (!playing) continue;
+			AudioEventRTS* itEvent = playing->m_audioEventRTS;
 			if (!itEvent) continue; // GeneralsX @bugfix BenderAI 11/03/2026
 			const AudioEventInfo* itInfo = itEvent->getAudioEventInfo();
 			if (!itInfo) continue;
@@ -2171,10 +2194,11 @@ Bool OpenALAudioManager::isPlayingLowerPriority(AudioEventRTS* event) const
 	if (!event->isPositionalAudio()) {
 		// 2-D
 		for (it = m_playingSounds.begin(); it != m_playingSounds.end(); ++it) {
-			if (!(*it)->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
-			const AudioEventInfo* info = (*it)->m_audioEventRTS->getAudioEventInfo();
+			PlayingAudio* playing = *it;
+			if (!playing || !playing->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
+			const AudioEventInfo* info = playing->m_audioEventRTS->getAudioEventInfo();
 			if (info && info->m_priority < priority) {
-				//event->setHandleToKill((*it)->m_audioEventRTS->getPlayingHandle());
+				//event->setHandleToKill(playing->m_audioEventRTS->getPlayingHandle());
 				return true;
 			}
 		}
@@ -2182,10 +2206,11 @@ Bool OpenALAudioManager::isPlayingLowerPriority(AudioEventRTS* event) const
 	else {
 		// 3-D
 		for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ++it) {
-			if (!(*it)->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
-			const AudioEventInfo* info = (*it)->m_audioEventRTS->getAudioEventInfo();
+			PlayingAudio* playing = *it;
+			if (!playing || !playing->m_audioEventRTS) continue; // GeneralsX @bugfix BenderAI 11/03/2026
+			const AudioEventInfo* info = playing->m_audioEventRTS->getAudioEventInfo();
 			if (info && info->m_priority < priority) {
-				//event->setHandleToKill((*it)->m_audioEventRTS->getPlayingHandle());
+				//event->setHandleToKill(playing->m_audioEventRTS->getPlayingHandle());
 				return true;
 			}
 		}
@@ -2215,7 +2240,7 @@ Bool OpenALAudioManager::killLowestPrioritySoundImmediately(AudioEventRTS* event
 
 				if (playing->m_audioEventRTS && playing->m_audioEventRTS == lowestPriorityEvent)
 				{
-					//Release this 3D sound channel immediately because we are going to play another sound in it's place.
+					//Release this 3D sound channel immediately because we are going to play another sound in its place.
 					releasePlayingAudio(playing);
 					m_playing3DSounds.erase(it);
 					return TRUE;
@@ -2234,9 +2259,9 @@ Bool OpenALAudioManager::killLowestPrioritySoundImmediately(AudioEventRTS* event
 
 				if (playing->m_audioEventRTS && playing->m_audioEventRTS == lowestPriorityEvent)
 				{
-					//Release this 3D sound channel immediately because we are going to play another sound in it's place.
+					//Release this 2D sound channel immediately because we are going to play another sound in its place.
 					releasePlayingAudio(playing);
-					m_playing3DSounds.erase(it);
+					m_playingSounds.erase(it);
 					return TRUE;
 				}
 			}
@@ -2604,6 +2629,7 @@ void OpenALAudioManager::processFadingList(void)
 	for (it = m_fadingAudio.begin(); it != m_fadingAudio.end(); /* emtpy */) {
 		playing = *it;
 		if (!playing) {
+			it = m_fadingAudio.erase(it);
 			continue;
 		}
 
@@ -2635,11 +2661,14 @@ void OpenALAudioManager::processFadingList(void)
 
 		case PAT_Stream:
 		{
-			alSourcef(playing->m_stream->getSource(), AL_GAIN, volume);
+			if (playing->m_stream)
+			{
+				alSourcef(playing->m_stream->getSource(), AL_GAIN, volume);
+			}
 			break;
 		}
 
-		}
+	}
 
 		++it;
 	}
