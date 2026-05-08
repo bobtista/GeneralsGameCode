@@ -653,8 +653,6 @@ protected:
 
 	static RenderStateStruct			render_state;
 	static unsigned						render_state_changed;
-	static D3DMATRIX						DX8Transforms[D3DTS_WORLD+1];
-
 	static bool								IsInitted;
 	static bool								IsDeviceLost;
 	static void *							Hwnd;
@@ -776,10 +774,12 @@ WWINLINE void DX8Wrapper::_Set_DX8_Transform(D3DTRANSFORMSTATETYPE transform, co
 {
 	WWASSERT(transform<=D3DTS_WORLD);
 #if 0 // (gth) this optimization is breaking generals because they set the transform behind our backs.
-	if (mtx!=DX8Transforms[transform])
+	D3DMATRIX mtx;
+	RenderStateCache::Get_Transform((unsigned)transform,mtx);
+	if (mtx!=m)
 #endif
 	{
-		DX8Transforms[transform]=m;
+		RenderStateCache::Set_Transform((unsigned)transform,m);
 		SNAPSHOT_SAY(("DX8 - SetTransform %d [%f,%f,%f,%f][%f,%f,%f,%f][%f,%f,%f,%f]",
 			transform,
 			m.m[0][0],m.m[0][1],m.m[0][2],m.m[0][3],
