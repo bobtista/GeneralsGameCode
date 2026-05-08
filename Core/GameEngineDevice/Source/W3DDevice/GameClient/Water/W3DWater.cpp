@@ -3173,8 +3173,7 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_ONE);
 
 	if (m_riverWaterPixelShader) DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(m_riverWaterPixelShader);
- 	DWORD cull;
-	DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_CULLMODE, &cull);
+	CullMode cull = g_renderBackend->Get_Cull_Mode();
 	g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
 
 
@@ -3202,7 +3201,7 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 	else
 		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 
-	DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_CULLMODE, cull);
+	g_renderBackend->Set_Cull_Mode(cull);
 
 
 }
@@ -3635,8 +3634,7 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 			}
 		}
 
-		DWORD cull;
-		DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_CULLMODE, &cull);
+		CullMode cull = g_renderBackend->Get_Cull_Mode();
 		g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
 
 		g_renderBackend->Draw_Triangles(	0,totalRectangleCount*2, 0,	batchVertexCount);
@@ -3674,7 +3672,7 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 				W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 			}
 		}
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_CULLMODE, cull);
+		g_renderBackend->Set_Cull_Mode(cull);
 
 		batchStart = batchEnd;
 	}
@@ -3936,8 +3934,7 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 	}
 
 
- 	DWORD cull;
-	DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_CULLMODE, &cull);
+	CullMode cull = g_renderBackend->Get_Cull_Mode();
 	g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
 
 	{
@@ -3946,14 +3943,6 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 
 
 
-
-	if (false) {
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-		m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , false);
-		g_renderBackend->Draw_Triangles(	0,rectangleCount*2, 0,	(rectangleCount+1)*2);
-		m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , true);
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
-	}
 
 	if (m_riverWaterPixelShader) DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);
 	//Restore alpha blend to default values since we may have changed them to feather edges.
@@ -3987,7 +3976,7 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 			W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 		}
 	}
-	DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_CULLMODE, cull);
+	g_renderBackend->Set_Cull_Mode(cull);
 }
 
 
