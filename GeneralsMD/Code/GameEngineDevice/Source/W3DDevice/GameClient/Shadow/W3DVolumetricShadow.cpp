@@ -3809,26 +3809,25 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 	m_pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
 
 	// Use alpha blending to draw the transparent shadow
-    m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
+    g_renderBackend->Set_Alpha_Blend_Enable(true);
 //  m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA );
 //  m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
-		m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_DESTCOLOR);
-		m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ZERO );
+		g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 
 
 	// Set stencil states
-    m_pDev->SetRenderState( D3DRS_ZENABLE,          TRUE );
-		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_ALWAYS);
+    g_renderBackend->Set_Depth_Test_Enable(true);
+		g_renderBackend->Set_Depth_Func(RB_CMP_ALWAYS);
 
 	// Only write where stencil val >= 1 (count indicates # of shadows that
 	// overlap that pixel)
-    m_pDev->SetRenderState( D3DRS_STENCILENABLE, TRUE );
-    m_pDev->SetRenderState( D3DRS_STENCILFUNC, D3DCMP_LESSEQUAL );	//reference value is less or equal to stencil
-    m_pDev->SetRenderState( D3DRS_STENCILPASS, D3DSTENCILOP_KEEP );
+    g_renderBackend->Set_Stencil_Enable(true);
+    g_renderBackend->Set_Stencil_Func(RB_CMP_LESS_EQUAL);	//reference value is less or equal to stencil
+    g_renderBackend->Set_Stencil_Pass_Op(RB_STENCIL_OP_KEEP);
 	//Upper bits of stencil could be used for storing occluded models which are player colored.  So we mask out those
 	//pixels and only use the lower bits for shadow calculations.
-	m_pDev->SetRenderState( D3DRS_STENCILMASK,     ~TheW3DShadowManager->getStencilShadowMask());
-    m_pDev->SetRenderState( D3DRS_STENCILREF,      0x1 );
+	g_renderBackend->Set_Stencil_Mask(~TheW3DShadowManager->getStencilShadowMask());
+    g_renderBackend->Set_Stencil_Ref(0x1);
 
 
 	m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);
@@ -3849,9 +3848,9 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 
 #if !defined(GGC_BGFX_STANDALONE)
 	m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
-	m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );
+	g_renderBackend->Set_Alpha_Blend_Enable(false);
 	// turn off the stencil buffer
-	m_pDev->SetRenderState( D3DRS_STENCILENABLE, FALSE );
+	g_renderBackend->Set_Stencil_Enable(false);
 #endif
 
 }
@@ -3911,16 +3910,16 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		// turn off z writing
-		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-	  m_pDev->SetRenderState( D3DRS_ZENABLE,          TRUE );
-		m_pDev->SetRenderState(D3DRS_ZWRITEENABLE , FALSE);
-		m_pDev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
+		g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
+	  g_renderBackend->Set_Depth_Test_Enable(true);
+		g_renderBackend->Set_Depth_Write_Enable(false);
+		g_renderBackend->Set_Alpha_Test_Enable(false);
 		m_pDev->SetRenderState(D3DRS_FOGENABLE, FALSE);
 
 
 		// setup the TMU to default
 		m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);
-		m_pDev->SetRenderState(D3DRS_LIGHTING, FALSE);
+		g_renderBackend->Set_Lighting_Enable(false);
 		m_pDev->SetTextureStageState( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
 		m_pDev->SetTextureStageState( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
 		m_pDev->SetTextureStageState( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG2);
@@ -3936,11 +3935,10 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		DWORD oldColorWriteEnable=0x12345678;
 
 	#ifdef SV_DEBUG
-		m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , TRUE);
-		m_pDev->SetRenderState( D3DRS_STENCILENABLE, FALSE );
-		m_pDev->SetRenderState( D3DRS_SRCBLEND, /*D3DBLEND_DESTCOLOR*/D3DBLEND_ONE );
-		m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ZERO );
-		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+		g_renderBackend->Set_Alpha_Blend_Enable(true);
+		g_renderBackend->Set_Stencil_Enable(false);
+		g_renderBackend->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ZERO);
+		g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	#else
 		//disable writes to color buffer
 		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
@@ -3949,9 +3947,8 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		}
 		else
 		{	//device does not support disabling writes to color buffer so fake it through alpha blending
-			m_pDev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_ZERO );
-			m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
-			m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , TRUE);
+			g_renderBackend->Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_ONE);
+			g_renderBackend->Set_Alpha_Blend_Enable(true);
 		}
 		g_renderBackend->Set_Stencil_Enable(true);
 	#endif
@@ -4097,8 +4094,8 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 			numRenderedShadows, "volumes");
 
 		m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
-		m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , FALSE);
-		m_pDev->SetRenderState(D3DRS_LIGHTING, FALSE);
+		g_renderBackend->Set_Alpha_Blend_Enable(false);
+		g_renderBackend->Set_Lighting_Enable(false);
 
 		g_renderBackend->Invalidate_Cached_Render_States();
 	}
