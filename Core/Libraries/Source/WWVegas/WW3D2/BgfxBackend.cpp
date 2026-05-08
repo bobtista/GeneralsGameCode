@@ -3061,11 +3061,9 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
 void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)
 {
     (void)stream;
-    // Cache is populated by Capture_Vertex_Data on the engine's
-    // own write lock. Set_Vertex_Buffer just looks up whatever is already
-    // there. Engine VBs that have not been written via the WriteLockClass
-    // path yet (e.g. those filled by raw d3d8 calls) will miss the cache
-    // and the bgfx submit will be skipped.
+    // Cache is populated by Capture_Vertex_Data on the engine's own write
+    // lock. Set_Vertex_Buffer just looks up whatever is already there; on a
+    // miss it can rebuild from the buffer object's CPU-side write snapshot.
     g_draw.useTransientVB = false;
     // TheSuperHackers @bugfix bobtista 27/04/2026 D3D8 supplies a white
     // diffuse color when the bound FVF has no COLOR0 element. bgfx
@@ -3083,34 +3081,21 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
     else
     {
         g_draw.vb = BGFX_INVALID_HANDLE;
-        // On-demand capture for static VBs that were never captured
-        // via WriteLockClass (e.g. rotor meshes loaded at startup).
-        // Lock the D3D VB, copy the data into a bgfx dynamic VB, and
-        // cache it for future use.
-        if (vb != nullptr && g_device.initialized
-            && (vb->Type() == BUFFER_TYPE_DX8))
+        // Last-resort capture for static VBs that were written before bgfx
+        // registration/capture was active. Do not lock the D3D buffer here:
+        // bgfx must consume the backend-neutral CPU snapshot maintained by
+        // the buffer write paths.
+        if (vb != nullptr && g_device.initialized && vb->Has_CPU_Buffer_Data())
         {
-            DX8VertexBufferClass * dx8vb =
-                static_cast<DX8VertexBufferClass *>(
-                    const_cast<VertexBufferClass *>(vb));
-            IDirect3DVertexBuffer8 * d3dvb = dx8vb->Get_DX8_Vertex_Buffer();
-            if (d3dvb != nullptr)
+            const unsigned int bytes =
+                vb->Get_Vertex_Count() * vb->FVF_Info().Get_FVF_Size();
+            if (vb->Get_CPU_Buffer_Size() >= bytes)
             {
-                const unsigned int stride = vb->FVF_Info().Get_FVF_Size();
-                const unsigned int num_verts = vb->Get_Vertex_Count();
-                const unsigned int bytes = num_verts * stride;
-                BYTE * data = nullptr;
-                HRESULT hr = d3dvb->Lock(0, bytes, &data, D3DLOCK_READONLY);
-                if (SUCCEEDED(hr) && data != nullptr)
+                Capture_Vertex_Data(vb, vb->Peek_CPU_Buffer_Data(), bytes);
+                auto it2 = g_caches.vb.find(vb);
+                if (it2 != g_caches.vb.end())
                 {
-                    Capture_Vertex_Data(vb, data, bytes);
-                    d3dvb->Unlock();
-                    // Re-lookup after capture
-                    auto it2 = g_caches.vb.find(vb);
-                    if (it2 != g_caches.vb.end())
-                    {
-                        g_draw.vb = it2->second.handle;
-                    }
+                    g_draw.vb = it2->second.handle;
                 }
             }
         }
@@ -3150,29 +3135,18 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
     else
     {
         g_draw.ib = BGFX_INVALID_HANDLE;
-        // On-demand capture for static IBs not yet in cache.
-        if (ib != nullptr && g_device.initialized
-            && (ib->Type() == BUFFER_TYPE_DX8))
+        // Last-resort capture for static IBs not yet in cache. Use the
+        // backend-neutral CPU snapshot instead of locking a D3D index buffer.
+        if (ib != nullptr && g_device.initialized && ib->Has_CPU_Buffer_Data())
         {
-            DX8IndexBufferClass * dx8ib =
-                static_cast<DX8IndexBufferClass *>(
-                    const_cast<IndexBufferClass *>(ib));
-            IDirect3DIndexBuffer8 * d3dib = dx8ib->Get_DX8_Index_Buffer();
-            if (d3dib != nullptr)
+            const unsigned int bytes = ib->Get_Index_Count() * sizeof(unsigned short);
+            if (ib->Get_CPU_Buffer_Size() >= bytes)
             {
-                const unsigned int num_indices = ib->Get_Index_Count();
-                const unsigned int bytes = num_indices * sizeof(unsigned short);
-                BYTE * data = nullptr;
-                HRESULT hr = d3dib->Lock(0, bytes, &data, D3DLOCK_READONLY);
-                if (SUCCEEDED(hr) && data != nullptr)
+                Capture_Index_Data(ib, ib->Peek_CPU_Buffer_Data(), bytes);
+                auto it2 = g_caches.ib.find(ib);
+                if (it2 != g_caches.ib.end())
                 {
-                    Capture_Index_Data(ib, data, bytes);
-                    d3dib->Unlock();
-                    auto it2 = g_caches.ib.find(ib);
-                    if (it2 != g_caches.ib.end())
-                    {
-                        g_draw.ib = it2->second.handle;
-                    }
+                    g_draw.ib = it2->second.handle;
                 }
             }
         }
