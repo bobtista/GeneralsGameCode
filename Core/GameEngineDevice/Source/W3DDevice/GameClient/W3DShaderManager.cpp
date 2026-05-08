@@ -94,6 +94,65 @@ static inline void W3DShaderManager_BindStageTexture(unsigned stage, TextureClas
 	}
 }
 
+static inline void W3DShaderManager_FillViewportQuad(RenderBackendScreenVertex (&v)[4], DWORD diffuse, Bool use_second_uv, Real second_uv_radius = 0.0f)
+{
+	Int xpos, ypos, width, height;
+
+	TheTacticalView->getOrigin(&xpos,&ypos);
+	width=TheTacticalView->getWidth();
+	height=TheTacticalView->getHeight();
+
+	// bottom right
+	v[0].x = xpos+width-0.5f;
+	v[0].y = ypos+height-0.5f;
+	v[0].z = 0.0f;
+	v[0].w = 1.0f;
+	v[0].u0 = (Real)(xpos+width)/(Real)TheDisplay->getWidth();
+	v[0].v0 = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
+	v[0].u1 = 0.5f+second_uv_radius;
+	v[0].v1 = 0.5f+second_uv_radius;
+
+	// top right
+	v[1].x = xpos+width-0.5f;
+	v[1].y = ypos-0.5f;
+	v[1].z = 0.0f;
+	v[1].w = 1.0f;
+	v[1].u0 = (Real)(xpos+width)/(Real)TheDisplay->getWidth();
+	v[1].v0 = (Real)(ypos)/(Real)TheDisplay->getHeight();
+	v[1].u1 = 0.5f+second_uv_radius;
+	v[1].v1 = 0.5f-second_uv_radius;
+
+	// bottom left
+	v[2].x = xpos-0.5f;
+	v[2].y = ypos+height-0.5f;
+	v[2].z = 0.0f;
+	v[2].w = 1.0f;
+	v[2].u0 = (Real)(xpos)/(Real)TheDisplay->getWidth();
+	v[2].v0 = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
+	v[2].u1 = 0.5f-second_uv_radius;
+	v[2].v1 = 0.5f+second_uv_radius;
+
+	// top left
+	v[3].x = xpos-0.5f;
+	v[3].y = ypos-0.5f;
+	v[3].z = 0.0f;
+	v[3].w = 1.0f;
+	v[3].u0 = (Real)(xpos)/(Real)TheDisplay->getWidth();
+	v[3].v0 = (Real)(ypos)/(Real)TheDisplay->getHeight();
+	v[3].u1 = 0.5f-second_uv_radius;
+	v[3].v1 = 0.5f-second_uv_radius;
+
+	for (Int i = 0; i < 4; ++i)
+	{
+		v[i].diffuse = diffuse;
+		if (!use_second_uv)
+		{
+			v[i].u1 = 0.0f;
+			v[i].v1 = 0.0f;
+		}
+	}
+}
+
 /** Interface definition for custom shaders we define in our app.  These shaders can perform more complex
 	operations than those allowed in the WW3D2 shader system.
 */
@@ -126,10 +185,6 @@ GraphicsVenderID W3DShaderManager::m_currentVendor;
 __int64 W3DShaderManager::m_driverVersion;
 
 Bool W3DShaderManager::m_renderingToTexture = false;
-IDirect3DSurface8 *W3DShaderManager::m_oldRenderSurface=nullptr;	///<previous render target
-IDirect3DTexture8 *W3DShaderManager::m_renderTexture=nullptr;		///<texture into which rendering will be redirected.
-IDirect3DSurface8 *W3DShaderManager::m_newRenderSurface=nullptr;	///<new render target inside m_renderTexture
-IDirect3DSurface8 *W3DShaderManager::m_oldDepthSurface=nullptr;	///<previous depth buffer surface
 /*===========================================================================================*/
 /*=========      Screen Shaders	=============================================================*/
 /*===========================================================================================*/
@@ -199,61 +254,22 @@ Bool ScreenDefaultFilter::preRender(Bool &skipRender, CustomScenePassModes &scen
 
 Bool ScreenDefaultFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doExtraRender)
 {
-	IDirect3DTexture8 * tex =	W3DShaderManager::endRenderToTexture();
-	DEBUG_ASSERTCRASH(tex, ("Require rendered texture."));
-	if (!tex) return false;
+	Bool captured = W3DShaderManager::endRenderToTexture();
+	DEBUG_ASSERTCRASH(captured, ("Require rendered texture."));
+	if (!captured) return false;
 	if (!set(mode)) return false;
 
-#if defined(GGC_BGFX_STANDALONE)
-	reset();
-	return true;
-#else
-	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	struct _TRANS_LIT_TEX_VERTEX {
-		D3DXVECTOR4 p;
-		DWORD color;   // diffuse color
-		float	u;
-		float	v;
-	} v[4];
-
-	Int xpos, ypos, width, height;
-
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend != nullptr)
+	RenderBackendScreenVertex v[4];
+	W3DShaderManager_FillViewportQuad(v, 0xffffffff, FALSE);
+	if (g_renderBackend == nullptr ||
+		!g_renderBackend->Draw_View_Capture_Quad(RB_VIEW_CAPTURE_TACTICAL, v, 4, false))
 	{
-		g_renderBackend->Set_Texture(0, nullptr);
+		reset();
+		return false;
 	}
-	TheTacticalView->getOrigin(&xpos,&ypos);
-	width=TheTacticalView->getWidth();
-	height=TheTacticalView->getHeight();
-
-	//bottom right
-	v[0].p = D3DXVECTOR4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	//top right
-	v[1].p = D3DXVECTOR4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
-	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-	//bottom left
-	v[2].p = D3DXVECTOR4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	//top left
-	v[3].p = D3DXVECTOR4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
-	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-	v[0].color = 0xffffffff;
-	v[1].color = 0xffffffff;
-	v[2].color = 0xffffffff;
-	v[3].color = 0xffffffff;
-
-	//draw polygons like this is very inefficient but for only 2 triangles, it's
-	//not worth bothering with index/vertex buffers.
-	pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-
-	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
 
 	reset();
 	return true;
-#endif
 }
 
 Int ScreenDefaultFilter::set(FilterModes mode)
@@ -347,61 +363,22 @@ Bool ScreenBWFilter::preRender(Bool &skipRender, CustomScenePassModes &scenePass
 
 Bool ScreenBWFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doExtraRender)
 {
-	IDirect3DTexture8 * tex =	W3DShaderManager::endRenderToTexture();
-	DEBUG_ASSERTCRASH(tex, ("Require rendered texture."));
-	if (!tex) return false;
+	Bool captured = W3DShaderManager::endRenderToTexture();
+	DEBUG_ASSERTCRASH(captured, ("Require rendered texture."));
+	if (!captured) return false;
 	if (!set(mode)) return false;
 
-#if defined(GGC_BGFX_STANDALONE)
-	reset();
-	return true;
-#else
-	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	struct _TRANS_LIT_TEX_VERTEX {
-		D3DXVECTOR4 p;
-		DWORD color;   // diffuse color
-		float	u;
-		float	v;
-	} v[4];
-
-	Int xpos, ypos, width, height;
-
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend != nullptr)
+	RenderBackendScreenVertex v[4];
+	W3DShaderManager_FillViewportQuad(v, 0xffffffff, FALSE);
+	if (g_renderBackend == nullptr ||
+		!g_renderBackend->Draw_View_Capture_Quad(RB_VIEW_CAPTURE_TACTICAL, v, 4, false))
 	{
-		g_renderBackend->Set_Texture(0, nullptr);
+		reset();
+		return false;
 	}
-	TheTacticalView->getOrigin(&xpos,&ypos);
-	width=TheTacticalView->getWidth();
-	height=TheTacticalView->getHeight();
-
-	//bottom right
-	v[0].p = D3DXVECTOR4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	//top right
-	v[1].p = D3DXVECTOR4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
-	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-	//bottom left
-	v[2].p = D3DXVECTOR4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	//top left
-	v[3].p = D3DXVECTOR4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
-	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-	v[0].color = 0xffffffff;
-	v[1].color = 0xffffffff;
-	v[2].color = 0xffffffff;
-	v[3].color = 0xffffffff;
-
-	//draw polygons like this is very inefficient but for only 2 triangles, it's
-	//not worth bothering with index/vertex buffers.
-	pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-
-	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
 
 	reset();
 	return true;
-#endif
 }
 
 Int ScreenBWFilter::set(FilterModes mode)
@@ -545,53 +522,14 @@ Bool ScreenBWFilterDOT3::preRender(Bool &skipRender, CustomScenePassModes &scene
 
 Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doExtraRender)
 {
-	IDirect3DTexture8 * tex =	W3DShaderManager::endRenderToTexture();
-	DEBUG_ASSERTCRASH(tex, ("Require rendered texture."));
-	if (!tex) return false;
+	Bool captured = W3DShaderManager::endRenderToTexture();
+	DEBUG_ASSERTCRASH(captured, ("Require rendered texture."));
+	if (!captured) return false;
 	if (!set(mode)) return false;
 
-#if defined(GGC_BGFX_STANDALONE)
-	reset();
-	return true;
-#else
-	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	struct _TRANS_LIT_TEX_VERTEX {
-		D3DXVECTOR4 p;
-		DWORD color;   // diffuse color
-		float	u;
-		float	v;
-	} v[4];
-
-	Int xpos, ypos, width, height;
-
-	TheTacticalView->getOrigin(&xpos,&ypos);
-	width=TheTacticalView->getWidth();
-	height=TheTacticalView->getHeight();
-
-	//bottom right
-	v[0].p = D3DXVECTOR4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	//top right
-	v[1].p = D3DXVECTOR4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
-	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-	//bottom left
-	v[2].p = D3DXVECTOR4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	//top left
-	v[3].p = D3DXVECTOR4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
-	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-
 	DWORD currentFade=(((Int)((1.0f-m_curFadeValue) * 255.0f))<<24) | 0x00ffffff;	//store alpha value
-
-	v[0].color = currentFade;
-	v[1].color = currentFade;
-	v[2].color = currentFade;
-	v[3].color = currentFade;
-
-	//draw polygons like this is very inefficient but for only 2 triangles, it's
-	//not worth bothering with index/vertex buffers.
-	pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
+	RenderBackendScreenVertex v[4];
+	W3DShaderManager_FillViewportQuad(v, currentFade, FALSE);
 
 	//Draw B&W version first
 	if (DX8Wrapper::Get_Current_Caps()->Support_Dot3())
@@ -613,13 +551,12 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
 	}
 
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend != nullptr)
+	if (g_renderBackend == nullptr ||
+		!g_renderBackend->Draw_View_Capture_Quad(RB_VIEW_CAPTURE_TACTICAL, v, 4, false))
 	{
-		g_renderBackend->Set_Texture(0, nullptr);
+		reset();
+		return false;
 	}
-
-	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
 
 	//Draw normal view blended by current fade level
 	ShaderClass::Invalidate();	//reset DOT3 blend from above.
@@ -630,11 +567,14 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 	//replace texture alpha with vertex alpha
 	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
 
-	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
+	if (!g_renderBackend->Draw_View_Capture_Quad(RB_VIEW_CAPTURE_TACTICAL, v, 4, false))
+	{
+		reset();
+		return false;
+	}
 
 	reset();
 	return true;
-#endif
 }
 
 Int ScreenBWFilterDOT3::set(FilterModes mode)
@@ -803,47 +743,22 @@ Bool ScreenCrossFadeFilter::preRender(Bool &skipRender, CustomScenePassModes &sc
 
 Bool ScreenCrossFadeFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doExtraRender)
 {
-	IDirect3DTexture8 * tex;
-
 	if (m_skipRender)
 	{
 		//don't render anything to frame buffer because we still need to draw the new scene
 		//that we're fading into.  Okay to render on the next call.
 		m_skipRender = false;
 		doExtraRender = TRUE;
-		tex =	W3DShaderManager::endRenderToTexture();
+		W3DShaderManager::endRenderToTexture();
 		return true;
 	}
 
-	tex=W3DShaderManager::getRenderTexture();
-
-	DEBUG_ASSERTCRASH(tex, ("Require last rendered texture."));
-	if (!tex) return false;
+	DEBUG_ASSERTCRASH(W3DShaderManager::hasRenderTexture(), ("Require last rendered texture."));
+	if (!W3DShaderManager::hasRenderTexture()) return false;
 	if (!set(mode)) return false;
 
-#if defined(GGC_BGFX_STANDALONE)
-	reset();
-	return true;
-#else
-	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	struct _TRANS_LIT_TEX_VERTEX {
-		D3DXVECTOR4 p;
-		DWORD color;   // diffuse color
-		float	u;
-		float	v;
-		float	u1;
-		float	v1;
-	} v[4];
-
-	Int xpos, ypos, width, height;
 	Real radius = 0.0f;
 
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend != nullptr)
-	{
-		g_renderBackend->Set_Texture(0, nullptr);
-	}
 	if (mode == FM_VIEW_CROSSFADE_CIRCLE)
 	{	W3DShaderManager_BindStageTexture(1, m_fadePatternTexture);
 		//Use the current fade level to scale the mask texture, for other modes the texture
@@ -854,51 +769,18 @@ Bool ScreenCrossFadeFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bo
 		radius = 0.5f/radius;
 	}
 
-	TheTacticalView->getOrigin(&xpos,&ypos);
-	width=TheTacticalView->getWidth();
-	height=TheTacticalView->getHeight();
-
-/*	Real radius = (1.0f-m_curFadeValue);
-	if (radius <= 0)
-		radius = 0.01f;
-	radius = 25.0f-radius*24.75f;
-*/
-	//bottom right
-	v[0].p = D3DXVECTOR4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	v[0].u1 = 0.5f+radius;	v[0].v1 = 0.5f+radius;
-	//top right
-	v[1].p = D3DXVECTOR4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
-	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-	v[1].u1 = 0.5f+radius;	v[1].v1 = 0.5f-radius;
-	//bottom left
-	v[2].p = D3DXVECTOR4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	v[2].u1 = 0.5f-radius;	v[2].v1 = 0.5f+radius;
-	//top left
-	v[3].p = D3DXVECTOR4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
-	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-	v[3].u1 = 0.5f-radius;	v[3].v1 = 0.5f-radius;
-
 	DWORD diffuse = 0xffffffff;//((Int)((m_curFadeValue) * 255.0f) << 24) | 0x00ffffff;	//store alpha value in vertex diffuse
-
-	v[0].color = diffuse;
-	v[1].color = diffuse;
-	v[2].color = diffuse;
-	v[3].color = diffuse;
-
-	//draw polygons like this is very inefficient but for only 2 triangles, it's
-	//not worth bothering with index/vertex buffers.
-	pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX2);
-
-//		m_pDev->SetTextureStageState(0,D3DTSS_MAGFILTER,D3DTEXF_POINT);
-//		m_pDev->SetTextureStageState(0,D3DTSS_MINFILTER,D3DTEXF_POINT);
-
-	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
+	RenderBackendScreenVertex v[4];
+	W3DShaderManager_FillViewportQuad(v, diffuse, mode == FM_VIEW_CROSSFADE_CIRCLE, radius);
+	if (g_renderBackend == nullptr ||
+		!g_renderBackend->Draw_View_Capture_Quad(RB_VIEW_CAPTURE_TACTICAL, v, 4, mode == FM_VIEW_CROSSFADE_CIRCLE))
+	{
+		reset();
+		return false;
+	}
 
 	reset();
 	return true;
-#endif
 }
 
 Int ScreenCrossFadeFilter::set(FilterModes mode)
@@ -994,52 +876,15 @@ Bool ScreenMotionBlurFilter::preRender(Bool &skipRender, CustomScenePassModes &s
 
 Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,Bool &doExtraRender)
 {
-	IDirect3DTexture8 * tex =	W3DShaderManager::endRenderToTexture();
-	DEBUG_ASSERTCRASH(tex, ("Require rendered texture."));
-	if (!tex) return false;
+	Bool captured = W3DShaderManager::endRenderToTexture();
+	DEBUG_ASSERTCRASH(captured, ("Require rendered texture."));
+	if (!captured) return false;
 	if (!set(mode)) return false;
 
-#if defined(GGC_BGFX_STANDALONE)
-	reset();
-	return false;
-#else
-	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
-
 	Bool continueEffect = true;
-	struct _TRANS_LIT_TEX_VERTEX {
-		D3DXVECTOR4 p;
-		DWORD color;   // diffuse color
-		float	u;
-		float	v;
-	} v[4];
 
-	Int xpos, ypos, width, height;
-
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(0,tex);	//previously rendered frame inside this texture
-	if (g_renderBackend != nullptr)
-	{
-		g_renderBackend->Set_Texture(0, nullptr);
-	}
-	TheTacticalView->getOrigin(&xpos,&ypos);
-	width=TheTacticalView->getWidth();
-	height=TheTacticalView->getHeight();
-
-	//bottom right
-	v[0].p = D3DXVECTOR4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	//top right
-	v[1].p = D3DXVECTOR4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
-	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-	//bottom left
-	v[2].p = D3DXVECTOR4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	//top left
-	v[3].p = D3DXVECTOR4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
-	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-	v[0].color = 0xffffffff;
-	v[1].color = 0xffffffff;
-	v[2].color = 0xffffffff;
-	v[3].color = 0xffffffff;
+	RenderBackendScreenVertex v[4];
+	W3DShaderManager_FillViewportQuad(v, 0xffffffff, FALSE);
 
 
 	if (m_additive) {
@@ -1051,7 +896,6 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 	//draw polygons like this is very inefficient but for only 2 triangles, it's
 	//not worth bothering with index/vertex buffers.
 	g_renderBackend->Apply_Render_State_Changes();
-	pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
 
 	Coord2D center;
 	center.x = 0.5f;
@@ -1111,14 +955,18 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 		for (i=0; i<4; i++) {
 			Real factor = 1.0f - (m_maxCount/(Real)MAX_COUNT)*0.90f;
 			factor = sqrt(factor);
-			v[i].u = ((v[i].u-center.x)*factor) + center.x;
-			v[i].v = ((v[i].v-center.y)*factor) + center.y;
+			v[i].u0 = ((v[i].u0-center.x)*factor) + center.x;
+			v[i].v0 = ((v[i].v0-center.y)*factor) + center.y;
 		}
 	}
-	pDev->SetTextureStageState(0,D3DTSS_ALPHAARG1, D3DTA_CURRENT);
-	pDev->SetTextureStageState(0,D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
-	pDev->SetTextureStageState(0,D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
+	g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+	g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
+	g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	if (!g_renderBackend->Draw_View_Capture_Quad(RB_VIEW_CAPTURE_TACTICAL, v, 4, false))
+	{
+		reset();
+		return false;
+	}
 	g_renderBackend->Set_Alpha_Blend_Enable(true);
 
 	g_renderBackend->Apply_Render_State_Changes();
@@ -1135,18 +983,22 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 					if (m_maxCount>limit) {
 						alpha += (m_maxCount-limit)/5;
 					}
-					if (m_maxCount==MAX_COUNT) alpha += 60;
+				if (m_maxCount==MAX_COUNT) alpha += 60;
 				}
-				v[i].color = (alpha<<24)|0x00ffffff; //
+				v[i].diffuse = (alpha<<24)|0x00ffffff; //
 				if (pan) {
-					v[i].u = ((v[i].u-center.x)*(factor+.006)) + center.x;
-					v[i].v = ((v[i].v-center.y)*factor) + center.y;
+					v[i].u0 = ((v[i].u0-center.x)*(factor+.006)) + center.x;
+					v[i].v0 = ((v[i].v0-center.y)*factor) + center.y;
 				} else {
-					v[i].u = ((v[i].u-center.x)*factor) + center.x;
-					v[i].v = ((v[i].v-center.y)*factor) + center.y;
+					v[i].u0 = ((v[i].u0-center.x)*factor) + center.x;
+					v[i].v0 = ((v[i].v0-center.y)*factor) + center.y;
 				}
 			}
-			pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
+			if (!g_renderBackend->Draw_View_Capture_Quad(RB_VIEW_CAPTURE_TACTICAL, v, 4, false))
+			{
+				reset();
+				return false;
+			}
 
 		}
 	}
@@ -1159,7 +1011,6 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 		m_zoomToValid = false;
 	}
 	return continueEffect;
-#endif
 }
 
 Bool ScreenMotionBlurFilter::setup(FilterModes mode)
@@ -2660,10 +2511,6 @@ W3DShaderManager::W3DShaderManager()
 {
 	m_currentShader = ST_INVALID;
 	m_currentFilter = FT_NULL_FILTER;
-	m_oldRenderSurface = nullptr;
-	m_renderTexture = nullptr;
-	m_newRenderSurface = nullptr;
-	m_oldDepthSurface = nullptr;
 	m_renderingToTexture = false;
 	Int i;
 	for (i=0; i<W3DShaderManager::ST_MAX; i++)
@@ -2687,7 +2534,6 @@ void W3DShaderManager::init()
 {
 	int i,j;
 
-	D3DSURFACE_DESC desc;
 	// For now, check & see if we are gf3 or higher on the food chain.
 
 	ChipsetType res=DC_UNKNOWN;
@@ -2696,44 +2542,9 @@ void W3DShaderManager::init()
 		m_currentChipset = res;	//cache the current chipset.
 
 		//Some of our effects require an offscreen render target, so try creating it here.
-		HRESULT hr=DX8Wrapper::_Get_D3D_Device8()->GetRenderTarget(&m_oldRenderSurface);
-
-		if (hr != S_OK || !m_oldRenderSurface)
-			return;
-
-		m_oldRenderSurface->GetDesc(&desc);
-		
-		// TheSuperHackers @bugfix Redirecting rendering to a non-multisampled texture
-		// while using a multisampled depth buffer is an API violation in DX8.
-		if (desc.MultiSampleType == D3DMULTISAMPLE_NONE)
+		if (g_renderBackend != nullptr)
 		{
-			hr=DX8Wrapper::_Get_D3D_Device8()->CreateTexture(desc.Width,desc.Height,1,D3DUSAGE_RENDERTARGET,desc.Format,D3DPOOL_DEFAULT,&m_renderTexture);
-		}
-		else
-		{
-			// Force failure path to avoid MSAA mismatch
-			hr = E_FAIL;
-		}
-
-		if (hr != S_OK)
-		{
-			SAFE_RELEASE(m_oldRenderSurface);
-			m_renderTexture = nullptr;
-		} else {
-			hr = m_renderTexture->GetSurfaceLevel(0, &m_newRenderSurface);
-			if (hr != S_OK)
-			{
-				SAFE_RELEASE(m_renderTexture);
-				m_newRenderSurface = nullptr;
-			}	else {
-				hr = DX8Wrapper::_Get_D3D_Device8()->GetDepthStencilSurface(&m_oldDepthSurface);
-				if (hr != S_OK)
-				{
-					SAFE_RELEASE(m_newRenderSurface);
-					SAFE_RELEASE(m_renderTexture);
-					m_oldDepthSurface = nullptr;
-				}
-			}
+			g_renderBackend->Initialize_View_Capture(RB_VIEW_CAPTURE_TACTICAL);
 		}
 	}
 
@@ -2768,10 +2579,11 @@ void W3DShaderManager::init()
 //=============================================================================
 void W3DShaderManager::shutdown()
 {
-	SAFE_RELEASE(m_newRenderSurface);
-	SAFE_RELEASE(m_renderTexture);
-	SAFE_RELEASE(m_oldRenderSurface);
-	SAFE_RELEASE(m_oldDepthSurface);
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Release_View_Capture(RB_VIEW_CAPTURE_TACTICAL);
+	}
+	m_renderingToTexture = false;
 	m_currentShader = ST_INVALID;
 	m_currentFilter = FT_NULL_FILTER;
 	//release any assets associated with a shader (vertex/pixel shaders, textures, etc.)
@@ -2901,113 +2713,14 @@ Bool W3DShaderManager::filterSetup(FilterTypes filter, FilterModes mode)
 /*Draws 2 triangles covering the viewport given the current render states*/
 void W3DShaderManager::drawViewport(Int color)
 {
-#if defined(GGC_BGFX_STANDALONE)
-	Matrix4x4 view,proj;
-	Matrix4x4 identity(true);
-
-	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW,view);
-	g_renderBackend->Get_Transform(RB_TRANSFORM_PROJECTION,proj);
-	g_renderBackend->Set_World_Identity();
-	g_renderBackend->Set_View_Identity();
-	g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,identity);
-
-	Int xpos, ypos, width, height;
-
-	TheTacticalView->getOrigin(&xpos,&ypos);
-	width=TheTacticalView->getWidth();
-	height=TheTacticalView->getHeight();
-
-	const Real displayHalfWidth = (Real)TheDisplay->getWidth() * 0.5f;
-	const Real displayHalfHeight = (Real)TheDisplay->getHeight() * -0.5f;
-	const Real left = ((Real)xpos / displayHalfWidth) - 1.0f;
-	const Real right = ((Real)(xpos+width) / displayHalfWidth) - 1.0f;
-	const Real top = ((Real)ypos / displayHalfHeight) + 1.0f;
-	const Real bottom = ((Real)(ypos+height) / displayHalfHeight) + 1.0f;
-
-	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,4);
+	if (g_renderBackend == nullptr)
 	{
-		DynamicVBAccessClass::WriteLockClass lock(&vb);
-		VertexFormatXYZNDUV2 *verts=lock.Get_Formatted_Vertex_Array();
-		if (verts != nullptr)
-		{
-			verts[0].x=right; verts[0].y=bottom; verts[0].z=0.0f;
-			verts[1].x=right; verts[1].y=top; verts[1].z=0.0f;
-			verts[2].x=left; verts[2].y=bottom; verts[2].z=0.0f;
-			verts[3].x=left; verts[3].y=top; verts[3].z=0.0f;
-
-			for (Int i=0; i<4; i++)
-			{
-				verts[i].nx=0.0f;
-				verts[i].ny=0.0f;
-				verts[i].nz=1.0f;
-				verts[i].diffuse=color;
-				verts[i].u1=0.0f;
-				verts[i].v1=0.0f;
-				verts[i].u2=0.0f;
-				verts[i].v2=0.0f;
-			}
-		}
+		return;
 	}
 
-	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX8,6);
-	{
-		DynamicIBAccessClass::WriteLockClass lock(&ib);
-		unsigned short *indices=lock.Get_Index_Array();
-		if (indices != nullptr)
-		{
-			indices[0]=0;
-			indices[1]=1;
-			indices[2]=2;
-			indices[3]=2;
-			indices[4]=1;
-			indices[5]=3;
-		}
-	}
-
-	g_renderBackend->Set_Vertex_Buffer(vb);
-	g_renderBackend->Set_Index_Buffer(ib,0);
-	g_renderBackend->Draw_Triangles(0,2,0,4);
-	g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,view);
-	g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,proj);
-#else
-	LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	struct _TRANS_LIT_TEX_VERTEX {
-		D3DXVECTOR4 p;
-		DWORD color;   // diffuse color
-		float	u;
-		float	v;
-	} v[4];
-
-	Int xpos, ypos, width, height;
-
-	TheTacticalView->getOrigin(&xpos,&ypos);
-	width=TheTacticalView->getWidth();
-	height=TheTacticalView->getHeight();
-
-	//bottom right
-	v[0].p = D3DXVECTOR4( xpos+width-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[0].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[0].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	//top right
-	v[1].p = D3DXVECTOR4( xpos+width-0.5f, ypos-0.5f, 0.0f, 1.0f );
-	v[1].u = (Real)(xpos+width)/(Real)TheDisplay->getWidth();	v[1].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-	//bottom left
-	v[2].p = D3DXVECTOR4(  xpos-0.5f, ypos+height-0.5f, 0.0f, 1.0f );
-	v[2].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[2].v = (Real)(ypos+height)/(Real)TheDisplay->getHeight();
-	//top left
-	v[3].p = D3DXVECTOR4(  xpos-0.5f,  ypos-0.5f, 0.0f, 1.0f );
-	v[3].u = (Real)(xpos)/(Real)TheDisplay->getWidth();	v[3].v = (Real)(ypos)/(Real)TheDisplay->getHeight();
-	v[0].color = color;
-	v[1].color = color;
-	v[2].color = color;
-	v[3].color = color;
-
-	//draw polygons like this is very inefficient but for only 2 triangles, it's
-	//not worth bothering with index/vertex buffers.
-	pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-
-	pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
-#endif
+	RenderBackendScreenVertex v[4];
+	W3DShaderManager_FillViewportQuad(v, color, FALSE);
+	g_renderBackend->Draw_Screen_Quad(v, 4, false);
 }
 
 // W3DShaderManager::startRenderToTexture =======================================================
@@ -3018,19 +2731,10 @@ void W3DShaderManager::startRenderToTexture()
 {
 	DEBUG_ASSERTCRASH(!m_renderingToTexture, ("Already rendering to texture - cannot nest calls."));
 
-	if (m_renderingToTexture || m_newRenderSurface==nullptr || m_oldDepthSurface==nullptr) return;
-	HRESULT hr = DX8Wrapper::_Get_D3D_Device8()->SetRenderTarget(m_newRenderSurface,m_oldDepthSurface);
-
-	// TheSuperHackers @bugfix If SetRenderTarget fails (e.g. due to MSAA forced by driver
-	// profile causing a depth buffer mismatch that D3DSURFACE_DESC doesn't report), permanently
-	// disable RTT to prevent repeated failures and accidental backbuffer clears.
-	if (hr != S_OK)
+	if (m_renderingToTexture ||
+		g_renderBackend == nullptr ||
+		!g_renderBackend->Begin_View_Capture(RB_VIEW_CAPTURE_TACTICAL))
 	{
-		// Permanently disable RTT
-		SAFE_RELEASE(m_newRenderSurface);
-		SAFE_RELEASE(m_renderTexture);
-		SAFE_RELEASE(m_oldRenderSurface);
-		SAFE_RELEASE(m_oldDepthSurface);
 		return;
 	}
 
@@ -3058,38 +2762,41 @@ void W3DShaderManager::startRenderToTexture()
 	}
 }
 
-// W3DShaderManager::startRenderToTexture =======================================================
+// W3DShaderManager::endRenderToTexture =======================================================
 /** Ends rendering to a texture.
  */
 //=============================================================================
-IDirect3DTexture8 *W3DShaderManager::endRenderToTexture()
+Bool W3DShaderManager::endRenderToTexture()
 {
 	DEBUG_ASSERTCRASH(m_renderingToTexture, ("Not rendering to texture."));
-	if (!m_renderingToTexture) return nullptr;
-	HRESULT hr = DX8Wrapper::_Get_D3D_Device8()->SetRenderTarget(m_oldRenderSurface,m_oldDepthSurface);	//restore original render target
-	DEBUG_ASSERTCRASH(hr==S_OK, ("Set target failed unexpectedly."));
-	if (hr == S_OK)
+	if (!m_renderingToTexture || g_renderBackend == nullptr)
 	{
-		//assume render target texture will be in stage 0.  Most hardware has "conditional" support for
-		//non-power-of-2 textures so we must force some required states:
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSW, D3DTADDRESS_CLAMP);
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
-
-		m_renderingToTexture = false;
+		return FALSE;
 	}
-	return m_renderTexture;
+
+	Bool result = g_renderBackend->End_View_Capture(RB_VIEW_CAPTURE_TACTICAL);
+	DEBUG_ASSERTCRASH(result, ("Set target failed unexpectedly."));
+	m_renderingToTexture = false;
+	return result;
 }
 
-/**Returns texture containing the image that was last rendered using any of the effects requiring render target
-textures.  Used mostly for cross-fading effects that need an unmodified version of the view before the effect
-was applied.  NOTE: This texture does not survive device reset.. so quit effect on reset!*/
-IDirect3DTexture8 *W3DShaderManager::getRenderTexture()
+Bool W3DShaderManager::canRenderToTexture()
 {
-	return m_renderTexture;
+	return g_renderBackend != nullptr &&
+		g_renderBackend->Supports_View_Capture(RB_VIEW_CAPTURE_TACTICAL);
+}
+
+Bool W3DShaderManager::hasRenderTexture()
+{
+	return g_renderBackend != nullptr &&
+		g_renderBackend->Has_View_Capture(RB_VIEW_CAPTURE_TACTICAL);
+}
+
+Bool W3DShaderManager::isRenderingToTexture()
+{
+	return m_renderingToTexture ||
+		(g_renderBackend != nullptr &&
+			g_renderBackend->Is_View_Capture_Active(RB_VIEW_CAPTURE_TACTICAL));
 }
 
 enum GraphicsVenderID CPP_11(: Int)

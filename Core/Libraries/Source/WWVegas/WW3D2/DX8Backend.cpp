@@ -35,6 +35,54 @@
 #include <cstdint>
 #include <string.h>
 
+namespace
+{
+struct DX8ViewCaptureState
+{
+    IDirect3DSurface8 * oldRenderSurface;
+    IDirect3DTexture8 * renderTexture;
+    IDirect3DSurface8 * newRenderSurface;
+    IDirect3DSurface8 * oldDepthSurface;
+    bool active;
+};
+
+static DX8ViewCaptureState g_tacticalViewCapture = { nullptr, nullptr, nullptr, nullptr, false };
+
+static DX8ViewCaptureState * GetViewCaptureState(RenderBackendViewCaptureKind kind)
+{
+    if (kind != RB_VIEW_CAPTURE_TACTICAL) {
+        return nullptr;
+    }
+    return &g_tacticalViewCapture;
+}
+
+static void ReleaseViewCaptureState(DX8ViewCaptureState & state)
+{
+    if (state.newRenderSurface != nullptr) {
+        state.newRenderSurface->Release();
+    }
+    if (state.renderTexture != nullptr) {
+        state.renderTexture->Release();
+    }
+    if (state.oldRenderSurface != nullptr) {
+        state.oldRenderSurface->Release();
+    }
+    if (state.oldDepthSurface != nullptr) {
+        state.oldDepthSurface->Release();
+    }
+    state.oldRenderSurface = nullptr;
+    state.renderTexture = nullptr;
+    state.newRenderSurface = nullptr;
+    state.oldDepthSurface = nullptr;
+    state.active = false;
+}
+
+static DWORD GetScreenQuadFVF(bool use_second_uv)
+{
+    return D3DFVF_XYZRHW | D3DFVF_DIFFUSE | (use_second_uv ? D3DFVF_TEX2 : D3DFVF_TEX1);
+}
+}
+
 DX8Backend::DX8Backend()
 {
 }
@@ -55,6 +103,7 @@ void DX8Backend::Initialize(void * /*hwnd*/, int /*width*/, int /*height*/)
 
 void DX8Backend::Shutdown()
 {
+    Release_View_Capture(RB_VIEW_CAPTURE_TACTICAL);
 }
 
 // -- Device state queries ----------------------------------------------------
@@ -126,6 +175,168 @@ void DX8Backend::Set_Viewport(const RenderBackendViewport & viewport)
     vp.MinZ   = viewport.min_z;
     vp.MaxZ   = viewport.max_z;
     DX8Wrapper::Set_Viewport(&vp);
+}
+
+bool DX8Backend::Initialize_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    DX8ViewCaptureState * state = GetViewCaptureState(kind);
+    if (state == nullptr) {
+        return false;
+    }
+
+    ReleaseViewCaptureState(*state);
+
+    IDirect3DDevice8 * device = DX8Wrapper::_Get_D3D_Device8();
+    if (device == nullptr) {
+        return false;
+    }
+
+    HRESULT hr = device->GetRenderTarget(&state->oldRenderSurface);
+    if (hr != S_OK || state->oldRenderSurface == nullptr) {
+        ReleaseViewCaptureState(*state);
+        return false;
+    }
+
+    D3DSURFACE_DESC desc;
+    state->oldRenderSurface->GetDesc(&desc);
+
+    // The legacy DX8 RTT path cannot pair a non-MSAA texture with an MSAA
+    // depth surface. Preserve the existing failure behavior instead of
+    // trying to paper over driver-forced MSAA.
+    if (desc.MultiSampleType != D3DMULTISAMPLE_NONE) {
+        ReleaseViewCaptureState(*state);
+        return false;
+    }
+
+    hr = device->CreateTexture(desc.Width, desc.Height, 1, D3DUSAGE_RENDERTARGET,
+                               desc.Format, D3DPOOL_DEFAULT, &state->renderTexture);
+    if (hr != S_OK || state->renderTexture == nullptr) {
+        ReleaseViewCaptureState(*state);
+        return false;
+    }
+
+    hr = state->renderTexture->GetSurfaceLevel(0, &state->newRenderSurface);
+    if (hr != S_OK || state->newRenderSurface == nullptr) {
+        ReleaseViewCaptureState(*state);
+        return false;
+    }
+
+    hr = device->GetDepthStencilSurface(&state->oldDepthSurface);
+    if (hr != S_OK || state->oldDepthSurface == nullptr) {
+        ReleaseViewCaptureState(*state);
+        return false;
+    }
+
+    return true;
+}
+
+void DX8Backend::Release_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    DX8ViewCaptureState * state = GetViewCaptureState(kind);
+    if (state != nullptr) {
+        ReleaseViewCaptureState(*state);
+    }
+}
+
+bool DX8Backend::Supports_View_Capture(RenderBackendViewCaptureKind kind) const
+{
+    const DX8ViewCaptureState * state = GetViewCaptureState(kind);
+    return state != nullptr && state->newRenderSurface != nullptr && state->oldDepthSurface != nullptr;
+}
+
+bool DX8Backend::Begin_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    DX8ViewCaptureState * state = GetViewCaptureState(kind);
+    if (state == nullptr || state->active || state->newRenderSurface == nullptr || state->oldDepthSurface == nullptr) {
+        return false;
+    }
+
+    HRESULT hr = DX8Wrapper::_Get_D3D_Device8()->SetRenderTarget(state->newRenderSurface, state->oldDepthSurface);
+    if (hr != S_OK) {
+        ReleaseViewCaptureState(*state);
+        return false;
+    }
+
+    state->active = true;
+    return true;
+}
+
+bool DX8Backend::End_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    DX8ViewCaptureState * state = GetViewCaptureState(kind);
+    if (state == nullptr || !state->active) {
+        return false;
+    }
+
+    HRESULT hr = DX8Wrapper::_Get_D3D_Device8()->SetRenderTarget(state->oldRenderSurface, state->oldDepthSurface);
+    if (hr != S_OK) {
+        state->active = false;
+        return false;
+    }
+
+    DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
+    DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+    DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_ADDRESSW, D3DTADDRESS_CLAMP);
+    DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+    DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
+    DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+
+    state->active = false;
+    return true;
+}
+
+bool DX8Backend::Is_View_Capture_Active(RenderBackendViewCaptureKind kind) const
+{
+    const DX8ViewCaptureState * state = GetViewCaptureState(kind);
+    return state != nullptr && state->active;
+}
+
+bool DX8Backend::Has_View_Capture(RenderBackendViewCaptureKind kind) const
+{
+    const DX8ViewCaptureState * state = GetViewCaptureState(kind);
+    return state != nullptr && state->renderTexture != nullptr;
+}
+
+bool DX8Backend::Bind_View_Capture_Texture(RenderBackendViewCaptureKind kind, unsigned int stage)
+{
+    DX8ViewCaptureState * state = GetViewCaptureState(kind);
+    if (state == nullptr || state->renderTexture == nullptr) {
+        return false;
+    }
+
+    DX8Wrapper::Set_DX8_Texture(stage, state->renderTexture);
+    DX8Wrapper::Set_Texture(stage, nullptr);
+    return true;
+}
+
+bool DX8Backend::Draw_View_Capture_Quad(RenderBackendViewCaptureKind kind,
+                                        const RenderBackendScreenVertex * vertices,
+                                        unsigned int vertex_count,
+                                        bool use_second_uv)
+{
+    if (vertex_count < 4 || vertices == nullptr || !Bind_View_Capture_Texture(kind, 0)) {
+        return false;
+    }
+
+    return Draw_Screen_Quad(vertices, vertex_count, use_second_uv);
+}
+
+bool DX8Backend::Draw_Screen_Quad(const RenderBackendScreenVertex * vertices,
+                                  unsigned int vertex_count,
+                                  bool use_second_uv)
+{
+    if (vertex_count < 4 || vertices == nullptr) {
+        return false;
+    }
+
+    IDirect3DDevice8 * device = DX8Wrapper::_Get_D3D_Device8();
+    if (device == nullptr) {
+        return false;
+    }
+
+    device->SetVertexShader(GetScreenQuadFVF(use_second_uv));
+    HRESULT hr = device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(RenderBackendScreenVertex));
+    return hr == S_OK;
 }
 
 // -- Vertex / index buffers --------------------------------------------------

@@ -215,8 +215,7 @@ Bool W3DSmudgeManager::testHardwareSupport()
 	if (m_hardwareSupportStatus == SMUDGE_SUPPORT_UNKNOWN)
 	{	//we have not done the test yet.
 
-		IDirect3DTexture8 *backTexture=W3DShaderManager::getRenderTexture();
-		if (!backTexture || !W3DShaderManager::isRenderingToTexture())
+		if (!W3DShaderManager::hasRenderTexture() || !W3DShaderManager::isRenderingToTexture())
 		{
 			// TheSuperHackers @bugfix When Render-To-Texture is disabled globally, we fallback
 			// to copying the backbuffer to a texture.
@@ -287,7 +286,12 @@ Bool W3DSmudgeManager::testHardwareSupport()
 			return FALSE;
 		}
 
-		DX8Wrapper::Set_DX8_Texture(0,backTexture);
+		if (g_renderBackend == nullptr ||
+			!g_renderBackend->Bind_View_Capture_Texture(RB_VIEW_CAPTURE_TACTICAL, 0))
+		{
+			m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
+			return FALSE;
+		}
 
 		DWORD testData[BLOCK_SIZE*BLOCK_SIZE];
 		memset(testData,0xff,sizeof(testData));

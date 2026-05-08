@@ -90,6 +90,24 @@ enum RenderBackendShaderKind
     RB_SHADER_VERTEX = 1
 };
 
+enum RenderBackendViewCaptureKind
+{
+    RB_VIEW_CAPTURE_TACTICAL = 0
+};
+
+struct RenderBackendScreenVertex
+{
+    float x;
+    float y;
+    float z;
+    float w;
+    unsigned int diffuse;
+    float u0;
+    float v0;
+    float u1;
+    float v1;
+};
+
 struct RenderBackendViewport
 {
     unsigned int x;
@@ -354,6 +372,31 @@ public:
                        const Vector3 & color,
                        float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0) {}
     virtual void Set_Viewport(const RenderBackendViewport & viewport) {}
+
+    // -------------------------------------------------------------------------
+    // View capture / post-effect primitives
+    // -------------------------------------------------------------------------
+    //
+    // High-level replacement for W3DShaderManager's old raw D3D render-target
+    // ownership. Callers express that they want to capture and later sample
+    // the tactical view; each backend decides whether that is a D3D texture,
+    // a bgfx framebuffer, or unsupported.
+    virtual bool Initialize_View_Capture(RenderBackendViewCaptureKind /*kind*/) { return false; }
+    virtual void Release_View_Capture(RenderBackendViewCaptureKind /*kind*/) {}
+    virtual bool Supports_View_Capture(RenderBackendViewCaptureKind /*kind*/) const { return false; }
+    virtual bool Begin_View_Capture(RenderBackendViewCaptureKind /*kind*/) { return false; }
+    virtual bool End_View_Capture(RenderBackendViewCaptureKind /*kind*/) { return false; }
+    virtual bool Is_View_Capture_Active(RenderBackendViewCaptureKind /*kind*/) const { return false; }
+    virtual bool Has_View_Capture(RenderBackendViewCaptureKind /*kind*/) const { return false; }
+    virtual bool Bind_View_Capture_Texture(RenderBackendViewCaptureKind /*kind*/,
+                                           unsigned int /*stage*/) { return false; }
+    virtual bool Draw_View_Capture_Quad(RenderBackendViewCaptureKind /*kind*/,
+                                        const RenderBackendScreenVertex * /*vertices*/,
+                                        unsigned int /*vertex_count*/,
+                                        bool /*use_second_uv*/) { return false; }
+    virtual bool Draw_Screen_Quad(const RenderBackendScreenVertex * /*vertices*/,
+                                  unsigned int /*vertex_count*/,
+                                  bool /*use_second_uv*/) { return false; }
 
     // -------------------------------------------------------------------------
     // Vertex / index buffers

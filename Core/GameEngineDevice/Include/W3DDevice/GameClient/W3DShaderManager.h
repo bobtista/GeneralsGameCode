@@ -107,11 +107,11 @@ public:
 	static Bool filterSetup(FilterTypes filter, FilterModes mode);
 
 	// Support routines for filter methods.
-	static Bool canRenderToTexture() { return (m_oldRenderSurface && m_newRenderSurface);}
+	static Bool canRenderToTexture();
 	static void startRenderToTexture(); ///< Sets render target to texture.
-	static IDirect3DTexture8 * endRenderToTexture(); ///< Ends render to texture, & returns texture.
-	static IDirect3DTexture8 * getRenderTexture();	///< returns last used render target texture
-	static Bool isRenderingToTexture() {return m_renderingToTexture; }
+	static Bool endRenderToTexture(); ///< Ends render to texture.
+	static Bool hasRenderTexture();	///< returns whether a captured render target texture is available.
+	static Bool isRenderingToTexture();
 	static void drawViewport(Int color);	///<draws 2 triangles covering the current tactical viewport
 
 
@@ -126,12 +126,6 @@ protected:
 	static FilterTypes m_currentFilter; ///< Last filter that was set.
 	// Info for a render to texture surface for special effects.
 	static Bool m_renderingToTexture;
-	static IDirect3DSurface8 *m_oldRenderSurface;	///<previous render target
-	static IDirect3DTexture8 *m_renderTexture;		///<texture into which rendering will be redirected.
-	static IDirect3DSurface8 *m_newRenderSurface;	///<new render target inside m_renderTexture
-	static IDirect3DSurface8 *m_oldDepthSurface;	///<previous depth buffer surface
-
-
 };
 
 class W3DFilterInterface

@@ -64,6 +64,22 @@ public:
                        const Vector3 & color,
                        float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0) override;
     virtual void Set_Viewport(const RenderBackendViewport & viewport) override;
+    virtual bool Initialize_View_Capture(RenderBackendViewCaptureKind kind) override;
+    virtual void Release_View_Capture(RenderBackendViewCaptureKind kind) override;
+    virtual bool Supports_View_Capture(RenderBackendViewCaptureKind kind) const override;
+    virtual bool Begin_View_Capture(RenderBackendViewCaptureKind kind) override;
+    virtual bool End_View_Capture(RenderBackendViewCaptureKind kind) override;
+    virtual bool Is_View_Capture_Active(RenderBackendViewCaptureKind kind) const override;
+    virtual bool Has_View_Capture(RenderBackendViewCaptureKind kind) const override;
+    virtual bool Bind_View_Capture_Texture(RenderBackendViewCaptureKind kind,
+                                           unsigned int stage) override;
+    virtual bool Draw_View_Capture_Quad(RenderBackendViewCaptureKind kind,
+                                        const RenderBackendScreenVertex * vertices,
+                                        unsigned int vertex_count,
+                                        bool use_second_uv) override;
+    virtual bool Draw_Screen_Quad(const RenderBackendScreenVertex * vertices,
+                                  unsigned int vertex_count,
+                                  bool use_second_uv) override;
 
     // -- Vertex / index buffers -----------------------------------------------
     //
