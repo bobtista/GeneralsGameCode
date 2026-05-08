@@ -72,15 +72,13 @@
 
 
 // TheSuperHackers @refactor bobtista 19/04/2026 Phase 4K: helper to bind
-// a texture to both D3D8 and g_renderBackend so bgfx's texture cache stays
-// in sync. For raw D3D8 textures without a TextureClass*, pass nullptr for
-// tex to clear the bgfx cache (prevents stale texture artifacts).
+// a texture immediately through the active backend so bgfx's texture cache
+// stays in sync with legacy water passes that do not apply deferred state
+// before drawing.
 static inline void W3DWater_BindTexture(unsigned stage, TextureClass * tex)
 {
-	IDirect3DTexture8 * raw = (tex != nullptr) ? tex->Peek_D3D_Texture() : nullptr;
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(stage, raw);
 	if (g_renderBackend != nullptr)
-		g_renderBackend->Set_Texture(stage, tex);
+		g_renderBackend->Bind_Texture_Immediate(stage, tex);
 }
 
 #define MIPMAP_BUMP_TEXTURE
@@ -2633,10 +2631,10 @@ void WaterRenderObjClass::renderWaterMesh()
 	g_renderBackend->Set_Texture(0,setting->waterTexture);
 	g_renderBackend->Set_Texture(1,setting->waterTexture);
 
-	DX8Wrapper::Set_Light(0,*m_meshLight);
-	DX8Wrapper::Set_Light(1,nullptr);
-	DX8Wrapper::Set_Light(2,nullptr);
-	DX8Wrapper::Set_Light(3,nullptr);
+	g_renderBackend->Set_Light(0,*m_meshLight);
+	g_renderBackend->Clear_Light(1);
+	g_renderBackend->Clear_Light(2);
+	g_renderBackend->Clear_Light(3);
 /*
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENT,0);	//turn off scene ambient
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_SPECULARENABLE,TRUE);
@@ -4145,5 +4143,3 @@ void WaterRenderObjClass::loadPostProcess()
 {
 
 }
-
-

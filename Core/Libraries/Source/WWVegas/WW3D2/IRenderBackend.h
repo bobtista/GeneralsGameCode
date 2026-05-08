@@ -436,6 +436,10 @@ public:
     virtual void Get_Shader(ShaderClass & shader) {}
     virtual void Set_Material(const VertexMaterialClass * material) {}
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture) {}
+    // Immediate texture-stage bind for legacy custom passes that do not call
+    // Apply_Render_State_Changes between pass setup and draw. DX8 binds the
+    // native stage immediately; bgfx captures the same stage in its draw state.
+    virtual void Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * texture) { Set_Texture(stage, texture); }
 
     // TheSuperHackers @feature bobtista 01/06/2026 Backend-neutral CPU -> GPU
     // texture region upload. The DX8 backend implements this with a
@@ -556,6 +560,7 @@ public:
     // -------------------------------------------------------------------------
 
     virtual void Set_Light(unsigned int index, const LightClass & light) {}
+    virtual void Clear_Light(unsigned int index) {}
     virtual void Set_Ambient(const Vector3 & color) {}
     // Returns a reference — no sensible default without the Vector3 constructor.
     // Standalone backends must override; ref-popup DX8Backend provides the real value.

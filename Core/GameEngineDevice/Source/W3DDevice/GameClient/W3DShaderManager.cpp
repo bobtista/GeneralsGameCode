@@ -82,28 +82,15 @@
 #define do_not_DISABLE_PIXEL_SHADERS 1
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Shader-pass
-// texture binding helper. W3DShaderManager historically binds textures
-// for its custom shader passes by calling _Get_D3D_Device8()->SetTexture
-// directly, bypassing DX8Wrapper's render-state cache and the
-// g_renderBackend abstraction. The direct-bind is required because
-// Apply_Render_State_Changes is not called between passes, so the
-// legacy code stays. But this means the bgfx backend never sees the
-// terrain / water / shroud / noise textures for these passes and
-// renders white where the shader expected a sampled image.
-//
-// This helper keeps the immediate d3d bind (dx8 fast path) and also
-// notifies g_renderBackend->Set_Texture so BgfxBackend captures the
-// binding into its own sampler state. On the dx8 backend the render-
-// backend call bounces through DX8Wrapper::Set_Texture which caches
-// and dirties the state for the next normal draw - harmless because
-// the direct bind already put the correct texture on the device.
+// texture binding helper. Custom shader passes draw immediately after
+// setup, without an Apply_Render_State_Changes step, so the bind must
+// reach the active backend immediately instead of only dirtying deferred
+// wrapper state.
 static inline void W3DShaderManager_BindStageTexture(unsigned stage, TextureClass * tex)
 {
-	IDirect3DTexture8 * raw = (tex != NULL) ? tex->Peek_D3D_Texture() : NULL;
-	DX8Wrapper::_Get_D3D_Device8()->SetTexture(stage, raw);
 	if (g_renderBackend != nullptr)
 	{
-		g_renderBackend->Set_Texture(stage, tex);
+		g_renderBackend->Bind_Texture_Immediate(stage, tex);
 	}
 }
 
@@ -3943,7 +3930,6 @@ void FlatTerrainShaderPixelShader::reset()
 
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
-
 
 
 

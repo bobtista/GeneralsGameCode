@@ -248,6 +248,13 @@ void DX8Backend::Upload_Texture_Region(
     dst_surface->Release();
 }
 
+void DX8Backend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * texture)
+{
+    IDirect3DBaseTexture8 * raw = (texture != nullptr) ? texture->Peek_D3D_Base_Texture() : nullptr;
+    DX8Wrapper::Set_DX8_Texture(stage, raw);
+    DX8Wrapper::Set_Texture(stage, texture);
+}
+
 void DX8Backend::Apply_Render_State_Changes()
 {
     DX8Wrapper::Apply_Render_State_Changes();
@@ -489,6 +496,11 @@ void DX8Backend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix, 
 void DX8Backend::Set_Light(unsigned int index, const LightClass & light)
 {
     DX8Wrapper::Set_Light(index, light);
+}
+
+void DX8Backend::Clear_Light(unsigned int index)
+{
+    DX8Wrapper::Set_Light(index, nullptr);
 }
 
 void DX8Backend::Set_Ambient(const Vector3 & color)
