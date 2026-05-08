@@ -60,8 +60,6 @@ set(WW3D2_SRC
     dx8texman.h
     dx8vertexbuffer.cpp
     dx8vertexbuffer.h
-    dx8webbrowser.cpp
-    dx8webbrowser.h
     dx8wrapper.cpp
     dx8wrapper.h
     dynamesh.cpp
@@ -246,6 +244,8 @@ if(GGC_RENDER_BACKEND STREQUAL "dx8")
     target_sources(corei_ww3d2 INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/DX8Backend.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/DX8Backend.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8webbrowser.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8webbrowser.h
     )
 endif()
 
