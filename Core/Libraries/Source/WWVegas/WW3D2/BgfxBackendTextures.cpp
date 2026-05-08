@@ -240,10 +240,9 @@ static bgfx::TextureFormat::Enum GetBgfxTextureUploadFormat(TextureClass * tex2d
     return TranslateWW3DFormat(fmt);
 }
 
-static void ExpandA4R4G4B4ToBGRA8(const D3DLOCKED_RECT & locked,
+static void ExpandA4R4G4B4ToBGRA8(const uint8_t * srcRow, unsigned srcPitch,
     unsigned width, unsigned height, const bgfx::Memory * mem)
 {
-    const uint8_t * srcRow = static_cast<const uint8_t *>(locked.pBits);
     uint8_t * dst = mem->data;
     for (unsigned y = 0; y < height; ++y)
     {
@@ -261,24 +260,23 @@ static void ExpandA4R4G4B4ToBGRA8(const D3DLOCKED_RECT & locked,
             dst[3] = a;
             dst += 4;
         }
-        srcRow += locked.Pitch;
+        srcRow += srcPitch;
     }
 }
 
 static bool IsTerrainAtlasTexture(TextureClass * tex2d,
-    const D3DSURFACE_DESC & desc,
     bgfx::TextureFormat::Enum bgfxFmt)
 {
 	// TheSuperHackers @bugfix bobtista 28/04/2026 The terrain texture is a
 	// sparse tile atlas with black unused space between classes. D3D8's
 	// terrain path relies on tile-aware source mips and authored borders,
 	// while bgfx creates a full mip chain whenever mips are enabled. Upload a
-	// complete atlas-safe chain only for textures explicitly tagged by the
-	// terrain atlas builder.
-	return tex2d != nullptr
-		&& desc.Format == D3DFMT_A1R5G5B5
-		&& bgfxFmt == bgfx::TextureFormat::BGR5A1
-		&& tex2d->Has_Atlas_Regions();
+		// complete atlas-safe chain only for textures explicitly tagged by the
+		// terrain atlas builder.
+		return tex2d != nullptr
+			&& tex2d->Get_Texture_Format() == WW3D_FORMAT_A1R5G5B5
+			&& bgfxFmt == bgfx::TextureFormat::BGR5A1
+			&& tex2d->Has_Atlas_Regions();
 }
 
 static unsigned GetFullMipCount(unsigned width, unsigned height)
@@ -483,27 +481,20 @@ static void BleedTerrainAtlasMipGaps(std::vector<uint16_t> & pixels,
 
 static bool CopyTextureLevel(TextureClass * tex2d,
     bgfx::TextureFormat::Enum bgfxFmt,
-    IDirect3DTexture8 * d3dTex,
+    const TextureBaseClass::TextureMipSnapshot & mip,
     unsigned level,
     bgfx::Memory const ** outMem,
     uint16_t * outWidth,
     uint16_t * outHeight)
 {
-    if (tex2d == nullptr || d3dTex == nullptr || outMem == nullptr
+    (void)level;
+    if (tex2d == nullptr || outMem == nullptr
         || outWidth == nullptr || outHeight == nullptr)
     {
         return false;
     }
 
-    D3DSURFACE_DESC desc;
-    if (FAILED(d3dTex->GetLevelDesc(level, &desc)))
-    {
-        return false;
-    }
-
-    D3DLOCKED_RECT locked = { 0 };
-    HRESULT hr = d3dTex->LockRect(level, &locked, NULL, D3DLOCK_READONLY);
-    if (FAILED(hr) || locked.pBits == NULL)
+    if (mip.Data.empty() || mip.Width == 0 || mip.Height == 0)
     {
         return false;
     }
@@ -514,32 +505,36 @@ static bool CopyTextureLevel(TextureClass * tex2d,
     if (isCompressed)
     {
         const unsigned blockSize = (bgfxFmt == bgfx::TextureFormat::BC1) ? 8 : 16;
-        expectedPitch = DXT_SurfacePitch(desc.Width, blockSize);
-        numRows = DXT_SurfaceRows(desc.Height);
+        expectedPitch = DXT_SurfacePitch(mip.Width, blockSize);
+        numRows = DXT_SurfaceRows(mip.Height);
     }
     else
     {
-        expectedPitch = desc.Width * GetBytesPerPixel(bgfxFmt);
-        numRows = desc.Height;
+        expectedPitch = mip.Width * GetBytesPerPixel(bgfxFmt);
+        numRows = mip.Height;
     }
 
     const unsigned totalBytes = numRows * expectedPitch;
-    const unsigned srcPitch = static_cast<unsigned>(locked.Pitch);
+    const unsigned srcPitch = mip.Pitch;
+    if (mip.Data.size() < numRows * srcPitch)
+    {
+        return false;
+    }
     const bgfx::Memory * mem = bgfx::alloc(totalBytes);
     if (tex2d->Get_Texture_Format() == WW3D_FORMAT_A4R4G4B4
         && bgfxFmt == bgfx::TextureFormat::BGRA8
         && !isCompressed)
     {
-        ExpandA4R4G4B4ToBGRA8(locked, desc.Width, desc.Height, mem);
+        ExpandA4R4G4B4ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, mem);
     }
     else if (srcPitch == expectedPitch)
     {
-        std::memcpy(mem->data, locked.pBits, totalBytes);
+        std::memcpy(mem->data, &mip.Data[0], totalBytes);
     }
     else
     {
         const unsigned copyPitch = (srcPitch < expectedPitch) ? srcPitch : expectedPitch;
-        const uint8_t * src = static_cast<const uint8_t *>(locked.pBits);
+        const uint8_t * src = &mip.Data[0];
         uint8_t * dst = mem->data;
         for (unsigned row = 0; row < numRows; ++row)
         {
@@ -552,7 +547,6 @@ static bool CopyTextureLevel(TextureClass * tex2d,
             dst += expectedPitch;
         }
     }
-    d3dTex->UnlockRect(level);
 
     if (!isCompressed)
     {
@@ -561,26 +555,26 @@ static bool CopyTextureLevel(TextureClass * tex2d,
     }
 
     *outMem = mem;
-    *outWidth = static_cast<uint16_t>(desc.Width);
-    *outHeight = static_cast<uint16_t>(desc.Height);
+    *outWidth = static_cast<uint16_t>(mip.Width);
+    *outHeight = static_cast<uint16_t>(mip.Height);
     g_stats.textureCopies++;
     return true;
 }
 
 static bool UploadTerrainAtlasMips(TextureClass * tex2d,
-	bgfx::TextureHandle h, IDirect3DTexture8 * d3dTex, unsigned mipCount)
+	bgfx::TextureHandle h, const std::vector<TextureBaseClass::TextureMipSnapshot> & mips)
 {
 	std::vector<uint16_t> prev;
 	unsigned prevWidth = 0;
 	unsigned prevHeight = 0;
-	unsigned fullMipCount = mipCount;
+	unsigned fullMipCount = static_cast<unsigned>(mips.size());
 
-    for (unsigned mip = 0; mip < mipCount; ++mip)
+    for (unsigned mip = 0; mip < mips.size(); ++mip)
     {
 		const bgfx::Memory * mem = nullptr;
 		uint16_t mipWidth = 0;
 		uint16_t mipHeight = 0;
-		if (!CopyTextureLevel(tex2d, bgfx::TextureFormat::BGR5A1, d3dTex, mip,
+		if (!CopyTextureLevel(tex2d, bgfx::TextureFormat::BGR5A1, mips[mip], mip,
 							  &mem, &mipWidth, &mipHeight))
 		{
 			return false;
@@ -592,13 +586,13 @@ static bool UploadTerrainAtlasMips(TextureClass * tex2d,
 		bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
 			mipWidth, mipHeight, mem);
 		g_stats.textureUploads++;
-		if (mip == 0)
-		{
-			fullMipCount = GetFullMipCount(mipWidth, mipHeight);
-		}
+			if (mip == 0)
+			{
+				fullMipCount = GetFullMipCount(mipWidth, mipHeight);
+			}
     }
 
-	for (unsigned mip = mipCount; mip < fullMipCount; ++mip)
+	for (unsigned mip = static_cast<unsigned>(mips.size()); mip < fullMipCount; ++mip)
 	{
 		const unsigned nextWidth = (prevWidth > 1) ? prevWidth >> 1 : 1;
 		const unsigned nextHeight = (prevHeight > 1) ? prevHeight >> 1 : 1;
@@ -626,89 +620,71 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     {
         return BGFX_INVALID_HANDLE;
     }
-    IDirect3DBaseTexture8 * curD3D = tex->Peek_D3D_Base_Texture();
+    const unsigned textureRevision = tex->Get_CPU_Texture_Revision();
+    const std::vector<TextureBaseClass::TextureMipSnapshot> & mips = tex->Get_CPU_Texture_Mips();
 
     auto it = g_caches.texture.find(tex);
     if (it != g_caches.texture.end())
     {
-        auto d3dIt = g_caches.d3dPtr.find(tex);
-        bool d3dPtrMatch = (d3dIt != g_caches.d3dPtr.end() && d3dIt->second.ptr == curD3D);
-        if (d3dPtrMatch)
+        auto infoIt = g_caches.textureInfo.find(tex);
+        bool revisionMatch = (infoIt != g_caches.textureInfo.end()
+            && infoIt->second.revision == textureRevision);
+        if (revisionMatch)
         {
             return it->second;
         }
-        // D3D8 texture pointer changed — the TextureClass* address was reused
-        // for a different texture, OR the engine invalidated via
-        // Invalidate_Cached_Texture after writing new pixels (e.g. video
-        // frame, font atlas). Try to UPDATE the existing bgfx handle in
-        // place (no handle churn) if dimensions and format match.
-        // Only fall back to destroy+recreate if they differ.
-        // TheSuperHackers @bugfix bobtista 20/04/2026 Capture the stored
-        // dimensions BEFORE overwriting the cache entry — the in-place
-        // update path below checks against them, and the iterator aliases
-        // the same entry we are about to stomp.
+
         uint16_t cachedW = 0;
         uint16_t cachedH = 0;
-        if (d3dIt != g_caches.d3dPtr.end())
+        if (infoIt != g_caches.textureInfo.end())
         {
-            cachedW = d3dIt->second.w;
-            cachedH = d3dIt->second.h;
+            cachedW = infoIt->second.w;
+            cachedH = infoIt->second.h;
         }
-        g_caches.d3dPtr[tex] = { curD3D, 0, 0 };
-        // Options changes can release/recreate the D3D texture under a still
-        // live TextureClass. If the new pointer is temporarily null, skip the
-        // in-place update path and fall through to the normal invalid/fallback
-        // handling instead of dereferencing it below.
-        if (curD3D != nullptr && bgfx::isValid(it->second))
+        g_caches.textureInfo[tex] = { textureRevision, 0, 0 };
+
+        if (!mips.empty() && bgfx::isValid(it->second))
         {
             TextureClass * tex2d = tex->As_TextureClass();
             if (tex2d != nullptr)
             {
-                IDirect3DTexture8 * d3dTex = static_cast<IDirect3DTexture8 *>(curD3D);
-                D3DSURFACE_DESC desc;
-                if (SUCCEEDED(d3dTex->GetLevelDesc(0, &desc)))
+                const TextureBaseClass::TextureMipSnapshot & baseMip = mips[0];
+				const bgfx::TextureFormat::Enum bgfxFmt = GetBgfxTextureUploadFormat(tex2d);
+				const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, bgfxFmt);
+                if (baseMip.Width == cachedW
+                    && baseMip.Height == cachedH
+                    && bgfxFmt != bgfx::TextureFormat::Unknown)
                 {
-					const bgfx::TextureFormat::Enum bgfxFmt = GetBgfxTextureUploadFormat(tex2d);
-					const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, desc, bgfxFmt);
-                    // Check if dimensions match the existing bgfx handle
-                    if (desc.Width == cachedW
-                        && desc.Height == cachedH
-                        && bgfxFmt != bgfx::TextureFormat::Unknown)
+                    bool updatedAllLevels = true;
+                    if (terrainAtlasSafeMips)
                     {
-                        const unsigned mipCount = d3dTex->GetLevelCount();
-                        bool updatedAllLevels = true;
-                        if (terrainAtlasSafeMips)
+                        updatedAllLevels = UploadTerrainAtlasMips(tex2d, it->second, mips);
+                    }
+                    else
+                    {
+                        for (unsigned mip = 0; mip < mips.size(); ++mip)
                         {
-                            updatedAllLevels = UploadTerrainAtlasMips(tex2d, it->second, d3dTex, mipCount);
-                        }
-                        else
-                        {
-                            for (unsigned mip = 0; mip < mipCount; ++mip)
+                            const bgfx::Memory * mem = nullptr;
+                            uint16_t mipWidth = 0;
+                            uint16_t mipHeight = 0;
+                            if (!CopyTextureLevel(tex2d, bgfxFmt, mips[mip], mip,
+                                                  &mem, &mipWidth, &mipHeight))
                             {
-                                const bgfx::Memory * mem = nullptr;
-                                uint16_t mipWidth = 0;
-                                uint16_t mipHeight = 0;
-                                if (!CopyTextureLevel(tex2d, bgfxFmt, d3dTex, mip,
-                                                      &mem, &mipWidth, &mipHeight))
-                                {
-                                    updatedAllLevels = false;
-                                    break;
-                                }
-                                bgfx::updateTexture2D(it->second, 0,
-                                    static_cast<uint8_t>(mip), 0, 0,
-                                    mipWidth, mipHeight, mem);
-                                g_stats.textureUploads++;
+                                updatedAllLevels = false;
+                                break;
                             }
+                            bgfx::updateTexture2D(it->second, 0,
+                                static_cast<uint8_t>(mip), 0, 0,
+                                mipWidth, mipHeight, mem);
+                            g_stats.textureUploads++;
                         }
-                        if (updatedAllLevels)
-                        {
-                            // Store dimensions so subsequent invalidations
-                            // can still match the in-place update path.
-                            g_caches.d3dPtr[tex] = { curD3D,
-                                static_cast<uint16_t>(desc.Width),
-                                static_cast<uint16_t>(desc.Height) };
-                            return it->second; // Reused handle, no churn
-                        }
+                    }
+                    if (updatedAllLevels)
+                    {
+                        g_caches.textureInfo[tex] = { textureRevision,
+                            static_cast<uint16_t>(baseMip.Width),
+                            static_cast<uint16_t>(baseMip.Height) };
+                        return it->second;
                     }
                 }
             }
@@ -719,7 +695,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     }
     else
     {
-        g_caches.d3dPtr[tex] = { curD3D, 0, 0 };
+        g_caches.textureInfo[tex] = { textureRevision, 0, 0 };
     }
 
     // Only handle TextureClass (regular 2D) for now. Cube and volume
@@ -747,7 +723,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
             return fbIt->second.colorTex;
         }
 
-        if (curD3D == nullptr)
+        if (mips.empty())
         {
             g_caches.renderTarget[tex] = true;
             return BGFX_INVALID_HANDLE;
@@ -769,34 +745,19 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
         return BGFX_INVALID_HANDLE;
     }
 
-    IDirect3DBaseTexture8 * baseTex = tex->Peek_D3D_Base_Texture();
-    if (baseTex == nullptr)
+    if (mips.empty())
     {
         static bool s_loggedNullBase = false;
         if (!s_loggedNullBase)
         {
             s_loggedNullBase = true;
-            WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxTexture: Peek_D3D_Base_Texture returned null for %s",
+            WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxTexture: no CPU texture snapshot for %s",
                          tex2d->Get_Full_Path().str()));
         }
         return BGFX_INVALID_HANDLE;
     }
 
-    IDirect3DTexture8 * d3dTex = static_cast<IDirect3DTexture8 *>(baseTex);
-
-    D3DSURFACE_DESC desc;
-    if (FAILED(d3dTex->GetLevelDesc(0, &desc)))
-    {
-        static bool s_loggedGetLevelDesc = false;
-        if (!s_loggedGetLevelDesc)
-        {
-            s_loggedGetLevelDesc = true;
-            WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxTexture: GetLevelDesc(0) failed for %s",
-                         tex2d->Get_Full_Path().str()));
-        }
-        g_caches.texture[tex] = BGFX_INVALID_HANDLE;
-        return BGFX_INVALID_HANDLE;
-    }
+    const TextureBaseClass::TextureMipSnapshot & baseMip = mips[0];
 
     // TheSuperHackers @fix bobtista 19/04/2026 Create textures WITHOUT
     // initial data so they are mutable. Passing data to createTexture2D
@@ -808,11 +769,11 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     // as the police-car red/blue lights, rely on their authored mipmaps
     // to average colored fringes instead of sampling only a white level-0
     // hotspot when minified.
-	const unsigned mipCount = d3dTex->GetLevelCount();
-	const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, desc, bgfxFmt);
+	const unsigned mipCount = static_cast<unsigned>(mips.size());
+	const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, bgfxFmt);
     bgfx::TextureHandle h = bgfx::createTexture2D(
-        static_cast<uint16_t>(desc.Width),
-        static_cast<uint16_t>(desc.Height),
+        static_cast<uint16_t>(baseMip.Width),
+        static_cast<uint16_t>(baseMip.Height),
         mipCount > 1, 1,
         bgfxFmt,
         BGFX_TEXTURE_NONE | BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC,
@@ -823,7 +784,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
         bool uploadedAllLevels = true;
         if (terrainAtlasSafeMips)
         {
-            uploadedAllLevels = UploadTerrainAtlasMips(tex2d, h, d3dTex, mipCount);
+            uploadedAllLevels = UploadTerrainAtlasMips(tex2d, h, mips);
         }
         else
         {
@@ -832,7 +793,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
                 const bgfx::Memory * mem = nullptr;
                 uint16_t mipWidth = 0;
                 uint16_t mipHeight = 0;
-                if (!CopyTextureLevel(tex2d, bgfxFmt, d3dTex, mip,
+                if (!CopyTextureLevel(tex2d, bgfxFmt, mips[mip], mip,
                                       &mem, &mipWidth, &mipHeight))
                 {
                     uploadedAllLevels = false;
@@ -852,7 +813,9 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
 
     g_caches.texture[tex] = h;
     // Record dimensions so future reuse can update in place
-    g_caches.d3dPtr[tex] = { curD3D, static_cast<uint16_t>(desc.Width), static_cast<uint16_t>(desc.Height) };
+    g_caches.textureInfo[tex] = { textureRevision,
+        static_cast<uint16_t>(baseMip.Width),
+        static_cast<uint16_t>(baseMip.Height) };
     return h;
 }
 void BgfxBackend::Invalidate_Cached_Texture(TextureBaseClass * texture)
@@ -861,13 +824,14 @@ void BgfxBackend::Invalidate_Cached_Texture(TextureBaseClass * texture)
     {
         return;
     }
-    // Set the D3D pointer to nullptr (sentinel) so the next EnsureBgfxTexture
-    // call detects a "change" and re-uploads pixel data. KEEP the dimensions
-    // so the in-place update path can check if the bgfx handle is reusable.
-    auto d3dIt = g_caches.d3dPtr.find(texture);
-    if (d3dIt != g_caches.d3dPtr.end())
+    texture->Refresh_CPU_Texture_Snapshot();
+    // Set the cached revision to 0 (sentinel) so the next EnsureBgfxTexture
+    // detects a change and re-uploads pixel data. Keep dimensions so the
+    // in-place update path can check if the bgfx handle is reusable.
+    auto infoIt = g_caches.textureInfo.find(texture);
+    if (infoIt != g_caches.textureInfo.end())
     {
-        d3dIt->second.ptr = nullptr;
+        infoIt->second.revision = 0;
     }
 }
 
@@ -891,8 +855,8 @@ void BgfxBackend::Copy_Render_Target_To_Texture(TextureClass * dst_texture,
     bool createTexture = (dstIt == g_caches.texture.end() || !bgfx::isValid(dstIt->second));
     if (!createTexture)
     {
-        auto dimIt = g_caches.d3dPtr.find(dst_texture);
-        if (dimIt == g_caches.d3dPtr.end()
+        auto dimIt = g_caches.textureInfo.find(dst_texture);
+        if (dimIt == g_caches.textureInfo.end()
             || dimIt->second.w != width
             || dimIt->second.h != height)
         {
@@ -924,8 +888,8 @@ void BgfxBackend::Copy_Render_Target_To_Texture(TextureClass * dst_texture,
 
     bgfx::blit(kBgfxRTTTextureCopyView, dstHandle, 0, 0, srcIt->second.colorTex);
     g_stats.textureCopies++;
-    g_caches.d3dPtr[dst_texture] = {
-        dst_texture->Peek_D3D_Base_Texture(),
+    g_caches.textureInfo[dst_texture] = {
+        dst_texture->Get_CPU_Texture_Revision(),
         width,
         height
     };
@@ -952,7 +916,7 @@ void BgfxBackend::Release_Cached_Texture(TextureBaseClass * texture)
         }
         g_caches.texture.erase(it);
     }
-    g_caches.d3dPtr.erase(texture);
+    g_caches.textureInfo.erase(texture);
     g_caches.renderTarget.erase(texture);
 
     // Framebuffer-backed textures (render targets) own a framebuffer whose
@@ -1023,7 +987,7 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
                 }
                 g_caches.texture.erase(oldIt);
             }
-            g_caches.d3dPtr.erase(s_lastShroudDst);
+            g_caches.textureInfo.erase(s_lastShroudDst);
             g_caches.renderTarget.erase(s_lastShroudDst);
         }
         // TheSuperHackers @bugfix bobtista 29/04/2026 Also invalidate the
@@ -1039,7 +1003,7 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
             }
             g_caches.texture.erase(currentIt);
         }
-        g_caches.d3dPtr.erase(dst_texture);
+        g_caches.textureInfo.erase(dst_texture);
         g_caches.renderTarget.erase(dst_texture);
 
         s_lastShroudDst = dst_texture;

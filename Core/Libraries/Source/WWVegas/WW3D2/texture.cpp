@@ -58,6 +58,8 @@
 #include "texturethumbnail.h"
 #include "wwprofile.h"
 #include "RenderBackend.h"
+#include "DXTUtils.h"
+#include <cstring>
 
 const unsigned DEFAULT_INACTIVATION_TIME=20000;
 
@@ -84,9 +86,10 @@ TextureBaseClass::TextureBaseClass
 	bool rendertarget,
 	bool reducible
 )
-:	MipLevelCount(mip_level_count),
-	D3DTexture(nullptr),
-	m_backendHandle(kInvalidRenderResource),
+	:	MipLevelCount(mip_level_count),
+		D3DTexture(nullptr),
+		CPUTextureRevision(0),
+		m_backendHandle(kInvalidRenderResource),
 	Initialized(false),
    Name(""),
 	FullPath(""),
@@ -141,6 +144,7 @@ TextureBaseClass::~TextureBaseClass()
 		D3DTexture->Release();
 		D3DTexture = nullptr;
 	}
+	Clear_CPU_Texture_Snapshot();
 
 	DX8TextureManagerClass::Remove(this);
 }
@@ -223,6 +227,7 @@ void TextureBaseClass::Invalidate()
 		D3DTexture->Release();
 		D3DTexture = nullptr;
 	}
+	Clear_CPU_Texture_Snapshot();
 
 	Initialized=false;
 
@@ -291,6 +296,7 @@ void TextureBaseClass::Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex)
 	if (D3DTexture != nullptr) {
 		D3DTexture->AddRef();
 	}
+	Capture_CPU_Texture_Snapshot(D3DTexture);
 
 	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 1 —
 	// populate the backend-neutral handle after the legacy D3D8 loader
@@ -306,6 +312,60 @@ void TextureBaseClass::Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex)
 	} else if (D3DTexture == nullptr && m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
 		g_renderBackend->Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
+	}
+}
+
+void TextureBaseClass::Clear_CPU_Texture_Snapshot()
+{
+	if (!CPUTextureMips.empty()) {
+		CPUTextureMips.clear();
+	}
+	++CPUTextureRevision;
+}
+
+void TextureBaseClass::Capture_CPU_Texture_Snapshot(IDirect3DBaseTexture8* tex)
+{
+	CPUTextureMips.clear();
+	++CPUTextureRevision;
+
+	TextureClass * tex2d = As_TextureClass();
+	if (tex == nullptr || tex2d == nullptr) {
+		return;
+	}
+
+	IDirect3DTexture8 * d3d_texture = static_cast<IDirect3DTexture8 *>(tex);
+	const unsigned levels = d3d_texture->GetLevelCount();
+	CPUTextureMips.reserve(levels);
+	for (unsigned level = 0; level < levels; ++level) {
+		D3DSURFACE_DESC desc;
+		if (FAILED(d3d_texture->GetLevelDesc(level, &desc))) {
+			CPUTextureMips.clear();
+			return;
+		}
+
+		D3DLOCKED_RECT locked = { 0 };
+		if (FAILED(d3d_texture->LockRect(level, &locked, nullptr, D3DLOCK_READONLY))
+			|| locked.pBits == nullptr) {
+			CPUTextureMips.clear();
+			return;
+		}
+
+		TextureMipSnapshot mip;
+		mip.Width = desc.Width;
+		mip.Height = desc.Height;
+		mip.Pitch = static_cast<unsigned>(locked.Pitch);
+		mip.Format = tex2d->Get_Texture_Format();
+		const bool compressed =
+			mip.Format == WW3D_FORMAT_DXT1 ||
+			mip.Format == WW3D_FORMAT_DXT2 ||
+			mip.Format == WW3D_FORMAT_DXT3 ||
+			mip.Format == WW3D_FORMAT_DXT4 ||
+			mip.Format == WW3D_FORMAT_DXT5;
+		const unsigned rows = compressed ? DXT_SurfaceRows(mip.Height) : mip.Height;
+		mip.Data.resize(rows * mip.Pitch);
+		std::memcpy(&mip.Data[0], locked.pBits, mip.Data.size());
+		DX8_ErrorCode(d3d_texture->UnlockRect(level));
+		CPUTextureMips.push_back(mip);
 	}
 }
 

@@ -157,9 +157,21 @@ public:
 	// This utility function processes the texture reduction (used during rendering)
 	void Invalidate();
 
-	// texture accessors (dx8)
-	IDirect3DBaseTexture8 *Peek_D3D_Base_Texture() const;
-	void Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex);
+		// texture accessors (dx8)
+		IDirect3DBaseTexture8 *Peek_D3D_Base_Texture() const;
+		void Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex);
+		struct TextureMipSnapshot
+		{
+			unsigned Width;
+			unsigned Height;
+			unsigned Pitch;
+			WW3DFormat Format;
+			std::vector<unsigned char> Data;
+		};
+		const std::vector<TextureMipSnapshot>& Get_CPU_Texture_Mips() const { return CPUTextureMips; }
+		bool Has_CPU_Texture_Mips() const { return !CPUTextureMips.empty(); }
+		unsigned Get_CPU_Texture_Revision() const { return CPUTextureRevision; }
+		void Refresh_CPU_Texture_Snapshot() { Capture_CPU_Texture_Snapshot(D3DTexture); }
 
 	PoolType Get_Pool() const { return Pool; }
 
@@ -231,10 +243,14 @@ protected:
 
 private:
 
-	// Direct3D texture object
-	IDirect3DBaseTexture8 *D3DTexture;
+		// Direct3D texture object
+		IDirect3DBaseTexture8 *D3DTexture;
+		std::vector<TextureMipSnapshot> CPUTextureMips;
+		unsigned CPUTextureRevision;
+		void Capture_CPU_Texture_Snapshot(IDirect3DBaseTexture8* tex);
+		void Clear_CPU_Texture_Snapshot();
 
-	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
+		// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Populated by the asset loader after it calls
 	// g_renderBackend->Create_Texture(). Parallel to D3DTexture (which is
 	// still populated in DX8-only and ref-popup builds so the existing
