@@ -317,6 +317,15 @@ static uint32_t MakeBgfxClearColor(const Vector3 & color, float alpha)
     return (r << 24) | (g << 16) | (b << 8) | a;
 }
 
+static uint32_t MakeD3DColor(const Vector3 & color, float alpha)
+{
+    const uint32_t r = static_cast<uint32_t>(WWMath::Clamp(color.X, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t g = static_cast<uint32_t>(WWMath::Clamp(color.Y, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t b = static_cast<uint32_t>(WWMath::Clamp(color.Z, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t a = static_cast<uint32_t>(WWMath::Clamp(alpha, 0.0f, 1.0f) * 255.0f + 0.5f);
+    return (a << 24) | (r << 16) | (g << 8) | b;
+}
+
 static void ResetBgfxStatsLogWindow()
 {
     g_bgfxStatsLog.windowSeconds = 0.0;
@@ -5048,7 +5057,7 @@ void BgfxBackend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * 
 
 void BgfxBackend::Set_Ambient(const Vector3 & color)
 {
-    DX8Backend::Set_Ambient(color);
+    RenderStateCache::Set_Render_State(D3DRS_AMBIENT, MakeD3DColor(color, 0.0f));
     g_draw.sceneAmbient[0] = color.X;
     g_draw.sceneAmbient[1] = color.Y;
     g_draw.sceneAmbient[2] = color.Z;
@@ -5996,10 +6005,10 @@ void BgfxBackend::Clear_State_Overrides()
 
 void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
 {
-    DX8Backend::Set_Light_Environment(light_env);
     if (light_env != nullptr)
     {
         const Vector3 & ambient = light_env->Get_Equivalent_Ambient();
+        RenderStateCache::Set_Render_State(D3DRS_AMBIENT, MakeD3DColor(ambient, 0.0f));
         g_draw.sceneAmbient[0] = ambient.X;
         g_draw.sceneAmbient[1] = ambient.Y;
         g_draw.sceneAmbient[2] = ambient.Z;
