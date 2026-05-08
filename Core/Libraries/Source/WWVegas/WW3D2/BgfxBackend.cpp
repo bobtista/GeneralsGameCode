@@ -173,6 +173,12 @@ static const float kTssArgTexture =  0.0f;
 static const float kTssArgDiffuse =  1.0f;
 static const float kTssArgCurrent =  2.0f;
 
+static unsigned long AllocateLegacyShaderHandle()
+{
+    static unsigned long nextHandle = 1;
+    return nextHandle++;
+}
+
 static void ResetFrameStats()
 {
     const uint32_t nextFrame = g_stats.frameIndex + 1;
@@ -6896,6 +6902,64 @@ void BgfxBackend::Draw_Strip(unsigned short start_index,
     }
 
     SubmitEngineDraw(start_index, index_count, min_vertex_index, vertex_count, true);
+}
+
+// -- Programmable pipeline compatibility ------------------------------------
+
+bool BgfxBackend::Load_Legacy_Shader(const char * path,
+                                     const unsigned int * declaration,
+                                     unsigned int usage,
+                                     RenderBackendShaderKind kind,
+                                     unsigned long * handle)
+{
+    (void)path;
+    (void)declaration;
+    (void)usage;
+    (void)kind;
+    if (handle == nullptr) {
+        return false;
+    }
+
+    *handle = AllocateLegacyShaderHandle();
+    return true;
+}
+
+bool BgfxBackend::Create_Vertex_Shader(const unsigned int * declaration,
+                                       const unsigned int * shader,
+                                       unsigned int usage,
+                                       unsigned long * handle)
+{
+    (void)declaration;
+    (void)shader;
+    (void)usage;
+    if (handle == nullptr) {
+        return false;
+    }
+
+    *handle = AllocateLegacyShaderHandle();
+    return true;
+}
+
+bool BgfxBackend::Create_Pixel_Shader(const unsigned int * shader,
+                                      unsigned long * handle)
+{
+    (void)shader;
+    if (handle == nullptr) {
+        return false;
+    }
+
+    *handle = AllocateLegacyShaderHandle();
+    return true;
+}
+
+void BgfxBackend::Delete_Vertex_Shader(unsigned long vertex_shader)
+{
+    (void)vertex_shader;
+}
+
+void BgfxBackend::Delete_Pixel_Shader(unsigned long pixel_shader)
+{
+    (void)pixel_shader;
 }
 
 // ===========================================================================

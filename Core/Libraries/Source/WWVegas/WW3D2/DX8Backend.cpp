@@ -610,6 +610,58 @@ void DX8Backend::Draw_Strip(unsigned short start_index,
 
 // -- Programmable pipeline ---------------------------------------------------
 
+bool DX8Backend::Create_Vertex_Shader(const unsigned int * declaration,
+                                      const unsigned int * shader,
+                                      unsigned int usage,
+                                      unsigned long * handle)
+{
+    if (handle == nullptr) {
+        return false;
+    }
+
+    DWORD dx_handle = 0;
+    HRESULT hr = DX8Wrapper::_Get_D3D_Device8()->CreateVertexShader(
+        reinterpret_cast<const DWORD *>(declaration),
+        reinterpret_cast<const DWORD *>(shader),
+        &dx_handle,
+        static_cast<DWORD>(usage));
+    if (FAILED(hr)) {
+        return false;
+    }
+
+    *handle = static_cast<unsigned long>(dx_handle);
+    return true;
+}
+
+bool DX8Backend::Create_Pixel_Shader(const unsigned int * shader,
+                                     unsigned long * handle)
+{
+    if (handle == nullptr) {
+        return false;
+    }
+
+    DWORD dx_handle = 0;
+    HRESULT hr = DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader(
+        reinterpret_cast<const DWORD *>(shader),
+        &dx_handle);
+    if (FAILED(hr)) {
+        return false;
+    }
+
+    *handle = static_cast<unsigned long>(dx_handle);
+    return true;
+}
+
+void DX8Backend::Delete_Vertex_Shader(unsigned long vertex_shader)
+{
+    DX8Wrapper::_Get_D3D_Device8()->DeleteVertexShader(static_cast<DWORD>(vertex_shader));
+}
+
+void DX8Backend::Delete_Pixel_Shader(unsigned long pixel_shader)
+{
+    DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(static_cast<DWORD>(pixel_shader));
+}
+
 void DX8Backend::Set_Vertex_Shader(unsigned long vertex_shader)
 {
     DX8Wrapper::Set_Vertex_Shader(static_cast<DWORD>(vertex_shader));

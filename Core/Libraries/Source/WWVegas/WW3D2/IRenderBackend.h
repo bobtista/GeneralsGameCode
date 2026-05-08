@@ -84,6 +84,12 @@ enum RenderBackendProjectedDecalMode
     RB_PROJECTED_DECAL_MULTIPLY = 4
 };
 
+enum RenderBackendShaderKind
+{
+    RB_SHADER_PIXEL = 0,
+    RB_SHADER_VERTEX = 1
+};
+
 struct RenderBackendViewport
 {
     unsigned int x;
@@ -746,6 +752,23 @@ public:
     // will re-interpret the handles internally; the interface treats the
     // shader id as an opaque unsigned long.
 
+    // Legacy D3D8 shader-object lifetime. File-backed shaders may be
+    // handled directly by a backend before the caller loads bytecode; bgfx
+    // uses this to provide compatibility handles for native shader paths
+    // without requiring obsolete .vso/.pso bytecode files.
+    virtual bool Load_Legacy_Shader(const char * /*path*/,
+                                    const unsigned int * /*declaration*/,
+                                    unsigned int /*usage*/,
+                                    RenderBackendShaderKind /*kind*/,
+                                    unsigned long * /*handle*/) { return false; }
+    virtual bool Create_Vertex_Shader(const unsigned int * /*declaration*/,
+                                      const unsigned int * /*shader*/,
+                                      unsigned int /*usage*/,
+                                      unsigned long * /*handle*/) { return false; }
+    virtual bool Create_Pixel_Shader(const unsigned int * /*shader*/,
+                                     unsigned long * /*handle*/) { return false; }
+    virtual void Delete_Vertex_Shader(unsigned long /*vertex_shader*/) {}
+    virtual void Delete_Pixel_Shader(unsigned long /*pixel_shader*/) {}
     virtual void Set_Vertex_Shader(unsigned long vertex_shader) {}
     virtual void Set_Pixel_Shader(unsigned long pixel_shader) {}
     virtual void Set_Vertex_Shader_Constant(int reg, const void * data, int count) {}

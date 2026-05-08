@@ -854,22 +854,20 @@ void WaterRenderObjClass::ReleaseResources()
 	if (m_waterTrackSystem)
 		m_waterTrackSystem->ReleaseResources();
 
-#if !defined(GGC_BGFX_STANDALONE)
 	if (m_dwWavePixelShader)
-		m_pDev->DeletePixelShader(m_dwWavePixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_dwWavePixelShader);
 
 	if (m_dwWaveVertexShader)
-		m_pDev->DeleteVertexShader(m_dwWaveVertexShader);
+		g_renderBackend->Delete_Vertex_Shader(m_dwWaveVertexShader);
 
 	if (m_waterPixelShader)
-		m_pDev->DeletePixelShader(m_waterPixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_waterPixelShader);
 
 	if (m_trapezoidWaterPixelShader)
-		m_pDev->DeletePixelShader(m_trapezoidWaterPixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_trapezoidWaterPixelShader);
 
 	if (m_riverWaterPixelShader)
-		m_pDev->DeletePixelShader(m_riverWaterPixelShader);
-#endif
+		g_renderBackend->Delete_Pixel_Shader(m_riverWaterPixelShader);
 
 	m_dwWavePixelShader=0;
 	m_dwWaveVertexShader=0;
@@ -960,10 +958,15 @@ void WaterRenderObjClass::ReAcquireResources()
 	{
 #if defined(GGC_BGFX_STANDALONE)
 		// Standalone bgfx implements these water paths with native programs.
-		// Preserve the old truthy handles so feature gates keep their behavior.
-		m_riverWaterPixelShader = 1;
-		m_waterPixelShader = 1;
-		m_trapezoidWaterPixelShader = 1;
+		// Ask the backend for opaque compatibility handles so feature gates
+		// keep their behavior without depending on legacy D3D8 bytecode.
+		unsigned long legacyHandle = 0;
+		if (g_renderBackend->Create_Pixel_Shader(nullptr, &legacyHandle))
+			m_riverWaterPixelShader = static_cast<DWORD>(legacyHandle);
+		if (g_renderBackend->Create_Pixel_Shader(nullptr, &legacyHandle))
+			m_waterPixelShader = static_cast<DWORD>(legacyHandle);
+		if (g_renderBackend->Create_Pixel_Shader(nullptr, &legacyHandle))
+			m_trapezoidWaterPixelShader = static_cast<DWORD>(legacyHandle);
 #else
 		ID3DXBuffer *compiledShader;
 		const char *shader =
@@ -979,7 +982,11 @@ void WaterRenderObjClass::ReAcquireResources()
 			add r0.rgb, r0, r1\n";
 		hr = D3DXAssembleShader( shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
 		if (hr==0) {
-			hr = 	DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader((DWORD*)compiledShader->GetBufferPointer(), &m_riverWaterPixelShader);
+			unsigned long legacyHandle = 0;
+			hr = g_renderBackend->Create_Pixel_Shader(
+				reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
+				&legacyHandle) ? S_OK : E_FAIL;
+			m_riverWaterPixelShader = static_cast<DWORD>(legacyHandle);
 			compiledShader->Release();
 		}
 		shader =
@@ -992,7 +999,11 @@ void WaterRenderObjClass::ReAcquireResources()
 			add r0.rgb, r0, r1";
 		hr = D3DXAssembleShader( shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
 		if (hr==0) {
-			hr = 	DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader((DWORD*)compiledShader->GetBufferPointer(), &m_waterPixelShader);
+			unsigned long legacyHandle = 0;
+			hr = g_renderBackend->Create_Pixel_Shader(
+				reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
+				&legacyHandle) ? S_OK : E_FAIL;
+			m_waterPixelShader = static_cast<DWORD>(legacyHandle);
 			compiledShader->Release();
 		}
 		shader =
@@ -1007,7 +1018,11 @@ void WaterRenderObjClass::ReAcquireResources()
 			;\n";
 		hr = D3DXAssembleShader( shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
 			if (hr==0) {
-				hr = 	DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader((DWORD*)compiledShader->GetBufferPointer(), &m_trapezoidWaterPixelShader);
+				unsigned long legacyHandle = 0;
+				hr = g_renderBackend->Create_Pixel_Shader(
+					reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
+					&legacyHandle) ? S_OK : E_FAIL;
+				m_trapezoidWaterPixelShader = static_cast<DWORD>(legacyHandle);
 				compiledShader->Release();
 			}
 #endif

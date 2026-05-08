@@ -21,6 +21,8 @@
 #include "../../../Include/W3DDevice/GameClient/W3DProfilerFrameCapture.h"
 
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/IRenderBackend.h"
+#include "WW3D2/RenderBackend.h"
 #include "WW3D2/surfaceclass.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/ww3d.h"
@@ -37,7 +39,7 @@ W3DProfilerFrameCapture::~W3DProfilerFrameCapture()
 {
 	if (m_swizzleShader)
 	{
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_swizzleShader);
+		g_renderBackend->Delete_Pixel_Shader(m_swizzleShader);
 		m_swizzleShader = 0;
 	}
 }
@@ -84,7 +86,11 @@ void W3DProfilerFrameCapture::Capture(UnsignedInt displayWidth, UnsignedInt disp
 		if (FAILED(hr))
 			return;
 
-		hr = DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader((DWORD *)compiledShader->GetBufferPointer(), &m_swizzleShader);
+		unsigned long shaderHandle = 0;
+		hr = g_renderBackend->Create_Pixel_Shader(
+			reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
+			&shaderHandle) ? S_OK : E_FAIL;
+		m_swizzleShader = static_cast<DWORD>(shaderHandle);
 		compiledShader->Release();
 
 		if (FAILED(hr))
