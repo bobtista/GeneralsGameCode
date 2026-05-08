@@ -656,7 +656,7 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 			nShadowDecalStartBatchIndex);
 	}
 
-	if (!DX8Wrapper::_Get_D3D_Device8())
+	if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 		return;	//no D3D Device to render
 
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
@@ -668,7 +668,6 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 	// current stage state at submit time, so make the intended state explicit.
 	g_renderBackend->Set_Texture_Clamp_Mode(0, true, true);
 
-//	DX8Wrapper::Set_Shader(ShaderClass::_PresetOpaqueShader);	//good for debugging, draws without alpha
 	switch (type)
 	{
 		case SHADOW_DECAL:
@@ -681,10 +680,6 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 			g_renderBackend->Set_Shader(ShaderClass::_PresetAdditiveShader);
 			break;
 	}
-
-//	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x60);
-//	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_GREATEREQUAL);
-	//_PresetAlphaSpriteShader
 
 	g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
@@ -701,22 +696,6 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 
 	g_renderBackend->Set_Vertex_Buffer(shadowDecalVertexBuffer, 0);
 	g_renderBackend->Set_Vertex_Shader(SHADOW_DECAL_FVF);
-
-//Hard Shadows using stencil
-/*	m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_ZERO);
-	m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
-	g_renderBackend->Override_Alpha_Test(true, 0, RB_CMP_ALWAYS);	//should reject background pixels
-	g_renderBackend->Set_Stencil_Enable(true);
-*/
-/*	g_renderBackend->Set_Stencil_Func(RB_CMP_ALWAYS);
-	g_renderBackend->Set_Stencil_Ref(0x1);
-	g_renderBackend->Set_Stencil_Mask(0xffffffff);
-	g_renderBackend->Set_Stencil_Write_Mask(0xffffffff);
-	g_renderBackend->Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
-	g_renderBackend->Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
-	g_renderBackend->Set_Stencil_Pass_Op(RB_STENCIL_OP_INCR);
-*/
-//m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );	//useful to see bounds
 
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
 	{
@@ -738,21 +717,6 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 
 	g_renderBackend->Set_Vertex_Buffer(nullptr, 0);
 	g_renderBackend->Set_Index_Buffer(nullptr, 0);
-
-//m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
-
-
-	//Restore multiplicative sprite shader
-//	m_pDev->SetRenderState(D3DRS_DESTBLEND,D3DBLEND_SRCCOLOR);	//restore W3D state
-//	m_pDev->SetRenderState(D3DRS_SRCBLEND, D3DBLEND_ZERO);
-
-/*	m_pDev->SetTextureStageState(0, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-	m_pDev->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-	m_pDev->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_CURRENT);
-	m_pDev->SetTextureStageState(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
-	m_pDev->SetTextureStageState(0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-	m_pDev->SetTextureStageState(0, D3DTSS_ALPHAARG2, D3DTA_CURRENT);
-*/
 	nShadowDecalStartBatchVertex=nShadowDecalVertsInBuf;
 	nShadowDecalStartBatchIndex=nShadowDecalIndicesInBuf;
 	nShadowDecalPolysInBatch=0;	//reset number of polys in texture batch
