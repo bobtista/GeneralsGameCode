@@ -57,6 +57,7 @@
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "vertmaterial.h"
+#include "RenderStateCache.h"
 
 // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3G deprecation sweep.
 // Flag DX8Wrapper methods that have an IRenderBackend equivalent so the
@@ -560,8 +561,8 @@ public:
 
 	static const char* Get_DX8_Render_State_Name(D3DRENDERSTATETYPE state);
 	static const char* Get_DX8_Texture_Stage_State_Name(D3DTEXTURESTAGESTATETYPE state);
-	static unsigned Get_DX8_Render_State(D3DRENDERSTATETYPE state) { return RenderStates[state]; }
-	static unsigned Get_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state) { return TextureStageStates[stage][(unsigned)state]; }
+	static unsigned Get_DX8_Render_State(D3DRENDERSTATETYPE state) { return RenderStateCache::Get_Render_State((unsigned)state); }
+	static unsigned Get_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state) { return RenderStateCache::Get_Texture_Stage_State(stage,(unsigned)state); }
 
 	// Names of the specific values of render states and texture stage states
 	static void Get_DX8_Texture_Stage_State_Value_Name(StringClass& name, D3DTEXTURESTAGESTATETYPE state, unsigned value);
@@ -688,8 +689,6 @@ protected:
 	// shader system updates KJM ^
 
 	static bool								world_identity;
-	static unsigned						RenderStates[256];
-	static unsigned						TextureStageStates[MAX_TEXTURE_STAGES][32];
 	static IDirect3DBaseTexture8 *	Textures[MAX_TEXTURE_STAGES];
 
 	// These fog settings are constant for all objects in a given scene,
@@ -875,7 +874,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Light(int index, D3DLIGHT8* light)
 WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value)
 {
 	// Can't monitor state changes because setShader call to GERD may change the states!
-	if (RenderStates[state]==value) return;
+	if (RenderStateCache::Get_Render_State((unsigned)state)==value) return;
 
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 	if (WW3D::Is_Snapshot_Activated()) {
@@ -887,7 +886,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigne
 	}
 #endif
 
-	RenderStates[state]=value;
+	RenderStateCache::Set_Render_State((unsigned)state,value);
 	DX8CALL(SetRenderState( state, value ));
 	DX8_RECORD_RENDER_STATE_CHANGE();
 }
@@ -905,7 +904,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURE
   	}
 
 	// Can't monitor state changes because setShader call to GERD may change the states!
-	if (TextureStageStates[stage][(unsigned int)state]==value) return;
+	if (RenderStateCache::Get_Texture_Stage_State(stage,(unsigned int)state)==value) return;
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 	if (WW3D::Is_Snapshot_Activated()) {
 		StringClass value_name(0,true);
@@ -917,7 +916,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURE
 	}
 #endif
 
-	TextureStageStates[stage][(unsigned int)state]=value;
+	RenderStateCache::Set_Texture_Stage_State(stage,(unsigned int)state,value);
 	DX8CALL(SetTextureStageState( stage, state, value ));
 	DX8_RECORD_TEXTURE_STAGE_STATE_CHANGE();
 }

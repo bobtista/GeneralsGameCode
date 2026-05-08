@@ -159,6 +159,8 @@ set(WW3D2_SRC
     rddesc.h
     RenderBackend.cpp
     RenderBackend.h
+    RenderStateCache.cpp
+    RenderStateCache.h
     #render2d.cpp
     #render2d.h
     render2dsentence.cpp
