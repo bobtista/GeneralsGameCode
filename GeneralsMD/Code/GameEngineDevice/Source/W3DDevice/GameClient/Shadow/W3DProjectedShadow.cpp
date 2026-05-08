@@ -466,9 +466,9 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 		Real mapScaleInv=1.0f/MAP_XY_FACTOR;
 		SHADOW_VOLUME_VERTEX* pvVertices;
 		UnsignedShort *pvIndices;
-		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
 
-		if (!m_pDev)	return 0;
+		if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
+			return 0;
 
 		//Get terrain cell index for area with shadow
 		Int startX=REAL_TO_INT_FLOOR(((cx - dx)*mapScaleInv));
@@ -603,7 +603,6 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 		g_renderBackend->Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
 		g_renderBackend->Set_Stencil_Pass_Op(RB_STENCIL_OP_INCR);
 
-//    m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );	//useful to see bounds
 		g_renderBackend->Set_Lighting_Enable(false);
 		g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 
@@ -621,7 +620,6 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 
 		g_renderBackend->Override_Alpha_Test(false, 0, RB_CMP_ALWAYS);	//disable atest
 		g_renderBackend->Set_Stencil_Enable(false);
-//    m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
 		g_renderBackend->Set_Lighting_Enable(true);
 
 		nShadowVertsInBuf += numVerts;
