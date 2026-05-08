@@ -43,7 +43,9 @@ W3DSnowManager::W3DSnowManager()
 {
 	m_indexBuffer=nullptr;
 	m_snowTexture=nullptr;
+#if !defined(GGC_BGFX_STANDALONE)
 	m_VertexBufferD3D=nullptr;
+#endif
 }
 
 W3DSnowManager::~W3DSnowManager()
@@ -62,10 +64,12 @@ void W3DSnowManager::ReleaseResources()
 {
 	REF_PTR_RELEASE(m_snowTexture);
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (m_VertexBufferD3D)
 		m_VertexBufferD3D->Release();
 
 	m_VertexBufferD3D=nullptr;
+#endif
 
 	REF_PTR_RELEASE(m_indexBuffer);
 }
@@ -78,12 +82,14 @@ Bool W3DSnowManager::ReAcquireResources()
 	if (!TheWeatherSetting->m_snowEnabled)
 		return TRUE;	//no need for resources if snow is disabled.
 
-	Bool usePointSpritePath = TheWeatherSetting->m_usePointSprites && DX8Wrapper::Get_Current_Caps()->Support_PointSprites();
 #if defined(GGC_BGFX_STANDALONE)
-	usePointSpritePath = FALSE;
+	Bool usePointSpritePath = FALSE;
+#else
+	Bool usePointSpritePath = TheWeatherSetting->m_usePointSprites && DX8Wrapper::Get_Current_Caps()->Support_PointSprites();
 #endif
 	if (usePointSpritePath)
 	{
+#if !defined(GGC_BGFX_STANDALONE)
 		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
 
 		DEBUG_ASSERTCRASH(m_pDev, ("Trying to ReAcquireResources on W3DSnowManager without device"));
@@ -101,6 +107,7 @@ Bool W3DSnowManager::ReAcquireResources()
 			)))
 				return FALSE;
 		}
+#endif
 	}
 	else
 	{
@@ -181,6 +188,9 @@ method is used so that very few off-screen particles end up getting rendered.  C
 be too expensive since we're dealing with 1000's for this effect.*/
 void W3DSnowManager::renderSubBox(RenderInfoClass &rinfo, Int originX, Int originY, Int cubeDimX, Int cubeDimY )
 {
+#if defined(GGC_BGFX_STANDALONE)
+	return;
+#else
 	//check if this box is too large and needs subdivision
 	Int boxDimX=cubeDimX - originX;
 	Int boxDimY=cubeDimY - originY;
@@ -324,6 +334,7 @@ flush_particles:
 			m_dwBase += numberInBatch;
 		}
 	}
+#endif
 }
 
 void W3DSnowManager::render(RenderInfoClass &rinfo)
@@ -411,8 +422,10 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 	REF_PTR_RELEASE(vmat);
 
 	//make sure we have all the resources we need
+#if !defined(GGC_BGFX_STANDALONE)
 	if (usePointSprites && !m_VertexBufferD3D)
 		ReAcquireResources();
+#endif
 
 	if (!usePointSprites && !m_indexBuffer)
 		ReAcquireResources();
@@ -425,6 +438,7 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 		return;
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	Vector3 snowCenter;
 
 	g_renderBackend->Apply_Render_State_Changes();
@@ -454,6 +468,7 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 	// Reset render states
     DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSPRITEENABLE, FALSE );
     DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALEENABLE,  FALSE );
+#endif
 
 }
 
