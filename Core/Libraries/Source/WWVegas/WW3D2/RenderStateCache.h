@@ -10,6 +10,8 @@
 
 #pragma once
 
+#include "d3d8.h"
+
 class RenderStateCache
 {
 public:
@@ -18,6 +20,7 @@ public:
 		RENDER_STATE_COUNT = 256,
 		TEXTURE_STAGE_COUNT = 8,
 		TEXTURE_STAGE_STATE_COUNT = 32,
+		TRANSFORM_COUNT = D3DTS_WORLD + 1,
 		INVALID_STATE_VALUE = 0x12345678
 	};
 
@@ -30,7 +33,11 @@ public:
 	static unsigned Get_Texture_Stage_State(unsigned stage, unsigned state);
 	static bool Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value);
 
+	static void Get_Transform(unsigned transform, D3DMATRIX & matrix);
+	static bool Set_Transform(unsigned transform, const D3DMATRIX & matrix);
+
 private:
 	static unsigned RenderStates[RENDER_STATE_COUNT];
 	static unsigned TextureStageStates[TEXTURE_STAGE_COUNT][TEXTURE_STAGE_STATE_COUNT];
+	static D3DMATRIX Transforms[TRANSFORM_COUNT];
 };

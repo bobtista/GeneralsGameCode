@@ -4360,8 +4360,7 @@ static void SetIdentityTextureTransform(float * row0, float * row1)
 static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 {
     D3DMATRIX texMtx;
-    DX8Wrapper::_Get_DX8_Transform(
-        static_cast<D3DTRANSFORMSTATETYPE>(D3DTS_TEXTURE0 + stage), texMtx);
+    RenderStateCache::Get_Transform(D3DTS_TEXTURE0 + stage, texMtx);
     row0[0] = texMtx.m[0][0];
     row0[1] = texMtx.m[1][0];
     row0[2] = texMtx.m[2][0];
@@ -4379,8 +4378,7 @@ static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 static void ReadTextureTransformZ(unsigned stage, float * rowZ)
 {
     D3DMATRIX texMtx;
-    DX8Wrapper::_Get_DX8_Transform(
-        static_cast<D3DTRANSFORMSTATETYPE>(D3DTS_TEXTURE0 + stage), texMtx);
+    RenderStateCache::Get_Transform(D3DTS_TEXTURE0 + stage, texMtx);
     rowZ[0] = texMtx.m[0][2];
     rowZ[1] = texMtx.m[1][2];
     rowZ[2] = texMtx.m[2][2];
@@ -5184,8 +5182,7 @@ void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix
         }
     }
 
-    DX8Wrapper::_Set_DX8_Transform(
-        static_cast<D3DTRANSFORMSTATETYPE>(D3DTS_TEXTURE0 + stage), d3dMtx);
+    RenderStateCache::Set_Transform(D3DTS_TEXTURE0 + stage, d3dMtx);
 
     if (stage == 0)
     {
@@ -6540,10 +6537,9 @@ void SubmitEngineDraw(unsigned short start_index,
                 // Extract shroud offset+scale by cancelling inv(view)
                 // from the texture matrix: view * texMtx = T * S.
                 D3DMATRIX texMtx;
-                DX8Wrapper::_Get_DX8_Transform(
-                    static_cast<D3DTRANSFORMSTATETYPE>(D3DTS_TEXTURE0 + stg), texMtx);
+                RenderStateCache::Get_Transform(D3DTS_TEXTURE0 + stg, texMtx);
                 D3DMATRIX viewMtx;
-                DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, viewMtx);
+                RenderStateCache::Get_Transform(D3DTS_VIEW, viewMtx);
                 // Manual 4x4 multiply: ts = view * texMtx (D3D row-major)
                 D3DMATRIX ts;
                 for (int rr = 0; rr < 4; rr++)
