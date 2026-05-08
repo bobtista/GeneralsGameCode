@@ -2678,9 +2678,9 @@ void WaterRenderObjClass::renderWaterMesh()
 		g_renderBackend->Draw_Strip(0,m_numIndices-2,0,mx*my);
 		g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
 #else
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+		g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 		m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP,0,mx*my,0,m_numIndices-2);
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_EQUAL);
+		g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
 #endif
 		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 	}
@@ -3179,11 +3179,11 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 
 
 	if (wireframeForDebug) {
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
+		g_renderBackend->Set_Fill_Mode(RB_FILL_WIREFRAME);
 	}
 	g_renderBackend->Draw_Triangles(	0,rectangleCount*2, 0,	(rectangleCount+1)*2);
 	if (wireframeForDebug) {
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
+		g_renderBackend->Set_Fill_Mode(RB_FILL_SOLID);
 	}
 
 	if (m_riverWaterPixelShader) DX8Wrapper::_Get_D3D_Device8()->SetPixelShader(0);
@@ -3232,7 +3232,7 @@ void WaterRenderObjClass::setupFlatWaterShader()
 			W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 3);
 			//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 			//write to the zbuffer.  Change to LESSEQUAL.
-			DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+			g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 		}
 		else
 		{	//Assume no shroud, so stage 3 will be null texture but using actual white because
@@ -3659,16 +3659,16 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 			{
 				W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 				W3DWater_BindTexture(3, nullptr);
-				DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_EQUAL);
+				g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
 			}
 			else
 			{
 				W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
 				W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
 				g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
-				DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+				g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 				g_renderBackend->Draw_Triangles(	0,totalRectangleCount*2, 0,	batchVertexCount);
-				DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_EQUAL);
+				g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
 				W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 			}
 		}
@@ -3961,7 +3961,7 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 		{	//shroud was applied in stage3 of main pass so just need to restore state here.
 			W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 			W3DWater_BindTexture(3, nullptr);	//free possible reference to shroud texture
-			DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_EQUAL);
+			g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
 		}
 		else
 		{	//do second pass to apply the shroud on water plane for cards that can't do it in main pass.
@@ -3970,9 +3970,9 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 			g_renderBackend->Set_Cull_Mode(RB_CULL_NONE);
 			//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 			//write to the zbuffer.  Change to LESSEQUAL.
-			DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+			g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 			g_renderBackend->Draw_Triangles(	0,rectangleCount*2, 0,	(rectangleCount+1)*2);
-			DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ZFUNC, D3DCMP_EQUAL);
+			g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
 			W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 		}
 	}
