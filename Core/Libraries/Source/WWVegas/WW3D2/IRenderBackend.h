@@ -514,6 +514,7 @@ public:
     virtual void Set_Depth_Test_Enable(bool enable) {}
     virtual void Set_Depth_Write_Enable(bool enable) {}
     virtual void Set_Depth_Func(CompareFunc func) {}
+    virtual unsigned Get_Color_Write_Mask() const { return RB_COLOR_RGBA; }
     virtual void Set_Color_Write_Mask(unsigned mask) {}
     virtual void Set_Lighting_Enable(bool enable) {}
     virtual void Set_Texture_Factor(unsigned argb) {}
