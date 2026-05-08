@@ -142,6 +142,7 @@ public:
     virtual void Set_Ambient(const Vector3 & color) override;
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end) override;
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) override;
+    virtual void Set_Blend_Op(BlendOp op) override;
     virtual void Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend) override;
     virtual void Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func) override;
     virtual void Override_Alpha_Blend_Enable(bool enable) override;

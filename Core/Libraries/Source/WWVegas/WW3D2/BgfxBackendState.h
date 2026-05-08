@@ -225,6 +225,7 @@ struct BgfxDraw
     uint32_t shadowStencilBack  = BGFX_STENCIL_NONE;
 
     // Uniform VALUES pushed via bgfx::setUniform per submit
+    uint64_t blendEquationBits = 0;
     float matDiffuse[4]       = { 1.0f, 1.0f, 1.0f, 1.0f };
     float matAmbient[4]       = { 1.0f, 1.0f, 1.0f, 1.0f };
     float matEmissive[4]      = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -232,6 +233,7 @@ struct BgfxDraw
     float tssOps0[4]          = { 3.0f, 3.0f, 0.0f, 0.0f };
     float tssOps1[4]          = { 0.0f, 0.0f, 0.0f, 0.0f };
     float atestRef            = 0.0f;
+    float atestFunc           = 0.0f;
     float texcoordSelect[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
     // .x/.y are used by vs_uber for stage-1 UV routing and transform state.
     // .w tags additive blend draws for black-matte discard in fs_uber.
@@ -305,6 +307,7 @@ struct BgfxOverrides
     uint64_t blendBits          = 0;
     bool     atestActive        = false;
     float    atestRef           = 0.0f;
+    float    atestFunc          = 0.0f;
     bool     suppressDraw       = false;
     int      colorWriteOverride = -1;
 
@@ -314,6 +317,7 @@ struct BgfxOverrides
         blendBits          = 0;
         atestActive        = false;
         atestRef           = 0.0f;
+        atestFunc          = 0.0f;
         suppressDraw       = false;
         colorWriteOverride = -1;
     }
@@ -452,6 +456,7 @@ struct BgfxPhase5Entry
     bgfx::DynamicVertexBufferHandle  dvb;
     bgfx::DynamicIndexBufferHandle   dib;
     void * d3d_mirror;               // IDirect3D*8* cast to void*, ref-popup only; nullptr in standalone
+    void * owner;                    // TextureBaseClass/VertexBufferClass/IndexBufferClass for loaded-resource caches
     unsigned int size_bytes;         // for dynamic buffers — size of the backing allocation
     // Dynamic Map/Unmap: if using_transient is true, tvb/tib is live for this frame
     bool using_transient_vb;

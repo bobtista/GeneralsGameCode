@@ -73,6 +73,22 @@ uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
 // Multiplier applied to shadowed pixels. 1.0 = unshadowed, 0.0 = fully black; we darken to 60% for visible but not crushed shadows.
 #define SHADOW_DARKNESS 0.6
 
+bool alphaTestPass(float alpha, float ref, float func)
+{
+	if (func < 0.5)
+	{
+		return true;
+	}
+	if (func < 1.5) { return false; }              // D3DCMP_NEVER
+	if (func < 2.5) { return alpha < ref; }        // D3DCMP_LESS
+	if (func < 3.5) { return abs(alpha - ref) <= (0.5 / 255.0); }
+	if (func < 4.5) { return alpha <= ref; }       // D3DCMP_LESSEQUAL
+	if (func < 5.5) { return alpha > ref; }        // D3DCMP_GREATER
+	if (func < 6.5) { return abs(alpha - ref) > (0.5 / 255.0); }
+	if (func < 7.5) { return alpha >= ref; }       // D3DCMP_GREATEREQUAL
+	return true;                                  // D3DCMP_ALWAYS
+}
+
 vec3 applyColorOp(float op, vec3 arg1, vec3 arg2)
 {
 	// Binary split to reduce worst-case from 7 sequential comparisons to 4.
@@ -188,7 +204,7 @@ void main()
 		vec3 blended = mix(baseTex.rgb, blendTex.rgb, blendAlpha);
 		vec4 result = vec4(blended * diffuse.rgb, 1.0);
 
-		if (u_atestParams.x > 0.0 && result.a < u_atestParams.x)
+		if (!alphaTestPass(result.a, u_atestParams.x, u_atestParams.y))
 		{
 			discard;
 		}
@@ -497,7 +513,7 @@ void main()
 	}
 
 	// --- Alpha test ---
-	if (u_atestParams.x > 0.0 && current.a < u_atestParams.x)
+	if (!alphaTestPass(current.a, u_atestParams.x, u_atestParams.y))
 	{
 		discard;
 	}
