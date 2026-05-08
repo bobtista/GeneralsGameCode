@@ -2291,7 +2291,7 @@ void DX8MeshRendererClass::Render_Decal_Meshes()
 	DecalMeshClass * decal_mesh = visible_decal_meshes;
 	if (!decal_mesh) return;
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZBIAS,8);
+	g_renderBackend->Set_Z_Bias(8);
 
 	while (decal_mesh != nullptr) {
 		decal_mesh->Render();
@@ -2299,7 +2299,7 @@ void DX8MeshRendererClass::Render_Decal_Meshes()
 	}
 	visible_decal_meshes = nullptr;
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZBIAS,0);
+	g_renderBackend->Set_Z_Bias(0);
 }
 
 // ----------------------------------------------------------------------------
@@ -2351,7 +2351,6 @@ void DX8MeshRendererClass::Invalidate( bool shutdown)
 
 	texture_category_container_lists_rigid.Delete_All();
 }
-
 
 
 
