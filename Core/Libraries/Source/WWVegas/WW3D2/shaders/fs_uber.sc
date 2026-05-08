@@ -25,7 +25,8 @@ uniform vec4 u_lightParams[4]; // x inner range, y outer/range, z > 0.5 point, w
 uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
 uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
 uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
-uniform vec4 u_texcoordSelect2; // .z > 0.5 = default blob shadow alpha-mask multiply
+uniform vec4 u_texcoordSelect2; // .w > 0.5 = additive blend draw
+uniform vec4 u_projectedDecalMode; // .x = RenderBackendProjectedDecalMode
 uniform vec4 u_texProjected; // .x > 0.5 = stage 0 projected, .y > 0.5 = stage 1 projected
 uniform vec4 u_vertexColorFlags; // .y/.z/.w: diffuse/ambient/emissive source is COLOR1
 uniform vec4 u_grayscaleEnable; // .x > 0.5 = convert final color to luminance (disabled button state)
@@ -52,6 +53,10 @@ uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
 #define SRC_DIFFUSE  1.0
 #define SRC_CURRENT  2.0
 
+// RenderBackendProjectedDecalMode values from IRenderBackend.h.
+#define PROJECTED_DECAL_BLOB_SHADOW 1.0
+#define PROJECTED_DECAL_ADDITIVE    2.0
+
 // Shadow map inverse resolution, passed from C++ via u_shadowParams.y
 // to avoid hardcoding the texture size in both shader and backend.
 // Shadow map depth bias. Terrain uses a larger value to kill self-shadow acne on near-flat slopes; general meshes need a tighter value so curved / thin geometry keeps its contact shadow.
@@ -60,6 +65,11 @@ uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
 #define CLOUD_SHADOW_MIN 0.72
 // BT.601 luminance weights (matches the BGRA bytes of the D3D8 TFACTOR=0x80A5CA8E cascade used by the disabled-button grayscale path).
 #define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
+// Additive projector/effect textures often carry a pure-black matte around
+// useful glow pixels. In D3D8 that matte is a no-op for additive blending; on
+// bgfx it can survive as visible matte fragments unless discarded.
+// Half of one 8-bit color step is "rounds to black" in authored effect mattes.
+#define ADDITIVE_MATTE_EPSILON (0.5 / 255.0)
 // Multiplier applied to shadowed pixels. 1.0 = unshadowed, 0.0 = fully black; we darken to 60% for visible but not crushed shadows.
 #define SHADOW_DARKNESS 0.6
 
@@ -215,6 +225,39 @@ void main()
 	vec4 tex1 = texture2D(s_tex1, stage1UV);
 	vec4 tex2 = texture2D(s_tex2, v_texcoord0);
 	vec4 tex3 = texture2D(s_tex3, v_texcoord0);
+
+	if (u_projectedDecalMode.x > (PROJECTED_DECAL_ADDITIVE - 0.5)
+		&& u_projectedDecalMode.x < (PROJECTED_DECAL_ADDITIVE + 0.5))
+	{
+		// W3D projected additive decals (Spy Satellite / Spy Drone reveal
+		// grid, radius decals) use the fixed-function additive preset:
+		// stage0 texture modulated by vertex diffuse, then ONE/ONE blending.
+		// They are not lit meshes and must not inherit stale material,
+		// secondary-stage, CSM, or blob-shadow state from the shared decal
+		// batch path.
+		vec4 projected = vec4(tex0.rgb * diffuse.rgb, 0.0);
+		if (max(max(projected.r, projected.g), projected.b) <= ADDITIVE_MATTE_EPSILON)
+		{
+			discard;
+		}
+		gl_FragColor = projected;
+		return;
+	}
+
+	if (u_projectedDecalMode.x > (PROJECTED_DECAL_BLOB_SHADOW - 0.5)
+		&& u_projectedDecalMode.x < (PROJECTED_DECAL_BLOB_SHADOW + 0.5))
+	{
+		// Infantry blob shadows are projected decals with a multiplicative
+		// blend where shader RGB is the destination-color multiplier. The
+		// texture alpha supplies the blob shape, while vertex alpha supplies
+		// W3DProjectedShadow's per-decal fade/clipping. Evaluate this before
+		// the generic TSS path so stale secondary-stage state from reveal
+		// projectors cannot blank or suppress the shadow.
+		float mask = clamp(tex0.a * diffuse.a, 0.0, 1.0);
+		vec3 blob = tex0.rgb * diffuse.rgb;
+		gl_FragColor = vec4(mix(vec3_splat(1.0), blob, mask), 1.0);
+		return;
+	}
 
 	// --- TSS stage evaluation ---
 	// u_tssOps0 = (priColorOp, priAlphaOp, secColorOp, secAlphaOp)
@@ -445,10 +488,10 @@ void main()
 	}
 
 	// Additive black texels are mathematical no-ops in the D3D8 fixed-function
-	// path. Discard them before output so large additive projector/effect
-	// meshes with black matte pixels cannot contribute visible black fragments
-	// on bgfx backends.
-	if (u_texcoordSelect2.w > 0.5 && max(max(current.r, current.g), current.b) <= 0.003)
+	// path. Discard them before output so large additive effect meshes with
+	// black matte pixels cannot contribute visible fragments on bgfx backends.
+	if (u_texcoordSelect2.w > 0.5
+		&& max(max(current.r, current.g), current.b) <= ADDITIVE_MATTE_EPSILON)
 	{
 		discard;
 	}
@@ -507,18 +550,6 @@ void main()
 	// generic material path renders buildings/units/effects, none of which
 	// receive cloud shadows in DX8, and v_cloudUV is undefined for them so
 	// sampleCloudShadow's floor constant just darkens them uniformly.
-
-	if (u_texcoordSelect2.z > 0.5)
-	{
-		// Default W3D blob shadow decals are rendered with a multiplicative
-		// blend where the shader output is the destination-color multiplier.
-		// Their useful mask is in texture alpha; outside the mask, RGB can be
-		// black. Convert alpha=0 to a neutral multiplier so transparent padding
-		// does not draw as solid black rectangles.
-		float mask = clamp(tex0.a * diffuse.a, 0.0, 1.0);
-		current.rgb = mix(vec3_splat(1.0), current.rgb, mask);
-		current.a = 1.0;
-	}
 
 	// Grayscale output for disabled button state. Matches the D3D8 path
 	// (render2d.cpp) which used D3DTOP_DOTPRODUCT3 with TFACTOR=0x80A5CA8E

@@ -159,6 +159,7 @@ struct BgfxUniforms
     // Misc per-draw flags / params
     bgfx::UniformHandle uTexcoordSelect      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTexcoordSelect2     = BGFX_INVALID_HANDLE;
+    bgfx::UniformHandle uProjectedDecalMode  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTexcoordSource      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uVertexColorFlags    = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uGrayscaleEnable     = BGFX_INVALID_HANDLE;
@@ -232,7 +233,10 @@ struct BgfxDraw
     float tssOps1[4]          = { 0.0f, 0.0f, 0.0f, 0.0f };
     float atestRef            = 0.0f;
     float texcoordSelect[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
+    // .x/.y are used by vs_uber for stage-1 UV routing and transform state.
+    // .w tags additive blend draws for black-matte discard in fs_uber.
     float texcoordSelect2[4]  = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float projectedDecalMode[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     float texcoordSource[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
     float vertexColorFlags[4] = { 1.0f, 0.0f, 0.0f, 0.0f };
     float texTransform0[4]    = { 1.0f, 0.0f, 0.0f, 0.0f };
@@ -334,6 +338,10 @@ struct BgfxViewFlags
     bool inSortFlush               = false;
     bool treeShaderActive          = false;
     bool shadowVolumeActive        = false;
+    bool shroudTexturePassActive   = false;
+    unsigned shroudTexturePassStage = 0;
+    bool projectedShadowDecalActive = false;
+    unsigned projectedDecalMode    = 0;
     bool skipNextSubmitEngineDraw  = false;
 };
 

@@ -19,6 +19,7 @@
 
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
 #include <unordered_map>
 #include <vector>
 
@@ -44,6 +45,77 @@
 namespace
 {
 static const bgfx::ViewId kBgfxRTTTextureCopyView = 3;
+
+static int ParseEnvLimit(const char *name, int fallback)
+{
+    const char *value = std::getenv(name);
+    if (value == nullptr || *value == '\0')
+    {
+        return fallback;
+    }
+    const int parsed = std::atoi(value);
+    return parsed > 0 ? parsed : fallback;
+}
+
+static void DumpShroudTextureForDiagnostics(const uint8_t *data,
+                                            unsigned width,
+                                            unsigned height,
+                                            unsigned bpp,
+                                            WW3DFormat format)
+{
+    const char *dir = std::getenv("GGC_BGFX_SHROUD_DUMP_DIR");
+    if (dir == nullptr || *dir == '\0' || data == nullptr || width == 0 || height == 0)
+    {
+        return;
+    }
+
+    static int s_dumpCount = 0;
+    const int limit = ParseEnvLimit("GGC_BGFX_SHROUD_DUMP_LIMIT", 8);
+    if (s_dumpCount >= limit)
+    {
+        return;
+    }
+
+    char path[512];
+    std::snprintf(path, sizeof(path), "%s/shroud_%03d.ppm", dir, s_dumpCount++);
+    FILE *file = std::fopen(path, "wb");
+    if (file == nullptr)
+    {
+        return;
+    }
+
+    std::fprintf(file, "P6\n%u %u\n255\n", width, height);
+    for (unsigned y = 0; y < height; ++y)
+    {
+        for (unsigned x = 0; x < width; ++x)
+        {
+            const uint8_t *p = data + (y * width + x) * bpp;
+            uint8_t rgb[3] = { 255, 255, 255 };
+            if (format == WW3D_FORMAT_R5G6B5 && bpp == 2)
+            {
+                const uint16_t v = static_cast<uint16_t>(p[0] | (p[1] << 8));
+                rgb[0] = static_cast<uint8_t>(((v >> 11) & 0x1f) * 255 / 31);
+                rgb[1] = static_cast<uint8_t>(((v >> 5) & 0x3f) * 255 / 63);
+                rgb[2] = static_cast<uint8_t>((v & 0x1f) * 255 / 31);
+            }
+            else if (format == WW3D_FORMAT_A4R4G4B4 && bpp == 2)
+            {
+                const uint16_t v = static_cast<uint16_t>(p[0] | (p[1] << 8));
+                rgb[0] = static_cast<uint8_t>(((v >> 8) & 0x0f) * 17);
+                rgb[1] = static_cast<uint8_t>(((v >> 4) & 0x0f) * 17);
+                rgb[2] = static_cast<uint8_t>((v & 0x0f) * 17);
+            }
+            else if (bpp == 4)
+            {
+                rgb[0] = p[2];
+                rgb[1] = p[1];
+                rgb[2] = p[0];
+            }
+            std::fwrite(rgb, 1, sizeof(rgb), file);
+        }
+    }
+    std::fclose(file);
+}
 }
 
 // External linkage so BgfxBackend.cpp can reference this from its
@@ -1042,4 +1114,5 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
                           static_cast<uint16_t>(dst_width),
                           static_cast<uint16_t>(dst_height),
                           mem, static_cast<uint16_t>(dst_width * bpp));
+    DumpShroudTextureForDiagnostics(mem->data, dst_width, dst_height, bpp, format);
 }
