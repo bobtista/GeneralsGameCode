@@ -103,13 +103,27 @@ The useful trend is not zero immediately. The useful trend is fewer direct raw
 device calls outside the legacy DX8 implementation, fewer `DX8Backend::...`
 base calls from `BgfxBackend`, and fewer D3D-shaped public resource APIs.
 
-Current baseline after introducing `IRenderBackend::Bind_Texture_Immediate`
-and `IRenderBackend::Clear_Light`:
+Current measured state on `bobtista/remove-dx8-bgfx` after the first migration
+commits:
 
 - `raw_device`: 256 hits
-- `dx8wrapper_low_level`: 1053 hits
+- `dx8wrapper_low_level`: 1025 hits
 - `dx8wrapper_high_level`: 72 hits
-- `d3d_public_type`: 3409 hits
-- `bgfx_dx8backend_base_call`: 51 hits
+- `d3d_public_type`: 3382 hits
+- `bgfx_dx8backend_base_call`: 54 hits
 - `bgfx_peek_dx8_state`: 9 hits
-- total categorized hits: 4850
+- total categorized hits: 4798
+
+Completed low-risk migrations:
+
+- `IRenderBackend::Bind_Texture_Immediate` for code that intentionally needs an
+  immediate texture bind before a draw.
+- `IRenderBackend::Clear_Light` for explicit light-slot clearing.
+- Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
+  alpha-test state, multiply-mode blend override, and normalize-normals state
+  now flow through backend methods instead of direct
+  `DX8Wrapper::Set_DX8_Render_State` calls.
+
+The `bgfx_dx8backend_base_call` count increased slightly because alpha-test now
+has explicit `BgfxBackend` overrides that forward to `DX8Backend` while updating
+bgfx state. That is expected until phase 4/5 removes the DX8Wrapper state owner.

@@ -1736,7 +1736,7 @@ void DX8TextureCategoryClass::Render()
 		DX8Wrapper::Apply_Render_State_Changes();
 		// Override SRCBLEND to DESTCOLOR for multiply mode. DESTBLEND
 		// stays at whatever ShaderClass set (typically SRCCOLOR).
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,D3DBLEND_DESTCOLOR);
+		g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_SRC_COLOR);
 	}
 
 
@@ -1879,7 +1879,7 @@ void DX8TextureCategoryClass::Render()
 
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_NORMALIZENORMALS, TRUE);
+			g_renderBackend->Set_Normalize_Normals(true);
 //--------------------------------------------------------------------
 		/*
 		** Render mesh using either sorting or immediate pipeline
@@ -2000,7 +2000,7 @@ void DX8TextureCategoryClass::Render()
 		}
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_NORMALIZENORMALS, FALSE);
+			g_renderBackend->Set_Normalize_Normals(false);
 //--------------------------------------------------------------------
 
 
@@ -2351,7 +2351,6 @@ void DX8MeshRendererClass::Invalidate( bool shutdown)
 
 	texture_category_container_lists_rigid.Delete_All();
 }
-
 
 
 
