@@ -1671,10 +1671,7 @@ void W3DVolumetricShadow::RenderMeshVolumeBounds(Int meshIndex, Int lightIndex, 
 
 	static Vector3 verts[8];
 
-	//Get D3D Device used by W3D for quicker access.
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	if (!m_pDev)
+	if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 		return;
 
 	Vector3 meshPosition;
