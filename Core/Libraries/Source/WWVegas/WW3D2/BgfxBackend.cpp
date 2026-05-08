@@ -1611,6 +1611,40 @@ void W3DMatrix3DToBgfx(const Matrix3D & m, float * out)
     out[3]  = 0.0f;    out[7]  = 0.0f;    out[11] = 0.0f;    out[15] = 1.0f;
 }
 
+void CacheTransform(TransformKind transform, const Matrix4x4 & m)
+{
+    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), To_D3DMATRIX(m));
+}
+
+void CacheTransform(TransformKind transform, const Matrix3D & m)
+{
+    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), To_D3DMATRIX(m));
+}
+
+void CacheIdentityTransform(TransformKind transform)
+{
+    Matrix4x4 identity(true);
+    CacheTransform(transform, identity);
+}
+
+bool IsCachedTransformIdentity(TransformKind transform)
+{
+    D3DMATRIX matrix;
+    RenderStateCache::Get_Transform(static_cast<unsigned>(transform), matrix);
+    for (int row = 0; row < 4; ++row)
+    {
+        for (int col = 0; col < 4; ++col)
+        {
+            const float expected = (row == col) ? 1.0f : 0.0f;
+            if (matrix.m[row][col] != expected)
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 static float ClampPostValue(float value, float minValue, float maxValue)
 {
     if (value < minValue)
@@ -2169,6 +2203,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     IdentityMatrix(g_frame.view);
     IdentityMatrix(g_frame.proj);
     IdentityMatrix(g_frame.sortWorld);
+    CacheIdentityTransform(RB_TRANSFORM_WORLD);
+    CacheIdentityTransform(RB_TRANSFORM_VIEW);
+    CacheIdentityTransform(RB_TRANSFORM_PROJECTION);
     g_frame.cameraProjDirty = true;
 
     // Sort view gets identity view + current projection. setViewTransform
@@ -6048,7 +6085,7 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
 
 void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
 {
-    DX8Backend::Set_Transform(transform, m);
+    CacheTransform(transform, m);
     switch (transform)
     {
         case RB_TRANSFORM_WORLD:
@@ -6070,7 +6107,7 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
 
 void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
 {
-    DX8Backend::Set_Transform(transform, m);
+    CacheTransform(transform, m);
     switch (transform)
     {
         case RB_TRANSFORM_WORLD:
@@ -6086,27 +6123,43 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
     }
 }
 
-// Get_Transform / Is_World_Identity / Is_View_Identity are inherited
-// from DX8Backend.
+void BgfxBackend::Get_Transform(TransformKind transform, Matrix4x4 & m) const
+{
+    D3DMATRIX matrix;
+    RenderStateCache::Get_Transform(static_cast<unsigned>(transform), matrix);
+    m = To_Matrix4x4(matrix);
+}
 
 void BgfxBackend::Set_World_Identity()
 {
-    DX8Backend::Set_World_Identity();
+    CacheIdentityTransform(RB_TRANSFORM_WORLD);
     IdentityMatrix(g_frame.world);
 }
 
 void BgfxBackend::Set_View_Identity()
 {
-    DX8Backend::Set_View_Identity();
+    CacheIdentityTransform(RB_TRANSFORM_VIEW);
     IdentityMatrix(g_frame.view);
     g_frame.cameraProjDirty = true;
     g_views.overlay2DActive = true;
 }
 
+bool BgfxBackend::Is_World_Identity() const
+{
+    return IsCachedTransformIdentity(RB_TRANSFORM_WORLD);
+}
+
+bool BgfxBackend::Is_View_Identity() const
+{
+    return IsCachedTransformIdentity(RB_TRANSFORM_VIEW);
+}
+
 void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
                                                        float znear, float zfar)
 {
-    DX8Backend::Set_Projection_Transform_With_Z_Bias(matrix, znear, zfar);
+    (void)znear;
+    (void)zfar;
+    CacheTransform(RB_TRANSFORM_PROJECTION, matrix);
     W3DMatrix4ToBgfx(matrix, g_frame.proj);
     g_frame.cameraProjDirty = true;
 

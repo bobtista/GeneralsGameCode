@@ -692,8 +692,8 @@ void SortingRendererClass::Flush()
 	WWPROFILE("SortingRenderer::Flush");
 	Matrix4x4 old_view;
 	Matrix4x4 old_world;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,old_view);
-	DX8Wrapper::Get_Transform(D3DTS_WORLD,old_world);
+	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, old_view);
+	g_renderBackend->Get_Transform(RB_TRANSFORM_WORLD, old_world);
 
 	while (SortingNodeStruct* state=sorted_list.Head()) {
 		state->Remove();
