@@ -205,6 +205,7 @@ public:
     virtual void Set_Stencil_Pass_Op(StencilOp op) override;
     virtual void Set_Stencil_Fail_Op(StencilOp op) override;
     virtual void Set_Stencil_ZFail_Op(StencilOp op) override;
+    virtual CullMode Get_Cull_Mode() const override;
     virtual void Set_Cull_Mode(CullMode mode) override;
     virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture = nullptr) override;
     virtual void Clear_State_Overrides() override;

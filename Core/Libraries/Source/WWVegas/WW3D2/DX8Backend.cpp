@@ -438,6 +438,11 @@ void DX8Backend::Set_Texture_Factor(unsigned argb)
     DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, argb);
 }
 
+CullMode DX8Backend::Get_Cull_Mode() const
+{
+    return static_cast<CullMode>(DX8Wrapper::Get_DX8_Render_State(D3DRS_CULLMODE));
+}
+
 void DX8Backend::Set_Cull_Mode(CullMode mode)
 {
     DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, static_cast<unsigned>(mode));
