@@ -854,6 +854,7 @@ void WaterRenderObjClass::ReleaseResources()
 	if (m_waterTrackSystem)
 		m_waterTrackSystem->ReleaseResources();
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (m_dwWavePixelShader)
 		m_pDev->DeletePixelShader(m_dwWavePixelShader);
 
@@ -868,6 +869,7 @@ void WaterRenderObjClass::ReleaseResources()
 
 	if (m_riverWaterPixelShader)
 		m_pDev->DeletePixelShader(m_riverWaterPixelShader);
+#endif
 
 	m_dwWavePixelShader=0;
 	m_dwWaveVertexShader=0;
@@ -956,6 +958,13 @@ void WaterRenderObjClass::ReAcquireResources()
 
 	if (W3DShaderManager::getChipset() >= DC_GENERIC_PIXEL_SHADER_1_1)
 	{
+#if defined(GGC_BGFX_STANDALONE)
+		// Standalone bgfx implements these water paths with native programs.
+		// Preserve the old truthy handles so feature gates keep their behavior.
+		m_riverWaterPixelShader = 1;
+		m_waterPixelShader = 1;
+		m_trapezoidWaterPixelShader = 1;
+#else
 		ID3DXBuffer *compiledShader;
 		const char *shader =
 			"ps.1.1\n \
@@ -997,10 +1006,11 @@ void WaterRenderObjClass::ReAcquireResources()
 			mul r0.rgb, r0, t3 ; blend in black shroud \n\
 			;\n";
 		hr = D3DXAssembleShader( shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
-		if (hr==0) {
-			hr = 	DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader((DWORD*)compiledShader->GetBufferPointer(), &m_trapezoidWaterPixelShader);
-			compiledShader->Release();
-		}
+			if (hr==0) {
+				hr = 	DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader((DWORD*)compiledShader->GetBufferPointer(), &m_trapezoidWaterPixelShader);
+				compiledShader->Release();
+			}
+#endif
 	}
 
 	//W3D Invalidate textures after losing the device and since we peek at the textures directly, it won't
