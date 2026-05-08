@@ -2623,9 +2623,8 @@ void BgfxBackend::Begin_Scene()
         return;
     }
 
-    const bool dx8RenderToTexture = DX8Wrapper::Is_Render_To_Texture();
     const bool preserveRenderToTexture =
-        dx8RenderToTexture && g_views.renderTargetTexture != nullptr;
+        g_views.renderToTexture && g_views.renderTargetTexture != nullptr;
 
     ResetFrameStats();
 
@@ -2867,8 +2866,7 @@ void BgfxBackend::Clear(bool clear_color, bool clear_z_stencil,
                         const Vector3 & color,
                         float dest_alpha, float z, unsigned int stencil)
 {
-    DX8Backend::Clear(clear_color, clear_z_stencil, color, dest_alpha, z, stencil);
-    if (!g_device.initialized || !DX8Wrapper::Is_Render_To_Texture()
+    if (!g_device.initialized || !g_views.renderToTexture
         || g_views.renderTargetTexture == nullptr)
     {
         return;
@@ -5946,7 +5944,6 @@ void BgfxBackend::Set_Depth_Func(CompareFunc func)
 
 void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture)
 {
-    DX8Backend::Set_Render_Target_With_Z(texture, ztexture);
     if (texture == nullptr || !g_device.initialized)
     {
         g_views.renderToTexture = false;
@@ -6167,27 +6164,6 @@ void SubmitEngineDraw(unsigned short start_index,
         g_stats.skippedDraws++;
         bgfx::discard(BGFX_DISCARD_ALL);
         return;
-    }
-    // Detect when the engine has restored the back buffer. The water/shadow
-    // code calls DX8Wrapper::Set_Render_Target(nullptr) directly, bypassing
-    // g_renderBackend. Poll the DX8 state to keep g_views.renderToTexture in sync.
-    const bool dx8RenderToTexture = DX8Wrapper::Is_Render_To_Texture();
-    if (g_views.renderToTexture && !dx8RenderToTexture)
-    {
-        g_views.renderToTexture = false;
-        g_views.renderTargetTexture = nullptr;
-    }
-    else if (!g_views.renderToTexture && dx8RenderToTexture
-             && g_views.renderTargetTexture != nullptr)
-    {
-        auto rtIt = g_caches.framebuffer.find(g_views.renderTargetTexture);
-        if (rtIt != g_caches.framebuffer.end())
-        {
-            const BgfxFramebufferEntry & entry = rtIt->second;
-            bgfx::setViewFrameBuffer(kBgfxRTTView, entry.fb);
-            bgfx::setViewRect(kBgfxRTTView, 0, 0, entry.width, entry.height);
-            g_views.renderToTexture = true;
-        }
     }
     if (!g_device.initialized)
     {
