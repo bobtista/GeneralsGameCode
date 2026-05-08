@@ -3061,7 +3061,7 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 	}
 #endif
 
-	WW3DFormat displayFormat = DX8Wrapper::getBackBufferFormat();
+	WW3DFormat displayFormat = g_renderBackend->Get_Back_Buffer_Format();
 
 	if ( format == VideoBuffer::TYPE_UNKNOWN && DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
 	{
