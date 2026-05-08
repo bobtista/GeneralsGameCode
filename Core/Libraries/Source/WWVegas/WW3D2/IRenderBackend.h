@@ -470,6 +470,15 @@ public:
     // TheSuperHackers @refactor bobtista 10/04/2026 Natural complement
     // to theblend extension.
     virtual void Set_Alpha_Blend_Enable(bool enable) {}
+    virtual void Set_Alpha_Test_Enable(bool enable) {}
+    virtual void Set_Alpha_Test_Reference(unsigned ref) {}
+    virtual void Set_Alpha_Test_Function(CompareFunc func) {}
+    virtual void Set_Alpha_Test(bool enable, unsigned ref, CompareFunc func)
+    {
+        Set_Alpha_Test_Reference(ref);
+        Set_Alpha_Test_Function(func);
+        Set_Alpha_Test_Enable(enable);
+    }
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Hardware cursor
     // extension. Lets W3DMouse drive the device's hardware cursor without

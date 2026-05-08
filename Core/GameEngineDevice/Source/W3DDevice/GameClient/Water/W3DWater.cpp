@@ -1706,9 +1706,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAARG2, D3DTA_CURRENT );	//previous stage texture
 				DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );	//modulate with clipping texture
 
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,0x00);
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,D3DCMP_NOTEQUAL);	//pass pixels who's alpha is not zero
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, true);	//test pixels if transparent(clipped) before rendering.
+				g_renderBackend->Set_Alpha_Test(true, 0x00, RB_CMP_NOT_EQUAL);	//pass pixels who's alpha is not zero
 
 				// Set clipping texture
 				m_alphaClippingTexture->Set_U_Addr_Mode(TextureClass::TEXTURE_ADDRESS_CLAMP);
@@ -1761,7 +1759,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 
 				//disable texture coordinate generation
 				DX8Wrapper::Set_DX8_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, false);	//disable alpha testing
+				g_renderBackend->Set_Alpha_Test_Enable(false);	//disable alpha testing
 			#endif
 
 				ShaderClass::Invert_Backface_Culling(false);	//return culling back to normal
