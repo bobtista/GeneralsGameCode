@@ -1086,7 +1086,7 @@ uint64_t TranslateDepthCompare(ShaderClass::DepthCompareType cmp)
 const float kDefaultAlphaTestRef = 0x60 / 255.0f;
 
 void BuildTssOpsForShader(const ShaderClass & shader,
-                          float * ops0, float * ops1, float * atestRef)
+                          float * ops0, float * ops1, float * atestRef, float * atestFunc)
 {
     float priColorOp  = 3.0f; // MODULATE
     float priAlphaOp  = 3.0f; // MODULATE
@@ -1166,11 +1166,11 @@ void BuildTssOpsForShader(const ShaderClass & shader,
                 secCArg1Src = kTssArgTexture; // result = tex - current
                 break;
             case ShaderClass::DETAILCOLOR_BLEND:
-                secColorOp  = kTssBlendCurAlpha;
+                secColorOp  = kTssBlendTexAlpha;
                 secCArg1Src = kTssArgTexture;
                 break;
             case ShaderClass::DETAILCOLOR_DETAILBLEND:
-                secColorOp  = kTssBlendTexAlpha;
+                secColorOp  = kTssBlendCurAlpha;
                 secCArg1Src = kTssArgTexture;
                 break;
         }
@@ -1226,11 +1226,21 @@ void BuildTssOpsForShader(const ShaderClass & shader,
 
     if (shader.Get_Alpha_Test() != ShaderClass::ALPHATEST_DISABLE)
     {
-        *atestRef = kDefaultAlphaTestRef;
+        if (shader.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_ONE_MINUS_SRC_ALPHA)
+        {
+            *atestRef = 1.0f - kDefaultAlphaTestRef;
+            *atestFunc = static_cast<float>(RB_CMP_LESS_EQUAL);
+        }
+        else
+        {
+            *atestRef = kDefaultAlphaTestRef;
+            *atestFunc = static_cast<float>(RB_CMP_GREATER_EQUAL);
+        }
     }
     else
     {
         *atestRef = 0.0f;
+        *atestFunc = 0.0f;
     }
 }
 
@@ -1253,6 +1263,7 @@ uint64_t BuildBgfxStateForShader(const ShaderClass & shader)
     const uint64_t srcBits = TranslateBlendFactor(shader.Get_Src_Blend_Func());
     const uint64_t dstBits = TranslateBlendFactor(shader.Get_Dst_Blend_Func());
     state |= BGFX_STATE_BLEND_FUNC(srcBits, dstBits);
+    state |= BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
 
     if (shader.Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE)
     {
@@ -3849,6 +3860,13 @@ static uint64_t ApplyColorWriteOverride(uint64_t state)
     return state;
 }
 
+static uint64_t ApplyBlendEquation(uint64_t state)
+{
+    state &= ~BGFX_STATE_BLEND_EQUATION_MASK;
+    state |= g_draw.blendEquationBits;
+    return state;
+}
+
 static void BindShadowMapTexture()
 {
     // TheSuperHackers @bugfix bobtista 30/04/2026 fs_uber declares
@@ -4288,6 +4306,47 @@ static bool IsDefaultInfantryBlobShadowTexture(TextureBaseClass * texture)
         || stricmp(base, "shadowi.dds") == 0;
 }
 
+static bool IsDefaultBlobShadowTexture(TextureBaseClass * texture)
+{
+    TextureClass * tex2d = texture ? texture->As_TextureClass() : nullptr;
+    if (tex2d == nullptr)
+    {
+        return false;
+    }
+
+    const char *name = tex2d->Get_Full_Path().str();
+    const char *base = name;
+    for (const char *p = name; *p != '\0'; ++p)
+    {
+        if (*p == '\\' || *p == '/')
+        {
+            base = p + 1;
+        }
+    }
+
+    return stricmp(base, "shadow.tga") == 0
+        || stricmp(base, "shadow.dds") == 0
+        || stricmp(base, "shadowi.tga") == 0
+        || stricmp(base, "shadowi.dds") == 0;
+}
+
+static void UpdateAlphaMaskedShadowDecalMode()
+{
+    const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
+    const uint64_t multiplicativeBlend =
+        BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
+    uint64_t state = g_draw.state;
+    if (g_overrides.blendActive)
+    {
+        state &= ~BGFX_STATE_BLEND_MASK;
+        state |= g_overrides.blendBits;
+    }
+    const bool isAlphaMaskedShadow =
+        IsDefaultBlobShadowTexture(rs.Textures[0])
+        && ((state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend);
+    g_draw.texcoordSelect2[2] = isAlphaMaskedShadow ? 1.0f : 0.0f;
+}
+
 static RenderBackendProjectedDecalMode GetEffectiveProjectedDecalModeForCurrentDraw()
 {
     RenderBackendProjectedDecalMode mode =
@@ -4300,9 +4359,15 @@ static RenderBackendProjectedDecalMode GetEffectiveProjectedDecalModeForCurrentD
     const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
     const uint64_t multiplicativeBlend =
         BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
+    uint64_t state = g_draw.state;
+    if (g_overrides.blendActive)
+    {
+        state &= ~BGFX_STATE_BLEND_MASK;
+        state |= g_overrides.blendBits;
+    }
     const bool validBlobShadow =
         IsDefaultInfantryBlobShadowTexture(rs.Textures[0])
-        && ((g_draw.state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend);
+        && ((state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend);
 
     return validBlobShadow ? RB_PROJECTED_DECAL_BLOB_SHADOW : RB_PROJECTED_DECAL_MULTIPLY;
 }
@@ -4792,7 +4857,8 @@ static void UploadMaterialUniforms()
     if (bgfx::isValid(g_uniforms.uAtestParams))
     {
         const float effectiveAtestRef = g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef;
-        float atestParams[4] = { effectiveAtestRef, 0.0f, 0.0f, 0.0f };
+        const float effectiveAtestFunc = g_overrides.atestActive ? g_overrides.atestFunc : g_draw.atestFunc;
+        float atestParams[4] = { effectiveAtestRef, effectiveAtestFunc, 0.0f, 0.0f };
         bgfx::setUniform(g_uniforms.uAtestParams, atestParams);
     }
     if (bgfx::isValid(g_uniforms.uTexcoordSource))
@@ -5077,15 +5143,6 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
             : 0.0f;
     }
     UpdateAlphaMaskedShadowDecalMode();
-    {
-        uint64_t blendState = g_draw.state;
-        if (g_overrides.blendActive)
-        {
-            blendState &= ~BGFX_STATE_BLEND_MASK;
-            blendState |= g_overrides.blendBits;
-        }
-        g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState) ? 1.0f : 0.0f;
-    }
     UploadMaterialUniforms();
     if (bgfx::isValid(g_uniforms.uTexcoordSelect))
     {
@@ -5121,6 +5178,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         state &= ~BGFX_STATE_BLEND_MASK;
         state |= g_overrides.blendBits;
     }
+    state = ApplyBlendEquation(state);
     state = ApplyProjectedAdditiveDecalDrawState(state);
     state = ApplyColorWriteOverride(state);
     state = ApplySortedMaterialDecalDepthState(state);
@@ -5258,7 +5316,7 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
     DX8Backend::Set_Shader(shader);
     g_draw.program = g_device.uberProgram;
     g_draw.state   = BuildBgfxStateForShader(shader);
-    BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef);
+    BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef, &g_draw.atestFunc);
     Clear_State_Overrides();
 }
 
@@ -5380,6 +5438,24 @@ static const uint64_t kBgfxBlendMap[12] = {
     BGFX_STATE_BLEND_SRC_ALPHA_SAT   // 11 = RB_BLEND_SRC_ALPHA_SAT
 };
 
+static uint64_t TranslateBlendOp(BlendOp op)
+{
+    switch (op)
+    {
+        case RB_BLEND_OP_SUBTRACT:
+            return BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_SUB);
+        case RB_BLEND_OP_REV_SUBTRACT:
+            return BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_REVSUB);
+        case RB_BLEND_OP_MIN:
+            return BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_MIN);
+        case RB_BLEND_OP_MAX:
+            return BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_MAX);
+        case RB_BLEND_OP_ADD:
+        default:
+            return BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
+    }
+}
+
 // TheSuperHackers @fix bobtista 20/04/2026 The DX8Backend default only updates D3D render state, leaving bgfx's g_overrides.blendBits stale. Water rendering relies on this to restore SRC_ALPHA / INV_SRC_ALPHA blending after its DESTALPHA shoreline pass — otherwise the DESTALPHA state set by Override_Material_Opacity() persists into the next draw (e.g. the faction-emblem quad on the command-center bib), painting it black.
 void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 {
@@ -5390,6 +5466,12 @@ void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
     {
         g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[s], kBgfxBlendMap[d]));
     }
+}
+
+void BgfxBackend::Set_Blend_Op(BlendOp op)
+{
+    DX8Backend::Set_Blend_Op(op);
+    g_draw.blendEquationBits = TranslateBlendOp(op);
 }
 
 void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
@@ -5419,6 +5501,7 @@ void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc fun
 {
     g_overrides.atestActive = enable;
     g_overrides.atestRef = enable ? (ref / 255.0f) : 0.0f;
+    g_overrides.atestFunc = enable ? static_cast<float>(func) : 0.0f;
     DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, enable ? TRUE : FALSE);
     DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF, ref);
     // RB_CMP_* enum values match D3DCMP_*, so the integer passed to D3D8 is correct.
@@ -6695,21 +6778,6 @@ void SubmitEngineDraw(unsigned short start_index,
             : 0.0f;
     }
     UpdateAlphaMaskedShadowDecalMode();
-    if (IsMultiplicativeBlend(g_draw.state) && (g_draw.state & BGFX_STATE_WRITE_Z) == 0)
-    {
-        g_stats.skippedDraws++;
-        bgfx::discard(BGFX_DISCARD_ALL);
-        return;
-    }
-    {
-        uint64_t blendState = g_draw.state;
-        if (g_overrides.blendActive)
-        {
-            blendState &= ~BGFX_STATE_BLEND_MASK;
-            blendState |= g_overrides.blendBits;
-        }
-        g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState) ? 1.0f : 0.0f;
-    }
     UploadMaterialUniforms();
     // Read current D3D light state per-draw. Set_Light_Environment and
     // Set_Ambient capture some paths, but many callers set lights via
@@ -6910,6 +6978,7 @@ void SubmitEngineDraw(unsigned short start_index,
         state &= ~BGFX_STATE_BLEND_MASK;
         state |= g_overrides.blendBits;
     }
+    state = ApplyBlendEquation(state);
 
     state = ApplyColorWriteOverride(state);
     if (triangle_strip)
@@ -7050,10 +7119,6 @@ void SubmitEngineDraw(unsigned short start_index,
     // are submitted after the world pass and should not inherit stale stencil
     // state from shroud/player-color/shadow passes. Keeping stencil active
     // here clips effects such as the particle-cannon beam against buildings.
-    const bool applyStencil = g_draw.stencilEnabled
-        && submitView != kBgfxUIView
-        && submitView != kBgfxEngineSortView;
-
     const bool sortedMaterialDecal = submitView == kBgfxEngineSortView
         && IsSortedMaterialDecal(state);
     // Sort-flushed material decals (command-center driveway emblems, upgrade
@@ -7129,13 +7194,13 @@ void SubmitEngineDraw(unsigned short start_index,
         {
             bgfx::setVertexBuffer(0, &g_draw.transientVB,
                                   static_cast<uint32_t>(g_draw.ibOffset),
-                                  vertex_count);
+                                  bindVertexCount);
         }
         else
         {
             bgfx::setVertexBuffer(0, g_draw.vb,
                                   static_cast<uint32_t>(g_draw.ibOffset),
-                                  vertex_count);
+                                  bindVertexCount);
         }
         if (g_draw.useTransientIB)
         {
@@ -7175,14 +7240,14 @@ void SubmitEngineDraw(unsigned short start_index,
             {
                 bgfx::setVertexBuffer(0, &g_draw.transientVB,
                                       static_cast<uint32_t>(g_draw.ibOffset),
-                                      vertex_count);
+                                      bindVertexCount);
             }
         }
         else
         {
             bgfx::setVertexBuffer(0, g_draw.vb,
                                   static_cast<uint32_t>(g_draw.ibOffset),
-                                  vertex_count);
+                                  bindVertexCount);
         }
         if (g_draw.useTransientIB)
         {
@@ -7315,15 +7380,15 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
     if (!desc.is_render_target && desc.mips != nullptr && desc.mip_count > 0) {
         const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(desc.format);
         if (bgfxFmt != bgfx::TextureFormat::Unknown) {
-            // For now, upload mip 0 and let bgfx's immutable-texture path
-            // handle the rest. Multi-mip static upload lands once the
-            // loader changes feed full mip chains.
+            // For now, upload mip 0 only. Passing hasMips=true with a
+            // single-level memory blob makes bgfx read past the supplied
+            // data on backends that expect a packed full mip chain.
             const bgfx::Memory * mem = CopySliceToBgfxMemory(desc.mips[0]);
             if (mem != nullptr) {
                 const uint64_t texFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
                 entry.texture = bgfx::createTexture2D(
                     desc.width, desc.height,
-                    desc.mip_count > 1,  // hasMips
+                    false,
                     1, bgfxFmt, texFlags, mem);
             }
         }
@@ -7469,15 +7534,39 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
             }
             break;
         case BGFX_RR_KIND_VB:
+        {
+            const VertexBufferClass *owner = static_cast<const VertexBufferClass *>(entry.owner);
+            auto vbIt = g_caches.vb.find(owner);
+            if (vbIt != g_caches.vb.end())
+            {
+                if (bgfx::isValid(vbIt->second.handle))
+                {
+                    bgfx::destroy(vbIt->second.handle);
+                }
+                g_caches.vb.erase(vbIt);
+            }
             if (bgfx::isValid(entry.vb)) {
                 bgfx::destroy(entry.vb);
             }
             break;
+        }
         case BGFX_RR_KIND_IB:
+        {
+            const IndexBufferClass *owner = static_cast<const IndexBufferClass *>(entry.owner);
+            auto ibIt = g_caches.ib.find(owner);
+            if (ibIt != g_caches.ib.end())
+            {
+                if (bgfx::isValid(ibIt->second.handle))
+                {
+                    bgfx::destroy(ibIt->second.handle);
+                }
+                g_caches.ib.erase(ibIt);
+            }
             if (bgfx::isValid(entry.ib)) {
                 bgfx::destroy(entry.ib);
             }
             break;
+        }
         case BGFX_RR_KIND_DYN_VB:
             if (bgfx::isValid(entry.dvb)) {
                 bgfx::destroy(entry.dvb);
@@ -7532,6 +7621,7 @@ RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
     entry.kind       = BGFX_RR_KIND_TEXTURE;
     entry.texture    = BGFX_INVALID_HANDLE;
     entry.d3d_mirror = nullptr;
+    entry.owner      = tex;
 
     RenderResource rr;
     rr.id = AllocPhase5Id();
@@ -7554,6 +7644,7 @@ RenderResource BgfxBackend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb
     entry.kind = BGFX_RR_KIND_VB;
     entry.vb = BGFX_INVALID_HANDLE;
     entry.d3d_mirror = nullptr;
+    entry.owner = vb;
 
     RenderResource rr;
     rr.id = AllocPhase5Id();
@@ -7573,6 +7664,7 @@ RenderResource BgfxBackend::Register_Loaded_Index_Buffer(IndexBufferClass * ib)
     entry.kind = BGFX_RR_KIND_IB;
     entry.ib = BGFX_INVALID_HANDLE;
     entry.d3d_mirror = nullptr;
+    entry.owner = ib;
 
     RenderResource rr;
     rr.id = AllocPhase5Id();
