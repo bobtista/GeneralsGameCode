@@ -5749,7 +5749,6 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
                                               unsigned stencil_read_mask,
                                               unsigned stencil_ref)
 {
-    DX8Backend::Apply_Stencil_Shadow_Darken(shadow_color, stencil_read_mask, stencil_ref);
     if (!LegacyStencilShadowsEnabled()
         || std::getenv("GGC_BGFX_STENCIL_NO_APPLY") != nullptr
         || !g_device.initialized
