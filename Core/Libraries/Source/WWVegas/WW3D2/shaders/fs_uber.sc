@@ -1,4 +1,4 @@
-$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV, v_sceneDepth, v_worldPos
+$input v_color0, v_texcoord0, v_texcoord1, v_normal, v_cloudUV, v_stage0UV, v_stage1UV, v_sceneDepth, v_worldPos
 
 #include <bgfx_shader.sh>
 
@@ -6,8 +6,6 @@ SAMPLER2D(s_tex0, 0);
 SAMPLER2D(s_tex1, 1);
 SAMPLER2D(s_tex2, 2);
 SAMPLER2D(s_tex3, 3);
-// Phase 4I.2 CSM: D16 shadow map with hardware PCF comparison.
-SAMPLER2DSHADOW(s_shadowMap, 4);
 // Terrain cloud-shadow scroll texture (BASE_NOISE1/NOISE12 paths on DX8).
 SAMPLER2D(s_cloudMap, 5);
 SAMPLER2D(s_sceneDepth, 6);
@@ -31,7 +29,6 @@ uniform vec4 u_texProjected; // .x > 0.5 = stage 0 projected, .y > 0.5 = stage 1
 uniform vec4 u_vertexColorFlags; // .y/.z/.w: diffuse/ambient/emissive source is COLOR1
 uniform vec4 u_grayscaleEnable; // .x > 0.5 = convert final color to luminance (disabled button state)
 uniform vec4 u_cloudParams; // xy = scroll, z = stretch, w > 0.5 = modulate cloud into output
-uniform vec4 u_shadowParams; // .x > 0.5 = receive CSM shadows
 uniform vec4 u_softParticleParams; // .x enable, .y fade scale, zw inverse scene size
 uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
 
@@ -57,11 +54,6 @@ uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
 #define PROJECTED_DECAL_BLOB_SHADOW 1.0
 #define PROJECTED_DECAL_ADDITIVE    2.0
 
-// Shadow map inverse resolution, passed from C++ via u_shadowParams.y
-// to avoid hardcoding the texture size in both shader and backend.
-// Shadow map depth bias. Terrain uses a larger value to kill self-shadow acne on near-flat slopes; general meshes need a tighter value so curved / thin geometry keeps its contact shadow.
-#define SHADOW_BIAS_TERRAIN 0.005
-#define SHADOW_BIAS_GENERAL 0.002
 #define CLOUD_SHADOW_MIN 0.72
 // BT.601 luminance weights (matches the BGRA bytes of the D3D8 TFACTOR=0x80A5CA8E cascade used by the disabled-button grayscale path).
 #define LUMA_WEIGHTS vec3(0.299, 0.587, 0.114)
@@ -157,19 +149,6 @@ float applyAlphaOp(float op, float arg1, float arg2)
 	return arg1;
 }
 
-// 4-tap PCF sample of the shadow map. Returns a shadow factor in [SHADOW_DARKNESS, 1]. Same logic for terrain and general meshes; only the bias differs.
-float sampleShadow(vec2 shadowUV, float refZ, float bias)
-{
-	float biasedZ = refZ - bias;
-	float texelSize = u_shadowParams.y;
-	float s0 = shadow2D(s_shadowMap, vec3(shadowUV + vec2(-0.5, -0.5) * texelSize, biasedZ));
-	float s1 = shadow2D(s_shadowMap, vec3(shadowUV + vec2( 0.5, -0.5) * texelSize, biasedZ));
-	float s2 = shadow2D(s_shadowMap, vec3(shadowUV + vec2(-0.5,  0.5) * texelSize, biasedZ));
-	float s3 = shadow2D(s_shadowMap, vec3(shadowUV + vec2( 0.5,  0.5) * texelSize, biasedZ));
-	float visibility = (s0 + s1 + s2 + s3) * 0.25;
-	return mix(SHADOW_DARKNESS, 1.0, visibility);
-}
-
 vec3 sampleCloudShadow(vec2 cloudUV)
 {
 	vec3 cloudSample = texture2D(s_cloudMap, cloudUV).rgb;
@@ -209,21 +188,6 @@ void main()
 			discard;
 		}
 
-		vec3 tlsNDC = v_lightspace.xyz / v_lightspace.w;
-		vec2 tshadowUV = tlsNDC.xy * 0.5 + 0.5;
-#if BGFX_SHADER_LANGUAGE_HLSL
-		tshadowUV.y = 1.0 - tshadowUV.y;
-		float trefZ = tlsNDC.z;
-#else
-		float trefZ = tlsNDC.z * 0.5 + 0.5;
-#endif
-		if (u_shadowParams.x > 0.5
-			&& tshadowUV.x >= 0.0 && tshadowUV.x <= 1.0
-			&& tshadowUV.y >= 0.0 && tshadowUV.y <= 1.0
-			&& trefZ >= 0.0 && trefZ <= 1.0)
-		{
-			result.rgb *= sampleShadow(tshadowUV, trefZ, SHADOW_BIAS_TERRAIN);
-		}
 		// TheSuperHackers @bugfix bobtista 28/04/2026 Apply the cloudmap
 		// inside the terrain pixel-shader path. Terrain returns from this
 		// branch before the generic material path below, so placing cloud
@@ -249,7 +213,7 @@ void main()
 		// grid, radius decals) use the fixed-function additive preset:
 		// stage0 texture modulated by vertex diffuse, then ONE/ONE blending.
 		// They are not lit meshes and must not inherit stale material,
-		// secondary-stage, CSM, or blob-shadow state from the shared decal
+		// secondary-stage or blob-shadow state from the shared decal
 		// batch path.
 		vec4 projected = vec4(tex0.rgb * diffuse.rgb, 0.0);
 		if (max(max(projected.r, projected.g), projected.b) <= ADDITIVE_MATTE_EPSILON)
@@ -532,31 +496,6 @@ void main()
 		{
 			discard;
 		}
-	}
-
-	// Phase 4I.2 CSM shadow lookup. v_lightspace is the fragment's
-	// position in light clip space. Perspective divide to NDC, map to
-	// [0,1] texcoords, compare against shadow map depth via
-	// sampler2DShadow (hardware PCF). Darken by shadow color if
-	// occluded. Skip if the fragment is outside the shadow map bounds.
-	vec3 lsNDC = v_lightspace.xyz / v_lightspace.w;
-	vec2 shadowUV = lsNDC.xy * 0.5 + 0.5;
-#if BGFX_SHADER_LANGUAGE_HLSL
-	// D3D's NDC Y is flipped vs texture Y.
-	shadowUV.y = 1.0 - shadowUV.y;
-	float refZ = lsNDC.z;
-#else
-	float refZ = lsNDC.z * 0.5 + 0.5;
-#endif
-	// TheSuperHackers @bugfix bobtista 27/04/2026 CSM shadows are enabled
-	// per draw so UI and render-target passes do not get darkened as if
-	// they were world geometry.
-	if (u_shadowParams.x > 0.5
-		&& shadowUV.x >= 0.0 && shadowUV.x <= 1.0
-		&& shadowUV.y >= 0.0 && shadowUV.y <= 1.0
-		&& refZ >= 0.0 && refZ <= 1.0)
-	{
-		current.rgb *= sampleShadow(shadowUV, refZ, SHADOW_BIAS_GENERAL);
 	}
 
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Cloud-shadow modulation

@@ -85,16 +85,11 @@ struct BgfxDevice
     bgfx::ProgramHandle uberProgram         = BGFX_INVALID_HANDLE; // single uber program; all TSS combos via uniforms.
     bgfx::ProgramHandle passthroughProgram  = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle treeProgram         = BGFX_INVALID_HANDLE; // vs_trees + fs_uber; enabled via Set_Tree_Vertex_Shader_Active for swaying grass, else reverts to uberProgram.
-    bgfx::ProgramHandle shadowCasterProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle shadowVolumeProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle shadowApplyProgram  = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle sceneCompositeProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle sceneDepthProgram = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle smudgeProgram = BGFX_INVALID_HANDLE;
-
-    // Shadow map RT
-    bgfx::FrameBufferHandle shadowMapFB    = BGFX_INVALID_HANDLE;
-    bgfx::TextureHandle     shadowMapDepth = BGFX_INVALID_HANDLE;
 
     // Scene color/depth RT. World, water, sorted translucency, and effects
     // render here, then a fullscreen composite pass copies the scene to the
@@ -135,7 +130,6 @@ struct BgfxUniforms
     bgfx::UniformHandle sTex1      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sTex2      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sTex3      = BGFX_INVALID_HANDLE;
-    bgfx::UniformHandle sShadowMap = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sCloudMap  = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle sSceneDepth = BGFX_INVALID_HANDLE;
 
@@ -176,8 +170,6 @@ struct BgfxUniforms
     bgfx::UniformHandle uTex1TransformZ      = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uTexProjected        = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uZBias               = BGFX_INVALID_HANDLE;
-    bgfx::UniformHandle uShadowLightViewProj = BGFX_INVALID_HANDLE;
-    bgfx::UniformHandle uShadowParams        = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uShadowColor         = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uPostParams          = BGFX_INVALID_HANDLE;
     bgfx::UniformHandle uPostTexelSize       = BGFX_INVALID_HANDLE;
@@ -297,7 +289,6 @@ struct BgfxDraw
     float swayTable[11][4]    = {{0}};
     float shroudOffset[4]     = { 0.0f, 0.0f, 0.0f, 0.0f };
     float shroudScale[4]      = { 0.0f, 0.0f, 1.0f, 1.0f };
-    float shadowParams[4]     = { 1.0f, 0.0f, 0.0f, 0.0f };
 };
 
 // Overrides: transient per-shader overrides. Reset by Clear_State_Overrides (called from Set_Shader).
@@ -366,14 +357,6 @@ struct BgfxFrame
     float sortProj[16]       = {};
     bool  sortProjCaptured   = false;
 
-    float shadowLightView[16] = {};
-    float shadowLightProj[16] = {};
-    bool  shadowLightCaptured = false;
-
-    float shadowSunPosX      = 0.0f;
-    float shadowSunPosY      = 0.0f;
-    float shadowSunPosZ      = 1500.0f;
-    bool  shadowSunPosSet    = false;
 };
 
 // Stats: per-frame backend counters used by debug builds to profile draw/state churn.
@@ -385,7 +368,6 @@ struct BgfxStats
 
     uint32_t baseSubmits = 0;
     uint32_t sceneDepthSubmits = 0;
-    uint32_t shadowMapSubmits = 0;
     uint32_t shadowVolumeSubmits = 0;
     uint32_t shadowApplySubmits = 0;
     uint32_t smudgeSubmits = 0;

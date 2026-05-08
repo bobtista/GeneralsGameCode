@@ -304,9 +304,6 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # Phase 4I shadow darkening apply pass (fullscreen quad blend).
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_apply.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_apply.sc)
-    # Phase 4I.2 CSM (cascaded shadow maps) — depth-only caster pass.
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_caster.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_caster.sc)
     # TheSuperHackers @feature bobtista 27/04/2026 Scene-color composite
     # pass. World/effects render to an offscreen framebuffer, then this
     # identity pass copies it to the swapchain before UI draws.
