@@ -4315,30 +4315,6 @@ static void BindTextureStages()
     }
 }
 
-static void SyncTextureStagesFromDx8State()
-{
-    // Some legacy paths still apply textures through DX8Wrapper directly. If
-    // the wrapper cache already holds that pointer, BgfxBackend::Set_Texture is
-    // never called, leaving bgfx's texture handle or missing-texture flag stale.
-    // Sync from the wrapper's authoritative render state immediately before
-    // binding samplers so blended/effect draws can hide missing placeholders.
-    const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
-
-    for (int si = 0; si < 4; ++si)
-    {
-        TextureBaseClass * tex = rs.Textures[si];
-        bgfx::TextureHandle h = EnsureBgfxTexture(tex);
-        const bool missingOrUnavailable = IsMissingOrUnavailableTexture(tex, h);
-        if (!bgfx::isValid(h))
-        {
-            h = g_device.defaultWhiteTexture;
-        }
-        g_draw.tex[si] = h;
-        g_draw.textureIsMissing[si] = missingOrUnavailable;
-        g_draw.sourceTextures[si] = tex;
-    }
-}
-
 static float GetTexcoordSource(unsigned texcoordGen)
 {
     if (texcoordGen == D3DTSS_TCI_CAMERASPACENORMAL)
@@ -4748,11 +4724,6 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     bgfx::setVertexBuffer(0, &vb, 0, vertex_count);
     bgfx::setIndexBuffer(&ib, 0, static_cast<uint32_t>(polygon_count) * 3);
 
-    // The sorted path is used by particles/effects as well as material decals.
-    // DX8Wrapper::Set_Texture may skip backend updates when the pointer matches
-    // its cache, so refresh from authoritative DX8 state before checking missing
-    // texture flags or binding bgfx handles.
-    SyncTextureStagesFromDx8State();
     BindTextureStages();
     UpdateTextureTransforms();
     if (IsSortedMaterialDecal(g_draw.state))
@@ -4945,7 +4916,6 @@ void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
 
 void BgfxBackend::Set_Shader(const ShaderClass & shader)
 {
-    DX8Backend::Set_Shader(shader);
     g_draw.program = g_device.uberProgram;
     g_draw.state   = BuildBgfxStateForShader(shader);
     BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef, &g_draw.atestFunc);
@@ -4955,14 +4925,12 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
 
 void BgfxBackend::Set_Material(const VertexMaterialClass * material)
 {
-    DX8Backend::Set_Material(material);
     g_draw.sourceMaterial = material;
     CaptureMaterialStateForBgfx(material);
 }
 
 void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 {
-    DX8Backend::Set_Texture(stage, texture);
     // Stages 0-3 wired. Covers terrain base + detail
     // + cloud + noise, the standard 4-stage layout used by the
     // FlatHeightMap pixel shader family. Stages above 3 still fall
@@ -5049,7 +5017,6 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 
 void BgfxBackend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * texture)
 {
-    DX8Backend::Bind_Texture_Immediate(stage, texture);
     Set_Texture(stage, texture);
 }
 
@@ -5063,7 +5030,10 @@ void BgfxBackend::Set_Ambient(const Vector3 & color)
 
 void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float end)
 {
-    DX8Backend::Set_Fog(enable, color, start, end);
+    (void)enable;
+    (void)color;
+    (void)start;
+    (void)end;
 }
 
 void BgfxBackend::Set_Light(unsigned int index, const LightClass & light)
@@ -6423,17 +6393,6 @@ void SubmitEngineDraw(unsigned short start_index,
     // distant terrain patches look blocky. Let bgfx pick the best
     // filter it can for each texture.
 
-    // TheSuperHackers @fix bobtista 19/04/2026 During sort flush, the
-    // sorting renderer's Apply_Render_State calls DX8Wrapper::Set_Texture
-    // which has a cache check — if the texture pointer matches the cached
-    // one, it skips BgfxBackend::Set_Texture entirely. This leaves
-    // g_draw.tex[0]-3 stale (e.g., pointing at font glyphs instead
-    // of particle textures).
-    // TheSuperHackers @bugfix bobtista 06/05/2026 This is not limited to sort
-    // flushes: spy-satellite reveal particles can reach bgfx with stale
-    // missing-texture flags, so the missing EXRedSmokePuff placeholder draws as
-    // black blocks instead of being suppressed as a transparent blended effect.
-    SyncTextureStagesFromDx8State();
     BindTextureStages();
     UpdateTextureTransforms();
     CaptureMaterialStateForBgfx(g_draw.sourceMaterial);
