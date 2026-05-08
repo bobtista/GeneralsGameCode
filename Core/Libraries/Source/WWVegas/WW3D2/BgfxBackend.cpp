@@ -5496,6 +5496,11 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
 // TheSuperHackers @refactor bobtista 15/04/2026 Mirror the
 // DWORD variant into g_overrides.colorWriteOverride so stencil shadow volume
 // passes that call Set_Color_Write_Mask(0) actually disable bgfx color writes.
+unsigned BgfxBackend::Get_Color_Write_Mask() const
+{
+    return RenderStateCache::Get_Render_State(D3DRS_COLORWRITEENABLE);
+}
+
 void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 {
     RenderStateCache::Set_Render_State(D3DRS_COLORWRITEENABLE, mask);
