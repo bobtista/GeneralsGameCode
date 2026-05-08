@@ -349,6 +349,11 @@ void DX8Backend::Set_Depth_Func(CompareFunc func)
     DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, static_cast<unsigned>(func));
 }
 
+unsigned DX8Backend::Get_Color_Write_Mask() const
+{
+    return DX8Wrapper::Get_DX8_Render_State(D3DRS_COLORWRITEENABLE);
+}
+
 void DX8Backend::Set_Color_Write_Mask(unsigned mask)
 {
     DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE, mask);
