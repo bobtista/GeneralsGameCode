@@ -249,6 +249,11 @@ void DX8Backend::Set_Alpha_Test_Function(CompareFunc func)
     DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC, static_cast<unsigned>(func));
 }
 
+void DX8Backend::Set_Normalize_Normals(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_NORMALIZENORMALS, enable ? TRUE : FALSE);
+}
+
 void DX8Backend::Show_Hardware_Cursor(bool show)
 {
     IDirect3DDevice8 * pDev = DX8Wrapper::_Get_D3D_Device8();
