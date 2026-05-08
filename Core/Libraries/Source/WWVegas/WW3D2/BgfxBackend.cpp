@@ -5332,6 +5332,11 @@ void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clamp
     }
 }
 
+void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
+{
+    RenderStateCache::Set_Texture_Stage_State(stage, state, value);
+}
+
 void BgfxBackend::Set_Shroud_Texture_Pass_Active(bool active, unsigned stage)
 {
     g_views.shroudTexturePassActive = active;

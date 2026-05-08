@@ -3914,17 +3914,17 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		// setup the TMU to default
 		g_renderBackend->Set_Shade_Mode(RB_SHADE_FLAT);
 		g_renderBackend->Set_Lighting_Enable(false);
-		m_pDev->SetTextureStageState( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-		m_pDev->SetTextureStageState( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
-		m_pDev->SetTextureStageState( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG2);
-		m_pDev->SetTextureStageState( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-		m_pDev->SetTextureStageState( 0, D3DTSS_TEXCOORDINDEX, 0 );
+		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX, 0);
 
-		m_pDev->SetTextureStageState( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE);
-		m_pDev->SetTextureStageState( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-		m_pDev->SetTextureStageState( 1, D3DTSS_TEXCOORDINDEX, 1 );
-		m_pDev->SetTexture(0,nullptr);
-		m_pDev->SetTexture(1,nullptr);
+		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX, 1);
+		g_renderBackend->Bind_Texture_Immediate(0, nullptr);
+		g_renderBackend->Bind_Texture_Immediate(1, nullptr);
 
 		DWORD oldColorWriteEnable=0x12345678;
 
