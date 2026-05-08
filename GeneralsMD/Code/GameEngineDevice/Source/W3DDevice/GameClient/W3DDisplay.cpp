@@ -2907,9 +2907,20 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 
 	// first try to use the native format
 
-	WW3DFormat displayFormat = DX8Wrapper::getBackBufferFormat();
+#if defined(__APPLE__)
+	// bgfx uploads D3D-style X8R8G8B8 video buffers as BGRA8, which preserves
+	// the BGR0 frames FFmpeg produces on little-endian macOS. Avoid 16-bit
+	// R5G6B5 here; it is both slower in swscale and currently renders with
+	// swapped-looking colors through the bgfx texture path.
+	if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+	{
+		format = VideoBuffer::TYPE_X8R8G8B8;
+	}
+#endif
 
-	if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
+	WW3DFormat displayFormat = g_renderBackend->Get_Back_Buffer_Format();
+
+	if ( format == VideoBuffer::TYPE_UNKNOWN && DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
 	{
 		format = W3DVideoBuffer::W3DFormatToType( displayFormat );
 	}
