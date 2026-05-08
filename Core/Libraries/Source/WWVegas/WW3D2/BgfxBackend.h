@@ -138,6 +138,7 @@ public:
     virtual void Set_Shader(const ShaderClass & shader) override;
     virtual void Set_Material(const VertexMaterialClass * material) override;
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture) override;
+    virtual void Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * texture) override;
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) override;
     virtual void Set_Ambient(const Vector3 & color) override;
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end) override;

@@ -561,10 +561,10 @@ void SimpleSceneClass::Customized_Render(RenderInfoClass & rinfo)
 	WWASSERT(rinfo.light_environment==nullptr);
 	int count=0;
 	// Turn off lights in case we have none
-	DX8Wrapper::Set_Light(0,nullptr);
-	DX8Wrapper::Set_Light(1,nullptr);
-	DX8Wrapper::Set_Light(2,nullptr);
-	DX8Wrapper::Set_Light(3,nullptr);
+	g_renderBackend->Clear_Light(0);
+	g_renderBackend->Clear_Light(1);
+	g_renderBackend->Clear_Light(2);
+	g_renderBackend->Clear_Light(3);
 
 // (gth) WWShade only works with light environments.  We need to upgrade LightEnvironment to
 // support real point lights, etc.  It will likely just evolve into "the n most important" lights
@@ -574,7 +574,7 @@ void SimpleSceneClass::Customized_Render(RenderInfoClass & rinfo)
 	{
 		if (count<4)
 		{
-			DX8Wrapper::Set_Light(count,*(LightClass*)it.Peek_Obj());
+			g_renderBackend->Set_Light(count,*(LightClass*)it.Peek_Obj());
 		} else
 		{
 			// Simple scene only supports 4 global lights
