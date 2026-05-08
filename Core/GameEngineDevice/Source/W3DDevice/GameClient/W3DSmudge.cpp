@@ -240,42 +240,49 @@ Bool W3DSmudgeManager::testHardwareSupport()
 		g_renderBackend->Set_Texture(0,nullptr);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
-		struct _TRANS_LIT_TEX_VERTEX {
-			Vector4 p;
-			DWORD color;   // diffuse color
-			float	u;
-			float	v;
-		} v[4];
+		RenderBackendScreenVertex v[4];
 
 		//bottom right
-		v[0].p = Vector4( BLOCK_SIZE-0.5f, BLOCK_SIZE-0.5f, 0.0f, 1.0f );
-		v[0].u = BLOCK_SIZE/(Real)TheDisplay->getWidth();
-		v[0].v = BLOCK_SIZE/(Real)TheDisplay->getHeight();
+		v[0].x = BLOCK_SIZE-0.5f;
+		v[0].y = BLOCK_SIZE-0.5f;
+		v[0].z = 0.0f;
+		v[0].w = 1.0f;
+		v[0].u0 = BLOCK_SIZE/(Real)TheDisplay->getWidth();
+		v[0].v0 = BLOCK_SIZE/(Real)TheDisplay->getHeight();
 		//top right
-		v[1].p = Vector4( BLOCK_SIZE-0.5f, 0-0.5f, 0.0f, 1.0f );
-		v[1].u = BLOCK_SIZE/(Real)TheDisplay->getWidth();
-		v[1].v = 0;
+		v[1].x = BLOCK_SIZE-0.5f;
+		v[1].y = 0-0.5f;
+		v[1].z = 0.0f;
+		v[1].w = 1.0f;
+		v[1].u0 = BLOCK_SIZE/(Real)TheDisplay->getWidth();
+		v[1].v0 = 0;
 		//bottom left
-		v[2].p = Vector4(  0-0.5f, BLOCK_SIZE-0.5f, 0.0f, 1.0f );
-		v[2].u = 0;
-		v[2].v = BLOCK_SIZE/(Real)TheDisplay->getHeight();
+		v[2].x = 0-0.5f;
+		v[2].y = BLOCK_SIZE-0.5f;
+		v[2].z = 0.0f;
+		v[2].w = 1.0f;
+		v[2].u0 = 0;
+		v[2].v0 = BLOCK_SIZE/(Real)TheDisplay->getHeight();
 		//top left
-		v[3].p = Vector4(  0-0.5f,  0-0.5f, 0.0f, 1.0f );
-		v[3].u = 0;
-		v[3].v = 0;
+		v[3].x = 0-0.5f;
+		v[3].y = 0-0.5f;
+		v[3].z = 0.0f;
+		v[3].w = 1.0f;
+		v[3].u0 = 0;
+		v[3].v0 = 0;
 
-		v[0].color = UNIQUE_COLOR;
-		v[1].color = UNIQUE_COLOR;
-		v[2].color = UNIQUE_COLOR;
-		v[3].color = UNIQUE_COLOR;
+		for (Int i = 0; i < 4; ++i)
+		{
+			v[i].diffuse = UNIQUE_COLOR;
+			v[i].u1 = 0.0f;
+			v[i].v1 = 0.0f;
+		}
 
-		LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
-
-		//draw polygons like this is very inefficient but for only 2 triangles, it's
-		//not worth bothering with index/vertex buffers.
-		pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-
-		pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
+		if (g_renderBackend == nullptr || !g_renderBackend->Draw_Screen_Quad(v, 4, false))
+		{
+			m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
+			return FALSE;
+		}
 
 		DWORD refData[BLOCK_SIZE*BLOCK_SIZE];
 		memset(refData,0,sizeof(refData));
@@ -296,12 +303,16 @@ Bool W3DSmudgeManager::testHardwareSupport()
 		DWORD testData[BLOCK_SIZE*BLOCK_SIZE];
 		memset(testData,0xff,sizeof(testData));
 
-		v[0].color = 0xffffffff;
-		v[1].color = 0xffffffff;
-		v[2].color = 0xffffffff;
-		v[3].color = 0xffffffff;
+		v[0].diffuse = 0xffffffff;
+		v[1].diffuse = 0xffffffff;
+		v[2].diffuse = 0xffffffff;
+		v[3].diffuse = 0xffffffff;
 
-		pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
+		if (!g_renderBackend->Draw_Screen_Quad(v, 4, false))
+		{
+			m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
+			return FALSE;
+		}
 		bufSize=copyRect((unsigned char *)testData,sizeof(testData),0,0,BLOCK_SIZE,BLOCK_SIZE);
 
 		if (!bufSize)
