@@ -3060,7 +3060,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
 
 void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)
 {
-    DX8Backend::Set_Vertex_Buffer(vb, stream);
+    (void)stream;
     // Cache is populated by Capture_Vertex_Data on the engine's
     // own write lock. Set_Vertex_Buffer just looks up whatever is already
     // there. Engine VBs that have not been written via the WriteLockClass
@@ -3119,7 +3119,6 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
 
 void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 {
-    DX8Backend::Set_Vertex_Buffer(vba);
     g_draw.vertexColorFlags[0] =
         (vba.FVF_Info().Get_FVF() & D3DFVF_DIFFUSE) ? 1.0f : 0.0f;
     g_draw.fvfHasNormal =
@@ -3142,7 +3141,6 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 
 void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset)
 {
-    DX8Backend::Set_Index_Buffer(ib, index_base_offset);
     g_draw.useTransientIB = false;
     auto it = g_caches.ib.find(ib);
     if (it != g_caches.ib.end())
@@ -3184,7 +3182,6 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
 
 void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset)
 {
-    DX8Backend::Set_Index_Buffer(iba, index_base_offset);
     if (g_draw.pendingIB.valid && g_draw.pendingIB.owner == &iba)
     {
         g_draw.useTransientIB = true;
@@ -3206,11 +3203,9 @@ void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned sh
 // category VB each index resolves to. Without this override the call
 // forwards to DX8Backend -> DX8Wrapper and the bgfx path keeps using
 // the stale offset from Set_Index_Buffer, so every mesh inside the
-// same rigid FVF category would draw using the first mesh's vertex
-// slots. Must call the base so the dx8 device still gets the update.
+// same rigid FVF category would draw using the first mesh's vertex slots.
 void BgfxBackend::Set_Index_Buffer_Index_Offset(unsigned int offset)
 {
-    DX8Backend::Set_Index_Buffer_Index_Offset(offset);
     g_draw.ibOffset = static_cast<unsigned short>(offset);
 }
 
