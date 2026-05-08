@@ -1775,7 +1775,7 @@ void DX8TextureCategoryClass::Render()
 					// Disable texturing on all stages and passes.
 					for (i = 0; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 					{
-						DX8Wrapper::Set_Texture (i, nullptr);
+						g_renderBackend->Set_Texture(i, nullptr);
 					}
 					break;
 
@@ -1785,11 +1785,11 @@ void DX8TextureCategoryClass::Render()
 					if (pass == mesh->Peek_Model()->Get_Pass_Count() - 1) {
 						for (i = 0; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 						{
-							DX8Wrapper::Set_Texture (i, Peek_Texture (i));
+							g_renderBackend->Set_Texture(i, Peek_Texture(i));
 						}
 					} else {
 						for (i = 0; i < MAX_TEXTURE_STAGES; i++) {
-							DX8Wrapper::Set_Texture (i, nullptr);
+							g_renderBackend->Set_Texture(i, nullptr);
 						}
 					}
 					break;
@@ -1797,17 +1797,17 @@ void DX8TextureCategoryClass::Render()
 				case MeshGeometryClass::PRELIT_LIGHTMAP_MULTI_TEXTURE:
 
 					// Disable texturing on all but the zeroth stage of each pass.
-					DX8Wrapper::Set_Texture (0, Peek_Texture (0));
+					g_renderBackend->Set_Texture(0, Peek_Texture(0));
 					for (i = 1; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 					{
-						DX8Wrapper::Set_Texture (i, nullptr);
+						g_renderBackend->Set_Texture(i, nullptr);
 					}
 					break;
 
 				default:
 					for (i = 0; i < MeshMatDescClass::MAX_TEX_STAGES; i++)
 					{
-						DX8Wrapper::Set_Texture (i, Peek_Texture (i));
+						g_renderBackend->Set_Texture(i, Peek_Texture(i));
 					}
 					break;
 			}
@@ -2297,6 +2297,5 @@ void DX8MeshRendererClass::Invalidate( bool shutdown)
 
 	texture_category_container_lists_rigid.Delete_All();
 }
-
 
 
