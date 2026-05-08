@@ -27,6 +27,7 @@
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8wrapper.h"
+#include "light.h"
 #include "lightenvironment.h"
 #include "matrix3d.h"
 #include "matrix4.h"
@@ -2492,6 +2493,7 @@ void BgfxBackend::Shutdown()
         g_draw.sourceTextures[1] = nullptr;
         g_draw.sourceTextures[2] = nullptr;
         g_draw.sourceTextures[3] = nullptr;
+        g_draw.sourceMaterial = nullptr;
         g_draw.ibOffset       = 0;
         g_draw.useTransientVB = false;
         g_draw.useTransientIB = false;
@@ -4947,6 +4949,7 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
 void BgfxBackend::Set_Material(const VertexMaterialClass * material)
 {
     DX8Backend::Set_Material(material);
+    g_draw.sourceMaterial = material;
     CaptureMaterialStateForBgfx(material);
 }
 
@@ -5054,6 +5057,61 @@ void BgfxBackend::Set_Ambient(const Vector3 & color)
 void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float end)
 {
     DX8Backend::Set_Fog(enable, color, start, end);
+}
+
+void BgfxBackend::Set_Light(unsigned int index, const LightClass & light)
+{
+    if (index >= 4)
+    {
+        return;
+    }
+
+    Vector3 color;
+    light.Get_Diffuse(&color);
+    color *= light.Get_Intensity();
+    g_draw.lightColors[index][0] = color.X;
+    g_draw.lightColors[index][1] = color.Y;
+    g_draw.lightColors[index][2] = color.Z;
+    g_draw.lightColors[index][3] = 1.0f;
+
+    light.Get_Ambient(&color);
+    color *= light.Get_Intensity();
+    g_draw.lightAmbients[index][0] = color.X;
+    g_draw.lightAmbients[index][1] = color.Y;
+    g_draw.lightAmbients[index][2] = color.Z;
+    g_draw.lightAmbients[index][3] = 1.0f;
+
+    Vector3 position = light.Get_Position();
+    g_draw.lightPositions[index][0] = position.X;
+    g_draw.lightPositions[index][1] = position.Y;
+    g_draw.lightPositions[index][2] = position.Z;
+    g_draw.lightPositions[index][3] = 1.0f;
+
+    Vector3 direction;
+    light.Get_Spot_Direction(direction);
+    g_draw.lightDirs[index][0] = -direction.X;
+    g_draw.lightDirs[index][1] = -direction.Y;
+    g_draw.lightDirs[index][2] = -direction.Z;
+    g_draw.lightDirs[index][3] = 1.0f;
+
+    g_draw.lightParams[index][0] = 0.0f;
+    g_draw.lightParams[index][1] = light.Get_Attenuation_Range();
+    g_draw.lightParams[index][2] =
+        (light.Get_Type() == LightClass::POINT || light.Get_Type() == LightClass::SPOT) ? 1.0f : 0.0f;
+    g_draw.lightParams[index][3] = 1.0f;
+}
+
+void BgfxBackend::Clear_Light(unsigned int index)
+{
+    if (index >= 4)
+    {
+        return;
+    }
+
+    g_draw.lightDirs[index][3] = 0.0f;
+    g_draw.lightColors[index][3] = 0.0f;
+    g_draw.lightAmbients[index][3] = 0.0f;
+    g_draw.lightParams[index][3] = 0.0f;
 }
 
 // Maps WW3D BlendFactor enum (1..11) to bgfx blend-factor bits. Index 0 unused.
@@ -6079,9 +6137,7 @@ void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
 
 }
 
-// Lighting and fog (Set_Light, Set_Ambient, Get_Ambient, Set_Fog,
-// Get_Fog_Enable, Set_Light_Environment, Get_Light_Environment) are
-// inherited from DX8Backend.
+// Get_Fog_Enable / Get_Light_Environment are inherited from DX8Backend.
 
 // -- Draw calls --------------------------------------------------------------
 
@@ -6396,12 +6452,7 @@ void SubmitEngineDraw(unsigned short start_index,
     SyncTextureStagesFromDx8State();
     BindTextureStages();
     UpdateTextureTransforms();
-    // DX8Wrapper::Draw applies pending render-state changes before this
-    // submit, and material application can happen there without going
-    // through BgfxBackend::Set_Material. Refresh from the authoritative
-    // DX8 render state so bgfx does not light a mesh with stale material
-    // color-source or lighting flags from a previous draw.
-    CaptureMaterialStateForBgfx(DX8Wrapper::Peek_Render_State().material);
+    CaptureMaterialStateForBgfx(g_draw.sourceMaterial);
     if (submitView == kBgfxEngineSortView && IsSortedMaterialDecal(g_draw.state))
     {
         // Terrain rendering leaves this flag set until reset by the shader
@@ -6455,58 +6506,10 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     UpdateAlphaMaskedShadowDecalMode();
     UploadMaterialUniforms();
-    // Read current D3D light state per-draw. Set_Light_Environment and
-    // Set_Ambient capture some paths, but many callers set lights via
-    // DX8Wrapper::Set_DX8_Light or Apply_Render_State_Changes directly,
-    // bypassing g_renderBackend. Reading the device state here ensures
-    // bgfx always has the correct lights regardless of how they were set.
-    {
-        const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
-        for (int li = 0; li < 4; ++li)
-        {
-            if (rs.LightEnable[li])
-            {
-                const D3DLIGHT8 & dl = rs.Lights[li];
-                g_draw.lightDirs[li][0] = -dl.Direction.x;
-                g_draw.lightDirs[li][1] = -dl.Direction.y;
-                g_draw.lightDirs[li][2] = -dl.Direction.z;
-                g_draw.lightDirs[li][3] = 1.0f;
-                g_draw.lightColors[li][0] = dl.Diffuse.r;
-                g_draw.lightColors[li][1] = dl.Diffuse.g;
-                g_draw.lightColors[li][2] = dl.Diffuse.b;
-                g_draw.lightColors[li][3] = 1.0f;
-                g_draw.lightAmbients[li][0] = dl.Ambient.r;
-                g_draw.lightAmbients[li][1] = dl.Ambient.g;
-                g_draw.lightAmbients[li][2] = dl.Ambient.b;
-                g_draw.lightAmbients[li][3] = 1.0f;
-                g_draw.lightPositions[li][0] = dl.Position.x;
-                g_draw.lightPositions[li][1] = dl.Position.y;
-                g_draw.lightPositions[li][2] = dl.Position.z;
-                g_draw.lightPositions[li][3] = 1.0f;
-                g_draw.lightParams[li][0] = 0.0f;
-                g_draw.lightParams[li][1] = dl.Range;
-                g_draw.lightParams[li][2] = (dl.Type == D3DLIGHT_POINT || dl.Type == D3DLIGHT_SPOT) ? 1.0f : 0.0f;
-                g_draw.lightParams[li][3] = 1.0f;
-            }
-            // TheSuperHackers @bugfix bobtista 30/04/2026 Do NOT zero the
-            // bgfx-cached light enable flag when D3DRS_LIGHTING is off or
-            // rs.LightEnable[li] is false. Generals/ZH globally disables
-            // D3D fixed-function lighting at startup (dx8wrapper.cpp:4175)
-            // and computes lighting via shader pipelines that take the
-            // light environment as constants. Set_Light_Environment populates
-            // g_draw.lightDirs/Colors/etc. with the engine's authored lights;
-            // overwriting .w to 0 here makes the bgfx uber shader skip every
-            // light and renders buildings/units in pure ambient — i.e. dark.
-            // Trusting the cached lights matches what the DX8 vertex shader
-            // path does, where light constants drive lit color independent
-            // of LightEnable state.
-        }
-    }
     // TheSuperHackers @bugfix bobtista 30/04/2026 Read D3DRS_AMBIENT per
-    // draw the same way lights are read above. Many callers (W3DScene,
-    // water, shadow flushers) push ambient straight through DX8Wrapper
+    // draw. Some callers still push ambient straight through DX8Wrapper
     // without going through g_renderBackend->Set_Ambient, so the cached
-    // g_draw.sceneAmbient drifts to zero and buildings render black.
+    // g_draw.sceneAmbient can drift and buildings render black.
     // The wrapper marks unwritten state with 0x12345678 (dx8wrapper.cpp:536);
     // ignore that sentinel and keep the cached value instead of treating
     // the marker bytes as a real color.
