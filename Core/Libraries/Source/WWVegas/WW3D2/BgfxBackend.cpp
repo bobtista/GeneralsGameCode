@@ -5140,9 +5140,8 @@ void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
                          srcIdx, dstIdx));
         }
     }
-    // RB_BLEND_* enum values match D3DBLEND_* (verified in IRenderBackend.h comments), so the integer passed to D3D8 is correct.
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND, srcIdx);
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, dstIdx);
+    RenderStateCache::Set_Render_State(D3DRS_SRCBLEND, srcIdx);
+    RenderStateCache::Set_Render_State(D3DRS_DESTBLEND, dstIdx);
 }
 
 void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func)
@@ -5150,10 +5149,9 @@ void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc fun
     g_overrides.atestActive = enable;
     g_overrides.atestRef = enable ? (ref / 255.0f) : 0.0f;
     g_overrides.atestFunc = enable ? static_cast<float>(func) : 0.0f;
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, enable ? TRUE : FALSE);
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF, ref);
-    // RB_CMP_* enum values match D3DCMP_*, so the integer passed to D3D8 is correct.
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC, static_cast<unsigned>(func));
+    RenderStateCache::Set_Render_State(D3DRS_ALPHATESTENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(D3DRS_ALPHAREF, ref);
+    RenderStateCache::Set_Render_State(D3DRS_ALPHAFUNC, static_cast<unsigned>(func));
 }
 
 void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
@@ -5163,7 +5161,7 @@ void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
         g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
                                                   BGFX_STATE_BLEND_INV_SRC_ALPHA));
     }
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(D3DRS_ALPHABLENDENABLE, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
@@ -5172,7 +5170,7 @@ void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
     {
         g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
     }
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, uvIndex);
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, uvIndex);
 }
 
 void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
@@ -5205,8 +5203,8 @@ void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix
 
 void BgfxBackend::Clear_Texture_Transform(unsigned stage)
 {
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, stage);
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, stage);
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 
     if (stage < 4)
     {
@@ -5240,7 +5238,7 @@ void BgfxBackend::Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEna
         ? (D3DTSS_TCI_CAMERASPACEPOSITION | stage)
         : stage;
 
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, tci);
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, tci);
     if (stage < 4)
     {
         g_draw.texcoordSource[stage] = cameraPosEnabled ? 3.0f : 0.0f;
@@ -5249,9 +5247,9 @@ void BgfxBackend::Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEna
 
 void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)
 {
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSU,
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_ADDRESSU,
         clampU ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP);
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSV,
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_ADDRESSV,
         clampV ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP);
 
     if (stage < 4)

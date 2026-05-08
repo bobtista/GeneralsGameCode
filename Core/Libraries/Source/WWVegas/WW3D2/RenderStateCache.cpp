@@ -38,11 +38,19 @@ void RenderStateCache::Invalidate()
 
 unsigned RenderStateCache::Get_Render_State(unsigned state)
 {
+	if (state >= RENDER_STATE_COUNT) {
+		return INVALID_STATE_VALUE;
+	}
+
 	return RenderStates[state];
 }
 
 bool RenderStateCache::Set_Render_State(unsigned state, unsigned value)
 {
+	if (state >= RENDER_STATE_COUNT) {
+		return false;
+	}
+
 	if (RenderStates[state] == value) {
 		return false;
 	}
@@ -53,11 +61,19 @@ bool RenderStateCache::Set_Render_State(unsigned state, unsigned value)
 
 unsigned RenderStateCache::Get_Texture_Stage_State(unsigned stage, unsigned state)
 {
+	if (stage >= TEXTURE_STAGE_COUNT || state >= TEXTURE_STAGE_STATE_COUNT) {
+		return INVALID_STATE_VALUE;
+	}
+
 	return TextureStageStates[stage][state];
 }
 
 bool RenderStateCache::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
 {
+	if (stage >= TEXTURE_STAGE_COUNT || state >= TEXTURE_STAGE_STATE_COUNT) {
+		return false;
+	}
+
 	if (TextureStageStates[stage][state] == value) {
 		return false;
 	}
