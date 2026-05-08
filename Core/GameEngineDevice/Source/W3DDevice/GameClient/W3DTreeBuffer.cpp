@@ -1715,10 +1715,15 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	g_renderBackend->Apply_Render_State_Changes();
 
 	if (m_dwTreeVertexShader) {
-		D3DXMATRIX matProj, matView, matWorld;
-		DX8Wrapper::_Get_DX8_Transform(D3DTS_WORLD, matWorld);
-		DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, matView);
-		DX8Wrapper::_Get_DX8_Transform(D3DTS_PROJECTION, matProj);
+		Matrix4x4 worldTransform;
+		Matrix4x4 viewTransform;
+		Matrix4x4 projectionTransform;
+		g_renderBackend->Get_Transform(RB_TRANSFORM_WORLD, worldTransform);
+		g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, viewTransform);
+		g_renderBackend->Get_Transform(RB_TRANSFORM_PROJECTION, projectionTransform);
+		D3DXMATRIX matWorld=To_D3DXMATRIX(worldTransform);
+		D3DXMATRIX matView=To_D3DXMATRIX(viewTransform);
+		D3DXMATRIX matProj=To_D3DXMATRIX(projectionTransform);
 		D3DXMATRIX mat;
 		D3DXMatrixMultiply( &mat, &matView, &matProj );
 		D3DXMatrixMultiply( &mat, &matWorld, &mat );
