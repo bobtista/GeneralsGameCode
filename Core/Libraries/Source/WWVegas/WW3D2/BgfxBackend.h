@@ -246,6 +246,22 @@ public:
                             unsigned short min_vertex_index,
                             unsigned short vertex_count) override;
 
+    // -- Programmable pipeline compatibility ---------------------------------
+
+    virtual bool Load_Legacy_Shader(const char * path,
+                                    const unsigned int * declaration,
+                                    unsigned int usage,
+                                    RenderBackendShaderKind kind,
+                                    unsigned long * handle) override;
+    virtual bool Create_Vertex_Shader(const unsigned int * declaration,
+                                      const unsigned int * shader,
+                                      unsigned int usage,
+                                      unsigned long * handle) override;
+    virtual bool Create_Pixel_Shader(const unsigned int * shader,
+                                     unsigned long * handle) override;
+    virtual void Delete_Vertex_Shader(unsigned long vertex_shader) override;
+    virtual void Delete_Pixel_Shader(unsigned long pixel_shader) override;
+
     // -- Resource creation (asset ingress) ---------------------------
     //
     // Creates the corresponding bgfx resource. The returned RenderResource.id
