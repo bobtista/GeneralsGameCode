@@ -283,7 +283,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Save off the view matrix
 	Matrix4x4 view;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW, view);
+	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, view);
 
 	Matrix4x4 identity(true);
 	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD, identity);
