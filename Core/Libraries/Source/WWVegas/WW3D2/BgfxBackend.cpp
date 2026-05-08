@@ -4501,7 +4501,7 @@ static void UploadMaterialUniforms()
     if (bgfx::isValid(g_uniforms.uAtestParams))
     {
         const float effectiveAtestRef = g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef;
-        const float effectiveAtestFunc = g_overrides.atestActive ? g_overrides.atestFunc : g_draw.atestFunc;
+        const float effectiveAtestFunc = g_overrides.atestActive ? g_overrides.atestFunc : (g_draw.atestEnabled ? g_draw.atestFunc : 0.0f);
         float atestParams[4] = { effectiveAtestRef, effectiveAtestFunc, 0.0f, 0.0f };
         bgfx::setUniform(g_uniforms.uAtestParams, atestParams);
     }
@@ -4939,6 +4939,7 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
     g_draw.program = g_device.uberProgram;
     g_draw.state   = BuildBgfxStateForShader(shader);
     BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef, &g_draw.atestFunc);
+    g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
     Clear_State_Overrides();
 }
 
@@ -5100,6 +5101,24 @@ void BgfxBackend::Set_Blend_Op(BlendOp op)
 {
     DX8Backend::Set_Blend_Op(op);
     g_draw.blendEquationBits = TranslateBlendOp(op);
+}
+
+void BgfxBackend::Set_Alpha_Test_Enable(bool enable)
+{
+    DX8Backend::Set_Alpha_Test_Enable(enable);
+    g_draw.atestEnabled = enable;
+}
+
+void BgfxBackend::Set_Alpha_Test_Reference(unsigned ref)
+{
+    DX8Backend::Set_Alpha_Test_Reference(ref);
+    g_draw.atestRef = ref / 255.0f;
+}
+
+void BgfxBackend::Set_Alpha_Test_Function(CompareFunc func)
+{
+    DX8Backend::Set_Alpha_Test_Function(func);
+    g_draw.atestFunc = static_cast<float>(func);
 }
 
 void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
@@ -6683,7 +6702,7 @@ void SubmitEngineDraw(unsigned short start_index,
 
     const bool writesDepth = (state & BGFX_STATE_WRITE_Z) != 0;
     const bool isBlended = (state & BGFX_STATE_BLEND_MASK) != 0;
-    const bool isAlphaTested = (g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef) > 0.0f;
+    const bool isAlphaTested = g_overrides.atestActive ? (g_overrides.atestFunc > 0.0f) : g_draw.atestEnabled;
     const bool isSceneDepthCaster =
         submitView == kBgfxEngineView
         && !g_views.overlay2DActive
