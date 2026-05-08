@@ -509,7 +509,7 @@ void ScreenBWFilter::reset()
 Int ScreenBWFilter::shutdown()
 {
 	if (m_dwBWPixelShader)
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_dwBWPixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_dwBWPixelShader);
 
 	m_dwBWPixelShader=0;
 
@@ -2003,13 +2003,13 @@ void TerrainShader8Stage::reset()
 Int TerrainShaderPixelShader::shutdown()
 {
 	if (m_dwBasePixelShader)
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_dwBasePixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_dwBasePixelShader);
 
 	if (m_dwBaseNoise1PixelShader)
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_dwBaseNoise1PixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_dwBaseNoise1PixelShader);
 
 	if (m_dwBaseNoise2PixelShader)
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_dwBaseNoise2PixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_dwBaseNoise2PixelShader);
 
 	m_dwBasePixelShader=0;
 	m_dwBaseNoise1PixelShader=0;
@@ -2312,7 +2312,7 @@ W3DShaderInterface *RoadShaderList[]=
 Int RoadShaderPixelShader::shutdown()
 {
 	if (m_dwBaseNoise2PixelShader)
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_dwBaseNoise2PixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_dwBaseNoise2PixelShader);
 
 	m_dwBaseNoise2PixelShader=0;
 
@@ -3208,6 +3208,22 @@ HRESULT W3DShaderManager::LoadAndCreateD3DShader(const char* strFilePath, const 
 	if (getChipset() < DC_GENERIC_PIXEL_SHADER_1_1)
 		return E_FAIL;	//don't allow loading any shaders if hardware can't handle it.
 
+	if (pHandle == nullptr)
+		return E_FAIL;
+
+	const RenderBackendShaderKind shaderKind = ShaderType ? RB_SHADER_VERTEX : RB_SHADER_PIXEL;
+	unsigned long backendHandle = 0;
+	if (g_renderBackend != nullptr &&
+		g_renderBackend->Load_Legacy_Shader(strFilePath,
+			reinterpret_cast<const unsigned int *>(pDeclaration),
+			static_cast<unsigned int>(Usage),
+			shaderKind,
+			&backendHandle))
+	{
+		*pHandle = static_cast<DWORD>(backendHandle);
+		return S_OK;
+	}
+
 	try
 	{
 		File *file = nullptr;
@@ -3238,11 +3254,19 @@ HRESULT W3DShaderManager::LoadAndCreateD3DShader(const char* strFilePath, const 
 
 		if (ShaderType) // SHADERTYPE_VERTEX
 		{
-			hr = DX8Wrapper::_Get_D3D_Device8()->CreateVertexShader(pDeclaration, pShader, pHandle, Usage);
+			hr = (g_renderBackend != nullptr &&
+				g_renderBackend->Create_Vertex_Shader(
+					reinterpret_cast<const unsigned int *>(pDeclaration),
+					reinterpret_cast<const unsigned int *>(pShader),
+					static_cast<unsigned int>(Usage),
+					&backendHandle)) ? S_OK : E_FAIL;
 		}
 		else // SHADERTYPE_PIXEL
 		{
-			hr = DX8Wrapper::_Get_D3D_Device8()->CreatePixelShader(pShader, pHandle);
+			hr = (g_renderBackend != nullptr &&
+				g_renderBackend->Create_Pixel_Shader(
+					reinterpret_cast<const unsigned int *>(pShader),
+					&backendHandle)) ? S_OK : E_FAIL;
 		}
 
 		HeapFree(GetProcessHeap(), 0, (void*)pShader);
@@ -3252,6 +3276,7 @@ HRESULT W3DShaderManager::LoadAndCreateD3DShader(const char* strFilePath, const 
 			OutputDebugString( "Failed to create shader\n ");
 			return E_FAIL;
 		}
+		*pHandle = static_cast<DWORD>(backendHandle);
 	}
 	catch(...)
 	{
@@ -3671,16 +3696,16 @@ Int FlatTerrainShader2Stage::set(Int pass)
 Int FlatTerrainShaderPixelShader::shutdown()
 {
 	if (m_dwBasePixelShader)
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_dwBasePixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_dwBasePixelShader);
 
 	if (m_dwBase0PixelShader)
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_dwBase0PixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_dwBase0PixelShader);
 
 	if (m_dwBaseNoise1PixelShader)
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_dwBaseNoise1PixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_dwBaseNoise1PixelShader);
 
 	if (m_dwBaseNoise2PixelShader)
-		DX8Wrapper::_Get_D3D_Device8()->DeletePixelShader(m_dwBaseNoise2PixelShader);
+		g_renderBackend->Delete_Pixel_Shader(m_dwBaseNoise2PixelShader);
 
 	m_dwBasePixelShader=0;
 	m_dwBase0PixelShader=0;
