@@ -147,8 +147,6 @@ Vector3							DX8Wrapper::Ambient_Color;
 // shader system additions KJM ^
 
 bool								DX8Wrapper::world_identity;
-unsigned							DX8Wrapper::RenderStates[256];
-unsigned							DX8Wrapper::TextureStageStates[MAX_TEXTURE_STAGES][32];
 IDirect3DBaseTexture8 *		DX8Wrapper::Textures[MAX_TEXTURE_STAGES];
 RenderStateStruct				DX8Wrapper::render_state;
 unsigned							DX8Wrapper::render_state_changed;
@@ -263,8 +261,7 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 
 	// zero memory
 	memset(Textures,0,sizeof(IDirect3DBaseTexture8*)*MAX_TEXTURE_STAGES);
-	memset(RenderStates,0,sizeof(unsigned)*256);
-	memset(TextureStageStates,0,sizeof(unsigned)*32*MAX_TEXTURE_STAGES);
+	RenderStateCache::Clear();
 	memset(Vertex_Shader_Constants,0,sizeof(Vector4)*MAX_VERTEX_SHADER_CONSTANTS);
 	memset(Pixel_Shader_Constants,0,sizeof(Vector4)*MAX_PIXEL_SHADER_CONSTANTS);
 	memset(&render_state,0,sizeof(RenderStateStruct));
@@ -530,17 +527,11 @@ void DX8Wrapper::Set_Default_Global_Render_States()
 void DX8Wrapper::Invalidate_Cached_Render_States()
 {
 	render_state_changed=0;
+	RenderStateCache::Invalidate();
 
 	int a;
-	for (a=0;a<sizeof(RenderStates)/sizeof(unsigned);++a) {
-		RenderStates[a]=0x12345678;
-	}
 	for (a=0;a<MAX_TEXTURE_STAGES;++a)
 	{
-		for (int b=0; b<32;b++)
-		{
-			TextureStageStates[a][b]=0x12345678;
-		}
 		//Need to explicitly set texture to null, otherwise app will not be able to
 		//set it to null because of redundant state checker. MW
 		if (_Get_D3D_Device8())
@@ -3470,7 +3461,7 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 	{
 		int light_count = light_env->Get_Light_Count();
 		unsigned int color=Convert_Color(light_env->Get_Equivalent_Ambient(),0.0f);
-		if (RenderStates[D3DRS_AMBIENT]!=color)
+		if (RenderStateCache::Get_Render_State(D3DRS_AMBIENT)!=color)
 		{
 			Set_DX8_Render_State(D3DRS_AMBIENT,color);
 //buggy Radeon 9700 driver doesn't apply new ambient unless the material also changes.
