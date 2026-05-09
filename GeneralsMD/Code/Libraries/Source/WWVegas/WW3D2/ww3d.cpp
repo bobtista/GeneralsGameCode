@@ -811,29 +811,22 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 	SNAPSHOT_SAY(("========== WW3D::Begin_Render ============"));
 	SNAPSHOT_SAY(("==========================================\n"));
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	if (g_renderBackend != nullptr && g_renderBackend->Is_Device_Lost())
-	{
-		return WW3D_ERROR_GENERIC;
-	}
-#else
-	HRESULT hr;
-	if (DX8Wrapper::_Get_D3D_Device8() && (hr=DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
+	RenderBackendDeviceStatus device_status = (g_renderBackend != nullptr) ? g_renderBackend->Get_Device_Status() : RB_DEVICE_OK;
+	if (device_status != RB_DEVICE_OK)
 	{
         // If the device was lost, do not render until we get it back
-        if( D3DERR_DEVICELOST == hr )
+        if( RB_DEVICE_LOST == device_status )
             return WW3D_ERROR_GENERIC;	//other app has the device
 
         // Check if the device needs to be reset
-        if( D3DERR_DEVICENOTRESET == hr )
+        if( RB_DEVICE_NOT_RESET == device_status )
         {
             WWDEBUG_SAY(("WW3D::Begin_Render is resetting the device."));
-            DX8Wrapper::Reset_Device();
+            g_renderBackend->Reset_Device();
         }
 
 		return WW3D_ERROR_GENERIC;
 	}
-#endif
 
 	// Memory allocation statistics
 	LastFrameMemoryAllocations=WWMemoryLogClass::Get_Allocate_Count();

@@ -41,6 +41,8 @@ public:
     // -- Device state queries -------------------------------------------------
 
     virtual bool Is_Device_Lost() const;
+    virtual RenderBackendDeviceStatus Get_Device_Status() const;
+    virtual void Reset_Device();
     virtual bool Has_Stencil() const;
     virtual WW3DFormat Get_Back_Buffer_Format() const;
     virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const;
