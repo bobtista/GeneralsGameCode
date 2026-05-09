@@ -148,6 +148,8 @@ public:
     virtual void Set_Point_Scale(float a, float b, float c) override;
     virtual void Set_Texture_Factor(unsigned argb);
     virtual void Configure_Grayscale_Texture_Stages() override;
+    virtual void Configure_Custom_Edging_Cloud_Texture_Stages() override;
+    virtual void Configure_Shadow_Volume_Fill_Texture_Stages() override;
     virtual void Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix) override;
     virtual void Set_Texture_Coord_Source(unsigned stage,
                                           RenderBackendTexcoordSource source,
