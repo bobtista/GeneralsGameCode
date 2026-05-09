@@ -60,6 +60,8 @@ public:
     virtual void Begin_Scene() override;
     virtual void End_Scene(bool flip_frame) override;
     virtual WW3DFormat Get_Back_Buffer_Format() const override;
+    virtual void Set_Texture_Bitdepth(int bitdepth) override;
+    virtual int Get_Texture_Bitdepth() const override;
     virtual void Clear(bool clear_color, bool clear_z_stencil,
                        const Vector3 & color,
                        float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0) override;
@@ -319,4 +321,7 @@ public:
     virtual RenderResource Register_Loaded_Texture(TextureBaseClass * tex) override;
     virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * vb) override;
     virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * ib) override;
+
+private:
+    int m_textureBitDepth;
 };
