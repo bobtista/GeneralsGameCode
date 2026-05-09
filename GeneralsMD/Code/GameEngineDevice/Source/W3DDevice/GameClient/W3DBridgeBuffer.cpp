@@ -1162,10 +1162,6 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 	g_renderBackend->Set_Index_Buffer(m_indexBridge,0);
 	g_renderBackend->Set_Vertex_Buffer(m_vertexBridge,0);
 	g_renderBackend->Set_Shader(detailAlphaShader);
-#ifdef RTS_DEBUG
-	//DX8Wrapper::Set_Shader(detailShader); // shows alpha clipping.
-#endif
-
 	g_renderBackend->Apply_Render_State_Changes();
 
 	if (!wireframe && cloudTexture)
@@ -1208,5 +1204,4 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 	}
 }
-
 
