@@ -812,13 +812,13 @@ void DX8Backend::Apply_Material_State(const RenderBackendMaterialState & materia
     DX8Wrapper::Set_DX8_Material(&dx_material);
 }
 
-void DX8Backend::Set_Material_Color_Source(unsigned ambient_source,
-                                           unsigned diffuse_source,
-                                           unsigned emissive_source)
+void DX8Backend::Set_Material_Color_Source(RenderBackendMaterialColorSource ambient_source,
+                                           RenderBackendMaterialColorSource diffuse_source,
+                                           RenderBackendMaterialColorSource emissive_source)
 {
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENTMATERIALSOURCE, ambient_source);
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_DIFFUSEMATERIALSOURCE, diffuse_source);
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_EMISSIVEMATERIALSOURCE, emissive_source);
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENTMATERIALSOURCE, static_cast<unsigned>(ambient_source));
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_DIFFUSEMATERIALSOURCE, static_cast<unsigned>(diffuse_source));
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_EMISSIVEMATERIALSOURCE, static_cast<unsigned>(emissive_source));
 }
 
 void DX8Backend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
