@@ -2553,6 +2553,7 @@ void BgfxBackend::Shutdown()
         g_draw.sourceTextures[2] = nullptr;
         g_draw.sourceTextures[3] = nullptr;
         g_draw.sourceMaterial = nullptr;
+        g_draw.explicitMaterialState = false;
         g_draw.ibOffset       = 0;
         g_draw.useTransientVB = false;
         g_draw.useTransientIB = false;
@@ -5038,7 +5039,31 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
 void BgfxBackend::Set_Material(const VertexMaterialClass * material)
 {
     g_draw.sourceMaterial = material;
+    g_draw.explicitMaterialState = false;
     CaptureMaterialStateForBgfx(material);
+}
+
+void BgfxBackend::Apply_Material_State(const RenderBackendMaterialState & material)
+{
+    g_draw.explicitMaterialState = true;
+    for (int i = 0; i < 4; ++i)
+    {
+        g_draw.matDiffuse[i] = material.diffuse[i];
+        g_draw.matAmbient[i] = material.ambient[i];
+        g_draw.matEmissive[i] = material.emissive[i];
+    }
+}
+
+void BgfxBackend::Set_Material_Color_Source(unsigned ambient_source,
+                                            unsigned diffuse_source,
+                                            unsigned emissive_source)
+{
+    RenderStateCache::Set_Render_State(D3DRS_AMBIENTMATERIALSOURCE, ambient_source);
+    RenderStateCache::Set_Render_State(D3DRS_DIFFUSEMATERIALSOURCE, diffuse_source);
+    RenderStateCache::Set_Render_State(D3DRS_EMISSIVEMATERIALSOURCE, emissive_source);
+    g_draw.vertexColorFlags[1] = (diffuse_source == D3DMCS_COLOR1) ? 1.0f : 0.0f;
+    g_draw.vertexColorFlags[2] = (ambient_source == D3DMCS_COLOR1) ? 1.0f : 0.0f;
+    g_draw.vertexColorFlags[3] = (emissive_source == D3DMCS_COLOR1) ? 1.0f : 0.0f;
 }
 
 void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
@@ -6588,7 +6613,10 @@ void SubmitEngineDraw(unsigned short start_index,
 
     BindTextureStages();
     UpdateTextureTransforms();
-    CaptureMaterialStateForBgfx(g_draw.sourceMaterial);
+    if (!g_draw.explicitMaterialState)
+    {
+        CaptureMaterialStateForBgfx(g_draw.sourceMaterial);
+    }
     if (submitView == kBgfxEngineSortView && IsSortedMaterialDecal(g_draw.state))
     {
         // Terrain rendering leaves this flag set until reset by the shader
