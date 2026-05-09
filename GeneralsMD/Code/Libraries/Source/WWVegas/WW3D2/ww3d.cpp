@@ -2049,45 +2049,50 @@ int WW3D::Get_Texture_Bitdepth()
 
 void WW3D::Set_MSAA_Mode(MultiSampleModeEnum mode)
 {
+	RenderBackendMSAAMode backend_mode;
 	switch (mode) {
 
 	default:
 	case MULTISAMPLE_MODE_NONE:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_NONE);
+		backend_mode = RB_MSAA_NONE;
 		break;
 
 	case MULTISAMPLE_MODE_2X:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_2_SAMPLES);
+		backend_mode = RB_MSAA_2X;
 		break;
 
 	case MULTISAMPLE_MODE_4X:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_4_SAMPLES);
+		backend_mode = RB_MSAA_4X;
 		break;
 
 	case MULTISAMPLE_MODE_8X:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_8_SAMPLES);
+		backend_mode = RB_MSAA_8X;
 		break;
 
+	}
+
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Set_MSAA_Mode(backend_mode);
 	}
 }
 
 WW3D::MultiSampleModeEnum WW3D::Get_MSAA_Mode()
 {
-	D3DMULTISAMPLE_TYPE type = DX8Wrapper::Get_MSAA_Mode();
+	RenderBackendMSAAMode mode = (g_renderBackend != nullptr) ? g_renderBackend->Get_MSAA_Mode() : RB_MSAA_NONE;
 
-	switch (type) {
+	switch (mode) {
 
 	default:
-	case D3DMULTISAMPLE_NONE:
+	case RB_MSAA_NONE:
 		return MULTISAMPLE_MODE_NONE;
 
-	case D3DMULTISAMPLE_2_SAMPLES:
+	case RB_MSAA_2X:
 		return MULTISAMPLE_MODE_2X;
 
-	case D3DMULTISAMPLE_4_SAMPLES:
+	case RB_MSAA_4X:
 		return MULTISAMPLE_MODE_4X;
 
-	case D3DMULTISAMPLE_8_SAMPLES:
+	case RB_MSAA_8X:
 		return MULTISAMPLE_MODE_8X;
 
 	}

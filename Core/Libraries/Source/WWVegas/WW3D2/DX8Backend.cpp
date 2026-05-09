@@ -182,6 +182,46 @@ void DX8Backend::Reset_Device()
     DX8Wrapper::Reset_Device();
 }
 
+void DX8Backend::Set_MSAA_Mode(RenderBackendMSAAMode mode)
+{
+    switch (mode) {
+    default:
+    case RB_MSAA_NONE:
+        DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_NONE);
+        break;
+
+    case RB_MSAA_2X:
+        DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_2_SAMPLES);
+        break;
+
+    case RB_MSAA_4X:
+        DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_4_SAMPLES);
+        break;
+
+    case RB_MSAA_8X:
+        DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_8_SAMPLES);
+        break;
+    }
+}
+
+RenderBackendMSAAMode DX8Backend::Get_MSAA_Mode() const
+{
+    switch (DX8Wrapper::Get_MSAA_Mode()) {
+    default:
+    case D3DMULTISAMPLE_NONE:
+        return RB_MSAA_NONE;
+
+    case D3DMULTISAMPLE_2_SAMPLES:
+        return RB_MSAA_2X;
+
+    case D3DMULTISAMPLE_4_SAMPLES:
+        return RB_MSAA_4X;
+
+    case D3DMULTISAMPLE_8_SAMPLES:
+        return RB_MSAA_8X;
+    }
+}
+
 bool DX8Backend::Has_Stencil() const
 {
     return DX8Wrapper::Has_Stencil();
