@@ -87,7 +87,6 @@ public:
 	const unsigned char * Peek_CPU_Buffer_Data() const { return CPUBufferData; }
 	unsigned Get_CPU_Buffer_Size() const { return CPUBufferSize; }
 	bool Has_CPU_Buffer_Data() const { return CPUBufferValid; }
-	unsigned char * Get_CPU_Buffer_Write_Pointer(unsigned byte_offset, unsigned size);
 
 	void Add_Engine_Ref() const;
 	void Release_Engine_Ref() const;
