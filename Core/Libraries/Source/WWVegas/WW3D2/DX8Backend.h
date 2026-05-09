@@ -127,6 +127,10 @@ public:
     virtual unsigned Get_Color_Write_Mask() const override;
     virtual void Set_Color_Write_Mask(unsigned mask) override;
     virtual void Set_Lighting_Enable(bool enable);
+    virtual void Set_Point_Sprite_Enable(bool enable) override;
+    virtual void Set_Point_Scale_Enable(bool enable) override;
+    virtual void Set_Point_Size(float size, float min_size, float max_size) override;
+    virtual void Set_Point_Scale(float a, float b, float c) override;
     virtual void Set_Texture_Factor(unsigned argb);
     virtual void Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
