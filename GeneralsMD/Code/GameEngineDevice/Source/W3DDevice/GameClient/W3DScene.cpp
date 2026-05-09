@@ -1051,16 +1051,14 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			rinfo.Camera.Set_Zbuffer_Range(nearZ, farZ-ZBias);
 			rinfo.Camera.Apply();
 
-//			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 4);
-			Customized_Render(rinfo);	//render wireframe where z-test passes
+				Customized_Render(rinfo);	//render wireframe where z-test passes
 			Flush(rinfo);
 			g_renderBackend->Set_Fill_Mode(RB_FILL_SOLID);
 
 			rinfo.Camera.Set_Zbuffer_Range(nearZ, farZ);
 			rinfo.Camera.Apply();
 
-//			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
-			WW3D::Enable_Texturing(old_enable);
+				WW3D::Enable_Texturing(old_enable);
 			WW3D::Enable_Coloring(0);
 
 			ShaderClass::Invalidate();
