@@ -284,11 +284,17 @@ IDirect3DTexture8* Load_Compressed_Texture(
 	);
 
 	for (unsigned level=0;level<mips;++level) {
-		IDirect3DSurface8* d3d_surface=nullptr;
+		D3DLOCKED_RECT locked_rect;
 		WWASSERT(d3d_texture);
-		DX8_ErrorCode(d3d_texture->GetSurfaceLevel(level/*-reduction_factor*/,&d3d_surface));
-		dds_file.Copy_Level_To_Surface(level,d3d_surface);
-		d3d_surface->Release();
+		DX8_ErrorCode(d3d_texture->LockRect(level,&locked_rect,nullptr,0));
+		dds_file.Copy_Level_To_Surface(
+			level,
+			dest_format,
+			dds_file.Get_Width(level),
+			dds_file.Get_Height(level),
+			reinterpret_cast<unsigned char*>(locked_rect.pBits),
+			locked_rect.Pitch);
+		DX8_ErrorCode(d3d_texture->UnlockRect(level));
 	}
 	return d3d_texture;
 }

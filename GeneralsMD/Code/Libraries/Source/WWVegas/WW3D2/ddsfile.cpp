@@ -21,8 +21,6 @@
 #include "ddsfile.h"
 #include "ffactory.h"
 #include "bufffile.h"
-#include "formconv.h"
-#include "dx8wrapper.h"
 #include "bitmaphandler.h"
 #include "colorspace.h"
 
@@ -361,37 +359,6 @@ WWINLINE static unsigned short ARGB8888_To_RGB565(unsigned argb_)
 	return rgb;
 }
 
-
-// ----------------------------------------------------------------------------
-//
-// Copy mipmap level to D3D surface. The copying is performed using another
-// Copy_Level_To_Surface function (see below).
-//
-// ----------------------------------------------------------------------------
-
-void DDSFileClass::Copy_Level_To_Surface(unsigned level,IDirect3DSurface8* d3d_surface,const Vector3& hsv_shift)
-{
-	WWASSERT(d3d_surface);
-	// Verify that the destination surface size matches the source surface size
-	D3DSURFACE_DESC surface_desc;
-	DX8_ErrorCode(d3d_surface->GetDesc(&surface_desc));
-
-	// First lock the surface
-	D3DLOCKED_RECT locked_rect;
-	DX8_ErrorCode(d3d_surface->LockRect(&locked_rect,nullptr,0));
-
-	Copy_Level_To_Surface(
-		level,
-		D3DFormat_To_WW3DFormat(surface_desc.Format),
-		surface_desc.Width,
-		surface_desc.Height,
-		reinterpret_cast<unsigned char*>(locked_rect.pBits),
-		locked_rect.Pitch,
-		hsv_shift);
-
-	// Finally, unlock the surface
-	DX8_ErrorCode(d3d_surface->UnlockRect());
-}
 
 // ----------------------------------------------------------------------------
 //
