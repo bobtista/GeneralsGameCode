@@ -435,14 +435,8 @@ DX8FVFCategoryContainer::DX8FVFCategoryContainer(unsigned FVF_,bool sorting_)
 	AnythingToRender(false),
 	AnyDelayedPassesToRender(false)
 {
-	if ((FVF&D3DFVF_TEX1)==D3DFVF_TEX1) uv_coordinate_channels=1;
-	if ((FVF&D3DFVF_TEX2)==D3DFVF_TEX2) uv_coordinate_channels=2;
-	if ((FVF&D3DFVF_TEX3)==D3DFVF_TEX3) uv_coordinate_channels=3;
-	if ((FVF&D3DFVF_TEX4)==D3DFVF_TEX4) uv_coordinate_channels=4;
-	if ((FVF&D3DFVF_TEX5)==D3DFVF_TEX5) uv_coordinate_channels=5;
-	if ((FVF&D3DFVF_TEX6)==D3DFVF_TEX6) uv_coordinate_channels=6;
-	if ((FVF&D3DFVF_TEX7)==D3DFVF_TEX7) uv_coordinate_channels=7;
-	if ((FVF&D3DFVF_TEX8)==D3DFVF_TEX8) uv_coordinate_channels=8;
+	FVFInfoClass fi(FVF);
+	uv_coordinate_channels=fi.Get_UV_Channel_Count();
 }
 
 // ----------------------------------------------------------------------------
@@ -707,37 +701,12 @@ unsigned DX8FVFCategoryContainer::Define_FVF(MeshModelClass* mmc,bool enable_lig
 		return dynamic_fvf_type;
 	}
 
-	unsigned fvf=D3DFVF_XYZ;
-
 	int tex_coord_count=mmc->Get_UV_Array_Count();
-
-	if (mmc->Get_Color_Array(0,false)) {
-		fvf|=D3DFVF_DIFFUSE;
-	}
-	if (mmc->Get_Color_Array(1,false)) {
-		fvf|=D3DFVF_SPECULAR;
-	}
-
-	switch (tex_coord_count) {
-	default:
-	case 0:
-		break;
-	case 1: fvf|=D3DFVF_TEX1; break;
-	case 2: fvf|=D3DFVF_TEX2; break;
-	case 3: fvf|=D3DFVF_TEX3; break;
-	case 4: fvf|=D3DFVF_TEX4; break;
-	case 5: fvf|=D3DFVF_TEX5; break;
-	case 6: fvf|=D3DFVF_TEX6; break;
-	case 7: fvf|=D3DFVF_TEX7; break;
-	case 8: fvf|=D3DFVF_TEX8; break;
-	}
-
-	if (!mmc->Needs_Vertex_Normals()) {  //enable_lighting || mmc->Get_Flag(MeshModelClass::PRELIT_MASK)) {
-		return fvf;
-	}
-
-	fvf|=D3DFVF_NORMAL;	// Realtime-lit
-	return fvf;
+	return FVFInfoClass::Build_FVF(
+		mmc->Needs_Vertex_Normals(),  // Realtime-lit.
+		mmc->Get_Color_Array(0,false) != nullptr,
+		mmc->Get_Color_Array(1,false) != nullptr,
+		tex_coord_count);
 }
 
 // ----------------------------------------------------------------------------
@@ -1034,11 +1003,11 @@ void DX8RigidFVFCategoryContainer::Add_Mesh(MeshModelClass* mmc_)
 	{
 		*(Vector3*)(vb+fi.Get_Location_Offset())=locs[i];
 
-		if ((FVF&D3DFVF_NORMAL)==D3DFVF_NORMAL && norms) {
+		if (fi.Has_Normal() && norms) {
 			*(Vector3*)(vb+fi.Get_Normal_Offset())=norms[i];
 		}
 
-		if ((FVF&D3DFVF_DIFFUSE)==D3DFVF_DIFFUSE) {
+		if (fi.Has_Diffuse()) {
 			if (diffuse) {
 				*(unsigned int*)(vb+fi.Get_Diffuse_Offset())=diffuse[i];
 			} else {
@@ -1046,7 +1015,7 @@ void DX8RigidFVFCategoryContainer::Add_Mesh(MeshModelClass* mmc_)
 			}
 		}
 
-		if ((FVF&D3DFVF_SPECULAR)==D3DFVF_SPECULAR) {
+		if (fi.Has_Specular()) {
 			if (specular) {
 				*(unsigned int*)(vb+fi.Get_Specular_Offset())=specular[i];
 			} else {
@@ -1061,31 +1030,7 @@ void DX8RigidFVFCategoryContainer::Add_Mesh(MeshModelClass* mmc_)
 	/*
 	** Append the UV coordinates to the vertex buffer
 	*/
-	int uvcount = 0;
-	if ((FVF&D3DFVF_TEX1) == D3DFVF_TEX1) {
-		uvcount = 1;
-	}
-	if ((FVF&D3DFVF_TEX2) == D3DFVF_TEX2) {
-		uvcount = 2;
-	}
-	if ((FVF&D3DFVF_TEX3) == D3DFVF_TEX3) {
-		uvcount = 3;
-	}
-	if ((FVF&D3DFVF_TEX4) == D3DFVF_TEX4) {
-		uvcount = 4;
-	}
-	if ((FVF&D3DFVF_TEX5) == D3DFVF_TEX5) {
-		uvcount = 5;
-	}
-	if ((FVF&D3DFVF_TEX6) == D3DFVF_TEX6) {
-		uvcount = 6;
-	}
-	if ((FVF&D3DFVF_TEX7) == D3DFVF_TEX7) {
-		uvcount = 7;
-	}
-	if ((FVF&D3DFVF_TEX8) == D3DFVF_TEX8) {
-		uvcount = 8;
-	}
+	int uvcount = fi.Get_UV_Channel_Count();
 
 	for (int j=0; j<uvcount; j++) {
 		unsigned char *vb=(unsigned char*) l.Get_Vertex_Array();
@@ -2297,4 +2242,3 @@ void DX8MeshRendererClass::Invalidate( bool shutdown)
 
 	texture_category_container_lists_rigid.Delete_All();
 }
-
