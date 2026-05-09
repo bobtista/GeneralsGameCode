@@ -3682,6 +3682,56 @@ void BgfxBackend::Capture_Sorted_Batch_Light(const RenderBackendLight & light, b
     }
 }
 
+void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state)
+{
+    if (state.shader != nullptr)
+    {
+        Set_Shader(*state.shader);
+    }
+    Set_Material(state.material);
+    for (unsigned i = 0; i < RB_MAX_TEXTURE_STAGES; ++i)
+    {
+        Set_Texture(i, state.textures[i]);
+    }
+    if (state.world != nullptr && state.view != nullptr)
+    {
+        Capture_Sorted_Batch_Transforms(*state.world, *state.view);
+    }
+    for (int i = 0; i < 4; ++i)
+    {
+        const RenderBackendLight & light = state.lights.lights[i];
+        if (state.lights.enabled[i])
+        {
+            g_draw.lightDirs[i][0] = -light.direction[0];
+            g_draw.lightDirs[i][1] = -light.direction[1];
+            g_draw.lightDirs[i][2] = -light.direction[2];
+            g_draw.lightDirs[i][3] = 1.0f;
+            g_draw.lightColors[i][0] = light.diffuse[0];
+            g_draw.lightColors[i][1] = light.diffuse[1];
+            g_draw.lightColors[i][2] = light.diffuse[2];
+            g_draw.lightColors[i][3] = 1.0f;
+            g_draw.lightAmbients[i][0] = light.ambient[0];
+            g_draw.lightAmbients[i][1] = light.ambient[1];
+            g_draw.lightAmbients[i][2] = light.ambient[2];
+            g_draw.lightAmbients[i][3] = 1.0f;
+            g_draw.lightParams[i][0] = 0.0f;
+            g_draw.lightParams[i][1] = 0.0f;
+            g_draw.lightParams[i][2] = 0.0f;
+            g_draw.lightParams[i][3] = 1.0f;
+        }
+        else
+        {
+            g_draw.lightDirs[i][3] = 0.0f;
+            g_draw.lightParams[i][3] = 0.0f;
+        }
+    }
+}
+
+void BgfxBackend::Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state)
+{
+    (void)state;
+}
+
 // TheSuperHackers @refactor bobtista 26/04/2026 Shared submit helpers used by
 // both Submit_Sorted_Draw and SubmitEngineDraw to avoid duplicated blocks.
 static uint64_t ApplyCullModeOverride(uint64_t state)
