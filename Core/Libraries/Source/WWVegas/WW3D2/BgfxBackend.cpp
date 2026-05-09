@@ -6074,7 +6074,11 @@ bool BgfxBackend::Needs_Closed_Shadow_Volumes() const
 
 void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
                                               unsigned stencil_read_mask,
-                                              unsigned stencil_ref)
+                                              unsigned stencil_ref,
+                                              int /*x*/,
+                                              int /*y*/,
+                                              int /*width*/,
+                                              int /*height*/)
 {
     if (!LegacyStencilShadowsEnabled()
         || std::getenv("GGC_BGFX_STENCIL_NO_APPLY") != nullptr
