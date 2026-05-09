@@ -1011,6 +1011,11 @@ unsigned DX8Backend::Get_Color_Write_Mask() const
     return DX8Wrapper::Get_DX8_Render_State(D3DRS_COLORWRITEENABLE);
 }
 
+bool DX8Backend::Supports_Color_Write_Mask() const
+{
+    return (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE) != 0;
+}
+
 void DX8Backend::Set_Color_Write_Mask(unsigned mask)
 {
     DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE, mask);
