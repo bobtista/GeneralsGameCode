@@ -1453,7 +1453,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	// and all the stencil + alpha-blend state setters in this function (and
 	// the rest of W3DScene.cpp) are routed through g_renderBackend via the
 	// new stencil state extension. The remaining low-level Set_DX8_Render_State
-	// calls (D3DRS_ZBIAS, COLORWRITEENABLE, FILLMODE, ZENABLE/ZFUNC,
+	// calls (D3DRS_ZBIAS, FILLMODE, ZENABLE/ZFUNC,
 	// SRCBLEND/DESTBLEND pairs, AMBIENT) and the raw m_pDev->* device pointer
 	// access points stay on DX8Wrapper::* until a future phase.
 	g_renderBackend->Set_Shader(PlayerColorShader);
@@ -1491,7 +1491,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		g_renderBackend->Set_Depth_Func(RB_CMP_NEVER);	//fail all access to the frame buffer to improve memory bandwidth
 
 		//disable writes to color buffer
-		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
+		if (g_renderBackend->Supports_Color_Write_Mask())
 		{
 			oldColorWriteEnable = g_renderBackend->Get_Color_Write_Mask();
 			g_renderBackend->Set_Color_Write_Mask(0);
