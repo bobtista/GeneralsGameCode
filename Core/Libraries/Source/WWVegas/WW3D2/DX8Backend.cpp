@@ -629,6 +629,26 @@ void DX8Backend::Set_Material(const VertexMaterialClass * material)
     DX8Wrapper::Set_Material(material);
 }
 
+void DX8Backend::Apply_Material_State(const RenderBackendMaterialState & material)
+{
+    D3DMATERIAL8 dx_material;
+    memcpy(&dx_material.Diffuse, material.diffuse, sizeof(dx_material.Diffuse));
+    memcpy(&dx_material.Ambient, material.ambient, sizeof(dx_material.Ambient));
+    memcpy(&dx_material.Specular, material.specular, sizeof(dx_material.Specular));
+    memcpy(&dx_material.Emissive, material.emissive, sizeof(dx_material.Emissive));
+    dx_material.Power = material.power;
+    DX8Wrapper::Set_DX8_Material(&dx_material);
+}
+
+void DX8Backend::Set_Material_Color_Source(unsigned ambient_source,
+                                           unsigned diffuse_source,
+                                           unsigned emissive_source)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENTMATERIALSOURCE, ambient_source);
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_DIFFUSEMATERIALSOURCE, diffuse_source);
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_EMISSIVEMATERIALSOURCE, emissive_source);
+}
+
 void DX8Backend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 {
     DX8Wrapper::Set_Texture(stage, texture);
