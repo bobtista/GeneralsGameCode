@@ -180,9 +180,6 @@ void W3DSnowManager::update()
 #define ISPOW2(x)  (x && (x & (x-1)) == 0)	//is a number a power of 2?
 #define MODPOW2(x,y) ((x) & (y-1))		//mod '%' operator for powers of 2.
 
-// Helper function to stuff a FLOAT into a DWORD argument
-inline DWORD FtoDW( FLOAT f ) { return *((DWORD*)&f); }
-
 /*Recursively subdivide the large snow box enclosing the camera until we reach some predefined leaf size.  This
 method is used so that very few off-screen particles end up getting rendered.  Culling them individually would
 be too expensive since we're dealing with 1000's for this effect.*/
@@ -444,14 +441,10 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 	g_renderBackend->Apply_Render_State_Changes();
 
     // Set the render states for using point sprites
-	DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSPRITEENABLE, TRUE );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALEENABLE,  TRUE );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSIZE,     FtoDW(m_pointSize) );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSIZE_MIN, FtoDW(m_minPointSize) );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSIZE_MAX, FtoDW(m_maxPointSize) );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALE_A,  FtoDW(0.00f) );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALE_B,  FtoDW(0.00f) );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALE_C,  FtoDW(1.00f) );
+	g_renderBackend->Set_Point_Sprite_Enable(true);
+    g_renderBackend->Set_Point_Scale_Enable(true);
+    g_renderBackend->Set_Point_Size(m_pointSize, m_minPointSize, m_maxPointSize);
+    g_renderBackend->Set_Point_Scale(0.0f, 0.0f, 1.0f);
 
 	DX8Wrapper::_Get_D3D_Device8()->SetStreamSource( 0, m_VertexBufferD3D, sizeof(POINTVERTEX) );
     DX8Wrapper::_Get_D3D_Device8()->SetVertexShader( D3DFVF_POINTVERTEX );
@@ -466,8 +459,8 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 	renderSubBox(rinfo,cubeOriginX,cubeOriginY,cubeDimX,cubeDimY);
 
 	// Reset render states
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSPRITEENABLE, FALSE );
-    DX8Wrapper::Set_DX8_Render_State( D3DRS_POINTSCALEENABLE,  FALSE );
+    g_renderBackend->Set_Point_Sprite_Enable(false);
+    g_renderBackend->Set_Point_Scale_Enable(false);
 #endif
 
 }
