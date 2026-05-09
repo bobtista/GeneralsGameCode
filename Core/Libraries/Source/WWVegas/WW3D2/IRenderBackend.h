@@ -417,6 +417,7 @@ public:
     virtual int Get_Texture_Bitdepth() const { return 16; }
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode) {}
     virtual RenderBackendMSAAMode Get_MSAA_Mode() const { return RB_MSAA_NONE; }
+    virtual bool Supports_Dot3() const { return false; }
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) {}
 
     // -------------------------------------------------------------------------

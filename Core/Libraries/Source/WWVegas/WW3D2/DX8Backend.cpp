@@ -224,6 +224,12 @@ RenderBackendMSAAMode DX8Backend::Get_MSAA_Mode() const
     }
 }
 
+bool DX8Backend::Supports_Dot3() const
+{
+    return DX8Wrapper::Get_Current_Caps() != nullptr
+        && DX8Wrapper::Get_Current_Caps()->Support_Dot3();
+}
+
 bool DX8Backend::Has_Stencil() const
 {
     return DX8Wrapper::Has_Stencil();
