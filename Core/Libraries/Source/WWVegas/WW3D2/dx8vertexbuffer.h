@@ -103,7 +103,7 @@ public:
 	{
 	public:
 		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I added
-		// optional `flags` (e.g. D3DLOCK_DISCARD / D3DLOCK_NOOVERWRITE)
+		// optional `flags` (e.g. RB_LOCK_DISCARD / RB_LOCK_NOOVERWRITE)
 		// for the dynamic shadow buffer's per-batch append pattern. Default
 		// of 0 keeps existing one-shot DX8VertexBufferClass::Copy callers
 		// unchanged.

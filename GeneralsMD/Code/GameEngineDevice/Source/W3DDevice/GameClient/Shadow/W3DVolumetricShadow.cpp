@@ -217,8 +217,8 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 // dynamic shadow volume buffers in W3D classes so g_renderBackend->
 // Set_Vertex_Buffer / Set_Index_Buffer / Draw_Triangles can route them
 // through the bgfx capture hooks. Lock semantics preserved via the new
-// flags parameter on AppendLockClass (D3DLOCK_NOOVERWRITE for partial
-// appends, D3DLOCK_DISCARD via WriteLockClass on wrap-around).
+// flags parameter on AppendLockClass (RB_LOCK_NOOVERWRITE for partial
+// appends, RB_LOCK_DISCARD via WriteLockClass on wrap-around).
 // Forward declaration (implementation further down in the file).
 static int EarClip2D(const float * xy, int N, short * out_indices);
 
@@ -1564,7 +1564,7 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 		nShadowStartBatchVertex = 0;
 	}
 	{
-		const unsigned vbFlags = wrapVerts ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		const unsigned vbFlags = wrapVerts ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 		VertexBufferClass::AppendLockClass vbLock(shadowVertexBuffer, nShadowVertsInBuf, numVerts, vbFlags);
 		pvVertices = (SHADOW_DYNAMIC_VOLUME_VERTEX *)vbLock.Get_Vertex_Array();
 #ifdef SV_DEBUG
@@ -1591,7 +1591,7 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 		nShadowStartBatchIndex = 0;
 	}
 	{
-		const unsigned ibFlags = wrapIndices ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		const unsigned ibFlags = wrapIndices ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 		IndexBufferClass::AppendLockClass ibLock(shadowIndexBuffer, nShadowIndicesInBuf, numIndex, ibFlags);
 		pvIndices = ibLock.Get_Index_Array();
 		if (pvIndices)
@@ -1719,7 +1719,7 @@ void W3DVolumetricShadow::RenderMeshVolumeBounds(Int meshIndex, Int lightIndex, 
 		nShadowStartBatchVertex = 0;
 	}
 	{
-		const unsigned vbFlags = wrapVerts ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		const unsigned vbFlags = wrapVerts ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 		VertexBufferClass::AppendLockClass vbLock(shadowVertexBuffer, nShadowVertsInBuf, numVerts, vbFlags);
 		pvVertices = (SHADOW_DYNAMIC_VOLUME_VERTEX *)vbLock.Get_Vertex_Array();
 		srand(0x1345465);
@@ -1743,7 +1743,7 @@ void W3DVolumetricShadow::RenderMeshVolumeBounds(Int meshIndex, Int lightIndex, 
 		nShadowStartBatchIndex = 0;
 	}
 	{
-		const unsigned ibFlags = wrapIndices ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		const unsigned ibFlags = wrapIndices ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 		IndexBufferClass::AppendLockClass ibLock(shadowIndexBuffer, nShadowIndicesInBuf, numIndex, ibFlags);
 		pvIndices = ibLock.Get_Index_Array();
 		if (pvIndices)
