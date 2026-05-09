@@ -500,7 +500,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 			nShadowStartBatchVertex=0;
 		}
 		{
-			const unsigned vbFlags = wrapVerts ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+			const unsigned vbFlags = wrapVerts ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 			VertexBufferClass::AppendLockClass vbLock(shadowVertexBuffer, nShadowVertsInBuf, numVerts, vbFlags);
 			pvVertices = (SHADOW_VOLUME_VERTEX *)vbLock.Get_Vertex_Array();
 
@@ -531,7 +531,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 			nShadowStartBatchIndex=0;
 		}
 		{
-			const unsigned ibFlags = wrapIndices ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+			const unsigned ibFlags = wrapIndices ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 			IndexBufferClass::AppendLockClass ibLock(shadowIndexBuffer, nShadowIndicesInBuf, numIndex, ibFlags);
 			pvIndices = ibLock.Get_Index_Array();
 
@@ -974,7 +974,7 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 		DEBUG_ASSERTCRASH(numVerts == ((endY-startY+1)*(endX-startX+1)), ("queueDecal VB size mismatch"));
 
 		{
-			unsigned vbFlags = (nShadowDecalVertsInBuf == 0) ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+			unsigned vbFlags = (nShadowDecalVertsInBuf == 0) ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 			VertexBufferClass::AppendLockClass vbLock(shadowDecalVertexBuffer, nShadowDecalVertsInBuf, numVerts, vbFlags);
 			pvVertices = (SHADOW_DECAL_VERTEX *)vbLock.Get_Vertex_Array();
 
@@ -1031,7 +1031,7 @@ void W3DProjectedShadowManager::queueDecal(W3DProjectedShadow *shadow)
 		}
 
 		{
-			unsigned ibFlags = (nShadowDecalIndicesInBuf == 0) ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+			unsigned ibFlags = (nShadowDecalIndicesInBuf == 0) ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 			IndexBufferClass::AppendLockClass ibLock(shadowDecalIndexBuffer, nShadowDecalIndicesInBuf, numIndex, ibFlags);
 			pvIndices = ibLock.Get_Index_Array();
 
@@ -1132,7 +1132,7 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 		Vector3 vertex;
 
 		{
-			unsigned vbFlags = (nShadowDecalVertsInBuf == 0) ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+			unsigned vbFlags = (nShadowDecalVertsInBuf == 0) ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 			VertexBufferClass::AppendLockClass vbLock(shadowDecalVertexBuffer, nShadowDecalVertsInBuf, numVerts, vbFlags);
 			pvVertices = (SHADOW_DECAL_VERTEX *)vbLock.Get_Vertex_Array();
 
@@ -1196,7 +1196,7 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 		}
 
 		{
-			unsigned ibFlags = (nShadowDecalIndicesInBuf == 0) ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+			unsigned ibFlags = (nShadowDecalIndicesInBuf == 0) ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 			IndexBufferClass::AppendLockClass ibLock(shadowDecalIndexBuffer, nShadowDecalIndicesInBuf, numIndex, ibFlags);
 			pvIndices = ibLock.Get_Index_Array();
 
