@@ -964,8 +964,8 @@ void VertexMaterialClass::Apply() const
 		if (Mapper[i]) {
 			Mapper[i]->Apply(UVSource[i]);
 		} else {
-			DX8Wrapper::Set_DX8_Texture_Stage_State(i,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU | UVSource[i]);
-			DX8Wrapper::Set_DX8_Texture_Stage_State(i,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_DISABLE);
+			g_renderBackend->Set_Texture_Stage_State(i,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU | UVSource[i]);
+			g_renderBackend->Set_Texture_Stage_State(i,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_DISABLE);
 		}
 	}
 }
@@ -991,8 +991,8 @@ void VertexMaterialClass::Apply_Null()
 
 	// set to default values if no mappers
 	for (i=0; i<MeshBuilderClass::MAX_STAGES; i++) {
-		DX8Wrapper::Set_DX8_Texture_Stage_State(i,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU | i);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(i,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_DISABLE);
+		g_renderBackend->Set_Texture_Stage_State(i,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU | i);
+		g_renderBackend->Set_Texture_Stage_State(i,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_DISABLE);
 	}
 }
 
