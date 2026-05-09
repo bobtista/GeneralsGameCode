@@ -82,6 +82,57 @@ FVFInfoClass::FVFInfoClass(unsigned FVF_)
 	}
 }
 
+unsigned FVFInfoClass::Get_UV_Channel_Count() const
+{
+	return (FVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+}
+
+bool FVFInfoClass::Has_Normal() const
+{
+	return (FVF & D3DFVF_NORMAL) == D3DFVF_NORMAL;
+}
+
+bool FVFInfoClass::Has_Diffuse() const
+{
+	return (FVF & D3DFVF_DIFFUSE) == D3DFVF_DIFFUSE;
+}
+
+bool FVFInfoClass::Has_Specular() const
+{
+	return (FVF & D3DFVF_SPECULAR) == D3DFVF_SPECULAR;
+}
+
+unsigned FVFInfoClass::Build_FVF(bool has_normal, bool has_diffuse, bool has_specular, unsigned tex_coord_count)
+{
+	unsigned fvf = D3DFVF_XYZ;
+
+	if (has_normal) {
+		fvf |= D3DFVF_NORMAL;
+	}
+	if (has_diffuse) {
+		fvf |= D3DFVF_DIFFUSE;
+	}
+	if (has_specular) {
+		fvf |= D3DFVF_SPECULAR;
+	}
+
+	switch (tex_coord_count) {
+	default:
+	case 0:
+		break;
+	case 1: fvf |= D3DFVF_TEX1; break;
+	case 2: fvf |= D3DFVF_TEX2; break;
+	case 3: fvf |= D3DFVF_TEX3; break;
+	case 4: fvf |= D3DFVF_TEX4; break;
+	case 5: fvf |= D3DFVF_TEX5; break;
+	case 6: fvf |= D3DFVF_TEX6; break;
+	case 7: fvf |= D3DFVF_TEX7; break;
+	case 8: fvf |= D3DFVF_TEX8; break;
+	}
+
+	return fvf;
+}
+
 void FVFInfoClass::Get_FVF_Name(StringClass& fvfname) const
 {
 	switch (Get_FVF()) {
