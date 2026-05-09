@@ -261,7 +261,7 @@ static Real beX;
 static Real beY;
 static Real beZ;
 
-static LPDIRECT3DVERTEXBUFFER8 lastActiveVertexBuffer=nullptr;
+static DX8VertexBufferClass *lastActiveVertexBuffer=nullptr;
 
 /** A simple structure to hold random geometry (vertices, polygons, etc.).  We'll use this
 * to store shadow volumes. */
@@ -1489,8 +1489,8 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	W3DBufferManager::W3DVertexBufferSlot *vbSlot=m_shadowVolumeVB[lightIndex][ meshIndex ];
 	if (!vbSlot)
 		return;
-	if (vbSlot->m_VB->m_DX8VertexBuffer->Get_DX8_Vertex_Buffer() != lastActiveVertexBuffer)
-	{	lastActiveVertexBuffer=vbSlot->m_VB->m_DX8VertexBuffer->Get_DX8_Vertex_Buffer();
+	if (vbSlot->m_VB->m_DX8VertexBuffer != lastActiveVertexBuffer)
+	{	lastActiveVertexBuffer=vbSlot->m_VB->m_DX8VertexBuffer;
 		g_renderBackend->Set_Vertex_Buffer(vbSlot->m_VB->m_DX8VertexBuffer, 0);
 	}
 
@@ -1609,7 +1609,7 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD, *meshXform);
 	g_renderBackend->Set_Vertex_Buffer(shadowVertexBuffer, 0);
 	g_renderBackend->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
-	lastActiveVertexBuffer = shadowVertexBuffer->Get_DX8_Vertex_Buffer();
+	lastActiveVertexBuffer = shadowVertexBuffer;
 
 	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
 	{
