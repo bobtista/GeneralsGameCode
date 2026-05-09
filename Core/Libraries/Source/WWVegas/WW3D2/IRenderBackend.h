@@ -53,16 +53,35 @@ class LightEnvironmentClass;
 class Matrix4x4;
 class Matrix3D;
 class Vector3;
+struct RenderStateStruct;
 
 // -----------------------------------------------------------------------------
 // POD types owned by the interface
 // -----------------------------------------------------------------------------
 
-// A single light captured for a sorted batch. Backend-neutral subset of D3DLIGHT8: only the fields consumed by the shader (direction vector + diffuse RGB). Direction follows the D3D8 convention — from the light toward the surface.
+// A single light captured for a sorted batch. Direction follows the D3D8
+// convention: from the light toward the surface.
 struct RenderBackendLight
 {
+    unsigned int type;
+    float position[3];
     float direction[3];
     float diffuse[3];
+    float ambient[3];
+    float specular[3];
+    float range;
+    float falloff;
+    float attenuation[3];
+    float theta;
+    float phi;
+};
+
+static const unsigned RB_MAX_TEXTURE_STAGES = 8;
+
+struct RenderBackendLightState
+{
+    RenderBackendLight lights[4];
+    bool enabled[4];
 };
 
 struct RenderBackendMaterialState
@@ -72,6 +91,16 @@ struct RenderBackendMaterialState
     float specular[4];
     float emissive[4];
     float power;
+};
+
+struct RenderBackendSortedBatchState
+{
+    const ShaderClass * shader;
+    const VertexMaterialClass * material;
+    TextureBaseClass * textures[RB_MAX_TEXTURE_STAGES];
+    const Matrix4x4 * world;
+    const Matrix4x4 * view;
+    RenderBackendLightState lights;
 };
 
 enum TransformKind
@@ -482,6 +511,8 @@ public:
     virtual void Capture_Sorted_Batch_Transforms(const Matrix4x4 & /*world*/,
                                                  const Matrix4x4 & /*view*/) {}
     virtual void Capture_Sorted_Batch_Light(const RenderBackendLight & /*light*/, bool /*enabled*/) {}
+    virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & /*state*/) {}
+    virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & /*state*/) {}
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Sorted
     // direct-draw path hook. DX8Wrapper::Draw_Sorting_IB_VB handles

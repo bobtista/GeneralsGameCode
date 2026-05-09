@@ -610,6 +610,76 @@ void DX8Backend::Set_Index_Buffer_Index_Offset(unsigned int offset)
     DX8Wrapper::Set_Index_Buffer_Index_Offset(offset);
 }
 
+void DX8Backend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state)
+{
+    if (state.shader != nullptr)
+    {
+        Set_Shader(*state.shader);
+    }
+    Set_Material(state.material);
+    for (unsigned i = 0; i < RB_MAX_TEXTURE_STAGES; ++i)
+    {
+        Set_Texture(i, state.textures[i]);
+    }
+    if (state.world != nullptr)
+    {
+        DX8Wrapper::_Set_DX8_Transform(
+            D3DTS_WORLD,
+            reinterpret_cast<const D3DMATRIX &>(*state.world));
+    }
+    if (state.view != nullptr)
+    {
+        DX8Wrapper::_Set_DX8_Transform(
+            D3DTS_VIEW,
+            reinterpret_cast<const D3DMATRIX &>(*state.view));
+    }
+    for (int i = 0; i < 4; ++i)
+    {
+        if (state.lights.enabled[i])
+        {
+            const RenderBackendLight & src = state.lights.lights[i];
+            D3DLIGHT8 light;
+            memset(&light, 0, sizeof(light));
+            light.Type = static_cast<D3DLIGHTTYPE>(src.type);
+            light.Position.x = src.position[0];
+            light.Position.y = src.position[1];
+            light.Position.z = src.position[2];
+            light.Direction.x = src.direction[0];
+            light.Direction.y = src.direction[1];
+            light.Direction.z = src.direction[2];
+            light.Diffuse.r = src.diffuse[0];
+            light.Diffuse.g = src.diffuse[1];
+            light.Diffuse.b = src.diffuse[2];
+            light.Diffuse.a = 1.0f;
+            light.Ambient.r = src.ambient[0];
+            light.Ambient.g = src.ambient[1];
+            light.Ambient.b = src.ambient[2];
+            light.Ambient.a = 1.0f;
+            light.Specular.r = src.specular[0];
+            light.Specular.g = src.specular[1];
+            light.Specular.b = src.specular[2];
+            light.Specular.a = 1.0f;
+            light.Range = src.range;
+            light.Falloff = src.falloff;
+            light.Attenuation0 = src.attenuation[0];
+            light.Attenuation1 = src.attenuation[1];
+            light.Attenuation2 = src.attenuation[2];
+            light.Theta = src.theta;
+            light.Phi = src.phi;
+            DX8Wrapper::Set_DX8_Light(i, &light);
+        }
+        else
+        {
+            DX8Wrapper::Set_DX8_Light(i, nullptr);
+        }
+    }
+}
+
+void DX8Backend::Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state)
+{
+    DX8Wrapper::Set_Render_State(state);
+}
+
 // -- State: shaders, materials, textures ------------------------------------
 
 void DX8Backend::Set_Shader(const ShaderClass & shader)
