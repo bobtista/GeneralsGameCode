@@ -517,8 +517,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	REF_PTR_RELEASE(vmat);
 	g_renderBackend->Apply_Render_State_Changes();
 
-	//Disable reading texture alpha since it's undefined.
-	//DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
+		// Disable reading texture alpha since it's undefined.
 	g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG2);
 
 	Int smudgesRemaining=count;
