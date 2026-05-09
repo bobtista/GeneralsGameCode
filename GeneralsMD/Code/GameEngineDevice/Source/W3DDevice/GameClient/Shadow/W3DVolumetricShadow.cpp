@@ -199,7 +199,7 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 {
 		float x,y,z;
 };
-#define SHADOW_STATIC_VOLUME_FVF	D3DFVF_XYZ
+#define SHADOW_STATIC_VOLUME_FVF	DX8_FVF_FLAG_XYZ
 
 #ifdef SV_DEBUG	//in debug mode, dynamic shadows are rendered with random diffuse color
 	struct SHADOW_DYNAMIC_VOLUME_VERTEX	//vertex structure passed to D3D
@@ -207,10 +207,10 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 			float x,y,z;
 			DWORD diffuse;
 	};
-	#define SHADOW_DYNAMIC_VOLUME_FVF	D3DFVF_XYZ|D3DFVF_DIFFUSE
+	#define SHADOW_DYNAMIC_VOLUME_FVF	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_DIFFUSE
 #else
 	typedef struct SHADOW_STATIC_VOLUME_VERTEX	SHADOW_DYNAMIC_VOLUME_VERTEX;
-	#define SHADOW_DYNAMIC_VOLUME_FVF	D3DFVF_XYZ
+	#define SHADOW_DYNAMIC_VOLUME_FVF	DX8_FVF_FLAG_XYZ
 #endif
 
 // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I wrap the
@@ -3797,7 +3797,7 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 #if !defined(GGC_BGFX_STANDALONE)
 	//draw polygons like this is very inefficient but for only 2 triangles, it's
 	//not worth bothering with index/vertex buffers.
-	m_pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+	m_pDev->SetVertexShader(DX8_FVF_FLAG_XYZRHW | DX8_FVF_FLAG_DIFFUSE);
 
 	// Use alpha blending to draw the transparent shadow
     g_renderBackend->Set_Alpha_Blend_Enable(true);
