@@ -175,6 +175,32 @@ SurfaceClass * DX8Backend::Get_Back_Buffer(unsigned int num) const
     return DX8Wrapper::_Get_DX8_Back_Buffer(num);
 }
 
+SurfaceClass * DX8Backend::Capture_Back_Buffer_Surface(unsigned int num)
+{
+    SurfaceClass * back_buffer = DX8Wrapper::_Get_DX8_Back_Buffer(num);
+    if (back_buffer == nullptr)
+    {
+        return nullptr;
+    }
+
+    SurfaceClass::SurfaceDescription desc;
+    back_buffer->Get_Description(desc);
+    SurfaceClass * copy = NEW_REF(SurfaceClass, (
+        DX8Wrapper::_Create_DX8_Surface(desc.Width, desc.Height, desc.Format)));
+    if (copy != nullptr)
+    {
+        DX8Wrapper::_Copy_DX8_Rects(
+            back_buffer->Peek_D3D_Surface(),
+            nullptr,
+            0,
+            copy->Peek_D3D_Surface(),
+            nullptr);
+    }
+
+    back_buffer->Release_Ref();
+    return copy;
+}
+
 void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit)
 {
     DX8Wrapper::Set_Gamma(gamma, bright, contrast, calibrate, uselimit);
