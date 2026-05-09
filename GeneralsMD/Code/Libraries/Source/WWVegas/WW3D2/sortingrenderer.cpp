@@ -46,7 +46,6 @@
 #include "IRenderBackend.h"
 #include "vertmaterial.h"
 #include "texture.h"
-#include "d3d8.h"
 #include "statistics.h"
 #include <wwprofile.h>
 #include <algorithm>
@@ -77,32 +76,35 @@ struct TempIndexStruct
 	float z;
 };
 
-static D3DMATRIX Multiply_D3D_Matrix(const D3DMATRIX& lhs, const D3DMATRIX& rhs)
+static Matrix4x4 Multiply_Sorting_Matrix(const Matrix4x4& lhs, const Matrix4x4& rhs)
 {
-	D3DMATRIX result = {};
+	Matrix4x4 result;
 	for (int row = 0; row < 4; ++row) {
 		for (int col = 0; col < 4; ++col) {
-			result.m[row][col] =
-				lhs.m[row][0] * rhs.m[0][col] +
-				lhs.m[row][1] * rhs.m[1][col] +
-				lhs.m[row][2] * rhs.m[2][col] +
-				lhs.m[row][3] * rhs.m[3][col];
+			result[row][col] =
+				lhs[row][0] * rhs[0][col] +
+				lhs[row][1] * rhs[1][col] +
+				lhs[row][2] * rhs[2][col] +
+				lhs[row][3] * rhs[3][col];
 		}
 	}
 	return result;
 }
 
-static D3DMATRIX Get_D3D_World_View_Matrix(const RenderStateStruct& state)
+static Matrix4x4 Get_Sorting_World_View_Matrix(const RenderStateStruct& state)
 {
-	return Multiply_D3D_Matrix(state.world, state.view);
+	static_assert(sizeof(state.world) == sizeof(Matrix4x4), "Render-state matrices must match Matrix4x4 layout");
+	const Matrix4x4& world = reinterpret_cast<const Matrix4x4&>(state.world);
+	const Matrix4x4& view = reinterpret_cast<const Matrix4x4&>(state.view);
+	return Multiply_Sorting_Matrix(world, view);
 }
 
-static Vector3 Transform_D3D_Point(const Vector3& point, const D3DMATRIX& matrix)
+static Vector3 Transform_Sorting_Point(const Vector3& point, const Matrix4x4& matrix)
 {
 	return Vector3(
-		point.X * matrix.m[0][0] + point.Y * matrix.m[1][0] + point.Z * matrix.m[2][0] + matrix.m[3][0],
-		point.X * matrix.m[0][1] + point.Y * matrix.m[1][1] + point.Z * matrix.m[2][1] + matrix.m[3][1],
-		point.X * matrix.m[0][2] + point.Y * matrix.m[1][2] + point.Z * matrix.m[2][2] + matrix.m[3][2]);
+		point.X * matrix[0][0] + point.Y * matrix[1][0] + point.Z * matrix[2][0] + matrix[3][0],
+		point.X * matrix[0][1] + point.Y * matrix[1][1] + point.Z * matrix[2][1] + matrix[3][1],
+		point.X * matrix[0][2] + point.Y * matrix[1][2] + point.Z * matrix[2][2] + matrix[3][2]);
 }
 
 bool operator <(const TempIndexStruct &l, const TempIndexStruct &r) { return l.z < r.z; }
@@ -276,8 +278,8 @@ void SortingRendererClass::Insert_Triangles(
 	WWASSERT(vertex_buffer);
 	WWASSERT(state->vertex_count<=vertex_buffer->Get_Vertex_Count());
 
-	const D3DMATRIX mtx = Get_D3D_World_View_Matrix(state->sorting_state);
-	state->transformed_center = Transform_D3D_Point(state->bounding_sphere.Center, mtx);
+	const Matrix4x4 mtx = Get_Sorting_World_View_Matrix(state->sorting_state);
+	state->transformed_center = Transform_Sorting_Point(state->bounding_sphere.Center, mtx);
 
 
 	/// @todo lorenzen sez use a bucket sort here... and stop copying so much data so many times
@@ -377,7 +379,8 @@ void SortingRendererClass::Insert_To_Sorting_Pool(SortingNodeStruct* state)
 // ----------------------------------------------------------------------------
 //static unsigned prevLight = 0xffffffff;
 
-static RenderBackendLight Make_Render_Backend_Light(const D3DLIGHT8 & light)
+template <typename LightState>
+static RenderBackendLight Make_Render_Backend_Light(const LightState & light)
 {
 	RenderBackendLight rb_light;
 	rb_light.type = light.Type;
@@ -408,7 +411,7 @@ static RenderBackendLight Make_Render_Backend_Light(const D3DLIGHT8 & light)
 
 static RenderBackendSortedBatchState Make_Render_Backend_Sorted_State(RenderStateStruct & render_state)
 {
-	static_assert(sizeof(D3DMATRIX) == sizeof(Matrix4x4), "D3DMATRIX and Matrix4x4 must be the same size for reinterpret_cast");
+	static_assert(sizeof(render_state.world) == sizeof(Matrix4x4), "Render-state matrices must match Matrix4x4 layout");
 	RenderBackendSortedBatchState rb_state;
 	rb_state.shader = &render_state.shader;
 	rb_state.material = render_state.material;
@@ -534,7 +537,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			memcpy(dest_verts, src_verts, sizeof(VertexFormatXYZNDUV2)*state->vertex_count);
 			dest_verts += state->vertex_count;
 
-			const D3DMATRIX mtx = Get_D3D_World_View_Matrix(state->sorting_state);
+			const Matrix4x4 mtx = Get_Sorting_World_View_Matrix(state->sorting_state);
 
 			unsigned short* indices=nullptr;
 			SortingIndexBufferClass* index_buffer=static_cast<SortingIndexBufferClass*>(state->sorting_state.index_buffer);
@@ -544,7 +547,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			indices+=state->start_index;
 			indices+=state->sorting_state.iba_offset;
 
-			if (mtx.m[0][2] == 0.0f && mtx.m[1][2] == 0.0f && mtx.m[3][2] == 0.0f && mtx.m[2][2] == 1.0f) {
+			if (mtx[0][2] == 0.0f && mtx[1][2] == 0.0f && mtx[3][2] == 0.0f && mtx[2][2] == 1.0f) {
 				// The common case for particle systems.
 				for (int i=0;i<state->polygon_count;++i) {
 					unsigned short idx1=indices[i*3]-state->min_vertex_index;
@@ -584,9 +587,9 @@ void SortingRendererClass::Flush_Sorting_Pool()
 					tis_ptr->tri.j = idx2 + vertex_array_offset;
 					tis_ptr->tri.k = idx3 + vertex_array_offset;
 					tis_ptr->idx = node_id;
-					tis_ptr->z = (mtx.m[0][2]*(v1->x + v2->x + v3->x) +
-												mtx.m[1][2]*(v1->y + v2->y + v3->y) +
-												mtx.m[2][2]*(v1->z + v2->z + v3->z))/3.0f + mtx.m[3][2];
+					tis_ptr->z = (mtx[0][2]*(v1->x + v2->x + v3->x) +
+												mtx[1][2]*(v1->y + v2->y + v3->y) +
+												mtx[2][2]*(v1->z + v2->z + v3->z))/3.0f + mtx[3][2];
 					DEBUG_ASSERTCRASH((! _isnan(tis_ptr->z) && _finite(tis_ptr->z)), ("Triangle has invalid center"));
 				}
 			}
@@ -814,8 +817,8 @@ void SortingRendererClass::Insert_VolumeParticle(
 
 	// Transform the center point to view space for sorting
 
-	const D3DMATRIX mtx = Get_D3D_World_View_Matrix(state->sorting_state);
-	state->transformed_center = Transform_D3D_Point(state->bounding_sphere.Center, mtx);
+	const Matrix4x4 mtx = Get_Sorting_World_View_Matrix(state->sorting_state);
+	state->transformed_center = Transform_Sorting_Point(state->bounding_sphere.Center, mtx);
 
 
 	// BUT WHAT IS THE DEAL WITH THE VERTCOUNT AND POLYCOUNT BEING N BUT TRANSFORMED CENTER COUNT == 1
