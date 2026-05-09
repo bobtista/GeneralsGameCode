@@ -138,6 +138,14 @@ enum RenderBackendTexcoordSource
     RB_TEXCOORD_CAMERA_SPACE_POSITION = 3
 };
 
+enum RenderBackendMaterialColorSource
+{
+    // Values match D3DMCS_* so DX8Backend can forward them directly.
+    RB_MATERIAL_COLOR_SOURCE_MATERIAL = 0,
+    RB_MATERIAL_COLOR_SOURCE_COLOR1 = 1,
+    RB_MATERIAL_COLOR_SOURCE_COLOR2 = 2
+};
+
 enum RenderBackendViewCaptureKind
 {
     RB_VIEW_CAPTURE_TACTICAL = 0
@@ -574,9 +582,9 @@ public:
     virtual void Get_Shader(ShaderClass & shader) {}
     virtual void Set_Material(const VertexMaterialClass * material) {}
     virtual void Apply_Material_State(const RenderBackendMaterialState & material) {}
-    virtual void Set_Material_Color_Source(unsigned ambient_source,
-                                           unsigned diffuse_source,
-                                           unsigned emissive_source) {}
+    virtual void Set_Material_Color_Source(RenderBackendMaterialColorSource ambient_source,
+                                           RenderBackendMaterialColorSource diffuse_source,
+                                           RenderBackendMaterialColorSource emissive_source) {}
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture) {}
     // Immediate texture-stage bind for legacy custom passes that do not call
     // Apply_Render_State_Changes between pass setup and draw. DX8 binds the

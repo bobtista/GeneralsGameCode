@@ -5130,16 +5130,16 @@ void BgfxBackend::Apply_Material_State(const RenderBackendMaterialState & materi
     }
 }
 
-void BgfxBackend::Set_Material_Color_Source(unsigned ambient_source,
-                                            unsigned diffuse_source,
-                                            unsigned emissive_source)
+void BgfxBackend::Set_Material_Color_Source(RenderBackendMaterialColorSource ambient_source,
+                                            RenderBackendMaterialColorSource diffuse_source,
+                                            RenderBackendMaterialColorSource emissive_source)
 {
-    RenderStateCache::Set_Render_State(D3DRS_AMBIENTMATERIALSOURCE, ambient_source);
-    RenderStateCache::Set_Render_State(D3DRS_DIFFUSEMATERIALSOURCE, diffuse_source);
-    RenderStateCache::Set_Render_State(D3DRS_EMISSIVEMATERIALSOURCE, emissive_source);
-    g_draw.vertexColorFlags[1] = (diffuse_source == D3DMCS_COLOR1) ? 1.0f : 0.0f;
-    g_draw.vertexColorFlags[2] = (ambient_source == D3DMCS_COLOR1) ? 1.0f : 0.0f;
-    g_draw.vertexColorFlags[3] = (emissive_source == D3DMCS_COLOR1) ? 1.0f : 0.0f;
+    RenderStateCache::Set_Render_State(D3DRS_AMBIENTMATERIALSOURCE, static_cast<unsigned>(ambient_source));
+    RenderStateCache::Set_Render_State(D3DRS_DIFFUSEMATERIALSOURCE, static_cast<unsigned>(diffuse_source));
+    RenderStateCache::Set_Render_State(D3DRS_EMISSIVEMATERIALSOURCE, static_cast<unsigned>(emissive_source));
+    g_draw.vertexColorFlags[1] = (diffuse_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
+    g_draw.vertexColorFlags[2] = (ambient_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
+    g_draw.vertexColorFlags[3] = (emissive_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
 }
 
 void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
