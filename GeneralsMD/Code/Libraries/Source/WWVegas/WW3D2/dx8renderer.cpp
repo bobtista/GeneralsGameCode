@@ -1731,9 +1731,9 @@ void DX8TextureCategoryClass::Render()
 		theShader.Set_Src_Blend_Func(ShaderClass::SRCBLEND_ZERO);
 		g_renderBackend->Set_Shader(theShader);
 		//VertexMaterialClass *material = VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
-		//DX8Wrapper::Set_Material(material);
+		//g_renderBackend->Set_Material(material);
 		//REF_PTR_RELEASE(material);
-		DX8Wrapper::Apply_Render_State_Changes();
+		g_renderBackend->Apply_Render_State_Changes();
 		// Override SRCBLEND to DESTCOLOR for multiply mode. DESTBLEND
 		// stays at whatever ShaderClass set (typically SRCCOLOR).
 		g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_SRC_COLOR);
@@ -1921,7 +1921,7 @@ void DX8TextureCategoryClass::Render()
 					}
 					vmaterial->Set_Opacity(mesh->Get_Alpha_Override());
 					g_renderBackend->Set_Shader(theAlphaShader);
-					DX8Wrapper::Apply_Render_State_Changes();
+					g_renderBackend->Apply_Render_State_Changes();
 					g_renderBackend->Set_Alpha_Test_Reference((int)((float)0x60*mesh->Get_Alpha_Override()));
 
 					renderer->Render(mesh->Get_Base_Vertex_Offset());
@@ -2297,5 +2297,4 @@ void DX8MeshRendererClass::Invalidate( bool shutdown)
 
 	texture_category_container_lists_rigid.Delete_All();
 }
-
 
