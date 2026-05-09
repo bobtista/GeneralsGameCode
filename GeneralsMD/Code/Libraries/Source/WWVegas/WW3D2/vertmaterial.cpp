@@ -67,6 +67,29 @@ public:
 #define SRCMATPTR(src)	((src)->MaterialOld)
 #endif
 
+static RenderBackendMaterialState Make_Render_Backend_Material_State(const D3DMATERIAL8 & material)
+{
+	RenderBackendMaterialState state;
+	state.diffuse[0] = material.Diffuse.r;
+	state.diffuse[1] = material.Diffuse.g;
+	state.diffuse[2] = material.Diffuse.b;
+	state.diffuse[3] = material.Diffuse.a;
+	state.ambient[0] = material.Ambient.r;
+	state.ambient[1] = material.Ambient.g;
+	state.ambient[2] = material.Ambient.b;
+	state.ambient[3] = material.Ambient.a;
+	state.specular[0] = material.Specular.r;
+	state.specular[1] = material.Specular.g;
+	state.specular[2] = material.Specular.b;
+	state.specular[3] = material.Specular.a;
+	state.emissive[0] = material.Emissive.r;
+	state.emissive[1] = material.Emissive.g;
+	state.emissive[2] = material.Emissive.b;
+	state.emissive[3] = material.Emissive.a;
+	state.power = material.Power;
+	return state;
+}
+
 /*
 ** VertexMaterialClass Implementation
 */
@@ -949,15 +972,13 @@ void VertexMaterialClass::Apply() const
 {
 	int i;
 
-	DX8Wrapper::Set_DX8_Material(Material);
+	g_renderBackend->Apply_Material_State(Make_Render_Backend_Material_State(*Material));
 
 	if (WW3D::Is_Coloring_Enabled())
 		g_renderBackend->Set_Lighting_Enable(false);
 	else
 		g_renderBackend->Set_Lighting_Enable(UseLighting);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENTMATERIALSOURCE,AmbientColorSource);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_DIFFUSEMATERIALSOURCE,DiffuseColorSource);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_EMISSIVEMATERIALSOURCE,EmissiveColorSource);
+	g_renderBackend->Set_Material_Color_Source(AmbientColorSource, DiffuseColorSource, EmissiveColorSource);
 
 	// set to default values if no mappers
 	for (i=0; i<MeshBuilderClass::MAX_STAGES; i++) {
@@ -983,11 +1004,9 @@ void VertexMaterialClass::Apply_Null()
 	};
 
 	g_renderBackend->Set_Lighting_Enable(false);
-	DX8Wrapper::Set_DX8_Material(&default_settings);
+	g_renderBackend->Apply_Material_State(Make_Render_Backend_Material_State(default_settings));
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENTMATERIALSOURCE,D3DMCS_MATERIAL);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_DIFFUSEMATERIALSOURCE,D3DMCS_MATERIAL);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_EMISSIVEMATERIALSOURCE,D3DMCS_MATERIAL);
+	g_renderBackend->Set_Material_Color_Source(D3DMCS_MATERIAL, D3DMCS_MATERIAL, D3DMCS_MATERIAL);
 
 	// set to default values if no mappers
 	for (i=0; i<MeshBuilderClass::MAX_STAGES; i++) {

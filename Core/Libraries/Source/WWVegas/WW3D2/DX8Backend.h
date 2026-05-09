@@ -92,6 +92,10 @@ public:
     virtual void Set_Shader(const ShaderClass & shader);
     virtual void Get_Shader(ShaderClass & shader);
     virtual void Set_Material(const VertexMaterialClass * material);
+    virtual void Apply_Material_State(const RenderBackendMaterialState & material) override;
+    virtual void Set_Material_Color_Source(unsigned ambient_source,
+                                           unsigned diffuse_source,
+                                           unsigned emissive_source) override;
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture);
     virtual void Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * texture);
     virtual void Apply_Render_State_Changes();

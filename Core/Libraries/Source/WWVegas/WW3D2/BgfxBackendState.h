@@ -192,6 +192,7 @@ struct BgfxDraw
     bool textureIsMissing[4] = { false, false, false, false };
     TextureBaseClass * sourceTextures[4] = { nullptr, nullptr, nullptr, nullptr };
     const VertexMaterialClass * sourceMaterial = nullptr;
+    bool explicitMaterialState = false;
 
     // Buffers (static + transient variants)
     bgfx::DynamicVertexBufferHandle vb       = BGFX_INVALID_HANDLE;
