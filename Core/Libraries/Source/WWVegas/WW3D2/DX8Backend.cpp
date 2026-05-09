@@ -203,6 +203,16 @@ SurfaceClass * DX8Backend::Capture_Back_Buffer_Surface(unsigned int num)
     return copy;
 }
 
+void DX8Backend::Set_Texture_Bitdepth(int bitdepth)
+{
+    DX8Wrapper::Set_Texture_Bitdepth(bitdepth);
+}
+
+int DX8Backend::Get_Texture_Bitdepth() const
+{
+    return DX8Wrapper::Get_Texture_Bitdepth();
+}
+
 void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit)
 {
     DX8Wrapper::Set_Gamma(gamma, bright, contrast, calibrate, uselimit);
