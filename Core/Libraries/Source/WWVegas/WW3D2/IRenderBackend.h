@@ -78,6 +78,14 @@ struct RenderBackendLight
 
 static const unsigned RB_MAX_TEXTURE_STAGES = 8;
 
+enum RenderBackendLockFlags
+{
+    RB_LOCK_NONE = 0,
+    RB_LOCK_NOSYSLOCK = 0x00000800,
+    RB_LOCK_NOOVERWRITE = 0x00001000,
+    RB_LOCK_DISCARD = 0x00002000,
+};
+
 struct RenderBackendLightState
 {
     RenderBackendLight lights[4];
