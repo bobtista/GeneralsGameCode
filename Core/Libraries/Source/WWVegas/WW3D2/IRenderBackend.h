@@ -396,6 +396,8 @@ public:
     virtual WW3DFormat Get_Back_Buffer_Format() const { return WW3D_FORMAT_UNKNOWN; }
     virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const { return nullptr; }
     virtual SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num) { return nullptr; }
+    virtual void Set_Texture_Bitdepth(int bitdepth) {}
+    virtual int Get_Texture_Bitdepth() const { return 16; }
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) {}
 
     // -------------------------------------------------------------------------

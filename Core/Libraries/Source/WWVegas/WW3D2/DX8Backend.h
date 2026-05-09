@@ -45,6 +45,8 @@ public:
     virtual WW3DFormat Get_Back_Buffer_Format() const;
     virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const;
     virtual SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num) override;
+    virtual void Set_Texture_Bitdepth(int bitdepth) override;
+    virtual int Get_Texture_Bitdepth() const override;
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit);
 
     // -- Frame lifecycle ------------------------------------------------------
