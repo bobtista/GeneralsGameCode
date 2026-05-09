@@ -1470,7 +1470,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 
 	//draw polygons like this is very inefficient but for only 2 triangles, it's
 	//not worth bothering with index/vertex buffers.
-	m_pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
+	m_pDev->SetVertexShader(DX8_FVF_FLAG_XYZRHW | DX8_FVF_FLAG_DIFFUSE);
 #endif
 
 	// Set stencil states

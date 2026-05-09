@@ -103,7 +103,7 @@ struct SHADOW_DECAL_VERTEX	//vertex structure passed to D3D
 		float u,v;
 };
 
-#define SHADOW_DECAL_FVF	D3DFVF_XYZ|D3DFVF_TEX1|D3DFVF_DIFFUSE
+#define SHADOW_DECAL_FVF	DX8_FVF_FLAG_XYZ|DX8_FVF_TEX1|DX8_FVF_FLAG_DIFFUSE
 
 // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4I wrap the
 // decal shadow buffers in W3D classes so g_renderBackend can capture them.
@@ -452,7 +452,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 	Bool flipForBlend;
 
 
-	#define SHADOW_VOLUME_FVF	D3DFVF_XYZ
+	#define SHADOW_VOLUME_FVF	DX8_FVF_FLAG_XYZ
 
 	if (TheTerrainRenderObject)
 	{
