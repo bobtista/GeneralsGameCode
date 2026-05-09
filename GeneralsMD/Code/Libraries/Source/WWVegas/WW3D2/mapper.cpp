@@ -53,8 +53,6 @@
 
 Random4Class rand4;
 
-inline DWORD F2DW( FLOAT f ) { return *((DWORD*)&f); }
-
 
 // HY 1/26/01
 // Rewritten to use DX 8 texture matrices
@@ -1077,10 +1075,7 @@ void BumpEnvTextureMapperClass::Apply(int uv_array_index)
 	s=ScaleFactor * WWMath::Fast_Sin(CurrentAngle);
 
 	// Set the Bump Environment Matrix
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_BUMPENVMAT00, F2DW(c));
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_BUMPENVMAT01, F2DW(-s));
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_BUMPENVMAT10, F2DW(s));
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_BUMPENVMAT11, F2DW(c));
+	g_renderBackend->Set_Texture_Bump_Env_Matrix(Stage, c, -s, s, c);
 }
 
 /*
