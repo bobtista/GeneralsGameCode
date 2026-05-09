@@ -272,8 +272,13 @@ public:
 	unsigned Get_Specular_Offset() const { return specular_offset; }
 	unsigned Get_FVF() const { return FVF; }
 	unsigned Get_FVF_Size() const { return fvf_size; }
+	unsigned Get_UV_Channel_Count() const;
+	bool Has_Normal() const;
+	bool Has_Diffuse() const;
+	bool Has_Specular() const;
 
 	void Get_FVF_Name(StringClass& fvfname) const;	// For debug purposes
+	static unsigned Build_FVF(bool has_normal, bool has_diffuse, bool has_specular, unsigned tex_coord_count);
 
 	// for enabling vertex shaders
 	void Set_FVF(unsigned fvf) const { FVF=fvf; }
