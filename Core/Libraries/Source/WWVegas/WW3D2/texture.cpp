@@ -481,7 +481,7 @@ unsigned TextureBaseClass::Get_Reduction() const
 void TextureBaseClass::Apply_Null(unsigned int stage)
 {
 	// This function sets the render states for a "null" texture
-	DX8Wrapper::Set_DX8_Texture(stage, nullptr);
+	g_renderBackend->Bind_Texture_Immediate(stage, nullptr);
 }
 
 // ----------------------------------------------------------------------------
@@ -1050,11 +1050,11 @@ void TextureClass::Apply(unsigned int stage)
 	// Set texture itself
 	if (WW3D::Is_Texturing_Enabled())
 	{
-		DX8Wrapper::Set_DX8_Texture(stage, Peek_D3D_Base_Texture());
+		g_renderBackend->Bind_Texture_Immediate(stage, this);
 	}
 	else
 	{
-		DX8Wrapper::Set_DX8_Texture(stage, nullptr);
+		g_renderBackend->Bind_Texture_Immediate(stage, nullptr);
 	}
 
 	Filter.Apply(stage);
@@ -1346,7 +1346,7 @@ ZTextureClass::ZTextureClass
 */
 void ZTextureClass::Apply(unsigned int stage)
 {
-	DX8Wrapper::Set_DX8_Texture(stage, Peek_D3D_Base_Texture());
+	g_renderBackend->Bind_Texture_Immediate(stage, this);
 }
 
 //**********************************************************************************************
