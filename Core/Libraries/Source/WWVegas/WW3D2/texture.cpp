@@ -873,14 +873,13 @@ TextureClass::TextureClass
 	default: break;
 	}
 
-	Poke_Texture
+	IDirect3DBaseTexture8 *newTexture = DX8Wrapper::_Create_DX8_Texture
 	(
-		DX8Wrapper::_Create_DX8_Texture
-		(
-			surface->Peek_D3D_Surface(),
-			mip_level_count
-		)
+		surface->Peek_D3D_Surface(),
+		mip_level_count
 	);
+	Poke_Texture(newTexture);
+	Refresh_CPU_Texture_Snapshot();
 	LastAccessed=WW3D::Get_Sync_Time();
 }
 
@@ -1002,6 +1001,7 @@ void TextureClass::Apply_New_Surface
 		Height=d3d_desc.Height;
 	}
 	surface->Release();
+	Refresh_CPU_Texture_Snapshot();
 
 }
 
