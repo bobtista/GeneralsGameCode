@@ -5525,17 +5525,59 @@ void BgfxBackend::Clear_Texture_Transform(unsigned stage)
     }
 }
 
-void BgfxBackend::Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
+void BgfxBackend::Set_Texture_Coord_Source(unsigned stage,
+                                           RenderBackendTexcoordSource source,
+                                           unsigned uv_array_index)
 {
-    const unsigned tci = cameraPosEnabled
-        ? (D3DTSS_TCI_CAMERASPACEPOSITION | stage)
-        : stage;
+    unsigned tci = uv_array_index;
+    switch (source)
+    {
+    case RB_TEXCOORD_MESH_UV:
+        tci = D3DTSS_TCI_PASSTHRU | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_NORMAL:
+        tci = D3DTSS_TCI_CAMERASPACENORMAL | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_REFLECTION:
+        tci = D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_POSITION:
+        tci = D3DTSS_TCI_CAMERASPACEPOSITION | uv_array_index;
+        break;
+    }
 
     RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, tci);
     if (stage < 4)
     {
-        g_draw.texcoordSource[stage] = cameraPosEnabled ? 3.0f : 0.0f;
+        g_draw.texcoordSource[stage] = static_cast<float>(source);
     }
+    if (stage == 0)
+    {
+        g_draw.texcoordSelect[0] = (uv_array_index == 1) ? 1.0f : 0.0f;
+    }
+    else if (stage == 1)
+    {
+        g_draw.texcoordSelect2[0] = (uv_array_index == 1) ? 1.0f : 0.0f;
+    }
+}
+
+void BgfxBackend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_count, bool projected)
+{
+    const unsigned flags = (coord_count == 0 ? D3DTTFF_DISABLE : coord_count)
+        | (projected ? D3DTTFF_PROJECTED : 0);
+
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_TEXTURETRANSFORMFLAGS, flags);
+    if (stage < 4)
+    {
+        g_draw.texProjected[stage] = projected && coord_count >= 3 ? 1.0f : 0.0f;
+    }
+}
+
+void BgfxBackend::Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
+{
+    Set_Texture_Coord_Source(stage,
+                             cameraPosEnabled ? RB_TEXCOORD_CAMERA_SPACE_POSITION : RB_TEXCOORD_MESH_UV,
+                             stage);
 }
 
 void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)

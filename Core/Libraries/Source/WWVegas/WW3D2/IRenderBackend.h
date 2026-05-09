@@ -128,6 +128,16 @@ enum RenderBackendShaderKind
     RB_SHADER_VERTEX = 1
 };
 
+enum RenderBackendTexcoordSource
+{
+    // Values match the bgfx uber-shader uniform encoding:
+    // 0=mesh UV, 1=camera normal, 2=camera reflection, 3=camera position.
+    RB_TEXCOORD_MESH_UV = 0,
+    RB_TEXCOORD_CAMERA_SPACE_NORMAL = 1,
+    RB_TEXCOORD_CAMERA_SPACE_REFLECTION = 2,
+    RB_TEXCOORD_CAMERA_SPACE_POSITION = 3
+};
+
 enum RenderBackendViewCaptureKind
 {
     RB_VIEW_CAPTURE_TACTICAL = 0
@@ -735,7 +745,16 @@ public:
     virtual void Override_Material_Opacity(float opacity) {}
     virtual void Set_Texture_Transform(unsigned stage, const Matrix4x4& matrix) {}
     virtual void Clear_Texture_Transform(unsigned stage) {}
-    virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled) {}
+    virtual void Set_Texture_Coord_Source(unsigned stage,
+                                          RenderBackendTexcoordSource source,
+                                          unsigned uv_array_index = 0) {}
+    virtual void Set_Texture_Transform_Mode(unsigned stage, unsigned coord_count, bool projected) {}
+    virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
+    {
+        Set_Texture_Coord_Source(stage,
+                                 cameraPosEnabled ? RB_TEXCOORD_CAMERA_SPACE_POSITION : RB_TEXCOORD_MESH_UV,
+                                 stage);
+    }
     virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) {}
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) {}
     virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) {}
