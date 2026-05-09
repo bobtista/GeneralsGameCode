@@ -539,9 +539,8 @@ public:
     virtual void Invalidate_Cached_Render_States() {}
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Typed blend +
-    // color-write setters. These exist so subsystems that
-    // previously called DX8Wrapper::Set_DX8_Render_State(D3DRS_BLENDOP / ...)
-    // can migrate without the interface re-exposing the raw D3DRENDERSTATETYPE.
+    // color-write setters. These exist so subsystems can migrate without the
+    // interface re-exposing raw D3D render-state identifiers.
     virtual void Set_Blend_Op(BlendOp op) {}
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) {}
     virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) {}
