@@ -23,6 +23,7 @@
 
 #include "DX8Backend.h"
 
+#include "dx8fvf.h"
 #include "dx8wrapper.h"
 #include "vector3.h"
 #include "matrix4.h"
@@ -1263,6 +1264,58 @@ void DX8Backend::Set_Fog_Enable(bool enable)
 void DX8Backend::Set_Fog_Color(unsigned argb)
 {
     DX8Wrapper::Set_DX8_Render_State(D3DRS_FOGCOLOR, argb);
+}
+
+void DX8Backend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
+                                             unsigned stencil_read_mask,
+                                             unsigned stencil_ref,
+                                             int x,
+                                             int y,
+                                             int width,
+                                             int height)
+{
+    LPDIRECT3DDEVICE8 device = DX8Wrapper::_Get_D3D_Device8();
+    if (device == nullptr)
+    {
+        return;
+    }
+
+    struct TranslitVertex
+    {
+        float x;
+        float y;
+        float z;
+        float w;
+        DWORD color;
+    } vertices[4];
+
+    vertices[0].x = x + width; vertices[0].y = y + height; vertices[0].z = 0.0f; vertices[0].w = 1.0f;
+    vertices[1].x = x + width; vertices[1].y = 0.0f;       vertices[1].z = 0.0f; vertices[1].w = 1.0f;
+    vertices[2].x = x;         vertices[2].y = y + height; vertices[2].z = 0.0f; vertices[2].w = 1.0f;
+    vertices[3].x = x;         vertices[3].y = 0.0f;       vertices[3].z = 0.0f; vertices[3].w = 1.0f;
+
+    vertices[0].color = shadow_color;
+    vertices[1].color = shadow_color;
+    vertices[2].color = shadow_color;
+    vertices[3].color = shadow_color;
+
+    device->SetVertexShader(DX8_FVF_FLAG_XYZRHW | DX8_FVF_FLAG_DIFFUSE);
+
+    Set_Alpha_Blend_Enable(true);
+    Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
+    Set_Depth_Test_Enable(true);
+    Set_Depth_Func(RB_CMP_ALWAYS);
+    Set_Stencil_Enable(true);
+    Set_Stencil_Func(RB_CMP_LESS_EQUAL);
+    Set_Stencil_Pass_Op(RB_STENCIL_OP_KEEP);
+    Set_Stencil_Mask(stencil_read_mask);
+    Set_Stencil_Ref(stencil_ref);
+    Set_Shade_Mode(RB_SHADE_FLAT);
+
+    if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+    {
+        device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(TranslitVertex));
+    }
 }
 
 bool DX8Backend::Get_Fog_Enable() const
