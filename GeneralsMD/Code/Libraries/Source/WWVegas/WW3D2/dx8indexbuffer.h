@@ -96,7 +96,7 @@ public:
 		unsigned AppendIndexRange;
 	public:
 		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I added
-		// optional `flags` (D3DLOCK_DISCARD / D3DLOCK_NOOVERWRITE).
+		// optional `flags` (RB_LOCK_DISCARD / RB_LOCK_NOOVERWRITE).
 		AppendLockClass(IndexBufferClass* index_buffer,unsigned start_index, unsigned index_range, unsigned flags=0);
 		~AppendLockClass();
 

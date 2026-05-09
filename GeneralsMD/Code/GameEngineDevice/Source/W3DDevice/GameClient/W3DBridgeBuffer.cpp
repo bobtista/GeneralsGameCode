@@ -696,8 +696,8 @@ void W3DBridgeBuffer::loadBridgesInVertexAndIndexBuffers(RefRenderObjListIterato
 	VertexFormatXYZNDUV1 *vb;
 	UnsignedShort *ib;
 	// Lock the buffers.
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBridge, D3DLOCK_DISCARD);
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBridge, D3DLOCK_DISCARD);
+	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBridge, RB_LOCK_DISCARD);
+	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBridge, RB_LOCK_DISCARD);
 	vb=(VertexFormatXYZNDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 
