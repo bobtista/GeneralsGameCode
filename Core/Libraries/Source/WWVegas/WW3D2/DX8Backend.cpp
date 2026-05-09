@@ -1362,6 +1362,42 @@ void DX8Backend::Draw_Triangles(unsigned int buffer_type,
     DX8Wrapper::Draw_Triangles(buffer_type, start_index, polygon_count, min_vertex_index, vertex_count);
 }
 
+bool DX8Backend::Is_Triangle_Draw_Enabled() const
+{
+    return DX8Wrapper::_Is_Triangle_Draw_Enabled();
+}
+
+void DX8Backend::Draw_Screen_Color_Quad(unsigned color, int x, int y, int width, int height)
+{
+    LPDIRECT3DDEVICE8 device = DX8Wrapper::_Get_D3D_Device8();
+    if (device == nullptr || !DX8Wrapper::_Is_Triangle_Draw_Enabled())
+    {
+        return;
+    }
+
+    struct TranslitVertex
+    {
+        float x;
+        float y;
+        float z;
+        float w;
+        DWORD color;
+    } vertices[4];
+
+    vertices[0].x = x + width; vertices[0].y = y + height; vertices[0].z = 0.0f; vertices[0].w = 1.0f;
+    vertices[1].x = x + width; vertices[1].y = 0.0f;       vertices[1].z = 0.0f; vertices[1].w = 1.0f;
+    vertices[2].x = x;         vertices[2].y = y + height; vertices[2].z = 0.0f; vertices[2].w = 1.0f;
+    vertices[3].x = x;         vertices[3].y = 0.0f;       vertices[3].z = 0.0f; vertices[3].w = 1.0f;
+
+    vertices[0].color = color;
+    vertices[1].color = color;
+    vertices[2].color = color;
+    vertices[3].color = color;
+
+    device->SetVertexShader(DX8_FVF_FLAG_XYZRHW | DX8_FVF_FLAG_DIFFUSE);
+    device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vertices, sizeof(TranslitVertex));
+}
+
 void DX8Backend::Draw_Strip(unsigned short start_index,
                             unsigned short index_count,
                             unsigned short min_vertex_index,
