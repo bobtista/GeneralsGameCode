@@ -850,17 +850,17 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 
 	// If we want to clear the screen, we need to set the viewport to include the entire screen:
 	if (clear || clearz) {
-		D3DVIEWPORT8 vp;
+		RenderBackendViewport vp;
 		int width, height, bits;
 		bool windowed;
 		WW3D::Get_Render_Target_Resolution(width, height, bits, windowed);
-		vp.X = 0;
-		vp.Y = 0;
-		vp.Width = width;
-		vp.Height = height;
-		vp.MinZ = 0.0f;
-		vp.MaxZ = 1.0f;
-		DX8Wrapper::Set_Viewport(&vp);
+		vp.x = 0;
+		vp.y = 0;
+		vp.width = width;
+		vp.height = height;
+		vp.min_z = 0.0f;
+		vp.max_z = 1.0f;
+		g_renderBackend->Set_Viewport(vp);
 		g_renderBackend->Clear(clear, clearz, color, dest_alpha);
 	}
 
