@@ -490,7 +490,7 @@ void ShaderClass::Apply()
 	{
 		// Whenever fog is enabled or disabled, the entire shader is invalidated. This is why we
 		// can defer the "fog enabled" check inside the "fog settings changed" check.
-		if (DX8Wrapper::Get_Current_Caps()->Is_Fog_Allowed() && DX8Wrapper::Get_Fog_Enable()) {
+			if (DX8Wrapper::Get_Current_Caps()->Is_Fog_Allowed() && g_renderBackend->Get_Fog_Enable()) {
 
 			BOOL fm = FALSE;
 			D3DCOLOR fogColor = DX8Wrapper::Get_Fog_Color();
@@ -513,16 +513,16 @@ void ShaderClass::Apply()
 				break;
 			}
 
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FOGENABLE,fm);
+				g_renderBackend->Set_Fog_Enable(fm);
 
-			if(fm)
-			{
-				DX8Wrapper::Set_DX8_Render_State(D3DRS_FOGCOLOR,fogColor);
+				if(fm)
+				{
+					g_renderBackend->Set_Fog_Color(fogColor);
+				}
+
+			} else {
+				g_renderBackend->Set_Fog_Enable(false);
 			}
-
-		} else {
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FOGENABLE,FALSE);
-		}
 
 		diff &= ~(ShaderClass::MASK_FOG);
 		if(!diff)
@@ -1013,7 +1013,7 @@ void ShaderClass::Apply()
 	if(!diff)
 		return;
 
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_SPECULARENABLE,BOOL(Get_Secondary_Gradient()));
+	g_renderBackend->Set_Specular_Enable(Get_Secondary_Gradient());
 
 	// DEPTH COMPARE FUNCTION
 	g_renderBackend->Set_Depth_Func(static_cast<CompareFunc>(int(Get_Depth_Compare())+1));
@@ -1021,17 +1021,14 @@ void ShaderClass::Apply()
 	// DEPTH MASK
 	g_renderBackend->Set_Depth_Write_Enable(Get_Depth_Mask());
 
-	// DITHERING
-//	DX8Wrapper::Set_DX8_Render_State(D3DRS_DITHERENABLE,BOOL(Get_Dither_Mask()));
-
-	// CULLMODE
-	g_renderBackend->Set_Cull_Mode(static_cast<CullMode>(Get_Cull_Mode() ? _PolygonCullMode : D3DCULL_NONE));
+		// CULLMODE
+		g_renderBackend->Set_Cull_Mode(static_cast<CullMode>(Get_Cull_Mode() ? _PolygonCullMode : D3DCULL_NONE));
 
 	// NPATCHES
 	if (diff&ShaderClass::MASK_NPATCHENABLE) {
 		float level=1.0f;
 		if (Get_NPatch_Enable()) level=float(WW3D::Get_NPatches_Level());
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_PATCHSEGMENTS,*((DWORD*)&level));
+		g_renderBackend->Set_Patch_Segments(level);
 	}
 
 	// Enable/disable alpha test

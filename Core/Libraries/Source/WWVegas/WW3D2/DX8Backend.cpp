@@ -955,9 +955,24 @@ void DX8Backend::Set_Fog_Enable(bool enable)
     DX8Wrapper::Set_DX8_Render_State(D3DRS_FOGENABLE, enable ? TRUE : FALSE);
 }
 
+void DX8Backend::Set_Fog_Color(unsigned argb)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_FOGCOLOR, argb);
+}
+
 bool DX8Backend::Get_Fog_Enable() const
 {
     return DX8Wrapper::Get_Fog_Enable();
+}
+
+void DX8Backend::Set_Specular_Enable(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_SPECULARENABLE, enable ? TRUE : FALSE);
+}
+
+void DX8Backend::Set_Patch_Segments(float level)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_PATCHSEGMENTS, FloatAsDword(level));
 }
 
 void DX8Backend::Set_Light_Environment(LightEnvironmentClass * light_env)

@@ -634,9 +634,12 @@ public:
     virtual const Vector3 & Get_Ambient() const = 0;
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end) {}
     virtual void Set_Fog_Enable(bool enable) {}
+    virtual void Set_Fog_Color(unsigned argb) {}
     virtual bool Get_Fog_Enable() const { return false; }
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) {}
     virtual LightEnvironmentClass * Get_Light_Environment() const { return nullptr; }
+    virtual void Set_Specular_Enable(bool enable) {}
+    virtual void Set_Patch_Segments(float level) {}
 
     // Post-ShaderClass render state overrides. The terrain edge blending
     // and other systems set D3D blend/alpha-test state AFTER ShaderClass

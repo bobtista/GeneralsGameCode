@@ -5160,6 +5160,21 @@ void BgfxBackend::Set_Fog_Enable(bool enable)
     RenderStateCache::Set_Render_State(D3DRS_FOGENABLE, enable ? TRUE : FALSE);
 }
 
+void BgfxBackend::Set_Fog_Color(unsigned argb)
+{
+    RenderStateCache::Set_Render_State(D3DRS_FOGCOLOR, argb);
+}
+
+void BgfxBackend::Set_Specular_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(D3DRS_SPECULARENABLE, enable ? TRUE : FALSE);
+}
+
+void BgfxBackend::Set_Patch_Segments(float level)
+{
+    RenderStateCache::Set_Render_State(D3DRS_PATCHSEGMENTS, FloatAsDword(level));
+}
+
 void BgfxBackend::Set_Light(unsigned int index, const LightClass & light)
 {
     if (index >= 4)
