@@ -616,14 +616,14 @@ void Render2DClass::Render()
 	int width, height, bits;
 	bool windowed;
 	WW3D::Get_Device_Resolution( width, height, bits, windowed );
-	D3DVIEWPORT8 vp = { 0 };
-	vp.X			= 0;
-	vp.Y			= 0;
-	vp.Width		= width;
-	vp.Height	= height;
-	vp.MinZ		= 0;
-	vp.MaxZ		= 1;
-	DX8Wrapper::Set_Viewport(&vp);
+	RenderBackendViewport vp;
+	vp.x = 0;
+	vp.y = 0;
+	vp.width = width;
+	vp.height = height;
+	vp.min_z = 0.0f;
+	vp.max_z = 1.0f;
+	g_renderBackend->Set_Viewport(vp);
 	g_renderBackend->Set_Texture(0,Texture);
 
 	VertexMaterialClass *vm=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
