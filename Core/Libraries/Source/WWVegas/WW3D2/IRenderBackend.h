@@ -65,6 +65,15 @@ struct RenderBackendLight
     float diffuse[3];
 };
 
+struct RenderBackendMaterialState
+{
+    float diffuse[4];
+    float ambient[4];
+    float specular[4];
+    float emissive[4];
+    float power;
+};
+
 enum TransformKind
 {
     // Values chosen so they can be mapped directly to D3DTS_* inside the
@@ -500,6 +509,10 @@ public:
     virtual void Set_Shader(const ShaderClass & shader) {}
     virtual void Get_Shader(ShaderClass & shader) {}
     virtual void Set_Material(const VertexMaterialClass * material) {}
+    virtual void Apply_Material_State(const RenderBackendMaterialState & material) {}
+    virtual void Set_Material_Color_Source(unsigned ambient_source,
+                                           unsigned diffuse_source,
+                                           unsigned emissive_source) {}
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture) {}
     // Immediate texture-stage bind for legacy custom passes that do not call
     // Apply_Render_State_Changes between pass setup and draw. DX8 binds the
