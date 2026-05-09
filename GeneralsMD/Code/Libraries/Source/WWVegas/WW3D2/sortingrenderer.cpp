@@ -356,80 +356,59 @@ void SortingRendererClass::Insert_To_Sorting_Pool(SortingNodeStruct* state)
 // ----------------------------------------------------------------------------
 //static unsigned prevLight = 0xffffffff;
 
+static RenderBackendLight Make_Render_Backend_Light(const D3DLIGHT8 & light)
+{
+	RenderBackendLight rb_light;
+	rb_light.type = light.Type;
+	rb_light.position[0] = light.Position.x;
+	rb_light.position[1] = light.Position.y;
+	rb_light.position[2] = light.Position.z;
+	rb_light.direction[0] = light.Direction.x;
+	rb_light.direction[1] = light.Direction.y;
+	rb_light.direction[2] = light.Direction.z;
+	rb_light.diffuse[0] = light.Diffuse.r;
+	rb_light.diffuse[1] = light.Diffuse.g;
+	rb_light.diffuse[2] = light.Diffuse.b;
+	rb_light.ambient[0] = light.Ambient.r;
+	rb_light.ambient[1] = light.Ambient.g;
+	rb_light.ambient[2] = light.Ambient.b;
+	rb_light.specular[0] = light.Specular.r;
+	rb_light.specular[1] = light.Specular.g;
+	rb_light.specular[2] = light.Specular.b;
+	rb_light.range = light.Range;
+	rb_light.falloff = light.Falloff;
+	rb_light.attenuation[0] = light.Attenuation0;
+	rb_light.attenuation[1] = light.Attenuation1;
+	rb_light.attenuation[2] = light.Attenuation2;
+	rb_light.theta = light.Theta;
+	rb_light.phi = light.Phi;
+	return rb_light;
+}
+
+static RenderBackendSortedBatchState Make_Render_Backend_Sorted_State(RenderStateStruct & render_state)
+{
+	static_assert(sizeof(D3DMATRIX) == sizeof(Matrix4x4), "D3DMATRIX and Matrix4x4 must be the same size for reinterpret_cast");
+	RenderBackendSortedBatchState rb_state;
+	rb_state.shader = &render_state.shader;
+	rb_state.material = render_state.material;
+	for (unsigned i = 0; i < RB_MAX_TEXTURE_STAGES; ++i)
+	{
+		rb_state.textures[i] = render_state.Textures[i];
+	}
+	rb_state.world = &reinterpret_cast<const Matrix4x4&>(render_state.world);
+	rb_state.view = &reinterpret_cast<const Matrix4x4&>(render_state.view);
+	const bool use_lights = (render_state.material != nullptr && render_state.material->Get_Lighting());
+	for (int i = 0; i < 4; ++i)
+	{
+		rb_state.lights.lights[i] = Make_Render_Backend_Light(render_state.Lights[i]);
+		rb_state.lights.enabled[i] = use_lights && render_state.LightEnable[i];
+	}
+	return rb_state;
+}
+
 static void Apply_Render_State(RenderStateStruct& render_state)
 {
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.11 route
-	// sorted batch state through g_renderBackend so the bgfx backend
-	// sees the per-batch shader/material/texture/world/view. Previously
-	// these went straight to DX8Wrapper, so the bgfx side kept whatever
-	// state the last opaque draw left behind and sorted particles,
-	// rotors, tracers, and explosions never showed up.
-	g_renderBackend->Set_Shader(render_state.shader);
-
-	g_renderBackend->Set_Material(render_state.material);
-
-	for (int i=0;i<DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass();++i)
-	{
-		g_renderBackend->Set_Texture(i,render_state.Textures[i]);
-	}
-
-	// Must use _Set_DX8_Transform (direct device write) not the
-	// render_state-dirty-flag path: the sort loop does not run
-	// Apply_Render_State_Changes between batches, so the dirty-flag
-	// route would leave each batch with the previous batch's device
-	// transform and things like helicopter rotors disappear.
-	DX8Wrapper::_Set_DX8_Transform(D3DTS_WORLD, render_state.world);
-	DX8Wrapper::_Set_DX8_Transform(D3DTS_VIEW,  render_state.view);
-
-	// TheSuperHackers @info bobtista 26/04/2026 render_state.world / .view
-	// are D3DMATRIX (16 floats, row-major) — same layout as Matrix4x4.
-	static_assert(sizeof(D3DMATRIX) == sizeof(Matrix4x4), "D3DMATRIX and Matrix4x4 must be the same size for reinterpret_cast");
-	g_renderBackend->Capture_Sorted_Batch_Transforms(
-		reinterpret_cast<const Matrix4x4&>(render_state.world),
-		reinterpret_cast<const Matrix4x4&>(render_state.view));
-
-	if (!render_state.material->Get_Lighting())
-		return;	//no point changing lights if they are ignored.
-  //prevLight = render_state.lightsHash;
-
-	{
-		const D3DLIGHT8 & src = render_state.Lights[0];
-		RenderBackendLight rbLight;
-		rbLight.direction[0] = src.Direction.x;
-		rbLight.direction[1] = src.Direction.y;
-		rbLight.direction[2] = src.Direction.z;
-		rbLight.diffuse[0] = src.Diffuse.r;
-		rbLight.diffuse[1] = src.Diffuse.g;
-		rbLight.diffuse[2] = src.Diffuse.b;
-		g_renderBackend->Capture_Sorted_Batch_Light(rbLight, render_state.LightEnable[0]);
-	}
-
-	if (render_state.LightEnable[0]) {
-		DX8Wrapper::Set_DX8_Light(0,&render_state.Lights[0]);
-		if (render_state.LightEnable[1]) {
-			DX8Wrapper::Set_DX8_Light(1,&render_state.Lights[1]);
-			if (render_state.LightEnable[2]) {
-				DX8Wrapper::Set_DX8_Light(2,&render_state.Lights[2]);
-				if (render_state.LightEnable[3]) {
-					DX8Wrapper::Set_DX8_Light(3,&render_state.Lights[3]);
-				}
-				else {
-					DX8Wrapper::Set_DX8_Light(3,nullptr);
-				}
-			}
-			else {
-				DX8Wrapper::Set_DX8_Light(2,nullptr);
-			}
-		}
-		else {
-			DX8Wrapper::Set_DX8_Light(1,nullptr);
-		}
-	}
-	else {
-		DX8Wrapper::Set_DX8_Light(0,nullptr);
-	}
-
-
+	g_renderBackend->Apply_Sorted_Batch_State(Make_Render_Backend_Sorted_State(render_state));
 }
 
 // ----------------------------------------------------------------------------
@@ -703,48 +682,21 @@ void SortingRendererClass::Flush()
 			Insert_To_Sorting_Pool(state);
 		}
 		else {
-			g_renderBackend->Set_Shader(state->sorting_state.shader);
-			g_renderBackend->Set_Material(state->sorting_state.material);
-			for (int t = 0; t < DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass(); ++t)
-			{
-				g_renderBackend->Set_Texture(t, state->sorting_state.Textures[t]);
-			}
+			g_renderBackend->Apply_Sorted_Batch_State(
+				Make_Render_Backend_Sorted_State(state->sorting_state));
 			g_renderBackend->Set_Vertex_Buffer(state->sorting_state.vertex_buffers[0], 0);
 			g_renderBackend->Set_Index_Buffer(state->sorting_state.index_buffer,
 				state->sorting_state.index_base_offset);
 			g_renderBackend->Set_Index_Buffer_Index_Offset(state->sorting_state.vba_offset);
 
-			// Restore DX8 render state: the g_renderBackend calls above
-			// forwarded to DX8Wrapper which corrupted vba_offset/iba_offset
-			// (Set_Vertex_Buffer resets vba_offset to 0). Re-applying the
-			// saved state fixes this for the DX8 draw path.
-			DX8Wrapper::Set_Render_State(state->sorting_state);
+			// Restore legacy DX8 render state: the backend calls above can
+			// mutate vba_offset/iba_offset in the DX8 render-state cache.
+			// Re-applying the saved state fixes this for the DX8 draw path;
+			// bgfx treats this as a no-op.
+			g_renderBackend->Restore_Legacy_Render_State_For_Sorted_Draw(state->sorting_state);
 
 			// Use the sort view for transforms to avoid stomping view 1.
 			g_renderBackend->Begin_Sorted_Batch_Pass();
-			g_renderBackend->Capture_Sorted_Batch_Transforms(
-				reinterpret_cast<const Matrix4x4&>(state->sorting_state.world),
-				reinterpret_cast<const Matrix4x4&>(state->sorting_state.view));
-
-			// TheSuperHackers @bugfix bobtista 24/04/2026 Phase 5.2 — capture
-			// the sort batch's light state too. Without this, lit sorted
-			// meshes (translucent vehicles, particles) reuse the previous
-			// draw's light direction/color, which is visible as wrong-
-			// direction lighting on sort-flushed draws.
-			if (state->sorting_state.material != nullptr
-				&& state->sorting_state.material->Get_Lighting())
-			{
-				const D3DLIGHT8 & src = state->sorting_state.Lights[0];
-				RenderBackendLight rbLight;
-				rbLight.direction[0] = src.Direction.x;
-				rbLight.direction[1] = src.Direction.y;
-				rbLight.direction[2] = src.Direction.z;
-				rbLight.diffuse[0]   = src.Diffuse.r;
-				rbLight.diffuse[1]   = src.Diffuse.g;
-				rbLight.diffuse[2]   = src.Diffuse.b;
-				g_renderBackend->Capture_Sorted_Batch_Light(
-					rbLight, state->sorting_state.LightEnable[0]);
-			}
 
 			g_renderBackend->Draw_Triangles(state->start_index, state->polygon_count, state->min_vertex_index, state->vertex_count);
 			g_renderBackend->End_Sorted_Batch_Pass();
