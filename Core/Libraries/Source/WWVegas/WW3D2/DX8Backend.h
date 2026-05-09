@@ -51,6 +51,7 @@ public:
     virtual int Get_Texture_Bitdepth() const override;
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode);
     virtual RenderBackendMSAAMode Get_MSAA_Mode() const;
+    virtual bool Supports_Dot3() const;
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit);
 
     // -- Frame lifecycle ------------------------------------------------------
