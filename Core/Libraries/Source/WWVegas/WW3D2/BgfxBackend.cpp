@@ -332,6 +332,13 @@ static uint32_t MakeD3DColor(const Vector3 & color, float alpha)
     return (a << 24) | (r << 16) | (g << 8) | b;
 }
 
+static uint32_t FloatAsDword(float value)
+{
+    uint32_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+
 static void ResetBgfxStatsLogWindow()
 {
     g_bgfxStatsLog.windowSeconds = 0.0;
@@ -5638,6 +5645,30 @@ void BgfxBackend::Set_Lighting_Enable(bool enable)
 {
     RenderStateCache::Set_Render_State(D3DRS_LIGHTING, enable ? TRUE : FALSE);
     g_draw.lightingEnabled[0] = enable ? 1.0f : 0.0f;
+}
+
+void BgfxBackend::Set_Point_Sprite_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(D3DRS_POINTSPRITEENABLE, enable ? TRUE : FALSE);
+}
+
+void BgfxBackend::Set_Point_Scale_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(D3DRS_POINTSCALEENABLE, enable ? TRUE : FALSE);
+}
+
+void BgfxBackend::Set_Point_Size(float size, float min_size, float max_size)
+{
+    RenderStateCache::Set_Render_State(D3DRS_POINTSIZE, FloatAsDword(size));
+    RenderStateCache::Set_Render_State(D3DRS_POINTSIZE_MIN, FloatAsDword(min_size));
+    RenderStateCache::Set_Render_State(D3DRS_POINTSIZE_MAX, FloatAsDword(max_size));
+}
+
+void BgfxBackend::Set_Point_Scale(float a, float b, float c)
+{
+    RenderStateCache::Set_Render_State(D3DRS_POINTSCALE_A, FloatAsDword(a));
+    RenderStateCache::Set_Render_State(D3DRS_POINTSCALE_B, FloatAsDword(b));
+    RenderStateCache::Set_Render_State(D3DRS_POINTSCALE_C, FloatAsDword(c));
 }
 
 void BgfxBackend::Skip_Next_Bgfx_Submit()
