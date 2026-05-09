@@ -47,13 +47,11 @@
 #include "texture.h"
 #include "matrix4.h"
 #include "matrix3d.h"
-#include "dx8wrapper.h"
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
 #include "sortingrenderer.h"
 #include "vertmaterial.h"
 #include "dx8fvf.h"
-#include "dx8caps.h"
 #include "RenderBackend.h"
 #include "wwprofile.h"
 #include "wwmemlog.h"
@@ -670,7 +668,7 @@ void Render2DClass::Render()
 		// ops below are ignored by the bgfx backend, so drive luminance conversion
 		// via a shader uniform instead.
 		g_renderBackend->Set_Grayscale_Mode(true);
-		if (DX8Wrapper::Get_Current_Caps()->Support_Dot3())
+		if (g_renderBackend->Supports_Dot3())
 		{	//Override W3D states with customizations for grayscale
 			g_renderBackend->Set_Texture_Factor(0x80A5CA8E);
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG0, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
