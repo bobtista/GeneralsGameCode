@@ -95,10 +95,10 @@ void ScaleTextureMapperClass::Apply(int uv_array_index)
 	g_renderBackend->Set_Texture_Transform(Stage, m);
 
 	// Disable Texgen
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU | uv_array_index);
+	g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_MESH_UV, uv_array_index);
 
 	// Tell rasterizer to expect 2D texture coordinates
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_COUNT2);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 2, false);
 }
 
 void ScaleTextureMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_matrix)
@@ -233,10 +233,10 @@ void GridTextureMapperClass::Apply(int uv_array_index)
 	g_renderBackend->Set_Texture_Transform(Stage, m);
 
 	// Disable Texgen
-	g_renderBackend->Set_Texture_Stage_State(Stage, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU | uv_array_index);
+	g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_MESH_UV, uv_array_index);
 
 	// Tell rasterizer to expect 2D texture coordinates
-	g_renderBackend->Set_Texture_Stage_State(Stage, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 2, false);
 }
 
 void GridTextureMapperClass::Reset()
@@ -628,10 +628,10 @@ void ClassicEnvironmentMapperClass::Apply(int uv_array_index)
 	g_renderBackend->Set_Texture_Transform(Stage, m);
 
 	// Get camera normals
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_CAMERASPACENORMAL);
+	g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_NORMAL);
 
 	// Tell rasterizer to expect 2D matrices
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_COUNT2);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 2, false);
 
 }
 
@@ -654,10 +654,10 @@ void EnvironmentMapperClass::Apply(int uv_array_index)
 	g_renderBackend->Set_Texture_Transform(Stage, m);
 
 	// Get camera reflection vector
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR);
+	g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_REFLECTION);
 
 	// Tell rasterizer to expect 2D matrices
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_COUNT2);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 2, false);
 
 }
 
@@ -711,12 +711,12 @@ void EdgeMapperClass::Apply(int uv_array_index)
 
 	// Get camera reflection vector
 	if (UseReflect)
-		g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR);
+		g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_REFLECTION);
 	else
-		g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_CAMERASPACENORMAL);
+		g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_NORMAL);
 
 	// Tell rasterizer to expect 2D matrices
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_COUNT2);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 2, false);
 
 }
 
@@ -812,10 +812,10 @@ void WSClassicEnvironmentMapperClass::Apply(int uv_array_index)
 	g_renderBackend->Set_Texture_Transform(Stage, m);
 
 	// Get camera normals
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_CAMERASPACENORMAL);
+	g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_NORMAL);
 
 	// Tell rasterizer to expect 2D matrices
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_COUNT2);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 2, false);
 
 }
 
@@ -827,10 +827,10 @@ void WSEnvironmentMapperClass::Apply(int uv_array_index)
 	g_renderBackend->Set_Texture_Transform(Stage, m);
 
 	// Get camera reflection
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR);
+	g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_REFLECTION);
 
 	// Tell rasterizer to expect 2D matrices
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_COUNT2);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 2, false);
 
 }
 
@@ -842,10 +842,10 @@ void GridClassicEnvironmentMapperClass::Apply(int uv_array_index)
 	g_renderBackend->Set_Texture_Transform(Stage, m);
 
 	// Get camera normals
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_CAMERASPACENORMAL);
+	g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_NORMAL);
 
 	// Tell rasterizer to expect 2D matrices
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_COUNT2);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 2, false);
 }
 
 void GridClassicEnvironmentMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_matrix)
@@ -871,10 +871,10 @@ void GridEnvironmentMapperClass::Apply(int uv_array_index)
 	g_renderBackend->Set_Texture_Transform(Stage, m);
 
 	// Get camera space reflection
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR);
+	g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_REFLECTION);
 
 	// Tell rasterizer to expect 2D matrices
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_COUNT2);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 2, false);
 }
 
 void GridEnvironmentMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_matrix)
@@ -900,10 +900,10 @@ void ScreenMapperClass::Apply(int uv_array_index)
 	g_renderBackend->Set_Texture_Transform(Stage, m);
 
 	// Get camera space position
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_CAMERASPACEPOSITION);
+	g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_POSITION);
 
 	// Tell rasterizer what to expect
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_PROJECTED | D3DTTFF_COUNT3);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 3, true);
 }
 
 void ScreenMapperClass::Calculate_Texture_Matrix(Matrix4x4 &tex_matrix)
@@ -1236,10 +1236,10 @@ void GridWSClassicEnvironmentMapperClass::Apply(int uv_array_index)
 	g_renderBackend->Set_Texture_Transform(Stage, m);
 
 	// Get camera normals
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_CAMERASPACENORMAL);
+	g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_NORMAL);
 
 	// Tell rasterizer to expect 2D matrices
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_COUNT2);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 2, false);
 }
 
 /***********************************************************************************************
@@ -1280,8 +1280,8 @@ void GridWSEnvironmentMapperClass::Apply(int uv_array_index)
 	g_renderBackend->Set_Texture_Transform(Stage, m);
 
 	// Get camera space reflection
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR);
+	g_renderBackend->Set_Texture_Coord_Source(Stage, RB_TEXCOORD_CAMERA_SPACE_REFLECTION);
 
 	// Tell rasterizer to expect 2D matrices
-	g_renderBackend->Set_Texture_Stage_State(Stage,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_COUNT2);
+	g_renderBackend->Set_Texture_Transform_Mode(Stage, 2, false);
 }

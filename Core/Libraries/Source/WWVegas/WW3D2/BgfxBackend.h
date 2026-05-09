@@ -178,6 +178,10 @@ public:
     virtual void Override_Material_Opacity(float opacity) override;
     virtual void Set_Texture_Transform(unsigned stage, const Matrix4x4& matrix) override;
     virtual void Clear_Texture_Transform(unsigned stage) override;
+    virtual void Set_Texture_Coord_Source(unsigned stage,
+                                          RenderBackendTexcoordSource source,
+                                          unsigned uv_array_index = 0) override;
+    virtual void Set_Texture_Transform_Mode(unsigned stage, unsigned coord_count, bool projected) override;
     virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled) override;
     virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;

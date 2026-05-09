@@ -156,6 +156,10 @@ public:
     virtual void Set_Texture_Factor(unsigned argb);
     virtual void Configure_Grayscale_Texture_Stages() override;
     virtual void Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix) override;
+    virtual void Set_Texture_Coord_Source(unsigned stage,
+                                          RenderBackendTexcoordSource source,
+                                          unsigned uv_array_index = 0) override;
+    virtual void Set_Texture_Transform_Mode(unsigned stage, unsigned coord_count, bool projected) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
     virtual CullMode Get_Cull_Mode() const override;
     virtual void Set_Cull_Mode(CullMode mode) override;
