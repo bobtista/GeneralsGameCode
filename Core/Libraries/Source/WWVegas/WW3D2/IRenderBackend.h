@@ -305,6 +305,14 @@ enum RenderBackendDeviceStatus
     RB_DEVICE_NOT_RESET
 };
 
+enum RenderBackendMSAAMode
+{
+    RB_MSAA_NONE = 0,
+    RB_MSAA_2X,
+    RB_MSAA_4X,
+    RB_MSAA_8X
+};
+
 enum StencilOp
 {
     // Values match D3DSTENCILOP_* 1..8 directly so DX8Backend can cast.
@@ -407,6 +415,8 @@ public:
     virtual SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num) { return nullptr; }
     virtual void Set_Texture_Bitdepth(int bitdepth) {}
     virtual int Get_Texture_Bitdepth() const { return 16; }
+    virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode) {}
+    virtual RenderBackendMSAAMode Get_MSAA_Mode() const { return RB_MSAA_NONE; }
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) {}
 
     // -------------------------------------------------------------------------

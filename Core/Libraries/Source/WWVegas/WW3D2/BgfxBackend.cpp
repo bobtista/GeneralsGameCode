@@ -997,6 +997,7 @@ void BuildStandardVertexLayouts()
 
 BgfxBackend::BgfxBackend()
     : m_textureBitDepth(16)
+    , m_msaaMode(RB_MSAA_NONE)
 {
     WWDEBUG_SAY(("[BgfxBackend] Backend constructed."));
 }
@@ -3176,6 +3177,16 @@ void BgfxBackend::Set_Texture_Bitdepth(int bitdepth)
 int BgfxBackend::Get_Texture_Bitdepth() const
 {
     return m_textureBitDepth;
+}
+
+void BgfxBackend::Set_MSAA_Mode(RenderBackendMSAAMode mode)
+{
+    m_msaaMode = mode;
+}
+
+RenderBackendMSAAMode BgfxBackend::Get_MSAA_Mode() const
+{
+    return m_msaaMode;
 }
 
 // -- Vertex / index buffers --------------------------------------------------
