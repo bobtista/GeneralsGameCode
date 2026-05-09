@@ -985,8 +985,8 @@ void VertexMaterialClass::Apply() const
 		if (Mapper[i]) {
 			Mapper[i]->Apply(UVSource[i]);
 		} else {
-			g_renderBackend->Set_Texture_Stage_State(i,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU | UVSource[i]);
-			g_renderBackend->Set_Texture_Stage_State(i,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_DISABLE);
+			g_renderBackend->Set_Texture_Coord_Source(i, RB_TEXCOORD_MESH_UV, UVSource[i]);
+			g_renderBackend->Set_Texture_Transform_Mode(i, 0, false);
 		}
 	}
 }
@@ -1010,8 +1010,8 @@ void VertexMaterialClass::Apply_Null()
 
 	// set to default values if no mappers
 	for (i=0; i<MeshBuilderClass::MAX_STAGES; i++) {
-		g_renderBackend->Set_Texture_Stage_State(i,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU | i);
-		g_renderBackend->Set_Texture_Stage_State(i,D3DTSS_TEXTURETRANSFORMFLAGS,D3DTTFF_DISABLE);
+		g_renderBackend->Set_Texture_Coord_Source(i, RB_TEXCOORD_MESH_UV, i);
+		g_renderBackend->Set_Texture_Transform_Mode(i, 0, false);
 	}
 }
 
