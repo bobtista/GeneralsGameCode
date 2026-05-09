@@ -402,7 +402,7 @@ DX8VertexBufferClass::DX8VertexBufferClass(
 	unsigned short VertexCount,
 	UsageType usage)
 	:
-	VertexBufferClass(BUFFER_TYPE_DX8, D3DFVF_XYZ|D3DFVF_TEX1|D3DFVF_NORMAL, VertexCount),
+	VertexBufferClass(BUFFER_TYPE_DX8, FVFInfoClass::Build_FVF(true, false, false, 1), VertexCount),
 	VertexBuffer(nullptr)
 {
 	WWASSERT(vertices);
@@ -423,7 +423,7 @@ DX8VertexBufferClass::DX8VertexBufferClass(
 	unsigned short VertexCount,
 	UsageType usage)
 	:
-	VertexBufferClass(BUFFER_TYPE_DX8, D3DFVF_XYZ|D3DFVF_TEX1|D3DFVF_NORMAL|D3DFVF_DIFFUSE, VertexCount),
+	VertexBufferClass(BUFFER_TYPE_DX8, FVFInfoClass::Build_FVF(true, true, false, 1), VertexCount),
 	VertexBuffer(nullptr)
 {
 	WWASSERT(vertices);
@@ -444,7 +444,7 @@ DX8VertexBufferClass::DX8VertexBufferClass(
 	unsigned short VertexCount,
 	UsageType usage)
 	:
-	VertexBufferClass(BUFFER_TYPE_DX8, D3DFVF_XYZ|D3DFVF_TEX1|D3DFVF_DIFFUSE, VertexCount),
+	VertexBufferClass(BUFFER_TYPE_DX8, FVFInfoClass::Build_FVF(false, true, false, 1), VertexCount),
 	VertexBuffer(nullptr)
 {
 	WWASSERT(vertices);
@@ -463,7 +463,7 @@ DX8VertexBufferClass::DX8VertexBufferClass(
 	unsigned short VertexCount,
 	UsageType usage)
 	:
-	VertexBufferClass(BUFFER_TYPE_DX8, D3DFVF_XYZ|D3DFVF_TEX1, VertexCount),
+	VertexBufferClass(BUFFER_TYPE_DX8, FVFInfoClass::Build_FVF(false, false, false, 1), VertexCount),
 	VertexBuffer(nullptr)
 {
 	WWASSERT(vertices);
