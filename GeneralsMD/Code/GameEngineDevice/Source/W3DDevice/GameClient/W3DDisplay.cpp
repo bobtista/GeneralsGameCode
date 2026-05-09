@@ -3294,19 +3294,14 @@ void W3DDisplay::takeScreenShot()
 			done = true;
 	}
 
-	// TheSuperHackers @bugfix xezon 21/05/2025 Get the back buffer and create a copy of the surface.
-	// Originally this code took the front buffer and tried to lock it. This does not work when the
-	// render view clips outside the desktop boundaries. It crashed the game.
-	SurfaceClass* surface = DX8Wrapper::_Get_DX8_Back_Buffer();
+	SurfaceClass* surfaceCopy = (g_renderBackend != nullptr) ? g_renderBackend->Capture_Back_Buffer_Surface(0) : nullptr;
+	if (surfaceCopy == nullptr)
+	{
+		return;
+	}
 
 	SurfaceClass::SurfaceDescription surfaceDesc;
-	surface->Get_Description(surfaceDesc);
-
-	SurfaceClass* surfaceCopy = NEW_REF(SurfaceClass, (DX8Wrapper::_Create_DX8_Surface(surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format)));
-	DX8Wrapper::_Copy_DX8_Rects(surface->Peek_D3D_Surface(), nullptr, 0, surfaceCopy->Peek_D3D_Surface(), nullptr);
-
-	surface->Release_Ref();
-	surface = nullptr;
+	surfaceCopy->Get_Description(surfaceDesc);
 
 	struct Rect
 	{
