@@ -36,6 +36,34 @@
 
 // ----------------------------------------------------------------------------
 
+static constexpr unsigned Make_DDS_FourCC(char a, char b, char c, char d)
+{
+	return static_cast<unsigned>(a) |
+		(static_cast<unsigned>(b) << 8) |
+		(static_cast<unsigned>(c) << 16) |
+		(static_cast<unsigned>(d) << 24);
+}
+
+static WW3DFormat DDS_FourCC_To_WW3D_Format(unsigned fourcc)
+{
+	switch (fourcc) {
+	case Make_DDS_FourCC('D', 'X', 'T', '1'):
+		return WW3D_FORMAT_DXT1;
+	case Make_DDS_FourCC('D', 'X', 'T', '2'):
+		return WW3D_FORMAT_DXT2;
+	case Make_DDS_FourCC('D', 'X', 'T', '3'):
+		return WW3D_FORMAT_DXT3;
+	case Make_DDS_FourCC('D', 'X', 'T', '4'):
+		return WW3D_FORMAT_DXT4;
+	case Make_DDS_FourCC('D', 'X', 'T', '5'):
+		return WW3D_FORMAT_DXT5;
+	default:
+		return WW3D_FORMAT_UNKNOWN;
+	}
+}
+
+// ----------------------------------------------------------------------------
+
 DDSFileClass::DDSFileClass(const char* name,unsigned reduction_factor)
 	:
 	DDSMemory(nullptr),
@@ -94,7 +122,7 @@ DDSFileClass::DDSFileClass(const char* name,unsigned reduction_factor)
 		return;
 	}
 
-	Format=D3DFormat_To_WW3DFormat((D3DFORMAT)SurfaceDesc.PixelFormat.FourCC);
+	Format=DDS_FourCC_To_WW3D_Format(SurfaceDesc.PixelFormat.FourCC);
 	WWASSERT(
 		Format==WW3D_FORMAT_DXT1 ||
 		Format==WW3D_FORMAT_DXT2 ||
