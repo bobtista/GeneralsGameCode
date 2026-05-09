@@ -40,6 +40,17 @@
 
 #include <vector>
 
+#ifndef _D3D8_H_
+struct IDirect3DDevice8;
+struct IDirect3DVertexBuffer8;
+struct IDirect3DIndexBuffer8;
+struct IDirect3DTexture8;
+typedef IDirect3DDevice8 *LPDIRECT3DDEVICE8;
+typedef IDirect3DVertexBuffer8 *LPDIRECT3DVERTEXBUFFER8;
+typedef IDirect3DIndexBuffer8 *LPDIRECT3DINDEXBUFFER8;
+typedef IDirect3DTexture8 *LPDIRECT3DTEXTURE8;
+#endif
+
 #define INVALID_WATER_HEIGHT 0.0f	///water height guaranteed to be below all terrain.
 
 #define NUM_BUMP_FRAMES 32	///number of animation frames in bump map
