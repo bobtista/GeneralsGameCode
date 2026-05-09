@@ -109,6 +109,7 @@
 #include "rddesc.h"
 #include "Vector3i.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
 #include "TARGA.h"
 #include "sortingrenderer.h"
 #include "thread.h"
@@ -2009,12 +2010,14 @@ void WW3D::Update_Pixel_Center()
 
 void WW3D::Set_Texture_Bitdepth(int bitdepth)
 {
-	DX8Wrapper::Set_Texture_Bitdepth(bitdepth);
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Set_Texture_Bitdepth(bitdepth);
+	}
 }
 
 int WW3D::Get_Texture_Bitdepth()
 {
-	return DX8Wrapper::Get_Texture_Bitdepth();
+	return (g_renderBackend != nullptr) ? g_renderBackend->Get_Texture_Bitdepth() : 16;
 }
 
 void WW3D::Set_MSAA_Mode(MultiSampleModeEnum mode)

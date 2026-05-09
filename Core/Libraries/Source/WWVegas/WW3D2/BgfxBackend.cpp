@@ -996,6 +996,7 @@ void BuildStandardVertexLayouts()
 }
 
 BgfxBackend::BgfxBackend()
+    : m_textureBitDepth(16)
 {
     WWDEBUG_SAY(("[BgfxBackend] Backend constructed."));
 }
@@ -3161,6 +3162,20 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
 WW3DFormat BgfxBackend::Get_Back_Buffer_Format() const
 {
     return WW3D_FORMAT_A8R8G8B8;
+}
+
+void BgfxBackend::Set_Texture_Bitdepth(int bitdepth)
+{
+    WWASSERT(bitdepth == 16 || bitdepth == 32);
+    if (bitdepth == 16 || bitdepth == 32)
+    {
+        m_textureBitDepth = bitdepth;
+    }
+}
+
+int BgfxBackend::Get_Texture_Bitdepth() const
+{
+    return m_textureBitDepth;
 }
 
 // -- Vertex / index buffers --------------------------------------------------
