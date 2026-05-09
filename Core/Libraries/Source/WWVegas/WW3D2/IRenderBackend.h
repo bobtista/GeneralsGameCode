@@ -497,6 +497,8 @@ public:
     // Vertex / index buffers
     // -------------------------------------------------------------------------
 
+    virtual bool Requires_Legacy_DX8_Buffer_Resources() const { return true; }
+
     virtual void Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream = 0) {}
     virtual void Set_Vertex_Buffer(const DynamicVBAccessClass & vba) {}
     virtual void Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset) {}
