@@ -90,6 +90,31 @@ static RenderBackendMaterialState Make_Render_Backend_Material_State(const D3DMA
 	return state;
 }
 
+static RenderBackendMaterialColorSource Convert_Color_Source(VertexMaterialClass::ColorSourceType source)
+{
+	switch (source)
+	{
+	case VertexMaterialClass::COLOR1:
+		return RB_MATERIAL_COLOR_SOURCE_COLOR1;
+	case VertexMaterialClass::COLOR2:
+		return RB_MATERIAL_COLOR_SOURCE_COLOR2;
+	default:
+		return RB_MATERIAL_COLOR_SOURCE_MATERIAL;
+	}
+}
+
+static VertexMaterialClass::ColorSourceType Normalize_Color_Source(VertexMaterialClass::ColorSourceType source)
+{
+	switch (source)
+	{
+	case VertexMaterialClass::COLOR1:
+	case VertexMaterialClass::COLOR2:
+		return source;
+	default:
+		return VertexMaterialClass::MATERIAL;
+	}
+}
+
 /*
 ** VertexMaterialClass Implementation
 */
@@ -100,9 +125,9 @@ VertexMaterialClass::VertexMaterialClass():
 	MaterialOld(nullptr),
 #endif
 	Flags(0),
-	AmbientColorSource(D3DMCS_MATERIAL),
-	EmissiveColorSource(D3DMCS_MATERIAL),
-	DiffuseColorSource(D3DMCS_MATERIAL),
+	AmbientColorSource(MATERIAL),
+	EmissiveColorSource(MATERIAL),
+	DiffuseColorSource(MATERIAL),
 	UseLighting(false),
 	UniqueID(0),
 	CRCDirty(true)
@@ -371,67 +396,37 @@ void	VertexMaterialClass::Set_Opacity(float o)
 void	VertexMaterialClass::Set_Ambient_Color_Source(ColorSourceType src)
 {
 	CRCDirty=true;
-	switch (src)
-	{
-	case	COLOR1:		AmbientColorSource = D3DMCS_COLOR1; break;
-	case	COLOR2:		AmbientColorSource = D3DMCS_COLOR2; break;
-	default:				AmbientColorSource = D3DMCS_MATERIAL; break;
-	}
+	AmbientColorSource = Normalize_Color_Source(src);
 }
 
 void	VertexMaterialClass::Set_Emissive_Color_Source(ColorSourceType src)
 {
 	CRCDirty=true;
-	switch (src)
-	{
-	case	COLOR1:		EmissiveColorSource = D3DMCS_COLOR1; break;
-	case	COLOR2:		EmissiveColorSource = D3DMCS_COLOR2; break;
-	default:				EmissiveColorSource = D3DMCS_MATERIAL; break;
-	}
+	EmissiveColorSource = Normalize_Color_Source(src);
 }
 
 void	VertexMaterialClass::Set_Diffuse_Color_Source(ColorSourceType src)
 {
 	CRCDirty=true;
-	switch (src)
-	{
-	case	COLOR1:		DiffuseColorSource = D3DMCS_COLOR1; break;
-	case	COLOR2:		DiffuseColorSource = D3DMCS_COLOR2; break;
-	default:				DiffuseColorSource = D3DMCS_MATERIAL; break;
-	}
+	DiffuseColorSource = Normalize_Color_Source(src);
 }
 
 VertexMaterialClass::ColorSourceType
 VertexMaterialClass::Get_Ambient_Color_Source()
 {
-	switch(AmbientColorSource)
-	{
-	case D3DMCS_COLOR1:	return COLOR1;
-	case D3DMCS_COLOR2:	return COLOR2;
-	default:					return MATERIAL;
-	}
+	return AmbientColorSource;
 }
 
 VertexMaterialClass::ColorSourceType
 VertexMaterialClass::Get_Emissive_Color_Source()
 {
-	switch(EmissiveColorSource)
-	{
-	case D3DMCS_COLOR1:	return COLOR1;
-	case D3DMCS_COLOR2:	return COLOR2;
-	default:					return MATERIAL;
-	}
+	return EmissiveColorSource;
 }
 
 VertexMaterialClass::ColorSourceType
 VertexMaterialClass::Get_Diffuse_Color_Source()
 {
-	switch(DiffuseColorSource)
-	{
-	case D3DMCS_COLOR1:	return COLOR1;
-	case D3DMCS_COLOR2:	return COLOR2;
-	default:					return MATERIAL;
-	}
+	return DiffuseColorSource;
 }
 
 void VertexMaterialClass::Set_UV_Source(int stage,int array_index)
@@ -978,7 +973,9 @@ void VertexMaterialClass::Apply() const
 		g_renderBackend->Set_Lighting_Enable(false);
 	else
 		g_renderBackend->Set_Lighting_Enable(UseLighting);
-	g_renderBackend->Set_Material_Color_Source(AmbientColorSource, DiffuseColorSource, EmissiveColorSource);
+	g_renderBackend->Set_Material_Color_Source(Convert_Color_Source(AmbientColorSource),
+		Convert_Color_Source(DiffuseColorSource),
+		Convert_Color_Source(EmissiveColorSource));
 
 	// set to default values if no mappers
 	for (i=0; i<MeshBuilderClass::MAX_STAGES; i++) {
@@ -1006,7 +1003,9 @@ void VertexMaterialClass::Apply_Null()
 	g_renderBackend->Set_Lighting_Enable(false);
 	g_renderBackend->Apply_Material_State(Make_Render_Backend_Material_State(default_settings));
 
-	g_renderBackend->Set_Material_Color_Source(D3DMCS_MATERIAL, D3DMCS_MATERIAL, D3DMCS_MATERIAL);
+	g_renderBackend->Set_Material_Color_Source(RB_MATERIAL_COLOR_SOURCE_MATERIAL,
+		RB_MATERIAL_COLOR_SOURCE_MATERIAL,
+		RB_MATERIAL_COLOR_SOURCE_MATERIAL);
 
 	// set to default values if no mappers
 	for (i=0; i<MeshBuilderClass::MAX_STAGES; i++) {
