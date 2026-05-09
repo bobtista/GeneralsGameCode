@@ -1222,6 +1222,33 @@ void DX8Backend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigne
         value);
 }
 
+void DX8Backend::Configure_Custom_Edging_Cloud_Texture_Stages()
+{
+    Set_Texture_Stage_State(0, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+    Set_Texture_Stage_State(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+
+    Set_Texture_Stage_State(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
+    Set_Texture_Stage_State(1, D3DTSS_COLORARG2, D3DTA_TEXTURE);
+    Set_Texture_Stage_State(1, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+    Set_Texture_Stage_State(1, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+    Set_Texture_Stage_State(1, D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
+    Set_Texture_Stage_State(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+    Set_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX, 1);
+}
+
+void DX8Backend::Configure_Shadow_Volume_Fill_Texture_Stages()
+{
+    Set_Texture_Stage_State(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    Set_Texture_Stage_State(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    Set_Texture_Stage_State(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+    Set_Texture_Stage_State(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+    Set_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX, 0);
+
+    Set_Texture_Stage_State(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+    Set_Texture_Stage_State(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+    Set_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX, 1);
+}
+
 CullMode DX8Backend::Get_Cull_Mode() const
 {
     return static_cast<CullMode>(DX8Wrapper::Get_DX8_Render_State(D3DRS_CULLMODE));
