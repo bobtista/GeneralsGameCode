@@ -841,11 +841,13 @@ public:
     // test ref<=stencil && (stencil & read_mask) and DEST_COLOR*SRC
     // blend so stenciled pixels multiply against the shadow color.
     // shadow_color is ARGB like the engine's getShadowColor() return.
-    // No-op in non-bgfx backends (DX8 already draws this via raw m_pDev
-    // calls in W3DVolumetricShadow::renderStencilShadows).
     virtual void Apply_Stencil_Shadow_Darken(unsigned /*shadow_color*/,
                                              unsigned /*stencil_read_mask*/,
-                                             unsigned /*stencil_ref*/) {}
+                                             unsigned /*stencil_ref*/,
+                                             int /*x*/,
+                                             int /*y*/,
+                                             int /*width*/,
+                                             int /*height*/) {}
 
     // TheSuperHackers @refactor bobtista 15/04/2026 Close the
     // shadow volume for bgfx rendering. The engine constructs shadow

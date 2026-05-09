@@ -3768,18 +3768,6 @@ void W3DVolumetricShadow::resetSilhouette( Int meshIndex )
 void W3DVolumetricShadowManager::renderStencilShadows()
 {
 	LogVolumetricShadowPath("renderStencilShadows", nullptr, nullptr, nullptr, 0, nullptr);
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	if (!m_pDev)
-		return;	//need device to render anything.
-
-	struct _TRANSLITVERTEX {
-		float x;
-		float y;
-		float z;
-		float w;
-		DWORD color;   // diffuse color
-	} v[4];
 
 	Int xpos, ypos, width, height;
 
@@ -3787,55 +3775,14 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
 
-	v[0].x = xpos+width; v[0].y = ypos+height; v[0].z = 0.0f; v[0].w = 1.0f;
-	v[1].x = xpos+width; v[1].y = 0;           v[1].z = 0.0f; v[1].w = 1.0f;
-	v[2].x = xpos;       v[2].y = ypos+height; v[2].z = 0.0f; v[2].w = 1.0f;
-	v[3].x = xpos;       v[3].y = 0;           v[3].z = 0.0f; v[3].w = 1.0f;
-    v[0].color = TheW3DShadowManager->getShadowColor();
-    v[1].color = TheW3DShadowManager->getShadowColor();
-	v[2].color = TheW3DShadowManager->getShadowColor();
-    v[3].color = TheW3DShadowManager->getShadowColor();
-
-#if !defined(GGC_BGFX_STANDALONE)
-	//draw polygons like this is very inefficient but for only 2 triangles, it's
-	//not worth bothering with index/vertex buffers.
-	m_pDev->SetVertexShader(DX8_FVF_FLAG_XYZRHW | DX8_FVF_FLAG_DIFFUSE);
-
-	// Use alpha blending to draw the transparent shadow
-    g_renderBackend->Set_Alpha_Blend_Enable(true);
-		g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
-
-
-	// Set stencil states
-    g_renderBackend->Set_Depth_Test_Enable(true);
-		g_renderBackend->Set_Depth_Func(RB_CMP_ALWAYS);
-
-	// Only write where stencil val >= 1 (count indicates # of shadows that
-	// overlap that pixel)
-    g_renderBackend->Set_Stencil_Enable(true);
-    g_renderBackend->Set_Stencil_Func(RB_CMP_LESS_EQUAL);	//reference value is less or equal to stencil
-    g_renderBackend->Set_Stencil_Pass_Op(RB_STENCIL_OP_KEEP);
-	//Upper bits of stencil could be used for storing occluded models which are player colored.  So we mask out those
-	//pixels and only use the lower bits for shadow calculations.
-	g_renderBackend->Set_Stencil_Mask(~TheW3DShadowManager->getStencilShadowMask());
-    g_renderBackend->Set_Stencil_Ref(0x1);
-
-
-	g_renderBackend->Set_Shade_Mode(RB_SHADE_FLAT);
-
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
-		m_pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANSLITVERTEX));
-#endif
-
-	// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I issue the
-	// matching darken pass on the bgfx backend. DX8 already drew the
-	// quad above via raw m_pDev; bgfx never saw those raw calls, so ask
-	// the backend to draw its own fullscreen darkening quad with the
-	// same stencil test (LEQUAL ref=1 mask=~shadowMask).
 	g_renderBackend->Apply_Stencil_Shadow_Darken(
 		TheW3DShadowManager->getShadowColor(),
 		~TheW3DShadowManager->getStencilShadowMask(),
-		0x1);
+		0x1,
+		xpos,
+		ypos,
+		width,
+		height);
 
 #if !defined(GGC_BGFX_STANDALONE)
 	g_renderBackend->Set_Shade_Mode(RB_SHADE_GOURAUD);

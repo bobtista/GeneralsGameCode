@@ -219,7 +219,11 @@ public:
     virtual void Set_Shadow_Volume_Shader_Active(bool active) override;
     virtual void Apply_Stencil_Shadow_Darken(unsigned shadow_color,
                                              unsigned stencil_read_mask,
-                                             unsigned stencil_ref) override;
+                                             unsigned stencil_ref,
+                                             int x,
+                                             int y,
+                                             int width,
+                                             int height) override;
     virtual void Submit_Shadow_Volume_Caps(unsigned strip_start_vertex,
                                            unsigned num_silhouette_verts) override;
     virtual void Submit_Shadow_Volume_Triangulated_Caps(
