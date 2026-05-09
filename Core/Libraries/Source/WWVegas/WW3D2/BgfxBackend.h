@@ -207,6 +207,7 @@ public:
     virtual void Set_Cloud_Shadow_Params(bool enable, float scroll_x, float scroll_y,
                                          float stretch, TextureClass * cloud_tex) override;
     virtual void Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha) override;
+    virtual bool Supports_Color_Write_Mask() const override { return true; }
     virtual unsigned Get_Color_Write_Mask() const override;
     virtual void Set_Color_Write_Mask(unsigned mask) override;
     virtual void Set_Lighting_Enable(bool enable) override;
