@@ -673,10 +673,11 @@ public:
 
     // TheSuperHackers @feature bobtista 20/04/2026 Grayscale
     // output for disabled 2D UI elements (Render2DClass::Enable_Grayscale).
-    // DX8 backend is a no-op — render2d.cpp still programs the D3D8
-    // DOTPRODUCT3/MODULATE TSS cascade directly for the legacy path.
-    // bgfx backend drives a luminance-conversion uniform in fs_uber.
+    // DX8 backend programs the DOTPRODUCT3/MODULATE TSS cascade for the
+    // legacy path. bgfx backend drives a luminance-conversion uniform in
+    // fs_uber and does not need texture-stage setup.
     virtual void Set_Grayscale_Mode(bool enable) {}
+    virtual void Configure_Grayscale_Texture_Stages() {}
 
     // TheSuperHackers @feature bobtista 20/04/2026 Cloud-shadow
     // modulation state. Engine calls this per frame to hand over the

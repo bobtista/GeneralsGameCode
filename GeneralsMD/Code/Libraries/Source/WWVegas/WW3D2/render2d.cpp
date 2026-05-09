@@ -664,32 +664,8 @@ void Render2DClass::Render()
 	{	//special case added to draw grayscale non-alpha blended images.
 		g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueShader);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of all regular W3D states.
-		// TheSuperHackers @feature bobtista 20/04/2026 bgfx grayscale path — DX8 TSS
-		// ops below are ignored by the bgfx backend, so drive luminance conversion
-		// via a shader uniform instead.
 		g_renderBackend->Set_Grayscale_Mode(true);
-		if (g_renderBackend->Supports_Dot3())
-		{	//Override W3D states with customizations for grayscale
-			g_renderBackend->Set_Texture_Factor(0x80A5CA8E);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG0, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MULTIPLYADD);
-
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_CURRENT);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_DOTPRODUCT3);
-		}
-		else
-		{	//doesn't have DOT3 blend mode so fake it another way.
-			g_renderBackend->Set_Texture_Factor(0x60606060);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-
-			// TheSuperHackers @bugfix Stubbjax 08/01/2026 Fix possible greyscale rendering issues on hardware without DOT3 support.
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-		}
+		g_renderBackend->Configure_Grayscale_Texture_Stages();
 	}
 	else
 		g_renderBackend->Set_Shader(Shader);
