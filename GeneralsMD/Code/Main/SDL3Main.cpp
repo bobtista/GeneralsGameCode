@@ -107,15 +107,19 @@ int main(int argc, char **argv)
 
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Build a Win32-style
 	// command-line string from argv so GetCommandLineA() in the compat
-	// shim returns the real arguments. The engine's parseCommandLine
-	// tokenises with nextParam(buf, "\" "), i.e. ' ' and '"' are the
-	// only separators and there is no backslash escape - so we just
-	// wrap any arg that contains a space in double quotes. Args that
-	// contain BOTH a space and a literal '"' are unsupported by the
-	// engine parser itself, so we don't try to encode them either.
-	for (int i = 1; i < argc; ++i)
+	// shim returns the real arguments. The legacy parser expects token 0
+	// to be the executable name and starts parsing at token 1, so argv[0]
+	// must be preserved here.
+	//
+	// The engine's parseCommandLine tokenises with nextParam(buf, "\" "),
+	// i.e. ' ' and '"' are the only separators and there is no backslash
+	// escape - so we just wrap any arg that contains a space in double
+	// quotes. Args that contain BOTH a space and a literal '"' are
+	// unsupported by the engine parser itself, so we don't try to encode
+	// them either.
+	for (int i = 0; i < argc; ++i)
 	{
-		if (i > 1)
+		if (i > 0)
 		{
 			s_compatCommandLineStorage += ' ';
 		}
