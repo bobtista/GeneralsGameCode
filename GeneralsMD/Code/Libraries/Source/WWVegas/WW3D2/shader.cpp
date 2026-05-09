@@ -933,8 +933,8 @@ void ShaderClass::Apply()
 			if ((PricOp==D3DTOP_SELECTARG1)&&(PricArg1==D3DTA_DIFFUSE)) {
 				WWDEBUG_SAY(("Wasted Stage 0 in shader-vertex diffuse only"));
 				// set stage 0 to disable
-				DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_DISABLE);
-				DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_DISABLE);
+				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_DISABLE);
+				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_DISABLE);
 				// set stage 1 to accept diffuse
 				if (SeccArg2==D3DTA_CURRENT) SeccArg2=D3DTA_DIFFUSE;
 				if (SecaArg2==D3DTA_CURRENT) SecaArg2=D3DTA_DIFFUSE;
@@ -942,10 +942,10 @@ void ShaderClass::Apply()
 				kill_stage_2=true;
 			} else {
 				// set stage 0 to pass through what it needs
-				DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
-				DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLORARG1,tex_arg);
-				DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);
-				DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAARG1,tex_arg);
+				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
+				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLORARG1,tex_arg);
+				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);
+				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAARG1,tex_arg);
 
 				// set stage 2 to do the diffuse op
 				// bypass the wrapper since it only supports 2 texture stages
@@ -970,24 +970,24 @@ void ShaderClass::Apply()
 				cOp=aOp=D3DTOP_SELECTARG2;
 			}
 #endif
-			DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,PricOp);
-			DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLORARG1,PricArg1);
-			DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLORARG2,PricArg2);
-			DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAOP,PriaOp);
-			DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAARG1,PriaArg1);
-			DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAARG2,PriaArg2);
+			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLOROP,PricOp);
+			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLORARG1,PricArg1);
+			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLORARG2,PricArg2);
+			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP,PriaOp);
+			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAARG1,PriaArg1);
+			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAARG2,PriaArg2);
 			kill_stage_2=true;
 		}
 		diff &= ~(ShaderClass::MASK_PRIGRADIENT);
 	}
 
 	if (diff & sec_mask) {
-		DX8Wrapper::Set_DX8_Texture_Stage_State(1,D3DTSS_COLOROP,SeccOp);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(1,D3DTSS_COLORARG1,SeccArg1);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(1,D3DTSS_COLORARG2,SeccArg2);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(1,D3DTSS_ALPHAOP,SecaOp);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(1,D3DTSS_ALPHAARG1,SecaArg1);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(1,D3DTSS_ALPHAARG2,SecaArg2);
+		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_COLOROP,SeccOp);
+		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_COLORARG1,SeccArg1);
+		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_COLORARG2,SeccArg2);
+		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_ALPHAOP,SecaOp);
+		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_ALPHAARG1,SecaArg1);
+		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_ALPHAARG2,SecaArg2);
 		diff &= ~(ShaderClass::MASK_POSTDETAILCOLORFUNC);
 		diff &= ~(ShaderClass::MASK_POSTDETAILALPHAFUNC);
 		diff &= ~(ShaderClass::MASK_TEXTURING);
