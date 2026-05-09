@@ -154,6 +154,7 @@ public:
     virtual void Set_Point_Size(float size, float min_size, float max_size) override;
     virtual void Set_Point_Scale(float a, float b, float c) override;
     virtual void Set_Texture_Factor(unsigned argb);
+    virtual void Configure_Grayscale_Texture_Stages() override;
     virtual void Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
     virtual CullMode Get_Cull_Mode() const override;
