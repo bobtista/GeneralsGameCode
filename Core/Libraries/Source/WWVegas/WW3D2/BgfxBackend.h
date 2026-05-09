@@ -222,6 +222,10 @@ public:
     virtual void Set_Depth_Test_Enable(bool enable) override;
     virtual void Set_Depth_Write_Enable(bool enable) override;
     virtual void Set_Depth_Func(CompareFunc func) override;
+    virtual void Set_Point_Sprite_Enable(bool enable) override;
+    virtual void Set_Point_Scale_Enable(bool enable) override;
+    virtual void Set_Point_Size(float size, float min_size, float max_size) override;
+    virtual void Set_Point_Scale(float a, float b, float c) override;
 
     // bgfx stencil state capture.
     virtual void Set_Stencil_Enable(bool enable) override;

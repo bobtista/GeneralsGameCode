@@ -51,6 +51,13 @@ struct DX8ViewCaptureState
 static DX8ViewCaptureState g_tacticalViewCapture = { nullptr, nullptr, nullptr, nullptr, false };
 static DWORD g_profilerSwizzleShader = 0;
 
+static DWORD FloatAsDword(float value)
+{
+    DWORD bits = 0;
+    memcpy(&bits, &value, sizeof(bits));
+    return bits;
+}
+
 static DX8ViewCaptureState * GetViewCaptureState(RenderBackendViewCaptureKind kind)
 {
     if (kind != RB_VIEW_CAPTURE_TACTICAL) {
@@ -891,6 +898,30 @@ void DX8Backend::Set_Color_Write_Mask(unsigned mask)
 void DX8Backend::Set_Lighting_Enable(bool enable)
 {
     DX8Wrapper::Set_DX8_Render_State(D3DRS_LIGHTING, enable ? TRUE : FALSE);
+}
+
+void DX8Backend::Set_Point_Sprite_Enable(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_POINTSPRITEENABLE, enable ? TRUE : FALSE);
+}
+
+void DX8Backend::Set_Point_Scale_Enable(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_POINTSCALEENABLE, enable ? TRUE : FALSE);
+}
+
+void DX8Backend::Set_Point_Size(float size, float min_size, float max_size)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_POINTSIZE, FloatAsDword(size));
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_POINTSIZE_MIN, FloatAsDword(min_size));
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_POINTSIZE_MAX, FloatAsDword(max_size));
+}
+
+void DX8Backend::Set_Point_Scale(float a, float b, float c)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_POINTSCALE_A, FloatAsDword(a));
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_POINTSCALE_B, FloatAsDword(b));
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_POINTSCALE_C, FloatAsDword(c));
 }
 
 void DX8Backend::Set_Texture_Factor(unsigned argb)

@@ -583,6 +583,10 @@ public:
     virtual unsigned Get_Color_Write_Mask() const { return RB_COLOR_RGBA; }
     virtual void Set_Color_Write_Mask(unsigned mask) {}
     virtual void Set_Lighting_Enable(bool enable) {}
+    virtual void Set_Point_Sprite_Enable(bool enable) {}
+    virtual void Set_Point_Scale_Enable(bool enable) {}
+    virtual void Set_Point_Size(float size, float min_size, float max_size) {}
+    virtual void Set_Point_Scale(float a, float b, float c) {}
     virtual void Set_Texture_Factor(unsigned argb) {}
     virtual CullMode Get_Cull_Mode() const { return RB_CULL_CW; }
     virtual void Set_Cull_Mode(CullMode mode) {}
