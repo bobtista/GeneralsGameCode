@@ -3350,9 +3350,6 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 			} else {
 				m_roadTypes[i].applyTexture();
 			}
-	#ifdef RTS_DEBUG
-			//DX8Wrapper::Set_Shader(detailShader); // shows clipping.
-	#endif
 			for (Int pass=0; pass < devicePasses; pass++)
 			{
 				if (!wireframe)
@@ -3401,5 +3398,4 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 #endif
 	m_curRoadType = 0;
 }
-
 
