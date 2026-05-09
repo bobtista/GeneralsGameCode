@@ -5573,6 +5573,18 @@ void BgfxBackend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_coun
     }
 }
 
+void BgfxBackend::Set_Texture_Bump_Env_Matrix(unsigned stage,
+                                              float m00,
+                                              float m01,
+                                              float m10,
+                                              float m11)
+{
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT00, FloatAsDword(m00));
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT01, FloatAsDword(m01));
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT10, FloatAsDword(m10));
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT11, FloatAsDword(m11));
+}
+
 void BgfxBackend::Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
 {
     Set_Texture_Coord_Source(stage,

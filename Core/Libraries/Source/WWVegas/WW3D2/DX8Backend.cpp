@@ -1197,6 +1197,18 @@ void DX8Backend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_count
         flags);
 }
 
+void DX8Backend::Set_Texture_Bump_Env_Matrix(unsigned stage,
+                                             float m00,
+                                             float m01,
+                                             float m10,
+                                             float m11)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT00, FloatAsDword(m00));
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT01, FloatAsDword(m01));
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT10, FloatAsDword(m10));
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT11, FloatAsDword(m11));
+}
+
 void DX8Backend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
 {
     DX8Wrapper::Set_DX8_Texture_Stage_State(
