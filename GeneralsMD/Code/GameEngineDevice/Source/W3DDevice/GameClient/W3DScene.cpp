@@ -1449,29 +1449,11 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
     v[3].color = color;
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3F partial migration:
-	// the high-level Set_Shader/Set_Material/Apply_Render_State_Changes calls
-	// and all the stencil + alpha-blend state setters in this function (and
-	// the rest of W3DScene.cpp) are routed through g_renderBackend via the
-	// new stencil state extension. The remaining low-level Set_DX8_Render_State
-	// calls (D3DRS_ZBIAS, FILLMODE, ZENABLE/ZFUNC,
-	// SRCBLEND/DESTBLEND pairs, AMBIENT) and the raw m_pDev->* device pointer
-	// access points stay on DX8Wrapper::* until a future phase.
 	g_renderBackend->Set_Shader(PlayerColorShader);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	g_renderBackend->Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
 	g_renderBackend->Apply_Render_State_Changes();	//force update all render states
-
-#if !defined(GGC_BGFX_STANDALONE)
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	if (!m_pDev)
-		return;	//need device to render anything.
-
-	//draw polygons like this is very inefficient but for only 2 triangles, it's
-	//not worth bothering with index/vertex buffers.
-	m_pDev->SetVertexShader(DX8_FVF_FLAG_XYZRHW | DX8_FVF_FLAG_DIFFUSE);
-#endif
 
 	// Set stencil states
 	g_renderBackend->Set_Stencil_Enable(true);
@@ -1518,7 +1500,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 	}
 
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (g_renderBackend->Is_Triangle_Draw_Enabled())
 #if defined(GGC_BGFX_STANDALONE)
 	{
 		// TheSuperHackers @bugfix bobtista 30/04/2026 Route the player-color
@@ -1588,7 +1570,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		g_renderBackend->End_Effect_Overlay();
 	}
 #else
-		m_pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANSLITVERTEX));
+		g_renderBackend->Draw_Screen_Color_Quad(color, xpos, ypos, width, height);
 #endif
 
 	// turn off the stencil buffer
