@@ -379,8 +379,8 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 	g_renderBackend->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 
 #if 0 // Dumps out unmasked data.
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,false);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, false);	//test pixels if transparent(clipped) before rendering.
+	g_renderBackend->Set_Alpha_Blend_Enable(false);
+	g_renderBackend->Set_Alpha_Test_Enable(false);	//test pixels if transparent(clipped) before rendering.
 	g_renderBackend->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 #endif
 	g_renderBackend->Set_Texture(1, nullptr);
@@ -392,16 +392,16 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 		g_renderBackend->Set_Texture(0,cloudTexture);
 		g_renderBackend->Apply_Render_State_Changes();
 #if 1
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAARG1,   D3DTA_CURRENT );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
+		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAARG1,   D3DTA_CURRENT );
+		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
 
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_CURRENT );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_TEXTURE );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAARG1,   D3DTA_CURRENT );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAARG2,   D3DTA_TEXTURE );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2 );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1 );
+		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_CURRENT );
+		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_TEXTURE );
+		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
+		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG1,   D3DTA_CURRENT );
+		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG2,   D3DTA_TEXTURE );
+		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2 );
+		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1 );
 #endif
 		g_renderBackend->Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
 		g_renderBackend->Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
@@ -419,5 +419,4 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 		g_renderBackend->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 	}
 }
-
 
