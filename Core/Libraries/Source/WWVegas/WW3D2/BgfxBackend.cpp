@@ -5618,6 +5618,33 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
     RenderStateCache::Set_Texture_Stage_State(stage, state, value);
 }
 
+void BgfxBackend::Configure_Custom_Edging_Cloud_Texture_Stages()
+{
+    Set_Texture_Stage_State(0, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+    Set_Texture_Stage_State(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+
+    Set_Texture_Stage_State(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
+    Set_Texture_Stage_State(1, D3DTSS_COLORARG2, D3DTA_TEXTURE);
+    Set_Texture_Stage_State(1, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
+    Set_Texture_Stage_State(1, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
+    Set_Texture_Stage_State(1, D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
+    Set_Texture_Stage_State(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+    Set_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX, 1);
+}
+
+void BgfxBackend::Configure_Shadow_Volume_Fill_Texture_Stages()
+{
+    Set_Texture_Stage_State(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
+    Set_Texture_Stage_State(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+    Set_Texture_Stage_State(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
+    Set_Texture_Stage_State(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+    Set_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX, 0);
+
+    Set_Texture_Stage_State(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+    Set_Texture_Stage_State(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+    Set_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX, 1);
+}
+
 void BgfxBackend::Set_Shroud_Texture_Pass_Active(bool active, unsigned stage)
 {
     g_views.shroudTexturePassActive = active;

@@ -705,6 +705,8 @@ public:
     // fs_uber and does not need texture-stage setup.
     virtual void Set_Grayscale_Mode(bool enable) {}
     virtual void Configure_Grayscale_Texture_Stages() {}
+    virtual void Configure_Custom_Edging_Cloud_Texture_Stages() {}
+    virtual void Configure_Shadow_Volume_Fill_Texture_Stages() {}
 
     // TheSuperHackers @feature bobtista 20/04/2026 Cloud-shadow
     // modulation state. Engine calls this per frame to hand over the
