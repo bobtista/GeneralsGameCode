@@ -152,6 +152,11 @@ public:
                                           RenderBackendTexcoordSource source,
                                           unsigned uv_array_index = 0) override;
     virtual void Set_Texture_Transform_Mode(unsigned stage, unsigned coord_count, bool projected) override;
+    virtual void Set_Texture_Bump_Env_Matrix(unsigned stage,
+                                             float m00,
+                                             float m01,
+                                             float m10,
+                                             float m11) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
     virtual CullMode Get_Cull_Mode() const override;
     virtual void Set_Cull_Mode(CullMode mode) override;
