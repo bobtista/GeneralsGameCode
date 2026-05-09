@@ -160,6 +160,28 @@ bool DX8Backend::Is_Device_Lost() const
     return DX8Wrapper::Is_Device_Lost();
 }
 
+RenderBackendDeviceStatus DX8Backend::Get_Device_Status() const
+{
+    IDirect3DDevice8 * device = DX8Wrapper::_Get_D3D_Device8();
+    if (device == nullptr) {
+        return RB_DEVICE_OK;
+    }
+
+    HRESULT hr = device->TestCooperativeLevel();
+    if (hr == D3DERR_DEVICELOST) {
+        return RB_DEVICE_LOST;
+    }
+    if (hr == D3DERR_DEVICENOTRESET) {
+        return RB_DEVICE_NOT_RESET;
+    }
+    return RB_DEVICE_OK;
+}
+
+void DX8Backend::Reset_Device()
+{
+    DX8Wrapper::Reset_Device();
+}
+
 bool DX8Backend::Has_Stencil() const
 {
     return DX8Wrapper::Has_Stencil();

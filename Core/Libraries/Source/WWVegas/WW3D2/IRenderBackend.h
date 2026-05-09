@@ -298,6 +298,13 @@ enum CullMode
     RB_CULL_CCW  = 3   // D3DCULL_CCW
 };
 
+enum RenderBackendDeviceStatus
+{
+    RB_DEVICE_OK = 0,
+    RB_DEVICE_LOST,
+    RB_DEVICE_NOT_RESET
+};
+
 enum StencilOp
 {
     // Values match D3DSTENCILOP_* 1..8 directly so DX8Backend can cast.
@@ -392,6 +399,8 @@ public:
     // -------------------------------------------------------------------------
 
     virtual bool Is_Device_Lost() const { return false; }
+    virtual RenderBackendDeviceStatus Get_Device_Status() const { return RB_DEVICE_OK; }
+    virtual void Reset_Device() {}
     virtual bool Has_Stencil() const { return false; }
     virtual WW3DFormat Get_Back_Buffer_Format() const { return WW3D_FORMAT_UNKNOWN; }
     virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const { return nullptr; }
