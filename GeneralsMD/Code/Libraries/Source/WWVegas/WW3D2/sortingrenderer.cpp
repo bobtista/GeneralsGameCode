@@ -47,7 +47,6 @@
 #include "vertmaterial.h"
 #include "texture.h"
 #include "d3d8.h"
-#include "d3dx8math.h"
 #include "statistics.h"
 #include <wwprofile.h>
 #include <algorithm>
@@ -77,6 +76,34 @@ struct TempIndexStruct
 	unsigned short idx;
 	float z;
 };
+
+static D3DMATRIX Multiply_D3D_Matrix(const D3DMATRIX& lhs, const D3DMATRIX& rhs)
+{
+	D3DMATRIX result = {};
+	for (int row = 0; row < 4; ++row) {
+		for (int col = 0; col < 4; ++col) {
+			result.m[row][col] =
+				lhs.m[row][0] * rhs.m[0][col] +
+				lhs.m[row][1] * rhs.m[1][col] +
+				lhs.m[row][2] * rhs.m[2][col] +
+				lhs.m[row][3] * rhs.m[3][col];
+		}
+	}
+	return result;
+}
+
+static D3DMATRIX Get_D3D_World_View_Matrix(const RenderStateStruct& state)
+{
+	return Multiply_D3D_Matrix(state.world, state.view);
+}
+
+static Vector3 Transform_D3D_Point(const Vector3& point, const D3DMATRIX& matrix)
+{
+	return Vector3(
+		point.X * matrix.m[0][0] + point.Y * matrix.m[1][0] + point.Z * matrix.m[2][0] + matrix.m[3][0],
+		point.X * matrix.m[0][1] + point.Y * matrix.m[1][1] + point.Z * matrix.m[2][1] + matrix.m[3][1],
+		point.X * matrix.m[0][2] + point.Y * matrix.m[1][2] + point.Z * matrix.m[2][2] + matrix.m[3][2]);
+}
 
 bool operator <(const TempIndexStruct &l, const TempIndexStruct &r) { return l.z < r.z; }
 bool operator <=(const TempIndexStruct &l, const TempIndexStruct &r) { return l.z <= r.z; }
@@ -249,14 +276,8 @@ void SortingRendererClass::Insert_Triangles(
 	WWASSERT(vertex_buffer);
 	WWASSERT(state->vertex_count<=vertex_buffer->Get_Vertex_Count());
 
-	D3DXMATRIX mtx=(D3DXMATRIX&)state->sorting_state.world*(D3DXMATRIX&)state->sorting_state.view;
-	D3DXVECTOR3 vec=(D3DXVECTOR3&)state->bounding_sphere.Center;
-	D3DXVECTOR4 transformed_vec;
-	D3DXVec3Transform(
-		&transformed_vec,
-		&vec,
-		&mtx);
-	state->transformed_center=Vector3(transformed_vec[0],transformed_vec[1],transformed_vec[2]);
+	const D3DMATRIX mtx = Get_D3D_World_View_Matrix(state->sorting_state);
+	state->transformed_center = Transform_D3D_Point(state->bounding_sphere.Center, mtx);
 
 
 	/// @todo lorenzen sez use a bucket sort here... and stop copying so much data so many times
@@ -513,8 +534,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			memcpy(dest_verts, src_verts, sizeof(VertexFormatXYZNDUV2)*state->vertex_count);
 			dest_verts += state->vertex_count;
 
-			D3DXMATRIX d3d_mtx=(D3DXMATRIX&)state->sorting_state.world*(D3DXMATRIX&)state->sorting_state.view;
-			const Matrix4x4& mtx=(const Matrix4x4&)d3d_mtx;
+			const D3DMATRIX mtx = Get_D3D_World_View_Matrix(state->sorting_state);
 
 			unsigned short* indices=nullptr;
 			SortingIndexBufferClass* index_buffer=static_cast<SortingIndexBufferClass*>(state->sorting_state.index_buffer);
@@ -524,7 +544,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			indices+=state->start_index;
 			indices+=state->sorting_state.iba_offset;
 
-			if (mtx[0][2] == 0.0f && mtx[1][2] == 0.0f && mtx[3][2] == 0.0f && mtx[2][2] == 1.0f) {
+			if (mtx.m[0][2] == 0.0f && mtx.m[1][2] == 0.0f && mtx.m[3][2] == 0.0f && mtx.m[2][2] == 1.0f) {
 				// The common case for particle systems.
 				for (int i=0;i<state->polygon_count;++i) {
 					unsigned short idx1=indices[i*3]-state->min_vertex_index;
@@ -564,9 +584,9 @@ void SortingRendererClass::Flush_Sorting_Pool()
 					tis_ptr->tri.j = idx2 + vertex_array_offset;
 					tis_ptr->tri.k = idx3 + vertex_array_offset;
 					tis_ptr->idx = node_id;
-					tis_ptr->z = (mtx[0][2]*(v1->x + v2->x + v3->x) +
-												mtx[1][2]*(v1->y + v2->y + v3->y) +
-												mtx[2][2]*(v1->z + v2->z + v3->z))/3.0f + mtx[3][2];
+					tis_ptr->z = (mtx.m[0][2]*(v1->x + v2->x + v3->x) +
+												mtx.m[1][2]*(v1->y + v2->y + v3->y) +
+												mtx.m[2][2]*(v1->z + v2->z + v3->z))/3.0f + mtx.m[3][2];
 					DEBUG_ASSERTCRASH((! _isnan(tis_ptr->z) && _finite(tis_ptr->z)), ("Triangle has invalid center"));
 				}
 			}
@@ -794,14 +814,8 @@ void SortingRendererClass::Insert_VolumeParticle(
 
 	// Transform the center point to view space for sorting
 
-	D3DXMATRIX mtx=(D3DXMATRIX&)state->sorting_state.world*(D3DXMATRIX&)state->sorting_state.view;
-	D3DXVECTOR3 vec=(D3DXVECTOR3&)state->bounding_sphere.Center;
-	D3DXVECTOR4 transformed_vec;
-	D3DXVec3Transform(
-		&transformed_vec,
-		&vec,
-		&mtx);
-	state->transformed_center=Vector3(transformed_vec[0],transformed_vec[1],transformed_vec[2]);
+	const D3DMATRIX mtx = Get_D3D_World_View_Matrix(state->sorting_state);
+	state->transformed_center = Transform_D3D_Point(state->bounding_sphere.Center, mtx);
 
 
 	// BUT WHAT IS THE DEAL WITH THE VERTCOUNT AND POLYCOUNT BEING N BUT TRANSFORMED CENTER COUNT == 1
