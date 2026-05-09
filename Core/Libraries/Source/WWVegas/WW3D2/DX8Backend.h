@@ -176,9 +176,12 @@ public:
     virtual const Vector3 & Get_Ambient() const;
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end);
     virtual void Set_Fog_Enable(bool enable) override;
+    virtual void Set_Fog_Color(unsigned argb) override;
     virtual bool Get_Fog_Enable() const;
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env);
     virtual LightEnvironmentClass * Get_Light_Environment() const;
+    virtual void Set_Specular_Enable(bool enable) override;
+    virtual void Set_Patch_Segments(float level) override;
 
     // -- Draw calls -----------------------------------------------------------
 
