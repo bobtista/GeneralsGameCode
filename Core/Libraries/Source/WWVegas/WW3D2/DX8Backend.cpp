@@ -1083,6 +1083,47 @@ void DX8Backend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
         To_D3DMATRIX(matrix));
 }
 
+void DX8Backend::Set_Texture_Coord_Source(unsigned stage,
+                                           RenderBackendTexcoordSource source,
+                                           unsigned uv_array_index)
+{
+    unsigned tci = uv_array_index;
+    switch (source)
+    {
+    case RB_TEXCOORD_MESH_UV:
+        tci = D3DTSS_TCI_PASSTHRU | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_NORMAL:
+        tci = D3DTSS_TCI_CAMERASPACENORMAL | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_REFLECTION:
+        tci = D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_POSITION:
+        tci = D3DTSS_TCI_CAMERASPACEPOSITION | uv_array_index;
+        break;
+    }
+
+    DX8Wrapper::Set_DX8_Texture_Stage_State(
+        stage,
+        D3DTSS_TEXCOORDINDEX,
+        tci);
+}
+
+void DX8Backend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_count, bool projected)
+{
+    unsigned flags = coord_count == 0 ? D3DTTFF_DISABLE : coord_count;
+    if (projected)
+    {
+        flags |= D3DTTFF_PROJECTED;
+    }
+
+    DX8Wrapper::Set_DX8_Texture_Stage_State(
+        stage,
+        D3DTSS_TEXTURETRANSFORMFLAGS,
+        flags);
+}
+
 void DX8Backend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
 {
     DX8Wrapper::Set_DX8_Texture_Stage_State(
