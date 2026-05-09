@@ -47,13 +47,24 @@
 
 class ChunkLoadClass;
 class ChunkSaveClass;
+class DX8Wrapper;
 
-#define DYN_MAT8
-#ifdef DYN_MAT8
-class DynD3DMATERIAL8;
-#else
-struct _D3DMATERIAL8;
-#endif
+struct VertexMaterialColor
+{
+	float r;
+	float g;
+	float b;
+	float a;
+};
+
+struct VertexMaterialSettings
+{
+	VertexMaterialColor Diffuse;
+	VertexMaterialColor Ambient;
+	VertexMaterialColor Specular;
+	VertexMaterialColor Emissive;
+	float Power;
+};
 
 /**
 ** VertexMaterialClass
@@ -64,7 +75,7 @@ class VertexMaterialClass : public W3DMPO, public RefCountClass
 {
 	W3DMPO_GLUE(VertexMaterialClass)
 
-	friend DX8Wrapper;
+	friend class DX8Wrapper;
 
 public:
 	/*
@@ -234,13 +245,7 @@ public:
 	void Make_Unique();
 
 private:
-	// We're using the pointer instead of the actual structure
-	// so we don't have to include the d3d header - HY
-#ifdef DYN_MAT8
-	DynD3DMATERIAL8 *			MaterialDyn;
-#else
-	_D3DMATERIAL8 *				MaterialOld;
-#endif
+	VertexMaterialSettings	Material;
 	unsigned int					Flags;
 	ColorSourceType				AmbientColorSource;
 	ColorSourceType				EmissiveColorSource;
@@ -255,11 +260,11 @@ private:
 
 private:
 	/*
-	** Apply the render states to D3D
+	** Apply the render states to the active render backend
 	*/
 	void					Apply() const;
 	/*
-	** Apply the render states corresponding to a nullptr vertex material to D3D
+	** Apply the render states corresponding to a nullptr vertex material
 	*/
 	static void			Apply_Null();
 	unsigned long		Compute_CRC() const;
