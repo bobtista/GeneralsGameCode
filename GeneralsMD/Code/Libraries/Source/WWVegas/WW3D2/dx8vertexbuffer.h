@@ -44,7 +44,7 @@
 #include "dx8fvf.h"
 #include "IRenderBackend.h"
 
-const unsigned dynamic_fvf_type=D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX2|D3DFVF_DIFFUSE;
+const unsigned dynamic_fvf_type=DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX2|DX8_FVF_FLAG_DIFFUSE;
 
 class DX8Wrapper;
 class SortingRendererClass;

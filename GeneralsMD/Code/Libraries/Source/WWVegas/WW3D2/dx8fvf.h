@@ -42,27 +42,71 @@
 #pragma once
 
 #include "always.h"
-#include <d3d8.h>
 #ifdef WWDEBUG
 #include "wwdebug.h"
 #endif
 
 class StringClass;
 
+static constexpr unsigned DX8_FVF_MAX_TEXCOORD = 8;
+static constexpr unsigned DX8_FVF_POSITION_MASK = 0x00e;
+static constexpr unsigned DX8_FVF_FLAG_XYZ = 0x002;
+static constexpr unsigned DX8_FVF_FLAG_XYZRHW = 0x004;
+static constexpr unsigned DX8_FVF_FLAG_XYZB1 = 0x006;
+static constexpr unsigned DX8_FVF_FLAG_XYZB2 = 0x008;
+static constexpr unsigned DX8_FVF_FLAG_XYZB3 = 0x00a;
+static constexpr unsigned DX8_FVF_FLAG_XYZB4 = 0x00c;
+static constexpr unsigned DX8_FVF_FLAG_XYZB5 = 0x00e;
+static constexpr unsigned DX8_FVF_FLAG_NORMAL = 0x010;
+static constexpr unsigned DX8_FVF_FLAG_DIFFUSE = 0x040;
+static constexpr unsigned DX8_FVF_FLAG_SPECULAR = 0x080;
+static constexpr unsigned DX8_FVF_TEXCOUNT_MASK = 0xf00;
+static constexpr unsigned DX8_FVF_TEXCOUNT_SHIFT = 8;
+static constexpr unsigned DX8_FVF_TEX0 = 0u << DX8_FVF_TEXCOUNT_SHIFT;
+static constexpr unsigned DX8_FVF_TEX1 = 1u << DX8_FVF_TEXCOUNT_SHIFT;
+static constexpr unsigned DX8_FVF_TEX2 = 2u << DX8_FVF_TEXCOUNT_SHIFT;
+static constexpr unsigned DX8_FVF_TEX3 = 3u << DX8_FVF_TEXCOUNT_SHIFT;
+static constexpr unsigned DX8_FVF_TEX4 = 4u << DX8_FVF_TEXCOUNT_SHIFT;
+static constexpr unsigned DX8_FVF_TEX5 = 5u << DX8_FVF_TEXCOUNT_SHIFT;
+static constexpr unsigned DX8_FVF_TEX6 = 6u << DX8_FVF_TEXCOUNT_SHIFT;
+static constexpr unsigned DX8_FVF_TEX7 = 7u << DX8_FVF_TEXCOUNT_SHIFT;
+static constexpr unsigned DX8_FVF_TEX8 = 8u << DX8_FVF_TEXCOUNT_SHIFT;
+static constexpr unsigned DX8_FVF_LASTBETA_UBYTE4 = 0x1000;
+
+static constexpr unsigned DX8_FVF_TEXCOORDSIZE1(unsigned coord_index)
+{
+	return 3u << (coord_index * 2 + 16);
+}
+
+static constexpr unsigned DX8_FVF_TEXCOORDSIZE2(unsigned)
+{
+	return 0u;
+}
+
+static constexpr unsigned DX8_FVF_TEXCOORDSIZE3(unsigned coord_index)
+{
+	return 1u << (coord_index * 2 + 16);
+}
+
+static constexpr unsigned DX8_FVF_TEXCOORDSIZE4(unsigned coord_index)
+{
+	return 2u << (coord_index * 2 + 16);
+}
+
 enum {
-	DX8_FVF_XYZ				= D3DFVF_XYZ,
-	DX8_FVF_XYZN			= D3DFVF_XYZ|D3DFVF_NORMAL,
-	DX8_FVF_XYZNUV1		= D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX1,
-	DX8_FVF_XYZNUV2		= D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX2,
-	DX8_FVF_XYZNDUV1		= D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX1|D3DFVF_DIFFUSE,
-	DX8_FVF_XYZNDUV2		= D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX2|D3DFVF_DIFFUSE,
-	DX8_FVF_XYZDUV1		= D3DFVF_XYZ|D3DFVF_TEX1|D3DFVF_DIFFUSE,
-	DX8_FVF_XYZDUV2		= D3DFVF_XYZ|D3DFVF_TEX2|D3DFVF_DIFFUSE,
-	DX8_FVF_XYZUV1			= D3DFVF_XYZ|D3DFVF_TEX1,
-	DX8_FVF_XYZUV2			= D3DFVF_XYZ|D3DFVF_TEX2,
- 	DX8_FVF_XYZNDUV1TG3	= (D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_DIFFUSE|D3DFVF_TEX4|D3DFVF_TEXCOORDSIZE2(0)|D3DFVF_TEXCOORDSIZE3(1)|D3DFVF_TEXCOORDSIZE3(2)|D3DFVF_TEXCOORDSIZE3(3)),
- 	DX8_FVF_XYZNUV2DMAP	= (D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX3 | D3DFVF_TEXCOORDSIZE1(0) | D3DFVF_TEXCOORDSIZE4(1) | D3DFVF_TEXCOORDSIZE2(2) ),
-	DX8_FVF_XYZNDCUBEMAP	= D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_DIFFUSE //|D3DFVF_TEX1|D3DFVF_TEXCOORDSIZE3(0)
+	DX8_FVF_XYZ				= DX8_FVF_FLAG_XYZ,
+	DX8_FVF_XYZN			= DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL,
+	DX8_FVF_XYZNUV1		= DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX1,
+	DX8_FVF_XYZNUV2		= DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX2,
+	DX8_FVF_XYZNDUV1		= DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX1|DX8_FVF_FLAG_DIFFUSE,
+	DX8_FVF_XYZNDUV2		= DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX2|DX8_FVF_FLAG_DIFFUSE,
+	DX8_FVF_XYZDUV1		= DX8_FVF_FLAG_XYZ|DX8_FVF_TEX1|DX8_FVF_FLAG_DIFFUSE,
+	DX8_FVF_XYZDUV2		= DX8_FVF_FLAG_XYZ|DX8_FVF_TEX2|DX8_FVF_FLAG_DIFFUSE,
+	DX8_FVF_XYZUV1			= DX8_FVF_FLAG_XYZ|DX8_FVF_TEX1,
+	DX8_FVF_XYZUV2			= DX8_FVF_FLAG_XYZ|DX8_FVF_TEX2,
+	DX8_FVF_XYZNDUV1TG3	= (DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_FLAG_DIFFUSE|DX8_FVF_TEX4|DX8_FVF_TEXCOORDSIZE2(0)|DX8_FVF_TEXCOORDSIZE3(1)|DX8_FVF_TEXCOORDSIZE3(2)|DX8_FVF_TEXCOORDSIZE3(3)),
+	DX8_FVF_XYZNUV2DMAP	= (DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX3 | DX8_FVF_TEXCOORDSIZE1(0) | DX8_FVF_TEXCOORDSIZE4(1) | DX8_FVF_TEXCOORDSIZE2(2) ),
+	DX8_FVF_XYZNDCUBEMAP	= DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_FLAG_DIFFUSE
 };
 
 // ----------------------------------------------------------------------------
@@ -254,7 +298,7 @@ class FVFInfoClass : public W3DMPO
 	unsigned							location_offset;
 	unsigned							normal_offset;
 	unsigned							blend_offset;
-	unsigned							texcoord_offset[D3DDP_MAXTEXCOORD];
+	unsigned							texcoord_offset[DX8_FVF_MAX_TEXCOORD];
 	unsigned							diffuse_offset;
 	unsigned							specular_offset;
 public:
@@ -263,7 +307,7 @@ public:
 	unsigned Get_Location_Offset() const { return location_offset; }
 	unsigned Get_Normal_Offset() const { return normal_offset; }
 #ifdef WWDEBUG
-	inline unsigned Get_Tex_Offset(unsigned int n) const { WWASSERT(n<D3DDP_MAXTEXCOORD); return texcoord_offset[n]; }
+	inline unsigned Get_Tex_Offset(unsigned int n) const { WWASSERT(n<DX8_FVF_MAX_TEXCOORD); return texcoord_offset[n]; }
 #else
 	unsigned Get_Tex_Offset(unsigned int n) const { return texcoord_offset[n]; }
 #endif
