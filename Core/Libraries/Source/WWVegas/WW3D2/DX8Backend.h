@@ -228,6 +228,12 @@ public:
                                 unsigned short polygon_count,
                                 unsigned short min_vertex_index,
                                 unsigned short vertex_count);
+    virtual bool Is_Triangle_Draw_Enabled() const override;
+    virtual void Draw_Screen_Color_Quad(unsigned color,
+                                        int x,
+                                        int y,
+                                        int width,
+                                        int height) override;
     virtual void Draw_Strip(unsigned short start_index,
                             unsigned short index_count,
                             unsigned short min_vertex_index,
