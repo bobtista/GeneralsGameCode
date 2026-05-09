@@ -57,7 +57,6 @@
 #include "WW3D2/meshmdl.h"
 #include "Lib/BaseType.h"
 #include "W3DDevice/GameClient/HeightMap.h"
-#include "d3dx8math.h"
 #include "Common/GlobalData.h"
 #include "Common/DrawModule.h"
 #include "W3DDevice/GameClient/W3DVolumetricShadow.h"
@@ -3775,7 +3774,10 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 		return;	//need device to render anything.
 
 	struct _TRANSLITVERTEX {
-	    D3DXVECTOR4 p;
+		float x;
+		float y;
+		float z;
+		float w;
 		DWORD color;   // diffuse color
 	} v[4];
 
@@ -3785,10 +3787,10 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
 
-    v[0].p = D3DXVECTOR4( xpos+width, ypos+height, 0.0f, 1.0f );
-    v[1].p = D3DXVECTOR4( xpos+width, 0, 0.0f, 1.0f );
-    v[2].p = D3DXVECTOR4(  xpos, ypos+height, 0.0f, 1.0f );
-    v[3].p = D3DXVECTOR4(  xpos,  0, 0.0f, 1.0f );
+	v[0].x = xpos+width; v[0].y = ypos+height; v[0].z = 0.0f; v[0].w = 1.0f;
+	v[1].x = xpos+width; v[1].y = 0;           v[1].z = 0.0f; v[1].w = 1.0f;
+	v[2].x = xpos;       v[2].y = ypos+height; v[2].z = 0.0f; v[2].w = 1.0f;
+	v[3].x = xpos;       v[3].y = 0;           v[3].z = 0.0f; v[3].w = 1.0f;
     v[0].color = TheW3DShadowManager->getShadowColor();
     v[1].color = TheW3DShadowManager->getShadowColor();
 	v[2].color = TheW3DShadowManager->getShadowColor();
@@ -3912,7 +3914,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	#else
 		//disable writes to color buffer
-		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
+		if (g_renderBackend->Supports_Color_Write_Mask())
 		{	oldColorWriteEnable = g_renderBackend->Get_Color_Write_Mask();
 			g_renderBackend->Set_Color_Write_Mask(0);
 		}
