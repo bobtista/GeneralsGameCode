@@ -405,6 +405,9 @@ Completed low-risk migrations:
   camera-space water-noise UVs through local backend semantic helpers. The
   remaining water texcoord work is cleanup/reset and disabled legacy clip-plane
   code.
+- Sea-water setup and cleanup now express mesh UV selection and transform-reset
+  state through the same water helpers. The remaining water texcoord work is
+  disabled legacy clip-plane code.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
