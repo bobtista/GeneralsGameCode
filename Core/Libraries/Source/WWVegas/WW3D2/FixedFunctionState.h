@@ -56,4 +56,8 @@ public:
 	static void Capture_Render_State(RenderStateStruct & state);
 	static void Restore_Render_State(const RenderStateStruct & state);
 	static void Release_Render_State();
+
+	static IDirect3DBaseTexture8 * Raw_Texture(unsigned stage);
+	static bool Set_Raw_Texture(unsigned stage, IDirect3DBaseTexture8 * texture);
+	static void Release_Raw_Textures();
 };
