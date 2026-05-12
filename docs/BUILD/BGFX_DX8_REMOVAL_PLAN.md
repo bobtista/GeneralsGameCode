@@ -350,6 +350,9 @@ Completed low-risk migrations:
   texture compression/bump-map capability checks used by texture creation and
   loading. Common texture code no longer reaches into `DX8Caps` for those
   decisions.
+- `IRenderBackend::Get_Texture_Limits` now owns max texture width/height,
+  volume extent, and aspect-ratio limits. `textureloader.cpp` no longer reads
+  raw `D3DCAPS8` during size validation.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

@@ -49,7 +49,6 @@
 #include "ww3d.h"
 #include "assetmgr.h"
 #include "dx8wrapper.h"
-#include "dx8caps.h"
 #include "missingtexture.h"
 #include "TARGA.h"
 #include "RenderBackend.h"
@@ -334,6 +333,21 @@ static bool Is_Format_Compressed(WW3DFormat texture_format,bool allow_compressio
 	return compressed;
 }
 
+static RenderBackendTextureLimits Get_Backend_Texture_Limits()
+{
+	if (g_renderBackend)
+	{
+		RenderBackendTextureLimits limits = g_renderBackend->Get_Texture_Limits();
+		if (limits.max_width == 0) limits.max_width = 2048;
+		if (limits.max_height == 0) limits.max_height = 2048;
+		if (limits.max_volume_extent == 0) limits.max_volume_extent = 2048;
+		if (limits.max_aspect_ratio == 0) limits.max_aspect_ratio = 8;
+		return limits;
+	}
+
+	return { 2048, 2048, 2048, 8 };
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -382,7 +396,7 @@ void TextureLoader::Validate_Texture_Size
 	unsigned& depth
 )
 {
-	const D3DCAPS8& dx8caps=DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps();
+	const RenderBackendTextureLimits limits = Get_Backend_Texture_Limits();
 
 	unsigned poweroftwowidth = 1;
 	while (poweroftwowidth < width)
@@ -402,29 +416,29 @@ void TextureLoader::Validate_Texture_Size
 		poweroftwodepth <<= 1;
 	}
 
-	if (poweroftwowidth>dx8caps.MaxTextureWidth)
+	if (poweroftwowidth>limits.max_width)
 	{
-		poweroftwowidth=dx8caps.MaxTextureWidth;
+		poweroftwowidth=limits.max_width;
 	}
-	if (poweroftwoheight>dx8caps.MaxTextureHeight)
+	if (poweroftwoheight>limits.max_height)
 	{
-		poweroftwoheight=dx8caps.MaxTextureHeight;
+		poweroftwoheight=limits.max_height;
 	}
-	if (poweroftwodepth>dx8caps.MaxVolumeExtent)
+	if (poweroftwodepth>limits.max_volume_extent)
 	{
-		poweroftwodepth=dx8caps.MaxVolumeExtent;
+		poweroftwodepth=limits.max_volume_extent;
 	}
 
 	if (poweroftwowidth>poweroftwoheight)
 	{
-		while (poweroftwowidth/poweroftwoheight>8)
+		while (poweroftwowidth/poweroftwoheight>limits.max_aspect_ratio)
 		{
 			poweroftwoheight*=2;
 		}
 	}
 	else
 	{
-		while (poweroftwoheight/poweroftwowidth>8)
+		while (poweroftwoheight/poweroftwowidth>limits.max_aspect_ratio)
 		{
 			poweroftwowidth*=2;
 		}

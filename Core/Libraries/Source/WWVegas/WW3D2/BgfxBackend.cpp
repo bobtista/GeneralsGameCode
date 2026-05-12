@@ -3298,6 +3298,22 @@ int BgfxBackend::Get_Texture_Bitdepth() const
     return m_textureBitDepth;
 }
 
+RenderBackendTextureLimits BgfxBackend::Get_Texture_Limits() const
+{
+    const bgfx::Caps * caps = bgfx::getCaps();
+    if (caps == nullptr)
+    {
+        return IRenderBackend::Get_Texture_Limits();
+    }
+
+    return {
+        caps->limits.maxTextureSize,
+        caps->limits.maxTextureSize,
+        caps->limits.maxTextureSize,
+        8
+    };
+}
+
 int BgfxBackend::Get_Max_Texture_Stages() const
 {
     const bgfx::Caps * caps = bgfx::getCaps();
