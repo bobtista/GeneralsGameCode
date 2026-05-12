@@ -412,6 +412,8 @@ Completed low-risk migrations:
 - `IRenderBackend` now exposes narrow texture-combine operation/argument
   setters. Water setup, cleanup, clipping, grid, and additive-alpha paths use
   those instead of direct `D3DTSS_COLOR*` / `D3DTSS_ALPHA*` writes.
+- Smudge distortion rendering now also uses the texture-combine operation API
+  for its alpha override and post-draw color/alpha restore.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
