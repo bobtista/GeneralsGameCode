@@ -3093,12 +3093,12 @@ Int W3DShaderManager::setShroudTex(Int stage)
 		g_renderBackend->Set_Texture(stage, shroud->getShroudTexture());
 
 		W3DShaderManager_SetCameraSpaceTexcoord2(stage);
-		g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-		g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG2, D3DTA_CURRENT );
-		g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );
-		g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ALPHAARG2, D3DTA_CURRENT );
-		g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-		g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2 );
+		g_renderBackend->Set_Texture_Color_Argument(stage, 1, RB_TEXARG_TEXTURE);
+		g_renderBackend->Set_Texture_Color_Argument(stage, 2, RB_TEXARG_CURRENT);
+		g_renderBackend->Set_Texture_Alpha_Argument(stage, 1, RB_TEXARG_TEXTURE);
+		g_renderBackend->Set_Texture_Alpha_Argument(stage, 2, RB_TEXARG_CURRENT);
+		g_renderBackend->Set_Texture_Color_Operation(stage, RB_TEXOP_MODULATE);
+		g_renderBackend->Set_Texture_Alpha_Operation(stage, RB_TEXOP_SELECTARG2);
 
 		D3DXMATRIX curView;
 		W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
