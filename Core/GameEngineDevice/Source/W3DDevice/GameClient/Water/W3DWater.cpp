@@ -388,7 +388,6 @@ WaterRenderObjClass::WaterRenderObjClass()
 	m_skyBox=nullptr;
 	m_vertexBufferD3D=nullptr;
 	m_indexBufferD3D=nullptr;
-	m_vertexBufferD3DOffset=0;
 
 	m_dwWavePixelShader=0;
 	m_dwWaveVertexShader=0;
@@ -692,13 +691,10 @@ HRESULT WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Int ver
 		m_numVertices=sizeX*sizeY;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
 	if (!doStatic)
 	{
-		m_vertexBufferD3DOffset=0;
 		return S_OK;
 	}
-#endif
 
 	if (m_vertexBufferD3D == nullptr)
 	{	// Create vertex buffer
@@ -713,11 +709,6 @@ HRESULT WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Int ver
 		)))
 			return hr;
 	}
-
-	m_vertexBufferD3DOffset=0;
-
-	if (!doStatic)
-		return S_OK;	//only create the buffer, other code will fill it.
 
 	// load results into buffer
 	if (FAILED(hr=m_vertexBufferD3D->Lock
