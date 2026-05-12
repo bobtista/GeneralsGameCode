@@ -2649,25 +2649,7 @@ void WaterRenderObjClass::renderWaterMesh()
 	m_shaderClass.Set_Cull_Mode(ShaderClass::CULL_MODE_ENABLE);	//water should be visible from both sides
 
 	g_renderBackend->Set_Shader(m_shaderClass);
-#if 1
 	setupFlatWaterShader();
-#else
-	//g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueShader);
-	g_renderBackend->Set_Texture(0,setting->waterTexture);
-	g_renderBackend->Set_Texture(1,setting->waterTexture);
-
-	g_renderBackend->Set_Light(0,*m_meshLight);
-	g_renderBackend->Clear_Light(1);
-	g_renderBackend->Clear_Light(2);
-	g_renderBackend->Clear_Light(3);
-/*
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_AMBIENT,0);	//turn off scene ambient
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_SPECULARENABLE,TRUE);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_LOCALVIEWER,TRUE);
-*/
-
-	g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
-#endif
 
 
 //	m_pDev->SetRenderState(D3DRS_ZFUNC,D3DCMP_ALWAYS);	//used to display grid under map.

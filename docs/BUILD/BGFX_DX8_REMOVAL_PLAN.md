@@ -80,6 +80,9 @@ Recent progress on the DX8-removal stack:
 - `W3DWater.h` no longer forward-declares D3D interfaces in standalone bgfx;
   those typedefs are now only visible when the legacy DX8 sea-water members are
   compiled.
+- Water's active flat-water setup no longer carries a dead alternate D3D state
+  branch beside it; this removes stale direct-DX8 fallback text without changing
+  the runtime path.
 - Snow point-sprite-only D3D declarations are isolated from standalone bgfx.
   Standalone bgfx continues to use the existing snow quad path; a real
   point-sprite backend API remains optional future work.
@@ -325,6 +328,7 @@ Completed low-risk migrations:
   streak, texture filter, asset manager, mapper, matrix mapper, particle buffer,
   and scene sources. These files still include their actual renderer/backend
   dependencies directly where needed.
+- Removed a stale Win-only D3DX include from the GeneralsMD web-browser bridge.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
