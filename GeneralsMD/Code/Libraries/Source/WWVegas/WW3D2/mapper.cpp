@@ -41,7 +41,6 @@
 #include "chunkio.h"
 #include "w3derr.h"
 #include "meshmatdesc.h"
-#include "dx8wrapper.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "wwdebug.h"

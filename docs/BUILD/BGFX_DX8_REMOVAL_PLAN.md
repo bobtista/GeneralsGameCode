@@ -96,6 +96,8 @@ Recent progress on the DX8-removal stack:
   include.
 - Several leaf terrain/UI buffer sources no longer include `dx8wrapper.h` when
   they only submit through existing renderer/backend abstractions.
+- Several WW3D2 leaf sources also dropped unused `dx8wrapper.h` includes where
+  they already use renderer/backend-neutral APIs or do not touch render state.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -319,6 +321,10 @@ Completed low-risk migrations:
   bridge, custom-edging, debug-icon, road, status-circle, browser, and waypoint
   buffer sources. This does not alter draw behavior; it only reduces accidental
   D3D header exposure in standalone bgfx compiles.
+- Removed unused wrapper includes from sentence rendering, segmented line,
+  streak, texture filter, asset manager, mapper, matrix mapper, particle buffer,
+  and scene sources. These files still include their actual renderer/backend
+  dependencies directly where needed.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

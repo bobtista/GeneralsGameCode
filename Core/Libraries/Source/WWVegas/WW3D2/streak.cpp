@@ -43,7 +43,6 @@
 #include "coltest.h"
 #include "w3d_file.h"
 #include "texture.h"
-#include "dx8wrapper.h"
 #include "vp.h"
 #include "Vector3i.h"
 #include "sortingrenderer.h"
@@ -741,5 +740,4 @@ bool StreakLineClass::Cast_Ray(RayCollisionTestClass & raytest)
 
 	return retval;
 }
-
 
