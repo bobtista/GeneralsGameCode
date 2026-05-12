@@ -21,7 +21,9 @@
 #include "W3DDevice/GameClient/W3DSnow.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "GameClient/View.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "WW3D2/dx8wrapper.h"
+#endif
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/rinfo.h"
@@ -30,14 +32,18 @@
 
 
 
+#if !defined(GGC_BGFX_STANDALONE)
 #define D3DFVF_POINTVERTEX (D3DFVF_XYZ)
+#endif
 #define SNOW_BUFFER_SIZE 4096	//size of vertex buffer holding particles.
 #define SNOW_BATCH_SIZE	2048	//we render at most this many particles per drawprimitive call.  This number * 6 must be less than 65536 to fit into index buffer.
 
+#if !defined(GGC_BGFX_STANDALONE)
 struct POINTVERTEX
 {
     Vector3 v;	//center of particle.
 };
+#endif
 
 W3DSnowManager::W3DSnowManager()
 {
