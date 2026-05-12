@@ -1391,6 +1391,19 @@ void DX8Backend::Set_Texture_Sample_Filter(unsigned stage,
     DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_MIPFILTER, TextureSampleFilterToDX8(mip_filter));
 }
 
+void DX8Backend::Set_Texture_Min_Mag_Filter(unsigned stage,
+                                            RenderBackendTextureSampleFilter min_filter,
+                                            RenderBackendTextureSampleFilter mag_filter)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_MINFILTER, TextureSampleFilterToDX8(min_filter));
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_MAGFILTER, TextureSampleFilterToDX8(mag_filter));
+}
+
+void DX8Backend::Set_Texture_Mip_Filter(unsigned stage, RenderBackendTextureSampleFilter mip_filter)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_MIPFILTER, TextureSampleFilterToDX8(mip_filter));
+}
+
 void DX8Backend::Set_Texture_Bump_Env_Matrix(unsigned stage,
                                              float m00,
                                              float m01,
