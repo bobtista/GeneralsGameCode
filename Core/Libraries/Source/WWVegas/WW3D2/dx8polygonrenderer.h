@@ -43,7 +43,6 @@
 #include "dx8list.h"
 #include "sortingrenderer.h"
 #include "mesh.h"
-#include "dx8wrapper.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 
@@ -119,7 +118,7 @@ inline void DX8PolygonRendererClass::Render(/*const Matrix3D & tm,*/int base_ver
 	g_renderBackend->Set_Index_Buffer_Index_Offset(base_vertex_offset);
 	if (strip) {
 		SNAPSHOT_SAY(("Draw_Strip(%d,%d,%d,%d)",index_offset,index_count-2,min_vertex_index,vertex_index_range));
-		DX8Wrapper::Draw_Strip(
+		g_renderBackend->Draw_Strip(
 			index_offset,
 			index_count-2,
 			min_vertex_index,
