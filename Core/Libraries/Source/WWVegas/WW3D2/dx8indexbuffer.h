@@ -42,6 +42,7 @@
 #include "wwdebug.h"
 #include "sphere.h"
 #include "IRenderBackend.h"
+#include "RenderBufferTypes.h"
 
 class DX8Wrapper;
 class SortingRendererClass;

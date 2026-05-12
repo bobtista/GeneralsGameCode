@@ -203,7 +203,7 @@ typedef IDirect3D8* (WINAPI *Direct3DCreate8Type) (UINT SDKVersion);
 Direct3DCreate8Type	Direct3DCreate8Ptr = nullptr;
 HINSTANCE D3D8Lib = nullptr;
 
-DX8_CleanupHook	 *DX8Wrapper::m_pCleanupHook=nullptr;
+RenderDeviceCleanupHook *DX8Wrapper::m_pCleanupHook=nullptr;
 #ifdef EXTENDED_STATS
 RenderDebugStats &DX8Wrapper::stats = g_renderDebugStats;
 #endif

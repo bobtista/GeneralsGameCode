@@ -43,6 +43,7 @@
 #include "wwdebug.h"
 #include "dx8fvf.h"
 #include "IRenderBackend.h"
+#include "RenderBufferTypes.h"
 
 const unsigned dynamic_fvf_type=DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX2|DX8_FVF_FLAG_DIFFUSE;
 
