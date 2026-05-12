@@ -53,6 +53,7 @@ public:
     virtual bool Supports_Compressed_Textures() const override;
     virtual bool Supports_Bump_Envmap() const override;
     virtual bool Supports_Bump_Envmap_Luminance() const override;
+    virtual RenderBackendTextureLimits Get_Texture_Limits() const override;
     virtual int Get_Max_Texture_Stages() const override;
     virtual bool Supports_Z_Bias() const override;
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode);
