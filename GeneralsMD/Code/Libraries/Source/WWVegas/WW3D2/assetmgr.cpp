@@ -111,7 +111,6 @@
 #include "w3dexclusionlist.h"
 #include <INI.h>
 #include <windows.h>
-#include <d3dx8core.h>
 #include "wwprofile.h"
 #include "assetstatus.h"
 #include "ringobj.h"
