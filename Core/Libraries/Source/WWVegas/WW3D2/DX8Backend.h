@@ -202,6 +202,16 @@ public:
     virtual void Set_Texture_Bump_Env_Luminance(unsigned stage,
                                                 float scale,
                                                 float offset) override;
+    virtual void Set_Texture_Color_Operation(unsigned stage,
+                                             RenderBackendTextureOperation op) override;
+    virtual void Set_Texture_Alpha_Operation(unsigned stage,
+                                             RenderBackendTextureOperation op) override;
+    virtual void Set_Texture_Color_Argument(unsigned stage,
+                                            unsigned argument_index,
+                                            RenderBackendTextureArgument arg) override;
+    virtual void Set_Texture_Alpha_Argument(unsigned stage,
+                                            unsigned argument_index,
+                                            RenderBackendTextureArgument arg) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
     virtual CullMode Get_Cull_Mode() const override;
     virtual void Set_Cull_Mode(CullMode mode) override;

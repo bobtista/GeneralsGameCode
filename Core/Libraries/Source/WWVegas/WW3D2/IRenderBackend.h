@@ -127,6 +127,32 @@ enum RenderBackendTextureOpCapability
     RB_TEXTURE_OP_MODULATEALPHA_ADDCOLOR,
 };
 
+enum RenderBackendTextureOperation
+{
+    RB_TEXOP_DISABLE     = 1,
+    RB_TEXOP_SELECTARG1  = 2,
+    RB_TEXOP_SELECTARG2  = 3,
+    RB_TEXOP_MODULATE    = 4,
+    RB_TEXOP_ADD         = 7,
+    RB_TEXOP_DOTPRODUCT3 = 24,
+    RB_TEXOP_MULTIPLYADD = 25,
+};
+
+enum RenderBackendTextureArgument
+{
+    RB_TEXARG_DIFFUSE         = 0x00000000,
+    RB_TEXARG_CURRENT         = 0x00000001,
+    RB_TEXARG_TEXTURE         = 0x00000002,
+    RB_TEXARG_TFACTOR         = 0x00000003,
+    RB_TEXARG_COMPLEMENT      = 0x00000010,
+    RB_TEXARG_ALPHAREPLICATE  = 0x00000020,
+};
+
+inline RenderBackendTextureArgument operator|(RenderBackendTextureArgument lhs, RenderBackendTextureArgument rhs)
+{
+    return static_cast<RenderBackendTextureArgument>(static_cast<unsigned>(lhs) | static_cast<unsigned>(rhs));
+}
+
 struct RenderBackendLightState
 {
     RenderBackendLight lights[4];
@@ -860,6 +886,16 @@ public:
     virtual void Set_Texture_Bump_Env_Luminance(unsigned stage,
                                                 float scale,
                                                 float offset) {}
+    virtual void Set_Texture_Color_Operation(unsigned stage,
+                                             RenderBackendTextureOperation op) {}
+    virtual void Set_Texture_Alpha_Operation(unsigned stage,
+                                             RenderBackendTextureOperation op) {}
+    virtual void Set_Texture_Color_Argument(unsigned stage,
+                                            unsigned argument_index,
+                                            RenderBackendTextureArgument arg) {}
+    virtual void Set_Texture_Alpha_Argument(unsigned stage,
+                                            unsigned argument_index,
+                                            RenderBackendTextureArgument arg) {}
     virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
     {
         Set_Texture_Coord_Source(stage,
