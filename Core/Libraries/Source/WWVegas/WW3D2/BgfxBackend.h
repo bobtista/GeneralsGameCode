@@ -63,6 +63,7 @@ public:
     virtual WW3DFormat Get_Back_Buffer_Format() const override;
     virtual void Set_Texture_Bitdepth(int bitdepth) override;
     virtual int Get_Texture_Bitdepth() const override;
+    virtual bool Supports_Texture_Format(WW3DFormat format) const override;
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode) override;
     virtual RenderBackendMSAAMode Get_MSAA_Mode() const override;
     virtual bool Supports_Dot3() const override { return true; }

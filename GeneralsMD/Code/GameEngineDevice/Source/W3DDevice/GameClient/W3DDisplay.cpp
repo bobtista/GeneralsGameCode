@@ -89,7 +89,6 @@ static void drawFramerateBar();
 #include "WW3D2/predlod.h"
 #include "WW3D2/part_emt.h"
 #include "WW3D2/part_ldr.h"
-#include "WW3D2/dx8caps.h"
 #include "WW3D2/ww3dformat.h"
 #include "WW3D2/agg_def.h"
 #include "WW3D2/IRenderBackend.h"
@@ -3051,7 +3050,7 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 	// the BGR0 frames FFmpeg produces on little-endian macOS. Avoid 16-bit
 	// R5G6B5 here; it is both slower in swscale and currently renders with
 	// swapped-looking colors through the bgfx texture path.
-	if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+	if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
 	{
 		format = VideoBuffer::TYPE_X8R8G8B8;
 	}
@@ -3059,26 +3058,26 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 
 	WW3DFormat displayFormat = g_renderBackend->Get_Back_Buffer_Format();
 
-	if ( format == VideoBuffer::TYPE_UNKNOWN && DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
+	if ( format == VideoBuffer::TYPE_UNKNOWN && g_renderBackend && g_renderBackend->Supports_Texture_Format( displayFormat ))
 	{
 		format = W3DVideoBuffer::W3DFormatToType( displayFormat );
 	}
 
 	if ( format == VideoBuffer::TYPE_UNKNOWN )
 	{
-		if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+		if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_X8R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R8G8B8 ))
+		else if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R5G6B5 ))
+		else if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_R5G6B5 ))
 		{
 			format = VideoBuffer::TYPE_R5G6B5;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
+		else if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
 		{
 			format = VideoBuffer::TYPE_X1R5G5B5;
 		}
