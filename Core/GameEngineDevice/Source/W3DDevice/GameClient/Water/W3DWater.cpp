@@ -297,7 +297,7 @@ void WaterRenderObjClass::setupJbaWaterShader()
 
 
 	g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_ADD );
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_ADD);
 	if (!m_riverAlphaEdge->Is_Initialized())
 		m_riverAlphaEdge->Init();
 	W3DWater_BindTexture(3, m_riverAlphaEdge);
@@ -1773,13 +1773,13 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				W3DWater_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_POINT);
 
 				// Pass stage 0 texture data untouched(by modulating with white)
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );	//stage 1 texture
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );	//previous stage texture
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );	//module with white => does nothing
+				g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);	//stage 1 texture
+				g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);	//previous stage texture
+				g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);	//modulate with white => does nothing
 
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );	//stage 1 texture
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG2, D3DTA_CURRENT );	//previous stage texture
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );	//modulate with clipping texture
+				g_renderBackend->Set_Texture_Alpha_Argument(1, 1, RB_TEXARG_TEXTURE);	//stage 1 texture
+				g_renderBackend->Set_Texture_Alpha_Argument(1, 2, RB_TEXARG_CURRENT);	//previous stage texture
+				g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_MODULATE);	//modulate with clipping texture
 
 				g_renderBackend->Set_Alpha_Test(true, 0x00, RB_CMP_NOT_EQUAL);	//pass pixels who's alpha is not zero
 
@@ -2100,16 +2100,16 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	W3DWater_GetD3DXTransform(RB_TRANSFORM_PROJECTION, matProj);
 
 	//default setup from Kenny's demo
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_MODULATE);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+	g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+	g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
+	g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_DISABLE);
 	g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE);
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+	g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);
+	g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);
+	g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
+	g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 	g_renderBackend->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
 
 	W3DWater_ResetMeshTexcoord(2, 2);
@@ -2138,8 +2138,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	g_renderBackend->Set_Texture_Bump_Env_Matrix(1, m_fBumpScale, 0.0f, 0.0f, m_fBumpScale);
 	g_renderBackend->Set_Texture_Bump_Env_Luminance(1, 1.0f, 0.0f);
 
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+	g_renderBackend->Set_Texture_Color_Operation(2, RB_TEXOP_DISABLE);
+	g_renderBackend->Set_Texture_Alpha_Operation(2, RB_TEXOP_DISABLE);
 
 	g_renderBackend->Set_Depth_Write_Enable(false);
 
@@ -2218,12 +2218,12 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 
 	g_renderBackend->Set_Texture_UV_Wrap(0, false);	//turn off texture wrapping
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+	g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_DISABLE);
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_DISABLE);
+	g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+	g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
+	g_renderBackend->Set_Texture_Color_Operation(2, RB_TEXOP_DISABLE);
+	g_renderBackend->Set_Texture_Alpha_Operation(2, RB_TEXOP_DISABLE);
 
 	//Restore old transforms
 	W3DWater_SetD3DXTransform(RB_TRANSFORM_VIEW, matView);
@@ -2684,10 +2684,10 @@ void WaterRenderObjClass::renderWaterMesh()
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 1);
 
 		//modulate with shroud texture
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );	//stage 1 texture
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );	//previous stage texture
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
+		g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);	//stage 1 texture
+		g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);	//previous stage texture
+		g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
+		g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_MODULATE);
 
 		//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 		//write to the zbuffer.  Change to LESSEQUAL.
@@ -3259,7 +3259,7 @@ void WaterRenderObjClass::setupFlatWaterShader()
 		}
 	}
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_ADD );
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_ADD);
 	g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 	W3DWater_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_WRAP);
 	g_renderBackend->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 0);

@@ -6060,6 +6060,46 @@ void BgfxBackend::Set_Texture_Bump_Env_Luminance(unsigned stage,
     RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVLOFFSET, FloatAsDword(offset));
 }
 
+void BgfxBackend::Set_Texture_Color_Operation(unsigned stage, RenderBackendTextureOperation op)
+{
+    Set_Texture_Stage_State(stage, D3DTSS_COLOROP, static_cast<unsigned>(op));
+}
+
+void BgfxBackend::Set_Texture_Alpha_Operation(unsigned stage, RenderBackendTextureOperation op)
+{
+    Set_Texture_Stage_State(stage, D3DTSS_ALPHAOP, static_cast<unsigned>(op));
+}
+
+void BgfxBackend::Set_Texture_Color_Argument(unsigned stage,
+                                             unsigned argument_index,
+                                             RenderBackendTextureArgument arg)
+{
+    static const D3DTEXTURESTAGESTATETYPE states[] = {
+        D3DTSS_COLORARG0,
+        D3DTSS_COLORARG1,
+        D3DTSS_COLORARG2,
+    };
+    if (argument_index >= sizeof(states) / sizeof(states[0]))
+        return;
+
+    Set_Texture_Stage_State(stage, states[argument_index], static_cast<unsigned>(arg));
+}
+
+void BgfxBackend::Set_Texture_Alpha_Argument(unsigned stage,
+                                             unsigned argument_index,
+                                             RenderBackendTextureArgument arg)
+{
+    static const D3DTEXTURESTAGESTATETYPE states[] = {
+        D3DTSS_ALPHAARG0,
+        D3DTSS_ALPHAARG1,
+        D3DTSS_ALPHAARG2,
+    };
+    if (argument_index >= sizeof(states) / sizeof(states[0]))
+        return;
+
+    Set_Texture_Stage_State(stage, states[argument_index], static_cast<unsigned>(arg));
+}
+
 void BgfxBackend::Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
 {
     Set_Texture_Coord_Source(stage,

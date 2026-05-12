@@ -206,6 +206,16 @@ public:
     virtual void Set_Texture_Bump_Env_Luminance(unsigned stage,
                                                 float scale,
                                                 float offset) override;
+    virtual void Set_Texture_Color_Operation(unsigned stage,
+                                             RenderBackendTextureOperation op) override;
+    virtual void Set_Texture_Alpha_Operation(unsigned stage,
+                                             RenderBackendTextureOperation op) override;
+    virtual void Set_Texture_Color_Argument(unsigned stage,
+                                            unsigned argument_index,
+                                            RenderBackendTextureArgument arg) override;
+    virtual void Set_Texture_Alpha_Argument(unsigned stage,
+                                            unsigned argument_index,
+                                            RenderBackendTextureArgument arg) override;
     virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled) override;
     virtual void Set_Texture_UV_Wrap(unsigned stage, bool enable) override;
     virtual void Set_Texture_Address_Mode(unsigned stage,
