@@ -496,6 +496,8 @@ Completed low-risk migrations:
   until their buffer/math paths are migrated.
 - `W3DView.cpp` and the projected-shadow source no longer include D3DX math
   when they do not use any D3DX symbols.
+- Texture-filter anisotropy now uses a named backend API instead of passing
+  `D3DTSS_MAXANISOTROPY` through the generic texture-stage state escape hatch.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
