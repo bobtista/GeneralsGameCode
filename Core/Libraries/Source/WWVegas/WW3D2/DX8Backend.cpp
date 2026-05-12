@@ -1488,6 +1488,14 @@ void DX8Backend::Set_Texture_Bump_Env_Matrix(unsigned stage,
     DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT11, FloatAsDword(m11));
 }
 
+void DX8Backend::Set_Texture_Bump_Env_Luminance(unsigned stage,
+                                                float scale,
+                                                float offset)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_BUMPENVLSCALE, FloatAsDword(scale));
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_BUMPENVLOFFSET, FloatAsDword(offset));
+}
+
 void DX8Backend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
 {
     DX8Wrapper::Set_DX8_Texture_Stage_State(

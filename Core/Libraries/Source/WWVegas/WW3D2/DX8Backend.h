@@ -199,6 +199,9 @@ public:
                                              float m01,
                                              float m10,
                                              float m11) override;
+    virtual void Set_Texture_Bump_Env_Luminance(unsigned stage,
+                                                float scale,
+                                                float offset) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
     virtual CullMode Get_Cull_Mode() const override;
     virtual void Set_Cull_Mode(CullMode mode) override;

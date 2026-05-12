@@ -2135,12 +2135,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	W3DWater_SetStageMipFilter(0, RB_TEXTURE_SAMPLE_POINT);
 	W3DWater_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 #endif
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_BUMPENVMAT00, F2DW(m_fBumpScale) );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_BUMPENVMAT01, F2DW(0.0f) );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_BUMPENVMAT10, F2DW(0.0f) );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_BUMPENVMAT11, F2DW(m_fBumpScale) );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_BUMPENVLSCALE, F2DW(1.0f) );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_BUMPENVLOFFSET, F2DW(0.0f) );
+	g_renderBackend->Set_Texture_Bump_Env_Matrix(1, m_fBumpScale, 0.0f, 0.0f, m_fBumpScale);
+	g_renderBackend->Set_Texture_Bump_Env_Luminance(1, 1.0f, 0.0f);
 
 	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
