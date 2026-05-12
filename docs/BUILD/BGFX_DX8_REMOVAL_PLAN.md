@@ -339,6 +339,9 @@ Completed low-risk migrations:
 - `Get_Valid_Texture_Format` now uses the same backend texture-format query for
   compression and fallback decisions. It still uses `DX8Wrapper` for legacy
   color packing helpers, but no longer needs DX8 caps for format validation.
+- `IRenderBackend::Get_Max_Texture_Stages` now owns the max texture-stage query
+  used by material installation and sorted-state texture comparison/ref release.
+  `matpass.cpp` no longer includes `dx8wrapper.h`.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

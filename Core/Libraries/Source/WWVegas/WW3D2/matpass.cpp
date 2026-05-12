@@ -51,7 +51,6 @@
 #include "shader.h"
 #include "texture.h"
 #include "statistics.h"
-#include "dx8wrapper.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 
@@ -121,7 +120,7 @@ void MaterialPassClass::Install_Materials() const
 {
 	g_renderBackend->Set_Material(Peek_Material());
 	g_renderBackend->Set_Shader(Peek_Shader());
-	for (int i=0;i<DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass();++i)
+	for (int i=0;i<g_renderBackend->Get_Max_Texture_Stages();++i)
 	{
 		g_renderBackend->Set_Texture(i,Peek_Texture(i));
 	}
