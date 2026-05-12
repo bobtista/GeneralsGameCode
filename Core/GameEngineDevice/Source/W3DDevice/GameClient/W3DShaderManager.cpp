@@ -1591,11 +1591,8 @@ void TerrainShader2Stage::reset()
 	W3DShaderManager_BindStageTexture(0, nullptr);
 	W3DShaderManager_BindStageTexture(1, nullptr);
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
-
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|1);
+	W3DShaderManager_ResetMeshTexcoord(0, 0);
+	W3DShaderManager_ResetMeshTexcoord(1, 1);
 }
 
 void TerrainShader2Stage::updateCloud()
@@ -1683,9 +1680,8 @@ Int TerrainShader2Stage::set(Int pass)
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
-			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 			// Two output coordinates are used.
-			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+			W3DShaderManager_SetCameraSpaceTexcoord2(0);
 			W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_WRAP);
 
 			//blend into frame buffer
@@ -1718,9 +1714,8 @@ Int TerrainShader2Stage::set(Int pass)
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 				// Two output coordinates are used.
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+				W3DShaderManager_SetCameraSpaceTexcoord2(1);
 
 				W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 			}
@@ -1789,7 +1784,7 @@ Int TerrainShader8Stage::set(Int pass)
 		W3DShaderManager_BindStageTexture(1, W3DShaderManager::getShaderTexture(1));
 
 		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0);
+		g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
@@ -1797,7 +1792,7 @@ Int TerrainShader8Stage::set(Int pass)
 		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 
 		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_ADD);
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1);
+		g_renderBackend->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
 		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_DIFFUSE | D3DTA_COMPLEMENT | D3DTA_ALPHAREPLICATE);
 		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_ADD);
@@ -1806,7 +1801,7 @@ Int TerrainShader8Stage::set(Int pass)
 
 		W3DShaderManager_BindStageTexture(2, nullptr);
 		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLOROP, D3DTOP_MODULATE);
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_TEXCOORDINDEX, 2);
+		g_renderBackend->Set_Texture_Coord_Source(2, RB_TEXCOORD_MESH_UV, 2);
 		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLORARG2, D3DTA_TEXTURE);
 		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
@@ -1815,7 +1810,7 @@ Int TerrainShader8Stage::set(Int pass)
 
 		W3DShaderManager_BindStageTexture(3, nullptr);
 		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_TEXCOORDINDEX, 3);
+		g_renderBackend->Set_Texture_Coord_Source(3, RB_TEXCOORD_MESH_UV, 3);
 		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLORARG1, D3DTA_DIFFUSE | 0 | D3DTA_ALPHAREPLICATE);
 		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1);
@@ -1824,7 +1819,7 @@ Int TerrainShader8Stage::set(Int pass)
 
 		W3DShaderManager_BindStageTexture(4, nullptr);
 		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLOROP, D3DTOP_MODULATE);
-		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_TEXCOORDINDEX, 4);
+		g_renderBackend->Set_Texture_Coord_Source(4, RB_TEXCOORD_MESH_UV, 4);
 		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLORARG1, D3DTA_CURRENT);
 		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
@@ -1833,7 +1828,7 @@ Int TerrainShader8Stage::set(Int pass)
 
 		W3DShaderManager_BindStageTexture(5, nullptr);
 		g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLOROP, D3DTOP_ADD);
-		g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_TEXCOORDINDEX, 5);
+		g_renderBackend->Set_Texture_Coord_Source(5, RB_TEXCOORD_MESH_UV, 5);
 		g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
 		g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 		g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_ALPHAOP,   D3DTOP_ADD);
@@ -1842,7 +1837,7 @@ Int TerrainShader8Stage::set(Int pass)
 
 		W3DShaderManager_BindStageTexture(6, nullptr);
 		g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLOROP, D3DTOP_MODULATE);
-		g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_TEXCOORDINDEX, 6);
+		g_renderBackend->Set_Texture_Coord_Source(6, RB_TEXCOORD_MESH_UV, 6);
 		g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLORARG1, D3DTA_TFACTOR);
 		g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLORARG2, D3DTA_TFACTOR);
 		g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
@@ -1851,7 +1846,7 @@ Int TerrainShader8Stage::set(Int pass)
 
 		W3DShaderManager_BindStageTexture(7, nullptr);
 		g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-		g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_TEXCOORDINDEX, 7);
+		g_renderBackend->Set_Texture_Coord_Source(7, RB_TEXCOORD_MESH_UV, 7);
 		g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLORARG1, D3DTA_TFACTOR);
 		g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLORARG2, D3DTA_TFACTOR);
 		g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1);
@@ -1975,8 +1970,8 @@ Int TerrainShaderPixelShader::set(Int pass)
 	W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_CLAMP);
 
 	//tell pixel shader which UV set to use for each stage
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1 );
+	g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+	g_renderBackend->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
 
 	W3DShaderManager_SetTerrainBaseSamplers();
 
@@ -1989,9 +1984,8 @@ Int TerrainShaderPixelShader::set(Int pass)
 		float det;
 		D3DXMatrixInverse(&inv, &det, &curView);
 
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+		W3DShaderManager_SetCameraSpaceTexcoord2(2);
 
 		W3DShaderManager_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
 
@@ -2012,9 +2006,8 @@ Int TerrainShaderPixelShader::set(Int pass)
 			terrainShader2Stage.updateNoise2(&curView,&inv);	//update curView with texture matrix
 			W3DShaderManager_SetTextureTransform(3, curView);
 
-			g_renderBackend->Set_Texture_Stage_State(3,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 			// Two output coordinates are used.
-			g_renderBackend->Set_Texture_Stage_State(3,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+			W3DShaderManager_SetCameraSpaceTexcoord2(3);
 		}
 		else
 		{	//single noise texture shader
@@ -2054,17 +2047,10 @@ void TerrainShaderPixelShader::reset()
 	W3DShaderManager_BindStageTexture(0, nullptr);
 	W3DShaderManager_BindStageTexture(1, nullptr);
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
-
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|1);
-
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|2);
-
-	g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|3);
+	W3DShaderManager_ResetMeshTexcoord(0, 0);
+	W3DShaderManager_ResetMeshTexcoord(1, 1);
+	W3DShaderManager_ResetMeshTexcoord(2, 2);
+	W3DShaderManager_ResetMeshTexcoord(3, 3);
 
 
 	g_renderBackend->Invalidate_Cached_Render_States();
