@@ -80,7 +80,7 @@
 #include "Vector.h"
 #include "vp.h"
 #include "matrix4.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "rinfo.h"
@@ -993,12 +993,12 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 				// Copy Locations
 				*(Vector3*)(vb+fvfinfo.Get_Location_Offset())=VertexLoc[i];
 				if (current_diffuse) {
-					unsigned color=DX8Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
+					unsigned color=WW3DColor::To_ARGB_Clamp(VertexDiffuse[i]);
 					*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=color;
 				}
 				else
 					*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=
-						DX8Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
+						WW3DColor::To_ARGB_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
 				*(Vector2*)(vb+fvfinfo.Get_Tex_Offset(0))=VertexUV[i];
 				vb+=fvfinfo.Get_FVF_Size();
 			}
@@ -1907,12 +1907,12 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 					*(Vector3*)(vb+fvfinfo.Get_Location_Offset()) = VertexLoc[i];
 
 					if (current_diffuse) {
-						unsigned color=DX8Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
+						unsigned color=WW3DColor::To_ARGB_Clamp(VertexDiffuse[i]);
 						*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=color;
 					}
 					else
 						*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=
-							DX8Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
+							WW3DColor::To_ARGB_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
 					*(Vector2*)(vb+fvfinfo.Get_Tex_Offset(0))=VertexUV[i];
 					vb+=fvfinfo.Get_FVF_Size();
 				}
