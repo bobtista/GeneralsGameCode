@@ -50,6 +50,28 @@ class FixedFunctionState
 public:
 	enum
 	{
+		WORLD_CHANGED = 1 << 0,
+		VIEW_CHANGED = 1 << 1,
+		LIGHT0_CHANGED = 1 << 2,
+		LIGHT1_CHANGED = 1 << 3,
+		LIGHT2_CHANGED = 1 << 4,
+		LIGHT3_CHANGED = 1 << 5,
+		TEXTURE0_CHANGED = 1 << 6,
+		TEXTURE1_CHANGED = 1 << 7,
+		TEXTURE2_CHANGED = 1 << 8,
+		TEXTURE3_CHANGED = 1 << 9,
+		MATERIAL_CHANGED = 1 << 14,
+		SHADER_CHANGED = 1 << 15,
+		VERTEX_BUFFER_CHANGED = 1 << 16,
+		INDEX_BUFFER_CHANGED = 1 << 17,
+		WORLD_IDENTITY = 1 << 18,
+		VIEW_IDENTITY = 1 << 19,
+
+		TEXTURES_CHANGED =
+			TEXTURE0_CHANGED | TEXTURE1_CHANGED | TEXTURE2_CHANGED | TEXTURE3_CHANGED,
+		LIGHTS_CHANGED =
+			LIGHT0_CHANGED | LIGHT1_CHANGED | LIGHT2_CHANGED | LIGHT3_CHANGED,
+
 		RENDER_STATE_COUNT = 256,
 		TEXTURE_STAGE_COUNT = 8,
 		TEXTURE_STAGE_STATE_COUNT = 32,
@@ -65,6 +87,9 @@ public:
 	static void Capture_Render_State(RenderStateStruct & state);
 	static void Restore_Render_State(const RenderStateStruct & state);
 	static void Release_Render_State();
+	static bool Set_Shader(const ShaderClass & shader, bool shader_dirty = false);
+	static void Set_Material(const VertexMaterialClass * material);
+	static bool Set_Texture(unsigned stage, TextureBaseClass * texture);
 
 	static IDirect3DBaseTexture8 * Raw_Texture(unsigned stage);
 	static bool Set_Raw_Texture(unsigned stage, IDirect3DBaseTexture8 * texture);

@@ -111,6 +111,38 @@ void FixedFunctionState::Release_Render_State()
 	}
 }
 
+bool FixedFunctionState::Set_Shader(const ShaderClass & shader, bool shader_dirty)
+{
+	if (!shader_dirty && ((unsigned &)shader == (unsigned &)s_renderState.shader)) {
+		return false;
+	}
+
+	s_renderState.shader = shader;
+	s_changedMask |= SHADER_CHANGED;
+	return true;
+}
+
+void FixedFunctionState::Set_Material(const VertexMaterialClass * material)
+{
+	REF_PTR_SET(s_renderState.material, const_cast<VertexMaterialClass *>(material));
+	s_changedMask |= MATERIAL_CHANGED;
+}
+
+bool FixedFunctionState::Set_Texture(unsigned stage, TextureBaseClass * texture)
+{
+	if (stage >= MAX_TEXTURE_STAGES) {
+		return false;
+	}
+
+	if (texture == s_renderState.Textures[stage]) {
+		return false;
+	}
+
+	REF_PTR_SET(s_renderState.Textures[stage], texture);
+	s_changedMask |= (TEXTURE0_CHANGED << stage);
+	return true;
+}
+
 IDirect3DBaseTexture8 * FixedFunctionState::Raw_Texture(unsigned stage)
 {
 	if (stage >= MAX_TEXTURE_STAGES) {
