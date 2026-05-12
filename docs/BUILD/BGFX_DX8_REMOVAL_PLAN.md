@@ -379,6 +379,10 @@ Completed low-risk migrations:
   `D3DADAPTER_IDENTIFIER8` accessors to standalone bgfx builds. The private
   fields remain for `DX8Wrapper`'s legacy enumeration scaffolding until that
   wrapper work is split from the bgfx target.
+- `IRenderBackend::Set_Texture_Address_Mode` and
+  `Set_Texture_Sample_Filter` now provide a semantic sampler-state API. Smudge
+  distortion setup uses those methods instead of writing raw address/filter
+  texture-stage states directly.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
