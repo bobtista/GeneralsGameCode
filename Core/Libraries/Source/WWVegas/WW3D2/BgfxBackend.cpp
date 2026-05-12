@@ -7013,14 +7013,14 @@ void BgfxBackend::Get_Transform(TransformKind transform, Matrix4x4 & m) const
 void BgfxBackend::Set_World_Identity()
 {
     CacheIdentityTransform(RB_TRANSFORM_WORLD);
-    DX8Wrapper::Set_World_Identity();
+    FixedFunctionState::Set_World_Identity();
     IdentityMatrix(g_frame.world);
 }
 
 void BgfxBackend::Set_View_Identity()
 {
     CacheIdentityTransform(RB_TRANSFORM_VIEW);
-    DX8Wrapper::Set_View_Identity();
+    FixedFunctionState::Set_View_Identity();
     IdentityMatrix(g_frame.view);
     g_frame.cameraProjDirty = true;
     g_views.overlay2DActive = true;
