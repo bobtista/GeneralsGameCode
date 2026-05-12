@@ -57,7 +57,6 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/rinfo.h"
 #include "WW3D2/light.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/dx8renderer.h"
 #include "W3DDevice/GameClient/Module/W3DPropDraw.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
@@ -417,4 +416,3 @@ void W3DPropBuffer::loadPostProcess()
 {
 	// empty. jba [8/11/2003]
 }
-

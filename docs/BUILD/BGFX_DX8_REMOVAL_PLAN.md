@@ -94,6 +94,8 @@ Recent progress on the DX8-removal stack:
 - `W3DShroud.h` no longer includes `dx8wrapper.h`; the header now forward
   declares `TextureClass`, and the `.cpp` also dropped its unused wrapper
   include.
+- Several leaf terrain/UI buffer sources no longer include `dx8wrapper.h` when
+  they only submit through existing renderer/backend abstractions.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -313,6 +315,10 @@ Completed low-risk migrations:
 - Removed unused `dx8wrapper.h` includes from shroud header/source. Shroud
   resource updates already flow through `SurfaceClass`, `TextureClass`, and
   backend texture notification rather than direct DX8 device calls.
+- Removed unused `dx8wrapper.h` includes from prop, terrain-background, bib,
+  bridge, custom-edging, debug-icon, road, status-circle, browser, and waypoint
+  buffer sources. This does not alter draw behavior; it only reduces accidental
+  D3D header exposure in standalone bgfx compiles.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

@@ -65,7 +65,6 @@
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/mesh.h"
@@ -1204,4 +1203,3 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 	}
 }
-
