@@ -33,7 +33,6 @@
 #endif
 #include <windows.h>
 
-#include "dx8wrapper.h"
 #include "texture.h"
 #include "surfaceclass.h"
 #include "wwdebug.h"
