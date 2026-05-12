@@ -900,6 +900,7 @@ public:
                                 unsigned short vertex_count) {}
 
     virtual bool Is_Triangle_Draw_Enabled() const { return true; }
+    virtual void Set_Triangle_Draw_Enabled(bool /*enable*/) {}
     virtual void Draw_Screen_Color_Quad(unsigned /*color*/,
                                         int /*x*/,
                                         int /*y*/,
