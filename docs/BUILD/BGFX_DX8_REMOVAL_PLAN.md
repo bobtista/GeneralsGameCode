@@ -491,6 +491,9 @@ Completed low-risk migrations:
   directly instead of routing through `D3DXMatrixRotationZ`.
 - Bib, bridge, custom-edging, road, and mirror public headers no longer export
   concrete DX8 buffer definitions when they only store buffer pointers.
+- The shadow coordinator source no longer includes unused DX8 wrapper or D3DX
+  math headers; the concrete shadow implementations keep their own includes
+  until their buffer/math paths are migrated.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
