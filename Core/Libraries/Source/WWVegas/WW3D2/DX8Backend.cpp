@@ -1638,6 +1638,11 @@ void DX8Backend::Set_Fog_Color(unsigned argb)
     DX8Wrapper::Set_DX8_Render_State(D3DRS_FOGCOLOR, argb);
 }
 
+unsigned DX8Backend::Get_Fog_Color() const
+{
+    return DX8Wrapper::Get_Fog_Color();
+}
+
 void DX8Backend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
                                              unsigned stencil_read_mask,
                                              unsigned stencil_ref,

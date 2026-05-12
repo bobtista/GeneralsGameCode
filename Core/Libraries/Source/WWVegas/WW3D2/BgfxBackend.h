@@ -176,6 +176,7 @@ public:
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end) override;
     virtual void Set_Fog_Enable(bool enable) override;
     virtual void Set_Fog_Color(unsigned argb) override;
+    virtual unsigned Get_Fog_Color() const override;
     virtual void Set_Specular_Enable(bool enable) override;
     virtual void Set_Patch_Segments(float level) override;
     virtual void Set_Blend_Factors(BlendFactor src, BlendFactor dest) override;

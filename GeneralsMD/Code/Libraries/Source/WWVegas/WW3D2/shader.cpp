@@ -495,7 +495,7 @@ void ShaderClass::Apply()
 			if (g_renderBackend && g_renderBackend->Supports_Fog() && g_renderBackend->Get_Fog_Enable()) {
 
 			BOOL fm = FALSE;
-			D3DCOLOR fogColor = DX8Wrapper::Get_Fog_Color();
+			D3DCOLOR fogColor = g_renderBackend->Get_Fog_Color();
 
 			switch(Get_Fog_Func())
 			{

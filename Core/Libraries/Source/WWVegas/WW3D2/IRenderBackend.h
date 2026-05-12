@@ -829,6 +829,7 @@ public:
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end) {}
     virtual void Set_Fog_Enable(bool enable) {}
     virtual void Set_Fog_Color(unsigned argb) {}
+    virtual unsigned Get_Fog_Color() const { return 0; }
     virtual bool Get_Fog_Enable() const { return false; }
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env) {}
     virtual LightEnvironmentClass * Get_Light_Environment() const { return nullptr; }
