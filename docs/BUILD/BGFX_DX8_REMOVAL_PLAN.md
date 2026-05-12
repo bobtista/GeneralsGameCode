@@ -468,6 +468,8 @@ Completed low-risk migrations:
   instead of relying on a transitive `DX8Wrapper` include.
 - Mesh material DIG/DCG bake-down color math now uses `WW3DColor`.
 - Mesh W3D load-time color conversion now uses `WW3DColor`.
+- Dazzle rendering now uses `WW3DColor` for flare/halo colors and queries
+  render-to-texture state through `IRenderBackend`.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
