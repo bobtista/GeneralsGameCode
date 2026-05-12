@@ -503,6 +503,7 @@ public:
     virtual bool Is_Legacy_Voodoo3() const { return false; }
     virtual bool Supports_NPatches() const { return false; }
     virtual bool Supports_Hardware_Transform_And_Lighting() const { return false; }
+    virtual bool Supports_Point_Sprites() const { return false; }
     virtual RenderBackendTextureLimits Get_Texture_Limits() const
     {
         return { 2048, 2048, 2048, 8 };

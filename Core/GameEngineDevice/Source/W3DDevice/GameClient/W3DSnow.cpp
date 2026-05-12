@@ -91,7 +91,7 @@ Bool W3DSnowManager::ReAcquireResources()
 #if defined(GGC_BGFX_STANDALONE)
 	Bool usePointSpritePath = FALSE;
 #else
-	Bool usePointSpritePath = TheWeatherSetting->m_usePointSprites && DX8Wrapper::Get_Current_Caps()->Support_PointSprites();
+	Bool usePointSpritePath = TheWeatherSetting->m_usePointSprites && g_renderBackend && g_renderBackend->Supports_Point_Sprites();
 #endif
 	if (usePointSpritePath)
 	{
@@ -348,7 +348,7 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 #if defined(GGC_BGFX_STANDALONE)
 	Int usePointSprites = FALSE;
 #else
-	Int usePointSprites = DX8Wrapper::Get_Current_Caps()->Support_PointSprites() && TheWeatherSetting->m_usePointSprites;
+	Int usePointSprites = g_renderBackend && g_renderBackend->Supports_Point_Sprites() && TheWeatherSetting->m_usePointSprites;
 #endif
 
 	//make sure the noise table is powers of 2 in dimensions.
