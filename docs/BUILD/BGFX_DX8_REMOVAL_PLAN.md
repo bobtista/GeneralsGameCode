@@ -412,6 +412,8 @@ Completed low-risk migrations:
   `D3DTSS_*` writes.
 - `ShaderClass::Apply` now reads fog color through `IRenderBackend`, removing
   another direct `DX8Wrapper` query from the shared shader path.
+- The legacy Voodoo3 stage-2 compatibility path in `ShaderClass::Apply` now
+  expresses its pass-through UV0 selection through the backend texcoord API.
 - `SortingRendererClass::Flush` now saves/restores triangle draw enable through
   `IRenderBackend`. DX8 delegates to the legacy wrapper flag; bgfx owns its
   own equivalent flag and honors it in triangle/strip submits.
