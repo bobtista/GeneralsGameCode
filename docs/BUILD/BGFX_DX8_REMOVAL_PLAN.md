@@ -414,6 +414,8 @@ Completed low-risk migrations:
   those instead of direct `D3DTSS_COLOR*` / `D3DTSS_ALPHA*` writes.
 - Smudge distortion rendering now also uses the texture-combine operation API
   for its alpha override and post-draw color/alpha restore.
+- Water track and splash rendering uses the same texture-combine API when it
+  modulates track quads with the shroud texture.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
