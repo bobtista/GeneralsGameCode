@@ -392,9 +392,9 @@ Completed low-risk migrations:
   fixed-function combine and texcoord state in those local terrain paths.
 - Shader-manager terrain setup now routes repeated base terrain sampler blocks
   and 2D clamp/wrap address writes through backend-neutral sampler helpers. The
-  remaining shader-manager filter writes are partial min/mag/mip updates and
-  still need a deliberate partial-sampler API before they can be migrated
-  without changing state preservation semantics.
+  backend sampler API now also has explicit partial min/mag and mip setters, so
+  shader-manager noise, road, flat terrain, and screen-fade paths can preserve
+  the legacy behavior of updating only the intended sampler components.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

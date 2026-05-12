@@ -856,6 +856,11 @@ public:
                                            RenderBackendTextureSampleFilter min_filter,
                                            RenderBackendTextureSampleFilter mag_filter,
                                            RenderBackendTextureSampleFilter mip_filter) {}
+    virtual void Set_Texture_Min_Mag_Filter(unsigned stage,
+                                            RenderBackendTextureSampleFilter min_filter,
+                                            RenderBackendTextureSampleFilter mag_filter) {}
+    virtual void Set_Texture_Mip_Filter(unsigned stage,
+                                        RenderBackendTextureSampleFilter mip_filter) {}
     virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) {}
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) {}
     virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) {}

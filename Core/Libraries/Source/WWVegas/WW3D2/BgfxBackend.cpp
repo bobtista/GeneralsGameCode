@@ -6110,6 +6110,19 @@ void BgfxBackend::Set_Texture_Sample_Filter(unsigned stage,
     Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, TextureSampleFilterToD3DStageState(mip_filter));
 }
 
+void BgfxBackend::Set_Texture_Min_Mag_Filter(unsigned stage,
+                                             RenderBackendTextureSampleFilter min_filter,
+                                             RenderBackendTextureSampleFilter mag_filter)
+{
+    Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, TextureSampleFilterToD3DStageState(min_filter));
+    Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, TextureSampleFilterToD3DStageState(mag_filter));
+}
+
+void BgfxBackend::Set_Texture_Mip_Filter(unsigned stage, RenderBackendTextureSampleFilter mip_filter)
+{
+    Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, TextureSampleFilterToD3DStageState(mip_filter));
+}
+
 void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)
 {
     RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_ADDRESSU,
