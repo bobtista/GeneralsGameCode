@@ -1727,13 +1727,7 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		g_renderBackend->Get_Transform(RB_TRANSFORM_WORLD, worldTransform);
 		g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, viewTransform);
 		g_renderBackend->Get_Transform(RB_TRANSFORM_PROJECTION, projectionTransform);
-		D3DXMATRIX matWorld=To_D3DXMATRIX(worldTransform);
-		D3DXMATRIX matView=To_D3DXMATRIX(viewTransform);
-		D3DXMATRIX matProj=To_D3DXMATRIX(projectionTransform);
-		D3DXMATRIX mat;
-		D3DXMatrixMultiply( &mat, &matView, &matProj );
-		D3DXMatrixMultiply( &mat, &matWorld, &mat );
-		D3DXMatrixTranspose( &mat, &mat );
+		Matrix4x4 mat = projectionTransform * viewTransform * worldTransform;
 
 		// c4  - Composite World-View-Projection Matrix
 		g_renderBackend->Set_Vertex_Shader_Constant(  4, &mat,  4 );
