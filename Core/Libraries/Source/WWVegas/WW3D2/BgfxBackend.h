@@ -59,6 +59,7 @@ public:
 
     virtual void Begin_Scene() override;
     virtual void End_Scene(bool flip_frame) override;
+    virtual bool Has_Stencil() const override { return true; }
     virtual WW3DFormat Get_Back_Buffer_Format() const override;
     virtual void Set_Texture_Bitdepth(int bitdepth) override;
     virtual int Get_Texture_Bitdepth() const override;
@@ -188,11 +189,18 @@ public:
                                              float m10,
                                              float m11) override;
     virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled) override;
+    virtual void Set_Texture_UV_Wrap(unsigned stage, bool enable) override;
     virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
     virtual void Configure_Custom_Edging_Cloud_Texture_Stages() override;
     virtual void Configure_Shadow_Volume_Fill_Texture_Stages() override;
     virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) override;
+    virtual void Set_Object_Shroud_Texture_Pass_Active(bool active) override;
+    virtual void Set_Object_Shroud_Alpha_Mask_Texture(TextureBaseClass * texture) override;
+    virtual void Set_Object_Shroud_Dim_Factor(float factor) override;
+    virtual void Set_Shroud_Texture_Params(float offset_x, float offset_y,
+                                           float scale_x, float scale_y) override;
+    virtual bool Requires_Delayed_Object_Shroud_Pass() const override { return true; }
     virtual void Begin_Water_Overlay() override;
     virtual void End_Water_Overlay() override;
     virtual void Begin_Effect_Overlay() override;
@@ -316,8 +324,12 @@ public:
                                       unsigned long * handle) override;
     virtual bool Create_Pixel_Shader(const unsigned int * shader,
                                      unsigned long * handle) override;
+    virtual bool Create_Legacy_Pixel_Shader(RenderBackendLegacyPixelShaderMode mode,
+                                            unsigned long * handle) override;
     virtual void Delete_Vertex_Shader(unsigned long vertex_shader) override;
     virtual void Delete_Pixel_Shader(unsigned long pixel_shader) override;
+    virtual void Set_Vertex_Shader(unsigned long vertex_shader) override;
+    virtual void Set_Pixel_Shader(unsigned long pixel_shader) override;
 
     // -- Resource creation (asset ingress) ---------------------------
     //

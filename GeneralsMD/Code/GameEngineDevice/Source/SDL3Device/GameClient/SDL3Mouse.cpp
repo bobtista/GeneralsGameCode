@@ -200,7 +200,7 @@ void SDL3Mouse::setCursor(MouseCursor cursor)
 void SDL3Mouse::setPosition(Int x, Int y)
 {
 	Mouse::setPosition(x, y);
-	if (TheSDL3Window != NULL)
+	if (TheSDL3Window != NULL && std::getenv("GGC_DISABLE_MOUSE_WARP") == NULL)
 	{
 		SDL_WarpMouseInWindow(TheSDL3Window, static_cast<float>(x), static_cast<float>(y));
 	}

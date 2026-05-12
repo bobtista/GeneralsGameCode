@@ -48,13 +48,14 @@ void main()
 	vec4 diffuseColor = (u_vertexColorFlags.x > 0.5) ? a_color0.bgra : vec4_splat(1.0);
 	v_color0 = diffuseColor * a_normal.y;
 
+	// Shroud UV: (v0.xy + c32.xy) * c33.xy.
+	vec2 shroudUV = (a_position.xy + u_shroudOffset.xy) * u_shroudScale.xy;
 	v_texcoord0 = a_texcoord0;
+	v_texcoord1 = shroudUV;
 	v_stage0UV = a_texcoord0;
-	v_stage1UV = a_texcoord0;
+	v_stage1UV = shroudUV;
 	v_stage2UV = a_texcoord0;
 	v_stage3UV = a_texcoord0;
-	// Shroud UV: (v0.xy + c32.xy) * c33.xy.
-	v_texcoord1 = (a_position.xy + u_shroudOffset.xy) * u_shroudScale.xy;
 
 	v_normal = vec3(0.0, 0.0, 1.0);  // grass billboards always face up
 

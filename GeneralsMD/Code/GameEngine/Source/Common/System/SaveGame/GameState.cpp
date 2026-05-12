@@ -59,6 +59,10 @@
 #include "GameLogic/SidesList.h"
 #include "GameLogic/TerrainLogic.h"
 
+#ifndef _WIN32
+#include <sys/stat.h>
+#include <time.h>
+#endif
 
 // PUBLIC DATA ////////////////////////////////////////////////////////////////////////////////////
 GameState *TheGameState = nullptr;
@@ -171,6 +175,36 @@ Bool SaveDate::isNewerThan( SaveDate *other )
 	}
 
 }
+
+#ifndef _WIN32
+static Bool isInvalidSaveDate( const SaveDate &date )
+{
+	return date.year == 0 || date.month == 0 || date.day == 0;
+}
+
+static void useFileModifiedTimeForSaveDate( AsciiString filename, SaveDate *date )
+{
+	if( date == nullptr || isInvalidSaveDate( *date ) == FALSE )
+		return;
+
+	struct stat st;
+	if( stat( filename.str(), &st ) != 0 )
+		return;
+
+	struct tm local_tm;
+	if( localtime_r( &st.st_mtime, &local_tm ) == nullptr )
+		return;
+
+	date->year = local_tm.tm_year + 1900;
+	date->month = local_tm.tm_mon + 1;
+	date->dayOfWeek = local_tm.tm_wday;
+	date->day = local_tm.tm_mday;
+	date->hour = local_tm.tm_hour;
+	date->minute = local_tm.tm_min;
+	date->second = local_tm.tm_sec;
+	date->milliseconds = 0;
+}
+#endif
 
 // ------------------------------------------------------------------------------------------------
 /** Find a snapshot block info that matches the token passed in */
@@ -1115,6 +1149,9 @@ static void addGameToAvailableList( AsciiString filename, void *userData )
 	// get header info from this listbox
 	SaveGameInfo saveGameInfo;
 	TheGameState->getSaveGameInfoFromFile( filename, &saveGameInfo );
+#ifndef _WIN32
+	useFileModifiedTimeForSaveDate( filename, &saveGameInfo.date );
+#endif
 
 	// allocate new info
 	AvailableGameInfo *newInfo = new AvailableGameInfo;
@@ -1240,7 +1277,7 @@ void GameState::populateSaveGameListbox( GameWindow *listbox, SaveLoadLayoutType
 
 			displayLabel = TheGameText->fetch( saveGameInfo->mapLabel, &exists );
 			if( exists == FALSE )
-				displayLabel.format( L"%S", saveGameInfo->mapLabel.str() );
+				displayLabel.translate( saveGameInfo->mapLabel );
 
 		}
 

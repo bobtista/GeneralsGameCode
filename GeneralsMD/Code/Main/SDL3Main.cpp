@@ -153,7 +153,7 @@ int main(int argc, char **argv)
 	}
 	GGC_TRACE("SDL_Init OK");
 
-	Uint32 windowFlags = SDL_WINDOW_RESIZABLE;
+	Uint32 windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
 #if defined(__APPLE__)
 	windowFlags |= SDL_WINDOW_METAL;
 #endif

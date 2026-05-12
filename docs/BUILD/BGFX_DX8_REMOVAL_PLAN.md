@@ -108,23 +108,29 @@ The useful trend is not zero immediately. The useful trend is fewer direct raw
 device calls outside the legacy DX8 implementation, fewer `DX8Backend::...`
 base calls from `BgfxBackend`, and fewer D3D-shaped public resource APIs.
 
-Current measured state on `bobtista/remove-dx8-bgfx` after detaching
-`BgfxBackend`, removing `DX8Backend.cpp` from the bgfx target, and moving the
-first resource uploads to CPU snapshots:
+Current measured state after detaching `BgfxBackend`, removing `DX8Backend.cpp`
+from the bgfx target, moving the first resource uploads to CPU snapshots, and
+routing shader/view-capture APIs through `IRenderBackend`:
 
-- `raw_device`: 256 hits
-- `dx8wrapper_low_level`: 992 hits
-- `dx8wrapper_high_level`: 37 hits
-- `d3d_public_type`: 3368 hits
+- `raw_device`: 66 hits in 10 files
+- `dx8wrapper_low_level`: 87 hits in 9 files
+- `dx8wrapper_high_level`: 29 hits in 4 files
+- `d3d_public_type`: 2898 hits in 54 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 4653
+- total categorized hits: 3080
 
 Completed low-risk migrations:
 
 - `IRenderBackend::Bind_Texture_Immediate` for code that intentionally needs an
   immediate texture bind before a draw.
 - `IRenderBackend::Clear_Light` for explicit light-slot clearing.
+- Backend-owned legacy shader handle lifetime and shader bind routing for
+  terrain/filter paths.
+- Backend-owned tactical view capture and screen/captured-view quad submission.
+  The bgfx backend reports the old D3D render-target texture filter path as
+  unsupported; native bgfx filters should be implemented as scene-composite
+  passes instead of fake D3D textures.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
@@ -133,14 +139,26 @@ Completed low-risk migrations:
   shader texture, buffer, and texture paths no longer depend on
   `DX8Backend`.
 - The bgfx target does not compile `DX8Backend.cpp` or `dx8webbrowser.cpp`.
+- Sorted bgfx particles/effects still snapshot legacy fixed-function state
+  through `DX8Wrapper::render_state`. That coupling is intentional for now:
+  removing it requires phase 4, moving render-state ownership into a neutral
+  owner. Until then, bgfx buffer binds must continue to mirror into the legacy
+  render-state cache so sorted replay records valid VB/IB state.
 
 Next migration focus:
 
 - Replace remaining raw device call sites outside `dx8wrapper.cpp`, especially
-  shader-manager, water, snow, and shadow paths.
+  water, snow, smudge/profiler capture, and the remaining shader-manager legacy
+  filter snippets.
+- Add a backend sea-water mesh submission path or convert sea water to existing
+  `VertexBufferClass` / `IndexBufferClass` abstractions.
+- Add a backend readback/profiler API, or make profiler capture an explicit
+  unsupported capability in standalone bgfx.
 - Move `DX8Wrapper`'s render-state arrays into a backend-neutral owner so
   call sites can keep fixed-function semantics without requiring a D3D-shaped
   wrapper.
+- Replace transitional raw texture-stage APIs with semantic descriptors for
+  shader, mapper, terrain, and water call sites.
 - Split texture/surface/VB/IB primary ownership from `IDirect3D*8` objects so
   the bgfx build can eventually drop `StubD3D8Device.cpp` and the min-DX8
   headers entirely.
