@@ -53,9 +53,6 @@
 //
 //-----------------------------------------------------------------------------
 
-#include "dx8wrapper.h"
-#include "dx8indexbuffer.h"
-#include "dx8vertexbuffer.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
 #include "assetmgr.h"
@@ -75,7 +72,6 @@
 #include "Common/GlobalData.h"
 #include "Common/GameLOD.h"
 #include "d3dx8tex.h"
-#include "dx8caps.h"
 
 
 // Turn this on to turn off pixel shaders. jba[4/3/2003]
