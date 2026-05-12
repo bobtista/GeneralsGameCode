@@ -104,6 +104,44 @@ static inline void W3DWater_SetTextureTransform(unsigned stage, const D3DXMATRIX
 		g_renderBackend->Set_Texture_Transform(stage, To_Matrix4x4(matrix));
 }
 
+static inline void W3DWater_SetTextureTransform(unsigned stage, const Matrix4x4 & matrix)
+{
+	if (g_renderBackend != nullptr)
+		g_renderBackend->Set_Texture_Transform(stage, matrix);
+}
+
+static inline Matrix4x4 W3DWater_MakeScaleTextureMatrix(float sx, float sy, float sz)
+{
+	return Matrix4x4(
+		sx, 0.0f, 0.0f, 0.0f,
+		0.0f, sy, 0.0f, 0.0f,
+		0.0f, 0.0f, sz, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f);
+}
+
+static inline Matrix4x4 W3DWater_MakeTranslationTextureMatrix(float x, float y, float z)
+{
+	return Matrix4x4(
+		1.0f, 0.0f, 0.0f, x,
+		0.0f, 1.0f, 0.0f, y,
+		0.0f, 0.0f, 1.0f, z,
+		0.0f, 0.0f, 0.0f, 1.0f);
+}
+
+static inline void W3DWater_SetNoiseTextureTransform(unsigned stage, float repeat, float origin)
+{
+	if (g_renderBackend == nullptr)
+		return;
+
+	Matrix4x4 view;
+	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, view);
+	const Matrix4x4 destMatrix =
+		W3DWater_MakeTranslationTextureMatrix(origin, origin, 0.0f) *
+		W3DWater_MakeScaleTextureMatrix(repeat, repeat, 1.0f) *
+		view.Inverse();
+	W3DWater_SetTextureTransform(stage, destMatrix);
+}
+
 static inline void W3DWater_DisableTextureTransform(unsigned stage)
 {
 	if (g_renderBackend != nullptr)
@@ -324,17 +362,7 @@ void WaterRenderObjClass::setupJbaWaterShader()
 		W3DWater_SetCameraSpaceTexcoord2(2, 0);
 		W3DWater_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
 
-		D3DXMATRIX curView;
-		W3DWater_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
-		D3DXMATRIX scale;
-		D3DXMatrixScaling(&scale, NOISE_REPEAT_FACTOR, NOISE_REPEAT_FACTOR,1);
-		D3DXMATRIX destMatrix = inv * scale;
-		D3DXMatrixTranslation(&scale, m_riverVOrigin, m_riverVOrigin,0);
-		destMatrix = destMatrix*scale;
-		W3DWater_SetTextureTransform(2, destMatrix);
+		W3DWater_SetNoiseTextureTransform(2, NOISE_REPEAT_FACTOR, m_riverVOrigin);
 
 	}
 	W3DWater_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
@@ -3285,17 +3313,7 @@ void WaterRenderObjClass::setupFlatWaterShader()
 		W3DWater_SetCameraSpaceTexcoord2(2, 0);
 		W3DWater_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
 
-		D3DXMATRIX curView;
-		W3DWater_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
-		D3DXMATRIX scale;
-		D3DXMatrixScaling(&scale, NOISE_REPEAT_FACTOR, NOISE_REPEAT_FACTOR,1);
-		D3DXMATRIX destMatrix = inv * scale;
-		D3DXMatrixTranslation(&scale, m_riverVOrigin, m_riverVOrigin,0);
-		destMatrix = destMatrix*scale;
-		W3DWater_SetTextureTransform(2, destMatrix);
+		W3DWater_SetNoiseTextureTransform(2, NOISE_REPEAT_FACTOR, m_riverVOrigin);
 
 	}
 	W3DWater_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
