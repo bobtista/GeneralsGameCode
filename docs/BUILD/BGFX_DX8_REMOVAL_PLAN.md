@@ -387,6 +387,9 @@ Completed low-risk migrations:
   that semantic API too. Its legacy filter tables still store D3D-compatible
   constants for now, but applying a texture filter no longer exposes those
   constants to the backend call site.
+- Terrain alpha/scorch texture setup now uses the semantic sampler API for its
+  terrain-quality filter selection and clamp/wrap address modes, leaving only
+  fixed-function combine and texcoord state in those local terrain paths.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
