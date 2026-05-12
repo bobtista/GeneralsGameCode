@@ -472,6 +472,8 @@ Completed low-risk migrations:
   render-to-texture state through `IRenderBackend`.
 - Shader blend/cull/fog scalar state now uses backend-neutral enums and
   integer colors instead of D3D blend/cull/color typedefs.
+- Shader texture-stage operation selection now uses backend-neutral texture
+  op/argument enums without D3D casts.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
