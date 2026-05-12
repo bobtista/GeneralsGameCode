@@ -425,6 +425,8 @@ Completed low-risk migrations:
   setters for their mask and captured-view alpha overrides.
 - Flat shroud texture setup now uses backend texture-combine setters for its
   projected shroud modulation state.
+- The HeightMap wireframe extra-pass texture-factor override now writes through
+  the backend texture-combine argument API.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
