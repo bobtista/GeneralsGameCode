@@ -356,6 +356,10 @@ Completed low-risk migrations:
 - `IRenderBackend::Supports_Texture_Filter` now owns linear/mip/anisotropic
   filter capability checks. `texturefilter.cpp` no longer reads
   `D3DCAPS8::TextureFilterCaps`.
+- `IRenderBackend::Supports_Texture_Op`, `Supports_Fog`, and
+  `Is_Legacy_Voodoo3` now own shader texture-op/fog/legacy-device capability
+  checks. `shader.cpp` no longer includes `dx8caps.h` or reads raw
+  `TextureOpCaps`.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

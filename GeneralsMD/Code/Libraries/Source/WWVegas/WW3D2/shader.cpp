@@ -44,8 +44,8 @@
 #include "w3d_file.h"
 #include "wwdebug.h"
 #include "dx8wrapper.h"
-#include "dx8caps.h"
 #include "RenderBackend.h"
+#include "IRenderBackend.h"
 
 
 bool ShaderClass::ShaderDirty=true;
@@ -411,7 +411,9 @@ void ShaderClass::Apply()
 {
 	unsigned long diff;
 
-	unsigned int TextureOpCaps=DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().TextureOpCaps;
+	auto supports_texture_op = [](RenderBackendTextureOpCapability capability) -> bool {
+		return g_renderBackend && g_renderBackend->Supports_Texture_Op(capability);
+	};
 
 	if (ShaderDirty)
 	{
@@ -490,7 +492,7 @@ void ShaderClass::Apply()
 	{
 		// Whenever fog is enabled or disabled, the entire shader is invalidated. This is why we
 		// can defer the "fog enabled" check inside the "fog settings changed" check.
-			if (DX8Wrapper::Get_Current_Caps()->Is_Fog_Allowed() && g_renderBackend->Get_Fog_Enable()) {
+			if (g_renderBackend && g_renderBackend->Supports_Fog() && g_renderBackend->Get_Fog_Enable()) {
 
 			BOOL fm = FALSE;
 			D3DCOLOR fogColor = DX8Wrapper::Get_Fog_Color();
@@ -547,8 +549,7 @@ void ShaderClass::Apply()
 	DWORD			SecaArg1 = D3DTA_TEXTURE;
 	DWORD			SecaArg2 = D3DTA_CURRENT;
 
-	bool voodoo3=(DX8Wrapper::Get_Current_Caps()->Get_Vendor()==DX8Caps::VENDOR_3DFX) &&
-					 (DX8Wrapper::Get_Current_Caps()->Get_Device()==DX8Caps::DEVICE_3DFX_VOODOO_3);
+	bool voodoo3 = g_renderBackend && g_renderBackend->Is_Legacy_Voodoo3();
 	int pri_mask=ShaderClass::MASK_PRIGRADIENT|ShaderClass::MASK_TEXTURING;
 	int sec_mask=ShaderClass::MASK_POSTDETAILALPHAFUNC|ShaderClass::MASK_POSTDETAILCOLORFUNC|ShaderClass::MASK_TEXTURING;
 
@@ -585,7 +586,7 @@ void ShaderClass::Apply()
 				break;
 			case ShaderClass::GRADIENT_ADD:
 				//Modulate Alpha
-				if(!(TextureOpCaps & D3DTEXOPCAPS_ADD))
+				if(!supports_texture_op(RB_TEXTURE_OP_ADD))
 					PricOp = D3DTOP_MODULATE;
 				else
 					PricOp = D3DTOP_ADD;
@@ -598,7 +599,7 @@ void ShaderClass::Apply()
 
 			// Bump map is a hack currently as we only have two stages in use!
 			case ShaderClass::GRADIENT_BUMPENVMAP:
-				if(TextureOpCaps & D3DTEXOPCAPS_BUMPENVMAP)
+				if(supports_texture_op(RB_TEXTURE_OP_BUMPENVMAP))
 				{
 					PricOp=D3DTOP_BUMPENVMAP;
 					PricArg1=D3DTA_TEXTURE;
@@ -618,7 +619,7 @@ void ShaderClass::Apply()
 
 			// Bump map is a hack currently as we only have two stages in use!
 			case ShaderClass::GRADIENT_BUMPENVMAPLUMINANCE:
-				if(TextureOpCaps & D3DTEXOPCAPS_BUMPENVMAPLUMINANCE)
+				if(supports_texture_op(RB_TEXTURE_OP_BUMPENVMAPLUMINANCE))
 				{
 					PricOp=D3DTOP_BUMPENVMAPLUMINANCE;
 					PricArg1=D3DTA_TEXTURE;
@@ -638,7 +639,7 @@ void ShaderClass::Apply()
 
 			case ShaderClass::GRADIENT_MODULATE2X:
 				//Modulate Alpha
-				if(!(TextureOpCaps & D3DTOP_MODULATE2X))
+				if(!supports_texture_op(RB_TEXTURE_OP_MODULATE2X))
 					PricOp = D3DTOP_MODULATE;
 				else
 					PricOp = D3DTOP_MODULATE2X;
@@ -695,7 +696,7 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_DETAIL:
-				if(TextureOpCaps & D3DTEXOPCAPS_SELECTARG1)
+				if(supports_texture_op(RB_TEXTURE_OP_SELECTARG1))
 				{
 					SeccOp = D3DTOP_SELECTARG1;
 					SeccArg1 = D3DTA_TEXTURE;
@@ -707,7 +708,7 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_SCALE:
-				if(TextureOpCaps & D3DTEXOPCAPS_MODULATE)
+				if(supports_texture_op(RB_TEXTURE_OP_MODULATE))
 				{
 					SeccOp = D3DTOP_MODULATE;
 					SeccArg1 = D3DTA_TEXTURE;
@@ -719,12 +720,12 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_INVSCALE:
-				if(TextureOpCaps & D3DTEXOPCAPS_ADDSMOOTH)
+				if(supports_texture_op(RB_TEXTURE_OP_ADDSMOOTH))
 				{
 					SeccOp = D3DTOP_ADDSMOOTH;
 					SeccArg1 = D3DTA_TEXTURE;
 					SeccArg2 = D3DTA_CURRENT;
-				} else if(TextureOpCaps & D3DTEXOPCAPS_ADD) {
+				} else if(supports_texture_op(RB_TEXTURE_OP_ADD)) {
 					SeccOp = D3DTOP_ADD;
 					SeccArg1 = D3DTA_TEXTURE;
 					SeccArg2 = D3DTA_CURRENT;
@@ -735,7 +736,7 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_ADD:
-				if(TextureOpCaps & D3DTEXOPCAPS_ADD)
+				if(supports_texture_op(RB_TEXTURE_OP_ADD))
 				{
 					SeccOp = D3DTOP_ADD;
 					SeccArg1 = D3DTA_TEXTURE;
@@ -747,7 +748,7 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_SUB:
-				if(TextureOpCaps & D3DTEXOPCAPS_SUBTRACT)
+				if(supports_texture_op(RB_TEXTURE_OP_SUBTRACT))
 				{
 					SeccOp = D3DTOP_SUBTRACT;
 					SeccArg1 = D3DTA_TEXTURE;
@@ -759,7 +760,7 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_SUBR:
-				if(TextureOpCaps & D3DTEXOPCAPS_SUBTRACT)
+				if(supports_texture_op(RB_TEXTURE_OP_SUBTRACT))
 				{
 					SeccOp = D3DTOP_SUBTRACT;
 					SeccArg1 = D3DTA_CURRENT;
@@ -771,7 +772,7 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_BLEND:
-				if(TextureOpCaps & D3DTEXOPCAPS_BLENDTEXTUREALPHA)
+				if(supports_texture_op(RB_TEXTURE_OP_BLENDTEXTUREALPHA))
 				{
 					SeccOp = D3DTOP_BLENDTEXTUREALPHA;
 					SeccArg1 = D3DTA_TEXTURE;
@@ -783,7 +784,7 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_DETAILBLEND:
-				if(TextureOpCaps & D3DTEXOPCAPS_BLENDCURRENTALPHA)
+				if(supports_texture_op(RB_TEXTURE_OP_BLENDCURRENTALPHA))
 				{
 					SeccOp = D3DTOP_BLENDCURRENTALPHA;
 					SeccArg1 = D3DTA_TEXTURE;
@@ -795,11 +796,11 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_ADDSIGNED:
-				if (TextureOpCaps & D3DTEXOPCAPS_ADDSIGNED) {
+				if (supports_texture_op(RB_TEXTURE_OP_ADDSIGNED)) {
 					SeccOp = D3DTOP_ADDSIGNED;
 					SeccArg1 = D3DTA_TEXTURE;
 					SeccArg2 = D3DTA_CURRENT;
-				}  else if (TextureOpCaps & D3DTEXOPCAPS_ADD) {
+				}  else if (supports_texture_op(RB_TEXTURE_OP_ADD)) {
 					SeccOp = D3DTOP_ADD;
 					SeccArg1 = D3DTA_TEXTURE;
 					SeccArg2 = D3DTA_CURRENT;
@@ -809,15 +810,15 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_ADDSIGNED2X:
-				if (TextureOpCaps & D3DTEXOPCAPS_ADDSIGNED2X) {
+				if (supports_texture_op(RB_TEXTURE_OP_ADDSIGNED2X)) {
 					SeccOp = D3DTOP_ADDSIGNED2X;
 					SeccArg1 = D3DTA_TEXTURE;
 					SeccArg2 = D3DTA_CURRENT;
-				} else if (TextureOpCaps & D3DTEXOPCAPS_ADDSIGNED) {
+				} else if (supports_texture_op(RB_TEXTURE_OP_ADDSIGNED)) {
 					SeccOp = D3DTOP_ADDSIGNED;
 					SeccArg1 = D3DTA_TEXTURE;
 					SeccArg2 = D3DTA_CURRENT;
-				}  else if (TextureOpCaps & D3DTEXOPCAPS_ADD) {
+				}  else if (supports_texture_op(RB_TEXTURE_OP_ADD)) {
 					SeccOp = D3DTOP_ADD;
 					SeccArg1 = D3DTA_TEXTURE;
 					SeccArg2 = D3DTA_CURRENT;
@@ -827,11 +828,11 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_SCALE2X:
-				if(TextureOpCaps & D3DTEXOPCAPS_MODULATE2X) {
+				if(supports_texture_op(RB_TEXTURE_OP_MODULATE2X)) {
 					SeccOp = D3DTOP_MODULATE2X;
 					SeccArg1 = D3DTA_TEXTURE;
 					SeccArg2 = D3DTA_CURRENT;
-				} else if(TextureOpCaps & D3DTEXOPCAPS_MODULATE) {
+				} else if(supports_texture_op(RB_TEXTURE_OP_MODULATE)) {
 					SeccOp = D3DTOP_MODULATE;
 					SeccArg1 = D3DTA_TEXTURE;
 					SeccArg2 = D3DTA_CURRENT;
@@ -842,11 +843,11 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILCOLOR_MODALPHAADDCOLOR:
-				if (DX8Wrapper::Get_Current_Caps()->Support_ModAlphaAddClr()) {
+				if (supports_texture_op(RB_TEXTURE_OP_MODULATEALPHA_ADDCOLOR)) {
 					SeccOp = D3DTOP_MODULATEALPHA_ADDCOLOR;
 					SeccArg1 = D3DTA_CURRENT;
 					SeccArg2 = D3DTA_TEXTURE;
-				} else if (TextureOpCaps & D3DTEXOPCAPS_ADD) {
+				} else if (supports_texture_op(RB_TEXTURE_OP_ADD)) {
 					SeccOp = D3DTOP_ADD;
 					SeccArg1 = D3DTA_TEXTURE;
 					SeccArg2 = D3DTA_CURRENT;
@@ -863,7 +864,7 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILALPHA_DETAIL:
-				if(TextureOpCaps & D3DTEXOPCAPS_SELECTARG1)
+				if(supports_texture_op(RB_TEXTURE_OP_SELECTARG1))
 				{
 					SecaOp = D3DTOP_SELECTARG1;
 					SecaArg1 = D3DTA_TEXTURE;
@@ -875,7 +876,7 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILALPHA_SCALE:
-				if(TextureOpCaps & D3DTEXOPCAPS_MODULATE)
+				if(supports_texture_op(RB_TEXTURE_OP_MODULATE))
 				{
 					SecaOp = D3DTOP_MODULATE;
 					SecaArg1 = D3DTA_TEXTURE;
@@ -887,7 +888,7 @@ void ShaderClass::Apply()
 				break;
 
 			case ShaderClass::DETAILALPHA_INVSCALE:
-				if(TextureOpCaps & D3DTEXOPCAPS_ADDSMOOTH)
+				if(supports_texture_op(RB_TEXTURE_OP_ADDSMOOTH))
 				{
 					SecaOp = D3DTOP_ADDSMOOTH;
 					SecaArg1 = D3DTA_TEXTURE;
