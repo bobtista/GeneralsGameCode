@@ -68,6 +68,7 @@
 #include "WW3D2/shader.h"
 #include "WW3D2/dx8caps.h"
 #include "WW3D2/colorspace.h"
+#include "WW3D2/ww3dcolor.h"
 
 #include "WW3D2/shdlib.h"
 
@@ -1721,11 +1722,11 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 					Object *object=draw->getObject();
 
 					Int color=object->getControllingPlayer()->getPlayerColor();
-					RGB_To_HSV(hsv,Vector3(((color>>16)&0xff)/255.0f,((color>>8)&0xff)/255.0f,(color &0xff)/255.0f));
-					hsv.Z*=TheGlobalData->m_occludedLuminanceScale;
-					HSV_To_RGB(rgb,hsv);
-					visiblePlayerColors[numVisiblePlayerColors++]=DX8Wrapper::Convert_Color(rgb,0.5f);
-				}
+						RGB_To_HSV(hsv,Vector3(((color>>16)&0xff)/255.0f,((color>>8)&0xff)/255.0f,(color &0xff)/255.0f));
+						hsv.Z*=TheGlobalData->m_occludedLuminanceScale;
+						HSV_To_RGB(rgb,hsv);
+						visiblePlayerColors[numVisiblePlayerColors++]=WW3DColor::To_ARGB(rgb,0.5f);
+					}
 
 				Int thisPlayerColorIndex=playerColorIndex[k];
 
