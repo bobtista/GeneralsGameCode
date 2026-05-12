@@ -476,6 +476,8 @@ Completed low-risk migrations:
   op/argument enums without D3D casts.
 - `shader.cpp` no longer includes `dx8wrapper.h`; its remaining scalar state
   uses native C++ types plus backend enums.
+- Game-client asset recoloring and occluded-player tint generation now use
+  backend-neutral `WW3DColor` packing instead of `DX8Wrapper::Convert_Color`.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.

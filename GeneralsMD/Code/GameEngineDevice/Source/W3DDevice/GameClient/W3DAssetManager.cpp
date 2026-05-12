@@ -54,10 +54,10 @@
 #include "meshmdl.h"
 #include "part_emt.h"
 #include "vertmaterial.h"
-#include "dx8wrapper.h"
 #include "texture.h"
 #include "surfaceclass.h"
 #include "textureloader.h"
+#include "ww3dcolor.h"
 #include "ww3dformat.h"
 #include "colorspace.h"
 #include <wwprofile.h>
@@ -1502,9 +1502,9 @@ void W3DAssetManager::Recolor_Vertices(unsigned int *color, int count, const Vec
 
 	for (i=0; i<count; i++)
 	{
-		rgba=DX8Wrapper::Convert_Color(color[i]);
+		rgba=WW3DColor::From_ARGB(color[i]);
 		Recolor(reinterpret_cast<Vector3&>(rgba),hsv_shift);
-		color[i]=DX8Wrapper::Convert_Color_Clamp(rgba);
+		color[i]=WW3DColor::To_ARGB_Clamp(rgba);
 	}
 }
 
