@@ -441,6 +441,8 @@ Completed low-risk migrations:
   setup and cleanup through backend texture-combine setters.
 - `AlphaTerrainTextureClass::Apply` now routes alpha terrain blend and legacy
   8-stage terrain texture-combine setup through backend setters.
+- `CloudMapTerrainTextureClass::restore` now restores terrain texture-combine
+  cleanup state through backend setters.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
