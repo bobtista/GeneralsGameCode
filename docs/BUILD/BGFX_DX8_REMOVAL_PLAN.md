@@ -409,6 +409,9 @@ Completed low-risk migrations:
 - `SortingRendererClass::Flush` now saves/restores triangle draw enable through
   `IRenderBackend`. DX8 delegates to the legacy wrapper flag; bgfx owns its
   own equivalent flag and honors it in triangle/strip submits.
+- Projected and volumetric shadow draw paths now also read triangle draw enable
+  through `IRenderBackend`, leaving the remaining wrapper checks inside the
+  legacy DX8 implementation/facade.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

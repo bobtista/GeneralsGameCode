@@ -608,7 +608,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 		g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 
 
-		if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+		if (g_renderBackend->Is_Triangle_Draw_Enabled())
 		{
 			Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
 			// TheSuperHackers @bugfix bobtista 01/05/2026 Submit projected
@@ -698,7 +698,7 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 	g_renderBackend->Set_Vertex_Buffer(shadowDecalVertexBuffer, 0);
 	g_renderBackend->Set_Vertex_Shader(SHADOW_DECAL_FVF);
 
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (g_renderBackend->Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(nShadowDecalPolysInBatch,nShadowDecalVertsInBatch,ShaderClass::_PresetOpaqueShader);
 		// TheSuperHackers @bugfix bobtista 30/04/2026 Skip only the
