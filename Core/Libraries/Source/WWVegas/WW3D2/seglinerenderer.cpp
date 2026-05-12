@@ -40,7 +40,7 @@
 #include "seglinerenderer.h"
 #include "ww3d.h"
 #include "rinfo.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "sortingrenderer.h"
 #include "vp.h"
 #include "Vector3i.h"
@@ -966,14 +966,14 @@ void SegLineRendererClass::Render
 		vArray[vidx].x = top.X;
 		vArray[vidx].y = top.Y;
 		vArray[vidx].z = top.Z;
-		vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[1][TOP_EDGE].RGBA);
+		vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[1][TOP_EDGE].RGBA);
 		vArray[vidx].u1 = u_values[0] + uv_offset.X;
 		vArray[vidx].v1 = intersection[1][TOP_EDGE].TexV + uv_offset.Y;
 		vidx++;
 		vArray[vidx].x = bottom.X;
 		vArray[vidx].y = bottom.Y;
 		vArray[vidx].z = bottom.Z;
-		vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[1][BOTTOM_EDGE].RGBA);
+		vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[1][BOTTOM_EDGE].RGBA);
 		vArray[vidx].u1 = u_values[1] + uv_offset.X;
 		vArray[vidx].v1 = intersection[1][BOTTOM_EDGE].TexV + uv_offset.Y;
 		vidx++;
@@ -1027,14 +1027,14 @@ void SegLineRendererClass::Render
 				vArray[vidx].x = top.X;
 				vArray[vidx].y = top.Y;
 				vArray[vidx].z = top.Z;
-				vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[top_int_idx][TOP_EDGE].RGBA);
+				vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[top_int_idx][TOP_EDGE].RGBA);
 				vArray[vidx].u1 = u_values[0] + uv_offset.X;
 				vArray[vidx].v1 = intersection[top_int_idx][TOP_EDGE].TexV + uv_offset.Y;
 				vidx++;
 				vArray[vidx].x = bottom.X;
 				vArray[vidx].y = bottom.Y;
 				vArray[vidx].z = bottom.Z;
-				vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
+				vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
 				vArray[vidx].u1 = u_values[1] + uv_offset.X;
 				vArray[vidx].v1 = intersection[bottom_int_idx][BOTTOM_EDGE].TexV + uv_offset.Y;
 				vidx++;
@@ -1063,7 +1063,7 @@ void SegLineRendererClass::Render
 					vArray[vidx].x = bottom.X;
 					vArray[vidx].y = bottom.Y;
 					vArray[vidx].z = bottom.Z;
-					vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
+					vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[bottom_int_idx][BOTTOM_EDGE].RGBA);
 					vArray[vidx].u1 = u_values[1] + uv_offset.X;
 					vArray[vidx].v1 = intersection[bottom_int_idx][BOTTOM_EDGE].TexV + uv_offset.Y;
 					vidx++;
@@ -1092,7 +1092,7 @@ void SegLineRendererClass::Render
 					vArray[vidx].x = top.X;
 					vArray[vidx].y = top.Y;
 					vArray[vidx].z = top.Z;
-					vArray[vidx].diffuse = DX8Wrapper::Convert_Color(intersection[top_int_idx][TOP_EDGE].RGBA);
+					vArray[vidx].diffuse = WW3DColor::To_ARGB(intersection[top_int_idx][TOP_EDGE].RGBA);
 					vArray[vidx].u1 = u_values[0] + uv_offset.X;
 					vArray[vidx].v1 = intersection[top_int_idx][TOP_EDGE].TexV + uv_offset.Y;
 					vidx++;
@@ -1123,7 +1123,7 @@ void SegLineRendererClass::Render
 
 		// If color is not white or opacity not 100%, enable gradient in shader and in renderer - otherwise disable.
 		unsigned int rgba;
-		rgba=DX8Wrapper::Convert_Color(Color,Opacity);
+		rgba=WW3DColor::To_ARGB(Color,Opacity);
 		bool rgba_all=(rgba==0xFFFFFFFF);
 
 		// Enable sorting if sorting has not been disabled and line is translucent and alpha testing is not enabled.
