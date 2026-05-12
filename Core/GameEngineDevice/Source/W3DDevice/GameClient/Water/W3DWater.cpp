@@ -103,6 +103,23 @@ static inline void W3DWater_SetTextureTransform(unsigned stage, const D3DXMATRIX
 		g_renderBackend->Set_Texture_Transform(stage, To_Matrix4x4(matrix));
 }
 
+static inline void W3DWater_SetStageAddress2D(unsigned stage, RenderBackendTextureAddressMode address_mode)
+{
+	g_renderBackend->Set_Texture_Address_Mode(stage, address_mode, address_mode, RB_TEXTURE_ADDRESS_WRAP);
+}
+
+static inline void W3DWater_SetStageMinMagFilter(unsigned stage,
+	RenderBackendTextureSampleFilter min_filter,
+	RenderBackendTextureSampleFilter mag_filter)
+{
+	g_renderBackend->Set_Texture_Min_Mag_Filter(stage, min_filter, mag_filter);
+}
+
+static inline void W3DWater_SetStageMipFilter(unsigned stage, RenderBackendTextureSampleFilter mip_filter)
+{
+	g_renderBackend->Set_Texture_Mip_Filter(stage, mip_filter);
+}
+
 #define MIPMAP_BUMP_TEXTURE
 
 // DEFINES ////////////////////////////////////////////////////////////////////////////////////////
@@ -262,8 +279,7 @@ void WaterRenderObjClass::setupJbaWaterShader()
 	if (!m_riverAlphaEdge->Is_Initialized())
 		m_riverAlphaEdge->Init();
 	W3DWater_BindTexture(3, m_riverAlphaEdge);
-	g_renderBackend->Set_Texture_Stage_State(3,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State(3,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+	W3DWater_SetStageAddress2D(3, RB_TEXTURE_ADDRESS_WRAP);
 	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
 	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, 0);
 	g_renderBackend->Set_Texture_Stage_State(3,  D3DTSS_TEXCOORDINDEX, 1);
@@ -279,14 +295,12 @@ void WaterRenderObjClass::setupJbaWaterShader()
 			m_waterNoiseTexture->Init();
 		W3DWater_BindTexture(2, m_waterNoiseTexture);
 
-		g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-		g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+		W3DWater_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 
 		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
 		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+		W3DWater_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
 
 		D3DXMATRIX curView;
 		W3DWater_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
@@ -301,14 +315,10 @@ void WaterRenderObjClass::setupJbaWaterShader()
 		W3DWater_SetTextureTransform(2, destMatrix);
 
 	}
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_MINFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_MINFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_MAGFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_MINFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_MAGFILTER, D3DTEXF_LINEAR );
+	W3DWater_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
+	W3DWater_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
+	W3DWater_SetStageMinMagFilter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
+	W3DWater_SetStageMinMagFilter(3, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 	if (m_riverWaterPixelShader){
 		const D3DXVECTOR4 reflectionFactor(REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f);
 		g_renderBackend->Set_Pixel_Shader_Constant(0, &reflectionFactor, 1);
@@ -1729,8 +1739,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				inv *=clipMatrix;
 
 				// Change texture wrapping mode to 'clamp' for texture stage 1
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+				W3DWater_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_CLAMP);
 
 				// Use CameraSpace vertices as input to matrix and use texture wrap mode from stage 1
 				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION|1);
@@ -1741,8 +1750,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				W3DWater_SetTextureTransform(1, inv);
 
 				// Disable bilinear filtering
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_POINT);
+				W3DWater_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_POINT);
 
 				// Pass stage 0 texture data untouched(by modulating with white)
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );	//stage 1 texture
@@ -2099,19 +2107,16 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 //	m_pDev->SetTextureStageState( 1, D3DTSS_MIPFILTER, D3DTEXF_NONE );
 	//end of default setup
 
-	g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+	W3DWater_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_WRAP);
 	g_renderBackend->Set_Texture_UV_Wrap(0, true);
 
-	g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+	W3DWater_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_CLAMP);
 
 	m_pDev->SetTexture( 0, m_pBumpTexture[(Int)m_fBumpFrame]);
 	if (g_renderBackend) g_renderBackend->Set_Texture(0, nullptr); // raw D3D texture, clear bgfx cache
 #ifdef MIPMAP_BUMP_TEXTURE
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MIPFILTER, D3DTEXF_POINT );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR );
+	W3DWater_SetStageMipFilter(0, RB_TEXTURE_SAMPLE_POINT);
+	W3DWater_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 #endif
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_BUMPENVMAT00, F2DW(m_fBumpScale) );
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_BUMPENVMAT01, F2DW(0.0f) );
@@ -2198,8 +2203,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|1);
 	g_renderBackend->Set_Depth_Write_Enable(true);
 
-	g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+	W3DWater_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 
 	g_renderBackend->Set_Texture_UV_Wrap(0, false);	//turn off texture wrapping
 
@@ -3246,8 +3250,7 @@ void WaterRenderObjClass::setupFlatWaterShader()
 
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_ADD );
 	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
-	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+	W3DWater_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_WRAP);
 	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, 0);
 
 	Bool doSparkles = true;
@@ -3264,14 +3267,12 @@ void WaterRenderObjClass::setupFlatWaterShader()
 
 		W3DWater_BindTexture(2, m_waterNoiseTexture);
 
-		g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-		g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+		W3DWater_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 
 		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
 		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+		W3DWater_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
 
 		D3DXMATRIX curView;
 		W3DWater_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
@@ -3286,12 +3287,9 @@ void WaterRenderObjClass::setupFlatWaterShader()
 		W3DWater_SetTextureTransform(2, destMatrix);
 
 	}
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_MINFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_MINFILTER, D3DTEXF_LINEAR );
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_MAGFILTER, D3DTEXF_LINEAR );
+	W3DWater_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
+	W3DWater_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
+	W3DWater_SetStageMinMagFilter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 	if (m_trapezoidWaterPixelShader){
 		const D3DXVECTOR4 reflectionFactor(REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f);
 		g_renderBackend->Set_Pixel_Shader_Constant(0, &reflectionFactor, 1);
