@@ -91,6 +91,16 @@ static void ApplyTerrainFilter(unsigned int stage)
 	g_renderBackend->Set_Texture_Sample_Filter(stage, min_mag_filter, min_mag_filter, GetTerrainMipFilter());
 }
 
+static void SetTerrainTexcoordSource(unsigned int stage, unsigned int uv_index)
+{
+	g_renderBackend->Set_Texture_Coord_Source(stage, RB_TEXCOORD_MESH_UV, uv_index);
+}
+
+static void DisableTerrainTextureTransform(unsigned int stage)
+{
+	g_renderBackend->Set_Texture_Transform_Mode(stage, 0, false);
+}
+
 void TerrainTextureClass::UpdateTerrainAtlasRegions(WorldHeightMap *htMap, unsigned int textureWidth, unsigned int textureHeight, unsigned int textureFormat)
 {
 	Clear_Atlas_Regions();
@@ -723,7 +733,7 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
 		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 1 );
+		SetTerrainTexcoordSource(0, 1);
 		// Blend the result using the alpha. (came from diffuse mod texture)
 		g_renderBackend->Set_Alpha_Blend_Enable(true);
 		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
@@ -738,7 +748,7 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 			//This method is a backdoor specific to Nvidia based cards.  It will fail on
 			//other hardware.  Allows single pass blend of 2 textures and post modulate diffuse.
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0);
+			SetTerrainTexcoordSource(0, 0);
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
@@ -746,7 +756,7 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
 
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_ADD);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1);
+			SetTerrainTexcoordSource(1, 1);
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_DIFFUSE | D3DTA_COMPLEMENT | D3DTA_ALPHAREPLICATE);
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_ADD);
@@ -755,7 +765,7 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 
 			g_renderBackend->Set_Texture(2, nullptr);
 			g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLOROP, D3DTOP_MODULATE);
-			g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_TEXCOORDINDEX, 2);
+			SetTerrainTexcoordSource(2, 2);
 			g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 			g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLORARG2, D3DTA_TEXTURE);
 			g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
@@ -764,7 +774,7 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 
 			g_renderBackend->Set_Texture(3, nullptr);
 			g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-			g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_TEXCOORDINDEX, 3);
+			SetTerrainTexcoordSource(3, 3);
 			g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLORARG1, D3DTA_DIFFUSE | 0 | D3DTA_ALPHAREPLICATE);
 			g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 			g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1);
@@ -773,7 +783,7 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 
 			g_renderBackend->Set_Texture(4, nullptr);
 			g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLOROP, D3DTOP_MODULATE);
-			g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_TEXCOORDINDEX, 4);
+			SetTerrainTexcoordSource(4, 4);
 			g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLORARG1, D3DTA_CURRENT);
 			g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 			g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
@@ -782,7 +792,7 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 
 			g_renderBackend->Set_Texture(5, nullptr);
 			g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLOROP, D3DTOP_ADD);
-			g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_TEXCOORDINDEX, 5);
+			SetTerrainTexcoordSource(5, 5);
 			g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
 			g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 			g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_ALPHAOP,   D3DTOP_ADD);
@@ -791,7 +801,7 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 
 			g_renderBackend->Set_Texture(6, nullptr);
 			g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLOROP, D3DTOP_MODULATE);
-			g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_TEXCOORDINDEX, 6);
+			SetTerrainTexcoordSource(6, 6);
 			g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLORARG1, D3DTA_TFACTOR);
 			g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLORARG2, D3DTA_TFACTOR);
 			g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
@@ -800,7 +810,7 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 
 			g_renderBackend->Set_Texture(7, nullptr);
 			g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-			g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_TEXCOORDINDEX, 7);
+			SetTerrainTexcoordSource(7, 7);
 			g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLORARG1, D3DTA_TFACTOR);
 			g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLORARG2, D3DTA_TFACTOR);
 			g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1);
@@ -1040,8 +1050,8 @@ void CloudMapTerrainTextureClass::restore()
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
 	g_renderBackend->Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+	SetTerrainTexcoordSource(0, 0);
+	DisableTerrainTextureTransform(0);
 
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
@@ -1049,8 +1059,8 @@ void CloudMapTerrainTextureClass::restore()
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
 	g_renderBackend->Set_Texture_Address_Mode(1, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 0 );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+	SetTerrainTexcoordSource(1, 0);
+	DisableTerrainTextureTransform(1);
 	g_renderBackend->Set_Alpha_Blend_Enable(false);
 	g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 
@@ -1063,7 +1073,7 @@ void CloudMapTerrainTextureClass::restore()
 		Int i;
 		for (i=0; i<8; i++) {
 			g_renderBackend->Set_Texture_Stage_State( i, D3DTSS_COLOROP, D3DTOP_DISABLE);
-			g_renderBackend->Set_Texture_Stage_State( i, D3DTSS_TEXCOORDINDEX, i);
+			SetTerrainTexcoordSource(i, i);
 			g_renderBackend->Set_Texture_Stage_State( i, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 			g_renderBackend->Set_Texture_Stage_State( i, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 			g_renderBackend->Set_Texture_Stage_State( i, D3DTSS_ALPHAOP,   D3DTOP_DISABLE);
@@ -1110,7 +1120,7 @@ void ScorchTextureClass::Apply(unsigned int stage)
 	// Setup bilinear or trilinear filtering as specified in global data.
 	ApplyTerrainFilter(stage);
 
-	g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+	DisableTerrainTextureTransform(0);
 	g_renderBackend->Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_WRAP);
 	// Now setup the texture pipeline.
 
@@ -1118,7 +1128,7 @@ void ScorchTextureClass::Apply(unsigned int stage)
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
+	SetTerrainTexcoordSource(0, 0);
 	g_renderBackend->Set_Alpha_Blend_Enable(true);
 	g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 
