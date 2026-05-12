@@ -40,7 +40,7 @@
 
 #include <vector>
 
-#ifndef _D3D8_H_
+#if !defined(GGC_BGFX_STANDALONE) && !defined(_D3D8_H_)
 struct IDirect3DDevice8;
 struct IDirect3DVertexBuffer8;
 struct IDirect3DIndexBuffer8;
