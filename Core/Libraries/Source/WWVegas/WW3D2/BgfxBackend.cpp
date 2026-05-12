@@ -6178,6 +6178,11 @@ void BgfxBackend::Set_Texture_Mip_Filter(unsigned stage, RenderBackendTextureSam
     Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, TextureSampleFilterToD3DStageState(mip_filter));
 }
 
+void BgfxBackend::Set_Texture_Max_Anisotropy(unsigned stage, unsigned max_anisotropy)
+{
+    Set_Texture_Stage_State(stage, D3DTSS_MAXANISOTROPY, max_anisotropy);
+}
+
 void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)
 {
     RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_ADDRESSU,

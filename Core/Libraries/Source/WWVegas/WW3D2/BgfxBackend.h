@@ -231,6 +231,7 @@ public:
                                             RenderBackendTextureSampleFilter mag_filter) override;
     virtual void Set_Texture_Mip_Filter(unsigned stage,
                                         RenderBackendTextureSampleFilter mip_filter) override;
+    virtual void Set_Texture_Max_Anisotropy(unsigned stage, unsigned max_anisotropy) override;
     virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
     virtual void Configure_Custom_Edging_Cloud_Texture_Stages() override;

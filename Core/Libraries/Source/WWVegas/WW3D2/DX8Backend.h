@@ -194,6 +194,7 @@ public:
                                             RenderBackendTextureSampleFilter mag_filter) override;
     virtual void Set_Texture_Mip_Filter(unsigned stage,
                                         RenderBackendTextureSampleFilter mip_filter) override;
+    virtual void Set_Texture_Max_Anisotropy(unsigned stage, unsigned max_anisotropy) override;
     virtual void Set_Texture_Bump_Env_Matrix(unsigned stage,
                                              float m00,
                                              float m01,
