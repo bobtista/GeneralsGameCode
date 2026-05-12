@@ -481,6 +481,9 @@ Completed low-risk migrations:
 - Extended render debug toggles now live in `RenderDebugStats`; the DX8
   wrapper keeps a compatibility reference, but game-facing stats code no
   longer names `DX8Wrapper::stats`.
+- Waypoint and status-circle public headers no longer export DX8 buffer
+  definitions; status-circle keeps the concrete buffer includes in its
+  implementation file until the buffer owner is migrated.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
