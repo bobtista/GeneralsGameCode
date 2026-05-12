@@ -276,7 +276,8 @@ static bool IsDefaultInfantryBlobShadowName(const char *name)
 {
 	return name != nullptr
 		&& (_stricmp(name, "shadowi.tga") == 0
-			|| _stricmp(name, "shadowi.dds") == 0);
+			|| _stricmp(name, "shadowi.dds") == 0
+			|| _stricmp(name, "shadowi") == 0);
 }
 
 static bool IsDefaultInfantryBlobShadowDecal(W3DShadowTexture *texture, ShadowType type)
@@ -1668,8 +1669,25 @@ W3DProjectedShadow* W3DProjectedShadowManager::addShadow(RenderObjClass *robj, S
 	texture_name[0] = '\0';
 
 
-	if (!m_dynamicRenderTarget || !robj || !TheGlobalData->m_useShadowDecals)
-		return nullptr;	//right now we require hardware render-to-texture support
+	if (!robj || !TheGlobalData->m_useShadowDecals)
+	{
+		LogProjectedShadowPath("addShadow-skip", robj, draw, shadowInfo,
+			SHADOW_NONE, texture_name, allowWorldAlign, allowSunDirection,
+			decalSizeX, decalSizeY, decalOffsetX, decalOffsetY);
+		return nullptr;
+	}
+
+	const bool canUseStaticDecalWithoutRenderTarget =
+		shadowInfo != nullptr
+		&& shadowInfo->m_type == SHADOW_DECAL
+		&& IsDefaultInfantryBlobShadowName(shadowInfo->m_ShadowName);
+	if (!m_dynamicRenderTarget && !canUseStaticDecalWithoutRenderTarget)
+	{
+		LogProjectedShadowPath("addShadow-skip", robj, draw, shadowInfo,
+			SHADOW_NONE, texture_name, allowWorldAlign, allowSunDirection,
+			decalSizeX, decalSizeY, decalOffsetX, decalOffsetY);
+		return nullptr;
+	}
 
 
 	if (shadowInfo)

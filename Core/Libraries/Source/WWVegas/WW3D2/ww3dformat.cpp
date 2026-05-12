@@ -340,6 +340,7 @@ WW3DFormat Get_Valid_Texture_Format(WW3DFormat format, bool is_compression_allow
 		format=WW3D_FORMAT_X8R8G8B8;
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	WW3D::Get_Device_Resolution(w,h,bits,windowed);
 	if (WW3D::Get_Texture_Bitdepth()==16) bits=16;
 
@@ -361,6 +362,11 @@ WW3DFormat Get_Valid_Texture_Format(WW3DFormat format, bool is_compression_allow
 		}
 
 	}
+#else
+	// The bgfx standalone renderer is not constrained by DX8-era 16-bit
+	// texture-depth settings. Preserve native 24/32-bit texture formats so
+	// UI and effect alpha channels do not get quantized through A4R4G4B4.
+#endif
 
 	// Fallback if the hardware doesn't support the texture format
 	if (!DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(format)) {

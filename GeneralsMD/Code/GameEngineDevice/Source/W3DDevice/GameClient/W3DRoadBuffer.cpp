@@ -177,7 +177,11 @@ void RoadType::loadTexture(AsciiString path, Int ID)
 	/// @todo - delay loading textures and only load textures referenced by map.
 	WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
 
+#if defined(GGC_BGFX_STANDALONE)
+	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_1);
+#else
 	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_3);
+#endif
 	//Hack to disable texture reduction
 	//m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_3, WW3D_FORMAT_UNKNOWN,true,TextureBaseClass::TEX_REGULAR, false);
 
@@ -3318,6 +3322,7 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 	// the same cloud/noise multipass family as terrain; bgfx's fixed
 	// function fallback does not emulate TCI_CAMERASPACEPOSITION, so
 	// pass 2+ reads from garbage UVs and paints terrain/road tiles black.
+	st = W3DShaderManager::ST_ROAD_BASE;
 	devicePasses = 1;
 #endif
 
@@ -3398,4 +3403,3 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 #endif
 	m_curRoadType = 0;
 }
-

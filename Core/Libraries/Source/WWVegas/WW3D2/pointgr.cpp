@@ -91,6 +91,9 @@
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 
+#include <cstdio>
+#include <cstdlib>
+
 // Upgraded to DX8 2/2/01 HY
 
 // static data members
@@ -930,6 +933,30 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 	const bool sort = (Shader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (Shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
+	const bool pointGroupDiag = std::getenv("GGC_POINTGROUP_DIAG") != nullptr;
+	if (pointGroupDiag)
+	{
+		if (FILE *diag = std::fopen("ggc_pointgroup_diag.txt", "a"))
+		{
+			std::fprintf(diag,
+				"pointgroup texture=%s points=%d vnum=%d pnum=%d sort=%d billboard=%d mode=%d shader=0x%08x dstBlend=%d alphaTest=%d sortingEnabled=%d first=(%.2f,%.2f,%.2f)\n",
+				Texture != nullptr ? Texture->Get_Texture_Name().str() : "<none>",
+				PointCount,
+				vnum,
+				pnum,
+				sort ? 1 : 0,
+				Billboard ? 1 : 0,
+				static_cast<int>(PointMode),
+				Shader.Get_Bits(),
+				static_cast<int>(Shader.Get_Dst_Blend_Func()),
+				static_cast<int>(Shader.Get_Alpha_Test()),
+				WW3D::Is_Sorting_Enabled() ? 1 : 0,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].X : 0.0f,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].Y : 0.0f,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].Z : 0.0f);
+			std::fclose(diag);
+		}
+	}
 
 	IndexBufferClass *indexbuffer;
 	int	verticesperprimitive;/// lorenzen fixed

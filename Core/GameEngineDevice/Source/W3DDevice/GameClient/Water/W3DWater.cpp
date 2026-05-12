@@ -1002,14 +1002,14 @@ void WaterRenderObjClass::ReAcquireResources()
 	{
 #if defined(GGC_BGFX_STANDALONE)
 		// Standalone bgfx implements these water paths with native programs.
-		// Ask the backend for opaque compatibility handles so feature gates
+		// Ask the backend for typed compatibility handles so feature gates
 		// keep their behavior without depending on legacy D3D8 bytecode.
 		unsigned long legacyHandle = 0;
-		if (g_renderBackend->Create_Pixel_Shader(nullptr, &legacyHandle))
+		if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_RIVER_WATER, &legacyHandle))
 			m_riverWaterPixelShader = static_cast<DWORD>(legacyHandle);
-		if (g_renderBackend->Create_Pixel_Shader(nullptr, &legacyHandle))
+		if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_REFLECTIVE_WATER, &legacyHandle))
 			m_waterPixelShader = static_cast<DWORD>(legacyHandle);
-		if (g_renderBackend->Create_Pixel_Shader(nullptr, &legacyHandle))
+		if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_TRAPEZOID_WATER, &legacyHandle))
 			m_trapezoidWaterPixelShader = static_cast<DWORD>(legacyHandle);
 #else
 		ID3DXBuffer *compiledShader;
@@ -3296,11 +3296,13 @@ void WaterRenderObjClass::setupFlatWaterShader()
 
 	//Setup shroud to render in same pass as water
 	if (m_trapezoidWaterPixelShader)
-	{	if (TheTerrainRenderObject->getShroud())
+	{	if (TheTerrainRenderObject->getShroud() && TheTerrainRenderObject->getShroud()->getShroudTexture())
 		{
-			W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
+			TextureClass *shroudTexture = TheTerrainRenderObject->getShroud()->getShroudTexture();
+			W3DShaderManager::setTexture(0, shroudTexture);
 			//Use stage 3 to apply the shroud
 			W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 3);
+			W3DWater_BindTexture(3, shroudTexture);
 			//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 			//write to the zbuffer.  Change to LESSEQUAL.
 			g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
@@ -3324,6 +3326,8 @@ void WaterRenderObjClass::setupFlatWaterShader()
 
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_ADD );
 	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
+	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
+	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
 	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, 0);
 
 	Bool doSparkles = true;
@@ -3691,6 +3695,10 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 			waterShader.Set_Depth_Mask(ShaderClass::DEPTH_WRITE_DISABLE);
 			g_renderBackend->Set_Shader(waterShader);
 		}
+		if (m_trapezoidWaterPixelShader)
+		{
+			g_renderBackend->Set_Pixel_Shader(m_trapezoidWaterPixelShader);
+		}
 		g_renderBackend->Override_Alpha_Blend_Enable(true);
 		g_renderBackend->Override_Material_Opacity(WATER_MESH_OPACITY);
 
@@ -3711,7 +3719,7 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 
 		g_renderBackend->Draw_Triangles(	0,totalRectangleCount*2, 0,	batchVertexCount);
 
-		if (m_riverWaterPixelShader)
+		if (m_trapezoidWaterPixelShader)
 		{
 			g_renderBackend->Set_Pixel_Shader(0);
 		}

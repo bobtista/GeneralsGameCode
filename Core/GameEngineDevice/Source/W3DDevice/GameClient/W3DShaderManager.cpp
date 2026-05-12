@@ -110,6 +110,13 @@ static inline void W3DShaderManager_SetTextureTransform(unsigned stage, const D3
 		g_renderBackend->Set_Texture_Transform(stage, To_Matrix4x4(matrix));
 }
 
+static inline void W3DShaderManager_SetShroudTextureParams(float offset_x, float offset_y,
+	float scale_x, float scale_y)
+{
+	if (g_renderBackend != nullptr)
+		g_renderBackend->Set_Shroud_Texture_Params(offset_x, offset_y, scale_x, scale_y);
+}
+
 static inline void W3DShaderManager_FillViewportQuad(RenderBackendScreenVertex (&v)[4], DWORD diffuse, Bool use_second_uv, Real second_uv_radius = 0.0f)
 {
 	Int xpos, ypos, width, height;
@@ -1138,7 +1145,7 @@ Int ShroudTextureShader::set(Int stage)
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	g_renderBackend->Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);	//no need to keep a reference since it's a preset.
-	g_renderBackend->Set_Texture(stage, W3DShaderManager::getShaderTexture(0));	//shroud always stored in texture 0
+	W3DShaderManager_BindStageTexture(stage, W3DShaderManager::getShaderTexture(0));	//shroud always stored in texture 0
 	g_renderBackend->Set_Shroud_Texture_Pass_Active(true, stage);
 
 	if (stage == 0)
@@ -1188,11 +1195,12 @@ Int ShroudTextureShader::set(Int stage)
 
 		D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
 
-		width = 1.0f/(width*shroud->getTextureWidth());
-		height = 1.0f/(height*shroud->getTextureHeight());
-		D3DXMatrixScaling(&scale, width, height, 1);
-		curView = (inv * offset) * scale;
-		W3DShaderManager_SetTextureTransform(stage, curView);
+			width = 1.0f/(width*shroud->getTextureWidth());
+			height = 1.0f/(height*shroud->getTextureHeight());
+			W3DShaderManager_SetShroudTextureParams(xoffset, yoffset, width, height);
+			D3DXMatrixScaling(&scale, width, height, 1);
+			curView = (inv * offset) * scale;
+			W3DShaderManager_SetTextureTransform(stage, curView);
 	}
 	m_stageOfSet=stage;
 	return TRUE;
@@ -1285,11 +1293,12 @@ Int FlatShroudTextureShader::set(Int stage)
 
 		D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
 
-		width = 1.0f/(width*shroud->getTextureWidth());
-		height = 1.0f/(height*shroud->getTextureHeight());
-		D3DXMatrixScaling(&scale, width, height, 1);
-		curView = (inv * offset) * scale;
-		W3DShaderManager_SetTextureTransform(stage, curView);
+			width = 1.0f/(width*shroud->getTextureWidth());
+			height = 1.0f/(height*shroud->getTextureHeight());
+			W3DShaderManager_SetShroudTextureParams(xoffset, yoffset, width, height);
+			D3DXMatrixScaling(&scale, width, height, 1);
+			curView = (inv * offset) * scale;
+			W3DShaderManager_SetTextureTransform(stage, curView);
 	}
 	m_stageOfSet=stage;
 	return TRUE;
@@ -2393,7 +2402,11 @@ Int RoadShader2Stage::set(Int pass)
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG2, D3DTA_CURRENT );
+#if defined(GGC_BGFX_STANDALONE)
+			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+#else
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
+#endif
 
 			if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_ROAD_BASE_NOISE12)
 			{	//full shader, apply noise 1 in pass 0.
@@ -3178,11 +3191,12 @@ Int W3DShaderManager::setShroudTex(Int stage)
 
 		D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
 
-		width = 1.0f/(width*shroud->getTextureWidth());
-		height = 1.0f/(height*shroud->getTextureHeight());
-		D3DXMatrixScaling(&scale, width, height, 1);
-		curView = (inv * offset) * scale;
-		W3DShaderManager_SetTextureTransform(stage, curView);
+			width = 1.0f/(width*shroud->getTextureWidth());
+			height = 1.0f/(height*shroud->getTextureHeight());
+			W3DShaderManager_SetShroudTextureParams(xoffset, yoffset, width, height);
+			D3DXMatrixScaling(&scale, width, height, 1);
+			curView = (inv * offset) * scale;
+			W3DShaderManager_SetTextureTransform(stage, curView);
 		return TRUE;
 	}
 	return FALSE;
@@ -3301,11 +3315,12 @@ Int FlatTerrainShader2Stage::set(Int pass)
 
 					D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
 
-					width = 1.0f/(width*shroud->getTextureWidth());
-					height = 1.0f/(height*shroud->getTextureHeight());
-					D3DXMatrixScaling(&scale, width, height, 1);
-					curView = (inv * offset) * scale;
-					W3DShaderManager_SetTextureTransform(0, curView);
+						width = 1.0f/(width*shroud->getTextureWidth());
+						height = 1.0f/(height*shroud->getTextureHeight());
+						W3DShaderManager_SetShroudTextureParams(xoffset, yoffset, width, height);
+						D3DXMatrixScaling(&scale, width, height, 1);
+						curView = (inv * offset) * scale;
+						W3DShaderManager_SetTextureTransform(0, curView);
 				}
 			}	else {
 				g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG2 );
@@ -3570,11 +3585,12 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 
 			D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
 
-			width = 1.0f/(width*shroud->getTextureWidth());
-			height = 1.0f/(height*shroud->getTextureHeight());
-			D3DXMatrixScaling(&scale, width, height, 1);
-			curView = (inv * offset) * scale;
-			W3DShaderManager_SetTextureTransform(curStage, curView);
+				width = 1.0f/(width*shroud->getTextureWidth());
+				height = 1.0f/(height*shroud->getTextureHeight());
+				W3DShaderManager_SetShroudTextureParams(xoffset, yoffset, width, height);
+				D3DXMatrixScaling(&scale, width, height, 1);
+				curView = (inv * offset) * scale;
+				W3DShaderManager_SetTextureTransform(curStage, curView);
 		}
 		g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
 		g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);

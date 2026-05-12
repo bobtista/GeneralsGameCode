@@ -57,6 +57,87 @@ static int ParseEnvLimit(const char *name, int fallback)
     return parsed > 0 ? parsed : fallback;
 }
 
+static unsigned BytesPerPixelForFormat(WW3DFormat format)
+{
+    switch (format)
+    {
+        case WW3D_FORMAT_A8:
+        case WW3D_FORMAT_L8:
+            return 1;
+        case WW3D_FORMAT_R5G6B5:
+        case WW3D_FORMAT_A1R5G5B5:
+        case WW3D_FORMAT_A4R4G4B4:
+            return 2;
+        case WW3D_FORMAT_A8R8G8B8:
+        case WW3D_FORMAT_X8R8G8B8:
+            return 4;
+        default:
+            return 0;
+    }
+}
+
+static bool ShouldLogEffectTexture(TextureClass * tex2d)
+{
+    if (std::getenv("GGC_EFFECT_TEXTURE_DIAG") == nullptr || tex2d == nullptr)
+    {
+        return false;
+    }
+
+    const char *name = tex2d->Get_Full_Path().str();
+    return name != nullptr
+        && (strstr(name, "ex") != nullptr || strstr(name, "EX") != nullptr
+            || strstr(name, "fire") != nullptr || strstr(name, "Fire") != nullptr
+            || strstr(name, "missile") != nullptr || strstr(name, "Missile") != nullptr);
+}
+
+static void LogEffectTextureUpload(TextureClass *tex2d,
+    bgfx::TextureFormat::Enum bgfxFmt,
+    const TextureBaseClass::TextureMipSnapshot &mip,
+    const bgfx::Memory *mem,
+    unsigned expectedPitch,
+    unsigned numRows)
+{
+    if (!ShouldLogEffectTexture(tex2d) || mem == nullptr)
+    {
+        return;
+    }
+
+    unsigned minAlpha = 255;
+    unsigned maxAlpha = 0;
+    unsigned nonZeroAlpha = 0;
+    if (bgfxFmt == bgfx::TextureFormat::BGRA8)
+    {
+        const unsigned pixelCount = (expectedPitch / 4) * numRows;
+        for (unsigned i = 0; i < pixelCount; ++i)
+        {
+            const unsigned alpha = mem->data[i * 4 + 3];
+            minAlpha = alpha < minAlpha ? alpha : minAlpha;
+            maxAlpha = alpha > maxAlpha ? alpha : maxAlpha;
+            nonZeroAlpha += alpha != 0 ? 1 : 0;
+        }
+    }
+
+    if (FILE *diag = std::fopen("ggc_effect_texture_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+            "texture name=%s srcFmt=%d bgfxFmt=%d size=%ux%u pitch=%u rows=%u alphaMin=%u alphaMax=%u alphaNonZero=%u compressed=%d\n",
+            tex2d->Get_Full_Path().str(),
+            static_cast<int>(mip.Format),
+            static_cast<int>(bgfxFmt),
+            mip.Width,
+            mip.Height,
+            expectedPitch,
+            numRows,
+            minAlpha,
+            maxAlpha,
+            nonZeroAlpha,
+            (bgfxFmt == bgfx::TextureFormat::BC1
+                || bgfxFmt == bgfx::TextureFormat::BC2
+                || bgfxFmt == bgfx::TextureFormat::BC3) ? 1 : 0);
+        std::fclose(diag);
+    }
+}
+
 static void DumpShroudTextureForDiagnostics(const uint8_t *data,
                                             unsigned width,
                                             unsigned height,
@@ -109,6 +190,12 @@ static void DumpShroudTextureForDiagnostics(const uint8_t *data,
             {
                 rgb[0] = p[2];
                 rgb[1] = p[1];
+                rgb[2] = p[0];
+            }
+            else if (bpp == 1)
+            {
+                rgb[0] = p[0];
+                rgb[1] = p[0];
                 rgb[2] = p[0];
             }
             std::fwrite(rgb, 1, sizeof(rgb), file);
@@ -226,9 +313,8 @@ static unsigned GetBytesPerPixel(bgfx::TextureFormat::Enum bgfxFmt)
     }
 }
 
-static bgfx::TextureFormat::Enum GetBgfxTextureUploadFormat(TextureClass * tex2d)
+static bgfx::TextureFormat::Enum GetBgfxTextureUploadFormat(WW3DFormat fmt)
 {
-    const WW3DFormat fmt = tex2d != nullptr ? tex2d->Get_Texture_Format() : WW3D_FORMAT_UNKNOWN;
     if (fmt == WW3D_FORMAT_A4R4G4B4)
     {
         // D3D A4R4G4B4 is packed as 0xARGB. bgfx::BGRA4 is not a reliable
@@ -238,6 +324,77 @@ static bgfx::TextureFormat::Enum GetBgfxTextureUploadFormat(TextureClass * tex2d
         return bgfx::TextureFormat::BGRA8;
     }
     return TranslateWW3DFormat(fmt);
+}
+
+static bgfx::TextureFormat::Enum GetBgfxTextureUploadFormat(TextureClass * tex2d)
+{
+    return GetBgfxTextureUploadFormat(tex2d != nullptr ? tex2d->Get_Texture_Format() : WW3D_FORMAT_UNKNOWN);
+}
+
+static void BuildDXT5AlphaTable(const uint8_t *block, uint8_t *alpha)
+{
+    alpha[0] = block[0];
+    alpha[1] = block[1];
+    if (alpha[0] > alpha[1])
+    {
+        for (unsigned i = 1; i < 7; ++i)
+        {
+            alpha[i + 1] = static_cast<uint8_t>(((7 - i) * alpha[0] + i * alpha[1] + 3) / 7);
+        }
+    }
+    else
+    {
+        for (unsigned i = 1; i < 5; ++i)
+        {
+            alpha[i + 1] = static_cast<uint8_t>(((5 - i) * alpha[0] + i * alpha[1] + 2) / 5);
+        }
+        alpha[6] = 0;
+        alpha[7] = 255;
+    }
+}
+
+static bool DXT5UsesNonOpaqueAlpha(const TextureBaseClass::TextureMipSnapshot &mip)
+{
+    if (mip.Format != WW3D_FORMAT_DXT5 || mip.Data.empty() || mip.Width == 0 || mip.Height == 0)
+    {
+        return false;
+    }
+
+    const unsigned blockRows = (mip.Height + 3) / 4;
+    const unsigned blockCols = (mip.Width + 3) / 4;
+    const unsigned minPitch = blockCols * 16;
+    if (mip.Pitch < minPitch || mip.Data.size() < (blockRows - 1) * mip.Pitch + minPitch)
+    {
+        return true;
+    }
+
+    for (unsigned by = 0; by < blockRows; ++by)
+    {
+        const uint8_t *row = &mip.Data[0] + by * mip.Pitch;
+        for (unsigned bx = 0; bx < blockCols; ++bx)
+        {
+            const uint8_t *block = row + bx * 16;
+            uint8_t alpha[8];
+            BuildDXT5AlphaTable(block, alpha);
+
+            uint64_t alphaBits = 0;
+            for (unsigned i = 0; i < 6; ++i)
+            {
+                alphaBits |= static_cast<uint64_t>(block[2 + i]) << (8 * i);
+            }
+
+            for (unsigned pixel = 0; pixel < 16; ++pixel)
+            {
+                const unsigned alphaIndex = static_cast<unsigned>((alphaBits >> (3 * pixel)) & 0x7);
+                if (alpha[alphaIndex] < 255)
+                {
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
 }
 
 static void ExpandA4R4G4B4ToBGRA8(const uint8_t * srcRow, unsigned srcPitch,
@@ -264,7 +421,85 @@ static void ExpandA4R4G4B4ToBGRA8(const uint8_t * srcRow, unsigned srcPitch,
     }
 }
 
+static void DecodeRgb565(uint16_t value, uint8_t *rgb)
+{
+    rgb[0] = static_cast<uint8_t>(((value >> 11) & 0x1F) * 255 / 31);
+    rgb[1] = static_cast<uint8_t>(((value >> 5) & 0x3F) * 255 / 63);
+    rgb[2] = static_cast<uint8_t>((value & 0x1F) * 255 / 31);
+}
+
+static void ExpandDXT5ToBGRA8(const uint8_t *src,
+    unsigned srcPitch,
+    unsigned width,
+    unsigned height,
+    const bgfx::Memory *mem)
+{
+    const unsigned blockRows = (height + 3) / 4;
+    const unsigned blockCols = (width + 3) / 4;
+    uint8_t *dst = mem->data;
+
+    for (unsigned by = 0; by < blockRows; ++by)
+    {
+        const uint8_t *srcBlockRow = src + by * srcPitch;
+        for (unsigned bx = 0; bx < blockCols; ++bx)
+        {
+            const uint8_t *block = srcBlockRow + bx * 16;
+
+            uint8_t alpha[8];
+            BuildDXT5AlphaTable(block, alpha);
+
+            uint64_t alphaBits = 0;
+            for (unsigned i = 0; i < 6; ++i)
+            {
+                alphaBits |= static_cast<uint64_t>(block[2 + i]) << (8 * i);
+            }
+
+            const uint16_t c0 = static_cast<uint16_t>(block[8] | (block[9] << 8));
+            const uint16_t c1 = static_cast<uint16_t>(block[10] | (block[11] << 8));
+            uint8_t color[4][3];
+            DecodeRgb565(c0, color[0]);
+            DecodeRgb565(c1, color[1]);
+            for (unsigned c = 0; c < 3; ++c)
+            {
+                color[2][c] = static_cast<uint8_t>((2 * color[0][c] + color[1][c] + 1) / 3);
+                color[3][c] = static_cast<uint8_t>((color[0][c] + 2 * color[1][c] + 1) / 3);
+            }
+
+            const uint32_t colorBits = static_cast<uint32_t>(block[12])
+                | (static_cast<uint32_t>(block[13]) << 8)
+                | (static_cast<uint32_t>(block[14]) << 16)
+                | (static_cast<uint32_t>(block[15]) << 24);
+
+            for (unsigned py = 0; py < 4; ++py)
+            {
+                const unsigned y = by * 4 + py;
+                if (y >= height)
+                {
+                    continue;
+                }
+                for (unsigned px = 0; px < 4; ++px)
+                {
+                    const unsigned x = bx * 4 + px;
+                    if (x >= width)
+                    {
+                        continue;
+                    }
+                    const unsigned pixel = py * 4 + px;
+                    const unsigned alphaIndex = static_cast<unsigned>((alphaBits >> (3 * pixel)) & 0x7);
+                    const unsigned colorIndex = static_cast<unsigned>((colorBits >> (2 * pixel)) & 0x3);
+                    uint8_t *out = dst + (y * width + x) * 4;
+                    out[0] = color[colorIndex][2];
+                    out[1] = color[colorIndex][1];
+                    out[2] = color[colorIndex][0];
+                    out[3] = alpha[alphaIndex];
+                }
+            }
+        }
+    }
+}
+
 static bool IsTerrainAtlasTexture(TextureClass * tex2d,
+    WW3DFormat sourceFmt,
     bgfx::TextureFormat::Enum bgfxFmt)
 {
 	// TheSuperHackers @bugfix bobtista 28/04/2026 The terrain texture is a
@@ -272,9 +507,9 @@ static bool IsTerrainAtlasTexture(TextureClass * tex2d,
 	// terrain path relies on tile-aware source mips and authored borders,
 	// while bgfx creates a full mip chain whenever mips are enabled. Upload a
 		// complete atlas-safe chain only for textures explicitly tagged by the
-		// terrain atlas builder.
+			// terrain atlas builder.
 		return tex2d != nullptr
-			&& tex2d->Get_Texture_Format() == WW3D_FORMAT_A1R5G5B5
+			&& sourceFmt == WW3D_FORMAT_A1R5G5B5
 			&& bgfxFmt == bgfx::TextureFormat::BGR5A1
 			&& tex2d->Has_Atlas_Regions();
 }
@@ -516,16 +751,26 @@ static bool CopyTextureLevel(TextureClass * tex2d,
 
     const unsigned totalBytes = numRows * expectedPitch;
     const unsigned srcPitch = mip.Pitch;
-    if (mip.Data.size() < numRows * srcPitch)
+    const bool expandDXT5ToBGRA8 =
+        mip.Format == WW3D_FORMAT_DXT5
+        && bgfxFmt == bgfx::TextureFormat::BGRA8
+        && !isCompressed;
+    const unsigned requiredSourceRows =
+        expandDXT5ToBGRA8 ? DXT_SurfaceRows(mip.Height) : numRows;
+    if (mip.Data.size() < requiredSourceRows * srcPitch)
     {
         return false;
     }
     const bgfx::Memory * mem = bgfx::alloc(totalBytes);
-    if (tex2d->Get_Texture_Format() == WW3D_FORMAT_A4R4G4B4
+    if (mip.Format == WW3D_FORMAT_A4R4G4B4
         && bgfxFmt == bgfx::TextureFormat::BGRA8
         && !isCompressed)
     {
         ExpandA4R4G4B4ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, mem);
+    }
+    else if (expandDXT5ToBGRA8)
+    {
+        ExpandDXT5ToBGRA8(&mip.Data[0], srcPitch, mip.Width, mip.Height, mem);
     }
     else if (srcPitch == expectedPitch)
     {
@@ -553,6 +798,7 @@ static bool CopyTextureLevel(TextureClass * tex2d,
         ApplyTeamColorTextureKey(tex2d, bgfxFmt, mem, expectedPitch, numRows);
         ForceOpaqueIfProceduralX8R8G8B8(tex2d, bgfxFmt, mem, expectedPitch, numRows);
     }
+    LogEffectTextureUpload(tex2d, bgfxFmt, mip, mem, expectedPitch, numRows);
 
     *outMem = mem;
     *outWidth = static_cast<uint16_t>(mip.Width);
@@ -620,6 +866,22 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     {
         return BGFX_INVALID_HANDLE;
     }
+
+    // Some engine-created textures are unnamed/procedural: they are populated
+    // through the legacy D3D texture object rather than a file load task. If
+    // they reach bgfx before a CPU snapshot exists, pull a snapshot from the
+    // existing D3D texture instead of treating them as missing and binding a
+    // fallback texture. Keep POOL_DEFAULT out of this path; those may be render
+    // targets resolved through the framebuffer cache below.
+    TextureClass * tex2d = tex->As_TextureClass();
+    if (tex2d != nullptr
+        && tex->Get_Pool() != TextureBaseClass::POOL_DEFAULT
+        && tex->Get_CPU_Texture_Mips().empty()
+        && tex->Peek_D3D_Base_Texture() != nullptr)
+    {
+        tex->Refresh_CPU_Texture_Snapshot();
+    }
+
     const unsigned textureRevision = tex->Get_CPU_Texture_Revision();
     const std::vector<TextureBaseClass::TextureMipSnapshot> & mips = tex->Get_CPU_Texture_Mips();
 
@@ -649,8 +911,11 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
             if (tex2d != nullptr)
             {
                 const TextureBaseClass::TextureMipSnapshot & baseMip = mips[0];
-				const bgfx::TextureFormat::Enum bgfxFmt = GetBgfxTextureUploadFormat(tex2d);
-				const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, bgfxFmt);
+					const bgfx::TextureFormat::Enum bgfxFmt =
+                        DXT5UsesNonOpaqueAlpha(baseMip)
+                            ? bgfx::TextureFormat::BGRA8
+                            : GetBgfxTextureUploadFormat(baseMip.Format);
+					const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, baseMip.Format, bgfxFmt);
                 if (baseMip.Width == cachedW
                     && baseMip.Height == cachedH
                     && bgfxFmt != bgfx::TextureFormat::Unknown)
@@ -700,7 +965,6 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
 
     // Only handle TextureClass (regular 2D) for now. Cube and volume
     // textures take a different path and would need their own helpers.
-    TextureClass * tex2d = tex->As_TextureClass();
     if (tex2d == nullptr)
     {
         g_caches.texture[tex] = BGFX_INVALID_HANDLE;
@@ -730,7 +994,23 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
         }
     }
 
-    const bgfx::TextureFormat::Enum bgfxFmt = GetBgfxTextureUploadFormat(tex2d);
+    if (mips.empty())
+    {
+        static bool s_loggedNullBase = false;
+        if (!s_loggedNullBase)
+        {
+            s_loggedNullBase = true;
+            WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxTexture: no CPU texture snapshot for %s",
+                         tex2d->Get_Full_Path().str()));
+        }
+        return BGFX_INVALID_HANDLE;
+    }
+
+    const TextureBaseClass::TextureMipSnapshot & baseMip = mips[0];
+    const bgfx::TextureFormat::Enum bgfxFmt =
+        DXT5UsesNonOpaqueAlpha(baseMip)
+            ? bgfx::TextureFormat::BGRA8
+            : GetBgfxTextureUploadFormat(baseMip.Format);
     if (bgfxFmt == bgfx::TextureFormat::Unknown)
     {
         static bool s_loggedUnknownFmt = false;
@@ -745,20 +1025,6 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
         return BGFX_INVALID_HANDLE;
     }
 
-    if (mips.empty())
-    {
-        static bool s_loggedNullBase = false;
-        if (!s_loggedNullBase)
-        {
-            s_loggedNullBase = true;
-            WWDEBUG_SAY(("[BgfxBackend] EnsureBgfxTexture: no CPU texture snapshot for %s",
-                         tex2d->Get_Full_Path().str()));
-        }
-        return BGFX_INVALID_HANDLE;
-    }
-
-    const TextureBaseClass::TextureMipSnapshot & baseMip = mips[0];
-
     // TheSuperHackers @fix bobtista 19/04/2026 Create textures WITHOUT
     // initial data so they are mutable. Passing data to createTexture2D
     // makes the texture immutable, silently rejecting later updates (font
@@ -769,8 +1035,8 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     // as the police-car red/blue lights, rely on their authored mipmaps
     // to average colored fringes instead of sampling only a white level-0
     // hotspot when minified.
-	const unsigned mipCount = static_cast<unsigned>(mips.size());
-	const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, bgfxFmt);
+		const unsigned mipCount = static_cast<unsigned>(mips.size());
+		const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, baseMip.Format, bgfxFmt);
     bgfx::TextureHandle h = bgfx::createTexture2D(
         static_cast<uint16_t>(baseMip.Width),
         static_cast<uint16_t>(baseMip.Height),
@@ -957,8 +1223,11 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
         return;
     }
 
-    const unsigned bpp = (bgfxFmt == bgfx::TextureFormat::BGRA4 ||
-                          bgfxFmt == bgfx::TextureFormat::R5G6B5) ? 2 : 4;
+    const unsigned bpp = BytesPerPixelForFormat(format);
+    if (bpp == 0)
+    {
+        return;
+    }
 
     // TheSuperHackers @bugfix bobtista 17/04/2026 Invalidate stale cache
     // entries when the shroud texture pointer changes (save/load destroys

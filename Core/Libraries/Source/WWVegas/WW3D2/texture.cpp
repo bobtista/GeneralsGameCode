@@ -354,7 +354,7 @@ void TextureBaseClass::Capture_CPU_Texture_Snapshot(IDirect3DBaseTexture8* tex)
 		mip.Width = desc.Width;
 		mip.Height = desc.Height;
 		mip.Pitch = static_cast<unsigned>(locked.Pitch);
-		mip.Format = tex2d->Get_Texture_Format();
+		mip.Format = D3DFormat_To_WW3DFormat(desc.Format);
 		const bool compressed =
 			mip.Format == WW3D_FORMAT_DXT1 ||
 			mip.Format == WW3D_FORMAT_DXT2 ||

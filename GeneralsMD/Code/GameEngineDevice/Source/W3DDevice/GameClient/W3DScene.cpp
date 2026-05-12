@@ -174,6 +174,7 @@ static void SceneDiagWrite(Bool drawTerrainOnly, Int numPotentialOccluders, Int 
 		g_sceneDiag.renderOneShrouded);
 	fflush(fp);
 }
+
 }
 
 // No texturing, no zbuffer reading/writing, primary gradient, no
@@ -212,6 +213,16 @@ RTS3DScene::RTS3DScene()
 #else
 	m_shroudMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
 #endif
+	m_objectClearShroudMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
+	m_objectClearShroudMaterialPass->enableTransparentObjectPass(TRUE);
+	m_objectClearShroudMaterialPass->Enable_On_Translucent_Meshes(true);
+	m_objectClearShroudMaterialPass->setObjectShroudDimFactor(1.0f);
+	m_objectFogMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
+	m_objectFogMaterialPass->enableTransparentObjectPass(TRUE);
+	m_objectFogMaterialPass->Enable_On_Translucent_Meshes(true);
+	m_objectShroudMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
+	m_objectShroudMaterialPass->enableTransparentObjectPass(TRUE);
+	m_objectShroudMaterialPass->Enable_On_Translucent_Meshes(true);
 
 	m_maskMaterialPass = NEW_REF(W3DMaskMaterialPassClass,());
 	m_customPassMode = SCENE_PASS_DEFAULT;
@@ -317,6 +328,9 @@ RTS3DScene::~RTS3DScene()
 	REF_PTR_RELEASE(m_scratchLight);
 
 	REF_PTR_RELEASE(m_shroudMaterialPass);
+	REF_PTR_RELEASE(m_objectClearShroudMaterialPass);
+	REF_PTR_RELEASE(m_objectFogMaterialPass);
+	REF_PTR_RELEASE(m_objectShroudMaterialPass);
 
 	REF_PTR_RELEASE(m_maskMaterialPass);
 
@@ -779,7 +793,7 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 					ss = OBJECTSHROUD_PARTIAL_CLEAR;
 				}
 			}
- 			if (!robj->Peek_Scene())
+			if (!robj->Peek_Scene())
  				return;	//this object was removed by the getShroudedStatus() call.
 		}
 		else
@@ -795,7 +809,6 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 					ss = OBJECTSHROUD_SHROUDED;	//we will assume that drawables without objects are 'particle' like and therefore don't need drawing if fogged/shrouded.
 			}
 		}
-
 		if (draw->isKindOf(KINDOF_INFANTRY))
 		{
 			//ambient = m_infantryAmbient;  //has no effect - see comment on m_infantryAmbient
@@ -902,6 +915,19 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 			//lighting environment applied which emulates the look of fog.
 			rinfo.light_environment = &m_foggedLightEnv;
 			robj->Render(rinfo);
+			if (g_renderBackend && g_renderBackend->Requires_Delayed_Object_Shroud_Pass())
+			{
+				const float clearAlpha = TheGlobalData->m_clearAlpha != 0
+					? static_cast<float>(TheGlobalData->m_clearAlpha)
+					: 255.0f;
+				m_objectFogMaterialPass->setObjectShroudDimFactor(
+					static_cast<float>(TheGlobalData->m_fogAlpha) / clearAlpha);
+				rinfo.Push_Override_Flags(RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY);
+				rinfo.Push_Material_Pass(m_objectFogMaterialPass);
+				robj->Render(rinfo);
+				rinfo.Pop_Material_Pass();
+				rinfo.Pop_Override_Flags();
+			}
 			rinfo.light_environment = nullptr;
 			return;
 		}
@@ -943,7 +969,7 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 			  }
 			  lightEnv.Add_Light(*(LightClass*)dynaLightIt.Peek_Obj());
 		  }
-    }
+		}
 
 		lightEnv.Pre_Render_Update(rinfo.Camera.Get_Transform());
 		rinfo.light_environment = &lightEnv;
@@ -954,16 +980,28 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 			if (!TheGlobalData->m_shroudOn)
 				ss = OBJECTSHROUD_CLEAR;
 #endif
-
 			if (m_customPassMode == SCENE_PASS_DEFAULT)
 			{
 				if (ss <= OBJECTSHROUD_CLEAR)
 				{
+					const Bool scheduleClearPass =
+						draw
+						&& draw->isKindOf(KINDOF_STRUCTURE)
+						&& g_renderBackend
+						&& g_renderBackend->Requires_Delayed_Object_Shroud_Pass();
 					if (SceneDiagEnabled())
 					{
 						g_sceneDiag.renderOneClear++;
 					}
 					robj->Render(rinfo);
+					if (scheduleClearPass)
+					{
+						rinfo.Push_Override_Flags(RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY);
+						rinfo.Push_Material_Pass(m_objectClearShroudMaterialPass);
+						robj->Render(rinfo);
+						rinfo.Pop_Material_Pass();
+						rinfo.Pop_Override_Flags();
+					}
 				}
 				else
 				{
@@ -978,9 +1016,26 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 							g_sceneDiag.renderOneShrouded++;
 						}
 					}
-					rinfo.Push_Material_Pass(m_shroudMaterialPass);
-					robj->Render(rinfo);
-					rinfo.Pop_Material_Pass();
+					if (g_renderBackend && g_renderBackend->Requires_Delayed_Object_Shroud_Pass())
+					{
+						const float clearAlpha = TheGlobalData->m_clearAlpha != 0 ? static_cast<float>(TheGlobalData->m_clearAlpha) : 255.0f;
+						m_objectFogMaterialPass->setObjectShroudDimFactor(static_cast<float>(TheGlobalData->m_fogAlpha) / clearAlpha);
+						m_objectShroudMaterialPass->setObjectShroudDimFactor(static_cast<float>(TheGlobalData->m_shroudAlpha) / clearAlpha);
+						W3DShroudMaterialPassClass *objectShroudPass =
+							(ss >= OBJECTSHROUD_SHROUDED) ? m_objectShroudMaterialPass : m_objectFogMaterialPass;
+						robj->Render(rinfo);
+						rinfo.Push_Override_Flags(RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY);
+						rinfo.Push_Material_Pass(objectShroudPass);
+						robj->Render(rinfo);
+						rinfo.Pop_Material_Pass();
+						rinfo.Pop_Override_Flags();
+					}
+					else
+					{
+						rinfo.Push_Material_Pass(m_shroudMaterialPass);
+						robj->Render(rinfo);
+						rinfo.Pop_Material_Pass();
+					}
 				}
 			}
 			else if (m_maskMaterialPass)

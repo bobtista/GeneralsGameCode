@@ -50,6 +50,9 @@
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 
+#include <cstdio>
+#include <cstdlib>
+
 
 /* We have chunking logic which handles N segments at a time. To simplify the subdivision logic,
 ** we will ensure that N is a power of two and that N >= 2^MAX_SEGLINE_SUBDIV_LEVELS, so that the
@@ -66,9 +69,6 @@
 #define MAX_SEGLINE_POINT_BUFFER_SIZE (1 + SEGLINE_CHUNK_SIZE)
 // This macro depends on the assumption that each line segment is two polys.
 #define MAX_SEGLINE_POLY_BUFFER_SIZE (SEGLINE_CHUNK_SIZE * 2)
-
-
-
 
 SegLineRendererClass::SegLineRendererClass() :
 		Texture(nullptr),
@@ -219,6 +219,7 @@ void SegLineRendererClass::Render
 	Vector4 * rgbas
 )
 {
+	const bool diagSegline = std::getenv("GGC_SEGLINE_DIAG") != nullptr;
 	Matrix4x4 view;
 	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW,view);
 
@@ -291,6 +292,27 @@ void SegLineRendererClass::Render
 
 		VectorProcessorClass::Transform(&xformed_pts[0],
 			&points[chidx], modelview, point_cnt);
+		if (diagSegline && chidx == 0)
+		{
+			if (FILE *diag = std::fopen("ggc_segline_diag.txt", "a"))
+			{
+				const char *textureName = Texture != nullptr ? Texture->Get_Texture_Name().str() : "<none>";
+				std::fprintf(diag,
+					"segline texture=%s points=%u width=%.3f opacity=%.3f shader=0x%08x firstEye=(%.2f,%.2f,%.2f) lastEye=(%.2f,%.2f,%.2f)\n",
+					textureName,
+					point_cnt,
+					Width,
+					Opacity,
+					Shader.Get_Bits(),
+					xformed_pts[0].X,
+					xformed_pts[0].Y,
+					xformed_pts[0].Z,
+					xformed_pts[point_cnt - 1].X,
+					xformed_pts[point_cnt - 1].Y,
+					xformed_pts[point_cnt - 1].Z);
+				std::fclose(diag);
+			}
+		}
 
 
 		/*
@@ -1106,6 +1128,23 @@ void SegLineRendererClass::Render
 
 		// Enable sorting if sorting has not been disabled and line is translucent and alpha testing is not enabled.
 		bool sorting = (!Is_Sorting_Disabled()) && (Shader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO && Shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE);
+		if (diagSegline)
+		{
+			if (FILE *diag = std::fopen("ggc_segline_diag.txt", "a"))
+			{
+				const char *textureName = Texture != nullptr ? Texture->Get_Texture_Name().str() : "<none>";
+				std::fprintf(diag,
+					"segline-submit texture=%s sorting=%d vnum=%u polys=%u rgbaAll=%d mapMode=%d disableSort=%d\n",
+					textureName,
+					sorting ? 1 : 0,
+					vnum,
+					tidx,
+					rgba_all ? 1 : 0,
+					static_cast<int>(map_mode),
+					Is_Sorting_Disabled() ? 1 : 0);
+				std::fclose(diag);
+			}
+		}
 
 		ShaderClass shader = Shader;
 		shader.Set_Cull_Mode(ShaderClass::CULL_MODE_DISABLE);
