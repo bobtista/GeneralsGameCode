@@ -104,8 +104,10 @@ public:
 	const char *		Get_Hardware_Chipset() const	{ return HardwareChipset; }
 
 	const DynamicVectorClass<ResolutionDescClass> & Enumerate_Resolutions() const	{ return ResArray; }
+#if !defined(GGC_BGFX_STANDALONE)
 	const D3DCAPS8& 	Get_Caps() const { return Caps; }
 	const D3DADAPTER_IDENTIFIER8& Get_Adapter_Identifier() const { return AdapterIdentifier; }
+#endif
 
 private:
 
