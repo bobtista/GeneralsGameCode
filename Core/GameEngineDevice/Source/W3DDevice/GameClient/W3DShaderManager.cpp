@@ -1313,10 +1313,10 @@ Int FlatShroudTextureShader::set(Int stage)
 	else	//stages larger than 1 are not supported by W3D so set them directly
 		W3DShaderManager_BindStageTexture(stage, W3DShaderManager::getShaderTexture(stage));
 
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG2, D3DTA_CURRENT );
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+	g_renderBackend->Set_Texture_Color_Argument(stage, 1, RB_TEXARG_TEXTURE);
+	g_renderBackend->Set_Texture_Color_Argument(stage, 2, RB_TEXARG_CURRENT);
+	g_renderBackend->Set_Texture_Color_Operation(stage, RB_TEXOP_MODULATE);
+	g_renderBackend->Set_Texture_Alpha_Operation(stage, RB_TEXOP_DISABLE);
 	//g_renderBackend->Apply_Render_State_Changes();
 
 	W3DShaderManager_SetCameraSpaceTexcoord2(stage);
