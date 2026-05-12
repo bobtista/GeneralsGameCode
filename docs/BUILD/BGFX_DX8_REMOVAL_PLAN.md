@@ -412,6 +412,8 @@ Completed low-risk migrations:
   `D3DTSS_*` writes.
 - Shroud and screen-mask shader setup/reset now use local shader-manager
   helpers for camera-space projected UV2 and mesh-UV reset semantics.
+- Terrain shader-manager variants now use the same helpers for base/detail
+  mesh UV selection, projected noise/cloud stages, and terrain reset cleanup.
 - `ShaderClass::Apply` now reads fog color through `IRenderBackend`, removing
   another direct `DX8Wrapper` query from the shared shader path.
 - The legacy Voodoo3 stage-2 compatibility path in `ShaderClass::Apply` now
