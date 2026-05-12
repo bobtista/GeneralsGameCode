@@ -1404,6 +1404,11 @@ void DX8Backend::Set_Texture_Mip_Filter(unsigned stage, RenderBackendTextureSamp
     DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_MIPFILTER, TextureSampleFilterToDX8(mip_filter));
 }
 
+void DX8Backend::Set_Texture_Max_Anisotropy(unsigned stage, unsigned max_anisotropy)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_MAXANISOTROPY, max_anisotropy);
+}
+
 void DX8Backend::Set_Texture_Bump_Env_Matrix(unsigned stage,
                                              float m00,
                                              float m01,
