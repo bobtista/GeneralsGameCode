@@ -49,6 +49,7 @@
 #include "W3DDevice/Common/W3DConvert.h"
 #include "WW3D2/ww3d.h"
 #include "WW3D2/hanim.h"
+#include "WW3D2/renderdebugstats.h"
 
 #include "Common/UnitTimings.h" //Contains the DO_UNIT_TIMINGS define jba.
 
@@ -424,7 +425,7 @@ void W3DInGameUI::draw()
 	// repaint all our windows
 
 #ifdef EXTENDED_STATS
-	if (!DX8Wrapper::stats.m_disableConsole) {
+	if (!g_renderDebugStats.m_disableConsole) {
 #endif
 
 #ifdef DO_UNIT_TIMINGS
@@ -736,4 +737,3 @@ void W3DInGameUI::drawPlaceAngle( View *view )
 	//TheDisplay->drawLine( start.x, start.y, end.x, end.y, width, color );
 
 }
-

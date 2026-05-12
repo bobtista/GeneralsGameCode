@@ -45,6 +45,7 @@
 #include "dx8wrapper.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderdebugstats.h"
 #include "light.h"
 #include "d3dx8math.h"
 #include "simplevec.h"
@@ -1559,7 +1560,7 @@ void WaterRenderObjClass::updateRenderTargetTextures(CameraClass *cam)
 void WaterRenderObjClass::renderMirror(CameraClass *cam)
 {
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableWater) {
+	if (g_renderDebugStats.m_disableWater) {
 		return;
 	}
 #endif
@@ -1658,7 +1659,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 		return;	//water is not drawn in wireframe or custom scene passes
 
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableWater) {
+	if (g_renderDebugStats.m_disableWater) {
 		return;
 	}
 #endif

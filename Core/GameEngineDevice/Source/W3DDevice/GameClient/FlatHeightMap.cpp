@@ -83,6 +83,7 @@
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/dx8wrapper.h"
+#include "WW3D2/renderdebugstats.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
@@ -483,7 +484,7 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 #endif
 
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableTerrain) {
+	if (g_renderDebugStats.m_disableTerrain) {
 		return;
 	}
 #endif
@@ -656,4 +657,3 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	W3DShaderManager::pushCloudShadowToBackend(false, nullptr);
 
 }
-

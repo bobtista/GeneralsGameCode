@@ -85,6 +85,7 @@
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderdebugstats.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
 #include "W3DDevice/GameClient/W3DPoly.h"
@@ -2975,7 +2976,7 @@ called after flush. */
 void BaseHeightMapRenderObjClass::renderTrees(CameraClass * camera)
 {
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableObjects) {
+	if (g_renderDebugStats.m_disableObjects) {
 		return;
 	}
 #endif
