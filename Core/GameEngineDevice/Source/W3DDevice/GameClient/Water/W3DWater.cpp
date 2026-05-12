@@ -2053,6 +2053,7 @@ void WaterRenderObjClass::drawSeaBatch(RenderInfoClass & rinfo)
 /** Draws the water surface using a custom D3D vertex/pixel shader and a
 	* reflection texture.  Only tested to work on GeForce3. */
 //-------------------------------------------------------------------------------------------------
+#if !defined(GGC_BGFX_STANDALONE)
 void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 {
 	AABoxClass	seaBox;
@@ -2257,6 +2258,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	}
 
 }
+#endif
 
 
 #define FEATHER_LAYER_COUNT (5.0f)

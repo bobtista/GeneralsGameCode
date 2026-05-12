@@ -270,7 +270,9 @@ protected:
 	void renderWaterMesh();			///<draw the water surface mesh (deformed 3d mesh).
 	HRESULT initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass *pBumpSource);	///<copies data into bump-map format.
 	void renderMirror(CameraClass *cam);	///< Draw reflected scene into texture
+#if !defined(GGC_BGFX_STANDALONE)
 	void drawSea(RenderInfoClass & rinfo);	///< Draw the surface of the water
+#endif
 	void drawSeaBatch(RenderInfoClass & rinfo);	///< Draw the sea through the render backend
 	///bounding box of frustum clipped polygon plane
 	Bool getClippedWaterPlane(CameraClass *cam, AABoxClass *box);
