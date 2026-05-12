@@ -474,6 +474,8 @@ Completed low-risk migrations:
   integer colors instead of D3D blend/cull/color typedefs.
 - Shader texture-stage operation selection now uses backend-neutral texture
   op/argument enums without D3D casts.
+- `shader.cpp` no longer includes `dx8wrapper.h`; its remaining scalar state
+  uses native C++ types plus backend enums.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
