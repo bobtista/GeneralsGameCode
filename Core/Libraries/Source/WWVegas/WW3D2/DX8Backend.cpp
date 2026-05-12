@@ -423,6 +423,12 @@ bool DX8Backend::Is_Legacy_Voodoo3() const
         && caps->Get_Device() == DX8Caps::DEVICE_3DFX_VOODOO_3;
 }
 
+bool DX8Backend::Supports_NPatches() const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    return caps != nullptr && caps->Support_NPatches();
+}
+
 RenderBackendTextureLimits DX8Backend::Get_Texture_Limits() const
 {
     const auto * caps = DX8Wrapper::Get_Current_Caps();
