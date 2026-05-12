@@ -71,6 +71,9 @@ Recent progress on the DX8-removal stack:
   `GGC_BGFX_STANDALONE`. Standalone bgfx already dispatches to
   `drawSeaBatch`; the guard reduces bgfx compile exposure to raw D3D sea code
   without changing DX8 runtime behavior.
+- Legacy sea-water D3D members and static-buffer mirror requests are now also
+  excluded from standalone bgfx. Backend water grid rendering remains active;
+  raw D3D sea state is only compiled where the legacy DX8 sea path can run.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -252,6 +255,10 @@ Completed low-risk migrations:
   replacement: the real follow-up is a deliberate sea-water backend API or a
   native bgfx sea-water program if we want parity with the old D3D bump/
   reflection path.
+- The legacy sea-water members (`m_pDev`, raw sea VB/IB, and legacy wave shader
+  handles) are guarded with the same standalone-bgfx boundary. Attempts to
+  request a raw static D3D mirror in standalone bgfx now fail explicitly; the
+  bgfx sea path uses `drawSeaBatch` and transient backend buffers instead.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

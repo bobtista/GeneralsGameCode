@@ -162,6 +162,7 @@ protected:
 
 	//Data used in GeForce3 bump-mapped water (uses direct D3D resources for better
 	//performance and compatibility (most of these featues are not supported by W3D).
+#if !defined(GGC_BGFX_STANDALONE)
 	struct SEA_PATCH_VERTEX	//vertex structure passed to D3D
 	{
 		float x,y,z;
@@ -174,6 +175,7 @@ protected:
 	LPDIRECT3DINDEXBUFFER8	m_indexBufferD3D;	///<D3D index buffer
 	DWORD					m_dwWavePixelShader;	///<handle to D3D pixel shader
 	DWORD					m_dwWaveVertexShader;	///<handle to D3D vertex shader
+#endif
 	Int	m_numVertices;				///<number of vertices in D3D vertex buffer
 	Int m_numIndices;				///<number of indices in D3D index buffer
 	LPDIRECT3DTEXTURE8 m_pBumpTexture[NUM_BUMP_FRAMES]; ///<animation frames
