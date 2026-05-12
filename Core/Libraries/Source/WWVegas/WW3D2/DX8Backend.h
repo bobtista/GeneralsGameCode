@@ -189,6 +189,11 @@ public:
                                            RenderBackendTextureSampleFilter min_filter,
                                            RenderBackendTextureSampleFilter mag_filter,
                                            RenderBackendTextureSampleFilter mip_filter) override;
+    virtual void Set_Texture_Min_Mag_Filter(unsigned stage,
+                                            RenderBackendTextureSampleFilter min_filter,
+                                            RenderBackendTextureSampleFilter mag_filter) override;
+    virtual void Set_Texture_Mip_Filter(unsigned stage,
+                                        RenderBackendTextureSampleFilter mip_filter) override;
     virtual void Set_Texture_Bump_Env_Matrix(unsigned stage,
                                              float m00,
                                              float m01,

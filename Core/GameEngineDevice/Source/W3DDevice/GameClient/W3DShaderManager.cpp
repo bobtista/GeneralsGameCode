@@ -159,6 +159,18 @@ static inline void W3DShaderManager_SetStageAddress2D(unsigned stage, RenderBack
 	g_renderBackend->Set_Texture_Address_Mode(stage, address_mode, address_mode, RB_TEXTURE_ADDRESS_WRAP);
 }
 
+static inline void W3DShaderManager_SetStageMinMagFilter(unsigned stage,
+	RenderBackendTextureSampleFilter min_filter,
+	RenderBackendTextureSampleFilter mag_filter)
+{
+	g_renderBackend->Set_Texture_Min_Mag_Filter(stage, min_filter, mag_filter);
+}
+
+static inline void W3DShaderManager_SetStageMipFilter(unsigned stage, RenderBackendTextureSampleFilter mip_filter)
+{
+	g_renderBackend->Set_Texture_Mip_Filter(stage, mip_filter);
+}
+
 static inline void W3DShaderManager_FillViewportQuad(RenderBackendScreenVertex (&v)[4], DWORD diffuse, Bool use_second_uv, Real second_uv_radius = 0.0f)
 {
 	Int xpos, ypos, width, height;
@@ -853,8 +865,7 @@ Int ScreenCrossFadeFilter::set(FilterModes mode)
 		g_renderBackend->Set_Texture(1,nullptr);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+		W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_CLAMP);
 
 		if (mode == FM_VIEW_CROSSFADE_CIRCLE)
 		{	//cross-fading using circle mask stored in stage 1
@@ -865,9 +876,8 @@ Int ScreenCrossFadeFilter::set(FilterModes mode)
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG2, D3DTA_CURRENT );
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1 );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+			W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_CLAMP);
+			W3DShaderManager_SetStageMipFilter(1, RB_TEXTURE_SAMPLE_NONE);
 		}
 
 		g_renderBackend->Set_Depth_Func(RB_CMP_ALWAYS);
@@ -1677,24 +1687,22 @@ Int TerrainShader2Stage::set(Int pass)
 			D3DXMatrixInverse(&inv, &det, &curView);
 
 			if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_TERRAIN_BASE_NOISE12)
-			{
-				//setup cloud pass
-				W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(2));
+				{
+					//setup cloud pass
+					W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(2));
 
-				updateNoise1(&curView,&inv);	//update curView with texture matrix
-				W3DShaderManager_SetTextureTransform(0, curView);
-				//clouds always need bilinear filtering
-				g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-				g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+					updateNoise1(&curView,&inv);	//update curView with texture matrix
+					W3DShaderManager_SetTextureTransform(0, curView);
+					//clouds always need bilinear filtering
+					W3DShaderManager_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 
 				//setup noise pass
 				W3DShaderManager_BindStageTexture(1, W3DShaderManager::getShaderTexture(3));
 
-				updateNoise2(&curView,&inv);
-				W3DShaderManager_SetTextureTransform(1, curView);
-				//noise always needs point/linear filtering.  Why point!?
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+					updateNoise2(&curView,&inv);
+					W3DShaderManager_SetTextureTransform(1, curView);
+					//noise always needs point/linear filtering.  Why point!?
+					W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
@@ -1711,18 +1719,16 @@ Int TerrainShader2Stage::set(Int pass)
 				// Now setup the texture pipeline.
 				if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_TERRAIN_BASE_NOISE1)
 				{	//setup cloud pass
-					W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(2));
-					updateNoise1(&curView,&inv);	//update curView with texture matrix
-					g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-					g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+						W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(2));
+						updateNoise1(&curView,&inv);	//update curView with texture matrix
+						W3DShaderManager_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 				}
 				else
 				{
-					//setup noise pass
-					W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(3));
-					updateNoise2(&curView,&inv);	//update curView with texture matrix
-					g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-					g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+						//setup noise pass
+						W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(3));
+						updateNoise2(&curView,&inv);	//update curView with texture matrix
+						W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 				}
 
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
@@ -1986,11 +1992,9 @@ Int TerrainShaderPixelShader::set(Int pass)
 			W3DShaderManager_BindStageTexture(3, W3DShaderManager::getShaderTexture(3));
 			g_renderBackend->Set_Pixel_Shader(m_dwBaseNoise2PixelShader);
 
-			g_renderBackend->Set_Texture_Stage_State(2, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-			g_renderBackend->Set_Texture_Stage_State(2, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+			W3DShaderManager_SetStageMinMagFilter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 
-			g_renderBackend->Set_Texture_Stage_State(3, D3DTSS_MINFILTER, D3DTEXF_POINT);
-			g_renderBackend->Set_Texture_Stage_State(3, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+			W3DShaderManager_SetStageMinMagFilter(3, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 
 			terrainShader2Stage.updateNoise1(&curView,&inv);	//update curView with texture matrix
 			W3DShaderManager_SetTextureTransform(2, curView);
@@ -2010,15 +2014,13 @@ Int TerrainShaderPixelShader::set(Int pass)
 			{	//cloud map
 				W3DShaderManager_BindStageTexture(2, W3DShaderManager::getShaderTexture(2));
 				terrainShader2Stage.updateNoise1(&curView,&inv);	//update curView with texture matrix
-				g_renderBackend->Set_Texture_Stage_State(2, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-				g_renderBackend->Set_Texture_Stage_State(2, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+				W3DShaderManager_SetStageMinMagFilter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 			}
 			else
 			{	//light map
 				W3DShaderManager_BindStageTexture(2, W3DShaderManager::getShaderTexture(3));
 				terrainShader2Stage.updateNoise2(&curView,&inv);	//update curView with texture matrix
-				g_renderBackend->Set_Texture_Stage_State(2, D3DTSS_MINFILTER, D3DTEXF_POINT);
-				g_renderBackend->Set_Texture_Stage_State(2, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+				W3DShaderManager_SetStageMinMagFilter(2, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 			}
 			W3DShaderManager_SetTextureTransform(2, curView);
 		}
@@ -2099,8 +2101,7 @@ Int CloudTextureShader::set(Int stage)
 	g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 	g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 	W3DShaderManager_SetTextureTransform(stage, curView);
-	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+	W3DShaderManager_SetStageMinMagFilter(stage, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 	W3DShaderManager_SetStageAddress2D(stage, RB_TEXTURE_ADDRESS_WRAP);
 
 	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG1, D3DTA_TEXTURE );
@@ -2239,12 +2240,12 @@ Int RoadShaderPixelShader::set(Int pass)
 	D3DXMatrixInverse(&inv, &det, &curView);
 
 	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex)
-	{	g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
+	{	W3DShaderManager_SetStageMipFilter(0, RB_TEXTURE_SAMPLE_LINEAR);
+		W3DShaderManager_SetStageMipFilter(1, RB_TEXTURE_SAMPLE_LINEAR);
 	}
 	else
-	{	g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_POINT);
+	{	W3DShaderManager_SetStageMipFilter(0, RB_TEXTURE_SAMPLE_POINT);
+		W3DShaderManager_SetStageMipFilter(1, RB_TEXTURE_SAMPLE_POINT);
 	}
 
 	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
@@ -2259,11 +2260,9 @@ Int RoadShaderPixelShader::set(Int pass)
 
 	g_renderBackend->Set_Pixel_Shader(m_dwBaseNoise2PixelShader);
 
-	g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-	g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+	W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 
-	g_renderBackend->Set_Texture_Stage_State(2, D3DTSS_MINFILTER, D3DTEXF_POINT);
-	g_renderBackend->Set_Texture_Stage_State(2, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+	W3DShaderManager_SetStageMinMagFilter(2, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 
 	terrainShader2Stage.updateNoise1(&curView,&inv, false);	//get texture projection matrix
 	W3DShaderManager_SetTextureTransform(1, curView);
@@ -2354,17 +2353,17 @@ Int RoadShader2Stage::set(Int pass)
 			float det;
 			D3DXMatrixInverse(&inv, &det, &curView);
 
-			if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex)
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-			else
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_POINT);
+			W3DShaderManager_SetStageMipFilter(
+				1,
+				(TheGlobalData && TheGlobalData->m_trilinearTerrainTex) ?
+					RB_TEXTURE_SAMPLE_LINEAR :
+					RB_TEXTURE_SAMPLE_POINT);
 
 			g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 			// Two output coordinates are used.
 			g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-			g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-			g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+			W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
@@ -2377,11 +2376,10 @@ Int RoadShader2Stage::set(Int pass)
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
 #endif
 
-			if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_ROAD_BASE_NOISE12)
-			{	//full shader, apply noise 1 in pass 0.
-				g_renderBackend->Set_Texture(1,W3DShaderManager::getShaderTexture(1));
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+				if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_ROAD_BASE_NOISE12)
+				{	//full shader, apply noise 1 in pass 0.
+					g_renderBackend->Set_Texture(1,W3DShaderManager::getShaderTexture(1));
+					W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 
 				terrainShader2Stage.updateNoise1(&curView, &inv, false);	//get texture projection matrix
 				W3DShaderManager_SetTextureTransform(1, curView);
@@ -2389,19 +2387,17 @@ Int RoadShader2Stage::set(Int pass)
 			else
 			{	//single noise texture shader
 				if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_ROAD_BASE_NOISE1)
-				{	//cloud map
-					g_renderBackend->Set_Texture(1,W3DShaderManager::getShaderTexture(1));
-					terrainShader2Stage.updateNoise1(&curView, &inv, false);	//update curView with texture matrix
-					g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-					g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-				}
-				else
-				{	//light map
-					g_renderBackend->Set_Texture(1,W3DShaderManager::getShaderTexture(2));
-					terrainShader2Stage.updateNoise2(&curView,&inv, false);	//update curView with texture matrix
-					g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-					g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-				}
+					{	//cloud map
+						g_renderBackend->Set_Texture(1,W3DShaderManager::getShaderTexture(1));
+						terrainShader2Stage.updateNoise1(&curView, &inv, false);	//update curView with texture matrix
+						W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
+					}
+					else
+					{	//light map
+						g_renderBackend->Set_Texture(1,W3DShaderManager::getShaderTexture(2));
+						terrainShader2Stage.updateNoise2(&curView,&inv, false);	//update curView with texture matrix
+						W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
+					}
 				W3DShaderManager_SetTextureTransform(1, curView);
 			}
 		}
@@ -2420,23 +2416,22 @@ Int RoadShader2Stage::set(Int pass)
 		float det;
 		D3DXMatrixInverse(&inv, &det, &curView);
 
-		if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex)
-			g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-		else
-			g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_POINT);
+		W3DShaderManager_SetStageMipFilter(
+			1,
+			(TheGlobalData && TheGlobalData->m_trilinearTerrainTex) ?
+				RB_TEXTURE_SAMPLE_LINEAR :
+				RB_TEXTURE_SAMPLE_POINT);
 
 		g_renderBackend->Set_Texture(1,W3DShaderManager::getShaderTexture(2));
 
 		terrainShader2Stage.updateNoise2(&curView, &inv, false);	//update curView with texture matrix
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+		W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 
 		g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
 		g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-		g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-		g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+		W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 
 		//Copy alpha channel into stage 1 but mask out color channel by replacing with white.
 		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
@@ -3313,8 +3308,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 				terrainShader2Stage.updateNoise1(&curView,&inv);	//update curView with texture matrix
 				W3DShaderManager_SetTextureTransform(0, curView);
 				//clouds always need bilinear filtering
-				g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-				g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+				W3DShaderManager_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 				W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(2));
 
 				//setup noise pass
@@ -3322,8 +3316,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 				terrainShader2Stage.updateNoise2(&curView,&inv);
 				W3DShaderManager_SetTextureTransform(1, curView);
 				//noise always needs point/linear filtering.  Why point!?
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+				W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
@@ -3343,16 +3336,14 @@ Int FlatTerrainShader2Stage::set(Int pass)
 				{	//setup cloud pass
 					W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(2));
 					terrainShader2Stage.updateNoise1(&curView,&inv);	//update curView with texture matrix
-					g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-					g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+					W3DShaderManager_SetStageMinMagFilter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 				}
 				else
 				{
 					//setup noise pass
 					W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(3));
 					terrainShader2Stage.updateNoise2(&curView,&inv);	//update curView with texture matrix
-					g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-					g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+					W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 				}
 
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
@@ -3473,17 +3464,13 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 	g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_TEXCOORDINDEX, 0 );
 	g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 
-	if (TheGlobalData && (TheGlobalData->m_bilinearTerrainTex || TheGlobalData->m_trilinearTerrainTex)) {
-		g_renderBackend->Set_Texture_Stage_State(curStage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(curStage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(curStage, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(curStage, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-	}
-	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) {
-		g_renderBackend->Set_Texture_Stage_State(curStage, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(curStage, D3DTSS_MIPFILTER, D3DTEXF_POINT);
+	{
+		const RenderBackendTextureSampleFilter min_mag_filter = W3DShaderManager_GetTerrainMinMagFilter();
+		g_renderBackend->Set_Texture_Sample_Filter(
+			curStage,
+			min_mag_filter,
+			min_mag_filter,
+			W3DShaderManager_GetTerrainStage0MipFilter());
 	}
 
 	curStage = 0;
@@ -3530,8 +3517,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 				W3DShaderManager_SetTextureTransform(curStage, curView);
 		}
 		W3DShaderManager_SetStageAddress2D(curStage, RB_TEXTURE_ADDRESS_CLAMP);
-		g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+		W3DShaderManager_SetStageMinMagFilter(curStage, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 		W3DShaderManager_BindStageTexture(curStage, shroud->getShroudTexture());
 		curStage++;
 		if (curStage==1) curStage++;
@@ -3555,8 +3541,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 		W3DShaderManager_BindStageTexture(curStage, W3DShaderManager::getShaderTexture(2));
 		terrainShader2Stage.updateNoise1(&curView,&inv);	//update curView with texture matrix
 		W3DShaderManager_SetTextureTransform(curStage, curView);
-		g_renderBackend->Set_Texture_Stage_State(curStage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(curStage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+		W3DShaderManager_SetStageMinMagFilter(curStage, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 
 		curStage++;
 		if (curStage==1) curStage++;
@@ -3581,8 +3566,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 		W3DShaderManager_BindStageTexture(curStage, W3DShaderManager::getShaderTexture(3));
 		terrainShader2Stage.updateNoise2(&curView,&inv);	//update curView with texture matrix
 		W3DShaderManager_SetTextureTransform(curStage, curView);
-		g_renderBackend->Set_Texture_Stage_State(curStage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(curStage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
+		W3DShaderManager_SetStageMinMagFilter(curStage, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 
 		curStage++;
 		if (curStage==1) curStage++;
