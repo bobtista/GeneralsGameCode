@@ -67,6 +67,10 @@ Recent progress on the DX8-removal stack:
 - Texture-coordinate UV wrapping now has a real `DX8Backend` implementation,
   allowing legacy sea-water setup to call `IRenderBackend::Set_Texture_UV_Wrap`
   instead of writing `D3DRS_WRAP0` directly.
+- The legacy D3D shader sea-water function is now compiled only outside
+  `GGC_BGFX_STANDALONE`. Standalone bgfx already dispatches to
+  `drawSeaBatch`; the guard reduces bgfx compile exposure to raw D3D sea code
+  without changing DX8 runtime behavior.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -243,6 +247,11 @@ Completed low-risk migrations:
 - `IRenderBackend::Set_Texture_UV_Wrap` is implemented in `DX8Backend` and used
   by legacy sea-water setup. The bgfx implementation already existed for its
   shader uniform path; this closes the DX8 half of that deliberate API.
+- `drawSea` remains the original DX8 sea-water implementation, but it is now
+  excluded from standalone bgfx builds. This is containment, not a full
+  replacement: the real follow-up is a deliberate sea-water backend API or a
+  native bgfx sea-water program if we want parity with the old D3D bump/
+  reflection path.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
