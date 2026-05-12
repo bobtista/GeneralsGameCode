@@ -45,6 +45,9 @@ Recent progress on the DX8-removal stack:
 - World/view identity helpers now also live in `FixedFunctionState`.
   `DX8Wrapper` keeps compatibility entry points, while `BgfxBackend` updates
   identity state directly instead of routing through the DX8 wrapper.
+- Vertex/index buffer binding state now has `FixedFunctionState` mutators.
+  `DX8Wrapper` remains the legacy facade, but bgfx no longer calls through it
+  to keep current VB/IB state synchronized.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -192,6 +195,10 @@ Completed low-risk migrations:
 - `FixedFunctionState` owns world/view identity helpers. This preserves the
   legacy changed-mask semantics while removing another pair of bgfx calls
   through `DX8Wrapper`.
+- `FixedFunctionState` owns vertex/index buffer binding mutation helpers,
+  including dynamic VB/IB offsets and dirty-mask updates. Dynamic access
+  classes expose narrow read-only accessors so the state owner no longer needs
+  `DX8Wrapper` friendship.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

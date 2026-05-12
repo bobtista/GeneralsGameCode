@@ -20,6 +20,8 @@ const unsigned MAX_VERTEX_STREAMS=2;
 
 class IndexBufferClass;
 class VertexBufferClass;
+class DynamicIBAccessClass;
+class DynamicVBAccessClass;
 
 struct RenderStateStruct
 {
@@ -90,6 +92,10 @@ public:
 	static bool Set_Shader(const ShaderClass & shader, bool shader_dirty = false);
 	static void Set_Material(const VertexMaterialClass * material);
 	static bool Set_Texture(unsigned stage, TextureBaseClass * texture);
+	static void Set_Vertex_Buffer(const VertexBufferClass * vertex_buffer, unsigned stream);
+	static void Set_Vertex_Buffer(const DynamicVBAccessClass & vertex_buffer_access);
+	static void Set_Index_Buffer(const IndexBufferClass * index_buffer, unsigned short index_base_offset);
+	static void Set_Index_Buffer(const DynamicIBAccessClass & index_buffer_access, unsigned short index_base_offset);
 	static void Set_World_Identity();
 	static void Set_View_Identity();
 	static bool Is_World_Identity();
