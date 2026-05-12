@@ -434,6 +434,12 @@ bool DX8Backend::Supports_Hardware_Transform_And_Lighting() const
     return caps != nullptr && caps->Support_TnL();
 }
 
+bool DX8Backend::Supports_Point_Sprites() const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    return caps != nullptr && caps->Support_PointSprites();
+}
+
 RenderBackendTextureLimits DX8Backend::Get_Texture_Limits() const
 {
     const auto * caps = DX8Wrapper::Get_Current_Caps();

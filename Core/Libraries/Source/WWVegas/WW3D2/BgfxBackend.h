@@ -73,6 +73,7 @@ public:
     virtual bool Is_Legacy_Voodoo3() const override { return false; }
     virtual bool Supports_NPatches() const override { return false; }
     virtual bool Supports_Hardware_Transform_And_Lighting() const override { return true; }
+    virtual bool Supports_Point_Sprites() const override { return false; }
     virtual RenderBackendTextureLimits Get_Texture_Limits() const override;
     virtual int Get_Max_Texture_Stages() const override;
     virtual bool Supports_Z_Bias() const override { return true; }
