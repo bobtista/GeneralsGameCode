@@ -143,6 +143,8 @@ public:
 
 	unsigned Get_Type() const { return Type; }
 	unsigned short Get_Index_Count() const { return IndexCount; }
+	unsigned short Get_Index_Buffer_Offset() const { return IndexBufferOffset; }
+	IndexBufferClass * Get_Index_Buffer() const { return IndexBuffer; }
 
 	// Call at the end of the execution, or at whatever time you wish to release
 	// the recycled dynamic index buffer.

@@ -3346,7 +3346,7 @@ static void LogBgfxTransientDiag(const char *event,
 
 void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)
 {
-    DX8Wrapper::Set_Vertex_Buffer(vb, stream);
+    FixedFunctionState::Set_Vertex_Buffer(vb, stream);
     (void)stream;
     // Cache is populated by Capture_Vertex_Data on the engine's own write
     // lock. Set_Vertex_Buffer just looks up whatever is already there; on a
@@ -3392,7 +3392,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
 
 void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 {
-    DX8Wrapper::Set_Vertex_Buffer(vba);
+    FixedFunctionState::Set_Vertex_Buffer(vba);
     g_draw.vertexColorFlags[0] =
         (vba.FVF_Info().Get_FVF() & D3DFVF_DIFFUSE) ? 1.0f : 0.0f;
     g_draw.fvfHasNormal =
@@ -3444,7 +3444,7 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 
 void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset)
 {
-    DX8Wrapper::Set_Index_Buffer(ib, index_base_offset);
+    FixedFunctionState::Set_Index_Buffer(ib, index_base_offset);
     g_draw.useTransientIB = false;
     g_draw.activeTransientIBOwner = nullptr;
     auto it = g_caches.ib.find(ib);
@@ -3476,7 +3476,7 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
 
 void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset)
 {
-    DX8Wrapper::Set_Index_Buffer(iba, index_base_offset);
+    FixedFunctionState::Set_Index_Buffer(iba, index_base_offset);
     if (g_draw.pendingIB.valid && g_draw.pendingIB.owner == &iba)
     {
         LogBgfxTransientDiag("set", "ib", &iba,

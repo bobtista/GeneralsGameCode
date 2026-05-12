@@ -2010,20 +2010,7 @@ void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 
 void DX8Wrapper::Set_Vertex_Buffer(const VertexBufferClass* vb, unsigned stream)
 {
-	FixedFunctionState::Render_State().vba_offset=0;
-	FixedFunctionState::Render_State().vba_count=0;
-	if (FixedFunctionState::Render_State().vertex_buffers[stream]) {
-		FixedFunctionState::Render_State().vertex_buffers[stream]->Release_Engine_Ref();
-	}
-	REF_PTR_SET(FixedFunctionState::Render_State().vertex_buffers[stream],const_cast<VertexBufferClass*>(vb));
-	if (vb) {
-		vb->Add_Engine_Ref();
-		FixedFunctionState::Render_State().vertex_buffer_types[stream]=vb->Type();
-	}
-	else {
-		FixedFunctionState::Render_State().vertex_buffer_types[stream]=BUFFER_TYPE_INVALID;
-	}
-	FixedFunctionState::Changed_Mask()|=VERTEX_BUFFER_CHANGED;
+	FixedFunctionState::Set_Vertex_Buffer(vb, stream);
 }
 
 // ----------------------------------------------------------------------------
@@ -2036,20 +2023,7 @@ void DX8Wrapper::Set_Vertex_Buffer(const VertexBufferClass* vb, unsigned stream)
 
 void DX8Wrapper::Set_Index_Buffer(const IndexBufferClass* ib,unsigned short index_base_offset)
 {
-	FixedFunctionState::Render_State().iba_offset=0;
-	if (FixedFunctionState::Render_State().index_buffer) {
-		FixedFunctionState::Render_State().index_buffer->Release_Engine_Ref();
-	}
-	REF_PTR_SET(FixedFunctionState::Render_State().index_buffer,const_cast<IndexBufferClass*>(ib));
-	FixedFunctionState::Render_State().index_base_offset=index_base_offset;
-	if (ib) {
-		ib->Add_Engine_Ref();
-		FixedFunctionState::Render_State().index_buffer_type=ib->Type();
-	}
-	else {
-		FixedFunctionState::Render_State().index_buffer_type=BUFFER_TYPE_INVALID;
-	}
-	FixedFunctionState::Changed_Mask()|=INDEX_BUFFER_CHANGED;
+	FixedFunctionState::Set_Index_Buffer(ib, index_base_offset);
 }
 
 // ----------------------------------------------------------------------------
@@ -2060,20 +2034,7 @@ void DX8Wrapper::Set_Index_Buffer(const IndexBufferClass* ib,unsigned short inde
 
 void DX8Wrapper::Set_Vertex_Buffer(const DynamicVBAccessClass& vba_)
 {
-	// Release all streams (only one stream allowed in the legacy pipeline)
-	for (int i=1;i<MAX_VERTEX_STREAMS;++i) {
-		DX8Wrapper::Set_Vertex_Buffer(nullptr, i);
-	}
-
-	if (FixedFunctionState::Render_State().vertex_buffers[0]) FixedFunctionState::Render_State().vertex_buffers[0]->Release_Engine_Ref();
-	DynamicVBAccessClass& vba=const_cast<DynamicVBAccessClass&>(vba_);
-	FixedFunctionState::Render_State().vertex_buffer_types[0]=vba.Get_Type();
-	FixedFunctionState::Render_State().vba_offset=vba.VertexBufferOffset;
-	FixedFunctionState::Render_State().vba_count=vba.Get_Vertex_Count();
-	REF_PTR_SET(FixedFunctionState::Render_State().vertex_buffers[0],vba.VertexBuffer);
-	FixedFunctionState::Render_State().vertex_buffers[0]->Add_Engine_Ref();
-	FixedFunctionState::Changed_Mask()|=VERTEX_BUFFER_CHANGED;
-	FixedFunctionState::Changed_Mask()|=INDEX_BUFFER_CHANGED;		// vba_offset changes so index buffer needs to be reset as well.
+	FixedFunctionState::Set_Vertex_Buffer(vba_);
 }
 
 // ----------------------------------------------------------------------------
@@ -2084,15 +2045,7 @@ void DX8Wrapper::Set_Vertex_Buffer(const DynamicVBAccessClass& vba_)
 
 void DX8Wrapper::Set_Index_Buffer(const DynamicIBAccessClass& iba_,unsigned short index_base_offset)
 {
-	if (FixedFunctionState::Render_State().index_buffer) FixedFunctionState::Render_State().index_buffer->Release_Engine_Ref();
-
-	DynamicIBAccessClass& iba=const_cast<DynamicIBAccessClass&>(iba_);
-	FixedFunctionState::Render_State().index_base_offset=index_base_offset;
-	FixedFunctionState::Render_State().index_buffer_type=iba.Get_Type();
-	FixedFunctionState::Render_State().iba_offset=iba.IndexBufferOffset;
-	REF_PTR_SET(FixedFunctionState::Render_State().index_buffer,iba.IndexBuffer);
-	FixedFunctionState::Render_State().index_buffer->Add_Engine_Ref();
-	FixedFunctionState::Changed_Mask()|=INDEX_BUFFER_CHANGED;
+	FixedFunctionState::Set_Index_Buffer(iba_, index_base_offset);
 }
 
 // ----------------------------------------------------------------------------
