@@ -35,6 +35,9 @@ Recent progress on the DX8-removal stack:
   The cached D3D render-state array, texture-stage-state array, and transform
   array no longer live in `RenderStateCache`; callers still use the old API
   while later phases replace the D3D-shaped layout with semantic backend state.
+- `BgfxBackend::Set_Transform` updates bgfx frame matrices and the
+  `FixedFunctionState` transform cache directly. It no longer calls
+  `DX8Wrapper::Set_Transform` just to keep the legacy cache warm.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -135,11 +138,11 @@ routing shader/view-capture/sorted-state capture APIs through
 
 - `raw_device`: 66 hits in 10 files
 - `dx8wrapper_low_level`: 87 hits in 9 files
-- `dx8wrapper_high_level`: 29 hits in 4 files
-- `d3d_public_type`: 2896 hits in 56 files
+- `dx8wrapper_high_level`: 25 hits in 4 files
+- `d3d_public_type`: 2892 hits in 56 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 3078
+- total categorized hits: 3070
 
 Completed low-risk migrations:
 
@@ -173,6 +176,9 @@ Completed low-risk migrations:
 - `RenderStateCache` storage moved to `FixedFunctionState`. This preserves the
   old invalidation, bounds-check, and transform-cache semantics while making
   `RenderStateCache` a transition facade instead of a storage owner.
+- `BgfxBackend::Set_Transform` no longer calls `DX8Wrapper::Set_Transform`.
+  The bgfx path now keeps transform state through `FixedFunctionState` and its
+  own frame matrices, leaving DX8 device programming to `DX8Backend`.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
