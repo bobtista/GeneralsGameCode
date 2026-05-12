@@ -41,7 +41,7 @@
 #include "linegrp.h"
 #include "texture.h"
 #include "vertmaterial.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "wwmath.h"
@@ -419,7 +419,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 					vb->x			= end.X;
 					vb->y			= end.Y;
 					vb->z			= end.Z;
-					vb->diffuse	= DX8Wrapper::Convert_Color(taildiffuse);
+					vb->diffuse	= WW3DColor::To_ARGB(taildiffuse);
 					vb->u1		= ucoord;
 					vb->v1		= 1.0f;
 					vb++;
@@ -429,7 +429,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 						vb->x			= loc.X;
 						vb->y			= loc.Y;
 						vb->z			= loc.Z;
-						vb->diffuse	= DX8Wrapper::Convert_Color(diffuse);
+						vb->diffuse	= WW3DColor::To_ARGB(diffuse);
 						vb->u1		= ucoord;
 						vb->v1		= 0.0f;
 						vb++;
@@ -442,7 +442,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 						vb->x			= loc.X;
 						vb->y			= loc.Y;
 						vb->z			= loc.Z;
-						vb->diffuse	= DX8Wrapper::Convert_Color(diffuse);
+						vb->diffuse	= WW3DColor::To_ARGB(diffuse);
 						vb->u1		= ucoord;
 						vb->v1		= 0.0f;
 						vb++;
@@ -456,7 +456,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 						vb->x			= loc.X;
 						vb->y			= loc.Y;
 						vb->z			= loc.Z;
-						vb->diffuse	= DX8Wrapper::Convert_Color(taildiffuse);
+						vb->diffuse	= WW3DColor::To_ARGB(taildiffuse);
 						vb->u1		= ucoord;
 						vb->v1		= 1.0f;
 						vb++;
