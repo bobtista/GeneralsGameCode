@@ -48,6 +48,15 @@ struct RenderStateStruct
 class FixedFunctionState
 {
 public:
+	enum
+	{
+		RENDER_STATE_COUNT = 256,
+		TEXTURE_STAGE_COUNT = 8,
+		TEXTURE_STAGE_STATE_COUNT = 32,
+		TRANSFORM_COUNT = D3DTS_WORLD + 1,
+		INVALID_STATE_VALUE = 0x12345678
+	};
+
 	static RenderStateStruct & Render_State();
 	static const RenderStateStruct & Peek_Render_State();
 	static unsigned & Changed_Mask();
@@ -60,4 +69,16 @@ public:
 	static IDirect3DBaseTexture8 * Raw_Texture(unsigned stage);
 	static bool Set_Raw_Texture(unsigned stage, IDirect3DBaseTexture8 * texture);
 	static void Release_Raw_Textures();
+
+	static void Clear_Cached_State();
+	static void Invalidate_Cached_State();
+
+	static unsigned Cached_Render_State(unsigned state);
+	static bool Set_Cached_Render_State(unsigned state, unsigned value);
+
+	static unsigned Cached_Texture_Stage_State(unsigned stage, unsigned state);
+	static bool Set_Cached_Texture_Stage_State(unsigned stage, unsigned state, unsigned value);
+
+	static void Cached_Transform(unsigned transform, D3DMATRIX & matrix);
+	static bool Set_Cached_Transform(unsigned transform, const D3DMATRIX & matrix);
 };
