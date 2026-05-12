@@ -404,6 +404,8 @@ Completed low-risk migrations:
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
+- `ShaderClass::Apply` now reads fog color through `IRenderBackend`, removing
+  another direct `DX8Wrapper` query from the shared shader path.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
