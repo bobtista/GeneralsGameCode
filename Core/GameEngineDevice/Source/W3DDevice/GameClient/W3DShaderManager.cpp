@@ -2094,8 +2094,7 @@ Int CloudTextureShader::set(Int stage)
 	//Get a texture matrix that applies the current cloud position
 	terrainShader2Stage.updateNoise1(&curView,&inv,false);	//update curView with texture matrix
 
-	g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-	g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+	W3DShaderManager_SetCameraSpaceTexcoord2(stage);
 	W3DShaderManager_SetTextureTransform(stage, curView);
 	W3DShaderManager_SetStageMinMagFilter(stage, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 	W3DShaderManager_SetStageAddress2D(stage, RB_TEXTURE_ADDRESS_WRAP);
@@ -2118,8 +2117,7 @@ void CloudTextureShader::reset()
 	//Free reference to texture
 	W3DShaderManager_BindStageTexture(m_stageOfSet, NULL);
 	//Turn off texture projection
-	g_renderBackend->Set_Texture_Stage_State( m_stageOfSet, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( m_stageOfSet, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|m_stageOfSet);
+	W3DShaderManager_ResetMeshTexcoord(m_stageOfSet, m_stageOfSet);
 
 	g_renderBackend->Set_Texture_Stage_State( m_stageOfSet, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 	g_renderBackend->Set_Texture_Stage_State( m_stageOfSet, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
@@ -2218,7 +2216,7 @@ Int RoadShaderPixelShader::set(Int pass)
 	g_renderBackend->Apply_Render_State_Changes();
 
 	//tell pixel shader which UV set to use for each stage
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
+	g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 
 	g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	g_renderBackend->Set_Depth_Write_Enable(false);
@@ -2244,9 +2242,8 @@ Int RoadShaderPixelShader::set(Int pass)
 		W3DShaderManager_SetStageMipFilter(1, RB_TEXTURE_SAMPLE_POINT);
 	}
 
-	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 	// Two output coordinates are used.
-	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+	W3DShaderManager_SetCameraSpaceTexcoord2(1);
 
 	W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 	W3DShaderManager_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
@@ -2266,9 +2263,8 @@ Int RoadShaderPixelShader::set(Int pass)
 	terrainShader2Stage.updateNoise2(&curView,&inv, false);	//get texture projection matrix
 	W3DShaderManager_SetTextureTransform(2, curView);
 
-	g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 	// Two output coordinates are used.
-	g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+	W3DShaderManager_SetCameraSpaceTexcoord2(2);
 
 	return TRUE;
 }
@@ -2278,17 +2274,10 @@ void RoadShaderPixelShader::reset()
 
 	g_renderBackend->Set_Pixel_Shader(0);	//turn off pixel shader
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
-
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|1);
-
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|2);
-
-	g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|3);
+	W3DShaderManager_ResetMeshTexcoord(0, 0);
+	W3DShaderManager_ResetMeshTexcoord(1, 1);
+	W3DShaderManager_ResetMeshTexcoord(2, 2);
+	W3DShaderManager_ResetMeshTexcoord(3, 3);
 
 
 	g_renderBackend->Invalidate_Cached_Render_States();
@@ -2332,7 +2321,7 @@ Int RoadShader2Stage::set(Int pass)
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE );
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
+	g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 	g_renderBackend->Set_Alpha_Blend_Enable(true);	//blend roads into terrain
 	g_renderBackend->Override_Alpha_Blend_Enable(true);
 
@@ -2355,9 +2344,8 @@ Int RoadShader2Stage::set(Int pass)
 					RB_TEXTURE_SAMPLE_LINEAR :
 					RB_TEXTURE_SAMPLE_POINT);
 
-			g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 			// Two output coordinates are used.
-			g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+			W3DShaderManager_SetCameraSpaceTexcoord2(1);
 
 			W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 
@@ -2423,9 +2411,8 @@ Int RoadShader2Stage::set(Int pass)
 		terrainShader2Stage.updateNoise2(&curView, &inv, false);	//update curView with texture matrix
 		W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 
-		g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
-		g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+		W3DShaderManager_SetCameraSpaceTexcoord2(1);
 
 		W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 
@@ -2459,11 +2446,8 @@ void RoadShader2Stage::reset()
 {
 	ShaderClass::Invalidate();
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
-
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|1);
+	W3DShaderManager_ResetMeshTexcoord(0, 0);
+	W3DShaderManager_ResetMeshTexcoord(1, 1);
 }
 
 /** List of all custom shader lists - each list in this list contains variations of the same
