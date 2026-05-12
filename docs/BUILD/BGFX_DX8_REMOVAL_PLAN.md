@@ -204,12 +204,12 @@ routing shader/view-capture/sorted-state capture APIs through
 game-facing texture-stage state writes through semantic backend APIs:
 
 - `raw_device`: 54 hits in 8 files
-- `dx8wrapper_low_level`: 78 hits in 8 files
+- `dx8wrapper_low_level`: 77 hits in 8 files
 - `dx8wrapper_high_level`: 22 hits in 3 files
-- `d3d_public_type`: 2066 hits in 53 files
+- `d3d_public_type`: 1891 hits in 52 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 2220
+- total categorized hits: 2044
 
 Completed low-risk migrations:
 
