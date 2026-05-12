@@ -261,6 +261,7 @@ public:
                                 unsigned short min_vertex_index,
                                 unsigned short vertex_count);
     virtual bool Is_Triangle_Draw_Enabled() const override;
+    virtual void Set_Triangle_Draw_Enabled(bool enable) override;
     virtual void Draw_Screen_Color_Quad(unsigned color,
                                         int x,
                                         int y,
