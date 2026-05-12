@@ -6969,11 +6969,9 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
     switch (transform)
     {
         case RB_TRANSFORM_WORLD:
-            DX8Wrapper::Set_Transform(D3DTS_WORLD, m);
             W3DMatrix4ToBgfx(m, g_frame.world);
             break;
         case RB_TRANSFORM_VIEW:
-            DX8Wrapper::Set_Transform(D3DTS_VIEW, m);
             W3DMatrix4ToBgfx(m, g_frame.view);
             g_frame.cameraProjDirty = true;
             g_views.overlay2DActive = false;
@@ -6993,11 +6991,9 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
     switch (transform)
     {
         case RB_TRANSFORM_WORLD:
-            DX8Wrapper::Set_Transform(D3DTS_WORLD, m);
             W3DMatrix3DToBgfx(m, g_frame.world);
             break;
         case RB_TRANSFORM_VIEW:
-            DX8Wrapper::Set_Transform(D3DTS_VIEW, m);
             W3DMatrix3DToBgfx(m, g_frame.view);
             g_frame.cameraProjDirty = true;
             g_views.overlay2DActive = false;
