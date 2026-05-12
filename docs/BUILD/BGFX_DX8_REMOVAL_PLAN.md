@@ -487,6 +487,8 @@ Completed low-risk migrations:
 - Common Bezier curve evaluation now uses explicit cubic coefficients instead
   of D3DX matrix/vector helpers, removing a renderer-era dependency from
   projectile path math.
+- Point-group ground-oriented quad expansion now computes its Z rotation
+  directly instead of routing through `D3DXMatrixRotationZ`.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
