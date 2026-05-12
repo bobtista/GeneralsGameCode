@@ -461,6 +461,7 @@ public:
     virtual int Get_Texture_Bitdepth() const { return 16; }
     virtual bool Supports_Texture_Format(WW3DFormat format) const { return false; }
     virtual int Get_Max_Texture_Stages() const { return RB_MAX_TEXTURE_STAGES; }
+    virtual bool Supports_Z_Bias() const { return false; }
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode) {}
     virtual RenderBackendMSAAMode Get_MSAA_Mode() const { return RB_MSAA_NONE; }
     virtual bool Supports_Dot3() const { return false; }
