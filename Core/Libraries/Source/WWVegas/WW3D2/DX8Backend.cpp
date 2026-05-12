@@ -26,7 +26,7 @@
 #include "dx8fvf.h"
 #include "dx8wrapper.h"
 #include "formconv.h"
-#include "texture.h"
+#include "FixedFunctionState.h"
 #include "vector3.h"
 #include "matrix4.h"
 #include "matrix3d.h"
@@ -784,17 +784,17 @@ void DX8Backend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & 
 
 void DX8Backend::Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state)
 {
-    DX8Wrapper::Set_Render_State(state);
+    FixedFunctionState::Restore_Render_State(state);
 }
 
 void DX8Backend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
 {
-    DX8Wrapper::Get_Render_State(state);
+    FixedFunctionState::Capture_Render_State(state);
 }
 
 void DX8Backend::Release_Legacy_Render_State_For_Sorted_Draw()
 {
-    DX8Wrapper::Release_Render_State();
+    FixedFunctionState::Release_Render_State();
 }
 
 // -- State: shaders, materials, textures ------------------------------------

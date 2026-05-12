@@ -148,8 +148,6 @@ Vector3							DX8Wrapper::Ambient_Color;
 
 bool								DX8Wrapper::world_identity;
 IDirect3DBaseTexture8 *		DX8Wrapper::Textures[MAX_TEXTURE_STAGES];
-RenderStateStruct				DX8Wrapper::render_state;
-unsigned							DX8Wrapper::render_state_changed;
 
 bool								DX8Wrapper::FogEnable									= false;
 D3DCOLOR							DX8Wrapper::FogColor										= 0;
@@ -262,7 +260,7 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	RenderStateCache::Clear();
 	memset(Vertex_Shader_Constants,0,sizeof(Vector4)*MAX_VERTEX_SHADER_CONSTANTS);
 	memset(Pixel_Shader_Constants,0,sizeof(Vector4)*MAX_PIXEL_SHADER_CONSTANTS);
-	memset(&render_state,0,sizeof(RenderStateStruct));
+	FixedFunctionState::Clear_Raw();
 	memset(Shadow_Map,0,sizeof(ZTextureClass*)*MAX_SHADOW_MAPS);
 
 	/*
@@ -349,7 +347,7 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 		// mode uses a no-op stub IDirect3DDevice8. Skip the LoadLibrary /
 		// Direct3DCreate8 path entirely so d3d8.dll is not a runtime dep.
 		// See StubD3D8Device.cpp for the stub implementation. DX8Wrapper's
-		// state tracking (render_state updates) still runs; the underlying
+		// state tracking still runs; the underlying
 		// device calls execute against the stub and do nothing. bgfx handles
 		// the real rendering via its own D3D11 backend.
 		WWDEBUG_SAY(("Using stub D3D8 interface (standalone)"));
@@ -524,7 +522,7 @@ void DX8Wrapper::Set_Default_Global_Render_States()
 
 void DX8Wrapper::Invalidate_Cached_Render_States()
 {
-	render_state_changed=0;
+	FixedFunctionState::Changed_Mask()=0;
 	RenderStateCache::Invalidate();
 
 	int a;
@@ -542,7 +540,7 @@ void DX8Wrapper::Invalidate_Cached_Render_States()
 
 	ShaderClass::Invalidate();
 
-	//Need to explicitly set render_state texture pointers to null. MW
+	//Need to explicitly set render-state texture pointers to null. MW
 	Release_Render_State();
 
 }
@@ -563,15 +561,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	/*
 	** Shutdown ww3d systems
 	*/
-	int i;
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-		if (render_state.vertex_buffers[i]) render_state.vertex_buffers[i]->Release_Engine_Ref();
-		REF_PTR_RELEASE(render_state.vertex_buffers[i]);
-	}
-	if (render_state.index_buffer) render_state.index_buffer->Release_Engine_Ref();
-	REF_PTR_RELEASE(render_state.index_buffer);
-	REF_PTR_RELEASE(render_state.material);
-	for (i=0;i<CurrentCaps->Get_Max_Textures_Per_Pass();++i) REF_PTR_RELEASE(render_state.Textures[i]);
+	FixedFunctionState::Release_Render_State();
 
 
 	TextureLoader::Deinit();
@@ -783,11 +773,11 @@ void DX8Wrapper::Release_Device()
 		*/
 		for (unsigned i=0;i<MAX_VERTEX_STREAMS;++i)
 		{
-			if (render_state.vertex_buffers[i]) render_state.vertex_buffers[i]->Release_Engine_Ref();
-			REF_PTR_RELEASE(render_state.vertex_buffers[i]);
+			if (FixedFunctionState::Render_State().vertex_buffers[i]) FixedFunctionState::Render_State().vertex_buffers[i]->Release_Engine_Ref();
+			REF_PTR_RELEASE(FixedFunctionState::Render_State().vertex_buffers[i]);
 		}
-		if (render_state.index_buffer) render_state.index_buffer->Release_Engine_Ref();
-		REF_PTR_RELEASE(render_state.index_buffer);
+		if (FixedFunctionState::Render_State().index_buffer) FixedFunctionState::Render_State().index_buffer->Release_Engine_Ref();
+		REF_PTR_RELEASE(FixedFunctionState::Render_State().index_buffer);
 
 		/*
 		** Shutdown all subsystems
@@ -2032,20 +2022,20 @@ void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 
 void DX8Wrapper::Set_Vertex_Buffer(const VertexBufferClass* vb, unsigned stream)
 {
-	render_state.vba_offset=0;
-	render_state.vba_count=0;
-	if (render_state.vertex_buffers[stream]) {
-		render_state.vertex_buffers[stream]->Release_Engine_Ref();
+	FixedFunctionState::Render_State().vba_offset=0;
+	FixedFunctionState::Render_State().vba_count=0;
+	if (FixedFunctionState::Render_State().vertex_buffers[stream]) {
+		FixedFunctionState::Render_State().vertex_buffers[stream]->Release_Engine_Ref();
 	}
-	REF_PTR_SET(render_state.vertex_buffers[stream],const_cast<VertexBufferClass*>(vb));
+	REF_PTR_SET(FixedFunctionState::Render_State().vertex_buffers[stream],const_cast<VertexBufferClass*>(vb));
 	if (vb) {
 		vb->Add_Engine_Ref();
-		render_state.vertex_buffer_types[stream]=vb->Type();
+		FixedFunctionState::Render_State().vertex_buffer_types[stream]=vb->Type();
 	}
 	else {
-		render_state.vertex_buffer_types[stream]=BUFFER_TYPE_INVALID;
+		FixedFunctionState::Render_State().vertex_buffer_types[stream]=BUFFER_TYPE_INVALID;
 	}
-	render_state_changed|=VERTEX_BUFFER_CHANGED;
+	FixedFunctionState::Changed_Mask()|=VERTEX_BUFFER_CHANGED;
 }
 
 // ----------------------------------------------------------------------------
@@ -2058,20 +2048,20 @@ void DX8Wrapper::Set_Vertex_Buffer(const VertexBufferClass* vb, unsigned stream)
 
 void DX8Wrapper::Set_Index_Buffer(const IndexBufferClass* ib,unsigned short index_base_offset)
 {
-	render_state.iba_offset=0;
-	if (render_state.index_buffer) {
-		render_state.index_buffer->Release_Engine_Ref();
+	FixedFunctionState::Render_State().iba_offset=0;
+	if (FixedFunctionState::Render_State().index_buffer) {
+		FixedFunctionState::Render_State().index_buffer->Release_Engine_Ref();
 	}
-	REF_PTR_SET(render_state.index_buffer,const_cast<IndexBufferClass*>(ib));
-	render_state.index_base_offset=index_base_offset;
+	REF_PTR_SET(FixedFunctionState::Render_State().index_buffer,const_cast<IndexBufferClass*>(ib));
+	FixedFunctionState::Render_State().index_base_offset=index_base_offset;
 	if (ib) {
 		ib->Add_Engine_Ref();
-		render_state.index_buffer_type=ib->Type();
+		FixedFunctionState::Render_State().index_buffer_type=ib->Type();
 	}
 	else {
-		render_state.index_buffer_type=BUFFER_TYPE_INVALID;
+		FixedFunctionState::Render_State().index_buffer_type=BUFFER_TYPE_INVALID;
 	}
-	render_state_changed|=INDEX_BUFFER_CHANGED;
+	FixedFunctionState::Changed_Mask()|=INDEX_BUFFER_CHANGED;
 }
 
 // ----------------------------------------------------------------------------
@@ -2087,15 +2077,15 @@ void DX8Wrapper::Set_Vertex_Buffer(const DynamicVBAccessClass& vba_)
 		DX8Wrapper::Set_Vertex_Buffer(nullptr, i);
 	}
 
-	if (render_state.vertex_buffers[0]) render_state.vertex_buffers[0]->Release_Engine_Ref();
+	if (FixedFunctionState::Render_State().vertex_buffers[0]) FixedFunctionState::Render_State().vertex_buffers[0]->Release_Engine_Ref();
 	DynamicVBAccessClass& vba=const_cast<DynamicVBAccessClass&>(vba_);
-	render_state.vertex_buffer_types[0]=vba.Get_Type();
-	render_state.vba_offset=vba.VertexBufferOffset;
-	render_state.vba_count=vba.Get_Vertex_Count();
-	REF_PTR_SET(render_state.vertex_buffers[0],vba.VertexBuffer);
-	render_state.vertex_buffers[0]->Add_Engine_Ref();
-	render_state_changed|=VERTEX_BUFFER_CHANGED;
-	render_state_changed|=INDEX_BUFFER_CHANGED;		// vba_offset changes so index buffer needs to be reset as well.
+	FixedFunctionState::Render_State().vertex_buffer_types[0]=vba.Get_Type();
+	FixedFunctionState::Render_State().vba_offset=vba.VertexBufferOffset;
+	FixedFunctionState::Render_State().vba_count=vba.Get_Vertex_Count();
+	REF_PTR_SET(FixedFunctionState::Render_State().vertex_buffers[0],vba.VertexBuffer);
+	FixedFunctionState::Render_State().vertex_buffers[0]->Add_Engine_Ref();
+	FixedFunctionState::Changed_Mask()|=VERTEX_BUFFER_CHANGED;
+	FixedFunctionState::Changed_Mask()|=INDEX_BUFFER_CHANGED;		// vba_offset changes so index buffer needs to be reset as well.
 }
 
 // ----------------------------------------------------------------------------
@@ -2106,15 +2096,15 @@ void DX8Wrapper::Set_Vertex_Buffer(const DynamicVBAccessClass& vba_)
 
 void DX8Wrapper::Set_Index_Buffer(const DynamicIBAccessClass& iba_,unsigned short index_base_offset)
 {
-	if (render_state.index_buffer) render_state.index_buffer->Release_Engine_Ref();
+	if (FixedFunctionState::Render_State().index_buffer) FixedFunctionState::Render_State().index_buffer->Release_Engine_Ref();
 
 	DynamicIBAccessClass& iba=const_cast<DynamicIBAccessClass&>(iba_);
-	render_state.index_base_offset=index_base_offset;
-	render_state.index_buffer_type=iba.Get_Type();
-	render_state.iba_offset=iba.IndexBufferOffset;
-	REF_PTR_SET(render_state.index_buffer,iba.IndexBuffer);
-	render_state.index_buffer->Add_Engine_Ref();
-	render_state_changed|=INDEX_BUFFER_CHANGED;
+	FixedFunctionState::Render_State().index_base_offset=index_base_offset;
+	FixedFunctionState::Render_State().index_buffer_type=iba.Get_Type();
+	FixedFunctionState::Render_State().iba_offset=iba.IndexBufferOffset;
+	REF_PTR_SET(FixedFunctionState::Render_State().index_buffer,iba.IndexBuffer);
+	FixedFunctionState::Render_State().index_buffer->Add_Engine_Ref();
+	FixedFunctionState::Changed_Mask()|=INDEX_BUFFER_CHANGED;
 }
 
 // ----------------------------------------------------------------------------
@@ -2131,16 +2121,16 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 	unsigned short min_vertex_index,
 	unsigned short vertex_count)
 {
-	WWASSERT(render_state.vertex_buffer_types[0]==BUFFER_TYPE_SORTING || render_state.vertex_buffer_types[0]==BUFFER_TYPE_DYNAMIC_SORTING);
-	WWASSERT(render_state.index_buffer_type==BUFFER_TYPE_SORTING || render_state.index_buffer_type==BUFFER_TYPE_DYNAMIC_SORTING);
+	WWASSERT(FixedFunctionState::Render_State().vertex_buffer_types[0]==BUFFER_TYPE_SORTING || FixedFunctionState::Render_State().vertex_buffer_types[0]==BUFFER_TYPE_DYNAMIC_SORTING);
+	WWASSERT(FixedFunctionState::Render_State().index_buffer_type==BUFFER_TYPE_SORTING || FixedFunctionState::Render_State().index_buffer_type==BUFFER_TYPE_DYNAMIC_SORTING);
 
 	// Fill dynamic vertex buffer with sorting vertex buffer vertices
 	DynamicVBAccessClass dyn_vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,vertex_count);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&dyn_vb_access);
-		VertexFormatXYZNDUV2* src = static_cast<SortingVertexBufferClass*>(render_state.vertex_buffers[0])->VertexBuffer;
+		VertexFormatXYZNDUV2* src = static_cast<SortingVertexBufferClass*>(FixedFunctionState::Render_State().vertex_buffers[0])->VertexBuffer;
 		VertexFormatXYZNDUV2* dest= lock.Get_Formatted_Vertex_Array();
-		src += render_state.vba_offset + render_state.index_base_offset + min_vertex_index;
+		src += FixedFunctionState::Render_State().vba_offset + FixedFunctionState::Render_State().index_base_offset + min_vertex_index;
 		unsigned  size = dyn_vb_access.FVF_Info().Get_FVF_Size()*vertex_count/sizeof(unsigned);
 		unsigned *dest_u =(unsigned*) dest;
 		unsigned *src_u = (unsigned*) src;
@@ -2175,8 +2165,8 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 		DynamicIBAccessClass::WriteLockClass lock(&dyn_ib_access);
 		unsigned short* dest=lock.Get_Index_Array();
 		unsigned short* src=nullptr;
-		src=static_cast<SortingIndexBufferClass*>(render_state.index_buffer)->index_buffer;
-		src+=render_state.iba_offset+start_index;
+		src=static_cast<SortingIndexBufferClass*>(FixedFunctionState::Render_State().index_buffer)->index_buffer;
+		src+=FixedFunctionState::Render_State().iba_offset+start_index;
 
 		for (unsigned short i=0;i<index_count;++i) {
 			unsigned short index=*src++;
@@ -2199,7 +2189,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 		dyn_ib_access.IndexBufferOffset,
 		polygon_count));
 
-	DX8_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
+	DX8_RECORD_RENDER(polygon_count,vertex_count,FixedFunctionState::Render_State().shader);
 
 	// TheSuperHackers @refactor bobtista 11/04/2026 Hand the
 	// internal dynamic VB/IB to the render backend so a bgfx co-resident
@@ -2294,37 +2284,37 @@ void DX8Wrapper::Draw(
 
 	if (vertex_count<3) {
 		min_vertex_index=0;
-		switch (render_state.vertex_buffer_types[0]) {
+		switch (FixedFunctionState::Render_State().vertex_buffer_types[0]) {
 		case BUFFER_TYPE_DX8:
 		case BUFFER_TYPE_SORTING:
-			vertex_count=render_state.vertex_buffers[0]->Get_Vertex_Count()-render_state.index_base_offset-render_state.vba_offset-min_vertex_index;
+			vertex_count=FixedFunctionState::Render_State().vertex_buffers[0]->Get_Vertex_Count()-FixedFunctionState::Render_State().index_base_offset-FixedFunctionState::Render_State().vba_offset-min_vertex_index;
 			break;
 		case BUFFER_TYPE_DYNAMIC_DX8:
 		case BUFFER_TYPE_DYNAMIC_SORTING:
-			vertex_count=render_state.vba_count;
+			vertex_count=FixedFunctionState::Render_State().vba_count;
 			break;
 		}
 	}
 
-	switch (render_state.vertex_buffer_types[0]) {
+	switch (FixedFunctionState::Render_State().vertex_buffer_types[0]) {
 	case BUFFER_TYPE_DX8:
 	case BUFFER_TYPE_DYNAMIC_DX8:
-		switch (render_state.index_buffer_type) {
+		switch (FixedFunctionState::Render_State().index_buffer_type) {
 		case BUFFER_TYPE_DX8:
 		case BUFFER_TYPE_DYNAMIC_DX8:
 			{
-/*				if ((start_index+render_state.iba_offset+polygon_count*3) > render_state.index_buffer->Get_Index_Count())
+/*				if ((start_index+FixedFunctionState::Render_State().iba_offset+polygon_count*3) > FixedFunctionState::Render_State().index_buffer->Get_Index_Count())
 				{	WWASSERT_PRINT(0,"OVERFLOWING INDEX BUFFER");
 					///@todo: MUST FIND OUT WHY THIS HAPPENS WITH LOTS OF PARTICLES ON BIG FIGHT!  -MW
 					break;
 				}*/
-				DX8_RECORD_RENDER(polygon_count,vertex_count,render_state.shader);
+				DX8_RECORD_RENDER(polygon_count,vertex_count,FixedFunctionState::Render_State().shader);
 				DX8_RECORD_DRAW_CALLS();
 				DX8CALL(DrawIndexedPrimitive(
 					(D3DPRIMITIVETYPE)primitive_type,
 					min_vertex_index,
 					vertex_count,
-					start_index+render_state.iba_offset,
+					start_index+FixedFunctionState::Render_State().iba_offset,
 					polygon_count));
 			}
 			break;
@@ -2339,7 +2329,7 @@ void DX8Wrapper::Draw(
 		break;
 	case BUFFER_TYPE_SORTING:
 	case BUFFER_TYPE_DYNAMIC_SORTING:
-		switch (render_state.index_buffer_type) {
+		switch (FixedFunctionState::Render_State().index_buffer_type) {
 		case BUFFER_TYPE_DX8:
 		case BUFFER_TYPE_DYNAMIC_DX8:
 			WWASSERT_PRINT(0,"VB and IB must of same type (sorting or dx8)");
@@ -2420,23 +2410,23 @@ void DX8Wrapper::Apply_Render_State_Changes()
 {
 	SNAPSHOT_SAY(("DX8Wrapper::Apply_Render_State_Changes()"));
 
-	if (!render_state_changed) return;
-	if (render_state_changed&SHADER_CHANGED) {
+	if (!FixedFunctionState::Changed_Mask()) return;
+	if (FixedFunctionState::Changed_Mask()&SHADER_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply shader"));
-		render_state.shader.Apply();
+		FixedFunctionState::Render_State().shader.Apply();
 	}
 
 	unsigned mask=TEXTURE0_CHANGED;
 	int i=0;
 	for (;i<CurrentCaps->Get_Max_Textures_Per_Pass();++i,mask<<=1)
 	{
-		if (render_state_changed&mask)
+		if (FixedFunctionState::Changed_Mask()&mask)
 		{
-			SNAPSHOT_SAY(("DX8 - apply texture %d (%s)",i,render_state.Textures[i] ? render_state.Textures[i]->Get_Full_Path().str() : "null"));
+			SNAPSHOT_SAY(("DX8 - apply texture %d (%s)",i,FixedFunctionState::Render_State().Textures[i] ? FixedFunctionState::Render_State().Textures[i]->Get_Full_Path().str() : "null"));
 
-			if (render_state.Textures[i])
+			if (FixedFunctionState::Render_State().Textures[i])
 			{
-				render_state.Textures[i]->Apply(i);
+				FixedFunctionState::Render_State().Textures[i]->Apply(i);
 			}
 			else
 			{
@@ -2445,10 +2435,10 @@ void DX8Wrapper::Apply_Render_State_Changes()
 		}
 	}
 
-	if (render_state_changed&MATERIAL_CHANGED)
+	if (FixedFunctionState::Changed_Mask()&MATERIAL_CHANGED)
 	{
 		SNAPSHOT_SAY(("DX8 - apply material"));
-		VertexMaterialClass* material=const_cast<VertexMaterialClass*>(render_state.material);
+		VertexMaterialClass* material=const_cast<VertexMaterialClass*>(FixedFunctionState::Render_State().material);
 		if (material)
 		{
 			material->Apply();
@@ -2456,16 +2446,16 @@ void DX8Wrapper::Apply_Render_State_Changes()
 		else VertexMaterialClass::Apply_Null();
 	}
 
-	if (render_state_changed&LIGHTS_CHANGED)
+	if (FixedFunctionState::Changed_Mask()&LIGHTS_CHANGED)
 	{
 		unsigned mask=LIGHT0_CHANGED;
 		for (unsigned index=0;index<4;++index,mask<<=1) {
-			if (render_state_changed&mask) {
+			if (FixedFunctionState::Changed_Mask()&mask) {
 				SNAPSHOT_SAY(("DX8 - apply light %d",index));
-				if (render_state.LightEnable[index]) {
+				if (FixedFunctionState::Render_State().LightEnable[index]) {
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 					if ( WW3D::Is_Snapshot_Activated() ) {
-						D3DLIGHT8 * light = &(render_state.Lights[index]);
+						D3DLIGHT8 * light = &(FixedFunctionState::Render_State().Lights[index]);
 						static const char * _light_types[] = { "Unknown", "Point","Spot", "Directional" };
 						WWASSERT((light->Type >= 0) && (light->Type <= 3));
 
@@ -2480,7 +2470,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 					}
 #endif
 
-					Set_DX8_Light(index,&render_state.Lights[index]);
+					Set_DX8_Light(index,&FixedFunctionState::Render_State().Lights[index]);
 				}
 				else {
 					Set_DX8_Light(index,nullptr);
@@ -2490,29 +2480,29 @@ void DX8Wrapper::Apply_Render_State_Changes()
 		}
 	}
 
-	if (render_state_changed&WORLD_CHANGED) {
+	if (FixedFunctionState::Changed_Mask()&WORLD_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply world matrix"));
-		_Set_DX8_Transform(D3DTS_WORLD,render_state.world);
+		_Set_DX8_Transform(D3DTS_WORLD,FixedFunctionState::Render_State().world);
 	}
-	if (render_state_changed&VIEW_CHANGED) {
+	if (FixedFunctionState::Changed_Mask()&VIEW_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply view matrix"));
-		_Set_DX8_Transform(D3DTS_VIEW,render_state.view);
+		_Set_DX8_Transform(D3DTS_VIEW,FixedFunctionState::Render_State().view);
 	}
-	if (render_state_changed&VERTEX_BUFFER_CHANGED) {
+	if (FixedFunctionState::Changed_Mask()&VERTEX_BUFFER_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply vb change"));
 		for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-			if (render_state.vertex_buffers[i]) {
-				switch (render_state.vertex_buffer_types[i]) {//->Type()) {
+			if (FixedFunctionState::Render_State().vertex_buffers[i]) {
+				switch (FixedFunctionState::Render_State().vertex_buffer_types[i]) {//->Type()) {
 				case BUFFER_TYPE_DX8:
 				case BUFFER_TYPE_DYNAMIC_DX8:
 					DX8CALL(SetStreamSource(
 						i,
-						static_cast<DX8VertexBufferClass*>(render_state.vertex_buffers[i])->Get_DX8_Vertex_Buffer(),
-						render_state.vertex_buffers[i]->FVF_Info().Get_FVF_Size()));
+						static_cast<DX8VertexBufferClass*>(FixedFunctionState::Render_State().vertex_buffers[i])->Get_DX8_Vertex_Buffer(),
+						FixedFunctionState::Render_State().vertex_buffers[i]->FVF_Info().Get_FVF_Size()));
 					DX8_RECORD_VERTEX_BUFFER_CHANGE();
 					{
 						// If the VB format is FVF, set the FVF as a vertex shader
-						unsigned fvf=render_state.vertex_buffers[i]->FVF_Info().Get_FVF();
+						unsigned fvf=FixedFunctionState::Render_State().vertex_buffers[i]->FVF_Info().Get_FVF();
 						if (fvf!=0) {
 							Set_Vertex_Shader(fvf);
 						}
@@ -2530,15 +2520,15 @@ void DX8Wrapper::Apply_Render_State_Changes()
 			}
 		}
 	}
-	if (render_state_changed&INDEX_BUFFER_CHANGED) {
+	if (FixedFunctionState::Changed_Mask()&INDEX_BUFFER_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply ib change"));
-		if (render_state.index_buffer) {
-			switch (render_state.index_buffer_type) {//->Type()) {
+		if (FixedFunctionState::Render_State().index_buffer) {
+			switch (FixedFunctionState::Render_State().index_buffer_type) {//->Type()) {
 			case BUFFER_TYPE_DX8:
 			case BUFFER_TYPE_DYNAMIC_DX8:
 				DX8CALL(SetIndices(
-					static_cast<DX8IndexBufferClass*>(render_state.index_buffer)->Get_DX8_Index_Buffer(),
-					render_state.index_base_offset+render_state.vba_offset));
+					static_cast<DX8IndexBufferClass*>(FixedFunctionState::Render_State().index_buffer)->Get_DX8_Index_Buffer(),
+					FixedFunctionState::Render_State().index_base_offset+FixedFunctionState::Render_State().vba_offset));
 				DX8_RECORD_INDEX_BUFFER_CHANGE();
 				break;
 			case BUFFER_TYPE_SORTING:
@@ -2556,7 +2546,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 		}
 	}
 
-	render_state_changed&=((unsigned)WORLD_IDENTITY|(unsigned)VIEW_IDENTITY);
+	FixedFunctionState::Changed_Mask()&=((unsigned)WORLD_IDENTITY|(unsigned)VIEW_IDENTITY);
 
 	SNAPSHOT_SAY(("DX8Wrapper::Apply_Render_State_Changes() - finished"));
 }
@@ -3362,13 +3352,13 @@ void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
 void DX8Wrapper::Set_Light(unsigned index, const D3DLIGHT8* light)
 {
 	if (light) {
-		render_state.Lights[index]=*light;
-		render_state.LightEnable[index]=true;
+		FixedFunctionState::Render_State().Lights[index]=*light;
+		FixedFunctionState::Render_State().LightEnable[index]=true;
 	}
 	else {
-		render_state.LightEnable[index]=false;
+		FixedFunctionState::Render_State().LightEnable[index]=false;
 	}
-	render_state_changed|=(LIGHT0_CHANGED<<index);
+	FixedFunctionState::Changed_Mask()|=(LIGHT0_CHANGED<<index);
 }
 
 void DX8Wrapper::Set_Light(unsigned index,const LightClass &light)
@@ -3462,7 +3452,7 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 			Set_DX8_Render_State(D3DRS_AMBIENT,color);
 //buggy Radeon 9700 driver doesn't apply new ambient unless the material also changes.
 #if 1
-			render_state_changed|=MATERIAL_CHANGED;
+			FixedFunctionState::Changed_Mask()|=MATERIAL_CHANGED;
 #endif
 		}
 
@@ -4098,18 +4088,18 @@ void D3DMatrixIdentity(D3DMATRIX* dxm)
 
 void DX8Wrapper::Set_World_Identity()
 {
-	if (render_state_changed&(unsigned)WORLD_IDENTITY)
+	if (FixedFunctionState::Changed_Mask()&(unsigned)WORLD_IDENTITY)
 		return;
-	wrapper::D3DMatrixIdentity(&render_state.world);
-	render_state_changed|=(unsigned)WORLD_CHANGED|(unsigned)WORLD_IDENTITY;
+	wrapper::D3DMatrixIdentity(&FixedFunctionState::Render_State().world);
+	FixedFunctionState::Changed_Mask()|=(unsigned)WORLD_CHANGED|(unsigned)WORLD_IDENTITY;
 }
 
 void DX8Wrapper::Set_View_Identity()
 {
-	if (render_state_changed&(unsigned)VIEW_IDENTITY)
+	if (FixedFunctionState::Changed_Mask()&(unsigned)VIEW_IDENTITY)
 		return;
-	wrapper::D3DMatrixIdentity(&render_state.view);
-	render_state_changed|=(unsigned)VIEW_CHANGED|(unsigned)VIEW_IDENTITY;
+	wrapper::D3DMatrixIdentity(&FixedFunctionState::Render_State().view);
+	FixedFunctionState::Changed_Mask()|=(unsigned)VIEW_CHANGED|(unsigned)VIEW_IDENTITY;
 }
 
 //**********************************************************************************************
