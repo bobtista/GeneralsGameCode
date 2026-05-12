@@ -46,7 +46,6 @@
 #include "IRenderBackend.h"
 #include "thread.h"
 #include "wwmemlog.h"
-#include <d3dx8core.h>
 #include <cstring>
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture vertex
