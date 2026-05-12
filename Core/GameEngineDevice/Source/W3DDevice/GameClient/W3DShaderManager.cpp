@@ -365,7 +365,7 @@ Int ScreenBWFilter::init()
 			};
 
 			//Monochrome pixel shader.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\monochrome.pso", &Declaration[0], 0, false, &m_dwBWPixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\monochrome.pso", &Declaration[0], 0, false, &m_dwBWPixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -1911,17 +1911,17 @@ Int TerrainShaderPixelShader::init()
 			};
 
 			//base version which doesn't apply any noise textures.
-			HRESULT hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\terrain.pso", &Declaration[0], 0, false, &m_dwBasePixelShader);
+			HRESULT hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\terrain.pso", &Declaration[0], 0, false, &m_dwBasePixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 1 noise texture.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\terrainnoise.pso", &Declaration[0], 0, false, &m_dwBaseNoise1PixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\terrainnoise.pso", &Declaration[0], 0, false, &m_dwBaseNoise1PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 2 noise textures.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\terrainnoise2.pso", &Declaration[0], 0, false, &m_dwBaseNoise2PixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\terrainnoise2.pso", &Declaration[0], 0, false, &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -2216,7 +2216,7 @@ Int RoadShaderPixelShader::init()
 			};
 
 			//version which blends 2 noise textures.
-			HRESULT hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\roadnoise2.pso", &Declaration[0], 0, false, &m_dwBaseNoise2PixelShader);
+			HRESULT hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\roadnoise2.pso", &Declaration[0], 0, false, &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -2919,11 +2919,11 @@ ChipsetType W3DShaderManager::getChipset()
 }
 
 //=============================================================================
-// WaterRenderObjClass::LoadAndCreateShader
+// W3DShaderManager::LoadAndCreateLegacyShader
 //=============================================================================
-/** Loads and creates a D3D pixel or vertex shader.*/
+/** Loads and creates a backend pixel or vertex shader from a legacy shader file.*/
 //=============================================================================
-HRESULT W3DShaderManager::LoadAndCreateD3DShader(const char* strFilePath, const DWORD* pDeclaration, DWORD Usage, Bool ShaderType, DWORD* pHandle)
+HRESULT W3DShaderManager::LoadAndCreateLegacyShader(const char* strFilePath, const DWORD* pDeclaration, DWORD Usage, Bool ShaderType, DWORD* pHandle)
 {
 	if (getChipset() < DC_GENERIC_PIXEL_SHADER_1_1)
 		return E_FAIL;	//don't allow loading any shaders if hardware can't handle it.
@@ -3463,22 +3463,22 @@ Int FlatTerrainShaderPixelShader::init()
 			};
 
 			//base version which doesn't apply any noise textures.
-			HRESULT hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\fterrain.pso", &Declaration[0], 0, false, &m_dwBasePixelShader);
+			HRESULT hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrain.pso", &Declaration[0], 0, false, &m_dwBasePixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//base version which doesn't apply any shroud textures.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\fterrain0.pso", &Declaration[0], 0, false, &m_dwBase0PixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrain0.pso", &Declaration[0], 0, false, &m_dwBase0PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 1 noise texture.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\fterrainnoise.pso", &Declaration[0], 0, false, &m_dwBaseNoise1PixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrainnoise.pso", &Declaration[0], 0, false, &m_dwBaseNoise1PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 2 noise textures.
-			hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\fterrainnoise2.pso", &Declaration[0], 0, false, &m_dwBaseNoise2PixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrainnoise2.pso", &Declaration[0], 0, false, &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
