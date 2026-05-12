@@ -66,6 +66,7 @@ public:
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode) override;
     virtual RenderBackendMSAAMode Get_MSAA_Mode() const override;
     virtual bool Supports_Dot3() const override { return true; }
+    virtual bool Get_Device_Identity(RenderBackendDeviceIdentity & identity) const override;
     virtual void Clear(bool clear_color, bool clear_z_stencil,
                        const Vector3 & color,
                        float dest_alpha = 0.0f, float z = 1.0f, unsigned int stencil = 0) override;

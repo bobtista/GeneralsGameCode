@@ -52,6 +52,7 @@ public:
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode);
     virtual RenderBackendMSAAMode Get_MSAA_Mode() const;
     virtual bool Supports_Dot3() const;
+    virtual bool Get_Device_Identity(RenderBackendDeviceIdentity & identity) const override;
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit);
 
     // -- Frame lifecycle ------------------------------------------------------

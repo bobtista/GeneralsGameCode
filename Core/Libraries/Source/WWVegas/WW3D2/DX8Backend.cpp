@@ -231,6 +231,41 @@ bool DX8Backend::Supports_Dot3() const
         && DX8Wrapper::Get_Current_Caps()->Support_Dot3();
 }
 
+bool DX8Backend::Get_Device_Identity(RenderBackendDeviceIdentity & identity) const
+{
+    const DX8Caps * caps = DX8Wrapper::Get_Current_Caps();
+    if (caps == nullptr)
+    {
+        return false;
+    }
+
+    identity = {};
+    identity.max_simultaneous_textures = caps->Get_Max_Simultaneous_Textures();
+    identity.pixel_shader_major = caps->Get_Pixel_Shader_Major_Version();
+    identity.pixel_shader_minor = caps->Get_Pixel_Shader_Minor_Version();
+
+    IDirect3D8 * d3d = DX8Wrapper::_Get_D3D8();
+    if (d3d != nullptr)
+    {
+        D3DADAPTER_IDENTIFIER8 adapter;
+        ::ZeroMemory(&adapter, sizeof(adapter));
+        if (SUCCEEDED(d3d->GetAdapterIdentifier(0, D3DENUM_NO_WHQL_LEVEL, &adapter)))
+        {
+            identity.vendor_id = adapter.VendorId;
+            identity.device_id = adapter.DeviceId;
+#ifdef _WIN32
+            identity.driver_version = static_cast<std::uint64_t>(adapter.DriverVersion.QuadPart);
+#else
+            identity.driver_version =
+                (static_cast<std::uint64_t>(adapter.DriverVersionHighPart) << 32) |
+                adapter.DriverVersionLowPart;
+#endif
+        }
+    }
+
+    return true;
+}
+
 bool DX8Backend::Has_Stencil() const
 {
     return DX8Wrapper::Has_Stencil();

@@ -3308,6 +3308,15 @@ RenderBackendMSAAMode BgfxBackend::Get_MSAA_Mode() const
     return m_msaaMode;
 }
 
+bool BgfxBackend::Get_Device_Identity(RenderBackendDeviceIdentity & identity) const
+{
+    identity = {};
+    identity.max_simultaneous_textures = RB_MAX_TEXTURE_STAGES;
+    identity.pixel_shader_major = 2;
+    identity.pixel_shader_minor = 0;
+    return true;
+}
+
 static void LogBgfxTransientDiag(const char *event,
                                  const char *kind,
                                  const void *owner,
