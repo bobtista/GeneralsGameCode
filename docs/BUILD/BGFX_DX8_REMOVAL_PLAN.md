@@ -406,6 +406,9 @@ Completed low-risk migrations:
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
 - `ShaderClass::Apply` now reads fog color through `IRenderBackend`, removing
   another direct `DX8Wrapper` query from the shared shader path.
+- `SortingRendererClass::Flush` now saves/restores triangle draw enable through
+  `IRenderBackend`. DX8 delegates to the legacy wrapper flag; bgfx owns its
+  own equivalent flag and honors it in triangle/strip submits.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

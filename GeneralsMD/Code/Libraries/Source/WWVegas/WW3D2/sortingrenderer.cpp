@@ -794,10 +794,10 @@ void SortingRendererClass::Flush()
 		}
 	}
 
-	bool old_enable=DX8Wrapper::_Is_Triangle_Draw_Enabled();
-	DX8Wrapper::_Enable_Triangle_Draw(_EnableTriangleDraw);
+	bool old_enable=g_renderBackend->Is_Triangle_Draw_Enabled();
+	g_renderBackend->Set_Triangle_Draw_Enabled(_EnableTriangleDraw);
 	Flush_Sorting_Pool();
-	DX8Wrapper::_Enable_Triangle_Draw(old_enable);
+	g_renderBackend->Set_Triangle_Draw_Enabled(old_enable);
 
 	g_renderBackend->Set_Index_Buffer(nullptr, 0);
 	g_renderBackend->Set_Vertex_Buffer(nullptr, 0);

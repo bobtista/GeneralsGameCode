@@ -269,6 +269,8 @@ static bool BgfxStencilShadowsEnabled()
     return mode == BgfxShadowMode::Stencil;
 }
 
+static bool g_triangleDrawEnabled = true;
+
 static bool IsBgfxStatsLoggingEnabled()
 {
     return GetBgfxDiagnosticFlags().logStats;
@@ -7915,6 +7917,10 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
         g_views.skipNextSubmitEngineDraw = false;
         return;
     }
+    if (!g_triangleDrawEnabled)
+    {
+        return;
+    }
     SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
 }
 
@@ -7930,7 +7936,21 @@ void BgfxBackend::Draw_Triangles(unsigned int buffer_type,
         g_views.skipNextSubmitEngineDraw = false;
         return;
     }
+    if (!g_triangleDrawEnabled)
+    {
+        return;
+    }
     SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
+}
+
+bool BgfxBackend::Is_Triangle_Draw_Enabled() const
+{
+    return g_triangleDrawEnabled;
+}
+
+void BgfxBackend::Set_Triangle_Draw_Enabled(bool enable)
+{
+    g_triangleDrawEnabled = enable;
 }
 
 // TheSuperHackers @feature bobtista 16/04/2026 Draw_Strip override so strip-based
@@ -7944,6 +7964,10 @@ void BgfxBackend::Draw_Strip(unsigned short start_index,
     if (g_views.skipNextSubmitEngineDraw)
     {
         g_views.skipNextSubmitEngineDraw = false;
+        return;
+    }
+    if (!g_triangleDrawEnabled)
+    {
         return;
     }
 

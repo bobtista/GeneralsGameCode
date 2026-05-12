@@ -1744,6 +1744,11 @@ bool DX8Backend::Is_Triangle_Draw_Enabled() const
     return DX8Wrapper::_Is_Triangle_Draw_Enabled();
 }
 
+void DX8Backend::Set_Triangle_Draw_Enabled(bool enable)
+{
+    DX8Wrapper::_Enable_Triangle_Draw(enable);
+}
+
 void DX8Backend::Draw_Screen_Color_Quad(unsigned color, int x, int y, int width, int height)
 {
     LPDIRECT3DDEVICE8 device = DX8Wrapper::_Get_D3D_Device8();
