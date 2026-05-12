@@ -410,6 +410,8 @@ Completed low-risk migrations:
 - Tree rendering now selects mesh UV0/UV1 and disables the shroud-stage
   texture transform through backend semantic APIs instead of direct
   `D3DTSS_*` writes.
+- Shroud and screen-mask shader setup/reset now use local shader-manager
+  helpers for camera-space projected UV2 and mesh-UV reset semantics.
 - `ShaderClass::Apply` now reads fog color through `IRenderBackend`, removing
   another direct `DX8Wrapper` query from the shared shader path.
 - The legacy Voodoo3 stage-2 compatibility path in `ShaderClass::Apply` now
