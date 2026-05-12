@@ -671,35 +671,6 @@ void TerrainTextureClass::Apply(unsigned int stage)
 {
 	// Do the base apply.
 	TextureClass::Apply(stage);
-#if 0 // obsolete [4/1/2003]
-	if (TheGlobalData && (TheGlobalData->m_bilinearTerrainTex || TheGlobalData->m_trilinearTerrainTex)) {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-	}
-	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-	}
-	// Now setup the texture pipeline.
-	if (stage==0) {
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
-		g_renderBackend->Set_Alpha_Blend_Enable(false);
-
-	}
-#endif
 }
 
 /******************************************************************************
@@ -1004,55 +975,6 @@ void AlphaEdgeTextureClass::Apply(unsigned int stage)
 {
 	// Do the base apply.
 	TextureClass::Apply(stage);
-#if 0 // obsolete [4/1/2003]
-
-	if (TheGlobalData && (TheGlobalData->m_bilinearTerrainTex || TheGlobalData->m_trilinearTerrainTex)) {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-	}
-	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-	}
-
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
-	// Now setup the texture pipeline.
-	if (stage==0) {
-
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAARG1,   D3DTA_TEXTURE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 1 );
-		g_renderBackend->Set_Alpha_Blend_Enable(true);
-		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
-
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-
-	} else if (stage==1) {
-		// Drawing texture through the mask.
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAARG1,   D3DTA_CURRENT );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
-
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_CURRENT );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_TEXTURE );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG1,   D3DTA_CURRENT );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG2,   D3DTA_TEXTURE );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2 );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1 );
-		g_renderBackend->Set_Alpha_Blend_Enable(true);
-		g_renderBackend->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ZERO);
-
-	}
-#endif
 }
 
 
