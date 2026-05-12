@@ -5726,6 +5726,11 @@ void BgfxBackend::Set_Fog_Color(unsigned argb)
     RenderStateCache::Set_Render_State(D3DRS_FOGCOLOR, argb);
 }
 
+unsigned BgfxBackend::Get_Fog_Color() const
+{
+    return RenderStateCache::Get_Render_State(D3DRS_FOGCOLOR);
+}
+
 void BgfxBackend::Set_Specular_Enable(bool enable)
 {
     RenderStateCache::Set_Render_State(D3DRS_SPECULARENABLE, enable ? TRUE : FALSE);

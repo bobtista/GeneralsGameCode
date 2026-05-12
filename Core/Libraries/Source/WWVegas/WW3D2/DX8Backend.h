@@ -215,6 +215,7 @@ public:
     virtual void Set_Fog(bool enable, const Vector3 & color, float start, float end);
     virtual void Set_Fog_Enable(bool enable) override;
     virtual void Set_Fog_Color(unsigned argb) override;
+    virtual unsigned Get_Fog_Color() const override;
     virtual void Apply_Stencil_Shadow_Darken(unsigned shadow_color,
                                              unsigned stencil_read_mask,
                                              unsigned stencil_ref,
