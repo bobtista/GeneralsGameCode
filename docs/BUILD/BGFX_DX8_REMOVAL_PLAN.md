@@ -408,6 +408,8 @@ Completed low-risk migrations:
 - Sea-water setup and cleanup now express mesh UV selection and transform-reset
   state through the same water helpers. The remaining water texcoord work is
   disabled legacy clip-plane code.
+- The disabled legacy water clip-plane block now also uses water texcoord and
+  transform helpers, including its camera-space stage-1 UV-index variant.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
