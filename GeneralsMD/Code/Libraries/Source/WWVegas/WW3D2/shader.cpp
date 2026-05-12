@@ -52,6 +52,16 @@ bool ShaderClass::ShaderDirty=true;
 unsigned long ShaderClass::CurrentShader=0;
 unsigned long _PolygonCullMode = D3DCULL_CW;
 
+static RenderBackendTextureOperation Shader_Texture_Operation(D3DTEXTUREOP op)
+{
+	return static_cast<RenderBackendTextureOperation>(op);
+}
+
+static RenderBackendTextureArgument Shader_Texture_Argument(DWORD arg)
+{
+	return static_cast<RenderBackendTextureArgument>(arg);
+}
+
 
 /*
 ** Definitions of the preset shaders:
@@ -934,8 +944,8 @@ void ShaderClass::Apply()
 			if ((PricOp==D3DTOP_SELECTARG1)&&(PricArg1==D3DTA_DIFFUSE)) {
 				WWDEBUG_SAY(("Wasted Stage 0 in shader-vertex diffuse only"));
 				// set stage 0 to disable
-				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_DISABLE);
-				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_DISABLE);
+				g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_DISABLE);
+				g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_DISABLE);
 				// set stage 1 to accept diffuse
 				if (SeccArg2==D3DTA_CURRENT) SeccArg2=D3DTA_DIFFUSE;
 				if (SecaArg2==D3DTA_CURRENT) SecaArg2=D3DTA_DIFFUSE;
@@ -943,18 +953,18 @@ void ShaderClass::Apply()
 				kill_stage_2=true;
 			} else {
 				// set stage 0 to pass through what it needs
-				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
-				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLORARG1,tex_arg);
-				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);
-				g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAARG1,tex_arg);
+				g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
+				g_renderBackend->Set_Texture_Color_Argument(0, 1, Shader_Texture_Argument(tex_arg));
+				g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
+				g_renderBackend->Set_Texture_Alpha_Argument(0, 1, Shader_Texture_Argument(tex_arg));
 
 					// set stage 2 to do the diffuse op
-					g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_COLOROP,PricOp);
-					g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_COLORARG1,D3DTA_CURRENT);
-					g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_COLORARG2,D3DTA_DIFFUSE);
-					g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_ALPHAOP,PriaOp);
-					g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_ALPHAARG1,D3DTA_CURRENT);
-					g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_ALPHAARG2,D3DTA_DIFFUSE);
+					g_renderBackend->Set_Texture_Color_Operation(2, Shader_Texture_Operation(PricOp));
+					g_renderBackend->Set_Texture_Color_Argument(2, 1, RB_TEXARG_CURRENT);
+					g_renderBackend->Set_Texture_Color_Argument(2, 2, RB_TEXARG_DIFFUSE);
+					g_renderBackend->Set_Texture_Alpha_Operation(2, Shader_Texture_Operation(PriaOp));
+					g_renderBackend->Set_Texture_Alpha_Argument(2, 1, RB_TEXARG_CURRENT);
+					g_renderBackend->Set_Texture_Alpha_Argument(2, 2, RB_TEXARG_DIFFUSE);
 						g_renderBackend->Set_Texture_Coord_Source(2, RB_TEXCOORD_MESH_UV, 0);
 					g_renderBackend->Bind_Texture_Immediate(2,nullptr);
 				kill_stage_2=false;
@@ -970,24 +980,24 @@ void ShaderClass::Apply()
 				cOp=aOp=D3DTOP_SELECTARG2;
 			}
 #endif
-			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLOROP,PricOp);
-			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLORARG1,PricArg1);
-			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLORARG2,PricArg2);
-			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP,PriaOp);
-			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAARG1,PriaArg1);
-			g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAARG2,PriaArg2);
+			g_renderBackend->Set_Texture_Color_Operation(0, Shader_Texture_Operation(PricOp));
+			g_renderBackend->Set_Texture_Color_Argument(0, 1, Shader_Texture_Argument(PricArg1));
+			g_renderBackend->Set_Texture_Color_Argument(0, 2, Shader_Texture_Argument(PricArg2));
+			g_renderBackend->Set_Texture_Alpha_Operation(0, Shader_Texture_Operation(PriaOp));
+			g_renderBackend->Set_Texture_Alpha_Argument(0, 1, Shader_Texture_Argument(PriaArg1));
+			g_renderBackend->Set_Texture_Alpha_Argument(0, 2, Shader_Texture_Argument(PriaArg2));
 			kill_stage_2=true;
 		}
 		diff &= ~(ShaderClass::MASK_PRIGRADIENT);
 	}
 
 	if (diff & sec_mask) {
-		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_COLOROP,SeccOp);
-		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_COLORARG1,SeccArg1);
-		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_COLORARG2,SeccArg2);
-		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_ALPHAOP,SecaOp);
-		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_ALPHAARG1,SecaArg1);
-		g_renderBackend->Set_Texture_Stage_State(1,D3DTSS_ALPHAARG2,SecaArg2);
+		g_renderBackend->Set_Texture_Color_Operation(1, Shader_Texture_Operation(SeccOp));
+		g_renderBackend->Set_Texture_Color_Argument(1, 1, Shader_Texture_Argument(SeccArg1));
+		g_renderBackend->Set_Texture_Color_Argument(1, 2, Shader_Texture_Argument(SeccArg2));
+		g_renderBackend->Set_Texture_Alpha_Operation(1, Shader_Texture_Operation(SecaOp));
+		g_renderBackend->Set_Texture_Alpha_Argument(1, 1, Shader_Texture_Argument(SecaArg1));
+		g_renderBackend->Set_Texture_Alpha_Argument(1, 2, Shader_Texture_Argument(SecaArg2));
 		diff &= ~(ShaderClass::MASK_POSTDETAILCOLORFUNC);
 		diff &= ~(ShaderClass::MASK_POSTDETAILALPHAFUNC);
 		diff &= ~(ShaderClass::MASK_TEXTURING);
@@ -997,13 +1007,13 @@ void ShaderClass::Apply()
 		// by this compatibility path.
 		if (voodoo3 && kill_stage_2) {
 			if ((SeccOp!=D3DTOP_DISABLE)&&(SecaOp!=D3DTOP_DISABLE)) {
-				g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
-				g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_COLORARG1,D3DTA_CURRENT);
-				g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_ALPHAOP,D3DTOP_SELECTARG1);
-				g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_ALPHAARG1,D3DTA_CURRENT);
+				g_renderBackend->Set_Texture_Color_Operation(2, RB_TEXOP_SELECTARG1);
+				g_renderBackend->Set_Texture_Color_Argument(2, 1, RB_TEXARG_CURRENT);
+				g_renderBackend->Set_Texture_Alpha_Operation(2, RB_TEXOP_SELECTARG1);
+				g_renderBackend->Set_Texture_Alpha_Argument(2, 1, RB_TEXARG_CURRENT);
 			} else {
-				g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_COLOROP,D3DTOP_DISABLE);
-				g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_ALPHAOP,D3DTOP_DISABLE);
+				g_renderBackend->Set_Texture_Color_Operation(2, RB_TEXOP_DISABLE);
+				g_renderBackend->Set_Texture_Alpha_Operation(2, RB_TEXOP_DISABLE);
 			}
 				g_renderBackend->Set_Texture_Coord_Source(2, RB_TEXCOORD_MESH_UV, 0);
 			g_renderBackend->Bind_Texture_Immediate(2,nullptr);
