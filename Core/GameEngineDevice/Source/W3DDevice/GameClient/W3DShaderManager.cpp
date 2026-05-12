@@ -3092,8 +3092,7 @@ Int W3DShaderManager::setShroudTex(Int stage)
 	{
 		g_renderBackend->Set_Texture(stage, shroud->getShroudTexture());
 
-		g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-		g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+		W3DShaderManager_SetCameraSpaceTexcoord2(stage);
 		g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG1, D3DTA_TEXTURE );
 		g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG2, D3DTA_CURRENT );
 		g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );
@@ -3164,11 +3163,8 @@ void FlatTerrainShader2Stage::reset()
 	W3DShaderManager_BindStageTexture(0, nullptr);
 	W3DShaderManager_BindStageTexture(1, nullptr);
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
-
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|1);
+	W3DShaderManager_ResetMeshTexcoord(0, 0);
+	W3DShaderManager_ResetMeshTexcoord(1, 1);
 }
 
 
@@ -3199,8 +3195,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 				g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 				g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
-				g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-				g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+				W3DShaderManager_SetCameraSpaceTexcoord2(0);
 
 				//We need to scale so shroud texel stretches over one full terrain cell.  Each texel
 				//is 1/128 the size of full texture. (assuming 128x128 vid-mem texture).
@@ -3241,7 +3236,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 				}
 			}	else {
 				g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG2 );
-				g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
+				g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 			}
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
@@ -3252,9 +3247,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 0 );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
+			W3DShaderManager_ResetMeshTexcoord(1, 0);
 			g_renderBackend->Set_Alpha_Blend_Enable(false);
 			break;
 		case 1:
@@ -3268,9 +3261,8 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
-			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 			// Two output coordinates are used.
-			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+			W3DShaderManager_SetCameraSpaceTexcoord2(0);
 			W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_WRAP);
 
 			//blend into frame buffer
@@ -3302,9 +3294,8 @@ Int FlatTerrainShader2Stage::set(Int pass)
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 				// Two output coordinates are used.
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+				W3DShaderManager_SetCameraSpaceTexcoord2(1);
 
 				W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 				W3DShaderManager_BindStageTexture(1, W3DShaderManager::getShaderTexture(3));
@@ -3441,8 +3432,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 
 	W3DShaderManager_SetStageAddress2D(curStage, RB_TEXTURE_ADDRESS_CLAMP);
 	//tell pixel shader which UV set to use for each stage
-	g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_TEXCOORDINDEX, 0 );
-	g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+	W3DShaderManager_ResetMeshTexcoord(curStage, 0);
 
 	{
 		const RenderBackendTextureSampleFilter min_mag_filter = W3DShaderManager_GetTerrainMinMagFilter();
@@ -3458,8 +3448,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 	W3DShroud *shroud = TheTerrainRenderObject->getShroud();
 	if (shroud) {
 
-		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+		W3DShaderManager_SetCameraSpaceTexcoord2(curStage);
 
 		//We need to scale so shroud texel stretches over one full terrain cell.  Each texel
 		//is 1/128 the size of full texture. (assuming 128x128 vid-mem texture).
@@ -3513,9 +3502,8 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 		float det;
 		D3DXMatrixInverse(&inv, &det, &curView);
 
-		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
-		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+		W3DShaderManager_SetCameraSpaceTexcoord2(curStage);
 
 		W3DShaderManager_SetStageAddress2D(curStage, RB_TEXTURE_ADDRESS_WRAP);
 		W3DShaderManager_BindStageTexture(curStage, W3DShaderManager::getShaderTexture(2));
@@ -3538,9 +3526,8 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 		float det;
 		D3DXMatrixInverse(&inv, &det, &curView);
 
-		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
-		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+		W3DShaderManager_SetCameraSpaceTexcoord2(curStage);
 
 		W3DShaderManager_SetStageAddress2D(curStage, RB_TEXTURE_ADDRESS_WRAP);
 		W3DShaderManager_BindStageTexture(curStage, W3DShaderManager::getShaderTexture(3));
@@ -3577,17 +3564,10 @@ void FlatTerrainShaderPixelShader::reset()
 	W3DShaderManager_BindStageTexture(0, nullptr);
 	W3DShaderManager_BindStageTexture(1, nullptr);
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|0);
-
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|1);
-
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|2);
-
-	g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_PASSTHRU|3);
+	W3DShaderManager_ResetMeshTexcoord(0, 0);
+	W3DShaderManager_ResetMeshTexcoord(1, 1);
+	W3DShaderManager_ResetMeshTexcoord(2, 2);
+	W3DShaderManager_ResetMeshTexcoord(3, 3);
 
 
 	g_renderBackend->Invalidate_Cached_Render_States();
