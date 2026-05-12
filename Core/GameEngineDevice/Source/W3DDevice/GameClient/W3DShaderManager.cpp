@@ -621,20 +621,20 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 	if (g_renderBackend != nullptr && g_renderBackend->Supports_Dot3())
 	{	//Override W3D states with customizations for grayscale
 		g_renderBackend->Set_Texture_Factor(0x80A5CA8E);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG0, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MULTIPLYADD);
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_CURRENT);
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_DOTPRODUCT3);
+		g_renderBackend->Set_Texture_Color_Argument(0, 0, RB_TEXARG_TFACTOR | RB_TEXARG_ALPHAREPLICATE);
+		g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+		g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_TFACTOR | RB_TEXARG_ALPHAREPLICATE);
+		g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_MULTIPLYADD);
+		g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_CURRENT);
+		g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_DOTPRODUCT3);
 	}
 	else
 	{	//doesn't have DOT3 blend mode so fake it another way.
 		g_renderBackend->Set_Texture_Factor(0x60606060);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
+		g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+		g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
 	}
 
 	if (g_renderBackend == nullptr ||
@@ -651,7 +651,7 @@ Bool ScreenBWFilterDOT3::postRender(FilterModes mode, Coord2D &scrollDelta,Bool 
 	g_renderBackend->Set_Shader(shader);
 	g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 	//replace texture alpha with vertex alpha
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG2);
 
 	if (!g_renderBackend->Draw_View_Capture_Quad(RB_VIEW_CAPTURE_TACTICAL, v, 4, false))
 	{
