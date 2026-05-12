@@ -40,7 +40,7 @@
 #include "texture.h"
 #include "vertmaterial.h"
 #include "realcrc.h"
-#include	"dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "meshmdl.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
@@ -752,12 +752,12 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 			unsigned * emissive_array = ColorArray[1]->Get_Array();
 
 			for (int vidx=0; vidx<VertexCount; vidx++) {
-				Vector4 diffuse=DX8Wrapper::Convert_Color(diffuse_array[vidx]);
-				Vector4 emissive=DX8Wrapper::Convert_Color(emissive_array[vidx]);
+				Vector4 diffuse=WW3DColor::From_ARGB(diffuse_array[vidx]);
+				Vector4 emissive=WW3DColor::From_ARGB(emissive_array[vidx]);
 				diffuse.X *= emissive.X;
 				diffuse.Y *= emissive.Y;
 				diffuse.Z *= emissive.Z;
-				diffuse_array[vidx]=DX8Wrapper::Convert_Color(diffuse);
+				diffuse_array[vidx]=WW3DColor::To_ARGB(diffuse);
 			}
 		}
 		DIGSource[pass]=VertexMaterialClass::MATERIAL;	// DIG channel no more
@@ -781,12 +781,12 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 
 				// If only diffuse is used apply diffuse to color channel and set diffuse source to color 1
 				if (diffuse_used && !ambient_used && !emissive_used) {
-					Vector4 diffuse=DX8Wrapper::Convert_Color(diffuse_array[vidx]);
+					Vector4 diffuse=WW3DColor::From_ARGB(diffuse_array[vidx]);
 					diffuse.X *= mtl_diffuse.X;
 					diffuse.Y *= mtl_diffuse.Y;
 					diffuse.Z *= mtl_diffuse.Z;
 					diffuse.W *= mtl_opacity;
-					diffuse_array[vidx]=DX8Wrapper::Convert_Color(diffuse);
+					diffuse_array[vidx]=WW3DColor::To_ARGB(diffuse);
 
 					mtl->Set_Ambient_Color_Source(VertexMaterialClass::MATERIAL);
 					mtl->Set_Diffuse_Color_Source(VertexMaterialClass::COLOR1);
@@ -798,12 +798,12 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 				// ambient are different but is probably the most reasonable thing to do. Why set
 				// diffuse and ambient differently anyway?)
 				if (diffuse_used && ambient_used && !emissive_used) {
-					Vector4 diffuse=DX8Wrapper::Convert_Color(diffuse_array[vidx]);
+					Vector4 diffuse=WW3DColor::From_ARGB(diffuse_array[vidx]);
 					diffuse.X *= mtl_diffuse.X;
 					diffuse.Y *= mtl_diffuse.Y;
 					diffuse.Z *= mtl_diffuse.Z;
 					diffuse.W *= mtl_opacity;
-					diffuse_array[vidx]=DX8Wrapper::Convert_Color(diffuse);
+					diffuse_array[vidx]=WW3DColor::To_ARGB(diffuse);
 
 					mtl->Set_Ambient_Color_Source(VertexMaterialClass::COLOR1);
 					mtl->Set_Diffuse_Color_Source(VertexMaterialClass::COLOR1);
@@ -812,12 +812,12 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 
 				// If only ambient is used apply ambient to color channel and set ambient source to color 1
 				if (!diffuse_used && ambient_used && !emissive_used) {
-					Vector4 diffuse=DX8Wrapper::Convert_Color(diffuse_array[vidx]);
+					Vector4 diffuse=WW3DColor::From_ARGB(diffuse_array[vidx]);
 					diffuse.X *= mtl_ambient.X;
 					diffuse.Y *= mtl_ambient.Y;
 					diffuse.Z *= mtl_ambient.Z;
 					diffuse.W *= mtl_opacity;
-					diffuse_array[vidx]=DX8Wrapper::Convert_Color(diffuse);
+					diffuse_array[vidx]=WW3DColor::To_ARGB(diffuse);
 
 					mtl->Set_Ambient_Color_Source(VertexMaterialClass::COLOR1);
 					mtl->Set_Diffuse_Color_Source(VertexMaterialClass::MATERIAL);
@@ -826,12 +826,12 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 
 				// If only emissive is used apply emissive to color channel, set diffuse source to color 1, and turn off lighting
 				if (!diffuse_used && !ambient_used && emissive_used) {
-					Vector4 diffuse=DX8Wrapper::Convert_Color(diffuse_array[vidx]);
+					Vector4 diffuse=WW3DColor::From_ARGB(diffuse_array[vidx]);
 					diffuse.X *= mtl_emissive.X;
 					diffuse.Y *= mtl_emissive.Y;
 					diffuse.Z *= mtl_emissive.Z;
 					diffuse.W *= mtl_opacity;
-					diffuse_array[vidx]=DX8Wrapper::Convert_Color(diffuse);
+					diffuse_array[vidx]=WW3DColor::To_ARGB(diffuse);
 
 					mtl->Set_Ambient_Color_Source(VertexMaterialClass::MATERIAL);
 					mtl->Set_Diffuse_Color_Source(VertexMaterialClass::COLOR1);
