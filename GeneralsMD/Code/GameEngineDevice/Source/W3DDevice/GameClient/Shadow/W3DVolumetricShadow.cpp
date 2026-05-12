@@ -1504,7 +1504,7 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 
 	g_renderBackend->Set_Index_Buffer(ibSlot->m_IB->m_DX8IndexBuffer, vbSlot->m_start);
 
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (g_renderBackend->Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
 		g_renderBackend->Set_Shadow_Volume_Shader_Active(true);
@@ -1611,7 +1611,7 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 	g_renderBackend->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
 	lastActiveVertexBuffer = shadowVertexBuffer;
 
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (g_renderBackend->Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
 		g_renderBackend->Set_Shadow_Volume_Shader_Active(true);
