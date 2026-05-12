@@ -307,7 +307,7 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 	Real	waveAlpha;
 	Real	widthFrac;
 	Real	heightFrac;
-	unsigned lockFlags=D3DLOCK_NOOVERWRITE;
+	unsigned lockFlags=RB_LOCK_NOOVERWRITE;
 
 	if (batchStart < (WATER_VB_PAGES*WATER_STRIP_X*WATER_STRIP_Y-m_x*m_y))
 	{	//we have room in current VB, append new verts
@@ -315,7 +315,7 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 	else
 	{	//ran out of room in last VB, request a substitute VB.
 		batchStart=0;	//reset start of page to first vertex
-		lockFlags=D3DLOCK_DISCARD;
+		lockFlags=RB_LOCK_DISCARD;
 	}
 	VertexBufferClass::AppendLockClass vertexLock(
 		vertexBuffer,

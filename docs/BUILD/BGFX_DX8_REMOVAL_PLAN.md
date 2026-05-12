@@ -266,6 +266,10 @@ Completed low-risk migrations:
   vertex struct in standalone bgfx. This keeps current bgfx behavior unchanged:
   snow uses camera-facing quads, while the old DX8 point-sprite path remains
   compiled only for non-standalone builds.
+- Water-track wave quads and tree buffer rebuilds now pass backend-neutral
+  `RB_LOCK_*` flags into the shared vertex/index lock helpers instead of raw
+  `D3DLOCK_*` constants. The helpers still translate to the native lock mode in
+  the active backend.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
@@ -290,8 +294,8 @@ Completed low-risk migrations:
 Next migration focus:
 
 - Replace remaining raw device call sites outside `dx8wrapper.cpp`, especially
-  water, snow, smudge/profiler capture, and the remaining shader-manager legacy
-  filter snippets.
+  snow point sprites, smudge/profiler capture, and the remaining shader-manager
+  legacy filter snippets.
 - Add a backend sea-water mesh submission path or convert sea water to existing
   `VertexBufferClass` / `IndexBufferClass` abstractions.
 - Add a backend readback/profiler API, or make profiler capture an explicit
