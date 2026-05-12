@@ -419,6 +419,8 @@ Completed low-risk migrations:
 - `ShaderClass::Apply` routes its generated primary/detail texture-combine
   state through backend operation/argument setters instead of direct
   `D3DTSS_COLOR*` / `D3DTSS_ALPHA*` writes.
+- The tactical-view black-and-white DOT3 screen filter now applies its color
+  and alpha combiner overrides through backend operation/argument setters.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
