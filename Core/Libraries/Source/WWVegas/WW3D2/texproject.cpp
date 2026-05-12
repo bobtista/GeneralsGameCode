@@ -84,7 +84,6 @@
 #include "matpass.h"
 #include "bwrender.h"
 #include "assetmgr.h"
-#include "dx8wrapper.h"
 #include "RenderBackend.h"
 
 
@@ -1394,4 +1393,3 @@ void TexProjectClass::Update_WS_Bounding_Volume()
 	WorldBoundingVolume.Compute_Axis_Aligned_Extent(&extent);
 	Set_Cull_Box(AABoxClass(WorldBoundingVolume.Center,extent));
 }
-

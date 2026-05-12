@@ -27,6 +27,7 @@
 #include "WW3D2/matpass.h"
 
 class AABoxClass;
+class CameraClass;
 class SurfaceClass;
 class TextureClass;
 class WorldHeightMap;
