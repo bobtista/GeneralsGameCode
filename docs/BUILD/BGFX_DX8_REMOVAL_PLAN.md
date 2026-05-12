@@ -64,6 +64,9 @@ Recent progress on the DX8-removal stack:
   remains a separate migration target.
 - Dynamic water-grid index generation now creates only the backend index buffer.
   The raw D3D index mirror is kept only for the static sea-water patch path.
+- Texture-coordinate UV wrapping now has a real `DX8Backend` implementation,
+  allowing legacy sea-water setup to call `IRenderBackend::Set_Texture_UV_Wrap`
+  instead of writing `D3DRS_WRAP0` directly.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -237,6 +240,9 @@ Completed low-risk migrations:
 - Water-grid index generation now opts out of the raw D3D mirror. The same
   helper still creates the mirror for the static sea-water path, which has not
   been migrated yet.
+- `IRenderBackend::Set_Texture_UV_Wrap` is implemented in `DX8Backend` and used
+  by legacy sea-water setup. The bgfx implementation already existed for its
+  shader uniform path; this closes the DX8 half of that deliberate API.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
