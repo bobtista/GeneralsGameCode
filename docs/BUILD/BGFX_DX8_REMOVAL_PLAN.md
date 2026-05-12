@@ -401,6 +401,10 @@ Completed low-risk migrations:
   backend sampler helpers for clamp/wrap address mode, min/mag filtering, and
   mip filtering. The remaining water texture-stage writes are fixed-function
   combine, texcoord generation, transform, and bump-env constants.
+- Active river and trapezoid water setup now selects mesh UVs and projected
+  camera-space water-noise UVs through local backend semantic helpers. The
+  remaining water texcoord work is cleanup/reset and disabled legacy clip-plane
+  code.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
