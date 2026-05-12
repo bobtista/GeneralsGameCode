@@ -175,11 +175,11 @@ protected:
 	LPDIRECT3DINDEXBUFFER8	m_indexBufferD3D;	///<D3D index buffer
 	DWORD					m_dwWavePixelShader;	///<handle to D3D pixel shader
 	DWORD					m_dwWaveVertexShader;	///<handle to D3D vertex shader
+	LPDIRECT3DTEXTURE8 m_pBumpTexture[NUM_BUMP_FRAMES]; ///<animation frames
+	LPDIRECT3DTEXTURE8 m_pBumpTexture2[NUM_BUMP_FRAMES]; ///<animation frames
 #endif
 	Int	m_numVertices;				///<number of vertices in D3D vertex buffer
 	Int m_numIndices;				///<number of indices in D3D index buffer
-	LPDIRECT3DTEXTURE8 m_pBumpTexture[NUM_BUMP_FRAMES]; ///<animation frames
-	LPDIRECT3DTEXTURE8 m_pBumpTexture2[NUM_BUMP_FRAMES]; ///<animation frames
 	Real				m_fBumpFrame;	///<current animation frame
 	Real				m_fBumpScale;	///<scales bump map uv perturbation
 	TextureClass * m_pReflectionTexture;	///<render target for reflection
@@ -270,7 +270,9 @@ protected:
 	void testCurvedWater();	///<draw the sky layer (clouds, stars, etc.)
 	void renderSkyBody(Matrix3D *mat);	///<draw the sky body (sun, moon, etc.)
 	void renderWaterMesh();			///<draw the water surface mesh (deformed 3d mesh).
+#if !defined(GGC_BGFX_STANDALONE)
 	HRESULT initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass *pBumpSource);	///<copies data into bump-map format.
+#endif
 	void renderMirror(CameraClass *cam);	///< Draw reflected scene into texture
 #if !defined(GGC_BGFX_STANDALONE)
 	void drawSea(RenderInfoClass & rinfo);	///< Draw the surface of the water

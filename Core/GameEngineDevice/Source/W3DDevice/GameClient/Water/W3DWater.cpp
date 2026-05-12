@@ -343,11 +343,13 @@ WaterRenderObjClass::~WaterRenderObjClass()
 		REF_PTR_RELEASE(m_settings[i].waterTexture);
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	i=NUM_BUMP_FRAMES;
 	while (i--)
 	{	SAFE_RELEASE( m_pBumpTexture[i]);
 		SAFE_RELEASE( m_pBumpTexture2[i]);
 	}
+#endif
 
 	delete [] m_meshData;
 	m_meshData = nullptr;
@@ -407,8 +409,13 @@ WaterRenderObjClass::WaterRenderObjClass()
 	m_gridHeight = m_gridCellsY * m_gridCellSize;
 
 	Int i=NUM_BUMP_FRAMES;
+#if !defined(GGC_BGFX_STANDALONE)
 	while (i--)
+	{
 		m_pBumpTexture[i]=nullptr;
+		m_pBumpTexture2[i]=nullptr;
+	}
+#endif
 
 	m_riverVOrigin=0;
 	m_riverTexture=nullptr;
@@ -472,6 +479,7 @@ RenderObjClass *	 WaterRenderObjClass::Clone() const
 /** Copies raw bits from pBumpSrc (a regular grayscale texture) into a D3D
 	*   bump-map format. */
 //-------------------------------------------------------------------------------------------------
+#if !defined(GGC_BGFX_STANDALONE)
 HRESULT WaterRenderObjClass::initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass *pBumpSource)
 {
     SurfaceClass::SurfaceDescription    d3dsd;
@@ -663,6 +671,7 @@ HRESULT WaterRenderObjClass::initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass 
 
     return S_OK;
 }
+#endif
 
 //-------------------------------------------------------------------------------------------------
 /** Create and fill a D3D vertex buffer with water surface vertices */
@@ -1160,38 +1169,6 @@ Int WaterRenderObjClass::init(Real waterLevel, Real dx, Real dy, SceneClass *par
 	Set_Force_Visible(TRUE);	//water is always visible since it's a composite object made of multiple planes all over the map.
 
 	ReAcquireResources();
-#if 0	//MD does not support the old bump-mapped water at all so no point loading textures. -MW 8-11-03
-	if (type == WATER_TYPE_2_PVSHADER || (W3DShaderManager::getChipset() >= DC_GENERIC_PIXEL_SHADER_1_1))
-	{	//geforce3 specific water requires some extra D3D assets
-		m_pDev=DX8Wrapper::_Get_D3D_Device8();
-		//save previous thumbnail mode
-		bool thumbnails_enabled = WW3D::Get_Thumbnail_Enabled();
-		WW3D::Set_Thumbnail_Enabled(false);
-
-		//load bump map textures off disk
-		TextureClass *pBumpSource;	//temporary textures in a format W3D understands
-		TextureClass *pBumpSource2;	//temporary textures in a format W3D understands
-		Int i;
-		i=NUM_BUMP_FRAMES;
-		while (i--)
-		{
-			char bump_name[128];
-
-			sprintf(bump_name,"caust%.2d.tga",i);
-			pBumpSource=WW3DAssetManager::Get_Instance()->Get_Texture(bump_name);
-			sprintf(bump_name,"caustS%.2d.tga",i);
-			pBumpSource2=WW3DAssetManager::Get_Instance()->Get_Texture(bump_name);
-			initBumpMap(m_pBumpTexture+i, pBumpSource);
-			initBumpMap(m_pBumpTexture2+i, pBumpSource2);
-			WW3DAssetManager::Get_Instance()->Release_Texture(pBumpSource);
-			WW3DAssetManager::Get_Instance()->Release_Texture(pBumpSource2);
-			REF_PTR_RELEASE(pBumpSource);
-			REF_PTR_RELEASE(pBumpSource2);
-		}
-		//restore previous thumpnail mode
-		WW3D::Set_Thumbnail_Enabled(thumbnails_enabled);
-	}
-#endif
 
 	//Setup material for regular water
 	m_vertexMaterialClass=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
