@@ -43,7 +43,6 @@
 #include "shader.h"
 #include "w3d_file.h"
 #include "wwdebug.h"
-#include "dx8wrapper.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 
@@ -432,7 +431,7 @@ void ShaderClass::Apply()
 
 	if(diff & (ShaderClass::MASK_COLORMASK | ShaderClass::MASK_SRCBLEND | ShaderClass::MASK_DSTBLEND | ShaderClass::MASK_ALPHATEST))
 	{
-		ULONG planeMask = 0xffffff;
+		unsigned long planeMask = 0xffffff;
 
 		if(Get_Color_Mask() != ShaderClass::COLOR_WRITE_ENABLE)
 			planeMask = 0;
@@ -454,16 +453,16 @@ void ShaderClass::Apply()
 			blendAlpha |= dstBlendLUT[ int(Get_Dst_Blend_Func()) ].useAlpha;
 		}
 
-		BOOL blendOn = FALSE;
+		bool blendOn = false;
 
 		if(sf != RB_BLEND_ONE || df != RB_BLEND_ZERO)
 		{
 			g_renderBackend->Set_Blend_Factors(sf, df);
-			blendOn = TRUE;
+			blendOn = true;
 		}
 		g_renderBackend->Set_Alpha_Blend_Enable(blendOn);
 
-		BOOL alphaTest = FALSE;
+		bool alphaTest = false;
 
 		if(Get_Alpha_Test() == ShaderClass::ALPHATEST_ENABLE)
 		{
@@ -478,7 +477,7 @@ void ShaderClass::Apply()
 				g_renderBackend->Set_Alpha_Test(true, alphareference, RB_CMP_GREATER_EQUAL);
 			}
 			blendAlpha = true;
-			alphaTest = TRUE;
+			alphaTest = true;
 		}
 		g_renderBackend->Set_Alpha_Test_Enable(alphaTest);
 
@@ -493,24 +492,24 @@ void ShaderClass::Apply()
 		// can defer the "fog enabled" check inside the "fog settings changed" check.
 			if (g_renderBackend && g_renderBackend->Supports_Fog() && g_renderBackend->Get_Fog_Enable()) {
 
-			BOOL fm = FALSE;
+			bool fm = false;
 			unsigned int fogColor = g_renderBackend->Get_Fog_Color();
 
 			switch(Get_Fog_Func())
 			{
 			case ShaderClass::FOG_ENABLE:
-				fm = TRUE;
+				fm = true;
 				break;
 			case ShaderClass::FOG_SCALE_FRAGMENT:
 				fogColor = 0;
-				fm = TRUE;
+				fm = true;
 				break;
 			case ShaderClass::FOG_WHITE:
 				fogColor = 0xffffff;
-				fm = TRUE;
+				fm = true;
 				break;
 			case ShaderClass::FOG_DISABLE:
-				fm = FALSE;
+				fm = false;
 				break;
 			}
 
