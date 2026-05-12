@@ -52,6 +52,8 @@
 #include "vector4.h"
 #include "cpudetect.h"
 #include "dx8caps.h"
+#include "RenderBufferTypes.h"
+#include "RenderDeviceCleanupHook.h"
 
 #include "texture.h"
 #include "dx8vertexbuffer.h"
@@ -85,14 +87,6 @@
 const unsigned MAX_VERTEX_SHADER_CONSTANTS=96;
 const unsigned MAX_PIXEL_SHADER_CONSTANTS=8;
 const unsigned MAX_SHADOW_MAPS=1;
-
-enum {
-	BUFFER_TYPE_DX8,
-	BUFFER_TYPE_SORTING,
-	BUFFER_TYPE_DYNAMIC_DX8,
-	BUFFER_TYPE_DYNAMIC_SORTING,
-	BUFFER_TYPE_INVALID
-};
 
 class VertexMaterialClass;
 class CameraClass;
@@ -177,17 +171,6 @@ WWINLINE void DX8_ErrorCode(unsigned res)
 #endif
 
 
-// This virtual interface was added for the Generals RTS.
-// It is called before resetting the dx8 device to ensure
-// that all dx8 resources are released.  Otherwise reset fails. jba.
-class DX8_CleanupHook
-{
-public:
-	virtual void ReleaseResources()=0;
-	virtual void ReAcquireResources()=0;
-};
-
-
 /**
 ** DX8Wrapper
 **
@@ -242,7 +225,7 @@ public:
 	static bool Init(void * hwnd, bool lite = false);
 	static void Shutdown();
 
-	static void SetCleanupHook(DX8_CleanupHook *pCleanupHook) {m_pCleanupHook = pCleanupHook;};
+	static void SetCleanupHook(RenderDeviceCleanupHook *pCleanupHook) {m_pCleanupHook = pCleanupHook;};
 	/*
 	** Some WW3D sub-systems need to be initialized after the device is created and shutdown
 	** before the device is released.
@@ -605,7 +588,7 @@ protected:
 	** Protected Member Variables
 	*/
 
-	static DX8_CleanupHook *m_pCleanupHook;
+	static RenderDeviceCleanupHook *m_pCleanupHook;
 
 	static bool								IsInitted;
 	static bool								IsDeviceLost;

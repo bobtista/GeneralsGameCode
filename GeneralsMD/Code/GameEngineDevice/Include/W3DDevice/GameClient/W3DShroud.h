@@ -25,6 +25,7 @@
 #pragma once
 
 #include "WW3D2/matpass.h"
+#include "WW3D2/texturefilter.h"
 
 class AABoxClass;
 class CameraClass;
