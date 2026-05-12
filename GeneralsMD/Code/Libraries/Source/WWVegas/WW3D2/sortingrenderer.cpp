@@ -261,7 +261,7 @@ void SortingRendererClass::Insert_Triangles(
 
 	SortingNodeStruct* state=Get_Sorting_Struct();
 
-	DX8Wrapper::Get_Render_State(state->sorting_state);
+	g_renderBackend->Capture_Legacy_Render_State_For_Sorted_Draw(state->sorting_state);
 
  	WWASSERT(
 		((state->sorting_state.index_buffer_type==BUFFER_TYPE_SORTING || state->sorting_state.index_buffer_type==BUFFER_TYPE_DYNAMIC_SORTING) &&
@@ -861,7 +861,7 @@ void SortingRendererClass::Insert_VolumeParticle(
 	DX8_RECORD_SORTING_RENDER( polygon_count * layerCount,vertex_count * layerCount);//THIS IS VOLUME_PARTICLE SPECIFIC
 
 	SortingNodeStruct* state=Get_Sorting_Struct();
-	DX8Wrapper::Get_Render_State(state->sorting_state);
+	g_renderBackend->Capture_Legacy_Render_State_For_Sorted_Draw(state->sorting_state);
 
 	WWASSERT(
 		((state->sorting_state.index_buffer_type==BUFFER_TYPE_SORTING || state->sorting_state.index_buffer_type==BUFFER_TYPE_DYNAMIC_SORTING) &&

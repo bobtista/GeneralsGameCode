@@ -110,7 +110,8 @@ base calls from `BgfxBackend`, and fewer D3D-shaped public resource APIs.
 
 Current measured state after detaching `BgfxBackend`, removing `DX8Backend.cpp`
 from the bgfx target, moving the first resource uploads to CPU snapshots, and
-routing shader/view-capture APIs through `IRenderBackend`:
+routing shader/view-capture/sorted-state capture APIs through
+`IRenderBackend`:
 
 - `raw_device`: 66 hits in 10 files
 - `dx8wrapper_low_level`: 87 hits in 9 files
@@ -131,6 +132,11 @@ Completed low-risk migrations:
   The bgfx backend reports the old D3D render-target texture filter path as
   unsupported; native bgfx filters should be implemented as scene-composite
   passes instead of fake D3D textures.
+- `SortingRendererClass` captures its translucent replay state through
+  `IRenderBackend::Capture_Legacy_Render_State_For_Sorted_Draw` instead of
+  calling `DX8Wrapper` directly. The method is transitional: bgfx still sources
+  the snapshot from the legacy state cache until phase 4 moves that state into
+  a neutral owner.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

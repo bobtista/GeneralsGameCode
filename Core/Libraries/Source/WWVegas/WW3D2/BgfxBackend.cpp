@@ -3967,6 +3967,15 @@ void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState &
     }
 }
 
+void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
+{
+    // Transitional boundary for sorted replay. SortingRenderer snapshots a
+    // full fixed-function state so it can replay translucent geometry later.
+    // bgfx still mirrors draw state into DX8Wrapper for that snapshot today;
+    // the next DX8-removal phase should source this from a neutral state owner.
+    DX8Wrapper::Get_Render_State(state);
+}
+
 void BgfxBackend::Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state)
 {
     (void)state;
