@@ -104,6 +104,18 @@ Recent progress on the DX8-removal stack:
   they only submit through existing renderer/backend abstractions.
 - Several WW3D2 leaf sources also dropped unused `dx8wrapper.h` includes where
   they already use renderer/backend-neutral APIs or do not touch render state.
+- The device-reset cleanup hook now has its own small
+  `RenderDeviceCleanupHook` interface instead of being declared by
+  `dx8wrapper.h`; terrain cleanup users no longer include the whole DX8
+  wrapper for that hook.
+- Legacy buffer type constants now live in `RenderBufferTypes.h`, allowing
+  dynamic/static buffer users to name the transitional buffer categories
+  without including `dx8wrapper.h`.
+- `DX8PolygonRendererClass` now routes strip draws through
+  `IRenderBackend::Draw_Strip`, matching the existing triangle path and
+  removing its active wrapper dependency.
+- `TextureFilterClass` now stores backend sampler-filter enums directly rather
+  than storing `D3DTEXF_*` constants and converting them during apply.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -206,10 +218,10 @@ game-facing texture-stage state writes through semantic backend APIs:
 - `raw_device`: 54 hits in 8 files
 - `dx8wrapper_low_level`: 77 hits in 8 files
 - `dx8wrapper_high_level`: 22 hits in 3 files
-- `d3d_public_type`: 1856 hits in 51 files
+- `d3d_public_type`: 1810 hits in 50 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 2009
+- total categorized hits: 1963
 
 Completed low-risk migrations:
 
@@ -498,6 +510,9 @@ Completed low-risk migrations:
   when they do not use any D3DX symbols.
 - Texture-filter anisotropy now uses a named backend API instead of passing
   `D3DTSS_MAXANISOTROPY` through the generic texture-stage state escape hatch.
+- Texture-filter default tables now use `RenderBackendTextureSampleFilter`
+  values directly. `texturefilter.cpp` no longer includes `dx8wrapper.h` just
+  to name D3D sampler constants.
 - Active river/trapezoid water noise texture transforms now build their
   matrices with `Matrix4x4` and backend transform APIs instead of D3DX helper
   calls.
