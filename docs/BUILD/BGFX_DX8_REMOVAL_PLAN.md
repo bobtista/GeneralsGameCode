@@ -74,6 +74,9 @@ Recent progress on the DX8-removal stack:
 - Legacy sea-water D3D members and static-buffer mirror requests are now also
   excluded from standalone bgfx. Backend water grid rendering remains active;
   raw D3D sea state is only compiled where the legacy DX8 sea path can run.
+- Snow point-sprite-only D3D declarations are isolated from standalone bgfx.
+  Standalone bgfx continues to use the existing snow quad path; a real
+  point-sprite backend API remains optional future work.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -259,6 +262,10 @@ Completed low-risk migrations:
   handles) are guarded with the same standalone-bgfx boundary. Attempts to
   request a raw static D3D mirror in standalone bgfx now fail explicitly; the
   bgfx sea path uses `drawSeaBatch` and transient backend buffers instead.
+- `W3DSnow` no longer declares its D3D point-vertex format or point-sprite
+  vertex struct in standalone bgfx. This keeps current bgfx behavior unchanged:
+  snow uses camera-facing quads, while the old DX8 point-sprite path remains
+  compiled only for non-standalone builds.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
