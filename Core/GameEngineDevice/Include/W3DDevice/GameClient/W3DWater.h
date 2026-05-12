@@ -172,7 +172,6 @@ protected:
 	LPDIRECT3DDEVICE8 m_pDev;						///<pointer to D3D Device
 	LPDIRECT3DVERTEXBUFFER8 m_vertexBufferD3D;		///<D3D vertex buffer
 	LPDIRECT3DINDEXBUFFER8	m_indexBufferD3D;	///<D3D index buffer
-	Int						m_vertexBufferD3DOffset;	///<location to start writing vertices
 	DWORD					m_dwWavePixelShader;	///<handle to D3D pixel shader
 	DWORD					m_dwWaveVertexShader;	///<handle to D3D vertex shader
 	Int	m_numVertices;				///<number of vertices in D3D vertex buffer

@@ -59,6 +59,9 @@ Recent progress on the DX8-removal stack:
 - `WaterRenderObjClass::renderWaterMesh` now writes dynamic grid vertices
   through `DynamicVBAccessClass` and draws the grid through `IRenderBackend`
   instead of locking, binding, and drawing raw D3D vertex/index buffers.
+- Dynamic water-grid vertex-buffer allocation no longer creates a raw D3D
+  buffer. The static sea-water patch still uses the legacy D3D buffer path and
+  remains a separate migration target.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -224,6 +227,11 @@ Completed low-risk migrations:
   buffer abstraction and `IRenderBackend::Draw_Strip` path for water grid
   draws. This removes the old raw D3D dynamic-lock/draw path while keeping sea
   patch and bump-texture migration as separate, higher-risk follow-up work.
+- The dynamic water grid no longer allocates a raw D3D vertex buffer or tracks
+  a D3D lock offset. `generateVertexBuffer(..., doStatic=false)` is now a
+  no-op because the grid vertices are produced into backend dynamic buffers at
+  draw time. Static sea-water vertex-buffer allocation is intentionally
+  unchanged.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
