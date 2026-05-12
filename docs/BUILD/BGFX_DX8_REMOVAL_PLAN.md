@@ -397,6 +397,10 @@ Completed low-risk migrations:
   backend sampler API now also has explicit partial min/mag and mip setters, so
   shader-manager noise, road, flat terrain, and screen-fade paths can preserve
   the legacy behavior of updating only the intended sampler components.
+- River, trapezoid, reflection, and bump-map water paths now use the same
+  backend sampler helpers for clamp/wrap address mode, min/mag filtering, and
+  mip filtering. The remaining water texture-stage writes are fixed-function
+  combine, texcoord generation, transform, and bump-env constants.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
