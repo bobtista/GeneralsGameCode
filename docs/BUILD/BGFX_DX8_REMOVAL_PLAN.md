@@ -484,6 +484,9 @@ Completed low-risk migrations:
 - Waypoint and status-circle public headers no longer export DX8 buffer
   definitions; status-circle keeps the concrete buffer includes in its
   implementation file until the buffer owner is migrated.
+- Common Bezier curve evaluation now uses explicit cubic coefficients instead
+  of D3DX matrix/vector helpers, removing a renderer-era dependency from
+  projectile path math.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
