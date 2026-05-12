@@ -199,16 +199,17 @@ base calls from `BgfxBackend`, and fewer D3D-shaped public resource APIs.
 Current measured state after detaching `BgfxBackend`, removing `DX8Backend.cpp`
 from the bgfx target, moving the first resource uploads to CPU snapshots,
 routing shader/view-capture/sorted-state capture APIs through
-`IRenderBackend`, and moving fixed-function state storage from `DX8Wrapper` and
-`RenderStateCache` to `FixedFunctionState`:
+`IRenderBackend`, moving fixed-function state storage from `DX8Wrapper` and
+`RenderStateCache` to `FixedFunctionState`, and routing the remaining
+game-facing texture-stage state writes through semantic backend APIs:
 
-- `raw_device`: 57 hits in 8 files
-- `dx8wrapper_low_level`: 87 hits in 9 files
+- `raw_device`: 54 hits in 8 files
+- `dx8wrapper_low_level`: 78 hits in 8 files
 - `dx8wrapper_high_level`: 22 hits in 3 files
-- `d3d_public_type`: 2872 hits in 56 files
+- `d3d_public_type`: 2066 hits in 53 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 3038
+- total categorized hits: 2220
 
 Completed low-risk migrations:
 
