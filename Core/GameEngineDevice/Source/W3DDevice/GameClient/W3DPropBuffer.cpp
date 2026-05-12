@@ -57,6 +57,7 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/rinfo.h"
 #include "WW3D2/light.h"
+#include "WW3D2/lightenvironment.h"
 #include "WW3D2/dx8renderer.h"
 #include "W3DDevice/GameClient/Module/W3DPropDraw.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
