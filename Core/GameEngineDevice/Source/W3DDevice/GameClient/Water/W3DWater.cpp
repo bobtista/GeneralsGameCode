@@ -103,6 +103,22 @@ static inline void W3DWater_SetTextureTransform(unsigned stage, const D3DXMATRIX
 		g_renderBackend->Set_Texture_Transform(stage, To_Matrix4x4(matrix));
 }
 
+static inline void W3DWater_SetCameraSpaceTexcoord2(unsigned stage, unsigned uv_index)
+{
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Set_Texture_Coord_Source(stage, RB_TEXCOORD_CAMERA_SPACE_POSITION, uv_index);
+		g_renderBackend->Set_Texture_Transform_Mode(stage, 2, false);
+	}
+}
+
+static inline void W3DWater_ResetMeshTexcoord(unsigned stage, unsigned uv_index)
+{
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Set_Texture_Coord_Source(stage, RB_TEXCOORD_MESH_UV, uv_index);
+		g_renderBackend->Set_Texture_Transform_Mode(stage, 0, false);
+	}
+}
+
 static inline void W3DWater_SetStageAddress2D(unsigned stage, RenderBackendTextureAddressMode address_mode)
 {
 	g_renderBackend->Set_Texture_Address_Mode(stage, address_mode, address_mode, RB_TEXTURE_ADDRESS_WRAP);
@@ -280,9 +296,9 @@ void WaterRenderObjClass::setupJbaWaterShader()
 		m_riverAlphaEdge->Init();
 	W3DWater_BindTexture(3, m_riverAlphaEdge);
 	W3DWater_SetStageAddress2D(3, RB_TEXTURE_ADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
-	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, 0);
-	g_renderBackend->Set_Texture_Stage_State(3,  D3DTSS_TEXCOORDINDEX, 1);
+	g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+	g_renderBackend->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 0);
+	g_renderBackend->Set_Texture_Coord_Source(3, RB_TEXCOORD_MESH_UV, 1);
 
 	Bool doSparkles = true;
 
@@ -297,9 +313,8 @@ void WaterRenderObjClass::setupJbaWaterShader()
 
 		W3DWater_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+		W3DWater_SetCameraSpaceTexcoord2(2, 0);
 		W3DWater_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
 
 		D3DXMATRIX curView;
@@ -3249,9 +3264,9 @@ void WaterRenderObjClass::setupFlatWaterShader()
 	}
 
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_ADD );
-	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
+	g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 	W3DWater_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, 0);
+	g_renderBackend->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 0);
 
 	Bool doSparkles = true;
 
@@ -3269,9 +3284,8 @@ void WaterRenderObjClass::setupFlatWaterShader()
 
 		W3DWater_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 		// Two output coordinates are used.
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+		W3DWater_SetCameraSpaceTexcoord2(2, 0);
 		W3DWater_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
 
 		D3DXMATRIX curView;
