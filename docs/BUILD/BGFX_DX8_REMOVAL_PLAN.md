@@ -416,6 +416,9 @@ Completed low-risk migrations:
   for its alpha override and post-draw color/alpha restore.
 - Water track and splash rendering uses the same texture-combine API when it
   modulates track quads with the shroud texture.
+- `ShaderClass::Apply` routes its generated primary/detail texture-combine
+  state through backend operation/argument setters instead of direct
+  `D3DTSS_COLOR*` / `D3DTSS_ALPHA*` writes.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
