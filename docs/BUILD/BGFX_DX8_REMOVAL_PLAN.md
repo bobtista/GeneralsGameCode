@@ -443,6 +443,8 @@ Completed low-risk migrations:
   8-stage terrain texture-combine setup through backend setters.
 - `CloudMapTerrainTextureClass::restore` now restores terrain texture-combine
   cleanup state through backend setters.
+- `ScorchTextureClass::Apply` now configures scorch decal texture-combine state
+  through backend setters.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
