@@ -370,7 +370,7 @@ void WaterRenderObjClass::setupJbaWaterShader()
 	W3DWater_SetStageMinMagFilter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 	W3DWater_SetStageMinMagFilter(3, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 	if (m_riverWaterPixelShader){
-		const D3DXVECTOR4 reflectionFactor(REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f);
+		const float reflectionFactor[4] = { REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f };
 		g_renderBackend->Set_Pixel_Shader_Constant(0, &reflectionFactor, 1);
 		g_renderBackend->Set_Pixel_Shader(m_riverWaterPixelShader);
 	}
@@ -2183,8 +2183,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	g_renderBackend->Set_Vertex_Shader_Constant(CV_TEXPROJ_0, &mat, 4);
 
 	// Setup constants
-	const D3DXVECTOR4 zero(0.0f, 0.0f, 0.0f, 0.0f);
-	const D3DXVECTOR4 one(1.0f, 1.0f, 1.0f, 1.0f);
+	const float zero[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	const float one[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 	g_renderBackend->Set_Vertex_Shader_Constant(CV_ZERO, &zero, 1);
 	g_renderBackend->Set_Vertex_Shader_Constant(CV_ONE, &one, 1);
 
@@ -3320,7 +3320,7 @@ void WaterRenderObjClass::setupFlatWaterShader()
 	W3DWater_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 	W3DWater_SetStageMinMagFilter(2, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 	if (m_trapezoidWaterPixelShader){
-		const D3DXVECTOR4 reflectionFactor(REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f);
+		const float reflectionFactor[4] = { REFLECTION_FACTOR, REFLECTION_FACTOR, REFLECTION_FACTOR, 1.0f };
 		g_renderBackend->Set_Pixel_Shader_Constant(0, &reflectionFactor, 1);
 		g_renderBackend->Set_Pixel_Shader(m_trapezoidWaterPixelShader);
 	}
