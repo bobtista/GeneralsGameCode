@@ -429,6 +429,12 @@ bool DX8Backend::Supports_NPatches() const
     return caps != nullptr && caps->Support_NPatches();
 }
 
+bool DX8Backend::Supports_Hardware_Transform_And_Lighting() const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    return caps != nullptr && caps->Support_TnL();
+}
+
 RenderBackendTextureLimits DX8Backend::Get_Texture_Limits() const
 {
     const auto * caps = DX8Wrapper::Get_Current_Caps();
