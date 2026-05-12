@@ -43,6 +43,8 @@
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/sortingrenderer.h"
+#include "WW3D2/surfaceclass.h"
+#include "WWMath/vector2i.h"
 
 
 SmudgeManager *TheSmudgeManager=nullptr;
@@ -143,69 +145,53 @@ void W3DSmudgeManager::ReAcquireResources()
 /*Copies a portion of the current render target into a specified buffer*/
 Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int height)
 {
- 	IDirect3DSurface8 *surface=nullptr;	///<previous render target
- 	IDirect3DSurface8 *tempSurface=nullptr;
-	Int result = 0;
-	HRESULT hr = S_OK;
+	if (buf == nullptr || bufSize <= 0 || width <= 0 || height <= 0 || g_renderBackend == nullptr) {
+		return 0;
+	}
 
- 	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
+	SurfaceClass *surface = g_renderBackend->Capture_Back_Buffer_Surface(0);
+	if (surface == nullptr) {
+		return 0;
+	}
 
-	if (!m_pDev)
-		goto error;
+	SurfaceClass::SurfaceDescription desc;
+	surface->Get_Description(desc);
+	if (oX < 0 || oY < 0 ||
+		oX + width > static_cast<int>(desc.Width) ||
+		oY + height > static_cast<int>(desc.Height)) {
+		surface->Release_Ref();
+		return 0;
+	}
 
- 	m_pDev->GetRenderTarget(&surface);
+	const int bytesPerPixel = surface->Get_Bytes_Per_Pixel();
+	const int rowBytes = width * bytesPerPixel;
+	const int totalBytes = rowBytes * height;
+	const int copyBytes = (bufSize < totalBytes) ? bufSize : totalBytes;
+	if (bytesPerPixel <= 0 || copyBytes <= 0) {
+		surface->Release_Ref();
+		return 0;
+	}
 
-	if (!surface)
-		goto error;
+	int pitch = 0;
+	unsigned char *src = static_cast<unsigned char *>(surface->Lock(
+		&pitch,
+		Vector2i(oX, oY),
+		Vector2i(oX + width, oY + height)));
+	if (src == nullptr) {
+		surface->Release_Ref();
+		return 0;
+	}
 
- 	D3DSURFACE_DESC desc;
+	int copied = 0;
+	for (int row = 0; row < height && copied < copyBytes; ++row) {
+		const int rowCopy = (copyBytes - copied < rowBytes) ? copyBytes - copied : rowBytes;
+		memcpy(buf + copied, src + row * pitch, rowCopy);
+		copied += rowCopy;
+	}
 
- 	surface->GetDesc(&desc);
-
-	RECT srcRect;
-	srcRect.left=oX;
-	srcRect.top=oY;
-	srcRect.right=oX+width;
-	srcRect.bottom=oY+height;
-
-	POINT dstPoint;
-	dstPoint.x=0;
-	dstPoint.y=0;
-
- 	hr=m_pDev->CreateImageSurface(  width, height, desc.Format, &tempSurface);
-
-	if (hr != S_OK)
-		goto error;
-
- 	hr=m_pDev->CopyRects(surface,&srcRect,1,tempSurface,&dstPoint);
-
-	if (hr != S_OK)
-		goto error;
-
- 	D3DLOCKED_RECT lrect;
-
- 	hr=tempSurface->LockRect(&lrect,nullptr,D3DLOCK_READONLY);
-
-	if (hr != S_OK)
-		goto error;
-
- 	tempSurface->GetDesc(&desc);
-
-	if (desc.Size < bufSize)
-		bufSize = desc.Size;
-
-	memcpy(buf,lrect.pBits,bufSize);
-	result = bufSize;
-
-	tempSurface->UnlockRect();
-
-error:
-	if (surface)
-		surface->Release();
-	if (tempSurface)
-		tempSurface->Release();
-
-	return result;
+	surface->Unlock();
+	surface->Release_Ref();
+	return copied;
 }
 
 #define UNIQUE_COLOR	(0x12345678)
