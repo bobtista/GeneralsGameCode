@@ -842,6 +842,9 @@ public:
                                              float m01,
                                              float m10,
                                              float m11) {}
+    virtual void Set_Texture_Bump_Env_Luminance(unsigned stage,
+                                                float scale,
+                                                float offset) {}
     virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
     {
         Set_Texture_Coord_Source(stage,

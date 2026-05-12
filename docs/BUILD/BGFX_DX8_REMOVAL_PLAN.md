@@ -407,6 +407,8 @@ Completed low-risk migrations:
   state through the same water helpers.
 - The disabled legacy water clip-plane block now also uses water texcoord and
   transform helpers, including its camera-space stage-1 UV-index variant.
+- Water bump-env setup now uses backend semantic matrix and luminance APIs
+  instead of writing raw bump-map texture-stage constants directly.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
