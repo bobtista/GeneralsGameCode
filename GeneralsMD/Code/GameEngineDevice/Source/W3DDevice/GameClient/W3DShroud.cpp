@@ -881,8 +881,17 @@ void W3DShroudMaterialPassClass::Install_Materials() const
 {
 	if (TheTerrainRenderObject->getShroud())
 	{
- 		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
+		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
+		if (g_renderBackend)
+		{
+			if (m_isTransparentObjectPass)
+			{
+				g_renderBackend->Set_Object_Shroud_Dim_Factor(m_objectShroudDimFactor);
+				g_renderBackend->Set_Object_Shroud_Alpha_Mask_Texture(m_contextTexture);
+			}
+			g_renderBackend->Set_Object_Shroud_Texture_Pass_Active(m_isTransparentObjectPass);
+		}
 	}
 }
 
@@ -890,6 +899,11 @@ void W3DShroudMaterialPassClass::Install_Materials() const
 ///Restore render states that W3D doesn't know about.
 void W3DShroudMaterialPassClass::UnInstall_Materials() const
 {
+	if (g_renderBackend)
+	{
+		g_renderBackend->Set_Object_Shroud_Texture_Pass_Active(false);
+		g_renderBackend->Set_Object_Shroud_Alpha_Mask_Texture(nullptr);
+	}
 	W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 }
 

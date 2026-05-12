@@ -50,6 +50,8 @@
 #include "statistics.h"
 #include <wwprofile.h>
 #include <algorithm>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 
@@ -432,6 +434,54 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 	g_renderBackend->Apply_Sorted_Batch_State(Make_Render_Backend_Sorted_State(render_state));
 }
 
+static bool Should_Log_Sort_Effect_Diag()
+{
+	return std::getenv("GGC_SORT_EFFECT_DIAG") != nullptr;
+}
+
+static void Log_Sort_Effect_Diag(const char* event, unsigned start_index, unsigned polygon_count, SortingNodeStruct* state)
+{
+	if (!Should_Log_Sort_Effect_Diag())
+	{
+		return;
+	}
+
+	TextureClass* tex0 = (state != nullptr && state->sorting_state.Textures[0] != nullptr)
+		? state->sorting_state.Textures[0]->As_TextureClass()
+		: nullptr;
+	const char* texName = tex0 != nullptr ? tex0->Get_Full_Path().str() : "(null)";
+	if (strnicmp(texName, "ex", 2) != 0
+		&& std::strstr(texName, "fire") == nullptr
+		&& std::strstr(texName, "smoke") == nullptr
+		&& std::strstr(texName, "noise") == nullptr)
+	{
+		return;
+	}
+
+	if (FILE* diag = std::fopen("ggc_sort_effect_diag.txt", "a"))
+	{
+		std::fprintf(diag,
+			"%s nodes=%u poolPolys=%u poolVerts=%u start=%u polys=%u statePolys=%u stateVerts=%u shader=0x%08x tex=%s vbType=%d ibType=%d vbaOff=%u ibaOff=%u idxBase=%u minVert=%u\n",
+			event,
+			overlapping_node_count,
+			overlapping_polygon_count,
+			overlapping_vertex_count,
+			start_index,
+			polygon_count,
+			state != nullptr ? state->polygon_count : 0,
+			state != nullptr ? state->vertex_count : 0,
+			state != nullptr ? state->sorting_state.shader.Get_Bits() : 0,
+			texName,
+			state != nullptr ? state->sorting_state.vertex_buffer_types[0] : BUFFER_TYPE_INVALID,
+			state != nullptr ? state->sorting_state.index_buffer_type : BUFFER_TYPE_INVALID,
+			state != nullptr ? state->sorting_state.vba_offset : 0,
+			state != nullptr ? state->sorting_state.iba_offset : 0,
+			state != nullptr ? state->sorting_state.index_base_offset : 0,
+			state != nullptr ? state->min_vertex_index : 0);
+		std::fclose(diag);
+	}
+}
+
 // ----------------------------------------------------------------------------
 
 static bool Render_State_Matches(const RenderStateStruct& left, const RenderStateStruct& right)
@@ -482,9 +532,16 @@ static bool Render_State_Matches(const RenderStateStruct& left, const RenderStat
 
 // ----------------------------------------------------------------------------
 
-static void Draw_Sorted_Run(unsigned start_index, unsigned count_to_render, SortingNodeStruct* state)
+static void Draw_Sorted_Run(unsigned start_index,
+                            unsigned count_to_render,
+                            SortingNodeStruct* state,
+                            const DynamicVBAccessClass& dyn_vb_access,
+                            const DynamicIBAccessClass& dyn_ib_access)
 {
 	Apply_Render_State(state->sorting_state);
+	g_renderBackend->Set_Index_Buffer(dyn_ib_access, 0);
+	g_renderBackend->Set_Vertex_Buffer(dyn_vb_access);
+	Log_Sort_Effect_Diag("draw-run", start_index, count_to_render, state);
 
 	g_renderBackend->Draw_Triangles(
 		start_index*3,
@@ -498,6 +555,7 @@ static void Draw_Sorted_Run(unsigned start_index, unsigned count_to_render, Sort
 void SortingRendererClass::Flush_Sorting_Pool()
 {
 	if (!overlapping_node_count) return;
+	Log_Sort_Effect_Diag("flush-start", 0, overlapping_polygon_count, overlapping_nodes[0]);
 
 	SNAPSHOT_SAY(("SortingSystem - Flush"));
 
@@ -505,11 +563,14 @@ void SortingRendererClass::Flush_Sorting_Pool()
 	TempIndexStruct* tis=Get_Temp_Index_Array(overlapping_polygon_count);
 
 	unsigned vertexAllocCount = overlapping_vertex_count;
-	if (DynamicVBAccessClass::Get_Default_Vertex_Count() < DEFAULT_SORTING_VERTEX_COUNT)
-		vertexAllocCount = DEFAULT_SORTING_VERTEX_COUNT;	//make sure that we force the DX8 dynamic vertex buffer to maximum size
-	if (overlapping_vertex_count > vertexAllocCount)
-		vertexAllocCount = overlapping_vertex_count;
-	WWASSERT(DEFAULT_SORTING_VERTEX_COUNT == 1 || vertexAllocCount <= DEFAULT_SORTING_VERTEX_COUNT);
+	if (!g_renderBackend->Has_Shader_Pipeline())
+	{
+		if (DynamicVBAccessClass::Get_Default_Vertex_Count() < DEFAULT_SORTING_VERTEX_COUNT)
+			vertexAllocCount = DEFAULT_SORTING_VERTEX_COUNT;	//make sure that we force the DX8 dynamic vertex buffer to maximum size
+		if (overlapping_vertex_count > vertexAllocCount)
+			vertexAllocCount = overlapping_vertex_count;
+		WWASSERT(DEFAULT_SORTING_VERTEX_COUNT == 1 || vertexAllocCount <= DEFAULT_SORTING_VERTEX_COUNT);
+	}
 	DynamicVBAccessClass dyn_vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,vertexAllocCount/*overlapping_vertex_count*/);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&dyn_vb_access);
@@ -617,11 +678,14 @@ void SortingRendererClass::Flush_Sorting_Pool()
 	}
 */
 	unsigned polygonAllocCount = overlapping_polygon_count;
-	if ((unsigned)(DynamicIBAccessClass::Get_Default_Index_Count()/3) < DEFAULT_SORTING_POLY_COUNT)
-		polygonAllocCount = DEFAULT_SORTING_POLY_COUNT;	//make sure that we force the DX8 index buffer to maximum size
-	if (overlapping_polygon_count > polygonAllocCount)
-		polygonAllocCount = overlapping_polygon_count;
-	WWASSERT(DEFAULT_SORTING_POLY_COUNT <= 1 || polygonAllocCount <= DEFAULT_SORTING_POLY_COUNT);
+	if (!g_renderBackend->Has_Shader_Pipeline())
+	{
+		if ((unsigned)(DynamicIBAccessClass::Get_Default_Index_Count()/3) < DEFAULT_SORTING_POLY_COUNT)
+			polygonAllocCount = DEFAULT_SORTING_POLY_COUNT;	//make sure that we force the DX8 index buffer to maximum size
+		if (overlapping_polygon_count > polygonAllocCount)
+			polygonAllocCount = overlapping_polygon_count;
+		WWASSERT(DEFAULT_SORTING_POLY_COUNT <= 1 || polygonAllocCount <= DEFAULT_SORTING_POLY_COUNT);
+	}
 
 	DynamicIBAccessClass dyn_ib_access(BUFFER_TYPE_DYNAMIC_DX8,polygonAllocCount*3);
 	{
@@ -637,6 +701,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 	g_renderBackend->Set_Index_Buffer(dyn_ib_access, 0); // Override with this buffer (do something to prevent need for this!)
 	g_renderBackend->Set_Vertex_Buffer(dyn_vb_access); // Override with this buffer (do something to prevent need for this!)
+	Log_Sort_Effect_Diag("buffers-set", 0, overlapping_polygon_count, overlapping_nodes[0]);
 
 	g_renderBackend->Apply_Render_State_Changes();
 
@@ -651,7 +716,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 		SortingNodeStruct* next_state=overlapping_nodes[tis[i].idx];
 		if (!Render_State_Matches(state->sorting_state,next_state->sorting_state))
 		{
-			Draw_Sorted_Run(start_index,count_to_render,state);
+			Draw_Sorted_Run(start_index,count_to_render,state,dyn_vb_access,dyn_ib_access);
 
 			count_to_render=0;
 			start_index=i;
@@ -662,7 +727,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 	// Render any remaining polygons...
 	if (count_to_render) {
-		Draw_Sorted_Run(start_index,count_to_render,state);
+		Draw_Sorted_Run(start_index,count_to_render,state,dyn_vb_access,dyn_ib_access);
 	}
 
 	// Phase 4G.12: sort flush complete, resume routing bgfx submits
