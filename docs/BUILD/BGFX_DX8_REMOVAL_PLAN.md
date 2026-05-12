@@ -470,6 +470,8 @@ Completed low-risk migrations:
 - Mesh W3D load-time color conversion now uses `WW3DColor`.
 - Dazzle rendering now uses `WW3DColor` for flare/halo colors and queries
   render-to-texture state through `IRenderBackend`.
+- Shader blend/cull/fog scalar state now uses backend-neutral enums and
+  integer colors instead of D3D blend/cull/color typedefs.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
