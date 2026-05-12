@@ -149,9 +149,11 @@ Bool W3DSnowManager::ReAcquireResources()
 
 	m_snowTexture = WW3DAssetManager::Get_Instance()->Get_Texture(TheWeatherSetting->m_snowTexture.str());
 
+#if !defined(GGC_BGFX_STANDALONE)
 	m_dwBase = SNOW_BUFFER_SIZE;
 	m_dwDiscard = SNOW_BUFFER_SIZE;
 	m_dwFlush = SNOW_BATCH_SIZE;
+#endif
 
 	return TRUE;
 }
@@ -189,11 +191,9 @@ void W3DSnowManager::update()
 /*Recursively subdivide the large snow box enclosing the camera until we reach some predefined leaf size.  This
 method is used so that very few off-screen particles end up getting rendered.  Culling them individually would
 be too expensive since we're dealing with 1000's for this effect.*/
+#if !defined(GGC_BGFX_STANDALONE)
 void W3DSnowManager::renderSubBox(RenderInfoClass &rinfo, Int originX, Int originY, Int cubeDimX, Int cubeDimY )
 {
-#if defined(GGC_BGFX_STANDALONE)
-	return;
-#else
 	//check if this box is too large and needs subdivision
 	Int boxDimX=cubeDimX - originX;
 	Int boxDimY=cubeDimY - originY;
@@ -336,9 +336,9 @@ flush_particles:
 			totalPart -= numberInBatch;
 			m_dwBase += numberInBatch;
 		}
-	}
-#endif
+		}
 }
+#endif
 
 void W3DSnowManager::render(RenderInfoClass &rinfo)
 {

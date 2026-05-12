@@ -80,6 +80,9 @@ Recent progress on the DX8-removal stack:
 - Snow point-sprite-only D3D declarations are isolated from standalone bgfx.
   Standalone bgfx continues to use the existing snow quad path; a real
   point-sprite backend API remains optional future work.
+- Snow point-sprite recursion and D3D dynamic-buffer fields are now also
+  excluded from standalone bgfx. The active bgfx path remains the camera-facing
+  quad renderer.
 - The legacy shader Voodoo3 stage-2 compatibility path now writes through
   `IRenderBackend` instead of issuing raw `SetTextureStageState`/`SetTexture`
   calls directly.
@@ -276,6 +279,9 @@ Completed low-risk migrations:
   vertex struct in standalone bgfx. This keeps current bgfx behavior unchanged:
   snow uses camera-facing quads, while the old DX8 point-sprite path remains
   compiled only for non-standalone builds.
+- The rest of `W3DSnow`'s point-sprite-only recursive renderer and dynamic D3D
+  buffer bookkeeping is now behind that same non-standalone boundary. Shared
+  snow setup and the backend dynamic-quad renderer still compile for bgfx.
 - Water-track wave quads and tree buffer rebuilds now pass backend-neutral
   `RB_LOCK_*` flags into the shared vertex/index lock helpers instead of raw
   `D3DLOCK_*` constants. The helpers still translate to the native lock mode in
