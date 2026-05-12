@@ -2534,10 +2534,6 @@ void WaterRenderObjClass::renderWaterMesh()
 	if (!m_doWaterGrid)
 		return;	//the water grid is disabled.
 
-	//According to Nvidia there's a D3D bug that happens if you don't start with a
-	//new dynamic VB each frame - so we force a DISCARD by overflowing the counter.
-	m_vertexBufferD3DOffset = 0xffff;
-
 	Setting *setting=&m_settings[m_tod];
 
 	WaterMeshData *pData;
@@ -2585,7 +2581,6 @@ void WaterRenderObjClass::renderWaterMesh()
 	PhasePerFrameY -= 0.1f;
 #endif
 
-#if defined(GGC_BGFX_STANDALONE)
 	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,(unsigned short)(mx*my));
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
@@ -2594,20 +2589,6 @@ void WaterRenderObjClass::renderWaterMesh()
 		{
 			return;
 		}
-#else
-	MaterMeshVertexFormat *vb;
-	if (m_vertexBufferD3DOffset < m_numVertices)
-	{	//we have room in current VB, append new verts
-		if(m_vertexBufferD3D->Lock(m_vertexBufferD3DOffset*sizeof(MaterMeshVertexFormat),mx*my*sizeof(MaterMeshVertexFormat),(unsigned char**)&vb,D3DLOCK_NOOVERWRITE) != D3D_OK)
-			return;
-	}
-	else
-	{	//ran out of room in last VB, request a substitute VB.
-		if(m_vertexBufferD3D->Lock(0,mx*my*sizeof(MaterMeshVertexFormat),(unsigned char**)&vb,D3DLOCK_DISCARD) != D3D_OK)
-			return;
-		m_vertexBufferD3DOffset=0;	//reset start of page to first vertex
-	}
-#endif
 	Int diffuse;
 	diffuse = setting->waterDiffuse&0x00ffffff;
 	Int alpha = (setting->waterDiffuse & 0xff000000)>>24;
@@ -2676,11 +2657,7 @@ void WaterRenderObjClass::renderWaterMesh()
 		}
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
 	}
-#else
-	m_vertexBufferD3D->Unlock();
-#endif
 
 	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,Transform);	//position the water surface
 	g_renderBackend->Set_Material(m_meshVertexMaterialClass);
@@ -2716,18 +2693,12 @@ void WaterRenderObjClass::renderWaterMesh()
 
 //	m_pDev->SetRenderState(D3DRS_ZFUNC,D3DCMP_ALWAYS);	//used to display grid under map.
 
-#if defined(GGC_BGFX_STANDALONE)
 	if (m_waterMeshIndexBuffer == nullptr)
 	{
 		return;
 	}
 	g_renderBackend->Set_Index_Buffer(m_waterMeshIndexBuffer,0);
 	g_renderBackend->Set_Vertex_Buffer(vb_access);
-#else
-	m_pDev->SetIndices(m_indexBufferD3D,m_vertexBufferD3DOffset);
-	m_pDev->SetStreamSource(0,m_vertexBufferD3D,sizeof(MaterMeshVertexFormat));
-	m_pDev->SetVertexShader(WATER_MESH_FVF);
-#endif
 
 
 	if (TheTerrainRenderObject->getShroud() && !m_trapezoidWaterPixelShader)
@@ -2744,33 +2715,21 @@ void WaterRenderObjClass::renderWaterMesh()
 
 		//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 		//write to the zbuffer.  Change to LESSEQUAL.
-#if defined(GGC_BGFX_STANDALONE)
 		g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 		g_renderBackend->Draw_Strip(0,m_numIndices-2,0,mx*my);
 		g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
-#else
-		g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
-		m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP,0,mx*my,0,m_numIndices-2);
-		g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
-#endif
 		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 	}
 	else
-#if defined(GGC_BGFX_STANDALONE)
 	{
 		g_renderBackend->Draw_Strip(0,m_numIndices-2,0,mx*my);
 	}
-#else
-		m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP,0,mx*my,0,m_numIndices-2);
-#endif
 
 	Debug_Statistics::Record_DX8_Polys_And_Vertices(m_numIndices-2,mx*my,ShaderClass::_PresetOpaqueShader);
 
 //	m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
 
 	if (m_trapezoidWaterPixelShader) g_renderBackend->Set_Pixel_Shader(0);
-
-	m_vertexBufferD3DOffset += mx*my;	//advance past vertices already in buffer
 
 	g_renderBackend->Set_Texture(0,nullptr);
 	g_renderBackend->Set_Texture(1,nullptr);
