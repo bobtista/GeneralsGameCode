@@ -89,6 +89,9 @@ Recent progress on the DX8-removal stack:
 - Snow point-sprite recursion and D3D dynamic-buffer fields are now also
   excluded from standalone bgfx. The active bgfx path remains the camera-facing
   quad renderer.
+- Snow now queries point-sprite support through `IRenderBackend`; the legacy
+  D3D point-sprite renderer still exists only for non-standalone builds, while
+  bgfx explicitly reports no point-sprite support and uses the quad path.
 - The legacy shader Voodoo3 stage-2 compatibility path now writes through
   `IRenderBackend` instead of issuing raw `SetTextureStageState`/`SetTexture`
   calls directly.
@@ -365,6 +368,9 @@ Completed low-risk migrations:
   mesh/buffer allocation paths.
 - `IRenderBackend::Supports_Hardware_Transform_And_Lighting` now owns the
   legacy software-processing fallback decision in DX8 vertex/index buffers.
+- `IRenderBackend::Supports_Point_Sprites` now owns the snow point-sprite
+  capability decision. The actual raw D3D point-sprite draw path remains
+  isolated behind the non-standalone build guard.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
@@ -389,8 +395,10 @@ Completed low-risk migrations:
 Next migration focus:
 
 - Replace remaining raw device call sites outside `dx8wrapper.cpp`, especially
-  snow point sprites, smudge/profiler capture, and the remaining shader-manager
-  legacy filter snippets.
+  smudge/profiler capture and the remaining shader-manager legacy filter
+  snippets. Snow point sprites are still a legacy D3D path, but are already
+  compile-guarded out of standalone bgfx and selected through a backend
+  capability query.
 - Add a backend sea-water mesh submission path or convert sea water to existing
   `VertexBufferClass` / `IndexBufferClass` abstractions.
 - Add a backend readback/profiler API, or make profiler capture an explicit
