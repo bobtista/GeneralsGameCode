@@ -64,6 +64,34 @@ unsigned _MinTextureFilters[MAX_TEXTURE_STAGES][TextureFilterClass::FILTER_TYPE_
 unsigned _MagTextureFilters[MAX_TEXTURE_STAGES][TextureFilterClass::FILTER_TYPE_COUNT];
 unsigned _MipMapFilters[MAX_TEXTURE_STAGES][TextureFilterClass::FILTER_TYPE_COUNT];
 
+static RenderBackendTextureSampleFilter LegacyFilterToBackend(unsigned filter)
+{
+	switch (filter)
+	{
+	case D3DTEXF_NONE:
+		return RB_TEXTURE_SAMPLE_NONE;
+	case D3DTEXF_POINT:
+		return RB_TEXTURE_SAMPLE_POINT;
+	case D3DTEXF_ANISOTROPIC:
+		return RB_TEXTURE_SAMPLE_ANISOTROPIC;
+	case D3DTEXF_LINEAR:
+	default:
+		return RB_TEXTURE_SAMPLE_LINEAR;
+	}
+}
+
+static RenderBackendTextureAddressMode TextureAddressToBackend(TextureFilterClass::TxtAddrMode mode)
+{
+	switch (mode)
+	{
+	case TextureFilterClass::TEXTURE_ADDRESS_CLAMP:
+		return RB_TEXTURE_ADDRESS_CLAMP;
+	case TextureFilterClass::TEXTURE_ADDRESS_REPEAT:
+	default:
+		return RB_TEXTURE_ADDRESS_WRAP;
+	}
+}
+
 /*************************************************************************
 **                             TextureFilterClass
 *************************************************************************/
@@ -89,31 +117,16 @@ TextureFilterClass::TextureFilterClass(MipCountType mip_level_count)
 */
 void TextureFilterClass::Apply(unsigned int stage)
 {
-	g_renderBackend->Set_Texture_Stage_State(stage,D3DTSS_MINFILTER,_MinTextureFilters[stage][TextureMinFilter]);
-	g_renderBackend->Set_Texture_Stage_State(stage,D3DTSS_MAGFILTER,_MagTextureFilters[stage][TextureMagFilter]);
-	g_renderBackend->Set_Texture_Stage_State(stage,D3DTSS_MIPFILTER,_MipMapFilters[stage][MipMapFilter]);
-
-	switch (Get_U_Addr_Mode())
-	{
-	case TEXTURE_ADDRESS_REPEAT:
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-		break;
-
-	case TEXTURE_ADDRESS_CLAMP:
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-		break;
-	}
-
-	switch (Get_V_Addr_Mode())
-	{
-	case TEXTURE_ADDRESS_REPEAT:
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
-		break;
-
-	case TEXTURE_ADDRESS_CLAMP:
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
-		break;
-	}
+	g_renderBackend->Set_Texture_Sample_Filter(
+		stage,
+		LegacyFilterToBackend(_MinTextureFilters[stage][TextureMinFilter]),
+		LegacyFilterToBackend(_MagTextureFilters[stage][TextureMagFilter]),
+		LegacyFilterToBackend(_MipMapFilters[stage][MipMapFilter]));
+	g_renderBackend->Set_Texture_Address_Mode(
+		stage,
+		TextureAddressToBackend(Get_U_Addr_Mode()),
+		TextureAddressToBackend(Get_V_Addr_Mode()),
+		RB_TEXTURE_ADDRESS_WRAP);
 }
 
 //**********************************************************************************************
