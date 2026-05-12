@@ -116,10 +116,10 @@ routing shader/view-capture/sorted-state capture APIs through
 - `raw_device`: 66 hits in 10 files
 - `dx8wrapper_low_level`: 87 hits in 9 files
 - `dx8wrapper_high_level`: 29 hits in 4 files
-- `d3d_public_type`: 2898 hits in 54 files
+- `d3d_public_type`: 2891 hits in 54 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 3080
+- total categorized hits: 3073
 
 Completed low-risk migrations:
 
@@ -137,6 +137,11 @@ Completed low-risk migrations:
   calling `DX8Wrapper` directly. The method is transitional: bgfx still sources
   the snapshot from the legacy state cache until phase 4 moves that state into
   a neutral owner.
+- `SortingRendererClass` releases direct-draw replay state through
+  `IRenderBackend::Release_Legacy_Render_State_For_Sorted_Draw` and now uses
+  `Matrix4x4` for local sort-depth math. Its remaining D3D-shaped references
+  are the saved legacy state layout and the D3DLIGHT conversion used to build
+  `RenderBackendLight`.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
