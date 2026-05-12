@@ -314,7 +314,7 @@ void TextureFilterClass::Set_Mip_Mapping(FilterType mipmap)
 void TextureFilterClass::_Set_Max_Anisotropy(AnisotropicFilterMode mode)
 {
 	for (int stage = 0; stage < MAX_TEXTURE_STAGES; ++stage)
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAXANISOTROPY, mode);
+		g_renderBackend->Set_Texture_Max_Anisotropy(stage, mode);
 }
 
 //**********************************************************************************************
