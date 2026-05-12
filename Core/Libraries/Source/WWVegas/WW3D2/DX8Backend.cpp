@@ -323,6 +323,24 @@ bool DX8Backend::Supports_Texture_Format(WW3DFormat format) const
     return caps != nullptr && caps->Support_Texture_Format(format);
 }
 
+bool DX8Backend::Supports_Compressed_Textures() const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    return caps != nullptr && caps->Support_DXTC();
+}
+
+bool DX8Backend::Supports_Bump_Envmap() const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    return caps != nullptr && caps->Support_Bump_Envmap();
+}
+
+bool DX8Backend::Supports_Bump_Envmap_Luminance() const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    return caps != nullptr && caps->Support_Bump_Envmap_Luminance();
+}
+
 int DX8Backend::Get_Max_Texture_Stages() const
 {
     const auto * caps = DX8Wrapper::Get_Current_Caps();
