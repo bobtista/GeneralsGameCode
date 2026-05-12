@@ -366,6 +366,62 @@ bool DX8Backend::Supports_Texture_Filter(RenderBackendTextureFilterCapability ca
     }
 }
 
+bool DX8Backend::Supports_Texture_Op(RenderBackendTextureOpCapability capability) const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    if (caps == nullptr)
+    {
+        return false;
+    }
+
+    const DWORD texture_op_caps = caps->Get_DX8_Caps().TextureOpCaps;
+    switch (capability)
+    {
+        case RB_TEXTURE_OP_SELECTARG1:
+            return (texture_op_caps & D3DTEXOPCAPS_SELECTARG1) != 0;
+        case RB_TEXTURE_OP_MODULATE:
+            return (texture_op_caps & D3DTEXOPCAPS_MODULATE) != 0;
+        case RB_TEXTURE_OP_MODULATE2X:
+            return (texture_op_caps & D3DTEXOPCAPS_MODULATE2X) != 0;
+        case RB_TEXTURE_OP_ADD:
+            return (texture_op_caps & D3DTEXOPCAPS_ADD) != 0;
+        case RB_TEXTURE_OP_BUMPENVMAP:
+            return (texture_op_caps & D3DTEXOPCAPS_BUMPENVMAP) != 0;
+        case RB_TEXTURE_OP_BUMPENVMAPLUMINANCE:
+            return (texture_op_caps & D3DTEXOPCAPS_BUMPENVMAPLUMINANCE) != 0;
+        case RB_TEXTURE_OP_ADDSMOOTH:
+            return (texture_op_caps & D3DTEXOPCAPS_ADDSMOOTH) != 0;
+        case RB_TEXTURE_OP_SUBTRACT:
+            return (texture_op_caps & D3DTEXOPCAPS_SUBTRACT) != 0;
+        case RB_TEXTURE_OP_BLENDTEXTUREALPHA:
+            return (texture_op_caps & D3DTEXOPCAPS_BLENDTEXTUREALPHA) != 0;
+        case RB_TEXTURE_OP_BLENDCURRENTALPHA:
+            return (texture_op_caps & D3DTEXOPCAPS_BLENDCURRENTALPHA) != 0;
+        case RB_TEXTURE_OP_ADDSIGNED:
+            return (texture_op_caps & D3DTEXOPCAPS_ADDSIGNED) != 0;
+        case RB_TEXTURE_OP_ADDSIGNED2X:
+            return (texture_op_caps & D3DTEXOPCAPS_ADDSIGNED2X) != 0;
+        case RB_TEXTURE_OP_MODULATEALPHA_ADDCOLOR:
+            return caps->Support_ModAlphaAddClr();
+        default:
+            return false;
+    }
+}
+
+bool DX8Backend::Supports_Fog() const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    return caps != nullptr && caps->Is_Fog_Allowed();
+}
+
+bool DX8Backend::Is_Legacy_Voodoo3() const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    return caps != nullptr
+        && caps->Get_Vendor() == DX8Caps::VENDOR_3DFX
+        && caps->Get_Device() == DX8Caps::DEVICE_3DFX_VOODOO_3;
+}
+
 RenderBackendTextureLimits DX8Backend::Get_Texture_Limits() const
 {
     const auto * caps = DX8Wrapper::Get_Current_Caps();
