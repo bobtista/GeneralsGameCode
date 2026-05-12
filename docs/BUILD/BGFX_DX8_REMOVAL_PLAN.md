@@ -418,6 +418,9 @@ Completed low-risk migrations:
   stages and reset state through backend semantic texcoord helpers.
 - Flat-terrain shader-manager variants now express shroud, noise, base mesh UV,
   and reset texcoord state through the same backend semantic helpers.
+- Screen crossfade mask setup now selects its stage-1 mesh UV through the
+  backend texcoord API, clearing the last raw texcoord state write from
+  `W3DShaderManager.cpp`.
 - `ShaderClass::Apply` now reads fog color through `IRenderBackend`, removing
   another direct `DX8Wrapper` query from the shared shader path.
 - The legacy Voodoo3 stage-2 compatibility path in `ShaderClass::Apply` now
