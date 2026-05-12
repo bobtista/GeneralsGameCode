@@ -458,6 +458,7 @@ Completed low-risk migrations:
 - Line-group geometry now packs diffuse vertex colors through `WW3DColor`.
 - Segment-line effects now pack generated line colors through `WW3DColor`.
 - Point-group particles now pack clamped diffuse colors through `WW3DColor`.
+- Streak particles now pack clamped diffuse colors through `WW3DColor`.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
