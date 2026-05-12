@@ -1124,14 +1124,14 @@ void ScorchTextureClass::Apply(unsigned int stage)
 	g_renderBackend->Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_WRAP);
 	// Now setup the texture pipeline.
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
+	g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+	g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
+	g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
 	SetTerrainTexcoordSource(0, 0);
 	g_renderBackend->Set_Alpha_Blend_Enable(true);
 	g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+	g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+	g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 }
