@@ -53,7 +53,7 @@
 #include "wwdebug.h"
 #include "ww3d.h"
 #include "rinfo.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8fvf.h"
@@ -283,7 +283,7 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 		const FVFInfoClass &fi=vb.FVF_Info();
 		unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
 		int i;
-		unsigned int color=DX8Wrapper::Convert_Color(Color);
+		unsigned int color=WW3DColor::To_ARGB(Color);
 
 		for (i=0; i<8; i++)
 		{
@@ -513,4 +513,3 @@ int Line3DClass::Get_Num_Polys() const
 {
 	return 12;
 }
-
