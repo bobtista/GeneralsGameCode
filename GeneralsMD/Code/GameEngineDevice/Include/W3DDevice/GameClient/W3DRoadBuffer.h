@@ -50,8 +50,7 @@
 #include "always.h"
 #include "rendobj.h"
 #include "w3d_file.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
+#include "dx8fvf.h"
 #include "shader.h"
 #include "vertmaterial.h"
 //#include "common/GameFileSystem.h"
@@ -63,6 +62,8 @@
 //-----------------------------------------------------------------------------
 //           Forward References
 //-----------------------------------------------------------------------------
+class DX8IndexBufferClass;
+class DX8VertexBufferClass;
 
 //-----------------------------------------------------------------------------
 //           Type Defines
