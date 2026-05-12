@@ -86,11 +86,11 @@
 #include "rinfo.h"
 #include "camera.h"
 #include "dx8fvf.h"
-#include "d3dx8math.h"
 #include "sortingrenderer.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 
@@ -1236,14 +1236,22 @@ void PointGroupClass::Update_Arrays(
 				}
 
 				// Scale vertex offsets and add them to point locations to get vertex locations
-				for (i = 0; i < active_points; i++) {
-					if (!Billboard) {
-						// If we're not billboarding, then the coordinate we have is in screen space.
-						Matrix4x4 rotMat;
-						D3DXMatrixRotationZ(&(D3DXMATRIX&) rotMat, ((float)point_orientation[i] / 255.0f * 2 * D3DX_PI));
-
-						Vector4 orientedVecX = rotMat * GroundMultiplierX;
-						Vector4 orientedVecY = rotMat * GroundMultiplierY;
+					for (i = 0; i < active_points; i++) {
+						if (!Billboard) {
+							// If we're not billboarding, then the coordinate we have is in screen space.
+							const float angle = static_cast<float>(point_orientation[i]) / 255.0f * WWMATH_TWO_PI;
+							const float c = std::cos(angle);
+							const float s = std::sin(angle);
+							const Vector4 orientedVecX(
+								GroundMultiplierX.X * c + GroundMultiplierX.Y * s,
+								GroundMultiplierX.X * -s + GroundMultiplierX.Y * c,
+								GroundMultiplierX.Z,
+								1.0f);
+							const Vector4 orientedVecY(
+								GroundMultiplierY.X * c + GroundMultiplierY.Y * s,
+								GroundMultiplierY.X * -s + GroundMultiplierY.Y * c,
+								GroundMultiplierY.Z,
+								1.0f);
 
 						vertex_loc[vert + 0].X = point_loc[i].X +	(orientedVecX.X + orientedVecY.X) * point_size[i];
 						vertex_loc[vert + 0].Y = point_loc[i].Y +	(orientedVecX.Y + orientedVecY.Y) * point_size[i];
