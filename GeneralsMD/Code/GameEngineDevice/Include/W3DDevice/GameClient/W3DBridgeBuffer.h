@@ -50,8 +50,7 @@
 #include "always.h"
 #include "rendobj.h"
 #include "w3d_file.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
+#include "dx8fvf.h"
 #include "shader.h"
 #include "vertmaterial.h"
 #include "Lib/BaseType.h"
@@ -62,6 +61,8 @@
 //-----------------------------------------------------------------------------
 //           Forward References
 //-----------------------------------------------------------------------------
+class DX8IndexBufferClass;
+class DX8VertexBufferClass;
 class MeshClass;
 class W3DTerrainLogic;
 class W3DAssetManager;
