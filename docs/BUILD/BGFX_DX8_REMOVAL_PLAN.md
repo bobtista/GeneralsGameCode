@@ -56,6 +56,9 @@ Recent progress on the DX8-removal stack:
 - `W3DShaderManager::getChipset` now queries
   `IRenderBackend::Get_Device_Identity` instead of reaching through
   `DX8Wrapper` for adapter IDs and shader caps.
+- `WaterRenderObjClass::renderWaterMesh` now writes dynamic grid vertices
+  through `DynamicVBAccessClass` and draws the grid through `IRenderBackend`
+  instead of locking, binding, and drawing raw D3D vertex/index buffers.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -154,13 +157,13 @@ routing shader/view-capture/sorted-state capture APIs through
 `IRenderBackend`, and moving fixed-function state storage from `DX8Wrapper` and
 `RenderStateCache` to `FixedFunctionState`:
 
-- `raw_device`: 66 hits in 10 files
+- `raw_device`: 57 hits in 8 files
 - `dx8wrapper_low_level`: 87 hits in 9 files
 - `dx8wrapper_high_level`: 22 hits in 3 files
-- `d3d_public_type`: 2892 hits in 56 files
+- `d3d_public_type`: 2872 hits in 56 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 3067
+- total categorized hits: 3038
 
 Completed low-risk migrations:
 
@@ -217,6 +220,10 @@ Completed low-risk migrations:
   the shader manager needs for chipset classification. DX8 fills it from
   `DX8Caps` and adapter identifiers; bgfx reports a generic modern shader-cap
   profile so terrain/water shader selection stays on the high-quality path.
+- `WaterRenderObjClass::renderWaterMesh` uses the existing dynamic vertex
+  buffer abstraction and `IRenderBackend::Draw_Strip` path for water grid
+  draws. This removes the old raw D3D dynamic-lock/draw path while keeping sea
+  patch and bump-texture migration as separate, higher-risk follow-up work.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
