@@ -48,6 +48,8 @@ Recent progress on the DX8-removal stack:
 - Vertex/index buffer binding state now has `FixedFunctionState` mutators.
   `DX8Wrapper` remains the legacy facade, but bgfx no longer calls through it
   to keep current VB/IB state synchronized.
+- `BgfxBackend.cpp` no longer has active `DX8Wrapper::...` calls. Remaining
+  mentions in that file are comments describing legacy call paths.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -199,6 +201,9 @@ Completed low-risk migrations:
   including dynamic VB/IB offsets and dirty-mask updates. Dynamic access
   classes expose narrow read-only accessors so the state owner no longer needs
   `DX8Wrapper` friendship.
+- `BgfxBackend::Set_Texture` uses `FixedFunctionState::Set_Texture`'s own
+  texture-stage bound check instead of querying the legacy `DX8Caps` object
+  through `DX8Wrapper`.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
