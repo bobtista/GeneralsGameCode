@@ -466,6 +466,7 @@ Completed low-risk migrations:
 - Color-space recoloring now converts ARGB values through `WW3DColor`.
 - Shatter mesh interpolation and DIG/DCG color math now use `WW3DColor`
   instead of relying on a transitive `DX8Wrapper` include.
+- Mesh material DIG/DCG bake-down color math now uses `WW3DColor`.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
