@@ -525,37 +525,37 @@ Int ScreenBWFilter::set(FilterModes mode)
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		g_renderBackend->Set_Pixel_Shader(m_dwBWPixelShader);
-		const D3DXVECTOR4 luminanceWeights(0.3f, 0.59f, 0.11f, 1.0f);
+		const float luminanceWeights[4] = { 0.3f, 0.59f, 0.11f, 1.0f };
 		g_renderBackend->Set_Pixel_Shader_Constant(0, &luminanceWeights, 1);
 
-		D3DXVECTOR4	color(1.0f,1.0f,1.0f,1.0f);	//multiply color
+		float color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };	//multiply color
 
 		if (mode == FM_VIEW_BW_BLACK_AND_WHITE)
 		{	//back & white mode
-			color.x=1.0f;
-			color.y=1.0f;
-			color.z=1.0f;
+			color[0]=1.0f;
+			color[1]=1.0f;
+			color[2]=1.0f;
 		}
 		if (mode == FM_VIEW_BW_RED_AND_WHITE)
 		{	//red is on
-			color.x = 1.0f;
-			color.y = 0.0f;
-			color.z = 0.0f;
+			color[0] = 1.0f;
+			color[1] = 0.0f;
+			color[2] = 0.0f;
 			//inverse red is on
 			//red is on
-//			color.x = 0.0f;
-//			color.y = 1.0f;
-//			color.z = 1.0f;
+//			color[0] = 0.0f;
+//			color[1] = 1.0f;
+//			color[2] = 1.0f;
 		}
 		if (mode == FM_VIEW_BW_GREEN_AND_WHITE)
 		{
-			color.x = 0.0f;
-			color.y = 1.0f;
-			color.z = 0.0f;
+			color[0] = 0.0f;
+			color[1] = 1.0f;
+			color[2] = 0.0f;
 		}
 
 		g_renderBackend->Set_Pixel_Shader_Constant(1, &color, 1);
-		const D3DXVECTOR4 fadeValue(m_curFadeValue, m_curFadeValue, m_curFadeValue, 1.0f);
+		const float fadeValue[4] = { m_curFadeValue, m_curFadeValue, m_curFadeValue, 1.0f };
 		g_renderBackend->Set_Pixel_Shader_Constant(2, &fadeValue, 1);
 		return true;
 	}
