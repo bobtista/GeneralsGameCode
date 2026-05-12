@@ -323,6 +323,12 @@ bool DX8Backend::Supports_Texture_Format(WW3DFormat format) const
     return caps != nullptr && caps->Support_Texture_Format(format);
 }
 
+int DX8Backend::Get_Max_Texture_Stages() const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    return caps != nullptr ? caps->Get_Max_Textures_Per_Pass() : RB_MAX_TEXTURE_STAGES;
+}
+
 void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit)
 {
     DX8Wrapper::Set_Gamma(gamma, bright, contrast, calibrate, uselimit);
