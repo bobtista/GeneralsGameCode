@@ -390,6 +390,8 @@ Completed low-risk migrations:
 - Terrain alpha/scorch texture setup now uses the semantic sampler API for its
   terrain-quality filter selection and clamp/wrap address modes, leaving only
   fixed-function combine and texcoord state in those local terrain paths.
+- Deleted the remaining obsolete `#if 0` terrain texture apply blocks that
+  still contained dead DX8 sampler-state examples.
 - Shader-manager terrain setup now routes repeated base terrain sampler blocks
   and 2D clamp/wrap address writes through backend-neutral sampler helpers. The
   backend sampler API now also has explicit partial min/mag and mip setters, so
