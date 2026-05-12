@@ -558,16 +558,12 @@ public:
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Sorted
     // draw pass routing. SortingRendererClass::Flush_Sorting_Pool wraps
-    // its per-batch draw loop in Begin/End_Sorted_Batch_Pass and calls
-    // Capture_Sorted_Batch_Transforms once per batch inside the loop.
-    // BgfxBackend uses this to route the sorted submits to a dedicated
-    // bgfx view id so per-batch matrices cannot stomp the opaque view.
-    // Empty defaults = no-op on DX8Backend.
+    // its per-batch draw loop in Begin/End_Sorted_Batch_Pass and applies one
+    // RenderBackendSortedBatchState per batch. BgfxBackend uses this to route
+    // the sorted submits to a dedicated bgfx view id so per-batch matrices
+    // cannot stomp the opaque view. Empty defaults = no-op on DX8Backend.
     virtual void Begin_Sorted_Batch_Pass() {}
     virtual void End_Sorted_Batch_Pass() {}
-    virtual void Capture_Sorted_Batch_Transforms(const Matrix4x4 & /*world*/,
-                                                 const Matrix4x4 & /*view*/) {}
-    virtual void Capture_Sorted_Batch_Light(const RenderBackendLight & /*light*/, bool /*enabled*/) {}
     virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & /*state*/) {}
     virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & /*state*/) {}
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & /*state*/) {}

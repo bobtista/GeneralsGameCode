@@ -131,9 +131,6 @@ public:
                                          unsigned int size_bytes) override;
     virtual void Begin_Sorted_Batch_Pass() override;
     virtual void End_Sorted_Batch_Pass() override;
-    virtual void Capture_Sorted_Batch_Transforms(const Matrix4x4 & world,
-                                                 const Matrix4x4 & view) override;
-    virtual void Capture_Sorted_Batch_Light(const RenderBackendLight & light, bool enabled) override;
     virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state) override;
     virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state) override;
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state) override;

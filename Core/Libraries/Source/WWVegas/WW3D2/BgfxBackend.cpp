@@ -1614,7 +1614,7 @@ const int kDX8RefWindowShowDelayFrames   = 30;
 
 // Per-batch effective world for sorted draws: the pre-multiplied
 // sortView * sortWorld (in bgfx column-major form) captured from the
-// engine's render_state by Capture_Sorted_Batch_Transforms.
+// engine's sorted replay state.
 // TheSuperHackers @refactor bobtista 11/04/2026 Set by
 // Submit_Sorted_Draw after it emits the bgfx submit for a sorting VB
 // direct draw. The outer BgfxBackend::Draw_Triangles consumes this
@@ -3856,8 +3856,8 @@ void BgfxBackend::End_Sorted_Batch_Pass()
     g_views.inSortFlush = false;
 }
 
-void BgfxBackend::Capture_Sorted_Batch_Transforms(const Matrix4x4 & sortWorld,
-                                                  const Matrix4x4 & sortView)
+static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
+                                                const Matrix4x4 & sortView)
 {
     // Compute the D3D row-major product sortWorld * sortView, then store
     // it as row-major float[16] (r*4+c). bgfx on D3D11 interprets the
@@ -3893,35 +3893,6 @@ void BgfxBackend::Capture_Sorted_Batch_Transforms(const Matrix4x4 & sortWorld,
     }
 }
 
-void BgfxBackend::Capture_Sorted_Batch_Light(const RenderBackendLight & light, bool enabled)
-{
-    // Sort batch lights are always light 0 (the primary directional).
-    // Scene ambient was already captured by Set_Light_Environment.
-    // D3D8 direction points FROM light toward surface; negate for N.L.
-    if (enabled)
-    {
-        g_draw.lightDirs[0][0] = -light.direction[0];
-        g_draw.lightDirs[0][1] = -light.direction[1];
-        g_draw.lightDirs[0][2] = -light.direction[2];
-        g_draw.lightDirs[0][3] = 1.0f;
-        g_draw.lightColors[0][0] = light.diffuse[0];
-        g_draw.lightColors[0][1] = light.diffuse[1];
-        g_draw.lightColors[0][2] = light.diffuse[2];
-        g_draw.lightAmbients[0][0] = 0.0f;
-        g_draw.lightAmbients[0][1] = 0.0f;
-        g_draw.lightAmbients[0][2] = 0.0f;
-        g_draw.lightParams[0][0] = 0.0f;
-        g_draw.lightParams[0][1] = 0.0f;
-        g_draw.lightParams[0][2] = 0.0f;
-        g_draw.lightParams[0][3] = 1.0f;
-    }
-    else
-    {
-        g_draw.lightDirs[0][3] = 0.0f;
-        g_draw.lightParams[0][3] = 0.0f;
-    }
-}
-
 void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state)
 {
     if (state.shader != nullptr)
@@ -3935,7 +3906,7 @@ void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState &
     }
     if (state.world != nullptr && state.view != nullptr)
     {
-        Capture_Sorted_Batch_Transforms(*state.world, *state.view);
+        CaptureSortedBatchTransformsForBgfx(*state.world, *state.view);
     }
     for (int i = 0; i < 4; ++i)
     {
