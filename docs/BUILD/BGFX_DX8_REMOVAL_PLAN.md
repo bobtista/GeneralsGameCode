@@ -437,6 +437,8 @@ Completed low-risk migrations:
   through backend operation/argument setters.
 - `FlatTerrainShader2Stage` now applies flat terrain base, shroud, and
   projected noise/cloud texture-combine state through backend setters.
+- `TerrainShader8Stage` now applies its base terrain multi-stage combine
+  setup and cleanup through backend texture-combine setters.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
