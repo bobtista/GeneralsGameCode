@@ -33,6 +33,8 @@
 #include <coltest.h>
 #include <rinfo.h>
 #include <camera.h>
+#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/shader.h"
 #include "Common/GlobalData.h"
