@@ -134,6 +134,7 @@ public:
     virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state) override;
     virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state) override;
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state) override;
+    virtual void Release_Legacy_Render_State_For_Sorted_Draw() override;
     virtual void Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
                                     const DynamicIBAccessClass & dyn_ib,
                                     unsigned short polygon_count,

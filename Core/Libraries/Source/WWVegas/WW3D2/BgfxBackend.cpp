@@ -3952,6 +3952,14 @@ void BgfxBackend::Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateS
     (void)state;
 }
 
+void BgfxBackend::Release_Legacy_Render_State_For_Sorted_Draw()
+{
+    // Transitional boundary matching Capture_Legacy_Render_State_For_Sorted_Draw.
+    // Sorted direct draws still rely on the legacy render-state cache's ref
+    // ownership until phase 4 moves that cache into a neutral owner.
+    DX8Wrapper::Release_Render_State();
+}
+
 // TheSuperHackers @refactor bobtista 26/04/2026 Shared submit helpers used by
 // both Submit_Sorted_Draw and SubmitEngineDraw to avoid duplicated blocks.
 static uint64_t ApplyCullModeOverride(uint64_t state)

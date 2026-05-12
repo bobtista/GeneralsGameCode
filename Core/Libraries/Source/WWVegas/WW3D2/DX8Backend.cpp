@@ -792,6 +792,11 @@ void DX8Backend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct &
     DX8Wrapper::Get_Render_State(state);
 }
 
+void DX8Backend::Release_Legacy_Render_State_For_Sorted_Draw()
+{
+    DX8Wrapper::Release_Render_State();
+}
+
 // -- State: shaders, materials, textures ------------------------------------
 
 void DX8Backend::Set_Shader(const ShaderClass & shader)

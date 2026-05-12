@@ -785,7 +785,7 @@ void SortingRendererClass::Flush()
 
 			g_renderBackend->Draw_Triangles(state->start_index, state->polygon_count, state->min_vertex_index, state->vertex_count);
 			g_renderBackend->End_Sorted_Batch_Pass();
-			DX8Wrapper::Release_Render_State();
+			g_renderBackend->Release_Legacy_Render_State_For_Sorted_Draw();
 			Release_Refs(state);
 			clean_list.Add_Head(state);
 		}
