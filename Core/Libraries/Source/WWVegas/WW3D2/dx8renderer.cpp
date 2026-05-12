@@ -41,12 +41,12 @@
 //#define ENABLE_STRIPING
 
 #include "dx8renderer.h"
-#include "dx8wrapper.h"
 #include "dx8polygonrenderer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8fvf.h"
 #include "dx8rendererdebugger.h"
+#include "RenderBufferTypes.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "wwdebug.h"
@@ -1732,7 +1732,7 @@ void DX8TextureCategoryClass::Render()
 							g_renderBackend->Set_Texture(i, Peek_Texture(i));
 						}
 					} else {
-						for (i = 0; i < MAX_TEXTURE_STAGES; i++) {
+						for (i = 0; i < RB_MAX_TEXTURE_STAGES; i++) {
 							g_renderBackend->Set_Texture(i, nullptr);
 						}
 					}
