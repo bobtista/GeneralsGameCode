@@ -744,7 +744,7 @@ HRESULT WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Int ver
 //-------------------------------------------------------------------------------------------------
 /** Create and fill a D3D index buffer with water surface strip indices */
 //-------------------------------------------------------------------------------------------------
-HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
+HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY, Bool createD3DMirror)
 {
 	HRESULT hr=S_OK;
 
@@ -760,8 +760,9 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 	WORD* pIndices=nullptr;
 	UnsignedShort *backendIndices=nullptr;
 
-#if !defined(GGC_BGFX_STANDALONE)
-	if (FAILED(hr=m_pDev->CreateIndexBuffer
+	if (createD3DMirror)
+	{
+		if (FAILED(hr=m_pDev->CreateIndexBuffer
 	(
 		(m_numIndices+2)*sizeof(WORD),
 		D3DUSAGE_WRITEONLY,
@@ -769,17 +770,17 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 		D3DPOOL_MANAGED,
 		&m_indexBufferD3D
 	)))
-		return hr;
+			return hr;
 
-	if (FAILED(hr=m_indexBufferD3D->Lock
+		if (FAILED(hr=m_indexBufferD3D->Lock
 	(
 		0,
 		m_numIndices*sizeof(WORD),
 		(BYTE**)&pIndices,
 		0
 	)))
-		return hr;
-#endif
+			return hr;
+	}
 
 	REF_PTR_RELEASE(m_waterMeshIndexBuffer);
 	m_waterMeshIndexBuffer=NEW_REF(DX8IndexBufferClass,(m_numIndices));
@@ -862,9 +863,7 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
 		s_toggle=!s_toggle;
 	}
 */
-#if !defined(GGC_BGFX_STANDALONE)
-	if (FAILED(hr=m_indexBufferD3D->Unlock())) return hr;
-#endif
+	if (pIndices != nullptr && FAILED(hr=m_indexBufferD3D->Unlock())) return hr;
 
 	return S_OK;
 }
@@ -944,7 +943,7 @@ void WaterRenderObjClass::ReAcquireResources()
 	if (m_meshData)
 	{
 		//Create new grid data
-		if (FAILED(generateIndexBuffer(m_gridCellsX+1,m_gridCellsY+1)))
+		if (FAILED(generateIndexBuffer(m_gridCellsX+1,m_gridCellsY+1,false)))
 			return;
 		if (FAILED(generateVertexBuffer(m_gridCellsX+1,m_gridCellsY+1,sizeof(MaterMeshVertexFormat),false)))
 			return;
@@ -957,7 +956,7 @@ void WaterRenderObjClass::ReAcquireResources()
 		// builds batch the sea patch grid through transient backend buffers
 		// instead of creating the old raw D3D8 shader resources.
 #else
-		if (FAILED(hr=generateIndexBuffer(PATCH_SIZE,PATCH_SIZE)))
+		if (FAILED(hr=generateIndexBuffer(PATCH_SIZE,PATCH_SIZE,true)))
 			return;
 
 		if (FAILED(hr=generateVertexBuffer(PATCH_SIZE,PATCH_SIZE,sizeof(SEA_PATCH_VERTEX),true)))
@@ -1316,7 +1315,7 @@ void WaterRenderObjClass::enableWaterGrid(Bool state)
 		SAFE_RELEASE(m_indexBufferD3D);
 
 		//Create new grid data
-		if (FAILED(generateIndexBuffer(m_gridCellsX+1,m_gridCellsY+1)))
+		if (FAILED(generateIndexBuffer(m_gridCellsX+1,m_gridCellsY+1,false)))
 			return;
 		if (FAILED(generateVertexBuffer(m_gridCellsX+1,m_gridCellsY+1,sizeof(MaterMeshVertexFormat),false)))
 			return;
