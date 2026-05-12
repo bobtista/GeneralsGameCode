@@ -94,8 +94,8 @@ public:
 	static TextureClass *getShaderTexture(Int stage) { return m_Textures[stage];}	///<returns currently selected texture for given stage
 	///Return last activated shader.
 	static ShaderTypes getCurrentShader() {return m_currentShader;}
-	/// Loads a .vso file and creates a vertex shader for it
-	static HRESULT LoadAndCreateD3DShader(const char* strFilePath, const DWORD* pDeclaration, DWORD Usage, Bool ShaderType, DWORD* pHandle);
+	/// Loads a legacy shader object and creates a backend shader for it.
+	static HRESULT LoadAndCreateLegacyShader(const char* strFilePath, const DWORD* pDeclaration, DWORD Usage, Bool ShaderType, DWORD* pHandle);
 
 	static Bool testMinimumRequirements(ChipsetType *videoChipType, CpuType *cpuType, Int *cpuFreq, MemValueType *numRAM, Real *intBenchIndex, Real *floatBenchIndex, Real *memBenchIndex);
 	static StaticGameLODLevel getGPUPerformanceIndex();

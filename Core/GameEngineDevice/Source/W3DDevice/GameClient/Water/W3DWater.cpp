@@ -989,11 +989,11 @@ void WaterRenderObjClass::ReAcquireResources()
 			(D3DVSD_END())
 		};
 
-		hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\wave.pso", &Declaration[0], 0, false, &m_dwWavePixelShader);
+		hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\wave.pso", &Declaration[0], 0, false, &m_dwWavePixelShader);
 		if (FAILED(hr))
 			return;
 
-		hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\wave.vso", &Declaration[0], 0, true, &m_dwWaveVertexShader);
+		hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\wave.vso", &Declaration[0], 0, true, &m_dwWaveVertexShader);
 		if (FAILED(hr))
 			return;
 

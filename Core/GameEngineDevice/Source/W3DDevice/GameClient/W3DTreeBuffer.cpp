@@ -1249,11 +1249,11 @@ void W3DTreeBuffer::allocateTreeBuffers()
 	};
 
 	HRESULT hr;
-	hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\Trees.vso", &Declaration[0], 0, true, &m_dwTreeVertexShader);
+	hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\Trees.vso", &Declaration[0], 0, true, &m_dwTreeVertexShader);
 	if (FAILED(hr))
 		return;
 
-	hr = W3DShaderManager::LoadAndCreateD3DShader("shaders\\Trees.pso", &Declaration[0], 0, false, &m_dwTreePixelShader);
+	hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\Trees.pso", &Declaration[0], 0, false, &m_dwTreePixelShader);
 	if (FAILED(hr))
 		return;
 }

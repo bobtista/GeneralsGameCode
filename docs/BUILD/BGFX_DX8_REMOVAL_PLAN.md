@@ -371,6 +371,10 @@ Completed low-risk migrations:
 - `IRenderBackend::Supports_Point_Sprites` now owns the snow point-sprite
   capability decision. The actual raw D3D point-sprite draw path remains
   isolated behind the non-standalone build guard.
+- `W3DShaderManager::LoadAndCreateLegacyShader` now names the shader-loading
+  helper by what it does: load legacy shader blobs and ask the active backend
+  to create native shader handles. The public helper no longer advertises a
+  D3D-only operation.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
