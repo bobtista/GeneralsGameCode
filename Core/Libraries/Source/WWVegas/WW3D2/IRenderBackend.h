@@ -111,6 +111,14 @@ struct RenderBackendDeviceIdentity
     int pixel_shader_minor;
 };
 
+struct RenderBackendTextureLimits
+{
+    unsigned int max_width;
+    unsigned int max_height;
+    unsigned int max_volume_extent;
+    unsigned int max_aspect_ratio;
+};
+
 struct RenderBackendSortedBatchState
 {
     const ShaderClass * shader;
@@ -463,6 +471,10 @@ public:
     virtual bool Supports_Compressed_Textures() const { return false; }
     virtual bool Supports_Bump_Envmap() const { return false; }
     virtual bool Supports_Bump_Envmap_Luminance() const { return false; }
+    virtual RenderBackendTextureLimits Get_Texture_Limits() const
+    {
+        return { 2048, 2048, 2048, 8 };
+    }
     virtual int Get_Max_Texture_Stages() const { return RB_MAX_TEXTURE_STAGES; }
     virtual bool Supports_Z_Bias() const { return false; }
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode) {}

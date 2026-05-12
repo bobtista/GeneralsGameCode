@@ -340,6 +340,23 @@ bool DX8Backend::Supports_Bump_Envmap_Luminance() const
     return caps != nullptr && caps->Support_Bump_Envmap_Luminance();
 }
 
+RenderBackendTextureLimits DX8Backend::Get_Texture_Limits() const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    if (caps == nullptr)
+    {
+        return IRenderBackend::Get_Texture_Limits();
+    }
+
+    const D3DCAPS8 & dx8caps = caps->Get_DX8_Caps();
+    return {
+        dx8caps.MaxTextureWidth,
+        dx8caps.MaxTextureHeight,
+        dx8caps.MaxVolumeExtent,
+        dx8caps.MaxTextureAspectRatio != 0 ? dx8caps.MaxTextureAspectRatio : 8
+    };
+}
+
 int DX8Backend::Get_Max_Texture_Stages() const
 {
     const auto * caps = DX8Wrapper::Get_Current_Caps();
