@@ -50,7 +50,7 @@
 
 bool ShaderClass::ShaderDirty=true;
 unsigned long ShaderClass::CurrentShader=0;
-unsigned long _PolygonCullMode = D3DCULL_CW;
+static CullMode _PolygonCullMode = RB_CULL_CW;
 
 static RenderBackendTextureOperation Shader_Texture_Operation(D3DTEXTUREOP op)
 {
@@ -376,32 +376,32 @@ class Blend
 {
 public:
 
-	Blend(D3DBLEND f, bool ab)
+	Blend(BlendFactor f, bool ab)
 	{
 		func = f;
 		useAlpha = ab;
 	}
 
-	D3DBLEND	func;
+	BlendFactor	func;
 	bool		useAlpha;
 };
 
 const Blend srcBlendLUT[ShaderClass::SRCBLEND_MAX] =
 {
-	Blend(D3DBLEND_ZERO, false),
-	Blend(D3DBLEND_ONE, false),
-	Blend(D3DBLEND_SRCALPHA, true),
- 	Blend(D3DBLEND_DESTCOLOR, true)
+	Blend(RB_BLEND_ZERO, false),
+	Blend(RB_BLEND_ONE, false),
+	Blend(RB_BLEND_SRC_ALPHA, true),
+	Blend(RB_BLEND_DEST_COLOR, true)
 };
 
 const Blend dstBlendLUT[ShaderClass::DSTBLEND_MAX] =
 {
-	Blend(D3DBLEND_ZERO, false),
-	Blend(D3DBLEND_ONE, false),
- 	Blend(D3DBLEND_SRCCOLOR, false),
- 	Blend(D3DBLEND_INVSRCCOLOR, false),
- 	Blend(D3DBLEND_SRCALPHA, true),
- 	Blend(D3DBLEND_INVSRCALPHA, true)
+	Blend(RB_BLEND_ZERO, false),
+	Blend(RB_BLEND_ONE, false),
+	Blend(RB_BLEND_SRC_COLOR, false),
+	Blend(RB_BLEND_INV_SRC_COLOR, false),
+	Blend(RB_BLEND_SRC_ALPHA, true),
+	Blend(RB_BLEND_INV_SRC_ALPHA, true)
 };
 
 
@@ -448,14 +448,14 @@ void ShaderClass::Apply()
 		if(Get_Color_Mask() != ShaderClass::COLOR_WRITE_ENABLE)
 			planeMask = 0;
 
-		D3DBLEND	sf;
-		D3DBLEND	df;
+		BlendFactor	sf;
+		BlendFactor	df;
 		bool	blendAlpha = false;
 
 		if(!planeMask)
 		{
-			sf = D3DBLEND_ZERO;
-			df = D3DBLEND_ONE;
+			sf = RB_BLEND_ZERO;
+			df = RB_BLEND_ONE;
 		}
 		else
 		{
@@ -467,9 +467,9 @@ void ShaderClass::Apply()
 
 		BOOL blendOn = FALSE;
 
-		if(sf != D3DBLEND_ONE || df != D3DBLEND_ZERO)
+		if(sf != RB_BLEND_ONE || df != RB_BLEND_ZERO)
 		{
-			g_renderBackend->Set_Blend_Factors(static_cast<BlendFactor>(sf), static_cast<BlendFactor>(df));
+			g_renderBackend->Set_Blend_Factors(sf, df);
 			blendOn = TRUE;
 		}
 		g_renderBackend->Set_Alpha_Blend_Enable(blendOn);
@@ -480,7 +480,7 @@ void ShaderClass::Apply()
 		{
 			unsigned char alphareference = 0x60;	// Alpha reference value that produces best results with mip-mapped textures.
 
-			if(sf == D3DBLEND_INVSRCALPHA)
+			if(sf == RB_BLEND_INV_SRC_ALPHA)
 			{
 				g_renderBackend->Set_Alpha_Test(true, 0xff - alphareference, RB_CMP_LESS_EQUAL);
 			}
@@ -505,7 +505,7 @@ void ShaderClass::Apply()
 			if (g_renderBackend && g_renderBackend->Supports_Fog() && g_renderBackend->Get_Fog_Enable()) {
 
 			BOOL fm = FALSE;
-			D3DCOLOR fogColor = g_renderBackend->Get_Fog_Color();
+			unsigned int fogColor = g_renderBackend->Get_Fog_Color();
 
 			switch(Get_Fog_Func())
 			{
@@ -1031,7 +1031,7 @@ void ShaderClass::Apply()
 	g_renderBackend->Set_Depth_Write_Enable(Get_Depth_Mask());
 
 		// CULLMODE
-		g_renderBackend->Set_Cull_Mode(static_cast<CullMode>(Get_Cull_Mode() ? _PolygonCullMode : D3DCULL_NONE));
+		g_renderBackend->Set_Cull_Mode(Get_Cull_Mode() ? _PolygonCullMode : RB_CULL_NONE);
 
 	// NPATCHES
 	if (diff&ShaderClass::MASK_NPATCHENABLE) {
@@ -1063,9 +1063,9 @@ void ShaderClass::Apply()
 void ShaderClass::Invert_Backface_Culling(bool onoff)
 {
 	if (onoff == true) {
-		_PolygonCullMode = D3DCULL_CCW;
+		_PolygonCullMode = RB_CULL_CCW;
 	} else {
-		_PolygonCullMode = D3DCULL_CW;
+		_PolygonCullMode = RB_CULL_CW;
 	}
 	Invalidate();
 }
@@ -1162,7 +1162,7 @@ int ShaderClass::Guess_Sort_Level() const
  *=============================================================================================*/
 bool ShaderClass::Is_Backface_Culling_Inverted()
 {
-	return (_PolygonCullMode == D3DCULL_CCW);
+	return (_PolygonCullMode == RB_CULL_CCW);
 }
 
 const StringClass& ShaderClass::Get_Description(StringClass& str) const
