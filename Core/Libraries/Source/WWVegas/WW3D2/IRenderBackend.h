@@ -567,6 +567,7 @@ public:
     virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & /*state*/) {}
     virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & /*state*/) {}
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & /*state*/) {}
+    virtual void Release_Legacy_Render_State_For_Sorted_Draw() {}
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Sorted
     // direct-draw path hook. DX8Wrapper::Draw_Sorting_IB_VB handles
