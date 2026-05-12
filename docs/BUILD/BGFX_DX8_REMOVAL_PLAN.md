@@ -89,6 +89,8 @@ Recent progress on the DX8-removal stack:
 - The legacy shader Voodoo3 stage-2 compatibility path now writes through
   `IRenderBackend` instead of issuing raw `SetTextureStageState`/`SetTexture`
   calls directly.
+- `CameraShakeSystem.cpp` no longer includes D3DX or `dx8wrapper.h`; it did not
+  use DX8 symbols and only pulled D3D headers into standalone bgfx builds.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -302,6 +304,9 @@ Completed low-risk migrations:
   `IRenderBackend::Set_Texture_Stage_State` and
   `Bind_Texture_Immediate`. This keeps the path available for DX8 while
   removing the direct `DX8CALL` dependency from GeneralsMD shader setup.
+- Removed unused D3DX/DX8 includes from the camera shake system. This is a
+  header hygiene step: camera shake math is backend-neutral and does not need
+  DX8 declarations in standalone bgfx.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
