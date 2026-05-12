@@ -206,10 +206,10 @@ game-facing texture-stage state writes through semantic backend APIs:
 - `raw_device`: 54 hits in 8 files
 - `dx8wrapper_low_level`: 77 hits in 8 files
 - `dx8wrapper_high_level`: 22 hits in 3 files
-- `d3d_public_type`: 1890 hits in 51 files
+- `d3d_public_type`: 1860 hits in 51 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 2043
+- total categorized hits: 2013
 
 Completed low-risk migrations:
 
@@ -498,6 +498,14 @@ Completed low-risk migrations:
   when they do not use any D3DX symbols.
 - Texture-filter anisotropy now uses a named backend API instead of passing
   `D3DTSS_MAXANISOTROPY` through the generic texture-stage state escape hatch.
+- Active river/trapezoid water noise texture transforms now build their
+  matrices with `Matrix4x4` and backend transform APIs instead of D3DX helper
+  calls.
+- Water and screen-filter shader constants that were plain four-float vectors
+  no longer use `D3DXVECTOR4` as storage.
+- Repeated projected shroud texture-transform setup now goes through one
+  `Matrix4x4` helper in `W3DShaderManager.cpp`; the bgfx shroud parameter path
+  remains explicit.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
