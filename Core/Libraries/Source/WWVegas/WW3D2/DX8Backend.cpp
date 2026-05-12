@@ -1248,6 +1248,18 @@ void DX8Backend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_count
         flags);
 }
 
+void DX8Backend::Set_Texture_UV_Wrap(unsigned stage, bool enable)
+{
+    if (stage >= RB_MAX_TEXTURE_STAGES)
+    {
+        return;
+    }
+
+    DX8Wrapper::Set_DX8_Render_State(
+        static_cast<D3DRENDERSTATETYPE>(D3DRS_WRAP0 + stage),
+        enable ? (D3DWRAP_U | D3DWRAP_V) : 0);
+}
+
 void DX8Backend::Set_Texture_Bump_Env_Matrix(unsigned stage,
                                              float m00,
                                              float m01,
