@@ -19,7 +19,6 @@
 #include "statistics.h"
 #include "wwstring.h"
 #include "simplevec.h"
-#include "dx8wrapper.h"
 #include "textureloader.h"
 #include "texture.h"
 #include "RenderBackend.h"
@@ -366,7 +365,8 @@ void Debug_Statistics::Begin_Statistics()
 	sorting_vertices=0;
 	draw_calls=0;
 	Record_Texture_Begin();
-	DX8Wrapper::Begin_Statistics();
+	if (g_renderBackend != nullptr)
+		g_renderBackend->Begin_Device_Statistics();
 }
 
 void Debug_Statistics::End_Statistics()
@@ -380,7 +380,8 @@ void Debug_Statistics::End_Statistics()
 	last_frame_sorting_polygons=sorting_polygons;
 	last_frame_sorting_vertices=sorting_vertices;
 	last_frame_draw_calls=draw_calls;
-	DX8Wrapper::End_Statistics();
+	if (g_renderBackend != nullptr)
+		g_renderBackend->End_Device_Statistics();
 }
 
 void Debug_Statistics::Shutdown_Statistics()

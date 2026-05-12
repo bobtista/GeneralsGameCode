@@ -74,6 +74,8 @@ public:
     virtual void Begin_Scene();
     virtual void End_Scene(bool flip_frame);
     virtual void Flip_To_Primary();
+    virtual void Begin_Device_Statistics() override;
+    virtual void End_Device_Statistics() override;
     virtual void Clear(bool clear_color, bool clear_z_stencil,
                        const Vector3 & color,
                        float dest_alpha, float z, unsigned int stencil);
