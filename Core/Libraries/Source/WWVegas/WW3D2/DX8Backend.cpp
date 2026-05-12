@@ -500,6 +500,16 @@ void DX8Backend::Flip_To_Primary()
     DX8Wrapper::Flip_To_Primary();
 }
 
+void DX8Backend::Begin_Device_Statistics()
+{
+    DX8Wrapper::Begin_Statistics();
+}
+
+void DX8Backend::End_Device_Statistics()
+{
+    DX8Wrapper::End_Statistics();
+}
+
 void DX8Backend::Clear(bool clear_color, bool clear_z_stencil,
                        const Vector3 & color,
                        float dest_alpha, float z, unsigned int stencil)
