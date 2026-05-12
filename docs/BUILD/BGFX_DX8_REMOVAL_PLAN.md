@@ -14,7 +14,7 @@ That is enough for macOS/Metal to run without a real Direct3D device. It is not
 the same as removing DX8 from the bgfx build. The bgfx renderer still depends on
 the legacy DX8-shaped state and resource model.
 
-Recent progress on `bobtista/remove-dx8-bgfx`:
+Recent progress on the DX8-removal stack:
 
 - `BgfxBackend` now inherits `IRenderBackend` directly instead of `DX8Backend`.
 - `BgfxBackend.cpp` no longer forwards through `DX8Backend` or peeks
@@ -23,12 +23,18 @@ Recent progress on `bobtista/remove-dx8-bgfx`:
   `dx8webbrowser.cpp`.
 - Static vertex/index buffers and texture uploads are sourced from CPU-side
   snapshots instead of bgfx locking D3D mirror resources directly.
+- `RenderStateStruct`, the current fixed-function render-state snapshot, and
+  the dirty/change mask now live in `FixedFunctionState` instead of
+  `DX8Wrapper`. `DX8Wrapper` still has compatibility accessors and still owns
+  the DX8 apply facade, but it is no longer the storage owner for that state.
 
 ## Why DX8 Cannot Be Deleted Yet
 
-`BgfxBackend` is detached from `DX8Backend`, but bgfx-compiled engine code still
-uses `DX8Wrapper` as the fixed-function state and resource compatibility layer.
-`DX8Wrapper` continues to maintain:
+`BgfxBackend` is detached from `DX8Backend`, and the current shader/material/
+texture/light/VB/IB fixed-function snapshot has moved to `FixedFunctionState`.
+Bgfx-compiled engine code still uses `DX8Wrapper` for compatibility entry
+points and DX8-shaped helper APIs, and the broader renderer state is still
+partly DX8-shaped. The current compatibility layer continues to maintain:
 
 - current shader, material, textures, vertex buffers, and index buffer
 - world/view/projection transforms
@@ -76,11 +82,12 @@ The resource classes also still expose D3D-shaped storage:
    through `DX8Backend` while giving bgfx explicit state instead of relying on
    the stub device side effects.
 
-4. **Move `DX8Wrapper` render-state tracking into a neutral owner.**
-   This is the main cutover. The state currently stored in
-   `DX8Wrapper::render_state`, `RenderStates`, `TextureStageStates`,
-   `Textures`, and `DX8Transforms` needs a backend-neutral home. The DX8 build
-   can then become one consumer of that state instead of the owner.
+4. **Move `DX8Wrapper` render-state tracking into neutral owners.**
+   In progress. `DX8Wrapper::render_state` and `render_state_changed` have
+   moved to `FixedFunctionState`, with `DX8Wrapper` delegating capture,
+   restore, release, and read-only peek compatibility calls. Remaining state
+   still needing neutral ownership includes `RenderStates`,
+   `TextureStageStates`, `Textures`, and `DX8Transforms`.
 
 5. **Make `BgfxBackend` inherit `IRenderBackend` directly.**
    Completed on `bobtista/remove-dx8-bgfx`. `BgfxBackend` now owns its cached
@@ -109,14 +116,15 @@ device calls outside the legacy DX8 implementation, fewer `DX8Backend::...`
 base calls from `BgfxBackend`, and fewer D3D-shaped public resource APIs.
 
 Current measured state after detaching `BgfxBackend`, removing `DX8Backend.cpp`
-from the bgfx target, moving the first resource uploads to CPU snapshots, and
+from the bgfx target, moving the first resource uploads to CPU snapshots,
 routing shader/view-capture/sorted-state capture APIs through
-`IRenderBackend`:
+`IRenderBackend`, and moving the current fixed-function render-state snapshot
+from `DX8Wrapper` to `FixedFunctionState`:
 
 - `raw_device`: 66 hits in 10 files
 - `dx8wrapper_low_level`: 87 hits in 9 files
 - `dx8wrapper_high_level`: 29 hits in 4 files
-- `d3d_public_type`: 2891 hits in 54 files
+- `d3d_public_type`: 2891 hits in 55 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
 - total categorized hits: 3073
@@ -142,6 +150,11 @@ Completed low-risk migrations:
   `Matrix4x4` for local sort-depth math. Its remaining D3D-shaped references
   are the saved legacy state layout and the D3DLIGHT conversion used to build
   `RenderBackendLight`.
+- `RenderStateStruct` ownership moved from `DX8Wrapper` to
+  `FixedFunctionState`. The DX8 path still applies that state through
+  `DX8Wrapper::Apply_Render_State_Changes`; bgfx sorted/effect replay still
+  snapshots it through backend hooks while later phases replace the
+  D3D-shaped layout.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
@@ -150,11 +163,12 @@ Completed low-risk migrations:
   shader texture, buffer, and texture paths no longer depend on
   `DX8Backend`.
 - The bgfx target does not compile `DX8Backend.cpp` or `dx8webbrowser.cpp`.
-- Sorted bgfx particles/effects still snapshot legacy fixed-function state
-  through `DX8Wrapper::render_state`. That coupling is intentional for now:
-  removing it requires phase 4, moving render-state ownership into a neutral
-  owner. Until then, bgfx buffer binds must continue to mirror into the legacy
-  render-state cache so sorted replay records valid VB/IB state.
+- Sorted bgfx particles/effects still snapshot D3D-shaped fixed-function state
+  through `FixedFunctionState`. That coupling is intentional for now: the
+  storage owner is neutral, but the data layout still mirrors the legacy
+  render-state cache. Until a semantic sorted-state layout replaces it, bgfx
+  buffer binds must continue to mirror into `FixedFunctionState` so sorted
+  replay records valid VB/IB state.
 
 Next migration focus:
 
@@ -165,9 +179,9 @@ Next migration focus:
   `VertexBufferClass` / `IndexBufferClass` abstractions.
 - Add a backend readback/profiler API, or make profiler capture an explicit
   unsupported capability in standalone bgfx.
-- Move `DX8Wrapper`'s render-state arrays into a backend-neutral owner so
-  call sites can keep fixed-function semantics without requiring a D3D-shaped
-  wrapper.
+- Continue splitting remaining `DX8Wrapper` state into backend-neutral owners:
+  render-state arrays, texture-stage-state arrays, texture slots, and
+  transform storage.
 - Replace transitional raw texture-stage APIs with semantic descriptors for
   shader, mapper, terrain, and water call sites.
 - Split texture/surface/VB/IB primary ownership from `IDirect3D*8` objects so
