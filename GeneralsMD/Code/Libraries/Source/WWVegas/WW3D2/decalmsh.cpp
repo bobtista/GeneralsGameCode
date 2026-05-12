@@ -62,10 +62,8 @@
 #include "dx8indexbuffer.h"
 #include "simplevec.h"
 #include "texture.h"
-#include "dx8wrapper.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
-#include "dx8caps.h"
 
 #define DISABLE_CLIPPING	0
 
@@ -426,7 +424,7 @@ bool RigidDecalMeshClass::Create_Decal
 	// on hardware "polygon offset" we could remove this code and we could make decals non-sorting
 	Vector3 zbias_offset(0.0f,0.0f,0.0f);
 
-	if (!DX8Wrapper::Get_Current_Caps()->Support_ZBias()) {
+	if (!g_renderBackend->Supports_Z_Bias()) {
 		const float ZBIAS_DISTANCE = 0.01f;
 		generator->Get_Transform().Get_Z_Vector(&zbias_offset);
 		Matrix3D invtm;

@@ -342,6 +342,9 @@ Completed low-risk migrations:
 - `IRenderBackend::Get_Max_Texture_Stages` now owns the max texture-stage query
   used by material installation and sorted-state texture comparison/ref release.
   `matpass.cpp` no longer includes `dx8wrapper.h`.
+- `IRenderBackend::Supports_Z_Bias` now owns decal Z-bias support checks.
+  Decal mesh generation no longer includes `dx8wrapper.h`/`dx8caps.h` just to
+  decide whether it must physically offset decal polygons.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
