@@ -4062,32 +4062,14 @@ void DX8Wrapper::Set_Gamma(float gamma,float bright,float contrast,bool calibrat
 	}
 }
 
-namespace wrapper
-{
-void D3DMatrixIdentity(D3DMATRIX* dxm)
-{
-	memset(dxm, 0, sizeof(*dxm));
-	dxm->_11 = 1.0f;
-	dxm->_22 = 1.0f;
-	dxm->_33 = 1.0f;
-	dxm->_44 = 1.0f;
-}
-} // namespace wrapper
-
 void DX8Wrapper::Set_World_Identity()
 {
-	if (FixedFunctionState::Changed_Mask()&(unsigned)WORLD_IDENTITY)
-		return;
-	wrapper::D3DMatrixIdentity(&FixedFunctionState::Render_State().world);
-	FixedFunctionState::Changed_Mask()|=(unsigned)WORLD_CHANGED|(unsigned)WORLD_IDENTITY;
+	FixedFunctionState::Set_World_Identity();
 }
 
 void DX8Wrapper::Set_View_Identity()
 {
-	if (FixedFunctionState::Changed_Mask()&(unsigned)VIEW_IDENTITY)
-		return;
-	wrapper::D3DMatrixIdentity(&FixedFunctionState::Render_State().view);
-	FixedFunctionState::Changed_Mask()|=(unsigned)VIEW_CHANGED|(unsigned)VIEW_IDENTITY;
+	FixedFunctionState::Set_View_Identity();
 }
 
 //**********************************************************************************************

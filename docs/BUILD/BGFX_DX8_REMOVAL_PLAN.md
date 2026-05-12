@@ -42,6 +42,9 @@ Recent progress on the DX8-removal stack:
   `FixedFunctionState` mutators. `DX8Wrapper` delegates its compatibility
   setters to those helpers, and `BgfxBackend` uses them directly instead of
   calling `DX8Wrapper::Set_Shader`, `Set_Material`, or `Set_Texture`.
+- World/view identity helpers now also live in `FixedFunctionState`.
+  `DX8Wrapper` keeps compatibility entry points, while `BgfxBackend` updates
+  identity state directly instead of routing through the DX8 wrapper.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -186,6 +189,9 @@ Completed low-risk migrations:
 - `FixedFunctionState` owns shader/material/texture mutation helpers and
   changed-mask constants. `DX8Wrapper` keeps the legacy inline API as a
   compatibility facade, while `BgfxBackend` updates this state directly.
+- `FixedFunctionState` owns world/view identity helpers. This preserves the
+  legacy changed-mask semantics while removing another pair of bgfx calls
+  through `DX8Wrapper`.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

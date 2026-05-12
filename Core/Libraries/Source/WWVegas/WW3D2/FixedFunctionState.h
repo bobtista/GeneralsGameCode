@@ -90,6 +90,10 @@ public:
 	static bool Set_Shader(const ShaderClass & shader, bool shader_dirty = false);
 	static void Set_Material(const VertexMaterialClass * material);
 	static bool Set_Texture(unsigned stage, TextureBaseClass * texture);
+	static void Set_World_Identity();
+	static void Set_View_Identity();
+	static bool Is_World_Identity();
+	static bool Is_View_Identity();
 
 	static IDirect3DBaseTexture8 * Raw_Texture(unsigned stage);
 	static bool Set_Raw_Texture(unsigned stage, IDirect3DBaseTexture8 * texture);
