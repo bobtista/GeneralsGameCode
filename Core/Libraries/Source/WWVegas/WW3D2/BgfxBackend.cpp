@@ -6060,6 +6060,56 @@ void BgfxBackend::Set_Texture_UV_Wrap(unsigned stage, bool enable)
     }
 }
 
+static unsigned TextureAddressModeToD3DStageState(RenderBackendTextureAddressMode mode)
+{
+    switch (mode)
+    {
+        case RB_TEXTURE_ADDRESS_CLAMP:
+            return D3DTADDRESS_CLAMP;
+        case RB_TEXTURE_ADDRESS_BORDER:
+            return D3DTADDRESS_BORDER;
+        case RB_TEXTURE_ADDRESS_WRAP:
+        default:
+            return D3DTADDRESS_WRAP;
+    }
+}
+
+void BgfxBackend::Set_Texture_Address_Mode(unsigned stage,
+                                           RenderBackendTextureAddressMode u,
+                                           RenderBackendTextureAddressMode v,
+                                           RenderBackendTextureAddressMode w)
+{
+    Set_Texture_Stage_State(stage, D3DTSS_ADDRESSU, TextureAddressModeToD3DStageState(u));
+    Set_Texture_Stage_State(stage, D3DTSS_ADDRESSV, TextureAddressModeToD3DStageState(v));
+    Set_Texture_Stage_State(stage, D3DTSS_ADDRESSW, TextureAddressModeToD3DStageState(w));
+}
+
+static unsigned TextureSampleFilterToD3DStageState(RenderBackendTextureSampleFilter filter)
+{
+    switch (filter)
+    {
+        case RB_TEXTURE_SAMPLE_NONE:
+            return D3DTEXF_NONE;
+        case RB_TEXTURE_SAMPLE_POINT:
+            return D3DTEXF_POINT;
+        case RB_TEXTURE_SAMPLE_ANISOTROPIC:
+            return D3DTEXF_ANISOTROPIC;
+        case RB_TEXTURE_SAMPLE_LINEAR:
+        default:
+            return D3DTEXF_LINEAR;
+    }
+}
+
+void BgfxBackend::Set_Texture_Sample_Filter(unsigned stage,
+                                            RenderBackendTextureSampleFilter min_filter,
+                                            RenderBackendTextureSampleFilter mag_filter,
+                                            RenderBackendTextureSampleFilter mip_filter)
+{
+    Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, TextureSampleFilterToD3DStageState(min_filter));
+    Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, TextureSampleFilterToD3DStageState(mag_filter));
+    Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, TextureSampleFilterToD3DStageState(mip_filter));
+}
+
 void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)
 {
     RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_ADDRESSU,
