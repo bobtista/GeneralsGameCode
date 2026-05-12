@@ -54,6 +54,8 @@
 #include "rinfo.h"
 #include "camera.h"
 #include "assetmgr.h"
+#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/scene.h"
