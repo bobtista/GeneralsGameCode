@@ -80,6 +80,9 @@ Recent progress on the DX8-removal stack:
 - Snow point-sprite-only D3D declarations are isolated from standalone bgfx.
   Standalone bgfx continues to use the existing snow quad path; a real
   point-sprite backend API remains optional future work.
+- The legacy shader Voodoo3 stage-2 compatibility path now writes through
+  `IRenderBackend` instead of issuing raw `SetTextureStageState`/`SetTexture`
+  calls directly.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -283,6 +286,10 @@ Completed low-risk migrations:
 - Removed obsolete `#if 0` terrain light/cloud texture setup blocks that still
   referenced direct DX8 transform and D3DX matrix calls. Runtime behavior is
   unchanged; the live path was already just `TextureClass::Apply`.
+- The shader manager's legacy Voodoo3 stage-2 workaround now uses
+  `IRenderBackend::Set_Texture_Stage_State` and
+  `Bind_Texture_Immediate`. This keeps the path available for DX8 while
+  removing the direct `DX8CALL` dependency from GeneralsMD shader setup.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
