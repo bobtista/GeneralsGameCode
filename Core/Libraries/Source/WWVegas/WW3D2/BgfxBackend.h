@@ -67,6 +67,7 @@ public:
     virtual bool Supports_Compressed_Textures() const override;
     virtual bool Supports_Bump_Envmap() const override { return false; }
     virtual bool Supports_Bump_Envmap_Luminance() const override { return false; }
+    virtual bool Supports_Texture_Filter(RenderBackendTextureFilterCapability /*capability*/) const override { return true; }
     virtual RenderBackendTextureLimits Get_Texture_Limits() const override;
     virtual int Get_Max_Texture_Stages() const override;
     virtual bool Supports_Z_Bias() const override { return true; }

@@ -353,6 +353,9 @@ Completed low-risk migrations:
 - `IRenderBackend::Get_Texture_Limits` now owns max texture width/height,
   volume extent, and aspect-ratio limits. `textureloader.cpp` no longer reads
   raw `D3DCAPS8` during size validation.
+- `IRenderBackend::Supports_Texture_Filter` now owns linear/mip/anisotropic
+  filter capability checks. `texturefilter.cpp` no longer reads
+  `D3DCAPS8::TextureFilterCaps`.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

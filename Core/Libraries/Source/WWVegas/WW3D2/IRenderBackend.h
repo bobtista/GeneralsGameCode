@@ -86,6 +86,15 @@ enum RenderBackendLockFlags
     RB_LOCK_DISCARD = 0x00002000,
 };
 
+enum RenderBackendTextureFilterCapability
+{
+    RB_TEXTURE_FILTER_MIN_LINEAR,
+    RB_TEXTURE_FILTER_MAG_LINEAR,
+    RB_TEXTURE_FILTER_MIP_LINEAR,
+    RB_TEXTURE_FILTER_MIN_ANISOTROPIC,
+    RB_TEXTURE_FILTER_MAG_ANISOTROPIC,
+};
+
 struct RenderBackendLightState
 {
     RenderBackendLight lights[4];
@@ -471,6 +480,7 @@ public:
     virtual bool Supports_Compressed_Textures() const { return false; }
     virtual bool Supports_Bump_Envmap() const { return false; }
     virtual bool Supports_Bump_Envmap_Luminance() const { return false; }
+    virtual bool Supports_Texture_Filter(RenderBackendTextureFilterCapability /*capability*/) const { return false; }
     virtual RenderBackendTextureLimits Get_Texture_Limits() const
     {
         return { 2048, 2048, 2048, 8 };
