@@ -336,6 +336,9 @@ Completed low-risk migrations:
 - `IRenderBackend::Supports_Texture_Format` now owns hardware/backend texture
   format checks. Radar texture format selection and GeneralsMD video-buffer
   selection no longer reach through `DX8Wrapper::Get_Current_Caps()`.
+- `Get_Valid_Texture_Format` now uses the same backend texture-format query for
+  compression and fallback decisions. It still uses `DX8Wrapper` for legacy
+  color packing helpers, but no longer needs DX8 caps for format validation.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
