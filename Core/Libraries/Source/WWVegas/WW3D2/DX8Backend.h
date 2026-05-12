@@ -95,6 +95,7 @@ public:
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset);
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset);
     virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state) override;
+    virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state) override;
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state) override;
 
     // -- State: shaders, materials, textures ---------------------------------

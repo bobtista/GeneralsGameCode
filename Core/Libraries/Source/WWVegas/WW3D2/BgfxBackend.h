@@ -135,6 +135,7 @@ public:
                                                  const Matrix4x4 & view) override;
     virtual void Capture_Sorted_Batch_Light(const RenderBackendLight & light, bool enabled) override;
     virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state) override;
+    virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state) override;
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state) override;
     virtual void Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
                                     const DynamicIBAccessClass & dyn_ib,
