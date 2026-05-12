@@ -97,7 +97,7 @@
 #include "rinfo.h"
 #include "coltest.h"
 #include "inttest.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "dx8indexbuffer.h"
@@ -460,7 +460,7 @@ void BoxRenderObjClass::render_box(RenderInfoClass & rinfo,const Vector3 & cente
 		/*
 		** Dump the box vertices into the sorting dynamic vertex buffer.
 		*/
-		DWORD color = DX8Wrapper::Convert_Color(Color,Opacity);
+		DWORD color = WW3DColor::To_ARGB(Color, Opacity);
 
 		int buffer_type = BUFFER_TYPE_DYNAMIC_DX8;
 
@@ -1389,5 +1389,4 @@ RenderObjClass * BoxPrototypeClass::Create()
 ** Global instance of the box loader
 */
 BoxLoaderClass _BoxLoader;
-
 
