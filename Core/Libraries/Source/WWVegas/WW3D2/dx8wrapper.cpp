@@ -189,7 +189,7 @@ HINSTANCE D3D8Lib = nullptr;
 
 DX8_CleanupHook	 *DX8Wrapper::m_pCleanupHook=nullptr;
 #ifdef EXTENDED_STATS
-DX8_Stats	 DX8Wrapper::stats;
+RenderDebugStats &DX8Wrapper::stats = g_renderDebugStats;
 #endif
 /***********************************************************************************
 **

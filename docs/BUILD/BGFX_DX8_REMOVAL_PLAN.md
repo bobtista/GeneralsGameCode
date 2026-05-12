@@ -478,6 +478,9 @@ Completed low-risk migrations:
   uses native C++ types plus backend enums.
 - Game-client asset recoloring and occluded-player tint generation now use
   backend-neutral `WW3DColor` packing instead of `DX8Wrapper::Convert_Color`.
+- Extended render debug toggles now live in `RenderDebugStats`; the DX8
+  wrapper keeps a compatibility reference, but game-facing stats code no
+  longer names `DX8Wrapper::stats`.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
