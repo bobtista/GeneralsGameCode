@@ -50,6 +50,8 @@
 
 #include <assetmgr.h>
 #include <texture.h>
+#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx8vertexbuffer.h"
 #include "Common/GlobalData.h"
 #include "GameClient/View.h"
 #include "W3DDevice/GameClient/TerrainTex.h"
@@ -798,7 +800,6 @@ void W3DTerrainBackground::drawVisiblePolys(RenderInfoClass & rinfo, Bool disabl
 	g_renderBackend->Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
 #endif
 }
-
 
 
 

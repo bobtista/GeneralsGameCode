@@ -25,6 +25,8 @@
 
 #include "Common/Debug.h"
 #include "W3DDevice/GameClient/W3DBufferManager.h"
+#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx8vertexbuffer.h"
 
 W3DBufferManager *TheW3DBufferManager=nullptr;	//singleton
 

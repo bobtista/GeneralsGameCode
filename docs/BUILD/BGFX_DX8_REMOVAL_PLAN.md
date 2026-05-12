@@ -329,6 +329,10 @@ Completed low-risk migrations:
   and scene sources. These files still include their actual renderer/backend
   dependencies directly where needed.
 - Removed a stale Win-only D3DX include from the GeneralsMD web-browser bridge.
+- Terrain-track, terrain-background, tree-buffer, and GeneralsMD shadow-buffer
+  headers now forward-declare the legacy DX8 buffer classes instead of pulling
+  D3D buffer headers into every include consumer. Their implementation files
+  include the concrete buffer definitions where allocation and locks occur.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

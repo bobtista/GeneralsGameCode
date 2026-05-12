@@ -59,6 +59,8 @@ enum
 
 #include <assetmgr.h>
 #include <texture.h>
+#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx8vertexbuffer.h"
 #include "Common/FramePacer.h"
 #include "Common/GameUtility.h"
 #include "Common/MapReaderWriterInfo.h"
