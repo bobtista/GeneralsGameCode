@@ -173,24 +173,7 @@ WWINLINE void DX8_ErrorCode(unsigned res)
 // EXTENDED_STATS collects additional timing statistics by turning off parts
 // of the 3D drawing system (terrain, objects, etc.)
 #ifdef EXTENDED_STATS
-class DX8_Stats
-{
-public:
-	bool m_showingStats;
-	bool m_disableTerrain;
-	bool m_disableWater;
-	bool m_disableObjects;
-	bool m_disableOverhead;
-	bool m_disableConsole;
-	int  m_debugLinesToShow;
-	int	 m_sleepTime;
-public:
-	DX8_Stats::DX8_Stats() {
-		m_disableConsole = m_showingStats = m_disableTerrain = m_disableWater = m_disableOverhead = m_disableObjects = false;
-		m_sleepTime = 0;
-		m_debugLinesToShow = -1; // -1 means show all expected lines of output
-	}
-};
+#include "renderdebugstats.h"
 #endif
 
 
@@ -253,7 +236,7 @@ class DX8Wrapper
 
 public:
 #ifdef EXTENDED_STATS
-	static DX8_Stats stats;
+	static RenderDebugStats &stats;
 #endif
 
 	static bool Init(void * hwnd, bool lite = false);
