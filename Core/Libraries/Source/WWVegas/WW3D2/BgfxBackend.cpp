@@ -6052,6 +6052,14 @@ void BgfxBackend::Set_Texture_Bump_Env_Matrix(unsigned stage,
     RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT11, FloatAsDword(m11));
 }
 
+void BgfxBackend::Set_Texture_Bump_Env_Luminance(unsigned stage,
+                                                 float scale,
+                                                 float offset)
+{
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVLSCALE, FloatAsDword(scale));
+    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVLOFFSET, FloatAsDword(offset));
+}
+
 void BgfxBackend::Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
 {
     Set_Texture_Coord_Source(stage,
