@@ -273,6 +273,9 @@ Completed low-risk migrations:
 - The procedural tree atlas refreshes its CPU texture snapshot after direct
   legacy-surface writes and mip filtering. This keeps bgfx texture uploads keyed
   to the completed atlas revision instead of the constructor-time empty texture.
+- Removed obsolete `#if 0` terrain light/cloud texture setup blocks that still
+  referenced direct DX8 transform and D3DX matrix calls. Runtime behavior is
+  unchanged; the live path was already just `TextureClass::Apply`.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
