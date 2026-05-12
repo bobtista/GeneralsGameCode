@@ -455,6 +455,7 @@ Completed low-risk migrations:
   for color packing.
 - Simple box and line render objects now also use `WW3DColor` for vertex color
   packing instead of depending on `DX8Wrapper`.
+- Line-group geometry now packs diffuse vertex colors through `WW3DColor`.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
