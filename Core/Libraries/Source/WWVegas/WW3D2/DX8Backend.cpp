@@ -1341,6 +1341,56 @@ void DX8Backend::Set_Texture_UV_Wrap(unsigned stage, bool enable)
         enable ? (D3DWRAP_U | D3DWRAP_V) : 0);
 }
 
+static D3DTEXTUREADDRESS TextureAddressModeToDX8(RenderBackendTextureAddressMode mode)
+{
+    switch (mode)
+    {
+        case RB_TEXTURE_ADDRESS_CLAMP:
+            return D3DTADDRESS_CLAMP;
+        case RB_TEXTURE_ADDRESS_BORDER:
+            return D3DTADDRESS_BORDER;
+        case RB_TEXTURE_ADDRESS_WRAP:
+        default:
+            return D3DTADDRESS_WRAP;
+    }
+}
+
+void DX8Backend::Set_Texture_Address_Mode(unsigned stage,
+                                          RenderBackendTextureAddressMode u,
+                                          RenderBackendTextureAddressMode v,
+                                          RenderBackendTextureAddressMode w)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSU, TextureAddressModeToDX8(u));
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSV, TextureAddressModeToDX8(v));
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSW, TextureAddressModeToDX8(w));
+}
+
+static D3DTEXTUREFILTERTYPE TextureSampleFilterToDX8(RenderBackendTextureSampleFilter filter)
+{
+    switch (filter)
+    {
+        case RB_TEXTURE_SAMPLE_NONE:
+            return D3DTEXF_NONE;
+        case RB_TEXTURE_SAMPLE_POINT:
+            return D3DTEXF_POINT;
+        case RB_TEXTURE_SAMPLE_ANISOTROPIC:
+            return D3DTEXF_ANISOTROPIC;
+        case RB_TEXTURE_SAMPLE_LINEAR:
+        default:
+            return D3DTEXF_LINEAR;
+    }
+}
+
+void DX8Backend::Set_Texture_Sample_Filter(unsigned stage,
+                                           RenderBackendTextureSampleFilter min_filter,
+                                           RenderBackendTextureSampleFilter mag_filter,
+                                           RenderBackendTextureSampleFilter mip_filter)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_MINFILTER, TextureSampleFilterToDX8(min_filter));
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_MAGFILTER, TextureSampleFilterToDX8(mag_filter));
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_MIPFILTER, TextureSampleFilterToDX8(mip_filter));
+}
+
 void DX8Backend::Set_Texture_Bump_Env_Matrix(unsigned stage,
                                              float m00,
                                              float m01,

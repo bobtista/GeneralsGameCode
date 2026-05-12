@@ -95,6 +95,21 @@ enum RenderBackendTextureFilterCapability
     RB_TEXTURE_FILTER_MAG_ANISOTROPIC,
 };
 
+enum RenderBackendTextureAddressMode
+{
+    RB_TEXTURE_ADDRESS_WRAP,
+    RB_TEXTURE_ADDRESS_CLAMP,
+    RB_TEXTURE_ADDRESS_BORDER,
+};
+
+enum RenderBackendTextureSampleFilter
+{
+    RB_TEXTURE_SAMPLE_NONE,
+    RB_TEXTURE_SAMPLE_POINT,
+    RB_TEXTURE_SAMPLE_LINEAR,
+    RB_TEXTURE_SAMPLE_ANISOTROPIC,
+};
+
 enum RenderBackendTextureOpCapability
 {
     RB_TEXTURE_OP_SELECTARG1,
@@ -833,6 +848,14 @@ public:
                                  stage);
     }
     virtual void Set_Texture_UV_Wrap(unsigned stage, bool enable) {}
+    virtual void Set_Texture_Address_Mode(unsigned stage,
+                                          RenderBackendTextureAddressMode u,
+                                          RenderBackendTextureAddressMode v,
+                                          RenderBackendTextureAddressMode w) {}
+    virtual void Set_Texture_Sample_Filter(unsigned stage,
+                                           RenderBackendTextureSampleFilter min_filter,
+                                           RenderBackendTextureSampleFilter mag_filter,
+                                           RenderBackendTextureSampleFilter mip_filter) {}
     virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) {}
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) {}
     virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) {}

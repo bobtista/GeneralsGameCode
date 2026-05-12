@@ -204,6 +204,14 @@ public:
                                              float m11) override;
     virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled) override;
     virtual void Set_Texture_UV_Wrap(unsigned stage, bool enable) override;
+    virtual void Set_Texture_Address_Mode(unsigned stage,
+                                          RenderBackendTextureAddressMode u,
+                                          RenderBackendTextureAddressMode v,
+                                          RenderBackendTextureAddressMode w) override;
+    virtual void Set_Texture_Sample_Filter(unsigned stage,
+                                           RenderBackendTextureSampleFilter min_filter,
+                                           RenderBackendTextureSampleFilter mag_filter,
+                                           RenderBackendTextureSampleFilter mip_filter) override;
     virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) override;
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) override;
     virtual void Configure_Custom_Edging_Cloud_Texture_Stages() override;
