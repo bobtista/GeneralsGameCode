@@ -416,6 +416,8 @@ Completed low-risk migrations:
   mesh UV selection, projected noise/cloud stages, and terrain reset cleanup.
 - Cloud and road shader-manager variants now also express projected noise/cloud
   stages and reset state through backend semantic texcoord helpers.
+- Flat-terrain shader-manager variants now express shroud, noise, base mesh UV,
+  and reset texcoord state through the same backend semantic helpers.
 - `ShaderClass::Apply` now reads fog color through `IRenderBackend`, removing
   another direct `DX8Wrapper` query from the shared shader path.
 - The legacy Voodoo3 stage-2 compatibility path in `ShaderClass::Apply` now
