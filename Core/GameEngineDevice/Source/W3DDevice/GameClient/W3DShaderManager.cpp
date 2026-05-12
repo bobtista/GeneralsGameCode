@@ -71,6 +71,7 @@
 #include "GameLogic/GameLogic.h"
 #include "Common/GlobalData.h"
 #include "Common/GameLOD.h"
+#include "cpudetect.h"
 #include "d3dx8tex.h"
 
 
@@ -1351,7 +1352,7 @@ Int FlatShroudTextureShader::set(Int stage)
 
 void FlatShroudTextureShader::reset()
 {
-	if (m_stageOfSet < MAX_TEXTURE_STAGES)
+	if (m_stageOfSet < RB_MAX_TEXTURE_STAGES)
 		g_renderBackend->Set_Texture(m_stageOfSet,nullptr);
 	g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	W3DShaderManager_ResetMeshTexcoord(m_stageOfSet, m_stageOfSet);

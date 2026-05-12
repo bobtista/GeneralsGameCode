@@ -77,6 +77,7 @@ static void drawFramerateBar();
 #include "W3DDevice/GameClient/W3DScene.h"
 #include "W3DDevice/GameClient/W3DTerrainTracks.h"
 #include "W3DDevice/GameClient/W3DWater.h"
+#include "WW3D2/statistics.h"
 #include "W3DDevice/GameClient/W3DVideoBuffer.h"
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "W3DDevice/GameClient/W3DDebugDisplay.h"
