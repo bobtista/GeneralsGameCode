@@ -20,6 +20,9 @@ namespace
 	RenderStateStruct s_renderState;
 	unsigned s_changedMask;
 	IDirect3DBaseTexture8 * s_rawTextures[MAX_TEXTURE_STAGES];
+	unsigned s_renderStates[FixedFunctionState::RENDER_STATE_COUNT];
+	unsigned s_textureStageStates[FixedFunctionState::TEXTURE_STAGE_COUNT][FixedFunctionState::TEXTURE_STAGE_STATE_COUNT];
+	D3DMATRIX s_transforms[FixedFunctionState::TRANSFORM_COUNT];
 }
 
 RenderStateStruct & FixedFunctionState::Render_State()
@@ -41,6 +44,7 @@ void FixedFunctionState::Clear_Raw()
 {
 	memset(&s_renderState, 0, sizeof(s_renderState));
 	memset(s_rawTextures, 0, sizeof(s_rawTextures));
+	Clear_Cached_State();
 	s_changedMask = 0;
 }
 
@@ -144,6 +148,96 @@ void FixedFunctionState::Release_Raw_Textures()
 			s_rawTextures[stage] = nullptr;
 		}
 	}
+}
+
+void FixedFunctionState::Clear_Cached_State()
+{
+	memset(s_renderStates, 0, sizeof(s_renderStates));
+	memset(s_textureStageStates, 0, sizeof(s_textureStageStates));
+	memset(s_transforms, 0, sizeof(s_transforms));
+}
+
+void FixedFunctionState::Invalidate_Cached_State()
+{
+	unsigned state;
+	for (state = 0; state < RENDER_STATE_COUNT; ++state) {
+		s_renderStates[state] = INVALID_STATE_VALUE;
+	}
+
+	unsigned stage;
+	for (stage = 0; stage < TEXTURE_STAGE_COUNT; ++stage) {
+		for (state = 0; state < TEXTURE_STAGE_STATE_COUNT; ++state) {
+			s_textureStageStates[stage][state] = INVALID_STATE_VALUE;
+		}
+	}
+
+	memset(s_transforms, 0, sizeof(s_transforms));
+}
+
+unsigned FixedFunctionState::Cached_Render_State(unsigned state)
+{
+	if (state >= RENDER_STATE_COUNT) {
+		return INVALID_STATE_VALUE;
+	}
+
+	return s_renderStates[state];
+}
+
+bool FixedFunctionState::Set_Cached_Render_State(unsigned state, unsigned value)
+{
+	if (state >= RENDER_STATE_COUNT) {
+		return false;
+	}
+
+	if (s_renderStates[state] == value) {
+		return false;
+	}
+
+	s_renderStates[state] = value;
+	return true;
+}
+
+unsigned FixedFunctionState::Cached_Texture_Stage_State(unsigned stage, unsigned state)
+{
+	if (stage >= TEXTURE_STAGE_COUNT || state >= TEXTURE_STAGE_STATE_COUNT) {
+		return INVALID_STATE_VALUE;
+	}
+
+	return s_textureStageStates[stage][state];
+}
+
+bool FixedFunctionState::Set_Cached_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
+{
+	if (stage >= TEXTURE_STAGE_COUNT || state >= TEXTURE_STAGE_STATE_COUNT) {
+		return false;
+	}
+
+	if (s_textureStageStates[stage][state] == value) {
+		return false;
+	}
+
+	s_textureStageStates[stage][state] = value;
+	return true;
+}
+
+void FixedFunctionState::Cached_Transform(unsigned transform, D3DMATRIX & matrix)
+{
+	if (transform >= TRANSFORM_COUNT) {
+		memset(&matrix, 0, sizeof(matrix));
+		return;
+	}
+
+	matrix = s_transforms[transform];
+}
+
+bool FixedFunctionState::Set_Cached_Transform(unsigned transform, const D3DMATRIX & matrix)
+{
+	if (transform >= TRANSFORM_COUNT) {
+		return false;
+	}
+
+	s_transforms[transform] = matrix;
+	return true;
 }
 
 RenderStateStruct::RenderStateStruct()

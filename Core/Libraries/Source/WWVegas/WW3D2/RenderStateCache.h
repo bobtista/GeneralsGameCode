@@ -11,17 +11,18 @@
 #pragma once
 
 #include "d3d8.h"
+#include "FixedFunctionState.h"
 
 class RenderStateCache
 {
 public:
 	enum
 	{
-		RENDER_STATE_COUNT = 256,
-		TEXTURE_STAGE_COUNT = 8,
-		TEXTURE_STAGE_STATE_COUNT = 32,
-		TRANSFORM_COUNT = D3DTS_WORLD + 1,
-		INVALID_STATE_VALUE = 0x12345678
+		RENDER_STATE_COUNT = FixedFunctionState::RENDER_STATE_COUNT,
+		TEXTURE_STAGE_COUNT = FixedFunctionState::TEXTURE_STAGE_COUNT,
+		TEXTURE_STAGE_STATE_COUNT = FixedFunctionState::TEXTURE_STAGE_STATE_COUNT,
+		TRANSFORM_COUNT = FixedFunctionState::TRANSFORM_COUNT,
+		INVALID_STATE_VALUE = FixedFunctionState::INVALID_STATE_VALUE
 	};
 
 	static void Clear();
@@ -35,9 +36,4 @@ public:
 
 	static void Get_Transform(unsigned transform, D3DMATRIX & matrix);
 	static bool Set_Transform(unsigned transform, const D3DMATRIX & matrix);
-
-private:
-	static unsigned RenderStates[RENDER_STATE_COUNT];
-	static unsigned TextureStageStates[TEXTURE_STAGE_COUNT][TEXTURE_STAGE_STATE_COUNT];
-	static D3DMATRIX Transforms[TRANSFORM_COUNT];
 };
