@@ -660,7 +660,6 @@ protected:
 	// shader system updates KJM ^
 
 	static bool								world_identity;
-	static IDirect3DBaseTexture8 *	Textures[MAX_TEXTURE_STAGES];
 
 	// These fog settings are constant for all objects in a given scene,
 	// unlike the matching renderstates which vary based on shader settings.
@@ -901,13 +900,11 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture(unsigned int stage, IDirect3DBaseTextu
   		return;
   	}
 
-	if (Textures[stage]==texture) return;
+	if (FixedFunctionState::Raw_Texture(stage)==texture) return;
 
 	SNAPSHOT_SAY(("DX8 - SetTexture(%x) ",texture));
 
-	if (Textures[stage]) Textures[stage]->Release();
-	Textures[stage] = texture;
-	if (Textures[stage]) Textures[stage]->AddRef();
+	FixedFunctionState::Set_Raw_Texture(stage, texture);
 	DX8CALL(SetTexture(stage, texture));
 	DX8_RECORD_TEXTURE_CHANGE();
 }

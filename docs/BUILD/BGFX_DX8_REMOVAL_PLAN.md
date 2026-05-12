@@ -27,6 +27,10 @@ Recent progress on the DX8-removal stack:
   the dirty/change mask now live in `FixedFunctionState` instead of
   `DX8Wrapper`. `DX8Wrapper` still has compatibility accessors and still owns
   the DX8 apply facade, but it is no longer the storage owner for that state.
+- The raw D3D texture-stage binding cache formerly stored as
+  `DX8Wrapper::Textures` also lives in `FixedFunctionState`. It remains
+  separate from `RenderStateStruct::Textures`: one tracks actual immediate D3D
+  bindings, the other tracks deferred `TextureBaseClass` render state.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -83,11 +87,12 @@ The resource classes also still expose D3D-shaped storage:
    the stub device side effects.
 
 4. **Move `DX8Wrapper` render-state tracking into neutral owners.**
-   In progress. `DX8Wrapper::render_state` and `render_state_changed` have
+   In progress. `DX8Wrapper::render_state`, `render_state_changed`, and the
+   raw D3D texture binding slots formerly named `DX8Wrapper::Textures` have
    moved to `FixedFunctionState`, with `DX8Wrapper` delegating capture,
-   restore, release, and read-only peek compatibility calls. Remaining state
-   still needing neutral ownership includes `RenderStates`,
-   `TextureStageStates`, `Textures`, and `DX8Transforms`.
+   restore, release, read-only peek, and raw texture cache compatibility calls.
+   Remaining state still needing neutral ownership includes `RenderStates`,
+   `TextureStageStates`, and `DX8Transforms`.
 
 5. **Make `BgfxBackend` inherit `IRenderBackend` directly.**
    Completed on `bobtista/remove-dx8-bgfx`. `BgfxBackend` now owns its cached
@@ -119,15 +124,15 @@ Current measured state after detaching `BgfxBackend`, removing `DX8Backend.cpp`
 from the bgfx target, moving the first resource uploads to CPU snapshots,
 routing shader/view-capture/sorted-state capture APIs through
 `IRenderBackend`, and moving the current fixed-function render-state snapshot
-from `DX8Wrapper` to `FixedFunctionState`:
+and raw texture binding cache from `DX8Wrapper` to `FixedFunctionState`:
 
 - `raw_device`: 66 hits in 10 files
 - `dx8wrapper_low_level`: 87 hits in 9 files
 - `dx8wrapper_high_level`: 29 hits in 4 files
-- `d3d_public_type`: 2891 hits in 55 files
+- `d3d_public_type`: 2893 hits in 56 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 3073
+- total categorized hits: 3075
 
 Completed low-risk migrations:
 
@@ -155,6 +160,9 @@ Completed low-risk migrations:
   `DX8Wrapper::Apply_Render_State_Changes`; bgfx sorted/effect replay still
   snapshots it through backend hooks while later phases replace the
   D3D-shaped layout.
+- The raw D3D texture binding cache moved from `DX8Wrapper::Textures` to
+  `FixedFunctionState`. This preserves immediate-bind COM ref ownership while
+  removing another static state array from `DX8Wrapper`.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
@@ -180,8 +188,7 @@ Next migration focus:
 - Add a backend readback/profiler API, or make profiler capture an explicit
   unsupported capability in standalone bgfx.
 - Continue splitting remaining `DX8Wrapper` state into backend-neutral owners:
-  render-state arrays, texture-stage-state arrays, texture slots, and
-  transform storage.
+  render-state arrays, texture-stage-state arrays, and transform storage.
 - Replace transitional raw texture-stage APIs with semantic descriptors for
   shader, mapper, terrain, and water call sites.
 - Split texture/surface/VB/IB primary ownership from `IDirect3D*8` objects so
