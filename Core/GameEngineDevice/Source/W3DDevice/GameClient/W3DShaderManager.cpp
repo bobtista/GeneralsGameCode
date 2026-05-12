@@ -885,12 +885,12 @@ Int ScreenCrossFadeFilter::set(FilterModes mode)
 
 		if (mode == FM_VIEW_CROSSFADE_CIRCLE)
 		{	//cross-fading using circle mask stored in stage 1
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG2, D3DTA_CURRENT );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
+			g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);
+			g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
+			g_renderBackend->Set_Texture_Alpha_Argument(1, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Alpha_Argument(1, 2, RB_TEXARG_CURRENT);
+			g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_MODULATE);
 			g_renderBackend->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
 			W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_CLAMP);
 			W3DShaderManager_SetStageMipFilter(1, RB_TEXTURE_SAMPLE_NONE);
@@ -906,8 +906,8 @@ Int ScreenCrossFadeFilter::set(FilterModes mode)
 
 void ScreenCrossFadeFilter::reset()
 {
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+	g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+	g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 	W3DShaderManager_BindStageTexture(0, nullptr);
 	g_renderBackend->Invalidate_Cached_Render_States();
 }
@@ -1043,9 +1043,9 @@ Bool ScreenMotionBlurFilter::postRender(FilterModes mode, Coord2D &scrollDelta,B
 			v[i].v0 = ((v[i].v0-center.y)*factor) + center.y;
 		}
 	}
-	g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAARG1, D3DTA_CURRENT);
-	g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
-	g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+	g_renderBackend->Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_CURRENT);
+	g_renderBackend->Set_Texture_Alpha_Argument(0, 2, RB_TEXARG_TEXTURE);
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
 	if (!g_renderBackend->Draw_View_Capture_Quad(RB_VIEW_CAPTURE_TACTICAL, v, 4, false))
 	{
 		reset();

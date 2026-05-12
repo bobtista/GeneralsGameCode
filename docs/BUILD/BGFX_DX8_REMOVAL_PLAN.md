@@ -421,6 +421,8 @@ Completed low-risk migrations:
   `D3DTSS_COLOR*` / `D3DTSS_ALPHA*` writes.
 - The tactical-view black-and-white DOT3 screen filter now applies its color
   and alpha combiner overrides through backend operation/argument setters.
+- Crossfade and motion-blur screen filters now use backend texture-combine
+  setters for their mask and captured-view alpha overrides.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
