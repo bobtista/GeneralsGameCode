@@ -328,6 +328,12 @@ int DX8Backend::Get_Max_Texture_Stages() const
     return caps != nullptr ? caps->Get_Max_Textures_Per_Pass() : RB_MAX_TEXTURE_STAGES;
 }
 
+bool DX8Backend::Supports_Z_Bias() const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    return caps != nullptr && caps->Support_ZBias();
+}
+
 void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit)
 {
     DX8Wrapper::Set_Gamma(gamma, bright, contrast, calibrate, uselimit);
