@@ -152,6 +152,73 @@ bool FixedFunctionState::Set_Texture(unsigned stage, TextureBaseClass * texture)
 	return true;
 }
 
+void FixedFunctionState::Set_Vertex_Buffer(const VertexBufferClass * vertex_buffer, unsigned stream)
+{
+	s_renderState.vba_offset = 0;
+	s_renderState.vba_count = 0;
+	if (s_renderState.vertex_buffers[stream]) {
+		s_renderState.vertex_buffers[stream]->Release_Engine_Ref();
+	}
+	REF_PTR_SET(s_renderState.vertex_buffers[stream], const_cast<VertexBufferClass *>(vertex_buffer));
+	if (vertex_buffer) {
+		vertex_buffer->Add_Engine_Ref();
+		s_renderState.vertex_buffer_types[stream] = vertex_buffer->Type();
+	} else {
+		s_renderState.vertex_buffer_types[stream] = BUFFER_TYPE_INVALID;
+	}
+	s_changedMask |= VERTEX_BUFFER_CHANGED;
+}
+
+void FixedFunctionState::Set_Vertex_Buffer(const DynamicVBAccessClass & vertex_buffer_access)
+{
+	for (int i = 1; i < MAX_VERTEX_STREAMS; ++i) {
+		Set_Vertex_Buffer(nullptr, i);
+	}
+
+	if (s_renderState.vertex_buffers[0]) {
+		s_renderState.vertex_buffers[0]->Release_Engine_Ref();
+	}
+
+	s_renderState.vertex_buffer_types[0] = vertex_buffer_access.Get_Type();
+	s_renderState.vba_offset = vertex_buffer_access.Get_Vertex_Buffer_Offset();
+	s_renderState.vba_count = vertex_buffer_access.Get_Vertex_Count();
+	REF_PTR_SET(s_renderState.vertex_buffers[0], vertex_buffer_access.Get_Vertex_Buffer());
+	s_renderState.vertex_buffers[0]->Add_Engine_Ref();
+	s_changedMask |= VERTEX_BUFFER_CHANGED;
+	s_changedMask |= INDEX_BUFFER_CHANGED;
+}
+
+void FixedFunctionState::Set_Index_Buffer(const IndexBufferClass * index_buffer, unsigned short index_base_offset)
+{
+	s_renderState.iba_offset = 0;
+	if (s_renderState.index_buffer) {
+		s_renderState.index_buffer->Release_Engine_Ref();
+	}
+	REF_PTR_SET(s_renderState.index_buffer, const_cast<IndexBufferClass *>(index_buffer));
+	s_renderState.index_base_offset = index_base_offset;
+	if (index_buffer) {
+		index_buffer->Add_Engine_Ref();
+		s_renderState.index_buffer_type = index_buffer->Type();
+	} else {
+		s_renderState.index_buffer_type = BUFFER_TYPE_INVALID;
+	}
+	s_changedMask |= INDEX_BUFFER_CHANGED;
+}
+
+void FixedFunctionState::Set_Index_Buffer(const DynamicIBAccessClass & index_buffer_access, unsigned short index_base_offset)
+{
+	if (s_renderState.index_buffer) {
+		s_renderState.index_buffer->Release_Engine_Ref();
+	}
+
+	s_renderState.index_base_offset = index_base_offset;
+	s_renderState.index_buffer_type = index_buffer_access.Get_Type();
+	s_renderState.iba_offset = index_buffer_access.Get_Index_Buffer_Offset();
+	REF_PTR_SET(s_renderState.index_buffer, index_buffer_access.Get_Index_Buffer());
+	s_renderState.index_buffer->Add_Engine_Ref();
+	s_changedMask |= INDEX_BUFFER_CHANGED;
+}
+
 void FixedFunctionState::Set_World_Identity()
 {
 	if (s_changedMask & WORLD_IDENTITY) {
