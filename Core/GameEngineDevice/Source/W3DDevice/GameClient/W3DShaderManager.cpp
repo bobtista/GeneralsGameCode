@@ -3186,14 +3186,14 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_CLAMP);
 
 			// Modulate the diffuse color with the texture as lighting comes from diffuse.
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
+			g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
 			if (W3DShaderManager::getShaderTexture(0)) {
 				W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(0));
-				g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-				g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_CURRENT );
-				g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-				g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+				g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+				g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_CURRENT);
+				g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+				g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_DISABLE);
 
 				W3DShaderManager_SetCameraSpaceTexcoord2(0);
 
@@ -3235,18 +3235,18 @@ Int FlatTerrainShader2Stage::set(Int pass)
 						W3DShaderManager_SetTextureTransform(0, curView);
 				}
 			}	else {
-				g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG2 );
+				g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG2);
 				g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 			}
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+			g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_DISABLE);
 
 			W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_CLAMP);
 
 			// Modulate the diffuse color with the texture as lighting comes from diffuse.
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+			g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);
+			g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
+			g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 			W3DShaderManager_ResetMeshTexcoord(1, 0);
 			g_renderBackend->Set_Alpha_Blend_Enable(false);
 			break;
@@ -3256,10 +3256,10 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
 
 			//these states apply to all noise/cloud combination passes
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+			g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
+			g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
+			g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_DISABLE);
 
 			// Two output coordinates are used.
 			W3DShaderManager_SetCameraSpaceTexcoord2(0);
@@ -3290,10 +3290,10 @@ Int FlatTerrainShader2Stage::set(Int pass)
 				//noise always needs point/linear filtering.  Why point!?
 				W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+				g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);
+				g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);
+				g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
+				g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 				// Two output coordinates are used.
 				W3DShaderManager_SetCameraSpaceTexcoord2(1);
 
@@ -3317,8 +3317,8 @@ Int FlatTerrainShader2Stage::set(Int pass)
 					W3DShaderManager_SetStageMinMagFilter(1, RB_TEXTURE_SAMPLE_POINT, RB_TEXTURE_SAMPLE_LINEAR);
 				}
 
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+				g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+				g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 				W3DShaderManager_SetTextureTransform(0, curView);
 			}
 			break;
