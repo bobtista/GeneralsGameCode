@@ -2099,12 +2099,12 @@ Int CloudTextureShader::set(Int stage)
 	W3DShaderManager_SetStageMinMagFilter(stage, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 	W3DShaderManager_SetStageAddress2D(stage, RB_TEXTURE_ADDRESS_WRAP);
 
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG2, D3DTA_CURRENT );
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ALPHAARG2, D3DTA_CURRENT );
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
+	g_renderBackend->Set_Texture_Color_Argument(stage, 1, RB_TEXARG_TEXTURE);
+	g_renderBackend->Set_Texture_Color_Argument(stage, 2, RB_TEXARG_CURRENT);
+	g_renderBackend->Set_Texture_Color_Operation(stage, RB_TEXOP_MODULATE);
+	g_renderBackend->Set_Texture_Alpha_Argument(stage, 1, RB_TEXARG_TEXTURE);
+	g_renderBackend->Set_Texture_Alpha_Argument(stage, 2, RB_TEXARG_CURRENT);
+	g_renderBackend->Set_Texture_Alpha_Operation(stage, RB_TEXOP_MODULATE);
 
 	W3DShaderManager_BindStageTexture(stage, W3DShaderManager::getShaderTexture(stage));
 
@@ -2119,8 +2119,8 @@ void CloudTextureShader::reset()
 	//Turn off texture projection
 	W3DShaderManager_ResetMeshTexcoord(m_stageOfSet, m_stageOfSet);
 
-	g_renderBackend->Set_Texture_Stage_State( m_stageOfSet, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-	g_renderBackend->Set_Texture_Stage_State( m_stageOfSet, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+	g_renderBackend->Set_Texture_Color_Operation(m_stageOfSet, RB_TEXOP_DISABLE);
+	g_renderBackend->Set_Texture_Alpha_Operation(m_stageOfSet, RB_TEXOP_DISABLE);
 }
 
 /*===========================================================================================*/

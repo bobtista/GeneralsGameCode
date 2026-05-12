@@ -427,6 +427,8 @@ Completed low-risk migrations:
   projected shroud modulation state.
 - The HeightMap wireframe extra-pass texture-factor override now writes through
   the backend texture-combine argument API.
+- Projected cloud texture shader setup/reset now uses backend texture-combine
+  operation/argument setters.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
