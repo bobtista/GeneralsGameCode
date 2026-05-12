@@ -117,6 +117,48 @@ static inline void W3DShaderManager_SetShroudTextureParams(float offset_x, float
 		g_renderBackend->Set_Shroud_Texture_Params(offset_x, offset_y, scale_x, scale_y);
 }
 
+static inline RenderBackendTextureSampleFilter W3DShaderManager_GetTerrainMinMagFilter()
+{
+	return (TheGlobalData && (TheGlobalData->m_bilinearTerrainTex || TheGlobalData->m_trilinearTerrainTex)) ?
+		RB_TEXTURE_SAMPLE_LINEAR :
+		RB_TEXTURE_SAMPLE_POINT;
+}
+
+static inline RenderBackendTextureSampleFilter W3DShaderManager_GetTerrainStage0MipFilter()
+{
+	return (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) ?
+		RB_TEXTURE_SAMPLE_LINEAR :
+		RB_TEXTURE_SAMPLE_POINT;
+}
+
+static inline void W3DShaderManager_SetTerrainBaseSamplers()
+{
+	const RenderBackendTextureSampleFilter min_mag_filter = W3DShaderManager_GetTerrainMinMagFilter();
+	g_renderBackend->Set_Texture_Sample_Filter(
+		0,
+		min_mag_filter,
+		min_mag_filter,
+		W3DShaderManager_GetTerrainStage0MipFilter());
+	g_renderBackend->Set_Texture_Sample_Filter(
+		1,
+		min_mag_filter,
+		min_mag_filter,
+		RB_TEXTURE_SAMPLE_LINEAR);
+}
+
+static inline void W3DShaderManager_SetFlatTerrainBaseSamplers()
+{
+	const RenderBackendTextureSampleFilter min_mag_filter = W3DShaderManager_GetTerrainMinMagFilter();
+	const RenderBackendTextureSampleFilter mip_filter = W3DShaderManager_GetTerrainStage0MipFilter();
+	g_renderBackend->Set_Texture_Sample_Filter(0, min_mag_filter, min_mag_filter, mip_filter);
+	g_renderBackend->Set_Texture_Sample_Filter(1, min_mag_filter, min_mag_filter, mip_filter);
+}
+
+static inline void W3DShaderManager_SetStageAddress2D(unsigned stage, RenderBackendTextureAddressMode address_mode)
+{
+	g_renderBackend->Set_Texture_Address_Mode(stage, address_mode, address_mode, RB_TEXTURE_ADDRESS_WRAP);
+}
+
 static inline void W3DShaderManager_FillViewportQuad(RenderBackendScreenVertex (&v)[4], DWORD diffuse, Bool use_second_uv, Real second_uv_radius = 0.0f)
 {
 	Int xpos, ypos, width, height;
@@ -1575,31 +1617,13 @@ Int TerrainShader2Stage::set(Int pass)
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
 
-	if (TheGlobalData && (TheGlobalData->m_bilinearTerrainTex || TheGlobalData->m_trilinearTerrainTex)) {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-	}
-	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	}
+	W3DShaderManager_SetTerrainBaseSamplers();
 
 	switch (pass)
 	{
-		case 0:
-			W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(0));
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+			case 0:
+				W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(0));
+				W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_CLAMP);
 
 			// Modulate the diffuse color with the texture as lighting comes from diffuse.
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
@@ -1611,10 +1635,9 @@ Int TerrainShader2Stage::set(Int pass)
 			g_renderBackend->Override_Texcoord_Index(0, 0);
 			g_renderBackend->Override_Alpha_Blend_Enable(false);
 			break;
-		case 1:
-			W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(1));
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+			case 1:
+				W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(1));
+				W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_CLAMP);
 
 			// Modulate the diffuse color with the texture as lighting comes from diffuse.
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
@@ -1643,8 +1666,7 @@ Int TerrainShader2Stage::set(Int pass)
 			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 			// Two output coordinates are used.
 			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+			W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_WRAP);
 
 			//blend into frame buffer
 			g_renderBackend->Set_Alpha_Blend_Enable(true);
@@ -1682,8 +1704,7 @@ Int TerrainShader2Stage::set(Int pass)
 				// Two output coordinates are used.
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+				W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 			}
 			else
 			{	//only 1 noise or cloud texture
@@ -1744,29 +1765,9 @@ Int TerrainShader8Stage::set(Int pass)
 		//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 		g_renderBackend->Apply_Render_State_Changes();
 
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
-
-		if (TheGlobalData && (TheGlobalData->m_bilinearTerrainTex || TheGlobalData->m_trilinearTerrainTex)) {
-			g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-			g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-			g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-			g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-		} else {
-			g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_POINT);
-			g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-			g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-			g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-		}
-		if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) {
-			g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-			g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-		} else {
-			g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-			g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-		}
+		W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_CLAMP);
+		W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_CLAMP);
+		W3DShaderManager_SetTerrainBaseSamplers();
 
 		W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(0));
 		W3DShaderManager_BindStageTexture(1, W3DShaderManager::getShaderTexture(1));
@@ -1954,33 +1955,14 @@ Int TerrainShaderPixelShader::set(Int pass)
 	W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(0));
 	W3DShaderManager_BindStageTexture(1, W3DShaderManager::getShaderTexture(1));
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+	W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_CLAMP);
+	W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_CLAMP);
 
 	//tell pixel shader which UV set to use for each stage
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1 );
 
-	if (TheGlobalData && (TheGlobalData->m_bilinearTerrainTex || TheGlobalData->m_trilinearTerrainTex)) {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-	}
-	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	}
+	W3DShaderManager_SetTerrainBaseSamplers();
 
 	if (W3DShaderManager::getCurrentShader() >= W3DShaderManager::ST_TERRAIN_BASE_NOISE1)
 	{
@@ -1995,13 +1977,11 @@ Int TerrainShaderPixelShader::set(Int pass)
 		// Two output coordinates are used.
 		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-		g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+		W3DShaderManager_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
 
 		if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_TERRAIN_BASE_NOISE12)
 		{	//full shader
-			g_renderBackend->Set_Texture_Stage_State(3,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-			g_renderBackend->Set_Texture_Stage_State(3,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+			W3DShaderManager_SetStageAddress2D(3, RB_TEXTURE_ADDRESS_WRAP);
 			W3DShaderManager_BindStageTexture(2, W3DShaderManager::getShaderTexture(2));
 			W3DShaderManager_BindStageTexture(3, W3DShaderManager::getShaderTexture(3));
 			g_renderBackend->Set_Pixel_Shader(m_dwBaseNoise2PixelShader);
@@ -2121,8 +2101,7 @@ Int CloudTextureShader::set(Int stage)
 	W3DShaderManager_SetTextureTransform(stage, curView);
 	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
 	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+	W3DShaderManager_SetStageAddress2D(stage, RB_TEXTURE_ADDRESS_WRAP);
 
 	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG1, D3DTA_TEXTURE );
 	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG2, D3DTA_CURRENT );
@@ -2272,11 +2251,8 @@ Int RoadShaderPixelShader::set(Int pass)
 	// Two output coordinates are used.
 	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
-
-	g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State(2,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+	W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
+	W3DShaderManager_SetStageAddress2D(2, RB_TEXTURE_ADDRESS_WRAP);
 
 	g_renderBackend->Set_Texture(1,W3DShaderManager::getShaderTexture(1));
 	g_renderBackend->Set_Texture(2,W3DShaderManager::getShaderTexture(2));
@@ -3230,31 +3206,13 @@ Int FlatTerrainShader2Stage::set(Int pass)
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
 	g_renderBackend->Apply_Render_State_Changes();
 
-	if (TheGlobalData && (TheGlobalData->m_bilinearTerrainTex || TheGlobalData->m_trilinearTerrainTex)) {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-	}
-	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-	}
+	W3DShaderManager_SetFlatTerrainBaseSamplers();
 
 	switch (pass)
 	{
 		case 0:
 
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+			W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_CLAMP);
 
 			// Modulate the diffuse color with the texture as lighting comes from diffuse.
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
@@ -3312,8 +3270,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			}
 			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+			W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_CLAMP);
 
 			// Modulate the diffuse color with the texture as lighting comes from diffuse.
 			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );
@@ -3339,8 +3296,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
 			// Two output coordinates are used.
 			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+			W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_WRAP);
 
 			//blend into frame buffer
 			g_renderBackend->Set_Alpha_Blend_Enable(true);
@@ -3377,8 +3333,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 				// Two output coordinates are used.
 				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-				g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+				W3DShaderManager_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_WRAP);
 				W3DShaderManager_BindStageTexture(1, W3DShaderManager::getShaderTexture(3));
 			}
 			else
@@ -3504,8 +3459,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 	Int curStage = 1;
 	// setup terrain [3/31/2003]
 
-	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+	W3DShaderManager_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_CLAMP);
 	g_renderBackend->Set_Texture(0, W3DShaderManager::getShaderTexture(2));
 	g_renderBackend->Set_Texture(1, W3DShaderManager::getShaderTexture(2));
 	//force WW3D2 system to set it's states so it won't later overwrite our custom settings.
@@ -3514,8 +3468,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 
 
 
-	g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+	W3DShaderManager_SetStageAddress2D(curStage, RB_TEXTURE_ADDRESS_CLAMP);
 	//tell pixel shader which UV set to use for each stage
 	g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_TEXCOORDINDEX, 0 );
 	g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
@@ -3576,8 +3529,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 				curView = (inv * offset) * scale;
 				W3DShaderManager_SetTextureTransform(curStage, curView);
 		}
-		g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-		g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+		W3DShaderManager_SetStageAddress2D(curStage, RB_TEXTURE_ADDRESS_CLAMP);
 		g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
 		g_renderBackend->Set_Texture_Stage_State( curStage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
 		W3DShaderManager_BindStageTexture(curStage, shroud->getShroudTexture());
@@ -3599,8 +3551,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 		// Two output coordinates are used.
 		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+		W3DShaderManager_SetStageAddress2D(curStage, RB_TEXTURE_ADDRESS_WRAP);
 		W3DShaderManager_BindStageTexture(curStage, W3DShaderManager::getShaderTexture(2));
 		terrainShader2Stage.updateNoise1(&curView,&inv);	//update curView with texture matrix
 		W3DShaderManager_SetTextureTransform(curStage, curView);
@@ -3626,8 +3577,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 		// Two output coordinates are used.
 		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
 
-		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-		g_renderBackend->Set_Texture_Stage_State(curStage,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+		W3DShaderManager_SetStageAddress2D(curStage, RB_TEXTURE_ADDRESS_WRAP);
 		W3DShaderManager_BindStageTexture(curStage, W3DShaderManager::getShaderTexture(3));
 		terrainShader2Stage.updateNoise2(&curView,&inv);	//update curView with texture matrix
 		W3DShaderManager_SetTextureTransform(curStage, curView);
