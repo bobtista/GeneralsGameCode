@@ -110,6 +110,30 @@ static inline void W3DShaderManager_SetTextureTransform(unsigned stage, const D3
 		g_renderBackend->Set_Texture_Transform(stage, To_Matrix4x4(matrix));
 }
 
+static inline void W3DShaderManager_SetTextureTransform(unsigned stage, const Matrix4x4 & matrix)
+{
+	if (g_renderBackend != nullptr)
+		g_renderBackend->Set_Texture_Transform(stage, matrix);
+}
+
+static inline Matrix4x4 W3DShaderManager_MakeTextureScale(float sx, float sy, float sz)
+{
+	return Matrix4x4(
+		sx, 0.0f, 0.0f, 0.0f,
+		0.0f, sy, 0.0f, 0.0f,
+		0.0f, 0.0f, sz, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f);
+}
+
+static inline Matrix4x4 W3DShaderManager_MakeTextureTranslation(float x, float y, float z)
+{
+	return Matrix4x4(
+		1.0f, 0.0f, 0.0f, x,
+		0.0f, 1.0f, 0.0f, y,
+		0.0f, 0.0f, 1.0f, z,
+		0.0f, 0.0f, 0.0f, 1.0f);
+}
+
 static inline void W3DShaderManager_SetCameraSpaceTexcoord2(unsigned stage)
 {
 	if (g_renderBackend != nullptr) {
@@ -131,6 +155,33 @@ static inline void W3DShaderManager_SetShroudTextureParams(float offset_x, float
 {
 	if (g_renderBackend != nullptr)
 		g_renderBackend->Set_Shroud_Texture_Params(offset_x, offset_y, scale_x, scale_y);
+}
+
+static inline void W3DShaderManager_SetShroudTextureTransform(unsigned stage, W3DShroud *shroud)
+{
+	Matrix4x4 view;
+	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, view);
+
+	float xoffset = 0.0f;
+	float yoffset = 0.0f;
+	const Real cell_width = shroud->getCellWidth();
+	const Real cell_height = shroud->getCellHeight();
+
+	if (TheTerrainRenderObject->getMap())
+	{	// Origin is shifted by 1 cell width/height to allow for unused border texels.
+		xoffset = -(float)shroud->getDrawOriginX() + cell_width;
+		yoffset = -(float)shroud->getDrawOriginY() + cell_height;
+	}
+
+	const Real scale_x = 1.0f/(cell_width*shroud->getTextureWidth());
+	const Real scale_y = 1.0f/(cell_height*shroud->getTextureHeight());
+	W3DShaderManager_SetShroudTextureParams(xoffset, yoffset, scale_x, scale_y);
+
+	const Matrix4x4 transform =
+		W3DShaderManager_MakeTextureScale(scale_x, scale_y, 1.0f) *
+		W3DShaderManager_MakeTextureTranslation(xoffset, yoffset, 0.0f) *
+		view.Inverse();
+	W3DShaderManager_SetTextureTransform(stage, transform);
 }
 
 static inline RenderBackendTextureSampleFilter W3DShaderManager_GetTerrainMinMagFilter()
@@ -1230,37 +1281,7 @@ Int ShroudTextureShader::set(Int stage)
 	W3DShroud *shroud;
 	if ((shroud=TheTerrainRenderObject->getShroud()) != nullptr)
 	{	///@todo: All this code really only need to be done once per camera/view.  Find a way to optimize it out.
-		D3DXMATRIX curView;
-		W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
-
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
-
-		D3DXMATRIX scale,offset;
-
-		//We need to make all world coordinates be relative to the heightmap data origin since that
-		//is where the shroud begins.
-
-		float xoffset = 0;
-		float yoffset = 0;
-		Real width=shroud->getCellWidth();
-		Real height=shroud->getCellHeight();
-
-		if (TheTerrainRenderObject->getMap())
-		{	//subtract origin position from all coordinates.  Origin is shifted by 1 cell width/height to allow for unused border texels.
-			xoffset = -(float)shroud->getDrawOriginX() + width;
-			yoffset = -(float)shroud->getDrawOriginY() + height;
-		}
-
-		D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
-
-			width = 1.0f/(width*shroud->getTextureWidth());
-			height = 1.0f/(height*shroud->getTextureHeight());
-			W3DShaderManager_SetShroudTextureParams(xoffset, yoffset, width, height);
-			D3DXMatrixScaling(&scale, width, height, 1);
-			curView = (inv * offset) * scale;
-			W3DShaderManager_SetTextureTransform(stage, curView);
+		W3DShaderManager_SetShroudTextureTransform(stage, shroud);
 	}
 	m_stageOfSet=stage;
 	return TRUE;
@@ -1326,37 +1347,7 @@ Int FlatShroudTextureShader::set(Int stage)
 	W3DShroud *shroud;
 	if ((shroud=TheTerrainRenderObject->getShroud()) != nullptr)
 	{	///@todo: All this code really only need to be done once per camera/view.  Find a way to optimize it out.
-		D3DXMATRIX curView;
-		W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
-
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
-
-		D3DXMATRIX scale,offset;
-
-		//We need to make all world coordinates be relative to the heightmap data origin since that
-		//is where the shroud begins.
-
-		float xoffset = 0;
-		float yoffset = 0;
-		Real width=shroud->getCellWidth();
-		Real height=shroud->getCellHeight();
-
-		if (TheTerrainRenderObject->getMap())
-		{	//subtract origin position from all coordinates.  Origin is shifted by 1 cell width/height to allow for unused border texels.
-			xoffset = -(float)shroud->getDrawOriginX() + width;
-			yoffset = -(float)shroud->getDrawOriginY() + height;
-		}
-
-		D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
-
-			width = 1.0f/(width*shroud->getTextureWidth());
-			height = 1.0f/(height*shroud->getTextureHeight());
-			W3DShaderManager_SetShroudTextureParams(xoffset, yoffset, width, height);
-			D3DXMatrixScaling(&scale, width, height, 1);
-			curView = (inv * offset) * scale;
-			W3DShaderManager_SetTextureTransform(stage, curView);
+		W3DShaderManager_SetShroudTextureTransform(stage, shroud);
 	}
 	m_stageOfSet=stage;
 	return TRUE;
@@ -3100,37 +3091,7 @@ Int W3DShaderManager::setShroudTex(Int stage)
 		g_renderBackend->Set_Texture_Color_Operation(stage, RB_TEXOP_MODULATE);
 		g_renderBackend->Set_Texture_Alpha_Operation(stage, RB_TEXOP_SELECTARG2);
 
-		D3DXMATRIX curView;
-		W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
-
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
-
-		D3DXMATRIX scale,offset;
-
-		//We need to make all world coordinates be relative to the heightmap data origin since that
-		//is where the shroud begins.
-
-		float xoffset = 0;
-		float yoffset = 0;
-		Real width=shroud->getCellWidth();
-		Real height=shroud->getCellHeight();
-
-		if (TheTerrainRenderObject->getMap())
-		{	//subtract origin position from all coordinates.  Origin is shifted by 1 cell width/height to allow for unused border texels.
-			xoffset = -(float)shroud->getDrawOriginX() + width;
-			yoffset = -(float)shroud->getDrawOriginY() + height;
-		}
-
-		D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
-
-			width = 1.0f/(width*shroud->getTextureWidth());
-			height = 1.0f/(height*shroud->getTextureHeight());
-			W3DShaderManager_SetShroudTextureParams(xoffset, yoffset, width, height);
-			D3DXMatrixScaling(&scale, width, height, 1);
-			curView = (inv * offset) * scale;
-			W3DShaderManager_SetTextureTransform(stage, curView);
+		W3DShaderManager_SetShroudTextureTransform(stage, shroud);
 		return TRUE;
 	}
 	return FALSE;
@@ -3202,37 +3163,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 				W3DShroud *shroud;
 				if ((shroud=TheTerrainRenderObject->getShroud()) != nullptr)
 				{
-					D3DXMATRIX curView;
-					W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
-
-					D3DXMATRIX inv;
-					float det;
-					D3DXMatrixInverse(&inv, &det, &curView);
-
-					D3DXMATRIX scale,offset;
-
-					//We need to make all world coordinates be relative to the heightmap data origin since that
-					//is where the shroud begins.
-
-					float xoffset = 0;
-					float yoffset = 0;
-					Real width=shroud->getCellWidth();
-					Real height=shroud->getCellHeight();
-
-					if (TheTerrainRenderObject->getMap())
-					{	//subtract origin position from all coordinates.  Origin is shifted by 1 cell width/height to allow for unused border texels.
-						xoffset = -(float)shroud->getDrawOriginX() + width;
-						yoffset = -(float)shroud->getDrawOriginY() + height;
-					}
-
-					D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
-
-						width = 1.0f/(width*shroud->getTextureWidth());
-						height = 1.0f/(height*shroud->getTextureHeight());
-						W3DShaderManager_SetShroudTextureParams(xoffset, yoffset, width, height);
-						D3DXMatrixScaling(&scale, width, height, 1);
-						curView = (inv * offset) * scale;
-						W3DShaderManager_SetTextureTransform(0, curView);
+					W3DShaderManager_SetShroudTextureTransform(0, shroud);
 				}
 			}	else {
 				g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG2);
@@ -3452,39 +3383,7 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 
 		//We need to scale so shroud texel stretches over one full terrain cell.  Each texel
 		//is 1/128 the size of full texture. (assuming 128x128 vid-mem texture).
-		{
-			D3DXMATRIX curView;
-			W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
-
-			D3DXMATRIX inv;
-			float det;
-			D3DXMatrixInverse(&inv, &det, &curView);
-
-			D3DXMATRIX scale,offset;
-
-			//We need to make all world coordinates be relative to the heightmap data origin since that
-			//is where the shroud begins.
-
-			float xoffset = 0;
-			float yoffset = 0;
-			Real width=shroud->getCellWidth();
-			Real height=shroud->getCellHeight();
-
-			if (TheTerrainRenderObject->getMap())
-			{	//subtract origin position from all coordinates.  Origin is shifted by 1 cell width/height to allow for unused border texels.
-				xoffset = -(float)shroud->getDrawOriginX() + width;
-				yoffset = -(float)shroud->getDrawOriginY() + height;
-			}
-
-			D3DXMatrixTranslation(&offset, xoffset, yoffset,0);
-
-				width = 1.0f/(width*shroud->getTextureWidth());
-				height = 1.0f/(height*shroud->getTextureHeight());
-				W3DShaderManager_SetShroudTextureParams(xoffset, yoffset, width, height);
-				D3DXMatrixScaling(&scale, width, height, 1);
-				curView = (inv * offset) * scale;
-				W3DShaderManager_SetTextureTransform(curStage, curView);
-		}
+		W3DShaderManager_SetShroudTextureTransform(curStage, shroud);
 		W3DShaderManager_SetStageAddress2D(curStage, RB_TEXTURE_ADDRESS_CLAMP);
 		W3DShaderManager_SetStageMinMagFilter(curStage, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR);
 		W3DShaderManager_BindStageTexture(curStage, shroud->getShroudTexture());
