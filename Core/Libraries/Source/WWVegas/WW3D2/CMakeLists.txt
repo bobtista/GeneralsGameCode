@@ -70,6 +70,8 @@ set(WW3D2_SRC
     formconv.h
     FramGrab.cpp
     framgrab.h
+    FixedFunctionState.cpp
+    FixedFunctionState.h
     hanim.cpp
     hanim.h
     #hanimmgr.cpp

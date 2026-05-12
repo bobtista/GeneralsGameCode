@@ -58,6 +58,7 @@
 #include "dx8indexbuffer.h"
 #include "vertmaterial.h"
 #include "RenderStateCache.h"
+#include "FixedFunctionState.h"
 
 // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3G deprecation sweep.
 // Flag DX8Wrapper methods that have an IRenderBackend equivalent so the
@@ -81,8 +82,6 @@
 #define	VALUE_NAME_RENDER_DEVICE_WINDOWED			"RenderDeviceWindowed"
 #define	VALUE_NAME_RENDER_DEVICE_TEXTURE_DEPTH		"RenderDeviceTextureDepth"
 
-const unsigned MAX_TEXTURE_STAGES=8;
-const unsigned MAX_VERTEX_STREAMS=2;
 const unsigned MAX_VERTEX_SHADER_CONSTANTS=96;
 const unsigned MAX_PIXEL_SHADER_CONSTANTS=8;
 const unsigned MAX_SHADOW_MAPS=1;
@@ -206,30 +205,6 @@ public:
 };
 
 
-struct RenderStateStruct
-{
-	ShaderClass shader;
-	VertexMaterialClass* material;
-	TextureBaseClass * Textures[MAX_TEXTURE_STAGES];
-	D3DLIGHT8 Lights[4];
-	bool LightEnable[4];
-	D3DMATRIX world;
-	D3DMATRIX view;
-	unsigned vertex_buffer_types[MAX_VERTEX_STREAMS];
-	unsigned index_buffer_type;
-	unsigned short vba_offset;
-	unsigned short vba_count;
-	unsigned short iba_offset;
-	VertexBufferClass* vertex_buffers[MAX_VERTEX_STREAMS];
-	IndexBufferClass* index_buffer;
-	unsigned short index_base_offset;
-
-	RenderStateStruct();
-	~RenderStateStruct();
-
-	RenderStateStruct& operator= (const RenderStateStruct& src);
-};
-
 /**
 ** DX8Wrapper
 **
@@ -327,7 +302,7 @@ public:
 	// MAX_VERTEX_STREAMS vertex buffers, the index buffer, and every entry
 	// of Textures[MAX_TEXTURE_STAGES]. Read-only callers (e.g. per-draw
 	// light/texture sync in BgfxBackend) should use this instead.
-	static const RenderStateStruct & Peek_Render_State() { return render_state; }
+	static const RenderStateStruct & Peek_Render_State() { return FixedFunctionState::Peek_Render_State(); }
 
 	static void Set_DX8_Material(const D3DMATERIAL8* mat);
 
@@ -651,8 +626,6 @@ protected:
 
 	static DX8_CleanupHook *m_pCleanupHook;
 
-	static RenderStateStruct			render_state;
-	static unsigned						render_state_changed;
 	static bool								IsInitted;
 	static bool								IsDeviceLost;
 	static void *							Hwnd;
@@ -803,9 +776,9 @@ WWINLINE void DX8Wrapper::_Get_DX8_Transform(D3DTRANSFORMSTATETYPE transform, D3
 
 WWINLINE void DX8Wrapper::Set_Index_Buffer_Index_Offset(unsigned offset)
 {
-	if (render_state.index_base_offset==offset) return;
-	render_state.index_base_offset=offset;
-	render_state_changed|=INDEX_BUFFER_CHANGED;
+	if (FixedFunctionState::Render_State().index_base_offset==offset) return;
+	FixedFunctionState::Render_State().index_base_offset=offset;
+	FixedFunctionState::Changed_Mask()|=INDEX_BUFFER_CHANGED;
 }
 
 // ----------------------------------------------------------------------------
@@ -1168,45 +1141,45 @@ WWINLINE void DX8Wrapper::Set_Alpha (const float alpha, unsigned int &color)
 
 WWINLINE void DX8Wrapper::Get_Render_State(RenderStateStruct& state)
 {
-	state=render_state;
+	FixedFunctionState::Capture_Render_State(state);
 }
 
 WWINLINE void DX8Wrapper::Get_Shader(ShaderClass& shader)
 {
-	shader=render_state.shader;
+	shader=FixedFunctionState::Render_State().shader;
 }
 
 WWINLINE void DX8Wrapper::Set_Texture(unsigned stage,TextureBaseClass* texture)
 {
 	WWASSERT(stage<(unsigned int)CurrentCaps->Get_Max_Textures_Per_Pass());
-	if (texture==render_state.Textures[stage]) return;
-	REF_PTR_SET(render_state.Textures[stage],texture);
-	render_state_changed|=(TEXTURE0_CHANGED<<stage);
+	if (texture==FixedFunctionState::Render_State().Textures[stage]) return;
+	REF_PTR_SET(FixedFunctionState::Render_State().Textures[stage],texture);
+	FixedFunctionState::Changed_Mask()|=(TEXTURE0_CHANGED<<stage);
 }
 
 WWINLINE void DX8Wrapper::Set_Material(const VertexMaterialClass* material)
 {
-/*	if (material && render_state.material &&
-		// !stricmp(material->Get_Name(),render_state.material->Get_Name())) {
-		material->Get_CRC()!=render_state.material->Get_CRC()) {
+/*	if (material && FixedFunctionState::Render_State().material &&
+		// !stricmp(material->Get_Name(),FixedFunctionState::Render_State().material->Get_Name())) {
+		material->Get_CRC()!=FixedFunctionState::Render_State().material->Get_CRC()) {
 		return;
 	}
 */
-//	if (material==render_state.material) {
+//	if (material==FixedFunctionState::Render_State().material) {
 //		return;
 //	}
-	REF_PTR_SET(render_state.material,const_cast<VertexMaterialClass*>(material));
-	render_state_changed|=MATERIAL_CHANGED;
+	REF_PTR_SET(FixedFunctionState::Render_State().material,const_cast<VertexMaterialClass*>(material));
+	FixedFunctionState::Changed_Mask()|=MATERIAL_CHANGED;
 	SNAPSHOT_SAY(("DX8Wrapper::Set_Material(%s)",material ? material->Get_Name() : "null"));
 }
 
 WWINLINE void DX8Wrapper::Set_Shader(const ShaderClass& shader)
 {
-	if (!ShaderClass::ShaderDirty && ((unsigned&)shader==(unsigned&)render_state.shader)) {
+	if (!ShaderClass::ShaderDirty && ((unsigned&)shader==(unsigned&)FixedFunctionState::Render_State().shader)) {
 		return;
 	}
-	render_state.shader=shader;
-	render_state_changed|=SHADER_CHANGED;
+	FixedFunctionState::Render_State().shader=shader;
+	FixedFunctionState::Changed_Mask()|=SHADER_CHANGED;
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 	StringClass str;
 #endif
@@ -1236,14 +1209,14 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 {
 	switch ((int)transform) {
 	case D3DTS_WORLD:
-		render_state.world=To_D3DMATRIX(m);
-		render_state_changed|=(unsigned)WORLD_CHANGED;
-		render_state_changed&=~(unsigned)WORLD_IDENTITY;
+		FixedFunctionState::Render_State().world=To_D3DMATRIX(m);
+		FixedFunctionState::Changed_Mask()|=(unsigned)WORLD_CHANGED;
+		FixedFunctionState::Changed_Mask()&=~(unsigned)WORLD_IDENTITY;
 		break;
 	case D3DTS_VIEW:
-		render_state.view=To_D3DMATRIX(m);
-		render_state_changed|=(unsigned)VIEW_CHANGED;
-		render_state_changed&=~(unsigned)VIEW_IDENTITY;
+		FixedFunctionState::Render_State().view=To_D3DMATRIX(m);
+		FixedFunctionState::Changed_Mask()|=(unsigned)VIEW_CHANGED;
+		FixedFunctionState::Changed_Mask()&=~(unsigned)VIEW_IDENTITY;
 		break;
 	case D3DTS_PROJECTION:
 		{
@@ -1265,14 +1238,14 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 {
 	switch ((int)transform) {
 	case D3DTS_WORLD:
-		render_state.world=To_D3DMATRIX(m);
-		render_state_changed|=(unsigned)WORLD_CHANGED;
-		render_state_changed&=~(unsigned)WORLD_IDENTITY;
+		FixedFunctionState::Render_State().world=To_D3DMATRIX(m);
+		FixedFunctionState::Changed_Mask()|=(unsigned)WORLD_CHANGED;
+		FixedFunctionState::Changed_Mask()&=~(unsigned)WORLD_IDENTITY;
 		break;
 	case D3DTS_VIEW:
-		render_state.view=To_D3DMATRIX(m);
-		render_state_changed|=(unsigned)VIEW_CHANGED;
-		render_state_changed&=~(unsigned)VIEW_IDENTITY;
+		FixedFunctionState::Render_State().view=To_D3DMATRIX(m);
+		FixedFunctionState::Changed_Mask()|=(unsigned)VIEW_CHANGED;
+		FixedFunctionState::Changed_Mask()&=~(unsigned)VIEW_IDENTITY;
 		break;
 	default:
 		DX8_RECORD_MATRIX_CHANGE();
@@ -1284,24 +1257,24 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 
 WWINLINE bool DX8Wrapper::Is_World_Identity()
 {
-	return !!(render_state_changed&(unsigned)WORLD_IDENTITY);
+	return !!(FixedFunctionState::Changed_Mask()&(unsigned)WORLD_IDENTITY);
 }
 
 WWINLINE bool DX8Wrapper::Is_View_Identity()
 {
-	return !!(render_state_changed&(unsigned)VIEW_IDENTITY);
+	return !!(FixedFunctionState::Changed_Mask()&(unsigned)VIEW_IDENTITY);
 }
 
 WWINLINE void DX8Wrapper::Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4x4& m)
 {
 	switch ((int)transform) {
 	case D3DTS_WORLD:
-		if (render_state_changed&WORLD_IDENTITY) m.Make_Identity();
-		else m=To_Matrix4x4(render_state.world);
+		if (FixedFunctionState::Changed_Mask()&WORLD_IDENTITY) m.Make_Identity();
+		else m=To_Matrix4x4(FixedFunctionState::Render_State().world);
 		break;
 	case D3DTS_VIEW:
-		if (render_state_changed&VIEW_IDENTITY) m.Make_Identity();
-		else m=To_Matrix4x4(render_state.view);
+		if (FixedFunctionState::Changed_Mask()&VIEW_IDENTITY) m.Make_Identity();
+		else m=To_Matrix4x4(FixedFunctionState::Render_State().view);
 		break;
 	default:
 		D3DMATRIX dxm;
@@ -1313,132 +1286,10 @@ WWINLINE void DX8Wrapper::Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4
 
 WWINLINE void DX8Wrapper::Set_Render_State(const RenderStateStruct& state)
 {
-	int i;
-
-	if (render_state.index_buffer) {
-		render_state.index_buffer->Release_Engine_Ref();
-	}
-
-	for (i=0;i<MAX_VERTEX_STREAMS;++i)
-	{
-		if (render_state.vertex_buffers[i])
-		{
-			render_state.vertex_buffers[i]->Release_Engine_Ref();
-		}
-	}
-
-	render_state=state;
-	render_state_changed=0xffffffff;
-
-	if (render_state.index_buffer) {
-		render_state.index_buffer->Add_Engine_Ref();
-	}
-
-	for (i=0;i<MAX_VERTEX_STREAMS;++i)
-	{
-		if (render_state.vertex_buffers[i])
-		{
-			render_state.vertex_buffers[i]->Add_Engine_Ref();
-		}
-	}
+	FixedFunctionState::Restore_Render_State(state);
 }
 
 WWINLINE void DX8Wrapper::Release_Render_State()
 {
-	int i;
-
-	if (render_state.index_buffer) {
-		render_state.index_buffer->Release_Engine_Ref();
-	}
-
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-		if (render_state.vertex_buffers[i]) {
-			render_state.vertex_buffers[i]->Release_Engine_Ref();
-		}
-	}
-
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-		REF_PTR_RELEASE(render_state.vertex_buffers[i]);
-	}
-	REF_PTR_RELEASE(render_state.index_buffer);
-	REF_PTR_RELEASE(render_state.material);
-
-
-	for (i=0;i<MAX_TEXTURE_STAGES;++i)
-	{
-		REF_PTR_RELEASE(render_state.Textures[i]);
-	}
-}
-
-
-WWINLINE RenderStateStruct::RenderStateStruct()
-	:
-	material(0),
-	index_buffer(0)
-{
-	unsigned i;
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) vertex_buffers[i]=0;
-	for (i=0;i<MAX_TEXTURE_STAGES;++i) Textures[i]=0;
-}
-
-WWINLINE RenderStateStruct::~RenderStateStruct()
-{
-	unsigned i;
-	REF_PTR_RELEASE(material);
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-		REF_PTR_RELEASE(vertex_buffers[i]);
-	}
-	REF_PTR_RELEASE(index_buffer);
-
-	for (i=0;i<MAX_TEXTURE_STAGES;++i)
-	{
-		REF_PTR_RELEASE(Textures[i]);
-	}
-}
-
-
-WWINLINE RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruct& src)
-{
-	unsigned i;
-	REF_PTR_SET(material,src.material);
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-		REF_PTR_SET(vertex_buffers[i],src.vertex_buffers[i]);
-	}
-	REF_PTR_SET(index_buffer,src.index_buffer);
-
-	for (i=0;i<MAX_TEXTURE_STAGES;++i)
-	{
-		REF_PTR_SET(Textures[i],src.Textures[i]);
-	}
-
-	LightEnable[0]=src.LightEnable[0];
-	LightEnable[1]=src.LightEnable[1];
-	LightEnable[2]=src.LightEnable[2];
-	LightEnable[3]=src.LightEnable[3];
-	if (LightEnable[0]) {
-		Lights[0]=src.Lights[0];
-		if (LightEnable[1]) {
-			Lights[1]=src.Lights[1];
-			if (LightEnable[2]) {
-				Lights[2]=src.Lights[2];
-				if (LightEnable[3]) {
-					Lights[3]=src.Lights[3];
-				}
-			}
-		}
-	}
-
-	shader=src.shader;
-	world=src.world;
-	view=src.view;
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-		vertex_buffer_types[i]=src.vertex_buffer_types[i];
-	}
-	index_buffer_type=src.index_buffer_type;
-	vba_offset=src.vba_offset;
-	vba_count=src.vba_count;
-	iba_offset=src.iba_offset;
-	index_base_offset=src.index_base_offset;
-
-	return *this;
+	FixedFunctionState::Release_Render_State();
 }
