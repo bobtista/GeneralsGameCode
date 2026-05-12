@@ -23,6 +23,15 @@ namespace
 	unsigned s_renderStates[FixedFunctionState::RENDER_STATE_COUNT];
 	unsigned s_textureStageStates[FixedFunctionState::TEXTURE_STAGE_COUNT][FixedFunctionState::TEXTURE_STAGE_STATE_COUNT];
 	D3DMATRIX s_transforms[FixedFunctionState::TRANSFORM_COUNT];
+
+	void D3DMatrixIdentity(D3DMATRIX * dxm)
+	{
+		memset(dxm, 0, sizeof(*dxm));
+		dxm->_11 = 1.0f;
+		dxm->_22 = 1.0f;
+		dxm->_33 = 1.0f;
+		dxm->_44 = 1.0f;
+	}
 }
 
 RenderStateStruct & FixedFunctionState::Render_State()
@@ -141,6 +150,36 @@ bool FixedFunctionState::Set_Texture(unsigned stage, TextureBaseClass * texture)
 	REF_PTR_SET(s_renderState.Textures[stage], texture);
 	s_changedMask |= (TEXTURE0_CHANGED << stage);
 	return true;
+}
+
+void FixedFunctionState::Set_World_Identity()
+{
+	if (s_changedMask & WORLD_IDENTITY) {
+		return;
+	}
+
+	D3DMatrixIdentity(&s_renderState.world);
+	s_changedMask |= WORLD_CHANGED | WORLD_IDENTITY;
+}
+
+void FixedFunctionState::Set_View_Identity()
+{
+	if (s_changedMask & VIEW_IDENTITY) {
+		return;
+	}
+
+	D3DMatrixIdentity(&s_renderState.view);
+	s_changedMask |= VIEW_CHANGED | VIEW_IDENTITY;
+}
+
+bool FixedFunctionState::Is_World_Identity()
+{
+	return !!(s_changedMask & WORLD_IDENTITY);
+}
+
+bool FixedFunctionState::Is_View_Identity()
+{
+	return !!(s_changedMask & VIEW_IDENTITY);
 }
 
 IDirect3DBaseTexture8 * FixedFunctionState::Raw_Texture(unsigned stage)

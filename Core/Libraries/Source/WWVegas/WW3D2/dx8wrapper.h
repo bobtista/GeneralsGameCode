@@ -1247,12 +1247,12 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 
 WWINLINE bool DX8Wrapper::Is_World_Identity()
 {
-	return !!(FixedFunctionState::Changed_Mask()&(unsigned)WORLD_IDENTITY);
+	return FixedFunctionState::Is_World_Identity();
 }
 
 WWINLINE bool DX8Wrapper::Is_View_Identity()
 {
-	return !!(FixedFunctionState::Changed_Mask()&(unsigned)VIEW_IDENTITY);
+	return FixedFunctionState::Is_View_Identity();
 }
 
 WWINLINE void DX8Wrapper::Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4x4& m)
