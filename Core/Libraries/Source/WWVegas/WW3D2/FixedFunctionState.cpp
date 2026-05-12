@@ -19,6 +19,7 @@ namespace
 {
 	RenderStateStruct s_renderState;
 	unsigned s_changedMask;
+	IDirect3DBaseTexture8 * s_rawTextures[MAX_TEXTURE_STAGES];
 }
 
 RenderStateStruct & FixedFunctionState::Render_State()
@@ -39,6 +40,7 @@ unsigned & FixedFunctionState::Changed_Mask()
 void FixedFunctionState::Clear_Raw()
 {
 	memset(&s_renderState, 0, sizeof(s_renderState));
+	memset(s_rawTextures, 0, sizeof(s_rawTextures));
 	s_changedMask = 0;
 }
 
@@ -102,6 +104,45 @@ void FixedFunctionState::Release_Render_State()
 	for (i=0;i<MAX_TEXTURE_STAGES;++i)
 	{
 		REF_PTR_RELEASE(s_renderState.Textures[i]);
+	}
+}
+
+IDirect3DBaseTexture8 * FixedFunctionState::Raw_Texture(unsigned stage)
+{
+	if (stage >= MAX_TEXTURE_STAGES) {
+		return nullptr;
+	}
+
+	return s_rawTextures[stage];
+}
+
+bool FixedFunctionState::Set_Raw_Texture(unsigned stage, IDirect3DBaseTexture8 * texture)
+{
+	if (stage >= MAX_TEXTURE_STAGES) {
+		return false;
+	}
+
+	if (s_rawTextures[stage] == texture) {
+		return false;
+	}
+
+	if (s_rawTextures[stage]) {
+		s_rawTextures[stage]->Release();
+	}
+	s_rawTextures[stage] = texture;
+	if (s_rawTextures[stage]) {
+		s_rawTextures[stage]->AddRef();
+	}
+	return true;
+}
+
+void FixedFunctionState::Release_Raw_Textures()
+{
+	for (unsigned stage = 0; stage < MAX_TEXTURE_STAGES; ++stage) {
+		if (s_rawTextures[stage]) {
+			s_rawTextures[stage]->Release();
+			s_rawTextures[stage] = nullptr;
+		}
 	}
 }
 

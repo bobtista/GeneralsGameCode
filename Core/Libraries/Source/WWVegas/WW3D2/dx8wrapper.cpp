@@ -147,7 +147,6 @@ Vector3							DX8Wrapper::Ambient_Color;
 // shader system additions KJM ^
 
 bool								DX8Wrapper::world_identity;
-IDirect3DBaseTexture8 *		DX8Wrapper::Textures[MAX_TEXTURE_STAGES];
 
 bool								DX8Wrapper::FogEnable									= false;
 D3DCOLOR							DX8Wrapper::FogColor										= 0;
@@ -256,7 +255,6 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	WWASSERT(!IsInitted);
 
 	// zero memory
-	memset(Textures,0,sizeof(IDirect3DBaseTexture8*)*MAX_TEXTURE_STAGES);
 	RenderStateCache::Clear();
 	memset(Vertex_Shader_Constants,0,sizeof(Vector4)*MAX_VERTEX_SHADER_CONSTANTS);
 	memset(Pixel_Shader_Constants,0,sizeof(Vector4)*MAX_PIXEL_SHADER_CONSTANTS);
@@ -422,15 +420,7 @@ void DX8Wrapper::Shutdown()
 
 	if (CurrentCaps)
 	{
-		int max=CurrentCaps->Get_Max_Textures_Per_Pass();
-		for (int i = 0; i < max; i++)
-		{
-			if (Textures[i])
-			{
-				Textures[i]->Release();
-				Textures[i] = nullptr;
-			}
-		}
+		FixedFunctionState::Release_Raw_Textures();
 	}
 
 	if (D3D8Lib) {
@@ -532,11 +522,8 @@ void DX8Wrapper::Invalidate_Cached_Render_States()
 		//set it to null because of redundant state checker. MW
 		if (_Get_D3D_Device8())
 			_Get_D3D_Device8()->SetTexture(a,nullptr);
-		if (Textures[a] != nullptr) {
-			Textures[a]->Release();
-		}
-		Textures[a]=nullptr;
 	}
+	FixedFunctionState::Release_Raw_Textures();
 
 	ShaderClass::Invalidate();
 
@@ -763,6 +750,7 @@ void DX8Wrapper::Release_Device()
 		{	//release references to any textures that were used in last rendering call
 			DX8CALL(SetTexture(a,nullptr));
 		}
+		FixedFunctionState::Release_Raw_Textures();
 
 		DX8CALL(SetStreamSource(0, nullptr, 0));	//release reference count on last rendered vertex buffer
 		DX8CALL(SetIndices(nullptr,0));	//release reference count on last rendered index buffer
