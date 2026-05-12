@@ -28,7 +28,7 @@
 #include "streakRender.h"
 #include "ww3d.h"
 #include "rinfo.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "sortingrenderer.h"
 #include "vp.h"
 #include "Vector3i.h"
@@ -1279,7 +1279,7 @@ void StreakRendererClass::RenderStreak
 
 		// If color is not white or opacity not 100%, enable gradient in shader and in renderer - otherwise disable.
 		//unsigned int rgba;
-		//rgba=DX8Wrapper::Convert_Color(Color,Opacity);
+		//rgba=WW3DColor::To_ARGB(Color,Opacity);
 		//bool rgba_all=(rgba==0xFFFFFFFF);
 
 //		int colorIndex = 0;
@@ -1288,7 +1288,7 @@ void StreakRendererClass::RenderStreak
 //			//vertexArray[vertexIndex].diffuse = rgba;/// OLD WAY COLORS THEM ALL TO THE COLOR,OPACITY MEMBERS /////////////////
 //			unsigned int perPointARGB;
 //			colorIndex = MIN(vertexIndex / 2, point_cnt);
-//			perPointARGB = DX8Wrapper::Convert_Color( colors[colorIndex] );// twice as many verts as points? or so?
+//			perPointARGB = WW3DColor::To_ARGB( colors[colorIndex] );// twice as many verts as points? or so?
 //			vertexArray[vertexIndex].diffuse = perPointARGB;
 //			vertexArray[vertexIndex].u1 = (float)((vertexIndex&2) == 2);
 //			vertexArray[vertexIndex].v1 = (float)((vertexIndex&1) == 1);
@@ -1351,7 +1351,7 @@ void StreakRendererClass::RenderStreak
 				vertex->X = vertexArray[i].x;
 				vertex->Y = vertexArray[i].y;
 				vertex->Z = vertexArray[i].z;
-				*reinterpret_cast<unsigned int *>(vb + diffuseOffset) = DX8Wrapper::Convert_Color_Clamp(colors[MIN((i/2), point_cnt)]); // TODO: Does not work correctly when subdivision are not 0
+				*reinterpret_cast<unsigned int *>(vb + diffuseOffset) = WW3DColor::To_ARGB_Clamp(colors[MIN((i/2), point_cnt)]); // TODO: Does not work correctly when subdivision are not 0
 				Vector2 *texture = reinterpret_cast<Vector2 *>(vb + textureOffset);
 				texture->U = vertexArray[i].u1;
 				texture->V = vertexArray[i].v1;
