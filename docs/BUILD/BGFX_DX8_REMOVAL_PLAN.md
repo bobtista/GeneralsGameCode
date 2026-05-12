@@ -429,6 +429,8 @@ Completed low-risk migrations:
   the backend texture-combine argument API.
 - Projected cloud texture shader setup/reset now uses backend texture-combine
   operation/argument setters.
+- `W3DShaderManager::setShroudTex` now applies its projected shroud
+  texture-combine state through backend operation/argument setters.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
