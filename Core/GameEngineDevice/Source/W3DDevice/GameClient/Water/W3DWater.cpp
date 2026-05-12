@@ -386,11 +386,13 @@ WaterRenderObjClass::WaterRenderObjClass()
 	m_tod=TIME_OF_DAY_AFTERNOON;
 	m_pReflectionTexture=nullptr;
 	m_skyBox=nullptr;
+#if !defined(GGC_BGFX_STANDALONE)
 	m_vertexBufferD3D=nullptr;
 	m_indexBufferD3D=nullptr;
 
 	m_dwWavePixelShader=0;
 	m_dwWaveVertexShader=0;
+#endif
 	m_meshData=nullptr;
 	m_meshDataSize = 0;
 	m_meshInMotion = FALSE;
@@ -672,29 +674,21 @@ HRESULT WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Int ver
 	//different parts of the buffer. 5-15-03: Disabled this since we use DISCARD mode instead to avoid Nvidia Runtime bug. -MW
 	//m_numVertices=(65536 / (sizeX*sizeY))*sizeX*sizeY;
 
-	SEA_PATCH_VERTEX* pVertices;
-
-	Setting *setting=&m_settings[m_tod];
-
-	HRESULT hr;
-
-	//default setting for a dynamic vertex buffer
-	D3DPOOL pool = D3DPOOL_DEFAULT;
-	DWORD usage = D3DUSAGE_WRITEONLY | D3DUSAGE_DYNAMIC;
-	DWORD fvf = WATER_MESH_FVF;
-
-	if (doStatic)
-	{	//change settings for a static vertex buffer
-		pool = D3DPOOL_MANAGED;
-		usage = D3DUSAGE_WRITEONLY;
-		fvf=0;// DX8 Docs confusing on this. Say no FVF for vertex shaders. Else DX8_FVF_XYZDUV1;
-		m_numVertices=sizeX*sizeY;
-	}
-
 	if (!doStatic)
 	{
 		return S_OK;
 	}
+
+#if defined(GGC_BGFX_STANDALONE)
+	return E_FAIL;
+#else
+	SEA_PATCH_VERTEX* pVertices;
+	Setting *setting=&m_settings[m_tod];
+	HRESULT hr;
+
+	D3DPOOL pool = D3DPOOL_MANAGED;
+	DWORD usage = D3DUSAGE_WRITEONLY;
+	DWORD fvf = 0;// DX8 Docs confusing on this. Say no FVF for vertex shaders. Else DX8_FVF_XYZDUV1;
 
 	if (m_vertexBufferD3D == nullptr)
 	{	// Create vertex buffer
@@ -739,6 +733,7 @@ HRESULT WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Int ver
 	if (FAILED(hr=m_vertexBufferD3D->Unlock())) return hr;
 
 	return S_OK;
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -757,11 +752,14 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY, Bool crea
 	//old way
 
 	// Create index buffer
-	WORD* pIndices=nullptr;
+	UnsignedShort *pIndices=nullptr;
 	UnsignedShort *backendIndices=nullptr;
 
 	if (createD3DMirror)
 	{
+#if defined(GGC_BGFX_STANDALONE)
+		return E_FAIL;
+#else
 		if (FAILED(hr=m_pDev->CreateIndexBuffer
 	(
 		(m_numIndices+2)*sizeof(WORD),
@@ -780,6 +778,7 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY, Bool crea
 		0
 	)))
 			return hr;
+#endif
 	}
 
 	REF_PTR_RELEASE(m_waterMeshIndexBuffer);
@@ -863,7 +862,12 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY, Bool crea
 		s_toggle=!s_toggle;
 	}
 */
-	if (pIndices != nullptr && FAILED(hr=m_indexBufferD3D->Unlock())) return hr;
+	if (pIndices != nullptr)
+	{
+#if !defined(GGC_BGFX_STANDALONE)
+		if (FAILED(hr=m_indexBufferD3D->Unlock())) return hr;
+#endif
+	}
 
 	return S_OK;
 }
@@ -878,17 +882,21 @@ void WaterRenderObjClass::ReleaseResources()
 	REF_PTR_RELEASE(m_waterMeshIndexBuffer);
 
 	REF_PTR_RELEASE(m_pReflectionTexture);
+#if !defined(GGC_BGFX_STANDALONE)
 	SAFE_RELEASE(m_vertexBufferD3D);
 	SAFE_RELEASE(m_indexBufferD3D);
+#endif
 
 	if (m_waterTrackSystem)
 		m_waterTrackSystem->ReleaseResources();
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (m_dwWavePixelShader)
 		g_renderBackend->Delete_Pixel_Shader(m_dwWavePixelShader);
 
 	if (m_dwWaveVertexShader)
 		g_renderBackend->Delete_Vertex_Shader(m_dwWaveVertexShader);
+#endif
 
 	if (m_waterPixelShader)
 		g_renderBackend->Delete_Pixel_Shader(m_waterPixelShader);
@@ -899,8 +907,10 @@ void WaterRenderObjClass::ReleaseResources()
 	if (m_riverWaterPixelShader)
 		g_renderBackend->Delete_Pixel_Shader(m_riverWaterPixelShader);
 
+#if !defined(GGC_BGFX_STANDALONE)
 	m_dwWavePixelShader=0;
 	m_dwWaveVertexShader=0;
+#endif
 	m_waterPixelShader = 0;
 	m_trapezoidWaterPixelShader=0;
 	m_riverWaterPixelShader=0;
@@ -932,9 +942,7 @@ void WaterRenderObjClass::ReAcquireResources()
 		ib[5]=1;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
-	m_pDev=nullptr;
-#else
+#if !defined(GGC_BGFX_STANDALONE)
 	m_pDev=DX8Wrapper::_Get_D3D_Device8();
 #endif
 
@@ -1311,8 +1319,10 @@ void WaterRenderObjClass::enableWaterGrid(Bool state)
 		reset();
 
 		//Release existing grid data
+#if !defined(GGC_BGFX_STANDALONE)
 		SAFE_RELEASE(m_vertexBufferD3D);
 		SAFE_RELEASE(m_indexBufferD3D);
+#endif
 
 		//Create new grid data
 		if (FAILED(generateIndexBuffer(m_gridCellsX+1,m_gridCellsY+1,false)))
