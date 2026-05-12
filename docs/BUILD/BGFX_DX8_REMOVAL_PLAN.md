@@ -404,6 +404,9 @@ Completed low-risk migrations:
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
+- Shoreline destination-alpha passes now select mesh UV0 through
+  `IRenderBackend::Set_Texture_Coord_Source`, removing the last raw texcoord
+  stage writes from `BaseHeightMap.cpp`.
 - `ShaderClass::Apply` now reads fog color through `IRenderBackend`, removing
   another direct `DX8Wrapper` query from the shared shader path.
 - `SortingRendererClass::Flush` now saves/restores triangle draw enable through
