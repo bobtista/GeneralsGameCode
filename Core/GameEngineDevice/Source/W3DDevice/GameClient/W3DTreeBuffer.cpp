@@ -195,6 +195,10 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 	if (WW3D::Get_Texture_Reduction()) {
 		DX8_ErrorCode(Peek_D3D_Texture()->SetLOD((DWORD)WW3D::Get_Texture_Reduction()));
 	}
+	// The tree atlas is populated by writing into the legacy texture surface.
+	// Refresh the backend-neutral CPU copy after mip generation so bgfx sees
+	// the completed atlas instead of the constructor-time empty snapshot.
+	Refresh_CPU_Texture_Snapshot();
 	return(surface_desc.Height);
 }
 
