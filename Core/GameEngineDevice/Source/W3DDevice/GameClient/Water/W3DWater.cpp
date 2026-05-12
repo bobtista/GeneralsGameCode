@@ -103,6 +103,12 @@ static inline void W3DWater_SetTextureTransform(unsigned stage, const D3DXMATRIX
 		g_renderBackend->Set_Texture_Transform(stage, To_Matrix4x4(matrix));
 }
 
+static inline void W3DWater_DisableTextureTransform(unsigned stage)
+{
+	if (g_renderBackend != nullptr)
+		g_renderBackend->Set_Texture_Transform_Mode(stage, 0, false);
+}
+
 static inline void W3DWater_SetCameraSpaceTexcoord2(unsigned stage, unsigned uv_index)
 {
 	if (g_renderBackend != nullptr) {
@@ -1757,9 +1763,8 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				W3DWater_SetStageAddress2D(1, RB_TEXTURE_ADDRESS_CLAMP);
 
 				// Use CameraSpace vertices as input to matrix and use texture wrap mode from stage 1
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION|1);
 				// Two output coordinates are used.
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+				W3DWater_SetCameraSpaceTexcoord2(1, 1);
 
 				// Set texture generation matrix for stage 1
 				W3DWater_SetTextureTransform(1, inv);
@@ -1828,7 +1833,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 			//	DX8Wrapper::Set_DX8_Render_State(D3DRS_CLIPPLANEENABLE, 0 );	//turn off first clip plane
 
 				//disable texture coordinate generation
-				g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+				W3DWater_DisableTextureTransform(1);
 				g_renderBackend->Set_Alpha_Test_Enable(false);	//disable alpha testing
 			#endif
 
