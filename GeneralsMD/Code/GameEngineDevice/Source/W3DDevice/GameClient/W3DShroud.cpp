@@ -30,7 +30,6 @@
 #include "Lib/BaseType.h"
 #include "camera.h"
 #include "simplevec.h"
-#include "dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/surfaceclass.h"
 #include "Common/MapObject.h"
