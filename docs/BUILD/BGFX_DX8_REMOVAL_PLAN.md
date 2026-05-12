@@ -360,6 +360,8 @@ Completed low-risk migrations:
   `Is_Legacy_Voodoo3` now own shader texture-op/fog/legacy-device capability
   checks. `shader.cpp` no longer includes `dx8caps.h` or reads raw
   `TextureOpCaps`.
+- `IRenderBackend::Supports_NPatches` now owns N-Patch capability checks used
+  by common material-normal and debug-statistics code.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

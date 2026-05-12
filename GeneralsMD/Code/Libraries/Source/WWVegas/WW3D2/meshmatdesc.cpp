@@ -41,8 +41,9 @@
 #include "vertmaterial.h"
 #include "realcrc.h"
 #include	"dx8wrapper.h"
-#include "dx8caps.h"
 #include "meshmdl.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 
 
 /**************************************************************************************************
@@ -957,7 +958,7 @@ void MeshMatDescClass::Configure_Material(VertexMaterialClass * mtl,int pass,boo
 
 bool MeshMatDescClass::Do_Mappers_Need_Normals()
 {
-	if (DX8Wrapper::Is_Initted() && DX8Wrapper::Get_Current_Caps()->Support_NPatches() && WW3D::Get_NPatches_Level()>1) return true;
+	if (g_renderBackend && g_renderBackend->Supports_NPatches() && WW3D::Get_NPatches_Level()>1) return true;
 
 	for (int pass=0; pass<PassCount; pass++) {
 		/*

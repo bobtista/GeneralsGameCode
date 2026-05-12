@@ -501,6 +501,7 @@ public:
     virtual bool Supports_Texture_Op(RenderBackendTextureOpCapability /*capability*/) const { return false; }
     virtual bool Supports_Fog() const { return false; }
     virtual bool Is_Legacy_Voodoo3() const { return false; }
+    virtual bool Supports_NPatches() const { return false; }
     virtual RenderBackendTextureLimits Get_Texture_Limits() const
     {
         return { 2048, 2048, 2048, 8 };
