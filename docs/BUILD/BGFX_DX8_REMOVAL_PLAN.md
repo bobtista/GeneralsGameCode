@@ -401,6 +401,9 @@ Completed low-risk migrations:
   backend sampler helpers for clamp/wrap address mode, min/mag filtering, and
   mip filtering. The remaining water texture-stage writes are fixed-function
   combine, texcoord generation, transform, and bump-env constants.
+- Terrain texture apply/restore paths now route mesh-UV selection and texture
+  transform disable operations through semantic backend APIs instead of writing
+  `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
