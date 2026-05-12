@@ -53,6 +53,9 @@ Recent progress on the DX8-removal stack:
 - `W3DSmudge::copyRect` now reads through
   `IRenderBackend::Capture_Back_Buffer_Surface` and `SurfaceClass::Lock`
   instead of grabbing `IDirect3DDevice8` and using `CopyRects` directly.
+- `W3DShaderManager::getChipset` now queries
+  `IRenderBackend::Get_Device_Identity` instead of reaching through
+  `DX8Wrapper` for adapter IDs and shader caps.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -210,6 +213,10 @@ Completed low-risk migrations:
 - The smudge hardware test no longer performs raw D3D render-target readback.
   DX8 still provides the captured surface through `DX8Backend`, while bgfx can
   keep standalone smudge support on its native scene-color path.
+- `IRenderBackend::Get_Device_Identity` captures the small capability surface
+  the shader manager needs for chipset classification. DX8 fills it from
+  `DX8Caps` and adapter identifiers; bgfx reports a generic modern shader-cap
+  profile so terrain/water shader selection stays on the high-quality path.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

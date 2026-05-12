@@ -101,6 +101,16 @@ struct RenderBackendMaterialState
     float power;
 };
 
+struct RenderBackendDeviceIdentity
+{
+    unsigned int vendor_id;
+    unsigned int device_id;
+    std::uint64_t driver_version;
+    int max_simultaneous_textures;
+    int pixel_shader_major;
+    int pixel_shader_minor;
+};
+
 struct RenderBackendSortedBatchState
 {
     const ShaderClass * shader;
@@ -452,6 +462,7 @@ public:
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode) {}
     virtual RenderBackendMSAAMode Get_MSAA_Mode() const { return RB_MSAA_NONE; }
     virtual bool Supports_Dot3() const { return false; }
+    virtual bool Get_Device_Identity(RenderBackendDeviceIdentity & identity) const { return false; }
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit) {}
 
     // -------------------------------------------------------------------------
