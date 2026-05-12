@@ -350,7 +350,7 @@ void Release_Refs(SortingNodeStruct* state)
 	}
 	REF_PTR_RELEASE(state->sorting_state.index_buffer);
 	REF_PTR_RELEASE(state->sorting_state.material);
-	for (i=0;i<DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass();++i)
+	for (i=0;i<g_renderBackend->Get_Max_Texture_Stages();++i)
 	{
 		REF_PTR_RELEASE(state->sorting_state.Textures[i]);
 	}
@@ -499,7 +499,7 @@ static bool Render_State_Matches(const RenderStateStruct& left, const RenderStat
 		return false;
 	}
 
-	for (int texture_index=0; texture_index<DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass(); ++texture_index)
+	for (int texture_index=0; texture_index<g_renderBackend->Get_Max_Texture_Stages(); ++texture_index)
 	{
 		if (left.Textures[texture_index] != right.Textures[texture_index])
 		{

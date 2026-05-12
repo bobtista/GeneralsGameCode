@@ -3298,6 +3298,18 @@ int BgfxBackend::Get_Texture_Bitdepth() const
     return m_textureBitDepth;
 }
 
+int BgfxBackend::Get_Max_Texture_Stages() const
+{
+    const bgfx::Caps * caps = bgfx::getCaps();
+    if (caps == nullptr)
+    {
+        return RB_MAX_TEXTURE_STAGES;
+    }
+    return caps->limits.maxTextureSamplers < RB_MAX_TEXTURE_STAGES
+        ? static_cast<int>(caps->limits.maxTextureSamplers)
+        : static_cast<int>(RB_MAX_TEXTURE_STAGES);
+}
+
 void BgfxBackend::Set_MSAA_Mode(RenderBackendMSAAMode mode)
 {
     m_msaaMode = mode;
