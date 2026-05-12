@@ -216,27 +216,25 @@ public:
 class DX8Wrapper
 {
 	enum ChangedStates {
-		WORLD_CHANGED	=	1<<0,
-		VIEW_CHANGED	=	1<<1,
-		LIGHT0_CHANGED	=	1<<2,
-		LIGHT1_CHANGED	=	1<<3,
-		LIGHT2_CHANGED	=	1<<4,
-		LIGHT3_CHANGED	=	1<<5,
-		TEXTURE0_CHANGED=	1<<6,
-		TEXTURE1_CHANGED=	1<<7,
-		TEXTURE2_CHANGED=	1<<8,
-		TEXTURE3_CHANGED=	1<<9,
-		MATERIAL_CHANGED=	1<<14,
-		SHADER_CHANGED	=	1<<15,
-		VERTEX_BUFFER_CHANGED = 1<<16,
-		INDEX_BUFFER_CHANGED = 1 << 17,
-		WORLD_IDENTITY=	1<<18,
-		VIEW_IDENTITY=		1<<19,
+		WORLD_CHANGED = FixedFunctionState::WORLD_CHANGED,
+		VIEW_CHANGED = FixedFunctionState::VIEW_CHANGED,
+		LIGHT0_CHANGED = FixedFunctionState::LIGHT0_CHANGED,
+		LIGHT1_CHANGED = FixedFunctionState::LIGHT1_CHANGED,
+		LIGHT2_CHANGED = FixedFunctionState::LIGHT2_CHANGED,
+		LIGHT3_CHANGED = FixedFunctionState::LIGHT3_CHANGED,
+		TEXTURE0_CHANGED = FixedFunctionState::TEXTURE0_CHANGED,
+		TEXTURE1_CHANGED = FixedFunctionState::TEXTURE1_CHANGED,
+		TEXTURE2_CHANGED = FixedFunctionState::TEXTURE2_CHANGED,
+		TEXTURE3_CHANGED = FixedFunctionState::TEXTURE3_CHANGED,
+		MATERIAL_CHANGED = FixedFunctionState::MATERIAL_CHANGED,
+		SHADER_CHANGED = FixedFunctionState::SHADER_CHANGED,
+		VERTEX_BUFFER_CHANGED = FixedFunctionState::VERTEX_BUFFER_CHANGED,
+		INDEX_BUFFER_CHANGED = FixedFunctionState::INDEX_BUFFER_CHANGED,
+		WORLD_IDENTITY = FixedFunctionState::WORLD_IDENTITY,
+		VIEW_IDENTITY = FixedFunctionState::VIEW_IDENTITY,
 
-		TEXTURES_CHANGED=
-			TEXTURE0_CHANGED|TEXTURE1_CHANGED|TEXTURE2_CHANGED|TEXTURE3_CHANGED,
-		LIGHTS_CHANGED=
-			LIGHT0_CHANGED|LIGHT1_CHANGED|LIGHT2_CHANGED|LIGHT3_CHANGED,
+		TEXTURES_CHANGED = FixedFunctionState::TEXTURES_CHANGED,
+		LIGHTS_CHANGED = FixedFunctionState::LIGHTS_CHANGED,
 	};
 
 	static void Draw_Sorting_IB_VB(
@@ -1149,9 +1147,7 @@ WWINLINE void DX8Wrapper::Get_Shader(ShaderClass& shader)
 WWINLINE void DX8Wrapper::Set_Texture(unsigned stage,TextureBaseClass* texture)
 {
 	WWASSERT(stage<(unsigned int)CurrentCaps->Get_Max_Textures_Per_Pass());
-	if (texture==FixedFunctionState::Render_State().Textures[stage]) return;
-	REF_PTR_SET(FixedFunctionState::Render_State().Textures[stage],texture);
-	FixedFunctionState::Changed_Mask()|=(TEXTURE0_CHANGED<<stage);
+	FixedFunctionState::Set_Texture(stage, texture);
 }
 
 WWINLINE void DX8Wrapper::Set_Material(const VertexMaterialClass* material)
@@ -1165,18 +1161,15 @@ WWINLINE void DX8Wrapper::Set_Material(const VertexMaterialClass* material)
 //	if (material==FixedFunctionState::Render_State().material) {
 //		return;
 //	}
-	REF_PTR_SET(FixedFunctionState::Render_State().material,const_cast<VertexMaterialClass*>(material));
-	FixedFunctionState::Changed_Mask()|=MATERIAL_CHANGED;
+	FixedFunctionState::Set_Material(material);
 	SNAPSHOT_SAY(("DX8Wrapper::Set_Material(%s)",material ? material->Get_Name() : "null"));
 }
 
 WWINLINE void DX8Wrapper::Set_Shader(const ShaderClass& shader)
 {
-	if (!ShaderClass::ShaderDirty && ((unsigned&)shader==(unsigned&)FixedFunctionState::Render_State().shader)) {
+	if (!FixedFunctionState::Set_Shader(shader, ShaderClass::ShaderDirty)) {
 		return;
 	}
-	FixedFunctionState::Render_State().shader=shader;
-	FixedFunctionState::Changed_Mask()|=SHADER_CHANGED;
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 	StringClass str;
 #endif
