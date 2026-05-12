@@ -50,6 +50,9 @@ Recent progress on the DX8-removal stack:
   to keep current VB/IB state synchronized.
 - `BgfxBackend.cpp` no longer has active `DX8Wrapper::...` calls. Remaining
   mentions in that file are comments describing legacy call paths.
+- `W3DSmudge::copyRect` now reads through
+  `IRenderBackend::Capture_Back_Buffer_Surface` and `SurfaceClass::Lock`
+  instead of grabbing `IDirect3DDevice8` and using `CopyRects` directly.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -204,6 +207,9 @@ Completed low-risk migrations:
 - `BgfxBackend::Set_Texture` uses `FixedFunctionState::Set_Texture`'s own
   texture-stage bound check instead of querying the legacy `DX8Caps` object
   through `DX8Wrapper`.
+- The smudge hardware test no longer performs raw D3D render-target readback.
+  DX8 still provides the captured surface through `DX8Backend`, while bgfx can
+  keep standalone smudge support on its native scene-color path.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
