@@ -203,6 +203,9 @@ public:
                                              float m01,
                                              float m10,
                                              float m11) override;
+    virtual void Set_Texture_Bump_Env_Luminance(unsigned stage,
+                                                float scale,
+                                                float offset) override;
     virtual void Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled) override;
     virtual void Set_Texture_UV_Wrap(unsigned stage, bool enable) override;
     virtual void Set_Texture_Address_Mode(unsigned stage,
