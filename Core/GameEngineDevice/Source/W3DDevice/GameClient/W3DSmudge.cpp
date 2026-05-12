@@ -492,12 +492,8 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 	g_renderBackend->Set_Texture(0,bgfxSmudgeActive ? nullptr : m_backgroundTexture);
 	//Need these states in case texture is non-power-of-2
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSW, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+	g_renderBackend->Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP);
+	g_renderBackend->Set_Texture_Sample_Filter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_NONE);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	g_renderBackend->Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
