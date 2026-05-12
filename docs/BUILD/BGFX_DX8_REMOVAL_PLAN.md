@@ -206,10 +206,10 @@ game-facing texture-stage state writes through semantic backend APIs:
 - `raw_device`: 54 hits in 8 files
 - `dx8wrapper_low_level`: 77 hits in 8 files
 - `dx8wrapper_high_level`: 22 hits in 3 files
-- `d3d_public_type`: 1860 hits in 51 files
+- `d3d_public_type`: 1856 hits in 51 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 2013
+- total categorized hits: 2009
 
 Completed low-risk migrations:
 
@@ -528,6 +528,11 @@ Completed low-risk migrations:
   `W3DShaderManager.cpp`.
 - `ShaderClass::Apply` now reads fog color through `IRenderBackend`, removing
   another direct `DX8Wrapper` query from the shared shader path.
+- Tree WVP upload now builds its matrix with `Matrix4x4` and backend shader
+  constants instead of round-tripping through `D3DXMATRIX`.
+- `dx8webbrowser.h`, the height-map sources, and GeneralsMD `assetmgr.cpp` /
+  `dx8vertexbuffer.cpp` no longer include stale D3D/D3DX headers where they
+  do not use any of those symbols.
 - The legacy Voodoo3 stage-2 compatibility path in `ShaderClass::Apply` now
   expresses its pass-through UV0 selection through the backend texcoord API.
 - `SortingRendererClass::Flush` now saves/restores triangle draw enable through
