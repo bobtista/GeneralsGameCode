@@ -400,14 +400,11 @@ Completed low-risk migrations:
 - River, trapezoid, reflection, and bump-map water paths now use the same
   backend sampler helpers for clamp/wrap address mode, min/mag filtering, and
   mip filtering. The remaining water texture-stage writes are fixed-function
-  combine, texcoord generation, transform, and bump-env constants.
+  combine and bump-env constants.
 - Active river and trapezoid water setup now selects mesh UVs and projected
-  camera-space water-noise UVs through local backend semantic helpers. The
-  remaining water texcoord work is cleanup/reset and disabled legacy clip-plane
-  code.
+  camera-space water-noise UVs through local backend semantic helpers.
 - Sea-water setup and cleanup now express mesh UV selection and transform-reset
-  state through the same water helpers. The remaining water texcoord work is
-  disabled legacy clip-plane code.
+  state through the same water helpers.
 - The disabled legacy water clip-plane block now also uses water texcoord and
   transform helpers, including its camera-space stage-1 UV-index variant.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
