@@ -280,7 +280,7 @@ protected:
 	void cleanupJbaWaterShader();
 
 	//Methods used for GeForce3 specific water
-	HRESULT generateIndexBuffer(int sizeX, int sizeY);	///<Generate static index buufer
+	HRESULT generateIndexBuffer(int sizeX, int sizeY, Bool createD3DMirror);	///<Generate water strip index buffer
 	HRESULT generateVertexBuffer( Int sizeX, Int sizeY, Int vertexSize, Bool doFill);///<Generate static vertex buffer
 
 	// snapshot methods for save/load

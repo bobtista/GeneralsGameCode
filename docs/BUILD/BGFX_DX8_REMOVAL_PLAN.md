@@ -62,6 +62,8 @@ Recent progress on the DX8-removal stack:
 - Dynamic water-grid vertex-buffer allocation no longer creates a raw D3D
   buffer. The static sea-water patch still uses the legacy D3D buffer path and
   remains a separate migration target.
+- Dynamic water-grid index generation now creates only the backend index buffer.
+  The raw D3D index mirror is kept only for the static sea-water patch path.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -232,6 +234,9 @@ Completed low-risk migrations:
   no-op because the grid vertices are produced into backend dynamic buffers at
   draw time. Static sea-water vertex-buffer allocation is intentionally
   unchanged.
+- Water-grid index generation now opts out of the raw D3D mirror. The same
+  helper still creates the mirror for the static sea-water path, which has not
+  been migrated yet.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
