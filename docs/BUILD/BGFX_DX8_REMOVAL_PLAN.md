@@ -383,6 +383,10 @@ Completed low-risk migrations:
   `Set_Texture_Sample_Filter` now provide a semantic sampler-state API. Smudge
   distortion setup uses those methods instead of writing raw address/filter
   texture-stage states directly.
+- `TextureFilterClass::Apply` now pushes sampler address/filter state through
+  that semantic API too. Its legacy filter tables still store D3D-compatible
+  constants for now, but applying a texture filter no longer exposes those
+  constants to the backend call site.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
