@@ -270,6 +270,9 @@ Completed low-risk migrations:
   `RB_LOCK_*` flags into the shared vertex/index lock helpers instead of raw
   `D3DLOCK_*` constants. The helpers still translate to the native lock mode in
   the active backend.
+- The procedural tree atlas refreshes its CPU texture snapshot after direct
+  legacy-surface writes and mip filtering. This keeps bgfx texture uploads keyed
+  to the completed atlas revision instead of the constructor-time empty texture.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
