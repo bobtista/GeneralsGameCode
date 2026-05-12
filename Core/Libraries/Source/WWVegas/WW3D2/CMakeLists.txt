@@ -170,6 +170,8 @@ set(WW3D2_SRC
     rendobj.h
     #rinfo.cpp
     #rinfo.h
+    renderdebugstats.cpp
+    renderdebugstats.h
     ringobj.cpp
     ringobj.h
     robjlist.h
