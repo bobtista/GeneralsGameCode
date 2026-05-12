@@ -341,6 +341,32 @@ bool DX8Backend::Supports_Bump_Envmap_Luminance() const
     return caps != nullptr && caps->Support_Bump_Envmap_Luminance();
 }
 
+bool DX8Backend::Supports_Texture_Filter(RenderBackendTextureFilterCapability capability) const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    if (caps == nullptr)
+    {
+        return false;
+    }
+
+    const DWORD filter_caps = caps->Get_DX8_Caps().TextureFilterCaps;
+    switch (capability)
+    {
+        case RB_TEXTURE_FILTER_MIN_LINEAR:
+            return (filter_caps & D3DPTFILTERCAPS_MINFLINEAR) != 0;
+        case RB_TEXTURE_FILTER_MAG_LINEAR:
+            return (filter_caps & D3DPTFILTERCAPS_MAGFLINEAR) != 0;
+        case RB_TEXTURE_FILTER_MIP_LINEAR:
+            return (filter_caps & D3DPTFILTERCAPS_MIPFLINEAR) != 0;
+        case RB_TEXTURE_FILTER_MIN_ANISOTROPIC:
+            return (filter_caps & D3DPTFILTERCAPS_MINFANISOTROPIC) != 0;
+        case RB_TEXTURE_FILTER_MAG_ANISOTROPIC:
+            return (filter_caps & D3DPTFILTERCAPS_MAGFANISOTROPIC) != 0;
+        default:
+            return false;
+    }
+}
+
 RenderBackendTextureLimits DX8Backend::Get_Texture_Limits() const
 {
     const auto * caps = DX8Wrapper::Get_Current_Caps();
