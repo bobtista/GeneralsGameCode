@@ -729,17 +729,17 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 	// Now setup the texture pipeline.
 	if (stage==0) {
 		// Modulate the diffuse color with the texture as lighting comes from diffuse.
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
+		g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+		g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
+		g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+		g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
 		SetTerrainTexcoordSource(0, 1);
 		// Blend the result using the alpha. (came from diffuse mod texture)
 		g_renderBackend->Set_Alpha_Blend_Enable(true);
 		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 		// Disable stage 2.
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
+		g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_DISABLE);
+		g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_DISABLE);
 	}	else if (stage==1) {
 
 		if (TheGlobalData && !TheGlobalData->m_multiPassTerrain)
@@ -747,88 +747,88 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 			///@todo: Remove 8-Stage Nvidia hack after drivers are fixed.
 			//This method is a backdoor specific to Nvidia based cards.  It will fail on
 			//other hardware.  Allows single pass blend of 2 textures and post modulate diffuse.
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
 			SetTerrainTexcoordSource(0, 0);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+			g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
+			g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+			g_renderBackend->Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Alpha_Argument(0, 2, RB_TEXARG_DIFFUSE);
+			g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
 
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_ADD);
 			SetTerrainTexcoordSource(1, 1);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_DIFFUSE | D3DTA_COMPLEMENT | D3DTA_ALPHAREPLICATE);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_ADD);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG1, D3DTA_TFACTOR | D3DTA_COMPLEMENT);
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+			g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_DIFFUSE | RB_TEXARG_COMPLEMENT | RB_TEXARG_ALPHAREPLICATE);
+			g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_DIFFUSE);
+			g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_ADD);
+			g_renderBackend->Set_Texture_Alpha_Argument(1, 1, RB_TEXARG_TFACTOR | RB_TEXARG_COMPLEMENT);
+			g_renderBackend->Set_Texture_Alpha_Argument(1, 2, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_ADD);
 
 			g_renderBackend->Set_Texture(2, nullptr);
-			g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLOROP, D3DTOP_MODULATE);
 			SetTerrainTexcoordSource(2, 2);
-			g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-			g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
-			g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
-			g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+			g_renderBackend->Set_Texture_Color_Argument(2, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Color_Argument(2, 2, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Color_Operation(2, RB_TEXOP_MODULATE);
+			g_renderBackend->Set_Texture_Alpha_Argument(2, 1, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Alpha_Argument(2, 2, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Alpha_Operation(2, RB_TEXOP_MODULATE);
 
 			g_renderBackend->Set_Texture(3, nullptr);
-			g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
 			SetTerrainTexcoordSource(3, 3);
-			g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLORARG1, D3DTA_DIFFUSE | 0 | D3DTA_ALPHAREPLICATE);
-			g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-			g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1);
-			g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
-			g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+			g_renderBackend->Set_Texture_Color_Argument(3, 1, RB_TEXARG_DIFFUSE | RB_TEXARG_ALPHAREPLICATE);
+			g_renderBackend->Set_Texture_Color_Argument(3, 2, RB_TEXARG_DIFFUSE);
+			g_renderBackend->Set_Texture_Color_Operation(3, RB_TEXOP_SELECTARG1);
+			g_renderBackend->Set_Texture_Alpha_Argument(3, 1, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Alpha_Argument(3, 2, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Alpha_Operation(3, RB_TEXOP_SELECTARG1);
 
 			g_renderBackend->Set_Texture(4, nullptr);
-			g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLOROP, D3DTOP_MODULATE);
 			SetTerrainTexcoordSource(4, 4);
-			g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLORARG1, D3DTA_CURRENT);
-			g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-			g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
-			g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
-			g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+			g_renderBackend->Set_Texture_Color_Argument(4, 1, RB_TEXARG_CURRENT);
+			g_renderBackend->Set_Texture_Color_Argument(4, 2, RB_TEXARG_DIFFUSE);
+			g_renderBackend->Set_Texture_Color_Operation(4, RB_TEXOP_MODULATE);
+			g_renderBackend->Set_Texture_Alpha_Argument(4, 1, RB_TEXARG_CURRENT);
+			g_renderBackend->Set_Texture_Alpha_Argument(4, 2, RB_TEXARG_DIFFUSE);
+			g_renderBackend->Set_Texture_Alpha_Operation(4, RB_TEXOP_MODULATE);
 
 			g_renderBackend->Set_Texture(5, nullptr);
-			g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLOROP, D3DTOP_ADD);
 			SetTerrainTexcoordSource(5, 5);
-			g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-			g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-			g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_ALPHAOP,   D3DTOP_ADD);
-			g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_ALPHAARG1, D3DTA_TFACTOR | D3DTA_COMPLEMENT);
-			g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+			g_renderBackend->Set_Texture_Color_Argument(5, 1, RB_TEXARG_DIFFUSE);
+			g_renderBackend->Set_Texture_Color_Argument(5, 2, RB_TEXARG_DIFFUSE);
+			g_renderBackend->Set_Texture_Color_Operation(5, RB_TEXOP_ADD);
+			g_renderBackend->Set_Texture_Alpha_Argument(5, 1, RB_TEXARG_TFACTOR | RB_TEXARG_COMPLEMENT);
+			g_renderBackend->Set_Texture_Alpha_Argument(5, 2, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Alpha_Operation(5, RB_TEXOP_ADD);
 
 			g_renderBackend->Set_Texture(6, nullptr);
-			g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLOROP, D3DTOP_MODULATE);
 			SetTerrainTexcoordSource(6, 6);
-			g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLORARG1, D3DTA_TFACTOR);
-			g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-			g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
-			g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
-			g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+			g_renderBackend->Set_Texture_Color_Argument(6, 1, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Color_Argument(6, 2, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Color_Operation(6, RB_TEXOP_MODULATE);
+			g_renderBackend->Set_Texture_Alpha_Argument(6, 1, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Alpha_Argument(6, 2, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Alpha_Operation(6, RB_TEXOP_MODULATE);
 
 			g_renderBackend->Set_Texture(7, nullptr);
-			g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
 			SetTerrainTexcoordSource(7, 7);
-			g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLORARG1, D3DTA_TFACTOR);
-			g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-			g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1);
-			g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
-			g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+			g_renderBackend->Set_Texture_Color_Argument(7, 1, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Color_Argument(7, 2, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Color_Operation(7, RB_TEXOP_SELECTARG1);
+			g_renderBackend->Set_Texture_Alpha_Argument(7, 1, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Alpha_Argument(7, 2, RB_TEXARG_TFACTOR);
+			g_renderBackend->Set_Texture_Alpha_Operation(7, RB_TEXOP_SELECTARG1);
 		}
 		else
 		{
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );
-			g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
+			g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_SELECTARG1);
+			g_renderBackend->Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG1);
 
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG1, D3DTA_TEXTURE );
-			g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
+			g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);
+			g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
+			g_renderBackend->Set_Texture_Alpha_Argument(1, 1, RB_TEXARG_TEXTURE);
+			g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_SELECTARG1);
 		}
 	}
 }
