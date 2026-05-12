@@ -375,6 +375,10 @@ Completed low-risk migrations:
   helper by what it does: load legacy shader blobs and ask the active backend
   to create native shader handles. The public helper no longer advertises a
   D3D-only operation.
+- `RenderDeviceDescClass` no longer exposes raw `D3DCAPS8` or
+  `D3DADAPTER_IDENTIFIER8` accessors to standalone bgfx builds. The private
+  fields remain for `DX8Wrapper`'s legacy enumeration scaffolding until that
+  wrapper work is split from the bgfx target.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
