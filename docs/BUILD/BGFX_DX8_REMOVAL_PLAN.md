@@ -423,6 +423,8 @@ Completed low-risk migrations:
   and alpha combiner overrides through backend operation/argument setters.
 - Crossfade and motion-blur screen filters now use backend texture-combine
   setters for their mask and captured-view alpha overrides.
+- Flat shroud texture setup now uses backend texture-combine setters for its
+  projected shroud modulation state.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
