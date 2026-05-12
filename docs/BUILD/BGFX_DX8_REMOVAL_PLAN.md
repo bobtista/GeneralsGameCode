@@ -206,10 +206,10 @@ game-facing texture-stage state writes through semantic backend APIs:
 - `raw_device`: 54 hits in 8 files
 - `dx8wrapper_low_level`: 77 hits in 8 files
 - `dx8wrapper_high_level`: 22 hits in 3 files
-- `d3d_public_type`: 1891 hits in 52 files
+- `d3d_public_type`: 1890 hits in 51 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 2044
+- total categorized hits: 2043
 
 Completed low-risk migrations:
 
@@ -489,6 +489,8 @@ Completed low-risk migrations:
   projectile path math.
 - Point-group ground-oriented quad expansion now computes its Z rotation
   directly instead of routing through `D3DXMatrixRotationZ`.
+- Bib, bridge, custom-edging, road, and mirror public headers no longer export
+  concrete DX8 buffer definitions when they only store buffer pointers.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
