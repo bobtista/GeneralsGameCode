@@ -37,7 +37,7 @@
 #include "dynamesh.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "sortingrenderer.h"
 #include "rinfo.h"
 #include "camera.h"
@@ -463,7 +463,7 @@ bool DynamicMeshClass::End_Vertex()
 //			color->Z = CurVertexColor[color_array_index].Z;
 //			color->W = CurVertexColor[color_array_index].W;
 			unsigned * color = &((Model->Get_Color_Array(color_array_index))[VertCount]);
-			*color=DX8Wrapper::Convert_Color_Clamp(CurVertexColor[color_array_index]);
+			*color=WW3DColor::To_ARGB_Clamp(CurVertexColor[color_array_index]);
 		}
 	}
 
@@ -829,5 +829,4 @@ void DynamicScreenMeshClass::Reset()
 	Reset_Flags();
 	Reset_Mesh_Counters();
 }
-
 

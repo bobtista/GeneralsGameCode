@@ -462,6 +462,7 @@ Completed low-risk migrations:
 - Sphere debug/utility geometry now packs alpha-vector colors through
   `WW3DColor`.
 - Ring geometry now packs vertex colors through `WW3DColor`.
+- Dynamic mesh helpers now pack clamped vertex colors through `WW3DColor`.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
