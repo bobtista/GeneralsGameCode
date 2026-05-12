@@ -450,6 +450,9 @@ Completed low-risk migrations:
   surface locks and row copies instead of routing through `DX8Wrapper::CopyRects`.
 - `MissingTexture::_Create_Missing_Surface` now fills its image surface through
   a lock instead of copying the generated texture with `CopyRects`.
+- `WW3DColor` now owns backend-neutral ARGB/vector conversion helpers; the
+  first leaf migration removes `ww3dformat.cpp`'s dependency on `DX8Wrapper`
+  for color packing.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.

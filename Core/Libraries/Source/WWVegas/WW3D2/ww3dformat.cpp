@@ -41,7 +41,7 @@
 #include "vector4.h"
 #include "wwdebug.h"
 #include "TARGA.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "IRenderBackend.h"
 #include "RenderBackend.h"
 
@@ -128,7 +128,7 @@ unsigned char RGB_to_CIEY(Vector4 color)
 void Vector4_to_Color(unsigned int *outc,const Vector4 &inc,const WW3DFormat format)
 {
 	// convert to ARGB 32-bit
-	unsigned int color=DX8Wrapper::Convert_Color(inc);
+	unsigned int color=WW3DColor::To_ARGB(inc);
 	unsigned char *argb=(unsigned char*) &color;
 	unsigned char r,g,b,a,lum;
 
