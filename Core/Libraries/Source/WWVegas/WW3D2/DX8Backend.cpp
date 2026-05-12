@@ -316,6 +316,12 @@ int DX8Backend::Get_Texture_Bitdepth() const
     return DX8Wrapper::Get_Texture_Bitdepth();
 }
 
+bool DX8Backend::Supports_Texture_Format(WW3DFormat format) const
+{
+    const auto * caps = DX8Wrapper::Get_Current_Caps();
+    return caps != nullptr && caps->Support_Texture_Format(format);
+}
+
 void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit)
 {
     DX8Wrapper::Set_Gamma(gamma, bright, contrast, calibrate, uselimit);
