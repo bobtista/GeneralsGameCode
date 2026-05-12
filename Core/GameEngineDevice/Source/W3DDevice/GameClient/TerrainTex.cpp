@@ -71,6 +71,26 @@ static void InvalidateGeneratedTerrainTexture(TextureBaseClass *texture)
 	}
 }
 
+static RenderBackendTextureSampleFilter GetTerrainMinMagFilter()
+{
+	return (TheGlobalData && (TheGlobalData->m_bilinearTerrainTex || TheGlobalData->m_trilinearTerrainTex)) ?
+		RB_TEXTURE_SAMPLE_LINEAR :
+		RB_TEXTURE_SAMPLE_POINT;
+}
+
+static RenderBackendTextureSampleFilter GetTerrainMipFilter()
+{
+	return (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) ?
+		RB_TEXTURE_SAMPLE_LINEAR :
+		RB_TEXTURE_SAMPLE_POINT;
+}
+
+static void ApplyTerrainFilter(unsigned int stage)
+{
+	const RenderBackendTextureSampleFilter min_mag_filter = GetTerrainMinMagFilter();
+	g_renderBackend->Set_Texture_Sample_Filter(stage, min_mag_filter, min_mag_filter, GetTerrainMipFilter());
+}
+
 void TerrainTextureClass::UpdateTerrainAtlasRegions(WorldHeightMap *htMap, unsigned int textureWidth, unsigned int textureHeight, unsigned int textureFormat)
 {
 	Clear_Atlas_Regions();
@@ -722,22 +742,9 @@ void AlphaTerrainTextureClass::Apply(unsigned int stage)
 	// Do the base apply.
 	TextureClass::Apply(stage);
 
-	// Set the bilinear or trilinear filtering.
-	if (TheGlobalData && (TheGlobalData->m_bilinearTerrainTex || TheGlobalData->m_trilinearTerrainTex)) {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-	}
-	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-	}
 	// Since we are using multiple distinct tiles, the textures doesn't wrap, so clamp it.
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+	ApplyTerrainFilter(stage);
+	g_renderBackend->Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_WRAP);
 	// Now setup the texture pipeline.
 	if (stage==0) {
 		// Modulate the diffuse color with the texture as lighting comes from diffuse.
@@ -1110,8 +1117,7 @@ void CloudMapTerrainTextureClass::restore()
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+	g_renderBackend->Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXCOORDINDEX, 0 );
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 
@@ -1120,8 +1126,7 @@ void CloudMapTerrainTextureClass::restore()
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
+	g_renderBackend->Set_Texture_Address_Mode(1, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP, RB_TEXTURE_ADDRESS_WRAP);
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 0 );
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
 	g_renderBackend->Set_Alpha_Blend_Enable(false);
@@ -1181,22 +1186,10 @@ void ScorchTextureClass::Apply(unsigned int stage)
 	// Do the base apply.
 	TextureClass::Apply(stage);
 	// Setup bilinear or trilinear filtering as specified in global data.
-	if (TheGlobalData && (TheGlobalData->m_bilinearTerrainTex || TheGlobalData->m_trilinearTerrainTex)) {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_POINT);
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_POINT);
-	}
-	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-	}
+	ApplyTerrainFilter(stage);
 
 	g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
+	g_renderBackend->Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_WRAP);
 	// Now setup the texture pipeline.
 
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
