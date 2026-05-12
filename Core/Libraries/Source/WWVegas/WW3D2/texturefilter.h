@@ -40,7 +40,6 @@
 #pragma once
 
 #ifndef DX8_WRAPPER_H
-//#include "dx8wrapper.h"
 #endif
 
 enum MipCountType
