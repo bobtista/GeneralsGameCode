@@ -2113,7 +2113,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 
 	g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
 	g_renderBackend->Set_Texture_Stage_State(0, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
-	m_pDev->SetRenderState( D3DRS_WRAP0, D3DWRAP_U | D3DWRAP_V);
+	g_renderBackend->Set_Texture_UV_Wrap(0, true);
 
 	g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
 	g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
@@ -2213,7 +2213,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
 	g_renderBackend->Set_Texture_Stage_State(1, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
 
-	m_pDev->SetRenderState( D3DRS_WRAP0, 0);	//turn off texture wrapping
+	g_renderBackend->Set_Texture_UV_Wrap(0, false);	//turn off texture wrapping
 
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 	g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
