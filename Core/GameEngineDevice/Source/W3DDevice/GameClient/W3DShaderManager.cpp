@@ -110,6 +110,22 @@ static inline void W3DShaderManager_SetTextureTransform(unsigned stage, const D3
 		g_renderBackend->Set_Texture_Transform(stage, To_Matrix4x4(matrix));
 }
 
+static inline void W3DShaderManager_SetCameraSpaceTexcoord2(unsigned stage)
+{
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Set_Texture_Coord_Source(stage, RB_TEXCOORD_CAMERA_SPACE_POSITION, 0);
+		g_renderBackend->Set_Texture_Transform_Mode(stage, 2, false);
+	}
+}
+
+static inline void W3DShaderManager_ResetMeshTexcoord(unsigned stage, unsigned uv_index)
+{
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Set_Texture_Coord_Source(stage, RB_TEXCOORD_MESH_UV, uv_index);
+		g_renderBackend->Set_Texture_Transform_Mode(stage, 0, false);
+	}
+}
+
 static inline void W3DShaderManager_SetShroudTextureParams(float offset_x, float offset_y,
 	float scale_x, float scale_y)
 {
@@ -1206,8 +1222,7 @@ Int ShroudTextureShader::set(Int stage)
 	}
 	g_renderBackend->Apply_Render_State_Changes();
 
-	g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-	g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+	W3DShaderManager_SetCameraSpaceTexcoord2(stage);
 	g_renderBackend->Set_Depth_Func(RB_CMP_EQUAL);
 
 	//We need to scale so shroud texel stretches over one full terrain cell.  Each texel
@@ -1256,8 +1271,7 @@ void ShroudTextureShader::reset()
 	g_renderBackend->Set_Shroud_Texture_Pass_Active(false, m_stageOfSet);
 	g_renderBackend->Set_Texture(m_stageOfSet,nullptr);
 	g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
-	g_renderBackend->Set_Texture_Stage_State(m_stageOfSet,  D3DTSS_TEXCOORDINDEX, m_stageOfSet);
-	g_renderBackend->Set_Texture_Stage_State(m_stageOfSet,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+	W3DShaderManager_ResetMeshTexcoord(m_stageOfSet, m_stageOfSet);
 }
 
 ///Shroud layer rendering shader
@@ -1305,8 +1319,7 @@ Int FlatShroudTextureShader::set(Int stage)
 	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 	//g_renderBackend->Apply_Render_State_Changes();
 
-	g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-	g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+	W3DShaderManager_SetCameraSpaceTexcoord2(stage);
 
 	//We need to scale so shroud texel stretches over one full terrain cell.  Each texel
 	//is 1/128 the size of full texture. (assuming 128x128 vid-mem texture).
@@ -1354,8 +1367,7 @@ void FlatShroudTextureShader::reset()
 	if (m_stageOfSet < MAX_TEXTURE_STAGES)
 		g_renderBackend->Set_Texture(m_stageOfSet,nullptr);
 	g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
-	g_renderBackend->Set_Texture_Stage_State(m_stageOfSet,  D3DTSS_TEXCOORDINDEX, m_stageOfSet);
-	g_renderBackend->Set_Texture_Stage_State(m_stageOfSet,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+	W3DShaderManager_ResetMeshTexcoord(m_stageOfSet, m_stageOfSet);
 }
 
 ///Mask layer rendering shader
@@ -1406,8 +1418,7 @@ Int MaskTextureShader::set(Int pass)
 	D3DXMATRIX curView;
 	W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
 
-	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
+	W3DShaderManager_SetCameraSpaceTexcoord2(0);
 
 	D3DXMATRIX inv;
 	float det;
@@ -1460,8 +1471,7 @@ Int MaskTextureShader::set(Int pass)
 void MaskTextureShader::reset()
 {
 	g_renderBackend->Set_Texture(0,nullptr);
-	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
-	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+	W3DShaderManager_ResetMeshTexcoord(0, 0);
 }
 
 /*===========================================================================================*/
