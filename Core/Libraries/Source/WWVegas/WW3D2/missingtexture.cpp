@@ -52,7 +52,22 @@ IDirect3DSurface8* MissingTexture::_Create_Missing_Surface()
 		texture_surface_desc.Height,
 		texture_surface_desc.Format,
 		&surface));
-	DX8CALL(CopyRects(texture_surface, nullptr, 0, surface, nullptr));
+
+	D3DLOCKED_RECT locked_rect;
+	::ZeroMemory(&locked_rect, sizeof(D3DLOCKED_RECT));
+	DX8_ErrorCode(surface->LockRect(&locked_rect, nullptr, 0));
+
+	for (unsigned int y = 0; y < texture_surface_desc.Height; ++y)
+	{
+		unsigned int *buffer = reinterpret_cast<unsigned int *>(
+			static_cast<unsigned char *>(locked_rect.pBits) + locked_rect.Pitch * y);
+		for (unsigned int x = 0; x < texture_surface_desc.Width; ++x)
+		{
+			*buffer++ = 0x7FFF00FF;
+		}
+	}
+
+	DX8_ErrorCode(surface->UnlockRect());
 	texture_surface->Release();
 	return surface;
 }

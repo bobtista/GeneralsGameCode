@@ -448,6 +448,8 @@ Completed low-risk migrations:
   through backend setters.
 - `SurfaceClass::Copy` now handles same-format surface copies with explicit
   surface locks and row copies instead of routing through `DX8Wrapper::CopyRects`.
+- `MissingTexture::_Create_Missing_Surface` now fills its image surface through
+  a lock instead of copying the generated texture with `CopyRects`.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
