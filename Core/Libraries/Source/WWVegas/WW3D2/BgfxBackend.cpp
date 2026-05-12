@@ -26,7 +26,6 @@
 #include "dx8fvf.h"
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
-#include "dx8wrapper.h"
 #include "FixedFunctionState.h"
 #include "light.h"
 #include "lightenvironment.h"

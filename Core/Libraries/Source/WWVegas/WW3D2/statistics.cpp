@@ -19,7 +19,6 @@
 #include "statistics.h"
 #include "wwstring.h"
 #include "simplevec.h"
-#include "dx8renderer.h"
 #include "dx8wrapper.h"
 #include "textureloader.h"
 #include "texture.h"
@@ -368,7 +367,6 @@ void Debug_Statistics::Begin_Statistics()
 	draw_calls=0;
 	Record_Texture_Begin();
 	DX8Wrapper::Begin_Statistics();
-//	DX8MeshRendererClass::Begin_Statistics();
 }
 
 void Debug_Statistics::End_Statistics()
@@ -382,7 +380,6 @@ void Debug_Statistics::End_Statistics()
 	last_frame_sorting_polygons=sorting_polygons;
 	last_frame_sorting_vertices=sorting_vertices;
 	last_frame_draw_calls=draw_calls;
-//	DX8MeshRendererClass::End_Statistics();
 	DX8Wrapper::End_Statistics();
 }
 
