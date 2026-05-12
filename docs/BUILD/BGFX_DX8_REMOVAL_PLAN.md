@@ -433,6 +433,8 @@ Completed low-risk migrations:
   texture-combine state through backend operation/argument setters.
 - `TerrainShader2Stage` now applies base, blend, and projected noise/cloud
   texture-combine state through backend operation/argument setters.
+- `RoadShader2Stage` now applies road base/blend/noise texture-combine state
+  through backend operation/argument setters.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
