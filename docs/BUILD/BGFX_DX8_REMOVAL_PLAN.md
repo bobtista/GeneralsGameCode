@@ -453,6 +453,8 @@ Completed low-risk migrations:
 - `WW3DColor` now owns backend-neutral ARGB/vector conversion helpers; the
   first leaf migration removes `ww3dformat.cpp`'s dependency on `DX8Wrapper`
   for color packing.
+- Simple box and line render objects now also use `WW3DColor` for vertex color
+  packing instead of depending on `DX8Wrapper`.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
