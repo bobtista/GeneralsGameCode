@@ -5536,10 +5536,7 @@ void BgfxBackend::Set_Material_Color_Source(RenderBackendMaterialColorSource amb
 
 void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 {
-    if (stage < static_cast<unsigned int>(DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass()))
-    {
-        FixedFunctionState::Set_Texture(stage, texture);
-    }
+    FixedFunctionState::Set_Texture(stage, texture);
     // Stages 0-3 wired. Covers terrain base + detail
     // + cloud + noise, the standard 4-stage layout used by the
     // FlatHeightMap pixel shader family. Stages above 3 still fall
