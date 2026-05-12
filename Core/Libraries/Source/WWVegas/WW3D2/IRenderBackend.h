@@ -136,6 +136,14 @@ enum RenderBackendShaderKind
     RB_SHADER_VERTEX = 1
 };
 
+enum RenderBackendLegacyPixelShaderMode
+{
+    RB_LEGACY_PIXEL_SHADER_NONE = 0,
+    RB_LEGACY_PIXEL_SHADER_RIVER_WATER = 1,
+    RB_LEGACY_PIXEL_SHADER_REFLECTIVE_WATER = 2,
+    RB_LEGACY_PIXEL_SHADER_TRAPEZOID_WATER = 3
+};
+
 enum RenderBackendTexcoordSource
 {
     // Values match the bgfx uber-shader uniform encoding:
@@ -779,9 +787,19 @@ public:
                                  cameraPosEnabled ? RB_TEXCOORD_CAMERA_SPACE_POSITION : RB_TEXCOORD_MESH_UV,
                                  stage);
     }
+    virtual void Set_Texture_UV_Wrap(unsigned stage, bool enable) {}
     virtual void Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV) {}
     virtual void Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value) {}
     virtual void Set_Shroud_Texture_Pass_Active(bool active, unsigned stage) {}
+    virtual void Set_Object_Shroud_Texture_Pass_Active(bool active) {}
+    virtual void Set_Object_Shroud_Alpha_Mask_Texture(TextureBaseClass * texture) {}
+    virtual void Set_Object_Shroud_Dim_Factor(float factor) {}
+    virtual void Set_Shroud_Texture_Params(float offset_x, float offset_y,
+                                           float scale_x, float scale_y) {}
+    // Some backends need object shroud material passes delayed until after all
+    // opaque object base draws so the multiplicative pass cannot be overwritten
+    // by another FVF container's later base pass.
+    virtual bool Requires_Delayed_Object_Shroud_Pass() const { return false; }
     virtual void Begin_Water_Overlay() {}
     virtual void End_Water_Overlay() {}
     // Route subsequent draws to the sort view instead of the opaque view.
@@ -944,6 +962,8 @@ public:
                                       unsigned long * /*handle*/) { return false; }
     virtual bool Create_Pixel_Shader(const unsigned int * /*shader*/,
                                      unsigned long * /*handle*/) { return false; }
+    virtual bool Create_Legacy_Pixel_Shader(RenderBackendLegacyPixelShaderMode /*mode*/,
+                                            unsigned long * /*handle*/) { return false; }
     virtual void Delete_Vertex_Shader(unsigned long /*vertex_shader*/) {}
     virtual void Delete_Pixel_Shader(unsigned long /*pixel_shader*/) {}
     virtual void Set_Vertex_Shader(unsigned long vertex_shader) {}

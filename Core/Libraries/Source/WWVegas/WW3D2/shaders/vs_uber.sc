@@ -1,12 +1,8 @@
 $input  a_position, a_normal, a_color0, a_texcoord0, a_texcoord1
-$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV, v_stage0UV, v_stage1UV, v_sceneDepth, v_worldPos
+$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_cloudUV, v_stage0UV, v_stage1UV, v_stage2UV, v_sceneDepth, v_worldPos
 
 #include <bgfx_shader.sh>
 
-// Phase 4I.2 CSM: world-to-light clip matrix. The shader computes worldPos
-// through bgfx's normal u_model path, then applies this view-projection so
-// shadow receivers use the same transform convention as ordinary scene draws.
-uniform mat4 u_shadowLightViewProj;
 uniform vec4 u_texcoordSelect;
 uniform vec4 u_texcoordSelect2; // .x > 0.5 = use texcoord1 for stage 1, .y > 0.5 = stage 1 transform active
 uniform vec4 u_texcoordSource; // .x: 0=mesh UV, 1=camera normal, 2=camera reflection, 3=camera position
@@ -19,6 +15,8 @@ uniform vec4 u_texTransform0Z; // stage-0 texture matrix column for w' (projecte
 uniform vec4 u_tex1Transform0; // stage-1 texture matrix column for u': dot(source xyzw)
 uniform vec4 u_tex1Transform1; // stage-1 texture matrix column for v': dot(source xyzw)
 uniform vec4 u_tex1TransformZ; // stage-1 texture matrix column for w' (projected): dot(source xyzw)
+uniform vec4 u_tex2Transform0; // stage-2 texture matrix column for u': dot(source xyzw)
+uniform vec4 u_tex2Transform1; // stage-2 texture matrix column for v': dot(source xyzw)
 uniform vec4 u_texProjected; // .x > 0.5 = stage 0 D3DTTFF_PROJECTED, .y same for stage 1
 uniform vec4 u_zBias;        // .x = post-projection clip-space Z offset (subtracted from gl_Position.z * w) so decal geometry beats z-fighting against the terrain it sits on. Mirrors D3DRS_ZBIAS.
 
@@ -37,6 +35,7 @@ void main()
 	v_texcoord1 = a_texcoord1;
 	v_stage0UV  = (u_texcoordSelect.x > 0.5) ? a_texcoord1 : a_texcoord0;
 	v_stage1UV  = (u_texcoordSelect2.x > 0.5) ? a_texcoord1 : a_texcoord0;
+	v_stage2UV  = a_texcoord0;
 	v_sceneDepth = vec4(1.0, 1.0, 0.0, 0.0);
 	v_normal    = mul(u_model[0], vec4(a_normal, 0.0)).xyz;
 	vec4 worldPos = mul(u_model[0], vec4(a_position, 1.0));
@@ -104,6 +103,33 @@ void main()
 		}
 		v_stage1UV = vec2(u1, v1);
 	}
+	if (u_texcoordSource.z > 0.5 || u_tex2Transform0.x != 1.0 || u_tex2Transform1.y != 1.0
+		|| u_tex2Transform0.y != 0.0 || u_tex2Transform1.x != 0.0
+		|| u_tex2Transform0.z != 0.0 || u_tex2Transform1.z != 0.0
+		|| u_tex2Transform0.w != 0.0 || u_tex2Transform1.w != 0.0)
+	{
+		vec4 source = vec4(a_texcoord0, 1.0, 1.0);
+		if (u_texcoordSource.z > 0.5 && u_texcoordSource.z < 1.5)
+		{
+			source = vec4(normalize(mul(u_view, vec4(v_normal, 0.0)).xyz), 1.0);
+		}
+		else if (u_texcoordSource.z > 1.5)
+		{
+			vec3 cameraPos = mul(u_view, worldPos).xyz;
+			vec3 cameraNormal = normalize(mul(u_view, vec4(v_normal, 0.0)).xyz);
+			if (u_texcoordSource.z < 2.5)
+			{
+				source = vec4(reflect(normalize(cameraPos), cameraNormal), 1.0);
+			}
+			else
+			{
+				source = vec4(cameraPos, 1.0);
+			}
+		}
+		float u2 = dot(u_tex2Transform0, source);
+		float v2 = dot(u_tex2Transform1, source);
+		v_stage2UV = vec2(u2, v2);
+	}
 
 	// Shroud pass: compute UV from world position using offset+scale.
 	// The D3D8 path uses TCI_CAMERASPACEPOSITION with a texture matrix
@@ -111,9 +137,9 @@ void main()
 	// The net result is UV = (worldPos.xy + offset) * scale.
 	if (u_texcoordSelect.z > 0.5)
 	{
-		v_texcoord0 = (worldPos.xy + u_shroudParams.xy) * u_shroudParams.zw;
-		v_stage0UV = v_texcoord0;
-		v_stage1UV = v_texcoord0;
+		vec2 shroudUV = (worldPos.xy + u_shroudParams.xy) * u_shroudParams.zw;
+		v_stage0UV = shroudUV;
+		v_stage1UV = shroudUV;
 	}
 
 	// Cloud shadow UV: terrain-scrolling cloud texture applied over the
@@ -123,8 +149,4 @@ void main()
 	// STRETCH_FACTOR plus an animating translation.
 	v_cloudUV = worldPos.xy * u_cloudParams.z + u_cloudParams.xy;
 
-	// Phase 4I.2: light-space position from world position. Keeping the
-	// model transform separate avoids custom MVP-order drift between the
-	// caster and receiver paths.
-	v_lightspace = mul(u_shadowLightViewProj, worldPos);
 }

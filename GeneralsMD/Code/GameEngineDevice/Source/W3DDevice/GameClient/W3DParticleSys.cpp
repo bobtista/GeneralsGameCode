@@ -36,6 +36,8 @@
 #include "W3DDevice/GameClient/W3DSnow.h"
 #include "WW3D2/camera.h"
 
+#include <cstdio>
+#include <cstdlib>
 
 //------------------------------------------------------------------------------ Performance Timers
 //#include "Common/PerfMetrics.h"
@@ -104,9 +106,12 @@ void DoParticles( RenderInfoClass &rinfo )
 
 void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 {
+	const bool particleDiag = std::getenv("GGC_PARTICLE_DIAG") != nullptr;
 
 	if (m_readyToRender == false)
+	{
 		return;
+	}
 
 	// external mechanism must tell us when it's OK to render again...
 	m_readyToRender = false;
@@ -154,7 +159,9 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 
 		// only look at particle/point style systems
 		if (sys->isUsingDrawables())
+		{
 			continue;
+		}
 
 		//temporary hack that checks if texture name starts with "SMUD" - if so, we can assume it's a smudge type
 		if (/*sys->isUsingSmudge()*/ *((DWORD *)sys->getParticleTypeName().str()) == 0x44554D53)
@@ -239,12 +246,39 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 				break;
 		}
 
-		if ( count == 0 )
-			continue;	//this system has no particles to render
+			if ( count == 0 )
+			{
+				continue;	//this system has no particles to render
+			}
 
-		TextureClass *texture = W3DDisplay::m_assetManager->Get_Texture( sys->getParticleTypeName().str() );
+			TextureClass *texture = W3DDisplay::m_assetManager->Get_Texture( sys->getParticleTypeName().str() );
+			if (particleDiag)
+			{
+				if (FILE *diag = std::fopen("ggc_particle_diag.txt", "a"))
+				{
+					const Coord3D *firstPos = sys->getFirstParticle() != nullptr
+						? sys->getFirstParticle()->getPosition()
+						: nullptr;
+					std::fprintf(diag,
+						"particle frame=%u type=%s texture=%s count=%d shader=%d streak=%d volume=%u billboard=%d ground=%d first=(%.2f,%.2f,%.2f) texMissing=%d\n",
+						0u,
+						sys->getParticleTypeName().str(),
+						texture != nullptr ? texture->Get_Full_Path().str() : "<null>",
+						count,
+						static_cast<int>(sys->getShaderType()),
+						sys->isUsingStreak() ? 1 : 0,
+						static_cast<unsigned>(sys->getVolumeParticleDepth()),
+						sys->shouldBillboard() ? 1 : 0,
+						sys->m_isGroundAligned ? 1 : 0,
+						firstPos != nullptr ? firstPos->x : 0.0f,
+						firstPos != nullptr ? firstPos->y : 0.0f,
+						firstPos != nullptr ? firstPos->z : 0.0f,
+						texture != nullptr && texture->Is_Missing_Texture() ? 1 : 0);
+					std::fclose(diag);
+				}
+			}
 
-		if ( m_streakLine && sys->isUsingStreak() && (count >= 2) )
+			if ( m_streakLine && sys->isUsingStreak() && (count >= 2) )
 		{
 			m_streakLine->Reset_Line();
 
