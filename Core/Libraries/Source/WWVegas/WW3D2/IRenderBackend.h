@@ -574,6 +574,8 @@ public:
     virtual void Begin_Scene() {}
     virtual void End_Scene(bool flip_frame) {}
     virtual void Flip_To_Primary() {}
+    virtual void Begin_Device_Statistics() {}
+    virtual void End_Device_Statistics() {}
     // Defaults match DX8Wrapper::Clear so existing call sites that supplied
     // only the first 3-4 arguments compile unchanged after migration.
     virtual void Clear(bool clear_color, bool clear_z_stencil,
