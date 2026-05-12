@@ -1711,10 +1711,10 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	}
 	g_renderBackend->Set_Shader(detailAlphaShader);
 
-	g_renderBackend->Set_Texture(0,m_treeTexture);
-	g_renderBackend->Set_Texture(1,nullptr);
-	g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
-	g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, 1);
+		g_renderBackend->Set_Texture(0,m_treeTexture);
+		g_renderBackend->Set_Texture(1,nullptr);
+		g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+		g_renderBackend->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
 	// Draw all the trees.
 	g_renderBackend->Apply_Render_State_Changes();
 	W3DShaderManager::setShroudTex(1);
@@ -1816,12 +1816,12 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 		g_renderBackend->Set_Vertex_Buffer(m_vertexTree[bNdx],0);
 		// Render the waving grass
 		g_renderBackend->Apply_Render_State_Changes();
-		if (m_dwTreeVertexShader) {
-			g_renderBackend->Set_Vertex_Shader(m_dwTreeVertexShader);
-			g_renderBackend->Set_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
-			g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXCOORDINDEX, 1);
-			g_renderBackend->Set_Texture_Stage_State(1,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-		}
+			if (m_dwTreeVertexShader) {
+				g_renderBackend->Set_Vertex_Shader(m_dwTreeVertexShader);
+				g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+				g_renderBackend->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
+				g_renderBackend->Set_Texture_Transform_Mode(1, 0, false);
+			}
 		g_renderBackend->Draw_Triangles(	0, m_curNumTreeIndices[bNdx]/3, 0,	m_curNumTreeVertices[bNdx]);
 	}
 

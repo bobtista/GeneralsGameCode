@@ -407,6 +407,9 @@ Completed low-risk migrations:
 - Shoreline destination-alpha passes now select mesh UV0 through
   `IRenderBackend::Set_Texture_Coord_Source`, removing the last raw texcoord
   stage writes from `BaseHeightMap.cpp`.
+- Tree rendering now selects mesh UV0/UV1 and disables the shroud-stage
+  texture transform through backend semantic APIs instead of direct
+  `D3DTSS_*` writes.
 - `ShaderClass::Apply` now reads fog color through `IRenderBackend`, removing
   another direct `DX8Wrapper` query from the shared shader path.
 - `SortingRendererClass::Flush` now saves/restores triangle draw enable through
