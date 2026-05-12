@@ -955,7 +955,7 @@ void ShaderClass::Apply()
 					g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_ALPHAOP,PriaOp);
 					g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_ALPHAARG1,D3DTA_CURRENT);
 					g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_ALPHAARG2,D3DTA_DIFFUSE);
-					g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU);
+						g_renderBackend->Set_Texture_Coord_Source(2, RB_TEXCOORD_MESH_UV, 0);
 					g_renderBackend->Bind_Texture_Immediate(2,nullptr);
 				kill_stage_2=false;
 				ShaderDirty=true;
@@ -1005,7 +1005,7 @@ void ShaderClass::Apply()
 				g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_COLOROP,D3DTOP_DISABLE);
 				g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_ALPHAOP,D3DTOP_DISABLE);
 			}
-			g_renderBackend->Set_Texture_Stage_State(2,D3DTSS_TEXCOORDINDEX,D3DTSS_TCI_PASSTHRU);
+				g_renderBackend->Set_Texture_Coord_Source(2, RB_TEXCOORD_MESH_UV, 0);
 			g_renderBackend->Bind_Texture_Immediate(2,nullptr);
 		}
 
