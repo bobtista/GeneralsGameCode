@@ -333,6 +333,9 @@ Completed low-risk migrations:
   headers now forward-declare the legacy DX8 buffer classes instead of pulling
   D3D buffer headers into every include consumer. Their implementation files
   include the concrete buffer definitions where allocation and locks occur.
+- `IRenderBackend::Supports_Texture_Format` now owns hardware/backend texture
+  format checks. Radar texture format selection and GeneralsMD video-buffer
+  selection no longer reach through `DX8Wrapper::Get_Current_Caps()`.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

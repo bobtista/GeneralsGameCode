@@ -229,6 +229,20 @@ bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt)
         default:                    return bgfx::TextureFormat::Unknown;
     }
 }
+
+bool BgfxBackend::Supports_Texture_Format(WW3DFormat format) const
+{
+    const bgfx::TextureFormat::Enum bgfxFormat = TranslateWW3DFormat(format);
+    if (bgfxFormat == bgfx::TextureFormat::Unknown)
+    {
+        return false;
+    }
+
+    const bgfx::Caps * caps = bgfx::getCaps();
+    return caps != nullptr
+        && (caps->formats[bgfxFormat] & BGFX_CAPS_FORMAT_TEXTURE_2D) != 0;
+}
+
 // TheSuperHackers @refactor bobtista 20/04/2026 D3D8 ignores the X byte of X8R8G8B8 and samples alpha as 1.0. bgfx BGRA8 samples memory literally, so FFmpeg-produced procedural frames (BGR0, alpha byte = 0) would draw transparent under SRC_ALPHA blending. Force alpha=0xFF only when the texture has no file path, so TGA-loaded X8R8G8B8 textures (scorch marks, decals) keep their real alpha data.
 static void ForceOpaqueIfProceduralX8R8G8B8(TextureClass * tex2d,
     bgfx::TextureFormat::Enum bgfxFmt, const bgfx::Memory * mem,
