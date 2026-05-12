@@ -1783,82 +1783,82 @@ Int TerrainShader8Stage::set(Int pass)
 		W3DShaderManager_BindStageTexture(0, W3DShaderManager::getShaderTexture(0));
 		W3DShaderManager_BindStageTexture(1, W3DShaderManager::getShaderTexture(1));
 
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
 		g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+		g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
+		g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_DIFFUSE);
+		g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+		g_renderBackend->Set_Texture_Alpha_Argument(0, 1, RB_TEXARG_TEXTURE);
+		g_renderBackend->Set_Texture_Alpha_Argument(0, 2, RB_TEXARG_DIFFUSE);
+		g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
 
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_ADD);
 		g_renderBackend->Set_Texture_Coord_Source(1, RB_TEXCOORD_MESH_UV, 1);
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_DIFFUSE | D3DTA_COMPLEMENT | D3DTA_ALPHAREPLICATE);
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_ADD);
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG1, D3DTA_TFACTOR | D3DTA_COMPLEMENT);
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_DIFFUSE | RB_TEXARG_COMPLEMENT | RB_TEXARG_ALPHAREPLICATE);
+		g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_DIFFUSE);
+		g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_ADD);
+		g_renderBackend->Set_Texture_Alpha_Argument(1, 1, RB_TEXARG_TFACTOR | RB_TEXARG_COMPLEMENT);
+		g_renderBackend->Set_Texture_Alpha_Argument(1, 2, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_ADD);
 
 		W3DShaderManager_BindStageTexture(2, nullptr);
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLOROP, D3DTOP_MODULATE);
 		g_renderBackend->Set_Texture_Coord_Source(2, RB_TEXCOORD_MESH_UV, 2);
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Argument(2, 1, RB_TEXARG_TEXTURE);
+		g_renderBackend->Set_Texture_Color_Argument(2, 2, RB_TEXARG_TEXTURE);
+		g_renderBackend->Set_Texture_Color_Operation(2, RB_TEXOP_MODULATE);
+		g_renderBackend->Set_Texture_Alpha_Argument(2, 1, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Alpha_Argument(2, 2, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Alpha_Operation(2, RB_TEXOP_MODULATE);
 
 		W3DShaderManager_BindStageTexture(3, nullptr);
-		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
 		g_renderBackend->Set_Texture_Coord_Source(3, RB_TEXCOORD_MESH_UV, 3);
-		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLORARG1, D3DTA_DIFFUSE | 0 | D3DTA_ALPHAREPLICATE);
-		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1);
-		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
-		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Argument(3, 1, RB_TEXARG_DIFFUSE | RB_TEXARG_ALPHAREPLICATE);
+		g_renderBackend->Set_Texture_Color_Argument(3, 2, RB_TEXARG_DIFFUSE);
+		g_renderBackend->Set_Texture_Color_Operation(3, RB_TEXOP_SELECTARG1);
+		g_renderBackend->Set_Texture_Alpha_Argument(3, 1, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Alpha_Argument(3, 2, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Alpha_Operation(3, RB_TEXOP_SELECTARG1);
 
 		W3DShaderManager_BindStageTexture(4, nullptr);
-		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLOROP, D3DTOP_MODULATE);
 		g_renderBackend->Set_Texture_Coord_Source(4, RB_TEXCOORD_MESH_UV, 4);
-		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLORARG1, D3DTA_CURRENT);
-		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
-		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
-		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+		g_renderBackend->Set_Texture_Color_Argument(4, 1, RB_TEXARG_CURRENT);
+		g_renderBackend->Set_Texture_Color_Argument(4, 2, RB_TEXARG_DIFFUSE);
+		g_renderBackend->Set_Texture_Color_Operation(4, RB_TEXOP_MODULATE);
+		g_renderBackend->Set_Texture_Alpha_Argument(4, 1, RB_TEXARG_CURRENT);
+		g_renderBackend->Set_Texture_Alpha_Argument(4, 2, RB_TEXARG_DIFFUSE);
+		g_renderBackend->Set_Texture_Alpha_Operation(4, RB_TEXOP_MODULATE);
 
 		W3DShaderManager_BindStageTexture(5, nullptr);
-		g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLOROP, D3DTOP_ADD);
 		g_renderBackend->Set_Texture_Coord_Source(5, RB_TEXCOORD_MESH_UV, 5);
-		g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLORARG1, D3DTA_DIFFUSE);
-		g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-		g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_ALPHAOP,   D3DTOP_ADD);
-		g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_ALPHAARG1, D3DTA_TFACTOR | D3DTA_COMPLEMENT);
-		g_renderBackend->Set_Texture_Stage_State( 5, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Argument(5, 1, RB_TEXARG_DIFFUSE);
+		g_renderBackend->Set_Texture_Color_Argument(5, 2, RB_TEXARG_DIFFUSE);
+		g_renderBackend->Set_Texture_Color_Operation(5, RB_TEXOP_ADD);
+		g_renderBackend->Set_Texture_Alpha_Argument(5, 1, RB_TEXARG_TFACTOR | RB_TEXARG_COMPLEMENT);
+		g_renderBackend->Set_Texture_Alpha_Argument(5, 2, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Alpha_Operation(5, RB_TEXOP_ADD);
 
 		W3DShaderManager_BindStageTexture(6, nullptr);
-		g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLOROP, D3DTOP_MODULATE);
 		g_renderBackend->Set_Texture_Coord_Source(6, RB_TEXCOORD_MESH_UV, 6);
-		g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLORARG1, D3DTA_TFACTOR);
-		g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-		g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_ALPHAOP,   D3DTOP_MODULATE);
-		g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
-		g_renderBackend->Set_Texture_Stage_State( 6, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Argument(6, 1, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Argument(6, 2, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Operation(6, RB_TEXOP_MODULATE);
+		g_renderBackend->Set_Texture_Alpha_Argument(6, 1, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Alpha_Argument(6, 2, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Alpha_Operation(6, RB_TEXOP_MODULATE);
 
 		W3DShaderManager_BindStageTexture(7, nullptr);
-		g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
 		g_renderBackend->Set_Texture_Coord_Source(7, RB_TEXCOORD_MESH_UV, 7);
-		g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLORARG1, D3DTA_TFACTOR);
-		g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-		g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1);
-		g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_ALPHAARG1, D3DTA_TFACTOR);
-		g_renderBackend->Set_Texture_Stage_State( 7, D3DTSS_ALPHAARG2, D3DTA_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Argument(7, 1, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Argument(7, 2, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Color_Operation(7, RB_TEXOP_SELECTARG1);
+		g_renderBackend->Set_Texture_Alpha_Argument(7, 1, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Alpha_Argument(7, 2, RB_TEXARG_TFACTOR);
+		g_renderBackend->Set_Texture_Alpha_Operation(7, RB_TEXOP_SELECTARG1);
 	}
 	else
 	{	//setup cloud noise/pass
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLOROP, D3DTOP_DISABLE);
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLOROP, D3DTOP_DISABLE);
-		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+		g_renderBackend->Set_Texture_Color_Operation(2, RB_TEXOP_DISABLE);
+		g_renderBackend->Set_Texture_Alpha_Operation(2, RB_TEXOP_DISABLE);
+		g_renderBackend->Set_Texture_Color_Operation(3, RB_TEXOP_DISABLE);
+		g_renderBackend->Set_Texture_Alpha_Operation(3, RB_TEXOP_DISABLE);
 		g_renderBackend->Invalidate_Cached_Render_States();
 
 		terrainShader2Stage.set(2);
@@ -1869,12 +1869,12 @@ Int TerrainShader8Stage::set(Int pass)
 void TerrainShader8Stage::reset()
 	{
 		g_renderBackend->Override_Terrain_Blend(false);
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLOROP, D3DTOP_DISABLE);
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_COLOROP, D3DTOP_DISABLE);
-		g_renderBackend->Set_Texture_Stage_State( 3, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_COLOROP, D3DTOP_DISABLE);
-		g_renderBackend->Set_Texture_Stage_State( 4, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+		g_renderBackend->Set_Texture_Color_Operation(2, RB_TEXOP_DISABLE);
+		g_renderBackend->Set_Texture_Alpha_Operation(2, RB_TEXOP_DISABLE);
+		g_renderBackend->Set_Texture_Color_Operation(3, RB_TEXOP_DISABLE);
+		g_renderBackend->Set_Texture_Alpha_Operation(3, RB_TEXOP_DISABLE);
+		g_renderBackend->Set_Texture_Color_Operation(4, RB_TEXOP_DISABLE);
+		g_renderBackend->Set_Texture_Alpha_Operation(4, RB_TEXOP_DISABLE);
 
 	W3DShaderManager_BindStageTexture(0, nullptr);
 	W3DShaderManager_BindStageTexture(1, nullptr);
