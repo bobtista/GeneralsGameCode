@@ -58,6 +58,7 @@ public:
     virtual bool Supports_Fog() const override;
     virtual bool Is_Legacy_Voodoo3() const override;
     virtual bool Supports_NPatches() const override;
+    virtual bool Supports_Hardware_Transform_And_Lighting() const override;
     virtual RenderBackendTextureLimits Get_Texture_Limits() const override;
     virtual int Get_Max_Texture_Stages() const override;
     virtual bool Supports_Z_Bias() const override;
