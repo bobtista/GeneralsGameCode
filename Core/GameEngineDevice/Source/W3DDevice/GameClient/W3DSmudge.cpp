@@ -500,7 +500,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	g_renderBackend->Apply_Render_State_Changes();
 
 		// Disable reading texture alpha since it's undefined.
-	g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG2);
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG2);
 
 	Int smudgesRemaining=count;
 	set=m_usedSmudgeSetList.Head();	//first smudge set that needs rendering.
@@ -594,8 +594,8 @@ flushSmudges:
 		smudgesRemaining -= smudgesInRenderBatch;
 	}
 
-	g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_MODULATE);
-	g_renderBackend->Set_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_MODULATE);
+	g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
 
 	if (bgfxSmudgeActive)
 		g_renderBackend->End_Smudge_Distortion();
