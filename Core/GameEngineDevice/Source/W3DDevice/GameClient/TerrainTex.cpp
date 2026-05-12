@@ -886,64 +886,6 @@ yet another set of uv coordinates.
 void LightMapTerrainTextureClass::Apply(unsigned int stage)
 {
 	TextureClass::Apply(stage);
-#if 0 // obsolete [4/1/2003]
-	// Do the base apply.
-	/* previous setup */
-	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-	}
-
-	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_POINT);
-	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-
-	// Disable 3rd stage just in case.
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-	g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-
-	// Now setup the texture pipeline.
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLORARG2, D3DTA_CURRENT );
-	if (stage == 0) {
-		g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
-		//Disable second stage
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-	} else {
-		g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-	}
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-	// Two output coordinates are used.
-	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-
-
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State( stage, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
-
-	D3DXMATRIX curView;
-	DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
-
-	D3DXMATRIX inv;
-	float det;
-	D3DXMatrixInverse(&inv, &det, &curView);
-
-	D3DXMATRIX scale;
-	D3DXMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
-	inv *=scale;
-	if (stage==0) {
-		DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE0, inv);
-	}	if (stage==1) {
-		DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE1, inv);
-	}
-
-
-	if (stage==0) {
-		g_renderBackend->Set_Alpha_Blend_Enable(true);
-		g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
-	}
-#endif
 }
 
 
@@ -1153,81 +1095,6 @@ void CloudMapTerrainTextureClass::Apply(unsigned int stage)
 
 	// Do the base apply.
 	TextureClass::Apply(stage);
-#if 0   // obsolete
-	/* previous setup */
-	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex) {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-	} else {
-		g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, D3DTEXF_POINT);
-	}
-
-	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-	g_renderBackend->Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-
-	// Now setup the texture pipeline.
-	g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXCOORDINDEX, D3DTSS_TCI_CAMERASPACEPOSITION);
-	// Two output coordinates are used.
-	g_renderBackend->Set_Texture_Stage_State(stage,  D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_COUNT2);
-
-
-	g_renderBackend->Set_Texture_Stage_State( stage,  D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-	g_renderBackend->Set_Texture_Stage_State( stage,  D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
-
-	D3DXMATRIX curView;
-	DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, curView);
-
-	D3DXMATRIX inv;
-	float det;
-	D3DXMatrixInverse(&inv, &det, &curView);
-
-	D3DXMATRIX scale;
-	D3DXMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
-	inv *=scale;
-	D3DXMATRIX offset;
-
-	Int delta = m_curTick;
-	m_curTick = ::GetTickCount();
-	delta = m_curTick-delta;
-	m_xOffset += m_xSlidePerSecond*delta/1000;
-	m_yOffset += m_ySlidePerSecond*delta/1000;
-
-	if (m_xOffset > 1) m_xOffset -= 1;
-	if (m_yOffset > 1) m_yOffset -= 1;
-	if (m_xOffset < -1) m_xOffset += 1;
-	if (m_yOffset < -1) m_yOffset += 1;
-
-
-	D3DXMatrixTranslation(&offset, m_xOffset, m_yOffset,0);
-
-	inv *= offset;
-
-	if (stage==0) {
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
-		g_renderBackend->Set_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-
-		DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE0, inv);
-
-		// Disable 3rd stage just in case.
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-		g_renderBackend->Set_Texture_Stage_State( 2, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-
-		g_renderBackend->Set_Alpha_Blend_Enable(true);
-		g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
-	}	else if (stage==1) {
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAARG1, D3DTA_CURRENT );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
-
-		DX8Wrapper::_Set_DX8_Transform(D3DTS_TEXTURE1, inv);
-	}
-#endif
 }
 
 //=============================================================================
@@ -1343,4 +1210,3 @@ void ScorchTextureClass::Apply(unsigned int stage)
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE );
 	g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
 }
-
