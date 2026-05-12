@@ -52,6 +52,8 @@
 #include "dx8caps.h"
 #include "missingtexture.h"
 #include "TARGA.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include <d3dx8tex.h>
 #include "wwmemlog.h"
 #include "formconv.h"
@@ -304,8 +306,9 @@ static bool Is_Format_Compressed(WW3DFormat texture_format,bool allow_compressio
 	// Verify that the user isn't requesting compressed texture without hardware support
 
 	bool compressed=false;
+	const bool supports_compression = g_renderBackend && g_renderBackend->Supports_Compressed_Textures();
 	if (texture_format!=WW3D_FORMAT_UNKNOWN) {
-		if (!DX8Wrapper::Get_Current_Caps()->Support_DXTC() || !allow_compression) {
+		if (!supports_compression || !allow_compression) {
 			WWASSERT(texture_format!=WW3D_FORMAT_DXT1);
 			WWASSERT(texture_format!=WW3D_FORMAT_DXT2);
 			WWASSERT(texture_format!=WW3D_FORMAT_DXT3);
@@ -325,7 +328,7 @@ static bool Is_Format_Compressed(WW3DFormat texture_format,bool allow_compressio
 	// defined as non-compressed.
 	compressed|=(
 		texture_format==WW3D_FORMAT_UNKNOWN &&
-		DX8Wrapper::Get_Current_Caps()->Support_DXTC() &&
+		supports_compression &&
 		allow_compression);
 
 	return compressed;

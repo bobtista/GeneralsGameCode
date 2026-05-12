@@ -64,6 +64,9 @@ public:
     virtual void Set_Texture_Bitdepth(int bitdepth) override;
     virtual int Get_Texture_Bitdepth() const override;
     virtual bool Supports_Texture_Format(WW3DFormat format) const override;
+    virtual bool Supports_Compressed_Textures() const override;
+    virtual bool Supports_Bump_Envmap() const override { return false; }
+    virtual bool Supports_Bump_Envmap_Luminance() const override { return false; }
     virtual int Get_Max_Texture_Stages() const override;
     virtual bool Supports_Z_Bias() const override { return true; }
     virtual void Set_MSAA_Mode(RenderBackendMSAAMode mode) override;

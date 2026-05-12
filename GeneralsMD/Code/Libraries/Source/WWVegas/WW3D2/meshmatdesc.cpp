@@ -858,13 +858,13 @@ void MeshMatDescClass::Post_Load_Process(bool lighting_enabled,MeshModelClass * 
 		// HY: Earth and beyond uses a different fallback from Renegade with regards to bump environment maps
 		// we keep the pass but change it to an unbumped environment
 		if ( (Shader[pass].Get_Primary_Gradient() == ShaderClass::GRADIENT_BUMPENVMAP) &&
-			  (!DX8Wrapper::Is_Initted() || DX8Wrapper::Get_Current_Caps()->Support_Bump_Envmap() == false) )
+			  (!g_renderBackend || g_renderBackend->Supports_Bump_Envmap() == false) )
 		{
 			kill_pass = true;
 		}
 
 		if ( (Shader[pass].Get_Primary_Gradient() == ShaderClass::GRADIENT_BUMPENVMAPLUMINANCE) &&
-			  (!DX8Wrapper::Is_Initted() || DX8Wrapper::Get_Current_Caps()->Support_Bump_Envmap_Luminance() == false) )
+			  (!g_renderBackend || g_renderBackend->Supports_Bump_Envmap_Luminance() == false) )
 		{
 			kill_pass = true;
 		}

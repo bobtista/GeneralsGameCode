@@ -345,6 +345,11 @@ Completed low-risk migrations:
 - `IRenderBackend::Supports_Z_Bias` now owns decal Z-bias support checks.
   Decal mesh generation no longer includes `dx8wrapper.h`/`dx8caps.h` just to
   decide whether it must physically offset decal polygons.
+- `IRenderBackend::Supports_Compressed_Textures`,
+  `Supports_Bump_Envmap`, and `Supports_Bump_Envmap_Luminance` now own
+  texture compression/bump-map capability checks used by texture creation and
+  loading. Common texture code no longer reaches into `DX8Caps` for those
+  decisions.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct
