@@ -941,10 +941,10 @@ Try improving the fit to vertical surfaces like cliffs.
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 1);
 
 		//modulate with shroud texture
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );	//stage 1 texture
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );	//previous stage texture
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-		g_renderBackend->Set_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
+		g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);	//stage 1 texture
+		g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);	//previous stage texture
+		g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
+		g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_MODULATE);
 
 		//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 		//write to the zbuffer.  Change to LESSEQUAL.
