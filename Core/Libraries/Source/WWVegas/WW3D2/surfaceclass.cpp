@@ -458,10 +458,74 @@ void SurfaceClass::Copy(
 
 	if (sd.Format==osd.Format && sd.Width==osd.Width && sd.Height==osd.Height)
 	{
-		POINT dst;
-		dst.x=dstx;
-		dst.y=dsty;
-		DX8Wrapper::_Copy_DX8_Rects(other->D3DSurface,&src,1,D3DSurface,&dst);
+		if (srcx >= osd.Width || srcy >= osd.Height || dstx >= sd.Width || dsty >= sd.Height) {
+			return;
+		}
+
+		unsigned int copy_width = width;
+		unsigned int copy_height = height;
+		copy_width = MIN(copy_width, osd.Width - srcx);
+		copy_width = MIN(copy_width, sd.Width - dstx);
+		copy_height = MIN(copy_height, osd.Height - srcy);
+		copy_height = MIN(copy_height, sd.Height - dsty);
+
+		if (copy_width == 0 || copy_height == 0) {
+			return;
+		}
+
+		const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(sd.Format);
+		const unsigned int row_size = copy_width * pixel_size;
+
+		if (other == this)
+		{
+			D3DLOCKED_RECT lock_rect;
+			::ZeroMemory(&lock_rect, sizeof(D3DLOCKED_RECT));
+			DX8_ErrorCode(D3DSurface->LockRect(&lock_rect, nullptr, 0));
+
+			unsigned char *base = static_cast<unsigned char *>(lock_rect.pBits);
+			for (unsigned int y = 0; y < copy_height; ++y)
+			{
+				unsigned char *dst_row = base + (dsty + y) * lock_rect.Pitch + dstx * pixel_size;
+				unsigned char *src_row = base + (srcy + y) * lock_rect.Pitch + srcx * pixel_size;
+				memmove(dst_row, src_row, row_size);
+			}
+
+			DX8_ErrorCode(D3DSurface->UnlockRect());
+		}
+		else
+		{
+			RECT src_rect;
+			src_rect.left = srcx;
+			src_rect.right = srcx + copy_width;
+			src_rect.top = srcy;
+			src_rect.bottom = srcy + copy_height;
+
+			RECT dst_rect;
+			dst_rect.left = dstx;
+			dst_rect.right = dstx + copy_width;
+			dst_rect.top = dsty;
+			dst_rect.bottom = dsty + copy_height;
+
+			D3DLOCKED_RECT src_lock;
+			D3DLOCKED_RECT dst_lock;
+			::ZeroMemory(&src_lock, sizeof(D3DLOCKED_RECT));
+			::ZeroMemory(&dst_lock, sizeof(D3DLOCKED_RECT));
+
+			DX8_ErrorCode(other->D3DSurface->LockRect(&src_lock, &src_rect, D3DLOCK_READONLY));
+			DX8_ErrorCode(D3DSurface->LockRect(&dst_lock, &dst_rect, 0));
+
+			const unsigned char *src_mem = static_cast<const unsigned char *>(src_lock.pBits);
+			unsigned char *dst_mem = static_cast<unsigned char *>(dst_lock.pBits);
+			for (unsigned int y = 0; y < copy_height; ++y)
+			{
+				memcpy(dst_mem, src_mem, row_size);
+				src_mem += src_lock.Pitch;
+				dst_mem += dst_lock.Pitch;
+			}
+
+			DX8_ErrorCode(D3DSurface->UnlockRect());
+			DX8_ErrorCode(other->D3DSurface->UnlockRect());
+		}
 	}
 	else
 	{
