@@ -95,6 +95,23 @@ enum RenderBackendTextureFilterCapability
     RB_TEXTURE_FILTER_MAG_ANISOTROPIC,
 };
 
+enum RenderBackendTextureOpCapability
+{
+    RB_TEXTURE_OP_SELECTARG1,
+    RB_TEXTURE_OP_MODULATE,
+    RB_TEXTURE_OP_MODULATE2X,
+    RB_TEXTURE_OP_ADD,
+    RB_TEXTURE_OP_BUMPENVMAP,
+    RB_TEXTURE_OP_BUMPENVMAPLUMINANCE,
+    RB_TEXTURE_OP_ADDSMOOTH,
+    RB_TEXTURE_OP_SUBTRACT,
+    RB_TEXTURE_OP_BLENDTEXTUREALPHA,
+    RB_TEXTURE_OP_BLENDCURRENTALPHA,
+    RB_TEXTURE_OP_ADDSIGNED,
+    RB_TEXTURE_OP_ADDSIGNED2X,
+    RB_TEXTURE_OP_MODULATEALPHA_ADDCOLOR,
+};
+
 struct RenderBackendLightState
 {
     RenderBackendLight lights[4];
@@ -481,6 +498,9 @@ public:
     virtual bool Supports_Bump_Envmap() const { return false; }
     virtual bool Supports_Bump_Envmap_Luminance() const { return false; }
     virtual bool Supports_Texture_Filter(RenderBackendTextureFilterCapability /*capability*/) const { return false; }
+    virtual bool Supports_Texture_Op(RenderBackendTextureOpCapability /*capability*/) const { return false; }
+    virtual bool Supports_Fog() const { return false; }
+    virtual bool Is_Legacy_Voodoo3() const { return false; }
     virtual RenderBackendTextureLimits Get_Texture_Limits() const
     {
         return { 2048, 2048, 2048, 8 };

@@ -54,6 +54,9 @@ public:
     virtual bool Supports_Bump_Envmap() const override;
     virtual bool Supports_Bump_Envmap_Luminance() const override;
     virtual bool Supports_Texture_Filter(RenderBackendTextureFilterCapability capability) const override;
+    virtual bool Supports_Texture_Op(RenderBackendTextureOpCapability capability) const override;
+    virtual bool Supports_Fog() const override;
+    virtual bool Is_Legacy_Voodoo3() const override;
     virtual RenderBackendTextureLimits Get_Texture_Limits() const override;
     virtual int Get_Max_Texture_Stages() const override;
     virtual bool Supports_Z_Bias() const override;

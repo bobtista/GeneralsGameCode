@@ -3298,6 +3298,29 @@ int BgfxBackend::Get_Texture_Bitdepth() const
     return m_textureBitDepth;
 }
 
+bool BgfxBackend::Supports_Texture_Op(RenderBackendTextureOpCapability capability) const
+{
+    switch (capability)
+    {
+        case RB_TEXTURE_OP_SELECTARG1:
+        case RB_TEXTURE_OP_MODULATE:
+        case RB_TEXTURE_OP_MODULATE2X:
+        case RB_TEXTURE_OP_ADD:
+        case RB_TEXTURE_OP_ADDSMOOTH:
+        case RB_TEXTURE_OP_SUBTRACT:
+        case RB_TEXTURE_OP_BLENDTEXTUREALPHA:
+        case RB_TEXTURE_OP_BLENDCURRENTALPHA:
+        case RB_TEXTURE_OP_ADDSIGNED:
+            return true;
+        case RB_TEXTURE_OP_BUMPENVMAP:
+        case RB_TEXTURE_OP_BUMPENVMAPLUMINANCE:
+        case RB_TEXTURE_OP_ADDSIGNED2X:
+        case RB_TEXTURE_OP_MODULATEALPHA_ADDCOLOR:
+        default:
+            return false;
+    }
+}
+
 RenderBackendTextureLimits BgfxBackend::Get_Texture_Limits() const
 {
     const bgfx::Caps * caps = bgfx::getCaps();
