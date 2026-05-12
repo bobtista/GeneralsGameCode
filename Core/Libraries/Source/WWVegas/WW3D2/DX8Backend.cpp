@@ -1424,6 +1424,46 @@ void DX8Backend::Set_Texture_Bump_Env_Luminance(unsigned stage,
     DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_BUMPENVLOFFSET, FloatAsDword(offset));
 }
 
+void DX8Backend::Set_Texture_Color_Operation(unsigned stage, RenderBackendTextureOperation op)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_COLOROP, static_cast<DWORD>(op));
+}
+
+void DX8Backend::Set_Texture_Alpha_Operation(unsigned stage, RenderBackendTextureOperation op)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ALPHAOP, static_cast<DWORD>(op));
+}
+
+void DX8Backend::Set_Texture_Color_Argument(unsigned stage,
+                                            unsigned argument_index,
+                                            RenderBackendTextureArgument arg)
+{
+    static const D3DTEXTURESTAGESTATETYPE states[] = {
+        D3DTSS_COLORARG0,
+        D3DTSS_COLORARG1,
+        D3DTSS_COLORARG2,
+    };
+    if (argument_index >= sizeof(states) / sizeof(states[0]))
+        return;
+
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, states[argument_index], static_cast<DWORD>(arg));
+}
+
+void DX8Backend::Set_Texture_Alpha_Argument(unsigned stage,
+                                            unsigned argument_index,
+                                            RenderBackendTextureArgument arg)
+{
+    static const D3DTEXTURESTAGESTATETYPE states[] = {
+        D3DTSS_ALPHAARG0,
+        D3DTSS_ALPHAARG1,
+        D3DTSS_ALPHAARG2,
+    };
+    if (argument_index >= sizeof(states) / sizeof(states[0]))
+        return;
+
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, states[argument_index], static_cast<DWORD>(arg));
+}
+
 void DX8Backend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
 {
     DX8Wrapper::Set_DX8_Texture_Stage_State(

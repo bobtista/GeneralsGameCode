@@ -409,6 +409,9 @@ Completed low-risk migrations:
   transform helpers, including its camera-space stage-1 UV-index variant.
 - Water bump-env setup now uses backend semantic matrix and luminance APIs
   instead of writing raw bump-map texture-stage constants directly.
+- `IRenderBackend` now exposes narrow texture-combine operation/argument
+  setters. Water setup, cleanup, clipping, grid, and additive-alpha paths use
+  those instead of direct `D3DTSS_COLOR*` / `D3DTSS_ALPHA*` writes.
 - Terrain texture apply/restore paths now route mesh-UV selection and texture
   transform disable operations through semantic backend APIs instead of writing
   `D3DTSS_TEXCOORDINDEX` / `D3DTSS_TEXTURETRANSFORMFLAGS` directly.
