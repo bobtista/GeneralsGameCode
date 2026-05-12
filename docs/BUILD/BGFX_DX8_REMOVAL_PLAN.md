@@ -91,6 +91,9 @@ Recent progress on the DX8-removal stack:
   calls directly.
 - `CameraShakeSystem.cpp` no longer includes D3DX or `dx8wrapper.h`; it did not
   use DX8 symbols and only pulled D3D headers into standalone bgfx builds.
+- `W3DShroud.h` no longer includes `dx8wrapper.h`; the header now forward
+  declares `TextureClass`, and the `.cpp` also dropped its unused wrapper
+  include.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -307,6 +310,9 @@ Completed low-risk migrations:
 - Removed unused D3DX/DX8 includes from the camera shake system. This is a
   header hygiene step: camera shake math is backend-neutral and does not need
   DX8 declarations in standalone bgfx.
+- Removed unused `dx8wrapper.h` includes from shroud header/source. Shroud
+  resource updates already flow through `SurfaceClass`, `TextureClass`, and
+  backend texture notification rather than direct DX8 device calls.
 - Lighting enable, texture factor, decal Z-bias, shader blend/depth/cull state,
   alpha-test state, multiply-mode blend override, and normalize-normals state
   now flow through backend methods instead of direct

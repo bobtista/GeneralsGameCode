@@ -25,10 +25,10 @@
 #pragma once
 
 #include "WW3D2/matpass.h"
-#include "WW3D2/dx8wrapper.h"
 
 class AABoxClass;
 class SurfaceClass;
+class TextureClass;
 class WorldHeightMap;
 
 typedef UnsignedByte W3DShroudLevel;
