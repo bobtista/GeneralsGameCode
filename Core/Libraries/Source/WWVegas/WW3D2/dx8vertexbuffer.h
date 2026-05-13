@@ -90,6 +90,7 @@ public:
 	RenderResource Get_Backend_Resource() const { return m_backendHandle; }
 	bool Has_Backend_Resource() const { return m_backendHandle != kInvalidRenderResource; }
 	bool Is_Backend_Static_Eligible() const { return m_backendStaticEligible; }
+	void *Lock_CPU_Buffer_Data(unsigned byte_offset, unsigned size);
 
 	void Add_Engine_Ref() const;
 	void Release_Engine_Ref() const;
