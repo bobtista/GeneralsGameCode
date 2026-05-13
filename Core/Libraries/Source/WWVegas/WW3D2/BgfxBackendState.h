@@ -202,7 +202,11 @@ struct BgfxDraw
     // Buffers (static + transient variants)
     bgfx::DynamicVertexBufferHandle vb       = BGFX_INVALID_HANDLE;
     bgfx::DynamicIndexBufferHandle  ib       = BGFX_INVALID_HANDLE;
+    bgfx::VertexBufferHandle        staticVB = BGFX_INVALID_HANDLE;
+    bgfx::IndexBufferHandle         staticIB = BGFX_INVALID_HANDLE;
     unsigned short                  ibOffset = 0;
+    bool                        useStaticVB = false;
+    bool                        useStaticIB = false;
     bool                        useTransientVB = false;
     bgfx::TransientVertexBuffer transientVB    = {};
     bool                        useTransientIB = false;

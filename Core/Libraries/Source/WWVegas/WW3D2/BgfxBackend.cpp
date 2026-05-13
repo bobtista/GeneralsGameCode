@@ -2694,6 +2694,8 @@ void BgfxBackend::Shutdown()
         g_caches.texture.clear();
         g_draw.vb         = BGFX_INVALID_HANDLE;
         g_draw.ib         = BGFX_INVALID_HANDLE;
+        g_draw.staticVB   = BGFX_INVALID_HANDLE;
+        g_draw.staticIB   = BGFX_INVALID_HANDLE;
         g_draw.tex[0]   = BGFX_INVALID_HANDLE;
         g_draw.tex[1]   = BGFX_INVALID_HANDLE;
         g_draw.tex[2]   = BGFX_INVALID_HANDLE;
@@ -2705,6 +2707,8 @@ void BgfxBackend::Shutdown()
         g_draw.sourceMaterial = nullptr;
         g_draw.explicitMaterialState = false;
         g_draw.ibOffset       = 0;
+        g_draw.useStaticVB = false;
+        g_draw.useStaticIB = false;
         g_draw.useTransientVB = false;
         g_draw.useTransientIB = false;
         g_draw.pendingVB.valid    = false;
@@ -3450,6 +3454,8 @@ namespace
 {
 bgfx::DynamicVertexBufferHandle FindResourceVertexBufferHandle(const VertexBufferClass * vb);
 bgfx::DynamicIndexBufferHandle FindResourceIndexBufferHandle(const IndexBufferClass * ib);
+bgfx::VertexBufferHandle FindResourceStaticVertexBufferHandle(const VertexBufferClass * vb);
+bgfx::IndexBufferHandle FindResourceStaticIndexBufferHandle(const IndexBufferClass * ib);
 void MirrorDynamicVertexHandleToResource(const VertexBufferClass * vb,
                                          bgfx::DynamicVertexBufferHandle handle);
 void MirrorDynamicIndexHandleToResource(const IndexBufferClass * ib,
@@ -3466,6 +3472,8 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
     // lock. Set_Vertex_Buffer just looks up whatever is already there; on a
     // miss it can rebuild from the buffer object's CPU-side write snapshot.
     g_draw.useTransientVB = false;
+    g_draw.useStaticVB = false;
+    g_draw.staticVB = BGFX_INVALID_HANDLE;
     g_draw.activeTransientVBOwner = nullptr;
     // TheSuperHackers @bugfix bobtista 27/04/2026 Legacy fixed-function
     // supplies a white diffuse color when the bound FVF has no COLOR0 element. bgfx
@@ -3475,38 +3483,58 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
         && vb->FVF_Info().Has_Diffuse()) ? 1.0f : 0.0f;
     g_draw.fvfHasNormal = (vb != nullptr
         && vb->FVF_Info().Has_Normal());
-    bgfx::DynamicVertexBufferHandle resourceHandle = FindResourceVertexBufferHandle(vb);
-    if (bgfx::isValid(resourceHandle))
+    bgfx::VertexBufferHandle staticResourceHandle = FindResourceStaticVertexBufferHandle(vb);
+    if (bgfx::isValid(staticResourceHandle))
     {
-        g_draw.vb = resourceHandle;
+        g_draw.staticVB = staticResourceHandle;
+        g_draw.vb = BGFX_INVALID_HANDLE;
+        g_draw.useStaticVB = true;
     }
     else
     {
-        auto it = g_caches.vb.find(vb);
-        if (it != g_caches.vb.end())
+        bgfx::DynamicVertexBufferHandle resourceHandle = FindResourceVertexBufferHandle(vb);
+        if (bgfx::isValid(resourceHandle))
         {
-            g_draw.vb = it->second.handle;
-            MirrorDynamicVertexHandleToResource(vb, it->second.handle);
+            g_draw.vb = resourceHandle;
         }
         else
         {
-            g_draw.vb = BGFX_INVALID_HANDLE;
-            // Last-resort capture for static VBs that were written before bgfx
-            // registration/capture was active. Do not lock the legacy buffer here:
-            // bgfx must consume the backend-neutral CPU snapshot maintained by
-            // the buffer write paths.
-            if (vb != nullptr && g_device.initialized && vb->Has_CPU_Buffer_Data())
+            auto it = g_caches.vb.find(vb);
+            if (it != g_caches.vb.end())
             {
-                const unsigned int bytes =
-                    vb->Get_Vertex_Count() * vb->FVF_Info().Get_FVF_Size();
-                if (vb->Get_CPU_Buffer_Size() >= bytes)
+                g_draw.vb = it->second.handle;
+                MirrorDynamicVertexHandleToResource(vb, it->second.handle);
+            }
+            else
+            {
+                g_draw.vb = BGFX_INVALID_HANDLE;
+                // Last-resort capture for static VBs that were written before bgfx
+                // registration/capture was active. Do not lock the legacy buffer here:
+                // bgfx must consume the backend-neutral CPU snapshot maintained by
+                // the buffer write paths.
+                if (vb != nullptr && g_device.initialized && vb->Has_CPU_Buffer_Data())
                 {
-                    Capture_Vertex_Data(vb, vb->Peek_CPU_Buffer_Data(), bytes);
-                    auto it2 = g_caches.vb.find(vb);
-                    if (it2 != g_caches.vb.end())
+                    const unsigned int bytes =
+                        vb->Get_Vertex_Count() * vb->FVF_Info().Get_FVF_Size();
+                    if (vb->Get_CPU_Buffer_Size() >= bytes)
                     {
-                        g_draw.vb = it2->second.handle;
-                        MirrorDynamicVertexHandleToResource(vb, it2->second.handle);
+                        Capture_Vertex_Data(vb, vb->Peek_CPU_Buffer_Data(), bytes);
+                        bgfx::VertexBufferHandle staticHandle = FindResourceStaticVertexBufferHandle(vb);
+                        if (bgfx::isValid(staticHandle))
+                        {
+                            g_draw.staticVB = staticHandle;
+                            g_draw.vb = BGFX_INVALID_HANDLE;
+                            g_draw.useStaticVB = true;
+                        }
+                        else
+                        {
+                            auto it2 = g_caches.vb.find(vb);
+                            if (it2 != g_caches.vb.end())
+                            {
+                                g_draw.vb = it2->second.handle;
+                                MirrorDynamicVertexHandleToResource(vb, it2->second.handle);
+                            }
+                        }
                     }
                 }
             }
@@ -3521,6 +3549,8 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
         vba.FVF_Info().Has_Diffuse() ? 1.0f : 0.0f;
     g_draw.fvfHasNormal =
         vba.FVF_Info().Has_Normal();
+    g_draw.useStaticVB = false;
+    g_draw.staticVB = BGFX_INVALID_HANDLE;
     // If the matching Capture_Dynamic_Vertex_Data already
     // allocated a transient VB for this access class, claim it for the
     // next draw. Otherwise miss the cache and skip the bgfx submit.
@@ -3570,36 +3600,58 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
 {
     FixedFunctionState::Set_Index_Buffer(ib, index_base_offset);
     g_draw.useTransientIB = false;
+    g_draw.useStaticIB = false;
+    g_draw.staticIB = BGFX_INVALID_HANDLE;
     g_draw.activeTransientIBOwner = nullptr;
-    bgfx::DynamicIndexBufferHandle resourceHandle = FindResourceIndexBufferHandle(ib);
-    if (bgfx::isValid(resourceHandle))
+    bgfx::IndexBufferHandle staticResourceHandle = FindResourceStaticIndexBufferHandle(ib);
+    if (bgfx::isValid(staticResourceHandle))
     {
-        g_draw.ib = resourceHandle;
+        g_draw.staticIB = staticResourceHandle;
+        g_draw.ib = BGFX_INVALID_HANDLE;
+        g_draw.useStaticIB = true;
     }
     else
     {
-        auto it = g_caches.ib.find(ib);
-        if (it != g_caches.ib.end())
+        bgfx::DynamicIndexBufferHandle resourceHandle = FindResourceIndexBufferHandle(ib);
+        if (bgfx::isValid(resourceHandle))
         {
-            g_draw.ib = it->second.handle;
-            MirrorDynamicIndexHandleToResource(ib, it->second.handle);
+            g_draw.ib = resourceHandle;
         }
         else
         {
-            g_draw.ib = BGFX_INVALID_HANDLE;
-            // Last-resort capture for static IBs not yet in cache. Use the
-            // backend-neutral CPU snapshot instead of locking a legacy index buffer.
-            if (ib != nullptr && g_device.initialized && ib->Has_CPU_Buffer_Data())
+            auto it = g_caches.ib.find(ib);
+            if (it != g_caches.ib.end())
             {
-                const unsigned int bytes = ib->Get_Index_Count() * sizeof(unsigned short);
-                if (ib->Get_CPU_Buffer_Size() >= bytes)
+                g_draw.ib = it->second.handle;
+                MirrorDynamicIndexHandleToResource(ib, it->second.handle);
+            }
+            else
+            {
+                g_draw.ib = BGFX_INVALID_HANDLE;
+                // Last-resort capture for static IBs not yet in cache. Use the
+                // backend-neutral CPU snapshot instead of locking a legacy index buffer.
+                if (ib != nullptr && g_device.initialized && ib->Has_CPU_Buffer_Data())
                 {
-                    Capture_Index_Data(ib, ib->Peek_CPU_Buffer_Data(), bytes);
-                    auto it2 = g_caches.ib.find(ib);
-                    if (it2 != g_caches.ib.end())
+                    const unsigned int bytes = ib->Get_Index_Count() * sizeof(unsigned short);
+                    if (ib->Get_CPU_Buffer_Size() >= bytes)
                     {
-                        g_draw.ib = it2->second.handle;
-                        MirrorDynamicIndexHandleToResource(ib, it2->second.handle);
+                        Capture_Index_Data(ib, ib->Peek_CPU_Buffer_Data(), bytes);
+                        bgfx::IndexBufferHandle staticHandle = FindResourceStaticIndexBufferHandle(ib);
+                        if (bgfx::isValid(staticHandle))
+                        {
+                            g_draw.staticIB = staticHandle;
+                            g_draw.ib = BGFX_INVALID_HANDLE;
+                            g_draw.useStaticIB = true;
+                        }
+                        else
+                        {
+                            auto it2 = g_caches.ib.find(ib);
+                            if (it2 != g_caches.ib.end())
+                            {
+                                g_draw.ib = it2->second.handle;
+                                MirrorDynamicIndexHandleToResource(ib, it2->second.handle);
+                            }
+                        }
                     }
                 }
             }
@@ -3611,6 +3663,8 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
 void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset)
 {
     FixedFunctionState::Set_Index_Buffer(iba, index_base_offset);
+    g_draw.useStaticIB = false;
+    g_draw.staticIB = BGFX_INVALID_HANDLE;
     if (g_draw.pendingIB.valid && g_draw.pendingIB.owner == &iba)
     {
         LogBgfxTransientDiag("set", "ib", &iba,
@@ -3822,6 +3876,129 @@ bgfx::DynamicIndexBufferHandle FindResourceIndexBufferHandle(const IndexBufferCl
     return BGFX_INVALID_HANDLE;
 }
 
+bgfx::VertexBufferHandle FindResourceStaticVertexBufferHandle(const VertexBufferClass * vb)
+{
+    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        if (bgfx::isValid(entry->vb))
+        {
+            return entry->vb;
+        }
+    }
+    return BGFX_INVALID_HANDLE;
+}
+
+bgfx::IndexBufferHandle FindResourceStaticIndexBufferHandle(const IndexBufferClass * ib)
+{
+    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        if (bgfx::isValid(entry->ib))
+        {
+            return entry->ib;
+        }
+    }
+    return BGFX_INVALID_HANDLE;
+}
+
+void DestroyStaticVertexResource(BgfxPhase5Entry & entry)
+{
+    if (!bgfx::isValid(entry.vb))
+    {
+        return;
+    }
+    if (g_draw.useStaticVB
+        && bgfx::isValid(g_draw.staticVB)
+        && g_draw.staticVB.idx == entry.vb.idx)
+    {
+        g_draw.staticVB = BGFX_INVALID_HANDLE;
+        g_draw.useStaticVB = false;
+    }
+    bgfx::destroy(entry.vb);
+    entry.vb = BGFX_INVALID_HANDLE;
+}
+
+void DestroyStaticIndexResource(BgfxPhase5Entry & entry)
+{
+    if (!bgfx::isValid(entry.ib))
+    {
+        return;
+    }
+    if (g_draw.useStaticIB
+        && bgfx::isValid(g_draw.staticIB)
+        && g_draw.staticIB.idx == entry.ib.idx)
+    {
+        g_draw.staticIB = BGFX_INVALID_HANDLE;
+        g_draw.useStaticIB = false;
+    }
+    bgfx::destroy(entry.ib);
+    entry.ib = BGFX_INVALID_HANDLE;
+}
+
+bool TryCaptureStaticVertexBuffer(const VertexBufferClass * vb,
+                                  const void * data,
+                                  unsigned int size_bytes)
+{
+    if (vb == nullptr || data == nullptr || !vb->Is_Backend_Static_Eligible())
+    {
+        return false;
+    }
+    BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb);
+    if (entry == nullptr || bgfx::isValid(entry->dvb))
+    {
+        return false;
+    }
+    const uint32_t stride = vb->FVF_Info().Get_FVF_Size();
+    const uint32_t buffer_bytes = static_cast<uint32_t>(vb->Get_Vertex_Count()) * stride;
+    if (stride == 0 || buffer_bytes == 0 || size_bytes != buffer_bytes)
+    {
+        return false;
+    }
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vb->FVF_Info(), layout) || layout.getStride() != stride)
+    {
+        DestroyStaticVertexResource(*entry);
+        return false;
+    }
+
+    bgfx::VertexBufferHandle h = bgfx::createVertexBuffer(bgfx::copy(data, size_bytes), layout);
+    DestroyStaticVertexResource(*entry);
+    if (!bgfx::isValid(h))
+    {
+        return false;
+    }
+    entry->vb = h;
+    return true;
+}
+
+bool TryCaptureStaticIndexBuffer(const IndexBufferClass * ib,
+                                 const void * data,
+                                 unsigned int size_bytes)
+{
+    if (ib == nullptr || data == nullptr || !ib->Is_Backend_Static_Eligible())
+    {
+        return false;
+    }
+    BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib);
+    if (entry == nullptr || bgfx::isValid(entry->dib))
+    {
+        return false;
+    }
+    const uint32_t buffer_bytes = static_cast<uint32_t>(ib->Get_Index_Count()) * sizeof(uint16_t);
+    if (buffer_bytes == 0 || size_bytes != buffer_bytes)
+    {
+        return false;
+    }
+
+    bgfx::IndexBufferHandle h = bgfx::createIndexBuffer(bgfx::copy(data, size_bytes));
+    DestroyStaticIndexResource(*entry);
+    if (!bgfx::isValid(h))
+    {
+        return false;
+    }
+    entry->ib = h;
+    return true;
+}
+
 bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClass * vb)
 {
     const uint32_t num_verts = static_cast<uint32_t>(vb->Get_Vertex_Count());
@@ -3951,6 +4128,10 @@ void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
         }
         return;
     }
+    if (TryCaptureStaticVertexBuffer(vb, data, size_bytes))
+    {
+        return;
+    }
 
     bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
     if (!bgfx::isValid(h))
@@ -3980,6 +4161,10 @@ void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
             WWDEBUG_SAY(("[BgfxBackend] skip IB full-capture: "
                          "size_bytes=%u total=%u", size_bytes, buffer_bytes));
         }
+        return;
+    }
+    if (TryCaptureStaticIndexBuffer(ib, data, size_bytes))
+    {
         return;
     }
     bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
@@ -4027,6 +4212,10 @@ void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
         }
         return;
     }
+    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        DestroyStaticVertexResource(*entry);
+    }
     bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
     if (!bgfx::isValid(h))
     {
@@ -4060,6 +4249,10 @@ void BgfxBackend::Capture_Index_Sub_Range(const IndexBufferClass * ib,
                          start_index, size_bytes, buffer_bytes));
         }
         return;
+    }
+    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        DestroyStaticIndexResource(*entry);
     }
     bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
     if (!bgfx::isValid(h))
@@ -7438,8 +7631,12 @@ void SubmitEngineDraw(unsigned short start_index,
         g_stats.skippedDraws++;
         return;
     }
-    const bool have_vb = g_draw.useTransientVB || bgfx::isValid(g_draw.vb);
-    const bool have_ib = g_draw.useTransientIB || bgfx::isValid(g_draw.ib);
+    const bool have_vb = g_draw.useTransientVB
+        || (g_draw.useStaticVB && bgfx::isValid(g_draw.staticVB))
+        || bgfx::isValid(g_draw.vb);
+    const bool have_ib = g_draw.useTransientIB
+        || (g_draw.useStaticIB && bgfx::isValid(g_draw.staticIB))
+        || bgfx::isValid(g_draw.ib);
     if (!have_vb || !have_ib)
     {
         LogBgfxEffectSubmit("submit-engine",
@@ -7626,7 +7823,14 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     else
     {
-        bgfx::setVertexBuffer(0, g_draw.vb, base_vertex, bindVertexCount);
+        if (g_draw.useStaticVB)
+        {
+            bgfx::setVertexBuffer(0, g_draw.staticVB, base_vertex, bindVertexCount);
+        }
+        else
+        {
+            bgfx::setVertexBuffer(0, g_draw.vb, base_vertex, bindVertexCount);
+        }
     }
 
     const uint32_t indexCount = triangle_strip
@@ -7642,9 +7846,18 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     else
     {
-        bgfx::setIndexBuffer(g_draw.ib,
-                             indexStart,
-                             indexCount);
+        if (g_draw.useStaticIB)
+        {
+            bgfx::setIndexBuffer(g_draw.staticIB,
+                                 indexStart,
+                                 indexCount);
+        }
+        else
+        {
+            bgfx::setIndexBuffer(g_draw.ib,
+                                 indexStart,
+                                 indexCount);
+        }
     }
 
     if (g_views.smudgeActive)
@@ -8084,7 +8297,9 @@ void SubmitEngineDraw(unsigned short start_index,
                       polygon_count, vertex_count, state, "submit");
     g_stats.baseSubmits++;
 
-    const bool hasVB = g_draw.useTransientVB || bgfx::isValid(g_draw.vb);
+    const bool hasVB = g_draw.useTransientVB
+        || (g_draw.useStaticVB && bgfx::isValid(g_draw.staticVB))
+        || bgfx::isValid(g_draw.vb);
     if (isSceneDepthCaster
         && bgfx::isValid(g_device.sceneDepthProgram)
         && bgfx::isValid(g_device.sceneReadableDepthFB)
@@ -8102,9 +8317,18 @@ void SubmitEngineDraw(unsigned short start_index,
         }
         else
         {
-            bgfx::setVertexBuffer(0, g_draw.vb,
-                                  static_cast<uint32_t>(g_draw.ibOffset),
-                                  bindVertexCount);
+            if (g_draw.useStaticVB)
+            {
+                bgfx::setVertexBuffer(0, g_draw.staticVB,
+                                      static_cast<uint32_t>(g_draw.ibOffset),
+                                      bindVertexCount);
+            }
+            else
+            {
+                bgfx::setVertexBuffer(0, g_draw.vb,
+                                      static_cast<uint32_t>(g_draw.ibOffset),
+                                      bindVertexCount);
+            }
         }
         if (g_draw.useTransientIB)
         {
@@ -8114,9 +8338,18 @@ void SubmitEngineDraw(unsigned short start_index,
         }
         else
         {
-            bgfx::setIndexBuffer(g_draw.ib,
-                                 start_index,
-                                 indexCount);
+            if (g_draw.useStaticIB)
+            {
+                bgfx::setIndexBuffer(g_draw.staticIB,
+                                     start_index,
+                                     indexCount);
+            }
+            else
+            {
+                bgfx::setIndexBuffer(g_draw.ib,
+                                     start_index,
+                                     indexCount);
+            }
         }
         bgfx::setTransform(worldMtx);
         const uint64_t depthState =
@@ -8600,9 +8833,7 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
                 }
                 bgfx::destroy(entry.dvb);
             }
-            if (bgfx::isValid(entry.vb)) {
-                bgfx::destroy(entry.vb);
-            }
+            DestroyStaticVertexResource(entry);
             break;
         }
         case BGFX_RR_KIND_IB:
@@ -8631,9 +8862,7 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
                 }
                 bgfx::destroy(entry.dib);
             }
-            if (bgfx::isValid(entry.ib)) {
-                bgfx::destroy(entry.ib);
-            }
+            DestroyStaticIndexResource(entry);
             break;
         }
         case BGFX_RR_KIND_DYN_VB:

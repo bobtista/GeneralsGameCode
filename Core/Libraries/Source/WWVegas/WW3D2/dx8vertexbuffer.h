@@ -89,6 +89,7 @@ public:
 	bool Has_CPU_Buffer_Data() const { return CPUBufferValid; }
 	RenderResource Get_Backend_Resource() const { return m_backendHandle; }
 	bool Has_Backend_Resource() const { return m_backendHandle != kInvalidRenderResource; }
+	bool Is_Backend_Static_Eligible() const { return m_backendStaticEligible; }
 
 	void Add_Engine_Ref() const;
 	void Release_Engine_Ref() const;
@@ -131,12 +132,14 @@ protected:
 	unsigned char*					CPUBufferData;
 	unsigned						CPUBufferSize;
 	bool							CPUBufferValid;
+	bool							m_backendStaticEligible;
 	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Set by derived classes after calling
 	// g_renderBackend->Create_Vertex_Buffer. Parallel to the class-specific
 	// legacy pointer stored in DX8VertexBufferClass::VertexBuffer, which stays
 	// populated in ref-popup builds.
 	RenderResource					m_backendHandle;
+	void Set_Backend_Static_Eligible(bool eligible) { m_backendStaticEligible = eligible; }
 	void Update_CPU_Buffer_Data(unsigned byte_offset, const void * data, unsigned size);
 };
 
