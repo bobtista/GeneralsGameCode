@@ -291,6 +291,8 @@ public:
 
     // -- Programmable pipeline ------------------------------------------------
 
+    virtual const unsigned int * Get_Legacy_Vertex_Shader_Declaration(
+        RenderBackendLegacyVertexDeclaration declaration) const override;
     virtual bool Create_Vertex_Shader(const unsigned int * declaration,
                                       const unsigned int * shader,
                                       unsigned int usage,
