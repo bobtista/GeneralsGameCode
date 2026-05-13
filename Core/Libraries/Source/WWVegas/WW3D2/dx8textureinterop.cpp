@@ -51,7 +51,7 @@ namespace
 	IDirect3DDevice8 *Legacy_Device()
 	{
 		DX8_Assert();
-		return DX8Wrapper::_Get_D3D_Device8();
+		return DX8_Call_Device();
 	}
 
 	void Release_Unused_Assets_For_Texture_Retry()
