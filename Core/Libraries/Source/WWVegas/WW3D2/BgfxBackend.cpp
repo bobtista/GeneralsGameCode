@@ -730,36 +730,35 @@ public:
 
 BgfxLoggingCallback g_bgfxCallback;
 
-static uint32_t MapCmpFuncToBgfxStencilTest(int f)
+static uint32_t MapCmpFuncToBgfxStencilTest(CompareFunc f)
 {
     switch (f)
     {
-        case D3DCMP_NEVER:        return BGFX_STENCIL_TEST_NEVER;
-        case D3DCMP_LESS:         return BGFX_STENCIL_TEST_LESS;
-        case D3DCMP_EQUAL:        return BGFX_STENCIL_TEST_EQUAL;
-        case D3DCMP_LESSEQUAL:    return BGFX_STENCIL_TEST_LEQUAL;
-        case D3DCMP_GREATER:      return BGFX_STENCIL_TEST_GREATER;
-        case D3DCMP_NOTEQUAL:     return BGFX_STENCIL_TEST_NOTEQUAL;
-        case D3DCMP_GREATEREQUAL: return BGFX_STENCIL_TEST_GEQUAL;
-        case D3DCMP_ALWAYS: default: return BGFX_STENCIL_TEST_ALWAYS;
+        case RB_CMP_NEVER:         return BGFX_STENCIL_TEST_NEVER;
+        case RB_CMP_LESS:          return BGFX_STENCIL_TEST_LESS;
+        case RB_CMP_EQUAL:         return BGFX_STENCIL_TEST_EQUAL;
+        case RB_CMP_LESS_EQUAL:    return BGFX_STENCIL_TEST_LEQUAL;
+        case RB_CMP_GREATER:       return BGFX_STENCIL_TEST_GREATER;
+        case RB_CMP_NOT_EQUAL:     return BGFX_STENCIL_TEST_NOTEQUAL;
+        case RB_CMP_GREATER_EQUAL: return BGFX_STENCIL_TEST_GEQUAL;
+        case RB_CMP_ALWAYS: default: return BGFX_STENCIL_TEST_ALWAYS;
     }
 }
 
-// TheSuperHackers @refactor bobtista 20/04/2026 Map a D3DSTENCILOP (1..8) to the bgfx stencil op ordinal, then shift into PASS_Z / FAIL_S / FAIL_Z bit positions.
-static uint32_t MapStencilOpToBgfx(int op, uint32_t shift)
+static uint32_t MapStencilOpToBgfx(StencilOp op, uint32_t shift)
 {
     uint32_t ord;
     switch (op)
     {
-        case D3DSTENCILOP_KEEP:    ord = 1; break;
-        case D3DSTENCILOP_ZERO:    ord = 0; break;
-        case D3DSTENCILOP_REPLACE: ord = 2; break;
-        case D3DSTENCILOP_INCRSAT: ord = 4; break;
-        case D3DSTENCILOP_DECRSAT: ord = 6; break;
-        case D3DSTENCILOP_INVERT:  ord = 7; break;
-        case D3DSTENCILOP_INCR:    ord = 3; break;
-        case D3DSTENCILOP_DECR:    ord = 5; break;
-        default:                   ord = 1; break;
+        case RB_STENCIL_OP_KEEP:     ord = 1; break;
+        case RB_STENCIL_OP_ZERO:     ord = 0; break;
+        case RB_STENCIL_OP_REPLACE:  ord = 2; break;
+        case RB_STENCIL_OP_INCR_SAT: ord = 4; break;
+        case RB_STENCIL_OP_DECR_SAT: ord = 6; break;
+        case RB_STENCIL_OP_INVERT:   ord = 7; break;
+        case RB_STENCIL_OP_INCR:     ord = 3; break;
+        case RB_STENCIL_OP_DECR:     ord = 5; break;
+        default:                     ord = 1; break;
     }
     return ord << shift;
 }
@@ -6903,7 +6902,7 @@ void BgfxBackend::Set_Stencil_Enable(bool enable)
 void BgfxBackend::Set_Stencil_Func(CompareFunc f)
 {
     RenderStateCache::Set_Render_State(D3DRS_STENCILFUNC, static_cast<unsigned>(f));
-    g_draw.stencilFuncBits = MapCmpFuncToBgfxStencilTest(static_cast<int>(f));
+    g_draw.stencilFuncBits = MapCmpFuncToBgfxStencilTest(f);
     UpdateShadowStencilState();
 }
 
@@ -6930,21 +6929,21 @@ void BgfxBackend::Set_Stencil_Write_Mask(unsigned mask)
 void BgfxBackend::Set_Stencil_Pass_Op(StencilOp op)
 {
     RenderStateCache::Set_Render_State(D3DRS_STENCILPASS, static_cast<unsigned>(op));
-    g_draw.stencilPassOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_PASS_Z_SHIFT);
+    g_draw.stencilPassOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_PASS_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Fail_Op(StencilOp op)
 {
     RenderStateCache::Set_Render_State(D3DRS_STENCILFAIL, static_cast<unsigned>(op));
-    g_draw.stencilFailOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_FAIL_S_SHIFT);
+    g_draw.stencilFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_S_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp op)
 {
     RenderStateCache::Set_Render_State(D3DRS_STENCILZFAIL, static_cast<unsigned>(op));
-    g_draw.stencilZFailOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_FAIL_Z_SHIFT);
+    g_draw.stencilZFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
@@ -7636,7 +7635,7 @@ void SubmitEngineDraw(unsigned short start_index,
         }
     }
 
-    // Detect shroud pass: D3D8 uses TCI_CAMERASPACEPOSITION + depth func
+    // Detect shroud pass: legacy setup uses TCI_CAMERASPACEPOSITION + depth func
     // EQUAL to render a multiplicative shroud overlay. Both conditions must
     // be true to avoid false positives from other effects that set TCI bits.
     bool shroudDetected = false;
@@ -7659,7 +7658,7 @@ void SubmitEngineDraw(unsigned short start_index,
             // stale stencil test from previous shadow/player-color passes.
             g_draw.stencilEnabled = false;
         }
-        if (depthFunc == D3DCMP_EQUAL
+        if (depthFunc == static_cast<unsigned>(RB_CMP_EQUAL)
             && (explicitShroudPass || (!g_draw.stencilEnabled && legacyShroudSignature)))
         {
             if (tci & D3DTSS_TCI_CAMERASPACEPOSITION)
@@ -7723,7 +7722,7 @@ void SubmitEngineDraw(unsigned short start_index,
         }
         g_draw.delayedObjectShroudPass = delayedObjectShroudPass;
         if ((tci & D3DTSS_TCI_CAMERASPACEPOSITION)
-            || depthFunc == D3DCMP_EQUAL
+            || depthFunc == static_cast<unsigned>(RB_CMP_EQUAL)
             || shroudDetected)
         {
             LogBgfxShroudPass("shroud-candidate", submitView, polygon_count, depthFunc, tci, shroudDetected, shroudParams);
