@@ -145,7 +145,7 @@ TextureBaseClass::~TextureBaseClass()
 	}
 	Clear_CPU_Texture_Snapshot();
 
-	DX8TextureManagerClass::Remove(this);
+	TextureResourceManagerClass::Remove(this);
 }
 
 
@@ -737,7 +737,7 @@ TextureClass::TextureClass
 			this,
 			rendertarget
 		);
-		DX8TextureManagerClass::Add(track);
+		TextureResourceManagerClass::Add(track);
 	}
 	LastAccessed=WW3D::Get_Sync_Time();
 }
@@ -1329,7 +1329,7 @@ ZTextureClass::ZTextureClass
 			mip_level_count,
 			this
 		);
-		DX8TextureManagerClass::Add(track);
+		TextureResourceManagerClass::Add(track);
 	}
 	Initialized=true;
 	IsProcedural=true;
@@ -1485,7 +1485,7 @@ CubeTextureClass::CubeTextureClass
 			this,
 			rendertarget
 		);
-		DX8TextureManagerClass::Add(track);
+		TextureResourceManagerClass::Add(track);
 	}
 	LastAccessed=WW3D::Get_Sync_Time();
 }
@@ -1769,7 +1769,7 @@ VolumeTextureClass::VolumeTextureClass
 			this,
 			rendertarget
 		);
-		DX8TextureManagerClass::Add(track);
+		TextureResourceManagerClass::Add(track);
 	}
 	LastAccessed=WW3D::Get_Sync_Time();
 }

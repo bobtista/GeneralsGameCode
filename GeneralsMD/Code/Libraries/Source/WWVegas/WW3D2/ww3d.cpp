@@ -114,7 +114,7 @@
 #include "sortingrenderer.h"
 #include "thread.h"
 #include "cpudetect.h"
-#include "dx8texman.h"
+#include "TextureResourceManager.h"
 #include "formconv.h"
 #include "animatedsoundmgr.h"
 #include "static_sort_list.h"
@@ -364,7 +364,7 @@ WW3DErrorType WW3D::Shutdown()
 		WW3DAssetManager::Get_Instance()->Free_Assets();
 	}
 
-	DX8TextureManagerClass::Shutdown();
+	TextureResourceManagerClass::Shutdown();
 	if (!Lite) {
 		DX8Wrapper::Shutdown();
 	}
