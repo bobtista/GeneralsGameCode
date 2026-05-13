@@ -48,7 +48,7 @@
 #include <nstrdup.h>
 #include "w3d_file.h"
 #include "assetmgr.h"
-#include "formconv.h"
+#include "dx8formatconv.h"
 #include "textureloader.h"
 #include "missingtexture.h"
 #include "ffactory.h"
