@@ -261,7 +261,9 @@ public:
 	GGC_RB_DEPRECATED static void Set_Index_Buffer_Index_Offset(unsigned offset);
 
 	static void Get_Render_State(RenderStateStruct& state);
+#if !defined(GGC_BGFX_STANDALONE)
 	static void Set_Render_State(const RenderStateStruct& state);
+#endif
 	static void Release_Render_State();
 	// TheSuperHackers @perf bobtista 28/04/2026 Const-ref peek avoids the
 	// RenderStateStruct copy assignment, which does REF_PTR_SET on material,
@@ -280,9 +282,11 @@ public:
 
 	GGC_RB_DEPRECATED static void Set_Projection_Transform_With_Z_Bias(const Matrix4x4& matrix,float znear, float zfar);	// pointer to 16 matrices
 
+#if !defined(GGC_BGFX_STANDALONE)
 	GGC_RB_DEPRECATED static void Set_Transform(D3DTRANSFORMSTATETYPE transform,const Matrix4x4& m);
 	GGC_RB_DEPRECATED static void Set_Transform(D3DTRANSFORMSTATETYPE transform,const Matrix3D& m);
 	GGC_RB_DEPRECATED static void Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4x4& m);
+#endif
 	GGC_RB_DEPRECATED static void Set_World_Identity();
 	GGC_RB_DEPRECATED static void Set_View_Identity();
 	GGC_RB_DEPRECATED static bool Is_World_Identity();
@@ -313,20 +317,30 @@ public:
 	static void Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value);
 	static void Set_DX8_Texture(unsigned int stage, IDirect3DBaseTexture8* texture);
 #endif
+#if !defined(GGC_BGFX_STANDALONE)
 	GGC_RB_DEPRECATED static void Set_Light_Environment(LightEnvironmentClass* light_env);
+#endif
 	GGC_RB_DEPRECATED static LightEnvironmentClass* Get_Light_Environment() { return Light_Environment; }
 	GGC_RB_DEPRECATED static void Set_Fog(bool enable, const Vector3 &color, float start, float end);
 
 	// Deferred
 
+#if !defined(GGC_BGFX_STANDALONE)
 	GGC_RB_DEPRECATED static void Set_Shader(const ShaderClass& shader);
+#endif
 	GGC_RB_DEPRECATED static void Get_Shader(ShaderClass& shader);
+#if !defined(GGC_BGFX_STANDALONE)
 	GGC_RB_DEPRECATED static void Set_Texture(unsigned stage,TextureBaseClass* texture);
 	GGC_RB_DEPRECATED static void Set_Material(const VertexMaterialClass* material);
 	static void Set_Light(unsigned index,const D3DLIGHT8* light);
 	GGC_RB_DEPRECATED static void Set_Light(unsigned index,const LightClass &light);
+#endif
+	static void Commit_Fixed_Function_Texture(unsigned stage,TextureBaseClass* texture);
+	static void Commit_Deferred_Render_State_Changes();
 
+#if !defined(GGC_BGFX_STANDALONE)
 	GGC_RB_DEPRECATED static void Apply_Render_State_Changes();	// Apply deferred render state changes (will be called automatically by Draw...)
+#endif
 
 	GGC_RB_DEPRECATED static void Draw_Triangles(
 		unsigned buffer_type,
@@ -491,11 +505,17 @@ public:
 	// shader system updates KJM v
 	GGC_RB_DEPRECATED static void Apply_Default_State();
 
+#if !defined(GGC_BGFX_STANDALONE)
 	GGC_RB_DEPRECATED static void Set_Vertex_Shader(DWORD vertex_shader);
 	GGC_RB_DEPRECATED static void Set_Pixel_Shader(DWORD pixel_shader);
 
 	GGC_RB_DEPRECATED static void Set_Vertex_Shader_Constant(int reg, const void* data, int count);
 	GGC_RB_DEPRECATED static void Set_Pixel_Shader_Constant(int reg, const void* data, int count);
+#endif
+	static void Commit_Vertex_Shader_Value(DWORD vertex_shader);
+	static void Commit_Pixel_Shader_Value(DWORD pixel_shader);
+	static void Commit_Vertex_Shader_Constants(int reg, const void* data, int count);
+	static void Commit_Pixel_Shader_Constants(int reg, const void* data, int count);
 
 	static DWORD Get_Vertex_Processing_Behavior() { return Vertex_Processing_Behavior; }
 
@@ -702,7 +722,7 @@ WWINLINE IDirect3D8* DX8_Call_Interface()
 }
 
 // shader system updates KJM v
-WWINLINE void DX8Wrapper::Set_Vertex_Shader(DWORD vertex_shader)
+WWINLINE void DX8Wrapper::Commit_Vertex_Shader_Value(DWORD vertex_shader)
 {
 #if 0 //(gth) some code is bypassing this accessor function so we can't count on this variable...
 	// may be incorrect if shaders are created and destroyed dynamically
@@ -710,19 +730,37 @@ WWINLINE void DX8Wrapper::Set_Vertex_Shader(DWORD vertex_shader)
 #endif
 
 	Vertex_Shader=vertex_shader;
+#if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(SetVertexShader(Vertex_Shader));
+#endif
 }
 
-WWINLINE void DX8Wrapper::Set_Pixel_Shader(DWORD pixel_shader)
+#if !defined(GGC_BGFX_STANDALONE)
+WWINLINE void DX8Wrapper::Set_Vertex_Shader(DWORD vertex_shader)
+{
+	Commit_Vertex_Shader_Value(vertex_shader);
+}
+#endif
+
+WWINLINE void DX8Wrapper::Commit_Pixel_Shader_Value(DWORD pixel_shader)
 {
 	// may be incorrect if shaders are created and destroyed dynamically
 	if (Pixel_Shader==pixel_shader) return;
 
 	Pixel_Shader=pixel_shader;
+#if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(SetPixelShader(Pixel_Shader));
+#endif
 }
 
-WWINLINE void DX8Wrapper::Set_Vertex_Shader_Constant(int reg, const void* data, int count)
+#if !defined(GGC_BGFX_STANDALONE)
+WWINLINE void DX8Wrapper::Set_Pixel_Shader(DWORD pixel_shader)
+{
+	Commit_Pixel_Shader_Value(pixel_shader);
+}
+#endif
+
+WWINLINE void DX8Wrapper::Commit_Vertex_Shader_Constants(int reg, const void* data, int count)
 {
 	int memsize=sizeof(Vector4)*count;
 
@@ -730,10 +768,19 @@ WWINLINE void DX8Wrapper::Set_Vertex_Shader_Constant(int reg, const void* data, 
 	if (memcmp(data, &Vertex_Shader_Constants[reg],memsize)==0) return;
 
 	memcpy(&Vertex_Shader_Constants[reg],data,memsize);
+#if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(SetVertexShaderConstant(reg,data,count));
+#endif
 }
 
-WWINLINE void DX8Wrapper::Set_Pixel_Shader_Constant(int reg, const void* data, int count)
+#if !defined(GGC_BGFX_STANDALONE)
+WWINLINE void DX8Wrapper::Set_Vertex_Shader_Constant(int reg, const void* data, int count)
+{
+	Commit_Vertex_Shader_Constants(reg, data, count);
+}
+#endif
+
+WWINLINE void DX8Wrapper::Commit_Pixel_Shader_Constants(int reg, const void* data, int count)
 {
 	int memsize=sizeof(Vector4)*count;
 
@@ -741,8 +788,17 @@ WWINLINE void DX8Wrapper::Set_Pixel_Shader_Constant(int reg, const void* data, i
 	if (memcmp(data, &Pixel_Shader_Constants[reg],memsize)==0) return;
 
 	memcpy(&Pixel_Shader_Constants[reg],data,memsize);
+#if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(SetPixelShaderConstant(reg,data,count));
+#endif
 }
+
+#if !defined(GGC_BGFX_STANDALONE)
+WWINLINE void DX8Wrapper::Set_Pixel_Shader_Constant(int reg, const void* data, int count)
+{
+	Commit_Pixel_Shader_Constants(reg, data, count);
+}
+#endif
 // shader system updates KJM ^
 
 WWINLINE void DX8Wrapper::Commit_Fixed_Function_Transform(D3DTRANSFORMSTATETYPE transform, const D3DMATRIX& m)
@@ -1188,10 +1244,16 @@ WWINLINE void DX8Wrapper::Get_Shader(ShaderClass& shader)
 	shader=FixedFunctionState::Render_State().shader;
 }
 
-WWINLINE void DX8Wrapper::Set_Texture(unsigned stage,TextureBaseClass* texture)
+WWINLINE void DX8Wrapper::Commit_Fixed_Function_Texture(unsigned stage,TextureBaseClass* texture)
 {
 	WWASSERT(stage<(unsigned int)CurrentCaps->Get_Max_Textures_Per_Pass());
 	FixedFunctionState::Set_Texture(stage, texture);
+}
+
+#if !defined(GGC_BGFX_STANDALONE)
+WWINLINE void DX8Wrapper::Set_Texture(unsigned stage,TextureBaseClass* texture)
+{
+	Commit_Fixed_Function_Texture(stage, texture);
 }
 
 WWINLINE void DX8Wrapper::Set_Material(const VertexMaterialClass* material)
@@ -1322,6 +1384,7 @@ WWINLINE void DX8Wrapper::Set_Render_State(const RenderStateStruct& state)
 {
 	FixedFunctionState::Restore_Render_State(state);
 }
+#endif
 
 WWINLINE void DX8Wrapper::Release_Render_State()
 {
