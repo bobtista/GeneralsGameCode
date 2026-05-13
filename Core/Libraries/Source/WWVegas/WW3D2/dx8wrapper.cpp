@@ -518,6 +518,7 @@ void DX8Wrapper::Invalidate_Cached_Render_States()
 	FixedFunctionState::Changed_Mask()=0;
 	RenderStateCache::Invalidate();
 
+#if !defined(GGC_BGFX_STANDALONE)
 	int a;
 	for (a=0;a<MAX_TEXTURE_STAGES;++a)
 	{
@@ -526,6 +527,7 @@ void DX8Wrapper::Invalidate_Cached_Render_States()
 		if (_Get_D3D_Device8())
 			_Get_D3D_Device8()->SetTexture(a,nullptr);
 	}
+#endif
 	FixedFunctionState::Release_Raw_Textures();
 
 	ShaderClass::Invalidate();
