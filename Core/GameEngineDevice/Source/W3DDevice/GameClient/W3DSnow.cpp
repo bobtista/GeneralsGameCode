@@ -43,6 +43,110 @@ struct POINTVERTEX
 {
     Vector3 v;	//center of particle.
 };
+
+class W3DSnowPointSpriteRenderer
+{
+public:
+	W3DSnowPointSpriteRenderer()
+	{
+		m_vertexBuffer = nullptr;
+		m_base = SNOW_BUFFER_SIZE;
+		m_discard = SNOW_BUFFER_SIZE;
+		m_flush = SNOW_BATCH_SIZE;
+	}
+
+	~W3DSnowPointSpriteRenderer()
+	{
+		ReleaseResources();
+	}
+
+	void ReleaseResources()
+	{
+		if (m_vertexBuffer)
+			m_vertexBuffer->Release();
+		m_vertexBuffer = nullptr;
+	}
+
+	Bool ReAcquireResources()
+	{
+		LPDIRECT3DDEVICE8 device = DX8Wrapper::_Get_D3D_Device8();
+		DEBUG_ASSERTCRASH(device, ("Trying to ReAcquireResources on W3DSnowManager without device"));
+
+		if (m_vertexBuffer == nullptr)
+		{
+			if (FAILED(device->CreateVertexBuffer
+			(
+				SNOW_BUFFER_SIZE*sizeof(POINTVERTEX),
+				D3DUSAGE_WRITEONLY|D3DUSAGE_DYNAMIC|D3DUSAGE_POINTS,
+				D3DFVF_POINTVERTEX,
+				D3DPOOL_DEFAULT,
+				&m_vertexBuffer
+			)))
+				return FALSE;
+		}
+
+		ResetBatchState();
+		return TRUE;
+	}
+
+	Bool IsReady() const
+	{
+		return m_vertexBuffer != nullptr;
+	}
+
+	void ResetBatchState()
+	{
+		m_base = SNOW_BUFFER_SIZE;
+		m_discard = SNOW_BUFFER_SIZE;
+		m_flush = SNOW_BATCH_SIZE;
+	}
+
+	void BeginFrame()
+	{
+		m_base = SNOW_BUFFER_SIZE;
+	}
+
+	void Bind()
+	{
+		DX8Wrapper::_Get_D3D_Device8()->SetStreamSource(0, m_vertexBuffer, sizeof(POINTVERTEX));
+		DX8Wrapper::_Get_D3D_Device8()->SetVertexShader(D3DFVF_POINTVERTEX);
+	}
+
+	Int ClampBatchSize(Int requestedBatchSize)
+	{
+		Int batchSize = requestedBatchSize;
+		if (batchSize > m_flush)
+			batchSize = m_flush;
+
+		if ((m_base + batchSize) > m_discard)
+			m_base = 0;
+
+		return batchSize;
+	}
+
+	Bool LockBatch(Int batchSize, POINTVERTEX **verts)
+	{
+		return m_vertexBuffer->Lock(m_base * sizeof(POINTVERTEX), batchSize * sizeof(POINTVERTEX),
+			(unsigned char **) verts, m_base ? D3DLOCK_NOOVERWRITE : D3DLOCK_DISCARD) == D3D_OK;
+	}
+
+	void UnlockBatch()
+	{
+		m_vertexBuffer->Unlock();
+	}
+
+	void DrawBatch(Int vertexCount)
+	{
+		DX8Wrapper::_Get_D3D_Device8()->DrawPrimitive(D3DPT_POINTLIST, m_base, vertexCount);
+		m_base += vertexCount;
+	}
+
+private:
+	IDirect3DVertexBuffer8 *m_vertexBuffer;
+	Int m_base;		///<index to beginning of unused vertex buffer space.
+	Int m_flush;	///<maximum amount of vertices to sumbit before rendering.
+	Int m_discard;	///<maximum index allowed before needing to discard the buffer.
+};
 #endif
 
 W3DSnowManager::W3DSnowManager()
@@ -50,13 +154,17 @@ W3DSnowManager::W3DSnowManager()
 	m_indexBuffer=nullptr;
 	m_snowTexture=nullptr;
 #if !defined(GGC_BGFX_STANDALONE)
-	m_VertexBufferD3D=nullptr;
+	m_pointSpriteRenderer = NEW W3DSnowPointSpriteRenderer;
 #endif
 }
 
 W3DSnowManager::~W3DSnowManager()
 {
 	ReleaseResources();
+#if !defined(GGC_BGFX_STANDALONE)
+	delete m_pointSpriteRenderer;
+	m_pointSpriteRenderer = nullptr;
+#endif
 }
 
 void W3DSnowManager::init()
@@ -71,10 +179,8 @@ void W3DSnowManager::ReleaseResources()
 	REF_PTR_RELEASE(m_snowTexture);
 
 #if !defined(GGC_BGFX_STANDALONE)
-	if (m_VertexBufferD3D)
-		m_VertexBufferD3D->Release();
-
-	m_VertexBufferD3D=nullptr;
+	if (m_pointSpriteRenderer)
+		m_pointSpriteRenderer->ReleaseResources();
 #endif
 
 	REF_PTR_RELEASE(m_indexBuffer);
@@ -96,23 +202,8 @@ Bool W3DSnowManager::ReAcquireResources()
 	if (usePointSpritePath)
 	{
 #if !defined(GGC_BGFX_STANDALONE)
-		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-		DEBUG_ASSERTCRASH(m_pDev, ("Trying to ReAcquireResources on W3DSnowManager without device"));
-
-		if (m_VertexBufferD3D == nullptr)
-		{	// Create vertex buffer
-
-			if (FAILED(m_pDev->CreateVertexBuffer
-			(
-				SNOW_BUFFER_SIZE*sizeof(POINTVERTEX),
-				D3DUSAGE_WRITEONLY|D3DUSAGE_DYNAMIC|D3DUSAGE_POINTS,
-				D3DFVF_POINTVERTEX,
-				D3DPOOL_DEFAULT,
-				&m_VertexBufferD3D
-			)))
-				return FALSE;
-		}
+		if (!m_pointSpriteRenderer->ReAcquireResources())
+			return FALSE;
 #endif
 	}
 	else
@@ -148,12 +239,6 @@ Bool W3DSnowManager::ReAcquireResources()
 	}
 
 	m_snowTexture = WW3DAssetManager::Get_Instance()->Get_Texture(TheWeatherSetting->m_snowTexture.str());
-
-#if !defined(GGC_BGFX_STANDALONE)
-	m_dwBase = SNOW_BUFFER_SIZE;
-	m_dwDiscard = SNOW_BUFFER_SIZE;
-	m_dwFlush = SNOW_BATCH_SIZE;
-#endif
 
 	return TRUE;
 }
@@ -276,18 +361,11 @@ void W3DSnowManager::renderSubBox(RenderInfoClass &rinfo, Int originX, Int origi
 
 	while (totalPart)
 	{
-		Int batchSize=totalPart;
-
-		if (batchSize > m_dwFlush)
-			batchSize = m_dwFlush;
-
-		if((m_dwBase + batchSize) > m_dwDiscard)
-			m_dwBase = 0;
+		Int batchSize = m_pointSpriteRenderer->ClampBatchSize(totalPart);
 
 		POINTVERTEX* verts;
 
-		if(m_VertexBufferD3D->Lock(m_dwBase * sizeof(POINTVERTEX), batchSize * sizeof(POINTVERTEX),
-			(unsigned char **) &verts, m_dwBase ? D3DLOCK_NOOVERWRITE : D3DLOCK_DISCARD) != D3D_OK )
+		if (!m_pointSpriteRenderer->LockBatch(batchSize, &verts))
 			return;	//couldn't lock buffer.
 
 		Int numberInBatch=0;
@@ -327,14 +405,13 @@ void W3DSnowManager::renderSubBox(RenderInfoClass &rinfo, Int originX, Int origi
 		}
 
 flush_particles:
-		m_VertexBufferD3D->Unlock();
+		m_pointSpriteRenderer->UnlockBatch();
 		//Render any particles that may be queued up.
 		if (numberInBatch)
 		{
 			Debug_Statistics::Record_DX8_Polys_And_Vertices(numberInBatch*2,numberInBatch*4,ShaderClass::_PresetOpaqueShader);
-			DX8Wrapper::_Get_D3D_Device8()->DrawPrimitive( D3DPT_POINTLIST, m_dwBase, numberInBatch);
+			m_pointSpriteRenderer->DrawBatch(numberInBatch);
 			totalPart -= numberInBatch;
-			m_dwBase += numberInBatch;
 		}
 		}
 }
@@ -426,7 +503,7 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
 
 	//make sure we have all the resources we need
 #if !defined(GGC_BGFX_STANDALONE)
-	if (usePointSprites && !m_VertexBufferD3D)
+	if (usePointSprites && !m_pointSpriteRenderer->IsReady())
 		ReAcquireResources();
 #endif
 
@@ -452,9 +529,8 @@ void W3DSnowManager::render(RenderInfoClass &rinfo)
     g_renderBackend->Set_Point_Size(m_pointSize, m_minPointSize, m_maxPointSize);
     g_renderBackend->Set_Point_Scale(0.0f, 0.0f, 1.0f);
 
-	DX8Wrapper::_Get_D3D_Device8()->SetStreamSource( 0, m_VertexBufferD3D, sizeof(POINTVERTEX) );
-    DX8Wrapper::_Get_D3D_Device8()->SetVertexShader( D3DFVF_POINTVERTEX );
-	m_dwBase = SNOW_BUFFER_SIZE;	//start with a new vertex buffer each frame.
+	m_pointSpriteRenderer->Bind();
+	m_pointSpriteRenderer->BeginFrame();
 
 	m_leafDim = 45;	//cull boxes that are 20x20 emitters in size. Making them much smaller will result in too many draw calls.
 	m_totalRendered = 0;	//keep track of how many particles were rendered.
