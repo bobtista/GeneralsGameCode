@@ -50,6 +50,16 @@ static StringClass CapsWorkString;
 #define DXLOG(n) CapsWorkString.Format n ; CapsLog+=CapsWorkString;
 #define COMPACTLOG(n) CapsWorkString.Format n ; CompactLog+=CapsWorkString;
 
+namespace
+{
+	constexpr auto kLegacySoftwareVertexProcessingState = D3DRS_SOFTWAREVERTEXPROCESSING;
+
+	void Set_Legacy_Software_Vertex_Processing(IDirect3DDevice8 *device, BOOL enabled)
+	{
+		device->SetRenderState(kLegacySoftwareVertexProcessingState, enabled);
+	}
+}
+
 static const char* const VendorNames[]={
 	"Unknown",
 	"NVidia",
@@ -515,13 +525,13 @@ void DX8Caps::Shutdown()
 
 void DX8Caps::Init_Caps(IDirect3DDevice8* D3DDevice)
 {
-	D3DDevice->SetRenderState(D3DRS_SOFTWAREVERTEXPROCESSING,TRUE);
+	Set_Legacy_Software_Vertex_Processing(D3DDevice, TRUE);
 	DX8CALL(GetDeviceCaps(&Caps));
 
 	if ((Caps.DevCaps&D3DDEVCAPS_HWTRANSFORMANDLIGHT)==D3DDEVCAPS_HWTRANSFORMANDLIGHT) {
 		SupportTnL=true;
 
-		D3DDevice->SetRenderState(D3DRS_SOFTWAREVERTEXPROCESSING,FALSE);
+		Set_Legacy_Software_Vertex_Processing(D3DDevice, FALSE);
 		DX8CALL(GetDeviceCaps(&Caps));
 	} else {
 		SupportTnL=false;
