@@ -212,7 +212,7 @@ bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt)
     {
         case WW3D_FORMAT_A8R8G8B8:
         case WW3D_FORMAT_X8R8G8B8:
-            // D3D8 stores ARGB as 0xAARRGGBB which on little-endian
+            // Legacy ARGB is stored as 0xAARRGGBB which on little-endian
             // memory is BB GG RR AA - matches bgfx BGRA8 byte order.
             return bgfx::TextureFormat::BGRA8;
         case WW3D_FORMAT_R5G6B5:    return bgfx::TextureFormat::R5G6B5;
@@ -251,7 +251,7 @@ bool BgfxBackend::Supports_Compressed_Textures() const
         || Supports_Texture_Format(WW3D_FORMAT_DXT5);
 }
 
-// TheSuperHackers @refactor bobtista 20/04/2026 D3D8 ignores the X byte of X8R8G8B8 and samples alpha as 1.0. bgfx BGRA8 samples memory literally, so FFmpeg-produced procedural frames (BGR0, alpha byte = 0) would draw transparent under SRC_ALPHA blending. Force alpha=0xFF only when the texture has no file path, so TGA-loaded X8R8G8B8 textures (scorch marks, decals) keep their real alpha data.
+// TheSuperHackers @refactor bobtista 20/04/2026 The legacy renderer ignores the X byte of X8R8G8B8 and samples alpha as 1.0. bgfx BGRA8 samples memory literally, so FFmpeg-produced procedural frames (BGR0, alpha byte = 0) would draw transparent under SRC_ALPHA blending. Force alpha=0xFF only when the texture has no file path, so TGA-loaded X8R8G8B8 textures (scorch marks, decals) keep their real alpha data.
 static void ForceOpaqueIfProceduralX8R8G8B8(TextureClass * tex2d,
     bgfx::TextureFormat::Enum bgfxFmt, const bgfx::Memory * mem,
     unsigned expectedPitch, unsigned numRows)
@@ -304,7 +304,7 @@ static void ApplyTeamColorTextureKey(TextureClass * tex2d,
     for (unsigned i = 0; i < pixelCount; ++i)
     {
         // TheSuperHackers @fix bobtista 29/04/2026 Team-colored textures
-        // use exact black RGB as a transparent matte in the D3D8 path.
+        // use exact black RGB as a transparent matte in the legacy path.
         if (pix[i * 4 + 0] == 0 && pix[i * 4 + 1] == 0 && pix[i * 4 + 2] == 0)
         {
             pix[i * 4 + 3] = 0;
@@ -525,7 +525,7 @@ static bool IsTerrainAtlasTexture(TextureClass * tex2d,
     bgfx::TextureFormat::Enum bgfxFmt)
 {
 	// TheSuperHackers @bugfix bobtista 28/04/2026 The terrain texture is a
-	// sparse tile atlas with black unused space between classes. D3D8's
+	// sparse tile atlas with black unused space between classes. The legacy
 	// terrain path relies on tile-aware source mips and authored borders,
 	// while bgfx creates a full mip chain whenever mips are enabled. Upload a
 		// complete atlas-safe chain only for textures explicitly tagged by the
@@ -1190,7 +1190,7 @@ void BgfxBackend::Release_Cached_Texture(TextureBaseClass * texture)
     {
         return;
     }
-    // Called from TextureBaseClass::~TextureBaseClass before the D3D8
+    // Called from TextureBaseClass::~TextureBaseClass before the legacy
     // texture is released. Queue the bgfx handle for deferred destruction
     // (in-flight draws may still reference it this frame) and erase the
     // cache entries so a later allocation reusing this TextureBaseClass*

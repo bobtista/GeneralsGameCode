@@ -250,7 +250,7 @@ struct BgfxDraw
     float tex1TransformZ[4]   = { 0.0f, 0.0f, 1.0f, 0.0f };
     float tex2Transform0[4]   = { 1.0f, 0.0f, 0.0f, 0.0f };
     float tex2Transform1[4]   = { 0.0f, 1.0f, 0.0f, 0.0f };
-    // .x > 0.5 = stage 0 uses D3DTTFF_PROJECTED|D3DTTFF_COUNT3 — divide UV.xy
+    // .x > 0.5 = stage 0 uses projected 3-component texture coords - divide UV.xy
     // by the third texcoord output produced from texTransform0Z. .y same for
     // stage 1. Used by TexProjectClass perspective projection of building
     // floor emblems / faction icons.
@@ -292,7 +292,7 @@ struct BgfxDraw
     bool  fvfHasNormal        = false;
     // .x = post-projection clip-space Z offset (negative pushes toward camera)
     // applied in vs_uber.sc as gl_Position.z -= u_zBias.x * gl_Position.w. Sourced
-    // from D3DRS_ZBIAS at submit time so legacy paths that set the wrapper state
+    // from cached z-bias at submit time so legacy paths that set the wrapper state
     // directly (DX8MeshRendererClass::Render_Decal_Meshes uses ZBIAS=8 to keep
     // floor emblems and decals from z-fighting with the terrain they sit on)
     // get equivalent behaviour under the bgfx pipeline.
@@ -435,7 +435,7 @@ struct BgfxCaches
 // Resources created via IRenderBackend::Create_Texture / Create_Vertex_Buffer
 // etc. are tracked here. RenderResource.id is a monotonically-assigned index
 // into BgfxPhase5Resources::table; table[id] holds the bgfx handle(s) plus
-// an optional D3D8 mirror pointer for the ref-popup build.
+// an optional legacy mirror pointer for the ref-popup build.
 
 enum BgfxPhase5Kind
 {
@@ -455,7 +455,7 @@ struct BgfxPhase5Entry
     bgfx::IndexBufferHandle          ib;
     bgfx::DynamicVertexBufferHandle  dvb;
     bgfx::DynamicIndexBufferHandle   dib;
-    void * d3d_mirror;               // IDirect3D*8* cast to void*, ref-popup only; nullptr in standalone
+    void * d3d_mirror;               // raw legacy mirror pointer, ref-popup only; nullptr in standalone
     void * owner;                    // TextureBaseClass/VertexBufferClass/IndexBufferClass for loaded-resource caches
     unsigned int size_bytes;         // for dynamic buffers — size of the backing allocation
     // Dynamic Map/Unmap: if using_transient is true, tvb/tib is live for this frame
