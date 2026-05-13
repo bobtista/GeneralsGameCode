@@ -109,6 +109,7 @@
 #include "rddesc.h"
 #include "Vector3i.h"
 #include "dx8wrapper.h"
+#include "RenderBackend.h"
 #include "TARGA.h"
 #include "sortingrenderer.h"
 #include "thread.h"
@@ -1360,19 +1361,14 @@ void WW3D::Make_Screen_Shot( const char * filename_base , const float gamma, con
 		gamma_lut[i] = (unsigned char) (256.0f * powf(i / 256.0f, recip));
 	}
 
-	// TheSuperHackers @bugfix xezon 21/05/2025 Get the back buffer and create a copy of the surface.
-	// Originally this code took the front buffer and tried to lock it. This does not work when the
-	// render view clips outside the desktop boundaries. It crashed the game.
-	SurfaceClass* surface = DX8Wrapper::_Get_DX8_Back_Buffer();
+	SurfaceClass* surfaceCopy = (g_renderBackend != nullptr) ? g_renderBackend->Capture_Back_Buffer_Surface(0) : nullptr;
+	if (surfaceCopy == nullptr)
+	{
+		return;
+	}
 
 	SurfaceClass::SurfaceDescription surfaceDesc;
-	surface->Get_Description(surfaceDesc);
-
-	SurfaceClass* surfaceCopy = NEW_REF(SurfaceClass, (DX8Wrapper::_Create_DX8_Surface(surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format)));
-	DX8Wrapper::_Copy_DX8_Rects(surface->Peek_D3D_Surface(), nullptr, 0, surfaceCopy->Peek_D3D_Surface(), nullptr);
-
-	surface->Release_Ref();
-	surface = nullptr;
+	surfaceCopy->Get_Description(surfaceDesc);
 
 	struct Rect
 	{
@@ -1710,19 +1706,14 @@ void WW3D::Update_Movie_Capture()
 	WWPROFILE("WW3D::Update_Movie_Capture");
 	WWDEBUG_SAY(( "Updating"));
 
-	// TheSuperHackers @bugfix xezon 21/05/2025 Get the back buffer and create a copy of the surface.
-	// Originally this code took the front buffer and tried to lock it. This does not work when the
-	// render view clips outside the desktop boundaries. It crashed the game.
-	SurfaceClass* surface = DX8Wrapper::_Get_DX8_Back_Buffer();
+	SurfaceClass* surfaceCopy = (g_renderBackend != nullptr) ? g_renderBackend->Capture_Back_Buffer_Surface(0) : nullptr;
+	if (surfaceCopy == nullptr)
+	{
+		return;
+	}
 
 	SurfaceClass::SurfaceDescription surfaceDesc;
-	surface->Get_Description(surfaceDesc);
-
-	SurfaceClass* surfaceCopy = NEW_REF(SurfaceClass, (DX8Wrapper::_Create_DX8_Surface(surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format)));
-	DX8Wrapper::_Copy_DX8_Rects(surface->Peek_D3D_Surface(), nullptr, 0, surfaceCopy->Peek_D3D_Surface(), nullptr);
-
-	surface->Release_Ref();
-	surface = nullptr;
+	surfaceCopy->Get_Description(surfaceDesc);
 
 	struct Rect
 	{
@@ -2019,12 +2010,14 @@ void WW3D::Update_Pixel_Center()
 
 void WW3D::Set_Texture_Bitdepth(int bitdepth)
 {
-	DX8Wrapper::Set_Texture_Bitdepth(bitdepth);
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Set_Texture_Bitdepth(bitdepth);
+	}
 }
 
 int WW3D::Get_Texture_Bitdepth()
 {
-	return DX8Wrapper::Get_Texture_Bitdepth();
+	return (g_renderBackend != nullptr) ? g_renderBackend->Get_Texture_Bitdepth() : 16;
 }
 
 void WW3D::Set_MSAA_Mode(MultiSampleModeEnum mode)

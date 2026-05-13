@@ -57,7 +57,7 @@
 #include "inisup.h"
 #include "persistfactory.h"
 #include "ww3dids.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "dx8vertexbuffer.h"
@@ -391,7 +391,7 @@ void LensflareTypeClass::Generate_Vertex_Buffers(
 		if (col[0]>1.0f) col[0]=1.0f;
 		if (col[1]>1.0f) col[1]=1.0f;
 		if (col[2]>1.0f) col[2]=1.0f;
-		unsigned color=DX8Wrapper::Convert_Color(col,1.0f);
+		unsigned color=WW3DColor::To_ARGB(col,1.0f);
 
 		vertex->x=x+ix;
 		vertex->y=y-iy;
@@ -921,7 +921,7 @@ void DazzleRenderObjClass::Render(RenderInfoClass & rinfo)
 
 	if (	Is_Not_Hidden_At_All() &&
 			_dazzle_rendering_enabled &&
-			!DX8Wrapper::Is_Render_To_Texture()	)
+			(!g_renderBackend || !g_renderBackend->Is_Render_To_Texture())	)
 	{
 		// First check if the dazzle is blinking and is "off"
 		bool is_on = true;
@@ -1101,7 +1101,7 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 			if (col[1]>1.0f) col[1]=1.0f;
 			if (col[2]>1.0f) col[2]=1.0f;
 
-			unsigned color=DX8Wrapper::Convert_Color(col,1.0f);
+			unsigned color=WW3DColor::To_ARGB(col,1.0f);
 
 			dl=current_vloc+(dazzle_dxt-dazzle_dyt)*current_dazzle_size;
 			reinterpret_cast<Vector3&>(vertex->x)=dl;
@@ -1144,7 +1144,7 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 			if (col[1]>1.0f) col[1]=1.0f;
 			if (col[2]>1.0f) col[2]=1.0f;
 
-			unsigned color=DX8Wrapper::Convert_Color(col,1.0f);
+			unsigned color=WW3DColor::To_ARGB(col,1.0f);
 
 			Vector3 offset;
 

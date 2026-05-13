@@ -37,12 +37,16 @@
 #include "GameClient/Display.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/IRenderBackend.h"
+#include "WW3D2/RenderBufferTypes.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/sortingrenderer.h"
+#include "WW3D2/surfaceclass.h"
+#include "WW3D2/vertmaterial.h"
+#include "WWMath/vector2i.h"
 
 
 SmudgeManager *TheSmudgeManager=nullptr;
@@ -83,13 +87,21 @@ void W3DSmudgeManager::ReAcquireResources()
 {
 	ReleaseResources();
 
-	SurfaceClass *surface=DX8Wrapper::_Get_DX8_Back_Buffer();
 	SurfaceClass::SurfaceDescription surface_desc;
 
+#if defined(GGC_BGFX_STANDALONE)
+	surface_desc.Format = WW3D_FORMAT_UNKNOWN;
+	surface_desc.Width = TheDisplay ? TheDisplay->getWidth() : 0;
+	surface_desc.Height = TheDisplay ? TheDisplay->getHeight() : 0;
+#else
+	SurfaceClass *surface = g_renderBackend ? g_renderBackend->Get_Back_Buffer(0) : nullptr;
+	if (!surface)
+		return;
 	surface->Get_Description(surface_desc);
 	REF_PTR_RELEASE(surface);
 
 	m_backgroundTexture = MSGNEW("TextureClass") TextureClass(surface_desc.Width,surface_desc.Height,surface_desc.Format,MIP_LEVELS_1,TextureClass::POOL_DEFAULT, true);
+#endif
 
 	m_backBufferWidth = surface_desc.Width;
 	m_backBufferHeight = surface_desc.Height;
@@ -135,69 +147,53 @@ void W3DSmudgeManager::ReAcquireResources()
 /*Copies a portion of the current render target into a specified buffer*/
 Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int height)
 {
- 	IDirect3DSurface8 *surface=nullptr;	///<previous render target
- 	IDirect3DSurface8 *tempSurface=nullptr;
-	Int result = 0;
-	HRESULT hr = S_OK;
+	if (buf == nullptr || bufSize <= 0 || width <= 0 || height <= 0 || g_renderBackend == nullptr) {
+		return 0;
+	}
 
- 	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
+	SurfaceClass *surface = g_renderBackend->Capture_Back_Buffer_Surface(0);
+	if (surface == nullptr) {
+		return 0;
+	}
 
-	if (!m_pDev)
-		goto error;
+	SurfaceClass::SurfaceDescription desc;
+	surface->Get_Description(desc);
+	if (oX < 0 || oY < 0 ||
+		oX + width > static_cast<int>(desc.Width) ||
+		oY + height > static_cast<int>(desc.Height)) {
+		surface->Release_Ref();
+		return 0;
+	}
 
- 	m_pDev->GetRenderTarget(&surface);
+	const int bytesPerPixel = surface->Get_Bytes_Per_Pixel();
+	const int rowBytes = width * bytesPerPixel;
+	const int totalBytes = rowBytes * height;
+	const int copyBytes = (bufSize < totalBytes) ? bufSize : totalBytes;
+	if (bytesPerPixel <= 0 || copyBytes <= 0) {
+		surface->Release_Ref();
+		return 0;
+	}
 
-	if (!surface)
-		goto error;
+	int pitch = 0;
+	unsigned char *src = static_cast<unsigned char *>(surface->Lock(
+		&pitch,
+		Vector2i(oX, oY),
+		Vector2i(oX + width, oY + height)));
+	if (src == nullptr) {
+		surface->Release_Ref();
+		return 0;
+	}
 
- 	D3DSURFACE_DESC desc;
+	int copied = 0;
+	for (int row = 0; row < height && copied < copyBytes; ++row) {
+		const int rowCopy = (copyBytes - copied < rowBytes) ? copyBytes - copied : rowBytes;
+		memcpy(buf + copied, src + row * pitch, rowCopy);
+		copied += rowCopy;
+	}
 
- 	surface->GetDesc(&desc);
-
-	RECT srcRect;
-	srcRect.left=oX;
-	srcRect.top=oY;
-	srcRect.right=oX+width;
-	srcRect.bottom=oY+height;
-
-	POINT dstPoint;
-	dstPoint.x=0;
-	dstPoint.y=0;
-
- 	hr=m_pDev->CreateImageSurface(  width, height, desc.Format, &tempSurface);
-
-	if (hr != S_OK)
-		goto error;
-
- 	hr=m_pDev->CopyRects(surface,&srcRect,1,tempSurface,&dstPoint);
-
-	if (hr != S_OK)
-		goto error;
-
- 	D3DLOCKED_RECT lrect;
-
- 	hr=tempSurface->LockRect(&lrect,nullptr,D3DLOCK_READONLY);
-
-	if (hr != S_OK)
-		goto error;
-
- 	tempSurface->GetDesc(&desc);
-
-	if (desc.Size < bufSize)
-		bufSize = desc.Size;
-
-	memcpy(buf,lrect.pBits,bufSize);
-	result = bufSize;
-
-	tempSurface->UnlockRect();
-
-error:
-	if (surface)
-		surface->Release();
-	if (tempSurface)
-		tempSurface->Release();
-
-	return result;
+	surface->Unlock();
+	surface->Release_Ref();
+	return copied;
 }
 
 #define UNIQUE_COLOR	(0x12345678)
@@ -215,8 +211,7 @@ Bool W3DSmudgeManager::testHardwareSupport()
 	if (m_hardwareSupportStatus == SMUDGE_SUPPORT_UNKNOWN)
 	{	//we have not done the test yet.
 
-		IDirect3DTexture8 *backTexture=W3DShaderManager::getRenderTexture();
-		if (!backTexture || !W3DShaderManager::isRenderingToTexture())
+		if (!W3DShaderManager::hasRenderTexture() || !W3DShaderManager::isRenderingToTexture())
 		{
 			// TheSuperHackers @bugfix When Render-To-Texture is disabled globally, we fallback
 			// to copying the backbuffer to a texture.
@@ -241,42 +236,49 @@ Bool W3DSmudgeManager::testHardwareSupport()
 		g_renderBackend->Set_Texture(0,nullptr);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
-		struct _TRANS_LIT_TEX_VERTEX {
-			Vector4 p;
-			DWORD color;   // diffuse color
-			float	u;
-			float	v;
-		} v[4];
+		RenderBackendScreenVertex v[4];
 
 		//bottom right
-		v[0].p = Vector4( BLOCK_SIZE-0.5f, BLOCK_SIZE-0.5f, 0.0f, 1.0f );
-		v[0].u = BLOCK_SIZE/(Real)TheDisplay->getWidth();
-		v[0].v = BLOCK_SIZE/(Real)TheDisplay->getHeight();
+		v[0].x = BLOCK_SIZE-0.5f;
+		v[0].y = BLOCK_SIZE-0.5f;
+		v[0].z = 0.0f;
+		v[0].w = 1.0f;
+		v[0].u0 = BLOCK_SIZE/(Real)TheDisplay->getWidth();
+		v[0].v0 = BLOCK_SIZE/(Real)TheDisplay->getHeight();
 		//top right
-		v[1].p = Vector4( BLOCK_SIZE-0.5f, 0-0.5f, 0.0f, 1.0f );
-		v[1].u = BLOCK_SIZE/(Real)TheDisplay->getWidth();
-		v[1].v = 0;
+		v[1].x = BLOCK_SIZE-0.5f;
+		v[1].y = 0-0.5f;
+		v[1].z = 0.0f;
+		v[1].w = 1.0f;
+		v[1].u0 = BLOCK_SIZE/(Real)TheDisplay->getWidth();
+		v[1].v0 = 0;
 		//bottom left
-		v[2].p = Vector4(  0-0.5f, BLOCK_SIZE-0.5f, 0.0f, 1.0f );
-		v[2].u = 0;
-		v[2].v = BLOCK_SIZE/(Real)TheDisplay->getHeight();
+		v[2].x = 0-0.5f;
+		v[2].y = BLOCK_SIZE-0.5f;
+		v[2].z = 0.0f;
+		v[2].w = 1.0f;
+		v[2].u0 = 0;
+		v[2].v0 = BLOCK_SIZE/(Real)TheDisplay->getHeight();
 		//top left
-		v[3].p = Vector4(  0-0.5f,  0-0.5f, 0.0f, 1.0f );
-		v[3].u = 0;
-		v[3].v = 0;
+		v[3].x = 0-0.5f;
+		v[3].y = 0-0.5f;
+		v[3].z = 0.0f;
+		v[3].w = 1.0f;
+		v[3].u0 = 0;
+		v[3].v0 = 0;
 
-		v[0].color = UNIQUE_COLOR;
-		v[1].color = UNIQUE_COLOR;
-		v[2].color = UNIQUE_COLOR;
-		v[3].color = UNIQUE_COLOR;
+		for (Int i = 0; i < 4; ++i)
+		{
+			v[i].diffuse = UNIQUE_COLOR;
+			v[i].u1 = 0.0f;
+			v[i].v1 = 0.0f;
+		}
 
-		LPDIRECT3DDEVICE8 pDev=DX8Wrapper::_Get_D3D_Device8();
-
-		//draw polygons like this is very inefficient but for only 2 triangles, it's
-		//not worth bothering with index/vertex buffers.
-		pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE | D3DFVF_TEX1);
-
-		pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
+		if (g_renderBackend == nullptr || !g_renderBackend->Draw_Screen_Quad(v, 4, false))
+		{
+			m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
+			return FALSE;
+		}
 
 		DWORD refData[BLOCK_SIZE*BLOCK_SIZE];
 		memset(refData,0,sizeof(refData));
@@ -287,17 +289,26 @@ Bool W3DSmudgeManager::testHardwareSupport()
 			return FALSE;
 		}
 
-		DX8Wrapper::Set_DX8_Texture(0,backTexture);
+		if (g_renderBackend == nullptr ||
+			!g_renderBackend->Bind_View_Capture_Texture(RB_VIEW_CAPTURE_TACTICAL, 0))
+		{
+			m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
+			return FALSE;
+		}
 
 		DWORD testData[BLOCK_SIZE*BLOCK_SIZE];
 		memset(testData,0xff,sizeof(testData));
 
-		v[0].color = 0xffffffff;
-		v[1].color = 0xffffffff;
-		v[2].color = 0xffffffff;
-		v[3].color = 0xffffffff;
+		v[0].diffuse = 0xffffffff;
+		v[1].diffuse = 0xffffffff;
+		v[2].diffuse = 0xffffffff;
+		v[3].diffuse = 0xffffffff;
 
-		pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANS_LIT_TEX_VERTEX));
+		if (!g_renderBackend->Draw_Screen_Quad(v, 4, false))
+		{
+			m_hardwareSupportStatus = SMUDGE_SUPPORT_NO;
+			return FALSE;
+		}
 		bufSize=copyRect((unsigned char *)testData,sizeof(testData),0,0,BLOCK_SIZE,BLOCK_SIZE);
 
 		if (!bufSize)
@@ -333,7 +344,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	surface_desc.Width = TheDisplay->getWidth();
 	surface_desc.Height = TheDisplay->getHeight();
 #else
-	SurfaceClass *backBuffer = DX8Wrapper::_Get_DX8_Back_Buffer();
+	SurfaceClass *backBuffer = g_renderBackend ? g_renderBackend->Get_Back_Buffer(0) : nullptr;
 
 	if (!backBuffer)
 		return;
@@ -483,20 +494,15 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 	g_renderBackend->Set_Texture(0,bgfxSmudgeActive ? nullptr : m_backgroundTexture);
 	//Need these states in case texture is non-power-of-2
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSU, D3DTADDRESS_CLAMP);
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSV, D3DTADDRESS_CLAMP);
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ADDRESSW, D3DTADDRESS_CLAMP);
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-	DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_MIPFILTER, D3DTEXF_NONE);
+	g_renderBackend->Set_Texture_Address_Mode(0, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP, RB_TEXTURE_ADDRESS_CLAMP);
+	g_renderBackend->Set_Texture_Sample_Filter(0, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_LINEAR, RB_TEXTURE_SAMPLE_NONE);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	g_renderBackend->Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
 	g_renderBackend->Apply_Render_State_Changes();
 
-	//Disable reading texture alpha since it's undefined.
-	//DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_SELECTARG2);
+		// Disable reading texture alpha since it's undefined.
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_SELECTARG2);
 
 	Int smudgesRemaining=count;
 	set=m_usedSmudgeSetList.Head();	//first smudge set that needs rendering.
@@ -587,20 +593,11 @@ flushSmudges:
 
 		g_renderBackend->Draw_Triangles(0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);
 
-//Debug Code which draws outline around smudge
-/*		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ALPHABLENDENABLE,FALSE);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG2);
-		g_renderBackend->Draw_Triangles(	0,smudgesInRenderBatch*4, 0, smudgesInRenderBatch*5);
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
-		DX8Wrapper::_Get_D3D_Device8()->SetRenderState(D3DRS_ALPHABLENDENABLE,TRUE);
-		DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_SELECTARG1);
-*/
 		smudgesRemaining -= smudgesInRenderBatch;
 	}
 
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_COLOROP,D3DTOP_MODULATE);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,D3DTSS_ALPHAOP,D3DTOP_MODULATE);
+	g_renderBackend->Set_Texture_Color_Operation(0, RB_TEXOP_MODULATE);
+	g_renderBackend->Set_Texture_Alpha_Operation(0, RB_TEXOP_MODULATE);
 
 	if (bgfxSmudgeActive)
 		g_renderBackend->End_Smudge_Distortion();

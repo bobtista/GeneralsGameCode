@@ -54,9 +54,9 @@ endif()
 # TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 5 — standalone
 # bgfx build. When ON, the DX8 reference popup and real d3d8/d3dx8 runtime
 # links are disabled. This does NOT yet remove the legacy DX8Wrapper state
-# model: BgfxBackend still inherits from DX8Backend and standalone mode runs
-# DX8Wrapper against in-tree no-op D3D8/D3DX stubs so old call sites keep
-# updating the render-state/resource caches that bgfx translates.
+# and resource compatibility model: standalone mode still runs DX8Wrapper
+# against in-tree no-op D3D8/D3DX stubs so old call sites keep updating the
+# state/resource data that bgfx translates.
 #
 # Removing those compatibility stubs requires the staged migration tracked in
 # docs/BUILD/BGFX_DX8_REMOVAL_PLAN.md.

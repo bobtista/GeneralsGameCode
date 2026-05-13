@@ -39,7 +39,6 @@
 #include "texture.h"
 #include "wwprofile.h"
 #include "wwmemlog.h"
-#include "dx8wrapper.h"
 #include "IRenderBackend.h"
 #include "RenderBackend.h"
 
@@ -372,7 +371,7 @@ Render2DSentenceClass::Build_Textures ()
 		//
 		//	Copy the contents of the texture from the surface
 		//
-		DX8Wrapper::_Copy_DX8_Rects (curr_surface->Peek_D3D_Surface (), nullptr, 0, texture_surface->Peek_D3D_Surface (), nullptr);
+		texture_surface->Copy(0, 0, 0, 0, desc.Width, desc.Height, curr_surface);
 		REF_PTR_RELEASE (texture_surface);
 
 		// TheSuperHackers @fix bobtista 19/04/2026 Invalidate the bgfx texture

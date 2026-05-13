@@ -51,6 +51,7 @@
 #include "Common/Radar.h"
 #include "Common/RandomValue.h"
 #include "Common/Recorder.h"
+#include "Common/SpecialPower.h"
 #include "Common/StatsCollector.h"
 #include "Common/ThingFactory.h"
 #include "Common/Team.h"
@@ -63,6 +64,7 @@
 #include "Common/XferDeepCRC.h"
 #include "Common/GameSpyMiscPreferences.h"
 
+#include "GameClient/CommandXlat.h"
 #include "GameClient/ControlBar.h"
 #include "GameClient/Drawable.h"
 #include "GameClient/GameClient.h"
@@ -91,6 +93,7 @@
 #include "GameLogic/Module/CreateModule.h"
 #include "GameLogic/Module/DestroyModule.h"
 #include "GameLogic/Module/OpenContain.h"
+#include "GameLogic/Module/SpecialPowerModule.h"
 #include "GameLogic/PartitionManager.h"
 #include "GameLogic/PolygonTrigger.h"
 #include "GameLogic/ScriptActions.h"
@@ -112,6 +115,11 @@
 #include "GameNetwork/GameSpy/PersistentStorageThread.h"
 
 #include <rts/profile.h>
+
+#ifndef _WIN32
+#include <cstdio>
+#include <cstdlib>
+#endif
 
 struct QuitGameException {};
 
@@ -285,6 +293,214 @@ static void ggcForceNonObserverLocalPlayer(GameMode mode)
 		ThePlayerList->setLocalPlayer(candidate);
 		return;
 	}
+}
+
+struct GgcSpecialPowerTriggerContext
+{
+	const SpecialPowerTemplate *power = nullptr;
+	Object *source = nullptr;
+};
+
+static void ggcFindSpecialPowerSource(Object *obj, void *userData)
+{
+	GgcSpecialPowerTriggerContext *context = static_cast<GgcSpecialPowerTriggerContext *>(userData);
+	if (!context || context->source || !obj || !context->power)
+		return;
+
+	if (obj->getSpecialPowerModule(context->power))
+		context->source = obj;
+}
+
+static void ggcDumpLocalObject(Object *obj, void *)
+{
+	if (!obj || !obj->getTemplate())
+		return;
+
+	const Coord3D *pos = obj->getPosition();
+	if (!pos)
+		return;
+
+	std::fprintf(stderr,
+		"[GGC_OBJECT_DUMP] id=%u template=%s pos=(%.2f,%.2f,%.2f)\n",
+		obj->getID(),
+		obj->getTemplate()->getName().str(),
+		pos->x,
+		pos->y,
+		pos->z);
+}
+
+static Bool ggcParseWorldCoord(const char *value, Coord3D *out)
+{
+	if (!value || !out)
+		return FALSE;
+
+	float x = 0.0f;
+	float y = 0.0f;
+	float z = 0.0f;
+	if (std::sscanf(value, "%f,%f,%f", &x, &y, &z) >= 2)
+	{
+		out->x = x;
+		out->y = y;
+		out->z = z;
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+static void ggcMaybeTriggerSpecialPowerDiagnostic()
+{
+	if (std::getenv("GGC_DUMP_LOCAL_OBJECTS"))
+	{
+		static Bool dumpedObjects = FALSE;
+		if (!dumpedObjects && ThePlayerList)
+		{
+			Player *player = ThePlayerList->getLocalPlayer();
+			if (player && !player->isPlayerObserver())
+			{
+				player->iterateObjects(ggcDumpLocalObject, nullptr);
+				dumpedObjects = TRUE;
+			}
+		}
+	}
+
+	const char *guiCommandName = std::getenv("GGC_TRIGGER_GUI_COMMAND");
+	if (guiCommandName && *guiCommandName)
+	{
+		static Bool initializedGuiCommand = FALSE;
+		static Bool firedGuiCommand = FALSE;
+		static UnsignedInt triggerGuiCommandFrame = 0;
+
+		if (firedGuiCommand)
+			return;
+
+		if (!initializedGuiCommand)
+		{
+			const char *delayEnv = std::getenv("GGC_TRIGGER_DELAY_FRAMES");
+			Int delayFrames = delayEnv ? std::atoi(delayEnv) : 90;
+			if (delayFrames < 0)
+				delayFrames = 0;
+			triggerGuiCommandFrame = TheGameLogic->getFrame() + delayFrames;
+			initializedGuiCommand = TRUE;
+			std::fprintf(stderr, "[GGC_TRIGGER_GUI_COMMAND] armed command=%s frame=%u\n", guiCommandName, triggerGuiCommandFrame);
+		}
+
+		if (TheGameLogic->getFrame() < triggerGuiCommandFrame)
+			return;
+
+		if (!TheControlBar || !TheInGameUI || !TheGameClient || !ThePlayerList || !TheTacticalView)
+			return;
+
+		Player *player = ThePlayerList->getLocalPlayer();
+		if (!player || player->isPlayerObserver())
+			return;
+
+		const CommandButton *command = TheControlBar->findCommandButton(AsciiString(guiCommandName));
+		if (!command)
+		{
+			firedGuiCommand = TRUE;
+			std::fprintf(stderr, "[GGC_TRIGGER_GUI_COMMAND] missing command=%s\n", guiCommandName);
+			return;
+		}
+
+		if (const SpecialPowerTemplate *power = command->getSpecialPowerTemplate())
+		{
+			Object *unit = player->findMostReadyShortcutSpecialPowerOfType(power->getSpecialPowerType());
+			if (unit)
+			{
+				if (SpecialPowerModuleInterface *module = unit->getSpecialPowerModule(power))
+					module->setReadyFrame(TheGameLogic->getFrame());
+			}
+		}
+
+		Coord3D target = TheTacticalView->getPosition();
+		ggcParseWorldCoord(std::getenv("GGC_TRIGGER_WORLD"), &target);
+
+		TheInGameUI->setGUICommand(command);
+		GameMessage::Type msgType = TheGameClient->evaluateContextCommand(nullptr, &target, CommandTranslator::DO_COMMAND);
+		firedGuiCommand = TRUE;
+		std::fprintf(stderr,
+			"[GGC_TRIGGER_GUI_COMMAND] fired command=%s msg=%d target=(%.2f,%.2f,%.2f) frame=%u\n",
+			guiCommandName,
+			static_cast<int>(msgType),
+			target.x,
+			target.y,
+			target.z,
+			TheGameLogic->getFrame());
+		return;
+	}
+
+	const char *powerName = std::getenv("GGC_TRIGGER_SPECIAL_POWER");
+	if (!powerName || !*powerName)
+		return;
+
+	static Bool initialized = FALSE;
+	static Bool fired = FALSE;
+	static UnsignedInt triggerFrame = 0;
+
+	if (fired)
+		return;
+
+	if (!initialized)
+	{
+		const char *delayEnv = std::getenv("GGC_TRIGGER_DELAY_FRAMES");
+		Int delayFrames = delayEnv ? std::atoi(delayEnv) : 90;
+		if (delayFrames < 0)
+			delayFrames = 0;
+		triggerFrame = TheGameLogic->getFrame() + delayFrames;
+		initialized = TRUE;
+		std::fprintf(stderr, "[GGC_TRIGGER_SPECIAL_POWER] armed power=%s frame=%u\n", powerName, triggerFrame);
+	}
+
+	if (TheGameLogic->getFrame() < triggerFrame)
+		return;
+
+	if (!ThePlayerList || !TheSpecialPowerStore || !TheTacticalView)
+		return;
+
+	Player *player = ThePlayerList->getLocalPlayer();
+	if (!player || player->isPlayerObserver())
+		return;
+
+	const SpecialPowerTemplate *power = TheSpecialPowerStore->findSpecialPowerTemplate(AsciiString(powerName));
+	if (!power)
+	{
+		fired = TRUE;
+		std::fprintf(stderr, "[GGC_TRIGGER_SPECIAL_POWER] missing power=%s\n", powerName);
+		return;
+	}
+
+	Coord3D target = TheTacticalView->getPosition();
+	ggcParseWorldCoord(std::getenv("GGC_TRIGGER_WORLD"), &target);
+
+	GgcSpecialPowerTriggerContext context;
+	context.power = power;
+	player->iterateObjects(ggcFindSpecialPowerSource, &context);
+	if (!context.source)
+	{
+		fired = TRUE;
+		std::fprintf(stderr, "[GGC_TRIGGER_SPECIAL_POWER] no source for power=%s player=%d\n", powerName, player->getPlayerIndex());
+		return;
+	}
+
+	SpecialPowerModuleInterface *module = context.source->getSpecialPowerModule(power);
+	if (!module)
+	{
+		fired = TRUE;
+		return;
+	}
+
+	module->setReadyFrame(TheGameLogic->getFrame());
+	module->doSpecialPowerAtLocation(&target, INVALID_ANGLE, COMMAND_FIRED_BY_SCRIPT);
+	fired = TRUE;
+	std::fprintf(stderr,
+		"[GGC_TRIGGER_SPECIAL_POWER] fired power=%s source=%u target=(%.2f,%.2f,%.2f) frame=%u\n",
+		powerName,
+		context.source->getID(),
+		target.x,
+		target.y,
+		target.z,
+		TheGameLogic->getFrame());
 }
 #endif
 
@@ -3947,6 +4163,10 @@ void GameLogic::update()
 	{
 		processCommandList( TheCommandList );
 	}
+
+#ifndef _WIN32
+	ggcMaybeTriggerSpecialPowerDiagnostic();
+#endif
 
 #ifdef ALLOW_NONSLEEPY_UPDATES
 	{

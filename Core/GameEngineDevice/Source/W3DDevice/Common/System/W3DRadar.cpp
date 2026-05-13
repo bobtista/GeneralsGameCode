@@ -53,7 +53,6 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/texture.h"
-#include "WW3D2/dx8caps.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WWMath/vector2i.h"
@@ -83,7 +82,7 @@ static WW3DFormat findFormat(const WW3DFormat formats[])
 	for( Int i = 0; formats[ i ] != WW3D_FORMAT_UNKNOWN; i++ )
 	{
 
-		if( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( formats[ i ] ) )
+		if( g_renderBackend && g_renderBackend->Supports_Texture_Format( formats[ i ] ) )
 		{
 
 			return formats[ i ];
@@ -1449,7 +1448,7 @@ void W3DRadar::endSetShroudLevel()
 		m_shroudSurfacePixelSize = 0;
 	}
 	REF_PTR_RELEASE(m_shroudSurface);
-	// TheSuperHackers @fix bobtista 21/04/2026 The radar updates its shroud via direct Lock/Draw_Pixel/Unlock on the D3D8 surface. bgfx caches the texture by TextureBaseClass* and needs an explicit invalidation to re-upload the modified pixels.
+	// TheSuperHackers @fix bobtista 21/04/2026 The radar updates its shroud via direct Lock/Draw_Pixel/Unlock on the texture surface. bgfx caches the texture by TextureBaseClass* and needs an explicit invalidation to re-upload the modified pixels.
 	if (g_renderBackend != nullptr && m_shroudTexture != nullptr)
 		g_renderBackend->Invalidate_Cached_Texture(m_shroudTexture);
 }

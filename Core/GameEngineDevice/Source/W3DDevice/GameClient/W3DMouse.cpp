@@ -29,7 +29,6 @@
 
 
 #include "Common/GameMemory.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/rendobj.h"
 #include "WW3D2/hanim.h"
