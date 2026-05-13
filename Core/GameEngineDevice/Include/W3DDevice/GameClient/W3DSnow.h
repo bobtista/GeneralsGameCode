@@ -26,7 +26,7 @@ class DX8IndexBufferClass;
 class RenderInfoClass;
 class TextureClass;
 #if !defined(GGC_BGFX_STANDALONE)
-struct IDirect3DVertexBuffer8;
+class W3DSnowPointSpriteRenderer;
 #endif
 
 class W3DSnowManager : public SnowManager
@@ -53,10 +53,7 @@ class W3DSnowManager : public SnowManager
 	DX8IndexBufferClass	*m_indexBuffer;
 	TextureClass *m_snowTexture;
 #if !defined(GGC_BGFX_STANDALONE)
-	IDirect3DVertexBuffer8*  m_VertexBufferD3D;
-	Int m_dwBase;	///<index to beginning of unused vertex buffer space.
-    Int m_dwFlush;	///<maximum amount of vertices to sumbit before rendering.
-	Int m_dwDiscard;	///<maximum index allowed before needing to discard the buffer.
+	W3DSnowPointSpriteRenderer *m_pointSpriteRenderer;
 	Int m_leafDim;		///<horizontal dimensions of leaf nodes that are always rendered without visibility checks.
 	Real m_cullOverscan;	///<how much extra padding to put on the sides of AABoxes when view culling.
 #endif
