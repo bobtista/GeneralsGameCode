@@ -141,8 +141,8 @@ int								DX8Wrapper::ResolutionHeight							= DEFAULT_RESOLUTION_HEIGHT;
 int								DX8Wrapper::BitDepth										= DEFAULT_BIT_DEPTH;
 int								DX8Wrapper::TextureBitDepth							= DEFAULT_TEXTURE_BIT_DEPTH;
 bool								DX8Wrapper::IsWindowed									= false;
-D3DFORMAT					DX8Wrapper::DisplayFormat	= Legacy_Format(0);
-D3DMULTISAMPLE_TYPE DX8Wrapper::MultiSampleAntiAliasing	= Legacy_Multisample_Type(DEFAULT_MSAA);
+unsigned						DX8Wrapper::DisplayFormat	= 0;
+unsigned						DX8Wrapper::MultiSampleAntiAliasing	= DEFAULT_MSAA;
 
 // shader system additions KJM v
 DWORD								DX8Wrapper::Vertex_Shader								= 0;
@@ -162,7 +162,7 @@ Vector3							DX8Wrapper::Ambient_Color;
 bool								DX8Wrapper::world_identity;
 
 bool								DX8Wrapper::FogEnable									= false;
-D3DCOLOR							DX8Wrapper::FogColor										= 0;
+unsigned							DX8Wrapper::FogColor										= 0;
 
 static IDirect3D8 *			D3DInterface								= nullptr;
 static IDirect3DDevice8 *	D3DDevice									= nullptr;
@@ -466,7 +466,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	/*
 	** Set Global render states (some of which depend on caps)
 	*/
-	Compute_Caps(D3DFormat_To_WW3DFormat(DisplayFormat));
+	Compute_Caps(D3DFormat_To_WW3DFormat(Legacy_Format(DisplayFormat)));
 
 	// TheSuperHackers @refactor bobtista 11/04/2026 Construct and
 	// initialize the render backend BEFORE the engine
@@ -1162,7 +1162,8 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 		::ZeroMemory(&desktop_mode, sizeof(desktop_mode));
 		D3DInterface->GetAdapterDisplayMode( CurRenderDevice, &desktop_mode );
 
-		DisplayFormat=_PresentParameters.BackBufferFormat = desktop_mode.Format;
+		_PresentParameters.BackBufferFormat = desktop_mode.Format;
+		DisplayFormat=static_cast<unsigned>(desktop_mode.Format);
 
 		// In windowed mode, define the bitdepth from desktop mode (as it can't be changed)
 		switch (static_cast<unsigned>(_PresentParameters.BackBufferFormat)) {
@@ -1189,7 +1190,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 		** Find a appropriate Z buffer
 		*/
 		unsigned z_format = static_cast<unsigned>(_PresentParameters.AutoDepthStencilFormat);
-		if (Find_Z_Mode(static_cast<unsigned>(DisplayFormat),static_cast<unsigned>(_PresentParameters.BackBufferFormat),&z_format))
+		if (Find_Z_Mode(DisplayFormat,static_cast<unsigned>(_PresentParameters.BackBufferFormat),&z_format))
 		{
 			_PresentParameters.AutoDepthStencilFormat=Legacy_Format(z_format);
 		}
@@ -1216,12 +1217,12 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 		/*
 		** Try to find a mode that matches the user's desired bit-depth.
 		*/
-		unsigned display_format = static_cast<unsigned>(DisplayFormat);
+		unsigned display_format = DisplayFormat;
 		unsigned backbuffer_format = static_cast<unsigned>(_PresentParameters.BackBufferFormat);
 		unsigned depth_format = static_cast<unsigned>(_PresentParameters.AutoDepthStencilFormat);
 		Find_Color_And_Z_Mode(ResolutionWidth,ResolutionHeight,BitDepth,&display_format,
 			&backbuffer_format,&depth_format);
-		DisplayFormat = Legacy_Format(display_format);
+		DisplayFormat = display_format;
 		_PresentParameters.BackBufferFormat = Legacy_Format(backbuffer_format);
 		_PresentParameters.AutoDepthStencilFormat = Legacy_Format(depth_format);
 	}
@@ -1241,14 +1242,14 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	/*
 	** Check the devices support for the requested MSAA mode then setup the multi sample type
 	*/
-	if (static_cast<unsigned>(MultiSampleAntiAliasing) > 0) {
+	if (MultiSampleAntiAliasing > 0) {
 
 		HRESULT hrBack = D3DInterface->CheckDeviceMultiSampleType(
 			CurRenderDevice,
 			WW3D_DEVTYPE,
 			_PresentParameters.BackBufferFormat,
 			IsWindowed,
-			MultiSampleAntiAliasing
+			Legacy_Multisample_Type(MultiSampleAntiAliasing)
 		);
 
 		HRESULT hrDepth = D3DInterface->CheckDeviceMultiSampleType(
@@ -1256,18 +1257,18 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 			WW3D_DEVTYPE,
 			_PresentParameters.AutoDepthStencilFormat,
 			IsWindowed,
-			MultiSampleAntiAliasing
+			Legacy_Multisample_Type(MultiSampleAntiAliasing)
 		);
 
 		if (FAILED(hrBack) || FAILED(hrDepth)) {
 			// IF we fail then disable MSAA entirely.
 			// External code needs to retrieve the configured MSAA mode after device creation
 			WWDEBUG_SAY(("Requested MSAA Mode Not Supported"));
-			MultiSampleAntiAliasing = Legacy_Multisample_Type(0);
+			MultiSampleAntiAliasing = 0;
 		}
 	}
 
-	_PresentParameters.MultiSampleType = MultiSampleAntiAliasing;
+	_PresentParameters.MultiSampleType = Legacy_Multisample_Type(MultiSampleAntiAliasing);
 
 	/*
 	** Time to actually create the device.
@@ -1276,10 +1277,10 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	StringClass backbufferFormat;
 
 #if !defined(GGC_BGFX_STANDALONE)
-	Get_Format_Name(DisplayFormat,&displayFormat);
+	Get_Format_Name(Legacy_Format(DisplayFormat),&displayFormat);
 	Get_Format_Name(_PresentParameters.BackBufferFormat,&backbufferFormat);
 #else
-	displayFormat.Format("%u", static_cast<unsigned>(DisplayFormat));
+	displayFormat.Format("%u", DisplayFormat);
 	backbufferFormat.Format("%u", static_cast<unsigned>(_PresentParameters.BackBufferFormat));
 #endif
 

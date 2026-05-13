@@ -620,8 +620,8 @@ protected:
 	static int	Get_Texture_Bitdepth()			{ return TextureBitDepth; }
 
 #if !defined(GGC_BGFX_STANDALONE)
-	static void Set_MSAA_Mode(D3DMULTISAMPLE_TYPE mode) { MultiSampleAntiAliasing = mode; }
-	static D3DMULTISAMPLE_TYPE Get_MSAA_Mode() { return MultiSampleAntiAliasing; }
+	static void Set_MSAA_Mode(D3DMULTISAMPLE_TYPE mode) { MultiSampleAntiAliasing = static_cast<unsigned>(mode); }
+	static D3DMULTISAMPLE_TYPE Get_MSAA_Mode() { return static_cast<D3DMULTISAMPLE_TYPE>(MultiSampleAntiAliasing); }
 #endif
 
 	static void	Set_Swap_Interval(int swap);
@@ -657,8 +657,8 @@ protected:
 	static int								BitDepth;
 	static int								TextureBitDepth;
 	static bool								IsWindowed;
-	static D3DFORMAT					DisplayFormat;
-	static D3DMULTISAMPLE_TYPE	MultiSampleAntiAliasing;
+	static unsigned						DisplayFormat;
+	static unsigned						MultiSampleAntiAliasing;
 
 
 	// shader system updates KJM v
@@ -682,7 +682,7 @@ protected:
 	// These fog settings are constant for all objects in a given scene,
 	// unlike the matching renderstates which vary based on shader settings.
 	static bool								FogEnable;
-	static D3DCOLOR						FogColor;
+	static unsigned						FogColor;
 
 	static DX8FrameStatistics			FrameStatistics;
 	static bool								CurrentDX8LightEnables[4];
