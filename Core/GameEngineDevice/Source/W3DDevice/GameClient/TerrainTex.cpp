@@ -54,7 +54,6 @@
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/surfaceclass.h"
-#include "d3dx8tex.h"
 
 /******************************************************************************
 						TerrainTextureClass
@@ -294,13 +293,7 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsig
 
 void TerrainTextureClass::WriteTerrainAtlasMipLevels(WorldHeightMap *htMap)
 {
-	IDirect3DTexture8 *texture = Peek_D3D_Texture();
-	if (texture == nullptr)
-	{
-		return;
-	}
-
-	const unsigned int mipCount = texture->GetLevelCount();
+	const unsigned int mipCount = Get_Level_Count();
 	for (unsigned int level = 1; level < mipCount; level++)
 	{
 		WriteTerrainAtlasMipLevel(htMap, level);
@@ -448,12 +441,12 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 	}
 	surface_level->Unlock();
 	REF_PTR_RELEASE(surface_level);
-	DX8_ErrorCode(D3DXFilterTexture(Peek_D3D_Texture(), nullptr, 0, D3DX_FILTER_BOX));
+	Generate_Mip_Levels();
 	UpdateTerrainAtlasRegions(htMap, surface_desc.Width, surface_desc.Height, surface_desc.Format);
 	WriteTerrainAtlasMipLevels(htMap);
 	InvalidateGeneratedTerrainTexture(this);
 	if (WW3D::Get_Texture_Reduction()) {
-		Peek_D3D_Texture()->SetLOD(WW3D::Get_Texture_Reduction());
+		Set_LOD(WW3D::Get_Texture_Reduction());
 	}
 	return(surface_desc.Height);
 }
@@ -465,7 +458,7 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 //=============================================================================
 void TerrainTextureClass::setLOD(Int LOD)
 {
-	if (Peek_D3D_Texture()) Peek_D3D_Texture()->SetLOD(LOD);
+	Set_LOD(static_cast<unsigned int>(LOD));
 }
 //=============================================================================
 // TerrainTextureClass::update
@@ -533,7 +526,7 @@ Bool TerrainTextureClass::updateFlat(WorldHeightMap *htMap, Int xCell, Int yCell
 
 	surface_level->Unlock();
 	REF_PTR_RELEASE(surface_level);
-	DX8_ErrorCode(D3DXFilterTexture(Peek_D3D_Texture(), nullptr, 0, D3DX_FILTER_BOX));
+	Generate_Mip_Levels();
 	return(surface_desc.Height);
 }
 
@@ -850,7 +843,7 @@ int AlphaEdgeTextureClass::update(WorldHeightMap *htMap)
 	}
 	surface_level->Unlock();
 	REF_PTR_RELEASE(surface_level);
-	DX8_ErrorCode(D3DXFilterTexture(Peek_D3D_Texture(), nullptr, 0, D3DX_FILTER_BOX));
+	Generate_Mip_Levels();
 	return(surface_desc.Height);
 }
 

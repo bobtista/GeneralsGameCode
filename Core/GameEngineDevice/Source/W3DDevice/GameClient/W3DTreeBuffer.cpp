@@ -91,7 +91,6 @@ enum
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 #include "WW3D2/surfaceclass.h"
-#include "d3dx8tex.h"
 
 
 // If TEST_AND_BLEND is defined, it will do an alpha test and blend.  Otherwise just alpha test. jba. [5/30/2003]
@@ -201,9 +200,9 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 	}
 	surface_level->Unlock();
 	REF_PTR_RELEASE(surface_level);
-	DX8_ErrorCode(D3DXFilterTexture(Peek_D3D_Texture(), nullptr, (UINT)0, D3DX_FILTER_BOX));
+	Generate_Mip_Levels();
 	if (WW3D::Get_Texture_Reduction()) {
-		DX8_ErrorCode(Peek_D3D_Texture()->SetLOD((DWORD)WW3D::Get_Texture_Reduction()));
+		Set_LOD(WW3D::Get_Texture_Reduction());
 	}
 	// The tree atlas is populated by writing into the legacy texture surface.
 	// Refresh the backend-neutral CPU copy after mip generation so bgfx sees
@@ -220,9 +219,7 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 //=============================================================================
 void W3DTreeBuffer::W3DTreeTextureClass::setLOD(Int LOD) const
 {
-	if (Peek_D3D_Texture()) {
-		DX8_ErrorCode(Peek_D3D_Texture()->SetLOD((DWORD)LOD));
-	}
+	Set_LOD(static_cast<unsigned int>(LOD));
 }
 //=============================================================================
 // W3DTreeBuffer::W3DTreeTextureClass::Apply

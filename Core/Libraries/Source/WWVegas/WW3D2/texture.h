@@ -372,6 +372,9 @@ public:
 	SurfaceClass *Get_Surface_Level(unsigned int level = 0);
 	IDirect3DSurface8 *Get_D3D_Surface_Level(unsigned int level = 0);
 	void Get_Level_Description( SurfaceClass::SurfaceDescription & desc, unsigned int level = 0 );
+	unsigned int Get_Level_Count() const;
+	bool Generate_Mip_Levels();
+	void Set_LOD(unsigned int lod) const;
 
 	TextureFilterClass& Get_Filter() { return Filter; }
 
