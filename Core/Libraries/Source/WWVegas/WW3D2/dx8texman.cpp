@@ -38,7 +38,7 @@
  *   DX8TextureManagerClass::Shutdown -- Shuts down the texture manager                        *
  *   DX8TextureManagerClass::Add -- Adds a texture to be managed                               *
  *   DX8TextureManagerClass::Remove -- Removes a texture from being managed                    *
- *   DX8TextureManagerClass::Release_Textures -- Releases the internal d3d texture             *
+ *   DX8TextureManagerClass::Release_Textures -- Releases the internal legacy texture          *
  *   DX8TextureManagerClass::Recreate_Textures -- Reallocates lost textures                    *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
@@ -53,6 +53,11 @@
 #include "dx8texman.h"
 #include "dx8wrapper.h"
 
+namespace
+{
+	constexpr auto kLegacyDefaultPool = D3DPOOL_DEFAULT;
+}
+
 void DX8TextureTrackerClass::Recreate() const
 {
 	WWASSERT(Texture->Peek_D3D_Base_Texture()==nullptr);
@@ -64,7 +69,7 @@ void DX8TextureTrackerClass::Recreate() const
 			Height,
 			Format,
 			Mip_level_count,
-			D3DPOOL_DEFAULT,
+			kLegacyDefaultPool,
 			RenderTarget
 		)
 	);
@@ -81,7 +86,7 @@ void DX8ZTextureTrackerClass::Recreate() const
 			Height,
 			ZFormat,
 			Mip_level_count,
-			D3DPOOL_DEFAULT
+			kLegacyDefaultPool
 		)
 	);
 }
