@@ -279,11 +279,11 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	*/
 
 	// TheSuperHackers @feature bobtista 19/04/2026 When bgfx is
-	// the active render backend, D3D8 uses a secondary reference window
+	// the active render backend, legacy rendering uses a secondary reference window
 	// so bgfx can take the main game HWND without DXGI swapchain conflict.
-	// Save the original game HWND for bgfx before redirecting D3D8.
-	// In standalone mode the D3D8 device is a stub that doesn't
-	// render anywhere, so the ref popup is useless — it only sits on top of
+	// Save the original game HWND for bgfx before redirecting legacy rendering.
+	// In standalone mode the legacy device is a stub that doesn't
+	// render anywhere, so the ref popup is useless; it only sits on top of
 	// the real game window and hides the bgfx output.
 #if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
 	_GameHwndForBgfx = (HWND)hwnd;
@@ -355,13 +355,13 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 	if (!lite) {
 #if defined(GGC_BGFX_STANDALONE)
 		// TheSuperHackers @refactor bobtista 22/04/2026 Standalone
-		// mode uses a no-op stub IDirect3DDevice8. Skip the LoadLibrary /
+		// mode uses a no-op stub device. Skip the LoadLibrary /
 		// Direct3DCreate8 path entirely so d3d8.dll is not a runtime dep.
 		// See StubD3D8Device.cpp for the stub implementation. DX8Wrapper's
 		// state tracking still runs; the underlying
 		// device calls execute against the stub and do nothing. bgfx handles
-		// the real rendering via its own D3D11 backend.
-		WWDEBUG_SAY(("Using stub D3D8 interface (standalone)"));
+		// the real rendering via its own backend.
+		WWDEBUG_SAY(("Using stub legacy interface (standalone)"));
 		D3DInterface = CreateStubD3D8Interface();
 		if (D3DInterface == nullptr) {
 			return false;
@@ -520,7 +520,7 @@ void DX8Wrapper::Set_Default_Global_Render_States()
 	Commit_Fixed_Function_Texture_Stage_Value(0, 9,F2DW(0.0f));
 	Commit_Fixed_Function_Texture_Stage_Value(0, 10,F2DW(1.0f));
 
-//	Commit_Fixed_Function_Render_Value(D3DRS_CULLMODE, D3DCULL_CW);
+//	Commit_Fixed_Function_Render_Value(22, 1);
 	// Set dither mode here?
 }
 
@@ -606,7 +606,7 @@ bool DX8Wrapper::Create_Device()
 		return false;
 	}
 
-	::ZeroMemory(&CurrentAdapterIdentifier, sizeof(D3DADAPTER_IDENTIFIER8));
+	::ZeroMemory(&CurrentAdapterIdentifier, sizeof(CurrentAdapterIdentifier));
 
 	if
 	(
@@ -628,7 +628,7 @@ bool DX8Wrapper::Create_Device()
 		LEGACY_CREATE_MIXED_VERTEXPROCESSING : LEGACY_CREATE_SOFTWARE_VERTEXPROCESSING;
 
 	// enable this when all 'get' dx calls are removed KJM
-	/*if (caps.DevCaps&D3DDEVCAPS_PUREDEVICE)
+	/*if (caps.DevCaps&LEGACY_CAP_PURE_DEVICE)
 	{
 		Vertex_Processing_Behavior|=LEGACY_CREATE_PUREDEVICE;
 	}*/
@@ -809,7 +809,7 @@ void DX8Wrapper::Enumerate_Devices()
 	for (int adapter_index=0; adapter_index<adapter_count; adapter_index++) {
 
 		D3DADAPTER_IDENTIFIER8 id;
-		::ZeroMemory(&id, sizeof(D3DADAPTER_IDENTIFIER8));
+		::ZeroMemory(&id, sizeof(id));
 		HRESULT res = D3DInterface->GetAdapterIdentifier(adapter_index,LEGACY_NO_WHQL_LEVEL,&id);
 
 		if (res == S_OK) {
@@ -843,7 +843,7 @@ void DX8Wrapper::Enumerate_Devices()
 			int mode_count = D3DInterface->GetAdapterModeCount(adapter_index);
 			for (int mode_index=0; mode_index<mode_count; mode_index++) {
 				D3DDISPLAYMODE d3dmode;
-				::ZeroMemory(&d3dmode, sizeof(D3DDISPLAYMODE));
+				::ZeroMemory(&d3dmode, sizeof(d3dmode));
 				HRESULT res = D3DInterface->EnumAdapterModes(adapter_index,mode_index,&d3dmode);
 
 				if (res == S_OK) {
@@ -1097,7 +1097,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	if (bits != -1)		BitDepth = bits;
 	if (windowed != -1)	IsWindowed = (windowed != 0);
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	// TheSuperHackers @feature bobtista 16/04/2026 D3D8 reference
+	// TheSuperHackers @feature bobtista 16/04/2026 legacy reference
 	// window must always use windowed mode. Fullscreen-exclusive would steal
 	// input focus from the main game window where bgfx renders.
 	IsWindowed = true;
@@ -1149,7 +1149,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	if (IsWindowed) {
 
 		D3DDISPLAYMODE desktop_mode;
-		::ZeroMemory(&desktop_mode, sizeof(D3DDISPLAYMODE));
+		::ZeroMemory(&desktop_mode, sizeof(desktop_mode));
 		D3DInterface->GetAdapterDisplayMode( CurRenderDevice, &desktop_mode );
 
 		DisplayFormat=_PresentParameters.BackBufferFormat = desktop_mode.Format;
@@ -1446,10 +1446,10 @@ void DX8Wrapper::Set_Device_Window(HWND hwnd, int width, int height)
 		return;
 	}
 
-	// TheSuperHackers @refactor bobtista 18/04/2026 Move the D3D8
+	// TheSuperHackers @refactor bobtista 18/04/2026 Move the legacy
 	// device to a reference popup window. Keep the original backbuffer
-	// resolution so the game's UI layout calculations stay correct —
-	// D3D8 stretches the output to fit the popup window automatically.
+	// resolution so the game's UI layout calculations stay correct;
+	// legacy rendering stretches the output to fit the popup window automatically.
 	_Hwnd = hwnd;
 	_PresentParameters.hDeviceWindow = hwnd;
 	_PresentParameters.Windowed = TRUE;
