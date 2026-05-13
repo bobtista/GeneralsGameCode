@@ -116,6 +116,8 @@ Recent progress on the DX8-removal stack:
   removing its active wrapper dependency.
 - `TextureFilterClass` now stores backend sampler-filter enums directly rather
   than storing `D3DTEXF_*` constants and converting them during apply.
+- DX8 vertex-buffer copy helpers now use `WW3DColor` for diffuse color packing
+  instead of routing that scalar conversion through `DX8Wrapper`.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -217,11 +219,11 @@ game-facing texture-stage state writes through semantic backend APIs:
 
 - `raw_device`: 54 hits in 8 files
 - `dx8wrapper_low_level`: 77 hits in 8 files
-- `dx8wrapper_high_level`: 22 hits in 3 files
-- `d3d_public_type`: 1810 hits in 50 files
+- `dx8wrapper_high_level`: 20 hits in 2 files
+- `d3d_public_type`: 1808 hits in 49 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 1963
+- total categorized hits: 1959
 
 Completed low-risk migrations:
 
@@ -513,6 +515,9 @@ Completed low-risk migrations:
 - Texture-filter default tables now use `RenderBackendTextureSampleFilter`
   values directly. `texturefilter.cpp` no longer includes `dx8wrapper.h` just
   to name D3D sampler constants.
+- DX8 vertex-buffer copy helpers now pack diffuse colors through
+  `WW3DColor::To_ARGB`; the file still includes the DX8 wrapper for actual
+  legacy buffer allocation, but color conversion no longer depends on it.
 - Active river/trapezoid water noise texture transforms now build their
   matrices with `Matrix4x4` and backend transform APIs instead of D3DX helper
   calls.
