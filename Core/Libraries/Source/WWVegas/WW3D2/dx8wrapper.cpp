@@ -194,7 +194,9 @@ bool								DX8Wrapper::IsDeviceLost;
 int								DX8Wrapper::ZBias;
 float								DX8Wrapper::ZNear;
 float								DX8Wrapper::ZFar;
+#if !defined(GGC_BGFX_STANDALONE)
 D3DMATRIX						DX8Wrapper::ProjectionMatrix;
+#endif
 DX8Caps*							DX8Wrapper::CurrentCaps = nullptr;
 
 // Hack test... this disables rendering of batches of too few polygons.
