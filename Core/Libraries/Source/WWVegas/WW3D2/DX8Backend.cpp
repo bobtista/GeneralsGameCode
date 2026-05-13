@@ -24,6 +24,7 @@
 #include "DX8Backend.h"
 
 #include "dx8fvf.h"
+#include "dx8textureinterop.h"
 #include "dx8wrapper.h"
 #include "dx8formatconv.h"
 #include "FixedFunctionState.h"
@@ -317,10 +318,10 @@ SurfaceClass * DX8Backend::Capture_Back_Buffer_Surface(unsigned int num)
     if (copy != nullptr)
     {
         DX8Wrapper::_Copy_DX8_Rects(
-            back_buffer->Peek_D3D_Surface(),
+            Peek_Legacy_Surface(*back_buffer),
             nullptr,
             0,
-            copy->Peek_D3D_Surface(),
+            Peek_Legacy_Surface(*copy),
             nullptr);
     }
 
@@ -806,7 +807,7 @@ bool DX8Backend::Capture_Back_Buffer_RGBA(unsigned int display_width,
     }
 
     IDirect3DSurface8 * back_buffer_surface;
-    back_buffer_surface = back_buffer->Peek_D3D_Surface();
+    back_buffer_surface = Peek_Legacy_Surface(*back_buffer);
     if (back_buffer_surface == nullptr) {
         goto cleanup;
     }
@@ -906,7 +907,7 @@ bool DX8Backend::Capture_Back_Buffer_RGBA(unsigned int display_width,
             small_render_target_surface,
             &src_rect,
             1,
-            surface_class->Peek_D3D_Surface(),
+            Peek_Legacy_Surface(*surface_class),
             &dst_point);
 
         int pitch = 0;
@@ -1178,7 +1179,7 @@ void DX8Backend::Upload_Texture_Region(
 
 void DX8Backend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * texture)
 {
-    IDirect3DBaseTexture8 * raw = (texture != nullptr) ? texture->Peek_D3D_Base_Texture() : nullptr;
+    IDirect3DBaseTexture8 * raw = (texture != nullptr) ? Peek_Legacy_Base_Texture(*texture) : nullptr;
     DX8Wrapper::Set_DX8_Texture(stage, raw);
     DX8Wrapper::Set_Texture(stage, texture);
 }
@@ -1273,7 +1274,7 @@ void DX8Backend::Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, Surface
         pDev->SetCursorProperties(
             static_cast<UINT>(hotspot_x),
             static_cast<UINT>(hotspot_y),
-            surface->Peek_D3D_Surface());
+            Peek_Legacy_Surface(*surface));
     }
 }
 
