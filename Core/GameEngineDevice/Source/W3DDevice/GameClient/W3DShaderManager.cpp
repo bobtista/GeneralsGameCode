@@ -1466,8 +1466,8 @@ public:
 	virtual void reset() override;		///<do any custom resetting necessary to bring W3D in sync.
 
 	void updateCloud();
-	void updateNoise1 (D3DXMATRIX *destMatrix,D3DXMATRIX *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise1 (i.e clouds)
-	void updateNoise2 (D3DXMATRIX *destMatrix,D3DXMATRIX *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise2 (i.e lightmap)
+	void updateNoise1 (Matrix4x4 *destMatrix, const Matrix4x4 *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise1 (i.e clouds)
+	void updateNoise2 (Matrix4x4 *destMatrix, const Matrix4x4 *curViewInverse, Bool doUpdate=true);	///<generate the uv coordinates for Noise2 (i.e lightmap)
 } terrainShader2Stage;
 
 ///regular terrain shader that should work on all multi-texture video cards (slowest version)
@@ -1580,26 +1580,20 @@ void TerrainShader2Stage::updateCloud()
 	m_yOffset -= (Int)m_yOffset;
 }
 
-void TerrainShader2Stage::updateNoise1(D3DXMATRIX *destMatrix,D3DXMATRIX *curViewInverse, Bool doUpdate)
+void TerrainShader2Stage::updateNoise1(Matrix4x4 *destMatrix, const Matrix4x4 *curViewInverse, Bool doUpdate)
 {
 	#define STRETCH_FACTOR ((float)(1/(63.0*MAP_XY_FACTOR/2))) /* covers 63/2 tiles */
 
-	D3DXMATRIX scale;
-
-	D3DXMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
+	Matrix4x4 scale = W3DShaderManager_MakeTextureScale(STRETCH_FACTOR, STRETCH_FACTOR, 1);
 	*destMatrix = *curViewInverse * scale;
 
-	D3DXMATRIX offset;
-	D3DXMatrixTranslation(&offset, m_xOffset, m_yOffset,0);
-	*destMatrix *= offset;
+	Matrix4x4 offset = W3DShaderManager_MakeTextureTranslation(m_xOffset, m_yOffset, 0);
+	*destMatrix = *destMatrix * offset;
 }
 
-void TerrainShader2Stage::updateNoise2(D3DXMATRIX *destMatrix,D3DXMATRIX *curViewInverse, Bool doUpdate)
+void TerrainShader2Stage::updateNoise2(Matrix4x4 *destMatrix, const Matrix4x4 *curViewInverse, Bool doUpdate)
 {
-
-	D3DXMATRIX scale;
-
-	D3DXMatrixScaling(&scale, STRETCH_FACTOR, STRETCH_FACTOR,1);
+	Matrix4x4 scale = W3DShaderManager_MakeTextureScale(STRETCH_FACTOR, STRETCH_FACTOR, 1);
 	*destMatrix = *curViewInverse * scale;
 }
 
@@ -1645,8 +1639,8 @@ Int TerrainShader2Stage::set(Int pass)
 			break;
 		case 2:
 			// Noise/cloud pass
-			D3DXMATRIX curView;
-			W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
+			Matrix4x4 curView;
+			g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, curView);
 
 			//these states apply to all noise/cloud combination passes
 			g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
@@ -1662,9 +1656,7 @@ Int TerrainShader2Stage::set(Int pass)
 			g_renderBackend->Set_Alpha_Blend_Enable(true);
 			g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 
-			D3DXMATRIX inv;
-			float det;
-			D3DXMatrixInverse(&inv, &det, &curView);
+			Matrix4x4 inv = curView.Inverse();
 
 			if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_TERRAIN_BASE_NOISE12)
 				{
@@ -1939,12 +1931,10 @@ Int TerrainShaderPixelShader::set(Int pass)
 
 	if (W3DShaderManager::getCurrentShader() >= W3DShaderManager::ST_TERRAIN_BASE_NOISE1)
 	{
-		D3DXMATRIX curView;
-		W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
+		Matrix4x4 curView;
+		g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, curView);
 
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
+		Matrix4x4 inv = curView.Inverse();
 
 		// Two output coordinates are used.
 		W3DShaderManager_SetCameraSpaceTexcoord2(2);
@@ -2045,13 +2035,10 @@ Int CloudTextureShader::init()
 /**Setup a certain texture stage to project our cloud texture*/
 Int CloudTextureShader::set(Int stage)
 {
-	D3DXMATRIX curView;
-	W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
+	Matrix4x4 curView;
+	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, curView);
 
-	D3DXMATRIX inv;
-	float det;
-
-	D3DXMatrixInverse(&inv, &det, &curView);
+	Matrix4x4 inv = curView.Inverse();
 
 	//Get a texture matrix that applies the current cloud position
 	terrainShader2Stage.updateNoise1(&curView,&inv,false);	//update curView with texture matrix
@@ -2177,12 +2164,10 @@ Int RoadShaderPixelShader::set(Int pass)
 	g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 	g_renderBackend->Override_Alpha_Blend_Enable(true);
 
-	D3DXMATRIX curView;
-	W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
+	Matrix4x4 curView;
+	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, curView);
 
-	D3DXMATRIX inv;
-	float det;
-	D3DXMatrixInverse(&inv, &det, &curView);
+	Matrix4x4 inv = curView.Inverse();
 
 	if (TheGlobalData && TheGlobalData->m_trilinearTerrainTex)
 	{	W3DShaderManager_SetStageMipFilter(0, RB_TEXTURE_SAMPLE_LINEAR);
@@ -2282,12 +2267,10 @@ Int RoadShader2Stage::set(Int pass)
 
 		if (W3DShaderManager::getCurrentShader() >= W3DShaderManager::ST_ROAD_BASE_NOISE1)
 		{	//second texture unit will contain a noise pass
-			D3DXMATRIX curView;
-			W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
+			Matrix4x4 curView;
+			g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, curView);
 
-			D3DXMATRIX inv;
-			float det;
-			D3DXMatrixInverse(&inv, &det, &curView);
+			Matrix4x4 inv = curView.Inverse();
 
 			W3DShaderManager_SetStageMipFilter(
 				1,
@@ -2344,12 +2327,10 @@ Int RoadShader2Stage::set(Int pass)
 	}
 	else
 	{	//pass 1, apply additional noise pass
-		D3DXMATRIX curView;
-		W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
+		Matrix4x4 curView;
+		g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, curView);
 
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
+		Matrix4x4 inv = curView.Inverse();
 
 		W3DShaderManager_SetStageMipFilter(
 			1,
@@ -3143,8 +3124,8 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			break;
 		case 1:
 			// Noise/cloud pass
-			D3DXMATRIX curView;
-			W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
+			Matrix4x4 curView;
+			g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, curView);
 
 			//these states apply to all noise/cloud combination passes
 			g_renderBackend->Set_Texture_Color_Argument(0, 1, RB_TEXARG_TEXTURE);
@@ -3160,9 +3141,7 @@ Int FlatTerrainShader2Stage::set(Int pass)
 			g_renderBackend->Set_Alpha_Blend_Enable(true);
 			g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 
-			D3DXMATRIX inv;
-			float det;
-			D3DXMatrixInverse(&inv, &det, &curView);
+			Matrix4x4 inv = curView.Inverse();
 
 			if (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12)
 			{
@@ -3342,12 +3321,10 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 	Bool doNoise1 = (W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE1 ||
 						W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12);
 	if (doNoise1) {	 // Cloud pass.
-		D3DXMATRIX curView;
-		W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
+		Matrix4x4 curView;
+		g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, curView);
 
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
+		Matrix4x4 inv = curView.Inverse();
 
 		// Two output coordinates are used.
 		W3DShaderManager_SetCameraSpaceTexcoord2(curStage);
@@ -3366,12 +3343,10 @@ Int FlatTerrainShaderPixelShader::set(Int pass)
 						W3DShaderManager::getCurrentShader() == W3DShaderManager::ST_FLAT_TERRAIN_BASE_NOISE12);
 	if (doNoise2)
 	{
-		D3DXMATRIX curView;
-		W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
+		Matrix4x4 curView;
+		g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, curView);
 
-		D3DXMATRIX inv;
-		float det;
-		D3DXMatrixInverse(&inv, &det, &curView);
+		Matrix4x4 inv = curView.Inverse();
 
 		// Two output coordinates are used.
 		W3DShaderManager_SetCameraSpaceTexcoord2(curStage);
