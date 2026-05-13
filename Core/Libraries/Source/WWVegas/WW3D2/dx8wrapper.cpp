@@ -2100,7 +2100,8 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 
 	DX8CALL(SetStreamSource(
 		0,
-		static_cast<DX8VertexBufferClass*>(dyn_vb_access.VertexBuffer)->Get_DX8_Vertex_Buffer(),
+		static_cast<IDirect3DVertexBuffer8 *>(
+			static_cast<DX8VertexBufferClass*>(dyn_vb_access.VertexBuffer)->Get_Legacy_Vertex_Buffer()),
 		dyn_vb_access.FVF_Info().Get_FVF_Size()));
 	// If using FVF format VB, set the FVF as vertex shader (may not be needed here KM)
 	unsigned fvf=dyn_vb_access.FVF_Info().Get_FVF();
@@ -2135,7 +2136,8 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 	}
 
 	DX8CALL(SetIndices(
-		static_cast<DX8IndexBufferClass*>(dyn_ib_access.IndexBuffer)->Get_DX8_Index_Buffer(),
+		static_cast<IDirect3DIndexBuffer8 *>(
+			static_cast<DX8IndexBufferClass*>(dyn_ib_access.IndexBuffer)->Get_Legacy_Index_Buffer()),
 		dyn_vb_access.VertexBufferOffset));
 	DX8_RECORD_INDEX_BUFFER_CHANGE();
 
@@ -2455,7 +2457,8 @@ void DX8Wrapper::Apply_Render_State_Changes()
 				case BUFFER_TYPE_DYNAMIC_DX8:
 					DX8CALL(SetStreamSource(
 						i,
-						static_cast<DX8VertexBufferClass*>(FixedFunctionState::Render_State().vertex_buffers[i])->Get_DX8_Vertex_Buffer(),
+						static_cast<IDirect3DVertexBuffer8 *>(
+							static_cast<DX8VertexBufferClass*>(FixedFunctionState::Render_State().vertex_buffers[i])->Get_Legacy_Vertex_Buffer()),
 						FixedFunctionState::Render_State().vertex_buffers[i]->FVF_Info().Get_FVF_Size()));
 					DX8_RECORD_VERTEX_BUFFER_CHANGE();
 					{
@@ -2485,7 +2488,8 @@ void DX8Wrapper::Apply_Render_State_Changes()
 			case BUFFER_TYPE_DX8:
 			case BUFFER_TYPE_DYNAMIC_DX8:
 				DX8CALL(SetIndices(
-					static_cast<DX8IndexBufferClass*>(FixedFunctionState::Render_State().index_buffer)->Get_DX8_Index_Buffer(),
+					static_cast<IDirect3DIndexBuffer8 *>(
+						static_cast<DX8IndexBufferClass*>(FixedFunctionState::Render_State().index_buffer)->Get_Legacy_Index_Buffer()),
 					FixedFunctionState::Render_State().index_base_offset+FixedFunctionState::Render_State().vba_offset));
 				DX8_RECORD_INDEX_BUFFER_CHANGE();
 				break;
