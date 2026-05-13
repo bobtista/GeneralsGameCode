@@ -63,6 +63,24 @@
 
 const unsigned DEFAULT_INACTIVATION_TIME=20000;
 
+namespace
+{
+	using LegacyTexturePool = D3DPOOL;
+
+	LegacyTexturePool Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
+	{
+		switch (pool)
+		{
+		case TextureBaseClass::POOL_DEFAULT: return D3DPOOL_DEFAULT;
+		case TextureBaseClass::POOL_MANAGED: return D3DPOOL_MANAGED;
+		case TextureBaseClass::POOL_SYSTEMMEM: return D3DPOOL_SYSTEMMEM;
+		default:
+			WWASSERT(0);
+			return static_cast<LegacyTexturePool>(0);
+		}
+	}
+}
+
 /*
 ** Definitions of static members:
 */
@@ -709,14 +727,7 @@ TextureClass::TextureClass
 	default : break;
 	}
 
-	D3DPOOL d3dpool=(D3DPOOL)0;
-	switch(pool)
-	{
-	case POOL_DEFAULT		: d3dpool=D3DPOOL_DEFAULT; break;
-	case POOL_MANAGED		: d3dpool=D3DPOOL_MANAGED; break;
-	case POOL_SYSTEMMEM	: d3dpool=D3DPOOL_SYSTEMMEM; break;
-	default: WWASSERT(0);
-	}
+	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Texture
 	(
@@ -726,7 +737,7 @@ TextureClass::TextureClass
 			height,
 			format,
 			mip_level_count,
-			d3dpool,
+			legacy_pool,
 			rendertarget
 		)
 	);
@@ -1329,14 +1340,7 @@ ZTextureClass::ZTextureClass
 :	TextureBaseClass(width,height, mip_level_count, pool),
 	DepthStencilTextureFormat(zformat)
 {
-	D3DPOOL d3dpool=(D3DPOOL)0;
-	switch (pool)
-	{
-	case POOL_DEFAULT: d3dpool=D3DPOOL_DEFAULT; break;
-	case POOL_MANAGED: d3dpool=D3DPOOL_MANAGED; break;
-	case POOL_SYSTEMMEM: d3dpool=D3DPOOL_SYSTEMMEM;	break;
-	default:	WWASSERT(0);
-	}
+	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Texture
 	(
@@ -1346,7 +1350,7 @@ ZTextureClass::ZTextureClass
 			height,
 			zformat,
 			mip_level_count,
-			d3dpool
+			legacy_pool
 		)
 	);
 
@@ -1483,14 +1487,7 @@ CubeTextureClass::CubeTextureClass
 	default : break;
 	}
 
-	D3DPOOL d3dpool=(D3DPOOL)0;
-	switch(pool)
-	{
-	case POOL_DEFAULT		: d3dpool=D3DPOOL_DEFAULT; break;
-	case POOL_MANAGED		: d3dpool=D3DPOOL_MANAGED; break;
-	case POOL_SYSTEMMEM	: d3dpool=D3DPOOL_SYSTEMMEM; break;
-	default: WWASSERT(0);
-	}
+	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Texture
 	(
@@ -1500,7 +1497,7 @@ CubeTextureClass::CubeTextureClass
 			height,
 			format,
 			mip_level_count,
-			d3dpool,
+			legacy_pool,
 			rendertarget
 		)
 	);
@@ -1767,14 +1764,7 @@ VolumeTextureClass::VolumeTextureClass
 	default : break;
 	}
 
-	D3DPOOL d3dpool=(D3DPOOL)0;
-	switch(pool)
-	{
-	case POOL_DEFAULT		: d3dpool=D3DPOOL_DEFAULT; break;
-	case POOL_MANAGED		: d3dpool=D3DPOOL_MANAGED; break;
-	case POOL_SYSTEMMEM	: d3dpool=D3DPOOL_SYSTEMMEM; break;
-	default: WWASSERT(0);
-	}
+	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Texture
 	(
@@ -1785,7 +1775,7 @@ VolumeTextureClass::VolumeTextureClass
 			depth,
 			format,
 			mip_level_count,
-			d3dpool
+			legacy_pool
 		)
 	);
 
