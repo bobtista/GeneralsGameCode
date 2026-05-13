@@ -83,7 +83,7 @@
 #include "wwprofile.h"
 #include "ffactory.h"
 #include "dx8caps.h"
-#include "formconv.h"
+#include "dx8formatconv.h"
 #include "TextureResourceManager.h"
 #include "bound.h"
 #include "DbgHelpGuard.h"
