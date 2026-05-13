@@ -81,7 +81,6 @@
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/renderdebugstats.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/light.h"
