@@ -1392,18 +1392,14 @@ Int MaskTextureShader::set(Int pass)
 	g_renderBackend->Set_Shader(shader);
 	g_renderBackend->Apply_Render_State_Changes();
 
-	D3DXMATRIX curView;
-	W3DShaderManager_GetD3DXTransform(RB_TRANSFORM_VIEW, curView);
+	Matrix4x4 curView;
+	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, curView);
 
 	W3DShaderManager_SetCameraSpaceTexcoord2(0);
 
-	D3DXMATRIX inv;
-	float det;
-
 	//Get inverse view matrix so we can transform camera space points back to world space
-	D3DXMatrixInverse(&inv, &det, &curView);
+	Matrix4x4 inv = curView.Inverse();
 
-	D3DXMATRIX scale,offset,offsetTextureCenter;
 	Coord3D centerPos;
 
 	//Find center of projection (this should be returned from some other filter, etc. but
@@ -1419,9 +1415,10 @@ Int MaskTextureShader::set(Int pass)
 		TheTacticalView->screenToTerrain(&screenPos,&centerPos);
 	}
 
-	D3DXMatrixTranslation(&offset, -centerPos.x, -centerPos.y,0);
+	Matrix4x4 offset = W3DShaderManager_MakeTextureTranslation(-centerPos.x, -centerPos.y, 0);
 
-	D3DXMatrixTranslation(&offsetTextureCenter, 0.5f, 0.5f, 0);	//shift coordinates so center of projection falls at uv 0.5,0.5
+	//shift coordinates so center of projection falls at uv 0.5,0.5
+	Matrix4x4 offsetTextureCenter = W3DShaderManager_MakeTextureTranslation(0.5f, 0.5f, 0);
 
 	Real worldTexelWidth=(1.0f-fadeLevel)*25.0f;	//9 worked well for circle but weird shape requires more stretch to cover.
 	Real worldTexelHeight=(1.0f-fadeLevel)*25.0f;
@@ -1431,12 +1428,12 @@ Int MaskTextureShader::set(Int pass)
 	{
 		Real widthScale = 1.0f/(worldTexelWidth*128.0f);
 		Real heightScale = 1.0f/(worldTexelHeight*128.0f);
-		D3DXMatrixScaling(&scale, widthScale, heightScale, 1);
+		Matrix4x4 scale = W3DShaderManager_MakeTextureScale(widthScale, heightScale, 1);
 		curView = ((inv * offset) * scale)*offsetTextureCenter;
 	}
 	else
 	{
-		D3DXMatrixScaling(&scale, 0, 0, 1);	//scaling by 0 will set uv coordinates to 0,0
+		Matrix4x4 scale = W3DShaderManager_MakeTextureScale(0, 0, 1);	//scaling by 0 will set uv coordinates to 0,0
 		curView = ((inv * offset) * scale);
 	}
 
