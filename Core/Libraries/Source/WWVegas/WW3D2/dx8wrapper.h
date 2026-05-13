@@ -177,7 +177,7 @@ WWINLINE void DX8_ErrorCode(unsigned res)
 ** DX8 interface wrapper class.  This encapsulates the DX8 interface; adding redundant state
 ** detection, stat tracking, etc etc.  In general, we will wrap all DX8 calls with at least
 ** an WWINLINE function so that we can add stat tracking, etc if needed.  Direct access to the
-** D3D device will require "friend" status and should be granted only in extreme circumstances :-)
+** legacy device will require "friend" status and should be granted only in extreme circumstances :-)
 */
 class DX8Wrapper
 {
@@ -425,7 +425,7 @@ public:
 	**	To render to an additional window, the sequence of calls should look
 	**	something like this:
 	**
-	**	DX8Wrapper::Set_Render_Target (swap_chain_ptr);
+	**	Set the additional swap chain as the active render target.
 	**
 	**	WW3D::Begin_Render (true, true, Vector3 (0, 0, 0));
 	**	WW3D::Render (scene, camera, FALSE, FALSE);
@@ -433,7 +433,7 @@ public:
 	**
 	**	swap_chain_ptr->Present (nullptr, nullptr, nullptr, nullptr);
 	**
-	**	DX8Wrapper::Set_Render_Target ((IDirect3DSurface8 *)nullptr);
+	**	Restore the default render target.
 	**
 	*/
 	static IDirect3DSwapChain8 *	Create_Additional_Swap_Chain (HWND render_window);
