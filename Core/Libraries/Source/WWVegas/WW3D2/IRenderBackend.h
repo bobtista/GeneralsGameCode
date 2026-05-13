@@ -232,6 +232,11 @@ enum RenderBackendShaderKind
     RB_SHADER_VERTEX = 1
 };
 
+enum RenderBackendLegacyVertexDeclaration
+{
+    RB_LEGACY_VERTEX_DECL_XYZNDUV1,
+};
+
 enum RenderBackendLegacyPixelShaderMode
 {
     RB_LEGACY_PIXEL_SHADER_NONE = 0,
@@ -1073,6 +1078,8 @@ public:
     // handled directly by a backend before the caller loads bytecode; bgfx
     // uses this to provide compatibility handles for native shader paths
     // without requiring obsolete .vso/.pso bytecode files.
+    virtual const unsigned int * Get_Legacy_Vertex_Shader_Declaration(
+        RenderBackendLegacyVertexDeclaration /*declaration*/) const { return nullptr; }
     virtual bool Load_Legacy_Shader(const char * /*path*/,
                                     const unsigned int * /*declaration*/,
                                     unsigned int /*usage*/,
