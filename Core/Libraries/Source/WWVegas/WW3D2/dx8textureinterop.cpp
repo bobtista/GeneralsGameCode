@@ -92,3 +92,8 @@ IDirect3DSurface8 *DX8TextureInterop::Peek_Legacy_Surface(const SurfaceClass &su
 {
 	return surface.D3DSurface;
 }
+
+SurfaceClass *DX8TextureInterop::Create_Legacy_Surface_Wrapper(IDirect3DSurface8 *surface)
+{
+	return new SurfaceClass(surface);
+}

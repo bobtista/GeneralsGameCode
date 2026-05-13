@@ -3477,7 +3477,7 @@ SurfaceClass * DX8Wrapper::_Get_DX8_Back_Buffer(unsigned int num)
 	DX8CALL(GetBackBuffer(num,D3DBACKBUFFER_TYPE_MONO,&bb));
 	if (bb)
 	{
-		surf=NEW_REF(SurfaceClass,(bb));
+		surf=Create_Legacy_Surface_Wrapper(bb);
 		bb->Release();
 	}
 
