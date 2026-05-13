@@ -21,8 +21,6 @@
 #include "ddsfile.h"
 #include "ffactory.h"
 #include "bufffile.h"
-#include "formconv.h"
-#include "dx8wrapper.h"
 #include "bitmaphandler.h"
 #include "colorspace.h"
 
@@ -33,6 +31,34 @@
 #ifndef DDSCAPS2_VOLUME
 #define DDSCAPS2_VOLUME 0x00200000L
 #endif
+
+// ----------------------------------------------------------------------------
+
+static constexpr unsigned Make_DDS_FourCC(char a, char b, char c, char d)
+{
+	return static_cast<unsigned>(a) |
+		(static_cast<unsigned>(b) << 8) |
+		(static_cast<unsigned>(c) << 16) |
+		(static_cast<unsigned>(d) << 24);
+}
+
+static WW3DFormat DDS_FourCC_To_WW3D_Format(unsigned fourcc)
+{
+	switch (fourcc) {
+	case Make_DDS_FourCC('D', 'X', 'T', '1'):
+		return WW3D_FORMAT_DXT1;
+	case Make_DDS_FourCC('D', 'X', 'T', '2'):
+		return WW3D_FORMAT_DXT2;
+	case Make_DDS_FourCC('D', 'X', 'T', '3'):
+		return WW3D_FORMAT_DXT3;
+	case Make_DDS_FourCC('D', 'X', 'T', '4'):
+		return WW3D_FORMAT_DXT4;
+	case Make_DDS_FourCC('D', 'X', 'T', '5'):
+		return WW3D_FORMAT_DXT5;
+	default:
+		return WW3D_FORMAT_UNKNOWN;
+	}
+}
 
 // ----------------------------------------------------------------------------
 
@@ -94,7 +120,7 @@ DDSFileClass::DDSFileClass(const char* name,unsigned reduction_factor)
 		return;
 	}
 
-	Format=D3DFormat_To_WW3DFormat((D3DFORMAT)SurfaceDesc.PixelFormat.FourCC);
+	Format=DDS_FourCC_To_WW3D_Format(SurfaceDesc.PixelFormat.FourCC);
 	WWASSERT(
 		Format==WW3D_FORMAT_DXT1 ||
 		Format==WW3D_FORMAT_DXT2 ||
@@ -333,37 +359,6 @@ WWINLINE static unsigned short ARGB8888_To_RGB565(unsigned argb_)
 	return rgb;
 }
 
-
-// ----------------------------------------------------------------------------
-//
-// Copy mipmap level to D3D surface. The copying is performed using another
-// Copy_Level_To_Surface function (see below).
-//
-// ----------------------------------------------------------------------------
-
-void DDSFileClass::Copy_Level_To_Surface(unsigned level,IDirect3DSurface8* d3d_surface,const Vector3& hsv_shift)
-{
-	WWASSERT(d3d_surface);
-	// Verify that the destination surface size matches the source surface size
-	D3DSURFACE_DESC surface_desc;
-	DX8_ErrorCode(d3d_surface->GetDesc(&surface_desc));
-
-	// First lock the surface
-	D3DLOCKED_RECT locked_rect;
-	DX8_ErrorCode(d3d_surface->LockRect(&locked_rect,nullptr,0));
-
-	Copy_Level_To_Surface(
-		level,
-		D3DFormat_To_WW3DFormat(surface_desc.Format),
-		surface_desc.Width,
-		surface_desc.Height,
-		reinterpret_cast<unsigned char*>(locked_rect.pBits),
-		locked_rect.Pitch,
-		hsv_shift);
-
-	// Finally, unlock the surface
-	DX8_ErrorCode(d3d_surface->UnlockRect());
-}
 
 // ----------------------------------------------------------------------------
 //

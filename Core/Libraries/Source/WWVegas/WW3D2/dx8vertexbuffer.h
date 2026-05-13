@@ -43,8 +43,9 @@
 #include "wwdebug.h"
 #include "dx8fvf.h"
 #include "IRenderBackend.h"
+#include "RenderBufferTypes.h"
 
-const unsigned dynamic_fvf_type=D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX2|D3DFVF_DIFFUSE;
+const unsigned dynamic_fvf_type=DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX2|DX8_FVF_FLAG_DIFFUSE;
 
 class DX8Wrapper;
 class SortingRendererClass;
@@ -54,7 +55,6 @@ class Vector4;
 class StringClass;
 class DX8VertexBufferClass;
 class FVFInfoClass;
-struct IDirect3DVertexBuffer8;
 class VertexBufferClass;
 struct VertexFormatXYZNDUV2;
 
@@ -87,6 +87,10 @@ public:
 	const unsigned char * Peek_CPU_Buffer_Data() const { return CPUBufferData; }
 	unsigned Get_CPU_Buffer_Size() const { return CPUBufferSize; }
 	bool Has_CPU_Buffer_Data() const { return CPUBufferValid; }
+	RenderResource Get_Backend_Resource() const { return m_backendHandle; }
+	bool Has_Backend_Resource() const { return m_backendHandle != kInvalidRenderResource; }
+	bool Is_Backend_Static_Eligible() const { return m_backendStaticEligible; }
+	void *Lock_CPU_Buffer_Data(unsigned byte_offset, unsigned size);
 
 	void Add_Engine_Ref() const;
 	void Release_Engine_Ref() const;
@@ -103,7 +107,7 @@ public:
 	{
 	public:
 		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I added
-		// optional `flags` (e.g. D3DLOCK_DISCARD / D3DLOCK_NOOVERWRITE)
+		// optional `flags` (e.g. RB_LOCK_DISCARD / RB_LOCK_NOOVERWRITE)
 		// for the dynamic shadow buffer's per-batch append pattern. Default
 		// of 0 keeps existing one-shot DX8VertexBufferClass::Copy callers
 		// unchanged.
@@ -129,12 +133,14 @@ protected:
 	unsigned char*					CPUBufferData;
 	unsigned						CPUBufferSize;
 	bool							CPUBufferValid;
+	bool							m_backendStaticEligible;
 	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Set by derived classes after calling
 	// g_renderBackend->Create_Vertex_Buffer. Parallel to the class-specific
-	// D3D pointer stored in DX8VertexBufferClass::VertexBuffer, which stays
+	// legacy pointer stored in DX8VertexBufferClass::VertexBuffer, which stays
 	// populated in ref-popup builds.
 	RenderResource					m_backendHandle;
+	void Set_Backend_Static_Eligible(bool eligible) { m_backendStaticEligible = eligible; }
 	void Update_CPU_Buffer_Data(unsigned byte_offset, const void * data, unsigned size);
 };
 
@@ -179,6 +185,8 @@ public:
 	const FVFInfoClass& FVF_Info() const { return FVFInfo; }
 	unsigned Get_Type() const { return Type; }
 	unsigned short Get_Vertex_Count() const { return VertexCount; }
+	unsigned short Get_Vertex_Buffer_Offset() const { return VertexBufferOffset; }
+	VertexBufferClass * Get_Vertex_Buffer() const { return VertexBuffer; }
 
 	// Call at the end of the execution, or at whatever time you wish to release
 	// the recycled dynamic vertex buffer.
@@ -210,7 +218,7 @@ public:
 inline VertexFormatXYZNDUV2 * DynamicVBAccessClass::WriteLockClass::Get_Formatted_Vertex_Array()
 {
 	// assert that the format of the dynamic vertex buffer is still what we think it is.
-	WWASSERT(DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF() == (D3DFVF_XYZ|D3DFVF_NORMAL|D3DFVF_TEX2|D3DFVF_DIFFUSE));
+	WWASSERT(DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF() == dynamic_fvf_type);
 	return Vertices;
 }
 
@@ -239,7 +247,7 @@ public:
 	DX8VertexBufferClass(const Vector3* vertices, const Vector4* diffuse, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
 	DX8VertexBufferClass(const Vector3* vertices, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
 
-	IDirect3DVertexBuffer8* Get_DX8_Vertex_Buffer() { return VertexBuffer; }
+	void *Get_Legacy_Vertex_Buffer() { return VertexBuffer; }
 
 	void Copy(const Vector3* loc, unsigned first_vertex, unsigned count);
 	void Copy(const Vector3* loc, const Vector2* uv, unsigned first_vertex, unsigned count);
@@ -249,7 +257,7 @@ public:
 	void Copy(const Vector3* loc, const Vector2* uv, const Vector4* diffuse, unsigned first_vertex, unsigned count);
 
 protected:
-	IDirect3DVertexBuffer8*		VertexBuffer;
+	void *VertexBuffer;
 
 	void Create_Vertex_Buffer(UsageType usage);
 };

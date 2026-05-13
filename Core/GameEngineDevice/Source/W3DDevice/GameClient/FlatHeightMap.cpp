@@ -56,7 +56,6 @@
 #include <coltest.h>
 #include <rinfo.h>
 #include <camera.h>
-#include <d3dx8core.h>
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
 
@@ -82,7 +81,7 @@
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/renderdebugstats.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
@@ -483,7 +482,7 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 #endif
 
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableTerrain) {
+	if (g_renderDebugStats.m_disableTerrain) {
 		return;
 	}
 #endif
@@ -534,7 +533,7 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  		devicePasses=1;	//force to 1 lighting-only pass
 
 	// TheSuperHackers @bugfix bobtista 24/04/2026 Same rationale as HeightMap:
-	// shader pipeline cannot emulate D3DTSS_TCI_CAMERASPACEPOSITION.
+	// shader pipeline cannot emulate legacy camera-space texcoord generation.
 	if (g_renderBackend->Has_Shader_Pipeline())
 	{
 		devicePasses = 1;
@@ -656,4 +655,3 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	W3DShaderManager::pushCloudShadowToBackend(false, nullptr);
 
 }
-

@@ -66,9 +66,12 @@ set(WW3D2_SRC
     dynamesh.h
     font3d.cpp
     font3d.h
+    dx8formatconv.h
     formconv.cpp
     formconv.h
     framgrab.h
+    FixedFunctionState.cpp
+    FixedFunctionState.h
     hanim.cpp
     hanim.h
     #hanimmgr.cpp
@@ -167,6 +170,8 @@ set(WW3D2_SRC
     rendobj.h
     #rinfo.cpp
     #rinfo.h
+    renderdebugstats.cpp
+    renderdebugstats.h
     ringobj.cpp
     ringobj.h
     robjlist.h
@@ -206,6 +211,8 @@ set(WW3D2_SRC
     textdraw.h
     texture.cpp
     texture.h
+    TextureResourceManager.cpp
+    TextureResourceManager.h
     texturefilter.cpp
     texturefilter.h
     textureloader.cpp

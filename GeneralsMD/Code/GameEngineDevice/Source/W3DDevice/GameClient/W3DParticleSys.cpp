@@ -28,13 +28,16 @@
 
 #include "Common/GlobalData.h"
 #include "GameClient/Color.h"
+#include "GameLogic/TerrainLogic.h"
 #include "W3DDevice/GameClient/W3DParticleSys.h"
 #include "W3DDevice/GameClient/W3DAssetManager.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DSmudge.h"
 #include "W3DDevice/GameClient/W3DSnow.h"
+#include "W3DDevice/GameClient/W3DWater.h"
 #include "WW3D2/camera.h"
+#include "WW3D2/RenderBackend.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -150,9 +153,12 @@ void W3DParticleSystemManager::flushPointGroupBatch(RenderInfoClass &rinfo, Text
 
 void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 {
+	const bool particleDiag = std::getenv("GGC_PARTICLE_DIAG") != nullptr;
 
 	if (m_readyToRender == false)
+	{
 		return;
+	}
 
 	// external mechanism must tell us when it's OK to render again...
 	m_readyToRender = false;
@@ -213,7 +219,9 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 
 		// only look at particle/point style systems
 		if (sys->isUsingDrawables())
+		{
 			continue;
+		}
 
 		//temporary hack that checks if texture name starts with "SMUD" - if so, we can assume it's a smudge type
 		if (/*sys->isUsingSmudge()*/ *((DWORD *)sys->getParticleTypeName().str()) == 0x44554D53)
@@ -319,7 +327,45 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			RGBAArray[count].X = color->red;
 			RGBAArray[count].Y = color->green;
 			RGBAArray[count].Z = color->blue;
-			RGBAArray[count].W = p->getAlpha();
+
+			// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned
+			// ADDITIVE water-surface particles (BattleShipWaterRipples and
+			// similar hull-contact foam) are rendered through the BGFX shader
+			// pipeline noticeably dimmer than DX8 retail at the same camera
+			// distance — likely because the fragment path strips contribution
+			// from anti-aliased ring edges that DX8's fixed-function path
+			// retained. Boost their effective size 2x and color 1.5x (clamped)
+			// so the foam reads at the hull-waterline like the retail reference
+			// without overwhelming the rest of the frame.
+			if (sys->m_isGroundAligned
+				&& sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
+			{
+				sizeArray[count] *= 2.0f;
+				RGBAArray[count].X = MIN(1.0f, color->red   * 1.5f);
+				RGBAArray[count].Y = MIN(1.0f, color->green * 1.5f);
+				RGBAArray[count].Z = MIN(1.0f, color->blue  * 1.5f);
+			}
+
+			// TheSuperHackers @bugfix bobtista 27/05/2026 Additive particles
+			// (Shader=ADDITIVE) keep m_alpha at its initial keyframe value because
+			// ParticleSys.cpp::update() skips alpha keyframe progression for
+			// ADDITIVE shader. For many systems (BattleShipWaterRipples,
+			// BattleshipMuzzleFlashWave, AmphibWaveRest) the initial Alpha1 is
+			// 0.0, which would be fine for DX8 fixed-function additive blend
+			// (which ignores alpha) but the bgfx fs_uber shader pipeline applies
+			// u_matDiffuse multiplication, soft-particle fade, and alpha test on
+			// current.a — any of which can discard pixels when vertex_alpha is 0.
+			// Force vertex alpha to 1.0 for additive draws so the shader's
+			// downstream alpha-aware logic does not filter out additive particles
+			// the way DX8 never had to worry about.
+			if (sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
+			{
+				RGBAArray[count].W = 1.0f;
+			}
+			else
+			{
+				RGBAArray[count].W = p->getAlpha();
+			}
 
 			angleArray[count] = (uint8)(p->getAngle() * 255.0f / (2.0f * PI));
 
@@ -429,7 +475,7 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 				}
 			}
 
-		if ( m_streakLine && sys->isUsingStreak() && (count >= 2) )
+			if ( m_streakLine && sys->isUsingStreak() && (count >= 2) )
 		{
 			m_streakLine->Reset_Line();
 

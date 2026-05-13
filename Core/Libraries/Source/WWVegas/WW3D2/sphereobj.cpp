@@ -85,7 +85,7 @@
 #include "wwstring.h"
 #include "camera.h"
 #include "statistics.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "sortingrenderer.h"
@@ -494,7 +494,7 @@ void SphereRenderObjClass::render_sphere()
 			vb->nz = mesh.vtx_normal[i].Z;
 
 			if (Flags & USE_ALPHA_VECTOR) {
-				vb->diffuse = DX8Wrapper::Convert_Color(mesh.dcg[i]);
+				vb->diffuse = WW3DColor::To_ARGB(mesh.dcg[i]);
 			} else {
 				vb->diffuse = 0xFFFFFFFF;		// TODO could combine the material color with this and turn off lighting
 			}
@@ -1737,4 +1737,3 @@ void SphereMeshClass::Free()
 }
 
 // EOF - sphereobj.cpp
-

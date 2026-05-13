@@ -40,6 +40,13 @@
 
 #include <vector>
 
+#if !defined(GGC_BGFX_STANDALONE) && !defined(_D3D8_H_)
+struct IDirect3DDevice8;
+struct IDirect3DVertexBuffer8;
+struct IDirect3DIndexBuffer8;
+struct IDirect3DTexture8;
+#endif
+
 #define INVALID_WATER_HEIGHT 0.0f	///water height guaranteed to be below all terrain.
 
 #define NUM_BUMP_FRAMES 32	///number of animation frames in bump map
@@ -151,6 +158,7 @@ protected:
 
 	//Data used in GeForce3 bump-mapped water (uses direct D3D resources for better
 	//performance and compatibility (most of these featues are not supported by W3D).
+#if !defined(GGC_BGFX_STANDALONE)
 	struct SEA_PATCH_VERTEX	//vertex structure passed to D3D
 	{
 		float x,y,z;
@@ -158,16 +166,16 @@ protected:
 		float tu, tv;
 	};
 
-	LPDIRECT3DDEVICE8 m_pDev;						///<pointer to D3D Device
-	LPDIRECT3DVERTEXBUFFER8 m_vertexBufferD3D;		///<D3D vertex buffer
-	LPDIRECT3DINDEXBUFFER8	m_indexBufferD3D;	///<D3D index buffer
-	Int						m_vertexBufferD3DOffset;	///<location to start writing vertices
+	IDirect3DDevice8 *m_pDev;						///<pointer to D3D Device
+	IDirect3DVertexBuffer8 *m_vertexBufferD3D;		///<D3D vertex buffer
+	IDirect3DIndexBuffer8 *m_indexBufferD3D;	///<D3D index buffer
 	DWORD					m_dwWavePixelShader;	///<handle to D3D pixel shader
 	DWORD					m_dwWaveVertexShader;	///<handle to D3D vertex shader
+	IDirect3DTexture8 *m_pBumpTexture[NUM_BUMP_FRAMES]; ///<animation frames
+	IDirect3DTexture8 *m_pBumpTexture2[NUM_BUMP_FRAMES]; ///<animation frames
+#endif
 	Int	m_numVertices;				///<number of vertices in D3D vertex buffer
 	Int m_numIndices;				///<number of indices in D3D index buffer
-	LPDIRECT3DTEXTURE8 m_pBumpTexture[NUM_BUMP_FRAMES]; ///<animation frames
-	LPDIRECT3DTEXTURE8 m_pBumpTexture2[NUM_BUMP_FRAMES]; ///<animation frames
 	Real				m_fBumpFrame;	///<current animation frame
 	Real				m_fBumpScale;	///<scales bump map uv perturbation
 	TextureClass * m_pReflectionTexture;	///<render target for reflection
@@ -258,9 +266,13 @@ protected:
 	void testCurvedWater();	///<draw the sky layer (clouds, stars, etc.)
 	void renderSkyBody(Matrix3D *mat);	///<draw the sky body (sun, moon, etc.)
 	void renderWaterMesh();			///<draw the water surface mesh (deformed 3d mesh).
-	HRESULT initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass *pBumpSource);	///<copies data into bump-map format.
+#if !defined(GGC_BGFX_STANDALONE)
+	HRESULT initBumpMap(IDirect3DTexture8 **pTex, TextureClass *pBumpSource);	///<copies data into bump-map format.
+#endif
 	void renderMirror(CameraClass *cam);	///< Draw reflected scene into texture
+#if !defined(GGC_BGFX_STANDALONE)
 	void drawSea(RenderInfoClass & rinfo);	///< Draw the surface of the water
+#endif
 	void drawSeaBatch(RenderInfoClass & rinfo);	///< Draw the sea through the render backend
 	///bounding box of frustum clipped polygon plane
 	Bool getClippedWaterPlane(CameraClass *cam, AABoxClass *box);
@@ -270,7 +282,7 @@ protected:
 	void cleanupJbaWaterShader();
 
 	//Methods used for GeForce3 specific water
-	HRESULT generateIndexBuffer(int sizeX, int sizeY);	///<Generate static index buufer
+	HRESULT generateIndexBuffer(int sizeX, int sizeY, Bool createD3DMirror);	///<Generate water strip index buffer
 	HRESULT generateVertexBuffer( Int sizeX, Int sizeY, Int vertexSize, Bool doFill);///<Generate static vertex buffer
 
 	// snapshot methods for save/load

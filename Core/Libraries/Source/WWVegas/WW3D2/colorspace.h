@@ -38,7 +38,7 @@
 
 #pragma once
 
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include <wwmath.h>
 
 void RGB_To_HSV(Vector3 &hsv,const Vector3 &rgb);
@@ -146,7 +146,7 @@ inline void Recolor(Vector3 &rgb, const Vector3 &hsv_shift)
 
 inline void Recolor(unsigned& rgba, const Vector3 &hsv_shift)
 {
-	Vector4 rgba_v = DX8Wrapper::Convert_Color(rgba);
+	Vector4 rgba_v = WW3DColor::From_ARGB(rgba);
 	Recolor((Vector3&)rgba_v, hsv_shift);
-	rgba = DX8Wrapper::Convert_Color(rgba_v);
+	rgba = WW3DColor::To_ARGB(rgba_v);
 }

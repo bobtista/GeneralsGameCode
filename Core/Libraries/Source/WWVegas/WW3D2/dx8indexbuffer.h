@@ -42,10 +42,10 @@
 #include "wwdebug.h"
 #include "sphere.h"
 #include "IRenderBackend.h"
+#include "RenderBufferTypes.h"
 
 class DX8Wrapper;
 class SortingRendererClass;
-struct IDirect3DIndexBuffer8;
 class DX8IndexBufferClass;
 class SortingIndexBufferClass;
 
@@ -67,6 +67,10 @@ public:
 	const unsigned char * Peek_CPU_Buffer_Data() const { return CPUBufferData; }
 	unsigned Get_CPU_Buffer_Size() const { return CPUBufferSize; }
 	bool Has_CPU_Buffer_Data() const { return CPUBufferValid; }
+	RenderResource Get_Backend_Resource() const { return m_backendHandle; }
+	bool Has_Backend_Resource() const { return m_backendHandle != kInvalidRenderResource; }
+	bool Is_Backend_Static_Eligible() const { return m_backendStaticEligible; }
+	void *Lock_CPU_Buffer_Data(unsigned byte_offset, unsigned size);
 
 	void Add_Engine_Ref() const;
 	void Release_Engine_Ref() const;
@@ -94,7 +98,7 @@ public:
 		unsigned AppendIndexRange;
 	public:
 		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I added
-		// optional `flags` (D3DLOCK_DISCARD / D3DLOCK_NOOVERWRITE).
+		// optional `flags` (RB_LOCK_DISCARD / RB_LOCK_NOOVERWRITE).
 		AppendLockClass(IndexBufferClass* index_buffer,unsigned start_index, unsigned index_range, unsigned flags=0);
 		~AppendLockClass();
 
@@ -112,10 +116,12 @@ protected:
 	unsigned char*				CPUBufferData;
 	unsigned					CPUBufferSize;
 	bool						CPUBufferValid;
+	bool						m_backendStaticEligible;
 	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
-	// resource handle. Parallel to the class-specific D3D pointer stored in
+	// resource handle. Parallel to the class-specific legacy pointer stored in
 	// DX8IndexBufferClass::IndexBuffer.
 	RenderResource			m_backendHandle;
+	void Set_Backend_Static_Eligible(bool eligible) { m_backendStaticEligible = eligible; }
 	void Update_CPU_Buffer_Data(unsigned byte_offset, const void * data, unsigned size);
 };
 
@@ -143,6 +149,8 @@ public:
 
 	unsigned Get_Type() const { return Type; }
 	unsigned short Get_Index_Count() const { return IndexCount; }
+	unsigned short Get_Index_Buffer_Offset() const { return IndexBufferOffset; }
+	IndexBufferClass * Get_Index_Buffer() const { return IndexBuffer; }
 
 	// Call at the end of the execution, or at whatever time you wish to release
 	// the recycled dynamic index buffer.
@@ -190,10 +198,10 @@ public:
 	void Copy(unsigned int* indices,unsigned start_index,unsigned index_count);
 	void Copy(unsigned short* indices,unsigned start_index,unsigned index_count);
 
-	IDirect3DIndexBuffer8* Get_DX8_Index_Buffer()	{ return index_buffer; }
+	void *Get_Legacy_Index_Buffer()	{ return index_buffer; }
 
 private:
-	IDirect3DIndexBuffer8*	index_buffer;		// actual dx8 index buffer
+	void *index_buffer;
 };
 
 

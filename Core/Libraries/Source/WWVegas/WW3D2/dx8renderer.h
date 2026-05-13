@@ -45,7 +45,6 @@
 #include "Vector.h"
 #include "dx8list.h"
 #include "shader.h"
-#include "dx8wrapper.h"
 #include "meshmatdesc.h"
 
 class IndexBufferClass;

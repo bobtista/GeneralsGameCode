@@ -54,7 +54,6 @@
 #include <coltest.h>
 #include <rinfo.h>
 #include <camera.h>
-#include <d3dx8core.h>
 
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
@@ -82,9 +81,9 @@
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderdebugstats.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
 #include "W3DDevice/GameClient/W3DPoly.h"
@@ -311,7 +310,9 @@ BaseHeightMapRenderObjClass::BaseHeightMapRenderObjClass()
 #else
 	m_shroud = NEW W3DShroud;
 #endif
-	DX8Wrapper::SetCleanupHook(this);
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Set_Device_Cleanup_Hook(this);
+	}
 }
 
 void BaseHeightMapRenderObjClass::setTextureLOD(Int lod)
@@ -1425,11 +1426,7 @@ RenderObjClass *	 BaseHeightMapRenderObjClass::Clone() const
 //=============================================================================
 void BaseHeightMapRenderObjClass::loadRoadsAndBridges(W3DTerrainLogic *pTerrainLogic, Bool saveGame)
 {
-#if defined(GGC_RENDER_BACKEND_BGFX)
 	if (g_renderBackend != nullptr && g_renderBackend->Is_Device_Lost())
-#else
-	if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
-#endif
 		return;	//device not ready to render anything
 
 #ifdef DO_ROADS
@@ -2479,7 +2476,7 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 		return;
 
 	//Check if video card is capable of using this effect
-	if (DX8Wrapper::getBackBufferFormat() != WW3D_FORMAT_A8R8G8B8)
+	if (g_renderBackend->Get_Back_Buffer_Format() != WW3D_FORMAT_A8R8G8B8)
 		return;	//can't apply effect on cards without destination alpha
 
 	Int vertexCount = 0;
@@ -2504,7 +2501,7 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
 	//Enabled writes to destination alpha only
 	g_renderBackend->Set_Color_Write_Enable(false, false, false, true);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
+	g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 
 
 	while (j != m_numShoreLineTiles)
@@ -2642,7 +2639,7 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 		return;
 
 	//Check if video card is capable of using this effect
-	if (DX8Wrapper::getBackBufferFormat() != WW3D_FORMAT_A8R8G8B8)
+	if (g_renderBackend->Get_Back_Buffer_Format() != WW3D_FORMAT_A8R8G8B8)
 		return;	//can't apply effect on cards without destination alpha
 
 	Int vertexCount = 0;
@@ -2688,7 +2685,7 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
 	//Enabled writes to destination alpha only
 	g_renderBackend->Set_Color_Write_Enable(false, false, false, true);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
+	g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 
 	Bool isDone=FALSE;
 	Int lastRenderedTile=0;
@@ -2979,7 +2976,7 @@ called after flush. */
 void BaseHeightMapRenderObjClass::renderTrees(CameraClass * camera)
 {
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableObjects) {
+	if (g_renderDebugStats.m_disableObjects) {
 		return;
 	}
 #endif
