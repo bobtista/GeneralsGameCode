@@ -698,7 +698,9 @@ protected:
 	static int								ZBias;
 	static float							ZNear;
 	static float							ZFar;
+#if !defined(GGC_BGFX_STANDALONE)
 	static D3DMATRIX					ProjectionMatrix;
+#endif
 
 	friend void DX8_Assert();
 	friend class WW3D;
