@@ -252,7 +252,9 @@ public:
 
 	GGC_RB_DEPRECATED static void Clear(bool clear_color, bool clear_z_stencil, const Vector3 &color, float dest_alpha=0.0f, float z=1.0f, unsigned int stencil=0);
 
+#if !defined(GGC_BGFX_STANDALONE)
 	GGC_RB_DEPRECATED static void	Set_Viewport(CONST D3DVIEWPORT8* pViewport);
+#endif
 
 	GGC_RB_DEPRECATED static void Set_Vertex_Buffer(const VertexBufferClass* vb, unsigned stream=0);
 	GGC_RB_DEPRECATED static void Set_Vertex_Buffer(const DynamicVBAccessClass& vba);
@@ -294,7 +296,7 @@ public:
 
 	// Note that *_DX8_Transform() functions take the matrix in DX8 format - transposed from Westwood convention.
 
-	static void Commit_Fixed_Function_Transform(D3DTRANSFORMSTATETYPE transform, const D3DMATRIX& m);
+	static void Commit_Fixed_Function_Transform(unsigned transform, const LegacyTransformMatrix& m);
 #if !defined(GGC_BGFX_STANDALONE)
 	static void _Set_DX8_Transform(D3DTRANSFORMSTATETYPE transform, const D3DMATRIX& m);
 #endif
@@ -305,14 +307,14 @@ public:
 #if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Light(int index,D3DLIGHT8* light);
 #endif
-	static void Commit_Fixed_Function_Render_Value(D3DRENDERSTATETYPE state, unsigned value);
+	static void Commit_Fixed_Function_Render_Value(unsigned state, unsigned value);
 #if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value);
 #endif
 #if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane);
 #endif
-	static void Commit_Fixed_Function_Texture_Stage_Value(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value);
+	static void Commit_Fixed_Function_Texture_Stage_Value(unsigned stage, unsigned state, unsigned value);
 #if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value);
 	static void Set_DX8_Texture(unsigned int stage, IDirect3DBaseTexture8* texture);
@@ -321,7 +323,9 @@ public:
 	GGC_RB_DEPRECATED static void Set_Light_Environment(LightEnvironmentClass* light_env);
 #endif
 	GGC_RB_DEPRECATED static LightEnvironmentClass* Get_Light_Environment() { return Light_Environment; }
+#if !defined(GGC_BGFX_STANDALONE)
 	GGC_RB_DEPRECATED static void Set_Fog(bool enable, const Vector3 &color, float start, float end);
+#endif
 
 	// Deferred
 
@@ -439,7 +443,7 @@ public:
 
 	// Needed by shader class
 	static bool						Get_Fog_Enable() { return FogEnable; }
-	static D3DCOLOR				Get_Fog_Color() { return FogColor; }
+	static unsigned				Get_Fog_Color() { return FogColor; }
 
 	// Utilities
 	static Vector4 Convert_Color(unsigned color);
@@ -520,7 +524,9 @@ public:
 	static DWORD Get_Vertex_Processing_Behavior() { return Vertex_Processing_Behavior; }
 
 	// Needed by scene lighting class
+#if !defined(GGC_BGFX_STANDALONE)
 	GGC_RB_DEPRECATED static void						Set_Ambient(const Vector3& color);
+#endif
 	GGC_RB_DEPRECATED static const Vector3&		Get_Ambient() { return Ambient_Color; }
 	// shader system updates KJM ^
 
@@ -614,8 +620,10 @@ protected:
 	static void	Set_Texture_Bitdepth(int depth)	{ WWASSERT(depth==16 || depth==32); TextureBitDepth = depth; }
 	static int	Get_Texture_Bitdepth()			{ return TextureBitDepth; }
 
+#if !defined(GGC_BGFX_STANDALONE)
 	static void Set_MSAA_Mode(D3DMULTISAMPLE_TYPE mode) { MultiSampleAntiAliasing = mode; }
 	static D3DMULTISAMPLE_TYPE Get_MSAA_Mode() { return MultiSampleAntiAliasing; }
+#endif
 
 	static void	Set_Swap_Interval(int swap);
 	static int	Get_Swap_Interval();
@@ -801,16 +809,10 @@ WWINLINE void DX8Wrapper::Set_Pixel_Shader_Constant(int reg, const void* data, i
 #endif
 // shader system updates KJM ^
 
-WWINLINE void DX8Wrapper::Commit_Fixed_Function_Transform(D3DTRANSFORMSTATETYPE transform, const D3DMATRIX& m)
+WWINLINE void DX8Wrapper::Commit_Fixed_Function_Transform(unsigned transform, const LegacyTransformMatrix& m)
 {
-	WWASSERT(transform<=D3DTS_WORLD);
-#if 0 // (gth) this optimization is breaking generals because they set the transform behind our backs.
-	D3DMATRIX mtx;
-	RenderStateCache::Get_Transform((unsigned)transform,mtx);
-	if (mtx!=m)
-#endif
 	{
-		RenderStateCache::Set_Transform((unsigned)transform,m);
+		RenderStateCache::Set_Transform(transform,m);
 		SNAPSHOT_SAY(("DX8 - SetTransform %d [%f,%f,%f,%f][%f,%f,%f,%f][%f,%f,%f,%f]",
 			transform,
 			m.m[0][0],m.m[0][1],m.m[0][2],m.m[0][3],
@@ -818,7 +820,7 @@ WWINLINE void DX8Wrapper::Commit_Fixed_Function_Transform(D3DTRANSFORMSTATETYPE 
 			m.m[2][0],m.m[2][1],m.m[2][2],m.m[2][3]));
 		DX8_RECORD_MATRIX_CHANGE();
 #if !defined(GGC_BGFX_STANDALONE)
-		DX8CALL(SetTransform(transform,&m));
+		DX8CALL(SetTransform(static_cast<D3DTRANSFORMSTATETYPE>(transform),&m));
 #endif
 	}
 }
@@ -858,6 +860,7 @@ WWINLINE void DX8Wrapper::Set_Index_Buffer_Index_Offset(unsigned offset)
 // This function should be called rarely - once per scene would be appropriate.
 // ----------------------------------------------------------------------------
 
+#if !defined(GGC_BGFX_STANDALONE)
 WWINLINE void DX8Wrapper::Set_Fog(bool enable, const Vector3 &color, float start, float end)
 {
 	// Set global states
@@ -879,6 +882,7 @@ WWINLINE void DX8Wrapper::Set_Ambient(const Vector3& color)
 	Ambient_Color=color;
 	Commit_Fixed_Function_Render_Value(D3DRS_AMBIENT, DX8Wrapper::Convert_Color(color,0.0f));
 }
+#endif
 
 // ----------------------------------------------------------------------------
 //
@@ -915,24 +919,25 @@ WWINLINE void DX8Wrapper::Set_DX8_Light(int index, D3DLIGHT8* light)
 }
 #endif
 
-WWINLINE void DX8Wrapper::Commit_Fixed_Function_Render_Value(D3DRENDERSTATETYPE state, unsigned value)
+WWINLINE void DX8Wrapper::Commit_Fixed_Function_Render_Value(unsigned state, unsigned value)
 {
 	// Can't monitor state changes because setShader call to GERD may change the states!
-	if (RenderStateCache::Get_Render_State((unsigned)state)==value) return;
+	if (RenderStateCache::Get_Render_State(state)==value) return;
 
 #if defined(MESH_RENDER_SNAPSHOT_ENABLED) && !defined(GGC_BGFX_STANDALONE)
 	if (WW3D::Is_Snapshot_Activated()) {
 		StringClass value_name(0,true);
-		Get_DX8_Render_State_Value_Name(value_name,state,value);
+		const auto legacy_state = static_cast<D3DRENDERSTATETYPE>(state);
+		Get_DX8_Render_State_Value_Name(value_name,legacy_state,value);
 		SNAPSHOT_SAY(("DX8 - SetRenderState(state: %s, value: %s)",
-			Get_DX8_Render_State_Name(state),
+			Get_DX8_Render_State_Name(legacy_state),
 			value_name.str()));
 	}
 #endif
 
-	RenderStateCache::Set_Render_State((unsigned)state,value);
+	RenderStateCache::Set_Render_State(state,value);
 #if !defined(GGC_BGFX_STANDALONE)
-	DX8CALL(SetRenderState( state, value ));
+	DX8CALL(SetRenderState( static_cast<D3DRENDERSTATETYPE>(state), value ));
 #endif
 	DX8_RECORD_RENDER_STATE_CHANGE();
 }
@@ -951,33 +956,34 @@ WWINLINE void DX8Wrapper::Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane)
 }
 #endif
 
-WWINLINE void DX8Wrapper::Commit_Fixed_Function_Texture_Stage_Value(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value)
+WWINLINE void DX8Wrapper::Commit_Fixed_Function_Texture_Stage_Value(unsigned stage, unsigned state, unsigned value)
 {
 	if (stage >= MAX_TEXTURE_STAGES)
 	{
 #if !defined(GGC_BGFX_STANDALONE)
-		DX8CALL(SetTextureStageState( stage, state, value ));
+		DX8CALL(SetTextureStageState( stage, static_cast<D3DTEXTURESTAGESTATETYPE>(state), value ));
 		DX8_RECORD_TEXTURE_STAGE_STATE_CHANGE();
 #endif
   		return;
   	}
 
 	// Can't monitor state changes because setShader call to GERD may change the states!
-	if (RenderStateCache::Get_Texture_Stage_State(stage,(unsigned int)state)==value) return;
+	if (RenderStateCache::Get_Texture_Stage_State(stage,state)==value) return;
 #if defined(MESH_RENDER_SNAPSHOT_ENABLED) && !defined(GGC_BGFX_STANDALONE)
 	if (WW3D::Is_Snapshot_Activated()) {
 		StringClass value_name(0,true);
-		Get_DX8_Texture_Stage_State_Value_Name(value_name,state,value);
+		const auto legacy_state = static_cast<D3DTEXTURESTAGESTATETYPE>(state);
+		Get_DX8_Texture_Stage_State_Value_Name(value_name,legacy_state,value);
 		SNAPSHOT_SAY(("DX8 - SetTextureStageState(stage: %d, state: %s, value: %s)",
 			stage,
-			Get_DX8_Texture_Stage_State_Name(state),
+			Get_DX8_Texture_Stage_State_Name(legacy_state),
 			value_name.str()));
 	}
 #endif
 
-	RenderStateCache::Set_Texture_Stage_State(stage,(unsigned int)state,value);
+	RenderStateCache::Set_Texture_Stage_State(stage,state,value);
 #if !defined(GGC_BGFX_STANDALONE)
-	DX8CALL(SetTextureStageState( stage, state, value ));
+	DX8CALL(SetTextureStageState( stage, static_cast<D3DTEXTURESTAGESTATETYPE>(state), value ));
 #endif
 	DX8_RECORD_TEXTURE_STAGE_STATE_CHANGE();
 }

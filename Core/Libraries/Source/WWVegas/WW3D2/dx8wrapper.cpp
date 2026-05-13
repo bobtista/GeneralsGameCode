@@ -1986,6 +1986,7 @@ void DX8Wrapper::Clear(bool clear_color, bool clear_z_stencil, const Vector3 &co
 #endif
 }
 
+#if !defined(GGC_BGFX_STANDALONE)
 void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 {
 	DX8_THREAD_ASSERT();
@@ -2008,6 +2009,7 @@ void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
 	}
 #endif
 }
+#endif
 
 // ----------------------------------------------------------------------------
 //
