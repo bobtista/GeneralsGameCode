@@ -52,7 +52,6 @@
 #include <vector>
 
 struct IDirect3DBaseTexture8;
-struct IDirect3DSurface8;
 
 class DX8Wrapper;
 class TextureLoader;
@@ -375,7 +374,6 @@ public:
 
 	// Get the surface of one of the mipmap levels (defaults to highest-resolution one)
 	SurfaceClass *Get_Surface_Level(unsigned int level = 0);
-	IDirect3DSurface8 *Get_D3D_Surface_Level(unsigned int level = 0);
 	void Get_Level_Description( SurfaceClass::SurfaceDescription & desc, unsigned int level = 0 );
 	unsigned int Get_Level_Count() const;
 	bool Generate_Mip_Levels();
@@ -399,6 +397,10 @@ protected:
 	// legacy
 	TextureFilterClass	Filter;
 	std::vector<TextureAtlasRegion> AtlasRegions;
+
+private:
+	friend class DX8TextureInterop;
+	void *Get_Legacy_Surface_Level(unsigned int level = 0);
 };
 
 class ZTextureClass : public TextureBaseClass
@@ -425,10 +427,11 @@ public:
 
 	virtual void Apply(unsigned int stage) override;
 
-	IDirect3DSurface8 *Get_D3D_Surface_Level(unsigned int level = 0);
 	virtual unsigned Get_Texture_Memory_Usage() const override;
 
 private:
+	friend class DX8TextureInterop;
+	void *Get_Legacy_Surface_Level(unsigned int level = 0);
 
 	WW3DZFormat DepthStencilTextureFormat;
 };

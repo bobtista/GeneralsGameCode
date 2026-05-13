@@ -3662,14 +3662,14 @@ void DX8Wrapper::Set_Render_Target_With_Z
 )
 {
 	WWASSERT(texture!=nullptr);
-	IDirect3DSurface8 * d3d_surf = texture->Get_D3D_Surface_Level();
+	IDirect3DSurface8 * d3d_surf = Get_Legacy_Surface_Level(*texture);
 	WWASSERT(d3d_surf != nullptr);
 
 	IDirect3DSurface8* d3d_zbuf=nullptr;
 	if (ztexture!=nullptr)
 	{
 
-		d3d_zbuf=ztexture->Get_D3D_Surface_Level();
+		d3d_zbuf=Get_Legacy_Surface_Level(*ztexture);
 		WWASSERT(d3d_zbuf!=nullptr);
 		Set_Render_Target(d3d_surf,d3d_zbuf);
 		d3d_zbuf->Release();

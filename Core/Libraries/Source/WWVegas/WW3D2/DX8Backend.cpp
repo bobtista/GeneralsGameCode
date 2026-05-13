@@ -794,7 +794,7 @@ bool DX8Backend::Capture_Back_Buffer_RGBA(unsigned int display_width,
     }
     DX8Wrapper::_Copy_DX8_Rects(back_buffer_surface, nullptr, 0, intermediate_surface, nullptr);
 
-    small_render_target_surface = render_target->Get_D3D_Surface_Level();
+    small_render_target_surface = Get_Legacy_Surface_Level(*render_target);
     if (small_render_target_surface == nullptr) {
         goto cleanup;
     }

@@ -97,3 +97,13 @@ SurfaceClass *DX8TextureInterop::Create_Legacy_Surface_Wrapper(IDirect3DSurface8
 {
 	return new SurfaceClass(surface);
 }
+
+IDirect3DSurface8 *DX8TextureInterop::Get_Legacy_Surface_Level(TextureClass &texture, unsigned int level)
+{
+	return static_cast<IDirect3DSurface8 *>(texture.Get_Legacy_Surface_Level(level));
+}
+
+IDirect3DSurface8 *DX8TextureInterop::Get_Legacy_Surface_Level(ZTextureClass &texture, unsigned int level)
+{
+	return static_cast<IDirect3DSurface8 *>(texture.Get_Legacy_Surface_Level(level));
+}

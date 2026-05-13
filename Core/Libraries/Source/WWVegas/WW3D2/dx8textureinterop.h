@@ -28,6 +28,8 @@ struct IDirect3DSurface8;
 class StringClass;
 class SurfaceClass;
 class TextureBaseClass;
+class TextureClass;
+class ZTextureClass;
 
 class DX8TextureInterop
 {
@@ -42,6 +44,8 @@ public:
 
 	static IDirect3DSurface8 *Peek_Legacy_Surface(const SurfaceClass &surface);
 	static SurfaceClass *Create_Legacy_Surface_Wrapper(IDirect3DSurface8 *surface);
+	static IDirect3DSurface8 *Get_Legacy_Surface_Level(TextureClass &texture, unsigned int level = 0);
+	static IDirect3DSurface8 *Get_Legacy_Surface_Level(ZTextureClass &texture, unsigned int level = 0);
 };
 
 inline IDirect3DBaseTexture8 *Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
@@ -87,6 +91,16 @@ inline IDirect3DSurface8 *Peek_Legacy_Surface(const SurfaceClass &surface)
 inline SurfaceClass *Create_Legacy_Surface_Wrapper(IDirect3DSurface8 *surface)
 {
 	return DX8TextureInterop::Create_Legacy_Surface_Wrapper(surface);
+}
+
+inline IDirect3DSurface8 *Get_Legacy_Surface_Level(TextureClass &texture, unsigned int level = 0)
+{
+	return DX8TextureInterop::Get_Legacy_Surface_Level(texture, level);
+}
+
+inline IDirect3DSurface8 *Get_Legacy_Surface_Level(ZTextureClass &texture, unsigned int level = 0)
+{
+	return DX8TextureInterop::Get_Legacy_Surface_Level(texture, level);
 }
 
 IDirect3DTexture8 *Get_Legacy_Missing_Texture();
