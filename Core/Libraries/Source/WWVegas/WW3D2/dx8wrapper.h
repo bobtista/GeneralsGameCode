@@ -330,6 +330,7 @@ public:
 	** Resources
 	*/
 
+#if !defined(GGC_BGFX_STANDALONE)
 	static IDirect3DVolumeTexture8* _Create_DX8_Volume_Texture
 	(
 		unsigned int width,
@@ -375,6 +376,7 @@ public:
 
 	static IDirect3DSurface8 * _Create_DX8_Surface(unsigned int width, unsigned int height, WW3DFormat format);
 	static IDirect3DSurface8 * _Create_DX8_Surface(const char *filename);
+#endif
 	static IDirect3DSurface8 * _Get_DX8_Front_Buffer();
 	static SurfaceClass * _Get_DX8_Back_Buffer(unsigned int num=0);
 
