@@ -91,22 +91,6 @@ static inline void W3DShaderManager_BindStageTexture(unsigned stage, TextureClas
 	}
 }
 
-static inline void W3DShaderManager_GetD3DXTransform(TransformKind transform, D3DXMATRIX & matrix)
-{
-	if (g_renderBackend == nullptr)
-		return;
-
-	Matrix4x4 backendMatrix;
-	g_renderBackend->Get_Transform(transform, backendMatrix);
-	matrix = To_D3DXMATRIX(backendMatrix);
-}
-
-static inline void W3DShaderManager_SetTextureTransform(unsigned stage, const D3DXMATRIX & matrix)
-{
-	if (g_renderBackend != nullptr)
-		g_renderBackend->Set_Texture_Transform(stage, To_Matrix4x4(matrix));
-}
-
 static inline void W3DShaderManager_SetTextureTransform(unsigned stage, const Matrix4x4 & matrix)
 {
 	if (g_renderBackend != nullptr)
@@ -2114,7 +2098,7 @@ Int RoadShaderPixelShader::shutdown()
 Int RoadShaderPixelShader::init()
 {
 #if defined(GGC_BGFX_STANDALONE)
-	// bgfx cannot execute the legacy D3D8 roadnoise2.pso bytecode. Let the
+	// bgfx cannot execute the legacy roadnoise2.pso bytecode. Let the
 	// two-stage road shader register the road variants so bgfx receives a
 	// fixed-function state cascade it can translate.
 	roadShader2Stage.init();
