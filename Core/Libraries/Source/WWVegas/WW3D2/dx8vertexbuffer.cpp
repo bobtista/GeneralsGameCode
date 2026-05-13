@@ -78,6 +78,21 @@ static int _VertexBufferCount;
 static int _VertexBufferTotalVertices;
 static int _VertexBufferTotalSize;
 
+constexpr unsigned kLegacyBufferUsageWriteOnly = D3DUSAGE_WRITEONLY, kLegacyBufferUsageDynamic = D3DUSAGE_DYNAMIC, kLegacyBufferUsageNPatches = D3DUSAGE_NPATCHES, kLegacyBufferUsageSoftwareProcessing = D3DUSAGE_SOFTWAREPROCESSING;
+
+static unsigned BuildLegacyBufferUsage(DX8VertexBufferClass::UsageType usage)
+{
+	return kLegacyBufferUsageWriteOnly |
+		((usage&DX8VertexBufferClass::USAGE_DYNAMIC) ? kLegacyBufferUsageDynamic : 0) |
+		((usage&DX8VertexBufferClass::USAGE_NPATCHES) ? kLegacyBufferUsageNPatches : 0) |
+		((usage&DX8VertexBufferClass::USAGE_SOFTWAREPROCESSING) ? kLegacyBufferUsageSoftwareProcessing : 0);
+}
+
+static auto GetLegacyBufferPool(DX8VertexBufferClass::UsageType usage)
+{
+	return (usage&DX8VertexBufferClass::USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED;
+}
+
 // ----------------------------------------------------------------------------
 //
 //
@@ -506,32 +521,28 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 #ifdef VERTEX_BUFFER_LOG
 	StringClass fvf_name;
 	FVF_Info().Get_FVF_Name(fvf_name);
-	WWDEBUG_SAY(("CreateVertexBuffer(fvfsize=%d, vertex_count=%d, D3DUSAGE_WRITEONLY|%s|%s, fvf: %s, %s)",
+	WWDEBUG_SAY(("CreateVertexBuffer(fvfsize=%d, vertex_count=%d, legacy writeonly|%s|%s, fvf: %s, %s)",
 		FVF_Info().Get_FVF_Size(),
 		VertexCount,
-		(usage&USAGE_DYNAMIC) ? "D3DUSAGE_DYNAMIC" : "-",
-		(usage&USAGE_SOFTWAREPROCESSING) ? "D3DUSAGE_SOFTWAREPROCESSING" : "-",
+		(usage&USAGE_DYNAMIC) ? "legacy dynamic" : "-",
+		(usage&USAGE_SOFTWAREPROCESSING) ? "legacy softwareprocessing" : "-",
 		fvf_name,
-		(usage&USAGE_DYNAMIC) ? "D3DPOOL_DEFAULT" : "D3DPOOL_MANAGED"));
+		(usage&USAGE_DYNAMIC) ? "legacy default pool" : "legacy managed pool"));
 	_DX8VertexBufferCount++;
 	WWDEBUG_SAY(("Current vertex buffer count: %d",_DX8VertexBufferCount));
 #endif
 
-	unsigned usage_flags=
-		D3DUSAGE_WRITEONLY|
-		((usage&USAGE_DYNAMIC) ? D3DUSAGE_DYNAMIC : 0)|
-		((usage&USAGE_NPATCHES) ? D3DUSAGE_NPATCHES : 0)|
-		((usage&USAGE_SOFTWAREPROCESSING) ? D3DUSAGE_SOFTWAREPROCESSING : 0);
+	unsigned usage_flags=BuildLegacyBufferUsage(usage);
 	// New Code
 	if (!g_renderBackend || !g_renderBackend->Supports_Hardware_Transform_And_Lighting()) {
-		usage_flags|=D3DUSAGE_SOFTWAREPROCESSING;
+		usage_flags|=kLegacyBufferUsageSoftwareProcessing;
 	}
 
 	HRESULT ret=DX8Wrapper::_Get_D3D_Device8()->CreateVertexBuffer(
 		FVF_Info().Get_FVF_Size()*VertexCount,
 		usage_flags,
 		FVF_Info().Get_FVF(),
-		(usage&USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED,
+		GetLegacyBufferPool(usage),
 		&VertexBuffer);
 	if (SUCCEEDED(ret)) {
 		// Phase 5 Stage 2: populate backend-neutral handle.
@@ -559,7 +570,7 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 		FVF_Info().Get_FVF_Size()*VertexCount,
 		usage_flags,
 		FVF_Info().Get_FVF(),
-		(usage&USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED,
+		GetLegacyBufferPool(usage),
 		&VertexBuffer);
 
 	if (SUCCEEDED(ret)) {
@@ -577,7 +588,7 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 		FVF_Info().Get_FVF_Size()*VertexCount,
 		usage_flags,
 		FVF_Info().Get_FVF(),
-		(usage&USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED,
+		GetLegacyBufferPool(usage),
 		&VertexBuffer));
 	*/
 }

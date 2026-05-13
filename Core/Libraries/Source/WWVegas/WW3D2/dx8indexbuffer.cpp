@@ -69,6 +69,22 @@ static int _IndexBufferCount;
 static int _IndexBufferTotalIndices;
 static int _IndexBufferTotalSize;
 
+constexpr unsigned kLegacyBufferUsageWriteOnly = D3DUSAGE_WRITEONLY, kLegacyBufferUsageDynamic = D3DUSAGE_DYNAMIC, kLegacyBufferUsageNPatches = D3DUSAGE_NPATCHES, kLegacyBufferUsageSoftwareProcessing = D3DUSAGE_SOFTWAREPROCESSING;
+constexpr auto kLegacyIndexFormat = D3DFMT_INDEX16;
+
+static unsigned BuildLegacyBufferUsage(DX8IndexBufferClass::UsageType usage)
+{
+	return kLegacyBufferUsageWriteOnly |
+		((usage&DX8IndexBufferClass::USAGE_DYNAMIC) ? kLegacyBufferUsageDynamic : 0) |
+		((usage&DX8IndexBufferClass::USAGE_NPATCHES) ? kLegacyBufferUsageNPatches : 0) |
+		((usage&DX8IndexBufferClass::USAGE_SOFTWAREPROCESSING) ? kLegacyBufferUsageSoftwareProcessing : 0);
+}
+
+static auto GetLegacyBufferPool(DX8IndexBufferClass::UsageType usage)
+{
+	return (usage&DX8IndexBufferClass::USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED;
+}
+
 // ----------------------------------------------------------------------------
 //
 //
@@ -354,20 +370,16 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 {
 	DX8_THREAD_ASSERT();
 	WWASSERT(index_count);
-	unsigned usage_flags=
-		D3DUSAGE_WRITEONLY|
-		((usage&USAGE_DYNAMIC) ? D3DUSAGE_DYNAMIC : 0)|
-		((usage&USAGE_NPATCHES) ? D3DUSAGE_NPATCHES : 0)|
-		((usage&USAGE_SOFTWAREPROCESSING) ? D3DUSAGE_SOFTWAREPROCESSING : 0);
+	unsigned usage_flags=BuildLegacyBufferUsage(usage);
 	if (!g_renderBackend || !g_renderBackend->Supports_Hardware_Transform_And_Lighting()) {
-		usage_flags|=D3DUSAGE_SOFTWAREPROCESSING;
+		usage_flags|=kLegacyBufferUsageSoftwareProcessing;
 	}
 
 	HRESULT ret=DX8Wrapper::_Get_D3D_Device8()->CreateIndexBuffer(
 		sizeof(WORD)*index_count,
 		usage_flags,
-		D3DFMT_INDEX16,
-		(usage&USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED,
+		kLegacyIndexFormat,
+		GetLegacyBufferPool(usage),
 		&index_buffer);
 
 	if (SUCCEEDED(ret)) {
@@ -392,8 +404,8 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 	ret=DX8Wrapper::_Get_D3D_Device8()->CreateIndexBuffer(
 		sizeof(WORD)*index_count,
 		usage_flags,
-		D3DFMT_INDEX16,
-		(usage&USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED,
+		kLegacyIndexFormat,
+		GetLegacyBufferPool(usage),
 		&index_buffer);
 
 	if (SUCCEEDED(ret)) {
