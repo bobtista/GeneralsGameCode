@@ -172,34 +172,35 @@ static const float kTssAddSmooth     = 10.0f;
 static const float kTssArgTexture =  0.0f;
 static const float kTssArgDiffuse =  1.0f;
 static const float kTssArgCurrent =  2.0f;
+static const unsigned kTextureArgumentSelectMask = 0x0000000f;
 
 static float TextureOpToTssOp(unsigned value)
 {
-    switch (value)
+    switch (static_cast<RenderBackendTextureOperation>(value))
     {
-        case D3DTOP_DISABLE:            return kTssDisable;
-        case D3DTOP_SELECTARG1:         return kTssSelectArg1;
-        case D3DTOP_SELECTARG2:         return kTssSelectArg2;
-        case D3DTOP_MODULATE:           return kTssModulate;
-        case D3DTOP_MODULATE2X:         return kTssModulate2x;
-        case D3DTOP_ADD:                return kTssAdd;
-        case D3DTOP_ADDSIGNED:          return kTssAddSigned;
-        case D3DTOP_SUBTRACT:           return kTssSubtract;
-        case D3DTOP_BLENDTEXTUREALPHA:  return kTssBlendTexAlpha;
-        case D3DTOP_BLENDCURRENTALPHA:  return kTssBlendCurAlpha;
-        case D3DTOP_ADDSMOOTH:          return kTssAddSmooth;
-        default:                        return kTssSelectArg1;
+        case RB_TEXOP_DISABLE:            return kTssDisable;
+        case RB_TEXOP_SELECTARG1:         return kTssSelectArg1;
+        case RB_TEXOP_SELECTARG2:         return kTssSelectArg2;
+        case RB_TEXOP_MODULATE:           return kTssModulate;
+        case RB_TEXOP_MODULATE2X:         return kTssModulate2x;
+        case RB_TEXOP_ADD:                return kTssAdd;
+        case RB_TEXOP_ADDSIGNED:          return kTssAddSigned;
+        case RB_TEXOP_SUBTRACT:           return kTssSubtract;
+        case RB_TEXOP_BLENDTEXTUREALPHA:  return kTssBlendTexAlpha;
+        case RB_TEXOP_BLENDCURRENTALPHA:  return kTssBlendCurAlpha;
+        case RB_TEXOP_ADDSMOOTH:          return kTssAddSmooth;
+        default:                          return kTssSelectArg1;
     }
 }
 
 static float TextureArgToTssArg(unsigned value)
 {
-    switch (value & D3DTA_SELECTMASK)
+    switch (static_cast<RenderBackendTextureArgument>(value & kTextureArgumentSelectMask))
     {
-        case D3DTA_TEXTURE: return kTssArgTexture;
-        case D3DTA_CURRENT: return kTssArgCurrent;
-        case D3DTA_DIFFUSE:
-        default:            return kTssArgDiffuse;
+        case RB_TEXARG_TEXTURE: return kTssArgTexture;
+        case RB_TEXARG_CURRENT: return kTssArgCurrent;
+        case RB_TEXARG_DIFFUSE:
+        default:                return kTssArgDiffuse;
     }
 }
 
