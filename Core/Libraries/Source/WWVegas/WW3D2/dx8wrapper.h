@@ -633,10 +633,10 @@ protected:
 	** Internal functions
 	*/
 	static void Resize_And_Position_Window();
-	static bool Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT * set_colorbuffer,D3DFORMAT * set_backbuffer, D3DFORMAT * set_zmode);
-	static bool Find_Color_Mode(D3DFORMAT colorbuffer, int resx, int resy, UINT *mode);
-	static bool Find_Z_Mode(D3DFORMAT colorbuffer,D3DFORMAT backbuffer, D3DFORMAT *zmode);
-	static bool Test_Z_Mode(D3DFORMAT colorbuffer,D3DFORMAT backbuffer, D3DFORMAT zmode);
+	static bool Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,unsigned * set_colorbuffer,unsigned * set_backbuffer, unsigned * set_zmode);
+	static bool Find_Color_Mode(unsigned colorbuffer, int resx, int resy, UINT *mode);
+	static bool Find_Z_Mode(unsigned colorbuffer,unsigned backbuffer, unsigned *zmode);
+	static bool Test_Z_Mode(unsigned colorbuffer,unsigned backbuffer, unsigned zmode);
 	static void Compute_Caps(WW3DFormat display_format);
 
 	/*
