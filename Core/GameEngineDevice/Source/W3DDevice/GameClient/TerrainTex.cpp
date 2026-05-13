@@ -561,6 +561,7 @@ AlphaTerrainTextureClass::AlphaTerrainTextureClass( TextureClass *pBaseTex ):
 	TextureClass(8, 8,
 		WW3D_FORMAT_A1R5G5B5, MIP_LEVELS_1 )
 {
+	Copy_Atlas_Regions_From(pBaseTex);
 	Share_Texture_With(pBaseTex);
 }
 
