@@ -43,7 +43,6 @@
 #include "texture.h"
 
 class StringClass;
-struct IDirect3DTexture8;
 class TextureLoadTaskClass;
 class TextureLoadTaskListClass;
 
@@ -55,15 +54,6 @@ public:
 
 	// Modify given texture size to nearest valid size on current hardware.
 	static void Validate_Texture_Size(unsigned& width, unsigned& height, unsigned& depth);
-
-	static IDirect3DTexture8 * Load_Thumbnail(
-		const StringClass& filename,const Vector3& hsv_shift);
-//		WW3DFormat texture_format);	// Pass WW3D_FORMAT_UNKNOWN if you don't care
-
-	static IDirect3DSurface8 *		Load_Surface_Immediate(
-		const StringClass& filename,
-		WW3DFormat surface_format,		// Pass WW3D_FORMAT_UNKNOWN if you don't care
-		bool allow_compression);
 
 	static void	Request_Thumbnail(TextureBaseClass* tc);
 

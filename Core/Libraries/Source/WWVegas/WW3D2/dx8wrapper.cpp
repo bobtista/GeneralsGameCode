@@ -3271,7 +3271,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 	}
 
 	StringClass filename_string(filename_,true);
-	surface=TextureLoader::Load_Surface_Immediate(
+	surface=Load_Legacy_Surface_Immediate(
 		filename_string,
 		WW3D_FORMAT_UNKNOWN,
 		true);
