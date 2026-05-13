@@ -17,6 +17,7 @@
 */
 
 // 08/05/02 KM Texture class redesign
+#include "dx8textureinterop.h"
 #include "missingtexture.h"
 #include "texture.h"
 #include "dx8wrapper.h"
@@ -42,14 +43,14 @@ extern unsigned int missing_image_pixels[];
 
 static LegacyMissingTexture * _MissingTexture = nullptr;
 
-LegacyMissingTexture * MissingTexture::_Get_Missing_Texture()
+LegacyMissingTexture * Get_Legacy_Missing_Texture()
 {
 	WWASSERT(_MissingTexture);
 	_MissingTexture->AddRef();
 	return _MissingTexture;
 }
 
-LegacyMissingSurface * MissingTexture::_Create_Missing_Surface()
+LegacyMissingSurface * Create_Legacy_Missing_Surface()
 {
 	LegacyMissingSurface *texture_surface = nullptr;
 	DX8_ErrorCode(_MissingTexture->GetSurfaceLevel(0, &texture_surface));

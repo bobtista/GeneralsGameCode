@@ -51,6 +51,7 @@
 #endif
 
 #include "dx8wrapper.h"
+#include "dx8textureinterop.h"
 #include "dx8webbrowser.h"
 #include "dx8fvf.h"
 #include "dx8vertexbuffer.h"
@@ -90,6 +91,8 @@
 
 #include "shdlib.h"
 
+#include <cstdio>
+
 #if defined(GGC_BGFX_STANDALONE)
 #include "TARGA.h"
 #include "ww3dformat.h"
@@ -103,6 +106,20 @@ const D3DMULTISAMPLE_TYPE DEFAULT_MSAA = D3DMULTISAMPLE_NONE;
 
 DX8FrameStatistics DX8Wrapper::FrameStatistics;
 static DX8FrameStatistics LastFrameStatistics;
+
+static void Log_Missing_Texture_File(const char *reason, const char *filename)
+{
+	char message[512];
+	snprintf(
+		message,
+		sizeof(message),
+		"Missing texture %s: %s\n",
+		reason ? reason : "load failed",
+		filename ? filename : "(null)");
+	fprintf(stderr, "%s", message);
+	fflush(stderr);
+	OutputDebugString(message);
+}
 
 bool DX8Wrapper_IsWindowed = true;
 
@@ -2172,7 +2189,7 @@ void DX8Wrapper::Draw(
 
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 	if (WW3D::Is_Snapshot_Activated()) {
-		unsigned long passes=0;
+		DWORD passes=0;
 		SNAPSHOT_SAY(("ValidateDevice:"));
 		HRESULT res=D3DDevice->ValidateDevice(&passes);
 		switch (res) {
@@ -2814,8 +2831,9 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 			D3DSURFACE_DESC desc;
 			texture->GetLevelDesc(0, &desc);
 			if (desc.Format == D3DFMT_P8) {
+				Log_Missing_Texture_File("paletted TGA", filename);
 				texture->Release();
-				return MissingTexture::_Get_Missing_Texture();
+				return Get_Legacy_Missing_Texture();
 			}
 			return texture;
 		}
@@ -2845,15 +2863,17 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 		&texture);
 
 	if (result != D3D_OK) {
-		return MissingTexture::_Get_Missing_Texture();
+		Log_Missing_Texture_File("D3DX fallback", filename);
+		return Get_Legacy_Missing_Texture();
 	}
 
 	// Make sure texture wasn't paletted!
 	D3DSURFACE_DESC desc;
 	texture->GetLevelDesc(0,&desc);
 	if (desc.Format==D3DFMT_P8) {
+		Log_Missing_Texture_File("paletted D3DX", filename);
 		texture->Release();
-		return MissingTexture::_Get_Missing_Texture();
+		return Get_Legacy_Missing_Texture();
 	}
 	return texture;
 }
@@ -3243,8 +3263,10 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 				ext[3]='s';
 			}
 			file_auto_ptr myfile2(_TheFileFactory,compressed_name);
-			if (!myfile2->Is_Available())
-				return MissingTexture::_Create_Missing_Surface();
+			if (!myfile2->Is_Available()) {
+				Log_Missing_Texture_File("surface file", filename_);
+				return Create_Legacy_Missing_Surface();
+			}
 		}
 	}
 
@@ -3278,7 +3300,7 @@ void DX8Wrapper::_Update_Texture(TextureClass *system, TextureClass *video)
 	WWASSERT(video);
 	WWASSERT(system->Get_Pool()==TextureClass::POOL_SYSTEMMEM);
 	WWASSERT(video->Get_Pool()==TextureClass::POOL_DEFAULT);
-	DX8CALL(UpdateTexture(system->Peek_D3D_Base_Texture(),video->Peek_D3D_Base_Texture()));
+	DX8CALL(UpdateTexture(Peek_Legacy_Base_Texture(*system),Peek_Legacy_Base_Texture(*video)));
 }
 
 void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
@@ -3535,7 +3557,7 @@ DX8Wrapper::Create_Render_Target (int width, int height, WW3DFormat format)
 
 	// 3dfx drivers are lying in the CheckDeviceFormat call and claiming
 	// that they support render targets!
-	if (tex->Peek_D3D_Base_Texture() == nullptr)
+	if (Peek_Legacy_Base_Texture(*tex) == nullptr)
 	{
 		WWDEBUG_SAY(("DX8Wrapper - Render target creation failed!"));
 		REF_PTR_RELEASE(tex);
@@ -3607,7 +3629,7 @@ void DX8Wrapper::Create_Render_Target
 
 	// 3dfx drivers are lying in the CheckDeviceFormat call and claiming
 	// that they support render targets!
-	if (tex->Peek_D3D_Base_Texture() == nullptr)
+	if (Peek_Legacy_Base_Texture(*tex) == nullptr)
 	{
 		WWDEBUG_SAY(("DX8Wrapper - Render target creation failed!"));
 		REF_PTR_RELEASE(tex);
