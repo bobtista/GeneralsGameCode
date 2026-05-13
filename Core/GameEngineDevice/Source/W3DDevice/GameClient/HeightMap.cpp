@@ -2031,7 +2031,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  			devicePasses=1;	//force to 1 lighting-only pass
 		// TheSuperHackers @bugfix bobtista 23/04/2026 Force single-pass
 		// terrain when using the shader pipeline. The legacy multipass
-		// path relies on D3DTSS_TCI_CAMERASPACEPOSITION texcoord generation
+		// path relies on fixed-function camera-space texcoord generation
 		// that the uber shader does not emulate. Cloud shadowing is already
 		// handled in a single pass via pushCloudShadowToBackend.
 		if (g_renderBackend->Has_Shader_Pipeline())
@@ -2399,7 +2399,7 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 			Int devicePasses=W3DShaderManager::getShaderPasses(st);
 			// TheSuperHackers @bugfix bobtista 24/04/2026 Same rationale as
 			// the main terrain pass: shader pipeline cannot emulate the
-			// D3DTSS_TCI_CAMERASPACEPOSITION texcoord generation.
+			// fixed-function camera-space texcoord generation.
 			if (g_renderBackend->Has_Shader_Pipeline())
 			{
 				devicePasses = 1;
