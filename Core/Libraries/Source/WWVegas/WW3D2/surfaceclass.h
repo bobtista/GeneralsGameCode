@@ -71,7 +71,7 @@ class SurfaceClass : public RefCountClass
 		// Create surface from a file.
 		SurfaceClass(const char *filename);
 
-		// Create the surface from a D3D pointer
+		// Create the surface from a legacy surface pointer
 		SurfaceClass(IDirect3DSurface8 *d3d_surface);
 
 		virtual ~SurfaceClass() override;
@@ -145,7 +145,7 @@ class SurfaceClass : public RefCountClass
 
 	private:
 
-		// Direct3D surface object
+		// Legacy surface object
 		IDirect3DSurface8 *D3DSurface;
 
 		WW3DFormat SurfaceFormat;
