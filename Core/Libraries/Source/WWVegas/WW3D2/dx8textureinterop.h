@@ -41,6 +41,11 @@ public:
 	static void Set_Legacy_Base_Texture(TextureBaseClass &texture, IDirect3DBaseTexture8 *native_texture);
 	static void Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source);
 	static void Poke_Legacy_Texture(TextureBaseClass &texture, IDirect3DBaseTexture8 *native_texture);
+	static void Apply_Legacy_Surface(
+		TextureBaseClass &texture,
+		IDirect3DBaseTexture8 *native_texture,
+		bool initialized,
+		bool disable_auto_invalidation = false);
 
 	static IDirect3DSurface8 *Peek_Legacy_Surface(const SurfaceClass &surface);
 	static SurfaceClass *Create_Legacy_Surface_Wrapper(IDirect3DSurface8 *surface);
@@ -81,6 +86,15 @@ inline void Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBa
 inline void Poke_Legacy_Texture(TextureBaseClass &texture, IDirect3DBaseTexture8 *native_texture)
 {
 	DX8TextureInterop::Poke_Legacy_Texture(texture, native_texture);
+}
+
+inline void Apply_Legacy_Surface(
+	TextureBaseClass &texture,
+	IDirect3DBaseTexture8 *native_texture,
+	bool initialized,
+	bool disable_auto_invalidation = false)
+{
+	DX8TextureInterop::Apply_Legacy_Surface(texture, native_texture, initialized, disable_auto_invalidation);
 }
 
 inline IDirect3DSurface8 *Peek_Legacy_Surface(const SurfaceClass &surface)

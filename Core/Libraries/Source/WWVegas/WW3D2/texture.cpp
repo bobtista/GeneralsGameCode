@@ -89,6 +89,11 @@ namespace
 			return static_cast<LegacyTexturePool>(0);
 		}
 	}
+
+	LegacyBaseTexture *Legacy_Texture(void *texture)
+	{
+		return static_cast<LegacyBaseTexture *>(texture);
+	}
 }
 
 /*
@@ -115,7 +120,7 @@ TextureBaseClass::TextureBaseClass
 	bool reducible
 )
 	:	MipLevelCount(mip_level_count),
-		D3DTexture(nullptr),
+		LegacyTexture(nullptr),
 		CPUTextureRevision(0),
 		m_backendHandle(kInvalidRenderResource),
 	Initialized(false),
@@ -164,10 +169,10 @@ TextureBaseClass::~TextureBaseClass()
 		}
 	}
 
-	if (D3DTexture)
+	if (LegacyTexture)
 	{
-		D3DTexture->Release();
-		D3DTexture = nullptr;
+		Legacy_Texture(LegacyTexture)->Release();
+		LegacyTexture = nullptr;
 	}
 	Clear_CPU_Texture_Snapshot();
 
@@ -247,10 +252,10 @@ void TextureBaseClass::Invalidate()
 		return;
 	}
 
-	if (D3DTexture)
+	if (LegacyTexture)
 	{
-		D3DTexture->Release();
-		D3DTexture = nullptr;
+		Legacy_Texture(LegacyTexture)->Release();
+		LegacyTexture = nullptr;
 	}
 	Clear_CPU_Texture_Snapshot();
 
@@ -283,10 +288,10 @@ void TextureBaseClass::Invalidate()
 		return;
 	}
 
-	if (D3DTexture)
+	if (LegacyTexture)
 	{
-		D3DTexture->Release();
-		D3DTexture = nullptr;
+		LegacyTexture->Release();
+		LegacyTexture = nullptr;
 	}
 
 	Initialized=false;
@@ -302,17 +307,17 @@ void TextureBaseClass::Clear_CPU_Texture_Snapshot()
 	++CPUTextureRevision;
 }
 
-void TextureBaseClass::Capture_CPU_Texture_Snapshot(LegacyBaseTexture * tex)
+void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 {
 	CPUTextureMips.clear();
 	++CPUTextureRevision;
 
 	TextureClass * tex2d = As_TextureClass();
-	if (tex == nullptr || tex2d == nullptr) {
+	if (native_texture == nullptr || tex2d == nullptr) {
 		return;
 	}
 
-	LegacyTexture2D * d3d_texture = static_cast<LegacyTexture2D *>(tex);
+	LegacyTexture2D * d3d_texture = static_cast<LegacyTexture2D *>(native_texture);
 	const unsigned levels = d3d_texture->GetLevelCount();
 	CPUTextureMips.reserve(levels);
 	for (unsigned level = 0; level < levels; ++level) {
@@ -356,8 +361,8 @@ void TextureBaseClass::Capture_CPU_Texture_Snapshot(LegacyBaseTexture * tex)
 void TextureBaseClass::Load_Locked_Surface()
 {
 	WWPROFILE(("TextureClass::Load_Locked_Surface()"));
-	if (D3DTexture) D3DTexture->Release();
-	D3DTexture=nullptr;
+	if (LegacyTexture) Legacy_Texture(LegacyTexture)->Release();
+	LegacyTexture=nullptr;
 	TextureLoader::Request_Thumbnail(this);
 	Initialized=false;
 }
@@ -372,7 +377,7 @@ bool TextureBaseClass::Is_Missing_Texture()
 	bool flag = false;
 	LegacyBaseTexture *missing_texture = Get_Legacy_Missing_Texture();
 
-	if (D3DTexture == missing_texture)
+	if (Legacy_Texture(LegacyTexture) == missing_texture)
 		flag = true;
 
 	if (missing_texture)
@@ -402,13 +407,13 @@ void TextureBaseClass::Set_Texture_Name(const char * name)
 */
 unsigned int TextureBaseClass::Get_Priority()
 {
-	if (!D3DTexture)
+	if (!LegacyTexture)
 	{
-		WWASSERT_PRINT(0, "Get_Priority: D3DTexture is null!");
+		WWASSERT_PRINT(0, "Get_Priority: LegacyTexture is null!");
 		return 0;
 	}
 
-	return D3DTexture->GetPriority();
+	return Legacy_Texture(LegacyTexture)->GetPriority();
 }
 
 
@@ -418,13 +423,13 @@ unsigned int TextureBaseClass::Get_Priority()
 */
 unsigned int TextureBaseClass::Set_Priority(unsigned int priority)
 {
-	if (!D3DTexture)
+	if (!LegacyTexture)
 	{
-		WWASSERT_PRINT(0, "Set_Priority: D3DTexture is null!");
+		WWASSERT_PRINT(0, "Set_Priority: LegacyTexture is null!");
 		return 0;
 	}
 
-	return D3DTexture->SetPriority(priority);
+	return Legacy_Texture(LegacyTexture)->SetPriority(priority);
 }
 
 
@@ -943,13 +948,14 @@ void TextureClass::Init()
 //! Apply new surface to texture
 /*!
 */
-void TextureClass::Apply_New_Surface
+void TextureClass::Apply_Legacy_Surface
 (
-	LegacyBaseTexture * d3d_texture,
+	void *native_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
+	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
@@ -1034,7 +1040,7 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 {
 	if (!Peek_Legacy_Texture2D(*this))
 	{
-		WWASSERT_PRINT(0, "Get_Surface_Level: D3DTexture is null!");
+		WWASSERT_PRINT(0, "Get_Surface_Level: LegacyTexture is null!");
 		return nullptr;
 	}
 
@@ -1337,13 +1343,14 @@ void ZTextureClass::Apply(unsigned int stage)
 //! Apply new surface to texture
 /*! KM
 */
-void ZTextureClass::Apply_New_Surface
+void ZTextureClass::Apply_Legacy_Surface
 (
-	LegacyBaseTexture * d3d_texture,
+	void *native_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
+	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
@@ -1642,13 +1649,14 @@ CubeTextureClass::CubeTextureClass(LegacyBaseTexture * d3d_texture)
 //! Apply new surface to texture
 /*!
 */
-void CubeTextureClass::Apply_New_Surface
+void CubeTextureClass::Apply_Legacy_Surface
 (
-	LegacyBaseTexture * d3d_texture,
+	void *native_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
+	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
@@ -1916,13 +1924,14 @@ CubeTextureClass::CubeTextureClass(LegacyBaseTexture * d3d_texture)
 //! Apply new surface to texture
 /*!
 */
-void VolumeTextureClass::Apply_New_Surface
+void VolumeTextureClass::Apply_Legacy_Surface
 (
-	LegacyBaseTexture * d3d_texture,
+	void *native_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
+	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;

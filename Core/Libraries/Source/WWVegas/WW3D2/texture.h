@@ -51,8 +51,6 @@
 #include "IRenderBackend.h"
 #include <vector>
 
-struct IDirect3DBaseTexture8;
-
 class DX8Wrapper;
 class TextureLoader;
 class LoaderThreadClass;
@@ -169,7 +167,7 @@ public:
 		const std::vector<TextureMipSnapshot>& Get_CPU_Texture_Mips() const { return CPUTextureMips; }
 		bool Has_CPU_Texture_Mips() const { return !CPUTextureMips.empty(); }
 		unsigned Get_CPU_Texture_Revision() const { return CPUTextureRevision; }
-		void Refresh_CPU_Texture_Snapshot() { Capture_CPU_Texture_Snapshot(D3DTexture); }
+		void Refresh_CPU_Texture_Snapshot() { Capture_CPU_Texture_Snapshot(LegacyTexture); }
 
 	PoolType Get_Pool() const { return Pool; }
 
@@ -186,9 +184,6 @@ public:
 	bool Is_Compression_Allowed() const { return IsCompressionAllowed; }
 
 	unsigned Get_Reduction() const;
-
-	// Background texture loader will call this when texture has been loaded
-	virtual void Apply_New_Surface(IDirect3DBaseTexture8* tex, bool initialized, bool disable_auto_invalidation = false)=0;	// If the parameter is true, the texture will be flagged as initialised
 
 	MipCountType MipLevelCount;
 
@@ -240,20 +235,21 @@ protected:
 	int Height;
 
 private:
+	virtual void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false)=0;
 
-		// Direct3D texture object
-		IDirect3DBaseTexture8 *D3DTexture;
+		// Native compatibility texture object.
+		void *LegacyTexture;
 		std::vector<TextureMipSnapshot> CPUTextureMips;
 		unsigned CPUTextureRevision;
-		void Capture_CPU_Texture_Snapshot(IDirect3DBaseTexture8* tex);
+		void Capture_CPU_Texture_Snapshot(void *native_texture);
 		void Clear_CPU_Texture_Snapshot();
 
 		// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Populated by the asset loader after it calls
-	// g_renderBackend->Create_Texture(). Parallel to D3DTexture (which is
-	// still populated in DX8-only and ref-popup builds so the existing
-	// D3D8-specific code paths keep working). Readers that want to stay
-	// backend-neutral should prefer m_backendHandle over D3DTexture.
+	// g_renderBackend->Create_Texture(). Parallel to LegacyTexture, which is
+	// still populated in legacy/reference builds so existing compatibility code
+	// keeps working. Readers that want to stay backend-neutral should prefer
+	// m_backendHandle over LegacyTexture.
 	RenderResource m_backendHandle;
 
 	// Name
@@ -369,9 +365,6 @@ public:
 	bool Has_Atlas_Regions() const { return !AtlasRegions.empty(); }
 	const std::vector<TextureAtlasRegion> &Get_Atlas_Regions() const { return AtlasRegions; }
 
-	// Background texture loader will call this when texture has been loaded
-	virtual void Apply_New_Surface(IDirect3DBaseTexture8* tex, bool initialized, bool disable_auto_invalidation = false) override;	// If the parameter is true, the texture will be flagged as initialised
-
 	// Get the surface of one of the mipmap levels (defaults to highest-resolution one)
 	SurfaceClass *Get_Surface_Level(unsigned int level = 0);
 	void Get_Level_Description( SurfaceClass::SurfaceDescription & desc, unsigned int level = 0 );
@@ -400,6 +393,7 @@ protected:
 
 private:
 	friend class DX8TextureInterop;
+	void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
 	void *Get_Legacy_Surface_Level(unsigned int level = 0);
 };
 
@@ -422,15 +416,13 @@ public:
 
 	virtual void Init() override {}
 
-	// Background texture loader will call this when texture has been loaded
-	virtual void Apply_New_Surface(IDirect3DBaseTexture8* tex, bool initialized, bool disable_auto_invalidation = false) override;	// If the parameter is true, the texture will be flagged as initialised
-
 	virtual void Apply(unsigned int stage) override;
 
 	virtual unsigned Get_Texture_Memory_Usage() const override;
 
 private:
 	friend class DX8TextureInterop;
+	void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
 	void *Get_Legacy_Surface_Level(unsigned int level = 0);
 
 	WW3DZFormat DepthStencilTextureFormat;
@@ -471,11 +463,12 @@ public:
 		MipCountType mip_level_count=MIP_LEVELS_ALL
 	);
 
-	virtual void Apply_New_Surface(IDirect3DBaseTexture8* tex, bool initialized, bool disable_auto_invalidation = false) override;	// If the parameter is true, the texture will be flagged as initialised
-
 	virtual TexAssetType Get_Asset_Type() const override { return TEX_CUBEMAP; }
 
 	virtual CubeTextureClass* As_CubeTextureClass() override { return this; }
+
+private:
+	void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
 
 };
 
@@ -515,8 +508,6 @@ public:
 		MipCountType mip_level_count=MIP_LEVELS_ALL
 	);
 
-	virtual void Apply_New_Surface(IDirect3DBaseTexture8* tex, bool initialized, bool disable_auto_invalidation = false) override;	// If the parameter is true, the texture will be flagged as initialised
-
 	virtual TexAssetType Get_Asset_Type() const override { return TEX_VOLUME; }
 
 	virtual VolumeTextureClass* As_VolumeTextureClass() override { return this; }
@@ -524,6 +515,9 @@ public:
 protected:
 
 	int Depth;
+
+private:
+	void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
 };
 
 // Utility functions for loading and saving texture descriptions from/to W3D files

@@ -29,7 +29,7 @@
 IDirect3DBaseTexture8 *DX8TextureInterop::Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
 {
 	texture.LastAccessed=WW3D::Get_Sync_Time();
-	return texture.D3DTexture;
+	return static_cast<IDirect3DBaseTexture8 *>(texture.LegacyTexture);
 }
 
 IDirect3DTexture8 *DX8TextureInterop::Peek_Legacy_Texture2D(const TextureBaseClass &texture)
@@ -53,26 +53,27 @@ void DX8TextureInterop::Set_Legacy_Base_Texture(TextureBaseClass &texture, IDire
 	// reset the access timer whenever someone messes with this pointer.
 	texture.LastAccessed=WW3D::Get_Sync_Time();
 
-	if (texture.D3DTexture != nullptr) {
-		texture.D3DTexture->Release();
+	IDirect3DBaseTexture8 *old_texture = static_cast<IDirect3DBaseTexture8 *>(texture.LegacyTexture);
+	if (old_texture != nullptr) {
+		old_texture->Release();
 	}
-	texture.D3DTexture = native_texture;
-	if (texture.D3DTexture != nullptr) {
-		texture.D3DTexture->AddRef();
+	texture.LegacyTexture = native_texture;
+	if (native_texture != nullptr) {
+		native_texture->AddRef();
 	}
-	texture.Capture_CPU_Texture_Snapshot(texture.D3DTexture);
+	texture.Capture_CPU_Texture_Snapshot(texture.LegacyTexture);
 
 	// Populate the backend-neutral handle after the legacy texture loader
 	// finished creating the compatibility texture. The backend either stores a
 	// wrapper around the legacy pointer or creates a parallel bgfx texture via
 	// the peek path. Skip when native_texture is null; that's a release, not a
 	// load.
-	if (texture.D3DTexture != nullptr && g_renderBackend != nullptr) {
+	if (texture.LegacyTexture != nullptr && g_renderBackend != nullptr) {
 		if (texture.m_backendHandle != kInvalidRenderResource) {
 			g_renderBackend->Destroy_Resource(texture.m_backendHandle);
 		}
 		texture.m_backendHandle = g_renderBackend->Register_Loaded_Texture(&texture);
-	} else if (texture.D3DTexture == nullptr && texture.m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
+	} else if (texture.LegacyTexture == nullptr && texture.m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
 		g_renderBackend->Destroy_Resource(texture.m_backendHandle);
 		texture.m_backendHandle = kInvalidRenderResource;
 	}
@@ -85,7 +86,16 @@ void DX8TextureInterop::Share_Legacy_Texture_With(TextureBaseClass &texture, con
 
 void DX8TextureInterop::Poke_Legacy_Texture(TextureBaseClass &texture, IDirect3DBaseTexture8 *native_texture)
 {
-	texture.D3DTexture = native_texture;
+	texture.LegacyTexture = native_texture;
+}
+
+void DX8TextureInterop::Apply_Legacy_Surface(
+	TextureBaseClass &texture,
+	IDirect3DBaseTexture8 *native_texture,
+	bool initialized,
+	bool disable_auto_invalidation)
+{
+	texture.Apply_Legacy_Surface(native_texture, initialized, disable_auto_invalidation);
 }
 
 IDirect3DSurface8 *DX8TextureInterop::Peek_Legacy_Surface(const SurfaceClass &surface)
