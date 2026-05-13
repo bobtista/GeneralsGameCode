@@ -110,7 +110,8 @@ IndexBufferClass::IndexBufferClass(unsigned type_, unsigned short index_count_)
 		engine_refs(0),
 		CPUBufferData(nullptr),
 		CPUBufferSize(0),
-		CPUBufferValid(false)
+		CPUBufferValid(false),
+		m_backendStaticEligible(false)
 {
 	m_backendHandle = kInvalidRenderResource;
 	WWASSERT(type==BUFFER_TYPE_DX8 || type==BUFFER_TYPE_SORTING);
@@ -382,6 +383,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 {
 	DX8_THREAD_ASSERT();
 	WWASSERT(index_count);
+	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
 	unsigned usage_flags=BuildLegacyBufferUsage(usage);
 	if (!g_renderBackend || !g_renderBackend->Supports_Hardware_Transform_And_Lighting()) {
 		usage_flags|=kLegacyBufferUsageSoftwareProcessing;
