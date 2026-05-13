@@ -4095,122 +4095,56 @@ void DX8Wrapper::Apply_Default_State()
 	SNAPSHOT_SAY(("DX8Wrapper::Apply_Default_State()"));
 
 	// only set states used in game
-	Commit_Fixed_Function_Render_Value(D3DRS_ZENABLE, TRUE);
-//	Commit_Fixed_Function_Render_Value(D3DRS_FILLMODE, D3DFILL_SOLID);
-	Commit_Fixed_Function_Render_Value(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
-	//Commit_Fixed_Function_Render_Value(D3DRS_LINEPATTERN, 0);
-	Commit_Fixed_Function_Render_Value(D3DRS_ZWRITEENABLE, TRUE);
-	Commit_Fixed_Function_Render_Value(D3DRS_ALPHATESTENABLE, FALSE);
-	//Commit_Fixed_Function_Render_Value(D3DRS_LASTPIXEL, FALSE);
-	Commit_Fixed_Function_Render_Value(D3DRS_SRCBLEND, D3DBLEND_ONE);
-	Commit_Fixed_Function_Render_Value(D3DRS_DESTBLEND, D3DBLEND_ZERO);
-	Commit_Fixed_Function_Render_Value(D3DRS_CULLMODE, D3DCULL_CW);
-	Commit_Fixed_Function_Render_Value(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-	Commit_Fixed_Function_Render_Value(D3DRS_ALPHAREF, 0);
-	Commit_Fixed_Function_Render_Value(D3DRS_ALPHAFUNC, D3DCMP_LESSEQUAL);
-	Commit_Fixed_Function_Render_Value(D3DRS_DITHERENABLE, FALSE);
-	Commit_Fixed_Function_Render_Value(D3DRS_ALPHABLENDENABLE, FALSE);
-	Commit_Fixed_Function_Render_Value(D3DRS_FOGENABLE, FALSE);
-	Commit_Fixed_Function_Render_Value(D3DRS_SPECULARENABLE, FALSE);
-//	Commit_Fixed_Function_Render_Value(D3DRS_ZVISIBLE, FALSE);
-//	Commit_Fixed_Function_Render_Value(D3DRS_FOGCOLOR, 0);
-//	Commit_Fixed_Function_Render_Value(D3DRS_FOGTABLEMODE, D3DFOG_NONE);
-//	Commit_Fixed_Function_Render_Value(D3DRS_FOGSTART, 0);
-
-//	Commit_Fixed_Function_Render_Value(D3DRS_FOGEND, WWMath::Float_As_Int(1.0f));
-//	Commit_Fixed_Function_Render_Value(D3DRS_FOGDENSITY, WWMath::Float_As_Int(1.0f));
-
-	//Commit_Fixed_Function_Render_Value(D3DRS_EDGEANTIALIAS, FALSE);
-	Commit_Fixed_Function_Render_Value(D3DRS_ZBIAS, 0);
-//	Commit_Fixed_Function_Render_Value(D3DRS_RANGEFOGENABLE, FALSE);
-	Commit_Fixed_Function_Render_Value(D3DRS_STENCILENABLE, FALSE);
-	Commit_Fixed_Function_Render_Value(D3DRS_STENCILFAIL, D3DSTENCILOP_KEEP);
-	Commit_Fixed_Function_Render_Value(D3DRS_STENCILZFAIL, D3DSTENCILOP_KEEP);
-	Commit_Fixed_Function_Render_Value(D3DRS_STENCILPASS, D3DSTENCILOP_KEEP);
-	Commit_Fixed_Function_Render_Value(D3DRS_STENCILFUNC, D3DCMP_ALWAYS);
-	Commit_Fixed_Function_Render_Value(D3DRS_STENCILREF, 0);
-	Commit_Fixed_Function_Render_Value(D3DRS_STENCILMASK, 0xffffffff);
-	Commit_Fixed_Function_Render_Value(D3DRS_STENCILWRITEMASK, 0xffffffff);
-	Commit_Fixed_Function_Render_Value(D3DRS_TEXTUREFACTOR, 0);
-/*	Commit_Fixed_Function_Render_Value(D3DRS_WRAP0, D3DWRAP_U| D3DWRAP_V);
-	Commit_Fixed_Function_Render_Value(D3DRS_WRAP1, D3DWRAP_U| D3DWRAP_V);
-	Commit_Fixed_Function_Render_Value(D3DRS_WRAP2, D3DWRAP_U| D3DWRAP_V);
-	Commit_Fixed_Function_Render_Value(D3DRS_WRAP3, D3DWRAP_U| D3DWRAP_V);
-	Commit_Fixed_Function_Render_Value(D3DRS_WRAP4, D3DWRAP_U| D3DWRAP_V);
-	Commit_Fixed_Function_Render_Value(D3DRS_WRAP5, D3DWRAP_U| D3DWRAP_V);
-	Commit_Fixed_Function_Render_Value(D3DRS_WRAP6, D3DWRAP_U| D3DWRAP_V);
-	Commit_Fixed_Function_Render_Value(D3DRS_WRAP7, D3DWRAP_U| D3DWRAP_V);*/
-	Commit_Fixed_Function_Render_Value(D3DRS_CLIPPING, TRUE);
-	Commit_Fixed_Function_Render_Value(D3DRS_LIGHTING, FALSE);
-	//Commit_Fixed_Function_Render_Value(D3DRS_AMBIENT, 0);
-//	Commit_Fixed_Function_Render_Value(D3DRS_FOGVERTEXMODE, D3DFOG_NONE);
-	Commit_Fixed_Function_Render_Value(D3DRS_COLORVERTEX, TRUE);
-/*	Commit_Fixed_Function_Render_Value(D3DRS_LOCALVIEWER, TRUE);
-	Commit_Fixed_Function_Render_Value(D3DRS_NORMALIZENORMALS, FALSE);
-	Commit_Fixed_Function_Render_Value(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_COLOR1);
-	Commit_Fixed_Function_Render_Value(D3DRS_SPECULARMATERIALSOURCE, D3DMCS_COLOR2);
-	Commit_Fixed_Function_Render_Value(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL);
-	Commit_Fixed_Function_Render_Value(D3DRS_EMISSIVEMATERIALSOURCE, D3DMCS_MATERIAL);
-	Commit_Fixed_Function_Render_Value(D3DRS_VERTEXBLEND, D3DVBF_DISABLE);*/
-	//Commit_Fixed_Function_Render_Value(D3DRS_CLIPPLANEENABLE, 0);
-	Commit_Fixed_Function_Render_Value(D3DRS_SOFTWAREVERTEXPROCESSING, FALSE);
-	//Commit_Fixed_Function_Render_Value(D3DRS_POINTSIZE, 0x3f800000);
-	//Commit_Fixed_Function_Render_Value(D3DRS_POINTSIZE_MIN, 0);
-	//Commit_Fixed_Function_Render_Value(D3DRS_POINTSPRITEENABLE, FALSE);
-	//Commit_Fixed_Function_Render_Value(D3DRS_POINTSCALEENABLE, FALSE);
-	//Commit_Fixed_Function_Render_Value(D3DRS_POINTSCALE_A, 0);
-	//Commit_Fixed_Function_Render_Value(D3DRS_POINTSCALE_B, 0);
-	//Commit_Fixed_Function_Render_Value(D3DRS_POINTSCALE_C, 0);
-	//Commit_Fixed_Function_Render_Value(D3DRS_MULTISAMPLEANTIALIAS, TRUE);
-	//Commit_Fixed_Function_Render_Value(D3DRS_MULTISAMPLEMASK, 0xffffffff);
-	//Commit_Fixed_Function_Render_Value(D3DRS_PATCHEDGESTYLE, D3DPATCHEDGE_DISCRETE);
-	//Commit_Fixed_Function_Render_Value(D3DRS_PATCHSEGMENTS, 0x3f800000);
-	//Commit_Fixed_Function_Render_Value(D3DRS_DEBUGMONITORTOKEN, D3DDMT_ENABLE);
-	//Commit_Fixed_Function_Render_Value(D3DRS_POINTSIZE_MAX, Float_At_Int(64.0f));
-	//Commit_Fixed_Function_Render_Value(D3DRS_INDEXEDVERTEXBLENDENABLE, FALSE);
-	Commit_Fixed_Function_Render_Value(D3DRS_COLORWRITEENABLE, 0x0000000f);
-	//Commit_Fixed_Function_Render_Value(D3DRS_TWEENFACTOR, 0);
-	Commit_Fixed_Function_Render_Value(D3DRS_BLENDOP, D3DBLENDOP_ADD);
-	//Commit_Fixed_Function_Render_Value(D3DRS_POSITIONORDER, D3DORDER_CUBIC);
-	//Commit_Fixed_Function_Render_Value(D3DRS_NORMALORDER, D3DORDER_LINEAR);
+	Commit_Fixed_Function_Render_Value(7, TRUE);
+	Commit_Fixed_Function_Render_Value(9, 2);
+	Commit_Fixed_Function_Render_Value(14, TRUE);
+	Commit_Fixed_Function_Render_Value(15, FALSE);
+	Commit_Fixed_Function_Render_Value(19, 2);
+	Commit_Fixed_Function_Render_Value(20, 1);
+	Commit_Fixed_Function_Render_Value(22, 2);
+	Commit_Fixed_Function_Render_Value(23, 4);
+	Commit_Fixed_Function_Render_Value(24, 0);
+	Commit_Fixed_Function_Render_Value(25, 4);
+	Commit_Fixed_Function_Render_Value(26, FALSE);
+	Commit_Fixed_Function_Render_Value(27, FALSE);
+	Commit_Fixed_Function_Render_Value(28, FALSE);
+	Commit_Fixed_Function_Render_Value(29, FALSE);
+	Commit_Fixed_Function_Render_Value(47, 0);
+	Commit_Fixed_Function_Render_Value(52, FALSE);
+	Commit_Fixed_Function_Render_Value(53, 1);
+	Commit_Fixed_Function_Render_Value(54, 1);
+	Commit_Fixed_Function_Render_Value(55, 1);
+	Commit_Fixed_Function_Render_Value(56, 8);
+	Commit_Fixed_Function_Render_Value(57, 0);
+	Commit_Fixed_Function_Render_Value(58, 0xffffffff);
+	Commit_Fixed_Function_Render_Value(59, 0xffffffff);
+	Commit_Fixed_Function_Render_Value(60, 0);
+	Commit_Fixed_Function_Render_Value(136, TRUE);
+	Commit_Fixed_Function_Render_Value(137, FALSE);
+	Commit_Fixed_Function_Render_Value(141, TRUE);
+	Commit_Fixed_Function_Render_Value(153, FALSE);
+	Commit_Fixed_Function_Render_Value(168, 0x0000000f);
+	Commit_Fixed_Function_Render_Value(171, 1);
 
 	// disable TSS stages
 	int i;
 	for (i=0; i<CurrentCaps->Get_Max_Textures_Per_Pass(); i++)
 	{
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_COLOROP, D3DTOP_DISABLE);
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
+		Commit_Fixed_Function_Texture_Stage_Value(i, 1, 1);
+		Commit_Fixed_Function_Texture_Stage_Value(i, 2, 2);
+		Commit_Fixed_Function_Texture_Stage_Value(i, 3, 0);
 
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_ALPHAARG1, D3DTA_TEXTURE);
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_ALPHAARG2, D3DTA_DIFFUSE);
+		Commit_Fixed_Function_Texture_Stage_Value(i, 4, 1);
+		Commit_Fixed_Function_Texture_Stage_Value(i, 5, 2);
+		Commit_Fixed_Function_Texture_Stage_Value(i, 6, 0);
 
-		/*Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_BUMPENVMAT00, 0);
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_BUMPENVMAT01, 0);
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_BUMPENVMAT10, 0);
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_BUMPENVMAT11, 0);
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_BUMPENVLSCALE, 0);
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_BUMPENVLOFFSET, 0);*/
+		Commit_Fixed_Function_Texture_Stage_Value(i, 11, i);
 
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_TEXCOORDINDEX, i);
+		Commit_Fixed_Function_Texture_Stage_Value(i, 13, 1);
+		Commit_Fixed_Function_Texture_Stage_Value(i, 14, 1);
+		Commit_Fixed_Function_Texture_Stage_Value(i, 15, 0);
 
-
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_ADDRESSU, D3DTADDRESS_WRAP);
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_ADDRESSV, D3DTADDRESS_WRAP);
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_BORDERCOLOR, 0);
-//		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_MAGFILTER, D3DTEXF_LINEAR);
-//		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_MINFILTER, D3DTEXF_LINEAR);
-//		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_MIPFILTER, D3DTEXF_LINEAR);
-//		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_MIPMAPLODBIAS, 0);
-//		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_MAXMIPLEVEL, 0);
-//		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_MAXANISOTROPY, 1);
-		//Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_ADDRESSW, D3DTADDRESS_WRAP);
-		//Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_COLORARG0, D3DTA_CURRENT);
-		//Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_ALPHAARG0, D3DTA_CURRENT);
-		//Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_RESULTARG, D3DTA_CURRENT);
-
-		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+		Commit_Fixed_Function_Texture_Stage_Value(i, 24, 0);
 		Commit_Fixed_Function_Texture(i,nullptr);
 	}
 
