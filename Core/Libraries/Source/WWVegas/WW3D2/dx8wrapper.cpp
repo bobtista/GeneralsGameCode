@@ -1881,8 +1881,8 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 	// Each frame, release all of the buffers and textures.
 	Set_Vertex_Buffer(nullptr);
 	Set_Index_Buffer(nullptr,0);
-	for (int i=0;i<CurrentCaps->Get_Max_Textures_Per_Pass();++i) Set_Texture(i,nullptr);
-	Set_Material(nullptr);
+	for (int i=0;i<CurrentCaps->Get_Max_Textures_Per_Pass();++i) Commit_Fixed_Function_Texture(i,nullptr);
+	FixedFunctionState::Set_Material(nullptr);
 }
 
 
@@ -2176,7 +2176,7 @@ void DX8Wrapper::Draw(
 	DX8_THREAD_ASSERT();
 	SNAPSHOT_SAY(("DX8 - draw"));
 
-	Apply_Render_State_Changes();
+	Commit_Deferred_Render_State_Changes();
 
 	// Debug feature to disable triangle drawing...
 	if (!_Is_Triangle_Draw_Enabled()) return;
@@ -2358,9 +2358,9 @@ void DX8Wrapper::Draw_Strip(
 //
 // ----------------------------------------------------------------------------
 
-void DX8Wrapper::Apply_Render_State_Changes()
+void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 {
-	SNAPSHOT_SAY(("DX8Wrapper::Apply_Render_State_Changes()"));
+	SNAPSHOT_SAY(("DX8Wrapper::Commit_Deferred_Render_State_Changes()"));
 
 	if (!FixedFunctionState::Changed_Mask()) return;
 	if (FixedFunctionState::Changed_Mask()&SHADER_CHANGED) {
@@ -2459,7 +2459,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 						// If the VB format is FVF, set the FVF as a vertex shader
 						unsigned fvf=FixedFunctionState::Render_State().vertex_buffers[i]->FVF_Info().Get_FVF();
 						if (fvf!=0) {
-							Set_Vertex_Shader(fvf);
+							Commit_Vertex_Shader_Value(fvf);
 						}
 					}
 					break;
@@ -2504,8 +2504,15 @@ void DX8Wrapper::Apply_Render_State_Changes()
 
 	FixedFunctionState::Changed_Mask()&=((unsigned)WORLD_IDENTITY|(unsigned)VIEW_IDENTITY);
 
-	SNAPSHOT_SAY(("DX8Wrapper::Apply_Render_State_Changes() - finished"));
+	SNAPSHOT_SAY(("DX8Wrapper::Commit_Deferred_Render_State_Changes() - finished"));
 }
+
+#if !defined(GGC_BGFX_STANDALONE)
+void DX8Wrapper::Apply_Render_State_Changes()
+{
+	Commit_Deferred_Render_State_Changes();
+}
+#endif
 
 #if !defined(GGC_BGFX_STANDALONE)
 IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
@@ -3311,7 +3318,7 @@ void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
 	CurrentCaps=new DX8Caps(D3DInterface,D3DDevice,display_format,Get_Current_Adapter_Identifier());
 }
 
-
+#if !defined(GGC_BGFX_STANDALONE)
 void DX8Wrapper::Set_Light(unsigned index, const D3DLIGHT8* light)
 {
 	if (light) {
@@ -3478,6 +3485,7 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 	}
 */
 }
+#endif
 
 #if !defined(GGC_BGFX_STANDALONE)
 IDirect3DSurface8 * DX8Wrapper::_Get_DX8_Front_Buffer()
@@ -4176,10 +4184,9 @@ void DX8Wrapper::Apply_Default_State()
 		//Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_RESULTARG, D3DTA_CURRENT);
 
 		Commit_Fixed_Function_Texture_Stage_Value(i, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
-		Set_Texture(i,nullptr);
+		Commit_Fixed_Function_Texture(i,nullptr);
 	}
 
-//	DX8Wrapper::Set_Material(nullptr);
 	VertexMaterialClass::Apply_Null();
 
 #if !defined(GGC_BGFX_STANDALONE)
@@ -4192,14 +4199,14 @@ void DX8Wrapper::Apply_Default_State()
 	// set up simple default TSS
 	Vector4 vconst[MAX_VERTEX_SHADER_CONSTANTS];
 	memset(vconst,0,sizeof(Vector4)*MAX_VERTEX_SHADER_CONSTANTS);
-	Set_Vertex_Shader_Constant(0, vconst, MAX_VERTEX_SHADER_CONSTANTS);
+	Commit_Vertex_Shader_Constants(0, vconst, MAX_VERTEX_SHADER_CONSTANTS);
 
 	Vector4 pconst[MAX_PIXEL_SHADER_CONSTANTS];
 	memset(pconst,0,sizeof(Vector4)*MAX_PIXEL_SHADER_CONSTANTS);
-	Set_Pixel_Shader_Constant(0, pconst, MAX_PIXEL_SHADER_CONSTANTS);
+	Commit_Pixel_Shader_Constants(0, pconst, MAX_PIXEL_SHADER_CONSTANTS);
 
-	Set_Vertex_Shader(DX8_FVF_XYZNDUV2);
-	Set_Pixel_Shader(0);
+	Commit_Vertex_Shader_Value(DX8_FVF_XYZNDUV2);
+	Commit_Pixel_Shader_Value(0);
 
 	ShaderClass::Invalidate();
 }
