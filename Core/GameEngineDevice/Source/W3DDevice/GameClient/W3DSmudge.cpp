@@ -37,13 +37,15 @@
 #include "GameClient/Display.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/IRenderBackend.h"
+#include "WW3D2/RenderBufferTypes.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/sortingrenderer.h"
 #include "WW3D2/surfaceclass.h"
+#include "WW3D2/vertmaterial.h"
 #include "WWMath/vector2i.h"
 
 
