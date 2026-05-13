@@ -23,15 +23,19 @@ class VertexBufferClass;
 class DynamicIBAccessClass;
 class DynamicVBAccessClass;
 
+using LegacyFixedFunctionLight = D3DLIGHT8;
+using LegacyRawTexture = IDirect3DBaseTexture8;
+using LegacyTransformMatrix = D3DMATRIX;
+
 struct RenderStateStruct
 {
 	ShaderClass shader;
 	VertexMaterialClass* material;
 	TextureBaseClass * Textures[MAX_TEXTURE_STAGES];
-	D3DLIGHT8 Lights[4];
+	LegacyFixedFunctionLight Lights[4];
 	bool LightEnable[4];
-	D3DMATRIX world;
-	D3DMATRIX view;
+	LegacyTransformMatrix world;
+	LegacyTransformMatrix view;
 	unsigned vertex_buffer_types[MAX_VERTEX_STREAMS];
 	unsigned index_buffer_type;
 	unsigned short vba_offset;
@@ -101,8 +105,8 @@ public:
 	static bool Is_World_Identity();
 	static bool Is_View_Identity();
 
-	static IDirect3DBaseTexture8 * Raw_Texture(unsigned stage);
-	static bool Set_Raw_Texture(unsigned stage, IDirect3DBaseTexture8 * texture);
+	static LegacyRawTexture * Raw_Texture(unsigned stage);
+	static bool Set_Raw_Texture(unsigned stage, LegacyRawTexture * texture);
 	static void Release_Raw_Textures();
 
 	static void Clear_Cached_State();
@@ -114,6 +118,6 @@ public:
 	static unsigned Cached_Texture_Stage_State(unsigned stage, unsigned state);
 	static bool Set_Cached_Texture_Stage_State(unsigned stage, unsigned state, unsigned value);
 
-	static void Cached_Transform(unsigned transform, D3DMATRIX & matrix);
-	static bool Set_Cached_Transform(unsigned transform, const D3DMATRIX & matrix);
+	static void Cached_Transform(unsigned transform, LegacyTransformMatrix & matrix);
+	static bool Set_Cached_Transform(unsigned transform, const LegacyTransformMatrix & matrix);
 };
