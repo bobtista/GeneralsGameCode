@@ -2092,17 +2092,8 @@ RenderResource DX8Backend::Create_Dynamic_Index_Buffer(const BufferDesc & desc, 
     return Create_Index_Buffer(copy, nullptr, indices_are_32bit);
 }
 
-void * DX8Backend::Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard)
+void * DX8Backend::Map_Dynamic_Vertex_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard)
 {
-    // The DX8 backend cannot distinguish vertex vs index buffers from the
-    // handle alone, but IDirect3DVertexBuffer8::Lock and
-    // IDirect3DIndexBuffer8::Lock share a signature at the binary level
-    // through the same vtable offset on their common IUnknown-derived
-    // layout. However, to avoid UB we require the caller to only invoke
-    // Map_Dynamic on handles that were returned by a Create_Dynamic_*
-    // method — which is how DynamicVBAccessClass / DynamicIBAccessClass
-    // already use it. We route through IDirect3DVertexBuffer8's interface
-    // because the Lock signature matches both.
     IDirect3DVertexBuffer8 * buf = reinterpret_cast<IDirect3DVertexBuffer8 *>(h.id);
     if (buf == nullptr) {
         return nullptr;
@@ -2115,7 +2106,21 @@ void * DX8Backend::Map_Dynamic(RenderResource h, unsigned int offset, unsigned i
     return ptr;
 }
 
-void DX8Backend::Unmap_Dynamic(RenderResource h)
+void * DX8Backend::Map_Dynamic_Index_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard)
+{
+    IDirect3DIndexBuffer8 * buf = reinterpret_cast<IDirect3DIndexBuffer8 *>(h.id);
+    if (buf == nullptr) {
+        return nullptr;
+    }
+    const DWORD flags = discard ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+    unsigned char * ptr = nullptr;
+    if (FAILED(buf->Lock(offset, size, &ptr, flags))) {
+        return nullptr;
+    }
+    return ptr;
+}
+
+void DX8Backend::Unmap_Dynamic_Vertex_Buffer(RenderResource h)
 {
     IDirect3DVertexBuffer8 * buf = reinterpret_cast<IDirect3DVertexBuffer8 *>(h.id);
     if (buf != nullptr) {
@@ -2123,7 +2128,15 @@ void DX8Backend::Unmap_Dynamic(RenderResource h)
     }
 }
 
-void DX8Backend::Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
+void DX8Backend::Unmap_Dynamic_Index_Buffer(RenderResource h)
+{
+    IDirect3DIndexBuffer8 * buf = reinterpret_cast<IDirect3DIndexBuffer8 *>(h.id);
+    if (buf != nullptr) {
+        buf->Unlock();
+    }
+}
+
+void DX8Backend::Update_Vertex_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
 {
     IDirect3DVertexBuffer8 * buf = reinterpret_cast<IDirect3DVertexBuffer8 *>(h.id);
     if (buf == nullptr || data == nullptr || size == 0) {
@@ -2134,6 +2147,34 @@ void DX8Backend::Update_Sub_Range(RenderResource h, unsigned int offset, const v
         memcpy(dst, data, size);
         buf->Unlock();
     }
+}
+
+void DX8Backend::Update_Index_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
+{
+    IDirect3DIndexBuffer8 * buf = reinterpret_cast<IDirect3DIndexBuffer8 *>(h.id);
+    if (buf == nullptr || data == nullptr || size == 0) {
+        return;
+    }
+    unsigned char * dst = nullptr;
+    if (SUCCEEDED(buf->Lock(offset, size, &dst, D3DLOCK_NOOVERWRITE))) {
+        memcpy(dst, data, size);
+        buf->Unlock();
+    }
+}
+
+void * DX8Backend::Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard)
+{
+    return Map_Dynamic_Vertex_Buffer(h, offset, size, discard);
+}
+
+void DX8Backend::Unmap_Dynamic(RenderResource h)
+{
+    Unmap_Dynamic_Vertex_Buffer(h);
+}
+
+void DX8Backend::Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
+{
+    Update_Vertex_Sub_Range(h, offset, data, size);
 }
 
 void DX8Backend::Destroy_Resource(RenderResource h)

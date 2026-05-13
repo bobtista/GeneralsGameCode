@@ -8344,6 +8344,11 @@ RenderResource BgfxBackend::Create_Dynamic_Index_Buffer(const BufferDesc & desc,
 
 void * BgfxBackend::Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard)
 {
+    return Map_Dynamic_Vertex_Buffer(h, offset, size, discard);
+}
+
+void * BgfxBackend::Map_Dynamic_Vertex_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard)
+{
     (void)offset;
     (void)size;
     (void)discard;
@@ -8356,13 +8361,33 @@ void * BgfxBackend::Map_Dynamic(RenderResource h, unsigned int offset, unsigned 
 
 void BgfxBackend::Unmap_Dynamic(RenderResource h)
 {
+    Unmap_Dynamic_Vertex_Buffer(h);
+}
+
+void * BgfxBackend::Map_Dynamic_Index_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard)
+{
+    return Map_Dynamic_Vertex_Buffer(h, offset, size, discard);
+}
+
+void BgfxBackend::Unmap_Dynamic_Vertex_Buffer(RenderResource h)
+{
     auto it = g_phase5.table.find(h.id);
     if (it == g_phase5.table.end()) {
         return;
     }
 }
 
+void BgfxBackend::Unmap_Dynamic_Index_Buffer(RenderResource h)
+{
+    Unmap_Dynamic_Vertex_Buffer(h);
+}
+
 void BgfxBackend::Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
+{
+    Update_Vertex_Sub_Range(h, offset, data, size);
+}
+
+void BgfxBackend::Update_Vertex_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
 {
     (void)offset;
     (void)data;
@@ -8371,6 +8396,11 @@ void BgfxBackend::Update_Sub_Range(RenderResource h, unsigned int offset, const 
     if (it == g_phase5.table.end()) {
         return;
     }
+}
+
+void BgfxBackend::Update_Index_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
+{
+    Update_Vertex_Sub_Range(h, offset, data, size);
 }
 
 void BgfxBackend::Destroy_Resource(RenderResource h)
