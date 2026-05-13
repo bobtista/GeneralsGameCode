@@ -1241,24 +1241,16 @@ void W3DTreeBuffer::allocateTreeBuffers()
 		m_curNumTreeIndices[i]=0;
 	}
 
-		//shader decleration
-	// DX8_FVF_XYZNDUV1
-	DWORD Declaration[] =
-	{
-		D3DVSD_STREAM( 0 ),
-		D3DVSD_REG( 0, D3DVSDT_FLOAT3 ),  // Position
-		D3DVSD_REG( 1, D3DVSDT_FLOAT3 ),  // Normal
-		D3DVSD_REG( 2, D3DVSDT_D3DCOLOR), // Diffuse color
-		D3DVSD_REG( 7, D3DVSDT_FLOAT2 ),  // Tex coord
-		D3DVSD_END()
-	};
-
 	HRESULT hr;
-	hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\Trees.vso", &Declaration[0], 0, true, &m_dwTreeVertexShader);
+	const DWORD *declaration = reinterpret_cast<const DWORD *>(
+		g_renderBackend != nullptr ?
+			g_renderBackend->Get_Legacy_Vertex_Shader_Declaration(RB_LEGACY_VERTEX_DECL_XYZNDUV1) :
+			nullptr);
+	hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\Trees.vso", declaration, 0, true, &m_dwTreeVertexShader);
 	if (FAILED(hr))
 		return;
 
-	hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\Trees.pso", &Declaration[0], 0, false, &m_dwTreePixelShader);
+	hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\Trees.pso", nullptr, 0, false, &m_dwTreePixelShader);
 	if (FAILED(hr))
 		return;
 }

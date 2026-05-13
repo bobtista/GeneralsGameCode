@@ -59,6 +59,20 @@ static DWORD FloatAsDword(float value)
     return bits;
 }
 
+static const DWORD * GetXYZNDUV1Declaration()
+{
+    static const DWORD declaration[] =
+    {
+        D3DVSD_STREAM(0),
+        D3DVSD_REG(0, D3DVSDT_FLOAT3),
+        D3DVSD_REG(1, D3DVSDT_FLOAT3),
+        D3DVSD_REG(2, D3DVSDT_D3DCOLOR),
+        D3DVSD_REG(7, D3DVSDT_FLOAT2),
+        D3DVSD_END()
+    };
+    return declaration;
+}
+
 static DX8ViewCaptureState * GetViewCaptureState(RenderBackendViewCaptureKind kind)
 {
     if (kind != RB_VIEW_CAPTURE_TACTICAL) {
@@ -1857,6 +1871,17 @@ void DX8Backend::Draw_Strip(unsigned short start_index,
 }
 
 // -- Programmable pipeline ---------------------------------------------------
+
+const unsigned int * DX8Backend::Get_Legacy_Vertex_Shader_Declaration(
+    RenderBackendLegacyVertexDeclaration declaration) const
+{
+    switch (declaration) {
+        case RB_LEGACY_VERTEX_DECL_XYZNDUV1:
+            return reinterpret_cast<const unsigned int *>(GetXYZNDUV1Declaration());
+    }
+
+    return nullptr;
+}
 
 bool DX8Backend::Create_Vertex_Shader(const unsigned int * declaration,
                                       const unsigned int * shader,
