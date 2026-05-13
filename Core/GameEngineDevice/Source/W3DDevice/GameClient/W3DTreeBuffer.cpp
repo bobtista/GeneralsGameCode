@@ -90,6 +90,7 @@ enum
 #include "WW3D2/matinfo.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
+#include "WW3D2/surfaceclass.h"
 #include "d3dx8tex.h"
 
 
@@ -135,13 +136,22 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 	Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 	Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 
-	IDirect3DSurface8 *surface_level;
-	D3DSURFACE_DESC surface_desc;
-	D3DLOCKED_RECT locked_rect;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0, &surface_level));
-	DX8_ErrorCode(surface_level->GetDesc(&surface_desc));
+	SurfaceClass *surface_level = Get_Surface_Level(0);
+	if (surface_level == nullptr)
+	{
+		return 0;
+	}
 
-	DX8_ErrorCode(surface_level->LockRect(&locked_rect, nullptr, 0));
+	SurfaceClass::SurfaceDescription surface_desc;
+	surface_level->Get_Description(surface_desc);
+
+	Int surface_pitch = 0;
+	UnsignedByte *surface_bits = static_cast<UnsignedByte *>(surface_level->Lock(&surface_pitch));
+	if (surface_bits == nullptr)
+	{
+		REF_PTR_RELEASE(surface_level);
+		return 0;
+	}
 
 	Int tilePixelExtent = TILE_PIXEL_EXTENT;
 //	Int numRows = surface_desc.Height/(tilePixelExtent+TILE_OFFSET);
@@ -149,7 +159,7 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 	//DASSERT_MSG(tilesPerRow*numRows >= htMap->m_numBitmapTiles,Debug::Format ("Too many tiles."));
 	//DEBUG_ASSERTCRASH((Int)surface_desc.Width >= tilePixelExtent*tilesPerRow, ("Bitmap too small."));
 #endif
-	if (surface_desc.Format == D3DFMT_A8R8G8B8) {
+	if (surface_desc.Format == WW3D_FORMAT_A8R8G8B8) {
 		Int tileNdx;
 		Int pixelBytes = 4;
 #if 0 // Fill unused texture for debug display.
@@ -175,8 +185,7 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 				UnsignedByte *pBGR = pTile->getRGBDataForWidth(tilePixelExtent);
 				pBGR += (tilePixelExtent-(1+j))*TILE_BYTES_PER_PIXEL*tilePixelExtent; // invert to match.
 				Int row = position.y+j;
-				UnsignedByte *pBGRA = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*surface_desc.Width*pixelBytes;
+				UnsignedByte *pBGRA = surface_bits + row * surface_pitch;
 
 				Int column = position.x;
 				pBGRA += column*pixelBytes;
@@ -190,8 +199,8 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 		}
 
 	}
-	DX8_ErrorCode(surface_level->UnlockRect());
-	surface_level->Release();
+	surface_level->Unlock();
+	REF_PTR_RELEASE(surface_level);
 	DX8_ErrorCode(D3DXFilterTexture(Peek_D3D_Texture(), nullptr, (UINT)0, D3DX_FILTER_BOX));
 	if (WW3D::Get_Texture_Reduction()) {
 		DX8_ErrorCode(Peek_D3D_Texture()->SetLOD((DWORD)WW3D::Get_Texture_Reduction()));
