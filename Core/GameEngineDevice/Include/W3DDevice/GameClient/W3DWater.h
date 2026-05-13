@@ -45,10 +45,6 @@ struct IDirect3DDevice8;
 struct IDirect3DVertexBuffer8;
 struct IDirect3DIndexBuffer8;
 struct IDirect3DTexture8;
-typedef IDirect3DDevice8 *LPDIRECT3DDEVICE8;
-typedef IDirect3DVertexBuffer8 *LPDIRECT3DVERTEXBUFFER8;
-typedef IDirect3DIndexBuffer8 *LPDIRECT3DINDEXBUFFER8;
-typedef IDirect3DTexture8 *LPDIRECT3DTEXTURE8;
 #endif
 
 #define INVALID_WATER_HEIGHT 0.0f	///water height guaranteed to be below all terrain.
@@ -170,13 +166,13 @@ protected:
 		float tu, tv;
 	};
 
-	LPDIRECT3DDEVICE8 m_pDev;						///<pointer to D3D Device
-	LPDIRECT3DVERTEXBUFFER8 m_vertexBufferD3D;		///<D3D vertex buffer
-	LPDIRECT3DINDEXBUFFER8	m_indexBufferD3D;	///<D3D index buffer
+	IDirect3DDevice8 *m_pDev;						///<pointer to D3D Device
+	IDirect3DVertexBuffer8 *m_vertexBufferD3D;		///<D3D vertex buffer
+	IDirect3DIndexBuffer8 *m_indexBufferD3D;	///<D3D index buffer
 	DWORD					m_dwWavePixelShader;	///<handle to D3D pixel shader
 	DWORD					m_dwWaveVertexShader;	///<handle to D3D vertex shader
-	LPDIRECT3DTEXTURE8 m_pBumpTexture[NUM_BUMP_FRAMES]; ///<animation frames
-	LPDIRECT3DTEXTURE8 m_pBumpTexture2[NUM_BUMP_FRAMES]; ///<animation frames
+	IDirect3DTexture8 *m_pBumpTexture[NUM_BUMP_FRAMES]; ///<animation frames
+	IDirect3DTexture8 *m_pBumpTexture2[NUM_BUMP_FRAMES]; ///<animation frames
 #endif
 	Int	m_numVertices;				///<number of vertices in D3D vertex buffer
 	Int m_numIndices;				///<number of indices in D3D index buffer
@@ -271,7 +267,7 @@ protected:
 	void renderSkyBody(Matrix3D *mat);	///<draw the sky body (sun, moon, etc.)
 	void renderWaterMesh();			///<draw the water surface mesh (deformed 3d mesh).
 #if !defined(GGC_BGFX_STANDALONE)
-	HRESULT initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass *pBumpSource);	///<copies data into bump-map format.
+	HRESULT initBumpMap(IDirect3DTexture8 **pTex, TextureClass *pBumpSource);	///<copies data into bump-map format.
 #endif
 	void renderMirror(CameraClass *cam);	///< Draw reflected scene into texture
 #if !defined(GGC_BGFX_STANDALONE)
