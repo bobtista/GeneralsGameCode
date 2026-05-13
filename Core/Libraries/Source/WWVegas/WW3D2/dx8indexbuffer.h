@@ -114,7 +114,7 @@ protected:
 	unsigned					CPUBufferSize;
 	bool						CPUBufferValid;
 	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
-	// resource handle. Parallel to the class-specific D3D pointer stored in
+	// resource handle. Parallel to the class-specific legacy pointer stored in
 	// DX8IndexBufferClass::IndexBuffer.
 	RenderResource			m_backendHandle;
 	void Update_CPU_Buffer_Data(unsigned byte_offset, const void * data, unsigned size);
@@ -196,7 +196,7 @@ public:
 	IDirect3DIndexBuffer8* Get_DX8_Index_Buffer()	{ return index_buffer; }
 
 private:
-	IDirect3DIndexBuffer8*	index_buffer;		// actual dx8 index buffer
+	IDirect3DIndexBuffer8*	index_buffer;		// actual legacy index buffer
 };
 
 

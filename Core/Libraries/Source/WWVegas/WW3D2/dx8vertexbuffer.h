@@ -133,7 +133,7 @@ protected:
 	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Set by derived classes after calling
 	// g_renderBackend->Create_Vertex_Buffer. Parallel to the class-specific
-	// D3D pointer stored in DX8VertexBufferClass::VertexBuffer, which stays
+	// legacy pointer stored in DX8VertexBufferClass::VertexBuffer, which stays
 	// populated in ref-popup builds.
 	RenderResource					m_backendHandle;
 	void Update_CPU_Buffer_Data(unsigned byte_offset, const void * data, unsigned size);
