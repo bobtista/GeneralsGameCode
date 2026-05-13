@@ -79,3 +79,6 @@ inline IDirect3DSurface8 *Peek_Legacy_Surface(const SurfaceClass &surface)
 {
 	return DX8TextureInterop::Peek_Legacy_Surface(surface);
 }
+
+IDirect3DTexture8 *Get_Legacy_Missing_Texture();
+IDirect3DSurface8 *Create_Legacy_Missing_Surface();

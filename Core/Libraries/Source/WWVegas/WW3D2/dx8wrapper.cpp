@@ -2833,7 +2833,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 			if (desc.Format == D3DFMT_P8) {
 				Log_Missing_Texture_File("paletted TGA", filename);
 				texture->Release();
-				return MissingTexture::_Get_Missing_Texture();
+				return Get_Legacy_Missing_Texture();
 			}
 			return texture;
 		}
@@ -2864,7 +2864,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 
 	if (result != D3D_OK) {
 		Log_Missing_Texture_File("D3DX fallback", filename);
-		return MissingTexture::_Get_Missing_Texture();
+		return Get_Legacy_Missing_Texture();
 	}
 
 	// Make sure texture wasn't paletted!
@@ -2873,7 +2873,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	if (desc.Format==D3DFMT_P8) {
 		Log_Missing_Texture_File("paletted D3DX", filename);
 		texture->Release();
-		return MissingTexture::_Get_Missing_Texture();
+		return Get_Legacy_Missing_Texture();
 	}
 	return texture;
 }
@@ -3265,7 +3265,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 			file_auto_ptr myfile2(_TheFileFactory,compressed_name);
 			if (!myfile2->Is_Available()) {
 				Log_Missing_Texture_File("surface file", filename_);
-				return MissingTexture::_Create_Missing_Surface();
+				return Create_Legacy_Missing_Surface();
 			}
 		}
 	}
