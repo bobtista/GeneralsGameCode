@@ -156,8 +156,9 @@ void TerrainTextureClass::UpdateTerrainAtlasRegions(WorldHeightMap *htMap, unsig
 	}
 }
 
-void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, IDirect3DTexture8 *texture, unsigned int level)
+void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsigned int level)
 {
+	IDirect3DTexture8 *texture = Peek_D3D_Texture();
 	if (htMap == nullptr || texture == nullptr || level == 0)
 	{
 		return;
@@ -282,8 +283,9 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, IDire
 	surface_level->Release();
 }
 
-void TerrainTextureClass::WriteTerrainAtlasMipLevels(WorldHeightMap *htMap, IDirect3DTexture8 *texture)
+void TerrainTextureClass::WriteTerrainAtlasMipLevels(WorldHeightMap *htMap)
 {
+	IDirect3DTexture8 *texture = Peek_D3D_Texture();
 	if (texture == nullptr)
 	{
 		return;
@@ -292,7 +294,7 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevels(WorldHeightMap *htMap, IDir
 	const unsigned int mipCount = texture->GetLevelCount();
 	for (unsigned int level = 1; level < mipCount; level++)
 	{
-		WriteTerrainAtlasMipLevel(htMap, texture, level);
+		WriteTerrainAtlasMipLevel(htMap, level);
 	}
 }
 
@@ -436,7 +438,7 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 	surface_level->Release();
 	DX8_ErrorCode(D3DXFilterTexture(Peek_D3D_Texture(), nullptr, 0, D3DX_FILTER_BOX));
 	UpdateTerrainAtlasRegions(htMap, surface_desc.Width, surface_desc.Height, surface_desc.Format);
-	WriteTerrainAtlasMipLevels(htMap, Peek_D3D_Texture());
+	WriteTerrainAtlasMipLevels(htMap);
 	InvalidateGeneratedTerrainTexture(this);
 	if (WW3D::Get_Texture_Reduction()) {
 		Peek_D3D_Texture()->SetLOD(WW3D::Get_Texture_Reduction());
