@@ -1189,9 +1189,9 @@ void RTS3DScene::updatePlayerColorPasses()
 
 #define ZBias 0.0001f
 
-// TheSuperHackers @info bobtista 28/04/2026 D3DRS_ZBIAS units (0..16) used
+// TheSuperHackers @info bobtista 28/04/2026 Legacy z-bias units (0..16) used
 // to push wireframe overlay draws toward the camera so they stay visible
-// over the underlying solid pass. Was a raw 7 in the legacy DX8 path.
+// over the underlying solid pass. Was a raw 7 in the legacy renderer path.
 #define WIREFRAME_OVERLAY_ZBIAS 7
 
 //DECLARE_PERF_TIMER(NonTerrainRender)
