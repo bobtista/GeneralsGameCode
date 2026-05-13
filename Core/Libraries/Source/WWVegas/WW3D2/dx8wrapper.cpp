@@ -507,6 +507,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 }
 
 inline DWORD F2DW(float f) { return *((unsigned*)&f); }
+static D3DFORMAT Legacy_Format(unsigned value) { return static_cast<D3DFORMAT>(value); }
 void DX8Wrapper::Set_Default_Global_Render_States()
 {
 	DX8_THREAD_ASSERT();
@@ -1630,16 +1631,16 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT 
 {
 	static D3DFORMAT _formats16[] =
 	{
-		D3DFMT_R5G6B5,
-		D3DFMT_X1R5G5B5,
-		D3DFMT_A1R5G5B5
+		Legacy_Format(23),
+		Legacy_Format(24),
+		Legacy_Format(25)
 	};
 
 	static D3DFORMAT _formats32[] =
 	{
-		D3DFMT_A8R8G8B8,
-		D3DFMT_X8R8G8B8,
-		D3DFMT_R8G8B8,
+		Legacy_Format(21),
+		Legacy_Format(22),
+		Legacy_Format(20),
 	};
 
 	/*
@@ -1674,9 +1675,9 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT 
 		*set_backbuffer=*set_colorbuffer = format_table[format_index];
 	}
 
-	if (bitdepth==32 && *set_colorbuffer == D3DFMT_X8R8G8B8 && D3DInterface->CheckDeviceType(0,D3DDEVTYPE_HAL,*set_colorbuffer,D3DFMT_A8R8G8B8, TRUE) == D3D_OK)
+	if (bitdepth==32 && *set_colorbuffer == Legacy_Format(22) && D3DInterface->CheckDeviceType(0,D3DDEVTYPE_HAL,*set_colorbuffer,Legacy_Format(21), TRUE) == S_OK)
 	{	//promote 32-bit modes to include destination alpha when supported
-		*set_backbuffer = D3DFMT_A8R8G8B8;
+		*set_backbuffer = Legacy_Format(21);
 	}
 
 	/*
@@ -1745,45 +1746,45 @@ bool DX8Wrapper::Find_Color_Mode(D3DFORMAT colorbuffer, int resx, int resy, UINT
 bool DX8Wrapper::Find_Z_Mode(D3DFORMAT colorbuffer,D3DFORMAT backbuffer, D3DFORMAT *zmode)
 {
 	//MW: Swapped the next 2 tests so that Stencil modes get tested first.
-	if (Test_Z_Mode(colorbuffer,backbuffer,D3DFMT_D24S8))
+	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(75)))
 	{
-		*zmode=D3DFMT_D24S8;
-		WWDEBUG_SAY(("Found zbuffer mode D3DFMT_D24S8"));
+		*zmode=Legacy_Format(75);
+		WWDEBUG_SAY(("Found zbuffer mode 75"));
 		return true;
 	}
 
-	if (Test_Z_Mode(colorbuffer,backbuffer,D3DFMT_D32))
+	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(71)))
 	{
-		*zmode=D3DFMT_D32;
-		WWDEBUG_SAY(("Found zbuffer mode D3DFMT_D32"));
+		*zmode=Legacy_Format(71);
+		WWDEBUG_SAY(("Found zbuffer mode 71"));
 		return true;
 	}
 
-	if (Test_Z_Mode(colorbuffer,backbuffer,D3DFMT_D24X8))
+	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(77)))
 	{
-		*zmode=D3DFMT_D24X8;
-		WWDEBUG_SAY(("Found zbuffer mode D3DFMT_D24X8"));
+		*zmode=Legacy_Format(77);
+		WWDEBUG_SAY(("Found zbuffer mode 77"));
 		return true;
 	}
 
-	if (Test_Z_Mode(colorbuffer,backbuffer,D3DFMT_D24X4S4))
+	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(79)))
 	{
-		*zmode=D3DFMT_D24X4S4;
-		WWDEBUG_SAY(("Found zbuffer mode D3DFMT_D24X4S4"));
+		*zmode=Legacy_Format(79);
+		WWDEBUG_SAY(("Found zbuffer mode 79"));
 		return true;
 	}
 
-	if (Test_Z_Mode(colorbuffer,backbuffer,D3DFMT_D16))
+	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(80)))
 	{
-		*zmode=D3DFMT_D16;
-		WWDEBUG_SAY(("Found zbuffer mode D3DFMT_D16"));
+		*zmode=Legacy_Format(80);
+		WWDEBUG_SAY(("Found zbuffer mode 80"));
 		return true;
 	}
 
-	if (Test_Z_Mode(colorbuffer,backbuffer,D3DFMT_D15S1))
+	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(73)))
 	{
-		*zmode=D3DFMT_D15S1;
-		WWDEBUG_SAY(("Found zbuffer mode D3DFMT_D15S1"));
+		*zmode=Legacy_Format(73);
+		WWDEBUG_SAY(("Found zbuffer mode 73"));
 		return true;
 	}
 
