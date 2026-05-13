@@ -53,6 +53,7 @@ class LightEnvironmentClass;
 class Matrix4x4;
 class Matrix3D;
 class Vector3;
+class RenderDeviceCleanupHook;
 struct RenderStateStruct;
 
 // -----------------------------------------------------------------------------
@@ -538,6 +539,7 @@ public:
     virtual bool Is_Device_Lost() const { return false; }
     virtual RenderBackendDeviceStatus Get_Device_Status() const { return RB_DEVICE_OK; }
     virtual void Reset_Device() {}
+    virtual void Set_Device_Cleanup_Hook(RenderDeviceCleanupHook * hook) {}
     virtual bool Has_Stencil() const { return false; }
     virtual WW3DFormat Get_Back_Buffer_Format() const { return WW3D_FORMAT_UNKNOWN; }
     virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const { return nullptr; }

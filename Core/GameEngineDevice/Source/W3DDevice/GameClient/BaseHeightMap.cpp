@@ -81,7 +81,6 @@
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/renderdebugstats.h"
@@ -311,7 +310,9 @@ BaseHeightMapRenderObjClass::BaseHeightMapRenderObjClass()
 #else
 	m_shroud = NEW W3DShroud;
 #endif
-	DX8Wrapper::SetCleanupHook(this);
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Set_Device_Cleanup_Hook(this);
+	}
 }
 
 void BaseHeightMapRenderObjClass::setTextureLOD(Int lod)
