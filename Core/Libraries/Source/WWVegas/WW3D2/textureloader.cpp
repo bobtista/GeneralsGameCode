@@ -55,7 +55,7 @@
 #include "IRenderBackend.h"
 #include <d3dx8tex.h>
 #include "wwmemlog.h"
-#include "formconv.h"
+#include "dx8formatconv.h"
 #include "texturethumbnail.h"
 #include "ddsfile.h"
 #include "bitmaphandler.h"

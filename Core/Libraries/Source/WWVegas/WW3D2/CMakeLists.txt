@@ -66,6 +66,7 @@ set(WW3D2_SRC
     dynamesh.h
     font3d.cpp
     font3d.h
+    dx8formatconv.h
     formconv.cpp
     formconv.h
     FramGrab.cpp
