@@ -41,7 +41,6 @@
 #include "always.h"
 #include "ww3dformat.h"
 
-struct IDirect3DSurface8;
 class SurfaceClass;
 class Vector2i;
 class Vector3;
@@ -143,7 +142,7 @@ class SurfaceClass : public RefCountClass
 		void	Attach_Legacy_Surface(void *surface);
 
 		// Legacy surface object
-		IDirect3DSurface8 *D3DSurface;
+		void *D3DSurface;
 
 		WW3DFormat SurfaceFormat;
 		friend class TextureClass;

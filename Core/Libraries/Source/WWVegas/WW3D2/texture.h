@@ -55,6 +55,7 @@ struct IDirect3DBaseTexture8;
 struct IDirect3DTexture8;
 struct IDirect3DCubeTexture8;
 struct IDirect3DVolumeTexture8;
+struct IDirect3DSurface8;
 
 class DX8Wrapper;
 class TextureLoader;
