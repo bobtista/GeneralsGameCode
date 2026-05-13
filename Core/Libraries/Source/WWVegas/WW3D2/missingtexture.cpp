@@ -88,12 +88,13 @@ void MissingTexture::_Init()
 {
 	WWASSERT(!_MissingTexture);
 
-	LegacyMissingTexture * tex=DX8Wrapper::_Create_DX8_Texture
+	LegacyMissingTexture * tex=Create_Legacy_Texture
 	(
 		missing_image_width,
 		missing_image_height,
 		WW3D_FORMAT_A8R8G8B8,
-		MIP_LEVELS_ALL
+		MIP_LEVELS_ALL,
+		LEGACY_TEXTURE_POOL_MANAGED
 	);
 
 	LegacyLockedRect locked_rect;
