@@ -42,12 +42,15 @@
 #include "rinfo.h"
 #include "camera.h"
 #include "scene.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "dx8wrapper.h"
+#include "d3dx8math.h"
+#endif
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/renderdebugstats.h"
+#include "WW3D2/statistics.h"
 #include "light.h"
-#include "d3dx8math.h"
 #include "simplevec.h"
 #include "mesh.h"
 #include "matinfo.h"
@@ -82,6 +85,7 @@ static inline void W3DWater_BindTexture(unsigned stage, TextureClass * tex)
 		g_renderBackend->Bind_Texture_Immediate(stage, tex);
 }
 
+#if !defined(GGC_BGFX_STANDALONE)
 static inline void W3DWater_GetD3DXTransform(TransformKind transform, D3DXMATRIX & matrix)
 {
 	if (g_renderBackend == nullptr)
@@ -103,6 +107,7 @@ static inline void W3DWater_SetTextureTransform(unsigned stage, const D3DXMATRIX
 	if (g_renderBackend != nullptr)
 		g_renderBackend->Set_Texture_Transform(stage, To_Matrix4x4(matrix));
 }
+#endif
 
 static inline void W3DWater_SetTextureTransform(unsigned stage, const Matrix4x4 & matrix)
 {
