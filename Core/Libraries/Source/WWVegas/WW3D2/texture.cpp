@@ -952,12 +952,7 @@ void TextureClass::Apply_New_Surface
 	bool disable_auto_invalidation
 )
 {
-	LegacyBaseTexture *d3d_tex=Peek_Legacy_Base_Texture(*this);
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Legacy_Texture(*this, d3d_texture);//TextureLoadTask->Peek_Legacy_Texture2D(*this);
-	d3d_texture->AddRef();
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
@@ -975,7 +970,6 @@ void TextureClass::Apply_New_Surface
 		Height=d3d_desc.Height;
 	}
 	surface->Release();
-	Refresh_CPU_Texture_Snapshot();
 
 }
 
@@ -1352,12 +1346,7 @@ void ZTextureClass::Apply_New_Surface
 	bool disable_auto_invalidation
 )
 {
-	LegacyBaseTexture *d3d_tex=Peek_Legacy_Base_Texture(*this);
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Legacy_Texture(*this, d3d_texture);//TextureLoadTask->Peek_Legacy_Texture2D(*this);
-	d3d_texture->AddRef();
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
@@ -1662,12 +1651,7 @@ void CubeTextureClass::Apply_New_Surface
 	bool disable_auto_invalidation
 )
 {
-	LegacyBaseTexture *d3d_tex=Peek_Legacy_Base_Texture(*this);
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Legacy_Texture(*this, d3d_texture);//TextureLoadTask->Peek_Legacy_Texture2D(*this);
-	d3d_texture->AddRef();
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
@@ -1941,12 +1925,7 @@ void VolumeTextureClass::Apply_New_Surface
 	bool disable_auto_invalidation
 )
 {
-	LegacyBaseTexture *d3d_tex=Peek_Legacy_Base_Texture(*this);
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Legacy_Texture(*this, d3d_texture);//TextureLoadTask->Peek_Legacy_Texture2D(*this);
-	d3d_texture->AddRef();
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
