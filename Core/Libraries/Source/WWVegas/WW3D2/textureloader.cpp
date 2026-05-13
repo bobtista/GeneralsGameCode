@@ -56,6 +56,7 @@
 #include <d3dx8tex.h>
 #include "wwmemlog.h"
 #include "dx8formatconv.h"
+#include "dx8textureinterop.h"
 #include "texturethumbnail.h"
 #include "ddsfile.h"
 #include "bitmaphandler.h"
@@ -693,7 +694,7 @@ void TextureLoader::Request_Thumbnail(TextureBaseClass *tc)
 	FastCriticalSectionClass::LockClass lock(_ForegroundCriticalSection);
 
 	// Has a Direct3D texture already been loaded?
-	if (tc->Peek_D3D_Base_Texture()) {
+	if (Peek_Legacy_Base_Texture(*tc)) {
 		return;
 	}
 

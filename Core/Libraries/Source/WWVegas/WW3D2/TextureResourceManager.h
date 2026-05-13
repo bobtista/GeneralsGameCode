@@ -20,6 +20,7 @@
 
 #include "always.h"
 #include "dx8list.h"
+#include "dx8textureinterop.h"
 #include "multilist.h"
 #include "texture.h"
 
@@ -44,7 +45,7 @@ public:
 
 	void Release()
 	{
-		Texture->Set_D3D_Base_Texture(nullptr);
+		Set_Legacy_Base_Texture(*Texture, nullptr);
 	}
 
 	TextureBaseClass *Get_Texture() const { return Texture; }

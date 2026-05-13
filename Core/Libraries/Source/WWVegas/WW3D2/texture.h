@@ -63,13 +63,15 @@ class TextureLoadTaskClass;
 class TextureClass;
 class CubeTextureClass;
 class VolumeTextureClass;
+class DX8TextureInterop;
 
 class TextureBaseClass : public RefCountClass
 {
 	friend class TextureLoader;
 	friend class LoaderThreadClass;
-	friend class DX8TextureTrackerClass;  //(gth) so it can call Poke_Texture,
+	friend class DX8TextureTrackerClass;  //(gth) so it can poke the native texture,
 	friend class DX8ZTextureTrackerClass;
+	friend class DX8TextureInterop;
 
 public:
 
@@ -157,10 +159,6 @@ public:
 	// This utility function processes the texture reduction (used during rendering)
 	void Invalidate();
 
-		// texture accessors (dx8)
-		IDirect3DBaseTexture8 *Peek_D3D_Base_Texture() const;
-		void Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex);
-		void Share_Texture_With(const TextureBaseClass *texture);
 		struct TextureMipSnapshot
 		{
 			unsigned Width;
@@ -211,14 +209,9 @@ public:
 	virtual CubeTextureClass* As_CubeTextureClass() { return nullptr; }
 	virtual VolumeTextureClass* As_VolumeTextureClass() { return nullptr; }
 
-	IDirect3DTexture8* Peek_D3D_Texture() const { return (IDirect3DTexture8*)Peek_D3D_Base_Texture(); }
-	IDirect3DVolumeTexture8* Peek_D3D_VolumeTexture() const { return (IDirect3DVolumeTexture8*)Peek_D3D_Base_Texture(); }
-	IDirect3DCubeTexture8* Peek_D3D_CubeTexture() const { return (IDirect3DCubeTexture8*)Peek_D3D_Base_Texture(); }
-
 protected:
 
 	void Load_Locked_Surface();
-	void Poke_Texture(IDirect3DBaseTexture8* tex) { D3DTexture = tex; }
 
 	bool Initialized;
 

@@ -42,8 +42,10 @@
 #include "ww3dformat.h"
 
 struct IDirect3DSurface8;
+class SurfaceClass;
 class Vector2i;
 class Vector3;
+class DX8TextureInterop;
 
 /*************************************************************************
 **                             SurfaceClass
@@ -119,9 +121,6 @@ class SurfaceClass : public RefCountClass
 		// makes a copy of the surface into a byte array
 		unsigned char *CreateCopy(int *width,int *height,int*size,bool flip=false);
 
-			// For use by TextureClass:
-		IDirect3DSurface8 *Peek_D3D_Surface() { return D3DSurface; }
-
 		// Attaching and detaching a surface pointer
 		void	Attach (IDirect3DSurface8 *surface);
 		void	Detach ();
@@ -149,5 +148,6 @@ class SurfaceClass : public RefCountClass
 		IDirect3DSurface8 *D3DSurface;
 
 		WW3DFormat SurfaceFormat;
-	friend class TextureClass;
+		friend class TextureClass;
+		friend class DX8TextureInterop;
 };

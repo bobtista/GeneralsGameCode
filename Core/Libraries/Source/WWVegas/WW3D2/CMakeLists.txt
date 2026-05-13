@@ -62,11 +62,13 @@ set(WW3D2_SRC
     dx8vertexbuffer.h
     dx8wrapper.cpp
     dx8wrapper.h
+    dx8textureinterop.cpp
     dynamesh.cpp
     dynamesh.h
     font3d.cpp
     font3d.h
     dx8formatconv.h
+    dx8textureinterop.h
     formconv.cpp
     formconv.h
     framgrab.h

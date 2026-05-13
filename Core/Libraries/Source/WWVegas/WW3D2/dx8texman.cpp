@@ -51,6 +51,7 @@
 // destructor
 
 #include "dx8texman.h"
+#include "dx8textureinterop.h"
 #include "dx8wrapper.h"
 
 namespace
@@ -60,9 +61,8 @@ namespace
 
 void DX8TextureTrackerClass::Recreate() const
 {
-	WWASSERT(Texture->Peek_D3D_Base_Texture()==nullptr);
-	Texture->Poke_Texture
-	(
+	WWASSERT(Peek_Legacy_Base_Texture(*Texture)==nullptr);
+	Poke_Legacy_Texture(*Texture,
 		DX8Wrapper::_Create_DX8_Texture
 		(
 			Width,
@@ -77,9 +77,8 @@ void DX8TextureTrackerClass::Recreate() const
 
 void DX8ZTextureTrackerClass::Recreate() const
 {
-	WWASSERT(Texture->Peek_D3D_Base_Texture()==nullptr);
-	Texture->Poke_Texture
-	(
+	WWASSERT(Peek_Legacy_Base_Texture(*Texture)==nullptr);
+	Poke_Legacy_Texture(*Texture,
 		DX8Wrapper::_Create_DX8_ZTexture
 		(
 			Width,
