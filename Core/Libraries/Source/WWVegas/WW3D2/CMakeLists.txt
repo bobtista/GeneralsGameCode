@@ -69,7 +69,6 @@ set(WW3D2_SRC
     font3d.h
     dx8formatconv.h
     dx8textureinterop.h
-    formconv.cpp
     formconv.h
     framgrab.h
     FixedFunctionState.cpp
@@ -256,6 +255,7 @@ target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
 if(NOT GGC_BGFX_STANDALONE)
     target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/formconv.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.h
     )
