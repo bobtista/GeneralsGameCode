@@ -48,7 +48,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "surfaceclass.h"
-#include "formconv.h"
+#include "dx8formatconv.h"
 #include "dx8wrapper.h"
 #include "vector2i.h"
 #include "colorspace.h"

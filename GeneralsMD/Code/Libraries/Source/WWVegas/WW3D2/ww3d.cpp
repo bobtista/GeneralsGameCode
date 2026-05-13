@@ -115,7 +115,7 @@
 #include "thread.h"
 #include "cpudetect.h"
 #include "TextureResourceManager.h"
-#include "formconv.h"
+#include "dx8formatconv.h"
 #include "animatedsoundmgr.h"
 #include "static_sort_list.h"
 #include "shdlib.h"
