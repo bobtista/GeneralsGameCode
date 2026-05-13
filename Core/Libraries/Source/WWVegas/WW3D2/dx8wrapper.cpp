@@ -2127,11 +2127,13 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 		}
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(SetStreamSource(
 		0,
 		static_cast<IDirect3DVertexBuffer8 *>(
 			static_cast<DX8VertexBufferClass*>(dyn_vb_access.VertexBuffer)->Get_Legacy_Vertex_Buffer()),
 		dyn_vb_access.FVF_Info().Get_FVF_Size()));
+#endif
 	// If using FVF format VB, set the FVF as vertex shader (may not be needed here KM)
 	unsigned fvf=dyn_vb_access.FVF_Info().Get_FVF();
 	if (fvf!=0) {
@@ -2164,19 +2166,23 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 		}
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(SetIndices(
 		static_cast<IDirect3DIndexBuffer8 *>(
 			static_cast<DX8IndexBufferClass*>(dyn_ib_access.IndexBuffer)->Get_Legacy_Index_Buffer()),
 		dyn_vb_access.VertexBufferOffset));
+#endif
 	DX8_RECORD_INDEX_BUFFER_CHANGE();
 
 	DX8_RECORD_DRAW_CALLS();
+#if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(DrawIndexedPrimitive(
 		static_cast<D3DPRIMITIVETYPE>(4),
 		0,		// start vertex
 		vertex_count,
 		dyn_ib_access.IndexBufferOffset,
 		polygon_count));
+#endif
 
 	DX8_RECORD_RENDER(polygon_count,vertex_count,FixedFunctionState::Render_State().shader);
 
@@ -2299,12 +2305,14 @@ void DX8Wrapper::Draw(
 				}*/
 				DX8_RECORD_RENDER(polygon_count,vertex_count,FixedFunctionState::Render_State().shader);
 				DX8_RECORD_DRAW_CALLS();
+#if !defined(GGC_BGFX_STANDALONE)
 				DX8CALL(DrawIndexedPrimitive(
 					(D3DPRIMITIVETYPE)primitive_type,
 					min_vertex_index,
 					vertex_count,
 					start_index+FixedFunctionState::Render_State().iba_offset,
 					polygon_count));
+#endif
 			}
 			break;
 		case BUFFER_TYPE_SORTING:
@@ -2486,11 +2494,13 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 				switch (FixedFunctionState::Render_State().vertex_buffer_types[i]) {//->Type()) {
 				case BUFFER_TYPE_DX8:
 				case BUFFER_TYPE_DYNAMIC_DX8:
+#if !defined(GGC_BGFX_STANDALONE)
 					DX8CALL(SetStreamSource(
 						i,
 						static_cast<IDirect3DVertexBuffer8 *>(
 							static_cast<DX8VertexBufferClass*>(FixedFunctionState::Render_State().vertex_buffers[i])->Get_Legacy_Vertex_Buffer()),
 						FixedFunctionState::Render_State().vertex_buffers[i]->FVF_Info().Get_FVF_Size()));
+#endif
 					DX8_RECORD_VERTEX_BUFFER_CHANGE();
 					{
 						// If the VB format is FVF, set the FVF as a vertex shader
@@ -2518,10 +2528,12 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 			switch (FixedFunctionState::Render_State().index_buffer_type) {//->Type()) {
 			case BUFFER_TYPE_DX8:
 			case BUFFER_TYPE_DYNAMIC_DX8:
+#if !defined(GGC_BGFX_STANDALONE)
 				DX8CALL(SetIndices(
 					static_cast<IDirect3DIndexBuffer8 *>(
 						static_cast<DX8IndexBufferClass*>(FixedFunctionState::Render_State().index_buffer)->Get_Legacy_Index_Buffer()),
 					FixedFunctionState::Render_State().index_base_offset+FixedFunctionState::Render_State().vba_offset));
+#endif
 				DX8_RECORD_INDEX_BUFFER_CHANGE();
 				break;
 			case BUFFER_TYPE_SORTING:
