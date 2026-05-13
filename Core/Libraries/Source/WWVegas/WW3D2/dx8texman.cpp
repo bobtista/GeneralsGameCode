@@ -53,6 +53,7 @@
 #include "dx8texman.h"
 #include "dx8wrapper.h"
 
+#if !defined(GGC_BGFX_STANDALONE)
 namespace
 {
 	constexpr auto kLegacyDefaultPool = D3DPOOL_DEFAULT;
@@ -90,3 +91,4 @@ void DX8ZTextureTrackerClass::Recreate() const
 		)
 	);
 }
+#endif
