@@ -586,6 +586,10 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 	if (!g_renderBackend || !g_renderBackend->Supports_Hardware_Transform_And_Lighting()) {
 		usage_flags|=kLegacyBufferUsageSoftwareProcessing;
 	}
+	if (g_renderBackend != nullptr && !g_renderBackend->Requires_Legacy_Buffer_Resources()) {
+		m_backendHandle = g_renderBackend->Register_Loaded_Vertex_Buffer(this);
+		return;
+	}
 
 	LegacyVertexBuffer *new_vertex_buffer = nullptr;
 	HRESULT ret=Legacy_Device()->CreateVertexBuffer(
