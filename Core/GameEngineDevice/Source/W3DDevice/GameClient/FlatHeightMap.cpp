@@ -533,7 +533,7 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  		devicePasses=1;	//force to 1 lighting-only pass
 
 	// TheSuperHackers @bugfix bobtista 24/04/2026 Same rationale as HeightMap:
-	// shader pipeline cannot emulate D3DTSS_TCI_CAMERASPACEPOSITION.
+	// shader pipeline cannot emulate legacy camera-space texcoord generation.
 	if (g_renderBackend->Has_Shader_Pipeline())
 	{
 		devicePasses = 1;
