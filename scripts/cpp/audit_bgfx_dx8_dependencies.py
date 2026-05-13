@@ -60,21 +60,74 @@ CATEGORIES = [
     ),
 ]
 
+KNOWN_BGFX_MACROS = {
+    "GGC_BGFX_STANDALONE": True,
+    "GGC_RENDER_BACKEND_BGFX": True,
+    "_WIN32": False,
+}
 
-def eval_bgfx_standalone_condition(line: str) -> bool | None:
-    stripped = line.strip()
-    match = re.match(r"#\s*(ifn?def)\s+GGC_BGFX_STANDALONE\b", stripped)
-    if match:
-        return match.group(1) == "ifndef"
 
-    match = re.match(r"#\s*if\s+(!)?\s*defined\s*\(?\s*GGC_BGFX_STANDALONE\s*\)?", stripped)
-    if match:
-        return not bool(match.group(1))
+def eval_condition_expression(expression: str, macros: dict[str, bool]) -> bool | None:
+    expr = expression.strip()
+    if not expr:
+        return None
 
-    if re.match(r"#\s*if\b", stripped) and "&&" in stripped and re.search(
-        r"!\s*defined\s*\(?\s*GGC_BGFX_STANDALONE\s*\)?", stripped
-    ):
+    if "&&" in expr and re.search(r"!\s*defined\s*\(?\s*GGC_BGFX_STANDALONE\s*\)?", expr):
         return False
+
+    def replace_defined(match: re.Match[str]) -> str:
+        name = match.group(1) or match.group(2)
+        if name not in macros:
+            raise KeyError(name)
+        return "True" if macros[name] else "False"
+
+    try:
+        expr = re.sub(r"defined\s*\(\s*(\w+)\s*\)|defined\s+(\w+)", replace_defined, expr)
+    except KeyError:
+        return None
+
+    tokens = re.findall(r"\w+|&&|\|\||!|\(|\)|==|!=|[01]", expr)
+    if "".join(tokens).replace("&&", "").replace("||", "") == "":
+        return None
+
+    converted: list[str] = []
+    for token in tokens:
+        if token == "&&":
+            converted.append("and")
+        elif token == "||":
+            converted.append("or")
+        elif token == "!":
+            converted.append("not")
+        elif token in {"(", ")", "==", "!="}:
+            converted.append(token)
+        elif token in {"True", "False"}:
+            converted.append(token)
+        elif token in {"0", "1"}:
+            converted.append("False" if token == "0" else "True")
+        elif token in macros:
+            converted.append("True" if macros[token] else "False")
+        else:
+            return None
+
+    try:
+        return bool(eval(" ".join(converted), {"__builtins__": {}}, {}))
+    except Exception:
+        return None
+
+
+def eval_bgfx_standalone_condition(line: str, macros: dict[str, bool]) -> bool | None:
+    stripped = line.strip()
+    match = re.match(r"#\s*(ifn?def)\s+(\w+)\b", stripped)
+    if match:
+        macro = match.group(2)
+        if macro not in macros:
+            return None
+        is_defined = macros[macro]
+        return is_defined if match.group(1) == "ifdef" else not is_defined
+
+    match = re.match(r"#\s*(?:if|elif)\s+(.+)", stripped)
+    if match:
+        return eval_condition_expression(match.group(1), macros)
 
     return None
 
@@ -82,12 +135,13 @@ def eval_bgfx_standalone_condition(line: str) -> bool | None:
 def active_lines_for_bgfx_standalone(lines: list[str]):
     active_stack: list[dict[str, bool]] = []
     current_active = True
+    macros = dict(KNOWN_BGFX_MACROS)
 
     for line in lines:
         stripped = line.strip()
         if re.match(r"#\s*(?:if|ifdef|ifndef)\b", stripped):
             parent_active = current_active
-            condition = eval_bgfx_standalone_condition(line)
+            condition = eval_bgfx_standalone_condition(line, macros)
             branch_active = parent_active if condition is None else parent_active and condition
             active_stack.append({
                 "parent_active": parent_active,
@@ -109,7 +163,7 @@ def active_lines_for_bgfx_standalone(lines: list[str]):
 
         if re.match(r"#\s*elif\b", stripped) and active_stack:
             frame = active_stack[-1]
-            condition = eval_bgfx_standalone_condition(line)
+            condition = eval_bgfx_standalone_condition(line, macros)
             if condition is None:
                 branch_active = frame["parent_active"] and not frame["branch_taken"]
             else:
@@ -125,6 +179,11 @@ def active_lines_for_bgfx_standalone(lines: list[str]):
             current_active = active_stack[-1]["branch_active"] if active_stack else True
             yield current_active, line
             continue
+
+        if current_active:
+            define = re.match(r"#\s*define\s+(\w+)(?:\s+([01]))?\b", stripped)
+            if define:
+                macros[define.group(1)] = define.group(2) != "0"
 
         yield current_active, line
 
