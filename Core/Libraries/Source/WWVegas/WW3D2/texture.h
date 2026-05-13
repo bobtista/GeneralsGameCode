@@ -160,6 +160,7 @@ public:
 		// texture accessors (dx8)
 		IDirect3DBaseTexture8 *Peek_D3D_Base_Texture() const;
 		void Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex);
+		void Share_Texture_With(const TextureBaseClass *texture);
 		struct TextureMipSnapshot
 		{
 			unsigned Width;
