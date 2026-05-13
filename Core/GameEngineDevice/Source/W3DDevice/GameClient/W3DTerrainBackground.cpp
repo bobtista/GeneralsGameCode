@@ -58,7 +58,6 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
-#include "WW3D2/dx8renderer.h"
 #include "WW3D2/camera.h"
 
 
@@ -800,6 +799,5 @@ void W3DTerrainBackground::drawVisiblePolys(RenderInfoClass & rinfo, Bool disabl
 	g_renderBackend->Draw_Triangles(	0, m_curNumTerrainIndices/3, 0,	m_curNumTerrainVertices);
 #endif
 }
-
 
 
