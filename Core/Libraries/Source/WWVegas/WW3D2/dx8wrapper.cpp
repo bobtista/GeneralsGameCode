@@ -43,7 +43,7 @@
 
 //#define CREATE_DX8_MULTI_THREADED
 //#define CREATE_DX8_FPU_PRESERVE
-#define WW3D_DEVTYPE D3DDEVTYPE_HAL
+#define WW3D_DEVTYPE Legacy_Device_Type(1)
 
 #if !defined(WINVER) || WINVER < 0x0500
 #undef WINVER
@@ -96,12 +96,22 @@
 #include "ww3dformat.h"
 #endif
 
+static D3DDEVTYPE Legacy_Device_Type(unsigned value) { return static_cast<D3DDEVTYPE>(value); }
+static D3DFORMAT Legacy_Format(unsigned value) { return static_cast<D3DFORMAT>(value); }
+static D3DMULTISAMPLE_TYPE Legacy_Multisample_Type(unsigned value) { return static_cast<D3DMULTISAMPLE_TYPE>(value); }
+static D3DSWAPEFFECT Legacy_Swap_Effect(unsigned value) { return static_cast<D3DSWAPEFFECT>(value); }
+
 const int DEFAULT_RESOLUTION_WIDTH = 640;
 const int DEFAULT_RESOLUTION_HEIGHT = 480;
 const int DEFAULT_BIT_DEPTH = 32;
 const int DEFAULT_TEXTURE_BIT_DEPTH = 16;
-const D3DMULTISAMPLE_TYPE DEFAULT_MSAA = D3DMULTISAMPLE_NONE;
+const unsigned DEFAULT_MSAA = 0;
 const DWORD LEGACY_NO_WHQL_LEVEL = 0x00000002L;
+const DWORD LEGACY_CAP_HW_TRANSFORM_AND_LIGHT = 0x00010000L;
+const DWORD LEGACY_CREATE_FPU_PRESERVE = 0x00000002L;
+const DWORD LEGACY_CREATE_MULTITHREADED = 0x00000004L;
+const DWORD LEGACY_CREATE_SOFTWARE_VERTEXPROCESSING = 0x00000020L;
+const DWORD LEGACY_CREATE_MIXED_VERTEXPROCESSING = 0x00000080L;
 
 DX8FrameStatistics DX8Wrapper::FrameStatistics;
 static DX8FrameStatistics LastFrameStatistics;
@@ -130,8 +140,8 @@ int								DX8Wrapper::ResolutionHeight							= DEFAULT_RESOLUTION_HEIGHT;
 int								DX8Wrapper::BitDepth										= DEFAULT_BIT_DEPTH;
 int								DX8Wrapper::TextureBitDepth							= DEFAULT_TEXTURE_BIT_DEPTH;
 bool								DX8Wrapper::IsWindowed									= false;
-D3DFORMAT					DX8Wrapper::DisplayFormat	= D3DFMT_UNKNOWN;
-D3DMULTISAMPLE_TYPE DX8Wrapper::MultiSampleAntiAliasing	= DEFAULT_MSAA;
+D3DFORMAT					DX8Wrapper::DisplayFormat	= Legacy_Format(0);
+D3DMULTISAMPLE_TYPE DX8Wrapper::MultiSampleAntiAliasing	= Legacy_Multisample_Type(DEFAULT_MSAA);
 
 // shader system additions KJM v
 DWORD								DX8Wrapper::Vertex_Shader								= 0;
@@ -492,7 +502,6 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 }
 
 inline DWORD F2DW(float f) { return *((unsigned*)&f); }
-static D3DFORMAT Legacy_Format(unsigned value) { return static_cast<D3DFORMAT>(value); }
 void DX8Wrapper::Set_Default_Global_Render_States()
 {
 	DX8_THREAD_ASSERT();
@@ -605,7 +614,7 @@ bool DX8Wrapper::Create_Device()
 			D3DInterface->GetAdapterIdentifier
 			(
 				CurRenderDevice,
-				D3DENUM_NO_WHQL_LEVEL,
+				LEGACY_NO_WHQL_LEVEL,
 				&CurrentAdapterIdentifier
 			)
 			)
@@ -614,27 +623,27 @@ bool DX8Wrapper::Create_Device()
 		return false;
 	}
 
-	Vertex_Processing_Behavior=(caps.DevCaps&D3DDEVCAPS_HWTRANSFORMANDLIGHT) ?
-		D3DCREATE_MIXED_VERTEXPROCESSING : D3DCREATE_SOFTWARE_VERTEXPROCESSING;
+	Vertex_Processing_Behavior=(caps.DevCaps&LEGACY_CAP_HW_TRANSFORM_AND_LIGHT) ?
+		LEGACY_CREATE_MIXED_VERTEXPROCESSING : LEGACY_CREATE_SOFTWARE_VERTEXPROCESSING;
 
 	// enable this when all 'get' dx calls are removed KJM
 	/*if (caps.DevCaps&D3DDEVCAPS_PUREDEVICE)
 	{
-		Vertex_Processing_Behavior|=D3DCREATE_PUREDEVICE;
+		Vertex_Processing_Behavior|=LEGACY_CREATE_PUREDEVICE;
 	}*/
 
 #ifdef CREATE_DX8_MULTI_THREADED
-	Vertex_Processing_Behavior|=D3DCREATE_MULTITHREADED;
+	Vertex_Processing_Behavior|=LEGACY_CREATE_MULTITHREADED;
 	_DX8SingleThreaded=false;
 #else
 	_DX8SingleThreaded=true;
 #endif
 
 	if (DX8Wrapper_PreserveFPU)
-		Vertex_Processing_Behavior |= D3DCREATE_FPU_PRESERVE;
+		Vertex_Processing_Behavior |= LEGACY_CREATE_FPU_PRESERVE;
 
 #ifdef CREATE_DX8_FPU_PRESERVE
-	Vertex_Processing_Behavior|=D3DCREATE_FPU_PRESERVE;
+	Vertex_Processing_Behavior|=LEGACY_CREATE_FPU_PRESERVE;
 #endif
 
 	// TheSuperHackers @bugfix xezon 13/06/2025 Front load the system dbghelp.dll to prevent
@@ -656,14 +665,16 @@ bool DX8Wrapper::Create_Device()
 		// The device selection may fail because the device lied that it supports 32 bit zbuffer with 16 bit
 		// display. This happens at least on Voodoo2.
 
-		if ((_PresentParameters.BackBufferFormat==D3DFMT_R5G6B5 ||
-			_PresentParameters.BackBufferFormat==D3DFMT_X1R5G5B5 ||
-			_PresentParameters.BackBufferFormat==D3DFMT_A1R5G5B5) &&
-			(_PresentParameters.AutoDepthStencilFormat==D3DFMT_D32 ||
-			_PresentParameters.AutoDepthStencilFormat==D3DFMT_D24S8 ||
-			_PresentParameters.AutoDepthStencilFormat==D3DFMT_D24X8))
+		const unsigned backbuffer_format = static_cast<unsigned>(_PresentParameters.BackBufferFormat);
+		const unsigned depth_format = static_cast<unsigned>(_PresentParameters.AutoDepthStencilFormat);
+		if ((backbuffer_format==23 ||
+			backbuffer_format==24 ||
+			backbuffer_format==25) &&
+			(depth_format==71 ||
+			depth_format==75 ||
+			depth_format==77))
 		{
-			_PresentParameters.AutoDepthStencilFormat=D3DFMT_D16;
+			_PresentParameters.AutoDepthStencilFormat=Legacy_Format(80);
 			hr = D3DInterface->CreateDevice
 			(
 				CurRenderDevice,
@@ -1110,24 +1121,24 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	WWASSERT(reset_device || D3DDevice == nullptr);
 
 	/*
-	** Initialize values for D3DPRESENT_PARAMETERS members.
+	** Initialize values for present parameters.
 	*/
-	::ZeroMemory(&_PresentParameters, sizeof(D3DPRESENT_PARAMETERS));
+	::ZeroMemory(&_PresentParameters, sizeof(_PresentParameters));
 
 	_PresentParameters.BackBufferWidth = ResolutionWidth;
 	_PresentParameters.BackBufferHeight = ResolutionHeight;
 	_PresentParameters.BackBufferCount = IsWindowed ? 1 : 2;
 
 	//I changed this to discard all the time (even when full-screen) since that the most efficient. 07-16-03 MW:
-	_PresentParameters.SwapEffect = D3DSWAPEFFECT_DISCARD;//IsWindowed ? D3DSWAPEFFECT_DISCARD : D3DSWAPEFFECT_FLIP;		// Shouldn't this be D3DSWAPEFFECT_FLIP?
+	_PresentParameters.SwapEffect = Legacy_Swap_Effect(1);// Discard in windowed and full-screen modes.
 	_PresentParameters.hDeviceWindow = _Hwnd;
 	_PresentParameters.Windowed = IsWindowed;
 
 	_PresentParameters.EnableAutoDepthStencil = TRUE;				// Driver will attempt to match Z-buffer depth
 	_PresentParameters.Flags=0;											// We're not going to lock the backbuffer
 
-	_PresentParameters.FullScreen_PresentationInterval = D3DPRESENT_INTERVAL_DEFAULT;
-	_PresentParameters.FullScreen_RefreshRateInHz = D3DPRESENT_RATE_DEFAULT;
+	_PresentParameters.FullScreen_PresentationInterval = 0;
+	_PresentParameters.FullScreen_RefreshRateInHz = 0;
 
 	/*
 	** Set up the buffer formats.  Several issues here:
@@ -1143,24 +1154,24 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 		DisplayFormat=_PresentParameters.BackBufferFormat = desktop_mode.Format;
 
 		// In windowed mode, define the bitdepth from desktop mode (as it can't be changed)
-		switch (_PresentParameters.BackBufferFormat) {
-		case D3DFMT_X8R8G8B8:
-		case D3DFMT_A8R8G8B8:
-		case D3DFMT_R8G8B8: BitDepth=32; break;
-		case D3DFMT_A4R4G4B4:
-		case D3DFMT_A1R5G5B5:
-		case D3DFMT_R5G6B5: BitDepth=16; break;
-		case D3DFMT_L8:
-		case D3DFMT_A8:
-		case D3DFMT_P8: BitDepth=8; break;
+		switch (static_cast<unsigned>(_PresentParameters.BackBufferFormat)) {
+		case 20:
+		case 21:
+		case 22: BitDepth=32; break;
+		case 23:
+		case 25:
+		case 26: BitDepth=16; break;
+		case 28:
+		case 41:
+		case 50: BitDepth=8; break;
 		default:
 			// Unknown backbuffer format probably means the device can't do windowed
 			return false;
 		}
 
-		if (BitDepth==32 && D3DInterface->CheckDeviceType(0,D3DDEVTYPE_HAL,desktop_mode.Format,D3DFMT_A8R8G8B8, TRUE) == D3D_OK)
+		if (BitDepth==32 && D3DInterface->CheckDeviceType(0,WW3D_DEVTYPE,desktop_mode.Format,Legacy_Format(21), TRUE) == S_OK)
 		{	//promote 32-bit modes to include destination alpha
-			_PresentParameters.BackBufferFormat = D3DFMT_A8R8G8B8;
+			_PresentParameters.BackBufferFormat = Legacy_Format(21);
 		}
 
 		/*
@@ -1171,13 +1182,13 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 			// If opening 32 bit mode failed, try 16 bit, even if the desktop happens to be 32 bit
 			if (BitDepth==32) {
 				BitDepth=16;
-				_PresentParameters.BackBufferFormat=D3DFMT_R5G6B5;
+				_PresentParameters.BackBufferFormat=Legacy_Format(23);
 				if (!Find_Z_Mode(_PresentParameters.BackBufferFormat,_PresentParameters.BackBufferFormat,&_PresentParameters.AutoDepthStencilFormat)) {
-					_PresentParameters.AutoDepthStencilFormat=D3DFMT_UNKNOWN;
+					_PresentParameters.AutoDepthStencilFormat=Legacy_Format(0);
 				}
 			}
 			else {
-				_PresentParameters.AutoDepthStencilFormat=D3DFMT_UNKNOWN;
+				_PresentParameters.AutoDepthStencilFormat=Legacy_Format(0);
 			}
 		}
 
@@ -1193,23 +1204,23 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	/*
 	** Set default for depth stencil format if auto Z buffer failed.
 	*/
-	if (_PresentParameters.AutoDepthStencilFormat==D3DFMT_UNKNOWN) {
+	if (static_cast<unsigned>(_PresentParameters.AutoDepthStencilFormat)==0) {
 		if (BitDepth==32) {
-			_PresentParameters.AutoDepthStencilFormat=D3DFMT_D32;
+			_PresentParameters.AutoDepthStencilFormat=Legacy_Format(71);
 		}
 		else {
-			_PresentParameters.AutoDepthStencilFormat=D3DFMT_D16;
+			_PresentParameters.AutoDepthStencilFormat=Legacy_Format(80);
 		}
 	}
 
 	/*
 	** Check the devices support for the requested MSAA mode then setup the multi sample type
 	*/
-	if (MultiSampleAntiAliasing > D3DMULTISAMPLE_NONE) {
+	if (static_cast<unsigned>(MultiSampleAntiAliasing) > 0) {
 
 		HRESULT hrBack = D3DInterface->CheckDeviceMultiSampleType(
 			CurRenderDevice,
-			D3DDEVTYPE_HAL,
+			WW3D_DEVTYPE,
 			_PresentParameters.BackBufferFormat,
 			IsWindowed,
 			MultiSampleAntiAliasing
@@ -1217,7 +1228,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 
 		HRESULT hrDepth = D3DInterface->CheckDeviceMultiSampleType(
 			CurRenderDevice,
-			D3DDEVTYPE_HAL,
+			WW3D_DEVTYPE,
 			_PresentParameters.AutoDepthStencilFormat,
 			IsWindowed,
 			MultiSampleAntiAliasing
@@ -1227,7 +1238,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 			// IF we fail then disable MSAA entirely.
 			// External code needs to retrieve the configured MSAA mode after device creation
 			WWDEBUG_SAY(("Requested MSAA Mode Not Supported"));
-			MultiSampleAntiAliasing = D3DMULTISAMPLE_NONE;
+			MultiSampleAntiAliasing = Legacy_Multisample_Type(0);
 		}
 	}
 
@@ -1325,11 +1336,11 @@ bool DX8Wrapper::Toggle_Windowed()
 void DX8Wrapper::Set_Swap_Interval(int swap)
 {
 	switch (swap) {
-		case 0: _PresentParameters.FullScreen_PresentationInterval = D3DPRESENT_INTERVAL_IMMEDIATE; break;
-		case 1: _PresentParameters.FullScreen_PresentationInterval = D3DPRESENT_INTERVAL_ONE ; break;
-		case 2: _PresentParameters.FullScreen_PresentationInterval = D3DPRESENT_INTERVAL_TWO; break;
-		case 3: _PresentParameters.FullScreen_PresentationInterval = D3DPRESENT_INTERVAL_THREE; break;
-		default: _PresentParameters.FullScreen_PresentationInterval = D3DPRESENT_INTERVAL_ONE ; break;
+		case 0: _PresentParameters.FullScreen_PresentationInterval = 0x80000000L; break;
+		case 1: _PresentParameters.FullScreen_PresentationInterval = 0x00000001L; break;
+		case 2: _PresentParameters.FullScreen_PresentationInterval = 0x00000002L; break;
+		case 3: _PresentParameters.FullScreen_PresentationInterval = 0x00000004L; break;
+		default: _PresentParameters.FullScreen_PresentationInterval = 0x00000001L; break;
 	}
 
 	WWDEBUG_SAY(("DX8Wrapper::Set_Swap_Interval is resetting the device."));
@@ -1343,8 +1354,9 @@ int DX8Wrapper::Get_Swap_Interval()
 
 bool DX8Wrapper::Has_Stencil()
 {
-	bool has_stencil = (_PresentParameters.AutoDepthStencilFormat == D3DFMT_D24S8 ||
-						_PresentParameters.AutoDepthStencilFormat == D3DFMT_D24X4S4);
+	const unsigned depth_format = static_cast<unsigned>(_PresentParameters.AutoDepthStencilFormat);
+	bool has_stencil = (depth_format == 75 ||
+						depth_format == 79);
 	return has_stencil;
 }
 
