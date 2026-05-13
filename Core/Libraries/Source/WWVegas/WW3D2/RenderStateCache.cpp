@@ -40,12 +40,12 @@ bool RenderStateCache::Set_Texture_Stage_State(unsigned stage, unsigned state, u
 	return FixedFunctionState::Set_Cached_Texture_Stage_State(stage, state, value);
 }
 
-void RenderStateCache::Get_Transform(unsigned transform, D3DMATRIX & matrix)
+void RenderStateCache::Get_Transform(unsigned transform, LegacyTransformMatrix & matrix)
 {
 	FixedFunctionState::Cached_Transform(transform, matrix);
 }
 
-bool RenderStateCache::Set_Transform(unsigned transform, const D3DMATRIX & matrix)
+bool RenderStateCache::Set_Transform(unsigned transform, const LegacyTransformMatrix & matrix)
 {
 	return FixedFunctionState::Set_Cached_Transform(transform, matrix);
 }

@@ -19,12 +19,12 @@ namespace
 {
 	RenderStateStruct s_renderState;
 	unsigned s_changedMask;
-	IDirect3DBaseTexture8 * s_rawTextures[MAX_TEXTURE_STAGES];
+	LegacyRawTexture * s_rawTextures[MAX_TEXTURE_STAGES];
 	unsigned s_renderStates[FixedFunctionState::RENDER_STATE_COUNT];
 	unsigned s_textureStageStates[FixedFunctionState::TEXTURE_STAGE_COUNT][FixedFunctionState::TEXTURE_STAGE_STATE_COUNT];
-	D3DMATRIX s_transforms[FixedFunctionState::TRANSFORM_COUNT];
+	LegacyTransformMatrix s_transforms[FixedFunctionState::TRANSFORM_COUNT];
 
-	void D3DMatrixIdentity(D3DMATRIX * dxm)
+	void D3DMatrixIdentity(LegacyTransformMatrix * dxm)
 	{
 		memset(dxm, 0, sizeof(*dxm));
 		dxm->_11 = 1.0f;
@@ -249,7 +249,7 @@ bool FixedFunctionState::Is_View_Identity()
 	return !!(s_changedMask & VIEW_IDENTITY);
 }
 
-IDirect3DBaseTexture8 * FixedFunctionState::Raw_Texture(unsigned stage)
+LegacyRawTexture * FixedFunctionState::Raw_Texture(unsigned stage)
 {
 	if (stage >= MAX_TEXTURE_STAGES) {
 		return nullptr;
@@ -258,7 +258,7 @@ IDirect3DBaseTexture8 * FixedFunctionState::Raw_Texture(unsigned stage)
 	return s_rawTextures[stage];
 }
 
-bool FixedFunctionState::Set_Raw_Texture(unsigned stage, IDirect3DBaseTexture8 * texture)
+bool FixedFunctionState::Set_Raw_Texture(unsigned stage, LegacyRawTexture * texture)
 {
 	if (stage >= MAX_TEXTURE_STAGES) {
 		return false;
@@ -358,7 +358,7 @@ bool FixedFunctionState::Set_Cached_Texture_Stage_State(unsigned stage, unsigned
 	return true;
 }
 
-void FixedFunctionState::Cached_Transform(unsigned transform, D3DMATRIX & matrix)
+void FixedFunctionState::Cached_Transform(unsigned transform, LegacyTransformMatrix & matrix)
 {
 	if (transform >= TRANSFORM_COUNT) {
 		memset(&matrix, 0, sizeof(matrix));
@@ -368,7 +368,7 @@ void FixedFunctionState::Cached_Transform(unsigned transform, D3DMATRIX & matrix
 	matrix = s_transforms[transform];
 }
 
-bool FixedFunctionState::Set_Cached_Transform(unsigned transform, const D3DMATRIX & matrix)
+bool FixedFunctionState::Set_Cached_Transform(unsigned transform, const LegacyTransformMatrix & matrix)
 {
 	if (transform >= TRANSFORM_COUNT) {
 		return false;
