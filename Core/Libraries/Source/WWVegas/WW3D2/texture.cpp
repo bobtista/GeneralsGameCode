@@ -315,6 +315,11 @@ void TextureBaseClass::Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex)
 	}
 }
 
+void TextureBaseClass::Share_Texture_With(const TextureBaseClass *texture)
+{
+	Set_D3D_Base_Texture(texture != nullptr ? texture->Peek_D3D_Base_Texture() : nullptr);
+}
+
 void TextureBaseClass::Clear_CPU_Texture_Snapshot()
 {
 	if (!CPUTextureMips.empty()) {
