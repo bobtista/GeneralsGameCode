@@ -1376,13 +1376,13 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
     out.begin();
     unsigned cursor = 0;
 
-    if ((bits & D3DFVF_XYZ) == D3DFVF_XYZ)
+    if ((bits & DX8_FVF_FLAG_XYZ) == DX8_FVF_FLAG_XYZ)
     {
         AddAttribAtOffset(out, cursor, fvf.Get_Location_Offset(),
                           bgfx::Attrib::Position, 3, bgfx::AttribType::Float, false,
                           3 * sizeof(float));
     }
-    else if ((bits & D3DFVF_XYZRHW) == D3DFVF_XYZRHW)
+    else if ((bits & DX8_FVF_FLAG_XYZRHW) == DX8_FVF_FLAG_XYZRHW)
     {
         // Pre-transformed: 4 floats (x, y, z, rhw). bgfx has no native
         // pre-transformed attribute - declare as 4-component position
@@ -1392,23 +1392,23 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
                           4 * sizeof(float));
     }
 
-    if ((bits & D3DFVF_NORMAL) == D3DFVF_NORMAL)
+    if (fvf.Has_Normal())
     {
         AddAttribAtOffset(out, cursor, fvf.Get_Normal_Offset(),
                           bgfx::Attrib::Normal, 3, bgfx::AttribType::Float, false,
                           3 * sizeof(float));
     }
 
-    if ((bits & D3DFVF_DIFFUSE) == D3DFVF_DIFFUSE)
+    if (fvf.Has_Diffuse())
     {
-        // D3DCOLOR is BGRA u8x4 packed; the shader swizzles it back to
-        // D3D's ARGB color channels after bgfx normalizes the bytes.
+        // Legacy vertex color is BGRA u8x4 packed; the shader swizzles it
+        // back to engine ARGB channels after bgfx normalizes the bytes.
         AddAttribAtOffset(out, cursor, fvf.Get_Diffuse_Offset(),
                           bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true,
                           sizeof(uint32_t));
     }
 
-    if ((bits & D3DFVF_SPECULAR) == D3DFVF_SPECULAR)
+    if (fvf.Has_Specular())
     {
         AddAttribAtOffset(out, cursor, fvf.Get_Specular_Offset(),
                           bgfx::Attrib::Color1, 4, bgfx::AttribType::Uint8, true,
@@ -1423,19 +1423,19 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
         bgfx::Attrib::TexCoord6, bgfx::Attrib::TexCoord7,
     };
 
-    const unsigned numTex = (bits & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+    const unsigned numTex = fvf.Get_UV_Channel_Count();
     for (unsigned i = 0; i < numTex && i < 8; ++i)
     {
         unsigned componentCount = 2;
-        if ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE1(i)) == D3DFVF_TEXCOORDSIZE1(i))
+        if ((bits & DX8_FVF_TEXCOORDSIZE1(i)) == DX8_FVF_TEXCOORDSIZE1(i))
         {
             componentCount = 1;
         }
-        else if ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE3(i)) == D3DFVF_TEXCOORDSIZE3(i))
+        else if ((bits & DX8_FVF_TEXCOORDSIZE3(i)) == DX8_FVF_TEXCOORDSIZE3(i))
         {
             componentCount = 3;
         }
-        else if ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE4(i)) == D3DFVF_TEXCOORDSIZE4(i))
+        else if ((bits & DX8_FVF_TEXCOORDSIZE4(i)) == DX8_FVF_TEXCOORDSIZE4(i))
         {
             componentCount = 4;
         }
@@ -3414,14 +3414,14 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
     // miss it can rebuild from the buffer object's CPU-side write snapshot.
     g_draw.useTransientVB = false;
     g_draw.activeTransientVBOwner = nullptr;
-    // TheSuperHackers @bugfix bobtista 27/04/2026 D3D8 supplies a white
-    // diffuse color when the bound FVF has no COLOR0 element. bgfx
+    // TheSuperHackers @bugfix bobtista 27/04/2026 Legacy fixed-function
+    // supplies a white diffuse color when the bound FVF has no COLOR0 element. bgfx
     // missing attributes read as zero, so tell the shader when it must
     // substitute the fixed-function default.
     g_draw.vertexColorFlags[0] = (vb != nullptr
-        && (vb->FVF_Info().Get_FVF() & D3DFVF_DIFFUSE)) ? 1.0f : 0.0f;
+        && vb->FVF_Info().Has_Diffuse()) ? 1.0f : 0.0f;
     g_draw.fvfHasNormal = (vb != nullptr
-        && (vb->FVF_Info().Get_FVF() & D3DFVF_NORMAL));
+        && vb->FVF_Info().Has_Normal());
     auto it = g_caches.vb.find(vb);
     if (it != g_caches.vb.end())
     {
@@ -3455,9 +3455,9 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 {
     FixedFunctionState::Set_Vertex_Buffer(vba);
     g_draw.vertexColorFlags[0] =
-        (vba.FVF_Info().Get_FVF() & D3DFVF_DIFFUSE) ? 1.0f : 0.0f;
+        vba.FVF_Info().Has_Diffuse() ? 1.0f : 0.0f;
     g_draw.fvfHasNormal =
-        (vba.FVF_Info().Get_FVF() & D3DFVF_NORMAL) != 0;
+        vba.FVF_Info().Has_Normal();
     // If the matching Capture_Dynamic_Vertex_Data already
     // allocated a transient VB for this access class, claim it for the
     // next draw. Otherwise miss the cache and skip the bgfx submit.
@@ -3676,8 +3676,8 @@ bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClas
     {
         return BGFX_INVALID_HANDLE;
     }
-    // Mismatched stride (typically for skinned-mesh FVFs like
-    // D3DFVF_XYZB* that BuildBgfxLayoutForFVF does not fully cover)
+    // Mismatched stride (typically for skinned-mesh weighted-position FVFs
+    // that BuildBgfxLayoutForFVF does not fully cover)
     // would create a too-small bgfx buffer and cause truncation
     // warnings + D3D11 CreateBuffer crashes when the engine writes
     // a larger per-vertex stride than bgfx allocated.
@@ -5502,7 +5502,7 @@ void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
     // for transient-VB submits so the engine-view targeted lit-on override
     // in SubmitEngineDraw works for translucent meshes and other paths that
     // never go through Set_Vertex_Buffer.
-    g_draw.fvfHasNormal = (vba->FVF_Info().Get_FVF() & D3DFVF_NORMAL) != 0;
+    g_draw.fvfHasNormal = vba->FVF_Info().Has_Normal();
 }
 
 void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
