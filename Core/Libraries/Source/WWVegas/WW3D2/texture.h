@@ -354,6 +354,14 @@ public:
 
 	virtual void Init() override;
 	void Clear_Atlas_Regions() { AtlasRegions.clear(); }
+	void Copy_Atlas_Regions_From(const TextureClass *texture)
+	{
+		if (texture != nullptr) {
+			AtlasRegions = texture->AtlasRegions;
+		} else {
+			AtlasRegions.clear();
+		}
+	}
 	void Add_Atlas_Region(unsigned x, unsigned y, unsigned width, unsigned height)
 	{
 		TextureAtlasRegion region;
