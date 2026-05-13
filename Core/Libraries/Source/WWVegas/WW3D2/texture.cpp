@@ -42,6 +42,7 @@
 #include "texture.h"
 
 #include <d3d8.h>
+#include "d3dx8tex.h"
 #include "dx8wrapper.h"
 #include "TARGA.h"
 #include <nstrdup.h>
@@ -1090,6 +1091,32 @@ void TextureClass::Get_Level_Description( SurfaceClass::SurfaceDescription & des
 		surf->Get_Description(desc);
 	}
 	REF_PTR_RELEASE(surf);
+}
+
+unsigned int TextureClass::Get_Level_Count() const
+{
+	IDirect3DTexture8 *texture = Peek_D3D_Texture();
+	return texture != nullptr ? texture->GetLevelCount() : 0;
+}
+
+bool TextureClass::Generate_Mip_Levels()
+{
+	IDirect3DTexture8 *texture = Peek_D3D_Texture();
+	if (texture == nullptr)
+	{
+		return false;
+	}
+
+	return SUCCEEDED(D3DXFilterTexture(texture, nullptr, 0, D3DX_FILTER_BOX));
+}
+
+void TextureClass::Set_LOD(unsigned int lod) const
+{
+	IDirect3DTexture8 *texture = Peek_D3D_Texture();
+	if (texture != nullptr)
+	{
+		DX8_ErrorCode(texture->SetLOD(static_cast<DWORD>(lod)));
+	}
 }
 
 //**********************************************************************************************
