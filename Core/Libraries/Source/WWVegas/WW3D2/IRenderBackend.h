@@ -1133,9 +1133,21 @@ public:
     virtual RenderResource Create_Dynamic_Vertex_Buffer(const BufferDesc & desc) { return kInvalidRenderResource; }
     virtual RenderResource Create_Dynamic_Index_Buffer(const BufferDesc & desc,
                                                        bool               indices_are_32bit) { return kInvalidRenderResource; }
-    virtual void * Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard) { return nullptr; }
-    virtual void Unmap_Dynamic(RenderResource h) {}
-    virtual void Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) {}
+    virtual void * Map_Dynamic_Vertex_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard) { return nullptr; }
+    virtual void * Map_Dynamic_Index_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard) { return nullptr; }
+    virtual void Unmap_Dynamic_Vertex_Buffer(RenderResource h) {}
+    virtual void Unmap_Dynamic_Index_Buffer(RenderResource h) {}
+    virtual void Update_Vertex_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) {}
+    virtual void Update_Index_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) {}
+    virtual void * Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard)
+    {
+        return Map_Dynamic_Vertex_Buffer(h, offset, size, discard);
+    }
+    virtual void Unmap_Dynamic(RenderResource h) { Unmap_Dynamic_Vertex_Buffer(h); }
+    virtual void Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
+    {
+        Update_Vertex_Sub_Range(h, offset, data, size);
+    }
     virtual void Destroy_Resource(RenderResource h) {}
     virtual void   Begin_Dynamic_Frame() {}
 
