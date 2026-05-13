@@ -59,8 +59,6 @@
 
 #define DEFAULT_VB_SIZE 5000
 
-using LegacyVertexBuffer = IDirect3DVertexBuffer8;
-
 static bool _DynamicSortingVertexArrayInUse=false;
 //static VertexFormatXYZNDUV2* _DynamicSortingVertexArray=nullptr;
 static SortingVertexBufferClass* _DynamicSortingVertexArray=nullptr;
@@ -79,6 +77,9 @@ static int _DX8VertexBufferCount=0;
 static int _VertexBufferCount;
 static int _VertexBufferTotalVertices;
 static int _VertexBufferTotalSize;
+
+#if !defined(GGC_BGFX_STANDALONE)
+using LegacyVertexBuffer = IDirect3DVertexBuffer8;
 
 constexpr unsigned kLegacyBufferUsageWriteOnly = D3DUSAGE_WRITEONLY, kLegacyBufferUsageDynamic = D3DUSAGE_DYNAMIC, kLegacyBufferUsageNPatches = D3DUSAGE_NPATCHES, kLegacyBufferUsageSoftwareProcessing = D3DUSAGE_SOFTWAREPROCESSING;
 
@@ -104,6 +105,7 @@ static LegacyVertexBuffer *Legacy_Vertex_Buffer(DX8VertexBufferClass *vertex_buf
 {
 	return static_cast<LegacyVertexBuffer *>(vertex_buffer->Get_Legacy_Vertex_Buffer());
 }
+#endif
 
 // ----------------------------------------------------------------------------
 //
@@ -255,6 +257,7 @@ VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass* VertexBuffe
 			fvf_name));
 		}
 #endif
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyVertexBuffer *legacy = Legacy_Vertex_Buffer(static_cast<DX8VertexBufferClass*>(VertexBuffer))) {
 			DX8_ErrorCode(legacy->Lock(
@@ -262,7 +265,9 @@ VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass* VertexBuffe
 				0,
 				(unsigned char**)&Vertices,
 				flags));	//flags
-		} else {
+		} else
+#endif
+		{
 			Vertices = VertexBuffer->Lock_CPU_Buffer_Data(
 				0,
 				VertexBuffer->Get_Vertex_Count() * VertexBuffer->FVF_Info().Get_FVF_Size());
@@ -307,10 +312,12 @@ VertexBufferClass::WriteLockClass::~WriteLockClass()
 #ifdef VERTEX_BUFFER_LOG
 		WWDEBUG_SAY(("VertexBuffer->Unlock()"));
 #endif
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyVertexBuffer *legacy = Legacy_Vertex_Buffer(static_cast<DX8VertexBufferClass*>(VertexBuffer))) {
 			DX8_ErrorCode(legacy->Unlock());
 		}
+#endif
 		break;
 	case BUFFER_TYPE_SORTING:
 		break;
@@ -351,6 +358,7 @@ VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuf
 			fvf_name));
 		}
 #endif
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyVertexBuffer *legacy = Legacy_Vertex_Buffer(static_cast<DX8VertexBufferClass*>(VertexBuffer))) {
 			DX8_ErrorCode(legacy->Lock(
@@ -358,7 +366,9 @@ VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuf
 				index_range*VertexBuffer->FVF_Info().Get_FVF_Size(),
 				(unsigned char**)&Vertices,
 				flags));
-		} else {
+		} else
+#endif
+		{
 			Vertices = VertexBuffer->Lock_CPU_Buffer_Data(
 				start_index*VertexBuffer->FVF_Info().Get_FVF_Size(),
 				index_range*VertexBuffer->FVF_Info().Get_FVF_Size());
@@ -400,6 +410,7 @@ VertexBufferClass::AppendLockClass::~AppendLockClass()
 		}
 	switch (VertexBuffer->Type()) {
 	case BUFFER_TYPE_DX8:
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 #ifdef VERTEX_BUFFER_LOG
 		WWDEBUG_SAY(("VertexBuffer->Unlock()"));
@@ -407,6 +418,7 @@ VertexBufferClass::AppendLockClass::~AppendLockClass()
 		if (LegacyVertexBuffer *legacy = Legacy_Vertex_Buffer(static_cast<DX8VertexBufferClass*>(VertexBuffer))) {
 			DX8_ErrorCode(legacy->Unlock());
 		}
+#endif
 		break;
 	case BUFFER_TYPE_SORTING:
 		break;
@@ -550,9 +562,11 @@ DX8VertexBufferClass::~DX8VertexBufferClass()
 		g_renderBackend->Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
 	}
+#if !defined(GGC_BGFX_STANDALONE)
 	if (LegacyVertexBuffer *legacy = Legacy_Vertex_Buffer(this)) {
 		legacy->Release();
 	}
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -581,14 +595,19 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 	WWDEBUG_SAY(("Current vertex buffer count: %d",_DX8VertexBufferCount));
 #endif
 
+	if (g_renderBackend != nullptr && !g_renderBackend->Requires_Legacy_Buffer_Resources()) {
+		m_backendHandle = g_renderBackend->Register_Loaded_Vertex_Buffer(this);
+		return;
+	}
+
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT(0);
+	return;
+#else
 	unsigned usage_flags=BuildLegacyBufferUsage(usage);
 	// New Code
 	if (!g_renderBackend || !g_renderBackend->Supports_Hardware_Transform_And_Lighting()) {
 		usage_flags|=kLegacyBufferUsageSoftwareProcessing;
-	}
-	if (g_renderBackend != nullptr && !g_renderBackend->Requires_Legacy_Buffer_Resources()) {
-		m_backendHandle = g_renderBackend->Register_Loaded_Vertex_Buffer(this);
-		return;
 	}
 
 	LegacyVertexBuffer *new_vertex_buffer = nullptr;
@@ -648,6 +667,7 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 		GetLegacyBufferPool(usage),
 		&VertexBuffer));
 	*/
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -1007,15 +1027,18 @@ DynamicVBAccessClass::WriteLockClass::WriteLockClass(DynamicVBAccessClass* dynam
 		WWASSERT(_DynamicDX8VertexBuffer);
 //		WWASSERT(!_DynamicDX8VertexBuffer->Engine_Refs());
 
-		DX8_Assert();
 		// Lock with discard contents if the buffer offset is zero
+#if !defined(GGC_BGFX_STANDALONE)
+		DX8_Assert();
 		if (LegacyVertexBuffer *legacy = Legacy_Vertex_Buffer(static_cast<DX8VertexBufferClass*>(DynamicVBAccess->VertexBuffer))) {
 			DX8_ErrorCode(legacy->Lock(
 				DynamicVBAccess->VertexBufferOffset*_DynamicDX8VertexBuffer->FVF_Info().Get_FVF_Size(),
 				DynamicVBAccess->Get_Vertex_Count()*DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size(),
 				(unsigned char**)&Vertices,
 				RB_LOCK_NOSYSLOCK | (!DynamicVBAccess->VertexBufferOffset ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE)));
-		} else {
+		} else
+#endif
+		{
 			Vertices = static_cast<VertexFormatXYZNDUV2 *>(DynamicVBAccess->VertexBuffer->Lock_CPU_Buffer_Data(
 				DynamicVBAccess->VertexBufferOffset*_DynamicDX8VertexBuffer->FVF_Info().Get_FVF_Size(),
 				DynamicVBAccess->Get_Vertex_Count()*DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size()));
@@ -1053,10 +1076,12 @@ DynamicVBAccessClass::WriteLockClass::~WriteLockClass()
 				DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size();
 			g_renderBackend->Capture_Dynamic_Vertex_Data(DynamicVBAccess, Vertices, total_bytes);
 		}
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyVertexBuffer *legacy = Legacy_Vertex_Buffer(static_cast<DX8VertexBufferClass*>(DynamicVBAccess->VertexBuffer))) {
 			DX8_ErrorCode(legacy->Unlock());
 		}
+#endif
 		break;
 	case BUFFER_TYPE_DYNAMIC_SORTING:
 		break;

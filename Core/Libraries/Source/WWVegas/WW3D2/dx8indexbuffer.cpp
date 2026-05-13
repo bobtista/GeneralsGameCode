@@ -55,8 +55,6 @@
 
 #define DEFAULT_IB_SIZE 5000
 
-using LegacyIndexBuffer = IDirect3DIndexBuffer8;
-
 static bool _DynamicSortingIndexArrayInUse=false;
 static SortingIndexBufferClass* _DynamicSortingIndexArray;
 static unsigned short _DynamicSortingIndexArraySize=0;
@@ -70,6 +68,9 @@ static unsigned short _DynamicDX8IndexBufferOffset=0;
 static int _IndexBufferCount;
 static int _IndexBufferTotalIndices;
 static int _IndexBufferTotalSize;
+
+#if !defined(GGC_BGFX_STANDALONE)
+using LegacyIndexBuffer = IDirect3DIndexBuffer8;
 
 constexpr unsigned kLegacyBufferUsageWriteOnly = D3DUSAGE_WRITEONLY, kLegacyBufferUsageDynamic = D3DUSAGE_DYNAMIC, kLegacyBufferUsageNPatches = D3DUSAGE_NPATCHES, kLegacyBufferUsageSoftwareProcessing = D3DUSAGE_SOFTWAREPROCESSING;
 constexpr auto kLegacyIndexFormat = D3DFMT_INDEX16;
@@ -96,6 +97,7 @@ static LegacyIndexBuffer *Legacy_Index_Buffer(DX8IndexBufferClass *index_buffer)
 {
 	return static_cast<LegacyIndexBuffer *>(index_buffer->Get_Legacy_Index_Buffer());
 }
+#endif
 
 // ----------------------------------------------------------------------------
 //
@@ -271,6 +273,7 @@ IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* index_buffer_
 	index_buffer->Add_Ref();
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_DX8:
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
 			DX8_ErrorCode(legacy->Lock(
@@ -278,7 +281,9 @@ IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* index_buffer_
 				index_buffer->Get_Index_Count()*sizeof(WORD),
 				(unsigned char**)&indices,
 				flags));
-		} else {
+		} else
+#endif
+		{
 			indices = static_cast<unsigned short *>(index_buffer->Lock_CPU_Buffer_Data(
 				0,
 				index_buffer->Get_Index_Count()*sizeof(WORD)));
@@ -318,10 +323,12 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 		}
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_DX8:
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
 			DX8_ErrorCode(legacy->Unlock());
 		}
+#endif
 		break;
 	case BUFFER_TYPE_SORTING:
 		break;
@@ -347,6 +354,7 @@ IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffe
 	index_buffer->Add_Ref();
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_DX8:
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
 			DX8_ErrorCode(legacy->Lock(
@@ -354,7 +362,9 @@ IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffe
 				index_range*sizeof(unsigned short),
 				(unsigned char**)&indices,
 				flags));
-		} else {
+		} else
+#endif
+		{
 			indices = static_cast<unsigned short *>(index_buffer->Lock_CPU_Buffer_Data(
 				start_index*sizeof(unsigned short),
 				index_range*sizeof(unsigned short)));
@@ -390,10 +400,12 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 		}
 	switch (index_buffer->Type()) {
 	case BUFFER_TYPE_DX8:
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
 			DX8_ErrorCode(legacy->Unlock());
 		}
+#endif
 		break;
 	case BUFFER_TYPE_SORTING:
 		break;
@@ -417,13 +429,18 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 	DX8_THREAD_ASSERT();
 	WWASSERT(index_count);
 	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
-	unsigned usage_flags=BuildLegacyBufferUsage(usage);
-	if (!g_renderBackend || !g_renderBackend->Supports_Hardware_Transform_And_Lighting()) {
-		usage_flags|=kLegacyBufferUsageSoftwareProcessing;
-	}
 	if (g_renderBackend != nullptr && !g_renderBackend->Requires_Legacy_Buffer_Resources()) {
 		m_backendHandle = g_renderBackend->Register_Loaded_Index_Buffer(this);
 		return;
+	}
+
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT(0);
+	return;
+#else
+	unsigned usage_flags=BuildLegacyBufferUsage(usage);
+	if (!g_renderBackend || !g_renderBackend->Supports_Hardware_Transform_And_Lighting()) {
+		usage_flags|=kLegacyBufferUsageSoftwareProcessing;
 	}
 
 	LegacyIndexBuffer *new_index_buffer = nullptr;
@@ -472,6 +489,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 
 	// If it still fails it is fatal
 	DX8_ErrorCode(ret);
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -483,9 +501,11 @@ DX8IndexBufferClass::~DX8IndexBufferClass()
 		g_renderBackend->Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
 	}
+#if !defined(GGC_BGFX_STANDALONE)
 	if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(this)) {
 		legacy->Release();
 	}
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -576,6 +596,7 @@ DynamicIBAccessClass::WriteLockClass::WriteLockClass(DynamicIBAccessClass* ib_ac
 	case BUFFER_TYPE_DYNAMIC_DX8:
 		WWASSERT(DynamicIBAccess);
 //		WWASSERT(!dynamic_dx8_index_buffer->Engine_Refs());
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(DynamicIBAccess->IndexBuffer))) {
 			DX8_ErrorCode(legacy->Lock(
@@ -583,7 +604,9 @@ DynamicIBAccessClass::WriteLockClass::WriteLockClass(DynamicIBAccessClass* ib_ac
 				DynamicIBAccess->Get_Index_Count()*sizeof(WORD),
 				(unsigned char**)&Indices,
 				!DynamicIBAccess->IndexBufferOffset ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE));
-		} else {
+		} else
+#endif
+		{
 			Indices = static_cast<unsigned short *>(DynamicIBAccess->IndexBuffer->Lock_CPU_Buffer_Data(
 				DynamicIBAccess->IndexBufferOffset*sizeof(WORD),
 				DynamicIBAccess->Get_Index_Count()*sizeof(WORD)));
@@ -611,10 +634,12 @@ DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 			const unsigned int total_bytes = DynamicIBAccess->Get_Index_Count() * sizeof(unsigned short);
 			g_renderBackend->Capture_Dynamic_Index_Data(DynamicIBAccess, Indices, total_bytes);
 		}
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(DynamicIBAccess->IndexBuffer))) {
 			DX8_ErrorCode(legacy->Unlock());
 		}
+#endif
 		break;
 	case BUFFER_TYPE_DYNAMIC_SORTING:
 		break;
