@@ -1249,7 +1249,7 @@ void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 	// apply thumbnail to texture
 	if (tc->Get_Asset_Type()==TextureBaseClass::TEX_REGULAR)
 	{
-		tc->Apply_New_Surface(d3d_texture, false);
+		Apply_Legacy_Surface(*tc, d3d_texture, false);
 	}
 
 	// release our reference to thumbnail texture
@@ -1582,7 +1582,7 @@ void TextureLoadTaskClass::Apply(bool initialize)
 		WWASSERT(LockedSurfacePtr[i]==nullptr);
 	}
 
-	Texture->Apply_New_Surface(D3DTexture, initialize);
+	Apply_Legacy_Surface(*Texture, D3DTexture, initialize);
 
 	D3DTexture->Release();
 	D3DTexture = nullptr;
