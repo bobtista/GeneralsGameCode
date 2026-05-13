@@ -69,6 +69,11 @@ def eval_bgfx_standalone_condition(line: str) -> bool | None:
     if match:
         return not bool(match.group(1))
 
+    if re.match(r"#\s*if\b", stripped) and "&&" in stripped and re.search(
+        r"!\s*defined\s*\(?\s*GGC_BGFX_STANDALONE\s*\)?", stripped
+    ):
+        return False
+
     return None
 
 
