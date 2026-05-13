@@ -128,6 +128,10 @@ Recent progress on the DX8-removal stack:
   `W3DSnowPointSpriteRenderer`, so `W3DSnow.h` no longer exposes an
   `IDirect3DVertexBuffer8` member. Standalone bgfx continues to use the quad
   snow path.
+- The texture reset/recreate tracker contract now lives in neutral
+  `TextureResourceManager` files. `dx8texman` only owns the DX8-specific
+  tracker subclasses that recreate D3D texture objects, while general shutdown
+  and device-reset code calls `TextureResourceManagerClass`.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -600,9 +604,9 @@ Next migration focus:
 - Introduce a generated-texture write/update API around `TextureClass`, then
   migrate the `TerrainTex.cpp` atlas-generation paths away from direct
   `IDirect3DTexture8`/surface locks.
-- Split the public `dx8texman.h` reset/recreate tracker contract into a
-  neutral texture-resource tracker so common texture lifecycle code no longer
-  includes `dx8wrapper.h`.
+- Move the remaining DX8 texture tracker subclasses behind a backend resource
+  creation API once generated/procedural texture writes have a neutral upload
+  path.
 - Add a backend sea-water mesh submission path or convert sea water to existing
   `VertexBufferClass` / `IndexBufferClass` abstractions.
 - Add a backend readback/profiler API, or make profiler capture an explicit
