@@ -87,6 +87,8 @@ public:
 	const unsigned char * Peek_CPU_Buffer_Data() const { return CPUBufferData; }
 	unsigned Get_CPU_Buffer_Size() const { return CPUBufferSize; }
 	bool Has_CPU_Buffer_Data() const { return CPUBufferValid; }
+	RenderResource Get_Backend_Resource() const { return m_backendHandle; }
+	bool Has_Backend_Resource() const { return m_backendHandle != kInvalidRenderResource; }
 
 	void Add_Engine_Ref() const;
 	void Release_Engine_Ref() const;
