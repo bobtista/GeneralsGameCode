@@ -1764,9 +1764,6 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 			  // Set a clip plane, so that only objects above the water are reflected
 				WaterPlane.W *= -1.0f;	//flip sign of plane distance for D3D use.
 
-			//	DX8Wrapper::Set_DX8_Clip_Plane( 0, &WaterPlane.X );
-			//	DX8Wrapper::Set_DX8_Render_State(D3DRS_CLIPPLANEENABLE, D3DCLIPPLANE0 );	//turn on first clip plane
-
 				// Alternate Clipping Method using alpha testing hack!
 				/**************************************************************************************/
 
@@ -1859,7 +1856,6 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 
 			#ifdef CLIP_GEOMETRY_TO_PLANE
 				//restore default culling mode
-			//	DX8Wrapper::Set_DX8_Render_State(D3DRS_CLIPPLANEENABLE, 0 );	//turn off first clip plane
 
 				//disable texture coordinate generation
 				W3DWater_DisableTextureTransform(1);
@@ -2143,14 +2139,6 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 
 	W3DWater_ResetMeshTexcoord(2, 2);
 	W3DWater_ResetMeshTexcoord(3, 3);
-
-//	m_pDev->SetTextureStageState( 0, D3DTSS_MINFILTER, D3DTEXF_LINEAR );
-//	m_pDev->SetTextureStageState( 0, D3DTSS_MAGFILTER, D3DTEXF_LINEAR );
-//	m_pDev->SetTextureStageState( 0, D3DTSS_MIPFILTER, D3DTEXF_POINT );
-
-//	m_pDev->SetTextureStageState( 1, D3DTSS_MINFILTER, D3DTEXF_POINT );
-//	m_pDev->SetTextureStageState( 1, D3DTSS_MAGFILTER, D3DTEXF_POINT );
-//	m_pDev->SetTextureStageState( 1, D3DTSS_MIPFILTER, D3DTEXF_NONE );
 	//end of default setup
 
 	W3DWater_SetStageAddress2D(0, RB_TEXTURE_ADDRESS_WRAP);
@@ -2191,16 +2179,10 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	g_renderBackend->Set_Vertex_Shader(m_dwWaveVertexShader);
 	g_renderBackend->Set_Pixel_Shader(m_dwWavePixelShader);
 
-//	Make reflection brighter to compensate for darker coloring on sea floor
-//	m_pDev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_ONE );
-//	m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_SRCCOLOR );
-
 	g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 
 	g_renderBackend->Set_Alpha_Blend_Enable(true);
 	W3DWater_BindTexture(1, m_pReflectionTexture);
-
-//	m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);//LORENZEN
 
 	Int patchX,patchY,startX,startY;
 
@@ -2233,7 +2215,6 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 			m_pDev->DrawIndexedPrimitive(D3DPT_TRIANGLESTRIP,0,m_numVertices,0,m_numIndices);
 		}
 	}
-//	m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
 	g_renderBackend->Set_Alpha_Blend_Enable(false);
 	W3DWater_BindTexture(0, nullptr);	//release reference to bump texture
 	W3DWater_BindTexture(1, nullptr);	//release reference to reflection texture
@@ -2695,9 +2676,6 @@ void WaterRenderObjClass::renderWaterMesh()
 	g_renderBackend->Set_Shader(m_shaderClass);
 	setupFlatWaterShader();
 
-
-//	m_pDev->SetRenderState(D3DRS_ZFUNC,D3DCMP_ALWAYS);	//used to display grid under map.
-
 	if (m_waterMeshIndexBuffer == nullptr)
 	{
 		return;
@@ -2731,9 +2709,6 @@ void WaterRenderObjClass::renderWaterMesh()
 	}
 
 	Debug_Statistics::Record_DX8_Polys_And_Vertices(m_numIndices-2,mx*my,ShaderClass::_PresetOpaqueShader);
-
-//	m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
-
 	if (m_trapezoidWaterPixelShader) g_renderBackend->Set_Pixel_Shader(0);
 
 	g_renderBackend->Set_Texture(0,nullptr);
