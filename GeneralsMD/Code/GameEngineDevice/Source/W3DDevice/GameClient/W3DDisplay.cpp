@@ -1024,10 +1024,10 @@ void W3DDisplay::init()
 			return;
 		}
 
-		// TheSuperHackers @fix bobtista 21/04/2026 D3D8 half-pixel UV bias causes sub-pixel misalignment on D3D11/bgfx (visible stripes on UI atlases from half-texel sampling offsets). Call this AFTER Set_Render_Device because the render backend is only constructed by Do_Onetime_Device_Dependent_Inits which Set_Render_Device triggers — calling earlier would read g_renderBackend=nullptr and incorrectly enable the bias on bgfx.
+		// TheSuperHackers @fix bobtista 21/04/2026 Legacy half-pixel UV bias causes sub-pixel misalignment on shader backends (visible stripes on UI atlases from half-texel sampling offsets). Call this AFTER Set_Render_Device because the render backend is only constructed by Do_Onetime_Device_Dependent_Inits which Set_Render_Device triggers — calling earlier would read g_renderBackend=nullptr and incorrectly enable the bias on bgfx.
 		const bool shaderPipeline =
 			(g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline());
-		WW3D::Set_Screen_UV_Bias( shaderPipeline ? FALSE : TRUE );  ///< TRUE makes text look good on D3D8
+		WW3D::Set_Screen_UV_Bias( shaderPipeline ? FALSE : TRUE );  ///< TRUE keeps text aligned on the legacy fixed-function backend.
 
 		//Check if level was never set and default to setting most suitable for system.
 		if (TheGameLODManager->getStaticLODLevel() == STATIC_GAME_LOD_UNKNOWN)
