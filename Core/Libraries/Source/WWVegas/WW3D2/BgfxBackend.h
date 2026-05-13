@@ -18,7 +18,7 @@
 
 // TheSuperHackers @refactor bobtista 11/04/2026 BgfxBackend.
 // IRenderBackend implementation that drives bgfx directly. Earlier cutover
-// stages inherited DX8Backend so every bgfx call also programmed a D3D8
+// stages inherited DX8Backend so every bgfx call also programmed a legacy
 // mirror device; bgfx now owns the render-state, transform, buffer, and
 // texture snapshots it needs, so this backend no longer depends on that base.
 //
@@ -392,7 +392,7 @@ public:
     virtual void   Begin_Dynamic_Frame() override;
 
     // Transitional: populate m_backendHandle on resources created via the
-    // legacy D3D8 loader. See IRenderBackend.h for context.
+    // legacy loader. See IRenderBackend.h for context.
     virtual RenderResource Register_Loaded_Texture(TextureBaseClass * tex) override;
     virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * vb) override;
     virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * ib) override;
