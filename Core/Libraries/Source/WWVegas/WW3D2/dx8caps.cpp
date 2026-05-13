@@ -51,9 +51,15 @@ static StringClass CapsWorkString;
 
 namespace
 {
+	using LegacyDirect3D = IDirect3D8;
+	using LegacyDevice = IDirect3DDevice8;
+	using LegacyCaps = D3DCAPS8;
+	using LegacyAdapterIdentifier = D3DADAPTER_IDENTIFIER8;
+	using LegacyFormat = D3DFORMAT;
+
 	constexpr auto kLegacySoftwareVertexProcessingState = D3DRS_SOFTWAREVERTEXPROCESSING;
 
-	void Set_Legacy_Software_Vertex_Processing(IDirect3DDevice8 *device, BOOL enabled)
+	void Set_Legacy_Software_Vertex_Processing(LegacyDevice *device, BOOL enabled)
 	{
 		device->SetRenderState(kLegacySoftwareVertexProcessingState, enabled);
 	}
@@ -476,10 +482,10 @@ DX8Caps::DeviceTypeIntel DX8Caps::Get_Intel_Device(unsigned device_id)
 }
 
 DX8Caps::DX8Caps(
-	IDirect3D8* direct3d,
-	IDirect3DDevice8* D3DDevice,
+	LegacyDirect3D* direct3d,
+	LegacyDevice* D3DDevice,
 	WW3DFormat display_format,
-	const D3DADAPTER_IDENTIFIER8& adapter_id)
+	const LegacyAdapterIdentifier& adapter_id)
 	:
 	Direct3D(direct3d),
 	MaxDisplayWidth(0),
@@ -490,10 +496,10 @@ DX8Caps::DX8Caps(
 }
 
 DX8Caps::DX8Caps(
-	IDirect3D8* direct3d,
-	const D3DCAPS8& caps,
+	LegacyDirect3D* direct3d,
+	const LegacyCaps& caps,
 	WW3DFormat display_format,
-	const D3DADAPTER_IDENTIFIER8& adapter_id)
+	const LegacyAdapterIdentifier& adapter_id)
 	:
 	Direct3D(direct3d),
 	Caps(caps),
@@ -522,7 +528,7 @@ void DX8Caps::Shutdown()
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Init_Caps(IDirect3DDevice8* D3DDevice)
+void DX8Caps::Init_Caps(LegacyDevice* D3DDevice)
 {
 	Set_Legacy_Software_Vertex_Processing(D3DDevice, TRUE);
 	DX8CALL(GetDeviceCaps(&Caps));
@@ -542,7 +548,7 @@ void DX8Caps::Init_Caps(IDirect3DDevice8* D3DDevice)
 // Compute the caps bits
 //
 // ----------------------------------------------------------------------------
-void DX8Caps::Compute_Caps(WW3DFormat display_format, const D3DADAPTER_IDENTIFIER8& adapter_id)
+void DX8Caps::Compute_Caps(WW3DFormat display_format, const LegacyAdapterIdentifier& adapter_id)
 {
 //	Init_Caps(D3DDevice);
 
@@ -690,7 +696,7 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const D3DADAPTER_IDENTIFIE
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Check_Bumpmap_Support(const D3DCAPS8& caps)
+void DX8Caps::Check_Bumpmap_Support(const LegacyCaps& caps)
 {
 	SupportBumpEnvmap=!!(caps.TextureOpCaps & D3DTEXOPCAPS_BUMPENVMAP);
 	SupportBumpEnvmapLuminance=!!(caps.TextureOpCaps & D3DTEXOPCAPS_BUMPENVMAPLUMINANCE);
@@ -704,7 +710,7 @@ void DX8Caps::Check_Bumpmap_Support(const D3DCAPS8& caps)
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Check_Texture_Compression_Support(const D3DCAPS8& caps)
+void DX8Caps::Check_Texture_Compression_Support(const LegacyCaps& caps)
 {
 	SupportDXTC=SupportTextureFormat[WW3D_FORMAT_DXT1]|
 		SupportTextureFormat[WW3D_FORMAT_DXT2]|
@@ -714,7 +720,7 @@ void DX8Caps::Check_Texture_Compression_Support(const D3DCAPS8& caps)
 	DXLOG(("Texture compression support: %s\r\n",SupportDXTC ? "Yes" : "No"));
 }
 
-void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const D3DCAPS8& caps)
+void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const LegacyCaps& caps)
 {
 	if (display_format==WW3D_FORMAT_UNKNOWN) {
 		for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
@@ -722,7 +728,7 @@ void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const D3DCA
 		}
 		return;
 	}
-	D3DFORMAT d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
+	LegacyFormat d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
 	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 		if (i==WW3D_FORMAT_UNKNOWN) {
 			SupportTextureFormat[i]=false;
@@ -746,7 +752,7 @@ void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const D3DCA
 	}
 }
 
-void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const D3DCAPS8& caps)
+void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const LegacyCaps& caps)
 {
 	if (display_format==WW3D_FORMAT_UNKNOWN) {
 		for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
@@ -754,7 +760,7 @@ void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const D3
 		}
 		return;
 	}
-	D3DFORMAT d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
+	LegacyFormat d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
 	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 		if (i==WW3D_FORMAT_UNKNOWN) {
 			SupportRenderToTextureFormat[i]=false;
@@ -782,7 +788,7 @@ void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const D3
 //! Check Depth Stencil Format Support
 /*! KJM
 */
-void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const D3DCAPS8& caps)
+void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const LegacyCaps& caps)
 {
 	if (display_format==WW3D_FORMAT_UNKNOWN)
 	{
@@ -793,7 +799,7 @@ void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const D3DCA
 		return;
 	}
 
-	D3DFORMAT d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
+	LegacyFormat d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
 
 	for (unsigned i=0;i<WW3D_ZFORMAT_COUNT;++i)
 	{
@@ -827,12 +833,12 @@ void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const D3DCA
 	}
 }
 
-void DX8Caps::Check_Maximum_Texture_Support(const D3DCAPS8& caps)
+void DX8Caps::Check_Maximum_Texture_Support(const LegacyCaps& caps)
 {
 	MaxSimultaneousTextures=caps.MaxSimultaneousTextures;
 }
 
-void DX8Caps::Check_Shader_Support(const D3DCAPS8& caps)
+void DX8Caps::Check_Shader_Support(const LegacyCaps& caps)
 {
 	VertexShaderVersion=caps.VertexShaderVersion;
 	PixelShaderVersion=caps.PixelShaderVersion;
@@ -1022,7 +1028,7 @@ bool DX8Caps::Is_Valid_Display_Format(int width, int height, WW3DFormat format)
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Vendor_Specific_Hacks(const D3DADAPTER_IDENTIFIER8& adapter_id)
+void DX8Caps::Vendor_Specific_Hacks(const LegacyAdapterIdentifier& adapter_id)
 {
 	if (VendorId==VENDOR_NVIDIA)
     {
