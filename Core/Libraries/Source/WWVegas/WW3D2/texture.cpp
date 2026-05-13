@@ -49,6 +49,7 @@
 #include "w3d_file.h"
 #include "assetmgr.h"
 #include "dx8formatconv.h"
+#include "dx8textureinterop.h"
 #include "textureloader.h"
 #include "missingtexture.h"
 #include "ffactory.h"
@@ -294,57 +295,6 @@ void TextureBaseClass::Invalidate()
 	Initialized=false;
 
 	LastAccessed=WW3D::Get_Sync_Time();*/
-}
-
-//**********************************************************************************************
-//! Returns a pointer to the d3d texture
-/*!
-*/
-LegacyBaseTexture * TextureBaseClass::Peek_D3D_Base_Texture() const
-{
-	LastAccessed=WW3D::Get_Sync_Time();
-	return D3DTexture;
-}
-
-//**********************************************************************************************
-//! Set the d3d texture pointer.  Handles ref counts properly.
-/*!
-*/
-void TextureBaseClass::Set_D3D_Base_Texture(LegacyBaseTexture * tex)
-{
-	// (gth) Generals does stuff directly with the D3DTexture pointer so lets
-	// reset the access timer whenever someon messes with this pointer.
-	LastAccessed=WW3D::Get_Sync_Time();
-
-	if (D3DTexture != nullptr) {
-		D3DTexture->Release();
-	}
-	D3DTexture = tex;
-	if (D3DTexture != nullptr) {
-		D3DTexture->AddRef();
-	}
-	Capture_CPU_Texture_Snapshot(D3DTexture);
-
-	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 1 —
-	// populate the backend-neutral handle after the legacy texture loader
-	// finished creating the compatibility texture. The backend either stores a
-	// wrapper around the legacy pointer or creates a parallel bgfx
-	// texture via the peek path (bgfx). Skip when tex is null — that's
-	// a release, not a load.
-	if (D3DTexture != nullptr && g_renderBackend != nullptr) {
-		if (m_backendHandle != kInvalidRenderResource) {
-			g_renderBackend->Destroy_Resource(m_backendHandle);
-		}
-		m_backendHandle = g_renderBackend->Register_Loaded_Texture(this);
-	} else if (D3DTexture == nullptr && m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
-		g_renderBackend->Destroy_Resource(m_backendHandle);
-		m_backendHandle = kInvalidRenderResource;
-	}
-}
-
-void TextureBaseClass::Share_Texture_With(const TextureBaseClass *texture)
-{
-	Set_D3D_Base_Texture(texture != nullptr ? texture->Peek_D3D_Base_Texture() : nullptr);
 }
 
 void TextureBaseClass::Clear_CPU_Texture_Snapshot()
@@ -738,8 +688,7 @@ TextureClass::TextureClass
 
 	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_Texture
 		(
 			width,
@@ -841,7 +790,7 @@ TextureClass::TextureClass
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
-		Poke_Texture(nullptr);
+		Poke_Legacy_Texture(*this, nullptr);
 	}
 
 	// Find original size from the thumbnail (but don't create thumbnail texture yet!)
@@ -900,10 +849,10 @@ TextureClass::TextureClass
 
 	LegacyBaseTexture *newTexture = DX8Wrapper::_Create_DX8_Texture
 	(
-		surface->Peek_D3D_Surface(),
+		Peek_Legacy_Surface(*surface),
 		mip_level_count
 	);
-	Poke_Texture(newTexture);
+	Poke_Legacy_Texture(*this, newTexture);
 	Refresh_CPU_Texture_Snapshot();
 	LastAccessed=WW3D::Get_Sync_Time();
 }
@@ -922,9 +871,9 @@ TextureClass::TextureClass(LegacyBaseTexture * d3d_texture)
 	IsProcedural=true;
 	IsReducible=false;
 
-	Set_D3D_Base_Texture(d3d_texture);
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 	LegacyTextureSurface *surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(0,&surface));
 	LegacySurfaceDesc d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
@@ -969,7 +918,7 @@ void TextureClass::Init()
 	}
 
 
-	if (!Peek_D3D_Base_Texture())
+	if (!Peek_Legacy_Base_Texture(*this))
 	{
 		if (!WW3D::Get_Thumbnail_Enabled() || MipLevelCount==MIP_LEVELS_1)
 		{
@@ -1003,19 +952,14 @@ void TextureClass::Apply_New_Surface
 	bool disable_auto_invalidation
 )
 {
-	LegacyBaseTexture *d3d_tex=Peek_D3D_Base_Texture();
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Texture(d3d_texture);//TextureLoadTask->Peek_D3D_Texture();
-	d3d_texture->AddRef();
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
 
 	WWASSERT(d3d_texture);
 	LegacyTextureSurface *surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(0,&surface));
 	LegacySurfaceDesc d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
@@ -1026,7 +970,6 @@ void TextureClass::Apply_New_Surface
 		Height=d3d_desc.Height;
 	}
 	surface->Release();
-	Refresh_CPU_Texture_Snapshot();
 
 }
 
@@ -1091,14 +1034,14 @@ void TextureClass::Apply(unsigned int stage)
 */
 SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 {
-	if (!Peek_D3D_Texture())
+	if (!Peek_Legacy_Texture2D(*this))
 	{
 		WWASSERT_PRINT(0, "Get_Surface_Level: D3DTexture is null!");
 		return nullptr;
 	}
 
 	LegacyTextureSurface *d3d_surface = nullptr;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(level, &d3d_surface));
 	SurfaceClass *surface = new SurfaceClass(d3d_surface);
 	d3d_surface->Release();
 
@@ -1120,13 +1063,13 @@ void TextureClass::Get_Level_Description( SurfaceClass::SurfaceDescription & des
 
 unsigned int TextureClass::Get_Level_Count() const
 {
-	LegacyTexture2D *texture = Peek_D3D_Texture();
+	LegacyTexture2D *texture = Peek_Legacy_Texture2D(*this);
 	return texture != nullptr ? texture->GetLevelCount() : 0;
 }
 
 bool TextureClass::Generate_Mip_Levels()
 {
-	LegacyTexture2D *texture = Peek_D3D_Texture();
+	LegacyTexture2D *texture = Peek_Legacy_Texture2D(*this);
 	if (texture == nullptr)
 	{
 		return false;
@@ -1137,7 +1080,7 @@ bool TextureClass::Generate_Mip_Levels()
 
 void TextureClass::Set_LOD(unsigned int lod) const
 {
-	LegacyTexture2D *texture = Peek_D3D_Texture();
+	LegacyTexture2D *texture = Peek_Legacy_Texture2D(*this);
 	if (texture != nullptr)
 	{
 		DX8_ErrorCode(texture->SetLOD(static_cast<DWORD>(lod)));
@@ -1150,14 +1093,14 @@ void TextureClass::Set_LOD(unsigned int lod) const
 */
 LegacyTextureSurface *TextureClass::Get_D3D_Surface_Level(unsigned int level)
 {
-	if (!Peek_D3D_Texture())
+	if (!Peek_Legacy_Texture2D(*this))
 	{
 		WWASSERT_PRINT(0, "Get_D3D_Surface_Level: D3DTexture is null!");
 		return nullptr;
 	}
 
 	LegacyTextureSurface *d3d_surface = nullptr;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(level, &d3d_surface));
 	return d3d_surface;
 }
 
@@ -1168,11 +1111,11 @@ LegacyTextureSurface *TextureClass::Get_D3D_Surface_Level(unsigned int level)
 unsigned TextureClass::Get_Texture_Memory_Usage() const
 {
 	int size=0;
-	if (!Peek_D3D_Texture()) return 0;
-	for (unsigned i=0;i<Peek_D3D_Texture()->GetLevelCount();++i)
+	if (!Peek_Legacy_Texture2D(*this)) return 0;
+	for (unsigned i=0;i<Peek_Legacy_Texture2D(*this)->GetLevelCount();++i)
 	{
 		LegacySurfaceDesc desc;
-		DX8_ErrorCode(Peek_D3D_Texture()->GetLevelDesc(i,&desc));
+		DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetLevelDesc(i,&desc));
 		size+=desc.Size;
 	}
 	return size;
@@ -1351,8 +1294,7 @@ ZTextureClass::ZTextureClass
 {
 	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_ZTexture
 		(
 			width,
@@ -1404,19 +1346,14 @@ void ZTextureClass::Apply_New_Surface
 	bool disable_auto_invalidation
 )
 {
-	LegacyBaseTexture *d3d_tex=Peek_D3D_Base_Texture();
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Texture(d3d_texture);//TextureLoadTask->Peek_D3D_Texture();
-	d3d_texture->AddRef();
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
 
-	WWASSERT(Peek_D3D_Texture());
+	WWASSERT(Peek_Legacy_Texture2D(*this));
 	LegacyTextureSurface *surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(0,&surface));
 	LegacySurfaceDesc d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
@@ -1435,14 +1372,14 @@ void ZTextureClass::Apply_New_Surface
 */
 LegacyTextureSurface * ZTextureClass::Get_D3D_Surface_Level(unsigned int level)
 {
-	if (!Peek_D3D_Texture())
+	if (!Peek_Legacy_Texture2D(*this))
 	{
 		WWASSERT_PRINT(0, "Get_D3D_Surface_Level: D3DTexture is null!");
 		return nullptr;
 	}
 
 	LegacyTextureSurface *d3d_surface = nullptr;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(level, &d3d_surface));
 	return d3d_surface;
 }
 
@@ -1453,11 +1390,11 @@ LegacyTextureSurface * ZTextureClass::Get_D3D_Surface_Level(unsigned int level)
 unsigned ZTextureClass::Get_Texture_Memory_Usage() const
 {
 	int size=0;
-	if (!Peek_D3D_Texture()) return 0;
-	for (unsigned i=0;i<Peek_D3D_Texture()->GetLevelCount();++i)
+	if (!Peek_Legacy_Texture2D(*this)) return 0;
+	for (unsigned i=0;i<Peek_Legacy_Texture2D(*this)->GetLevelCount();++i)
 	{
 		LegacySurfaceDesc desc;
-		DX8_ErrorCode(Peek_D3D_Texture()->GetLevelDesc(i,&desc));
+		DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetLevelDesc(i,&desc));
 		size+=desc.Size;
 	}
 	return size;
@@ -1498,8 +1435,7 @@ CubeTextureClass::CubeTextureClass
 
 	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_Cube_Texture
 		(
 			width,
@@ -1598,7 +1534,7 @@ CubeTextureClass::CubeTextureClass
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
-		Poke_Texture(nullptr);
+		Poke_Legacy_Texture(*this, nullptr);
 	}
 
 	// Find original size from the thumbnail (but don't create thumbnail texture yet!)
@@ -1655,11 +1591,10 @@ CubeTextureClass::CubeTextureClass
 	default: break;
 	}
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_Cube_Texture
 		(
-			surface->Peek_D3D_Surface(),
+			Peek_Legacy_Surface(*surface),
 			mip_level_count
 		)
 	);
@@ -1682,7 +1617,7 @@ CubeTextureClass::CubeTextureClass(LegacyBaseTexture * d3d_texture)
 
 	Peek_Texture()->AddRef();
 	LegacyTextureSurface *surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(0,&surface));
 	LegacySurfaceDesc d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
@@ -1716,12 +1651,7 @@ void CubeTextureClass::Apply_New_Surface
 	bool disable_auto_invalidation
 )
 {
-	LegacyBaseTexture *d3d_tex=Peek_D3D_Base_Texture();
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Texture(d3d_texture);//TextureLoadTask->Peek_D3D_Texture();
-	d3d_texture->AddRef();
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
@@ -1729,7 +1659,7 @@ void CubeTextureClass::Apply_New_Surface
 	WWASSERT(d3d_texture);
 	LegacySurfaceDesc d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
-	DX8_ErrorCode(Peek_D3D_CubeTexture()->GetLevelDesc(0,&d3d_desc));
+	DX8_ErrorCode(Peek_Legacy_Cube_Texture(*this)->GetLevelDesc(0,&d3d_desc));
 
 	if (initialized)
 	{
@@ -1775,8 +1705,7 @@ VolumeTextureClass::VolumeTextureClass
 
 	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_Volume_Texture
 		(
 			width,
@@ -1876,7 +1805,7 @@ VolumeTextureClass::VolumeTextureClass
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
-		Poke_Texture(nullptr);
+		Poke_Legacy_Texture(*this, nullptr);
 	}
 
 	// Find original size from the thumbnail (but don't create thumbnail texture yet!)
@@ -1933,11 +1862,10 @@ CubeTextureClass::CubeTextureClass
 	default: break;
 	}
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_Cube_Texture
 		(
-			surface->Peek_D3D_Surface(),
+			Peek_Legacy_Surface(*surface),
 			mip_level_count
 		)
 	);
@@ -1960,7 +1888,7 @@ CubeTextureClass::CubeTextureClass(LegacyBaseTexture * d3d_texture)
 
 	Peek_Texture()->AddRef();
 	LegacyTextureSurface *surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(0,&surface));
 	LegacySurfaceDesc d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
@@ -1997,12 +1925,7 @@ void VolumeTextureClass::Apply_New_Surface
 	bool disable_auto_invalidation
 )
 {
-	LegacyBaseTexture *d3d_tex=Peek_D3D_Base_Texture();
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Texture(d3d_texture);//TextureLoadTask->Peek_D3D_Texture();
-	d3d_texture->AddRef();
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
@@ -2011,7 +1934,7 @@ void VolumeTextureClass::Apply_New_Surface
 	LegacyVolumeDesc d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 
-	DX8_ErrorCode(Peek_D3D_VolumeTexture()->GetLevelDesc(0,&d3d_desc));
+	DX8_ErrorCode(Peek_Legacy_Volume_Texture(*this)->GetLevelDesc(0,&d3d_desc));
 
 	if (initialized)
 	{
