@@ -1036,7 +1036,7 @@ void WaterRenderObjClass::ReAcquireResources()
 #if defined(GGC_BGFX_STANDALONE)
 		// TheSuperHackers @performance bobtista 28/04/2026 Standalone bgfx
 		// builds batch the sea patch grid through transient backend buffers
-		// instead of creating the old raw D3D8 shader resources.
+		// instead of creating the old raw shader resources.
 #else
 		if (FAILED(hr=generateIndexBuffer(PATCH_SIZE,PATCH_SIZE,true)))
 			return;
@@ -1075,7 +1075,7 @@ void WaterRenderObjClass::ReAcquireResources()
 #if defined(GGC_BGFX_STANDALONE)
 		// Standalone bgfx implements these water paths with native programs.
 		// Ask the backend for typed compatibility handles so feature gates
-		// keep their behavior without depending on legacy D3D8 bytecode.
+		// keep their behavior without depending on legacy shader bytecode.
 		unsigned long legacyHandle = 0;
 		if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_RIVER_WATER, &legacyHandle))
 			m_riverWaterPixelShader = static_cast<DWORD>(legacyHandle);
@@ -1246,7 +1246,7 @@ Int WaterRenderObjClass::init(Real waterLevel, Real dx, Real dy, SceneClass *par
 	//Assets used for all types of water
 	m_alphaClippingTexture=WW3DAssetManager::Get_Instance()->Get_Texture(SKYBODY_TEXTURE);
 
-#ifdef CLIP_GEOMETRY_TO_PLANE
+#if defined(CLIP_GEOMETRY_TO_PLANE) && !defined(GGC_BGFX_STANDALONE)
 	m_alphaClippingTexture=WW3DAssetManager::Get_Instance()->Get_Texture("alphaclip.tga");
 #endif
 
@@ -1765,7 +1765,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				//flip the winding order of polygons to draw the reflected back sides.
 				ShaderClass::Invert_Backface_Culling(true);
 
-			#ifdef CLIP_GEOMETRY_TO_PLANE
+			#if defined(CLIP_GEOMETRY_TO_PLANE) && !defined(GGC_BGFX_STANDALONE)
 			  // Set a clip plane, so that only objects above the water are reflected
 				WaterPlane.W *= -1.0f;	//flip sign of plane distance for D3D use.
 
@@ -1859,7 +1859,7 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 				}
 			#endif
 
-			#ifdef CLIP_GEOMETRY_TO_PLANE
+			#if defined(CLIP_GEOMETRY_TO_PLANE) && !defined(GGC_BGFX_STANDALONE)
 				//restore default culling mode
 
 				//disable texture coordinate generation
@@ -3914,8 +3914,8 @@ void WaterRenderObjClass::drawTrapezoidWater(Vector3 points[4])
 
 	// setupFlatWaterShader sets texture, material, and calls
 	// Set_Shader(_PresetAlphaShader) which enables CULL_CW in bgfx.
-	// The water code later sets D3DCULL_NONE via direct D3D8 call but
-	// bgfx can't see that. Re-apply shader with cull disabled so the
+	// The legacy water code later disables culling through a raw renderer path
+	// that bgfx cannot see. Re-apply shader with cull disabled so the
 	// flat water surface is visible regardless of triangle winding.
 	setupFlatWaterShader();
 	{
