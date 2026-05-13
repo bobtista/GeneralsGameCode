@@ -52,9 +52,6 @@
 #include <vector>
 
 struct IDirect3DBaseTexture8;
-struct IDirect3DTexture8;
-struct IDirect3DCubeTexture8;
-struct IDirect3DVolumeTexture8;
 struct IDirect3DSurface8;
 
 class DX8Wrapper;
@@ -329,8 +326,6 @@ public:
 		MipCountType mip_level_count=MIP_LEVELS_ALL
 	);
 
-	TextureClass(IDirect3DBaseTexture8* d3d_texture);
-
 	// default constructors for derived classes (cube & vol)
 	TextureClass
 	(
@@ -390,6 +385,7 @@ public:
 	virtual TextureClass* As_TextureClass() override { return this; }
 
 protected:
+	TextureClass(void *legacy_texture);
 
 	WW3DFormat				TextureFormat;
 
@@ -465,8 +461,6 @@ public:
 		MipCountType mip_level_count=MIP_LEVELS_ALL
 	);
 
-	CubeTextureClass(IDirect3DBaseTexture8* d3d_texture);
-
 	virtual void Apply_New_Surface(IDirect3DBaseTexture8* tex, bool initialized, bool disable_auto_invalidation = false) override;	// If the parameter is true, the texture will be flagged as initialised
 
 	virtual TexAssetType Get_Asset_Type() const override { return TEX_CUBEMAP; }
@@ -510,8 +504,6 @@ public:
 		SurfaceClass *surface,
 		MipCountType mip_level_count=MIP_LEVELS_ALL
 	);
-
-	VolumeTextureClass(IDirect3DBaseTexture8* d3d_texture);
 
 	virtual void Apply_New_Surface(IDirect3DBaseTexture8* tex, bool initialized, bool disable_auto_invalidation = false) override;	// If the parameter is true, the texture will be flagged as initialised
 
