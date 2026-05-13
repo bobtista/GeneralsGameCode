@@ -1830,7 +1830,7 @@ static bool IsReadableSceneDepthEnabled()
 // TheSuperHackers @bugfix bobtista 11/04/2026 Buffer copy
 // TheSuperHackers @refactor bobtista 11/04/2026 Texture
 // capture. Unlike vertex buffers, W3D textures default to POOL_MANAGED,
-// which is safe to lock with D3DLOCK_READONLY on the Intel UHD driver.
+// which is safe to lock read-only on the Intel UHD driver.
 // We can read the source d3d8 texture data on demand from inside
 // Set_Texture without an engine-side write hook. POOL_DEFAULT textures
 // (render targets, dynamic textures) are skipped to avoid the same
@@ -3447,7 +3447,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
     {
         g_draw.vb = BGFX_INVALID_HANDLE;
         // Last-resort capture for static VBs that were written before bgfx
-        // registration/capture was active. Do not lock the D3D buffer here:
+        // registration/capture was active. Do not lock the legacy buffer here:
         // bgfx must consume the backend-neutral CPU snapshot maintained by
         // the buffer write paths.
         if (vb != nullptr && g_device.initialized && vb->Has_CPU_Buffer_Data())
@@ -3533,7 +3533,7 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
     {
         g_draw.ib = BGFX_INVALID_HANDLE;
         // Last-resort capture for static IBs not yet in cache. Use the
-        // backend-neutral CPU snapshot instead of locking a D3D index buffer.
+        // backend-neutral CPU snapshot instead of locking a legacy index buffer.
         if (ib != nullptr && g_device.initialized && ib->Has_CPU_Buffer_Data())
         {
             const unsigned int bytes = ib->Get_Index_Count() * sizeof(unsigned short);
@@ -7585,7 +7585,7 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     UpdateAlphaMaskedShadowDecalMode();
     UploadMaterialUniforms();
-    // TheSuperHackers @bugfix bobtista 30/04/2026 Read D3DRS_AMBIENT per
+    // TheSuperHackers @bugfix bobtista 30/04/2026 Read cached ambient per
     // draw. Some callers still push ambient straight through DX8Wrapper
     // without going through g_renderBackend->Set_Ambient, so the cached
     // g_draw.sceneAmbient can drift and buildings render black.
@@ -7622,8 +7622,8 @@ void SubmitEngineDraw(unsigned short start_index,
         // TheSuperHackers @bugfix bobtista 02/05/2026 Sorted material decals
         // (alpha-blend + DEPTH_WRITE_OFF + postdetail-alpha pattern, e.g.
         // ABBTCMDHQS.SWORD) typically carry their final color baked into the
-        // recolored tex0 — no per-vertex lighting expected. DX8 ran with
-        // D3DRS_LIGHTING off globally so these decals were never lit there.
+        // recolored tex0 — no per-vertex lighting expected. The legacy path ran
+        // with cached lighting off globally so these decals were never lit there.
         // Force unlit here to match, including command-center driveway
         // emblems after player-color remapping.
         uint64_t effectiveLightingState = g_draw.state;
@@ -8402,8 +8402,8 @@ RenderResource BgfxBackend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb
     // IMPORTANT: do NOT store the VertexBufferClass* as d3d_mirror —
     // Destroy_Resource would cast it to IUnknown* and call Release(), which
     // lands on whatever the third virtual of VertexBufferClass happens to
-    // be and crashes. The VB's D3D resource lifetime is owned by the
-    // DX8VertexBufferClass dtor; we have no cleanup to do on the DX8 side.
+    // be and crashes. The VB's legacy resource lifetime is owned by the
+    // DX8VertexBufferClass dtor; we have no cleanup to do on the reference side.
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_VB;
@@ -8423,7 +8423,7 @@ RenderResource BgfxBackend::Register_Loaded_Index_Buffer(IndexBufferClass * ib)
         return kInvalidRenderResource;
     }
     // Same rationale as Register_Loaded_Vertex_Buffer — leave d3d_mirror
-    // null so Destroy_Resource's DX8-side Release does nothing.
+    // null so Destroy_Resource's reference-side Release does nothing.
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_IB;
