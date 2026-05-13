@@ -62,6 +62,17 @@
 #include "wwprofile.h"
 #include <cstdio>
 
+namespace
+{
+	using LegacyLoaderTexture = IDirect3DTexture8;
+	using LegacyLoaderSurface = IDirect3DSurface8;
+	using LegacyLoaderLockedRect = D3DLOCKED_RECT;
+
+	constexpr auto kLegacyManagedPool = D3DPOOL_MANAGED;
+	constexpr auto kLegacySystemPool = D3DPOOL_SYSTEMMEM;
+	constexpr auto kLegacyDefaultPool = D3DPOOL_DEFAULT;
+}
+
 bool TextureLoader::TextureLoadSuspended;
 int TextureLoader::TextureInactiveOverrideTime = 0;
 
@@ -256,7 +267,7 @@ public:
 
 
 // TODO: Legacy - remove this call!
-IDirect3DTexture8* Load_Compressed_Texture(
+LegacyLoaderTexture * Load_Compressed_Texture(
 	const StringClass& filename,
 	unsigned reduction_factor,
 	MipCountType mip_level_count,
@@ -276,7 +287,7 @@ IDirect3DTexture8* Load_Compressed_Texture(
 	// Note that the nearest valid format could be anything, even uncompressed.
 	if (dest_format==WW3D_FORMAT_UNKNOWN) dest_format=Get_Valid_Texture_Format(dds_file.Get_Format(),true);
 
-	IDirect3DTexture8* d3d_texture = DX8Wrapper::_Create_DX8_Texture
+	LegacyLoaderTexture * d3d_texture = DX8Wrapper::_Create_DX8_Texture
 	(
 		width,
 		height,
@@ -285,7 +296,7 @@ IDirect3DTexture8* Load_Compressed_Texture(
 	);
 
 	for (unsigned level=0;level<mips;++level) {
-		D3DLOCKED_RECT locked_rect;
+		LegacyLoaderLockedRect locked_rect;
 		WWASSERT(d3d_texture);
 		DX8_ErrorCode(d3d_texture->LockRect(level,&locked_rect,nullptr,0));
 		dds_file.Copy_Level_To_Surface(
@@ -449,7 +460,7 @@ void TextureLoader::Validate_Texture_Size
 	depth=poweroftwodepth;
 }
 
-IDirect3DTexture8* TextureLoader::Load_Thumbnail(const StringClass& filename, const Vector3& hsv_shift)//,WW3DFormat texture_format)
+LegacyLoaderTexture * TextureLoader::Load_Thumbnail(const StringClass& filename, const Vector3& hsv_shift)//,WW3DFormat texture_format)
 {
 	WWASSERT(Is_DX8_Thread());
 
@@ -474,19 +485,19 @@ IDirect3DTexture8* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 		WWASSERT(dest_format==texture_format);
 	}
 
-	IDirect3DTexture8* sysmem_texture = DX8Wrapper::_Create_DX8_Texture(
+	LegacyLoaderTexture * sysmem_texture = DX8Wrapper::_Create_DX8_Texture(
 		thumb->Get_Width(),
 		thumb->Get_Height(),
 		dest_format,
 		MIP_LEVELS_ALL,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED);
+		kLegacyManagedPool);
 #else
-		D3DPOOL_SYSTEMMEM);
+		kLegacySystemPool);
 #endif
 
 	unsigned level=0;
-	D3DLOCKED_RECT locked_rects[12]={0};
+	LegacyLoaderLockedRect locked_rects[12]={0};
 	WWASSERT(sysmem_texture->GetLevelCount()<=12);
 
 	// Lock all surfaces
@@ -534,12 +545,12 @@ IDirect3DTexture8* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 #ifdef USE_MANAGED_TEXTURES
 	return sysmem_texture;
 #else
-	IDirect3DTexture8* d3d_texture = DX8Wrapper::_Create_DX8_Texture(
+	LegacyLoaderTexture * d3d_texture = DX8Wrapper::_Create_DX8_Texture(
 		thumb->Get_Width(),
 		thumb->Get_Height(),
 		dest_format,
 		TextureBaseClass::MIP_LEVELS_ALL,
-		D3DPOOL_DEFAULT);
+		kLegacyDefaultPool);
 	DX8CALL(UpdateTexture(sysmem_texture,d3d_texture));
 	sysmem_texture->Release();
 
@@ -556,7 +567,7 @@ IDirect3DTexture8* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 // format and performs color space conversion.
 //
 // ----------------------------------------------------------------------------
-IDirect3DSurface8* TextureLoader::Load_Surface_Immediate(
+LegacyLoaderSurface * TextureLoader::Load_Surface_Immediate(
 	const StringClass& filename,
 	WW3DFormat texture_format,
 	bool allow_compression)
@@ -566,9 +577,9 @@ IDirect3DSurface8* TextureLoader::Load_Surface_Immediate(
 	bool compressed=Is_Format_Compressed(texture_format,allow_compression);
 
 	if (compressed) {
-		IDirect3DTexture8* comp_tex=Load_Compressed_Texture(filename,0,MIP_LEVELS_1,WW3D_FORMAT_UNKNOWN);
+		LegacyLoaderTexture * comp_tex=Load_Compressed_Texture(filename,0,MIP_LEVELS_1,WW3D_FORMAT_UNKNOWN);
 		if (comp_tex) {
-			IDirect3DSurface8* d3d_surface=nullptr;
+			LegacyLoaderSurface * d3d_surface=nullptr;
 			DX8_ErrorCode(comp_tex->GetSurfaceLevel(0,&d3d_surface));
 			comp_tex->Release();
 			return d3d_surface;
@@ -639,9 +650,9 @@ IDirect3DSurface8* TextureLoader::Load_Surface_Immediate(
 
 	unsigned src_pitch=src_width*src_bpp;
 
-	IDirect3DSurface8* d3d_surface = DX8Wrapper::_Create_DX8_Surface(width,height,dest_format);
+	LegacyLoaderSurface * d3d_surface = DX8Wrapper::_Create_DX8_Surface(width,height,dest_format);
 	WWASSERT(d3d_surface);
-	D3DLOCKED_RECT locked_rect;
+	LegacyLoaderLockedRect locked_rect;
 	DX8_ErrorCode(
 		d3d_surface->LockRect(
 			&locked_rect,
@@ -994,11 +1005,11 @@ void TextureLoader::Begin_Load_And_Queue(TextureLoadTaskClass *task)
 
 void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 {
-	// All D3D operations must run from main thread
+	// All legacy texture operations must run from main thread
 	WWASSERT(Is_DX8_Thread());
 
 	// load thumbnail texture
-	IDirect3DTexture8 *d3d_texture = Load_Thumbnail(tc->Get_Full_Path(),tc->Get_HSV_Shift());
+	LegacyLoaderTexture *d3d_texture = Load_Thumbnail(tc->Get_Full_Path(),tc->Get_HSV_Shift());
 
 	// apply thumbnail to texture
 	if (tc->Get_Asset_Type()==TextureBaseClass::TEX_REGULAR)
