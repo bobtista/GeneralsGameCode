@@ -101,6 +101,7 @@ const int DEFAULT_RESOLUTION_HEIGHT = 480;
 const int DEFAULT_BIT_DEPTH = 32;
 const int DEFAULT_TEXTURE_BIT_DEPTH = 16;
 const D3DMULTISAMPLE_TYPE DEFAULT_MSAA = D3DMULTISAMPLE_NONE;
+const DWORD LEGACY_NO_WHQL_LEVEL = 0x00000002L;
 
 DX8FrameStatistics DX8Wrapper::FrameStatistics;
 static DX8FrameStatistics LastFrameStatistics;
@@ -207,7 +208,7 @@ void Log_DX8_ErrorCode(unsigned res)
 		tmp,
 		sizeof(tmp));
 
-	if (new_res==D3D_OK) {
+	if (new_res==S_OK) {
 		WWDEBUG_SAY((tmp));
 	}
 
@@ -223,7 +224,7 @@ void Non_Fatal_Log_DX8_ErrorCode(unsigned res,const char * file,int line)
 		tmp,
 		sizeof(tmp));
 
-	if (new_res==D3D_OK) {
+	if (new_res==S_OK) {
 		WWDEBUG_SAY(("DX8 Error: %s, File: %s, Line: %d",tmp,file,line));
 	}
 }
@@ -797,9 +798,9 @@ void DX8Wrapper::Enumerate_Devices()
 
 		D3DADAPTER_IDENTIFIER8 id;
 		::ZeroMemory(&id, sizeof(D3DADAPTER_IDENTIFIER8));
-		HRESULT res = D3DInterface->GetAdapterIdentifier(adapter_index,D3DENUM_NO_WHQL_LEVEL,&id);
+		HRESULT res = D3DInterface->GetAdapterIdentifier(adapter_index,LEGACY_NO_WHQL_LEVEL,&id);
 
-		if (res == D3D_OK) {
+		if (res == S_OK) {
 
 			/*
 			** Set up the render device description
@@ -819,7 +820,7 @@ void DX8Wrapper::Enumerate_Devices()
 			desc.set_driver_version(buf);
 
 			D3DInterface->GetDeviceCaps(adapter_index,WW3D_DEVTYPE,&desc.Caps);
-			D3DInterface->GetAdapterIdentifier(adapter_index,D3DENUM_NO_WHQL_LEVEL,&desc.AdapterIdentifier);
+			D3DInterface->GetAdapterIdentifier(adapter_index,LEGACY_NO_WHQL_LEVEL,&desc.AdapterIdentifier);
 
 			DX8Caps dx8caps(D3DInterface,desc.Caps,WW3D_FORMAT_UNKNOWN,desc.AdapterIdentifier);
 
@@ -833,16 +834,16 @@ void DX8Wrapper::Enumerate_Devices()
 				::ZeroMemory(&d3dmode, sizeof(D3DDISPLAYMODE));
 				HRESULT res = D3DInterface->EnumAdapterModes(adapter_index,mode_index,&d3dmode);
 
-				if (res == D3D_OK) {
+				if (res == S_OK) {
 					int bits = 0;
-					switch (d3dmode.Format)
+					switch (static_cast<unsigned>(d3dmode.Format))
 					{
-						case D3DFMT_R8G8B8:
-						case D3DFMT_A8R8G8B8:
-						case D3DFMT_X8R8G8B8:		bits = 32; break;
+						case 20:
+						case 21:
+						case 22:		bits = 32; break;
 
-						case D3DFMT_R5G6B5:
-						case D3DFMT_X1R5G5B5:		bits = 16; break;
+						case 23:
+						case 24:		bits = 16; break;
 					}
 
 					// Some cards fail in certain modes, DX8Caps keeps list of those.
