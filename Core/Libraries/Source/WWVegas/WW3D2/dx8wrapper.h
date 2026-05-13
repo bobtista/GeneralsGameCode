@@ -293,7 +293,9 @@ public:
 
 	static void Set_DX8_Light(int index,D3DLIGHT8* light);
 	static void Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value);
+#if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane);
+#endif
 	static void Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value);
 	static void Set_DX8_Texture(unsigned int stage, IDirect3DBaseTexture8* texture);
 	GGC_RB_DEPRECATED static void Set_Light_Environment(LightEnvironmentClass* light_env);
@@ -849,10 +851,12 @@ WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigne
 	DX8_RECORD_RENDER_STATE_CHANGE();
 }
 
+#if !defined(GGC_BGFX_STANDALONE)
 WWINLINE void DX8Wrapper::Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane)
 {
 	DX8CALL(SetClipPlane( Index, pPlane ));
 }
+#endif
 
 WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value)
 {
