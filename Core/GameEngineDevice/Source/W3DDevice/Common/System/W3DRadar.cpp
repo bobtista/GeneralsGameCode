@@ -1448,7 +1448,7 @@ void W3DRadar::endSetShroudLevel()
 		m_shroudSurfacePixelSize = 0;
 	}
 	REF_PTR_RELEASE(m_shroudSurface);
-	// TheSuperHackers @fix bobtista 21/04/2026 The radar updates its shroud via direct Lock/Draw_Pixel/Unlock on the D3D8 surface. bgfx caches the texture by TextureBaseClass* and needs an explicit invalidation to re-upload the modified pixels.
+	// TheSuperHackers @fix bobtista 21/04/2026 The radar updates its shroud via direct Lock/Draw_Pixel/Unlock on the texture surface. bgfx caches the texture by TextureBaseClass* and needs an explicit invalidation to re-upload the modified pixels.
 	if (g_renderBackend != nullptr && m_shroudTexture != nullptr)
 		g_renderBackend->Invalidate_Cached_Texture(m_shroudTexture);
 }
