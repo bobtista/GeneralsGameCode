@@ -290,7 +290,10 @@ public:
 
 	// Note that *_DX8_Transform() functions take the matrix in DX8 format - transposed from Westwood convention.
 
+	static void Commit_Fixed_Function_Transform(D3DTRANSFORMSTATETYPE transform, const D3DMATRIX& m);
+#if !defined(GGC_BGFX_STANDALONE)
 	static void _Set_DX8_Transform(D3DTRANSFORMSTATETYPE transform, const D3DMATRIX& m);
+#endif
 #if !defined(GGC_BGFX_STANDALONE)
 	static void _Get_DX8_Transform(D3DTRANSFORMSTATETYPE transform, D3DMATRIX& m);
 #endif
@@ -298,12 +301,18 @@ public:
 #if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Light(int index,D3DLIGHT8* light);
 #endif
+	static void Commit_Fixed_Function_Render_Value(D3DRENDERSTATETYPE state, unsigned value);
+#if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value);
+#endif
 #if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane);
 #endif
+	static void Commit_Fixed_Function_Texture_Stage_Value(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value);
+#if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value);
 	static void Set_DX8_Texture(unsigned int stage, IDirect3DBaseTexture8* texture);
+#endif
 	GGC_RB_DEPRECATED static void Set_Light_Environment(LightEnvironmentClass* light_env);
 	GGC_RB_DEPRECATED static LightEnvironmentClass* Get_Light_Environment() { return Light_Environment; }
 	GGC_RB_DEPRECATED static void Set_Fog(bool enable, const Vector3 &color, float start, float end);
@@ -736,7 +745,7 @@ WWINLINE void DX8Wrapper::Set_Pixel_Shader_Constant(int reg, const void* data, i
 }
 // shader system updates KJM ^
 
-WWINLINE void DX8Wrapper::_Set_DX8_Transform(D3DTRANSFORMSTATETYPE transform, const D3DMATRIX& m)
+WWINLINE void DX8Wrapper::Commit_Fixed_Function_Transform(D3DTRANSFORMSTATETYPE transform, const D3DMATRIX& m)
 {
 	WWASSERT(transform<=D3DTS_WORLD);
 #if 0 // (gth) this optimization is breaking generals because they set the transform behind our backs.
@@ -752,9 +761,18 @@ WWINLINE void DX8Wrapper::_Set_DX8_Transform(D3DTRANSFORMSTATETYPE transform, co
 			m.m[1][0],m.m[1][1],m.m[1][2],m.m[1][3],
 			m.m[2][0],m.m[2][1],m.m[2][2],m.m[2][3]));
 		DX8_RECORD_MATRIX_CHANGE();
+#if !defined(GGC_BGFX_STANDALONE)
 		DX8CALL(SetTransform(transform,&m));
+#endif
 	}
 }
+
+#if !defined(GGC_BGFX_STANDALONE)
+WWINLINE void DX8Wrapper::_Set_DX8_Transform(D3DTRANSFORMSTATETYPE transform, const D3DMATRIX& m)
+{
+	Commit_Fixed_Function_Transform(transform, m);
+}
+#endif
 
 #if !defined(GGC_BGFX_STANDALONE)
 WWINLINE void DX8Wrapper::_Get_DX8_Transform(D3DTRANSFORMSTATETYPE transform, D3DMATRIX& m)
@@ -795,15 +813,15 @@ WWINLINE void DX8Wrapper::Set_Fog(bool enable, const Vector3 &color, float start
 	ShaderClass::Invalidate();
 
 	// Set renderstates which are not affected by the shader
-	Set_DX8_Render_State(D3DRS_FOGSTART, *(DWORD *)(&start));
-	Set_DX8_Render_State(D3DRS_FOGEND,   *(DWORD *)(&end));
+	Commit_Fixed_Function_Render_Value(D3DRS_FOGSTART, *(DWORD *)(&start));
+	Commit_Fixed_Function_Render_Value(D3DRS_FOGEND,   *(DWORD *)(&end));
 }
 
 
 WWINLINE void DX8Wrapper::Set_Ambient(const Vector3& color)
 {
 	Ambient_Color=color;
-	Set_DX8_Render_State(D3DRS_AMBIENT, DX8Wrapper::Convert_Color(color,0.0f));
+	Commit_Fixed_Function_Render_Value(D3DRS_AMBIENT, DX8Wrapper::Convert_Color(color,0.0f));
 }
 
 // ----------------------------------------------------------------------------
@@ -841,7 +859,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Light(int index, D3DLIGHT8* light)
 }
 #endif
 
-WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value)
+WWINLINE void DX8Wrapper::Commit_Fixed_Function_Render_Value(D3DRENDERSTATETYPE state, unsigned value)
 {
 	// Can't monitor state changes because setShader call to GERD may change the states!
 	if (RenderStateCache::Get_Render_State((unsigned)state)==value) return;
@@ -857,9 +875,18 @@ WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigne
 #endif
 
 	RenderStateCache::Set_Render_State((unsigned)state,value);
+#if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(SetRenderState( state, value ));
+#endif
 	DX8_RECORD_RENDER_STATE_CHANGE();
 }
+
+#if !defined(GGC_BGFX_STANDALONE)
+WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value)
+{
+	Commit_Fixed_Function_Render_Value(state, value);
+}
+#endif
 
 #if !defined(GGC_BGFX_STANDALONE)
 WWINLINE void DX8Wrapper::Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane)
@@ -868,10 +895,14 @@ WWINLINE void DX8Wrapper::Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane)
 }
 #endif
 
-WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value)
+WWINLINE void DX8Wrapper::Commit_Fixed_Function_Texture_Stage_Value(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value)
 {
-  	if (stage >= MAX_TEXTURE_STAGES)
-  	{	DX8CALL(SetTextureStageState( stage, state, value ));
+	if (stage >= MAX_TEXTURE_STAGES)
+	{
+#if !defined(GGC_BGFX_STANDALONE)
+		DX8CALL(SetTextureStageState( stage, state, value ));
+		DX8_RECORD_TEXTURE_STAGE_STATE_CHANGE();
+#endif
   		return;
   	}
 
@@ -889,8 +920,16 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURE
 #endif
 
 	RenderStateCache::Set_Texture_Stage_State(stage,(unsigned int)state,value);
+#if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(SetTextureStageState( stage, state, value ));
+#endif
 	DX8_RECORD_TEXTURE_STAGE_STATE_CHANGE();
+}
+
+#if !defined(GGC_BGFX_STANDALONE)
+WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURESTAGESTATETYPE state, unsigned value)
+{
+	Commit_Fixed_Function_Texture_Stage_Value(stage, state, value);
 }
 
 WWINLINE void DX8Wrapper::Set_DX8_Texture(unsigned int stage, IDirect3DBaseTexture8* texture)
@@ -908,6 +947,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture(unsigned int stage, IDirect3DBaseTextu
 	DX8CALL(SetTexture(stage, texture));
 	DX8_RECORD_TEXTURE_CHANGE();
 }
+#endif
 
 #if !defined(GGC_BGFX_STANDALONE)
 WWINLINE void DX8Wrapper::_Copy_DX8_Rects(
