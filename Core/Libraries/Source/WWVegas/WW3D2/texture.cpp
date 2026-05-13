@@ -65,7 +65,14 @@ const unsigned DEFAULT_INACTIVATION_TIME=20000;
 
 namespace
 {
+	using LegacyBaseTexture = IDirect3DBaseTexture8;
+	using LegacyTexture2D = IDirect3DTexture8;
+	using LegacyTextureSurface = IDirect3DSurface8;
+	using LegacySurfaceDesc = D3DSURFACE_DESC;
+	using LegacyLockedRect = D3DLOCKED_RECT;
 	using LegacyTexturePool = D3DPOOL;
+
+	constexpr unsigned kLegacyLockReadOnly = D3DLOCK_READONLY;
 
 	LegacyTexturePool Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
 	{
@@ -291,7 +298,7 @@ void TextureBaseClass::Invalidate()
 //! Returns a pointer to the d3d texture
 /*!
 */
-IDirect3DBaseTexture8 * TextureBaseClass::Peek_D3D_Base_Texture() const
+LegacyBaseTexture * TextureBaseClass::Peek_D3D_Base_Texture() const
 {
 	LastAccessed=WW3D::Get_Sync_Time();
 	return D3DTexture;
@@ -301,7 +308,7 @@ IDirect3DBaseTexture8 * TextureBaseClass::Peek_D3D_Base_Texture() const
 //! Set the d3d texture pointer.  Handles ref counts properly.
 /*!
 */
-void TextureBaseClass::Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex)
+void TextureBaseClass::Set_D3D_Base_Texture(LegacyBaseTexture * tex)
 {
 	// (gth) Generals does stuff directly with the D3DTexture pointer so lets
 	// reset the access timer whenever someon messes with this pointer.
@@ -346,7 +353,7 @@ void TextureBaseClass::Clear_CPU_Texture_Snapshot()
 	++CPUTextureRevision;
 }
 
-void TextureBaseClass::Capture_CPU_Texture_Snapshot(IDirect3DBaseTexture8* tex)
+void TextureBaseClass::Capture_CPU_Texture_Snapshot(LegacyBaseTexture * tex)
 {
 	CPUTextureMips.clear();
 	++CPUTextureRevision;
@@ -356,18 +363,18 @@ void TextureBaseClass::Capture_CPU_Texture_Snapshot(IDirect3DBaseTexture8* tex)
 		return;
 	}
 
-	IDirect3DTexture8 * d3d_texture = static_cast<IDirect3DTexture8 *>(tex);
+	LegacyTexture2D * d3d_texture = static_cast<LegacyTexture2D *>(tex);
 	const unsigned levels = d3d_texture->GetLevelCount();
 	CPUTextureMips.reserve(levels);
 	for (unsigned level = 0; level < levels; ++level) {
-		D3DSURFACE_DESC desc;
+		LegacySurfaceDesc desc;
 		if (FAILED(d3d_texture->GetLevelDesc(level, &desc))) {
 			CPUTextureMips.clear();
 			return;
 		}
 
-		D3DLOCKED_RECT locked = { 0 };
-		if (FAILED(d3d_texture->LockRect(level, &locked, nullptr, D3DLOCK_READONLY))
+		LegacyLockedRect locked = { 0 };
+		if (FAILED(d3d_texture->LockRect(level, &locked, nullptr, kLegacyLockReadOnly))
 			|| locked.pBits == nullptr) {
 			CPUTextureMips.clear();
 			return;
@@ -414,7 +421,7 @@ void TextureBaseClass::Load_Locked_Surface()
 bool TextureBaseClass::Is_Missing_Texture()
 {
 	bool flag = false;
-	IDirect3DBaseTexture8 *missing_texture = MissingTexture::_Get_Missing_Texture();
+	LegacyBaseTexture *missing_texture = MissingTexture::_Get_Missing_Texture();
 
 	if (D3DTexture == missing_texture)
 		flag = true;
