@@ -49,6 +49,7 @@
 
 #include "surfaceclass.h"
 #include "dx8formatconv.h"
+#include "dx8textureinterop.h"
 #include "dx8wrapper.h"
 #include "vector2i.h"
 #include "colorspace.h"
@@ -181,13 +182,13 @@ SurfaceClass::SurfaceClass(unsigned width, unsigned height, WW3DFormat format):
 {
 	WWASSERT(width);
 	WWASSERT(height);
-	D3DSurface = DX8Wrapper::_Create_DX8_Surface(width, height, format);
+	D3DSurface = Create_Legacy_Surface(width, height, format);
 }
 
 SurfaceClass::SurfaceClass(const char *filename):
 	D3DSurface(nullptr)
 {
-	D3DSurface = DX8Wrapper::_Create_DX8_Surface(filename);
+	D3DSurface = Create_Legacy_Surface_From_File(filename);
 	SurfaceDescription desc;
 	Get_Description(desc);
 	SurfaceFormat=desc.Format;

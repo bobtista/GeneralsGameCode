@@ -52,6 +52,11 @@ public:
 		static SurfaceClass *Create_Legacy_Surface_Wrapper(IDirect3DSurface8 *surface);
 		static IDirect3DSurface8 *Get_Legacy_Surface_Level(TextureClass &texture, unsigned int level = 0);
 		static IDirect3DSurface8 *Get_Legacy_Surface_Level(ZTextureClass &texture, unsigned int level = 0);
+		static IDirect3DSurface8 *Create_Legacy_Surface(
+			unsigned int width,
+			unsigned int height,
+			WW3DFormat format);
+		static IDirect3DSurface8 *Create_Legacy_Surface_From_File(const char *filename);
 
 		static IDirect3DTexture8 *Create_Legacy_Texture(
 			unsigned int width,
@@ -147,6 +152,19 @@ inline IDirect3DSurface8 *Get_Legacy_Surface_Level(TextureClass &texture, unsign
 inline IDirect3DSurface8 *Get_Legacy_Surface_Level(ZTextureClass &texture, unsigned int level = 0)
 {
 	return DX8TextureInterop::Get_Legacy_Surface_Level(texture, level);
+}
+
+inline IDirect3DSurface8 *Create_Legacy_Surface(
+	unsigned int width,
+	unsigned int height,
+	WW3DFormat format)
+{
+	return DX8TextureInterop::Create_Legacy_Surface(width, height, format);
+}
+
+inline IDirect3DSurface8 *Create_Legacy_Surface_From_File(const char *filename)
+{
+	return DX8TextureInterop::Create_Legacy_Surface_From_File(filename);
 }
 
 inline IDirect3DTexture8 *Create_Legacy_Texture(
