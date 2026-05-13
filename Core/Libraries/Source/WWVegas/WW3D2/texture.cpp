@@ -53,7 +53,10 @@
 #include "textureloader.h"
 #include "missingtexture.h"
 #include "ffactory.h"
+#include "TextureResourceManager.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "dx8texman.h"
+#endif
 #include "meshmatdesc.h"
 #include "texturethumbnail.h"
 #include "wwprofile.h"
