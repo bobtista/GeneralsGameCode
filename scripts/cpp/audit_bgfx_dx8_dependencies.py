@@ -8,6 +8,7 @@ make the dependency surface measurable as the migration progresses.
 
 from __future__ import annotations
 
+import json
 import os
 import re
 from collections import defaultdict
@@ -15,6 +16,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+COMPILE_COMMANDS = ROOT / "build" / "macos-generalsmd-sdl3-bgfx" / "compile_commands.json"
 
 SEARCH_ROOTS = [
     ROOT / "Core" / "GameEngineDevice",
@@ -127,7 +129,38 @@ def active_lines_for_bgfx_standalone(lines: list[str]):
         yield current_active, line
 
 
-def iter_source_files():
+def resolve_compile_command_path(entry: dict) -> Path | None:
+    file_name = entry.get("file")
+    if not file_name:
+        return None
+
+    path = Path(file_name)
+    if not path.is_absolute():
+        path = Path(entry.get("directory", ROOT)) / path
+    return path.resolve()
+
+
+def load_compiled_source_files() -> set[Path] | None:
+    if not COMPILE_COMMANDS.exists():
+        return None
+
+    try:
+        entries = json.loads(COMPILE_COMMANDS.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    compiled_sources: set[Path] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            continue
+        path = resolve_compile_command_path(entry)
+        if path is not None:
+            compiled_sources.add(path)
+
+    return compiled_sources
+
+
+def iter_source_files(compiled_sources: set[Path] | None):
     suffixes = {".cpp", ".h", ".hpp", ".inl"}
     for search_root in SEARCH_ROOTS:
         if not search_root.exists():
@@ -136,6 +169,8 @@ def iter_source_files():
             if path.suffix not in suffixes:
                 continue
             if path.name in SKIP_FILES:
+                continue
+            if compiled_sources is not None and path.suffix == ".cpp" and path.resolve() not in compiled_sources:
                 continue
             yield path
 
@@ -146,8 +181,9 @@ def rel(path: Path) -> str:
 
 def main() -> int:
     hits_by_category = {name: defaultdict(list) for name, _ in CATEGORIES}
+    compiled_sources = load_compiled_source_files()
 
-    for path in iter_source_files():
+    for path in iter_source_files(compiled_sources):
         try:
             lines = path.read_text(errors="ignore").splitlines()
         except OSError:
