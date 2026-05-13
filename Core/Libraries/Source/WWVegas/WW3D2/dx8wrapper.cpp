@@ -720,6 +720,7 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 		memset(Vertex_Shader_Constants,0,sizeof(Vector4)*MAX_VERTEX_SHADER_CONSTANTS);
 		memset(Pixel_Shader_Constants,0,sizeof(Vector4)*MAX_PIXEL_SHADER_CONSTANTS);
 
+#if !defined(GGC_BGFX_STANDALONE)
 		HRESULT hr=_Get_D3D_Device8()->TestCooperativeLevel();
 		if (hr != D3DERR_DEVICELOST )
 		{	DX8CALL_HRES(Reset(&_PresentParameters),hr)
@@ -728,6 +729,7 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 		}
 		else
 			return false;	//device is lost and can't be reset.
+#endif
 
 		if (reload_assets)
 		{
