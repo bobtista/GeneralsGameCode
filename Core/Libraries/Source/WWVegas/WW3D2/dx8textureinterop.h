@@ -32,6 +32,13 @@ class TextureBaseClass;
 class TextureClass;
 class ZTextureClass;
 
+enum LegacyTexturePoolKind
+{
+	LEGACY_TEXTURE_POOL_DEFAULT = 0,
+	LEGACY_TEXTURE_POOL_MANAGED = 1,
+	LEGACY_TEXTURE_POOL_SYSTEMMEM = 2
+};
+
 class DX8TextureInterop
 {
 public:
