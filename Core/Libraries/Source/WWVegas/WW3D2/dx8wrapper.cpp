@@ -2411,6 +2411,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 		}
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (FixedFunctionState::Changed_Mask()&MATERIAL_CHANGED)
 	{
 		SNAPSHOT_SAY(("DX8 - apply material"));
@@ -2455,6 +2456,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 			}
 		}
 	}
+#endif
 
 	if (FixedFunctionState::Changed_Mask()&WORLD_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply world matrix"));
@@ -4206,10 +4208,12 @@ void DX8Wrapper::Apply_Default_State()
 //	DX8Wrapper::Set_Material(nullptr);
 	VertexMaterialClass::Apply_Null();
 
+#if !defined(GGC_BGFX_STANDALONE)
 	for (unsigned index=0;index<4;++index) {
 		SNAPSHOT_SAY(("Clearing light %d to null",index));
 		Set_DX8_Light(index,nullptr);
 	}
+#endif
 
 	// set up simple default TSS
 	Vector4 vconst[MAX_VERTEX_SHADER_CONSTANTS];

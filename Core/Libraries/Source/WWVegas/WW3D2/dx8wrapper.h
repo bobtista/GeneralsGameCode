@@ -270,7 +270,9 @@ public:
 	// light/texture sync in BgfxBackend) should use this instead.
 	static const RenderStateStruct & Peek_Render_State() { return FixedFunctionState::Peek_Render_State(); }
 
+#if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Material(const D3DMATERIAL8* mat);
+#endif
 
 	GGC_RB_DEPRECATED static void Set_Gamma(float gamma,float bright,float contrast,bool calibrate=true,bool uselimit=true);
 
@@ -293,7 +295,9 @@ public:
 	static void _Get_DX8_Transform(D3DTRANSFORMSTATETYPE transform, D3DMATRIX& m);
 #endif
 
+#if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Light(int index,D3DLIGHT8* light);
+#endif
 	static void Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value);
 #if !defined(GGC_BGFX_STANDALONE)
 	static void Set_DX8_Clip_Plane(DWORD Index, CONST float* pPlane);
@@ -810,6 +814,7 @@ WWINLINE void DX8Wrapper::Set_Ambient(const Vector3& color)
 //
 // ----------------------------------------------------------------------------
 
+#if !defined(GGC_BGFX_STANDALONE)
 WWINLINE void DX8Wrapper::Set_DX8_Material(const D3DMATERIAL8* mat)
 {
 	DX8_RECORD_MATERIAL_CHANGE();
@@ -834,6 +839,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Light(int index, D3DLIGHT8* light)
 		SNAPSHOT_SAY(("DX8 - DisableLight %d",index));
 	}
 }
+#endif
 
 WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigned value)
 {
