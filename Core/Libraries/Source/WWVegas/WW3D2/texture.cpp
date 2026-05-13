@@ -694,7 +694,7 @@ TextureClass::TextureClass
 	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Legacy_Texture(*this,
-		DX8Wrapper::_Create_DX8_Texture
+		Create_Legacy_Texture
 		(
 			width,
 			height,
@@ -854,7 +854,7 @@ TextureClass::TextureClass
 	default: break;
 	}
 
-	LegacyBaseTexture *newTexture = DX8Wrapper::_Create_DX8_Texture
+	LegacyBaseTexture *newTexture = Create_Legacy_Texture_From_Surface
 	(
 		Peek_Legacy_Surface(*surface),
 		mip_level_count
@@ -1304,7 +1304,7 @@ ZTextureClass::ZTextureClass
 	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Legacy_Texture(*this,
-		DX8Wrapper::_Create_DX8_ZTexture
+		Create_Legacy_ZTexture
 		(
 			width,
 			height,
@@ -1448,7 +1448,7 @@ CubeTextureClass::CubeTextureClass
 	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Legacy_Texture(*this,
-		DX8Wrapper::_Create_DX8_Cube_Texture
+		Create_Legacy_Cube_Texture
 		(
 			width,
 			height,
@@ -1721,7 +1721,7 @@ VolumeTextureClass::VolumeTextureClass
 	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Legacy_Texture(*this,
-		DX8Wrapper::_Create_DX8_Volume_Texture
+		Create_Legacy_Volume_Texture
 		(
 			width,
 			height,

@@ -20,6 +20,7 @@
 
 #include <d3d8.h>
 
+#include "dx8wrapper.h"
 #include "IRenderBackend.h"
 #include "RenderBackend.h"
 #include "surfaceclass.h"
@@ -116,4 +117,54 @@ IDirect3DSurface8 *DX8TextureInterop::Get_Legacy_Surface_Level(TextureClass &tex
 IDirect3DSurface8 *DX8TextureInterop::Get_Legacy_Surface_Level(ZTextureClass &texture, unsigned int level)
 {
 	return static_cast<IDirect3DSurface8 *>(texture.Get_Legacy_Surface_Level(level));
+}
+
+IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture(
+	unsigned int width,
+	unsigned int height,
+	WW3DFormat format,
+	MipCountType mip_level_count,
+	int pool,
+	bool render_target)
+{
+	return DX8Wrapper::_Create_DX8_Texture(width, height, format, mip_level_count, static_cast<D3DPOOL>(pool), render_target);
+}
+
+IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture_From_Surface(
+	IDirect3DSurface8 *surface,
+	MipCountType mip_level_count)
+{
+	return DX8Wrapper::_Create_DX8_Texture(surface, mip_level_count);
+}
+
+IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_ZTexture(
+	unsigned int width,
+	unsigned int height,
+	WW3DZFormat zformat,
+	MipCountType mip_level_count,
+	int pool)
+{
+	return DX8Wrapper::_Create_DX8_ZTexture(width, height, zformat, mip_level_count, static_cast<D3DPOOL>(pool));
+}
+
+IDirect3DCubeTexture8 *DX8TextureInterop::Create_Legacy_Cube_Texture(
+	unsigned int width,
+	unsigned int height,
+	WW3DFormat format,
+	MipCountType mip_level_count,
+	int pool,
+	bool render_target)
+{
+	return DX8Wrapper::_Create_DX8_Cube_Texture(width, height, format, mip_level_count, static_cast<D3DPOOL>(pool), render_target);
+}
+
+IDirect3DVolumeTexture8 *DX8TextureInterop::Create_Legacy_Volume_Texture(
+	unsigned int width,
+	unsigned int height,
+	unsigned int depth,
+	WW3DFormat format,
+	MipCountType mip_level_count,
+	int pool)
+{
+	return DX8Wrapper::_Create_DX8_Volume_Texture(width, height, depth, format, mip_level_count, static_cast<D3DPOOL>(pool));
 }

@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "texturefilter.h"
 #include "ww3dformat.h"
 
 struct IDirect3DBaseTexture8;
@@ -47,11 +48,42 @@ public:
 		bool initialized,
 		bool disable_auto_invalidation = false);
 
-	static IDirect3DSurface8 *Peek_Legacy_Surface(const SurfaceClass &surface);
-	static SurfaceClass *Create_Legacy_Surface_Wrapper(IDirect3DSurface8 *surface);
-	static IDirect3DSurface8 *Get_Legacy_Surface_Level(TextureClass &texture, unsigned int level = 0);
-	static IDirect3DSurface8 *Get_Legacy_Surface_Level(ZTextureClass &texture, unsigned int level = 0);
-};
+		static IDirect3DSurface8 *Peek_Legacy_Surface(const SurfaceClass &surface);
+		static SurfaceClass *Create_Legacy_Surface_Wrapper(IDirect3DSurface8 *surface);
+		static IDirect3DSurface8 *Get_Legacy_Surface_Level(TextureClass &texture, unsigned int level = 0);
+		static IDirect3DSurface8 *Get_Legacy_Surface_Level(ZTextureClass &texture, unsigned int level = 0);
+
+		static IDirect3DTexture8 *Create_Legacy_Texture(
+			unsigned int width,
+			unsigned int height,
+			WW3DFormat format,
+			MipCountType mip_level_count,
+			int pool,
+			bool render_target = false);
+		static IDirect3DTexture8 *Create_Legacy_Texture_From_Surface(
+			IDirect3DSurface8 *surface,
+			MipCountType mip_level_count);
+		static IDirect3DTexture8 *Create_Legacy_ZTexture(
+			unsigned int width,
+			unsigned int height,
+			WW3DZFormat zformat,
+			MipCountType mip_level_count,
+			int pool);
+		static IDirect3DCubeTexture8 *Create_Legacy_Cube_Texture(
+			unsigned int width,
+			unsigned int height,
+			WW3DFormat format,
+			MipCountType mip_level_count,
+			int pool,
+			bool render_target = false);
+		static IDirect3DVolumeTexture8 *Create_Legacy_Volume_Texture(
+			unsigned int width,
+			unsigned int height,
+			unsigned int depth,
+			WW3DFormat format,
+			MipCountType mip_level_count,
+			int pool);
+	};
 
 inline IDirect3DBaseTexture8 *Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
 {
@@ -115,6 +147,56 @@ inline IDirect3DSurface8 *Get_Legacy_Surface_Level(TextureClass &texture, unsign
 inline IDirect3DSurface8 *Get_Legacy_Surface_Level(ZTextureClass &texture, unsigned int level = 0)
 {
 	return DX8TextureInterop::Get_Legacy_Surface_Level(texture, level);
+}
+
+inline IDirect3DTexture8 *Create_Legacy_Texture(
+	unsigned int width,
+	unsigned int height,
+	WW3DFormat format,
+	MipCountType mip_level_count,
+	int pool,
+	bool render_target = false)
+{
+	return DX8TextureInterop::Create_Legacy_Texture(width, height, format, mip_level_count, pool, render_target);
+}
+
+inline IDirect3DTexture8 *Create_Legacy_Texture_From_Surface(
+	IDirect3DSurface8 *surface,
+	MipCountType mip_level_count)
+{
+	return DX8TextureInterop::Create_Legacy_Texture_From_Surface(surface, mip_level_count);
+}
+
+inline IDirect3DTexture8 *Create_Legacy_ZTexture(
+	unsigned int width,
+	unsigned int height,
+	WW3DZFormat zformat,
+	MipCountType mip_level_count,
+	int pool)
+{
+	return DX8TextureInterop::Create_Legacy_ZTexture(width, height, zformat, mip_level_count, pool);
+}
+
+inline IDirect3DCubeTexture8 *Create_Legacy_Cube_Texture(
+	unsigned int width,
+	unsigned int height,
+	WW3DFormat format,
+	MipCountType mip_level_count,
+	int pool,
+	bool render_target = false)
+{
+	return DX8TextureInterop::Create_Legacy_Cube_Texture(width, height, format, mip_level_count, pool, render_target);
+}
+
+inline IDirect3DVolumeTexture8 *Create_Legacy_Volume_Texture(
+	unsigned int width,
+	unsigned int height,
+	unsigned int depth,
+	WW3DFormat format,
+	MipCountType mip_level_count,
+	int pool)
+{
+	return DX8TextureInterop::Create_Legacy_Volume_Texture(width, height, depth, format, mip_level_count, pool);
 }
 
 IDirect3DTexture8 *Get_Legacy_Missing_Texture();
