@@ -99,6 +99,7 @@
 static D3DDEVTYPE Legacy_Device_Type(unsigned value) { return static_cast<D3DDEVTYPE>(value); }
 static D3DFORMAT Legacy_Format(unsigned value) { return static_cast<D3DFORMAT>(value); }
 static D3DMULTISAMPLE_TYPE Legacy_Multisample_Type(unsigned value) { return static_cast<D3DMULTISAMPLE_TYPE>(value); }
+static D3DRESOURCETYPE Legacy_Resource_Type(unsigned value) { return static_cast<D3DRESOURCETYPE>(value); }
 static D3DSWAPEFFECT Legacy_Swap_Effect(unsigned value) { return static_cast<D3DSWAPEFFECT>(value); }
 
 const int DEFAULT_RESOLUTION_WIDTH = 640;
@@ -1177,14 +1178,22 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 		/*
 		** Find a appropriate Z buffer
 		*/
-		if (!Find_Z_Mode(DisplayFormat,_PresentParameters.BackBufferFormat,&_PresentParameters.AutoDepthStencilFormat))
+		unsigned z_format = static_cast<unsigned>(_PresentParameters.AutoDepthStencilFormat);
+		if (Find_Z_Mode(static_cast<unsigned>(DisplayFormat),static_cast<unsigned>(_PresentParameters.BackBufferFormat),&z_format))
+		{
+			_PresentParameters.AutoDepthStencilFormat=Legacy_Format(z_format);
+		}
+		else
 		{
 			// If opening 32 bit mode failed, try 16 bit, even if the desktop happens to be 32 bit
 			if (BitDepth==32) {
 				BitDepth=16;
 				_PresentParameters.BackBufferFormat=Legacy_Format(23);
-				if (!Find_Z_Mode(_PresentParameters.BackBufferFormat,_PresentParameters.BackBufferFormat,&_PresentParameters.AutoDepthStencilFormat)) {
+				z_format = static_cast<unsigned>(_PresentParameters.AutoDepthStencilFormat);
+				if (!Find_Z_Mode(static_cast<unsigned>(_PresentParameters.BackBufferFormat),static_cast<unsigned>(_PresentParameters.BackBufferFormat),&z_format)) {
 					_PresentParameters.AutoDepthStencilFormat=Legacy_Format(0);
+				} else {
+					_PresentParameters.AutoDepthStencilFormat=Legacy_Format(z_format);
 				}
 			}
 			else {
@@ -1197,8 +1206,14 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 		/*
 		** Try to find a mode that matches the user's desired bit-depth.
 		*/
-		Find_Color_And_Z_Mode(ResolutionWidth,ResolutionHeight,BitDepth,&DisplayFormat,
-			&_PresentParameters.BackBufferFormat,&_PresentParameters.AutoDepthStencilFormat);
+		unsigned display_format = static_cast<unsigned>(DisplayFormat);
+		unsigned backbuffer_format = static_cast<unsigned>(_PresentParameters.BackBufferFormat);
+		unsigned depth_format = static_cast<unsigned>(_PresentParameters.AutoDepthStencilFormat);
+		Find_Color_And_Z_Mode(ResolutionWidth,ResolutionHeight,BitDepth,&display_format,
+			&backbuffer_format,&depth_format);
+		DisplayFormat = Legacy_Format(display_format);
+		_PresentParameters.BackBufferFormat = Legacy_Format(backbuffer_format);
+		_PresentParameters.AutoDepthStencilFormat = Legacy_Format(depth_format);
 	}
 
 	/*
@@ -1616,34 +1631,34 @@ bool DX8Wrapper::Registry_Load_Render_Device( const char * sub_key, char *device
 }
 
 
-bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT * set_colorbuffer,D3DFORMAT * set_backbuffer,D3DFORMAT * set_zmode)
+bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,unsigned * set_colorbuffer,unsigned * set_backbuffer,unsigned * set_zmode)
 {
-	static D3DFORMAT _formats16[] =
+	static unsigned _formats16[] =
 	{
-		Legacy_Format(23),
-		Legacy_Format(24),
-		Legacy_Format(25)
+		23,
+		24,
+		25
 	};
 
-	static D3DFORMAT _formats32[] =
+	static unsigned _formats32[] =
 	{
-		Legacy_Format(21),
-		Legacy_Format(22),
-		Legacy_Format(20),
+		21,
+		22,
+		20,
 	};
 
 	/*
 	** Select the table that we're going to use to search for a valid backbuffer format
 	*/
-	D3DFORMAT * format_table = nullptr;
+	unsigned * format_table = nullptr;
 	int format_count = 0;
 
 	if (BitDepth == 16) {
 		format_table = _formats16;
-		format_count = sizeof(_formats16) / sizeof(D3DFORMAT);
+		format_count = sizeof(_formats16) / sizeof(unsigned);
 	} else {
 		format_table = _formats32;
-		format_count = sizeof(_formats32) / sizeof(D3DFORMAT);
+		format_count = sizeof(_formats32) / sizeof(unsigned);
 	}
 
 	/*
@@ -1664,9 +1679,9 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT 
 		*set_backbuffer=*set_colorbuffer = format_table[format_index];
 	}
 
-	if (bitdepth==32 && *set_colorbuffer == Legacy_Format(22) && D3DInterface->CheckDeviceType(0,D3DDEVTYPE_HAL,*set_colorbuffer,Legacy_Format(21), TRUE) == S_OK)
+	if (bitdepth==32 && *set_colorbuffer == 22 && D3DInterface->CheckDeviceType(0,WW3D_DEVTYPE,Legacy_Format(*set_colorbuffer),Legacy_Format(21), TRUE) == S_OK)
 	{	//promote 32-bit modes to include destination alpha when supported
-		*set_backbuffer = Legacy_Format(21);
+		*set_backbuffer = 21;
 	}
 
 	/*
@@ -1678,26 +1693,26 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,D3DFORMAT 
 
 // find the resolution mode with at least resx,resy with the highest supported
 // refresh rate
-bool DX8Wrapper::Find_Color_Mode(D3DFORMAT colorbuffer, int resx, int resy, UINT *mode)
+bool DX8Wrapper::Find_Color_Mode(unsigned colorbuffer, int resx, int resy, UINT *mode)
 {
 	UINT i,j,modemax;
 	UINT rx,ry;
 	D3DDISPLAYMODE dmode;
-	::ZeroMemory(&dmode, sizeof(D3DDISPLAYMODE));
+	::ZeroMemory(&dmode, sizeof(dmode));
 
 	rx=(unsigned int) resx;
 	ry=(unsigned int) resy;
 
 	bool found=false;
 
-	modemax=D3DInterface->GetAdapterModeCount(D3DADAPTER_DEFAULT);
+	modemax=D3DInterface->GetAdapterModeCount(0);
 
 	i=0;
 
 	while (i<modemax && !found)
 	{
-		D3DInterface->EnumAdapterModes(D3DADAPTER_DEFAULT, i, &dmode);
-		if (dmode.Width==rx && dmode.Height==ry && dmode.Format==colorbuffer) {
+		D3DInterface->EnumAdapterModes(0, i, &dmode);
+		if (dmode.Width==rx && dmode.Height==ry && static_cast<unsigned>(dmode.Format)==colorbuffer) {
 			WWDEBUG_SAY(("Found valid color mode.  Width = %d Height = %d Format = %d",dmode.Width,dmode.Height,dmode.Format));
 			found=true;
 		}
@@ -1718,8 +1733,8 @@ bool DX8Wrapper::Find_Color_Mode(D3DFORMAT colorbuffer, int resx, int resy, UINT
 	j=i;
 	while (j<modemax && stillok)
 	{
-		D3DInterface->EnumAdapterModes(D3DADAPTER_DEFAULT, j, &dmode);
-		if (dmode.Width==rx && dmode.Height==ry && dmode.Format==colorbuffer)
+		D3DInterface->EnumAdapterModes(0, j, &dmode);
+		if (dmode.Width==rx && dmode.Height==ry && static_cast<unsigned>(dmode.Format)==colorbuffer)
 			stillok=true; else stillok=false;
 		j++;
 	}
@@ -1732,47 +1747,47 @@ bool DX8Wrapper::Find_Color_Mode(D3DFORMAT colorbuffer, int resx, int resy, UINT
 
 // Helper function to find a Z buffer mode for the colorbuffer
 // Will look for greatest Z precision
-bool DX8Wrapper::Find_Z_Mode(D3DFORMAT colorbuffer,D3DFORMAT backbuffer, D3DFORMAT *zmode)
+bool DX8Wrapper::Find_Z_Mode(unsigned colorbuffer,unsigned backbuffer, unsigned *zmode)
 {
 	//MW: Swapped the next 2 tests so that Stencil modes get tested first.
-	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(75)))
+	if (Test_Z_Mode(colorbuffer,backbuffer,75))
 	{
-		*zmode=Legacy_Format(75);
+		*zmode=75;
 		WWDEBUG_SAY(("Found zbuffer mode 75"));
 		return true;
 	}
 
-	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(71)))
+	if (Test_Z_Mode(colorbuffer,backbuffer,71))
 	{
-		*zmode=Legacy_Format(71);
+		*zmode=71;
 		WWDEBUG_SAY(("Found zbuffer mode 71"));
 		return true;
 	}
 
-	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(77)))
+	if (Test_Z_Mode(colorbuffer,backbuffer,77))
 	{
-		*zmode=Legacy_Format(77);
+		*zmode=77;
 		WWDEBUG_SAY(("Found zbuffer mode 77"));
 		return true;
 	}
 
-	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(79)))
+	if (Test_Z_Mode(colorbuffer,backbuffer,79))
 	{
-		*zmode=Legacy_Format(79);
+		*zmode=79;
 		WWDEBUG_SAY(("Found zbuffer mode 79"));
 		return true;
 	}
 
-	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(80)))
+	if (Test_Z_Mode(colorbuffer,backbuffer,80))
 	{
-		*zmode=Legacy_Format(80);
+		*zmode=80;
 		WWDEBUG_SAY(("Found zbuffer mode 80"));
 		return true;
 	}
 
-	if (Test_Z_Mode(colorbuffer,backbuffer,Legacy_Format(73)))
+	if (Test_Z_Mode(colorbuffer,backbuffer,73))
 	{
-		*zmode=Legacy_Format(73);
+		*zmode=73;
 		WWDEBUG_SAY(("Found zbuffer mode 73"));
 		return true;
 	}
@@ -1782,19 +1797,19 @@ bool DX8Wrapper::Find_Z_Mode(D3DFORMAT colorbuffer,D3DFORMAT backbuffer, D3DFORM
 	return false;
 }
 
-bool DX8Wrapper::Test_Z_Mode(D3DFORMAT colorbuffer,D3DFORMAT backbuffer, D3DFORMAT zmode)
+bool DX8Wrapper::Test_Z_Mode(unsigned colorbuffer,unsigned backbuffer, unsigned zmode)
 {
 	// See if we have this mode first
-	if (FAILED(D3DInterface->CheckDeviceFormat(D3DADAPTER_DEFAULT,WW3D_DEVTYPE,
-		colorbuffer,D3DUSAGE_DEPTHSTENCIL,D3DRTYPE_SURFACE,zmode)))
+	if (FAILED(D3DInterface->CheckDeviceFormat(0,WW3D_DEVTYPE,
+		Legacy_Format(colorbuffer),2,Legacy_Resource_Type(1),Legacy_Format(zmode))))
 	{
 		WWDEBUG_SAY(("CheckDeviceFormat failed.  Colorbuffer format = %d  Zbufferformat = %d",colorbuffer,zmode));
 		return false;
 	}
 
 	// Then see if it matches the color buffer
-	if(FAILED(D3DInterface->CheckDepthStencilMatch(D3DADAPTER_DEFAULT, WW3D_DEVTYPE,
-		colorbuffer,backbuffer,zmode)))
+	if(FAILED(D3DInterface->CheckDepthStencilMatch(0, WW3D_DEVTYPE,
+		Legacy_Format(colorbuffer),Legacy_Format(backbuffer),Legacy_Format(zmode))))
 	{
 		WWDEBUG_SAY(("CheckDepthStencilMatch failed.  Colorbuffer format = %d  Backbuffer format = %d Zbufferformat = %d",colorbuffer,backbuffer,zmode));
 		return false;
