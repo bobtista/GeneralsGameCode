@@ -45,6 +45,7 @@
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "thread.h"
+#include "ww3dcolor.h"
 #include "wwmemlog.h"
 #include <cstring>
 
@@ -741,7 +742,7 @@ void DX8VertexBufferClass::Copy(const Vector3* loc, const Vector3* norm, const V
 			verts[v].nz=(*norm++)[2];
 			verts[v].u1=(*uv)[0];
 			verts[v].v1=(*uv++)[1];
-			verts[v].diffuse=DX8Wrapper::Convert_Color(diffuse[v]);
+			verts[v].diffuse=WW3DColor::To_ARGB(diffuse[v]);
 		}
 	}
 	else {
@@ -756,7 +757,7 @@ void DX8VertexBufferClass::Copy(const Vector3* loc, const Vector3* norm, const V
 			verts[v].nz=(*norm++)[2];
 			verts[v].u1=(*uv)[0];
 			verts[v].v1=(*uv++)[1];
-			verts[v].diffuse=DX8Wrapper::Convert_Color(diffuse[v]);
+			verts[v].diffuse=WW3DColor::To_ARGB(diffuse[v]);
 		}
 	}
 }
@@ -780,7 +781,7 @@ void DX8VertexBufferClass::Copy(const Vector3* loc, const Vector2* uv, const Vec
 			verts[v].z=(*loc++)[2];
 			verts[v].u1=(*uv)[0];
 			verts[v].v1=(*uv++)[1];
-			verts[v].diffuse=DX8Wrapper::Convert_Color(diffuse[v]);
+			verts[v].diffuse=WW3DColor::To_ARGB(diffuse[v]);
 		}
 	}
 	else {
@@ -792,7 +793,7 @@ void DX8VertexBufferClass::Copy(const Vector3* loc, const Vector2* uv, const Vec
 			verts[v].z=(*loc++)[2];
 			verts[v].u1=(*uv)[0];
 			verts[v].v1=(*uv++)[1];
-			verts[v].diffuse=DX8Wrapper::Convert_Color(diffuse[v]);
+			verts[v].diffuse=WW3DColor::To_ARGB(diffuse[v]);
 		}
 	}
 }
