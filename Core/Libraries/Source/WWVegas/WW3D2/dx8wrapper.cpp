@@ -413,7 +413,9 @@ void DX8Wrapper::Shutdown()
 {
 	if (D3DDevice) {
 
+#if !defined(GGC_BGFX_STANDALONE)
 		Set_Render_Target ((IDirect3DSurface8 *)nullptr);
+#endif
 		Release_Device();
 	}
 
@@ -3300,6 +3302,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
  * HISTORY:                                                                                    *
  *   4/26/2001  hy : Created.                                                                  *
  *=============================================================================================*/
+#if !defined(GGC_BGFX_STANDALONE)
 void DX8Wrapper::_Update_Texture(TextureClass *system, TextureClass *video)
 {
 	WWASSERT(system);
@@ -3308,6 +3311,7 @@ void DX8Wrapper::_Update_Texture(TextureClass *system, TextureClass *video)
 	WWASSERT(video->Get_Pool()==TextureClass::POOL_DEFAULT);
 	DX8CALL(UpdateTexture(Peek_Legacy_Base_Texture(*system),Peek_Legacy_Base_Texture(*video)));
 }
+#endif
 
 void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
 {
@@ -3485,6 +3489,7 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 */
 }
 
+#if !defined(GGC_BGFX_STANDALONE)
 IDirect3DSurface8 * DX8Wrapper::_Get_DX8_Front_Buffer()
 {
 	DX8_THREAD_ASSERT();
@@ -3989,6 +3994,7 @@ unsigned int DX8Wrapper::Get_Free_Texture_RAM()
 	DX8_RECORD_DX8_CALLS();
 	return DX8Wrapper::_Get_D3D_Device8()->GetAvailableTextureMem();
 }
+#endif
 
 // Converts a linear gamma ramp to one that is controlled by:
 // Gamma - controls the curvature of the middle of the curve

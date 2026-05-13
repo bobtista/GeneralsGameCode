@@ -376,7 +376,6 @@ public:
 
 	static IDirect3DSurface8 * _Create_DX8_Surface(unsigned int width, unsigned int height, WW3DFormat format);
 	static IDirect3DSurface8 * _Create_DX8_Surface(const char *filename);
-#endif
 	static IDirect3DSurface8 * _Get_DX8_Front_Buffer();
 	static SurfaceClass * _Get_DX8_Back_Buffer(unsigned int num=0);
 
@@ -391,6 +390,7 @@ public:
 	static void _Update_Texture(TextureClass *system, TextureClass *video);
 	static void Flush_DX8_Resource_Manager(unsigned int bytes=0);
 	static unsigned int Get_Free_Texture_RAM();
+#endif
 
 	static unsigned _Get_Main_Thread_ID() { return _MainThreadID; }
 	static const D3DADAPTER_IDENTIFIER8& Get_Current_Adapter_Identifier() { return CurrentAdapterIdentifier; }
@@ -438,6 +438,7 @@ public:
 	**	Restore the default render target.
 	**
 	*/
+#if !defined(GGC_BGFX_STANDALONE)
 	static IDirect3DSwapChain8 *	Create_Additional_Swap_Chain (HWND render_window);
 
 	/*
@@ -462,6 +463,7 @@ public:
 		ZTextureClass** depth_buffer
 	);
 	GGC_RB_DEPRECATED static void					Set_Render_Target_With_Z (TextureClass * texture, ZTextureClass* ztexture=nullptr);
+#endif
 
 	GGC_RB_DEPRECATED static void Set_Shadow_Map(int idx, ZTextureClass* ztex) { Shadow_Map[idx]=ztex; }
 	GGC_RB_DEPRECATED static ZTextureClass* Get_Shadow_Map(int idx) { return Shadow_Map[idx]; }
@@ -875,6 +877,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture(unsigned int stage, IDirect3DBaseTextu
 	DX8_RECORD_TEXTURE_CHANGE();
 }
 
+#if !defined(GGC_BGFX_STANDALONE)
 WWINLINE void DX8Wrapper::_Copy_DX8_Rects(
   IDirect3DSurface8* pSourceSurface,
   CONST RECT* pSourceRectsArray,
@@ -888,8 +891,9 @@ WWINLINE void DX8Wrapper::_Copy_DX8_Rects(
   pSourceRectsArray,
   cRects,
   pDestinationSurface,
-  pDestPointsArray));
+	  pDestPointsArray));
 }
+#endif
 
 WWINLINE Vector4 DX8Wrapper::Convert_Color(unsigned color)
 {
