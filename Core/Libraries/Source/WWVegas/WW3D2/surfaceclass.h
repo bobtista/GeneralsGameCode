@@ -48,7 +48,7 @@ class Vector3;
 /*************************************************************************
 **                             SurfaceClass
 **
-** This is our surface class, which wraps IDirect3DSurface8.
+** This is our surface class, which wraps a legacy render surface.
 **
 ** Hector Yee 2/12/01 - added in fills, blits etc for font3d class
 **

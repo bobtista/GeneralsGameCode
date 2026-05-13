@@ -484,7 +484,7 @@ DX8VertexBufferClass::~DX8VertexBufferClass()
 	WWDEBUG_SAY(("Current vertex buffer count: %d",_DX8VertexBufferCount));
 #endif
 	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 2 — release
-	// the backend-neutral handle before the D3D8 resource goes away.
+	// the backend-neutral handle before the legacy resource goes away.
 	if (m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
 		g_renderBackend->Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
