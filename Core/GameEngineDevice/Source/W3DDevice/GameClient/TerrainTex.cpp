@@ -533,7 +533,7 @@ Bool TerrainTextureClass::updateFlat(WorldHeightMap *htMap, Int xCell, Int yCell
 //=============================================================================
 // TerrainTextureClass::Apply
 //=============================================================================
-/** Sets the texture as the current D3D texture, and does some custom setup
+/** Sets the texture as the current texture, and does some custom setup
 (standard D3D setup, but beyond the scope of W3D).  */
 //=============================================================================
 void TerrainTextureClass::Apply(unsigned int stage)
@@ -552,8 +552,8 @@ void TerrainTextureClass::Apply(unsigned int stage)
 //=============================================================================
 // AlphaTerrainTextureClass::AlphaTerrainTextureClass
 //=============================================================================
-/** Constructor. Calls parent constructor to creat a throw away 8x8 texture,
-then uses the base texture's D3D texture. This way the base tiles pass, drawn
+/** Constructor. Calls parent constructor to create a throwaway 8x8 texture,
+then shares the base texture resource. This way the base tiles pass, drawn
 using TerrainTextureClass shares the same texture with the blended edges pass,
 saving lots of texture memory, and preventing seams between blended tiles. */
 //=============================================================================
@@ -561,16 +561,14 @@ AlphaTerrainTextureClass::AlphaTerrainTextureClass( TextureClass *pBaseTex ):
 	TextureClass(8, 8,
 		WW3D_FORMAT_A1R5G5B5, MIP_LEVELS_1 )
 {
-	// Attach the base texture's d3d texture.
-	IDirect3DTexture8 * d3d_tex = pBaseTex->Peek_D3D_Texture();
-	Set_D3D_Base_Texture(d3d_tex);
+	Share_Texture_With(pBaseTex);
 }
 
 
 //=============================================================================
 // AlphaTerrainTextureClass::Apply
 //=============================================================================
-/** Sets the texture as the current D3D texture, and does some custom setup.
+/** Sets the texture as the current texture, and does some custom setup.
 This may be applied in either single pass, as the second texture in the pipe,
 or multipass.  If stage==0, we are doing multipass and we set up the pipe
 for a single texture.  If stage==1, then we are doing a single pass, and we
@@ -719,7 +717,7 @@ TextureClass(name.isEmpty()?"TSNoiseUrb.tga":name.str(),name.isEmpty()?"TSNoiseU
 //=============================================================================
 // LightMapTerrainTextureClass::Apply
 //=============================================================================
-/** Sets the texture as the current D3D texture, and does some custom setup.
+/** Sets the texture as the current texture, and does some custom setup.
 The LightMapTerrainTextureClass may be applied by itself, or with the
 CloudMapTerrainTextureClass.  This may be applied in either single pass,
 as the second texture in the pipe,
@@ -883,7 +881,7 @@ CloudMapTerrainTextureClass::CloudMapTerrainTextureClass(MipCountType mipLevelCo
 //=============================================================================
 // CloudMapTerrainTextureClass::Apply
 //=============================================================================
-/** Sets the texture as the current D3D texture, and does some custom setup.
+/** Sets the texture as the current texture, and does some custom setup.
 The CloudMapTerrainTextureClass may be applied by itself, or with the
 LightMapTerrainTexture.  This may be applied in either single pass,
 as the first texture in the pipe with LightMapTerrainTextureClass as the
@@ -974,7 +972,7 @@ ScorchTextureClass::ScorchTextureClass(MipCountType mipLevelCount) :
 //=============================================================================
 // ScorchTextureClass::Apply
 //=============================================================================
-/** Sets the texture as the current D3D texture, and does some custom setup.
+/** Sets the texture as the current texture, and does some custom setup.
 The ScorchTextureClass is applied by iteself, as it's mesh is a subset of the
 terrain mesh.
 (standard D3D setup, but beyond the scope of W3D). */
