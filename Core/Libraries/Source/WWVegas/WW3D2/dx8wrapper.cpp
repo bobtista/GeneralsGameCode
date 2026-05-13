@@ -4184,6 +4184,7 @@ void DX8Wrapper::Apply_Default_State()
 	ShaderClass::Invalidate();
 }
 
+#if !defined(GGC_BGFX_STANDALONE)
 const char* DX8Wrapper::Get_DX8_Render_State_Name(D3DRENDERSTATETYPE state)
 {
 	switch (state) {
@@ -4762,9 +4763,10 @@ const char* DX8Wrapper::Get_DX8_Blend_Op_Name(unsigned value)
 	case D3DBLENDOP_REVSUBTRACT: return "D3DBLENDOP_REVSUBTRACT";
 	case D3DBLENDOP_MIN			: return "D3DBLENDOP_MIN";
 	case D3DBLENDOP_MAX			: return "D3DBLENDOP_MAX";
-	default							: return "UNKNOWN";
+		default							: return "UNKNOWN";
 	}
 }
+#endif
 
 
 //============================================================================

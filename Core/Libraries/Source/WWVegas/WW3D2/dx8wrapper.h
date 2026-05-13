@@ -502,6 +502,7 @@ public:
 	static bool Registry_Save_Render_Device( const char * sub_key );
 	static bool Registry_Load_Render_Device( const char * sub_key, bool resize_window );
 
+#if !defined(GGC_BGFX_STANDALONE)
 	static const char* Get_DX8_Render_State_Name(D3DRENDERSTATETYPE state);
 	static const char* Get_DX8_Texture_Stage_State_Name(D3DTEXTURESTAGESTATETYPE state);
 	static unsigned Get_DX8_Render_State(D3DRENDERSTATETYPE state) { return RenderStateCache::Get_Render_State((unsigned)state); }
@@ -529,6 +530,7 @@ public:
 	static const char* Get_DX8_Patch_Edge_Style_Name(unsigned value);
 	static const char* Get_DX8_Debug_Monitor_Token_Name(unsigned value);
 	static const char* Get_DX8_Blend_Op_Name(unsigned value);
+#endif
 
 	GGC_RB_DEPRECATED static void Invalidate_Cached_Render_States();
 
@@ -816,7 +818,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Render_State(D3DRENDERSTATETYPE state, unsigne
 	// Can't monitor state changes because setShader call to GERD may change the states!
 	if (RenderStateCache::Get_Render_State((unsigned)state)==value) return;
 
-#ifdef MESH_RENDER_SNAPSHOT_ENABLED
+#if defined(MESH_RENDER_SNAPSHOT_ENABLED) && !defined(GGC_BGFX_STANDALONE)
 	if (WW3D::Is_Snapshot_Activated()) {
 		StringClass value_name(0,true);
 		Get_DX8_Render_State_Value_Name(value_name,state,value);
@@ -845,7 +847,7 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture_Stage_State(unsigned stage, D3DTEXTURE
 
 	// Can't monitor state changes because setShader call to GERD may change the states!
 	if (RenderStateCache::Get_Texture_Stage_State(stage,(unsigned int)state)==value) return;
-#ifdef MESH_RENDER_SNAPSHOT_ENABLED
+#if defined(MESH_RENDER_SNAPSHOT_ENABLED) && !defined(GGC_BGFX_STANDALONE)
 	if (WW3D::Is_Snapshot_Activated()) {
 		StringClass value_name(0,true);
 		Get_DX8_Texture_Stage_State_Value_Name(value_name,state,value);
