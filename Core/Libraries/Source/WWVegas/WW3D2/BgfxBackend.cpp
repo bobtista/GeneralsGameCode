@@ -59,7 +59,7 @@
 #endif
 
 // TheSuperHackers @refactor bobtista 16/04/2026 bgfx takes the main
-// game window. A secondary popup is created for D3D8 reference output.
+// game window. A secondary popup is created for legacy reference output.
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -358,7 +358,7 @@ static uint32_t MakeBgfxClearColor(const Vector3 & color, float alpha)
     return (r << 24) | (g << 16) | (b << 8) | a;
 }
 
-static uint32_t MakeD3DColor(const Vector3 & color, float alpha)
+static uint32_t MakeLegacyARGBColor(const Vector3 & color, float alpha)
 {
     const uint32_t r = static_cast<uint32_t>(WWMath::Clamp(color.X, 0.0f, 1.0f) * 255.0f + 0.5f);
     const uint32_t g = static_cast<uint32_t>(WWMath::Clamp(color.Y, 0.0f, 1.0f) * 255.0f + 0.5f);
@@ -797,13 +797,13 @@ static void UpdateShadowStencilState()
 // (which the W3D engine writes into the material diffuse channel) and
 // alpha fades modulate the output.
 // TheSuperHackers @feature bobtista 20/04/2026 Material emissive uniform.
-// D3D8 fixed-function adds the material's emissive color to the lit
-// output (D3DRS_EMISSIVEMATERIALSOURCE, MATERIAL.Emissive). Self-
+// Legacy fixed-function adds the material's emissive color to the lit
+// output through the emissive material-source state. Self-
 // illuminating meshes like the "move here" hint rely on this to produce
 // their glow color even when no light reaches them. fs_uber needs this
 // term or such meshes render black.
 // Grayscale output override for disabled 2D UI elements (Render2DClass::Enable_Grayscale).
-// D3D8 path uses D3DTOP_DOTPRODUCT3 + TFACTOR=0x80A5CA8E (luminance weights); bgfx path
+// Legacy path uses dot-product texture op + TFACTOR=0x80A5CA8E (luminance weights); bgfx path
 // applies the dot-product at the end of fs_uber when g_draw.grayscaleEnable[0] > 0.5.
 // Alpha-test parameters consumed by fs_textured_lit_atest. .x is the
 // reference threshold in [0, 1]; engine writes ShaderClass alpha-ref / 255.
@@ -821,9 +821,9 @@ static void UpdateShadowStencilState()
 
 // UV set selection: when > 0, the fragment shader samples stage 0
 // from v_texcoord1 instead of v_texcoord0. Set by the terrain shader
-// when it changes D3DTSS_TEXCOORDINDEX to 1 for the blend pass.
+// when it changes the stage texcoord index to 1 for the blend pass.
 
-// Shroud pass: the D3D8 path uses D3DTSS_TCI_CAMERASPACEPOSITION to auto-
+// Shroud pass: the legacy path uses camera-space position texcoords to auto-
 // generate UVs from camera-space vertex positions, combined with a texture
 // transform matrix. bgfx has no equivalent, so we upload the full texture
 // matrix and let the vertex shader compute the UVs explicitly.
@@ -852,7 +852,7 @@ static void UpdateShadowStencilState()
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Default 1x1
 // white texture. Real Set_Texture wiring is not in place yet, so the
-// textured shaders need SOMETHING bound to s_tex0 or D3D11 returns
+// textured shaders need SOMETHING bound to s_tex0 or the native backend returns
 // undefined values. A 1x1 opaque white texture is a sensible default
 // because the fragment shader does texColor * v_color0 - white * vc
 // gives the vertex color through unmodified.
@@ -1112,7 +1112,7 @@ uint64_t TranslateDepthCompare(ShaderClass::DepthCompareType cmp)
 //   5=ADD 6=ADDSIGNED 7=SUBTRACT 8=BLENDTEXALPHA 9=BLENDCURALPHA 10=ADDSMOOTH
 // Arg source IDs: 0=TEXTURE 1=DIFFUSE 2=CURRENT
 
-// Default D3D8 alpha-test reference (0x60/255 = 0.376) used when a shader has ALPHATEST enabled without an explicit reference. Matches the implicit D3D8 behavior preserved by ShaderClass presets.
+// Default legacy alpha-test reference (0x60/255 = 0.376) used when a shader has ALPHATEST enabled without an explicit reference. Matches the implicit behavior preserved by ShaderClass presets.
 const float kDefaultAlphaTestRef = 0x60 / 255.0f;
 
 void BuildTssOpsForShader(const ShaderClass & shader,
@@ -1486,11 +1486,11 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // engine destroys a VertexBufferClass and reuses the memory address for
 // a new VB with different dimensions — otherwise we'd hand back a stale
 // handle and bgfx would truncate writes / crash on staging creation.
-// TheSuperHackers @fix bobtista 19/04/2026 Track D3D8 texture pointers
+// TheSuperHackers @fix bobtista 19/04/2026 Track raw texture pointers
 // and dimensions alongside TextureClass* to detect stale cache entries
 // (address reuse) and enable in-place updates for same-sized textures.
 // TheSuperHackers @fix bobtista 19/04/2026 Deferred texture destruction.
-// When a stale texture cache entry is detected (D3D8 pointer changed), the
+// When a stale texture cache entry is detected (raw pointer changed), the
 // old bgfx handle can't be destroyed immediately because in-flight draws
 // may still reference it. Double-buffer: collect in current frame, destroy
 // after the NEXT bgfx::frame() (2 frames later = guaranteed safe).
@@ -2105,7 +2105,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 #endif
     initArgs.platformData = pd;
     // TheSuperHackers @bugfix bobtista 27/04/2026 Keep bgfx on a normal
-    // D3D11 device even in game Debug builds. The D3D debug layer raises
+    // native device even in game Debug builds. The backend debug layer raises
     // DXGI-facility exceptions inside bgfx::frame before the engine can
     // reach shellmap or command-line save loads.
     // TheSuperHackers @build bobtista 30/04/2026 Allow GGC_BGFX_DEBUG=1 to
@@ -2720,7 +2720,7 @@ void BgfxBackend::Shutdown()
 void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
 {
     // Do NOT call the DX8 base viewport setter here - this method is called
-    // FROM DX8Wrapper::Set_Viewport, so the D3D8 viewport is already set.
+    // FROM DX8Wrapper::Set_Viewport, so the legacy viewport is already set.
     // Calling the base class would cause infinite recursion.
 
     if (!g_device.initialized)
@@ -3679,7 +3679,7 @@ bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClas
     // Mismatched stride (typically for skinned-mesh weighted-position FVFs
     // that BuildBgfxLayoutForFVF does not fully cover)
     // would create a too-small bgfx buffer and cause truncation
-    // warnings + D3D11 CreateBuffer crashes when the engine writes
+    // warnings + native buffer creation crashes when the engine writes
     // a larger per-vertex stride than bgfx allocated.
     const uint32_t layout_stride = layout.getStride();
     if (layout_stride == 0 || layout_stride != engine_stride)
@@ -3921,8 +3921,8 @@ void BgfxBackend::End_Sorted_Batch_Pass()
 static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
                                                 const Matrix4x4 & sortView)
 {
-    // Compute the D3D row-major product sortWorld * sortView, then store
-    // it as row-major float[16] (r*4+c). bgfx on D3D11 interprets the
+    // Compute the legacy row-major product sortWorld * sortView, then store
+    // it as row-major float[16] (r*4+c). bgfx native backends interpret the
     // raw bytes as column-major HLSL float4x4, which makes mul(M, v) use
     // the ROWS of our stored matrix — matching D3D's row-vector convention.
     // The previous [c*4+r] storage put the translation at the W component
@@ -4700,7 +4700,7 @@ static void LogBgfxShroudPass(const char *event,
 
 // NDC z-pull applied to coplanar sorted decals so they win the LEQUAL test
 // against the opaque sub-mesh they sit on. Keep this much smaller than the
-// generic D3DRS_ZBIAS conversion: a large clip-space pull makes command-center
+// generic legacy z-bias conversion: a large clip-space pull makes command-center
 // floor emblems render in front of bulldozers as they leave the building.
 static const float kSortedDecalMinZBias = 0.00025f;
 static const float kSortedDecalMaxZBias = 0.00075f;
@@ -4957,7 +4957,7 @@ static void UpdateTextureTransforms()
     // TheSuperHackers @bugfix bobtista 25/04/2026 Honor material-stage texture
     // matrices in the bgfx uber shader. W3D atlas mappers animate tank
     // treads, bike wheels, and other sub-materials by setting
-    // D3DTS_TEXTUREn plus D3DTTFF_COUNT2. Passing raw UVs sampled the
+    // cached texture transform plus two-coordinate transform mode. Passing raw UVs sampled the
     // unused black padding in those atlases; stage 1 matters for detail
     // and environment-mapped sub-materials.
     const unsigned texcoordIndex =
@@ -4965,7 +4965,7 @@ static void UpdateTextureTransforms()
     const unsigned uvIndex = texcoordIndex & 0xFFFF;
     const unsigned texcoordGen = texcoordIndex & 0xFFFF0000;
     // TheSuperHackers @info bobtista 26/04/2026 Only UV sets 0 and 1 are
-    // supported. D3D8 allows up to 8 UV sets via D3DTSS_TEXCOORDINDEX but
+    // supported. The legacy fixed-function path allows up to 8 UV sets but
     // the uber shader only has v_texcoord0/v_texcoord1. Extend if any
     // material is found using UV set 2+.
     if (uvIndex > 1)
@@ -5696,7 +5696,7 @@ void BgfxBackend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * 
 
 void BgfxBackend::Set_Ambient(const Vector3 & color)
 {
-    RenderStateCache::Set_Render_State(D3DRS_AMBIENT, MakeD3DColor(color, 0.0f));
+    RenderStateCache::Set_Render_State(D3DRS_AMBIENT, MakeLegacyARGBColor(color, 0.0f));
     g_draw.sceneAmbient[0] = color.X;
     g_draw.sceneAmbient[1] = color.Y;
     g_draw.sceneAmbient[2] = color.Z;
@@ -7076,7 +7076,7 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
     if (light_env != nullptr)
     {
         const Vector3 & ambient = light_env->Get_Equivalent_Ambient();
-        RenderStateCache::Set_Render_State(D3DRS_AMBIENT, MakeD3DColor(ambient, 0.0f));
+        RenderStateCache::Set_Render_State(D3DRS_AMBIENT, MakeLegacyARGBColor(ambient, 0.0f));
         g_draw.sceneAmbient[0] = ambient.X;
         g_draw.sceneAmbient[1] = ambient.Y;
         g_draw.sceneAmbient[2] = ambient.Z;
