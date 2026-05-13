@@ -21,6 +21,8 @@
 #include "simplevec.h"
 #include "textureloader.h"
 #include "texture.h"
+#include "shader.h"
+#include "ww3d.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 

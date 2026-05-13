@@ -34,8 +34,13 @@
 #include "Vector3i.h"
 #include "RANDOM.h"
 #include "v3_rnd.h"
+#include "vertmaterial.h"
+#include "dx8vertexbuffer.h"
+#include "dx8indexbuffer.h"
+#include "dx8fvf.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+#include "w3d_file.h"
 
 
 /* We have chunking logic which handles N segments at a time. To simplify the subdivision logic,

@@ -54,6 +54,7 @@
 #include "wwmemlog.h"
 #include "rinfo.h"
 #include "statistics.h"
+#include "texture.h"
 #include "meshmdl.h"
 #include "vp.h"
 #include "decalmsh.h"

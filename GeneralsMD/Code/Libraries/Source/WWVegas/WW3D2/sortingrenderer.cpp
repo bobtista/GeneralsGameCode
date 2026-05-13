@@ -41,6 +41,8 @@
 #include "sortingrenderer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
+#include "dllist.h"
+#include "FixedFunctionState.h"
 #include "RenderBufferTypes.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
