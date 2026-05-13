@@ -148,7 +148,7 @@ IDirect3D8* DX8_Call_Interface();
 
 WWINLINE void DX8_ErrorCode(unsigned res)
 {
-	if (res==D3D_OK) return;
+	if (res==S_OK) return;
 	Log_DX8_ErrorCode(res);
 }
 
