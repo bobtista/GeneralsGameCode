@@ -702,6 +702,7 @@ TextureClass::TextureClass
 		)
 	);
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (pool==POOL_DEFAULT)
 	{
 		Set_Dirty();
@@ -716,6 +717,7 @@ TextureClass::TextureClass
 		);
 		TextureResourceManagerClass::Add(track);
 	}
+#endif
 	LastAccessed=WW3D::Get_Sync_Time();
 }
 
@@ -1309,6 +1311,7 @@ ZTextureClass::ZTextureClass
 		)
 	);
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (pool==POOL_DEFAULT)
 	{
 		Set_Dirty();
@@ -1322,6 +1325,7 @@ ZTextureClass::ZTextureClass
 		);
 		TextureResourceManagerClass::Add(track);
 	}
+#endif
 	Initialized=true;
 	IsProcedural=true;
 	IsReducible=false;
@@ -1452,6 +1456,7 @@ CubeTextureClass::CubeTextureClass
 		)
 	);
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (pool==POOL_DEFAULT)
 	{
 		Set_Dirty();
@@ -1466,6 +1471,7 @@ CubeTextureClass::CubeTextureClass
 		);
 		TextureResourceManagerClass::Add(track);
 	}
+#endif
 	LastAccessed=WW3D::Get_Sync_Time();
 }
 
@@ -1723,6 +1729,7 @@ VolumeTextureClass::VolumeTextureClass
 		)
 	);
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (pool==POOL_DEFAULT)
 	{
 		Set_Dirty();
@@ -1737,6 +1744,7 @@ VolumeTextureClass::VolumeTextureClass
 		);
 		TextureResourceManagerClass::Add(track);
 	}
+#endif
 	LastAccessed=WW3D::Get_Sync_Time();
 }
 
