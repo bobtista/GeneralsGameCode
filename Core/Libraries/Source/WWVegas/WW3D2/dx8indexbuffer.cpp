@@ -411,7 +411,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 
 DX8IndexBufferClass::~DX8IndexBufferClass()
 {
-	// Phase 5 Stage 2: release backend-neutral handle before D3D8.
+	// Phase 5 Stage 2: release backend-neutral handle before the legacy resource.
 	if (m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
 		g_renderBackend->Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
