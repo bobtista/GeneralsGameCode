@@ -58,6 +58,12 @@ namespace
 	using LegacyFormat = D3DFORMAT;
 
 	constexpr auto kLegacySoftwareVertexProcessingState = D3DRS_SOFTWAREVERTEXPROCESSING;
+	constexpr auto kLegacyHardwareTransformAndLight = D3DDEVCAPS_HWTRANSFORMANDLIGHT, kLegacyNPatches = D3DDEVCAPS_NPATCHES;
+	constexpr auto kLegacyZBias = D3DPRASTERCAPS_ZBIAS, kLegacyFullscreenGamma = D3DCAPS2_FULLSCREENGAMMA;
+	constexpr auto kLegacyModulateAlphaAddColor = D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR, kLegacyDotProduct3 = D3DTEXOPCAPS_DOTPRODUCT3, kLegacyBumpEnv = D3DTEXOPCAPS_BUMPENVMAP, kLegacyBumpEnvLuminance = D3DTEXOPCAPS_BUMPENVMAPLUMINANCE;
+	constexpr auto kLegacyCubeMap = D3DPTEXTURECAPS_CUBEMAP, kLegacyMagAnisotropic = D3DPTFILTERCAPS_MAGFANISOTROPIC, kLegacyMinAnisotropic = D3DPTFILTERCAPS_MINFANISOTROPIC;
+	constexpr auto kLegacyTextureResource = D3DRTYPE_TEXTURE;
+	constexpr auto kLegacyRenderTargetUsage = D3DUSAGE_RENDERTARGET, kLegacyDepthStencilUsage = D3DUSAGE_DEPTHSTENCIL;
 
 	void Set_Legacy_Software_Vertex_Processing(LegacyDevice *device, BOOL enabled)
 	{
@@ -506,7 +512,7 @@ DX8Caps::DX8Caps(
 	MaxDisplayWidth(0),
 	MaxDisplayHeight(0)
 {
-	if ((Caps.DevCaps&D3DDEVCAPS_HWTRANSFORMANDLIGHT)==D3DDEVCAPS_HWTRANSFORMANDLIGHT) {
+	if ((Caps.DevCaps&kLegacyHardwareTransformAndLight)==kLegacyHardwareTransformAndLight) {
 		SupportTnL=true;
 	} else {
 		SupportTnL=false;
@@ -533,7 +539,7 @@ void DX8Caps::Init_Caps(LegacyDevice* D3DDevice)
 	Set_Legacy_Software_Vertex_Processing(D3DDevice, TRUE);
 	DX8CALL(GetDeviceCaps(&Caps));
 
-	if ((Caps.DevCaps&D3DDEVCAPS_HWTRANSFORMANDLIGHT)==D3DDEVCAPS_HWTRANSFORMANDLIGHT) {
+	if ((Caps.DevCaps&kLegacyHardwareTransformAndLight)==kLegacyHardwareTransformAndLight) {
 		SupportTnL=true;
 
 		Set_Legacy_Software_Vertex_Processing(D3DDevice, FALSE);
@@ -656,14 +662,14 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const LegacyAdapterIdentif
 
 
 	SupportPointSprites = (Caps.MaxPointSize > 1.0f);
-	SupportNPatches = ((Caps.DevCaps&D3DDEVCAPS_NPATCHES)==D3DDEVCAPS_NPATCHES);
-	SupportZBias = ((Caps.RasterCaps&D3DPRASTERCAPS_ZBIAS)==D3DPRASTERCAPS_ZBIAS);
-	supportGamma=((Caps.Caps2&D3DCAPS2_FULLSCREENGAMMA)==D3DCAPS2_FULLSCREENGAMMA);
-	SupportModAlphaAddClr = (Caps.TextureOpCaps & D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR) == D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR;
-	SupportDot3=(Caps.TextureOpCaps & D3DTEXOPCAPS_DOTPRODUCT3) == D3DTEXOPCAPS_DOTPRODUCT3;
-	SupportCubemaps=(Caps.TextureCaps & D3DPTEXTURECAPS_CUBEMAP) == D3DPTEXTURECAPS_CUBEMAP;
+	SupportNPatches = ((Caps.DevCaps&kLegacyNPatches)==kLegacyNPatches);
+	SupportZBias = ((Caps.RasterCaps&kLegacyZBias)==kLegacyZBias);
+	supportGamma=((Caps.Caps2&kLegacyFullscreenGamma)==kLegacyFullscreenGamma);
+	SupportModAlphaAddClr = (Caps.TextureOpCaps & kLegacyModulateAlphaAddColor) == kLegacyModulateAlphaAddColor;
+	SupportDot3=(Caps.TextureOpCaps & kLegacyDotProduct3) == kLegacyDotProduct3;
+	SupportCubemaps=(Caps.TextureCaps & kLegacyCubeMap) == kLegacyCubeMap;
 	SupportAnisotropicFiltering=
-		(Caps.TextureFilterCaps&D3DPTFILTERCAPS_MAGFANISOTROPIC) && (Caps.TextureFilterCaps&D3DPTFILTERCAPS_MINFANISOTROPIC);
+		(Caps.TextureFilterCaps&kLegacyMagAnisotropic) && (Caps.TextureFilterCaps&kLegacyMinAnisotropic);
 
 	DXLOG(("Hardware T&L support: %s\r\n",SupportTnL ? "Yes" : "No"));
 	DXLOG(("NPatch support: %s\r\n",SupportNPatches ? "Yes" : "No"));
@@ -698,8 +704,8 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const LegacyAdapterIdentif
 
 void DX8Caps::Check_Bumpmap_Support(const LegacyCaps& caps)
 {
-	SupportBumpEnvmap=!!(caps.TextureOpCaps & D3DTEXOPCAPS_BUMPENVMAP);
-	SupportBumpEnvmapLuminance=!!(caps.TextureOpCaps & D3DTEXOPCAPS_BUMPENVMAPLUMINANCE);
+	SupportBumpEnvmap=!!(caps.TextureOpCaps & kLegacyBumpEnv);
+	SupportBumpEnvmapLuminance=!!(caps.TextureOpCaps & kLegacyBumpEnvLuminance);
 	DXLOG(("Bumpmap support: %s\r\n",SupportBumpEnvmap ? "Yes" : "No"));
 	DXLOG(("Bumpmap luminance support: %s\r\n",SupportBumpEnvmapLuminance ? "Yes" : "No"));
 }
@@ -741,7 +747,7 @@ void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const Legac
 					caps.DeviceType,
 					d3d_display_format,
 					0,
-					D3DRTYPE_TEXTURE,
+					kLegacyTextureResource,
 					WW3DFormat_To_D3DFormat(format)));
 			if (SupportTextureFormat[i]) {
 				StringClass name(0,true);
@@ -772,8 +778,8 @@ void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const Le
 					caps.AdapterOrdinal,
 					caps.DeviceType,
 					d3d_display_format,
-					D3DUSAGE_RENDERTARGET,
-					D3DRTYPE_TEXTURE,
+					kLegacyRenderTargetUsage,
+					kLegacyTextureResource,
 					WW3DFormat_To_D3DFormat(format)));
 			if (SupportRenderToTextureFormat[i]) {
 				StringClass name(0,true);
@@ -817,8 +823,8 @@ void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const Legac
 					caps.AdapterOrdinal,
 					caps.DeviceType,
 					d3d_display_format,
-					D3DUSAGE_DEPTHSTENCIL,
-					D3DRTYPE_TEXTURE,
+					kLegacyDepthStencilUsage,
+					kLegacyTextureResource,
 					WW3DZFormat_To_D3DFormat(format)
 				)
 			);
@@ -1185,7 +1191,7 @@ void DX8Caps::Vendor_Specific_Hacks(const LegacyAdapterIdentifier& adapter_id)
 
 	if (VendorId==VENDOR_VMWARE) {
 		// TheSuperHackers @bugfix Stubbjax 15/01/2026 Disable DOT3 support for VMWare's virtual GPU.
-		// The D3DTA_ALPHAREPLICATE modifier fails when passed to a D3DTOP_MULTIPLYADD operation.
+		// The alpha-replicate modifier fails when passed to multiply-add on this legacy driver.
 		DXLOG(("Disabling DOT3 on VMWare\r\n"));
 		SupportDot3 = false;
 	}
