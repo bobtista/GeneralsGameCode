@@ -62,12 +62,13 @@ set(WW3D2_SRC
     dx8vertexbuffer.h
     dx8wrapper.cpp
     dx8wrapper.h
+    dx8textureinterop.cpp
     dynamesh.cpp
     dynamesh.h
     font3d.cpp
     font3d.h
     dx8formatconv.h
-    formconv.cpp
+    dx8textureinterop.h
     formconv.h
     framgrab.h
     FixedFunctionState.cpp
@@ -254,6 +255,7 @@ target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
 if(NOT GGC_BGFX_STANDALONE)
     target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/formconv.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.h
     )
@@ -313,9 +315,6 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # Phase 4I shadow darkening apply pass (fullscreen quad blend).
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_apply.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_apply.sc)
-    # Phase 4I.2 CSM (cascaded shadow maps) — depth-only caster pass.
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_caster.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_caster.sc)
     # TheSuperHackers @feature bobtista 27/04/2026 Scene-color composite
     # pass. World/effects render to an offscreen framebuffer, then this
     # identity pass copies it to the swapchain before UI draws.
@@ -331,6 +330,10 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # through the fixed-function uber shader.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_smudge.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_smudge.sc)
+    get_property(GGC_BGFX_GENERATED_SHADER_HEADERS GLOBAL PROPERTY GGC_BGFX_SHADER_HEADERS)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.cpp PROPERTIES
+        OBJECT_DEPENDS "${GGC_BGFX_GENERATED_SHADER_HEADERS}"
+    )
     target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
 endif()
 
@@ -352,6 +355,14 @@ target_link_libraries(corei_ww3d2 INTERFACE
     core_wwlib
     core_wwmath
 )
+
+if(APPLE)
+    target_link_libraries(corei_ww3d2 INTERFACE
+        "-framework CoreGraphics"
+        "-framework CoreText"
+        "-framework CoreFoundation"
+    )
+endif()
 
 # Link the backend's native libraries into whoever consumes corei_ww3d2.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
