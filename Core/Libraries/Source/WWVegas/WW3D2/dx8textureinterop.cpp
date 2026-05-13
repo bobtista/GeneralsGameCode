@@ -19,13 +19,53 @@
 #include "dx8textureinterop.h"
 
 #include <d3d8.h>
+#include <d3dx8tex.h>
 
+#include "dx8formatconv.h"
 #include "dx8wrapper.h"
+#include "ffactory.h"
 #include "IRenderBackend.h"
+#include "missingtexture.h"
 #include "RenderBackend.h"
 #include "surfaceclass.h"
 #include "texture.h"
+#include "textureloader.h"
 #include "ww3d.h"
+
+namespace
+{
+#if defined(GGC_BGFX_STANDALONE)
+	D3DPOOL Legacy_Pool_To_D3D(int pool)
+	{
+		switch (pool)
+		{
+		case LEGACY_TEXTURE_POOL_DEFAULT: return D3DPOOL_DEFAULT;
+		case LEGACY_TEXTURE_POOL_MANAGED: return D3DPOOL_MANAGED;
+		case LEGACY_TEXTURE_POOL_SYSTEMMEM: return D3DPOOL_SYSTEMMEM;
+		default:
+			WWASSERT(0);
+			return D3DPOOL_MANAGED;
+		}
+	}
+
+	IDirect3DDevice8 *Legacy_Device()
+	{
+		DX8_Assert();
+		return DX8Wrapper::_Get_D3D_Device8();
+	}
+
+	void Release_Unused_Assets_For_Texture_Retry()
+	{
+		TextureClass::Invalidate_Old_Unused_Textures(5000);
+		WW3D::_Invalidate_Mesh_Cache();
+	}
+
+	bool Should_Retry_Texture_Create(HRESULT result)
+	{
+		return result == D3DERR_OUTOFVIDEOMEMORY;
+	}
+#endif
+}
 
 IDirect3DBaseTexture8 *DX8TextureInterop::Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
 {
@@ -124,12 +164,26 @@ IDirect3DSurface8 *DX8TextureInterop::Create_Legacy_Surface(
 	unsigned int height,
 	WW3DFormat format)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	DX8_THREAD_ASSERT();
+	IDirect3DSurface8 *surface = nullptr;
+	WWASSERT(format != WW3D_FORMAT_P8);
+	DX8_ErrorCode(Legacy_Device()->CreateImageSurface(width, height, WW3DFormat_To_D3DFormat(format), &surface));
+	return surface;
+#else
 	return DX8Wrapper::_Create_DX8_Surface(width, height, format);
+#endif
 }
 
 IDirect3DSurface8 *DX8TextureInterop::Create_Legacy_Surface_From_File(const char *filename)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	DX8_THREAD_ASSERT();
+	StringClass filename_string(filename, true);
+	return Load_Legacy_Surface_Immediate(filename_string, WW3D_FORMAT_UNKNOWN, true);
+#else
 	return DX8Wrapper::_Create_DX8_Surface(filename);
+#endif
 }
 
 IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture(
@@ -140,14 +194,79 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture(
 	int pool,
 	bool render_target)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	DX8_THREAD_ASSERT();
+	WWASSERT(format != WW3D_FORMAT_P8);
+
+	IDirect3DTexture8 *texture = nullptr;
+	const DWORD usage = render_target ? D3DUSAGE_RENDERTARGET : 0;
+	const D3DFORMAT native_format = WW3DFormat_To_D3DFormat(format);
+	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
+	HRESULT result = D3DXCreateTexture(
+		Legacy_Device(),
+		width,
+		height,
+		mip_level_count,
+		usage,
+		native_format,
+		native_pool,
+		&texture);
+
+	if (render_target && result == D3DERR_NOTAVAILABLE) {
+		return nullptr;
+	}
+	if (Should_Retry_Texture_Create(result)) {
+		Release_Unused_Assets_For_Texture_Retry();
+		result = D3DXCreateTexture(
+			Legacy_Device(),
+			width,
+			height,
+			mip_level_count,
+			usage,
+			native_format,
+			native_pool,
+			&texture);
+	}
+
+	DX8_ErrorCode(result);
+	return texture;
+#else
 	return DX8Wrapper::_Create_DX8_Texture(width, height, format, mip_level_count, static_cast<D3DPOOL>(pool), render_target);
+#endif
 }
 
 IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture_From_Surface(
 	IDirect3DSurface8 *surface,
 	MipCountType mip_level_count)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	DX8_THREAD_ASSERT();
+	DX8_Assert();
+
+	D3DSURFACE_DESC surface_desc;
+	::ZeroMemory(&surface_desc, sizeof(surface_desc));
+	DX8_ErrorCode(surface->GetDesc(&surface_desc));
+
+	IDirect3DTexture8 *texture = Create_Legacy_Texture(
+		surface_desc.Width,
+		surface_desc.Height,
+		D3DFormat_To_WW3DFormat(surface_desc.Format),
+		mip_level_count,
+		LEGACY_TEXTURE_POOL_MANAGED);
+
+	IDirect3DSurface8 *tex_surface = nullptr;
+	DX8_ErrorCode(texture->GetSurfaceLevel(0, &tex_surface));
+	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(tex_surface, nullptr, nullptr, surface, nullptr, nullptr, D3DX_FILTER_BOX, 0));
+	tex_surface->Release();
+
+	if (mip_level_count != MIP_LEVELS_1) {
+		DX8_ErrorCode(D3DXFilterTexture(texture, nullptr, 0, D3DX_FILTER_BOX));
+	}
+
+	return texture;
+#else
 	return DX8Wrapper::_Create_DX8_Texture(surface, mip_level_count);
+#endif
 }
 
 IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_ZTexture(
@@ -157,7 +276,43 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_ZTexture(
 	MipCountType mip_level_count,
 	int pool)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	DX8_THREAD_ASSERT();
+	IDirect3DTexture8 *texture = nullptr;
+	const D3DFORMAT native_format = WW3DZFormat_To_D3DFormat(zformat);
+	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
+	HRESULT result = Legacy_Device()->CreateTexture(
+		width,
+		height,
+		mip_level_count,
+		D3DUSAGE_DEPTHSTENCIL,
+		native_format,
+		native_pool,
+		&texture);
+
+	if (result == D3DERR_NOTAVAILABLE) {
+		return nullptr;
+	}
+	if (Should_Retry_Texture_Create(result)) {
+		Release_Unused_Assets_For_Texture_Retry();
+		result = Legacy_Device()->CreateTexture(
+			width,
+			height,
+			mip_level_count,
+			D3DUSAGE_DEPTHSTENCIL,
+			native_format,
+			native_pool,
+			&texture);
+	}
+
+	DX8_ErrorCode(result);
+	if (texture != nullptr) {
+		texture->AddRef();
+	}
+	return texture;
+#else
 	return DX8Wrapper::_Create_DX8_ZTexture(width, height, zformat, mip_level_count, static_cast<D3DPOOL>(pool));
+#endif
 }
 
 IDirect3DCubeTexture8 *DX8TextureInterop::Create_Legacy_Cube_Texture(
@@ -168,7 +323,44 @@ IDirect3DCubeTexture8 *DX8TextureInterop::Create_Legacy_Cube_Texture(
 	int pool,
 	bool render_target)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	DX8_THREAD_ASSERT();
+	WWASSERT(width == height);
+	WWASSERT(format != WW3D_FORMAT_P8);
+
+	IDirect3DCubeTexture8 *texture = nullptr;
+	const DWORD usage = render_target ? D3DUSAGE_RENDERTARGET : 0;
+	const D3DFORMAT native_format = WW3DFormat_To_D3DFormat(format);
+	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
+	HRESULT result = D3DXCreateCubeTexture(
+		Legacy_Device(),
+		width,
+		mip_level_count,
+		usage,
+		native_format,
+		native_pool,
+		&texture);
+
+	if (render_target && result == D3DERR_NOTAVAILABLE) {
+		return nullptr;
+	}
+	if (Should_Retry_Texture_Create(result)) {
+		Release_Unused_Assets_For_Texture_Retry();
+		result = D3DXCreateCubeTexture(
+			Legacy_Device(),
+			width,
+			mip_level_count,
+			usage,
+			native_format,
+			native_pool,
+			&texture);
+	}
+
+	DX8_ErrorCode(result);
+	return texture;
+#else
 	return DX8Wrapper::_Create_DX8_Cube_Texture(width, height, format, mip_level_count, static_cast<D3DPOOL>(pool), render_target);
+#endif
 }
 
 IDirect3DVolumeTexture8 *DX8TextureInterop::Create_Legacy_Volume_Texture(
@@ -179,5 +371,41 @@ IDirect3DVolumeTexture8 *DX8TextureInterop::Create_Legacy_Volume_Texture(
 	MipCountType mip_level_count,
 	int pool)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	DX8_THREAD_ASSERT();
+	WWASSERT(format != WW3D_FORMAT_P8);
+
+	IDirect3DVolumeTexture8 *texture = nullptr;
+	const D3DFORMAT native_format = WW3DFormat_To_D3DFormat(format);
+	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
+	HRESULT result = D3DXCreateVolumeTexture(
+		Legacy_Device(),
+		width,
+		height,
+		depth,
+		mip_level_count,
+		0,
+		native_format,
+		native_pool,
+		&texture);
+
+	if (Should_Retry_Texture_Create(result)) {
+		Release_Unused_Assets_For_Texture_Retry();
+		result = D3DXCreateVolumeTexture(
+			Legacy_Device(),
+			width,
+			height,
+			depth,
+			mip_level_count,
+			0,
+			native_format,
+			native_pool,
+			&texture);
+	}
+
+	DX8_ErrorCode(result);
+	return texture;
+#else
 	return DX8Wrapper::_Create_DX8_Volume_Texture(width, height, depth, format, mip_level_count, static_cast<D3DPOOL>(pool));
+#endif
 }
