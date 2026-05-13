@@ -521,12 +521,13 @@ LegacyLoaderTexture * Load_Compressed_Texture(
 	// Note that the nearest valid format could be anything, even uncompressed.
 	if (dest_format==WW3D_FORMAT_UNKNOWN) dest_format=Get_Valid_Texture_Format(dds_file.Get_Format(),true);
 
-	LegacyLoaderTexture * d3d_texture = DX8Wrapper::_Create_DX8_Texture
+	LegacyLoaderTexture * d3d_texture = Create_Legacy_Texture
 	(
 		width,
 		height,
 		dest_format,
-		(MipCountType)mips
+		(MipCountType)mips,
+		LEGACY_TEXTURE_POOL_MANAGED
 	);
 
 	for (unsigned level=0;level<mips;++level) {
@@ -719,7 +720,7 @@ static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, 
 		WWASSERT(dest_format==texture_format);
 	}
 
-	LegacyLoaderTexture * sysmem_texture = DX8Wrapper::_Create_DX8_Texture(
+	LegacyLoaderTexture * sysmem_texture = Create_Legacy_Texture(
 		thumb->Get_Width(),
 		thumb->Get_Height(),
 		dest_format,
@@ -779,7 +780,7 @@ static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, 
 #ifdef USE_MANAGED_TEXTURES
 	return sysmem_texture;
 #else
-	LegacyLoaderTexture * d3d_texture = DX8Wrapper::_Create_DX8_Texture(
+	LegacyLoaderTexture * d3d_texture = Create_Legacy_Texture(
 		thumb->Get_Width(),
 		thumb->Get_Height(),
 		dest_format,
@@ -884,7 +885,7 @@ LegacyLoaderSurface * Load_Legacy_Surface_Immediate(
 
 	unsigned src_pitch=src_width*src_bpp;
 
-	LegacyLoaderSurface * d3d_surface = DX8Wrapper::_Create_DX8_Surface(width,height,dest_format);
+	LegacyLoaderSurface * d3d_surface = Create_Legacy_Surface(width,height,dest_format);
 	WWASSERT(d3d_surface);
 	LegacyLoaderLockedRect locked_rect;
 	DX8_ErrorCode(
@@ -1808,7 +1809,7 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 		mip_level_count = max_mip_level_count;
 	}
 
-	D3DTexture	= DX8Wrapper::_Create_DX8_Texture
+	D3DTexture	= Create_Legacy_Texture
 	(
 		reducedWidth,
 		reducedHeight,
@@ -1903,7 +1904,7 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 			reducedMipCount -= Reduction;
 	}
 
-	D3DTexture = DX8Wrapper::_Create_DX8_Texture
+	D3DTexture = Create_Legacy_Texture
 	(
 		reducedWidth,
 		reducedHeight,
@@ -1979,7 +1980,7 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 		mip_level_count = max_mip_level_count;
 	}
 
-	D3DTexture	= DX8Wrapper::_Create_DX8_Texture(
+	D3DTexture	= Create_Legacy_Texture(
 		Width,
 		Height,
 		Format,
@@ -2049,7 +2050,7 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 	//	Format = Get_Valid_Texture_Format(Format, false);
 	//}
 
-	D3DTexture = DX8Wrapper::_Create_DX8_Texture
+	D3DTexture = Create_Legacy_Texture
 	(
 		Width,
 		Height,
@@ -2100,7 +2101,7 @@ void TextureLoadTaskClass::Unlock_Surfaces()
 	}
 
 #ifndef USE_MANAGED_TEXTURES
-	LegacyLoaderTexture * tex = DX8Wrapper::_Create_DX8_Texture(Width, Height, Format, Texture->MipLevelCount,kLegacyDefaultPool);
+	LegacyLoaderTexture * tex = Create_Legacy_Texture(Width, Height, Format, Texture->MipLevelCount,kLegacyDefaultPool);
 	DX8CALL(UpdateTexture(Peek_D3D_Texture(),tex));
 	Peek_D3D_Texture()->Release();
 	D3DTexture=tex;
@@ -2486,7 +2487,7 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces()
 	}
 
 #ifndef USE_MANAGED_TEXTURES
-	LegacyLoaderCubeTexture * tex = DX8Wrapper::_Create_DX8_Cube_Texture
+	LegacyLoaderCubeTexture * tex = Create_Legacy_Cube_Texture
 	(
 		Width,
 		Height,
@@ -2589,7 +2590,7 @@ bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 		mip_level_count = max_mip_level_count;
 	}
 
-	D3DTexture	= DX8Wrapper::_Create_DX8_Cube_Texture
+	D3DTexture	= Create_Legacy_Cube_Texture
 	(
 		Width,
 		Height,
@@ -2658,7 +2659,7 @@ bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
 		Format = Get_Valid_Texture_Format(Format, false);
 	}
 
-	D3DTexture = DX8Wrapper::_Create_DX8_Cube_Texture
+	D3DTexture = Create_Legacy_Cube_Texture
 	(
 		Width,
 		Height,
@@ -2853,7 +2854,7 @@ void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 	}
 
 #ifndef USE_MANAGED_TEXTURES
-	LegacyLoaderTexture * tex = DX8Wrapper::_Create_DX8_Volume_Texture(Width, Height, Depth, Format, Texture->MipLevelCount,kLegacyDefaultPool);
+	LegacyLoaderTexture * tex = Create_Legacy_Volume_Texture(Width, Height, Depth, Format, Texture->MipLevelCount,kLegacyDefaultPool);
 	DX8CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
 	Peek_D3D_Volume_Texture()->Release();
 	D3DTexture=tex;
@@ -2954,7 +2955,7 @@ bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 		mip_level_count = max_mip_level_count;
 	}
 
-	D3DTexture	= DX8Wrapper::_Create_DX8_Volume_Texture
+	D3DTexture	= Create_Legacy_Volume_Texture
 	(
 		Width,
 		Height,
@@ -3026,7 +3027,7 @@ bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 		Format = Get_Valid_Texture_Format(Format, false);
 	}
 
-	D3DTexture = DX8Wrapper::_Create_DX8_Volume_Texture
+	D3DTexture = Create_Legacy_Volume_Texture
 	(
 		Width,
 		Height,
