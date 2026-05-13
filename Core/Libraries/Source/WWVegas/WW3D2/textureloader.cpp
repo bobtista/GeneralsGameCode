@@ -473,7 +473,7 @@ LegacyLoaderTexture * TextureLoader::Load_Thumbnail(const StringClass& filename,
 	// If no thumb is found return a missing texture
 	if (!thumb) {
 		Log_Texture_Load_Failure("thumbnail", filename);
-		return MissingTexture::_Get_Missing_Texture();
+		return Get_Legacy_Missing_Texture();
 	}
 
 	WWASSERT(thumb->Get_Format()==WW3D_FORMAT_A4R4G4B4);
@@ -593,7 +593,7 @@ LegacyLoaderSurface * TextureLoader::Load_Surface_Immediate(
 	Targa targa;
 	if (TARGA_ERROR_HANDLER(targa.Open(filename, TGA_READMODE),filename)) {
 		Log_Texture_Load_Failure("surface open", filename);
-		return MissingTexture::_Create_Missing_Surface();
+		return Create_Legacy_Missing_Surface();
 	}
 
 	// DX8 uses image upside down compared to TGA
@@ -619,7 +619,7 @@ LegacyLoaderSurface * TextureLoader::Load_Surface_Immediate(
 	targa.SetPalette(palette);
 	if (TARGA_ERROR_HANDLER(targa.Load(filename, TGAF_IMAGE, false),filename)) {
 		Log_Texture_Load_Failure("surface load", filename);
-		return MissingTexture::_Create_Missing_Surface();
+		return Create_Legacy_Missing_Surface();
 	}
 
 	unsigned char* src_surface=(unsigned char*)targa.GetImage();
@@ -1336,7 +1336,7 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 	WWASSERT(!D3DTexture);
 
 	Log_Texture_Load_Failure("task", Texture ? Texture->Get_Full_Path().str() : nullptr);
-	D3DTexture = MissingTexture::_Get_Missing_Texture();
+	D3DTexture = Get_Legacy_Missing_Texture();
 	Apply(true);
 }
 

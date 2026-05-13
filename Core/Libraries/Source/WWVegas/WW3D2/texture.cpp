@@ -373,7 +373,7 @@ void TextureBaseClass::Load_Locked_Surface()
 bool TextureBaseClass::Is_Missing_Texture()
 {
 	bool flag = false;
-	LegacyBaseTexture *missing_texture = MissingTexture::_Get_Missing_Texture();
+	LegacyBaseTexture *missing_texture = Get_Legacy_Missing_Texture();
 
 	if (D3DTexture == missing_texture)
 		flag = true;
