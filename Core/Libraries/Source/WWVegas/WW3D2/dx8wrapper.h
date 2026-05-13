@@ -430,7 +430,6 @@ public:
 #endif
 
 	static unsigned _Get_Main_Thread_ID() { return _MainThreadID; }
-	static const D3DADAPTER_IDENTIFIER8& Get_Current_Adapter_Identifier() { return CurrentAdapterIdentifier; }
 
 	/*
 	** Statistics
@@ -692,16 +691,6 @@ protected:
 
 	static DX8Caps*						CurrentCaps;
 
-	static D3DADAPTER_IDENTIFIER8		CurrentAdapterIdentifier;
-
-	static IDirect3D8 *					D3DInterface;			//d3d8;
-	static IDirect3DDevice8 *			D3DDevice;				//d3ddevice8;
-
-	static IDirect3DSurface8 *			CurrentRenderTarget;
-	static IDirect3DSurface8 *			CurrentDepthBuffer;
-	static IDirect3DSurface8 *			DefaultRenderTarget;
-	static IDirect3DSurface8 *			DefaultDepthBuffer;
-
 	static unsigned							DrawPolygonLowBoundLimit;
 
 	static bool								IsRenderToTexture;
@@ -712,22 +701,10 @@ protected:
 	static D3DMATRIX					ProjectionMatrix;
 
 	friend void DX8_Assert();
-	friend IDirect3DDevice8* DX8_Call_Device();
-	friend IDirect3D8* DX8_Call_Interface();
 	friend class WW3D;
 	friend class DX8IndexBufferClass;
 	friend class DX8VertexBufferClass;
 };
-
-WWINLINE IDirect3DDevice8* DX8_Call_Device()
-{
-	return DX8Wrapper::D3DDevice;
-}
-
-WWINLINE IDirect3D8* DX8_Call_Interface()
-{
-	return DX8Wrapper::D3DInterface;
-}
 
 // shader system updates KJM v
 WWINLINE void DX8Wrapper::Commit_Vertex_Shader_Value(DWORD vertex_shader)
