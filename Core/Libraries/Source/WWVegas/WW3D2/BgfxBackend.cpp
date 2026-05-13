@@ -23,6 +23,7 @@
 
 #include "BgfxBackend.h"
 
+#include "DXTUtils.h"
 #include "dx8fvf.h"
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
@@ -8171,13 +8172,52 @@ unsigned __int64 AllocPhase5Id()
     return id;
 }
 
-// Copy a MipSlice into a bgfx::Memory buffer sized for the slice.
-const bgfx::Memory * CopySliceToBgfxMemory(const MipSlice & slice)
+bool IsCompressedTextureFormat(WW3DFormat format)
 {
-    if (slice.data == nullptr || slice.size_bytes == 0) {
+    return format == WW3D_FORMAT_DXT1
+        || format == WW3D_FORMAT_DXT2
+        || format == WW3D_FORMAT_DXT3
+        || format == WW3D_FORMAT_DXT4
+        || format == WW3D_FORMAT_DXT5;
+}
+
+unsigned CompressedTextureBlockSize(WW3DFormat format)
+{
+    return format == WW3D_FORMAT_DXT1 ? 8 : 16;
+}
+
+// Copy a MipSlice into tightly packed bgfx memory for updateTexture2D.
+const bgfx::Memory * CopySliceToBgfxMemory(const TextureDesc & desc, const MipSlice & slice)
+{
+    if (slice.data == nullptr || slice.size_bytes == 0 || slice.width == 0 || slice.height == 0) {
         return nullptr;
     }
-    return bgfx::copy(slice.data, slice.size_bytes);
+
+    const bool compressed = IsCompressedTextureFormat(desc.format);
+    const unsigned rows = compressed ? DXT_SurfaceRows(slice.height) : slice.height;
+    const unsigned expectedPitch = compressed
+        ? DXT_SurfacePitch(slice.width, CompressedTextureBlockSize(desc.format))
+        : slice.width * Get_Bytes_Per_Pixel(desc.format);
+    if (rows == 0 || expectedPitch == 0) {
+        return nullptr;
+    }
+
+    const unsigned sourcePitch = slice.pitch != 0 ? slice.pitch : expectedPitch;
+    const unsigned requiredSourceBytes = (rows - 1) * sourcePitch + expectedPitch;
+    if (slice.size_bytes < requiredSourceBytes) {
+        return nullptr;
+    }
+
+    const unsigned uploadBytes = rows * expectedPitch;
+    const bgfx::Memory * mem = bgfx::alloc(uploadBytes);
+    const uint8_t * src = static_cast<const uint8_t *>(slice.data);
+    uint8_t * dst = mem->data;
+    for (unsigned row = 0; row < rows; ++row) {
+        std::memcpy(dst, src, expectedPitch);
+        src += sourcePitch;
+        dst += expectedPitch;
+    }
+    return mem;
 }
 
 } // namespace
@@ -8193,16 +8233,34 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
     if (!desc.is_render_target && desc.mips != nullptr && desc.mip_count > 0) {
         const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(desc.format);
         if (bgfxFmt != bgfx::TextureFormat::Unknown) {
-            // For now, upload mip 0 only. Passing hasMips=true with a
-            // single-level memory blob makes bgfx read past the supplied
-            // data on backends that expect a packed full mip chain.
-            const bgfx::Memory * mem = CopySliceToBgfxMemory(desc.mips[0]);
-            if (mem != nullptr) {
-                const uint64_t texFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
-                entry.texture = bgfx::createTexture2D(
-                    desc.width, desc.height,
-                    false,
-                    1, bgfxFmt, texFlags, mem);
+            const uint64_t texFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+            entry.texture = bgfx::createTexture2D(
+                desc.width, desc.height,
+                desc.mip_count > 1,
+                1, bgfxFmt, texFlags, nullptr);
+            if (bgfx::isValid(entry.texture)) {
+                bool uploadedAllLevels = true;
+                for (unsigned mip = 0; mip < desc.mip_count; ++mip) {
+                    const MipSlice & slice = desc.mips[mip];
+                    const bgfx::Memory * mem = CopySliceToBgfxMemory(desc, slice);
+                    if (mem == nullptr) {
+                        uploadedAllLevels = false;
+                        break;
+                    }
+                    bgfx::updateTexture2D(
+                        entry.texture,
+                        0,
+                        static_cast<uint8_t>(mip),
+                        0,
+                        0,
+                        slice.width,
+                        slice.height,
+                        mem);
+                }
+                if (!uploadedAllLevels) {
+                    g_caches.deferredDestroys.push_back(entry.texture);
+                    entry.texture = BGFX_INVALID_HANDLE;
+                }
             }
         }
     }
