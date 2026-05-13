@@ -10,7 +10,6 @@
 
 #pragma once
 
-#include "d3d8.h"
 #include "FixedFunctionState.h"
 
 class RenderStateCache
@@ -34,6 +33,6 @@ public:
 	static unsigned Get_Texture_Stage_State(unsigned stage, unsigned state);
 	static bool Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value);
 
-	static void Get_Transform(unsigned transform, D3DMATRIX & matrix);
-	static bool Set_Transform(unsigned transform, const D3DMATRIX & matrix);
+	static void Get_Transform(unsigned transform, LegacyTransformMatrix & matrix);
+	static bool Set_Transform(unsigned transform, const LegacyTransformMatrix & matrix);
 };
