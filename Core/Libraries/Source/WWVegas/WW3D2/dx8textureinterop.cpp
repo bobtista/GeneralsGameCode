@@ -90,7 +90,7 @@ void DX8TextureInterop::Poke_Legacy_Texture(TextureBaseClass &texture, IDirect3D
 
 IDirect3DSurface8 *DX8TextureInterop::Peek_Legacy_Surface(const SurfaceClass &surface)
 {
-	return surface.D3DSurface;
+	return static_cast<IDirect3DSurface8 *>(surface.D3DSurface);
 }
 
 SurfaceClass *DX8TextureInterop::Create_Legacy_Surface_Wrapper(IDirect3DSurface8 *surface)
