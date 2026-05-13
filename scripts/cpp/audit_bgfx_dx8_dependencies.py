@@ -59,6 +59,69 @@ CATEGORIES = [
 ]
 
 
+def eval_bgfx_standalone_condition(line: str) -> bool | None:
+    stripped = line.strip()
+    match = re.match(r"#\s*(ifn?def)\s+GGC_BGFX_STANDALONE\b", stripped)
+    if match:
+        return match.group(1) == "ifndef"
+
+    match = re.match(r"#\s*if\s+(!)?\s*defined\s*\(?\s*GGC_BGFX_STANDALONE\s*\)?", stripped)
+    if match:
+        return not bool(match.group(1))
+
+    return None
+
+
+def active_lines_for_bgfx_standalone(lines: list[str]):
+    active_stack: list[dict[str, bool]] = []
+    current_active = True
+
+    for line in lines:
+        stripped = line.strip()
+        if re.match(r"#\s*(?:if|ifdef|ifndef)\b", stripped):
+            parent_active = current_active
+            condition = eval_bgfx_standalone_condition(line)
+            branch_active = parent_active if condition is None else parent_active and condition
+            active_stack.append({
+                "parent_active": parent_active,
+                "branch_active": branch_active,
+                "branch_taken": branch_active,
+            })
+            current_active = branch_active
+            yield current_active, line
+            continue
+
+        if re.match(r"#\s*else\b", stripped) and active_stack:
+            frame = active_stack[-1]
+            branch_active = frame["parent_active"] and not frame["branch_taken"]
+            frame["branch_active"] = branch_active
+            frame["branch_taken"] = frame["branch_taken"] or branch_active
+            current_active = branch_active
+            yield current_active, line
+            continue
+
+        if re.match(r"#\s*elif\b", stripped) and active_stack:
+            frame = active_stack[-1]
+            condition = eval_bgfx_standalone_condition(line)
+            if condition is None:
+                branch_active = frame["parent_active"] and not frame["branch_taken"]
+            else:
+                branch_active = frame["parent_active"] and not frame["branch_taken"] and condition
+            frame["branch_active"] = branch_active
+            frame["branch_taken"] = frame["branch_taken"] or branch_active
+            current_active = branch_active
+            yield current_active, line
+            continue
+
+        if re.match(r"#\s*endif\b", stripped) and active_stack:
+            active_stack.pop()
+            current_active = active_stack[-1]["branch_active"] if active_stack else True
+            yield current_active, line
+            continue
+
+        yield current_active, line
+
+
 def iter_source_files():
     suffixes = {".cpp", ".h", ".hpp", ".inl"}
     for search_root in SEARCH_ROOTS:
@@ -84,7 +147,9 @@ def main() -> int:
             lines = path.read_text(errors="ignore").splitlines()
         except OSError:
             continue
-        for lineno, line in enumerate(lines, 1):
+        for lineno, (active, line) in enumerate(active_lines_for_bgfx_standalone(lines), 1):
+            if not active:
+                continue
             for name, pattern in CATEGORIES:
                 if pattern.search(line):
                     hits_by_category[name][path].append((lineno, line.strip()))
