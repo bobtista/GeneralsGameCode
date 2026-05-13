@@ -1039,7 +1039,7 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 
 	LegacyTextureSurface *d3d_surface = nullptr;
 	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(level, &d3d_surface));
-	SurfaceClass *surface = new SurfaceClass(d3d_surface);
+	SurfaceClass *surface = Create_Legacy_Surface_Wrapper(d3d_surface);
 	d3d_surface->Release();
 
 	return surface;

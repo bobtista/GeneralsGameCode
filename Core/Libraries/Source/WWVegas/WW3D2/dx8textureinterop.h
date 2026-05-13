@@ -41,6 +41,7 @@ public:
 	static void Poke_Legacy_Texture(TextureBaseClass &texture, IDirect3DBaseTexture8 *native_texture);
 
 	static IDirect3DSurface8 *Peek_Legacy_Surface(const SurfaceClass &surface);
+	static SurfaceClass *Create_Legacy_Surface_Wrapper(IDirect3DSurface8 *surface);
 };
 
 inline IDirect3DBaseTexture8 *Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
@@ -81,6 +82,11 @@ inline void Poke_Legacy_Texture(TextureBaseClass &texture, IDirect3DBaseTexture8
 inline IDirect3DSurface8 *Peek_Legacy_Surface(const SurfaceClass &surface)
 {
 	return DX8TextureInterop::Peek_Legacy_Surface(surface);
+}
+
+inline SurfaceClass *Create_Legacy_Surface_Wrapper(IDirect3DSurface8 *surface)
+{
+	return DX8TextureInterop::Create_Legacy_Surface_Wrapper(surface);
 }
 
 IDirect3DTexture8 *Get_Legacy_Missing_Texture();
