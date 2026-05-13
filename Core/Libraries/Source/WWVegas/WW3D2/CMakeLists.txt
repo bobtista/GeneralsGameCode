@@ -249,6 +249,13 @@ add_library(corei_ww3d2 INTERFACE)
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
+if(NOT GGC_BGFX_STANDALONE)
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.h
+    )
+endif()
+
 if(GGC_RENDER_BACKEND STREQUAL "dx8")
     target_sources(corei_ww3d2 INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/DX8Backend.cpp
