@@ -51,6 +51,7 @@
 #endif
 
 #include "dx8wrapper.h"
+#include "dx8textureinterop.h"
 #include "dx8webbrowser.h"
 #include "dx8fvf.h"
 #include "dx8vertexbuffer.h"
@@ -3270,7 +3271,7 @@ void DX8Wrapper::_Update_Texture(TextureClass *system, TextureClass *video)
 	WWASSERT(video);
 	WWASSERT(system->Get_Pool()==TextureClass::POOL_SYSTEMMEM);
 	WWASSERT(video->Get_Pool()==TextureClass::POOL_DEFAULT);
-	DX8CALL(UpdateTexture(system->Peek_D3D_Base_Texture(),video->Peek_D3D_Base_Texture()));
+	DX8CALL(UpdateTexture(Peek_Legacy_Base_Texture(*system),Peek_Legacy_Base_Texture(*video)));
 }
 
 void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
@@ -3527,7 +3528,7 @@ DX8Wrapper::Create_Render_Target (int width, int height, WW3DFormat format)
 
 	// 3dfx drivers are lying in the CheckDeviceFormat call and claiming
 	// that they support render targets!
-	if (tex->Peek_D3D_Base_Texture() == nullptr)
+	if (Peek_Legacy_Base_Texture(*tex) == nullptr)
 	{
 		WWDEBUG_SAY(("DX8Wrapper - Render target creation failed!"));
 		REF_PTR_RELEASE(tex);
@@ -3599,7 +3600,7 @@ void DX8Wrapper::Create_Render_Target
 
 	// 3dfx drivers are lying in the CheckDeviceFormat call and claiming
 	// that they support render targets!
-	if (tex->Peek_D3D_Base_Texture() == nullptr)
+	if (Peek_Legacy_Base_Texture(*tex) == nullptr)
 	{
 		WWDEBUG_SAY(("DX8Wrapper - Render target creation failed!"));
 		REF_PTR_RELEASE(tex);

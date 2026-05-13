@@ -34,6 +34,7 @@
 #include <windows.h>
 
 #include "texture.h"
+#include "dx8textureinterop.h"
 #include "surfaceclass.h"
 #include "wwdebug.h"
 
@@ -899,7 +900,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     if (tex2d != nullptr
         && tex->Get_Pool() != TextureBaseClass::POOL_DEFAULT
         && tex->Get_CPU_Texture_Mips().empty()
-        && tex->Peek_D3D_Base_Texture() != nullptr)
+        && Peek_Legacy_Base_Texture(*tex) != nullptr)
     {
         tex->Refresh_CPU_Texture_Snapshot();
     }

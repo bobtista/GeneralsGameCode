@@ -38,6 +38,7 @@
 #include "W3DDevice/GameClient/W3DWaterTracks.h"
 #include "W3DDevice/GameClient/W3DAssetManager.h"
 #include "texture.h"
+#include "dx8textureinterop.h"
 #include "assetmgr.h"
 #include "rinfo.h"
 #include "camera.h"
@@ -565,9 +566,10 @@ HRESULT WaterRenderObjClass::initBumpMap(IDirect3DTexture8 **pTex, TextureClass 
 		return S_OK;
 	}
 
-	if (pBumpSource->Peek_D3D_Texture())
+	IDirect3DTexture8 *bump_texture = Peek_Legacy_Texture2D(*pBumpSource);
+	if (bump_texture)
 	{
-		numLevels=pBumpSource->Peek_D3D_Texture()->GetLevelCount();
+		numLevels=bump_texture->GetLevelCount();
 	}
 	else
 		return S_OK;

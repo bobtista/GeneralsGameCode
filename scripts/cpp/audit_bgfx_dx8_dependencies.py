@@ -29,6 +29,8 @@ SKIP_FILES = {
     "DX8Backend.cpp",
     "DX8Backend.h",
     "dx8formatconv.h",
+    "dx8textureinterop.cpp",
+    "dx8textureinterop.h",
     "StubD3D8Device.cpp",
     "StubD3D8Device.h",
     "D3DXStandaloneStubs.cpp",

@@ -51,6 +51,7 @@
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "W3DDevice/GameClient/TileData.h"
 #include "Common/GlobalData.h"
+#include "WW3D2/dx8textureinterop.h"
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/surfaceclass.h"
@@ -562,7 +563,7 @@ AlphaTerrainTextureClass::AlphaTerrainTextureClass( TextureClass *pBaseTex ):
 		WW3D_FORMAT_A1R5G5B5, MIP_LEVELS_1 )
 {
 	Copy_Atlas_Regions_From(pBaseTex);
-	Share_Texture_With(pBaseTex);
+	Share_Legacy_Texture_With(*this, pBaseTex);
 }
 
 
