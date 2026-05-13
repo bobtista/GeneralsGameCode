@@ -161,7 +161,7 @@ void W3DShroud::init(WorldHeightMap *pMap, Real worldCellSizeX, Real worldCellSi
 #endif
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3C: allocate the
-	// shroud sysmem surface through SurfaceClass instead of raw IDirect3DSurface8.
+	// shroud sysmem surface through SurfaceClass instead of raw surface pointers.
 	// SurfaceClass's (w, h, format) constructor wraps _Create_DX8_Surface so the
 	// underlying allocation is identical and the lock-then-cache-pointer trick
 	// the rest of this file relies on continues to work.
