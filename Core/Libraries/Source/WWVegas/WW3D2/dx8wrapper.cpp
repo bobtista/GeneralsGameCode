@@ -2513,6 +2513,7 @@ void DX8Wrapper::Apply_Render_State_Changes()
 	SNAPSHOT_SAY(("DX8Wrapper::Apply_Render_State_Changes() - finished"));
 }
 
+#if !defined(GGC_BGFX_STANDALONE)
 IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 (
 	unsigned int width,
@@ -3281,6 +3282,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 		true);
 	return surface;
 }
+#endif
 
 
 /***********************************************************************************************
