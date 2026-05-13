@@ -57,7 +57,9 @@ namespace
 	using LegacyAdapterIdentifier = D3DADAPTER_IDENTIFIER8;
 	using LegacyFormat = D3DFORMAT;
 
+#if !defined(GGC_BGFX_STANDALONE)
 	constexpr auto kLegacySoftwareVertexProcessingState = D3DRS_SOFTWAREVERTEXPROCESSING;
+#endif
 	constexpr auto kLegacyHardwareTransformAndLight = D3DDEVCAPS_HWTRANSFORMANDLIGHT, kLegacyNPatches = D3DDEVCAPS_NPATCHES;
 	constexpr auto kLegacyZBias = D3DPRASTERCAPS_ZBIAS, kLegacyFullscreenGamma = D3DCAPS2_FULLSCREENGAMMA;
 	constexpr auto kLegacyModulateAlphaAddColor = D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR, kLegacyDotProduct3 = D3DTEXOPCAPS_DOTPRODUCT3, kLegacyBumpEnv = D3DTEXOPCAPS_BUMPENVMAP, kLegacyBumpEnvLuminance = D3DTEXOPCAPS_BUMPENVMAPLUMINANCE;
@@ -65,10 +67,12 @@ namespace
 	constexpr auto kLegacyTextureResource = D3DRTYPE_TEXTURE;
 	constexpr auto kLegacyRenderTargetUsage = D3DUSAGE_RENDERTARGET, kLegacyDepthStencilUsage = D3DUSAGE_DEPTHSTENCIL;
 
+#if !defined(GGC_BGFX_STANDALONE)
 	void Set_Legacy_Software_Vertex_Processing(LegacyDevice *device, BOOL enabled)
 	{
 		device->SetRenderState(kLegacySoftwareVertexProcessingState, enabled);
 	}
+#endif
 }
 
 static const char* const VendorNames[]={
@@ -536,13 +540,17 @@ void DX8Caps::Shutdown()
 
 void DX8Caps::Init_Caps(LegacyDevice* D3DDevice)
 {
+#if !defined(GGC_BGFX_STANDALONE)
 	Set_Legacy_Software_Vertex_Processing(D3DDevice, TRUE);
+#endif
 	DX8CALL(GetDeviceCaps(&Caps));
 
 	if ((Caps.DevCaps&kLegacyHardwareTransformAndLight)==kLegacyHardwareTransformAndLight) {
 		SupportTnL=true;
 
+#if !defined(GGC_BGFX_STANDALONE)
 		Set_Legacy_Software_Vertex_Processing(D3DDevice, FALSE);
+#endif
 		DX8CALL(GetDeviceCaps(&Caps));
 	} else {
 		SupportTnL=false;
