@@ -93,6 +93,11 @@ static auto GetLegacyBufferPool(DX8VertexBufferClass::UsageType usage)
 	return (usage&DX8VertexBufferClass::USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED;
 }
 
+static auto Legacy_Device()
+{
+	return DX8Wrapper::_Get_D3D_Device8();
+}
+
 // ----------------------------------------------------------------------------
 //
 //
@@ -538,7 +543,7 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 		usage_flags|=kLegacyBufferUsageSoftwareProcessing;
 	}
 
-	HRESULT ret=DX8Wrapper::_Get_D3D_Device8()->CreateVertexBuffer(
+	HRESULT ret=Legacy_Device()->CreateVertexBuffer(
 		FVF_Info().Get_FVF_Size()*VertexCount,
 		usage_flags,
 		FVF_Info().Get_FVF(),
@@ -563,10 +568,10 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 	WW3D::_Invalidate_Mesh_Cache();
 
 	//@todo: Find some way to invalidate the textures too
-	ret = DX8Wrapper::_Get_D3D_Device8()->ResourceManagerDiscardBytes(0);
+	ret = Legacy_Device()->ResourceManagerDiscardBytes(0);
 
 	// Try again...
-	ret=DX8Wrapper::_Get_D3D_Device8()->CreateVertexBuffer(
+	ret=Legacy_Device()->CreateVertexBuffer(
 		FVF_Info().Get_FVF_Size()*VertexCount,
 		usage_flags,
 		FVF_Info().Get_FVF(),

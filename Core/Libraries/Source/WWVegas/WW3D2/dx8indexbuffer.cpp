@@ -85,6 +85,11 @@ static auto GetLegacyBufferPool(DX8IndexBufferClass::UsageType usage)
 	return (usage&DX8IndexBufferClass::USAGE_DYNAMIC) ? D3DPOOL_DEFAULT : D3DPOOL_MANAGED;
 }
 
+static auto Legacy_Device()
+{
+	return DX8Wrapper::_Get_D3D_Device8();
+}
+
 // ----------------------------------------------------------------------------
 //
 //
@@ -375,7 +380,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 		usage_flags|=kLegacyBufferUsageSoftwareProcessing;
 	}
 
-	HRESULT ret=DX8Wrapper::_Get_D3D_Device8()->CreateIndexBuffer(
+	HRESULT ret=Legacy_Device()->CreateIndexBuffer(
 		sizeof(WORD)*index_count,
 		usage_flags,
 		kLegacyIndexFormat,
@@ -401,7 +406,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 	WW3D::_Invalidate_Mesh_Cache();
 
 	// Try again...
-	ret=DX8Wrapper::_Get_D3D_Device8()->CreateIndexBuffer(
+	ret=Legacy_Device()->CreateIndexBuffer(
 		sizeof(WORD)*index_count,
 		usage_flags,
 		kLegacyIndexFormat,
