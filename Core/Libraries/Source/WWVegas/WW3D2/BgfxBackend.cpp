@@ -1713,14 +1713,30 @@ void W3DMatrix3DToBgfx(const Matrix3D & m, float * out)
     out[3]  = 0.0f;    out[7]  = 0.0f;    out[11] = 0.0f;    out[15] = 1.0f;
 }
 
+auto MakeLegacyCacheMatrix(const Matrix4x4 & m)
+{
+    return To_D3DMATRIX(m);
+}
+
+auto MakeLegacyCacheMatrix(const Matrix3D & m)
+{
+    return To_D3DMATRIX(m);
+}
+
+auto MakeIdentityLegacyCacheMatrix()
+{
+    Matrix4x4 identity(true);
+    return MakeLegacyCacheMatrix(identity);
+}
+
 void CacheTransform(TransformKind transform, const Matrix4x4 & m)
 {
-    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), To_D3DMATRIX(m));
+    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
 }
 
 void CacheTransform(TransformKind transform, const Matrix3D & m)
 {
-    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), To_D3DMATRIX(m));
+    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
 }
 
 void CacheIdentityTransform(TransformKind transform)
@@ -1731,7 +1747,7 @@ void CacheIdentityTransform(TransformKind transform)
 
 bool IsCachedTransformIdentity(TransformKind transform)
 {
-    D3DMATRIX matrix;
+    auto matrix = MakeIdentityLegacyCacheMatrix();
     RenderStateCache::Get_Transform(static_cast<unsigned>(transform), matrix);
     for (int row = 0; row < 4; ++row)
     {
@@ -4925,7 +4941,7 @@ static void SetIdentityTextureTransform(float * row0, float * row1)
 
 static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 {
-    D3DMATRIX texMtx;
+    auto texMtx = MakeIdentityLegacyCacheMatrix();
     RenderStateCache::Get_Transform(D3DTS_TEXTURE0 + stage, texMtx);
     row0[0] = texMtx.m[0][0];
     row0[1] = texMtx.m[1][0];
@@ -4938,12 +4954,12 @@ static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 }
 
 // TheSuperHackers @feature bobtista 30/04/2026 Read column 2 of the texture
-// matrix for D3DTTFF_PROJECTED|D3DTTFF_COUNT3 stages — TexProjectClass uses
+// matrix for projected 3-component stages - TexProjectClass uses
 // this column (= ViewToPixel row 3 in MatrixMapperClass::Apply) as the
 // projected W. The shader divides UV.xy by this value at vertex time.
 static void ReadTextureTransformZ(unsigned stage, float * rowZ)
 {
-    D3DMATRIX texMtx;
+    auto texMtx = MakeIdentityLegacyCacheMatrix();
     RenderStateCache::Get_Transform(D3DTS_TEXTURE0 + stage, texMtx);
     rowZ[0] = texMtx.m[0][2];
     rowZ[1] = texMtx.m[1][2];
@@ -5935,16 +5951,8 @@ void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
 
 void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
 {
-    D3DMATRIX d3dMtx;
-    for (int r = 0; r < 4; ++r)
-    {
-        for (int c = 0; c < 4; ++c)
-        {
-            d3dMtx.m[r][c] = matrix[r][c];
-        }
-    }
-
-    RenderStateCache::Set_Transform(D3DTS_TEXTURE0 + stage, d3dMtx);
+    auto cacheMatrix = MakeLegacyCacheMatrix(matrix);
+    RenderStateCache::Set_Transform(D3DTS_TEXTURE0 + stage, cacheMatrix);
 
     if (stage == 0)
     {
@@ -6393,7 +6401,7 @@ void BgfxBackend::Override_Material_Opacity(float opacity)
 {
     // TheSuperHackers @fix bobtista 20/04/2026 Only override opacity.
     // Previously this also forced DESTALPHA blend as a bgfx-side stand-in
-    // for the D3D8 shoreline-alpha water feather. That stale DESTALPHA +
+    // for the legacy shoreline-alpha water feather. That stale DESTALPHA +
     // matDiffuse.a=0.5 state leaked into the next draw (a small quad on
     // the command-center bib, captured in RenderDoc as a water-textured
     // draw producing pure black). The water code already sets DESTALPHA
@@ -7184,7 +7192,7 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
 
 void BgfxBackend::Get_Transform(TransformKind transform, Matrix4x4 & m) const
 {
-    D3DMATRIX matrix;
+    auto matrix = MakeIdentityLegacyCacheMatrix();
     RenderStateCache::Get_Transform(static_cast<unsigned>(transform), matrix);
     m = To_Matrix4x4(matrix);
 }
@@ -7671,15 +7679,15 @@ void SubmitEngineDraw(unsigned short start_index,
                 }
                 else
                 {
-                    // Legacy fallback for call sites that only expose the D3D
+                    // Legacy fallback for call sites that only expose the cached
                     // texture matrix. Dedicated shroud setup paths provide
                     // direct world-space params; decomposing camera-space
                     // matrices is fragile across compatibility layers.
-                    D3DMATRIX texMtx;
+                    auto texMtx = MakeIdentityLegacyCacheMatrix();
                     RenderStateCache::Get_Transform(D3DTS_TEXTURE0 + stg, texMtx);
-                    D3DMATRIX viewMtx;
+                    auto viewMtx = MakeIdentityLegacyCacheMatrix();
                     RenderStateCache::Get_Transform(D3DTS_VIEW, viewMtx);
-                    D3DMATRIX ts;
+                    auto ts = MakeIdentityLegacyCacheMatrix();
                     for (int rr = 0; rr < 4; rr++)
                     {
                         for (int cc = 0; cc < 4; cc++)
@@ -8365,7 +8373,7 @@ RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
     if (tex == nullptr) {
         return kInvalidRenderResource;
     }
-    // Ensure the bgfx-side texture exists (peek+lock+upload from the D3D8
+    // Ensure the bgfx-side texture exists (peek+lock+upload from the legacy
     // mirror that the legacy loader already created). The returned handle
     // is owned by g_caches.texture (keyed on TextureBaseClass*), NOT by
     // this phase5 entry — Release_Cached_Texture in the dtor queues it
