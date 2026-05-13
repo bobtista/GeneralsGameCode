@@ -1089,11 +1089,11 @@ void TextureClass::Set_LOD(unsigned int lod) const
 //! Get legacy surface from mip level
 /*!
 */
-LegacyTextureSurface *TextureClass::Get_D3D_Surface_Level(unsigned int level)
+void *TextureClass::Get_Legacy_Surface_Level(unsigned int level)
 {
 	if (!Peek_Legacy_Texture2D(*this))
 	{
-		WWASSERT_PRINT(0, "Get_D3D_Surface_Level: D3DTexture is null!");
+		WWASSERT_PRINT(0, "Get_Legacy_Surface_Level: native texture is null!");
 		return nullptr;
 	}
 
@@ -1368,11 +1368,11 @@ void ZTextureClass::Apply_New_Surface
 //! Get legacy surface from mip level
 /*!
 */
-LegacyTextureSurface * ZTextureClass::Get_D3D_Surface_Level(unsigned int level)
+void *ZTextureClass::Get_Legacy_Surface_Level(unsigned int level)
 {
 	if (!Peek_Legacy_Texture2D(*this))
 	{
-		WWASSERT_PRINT(0, "Get_D3D_Surface_Level: D3DTexture is null!");
+		WWASSERT_PRINT(0, "Get_Legacy_Surface_Level: native texture is null!");
 		return nullptr;
 	}
 
