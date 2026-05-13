@@ -25,19 +25,12 @@ SEARCH_ROOTS = [
     ROOT / "GeneralsMD" / "Code" / "Libraries" / "Source" / "WWVegas" / "WW3D2",
 ]
 
-# Explicit legacy islands. The audit tracks DX8-shaped coupling that leaks into
-# bgfx-facing code; these files are the compatibility boundary itself.
 SKIP_FILES = {
     "DX8Backend.cpp",
     "DX8Backend.h",
-    "dx8caps.cpp",
-    "dx8deviceinterop.h",
     "dx8formatconv.h",
     "dx8textureinterop.cpp",
     "dx8textureinterop.h",
-    "dx8texturelegacytypes.h",
-    "dx8wrapper.cpp",
-    "fixedfunctionlegacytypes.h",
     "StubD3D8Device.cpp",
     "StubD3D8Device.h",
     "D3DXStandaloneStubs.cpp",
@@ -67,34 +60,6 @@ CATEGORIES = [
     (
         "bgfx_peek_dx8_state",
         re.compile(r"DX8Wrapper::Peek_Render_State\s*\("),
-    ),
-]
-
-BGFX_BACKEND_CATEGORIES = [
-    (
-        "bgfx_legacy_cache_read",
-        re.compile(r"RenderStateCache::Get_(?:Render_State|Texture_Stage_State|Transform)\s*\("),
-    ),
-    (
-        "bgfx_semantic_state_raw_write",
-        re.compile(
-            r"RenderStateCache::Set_Render_State\s*\(\s*RS::(?:"
-            r"CULLMODE|LIGHTING|FOGCOLOR|COLORWRITEENABLE|AMBIENT|"
-            r"AMBIENTMATERIALSOURCE|DIFFUSEMATERIALSOURCE|EMISSIVEMATERIALSOURCE|"
-            r"SRCBLEND|DESTBLEND|BLENDOP|ALPHABLENDENABLE|ALPHATESTENABLE|ALPHAREF|ALPHAFUNC|"
-            r"ZBIAS|FILLMODE|SHADEMODE|ZENABLE|ZWRITEENABLE|ZFUNC|FOGENABLE|"
-            r"SPECULARENABLE|PATCHSEGMENTS|NORMALIZENORMALS|TEXTUREFACTOR|"
-            r"POINTSPRITEENABLE|POINTSCALEENABLE|POINTSIZE|POINTSIZEMIN|POINTSIZEMAX|"
-            r"POINTSCALE_A|POINTSCALE_B|POINTSCALE_C|STENCILENABLE|STENCILFUNC|"
-            r"STENCILREF|STENCILMASK|STENCILWRITEMASK|STENCILPASS|STENCILFAIL|STENCILZFAIL"
-            r")\b"
-            r"|RenderStateCache::Set_Texture_Stage_State\s*\("
-            r"|RenderStateCache::Set_Transform\s*\("
-        ),
-    ),
-    (
-        "bgfx_d3d_named_helper",
-        re.compile(r"\b(?:D3DMatrixIdentity|TextureAddressModeToD3DStageState|TextureSampleFilterToD3DStageState)\b"),
     ),
 ]
 
@@ -278,7 +243,6 @@ def rel(path: Path) -> str:
 
 def main() -> int:
     hits_by_category = {name: defaultdict(list) for name, _ in CATEGORIES}
-    bgfx_backend_hits_by_category = {name: defaultdict(list) for name, _ in BGFX_BACKEND_CATEGORIES}
     compiled_sources = load_compiled_source_files()
 
     for path in iter_source_files(compiled_sources):
@@ -292,13 +256,9 @@ def main() -> int:
             for name, pattern in CATEGORIES:
                 if pattern.search(line):
                     hits_by_category[name][path].append((lineno, line.strip()))
-            if path.name.startswith("BgfxBackend"):
-                for name, pattern in BGFX_BACKEND_CATEGORIES:
-                    if pattern.search(line):
-                        bgfx_backend_hits_by_category[name][path].append((lineno, line.strip()))
 
     total = 0
-    for name, by_file in {**hits_by_category, **bgfx_backend_hits_by_category}.items():
+    for name, by_file in hits_by_category.items():
         hit_count = sum(len(v) for v in by_file.values())
         total += hit_count
         print(f"\n{name}: {hit_count} hits in {len(by_file)} files")

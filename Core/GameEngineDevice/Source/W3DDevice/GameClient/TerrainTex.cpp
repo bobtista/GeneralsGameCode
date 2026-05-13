@@ -51,8 +51,10 @@
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "W3DDevice/GameClient/TileData.h"
 #include "Common/GlobalData.h"
-#include "WW3D2/ww3d.h"
+#include "WW3D2/dx8textureinterop.h"
+#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/surfaceclass.h"
 
 /******************************************************************************
 						TerrainTextureClass
@@ -168,14 +170,27 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsig
 		return;
 	}
 
-	MutableTextureMipView mip = Begin_Mip_Write(level);
-	if (!mip.Is_Valid() || mip.Format != WW3D_FORMAT_A1R5G5B5)
+	SurfaceClass *surface_level = Get_Surface_Level(level);
+	if (surface_level == nullptr)
 	{
 		return;
 	}
 
-	const Int surface_pitch = static_cast<Int>(mip.Pitch);
-	UnsignedByte *surface_bits = mip.Data;
+	SurfaceClass::SurfaceDescription surface_desc;
+	surface_level->Get_Description(surface_desc);
+	if (surface_desc.Format != WW3D_FORMAT_A1R5G5B5)
+	{
+		REF_PTR_RELEASE(surface_level);
+		return;
+	}
+
+	Int surface_pitch = 0;
+	UnsignedByte *surface_bits = static_cast<UnsignedByte *>(surface_level->Lock(&surface_pitch));
+	if (surface_bits == nullptr)
+	{
+		REF_PTR_RELEASE(surface_level);
+		return;
+	}
 
 	const Int pixelBytes = 2;
 	for (Int tileNdx = 0; tileNdx < htMap->m_numBitmapTiles; tileNdx++)
@@ -202,7 +217,7 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsig
 		for (Int j = 0; j < tilePixelExtent; j++)
 		{
 			const Int row = mipRow + j;
-			if (row < 0 || row >= static_cast<Int>(mip.Height))
+			if (row < 0 || row >= static_cast<Int>(surface_desc.Height))
 			{
 				continue;
 			}
@@ -211,7 +226,7 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsig
 			for (Int i = 0; i < tilePixelExtent; i++)
 			{
 				const Int column = mipColumn + i;
-				if (column >= 0 && column < static_cast<Int>(mip.Width))
+				if (column >= 0 && column < static_cast<Int>(surface_desc.Width))
 				{
 					*((Short*)pBGRX) = 0x8000 + ((pBGR[2]>>3)<<10) + ((pBGR[1]>>3)<<5) + (pBGR[0]>>3);
 				}
@@ -235,8 +250,8 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsig
 		origin.y >>= level;
 		if (origin.x - borderPixels < 0
 			|| origin.y - borderPixels < 0
-			|| origin.x + width + borderPixels > static_cast<Int>(mip.Width)
-			|| origin.y + width + borderPixels > static_cast<Int>(mip.Height))
+			|| origin.x + width + borderPixels > static_cast<Int>(surface_desc.Width)
+			|| origin.y + width + borderPixels > static_cast<Int>(surface_desc.Height))
 		{
 			continue;
 		}
@@ -273,7 +288,8 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsig
 		}
 	}
 
-	End_Mip_Write(level);
+	surface_level->Unlock();
+	REF_PTR_RELEASE(surface_level);
 }
 
 void TerrainTextureClass::WriteTerrainAtlasMipLevels(WorldHeightMap *htMap)
@@ -323,26 +339,36 @@ TerrainTextureClass::TerrainTextureClass(int height, int width) :
 //=============================================================================
 int TerrainTextureClass::update(WorldHeightMap *htMap)
 {
-	MutableTextureMipView mip = Begin_Mip_Write(0);
-	if (!mip.Is_Valid()) {
-		return 0;
-	}
-	if (mip.Width < TEXTURE_WIDTH) {
+	SurfaceClass *surface_level = Get_Surface_Level(0);
+	if (surface_level == nullptr)
+	{
 		return 0;
 	}
 
-	const Int surface_pitch = static_cast<Int>(mip.Pitch);
-	UnsignedByte *surface_bits = mip.Data;
+	SurfaceClass::SurfaceDescription surface_desc;
+	surface_level->Get_Description(surface_desc);
+	if (surface_desc.Width < TEXTURE_WIDTH) {
+		REF_PTR_RELEASE(surface_level);
+		return 0;
+	}
+
+	Int surface_pitch = 0;
+	UnsignedByte *surface_bits = static_cast<UnsignedByte *>(surface_level->Lock(&surface_pitch));
+	if (surface_bits == nullptr)
+	{
+		REF_PTR_RELEASE(surface_level);
+		return 0;
+	}
 
 	Int tilePixelExtent = TILE_PIXEL_EXTENT;
-	Int tilesPerRow = mip.Width/(2*TILE_PIXEL_EXTENT+TILE_OFFSET);
+	Int tilesPerRow = surface_desc.Width/(2*TILE_PIXEL_EXTENT+TILE_OFFSET);
 	tilesPerRow *= 2;
 //	Int numRows = surface_desc.Height/(tilePixelExtent+TILE_OFFSET);
 #ifdef RTS_DEBUG
 	//DEBUG_ASSERTCRASH(tilesPerRow*numRows >= htMap->m_numBitmapTiles, ("Too many tiles."));
-	DEBUG_ASSERTCRASH((Int)mip.Width >= tilePixelExtent*tilesPerRow, ("Bitmap too small."));
+	DEBUG_ASSERTCRASH((Int)surface_desc.Width >= tilePixelExtent*tilesPerRow, ("Bitmap too small."));
 #endif
-	if (mip.Format == WW3D_FORMAT_A1R5G5B5) {
+	if (surface_desc.Format == WW3D_FORMAT_A1R5G5B5) {
 #if 0
 		UnsignedInt cellX, cellY;
 		for (cellX = 0; cellX < surface_desc.Width; cellX++) {
@@ -414,15 +440,16 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 		}
 
 	}
-	End_Mip_Write(0);
+	surface_level->Unlock();
+	REF_PTR_RELEASE(surface_level);
 	Generate_Mip_Levels();
-	UpdateTerrainAtlasRegions(htMap, mip.Width, mip.Height, mip.Format);
+	UpdateTerrainAtlasRegions(htMap, surface_desc.Width, surface_desc.Height, surface_desc.Format);
 	WriteTerrainAtlasMipLevels(htMap);
 	InvalidateGeneratedTerrainTexture(this);
 	if (WW3D::Get_Texture_Reduction()) {
 		Set_LOD(WW3D::Get_Texture_Reduction());
 	}
-	return(mip.Height);
+	return(surface_desc.Height);
 }
 
 //=============================================================================
@@ -443,22 +470,31 @@ void TerrainTextureClass::setLOD(Int LOD)
 //=============================================================================
 Bool TerrainTextureClass::updateFlat(WorldHeightMap *htMap, Int xCell, Int yCell, Int cellWidth, Int pixelsPerCell)
 {
-	MutableTextureMipView mip = Begin_Mip_Write(0);
-	if (!mip.Is_Valid())
+	SurfaceClass *surface_level = Get_Surface_Level(0);
+	if (surface_level == nullptr)
 	{
 		return false;
 	}
 
-	DEBUG_ASSERTCRASH((Int)mip.Width == cellWidth*pixelsPerCell, ("Bitmap too small."));
-	DEBUG_ASSERTCRASH((Int)mip.Height == cellWidth*pixelsPerCell, ("Bitmap too small."));
-	if (mip.Width != cellWidth*pixelsPerCell) {
+	SurfaceClass::SurfaceDescription surface_desc;
+	surface_level->Get_Description(surface_desc);
+	DEBUG_ASSERTCRASH((Int)surface_desc.Width == cellWidth*pixelsPerCell, ("Bitmap too small."));
+	DEBUG_ASSERTCRASH((Int)surface_desc.Height == cellWidth*pixelsPerCell, ("Bitmap too small."));
+	if (surface_desc.Width != cellWidth*pixelsPerCell) {
+		REF_PTR_RELEASE(surface_level);
 		return false;
 	}
 
-	const Int surface_pitch = static_cast<Int>(mip.Pitch);
-	UnsignedByte *surface_bits = mip.Data;
+	Int surface_pitch = 0;
+	UnsignedByte *surface_bits = static_cast<UnsignedByte *>(surface_level->Lock(&surface_pitch));
+	if (surface_bits == nullptr)
+	{
+		REF_PTR_RELEASE(surface_level);
+		return false;
+	}
 
-	if (mip.Format == WW3D_FORMAT_A1R5G5B5) {
+
+	if (surface_desc.Format == WW3D_FORMAT_A1R5G5B5) {
 
 		Int pixelBytes = 2;
 		Int cellX, cellY;
@@ -489,10 +525,10 @@ Bool TerrainTextureClass::updateFlat(WorldHeightMap *htMap, Int xCell, Int yCell
 		}
 	}
 
-	End_Mip_Write(0);
+	surface_level->Unlock();
+	REF_PTR_RELEASE(surface_level);
 	Generate_Mip_Levels();
-	InvalidateGeneratedTerrainTexture(this);
-	return(mip.Height);
+	return(surface_desc.Height);
 }
 
 //=============================================================================
@@ -527,7 +563,7 @@ AlphaTerrainTextureClass::AlphaTerrainTextureClass( TextureClass *pBaseTex ):
 		WW3D_FORMAT_A1R5G5B5, MIP_LEVELS_1 )
 {
 	Copy_Atlas_Regions_From(pBaseTex);
-	Share_Texture_Storage_With(pBaseTex);
+	Share_Legacy_Texture_With(*this, pBaseTex);
 }
 
 
@@ -732,25 +768,34 @@ int AlphaEdgeTextureClass::update256(WorldHeightMap *htMap)
 
 int AlphaEdgeTextureClass::update(WorldHeightMap *htMap)
 {
-	MutableTextureMipView mip = Begin_Mip_Write(0);
-	if (!mip.Is_Valid())
+	SurfaceClass *surface_level = Get_Surface_Level(0);
+	if (surface_level == nullptr)
 	{
 		return 0;
 	}
 
-	const Int surface_pitch = static_cast<Int>(mip.Pitch);
-	UnsignedByte *surface_bits = mip.Data;
+	SurfaceClass::SurfaceDescription surface_desc;
+	surface_level->Get_Description(surface_desc);
+
+	Int surface_pitch = 0;
+	UnsignedByte *surface_bits = static_cast<UnsignedByte *>(surface_level->Lock(&surface_pitch));
+	if (surface_bits == nullptr)
+	{
+		REF_PTR_RELEASE(surface_level);
+		return 0;
+	}
+
 	Int tilePixelExtent = TILE_PIXEL_EXTENT; // blend tiles are 1/4 tiles.
 //	Int tilesPerRow = surface_desc.Width / (tilePixelExtent+8);
 
 //	Int numRows = surface_desc.Height/(tilePixelExtent+8);
 
-	if (mip.Format == WW3D_FORMAT_A8R8G8B8) {
+	if (surface_desc.Format == WW3D_FORMAT_A8R8G8B8) {
 #if 1
 #if 1
 		Int cellX, cellY;
-		for (cellX = 0; (UnsignedInt)cellX < mip.Width; cellX++) {
-			for (cellY = 0; cellY < mip.Height; cellY++) {
+		for (cellX = 0; (UnsignedInt)cellX < surface_desc.Width; cellX++) {
+			for (cellY = 0; cellY < surface_desc.Height; cellY++) {
 				UnsignedByte *pBGR = surface_bits + cellY * surface_pitch + cellX * 4;
 				pBGR[2] = 255-cellY/2;
 				pBGR[0] = cellX/2;
@@ -796,10 +841,10 @@ int AlphaEdgeTextureClass::update(WorldHeightMap *htMap)
 #endif
 #endif
 	}
-	End_Mip_Write(0);
+	surface_level->Unlock();
+	REF_PTR_RELEASE(surface_level);
 	Generate_Mip_Levels();
-	InvalidateGeneratedTerrainTexture(this);
-	return(mip.Height);
+	return(surface_desc.Height);
 }
 
 void AlphaEdgeTextureClass::Apply(unsigned int stage)

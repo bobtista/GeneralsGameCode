@@ -20,6 +20,7 @@
 
 #include "always.h"
 #include "dx8list.h"
+#include "dx8textureinterop.h"
 #include "multilist.h"
 #include "texture.h"
 
@@ -40,9 +41,12 @@ public:
 	{
 	}
 
-	virtual ~TextureTrackerClass() = default;
-	virtual void Release() const = 0;
 	virtual void Recreate() const = 0;
+
+	void Release()
+	{
+		Set_Legacy_Base_Texture(*Texture, nullptr);
+	}
 
 	TextureBaseClass *Get_Texture() const { return Texture; }
 

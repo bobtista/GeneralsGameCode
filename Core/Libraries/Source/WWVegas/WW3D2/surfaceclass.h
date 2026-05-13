@@ -40,8 +40,8 @@
 
 #include "always.h"
 #include "ww3dformat.h"
-#include <vector>
 
+struct IDirect3DSurface8;
 class SurfaceClass;
 class Vector2i;
 class Vector3;
@@ -67,19 +67,14 @@ class SurfaceClass : public RefCountClass
 			unsigned int	Height;	// Surface height in pixels
 		};
 
-		struct SurfaceImageData {
-			WW3DFormat Format;
-			unsigned int Width;
-			unsigned int Height;
-			unsigned int Pitch;
-			std::vector<unsigned char> Data;
-		};
-
 		// Create surface with desired height, width and format.
 		SurfaceClass(unsigned width, unsigned height, WW3DFormat format);
 
 		// Create surface from a file.
 		SurfaceClass(const char *filename);
+
+		// Create the surface from a legacy surface pointer
+		SurfaceClass(IDirect3DSurface8 *d3d_surface);
 
 		virtual ~SurfaceClass() override;
 
@@ -126,7 +121,8 @@ class SurfaceClass : public RefCountClass
 		// makes a copy of the surface into a byte array
 		unsigned char *CreateCopy(int *width,int *height,int*size,bool flip=false);
 
-		// Detaching a surface pointer
+		// Attaching and detaching a surface pointer
+		void	Attach (IDirect3DSurface8 *surface);
 		void	Detach ();
 
 		// draws a horizontal line
@@ -147,22 +143,11 @@ class SurfaceClass : public RefCountClass
 		WW3DFormat Get_Surface_Format() const { return SurfaceFormat; }
 
 	private:
-		SurfaceClass(const SurfaceImageData &image);
-		SurfaceClass(void *legacy_surface);
-		void	Attach_Legacy_Surface(void *surface);
-		void	Update_Description_From_Legacy_Surface();
-		void	Allocate_CPU_Surface_Snapshot();
-		void	Capture_CPU_Surface_Snapshot();
-		void	Refresh_CPU_Surface_Snapshot_If_Present();
-		bool	Has_CPU_Surface_Snapshot() const { return !ImageData.Data.empty(); }
 
 		// Legacy surface object
-		void *D3DSurface;
+		IDirect3DSurface8 *D3DSurface;
 
 		WW3DFormat SurfaceFormat;
-		SurfaceDescription Description;
-		SurfaceImageData ImageData;
-		bool RefreshCPUAfterUnlock;
 		friend class TextureClass;
 		friend class DX8TextureInterop;
 };
