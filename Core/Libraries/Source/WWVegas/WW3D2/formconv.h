@@ -43,7 +43,7 @@
 #include <d3d8.h>
 
 /*
-** This file is used for conversions between D3DFORMAT and WW3DFormat.
+** This file is used for conversions between legacy texture formats and WW3DFormat.
 */
 
 D3DFORMAT WW3DFormat_To_D3DFormat(WW3DFormat ww3d_format);
