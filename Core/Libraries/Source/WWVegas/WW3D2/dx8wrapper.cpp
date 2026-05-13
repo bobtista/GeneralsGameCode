@@ -3306,7 +3306,7 @@ void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 	delete CurrentCaps;
-	CurrentCaps=new DX8Caps(_Get_D3D8(),D3DDevice,display_format,Get_Current_Adapter_Identifier());
+	CurrentCaps=new DX8Caps(D3DInterface,D3DDevice,display_format,Get_Current_Adapter_Identifier());
 }
 
 
