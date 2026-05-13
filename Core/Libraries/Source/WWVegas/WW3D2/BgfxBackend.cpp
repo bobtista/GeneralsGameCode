@@ -174,6 +174,21 @@ static const float kTssArgDiffuse =  1.0f;
 static const float kTssArgCurrent =  2.0f;
 static const unsigned kTextureArgumentSelectMask = 0x0000000f;
 
+constexpr unsigned kStageStateAddressU = D3DTSS_ADDRESSU, kStageStateAddressV = D3DTSS_ADDRESSV, kStageStateAddressW = D3DTSS_ADDRESSW;
+constexpr unsigned kStageStateMinFilter = D3DTSS_MINFILTER, kStageStateMagFilter = D3DTSS_MAGFILTER, kStageStateMipFilter = D3DTSS_MIPFILTER;
+constexpr unsigned kStageStateTexcoordIndex = D3DTSS_TEXCOORDINDEX, kStageStateTextureTransformFlags = D3DTSS_TEXTURETRANSFORMFLAGS, kStageStateMaxAnisotropy = D3DTSS_MAXANISOTROPY;
+constexpr unsigned kStageStateColorOp = D3DTSS_COLOROP, kStageStateAlphaOp = D3DTSS_ALPHAOP, kStageStateColorArg0 = D3DTSS_COLORARG0, kStageStateColorArg1 = D3DTSS_COLORARG1, kStageStateColorArg2 = D3DTSS_COLORARG2;
+constexpr unsigned kStageStateAlphaArg0 = D3DTSS_ALPHAARG0, kStageStateAlphaArg1 = D3DTSS_ALPHAARG1, kStageStateAlphaArg2 = D3DTSS_ALPHAARG2;
+constexpr unsigned kStageStateBumpEnvMat00 = D3DTSS_BUMPENVMAT00, kStageStateBumpEnvMat01 = D3DTSS_BUMPENVMAT01, kStageStateBumpEnvMat10 = D3DTSS_BUMPENVMAT10, kStageStateBumpEnvMat11 = D3DTSS_BUMPENVMAT11;
+constexpr unsigned kStageStateBumpEnvLScale = D3DTSS_BUMPENVLSCALE, kStageStateBumpEnvLOffset = D3DTSS_BUMPENVLOFFSET;
+constexpr unsigned kTextureAddressWrap = D3DTADDRESS_WRAP, kTextureAddressClamp = D3DTADDRESS_CLAMP, kTextureAddressBorder = D3DTADDRESS_BORDER;
+constexpr unsigned kTextureSampleNone = D3DTEXF_NONE, kTextureSamplePoint = D3DTEXF_POINT, kTextureSampleLinear = D3DTEXF_LINEAR, kTextureSampleAnisotropic = D3DTEXF_ANISOTROPIC;
+constexpr unsigned kTexcoordGenPassthru = D3DTSS_TCI_PASSTHRU, kTexcoordGenCameraNormal = D3DTSS_TCI_CAMERASPACENORMAL, kTexcoordGenCameraReflection = D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR, kTexcoordGenCameraPosition = D3DTSS_TCI_CAMERASPACEPOSITION;
+constexpr unsigned kTextureTransformDisable = D3DTTFF_DISABLE, kTextureTransformProjected = D3DTTFF_PROJECTED, kTextureTransformCount2 = D3DTTFF_COUNT2, kTextureTransformCount3 = D3DTTFF_COUNT3;
+constexpr unsigned kTextureTransformStage0 = D3DTS_TEXTURE0, kTransformView = D3DTS_VIEW;
+constexpr unsigned kTextureArgCurrent = static_cast<unsigned>(RB_TEXARG_CURRENT), kTextureArgTexture = static_cast<unsigned>(RB_TEXARG_TEXTURE), kTextureArgDiffuse = static_cast<unsigned>(RB_TEXARG_DIFFUSE);
+constexpr unsigned kTextureOpDisable = static_cast<unsigned>(RB_TEXOP_DISABLE), kTextureOpSelectArg1 = static_cast<unsigned>(RB_TEXOP_SELECTARG1), kTextureOpSelectArg2 = static_cast<unsigned>(RB_TEXOP_SELECTARG2);
+
 static float TextureOpToTssOp(unsigned value)
 {
     switch (static_cast<RenderBackendTextureOperation>(value))
@@ -4792,40 +4807,40 @@ static void BindSoftParticleDepth(bool enable)
 static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
 {
     uint32_t flags = 0;
-    const unsigned addressU = RenderStateCache::Get_Texture_Stage_State(stage, D3DTSS_ADDRESSU);
-    const unsigned addressV = RenderStateCache::Get_Texture_Stage_State(stage, D3DTSS_ADDRESSV);
-    const unsigned minFilter = RenderStateCache::Get_Texture_Stage_State(stage, D3DTSS_MINFILTER);
-    const unsigned magFilter = RenderStateCache::Get_Texture_Stage_State(stage, D3DTSS_MAGFILTER);
-    const unsigned mipFilter = RenderStateCache::Get_Texture_Stage_State(stage, D3DTSS_MIPFILTER);
+    const unsigned addressU = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateAddressU);
+    const unsigned addressV = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateAddressV);
+    const unsigned minFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMinFilter);
+    const unsigned magFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMagFilter);
+    const unsigned mipFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMipFilter);
 
-    if (addressU == D3DTADDRESS_CLAMP || addressU == D3DTADDRESS_BORDER)
+    if (addressU == kTextureAddressClamp || addressU == kTextureAddressBorder)
     {
         flags |= BGFX_SAMPLER_U_CLAMP;
     }
-    if (addressV == D3DTADDRESS_CLAMP || addressV == D3DTADDRESS_BORDER)
+    if (addressV == kTextureAddressClamp || addressV == kTextureAddressBorder)
     {
         flags |= BGFX_SAMPLER_V_CLAMP;
     }
 
-    if (minFilter == D3DTEXF_POINT)
+    if (minFilter == kTextureSamplePoint)
     {
         flags |= BGFX_SAMPLER_MIN_POINT;
     }
-    else if (minFilter == D3DTEXF_ANISOTROPIC)
+    else if (minFilter == kTextureSampleAnisotropic)
     {
         flags |= BGFX_SAMPLER_MIN_ANISOTROPIC;
     }
 
-    if (magFilter == D3DTEXF_POINT)
+    if (magFilter == kTextureSamplePoint)
     {
         flags |= BGFX_SAMPLER_MAG_POINT;
     }
-    else if (magFilter == D3DTEXF_ANISOTROPIC)
+    else if (magFilter == kTextureSampleAnisotropic)
     {
         flags |= BGFX_SAMPLER_MAG_ANISOTROPIC;
     }
 
-    if (mipFilter == D3DTEXF_POINT)
+    if (mipFilter == kTextureSamplePoint)
     {
         flags |= BGFX_SAMPLER_MIP_POINT;
     }
@@ -4912,15 +4927,15 @@ static void BindTextureStages()
 
 static float GetTexcoordSource(unsigned texcoordGen)
 {
-    if (texcoordGen == D3DTSS_TCI_CAMERASPACENORMAL)
+    if (texcoordGen == kTexcoordGenCameraNormal)
     {
         return 1.0f;
     }
-    if (texcoordGen == D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR)
+    if (texcoordGen == kTexcoordGenCameraReflection)
     {
         return 2.0f;
     }
-    if (texcoordGen == D3DTSS_TCI_CAMERASPACEPOSITION)
+    if (texcoordGen == kTexcoordGenCameraPosition)
     {
         return 3.0f;
     }
@@ -4942,7 +4957,7 @@ static void SetIdentityTextureTransform(float * row0, float * row1)
 static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 {
     auto texMtx = MakeIdentityLegacyCacheMatrix();
-    RenderStateCache::Get_Transform(D3DTS_TEXTURE0 + stage, texMtx);
+    RenderStateCache::Get_Transform(kTextureTransformStage0 + stage, texMtx);
     row0[0] = texMtx.m[0][0];
     row0[1] = texMtx.m[1][0];
     row0[2] = texMtx.m[2][0];
@@ -4960,7 +4975,7 @@ static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 static void ReadTextureTransformZ(unsigned stage, float * rowZ)
 {
     auto texMtx = MakeIdentityLegacyCacheMatrix();
-    RenderStateCache::Get_Transform(D3DTS_TEXTURE0 + stage, texMtx);
+    RenderStateCache::Get_Transform(kTextureTransformStage0 + stage, texMtx);
     rowZ[0] = texMtx.m[0][2];
     rowZ[1] = texMtx.m[1][2];
     rowZ[2] = texMtx.m[2][2];
@@ -4977,7 +4992,7 @@ static void UpdateTextureTransforms()
     // unused black padding in those atlases; stage 1 matters for detail
     // and environment-mapped sub-materials.
     const unsigned texcoordIndex =
-        RenderStateCache::Get_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX);
+        RenderStateCache::Get_Texture_Stage_State(0, kStageStateTexcoordIndex);
     const unsigned uvIndex = texcoordIndex & 0xFFFF;
     const unsigned texcoordGen = texcoordIndex & 0xFFFF0000;
     // TheSuperHackers @info bobtista 26/04/2026 Only UV sets 0 and 1 are
@@ -4997,11 +5012,11 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSource[0] = GetTexcoordSource(texcoordGen);
 
     const unsigned texFlags =
-        RenderStateCache::Get_Texture_Stage_State(0, D3DTSS_TEXTURETRANSFORMFLAGS);
+        RenderStateCache::Get_Texture_Stage_State(0, kStageStateTextureTransformFlags);
     const unsigned texCount = texFlags & 0xFFu;
-    const bool texProjected0 = (texFlags & D3DTTFF_PROJECTED) != 0
-        && texCount >= D3DTTFF_COUNT3;
-    if (texCount >= D3DTTFF_COUNT2)
+    const bool texProjected0 = (texFlags & kTextureTransformProjected) != 0
+        && texCount >= kTextureTransformCount3;
+    if (texCount >= kTextureTransformCount2)
     {
         g_draw.texcoordSelect[3] = 1.0f;
         ReadTextureTransform(0, g_draw.texTransform0, g_draw.texTransform1);
@@ -5018,7 +5033,7 @@ static void UpdateTextureTransforms()
     g_draw.texProjected[0] = texProjected0 ? 1.0f : 0.0f;
 
     const unsigned texcoordIndex1 =
-        RenderStateCache::Get_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX);
+        RenderStateCache::Get_Texture_Stage_State(1, kStageStateTexcoordIndex);
     const unsigned uvIndex1 = texcoordIndex1 & 0xFFFF;
     const unsigned texcoordGen1 = texcoordIndex1 & 0xFFFF0000;
     if (uvIndex1 > 1)
@@ -5034,11 +5049,11 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSource[1] = GetTexcoordSource(texcoordGen1);
 
     const unsigned texFlags1 =
-        RenderStateCache::Get_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS);
+        RenderStateCache::Get_Texture_Stage_State(1, kStageStateTextureTransformFlags);
     const unsigned texCount1 = texFlags1 & 0xFFu;
-    const bool texProjected1 = (texFlags1 & D3DTTFF_PROJECTED) != 0
-        && texCount1 >= D3DTTFF_COUNT3;
-    if (texCount1 >= D3DTTFF_COUNT2)
+    const bool texProjected1 = (texFlags1 & kTextureTransformProjected) != 0
+        && texCount1 >= kTextureTransformCount3;
+    if (texCount1 >= kTextureTransformCount2)
     {
         g_draw.texcoordSelect2[1] = 1.0f;
         ReadTextureTransform(1, g_draw.tex1Transform0, g_draw.tex1Transform1);
@@ -5055,14 +5070,14 @@ static void UpdateTextureTransforms()
     g_draw.texProjected[1] = texProjected1 ? 1.0f : 0.0f;
 
     const unsigned texcoordIndex2 =
-        RenderStateCache::Get_Texture_Stage_State(2, D3DTSS_TEXCOORDINDEX);
+        RenderStateCache::Get_Texture_Stage_State(2, kStageStateTexcoordIndex);
     const unsigned texcoordGen2 = texcoordIndex2 & 0xFFFF0000;
     g_draw.texcoordSource[2] = GetTexcoordSource(texcoordGen2);
 
     const unsigned texFlags2 =
-        RenderStateCache::Get_Texture_Stage_State(2, D3DTSS_TEXTURETRANSFORMFLAGS);
+        RenderStateCache::Get_Texture_Stage_State(2, kStageStateTextureTransformFlags);
     const unsigned texCount2 = texFlags2 & 0xFFu;
-    if (texCount2 >= D3DTTFF_COUNT2)
+    if (texCount2 >= kTextureTransformCount2)
     {
         ReadTextureTransform(2, g_draw.tex2Transform0, g_draw.tex2Transform1);
     }
@@ -5946,13 +5961,13 @@ void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
     {
         g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
     }
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, uvIndex);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, uvIndex);
 }
 
 void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
 {
     auto cacheMatrix = MakeLegacyCacheMatrix(matrix);
-    RenderStateCache::Set_Transform(D3DTS_TEXTURE0 + stage, cacheMatrix);
+    RenderStateCache::Set_Transform(kTextureTransformStage0 + stage, cacheMatrix);
 
     if (stage == 0)
     {
@@ -5970,8 +5985,8 @@ void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix
 
 void BgfxBackend::Clear_Texture_Transform(unsigned stage)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, stage);
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, stage);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTextureTransformFlags, kTextureTransformDisable);
 
     if (stage < 4)
     {
@@ -6007,20 +6022,20 @@ void BgfxBackend::Set_Texture_Coord_Source(unsigned stage,
     switch (source)
     {
     case RB_TEXCOORD_MESH_UV:
-        tci = D3DTSS_TCI_PASSTHRU | uv_array_index;
+        tci = kTexcoordGenPassthru | uv_array_index;
         break;
     case RB_TEXCOORD_CAMERA_SPACE_NORMAL:
-        tci = D3DTSS_TCI_CAMERASPACENORMAL | uv_array_index;
+        tci = kTexcoordGenCameraNormal | uv_array_index;
         break;
     case RB_TEXCOORD_CAMERA_SPACE_REFLECTION:
-        tci = D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR | uv_array_index;
+        tci = kTexcoordGenCameraReflection | uv_array_index;
         break;
     case RB_TEXCOORD_CAMERA_SPACE_POSITION:
-        tci = D3DTSS_TCI_CAMERASPACEPOSITION | uv_array_index;
+        tci = kTexcoordGenCameraPosition | uv_array_index;
         break;
     }
 
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, tci);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, tci);
     if (stage < 4)
     {
         g_draw.texcoordSource[stage] = static_cast<float>(source);
@@ -6037,10 +6052,10 @@ void BgfxBackend::Set_Texture_Coord_Source(unsigned stage,
 
 void BgfxBackend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_count, bool projected)
 {
-    const unsigned flags = (coord_count == 0 ? D3DTTFF_DISABLE : coord_count)
-        | (projected ? D3DTTFF_PROJECTED : 0);
+    const unsigned flags = (coord_count == 0 ? kTextureTransformDisable : coord_count)
+        | (projected ? kTextureTransformProjected : 0);
 
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_TEXTURETRANSFORMFLAGS, flags);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTextureTransformFlags, flags);
     if (stage < 4)
     {
         g_draw.texProjected[stage] = projected && coord_count >= 3 ? 1.0f : 0.0f;
@@ -6053,38 +6068,38 @@ void BgfxBackend::Set_Texture_Bump_Env_Matrix(unsigned stage,
                                               float m10,
                                               float m11)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT00, FloatAsDword(m00));
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT01, FloatAsDword(m01));
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT10, FloatAsDword(m10));
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVMAT11, FloatAsDword(m11));
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat00, FloatAsDword(m00));
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat01, FloatAsDword(m01));
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat10, FloatAsDword(m10));
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat11, FloatAsDword(m11));
 }
 
 void BgfxBackend::Set_Texture_Bump_Env_Luminance(unsigned stage,
                                                  float scale,
                                                  float offset)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVLSCALE, FloatAsDword(scale));
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_BUMPENVLOFFSET, FloatAsDword(offset));
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvLScale, FloatAsDword(scale));
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvLOffset, FloatAsDword(offset));
 }
 
 void BgfxBackend::Set_Texture_Color_Operation(unsigned stage, RenderBackendTextureOperation op)
 {
-    Set_Texture_Stage_State(stage, D3DTSS_COLOROP, static_cast<unsigned>(op));
+    Set_Texture_Stage_State(stage, kStageStateColorOp, static_cast<unsigned>(op));
 }
 
 void BgfxBackend::Set_Texture_Alpha_Operation(unsigned stage, RenderBackendTextureOperation op)
 {
-    Set_Texture_Stage_State(stage, D3DTSS_ALPHAOP, static_cast<unsigned>(op));
+    Set_Texture_Stage_State(stage, kStageStateAlphaOp, static_cast<unsigned>(op));
 }
 
 void BgfxBackend::Set_Texture_Color_Argument(unsigned stage,
                                              unsigned argument_index,
                                              RenderBackendTextureArgument arg)
 {
-    static const D3DTEXTURESTAGESTATETYPE states[] = {
-        D3DTSS_COLORARG0,
-        D3DTSS_COLORARG1,
-        D3DTSS_COLORARG2,
+    static const unsigned states[] = {
+        kStageStateColorArg0,
+        kStageStateColorArg1,
+        kStageStateColorArg2,
     };
     if (argument_index >= sizeof(states) / sizeof(states[0]))
         return;
@@ -6096,10 +6111,10 @@ void BgfxBackend::Set_Texture_Alpha_Argument(unsigned stage,
                                              unsigned argument_index,
                                              RenderBackendTextureArgument arg)
 {
-    static const D3DTEXTURESTAGESTATETYPE states[] = {
-        D3DTSS_ALPHAARG0,
-        D3DTSS_ALPHAARG1,
-        D3DTSS_ALPHAARG2,
+    static const unsigned states[] = {
+        kStageStateAlphaArg0,
+        kStageStateAlphaArg1,
+        kStageStateAlphaArg2,
     };
     if (argument_index >= sizeof(states) / sizeof(states[0]))
         return;
@@ -6127,12 +6142,12 @@ static unsigned TextureAddressModeToD3DStageState(RenderBackendTextureAddressMod
     switch (mode)
     {
         case RB_TEXTURE_ADDRESS_CLAMP:
-            return D3DTADDRESS_CLAMP;
+            return kTextureAddressClamp;
         case RB_TEXTURE_ADDRESS_BORDER:
-            return D3DTADDRESS_BORDER;
+            return kTextureAddressBorder;
         case RB_TEXTURE_ADDRESS_WRAP:
         default:
-            return D3DTADDRESS_WRAP;
+            return kTextureAddressWrap;
     }
 }
 
@@ -6141,9 +6156,9 @@ void BgfxBackend::Set_Texture_Address_Mode(unsigned stage,
                                            RenderBackendTextureAddressMode v,
                                            RenderBackendTextureAddressMode w)
 {
-    Set_Texture_Stage_State(stage, D3DTSS_ADDRESSU, TextureAddressModeToD3DStageState(u));
-    Set_Texture_Stage_State(stage, D3DTSS_ADDRESSV, TextureAddressModeToD3DStageState(v));
-    Set_Texture_Stage_State(stage, D3DTSS_ADDRESSW, TextureAddressModeToD3DStageState(w));
+    Set_Texture_Stage_State(stage, kStageStateAddressU, TextureAddressModeToD3DStageState(u));
+    Set_Texture_Stage_State(stage, kStageStateAddressV, TextureAddressModeToD3DStageState(v));
+    Set_Texture_Stage_State(stage, kStageStateAddressW, TextureAddressModeToD3DStageState(w));
 }
 
 static unsigned TextureSampleFilterToD3DStageState(RenderBackendTextureSampleFilter filter)
@@ -6151,14 +6166,14 @@ static unsigned TextureSampleFilterToD3DStageState(RenderBackendTextureSampleFil
     switch (filter)
     {
         case RB_TEXTURE_SAMPLE_NONE:
-            return D3DTEXF_NONE;
+            return kTextureSampleNone;
         case RB_TEXTURE_SAMPLE_POINT:
-            return D3DTEXF_POINT;
+            return kTextureSamplePoint;
         case RB_TEXTURE_SAMPLE_ANISOTROPIC:
-            return D3DTEXF_ANISOTROPIC;
+            return kTextureSampleAnisotropic;
         case RB_TEXTURE_SAMPLE_LINEAR:
         default:
-            return D3DTEXF_LINEAR;
+            return kTextureSampleLinear;
     }
 }
 
@@ -6167,35 +6182,35 @@ void BgfxBackend::Set_Texture_Sample_Filter(unsigned stage,
                                             RenderBackendTextureSampleFilter mag_filter,
                                             RenderBackendTextureSampleFilter mip_filter)
 {
-    Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, TextureSampleFilterToD3DStageState(min_filter));
-    Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, TextureSampleFilterToD3DStageState(mag_filter));
-    Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, TextureSampleFilterToD3DStageState(mip_filter));
+    Set_Texture_Stage_State(stage, kStageStateMinFilter, TextureSampleFilterToD3DStageState(min_filter));
+    Set_Texture_Stage_State(stage, kStageStateMagFilter, TextureSampleFilterToD3DStageState(mag_filter));
+    Set_Texture_Stage_State(stage, kStageStateMipFilter, TextureSampleFilterToD3DStageState(mip_filter));
 }
 
 void BgfxBackend::Set_Texture_Min_Mag_Filter(unsigned stage,
                                              RenderBackendTextureSampleFilter min_filter,
                                              RenderBackendTextureSampleFilter mag_filter)
 {
-    Set_Texture_Stage_State(stage, D3DTSS_MINFILTER, TextureSampleFilterToD3DStageState(min_filter));
-    Set_Texture_Stage_State(stage, D3DTSS_MAGFILTER, TextureSampleFilterToD3DStageState(mag_filter));
+    Set_Texture_Stage_State(stage, kStageStateMinFilter, TextureSampleFilterToD3DStageState(min_filter));
+    Set_Texture_Stage_State(stage, kStageStateMagFilter, TextureSampleFilterToD3DStageState(mag_filter));
 }
 
 void BgfxBackend::Set_Texture_Mip_Filter(unsigned stage, RenderBackendTextureSampleFilter mip_filter)
 {
-    Set_Texture_Stage_State(stage, D3DTSS_MIPFILTER, TextureSampleFilterToD3DStageState(mip_filter));
+    Set_Texture_Stage_State(stage, kStageStateMipFilter, TextureSampleFilterToD3DStageState(mip_filter));
 }
 
 void BgfxBackend::Set_Texture_Max_Anisotropy(unsigned stage, unsigned max_anisotropy)
 {
-    Set_Texture_Stage_State(stage, D3DTSS_MAXANISOTROPY, max_anisotropy);
+    Set_Texture_Stage_State(stage, kStageStateMaxAnisotropy, max_anisotropy);
 }
 
 void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_ADDRESSU,
-        clampU ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP);
-    RenderStateCache::Set_Texture_Stage_State(stage, D3DTSS_ADDRESSV,
-        clampV ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateAddressU,
+        clampU ? kTextureAddressClamp : kTextureAddressWrap);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateAddressV,
+        clampV ? kTextureAddressClamp : kTextureAddressWrap);
 
     if (stage < 4)
     {
@@ -6221,64 +6236,64 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
 
     if (stage == 0)
     {
-        if (state == D3DTSS_COLOROP)
+        if (state == kStageStateColorOp)
         {
             g_draw.tssOps0[0] = TextureOpToTssOp(value);
         }
-        else if (state == D3DTSS_ALPHAOP)
+        else if (state == kStageStateAlphaOp)
         {
             g_draw.tssOps0[1] = TextureOpToTssOp(value);
         }
-        else if (state == D3DTSS_COLORARG1)
+        else if (state == kStageStateColorArg1)
         {
             g_draw.tssOps1[0] = TextureArgToTssArg(value);
         }
-        else if (state == D3DTSS_ALPHAARG1)
+        else if (state == kStageStateAlphaArg1)
         {
             g_draw.tssOps1[1] = TextureArgToTssArg(value);
         }
     }
     else if (stage == 1)
     {
-        if (state == D3DTSS_COLOROP)
+        if (state == kStageStateColorOp)
         {
             g_draw.tssOps0[2] = TextureOpToTssOp(value);
         }
-        else if (state == D3DTSS_ALPHAOP)
+        else if (state == kStageStateAlphaOp)
         {
             g_draw.tssOps0[3] = TextureOpToTssOp(value);
         }
-        else if (state == D3DTSS_COLORARG1)
+        else if (state == kStageStateColorArg1)
         {
             g_draw.tssOps1[2] = TextureArgToTssArg(value);
         }
-        else if (state == D3DTSS_ALPHAARG1)
+        else if (state == kStageStateAlphaArg1)
         {
             g_draw.tssOps1[3] = TextureArgToTssArg(value);
         }
     }
 
-    if (state == D3DTSS_ADDRESSU)
+    if (state == kStageStateAddressU)
     {
         g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_U_CLAMP;
-        if (value == D3DTADDRESS_CLAMP)
+        if (value == kTextureAddressClamp)
         {
             g_draw.samplerFlags[stage] |= BGFX_SAMPLER_U_CLAMP;
         }
     }
-    else if (state == D3DTSS_ADDRESSV)
+    else if (state == kStageStateAddressV)
     {
         g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_V_CLAMP;
-        if (value == D3DTADDRESS_CLAMP)
+        if (value == kTextureAddressClamp)
         {
             g_draw.samplerFlags[stage] |= BGFX_SAMPLER_V_CLAMP;
         }
     }
-    else if (stage == 3 && state == D3DTSS_TEXCOORDINDEX)
+    else if (stage == 3 && state == kStageStateTexcoordIndex)
     {
         const unsigned uvIndex = value & 0xFFFFu;
         const unsigned texcoordGen = value & 0xFFFF0000u;
-        if (texcoordGen == D3DTSS_TCI_CAMERASPACEPOSITION)
+        if (texcoordGen == kTexcoordGenCameraPosition)
         {
             g_draw.texcoordSource[3] = 3.0f;
         }
@@ -6291,29 +6306,29 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
 
 void BgfxBackend::Configure_Custom_Edging_Cloud_Texture_Stages()
 {
-    Set_Texture_Stage_State(0, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
-    Set_Texture_Stage_State(0, D3DTSS_ALPHAOP, D3DTOP_SELECTARG1);
+    Set_Texture_Stage_State(0, kStageStateAlphaArg1, kTextureArgCurrent);
+    Set_Texture_Stage_State(0, kStageStateAlphaOp, kTextureOpSelectArg1);
 
-    Set_Texture_Stage_State(1, D3DTSS_COLORARG1, D3DTA_CURRENT);
-    Set_Texture_Stage_State(1, D3DTSS_COLORARG2, D3DTA_TEXTURE);
-    Set_Texture_Stage_State(1, D3DTSS_COLOROP, D3DTOP_SELECTARG1);
-    Set_Texture_Stage_State(1, D3DTSS_ALPHAARG1, D3DTA_CURRENT);
-    Set_Texture_Stage_State(1, D3DTSS_ALPHAARG2, D3DTA_TEXTURE);
-    Set_Texture_Stage_State(1, D3DTSS_ALPHAOP, D3DTOP_SELECTARG2);
-    Set_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX, 1);
+    Set_Texture_Stage_State(1, kStageStateColorArg1, kTextureArgCurrent);
+    Set_Texture_Stage_State(1, kStageStateColorArg2, kTextureArgTexture);
+    Set_Texture_Stage_State(1, kStageStateColorOp, kTextureOpSelectArg1);
+    Set_Texture_Stage_State(1, kStageStateAlphaArg1, kTextureArgCurrent);
+    Set_Texture_Stage_State(1, kStageStateAlphaArg2, kTextureArgTexture);
+    Set_Texture_Stage_State(1, kStageStateAlphaOp, kTextureOpSelectArg2);
+    Set_Texture_Stage_State(1, kStageStateTexcoordIndex, 1);
 }
 
 void BgfxBackend::Configure_Shadow_Volume_Fill_Texture_Stages()
 {
-    Set_Texture_Stage_State(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-    Set_Texture_Stage_State(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
-    Set_Texture_Stage_State(0, D3DTSS_COLOROP, D3DTOP_SELECTARG2);
-    Set_Texture_Stage_State(0, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-    Set_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX, 0);
+    Set_Texture_Stage_State(0, kStageStateColorArg1, kTextureArgTexture);
+    Set_Texture_Stage_State(0, kStageStateColorArg2, kTextureArgDiffuse);
+    Set_Texture_Stage_State(0, kStageStateColorOp, kTextureOpSelectArg2);
+    Set_Texture_Stage_State(0, kStageStateAlphaOp, kTextureOpDisable);
+    Set_Texture_Stage_State(0, kStageStateTexcoordIndex, 0);
 
-    Set_Texture_Stage_State(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-    Set_Texture_Stage_State(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-    Set_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX, 1);
+    Set_Texture_Stage_State(1, kStageStateColorOp, kTextureOpDisable);
+    Set_Texture_Stage_State(1, kStageStateAlphaOp, kTextureOpDisable);
+    Set_Texture_Stage_State(1, kStageStateTexcoordIndex, 1);
 }
 
 void BgfxBackend::Set_Shroud_Texture_Pass_Active(bool active, unsigned stage)
@@ -7650,7 +7665,7 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         unsigned depthFunc = RenderStateCache::Get_Render_State(D3DRS_ZFUNC);
         const unsigned stg = 0;
-        unsigned tci = RenderStateCache::Get_Texture_Stage_State(stg, D3DTSS_TEXCOORDINDEX);
+        unsigned tci = RenderStateCache::Get_Texture_Stage_State(stg, kStageStateTexcoordIndex);
         float shroudParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
         // Projected terrain receivers and cloud/noise stages also use
         // TCI_CAMERASPACEPOSITION. Only the actual shroud overlay uses the
@@ -7669,7 +7684,7 @@ void SubmitEngineDraw(unsigned short start_index,
         if (depthFunc == static_cast<unsigned>(RB_CMP_EQUAL)
             && (explicitShroudPass || (!g_draw.stencilEnabled && legacyShroudSignature)))
         {
-            if (tci & D3DTSS_TCI_CAMERASPACEPOSITION)
+            if (tci & kTexcoordGenCameraPosition)
             {
                 shroudDetected = true;
                 g_draw.texcoordSelect[2] = 1.0f;
@@ -7684,9 +7699,9 @@ void SubmitEngineDraw(unsigned short start_index,
                     // direct world-space params; decomposing camera-space
                     // matrices is fragile across compatibility layers.
                     auto texMtx = MakeIdentityLegacyCacheMatrix();
-                    RenderStateCache::Get_Transform(D3DTS_TEXTURE0 + stg, texMtx);
+                    RenderStateCache::Get_Transform(kTextureTransformStage0 + stg, texMtx);
                     auto viewMtx = MakeIdentityLegacyCacheMatrix();
-                    RenderStateCache::Get_Transform(D3DTS_VIEW, viewMtx);
+                    RenderStateCache::Get_Transform(kTransformView, viewMtx);
                     auto ts = MakeIdentityLegacyCacheMatrix();
                     for (int rr = 0; rr < 4; rr++)
                     {
@@ -7729,7 +7744,7 @@ void SubmitEngineDraw(unsigned short start_index,
             submitView = kBgfxShroudOverlayView;
         }
         g_draw.delayedObjectShroudPass = delayedObjectShroudPass;
-        if ((tci & D3DTSS_TCI_CAMERASPACEPOSITION)
+        if ((tci & kTexcoordGenCameraPosition)
             || depthFunc == static_cast<unsigned>(RB_CMP_EQUAL)
             || shroudDetected)
         {
