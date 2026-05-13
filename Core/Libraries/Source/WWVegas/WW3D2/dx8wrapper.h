@@ -143,6 +143,8 @@ extern bool _DX8SingleThreaded;
 
 void DX8_Assert();
 void Log_DX8_ErrorCode(unsigned res);
+IDirect3DDevice8* DX8_Call_Device();
+IDirect3D8* DX8_Call_Interface();
 
 WWINLINE void DX8_ErrorCode(unsigned res)
 {
@@ -151,14 +153,14 @@ WWINLINE void DX8_ErrorCode(unsigned res)
 }
 
 #ifdef WWDEBUG
-#define DX8CALL_HRES(x,res) DX8_Assert(); res = DX8Wrapper::_Get_D3D_Device8()->x; DX8_ErrorCode(res); DX8Wrapper::Increment_DX8_CallCount();
-#define DX8CALL(x) DX8_Assert(); DX8_ErrorCode(DX8Wrapper::_Get_D3D_Device8()->x); DX8Wrapper::Increment_DX8_CallCount();
-#define DX8CALL_D3D(x) DX8_Assert(); DX8_ErrorCode(DX8Wrapper::_Get_D3D8()->x); DX8Wrapper::Increment_DX8_CallCount();
+#define DX8CALL_HRES(x,res) DX8_Assert(); res = DX8_Call_Device()->x; DX8_ErrorCode(res); DX8Wrapper::Increment_DX8_CallCount();
+#define DX8CALL(x) DX8_Assert(); DX8_ErrorCode(DX8_Call_Device()->x); DX8Wrapper::Increment_DX8_CallCount();
+#define DX8CALL_D3D(x) DX8_Assert(); DX8_ErrorCode(DX8_Call_Interface()->x); DX8Wrapper::Increment_DX8_CallCount();
 #define DX8_THREAD_ASSERT() if (_DX8SingleThreaded) { WWASSERT_PRINT(DX8Wrapper::_Get_Main_Thread_ID()==ThreadClass::_Get_Current_Thread_ID(),"DX8Wrapper::DX8 calls must be called from the main thread!"); }
 #else
-#define DX8CALL_HRES(x,res) res = DX8Wrapper::_Get_D3D_Device8()->x; DX8Wrapper::Increment_DX8_CallCount();
-#define DX8CALL(x) DX8Wrapper::_Get_D3D_Device8()->x; DX8Wrapper::Increment_DX8_CallCount();
-#define DX8CALL_D3D(x) DX8Wrapper::_Get_D3D8()->x; DX8Wrapper::Increment_DX8_CallCount();
+#define DX8CALL_HRES(x,res) res = DX8_Call_Device()->x; DX8Wrapper::Increment_DX8_CallCount();
+#define DX8CALL(x) DX8_Call_Device()->x; DX8Wrapper::Increment_DX8_CallCount();
+#define DX8CALL_D3D(x) DX8_Call_Interface()->x; DX8Wrapper::Increment_DX8_CallCount();
 #define DX8_THREAD_ASSERT() ;
 #endif
 
@@ -488,8 +490,10 @@ public:
 
 
 
+#if !defined(GGC_BGFX_STANDALONE)
 	static IDirect3DDevice8* _Get_D3D_Device8() { return D3DDevice; }
 	static IDirect3D8* _Get_D3D8() { return D3DInterface; }
+#endif
 	/// Returns the display format - added by TR for video playback - not part of W3D
 	static WW3DFormat	getBackBufferFormat();
 	static bool Reset_Device(bool reload_assets=true);
@@ -663,10 +667,22 @@ protected:
 	static D3DMATRIX					ProjectionMatrix;
 
 	friend void DX8_Assert();
+	friend IDirect3DDevice8* DX8_Call_Device();
+	friend IDirect3D8* DX8_Call_Interface();
 	friend class WW3D;
 	friend class DX8IndexBufferClass;
 	friend class DX8VertexBufferClass;
 };
+
+WWINLINE IDirect3DDevice8* DX8_Call_Device()
+{
+	return DX8Wrapper::D3DDevice;
+}
+
+WWINLINE IDirect3D8* DX8_Call_Interface()
+{
+	return DX8Wrapper::D3DInterface;
+}
 
 // shader system updates KJM v
 WWINLINE void DX8Wrapper::Set_Vertex_Shader(DWORD vertex_shader)
