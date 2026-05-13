@@ -510,20 +510,19 @@ inline DWORD F2DW(float f) { return *((unsigned*)&f); }
 void DX8Wrapper::Set_Default_Global_Render_States()
 {
 	DX8_THREAD_ASSERT();
-	const D3DCAPS8 &caps = Get_Current_Caps()->Get_DX8_Caps();
 
-	Commit_Fixed_Function_Render_Value(D3DRS_RANGEFOGENABLE, (caps.RasterCaps & D3DPRASTERCAPS_FOGRANGE) ? TRUE : FALSE);
-	Commit_Fixed_Function_Render_Value(D3DRS_FOGTABLEMODE, D3DFOG_NONE);
-	Commit_Fixed_Function_Render_Value(D3DRS_FOGVERTEXMODE, D3DFOG_LINEAR);
-	Commit_Fixed_Function_Render_Value(D3DRS_SPECULARMATERIALSOURCE, D3DMCS_MATERIAL);
-	Commit_Fixed_Function_Render_Value(D3DRS_COLORVERTEX, TRUE);
-	Commit_Fixed_Function_Render_Value(D3DRS_ZBIAS,0);
-	Commit_Fixed_Function_Texture_Stage_Value(1, D3DTSS_BUMPENVLSCALE, F2DW(1.0f));
-	Commit_Fixed_Function_Texture_Stage_Value(1, D3DTSS_BUMPENVLOFFSET, F2DW(0.0f));
-	Commit_Fixed_Function_Texture_Stage_Value(0, D3DTSS_BUMPENVMAT00,F2DW(1.0f));
-	Commit_Fixed_Function_Texture_Stage_Value(0, D3DTSS_BUMPENVMAT01,F2DW(0.0f));
-	Commit_Fixed_Function_Texture_Stage_Value(0, D3DTSS_BUMPENVMAT10,F2DW(0.0f));
-	Commit_Fixed_Function_Texture_Stage_Value(0, D3DTSS_BUMPENVMAT11,F2DW(1.0f));
+	Commit_Fixed_Function_Render_Value(48, Get_Current_Caps()->Support_Range_Fog() ? TRUE : FALSE);
+	Commit_Fixed_Function_Render_Value(35, 0);
+	Commit_Fixed_Function_Render_Value(140, 3);
+	Commit_Fixed_Function_Render_Value(146, 0);
+	Commit_Fixed_Function_Render_Value(141, TRUE);
+	Commit_Fixed_Function_Render_Value(47,0);
+	Commit_Fixed_Function_Texture_Stage_Value(1, 22, F2DW(1.0f));
+	Commit_Fixed_Function_Texture_Stage_Value(1, 23, F2DW(0.0f));
+	Commit_Fixed_Function_Texture_Stage_Value(0, 7,F2DW(1.0f));
+	Commit_Fixed_Function_Texture_Stage_Value(0, 8,F2DW(0.0f));
+	Commit_Fixed_Function_Texture_Stage_Value(0, 9,F2DW(0.0f));
+	Commit_Fixed_Function_Texture_Stage_Value(0, 10,F2DW(1.0f));
 
 //	Commit_Fixed_Function_Render_Value(D3DRS_CULLMODE, D3DCULL_CW);
 	// Set dither mode here?

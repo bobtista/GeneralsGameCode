@@ -61,7 +61,7 @@ namespace
 	constexpr auto kLegacySoftwareVertexProcessingState = D3DRS_SOFTWAREVERTEXPROCESSING;
 #endif
 	constexpr auto kLegacyHardwareTransformAndLight = D3DDEVCAPS_HWTRANSFORMANDLIGHT, kLegacyNPatches = D3DDEVCAPS_NPATCHES;
-	constexpr auto kLegacyZBias = D3DPRASTERCAPS_ZBIAS, kLegacyFullscreenGamma = D3DCAPS2_FULLSCREENGAMMA;
+	constexpr auto kLegacyZBias = D3DPRASTERCAPS_ZBIAS, kLegacyRangeFog = D3DPRASTERCAPS_FOGRANGE, kLegacyFullscreenGamma = D3DCAPS2_FULLSCREENGAMMA;
 	constexpr auto kLegacyModulateAlphaAddColor = D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR, kLegacyDotProduct3 = D3DTEXOPCAPS_DOTPRODUCT3, kLegacyBumpEnv = D3DTEXOPCAPS_BUMPENVMAP, kLegacyBumpEnvLuminance = D3DTEXOPCAPS_BUMPENVMAPLUMINANCE;
 	constexpr auto kLegacyCubeMap = D3DPTEXTURECAPS_CUBEMAP, kLegacyMagAnisotropic = D3DPTFILTERCAPS_MAGFANISOTROPIC, kLegacyMinAnisotropic = D3DPTFILTERCAPS_MINFANISOTROPIC;
 	constexpr auto kLegacyTextureResource = D3DRTYPE_TEXTURE;
@@ -672,6 +672,7 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const LegacyAdapterIdentif
 	SupportPointSprites = (Caps.MaxPointSize > 1.0f);
 	SupportNPatches = ((Caps.DevCaps&kLegacyNPatches)==kLegacyNPatches);
 	SupportZBias = ((Caps.RasterCaps&kLegacyZBias)==kLegacyZBias);
+	SupportRangeFog = ((Caps.RasterCaps&kLegacyRangeFog)==kLegacyRangeFog);
 	supportGamma=((Caps.Caps2&kLegacyFullscreenGamma)==kLegacyFullscreenGamma);
 	SupportModAlphaAddClr = (Caps.TextureOpCaps & kLegacyModulateAlphaAddColor) == kLegacyModulateAlphaAddColor;
 	SupportDot3=(Caps.TextureOpCaps & kLegacyDotProduct3) == kLegacyDotProduct3;

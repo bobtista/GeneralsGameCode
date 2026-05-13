@@ -224,6 +224,7 @@ public:
 	bool Support_Cubemaps() const { return SupportCubemaps; }
 	bool Can_Do_Multi_Pass() const { return CanDoMultiPass; }
 	bool Is_Fog_Allowed() const { return IsFogAllowed; }
+	bool Support_Range_Fog() const { return SupportRangeFog; }
 
 	bool Is_Valid_Display_Format(int width, int height, WW3DFormat format);
 
@@ -300,6 +301,7 @@ private:
 	bool SupportDot3;
 	bool SupportPointSprites;
 	bool SupportCubemaps;
+	bool SupportRangeFog;
 	bool CanDoMultiPass;
 	bool IsFogAllowed;
 	int MaxTexturesPerPass;
