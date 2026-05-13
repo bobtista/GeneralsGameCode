@@ -41,14 +41,15 @@
 #include "always.h"
 #include "ww3dformat.h"
 
-struct IDirect3DSurface8;
+class SurfaceClass;
 class Vector2i;
 class Vector3;
+class DX8TextureInterop;
 
 /*************************************************************************
 **                             SurfaceClass
 **
-** This is our surface class, which wraps IDirect3DSurface8.
+** This is our surface class, which wraps a legacy render surface.
 **
 ** Hector Yee 2/12/01 - added in fills, blits etc for font3d class
 **
@@ -70,9 +71,6 @@ class SurfaceClass : public RefCountClass
 
 		// Create surface from a file.
 		SurfaceClass(const char *filename);
-
-		// Create the surface from a D3D pointer
-		SurfaceClass(IDirect3DSurface8 *d3d_surface);
 
 		virtual ~SurfaceClass() override;
 
@@ -119,11 +117,7 @@ class SurfaceClass : public RefCountClass
 		// makes a copy of the surface into a byte array
 		unsigned char *CreateCopy(int *width,int *height,int*size,bool flip=false);
 
-			// For use by TextureClass:
-		IDirect3DSurface8 *Peek_D3D_Surface() { return D3DSurface; }
-
-		// Attaching and detaching a surface pointer
-		void	Attach (IDirect3DSurface8 *surface);
+		// Detaching a surface pointer
 		void	Detach ();
 
 		// draws a horizontal line
@@ -144,10 +138,13 @@ class SurfaceClass : public RefCountClass
 		WW3DFormat Get_Surface_Format() const { return SurfaceFormat; }
 
 	private:
+		SurfaceClass(void *legacy_surface);
+		void	Attach_Legacy_Surface(void *surface);
 
-		// Direct3D surface object
-		IDirect3DSurface8 *D3DSurface;
+		// Legacy surface object
+		void *D3DSurface;
 
 		WW3DFormat SurfaceFormat;
-	friend class TextureClass;
+		friend class TextureClass;
+		friend class DX8TextureInterop;
 };

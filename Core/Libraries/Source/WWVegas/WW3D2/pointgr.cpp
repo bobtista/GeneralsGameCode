@@ -80,16 +80,19 @@
 #include "Vector.h"
 #include "vp.h"
 #include "matrix4.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "rinfo.h"
 #include "camera.h"
 #include "dx8fvf.h"
-#include "d3dx8math.h"
 #include "sortingrenderer.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 // Upgraded to DX8 2/2/01 HY
 
@@ -930,6 +933,30 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 	const bool sort = (Shader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (Shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
+	const bool pointGroupDiag = std::getenv("GGC_POINTGROUP_DIAG") != nullptr;
+	if (pointGroupDiag)
+	{
+		if (FILE *diag = std::fopen("ggc_pointgroup_diag.txt", "a"))
+		{
+			std::fprintf(diag,
+				"pointgroup texture=%s points=%d vnum=%d pnum=%d sort=%d billboard=%d mode=%d shader=0x%08x dstBlend=%d alphaTest=%d sortingEnabled=%d first=(%.2f,%.2f,%.2f)\n",
+				Texture != nullptr ? Texture->Get_Texture_Name().str() : "<none>",
+				PointCount,
+				vnum,
+				pnum,
+				sort ? 1 : 0,
+				Billboard ? 1 : 0,
+				static_cast<int>(PointMode),
+				Shader.Get_Bits(),
+				static_cast<int>(Shader.Get_Dst_Blend_Func()),
+				static_cast<int>(Shader.Get_Alpha_Test()),
+				WW3D::Is_Sorting_Enabled() ? 1 : 0,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].X : 0.0f,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].Y : 0.0f,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].Z : 0.0f);
+			std::fclose(diag);
+		}
+	}
 
 	IndexBufferClass *indexbuffer;
 	int	verticesperprimitive;/// lorenzen fixed
@@ -966,12 +993,12 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 				// Copy Locations
 				*(Vector3*)(vb+fvfinfo.Get_Location_Offset())=VertexLoc[i];
 				if (current_diffuse) {
-					unsigned color=DX8Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
+					unsigned color=WW3DColor::To_ARGB_Clamp(VertexDiffuse[i]);
 					*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=color;
 				}
 				else
 					*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=
-						DX8Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
+						WW3DColor::To_ARGB_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
 				*(Vector2*)(vb+fvfinfo.Get_Tex_Offset(0))=VertexUV[i];
 				vb+=fvfinfo.Get_FVF_Size();
 			}
@@ -1209,14 +1236,22 @@ void PointGroupClass::Update_Arrays(
 				}
 
 				// Scale vertex offsets and add them to point locations to get vertex locations
-				for (i = 0; i < active_points; i++) {
-					if (!Billboard) {
-						// If we're not billboarding, then the coordinate we have is in screen space.
-						Matrix4x4 rotMat;
-						D3DXMatrixRotationZ(&(D3DXMATRIX&) rotMat, ((float)point_orientation[i] / 255.0f * 2 * D3DX_PI));
-
-						Vector4 orientedVecX = rotMat * GroundMultiplierX;
-						Vector4 orientedVecY = rotMat * GroundMultiplierY;
+					for (i = 0; i < active_points; i++) {
+						if (!Billboard) {
+							// If we're not billboarding, then the coordinate we have is in screen space.
+							const float angle = static_cast<float>(point_orientation[i]) / 255.0f * WWMATH_TWO_PI;
+							const float c = std::cos(angle);
+							const float s = std::sin(angle);
+							const Vector4 orientedVecX(
+								GroundMultiplierX.X * c + GroundMultiplierX.Y * s,
+								GroundMultiplierX.X * -s + GroundMultiplierX.Y * c,
+								GroundMultiplierX.Z,
+								1.0f);
+							const Vector4 orientedVecY(
+								GroundMultiplierY.X * c + GroundMultiplierY.Y * s,
+								GroundMultiplierY.X * -s + GroundMultiplierY.Y * c,
+								GroundMultiplierY.Z,
+								1.0f);
 
 						vertex_loc[vert + 0].X = point_loc[i].X +	(orientedVecX.X + orientedVecY.X) * point_size[i];
 						vertex_loc[vert + 0].Y = point_loc[i].Y +	(orientedVecX.Y + orientedVecY.Y) * point_size[i];
@@ -1880,12 +1915,12 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 					*(Vector3*)(vb+fvfinfo.Get_Location_Offset()) = VertexLoc[i];
 
 					if (current_diffuse) {
-						unsigned color=DX8Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
+						unsigned color=WW3DColor::To_ARGB_Clamp(VertexDiffuse[i]);
 						*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=color;
 					}
 					else
 						*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=
-							DX8Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
+							WW3DColor::To_ARGB_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
 					*(Vector2*)(vb+fvfinfo.Get_Tex_Offset(0))=VertexUV[i];
 					vb+=fvfinfo.Get_FVF_Size();
 				}

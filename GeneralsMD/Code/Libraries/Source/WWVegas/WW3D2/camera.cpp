@@ -74,7 +74,6 @@
 #include "camera.h"
 #include "ww3d.h"
 #include "matrix4.h"
-#include "dx8wrapper.h"
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Route the
 // camera's view + projection matrices through the active render backend
@@ -745,14 +744,14 @@ void CameraClass::Apply()
 	bool windowed;
 	WW3D::Get_Render_Target_Resolution(width,height,bits,windowed);
 
-	D3DVIEWPORT8 vp;
-	vp.X = (DWORD)(Viewport.Min.X * (float)width);
-	vp.Y = (DWORD)(Viewport.Min.Y * (float)height);
-	vp.Width = (DWORD)((Viewport.Max.X - Viewport.Min.X) * (float)width);
-	vp.Height = (DWORD)((Viewport.Max.Y - Viewport.Min.Y) * (float)height);
-	vp.MinZ = ZBufferMin;
-	vp.MaxZ = ZBufferMax;
-	DX8Wrapper::Set_Viewport(&vp);
+	RenderBackendViewport vp;
+	vp.x = static_cast<unsigned int>(Viewport.Min.X * static_cast<float>(width));
+	vp.y = static_cast<unsigned int>(Viewport.Min.Y * static_cast<float>(height));
+	vp.width = static_cast<unsigned int>((Viewport.Max.X - Viewport.Min.X) * static_cast<float>(width));
+	vp.height = static_cast<unsigned int>((Viewport.Max.Y - Viewport.Min.Y) * static_cast<float>(height));
+	vp.min_z = ZBufferMin;
+	vp.max_z = ZBufferMax;
+	g_renderBackend->Set_Viewport(vp);
 
 	Matrix4x4 d3dprojection;
 	Get_D3D_Projection_Matrix(&d3dprojection);

@@ -68,7 +68,6 @@
 #include "rinfo.h"
 #include "chunkio.h"
 #include "dx8renderer.h"
-#include "dx8wrapper.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "sortingrenderer.h"

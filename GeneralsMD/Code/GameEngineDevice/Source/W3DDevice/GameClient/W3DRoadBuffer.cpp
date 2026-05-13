@@ -62,9 +62,10 @@
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8renderer.h"
+#include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 
@@ -177,7 +178,11 @@ void RoadType::loadTexture(AsciiString path, Int ID)
 	/// @todo - delay loading textures and only load textures referenced by map.
 	WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
 
+#if defined(GGC_BGFX_STANDALONE)
+	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_1);
+#else
 	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_3);
+#endif
 	//Hack to disable texture reduction
 	//m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_3, WW3D_FORMAT_UNKNOWN,true,TextureBaseClass::TEX_REGULAR, false);
 
@@ -1239,8 +1244,8 @@ void W3DRoadBuffer::loadRoadsInVertexAndIndexBuffers()
 		this->m_roadTypes[m_curRoadType].setNumIndices(0);
 		return;
 	}
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_roadTypes[m_curRoadType].getIB(), s_dynamic?D3DLOCK_DISCARD:0);
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_roadTypes[m_curRoadType].getVB(), s_dynamic?D3DLOCK_DISCARD:0);
+	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_roadTypes[m_curRoadType].getIB(), s_dynamic?RB_LOCK_DISCARD:0);
+	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_roadTypes[m_curRoadType].getVB(), s_dynamic?RB_LOCK_DISCARD:0);
 	vb=(VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 	// Add to the index buffer & vertex buffer.
@@ -3318,6 +3323,7 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 	// the same cloud/noise multipass family as terrain; bgfx's fixed
 	// function fallback does not emulate TCI_CAMERASPACEPOSITION, so
 	// pass 2+ reads from garbage UVs and paints terrain/road tiles black.
+	st = W3DShaderManager::ST_ROAD_BASE;
 	devicePasses = 1;
 #endif
 
@@ -3350,9 +3356,6 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 			} else {
 				m_roadTypes[i].applyTexture();
 			}
-	#ifdef RTS_DEBUG
-			//DX8Wrapper::Set_Shader(detailShader); // shows clipping.
-	#endif
 			for (Int pass=0; pass < devicePasses; pass++)
 			{
 				if (!wireframe)
@@ -3401,5 +3404,3 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
 #endif
 	m_curRoadType = 0;
 }
-
-

@@ -52,12 +52,15 @@
 #include "vector4.h"
 #include "cpudetect.h"
 #include "dx8caps.h"
+#include "RenderBufferTypes.h"
+#include "RenderDeviceCleanupHook.h"
 
 #include "texture.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "vertmaterial.h"
 #include "RenderStateCache.h"
+#include "FixedFunctionState.h"
 
 // TheSuperHackers @refactor bobtista 10/04/2026 Phase 3G deprecation sweep.
 // Flag DX8Wrapper methods that have an IRenderBackend equivalent so the
@@ -81,19 +84,9 @@
 #define	VALUE_NAME_RENDER_DEVICE_WINDOWED			"RenderDeviceWindowed"
 #define	VALUE_NAME_RENDER_DEVICE_TEXTURE_DEPTH		"RenderDeviceTextureDepth"
 
-const unsigned MAX_TEXTURE_STAGES=8;
-const unsigned MAX_VERTEX_STREAMS=2;
 const unsigned MAX_VERTEX_SHADER_CONSTANTS=96;
 const unsigned MAX_PIXEL_SHADER_CONSTANTS=8;
 const unsigned MAX_SHADOW_MAPS=1;
-
-enum {
-	BUFFER_TYPE_DX8,
-	BUFFER_TYPE_SORTING,
-	BUFFER_TYPE_DYNAMIC_DX8,
-	BUFFER_TYPE_DYNAMIC_SORTING,
-	BUFFER_TYPE_INVALID
-};
 
 class VertexMaterialClass;
 class CameraClass;
@@ -174,61 +167,9 @@ WWINLINE void DX8_ErrorCode(unsigned res)
 // EXTENDED_STATS collects additional timing statistics by turning off parts
 // of the 3D drawing system (terrain, objects, etc.)
 #ifdef EXTENDED_STATS
-class DX8_Stats
-{
-public:
-	bool m_showingStats;
-	bool m_disableTerrain;
-	bool m_disableWater;
-	bool m_disableObjects;
-	bool m_disableOverhead;
-	bool m_disableConsole;
-	int  m_debugLinesToShow;
-	int	 m_sleepTime;
-public:
-	DX8_Stats::DX8_Stats() {
-		m_disableConsole = m_showingStats = m_disableTerrain = m_disableWater = m_disableOverhead = m_disableObjects = false;
-		m_sleepTime = 0;
-		m_debugLinesToShow = -1; // -1 means show all expected lines of output
-	}
-};
+#include "renderdebugstats.h"
 #endif
 
-
-// This virtual interface was added for the Generals RTS.
-// It is called before resetting the dx8 device to ensure
-// that all dx8 resources are released.  Otherwise reset fails. jba.
-class DX8_CleanupHook
-{
-public:
-	virtual void ReleaseResources()=0;
-	virtual void ReAcquireResources()=0;
-};
-
-
-struct RenderStateStruct
-{
-	ShaderClass shader;
-	VertexMaterialClass* material;
-	TextureBaseClass * Textures[MAX_TEXTURE_STAGES];
-	D3DLIGHT8 Lights[4];
-	bool LightEnable[4];
-	D3DMATRIX world;
-	D3DMATRIX view;
-	unsigned vertex_buffer_types[MAX_VERTEX_STREAMS];
-	unsigned index_buffer_type;
-	unsigned short vba_offset;
-	unsigned short vba_count;
-	unsigned short iba_offset;
-	VertexBufferClass* vertex_buffers[MAX_VERTEX_STREAMS];
-	IndexBufferClass* index_buffer;
-	unsigned short index_base_offset;
-
-	RenderStateStruct();
-	~RenderStateStruct();
-
-	RenderStateStruct& operator= (const RenderStateStruct& src);
-};
 
 /**
 ** DX8Wrapper
@@ -236,32 +177,30 @@ struct RenderStateStruct
 ** DX8 interface wrapper class.  This encapsulates the DX8 interface; adding redundant state
 ** detection, stat tracking, etc etc.  In general, we will wrap all DX8 calls with at least
 ** an WWINLINE function so that we can add stat tracking, etc if needed.  Direct access to the
-** D3D device will require "friend" status and should be granted only in extreme circumstances :-)
+** legacy device will require "friend" status and should be granted only in extreme circumstances :-)
 */
 class DX8Wrapper
 {
 	enum ChangedStates {
-		WORLD_CHANGED	=	1<<0,
-		VIEW_CHANGED	=	1<<1,
-		LIGHT0_CHANGED	=	1<<2,
-		LIGHT1_CHANGED	=	1<<3,
-		LIGHT2_CHANGED	=	1<<4,
-		LIGHT3_CHANGED	=	1<<5,
-		TEXTURE0_CHANGED=	1<<6,
-		TEXTURE1_CHANGED=	1<<7,
-		TEXTURE2_CHANGED=	1<<8,
-		TEXTURE3_CHANGED=	1<<9,
-		MATERIAL_CHANGED=	1<<14,
-		SHADER_CHANGED	=	1<<15,
-		VERTEX_BUFFER_CHANGED = 1<<16,
-		INDEX_BUFFER_CHANGED = 1 << 17,
-		WORLD_IDENTITY=	1<<18,
-		VIEW_IDENTITY=		1<<19,
+		WORLD_CHANGED = FixedFunctionState::WORLD_CHANGED,
+		VIEW_CHANGED = FixedFunctionState::VIEW_CHANGED,
+		LIGHT0_CHANGED = FixedFunctionState::LIGHT0_CHANGED,
+		LIGHT1_CHANGED = FixedFunctionState::LIGHT1_CHANGED,
+		LIGHT2_CHANGED = FixedFunctionState::LIGHT2_CHANGED,
+		LIGHT3_CHANGED = FixedFunctionState::LIGHT3_CHANGED,
+		TEXTURE0_CHANGED = FixedFunctionState::TEXTURE0_CHANGED,
+		TEXTURE1_CHANGED = FixedFunctionState::TEXTURE1_CHANGED,
+		TEXTURE2_CHANGED = FixedFunctionState::TEXTURE2_CHANGED,
+		TEXTURE3_CHANGED = FixedFunctionState::TEXTURE3_CHANGED,
+		MATERIAL_CHANGED = FixedFunctionState::MATERIAL_CHANGED,
+		SHADER_CHANGED = FixedFunctionState::SHADER_CHANGED,
+		VERTEX_BUFFER_CHANGED = FixedFunctionState::VERTEX_BUFFER_CHANGED,
+		INDEX_BUFFER_CHANGED = FixedFunctionState::INDEX_BUFFER_CHANGED,
+		WORLD_IDENTITY = FixedFunctionState::WORLD_IDENTITY,
+		VIEW_IDENTITY = FixedFunctionState::VIEW_IDENTITY,
 
-		TEXTURES_CHANGED=
-			TEXTURE0_CHANGED|TEXTURE1_CHANGED|TEXTURE2_CHANGED|TEXTURE3_CHANGED,
-		LIGHTS_CHANGED=
-			LIGHT0_CHANGED|LIGHT1_CHANGED|LIGHT2_CHANGED|LIGHT3_CHANGED,
+		TEXTURES_CHANGED = FixedFunctionState::TEXTURES_CHANGED,
+		LIGHTS_CHANGED = FixedFunctionState::LIGHTS_CHANGED,
 	};
 
 	static void Draw_Sorting_IB_VB(
@@ -280,13 +219,13 @@ class DX8Wrapper
 
 public:
 #ifdef EXTENDED_STATS
-	static DX8_Stats stats;
+	static RenderDebugStats &stats;
 #endif
 
 	static bool Init(void * hwnd, bool lite = false);
 	static void Shutdown();
 
-	static void SetCleanupHook(DX8_CleanupHook *pCleanupHook) {m_pCleanupHook = pCleanupHook;};
+	static void SetCleanupHook(RenderDeviceCleanupHook *pCleanupHook) {m_pCleanupHook = pCleanupHook;};
 	/*
 	** Some WW3D sub-systems need to be initialized after the device is created and shutdown
 	** before the device is released.
@@ -327,7 +266,7 @@ public:
 	// MAX_VERTEX_STREAMS vertex buffers, the index buffer, and every entry
 	// of Textures[MAX_TEXTURE_STAGES]. Read-only callers (e.g. per-draw
 	// light/texture sync in BgfxBackend) should use this instead.
-	static const RenderStateStruct & Peek_Render_State() { return render_state; }
+	static const RenderStateStruct & Peek_Render_State() { return FixedFunctionState::Peek_Render_State(); }
 
 	static void Set_DX8_Material(const D3DMATERIAL8* mat);
 
@@ -486,7 +425,7 @@ public:
 	**	To render to an additional window, the sequence of calls should look
 	**	something like this:
 	**
-	**	DX8Wrapper::Set_Render_Target (swap_chain_ptr);
+	**	Set the additional swap chain as the active render target.
 	**
 	**	WW3D::Begin_Render (true, true, Vector3 (0, 0, 0));
 	**	WW3D::Render (scene, camera, FALSE, FALSE);
@@ -494,7 +433,7 @@ public:
 	**
 	**	swap_chain_ptr->Present (nullptr, nullptr, nullptr, nullptr);
 	**
-	**	DX8Wrapper::Set_Render_Target ((IDirect3DSurface8 *)nullptr);
+	**	Restore the default render target.
 	**
 	*/
 	static IDirect3DSwapChain8 *	Create_Additional_Swap_Chain (HWND render_window);
@@ -649,10 +588,8 @@ protected:
 	** Protected Member Variables
 	*/
 
-	static DX8_CleanupHook *m_pCleanupHook;
+	static RenderDeviceCleanupHook *m_pCleanupHook;
 
-	static RenderStateStruct			render_state;
-	static unsigned						render_state_changed;
 	static bool								IsInitted;
 	static bool								IsDeviceLost;
 	static void *							Hwnd;
@@ -687,7 +624,6 @@ protected:
 	// shader system updates KJM ^
 
 	static bool								world_identity;
-	static IDirect3DBaseTexture8 *	Textures[MAX_TEXTURE_STAGES];
 
 	// These fog settings are constant for all objects in a given scene,
 	// unlike the matching renderstates which vary based on shader settings.
@@ -803,9 +739,9 @@ WWINLINE void DX8Wrapper::_Get_DX8_Transform(D3DTRANSFORMSTATETYPE transform, D3
 
 WWINLINE void DX8Wrapper::Set_Index_Buffer_Index_Offset(unsigned offset)
 {
-	if (render_state.index_base_offset==offset) return;
-	render_state.index_base_offset=offset;
-	render_state_changed|=INDEX_BUFFER_CHANGED;
+	if (FixedFunctionState::Render_State().index_base_offset==offset) return;
+	FixedFunctionState::Render_State().index_base_offset=offset;
+	FixedFunctionState::Changed_Mask()|=INDEX_BUFFER_CHANGED;
 }
 
 // ----------------------------------------------------------------------------
@@ -928,13 +864,11 @@ WWINLINE void DX8Wrapper::Set_DX8_Texture(unsigned int stage, IDirect3DBaseTextu
   		return;
   	}
 
-	if (Textures[stage]==texture) return;
+	if (FixedFunctionState::Raw_Texture(stage)==texture) return;
 
 	SNAPSHOT_SAY(("DX8 - SetTexture(%x) ",texture));
 
-	if (Textures[stage]) Textures[stage]->Release();
-	Textures[stage] = texture;
-	if (Textures[stage]) Textures[stage]->AddRef();
+	FixedFunctionState::Set_Raw_Texture(stage, texture);
 	DX8CALL(SetTexture(stage, texture));
 	DX8_RECORD_TEXTURE_CHANGE();
 }
@@ -1168,45 +1102,40 @@ WWINLINE void DX8Wrapper::Set_Alpha (const float alpha, unsigned int &color)
 
 WWINLINE void DX8Wrapper::Get_Render_State(RenderStateStruct& state)
 {
-	state=render_state;
+	FixedFunctionState::Capture_Render_State(state);
 }
 
 WWINLINE void DX8Wrapper::Get_Shader(ShaderClass& shader)
 {
-	shader=render_state.shader;
+	shader=FixedFunctionState::Render_State().shader;
 }
 
 WWINLINE void DX8Wrapper::Set_Texture(unsigned stage,TextureBaseClass* texture)
 {
 	WWASSERT(stage<(unsigned int)CurrentCaps->Get_Max_Textures_Per_Pass());
-	if (texture==render_state.Textures[stage]) return;
-	REF_PTR_SET(render_state.Textures[stage],texture);
-	render_state_changed|=(TEXTURE0_CHANGED<<stage);
+	FixedFunctionState::Set_Texture(stage, texture);
 }
 
 WWINLINE void DX8Wrapper::Set_Material(const VertexMaterialClass* material)
 {
-/*	if (material && render_state.material &&
-		// !stricmp(material->Get_Name(),render_state.material->Get_Name())) {
-		material->Get_CRC()!=render_state.material->Get_CRC()) {
+/*	if (material && FixedFunctionState::Render_State().material &&
+		// !stricmp(material->Get_Name(),FixedFunctionState::Render_State().material->Get_Name())) {
+		material->Get_CRC()!=FixedFunctionState::Render_State().material->Get_CRC()) {
 		return;
 	}
 */
-//	if (material==render_state.material) {
+//	if (material==FixedFunctionState::Render_State().material) {
 //		return;
 //	}
-	REF_PTR_SET(render_state.material,const_cast<VertexMaterialClass*>(material));
-	render_state_changed|=MATERIAL_CHANGED;
+	FixedFunctionState::Set_Material(material);
 	SNAPSHOT_SAY(("DX8Wrapper::Set_Material(%s)",material ? material->Get_Name() : "null"));
 }
 
 WWINLINE void DX8Wrapper::Set_Shader(const ShaderClass& shader)
 {
-	if (!ShaderClass::ShaderDirty && ((unsigned&)shader==(unsigned&)render_state.shader)) {
+	if (!FixedFunctionState::Set_Shader(shader, ShaderClass::ShaderDirty)) {
 		return;
 	}
-	render_state.shader=shader;
-	render_state_changed|=SHADER_CHANGED;
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 	StringClass str;
 #endif
@@ -1236,14 +1165,14 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 {
 	switch ((int)transform) {
 	case D3DTS_WORLD:
-		render_state.world=To_D3DMATRIX(m);
-		render_state_changed|=(unsigned)WORLD_CHANGED;
-		render_state_changed&=~(unsigned)WORLD_IDENTITY;
+		FixedFunctionState::Render_State().world=To_D3DMATRIX(m);
+		FixedFunctionState::Changed_Mask()|=(unsigned)WORLD_CHANGED;
+		FixedFunctionState::Changed_Mask()&=~(unsigned)WORLD_IDENTITY;
 		break;
 	case D3DTS_VIEW:
-		render_state.view=To_D3DMATRIX(m);
-		render_state_changed|=(unsigned)VIEW_CHANGED;
-		render_state_changed&=~(unsigned)VIEW_IDENTITY;
+		FixedFunctionState::Render_State().view=To_D3DMATRIX(m);
+		FixedFunctionState::Changed_Mask()|=(unsigned)VIEW_CHANGED;
+		FixedFunctionState::Changed_Mask()&=~(unsigned)VIEW_IDENTITY;
 		break;
 	case D3DTS_PROJECTION:
 		{
@@ -1265,14 +1194,14 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 {
 	switch ((int)transform) {
 	case D3DTS_WORLD:
-		render_state.world=To_D3DMATRIX(m);
-		render_state_changed|=(unsigned)WORLD_CHANGED;
-		render_state_changed&=~(unsigned)WORLD_IDENTITY;
+		FixedFunctionState::Render_State().world=To_D3DMATRIX(m);
+		FixedFunctionState::Changed_Mask()|=(unsigned)WORLD_CHANGED;
+		FixedFunctionState::Changed_Mask()&=~(unsigned)WORLD_IDENTITY;
 		break;
 	case D3DTS_VIEW:
-		render_state.view=To_D3DMATRIX(m);
-		render_state_changed|=(unsigned)VIEW_CHANGED;
-		render_state_changed&=~(unsigned)VIEW_IDENTITY;
+		FixedFunctionState::Render_State().view=To_D3DMATRIX(m);
+		FixedFunctionState::Changed_Mask()|=(unsigned)VIEW_CHANGED;
+		FixedFunctionState::Changed_Mask()&=~(unsigned)VIEW_IDENTITY;
 		break;
 	default:
 		DX8_RECORD_MATRIX_CHANGE();
@@ -1284,24 +1213,24 @@ WWINLINE void DX8Wrapper::Set_Transform(D3DTRANSFORMSTATETYPE transform,const Ma
 
 WWINLINE bool DX8Wrapper::Is_World_Identity()
 {
-	return !!(render_state_changed&(unsigned)WORLD_IDENTITY);
+	return FixedFunctionState::Is_World_Identity();
 }
 
 WWINLINE bool DX8Wrapper::Is_View_Identity()
 {
-	return !!(render_state_changed&(unsigned)VIEW_IDENTITY);
+	return FixedFunctionState::Is_View_Identity();
 }
 
 WWINLINE void DX8Wrapper::Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4x4& m)
 {
 	switch ((int)transform) {
 	case D3DTS_WORLD:
-		if (render_state_changed&WORLD_IDENTITY) m.Make_Identity();
-		else m=To_Matrix4x4(render_state.world);
+		if (FixedFunctionState::Changed_Mask()&WORLD_IDENTITY) m.Make_Identity();
+		else m=To_Matrix4x4(FixedFunctionState::Render_State().world);
 		break;
 	case D3DTS_VIEW:
-		if (render_state_changed&VIEW_IDENTITY) m.Make_Identity();
-		else m=To_Matrix4x4(render_state.view);
+		if (FixedFunctionState::Changed_Mask()&VIEW_IDENTITY) m.Make_Identity();
+		else m=To_Matrix4x4(FixedFunctionState::Render_State().view);
 		break;
 	default:
 		D3DMATRIX dxm;
@@ -1313,132 +1242,10 @@ WWINLINE void DX8Wrapper::Get_Transform(D3DTRANSFORMSTATETYPE transform, Matrix4
 
 WWINLINE void DX8Wrapper::Set_Render_State(const RenderStateStruct& state)
 {
-	int i;
-
-	if (render_state.index_buffer) {
-		render_state.index_buffer->Release_Engine_Ref();
-	}
-
-	for (i=0;i<MAX_VERTEX_STREAMS;++i)
-	{
-		if (render_state.vertex_buffers[i])
-		{
-			render_state.vertex_buffers[i]->Release_Engine_Ref();
-		}
-	}
-
-	render_state=state;
-	render_state_changed=0xffffffff;
-
-	if (render_state.index_buffer) {
-		render_state.index_buffer->Add_Engine_Ref();
-	}
-
-	for (i=0;i<MAX_VERTEX_STREAMS;++i)
-	{
-		if (render_state.vertex_buffers[i])
-		{
-			render_state.vertex_buffers[i]->Add_Engine_Ref();
-		}
-	}
+	FixedFunctionState::Restore_Render_State(state);
 }
 
 WWINLINE void DX8Wrapper::Release_Render_State()
 {
-	int i;
-
-	if (render_state.index_buffer) {
-		render_state.index_buffer->Release_Engine_Ref();
-	}
-
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-		if (render_state.vertex_buffers[i]) {
-			render_state.vertex_buffers[i]->Release_Engine_Ref();
-		}
-	}
-
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-		REF_PTR_RELEASE(render_state.vertex_buffers[i]);
-	}
-	REF_PTR_RELEASE(render_state.index_buffer);
-	REF_PTR_RELEASE(render_state.material);
-
-
-	for (i=0;i<MAX_TEXTURE_STAGES;++i)
-	{
-		REF_PTR_RELEASE(render_state.Textures[i]);
-	}
-}
-
-
-WWINLINE RenderStateStruct::RenderStateStruct()
-	:
-	material(0),
-	index_buffer(0)
-{
-	unsigned i;
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) vertex_buffers[i]=0;
-	for (i=0;i<MAX_TEXTURE_STAGES;++i) Textures[i]=0;
-}
-
-WWINLINE RenderStateStruct::~RenderStateStruct()
-{
-	unsigned i;
-	REF_PTR_RELEASE(material);
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-		REF_PTR_RELEASE(vertex_buffers[i]);
-	}
-	REF_PTR_RELEASE(index_buffer);
-
-	for (i=0;i<MAX_TEXTURE_STAGES;++i)
-	{
-		REF_PTR_RELEASE(Textures[i]);
-	}
-}
-
-
-WWINLINE RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruct& src)
-{
-	unsigned i;
-	REF_PTR_SET(material,src.material);
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-		REF_PTR_SET(vertex_buffers[i],src.vertex_buffers[i]);
-	}
-	REF_PTR_SET(index_buffer,src.index_buffer);
-
-	for (i=0;i<MAX_TEXTURE_STAGES;++i)
-	{
-		REF_PTR_SET(Textures[i],src.Textures[i]);
-	}
-
-	LightEnable[0]=src.LightEnable[0];
-	LightEnable[1]=src.LightEnable[1];
-	LightEnable[2]=src.LightEnable[2];
-	LightEnable[3]=src.LightEnable[3];
-	if (LightEnable[0]) {
-		Lights[0]=src.Lights[0];
-		if (LightEnable[1]) {
-			Lights[1]=src.Lights[1];
-			if (LightEnable[2]) {
-				Lights[2]=src.Lights[2];
-				if (LightEnable[3]) {
-					Lights[3]=src.Lights[3];
-				}
-			}
-		}
-	}
-
-	shader=src.shader;
-	world=src.world;
-	view=src.view;
-	for (i=0;i<MAX_VERTEX_STREAMS;++i) {
-		vertex_buffer_types[i]=src.vertex_buffer_types[i];
-	}
-	index_buffer_type=src.index_buffer_type;
-	vba_offset=src.vba_offset;
-	vba_count=src.vba_count;
-	iba_offset=src.iba_offset;
-	index_base_offset=src.index_base_offset;
-
-	return *this;
+	FixedFunctionState::Release_Render_State();
 }

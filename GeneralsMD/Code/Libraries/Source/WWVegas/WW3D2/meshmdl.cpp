@@ -48,6 +48,8 @@
 #include "camera.h"
 #include "dx8renderer.h"
 #include "hashtemplate.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 
 
 /*
@@ -639,7 +641,7 @@ void GapFillerClass::Shrink_Buffers()
 
 void MeshModelClass::Init_For_NPatch_Rendering()
 {
-	if (!DX8Wrapper::Get_Current_Caps()->Support_NPatches()) return;
+	if (!g_renderBackend || !g_renderBackend->Supports_NPatches()) return;
 	if (!Get_Flag(MeshGeometryClass::ALLOW_NPATCHES)) return;
 	if (GapFiller) return;
 

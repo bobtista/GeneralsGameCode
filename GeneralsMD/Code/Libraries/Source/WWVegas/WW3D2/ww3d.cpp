@@ -114,8 +114,8 @@
 #include "sortingrenderer.h"
 #include "thread.h"
 #include "cpudetect.h"
-#include "dx8texman.h"
-#include "formconv.h"
+#include "TextureResourceManager.h"
+#include "dx8formatconv.h"
 #include "animatedsoundmgr.h"
 #include "static_sort_list.h"
 #include "shdlib.h"
@@ -364,7 +364,7 @@ WW3DErrorType WW3D::Shutdown()
 		WW3DAssetManager::Get_Instance()->Free_Assets();
 	}
 
-	DX8TextureManagerClass::Shutdown();
+	TextureResourceManagerClass::Shutdown();
 	if (!Lite) {
 		DX8Wrapper::Shutdown();
 	}
@@ -811,29 +811,22 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 	SNAPSHOT_SAY(("========== WW3D::Begin_Render ============"));
 	SNAPSHOT_SAY(("==========================================\n"));
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	if (g_renderBackend != nullptr && g_renderBackend->Is_Device_Lost())
-	{
-		return WW3D_ERROR_GENERIC;
-	}
-#else
-	HRESULT hr;
-	if (DX8Wrapper::_Get_D3D_Device8() && (hr=DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
+	RenderBackendDeviceStatus device_status = (g_renderBackend != nullptr) ? g_renderBackend->Get_Device_Status() : RB_DEVICE_OK;
+	if (device_status != RB_DEVICE_OK)
 	{
         // If the device was lost, do not render until we get it back
-        if( D3DERR_DEVICELOST == hr )
+        if( RB_DEVICE_LOST == device_status )
             return WW3D_ERROR_GENERIC;	//other app has the device
 
         // Check if the device needs to be reset
-        if( D3DERR_DEVICENOTRESET == hr )
+        if( RB_DEVICE_NOT_RESET == device_status )
         {
             WWDEBUG_SAY(("WW3D::Begin_Render is resetting the device."));
-            DX8Wrapper::Reset_Device();
+            g_renderBackend->Reset_Device();
         }
 
 		return WW3D_ERROR_GENERIC;
 	}
-#endif
 
 	// Memory allocation statistics
 	LastFrameMemoryAllocations=WWMemoryLogClass::Get_Allocate_Count();
@@ -857,17 +850,17 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 
 	// If we want to clear the screen, we need to set the viewport to include the entire screen:
 	if (clear || clearz) {
-		D3DVIEWPORT8 vp;
+		RenderBackendViewport vp;
 		int width, height, bits;
 		bool windowed;
 		WW3D::Get_Render_Target_Resolution(width, height, bits, windowed);
-		vp.X = 0;
-		vp.Y = 0;
-		vp.Width = width;
-		vp.Height = height;
-		vp.MinZ = 0.0f;
-		vp.MaxZ = 1.0f;
-		DX8Wrapper::Set_Viewport(&vp);
+		vp.x = 0;
+		vp.y = 0;
+		vp.width = width;
+		vp.height = height;
+		vp.min_z = 0.0f;
+		vp.max_z = 1.0f;
+		g_renderBackend->Set_Viewport(vp);
 		g_renderBackend->Clear(clear, clearz, color, dest_alpha);
 	}
 
@@ -1390,19 +1383,14 @@ void WW3D::Make_Screen_Shot( const char * filename_base , const float gamma, con
 		gamma_lut[i] = (unsigned char) (256.0f * powf(i / 256.0f, recip));
 	}
 
-	// TheSuperHackers @bugfix xezon 21/05/2025 Get the back buffer and create a copy of the surface.
-	// Originally this code took the front buffer and tried to lock it. This does not work when the
-	// render view clips outside the desktop boundaries. It crashed the game.
-	SurfaceClass* surface = DX8Wrapper::_Get_DX8_Back_Buffer();
+	SurfaceClass* surfaceCopy = (g_renderBackend != nullptr) ? g_renderBackend->Capture_Back_Buffer_Surface(0) : nullptr;
+	if (surfaceCopy == nullptr)
+	{
+		return;
+	}
 
 	SurfaceClass::SurfaceDescription surfaceDesc;
-	surface->Get_Description(surfaceDesc);
-
-	SurfaceClass* surfaceCopy = NEW_REF(SurfaceClass, (DX8Wrapper::_Create_DX8_Surface(surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format)));
-	DX8Wrapper::_Copy_DX8_Rects(surface->Peek_D3D_Surface(), nullptr, 0, surfaceCopy->Peek_D3D_Surface(), nullptr);
-
-	surface->Release_Ref();
-	surface = nullptr;
+	surfaceCopy->Get_Description(surfaceDesc);
 
 	struct Rect
 	{
@@ -1740,19 +1728,14 @@ void WW3D::Update_Movie_Capture()
 	WWPROFILE("WW3D::Update_Movie_Capture");
 	WWDEBUG_SAY(( "Updating"));
 
-	// TheSuperHackers @bugfix xezon 21/05/2025 Get the back buffer and create a copy of the surface.
-	// Originally this code took the front buffer and tried to lock it. This does not work when the
-	// render view clips outside the desktop boundaries. It crashed the game.
-	SurfaceClass* surface = DX8Wrapper::_Get_DX8_Back_Buffer();
+	SurfaceClass* surfaceCopy = (g_renderBackend != nullptr) ? g_renderBackend->Capture_Back_Buffer_Surface(0) : nullptr;
+	if (surfaceCopy == nullptr)
+	{
+		return;
+	}
 
 	SurfaceClass::SurfaceDescription surfaceDesc;
-	surface->Get_Description(surfaceDesc);
-
-	SurfaceClass* surfaceCopy = NEW_REF(SurfaceClass, (DX8Wrapper::_Create_DX8_Surface(surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format)));
-	DX8Wrapper::_Copy_DX8_Rects(surface->Peek_D3D_Surface(), nullptr, 0, surfaceCopy->Peek_D3D_Surface(), nullptr);
-
-	surface->Release_Ref();
-	surface = nullptr;
+	surfaceCopy->Get_Description(surfaceDesc);
 
 	struct Rect
 	{
@@ -2049,55 +2032,62 @@ void WW3D::Update_Pixel_Center()
 
 void WW3D::Set_Texture_Bitdepth(int bitdepth)
 {
-	DX8Wrapper::Set_Texture_Bitdepth(bitdepth);
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Set_Texture_Bitdepth(bitdepth);
+	}
 }
 
 int WW3D::Get_Texture_Bitdepth()
 {
-	return DX8Wrapper::Get_Texture_Bitdepth();
+	return (g_renderBackend != nullptr) ? g_renderBackend->Get_Texture_Bitdepth() : 16;
 }
 
 void WW3D::Set_MSAA_Mode(MultiSampleModeEnum mode)
 {
+	RenderBackendMSAAMode backend_mode;
 	switch (mode) {
 
 	default:
 	case MULTISAMPLE_MODE_NONE:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_NONE);
+		backend_mode = RB_MSAA_NONE;
 		break;
 
 	case MULTISAMPLE_MODE_2X:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_2_SAMPLES);
+		backend_mode = RB_MSAA_2X;
 		break;
 
 	case MULTISAMPLE_MODE_4X:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_4_SAMPLES);
+		backend_mode = RB_MSAA_4X;
 		break;
 
 	case MULTISAMPLE_MODE_8X:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_8_SAMPLES);
+		backend_mode = RB_MSAA_8X;
 		break;
 
+	}
+
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Set_MSAA_Mode(backend_mode);
 	}
 }
 
 WW3D::MultiSampleModeEnum WW3D::Get_MSAA_Mode()
 {
-	D3DMULTISAMPLE_TYPE type = DX8Wrapper::Get_MSAA_Mode();
+	RenderBackendMSAAMode mode = (g_renderBackend != nullptr) ? g_renderBackend->Get_MSAA_Mode() : RB_MSAA_NONE;
 
-	switch (type) {
+	switch (mode) {
 
 	default:
-	case D3DMULTISAMPLE_NONE:
+	case RB_MSAA_NONE:
 		return MULTISAMPLE_MODE_NONE;
 
-	case D3DMULTISAMPLE_2_SAMPLES:
+	case RB_MSAA_2X:
 		return MULTISAMPLE_MODE_2X;
 
-	case D3DMULTISAMPLE_4_SAMPLES:
+	case RB_MSAA_4X:
 		return MULTISAMPLE_MODE_4X;
 
-	case D3DMULTISAMPLE_8_SAMPLES:
+	case RB_MSAA_8X:
 		return MULTISAMPLE_MODE_8X;
 
 	}

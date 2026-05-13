@@ -78,6 +78,7 @@ static void drawFramerateBar();
 #include "W3DDevice/GameClient/W3DScene.h"
 #include "W3DDevice/GameClient/W3DTerrainTracks.h"
 #include "W3DDevice/GameClient/W3DWater.h"
+#include "WW3D2/statistics.h"
 #include "W3DDevice/GameClient/W3DVideoBuffer.h"
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "W3DDevice/GameClient/W3DDebugDisplay.h"
@@ -89,7 +90,7 @@ static void drawFramerateBar();
 #include "WW3D2/predlod.h"
 #include "WW3D2/part_emt.h"
 #include "WW3D2/part_ldr.h"
-#include "WW3D2/dx8caps.h"
+#include "WW3D2/renderdebugstats.h"
 #include "WW3D2/ww3dformat.h"
 #include "WW3D2/agg_def.h"
 #include "WW3D2/IRenderBackend.h"
@@ -1023,10 +1024,10 @@ void W3DDisplay::init()
 			return;
 		}
 
-		// TheSuperHackers @fix bobtista 21/04/2026 D3D8 half-pixel UV bias causes sub-pixel misalignment on D3D11/bgfx (visible stripes on UI atlases from half-texel sampling offsets). Call this AFTER Set_Render_Device because the render backend is only constructed by Do_Onetime_Device_Dependent_Inits which Set_Render_Device triggers — calling earlier would read g_renderBackend=nullptr and incorrectly enable the bias on bgfx.
+		// TheSuperHackers @fix bobtista 21/04/2026 Legacy half-pixel UV bias causes sub-pixel misalignment on shader backends (visible stripes on UI atlases from half-texel sampling offsets). Call this AFTER Set_Render_Device because the render backend is only constructed by Do_Onetime_Device_Dependent_Inits which Set_Render_Device triggers — calling earlier would read g_renderBackend=nullptr and incorrectly enable the bias on bgfx.
 		const bool shaderPipeline =
 			(g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline());
-		WW3D::Set_Screen_UV_Bias( shaderPipeline ? FALSE : TRUE );  ///< TRUE makes text look good on D3D8
+		WW3D::Set_Screen_UV_Bias( shaderPipeline ? FALSE : TRUE );  ///< TRUE keeps text aligned on the legacy fixed-function backend.
 
 		//Check if level was never set and default to setting most suitable for system.
 		if (TheGameLODManager->getStaticLODLevel() == STATIC_GAME_LOD_UNKNOWN)
@@ -1303,76 +1304,76 @@ void W3DDisplay::gatherDebugStats()
 		} else if (statMode == gameOverhead) {
 			gameOverheadMS = ms;
 			statMode = console;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = false;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = false;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == console) {
 			consoleMS = ms;
 			statMode = threeDOverhead;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == threeDOverhead) {
 			threeDOverheadMS = ms;
 			statMode = terrain;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableTerrain = false;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == terrain) {
 			terrainMS = ms;
 			statMode = objects;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = false;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == objects) {
 			objectMS = ms;
 			statMode = overlap;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableWater = false;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_sleepTime = (int)(terrainMS);
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableOverhead = false;
+			g_renderDebugStats.m_disableTerrain = false;
+			g_renderDebugStats.m_disableWater = false;
+			g_renderDebugStats.m_disableObjects = false;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_sleepTime = (int)(terrainMS);
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == overlap) {
 			overlapMS = ms;
 			statMode = normal;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableWater = false;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_sleepTime = 0;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableOverhead = false;
+			g_renderDebugStats.m_disableTerrain = false;
+			g_renderDebugStats.m_disableWater = false;
+			g_renderDebugStats.m_disableObjects = false;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_sleepTime = 0;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == normal) {
 			overlapMS = (ms + ((int)terrainMS) - overlapMS );
 			statMode = disabled;
 			extendedStats = SHOW_STATS_TIME;
 
 			// Done collecting stats. Re-enable stuff
-			DX8Wrapper::stats.m_disableConsole = false;
-			DX8Wrapper::stats.m_debugLinesToShow = -1;
-		} else if (!DX8Wrapper::stats.m_showingStats) {
+			g_renderDebugStats.m_disableConsole = false;
+			g_renderDebugStats.m_debugLinesToShow = -1;
+		} else if (!g_renderDebugStats.m_showingStats) {
 			// start collecting extended info.
-			DX8Wrapper::stats.m_showingStats = true;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_showingStats = true;
+			g_renderDebugStats.m_disableOverhead = false;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 			statMode = sync;
 			gameOverheadMS = 0.0f;
 			threeDOverheadMS = 0.0f;
@@ -1727,9 +1728,9 @@ void W3DDisplay::drawDebugStats()
 
 	int linesOfStrings = DisplayStringCount;
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_debugLinesToShow > -1)
+	if (g_renderDebugStats.m_debugLinesToShow > -1)
 	{
-		linesOfStrings = DX8Wrapper::stats.m_debugLinesToShow;
+		linesOfStrings = g_renderDebugStats.m_debugLinesToShow;
 	}
 
 #endif
@@ -1960,7 +1961,7 @@ AGAIN:
 #ifdef EXTENDED_STATS
 	else
 	{
-		DX8Wrapper::stats.m_showingStats = false;
+		g_renderDebugStats.m_showingStats = false;
 	}
 #endif
 
@@ -2043,11 +2044,7 @@ AGAIN:
 	do {
 
 		// update all views of the world - recomputes data which will affect drawing
-#if defined(GGC_RENDER_BACKEND_BGFX)
 		const Bool renderDeviceReady = (g_renderBackend != nullptr && !g_renderBackend->Is_Device_Lost());
-#else
-		const Bool renderDeviceReady = (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) == D3D_OK);
-#endif
 		if (renderDeviceReady)
 		{	//Checking if we have the device before updating views because the heightmap crashes otherwise while
 			//trying to refresh the visible terrain geometry.
@@ -2213,7 +2210,7 @@ AGAIN:
 	} while (freezeTime && !TheTacticalView->isCameraMovementFinished());
 
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableOverhead) {
+	if (g_renderDebugStats.m_disableOverhead) {
 		goto AGAIN;
 	}
 #endif
@@ -3042,34 +3039,34 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 	// the BGR0 frames FFmpeg produces on little-endian macOS. Avoid 16-bit
 	// R5G6B5 here; it is both slower in swscale and currently renders with
 	// swapped-looking colors through the bgfx texture path.
-	if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+	if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
 	{
 		format = VideoBuffer::TYPE_X8R8G8B8;
 	}
 #endif
 
-	WW3DFormat displayFormat = DX8Wrapper::getBackBufferFormat();
+	WW3DFormat displayFormat = g_renderBackend->Get_Back_Buffer_Format();
 
-	if ( format == VideoBuffer::TYPE_UNKNOWN && DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
+	if ( format == VideoBuffer::TYPE_UNKNOWN && g_renderBackend && g_renderBackend->Supports_Texture_Format( displayFormat ))
 	{
 		format = W3DVideoBuffer::W3DFormatToType( displayFormat );
 	}
 
 	if ( format == VideoBuffer::TYPE_UNKNOWN )
 	{
-		if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+		if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_X8R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R8G8B8 ))
+		else if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R5G6B5 ))
+		else if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_R5G6B5 ))
 		{
 			format = VideoBuffer::TYPE_R5G6B5;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
+		else if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
 		{
 			format = VideoBuffer::TYPE_X1R5G5B5;
 		}
@@ -3298,19 +3295,14 @@ void W3DDisplay::takeScreenShot()
 			done = true;
 	}
 
-	// TheSuperHackers @bugfix xezon 21/05/2025 Get the back buffer and create a copy of the surface.
-	// Originally this code took the front buffer and tried to lock it. This does not work when the
-	// render view clips outside the desktop boundaries. It crashed the game.
-	SurfaceClass* surface = DX8Wrapper::_Get_DX8_Back_Buffer();
+	SurfaceClass* surfaceCopy = (g_renderBackend != nullptr) ? g_renderBackend->Capture_Back_Buffer_Surface(0) : nullptr;
+	if (surfaceCopy == nullptr)
+	{
+		return;
+	}
 
 	SurfaceClass::SurfaceDescription surfaceDesc;
-	surface->Get_Description(surfaceDesc);
-
-	SurfaceClass* surfaceCopy = NEW_REF(SurfaceClass, (DX8Wrapper::_Create_DX8_Surface(surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format)));
-	DX8Wrapper::_Copy_DX8_Rects(surface->Peek_D3D_Surface(), nullptr, 0, surfaceCopy->Peek_D3D_Surface(), nullptr);
-
-	surface->Release_Ref();
-	surface = nullptr;
+	surfaceCopy->Get_Description(surfaceDesc);
 
 	struct Rect
 	{

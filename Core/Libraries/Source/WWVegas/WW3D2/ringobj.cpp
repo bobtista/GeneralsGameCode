@@ -88,7 +88,7 @@
 #include "camera.h"
 #include "statistics.h"
 #include "predlod.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
 #include "sortingrenderer.h"
@@ -551,9 +551,9 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 		//
 		unsigned color;
 		if (RingShader.Get_Dst_Blend_Func () == ShaderClass::DSTBLEND_ONE) {
-			color = DX8Wrapper::Convert_Color(Alpha * Color,1.0f);
+			color = WW3DColor::To_ARGB(Alpha * Color,1.0f);
 		} else {
-			color = DX8Wrapper::Convert_Color(Color,Alpha);
+			color = WW3DColor::To_ARGB(Color,Alpha);
 		}
 
 		for (int i=0; i<ring.Vertex_ct; i++)

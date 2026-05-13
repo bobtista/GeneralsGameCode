@@ -61,7 +61,6 @@
 #include "rinfo.h"
 #include "camera.h"
 #include "assetmgr.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
 
@@ -307,19 +306,24 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 	Real	waveAlpha;
 	Real	widthFrac;
 	Real	heightFrac;
+	unsigned lockFlags=RB_LOCK_NOOVERWRITE;
 
 	if (batchStart < (WATER_VB_PAGES*WATER_STRIP_X*WATER_STRIP_Y-m_x*m_y))
 	{	//we have room in current VB, append new verts
-		if(vertexBuffer->Get_DX8_Vertex_Buffer()->Lock(batchStart*vertexBuffer->FVF_Info().Get_FVF_Size(),m_x*m_y*vertexBuffer->FVF_Info().Get_FVF_Size(),(unsigned char**)&vb,D3DLOCK_NOOVERWRITE) != D3D_OK)
-			return batchStart;
 	}
 	else
 	{	//ran out of room in last VB, request a substitute VB.
-		if(vertexBuffer->Get_DX8_Vertex_Buffer()->Lock(0,m_x*m_y*vertexBuffer->FVF_Info().Get_FVF_Size(),(unsigned char**)&vb,D3DLOCK_DISCARD) != D3D_OK)
-			return batchStart;
 		batchStart=0;	//reset start of page to first vertex
+		lockFlags=RB_LOCK_DISCARD;
 	}
-	VertexFormatXYZDUV1 *lockedVerts=vb;
+	VertexBufferClass::AppendLockClass vertexLock(
+		vertexBuffer,
+		batchStart,
+		m_x*m_y,
+		lockFlags);
+	vb=static_cast<VertexFormatXYZDUV1 *>(vertexLock.Get_Vertex_Array());
+	if (vb == nullptr)
+		return batchStart;
 
 	//Adjust wave position in a non-linear way so that it slows down as it hits the target.  Using 1/4 sine wave
 	//seems to work okay since it maxes out at 1.0 at our final position.
@@ -471,14 +475,6 @@ Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
 		vb->u1=1.0f;
 	vb->v1=1.0f;
 	vb++;
-
-	// TheSuperHackers @bugfix bobtista 28/04/2026 This path locks the raw
-	// DX8 dynamic buffer directly, bypassing VertexBufferClass::AppendLockClass.
-	// Mirror that capture hook so bgfx receives the shoreline wave vertices.
-	if (g_renderBackend)
-		g_renderBackend->Capture_Vertex_Sub_Range(vertexBuffer,lockedVerts,batchStart,m_x*m_y*vertexBuffer->FVF_Info().Get_FVF_Size());
-
-	vertexBuffer->Get_DX8_Vertex_Buffer()->Unlock();
 
 	return batchStart+m_x*m_y;	//return new offset into unused area of vertex buffer
 }
@@ -944,10 +940,10 @@ Try improving the fit to vertical surfaces like cliffs.
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 1);
 
 		//modulate with shroud texture
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_TEXTURE );	//stage 1 texture
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_CURRENT );	//previous stage texture
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_MODULATE );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_MODULATE );
+		g_renderBackend->Set_Texture_Color_Argument(1, 1, RB_TEXARG_TEXTURE);	//stage 1 texture
+		g_renderBackend->Set_Texture_Color_Argument(1, 2, RB_TEXARG_CURRENT);	//previous stage texture
+		g_renderBackend->Set_Texture_Color_Operation(1, RB_TEXOP_MODULATE);
+		g_renderBackend->Set_Texture_Alpha_Operation(1, RB_TEXOP_MODULATE);
 
 		//Shroud shader uses z-compare of EQUAL which wouldn't work on water because it doesn't
 		//write to the zbuffer.  Change to LESSEQUAL.

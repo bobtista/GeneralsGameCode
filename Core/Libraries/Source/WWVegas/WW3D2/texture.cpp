@@ -42,26 +42,59 @@
 #include "texture.h"
 
 #include <d3d8.h>
-#include <d3dx8core.h>
+#include "d3dx8tex.h"
 #include "dx8wrapper.h"
 #include "TARGA.h"
 #include <nstrdup.h>
 #include "w3d_file.h"
 #include "assetmgr.h"
-#include "formconv.h"
+#include "dx8formatconv.h"
+#include "dx8textureinterop.h"
 #include "textureloader.h"
 #include "missingtexture.h"
 #include "ffactory.h"
-#include "dx8caps.h"
 #include "dx8texman.h"
 #include "meshmatdesc.h"
 #include "texturethumbnail.h"
 #include "wwprofile.h"
 #include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "DXTUtils.h"
 #include <cstring>
 
 const unsigned DEFAULT_INACTIVATION_TIME=20000;
+
+namespace
+{
+	using LegacyBaseTexture = IDirect3DBaseTexture8;
+	using LegacyTexture2D = IDirect3DTexture8;
+	using LegacyTextureSurface = IDirect3DSurface8;
+	using LegacySurfaceDesc = D3DSURFACE_DESC;
+	using LegacyVolumeDesc = D3DVOLUME_DESC;
+	using LegacyLockedRect = D3DLOCKED_RECT;
+	using LegacyTexturePool = D3DPOOL;
+
+	constexpr unsigned kLegacyLockReadOnly = D3DLOCK_READONLY;
+	constexpr unsigned kLegacyMipFilterBox = D3DX_FILTER_BOX;
+
+	LegacyTexturePool Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
+	{
+		switch (pool)
+		{
+		case TextureBaseClass::POOL_DEFAULT: return D3DPOOL_DEFAULT;
+		case TextureBaseClass::POOL_MANAGED: return D3DPOOL_MANAGED;
+		case TextureBaseClass::POOL_SYSTEMMEM: return D3DPOOL_SYSTEMMEM;
+		default:
+			WWASSERT(0);
+			return static_cast<LegacyTexturePool>(0);
+		}
+	}
+
+	LegacyBaseTexture *Legacy_Texture(void *texture)
+	{
+		return static_cast<LegacyBaseTexture *>(texture);
+	}
+}
 
 /*
 ** Definitions of static members:
@@ -87,7 +120,7 @@ TextureBaseClass::TextureBaseClass
 	bool reducible
 )
 	:	MipLevelCount(mip_level_count),
-		D3DTexture(nullptr),
+		LegacyTexture(nullptr),
 		CPUTextureRevision(0),
 		m_backendHandle(kInvalidRenderResource),
 	Initialized(false),
@@ -119,13 +152,10 @@ TextureBaseClass::TextureBaseClass
 */
 TextureBaseClass::~TextureBaseClass()
 {
-	delete TextureLoadTask;
-	TextureLoadTask=nullptr;
-	delete ThumbnailLoadTask;
-	ThumbnailLoadTask=nullptr;
+	TextureLoader::Delete_Texture_Load_Tasks(this);
 
 	// TheSuperHackers @fix bobtista 20/04/2026 Notify the render backend
-	// before the D3D8 texture goes away. bgfx caches a handle keyed on
+	// before the legacy texture goes away. bgfx caches a handle keyed on
 	// this TextureBaseClass* address; if the memory is reallocated for
 	// a different texture later, the old handle would be served for the
 	// new object (ABA). Releasing the cache entry here closes that window.
@@ -139,14 +169,14 @@ TextureBaseClass::~TextureBaseClass()
 		}
 	}
 
-	if (D3DTexture)
+	if (LegacyTexture)
 	{
-		D3DTexture->Release();
-		D3DTexture = nullptr;
+		Legacy_Texture(LegacyTexture)->Release();
+		LegacyTexture = nullptr;
 	}
 	Clear_CPU_Texture_Snapshot();
 
-	DX8TextureManagerClass::Remove(this);
+	TextureResourceManagerClass::Remove(this);
 }
 
 
@@ -222,10 +252,10 @@ void TextureBaseClass::Invalidate()
 		return;
 	}
 
-	if (D3DTexture)
+	if (LegacyTexture)
 	{
-		D3DTexture->Release();
-		D3DTexture = nullptr;
+		Legacy_Texture(LegacyTexture)->Release();
+		LegacyTexture = nullptr;
 	}
 	Clear_CPU_Texture_Snapshot();
 
@@ -258,61 +288,15 @@ void TextureBaseClass::Invalidate()
 		return;
 	}
 
-	if (D3DTexture)
+	if (LegacyTexture)
 	{
-		D3DTexture->Release();
-		D3DTexture = nullptr;
+		LegacyTexture->Release();
+		LegacyTexture = nullptr;
 	}
 
 	Initialized=false;
 
 	LastAccessed=WW3D::Get_Sync_Time();*/
-}
-
-//**********************************************************************************************
-//! Returns a pointer to the d3d texture
-/*!
-*/
-IDirect3DBaseTexture8 * TextureBaseClass::Peek_D3D_Base_Texture() const
-{
-	LastAccessed=WW3D::Get_Sync_Time();
-	return D3DTexture;
-}
-
-//**********************************************************************************************
-//! Set the d3d texture pointer.  Handles ref counts properly.
-/*!
-*/
-void TextureBaseClass::Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex)
-{
-	// (gth) Generals does stuff directly with the D3DTexture pointer so lets
-	// reset the access timer whenever someon messes with this pointer.
-	LastAccessed=WW3D::Get_Sync_Time();
-
-	if (D3DTexture != nullptr) {
-		D3DTexture->Release();
-	}
-	D3DTexture = tex;
-	if (D3DTexture != nullptr) {
-		D3DTexture->AddRef();
-	}
-	Capture_CPU_Texture_Snapshot(D3DTexture);
-
-	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 1 —
-	// populate the backend-neutral handle after the legacy D3D8 loader
-	// finished creating the D3D8 texture. The backend either stores a
-	// wrapper around the D3D pointer (DX8) or creates a parallel bgfx
-	// texture via the peek path (bgfx). Skip when tex is null — that's
-	// a release, not a load.
-	if (D3DTexture != nullptr && g_renderBackend != nullptr) {
-		if (m_backendHandle != kInvalidRenderResource) {
-			g_renderBackend->Destroy_Resource(m_backendHandle);
-		}
-		m_backendHandle = g_renderBackend->Register_Loaded_Texture(this);
-	} else if (D3DTexture == nullptr && m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
-		g_renderBackend->Destroy_Resource(m_backendHandle);
-		m_backendHandle = kInvalidRenderResource;
-	}
 }
 
 void TextureBaseClass::Clear_CPU_Texture_Snapshot()
@@ -323,28 +307,28 @@ void TextureBaseClass::Clear_CPU_Texture_Snapshot()
 	++CPUTextureRevision;
 }
 
-void TextureBaseClass::Capture_CPU_Texture_Snapshot(IDirect3DBaseTexture8* tex)
+void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 {
 	CPUTextureMips.clear();
 	++CPUTextureRevision;
 
 	TextureClass * tex2d = As_TextureClass();
-	if (tex == nullptr || tex2d == nullptr) {
+	if (native_texture == nullptr || tex2d == nullptr) {
 		return;
 	}
 
-	IDirect3DTexture8 * d3d_texture = static_cast<IDirect3DTexture8 *>(tex);
+	LegacyTexture2D * d3d_texture = static_cast<LegacyTexture2D *>(native_texture);
 	const unsigned levels = d3d_texture->GetLevelCount();
 	CPUTextureMips.reserve(levels);
 	for (unsigned level = 0; level < levels; ++level) {
-		D3DSURFACE_DESC desc;
+		LegacySurfaceDesc desc;
 		if (FAILED(d3d_texture->GetLevelDesc(level, &desc))) {
 			CPUTextureMips.clear();
 			return;
 		}
 
-		D3DLOCKED_RECT locked = { 0 };
-		if (FAILED(d3d_texture->LockRect(level, &locked, nullptr, D3DLOCK_READONLY))
+		LegacyLockedRect locked = { 0 };
+		if (FAILED(d3d_texture->LockRect(level, &locked, nullptr, kLegacyLockReadOnly))
 			|| locked.pBits == nullptr) {
 			CPUTextureMips.clear();
 			return;
@@ -354,7 +338,7 @@ void TextureBaseClass::Capture_CPU_Texture_Snapshot(IDirect3DBaseTexture8* tex)
 		mip.Width = desc.Width;
 		mip.Height = desc.Height;
 		mip.Pitch = static_cast<unsigned>(locked.Pitch);
-		mip.Format = tex2d->Get_Texture_Format();
+		mip.Format = D3DFormat_To_WW3DFormat(desc.Format);
 		const bool compressed =
 			mip.Format == WW3D_FORMAT_DXT1 ||
 			mip.Format == WW3D_FORMAT_DXT2 ||
@@ -377,8 +361,8 @@ void TextureBaseClass::Capture_CPU_Texture_Snapshot(IDirect3DBaseTexture8* tex)
 void TextureBaseClass::Load_Locked_Surface()
 {
 	WWPROFILE(("TextureClass::Load_Locked_Surface()"));
-	if (D3DTexture) D3DTexture->Release();
-	D3DTexture=nullptr;
+	if (LegacyTexture) Legacy_Texture(LegacyTexture)->Release();
+	LegacyTexture=nullptr;
 	TextureLoader::Request_Thumbnail(this);
 	Initialized=false;
 }
@@ -391,9 +375,9 @@ void TextureBaseClass::Load_Locked_Surface()
 bool TextureBaseClass::Is_Missing_Texture()
 {
 	bool flag = false;
-	IDirect3DBaseTexture8 *missing_texture = MissingTexture::_Get_Missing_Texture();
+	LegacyBaseTexture *missing_texture = Get_Legacy_Missing_Texture();
 
-	if (D3DTexture == missing_texture)
+	if (Legacy_Texture(LegacyTexture) == missing_texture)
 		flag = true;
 
 	if (missing_texture)
@@ -423,13 +407,13 @@ void TextureBaseClass::Set_Texture_Name(const char * name)
 */
 unsigned int TextureBaseClass::Get_Priority()
 {
-	if (!D3DTexture)
+	if (!LegacyTexture)
 	{
-		WWASSERT_PRINT(0, "Get_Priority: D3DTexture is null!");
+		WWASSERT_PRINT(0, "Get_Priority: LegacyTexture is null!");
 		return 0;
 	}
 
-	return D3DTexture->GetPriority();
+	return Legacy_Texture(LegacyTexture)->GetPriority();
 }
 
 
@@ -439,13 +423,13 @@ unsigned int TextureBaseClass::Get_Priority()
 */
 unsigned int TextureBaseClass::Set_Priority(unsigned int priority)
 {
-	if (!D3DTexture)
+	if (!LegacyTexture)
 	{
-		WWASSERT_PRINT(0, "Set_Priority: D3DTexture is null!");
+		WWASSERT_PRINT(0, "Set_Priority: LegacyTexture is null!");
 		return 0;
 	}
 
-	return D3DTexture->SetPriority(priority);
+	return Legacy_Texture(LegacyTexture)->SetPriority(priority);
 }
 
 
@@ -481,7 +465,7 @@ unsigned TextureBaseClass::Get_Reduction() const
 void TextureBaseClass::Apply_Null(unsigned int stage)
 {
 	// This function sets the render states for a "null" texture
-	DX8Wrapper::Set_DX8_Texture(stage, nullptr);
+	g_renderBackend->Bind_Texture_Immediate(stage, nullptr);
 }
 
 // ----------------------------------------------------------------------------
@@ -704,24 +688,16 @@ TextureClass::TextureClass
 	default : break;
 	}
 
-	D3DPOOL d3dpool=(D3DPOOL)0;
-	switch(pool)
-	{
-	case POOL_DEFAULT		: d3dpool=D3DPOOL_DEFAULT; break;
-	case POOL_MANAGED		: d3dpool=D3DPOOL_MANAGED; break;
-	case POOL_SYSTEMMEM	: d3dpool=D3DPOOL_SYSTEMMEM; break;
-	default: WWASSERT(0);
-	}
+	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_Texture
 		(
 			width,
 			height,
 			format,
 			mip_level_count,
-			d3dpool,
+			legacy_pool,
 			rendertarget
 		)
 	);
@@ -738,7 +714,7 @@ TextureClass::TextureClass
 			this,
 			rendertarget
 		);
-		DX8TextureManagerClass::Add(track);
+		TextureResourceManagerClass::Add(track);
 	}
 	LastAccessed=WW3D::Get_Sync_Time();
 }
@@ -778,7 +754,7 @@ TextureClass::TextureClass
 		// If requesting bumpmap format that isn't available we'll just return the surface in whatever color
 		// format the texture file is in. (This is illegal case, the format support should always be queried
 		// before creating a bump texture!)
-		if (!DX8Wrapper::Is_Initted() || !DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(TextureFormat))
+		if (!g_renderBackend || !g_renderBackend->Supports_Texture_Format(TextureFormat))
 		{
 			TextureFormat=WW3D_FORMAT_UNKNOWN;
 		}
@@ -816,7 +792,7 @@ TextureClass::TextureClass
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
-		Poke_Texture(nullptr);
+		Poke_Legacy_Texture(*this, nullptr);
 	}
 
 	// Find original size from the thumbnail (but don't create thumbnail texture yet!)
@@ -873,36 +849,36 @@ TextureClass::TextureClass
 	default: break;
 	}
 
-	Poke_Texture
+	LegacyBaseTexture *newTexture = DX8Wrapper::_Create_DX8_Texture
 	(
-		DX8Wrapper::_Create_DX8_Texture
-		(
-			surface->Peek_D3D_Surface(),
-			mip_level_count
-		)
+		Peek_Legacy_Surface(*surface),
+		mip_level_count
 	);
+	Poke_Legacy_Texture(*this, newTexture);
+	Refresh_CPU_Texture_Snapshot();
 	LastAccessed=WW3D::Get_Sync_Time();
 }
 
 // ----------------------------------------------------------------------------
-TextureClass::TextureClass(IDirect3DBaseTexture8* d3d_texture)
+TextureClass::TextureClass(void *legacy_texture)
 :	TextureBaseClass
 	(
 		0,
 		0,
-		((MipCountType)d3d_texture->GetLevelCount())
+		((MipCountType)static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount())
 	),
-	Filter((MipCountType)d3d_texture->GetLevelCount())
+	Filter((MipCountType)static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount())
 {
+	LegacyBaseTexture *d3d_texture = static_cast<LegacyBaseTexture *>(legacy_texture);
 	Initialized=true;
 	IsProcedural=true;
 	IsReducible=false;
 
-	Set_D3D_Base_Texture(d3d_texture);
-	IDirect3DSurface8* surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
+	Set_Legacy_Base_Texture(*this, d3d_texture);
+	LegacyTextureSurface *surface;
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(0,&surface));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
 	Width=d3d_desc.Width;
 	Height=d3d_desc.Height;
@@ -945,7 +921,7 @@ void TextureClass::Init()
 	}
 
 
-	if (!Peek_D3D_Base_Texture())
+	if (!Peek_Legacy_Base_Texture(*this))
 	{
 		if (!WW3D::Get_Thumbnail_Enabled() || MipLevelCount==MIP_LEVELS_1)
 		{
@@ -972,28 +948,24 @@ void TextureClass::Init()
 //! Apply new surface to texture
 /*!
 */
-void TextureClass::Apply_New_Surface
+void TextureClass::Apply_Legacy_Surface
 (
-	IDirect3DBaseTexture8* d3d_texture,
+	void *native_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
-	IDirect3DBaseTexture8* d3d_tex=Peek_D3D_Base_Texture();
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Texture(d3d_texture);//TextureLoadTask->Peek_D3D_Texture();
-	d3d_texture->AddRef();
+	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
 
 	WWASSERT(d3d_texture);
-	IDirect3DSurface8* surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
+	LegacyTextureSurface *surface;
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(0,&surface));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
 	if (initialized)
 	{
@@ -1050,11 +1022,11 @@ void TextureClass::Apply(unsigned int stage)
 	// Set texture itself
 	if (WW3D::Is_Texturing_Enabled())
 	{
-		DX8Wrapper::Set_DX8_Texture(stage, Peek_D3D_Base_Texture());
+		g_renderBackend->Bind_Texture_Immediate(stage, this);
 	}
 	else
 	{
-		DX8Wrapper::Set_DX8_Texture(stage, nullptr);
+		g_renderBackend->Bind_Texture_Immediate(stage, nullptr);
 	}
 
 	Filter.Apply(stage);
@@ -1066,15 +1038,15 @@ void TextureClass::Apply(unsigned int stage)
 */
 SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 {
-	if (!Peek_D3D_Texture())
+	if (!Peek_Legacy_Texture2D(*this))
 	{
-		WWASSERT_PRINT(0, "Get_Surface_Level: D3DTexture is null!");
+		WWASSERT_PRINT(0, "Get_Surface_Level: LegacyTexture is null!");
 		return nullptr;
 	}
 
-	IDirect3DSurface8 *d3d_surface = nullptr;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
-	SurfaceClass *surface = new SurfaceClass(d3d_surface);
+	LegacyTextureSurface *d3d_surface = nullptr;
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(level, &d3d_surface));
+	SurfaceClass *surface = Create_Legacy_Surface_Wrapper(d3d_surface);
 	d3d_surface->Release();
 
 	return surface;
@@ -1093,20 +1065,46 @@ void TextureClass::Get_Level_Description( SurfaceClass::SurfaceDescription & des
 	REF_PTR_RELEASE(surf);
 }
 
+unsigned int TextureClass::Get_Level_Count() const
+{
+	LegacyTexture2D *texture = Peek_Legacy_Texture2D(*this);
+	return texture != nullptr ? texture->GetLevelCount() : 0;
+}
+
+bool TextureClass::Generate_Mip_Levels()
+{
+	LegacyTexture2D *texture = Peek_Legacy_Texture2D(*this);
+	if (texture == nullptr)
+	{
+		return false;
+	}
+
+	return SUCCEEDED(D3DXFilterTexture(texture, nullptr, 0, kLegacyMipFilterBox));
+}
+
+void TextureClass::Set_LOD(unsigned int lod) const
+{
+	LegacyTexture2D *texture = Peek_Legacy_Texture2D(*this);
+	if (texture != nullptr)
+	{
+		DX8_ErrorCode(texture->SetLOD(static_cast<DWORD>(lod)));
+	}
+}
+
 //**********************************************************************************************
-//! Get D3D surface from mip level
+//! Get legacy surface from mip level
 /*!
 */
-IDirect3DSurface8 *TextureClass::Get_D3D_Surface_Level(unsigned int level)
+void *TextureClass::Get_Legacy_Surface_Level(unsigned int level)
 {
-	if (!Peek_D3D_Texture())
+	if (!Peek_Legacy_Texture2D(*this))
 	{
-		WWASSERT_PRINT(0, "Get_D3D_Surface_Level: D3DTexture is null!");
+		WWASSERT_PRINT(0, "Get_Legacy_Surface_Level: native texture is null!");
 		return nullptr;
 	}
 
-	IDirect3DSurface8 *d3d_surface = nullptr;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
+	LegacyTextureSurface *d3d_surface = nullptr;
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(level, &d3d_surface));
 	return d3d_surface;
 }
 
@@ -1117,11 +1115,11 @@ IDirect3DSurface8 *TextureClass::Get_D3D_Surface_Level(unsigned int level)
 unsigned TextureClass::Get_Texture_Memory_Usage() const
 {
 	int size=0;
-	if (!Peek_D3D_Texture()) return 0;
-	for (unsigned i=0;i<Peek_D3D_Texture()->GetLevelCount();++i)
+	if (!Peek_Legacy_Texture2D(*this)) return 0;
+	for (unsigned i=0;i<Peek_Legacy_Texture2D(*this)->GetLevelCount();++i)
 	{
-		D3DSURFACE_DESC desc;
-		DX8_ErrorCode(Peek_D3D_Texture()->GetLevelDesc(i,&desc));
+		LegacySurfaceDesc desc;
+		DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetLevelDesc(i,&desc));
 		size+=desc.Size;
 	}
 	return size;
@@ -1211,14 +1209,14 @@ TextureClass* Load_Texture(ChunkLoadClass & cload)
 
 				case W3DTEXTURE_TYPE_BUMPMAP:
 				{
-					if (DX8Wrapper::Is_Initted() && DX8Wrapper::Get_Current_Caps()->Support_Bump_Envmap())
+					if (g_renderBackend && g_renderBackend->Supports_Bump_Envmap())
 					{
 						// No mipmaps to bumpmap for now
 						mipcount=MIP_LEVELS_1;
 
-						if (DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(WW3D_FORMAT_U8V8)) format=WW3D_FORMAT_U8V8;
-						else if (DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(WW3D_FORMAT_X8L8V8U8)) format=WW3D_FORMAT_X8L8V8U8;
-						else if (DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(WW3D_FORMAT_L6V5U5)) format=WW3D_FORMAT_L6V5U5;
+						if (g_renderBackend->Supports_Texture_Format(WW3D_FORMAT_U8V8)) format=WW3D_FORMAT_U8V8;
+						else if (g_renderBackend->Supports_Texture_Format(WW3D_FORMAT_X8L8V8U8)) format=WW3D_FORMAT_X8L8V8U8;
+						else if (g_renderBackend->Supports_Texture_Format(WW3D_FORMAT_L6V5U5)) format=WW3D_FORMAT_L6V5U5;
 					}
 					break;
 				}
@@ -1298,24 +1296,16 @@ ZTextureClass::ZTextureClass
 :	TextureBaseClass(width,height, mip_level_count, pool),
 	DepthStencilTextureFormat(zformat)
 {
-	D3DPOOL d3dpool=(D3DPOOL)0;
-	switch (pool)
-	{
-	case POOL_DEFAULT: d3dpool=D3DPOOL_DEFAULT; break;
-	case POOL_MANAGED: d3dpool=D3DPOOL_MANAGED; break;
-	case POOL_SYSTEMMEM: d3dpool=D3DPOOL_SYSTEMMEM;	break;
-	default:	WWASSERT(0);
-	}
+	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_ZTexture
 		(
 			width,
 			height,
 			zformat,
 			mip_level_count,
-			d3dpool
+			legacy_pool
 		)
 	);
 
@@ -1330,7 +1320,7 @@ ZTextureClass::ZTextureClass
 			mip_level_count,
 			this
 		);
-		DX8TextureManagerClass::Add(track);
+		TextureResourceManagerClass::Add(track);
 	}
 	Initialized=true;
 	IsProcedural=true;
@@ -1346,35 +1336,31 @@ ZTextureClass::ZTextureClass
 */
 void ZTextureClass::Apply(unsigned int stage)
 {
-	DX8Wrapper::Set_DX8_Texture(stage, Peek_D3D_Base_Texture());
+	g_renderBackend->Bind_Texture_Immediate(stage, this);
 }
 
 //**********************************************************************************************
 //! Apply new surface to texture
 /*! KM
 */
-void ZTextureClass::Apply_New_Surface
+void ZTextureClass::Apply_Legacy_Surface
 (
-	IDirect3DBaseTexture8* d3d_texture,
+	void *native_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
-	IDirect3DBaseTexture8* d3d_tex=Peek_D3D_Base_Texture();
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Texture(d3d_texture);//TextureLoadTask->Peek_D3D_Texture();
-	d3d_texture->AddRef();
+	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
 
-	WWASSERT(Peek_D3D_Texture());
-	IDirect3DSurface8* surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
+	WWASSERT(Peek_Legacy_Texture2D(*this));
+	LegacyTextureSurface *surface;
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(0,&surface));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
 	if (initialized)
 	{
@@ -1386,19 +1372,19 @@ void ZTextureClass::Apply_New_Surface
 }
 
 //**********************************************************************************************
-//! Get D3D surface from mip level
+//! Get legacy surface from mip level
 /*!
 */
-IDirect3DSurface8* ZTextureClass::Get_D3D_Surface_Level(unsigned int level)
+void *ZTextureClass::Get_Legacy_Surface_Level(unsigned int level)
 {
-	if (!Peek_D3D_Texture())
+	if (!Peek_Legacy_Texture2D(*this))
 	{
-		WWASSERT_PRINT(0, "Get_D3D_Surface_Level: D3DTexture is null!");
+		WWASSERT_PRINT(0, "Get_Legacy_Surface_Level: native texture is null!");
 		return nullptr;
 	}
 
-	IDirect3DSurface8 *d3d_surface = nullptr;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
+	LegacyTextureSurface *d3d_surface = nullptr;
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(level, &d3d_surface));
 	return d3d_surface;
 }
 
@@ -1409,11 +1395,11 @@ IDirect3DSurface8* ZTextureClass::Get_D3D_Surface_Level(unsigned int level)
 unsigned ZTextureClass::Get_Texture_Memory_Usage() const
 {
 	int size=0;
-	if (!Peek_D3D_Texture()) return 0;
-	for (unsigned i=0;i<Peek_D3D_Texture()->GetLevelCount();++i)
+	if (!Peek_Legacy_Texture2D(*this)) return 0;
+	for (unsigned i=0;i<Peek_Legacy_Texture2D(*this)->GetLevelCount();++i)
 	{
-		D3DSURFACE_DESC desc;
-		DX8_ErrorCode(Peek_D3D_Texture()->GetLevelDesc(i,&desc));
+		LegacySurfaceDesc desc;
+		DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetLevelDesc(i,&desc));
 		size+=desc.Size;
 	}
 	return size;
@@ -1452,24 +1438,16 @@ CubeTextureClass::CubeTextureClass
 	default : break;
 	}
 
-	D3DPOOL d3dpool=(D3DPOOL)0;
-	switch(pool)
-	{
-	case POOL_DEFAULT		: d3dpool=D3DPOOL_DEFAULT; break;
-	case POOL_MANAGED		: d3dpool=D3DPOOL_MANAGED; break;
-	case POOL_SYSTEMMEM	: d3dpool=D3DPOOL_SYSTEMMEM; break;
-	default: WWASSERT(0);
-	}
+	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_Cube_Texture
 		(
 			width,
 			height,
 			format,
 			mip_level_count,
-			d3dpool,
+			legacy_pool,
 			rendertarget
 		)
 	);
@@ -1486,7 +1464,7 @@ CubeTextureClass::CubeTextureClass
 			this,
 			rendertarget
 		);
-		DX8TextureManagerClass::Add(track);
+		TextureResourceManagerClass::Add(track);
 	}
 	LastAccessed=WW3D::Get_Sync_Time();
 }
@@ -1523,7 +1501,7 @@ CubeTextureClass::CubeTextureClass
 		// If requesting bumpmap format that isn't available we'll just return the surface in whatever color
 		// format the texture file is in. (This is illegal case, the format support should always be queried
 		// before creating a bump texture!)
-		if (!DX8Wrapper::Is_Initted() || !DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(TextureFormat))
+		if (!g_renderBackend || !g_renderBackend->Supports_Texture_Format(TextureFormat))
 		{
 			TextureFormat=WW3D_FORMAT_UNKNOWN;
 		}
@@ -1561,7 +1539,7 @@ CubeTextureClass::CubeTextureClass
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
-		Poke_Texture(nullptr);
+		Poke_Legacy_Texture(*this, nullptr);
 	}
 
 	// Find original size from the thumbnail (but don't create thumbnail texture yet!)
@@ -1618,11 +1596,10 @@ CubeTextureClass::CubeTextureClass
 	default: break;
 	}
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_Cube_Texture
 		(
-			surface->Peek_D3D_Surface(),
+			Peek_Legacy_Surface(*surface),
 			mip_level_count
 		)
 	);
@@ -1630,7 +1607,7 @@ CubeTextureClass::CubeTextureClass
 }
 
 // ----------------------------------------------------------------------------
-CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
+CubeTextureClass::CubeTextureClass(LegacyBaseTexture * d3d_texture)
 :	TextureBaseClass
 	(
 		0,
@@ -1644,10 +1621,10 @@ CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
 	IsReducible=false;
 
 	Peek_Texture()->AddRef();
-	IDirect3DSurface8* surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
+	LegacyTextureSurface *surface;
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(0,&surface));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
 	Width=d3d_desc.Width;
 	Height=d3d_desc.Height;
@@ -1672,27 +1649,23 @@ CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
 //! Apply new surface to texture
 /*!
 */
-void CubeTextureClass::Apply_New_Surface
+void CubeTextureClass::Apply_Legacy_Surface
 (
-	IDirect3DBaseTexture8* d3d_texture,
+	void *native_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
-	IDirect3DBaseTexture8* d3d_tex=Peek_D3D_Base_Texture();
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Texture(d3d_texture);//TextureLoadTask->Peek_D3D_Texture();
-	d3d_texture->AddRef();
+	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
 
 	WWASSERT(d3d_texture);
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
-	DX8_ErrorCode(Peek_D3D_CubeTexture()->GetLevelDesc(0,&d3d_desc));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
+	DX8_ErrorCode(Peek_Legacy_Cube_Texture(*this)->GetLevelDesc(0,&d3d_desc));
 
 	if (initialized)
 	{
@@ -1736,17 +1709,9 @@ VolumeTextureClass::VolumeTextureClass
 	default : break;
 	}
 
-	D3DPOOL d3dpool=(D3DPOOL)0;
-	switch(pool)
-	{
-	case POOL_DEFAULT		: d3dpool=D3DPOOL_DEFAULT; break;
-	case POOL_MANAGED		: d3dpool=D3DPOOL_MANAGED; break;
-	case POOL_SYSTEMMEM	: d3dpool=D3DPOOL_SYSTEMMEM; break;
-	default: WWASSERT(0);
-	}
+	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_Volume_Texture
 		(
 			width,
@@ -1754,7 +1719,7 @@ VolumeTextureClass::VolumeTextureClass
 			depth,
 			format,
 			mip_level_count,
-			d3dpool
+			legacy_pool
 		)
 	);
 
@@ -1770,7 +1735,7 @@ VolumeTextureClass::VolumeTextureClass
 			this,
 			rendertarget
 		);
-		DX8TextureManagerClass::Add(track);
+		TextureResourceManagerClass::Add(track);
 	}
 	LastAccessed=WW3D::Get_Sync_Time();
 }
@@ -1808,7 +1773,7 @@ VolumeTextureClass::VolumeTextureClass
 		// If requesting bumpmap format that isn't available we'll just return the surface in whatever color
 		// format the texture file is in. (This is illegal case, the format support should always be queried
 		// before creating a bump texture!)
-		if (!DX8Wrapper::Is_Initted() || !DX8Wrapper::Get_Current_Caps()->Support_Texture_Format(TextureFormat))
+		if (!g_renderBackend || !g_renderBackend->Supports_Texture_Format(TextureFormat))
 		{
 			TextureFormat=WW3D_FORMAT_UNKNOWN;
 		}
@@ -1846,7 +1811,7 @@ VolumeTextureClass::VolumeTextureClass
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
-		Poke_Texture(nullptr);
+		Poke_Legacy_Texture(*this, nullptr);
 	}
 
 	// Find original size from the thumbnail (but don't create thumbnail texture yet!)
@@ -1903,11 +1868,10 @@ CubeTextureClass::CubeTextureClass
 	default: break;
 	}
 
-	Poke_Texture
-	(
+	Poke_Legacy_Texture(*this,
 		DX8Wrapper::_Create_DX8_Cube_Texture
 		(
-			surface->Peek_D3D_Surface(),
+			Peek_Legacy_Surface(*surface),
 			mip_level_count
 		)
 	);
@@ -1915,7 +1879,7 @@ CubeTextureClass::CubeTextureClass
 }
 
 // ----------------------------------------------------------------------------
-CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
+CubeTextureClass::CubeTextureClass(LegacyBaseTexture * d3d_texture)
 :	TextureBaseClass
 	(
 		0,
@@ -1929,10 +1893,10 @@ CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
 	IsReducible=false;
 
 	Peek_Texture()->AddRef();
-	IDirect3DSurface8* surface;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
+	LegacyTextureSurface *surface;
+	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(0,&surface));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
 	Width=d3d_desc.Width;
 	Height=d3d_desc.Height;
@@ -1960,28 +1924,24 @@ CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
 //! Apply new surface to texture
 /*!
 */
-void VolumeTextureClass::Apply_New_Surface
+void VolumeTextureClass::Apply_Legacy_Surface
 (
-	IDirect3DBaseTexture8* d3d_texture,
+	void *native_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
-	IDirect3DBaseTexture8* d3d_tex=Peek_D3D_Base_Texture();
-
-	if (d3d_tex) d3d_tex->Release();
-
-	Poke_Texture(d3d_texture);//TextureLoadTask->Peek_D3D_Texture();
-	d3d_texture->AddRef();
+	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
+	Set_Legacy_Base_Texture(*this, d3d_texture);
 
 	if (initialized) Initialized=true;
 	if (disable_auto_invalidation) InactivationTime = 0;
 
 	WWASSERT(d3d_texture);
-	D3DVOLUME_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DVOLUME_DESC));
+	LegacyVolumeDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 
-	DX8_ErrorCode(Peek_D3D_VolumeTexture()->GetLevelDesc(0,&d3d_desc));
+	DX8_ErrorCode(Peek_Legacy_Volume_Texture(*this)->GetLevelDesc(0,&d3d_desc));
 
 	if (initialized)
 	{

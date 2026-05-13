@@ -57,7 +57,6 @@
 #include <coltest.h>
 #include <rinfo.h>
 #include <camera.h>
-#include <d3dx8core.h>
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
 
@@ -83,9 +82,9 @@
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderdebugstats.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
 #include "W3DDevice/GameClient/W3DPoly.h"
@@ -1397,7 +1396,7 @@ void HeightMapRenderObjClass::On_Frame_Update()
 #endif
 
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableTerrain) {
+	if (g_renderDebugStats.m_disableTerrain) {
 		return;
 	}
 #endif
@@ -1941,7 +1940,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 #endif
 
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableTerrain) {
+	if (g_renderDebugStats.m_disableTerrain) {
 		return;
 	}
 #endif
@@ -1988,7 +1987,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 				g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueSolidShader);
 				devicePasses=1;	//one pass solid, next in wireframe.
 				g_renderBackend->Apply_Render_State_Changes();
-				DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR );
+				g_renderBackend->Set_Texture_Color_Argument(0, 2, RB_TEXARG_TFACTOR);
 				g_renderBackend->Set_Texture_Factor(0xff808080);
 				doMultiPassWireFrame=TRUE;
 				renderTerrainPass(&rinfo.Camera);
@@ -2032,7 +2031,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
  			devicePasses=1;	//force to 1 lighting-only pass
 		// TheSuperHackers @bugfix bobtista 23/04/2026 Force single-pass
 		// terrain when using the shader pipeline. The legacy multipass
-		// path relies on D3DTSS_TCI_CAMERASPACEPOSITION texcoord generation
+		// path relies on fixed-function camera-space texcoord generation
 		// that the uber shader does not emulate. Cloud shadowing is already
 		// handled in a single pass via pushCloudShadowToBackend.
 		if (g_renderBackend->Has_Shader_Pipeline())
@@ -2057,7 +2056,7 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 			g_renderBackend->Set_Texture(3, m_stageThreeTexture);
 		}
 		//Disable writes to destination alpha channel (if there is one)
-		if (DX8Wrapper::getBackBufferFormat() == WW3D_FORMAT_A8R8G8B8)
+		if (g_renderBackend->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8)
 			g_renderBackend->Set_Color_Write_Enable(true, true, true, false);
 	}
 
@@ -2079,23 +2078,6 @@ void HeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 			for (i=0; i<m_numVBTilesX; i++)
 			{
 				g_renderBackend->Set_Vertex_Buffer(getVertexBufferTile(i, j));
-#ifdef PRE_TRANSFORM_VERTEX
-				if (m_xformedVertexBuffer && pass==0) {
-					// Note - m_xformedVertexBuffer should only be used for non T&L hardware.  jba.
-					g_renderBackend->Apply_Render_State_Changes();
-					int code = DX8Wrapper::_Get_D3D_Device8()->ProcessVertices(0, 0, numVertex, m_xformedVertexBuffer[j*m_numVBTilesX+i], 0);
-					::OutputDebugString("did process vertex\n");
-				}
-				if (m_xformedVertexBuffer) {
-					// Note - m_xformedVertexBuffer should only be used for non T&L hardware.  jba.
-					g_renderBackend->Apply_Render_State_Changes();
-					DX8Wrapper::_Get_D3D_Device8()->SetStreamSource(
-						0,
-						m_xformedVertexBuffer[j*m_numVBTilesX+i],
-						D3DXGetFVFVertexSize(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2));
-					DX8Wrapper::_Get_D3D_Device8()->SetVertexShader(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2);
-				}
-#endif
 				if (Is_Hidden() == 0) {
 					g_renderBackend->Draw_Triangles(0, HEIGHTMAP_POLYGON_NUM, 0, HEIGHTMAP_VERTEX_NUM);
 				}
@@ -2212,23 +2194,6 @@ void HeightMapRenderObjClass::renderTerrainPass(CameraClass *pCamera)
 		for (Int i=0; i<m_numVBTilesX; i++)
 		{
 			g_renderBackend->Set_Vertex_Buffer(getVertexBufferTile(i, j));
-#ifdef PRE_TRANSFORM_VERTEX
-			if (m_xformedVertexBuffer && pass==0) {
-				// Note - m_xformedVertexBuffer should only be used for non T&L hardware.  jba.
-				g_renderBackend->Apply_Render_State_Changes();
-				int code = DX8Wrapper::_Get_D3D_Device8()->ProcessVertices(0, 0, numVertex, m_xformedVertexBuffer[j*m_numVBTilesX+i], 0);
-				::OutputDebugString("did process vertex\n");
-			}
-			if (m_xformedVertexBuffer) {
-				// Note - m_xformedVertexBuffer should only be used for non T&L hardware.  jba.
-				g_renderBackend->Apply_Render_State_Changes();
-				DX8Wrapper::_Get_D3D_Device8()->SetStreamSource(
-					0,
-					m_xformedVertexBuffer[j*m_numVBTilesX+i],
-					D3DXGetFVFVertexSize(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2));
-				DX8Wrapper::_Get_D3D_Device8()->SetVertexShader(D3DFVF_XYZRHW |D3DFVF_DIFFUSE|D3DFVF_TEX2);
-			}
-#endif
 			if (Is_Hidden() == 0) {
 				g_renderBackend->Draw_Triangles(0, HEIGHTMAP_POLYGON_NUM, 0, HEIGHTMAP_VERTEX_NUM);
 			}
@@ -2434,7 +2399,7 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 			Int devicePasses=W3DShaderManager::getShaderPasses(st);
 			// TheSuperHackers @bugfix bobtista 24/04/2026 Same rationale as
 			// the main terrain pass: shader pipeline cannot emulate the
-			// D3DTSS_TCI_CAMERASPACEPOSITION texcoord generation.
+			// fixed-function camera-space texcoord generation.
 			if (g_renderBackend->Has_Shader_Pipeline())
 			{
 				devicePasses = 1;

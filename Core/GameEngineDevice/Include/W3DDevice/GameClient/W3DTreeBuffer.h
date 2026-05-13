@@ -51,8 +51,6 @@
 #include "rendobj.h"
 #include "w3d_file.h"
 #include "texture.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
 #include "shader.h"
 #include "vertmaterial.h"
 #include "Lib/BaseType.h"
@@ -70,6 +68,8 @@ class W3DTreeDrawModuleData;
 struct BreezeInfo;
 class GeometryInfo;
 class W3DProjectedShadow;
+class DX8VertexBufferClass;
+class DX8IndexBufferClass;
 
 //-----------------------------------------------------------------------------
 //           Type Defines

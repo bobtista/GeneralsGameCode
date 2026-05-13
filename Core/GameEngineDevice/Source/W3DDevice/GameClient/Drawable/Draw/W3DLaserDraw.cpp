@@ -68,29 +68,6 @@ static Bool shouldLogLaserDrawForDrawable(const Drawable *draw)
 	return name != nullptr && std::strstr(name, "PatriotBinaryDataStream") != nullptr;
 }
 
-static Bool shouldDrawLaserOverWorldDepth(const Drawable *draw)
-{
-#if defined(GGC_BGFX_STANDALONE)
-	if (draw == nullptr || draw->getTemplate() == nullptr)
-		return FALSE;
-
-	const char *name = draw->getTemplate()->getName().str();
-	return name != nullptr && std::strstr(name, "ParticleUplinkCannon_") != nullptr;
-#else
-	return FALSE;
-#endif
-}
-
-static ShaderClass getLaserShaderForDrawable(const Drawable *draw)
-{
-	ShaderClass shader = ShaderClass::_PresetAdditiveShader;
-	if (shouldDrawLaserOverWorldDepth(draw))
-	{
-		shader.Set_Depth_Compare(ShaderClass::PASS_ALWAYS);
-	}
-	return shader;
-}
-
 static void logLaserDrawEvent(const char *event, const Drawable *draw, const Coord3D *startPos, const Coord3D *endPos, Real widthScale)
 {
 	if (!shouldLogLaserDrawForDrawable(draw))
@@ -254,7 +231,7 @@ W3DLaserDraw::W3DLaserDraw( Thing *thing, const ModuleData* moduleData ) :
 			if( line )
 			{
 				line->Set_Texture( m_texture );
-				line->Set_Shader( getLaserShaderForDrawable(getDrawable()) );	//pick the alpha blending mode you want - see shader.h for others.
+				line->Set_Shader( ShaderClass::_PresetAdditiveShader );	//pick the alpha blending mode you want - see shader.h for others.
 				line->Set_Width( width );
 				line->Set_Color( Vector3( red, green, blue ) );
 				line->Set_UV_Offset_Rate( Vector2(0.0f, data->m_scrollRate) );	//amount to scroll texture on each draw
@@ -481,7 +458,7 @@ void W3DLaserDraw::doDrawModule(const Matrix3D* transformMtx)
 				}
 
 				m_line3D[ index ]->Set_Width( width );
-				m_line3D[ index ]->Set_Shader( getLaserShaderForDrawable(draw) );
+				m_line3D[ index ]->Set_Shader( ShaderClass::_PresetAdditiveShader );
 				m_line3D[ index ]->Set_Points( 2, &laserPoints[0] );
 			}
 		}
