@@ -41,6 +41,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "shader.h"
+#include "ww3d.h"
 #include "w3d_file.h"
 #include "wwdebug.h"
 #include "RenderBackend.h"
