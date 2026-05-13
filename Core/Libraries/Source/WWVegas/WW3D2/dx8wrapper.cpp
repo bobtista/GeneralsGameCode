@@ -2105,9 +2105,9 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 
 	unsigned index_count=0;
 	switch (primitive_type) {
-	case D3DPT_TRIANGLELIST: index_count=polygon_count*3; break;
-	case D3DPT_TRIANGLESTRIP: index_count=polygon_count+2; break;
-	case D3DPT_TRIANGLEFAN: index_count=polygon_count+2; break;
+	case 4: index_count=polygon_count*3; break;
+	case 5: index_count=polygon_count+2; break;
+	case 6: index_count=polygon_count+2; break;
 	default: WWASSERT(0); break; // Unsupported primitive type
 	}
 
@@ -2136,7 +2136,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 
 	DX8_RECORD_DRAW_CALLS();
 	DX8CALL(DrawIndexedPrimitive(
-		D3DPT_TRIANGLELIST,
+		static_cast<D3DPRIMITIVETYPE>(4),
 		0,		// start vertex
 		vertex_count,
 		dyn_ib_access.IndexBufferOffset,
@@ -2182,7 +2182,7 @@ void DX8Wrapper::Draw(
 	// Debug feature to disable triangle drawing...
 	if (!_Is_Triangle_Draw_Enabled()) return;
 
-#ifdef MESH_RENDER_SNAPSHOT_ENABLED
+#if defined(MESH_RENDER_SNAPSHOT_ENABLED) && !defined(GGC_BGFX_STANDALONE)
 	if (WW3D::Is_Snapshot_Activated()) {
 		unsigned long passes=0;
 		SNAPSHOT_SAY(("ValidateDevice:"));
@@ -2319,7 +2319,7 @@ void DX8Wrapper::Draw_Triangles(
 		SortingRendererClass::Insert_Triangles(start_index,polygon_count,min_vertex_index,vertex_count);
 	}
 	else {
-		Draw(D3DPT_TRIANGLELIST,start_index,polygon_count,min_vertex_index,vertex_count);
+		Draw(4,start_index,polygon_count,min_vertex_index,vertex_count);
 	}
 }
 
@@ -2335,7 +2335,7 @@ void DX8Wrapper::Draw_Triangles(
 	unsigned short min_vertex_index,
 	unsigned short vertex_count)
 {
-	Draw(D3DPT_TRIANGLELIST,start_index,polygon_count,min_vertex_index,vertex_count);
+	Draw(4,start_index,polygon_count,min_vertex_index,vertex_count);
 }
 
 // ----------------------------------------------------------------------------
@@ -2350,7 +2350,7 @@ void DX8Wrapper::Draw_Strip(
 	unsigned short min_vertex_index,
 	unsigned short vertex_count)
 {
-	Draw(D3DPT_TRIANGLESTRIP,start_index,polygon_count,min_vertex_index,vertex_count);
+	Draw(5,start_index,polygon_count,min_vertex_index,vertex_count);
 }
 
 // ----------------------------------------------------------------------------
@@ -2437,11 +2437,11 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 
 	if (FixedFunctionState::Changed_Mask()&WORLD_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply world matrix"));
-		Commit_Fixed_Function_Transform(D3DTS_WORLD,FixedFunctionState::Render_State().world);
+		Commit_Fixed_Function_Transform(256,FixedFunctionState::Render_State().world);
 	}
 	if (FixedFunctionState::Changed_Mask()&VIEW_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply view matrix"));
-		Commit_Fixed_Function_Transform(D3DTS_VIEW,FixedFunctionState::Render_State().view);
+		Commit_Fixed_Function_Transform(2,FixedFunctionState::Render_State().view);
 	}
 	if (FixedFunctionState::Changed_Mask()&VERTEX_BUFFER_CHANGED) {
 		SNAPSHOT_SAY(("DX8 - apply vb change"));
