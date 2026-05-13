@@ -855,15 +855,16 @@ TextureClass::TextureClass
 }
 
 // ----------------------------------------------------------------------------
-TextureClass::TextureClass(LegacyBaseTexture * d3d_texture)
+TextureClass::TextureClass(void *legacy_texture)
 :	TextureBaseClass
 	(
 		0,
 		0,
-		((MipCountType)d3d_texture->GetLevelCount())
+		((MipCountType)static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount())
 	),
-	Filter((MipCountType)d3d_texture->GetLevelCount())
+	Filter((MipCountType)static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount())
 {
+	LegacyBaseTexture *d3d_texture = static_cast<LegacyBaseTexture *>(legacy_texture);
 	Initialized=true;
 	IsProcedural=true;
 	IsReducible=false;
