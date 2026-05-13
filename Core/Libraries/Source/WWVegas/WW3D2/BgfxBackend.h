@@ -380,6 +380,7 @@ public:
     // Creates the corresponding bgfx resource. The returned RenderResource.id
     // encodes an index into a backend-local side table.
 
+    virtual bool Requires_Legacy_Buffer_Resources() const override;
     virtual RenderResource Create_Texture(const TextureDesc & desc) override;
     virtual RenderResource Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data) override;
     virtual RenderResource Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit) override;

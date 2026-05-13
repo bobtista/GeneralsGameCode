@@ -1124,6 +1124,7 @@ public:
     // raw legacy resource field; the pointer stays populated in ref-popup
     // builds so the DX8 reference window renders from the same data.
 
+    virtual bool Requires_Legacy_Buffer_Resources() const { return true; }
     virtual RenderResource Create_Texture(const TextureDesc & desc) { return kInvalidRenderResource; }
     virtual RenderResource Create_Vertex_Buffer(const BufferDesc & desc,
                                                 const void *       initial_data) { return kInvalidRenderResource; }
