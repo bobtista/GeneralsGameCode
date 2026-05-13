@@ -118,7 +118,8 @@ VertexBufferClass::VertexBufferClass(unsigned type_, unsigned FVF, unsigned shor
 		engine_refs(0),
 		CPUBufferData(nullptr),
 		CPUBufferSize(0),
-		CPUBufferValid(false)
+		CPUBufferValid(false),
+		m_backendStaticEligible(false)
 {
 	m_backendHandle = kInvalidRenderResource;
 	WWMEMLOG(MEM_RENDERER);
@@ -529,6 +530,7 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 {
 	DX8_THREAD_ASSERT();
 	WWASSERT(!VertexBuffer);
+	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
 
 #ifdef VERTEX_BUFFER_LOG
 	StringClass fvf_name;
