@@ -1806,7 +1806,9 @@ unsigned long DX8Wrapper::Get_FrameCount() {return FrameCount;}
 
 void DX8_Assert()
 {
+#if !defined(GGC_BGFX_STANDALONE)
 	WWASSERT(DX8Wrapper::_Get_D3D8());
+#endif
 	DX8_THREAD_ASSERT();
 }
 
@@ -1814,6 +1816,7 @@ void DX8Wrapper::Begin_Scene()
 {
 	DX8_THREAD_ASSERT();
 
+#if !defined(GGC_BGFX_STANDALONE)
 #if ENABLE_EMBEDDED_BROWSER
 	DX8WebBrowser::Update();
 #endif
@@ -1821,11 +1824,13 @@ void DX8Wrapper::Begin_Scene()
 	DX8CALL(BeginScene());
 
 	DX8WebBrowser::Update();
+#endif
 }
 
 void DX8Wrapper::End_Scene(bool flip_frames)
 {
 	DX8_THREAD_ASSERT();
+#if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(EndScene());
 
 	DX8WebBrowser::Render(0);
@@ -1869,6 +1874,7 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 			DX8_ErrorCode(hr);
 		}
 	}
+#endif
 
 	// Each frame, release all of the buffers and textures.
 	Set_Vertex_Buffer(nullptr);
@@ -1880,6 +1886,7 @@ void DX8Wrapper::End_Scene(bool flip_frames)
 
 void DX8Wrapper::Flip_To_Primary()
 {
+#if !defined(GGC_BGFX_STANDALONE)
 	// If we are fullscreen and the current frame is odd then we need
 	// to force a page flip to ensure that the first buffer in the flipping
 	// chain is the one visible.
@@ -1926,6 +1933,7 @@ void DX8Wrapper::Flip_To_Primary()
 			--flipCount;
 		}
 	}
+#endif
 }
 
 
@@ -1938,6 +1946,7 @@ void DX8Wrapper::Clear(bool clear_color, bool clear_z_stencil, const Vector3 &co
 {
 	DX8_THREAD_ASSERT();
 
+#if !defined(GGC_BGFX_STANDALONE)
 	// If we try to clear a stencil buffer which is not there, the entire call will fail
 	// KJM fixed this to get format from back buffer (incase render to texture is used)
 	/*bool has_stencil = (	_PresentParameters.AutoDepthStencilFormat == D3DFMT_D15S1 ||
@@ -1972,6 +1981,7 @@ void DX8Wrapper::Clear(bool clear_color, bool clear_z_stencil, const Vector3 &co
 	{
 		DX8CALL(Clear(0, nullptr, flags, Convert_Color(color,dest_alpha), z, stencil));
 	}
+#endif
 }
 
 void DX8Wrapper::Set_Viewport(CONST D3DVIEWPORT8* pViewport)
@@ -3978,6 +3988,7 @@ unsigned int DX8Wrapper::Get_Free_Texture_RAM()
 // Contrast - controls the difference between the maximum and the minimum of the curve
 void DX8Wrapper::Set_Gamma(float gamma,float bright,float contrast,bool calibrate,bool uselimit)
 {
+#if !defined(GGC_BGFX_STANDALONE)
 	gamma=Bound(gamma,0.6f,6.0f);
 	bright=Bound(bright,-0.5f,0.5f);
 	contrast=Bound(contrast,0.5f,2.0f);
@@ -4023,6 +4034,7 @@ void DX8Wrapper::Set_Gamma(float gamma,float bright,float contrast,bool calibrat
 			ReleaseDC (hwnd, hdc);
 		}
 	}
+#endif
 }
 
 void DX8Wrapper::Set_World_Identity()
