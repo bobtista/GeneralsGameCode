@@ -189,10 +189,10 @@ SurfaceClass::SurfaceClass(const char *filename):
 	SurfaceFormat=desc.Format;
 }
 
-SurfaceClass::SurfaceClass(IDirect3DSurface8 *d3d_surface)	:
+SurfaceClass::SurfaceClass(void *legacy_surface)	:
 	D3DSurface (nullptr)
 {
-	Attach (d3d_surface);
+	Attach_Legacy_Surface(legacy_surface);
 	SurfaceDescription desc;
 	Get_Description(desc);
 	SurfaceFormat=desc.Format;
@@ -783,10 +783,10 @@ void SurfaceClass::Get_Pixel(Vector3 &rgb, int x, int y, LockedSurfacePtr pBits,
  * HISTORY:                                                                                    *
  *   3/27/2001  pds : Created.                                                                 *
  *=============================================================================================*/
-void SurfaceClass::Attach (IDirect3DSurface8 *surface)
+void SurfaceClass::Attach_Legacy_Surface(void *surface)
 {
 	Detach ();
-	D3DSurface = surface;
+	D3DSurface = static_cast<IDirect3DSurface8 *>(surface);
 
 	//
 	//	Lock a reference onto the object
