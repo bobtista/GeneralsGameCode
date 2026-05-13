@@ -65,7 +65,10 @@ namespace
 {
 	using LegacyLoaderTexture = IDirect3DTexture8;
 	using LegacyLoaderSurface = IDirect3DSurface8;
+	using LegacyLoaderCubeTexture = IDirect3DCubeTexture8;
 	using LegacyLoaderLockedRect = D3DLOCKED_RECT;
+	using LegacyLoaderLockedBox = D3DLOCKED_BOX;
+	using LegacyLoaderCubeFace = D3DCUBEMAP_FACES;
 
 	constexpr auto kLegacyManagedPool = D3DPOOL_MANAGED;
 	constexpr auto kLegacySystemPool = D3DPOOL_SYSTEMMEM;
@@ -1558,9 +1561,9 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 		Format,
 		(MipCountType)mip_level_count,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+		kLegacyManagedPool
 #else
-		D3DPOOL_SYSTEMMEM
+		kLegacySystemPool
 #endif
 	);
 
@@ -1653,9 +1656,9 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 		Format,
 		(MipCountType)reducedMipCount,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+		kLegacyManagedPool
 #else
-		D3DPOOL_SYSTEMMEM
+		kLegacySystemPool
 #endif
 	);
 
@@ -1728,9 +1731,9 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 		Format,
 		(TextureBaseClass::MipCountType)mip_level_count,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED);
+		kLegacyManagedPool);
 #else
-		D3DPOOL_SYSTEMMEM);
+		kLegacySystemPool);
 #endif
 	MipLevelCount = mip_level_count;
 	return true;
@@ -1799,9 +1802,9 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 		Format,
 		Texture->MipLevelCount,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED);
+		kLegacyManagedPool);
 #else
-		D3DPOOL_SYSTEMMEM);
+		kLegacySystemPool);
 #endif
 	return true;
 }
@@ -1813,7 +1816,7 @@ void TextureLoadTaskClass::Lock_Surfaces()
 
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
 	{
-		D3DLOCKED_RECT locked_rect;
+		LegacyLoaderLockedRect locked_rect;
 		DX8_ErrorCode
 		(
 			Peek_D3D_Texture()->LockRect
@@ -1843,7 +1846,7 @@ void TextureLoadTaskClass::Unlock_Surfaces()
 	}
 
 #ifndef USE_MANAGED_TEXTURES
-	IDirect3DTexture8* tex = DX8Wrapper::_Create_DX8_Texture(Width, Height, Format, Texture->MipLevelCount,D3DPOOL_DEFAULT);
+	LegacyLoaderTexture * tex = DX8Wrapper::_Create_DX8_Texture(Width, Height, Format, Texture->MipLevelCount,kLegacyDefaultPool);
 	DX8CALL(UpdateTexture(Peek_D3D_Texture(),tex));
 	Peek_D3D_Texture()->Release();
 	D3DTexture=tex;
@@ -2192,12 +2195,12 @@ void CubeTextureLoadTaskClass::Lock_Surfaces()
 	{
 		for (unsigned int i=0; i<MipLevelCount; i++)
 		{
-			D3DLOCKED_RECT locked_rect;
+			LegacyLoaderLockedRect locked_rect;
 			DX8_ErrorCode
 			(
 				Peek_D3D_Cube_Texture()->LockRect
 				(
-					(D3DCUBEMAP_FACES)f,
+					(LegacyLoaderCubeFace)f,
 					i,
 					&locked_rect,
 					nullptr,
@@ -2221,7 +2224,7 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces()
 				WWASSERT(ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
 				DX8_ErrorCode
 				(
-					Peek_D3D_Cube_Texture()->UnlockRect((D3DCUBEMAP_FACES)f,i)
+					Peek_D3D_Cube_Texture()->UnlockRect((LegacyLoaderCubeFace)f,i)
 				);
 			}
 			LockedCubeSurfacePtr[f][i] = nullptr;
@@ -2229,13 +2232,13 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces()
 	}
 
 #ifndef USE_MANAGED_TEXTURES
-	IDirect3DCubeTexture8* tex = DX8Wrapper::_Create_DX8_Cube_Texture
+	LegacyLoaderCubeTexture * tex = DX8Wrapper::_Create_DX8_Cube_Texture
 	(
 		Width,
 		Height,
 		Format,
 		Texture->MipLevelCount,
-		D3DPOOL_DEFAULT
+		kLegacyDefaultPool
 	);
 	DX8CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
 	Peek_D3D_Volume_Texture()->Release();
@@ -2339,9 +2342,9 @@ bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 		Format,
 		(MipCountType)mip_level_count,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+		kLegacyManagedPool
 #else
-		D3DPOOL_SYSTEMMEM
+		kLegacySystemPool
 #endif
 	);
 
@@ -2408,9 +2411,9 @@ bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
 		Format,
 		Texture->MipLevelCount,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+		kLegacyManagedPool
 #else
-		D3DPOOL_SYSTEMMEM
+		kLegacySystemPool
 #endif
 	);
 
@@ -2562,7 +2565,7 @@ void VolumeTextureLoadTaskClass::Lock_Surfaces()
 {
 	for (unsigned int i=0; i<MipLevelCount; i++)
 	{
-		D3DLOCKED_BOX locked_box;
+		LegacyLoaderLockedBox locked_box;
 		DX8_ErrorCode
 		(
 			Peek_D3D_Volume_Texture()->LockBox
@@ -2596,7 +2599,7 @@ void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 	}
 
 #ifndef USE_MANAGED_TEXTURES
-	IDirect3DTexture8* tex = DX8Wrapper::_Create_DX8_Volume_Texture(Width, Height, Depth, Format, Texture->MipLevelCount,D3DPOOL_DEFAULT);
+	LegacyLoaderTexture * tex = DX8Wrapper::_Create_DX8_Volume_Texture(Width, Height, Depth, Format, Texture->MipLevelCount,kLegacyDefaultPool);
 	DX8CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
 	Peek_D3D_Volume_Texture()->Release();
 	D3DTexture=tex;
@@ -2705,9 +2708,9 @@ bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 		Format,
 		(MipCountType)mip_level_count,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+		kLegacyManagedPool
 #else
-		D3DPOOL_SYSTEMMEM
+		kLegacySystemPool
 #endif
 	);
 
@@ -2777,9 +2780,9 @@ bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 		Format,
 		Texture->MipLevelCount,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+		kLegacyManagedPool
 #else
-		D3DPOOL_SYSTEMMEM
+		kLegacySystemPool
 #endif
 	);
 
