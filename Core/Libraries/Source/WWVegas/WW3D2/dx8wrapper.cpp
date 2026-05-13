@@ -921,6 +921,7 @@ bool DX8Wrapper::Set_Render_Device
 	return false;
 }
 
+#if !defined(GGC_BGFX_STANDALONE)
 void DX8Wrapper::Get_Format_Name(unsigned int format, StringClass *tex_format)
 {
 		*tex_format="Unknown";
@@ -964,6 +965,7 @@ void DX8Wrapper::Get_Format_Name(unsigned int format, StringClass *tex_format)
 		default:	break;
 		}
 }
+#endif
 
 void DX8Wrapper::Resize_And_Position_Window()
 {
@@ -1235,8 +1237,13 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	StringClass displayFormat;
 	StringClass backbufferFormat;
 
+#if !defined(GGC_BGFX_STANDALONE)
 	Get_Format_Name(DisplayFormat,&displayFormat);
 	Get_Format_Name(_PresentParameters.BackBufferFormat,&backbufferFormat);
+#else
+	displayFormat.Format("%u", static_cast<unsigned>(DisplayFormat));
+	backbufferFormat.Format("%u", static_cast<unsigned>(_PresentParameters.BackBufferFormat));
+#endif
 
 	WWDEBUG_SAY(("Using Display/BackBuffer Formats: %s/%s",displayFormat.str(),backbufferFormat.str()));
 
