@@ -197,7 +197,7 @@ void		W3DVideoBuffer::unlock()
 		m_surface = nullptr;
 
 		// TheSuperHackers @fix bobtista 20/04/2026 After a video frame is
-		// written via CPU Lock/Unlock into the underlying D3D8 surface,
+		// written via CPU Lock/Unlock into the underlying texture surface,
 		// invalidate bgfx's cached copy so the next draw re-uploads the
 		// fresh pixels. Without this the bgfx handle holds the first frame
 		// forever and videos (logo, scorescreen, etc.) appear frozen.
