@@ -8598,7 +8598,7 @@ const bgfx::Memory * CopySliceToBgfxMemory(const TextureDesc & desc, const MipSl
 
 bool BgfxBackend::Requires_Legacy_Buffer_Resources() const
 {
-    return std::getenv("GGC_BGFX_NO_LEGACY_BUFFER_RESOURCES") == nullptr;
+    return std::getenv("GGC_BGFX_LEGACY_BUFFER_RESOURCES") != nullptr;
 }
 
 RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
