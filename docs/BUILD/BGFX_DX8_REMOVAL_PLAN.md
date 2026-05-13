@@ -118,6 +118,16 @@ Recent progress on the DX8-removal stack:
   than storing `D3DTEXF_*` constants and converting them during apply.
 - DX8 vertex-buffer copy helpers now use `WW3DColor` for diffuse color packing
   instead of routing that scalar conversion through `DX8Wrapper`.
+- `BaseHeightMap` now registers its device-reset cleanup hook through
+  `IRenderBackend`; DX8 delegates to `DX8Wrapper::SetCleanupHook`, while bgfx
+  keeps the default no-op.
+- Stale `dx8wrapper.h` includes were removed from height-map, water-track, and
+  GeneralsMD projected/volumetric shadow sources that already submit through
+  backend or buffer abstractions.
+- The legacy snow point-sprite path is isolated behind a private
+  `W3DSnowPointSpriteRenderer`, so `W3DSnow.h` no longer exposes an
+  `IDirect3DVertexBuffer8` member. Standalone bgfx continues to use the quad
+  snow path.
 
 ## Why DX8 Cannot Be Deleted Yet
 
@@ -220,10 +230,10 @@ game-facing texture-stage state writes through semantic backend APIs:
 - `raw_device`: 54 hits in 8 files
 - `dx8wrapper_low_level`: 77 hits in 8 files
 - `dx8wrapper_high_level`: 20 hits in 2 files
-- `d3d_public_type`: 1808 hits in 49 files
+- `d3d_public_type`: 1807 hits in 48 files
 - `bgfx_dx8backend_base_call`: 0 hits
 - `bgfx_peek_dx8_state`: 0 hits
-- total categorized hits: 1959
+- total categorized hits: 1958
 
 Completed low-risk migrations:
 
@@ -584,11 +594,15 @@ Completed low-risk migrations:
 
 Next migration focus:
 
-- Replace remaining raw device call sites outside `dx8wrapper.cpp`, especially
-  smudge/profiler capture and the remaining shader-manager legacy filter
-  snippets. Snow point sprites are still a legacy D3D path, but are already
-  compile-guarded out of standalone bgfx and selected through a backend
-  capability query.
+- Replace remaining raw device call sites outside `dx8wrapper.cpp`. Snow point
+  sprites are now isolated in a private legacy helper and still selected only
+  through a backend capability query.
+- Introduce a generated-texture write/update API around `TextureClass`, then
+  migrate the `TerrainTex.cpp` atlas-generation paths away from direct
+  `IDirect3DTexture8`/surface locks.
+- Split the public `dx8texman.h` reset/recreate tracker contract into a
+  neutral texture-resource tracker so common texture lifecycle code no longer
+  includes `dx8wrapper.h`.
 - Add a backend sea-water mesh submission path or convert sea water to existing
   `VertexBufferClass` / `IndexBufferClass` abstractions.
 - Add a backend readback/profiler API, or make profiler capture an explicit
