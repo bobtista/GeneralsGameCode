@@ -60,7 +60,7 @@ struct RenderStateStruct;
 // POD types owned by the interface
 // -----------------------------------------------------------------------------
 
-// A single light captured for a sorted batch. Direction follows the D3D8
+// A single light captured for a sorted batch. Direction follows the legacy
 // convention: from the light toward the surface.
 struct RenderBackendLight
 {
@@ -209,12 +209,12 @@ struct RenderBackendSortedBatchState
 
 enum TransformKind
 {
-    // Values chosen so they can be mapped directly to D3DTS_* inside the
+    // Values chosen so they can be mapped directly to legacy transform slots inside the
     // DX8Backend without a branch. A modern backend ignores these indices
     // and uses whichever matrix storage is convenient for it.
-    RB_TRANSFORM_VIEW       = 2,  // D3DTS_VIEW
-    RB_TRANSFORM_PROJECTION = 3,  // D3DTS_PROJECTION
-    RB_TRANSFORM_WORLD      = 256 // D3DTS_WORLD
+    RB_TRANSFORM_VIEW       = 2,
+    RB_TRANSFORM_PROJECTION = 3,
+    RB_TRANSFORM_WORLD      = 256
 };
 
 enum RenderBackendProjectedDecalMode
@@ -257,7 +257,7 @@ enum RenderBackendTexcoordSource
 
 enum RenderBackendMaterialColorSource
 {
-    // Values match D3DMCS_* so DX8Backend can forward them directly.
+    // Values match legacy material color-source ordinals so DX8Backend can forward them directly.
     RB_MATERIAL_COLOR_SOURCE_MATERIAL = 0,
     RB_MATERIAL_COLOR_SOURCE_COLOR1 = 1,
     RB_MATERIAL_COLOR_SOURCE_COLOR2 = 2
@@ -294,7 +294,7 @@ struct RenderBackendViewport
 // TheSuperHackers @refactor bobtista 21/04/2026 Asset ingress types.
 // These let W3D asset loaders produce CPU-side pixel / vertex / index data
 // and hand it to whichever backend is active, without the loaders caring
-// about D3D8 specifics. Each backend creates its own native GPU resource
+// about legacy renderer specifics. Each backend creates its own native GPU resource
 // from the bytes and returns an opaque RenderResource handle.
 
 // Opaque handle into any backend's resource table. Backends encode their
@@ -335,7 +335,7 @@ struct TextureDesc
 
 struct VertexLayoutDesc
 {
-    unsigned int fvf;       // D3DFVF bitmap; each backend translates to its native format
+    unsigned int fvf;       // legacy FVF bitmap; each backend translates to its native format
     unsigned int stride;    // bytes per vertex
 };
 
@@ -348,34 +348,34 @@ struct BufferDesc
 
 // TheSuperHackers @refactor bobtista 10/04/2026 Interface extension
 // to unblock W3DStatusCircle fade effects and FlatHeightMap shroud trickery
-// without exposing raw D3DRENDERSTATETYPE in the interface.
+// without exposing raw legacy render-state types in the interface.
 //
-// Values chosen to match D3DBLENDOP_* / D3DBLEND_* directly so the DX8Backend
+// Values chosen to match legacy blend ordinals directly so the DX8Backend
 // can cast without a branch. Modern backends translate these to their native
 // blend-state representation.
 
 enum BlendOp
 {
-    RB_BLEND_OP_ADD          = 1, // D3DBLENDOP_ADD
-    RB_BLEND_OP_SUBTRACT     = 2, // D3DBLENDOP_SUBTRACT
-    RB_BLEND_OP_REV_SUBTRACT = 3, // D3DBLENDOP_REVSUBTRACT
-    RB_BLEND_OP_MIN          = 4, // D3DBLENDOP_MIN
-    RB_BLEND_OP_MAX          = 5  // D3DBLENDOP_MAX
+    RB_BLEND_OP_ADD          = 1,
+    RB_BLEND_OP_SUBTRACT     = 2,
+    RB_BLEND_OP_REV_SUBTRACT = 3,
+    RB_BLEND_OP_MIN          = 4,
+    RB_BLEND_OP_MAX          = 5
 };
 
 enum BlendFactor
 {
-    RB_BLEND_ZERO            = 1,  // D3DBLEND_ZERO
-    RB_BLEND_ONE             = 2,  // D3DBLEND_ONE
-    RB_BLEND_SRC_COLOR       = 3,  // D3DBLEND_SRCCOLOR
-    RB_BLEND_INV_SRC_COLOR   = 4,  // D3DBLEND_INVSRCCOLOR
-    RB_BLEND_SRC_ALPHA       = 5,  // D3DBLEND_SRCALPHA
-    RB_BLEND_INV_SRC_ALPHA   = 6,  // D3DBLEND_INVSRCALPHA
-    RB_BLEND_DEST_ALPHA      = 7,  // D3DBLEND_DESTALPHA
-    RB_BLEND_INV_DEST_ALPHA  = 8,  // D3DBLEND_INVDESTALPHA
-    RB_BLEND_DEST_COLOR      = 9,  // D3DBLEND_DESTCOLOR
-    RB_BLEND_INV_DEST_COLOR  = 10, // D3DBLEND_INVDESTCOLOR
-    RB_BLEND_SRC_ALPHA_SAT   = 11  // D3DBLEND_SRCALPHASAT
+    RB_BLEND_ZERO            = 1,
+    RB_BLEND_ONE             = 2,
+    RB_BLEND_SRC_COLOR       = 3,
+    RB_BLEND_INV_SRC_COLOR   = 4,
+    RB_BLEND_SRC_ALPHA       = 5,
+    RB_BLEND_INV_SRC_ALPHA   = 6,
+    RB_BLEND_DEST_ALPHA      = 7,
+    RB_BLEND_INV_DEST_ALPHA  = 8,
+    RB_BLEND_DEST_COLOR      = 9,
+    RB_BLEND_INV_DEST_COLOR  = 10,
+    RB_BLEND_SRC_ALPHA_SAT   = 11
 };
 
 // TheSuperHackers @refactor bobtista 10/04/2026 Stencil state
@@ -383,7 +383,7 @@ enum BlendFactor
 // comparison.
 enum CompareFunc
 {
-    // Values match D3DCMP_* 1..8 directly so DX8Backend can cast.
+    // Values match legacy compare ordinals 1..8 directly so DX8Backend can cast.
     RB_CMP_NEVER         = 1,
     RB_CMP_LESS          = 2,
     RB_CMP_EQUAL         = 3,
@@ -395,42 +395,42 @@ enum CompareFunc
 };
 
 // TheSuperHackers @refactor bobtista 28/04/2026 Channel masks for
-// Set_Color_Write_Mask. Values match D3DCOLORWRITEENABLE_* so DX8Backend
+// Set_Color_Write_Mask. Values match legacy color-write bits so DX8Backend
 // can cast directly. Game code that wants to disable color writes
 // entirely should pass 0; for ALL channels use RB_COLOR_RGBA.
 enum ColorWriteMask
 {
-    RB_COLOR_RED    = 1,  // D3DCOLORWRITEENABLE_RED
-    RB_COLOR_GREEN  = 2,  // D3DCOLORWRITEENABLE_GREEN
-    RB_COLOR_BLUE   = 4,  // D3DCOLORWRITEENABLE_BLUE
-    RB_COLOR_ALPHA  = 8,  // D3DCOLORWRITEENABLE_ALPHA
+    RB_COLOR_RED    = 1,
+    RB_COLOR_GREEN  = 2,
+    RB_COLOR_BLUE   = 4,
+    RB_COLOR_ALPHA  = 8,
     RB_COLOR_RGB    = RB_COLOR_RED | RB_COLOR_GREEN | RB_COLOR_BLUE,
     RB_COLOR_RGBA   = RB_COLOR_RGB | RB_COLOR_ALPHA
 };
 
-// TheSuperHackers @refactor bobtista 14/04/2026 D3DFILLMODE
-// values match D3DFILL_* so DX8Backend can cast directly.
+// TheSuperHackers @refactor bobtista 14/04/2026 Fill-mode
+// values match legacy ordinals so DX8Backend can cast directly.
 enum FillMode
 {
-    RB_FILL_POINT     = 1,   // D3DFILL_POINT
-    RB_FILL_WIREFRAME = 2,   // D3DFILL_WIREFRAME
-    RB_FILL_SOLID     = 3    // D3DFILL_SOLID
+    RB_FILL_POINT     = 1,
+    RB_FILL_WIREFRAME = 2,
+    RB_FILL_SOLID     = 3
 };
 
-// Values match D3DSHADE_* so DX8Backend can cast directly.
+// Values match legacy shade ordinals so DX8Backend can cast directly.
 enum ShadeMode
 {
-    RB_SHADE_FLAT    = 1,  // D3DSHADE_FLAT
-    RB_SHADE_GOURAUD = 2,  // D3DSHADE_GOURAUD
-    RB_SHADE_PHONG   = 3   // D3DSHADE_PHONG
+    RB_SHADE_FLAT    = 1,
+    RB_SHADE_GOURAUD = 2,
+    RB_SHADE_PHONG   = 3
 };
 
-// Values match D3DCULL_* so DX8Backend can cast directly.
+// Values match legacy cull ordinals so DX8Backend can cast directly.
 enum CullMode
 {
-    RB_CULL_NONE = 1,  // D3DCULL_NONE
-    RB_CULL_CW   = 2,  // D3DCULL_CW
-    RB_CULL_CCW  = 3   // D3DCULL_CCW
+    RB_CULL_NONE = 1,
+    RB_CULL_CW   = 2,
+    RB_CULL_CCW  = 3
 };
 
 enum RenderBackendDeviceStatus
@@ -450,7 +450,7 @@ enum RenderBackendMSAAMode
 
 enum StencilOp
 {
-    // Values match D3DSTENCILOP_* 1..8 directly so DX8Backend can cast.
+    // Values match legacy stencil operation ordinals 1..8 directly so DX8Backend can cast.
     RB_STENCIL_OP_KEEP     = 1,
     RB_STENCIL_OP_ZERO     = 2,
     RB_STENCIL_OP_REPLACE  = 3,
@@ -468,8 +468,8 @@ enum StencilOp
 // This interface exposes the *high-level* subset of DX8Wrapper's public API:
 // the calls that take and return W3D types (ShaderClass, TextureBaseClass,
 // Matrix4x4, etc.) and are backend-neutral by construction. The low-level
-// D3D8-specific entry points on DX8Wrapper (Set_DX8_Render_State,
-// _Create_DX8_Texture, _Get_D3D_Device8, etc.) are NOT exposed here and
+// Legacy-specific entry points on DX8Wrapper (Set_DX8_Render_State,
+// raw texture/device helpers, etc.) are NOT exposed here and
 // remain reachable only through DX8Wrapper's static methods. Code that
 // needs them is DX8-only and must be migrated to a backend-neutral entry
 // point before it can run on a non-DX8 backend.
@@ -496,7 +496,7 @@ public:
 
     // TheSuperHackers @feature bobtista 19/04/2026 Runtime check for whether
     // the backend uses its own shader pipeline (bgfx). When true, certain
-    // D3D8-specific rendering paths (pixel shaders, shroud passes) should be
+    // Legacy-specific rendering paths (pixel shaders, shroud passes) should be
     // skipped or replaced with backend-compatible alternatives.
     virtual bool Has_Shader_Pipeline() const { return false; }
 
@@ -514,7 +514,7 @@ public:
 
     // TheSuperHackers @feature bobtista 20/04/2026 Release a cached
     // texture. Called from TextureBaseClass::~TextureBaseClass before the
-    // D3D8 texture is released, so bgfx's cache never holds a dangling
+    // legacy texture is released, so bgfx's cache never holds a dangling
     // TextureBaseClass* that a later allocation could alias (ABA). The
     // backend must queue the handle for deferred destruction (in-flight
     // draws may still reference it) and erase its cache entries.
@@ -753,13 +753,13 @@ public:
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Hardware cursor
     // extension. Lets W3DMouse drive the device's hardware cursor without
-    // touching IDirect3DDevice8 directly.
+    // touching the raw device directly.
     virtual void Show_Hardware_Cursor(bool show) {}
     virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface) {}
     virtual void Set_Hardware_Cursor_Position(int x, int y) {}
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Stencil state
-    // group. Each method maps 1:1 onto an existing D3DRS_STENCIL* state. The
+    // group. Each method maps 1:1 onto an existing legacy stencil state. The
     // CompareFunc and StencilOp enums above are reusable for future depth
     // and stencil work.
     virtual void Set_Stencil_Enable(bool enable) {}
@@ -772,7 +772,7 @@ public:
     virtual void Set_Stencil_ZFail_Op(StencilOp op) {}
 
     // TheSuperHackers @refactor bobtista 14/04/2026 Render-state remainders.
-    // These wrap the last D3DRS_* values still
+    // These wrap the last legacy render-state values still
     // being set directly by the terrain / scene / water / snow code
     // (ZBIAS, FILLMODE, ZENABLE/ZFUNC, COLORWRITEENABLE as DWORD mask).
     // The DWORD variant of Set_Color_Write_Mask coexists with the
@@ -1011,7 +1011,7 @@ public:
     // TheSuperHackers @refactor bobtista 15/04/2026 Close the
     // shadow volume for bgfx rendering. The engine constructs shadow
     // volumes as OPEN TUBES (silhouette side walls only, no caps). DX8
-    // tolerates this; bgfx/D3D11 doesn't because the stencil algorithm
+    // tolerates this; modern bgfx backends do not because the stencil algorithm
     // on open volumes depends on sub-pixel rasterizer rules that differ
     // between the APIs. This hook is called AFTER the side-wall
     // Draw_Triangles for a shadow volume, and lets the backend generate
@@ -1074,7 +1074,7 @@ public:
     // will re-interpret the handles internally; the interface treats the
     // shader id as an opaque unsigned long.
 
-    // Legacy D3D8 shader-object lifetime. File-backed shaders may be
+    // Legacy shader-object lifetime. File-backed shaders may be
     // handled directly by a backend before the caller loads bytecode; bgfx
     // uses this to provide compatibility handles for native shader paths
     // without requiring obsolete .vso/.pso bytecode files.
@@ -1121,7 +1121,7 @@ public:
     //
     // W3D asset wrapper classes (TextureBaseClass, VertexBufferClass,
     // IndexBufferClass) store the returned handle beside their existing
-    // IDirect3D*8 * field; the D3D8 pointer stays populated in ref-popup
+    // raw legacy resource field; the pointer stays populated in ref-popup
     // builds so the DX8 reference window renders from the same data.
 
     virtual RenderResource Create_Texture(const TextureDesc & desc) { return kInvalidRenderResource; }
@@ -1144,9 +1144,9 @@ public:
     // -------------------------------------------------------------------------
     //
     // Populate a backend-neutral handle AFTER the legacy loader has already
-    // created the D3D8 resource. These are called from the end of the
+    // created the legacy resource. These are called from the end of the
     // asset-loader flow so m_backendHandle is populated going forward.
-    // Once the legacy D3D8 loader path is gone, these hooks disappear with
+    // Once the legacy loader path is gone, these hooks disappear with
     // it and everything goes through the Create_* methods above.
     //
     // Default: return invalid handle (no-op for backends that don't care
