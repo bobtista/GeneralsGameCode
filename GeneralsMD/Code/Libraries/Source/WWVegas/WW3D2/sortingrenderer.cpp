@@ -96,7 +96,7 @@ static Matrix4x4 Multiply_Sorted_Matrix(const Matrix4x4& lhs, const Matrix4x4& r
 
 static Matrix4x4 Get_Sorted_World_View_Matrix(const RenderStateStruct& state)
 {
-	static_assert(sizeof(D3DMATRIX) == sizeof(Matrix4x4), "D3DMATRIX and Matrix4x4 must be the same size for reinterpret_cast");
+	static_assert(sizeof(state.world) == sizeof(Matrix4x4), "sorted matrix snapshot must match Matrix4x4 for reinterpret_cast");
 	return Multiply_Sorted_Matrix(
 		reinterpret_cast<const Matrix4x4&>(state.world),
 		reinterpret_cast<const Matrix4x4&>(state.view));
@@ -382,8 +382,9 @@ void SortingRendererClass::Insert_To_Sorting_Pool(SortingNodeStruct* state)
 // ----------------------------------------------------------------------------
 //static unsigned prevLight = 0xffffffff;
 
-static RenderBackendLight Make_Render_Backend_Light(const D3DLIGHT8 & light)
+static RenderBackendLight Make_Render_Backend_Light(const RenderStateStruct & render_state, int index)
 {
+	const auto & light = render_state.Lights[index];
 	RenderBackendLight rb_light;
 	rb_light.type = light.Type;
 	rb_light.position[0] = light.Position.x;
@@ -413,7 +414,7 @@ static RenderBackendLight Make_Render_Backend_Light(const D3DLIGHT8 & light)
 
 static RenderBackendSortedBatchState Make_Render_Backend_Sorted_State(RenderStateStruct & render_state)
 {
-	static_assert(sizeof(D3DMATRIX) == sizeof(Matrix4x4), "D3DMATRIX and Matrix4x4 must be the same size for reinterpret_cast");
+	static_assert(sizeof(render_state.world) == sizeof(Matrix4x4), "sorted matrix snapshot must match Matrix4x4 for reinterpret_cast");
 	RenderBackendSortedBatchState rb_state;
 	rb_state.shader = &render_state.shader;
 	rb_state.material = render_state.material;
@@ -426,7 +427,7 @@ static RenderBackendSortedBatchState Make_Render_Backend_Sorted_State(RenderStat
 	const bool use_lights = (render_state.material != nullptr && render_state.material->Get_Lighting());
 	for (int i = 0; i < 4; ++i)
 	{
-		rb_state.lights.lights[i] = Make_Render_Backend_Light(render_state.Lights[i]);
+		rb_state.lights.lights[i] = Make_Render_Backend_Light(render_state, i);
 		rb_state.lights.enabled[i] = use_lights && render_state.LightEnable[i];
 	}
 	return rb_state;
