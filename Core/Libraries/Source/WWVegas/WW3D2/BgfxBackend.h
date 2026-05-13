@@ -386,6 +386,12 @@ public:
     virtual RenderResource Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit) override;
     virtual RenderResource Create_Dynamic_Vertex_Buffer(const BufferDesc & desc) override;
     virtual RenderResource Create_Dynamic_Index_Buffer(const BufferDesc & desc, bool indices_are_32bit) override;
+    virtual void * Map_Dynamic_Vertex_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard) override;
+    virtual void * Map_Dynamic_Index_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard) override;
+    virtual void   Unmap_Dynamic_Vertex_Buffer(RenderResource h) override;
+    virtual void   Unmap_Dynamic_Index_Buffer(RenderResource h) override;
+    virtual void   Update_Vertex_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) override;
+    virtual void   Update_Index_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) override;
     virtual void * Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard) override;
     virtual void   Unmap_Dynamic(RenderResource h) override;
     virtual void   Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) override;
