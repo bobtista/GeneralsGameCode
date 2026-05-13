@@ -458,7 +458,8 @@ LegacyLoaderTexture * TextureLoader::Load_Thumbnail(const StringClass& filename,
 
 	// If no thumb is found return a missing texture
 	if (!thumb) {
-		return MissingTexture::_Get_Missing_Texture();
+		Log_Texture_Load_Failure("thumbnail", filename);
+		return Get_Legacy_Missing_Texture();
 	}
 
 	WWASSERT(thumb->Get_Format()==WW3D_FORMAT_A4R4G4B4);
@@ -576,7 +577,10 @@ LegacyLoaderSurface * TextureLoader::Load_Surface_Immediate(
 
 	// Make sure the file can be opened. If not, return missing texture.
 	Targa targa;
-	if (TARGA_ERROR_HANDLER(targa.Open(filename, TGA_READMODE),filename)) return MissingTexture::_Create_Missing_Surface();
+	if (TARGA_ERROR_HANDLER(targa.Open(filename, TGA_READMODE),filename)) {
+		Log_Texture_Load_Failure("surface open", filename);
+		return Create_Legacy_Missing_Surface();
+	}
 
 	// DX8 uses image upside down compared to TGA
 	targa.Header.ImageDescriptor ^= TGAIDF_YORIGIN;
@@ -599,7 +603,10 @@ LegacyLoaderSurface * TextureLoader::Load_Surface_Immediate(
 	// NOTE: We load the palette but we do not yet support paletted textures!
 	char palette[256*4];
 	targa.SetPalette(palette);
-	if (TARGA_ERROR_HANDLER(targa.Load(filename, TGAF_IMAGE, false),filename)) return MissingTexture::_Create_Missing_Surface();
+	if (TARGA_ERROR_HANDLER(targa.Load(filename, TGAF_IMAGE, false),filename)) {
+		Log_Texture_Load_Failure("surface load", filename);
+		return Create_Legacy_Missing_Surface();
+	}
 
 	unsigned char* src_surface=(unsigned char*)targa.GetImage();
 
@@ -1314,7 +1321,8 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 	WWASSERT(TextureLoader::Is_DX8_Thread());
 	WWASSERT(!D3DTexture);
 
-	D3DTexture = MissingTexture::_Get_Missing_Texture();
+	Log_Texture_Load_Failure("task", Texture ? Texture->Get_Full_Path().str() : nullptr);
+	D3DTexture = Get_Legacy_Missing_Texture();
 	Apply(true);
 }
 

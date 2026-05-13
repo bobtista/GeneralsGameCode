@@ -2808,7 +2808,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 			texture->GetLevelDesc(0, &desc);
 			if (desc.Format == D3DFMT_P8) {
 				texture->Release();
-				return MissingTexture::_Get_Missing_Texture();
+				return Get_Legacy_Missing_Texture();
 			}
 			return texture;
 		}
@@ -2838,7 +2838,8 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 		&texture);
 
 	if (result != D3D_OK) {
-		return MissingTexture::_Get_Missing_Texture();
+		Log_Missing_Texture_File("D3DX fallback", filename);
+		return Get_Legacy_Missing_Texture();
 	}
 
 	// Make sure texture wasn't paletted!
@@ -2846,7 +2847,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	texture->GetLevelDesc(0,&desc);
 	if (desc.Format==D3DFMT_P8) {
 		texture->Release();
-		return MissingTexture::_Get_Missing_Texture();
+		return Get_Legacy_Missing_Texture();
 	}
 	return texture;
 }
@@ -3236,8 +3237,10 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 				ext[3]='s';
 			}
 			file_auto_ptr myfile2(_TheFileFactory,compressed_name);
-			if (!myfile2->Is_Available())
-				return MissingTexture::_Create_Missing_Surface();
+			if (!myfile2->Is_Available()) {
+				Log_Missing_Texture_File("surface file", filename_);
+				return Create_Legacy_Missing_Surface();
+			}
 		}
 	}
 
