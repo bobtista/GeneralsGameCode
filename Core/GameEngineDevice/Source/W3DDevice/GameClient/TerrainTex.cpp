@@ -53,6 +53,7 @@
 #include "Common/GlobalData.h"
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/surfaceclass.h"
 #include "d3dx8tex.h"
 
 /******************************************************************************
@@ -63,7 +64,7 @@ static void InvalidateGeneratedTerrainTexture(TextureBaseClass *texture)
 	if (g_renderBackend != nullptr)
 	{
 		// TheSuperHackers @bugfix bobtista 28/04/2026 Generated terrain
-		// textures are populated through direct surface LockRect writes.
+		// textures are populated through direct surface Lock writes.
 		// Tell bgfx to re-upload after the atlas and mip chain are complete,
 		// otherwise standalone can keep sampling an earlier partially-black
 		// cache entry.
@@ -101,7 +102,7 @@ static void DisableTerrainTextureTransform(unsigned int stage)
 	g_renderBackend->Set_Texture_Transform_Mode(stage, 0, false);
 }
 
-void TerrainTextureClass::UpdateTerrainAtlasRegions(WorldHeightMap *htMap, unsigned int textureWidth, unsigned int textureHeight, unsigned int textureFormat)
+void TerrainTextureClass::UpdateTerrainAtlasRegions(WorldHeightMap *htMap, unsigned int textureWidth, unsigned int textureHeight, WW3DFormat textureFormat)
 {
 	Clear_Atlas_Regions();
 	if (htMap == nullptr)
@@ -110,7 +111,7 @@ void TerrainTextureClass::UpdateTerrainAtlasRegions(WorldHeightMap *htMap, unsig
 	}
 
 	const Int borderPixels = TILE_OFFSET / 2;
-	if (textureFormat != D3DFMT_A1R5G5B5)
+	if (textureFormat != WW3D_FORMAT_A1R5G5B5)
 	{
 		return;
 	}
@@ -158,8 +159,7 @@ void TerrainTextureClass::UpdateTerrainAtlasRegions(WorldHeightMap *htMap, unsig
 
 void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsigned int level)
 {
-	IDirect3DTexture8 *texture = Peek_D3D_Texture();
-	if (htMap == nullptr || texture == nullptr || level == 0)
+	if (htMap == nullptr || level == 0)
 	{
 		return;
 	}
@@ -170,18 +170,27 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsig
 		return;
 	}
 
-	IDirect3DSurface8 *surface_level;
-	D3DSURFACE_DESC surface_desc;
-	D3DLOCKED_RECT locked_rect;
-	DX8_ErrorCode(texture->GetSurfaceLevel(level, &surface_level));
-	DX8_ErrorCode(surface_level->GetDesc(&surface_desc));
-	if (surface_desc.Format != D3DFMT_A1R5G5B5)
+	SurfaceClass *surface_level = Get_Surface_Level(level);
+	if (surface_level == nullptr)
 	{
-		surface_level->Release();
 		return;
 	}
 
-	DX8_ErrorCode(surface_level->LockRect(&locked_rect, nullptr, 0));
+	SurfaceClass::SurfaceDescription surface_desc;
+	surface_level->Get_Description(surface_desc);
+	if (surface_desc.Format != WW3D_FORMAT_A1R5G5B5)
+	{
+		REF_PTR_RELEASE(surface_level);
+		return;
+	}
+
+	Int surface_pitch = 0;
+	UnsignedByte *surface_bits = static_cast<UnsignedByte *>(surface_level->Lock(&surface_pitch));
+	if (surface_bits == nullptr)
+	{
+		REF_PTR_RELEASE(surface_level);
+		return;
+	}
 
 	const Int pixelBytes = 2;
 	for (Int tileNdx = 0; tileNdx < htMap->m_numBitmapTiles; tileNdx++)
@@ -213,7 +222,7 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsig
 				continue;
 			}
 			UnsignedByte *pBGR = pTileData + (tilePixelExtent - 1 - j) * TILE_BYTES_PER_PIXEL * tilePixelExtent;
-			UnsignedByte *pBGRX = static_cast<UnsignedByte *>(locked_rect.pBits) + row * locked_rect.Pitch + mipColumn * pixelBytes;
+			UnsignedByte *pBGRX = surface_bits + row * surface_pitch + mipColumn * pixelBytes;
 			for (Int i = 0; i < tilePixelExtent; i++)
 			{
 				const Int column = mipColumn + i;
@@ -249,7 +258,7 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsig
 
 		for (Int y = 0; y < width; y++)
 		{
-			UnsignedByte *row = static_cast<UnsignedByte *>(locked_rect.pBits) + (origin.y + y) * locked_rect.Pitch;
+			UnsignedByte *row = surface_bits + (origin.y + y) * surface_pitch;
 			for (Int b = 1; b <= borderPixels; b++)
 			{
 				memcpy(row + (origin.x - b) * pixelBytes,
@@ -267,20 +276,20 @@ void TerrainTextureClass::WriteTerrainAtlasMipLevel(WorldHeightMap *htMap, unsig
 		const Int copyBytes = (width + borderPixels * 2) * pixelBytes;
 		for (Int b = 1; b <= borderPixels; b++)
 		{
-			UnsignedByte *dst = static_cast<UnsignedByte *>(locked_rect.pBits) + (origin.y - b) * locked_rect.Pitch + (origin.x - borderPixels) * pixelBytes;
-			UnsignedByte *src = static_cast<UnsignedByte *>(locked_rect.pBits) + (origin.y + width - b) * locked_rect.Pitch + (origin.x - borderPixels) * pixelBytes;
+			UnsignedByte *dst = surface_bits + (origin.y - b) * surface_pitch + (origin.x - borderPixels) * pixelBytes;
+			UnsignedByte *src = surface_bits + (origin.y + width - b) * surface_pitch + (origin.x - borderPixels) * pixelBytes;
 			memcpy(dst, src, copyBytes);
 		}
 		for (Int b = 0; b < borderPixels; b++)
 		{
-			UnsignedByte *dst = static_cast<UnsignedByte *>(locked_rect.pBits) + (origin.y + width + b) * locked_rect.Pitch + (origin.x - borderPixels) * pixelBytes;
-			UnsignedByte *src = static_cast<UnsignedByte *>(locked_rect.pBits) + (origin.y + b) * locked_rect.Pitch + (origin.x - borderPixels) * pixelBytes;
+			UnsignedByte *dst = surface_bits + (origin.y + width + b) * surface_pitch + (origin.x - borderPixels) * pixelBytes;
+			UnsignedByte *src = surface_bits + (origin.y + b) * surface_pitch + (origin.x - borderPixels) * pixelBytes;
 			memcpy(dst, src, copyBytes);
 		}
 	}
 
-	surface_level->UnlockRect();
-	surface_level->Release();
+	surface_level->Unlock();
+	REF_PTR_RELEASE(surface_level);
 }
 
 void TerrainTextureClass::WriteTerrainAtlasMipLevels(WorldHeightMap *htMap)
@@ -336,19 +345,26 @@ TerrainTextureClass::TerrainTextureClass(int height, int width) :
 //=============================================================================
 int TerrainTextureClass::update(WorldHeightMap *htMap)
 {
-	// D3DTexture is our texture;
-
-	IDirect3DSurface8 *surface_level;
-	D3DSURFACE_DESC surface_desc;
-	D3DLOCKED_RECT locked_rect;
-	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0, &surface_level));
-	DX8_ErrorCode(surface_level->GetDesc(&surface_desc));
-	if (surface_desc.Width < TEXTURE_WIDTH) {
-		surface_level->Release();
+	SurfaceClass *surface_level = Get_Surface_Level(0);
+	if (surface_level == nullptr)
+	{
 		return 0;
 	}
 
-	DX8_ErrorCode(surface_level->LockRect(&locked_rect, nullptr, 0));
+	SurfaceClass::SurfaceDescription surface_desc;
+	surface_level->Get_Description(surface_desc);
+	if (surface_desc.Width < TEXTURE_WIDTH) {
+		REF_PTR_RELEASE(surface_level);
+		return 0;
+	}
+
+	Int surface_pitch = 0;
+	UnsignedByte *surface_bits = static_cast<UnsignedByte *>(surface_level->Lock(&surface_pitch));
+	if (surface_bits == nullptr)
+	{
+		REF_PTR_RELEASE(surface_level);
+		return 0;
+	}
 
 	Int tilePixelExtent = TILE_PIXEL_EXTENT;
 	Int tilesPerRow = surface_desc.Width/(2*TILE_PIXEL_EXTENT+TILE_OFFSET);
@@ -358,7 +374,7 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 	//DEBUG_ASSERTCRASH(tilesPerRow*numRows >= htMap->m_numBitmapTiles, ("Too many tiles."));
 	DEBUG_ASSERTCRASH((Int)surface_desc.Width >= tilePixelExtent*tilesPerRow, ("Bitmap too small."));
 #endif
-	if (surface_desc.Format == D3DFMT_A1R5G5B5) {
+	if (surface_desc.Format == WW3D_FORMAT_A1R5G5B5) {
 #if 0
 		UnsignedInt cellX, cellY;
 		for (cellX = 0; cellX < surface_desc.Width; cellX++) {
@@ -381,8 +397,7 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 				UnsignedByte *pBGR = pTile->getRGBDataForWidth(tilePixelExtent);
 				pBGR += (tilePixelExtent-1-j)*TILE_BYTES_PER_PIXEL*tilePixelExtent; // invert to match.
 				Int row = position.y+j;
-				UnsignedByte *pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*surface_desc.Width*pixelBytes;
+				UnsignedByte *pBGRX = surface_bits + row * surface_pitch;
 
 				Int column = position.x;
 				pBGRX += column*pixelBytes;
@@ -404,8 +419,7 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 			Int j;
 			for (j=0; j<width; j++) {
 				Int row = origin.y+j;
-				UnsignedByte *pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*surface_desc.Width*pixelBytes;
+				UnsignedByte *pBGRX = surface_bits + row * surface_pitch;
 
 				Int column = origin.x;
 				pBGRX += column*pixelBytes;
@@ -419,23 +433,21 @@ int TerrainTextureClass::update(WorldHeightMap *htMap)
 			for (j=0; j<4; j++) {
 				// copy before.
 				Int row = origin.y-j-1;
-				UnsignedByte *pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*surface_desc.Width*pixelBytes;
+				UnsignedByte *pBGRX = surface_bits + row * surface_pitch;
 				UnsignedByte *target = pBGRX+(origin.x-4)*pixelBytes;
-				memcpy(target, target+width*surface_desc.Width*pixelBytes, (width+8)*pixelBytes);
+				memcpy(target, target + width * surface_pitch, (width+8)*pixelBytes);
 				// copy after.
 				row = origin.y+j;
-				pBGRX = ((UnsignedByte*)locked_rect.pBits) +
-							(row)*surface_desc.Width*pixelBytes;
+				pBGRX = surface_bits + row * surface_pitch;
 				target = pBGRX+(origin.x-4)*pixelBytes;
-				memcpy(target+width*surface_desc.Width*pixelBytes, target, (width+8)*pixelBytes);
+				memcpy(target + width * surface_pitch, target, (width+8)*pixelBytes);
 			}
 
 		}
 
 	}
-	surface_level->UnlockRect();
-	surface_level->Release();
+	surface_level->Unlock();
+	REF_PTR_RELEASE(surface_level);
 	DX8_ErrorCode(D3DXFilterTexture(Peek_D3D_Texture(), nullptr, 0, D3DX_FILTER_BOX));
 	UpdateTerrainAtlasRegions(htMap, surface_desc.Width, surface_desc.Height, surface_desc.Format);
 	WriteTerrainAtlasMipLevels(htMap);
