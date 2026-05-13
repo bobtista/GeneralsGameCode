@@ -540,7 +540,7 @@ RenderObjClass *	 WaterRenderObjClass::Clone() const
 	*   bump-map format. */
 //-------------------------------------------------------------------------------------------------
 #if !defined(GGC_BGFX_STANDALONE)
-HRESULT WaterRenderObjClass::initBumpMap(LPDIRECT3DTEXTURE8 *pTex, TextureClass *pBumpSource)
+HRESULT WaterRenderObjClass::initBumpMap(IDirect3DTexture8 **pTex, TextureClass *pBumpSource)
 {
     SurfaceClass::SurfaceDescription    d3dsd;
 	SurfaceClass * surf;
