@@ -125,7 +125,7 @@ TextureBaseClass::~TextureBaseClass()
 	ThumbnailLoadTask=nullptr;
 
 	// TheSuperHackers @fix bobtista 20/04/2026 Notify the render backend
-	// before the D3D8 texture goes away. bgfx caches a handle keyed on
+	// before the legacy texture goes away. bgfx caches a handle keyed on
 	// this TextureBaseClass* address; if the memory is reallocated for
 	// a different texture later, the old handle would be served for the
 	// new object (ABA). Releasing the cache entry here closes that window.
@@ -299,9 +299,9 @@ void TextureBaseClass::Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex)
 	Capture_CPU_Texture_Snapshot(D3DTexture);
 
 	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 1 —
-	// populate the backend-neutral handle after the legacy D3D8 loader
-	// finished creating the D3D8 texture. The backend either stores a
-	// wrapper around the D3D pointer (DX8) or creates a parallel bgfx
+	// populate the backend-neutral handle after the legacy texture loader
+	// finished creating the compatibility texture. The backend either stores a
+	// wrapper around the legacy pointer or creates a parallel bgfx
 	// texture via the peek path (bgfx). Skip when tex is null — that's
 	// a release, not a load.
 	if (D3DTexture != nullptr && g_renderBackend != nullptr) {
@@ -1125,7 +1125,7 @@ void TextureClass::Set_LOD(unsigned int lod) const
 }
 
 //**********************************************************************************************
-//! Get D3D surface from mip level
+//! Get legacy surface from mip level
 /*!
 */
 IDirect3DSurface8 *TextureClass::Get_D3D_Surface_Level(unsigned int level)
@@ -1417,7 +1417,7 @@ void ZTextureClass::Apply_New_Surface
 }
 
 //**********************************************************************************************
-//! Get D3D surface from mip level
+//! Get legacy surface from mip level
 /*!
 */
 IDirect3DSurface8* ZTextureClass::Get_D3D_Surface_Level(unsigned int level)
