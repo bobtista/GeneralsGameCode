@@ -188,6 +188,17 @@ constexpr unsigned kTextureTransformDisable = D3DTTFF_DISABLE, kTextureTransform
 constexpr unsigned kTextureTransformStage0 = D3DTS_TEXTURE0, kTransformView = D3DTS_VIEW;
 constexpr unsigned kTextureArgCurrent = static_cast<unsigned>(RB_TEXARG_CURRENT), kTextureArgTexture = static_cast<unsigned>(RB_TEXARG_TEXTURE), kTextureArgDiffuse = static_cast<unsigned>(RB_TEXARG_DIFFUSE);
 constexpr unsigned kTextureOpDisable = static_cast<unsigned>(RB_TEXOP_DISABLE), kTextureOpSelectArg1 = static_cast<unsigned>(RB_TEXOP_SELECTARG1), kTextureOpSelectArg2 = static_cast<unsigned>(RB_TEXOP_SELECTARG2);
+constexpr unsigned kRenderStateCullMode = D3DRS_CULLMODE, kRenderStateZBias = D3DRS_ZBIAS, kRenderStateLighting = D3DRS_LIGHTING, kRenderStateAmbient = D3DRS_AMBIENT;
+constexpr unsigned kRenderStateAmbientMaterialSource = D3DRS_AMBIENTMATERIALSOURCE, kRenderStateDiffuseMaterialSource = D3DRS_DIFFUSEMATERIALSOURCE, kRenderStateEmissiveMaterialSource = D3DRS_EMISSIVEMATERIALSOURCE;
+constexpr unsigned kRenderStateFogEnable = D3DRS_FOGENABLE, kRenderStateFogColor = D3DRS_FOGCOLOR, kRenderStateSpecularEnable = D3DRS_SPECULARENABLE, kRenderStatePatchSegments = D3DRS_PATCHSEGMENTS;
+constexpr unsigned kRenderStateSrcBlend = D3DRS_SRCBLEND, kRenderStateDestBlend = D3DRS_DESTBLEND, kRenderStateBlendOp = D3DRS_BLENDOP, kRenderStateAlphaBlendEnable = D3DRS_ALPHABLENDENABLE;
+constexpr unsigned kRenderStateAlphaTestEnable = D3DRS_ALPHATESTENABLE, kRenderStateAlphaRef = D3DRS_ALPHAREF, kRenderStateAlphaFunc = D3DRS_ALPHAFUNC, kRenderStateNormalizeNormals = D3DRS_NORMALIZENORMALS;
+constexpr unsigned kRenderStateColorWriteEnable = D3DRS_COLORWRITEENABLE, kRenderStatePointSpriteEnable = D3DRS_POINTSPRITEENABLE, kRenderStatePointScaleEnable = D3DRS_POINTSCALEENABLE;
+constexpr unsigned kRenderStatePointSize = D3DRS_POINTSIZE, kRenderStatePointSizeMin = D3DRS_POINTSIZE_MIN, kRenderStatePointSizeMax = D3DRS_POINTSIZE_MAX;
+constexpr unsigned kRenderStatePointScaleA = D3DRS_POINTSCALE_A, kRenderStatePointScaleB = D3DRS_POINTSCALE_B, kRenderStatePointScaleC = D3DRS_POINTSCALE_C, kRenderStateTextureFactor = D3DRS_TEXTUREFACTOR;
+constexpr unsigned kRenderStateStencilEnable = D3DRS_STENCILENABLE, kRenderStateStencilFunc = D3DRS_STENCILFUNC, kRenderStateStencilRef = D3DRS_STENCILREF, kRenderStateStencilMask = D3DRS_STENCILMASK;
+constexpr unsigned kRenderStateStencilWriteMask = D3DRS_STENCILWRITEMASK, kRenderStateStencilPass = D3DRS_STENCILPASS, kRenderStateStencilFail = D3DRS_STENCILFAIL, kRenderStateStencilZFail = D3DRS_STENCILZFAIL;
+constexpr unsigned kRenderStateFillMode = D3DRS_FILLMODE, kRenderStateShadeMode = D3DRS_SHADEMODE, kRenderStateZEnable = D3DRS_ZENABLE, kRenderStateZWriteEnable = D3DRS_ZWRITEENABLE, kRenderStateZFunc = D3DRS_ZFUNC;
 
 static float TextureOpToTssOp(unsigned value)
 {
@@ -4054,7 +4065,7 @@ void BgfxBackend::Release_Legacy_Render_State_For_Sorted_Draw()
 // both Submit_Sorted_Draw and SubmitEngineDraw to avoid duplicated blocks.
 static uint64_t ApplyCullModeOverride(uint64_t state)
 {
-    CullMode cullMode = static_cast<CullMode>(RenderStateCache::Get_Render_State(D3DRS_CULLMODE));
+    CullMode cullMode = static_cast<CullMode>(RenderStateCache::Get_Render_State(kRenderStateCullMode));
     state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
     if (cullMode == RB_CULL_CW)
     {
@@ -4570,7 +4581,7 @@ static void LogBgfxSortedMaterialDecal(const char *event,
                      static_cast<unsigned long long>(state),
                      static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
                      g_draw.zBias[0],
-                     RenderStateCache::Get_Render_State(D3DRS_ZBIAS),
+                     RenderStateCache::Get_Render_State(kRenderStateZBias),
                      TextureDebugName(g_draw.sourceTextures[0]),
                      TextureDebugName(g_draw.sourceTextures[1]),
                      g_draw.tssOps0[0], g_draw.tssOps0[1],
@@ -5253,7 +5264,7 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
             (ambientSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
         g_draw.vertexColorFlags[3] =
             (emissiveSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
-        const unsigned d3dLighting = RenderStateCache::Get_Render_State(D3DRS_LIGHTING);
+        const unsigned d3dLighting = RenderStateCache::Get_Render_State(kRenderStateLighting);
         g_draw.lightingEnabled[0] =
             (material->Get_Lighting()
              && d3dLighting != 0
@@ -5386,7 +5397,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         g_draw.texcoordSelect[1] = 0.0f;
     }
     {
-        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(D3DRS_ZBIAS);
+        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(kRenderStateZBias);
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
@@ -5598,7 +5609,7 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
         material != nullptr
         && material->Get_Lighting()
         && !WW3D::Is_Coloring_Enabled();
-    RenderStateCache::Set_Render_State(D3DRS_LIGHTING, lightingEnabled ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateLighting, lightingEnabled ? TRUE : FALSE);
     g_draw.explicitMaterialState = false;
     CaptureMaterialStateForBgfx(material);
 }
@@ -5618,9 +5629,9 @@ void BgfxBackend::Set_Material_Color_Source(RenderBackendMaterialColorSource amb
                                             RenderBackendMaterialColorSource diffuse_source,
                                             RenderBackendMaterialColorSource emissive_source)
 {
-    RenderStateCache::Set_Render_State(D3DRS_AMBIENTMATERIALSOURCE, static_cast<unsigned>(ambient_source));
-    RenderStateCache::Set_Render_State(D3DRS_DIFFUSEMATERIALSOURCE, static_cast<unsigned>(diffuse_source));
-    RenderStateCache::Set_Render_State(D3DRS_EMISSIVEMATERIALSOURCE, static_cast<unsigned>(emissive_source));
+    RenderStateCache::Set_Render_State(kRenderStateAmbientMaterialSource, static_cast<unsigned>(ambient_source));
+    RenderStateCache::Set_Render_State(kRenderStateDiffuseMaterialSource, static_cast<unsigned>(diffuse_source));
+    RenderStateCache::Set_Render_State(kRenderStateEmissiveMaterialSource, static_cast<unsigned>(emissive_source));
     g_draw.vertexColorFlags[1] = (diffuse_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
     g_draw.vertexColorFlags[2] = (ambient_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
     g_draw.vertexColorFlags[3] = (emissive_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
@@ -5727,7 +5738,7 @@ void BgfxBackend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * 
 
 void BgfxBackend::Set_Ambient(const Vector3 & color)
 {
-    RenderStateCache::Set_Render_State(D3DRS_AMBIENT, MakeLegacyARGBColor(color, 0.0f));
+    RenderStateCache::Set_Render_State(kRenderStateAmbient, MakeLegacyARGBColor(color, 0.0f));
     g_draw.sceneAmbient[0] = color.X;
     g_draw.sceneAmbient[1] = color.Y;
     g_draw.sceneAmbient[2] = color.Z;
@@ -5750,27 +5761,27 @@ void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float
 
 void BgfxBackend::Set_Fog_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(D3DRS_FOGENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateFogEnable, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Fog_Color(unsigned argb)
 {
-    RenderStateCache::Set_Render_State(D3DRS_FOGCOLOR, argb);
+    RenderStateCache::Set_Render_State(kRenderStateFogColor, argb);
 }
 
 unsigned BgfxBackend::Get_Fog_Color() const
 {
-    return RenderStateCache::Get_Render_State(D3DRS_FOGCOLOR);
+    return RenderStateCache::Get_Render_State(kRenderStateFogColor);
 }
 
 void BgfxBackend::Set_Specular_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(D3DRS_SPECULARENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateSpecularEnable, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Patch_Segments(float level)
 {
-    RenderStateCache::Set_Render_State(D3DRS_PATCHSEGMENTS, FloatAsDword(level));
+    RenderStateCache::Set_Render_State(kRenderStatePatchSegments, FloatAsDword(level));
 }
 
 void BgfxBackend::Set_Light(unsigned int index, const LightClass & light)
@@ -5869,8 +5880,8 @@ static uint64_t TranslateBlendOp(BlendOp op)
 // command-center bib), painting it black.
 void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 {
-    RenderStateCache::Set_Render_State(D3DRS_SRCBLEND, static_cast<unsigned>(src));
-    RenderStateCache::Set_Render_State(D3DRS_DESTBLEND, static_cast<unsigned>(dest));
+    RenderStateCache::Set_Render_State(kRenderStateSrcBlend, static_cast<unsigned>(src));
+    RenderStateCache::Set_Render_State(kRenderStateDestBlend, static_cast<unsigned>(dest));
     const unsigned s = static_cast<unsigned>(src);
     const unsigned d = static_cast<unsigned>(dest);
     if (s >= 1 && s <= 11 && d >= 1 && d <= 11)
@@ -5881,36 +5892,36 @@ void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 
 void BgfxBackend::Set_Blend_Op(BlendOp op)
 {
-    RenderStateCache::Set_Render_State(D3DRS_BLENDOP, static_cast<unsigned>(op));
+    RenderStateCache::Set_Render_State(kRenderStateBlendOp, static_cast<unsigned>(op));
     g_draw.blendEquationBits = TranslateBlendOp(op);
 }
 
 void BgfxBackend::Set_Alpha_Blend_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(D3DRS_ALPHABLENDENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateAlphaBlendEnable, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Alpha_Test_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(D3DRS_ALPHATESTENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateAlphaTestEnable, enable ? TRUE : FALSE);
     g_draw.atestEnabled = enable;
 }
 
 void BgfxBackend::Set_Alpha_Test_Reference(unsigned ref)
 {
-    RenderStateCache::Set_Render_State(D3DRS_ALPHAREF, ref);
+    RenderStateCache::Set_Render_State(kRenderStateAlphaRef, ref);
     g_draw.atestRef = ref / 255.0f;
 }
 
 void BgfxBackend::Set_Alpha_Test_Function(CompareFunc func)
 {
-    RenderStateCache::Set_Render_State(D3DRS_ALPHAFUNC, static_cast<unsigned>(func));
+    RenderStateCache::Set_Render_State(kRenderStateAlphaFunc, static_cast<unsigned>(func));
     g_draw.atestFunc = static_cast<float>(func);
 }
 
 void BgfxBackend::Set_Normalize_Normals(bool enable)
 {
-    RenderStateCache::Set_Render_State(D3DRS_NORMALIZENORMALS, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateNormalizeNormals, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
@@ -5931,8 +5942,8 @@ void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
                          srcIdx, dstIdx));
         }
     }
-    RenderStateCache::Set_Render_State(D3DRS_SRCBLEND, srcIdx);
-    RenderStateCache::Set_Render_State(D3DRS_DESTBLEND, dstIdx);
+    RenderStateCache::Set_Render_State(kRenderStateSrcBlend, srcIdx);
+    RenderStateCache::Set_Render_State(kRenderStateDestBlend, dstIdx);
 }
 
 void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func)
@@ -5940,9 +5951,9 @@ void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc fun
     g_overrides.atestActive = enable;
     g_overrides.atestRef = enable ? (ref / 255.0f) : 0.0f;
     g_overrides.atestFunc = enable ? static_cast<float>(func) : 0.0f;
-    RenderStateCache::Set_Render_State(D3DRS_ALPHATESTENABLE, enable ? TRUE : FALSE);
-    RenderStateCache::Set_Render_State(D3DRS_ALPHAREF, ref);
-    RenderStateCache::Set_Render_State(D3DRS_ALPHAFUNC, static_cast<unsigned>(func));
+    RenderStateCache::Set_Render_State(kRenderStateAlphaTestEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateAlphaRef, ref);
+    RenderStateCache::Set_Render_State(kRenderStateAlphaFunc, static_cast<unsigned>(func));
 }
 
 void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
@@ -5952,7 +5963,7 @@ void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
         g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
                                                   BGFX_STATE_BLEND_INV_SRC_ALPHA));
     }
-    RenderStateCache::Set_Render_State(D3DRS_ALPHABLENDENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateAlphaBlendEnable, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
@@ -6553,7 +6564,7 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
     {
         d3dMask |= RB_COLOR_ALPHA;
     }
-    RenderStateCache::Set_Render_State(D3DRS_COLORWRITEENABLE, d3dMask);
+    RenderStateCache::Set_Render_State(kRenderStateColorWriteEnable, d3dMask);
     g_overrides.colorWriteOverride = static_cast<int>(mask);
     g_overrides.suppressDraw = false;
 }
@@ -6563,12 +6574,12 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
 // passes that call Set_Color_Write_Mask(0) actually disable bgfx color writes.
 unsigned BgfxBackend::Get_Color_Write_Mask() const
 {
-    return RenderStateCache::Get_Render_State(D3DRS_COLORWRITEENABLE);
+    return RenderStateCache::Get_Render_State(kRenderStateColorWriteEnable);
 }
 
 void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(D3DRS_COLORWRITEENABLE, mask);
+    RenderStateCache::Set_Render_State(kRenderStateColorWriteEnable, mask);
     uint64_t bgfxMask = 0;
     if (mask & RB_COLOR_RED)
     {
@@ -6592,32 +6603,32 @@ void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 
 void BgfxBackend::Set_Lighting_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(D3DRS_LIGHTING, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateLighting, enable ? TRUE : FALSE);
     g_draw.lightingEnabled[0] = enable ? 1.0f : 0.0f;
 }
 
 void BgfxBackend::Set_Point_Sprite_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(D3DRS_POINTSPRITEENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStatePointSpriteEnable, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Point_Scale_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(D3DRS_POINTSCALEENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStatePointScaleEnable, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Point_Size(float size, float min_size, float max_size)
 {
-    RenderStateCache::Set_Render_State(D3DRS_POINTSIZE, FloatAsDword(size));
-    RenderStateCache::Set_Render_State(D3DRS_POINTSIZE_MIN, FloatAsDword(min_size));
-    RenderStateCache::Set_Render_State(D3DRS_POINTSIZE_MAX, FloatAsDword(max_size));
+    RenderStateCache::Set_Render_State(kRenderStatePointSize, FloatAsDword(size));
+    RenderStateCache::Set_Render_State(kRenderStatePointSizeMin, FloatAsDword(min_size));
+    RenderStateCache::Set_Render_State(kRenderStatePointSizeMax, FloatAsDword(max_size));
 }
 
 void BgfxBackend::Set_Point_Scale(float a, float b, float c)
 {
-    RenderStateCache::Set_Render_State(D3DRS_POINTSCALE_A, FloatAsDword(a));
-    RenderStateCache::Set_Render_State(D3DRS_POINTSCALE_B, FloatAsDword(b));
-    RenderStateCache::Set_Render_State(D3DRS_POINTSCALE_C, FloatAsDword(c));
+    RenderStateCache::Set_Render_State(kRenderStatePointScaleA, FloatAsDword(a));
+    RenderStateCache::Set_Render_State(kRenderStatePointScaleB, FloatAsDword(b));
+    RenderStateCache::Set_Render_State(kRenderStatePointScaleC, FloatAsDword(c));
 }
 
 void BgfxBackend::Skip_Next_Bgfx_Submit()
@@ -6641,7 +6652,7 @@ void BgfxBackend::Set_Projected_Decal_Mode(RenderBackendProjectedDecalMode mode)
 // is unnecessary and it clobbers team colors.
 void BgfxBackend::Set_Texture_Factor(unsigned argb)
 {
-    RenderStateCache::Set_Render_State(D3DRS_TEXTUREFACTOR, argb);
+    RenderStateCache::Set_Render_State(kRenderStateTextureFactor, argb);
 }
 
 void BgfxBackend::Set_Shadow_Volume_Shader_Active(bool active)
@@ -6917,67 +6928,67 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 
 void BgfxBackend::Set_Stencil_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(D3DRS_STENCILENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateStencilEnable, enable ? TRUE : FALSE);
     g_draw.stencilEnabled = enable;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Func(CompareFunc f)
 {
-    RenderStateCache::Set_Render_State(D3DRS_STENCILFUNC, static_cast<unsigned>(f));
+    RenderStateCache::Set_Render_State(kRenderStateStencilFunc, static_cast<unsigned>(f));
     g_draw.stencilFuncBits = MapCmpFuncToBgfxStencilTest(f);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Ref(unsigned ref)
 {
-    RenderStateCache::Set_Render_State(D3DRS_STENCILREF, ref);
+    RenderStateCache::Set_Render_State(kRenderStateStencilRef, ref);
     g_draw.stencilRef = ref;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(D3DRS_STENCILMASK, mask);
+    RenderStateCache::Set_Render_State(kRenderStateStencilMask, mask);
     g_draw.stencilReadMask = mask;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Write_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(D3DRS_STENCILWRITEMASK, mask);
+    RenderStateCache::Set_Render_State(kRenderStateStencilWriteMask, mask);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Pass_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(D3DRS_STENCILPASS, static_cast<unsigned>(op));
+    RenderStateCache::Set_Render_State(kRenderStateStencilPass, static_cast<unsigned>(op));
     g_draw.stencilPassOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_PASS_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Fail_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(D3DRS_STENCILFAIL, static_cast<unsigned>(op));
+    RenderStateCache::Set_Render_State(kRenderStateStencilFail, static_cast<unsigned>(op));
     g_draw.stencilFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_S_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(D3DRS_STENCILZFAIL, static_cast<unsigned>(op));
+    RenderStateCache::Set_Render_State(kRenderStateStencilZFail, static_cast<unsigned>(op));
     g_draw.stencilZFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 CullMode BgfxBackend::Get_Cull_Mode() const
 {
-    return static_cast<CullMode>(RenderStateCache::Get_Render_State(D3DRS_CULLMODE));
+    return static_cast<CullMode>(RenderStateCache::Get_Render_State(kRenderStateCullMode));
 }
 
 void BgfxBackend::Set_Cull_Mode(CullMode mode)
 {
-    RenderStateCache::Set_Render_State(D3DRS_CULLMODE, static_cast<unsigned>(mode));
+    RenderStateCache::Set_Render_State(kRenderStateCullMode, static_cast<unsigned>(mode));
     switch (mode)
     {
         case RB_CULL_CW:  g_draw.cullModeBits = 1; break;
@@ -6989,32 +7000,32 @@ void BgfxBackend::Set_Cull_Mode(CullMode mode)
 
 void BgfxBackend::Set_Z_Bias(int bias)
 {
-    RenderStateCache::Set_Render_State(D3DRS_ZBIAS, static_cast<unsigned>(bias));
+    RenderStateCache::Set_Render_State(kRenderStateZBias, static_cast<unsigned>(bias));
 }
 
 void BgfxBackend::Set_Fill_Mode(FillMode mode)
 {
-    RenderStateCache::Set_Render_State(D3DRS_FILLMODE, static_cast<unsigned>(mode));
+    RenderStateCache::Set_Render_State(kRenderStateFillMode, static_cast<unsigned>(mode));
 }
 
 void BgfxBackend::Set_Shade_Mode(ShadeMode mode)
 {
-    RenderStateCache::Set_Render_State(D3DRS_SHADEMODE, static_cast<unsigned>(mode));
+    RenderStateCache::Set_Render_State(kRenderStateShadeMode, static_cast<unsigned>(mode));
 }
 
 void BgfxBackend::Set_Depth_Test_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(D3DRS_ZENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateZEnable, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Depth_Write_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(D3DRS_ZWRITEENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateZWriteEnable, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Depth_Func(CompareFunc func)
 {
-    RenderStateCache::Set_Render_State(D3DRS_ZFUNC, static_cast<unsigned>(func));
+    RenderStateCache::Set_Render_State(kRenderStateZFunc, static_cast<unsigned>(func));
     static const uint64_t kDepthMap[] = {
         0,                              // 0 (unused)
         BGFX_STATE_DEPTH_TEST_NEVER,    // RB_CMP_NEVER = 1
@@ -7099,7 +7110,7 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
     if (light_env != nullptr)
     {
         const Vector3 & ambient = light_env->Get_Equivalent_Ambient();
-        RenderStateCache::Set_Render_State(D3DRS_AMBIENT, MakeLegacyARGBColor(ambient, 0.0f));
+        RenderStateCache::Set_Render_State(kRenderStateAmbient, MakeLegacyARGBColor(ambient, 0.0f));
         g_draw.sceneAmbient[0] = ambient.X;
         g_draw.sceneAmbient[1] = ambient.Y;
         g_draw.sceneAmbient[2] = ambient.Z;
@@ -7559,7 +7570,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // u_zBias to the GPU. Setting g_draw.zBias afterward leaves the uniform
     // at the previous (or default) value and defeats the whole fix.
     {
-        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(D3DRS_ZBIAS);
+        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(kRenderStateZBias);
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
@@ -7608,7 +7619,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // ignore that sentinel and keep the cached value instead of treating
     // the marker bytes as a real color.
     {
-        const unsigned ambientColor = RenderStateCache::Get_Render_State(D3DRS_AMBIENT);
+        const unsigned ambientColor = RenderStateCache::Get_Render_State(kRenderStateAmbient);
         if (ambientColor != 0x12345678)
         {
             g_draw.sceneAmbient[0] = ((ambientColor >> 16) & 0xFF) / 255.0f;
@@ -7663,7 +7674,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // be true to avoid false positives from other effects that set TCI bits.
     bool shroudDetected = false;
     {
-        unsigned depthFunc = RenderStateCache::Get_Render_State(D3DRS_ZFUNC);
+        unsigned depthFunc = RenderStateCache::Get_Render_State(kRenderStateZFunc);
         const unsigned stg = 0;
         unsigned tci = RenderStateCache::Get_Texture_Stage_State(stg, kStageStateTexcoordIndex);
         float shroudParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
