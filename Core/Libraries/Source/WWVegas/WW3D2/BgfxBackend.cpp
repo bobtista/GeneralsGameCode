@@ -4023,13 +4023,13 @@ void BgfxBackend::Release_Legacy_Render_State_For_Sorted_Draw()
 // both Submit_Sorted_Draw and SubmitEngineDraw to avoid duplicated blocks.
 static uint64_t ApplyCullModeOverride(uint64_t state)
 {
-    unsigned d3dCull = RenderStateCache::Get_Render_State(D3DRS_CULLMODE);
+    CullMode cullMode = static_cast<CullMode>(RenderStateCache::Get_Render_State(D3DRS_CULLMODE));
     state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
-    if (d3dCull == D3DCULL_CW)
+    if (cullMode == RB_CULL_CW)
     {
         state |= BGFX_STATE_CULL_CW;
     }
-    else if (d3dCull == D3DCULL_CCW)
+    else if (cullMode == RB_CULL_CCW)
     {
         state |= BGFX_STATE_CULL_CCW;
     }
@@ -6516,19 +6516,19 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
     unsigned d3dMask = 0;
     if (red)
     {
-        d3dMask |= D3DCOLORWRITEENABLE_RED;
+        d3dMask |= RB_COLOR_RED;
     }
     if (green)
     {
-        d3dMask |= D3DCOLORWRITEENABLE_GREEN;
+        d3dMask |= RB_COLOR_GREEN;
     }
     if (blue)
     {
-        d3dMask |= D3DCOLORWRITEENABLE_BLUE;
+        d3dMask |= RB_COLOR_BLUE;
     }
     if (alpha)
     {
-        d3dMask |= D3DCOLORWRITEENABLE_ALPHA;
+        d3dMask |= RB_COLOR_ALPHA;
     }
     RenderStateCache::Set_Render_State(D3DRS_COLORWRITEENABLE, d3dMask);
     g_overrides.colorWriteOverride = static_cast<int>(mask);
@@ -6547,19 +6547,19 @@ void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 {
     RenderStateCache::Set_Render_State(D3DRS_COLORWRITEENABLE, mask);
     uint64_t bgfxMask = 0;
-    if (mask & D3DCOLORWRITEENABLE_RED)
+    if (mask & RB_COLOR_RED)
     {
         bgfxMask |= BGFX_STATE_WRITE_R;
     }
-    if (mask & D3DCOLORWRITEENABLE_GREEN)
+    if (mask & RB_COLOR_GREEN)
     {
         bgfxMask |= BGFX_STATE_WRITE_G;
     }
-    if (mask & D3DCOLORWRITEENABLE_BLUE)
+    if (mask & RB_COLOR_BLUE)
     {
         bgfxMask |= BGFX_STATE_WRITE_B;
     }
-    if (mask & D3DCOLORWRITEENABLE_ALPHA)
+    if (mask & RB_COLOR_ALPHA)
     {
         bgfxMask |= BGFX_STATE_WRITE_A;
     }
