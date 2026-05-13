@@ -147,10 +147,7 @@ TextureBaseClass::TextureBaseClass
 */
 TextureBaseClass::~TextureBaseClass()
 {
-	delete TextureLoadTask;
-	TextureLoadTask=nullptr;
-	delete ThumbnailLoadTask;
-	ThumbnailLoadTask=nullptr;
+	TextureLoader::Delete_Texture_Load_Tasks(this);
 
 	// TheSuperHackers @fix bobtista 20/04/2026 Notify the render backend
 	// before the legacy texture goes away. bgfx caches a handle keyed on
