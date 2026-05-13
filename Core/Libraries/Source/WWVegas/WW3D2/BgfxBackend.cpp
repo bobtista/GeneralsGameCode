@@ -8422,11 +8422,19 @@ RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const 
     entry.size_bytes = desc.size_bytes;
     entry.vb = BGFX_INVALID_HANDLE;
     entry.dvb = BGFX_INVALID_HANDLE;
-    // Static bgfx VB creation requires a layout. We build one lazily from
-    // the FVF in a later stage; for now record the entry and leave vb
-    // invalid — bgfx callers go through existing VB caches keyed by the
-    // VertexBufferClass*, not this handle, until Stage 2 rewires them.
-    (void)initial_data;
+    if (initial_data != nullptr
+        && desc.size_bytes != 0
+        && desc.layout.fvf != 0
+        && desc.layout.stride != 0
+        && (desc.size_bytes % desc.layout.stride) == 0)
+    {
+        FVFInfoClass fvf(desc.layout.fvf);
+        bgfx::VertexLayout layout;
+        if (BuildBgfxLayoutForFVF(fvf, layout) && layout.getStride() == desc.layout.stride)
+        {
+            entry.vb = bgfx::createVertexBuffer(bgfx::copy(initial_data, desc.size_bytes), layout);
+        }
+    }
     RenderResource rr;
     rr.id = AllocPhase5Id();
     g_phase5.table[rr.id] = entry;
@@ -8442,9 +8450,14 @@ RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const v
     entry.size_bytes = desc.size_bytes;
     entry.ib = BGFX_INVALID_HANDLE;
     entry.dib = BGFX_INVALID_HANDLE;
-    // Same as vertex buffers — bgfx-side creation is deferred to Stage 2.
-    (void)initial_data;
-    (void)indices_are_32bit;
+    const unsigned int indexSize = indices_are_32bit ? sizeof(uint32_t) : sizeof(uint16_t);
+    if (initial_data != nullptr
+        && desc.size_bytes != 0
+        && (desc.size_bytes % indexSize) == 0)
+    {
+        const uint64_t flags = indices_are_32bit ? BGFX_BUFFER_INDEX32 : BGFX_BUFFER_NONE;
+        entry.ib = bgfx::createIndexBuffer(bgfx::copy(initial_data, desc.size_bytes), flags);
+    }
 
     RenderResource rr;
     rr.id = AllocPhase5Id();
