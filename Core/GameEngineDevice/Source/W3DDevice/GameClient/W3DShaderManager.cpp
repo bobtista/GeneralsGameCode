@@ -471,19 +471,8 @@ Int ScreenBWFilter::init()
 	{
 		if (res >= DC_GENERIC_PIXEL_SHADER_1_1)
 		{
-			//this shader needs some assets that need to be loaded
-			//shader decleration
-			DWORD Declaration[]=
-			{
-				(D3DVSD_STREAM(0)),
-				(D3DVSD_REG(0, D3DVSDT_FLOAT3)), // Position
-				(D3DVSD_REG(1, D3DVSDT_D3DCOLOR)), // Diffuse
-				(D3DVSD_REG(2, D3DVSDT_FLOAT2)), //  Texture Coordinates
-				(D3DVSD_END())
-			};
-
 			//Monochrome pixel shader.
-			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\monochrome.pso", &Declaration[0], 0, false, &m_dwBWPixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\monochrome.pso", nullptr, 0, false, &m_dwBWPixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -1898,30 +1887,18 @@ Int TerrainShaderPixelShader::init()
 	{
 		if (res >= DC_GENERIC_PIXEL_SHADER_1_1)
 		{
-			//this shader needs some assets that need to be loaded
-			//shader decleration
-			DWORD Declaration[]=
-			{
-				(D3DVSD_STREAM(0)),
-				(D3DVSD_REG(0, D3DVSDT_FLOAT3)), // Position
-				(D3DVSD_REG(1, D3DVSDT_D3DCOLOR)), // Diffuse
-				(D3DVSD_REG(2, D3DVSDT_FLOAT2)), //  Texture Coordinates
-				(D3DVSD_REG(3, D3DVSDT_FLOAT2)), //  Texture Coordinates
-				(D3DVSD_END())
-			};
-
 			//base version which doesn't apply any noise textures.
-			HRESULT hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\terrain.pso", &Declaration[0], 0, false, &m_dwBasePixelShader);
+			HRESULT hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\terrain.pso", nullptr, 0, false, &m_dwBasePixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 1 noise texture.
-			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\terrainnoise.pso", &Declaration[0], 0, false, &m_dwBaseNoise1PixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\terrainnoise.pso", nullptr, 0, false, &m_dwBaseNoise1PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 2 noise textures.
-			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\terrainnoise2.pso", &Declaration[0], 0, false, &m_dwBaseNoise2PixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\terrainnoise2.pso", nullptr, 0, false, &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -2166,19 +2143,8 @@ Int RoadShaderPixelShader::init()
 	{
 		if (res >= DC_GENERIC_PIXEL_SHADER_1_1)
 		{
-			//this shader needs some assets that need to be loaded
-			//shader declaration
-			DWORD Declaration[]=
-			{
-				(D3DVSD_STREAM(0)),
-				(D3DVSD_REG(0, D3DVSDT_FLOAT3)), // Position
-				(D3DVSD_REG(1, D3DVSDT_D3DCOLOR)), // Diffuse
-				(D3DVSD_REG(2, D3DVSDT_FLOAT2)), //  Texture Coordinates
-				(D3DVSD_END())
-			};
-
 			//version which blends 2 noise textures.
-			HRESULT hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\roadnoise2.pso", &Declaration[0], 0, false, &m_dwBaseNoise2PixelShader);
+			HRESULT hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\roadnoise2.pso", nullptr, 0, false, &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
@@ -3295,35 +3261,23 @@ Int FlatTerrainShaderPixelShader::init()
 	{
 		if (res >= DC_GENERIC_PIXEL_SHADER_1_1)
 		{
-			//this shader needs some assets that need to be loaded
-			//shader decleration
-			DWORD Declaration[]=
-			{
-				(D3DVSD_STREAM(0)),
-				(D3DVSD_REG(0, D3DVSDT_FLOAT3)), // Position
-				(D3DVSD_REG(1, D3DVSDT_D3DCOLOR)), // Diffuse
-				(D3DVSD_REG(2, D3DVSDT_FLOAT2)), //  Texture Coordinates
-				(D3DVSD_REG(3, D3DVSDT_FLOAT2)), //  Texture Coordinates
-				(D3DVSD_END())
-			};
-
 			//base version which doesn't apply any noise textures.
-			HRESULT hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrain.pso", &Declaration[0], 0, false, &m_dwBasePixelShader);
+			HRESULT hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrain.pso", nullptr, 0, false, &m_dwBasePixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//base version which doesn't apply any shroud textures.
-			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrain0.pso", &Declaration[0], 0, false, &m_dwBase0PixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrain0.pso", nullptr, 0, false, &m_dwBase0PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 1 noise texture.
-			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrainnoise.pso", &Declaration[0], 0, false, &m_dwBaseNoise1PixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrainnoise.pso", nullptr, 0, false, &m_dwBaseNoise1PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
 			//version which blends 2 noise textures.
-			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrainnoise2.pso", &Declaration[0], 0, false, &m_dwBaseNoise2PixelShader);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\fterrainnoise2.pso", nullptr, 0, false, &m_dwBaseNoise2PixelShader);
 			if (FAILED(hr))
 				return FALSE;
 
