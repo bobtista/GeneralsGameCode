@@ -18,11 +18,14 @@
 
 #pragma once
 
+#include "ww3dformat.h"
+
 struct IDirect3DBaseTexture8;
 struct IDirect3DTexture8;
 struct IDirect3DCubeTexture8;
 struct IDirect3DVolumeTexture8;
 struct IDirect3DSurface8;
+class StringClass;
 class SurfaceClass;
 class TextureBaseClass;
 
@@ -82,3 +85,7 @@ inline IDirect3DSurface8 *Peek_Legacy_Surface(const SurfaceClass &surface)
 
 IDirect3DTexture8 *Get_Legacy_Missing_Texture();
 IDirect3DSurface8 *Create_Legacy_Missing_Surface();
+IDirect3DSurface8 *Load_Legacy_Surface_Immediate(
+	const StringClass &filename,
+	WW3DFormat surface_format,
+	bool allow_compression);

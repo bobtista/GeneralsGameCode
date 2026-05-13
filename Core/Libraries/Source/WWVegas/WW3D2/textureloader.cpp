@@ -463,7 +463,7 @@ void TextureLoader::Validate_Texture_Size
 	depth=poweroftwodepth;
 }
 
-LegacyLoaderTexture * TextureLoader::Load_Thumbnail(const StringClass& filename, const Vector3& hsv_shift)//,WW3DFormat texture_format)
+static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, const Vector3& hsv_shift)//,WW3DFormat texture_format)
 {
 	WWASSERT(Is_DX8_Thread());
 
@@ -570,7 +570,7 @@ LegacyLoaderTexture * TextureLoader::Load_Thumbnail(const StringClass& filename,
 // format and performs color space conversion.
 //
 // ----------------------------------------------------------------------------
-LegacyLoaderSurface * TextureLoader::Load_Surface_Immediate(
+LegacyLoaderSurface * Load_Legacy_Surface_Immediate(
 	const StringClass& filename,
 	WW3DFormat texture_format,
 	bool allow_compression)
@@ -1012,7 +1012,7 @@ void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 	WWASSERT(Is_DX8_Thread());
 
 	// load thumbnail texture
-	LegacyLoaderTexture *d3d_texture = Load_Thumbnail(tc->Get_Full_Path(),tc->Get_HSV_Shift());
+	LegacyLoaderTexture *d3d_texture = Load_Legacy_Thumbnail(tc->Get_Full_Path(),tc->Get_HSV_Shift());
 
 	// apply thumbnail to texture
 	if (tc->Get_Asset_Type()==TextureBaseClass::TEX_REGULAR)
