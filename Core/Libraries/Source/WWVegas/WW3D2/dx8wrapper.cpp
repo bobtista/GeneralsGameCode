@@ -164,12 +164,12 @@ bool								DX8Wrapper::world_identity;
 bool								DX8Wrapper::FogEnable									= false;
 D3DCOLOR							DX8Wrapper::FogColor										= 0;
 
-IDirect3D8 *					DX8Wrapper::D3DInterface								= nullptr;
-IDirect3DDevice8 *			DX8Wrapper::D3DDevice									= nullptr;
-IDirect3DSurface8 *			DX8Wrapper::CurrentRenderTarget						= nullptr;
-IDirect3DSurface8 *			DX8Wrapper::CurrentDepthBuffer						= nullptr;
-IDirect3DSurface8 *			DX8Wrapper::DefaultRenderTarget						= nullptr;
-IDirect3DSurface8 *			DX8Wrapper::DefaultDepthBuffer						= nullptr;
+static IDirect3D8 *			D3DInterface								= nullptr;
+static IDirect3DDevice8 *	D3DDevice									= nullptr;
+static IDirect3DSurface8 *	CurrentRenderTarget						= nullptr;
+static IDirect3DSurface8 *	CurrentDepthBuffer						= nullptr;
+static IDirect3DSurface8 *	DefaultRenderTarget						= nullptr;
+static IDirect3DSurface8 *	DefaultDepthBuffer						= nullptr;
 bool								DX8Wrapper::IsRenderToTexture							= false;
 
 unsigned							DX8Wrapper::_MainThreadID								= 0;
@@ -184,7 +184,7 @@ DX8Caps*							DX8Wrapper::CurrentCaps = nullptr;
 // Hack test... this disables rendering of batches of too few polygons.
 unsigned							DX8Wrapper::DrawPolygonLowBoundLimit=0;
 
-D3DADAPTER_IDENTIFIER8		DX8Wrapper::CurrentAdapterIdentifier;
+static D3DADAPTER_IDENTIFIER8 CurrentAdapterIdentifier;
 
 unsigned long DX8Wrapper::FrameCount = 0;
 
@@ -194,6 +194,16 @@ static D3DPRESENT_PARAMETERS								_PresentParameters;
 static DynamicVectorClass<StringClass>					_RenderDeviceNameTable;
 static DynamicVectorClass<StringClass>					_RenderDeviceShortNameTable;
 static DynamicVectorClass<RenderDeviceDescClass>	_RenderDeviceDescriptionTable;
+
+IDirect3DDevice8* DX8_Call_Device()
+{
+	return D3DDevice;
+}
+
+IDirect3D8* DX8_Call_Interface()
+{
+	return D3DInterface;
+}
 
 
 typedef IDirect3D8* (WINAPI *Direct3DCreate8Type) (UINT SDKVersion);
@@ -3364,7 +3374,7 @@ void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 	delete CurrentCaps;
-	CurrentCaps=new DX8Caps(D3DInterface,D3DDevice,display_format,Get_Current_Adapter_Identifier());
+	CurrentCaps=new DX8Caps(D3DInterface,D3DDevice,display_format,CurrentAdapterIdentifier);
 }
 
 #if !defined(GGC_BGFX_STANDALONE)
