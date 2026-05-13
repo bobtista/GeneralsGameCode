@@ -69,10 +69,12 @@ namespace
 	using LegacyTexture2D = IDirect3DTexture8;
 	using LegacyTextureSurface = IDirect3DSurface8;
 	using LegacySurfaceDesc = D3DSURFACE_DESC;
+	using LegacyVolumeDesc = D3DVOLUME_DESC;
 	using LegacyLockedRect = D3DLOCKED_RECT;
 	using LegacyTexturePool = D3DPOOL;
 
 	constexpr unsigned kLegacyLockReadOnly = D3DLOCK_READONLY;
+	constexpr unsigned kLegacyMipFilterBox = D3DX_FILTER_BOX;
 
 	LegacyTexturePool Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
 	{
@@ -896,7 +898,7 @@ TextureClass::TextureClass
 	default: break;
 	}
 
-	IDirect3DBaseTexture8 *newTexture = DX8Wrapper::_Create_DX8_Texture
+	LegacyBaseTexture *newTexture = DX8Wrapper::_Create_DX8_Texture
 	(
 		surface->Peek_D3D_Surface(),
 		mip_level_count
@@ -907,7 +909,7 @@ TextureClass::TextureClass
 }
 
 // ----------------------------------------------------------------------------
-TextureClass::TextureClass(IDirect3DBaseTexture8* d3d_texture)
+TextureClass::TextureClass(LegacyBaseTexture * d3d_texture)
 :	TextureBaseClass
 	(
 		0,
@@ -921,10 +923,10 @@ TextureClass::TextureClass(IDirect3DBaseTexture8* d3d_texture)
 	IsReducible=false;
 
 	Set_D3D_Base_Texture(d3d_texture);
-	IDirect3DSurface8* surface;
+	LegacyTextureSurface *surface;
 	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
 	Width=d3d_desc.Width;
 	Height=d3d_desc.Height;
@@ -996,12 +998,12 @@ void TextureClass::Init()
 */
 void TextureClass::Apply_New_Surface
 (
-	IDirect3DBaseTexture8* d3d_texture,
+	LegacyBaseTexture * d3d_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
-	IDirect3DBaseTexture8* d3d_tex=Peek_D3D_Base_Texture();
+	LegacyBaseTexture *d3d_tex=Peek_D3D_Base_Texture();
 
 	if (d3d_tex) d3d_tex->Release();
 
@@ -1012,10 +1014,10 @@ void TextureClass::Apply_New_Surface
 	if (disable_auto_invalidation) InactivationTime = 0;
 
 	WWASSERT(d3d_texture);
-	IDirect3DSurface8* surface;
+	LegacyTextureSurface *surface;
 	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
 	if (initialized)
 	{
@@ -1095,7 +1097,7 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 		return nullptr;
 	}
 
-	IDirect3DSurface8 *d3d_surface = nullptr;
+	LegacyTextureSurface *d3d_surface = nullptr;
 	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
 	SurfaceClass *surface = new SurfaceClass(d3d_surface);
 	d3d_surface->Release();
@@ -1118,24 +1120,24 @@ void TextureClass::Get_Level_Description( SurfaceClass::SurfaceDescription & des
 
 unsigned int TextureClass::Get_Level_Count() const
 {
-	IDirect3DTexture8 *texture = Peek_D3D_Texture();
+	LegacyTexture2D *texture = Peek_D3D_Texture();
 	return texture != nullptr ? texture->GetLevelCount() : 0;
 }
 
 bool TextureClass::Generate_Mip_Levels()
 {
-	IDirect3DTexture8 *texture = Peek_D3D_Texture();
+	LegacyTexture2D *texture = Peek_D3D_Texture();
 	if (texture == nullptr)
 	{
 		return false;
 	}
 
-	return SUCCEEDED(D3DXFilterTexture(texture, nullptr, 0, D3DX_FILTER_BOX));
+	return SUCCEEDED(D3DXFilterTexture(texture, nullptr, 0, kLegacyMipFilterBox));
 }
 
 void TextureClass::Set_LOD(unsigned int lod) const
 {
-	IDirect3DTexture8 *texture = Peek_D3D_Texture();
+	LegacyTexture2D *texture = Peek_D3D_Texture();
 	if (texture != nullptr)
 	{
 		DX8_ErrorCode(texture->SetLOD(static_cast<DWORD>(lod)));
@@ -1146,7 +1148,7 @@ void TextureClass::Set_LOD(unsigned int lod) const
 //! Get legacy surface from mip level
 /*!
 */
-IDirect3DSurface8 *TextureClass::Get_D3D_Surface_Level(unsigned int level)
+LegacyTextureSurface *TextureClass::Get_D3D_Surface_Level(unsigned int level)
 {
 	if (!Peek_D3D_Texture())
 	{
@@ -1154,7 +1156,7 @@ IDirect3DSurface8 *TextureClass::Get_D3D_Surface_Level(unsigned int level)
 		return nullptr;
 	}
 
-	IDirect3DSurface8 *d3d_surface = nullptr;
+	LegacyTextureSurface *d3d_surface = nullptr;
 	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
 	return d3d_surface;
 }
@@ -1169,7 +1171,7 @@ unsigned TextureClass::Get_Texture_Memory_Usage() const
 	if (!Peek_D3D_Texture()) return 0;
 	for (unsigned i=0;i<Peek_D3D_Texture()->GetLevelCount();++i)
 	{
-		D3DSURFACE_DESC desc;
+		LegacySurfaceDesc desc;
 		DX8_ErrorCode(Peek_D3D_Texture()->GetLevelDesc(i,&desc));
 		size+=desc.Size;
 	}
@@ -1397,12 +1399,12 @@ void ZTextureClass::Apply(unsigned int stage)
 */
 void ZTextureClass::Apply_New_Surface
 (
-	IDirect3DBaseTexture8* d3d_texture,
+	LegacyBaseTexture * d3d_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
-	IDirect3DBaseTexture8* d3d_tex=Peek_D3D_Base_Texture();
+	LegacyBaseTexture *d3d_tex=Peek_D3D_Base_Texture();
 
 	if (d3d_tex) d3d_tex->Release();
 
@@ -1413,10 +1415,10 @@ void ZTextureClass::Apply_New_Surface
 	if (disable_auto_invalidation) InactivationTime = 0;
 
 	WWASSERT(Peek_D3D_Texture());
-	IDirect3DSurface8* surface;
+	LegacyTextureSurface *surface;
 	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
 	if (initialized)
 	{
@@ -1431,7 +1433,7 @@ void ZTextureClass::Apply_New_Surface
 //! Get legacy surface from mip level
 /*!
 */
-IDirect3DSurface8* ZTextureClass::Get_D3D_Surface_Level(unsigned int level)
+LegacyTextureSurface * ZTextureClass::Get_D3D_Surface_Level(unsigned int level)
 {
 	if (!Peek_D3D_Texture())
 	{
@@ -1439,7 +1441,7 @@ IDirect3DSurface8* ZTextureClass::Get_D3D_Surface_Level(unsigned int level)
 		return nullptr;
 	}
 
-	IDirect3DSurface8 *d3d_surface = nullptr;
+	LegacyTextureSurface *d3d_surface = nullptr;
 	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(level, &d3d_surface));
 	return d3d_surface;
 }
@@ -1454,7 +1456,7 @@ unsigned ZTextureClass::Get_Texture_Memory_Usage() const
 	if (!Peek_D3D_Texture()) return 0;
 	for (unsigned i=0;i<Peek_D3D_Texture()->GetLevelCount();++i)
 	{
-		D3DSURFACE_DESC desc;
+		LegacySurfaceDesc desc;
 		DX8_ErrorCode(Peek_D3D_Texture()->GetLevelDesc(i,&desc));
 		size+=desc.Size;
 	}
@@ -1665,7 +1667,7 @@ CubeTextureClass::CubeTextureClass
 }
 
 // ----------------------------------------------------------------------------
-CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
+CubeTextureClass::CubeTextureClass(LegacyBaseTexture * d3d_texture)
 :	TextureBaseClass
 	(
 		0,
@@ -1679,10 +1681,10 @@ CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
 	IsReducible=false;
 
 	Peek_Texture()->AddRef();
-	IDirect3DSurface8* surface;
+	LegacyTextureSurface *surface;
 	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
 	Width=d3d_desc.Width;
 	Height=d3d_desc.Height;
@@ -1709,12 +1711,12 @@ CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
 */
 void CubeTextureClass::Apply_New_Surface
 (
-	IDirect3DBaseTexture8* d3d_texture,
+	LegacyBaseTexture * d3d_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
-	IDirect3DBaseTexture8* d3d_tex=Peek_D3D_Base_Texture();
+	LegacyBaseTexture *d3d_tex=Peek_D3D_Base_Texture();
 
 	if (d3d_tex) d3d_tex->Release();
 
@@ -1725,8 +1727,8 @@ void CubeTextureClass::Apply_New_Surface
 	if (disable_auto_invalidation) InactivationTime = 0;
 
 	WWASSERT(d3d_texture);
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(Peek_D3D_CubeTexture()->GetLevelDesc(0,&d3d_desc));
 
 	if (initialized)
@@ -1943,7 +1945,7 @@ CubeTextureClass::CubeTextureClass
 }
 
 // ----------------------------------------------------------------------------
-CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
+CubeTextureClass::CubeTextureClass(LegacyBaseTexture * d3d_texture)
 :	TextureBaseClass
 	(
 		0,
@@ -1957,10 +1959,10 @@ CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
 	IsReducible=false;
 
 	Peek_Texture()->AddRef();
-	IDirect3DSurface8* surface;
+	LegacyTextureSurface *surface;
 	DX8_ErrorCode(Peek_D3D_Texture()->GetSurfaceLevel(0,&surface));
-	D3DSURFACE_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DSURFACE_DESC));
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(surface->GetDesc(&d3d_desc));
 	Width=d3d_desc.Width;
 	Height=d3d_desc.Height;
@@ -1990,12 +1992,12 @@ CubeTextureClass::CubeTextureClass(IDirect3DBaseTexture8* d3d_texture)
 */
 void VolumeTextureClass::Apply_New_Surface
 (
-	IDirect3DBaseTexture8* d3d_texture,
+	LegacyBaseTexture * d3d_texture,
 	bool initialized,
 	bool disable_auto_invalidation
 )
 {
-	IDirect3DBaseTexture8* d3d_tex=Peek_D3D_Base_Texture();
+	LegacyBaseTexture *d3d_tex=Peek_D3D_Base_Texture();
 
 	if (d3d_tex) d3d_tex->Release();
 
@@ -2006,8 +2008,8 @@ void VolumeTextureClass::Apply_New_Surface
 	if (disable_auto_invalidation) InactivationTime = 0;
 
 	WWASSERT(d3d_texture);
-	D3DVOLUME_DESC d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(D3DVOLUME_DESC));
+	LegacyVolumeDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 
 	DX8_ErrorCode(Peek_D3D_VolumeTexture()->GetLevelDesc(0,&d3d_desc));
 
