@@ -184,6 +184,11 @@ void DX8Backend::Reset_Device()
     DX8Wrapper::Reset_Device();
 }
 
+void DX8Backend::Set_Device_Cleanup_Hook(RenderDeviceCleanupHook * hook)
+{
+    DX8Wrapper::SetCleanupHook(hook);
+}
+
 void DX8Backend::Set_MSAA_Mode(RenderBackendMSAAMode mode)
 {
     switch (mode) {
