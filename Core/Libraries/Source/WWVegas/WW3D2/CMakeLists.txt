@@ -210,6 +210,8 @@ set(WW3D2_SRC
     textdraw.h
     texture.cpp
     texture.h
+    TextureResourceManager.cpp
+    TextureResourceManager.h
     texturefilter.cpp
     texturefilter.h
     textureloader.cpp
