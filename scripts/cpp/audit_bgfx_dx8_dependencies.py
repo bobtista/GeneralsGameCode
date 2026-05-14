@@ -25,14 +25,18 @@ SEARCH_ROOTS = [
     ROOT / "GeneralsMD" / "Code" / "Libraries" / "Source" / "WWVegas" / "WW3D2",
 ]
 
+# Explicit legacy islands. The audit tracks DX8-shaped coupling that leaks into
+# bgfx-facing code; these files are the compatibility boundary itself.
 SKIP_FILES = {
     "DX8Backend.cpp",
     "DX8Backend.h",
+    "dx8caps.cpp",
     "dx8deviceinterop.h",
     "dx8formatconv.h",
     "dx8textureinterop.cpp",
     "dx8textureinterop.h",
     "dx8texturelegacytypes.h",
+    "dx8wrapper.cpp",
     "fixedfunctionlegacytypes.h",
     "StubD3D8Device.cpp",
     "StubD3D8Device.h",
