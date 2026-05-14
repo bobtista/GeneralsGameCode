@@ -4593,6 +4593,9 @@ static bool IsSortedMaterialDecal(uint64_t state)
         && g_draw.tssOps0[3] > 0.5f;
 }
 
+static const char * TextureDebugName(TextureBaseClass * texture);
+static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
+
 static bool IsSortedAlphaDepthDecal(uint64_t state)
 {
     return g_views.inSortFlush
@@ -4603,14 +4606,36 @@ static bool IsSortedAlphaDepthDecal(uint64_t state)
         && g_draw.tssOps0[1] > 2.5f && g_draw.tssOps0[1] < 3.5f
         && g_draw.tssOps0[2] < 0.5f
         && g_draw.tssOps0[3] < 0.5f
-        && g_draw.texcoordSelect2[0] < 0.5f;
+        && (g_draw.texcoordSelect2[0] < 0.5f
+            || ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "ubsnkatak_01"));
+}
+
+static bool IsSneakAttackAlphaDepthDecal(uint64_t state)
+{
+    return IsSortedAlphaDepthDecal(state)
+        && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "ubsnkatak_01");
+}
+
+static bool IsSortedRotorBlur(uint64_t state)
+{
+    return g_views.inSortFlush
+        && IsStandardAlphaBlend(state)
+        && ((g_draw.tssOps0[0] > 0.5f && g_draw.tssOps0[0] < 1.5f)
+            || (g_draw.tssOps0[0] > 2.5f && g_draw.tssOps0[0] < 3.5f))
+        && ((g_draw.tssOps0[1] > 0.5f && g_draw.tssOps0[1] < 1.5f)
+            || (g_draw.tssOps0[1] > 2.5f && g_draw.tssOps0[1] < 3.5f))
+        && g_draw.tssOps0[2] < 0.5f
+        && g_draw.tssOps0[3] < 0.5f
+        && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "avcomanche_p");
 }
 
 static bool ShouldForceUnlitForBakedColorDraw(uint64_t state)
 {
     return IsAnyAdditiveBlend(state)
         || IsSoftParticleCandidate(state)
-        || IsSortedMaterialDecal(state);
+        || IsSortedMaterialDecal(state)
+        || IsSortedAlphaDepthDecal(state)
+        || IsSortedRotorBlur(state);
 }
 
 static uint64_t ApplySortedMaterialDecalDepthState(uint64_t state)
@@ -4978,6 +5003,19 @@ static void UpdateAlphaMaskedShadowDecalMode()
     g_draw.texcoordSelect2[2] = isAlphaMaskedShadow ? 1.0f : 0.0f;
 }
 
+static void UpdateAlphaMaskAndSortedEffectModes(uint64_t state)
+{
+    UpdateAlphaMaskedShadowDecalMode();
+    if (IsSortedRotorBlur(state))
+    {
+        // avcomanche_p stores the rotor blur as a sorted mask. The legacy
+        // fixed-function path keeps it independent from the vehicle material
+        // opacity; the shader's normal MODULATE path can otherwise multiply it
+        // away after replaying the sorted pool.
+        g_draw.texcoordSelect2[2] = 2.0f;
+    }
+}
+
 static RenderBackendProjectedDecalMode GetEffectiveProjectedDecalModeForCurrentDraw()
 {
     RenderBackendProjectedDecalMode mode =
@@ -5094,6 +5132,8 @@ static void LogBgfxShroudPass(const char *event,
 // floor emblems render in front of bulldozers as they leave the building.
 static const float kSortedDecalMinZBias = 0.00025f;
 static const float kSortedDecalMaxZBias = 0.00075f;
+static const float kSneakAttackDecalMinZBias = 0.00125f;
+static const float kSneakAttackDecalMaxZBias = 0.00175f;
 
 static void ClampSortedMaterialDecalZBias()
 {
@@ -5102,13 +5142,20 @@ static void ClampSortedMaterialDecalZBias()
         return;
     }
 
-    if (g_draw.zBias[0] < kSortedDecalMinZBias)
+    const float minZBias = IsSneakAttackAlphaDepthDecal(g_draw.state)
+        ? kSneakAttackDecalMinZBias
+        : kSortedDecalMinZBias;
+    const float maxZBias = IsSneakAttackAlphaDepthDecal(g_draw.state)
+        ? kSneakAttackDecalMaxZBias
+        : kSortedDecalMaxZBias;
+
+    if (g_draw.zBias[0] < minZBias)
     {
-        g_draw.zBias[0] = kSortedDecalMinZBias;
+        g_draw.zBias[0] = minZBias;
     }
-    else if (g_draw.zBias[0] > kSortedDecalMaxZBias)
+    else if (g_draw.zBias[0] > maxZBias)
     {
-        g_draw.zBias[0] = kSortedDecalMaxZBias;
+        g_draw.zBias[0] = maxZBias;
     }
 }
 
@@ -5766,7 +5813,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
             ? 1.0f
             : 0.0f;
     }
-    UpdateAlphaMaskedShadowDecalMode();
+    UpdateAlphaMaskAndSortedEffectModes(state);
     UploadMaterialUniforms();
     if (bgfx::isValid(g_uniforms.uTexcoordSelect))
     {
@@ -7723,6 +7770,10 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         submitView = kBgfxEngineView;
     }
+    if (IsSortedRotorBlur(g_draw.state))
+    {
+        submitView = kBgfxEngineView;
+    }
     const BgfxDiagnosticFlags diagnostics = GetBgfxDiagnosticFlags();
     switch (submitView)
     {
@@ -7784,6 +7835,10 @@ void SubmitEngineDraw(unsigned short start_index,
     const float * worldMtx = g_views.inSortFlush
         ? g_frame.sortWorld
         : g_frame.world;
+    if (IsSortedRotorBlur(g_draw.state))
+    {
+        worldMtx = g_frame.sortWorldRaw;
+    }
     if (is2D)
     {
         // TheSuperHackers @bugfix bobtista 30/04/2026 2D UI vertices are
@@ -8003,8 +8058,8 @@ void SubmitEngineDraw(unsigned short start_index,
         g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState)
             ? 1.0f
             : 0.0f;
+        UpdateAlphaMaskAndSortedEffectModes(blendState);
     }
-    UpdateAlphaMaskedShadowDecalMode();
     UploadMaterialUniforms();
     // TheSuperHackers @bugfix bobtista 30/04/2026 Read cached ambient per
     // draw. Some callers still push ambient straight through DX8Wrapper
@@ -8169,7 +8224,13 @@ void SubmitEngineDraw(unsigned short start_index,
     state |= BGFX_STATE_MSAA;
 
     state = ApplyCullModeOverride(state);
-
+    if (IsSortedRotorBlur(g_draw.state))
+    {
+        // The rotor blur is built from camera-facing sorted cards. Once the
+        // cards are replayed through the normal engine view, culling can drop
+        // one side of the blur depending on the camera angle.
+        state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
+    }
     if (g_overrides.blendActive)
     {
         state &= ~BGFX_STATE_BLEND_MASK;
@@ -8291,7 +8352,9 @@ void SubmitEngineDraw(unsigned short start_index,
     // state from shroud/player-color/shadow passes. Keeping stencil active
     // here clips effects such as the particle-cannon beam against buildings.
     const bool sortedMaterialDecal = submitView == kBgfxEngineSortView
-        && IsSortedMaterialDecal(state);
+        && (IsSortedMaterialDecal(state)
+            || IsSortedAlphaDepthDecal(state)
+            || IsSortedRotorBlur(g_draw.state));
     // Sort-flushed material decals (command-center driveway emblems, upgrade
     // floor marks) are ordinary alpha decals. The wrapper can still have
     // stencil state cached from shroud/player-color passes; applying it here
