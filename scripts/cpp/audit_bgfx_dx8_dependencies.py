@@ -32,6 +32,7 @@ SKIP_FILES = {
     "dx8formatconv.h",
     "dx8textureinterop.cpp",
     "dx8textureinterop.h",
+    "fixedfunctionlegacytypes.h",
     "StubD3D8Device.cpp",
     "StubD3D8Device.h",
     "D3DXStandaloneStubs.cpp",
