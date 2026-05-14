@@ -49,6 +49,7 @@
 
 #include "surfaceclass.h"
 #include "dx8formatconv.h"
+#include "dx8texturelegacytypes.h"
 #include "dx8textureinterop.h"
 #include "dx8wrapper.h"
 #include "vector2i.h"
@@ -57,9 +58,6 @@
 
 namespace
 {
-	using LegacySurface = IDirect3DSurface8;
-	using LegacySurfaceDesc = D3DSURFACE_DESC;
-	using LegacyLockedRect = D3DLOCKED_RECT;
 	using LegacyRect = RECT;
 
 	constexpr unsigned kLegacyLockReadOnly = 0x00000010L;
