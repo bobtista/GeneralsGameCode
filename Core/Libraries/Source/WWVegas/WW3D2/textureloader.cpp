@@ -71,9 +71,9 @@ namespace
 	using LegacyLoaderLockedBox = D3DLOCKED_BOX;
 	using LegacyLoaderCubeFace = D3DCUBEMAP_FACES;
 
-	constexpr auto kLegacyManagedPool = D3DPOOL_MANAGED;
-	constexpr auto kLegacySystemPool = D3DPOOL_SYSTEMMEM;
-	constexpr auto kLegacyDefaultPool = D3DPOOL_DEFAULT;
+	constexpr auto kLegacyManagedPool = LEGACY_TEXTURE_POOL_MANAGED;
+	constexpr auto kLegacySystemPool = LEGACY_TEXTURE_POOL_SYSTEMMEM;
+	constexpr auto kLegacyDefaultPool = LEGACY_TEXTURE_POOL_DEFAULT;
 }
 
 class TextureLoadTaskListNodeClass
