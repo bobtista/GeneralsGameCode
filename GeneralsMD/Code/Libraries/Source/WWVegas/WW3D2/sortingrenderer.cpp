@@ -599,24 +599,6 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			// it is because D3D is in illegal state, and the only known cure is rebooting.
 			// This illegal state is usually caused by Quake3-engine powered games such as MOHAA.
 			memcpy(dest_verts, src_verts, sizeof(VertexFormatXYZNDUV2)*state->vertex_count);
-			if (g_renderBackend->Has_Shader_Pipeline()) {
-				TextureClass* tex0 = state->sorting_state.Textures[0] != nullptr
-					? state->sorting_state.Textures[0]->As_TextureClass()
-					: nullptr;
-				const char* texName = tex0 != nullptr ? tex0->Get_Full_Path().str() : "";
-				if (std::strstr(texName, "avcomanche_p") != nullptr) {
-					// The Chinook rotor blur stores local quad vertices in the
-					// sorting VB and carries its world anchor in the node sphere.
-					// The legacy DX8 path applies that anchor before replay; bgfx
-					// needs the copied transient vertices in world space because
-					// its replay route uses the camera view directly.
-					for (unsigned vi = 0; vi < state->vertex_count; ++vi) {
-						dest_verts[vi].x += state->bounding_sphere.Center.X;
-						dest_verts[vi].y += state->bounding_sphere.Center.Y;
-						dest_verts[vi].z += state->bounding_sphere.Center.Z;
-					}
-				}
-			}
 			dest_verts += state->vertex_count;
 
 			const Matrix4x4 mtx = Get_Sorted_World_View_Matrix(state->sorting_state);
