@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "d3d8.h"
+#include "fixedfunctionlegacytypes.h"
 #include "shader.h"
 #include "texture.h"
 #include "vertmaterial.h"
@@ -22,10 +22,6 @@ class IndexBufferClass;
 class VertexBufferClass;
 class DynamicIBAccessClass;
 class DynamicVBAccessClass;
-
-using LegacyFixedFunctionLight = D3DLIGHT8;
-using LegacyRawTexture = IDirect3DBaseTexture8;
-using LegacyTransformMatrix = D3DMATRIX;
 
 struct RenderStateStruct
 {
@@ -81,7 +77,7 @@ public:
 		RENDER_STATE_COUNT = 256,
 		TEXTURE_STAGE_COUNT = 8,
 		TEXTURE_STAGE_STATE_COUNT = 32,
-		TRANSFORM_COUNT = D3DTS_WORLD + 1,
+		TRANSFORM_COUNT = LEGACY_FIXED_FUNCTION_TRANSFORM_COUNT,
 		INVALID_STATE_VALUE = 0x12345678
 	};
 
