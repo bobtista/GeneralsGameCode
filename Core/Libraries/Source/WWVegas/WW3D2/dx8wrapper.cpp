@@ -881,7 +881,7 @@ void DX8Wrapper::Enumerate_Devices()
 			D3DInterface->GetDeviceCaps(adapter_index,WW3D_DEVTYPE,&caps);
 			D3DInterface->GetAdapterIdentifier(adapter_index,LEGACY_NO_WHQL_LEVEL,&adapter_identifier);
 
-			DX8Caps dx8caps(D3DInterface,&caps,WW3D_FORMAT_UNKNOWN,&adapter_identifier);
+			DX8Caps dx8caps(D3DInterface,static_cast<const void*>(&caps),WW3D_FORMAT_UNKNOWN,&adapter_identifier);
 
 			/*
 			** Enumerate the resolutions
