@@ -99,10 +99,7 @@
 #endif
 
 static D3DDEVTYPE Legacy_Device_Type(unsigned value) { return static_cast<D3DDEVTYPE>(value); }
-static D3DFORMAT Legacy_Format(unsigned value) { return static_cast<D3DFORMAT>(value); }
-static D3DMULTISAMPLE_TYPE Legacy_Multisample_Type(unsigned value) { return static_cast<D3DMULTISAMPLE_TYPE>(value); }
 static D3DRESOURCETYPE Legacy_Resource_Type(unsigned value) { return static_cast<D3DRESOURCETYPE>(value); }
-static D3DSWAPEFFECT Legacy_Swap_Effect(unsigned value) { return static_cast<D3DSWAPEFFECT>(value); }
 
 const int DEFAULT_RESOLUTION_WIDTH = 640;
 const int DEFAULT_RESOLUTION_HEIGHT = 480;
@@ -209,6 +206,16 @@ unsigned long DX8Wrapper::FrameCount = 0;
 bool								_DX8SingleThreaded										= false;
 
 static D3DPRESENT_PARAMETERS								_PresentParameters;
+
+template <typename T>
+static T Legacy_Value(unsigned value)
+{
+	return static_cast<T>(value);
+}
+
+static auto Legacy_Format(unsigned value) { return Legacy_Value<decltype(_PresentParameters.BackBufferFormat)>(value); }
+static auto Legacy_Multisample_Type(unsigned value) { return Legacy_Value<decltype(_PresentParameters.MultiSampleType)>(value); }
+static auto Legacy_Swap_Effect(unsigned value) { return Legacy_Value<decltype(_PresentParameters.SwapEffect)>(value); }
 static DynamicVectorClass<StringClass>					_RenderDeviceNameTable;
 static DynamicVectorClass<StringClass>					_RenderDeviceShortNameTable;
 static DynamicVectorClass<RenderDeviceDescClass>	_RenderDeviceDescriptionTable;
