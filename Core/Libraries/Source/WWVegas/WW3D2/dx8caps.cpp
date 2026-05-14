@@ -492,27 +492,27 @@ DX8Caps::DeviceTypeIntel DX8Caps::Get_Intel_Device(unsigned device_id)
 }
 
 DX8Caps::DX8Caps(
-	LegacyDirect3D* direct3d,
-	LegacyDevice* D3DDevice,
+	void* direct3d,
+	void* device,
 	WW3DFormat display_format,
-	const LegacyAdapterIdentifier& adapter_id)
+	const void* adapter_id)
 	:
 	Direct3D(direct3d),
 	MaxDisplayWidth(0),
 	MaxDisplayHeight(0)
 {
-	Init_Caps(D3DDevice);
+	Init_Caps(device);
 	Compute_Caps(display_format, adapter_id);
 }
 
 DX8Caps::DX8Caps(
-	LegacyDirect3D* direct3d,
-	const LegacyCaps& caps,
+	void* direct3d,
+	const void* caps,
 	WW3DFormat display_format,
-	const LegacyAdapterIdentifier& adapter_id)
+	const void* adapter_id)
 	:
 	Direct3D(direct3d),
-	Caps(caps),
+	Caps(*static_cast<const LegacyCaps*>(caps)),
 	MaxDisplayWidth(0),
 	MaxDisplayHeight(0)
 {
@@ -538,8 +538,9 @@ void DX8Caps::Shutdown()
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Init_Caps(LegacyDevice* D3DDevice)
+void DX8Caps::Init_Caps(void* device)
 {
+	LegacyDevice* D3DDevice = static_cast<LegacyDevice*>(device);
 #if !defined(GGC_BGFX_STANDALONE)
 	Set_Legacy_Software_Vertex_Processing(D3DDevice, TRUE);
 #endif
@@ -562,8 +563,9 @@ void DX8Caps::Init_Caps(LegacyDevice* D3DDevice)
 // Compute the caps bits
 //
 // ----------------------------------------------------------------------------
-void DX8Caps::Compute_Caps(WW3DFormat display_format, const LegacyAdapterIdentifier& adapter_id)
+void DX8Caps::Compute_Caps(WW3DFormat display_format, const void* adapter_id_ptr)
 {
+	const LegacyAdapterIdentifier& adapter_id = *static_cast<const LegacyAdapterIdentifier*>(adapter_id_ptr);
 //	Init_Caps(D3DDevice);
 
 	CanDoMultiPass=true;
@@ -701,7 +703,7 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const LegacyAdapterIdentif
 
 	DXLOG(("Max textures per pass: %d\r\n",MaxTexturesPerPass));
 
-	Vendor_Specific_Hacks(adapter_id);
+	Vendor_Specific_Hacks(&adapter_id);
 	CapsWorkString="";
 }
 
@@ -754,7 +756,7 @@ void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const void*
 		else {
 			WW3DFormat format=(WW3DFormat)i;
 			SupportTextureFormat[i]=SUCCEEDED(
-				Direct3D->CheckDeviceFormat(
+				static_cast<LegacyDirect3D*>(Direct3D)->CheckDeviceFormat(
 					caps.AdapterOrdinal,
 					caps.DeviceType,
 					d3d_display_format,
@@ -787,7 +789,7 @@ void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const vo
 		else {
 			WW3DFormat format=(WW3DFormat)i;
 			SupportRenderToTextureFormat[i]=SUCCEEDED(
-				Direct3D->CheckDeviceFormat(
+				static_cast<LegacyDirect3D*>(Direct3D)->CheckDeviceFormat(
 					caps.AdapterOrdinal,
 					caps.DeviceType,
 					d3d_display_format,
@@ -832,7 +834,7 @@ void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const void*
 			WW3DZFormat format=(WW3DZFormat)i;
 			SupportDepthStencilFormat[i]=SUCCEEDED
 			(
-				Direct3D->CheckDeviceFormat
+				static_cast<LegacyDirect3D*>(Direct3D)->CheckDeviceFormat
 				(
 					caps.AdapterOrdinal,
 					caps.DeviceType,
@@ -1050,8 +1052,9 @@ bool DX8Caps::Is_Valid_Display_Format(int width, int height, WW3DFormat format)
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Vendor_Specific_Hacks(const LegacyAdapterIdentifier& adapter_id)
+void DX8Caps::Vendor_Specific_Hacks(const void* adapter_id_ptr)
 {
+	const LegacyAdapterIdentifier& adapter_id = *static_cast<const LegacyAdapterIdentifier*>(adapter_id_ptr);
 	if (VendorId==VENDOR_NVIDIA)
     {
 		if (SupportNPatches) {
