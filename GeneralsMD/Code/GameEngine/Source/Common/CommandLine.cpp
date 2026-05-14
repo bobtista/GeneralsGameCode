@@ -28,6 +28,7 @@
 #include "Common/ArchiveFileSystem.h"
 #include "Common/CommandLine.h"
 #include "Common/CRCDebug.h"
+#include "Common/FramePacer.h"
 #include "Common/LocalFileSystem.h"
 #include "Common/Recorder.h"
 #include "Common/version.h"
@@ -683,6 +684,49 @@ Int parseLoadSave(char *args[], int num)
 	return 2;
 }
 
+// TheSuperHackers @feature bobtista 14/05/2026 Load a map directly from the
+// command line in release builds. Useful for creating visual regression saves
+// from maps that are normally only reached through shell flow.
+Int parseLoadMap(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_initialFile = args[1];
+		TheWritableGlobalData->m_shellMapOn = FALSE;
+		TheWritableGlobalData->m_playIntro = FALSE;
+		TheWritableGlobalData->m_afterIntro = TRUE;
+		return 2;
+	}
+	return 1;
+}
+
+// TheSuperHackers @feature bobtista 30/04/2026 Load a replay visually from the command line
+Int parseLoadReplay(char *args[], int num)
+{
+	if (num > 1)
+	{
+		AsciiString filename = args[1];
+		if (!filename.endsWithNoCase(RecorderClass::getReplayExtention()))
+		{
+			printf("Invalid replay name \"%s\"\n", filename.str());
+			exit(1);
+		}
+
+		TheWritableGlobalData->m_loadReplayGame = filename;
+		TheWritableGlobalData->m_playIntro = FALSE;
+		TheWritableGlobalData->m_playSizzle = FALSE;
+		TheWritableGlobalData->m_shellMapOn = FALSE;
+		// TheSuperHackers @feature bobtista 30/04/2026 Command-line visual
+		// replay loads are used as rendering/performance harnesses across
+		// patched builds, so keep CRC mismatch banners from covering the view.
+		TheDebugIgnoreSyncErrors = true;
+
+		return 2;
+	}
+
+	return 1;
+}
+
 
 #if defined(RTS_DEBUG)
 Int parseDisplayDebug(char *args[], int)
@@ -832,7 +876,6 @@ Int parseWinCursors(char *args[], int num)
 Int parseQuickStart( char *args[], int num )
 {
 	parseNoLogo( args, num );
-	parseNoShellMap( args, num );
 	parseNoWindowAnimation( args, num );
 	return 1;
 }
@@ -1035,6 +1078,61 @@ Int parseNoFPSLimit(char *args[], int num)
 	return 1;
 }
 
+Int parseLogFrameTimes(char *args[], int num)
+{
+	if (TheFramePacer != nullptr)
+	{
+		TheFramePacer->enablePerformanceLog(TRUE);
+	}
+	else
+	{
+		DEBUG_LOG(("parseLogFrameTimes() - TheFramePacer is not initialized"));
+	}
+
+	return 1;
+}
+
+Int parseLogBgfxStats(char *args[], int num)
+{
+	TheWritableGlobalData->m_bgfxLogStats = TRUE;
+
+	return 1;
+}
+
+Int parseBgfxNoSceneFramebuffer(char *args[], int num)
+{
+	TheWritableGlobalData->m_bgfxNoSceneFramebuffer = TRUE;
+
+	return 1;
+}
+
+Int parseBgfxNoPostFx(char *args[], int num)
+{
+	TheWritableGlobalData->m_bgfxNoPostFx = TRUE;
+
+	return 1;
+}
+
+Int parseBgfxScreenshotAfter(char *args[], int num)
+{
+	// -bgfxScreenshotAfter <frame> [<base path>]
+	// Once frameIndex >= <frame>, request a native bgfx screenshot every 500
+	// frames into <base path>.NNNNNN.bmp. Default base path is bgfx_capture.bmp
+	// in the working directory (developer iteration tool — not shipped).
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_bgfxScreenshotAfter = atoi(args[1]);
+		if (num > 2 && args[2][0] != '-')
+		{
+			TheWritableGlobalData->m_bgfxScreenshotPath = args[2];
+			return 3;
+		}
+		TheWritableGlobalData->m_bgfxScreenshotPath = "bgfx_capture.bmp";
+		return 2;
+	}
+	return 1;
+}
+
 Int parseDumpAssetUsage(char *args[], int num)
 {
 	TheWritableGlobalData->m_dumpAssetUsage = true;
@@ -1183,7 +1281,16 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },
+	{ "-loadmap", parseLoadMap },
 	{ "-loadsave", parseLoadSave },
+	{ "-loadreplay", parseLoadReplay },
+	{ "-ignoresync", parseSync },
+	{ "-noFPSLimit", parseNoFPSLimit },
+	{ "-logFrameTimes", parseLogFrameTimes },
+	{ "-logBgfxStats", parseLogBgfxStats },
+	{ "-bgfxNoSceneFramebuffer", parseBgfxNoSceneFramebuffer },
+	{ "-bgfxNoPostFx", parseBgfxNoPostFx },
+	{ "-bgfxScreenshotAfter", parseBgfxScreenshotAfter },
 
 	// TheSuperHackers @feature xezon 03/08/2025 Force full viewport for 'Control Bar Pro' Addons like GenTool did it.
 	{ "-forcefullviewport", parseFullViewport },
@@ -1304,7 +1411,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-constantDebug", parseConstantDebug },
 	{ "-seed", parseSeed },
 	{ "-noagpfix", parseIncrAGPBuf },
-	{ "-noFPSLimit", parseNoFPSLimit },
 	{ "-dumpAssetUsage", parseDumpAssetUsage },
 	{ "-jumpToFrame", parseJumpToFrame },
 	{ "-updateImages", parseUpdateImages },
