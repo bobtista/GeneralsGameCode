@@ -31,7 +31,7 @@ namespace
 	using LegacyLockedRect = D3DLOCKED_RECT;
 	using LegacyRect = RECT;
 
-	constexpr unsigned kLegacyMipFilter = D3DX_FILTER_BOX;
+	constexpr unsigned kLegacyMipFilter = 5;
 }
 
 static unsigned missing_image_width=128;
