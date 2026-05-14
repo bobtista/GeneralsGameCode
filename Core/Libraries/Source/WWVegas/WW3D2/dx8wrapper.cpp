@@ -3609,18 +3609,18 @@ DX8Wrapper::Create_Render_Target (int width, int height, WW3DFormat format)
 	//
 	//	Note: We're going to force the width and height to be powers of two and equal
 	//
-	const D3DCAPS8& dx8caps=Get_Current_Caps()->Get_DX8_Caps();
+	const DX8Caps* dx8caps=Get_Current_Caps();
 	float poweroftwosize = width;
 	if (height > 0 && height < width) {
 		poweroftwosize = height;
 	}
 	poweroftwosize = ::Find_POT (poweroftwosize);
 
-	if (poweroftwosize>dx8caps.MaxTextureWidth) {
-		poweroftwosize=dx8caps.MaxTextureWidth;
+	if (poweroftwosize>dx8caps->Get_Max_Texture_Width()) {
+		poweroftwosize=dx8caps->Get_Max_Texture_Width();
 	}
-	if (poweroftwosize>dx8caps.MaxTextureHeight) {
-		poweroftwosize=dx8caps.MaxTextureHeight;
+	if (poweroftwosize>dx8caps->Get_Max_Texture_Height()) {
+		poweroftwosize=dx8caps->Get_Max_Texture_Height();
 	}
 
 	width = height = poweroftwosize;
@@ -3679,7 +3679,7 @@ void DX8Wrapper::Create_Render_Target
 	}
 
 	//	Note: We're going to force the width and height to be powers of two and equal
-	const D3DCAPS8& dx8caps=Get_Current_Caps()->Get_DX8_Caps();
+	const DX8Caps* dx8caps=Get_Current_Caps();
 	float poweroftwosize = width;
 	if (height > 0 && height < width)
 	{
@@ -3687,14 +3687,14 @@ void DX8Wrapper::Create_Render_Target
 	}
 	poweroftwosize = ::Find_POT (poweroftwosize);
 
-	if (poweroftwosize>dx8caps.MaxTextureWidth)
+	if (poweroftwosize>dx8caps->Get_Max_Texture_Width())
 	{
-		poweroftwosize=dx8caps.MaxTextureWidth;
+		poweroftwosize=dx8caps->Get_Max_Texture_Width();
 	}
 
-	if (poweroftwosize>dx8caps.MaxTextureHeight)
+	if (poweroftwosize>dx8caps->Get_Max_Texture_Height())
 	{
-		poweroftwosize=dx8caps.MaxTextureHeight;
+		poweroftwosize=dx8caps->Get_Max_Texture_Height();
 	}
 
 	width = height = poweroftwosize;
