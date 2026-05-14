@@ -70,7 +70,6 @@ const unsigned DEFAULT_INACTIVATION_TIME=20000;
 namespace
 {
 	using LegacyBaseTexture = IDirect3DBaseTexture8;
-	using LegacyTexture2D = IDirect3DTexture8;
 	using LegacyTextureSurface = IDirect3DSurface8;
 	using LegacySurfaceDesc = D3DSURFACE_DESC;
 	using LegacyVolumeDesc = D3DVOLUME_DESC;
@@ -319,7 +318,7 @@ void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 		return;
 	}
 
-	LegacyTexture2D * d3d_texture = static_cast<LegacyTexture2D *>(native_texture);
+	auto * d3d_texture = static_cast<decltype(Peek_Legacy_Texture2D(*tex2d))>(native_texture);
 	const unsigned levels = d3d_texture->GetLevelCount();
 	CPUTextureMips.reserve(levels);
 	for (unsigned level = 0; level < levels; ++level) {
@@ -1071,13 +1070,13 @@ void TextureClass::Get_Level_Description( SurfaceClass::SurfaceDescription & des
 
 unsigned int TextureClass::Get_Level_Count() const
 {
-	LegacyTexture2D *texture = Peek_Legacy_Texture2D(*this);
+	auto *texture = Peek_Legacy_Texture2D(*this);
 	return texture != nullptr ? texture->GetLevelCount() : 0;
 }
 
 bool TextureClass::Generate_Mip_Levels()
 {
-	LegacyTexture2D *texture = Peek_Legacy_Texture2D(*this);
+	auto *texture = Peek_Legacy_Texture2D(*this);
 	if (texture == nullptr)
 	{
 		return false;
@@ -1088,7 +1087,7 @@ bool TextureClass::Generate_Mip_Levels()
 
 void TextureClass::Set_LOD(unsigned int lod) const
 {
-	LegacyTexture2D *texture = Peek_Legacy_Texture2D(*this);
+	auto *texture = Peek_Legacy_Texture2D(*this);
 	if (texture != nullptr)
 	{
 		DX8_ErrorCode(texture->SetLOD(static_cast<DWORD>(lod)));
