@@ -120,12 +120,20 @@
 #include "visrasterizer.h"
 #include "wwmemlog.h"
 #include "dx8rendererdebugger.h"
+#include <cstring>
 #include <wwprofile.h>
 
 static unsigned MeshDebugIdCount;
 
 bool MeshClass::Legacy_Meshes_Fogged = true;
 static SimpleDynVecClass<uint32> temp_apt;
+
+static bool Should_Bypass_Child_Frustum_For_Animated_Rotor(const char* mesh_name)
+{
+	return mesh_name != nullptr
+		&& (std::strstr(mesh_name, "AVCHINOOKAG.PROPELLER") != nullptr
+			|| std::strstr(mesh_name, "AVCHINOOKAG.PROPS") != nullptr);
+}
 
 /*
 ** This #define causes the collision code to always recompute the triangle normals rather
@@ -691,6 +699,7 @@ void MeshClass::Render(RenderInfoClass & rinfo)
 		const FrustumClass & frustum=rinfo.Camera.Get_Frustum();
 
 		if (	Model->Get_Flag(MeshGeometryClass::SKIN) ||
+				Should_Bypass_Child_Frustum_For_Animated_Rotor(Get_Name()) ||
 				CollisionMath::Overlap_Test(frustum,Get_Bounding_Box())!=CollisionMath::OUTSIDE )
 		{
 			bool rendered_something = false;
@@ -1600,7 +1609,4 @@ int MeshClass::Get_Draw_Call_Count() const
 		return 0;
 	}
 }
-
-
-
 

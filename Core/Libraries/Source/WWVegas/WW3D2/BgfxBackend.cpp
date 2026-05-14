@@ -7770,10 +7770,6 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         submitView = kBgfxEngineView;
     }
-    if (IsSortedRotorBlur(g_draw.state))
-    {
-        submitView = kBgfxEngineView;
-    }
     const BgfxDiagnosticFlags diagnostics = GetBgfxDiagnosticFlags();
     switch (submitView)
     {
@@ -7835,10 +7831,6 @@ void SubmitEngineDraw(unsigned short start_index,
     const float * worldMtx = g_views.inSortFlush
         ? g_frame.sortWorld
         : g_frame.world;
-    if (IsSortedRotorBlur(g_draw.state))
-    {
-        worldMtx = g_frame.sortWorldRaw;
-    }
     if (is2D)
     {
         // TheSuperHackers @bugfix bobtista 30/04/2026 2D UI vertices are
@@ -8227,8 +8219,8 @@ void SubmitEngineDraw(unsigned short start_index,
     if (IsSortedRotorBlur(g_draw.state))
     {
         // The rotor blur is built from camera-facing sorted cards. Once the
-        // cards are replayed through the normal engine view, culling can drop
-        // one side of the blur depending on the camera angle.
+        // cards are replayed through bgfx, culling can drop one side of the
+        // blur depending on the camera angle.
         state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
     }
     if (g_overrides.blendActive)
