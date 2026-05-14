@@ -42,7 +42,6 @@
 #include "texture.h"
 
 #include <d3d8.h>
-#include "d3dx8tex.h"
 #include "dx8wrapper.h"
 #include "TARGA.h"
 #include <nstrdup.h>
@@ -71,7 +70,6 @@ const unsigned DEFAULT_INACTIVATION_TIME=20000;
 namespace
 {
 	constexpr unsigned kLegacyLockReadOnly = 0x00000010L;
-	constexpr unsigned kLegacyMipFilterBox = 5;
 
 	int Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
 	{
@@ -1071,13 +1069,7 @@ unsigned int TextureClass::Get_Level_Count() const
 
 bool TextureClass::Generate_Mip_Levels()
 {
-	auto *texture = Peek_Legacy_Texture2D(*this);
-	if (texture == nullptr)
-	{
-		return false;
-	}
-
-	return SUCCEEDED(D3DXFilterTexture(texture, nullptr, 0, kLegacyMipFilterBox));
+	return Generate_Legacy_Texture_Mips(*this);
 }
 
 void TextureClass::Set_LOD(unsigned int lod) const
