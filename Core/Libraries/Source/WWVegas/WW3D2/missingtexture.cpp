@@ -19,20 +19,6 @@
 // 08/05/02 KM Texture class redesign
 #include "dx8textureinterop.h"
 #include "missingtexture.h"
-#include "texture.h"
-#include "dx8wrapper.h"
-#include <d3dx8core.h>
-
-namespace
-{
-	using LegacyMissingTexture = IDirect3DTexture8;
-	using LegacyMissingSurface = IDirect3DSurface8;
-	using LegacySurfaceDesc = D3DSURFACE_DESC;
-	using LegacyLockedRect = D3DLOCKED_RECT;
-	using LegacyRect = RECT;
-
-	constexpr unsigned kLegacyMipFilter = 5;
-}
 
 static unsigned missing_image_width=128;
 static unsigned missing_image_height=128;
@@ -41,110 +27,12 @@ static unsigned missing_image_depth=24;
 extern unsigned int missing_image_palette[];
 extern unsigned int missing_image_pixels[];
 
-static LegacyMissingTexture * _MissingTexture = nullptr;
-
-LegacyMissingTexture * Get_Legacy_Missing_Texture()
-{
-	WWASSERT(_MissingTexture);
-	_MissingTexture->AddRef();
-	return _MissingTexture;
-}
-
-LegacyMissingSurface * Create_Legacy_Missing_Surface()
-{
-	LegacyMissingSurface *texture_surface = nullptr;
-	DX8_ErrorCode(_MissingTexture->GetSurfaceLevel(0, &texture_surface));
-	LegacySurfaceDesc texture_surface_desc;
-	::ZeroMemory(&texture_surface_desc, sizeof(texture_surface_desc));
-	DX8_ErrorCode(texture_surface->GetDesc(&texture_surface_desc));
-
-	LegacyMissingSurface *surface = nullptr;
-	DX8CALL(CreateImageSurface(
-		texture_surface_desc.Width,
-		texture_surface_desc.Height,
-		texture_surface_desc.Format,
-		&surface));
-
-	LegacyLockedRect locked_rect;
-	::ZeroMemory(&locked_rect, sizeof(locked_rect));
-	DX8_ErrorCode(surface->LockRect(&locked_rect, nullptr, 0));
-
-	for (unsigned int y = 0; y < texture_surface_desc.Height; ++y)
-	{
-		unsigned int *buffer = reinterpret_cast<unsigned int *>(
-			static_cast<unsigned char *>(locked_rect.pBits) + locked_rect.Pitch * y);
-		for (unsigned int x = 0; x < texture_surface_desc.Width; ++x)
-		{
-			*buffer++ = 0x7FFF00FF;
-		}
-	}
-
-	DX8_ErrorCode(surface->UnlockRect());
-	texture_surface->Release();
-	return surface;
-}
-
 void MissingTexture::_Init()
 {
-	WWASSERT(!_MissingTexture);
-
-	LegacyMissingTexture * tex=Create_Legacy_Texture
-	(
+	Init_Legacy_Missing_Texture(
 		missing_image_width,
 		missing_image_height,
-		WW3D_FORMAT_A8R8G8B8,
-		MIP_LEVELS_ALL,
-		LEGACY_TEXTURE_POOL_MANAGED
-	);
-
-	LegacyLockedRect locked_rect;
-	LegacyRect rect;
-	rect.left=0;
-	rect.right=missing_image_width;
-	rect.top=0;
-	rect.bottom=missing_image_height;
-	DX8_ErrorCode(
-		tex->LockRect(
-			0,
-			&locked_rect,
-			&rect,
-			0));
-
-	unsigned *buffer=(unsigned*)locked_rect.pBits;
-	unsigned char *pixels=(unsigned char *)missing_image_pixels;
-	for (unsigned y=0;y<missing_image_height;y++)
-	{
-		for (unsigned x=0; x<missing_image_width; x++)
-		{
-			//*buffer++=missing_image_palette[*pixels++];
-			*buffer++=0x7FFF00FF;
-		}
-		buffer=(unsigned*)locked_rect.pBits;
-		buffer+=locked_rect.Pitch/sizeof(unsigned)*y;
-	}
-
-	DX8_ErrorCode(tex->UnlockRect(0));
-
-	for (unsigned i=1;i<tex->GetLevelCount();++i) {
-		LegacyMissingSurface *src,*dst;
-		DX8_ErrorCode(tex->GetSurfaceLevel(i-1,&src));
-		DX8_ErrorCode(tex->GetSurfaceLevel(i,&dst));
-
-		DX8_ErrorCode(D3DXLoadSurfaceFromSurface(
-			dst,
-			nullptr,	// palette
-			nullptr,	// rect
-			src,
-			nullptr,	// palette
-			nullptr,	// rect
-			kLegacyMipFilter,	// box is good for 2:1 filtering
-			0));
-
-		src->Release();
-		dst->Release();
-	}
-
-	_MissingTexture=tex;
+		missing_image_pixels);
 /*
 	//Load an 8-bit tga and generate text representation
 	FILE *fp;
@@ -186,8 +74,7 @@ void MissingTexture::_Init()
 
 void MissingTexture::_Deinit()
 {
-	_MissingTexture->Release();
-	_MissingTexture=nullptr;
+	Release_Legacy_Missing_Texture();
 }
 
 unsigned int missing_image_palette[]={

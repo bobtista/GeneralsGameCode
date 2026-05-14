@@ -64,7 +64,16 @@ namespace
 	{
 		return result == D3DERR_OUTOFVIDEOMEMORY;
 	}
+#else
+	IDirect3DDevice8 *Legacy_Device()
+	{
+		DX8_Assert();
+		return DX8_Call_Device();
+	}
 #endif
+
+	IDirect3DTexture8 *s_missingTexture = nullptr;
+	constexpr unsigned kLegacyMipFilterBox = 5;
 }
 
 IDirect3DBaseTexture8 *DX8TextureInterop::Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
@@ -408,4 +417,112 @@ IDirect3DVolumeTexture8 *DX8TextureInterop::Create_Legacy_Volume_Texture(
 #else
 	return DX8Wrapper::_Create_DX8_Volume_Texture(width, height, depth, format, mip_level_count, static_cast<D3DPOOL>(pool));
 #endif
+}
+
+IDirect3DTexture8 *Get_Legacy_Missing_Texture()
+{
+	WWASSERT(s_missingTexture);
+	s_missingTexture->AddRef();
+	return s_missingTexture;
+}
+
+IDirect3DSurface8 *Create_Legacy_Missing_Surface()
+{
+	IDirect3DSurface8 *texture_surface = nullptr;
+	DX8_ErrorCode(s_missingTexture->GetSurfaceLevel(0, &texture_surface));
+	D3DSURFACE_DESC texture_surface_desc;
+	::ZeroMemory(&texture_surface_desc, sizeof(texture_surface_desc));
+	DX8_ErrorCode(texture_surface->GetDesc(&texture_surface_desc));
+
+	IDirect3DSurface8 *surface = nullptr;
+	DX8_ErrorCode(Legacy_Device()->CreateImageSurface(
+		texture_surface_desc.Width,
+		texture_surface_desc.Height,
+		texture_surface_desc.Format,
+		&surface));
+
+	D3DLOCKED_RECT locked_rect;
+	::ZeroMemory(&locked_rect, sizeof(locked_rect));
+	DX8_ErrorCode(surface->LockRect(&locked_rect, nullptr, 0));
+
+	for (unsigned int y = 0; y < texture_surface_desc.Height; ++y)
+	{
+		unsigned int *buffer = reinterpret_cast<unsigned int *>(
+			static_cast<unsigned char *>(locked_rect.pBits) + locked_rect.Pitch * y);
+		for (unsigned int x = 0; x < texture_surface_desc.Width; ++x)
+		{
+			*buffer++ = 0x7FFF00FF;
+		}
+	}
+
+	DX8_ErrorCode(surface->UnlockRect());
+	texture_surface->Release();
+	return surface;
+}
+
+void Init_Legacy_Missing_Texture(
+	unsigned int width,
+	unsigned int height,
+	const unsigned int *pixels)
+{
+	WWASSERT(!s_missingTexture);
+
+	IDirect3DTexture8 *texture = Create_Legacy_Texture(
+		width,
+		height,
+		WW3D_FORMAT_A8R8G8B8,
+		MIP_LEVELS_ALL,
+		LEGACY_TEXTURE_POOL_MANAGED);
+
+	D3DLOCKED_RECT locked_rect;
+	RECT rect;
+	rect.left=0;
+	rect.right=width;
+	rect.top=0;
+	rect.bottom=height;
+	DX8_ErrorCode(texture->LockRect(0, &locked_rect, &rect, 0));
+
+	unsigned *buffer=static_cast<unsigned *>(locked_rect.pBits);
+	for (unsigned y=0;y<height;y++)
+	{
+		for (unsigned x=0; x<width; x++)
+		{
+			//*buffer++=missing_image_palette[*pixels++];
+			*buffer++=0x7FFF00FF;
+			++pixels;
+		}
+		buffer=static_cast<unsigned *>(locked_rect.pBits);
+		buffer+=locked_rect.Pitch/sizeof(unsigned)*y;
+	}
+
+	DX8_ErrorCode(texture->UnlockRect(0));
+
+	for (unsigned i=1;i<texture->GetLevelCount();++i) {
+		IDirect3DSurface8 *src,*dst;
+		DX8_ErrorCode(texture->GetSurfaceLevel(i-1,&src));
+		DX8_ErrorCode(texture->GetSurfaceLevel(i,&dst));
+
+		DX8_ErrorCode(D3DXLoadSurfaceFromSurface(
+			dst,
+			nullptr,
+			nullptr,
+			src,
+			nullptr,
+			nullptr,
+			kLegacyMipFilterBox,
+			0));
+
+		src->Release();
+		dst->Release();
+	}
+
+	s_missingTexture=texture;
+}
+
+void Release_Legacy_Missing_Texture()
+{
+	if (s_missingTexture != nullptr) {
+		s_missingTexture->Release();
+		s_missingTexture=nullptr;
+	}
 }
