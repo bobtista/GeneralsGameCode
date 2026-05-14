@@ -682,14 +682,14 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const LegacyAdapterIdentif
 	DXLOG(("Dot3 support: %s\r\n",SupportDot3 ? "Yes" : "No"));
 	DXLOG(("Anisotropic filtering support: %s\r\n",SupportAnisotropicFiltering ? "Yes" : "No"));
 
-	Check_Texture_Format_Support(display_format,Caps);
-	Check_Render_To_Texture_Support(display_format,Caps);
-	Check_Depth_Stencil_Support(display_format,Caps);
-	Check_Texture_Compression_Support(Caps);
-	Check_Bumpmap_Support(Caps);
-	Check_Shader_Support(Caps);
+	Check_Texture_Format_Support(display_format,&Caps);
+	Check_Render_To_Texture_Support(display_format,&Caps);
+	Check_Depth_Stencil_Support(display_format,&Caps);
+	Check_Texture_Compression_Support(&Caps);
+	Check_Bumpmap_Support(&Caps);
+	Check_Shader_Support(&Caps);
 	Check_Driver_Version_Status();
-	Check_Maximum_Texture_Support(Caps);
+	Check_Maximum_Texture_Support(&Caps);
 
 	MaxTexturesPerPass=Caps.MaxSimultaneousTextures;
 
@@ -705,8 +705,9 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const LegacyAdapterIdentif
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Check_Bumpmap_Support(const LegacyCaps& caps)
+void DX8Caps::Check_Bumpmap_Support(const void* caps_ptr)
 {
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
 	SupportBumpEnvmap=!!(caps.TextureOpCaps & kLegacyBumpEnv);
 	SupportBumpEnvmapLuminance=!!(caps.TextureOpCaps & kLegacyBumpEnvLuminance);
 	DXLOG(("Bumpmap support: %s\r\n",SupportBumpEnvmap ? "Yes" : "No"));
@@ -719,8 +720,9 @@ void DX8Caps::Check_Bumpmap_Support(const LegacyCaps& caps)
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Check_Texture_Compression_Support(const LegacyCaps& caps)
+void DX8Caps::Check_Texture_Compression_Support(const void* caps_ptr)
 {
+	(void)caps_ptr;
 	SupportDXTC=SupportTextureFormat[WW3D_FORMAT_DXT1]|
 		SupportTextureFormat[WW3D_FORMAT_DXT2]|
 		SupportTextureFormat[WW3D_FORMAT_DXT3]|
@@ -729,8 +731,9 @@ void DX8Caps::Check_Texture_Compression_Support(const LegacyCaps& caps)
 	DXLOG(("Texture compression support: %s\r\n",SupportDXTC ? "Yes" : "No"));
 }
 
-void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const LegacyCaps& caps)
+void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const void* caps_ptr)
 {
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
 	if (display_format==WW3D_FORMAT_UNKNOWN) {
 		for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 			SupportTextureFormat[i]=false;
@@ -761,8 +764,9 @@ void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const Legac
 	}
 }
 
-void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const LegacyCaps& caps)
+void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const void* caps_ptr)
 {
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
 	if (display_format==WW3D_FORMAT_UNKNOWN) {
 		for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 			SupportRenderToTextureFormat[i]=false;
@@ -797,8 +801,9 @@ void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const Le
 //! Check Depth Stencil Format Support
 /*! KJM
 */
-void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const LegacyCaps& caps)
+void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const void* caps_ptr)
 {
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
 	if (display_format==WW3D_FORMAT_UNKNOWN)
 	{
 		for (unsigned i=0;i<WW3D_ZFORMAT_COUNT;++i)
@@ -842,13 +847,15 @@ void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const Legac
 	}
 }
 
-void DX8Caps::Check_Maximum_Texture_Support(const LegacyCaps& caps)
+void DX8Caps::Check_Maximum_Texture_Support(const void* caps_ptr)
 {
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
 	MaxSimultaneousTextures=caps.MaxSimultaneousTextures;
 }
 
-void DX8Caps::Check_Shader_Support(const LegacyCaps& caps)
+void DX8Caps::Check_Shader_Support(const void* caps_ptr)
 {
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
 	VertexShaderVersion=caps.VertexShaderVersion;
 	PixelShaderVersion=caps.PixelShaderVersion;
 	DXLOG(("Vertex shader version: %d.%d, pixel shader version: %d.%d\r\n",
