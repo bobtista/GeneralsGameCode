@@ -207,6 +207,9 @@ public:
 
 	DX8Caps(void* direct3d, const void* caps,WW3DFormat display_format, const void* adapter_id);
 	DX8Caps(void* direct3d, void* device,WW3DFormat display_format, const void* adapter_id);
+	~DX8Caps();
+	DX8Caps(const DX8Caps&) = delete;
+	DX8Caps& operator=(const DX8Caps&) = delete;
 	static void Shutdown();
 
 	void Compute_Caps(WW3DFormat display_format, const void* adapter_id);
@@ -229,6 +232,8 @@ public:
 	bool Is_Valid_Display_Format(int width, int height, WW3DFormat format);
 
 	int Get_Max_Textures_Per_Pass() const { return MaxTexturesPerPass; }
+	unsigned Get_Max_Texture_Width() const;
+	unsigned Get_Max_Texture_Height() const;
 
 	// -------------------------------------------------------------------------
 	//
@@ -247,7 +252,9 @@ public:
 	bool Support_Render_To_Texture_Format(WW3DFormat format) const { return SupportRenderToTextureFormat[format]; }
 	bool Support_Depth_Stencil_Format(WW3DZFormat format) const { return SupportDepthStencilFormat[format]; }
 
-	D3DCAPS8 const & Get_DX8_Caps() const { return Caps; }
+#if !defined(GGC_BGFX_STANDALONE)
+	D3DCAPS8 const & Get_DX8_Caps() const;
+#endif
 
 	const StringClass& Get_Log() const { return CapsLog; }
 	const StringClass& Get_Compact_Log() const { return CompactLog; }
@@ -285,7 +292,7 @@ private:
 	int MaxDisplayWidth;
 	int MaxDisplayHeight;
 
-	D3DCAPS8 Caps;
+	void* Caps;
 	bool SupportTnL;
 	bool SupportDXTC;
 	bool supportGamma;
