@@ -103,6 +103,7 @@ public:
 			WW3DFormat format,
 			MipCountType mip_level_count,
 			int pool);
+		static bool Generate_Legacy_Texture_Mips(TextureClass &texture);
 	};
 
 inline IDirect3DBaseTexture8 *Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
@@ -230,6 +231,11 @@ inline IDirect3DVolumeTexture8 *Create_Legacy_Volume_Texture(
 	int pool)
 {
 	return DX8TextureInterop::Create_Legacy_Volume_Texture(width, height, depth, format, mip_level_count, pool);
+}
+
+inline bool Generate_Legacy_Texture_Mips(TextureClass &texture)
+{
+	return DX8TextureInterop::Generate_Legacy_Texture_Mips(texture);
 }
 
 IDirect3DTexture8 *Get_Legacy_Missing_Texture();

@@ -413,6 +413,17 @@ IDirect3DVolumeTexture8 *DX8TextureInterop::Create_Legacy_Volume_Texture(
 #endif
 }
 
+bool DX8TextureInterop::Generate_Legacy_Texture_Mips(TextureClass &texture)
+{
+	IDirect3DTexture8 *native_texture = Peek_Legacy_Texture2D(texture);
+	if (native_texture == nullptr)
+	{
+		return false;
+	}
+
+	return SUCCEEDED(D3DXFilterTexture(native_texture, nullptr, 0, kLegacyMipFilterBox));
+}
+
 IDirect3DTexture8 *Get_Legacy_Missing_Texture()
 {
 	WWASSERT(s_missingTexture);
