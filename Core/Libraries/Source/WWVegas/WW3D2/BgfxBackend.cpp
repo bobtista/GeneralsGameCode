@@ -4593,6 +4593,18 @@ static bool IsSortedMaterialDecal(uint64_t state)
         && g_draw.tssOps0[3] > 0.5f;
 }
 
+static bool IsSortedAlphaDepthDecal(uint64_t state)
+{
+    return g_views.inSortFlush
+        && IsStandardAlphaBlend(state)
+        && !IsSoftParticleCandidate(state)
+        && (state & BGFX_STATE_WRITE_Z) == 0
+        && g_draw.tssOps0[0] > 2.5f && g_draw.tssOps0[0] < 3.5f
+        && g_draw.tssOps0[1] > 2.5f && g_draw.tssOps0[1] < 3.5f
+        && g_draw.tssOps0[2] < 0.5f
+        && g_draw.tssOps0[3] < 0.5f;
+}
+
 static bool ShouldForceUnlitForBakedColorDraw(uint64_t state)
 {
     return IsAnyAdditiveBlend(state)
@@ -4602,7 +4614,7 @@ static bool ShouldForceUnlitForBakedColorDraw(uint64_t state)
 
 static uint64_t ApplySortedMaterialDecalDepthState(uint64_t state)
 {
-    if (!IsSortedMaterialDecal(state))
+    if (!IsSortedMaterialDecal(state) && !IsSortedAlphaDepthDecal(state))
     {
         return state;
     }
@@ -5084,7 +5096,7 @@ static const float kSortedDecalMaxZBias = 0.00075f;
 
 static void ClampSortedMaterialDecalZBias()
 {
-    if (!IsSortedMaterialDecal(g_draw.state))
+    if (!IsSortedMaterialDecal(g_draw.state) && !IsSortedAlphaDepthDecal(g_draw.state))
     {
         return;
     }
