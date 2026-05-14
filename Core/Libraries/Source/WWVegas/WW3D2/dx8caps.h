@@ -272,13 +272,13 @@ private:
 	static DeviceTypeIntel Get_Intel_Device(unsigned device_id);
 
 	void Init_Caps(IDirect3DDevice8* D3DDevice);
-	void Check_Texture_Format_Support(WW3DFormat display_format,const D3DCAPS8& caps);
-	void Check_Render_To_Texture_Support(WW3DFormat display_format,const D3DCAPS8& caps);
-	void Check_Depth_Stencil_Support(WW3DFormat display_format, const D3DCAPS8& caps);
-	void Check_Texture_Compression_Support(const D3DCAPS8& caps);
-	void Check_Bumpmap_Support(const D3DCAPS8& caps);
-	void Check_Shader_Support(const D3DCAPS8& caps);
-	void Check_Maximum_Texture_Support(const D3DCAPS8& caps);
+	void Check_Texture_Format_Support(WW3DFormat display_format,const void* caps);
+	void Check_Render_To_Texture_Support(WW3DFormat display_format,const void* caps);
+	void Check_Depth_Stencil_Support(WW3DFormat display_format, const void* caps);
+	void Check_Texture_Compression_Support(const void* caps);
+	void Check_Bumpmap_Support(const void* caps);
+	void Check_Shader_Support(const void* caps);
+	void Check_Maximum_Texture_Support(const void* caps);
 	void Check_Driver_Version_Status();
 	void Vendor_Specific_Hacks(const D3DADAPTER_IDENTIFIER8& adapter_id);
 
