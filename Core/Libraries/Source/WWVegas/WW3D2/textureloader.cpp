@@ -68,7 +68,6 @@ namespace
 	using LegacyLoaderTexture = IDirect3DTexture8;
 	using LegacyLoaderSurface = IDirect3DSurface8;
 	using LegacyLoaderCubeTexture = IDirect3DCubeTexture8;
-	using LegacyLoaderVolumeTexture = IDirect3DVolumeTexture8;
 	using LegacyLoaderLockedRect = D3DLOCKED_RECT;
 	using LegacyLoaderLockedBox = D3DLOCKED_BOX;
 	using LegacyLoaderCubeFace = D3DCUBEMAP_FACES;
@@ -294,7 +293,7 @@ private:
 	unsigned int			Get_Locked_Volume_Row_Pitch(unsigned int level);
 	unsigned int			Get_Locked_Volume_Slice_Pitch(unsigned int level);
 
-	LegacyLoaderVolumeTexture*	Peek_D3D_Volume_Texture()				{ return static_cast<LegacyLoaderVolumeTexture*>(D3DTexture);		}
+	auto*	Peek_D3D_Volume_Texture()				{ return static_cast<decltype(Peek_Legacy_Volume_Texture(*Texture))>(D3DTexture);		}
 
 	unsigned	int			LockedSurfaceSlicePitch[MIP_LEVELS_MAX];
 
