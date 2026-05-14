@@ -75,21 +75,20 @@ namespace
 	using LegacySurfaceDesc = D3DSURFACE_DESC;
 	using LegacyVolumeDesc = D3DVOLUME_DESC;
 	using LegacyLockedRect = D3DLOCKED_RECT;
-	using LegacyTexturePool = D3DPOOL;
 
-	constexpr unsigned kLegacyLockReadOnly = D3DLOCK_READONLY;
-	constexpr unsigned kLegacyMipFilterBox = D3DX_FILTER_BOX;
+	constexpr unsigned kLegacyLockReadOnly = 0x00000010L;
+	constexpr unsigned kLegacyMipFilterBox = 5;
 
-	LegacyTexturePool Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
+	int Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
 	{
 		switch (pool)
 		{
-		case TextureBaseClass::POOL_DEFAULT: return D3DPOOL_DEFAULT;
-		case TextureBaseClass::POOL_MANAGED: return D3DPOOL_MANAGED;
-		case TextureBaseClass::POOL_SYSTEMMEM: return D3DPOOL_SYSTEMMEM;
+		case TextureBaseClass::POOL_DEFAULT: return LEGACY_TEXTURE_POOL_DEFAULT;
+		case TextureBaseClass::POOL_MANAGED: return LEGACY_TEXTURE_POOL_MANAGED;
+		case TextureBaseClass::POOL_SYSTEMMEM: return LEGACY_TEXTURE_POOL_SYSTEMMEM;
 		default:
 			WWASSERT(0);
-			return static_cast<LegacyTexturePool>(0);
+			return LEGACY_TEXTURE_POOL_MANAGED;
 		}
 	}
 
@@ -691,7 +690,7 @@ TextureClass::TextureClass
 	default : break;
 	}
 
-	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
+	const int legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Texture
@@ -1301,7 +1300,7 @@ ZTextureClass::ZTextureClass
 :	TextureBaseClass(width,height, mip_level_count, pool),
 	DepthStencilTextureFormat(zformat)
 {
-	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
+	const int legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_ZTexture
@@ -1445,7 +1444,7 @@ CubeTextureClass::CubeTextureClass
 	default : break;
 	}
 
-	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
+	const int legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Cube_Texture
@@ -1718,7 +1717,7 @@ VolumeTextureClass::VolumeTextureClass
 	default : break;
 	}
 
-	const LegacyTexturePool legacy_pool = Legacy_Texture_Pool(pool);
+	const int legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Volume_Texture
