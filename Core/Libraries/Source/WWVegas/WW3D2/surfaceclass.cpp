@@ -54,7 +54,6 @@
 #include "vector2i.h"
 #include "colorspace.h"
 #include "bound.h"
-#include <d3dx8.h>
 
 namespace
 {
@@ -70,6 +69,11 @@ namespace
 
 #define LEGACY_SURFACE static_cast<LegacySurface *>(D3DSurface)
 #define OTHER_LEGACY_SURFACE(surface) static_cast<LegacySurface *>((surface)->D3DSurface)
+
+static LegacySurfaceCopyRect To_Legacy_Surface_Copy_Rect(const LegacyRect& rect)
+{
+	return {rect.left, rect.top, rect.right, rect.bottom};
+}
 
 void Convert_Pixel(Vector3 &rgb, const SurfaceClass::SurfaceDescription &sd, const unsigned char * pixel)
 {
@@ -554,7 +558,12 @@ void SurfaceClass::Copy(
 		if (dest.right>int(sd.Width)) dest.right=int(sd.Width);
 		if (dest.bottom>int(sd.Height)) dest.bottom=int(sd.Height);
 
-		DX8_ErrorCode(D3DXLoadSurfaceFromSurface(LEGACY_SURFACE,nullptr,&dest,OTHER_LEGACY_SURFACE(other),nullptr,&src,kLegacySurfaceCopyNoFilter,0));
+		Copy_Legacy_Surface(
+			LEGACY_SURFACE,
+			To_Legacy_Surface_Copy_Rect(dest),
+			OTHER_LEGACY_SURFACE(other),
+			To_Legacy_Surface_Copy_Rect(src),
+			kLegacySurfaceCopyNoFilter);
 	}
 }
 
@@ -596,7 +605,12 @@ void SurfaceClass::Stretch_Copy(
 	dest.top=dsty;
 	dest.bottom=dsty+dstheight;
 
-	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(LEGACY_SURFACE,nullptr,&dest,OTHER_LEGACY_SURFACE(other),nullptr,&src,kLegacySurfaceCopyTriangleFilter,0));
+	Copy_Legacy_Surface(
+		LEGACY_SURFACE,
+		To_Legacy_Surface_Copy_Rect(dest),
+		OTHER_LEGACY_SURFACE(other),
+		To_Legacy_Surface_Copy_Rect(src),
+		kLegacySurfaceCopyTriangleFilter);
 }
 
 /***********************************************************************************************
