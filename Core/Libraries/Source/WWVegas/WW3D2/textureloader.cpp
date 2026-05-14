@@ -67,6 +67,7 @@ namespace
 	using LegacyLoaderTexture = IDirect3DTexture8;
 	using LegacyLoaderSurface = IDirect3DSurface8;
 	using LegacyLoaderCubeTexture = IDirect3DCubeTexture8;
+	using LegacyLoaderVolumeTexture = IDirect3DVolumeTexture8;
 	using LegacyLoaderLockedRect = D3DLOCKED_RECT;
 	using LegacyLoaderLockedBox = D3DLOCKED_BOX;
 	using LegacyLoaderCubeFace = D3DCUBEMAP_FACES;
@@ -198,7 +199,7 @@ class TextureLoadTaskClass : public TextureLoadTaskListNodeClass
 		unsigned int			Get_Locked_Surface_Pitch(unsigned int level) const;
 
 		TextureBaseClass *	Peek_Texture				()				{ return Texture;			}
-		IDirect3DTexture8	*	Peek_D3D_Texture			()				{ return (IDirect3DTexture8*)D3DTexture;		}
+		LegacyLoaderTexture	*	Peek_D3D_Texture			()				{ return static_cast<LegacyLoaderTexture*>(D3DTexture);		}
 
 		void						Set_Type						(TaskType t)		{ Type		= t;			}
 		void						Set_Priority				(PriorityType p)	{ Priority	= p;			}
@@ -223,7 +224,7 @@ class TextureLoadTaskClass : public TextureLoadTaskListNodeClass
 		void						Apply							(bool initialize);
 
 		TextureBaseClass*		Texture;
-		IDirect3DBaseTexture8*	D3DTexture;
+		void*						D3DTexture;
 		WW3DFormat				Format;
 
 		unsigned int			Width;
@@ -263,7 +264,7 @@ private:
 	unsigned char*			Get_Locked_CubeMap_Surface_Pointer(unsigned int face, unsigned int level);
 	unsigned int			Get_Locked_CubeMap_Surface_Pitch(unsigned int face, unsigned int level) const;
 
-	IDirect3DCubeTexture8*	Peek_D3D_Cube_Texture()				{ return (IDirect3DCubeTexture8*)D3DTexture;		}
+	LegacyLoaderCubeTexture*	Peek_D3D_Cube_Texture()				{ return static_cast<LegacyLoaderCubeTexture*>(D3DTexture);		}
 
 	unsigned char*			LockedCubeSurfacePtr[6][MIP_LEVELS_MAX];
 	unsigned int			LockedCubeSurfacePitch[6][MIP_LEVELS_MAX];
@@ -292,7 +293,7 @@ private:
 	unsigned int			Get_Locked_Volume_Row_Pitch(unsigned int level);
 	unsigned int			Get_Locked_Volume_Slice_Pitch(unsigned int level);
 
-	IDirect3DVolumeTexture8*	Peek_D3D_Volume_Texture()				{ return (IDirect3DVolumeTexture8*)D3DTexture;		}
+	LegacyLoaderVolumeTexture*	Peek_D3D_Volume_Texture()				{ return static_cast<LegacyLoaderVolumeTexture*>(D3DTexture);		}
 
 	unsigned	int			LockedSurfaceSlicePitch[MIP_LEVELS_MAX];
 
@@ -1568,9 +1569,9 @@ void TextureLoadTaskClass::Apply(bool initialize)
 		WWASSERT(LockedSurfacePtr[i]==nullptr);
 	}
 
-	Apply_Legacy_Surface(*Texture, D3DTexture, initialize);
+	Apply_Legacy_Surface(*Texture, Peek_D3D_Texture(), initialize);
 
-	D3DTexture->Release();
+	Peek_D3D_Texture()->Release();
 	D3DTexture = nullptr;
 }
 
@@ -2053,7 +2054,7 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 
 void TextureLoadTaskClass::Lock_Surfaces()
 {
-	MipLevelCount = D3DTexture->GetLevelCount();
+	MipLevelCount = Peek_D3D_Texture()->GetLevelCount();
 
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
 	{
