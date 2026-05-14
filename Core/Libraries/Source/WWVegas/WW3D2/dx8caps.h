@@ -205,11 +205,11 @@ public:
 	};
 
 
-	DX8Caps(IDirect3D8* direct3d, const D3DCAPS8& caps,WW3DFormat display_format, const D3DADAPTER_IDENTIFIER8& adapter_id);
-	DX8Caps(IDirect3D8* direct3d, IDirect3DDevice8* D3DDevice,WW3DFormat display_format, const D3DADAPTER_IDENTIFIER8& adapter_id);
+	DX8Caps(void* direct3d, const void* caps,WW3DFormat display_format, const void* adapter_id);
+	DX8Caps(void* direct3d, void* device,WW3DFormat display_format, const void* adapter_id);
 	static void Shutdown();
 
-	void Compute_Caps(WW3DFormat display_format, const D3DADAPTER_IDENTIFIER8& adapter_id);
+	void Compute_Caps(WW3DFormat display_format, const void* adapter_id);
 	bool Support_TnL() const { return SupportTnL; };
 	bool Support_DXTC() const { return SupportDXTC; }
 	bool Support_Gamma() const { return supportGamma; }
@@ -271,7 +271,7 @@ private:
 	static DeviceTypeS3 Get_S3_Device(unsigned device_id);
 	static DeviceTypeIntel Get_Intel_Device(unsigned device_id);
 
-	void Init_Caps(IDirect3DDevice8* D3DDevice);
+	void Init_Caps(void* device);
 	void Check_Texture_Format_Support(WW3DFormat display_format,const void* caps);
 	void Check_Render_To_Texture_Support(WW3DFormat display_format,const void* caps);
 	void Check_Depth_Stencil_Support(WW3DFormat display_format, const void* caps);
@@ -280,7 +280,7 @@ private:
 	void Check_Shader_Support(const void* caps);
 	void Check_Maximum_Texture_Support(const void* caps);
 	void Check_Driver_Version_Status();
-	void Vendor_Specific_Hacks(const D3DADAPTER_IDENTIFIER8& adapter_id);
+	void Vendor_Specific_Hacks(const void* adapter_id);
 
 	int MaxDisplayWidth;
 	int MaxDisplayHeight;
@@ -313,7 +313,7 @@ private:
 	DriverVersionStatusType DriverVersionStatus;
 	VendorIdType VendorId;
 	StringClass DriverDLL;
-	IDirect3D8* Direct3D; // warning XDK name conflict KJM
+	void* Direct3D; // warning XDK name conflict KJM
 	StringClass CapsLog;
 	StringClass CompactLog;
 };
