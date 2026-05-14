@@ -843,10 +843,14 @@ void DX8Wrapper::Enumerate_Devices()
 
 			desc.set_driver_version(buf);
 
-			D3DInterface->GetDeviceCaps(adapter_index,WW3D_DEVTYPE,&desc.Caps);
-			D3DInterface->GetAdapterIdentifier(adapter_index,LEGACY_NO_WHQL_LEVEL,&desc.AdapterIdentifier);
+			D3DCAPS8 caps;
+			::ZeroMemory(&caps, sizeof(caps));
+			D3DADAPTER_IDENTIFIER8 adapter_identifier;
+			::ZeroMemory(&adapter_identifier, sizeof(adapter_identifier));
+			D3DInterface->GetDeviceCaps(adapter_index,WW3D_DEVTYPE,&caps);
+			D3DInterface->GetAdapterIdentifier(adapter_index,LEGACY_NO_WHQL_LEVEL,&adapter_identifier);
 
-			DX8Caps dx8caps(D3DInterface,desc.Caps,WW3D_FORMAT_UNKNOWN,desc.AdapterIdentifier);
+			DX8Caps dx8caps(D3DInterface,caps,WW3D_FORMAT_UNKNOWN,adapter_identifier);
 
 			/*
 			** Enumerate the resolutions
