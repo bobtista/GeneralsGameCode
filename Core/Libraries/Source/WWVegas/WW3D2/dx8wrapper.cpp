@@ -850,7 +850,7 @@ void DX8Wrapper::Enumerate_Devices()
 			D3DInterface->GetDeviceCaps(adapter_index,WW3D_DEVTYPE,&caps);
 			D3DInterface->GetAdapterIdentifier(adapter_index,LEGACY_NO_WHQL_LEVEL,&adapter_identifier);
 
-			DX8Caps dx8caps(D3DInterface,caps,WW3D_FORMAT_UNKNOWN,adapter_identifier);
+			DX8Caps dx8caps(D3DInterface,&caps,WW3D_FORMAT_UNKNOWN,&adapter_identifier);
 
 			/*
 			** Enumerate the resolutions
@@ -3381,7 +3381,7 @@ void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 	delete CurrentCaps;
-	CurrentCaps=new DX8Caps(D3DInterface,D3DDevice,display_format,CurrentAdapterIdentifier);
+	CurrentCaps=new DX8Caps(D3DInterface,D3DDevice,display_format,&CurrentAdapterIdentifier);
 }
 
 #if !defined(GGC_BGFX_STANDALONE)
