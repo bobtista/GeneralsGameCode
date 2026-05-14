@@ -82,8 +82,10 @@ public:
 		set_hardware_name(src.Get_Hardware_Name());
 		set_hardware_vendor(src.Get_Hardware_Vendor());
 		set_hardware_chipset(src.Get_Hardware_Chipset());
+#if !defined(GGC_BGFX_STANDALONE)
 		Caps=src.Caps;
 		AdapterIdentifier=src.AdapterIdentifier;
+#endif
 		ResArray = src.ResArray;
 		return *this;
 	}
@@ -136,8 +138,10 @@ private:
 	StringClass			HardwareVendor;
 	StringClass			HardwareChipset;
 
+#if !defined(GGC_BGFX_STANDALONE)
 	D3DCAPS8				Caps;
 	D3DADAPTER_IDENTIFIER8 AdapterIdentifier;
+#endif
 
 	DynamicVectorClass<ResolutionDescClass>	ResArray;
 
