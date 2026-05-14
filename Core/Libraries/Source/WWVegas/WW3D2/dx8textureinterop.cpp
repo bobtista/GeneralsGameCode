@@ -460,6 +460,34 @@ IDirect3DSurface8 *Create_Legacy_Missing_Surface()
 	return surface;
 }
 
+void Copy_Legacy_Surface(
+	IDirect3DSurface8 *destination,
+	const LegacySurfaceCopyRect &destination_rect,
+	IDirect3DSurface8 *source,
+	const LegacySurfaceCopyRect &source_rect,
+	unsigned int filter)
+{
+	RECT destination_native_rect;
+	destination_native_rect.left = destination_rect.left;
+	destination_native_rect.top = destination_rect.top;
+	destination_native_rect.right = destination_rect.right;
+	destination_native_rect.bottom = destination_rect.bottom;
+	RECT source_native_rect;
+	source_native_rect.left = source_rect.left;
+	source_native_rect.top = source_rect.top;
+	source_native_rect.right = source_rect.right;
+	source_native_rect.bottom = source_rect.bottom;
+	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(
+		destination,
+		nullptr,
+		&destination_native_rect,
+		source,
+		nullptr,
+		&source_native_rect,
+		filter,
+		0));
+}
+
 void Init_Legacy_Missing_Texture(
 	unsigned int width,
 	unsigned int height,

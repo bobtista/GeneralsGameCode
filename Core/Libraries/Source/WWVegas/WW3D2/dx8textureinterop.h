@@ -39,6 +39,14 @@ enum LegacyTexturePoolKind
 	LEGACY_TEXTURE_POOL_SYSTEMMEM = 2
 };
 
+struct LegacySurfaceCopyRect
+{
+	long left;
+	long top;
+	long right;
+	long bottom;
+};
+
 class DX8TextureInterop
 {
 public:
@@ -226,6 +234,12 @@ inline IDirect3DVolumeTexture8 *Create_Legacy_Volume_Texture(
 
 IDirect3DTexture8 *Get_Legacy_Missing_Texture();
 IDirect3DSurface8 *Create_Legacy_Missing_Surface();
+void Copy_Legacy_Surface(
+	IDirect3DSurface8 *destination,
+	const LegacySurfaceCopyRect &destination_rect,
+	IDirect3DSurface8 *source,
+	const LegacySurfaceCopyRect &source_rect,
+	unsigned int filter);
 void Init_Legacy_Missing_Texture(
 	unsigned int width,
 	unsigned int height,
