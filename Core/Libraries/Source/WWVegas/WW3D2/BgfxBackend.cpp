@@ -8277,15 +8277,15 @@ void SubmitEngineDraw(unsigned short start_index,
     // are submitted after the world pass and should not inherit stale stencil
     // state from shroud/player-color/shadow passes. Keeping stencil active
     // here clips effects such as the particle-cannon beam against buildings.
-    const bool sortedMaterialDecal = submitView == kBgfxEngineSortView
-        && IsSortedMaterialDecal(state);
-    // Sort-flushed material decals (command-center driveway emblems, upgrade
-    // floor marks) are ordinary alpha decals. The wrapper can still have
-    // stencil state cached from shroud/player-color passes; applying it here
-    // clips revealed decals out completely.
+    const bool sortedViewDraw = submitView == kBgfxEngineSortView;
+    // Sort-flushed translucent draws (particles, shellmap alpha structures,
+    // command-center driveway emblems, upgrade floor marks) are replayed
+    // after the opaque/stencil passes. The wrapper can still have stencil
+    // state cached from shroud/player-color/shadow draws; applying it here
+    // clips sorted alpha geometry against stale masks.
     const bool applyStencil = g_draw.stencilEnabled
         && submitView != kBgfxUIView
-        && !sortedMaterialDecal;
+        && !sortedViewDraw;
 
     bgfx::setState(state);
     if (applyStencil)
