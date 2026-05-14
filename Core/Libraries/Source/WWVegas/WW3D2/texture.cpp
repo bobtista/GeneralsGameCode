@@ -49,6 +49,7 @@
 #include "w3d_file.h"
 #include "assetmgr.h"
 #include "dx8formatconv.h"
+#include "dx8texturelegacytypes.h"
 #include "dx8textureinterop.h"
 #include "textureloader.h"
 #include "missingtexture.h"
@@ -69,12 +70,6 @@ const unsigned DEFAULT_INACTIVATION_TIME=20000;
 
 namespace
 {
-	using LegacyBaseTexture = IDirect3DBaseTexture8;
-	using LegacyTextureSurface = IDirect3DSurface8;
-	using LegacySurfaceDesc = D3DSURFACE_DESC;
-	using LegacyVolumeDesc = D3DVOLUME_DESC;
-	using LegacyLockedRect = D3DLOCKED_RECT;
-
 	constexpr unsigned kLegacyLockReadOnly = 0x00000010L;
 	constexpr unsigned kLegacyMipFilterBox = 5;
 

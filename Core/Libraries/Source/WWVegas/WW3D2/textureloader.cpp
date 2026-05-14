@@ -56,6 +56,8 @@
 #include <d3dx8tex.h>
 #include "wwmemlog.h"
 #include "dx8formatconv.h"
+#include "dx8texturelegacytypes.h"
+#include "dx8textureinterop.h"
 #include "texturethumbnail.h"
 #include "ddsfile.h"
 #include "bitmaphandler.h"
@@ -64,13 +66,6 @@
 
 namespace
 {
-	using LegacyLoaderTexture = IDirect3DTexture8;
-	using LegacyLoaderSurface = IDirect3DSurface8;
-	using LegacyLoaderCubeTexture = IDirect3DCubeTexture8;
-	using LegacyLoaderLockedRect = D3DLOCKED_RECT;
-	using LegacyLoaderLockedBox = D3DLOCKED_BOX;
-	using LegacyLoaderCubeFace = D3DCUBEMAP_FACES;
-
 	constexpr auto kLegacyManagedPool = LEGACY_TEXTURE_POOL_MANAGED;
 	constexpr auto kLegacySystemPool = LEGACY_TEXTURE_POOL_SYSTEMMEM;
 	constexpr auto kLegacyDefaultPool = LEGACY_TEXTURE_POOL_DEFAULT;
@@ -925,7 +920,7 @@ void TextureLoader::Request_Thumbnail(TextureBaseClass *tc)
 	FastCriticalSectionClass::LockClass lock(_ForegroundCriticalSection);
 
 	// Has a Direct3D texture already been loaded?
-	if (tc->Peek_D3D_Base_Texture()) {
+	if (Peek_Legacy_Base_Texture(*tc)) {
 		return;
 	}
 
