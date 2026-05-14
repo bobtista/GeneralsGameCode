@@ -226,6 +226,11 @@ inline IDirect3DVolumeTexture8 *Create_Legacy_Volume_Texture(
 
 IDirect3DTexture8 *Get_Legacy_Missing_Texture();
 IDirect3DSurface8 *Create_Legacy_Missing_Surface();
+void Init_Legacy_Missing_Texture(
+	unsigned int width,
+	unsigned int height,
+	const unsigned int *pixels);
+void Release_Legacy_Missing_Texture();
 IDirect3DSurface8 *Load_Legacy_Surface_Immediate(
 	const StringClass &filename,
 	WW3DFormat surface_format,
