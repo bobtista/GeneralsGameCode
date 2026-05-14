@@ -3001,7 +3001,10 @@ void W3DDisplay::drawVideoBuffer( VideoBuffer *buffer, Int startX, Int startY, I
 {
 	W3DVideoBuffer *vbuffer = (W3DVideoBuffer*) buffer;
 
-	setup2DRenderState(vbuffer->texture(), DRAW_IMAGE_ALPHA, FALSE);
+	// Video buffers are opaque frames. The legacy D3D X8 formats sampled the
+	// unused alpha byte as 1.0; drawing them solid keeps the bgfx path from
+	// depending on undefined X-channel contents.
+	setup2DRenderState(vbuffer->texture(), DRAW_IMAGE_SOLID, FALSE);
 
 	m_2DRender->Add_Quad( RectClass( startX, startY, endX, endY ),
 												vbuffer->Rect( 0, 0, 1, 1) );
