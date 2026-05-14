@@ -211,8 +211,7 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture(
 	const DWORD usage = render_target ? D3DUSAGE_RENDERTARGET : 0;
 	const D3DFORMAT native_format = WW3DFormat_To_D3DFormat(format);
 	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
-	HRESULT result = D3DXCreateTexture(
-		Legacy_Device(),
+	HRESULT result = Legacy_Device()->CreateTexture(
 		width,
 		height,
 		mip_level_count,
@@ -226,8 +225,7 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture(
 	}
 	if (Should_Retry_Texture_Create(result)) {
 		Release_Unused_Assets_For_Texture_Retry();
-		result = D3DXCreateTexture(
-			Legacy_Device(),
+		result = Legacy_Device()->CreateTexture(
 			width,
 			height,
 			mip_level_count,
@@ -341,8 +339,7 @@ IDirect3DCubeTexture8 *DX8TextureInterop::Create_Legacy_Cube_Texture(
 	const DWORD usage = render_target ? D3DUSAGE_RENDERTARGET : 0;
 	const D3DFORMAT native_format = WW3DFormat_To_D3DFormat(format);
 	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
-	HRESULT result = D3DXCreateCubeTexture(
-		Legacy_Device(),
+	HRESULT result = Legacy_Device()->CreateCubeTexture(
 		width,
 		mip_level_count,
 		usage,
@@ -355,8 +352,7 @@ IDirect3DCubeTexture8 *DX8TextureInterop::Create_Legacy_Cube_Texture(
 	}
 	if (Should_Retry_Texture_Create(result)) {
 		Release_Unused_Assets_For_Texture_Retry();
-		result = D3DXCreateCubeTexture(
-			Legacy_Device(),
+		result = Legacy_Device()->CreateCubeTexture(
 			width,
 			mip_level_count,
 			usage,
@@ -387,8 +383,7 @@ IDirect3DVolumeTexture8 *DX8TextureInterop::Create_Legacy_Volume_Texture(
 	IDirect3DVolumeTexture8 *texture = nullptr;
 	const D3DFORMAT native_format = WW3DFormat_To_D3DFormat(format);
 	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
-	HRESULT result = D3DXCreateVolumeTexture(
-		Legacy_Device(),
+	HRESULT result = Legacy_Device()->CreateVolumeTexture(
 		width,
 		height,
 		depth,
@@ -400,8 +395,7 @@ IDirect3DVolumeTexture8 *DX8TextureInterop::Create_Legacy_Volume_Texture(
 
 	if (Should_Retry_Texture_Create(result)) {
 		Release_Unused_Assets_For_Texture_Retry();
-		result = D3DXCreateVolumeTexture(
-			Legacy_Device(),
+		result = Legacy_Device()->CreateVolumeTexture(
 			width,
 			height,
 			depth,
