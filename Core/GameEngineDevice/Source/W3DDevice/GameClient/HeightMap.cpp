@@ -2259,6 +2259,10 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 				y >= drawStartY && y < drawEdgeY &&
 				m_map->getExtraAlphaUVData(x,y,U,V,alpha,&flipState, &cliffState))
 			{	//this tile is inside visible region and has 3rd blend layer.
+				if ((alpha[0] | alpha[1] | alpha[2] | alpha[3]) == 0)
+				{
+					continue;
+				}
 
 				Int idx = x+y*xExtent;
 
@@ -2408,9 +2412,17 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 			for (Int pass=0; pass < devicePasses; pass++)
 			{
 				W3DShaderManager::setShader(st, pass);
+				if (g_renderBackend->Has_Shader_Pipeline())
+				{
+					g_renderBackend->Set_Projected_Decal_Mode(RB_PROJECTED_DECAL_ALPHA);
+				}
 				if (Is_Hidden() == 0) {
 					g_renderBackend->Draw_Triangles(	0,indexCount/3, 0,	vertexCount);	//draw a quad, 2 triangles, 4 verts
 					m_numVisibleExtraBlendTiles += indexCount/6;
+				}
+				if (g_renderBackend->Has_Shader_Pipeline())
+				{
+					g_renderBackend->Set_Projected_Decal_Mode(RB_PROJECTED_DECAL_NONE);
 				}
 			}
 			W3DShaderManager::resetShader(st);
