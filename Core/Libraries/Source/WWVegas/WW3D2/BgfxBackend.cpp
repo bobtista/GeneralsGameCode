@@ -7909,6 +7909,33 @@ void SubmitEngineDraw(unsigned short start_index,
 
     BindTextureStages();
     UpdateTextureTransforms();
+    if (is2D)
+    {
+        // Render2DClass-authored quads only carry UV0 in screen space.
+        // Stale world texture coordinate routing/transform state can
+        // otherwise redirect video/UI samples into black atlas padding.
+        g_draw.texcoordSelect[0] = 0.0f;
+        g_draw.texcoordSelect[3] = 0.0f;
+        g_draw.texcoordSelect2[0] = 0.0f;
+        g_draw.texcoordSelect2[1] = 0.0f;
+        for (unsigned stage = 0; stage < 4; ++stage)
+        {
+            g_draw.texcoordSource[stage] = 0.0f;
+        }
+        g_draw.texProjected[0] = 0.0f;
+        g_draw.texProjected[1] = 0.0f;
+        SetIdentityTextureTransform(g_draw.texTransform0, g_draw.texTransform1);
+        SetIdentityTextureTransform(g_draw.tex1Transform0, g_draw.tex1Transform1);
+        SetIdentityTextureTransform(g_draw.tex2Transform0, g_draw.tex2Transform1);
+        g_draw.texTransform0Z[0] = 0.0f;
+        g_draw.texTransform0Z[1] = 0.0f;
+        g_draw.texTransform0Z[2] = 1.0f;
+        g_draw.texTransform0Z[3] = 0.0f;
+        g_draw.tex1TransformZ[0] = 0.0f;
+        g_draw.tex1TransformZ[1] = 0.0f;
+        g_draw.tex1TransformZ[2] = 1.0f;
+        g_draw.tex1TransformZ[3] = 0.0f;
+    }
     if (!g_draw.explicitMaterialState)
     {
         CaptureMaterialStateForBgfx(g_draw.sourceMaterial);
