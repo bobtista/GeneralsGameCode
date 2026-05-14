@@ -684,6 +684,22 @@ Int parseLoadSave(char *args[], int num)
 	return 2;
 }
 
+// TheSuperHackers @feature bobtista 14/05/2026 Load a map directly from the
+// command line in release builds. Useful for creating visual regression saves
+// from maps that are normally only reached through shell flow.
+Int parseLoadMap(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_initialFile = args[1];
+		TheWritableGlobalData->m_shellMapOn = FALSE;
+		TheWritableGlobalData->m_playIntro = FALSE;
+		TheWritableGlobalData->m_afterIntro = TRUE;
+		return 2;
+	}
+	return 1;
+}
+
 // TheSuperHackers @feature bobtista 30/04/2026 Load a replay visually from the command line
 Int parseLoadReplay(char *args[], int num)
 {
@@ -1265,6 +1281,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },
+	{ "-loadmap", parseLoadMap },
 	{ "-loadsave", parseLoadSave },
 	{ "-loadreplay", parseLoadReplay },
 	{ "-ignoresync", parseSync },
