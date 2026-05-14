@@ -63,9 +63,9 @@ namespace
 	using LegacyLockedRect = D3DLOCKED_RECT;
 	using LegacyRect = RECT;
 
-	constexpr unsigned kLegacyLockReadOnly = D3DLOCK_READONLY;
-	constexpr unsigned kLegacySurfaceCopyNoFilter = D3DX_FILTER_NONE;
-	constexpr unsigned kLegacySurfaceCopyTriangleFilter = D3DX_FILTER_TRIANGLE;
+	constexpr unsigned kLegacyLockReadOnly = 0x00000010L;
+	constexpr unsigned kLegacySurfaceCopyNoFilter = 1;
+	constexpr unsigned kLegacySurfaceCopyTriangleFilter = 4;
 }
 
 #define LEGACY_SURFACE static_cast<LegacySurface *>(D3DSurface)
