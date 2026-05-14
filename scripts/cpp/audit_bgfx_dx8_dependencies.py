@@ -28,6 +28,7 @@ SEARCH_ROOTS = [
 SKIP_FILES = {
     "DX8Backend.cpp",
     "DX8Backend.h",
+    "dx8deviceinterop.h",
     "dx8formatconv.h",
     "dx8textureinterop.cpp",
     "dx8textureinterop.h",

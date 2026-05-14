@@ -52,6 +52,7 @@
 #include "vector4.h"
 #include "cpudetect.h"
 #include "dx8caps.h"
+#include "dx8deviceinterop.h"
 #include "RenderBufferTypes.h"
 #include "RenderDeviceCleanupHook.h"
 
@@ -140,11 +141,6 @@ struct DX8FrameStatistics
 #define DX8_RECORD_DRAW_CALLS()					FrameStatistics.draw_calls++
 
 extern bool _DX8SingleThreaded;
-
-void DX8_Assert();
-void Log_DX8_ErrorCode(unsigned res);
-IDirect3DDevice8* DX8_Call_Device();
-IDirect3D8* DX8_Call_Interface();
 
 WWINLINE void DX8_ErrorCode(unsigned res)
 {
