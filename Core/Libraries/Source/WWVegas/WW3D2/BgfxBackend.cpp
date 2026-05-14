@@ -4602,7 +4602,8 @@ static bool IsSortedAlphaDepthDecal(uint64_t state)
         && g_draw.tssOps0[0] > 2.5f && g_draw.tssOps0[0] < 3.5f
         && g_draw.tssOps0[1] > 2.5f && g_draw.tssOps0[1] < 3.5f
         && g_draw.tssOps0[2] < 0.5f
-        && g_draw.tssOps0[3] < 0.5f;
+        && g_draw.tssOps0[3] < 0.5f
+        && g_draw.texcoordSelect2[0] < 0.5f;
 }
 
 static bool ShouldForceUnlitForBakedColorDraw(uint64_t state)
