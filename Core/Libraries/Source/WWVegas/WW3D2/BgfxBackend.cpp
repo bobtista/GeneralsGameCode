@@ -4320,14 +4320,11 @@ static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
             // for shadow caster submissions.
         }
     }
-    // Store raw sortWorld (model-to-world only) in bgfx column-major form.
-    // This is used when sorted world decals need to render through a normal
-    // camera view rather than the pre-view-multiplied sort view.
     for (int r = 0; r < 4; ++r)
     {
         for (int c = 0; c < 4; ++c)
         {
-            g_frame.sortWorldRaw[c * 4 + r] = sortWorld[r][c];
+            g_frame.sortWorldRaw[r * 4 + c] = sortWorld[r][c];
         }
     }
 }
@@ -4379,11 +4376,8 @@ void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState &
 
 void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
 {
-    // Transitional boundary for sorted replay. SortingRenderer snapshots a
-    // full fixed-function state so it can replay translucent geometry later.
-    // bgfx still mirrors draw state into FixedFunctionState for that snapshot
-    // today; future phases should make that state shape backend-neutral too.
     FixedFunctionState::Capture_Render_State(state);
+    RenderStateCache::Get_Transform(static_cast<unsigned>(RB_TRANSFORM_WORLD), state.world);
 }
 
 void BgfxBackend::Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state)
