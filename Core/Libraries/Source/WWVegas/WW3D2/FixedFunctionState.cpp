@@ -417,20 +417,10 @@ RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruct& src)
 		REF_PTR_SET(Textures[i],src.Textures[i]);
 	}
 
-	LightEnable[0]=src.LightEnable[0];
-	LightEnable[1]=src.LightEnable[1];
-	LightEnable[2]=src.LightEnable[2];
-	LightEnable[3]=src.LightEnable[3];
-	if (LightEnable[0]) {
-		Lights[0]=src.Lights[0];
-		if (LightEnable[1]) {
-			Lights[1]=src.Lights[1];
-			if (LightEnable[2]) {
-				Lights[2]=src.Lights[2];
-				if (LightEnable[3]) {
-					Lights[3]=src.Lights[3];
-				}
-			}
+	for (i=0; i<4; ++i) {
+		LightEnable[i]=src.LightEnable[i];
+		if (LightEnable[i]) {
+			Lights[i]=src.Lights[i];
 		}
 	}
 
