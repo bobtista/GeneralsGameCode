@@ -78,6 +78,7 @@ struct RenderBackendLight
 };
 
 static const unsigned RB_MAX_TEXTURE_STAGES = 8;
+static const unsigned RB_MAX_LIGHTS = 4;
 
 enum RenderBackendLockFlags
 {
@@ -166,8 +167,8 @@ inline RenderBackendTextureArgument operator|(RenderBackendTextureArgument lhs, 
 
 struct RenderBackendLightState
 {
-    RenderBackendLight lights[4];
-    bool enabled[4];
+    RenderBackendLight lights[RB_MAX_LIGHTS];
+    bool enabled[RB_MAX_LIGHTS];
 };
 
 struct RenderBackendMaterialState
