@@ -56,8 +56,9 @@ if command -v dylibbundler >/dev/null 2>&1; then
         -i /usr/lib \
         -i /System/Library
 else
-    echo "WARNING: dylibbundler not found; dylib dependencies were not staged." >&2
-    echo "         Install with 'brew install dylibbundler' to enable bundling." >&2
+    echo "ERROR: dylibbundler not found; dylib dependencies were not staged." >&2
+    echo "       Install with 'brew install dylibbundler' to enable bundling." >&2
+    exit 1
 fi
 
 echo "  Writing run.sh wrapper..."

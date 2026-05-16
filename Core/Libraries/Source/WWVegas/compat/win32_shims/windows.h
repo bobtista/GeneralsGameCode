@@ -170,7 +170,7 @@ DECLARE_HANDLE(HMONITOR);
 typedef long LONG;
 typedef int INT;
 typedef float FLOAT;
-typedef long HRESULT;
+typedef int32_t HRESULT;
 typedef void VOID;
 typedef void *LPVOID;
 typedef void *PVOID;
