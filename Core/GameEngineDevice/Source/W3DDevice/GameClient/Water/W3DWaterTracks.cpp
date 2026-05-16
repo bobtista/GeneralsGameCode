@@ -132,9 +132,30 @@ WaterTracksObj::~WaterTracksObj()
 //=============================================================================
 WaterTracksObj::WaterTracksObj()
 {
+	m_type=WaveTypePond;
+	m_x=0;
+	m_y=0;
 	m_stageZeroTexture=nullptr;
 	m_bound=false;
 	m_initTimeOffset=0;
+	m_elapsedMs=0;
+	m_flipU=0;
+	m_nextSystem=nullptr;
+	m_prevSystem=nullptr;
+	m_waveDistance=0;
+	m_initialVelocity=0;
+	m_totalMs=0;
+	m_fadeMs=0;
+	m_waveInitialWidth=0;
+	m_waveInitialHeight=0;
+	m_waveFinalWidth=0;
+	m_waveFinalHeight=0;
+	m_timeToReachBeach=0;
+	m_frontSlowDownAcc=0;
+	m_timeToStop=0;
+	m_timeToRetreat=0;
+	m_backSlowDownAcc=0;
+	m_timeToCompress=0;
 }
 
 //=============================================================================
@@ -1084,14 +1105,12 @@ void WaterTracksRenderSystem::loadTracks()
 		file->seek(0, File::START);
 		for (Int i=0; i<trackCount; i++)
 		{
-		tryagain:
 			file->read(&startPos,sizeof(startPos));
 			file->read(&endPos,sizeof(endPos));
 			file->read(&wtype,sizeof(wtype));
-			//Check if this track already exists.
 			if (findTrack(startPos,endPos,wtype))
-			{	i++;
-				goto tryagain;
+			{
+				continue;
 			}
 
 			umod=bindTrack(wtype);
