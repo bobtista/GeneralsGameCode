@@ -2631,8 +2631,8 @@ void WaterRenderObjClass::renderWaterMesh()
 			Vector3::Cross_Product(nx,ny,&C);
 			C.Normalize();
 			vb->nx = C.X;
-			vb->ny = C.X;
-			vb->nz = C.X;
+			vb->ny = C.Y;
+			vb->nz = C.Z;
 #elif defined(GGC_BGFX_STANDALONE)
 			vb->nx = 0.0f;
 			vb->ny = 0.0f;
