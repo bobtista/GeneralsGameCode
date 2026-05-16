@@ -719,7 +719,7 @@ Int HeightMapRenderObjClass::updateVBForLightOptimized(DX8VertexBufferClass	*pVB
 		//
 		constexpr const Int quad_right_offset = 4;
 		constexpr const Int quad_below_offset = vertsPerRow;
-		//constexpr const Int quad_below_right_offset = vertsPerRow + 4;
+		constexpr const Int quad_below_right_offset = vertsPerRow + 4;
 
 		//
 		// i,j loop over the quads affected by the light.  Each quad has its *own* 4 vertices.  This
@@ -835,13 +835,11 @@ Int HeightMapRenderObjClass::updateVBForLightOptimized(DX8VertexBufferClass	*pVB
 				}
 				if (j < y1-1) {
 					// copy light to (down,1)
-					//(vBase + offset + quad_below_offset + 1)->diffuse = light_copy;
-					(vBase + offset + quad_right_offset + 1)->diffuse = (light_copy&0x00FFFFFF) | ((vbaseMirror + offset + quad_right_offset + 1)->diffuse&0xff000000) ;
+					(vBase + offset + quad_below_offset + 1)->diffuse = (light_copy&0x00FFFFFF) | ((vbaseMirror + offset + quad_below_offset + 1)->diffuse&0xff000000) ;
 				}
 				if ((i < x1-1) && (j < y1-1)) {
 					// copy light to (right+down,0)
-					//(vBase + offset + quad_below_right_offset)->diffuse = light_copy;
-					(vBase + offset + quad_right_offset)->diffuse = (light_copy&0x00FFFFFF) | ((vbaseMirror + offset + quad_right_offset)->diffuse&0xff000000) ;
+					(vBase + offset + quad_below_right_offset)->diffuse = (light_copy&0x00FFFFFF) | ((vbaseMirror + offset + quad_below_right_offset)->diffuse&0xff000000) ;
 				}
 				vb++;	vbMirror++;
 
