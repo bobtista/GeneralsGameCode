@@ -1365,6 +1365,8 @@ fan_size(0),
 fans(nullptr),
 face_ct(0),
 tri_poly(nullptr),
+dcg(nullptr),
+IsAdditive(false),
 inverse_alpha(false)
 {
 	// compute # of vertices
@@ -1402,6 +1404,8 @@ fan_size(0),
 fans(nullptr),
 face_ct(0),
 tri_poly(nullptr),
+dcg(nullptr),
+IsAdditive(false),
 inverse_alpha(false)
 {
 
