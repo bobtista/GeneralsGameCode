@@ -442,7 +442,8 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 
 static bool Should_Log_Sort_Effect_Diag()
 {
-	return std::getenv("GGC_SORT_EFFECT_DIAG") != nullptr;
+	static const bool enabled = std::getenv("GGC_SORT_EFFECT_DIAG") != nullptr;
+	return enabled;
 }
 
 static void Log_Sort_Effect_Diag(const char* event, unsigned start_index, unsigned polygon_count, SortingNodeStruct* state)
@@ -456,7 +457,9 @@ static void Log_Sort_Effect_Diag(const char* event, unsigned start_index, unsign
 		? state->sorting_state.Textures[0]->As_TextureClass()
 		: nullptr;
 	const char* texName = tex0 != nullptr ? tex0->Get_Full_Path().str() : "(null)";
-	if (strnicmp(texName, "ex", 2) != 0
+	static const bool logAll = std::getenv("GGC_SORT_EFFECT_DIAG_ALL") != nullptr;
+	if (!logAll
+		&& strnicmp(texName, "ex", 2) != 0
 		&& std::strstr(texName, "fire") == nullptr
 		&& std::strstr(texName, "smoke") == nullptr
 		&& std::strstr(texName, "noise") == nullptr)
@@ -464,26 +467,25 @@ static void Log_Sort_Effect_Diag(const char* event, unsigned start_index, unsign
 		return;
 	}
 
+	float worldTx = 0.0f, worldTy = 0.0f, worldTz = 0.0f;
+	if (state != nullptr)
+	{
+		const Matrix4x4& w = reinterpret_cast<const Matrix4x4&>(state->sorting_state.world);
+		worldTx = w[3][0];
+		worldTy = w[3][1];
+		worldTz = w[3][2];
+	}
+	float centerZ = state != nullptr ? state->transformed_center.Z : 0.0f;
+
 	if (FILE* diag = std::fopen("ggc_sort_effect_diag.txt", "a"))
 	{
 		std::fprintf(diag,
-			"%s nodes=%u poolPolys=%u poolVerts=%u start=%u polys=%u statePolys=%u stateVerts=%u shader=0x%08x tex=%s vbType=%d ibType=%d vbaOff=%u ibaOff=%u idxBase=%u minVert=%u\n",
+			"%s polys=%u tex=%s shader=0x%08x worldT=(%.2f,%.2f,%.2f) centerZ=%.3f\n",
 			event,
-			overlapping_node_count,
-			overlapping_polygon_count,
-			overlapping_vertex_count,
-			start_index,
 			polygon_count,
-			state != nullptr ? state->polygon_count : 0,
-			state != nullptr ? state->vertex_count : 0,
-			state != nullptr ? state->sorting_state.shader.Get_Bits() : 0,
 			texName,
-			state != nullptr ? state->sorting_state.vertex_buffer_types[0] : BUFFER_TYPE_INVALID,
-			state != nullptr ? state->sorting_state.index_buffer_type : BUFFER_TYPE_INVALID,
-			state != nullptr ? state->sorting_state.vba_offset : 0,
-			state != nullptr ? state->sorting_state.iba_offset : 0,
-			state != nullptr ? state->sorting_state.index_base_offset : 0,
-			state != nullptr ? state->min_vertex_index : 0);
+			state != nullptr ? state->sorting_state.shader.Get_Bits() : 0,
+			worldTx, worldTy, worldTz, centerZ);
 		std::fclose(diag);
 	}
 }
