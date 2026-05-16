@@ -1243,6 +1243,9 @@ unsigned DX8Backend::Get_Color_Write_Mask() const
 
 bool DX8Backend::Supports_Color_Write_Mask() const
 {
+    if (!DX8Wrapper::Get_Current_Caps()) {
+        return false;
+    }
     return (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE) != 0;
 }
 
