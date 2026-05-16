@@ -528,6 +528,7 @@ Bool TerrainTextureClass::updateFlat(WorldHeightMap *htMap, Int xCell, Int yCell
 	surface_level->Unlock();
 	REF_PTR_RELEASE(surface_level);
 	Generate_Mip_Levels();
+	InvalidateGeneratedTerrainTexture(this);
 	return(surface_desc.Height);
 }
 
@@ -844,6 +845,7 @@ int AlphaEdgeTextureClass::update(WorldHeightMap *htMap)
 	surface_level->Unlock();
 	REF_PTR_RELEASE(surface_level);
 	Generate_Mip_Levels();
+	InvalidateGeneratedTerrainTexture(this);
 	return(surface_desc.Height);
 }
 
