@@ -48,6 +48,8 @@
 #include "IRenderBackend.h"
 
 
+static const unsigned char kDefaultAlphaTestReference = 0x60;
+
 bool ShaderClass::ShaderDirty=true;
 unsigned long ShaderClass::CurrentShader=0;
 static CullMode _PolygonCullMode = RB_CULL_CW;
@@ -467,7 +469,7 @@ void ShaderClass::Apply()
 
 		if(Get_Alpha_Test() == ShaderClass::ALPHATEST_ENABLE)
 		{
-			unsigned char alphareference = 0x60;	// Alpha reference value that produces best results with mip-mapped textures.
+			unsigned char alphareference = kDefaultAlphaTestReference;
 
 			if(sf == RB_BLEND_INV_SRC_ALPHA)
 			{
