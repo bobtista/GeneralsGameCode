@@ -1655,9 +1655,9 @@ void DX8Backend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
     } vertices[4];
 
     vertices[0].x = x + width; vertices[0].y = y + height; vertices[0].z = 0.0f; vertices[0].w = 1.0f;
-    vertices[1].x = x + width; vertices[1].y = 0.0f;       vertices[1].z = 0.0f; vertices[1].w = 1.0f;
+    vertices[1].x = x + width; vertices[1].y = (float)y;   vertices[1].z = 0.0f; vertices[1].w = 1.0f;
     vertices[2].x = x;         vertices[2].y = y + height; vertices[2].z = 0.0f; vertices[2].w = 1.0f;
-    vertices[3].x = x;         vertices[3].y = 0.0f;       vertices[3].z = 0.0f; vertices[3].w = 1.0f;
+    vertices[3].x = x;         vertices[3].y = (float)y;   vertices[3].z = 0.0f; vertices[3].w = 1.0f;
 
     vertices[0].color = shadow_color;
     vertices[1].color = shadow_color;
@@ -1755,9 +1755,9 @@ void DX8Backend::Draw_Screen_Color_Quad(unsigned color, int x, int y, int width,
     } vertices[4];
 
     vertices[0].x = x + width; vertices[0].y = y + height; vertices[0].z = 0.0f; vertices[0].w = 1.0f;
-    vertices[1].x = x + width; vertices[1].y = 0.0f;       vertices[1].z = 0.0f; vertices[1].w = 1.0f;
+    vertices[1].x = x + width; vertices[1].y = (float)y;   vertices[1].z = 0.0f; vertices[1].w = 1.0f;
     vertices[2].x = x;         vertices[2].y = y + height; vertices[2].z = 0.0f; vertices[2].w = 1.0f;
-    vertices[3].x = x;         vertices[3].y = 0.0f;       vertices[3].z = 0.0f; vertices[3].w = 1.0f;
+    vertices[3].x = x;         vertices[3].y = (float)y;   vertices[3].z = 0.0f; vertices[3].w = 1.0f;
 
     vertices[0].color = color;
     vertices[1].color = color;
