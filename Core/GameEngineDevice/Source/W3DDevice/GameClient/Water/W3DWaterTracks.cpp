@@ -836,6 +836,7 @@ void WaterTracksRenderSystem::shutdown()
 
 	}
 
+	REF_PTR_RELEASE(m_batchIndexBuffer);
 	REF_PTR_RELEASE(m_indexBuffer);
 	REF_PTR_RELEASE(m_vertexMaterialClass);
 	REF_PTR_RELEASE(m_vertexBuffer);
