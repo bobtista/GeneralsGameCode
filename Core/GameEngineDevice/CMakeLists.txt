@@ -254,6 +254,7 @@ if(SAGE_USE_OPENAL)
     )
     target_link_directories(corei_gameenginedevice_private INTERFACE ${FFMPEG_LIBRARY_DIRS})
     target_link_libraries(corei_gameenginedevice_private INTERFACE ${FFMPEG_LIBRARIES})
+    target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_FFMPEG)
 
     if(NOT RTS_BUILD_OPTION_FFMPEG)
         target_sources(corei_gameenginedevice_private INTERFACE

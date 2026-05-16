@@ -2793,7 +2793,7 @@ Real OpenALAudioManager::getFileLengthMS(AsciiString strToLoad) const
 	}
 	float length = 0.0f;
 
-#ifdef SAGE_USE_FFMPEG
+#ifdef RTS_HAS_FFMPEG
 	ALuint handle = m_audioCache->getBufferForFile(OpenFileInfo(&strToLoad));
 	length = m_audioCache->getBufferLength(handle);
 	m_audioCache->closeBuffer(handle);
