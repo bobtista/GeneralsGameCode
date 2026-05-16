@@ -1498,6 +1498,7 @@ void WaterRenderObjClass::replaceSkyboxTexture(const AsciiString& oldTexName, co
 				material->Peek_Texture(i)->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 			}
 		}
+		REF_PTR_RELEASE(material);
 	}
 
 }
