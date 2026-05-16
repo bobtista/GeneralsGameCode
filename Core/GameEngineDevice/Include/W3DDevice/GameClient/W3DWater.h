@@ -259,7 +259,6 @@ protected:
 
 	Setting m_settings[ TIME_OF_DAY_COUNT ];	///< settings for each time of day
 	void drawRiverWater(PolygonTrigger *pTrig);
-	void drawTrapezoidWater(Vector3 points[4]);
 	void drawTrapezoidWaterBatch(const std::vector<WaterTrapezoidBatchEntry> &trapezoids);
 	void loadSetting ( Setting *skySetting, TimeOfDay timeOfDay );	///<init sky/water settings from GDF
 	void renderSky();	///<draw the sky layer (clouds, stars, etc.)
@@ -279,7 +278,6 @@ protected:
 
 	void setupFlatWaterShader();
 	void setupJbaWaterShader();
-	void cleanupJbaWaterShader();
 
 	//Methods used for GeForce3 specific water
 	HRESULT generateIndexBuffer(int sizeX, int sizeY, Bool createD3DMirror);	///<Generate water strip index buffer
