@@ -237,6 +237,7 @@ SphereRenderObjClass::SphereRenderObjClass(const SphereRenderObjClass & src)
 
 SphereRenderObjClass::~SphereRenderObjClass()
 {
+	REF_PTR_RELEASE(SphereTexture);
 	REF_PTR_RELEASE(SphereMaterial);
 }
 
