@@ -522,7 +522,7 @@ void Init_Legacy_Missing_Texture(
 			++pixels;
 		}
 		buffer=static_cast<unsigned *>(locked_rect.pBits);
-		buffer+=locked_rect.Pitch/sizeof(unsigned)*y;
+		buffer+=locked_rect.Pitch/sizeof(unsigned)*(y+1);
 	}
 
 	DX8_ErrorCode(texture->UnlockRect(0));
