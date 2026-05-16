@@ -1011,7 +1011,7 @@ void	Render2DSentenceClass::Build_Sentence_Centered (const WCHAR *text, int *hkX
 
 		if(hkX)
 			*hkX = hotKeyPosX;
-		if(hkX)
+		if(hkY)
 			*hkY = hotKeyPosY;
 }
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1194,7 +1194,7 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 
 	if(hkX)
 		*hkX = hotKeyPosX;
-	if(hkX)
+	if(hkY)
 		*hkY = hotKeyPosY;
 
 	return extent;
