@@ -744,7 +744,8 @@ class StubD3D8CubeTexture final : public IDirect3DCubeTexture8
 public:
 	StubD3D8CubeTexture(IDirect3DDevice8* device, UINT edge, D3DFORMAT format)
 		: m_refCount(1), m_device(device), m_edge(edge), m_format(format),
-		  m_scratch(AllocScratch(SurfaceStorageSize(format, edge, edge)))
+		  m_faceSize(SurfaceStorageSize(format, edge, edge)),
+		  m_scratch(AllocScratch(m_faceSize * 6))
 	{
 	}
 
@@ -809,23 +810,24 @@ public:
 		pDesc->Height = m_edge;
 		return D3D_OK;
 	}
-	STDMETHOD(GetCubeMapSurface)(D3DCUBEMAP_FACES, UINT, IDirect3DSurface8** ppSurface) override
+	STDMETHOD(GetCubeMapSurface)(D3DCUBEMAP_FACES face, UINT, IDirect3DSurface8** ppSurface) override
 	{
 		if (ppSurface == nullptr)
 		{
 			return E_POINTER;
 		}
-		*ppSurface = new StubD3D8Surface(m_device, static_cast<IDirect3DCubeTexture8*>(this), m_edge, m_edge, m_format, m_scratch.get());
+		unsigned char* faceData = m_scratch.get() + static_cast<unsigned>(face) * m_faceSize;
+		*ppSurface = new StubD3D8Surface(m_device, static_cast<IDirect3DCubeTexture8*>(this), m_edge, m_edge, m_format, faceData);
 		return D3D_OK;
 	}
-	STDMETHOD(LockRect)(D3DCUBEMAP_FACES, UINT, D3DLOCKED_RECT* pLockedRect, CONST RECT*, DWORD) override
+	STDMETHOD(LockRect)(D3DCUBEMAP_FACES face, UINT, D3DLOCKED_RECT* pLockedRect, CONST RECT*, DWORD) override
 	{
 		if (pLockedRect == nullptr)
 		{
 			return E_POINTER;
 		}
 		pLockedRect->Pitch = static_cast<INT>(SurfacePitch(m_format, m_edge));
-		pLockedRect->pBits = m_scratch.get();
+		pLockedRect->pBits = m_scratch.get() + static_cast<unsigned>(face) * m_faceSize;
 		return D3D_OK;
 	}
 	STDMETHOD(UnlockRect)(D3DCUBEMAP_FACES, UINT) override { return D3D_OK; }
@@ -836,6 +838,7 @@ private:
 	IDirect3DDevice8* m_device;
 	UINT m_edge;
 	D3DFORMAT m_format;
+	size_t m_faceSize;
 	StubScratch m_scratch;
 };
 
