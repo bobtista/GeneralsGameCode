@@ -419,24 +419,19 @@ void SynchronizedTextureLoadTaskListClass::Push_Back(TextureLoadTaskClass *task)
 
 TextureLoadTaskClass *SynchronizedTextureLoadTaskListClass::Pop_Front()
 {
-	// this duplicates code inside base class, but saves us an unnecessary lock.
+	FastCriticalSectionClass::LockClass lock(CriticalSection);
 	if (Is_Empty()) {
 		return nullptr;
 	}
-
-	FastCriticalSectionClass::LockClass lock(CriticalSection);
 	return TextureLoadTaskListClass::Pop_Front();
-
 }
 
 TextureLoadTaskClass *SynchronizedTextureLoadTaskListClass::Pop_Back()
 {
-	// this duplicates code inside base class, but saves us an unnecessary lock.
+	FastCriticalSectionClass::LockClass lock(CriticalSection);
 	if (Is_Empty()) {
 		return nullptr;
 	}
-
-	FastCriticalSectionClass::LockClass lock(CriticalSection);
 	return TextureLoadTaskListClass::Pop_Back();
 }
 
