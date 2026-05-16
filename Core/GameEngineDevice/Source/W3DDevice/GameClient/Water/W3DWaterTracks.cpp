@@ -202,30 +202,35 @@ void WaterTracksObj::init( Real width, Real length, const Vector2 &start, const 
 	//m_startPos -= m_waveDir*m_width;
 	//move back initial tip off of wave a couple units off the final position
 	//to give it some room to travel. Travel vector is stored in m_waveDir.
-	m_waveDistance = waveTypeInfo[m_type].m_waveDistance;	//total distance traveled by wave front
+	if (m_type < WaveTypeStationary) {
+		m_waveDistance = waveTypeInfo[m_type].m_waveDistance;
+	} else {
+		m_waveDistance = 0;
+	}
 
 	m_waveDir *= m_waveDistance;
 	m_startPos -= m_waveDir;	//move start point down away from shoreline
 
-	m_initialVelocity=waveTypeInfo[m_type].m_initialVelocity;			//velocity per ms
-	m_totalMs = m_waveDistance/m_initialVelocity; //amount of time for wave to travel complete distance
+	if (m_type < WaveTypeStationary) {
+		m_initialVelocity=waveTypeInfo[m_type].m_initialVelocity;			//velocity per ms
+		m_totalMs = m_waveDistance/m_initialVelocity; //amount of time for wave to travel complete distance
 
-	m_fadeMs = waveTypeInfo[m_type].m_fadeMs;		//time for wave to fade out after it stops on beach
+		m_fadeMs = waveTypeInfo[m_type].m_fadeMs;		//time for wave to fade out after it stops on beach
 
-	m_waveInitialWidth=length * waveTypeInfo[m_type].m_initialWidthFraction;///<width of wave segment when it first appears
-	m_waveInitialHeight=m_waveInitialWidth * waveTypeInfo[m_type].m_initialHeightWidthFraction;	///<height of wave segment when it first appears
-	m_waveFinalWidth=length;	///<width of wave segment at full size
-	m_waveFinalHeight=width;		///<final height of unstretched wave
+		m_waveInitialWidth=length * waveTypeInfo[m_type].m_initialWidthFraction;///<width of wave segment when it first appears
+		m_waveInitialHeight=m_waveInitialWidth * waveTypeInfo[m_type].m_initialHeightWidthFraction;	///<height of wave segment when it first appears
+		m_waveFinalWidth=length;	///<width of wave segment at full size
+		m_waveFinalHeight=width;		///<final height of unstretched wave
 
-	//get total time for front to complete its cycle
-	m_timeToReachBeach=(m_waveDistance - m_waveFinalHeight)/m_initialVelocity;
-	m_frontSlowDownAcc= -(m_initialVelocity*m_initialVelocity)/(2*m_waveFinalHeight);	//deceleration of wave after it hits land
-	m_timeToStop = -m_initialVelocity/m_frontSlowDownAcc;
-	m_timeToRetreat = sqrt(fabs(2.0f*m_waveFinalHeight/m_frontSlowDownAcc));
-	m_totalMs = m_timeToReachBeach + m_timeToStop + m_timeToRetreat;	//total time that wave front is on screen
-	m_backSlowDownAcc = (2.0f*m_waveInitialHeight/(m_timeToStop*m_timeToStop));//((m_waveInitialHeight - m_velocity*m_timeToStop)*2.0f)/(m_timeToStop*m_timeToStop);
-	m_timeToCompress = waveTypeInfo[m_type].m_timeToCompress;	//time for back of wave to continue moving forward after front starts retreating.
-
+		//get total time for front to complete its cycle
+		m_timeToReachBeach=(m_waveDistance - m_waveFinalHeight)/m_initialVelocity;
+		m_frontSlowDownAcc= -(m_initialVelocity*m_initialVelocity)/(2*m_waveFinalHeight);	//deceleration of wave after it hits land
+		m_timeToStop = -m_initialVelocity/m_frontSlowDownAcc;
+		m_timeToRetreat = sqrt(fabs(2.0f*m_waveFinalHeight/m_frontSlowDownAcc));
+		m_totalMs = m_timeToReachBeach + m_timeToStop + m_timeToRetreat;	//total time that wave front is on screen
+		m_backSlowDownAcc = (2.0f*m_waveInitialHeight/(m_timeToStop*m_timeToStop));//((m_waveInitialHeight - m_velocity*m_timeToStop)*2.0f)/(m_timeToStop*m_timeToStop);
+		m_timeToCompress = waveTypeInfo[m_type].m_timeToCompress;	//time for back of wave to continue moving forward after front starts retreating.
+	}
 
 	if (m_type == WaveTypeStationary)
 	{	//this is a stationary wave slightly behind starting point
