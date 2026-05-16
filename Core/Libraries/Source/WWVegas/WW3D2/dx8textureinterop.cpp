@@ -313,9 +313,6 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_ZTexture(
 	}
 
 	DX8_ErrorCode(result);
-	if (texture != nullptr) {
-		texture->AddRef();
-	}
 	return texture;
 #else
 	return DX8Wrapper::_Create_DX8_ZTexture(width, height, zformat, mip_level_count, static_cast<D3DPOOL>(pool));
