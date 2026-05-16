@@ -746,7 +746,6 @@ Render2DSentenceClass::Allocate_New_Surface (const WCHAR *text, bool justCalcExt
 		//
 		CurSurface = NEW_REF (SurfaceClass, (CurrTextureSize, CurrTextureSize, WW3D_FORMAT_A4R4G4B4));
 		WWASSERT (CurSurface != nullptr);
-		CurSurface->Add_Ref ();
 
 		//
 		//	Add this surface to our list
@@ -910,6 +909,7 @@ void	Render2DSentenceClass::Build_Sentence_Centered (const WCHAR *text, int *hkX
 		{
 			calcHotKeyX = false;
 			hotKeyPosX = Cursor.X + notCenteredHotkeyX;
+			hotKeyPosY = Cursor.Y;
 		}
 
 		for(int i = 0; i <= charCount; i++) {
