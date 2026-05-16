@@ -1616,11 +1616,11 @@ RingMeshClass::~RingMeshClass()
 void RingMeshClass::Free()
 {
 
-	delete vtx;
-	delete orig_vtx;
-	delete vtx_normal;
-	delete vtx_uv;
-	delete tri_poly;
+	delete[] vtx;
+	delete[] orig_vtx;
+	delete[] vtx_normal;
+	delete[] vtx_uv;
+	delete[] tri_poly;
 
 	vtx			= nullptr;
 	orig_vtx		= nullptr;
