@@ -310,8 +310,8 @@ WW3DErrorType WW3D::Init(void *hwnd, char *defaultpal, bool lite)
 	*/
 	if (!lite) {
 		AnimatedSoundMgrClass::Initialize ();
-		IsInitted = true;
 	}
+	IsInitted = true;
 	WWDEBUG_SAY(("WW3D Init completed"));
 	return WW3D_ERROR_OK;
 }
@@ -875,8 +875,10 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 		g_renderBackend->Begin_Scene();
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	// Notify D3D that we are beginning to render the frame
 	DX8Wrapper::Begin_Scene();
+#endif
 
 	return WW3D_ERROR_OK;
 }
