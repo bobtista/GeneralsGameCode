@@ -229,6 +229,16 @@ if(NOT IS_VS6_BUILD)
     )
 endif()
 
+if(SAGE_USE_OPENAL)
+    list(APPEND GAMEENGINEDEVICE_SRC
+        Include/OpenALAudioDevice/OpenALAudioManager.h
+        Include/OpenALAudioDevice/OpenALAudioStream.h
+        Source/OpenALAudioDevice/OpenALAudioManager.cpp
+        Source/OpenALAudioDevice/OpenALAudioStream.cpp
+        Source/OpenALAudioDevice/OpenALAudioCache.cpp
+    )
+endif()
+
 add_library(corei_gameenginedevice_private INTERFACE)
 add_library(corei_gameenginedevice_public INTERFACE)
 
@@ -253,6 +263,23 @@ if(WIN32)
         d3d8lib
         milesstub
     )
+endif()
+
+if(SAGE_USE_OPENAL)
+    find_package(FFMPEG REQUIRED)
+
+    target_link_libraries(corei_gameenginedevice_public INTERFACE OpenAL::OpenAL)
+    target_include_directories(corei_gameenginedevice_private INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/Source/OpenALAudioDevice
+    )
+    target_link_libraries(corei_gameenginedevice_private INTERFACE FFMPEG::FFMPEG)
+    target_compile_definitions(corei_gameenginedevice_public INTERFACE RTS_HAS_FFMPEG)
+
+    if(NOT RTS_BUILD_OPTION_FFMPEG)
+        target_sources(corei_gameenginedevice_private INTERFACE
+            Source/VideoDevice/FFmpeg/FFmpegFile.cpp
+        )
+    endif()
 endif()
 
 if(RTS_BUILD_OPTION_FFMPEG)
