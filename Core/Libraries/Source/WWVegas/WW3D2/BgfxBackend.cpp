@@ -4323,11 +4323,17 @@ static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
     // Store raw sortWorld (model-to-world only) in bgfx column-major form.
     // This is used when sorted world decals need to render through a normal
     // camera view rather than the pre-view-multiplied sort view.
+    // TheSuperHackers @bugfix bobtista 17/05/2026 sortWorldRaw must match the
+    // bgfx HLSL column-vector convention (D3D row vectors transposed), same as
+    // sortWorld above. Storing as [c*4+r] left the matrix transposed relative
+    // to what bgfx::setTransform expects, so the rotor-blur draw's world
+    // transform applied incorrectly: vertices wobbled around the hub instead of
+    // rotating with it. Use [r*4+c] to match sortWorld's layout.
     for (int r = 0; r < 4; ++r)
     {
         for (int c = 0; c < 4; ++c)
         {
-            g_frame.sortWorldRaw[c * 4 + r] = sortWorld[r][c];
+            g_frame.sortWorldRaw[r * 4 + c] = sortWorld[r][c];
         }
     }
 }
@@ -4377,6 +4383,9 @@ void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState &
     }
 }
 
+static const char * TextureDebugName(TextureBaseClass * texture);
+static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
+
 void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
 {
     // Transitional boundary for sorted replay. SortingRenderer snapshots a
@@ -4384,6 +4393,24 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
     // bgfx still mirrors draw state into FixedFunctionState for that snapshot
     // today; future phases should make that state shape backend-neutral too.
     FixedFunctionState::Capture_Render_State(state);
+
+    // TheSuperHackers @bugfix bobtista 17/05/2026 The Chinook rotor-blur mesh
+    // stores its quad in model space and relies on the per-mesh world transform
+    // to position and rotate it. FixedFunctionState's world is hard-wired to
+    // identity on bgfx, which leaves sortWorldRaw at identity for the replay,
+    // and the legacy `bounding_sphere.Center` offset hack in sortingrenderer
+    // only restores the position - never the rotation. Reading the live world
+    // from RenderStateCache when the current bound texture is the rotor-blur
+    // mask gives the replay the matrix DX8 fixed-function would have applied,
+    // letting the blur disc actually spin instead of wobble around the hub.
+    // Limit to the rotor texture so unrelated sorted draws (sneak-attack
+    // wings, decals) still get the legacy identity-world contract.
+    const char *texName = TextureDebugName(g_draw.sourceTextures[0]);
+    if (texName != nullptr && ContainsCaseInsensitive(texName, "avcomanche_p"))
+    {
+        RenderStateCache::Get_Transform(
+            static_cast<unsigned>(RB_TRANSFORM_WORLD), state.world);
+    }
 }
 
 void BgfxBackend::Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state)
