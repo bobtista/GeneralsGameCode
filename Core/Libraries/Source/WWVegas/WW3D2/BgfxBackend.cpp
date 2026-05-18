@@ -2129,6 +2129,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     initArgs.resolution.width = static_cast<uint32_t>(g_device.width);
     initArgs.resolution.height = static_cast<uint32_t>(g_device.height);
     initArgs.resolution.reset = BGFX_RESET_NONE;
+    if (std::getenv("GGC_BGFX_MSAA") != nullptr)
+    {
+        initArgs.resolution.reset |= BGFX_RESET_MSAA_X4;
+    }
     if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
     {
         initArgs.resolution.reset |= BGFX_RESET_DEPTH_CLAMP;
@@ -7527,10 +7531,13 @@ void BgfxBackend::Clear_State_Overrides()
     // at Begin_Scene (above) and by Override_Terrain_Blend(false).
 }
 
+static LightEnvironmentClass * g_lastLightEnv = nullptr;
+
 void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
 {
     if (light_env != nullptr)
     {
+        g_lastLightEnv = light_env;
         const Vector3 & ambient = light_env->Get_Equivalent_Ambient();
         RenderStateCache::Set_Render_State(kRenderStateAmbient, MakeLegacyARGBColor(ambient, 0.0f));
         g_draw.sceneAmbient[0] = ambient.X;
@@ -7876,8 +7883,30 @@ void SubmitEngineDraw(unsigned short start_index,
         worldMtx = identityWorld;
     }
 
-    // World matrix is per-submit. bgfx consumes the value at submit time
-    // and resets the per-draw transform after each submit.
+    if (g_draw.sourceTextures[0] != nullptr)
+    {
+        const char *tn = TextureDebugName(g_draw.sourceTextures[0]);
+        if (tn != nullptr && ContainsCaseInsensitive(tn, "ubsnkatak_0")
+            && !ContainsCaseInsensitive(tn, "ubsnkatak_01"))
+        {
+            if (std::getenv("GGC_SNEAK_SKIP_ALL") != nullptr)
+            {
+                g_stats.skippedDraws++;
+                bgfx::discard(BGFX_DISCARD_ALL);
+                return;
+            }
+            if (std::getenv("GGC_SNEAK_SKIP_INNER") != nullptr && polygon_count == 60)
+            {
+                g_stats.skippedDraws++;
+                bgfx::discard(BGFX_DISCARD_ALL);
+                return;
+            }
+            if (polygon_count == 60)
+            {
+                g_draw.zBias[0] = 0.01f;
+            }
+        }
+    }
     bgfx::setTransform(worldMtx);
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Offset
@@ -8004,6 +8033,32 @@ void SubmitEngineDraw(unsigned short start_index,
 
     BindTextureStages();
     UpdateTextureTransforms();
+
+    if (g_draw.sourceTextures[0] != nullptr)
+    {
+        const char *tn = TextureDebugName(g_draw.sourceTextures[0]);
+        if (tn != nullptr && ContainsCaseInsensitive(tn, "ubsnkatak_0")
+            && !ContainsCaseInsensitive(tn, "ubsnkatak_01"))
+        {
+            static unsigned s_uvDiagCount = 0;
+            if (s_uvDiagCount < 8)
+            {
+                s_uvDiagCount++;
+                std::fprintf(stderr,
+                    "SNEAK_MAT: polys=%u lit=%.1f vtxFlags=[%.0f %.0f %.0f %.0f] "
+                    "tssOps0=[%.0f %.0f %.0f %.0f] tssOps1=[%.1f %.1f %.1f %.1f] "
+                    "scnAmb=[%.2f %.2f %.2f]\n",
+                    polygon_count,
+                    g_draw.lightingEnabled[0],
+                    g_draw.vertexColorFlags[0], g_draw.vertexColorFlags[1],
+                    g_draw.vertexColorFlags[2], g_draw.vertexColorFlags[3],
+                    g_draw.tssOps0[0], g_draw.tssOps0[1], g_draw.tssOps0[2], g_draw.tssOps0[3],
+                    g_draw.tssOps1[0], g_draw.tssOps1[1], g_draw.tssOps1[2], g_draw.tssOps1[3],
+                    g_draw.sceneAmbient[0], g_draw.sceneAmbient[1], g_draw.sceneAmbient[2]);
+            }
+        }
+    }
+
     if (is2D)
     {
         // Render2DClass-authored quads only carry UV0 in screen space.
@@ -8102,6 +8157,30 @@ void SubmitEngineDraw(unsigned short start_index,
             g_draw.sceneAmbient[0] = ((ambientColor >> 16) & 0xFF) / 255.0f;
             g_draw.sceneAmbient[1] = ((ambientColor >>  8) & 0xFF) / 255.0f;
             g_draw.sceneAmbient[2] = ((ambientColor >>  0) & 0xFF) / 255.0f;
+        }
+    }
+    if (g_draw.lightDirs[0][3] < 0.5f)
+    {
+        const auto &rs = FixedFunctionState::Render_State();
+        for (int i = 0; i < 4; ++i)
+        {
+            if (rs.LightEnable[i])
+            {
+                const D3DLIGHT8 &dl = rs.Lights[i];
+                g_draw.lightDirs[i][0] = -dl.Direction.x;
+                g_draw.lightDirs[i][1] = -dl.Direction.y;
+                g_draw.lightDirs[i][2] = -dl.Direction.z;
+                g_draw.lightDirs[i][3] = 1.0f;
+                g_draw.lightColors[i][0] = dl.Diffuse.r;
+                g_draw.lightColors[i][1] = dl.Diffuse.g;
+                g_draw.lightColors[i][2] = dl.Diffuse.b;
+                g_draw.lightColors[i][3] = 1.0f;
+                g_draw.lightAmbients[i][0] = dl.Ambient.r;
+                g_draw.lightAmbients[i][1] = dl.Ambient.g;
+                g_draw.lightAmbients[i][2] = dl.Ambient.b;
+                g_draw.lightAmbients[i][3] = 1.0f;
+                g_draw.lightParams[i][3] = 1.0f;
+            }
         }
     }
     UploadLightUniforms();
@@ -8251,6 +8330,32 @@ void SubmitEngineDraw(unsigned short start_index,
     state |= BGFX_STATE_MSAA;
 
     state = ApplyCullModeOverride(state);
+    // Diagnostic: flip or disable cull for ubsnkatak_0 draws.
+    if (g_draw.sourceTextures[0] != nullptr)
+    {
+        const char *tn = TextureDebugName(g_draw.sourceTextures[0]);
+        if (tn != nullptr && ContainsCaseInsensitive(tn, "ubsnkatak_0")
+            && !ContainsCaseInsensitive(tn, "ubsnkatak_01"))
+        {
+            if (std::getenv("GGC_SNEAK_CULL_FLIP") != nullptr)
+            {
+                uint64_t oldCull = state & BGFX_STATE_CULL_MASK;
+                state &= ~BGFX_STATE_CULL_MASK;
+                if (oldCull == BGFX_STATE_CULL_CW)
+                {
+                    state |= BGFX_STATE_CULL_CCW;
+                }
+                else if (oldCull == BGFX_STATE_CULL_CCW)
+                {
+                    state |= BGFX_STATE_CULL_CW;
+                }
+            }
+            if (std::getenv("GGC_SNEAK_CULL_NONE") != nullptr)
+            {
+                state &= ~BGFX_STATE_CULL_MASK;
+            }
+        }
+    }
     if (IsSortedRotorBlur(g_draw.state))
     {
         // The rotor blur is built from camera-facing sorted cards. Once the
