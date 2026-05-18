@@ -882,6 +882,316 @@ static bool UploadTerrainAtlasMips(TextureClass * tex2d,
     return true;
 }
 
+// TheSuperHackers @bugfix bobtista 18/05/2026 The ubsnkatak_0 mesh atlas is a
+// tightly packed 2x2 grid (scorpion | sand / metal | wood). Pre-authored DXT1
+// mips average across quadrant boundaries, and hardware bilinear/aniso filtering
+// at mip 0 samples across the boundary at v=0.5. This causes the wing (bottom-
+// left, grey metal) to bleed red from the adjacent top-left (GLA scorpion).
+// Fix: decompress BC1 to BGRA8, add a small gutter at quadrant boundaries, and
+// generate per-quadrant-safe mipmaps (same principle as UploadTerrainAtlasMips).
+
+static bool StrContainsCaseInsensitive(const char *haystack, const char *needle)
+{
+    if (haystack == nullptr || needle == nullptr)
+    {
+        return false;
+    }
+    for (const char *h = haystack; *h != '\0'; ++h)
+    {
+        const char *a = h;
+        const char *b = needle;
+        while (*a != '\0' && *b != '\0'
+            && ((*a >= 'A' && *a <= 'Z') ? (*a + 32) : *a)
+                == ((*b >= 'A' && *b <= 'Z') ? (*b + 32) : *b))
+        {
+            ++a;
+            ++b;
+        }
+        if (*b == '\0')
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool IsPackedMeshAtlasTexture(TextureClass *tex2d, WW3DFormat sourceFmt)
+{
+    if (std::getenv("GGC_SNEAK_NO_ATLAS_FIX") != nullptr)
+    {
+        return false;
+    }
+    if (tex2d == nullptr || sourceFmt != WW3D_FORMAT_DXT1)
+    {
+        return false;
+    }
+    const char *name = tex2d->Get_Full_Path().str();
+    if (StrContainsCaseInsensitive(name, "ubsnkatak_0"))
+    {
+        static bool s_loggedDetection = false;
+        if (!s_loggedDetection)
+        {
+            s_loggedDetection = true;
+            std::fprintf(stderr, "[BgfxBackend] PACKED ATLAS DETECTED: %s (fmt=%d)\n",
+                name ? name : "(null)", static_cast<int>(sourceFmt));
+        }
+        return true;
+    }
+    return false;
+}
+
+static void ExpandDXT1ToBGRA8(const uint8_t *src, unsigned srcPitch,
+    unsigned width, unsigned height, uint8_t *dst)
+{
+    const unsigned blockRows = (height + 3) / 4;
+    const unsigned blockCols = (width + 3) / 4;
+
+    for (unsigned by = 0; by < blockRows; ++by)
+    {
+        const uint8_t *srcBlockRow = src + by * srcPitch;
+        for (unsigned bx = 0; bx < blockCols; ++bx)
+        {
+            const uint8_t *block = srcBlockRow + bx * 8;
+
+            const uint16_t c0 = static_cast<uint16_t>(block[0] | (block[1] << 8));
+            const uint16_t c1 = static_cast<uint16_t>(block[2] | (block[3] << 8));
+            uint8_t color[4][3];
+            uint8_t alpha[4];
+            DecodeRgb565(c0, color[0]);
+            DecodeRgb565(c1, color[1]);
+
+            if (c0 > c1)
+            {
+                for (unsigned c = 0; c < 3; ++c)
+                {
+                    color[2][c] = static_cast<uint8_t>((2 * color[0][c] + color[1][c] + 1) / 3);
+                    color[3][c] = static_cast<uint8_t>((color[0][c] + 2 * color[1][c] + 1) / 3);
+                }
+                alpha[0] = alpha[1] = alpha[2] = alpha[3] = 255;
+            }
+            else
+            {
+                for (unsigned c = 0; c < 3; ++c)
+                {
+                    color[2][c] = static_cast<uint8_t>((color[0][c] + color[1][c]) / 2);
+                    color[3][c] = 0;
+                }
+                alpha[0] = alpha[1] = alpha[2] = 255;
+                alpha[3] = 0;
+            }
+
+            const uint32_t bits = static_cast<uint32_t>(block[4])
+                | (static_cast<uint32_t>(block[5]) << 8)
+                | (static_cast<uint32_t>(block[6]) << 16)
+                | (static_cast<uint32_t>(block[7]) << 24);
+
+            for (unsigned py = 0; py < 4; ++py)
+            {
+                const unsigned y = by * 4 + py;
+                if (y >= height)
+                {
+                    continue;
+                }
+                for (unsigned px = 0; px < 4; ++px)
+                {
+                    const unsigned x = bx * 4 + px;
+                    if (x >= width)
+                    {
+                        continue;
+                    }
+                    const unsigned idx = (bits >> (2 * (py * 4 + px))) & 0x3;
+                    uint8_t *out = dst + (y * width + x) * 4;
+                    out[0] = color[idx][2]; // B
+                    out[1] = color[idx][1]; // G
+                    out[2] = color[idx][0]; // R
+                    out[3] = alpha[idx];    // A
+                }
+            }
+        }
+    }
+}
+
+static void AddPackedAtlasGutter(uint8_t *pixels, unsigned width, unsigned height,
+    unsigned gutter)
+{
+    const unsigned halfW = width / 2;
+    const unsigned halfH = height / 2;
+    const unsigned bpp = 4;
+    const unsigned stride = width * bpp;
+
+    // Protect bottom quadrants from top-quadrant bleed at y = halfH:
+    // copy row halfH+g into row halfH-1-g.
+    for (unsigned g = 0; g < gutter && g < halfH; ++g)
+    {
+        std::memcpy(pixels + (halfH - 1 - g) * stride,
+                     pixels + (halfH + g) * stride, stride);
+    }
+
+    // Protect top quadrants from bottom-quadrant bleed:
+    // copy row halfH-1-g into row halfH+g.
+    // (Must happen after the above so we read the already-overwritten copies
+    //  which now hold bottom-quadrant colors — that is intentional: both sides
+    //  of the seam now match.)
+
+    // Protect right quadrants from left-quadrant bleed at x = halfW:
+    // copy column halfW-1-g into column halfW+g.
+    for (unsigned y = 0; y < height; ++y)
+    {
+        for (unsigned g = 0; g < gutter && g < halfW; ++g)
+        {
+            std::memcpy(pixels + (y * width + halfW + g) * bpp,
+                         pixels + (y * width + halfW - 1 - g) * bpp, bpp);
+        }
+    }
+
+    // Protect left quadrants from right-quadrant bleed:
+    // copy column halfW+g into column halfW-1-g.
+    for (unsigned y = 0; y < height; ++y)
+    {
+        for (unsigned g = 0; g < gutter && g < halfW; ++g)
+        {
+            std::memcpy(pixels + (y * width + halfW - 1 - g) * bpp,
+                         pixels + (y * width + halfW + g) * bpp, bpp);
+        }
+    }
+}
+
+static void BuildPackedAtlasMip(const uint8_t *src, unsigned srcW, unsigned srcH,
+    uint8_t *dst, unsigned dstW, unsigned dstH,
+    unsigned boundaryX, unsigned boundaryY)
+{
+    for (unsigned y = 0; y < dstH; ++y)
+    {
+        const unsigned sy0 = y * 2;
+        const unsigned sy1 = (sy0 + 1 < srcH) ? sy0 + 1 : sy0;
+        for (unsigned x = 0; x < dstW; ++x)
+        {
+            const unsigned sx0 = x * 2;
+            const unsigned sx1 = (sx0 + 1 < srcW) ? sx0 + 1 : sx0;
+
+            const bool leftOfBoundary = (sx0 < boundaryX);
+            const bool aboveBoundary  = (sy0 < boundaryY);
+
+            const unsigned coords[4][2] = {
+                { sx0, sy0 }, { sx1, sy0 }, { sx0, sy1 }, { sx1, sy1 }
+            };
+
+            for (unsigned c = 0; c < 4; ++c)
+            {
+                unsigned sum = 0;
+                unsigned count = 0;
+                for (unsigned s = 0; s < 4; ++s)
+                {
+                    const bool sameX = (leftOfBoundary == (coords[s][0] < boundaryX))
+                        || (boundaryX == 0);
+                    const bool sameY = (aboveBoundary == (coords[s][1] < boundaryY))
+                        || (boundaryY == 0);
+                    if (sameX && sameY)
+                    {
+                        sum += src[(coords[s][1] * srcW + coords[s][0]) * 4 + c];
+                        count++;
+                    }
+                }
+                if (count == 0)
+                {
+                    count = 1;
+                }
+                dst[(y * dstW + x) * 4 + c] = static_cast<uint8_t>(
+                    (sum + count / 2) / count);
+            }
+        }
+    }
+}
+
+static bool UploadPackedAtlasMips(TextureClass *tex2d, bgfx::TextureHandle h,
+    const std::vector<TextureBaseClass::TextureMipSnapshot> &mips)
+{
+    if (mips.empty() || mips[0].Data.empty())
+    {
+        return false;
+    }
+
+    const TextureBaseClass::TextureMipSnapshot &baseMip = mips[0];
+    const unsigned width = baseMip.Width;
+    const unsigned height = baseMip.Height;
+    const unsigned bpp = 4;
+    const unsigned pixelBytes = width * height * bpp;
+
+    const unsigned blockRows = (height + 3) / 4;
+    const unsigned blockCols = (width + 3) / 4;
+    const unsigned srcPitch = blockCols * 8;
+    if (baseMip.Data.size() < blockRows * srcPitch)
+    {
+        return false;
+    }
+
+    std::vector<uint8_t> prev(pixelBytes);
+
+    if (std::getenv("GGC_SNEAK_UV_DEBUG") != nullptr)
+    {
+        for (unsigned y = 0; y < height; ++y)
+        {
+            for (unsigned x = 0; x < width; ++x)
+            {
+                uint8_t *p = &prev[(y * width + x) * bpp];
+                p[0] = 0;
+                p[1] = static_cast<uint8_t>(y * 255 / (height - 1));
+                p[2] = static_cast<uint8_t>(x * 255 / (width - 1));
+                p[3] = 255;
+            }
+        }
+        std::fprintf(stderr, "[BgfxBackend] UV DEBUG texture generated for %s (%ux%u)\n",
+            tex2d->Get_Full_Path().str(), width, height);
+    }
+    else
+    {
+        ExpandDXT1ToBGRA8(&baseMip.Data[0], baseMip.Pitch, width, height, &prev[0]);
+    }
+
+    static const unsigned kGutter = 2;
+    AddPackedAtlasGutter(&prev[0], width, height, kGutter);
+
+    const bgfx::Memory *mem = bgfx::copy(&prev[0], static_cast<uint32_t>(pixelBytes));
+    bgfx::updateTexture2D(h, 0, 0, 0, 0,
+        static_cast<uint16_t>(width), static_cast<uint16_t>(height), mem);
+    g_stats.textureUploads++;
+
+    const unsigned fullMipCount = GetFullMipCount(width, height);
+    unsigned prevW = width;
+    unsigned prevH = height;
+    unsigned boundaryX = width / 2;
+    unsigned boundaryY = height / 2;
+
+    for (unsigned mip = 1; mip < fullMipCount; ++mip)
+    {
+        const unsigned nextW = (prevW > 1) ? prevW >> 1 : 1;
+        const unsigned nextH = (prevH > 1) ? prevH >> 1 : 1;
+        std::vector<uint8_t> next(nextW * nextH * bpp);
+        BuildPackedAtlasMip(&prev[0], prevW, prevH, &next[0], nextW, nextH,
+            boundaryX, boundaryY);
+        const bgfx::Memory *nextMem = bgfx::copy(&next[0],
+            static_cast<uint32_t>(next.size()));
+        bgfx::updateTexture2D(h, 0, static_cast<uint8_t>(mip), 0, 0,
+            static_cast<uint16_t>(nextW), static_cast<uint16_t>(nextH), nextMem);
+        g_stats.textureUploads++;
+        prev.swap(next);
+        prevW = nextW;
+        prevH = nextH;
+        boundaryX = (boundaryX > 1) ? boundaryX >> 1 : 0;
+        boundaryY = (boundaryY > 1) ? boundaryY >> 1 : 0;
+    }
+
+    static bool s_logged = false;
+    if (!s_logged)
+    {
+        s_logged = true;
+        std::fprintf(stderr, "[BgfxBackend] Packed atlas mip fix APPLIED: %s (%ux%u BC1->BGRA8, %u mips, gutter=%u)\n",
+            tex2d->Get_Full_Path().str(), width, height, fullMipCount, kGutter);
+    }
+
+    return true;
+}
+
 // External linkage: called from BgfxBackend.cpp's Set_Texture path.
 bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
 {
@@ -943,10 +1253,15 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
                     && baseMip.Height == cachedH
                     && bgfxFmt != bgfx::TextureFormat::Unknown)
                 {
+                    const bool packedMeshAtlas = IsPackedMeshAtlasTexture(tex2d, baseMip.Format);
                     bool updatedAllLevels = true;
                     if (terrainAtlasSafeMips)
                     {
                         updatedAllLevels = UploadTerrainAtlasMips(tex2d, it->second, mips);
+                    }
+                    else if (packedMeshAtlas)
+                    {
+                        updatedAllLevels = UploadPackedAtlasMips(tex2d, it->second, mips);
                     }
                     else
                     {
@@ -1060,12 +1375,17 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     // hotspot when minified.
 		const unsigned mipCount = static_cast<unsigned>(mips.size());
 		const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, baseMip.Format, bgfxFmt);
+		const bool packedMeshAtlas = IsPackedMeshAtlasTexture(tex2d, baseMip.Format);
+		const bgfx::TextureFormat::Enum createFmt = packedMeshAtlas
+			? bgfx::TextureFormat::BGRA8 : bgfxFmt;
+		const unsigned createMipCount = packedMeshAtlas
+			? GetFullMipCount(baseMip.Width, baseMip.Height) : mipCount;
     bgfx::TextureHandle h = bgfx::createTexture2D(
         static_cast<uint16_t>(baseMip.Width),
         static_cast<uint16_t>(baseMip.Height),
-        mipCount > 1, 1,
-        bgfxFmt,
-        BGFX_TEXTURE_NONE | BGFX_SAMPLER_MIN_ANISOTROPIC | BGFX_SAMPLER_MAG_ANISOTROPIC,
+        createMipCount > 1, 1,
+        createFmt,
+        BGFX_TEXTURE_NONE,
         nullptr);
     if (bgfx::isValid(h))
     {
@@ -1074,6 +1394,10 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
         if (terrainAtlasSafeMips)
         {
             uploadedAllLevels = UploadTerrainAtlasMips(tex2d, h, mips);
+        }
+        else if (packedMeshAtlas)
+        {
+            uploadedAllLevels = UploadPackedAtlasMips(tex2d, h, mips);
         }
         else
         {

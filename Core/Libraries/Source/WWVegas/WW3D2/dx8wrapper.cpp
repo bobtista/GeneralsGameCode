@@ -3514,6 +3514,17 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 
 	if (light_env)
 	{
+		if (std::getenv("GGC_LIGHT_ENV_DIAG") != nullptr)
+		{
+			static unsigned s_leDiag = 0;
+			if (s_leDiag < 5)
+			{
+				s_leDiag++;
+				const Vector3 & eqa = light_env->Get_Equivalent_Ambient();
+				std::fprintf(stderr, "LIGHT_ENV: eqAmb=[%.3f %.3f %.3f] lights=%d\n",
+					eqa.X, eqa.Y, eqa.Z, light_env->Get_Light_Count());
+			}
+		}
 		int light_count = light_env->Get_Light_Count();
 		unsigned int color=Convert_Color(light_env->Get_Equivalent_Ambient(),0.0f);
 		if (RenderStateCache::Get_Render_State(D3DRS_AMBIENT)!=color)
