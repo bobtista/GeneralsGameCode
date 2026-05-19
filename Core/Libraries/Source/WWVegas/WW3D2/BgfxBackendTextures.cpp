@@ -917,10 +917,6 @@ static bool StrContainsCaseInsensitive(const char *haystack, const char *needle)
 
 static bool IsPackedMeshAtlasTexture(TextureClass *tex2d, WW3DFormat sourceFmt)
 {
-    if (std::getenv("GGC_SNEAK_NO_ATLAS_FIX") != nullptr)
-    {
-        return false;
-    }
     if (tex2d == nullptr || sourceFmt != WW3D_FORMAT_DXT1)
     {
         return false;
@@ -928,13 +924,6 @@ static bool IsPackedMeshAtlasTexture(TextureClass *tex2d, WW3DFormat sourceFmt)
     const char *name = tex2d->Get_Full_Path().str();
     if (StrContainsCaseInsensitive(name, "ubsnkatak_0"))
     {
-        static bool s_loggedDetection = false;
-        if (!s_loggedDetection)
-        {
-            s_loggedDetection = true;
-            std::fprintf(stderr, "[BgfxBackend] PACKED ATLAS DETECTED: %s (fmt=%d)\n",
-                name ? name : "(null)", static_cast<int>(sourceFmt));
-        }
         return true;
     }
     return false;
@@ -1126,27 +1115,7 @@ static bool UploadPackedAtlasMips(TextureClass *tex2d, bgfx::TextureHandle h,
     }
 
     std::vector<uint8_t> prev(pixelBytes);
-
-    if (std::getenv("GGC_SNEAK_UV_DEBUG") != nullptr)
-    {
-        for (unsigned y = 0; y < height; ++y)
-        {
-            for (unsigned x = 0; x < width; ++x)
-            {
-                uint8_t *p = &prev[(y * width + x) * bpp];
-                p[0] = 0;
-                p[1] = static_cast<uint8_t>(y * 255 / (height - 1));
-                p[2] = static_cast<uint8_t>(x * 255 / (width - 1));
-                p[3] = 255;
-            }
-        }
-        std::fprintf(stderr, "[BgfxBackend] UV DEBUG texture generated for %s (%ux%u)\n",
-            tex2d->Get_Full_Path().str(), width, height);
-    }
-    else
-    {
-        ExpandDXT1ToBGRA8(&baseMip.Data[0], baseMip.Pitch, width, height, &prev[0]);
-    }
+    ExpandDXT1ToBGRA8(&baseMip.Data[0], baseMip.Pitch, width, height, &prev[0]);
 
     static const unsigned kGutter = 16;
     AddPackedAtlasGutter(&prev[0], width, height, kGutter);
@@ -1179,14 +1148,6 @@ static bool UploadPackedAtlasMips(TextureClass *tex2d, bgfx::TextureHandle h,
         prevH = nextH;
         boundaryX = (boundaryX > 1) ? boundaryX >> 1 : 0;
         boundaryY = (boundaryY > 1) ? boundaryY >> 1 : 0;
-    }
-
-    static bool s_logged = false;
-    if (!s_logged)
-    {
-        s_logged = true;
-        std::fprintf(stderr, "[BgfxBackend] Packed atlas mip fix APPLIED: %s (%ux%u BC1->BGRA8, %u mips, gutter=%u)\n",
-            tex2d->Get_Full_Path().str(), width, height, fullMipCount, kGutter);
     }
 
     return true;
