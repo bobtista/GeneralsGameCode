@@ -5858,8 +5858,9 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
         const bool normalBiasFromGeometry =
-            g_draw.fvfHasNormal
-            && (g_draw.activeVertexNormalBias || IsSneakAttackCoplanarSurface());
+            g_draw.normalBias[0] != 0.0f
+            || g_draw.activeVertexNormalBias
+            || IsSneakAttackCoplanarSurface();
         g_draw.zBias[1] = normalBiasFromGeometry
             ? ((g_draw.normalBias[0] < 0.02f) ? 0.02f : g_draw.normalBias[0])
             : 0.0f;
@@ -8147,8 +8148,9 @@ void SubmitEngineDraw(unsigned short start_index,
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
         const bool normalBiasFromGeometry =
             !is2D
-            && g_draw.fvfHasNormal
-            && (g_draw.activeVertexNormalBias || IsSneakAttackCoplanarSurface());
+            && (g_draw.normalBias[0] != 0.0f
+                || g_draw.activeVertexNormalBias
+                || IsSneakAttackCoplanarSurface());
         g_draw.zBias[1] = normalBiasFromGeometry
             ? ((g_draw.normalBias[0] < 0.02f) ? 0.02f : g_draw.normalBias[0])
             : 0.0f;
