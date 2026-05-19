@@ -235,20 +235,21 @@ static bool Has_Coplanar_Opposite_Triangle_Pairs(MeshGeometryClass * mesh)
 			continue;
 		}
 		for (int j = i + 1; j < poly_count; ++j) {
-			if (!Triangles_Share_Positions(verts, polys[i], polys[j])) {
-				continue;
-			}
 			Vector3 nj;
 			float dj = 0.0f;
 			if (!Compute_Triangle_Plane(verts, polys[j], &nj, &dj)) {
 				continue;
 			}
-			if (Vector3::Dot_Product(ni, nj) < -0.999f && fabsf(di + dj) < 0.001f) {
+			const bool same_positions = Triangles_Share_Positions(verts, polys[i], polys[j]);
+			const bool opposite_face_planes =
+				Vector3::Dot_Product(ni, nj) < -0.999f && fabsf(di + dj) < 0.001f;
+			if (same_positions && opposite_face_planes) {
 				return true;
 			}
 			Vector3 vni;
 			Vector3 vnj;
-			if (Triangle_Is_On_Plane(verts, polys[j], ni, di)
+			if (opposite_face_planes
+				&& Triangle_Is_On_Plane(verts, polys[j], ni, di)
 				&& Projected_Triangle_Bounds_Overlap(verts, polys[i], polys[j], ni)
 				&& Compute_Averaged_Vertex_Normal(norms, polys[i], &vni)
 				&& Compute_Averaged_Vertex_Normal(norms, polys[j], &vnj)
