@@ -4414,10 +4414,14 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
     // from RenderStateCache when the current bound texture is the rotor-blur
     // mask gives the replay the matrix DX8 fixed-function would have applied,
     // letting the blur disc actually spin instead of wobble around the hub.
-    // Limit to the rotor texture so unrelated sorted draws (sneak-attack
-    // wings, decals) still get the legacy identity-world contract.
+    // Limit this to sorted meshes that are authored in local model space.
+    // The Sneak Attack ground dirt plane uses UBSnkAtak_01.tga and is sorted
+    // for texture alpha; replaying it with identity world leaves the wide dirt
+    // decal at map origin instead of around the tunnel entrance.
     const char *texName = TextureDebugName(g_draw.sourceTextures[0]);
-    if (texName != nullptr && ContainsCaseInsensitive(texName, "avcomanche_p"))
+    if (texName != nullptr
+        && (ContainsCaseInsensitive(texName, "avcomanche_p")
+            || ContainsCaseInsensitive(texName, "ubsnkatak_01")))
     {
         RenderStateCache::Get_Transform(
             static_cast<unsigned>(RB_TRANSFORM_WORLD), state.world);
@@ -5060,6 +5064,14 @@ static void UpdateAlphaMaskAndSortedEffectModes(uint64_t state)
         // away after replaying the sorted pool.
         g_draw.texcoordSelect2[2] = 2.0f;
     }
+    else if (IsSneakAttackAlphaDepthDecal(state))
+    {
+        // UBSnkAtak_01 is the Sneak Attack's authored dirt/mound alpha quad.
+        // Its sorted replay can inherit a zero-opacity material from the W3D
+        // pass, which makes the wide dirt stain disappear while the opaque
+        // mound geometry remains. Keep this path texture-alpha driven.
+        g_draw.texcoordSelect2[2] = 3.0f;
+    }
 }
 
 static RenderBackendProjectedDecalMode GetEffectiveProjectedDecalModeForCurrentDraw()
@@ -5178,8 +5190,10 @@ static void LogBgfxShroudPass(const char *event,
 // floor emblems render in front of bulldozers as they leave the building.
 static const float kSortedDecalMinZBias = 0.00025f;
 static const float kSortedDecalMaxZBias = 0.00075f;
-static const float kSneakAttackDecalMinZBias = 0.00125f;
-static const float kSneakAttackDecalMaxZBias = 0.00175f;
+// UBSnkAtak_01 sits under the entrance mesh as part of the model art. Do not
+// pull it toward the camera or the dirt quad blends over the tunnel shell.
+static const float kSneakAttackDecalMinZBias = 0.0f;
+static const float kSneakAttackDecalMaxZBias = 0.0f;
 
 static void ClampSortedMaterialDecalZBias()
 {
@@ -7873,8 +7887,11 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         submitView = kBgfxEngineView;
     }
-    if (IsSortedRotorBlur(g_draw.state))
+    if (IsSortedRotorBlur(g_draw.state) || IsSneakAttackAlphaDepthDecal(g_draw.state))
     {
+        // These sorted meshes need their raw model world matrix and the normal
+        // camera view. The pre-view-multiplied sort matrix lands local W3D
+        // model quads away from the object.
         submitView = kBgfxEngineView;
     }
     const BgfxDiagnosticFlags diagnostics = GetBgfxDiagnosticFlags();
@@ -7938,7 +7955,7 @@ void SubmitEngineDraw(unsigned short start_index,
     const float * worldMtx = g_views.inSortFlush
         ? g_frame.sortWorld
         : g_frame.world;
-    if (IsSortedRotorBlur(g_draw.state))
+    if (IsSortedRotorBlur(g_draw.state) || IsSneakAttackAlphaDepthDecal(g_draw.state))
     {
         worldMtx = g_frame.sortWorldRaw;
     }
