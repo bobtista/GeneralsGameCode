@@ -1147,7 +1147,7 @@ static bool UploadPackedAtlasMips(TextureClass *tex2d, bgfx::TextureHandle h,
         ExpandDXT1ToBGRA8(&baseMip.Data[0], baseMip.Pitch, width, height, &prev[0]);
     }
 
-    static const unsigned kGutter = 2;
+    static const unsigned kGutter = 16;
     AddPackedAtlasGutter(&prev[0], width, height, kGutter);
 
     const bgfx::Memory *mem = bgfx::copy(&prev[0], static_cast<uint32_t>(pixelBytes));

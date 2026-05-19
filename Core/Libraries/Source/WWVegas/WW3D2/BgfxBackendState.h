@@ -56,6 +56,7 @@ struct PendingTransientVB
     bool                        valid;
     const DynamicVBAccessClass * owner;
     bgfx::TransientVertexBuffer  tvb;
+    bool                        coplanarNormalBias;
 };
 
 struct PendingTransientIB
@@ -211,10 +212,11 @@ struct BgfxDraw
     bgfx::TransientVertexBuffer transientVB    = {};
     bool                        useTransientIB = false;
     bgfx::TransientIndexBuffer  transientIB    = {};
-    PendingTransientVB pendingVB = { false, nullptr, {} };
+    PendingTransientVB pendingVB = { false, nullptr, {}, false };
     PendingTransientIB pendingIB = { false, nullptr, {} };
     const DynamicVBAccessClass * activeTransientVBOwner = nullptr;
     const DynamicIBAccessClass * activeTransientIBOwner = nullptr;
+    bool activeVertexNormalBias = false;
 
     // Cull + stencil
     int      cullModeBits       = 0; // 0=NONE, 1=CW, 2=CCW
@@ -301,6 +303,7 @@ struct BgfxDraw
     // floor emblems and decals from z-fighting with the terrain they sit on)
     // get equivalent behaviour under the bgfx pipeline.
     float zBias[4]            = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float normalBias[4]       = { 0.0f, 0.0f, 0.0f, 0.0f };
     float legacyPixelShaderMode[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     float swayTable[11][4]    = {{0}};
     float shroudOffset[4]     = { 0.0f, 0.0f, 0.0f, 0.0f };
