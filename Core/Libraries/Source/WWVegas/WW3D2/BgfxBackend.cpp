@@ -5857,10 +5857,12 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
-        const bool normalBiasFromGeometry = g_draw.activeVertexNormalBias || IsSneakAttackCoplanarSurface();
-        g_draw.zBias[1] = (normalBiasFromGeometry && g_draw.normalBias[0] < 0.02f)
-            ? 0.02f
-            : g_draw.normalBias[0];
+        const bool normalBiasFromGeometry =
+            g_draw.fvfHasNormal
+            && (g_draw.activeVertexNormalBias || IsSneakAttackCoplanarSurface());
+        g_draw.zBias[1] = normalBiasFromGeometry
+            ? ((g_draw.normalBias[0] < 0.02f) ? 0.02f : g_draw.normalBias[0])
+            : 0.0f;
         ClampSortedMaterialDecalZBias();
     }
     UpdateProjectedDecalModeForCurrentDraw();
@@ -8143,10 +8145,13 @@ void SubmitEngineDraw(unsigned short start_index,
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
-        const bool normalBiasFromGeometry = g_draw.activeVertexNormalBias || IsSneakAttackCoplanarSurface();
-        g_draw.zBias[1] = (normalBiasFromGeometry && g_draw.normalBias[0] < 0.02f)
-            ? 0.02f
-            : g_draw.normalBias[0];
+        const bool normalBiasFromGeometry =
+            !is2D
+            && g_draw.fvfHasNormal
+            && (g_draw.activeVertexNormalBias || IsSneakAttackCoplanarSurface());
+        g_draw.zBias[1] = normalBiasFromGeometry
+            ? ((g_draw.normalBias[0] < 0.02f) ? 0.02f : g_draw.normalBias[0])
+            : 0.0f;
         // TheSuperHackers @bugfix bobtista 02/05/2026 Sorted material decals
         // (alpha-blend + DEPTH_WRITE_OFF + postdetail-alpha) such as the USA
         // strategy center floor emblem (ABBTCMDHQS.SWORD) sit coplanar with
