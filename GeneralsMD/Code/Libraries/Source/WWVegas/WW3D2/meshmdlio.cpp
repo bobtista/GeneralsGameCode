@@ -90,12 +90,176 @@
 #include "realcrc.h"
 #include "ww3dcolor.h"
 
+#include <math.h>
+
 #ifdef _UNIX
 #include "osdep/osdep.h"
 #endif
 
 #define MESH_SINGLE_MATERIAL_HACK		0		// (gth) forces all multi-material meshes to use their first material only. (NOT RECOMMENDED, TESTING ONLY!)
 #define MESH_FORCE_STATIC_SORT_HACK	0		// (gth) forces all sorting meshes to use static sort level 1 instead.
+
+static bool Same_Position(const Vector3 & a, const Vector3 & b)
+{
+	const float dx = a.X - b.X;
+	const float dy = a.Y - b.Y;
+	const float dz = a.Z - b.Z;
+	return dx * dx + dy * dy + dz * dz < 0.000001f;
+}
+
+static bool Triangles_Share_Positions(const Vector3 * verts, const TriIndex & a, const TriIndex & b)
+{
+	bool matched[3] = { false, false, false };
+	for (int ai = 0; ai < 3; ++ai) {
+		bool found = false;
+		for (int bi = 0; bi < 3; ++bi) {
+			if (!matched[bi] && Same_Position(verts[a[ai]], verts[b[bi]])) {
+				matched[bi] = true;
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool Compute_Triangle_Plane(const Vector3 * verts, const TriIndex & tri, Vector3 * normal, float * dist)
+{
+	const Vector3 & p0 = verts[tri[0]];
+	const Vector3 & p1 = verts[tri[1]];
+	const Vector3 & p2 = verts[tri[2]];
+	Vector3 e0 = p1 - p0;
+	Vector3 e1 = p2 - p0;
+	Vector3::Cross_Product(e0, e1, normal);
+	if (normal->Length2() < 0.000001f) {
+		return false;
+	}
+	normal->Normalize();
+	*dist = Vector3::Dot_Product(*normal, p0);
+	return true;
+}
+
+static bool Compute_Averaged_Vertex_Normal(const Vector3 * norms, const TriIndex & tri, Vector3 * normal)
+{
+	*normal = norms[tri[0]] + norms[tri[1]] + norms[tri[2]];
+	if (normal->Length2() < 0.000001f) {
+		return false;
+	}
+	normal->Normalize();
+	return true;
+}
+
+static bool Triangle_Is_On_Plane(const Vector3 * verts, const TriIndex & tri, const Vector3 & normal, float dist)
+{
+	for (int i = 0; i < 3; ++i) {
+		if (fabsf(Vector3::Dot_Product(normal, verts[tri[i]]) - dist) > 0.001f) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static int Dominant_Axis(const Vector3 & normal)
+{
+	const float ax = fabsf(normal.X);
+	const float ay = fabsf(normal.Y);
+	const float az = fabsf(normal.Z);
+	if (ax >= ay && ax >= az) {
+		return 0;
+	}
+	if (ay >= az) {
+		return 1;
+	}
+	return 2;
+}
+
+static void Project_Vertex(const Vector3 & v, int drop_axis, float * u, float * w)
+{
+	if (drop_axis == 0) {
+		*u = v.Y;
+		*w = v.Z;
+	} else if (drop_axis == 1) {
+		*u = v.X;
+		*w = v.Z;
+	} else {
+		*u = v.X;
+		*w = v.Y;
+	}
+}
+
+static bool Projected_Triangle_Bounds_Overlap(const Vector3 * verts,
+	const TriIndex & a,
+	const TriIndex & b,
+	const Vector3 & plane_normal)
+{
+	const int drop_axis = Dominant_Axis(plane_normal);
+	float amin_u = 0.0f, amin_w = 0.0f, amax_u = 0.0f, amax_w = 0.0f;
+	float bmin_u = 0.0f, bmin_w = 0.0f, bmax_u = 0.0f, bmax_w = 0.0f;
+	for (int i = 0; i < 3; ++i) {
+		float u = 0.0f;
+		float w = 0.0f;
+		Project_Vertex(verts[a[i]], drop_axis, &u, &w);
+		if (i == 0 || u < amin_u) amin_u = u;
+		if (i == 0 || u > amax_u) amax_u = u;
+		if (i == 0 || w < amin_w) amin_w = w;
+		if (i == 0 || w > amax_w) amax_w = w;
+		Project_Vertex(verts[b[i]], drop_axis, &u, &w);
+		if (i == 0 || u < bmin_u) bmin_u = u;
+		if (i == 0 || u > bmax_u) bmax_u = u;
+		if (i == 0 || w < bmin_w) bmin_w = w;
+		if (i == 0 || w > bmax_w) bmax_w = w;
+	}
+	return amin_u <= bmax_u + 0.001f
+		&& amax_u + 0.001f >= bmin_u
+		&& amin_w <= bmax_w + 0.001f
+		&& amax_w + 0.001f >= bmin_w;
+}
+
+static bool Has_Coplanar_Opposite_Triangle_Pairs(MeshGeometryClass * mesh)
+{
+	const int poly_count = mesh->Get_Polygon_Count();
+	if (poly_count < 2) {
+		return false;
+	}
+
+	const TriIndex * polys = mesh->Get_Polygon_Array();
+	const Vector3 * verts = mesh->Get_Vertex_Array();
+	const Vector3 * norms = mesh->Get_Vertex_Normal_Array();
+	for (int i = 0; i < poly_count; ++i) {
+		Vector3 ni;
+		float di = 0.0f;
+		if (!Compute_Triangle_Plane(verts, polys[i], &ni, &di)) {
+			continue;
+		}
+		for (int j = i + 1; j < poly_count; ++j) {
+			if (!Triangles_Share_Positions(verts, polys[i], polys[j])) {
+				continue;
+			}
+			Vector3 nj;
+			float dj = 0.0f;
+			if (!Compute_Triangle_Plane(verts, polys[j], &nj, &dj)) {
+				continue;
+			}
+			if (Vector3::Dot_Product(ni, nj) < -0.999f && fabsf(di + dj) < 0.001f) {
+				return true;
+			}
+			Vector3 vni;
+			Vector3 vnj;
+			if (Triangle_Is_On_Plane(verts, polys[j], ni, di)
+				&& Projected_Triangle_Bounds_Overlap(verts, polys[i], polys[j], ni)
+				&& Compute_Averaged_Vertex_Normal(norms, polys[i], &vni)
+				&& Compute_Averaged_Vertex_Normal(norms, polys[j], &vnj)
+				&& Vector3::Dot_Product(vni, vnj) < -0.9f) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 /**
 ** MeshLoadContextClass
 ** This class is just used as a temporary scratchpad while a mesh is being
@@ -1655,6 +1819,8 @@ void MeshModelClass::post_process()
 			REF_PTR_RELEASE(CullTree);
 		}
 	}
+
+	Set_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS, Has_Coplanar_Opposite_Triangle_Pairs(this));
 
 	// turn off backface culling if the mesh is supposed to be two-sided
 	if (Get_Flag(MeshGeometryClass::TWO_SIDED)) {

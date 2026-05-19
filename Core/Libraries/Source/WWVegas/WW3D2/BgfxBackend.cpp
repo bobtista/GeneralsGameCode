@@ -2716,9 +2716,11 @@ void BgfxBackend::Shutdown()
         g_draw.useTransientVB = false;
         g_draw.useTransientIB = false;
         g_draw.pendingVB.valid    = false;
+        g_draw.pendingVB.coplanarNormalBias = false;
         g_draw.pendingIB.valid    = false;
         g_draw.activeTransientVBOwner = nullptr;
         g_draw.activeTransientIBOwner = nullptr;
+        g_draw.activeVertexNormalBias = false;
         // Flush both deferred-destroy queues — bgfx::shutdown() tolerates stale handles but strict debug builds may assert.
         for (auto & h : g_caches.deferredDestroys)
         {
@@ -3324,11 +3326,13 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     // pending and current slots so nothing next frame tries to reuse
     // a dead handle.
     g_draw.pendingVB.valid    = false;
+    g_draw.pendingVB.coplanarNormalBias = false;
     g_draw.pendingIB.valid    = false;
     g_draw.useTransientVB = false;
     g_draw.useTransientIB = false;
     g_draw.activeTransientVBOwner = nullptr;
     g_draw.activeTransientIBOwner = nullptr;
+    g_draw.activeVertexNormalBias = false;
 }
 
 WW3DFormat BgfxBackend::Get_Back_Buffer_Format() const
@@ -3479,6 +3483,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
     g_draw.useStaticVB = false;
     g_draw.staticVB = BGFX_INVALID_HANDLE;
     g_draw.activeTransientVBOwner = nullptr;
+    g_draw.activeVertexNormalBias = false;
     // TheSuperHackers @bugfix bobtista 27/04/2026 Legacy fixed-function
     // supplies a white diffuse color when the bound FVF has no COLOR0 element. bgfx
     // missing attributes read as zero, so tell the shader when it must
@@ -3568,6 +3573,7 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
                              "claim-pending");
         g_draw.useTransientVB = true;
         g_draw.transientVB    = g_draw.pendingVB.tvb;
+        g_draw.activeVertexNormalBias = g_draw.pendingVB.coplanarNormalBias;
         g_draw.pendingVB.valid    = false;
         g_draw.activeTransientVBOwner = &vba;
     }
@@ -3597,6 +3603,7 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
         g_draw.useTransientVB = false;
         g_draw.vb         = BGFX_INVALID_HANDLE;
         g_draw.activeTransientVBOwner = nullptr;
+        g_draw.activeVertexNormalBias = false;
     }
 }
 
@@ -4645,6 +4652,14 @@ static bool IsSneakAttackAlphaDepthDecal(uint64_t state)
 {
     return IsSortedAlphaDepthDecal(state)
         && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "ubsnkatak_01");
+}
+
+static bool IsSneakAttackCoplanarSurface()
+{
+    const char * name = TextureDebugName(g_draw.sourceTextures[0]);
+    return name != nullptr
+        && ContainsCaseInsensitive(name, "ubsnkatak_0")
+        && !ContainsCaseInsensitive(name, "ubsnkatak_01");
 }
 
 static bool IsSortedRotorBlur(uint64_t state)
@@ -5788,6 +5803,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     const bgfx::TransientIndexBuffer  ib = g_draw.pendingIB.tib;
     const FVFInfoClass & traceFvf = dyn_vb.FVF_Info();
     const unsigned traceStride = traceFvf.Get_FVF_Size();
+    g_draw.activeVertexNormalBias = g_draw.pendingVB.coplanarNormalBias;
     g_draw.pendingVB.valid = false;
     g_draw.pendingIB.valid = false;
 
@@ -5827,7 +5843,10 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
-        g_draw.zBias[1] = 0.0f;
+        const bool normalBiasFromGeometry = g_draw.activeVertexNormalBias || IsSneakAttackCoplanarSurface();
+        g_draw.zBias[1] = (normalBiasFromGeometry && g_draw.normalBias[0] < 0.02f)
+            ? 0.02f
+            : g_draw.normalBias[0];
         ClampSortedMaterialDecalZBias();
     }
     UpdateProjectedDecalModeForCurrentDraw();
@@ -5920,6 +5939,49 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
 // The matching Set_Vertex_Buffer(DynamicVBAccessClass&) later sees its
 // own pointer in g_draw.pendingVB and claims the transient for the draw.
 
+static bool SameSubmittedPosition(const float * a, const float * b)
+{
+    const float dx = a[0] - b[0];
+    const float dy = a[1] - b[1];
+    const float dz = a[2] - b[2];
+    return dx * dx + dy * dy + dz * dz < 0.000001f;
+}
+
+static bool HasSubmittedOppositeNormalPairs(const FVFInfoClass & fvf,
+                                            const void * data,
+                                            uint32_t numVerts)
+{
+    if (!fvf.Has_Normal() || data == nullptr || numVerts < 2 || numVerts > 4096)
+    {
+        return false;
+    }
+
+    const uint8_t * bytes = static_cast<const uint8_t *>(data);
+    const unsigned stride = fvf.Get_FVF_Size();
+    const unsigned positionOffset = fvf.Get_Location_Offset();
+    const unsigned normalOffset = fvf.Get_Normal_Offset();
+    for (uint32_t i = 0; i < numVerts; ++i)
+    {
+        const float * pi = reinterpret_cast<const float *>(bytes + i * stride + positionOffset);
+        const float * ni = reinterpret_cast<const float *>(bytes + i * stride + normalOffset);
+        for (uint32_t j = i + 1; j < numVerts; ++j)
+        {
+            const float * pj = reinterpret_cast<const float *>(bytes + j * stride + positionOffset);
+            if (!SameSubmittedPosition(pi, pj))
+            {
+                continue;
+            }
+            const float * nj = reinterpret_cast<const float *>(bytes + j * stride + normalOffset);
+            const float dot = ni[0] * nj[0] + ni[1] * nj[1] + ni[2] * nj[2];
+            if (dot < -0.9f)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
                                               const void * data,
                                               unsigned int size_bytes)
@@ -5949,6 +6011,7 @@ void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
                              g_draw.activeTransientVBOwner == vba,
                              "no-avail");
         g_draw.pendingVB.valid = false;
+        g_draw.pendingVB.coplanarNormalBias = false;
         return;
     }
 
@@ -5959,6 +6022,7 @@ void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
     std::memcpy(g_draw.pendingVB.tvb.data, data, bytes);
     g_draw.pendingVB.owner = vba;
     g_draw.pendingVB.valid = true;
+    g_draw.pendingVB.coplanarNormalBias = HasSubmittedOppositeNormalPairs(vba->FVF_Info(), data, num_verts);
     LogBgfxTransientDiag("capture", "vb", vba, num_verts,
                          true,
                          true,
@@ -7429,6 +7493,11 @@ void BgfxBackend::Set_Z_Bias(int bias)
     RenderStateCache::Set_Render_State(kRenderStateZBias, static_cast<unsigned>(bias));
 }
 
+void BgfxBackend::Set_Normal_Bias(float bias)
+{
+    g_draw.normalBias[0] = bias;
+}
+
 void BgfxBackend::Set_Fill_Mode(FillMode mode)
 {
     RenderStateCache::Set_Render_State(kRenderStateFillMode, static_cast<unsigned>(mode));
@@ -7883,30 +7952,6 @@ void SubmitEngineDraw(unsigned short start_index,
         worldMtx = identityWorld;
     }
 
-    if (g_draw.sourceTextures[0] != nullptr)
-    {
-        const char *tn = TextureDebugName(g_draw.sourceTextures[0]);
-        if (tn != nullptr && ContainsCaseInsensitive(tn, "ubsnkatak_0")
-            && !ContainsCaseInsensitive(tn, "ubsnkatak_01"))
-        {
-            if (std::getenv("GGC_SNEAK_SKIP_ALL") != nullptr)
-            {
-                g_stats.skippedDraws++;
-                bgfx::discard(BGFX_DISCARD_ALL);
-                return;
-            }
-            if (std::getenv("GGC_SNEAK_SKIP_INNER") != nullptr && polygon_count == 60)
-            {
-                g_stats.skippedDraws++;
-                bgfx::discard(BGFX_DISCARD_ALL);
-                return;
-            }
-            if (polygon_count == 60)
-            {
-                g_draw.zBias[0] = 0.01f;
-            }
-        }
-    }
     bgfx::setTransform(worldMtx);
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Offset
@@ -8034,31 +8079,6 @@ void SubmitEngineDraw(unsigned short start_index,
     BindTextureStages();
     UpdateTextureTransforms();
 
-    if (g_draw.sourceTextures[0] != nullptr)
-    {
-        const char *tn = TextureDebugName(g_draw.sourceTextures[0]);
-        if (tn != nullptr && ContainsCaseInsensitive(tn, "ubsnkatak_0")
-            && !ContainsCaseInsensitive(tn, "ubsnkatak_01"))
-        {
-            static unsigned s_uvDiagCount = 0;
-            if (s_uvDiagCount < 8)
-            {
-                s_uvDiagCount++;
-                std::fprintf(stderr,
-                    "SNEAK_MAT: polys=%u lit=%.1f vtxFlags=[%.0f %.0f %.0f %.0f] "
-                    "tssOps0=[%.0f %.0f %.0f %.0f] tssOps1=[%.1f %.1f %.1f %.1f] "
-                    "scnAmb=[%.2f %.2f %.2f]\n",
-                    polygon_count,
-                    g_draw.lightingEnabled[0],
-                    g_draw.vertexColorFlags[0], g_draw.vertexColorFlags[1],
-                    g_draw.vertexColorFlags[2], g_draw.vertexColorFlags[3],
-                    g_draw.tssOps0[0], g_draw.tssOps0[1], g_draw.tssOps0[2], g_draw.tssOps0[3],
-                    g_draw.tssOps1[0], g_draw.tssOps1[1], g_draw.tssOps1[2], g_draw.tssOps1[3],
-                    g_draw.sceneAmbient[0], g_draw.sceneAmbient[1], g_draw.sceneAmbient[2]);
-            }
-        }
-    }
-
     if (is2D)
     {
         // Render2DClass-authored quads only carry UV0 in screen space.
@@ -8106,7 +8126,10 @@ void SubmitEngineDraw(unsigned short start_index,
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
-        g_draw.zBias[1] = 0.0f;
+        const bool normalBiasFromGeometry = g_draw.activeVertexNormalBias || IsSneakAttackCoplanarSurface();
+        g_draw.zBias[1] = (normalBiasFromGeometry && g_draw.normalBias[0] < 0.02f)
+            ? 0.02f
+            : g_draw.normalBias[0];
         // TheSuperHackers @bugfix bobtista 02/05/2026 Sorted material decals
         // (alpha-blend + DEPTH_WRITE_OFF + postdetail-alpha) such as the USA
         // strategy center floor emblem (ABBTCMDHQS.SWORD) sit coplanar with
@@ -8330,32 +8353,6 @@ void SubmitEngineDraw(unsigned short start_index,
     state |= BGFX_STATE_MSAA;
 
     state = ApplyCullModeOverride(state);
-    // Diagnostic: flip or disable cull for ubsnkatak_0 draws.
-    if (g_draw.sourceTextures[0] != nullptr)
-    {
-        const char *tn = TextureDebugName(g_draw.sourceTextures[0]);
-        if (tn != nullptr && ContainsCaseInsensitive(tn, "ubsnkatak_0")
-            && !ContainsCaseInsensitive(tn, "ubsnkatak_01"))
-        {
-            if (std::getenv("GGC_SNEAK_CULL_FLIP") != nullptr)
-            {
-                uint64_t oldCull = state & BGFX_STATE_CULL_MASK;
-                state &= ~BGFX_STATE_CULL_MASK;
-                if (oldCull == BGFX_STATE_CULL_CW)
-                {
-                    state |= BGFX_STATE_CULL_CCW;
-                }
-                else if (oldCull == BGFX_STATE_CULL_CCW)
-                {
-                    state |= BGFX_STATE_CULL_CW;
-                }
-            }
-            if (std::getenv("GGC_SNEAK_CULL_NONE") != nullptr)
-            {
-                state &= ~BGFX_STATE_CULL_MASK;
-            }
-        }
-    }
     if (IsSortedRotorBlur(g_draw.state))
     {
         // The rotor blur is built from camera-facing sorted cards. Once the

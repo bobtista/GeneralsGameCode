@@ -1829,6 +1829,9 @@ void DX8TextureCategoryClass::Render()
 		/*
 		** Render mesh using either sorting or immediate pipeline
 		*/
+			const bool coplanarNormalBias = mesh->Peek_Model()->Get_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS) != 0;
+			g_renderBackend->Set_Normal_Bias(coplanarNormalBias ? 0.02f : 0.0f);
+
 		//(gth) this if statement's contents are not tabbed to avoid perforce merge problems...
 		if (!DX8RendererDebugger::Is_Enabled() || !mesh->Is_Disabled_By_Debugger()) {
 
@@ -1888,6 +1891,9 @@ void DX8TextureCategoryClass::Render()
 			}
 			else
 				renderer->Render(mesh->Get_Base_Vertex_Offset());
+		}
+		if (coplanarNormalBias) {
+			g_renderBackend->Set_Normal_Bias(0.0f);
 		}
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
