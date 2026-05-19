@@ -223,6 +223,20 @@ void main()
 	}
 	vec4 tex3 = texture2D(s_tex3, stage3UV);
 
+	if (u_texcoordSelect2.z > 2.5)
+	{
+		// Sneak Attack ground dirt is authored as a sorted translucent W3D
+		// quad. Use the texture alpha directly; inherited material opacity can
+		// be zero on this replay path and erase the broad dirt stain.
+		float alpha = clamp(tex0.a * diffuse.a, 0.0, 1.0);
+		if (alpha <= ALPHA_MASK_EPSILON)
+		{
+			discard;
+		}
+		gl_FragColor = vec4(tex0.rgb * diffuse.rgb, alpha);
+		return;
+	}
+
 	if (u_texcoordSelect2.z > 1.5)
 	{
 		// Chinook rotor blur is authored as a sorted translucent mask. Keep
