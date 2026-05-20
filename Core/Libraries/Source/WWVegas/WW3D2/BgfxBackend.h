@@ -398,19 +398,7 @@ public:
     virtual RenderResource Create_Texture(const TextureDesc & desc) override;
     virtual RenderResource Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data) override;
     virtual RenderResource Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit) override;
-    virtual RenderResource Create_Dynamic_Vertex_Buffer(const BufferDesc & desc) override;
-    virtual RenderResource Create_Dynamic_Index_Buffer(const BufferDesc & desc, bool indices_are_32bit) override;
-    virtual void * Map_Dynamic_Vertex_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard) override;
-    virtual void * Map_Dynamic_Index_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard) override;
-    virtual void   Unmap_Dynamic_Vertex_Buffer(RenderResource h) override;
-    virtual void   Unmap_Dynamic_Index_Buffer(RenderResource h) override;
-    virtual void   Update_Vertex_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) override;
-    virtual void   Update_Index_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) override;
-    virtual void * Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard) override;
-    virtual void   Unmap_Dynamic(RenderResource h) override;
-    virtual void   Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) override;
     virtual void   Destroy_Resource(RenderResource h) override;
-    virtual void   Begin_Dynamic_Frame() override;
 
     // Transitional: populate m_backendHandle on owner-backed wrapper
     // resources. See IRenderBackend.h for context.

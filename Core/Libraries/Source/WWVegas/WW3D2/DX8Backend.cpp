@@ -2148,105 +2148,6 @@ RenderResource DX8Backend::Create_Index_Buffer(const BufferDesc & desc, const vo
     return rr;
 }
 
-RenderResource DX8Backend::Create_Dynamic_Vertex_Buffer(const BufferDesc & desc)
-{
-    BufferDesc copy = desc;
-    copy.dynamic = true;
-    return Create_Vertex_Buffer(copy, nullptr);
-}
-
-RenderResource DX8Backend::Create_Dynamic_Index_Buffer(const BufferDesc & desc, bool indices_are_32bit)
-{
-    BufferDesc copy = desc;
-    copy.dynamic = true;
-    return Create_Index_Buffer(copy, nullptr, indices_are_32bit);
-}
-
-void * DX8Backend::Map_Dynamic_Vertex_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard)
-{
-    IDirect3DVertexBuffer8 * buf = reinterpret_cast<IDirect3DVertexBuffer8 *>(h.id);
-    if (buf == nullptr) {
-        return nullptr;
-    }
-    const DWORD flags = discard ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
-    unsigned char * ptr = nullptr;
-    if (FAILED(buf->Lock(offset, size, &ptr, flags))) {
-        return nullptr;
-    }
-    return ptr;
-}
-
-void * DX8Backend::Map_Dynamic_Index_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard)
-{
-    IDirect3DIndexBuffer8 * buf = reinterpret_cast<IDirect3DIndexBuffer8 *>(h.id);
-    if (buf == nullptr) {
-        return nullptr;
-    }
-    const DWORD flags = discard ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
-    unsigned char * ptr = nullptr;
-    if (FAILED(buf->Lock(offset, size, &ptr, flags))) {
-        return nullptr;
-    }
-    return ptr;
-}
-
-void DX8Backend::Unmap_Dynamic_Vertex_Buffer(RenderResource h)
-{
-    IDirect3DVertexBuffer8 * buf = reinterpret_cast<IDirect3DVertexBuffer8 *>(h.id);
-    if (buf != nullptr) {
-        buf->Unlock();
-    }
-}
-
-void DX8Backend::Unmap_Dynamic_Index_Buffer(RenderResource h)
-{
-    IDirect3DIndexBuffer8 * buf = reinterpret_cast<IDirect3DIndexBuffer8 *>(h.id);
-    if (buf != nullptr) {
-        buf->Unlock();
-    }
-}
-
-void DX8Backend::Update_Vertex_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
-{
-    IDirect3DVertexBuffer8 * buf = reinterpret_cast<IDirect3DVertexBuffer8 *>(h.id);
-    if (buf == nullptr || data == nullptr || size == 0) {
-        return;
-    }
-    unsigned char * dst = nullptr;
-    if (SUCCEEDED(buf->Lock(offset, size, &dst, D3DLOCK_NOOVERWRITE))) {
-        memcpy(dst, data, size);
-        buf->Unlock();
-    }
-}
-
-void DX8Backend::Update_Index_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
-{
-    IDirect3DIndexBuffer8 * buf = reinterpret_cast<IDirect3DIndexBuffer8 *>(h.id);
-    if (buf == nullptr || data == nullptr || size == 0) {
-        return;
-    }
-    unsigned char * dst = nullptr;
-    if (SUCCEEDED(buf->Lock(offset, size, &dst, D3DLOCK_NOOVERWRITE))) {
-        memcpy(dst, data, size);
-        buf->Unlock();
-    }
-}
-
-void * DX8Backend::Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard)
-{
-    return Map_Dynamic_Vertex_Buffer(h, offset, size, discard);
-}
-
-void DX8Backend::Unmap_Dynamic(RenderResource h)
-{
-    Unmap_Dynamic_Vertex_Buffer(h);
-}
-
-void DX8Backend::Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
-{
-    Update_Vertex_Sub_Range(h, offset, data, size);
-}
-
 void DX8Backend::Destroy_Resource(RenderResource h)
 {
     IUnknown * obj = reinterpret_cast<IUnknown *>(h.id);
@@ -2254,13 +2155,6 @@ void DX8Backend::Destroy_Resource(RenderResource h)
     {
         obj->Release();
     }
-}
-
-void DX8Backend::Begin_Dynamic_Frame()
-{
-    // D3D8 dynamic buffers are managed by the runtime — nothing to reset
-    // per-frame at the backend level. Ring-lifetime tracking stays in the
-    // caller (DynamicVBAccessClass / DynamicIBAccessClass).
 }
 
 // Option 1 transitional: the legacy DX8 path already owns these

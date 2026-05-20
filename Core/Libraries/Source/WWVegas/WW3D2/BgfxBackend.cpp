@@ -23,13 +23,16 @@
 
 #include "BgfxBackend.h"
 
+#include "DXTUtils.h"
 #include "dx8fvf.h"
 #include "dx8indexbuffer.h"
 #include "dx8vertexbuffer.h"
-#include "dx8wrapper.h"
+#include "FixedFunctionState.h"
+#include "light.h"
 #include "lightenvironment.h"
 #include "matrix3d.h"
 #include "matrix4.h"
+#include "RenderStateCache.h"
 #include "shader.h"
 #include "texture.h"
 #include "texturefilter.h"
@@ -57,7 +60,7 @@
 #endif
 
 // TheSuperHackers @refactor bobtista 16/04/2026 bgfx takes the main
-// game window. A secondary popup is created for D3D8 reference output.
+// game window. A secondary popup is created for legacy reference output.
 #if defined(_WIN32)
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -170,6 +173,71 @@ static const float kTssAddSmooth     = 10.0f;
 static const float kTssArgTexture =  0.0f;
 static const float kTssArgDiffuse =  1.0f;
 static const float kTssArgCurrent =  2.0f;
+static const unsigned kTextureArgumentSelectMask = 0x0000000f;
+
+constexpr unsigned kStageStateAddressU = 13, kStageStateAddressV = 14, kStageStateAddressW = 25;
+constexpr unsigned kStageStateMinFilter = 17, kStageStateMagFilter = 16, kStageStateMipFilter = 18;
+constexpr unsigned kStageStateTexcoordIndex = 11, kStageStateTextureTransformFlags = 24, kStageStateMaxAnisotropy = 21;
+constexpr unsigned kStageStateColorOp = 1, kStageStateAlphaOp = 4, kStageStateColorArg0 = 26, kStageStateColorArg1 = 2, kStageStateColorArg2 = 3;
+constexpr unsigned kStageStateAlphaArg0 = 27, kStageStateAlphaArg1 = 5, kStageStateAlphaArg2 = 6;
+constexpr unsigned kStageStateBumpEnvMat00 = 7, kStageStateBumpEnvMat01 = 8, kStageStateBumpEnvMat10 = 9, kStageStateBumpEnvMat11 = 10;
+constexpr unsigned kStageStateBumpEnvLScale = 22, kStageStateBumpEnvLOffset = 23;
+constexpr unsigned kTextureAddressWrap = 1, kTextureAddressClamp = 3, kTextureAddressBorder = 4;
+constexpr unsigned kTextureSampleNone = 0, kTextureSamplePoint = 1, kTextureSampleLinear = 2, kTextureSampleAnisotropic = 3;
+constexpr unsigned kTexcoordGenPassthru = 0x00000000, kTexcoordGenCameraNormal = 0x00010000, kTexcoordGenCameraReflection = 0x00030000, kTexcoordGenCameraPosition = 0x00020000;
+constexpr unsigned kTextureTransformDisable = 0, kTextureTransformProjected = 256, kTextureTransformCount2 = 2, kTextureTransformCount3 = 3;
+constexpr unsigned kTextureTransformStage0 = 16, kTransformView = 2;
+constexpr unsigned kTextureArgCurrent = static_cast<unsigned>(RB_TEXARG_CURRENT), kTextureArgTexture = static_cast<unsigned>(RB_TEXARG_TEXTURE), kTextureArgDiffuse = static_cast<unsigned>(RB_TEXARG_DIFFUSE);
+constexpr unsigned kTextureOpDisable = static_cast<unsigned>(RB_TEXOP_DISABLE), kTextureOpSelectArg1 = static_cast<unsigned>(RB_TEXOP_SELECTARG1), kTextureOpSelectArg2 = static_cast<unsigned>(RB_TEXOP_SELECTARG2);
+constexpr unsigned kRenderStateCullMode = 22, kRenderStateZBias = 47, kRenderStateLighting = 137, kRenderStateAmbient = 139;
+constexpr unsigned kRenderStateAmbientMaterialSource = 147, kRenderStateDiffuseMaterialSource = 145, kRenderStateEmissiveMaterialSource = 148;
+constexpr unsigned kRenderStateFogEnable = 28, kRenderStateFogColor = 34, kRenderStateSpecularEnable = 29, kRenderStatePatchSegments = 164;
+constexpr unsigned kRenderStateSrcBlend = 19, kRenderStateDestBlend = 20, kRenderStateBlendOp = 171, kRenderStateAlphaBlendEnable = 27;
+constexpr unsigned kRenderStateAlphaTestEnable = 15, kRenderStateAlphaRef = 24, kRenderStateAlphaFunc = 25, kRenderStateNormalizeNormals = 143;
+constexpr unsigned kRenderStateColorWriteEnable = 168, kRenderStatePointSpriteEnable = 156, kRenderStatePointScaleEnable = 157;
+constexpr unsigned kRenderStatePointSize = 154, kRenderStatePointSizeMin = 155, kRenderStatePointSizeMax = 166;
+constexpr unsigned kRenderStatePointScaleA = 158, kRenderStatePointScaleB = 159, kRenderStatePointScaleC = 160, kRenderStateTextureFactor = 60;
+constexpr unsigned kRenderStateStencilEnable = 52, kRenderStateStencilFunc = 56, kRenderStateStencilRef = 57, kRenderStateStencilMask = 58;
+constexpr unsigned kRenderStateStencilWriteMask = 59, kRenderStateStencilPass = 55, kRenderStateStencilFail = 53, kRenderStateStencilZFail = 54;
+constexpr unsigned kRenderStateFillMode = 8, kRenderStateShadeMode = 9, kRenderStateZEnable = 7, kRenderStateZWriteEnable = 14, kRenderStateZFunc = 23;
+
+static float TextureOpToTssOp(unsigned value)
+{
+    switch (static_cast<RenderBackendTextureOperation>(value))
+    {
+        case RB_TEXOP_DISABLE:            return kTssDisable;
+        case RB_TEXOP_SELECTARG1:         return kTssSelectArg1;
+        case RB_TEXOP_SELECTARG2:         return kTssSelectArg2;
+        case RB_TEXOP_MODULATE:           return kTssModulate;
+        case RB_TEXOP_MODULATE2X:         return kTssModulate2x;
+        case RB_TEXOP_ADD:                return kTssAdd;
+        case RB_TEXOP_ADDSIGNED:          return kTssAddSigned;
+        case RB_TEXOP_SUBTRACT:           return kTssSubtract;
+        case RB_TEXOP_BLENDTEXTUREALPHA:  return kTssBlendTexAlpha;
+        case RB_TEXOP_BLENDCURRENTALPHA:  return kTssBlendCurAlpha;
+        case RB_TEXOP_ADDSMOOTH:          return kTssAddSmooth;
+        default:                          return kTssSelectArg1;
+    }
+}
+
+static float TextureArgToTssArg(unsigned value)
+{
+    switch (static_cast<RenderBackendTextureArgument>(value & kTextureArgumentSelectMask))
+    {
+        case RB_TEXARG_TEXTURE: return kTssArgTexture;
+        case RB_TEXARG_CURRENT: return kTssArgCurrent;
+        case RB_TEXARG_DIFFUSE:
+        default:                return kTssArgDiffuse;
+    }
+}
+
+static unsigned long AllocateLegacyShaderHandle()
+{
+    static unsigned long nextHandle = 1;
+    return nextHandle++;
+}
+
+static std::unordered_map<unsigned long, RenderBackendLegacyPixelShaderMode> g_legacyPixelShaderModes;
 
 static void ResetFrameStats()
 {
@@ -227,6 +295,8 @@ static bool BgfxStencilShadowsEnabled()
     const BgfxShadowMode mode = GetBgfxShadowMode();
     return mode == BgfxShadowMode::Stencil;
 }
+
+static bool g_triangleDrawEnabled = true;
 
 static bool IsBgfxStatsLoggingEnabled()
 {
@@ -313,6 +383,22 @@ static uint32_t MakeBgfxClearColor(const Vector3 & color, float alpha)
     const uint32_t b = static_cast<uint32_t>(WWMath::Clamp(color.Z, 0.0f, 1.0f) * 255.0f + 0.5f);
     const uint32_t a = static_cast<uint32_t>(WWMath::Clamp(alpha, 0.0f, 1.0f) * 255.0f + 0.5f);
     return (r << 24) | (g << 16) | (b << 8) | a;
+}
+
+static uint32_t MakeLegacyARGBColor(const Vector3 & color, float alpha)
+{
+    const uint32_t r = static_cast<uint32_t>(WWMath::Clamp(color.X, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t g = static_cast<uint32_t>(WWMath::Clamp(color.Y, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t b = static_cast<uint32_t>(WWMath::Clamp(color.Z, 0.0f, 1.0f) * 255.0f + 0.5f);
+    const uint32_t a = static_cast<uint32_t>(WWMath::Clamp(alpha, 0.0f, 1.0f) * 255.0f + 0.5f);
+    return (a << 24) | (r << 16) | (g << 8) | b;
+}
+
+static uint32_t FloatAsDword(float value)
+{
+    uint32_t bits = 0;
+    std::memcpy(&bits, &value, sizeof(bits));
+    return bits;
 }
 
 static void ResetBgfxStatsLogWindow()
@@ -671,36 +757,35 @@ public:
 
 BgfxLoggingCallback g_bgfxCallback;
 
-static uint32_t MapCmpFuncToBgfxStencilTest(int f)
+static uint32_t MapCmpFuncToBgfxStencilTest(CompareFunc f)
 {
     switch (f)
     {
-        case D3DCMP_NEVER:        return BGFX_STENCIL_TEST_NEVER;
-        case D3DCMP_LESS:         return BGFX_STENCIL_TEST_LESS;
-        case D3DCMP_EQUAL:        return BGFX_STENCIL_TEST_EQUAL;
-        case D3DCMP_LESSEQUAL:    return BGFX_STENCIL_TEST_LEQUAL;
-        case D3DCMP_GREATER:      return BGFX_STENCIL_TEST_GREATER;
-        case D3DCMP_NOTEQUAL:     return BGFX_STENCIL_TEST_NOTEQUAL;
-        case D3DCMP_GREATEREQUAL: return BGFX_STENCIL_TEST_GEQUAL;
-        case D3DCMP_ALWAYS: default: return BGFX_STENCIL_TEST_ALWAYS;
+        case RB_CMP_NEVER:         return BGFX_STENCIL_TEST_NEVER;
+        case RB_CMP_LESS:          return BGFX_STENCIL_TEST_LESS;
+        case RB_CMP_EQUAL:         return BGFX_STENCIL_TEST_EQUAL;
+        case RB_CMP_LESS_EQUAL:    return BGFX_STENCIL_TEST_LEQUAL;
+        case RB_CMP_GREATER:       return BGFX_STENCIL_TEST_GREATER;
+        case RB_CMP_NOT_EQUAL:     return BGFX_STENCIL_TEST_NOTEQUAL;
+        case RB_CMP_GREATER_EQUAL: return BGFX_STENCIL_TEST_GEQUAL;
+        case RB_CMP_ALWAYS: default: return BGFX_STENCIL_TEST_ALWAYS;
     }
 }
 
-// TheSuperHackers @refactor bobtista 20/04/2026 Map a D3DSTENCILOP (1..8) to the bgfx stencil op ordinal, then shift into PASS_Z / FAIL_S / FAIL_Z bit positions.
-static uint32_t MapStencilOpToBgfx(int op, uint32_t shift)
+static uint32_t MapStencilOpToBgfx(StencilOp op, uint32_t shift)
 {
     uint32_t ord;
     switch (op)
     {
-        case D3DSTENCILOP_KEEP:    ord = 1; break;
-        case D3DSTENCILOP_ZERO:    ord = 0; break;
-        case D3DSTENCILOP_REPLACE: ord = 2; break;
-        case D3DSTENCILOP_INCRSAT: ord = 4; break;
-        case D3DSTENCILOP_DECRSAT: ord = 6; break;
-        case D3DSTENCILOP_INVERT:  ord = 7; break;
-        case D3DSTENCILOP_INCR:    ord = 3; break;
-        case D3DSTENCILOP_DECR:    ord = 5; break;
-        default:                   ord = 1; break;
+        case RB_STENCIL_OP_KEEP:     ord = 1; break;
+        case RB_STENCIL_OP_ZERO:     ord = 0; break;
+        case RB_STENCIL_OP_REPLACE:  ord = 2; break;
+        case RB_STENCIL_OP_INCR_SAT: ord = 4; break;
+        case RB_STENCIL_OP_DECR_SAT: ord = 6; break;
+        case RB_STENCIL_OP_INVERT:   ord = 7; break;
+        case RB_STENCIL_OP_INCR:     ord = 3; break;
+        case RB_STENCIL_OP_DECR:     ord = 5; break;
+        default:                     ord = 1; break;
     }
     return ord << shift;
 }
@@ -739,13 +824,13 @@ static void UpdateShadowStencilState()
 // (which the W3D engine writes into the material diffuse channel) and
 // alpha fades modulate the output.
 // TheSuperHackers @feature bobtista 20/04/2026 Material emissive uniform.
-// D3D8 fixed-function adds the material's emissive color to the lit
-// output (D3DRS_EMISSIVEMATERIALSOURCE, MATERIAL.Emissive). Self-
+// Legacy fixed-function adds the material's emissive color to the lit
+// output through the emissive material-source state. Self-
 // illuminating meshes like the "move here" hint rely on this to produce
 // their glow color even when no light reaches them. fs_uber needs this
 // term or such meshes render black.
 // Grayscale output override for disabled 2D UI elements (Render2DClass::Enable_Grayscale).
-// D3D8 path uses D3DTOP_DOTPRODUCT3 + TFACTOR=0x80A5CA8E (luminance weights); bgfx path
+// Legacy path uses dot-product texture op + TFACTOR=0x80A5CA8E (luminance weights); bgfx path
 // applies the dot-product at the end of fs_uber when g_draw.grayscaleEnable[0] > 0.5.
 // Alpha-test parameters consumed by fs_textured_lit_atest. .x is the
 // reference threshold in [0, 1]; engine writes ShaderClass alpha-ref / 255.
@@ -763,9 +848,9 @@ static void UpdateShadowStencilState()
 
 // UV set selection: when > 0, the fragment shader samples stage 0
 // from v_texcoord1 instead of v_texcoord0. Set by the terrain shader
-// when it changes D3DTSS_TEXCOORDINDEX to 1 for the blend pass.
+// when it changes the stage texcoord index to 1 for the blend pass.
 
-// Shroud pass: the D3D8 path uses D3DTSS_TCI_CAMERASPACEPOSITION to auto-
+// Shroud pass: the legacy path uses camera-space position texcoords to auto-
 // generate UVs from camera-space vertex positions, combined with a texture
 // transform matrix. bgfx has no equivalent, so we upload the full texture
 // matrix and let the vertex shader compute the UVs explicitly.
@@ -794,7 +879,7 @@ static void UpdateShadowStencilState()
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Default 1x1
 // white texture. Real Set_Texture wiring is not in place yet, so the
-// textured shaders need SOMETHING bound to s_tex0 or D3D11 returns
+// textured shaders need SOMETHING bound to s_tex0 or the native backend returns
 // undefined values. A 1x1 opaque white texture is a sensible default
 // because the fragment shader does texColor * v_color0 - white * vc
 // gives the vertex color through unmodified.
@@ -972,6 +1057,8 @@ void BuildStandardVertexLayouts()
 }
 
 BgfxBackend::BgfxBackend()
+    : m_textureBitDepth(16)
+    , m_msaaMode(RB_MSAA_NONE)
 {
     WWDEBUG_SAY(("[BgfxBackend] Backend constructed."));
 }
@@ -1052,7 +1139,7 @@ uint64_t TranslateDepthCompare(ShaderClass::DepthCompareType cmp)
 //   5=ADD 6=ADDSIGNED 7=SUBTRACT 8=BLENDTEXALPHA 9=BLENDCURALPHA 10=ADDSMOOTH
 // Arg source IDs: 0=TEXTURE 1=DIFFUSE 2=CURRENT
 
-// Default D3D8 alpha-test reference (0x60/255 = 0.376) used when a shader has ALPHATEST enabled without an explicit reference. Matches the implicit D3D8 behavior preserved by ShaderClass presets.
+// Default legacy alpha-test reference (0x60/255 = 0.376) used when a shader has ALPHATEST enabled without an explicit reference. Matches the implicit behavior preserved by ShaderClass presets.
 const float kDefaultAlphaTestRef = 0x60 / 255.0f;
 
 void BuildTssOpsForShader(const ShaderClass & shader,
@@ -1218,22 +1305,10 @@ uint64_t BuildBgfxStateForShader(const ShaderClass & shader)
 {
     uint64_t state = 0;
 
-    state |= TranslateDepthCompare(shader.Get_Depth_Compare());
-
-    if (shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_ENABLE)
-    {
-        state |= BGFX_STATE_WRITE_Z;
-    }
-
     if (shader.Get_Color_Mask() == ShaderClass::COLOR_WRITE_ENABLE)
     {
         state |= BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A;
     }
-
-    const uint64_t srcBits = TranslateBlendFactor(shader.Get_Src_Blend_Func());
-    const uint64_t dstBits = TranslateBlendFactor(shader.Get_Dst_Blend_Func());
-    state |= BGFX_STATE_BLEND_FUNC(srcBits, dstBits);
-    state |= BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
 
     if (shader.Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE)
     {
@@ -1316,13 +1391,13 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
     out.begin();
     unsigned cursor = 0;
 
-    if ((bits & D3DFVF_XYZ) == D3DFVF_XYZ)
+    if ((bits & DX8_FVF_FLAG_XYZ) == DX8_FVF_FLAG_XYZ)
     {
         AddAttribAtOffset(out, cursor, fvf.Get_Location_Offset(),
                           bgfx::Attrib::Position, 3, bgfx::AttribType::Float, false,
                           3 * sizeof(float));
     }
-    else if ((bits & D3DFVF_XYZRHW) == D3DFVF_XYZRHW)
+    else if ((bits & DX8_FVF_FLAG_XYZRHW) == DX8_FVF_FLAG_XYZRHW)
     {
         // Pre-transformed: 4 floats (x, y, z, rhw). bgfx has no native
         // pre-transformed attribute - declare as 4-component position
@@ -1332,23 +1407,23 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
                           4 * sizeof(float));
     }
 
-    if ((bits & D3DFVF_NORMAL) == D3DFVF_NORMAL)
+    if (fvf.Has_Normal())
     {
         AddAttribAtOffset(out, cursor, fvf.Get_Normal_Offset(),
                           bgfx::Attrib::Normal, 3, bgfx::AttribType::Float, false,
                           3 * sizeof(float));
     }
 
-    if ((bits & D3DFVF_DIFFUSE) == D3DFVF_DIFFUSE)
+    if (fvf.Has_Diffuse())
     {
-        // D3DCOLOR is BGRA u8x4 packed; the shader swizzles it back to
-        // D3D's ARGB color channels after bgfx normalizes the bytes.
+        // Legacy vertex color is BGRA u8x4 packed; the shader swizzles it
+        // back to engine ARGB channels after bgfx normalizes the bytes.
         AddAttribAtOffset(out, cursor, fvf.Get_Diffuse_Offset(),
                           bgfx::Attrib::Color0, 4, bgfx::AttribType::Uint8, true,
                           sizeof(uint32_t));
     }
 
-    if ((bits & D3DFVF_SPECULAR) == D3DFVF_SPECULAR)
+    if (fvf.Has_Specular())
     {
         AddAttribAtOffset(out, cursor, fvf.Get_Specular_Offset(),
                           bgfx::Attrib::Color1, 4, bgfx::AttribType::Uint8, true,
@@ -1363,19 +1438,19 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
         bgfx::Attrib::TexCoord6, bgfx::Attrib::TexCoord7,
     };
 
-    const unsigned numTex = (bits & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
+    const unsigned numTex = fvf.Get_UV_Channel_Count();
     for (unsigned i = 0; i < numTex && i < 8; ++i)
     {
         unsigned componentCount = 2;
-        if ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE1(i)) == D3DFVF_TEXCOORDSIZE1(i))
+        if ((bits & DX8_FVF_TEXCOORDSIZE1(i)) == DX8_FVF_TEXCOORDSIZE1(i))
         {
             componentCount = 1;
         }
-        else if ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE3(i)) == D3DFVF_TEXCOORDSIZE3(i))
+        else if ((bits & DX8_FVF_TEXCOORDSIZE3(i)) == DX8_FVF_TEXCOORDSIZE3(i))
         {
             componentCount = 3;
         }
-        else if ((static_cast<int>(bits) & D3DFVF_TEXCOORDSIZE4(i)) == D3DFVF_TEXCOORDSIZE4(i))
+        else if ((bits & DX8_FVF_TEXCOORDSIZE4(i)) == DX8_FVF_TEXCOORDSIZE4(i))
         {
             componentCount = 4;
         }
@@ -1426,11 +1501,11 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // engine destroys a VertexBufferClass and reuses the memory address for
 // a new VB with different dimensions — otherwise we'd hand back a stale
 // handle and bgfx would truncate writes / crash on staging creation.
-// TheSuperHackers @fix bobtista 19/04/2026 Track D3D8 texture pointers
+// TheSuperHackers @fix bobtista 19/04/2026 Track raw texture pointers
 // and dimensions alongside TextureClass* to detect stale cache entries
 // (address reuse) and enable in-place updates for same-sized textures.
 // TheSuperHackers @fix bobtista 19/04/2026 Deferred texture destruction.
-// When a stale texture cache entry is detected (D3D8 pointer changed), the
+// When a stale texture cache entry is detected (raw pointer changed), the
 // old bgfx handle can't be destroyed immediately because in-flight draws
 // may still reference it. Double-buffer: collect in current frame, destroy
 // after the NEXT bgfx::frame() (2 frames later = guaranteed safe).
@@ -1482,6 +1557,7 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // transforms. Both render to the popup back buffer.
 const bgfx::ViewId kBgfxDebugView  = 0;
 const bgfx::ViewId kBgfxEngineView = 1;
+const int kBgfxTextureStages = 4;
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Dedicated
 // view id for sorted draws. View 2's view matrix is permanently
@@ -1514,6 +1590,9 @@ const bgfx::ViewId kBgfxEffectOverlayView = 5;
 // view's attachments and the engine view already cleared them.
 const bgfx::ViewId kBgfxShadowVolumeView = 6;
 const bgfx::ViewId kBgfxShadowApplyView  = 7;
+// Multiplicative shroud overlay must run after all regular 3D scene/detail
+// draws, otherwise later depth-equal building/detail passes can overwrite it.
+const bgfx::ViewId kBgfxShroudOverlayView = 8;
 // TheSuperHackers @feature bobtista 27/04/2026 Scene composite view. World,
 // water, sorted translucency, and effect overlays render into an offscreen
 // scene framebuffer; this view copies scene color to the swapchain before UI.
@@ -1553,7 +1632,7 @@ const int kDX8RefWindowShowDelayFrames   = 30;
 
 // Per-batch effective world for sorted draws: the pre-multiplied
 // sortView * sortWorld (in bgfx column-major form) captured from the
-// engine's render_state by Capture_Sorted_Batch_Transforms.
+// engine's sorted replay state.
 // TheSuperHackers @refactor bobtista 11/04/2026 Set by
 // Submit_Sorted_Draw after it emits the bgfx submit for a sorting VB
 // direct draw. The outer BgfxBackend::Draw_Triangles consumes this
@@ -1579,6 +1658,56 @@ void IdentityMatrix(float * out)
     out[12] = 0.0f; out[13] = 0.0f; out[14] = 0.0f; out[15] = 1.0f;
 }
 
+static bool GetBackendWindowSize(HWND window, int &width, int &height)
+{
+    width = 0;
+    height = 0;
+#if defined(SAGE_USE_SDL3)
+    if (window != nullptr)
+    {
+        SDL_Window *sdlWindow = static_cast<SDL_Window *>(window);
+        SDL_GetWindowSize(sdlWindow, &width, &height);
+        if (width <= 0 || height <= 0)
+        {
+            SDL_GetWindowSizeInPixels(sdlWindow, &width, &height);
+        }
+    }
+#else
+    RECT clientRect;
+    if (GetClientRect(window, &clientRect))
+    {
+        width = clientRect.right - clientRect.left;
+        height = clientRect.bottom - clientRect.top;
+    }
+#endif
+    return width > 0 && height > 0;
+}
+
+static bool NearlyEqual(float a, float b)
+{
+    const float epsilon = 0.00001f;
+    return a > b - epsilon && a < b + epsilon;
+}
+
+static bool IsIdentityViewMatrix(const float *m)
+{
+    return NearlyEqual(m[0], 1.0f) && NearlyEqual(m[5], 1.0f)
+        && NearlyEqual(m[10], 1.0f) && NearlyEqual(m[15], 1.0f)
+        && NearlyEqual(m[1], 0.0f) && NearlyEqual(m[2], 0.0f)
+        && NearlyEqual(m[3], 0.0f) && NearlyEqual(m[4], 0.0f)
+        && NearlyEqual(m[6], 0.0f) && NearlyEqual(m[7], 0.0f)
+        && NearlyEqual(m[8], 0.0f) && NearlyEqual(m[9], 0.0f)
+        && NearlyEqual(m[11], 0.0f);
+}
+
+static bool IsNonPerspectiveProjection(const float *m)
+{
+    // W3DMatrix4ToBgfx transpose-copies into bgfx's column-major layout.
+    // Perspective camera projections carry m[3][3] == 0, which lands in
+    // slot 15. Screen/orthographic projections keep slot 15 at 1.
+    return NearlyEqual(m[15], 1.0f);
+}
+
 // W3D Matrix4x4 stores Vector4 Row[4] in row-major order. bgfx wants
 // column-major float[16]. Transpose-copy.
 void W3DMatrix4ToBgfx(const Matrix4x4 & m, float * out)
@@ -1598,6 +1727,56 @@ void W3DMatrix3DToBgfx(const Matrix3D & m, float * out)
     out[1]  = m[1][0]; out[5]  = m[1][1]; out[9]  = m[1][2]; out[13] = m[1][3];
     out[2]  = m[2][0]; out[6]  = m[2][1]; out[10] = m[2][2]; out[14] = m[2][3];
     out[3]  = 0.0f;    out[7]  = 0.0f;    out[11] = 0.0f;    out[15] = 1.0f;
+}
+
+auto MakeLegacyCacheMatrix(const Matrix4x4 & m)
+{
+    return To_D3DMATRIX(m);
+}
+
+auto MakeLegacyCacheMatrix(const Matrix3D & m)
+{
+    return To_D3DMATRIX(m);
+}
+
+auto MakeIdentityLegacyCacheMatrix()
+{
+    Matrix4x4 identity(true);
+    return MakeLegacyCacheMatrix(identity);
+}
+
+void CacheTransform(TransformKind transform, const Matrix4x4 & m)
+{
+    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
+}
+
+void CacheTransform(TransformKind transform, const Matrix3D & m)
+{
+    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
+}
+
+void CacheIdentityTransform(TransformKind transform)
+{
+    Matrix4x4 identity(true);
+    CacheTransform(transform, identity);
+}
+
+bool IsCachedTransformIdentity(TransformKind transform)
+{
+    auto matrix = MakeIdentityLegacyCacheMatrix();
+    RenderStateCache::Get_Transform(static_cast<unsigned>(transform), matrix);
+    for (int row = 0; row < 4; ++row)
+    {
+        for (int col = 0; col < 4; ++col)
+        {
+            const float expected = (row == col) ? 1.0f : 0.0f;
+            if (matrix.m[row][col] != expected)
+            {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 static float ClampPostValue(float value, float minValue, float maxValue)
@@ -1667,7 +1846,7 @@ static bool IsReadableSceneDepthEnabled()
 // TheSuperHackers @bugfix bobtista 11/04/2026 Buffer copy
 // TheSuperHackers @refactor bobtista 11/04/2026 Texture
 // capture. Unlike vertex buffers, W3D textures default to POOL_MANAGED,
-// which is safe to lock with D3DLOCK_READONLY on the Intel UHD driver.
+// which is safe to lock read-only on the Intel UHD driver.
 // We can read the source d3d8 texture data on demand from inside
 // Set_Texture without an engine-side write hook. POOL_DEFAULT textures
 // (render targets, dynamic textures) are skipped to avoid the same
@@ -1823,6 +2002,7 @@ static void ApplySceneFramebufferToViews()
     bgfx::setViewFrameBuffer(kBgfxEffectOverlayView, sceneFB);
     bgfx::setViewFrameBuffer(kBgfxShadowVolumeView, sceneFB);
     bgfx::setViewFrameBuffer(kBgfxShadowApplyView, sceneFB);
+    bgfx::setViewFrameBuffer(kBgfxShroudOverlayView, sceneFB);
     bgfx::setViewFrameBuffer(kBgfxSmudgeCopyView, BGFX_INVALID_HANDLE);
     bgfx::setViewFrameBuffer(kBgfxSmudgeView, sceneFB);
     bgfx::setViewFrameBuffer(kBgfxSceneCompositeView, BGFX_INVALID_HANDLE);
@@ -1910,12 +2090,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         return;
     }
 
-    RECT clientRect;
-    if (GetClientRect(g_device.window, &clientRect))
-    {
-        g_device.width  = clientRect.right  - clientRect.left;
-        g_device.height = clientRect.bottom - clientRect.top;
-    }
+    GetBackendWindowSize(g_device.window, g_device.width, g_device.height);
     if (g_device.width <= 0)
     {
         g_device.width = 800;
@@ -1943,6 +2118,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     initArgs.resolution.width = static_cast<uint32_t>(g_device.width);
     initArgs.resolution.height = static_cast<uint32_t>(g_device.height);
     initArgs.resolution.reset = BGFX_RESET_NONE;
+    if (std::getenv("GGC_BGFX_MSAA") != nullptr)
+    {
+        initArgs.resolution.reset |= BGFX_RESET_MSAA_X4;
+    }
     if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
     {
         initArgs.resolution.reset |= BGFX_RESET_DEPTH_CLAMP;
@@ -1962,7 +2141,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
 #endif
     initArgs.platformData = pd;
     // TheSuperHackers @bugfix bobtista 27/04/2026 Keep bgfx on a normal
-    // D3D11 device even in game Debug builds. The D3D debug layer raises
+    // native device even in game Debug builds. The backend debug layer raises
     // DXGI-facility exceptions inside bgfx::frame before the engine can
     // reach shellmap or command-line save loads.
     // TheSuperHackers @build bobtista 30/04/2026 Allow GGC_BGFX_DEBUG=1 to
@@ -2102,6 +2281,12 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         bgfx::setViewTransform(kBgfxShadowApplyView, identityMtx, identityMtx);
     }
 
+    bgfx::setViewClear(kBgfxShroudOverlayView, BGFX_CLEAR_NONE, 0, 1.0f, 0);
+    bgfx::setViewRect(kBgfxShroudOverlayView, 0, 0,
+                      static_cast<uint16_t>(g_device.width),
+                      static_cast<uint16_t>(g_device.height));
+    bgfx::setViewMode(kBgfxShroudOverlayView, bgfx::ViewMode::Sequential);
+
     bgfx::setViewClear(kBgfxSceneDepthView,
                        BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
                        0xffffffffu,
@@ -2158,6 +2343,9 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     IdentityMatrix(g_frame.view);
     IdentityMatrix(g_frame.proj);
     IdentityMatrix(g_frame.sortWorld);
+    CacheIdentityTransform(RB_TRANSFORM_WORLD);
+    CacheIdentityTransform(RB_TRANSFORM_VIEW);
+    CacheIdentityTransform(RB_TRANSFORM_PROJECTION);
     g_frame.cameraProjDirty = true;
 
     // Sort view gets identity view + current projection. setViewTransform
@@ -2233,6 +2421,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uTexcoordSource  = bgfx::createUniform("u_texcoordSource",  bgfx::UniformType::Vec4);
     g_uniforms.uVertexColorFlags = bgfx::createUniform("u_vertexColorFlags", bgfx::UniformType::Vec4);
     g_uniforms.uGrayscaleEnable = bgfx::createUniform("u_grayscaleEnable", bgfx::UniformType::Vec4);
+    g_uniforms.uObjectShroudDim = bgfx::createUniform("u_objectShroudDim", bgfx::UniformType::Vec4);
     g_uniforms.uShroudParams = bgfx::createUniform("u_shroudParams", bgfx::UniformType::Vec4);
     g_uniforms.uCloudParams  = bgfx::createUniform("u_cloudParams",  bgfx::UniformType::Vec4);
     g_uniforms.uTexTransform0 = bgfx::createUniform("u_texTransform0", bgfx::UniformType::Vec4);
@@ -2241,7 +2430,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     g_uniforms.uTex1Transform0 = bgfx::createUniform("u_tex1Transform0", bgfx::UniformType::Vec4);
     g_uniforms.uTex1Transform1 = bgfx::createUniform("u_tex1Transform1", bgfx::UniformType::Vec4);
     g_uniforms.uTex1TransformZ = bgfx::createUniform("u_tex1TransformZ", bgfx::UniformType::Vec4);
+    g_uniforms.uTex2Transform0 = bgfx::createUniform("u_tex2Transform0", bgfx::UniformType::Vec4);
+    g_uniforms.uTex2Transform1 = bgfx::createUniform("u_tex2Transform1", bgfx::UniformType::Vec4);
     g_uniforms.uTexProjected = bgfx::createUniform("u_texProjected", bgfx::UniformType::Vec4);
+    g_uniforms.uLegacyPixelShaderMode = bgfx::createUniform("u_legacyPixelShaderMode", bgfx::UniformType::Vec4);
     g_uniforms.uZBias = bgfx::createUniform("u_zBias", bgfx::UniformType::Vec4);
     g_uniforms.sCloudMap     = bgfx::createUniform("s_cloudMap",     bgfx::UniformType::Sampler);
 
@@ -2296,6 +2488,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         kBgfxWaterView,
         kBgfxEngineSortView,
         kBgfxEffectOverlayView,
+        kBgfxShroudOverlayView,
         kBgfxSmudgeCopyView,
         kBgfxSmudgeView,
         kBgfxSceneCompositeView,
@@ -2351,7 +2544,7 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
             kBgfxDebugView, kBgfxEngineView, kBgfxEngineSortView,
             kBgfxRTTView, kBgfxWaterView, kBgfxEffectOverlayView,
             kBgfxShadowVolumeView, kBgfxShadowApplyView,
-            kBgfxSceneDepthView,
+            kBgfxShroudOverlayView, kBgfxSceneDepthView,
             kBgfxSmudgeCopyView, kBgfxSmudgeView,
             kBgfxSceneCompositeView, kBgfxUIView,
         };
@@ -2391,6 +2584,13 @@ void BgfxBackend::Shutdown()
 {
     if (g_device.initialized)
     {
+        // A load failure or early game exit can tear the renderer down after
+        // Begin_Scene/submit calls but before End_Scene reaches bgfx::frame().
+        // Flush that partial frame before destroying resources; Metal asserts
+        // if bgfx shutdown releases an in-flight command encoder that never
+        // reached its normal frame boundary.
+        bgfx::frame();
+
         DestroyBgfxHandle(g_device.passthroughProgram);
         DestroyBgfxHandle(g_device.sceneCompositeProgram);
         DestroyBgfxHandle(g_device.sceneDepthProgram);
@@ -2423,6 +2623,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uProjectedDecalMode);
         DestroyBgfxHandle(g_uniforms.uTexcoordSource);
         DestroyBgfxHandle(g_uniforms.uVertexColorFlags);
+        DestroyBgfxHandle(g_uniforms.uObjectShroudDim);
         DestroyBgfxHandle(g_uniforms.uShroudParams);
         DestroyBgfxHandle(g_uniforms.uCloudParams);
         DestroyBgfxHandle(g_uniforms.uTexTransform0);
@@ -2431,7 +2632,10 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_uniforms.uTex1Transform0);
         DestroyBgfxHandle(g_uniforms.uTex1Transform1);
         DestroyBgfxHandle(g_uniforms.uTex1TransformZ);
+        DestroyBgfxHandle(g_uniforms.uTex2Transform0);
+        DestroyBgfxHandle(g_uniforms.uTex2Transform1);
         DestroyBgfxHandle(g_uniforms.uTexProjected);
+        DestroyBgfxHandle(g_uniforms.uLegacyPixelShaderMode);
         DestroyBgfxHandle(g_uniforms.uZBias);
         DestroyBgfxHandle(g_uniforms.sCloudMap);
         DestroyBgfxHandle(g_device.shadowVolumeProgram);
@@ -2481,17 +2685,41 @@ void BgfxBackend::Shutdown()
             }
         }
         g_caches.texture.clear();
+        for (auto & kv : g_caches.textureBaseMip)
+        {
+            if (bgfx::isValid(kv.second))
+            {
+                bgfx::destroy(kv.second);
+            }
+        }
+        g_caches.textureBaseMip.clear();
+        g_caches.textureInfo.clear();
+        g_caches.textureBaseMipInfo.clear();
         g_draw.vb         = BGFX_INVALID_HANDLE;
         g_draw.ib         = BGFX_INVALID_HANDLE;
+        g_draw.staticVB   = BGFX_INVALID_HANDLE;
+        g_draw.staticIB   = BGFX_INVALID_HANDLE;
         g_draw.tex[0]   = BGFX_INVALID_HANDLE;
         g_draw.tex[1]   = BGFX_INVALID_HANDLE;
         g_draw.tex[2]   = BGFX_INVALID_HANDLE;
         g_draw.tex[3]   = BGFX_INVALID_HANDLE;
+        g_draw.sourceTextures[0] = nullptr;
+        g_draw.sourceTextures[1] = nullptr;
+        g_draw.sourceTextures[2] = nullptr;
+        g_draw.sourceTextures[3] = nullptr;
+        g_draw.sourceMaterial = nullptr;
+        g_draw.explicitMaterialState = false;
         g_draw.ibOffset       = 0;
+        g_draw.useStaticVB = false;
+        g_draw.useStaticIB = false;
         g_draw.useTransientVB = false;
         g_draw.useTransientIB = false;
         g_draw.pendingVB.valid    = false;
+        g_draw.pendingVB.coplanarNormalBias = false;
         g_draw.pendingIB.valid    = false;
+        g_draw.activeTransientVBOwner = nullptr;
+        g_draw.activeTransientIBOwner = nullptr;
+        g_draw.activeVertexNormalBias = false;
         // Flush both deferred-destroy queues — bgfx::shutdown() tolerates stale handles but strict debug builds may assert.
         for (auto & h : g_caches.deferredDestroys)
         {
@@ -2510,11 +2738,9 @@ void BgfxBackend::Shutdown()
         g_caches.deferredDestroys.clear();
         g_caches.deferredDestroysPrev.clear();
         // TheSuperHackers @bugfix bobtista 28/04/2026 Drain phase5 table.
-        // Register_Loaded_VB/IB/Dynamic_VB/Dynamic_IB allocate bgfx
-        // resources that game code is supposed to release via
-        // Destroy_Resource, but if shutdown beats teardown they leak. The
-        // texture entries are owned by g_caches.texture (already drained
-        // above) so we skip BGFX_RR_KIND_TEXTURE here.
+        // Registered VB/IB resources are normally released via Destroy_Resource,
+        // but if shutdown beats teardown they leak. Texture entries are owned by
+        // g_caches.texture (already drained above), so skip BGFX_RR_KIND_TEXTURE.
         for (auto & kv : g_phase5.table)
         {
             BgfxPhase5Entry & entry = kv.second;
@@ -2522,12 +2748,11 @@ void BgfxBackend::Shutdown()
             {
                 case BGFX_RR_KIND_VB:     DestroyBgfxHandle(entry.vb);  break;
                 case BGFX_RR_KIND_IB:     DestroyBgfxHandle(entry.ib);  break;
-                case BGFX_RR_KIND_DYN_VB: DestroyBgfxHandle(entry.dvb); break;
-                case BGFX_RR_KIND_DYN_IB: DestroyBgfxHandle(entry.dib); break;
                 default: break;
             }
         }
         g_phase5.table.clear();
+        bgfx::frame();
         bgfx::shutdown();
         g_device.initialized = false;
         WWDEBUG_SAY(("[BgfxBackend] bgfx::shutdown complete."));
@@ -2538,15 +2763,12 @@ void BgfxBackend::Shutdown()
     g_device.window = nullptr;
 }
 
-// Device state queries (Is_Device_Lost / Has_Stencil / Get_Back_Buffer_Format
-// / Get_Back_Buffer / Set_Gamma) are inherited from DX8Backend.
-
 // -- Viewport ----------------------------------------------------------------
 
 void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
 {
-    // Do NOT call DX8Backend::Set_Viewport here — this method is called
-    // FROM DX8Wrapper::Set_Viewport, so the D3D8 viewport is already set.
+    // Do NOT call the DX8 base viewport setter here - this method is called
+    // FROM DX8Wrapper::Set_Viewport, so the legacy viewport is already set.
     // Calling the base class would cause infinite recursion.
 
     if (!g_device.initialized)
@@ -2598,6 +2820,99 @@ void BgfxBackend::Set_Viewport(const RenderBackendViewport & viewport)
     bgfx::setViewRect(kBgfxRTTView, x, y, w, h);
 }
 
+// -- View capture / post-effect primitives ----------------------------------
+
+bool BgfxBackend::Initialize_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+    // Native bgfx post effects use the scene framebuffer directly. The legacy
+    // W3DShaderManager filter capture path is intentionally reported as
+    // unsupported until those filters are ported to scene-composite passes.
+    return false;
+}
+
+void BgfxBackend::Release_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+}
+
+bool BgfxBackend::Supports_View_Capture(RenderBackendViewCaptureKind kind) const
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Begin_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::End_View_Capture(RenderBackendViewCaptureKind kind)
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Is_View_Capture_Active(RenderBackendViewCaptureKind kind) const
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Has_View_Capture(RenderBackendViewCaptureKind kind) const
+{
+    (void)kind;
+    return false;
+}
+
+bool BgfxBackend::Bind_View_Capture_Texture(RenderBackendViewCaptureKind kind, unsigned int stage)
+{
+    (void)kind;
+    (void)stage;
+    return false;
+}
+
+bool BgfxBackend::Draw_View_Capture_Quad(RenderBackendViewCaptureKind kind,
+                                         const RenderBackendScreenVertex * vertices,
+                                         unsigned int vertex_count,
+                                         bool use_second_uv)
+{
+    (void)kind;
+    (void)vertices;
+    (void)vertex_count;
+    (void)use_second_uv;
+    return false;
+}
+
+bool BgfxBackend::Draw_Screen_Quad(const RenderBackendScreenVertex * vertices,
+                                   unsigned int vertex_count,
+                                   bool use_second_uv)
+{
+    (void)vertices;
+    (void)vertex_count;
+    (void)use_second_uv;
+    return false;
+}
+
+bool BgfxBackend::Capture_Back_Buffer_RGBA(unsigned int display_width,
+                                           unsigned int display_height,
+                                           unsigned int image_size,
+                                           unsigned char * output_pixels,
+                                           unsigned int output_capacity,
+                                           unsigned int * output_width,
+                                           unsigned int * output_height)
+{
+    (void)display_width;
+    (void)display_height;
+    (void)image_size;
+    (void)output_pixels;
+    (void)output_capacity;
+    (void)output_width;
+    (void)output_height;
+    return false;
+}
+
 // -- Frame lifecycle ---------------------------------------------------------
 
 void BgfxBackend::Begin_Scene()
@@ -2607,9 +2922,8 @@ void BgfxBackend::Begin_Scene()
         return;
     }
 
-    const bool dx8RenderToTexture = DX8Wrapper::Is_Render_To_Texture();
     const bool preserveRenderToTexture =
-        dx8RenderToTexture && g_views.renderTargetTexture != nullptr;
+        g_views.renderToTexture && g_views.renderTargetTexture != nullptr;
 
     ResetFrameStats();
 
@@ -2661,12 +2975,11 @@ void BgfxBackend::Begin_Scene()
     // old resolution while the game expects the new one.
     if (g_device.window)
     {
-        RECT cr;
-        if (GetClientRect(g_device.window, &cr))
+        int w = 0;
+        int h = 0;
+        if (GetBackendWindowSize(g_device.window, w, h))
         {
-            int w = cr.right - cr.left;
-            int h = cr.bottom - cr.top;
-            if (w > 0 && h > 0 && (w != g_device.width || h != g_device.height))
+            if (w != g_device.width || h != g_device.height)
             {
                 WWDEBUG_SAY(("[BgfxBackend] Window resized %dx%d -> %dx%d, calling bgfx::reset.",
                              g_device.width, g_device.height, w, h));
@@ -2720,6 +3033,7 @@ void BgfxBackend::Begin_Scene()
     bgfx::touch(kBgfxEffectOverlayView);
     bgfx::touch(kBgfxShadowVolumeView);
     bgfx::touch(kBgfxShadowApplyView);
+    bgfx::touch(kBgfxShroudOverlayView);
     bgfx::touch(kBgfxSmudgeCopyView);
     bgfx::touch(kBgfxSmudgeView);
     if (bgfx::isValid(g_device.sceneReadableDepthFB))
@@ -2746,6 +3060,7 @@ void BgfxBackend::Begin_Scene()
     bgfx::setViewRect(kBgfxEffectOverlayView, 0, 0, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxShadowVolumeView,  0, 0, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxShadowApplyView,   0, 0, g_device.width, g_device.height);
+    bgfx::setViewRect(kBgfxShroudOverlayView, 0, 0, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxSceneDepthView,    0, 0, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxSceneCompositeView, 0, 0, g_device.width, g_device.height);
     bgfx::setViewRect(kBgfxSmudgeCopyView,    0, 0, g_device.width, g_device.height);
@@ -2822,8 +3137,8 @@ void BgfxBackend::Begin_Scene()
         g_draw.tex[i] = BGFX_INVALID_HANDLE;
         g_draw.samplerFlags[i] = 0;
         g_draw.textureIsMissing[i] = false;
+        g_draw.sourceTextures[i] = nullptr;
     }
-
     // TheSuperHackers @fix bobtista 21/04/2026 Reset transient view flags
     // defensively at Begin_Scene. Each flag has an intended begin/end pair
     // (Begin_Effect_Overlay/End_Effect_Overlay, Set_Shadow_Volume_Shader_Active
@@ -2850,8 +3165,7 @@ void BgfxBackend::Clear(bool clear_color, bool clear_z_stencil,
                         const Vector3 & color,
                         float dest_alpha, float z, unsigned int stencil)
 {
-    DX8Backend::Clear(clear_color, clear_z_stencil, color, dest_alpha, z, stencil);
-    if (!g_device.initialized || !DX8Wrapper::Is_Render_To_Texture()
+    if (!g_device.initialized || !g_views.renderToTexture
         || g_views.renderTargetTexture == nullptr)
     {
         return;
@@ -2897,6 +3211,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         bgfx::setViewTransform(kBgfxEngineView, g_frame.cameraView, g_frame.cameraProj);
         bgfx::setViewTransform(kBgfxWaterView, g_frame.cameraView, g_frame.cameraProj);
         bgfx::setViewTransform(kBgfxShadowVolumeView, g_frame.cameraView, g_frame.cameraProj);
+        bgfx::setViewTransform(kBgfxShroudOverlayView, g_frame.cameraView, g_frame.cameraProj);
         bgfx::setViewTransform(kBgfxSceneDepthView, g_frame.cameraView, g_frame.cameraProj);
         g_frame.cameraCaptured = false;
     }
@@ -2937,6 +3252,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         kBgfxWaterView,            // 4
         kBgfxEngineSortView,       // 2
         kBgfxEffectOverlayView,    // 5
+        kBgfxShroudOverlayView,    // 8 — shroud darkening after scene detail
         kBgfxSmudgeCopyView,       // 12 — scene-color snapshot for heat haze
         kBgfxSmudgeView,           // 13 — heat-haze/smudge distortion
         kBgfxSceneCompositeView,   // 9 — scene color to swapchain
@@ -2986,6 +3302,14 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
 
     bgfx::frame();
 
+#if defined(SAGE_USE_SDL3)
+    if (!g_device.mainWindowShown && g_device.window != nullptr)
+    {
+        SDL_ShowWindow(static_cast<SDL_Window *>(g_device.window));
+        g_device.mainWindowShown = true;
+    }
+#endif
+
     // Rotate deferred texture destroy buffers. Current frame's deferred
     // handles move to "prev" — they'll be destroyed at the NEXT Begin_Scene
     // after one more bgfx::frame() guarantees all references are gone.
@@ -2997,67 +3321,218 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     // pending and current slots so nothing next frame tries to reuse
     // a dead handle.
     g_draw.pendingVB.valid    = false;
+    g_draw.pendingVB.coplanarNormalBias = false;
     g_draw.pendingIB.valid    = false;
     g_draw.useTransientVB = false;
     g_draw.useTransientIB = false;
+    g_draw.activeTransientVBOwner = nullptr;
+    g_draw.activeTransientIBOwner = nullptr;
+    g_draw.activeVertexNormalBias = false;
 }
 
-// Flip_To_Primary, Clear, Set_Viewport are inherited from DX8Backend.
+WW3DFormat BgfxBackend::Get_Back_Buffer_Format() const
+{
+    return WW3D_FORMAT_A8R8G8B8;
+}
+
+void BgfxBackend::Set_Texture_Bitdepth(int bitdepth)
+{
+    WWASSERT(bitdepth == 16 || bitdepth == 32);
+    if (bitdepth == 16 || bitdepth == 32)
+    {
+        m_textureBitDepth = bitdepth;
+    }
+}
+
+int BgfxBackend::Get_Texture_Bitdepth() const
+{
+    return m_textureBitDepth;
+}
+
+bool BgfxBackend::Supports_Texture_Op(RenderBackendTextureOpCapability capability) const
+{
+    switch (capability)
+    {
+        case RB_TEXTURE_OP_SELECTARG1:
+        case RB_TEXTURE_OP_MODULATE:
+        case RB_TEXTURE_OP_MODULATE2X:
+        case RB_TEXTURE_OP_ADD:
+        case RB_TEXTURE_OP_ADDSMOOTH:
+        case RB_TEXTURE_OP_SUBTRACT:
+        case RB_TEXTURE_OP_BLENDTEXTUREALPHA:
+        case RB_TEXTURE_OP_BLENDCURRENTALPHA:
+        case RB_TEXTURE_OP_ADDSIGNED:
+            return true;
+        case RB_TEXTURE_OP_BUMPENVMAP:
+        case RB_TEXTURE_OP_BUMPENVMAPLUMINANCE:
+        case RB_TEXTURE_OP_ADDSIGNED2X:
+        case RB_TEXTURE_OP_MODULATEALPHA_ADDCOLOR:
+        default:
+            return false;
+    }
+}
+
+RenderBackendTextureLimits BgfxBackend::Get_Texture_Limits() const
+{
+    constexpr unsigned kTextureAspectRatioLimit = 8;
+    const bgfx::Caps * caps = bgfx::getCaps();
+    if (caps == nullptr)
+    {
+        return IRenderBackend::Get_Texture_Limits();
+    }
+
+    return {
+        caps->limits.maxTextureSize,
+        caps->limits.maxTextureSize,
+        caps->limits.maxTextureSize,
+        kTextureAspectRatioLimit
+    };
+}
+
+int BgfxBackend::Get_Max_Texture_Stages() const
+{
+    return kBgfxTextureStages;
+}
+
+void BgfxBackend::Set_MSAA_Mode(RenderBackendMSAAMode mode)
+{
+    m_msaaMode = mode;
+}
+
+RenderBackendMSAAMode BgfxBackend::Get_MSAA_Mode() const
+{
+    return m_msaaMode;
+}
+
+bool BgfxBackend::Get_Device_Identity(RenderBackendDeviceIdentity & identity) const
+{
+    identity = {};
+    identity.max_simultaneous_textures = kBgfxTextureStages;
+    identity.pixel_shader_major = 2;
+    identity.pixel_shader_minor = 0;
+    return true;
+}
+
+static void LogBgfxTransientDiag(const char *event,
+                                 const char *kind,
+                                 const void *owner,
+                                 uint32_t count,
+                                 bool pendingValid,
+                                 bool pendingOwnerMatch,
+                                 bool active,
+                                 bool activeOwnerMatch,
+                                 const char *decision)
+{
+    if (std::getenv("GGC_BGFX_TRANSIENT_DIAG") == nullptr)
+    {
+        return;
+    }
+
+    if (FILE *diag = std::fopen("ggc_bgfx_transient_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s frame=%u kind=%s owner=%p count=%u pendingValid=%d pendingOwnerMatch=%d active=%d activeOwnerMatch=%d decision=%s inSort=%d\n",
+                     event,
+                     g_stats.frameIndex,
+                     kind,
+                     owner,
+                     count,
+                     pendingValid ? 1 : 0,
+                     pendingOwnerMatch ? 1 : 0,
+                     active ? 1 : 0,
+                     activeOwnerMatch ? 1 : 0,
+                     decision ? decision : "",
+                     g_views.inSortFlush ? 1 : 0);
+        std::fclose(diag);
+    }
+}
+
+namespace
+{
+bgfx::DynamicVertexBufferHandle FindResourceVertexBufferHandle(const VertexBufferClass * vb);
+bgfx::DynamicIndexBufferHandle FindResourceIndexBufferHandle(const IndexBufferClass * ib);
+bgfx::VertexBufferHandle FindResourceStaticVertexBufferHandle(const VertexBufferClass * vb);
+bgfx::IndexBufferHandle FindResourceStaticIndexBufferHandle(const IndexBufferClass * ib);
+void MirrorDynamicVertexHandleToResource(const VertexBufferClass * vb,
+                                         bgfx::DynamicVertexBufferHandle handle);
+void MirrorDynamicIndexHandleToResource(const IndexBufferClass * ib,
+                                        bgfx::DynamicIndexBufferHandle handle);
+}
 
 // -- Vertex / index buffers --------------------------------------------------
 
 void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)
 {
-    DX8Backend::Set_Vertex_Buffer(vb, stream);
-    // Cache is populated by Capture_Vertex_Data on the engine's
-    // own write lock. Set_Vertex_Buffer just looks up whatever is already
-    // there. Engine VBs that have not been written via the WriteLockClass
-    // path yet (e.g. those filled by raw d3d8 calls) will miss the cache
-    // and the bgfx submit will be skipped.
+    FixedFunctionState::Set_Vertex_Buffer(vb, stream);
+    (void)stream;
+    // Cache is populated by Capture_Vertex_Data on the engine's own write
+    // lock. Set_Vertex_Buffer just looks up whatever is already there; on a
+    // miss it can rebuild from the buffer object's CPU-side write snapshot.
     g_draw.useTransientVB = false;
-    // TheSuperHackers @bugfix bobtista 27/04/2026 D3D8 supplies a white
-    // diffuse color when the bound FVF has no COLOR0 element. bgfx
+    g_draw.useStaticVB = false;
+    g_draw.staticVB = BGFX_INVALID_HANDLE;
+    g_draw.activeTransientVBOwner = nullptr;
+    g_draw.activeVertexNormalBias = false;
+    // TheSuperHackers @bugfix bobtista 27/04/2026 Legacy fixed-function
+    // supplies a white diffuse color when the bound FVF has no COLOR0 element. bgfx
     // missing attributes read as zero, so tell the shader when it must
     // substitute the fixed-function default.
     g_draw.vertexColorFlags[0] = (vb != nullptr
-        && (vb->FVF_Info().Get_FVF() & D3DFVF_DIFFUSE)) ? 1.0f : 0.0f;
+        && vb->FVF_Info().Has_Diffuse()) ? 1.0f : 0.0f;
     g_draw.fvfHasNormal = (vb != nullptr
-        && (vb->FVF_Info().Get_FVF() & D3DFVF_NORMAL));
-    auto it = g_caches.vb.find(vb);
-    if (it != g_caches.vb.end())
+        && vb->FVF_Info().Has_Normal());
+    bgfx::VertexBufferHandle staticResourceHandle = FindResourceStaticVertexBufferHandle(vb);
+    if (bgfx::isValid(staticResourceHandle))
     {
-        g_draw.vb = it->second.handle;
+        g_draw.staticVB = staticResourceHandle;
+        g_draw.vb = BGFX_INVALID_HANDLE;
+        g_draw.useStaticVB = true;
     }
     else
     {
-        g_draw.vb = BGFX_INVALID_HANDLE;
-        // On-demand capture for static VBs that were never captured
-        // via WriteLockClass (e.g. rotor meshes loaded at startup).
-        // Lock the D3D VB, copy the data into a bgfx dynamic VB, and
-        // cache it for future use.
-        if (vb != nullptr && g_device.initialized
-            && (vb->Type() == BUFFER_TYPE_DX8))
+        bgfx::DynamicVertexBufferHandle resourceHandle = FindResourceVertexBufferHandle(vb);
+        if (bgfx::isValid(resourceHandle))
         {
-            DX8VertexBufferClass * dx8vb =
-                static_cast<DX8VertexBufferClass *>(
-                    const_cast<VertexBufferClass *>(vb));
-            IDirect3DVertexBuffer8 * d3dvb = dx8vb->Get_DX8_Vertex_Buffer();
-            if (d3dvb != nullptr)
+            g_draw.vb = resourceHandle;
+        }
+        else
+        {
+            auto it = g_caches.vb.find(vb);
+            if (it != g_caches.vb.end())
             {
-                const unsigned int stride = vb->FVF_Info().Get_FVF_Size();
-                const unsigned int num_verts = vb->Get_Vertex_Count();
-                const unsigned int bytes = num_verts * stride;
-                BYTE * data = nullptr;
-                HRESULT hr = d3dvb->Lock(0, bytes, &data, D3DLOCK_READONLY);
-                if (SUCCEEDED(hr) && data != nullptr)
+                g_draw.vb = it->second.handle;
+                MirrorDynamicVertexHandleToResource(vb, it->second.handle);
+            }
+            else
+            {
+                g_draw.vb = BGFX_INVALID_HANDLE;
+                // Last-resort capture for static VBs that were written before bgfx
+                // registration/capture was active. Do not lock the legacy buffer here:
+                // bgfx must consume the backend-neutral CPU snapshot maintained by
+                // the buffer write paths.
+                if (vb != nullptr && g_device.initialized && vb->Has_CPU_Buffer_Data())
                 {
-                    Capture_Vertex_Data(vb, data, bytes);
-                    d3dvb->Unlock();
-                    // Re-lookup after capture
-                    auto it2 = g_caches.vb.find(vb);
-                    if (it2 != g_caches.vb.end())
+                    const unsigned int bytes =
+                        vb->Get_Vertex_Count() * vb->FVF_Info().Get_FVF_Size();
+                    if (vb->Get_CPU_Buffer_Size() >= bytes)
                     {
-                        g_draw.vb = it2->second.handle;
+                        Capture_Vertex_Data(vb, vb->Peek_CPU_Buffer_Data(), bytes);
+                        bgfx::VertexBufferHandle staticHandle = FindResourceStaticVertexBufferHandle(vb);
+                        if (bgfx::isValid(staticHandle))
+                        {
+                            g_draw.staticVB = staticHandle;
+                            g_draw.vb = BGFX_INVALID_HANDLE;
+                            g_draw.useStaticVB = true;
+                        }
+                        else
+                        {
+                            auto it2 = g_caches.vb.find(vb);
+                            if (it2 != g_caches.vb.end())
+                            {
+                                g_draw.vb = it2->second.handle;
+                                MirrorDynamicVertexHandleToResource(vb, it2->second.handle);
+                            }
+                        }
                     }
                 }
             }
@@ -3067,61 +3542,116 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
 
 void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 {
-    DX8Backend::Set_Vertex_Buffer(vba);
+    FixedFunctionState::Set_Vertex_Buffer(vba);
     g_draw.vertexColorFlags[0] =
-        (vba.FVF_Info().Get_FVF() & D3DFVF_DIFFUSE) ? 1.0f : 0.0f;
+        vba.FVF_Info().Has_Diffuse() ? 1.0f : 0.0f;
     g_draw.fvfHasNormal =
-        (vba.FVF_Info().Get_FVF() & D3DFVF_NORMAL) != 0;
+        vba.FVF_Info().Has_Normal();
+    g_draw.useStaticVB = false;
+    g_draw.staticVB = BGFX_INVALID_HANDLE;
     // If the matching Capture_Dynamic_Vertex_Data already
     // allocated a transient VB for this access class, claim it for the
     // next draw. Otherwise miss the cache and skip the bgfx submit.
     if (g_draw.pendingVB.valid && g_draw.pendingVB.owner == &vba)
     {
+        LogBgfxTransientDiag("set", "vb", &vba,
+                             static_cast<uint32_t>(vba.Get_Vertex_Count()),
+                             g_draw.pendingVB.valid, true,
+                             g_draw.useTransientVB,
+                             g_draw.activeTransientVBOwner == &vba,
+                             "claim-pending");
         g_draw.useTransientVB = true;
         g_draw.transientVB    = g_draw.pendingVB.tvb;
+        g_draw.activeVertexNormalBias = g_draw.pendingVB.coplanarNormalBias;
         g_draw.pendingVB.valid    = false;
+        g_draw.activeTransientVBOwner = &vba;
+    }
+    else if (g_draw.useTransientVB && g_draw.activeTransientVBOwner == &vba)
+    {
+        LogBgfxTransientDiag("set", "vb", &vba,
+                             static_cast<uint32_t>(vba.Get_Vertex_Count()),
+                             g_draw.pendingVB.valid,
+                             g_draw.pendingVB.owner == &vba,
+                             true,
+                             true,
+                             "reuse-active");
+        // The sorting renderer applies a saved material/texture state for
+        // each sorted run, then rebinds the same per-flush transient VB. A
+        // transient buffer remains valid until bgfx::frame(), so allow that
+        // same access object to be rebound after the first claim.
     }
     else
     {
+        LogBgfxTransientDiag("set", "vb", &vba,
+                             static_cast<uint32_t>(vba.Get_Vertex_Count()),
+                             g_draw.pendingVB.valid,
+                             g_draw.pendingVB.owner == &vba,
+                             g_draw.useTransientVB,
+                             g_draw.activeTransientVBOwner == &vba,
+                             "miss");
         g_draw.useTransientVB = false;
         g_draw.vb         = BGFX_INVALID_HANDLE;
+        g_draw.activeTransientVBOwner = nullptr;
+        g_draw.activeVertexNormalBias = false;
     }
 }
 
 void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset)
 {
-    DX8Backend::Set_Index_Buffer(ib, index_base_offset);
+    FixedFunctionState::Set_Index_Buffer(ib, index_base_offset);
     g_draw.useTransientIB = false;
-    auto it = g_caches.ib.find(ib);
-    if (it != g_caches.ib.end())
+    g_draw.useStaticIB = false;
+    g_draw.staticIB = BGFX_INVALID_HANDLE;
+    g_draw.activeTransientIBOwner = nullptr;
+    bgfx::IndexBufferHandle staticResourceHandle = FindResourceStaticIndexBufferHandle(ib);
+    if (bgfx::isValid(staticResourceHandle))
     {
-        g_draw.ib = it->second.handle;
+        g_draw.staticIB = staticResourceHandle;
+        g_draw.ib = BGFX_INVALID_HANDLE;
+        g_draw.useStaticIB = true;
     }
     else
     {
-        g_draw.ib = BGFX_INVALID_HANDLE;
-        // On-demand capture for static IBs not yet in cache.
-        if (ib != nullptr && g_device.initialized
-            && (ib->Type() == BUFFER_TYPE_DX8))
+        bgfx::DynamicIndexBufferHandle resourceHandle = FindResourceIndexBufferHandle(ib);
+        if (bgfx::isValid(resourceHandle))
         {
-            DX8IndexBufferClass * dx8ib =
-                static_cast<DX8IndexBufferClass *>(
-                    const_cast<IndexBufferClass *>(ib));
-            IDirect3DIndexBuffer8 * d3dib = dx8ib->Get_DX8_Index_Buffer();
-            if (d3dib != nullptr)
+            g_draw.ib = resourceHandle;
+        }
+        else
+        {
+            auto it = g_caches.ib.find(ib);
+            if (it != g_caches.ib.end())
             {
-                const unsigned int num_indices = ib->Get_Index_Count();
-                const unsigned int bytes = num_indices * sizeof(unsigned short);
-                BYTE * data = nullptr;
-                HRESULT hr = d3dib->Lock(0, bytes, &data, D3DLOCK_READONLY);
-                if (SUCCEEDED(hr) && data != nullptr)
+                g_draw.ib = it->second.handle;
+                MirrorDynamicIndexHandleToResource(ib, it->second.handle);
+            }
+            else
+            {
+                g_draw.ib = BGFX_INVALID_HANDLE;
+                // Last-resort capture for static IBs not yet in cache. Use the
+                // backend-neutral CPU snapshot instead of locking a legacy index buffer.
+                if (ib != nullptr && g_device.initialized && ib->Has_CPU_Buffer_Data())
                 {
-                    Capture_Index_Data(ib, data, bytes);
-                    d3dib->Unlock();
-                    auto it2 = g_caches.ib.find(ib);
-                    if (it2 != g_caches.ib.end())
+                    const unsigned int bytes = ib->Get_Index_Count() * sizeof(unsigned short);
+                    if (ib->Get_CPU_Buffer_Size() >= bytes)
                     {
-                        g_draw.ib = it2->second.handle;
+                        Capture_Index_Data(ib, ib->Peek_CPU_Buffer_Data(), bytes);
+                        bgfx::IndexBufferHandle staticHandle = FindResourceStaticIndexBufferHandle(ib);
+                        if (bgfx::isValid(staticHandle))
+                        {
+                            g_draw.staticIB = staticHandle;
+                            g_draw.ib = BGFX_INVALID_HANDLE;
+                            g_draw.useStaticIB = true;
+                        }
+                        else
+                        {
+                            auto it2 = g_caches.ib.find(ib);
+                            if (it2 != g_caches.ib.end())
+                            {
+                                g_draw.ib = it2->second.handle;
+                                MirrorDynamicIndexHandleToResource(ib, it2->second.handle);
+                            }
+                        }
                     }
                 }
             }
@@ -3132,17 +3662,46 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
 
 void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset)
 {
-    DX8Backend::Set_Index_Buffer(iba, index_base_offset);
+    FixedFunctionState::Set_Index_Buffer(iba, index_base_offset);
+    g_draw.useStaticIB = false;
+    g_draw.staticIB = BGFX_INVALID_HANDLE;
     if (g_draw.pendingIB.valid && g_draw.pendingIB.owner == &iba)
     {
+        LogBgfxTransientDiag("set", "ib", &iba,
+                             static_cast<uint32_t>(iba.Get_Index_Count()),
+                             g_draw.pendingIB.valid, true,
+                             g_draw.useTransientIB,
+                             g_draw.activeTransientIBOwner == &iba,
+                             "claim-pending");
         g_draw.useTransientIB = true;
         g_draw.transientIB    = g_draw.pendingIB.tib;
         g_draw.pendingIB.valid    = false;
+        g_draw.activeTransientIBOwner = &iba;
+    }
+    else if (g_draw.useTransientIB && g_draw.activeTransientIBOwner == &iba)
+    {
+        LogBgfxTransientDiag("set", "ib", &iba,
+                             static_cast<uint32_t>(iba.Get_Index_Count()),
+                             g_draw.pendingIB.valid,
+                             g_draw.pendingIB.owner == &iba,
+                             true,
+                             true,
+                             "reuse-active");
+        // See Set_Vertex_Buffer(DynamicVBAccessClass&): sorted runs reuse
+        // the same transient IB several times before the frame boundary.
     }
     else
     {
+        LogBgfxTransientDiag("set", "ib", &iba,
+                             static_cast<uint32_t>(iba.Get_Index_Count()),
+                             g_draw.pendingIB.valid,
+                             g_draw.pendingIB.owner == &iba,
+                             g_draw.useTransientIB,
+                             g_draw.activeTransientIBOwner == &iba,
+                             "miss");
         g_draw.useTransientIB = false;
         g_draw.ib         = BGFX_INVALID_HANDLE;
+        g_draw.activeTransientIBOwner = nullptr;
     }
     g_draw.ibOffset = index_base_offset;
 }
@@ -3151,14 +3710,12 @@ void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned sh
 // Set_Index_Buffer_Index_Offset so we capture the per-mesh base vertex
 // offset. DX8PolygonRendererClass::Render calls this once per mesh
 // before Draw_Triangles to shift which vertex slot in the shared
-// category VB each index resolves to. Without this override the call
-// forwards to DX8Backend -> DX8Wrapper and the bgfx path keeps using
-// the stale offset from Set_Index_Buffer, so every mesh inside the
-// same rigid FVF category would draw using the first mesh's vertex
-// slots. Must call the base so the dx8 device still gets the update.
+// category VB each index resolves to. Without this override the bgfx
+// path keeps using the stale offset from Set_Index_Buffer, so every
+// mesh inside the same rigid FVF category would draw using the first
+// mesh's vertex slots.
 void BgfxBackend::Set_Index_Buffer_Index_Offset(unsigned int offset)
 {
-    DX8Backend::Set_Index_Buffer_Index_Offset(offset);
     g_draw.ibOffset = static_cast<unsigned short>(offset);
 }
 
@@ -3215,6 +3772,233 @@ static void LogBgfxBufferUpdate(const char *kind,
 // Returned handle is guaranteed valid on success; invalid handle on
 // failure. Used by both the full-buffer (WriteLockClass) and sub-range
 // (AppendLockClass) capture paths.
+BgfxPhase5Entry * FindVertexBufferResourceEntry(const VertexBufferClass * vb)
+{
+    if (vb == nullptr || !vb->Has_Backend_Resource())
+    {
+        return nullptr;
+    }
+    auto it = g_phase5.table.find(vb->Get_Backend_Resource().id);
+    if (it == g_phase5.table.end())
+    {
+        return nullptr;
+    }
+    BgfxPhase5Entry & entry = it->second;
+    if (entry.kind != BGFX_RR_KIND_VB || entry.owner != vb)
+    {
+        return nullptr;
+    }
+    return &entry;
+}
+
+BgfxPhase5Entry * FindIndexBufferResourceEntry(const IndexBufferClass * ib)
+{
+    if (ib == nullptr || !ib->Has_Backend_Resource())
+    {
+        return nullptr;
+    }
+    auto it = g_phase5.table.find(ib->Get_Backend_Resource().id);
+    if (it == g_phase5.table.end())
+    {
+        return nullptr;
+    }
+    BgfxPhase5Entry & entry = it->second;
+    if (entry.kind != BGFX_RR_KIND_IB || entry.owner != ib)
+    {
+        return nullptr;
+    }
+    return &entry;
+}
+
+void MirrorDynamicVertexHandleToResource(const VertexBufferClass * vb,
+                                         bgfx::DynamicVertexBufferHandle handle)
+{
+    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        entry->dvb = handle;
+    }
+}
+
+void MirrorDynamicIndexHandleToResource(const IndexBufferClass * ib,
+                                        bgfx::DynamicIndexBufferHandle handle)
+{
+    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        entry->dib = handle;
+    }
+}
+
+void ClearDynamicVertexHandleFromResource(const VertexBufferClass * vb,
+                                          bgfx::DynamicVertexBufferHandle stale)
+{
+    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        if (!bgfx::isValid(entry->dvb) || entry->dvb.idx == stale.idx)
+        {
+            entry->dvb = BGFX_INVALID_HANDLE;
+        }
+    }
+}
+
+void ClearDynamicIndexHandleFromResource(const IndexBufferClass * ib,
+                                         bgfx::DynamicIndexBufferHandle stale)
+{
+    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        if (!bgfx::isValid(entry->dib) || entry->dib.idx == stale.idx)
+        {
+            entry->dib = BGFX_INVALID_HANDLE;
+        }
+    }
+}
+
+bgfx::DynamicVertexBufferHandle FindResourceVertexBufferHandle(const VertexBufferClass * vb)
+{
+    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        if (bgfx::isValid(entry->dvb))
+        {
+            return entry->dvb;
+        }
+    }
+    return BGFX_INVALID_HANDLE;
+}
+
+bgfx::DynamicIndexBufferHandle FindResourceIndexBufferHandle(const IndexBufferClass * ib)
+{
+    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        if (bgfx::isValid(entry->dib))
+        {
+            return entry->dib;
+        }
+    }
+    return BGFX_INVALID_HANDLE;
+}
+
+bgfx::VertexBufferHandle FindResourceStaticVertexBufferHandle(const VertexBufferClass * vb)
+{
+    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        if (bgfx::isValid(entry->vb))
+        {
+            return entry->vb;
+        }
+    }
+    return BGFX_INVALID_HANDLE;
+}
+
+bgfx::IndexBufferHandle FindResourceStaticIndexBufferHandle(const IndexBufferClass * ib)
+{
+    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        if (bgfx::isValid(entry->ib))
+        {
+            return entry->ib;
+        }
+    }
+    return BGFX_INVALID_HANDLE;
+}
+
+void DestroyStaticVertexResource(BgfxPhase5Entry & entry)
+{
+    if (!bgfx::isValid(entry.vb))
+    {
+        return;
+    }
+    if (g_draw.useStaticVB
+        && bgfx::isValid(g_draw.staticVB)
+        && g_draw.staticVB.idx == entry.vb.idx)
+    {
+        g_draw.staticVB = BGFX_INVALID_HANDLE;
+        g_draw.useStaticVB = false;
+    }
+    bgfx::destroy(entry.vb);
+    entry.vb = BGFX_INVALID_HANDLE;
+}
+
+void DestroyStaticIndexResource(BgfxPhase5Entry & entry)
+{
+    if (!bgfx::isValid(entry.ib))
+    {
+        return;
+    }
+    if (g_draw.useStaticIB
+        && bgfx::isValid(g_draw.staticIB)
+        && g_draw.staticIB.idx == entry.ib.idx)
+    {
+        g_draw.staticIB = BGFX_INVALID_HANDLE;
+        g_draw.useStaticIB = false;
+    }
+    bgfx::destroy(entry.ib);
+    entry.ib = BGFX_INVALID_HANDLE;
+}
+
+bool TryCaptureStaticVertexBuffer(const VertexBufferClass * vb,
+                                  const void * data,
+                                  unsigned int size_bytes)
+{
+    if (vb == nullptr || data == nullptr || !vb->Is_Backend_Static_Eligible())
+    {
+        return false;
+    }
+    BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb);
+    if (entry == nullptr || bgfx::isValid(entry->dvb))
+    {
+        return false;
+    }
+    const uint32_t stride = vb->FVF_Info().Get_FVF_Size();
+    const uint32_t buffer_bytes = static_cast<uint32_t>(vb->Get_Vertex_Count()) * stride;
+    if (stride == 0 || buffer_bytes == 0 || size_bytes != buffer_bytes)
+    {
+        return false;
+    }
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vb->FVF_Info(), layout) || layout.getStride() != stride)
+    {
+        DestroyStaticVertexResource(*entry);
+        return false;
+    }
+
+    bgfx::VertexBufferHandle h = bgfx::createVertexBuffer(bgfx::copy(data, size_bytes), layout);
+    DestroyStaticVertexResource(*entry);
+    if (!bgfx::isValid(h))
+    {
+        return false;
+    }
+    entry->vb = h;
+    return true;
+}
+
+bool TryCaptureStaticIndexBuffer(const IndexBufferClass * ib,
+                                 const void * data,
+                                 unsigned int size_bytes)
+{
+    if (ib == nullptr || data == nullptr || !ib->Is_Backend_Static_Eligible())
+    {
+        return false;
+    }
+    BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib);
+    if (entry == nullptr || bgfx::isValid(entry->dib))
+    {
+        return false;
+    }
+    const uint32_t buffer_bytes = static_cast<uint32_t>(ib->Get_Index_Count()) * sizeof(uint16_t);
+    if (buffer_bytes == 0 || size_bytes != buffer_bytes)
+    {
+        return false;
+    }
+
+    bgfx::IndexBufferHandle h = bgfx::createIndexBuffer(bgfx::copy(data, size_bytes));
+    DestroyStaticIndexResource(*entry);
+    if (!bgfx::isValid(h))
+    {
+        return false;
+    }
+    entry->ib = h;
+    return true;
+}
+
 bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClass * vb)
 {
     const uint32_t num_verts = static_cast<uint32_t>(vb->Get_Vertex_Count());
@@ -3228,8 +4012,10 @@ bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClas
         // dimensions. If dimensions changed, drop the stale handle.
         if (it->second.num_verts == num_verts && it->second.stride == engine_stride)
         {
+            MirrorDynamicVertexHandleToResource(vb, it->second.handle);
             return it->second.handle;
         }
+        ClearDynamicVertexHandleFromResource(vb, it->second.handle);
         if (bgfx::isValid(it->second.handle))
         {
             bgfx::destroy(it->second.handle);
@@ -3246,10 +4032,10 @@ bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClas
     {
         return BGFX_INVALID_HANDLE;
     }
-    // Mismatched stride (typically for skinned-mesh FVFs like
-    // D3DFVF_XYZB* that BuildBgfxLayoutForFVF does not fully cover)
+    // Mismatched stride (typically for skinned-mesh weighted-position FVFs
+    // that BuildBgfxLayoutForFVF does not fully cover)
     // would create a too-small bgfx buffer and cause truncation
-    // warnings + D3D11 CreateBuffer crashes when the engine writes
+    // warnings + native buffer creation crashes when the engine writes
     // a larger per-vertex stride than bgfx allocated.
     const uint32_t layout_stride = layout.getStride();
     if (layout_stride == 0 || layout_stride != engine_stride)
@@ -3265,12 +4051,14 @@ bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClas
         }
         BgfxVbCacheEntry e{ BGFX_INVALID_HANDLE, num_verts, engine_stride };
         g_caches.vb[vb] = e;
+        MirrorDynamicVertexHandleToResource(vb, BGFX_INVALID_HANDLE);
         return BGFX_INVALID_HANDLE;
     }
     bgfx::DynamicVertexBufferHandle h = bgfx::createDynamicVertexBuffer(num_verts, layout);
     g_stats.dynamicVbAllocations++;
     BgfxVbCacheEntry e{ h, num_verts, engine_stride };
     g_caches.vb[vb] = e;
+    MirrorDynamicVertexHandleToResource(vb, h);
     return h;
 }
 
@@ -3283,8 +4071,10 @@ bgfx::DynamicIndexBufferHandle EnsureDynamicIndexBuffer(const IndexBufferClass *
     {
         if (it->second.num_indices == num_indices && bgfx::isValid(it->second.handle))
         {
+            MirrorDynamicIndexHandleToResource(ib, it->second.handle);
             return it->second.handle;
         }
+        ClearDynamicIndexHandleFromResource(ib, it->second.handle);
         if (bgfx::isValid(it->second.handle))
         {
             bgfx::destroy(it->second.handle);
@@ -3299,6 +4089,7 @@ bgfx::DynamicIndexBufferHandle EnsureDynamicIndexBuffer(const IndexBufferClass *
     g_stats.dynamicIbAllocations++;
     BgfxIbCacheEntry e{ h, num_indices };
     g_caches.ib[ib] = e;
+    MirrorDynamicIndexHandleToResource(ib, h);
     return h;
 }
 }
@@ -3337,6 +4128,10 @@ void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
         }
         return;
     }
+    if (TryCaptureStaticVertexBuffer(vb, data, size_bytes))
+    {
+        return;
+    }
 
     bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
     if (!bgfx::isValid(h))
@@ -3366,6 +4161,10 @@ void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
             WWDEBUG_SAY(("[BgfxBackend] skip IB full-capture: "
                          "size_bytes=%u total=%u", size_bytes, buffer_bytes));
         }
+        return;
+    }
+    if (TryCaptureStaticIndexBuffer(ib, data, size_bytes))
+    {
         return;
     }
     bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
@@ -3413,6 +4212,10 @@ void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
         }
         return;
     }
+    if (BgfxPhase5Entry * entry = FindVertexBufferResourceEntry(vb))
+    {
+        DestroyStaticVertexResource(*entry);
+    }
     bgfx::DynamicVertexBufferHandle h = EnsureDynamicVertexBuffer(vb);
     if (!bgfx::isValid(h))
     {
@@ -3446,6 +4249,10 @@ void BgfxBackend::Capture_Index_Sub_Range(const IndexBufferClass * ib,
                          start_index, size_bytes, buffer_bytes));
         }
         return;
+    }
+    if (BgfxPhase5Entry * entry = FindIndexBufferResourceEntry(ib))
+    {
+        DestroyStaticIndexResource(*entry);
     }
     bgfx::DynamicIndexBufferHandle h = EnsureDynamicIndexBuffer(ib);
     if (!bgfx::isValid(h))
@@ -3486,13 +4293,14 @@ void BgfxBackend::Begin_Sorted_Batch_Pass()
 void BgfxBackend::End_Sorted_Batch_Pass()
 {
     g_views.inSortFlush = false;
+    g_views.sortedBatchDrawFlags = RB_SORTED_DRAW_NONE;
 }
 
-void BgfxBackend::Capture_Sorted_Batch_Transforms(const Matrix4x4 & sortWorld,
-                                                  const Matrix4x4 & sortView)
+static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
+                                                const Matrix4x4 & sortView)
 {
-    // Compute the D3D row-major product sortWorld * sortView, then store
-    // it as row-major float[16] (r*4+c). bgfx on D3D11 interprets the
+    // Compute the legacy row-major product sortWorld * sortView, then store
+    // it as row-major float[16] (r*4+c). bgfx native backends interpret the
     // raw bytes as column-major HLSL float4x4, which makes mul(M, v) use
     // the ROWS of our stored matrix — matching D3D's row-vector convention.
     // The previous [c*4+r] storage put the translation at the W component
@@ -3516,55 +4324,140 @@ void BgfxBackend::Capture_Sorted_Batch_Transforms(const Matrix4x4 & sortWorld,
     // Store raw sortWorld (model-to-world only) in bgfx column-major form.
     // This is used when sorted world decals need to render through a normal
     // camera view rather than the pre-view-multiplied sort view.
+    // TheSuperHackers @bugfix bobtista 17/05/2026 sortWorldRaw must match the
+    // bgfx HLSL column-vector convention (D3D row vectors transposed), same as
+    // sortWorld above. Storing as [c*4+r] left the matrix transposed relative
+    // to what bgfx::setTransform expects, so the rotor-blur draw's world
+    // transform applied incorrectly: vertices wobbled around the hub instead of
+    // rotating with it. Use [r*4+c] to match sortWorld's layout.
     for (int r = 0; r < 4; ++r)
     {
         for (int c = 0; c < 4; ++c)
         {
-            g_frame.sortWorldRaw[c * 4 + r] = sortWorld[r][c];
+            g_frame.sortWorldRaw[r * 4 + c] = sortWorld[r][c];
         }
     }
 }
 
-void BgfxBackend::Capture_Sorted_Batch_Light(const RenderBackendLight & light, bool enabled)
+void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state)
 {
-    // Sort batch lights are always light 0 (the primary directional).
-    // Scene ambient was already captured by Set_Light_Environment.
-    // D3D8 direction points FROM light toward surface; negate for N.L.
-    if (enabled)
+    g_views.sortedBatchDrawFlags = state.draw_flags;
+    if (state.shader != nullptr)
     {
-        g_draw.lightDirs[0][0] = -light.direction[0];
-        g_draw.lightDirs[0][1] = -light.direction[1];
-        g_draw.lightDirs[0][2] = -light.direction[2];
-        g_draw.lightDirs[0][3] = 1.0f;
-        g_draw.lightColors[0][0] = light.diffuse[0];
-        g_draw.lightColors[0][1] = light.diffuse[1];
-        g_draw.lightColors[0][2] = light.diffuse[2];
-        g_draw.lightAmbients[0][0] = 0.0f;
-        g_draw.lightAmbients[0][1] = 0.0f;
-        g_draw.lightAmbients[0][2] = 0.0f;
-        g_draw.lightParams[0][0] = 0.0f;
-        g_draw.lightParams[0][1] = 0.0f;
-        g_draw.lightParams[0][2] = 0.0f;
-        g_draw.lightParams[0][3] = 1.0f;
+        Set_Shader(*state.shader);
     }
-    else
+    Set_Material(state.material);
+    for (unsigned i = 0; i < RB_MAX_TEXTURE_STAGES; ++i)
     {
-        g_draw.lightDirs[0][3] = 0.0f;
-        g_draw.lightParams[0][3] = 0.0f;
+        Set_Texture(i, state.textures[i]);
     }
+    if (state.world != nullptr && state.view != nullptr)
+    {
+        CaptureSortedBatchTransformsForBgfx(*state.world, *state.view);
+    }
+    for (int i = 0; i < 4; ++i)
+    {
+        const RenderBackendLight & light = state.lights.lights[i];
+        if (state.lights.enabled[i])
+        {
+            g_draw.lightDirs[i][0] = -light.direction[0];
+            g_draw.lightDirs[i][1] = -light.direction[1];
+            g_draw.lightDirs[i][2] = -light.direction[2];
+            g_draw.lightDirs[i][3] = 1.0f;
+            g_draw.lightColors[i][0] = light.diffuse[0];
+            g_draw.lightColors[i][1] = light.diffuse[1];
+            g_draw.lightColors[i][2] = light.diffuse[2];
+            g_draw.lightColors[i][3] = 1.0f;
+            g_draw.lightAmbients[i][0] = light.ambient[0];
+            g_draw.lightAmbients[i][1] = light.ambient[1];
+            g_draw.lightAmbients[i][2] = light.ambient[2];
+            g_draw.lightAmbients[i][3] = 1.0f;
+            g_draw.lightParams[i][0] = 0.0f;
+            g_draw.lightParams[i][1] = 0.0f;
+            g_draw.lightParams[i][2] = 0.0f;
+            g_draw.lightParams[i][3] = 1.0f;
+        }
+        else
+        {
+            g_draw.lightDirs[i][3] = 0.0f;
+            g_draw.lightParams[i][3] = 0.0f;
+        }
+    }
+}
+
+void BgfxBackend::Set_Point_Group_Render_Active(bool active)
+{
+    g_views.pointGroupRenderActive = active;
+}
+
+void BgfxBackend::Set_Streak_Render_Active(bool active)
+{
+    g_views.streakRenderActive = active;
+}
+
+static const char * TextureDebugName(TextureBaseClass * texture);
+static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
+
+void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state)
+{
+    // Transitional boundary for sorted replay. SortingRenderer snapshots a
+    // full fixed-function state so it can replay translucent geometry later.
+    // bgfx still mirrors draw state into FixedFunctionState for that snapshot
+    // today; future phases should make that state shape backend-neutral too.
+    FixedFunctionState::Capture_Render_State(state);
+    if (g_views.pointGroupRenderActive)
+    {
+        state.sorted_draw_flags |= RB_SORTED_DRAW_POINT_GROUP;
+    }
+    if (g_views.streakRenderActive)
+    {
+        state.sorted_draw_flags |= RB_SORTED_DRAW_STREAK;
+    }
+
+    // TheSuperHackers @bugfix bobtista 17/05/2026 The Chinook rotor-blur mesh
+    // stores its quad in model space and relies on the per-mesh world transform
+    // to position and rotate it. FixedFunctionState's world is hard-wired to
+    // identity on bgfx, which leaves sortWorldRaw at identity for the replay,
+    // and the legacy `bounding_sphere.Center` offset hack in sortingrenderer
+    // only restores the position - never the rotation. Reading the live world
+    // from RenderStateCache when the current bound texture is the rotor-blur
+    // mask gives the replay the matrix DX8 fixed-function would have applied,
+    // letting the blur disc actually spin instead of wobble around the hub.
+    // Limit this to sorted meshes that are authored in local model space.
+    // The Sneak Attack ground dirt plane uses UBSnkAtak_01.tga and is sorted
+    // for texture alpha; replaying it with identity world leaves the wide dirt
+    // decal at map origin instead of around the tunnel entrance.
+    const char *texName = TextureDebugName(g_draw.sourceTextures[0]);
+    if (texName != nullptr
+        && (ContainsCaseInsensitive(texName, "avcomanche_p")
+            || ContainsCaseInsensitive(texName, "ubsnkatak_01")))
+    {
+        RenderStateCache::Get_Transform(
+            static_cast<unsigned>(RB_TRANSFORM_WORLD), state.world);
+    }
+}
+
+void BgfxBackend::Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state)
+{
+    (void)state;
+}
+
+void BgfxBackend::Release_Legacy_Render_State_For_Sorted_Draw()
+{
+    FixedFunctionState::Release_Render_State();
 }
 
 // TheSuperHackers @refactor bobtista 26/04/2026 Shared submit helpers used by
 // both Submit_Sorted_Draw and SubmitEngineDraw to avoid duplicated blocks.
 static uint64_t ApplyCullModeOverride(uint64_t state)
 {
-    unsigned d3dCull = DX8Wrapper::Get_DX8_Render_State(D3DRS_CULLMODE);
+    CullMode cullMode = static_cast<CullMode>(RenderStateCache::Get_Render_State(kRenderStateCullMode));
     state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
-    if (d3dCull == D3DCULL_CW)
+    if (cullMode == RB_CULL_CW)
     {
         state |= BGFX_STATE_CULL_CW;
     }
-    else if (d3dCull == D3DCULL_CCW)
+    else if (cullMode == RB_CULL_CCW)
     {
         state |= BGFX_STATE_CULL_CCW;
     }
@@ -3584,7 +4477,56 @@ static uint64_t ApplyColorWriteOverride(uint64_t state)
 static uint64_t ApplyBlendEquation(uint64_t state)
 {
     state &= ~BGFX_STATE_BLEND_EQUATION_MASK;
-    state |= g_draw.blendEquationBits;
+    if ((state & BGFX_STATE_BLEND_MASK) != 0)
+    {
+        state |= g_draw.blendEquationBits;
+    }
+    return state;
+}
+
+static bool IsOpaqueBlend(BlendFactor src, BlendFactor dest)
+{
+    return src == RB_BLEND_ONE && dest == RB_BLEND_ZERO;
+}
+
+static uint64_t ApplyBlendState(uint64_t state)
+{
+    state &= ~(BGFX_STATE_BLEND_MASK | BGFX_STATE_BLEND_EQUATION_MASK);
+    const bool blendEnabled = g_overrides.blendEnableActive
+        ? g_overrides.blendEnableValue
+        : g_draw.alphaBlendEnabled;
+    if (blendEnabled)
+    {
+        const uint64_t blendBits = g_overrides.blendActive
+            ? g_overrides.blendBits
+            : g_draw.blendFuncBits;
+        state |= blendBits;
+        state |= g_draw.blendEquationBits;
+    }
+    return state;
+}
+
+static uint64_t ApplyDepthState(uint64_t state)
+{
+    state &= ~(BGFX_STATE_DEPTH_TEST_MASK | BGFX_STATE_WRITE_Z);
+    if (g_draw.depthTestEnabled)
+    {
+        state |= g_draw.depthFuncBits;
+        if (g_draw.depthWriteEnabled)
+        {
+            state |= BGFX_STATE_WRITE_Z;
+        }
+    }
+    return state;
+}
+
+static uint64_t GetEffectiveDrawState()
+{
+    uint64_t state = (g_draw.state != 0)
+        ? g_draw.state
+        : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+    state = ApplyDepthState(state);
+    state = ApplyBlendState(state);
     return state;
 }
 
@@ -3751,9 +4693,80 @@ static bool IsSortedMaterialDecal(uint64_t state)
         && g_draw.tssOps0[3] > 0.5f;
 }
 
+static const char * TextureDebugName(TextureBaseClass * texture);
+static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
+
+static bool IsSortedAlphaDepthDecal(uint64_t state)
+{
+    const unsigned particleFlags = RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK;
+    return g_views.inSortFlush
+        && (g_views.sortedBatchDrawFlags & particleFlags) == 0
+        && IsStandardAlphaBlend(state)
+        && !IsSoftParticleCandidate(state)
+        && (state & BGFX_STATE_WRITE_Z) == 0
+        && g_draw.tssOps0[0] > 2.5f && g_draw.tssOps0[0] < 3.5f
+        && g_draw.tssOps0[1] > 2.5f && g_draw.tssOps0[1] < 3.5f
+        && g_draw.tssOps0[2] < 0.5f
+        && g_draw.tssOps0[3] < 0.5f
+        && (g_draw.texcoordSelect2[0] < 0.5f
+            || ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "ubsnkatak_01"));
+}
+
+static bool IsSortedParticleEffect(uint64_t state)
+{
+    const unsigned particleFlags = RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK;
+    return g_views.inSortFlush
+        && (g_views.sortedBatchDrawFlags & particleFlags) != 0
+        && (state & BGFX_STATE_BLEND_MASK) != 0;
+}
+
+static bool IsSneakAttackAlphaDepthDecal(uint64_t state)
+{
+    return IsSortedAlphaDepthDecal(state)
+        && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "ubsnkatak_01");
+}
+
+static bool IsSneakAttackCoplanarSurface()
+{
+    const char * name = TextureDebugName(g_draw.sourceTextures[0]);
+    return name != nullptr
+        && ContainsCaseInsensitive(name, "ubsnkatak_0")
+        && !ContainsCaseInsensitive(name, "ubsnkatak_01");
+}
+
+static bool ShouldApplySubmittedNormalBias(uint64_t state)
+{
+    return IsSortedMaterialDecal(state)
+        || IsSortedAlphaDepthDecal(state)
+        || IsSneakAttackCoplanarSurface();
+}
+
+static bool IsSortedRotorBlur(uint64_t state)
+{
+    return g_views.inSortFlush
+        && IsStandardAlphaBlend(state)
+        && ((g_draw.tssOps0[0] > 0.5f && g_draw.tssOps0[0] < 1.5f)
+            || (g_draw.tssOps0[0] > 2.5f && g_draw.tssOps0[0] < 3.5f))
+        && ((g_draw.tssOps0[1] > 0.5f && g_draw.tssOps0[1] < 1.5f)
+            || (g_draw.tssOps0[1] > 2.5f && g_draw.tssOps0[1] < 3.5f))
+        && g_draw.tssOps0[2] < 0.5f
+        && g_draw.tssOps0[3] < 0.5f
+        && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "avcomanche_p");
+}
+
+static bool ShouldForceUnlitForBakedColorDraw(uint64_t state)
+{
+    return IsAnyAdditiveBlend(state)
+        || IsSortedParticleEffect(state)
+        || IsSoftParticleCandidate(state)
+        || IsSortedMaterialDecal(state)
+        || IsSortedAlphaDepthDecal(state)
+        || IsSortedRotorBlur(state);
+}
+
 static uint64_t ApplySortedMaterialDecalDepthState(uint64_t state)
 {
-    if (!IsSortedMaterialDecal(state))
+    if (!IsSortedMaterialDecal(state) && !IsSortedAlphaDepthDecal(state))
     {
         return state;
     }
@@ -3767,6 +4780,18 @@ static uint64_t ApplySortedMaterialDecalDepthState(uint64_t state)
     // and other opaque meshes occlude the decal.
     state &= ~BGFX_STATE_DEPTH_TEST_MASK;
     state |= BGFX_STATE_DEPTH_TEST_LEQUAL;
+    state &= ~BGFX_STATE_WRITE_Z;
+    return state;
+}
+
+static uint64_t ApplyDelayedObjectShroudDepthState(uint64_t state)
+{
+    // The object shroud overlay is submitted in a later bgfx view so building
+    // detail passes cannot draw over it. Keep DX8's depth-equal behavior:
+    // alpha-tested base pixels write object depth, while transparent card
+    // pixels leave terrain depth behind and must not receive object shroud.
+    state &= ~BGFX_STATE_DEPTH_TEST_MASK;
+    state |= BGFX_STATE_DEPTH_TEST_EQUAL;
     state &= ~BGFX_STATE_WRITE_Z;
     return state;
 }
@@ -3802,8 +4827,15 @@ static bool ShouldSkipHiddenMissingTextureDraw(uint64_t state)
 
 static bool IsMissingOrUnavailableTexture(TextureBaseClass * texture, bgfx::TextureHandle handle)
 {
-    return texture != nullptr
-        && (texture->Is_Missing_Texture() || !bgfx::isValid(handle));
+    if (texture == nullptr)
+    {
+        return false;
+    }
+    if (texture->Is_Missing_Texture())
+    {
+        return true;
+    }
+    return !bgfx::isValid(handle);
 }
 
 static bool ShouldLogBgfxShroudPass()
@@ -3825,6 +4857,13 @@ static bool ShouldLogBgfxRevealDiagVerbose()
 {
     return std::getenv("GGC_BGFX_REVEAL_DIAG_VERBOSE") != nullptr;
 }
+
+static bool ShouldLogBgfxEffectSubmitDiag()
+{
+    return std::getenv("GGC_BGFX_EFFECT_SUBMIT_DIAG") != nullptr;
+}
+
+static uint32_t GetCurrentStageSamplerFlags(unsigned stage);
 
 static bool ShouldAllowBgfxDiagnosticDrawOverrides()
 {
@@ -3868,6 +4907,85 @@ static bool IsRevealGridTexture(TextureBaseClass *texture)
     return ContainsCaseInsensitive(TextureDebugName(texture), "exgrid");
 }
 
+static bool IsEffectTextureName(const char *name)
+{
+    return ContainsCaseInsensitive(name, "ex")
+        || ContainsCaseInsensitive(name, "fire")
+        || ContainsCaseInsensitive(name, "missile")
+        || ContainsCaseInsensitive(name, "flame")
+        || ContainsCaseInsensitive(name, "smoke")
+        || ContainsCaseInsensitive(name, "noise");
+}
+
+static void LogBgfxEffectSubmit(const char *event,
+                                bgfx::ViewId view,
+                                unsigned short polygonCount,
+                                unsigned short vertexCount,
+                                uint64_t state,
+                                const char *decision)
+{
+    if (!ShouldLogBgfxEffectSubmitDiag())
+    {
+        return;
+    }
+
+    const char *tex0 = TextureDebugName(g_draw.sourceTextures[0]);
+    const char *tex1 = TextureDebugName(g_draw.sourceTextures[1]);
+    const char *tex2 = TextureDebugName(g_draw.sourceTextures[2]);
+    const char *tex3 = TextureDebugName(g_draw.sourceTextures[3]);
+    const bool effectTex = IsEffectTextureName(tex0)
+        || IsEffectTextureName(tex1)
+        || IsEffectTextureName(tex2)
+        || IsEffectTextureName(tex3);
+    const bool interestingState = IsAnyAdditiveBlend(state)
+        || IsStandardAlphaBlend(state)
+        || view == kBgfxEngineSortView
+        || view == kBgfxEffectOverlayView;
+    if (!effectTex && !interestingState)
+    {
+        return;
+    }
+
+    if (FILE *diag = std::fopen("ggc_bgfx_effect_submit_diag.txt", "a"))
+    {
+        std::fprintf(diag,
+                     "%s frame=%u view=%u polys=%u verts=%u decision=%s raw=0x%llx state=0x%llx blend=0x%llx depth=0x%llx wz=%d inSort=%d effect=%d programValid=%d texValid=(%d,%d,%d,%d) missing=(%d,%d,%d,%d) tex=(%s|%s|%s|%s) tss0=(%.1f,%.1f,%.1f,%.1f) tss1=(%.1f,%.1f,%.1f,%.1f) texSel=(%.1f,%.1f,%.1f,%.1f) texSel2=(%.1f,%.1f,%.1f,%.1f) lighting=%.1f\n",
+                     event,
+                     g_stats.frameIndex,
+                     static_cast<unsigned>(view),
+                     static_cast<unsigned>(polygonCount),
+                     static_cast<unsigned>(vertexCount),
+                     decision ? decision : "",
+                     static_cast<unsigned long long>(g_draw.state),
+                     static_cast<unsigned long long>(state),
+                     static_cast<unsigned long long>(state & BGFX_STATE_BLEND_MASK),
+                     static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
+                     (state & BGFX_STATE_WRITE_Z) != 0 ? 1 : 0,
+                     g_views.inSortFlush ? 1 : 0,
+                     g_views.effectOverlayActive ? 1 : 0,
+                     bgfx::isValid(g_draw.program) ? 1 : 0,
+                     bgfx::isValid(g_draw.tex[0]) ? 1 : 0,
+                     bgfx::isValid(g_draw.tex[1]) ? 1 : 0,
+                     bgfx::isValid(g_draw.tex[2]) ? 1 : 0,
+                     bgfx::isValid(g_draw.tex[3]) ? 1 : 0,
+                     g_draw.textureIsMissing[0] ? 1 : 0,
+                     g_draw.textureIsMissing[1] ? 1 : 0,
+                     g_draw.textureIsMissing[2] ? 1 : 0,
+                     g_draw.textureIsMissing[3] ? 1 : 0,
+                     tex0, tex1, tex2, tex3,
+                     g_draw.tssOps0[0], g_draw.tssOps0[1],
+                     g_draw.tssOps0[2], g_draw.tssOps0[3],
+                     g_draw.tssOps1[0], g_draw.tssOps1[1],
+                     g_draw.tssOps1[2], g_draw.tssOps1[3],
+                     g_draw.texcoordSelect[0], g_draw.texcoordSelect[1],
+                     g_draw.texcoordSelect[2], g_draw.texcoordSelect[3],
+                     g_draw.texcoordSelect2[0], g_draw.texcoordSelect2[1],
+                     g_draw.texcoordSelect2[2], g_draw.texcoordSelect2[3],
+                     g_draw.lightingEnabled[0]);
+        std::fclose(diag);
+    }
+}
+
 static void LogBgfxRevealDraw(const char *event,
                               bgfx::ViewId view,
                               unsigned short polygonCount,
@@ -3880,11 +4998,10 @@ static void LogBgfxRevealDraw(const char *event,
         return;
     }
 
-    const RenderStateStruct &rs = DX8Wrapper::Peek_Render_State();
-    const char *tex0 = TextureDebugName(rs.Textures[0]);
-    const char *tex1 = TextureDebugName(rs.Textures[1]);
-    const char *tex2 = TextureDebugName(rs.Textures[2]);
-    const char *tex3 = TextureDebugName(rs.Textures[3]);
+    const char *tex0 = TextureDebugName(g_draw.sourceTextures[0]);
+    const char *tex1 = TextureDebugName(g_draw.sourceTextures[1]);
+    const char *tex2 = TextureDebugName(g_draw.sourceTextures[2]);
+    const char *tex3 = TextureDebugName(g_draw.sourceTextures[3]);
     const bool relevantTexture =
         IsRevealRelevantTextureName(tex0)
         || IsRevealRelevantTextureName(tex1)
@@ -3945,12 +5062,11 @@ static void LogBgfxSortedMaterialDecal(const char *event,
                                        unsigned short vertexCount,
                                        uint64_t state)
 {
-    if (!ShouldLogBgfxSortedDecals() || !IsSortedMaterialDecal(g_draw.state))
+    if (!ShouldLogBgfxSortedDecals() || !IsSortedMaterialDecal(GetEffectiveDrawState()))
     {
         return;
     }
 
-    const RenderStateStruct &rs = DX8Wrapper::Peek_Render_State();
     if (FILE *diag = std::fopen("ggc_bgfx_sorted_decal_diag.txt", "a"))
     {
         std::fprintf(diag,
@@ -3964,9 +5080,9 @@ static void LogBgfxSortedMaterialDecal(const char *event,
                      static_cast<unsigned long long>(state),
                      static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
                      g_draw.zBias[0],
-                     DX8Wrapper::Get_DX8_Render_State(D3DRS_ZBIAS),
-                     TextureDebugName(rs.Textures[0]),
-                     TextureDebugName(rs.Textures[1]),
+                     RenderStateCache::Get_Render_State(kRenderStateZBias),
+                     TextureDebugName(g_draw.sourceTextures[0]),
+                     TextureDebugName(g_draw.sourceTextures[1]),
                      g_draw.tssOps0[0], g_draw.tssOps0[1],
                      g_draw.tssOps0[2], g_draw.tssOps0[3],
                      g_draw.texcoordSelect[0], g_draw.texcoordSelect[1],
@@ -3997,45 +5113,36 @@ static bool IsDefaultInfantryBlobShadowTexture(TextureBaseClass * texture)
         || stricmp(base, "shadowi.dds") == 0;
 }
 
-static bool IsDefaultBlobShadowTexture(TextureBaseClass * texture)
-{
-    TextureClass * tex2d = texture ? texture->As_TextureClass() : nullptr;
-    if (tex2d == nullptr)
-    {
-        return false;
-    }
-
-    const char *name = tex2d->Get_Full_Path().str();
-    const char *base = name;
-    for (const char *p = name; *p != '\0'; ++p)
-    {
-        if (*p == '\\' || *p == '/')
-        {
-            base = p + 1;
-        }
-    }
-
-    return stricmp(base, "shadow.tga") == 0
-        || stricmp(base, "shadow.dds") == 0
-        || stricmp(base, "shadowi.tga") == 0
-        || stricmp(base, "shadowi.dds") == 0;
-}
-
 static void UpdateAlphaMaskedShadowDecalMode()
 {
-    const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
     const uint64_t multiplicativeBlend =
         BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
-    uint64_t state = g_draw.state;
-    if (g_overrides.blendActive)
-    {
-        state &= ~BGFX_STATE_BLEND_MASK;
-        state |= g_overrides.blendBits;
-    }
+    uint64_t state = GetEffectiveDrawState();
     const bool isAlphaMaskedShadow =
-        IsDefaultBlobShadowTexture(rs.Textures[0])
+        IsDefaultInfantryBlobShadowTexture(g_draw.sourceTextures[0])
         && ((state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend);
     g_draw.texcoordSelect2[2] = isAlphaMaskedShadow ? 1.0f : 0.0f;
+}
+
+static void UpdateAlphaMaskAndSortedEffectModes(uint64_t state)
+{
+    UpdateAlphaMaskedShadowDecalMode();
+    if (IsSortedRotorBlur(state))
+    {
+        // avcomanche_p stores the rotor blur as a sorted mask. The legacy
+        // fixed-function path keeps it independent from the vehicle material
+        // opacity; the shader's normal MODULATE path can otherwise multiply it
+        // away after replaying the sorted pool.
+        g_draw.texcoordSelect2[2] = 2.0f;
+    }
+    else if (IsSneakAttackAlphaDepthDecal(state))
+    {
+        // UBSnkAtak_01 is the Sneak Attack's authored dirt/mound alpha quad.
+        // Its sorted replay can inherit a zero-opacity material from the W3D
+        // pass, which makes the wide dirt stain disappear while the opaque
+        // mound geometry remains. Keep this path texture-alpha driven.
+        g_draw.texcoordSelect2[2] = 3.0f;
+    }
 }
 
 static RenderBackendProjectedDecalMode GetEffectiveProjectedDecalModeForCurrentDraw()
@@ -4047,17 +5154,11 @@ static RenderBackendProjectedDecalMode GetEffectiveProjectedDecalModeForCurrentD
         return mode;
     }
 
-    const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
     const uint64_t multiplicativeBlend =
         BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
-    uint64_t state = g_draw.state;
-    if (g_overrides.blendActive)
-    {
-        state &= ~BGFX_STATE_BLEND_MASK;
-        state |= g_overrides.blendBits;
-    }
+    uint64_t state = GetEffectiveDrawState();
     const bool validBlobShadow =
-        IsDefaultInfantryBlobShadowTexture(rs.Textures[0])
+        IsDefaultInfantryBlobShadowTexture(g_draw.sourceTextures[0])
         && ((state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend);
 
     return validBlobShadow ? RB_PROJECTED_DECAL_BLOB_SHADOW : RB_PROJECTED_DECAL_MULTIPLY;
@@ -4075,6 +5176,13 @@ static void UpdateProjectedDecalModeForCurrentDraw()
 static bool IsEffectiveProjectedBlobShadowDraw()
 {
     return GetEffectiveProjectedDecalModeForCurrentDraw() == RB_PROJECTED_DECAL_BLOB_SHADOW;
+}
+
+static bool IsEffectiveProjectedShadowDraw()
+{
+    const RenderBackendProjectedDecalMode mode = GetEffectiveProjectedDecalModeForCurrentDraw();
+    return mode == RB_PROJECTED_DECAL_BLOB_SHADOW
+        || mode == RB_PROJECTED_DECAL_MULTIPLY;
 }
 
 static bool IsProjectedAdditiveDecalDraw()
@@ -4112,13 +5220,17 @@ static void LogBgfxShroudPass(const char *event,
     if (FILE *diag = std::fopen("ggc_bgfx_shroud_pass_diag.txt", "a"))
     {
         std::fprintf(diag,
-                     "%s bgfxFrame=%u view=%u polys=%u depthFunc=%u stencil=%d state=0x%llx tex0=%u tex1=%u tex2=%u tex3=%u sampler0=0x%x tci0=0x%x tss0=(%.1f,%.1f,%.1f,%.1f) texSel=(%.1f,%.1f,%.1f,%.1f) shroud=%d params=(%.6f,%.6f,%.6f,%.6f)\n",
+                     "%s bgfxFrame=%u view=%u polys=%u depthFunc=%u stencil=%d active=%d objectActive=%d objectDim=%.3f activeStage=%u state=0x%llx tex0=%u tex1=%u tex2=%u tex3=%u sampler0=0x%x tci0=0x%x tss0=(%.1f,%.1f,%.1f,%.1f) texSel=(%.1f,%.1f,%.1f,%.1f) shroud=%d params=(%.6f,%.6f,%.6f,%.6f) names=(%s|%s|%s|%s)\n",
                      event,
                      g_stats.frameIndex,
                      static_cast<unsigned>(view),
                      static_cast<unsigned>(polygonCount),
                      depthFunc,
                      g_draw.stencilEnabled ? 1 : 0,
+                     g_views.shroudTexturePassActive ? 1 : 0,
+                     g_views.objectShroudTexturePassActive ? 1 : 0,
+                     g_draw.objectShroudDim[0],
+                     g_views.shroudTexturePassStage,
                      static_cast<unsigned long long>(g_draw.state),
                      bgfx::isValid(g_draw.tex[0]) ? g_draw.tex[0].idx : 0xffff,
                      bgfx::isValid(g_draw.tex[1]) ? g_draw.tex[1].idx : 0xffff,
@@ -4129,32 +5241,48 @@ static void LogBgfxShroudPass(const char *event,
                      g_draw.tssOps0[0], g_draw.tssOps0[1], g_draw.tssOps0[2], g_draw.tssOps0[3],
                      g_draw.texcoordSelect[0], g_draw.texcoordSelect[1], g_draw.texcoordSelect[2], g_draw.texcoordSelect[3],
                      shroudDetected ? 1 : 0,
-                     shroudParams[0], shroudParams[1], shroudParams[2], shroudParams[3]);
+                     shroudParams[0], shroudParams[1], shroudParams[2], shroudParams[3],
+                     TextureDebugName(g_draw.sourceTextures[0]),
+                     TextureDebugName(g_draw.sourceTextures[1]),
+                     TextureDebugName(g_draw.sourceTextures[2]),
+                     TextureDebugName(g_draw.sourceTextures[3]));
         std::fclose(diag);
     }
 }
 
 // NDC z-pull applied to coplanar sorted decals so they win the LEQUAL test
 // against the opaque sub-mesh they sit on. Keep this much smaller than the
-// generic D3DRS_ZBIAS conversion: a large clip-space pull makes command-center
+// generic legacy z-bias conversion: a large clip-space pull makes command-center
 // floor emblems render in front of bulldozers as they leave the building.
 static const float kSortedDecalMinZBias = 0.00025f;
 static const float kSortedDecalMaxZBias = 0.00075f;
+// UBSnkAtak_01 sits under the entrance mesh as part of the model art. Do not
+// pull it toward the camera or the dirt quad blends over the tunnel shell.
+static const float kSneakAttackDecalMinZBias = 0.0f;
+static const float kSneakAttackDecalMaxZBias = 0.0f;
 
 static void ClampSortedMaterialDecalZBias()
 {
-    if (!IsSortedMaterialDecal(g_draw.state))
+    const uint64_t state = GetEffectiveDrawState();
+    if (!IsSortedMaterialDecal(state) && !IsSortedAlphaDepthDecal(state))
     {
         return;
     }
 
-    if (g_draw.zBias[0] < kSortedDecalMinZBias)
+    const float minZBias = IsSneakAttackAlphaDepthDecal(state)
+        ? kSneakAttackDecalMinZBias
+        : kSortedDecalMinZBias;
+    const float maxZBias = IsSneakAttackAlphaDepthDecal(state)
+        ? kSneakAttackDecalMaxZBias
+        : kSortedDecalMaxZBias;
+
+    if (g_draw.zBias[0] < minZBias)
     {
-        g_draw.zBias[0] = kSortedDecalMinZBias;
+        g_draw.zBias[0] = minZBias;
     }
-    else if (g_draw.zBias[0] > kSortedDecalMaxZBias)
+    else if (g_draw.zBias[0] > maxZBias)
     {
-        g_draw.zBias[0] = kSortedDecalMaxZBias;
+        g_draw.zBias[0] = maxZBias;
     }
 }
 
@@ -4212,18 +5340,84 @@ static void BindSoftParticleDepth(bool enable)
 static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
 {
     uint32_t flags = 0;
-    const unsigned addressU = DX8Wrapper::Get_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSU);
-    const unsigned addressV = DX8Wrapper::Get_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSV);
+    const unsigned addressU = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateAddressU);
+    const unsigned addressV = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateAddressV);
+    const unsigned minFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMinFilter);
+    const unsigned magFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMagFilter);
+    const unsigned mipFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMipFilter);
 
-    if (addressU == D3DTADDRESS_CLAMP || addressU == D3DTADDRESS_BORDER)
+    if (addressU == kTextureAddressClamp || addressU == kTextureAddressBorder)
     {
         flags |= BGFX_SAMPLER_U_CLAMP;
     }
-    if (addressV == D3DTADDRESS_CLAMP || addressV == D3DTADDRESS_BORDER)
+    if (addressV == kTextureAddressClamp || addressV == kTextureAddressBorder)
     {
         flags |= BGFX_SAMPLER_V_CLAMP;
     }
+
+    if (minFilter == kTextureSamplePoint)
+    {
+        flags |= BGFX_SAMPLER_MIN_POINT;
+    }
+    else if (minFilter == kTextureSampleAnisotropic)
+    {
+        flags |= BGFX_SAMPLER_MIN_ANISOTROPIC;
+    }
+
+    if (magFilter == kTextureSamplePoint)
+    {
+        flags |= BGFX_SAMPLER_MAG_POINT;
+    }
+    else if (magFilter == kTextureSampleAnisotropic)
+    {
+        flags |= BGFX_SAMPLER_MAG_ANISOTROPIC;
+    }
+
+    if (mipFilter == kTextureSamplePoint)
+    {
+        flags |= BGFX_SAMPLER_MIP_POINT;
+    }
+
     return flags;
+}
+
+static bool IsCurrentStageMipFilterDisabled(unsigned stage)
+{
+    return RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMipFilter) == kTextureSampleNone;
+}
+
+static bool ShouldBindSortedParticleBaseMip(unsigned stage)
+{
+    // Point-group and streak renderers generate camera-facing particle quads
+    // in the sorted pass. Under bgfx/Metal the authored lower effect mips can
+    // erase thin smoke/contrail sprites at normal gameplay zoom, while the
+    // legacy particle path keeps these sprites legible. Bind stage 0 through
+    // the existing one-mip sibling for those dynamic particle draws only; do
+    // not apply this to sorted decals or their detail stages.
+    return stage == 0
+        && IsSortedParticleEffect(GetEffectiveDrawState());
+}
+
+static bgfx::TextureHandle GetCurrentStageTextureHandle(unsigned stage)
+{
+    if (stage >= 4)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+
+    TextureBaseClass *texture = g_draw.sourceTextures[stage];
+    if (texture != nullptr && ShouldBindSortedParticleBaseMip(stage))
+    {
+        return EnsureBgfxTexture(texture, true);
+    }
+    if (texture != nullptr && IsCurrentStageMipFilterDisabled(stage))
+    {
+        // bgfx has point/linear mip selection flags but no sampler flag for
+        // disabled mip filtering. Bind a one-mip sibling texture to preserve
+        // the legacy "sample level 0 only" behavior.
+        return EnsureBgfxTexture(texture, true);
+    }
+    return g_draw.tex[stage];
 }
 
 static void UploadLightUniforms()
@@ -4253,13 +5447,14 @@ static void UploadLightUniforms()
 
 static void BindTextureStages()
 {
-    // bgfx default (flags=0) is bilinear filtering. No explicit flags needed.
+    const uint64_t state = GetEffectiveDrawState();
     if (bgfx::isValid(g_uniforms.sTex0))
     {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(0);
         const bgfx::TextureHandle bound =
-            g_draw.textureIsMissing[0] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+            g_draw.textureIsMissing[0] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
-                : (bgfx::isValid(g_draw.tex[0]) ? g_draw.tex[0] : g_device.defaultWhiteTexture);
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(0, g_uniforms.sTex0, bound, GetCurrentStageSamplerFlags(0));
@@ -4268,10 +5463,11 @@ static void BindTextureStages()
     }
     if (bgfx::isValid(g_uniforms.sTex1))
     {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(1);
         const bgfx::TextureHandle bound =
-            g_draw.textureIsMissing[1] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+            g_draw.textureIsMissing[1] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
-                : (bgfx::isValid(g_draw.tex[1]) ? g_draw.tex[1] : g_device.defaultWhiteTexture);
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(1, g_uniforms.sTex1, bound, GetCurrentStageSamplerFlags(1));
@@ -4280,10 +5476,11 @@ static void BindTextureStages()
     }
     if (bgfx::isValid(g_uniforms.sTex2))
     {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(2);
         const bgfx::TextureHandle bound =
-            g_draw.textureIsMissing[2] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+            g_draw.textureIsMissing[2] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
-                : (bgfx::isValid(g_draw.tex[2]) ? g_draw.tex[2] : g_device.defaultWhiteTexture);
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(2, g_uniforms.sTex2, bound, GetCurrentStageSamplerFlags(2));
@@ -4292,10 +5489,11 @@ static void BindTextureStages()
     }
     if (bgfx::isValid(g_uniforms.sTex3))
     {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(3);
         const bgfx::TextureHandle bound =
-            g_draw.textureIsMissing[3] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+            g_draw.textureIsMissing[3] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
-                : (bgfx::isValid(g_draw.tex[3]) ? g_draw.tex[3] : g_device.defaultWhiteTexture);
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(3, g_uniforms.sTex3, bound, GetCurrentStageSamplerFlags(3));
@@ -4304,40 +5502,17 @@ static void BindTextureStages()
     }
 }
 
-static void SyncTextureStagesFromDx8State()
-{
-    // Some legacy paths still apply textures through DX8Wrapper directly. If
-    // the wrapper cache already holds that pointer, BgfxBackend::Set_Texture is
-    // never called, leaving bgfx's texture handle or missing-texture flag stale.
-    // Sync from the wrapper's authoritative render state immediately before
-    // binding samplers so blended/effect draws can hide missing placeholders.
-    const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
-
-    for (int si = 0; si < 4; ++si)
-    {
-        TextureBaseClass * tex = rs.Textures[si];
-        bgfx::TextureHandle h = EnsureBgfxTexture(tex);
-        const bool missingOrUnavailable = IsMissingOrUnavailableTexture(tex, h);
-        if (!bgfx::isValid(h))
-        {
-            h = g_device.defaultWhiteTexture;
-        }
-        g_draw.tex[si] = h;
-        g_draw.textureIsMissing[si] = missingOrUnavailable;
-    }
-}
-
 static float GetTexcoordSource(unsigned texcoordGen)
 {
-    if (texcoordGen == D3DTSS_TCI_CAMERASPACENORMAL)
+    if (texcoordGen == kTexcoordGenCameraNormal)
     {
         return 1.0f;
     }
-    if (texcoordGen == D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR)
+    if (texcoordGen == kTexcoordGenCameraReflection)
     {
         return 2.0f;
     }
-    if (texcoordGen == D3DTSS_TCI_CAMERASPACEPOSITION)
+    if (texcoordGen == kTexcoordGenCameraPosition)
     {
         return 3.0f;
     }
@@ -4358,9 +5533,8 @@ static void SetIdentityTextureTransform(float * row0, float * row1)
 
 static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 {
-    D3DMATRIX texMtx;
-    DX8Wrapper::_Get_DX8_Transform(
-        static_cast<D3DTRANSFORMSTATETYPE>(D3DTS_TEXTURE0 + stage), texMtx);
+    auto texMtx = MakeIdentityLegacyCacheMatrix();
+    RenderStateCache::Get_Transform(kTextureTransformStage0 + stage, texMtx);
     row0[0] = texMtx.m[0][0];
     row0[1] = texMtx.m[1][0];
     row0[2] = texMtx.m[2][0];
@@ -4372,14 +5546,13 @@ static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 }
 
 // TheSuperHackers @feature bobtista 30/04/2026 Read column 2 of the texture
-// matrix for D3DTTFF_PROJECTED|D3DTTFF_COUNT3 stages — TexProjectClass uses
+// matrix for projected 3-component stages - TexProjectClass uses
 // this column (= ViewToPixel row 3 in MatrixMapperClass::Apply) as the
 // projected W. The shader divides UV.xy by this value at vertex time.
 static void ReadTextureTransformZ(unsigned stage, float * rowZ)
 {
-    D3DMATRIX texMtx;
-    DX8Wrapper::_Get_DX8_Transform(
-        static_cast<D3DTRANSFORMSTATETYPE>(D3DTS_TEXTURE0 + stage), texMtx);
+    auto texMtx = MakeIdentityLegacyCacheMatrix();
+    RenderStateCache::Get_Transform(kTextureTransformStage0 + stage, texMtx);
     rowZ[0] = texMtx.m[0][2];
     rowZ[1] = texMtx.m[1][2];
     rowZ[2] = texMtx.m[2][2];
@@ -4392,15 +5565,15 @@ static void UpdateTextureTransforms()
     // TheSuperHackers @bugfix bobtista 25/04/2026 Honor material-stage texture
     // matrices in the bgfx uber shader. W3D atlas mappers animate tank
     // treads, bike wheels, and other sub-materials by setting
-    // D3DTS_TEXTUREn plus D3DTTFF_COUNT2. Passing raw UVs sampled the
+    // cached texture transform plus two-coordinate transform mode. Passing raw UVs sampled the
     // unused black padding in those atlases; stage 1 matters for detail
     // and environment-mapped sub-materials.
     const unsigned texcoordIndex =
-        DX8Wrapper::Get_DX8_Texture_Stage_State(0, D3DTSS_TEXCOORDINDEX);
+        RenderStateCache::Get_Texture_Stage_State(0, kStageStateTexcoordIndex);
     const unsigned uvIndex = texcoordIndex & 0xFFFF;
     const unsigned texcoordGen = texcoordIndex & 0xFFFF0000;
     // TheSuperHackers @info bobtista 26/04/2026 Only UV sets 0 and 1 are
-    // supported. D3D8 allows up to 8 UV sets via D3DTSS_TEXCOORDINDEX but
+    // supported. The legacy fixed-function path allows up to 8 UV sets but
     // the uber shader only has v_texcoord0/v_texcoord1. Extend if any
     // material is found using UV set 2+.
     if (uvIndex > 1)
@@ -4416,11 +5589,11 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSource[0] = GetTexcoordSource(texcoordGen);
 
     const unsigned texFlags =
-        DX8Wrapper::Get_DX8_Texture_Stage_State(0, D3DTSS_TEXTURETRANSFORMFLAGS);
+        RenderStateCache::Get_Texture_Stage_State(0, kStageStateTextureTransformFlags);
     const unsigned texCount = texFlags & 0xFFu;
-    const bool texProjected0 = (texFlags & D3DTTFF_PROJECTED) != 0
-        && texCount >= D3DTTFF_COUNT3;
-    if (texCount >= D3DTTFF_COUNT2)
+    const bool texProjected0 = (texFlags & kTextureTransformProjected) != 0
+        && texCount >= kTextureTransformCount3;
+    if (texCount >= kTextureTransformCount2)
     {
         g_draw.texcoordSelect[3] = 1.0f;
         ReadTextureTransform(0, g_draw.texTransform0, g_draw.texTransform1);
@@ -4437,7 +5610,7 @@ static void UpdateTextureTransforms()
     g_draw.texProjected[0] = texProjected0 ? 1.0f : 0.0f;
 
     const unsigned texcoordIndex1 =
-        DX8Wrapper::Get_DX8_Texture_Stage_State(1, D3DTSS_TEXCOORDINDEX);
+        RenderStateCache::Get_Texture_Stage_State(1, kStageStateTexcoordIndex);
     const unsigned uvIndex1 = texcoordIndex1 & 0xFFFF;
     const unsigned texcoordGen1 = texcoordIndex1 & 0xFFFF0000;
     if (uvIndex1 > 1)
@@ -4453,11 +5626,11 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSource[1] = GetTexcoordSource(texcoordGen1);
 
     const unsigned texFlags1 =
-        DX8Wrapper::Get_DX8_Texture_Stage_State(1, D3DTSS_TEXTURETRANSFORMFLAGS);
+        RenderStateCache::Get_Texture_Stage_State(1, kStageStateTextureTransformFlags);
     const unsigned texCount1 = texFlags1 & 0xFFu;
-    const bool texProjected1 = (texFlags1 & D3DTTFF_PROJECTED) != 0
-        && texCount1 >= D3DTTFF_COUNT3;
-    if (texCount1 >= D3DTTFF_COUNT2)
+    const bool texProjected1 = (texFlags1 & kTextureTransformProjected) != 0
+        && texCount1 >= kTextureTransformCount3;
+    if (texCount1 >= kTextureTransformCount2)
     {
         g_draw.texcoordSelect2[1] = 1.0f;
         ReadTextureTransform(1, g_draw.tex1Transform0, g_draw.tex1Transform1);
@@ -4472,6 +5645,23 @@ static void UpdateTextureTransforms()
         SetIdentityTextureTransform(g_draw.tex1Transform0, g_draw.tex1Transform1);
     }
     g_draw.texProjected[1] = texProjected1 ? 1.0f : 0.0f;
+
+    const unsigned texcoordIndex2 =
+        RenderStateCache::Get_Texture_Stage_State(2, kStageStateTexcoordIndex);
+    const unsigned texcoordGen2 = texcoordIndex2 & 0xFFFF0000;
+    g_draw.texcoordSource[2] = GetTexcoordSource(texcoordGen2);
+
+    const unsigned texFlags2 =
+        RenderStateCache::Get_Texture_Stage_State(2, kStageStateTextureTransformFlags);
+    const unsigned texCount2 = texFlags2 & 0xFFu;
+    if (texCount2 >= kTextureTransformCount2)
+    {
+        ReadTextureTransform(2, g_draw.tex2Transform0, g_draw.tex2Transform1);
+    }
+    else
+    {
+        SetIdentityTextureTransform(g_draw.tex2Transform0, g_draw.tex2Transform1);
+    }
 }
 
 static void UploadMaterialUniforms()
@@ -4501,7 +5691,7 @@ static void UploadMaterialUniforms()
     if (bgfx::isValid(g_uniforms.uAtestParams))
     {
         const float effectiveAtestRef = g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef;
-        const float effectiveAtestFunc = g_overrides.atestActive ? g_overrides.atestFunc : g_draw.atestFunc;
+        const float effectiveAtestFunc = g_overrides.atestActive ? g_overrides.atestFunc : (g_draw.atestEnabled ? g_draw.atestFunc : 0.0f);
         float atestParams[4] = { effectiveAtestRef, effectiveAtestFunc, 0.0f, 0.0f };
         bgfx::setUniform(g_uniforms.uAtestParams, atestParams);
     }
@@ -4524,6 +5714,16 @@ static void UploadMaterialUniforms()
     if (bgfx::isValid(g_uniforms.uGrayscaleEnable))
     {
         bgfx::setUniform(g_uniforms.uGrayscaleEnable, g_draw.grayscaleEnable);
+    }
+    if (bgfx::isValid(g_uniforms.uObjectShroudDim))
+    {
+        float objectShroudDim[4] = {
+            g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[0] : 1.0f,
+            g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[1] : 0.0f,
+            g_views.objectShroudTexturePassActive ? g_draw.objectShroudDim[2] : 0.0f,
+            g_draw.objectShroudDim[3]
+        };
+        bgfx::setUniform(g_uniforms.uObjectShroudDim, objectShroudDim);
     }
     if (bgfx::isValid(g_uniforms.uCloudParams))
     {
@@ -4553,9 +5753,21 @@ static void UploadMaterialUniforms()
     {
         bgfx::setUniform(g_uniforms.uTex1TransformZ, g_draw.tex1TransformZ);
     }
+    if (bgfx::isValid(g_uniforms.uTex2Transform0))
+    {
+        bgfx::setUniform(g_uniforms.uTex2Transform0, g_draw.tex2Transform0);
+    }
+    if (bgfx::isValid(g_uniforms.uTex2Transform1))
+    {
+        bgfx::setUniform(g_uniforms.uTex2Transform1, g_draw.tex2Transform1);
+    }
     if (bgfx::isValid(g_uniforms.uTexProjected))
     {
         bgfx::setUniform(g_uniforms.uTexProjected, g_draw.texProjected);
+    }
+    if (bgfx::isValid(g_uniforms.uLegacyPixelShaderMode))
+    {
+        bgfx::setUniform(g_uniforms.uLegacyPixelShaderMode, g_draw.legacyPixelShaderMode);
     }
     if (bgfx::isValid(g_uniforms.uZBias))
     {
@@ -4618,7 +5830,7 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
             (ambientSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
         g_draw.vertexColorFlags[3] =
             (emissiveSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
-        const unsigned d3dLighting = DX8Wrapper::Get_DX8_Render_State(D3DRS_LIGHTING);
+        const unsigned d3dLighting = RenderStateCache::Get_Render_State(kRenderStateLighting);
         g_draw.lightingEnabled[0] =
             (material->Get_Lighting()
              && d3dLighting != 0
@@ -4716,6 +5928,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     const bgfx::TransientIndexBuffer  ib = g_draw.pendingIB.tib;
     const FVFInfoClass & traceFvf = dyn_vb.FVF_Info();
     const unsigned traceStride = traceFvf.Get_FVF_Size();
+    g_draw.activeVertexNormalBias = g_draw.pendingVB.coplanarNormalBias;
     g_draw.pendingVB.valid = false;
     g_draw.pendingIB.valid = false;
 
@@ -4738,14 +5951,9 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     bgfx::setVertexBuffer(0, &vb, 0, vertex_count);
     bgfx::setIndexBuffer(&ib, 0, static_cast<uint32_t>(polygon_count) * 3);
 
-    // The sorted path is used by particles/effects as well as material decals.
-    // DX8Wrapper::Set_Texture may skip backend updates when the pointer matches
-    // its cache, so refresh from authoritative DX8 state before checking missing
-    // texture flags or binding bgfx handles.
-    SyncTextureStagesFromDx8State();
     BindTextureStages();
     UpdateTextureTransforms();
-    if (IsSortedMaterialDecal(g_draw.state))
+    if (IsSortedMaterialDecal(GetEffectiveDrawState()))
     {
         // Terrain rendering leaves this flag set until reset by the
         // shader manager. Sorted material decals, including command-center
@@ -4756,73 +5964,63 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         g_draw.texcoordSelect[1] = 0.0f;
     }
     {
-        const unsigned zbiasRaw = DX8Wrapper::Get_DX8_Render_State(D3DRS_ZBIAS);
+        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(kRenderStateZBias);
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
-        g_draw.zBias[1] = 0.0f;
+        const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(GetEffectiveDrawState());
+        const bool normalBiasFromGeometry =
+            g_draw.normalBias[0] != 0.0f
+            || (g_draw.activeVertexNormalBias && applySubmittedNormalBias)
+            || IsSneakAttackCoplanarSurface();
+        g_draw.zBias[1] = normalBiasFromGeometry
+            ? ((g_draw.normalBias[0] < 0.02f) ? 0.02f : g_draw.normalBias[0])
+            : 0.0f;
         ClampSortedMaterialDecalZBias();
     }
     UpdateProjectedDecalModeForCurrentDraw();
+    uint64_t state = GetEffectiveDrawState();
     {
-        uint64_t blendState = g_draw.state;
-        if (g_overrides.blendActive)
-        {
-            blendState &= ~BGFX_STATE_BLEND_MASK;
-            blendState |= g_overrides.blendBits;
-        }
-        g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState)
+        g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(state)
             ? 1.0f
             : 0.0f;
     }
-    UpdateAlphaMaskedShadowDecalMode();
+    UpdateAlphaMaskAndSortedEffectModes(state);
     UploadMaterialUniforms();
     if (bgfx::isValid(g_uniforms.uTexcoordSelect))
     {
         bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
     }
     UploadLightUniforms();
-    // TheSuperHackers @bugfix bobtista 02/05/2026 Submit_Sorted_Draw never
-    // set u_lightingEnabled, so each sorted draw inherited stale lighting
-    // state from the previous SubmitEngineDraw call. That left translucent
-    // particles, water spray, and team-color decals running through the
-    // shader's lit branch — multiplying their baked color by sceneAmbient *
-    // matAmbient — when DX8's D3DRS_LIGHTING-off global ran them flat.
-    // Restrict the unlit override to draws the existing IsSortedMaterialDecal
-    // heuristic recognises so we don't accidentally flatten translucent
-    // meshes that legitimately want lighting (e.g. tinted glass).
+    // Match SubmitEngineDraw for sorted dynamic particles/effects. Additive
+    // sprites, soft alpha particles, and material decals bake intensity in
+    // vertex diffuse or the source texture; the shader's lit branch would
+    // ignore that baked color and multiply by scene light instead.
     if (bgfx::isValid(g_uniforms.uLightingEnabled))
     {
         float lit[4] = { g_draw.lightingEnabled[0], 0.0f, 0.0f, 0.0f };
-        if (IsSortedMaterialDecal(g_draw.state))
+        if (ShouldForceUnlitForBakedColorDraw(state))
         {
             lit[0] = 0.0f;
         }
         bgfx::setUniform(g_uniforms.uLightingEnabled, lit);
     }
 
-    uint64_t state = (g_draw.state != 0)
-        ? g_draw.state
-        : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
-
     state = ApplyCullModeOverride(state);
-    if (g_overrides.blendActive)
-    {
-        state &= ~BGFX_STATE_BLEND_MASK;
-        state |= g_overrides.blendBits;
-    }
     state = ApplyBlendEquation(state);
     state = ApplyProjectedAdditiveDecalDrawState(state);
     state = ApplyColorWriteOverride(state);
     state = ApplySortedMaterialDecalDepthState(state);
     LogBgfxSortedMaterialDecal("submit-sorted", kBgfxEngineSortView,
                                polygon_count, vertex_count, state);
+    LogBgfxEffectSubmit("submit-sorted", kBgfxEngineSortView,
+                        polygon_count, vertex_count, state, "pre-skip");
     LogBgfxRevealDraw("submit-sorted", kBgfxEngineSortView,
                       polygon_count, vertex_count, state, "pre-skip");
 
     if (ShouldAllowBgfxDiagnosticDrawOverrides()
         && std::getenv("GGC_BGFX_SKIP_REVEAL_GRID") != nullptr
-        && IsRevealGridTexture(DX8Wrapper::Peek_Render_State().Textures[0]))
+        && IsRevealGridTexture(g_draw.sourceTextures[0]))
     {
         g_stats.skippedDraws++;
         bgfx::discard(BGFX_DISCARD_ALL);
@@ -4840,6 +6038,8 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     bgfx::setState(state);
     BindSoftParticleDepth(IsSoftParticleCandidate(state));
     bgfx::submit(kBgfxEngineSortView, g_draw.program);
+    LogBgfxEffectSubmit("submit-sorted", kBgfxEngineSortView,
+                        polygon_count, vertex_count, state, "submit");
     LogBgfxRevealDraw("submit-sorted", kBgfxEngineSortView,
                       polygon_count, vertex_count, state, "submit");
     g_stats.baseSubmits++;
@@ -4860,6 +6060,49 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
 // the data in, and stash the handle keyed by the access class pointer.
 // The matching Set_Vertex_Buffer(DynamicVBAccessClass&) later sees its
 // own pointer in g_draw.pendingVB and claims the transient for the draw.
+
+static bool SameSubmittedPosition(const float * a, const float * b)
+{
+    const float dx = a[0] - b[0];
+    const float dy = a[1] - b[1];
+    const float dz = a[2] - b[2];
+    return dx * dx + dy * dy + dz * dz < 0.000001f;
+}
+
+static bool HasSubmittedOppositeNormalPairs(const FVFInfoClass & fvf,
+                                            const void * data,
+                                            uint32_t numVerts)
+{
+    if (!fvf.Has_Normal() || data == nullptr || numVerts < 2 || numVerts > 4096)
+    {
+        return false;
+    }
+
+    const uint8_t * bytes = static_cast<const uint8_t *>(data);
+    const unsigned stride = fvf.Get_FVF_Size();
+    const unsigned positionOffset = fvf.Get_Location_Offset();
+    const unsigned normalOffset = fvf.Get_Normal_Offset();
+    for (uint32_t i = 0; i < numVerts; ++i)
+    {
+        const float * pi = reinterpret_cast<const float *>(bytes + i * stride + positionOffset);
+        const float * ni = reinterpret_cast<const float *>(bytes + i * stride + normalOffset);
+        for (uint32_t j = i + 1; j < numVerts; ++j)
+        {
+            const float * pj = reinterpret_cast<const float *>(bytes + j * stride + positionOffset);
+            if (!SameSubmittedPosition(pi, pj))
+            {
+                continue;
+            }
+            const float * nj = reinterpret_cast<const float *>(bytes + j * stride + normalOffset);
+            const float dot = ni[0] * nj[0] + ni[1] * nj[1] + ni[2] * nj[2];
+            if (dot < -0.9f)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
 
 void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
                                               const void * data,
@@ -4883,7 +6126,14 @@ void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
     }
     if (bgfx::getAvailTransientVertexBuffer(num_verts, layout) < num_verts)
     {
+        LogBgfxTransientDiag("capture", "vb", vba, num_verts,
+                             g_draw.pendingVB.valid,
+                             g_draw.pendingVB.owner == vba,
+                             g_draw.useTransientVB,
+                             g_draw.activeTransientVBOwner == vba,
+                             "no-avail");
         g_draw.pendingVB.valid = false;
+        g_draw.pendingVB.coplanarNormalBias = false;
         return;
     }
 
@@ -4894,12 +6144,19 @@ void BgfxBackend::Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
     std::memcpy(g_draw.pendingVB.tvb.data, data, bytes);
     g_draw.pendingVB.owner = vba;
     g_draw.pendingVB.valid = true;
+    g_draw.pendingVB.coplanarNormalBias = HasSubmittedOppositeNormalPairs(vba->FVF_Info(), data, num_verts);
+    LogBgfxTransientDiag("capture", "vb", vba, num_verts,
+                         true,
+                         true,
+                         g_draw.useTransientVB,
+                         g_draw.activeTransientVBOwner == vba,
+                         "ok");
 
     // TheSuperHackers @bugfix bobtista 30/04/2026 Track FVF normal presence
     // for transient-VB submits so the engine-view targeted lit-on override
     // in SubmitEngineDraw works for translucent meshes and other paths that
     // never go through Set_Vertex_Buffer.
-    g_draw.fvfHasNormal = (vba->FVF_Info().Get_FVF() & D3DFVF_NORMAL) != 0;
+    g_draw.fvfHasNormal = vba->FVF_Info().Has_Normal();
 }
 
 void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
@@ -4918,6 +6175,12 @@ void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
     }
     if (bgfx::getAvailTransientIndexBuffer(num_indices) < num_indices)
     {
+        LogBgfxTransientDiag("capture", "ib", iba, num_indices,
+                             g_draw.pendingIB.valid,
+                             g_draw.pendingIB.owner == iba,
+                             g_draw.useTransientIB,
+                             g_draw.activeTransientIBOwner == iba,
+                             "no-avail");
         g_draw.pendingIB.valid = false;
         return;
     }
@@ -4929,33 +6192,89 @@ void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
     std::memcpy(g_draw.pendingIB.tib.data, data, bytes);
     g_draw.pendingIB.owner = iba;
     g_draw.pendingIB.valid = true;
+    LogBgfxTransientDiag("capture", "ib", iba, num_indices,
+                         true,
+                         true,
+                         g_draw.useTransientIB,
+                         g_draw.activeTransientIBOwner == iba,
+                         "ok");
 }
 
 // -- State: shaders, materials, textures ------------------------------------
 
 void BgfxBackend::Set_Shader(const ShaderClass & shader)
 {
-    DX8Backend::Set_Shader(shader);
+    FixedFunctionState::Set_Shader(shader);
     g_draw.program = g_device.uberProgram;
     g_draw.state   = BuildBgfxStateForShader(shader);
+    const uint64_t srcBits = TranslateBlendFactor(shader.Get_Src_Blend_Func());
+    const uint64_t dstBits = TranslateBlendFactor(shader.Get_Dst_Blend_Func());
+    g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(srcBits, dstBits);
+    g_draw.blendEquationBits = BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
+    g_draw.alphaBlendEnabled = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
+    g_draw.alphaBlendExplicitlySet = false;
+    g_draw.depthTestEnabled = true;
+    g_draw.depthWriteEnabled = shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_ENABLE;
+    g_draw.depthFuncBits = TranslateDepthCompare(shader.Get_Depth_Compare());
     BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef, &g_draw.atestFunc);
+    g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
+    g_draw.legacyPixelShaderMode[0] = static_cast<float>(RB_LEGACY_PIXEL_SHADER_NONE);
     Clear_State_Overrides();
 }
 
 void BgfxBackend::Set_Material(const VertexMaterialClass * material)
 {
-    DX8Backend::Set_Material(material);
+    g_draw.sourceMaterial = material;
+    FixedFunctionState::Set_Material(material);
+    const bool lightingEnabled =
+        material != nullptr
+        && material->Get_Lighting()
+        && !WW3D::Is_Coloring_Enabled();
+    RenderStateCache::Set_Render_State(kRenderStateLighting, lightingEnabled ? TRUE : FALSE);
+    g_draw.explicitMaterialState = false;
     CaptureMaterialStateForBgfx(material);
+}
+
+void BgfxBackend::Apply_Material_State(const RenderBackendMaterialState & material)
+{
+    g_draw.explicitMaterialState = true;
+    for (int i = 0; i < 4; ++i)
+    {
+        g_draw.matDiffuse[i] = material.diffuse[i];
+        g_draw.matAmbient[i] = material.ambient[i];
+        g_draw.matEmissive[i] = material.emissive[i];
+    }
+}
+
+void BgfxBackend::Set_Material_Color_Source(RenderBackendMaterialColorSource ambient_source,
+                                            RenderBackendMaterialColorSource diffuse_source,
+                                            RenderBackendMaterialColorSource emissive_source)
+{
+    RenderStateCache::Set_Render_State(kRenderStateAmbientMaterialSource, static_cast<unsigned>(ambient_source));
+    RenderStateCache::Set_Render_State(kRenderStateDiffuseMaterialSource, static_cast<unsigned>(diffuse_source));
+    RenderStateCache::Set_Render_State(kRenderStateEmissiveMaterialSource, static_cast<unsigned>(emissive_source));
+    g_draw.vertexColorFlags[1] = (diffuse_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
+    g_draw.vertexColorFlags[2] = (ambient_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
+    g_draw.vertexColorFlags[3] = (emissive_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
 }
 
 void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 {
-    DX8Backend::Set_Texture(stage, texture);
+    FixedFunctionState::Set_Texture(stage, texture);
     // Stages 0-3 wired. Covers terrain base + detail
     // + cloud + noise, the standard 4-stage layout used by the
     // FlatHeightMap pixel shader family. Stages above 3 still fall
     // through unmigrated.
     {
+        TextureClass * t2d_name = texture ? texture->As_TextureClass() : nullptr;
+        if (t2d_name != nullptr)
+        {
+            // DX8 applies the texture object's filter/address state when the
+            // deferred texture bind is flushed. Apply it before later bind
+            // logic interprets the current stage sampler state.
+            t2d_name->Get_Filter().Apply(stage);
+        }
+
         bgfx::TextureHandle h = EnsureBgfxTexture(texture);
         const bool missingOrUnavailable = IsMissingOrUnavailableTexture(texture, h);
         // TheSuperHackers @bugfix bobtista 16/04/2026 Use white
@@ -4993,8 +6312,6 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
                              texture->Get_Pool()));
             }
         }
-        TextureClass * t2d_name = texture ? texture->As_TextureClass() : nullptr;
-
         // Capture the source texture's wrap mode into bgfx sampler flags
         // so we can pass it at bind time. Without this, WRAP is the
         // default and ramp/LUT textures with CLAMP semantics produce
@@ -5015,15 +6332,19 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
         switch (stage)
         {
             case 0: g_draw.tex[0] = h;
+                    g_draw.sourceTextures[0] = texture;
                     g_draw.samplerFlags[0] = samplerFlags;
                     g_draw.textureIsMissing[0] = missingOrUnavailable; break;
             case 1: g_draw.tex[1] = h;
+                    g_draw.sourceTextures[1] = texture;
                     g_draw.samplerFlags[1] = samplerFlags;
                     g_draw.textureIsMissing[1] = missingOrUnavailable; break;
             case 2: g_draw.tex[2] = h;
+                    g_draw.sourceTextures[2] = texture;
                     g_draw.samplerFlags[2] = samplerFlags;
                     g_draw.textureIsMissing[2] = missingOrUnavailable; break;
             case 3: g_draw.tex[3] = h;
+                    g_draw.sourceTextures[3] = texture;
                     g_draw.samplerFlags[3] = samplerFlags;
                     g_draw.textureIsMissing[3] = missingOrUnavailable; break;
             default: break;
@@ -5031,17 +6352,112 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
     }
 }
 
+void BgfxBackend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * texture)
+{
+    Set_Texture(stage, texture);
+}
+
 void BgfxBackend::Set_Ambient(const Vector3 & color)
 {
-    DX8Backend::Set_Ambient(color);
+    RenderStateCache::Set_Render_State(kRenderStateAmbient, MakeLegacyARGBColor(color, 0.0f));
     g_draw.sceneAmbient[0] = color.X;
     g_draw.sceneAmbient[1] = color.Y;
     g_draw.sceneAmbient[2] = color.Z;
 }
 
+const Vector3 & BgfxBackend::Get_Ambient() const
+{
+    static Vector3 ambient;
+    ambient.Set(g_draw.sceneAmbient[0], g_draw.sceneAmbient[1], g_draw.sceneAmbient[2]);
+    return ambient;
+}
+
 void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float end)
 {
-    DX8Backend::Set_Fog(enable, color, start, end);
+    (void)enable;
+    (void)color;
+    (void)start;
+    (void)end;
+}
+
+void BgfxBackend::Set_Fog_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(kRenderStateFogEnable, enable ? TRUE : FALSE);
+}
+
+void BgfxBackend::Set_Fog_Color(unsigned argb)
+{
+    RenderStateCache::Set_Render_State(kRenderStateFogColor, argb);
+}
+
+unsigned BgfxBackend::Get_Fog_Color() const
+{
+    return RenderStateCache::Get_Render_State(kRenderStateFogColor);
+}
+
+void BgfxBackend::Set_Specular_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(kRenderStateSpecularEnable, enable ? TRUE : FALSE);
+}
+
+void BgfxBackend::Set_Patch_Segments(float level)
+{
+    RenderStateCache::Set_Render_State(kRenderStatePatchSegments, FloatAsDword(level));
+}
+
+void BgfxBackend::Set_Light(unsigned int index, const LightClass & light)
+{
+    if (index >= 4)
+    {
+        return;
+    }
+
+    Vector3 color;
+    light.Get_Diffuse(&color);
+    color *= light.Get_Intensity();
+    g_draw.lightColors[index][0] = color.X;
+    g_draw.lightColors[index][1] = color.Y;
+    g_draw.lightColors[index][2] = color.Z;
+    g_draw.lightColors[index][3] = 1.0f;
+
+    light.Get_Ambient(&color);
+    color *= light.Get_Intensity();
+    g_draw.lightAmbients[index][0] = color.X;
+    g_draw.lightAmbients[index][1] = color.Y;
+    g_draw.lightAmbients[index][2] = color.Z;
+    g_draw.lightAmbients[index][3] = 1.0f;
+
+    Vector3 position = light.Get_Position();
+    g_draw.lightPositions[index][0] = position.X;
+    g_draw.lightPositions[index][1] = position.Y;
+    g_draw.lightPositions[index][2] = position.Z;
+    g_draw.lightPositions[index][3] = 1.0f;
+
+    Vector3 direction;
+    light.Get_Spot_Direction(direction);
+    g_draw.lightDirs[index][0] = -direction.X;
+    g_draw.lightDirs[index][1] = -direction.Y;
+    g_draw.lightDirs[index][2] = -direction.Z;
+    g_draw.lightDirs[index][3] = 1.0f;
+
+    g_draw.lightParams[index][0] = 0.0f;
+    g_draw.lightParams[index][1] = light.Get_Attenuation_Range();
+    g_draw.lightParams[index][2] =
+        (light.Get_Type() == LightClass::POINT || light.Get_Type() == LightClass::SPOT) ? 1.0f : 0.0f;
+    g_draw.lightParams[index][3] = 1.0f;
+}
+
+void BgfxBackend::Clear_Light(unsigned int index)
+{
+    if (index >= 4)
+    {
+        return;
+    }
+
+    g_draw.lightDirs[index][3] = 0.0f;
+    g_draw.lightColors[index][3] = 0.0f;
+    g_draw.lightAmbients[index][3] = 0.0f;
+    g_draw.lightParams[index][3] = 0.0f;
 }
 
 // Maps WW3D BlendFactor enum (1..11) to bgfx blend-factor bits. Index 0 unused.
@@ -5078,22 +6494,61 @@ static uint64_t TranslateBlendOp(BlendOp op)
     }
 }
 
-// TheSuperHackers @fix bobtista 20/04/2026 The DX8Backend default only updates D3D render state, leaving bgfx's g_overrides.blendBits stale. Water rendering relies on this to restore SRC_ALPHA / INV_SRC_ALPHA blending after its DESTALPHA shoreline pass — otherwise the DESTALPHA state set by Override_Material_Opacity() persists into the next draw (e.g. the faction-emblem quad on the command-center bib), painting it black.
+// TheSuperHackers @fix bobtista 20/04/2026 Water rendering relies on this
+// to restore SRC_ALPHA / INV_SRC_ALPHA blending after its DESTALPHA shoreline
+// pass. Otherwise the DESTALPHA state set by Override_Material_Opacity()
+// persists into the next draw (e.g. the faction-emblem quad on the
+// command-center bib), painting it black.
 void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 {
-    DX8Backend::Set_Blend_Factors(src, dest);
+    RenderStateCache::Set_Render_State(kRenderStateSrcBlend, static_cast<unsigned>(src));
+    RenderStateCache::Set_Render_State(kRenderStateDestBlend, static_cast<unsigned>(dest));
     const unsigned s = static_cast<unsigned>(src);
     const unsigned d = static_cast<unsigned>(dest);
     if (s >= 1 && s <= 11 && d >= 1 && d <= 11)
     {
-        g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[s], kBgfxBlendMap[d]));
+        g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[s], kBgfxBlendMap[d]);
+        if (!g_draw.alphaBlendExplicitlySet && !IsOpaqueBlend(src, dest))
+        {
+            g_draw.alphaBlendEnabled = true;
+        }
     }
 }
 
 void BgfxBackend::Set_Blend_Op(BlendOp op)
 {
-    DX8Backend::Set_Blend_Op(op);
+    RenderStateCache::Set_Render_State(kRenderStateBlendOp, static_cast<unsigned>(op));
     g_draw.blendEquationBits = TranslateBlendOp(op);
+}
+
+void BgfxBackend::Set_Alpha_Blend_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(kRenderStateAlphaBlendEnable, enable ? TRUE : FALSE);
+    g_draw.alphaBlendEnabled = enable;
+    g_draw.alphaBlendExplicitlySet = true;
+}
+
+void BgfxBackend::Set_Alpha_Test_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(kRenderStateAlphaTestEnable, enable ? TRUE : FALSE);
+    g_draw.atestEnabled = enable;
+}
+
+void BgfxBackend::Set_Alpha_Test_Reference(unsigned ref)
+{
+    RenderStateCache::Set_Render_State(kRenderStateAlphaRef, ref);
+    g_draw.atestRef = ref / 255.0f;
+}
+
+void BgfxBackend::Set_Alpha_Test_Function(CompareFunc func)
+{
+    RenderStateCache::Set_Render_State(kRenderStateAlphaFunc, static_cast<unsigned>(func));
+    g_draw.atestFunc = static_cast<float>(func);
+}
+
+void BgfxBackend::Set_Normalize_Normals(bool enable)
+{
+    RenderStateCache::Set_Render_State(kRenderStateNormalizeNormals, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
@@ -5103,6 +6558,7 @@ void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
     if (srcIdx >= 1 && srcIdx <= 11 && dstIdx >= 1 && dstIdx <= 11)
     {
         g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[srcIdx], kBgfxBlendMap[dstIdx]));
+        g_overrides.SetBlendEnable(true);
     }
     else
     {
@@ -5114,9 +6570,8 @@ void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
                          srcIdx, dstIdx));
         }
     }
-    // RB_BLEND_* enum values match D3DBLEND_* (verified in IRenderBackend.h comments), so the integer passed to D3D8 is correct.
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND, srcIdx);
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, dstIdx);
+    RenderStateCache::Set_Render_State(kRenderStateSrcBlend, srcIdx);
+    RenderStateCache::Set_Render_State(kRenderStateDestBlend, dstIdx);
 }
 
 void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func)
@@ -5124,20 +6579,20 @@ void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc fun
     g_overrides.atestActive = enable;
     g_overrides.atestRef = enable ? (ref / 255.0f) : 0.0f;
     g_overrides.atestFunc = enable ? static_cast<float>(func) : 0.0f;
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, enable ? TRUE : FALSE);
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF, ref);
-    // RB_CMP_* enum values match D3DCMP_*, so the integer passed to D3D8 is correct.
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC, static_cast<unsigned>(func));
+    RenderStateCache::Set_Render_State(kRenderStateAlphaTestEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateAlphaRef, ref);
+    RenderStateCache::Set_Render_State(kRenderStateAlphaFunc, static_cast<unsigned>(func));
 }
 
 void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
 {
+    g_overrides.SetBlendEnable(enable);
     if (enable)
     {
         g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
                                                   BGFX_STATE_BLEND_INV_SRC_ALPHA));
     }
-    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(kRenderStateAlphaBlendEnable, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
@@ -5146,22 +6601,13 @@ void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
     {
         g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
     }
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, uvIndex);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, uvIndex);
 }
 
 void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
 {
-    D3DMATRIX d3dMtx;
-    for (int r = 0; r < 4; ++r)
-    {
-        for (int c = 0; c < 4; ++c)
-        {
-            d3dMtx.m[r][c] = matrix[r][c];
-        }
-    }
-
-    DX8Wrapper::_Set_DX8_Transform(
-        static_cast<D3DTRANSFORMSTATETYPE>(D3DTS_TEXTURE0 + stage), d3dMtx);
+    auto cacheMatrix = MakeLegacyCacheMatrix(matrix);
+    RenderStateCache::Set_Transform(kTextureTransformStage0 + stage, cacheMatrix);
 
     if (stage == 0)
     {
@@ -5179,8 +6625,8 @@ void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix
 
 void BgfxBackend::Clear_Texture_Transform(unsigned stage)
 {
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, stage);
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXTURETRANSFORMFLAGS, D3DTTFF_DISABLE);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, stage);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTextureTransformFlags, kTextureTransformDisable);
 
     if (stage < 4)
     {
@@ -5208,25 +6654,203 @@ void BgfxBackend::Clear_Texture_Transform(unsigned stage)
     }
 }
 
-void BgfxBackend::Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
+void BgfxBackend::Set_Texture_Coord_Source(unsigned stage,
+                                           RenderBackendTexcoordSource source,
+                                           unsigned uv_array_index)
 {
-    const unsigned tci = cameraPosEnabled
-        ? (D3DTSS_TCI_CAMERASPACEPOSITION | stage)
-        : stage;
+    unsigned tci = uv_array_index;
+    switch (source)
+    {
+    case RB_TEXCOORD_MESH_UV:
+        tci = kTexcoordGenPassthru | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_NORMAL:
+        tci = kTexcoordGenCameraNormal | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_REFLECTION:
+        tci = kTexcoordGenCameraReflection | uv_array_index;
+        break;
+    case RB_TEXCOORD_CAMERA_SPACE_POSITION:
+        tci = kTexcoordGenCameraPosition | uv_array_index;
+        break;
+    }
 
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, tci);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, tci);
     if (stage < 4)
     {
-        g_draw.texcoordSource[stage] = cameraPosEnabled ? 3.0f : 0.0f;
+        g_draw.texcoordSource[stage] = static_cast<float>(source);
     }
+    if (stage == 0)
+    {
+        g_draw.texcoordSelect[0] = (uv_array_index == 1) ? 1.0f : 0.0f;
+    }
+    else if (stage == 1)
+    {
+        g_draw.texcoordSelect2[0] = (uv_array_index == 1) ? 1.0f : 0.0f;
+    }
+}
+
+void BgfxBackend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_count, bool projected)
+{
+    const unsigned flags = (coord_count == 0 ? kTextureTransformDisable : coord_count)
+        | (projected ? kTextureTransformProjected : 0);
+
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTextureTransformFlags, flags);
+    if (stage < 4)
+    {
+        g_draw.texProjected[stage] = projected && coord_count >= 3 ? 1.0f : 0.0f;
+    }
+}
+
+void BgfxBackend::Set_Texture_Bump_Env_Matrix(unsigned stage,
+                                              float m00,
+                                              float m01,
+                                              float m10,
+                                              float m11)
+{
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat00, FloatAsDword(m00));
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat01, FloatAsDword(m01));
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat10, FloatAsDword(m10));
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat11, FloatAsDword(m11));
+}
+
+void BgfxBackend::Set_Texture_Bump_Env_Luminance(unsigned stage,
+                                                 float scale,
+                                                 float offset)
+{
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvLScale, FloatAsDword(scale));
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvLOffset, FloatAsDword(offset));
+}
+
+void BgfxBackend::Set_Texture_Color_Operation(unsigned stage, RenderBackendTextureOperation op)
+{
+    Set_Texture_Stage_State(stage, kStageStateColorOp, static_cast<unsigned>(op));
+}
+
+void BgfxBackend::Set_Texture_Alpha_Operation(unsigned stage, RenderBackendTextureOperation op)
+{
+    Set_Texture_Stage_State(stage, kStageStateAlphaOp, static_cast<unsigned>(op));
+}
+
+void BgfxBackend::Set_Texture_Color_Argument(unsigned stage,
+                                             unsigned argument_index,
+                                             RenderBackendTextureArgument arg)
+{
+    static const unsigned states[] = {
+        kStageStateColorArg0,
+        kStageStateColorArg1,
+        kStageStateColorArg2,
+    };
+    if (argument_index >= sizeof(states) / sizeof(states[0]))
+        return;
+
+    Set_Texture_Stage_State(stage, states[argument_index], static_cast<unsigned>(arg));
+}
+
+void BgfxBackend::Set_Texture_Alpha_Argument(unsigned stage,
+                                             unsigned argument_index,
+                                             RenderBackendTextureArgument arg)
+{
+    static const unsigned states[] = {
+        kStageStateAlphaArg0,
+        kStageStateAlphaArg1,
+        kStageStateAlphaArg2,
+    };
+    if (argument_index >= sizeof(states) / sizeof(states[0]))
+        return;
+
+    Set_Texture_Stage_State(stage, states[argument_index], static_cast<unsigned>(arg));
+}
+
+void BgfxBackend::Set_Texture_Coord_Generation(unsigned stage, bool cameraPosEnabled)
+{
+    Set_Texture_Coord_Source(stage,
+                             cameraPosEnabled ? RB_TEXCOORD_CAMERA_SPACE_POSITION : RB_TEXCOORD_MESH_UV,
+                             stage);
+}
+
+void BgfxBackend::Set_Texture_UV_Wrap(unsigned stage, bool enable)
+{
+    if (stage == 0)
+    {
+        g_draw.objectShroudDim[3] = enable ? 1.0f : 0.0f;
+    }
+}
+
+static unsigned TextureAddressModeToD3DStageState(RenderBackendTextureAddressMode mode)
+{
+    switch (mode)
+    {
+        case RB_TEXTURE_ADDRESS_CLAMP:
+            return kTextureAddressClamp;
+        case RB_TEXTURE_ADDRESS_BORDER:
+            return kTextureAddressBorder;
+        case RB_TEXTURE_ADDRESS_WRAP:
+        default:
+            return kTextureAddressWrap;
+    }
+}
+
+void BgfxBackend::Set_Texture_Address_Mode(unsigned stage,
+                                           RenderBackendTextureAddressMode u,
+                                           RenderBackendTextureAddressMode v,
+                                           RenderBackendTextureAddressMode w)
+{
+    Set_Texture_Stage_State(stage, kStageStateAddressU, TextureAddressModeToD3DStageState(u));
+    Set_Texture_Stage_State(stage, kStageStateAddressV, TextureAddressModeToD3DStageState(v));
+    Set_Texture_Stage_State(stage, kStageStateAddressW, TextureAddressModeToD3DStageState(w));
+}
+
+static unsigned TextureSampleFilterToD3DStageState(RenderBackendTextureSampleFilter filter)
+{
+    switch (filter)
+    {
+        case RB_TEXTURE_SAMPLE_NONE:
+            return kTextureSampleNone;
+        case RB_TEXTURE_SAMPLE_POINT:
+            return kTextureSamplePoint;
+        case RB_TEXTURE_SAMPLE_ANISOTROPIC:
+            return kTextureSampleAnisotropic;
+        case RB_TEXTURE_SAMPLE_LINEAR:
+        default:
+            return kTextureSampleLinear;
+    }
+}
+
+void BgfxBackend::Set_Texture_Sample_Filter(unsigned stage,
+                                            RenderBackendTextureSampleFilter min_filter,
+                                            RenderBackendTextureSampleFilter mag_filter,
+                                            RenderBackendTextureSampleFilter mip_filter)
+{
+    Set_Texture_Stage_State(stage, kStageStateMinFilter, TextureSampleFilterToD3DStageState(min_filter));
+    Set_Texture_Stage_State(stage, kStageStateMagFilter, TextureSampleFilterToD3DStageState(mag_filter));
+    Set_Texture_Stage_State(stage, kStageStateMipFilter, TextureSampleFilterToD3DStageState(mip_filter));
+}
+
+void BgfxBackend::Set_Texture_Min_Mag_Filter(unsigned stage,
+                                             RenderBackendTextureSampleFilter min_filter,
+                                             RenderBackendTextureSampleFilter mag_filter)
+{
+    Set_Texture_Stage_State(stage, kStageStateMinFilter, TextureSampleFilterToD3DStageState(min_filter));
+    Set_Texture_Stage_State(stage, kStageStateMagFilter, TextureSampleFilterToD3DStageState(mag_filter));
+}
+
+void BgfxBackend::Set_Texture_Mip_Filter(unsigned stage, RenderBackendTextureSampleFilter mip_filter)
+{
+    Set_Texture_Stage_State(stage, kStageStateMipFilter, TextureSampleFilterToD3DStageState(mip_filter));
+}
+
+void BgfxBackend::Set_Texture_Max_Anisotropy(unsigned stage, unsigned max_anisotropy)
+{
+    Set_Texture_Stage_State(stage, kStageStateMaxAnisotropy, max_anisotropy);
 }
 
 void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)
 {
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSU,
-        clampU ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP);
-    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_ADDRESSV,
-        clampV ? D3DTADDRESS_CLAMP : D3DTADDRESS_WRAP);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateAddressU,
+        clampU ? kTextureAddressClamp : kTextureAddressWrap);
+    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateAddressV,
+        clampV ? kTextureAddressClamp : kTextureAddressWrap);
 
     if (stage < 4)
     {
@@ -5242,14 +6866,185 @@ void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clamp
     }
 }
 
+void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
+{
+    RenderStateCache::Set_Texture_Stage_State(stage, state, value);
+    if (stage >= 4)
+    {
+        return;
+    }
+
+    if (stage == 0)
+    {
+        if (state == kStageStateColorOp)
+        {
+            g_draw.tssOps0[0] = TextureOpToTssOp(value);
+        }
+        else if (state == kStageStateAlphaOp)
+        {
+            g_draw.tssOps0[1] = TextureOpToTssOp(value);
+        }
+        else if (state == kStageStateColorArg1)
+        {
+            g_draw.tssOps1[0] = TextureArgToTssArg(value);
+        }
+        else if (state == kStageStateAlphaArg1)
+        {
+            g_draw.tssOps1[1] = TextureArgToTssArg(value);
+        }
+    }
+    else if (stage == 1)
+    {
+        if (state == kStageStateColorOp)
+        {
+            g_draw.tssOps0[2] = TextureOpToTssOp(value);
+        }
+        else if (state == kStageStateAlphaOp)
+        {
+            g_draw.tssOps0[3] = TextureOpToTssOp(value);
+        }
+        else if (state == kStageStateColorArg1)
+        {
+            g_draw.tssOps1[2] = TextureArgToTssArg(value);
+        }
+        else if (state == kStageStateAlphaArg1)
+        {
+            g_draw.tssOps1[3] = TextureArgToTssArg(value);
+        }
+    }
+
+    if (state == kStageStateAddressU)
+    {
+        g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_U_CLAMP;
+        if (value == kTextureAddressClamp)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_U_CLAMP;
+        }
+    }
+    else if (state == kStageStateAddressV)
+    {
+        g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_V_CLAMP;
+        if (value == kTextureAddressClamp)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_V_CLAMP;
+        }
+    }
+    else if (stage == 3 && state == kStageStateTexcoordIndex)
+    {
+        const unsigned uvIndex = value & 0xFFFFu;
+        const unsigned texcoordGen = value & 0xFFFF0000u;
+        if (texcoordGen == kTexcoordGenCameraPosition)
+        {
+            g_draw.texcoordSource[3] = 3.0f;
+        }
+        else
+        {
+            g_draw.texcoordSource[3] = (uvIndex == 1) ? 1.0f : 0.0f;
+        }
+    }
+}
+
+void BgfxBackend::Configure_Custom_Edging_Cloud_Texture_Stages()
+{
+    Set_Texture_Stage_State(0, kStageStateAlphaArg1, kTextureArgCurrent);
+    Set_Texture_Stage_State(0, kStageStateAlphaOp, kTextureOpSelectArg1);
+
+    Set_Texture_Stage_State(1, kStageStateColorArg1, kTextureArgCurrent);
+    Set_Texture_Stage_State(1, kStageStateColorArg2, kTextureArgTexture);
+    Set_Texture_Stage_State(1, kStageStateColorOp, kTextureOpSelectArg1);
+    Set_Texture_Stage_State(1, kStageStateAlphaArg1, kTextureArgCurrent);
+    Set_Texture_Stage_State(1, kStageStateAlphaArg2, kTextureArgTexture);
+    Set_Texture_Stage_State(1, kStageStateAlphaOp, kTextureOpSelectArg2);
+    Set_Texture_Stage_State(1, kStageStateTexcoordIndex, 1);
+}
+
+void BgfxBackend::Configure_Shadow_Volume_Fill_Texture_Stages()
+{
+    Set_Texture_Stage_State(0, kStageStateColorArg1, kTextureArgTexture);
+    Set_Texture_Stage_State(0, kStageStateColorArg2, kTextureArgDiffuse);
+    Set_Texture_Stage_State(0, kStageStateColorOp, kTextureOpSelectArg2);
+    Set_Texture_Stage_State(0, kStageStateAlphaOp, kTextureOpDisable);
+    Set_Texture_Stage_State(0, kStageStateTexcoordIndex, 0);
+
+    Set_Texture_Stage_State(1, kStageStateColorOp, kTextureOpDisable);
+    Set_Texture_Stage_State(1, kStageStateAlphaOp, kTextureOpDisable);
+    Set_Texture_Stage_State(1, kStageStateTexcoordIndex, 1);
+}
+
 void BgfxBackend::Set_Shroud_Texture_Pass_Active(bool active, unsigned stage)
 {
     g_views.shroudTexturePassActive = active;
     g_views.shroudTexturePassStage = stage;
+    if (!active)
+    {
+        g_draw.shroudTextureParamsValid = false;
+        g_views.objectShroudTexturePassActive = false;
+    }
     if (!active || stage != 0)
     {
         g_draw.texcoordSelect[2] = 0.0f;
     }
+}
+
+void BgfxBackend::Set_Object_Shroud_Texture_Pass_Active(bool active)
+{
+    g_views.objectShroudTexturePassActive = active;
+}
+
+void BgfxBackend::Set_Object_Shroud_Alpha_Mask_Texture(TextureBaseClass * texture)
+{
+    g_draw.objectShroudDim[1] = texture != nullptr ? 1.0f : 0.0f;
+    // The delayed object-shroud shader uses the object's base texture as an
+    // alpha mask, but it renders under the shroud shader rather than the
+    // object's original shader. Preserve WW3D's cutout coverage by applying
+    // the same default alpha-test cutoff used by alpha-tested meshes.
+    g_draw.objectShroudDim[2] = texture != nullptr ? kDefaultAlphaTestRef : 0.0f;
+    if (texture == nullptr)
+    {
+        return;
+    }
+
+    bgfx::TextureHandle h = EnsureBgfxTexture(texture);
+    g_draw.tex[1] = h;
+    g_draw.sourceTextures[1] = texture;
+    g_draw.textureIsMissing[1] = IsMissingOrUnavailableTexture(texture, h);
+
+    g_draw.samplerFlags[1] = 0;
+    if (TextureClass * t2d = texture->As_TextureClass())
+    {
+        const TextureFilterClass & flt = t2d->Get_Filter();
+        if (flt.Get_U_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
+        {
+            g_draw.samplerFlags[1] |= BGFX_SAMPLER_U_CLAMP;
+        }
+        if (flt.Get_V_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
+        {
+            g_draw.samplerFlags[1] |= BGFX_SAMPLER_V_CLAMP;
+        }
+    }
+}
+
+void BgfxBackend::Set_Object_Shroud_Dim_Factor(float factor)
+{
+    if (factor < 0.0f)
+    {
+        factor = 0.0f;
+    }
+    else if (factor > 1.0f)
+    {
+        factor = 1.0f;
+    }
+    g_draw.objectShroudDim[0] = factor;
+}
+
+void BgfxBackend::Set_Shroud_Texture_Params(float offset_x, float offset_y,
+                                             float scale_x, float scale_y)
+{
+    g_draw.shroudTextureParams[0] = offset_x;
+    g_draw.shroudTextureParams[1] = offset_y;
+    g_draw.shroudTextureParams[2] = scale_x;
+    g_draw.shroudTextureParams[3] = scale_y;
+    g_draw.shroudTextureParamsValid = true;
 }
 
 void BgfxBackend::Override_Terrain_Blend(bool enable)
@@ -5261,7 +7056,7 @@ void BgfxBackend::Override_Material_Opacity(float opacity)
 {
     // TheSuperHackers @fix bobtista 20/04/2026 Only override opacity.
     // Previously this also forced DESTALPHA blend as a bgfx-side stand-in
-    // for the D3D8 shoreline-alpha water feather. That stale DESTALPHA +
+    // for the legacy shoreline-alpha water feather. That stale DESTALPHA +
     // matDiffuse.a=0.5 state leaked into the next draw (a small quad on
     // the command-center bib, captured in RenderDoc as a water-textured
     // draw producing pure black). The water code already sets DESTALPHA
@@ -5364,7 +7159,6 @@ void BgfxBackend::Set_Cloud_Shadow_Params(bool enable, float scroll_x, float scr
 
 void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool alpha)
 {
-    DX8Backend::Set_Color_Write_Enable(red, green, blue, alpha);
     uint64_t mask = 0;
     if (red)
     {
@@ -5382,32 +7176,53 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
     {
         mask |= BGFX_STATE_WRITE_A;
     }
+    unsigned d3dMask = 0;
+    if (red)
+    {
+        d3dMask |= RB_COLOR_RED;
+    }
+    if (green)
+    {
+        d3dMask |= RB_COLOR_GREEN;
+    }
+    if (blue)
+    {
+        d3dMask |= RB_COLOR_BLUE;
+    }
+    if (alpha)
+    {
+        d3dMask |= RB_COLOR_ALPHA;
+    }
+    RenderStateCache::Set_Render_State(kRenderStateColorWriteEnable, d3dMask);
     g_overrides.colorWriteOverride = static_cast<int>(mask);
     g_overrides.suppressDraw = false;
 }
 
 // TheSuperHackers @refactor bobtista 15/04/2026 Mirror the
 // DWORD variant into g_overrides.colorWriteOverride so stencil shadow volume
-// passes that call Set_Color_Write_Mask(0) actually disable bgfx color
-// writes. Previously the call fell through to DX8Backend only, leaving
-// shadow volumes drawing as solid black geometry.
+// passes that call Set_Color_Write_Mask(0) actually disable bgfx color writes.
+unsigned BgfxBackend::Get_Color_Write_Mask() const
+{
+    return RenderStateCache::Get_Render_State(kRenderStateColorWriteEnable);
+}
+
 void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 {
-    DX8Backend::Set_Color_Write_Mask(mask);
+    RenderStateCache::Set_Render_State(kRenderStateColorWriteEnable, mask);
     uint64_t bgfxMask = 0;
-    if (mask & D3DCOLORWRITEENABLE_RED)
+    if (mask & RB_COLOR_RED)
     {
         bgfxMask |= BGFX_STATE_WRITE_R;
     }
-    if (mask & D3DCOLORWRITEENABLE_GREEN)
+    if (mask & RB_COLOR_GREEN)
     {
         bgfxMask |= BGFX_STATE_WRITE_G;
     }
-    if (mask & D3DCOLORWRITEENABLE_BLUE)
+    if (mask & RB_COLOR_BLUE)
     {
         bgfxMask |= BGFX_STATE_WRITE_B;
     }
-    if (mask & D3DCOLORWRITEENABLE_ALPHA)
+    if (mask & RB_COLOR_ALPHA)
     {
         bgfxMask |= BGFX_STATE_WRITE_A;
     }
@@ -5417,8 +7232,32 @@ void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 
 void BgfxBackend::Set_Lighting_Enable(bool enable)
 {
-    DX8Backend::Set_Lighting_Enable(enable);
+    RenderStateCache::Set_Render_State(kRenderStateLighting, enable ? TRUE : FALSE);
     g_draw.lightingEnabled[0] = enable ? 1.0f : 0.0f;
+}
+
+void BgfxBackend::Set_Point_Sprite_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(kRenderStatePointSpriteEnable, enable ? TRUE : FALSE);
+}
+
+void BgfxBackend::Set_Point_Scale_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(kRenderStatePointScaleEnable, enable ? TRUE : FALSE);
+}
+
+void BgfxBackend::Set_Point_Size(float size, float min_size, float max_size)
+{
+    RenderStateCache::Set_Render_State(kRenderStatePointSize, FloatAsDword(size));
+    RenderStateCache::Set_Render_State(kRenderStatePointSizeMin, FloatAsDword(min_size));
+    RenderStateCache::Set_Render_State(kRenderStatePointSizeMax, FloatAsDword(max_size));
+}
+
+void BgfxBackend::Set_Point_Scale(float a, float b, float c)
+{
+    RenderStateCache::Set_Render_State(kRenderStatePointScaleA, FloatAsDword(a));
+    RenderStateCache::Set_Render_State(kRenderStatePointScaleB, FloatAsDword(b));
+    RenderStateCache::Set_Render_State(kRenderStatePointScaleC, FloatAsDword(c));
 }
 
 void BgfxBackend::Skip_Next_Bgfx_Submit()
@@ -5442,7 +7281,7 @@ void BgfxBackend::Set_Projected_Decal_Mode(RenderBackendProjectedDecalMode mode)
 // is unnecessary and it clobbers team colors.
 void BgfxBackend::Set_Texture_Factor(unsigned argb)
 {
-    DX8Backend::Set_Texture_Factor(argb);
+    RenderStateCache::Set_Render_State(kRenderStateTextureFactor, argb);
 }
 
 void BgfxBackend::Set_Shadow_Volume_Shader_Active(bool active)
@@ -5627,9 +7466,12 @@ bool BgfxBackend::Needs_Closed_Shadow_Volumes() const
 
 void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
                                               unsigned stencil_read_mask,
-                                              unsigned stencil_ref)
+                                              unsigned stencil_ref,
+                                              int /*x*/,
+                                              int /*y*/,
+                                              int /*width*/,
+                                              int /*height*/)
 {
-    DX8Backend::Apply_Stencil_Shadow_Darken(shadow_color, stencil_read_mask, stencil_ref);
     if (!LegacyStencilShadowsEnabled()
         || std::getenv("GGC_BGFX_STENCIL_NO_APPLY") != nullptr
         || !g_device.initialized
@@ -5715,62 +7557,67 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 
 void BgfxBackend::Set_Stencil_Enable(bool enable)
 {
-    DX8Backend::Set_Stencil_Enable(enable);
+    RenderStateCache::Set_Render_State(kRenderStateStencilEnable, enable ? TRUE : FALSE);
     g_draw.stencilEnabled = enable;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Func(CompareFunc f)
 {
-    DX8Backend::Set_Stencil_Func(f);
-    g_draw.stencilFuncBits = MapCmpFuncToBgfxStencilTest(static_cast<int>(f));
+    RenderStateCache::Set_Render_State(kRenderStateStencilFunc, static_cast<unsigned>(f));
+    g_draw.stencilFuncBits = MapCmpFuncToBgfxStencilTest(f);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Ref(unsigned ref)
 {
-    DX8Backend::Set_Stencil_Ref(ref);
+    RenderStateCache::Set_Render_State(kRenderStateStencilRef, ref);
     g_draw.stencilRef = ref;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Mask(unsigned mask)
 {
-    DX8Backend::Set_Stencil_Mask(mask);
+    RenderStateCache::Set_Render_State(kRenderStateStencilMask, mask);
     g_draw.stencilReadMask = mask;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Write_Mask(unsigned mask)
 {
-    DX8Backend::Set_Stencil_Write_Mask(mask);
+    RenderStateCache::Set_Render_State(kRenderStateStencilWriteMask, mask);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Pass_Op(StencilOp op)
 {
-    DX8Backend::Set_Stencil_Pass_Op(op);
-    g_draw.stencilPassOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_PASS_Z_SHIFT);
+    RenderStateCache::Set_Render_State(kRenderStateStencilPass, static_cast<unsigned>(op));
+    g_draw.stencilPassOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_PASS_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Fail_Op(StencilOp op)
 {
-    DX8Backend::Set_Stencil_Fail_Op(op);
-    g_draw.stencilFailOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_FAIL_S_SHIFT);
+    RenderStateCache::Set_Render_State(kRenderStateStencilFail, static_cast<unsigned>(op));
+    g_draw.stencilFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_S_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp op)
 {
-    DX8Backend::Set_Stencil_ZFail_Op(op);
-    g_draw.stencilZFailOpBits = MapStencilOpToBgfx(static_cast<int>(op), BGFX_STENCIL_OP_FAIL_Z_SHIFT);
+    RenderStateCache::Set_Render_State(kRenderStateStencilZFail, static_cast<unsigned>(op));
+    g_draw.stencilZFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_Z_SHIFT);
     UpdateShadowStencilState();
+}
+
+CullMode BgfxBackend::Get_Cull_Mode() const
+{
+    return static_cast<CullMode>(RenderStateCache::Get_Render_State(kRenderStateCullMode));
 }
 
 void BgfxBackend::Set_Cull_Mode(CullMode mode)
 {
-    DX8Backend::Set_Cull_Mode(mode);
+    RenderStateCache::Set_Render_State(kRenderStateCullMode, static_cast<unsigned>(mode));
     switch (mode)
     {
         case RB_CULL_CW:  g_draw.cullModeBits = 1; break;
@@ -5780,9 +7627,41 @@ void BgfxBackend::Set_Cull_Mode(CullMode mode)
     }
 }
 
+void BgfxBackend::Set_Z_Bias(int bias)
+{
+    RenderStateCache::Set_Render_State(kRenderStateZBias, static_cast<unsigned>(bias));
+}
+
+void BgfxBackend::Set_Normal_Bias(float bias)
+{
+    g_draw.normalBias[0] = bias;
+}
+
+void BgfxBackend::Set_Fill_Mode(FillMode mode)
+{
+    RenderStateCache::Set_Render_State(kRenderStateFillMode, static_cast<unsigned>(mode));
+}
+
+void BgfxBackend::Set_Shade_Mode(ShadeMode mode)
+{
+    RenderStateCache::Set_Render_State(kRenderStateShadeMode, static_cast<unsigned>(mode));
+}
+
+void BgfxBackend::Set_Depth_Test_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(kRenderStateZEnable, enable ? TRUE : FALSE);
+    g_draw.depthTestEnabled = enable;
+}
+
+void BgfxBackend::Set_Depth_Write_Enable(bool enable)
+{
+    RenderStateCache::Set_Render_State(kRenderStateZWriteEnable, enable ? TRUE : FALSE);
+    g_draw.depthWriteEnabled = enable;
+}
+
 void BgfxBackend::Set_Depth_Func(CompareFunc func)
 {
-    DX8Backend::Set_Depth_Func(func);
+    RenderStateCache::Set_Render_State(kRenderStateZFunc, static_cast<unsigned>(func));
     static const uint64_t kDepthMap[] = {
         0,                              // 0 (unused)
         BGFX_STATE_DEPTH_TEST_NEVER,    // RB_CMP_NEVER = 1
@@ -5797,14 +7676,12 @@ void BgfxBackend::Set_Depth_Func(CompareFunc func)
     const unsigned idx = static_cast<unsigned>(func);
     if (idx < 9)
     {
-        g_draw.state &= ~BGFX_STATE_DEPTH_TEST_MASK;
-        g_draw.state |= kDepthMap[idx];
+        g_draw.depthFuncBits = kDepthMap[idx];
     }
 }
 
 void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture)
 {
-    DX8Backend::Set_Render_Target_With_Z(texture, ztexture);
     if (texture == nullptr || !g_device.initialized)
     {
         g_views.renderToTexture = false;
@@ -5854,6 +7731,8 @@ void BgfxBackend::Clear_State_Overrides()
 {
     g_overrides.Reset();
     g_draw.texcoordSelect[0] = 0.0f;
+    g_draw.objectShroudDim[3] = 0.0f;
+    g_draw.delayedObjectShroudPass = false;
     // Do NOT clear g_draw.texcoordSelect[1] (terrain blend) here.
     // Override_Terrain_Blend is called from the shader manager BEFORE
     // Set_Shader, so clearing it in Set_Shader (which calls us) would
@@ -5861,12 +7740,15 @@ void BgfxBackend::Clear_State_Overrides()
     // at Begin_Scene (above) and by Override_Terrain_Blend(false).
 }
 
+static LightEnvironmentClass * g_lastLightEnv = nullptr;
+
 void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
 {
-    DX8Backend::Set_Light_Environment(light_env);
     if (light_env != nullptr)
     {
+        g_lastLightEnv = light_env;
         const Vector3 & ambient = light_env->Get_Equivalent_Ambient();
+        RenderStateCache::Set_Render_State(kRenderStateAmbient, MakeLegacyARGBColor(ambient, 0.0f));
         g_draw.sceneAmbient[0] = ambient.X;
         g_draw.sceneAmbient[1] = ambient.Y;
         g_draw.sceneAmbient[2] = ambient.Z;
@@ -5877,9 +7759,9 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
             if (i < count)
             {
                 const Vector3 & dir = light_env->Get_Light_Direction(i);
-                g_draw.lightDirs[i][0] = -dir.X;
-                g_draw.lightDirs[i][1] = -dir.Y;
-                g_draw.lightDirs[i][2] = -dir.Z;
+                g_draw.lightDirs[i][0] = dir.X;
+                g_draw.lightDirs[i][1] = dir.Y;
+                g_draw.lightDirs[i][2] = dir.Z;
                 g_draw.lightDirs[i][3] = 1.0f; // enabled
                 if (light_env->isPointLight(i))
                 {
@@ -5930,17 +7812,11 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
     }
 }
 
-// Get_Shader, Apply_Render_State_Changes, Apply_Default_State,
-// Invalidate_Cached_Render_States, Set_Blend_Op, Set_Blend_Factors,
-// Set_Color_Write_Enable, Set_Alpha_Blend_Enable, hardware cursor, and
-// Set_Stencil_* are all inherited from DX8Backend and forward unchanged
-// to DX8Wrapper.
-
 // -- Transforms --------------------------------------------------------------
 
 void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
 {
-    DX8Backend::Set_Transform(transform, m);
+    CacheTransform(transform, m);
     switch (transform)
     {
         case RB_TRANSFORM_WORLD:
@@ -5962,7 +7838,7 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
 
 void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
 {
-    DX8Backend::Set_Transform(transform, m);
+    CacheTransform(transform, m);
     switch (transform)
     {
         case RB_TRANSFORM_WORLD:
@@ -5978,35 +7854,49 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
     }
 }
 
-// Get_Transform / Is_World_Identity / Is_View_Identity are inherited
-// from DX8Backend.
+void BgfxBackend::Get_Transform(TransformKind transform, Matrix4x4 & m) const
+{
+    auto matrix = MakeIdentityLegacyCacheMatrix();
+    RenderStateCache::Get_Transform(static_cast<unsigned>(transform), matrix);
+    m = To_Matrix4x4(matrix);
+}
 
 void BgfxBackend::Set_World_Identity()
 {
-    DX8Backend::Set_World_Identity();
+    CacheIdentityTransform(RB_TRANSFORM_WORLD);
+    FixedFunctionState::Set_World_Identity();
     IdentityMatrix(g_frame.world);
 }
 
 void BgfxBackend::Set_View_Identity()
 {
-    DX8Backend::Set_View_Identity();
+    CacheIdentityTransform(RB_TRANSFORM_VIEW);
+    FixedFunctionState::Set_View_Identity();
     IdentityMatrix(g_frame.view);
     g_frame.cameraProjDirty = true;
     g_views.overlay2DActive = true;
 }
 
+bool BgfxBackend::Is_World_Identity() const
+{
+    return IsCachedTransformIdentity(RB_TRANSFORM_WORLD);
+}
+
+bool BgfxBackend::Is_View_Identity() const
+{
+    return IsCachedTransformIdentity(RB_TRANSFORM_VIEW);
+}
+
 void BgfxBackend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix,
                                                        float znear, float zfar)
 {
-    DX8Backend::Set_Projection_Transform_With_Z_Bias(matrix, znear, zfar);
+    (void)znear;
+    (void)zfar;
+    CacheTransform(RB_TRANSFORM_PROJECTION, matrix);
     W3DMatrix4ToBgfx(matrix, g_frame.proj);
     g_frame.cameraProjDirty = true;
 
 }
-
-// Lighting and fog (Set_Light, Set_Ambient, Get_Ambient, Set_Fog,
-// Get_Fog_Enable, Set_Light_Environment, Get_Light_Environment) are
-// inherited from DX8Backend.
 
 // -- Draw calls --------------------------------------------------------------
 
@@ -6028,27 +7918,6 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::discard(BGFX_DISCARD_ALL);
         return;
     }
-    // Detect when the engine has restored the back buffer. The water/shadow
-    // code calls DX8Wrapper::Set_Render_Target(nullptr) directly, bypassing
-    // g_renderBackend. Poll the DX8 state to keep g_views.renderToTexture in sync.
-    const bool dx8RenderToTexture = DX8Wrapper::Is_Render_To_Texture();
-    if (g_views.renderToTexture && !dx8RenderToTexture)
-    {
-        g_views.renderToTexture = false;
-        g_views.renderTargetTexture = nullptr;
-    }
-    else if (!g_views.renderToTexture && dx8RenderToTexture
-             && g_views.renderTargetTexture != nullptr)
-    {
-        auto rtIt = g_caches.framebuffer.find(g_views.renderTargetTexture);
-        if (rtIt != g_caches.framebuffer.end())
-        {
-            const BgfxFramebufferEntry & entry = rtIt->second;
-            bgfx::setViewFrameBuffer(kBgfxRTTView, entry.fb);
-            bgfx::setViewRect(kBgfxRTTView, 0, 0, entry.width, entry.height);
-            g_views.renderToTexture = true;
-        }
-    }
     if (!g_device.initialized)
     {
         return;
@@ -6056,13 +7925,29 @@ void SubmitEngineDraw(unsigned short start_index,
     g_stats.drawCalls++;
     if (!bgfx::isValid(g_draw.program))
     {
+        LogBgfxEffectSubmit("submit-engine",
+                            g_views.inSortFlush ? kBgfxEngineSortView : kBgfxEngineView,
+                            polygon_count,
+                            vertex_count,
+                            g_draw.state,
+                            "skip-no-program");
         g_stats.skippedDraws++;
         return;
     }
-    const bool have_vb = g_draw.useTransientVB || bgfx::isValid(g_draw.vb);
-    const bool have_ib = g_draw.useTransientIB || bgfx::isValid(g_draw.ib);
+    const bool have_vb = g_draw.useTransientVB
+        || (g_draw.useStaticVB && bgfx::isValid(g_draw.staticVB))
+        || bgfx::isValid(g_draw.vb);
+    const bool have_ib = g_draw.useTransientIB
+        || (g_draw.useStaticIB && bgfx::isValid(g_draw.staticIB))
+        || bgfx::isValid(g_draw.ib);
     if (!have_vb || !have_ib)
     {
+        LogBgfxEffectSubmit("submit-engine",
+                            g_views.inSortFlush ? kBgfxEngineSortView : kBgfxEngineView,
+                            polygon_count,
+                            vertex_count,
+                            g_draw.state,
+                            !have_vb && !have_ib ? "skip-no-vb-ib" : (!have_vb ? "skip-no-vb" : "skip-no-ib"));
         g_stats.skippedDraws++;
         return;
     }
@@ -6090,10 +7975,10 @@ void SubmitEngineDraw(unsigned short start_index,
         && !g_views.waterOverlayActive
         && !g_views.effectOverlayActive && !g_views.inSortFlush)
     {
-        // Check if view matrix is identity (2D mode)
-        const float *v = g_frame.view;
-        if (v[0] == 1.0f && v[5] == 1.0f && v[10] == 1.0f && v[15] == 1.0f
-            && v[1] == 0.0f && v[2] == 0.0f && v[4] == 0.0f && v[6] == 0.0f)
+        // Camera-space particles and smudges also draw with an identity view,
+        // but keep the camera perspective projection. Only infer 2D when both
+        // the view and projection match screen-space drawing.
+        if (IsIdentityViewMatrix(g_frame.view) && IsNonPerspectiveProjection(g_frame.proj))
         {
             is2D = true;
         }
@@ -6126,6 +8011,14 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     else
     {
+        submitView = kBgfxEngineView;
+    }
+    const uint64_t routeState = GetEffectiveDrawState();
+    if (IsSortedRotorBlur(routeState) || IsSneakAttackAlphaDepthDecal(routeState))
+    {
+        // These sorted meshes need their raw model world matrix and the normal
+        // camera view. The pre-view-multiplied sort matrix lands local W3D
+        // model quads away from the object.
         submitView = kBgfxEngineView;
     }
     const BgfxDiagnosticFlags diagnostics = GetBgfxDiagnosticFlags();
@@ -6168,6 +8061,7 @@ void SubmitEngineDraw(unsigned short start_index,
         // view+proj so the extrusion geometry lands where the opaque
         // geometry in view 1 landed.
         bgfx::setViewTransform(kBgfxShadowVolumeView, g_frame.view, g_frame.proj);
+        bgfx::setViewTransform(kBgfxShroudOverlayView, g_frame.view, g_frame.proj);
         bgfx::setViewTransform(kBgfxSceneDepthView, g_frame.view, g_frame.proj);
         g_frame.cameraProjDirty = false;
     }
@@ -6188,6 +8082,10 @@ void SubmitEngineDraw(unsigned short start_index,
     const float * worldMtx = g_views.inSortFlush
         ? g_frame.sortWorld
         : g_frame.world;
+    if (IsSortedRotorBlur(routeState) || IsSneakAttackAlphaDepthDecal(routeState))
+    {
+        worldMtx = g_frame.sortWorldRaw;
+    }
     if (is2D)
     {
         // TheSuperHackers @bugfix bobtista 30/04/2026 2D UI vertices are
@@ -6198,8 +8096,6 @@ void SubmitEngineDraw(unsigned short start_index,
         worldMtx = identityWorld;
     }
 
-    // World matrix is per-submit. bgfx consumes the value at submit time
-    // and resets the per-draw transform after each submit.
     bgfx::setTransform(worldMtx);
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Offset
@@ -6240,7 +8136,14 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     else
     {
-        bgfx::setVertexBuffer(0, g_draw.vb, base_vertex, bindVertexCount);
+        if (g_draw.useStaticVB)
+        {
+            bgfx::setVertexBuffer(0, g_draw.staticVB, base_vertex, bindVertexCount);
+        }
+        else
+        {
+            bgfx::setVertexBuffer(0, g_draw.vb, base_vertex, bindVertexCount);
+        }
     }
 
     const uint32_t indexCount = triangle_strip
@@ -6256,9 +8159,18 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     else
     {
-        bgfx::setIndexBuffer(g_draw.ib,
-                             indexStart,
-                             indexCount);
+        if (g_draw.useStaticIB)
+        {
+            bgfx::setIndexBuffer(g_draw.staticIB,
+                                 indexStart,
+                                 indexCount);
+        }
+        else
+        {
+            bgfx::setIndexBuffer(g_draw.ib,
+                                 indexStart,
+                                 indexCount);
+        }
     }
 
     if (g_views.smudgeActive)
@@ -6308,26 +8220,41 @@ void SubmitEngineDraw(unsigned short start_index,
     // distant terrain patches look blocky. Let bgfx pick the best
     // filter it can for each texture.
 
-    // TheSuperHackers @fix bobtista 19/04/2026 During sort flush, the
-    // sorting renderer's Apply_Render_State calls DX8Wrapper::Set_Texture
-    // which has a cache check — if the texture pointer matches the cached
-    // one, it skips BgfxBackend::Set_Texture entirely. This leaves
-    // g_draw.tex[0]-3 stale (e.g., pointing at font glyphs instead
-    // of particle textures).
-    // TheSuperHackers @bugfix bobtista 06/05/2026 This is not limited to sort
-    // flushes: spy-satellite reveal particles can reach bgfx with stale
-    // missing-texture flags, so the missing EXRedSmokePuff placeholder draws as
-    // black blocks instead of being suppressed as a transparent blended effect.
-    SyncTextureStagesFromDx8State();
     BindTextureStages();
     UpdateTextureTransforms();
-    // DX8Wrapper::Draw applies pending render-state changes before this
-    // submit, and material application can happen there without going
-    // through BgfxBackend::Set_Material. Refresh from the authoritative
-    // DX8 render state so bgfx does not light a mesh with stale material
-    // color-source or lighting flags from a previous draw.
-    CaptureMaterialStateForBgfx(DX8Wrapper::Peek_Render_State().material);
-    if (submitView == kBgfxEngineSortView && IsSortedMaterialDecal(g_draw.state))
+
+    if (is2D)
+    {
+        // Render2DClass-authored quads only carry UV0 in screen space.
+        // Stale world texture coordinate routing/transform state can
+        // otherwise redirect video/UI samples into black atlas padding.
+        g_draw.texcoordSelect[0] = 0.0f;
+        g_draw.texcoordSelect[3] = 0.0f;
+        g_draw.texcoordSelect2[0] = 0.0f;
+        g_draw.texcoordSelect2[1] = 0.0f;
+        for (unsigned stage = 0; stage < 4; ++stage)
+        {
+            g_draw.texcoordSource[stage] = 0.0f;
+        }
+        g_draw.texProjected[0] = 0.0f;
+        g_draw.texProjected[1] = 0.0f;
+        SetIdentityTextureTransform(g_draw.texTransform0, g_draw.texTransform1);
+        SetIdentityTextureTransform(g_draw.tex1Transform0, g_draw.tex1Transform1);
+        SetIdentityTextureTransform(g_draw.tex2Transform0, g_draw.tex2Transform1);
+        g_draw.texTransform0Z[0] = 0.0f;
+        g_draw.texTransform0Z[1] = 0.0f;
+        g_draw.texTransform0Z[2] = 1.0f;
+        g_draw.texTransform0Z[3] = 0.0f;
+        g_draw.tex1TransformZ[0] = 0.0f;
+        g_draw.tex1TransformZ[1] = 0.0f;
+        g_draw.tex1TransformZ[2] = 1.0f;
+        g_draw.tex1TransformZ[3] = 0.0f;
+    }
+    if (!g_draw.explicitMaterialState)
+    {
+        CaptureMaterialStateForBgfx(g_draw.sourceMaterial);
+    }
+    if (submitView == kBgfxEngineSortView && IsSortedMaterialDecal(GetEffectiveDrawState()))
     {
         // Terrain rendering leaves this flag set until reset by the shader
         // manager. Sorted material decals use the fixed-function TSS path and
@@ -6339,11 +8266,19 @@ void SubmitEngineDraw(unsigned short start_index,
     // u_zBias to the GPU. Setting g_draw.zBias afterward leaves the uniform
     // at the previous (or default) value and defeats the whole fix.
     {
-        const unsigned zbiasRaw = DX8Wrapper::Get_DX8_Render_State(D3DRS_ZBIAS);
+        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(kRenderStateZBias);
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
-        g_draw.zBias[1] = 0.0f;
+        const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(routeState);
+        const bool normalBiasFromGeometry =
+            !is2D
+            && (g_draw.normalBias[0] != 0.0f
+                || (g_draw.activeVertexNormalBias && applySubmittedNormalBias)
+                || IsSneakAttackCoplanarSurface());
+        g_draw.zBias[1] = normalBiasFromGeometry
+            ? ((g_draw.normalBias[0] < 0.02f) ? 0.02f : g_draw.normalBias[0])
+            : 0.0f;
         // TheSuperHackers @bugfix bobtista 02/05/2026 Sorted material decals
         // (alpha-blend + DEPTH_WRITE_OFF + postdetail-alpha) such as the USA
         // strategy center floor emblem (ABBTCMDHQS.SWORD) sit coplanar with
@@ -6355,93 +8290,65 @@ void SubmitEngineDraw(unsigned short start_index,
         ClampSortedMaterialDecalZBias();
     }
     UpdateProjectedDecalModeForCurrentDraw();
-    if (IsMultiplicativeBlend(g_draw.state)
-        && (g_draw.state & BGFX_STATE_WRITE_Z) == 0
-        && (g_draw.state & BGFX_STATE_DEPTH_TEST_MASK) != BGFX_STATE_DEPTH_TEST_EQUAL
-        && !IsEffectiveProjectedBlobShadowDraw())
+    const uint64_t earlyState = GetEffectiveDrawState();
+    if (IsMultiplicativeBlend(earlyState)
+        && (earlyState & BGFX_STATE_WRITE_Z) == 0
+        && (earlyState & BGFX_STATE_DEPTH_TEST_MASK) != BGFX_STATE_DEPTH_TEST_EQUAL
+        && !IsEffectiveProjectedShadowDraw())
     {
         LogBgfxRevealDraw("submit-engine", submitView,
-                          polygon_count, vertex_count, g_draw.state,
+                          polygon_count, vertex_count, earlyState,
                           "skip-multiply");
         g_stats.skippedDraws++;
         bgfx::discard(BGFX_DISCARD_ALL);
         return;
     }
     {
-        uint64_t blendState = g_draw.state;
-        if (g_overrides.blendActive)
-        {
-            blendState &= ~BGFX_STATE_BLEND_MASK;
-            blendState |= g_overrides.blendBits;
-        }
+        uint64_t blendState = earlyState;
         g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState)
             ? 1.0f
             : 0.0f;
+        UpdateAlphaMaskAndSortedEffectModes(blendState);
     }
-    UpdateAlphaMaskedShadowDecalMode();
     UploadMaterialUniforms();
-    // Read current D3D light state per-draw. Set_Light_Environment and
-    // Set_Ambient capture some paths, but many callers set lights via
-    // DX8Wrapper::Set_DX8_Light or Apply_Render_State_Changes directly,
-    // bypassing g_renderBackend. Reading the device state here ensures
-    // bgfx always has the correct lights regardless of how they were set.
-    {
-        const RenderStateStruct & rs = DX8Wrapper::Peek_Render_State();
-        for (int li = 0; li < 4; ++li)
-        {
-            if (rs.LightEnable[li])
-            {
-                const D3DLIGHT8 & dl = rs.Lights[li];
-                g_draw.lightDirs[li][0] = -dl.Direction.x;
-                g_draw.lightDirs[li][1] = -dl.Direction.y;
-                g_draw.lightDirs[li][2] = -dl.Direction.z;
-                g_draw.lightDirs[li][3] = 1.0f;
-                g_draw.lightColors[li][0] = dl.Diffuse.r;
-                g_draw.lightColors[li][1] = dl.Diffuse.g;
-                g_draw.lightColors[li][2] = dl.Diffuse.b;
-                g_draw.lightColors[li][3] = 1.0f;
-                g_draw.lightAmbients[li][0] = dl.Ambient.r;
-                g_draw.lightAmbients[li][1] = dl.Ambient.g;
-                g_draw.lightAmbients[li][2] = dl.Ambient.b;
-                g_draw.lightAmbients[li][3] = 1.0f;
-                g_draw.lightPositions[li][0] = dl.Position.x;
-                g_draw.lightPositions[li][1] = dl.Position.y;
-                g_draw.lightPositions[li][2] = dl.Position.z;
-                g_draw.lightPositions[li][3] = 1.0f;
-                g_draw.lightParams[li][0] = 0.0f;
-                g_draw.lightParams[li][1] = dl.Range;
-                g_draw.lightParams[li][2] = (dl.Type == D3DLIGHT_POINT || dl.Type == D3DLIGHT_SPOT) ? 1.0f : 0.0f;
-                g_draw.lightParams[li][3] = 1.0f;
-            }
-            // TheSuperHackers @bugfix bobtista 30/04/2026 Do NOT zero the
-            // bgfx-cached light enable flag when D3DRS_LIGHTING is off or
-            // rs.LightEnable[li] is false. Generals/ZH globally disables
-            // D3D fixed-function lighting at startup (dx8wrapper.cpp:4175)
-            // and computes lighting via shader pipelines that take the
-            // light environment as constants. Set_Light_Environment populates
-            // g_draw.lightDirs/Colors/etc. with the engine's authored lights;
-            // overwriting .w to 0 here makes the bgfx uber shader skip every
-            // light and renders buildings/units in pure ambient — i.e. dark.
-            // Trusting the cached lights matches what the DX8 vertex shader
-            // path does, where light constants drive lit color independent
-            // of LightEnable state.
-        }
-    }
-    // TheSuperHackers @bugfix bobtista 30/04/2026 Read D3DRS_AMBIENT per
-    // draw the same way lights are read above. Many callers (W3DScene,
-    // water, shadow flushers) push ambient straight through DX8Wrapper
+    // TheSuperHackers @bugfix bobtista 30/04/2026 Read cached ambient per
+    // draw. Some callers still push ambient straight through DX8Wrapper
     // without going through g_renderBackend->Set_Ambient, so the cached
-    // g_draw.sceneAmbient drifts to zero and buildings render black.
+    // g_draw.sceneAmbient can drift and buildings render black.
     // The wrapper marks unwritten state with 0x12345678 (dx8wrapper.cpp:536);
     // ignore that sentinel and keep the cached value instead of treating
     // the marker bytes as a real color.
     {
-        const unsigned ambientColor = DX8Wrapper::Get_DX8_Render_State(D3DRS_AMBIENT);
+        const unsigned ambientColor = RenderStateCache::Get_Render_State(kRenderStateAmbient);
         if (ambientColor != 0x12345678)
         {
             g_draw.sceneAmbient[0] = ((ambientColor >> 16) & 0xFF) / 255.0f;
             g_draw.sceneAmbient[1] = ((ambientColor >>  8) & 0xFF) / 255.0f;
             g_draw.sceneAmbient[2] = ((ambientColor >>  0) & 0xFF) / 255.0f;
+        }
+    }
+    if (g_draw.lightDirs[0][3] < 0.5f)
+    {
+        const auto &rs = FixedFunctionState::Render_State();
+        for (int i = 0; i < 4; ++i)
+        {
+            if (rs.LightEnable[i])
+            {
+                const auto &dl = rs.Lights[i];
+                g_draw.lightDirs[i][0] = -dl.Direction.x;
+                g_draw.lightDirs[i][1] = -dl.Direction.y;
+                g_draw.lightDirs[i][2] = -dl.Direction.z;
+                g_draw.lightDirs[i][3] = 1.0f;
+                g_draw.lightColors[i][0] = dl.Diffuse.r;
+                g_draw.lightColors[i][1] = dl.Diffuse.g;
+                g_draw.lightColors[i][2] = dl.Diffuse.b;
+                g_draw.lightColors[i][3] = 1.0f;
+                g_draw.lightAmbients[i][0] = dl.Ambient.r;
+                g_draw.lightAmbients[i][1] = dl.Ambient.g;
+                g_draw.lightAmbients[i][2] = dl.Ambient.b;
+                g_draw.lightAmbients[i][3] = 1.0f;
+                g_draw.lightParams[i][3] = 1.0f;
+            }
         }
     }
     UploadLightUniforms();
@@ -6459,25 +8366,18 @@ void SubmitEngineDraw(unsigned short start_index,
         // tex * lit_color, which renders these effects at full intensity
         // even when they should be invisible — producing bright white
         // halos around things like the microwave-scanner dome.
-        const uint64_t blendBitsForLight = g_draw.state & BGFX_STATE_BLEND_MASK;
-        const uint64_t kAddONE_ONE = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ONE,
-                                                           BGFX_STATE_BLEND_ONE);
-        const uint64_t kAddSA_ONE  = BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
-                                                           BGFX_STATE_BLEND_ONE);
         // TheSuperHackers @fix bobtista 16/04/2026 Also force lighting off for alpha-blend
         // particles (SRC_ALPHA/INV_SRC_ALPHA) when priColorOp is SELECTARG1 (GRADIENT_DISABLE),
         // so the lit path does not ignore vertex color on particles that bake intensity into it.
         // TheSuperHackers @bugfix bobtista 02/05/2026 Sorted material decals
         // (alpha-blend + DEPTH_WRITE_OFF + postdetail-alpha pattern, e.g.
         // ABBTCMDHQS.SWORD) typically carry their final color baked into the
-        // recolored tex0 — no per-vertex lighting expected. DX8 ran with
-        // D3DRS_LIGHTING off globally so these decals were never lit there.
+        // recolored tex0 — no per-vertex lighting expected. The legacy path ran
+        // with cached lighting off globally so these decals were never lit there.
         // Force unlit here to match, including command-center driveway
         // emblems after player-color remapping.
-        const bool isSortedDecal = IsSortedMaterialDecal(g_draw.state);
-        if (blendBitsForLight == kAddONE_ONE || blendBitsForLight == kAddSA_ONE
-            || (IsStandardAlphaBlend(g_draw.state) && g_draw.tssOps0[0] < 1.5f)
-            || isSortedDecal)
+        uint64_t effectiveLightingState = earlyState;
+        if (ShouldForceUnlitForBakedColorDraw(effectiveLightingState))
         {
             float forced[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
             bgfx::setUniform(g_uniforms.uLightingEnabled, forced);
@@ -6488,14 +8388,14 @@ void SubmitEngineDraw(unsigned short start_index,
         }
     }
 
-    // Detect shroud pass: D3D8 uses TCI_CAMERASPACEPOSITION + depth func
+    // Detect shroud pass: legacy setup uses TCI_CAMERASPACEPOSITION + depth func
     // EQUAL to render a multiplicative shroud overlay. Both conditions must
     // be true to avoid false positives from other effects that set TCI bits.
+    bool shroudDetected = false;
     {
-        bool shroudDetected = false;
-        unsigned depthFunc = DX8Wrapper::Get_DX8_Render_State(D3DRS_ZFUNC);
+        unsigned depthFunc = RenderStateCache::Get_Render_State(kRenderStateZFunc);
         const unsigned stg = 0;
-        unsigned tci = DX8Wrapper::Get_DX8_Texture_Stage_State(stg, D3DTSS_TEXCOORDINDEX);
+        unsigned tci = RenderStateCache::Get_Texture_Stage_State(stg, kStageStateTexcoordIndex);
         float shroudParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
         // Projected terrain receivers and cloud/noise stages also use
         // TCI_CAMERASPACEPOSITION. Only the actual shroud overlay uses the
@@ -6505,39 +8405,50 @@ void SubmitEngineDraw(unsigned short start_index,
             g_views.shroudTexturePassActive && g_views.shroudTexturePassStage == stg;
         const bool legacyShroudSignature =
             g_draw.tssOps0[0] > 2.5f && g_draw.tssOps0[0] < 3.5f;
-        if (depthFunc == D3DCMP_EQUAL
-            && !g_draw.stencilEnabled
-            && (explicitShroudPass || legacyShroudSignature))
+        if (explicitShroudPass)
         {
-            if (tci & D3DTSS_TCI_CAMERASPACEPOSITION)
+            // Shroud setup is explicit backend state. It must not inherit a
+            // stale stencil test from previous shadow/player-color passes.
+            g_draw.stencilEnabled = false;
+        }
+        if (depthFunc == static_cast<unsigned>(RB_CMP_EQUAL)
+            && (explicitShroudPass || (!g_draw.stencilEnabled && legacyShroudSignature)))
+        {
+            if (tci & kTexcoordGenCameraPosition)
             {
                 shroudDetected = true;
                 g_draw.texcoordSelect[2] = 1.0f;
-                // Extract shroud offset+scale by cancelling inv(view)
-                // from the texture matrix: view * texMtx = T * S.
-                D3DMATRIX texMtx;
-                DX8Wrapper::_Get_DX8_Transform(
-                    static_cast<D3DTRANSFORMSTATETYPE>(D3DTS_TEXTURE0 + stg), texMtx);
-                D3DMATRIX viewMtx;
-                DX8Wrapper::_Get_DX8_Transform(D3DTS_VIEW, viewMtx);
-                // Manual 4x4 multiply: ts = view * texMtx (D3D row-major)
-                D3DMATRIX ts;
-                for (int rr = 0; rr < 4; rr++)
+                if (g_draw.shroudTextureParamsValid)
                 {
-                    for (int cc = 0; cc < 4; cc++)
+                    std::memcpy(shroudParams, g_draw.shroudTextureParams, sizeof(shroudParams));
+                }
+                else
+                {
+                    // Legacy fallback for call sites that only expose the cached
+                    // texture matrix. Dedicated shroud setup paths provide
+                    // direct world-space params; decomposing camera-space
+                    // matrices is fragile across compatibility layers.
+                    auto texMtx = MakeIdentityLegacyCacheMatrix();
+                    RenderStateCache::Get_Transform(kTextureTransformStage0 + stg, texMtx);
+                    auto viewMtx = MakeIdentityLegacyCacheMatrix();
+                    RenderStateCache::Get_Transform(kTransformView, viewMtx);
+                    auto ts = MakeIdentityLegacyCacheMatrix();
+                    for (int rr = 0; rr < 4; rr++)
                     {
-                        ts.m[rr][cc] = 0;
-                        for (int k = 0; k < 4; k++)
+                        for (int cc = 0; cc < 4; cc++)
                         {
-                            ts.m[rr][cc] += viewMtx.m[rr][k] * texMtx.m[k][cc];
+                            ts.m[rr][cc] = 0;
+                            for (int k = 0; k < 4; k++)
+                            {
+                                ts.m[rr][cc] += viewMtx.m[rr][k] * texMtx.m[k][cc];
+                            }
                         }
                     }
+                    shroudParams[0] = (ts.m[0][0] != 0.0f) ? ts.m[3][0] / ts.m[0][0] : 0.0f;
+                    shroudParams[1] = (ts.m[1][1] != 0.0f) ? ts.m[3][1] / ts.m[1][1] : 0.0f;
+                    shroudParams[2] = ts.m[0][0];
+                    shroudParams[3] = ts.m[1][1];
                 }
-                // ts = T * S: scale on diagonal, translated scale in row 3
-                shroudParams[0] = (ts.m[0][0] != 0.0f) ? ts.m[3][0] / ts.m[0][0] : 0.0f;
-                shroudParams[1] = (ts.m[1][1] != 0.0f) ? ts.m[3][1] / ts.m[1][1] : 0.0f;
-                shroudParams[2] = ts.m[0][0];
-                shroudParams[3] = ts.m[1][1];
                 if (bgfx::isValid(g_uniforms.uShroudParams))
                 {
                     bgfx::setUniform(g_uniforms.uShroudParams, shroudParams);
@@ -6554,8 +8465,17 @@ void SubmitEngineDraw(unsigned short start_index,
             bgfx::discard(BGFX_DISCARD_ALL);
             return;
         }
-        if ((tci & D3DTSS_TCI_CAMERASPACEPOSITION)
-            || depthFunc == D3DCMP_EQUAL
+        const bool delayedObjectShroudPass =
+            shroudDetected
+            && g_views.objectShroudTexturePassActive
+            && submitView == kBgfxEngineView;
+        if (delayedObjectShroudPass)
+        {
+            submitView = kBgfxShroudOverlayView;
+        }
+        g_draw.delayedObjectShroudPass = delayedObjectShroudPass;
+        if ((tci & kTexcoordGenCameraPosition)
+            || depthFunc == static_cast<unsigned>(RB_CMP_EQUAL)
             || shroudDetected)
         {
             LogBgfxShroudPass("shroud-candidate", submitView, polygon_count, depthFunc, tci, shroudDetected, shroudParams);
@@ -6567,17 +8487,16 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
     }
 
-    uint64_t state = (g_draw.state != 0)
-        ? g_draw.state
-        : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+    uint64_t state = GetEffectiveDrawState();
     state |= BGFX_STATE_MSAA;
 
     state = ApplyCullModeOverride(state);
-
-    if (g_overrides.blendActive)
+    if (IsSortedRotorBlur(state))
     {
-        state &= ~BGFX_STATE_BLEND_MASK;
-        state |= g_overrides.blendBits;
+        // The rotor blur is built from camera-facing sorted cards. Once the
+        // cards are replayed through the normal engine view, culling can drop
+        // one side of the blur depending on the camera angle.
+        state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
     }
     state = ApplyBlendEquation(state);
 
@@ -6593,14 +8512,19 @@ void SubmitEngineDraw(unsigned short start_index,
     }
     state = ApplyProjectedAdditiveDecalDrawState(state);
     state = ApplySortedMaterialDecalDepthState(state);
+    if (g_draw.delayedObjectShroudPass)
+    {
+        state = ApplyDelayedObjectShroudDepthState(state);
+    }
     LogBgfxSortedMaterialDecal("submit-engine", submitView,
                                polygon_count, vertex_count, state);
+    LogBgfxEffectSubmit("submit-engine", submitView,
+                        polygon_count, vertex_count, state, "pre-skip");
     LogBgfxRevealDraw("submit-engine", submitView,
                       polygon_count, vertex_count, state, "pre-skip");
-
     if (ShouldAllowBgfxDiagnosticDrawOverrides()
         && std::getenv("GGC_BGFX_SKIP_REVEAL_GRID") != nullptr
-        && IsRevealGridTexture(DX8Wrapper::Peek_Render_State().Textures[0]))
+        && IsRevealGridTexture(g_draw.sourceTextures[0]))
     {
         g_stats.skippedDraws++;
         bgfx::discard(BGFX_DISCARD_ALL);
@@ -6677,7 +8601,7 @@ void SubmitEngineDraw(unsigned short start_index,
 
     const bool writesDepth = (state & BGFX_STATE_WRITE_Z) != 0;
     const bool isBlended = (state & BGFX_STATE_BLEND_MASK) != 0;
-    const bool isAlphaTested = (g_overrides.atestActive ? g_overrides.atestRef : g_draw.atestRef) > 0.0f;
+    const bool isAlphaTested = g_overrides.atestActive ? (g_overrides.atestFunc > 0.0f) : g_draw.atestEnabled;
     const bool isSceneDepthCaster =
         submitView == kBgfxEngineView
         && !g_views.overlay2DActive
@@ -6689,14 +8613,19 @@ void SubmitEngineDraw(unsigned short start_index,
     // are submitted after the world pass and should not inherit stale stencil
     // state from shroud/player-color/shadow passes. Keeping stencil active
     // here clips effects such as the particle-cannon beam against buildings.
+    const bool sortedTranslucentEffect = submitView == kBgfxEngineSortView
+        && isBlended;
     const bool sortedMaterialDecal = submitView == kBgfxEngineSortView
-        && IsSortedMaterialDecal(state);
+        && (IsSortedMaterialDecal(state)
+            || IsSortedAlphaDepthDecal(state)
+            || IsSortedRotorBlur(state));
     // Sort-flushed material decals (command-center driveway emblems, upgrade
     // floor marks) are ordinary alpha decals. The wrapper can still have
     // stencil state cached from shroud/player-color passes; applying it here
     // clips revealed decals out completely.
     const bool applyStencil = g_draw.stencilEnabled
         && submitView != kBgfxUIView
+        && !sortedTranslucentEffect
         && !sortedMaterialDecal;
 
     bgfx::setState(state);
@@ -6730,11 +8659,15 @@ void SubmitEngineDraw(unsigned short start_index,
         }
     }
     bgfx::submit(submitView, program);
+    LogBgfxEffectSubmit("submit-engine", submitView,
+                        polygon_count, vertex_count, state, "submit");
     LogBgfxRevealDraw("submit-engine", submitView,
                       polygon_count, vertex_count, state, "submit");
     g_stats.baseSubmits++;
 
-    const bool hasVB = g_draw.useTransientVB || bgfx::isValid(g_draw.vb);
+    const bool hasVB = g_draw.useTransientVB
+        || (g_draw.useStaticVB && bgfx::isValid(g_draw.staticVB))
+        || bgfx::isValid(g_draw.vb);
     if (isSceneDepthCaster
         && bgfx::isValid(g_device.sceneDepthProgram)
         && bgfx::isValid(g_device.sceneReadableDepthFB)
@@ -6752,9 +8685,18 @@ void SubmitEngineDraw(unsigned short start_index,
         }
         else
         {
-            bgfx::setVertexBuffer(0, g_draw.vb,
-                                  static_cast<uint32_t>(g_draw.ibOffset),
-                                  bindVertexCount);
+            if (g_draw.useStaticVB)
+            {
+                bgfx::setVertexBuffer(0, g_draw.staticVB,
+                                      static_cast<uint32_t>(g_draw.ibOffset),
+                                      bindVertexCount);
+            }
+            else
+            {
+                bgfx::setVertexBuffer(0, g_draw.vb,
+                                      static_cast<uint32_t>(g_draw.ibOffset),
+                                      bindVertexCount);
+            }
         }
         if (g_draw.useTransientIB)
         {
@@ -6764,9 +8706,18 @@ void SubmitEngineDraw(unsigned short start_index,
         }
         else
         {
-            bgfx::setIndexBuffer(g_draw.ib,
-                                 start_index,
-                                 indexCount);
+            if (g_draw.useStaticIB)
+            {
+                bgfx::setIndexBuffer(g_draw.staticIB,
+                                     start_index,
+                                     indexCount);
+            }
+            else
+            {
+                bgfx::setIndexBuffer(g_draw.ib,
+                                     start_index,
+                                     indexCount);
+            }
         }
         bgfx::setTransform(worldMtx);
         const uint64_t depthState =
@@ -6787,13 +8738,16 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
                                  unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
-    DX8Backend::Draw_Triangles(start_index, polygon_count, min_vertex_index, vertex_count);
     // If DX8Wrapper::Draw_Sorting_IB_VB already submitted
     // the draw with correctly remapped args against its internal dynamic
     // buffers, skip the outer submit.
     if (g_views.skipNextSubmitEngineDraw)
     {
         g_views.skipNextSubmitEngineDraw = false;
+        return;
+    }
+    if (!g_triangleDrawEnabled)
+    {
         return;
     }
     SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
@@ -6805,13 +8759,27 @@ void BgfxBackend::Draw_Triangles(unsigned int buffer_type,
                                  unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
-    DX8Backend::Draw_Triangles(buffer_type, start_index, polygon_count, min_vertex_index, vertex_count);
+    (void)buffer_type;
     if (g_views.skipNextSubmitEngineDraw)
     {
         g_views.skipNextSubmitEngineDraw = false;
         return;
     }
+    if (!g_triangleDrawEnabled)
+    {
+        return;
+    }
     SubmitEngineDraw(start_index, polygon_count, min_vertex_index, vertex_count);
+}
+
+bool BgfxBackend::Is_Triangle_Draw_Enabled() const
+{
+    return g_triangleDrawEnabled;
+}
+
+void BgfxBackend::Set_Triangle_Draw_Enabled(bool enable)
+{
+    g_triangleDrawEnabled = enable;
 }
 
 // TheSuperHackers @feature bobtista 16/04/2026 Draw_Strip override so strip-based
@@ -6822,31 +8790,113 @@ void BgfxBackend::Draw_Strip(unsigned short start_index,
                              unsigned short min_vertex_index,
                              unsigned short vertex_count)
 {
-    DX8Backend::Draw_Strip(start_index, index_count, min_vertex_index, vertex_count);
     if (g_views.skipNextSubmitEngineDraw)
     {
         g_views.skipNextSubmitEngineDraw = false;
+        return;
+    }
+    if (!g_triangleDrawEnabled)
+    {
         return;
     }
 
     SubmitEngineDraw(start_index, index_count, min_vertex_index, vertex_count, true);
 }
 
-// The programmable pipeline (Set_Vertex_Shader, Set_Pixel_Shader,
-// Set_Vertex_Shader_Constant, Set_Pixel_Shader_Constant), and render targets
-// (Create_Render_Target, Set_Render_Target_With_Z, Is_Render_To_Texture,
-// Set_Shadow_Map, Get_Shadow_Map) are inherited from DX8Backend.
+// -- Programmable pipeline compatibility ------------------------------------
+
+bool BgfxBackend::Load_Legacy_Shader(const char * path,
+                                     const unsigned int * declaration,
+                                     unsigned int usage,
+                                     RenderBackendShaderKind kind,
+                                     unsigned long * handle)
+{
+    (void)path;
+    (void)declaration;
+    (void)usage;
+    (void)kind;
+    if (handle == nullptr) {
+        return false;
+    }
+
+    *handle = AllocateLegacyShaderHandle();
+    return true;
+}
+
+bool BgfxBackend::Create_Vertex_Shader(const unsigned int * declaration,
+                                       const unsigned int * shader,
+                                       unsigned int usage,
+                                       unsigned long * handle)
+{
+    (void)declaration;
+    (void)shader;
+    (void)usage;
+    if (handle == nullptr) {
+        return false;
+    }
+
+    *handle = AllocateLegacyShaderHandle();
+    return true;
+}
+
+bool BgfxBackend::Create_Pixel_Shader(const unsigned int * shader,
+                                      unsigned long * handle)
+{
+    (void)shader;
+    if (handle == nullptr) {
+        return false;
+    }
+
+    *handle = AllocateLegacyShaderHandle();
+    return true;
+}
+
+bool BgfxBackend::Create_Legacy_Pixel_Shader(RenderBackendLegacyPixelShaderMode mode,
+                                             unsigned long * handle)
+{
+    if (handle == nullptr || mode == RB_LEGACY_PIXEL_SHADER_NONE) {
+        return false;
+    }
+
+    *handle = AllocateLegacyShaderHandle();
+    g_legacyPixelShaderModes[*handle] = mode;
+    return true;
+}
+
+void BgfxBackend::Delete_Vertex_Shader(unsigned long vertex_shader)
+{
+    (void)vertex_shader;
+}
+
+void BgfxBackend::Delete_Pixel_Shader(unsigned long pixel_shader)
+{
+    g_legacyPixelShaderModes.erase(pixel_shader);
+}
+
+void BgfxBackend::Set_Vertex_Shader(unsigned long vertex_shader)
+{
+    (void)vertex_shader;
+}
+
+void BgfxBackend::Set_Pixel_Shader(unsigned long pixel_shader)
+{
+    RenderBackendLegacyPixelShaderMode mode = RB_LEGACY_PIXEL_SHADER_NONE;
+    auto it = g_legacyPixelShaderModes.find(pixel_shader);
+    if (it != g_legacyPixelShaderModes.end())
+    {
+        mode = it->second;
+    }
+    g_draw.legacyPixelShaderMode[0] = static_cast<float>(mode);
+}
 
 // ===========================================================================
 // Asset-ingress resource creation
 // ===========================================================================
 //
-// Each method creates BOTH the bgfx resource and (via the DX8Backend base)
-// the D3D8 resource, so the ref-popup build sees both. The returned
-// RenderResource.id is a monotonically-increasing key into g_phase5.table;
-// the entry holds the bgfx handle(s) and the D3D8 pointer stored as a
-// void* "d3d_mirror" for eventual DX8-specific use (e.g. the texture class
-// still populating its D3DTexture field in ref-popup builds).
+// The returned RenderResource.id is a monotonically-increasing key into
+// g_phase5.table; the entry holds the bgfx handle(s). Legacy loaded resources
+// still enter through Register_Loaded_* and the older caches keyed by their
+// owner objects.
 //
 // Forward declaration — defined in BgfxBackendTextures.cpp.
 bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt);
@@ -6864,41 +8914,100 @@ unsigned __int64 AllocPhase5Id()
     return id;
 }
 
-// Copy a MipSlice into a bgfx::Memory buffer sized for the slice.
-const bgfx::Memory * CopySliceToBgfxMemory(const MipSlice & slice)
+bool IsCompressedTextureFormat(WW3DFormat format)
 {
-    if (slice.data == nullptr || slice.size_bytes == 0) {
+    return format == WW3D_FORMAT_DXT1
+        || format == WW3D_FORMAT_DXT2
+        || format == WW3D_FORMAT_DXT3
+        || format == WW3D_FORMAT_DXT4
+        || format == WW3D_FORMAT_DXT5;
+}
+
+unsigned CompressedTextureBlockSize(WW3DFormat format)
+{
+    return format == WW3D_FORMAT_DXT1 ? 8 : 16;
+}
+
+// Copy a MipSlice into tightly packed bgfx memory for updateTexture2D.
+const bgfx::Memory * CopySliceToBgfxMemory(const TextureDesc & desc, const MipSlice & slice)
+{
+    if (slice.data == nullptr || slice.size_bytes == 0 || slice.width == 0 || slice.height == 0) {
         return nullptr;
     }
-    return bgfx::copy(slice.data, slice.size_bytes);
+
+    const bool compressed = IsCompressedTextureFormat(desc.format);
+    const unsigned rows = compressed ? DXT_SurfaceRows(slice.height) : slice.height;
+    const unsigned expectedPitch = compressed
+        ? DXT_SurfacePitch(slice.width, CompressedTextureBlockSize(desc.format))
+        : slice.width * Get_Bytes_Per_Pixel(desc.format);
+    if (rows == 0 || expectedPitch == 0) {
+        return nullptr;
+    }
+
+    const unsigned sourcePitch = slice.pitch != 0 ? slice.pitch : expectedPitch;
+    const unsigned requiredSourceBytes = (rows - 1) * sourcePitch + expectedPitch;
+    if (slice.size_bytes < requiredSourceBytes) {
+        return nullptr;
+    }
+
+    const unsigned uploadBytes = rows * expectedPitch;
+    const bgfx::Memory * mem = bgfx::alloc(uploadBytes);
+    const uint8_t * src = static_cast<const uint8_t *>(slice.data);
+    uint8_t * dst = mem->data;
+    for (unsigned row = 0; row < rows; ++row) {
+        std::memcpy(dst, src, expectedPitch);
+        src += sourcePitch;
+        dst += expectedPitch;
+    }
+    return mem;
 }
 
 } // namespace
 
+bool BgfxBackend::Requires_Legacy_Buffer_Resources() const
+{
+    return std::getenv("GGC_BGFX_LEGACY_BUFFER_RESOURCES") != nullptr;
+}
+
 RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
 {
-    // Mirror to DX8 first so the ref popup's D3D8 texture exists.
-    RenderResource dx8_rr = DX8Backend::Create_Texture(desc);
-
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_TEXTURE;
-    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
+    entry.d3d_mirror = nullptr;
     entry.texture = BGFX_INVALID_HANDLE;
 
     if (!desc.is_render_target && desc.mips != nullptr && desc.mip_count > 0) {
         const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(desc.format);
         if (bgfxFmt != bgfx::TextureFormat::Unknown) {
-            // For now, upload mip 0 only. Passing hasMips=true with a
-            // single-level memory blob makes bgfx read past the supplied
-            // data on backends that expect a packed full mip chain.
-            const bgfx::Memory * mem = CopySliceToBgfxMemory(desc.mips[0]);
-            if (mem != nullptr) {
-                const uint64_t texFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
-                entry.texture = bgfx::createTexture2D(
-                    desc.width, desc.height,
-                    false,
-                    1, bgfxFmt, texFlags, mem);
+            const uint64_t texFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
+            entry.texture = bgfx::createTexture2D(
+                desc.width, desc.height,
+                desc.mip_count > 1,
+                1, bgfxFmt, texFlags, nullptr);
+            if (bgfx::isValid(entry.texture)) {
+                bool uploadedAllLevels = true;
+                for (unsigned mip = 0; mip < desc.mip_count; ++mip) {
+                    const MipSlice & slice = desc.mips[mip];
+                    const bgfx::Memory * mem = CopySliceToBgfxMemory(desc, slice);
+                    if (mem == nullptr) {
+                        uploadedAllLevels = false;
+                        break;
+                    }
+                    bgfx::updateTexture2D(
+                        entry.texture,
+                        0,
+                        static_cast<uint8_t>(mip),
+                        0,
+                        0,
+                        slice.width,
+                        slice.height,
+                        mem);
+                }
+                if (!uploadedAllLevels) {
+                    g_caches.deferredDestroys.push_back(entry.texture);
+                    entry.texture = BGFX_INVALID_HANDLE;
+                }
             }
         }
     }
@@ -6912,19 +9021,25 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
 
 RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data)
 {
-    RenderResource dx8_rr = DX8Backend::Create_Vertex_Buffer(desc, initial_data);
-
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_VB;
-    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
-    entry.size_bytes = desc.size_bytes;
+    entry.d3d_mirror = nullptr;
     entry.vb = BGFX_INVALID_HANDLE;
-    // Static bgfx VB creation requires a layout. We build one lazily from
-    // the FVF in a later stage; for now record the entry and leave vb
-    // invalid — bgfx callers go through existing VB caches keyed by the
-    // VertexBufferClass*, not this handle, until Stage 2 rewires them.
-    (void)initial_data;
+    entry.dvb = BGFX_INVALID_HANDLE;
+    if (initial_data != nullptr
+        && desc.size_bytes != 0
+        && desc.layout.fvf != 0
+        && desc.layout.stride != 0
+        && (desc.size_bytes % desc.layout.stride) == 0)
+    {
+        FVFInfoClass fvf(desc.layout.fvf);
+        bgfx::VertexLayout layout;
+        if (BuildBgfxLayoutForFVF(fvf, layout) && layout.getStride() == desc.layout.stride)
+        {
+            entry.vb = bgfx::createVertexBuffer(bgfx::copy(initial_data, desc.size_bytes), layout);
+        }
+    }
     RenderResource rr;
     rr.id = AllocPhase5Id();
     g_phase5.table[rr.id] = entry;
@@ -6933,98 +9048,25 @@ RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const 
 
 RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit)
 {
-    RenderResource dx8_rr = DX8Backend::Create_Index_Buffer(desc, initial_data, indices_are_32bit);
-
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_IB;
-    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
-    entry.size_bytes = desc.size_bytes;
+    entry.d3d_mirror = nullptr;
     entry.ib = BGFX_INVALID_HANDLE;
-    // Same as vertex buffers — bgfx-side creation is deferred to Stage 2.
-    (void)initial_data;
-    (void)indices_are_32bit;
-
-    RenderResource rr;
-    rr.id = AllocPhase5Id();
-    g_phase5.table[rr.id] = entry;
-    return rr;
-}
-
-RenderResource BgfxBackend::Create_Dynamic_Vertex_Buffer(const BufferDesc & desc)
-{
-    RenderResource dx8_rr = DX8Backend::Create_Dynamic_Vertex_Buffer(desc);
-
-    BgfxPhase5Entry entry;
-    std::memset(&entry, 0, sizeof(entry));
-    entry.kind = BGFX_RR_KIND_DYN_VB;
-    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
-    entry.size_bytes = desc.size_bytes;
-    entry.dvb = BGFX_INVALID_HANDLE;
-    // Dynamic VBs in bgfx are implemented on-the-fly via Map_Dynamic
-    // allocating a transient buffer per map. The dvb handle here is a
-    // reservation placeholder for the non-transient path if ever needed.
-
-    RenderResource rr;
-    rr.id = AllocPhase5Id();
-    g_phase5.table[rr.id] = entry;
-    return rr;
-}
-
-RenderResource BgfxBackend::Create_Dynamic_Index_Buffer(const BufferDesc & desc, bool indices_are_32bit)
-{
-    RenderResource dx8_rr = DX8Backend::Create_Dynamic_Index_Buffer(desc, indices_are_32bit);
-
-    BgfxPhase5Entry entry;
-    std::memset(&entry, 0, sizeof(entry));
-    entry.kind = BGFX_RR_KIND_DYN_IB;
-    entry.d3d_mirror = reinterpret_cast<void *>(dx8_rr.id);
-    entry.size_bytes = desc.size_bytes;
     entry.dib = BGFX_INVALID_HANDLE;
+    const unsigned int indexSize = indices_are_32bit ? sizeof(uint32_t) : sizeof(uint16_t);
+    if (initial_data != nullptr
+        && desc.size_bytes != 0
+        && (desc.size_bytes % indexSize) == 0)
+    {
+        const uint64_t flags = indices_are_32bit ? BGFX_BUFFER_INDEX32 : BGFX_BUFFER_NONE;
+        entry.ib = bgfx::createIndexBuffer(bgfx::copy(initial_data, desc.size_bytes), flags);
+    }
 
     RenderResource rr;
     rr.id = AllocPhase5Id();
     g_phase5.table[rr.id] = entry;
     return rr;
-}
-
-void * BgfxBackend::Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard)
-{
-    auto it = g_phase5.table.find(h.id);
-    if (it == g_phase5.table.end()) {
-        return nullptr;
-    }
-    BgfxPhase5Entry & entry = it->second;
-    // Return the D3D8-mapped pointer. On Unmap, we will snapshot the written
-    // bytes into a bgfx transient buffer before the D3D unlock happens.
-    RenderResource dx8_rr;
-    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
-    return DX8Backend::Map_Dynamic(dx8_rr, offset, size, discard);
-}
-
-void BgfxBackend::Unmap_Dynamic(RenderResource h)
-{
-    auto it = g_phase5.table.find(h.id);
-    if (it == g_phase5.table.end()) {
-        return;
-    }
-    BgfxPhase5Entry & entry = it->second;
-    RenderResource dx8_rr;
-    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
-    DX8Backend::Unmap_Dynamic(dx8_rr);
-    // Stage 3 will add the bgfx transient allocation + snapshot here.
-}
-
-void BgfxBackend::Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
-{
-    auto it = g_phase5.table.find(h.id);
-    if (it == g_phase5.table.end()) {
-        return;
-    }
-    BgfxPhase5Entry & entry = it->second;
-    RenderResource dx8_rr;
-    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
-    DX8Backend::Update_Sub_Range(dx8_rr, offset, data, size);
 }
 
 void BgfxBackend::Destroy_Resource(RenderResource h)
@@ -7045,69 +9087,67 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
         case BGFX_RR_KIND_VB:
         {
             const VertexBufferClass *owner = static_cast<const VertexBufferClass *>(entry.owner);
+            bool destroyedDynamic = false;
             auto vbIt = g_caches.vb.find(owner);
             if (vbIt != g_caches.vb.end())
             {
                 if (bgfx::isValid(vbIt->second.handle))
                 {
+                    if (bgfx::isValid(g_draw.vb) && g_draw.vb.idx == vbIt->second.handle.idx)
+                    {
+                        g_draw.vb = BGFX_INVALID_HANDLE;
+                    }
                     bgfx::destroy(vbIt->second.handle);
+                    destroyedDynamic = bgfx::isValid(entry.dvb) && entry.dvb.idx == vbIt->second.handle.idx;
                 }
                 g_caches.vb.erase(vbIt);
             }
-            if (bgfx::isValid(entry.vb)) {
-                bgfx::destroy(entry.vb);
+            if (bgfx::isValid(entry.dvb) && !destroyedDynamic)
+            {
+                if (bgfx::isValid(g_draw.vb) && g_draw.vb.idx == entry.dvb.idx)
+                {
+                    g_draw.vb = BGFX_INVALID_HANDLE;
+                }
+                bgfx::destroy(entry.dvb);
             }
+            DestroyStaticVertexResource(entry);
             break;
         }
         case BGFX_RR_KIND_IB:
         {
             const IndexBufferClass *owner = static_cast<const IndexBufferClass *>(entry.owner);
+            bool destroyedDynamic = false;
             auto ibIt = g_caches.ib.find(owner);
             if (ibIt != g_caches.ib.end())
             {
                 if (bgfx::isValid(ibIt->second.handle))
                 {
+                    if (bgfx::isValid(g_draw.ib) && g_draw.ib.idx == ibIt->second.handle.idx)
+                    {
+                        g_draw.ib = BGFX_INVALID_HANDLE;
+                    }
                     bgfx::destroy(ibIt->second.handle);
+                    destroyedDynamic = bgfx::isValid(entry.dib) && entry.dib.idx == ibIt->second.handle.idx;
                 }
                 g_caches.ib.erase(ibIt);
             }
-            if (bgfx::isValid(entry.ib)) {
-                bgfx::destroy(entry.ib);
-            }
-            break;
-        }
-        case BGFX_RR_KIND_DYN_VB:
-            if (bgfx::isValid(entry.dvb)) {
-                bgfx::destroy(entry.dvb);
-            }
-            break;
-        case BGFX_RR_KIND_DYN_IB:
-            if (bgfx::isValid(entry.dib)) {
+            if (bgfx::isValid(entry.dib) && !destroyedDynamic)
+            {
+                if (bgfx::isValid(g_draw.ib) && g_draw.ib.idx == entry.dib.idx)
+                {
+                    g_draw.ib = BGFX_INVALID_HANDLE;
+                }
                 bgfx::destroy(entry.dib);
             }
+            DestroyStaticIndexResource(entry);
             break;
+        }
         case BGFX_RR_KIND_NONE:
         default:
             break;
     }
 
-    // Release the D3D8 mirror.
-    RenderResource dx8_rr;
-    dx8_rr.id = reinterpret_cast<unsigned __int64>(entry.d3d_mirror);
-    DX8Backend::Destroy_Resource(dx8_rr);
     g_phase5.table.erase(it);
-}
-
-void BgfxBackend::Begin_Dynamic_Frame()
-{
-    // TheSuperHackers @perf bobtista 28/04/2026 The earlier per-frame walk
-    // over g_phase5.table to clear using_transient_vb/ib was pure waste —
-    // those flags are never set anywhere (Map_Dynamic still goes through
-    // the DX8 mirror) and entries are memset to zero on creation. When
-    // Map_Dynamic actually allocates bgfx transient buffers, it must also
-    // push the entry id into a side list so we can scope this clear to
-    // the entries actually touched last frame.
-    DX8Backend::Begin_Dynamic_Frame();
 }
 
 // -- Transitional Register_Loaded_* ----------------------------------------
@@ -7117,7 +9157,7 @@ RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
     if (tex == nullptr) {
         return kInvalidRenderResource;
     }
-    // Ensure the bgfx-side texture exists (peek+lock+upload from the D3D8
+    // Ensure the bgfx-side texture exists (peek+lock+upload from the legacy
     // mirror that the legacy loader already created). The returned handle
     // is owned by g_caches.texture (keyed on TextureBaseClass*), NOT by
     // this phase5 entry — Release_Cached_Texture in the dtor queues it
@@ -7146,12 +9186,13 @@ RenderResource BgfxBackend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb
     // IMPORTANT: do NOT store the VertexBufferClass* as d3d_mirror —
     // Destroy_Resource would cast it to IUnknown* and call Release(), which
     // lands on whatever the third virtual of VertexBufferClass happens to
-    // be and crashes. The VB's D3D resource lifetime is owned by the
-    // DX8VertexBufferClass dtor; we have no cleanup to do on the DX8 side.
+    // be and crashes. The VB's legacy resource lifetime is owned by the
+    // DX8VertexBufferClass dtor; we have no cleanup to do on the reference side.
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_VB;
     entry.vb = BGFX_INVALID_HANDLE;
+    entry.dvb = BGFX_INVALID_HANDLE;
     entry.d3d_mirror = nullptr;
     entry.owner = vb;
 
@@ -7167,11 +9208,12 @@ RenderResource BgfxBackend::Register_Loaded_Index_Buffer(IndexBufferClass * ib)
         return kInvalidRenderResource;
     }
     // Same rationale as Register_Loaded_Vertex_Buffer — leave d3d_mirror
-    // null so Destroy_Resource's DX8-side Release does nothing.
+    // null so Destroy_Resource's reference-side Release does nothing.
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_IB;
     entry.ib = BGFX_INVALID_HANDLE;
+    entry.dib = BGFX_INVALID_HANDLE;
     entry.d3d_mirror = nullptr;
     entry.owner = ib;
 

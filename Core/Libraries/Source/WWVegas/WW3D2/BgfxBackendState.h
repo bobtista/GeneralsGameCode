@@ -424,9 +424,7 @@ enum BgfxPhase5Kind
     BGFX_RR_KIND_NONE        = 0,
     BGFX_RR_KIND_TEXTURE     = 1,
     BGFX_RR_KIND_VB          = 2,
-    BGFX_RR_KIND_IB          = 3,
-    BGFX_RR_KIND_DYN_VB      = 4,
-    BGFX_RR_KIND_DYN_IB      = 5
+    BGFX_RR_KIND_IB          = 3
 };
 
 struct BgfxPhase5Entry
@@ -439,12 +437,6 @@ struct BgfxPhase5Entry
     bgfx::DynamicIndexBufferHandle   dib;
     void * d3d_mirror;               // IDirect3D*8* cast to void*, ref-popup only; nullptr in standalone
     void * owner;                    // TextureBaseClass/VertexBufferClass/IndexBufferClass for loaded-resource caches
-    unsigned int size_bytes;         // for dynamic buffers — size of the backing allocation
-    // Dynamic Map/Unmap: if using_transient is true, tvb/tib is live for this frame
-    bool using_transient_vb;
-    bool using_transient_ib;
-    bgfx::TransientVertexBuffer      tvb;
-    bgfx::TransientIndexBuffer       tib;
 };
 
 struct BgfxPhase5Resources
