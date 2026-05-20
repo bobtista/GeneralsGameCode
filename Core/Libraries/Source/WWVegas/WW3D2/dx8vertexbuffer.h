@@ -171,9 +171,9 @@ class DynamicVBAccessClass
 //	static VertexFormatXYZNDUV2* _Get_Sorting_Vertex_Array();
 
 	void Allocate_Sorting_Dynamic_Buffer();
-	void Allocate_DX8_Dynamic_Buffer();
+	void Allocate_Backend_Dynamic_Buffer();
 public:
-	// Type parameter can be either BUFFER_TYPE_DYNAMIC_DX8 or BUFFER_TYPE_DYNAMIC_SORTING.
+	// Type parameter can be either BUFFER_TYPE_DYNAMIC or BUFFER_TYPE_DYNAMIC_SORTING.
 
 	// Note: Even though the constructor takes fvf as a parameter, currently the
 	// only acceptable parameter is "dynamic_fvf_type". Any other type will

@@ -543,9 +543,9 @@ DynamicIBAccessClass::DynamicIBAccessClass(unsigned short type_, unsigned short 
 	IndexBuffer(nullptr),
 	Type(type_)
 {
-	WWASSERT(Type==BUFFER_TYPE_DYNAMIC_DX8 || Type==BUFFER_TYPE_DYNAMIC_SORTING);
-	if (Type==BUFFER_TYPE_DYNAMIC_DX8) {
-		Allocate_DX8_Dynamic_Buffer();
+	WWASSERT(Type==BUFFER_TYPE_DYNAMIC || Type==BUFFER_TYPE_DYNAMIC_SORTING);
+	if (Type==BUFFER_TYPE_DYNAMIC) {
+		Allocate_Backend_Dynamic_Buffer();
 	}
 	else {
 		Allocate_Sorting_Dynamic_Buffer();
@@ -555,7 +555,7 @@ DynamicIBAccessClass::DynamicIBAccessClass(unsigned short type_, unsigned short 
 DynamicIBAccessClass::~DynamicIBAccessClass()
 {
 	REF_PTR_RELEASE(IndexBuffer);
-	if (Type==BUFFER_TYPE_DYNAMIC_DX8) {
+	if (Type==BUFFER_TYPE_DYNAMIC) {
 		_DynamicDX8IndexBufferInUse=false;
 		_DynamicDX8IndexBufferOffset+=IndexCount;
 	}
@@ -593,7 +593,7 @@ DynamicIBAccessClass::WriteLockClass::WriteLockClass(DynamicIBAccessClass* ib_ac
 	DX8_THREAD_ASSERT();
 	DynamicIBAccess->IndexBuffer->Add_Ref();
 	switch (DynamicIBAccess->Get_Type()) {
-	case BUFFER_TYPE_DYNAMIC_DX8:
+	case BUFFER_TYPE_DYNAMIC:
 		WWASSERT(DynamicIBAccess);
 //		WWASSERT(!dynamic_dx8_index_buffer->Engine_Refs());
 #if !defined(GGC_BGFX_STANDALONE)
@@ -626,7 +626,7 @@ DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 {
 	DX8_THREAD_ASSERT();
 	switch (DynamicIBAccess->Get_Type()) {
-	case BUFFER_TYPE_DYNAMIC_DX8:
+	case BUFFER_TYPE_DYNAMIC:
 		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2
 		// write-side capture for bgfx backend. Copy locked sub-range
 		// into a bgfx transient IB before Unlock.
@@ -656,7 +656,7 @@ DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 //
 // ----------------------------------------------------------------------------
 
-void DynamicIBAccessClass::Allocate_DX8_Dynamic_Buffer()
+void DynamicIBAccessClass::Allocate_Backend_Dynamic_Buffer()
 {
 	WWMEMLOG(MEM_RENDERER);
 	WWASSERT(!_DynamicDX8IndexBufferInUse);
