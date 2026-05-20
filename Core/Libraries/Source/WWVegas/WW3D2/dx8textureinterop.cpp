@@ -119,11 +119,13 @@ void DX8TextureInterop::Set_Legacy_Base_Texture(TextureBaseClass &texture, IDire
 	preserve_cpu_snapshot =
 		native_texture != nullptr
 		&& texture.Has_CPU_Texture_Mips()
+		&& texture.PreserveCPUTextureSnapshotOnNextLegacySet
 		&& Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
 #endif
 	if (!preserve_cpu_snapshot) {
 		texture.Capture_CPU_Texture_Snapshot(texture.LegacyTexture);
 	}
+	texture.PreserveCPUTextureSnapshotOnNextLegacySet = false;
 
 	// Populate the backend-neutral handle after the legacy texture loader
 	// finished creating the compatibility texture. The backend either stores a

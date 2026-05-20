@@ -132,6 +132,7 @@ TextureBaseClass::TextureBaseClass
 	LastAccessed(0),
 	Width(width),
 	Height(height),
+	PreserveCPUTextureSnapshotOnNextLegacySet(false),
 	Pool(pool),
 	Dirty(false),
 	TextureLoadTask(nullptr),
@@ -305,6 +306,7 @@ void TextureBaseClass::Invalidate()
 
 void TextureBaseClass::Clear_CPU_Texture_Snapshot()
 {
+	PreserveCPUTextureSnapshotOnNextLegacySet = false;
 	if (!CPUTextureMips.empty()) {
 		CPUTextureMips.clear();
 	}
@@ -314,11 +316,13 @@ void TextureBaseClass::Clear_CPU_Texture_Snapshot()
 void TextureBaseClass::Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> &&mips)
 {
 	CPUTextureMips = std::move(mips);
+	PreserveCPUTextureSnapshotOnNextLegacySet = true;
 	++CPUTextureRevision;
 }
 
 void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 {
+	PreserveCPUTextureSnapshotOnNextLegacySet = false;
 	CPUTextureMips.clear();
 	++CPUTextureRevision;
 

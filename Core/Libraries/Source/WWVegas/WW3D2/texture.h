@@ -237,6 +237,7 @@ private:
 		void Capture_CPU_Texture_Snapshot(void *native_texture);
 		void Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> &&mips);
 		void Clear_CPU_Texture_Snapshot();
+		bool PreserveCPUTextureSnapshotOnNextLegacySet;
 
 		// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Populated by the asset loader after it calls
