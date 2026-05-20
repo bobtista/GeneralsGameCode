@@ -20,7 +20,38 @@
 
 #include "d3d8.h"
 
-using LegacyFixedFunctionLight = D3DLIGHT8;
+struct LegacyFixedFunctionColor
+{
+	float r;
+	float g;
+	float b;
+	float a;
+};
+
+struct LegacyFixedFunctionVector3
+{
+	float x;
+	float y;
+	float z;
+};
+
+struct LegacyFixedFunctionLight
+{
+	unsigned int Type;
+	LegacyFixedFunctionColor Diffuse;
+	LegacyFixedFunctionColor Specular;
+	LegacyFixedFunctionColor Ambient;
+	LegacyFixedFunctionVector3 Position;
+	LegacyFixedFunctionVector3 Direction;
+	float Range;
+	float Falloff;
+	float Attenuation0;
+	float Attenuation1;
+	float Attenuation2;
+	float Theta;
+	float Phi;
+};
+
 using LegacyRawTexture = IDirect3DBaseTexture8;
 using LegacyTransformMatrix = D3DMATRIX;
 

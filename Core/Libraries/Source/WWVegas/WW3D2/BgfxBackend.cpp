@@ -8338,7 +8338,7 @@ void SubmitEngineDraw(unsigned short start_index,
         {
             if (rs.LightEnable[i])
             {
-                const D3DLIGHT8 &dl = rs.Lights[i];
+                const auto &dl = rs.Lights[i];
                 g_draw.lightDirs[i][0] = -dl.Direction.x;
                 g_draw.lightDirs[i][1] = -dl.Direction.y;
                 g_draw.lightDirs[i][2] = -dl.Direction.z;
