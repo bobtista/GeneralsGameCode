@@ -246,6 +246,15 @@ void TextureBaseClass::Invalidate()
 		return;
 	}
 
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Release_Cached_Texture(this);
+		if (m_backendHandle != kInvalidRenderResource) {
+			g_renderBackend->Destroy_Resource(m_backendHandle);
+			m_backendHandle = kInvalidRenderResource;
+		}
+	}
+
 	if (LegacyTexture)
 	{
 		Legacy_Texture(LegacyTexture)->Release();

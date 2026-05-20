@@ -46,6 +46,15 @@ namespace
 {
 static const bgfx::ViewId kBgfxRTTTextureCopyView = 3;
 
+enum BgfxTextureUploadVariant
+{
+    kBgfxTextureUploadNormal = 0,
+    kBgfxTextureUploadDxt5Expanded = 1,
+    kBgfxTextureUploadTerrainAtlas = 2,
+    kBgfxTextureUploadPackedAtlas = 3,
+    kBgfxTextureUploadRenderTargetCopy = 4,
+};
+
 static int ParseEnvLimit(const char *name, int fallback)
 {
     const char *value = std::getenv(name);
@@ -778,9 +787,22 @@ static bool CopyTextureLevel(TextureClass * tex2d,
         mip.Format == WW3D_FORMAT_DXT5
         && bgfxFmt == bgfx::TextureFormat::BGRA8
         && !isCompressed;
+    const unsigned requiredSourcePitch = expandDXT5ToBGRA8
+        ? DXT_SurfacePitch(mip.Width, 16)
+        : expectedPitch;
+    if ((isCompressed || expandDXT5ToBGRA8) && srcPitch < requiredSourcePitch)
+    {
+        return false;
+    }
     const unsigned requiredSourceRows =
         expandDXT5ToBGRA8 ? DXT_SurfaceRows(mip.Height) : numRows;
-    if (mip.Data.size() < requiredSourceRows * srcPitch)
+    const unsigned lastRowBytes = (isCompressed || expandDXT5ToBGRA8)
+        ? requiredSourcePitch
+        : ((srcPitch < expectedPitch) ? srcPitch : expectedPitch);
+    const size_t requiredBytes = requiredSourceRows > 0
+        ? (static_cast<size_t>(requiredSourceRows - 1) * srcPitch + lastRowBytes)
+        : 0;
+    if (mip.Data.size() < requiredBytes)
     {
         return false;
     }
@@ -1109,7 +1131,14 @@ static bool UploadPackedAtlasMips(TextureClass *tex2d, bgfx::TextureHandle h,
     const unsigned blockRows = (height + 3) / 4;
     const unsigned blockCols = (width + 3) / 4;
     const unsigned srcPitch = blockCols * 8;
-    if (baseMip.Data.size() < blockRows * srcPitch)
+    if (baseMip.Pitch < srcPitch)
+    {
+        return false;
+    }
+    const size_t requiredBytes = blockRows > 0
+        ? (static_cast<size_t>(blockRows - 1) * baseMip.Pitch + srcPitch)
+        : 0;
+    if (baseMip.Data.size() < requiredBytes)
     {
         return false;
     }
@@ -1153,6 +1182,56 @@ static bool UploadPackedAtlasMips(TextureClass *tex2d, bgfx::TextureHandle h,
     return true;
 }
 
+static TextureCacheInfo MakeTextureCacheInfo(unsigned revision,
+    TextureClass *tex2d,
+    const TextureBaseClass::TextureMipSnapshot &baseMip,
+    const std::vector<TextureBaseClass::TextureMipSnapshot> &mips,
+    bgfx::TextureFormat::Enum bgfxFmt)
+{
+    const bool terrainAtlasSafeMips = tex2d != nullptr
+        && IsTerrainAtlasTexture(tex2d, baseMip.Format, bgfxFmt);
+    const bool packedMeshAtlas = tex2d != nullptr
+        && IsPackedMeshAtlasTexture(tex2d, baseMip.Format);
+    const bool dxt5Expanded = DXT5UsesNonOpaqueAlpha(baseMip)
+        && bgfxFmt == bgfx::TextureFormat::BGRA8;
+    const bgfx::TextureFormat::Enum createFmt = packedMeshAtlas
+        ? bgfx::TextureFormat::BGRA8
+        : bgfxFmt;
+    const unsigned createMipCount = packedMeshAtlas
+        ? GetFullMipCount(baseMip.Width, baseMip.Height)
+        : static_cast<unsigned>(mips.size());
+    const unsigned uploadVariant = packedMeshAtlas
+        ? kBgfxTextureUploadPackedAtlas
+        : (terrainAtlasSafeMips
+            ? kBgfxTextureUploadTerrainAtlas
+            : (dxt5Expanded
+                ? kBgfxTextureUploadDxt5Expanded
+                : kBgfxTextureUploadNormal));
+
+    TextureCacheInfo info = {
+        revision,
+        static_cast<uint16_t>(baseMip.Width),
+        static_cast<uint16_t>(baseMip.Height),
+        static_cast<int>(baseMip.Format),
+        static_cast<int>(createFmt),
+        static_cast<uint16_t>(createMipCount),
+        static_cast<uint16_t>(uploadVariant)
+    };
+    return info;
+}
+
+static bool TextureCacheInfoMatches(const TextureCacheInfo &lhs,
+    const TextureCacheInfo &rhs)
+{
+    return lhs.revision == rhs.revision
+        && lhs.w == rhs.w
+        && lhs.h == rhs.h
+        && lhs.sourceFormat == rhs.sourceFormat
+        && lhs.createFormat == rhs.createFormat
+        && lhs.mipCount == rhs.mipCount
+        && lhs.uploadVariant == rhs.uploadVariant;
+}
+
 // External linkage: called from BgfxBackend.cpp's Set_Texture path.
 bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
 {
@@ -1183,9 +1262,27 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     if (it != g_caches.texture.end())
     {
         auto infoIt = g_caches.textureInfo.find(tex);
-        bool revisionMatch = (infoIt != g_caches.textureInfo.end()
-            && infoIt->second.revision == textureRevision);
-        if (revisionMatch)
+        bool cacheKeyMatch = infoIt != g_caches.textureInfo.end()
+            && infoIt->second.revision == textureRevision;
+        if (cacheKeyMatch && !mips.empty())
+        {
+            const TextureBaseClass::TextureMipSnapshot & baseMip = mips[0];
+            const bgfx::TextureFormat::Enum bgfxFmt =
+                DXT5UsesNonOpaqueAlpha(baseMip)
+                    ? bgfx::TextureFormat::BGRA8
+                    : GetBgfxTextureUploadFormat(baseMip.Format);
+            if (bgfxFmt == bgfx::TextureFormat::Unknown)
+            {
+                cacheKeyMatch = false;
+            }
+            else
+            {
+                const TextureCacheInfo expectedInfo =
+                    MakeTextureCacheInfo(textureRevision, tex2d, baseMip, mips, bgfxFmt);
+                cacheKeyMatch = TextureCacheInfoMatches(infoIt->second, expectedInfo);
+            }
+        }
+        if (cacheKeyMatch)
         {
             return it->second;
         }
@@ -1201,15 +1298,14 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
 
         if (!mips.empty() && bgfx::isValid(it->second))
         {
-            TextureClass * tex2d = tex->As_TextureClass();
             if (tex2d != nullptr)
             {
                 const TextureBaseClass::TextureMipSnapshot & baseMip = mips[0];
-					const bgfx::TextureFormat::Enum bgfxFmt =
-                        DXT5UsesNonOpaqueAlpha(baseMip)
-                            ? bgfx::TextureFormat::BGRA8
-                            : GetBgfxTextureUploadFormat(baseMip.Format);
-					const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, baseMip.Format, bgfxFmt);
+                const bgfx::TextureFormat::Enum bgfxFmt =
+                    DXT5UsesNonOpaqueAlpha(baseMip)
+                        ? bgfx::TextureFormat::BGRA8
+                        : GetBgfxTextureUploadFormat(baseMip.Format);
+                const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, baseMip.Format, bgfxFmt);
                 if (baseMip.Width == cachedW
                     && baseMip.Height == cachedH
                     && bgfxFmt != bgfx::TextureFormat::Unknown)
@@ -1245,9 +1341,8 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
                     }
                     if (updatedAllLevels)
                     {
-                        g_caches.textureInfo[tex] = { textureRevision,
-                            static_cast<uint16_t>(baseMip.Width),
-                            static_cast<uint16_t>(baseMip.Height) };
+                        g_caches.textureInfo[tex] =
+                            MakeTextureCacheInfo(textureRevision, tex2d, baseMip, mips, bgfxFmt);
                         return it->second;
                     }
                 }
@@ -1334,13 +1429,13 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
     // as the police-car red/blue lights, rely on their authored mipmaps
     // to average colored fringes instead of sampling only a white level-0
     // hotspot when minified.
-		const unsigned mipCount = static_cast<unsigned>(mips.size());
-		const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, baseMip.Format, bgfxFmt);
-		const bool packedMeshAtlas = IsPackedMeshAtlasTexture(tex2d, baseMip.Format);
-		const bgfx::TextureFormat::Enum createFmt = packedMeshAtlas
-			? bgfx::TextureFormat::BGRA8 : bgfxFmt;
-		const unsigned createMipCount = packedMeshAtlas
-			? GetFullMipCount(baseMip.Width, baseMip.Height) : mipCount;
+    const unsigned mipCount = static_cast<unsigned>(mips.size());
+    const bool terrainAtlasSafeMips = IsTerrainAtlasTexture(tex2d, baseMip.Format, bgfxFmt);
+    const bool packedMeshAtlas = IsPackedMeshAtlasTexture(tex2d, baseMip.Format);
+    const bgfx::TextureFormat::Enum createFmt = packedMeshAtlas
+        ? bgfx::TextureFormat::BGRA8 : bgfxFmt;
+    const unsigned createMipCount = packedMeshAtlas
+        ? GetFullMipCount(baseMip.Width, baseMip.Height) : mipCount;
     bgfx::TextureHandle h = bgfx::createTexture2D(
         static_cast<uint16_t>(baseMip.Width),
         static_cast<uint16_t>(baseMip.Height),
@@ -1387,9 +1482,8 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex)
 
     g_caches.texture[tex] = h;
     // Record dimensions so future reuse can update in place
-    g_caches.textureInfo[tex] = { textureRevision,
-        static_cast<uint16_t>(baseMip.Width),
-        static_cast<uint16_t>(baseMip.Height) };
+    g_caches.textureInfo[tex] =
+        MakeTextureCacheInfo(textureRevision, tex2d, baseMip, mips, bgfxFmt);
     return h;
 }
 void BgfxBackend::Invalidate_Cached_Texture(TextureBaseClass * texture)
@@ -1482,8 +1576,10 @@ void BgfxBackend::Release_Cached_Texture(TextureBaseClass * texture)
     // cache entries so a later allocation reusing this TextureBaseClass*
     // address cannot inherit the stale handle.
     auto it = g_caches.texture.find(texture);
+    bgfx::TextureHandle oldHandle = BGFX_INVALID_HANDLE;
     if (it != g_caches.texture.end())
     {
+        oldHandle = it->second;
         if (bgfx::isValid(it->second))
         {
             g_caches.deferredDestroys.push_back(it->second);
@@ -1492,6 +1588,16 @@ void BgfxBackend::Release_Cached_Texture(TextureBaseClass * texture)
     }
     g_caches.textureInfo.erase(texture);
     g_caches.renderTarget.erase(texture);
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        if (g_draw.sourceTextures[i] == texture
+            || (bgfx::isValid(oldHandle) && g_draw.tex[i].idx == oldHandle.idx))
+        {
+            g_draw.tex[i] = BGFX_INVALID_HANDLE;
+            g_draw.sourceTextures[i] = nullptr;
+            g_draw.textureIsMissing[i] = false;
+        }
+    }
 
     // Framebuffer-backed textures (render targets) own a framebuffer whose
     // color attachment IS the cached handle above. Destroying the
