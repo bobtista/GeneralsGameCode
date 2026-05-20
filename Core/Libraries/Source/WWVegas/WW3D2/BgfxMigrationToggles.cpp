@@ -25,6 +25,20 @@ bool Is_False_Env_Value(const char *value)
 			&& normalized[4] == 'e' && normalized[5] == '\0');
 }
 
+bool Toggle_Default_Enabled(BgfxMigrationToggle toggle)
+{
+	switch (toggle) {
+		case BgfxMigrationToggle::TextureOwnership:
+			return true;
+		case BgfxMigrationToggle::SurfaceOwnership:
+		case BgfxMigrationToggle::RenderTargets:
+		case BgfxMigrationToggle::BufferOwnership:
+		case BgfxMigrationToggle::SemanticState:
+			return false;
+	}
+	return false;
+}
+
 } // namespace
 
 const char *Get_Bgfx_Migration_Toggle_Name(BgfxMigrationToggle toggle)
@@ -64,5 +78,8 @@ const char *Get_Bgfx_Migration_Toggle_Env(BgfxMigrationToggle toggle)
 bool Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle toggle)
 {
 	const char *value = std::getenv(Get_Bgfx_Migration_Toggle_Env(toggle));
+	if (value == nullptr) {
+		return Toggle_Default_Enabled(toggle);
+	}
 	return !Is_False_Env_Value(value);
 }
