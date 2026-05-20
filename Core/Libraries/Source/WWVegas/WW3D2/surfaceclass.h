@@ -140,11 +140,13 @@ class SurfaceClass : public RefCountClass
 	private:
 		SurfaceClass(void *legacy_surface);
 		void	Attach_Legacy_Surface(void *surface);
+		void	Update_Description_From_Legacy_Surface();
 
 		// Legacy surface object
 		void *D3DSurface;
 
 		WW3DFormat SurfaceFormat;
+		SurfaceDescription Description;
 		friend class TextureClass;
 		friend class DX8TextureInterop;
 };

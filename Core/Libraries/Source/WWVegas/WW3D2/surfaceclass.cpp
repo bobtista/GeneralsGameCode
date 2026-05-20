@@ -180,29 +180,30 @@ void Convert_Pixel(unsigned char * pixel,const SurfaceClass::SurfaceDescription 
 *************************************************************************/
 SurfaceClass::SurfaceClass(unsigned width, unsigned height, WW3DFormat format):
 	D3DSurface(nullptr),
-	SurfaceFormat(format)
+	SurfaceFormat(format),
+	Description{format, width, height}
 {
 	WWASSERT(width);
 	WWASSERT(height);
 	D3DSurface = Create_Legacy_Surface(width, height, format);
+	Update_Description_From_Legacy_Surface();
 }
 
 SurfaceClass::SurfaceClass(const char *filename):
-	D3DSurface(nullptr)
+	D3DSurface(nullptr),
+	SurfaceFormat(WW3D_FORMAT_UNKNOWN),
+	Description{WW3D_FORMAT_UNKNOWN, 0, 0}
 {
 	D3DSurface = Create_Legacy_Surface_From_File(filename);
-	SurfaceDescription desc;
-	Get_Description(desc);
-	SurfaceFormat=desc.Format;
+	Update_Description_From_Legacy_Surface();
 }
 
 SurfaceClass::SurfaceClass(void *legacy_surface)	:
-	D3DSurface (nullptr)
+	D3DSurface(nullptr),
+	SurfaceFormat(WW3D_FORMAT_UNKNOWN),
+	Description{WW3D_FORMAT_UNKNOWN, 0, 0}
 {
 	Attach_Legacy_Surface(legacy_surface);
-	SurfaceDescription desc;
-	Get_Description(desc);
-	SurfaceFormat=desc.Format;
 }
 
 SurfaceClass::~SurfaceClass()
@@ -215,12 +216,7 @@ SurfaceClass::~SurfaceClass()
 
 void SurfaceClass::Get_Description(SurfaceDescription &surface_desc)
 {
-	LegacySurfaceDesc d3d_desc;
-	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
-	DX8_ErrorCode(LEGACY_SURFACE->GetDesc(&d3d_desc));
-	surface_desc.Format = D3DFormat_To_WW3DFormat(d3d_desc.Format);
-	surface_desc.Height = d3d_desc.Height;
-	surface_desc.Width = d3d_desc.Width;
+	surface_desc = Description;
 }
 
 unsigned int SurfaceClass::Get_Bytes_Per_Pixel()
@@ -810,7 +806,22 @@ void SurfaceClass::Attach_Legacy_Surface(void *surface)
 	//
 	if (D3DSurface != nullptr) {
 		LEGACY_SURFACE->AddRef ();
+		Update_Description_From_Legacy_Surface();
 	}
+}
+
+void SurfaceClass::Update_Description_From_Legacy_Surface()
+{
+	WWASSERT(D3DSurface != nullptr);
+
+	LegacySurfaceDesc d3d_desc;
+	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
+	DX8_ErrorCode(LEGACY_SURFACE->GetDesc(&d3d_desc));
+
+	Description.Format = D3DFormat_To_WW3DFormat(d3d_desc.Format);
+	Description.Width = d3d_desc.Width;
+	Description.Height = d3d_desc.Height;
+	SurfaceFormat = Description.Format;
 }
 
 
@@ -839,6 +850,8 @@ void SurfaceClass::Detach ()
 	}
 
 	D3DSurface = nullptr;
+	Description.Width = 0;
+	Description.Height = 0;
 }
 
 
