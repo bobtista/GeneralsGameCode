@@ -29,6 +29,8 @@
 #include "WW3D2/surfaceclass.h"
 #include "WW3D2/texture.h"
 
+static void MapDisplayPointToSDLPoint(Int displayX, Int displayY, float *rawX, float *rawY);
+
 SDL3Mouse::SDL3Mouse() :
 	m_nextGetIndex(0),
 	m_nextFreeIndex(0),
@@ -202,7 +204,10 @@ void SDL3Mouse::setPosition(Int x, Int y)
 	Mouse::setPosition(x, y);
 	if (TheSDL3Window != NULL)
 	{
-		SDL_WarpMouseInWindow(TheSDL3Window, static_cast<float>(x), static_cast<float>(y));
+		float rawX = static_cast<float>(x);
+		float rawY = static_cast<float>(y);
+		MapDisplayPointToSDLPoint(x, y, &rawX, &rawY);
+		SDL_WarpMouseInWindow(TheSDL3Window, rawX, rawY);
 	}
 }
 
@@ -250,6 +255,99 @@ UnsignedByte SDL3Mouse::getMouseEvent(MouseIO *result, Bool flush)
 	return MOUSE_OK;
 }
 
+static SDL_Window *GetMouseEventWindow(Uint32 windowID)
+{
+	SDL_Window *window = SDL_GetWindowFromID(windowID);
+	if (window == nullptr)
+	{
+		window = TheSDL3Window;
+	}
+	return window;
+}
+
+static Bool GetSDLWindowSize(SDL_Window *window, Int *width, Int *height)
+{
+	if (window == nullptr || width == nullptr || height == nullptr)
+	{
+		return FALSE;
+	}
+
+	int windowWidth = 0;
+	int windowHeight = 0;
+	SDL_GetWindowSize(window, &windowWidth, &windowHeight);
+	if (windowWidth <= 0 || windowHeight <= 0)
+	{
+		SDL_GetWindowSizeInPixels(window, &windowWidth, &windowHeight);
+	}
+	if (windowWidth <= 0 || windowHeight <= 0)
+	{
+		return FALSE;
+	}
+
+	*width = windowWidth;
+	*height = windowHeight;
+	return TRUE;
+}
+
+static void MapSDLPointToDisplayPoint(float rawX, float rawY, Uint32 windowID, Int *displayX, Int *displayY)
+{
+	if (displayX == nullptr || displayY == nullptr)
+	{
+		return;
+	}
+
+	SDL_Window *window = GetMouseEventWindow(windowID);
+	Int windowWidth = 0;
+	Int windowHeight = 0;
+	if (TheDisplay == nullptr || !GetSDLWindowSize(window, &windowWidth, &windowHeight))
+	{
+		*displayX = static_cast<Int>(std::lround(rawX));
+		*displayY = static_cast<Int>(std::lround(rawY));
+		return;
+	}
+
+	const Int displayWidth = TheDisplay->getWidth();
+	const Int displayHeight = TheDisplay->getHeight();
+	if (displayWidth <= 0 || displayHeight <= 0)
+	{
+		*displayX = static_cast<Int>(std::lround(rawX));
+		*displayY = static_cast<Int>(std::lround(rawY));
+		return;
+	}
+
+	*displayX = static_cast<Int>(std::lround(rawX * static_cast<float>(displayWidth) / static_cast<float>(windowWidth)));
+	*displayY = static_cast<Int>(std::lround(rawY * static_cast<float>(displayHeight) / static_cast<float>(windowHeight)));
+}
+
+static void MapDisplayPointToSDLPoint(Int displayX, Int displayY, float *rawX, float *rawY)
+{
+	if (rawX == nullptr || rawY == nullptr)
+	{
+		return;
+	}
+
+	Int windowWidth = 0;
+	Int windowHeight = 0;
+	if (TheDisplay == nullptr || !GetSDLWindowSize(TheSDL3Window, &windowWidth, &windowHeight))
+	{
+		*rawX = static_cast<float>(displayX);
+		*rawY = static_cast<float>(displayY);
+		return;
+	}
+
+	const Int displayWidth = TheDisplay->getWidth();
+	const Int displayHeight = TheDisplay->getHeight();
+	if (displayWidth <= 0 || displayHeight <= 0)
+	{
+		*rawX = static_cast<float>(displayX);
+		*rawY = static_cast<float>(displayY);
+		return;
+	}
+
+	*rawX = static_cast<float>(displayX) * static_cast<float>(windowWidth) / static_cast<float>(displayWidth);
+	*rawY = static_cast<float>(displayY) * static_cast<float>(windowHeight) / static_cast<float>(displayHeight);
+}
+
 void SDL3Mouse::addSDL3MotionEvent(const SDL_MouseMotionEvent &event)
 {
 	MouseIO io;
@@ -259,8 +357,7 @@ void SDL3Mouse::addSDL3MotionEvent(const SDL_MouseMotionEvent &event)
 	io.leftEvent = MOUSE_EVENT_NONE;
 	io.rightEvent = MOUSE_EVENT_NONE;
 	io.middleEvent = MOUSE_EVENT_NONE;
-	io.pos.x = static_cast<Int>(event.x);
-	io.pos.y = static_cast<Int>(event.y);
+	MapSDLPointToDisplayPoint(event.x, event.y, event.windowID, &io.pos.x, &io.pos.y);
 	io.deltaPos.x = static_cast<Int>(event.xrel);
 	io.deltaPos.y = static_cast<Int>(event.yrel);
 	io.wheelPos = 0;
@@ -277,8 +374,7 @@ void SDL3Mouse::addSDL3ButtonEvent(const SDL_MouseButtonEvent &event)
 	io.leftEvent = MOUSE_EVENT_NONE;
 	io.rightEvent = MOUSE_EVENT_NONE;
 	io.middleEvent = MOUSE_EVENT_NONE;
-	io.pos.x = static_cast<Int>(event.x);
-	io.pos.y = static_cast<Int>(event.y);
+	MapSDLPointToDisplayPoint(event.x, event.y, event.windowID, &io.pos.x, &io.pos.y);
 	io.deltaPos.x = 0;
 	io.deltaPos.y = 0;
 	io.wheelPos = 0;
