@@ -47,12 +47,15 @@ Here's an overview of our current focus and future plans
 
 ## Running the Game
 
-To run *Generals* or *Zero Hour* using this project, you need to have the original *Command & Conquer: Generals and Zero Hour* game
-installed. The easiest way to get it is through *Command & Conquer The Ultimate Collection*
-on [Steam](https://store.steampowered.com/bundle/39394). Once the game is ready, download the latest version of the
-project from [GitHub Releases](https://github.com/TheSuperHackers/GeneralsGameCode/releases), extract the necessary 
-files, and follow the instructions in the [Wiki](https://github.com/TheSuperHackers/GeneralsGameCode/wiki).
+You need the original *Command & Conquer: Generals* and *Zero Hour* game data to play. The easiest way is through
+*Command & Conquer The Ultimate Collection* on [Steam](https://store.steampowered.com/bundle/39394).
 
+**Windows:** Download the latest build from [GitHub Releases](https://github.com/TheSuperHackers/GeneralsGameCode/releases),
+extract into your game directory, and follow the [Wiki](https://github.com/TheSuperHackers/GeneralsGameCode/wiki) instructions.
+
+**macOS / Linux:** Steam does not offer a macOS or Linux download. See
+[Getting the Game Files](docs/BUILD/GETTING_THE_GAME_FILES.md) for three ways to obtain the retail data
+(copy from Windows, SteamCMD, or CrossOver).
 
 ## Joining the Community
 
@@ -61,7 +64,7 @@ report bugs, and contribute to the project!
 
 ## Building the Game Yourself
 
-We provide support for building the project on Windows and Linux. For detailed build instructions, check the
+We provide support for building the project on Windows, Linux, and macOS. For detailed build instructions, check the
 [Wiki](https://github.com/TheSuperHackers/GeneralsGameCode/wiki/build_guides), which includes guides for VS6, VS2022,
 Docker, CLion, and links to forks supporting additional versions.
 
@@ -81,35 +84,24 @@ cmake --build build/win32 --config Release
 
 **macOS (Apple Silicon / Intel)**
 
-Prerequisites: Xcode command line tools, CMake, and Homebrew packages:
+Requires Xcode command line tools and Homebrew. Uses bgfx (Metal), SDL3, and OpenAL.
+
 ```bash
 xcode-select --install
 brew install cmake ninja dylibbundler ffmpeg sdl3 openal-soft
-```
-
-Build and deploy:
-```bash
 scripts/build/macos/build-macos-generalsmd.sh
 ```
 
-This configures the bgfx/Metal + SDL3 + OpenAL build, compiles it, bundles dylib dependencies, and deploys to `~/TheSuperHackers/GeneralsZH/`.
+This builds and deploys to `~/TheSuperHackers/GeneralsZH/`. Before launching, you need
+the retail game data — see [Getting the Game Files](docs/BUILD/GETTING_THE_GAME_FILES.md).
 
-Before launching, you need the retail game data files. First, fetch the open-source game data (INI, UI, Art):
 ```bash
-scripts/build/macos/fetch-game-data.sh
+scripts/build/macos/fetch-game-data.sh   # open-source INI/UI/Art data
+# copy retail .big files into ~/TheSuperHackers/GeneralsZH/
+# copy retail Data/Cursors/*.ani into ~/TheSuperHackers/GeneralsZH/Data/Cursors/
+# copy retail Data/Scripts/*.scb into ~/TheSuperHackers/GeneralsZH/Data/Scripts/
+~/TheSuperHackers/GeneralsZH/run.sh      # launch
 ```
-
-Then copy the retail `.big` files from both Generals and Zero Hour into `~/TheSuperHackers/GeneralsZH/`. You need at minimum:
-- **Zero Hour:** `INIZH.big`, `W3DZH.big`, `TexturesZH.big`, `MapsZH.big`, `WindowZH.big`, `EnglishZH.big`
-- **Generals:** `INI.big`, `W3D.big`, `Textures.big`, `Maps.big`, `Window.big`, `English.big`
-- **Optional (audio):** `MusicZH.big`, `AudioZH.big`, `Music.big`, `Audio.big`
-
-Launch with:
-```bash
-~/TheSuperHackers/GeneralsZH/run.sh
-```
-
-Set `GGC_NO_AUDIO=1` to skip audio if you don't have the audio `.big` files.
 
 ### Dependency management
 
