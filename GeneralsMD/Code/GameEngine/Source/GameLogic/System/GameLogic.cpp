@@ -268,7 +268,7 @@ const char* toString(GameMode mode)
 	}
 }
 
-#ifndef _WIN32
+#if !defined(_WIN32) && (defined(RTS_DEBUG) || defined(GGC_ENABLE_GAMEPLAY_DIAGNOSTIC_ENV_HOOKS))
 static void ggcForceNonObserverLocalPlayer(GameMode mode)
 {
 	if (mode == GAME_REPLAY || !ThePlayerList)
@@ -1926,7 +1926,7 @@ void GameLogic::tryStartNewGame( Bool loadingSaveGame )
 	// update the player list to match the new map.
 	TheTeamFactory->reset();
 	ThePlayerList->newGame();
-#ifndef _WIN32
+#if !defined(_WIN32) && (defined(RTS_DEBUG) || defined(GGC_ENABLE_GAMEPLAY_DIAGNOSTIC_ENV_HOOKS))
 	ggcForceNonObserverLocalPlayer(m_gameMode);
 #endif
 
@@ -4164,7 +4164,7 @@ void GameLogic::update()
 		processCommandList( TheCommandList );
 	}
 
-#ifndef _WIN32
+#if !defined(_WIN32) && (defined(RTS_DEBUG) || defined(GGC_ENABLE_GAMEPLAY_DIAGNOSTIC_ENV_HOOKS))
 	ggcMaybeTriggerSpecialPowerDiagnostic();
 #endif
 
