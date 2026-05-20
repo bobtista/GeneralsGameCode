@@ -181,7 +181,7 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 	// Process texture reductions:
 //	MatInfo->Process_Texture_Reduction();
 
-	unsigned buffer_type=(Get_Flag(MeshGeometryClass::SORT)&& WW3D::Is_Sorting_Enabled()) ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+	unsigned buffer_type=(Get_Flag(MeshGeometryClass::SORT)&& WW3D::Is_Sorting_Enabled()) ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC;
 
 	/*
 	** Write the vertex data to the vertex buffer. We assume the FVF contains positions, normals,
@@ -829,4 +829,3 @@ void DynamicScreenMeshClass::Reset()
 	Reset_Flags();
 	Reset_Mesh_Counters();
 }
-
