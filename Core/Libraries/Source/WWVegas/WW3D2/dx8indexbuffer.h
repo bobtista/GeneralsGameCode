@@ -141,7 +141,7 @@ class DynamicIBAccessClass
 	IndexBufferClass* IndexBuffer;
 
 	void Allocate_Sorting_Dynamic_Buffer();
-	void Allocate_DX8_Dynamic_Buffer();
+	void Allocate_Backend_Dynamic_Buffer();
 
 public:
 	DynamicIBAccessClass(unsigned short type, unsigned short index_count);

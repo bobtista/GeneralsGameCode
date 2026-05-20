@@ -900,10 +900,10 @@ DynamicVBAccessClass::DynamicVBAccessClass(unsigned t,unsigned fvf,unsigned shor
 	VertexBuffer(nullptr)
 {
 	WWASSERT(fvf==dynamic_fvf_type);
-	WWASSERT(Type==BUFFER_TYPE_DYNAMIC_DX8 || Type==BUFFER_TYPE_DYNAMIC_SORTING);
+	WWASSERT(Type==BUFFER_TYPE_DYNAMIC || Type==BUFFER_TYPE_DYNAMIC_SORTING);
 
-	if (Type==BUFFER_TYPE_DYNAMIC_DX8) {
-		Allocate_DX8_Dynamic_Buffer();
+	if (Type==BUFFER_TYPE_DYNAMIC) {
+		Allocate_Backend_Dynamic_Buffer();
 	}
 	else {
 		Allocate_Sorting_Dynamic_Buffer();
@@ -912,7 +912,7 @@ DynamicVBAccessClass::DynamicVBAccessClass(unsigned t,unsigned fvf,unsigned shor
 
 DynamicVBAccessClass::~DynamicVBAccessClass()
 {
-	if (Type==BUFFER_TYPE_DYNAMIC_DX8) {
+	if (Type==BUFFER_TYPE_DYNAMIC) {
 		_DynamicDX8VertexBufferInUse=false;
 		_DynamicDX8VertexBufferOffset+=(unsigned) VertexCount;
 	}
@@ -942,7 +942,7 @@ void DynamicVBAccessClass::_Deinit()
 	_DynamicSortingVertexArrayOffset=0;
 }
 
-void DynamicVBAccessClass::Allocate_DX8_Dynamic_Buffer()
+void DynamicVBAccessClass::Allocate_Backend_Dynamic_Buffer()
 {
 	WWMEMLOG(MEM_RENDERER);
 	WWASSERT(!_DynamicDX8VertexBufferInUse);
@@ -1010,7 +1010,7 @@ DynamicVBAccessClass::WriteLockClass::WriteLockClass(DynamicVBAccessClass* dynam
 {
 	DX8_THREAD_ASSERT();
 	switch (DynamicVBAccess->Get_Type()) {
-	case BUFFER_TYPE_DYNAMIC_DX8:
+	case BUFFER_TYPE_DYNAMIC:
 #ifdef VERTEX_BUFFER_LOG
 		{
 		WWASSERT(!dx8_lock);
@@ -1061,7 +1061,7 @@ DynamicVBAccessClass::WriteLockClass::~WriteLockClass()
 {
 	DX8_THREAD_ASSERT();
 	switch (DynamicVBAccess->Get_Type()) {
-	case BUFFER_TYPE_DYNAMIC_DX8:
+	case BUFFER_TYPE_DYNAMIC:
 #ifdef VERTEX_BUFFER_LOG
 		dx8_lock--;
 		WWASSERT(!dx8_lock);
