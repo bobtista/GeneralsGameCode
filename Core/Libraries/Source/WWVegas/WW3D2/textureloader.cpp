@@ -39,6 +39,9 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "textureloader.h"
+#if defined(GGC_RENDER_BACKEND_BGFX)
+#include "BgfxMigrationToggles.h"
+#endif
 #include "mutex.h"
 #include "thread.h"
 #include "wwdebug.h"
@@ -61,8 +64,11 @@
 #include "texturethumbnail.h"
 #include "ddsfile.h"
 #include "bitmaphandler.h"
+#include "DXTUtils.h"
 #include "wwprofile.h"
 #include <cstdio>
+#include <cstring>
+#include <utility>
 
 namespace
 {
@@ -214,6 +220,7 @@ class TextureLoadTaskClass : public TextureLoadTaskListNodeClass
 
 		virtual void			Lock_Surfaces				();
 		virtual void			Unlock_Surfaces			();
+		void						Capture_CPU_Texture_Snapshot_From_Locked_Surfaces();
 
 		void						Apply							(bool initialize);
 
@@ -1519,6 +1526,12 @@ void TextureLoadTaskClass::End_Load()
 {
 	WWASSERT(TextureLoader::Is_DX8_Thread());
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership)) {
+		Capture_CPU_Texture_Snapshot_From_Locked_Surfaces();
+	}
+#endif
+
 	Unlock_Surfaces();
 	Apply(true);
 
@@ -2098,6 +2111,48 @@ void TextureLoadTaskClass::Unlock_Surfaces()
 	WWDEBUG_SAY(("Created non-managed texture (%s)",Texture->Get_Full_Path()));
 #endif
 
+}
+
+void TextureLoadTaskClass::Capture_CPU_Texture_Snapshot_From_Locked_Surfaces()
+{
+	if (Texture == nullptr || Texture->As_TextureClass() == nullptr || Peek_D3D_Texture() == nullptr) {
+		return;
+	}
+
+	std::vector<TextureBaseClass::TextureMipSnapshot> mips;
+	mips.reserve(MipLevelCount);
+	for (unsigned int level = 0; level < MipLevelCount; ++level)
+	{
+		if (LockedSurfacePtr[level] == nullptr) {
+			return;
+		}
+
+		LegacySurfaceDesc desc;
+		if (FAILED(Peek_D3D_Texture()->GetLevelDesc(level, &desc))) {
+			return;
+		}
+
+		TextureBaseClass::TextureMipSnapshot mip;
+		mip.Width = desc.Width;
+		mip.Height = desc.Height;
+		mip.Pitch = LockedSurfacePitch[level];
+		mip.Format = D3DFormat_To_WW3DFormat(desc.Format);
+		const bool compressed =
+			mip.Format == WW3D_FORMAT_DXT1 ||
+			mip.Format == WW3D_FORMAT_DXT2 ||
+			mip.Format == WW3D_FORMAT_DXT3 ||
+			mip.Format == WW3D_FORMAT_DXT4 ||
+			mip.Format == WW3D_FORMAT_DXT5;
+		const unsigned rows = compressed ? DXT_SurfaceRows(mip.Height) : mip.Height;
+		const unsigned size = rows * mip.Pitch;
+		mip.Data.resize(size);
+		if (size != 0) {
+			std::memcpy(&mip.Data[0], LockedSurfacePtr[level], size);
+		}
+		mips.push_back(mip);
+	}
+
+	Texture->Set_CPU_Texture_Snapshot(std::move(mips));
 }
 
 

@@ -64,6 +64,7 @@
 #include "IRenderBackend.h"
 #include "DXTUtils.h"
 #include <cstring>
+#include <utility>
 
 const unsigned DEFAULT_INACTIVATION_TIME=20000;
 
@@ -307,6 +308,12 @@ void TextureBaseClass::Clear_CPU_Texture_Snapshot()
 	if (!CPUTextureMips.empty()) {
 		CPUTextureMips.clear();
 	}
+	++CPUTextureRevision;
+}
+
+void TextureBaseClass::Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> &&mips)
+{
+	CPUTextureMips = std::move(mips);
 	++CPUTextureRevision;
 }
 

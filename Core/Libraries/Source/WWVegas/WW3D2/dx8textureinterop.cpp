@@ -21,6 +21,9 @@
 #include <d3d8.h>
 #include <d3dx8tex.h>
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+#include "BgfxMigrationToggles.h"
+#endif
 #include "dx8formatconv.h"
 #include "dx8wrapper.h"
 #include "ffactory.h"
@@ -111,7 +114,16 @@ void DX8TextureInterop::Set_Legacy_Base_Texture(TextureBaseClass &texture, IDire
 	if (native_texture != nullptr) {
 		native_texture->AddRef();
 	}
-	texture.Capture_CPU_Texture_Snapshot(texture.LegacyTexture);
+	bool preserve_cpu_snapshot = false;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	preserve_cpu_snapshot =
+		native_texture != nullptr
+		&& texture.Has_CPU_Texture_Mips()
+		&& Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+#endif
+	if (!preserve_cpu_snapshot) {
+		texture.Capture_CPU_Texture_Snapshot(texture.LegacyTexture);
+	}
 
 	// Populate the backend-neutral handle after the legacy texture loader
 	// finished creating the compatibility texture. The backend either stores a
