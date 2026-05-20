@@ -352,7 +352,7 @@ void Release_Refs(SortingNodeStruct* state)
 	}
 	REF_PTR_RELEASE(state->sorting_state.index_buffer);
 	REF_PTR_RELEASE(state->sorting_state.material);
-	for (i=0;i<g_renderBackend->Get_Max_Texture_Stages();++i)
+	for (i=0;i<RB_MAX_TEXTURE_STAGES;++i)
 	{
 		REF_PTR_RELEASE(state->sorting_state.Textures[i]);
 	}
