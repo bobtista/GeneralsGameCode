@@ -147,6 +147,8 @@ public:
     virtual void Begin_Sorted_Batch_Pass() override;
     virtual void End_Sorted_Batch_Pass() override;
     virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state) override;
+    virtual void Set_Point_Group_Render_Active(bool active) override;
+    virtual void Set_Streak_Render_Active(bool active) override;
     virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state) override;
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state) override;
     virtual void Release_Legacy_Render_State_For_Sorted_Draw() override;

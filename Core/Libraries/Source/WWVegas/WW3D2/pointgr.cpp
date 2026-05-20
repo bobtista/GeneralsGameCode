@@ -973,6 +973,10 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	}
 
 	current = 0;
+	if (sort)
+	{
+		g_renderBackend->Set_Point_Group_Render_Active(true);
+	}
 	while (current<vnum)
 	{
 		delta=MIN(vnum-current,MAX_VB_SIZE);
@@ -1017,6 +1021,10 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 		}
 
 		current+=delta;
+	}
+	if (sort)
+	{
+		g_renderBackend->Set_Point_Group_Render_Active(false);
 	}
 
 	// restore the matrices
@@ -1893,6 +1901,10 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		float nudge = 0;
 
 		current = 0;
+		if (sort)
+		{
+			g_renderBackend->Set_Point_Group_Render_Active(true);
+		}
 		while (current<vnum)
 		{
 			delta=MIN(vnum-current,MAX_VB_SIZE);
@@ -1939,6 +1951,10 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 
 			current+=delta;
+		}
+		if (sort)
+		{
+			g_renderBackend->Set_Point_Group_Render_Active(false);
 		}
 
 
