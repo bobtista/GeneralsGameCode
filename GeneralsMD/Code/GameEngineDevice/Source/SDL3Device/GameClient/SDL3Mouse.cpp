@@ -229,16 +229,19 @@ void SDL3Mouse::capture()
 {
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Win32Mouse calls
 	// ClipCursor(&windowRect); SDL3's analog is SDL_SetWindowMouseGrab.
-	// Disabled by default on macOS while we are still debugging window
-	// foregrounding - calling SDL_SetWindowMouseGrab early in init
-	// appears to suppress the window from coming up at all on M4 +
-	// macOS Tahoe. GGC_MOUSE_GRAB=1 turns it on for users who want the
-	// edge-scroll-clip behaviour back.
-	if (TheSDL3Window != NULL && std::getenv("GGC_MOUSE_GRAB") != NULL)
-	{
-		SDL_SetWindowMouseGrab(TheSDL3Window, true);
+		// Disabled by default on macOS while we are still debugging window
+		// foregrounding. GGC_MOUSE_GRAB=1 turns it on for users who want the
+		// edge-scroll-clip behaviour back.
+		if (TheSDL3Window != NULL && std::getenv("GGC_MOUSE_GRAB") != NULL)
+		{
+			SDL_SetWindowMouseGrab(TheSDL3Window, true);
+			onCursorCaptured(SDL_GetWindowMouseGrab(TheSDL3Window) ? TRUE : FALSE);
+		}
+		else
+		{
+			onCursorCaptured(FALSE);
+		}
 	}
-}
 
 void SDL3Mouse::releaseCapture()
 {
@@ -246,6 +249,7 @@ void SDL3Mouse::releaseCapture()
 	{
 		SDL_SetWindowMouseGrab(TheSDL3Window, false);
 	}
+	onCursorCaptured(FALSE);
 }
 
 UnsignedByte SDL3Mouse::getMouseEvent(MouseIO *result, Bool flush)

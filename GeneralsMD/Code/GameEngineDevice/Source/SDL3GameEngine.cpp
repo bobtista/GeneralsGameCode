@@ -157,6 +157,8 @@ void SDL3GameEngine::pollSDL3Events()
 			case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
 			case SDL_EVENT_WINDOW_FOCUS_GAINED:
 			case SDL_EVENT_WINDOW_FOCUS_LOST:
+			case SDL_EVENT_WINDOW_MOUSE_ENTER:
+			case SDL_EVENT_WINDOW_MOUSE_LEAVE:
 				handleWindowEvent(event.window);
 				break;
 
@@ -258,10 +260,52 @@ void SDL3GameEngine::handleWindowEvent(const SDL_WindowEvent &event)
 	else if (event.type == SDL_EVENT_WINDOW_FOCUS_GAINED)
 	{
 		setIsActive(true);
+		if (TheKeyboard != NULL)
+		{
+			TheKeyboard->resetKeys();
+		}
+		if (TheMouse != NULL)
+		{
+			TheMouse->regainFocus();
+			if (SDL_GetMouseFocus() == m_sdlWindow)
+			{
+				TheMouse->onCursorMovedInside();
+			}
+			else if (TheMouse->isCursorInside())
+			{
+				TheMouse->onCursorMovedOutside();
+			}
+		}
 	}
 	else if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST)
 	{
 		setIsActive(false);
+		if (TheKeyboard != NULL)
+		{
+			TheKeyboard->resetKeys();
+		}
+		if (TheMouse != NULL)
+		{
+			TheMouse->loseFocus();
+			if (TheMouse->isCursorInside())
+			{
+				TheMouse->onCursorMovedOutside();
+			}
+		}
+	}
+	else if (event.type == SDL_EVENT_WINDOW_MOUSE_ENTER)
+	{
+		if (TheMouse != NULL)
+		{
+			TheMouse->onCursorMovedInside();
+		}
+	}
+	else if (event.type == SDL_EVENT_WINDOW_MOUSE_LEAVE)
+	{
+		if (TheMouse != NULL && TheMouse->isCursorInside())
+		{
+			TheMouse->onCursorMovedOutside();
+		}
 	}
 }
 
