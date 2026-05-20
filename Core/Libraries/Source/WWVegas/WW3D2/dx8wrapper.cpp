@@ -101,6 +101,82 @@
 static D3DDEVTYPE Legacy_Device_Type(unsigned value) { return static_cast<D3DDEVTYPE>(value); }
 static D3DRESOURCETYPE Legacy_Resource_Type(unsigned value) { return static_cast<D3DRESOURCETYPE>(value); }
 
+static LegacyFixedFunctionColor To_Legacy_Color(const D3DCOLORVALUE &color)
+{
+	LegacyFixedFunctionColor result;
+	result.r = color.r;
+	result.g = color.g;
+	result.b = color.b;
+	result.a = color.a;
+	return result;
+}
+
+static D3DCOLORVALUE To_D3D_Color(const LegacyFixedFunctionColor &color)
+{
+	D3DCOLORVALUE result;
+	result.r = color.r;
+	result.g = color.g;
+	result.b = color.b;
+	result.a = color.a;
+	return result;
+}
+
+static LegacyFixedFunctionVector3 To_Legacy_Vector(const D3DVECTOR &vector)
+{
+	LegacyFixedFunctionVector3 result;
+	result.x = vector.x;
+	result.y = vector.y;
+	result.z = vector.z;
+	return result;
+}
+
+static D3DVECTOR To_D3D_Vector(const LegacyFixedFunctionVector3 &vector)
+{
+	D3DVECTOR result;
+	result.x = vector.x;
+	result.y = vector.y;
+	result.z = vector.z;
+	return result;
+}
+
+static LegacyFixedFunctionLight To_Legacy_Light(const D3DLIGHT8 &light)
+{
+	LegacyFixedFunctionLight result;
+	result.Type = static_cast<unsigned int>(light.Type);
+	result.Diffuse = To_Legacy_Color(light.Diffuse);
+	result.Specular = To_Legacy_Color(light.Specular);
+	result.Ambient = To_Legacy_Color(light.Ambient);
+	result.Position = To_Legacy_Vector(light.Position);
+	result.Direction = To_Legacy_Vector(light.Direction);
+	result.Range = light.Range;
+	result.Falloff = light.Falloff;
+	result.Attenuation0 = light.Attenuation0;
+	result.Attenuation1 = light.Attenuation1;
+	result.Attenuation2 = light.Attenuation2;
+	result.Theta = light.Theta;
+	result.Phi = light.Phi;
+	return result;
+}
+
+static D3DLIGHT8 To_D3D_Light(const LegacyFixedFunctionLight &light)
+{
+	D3DLIGHT8 result;
+	result.Type = static_cast<D3DLIGHTTYPE>(light.Type);
+	result.Diffuse = To_D3D_Color(light.Diffuse);
+	result.Specular = To_D3D_Color(light.Specular);
+	result.Ambient = To_D3D_Color(light.Ambient);
+	result.Position = To_D3D_Vector(light.Position);
+	result.Direction = To_D3D_Vector(light.Direction);
+	result.Range = light.Range;
+	result.Falloff = light.Falloff;
+	result.Attenuation0 = light.Attenuation0;
+	result.Attenuation1 = light.Attenuation1;
+	result.Attenuation2 = light.Attenuation2;
+	result.Theta = light.Theta;
+	result.Phi = light.Phi;
+	return result;
+}
+
 const int DEFAULT_RESOLUTION_WIDTH = 640;
 const int DEFAULT_RESOLUTION_HEIGHT = 480;
 const int DEFAULT_BIT_DEPTH = 32;
@@ -2501,7 +2577,7 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 				if (FixedFunctionState::Render_State().LightEnable[index]) {
 #ifdef MESH_RENDER_SNAPSHOT_ENABLED
 					if ( WW3D::Is_Snapshot_Activated() ) {
-						D3DLIGHT8 * light = &(FixedFunctionState::Render_State().Lights[index]);
+						const LegacyFixedFunctionLight * light = &(FixedFunctionState::Render_State().Lights[index]);
 						static const char * _light_types[] = { "Unknown", "Point","Spot", "Directional" };
 						WWASSERT((light->Type >= 0) && (light->Type <= 3));
 
@@ -2516,7 +2592,8 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 					}
 #endif
 
-					Set_DX8_Light(index,&FixedFunctionState::Render_State().Lights[index]);
+					D3DLIGHT8 light = To_D3D_Light(FixedFunctionState::Render_State().Lights[index]);
+					Set_DX8_Light(index,&light);
 				}
 				else {
 					Set_DX8_Light(index,nullptr);
@@ -3421,7 +3498,7 @@ void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
 void DX8Wrapper::Set_Light(unsigned index, const D3DLIGHT8* light)
 {
 	if (light) {
-		FixedFunctionState::Render_State().Lights[index]=*light;
+		FixedFunctionState::Render_State().Lights[index]=To_Legacy_Light(*light);
 		FixedFunctionState::Render_State().LightEnable[index]=true;
 	}
 	else {
