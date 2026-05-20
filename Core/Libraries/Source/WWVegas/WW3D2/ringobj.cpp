@@ -539,7 +539,7 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 
 	// Enable sorting if the primitive is translucent, alpha testing is not enabled, and sorting is enabled globally.
 	const bool sort = (RingShader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (RingShader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
-	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC;
 
 	DynamicVBAccessClass vb(buffer_type, dynamic_fvf_type, ring.Vertex_ct);
 	{

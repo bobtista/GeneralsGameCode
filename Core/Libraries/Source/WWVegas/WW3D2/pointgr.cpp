@@ -980,7 +980,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	while (current<vnum)
 	{
 		delta=MIN(vnum-current,MAX_VB_SIZE);
-		DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, delta);
+		DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC, dynamic_fvf_type, delta);
 
 		// Copy in the data to the VB
 		{
@@ -1908,7 +1908,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		while (current<vnum)
 		{
 			delta=MIN(vnum-current,MAX_VB_SIZE);
-			DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, delta);
+			DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC, dynamic_fvf_type, delta);
 
 			// Copy in the data to the VB
 			{

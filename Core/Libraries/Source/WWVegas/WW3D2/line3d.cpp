@@ -277,7 +277,7 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 
 	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,Transform);
 
-	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,8);
+	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,8);
 	{
 		DynamicVBAccessClass::WriteLockClass Lock(&vb);
 		const FVFInfoClass &fi=vb.FVF_Info();
@@ -293,7 +293,7 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 		}
 	}
 
-	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX8,36);
+	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC,36);
 	{
 		DynamicIBAccessClass::WriteLockClass Lock(&ib);
 		unsigned short *mem=Lock.Get_Index_Array();
