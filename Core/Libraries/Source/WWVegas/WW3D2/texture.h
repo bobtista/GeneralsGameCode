@@ -235,6 +235,7 @@ private:
 		std::vector<TextureMipSnapshot> CPUTextureMips;
 		unsigned CPUTextureRevision;
 		void Capture_CPU_Texture_Snapshot(void *native_texture);
+		void Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> &&mips);
 		void Clear_CPU_Texture_Snapshot();
 
 		// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
