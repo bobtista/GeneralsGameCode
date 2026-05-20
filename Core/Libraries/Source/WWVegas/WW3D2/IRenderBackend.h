@@ -206,6 +206,14 @@ struct RenderBackendSortedBatchState
     const Matrix4x4 * world;
     const Matrix4x4 * view;
     RenderBackendLightState lights;
+    unsigned int draw_flags;
+};
+
+enum RenderBackendSortedDrawFlags
+{
+    RB_SORTED_DRAW_NONE        = 0,
+    RB_SORTED_DRAW_POINT_GROUP = 1 << 0,
+    RB_SORTED_DRAW_STREAK      = 1 << 1
 };
 
 enum TransformKind
@@ -688,6 +696,8 @@ public:
     virtual void Begin_Sorted_Batch_Pass() {}
     virtual void End_Sorted_Batch_Pass() {}
     virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & /*state*/) {}
+    virtual void Set_Point_Group_Render_Active(bool /*active*/) {}
+    virtual void Set_Streak_Render_Active(bool /*active*/) {}
     virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & /*state*/) {}
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & /*state*/) {}
     virtual void Release_Legacy_Render_State_For_Sorted_Draw() {}

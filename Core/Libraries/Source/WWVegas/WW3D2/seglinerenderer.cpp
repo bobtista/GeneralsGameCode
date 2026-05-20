@@ -1227,7 +1227,9 @@ void SegLineRendererClass::Render
 		g_renderBackend->Set_Shader(shader);
 
 		if (sorting) {
+			g_renderBackend->Set_Streak_Render_Active(true);
 			SortingRendererClass::Insert_Triangles(obj_sphere,0,tidx,0,vnum);
+			g_renderBackend->Set_Streak_Render_Active(false);
 		} else {
 			g_renderBackend->Draw_Triangles(0,tidx,0,vnum);
 		}

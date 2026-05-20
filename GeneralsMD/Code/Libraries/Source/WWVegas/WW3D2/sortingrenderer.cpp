@@ -432,6 +432,7 @@ static RenderBackendSortedBatchState Make_Render_Backend_Sorted_State(RenderStat
 		rb_state.lights.lights[i] = Make_Render_Backend_Light(render_state, i);
 		rb_state.lights.enabled[i] = use_lights && render_state.LightEnable[i];
 	}
+	rb_state.draw_flags = render_state.sorted_draw_flags;
 	return rb_state;
 }
 
@@ -495,6 +496,11 @@ static void Log_Sort_Effect_Diag(const char* event, unsigned start_index, unsign
 static bool Render_State_Matches(const RenderStateStruct& left, const RenderStateStruct& right)
 {
 	if (left.shader.Get_Bits() != right.shader.Get_Bits())
+	{
+		return false;
+	}
+
+	if (left.sorted_draw_flags != right.sorted_draw_flags)
 	{
 		return false;
 	}

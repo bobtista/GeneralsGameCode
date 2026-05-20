@@ -40,6 +40,7 @@ struct RenderStateStruct
 	VertexBufferClass* vertex_buffers[MAX_VERTEX_STREAMS];
 	IndexBufferClass* index_buffer;
 	unsigned short index_base_offset;
+	unsigned int sorted_draw_flags;
 
 	RenderStateStruct();
 	~RenderStateStruct();

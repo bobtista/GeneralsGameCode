@@ -388,6 +388,9 @@ struct BgfxViewFlags
     bool projectedShadowDecalActive = false;
     unsigned projectedDecalMode    = 0;
     bool skipNextSubmitEngineDraw  = false;
+    bool pointGroupRenderActive    = false;
+    bool streakRenderActive        = false;
+    unsigned sortedBatchDrawFlags  = 0;
 };
 
 // Frame: per-frame matrices and captured view/proj copies.

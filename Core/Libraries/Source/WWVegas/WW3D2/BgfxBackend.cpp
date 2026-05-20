@@ -4297,6 +4297,7 @@ void BgfxBackend::Begin_Sorted_Batch_Pass()
 void BgfxBackend::End_Sorted_Batch_Pass()
 {
     g_views.inSortFlush = false;
+    g_views.sortedBatchDrawFlags = RB_SORTED_DRAW_NONE;
 }
 
 static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
@@ -4344,6 +4345,7 @@ static void CaptureSortedBatchTransformsForBgfx(const Matrix4x4 & sortWorld,
 
 void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state)
 {
+    g_views.sortedBatchDrawFlags = state.draw_flags;
     if (state.shader != nullptr)
     {
         Set_Shader(*state.shader);
@@ -4387,6 +4389,16 @@ void BgfxBackend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState &
     }
 }
 
+void BgfxBackend::Set_Point_Group_Render_Active(bool active)
+{
+    g_views.pointGroupRenderActive = active;
+}
+
+void BgfxBackend::Set_Streak_Render_Active(bool active)
+{
+    g_views.streakRenderActive = active;
+}
+
 static const char * TextureDebugName(TextureBaseClass * texture);
 static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
 
@@ -4397,6 +4409,14 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
     // bgfx still mirrors draw state into FixedFunctionState for that snapshot
     // today; future phases should make that state shape backend-neutral too.
     FixedFunctionState::Capture_Render_State(state);
+    if (g_views.pointGroupRenderActive)
+    {
+        state.sorted_draw_flags |= RB_SORTED_DRAW_POINT_GROUP;
+    }
+    if (g_views.streakRenderActive)
+    {
+        state.sorted_draw_flags |= RB_SORTED_DRAW_STREAK;
+    }
 
     // TheSuperHackers @bugfix bobtista 17/05/2026 The Chinook rotor-blur mesh
     // stores its quad in model space and relies on the per-mesh world transform
@@ -4682,7 +4702,9 @@ static bool ContainsCaseInsensitive(const char *haystack, const char *needle);
 
 static bool IsSortedAlphaDepthDecal(uint64_t state)
 {
+    const unsigned particleFlags = RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK;
     return g_views.inSortFlush
+        && (g_views.sortedBatchDrawFlags & particleFlags) == 0
         && IsStandardAlphaBlend(state)
         && !IsSoftParticleCandidate(state)
         && (state & BGFX_STATE_WRITE_Z) == 0
@@ -4692,6 +4714,14 @@ static bool IsSortedAlphaDepthDecal(uint64_t state)
         && g_draw.tssOps0[3] < 0.5f
         && (g_draw.texcoordSelect2[0] < 0.5f
             || ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "ubsnkatak_01"));
+}
+
+static bool IsSortedParticleEffect(uint64_t state)
+{
+    const unsigned particleFlags = RB_SORTED_DRAW_POINT_GROUP | RB_SORTED_DRAW_STREAK;
+    return g_views.inSortFlush
+        && (g_views.sortedBatchDrawFlags & particleFlags) != 0
+        && (state & BGFX_STATE_BLEND_MASK) != 0;
 }
 
 static bool IsSneakAttackAlphaDepthDecal(uint64_t state)
@@ -4706,6 +4736,13 @@ static bool IsSneakAttackCoplanarSurface()
     return name != nullptr
         && ContainsCaseInsensitive(name, "ubsnkatak_0")
         && !ContainsCaseInsensitive(name, "ubsnkatak_01");
+}
+
+static bool ShouldApplySubmittedNormalBias(uint64_t state)
+{
+    return IsSortedMaterialDecal(state)
+        || IsSortedAlphaDepthDecal(state)
+        || IsSneakAttackCoplanarSurface();
 }
 
 static bool IsSortedRotorBlur(uint64_t state)
@@ -4724,6 +4761,7 @@ static bool IsSortedRotorBlur(uint64_t state)
 static bool ShouldForceUnlitForBakedColorDraw(uint64_t state)
 {
     return IsAnyAdditiveBlend(state)
+        || IsSortedParticleEffect(state)
         || IsSoftParticleCandidate(state)
         || IsSortedMaterialDecal(state)
         || IsSortedAlphaDepthDecal(state)
@@ -5352,6 +5390,18 @@ static bool IsCurrentStageMipFilterDisabled(unsigned stage)
     return RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMipFilter) == kTextureSampleNone;
 }
 
+static bool ShouldBindSortedParticleBaseMip(unsigned stage)
+{
+    // Point-group and streak renderers generate camera-facing particle quads
+    // in the sorted pass. Under bgfx/Metal the authored lower effect mips can
+    // erase thin smoke/contrail sprites at normal gameplay zoom, while the
+    // legacy particle path keeps these sprites legible. Bind stage 0 through
+    // the existing one-mip sibling for those dynamic particle draws only; do
+    // not apply this to sorted decals or their detail stages.
+    return stage == 0
+        && IsSortedParticleEffect(GetEffectiveDrawState());
+}
+
 static bgfx::TextureHandle GetCurrentStageTextureHandle(unsigned stage)
 {
     if (stage >= 4)
@@ -5360,6 +5410,10 @@ static bgfx::TextureHandle GetCurrentStageTextureHandle(unsigned stage)
     }
 
     TextureBaseClass *texture = g_draw.sourceTextures[stage];
+    if (texture != nullptr && ShouldBindSortedParticleBaseMip(stage))
+    {
+        return EnsureBgfxTexture(texture, true);
+    }
     if (texture != nullptr && IsCurrentStageMipFilterDisabled(stage))
     {
         // bgfx has point/linear mip selection flags but no sampler flag for
@@ -5918,9 +5972,10 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
+        const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(GetEffectiveDrawState());
         const bool normalBiasFromGeometry =
             g_draw.normalBias[0] != 0.0f
-            || g_draw.activeVertexNormalBias
+            || (g_draw.activeVertexNormalBias && applySubmittedNormalBias)
             || IsSneakAttackCoplanarSurface();
         g_draw.zBias[1] = normalBiasFromGeometry
             ? ((g_draw.normalBias[0] < 0.02f) ? 0.02f : g_draw.normalBias[0])
@@ -8219,10 +8274,11 @@ void SubmitEngineDraw(unsigned short start_index,
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
+        const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(routeState);
         const bool normalBiasFromGeometry =
             !is2D
             && (g_draw.normalBias[0] != 0.0f
-                || g_draw.activeVertexNormalBias
+                || (g_draw.activeVertexNormalBias && applySubmittedNormalBias)
                 || IsSneakAttackCoplanarSurface());
         g_draw.zBias[1] = normalBiasFromGeometry
             ? ((g_draw.normalBias[0] < 0.02f) ? 0.02f : g_draw.normalBias[0])
@@ -8561,6 +8617,8 @@ void SubmitEngineDraw(unsigned short start_index,
     // are submitted after the world pass and should not inherit stale stencil
     // state from shroud/player-color/shadow passes. Keeping stencil active
     // here clips effects such as the particle-cannon beam against buildings.
+    const bool sortedTranslucentEffect = submitView == kBgfxEngineSortView
+        && isBlended;
     const bool sortedMaterialDecal = submitView == kBgfxEngineSortView
         && (IsSortedMaterialDecal(state)
             || IsSortedAlphaDepthDecal(state)
@@ -8571,6 +8629,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // clips revealed decals out completely.
     const bool applyStencil = g_draw.stencilEnabled
         && submitView != kBgfxUIView
+        && !sortedTranslucentEffect
         && !sortedMaterialDecal;
 
     bgfx::setState(state);
