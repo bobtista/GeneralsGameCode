@@ -279,6 +279,8 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.h
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendState.h
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendTextures.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.h
     )
 
     if(GGC_BGFX_STANDALONE)
