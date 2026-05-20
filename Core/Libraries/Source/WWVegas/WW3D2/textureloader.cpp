@@ -1591,6 +1591,38 @@ void TextureLoadTaskClass::Apply(bool initialize)
 	D3DTexture = nullptr;
 }
 
+static unsigned Calculate_Texture_Reduction(unsigned width, unsigned height, unsigned mip_count)
+{
+	const unsigned min_reducible_dimension = 32;
+	if (width <= min_reducible_dimension || height <= min_reducible_dimension || mip_count <= 1)
+		return 0;
+
+	int reqReduction = WW3D::Get_Texture_Reduction();	//requested reduction
+
+	if (reqReduction >= static_cast<int>(mip_count))
+		reqReduction = mip_count - 1;	//leave only the lowest level
+
+	if (reqReduction < 0)
+		reqReduction = 0;
+
+	//Clamp reduction
+	unsigned curReduction = 0;
+	unsigned curWidth = width;
+	unsigned curHeight = height;
+	int minDim = WW3D::Get_Texture_Min_Dimension();
+
+	while (curReduction < static_cast<unsigned>(reqReduction)
+		&& curWidth > static_cast<unsigned>(minDim)
+		&& curHeight > static_cast<unsigned>(minDim))
+	{
+		curWidth >>= 1;	//keep dividing
+		curHeight >>= 1;
+		curReduction++;
+	}
+
+	return curReduction;
+}
+
 static bool	Get_Texture_Information
 (
 	const char* filename,
@@ -1618,24 +1650,7 @@ static bool	Get_Texture_Information
 			d = dds_file.Get_Depth(0);
 			format = dds_file.Get_Format();
 			mip_count = dds_file.Get_Mip_Level_Count();
-			//Figure out correct reduction
-			int reqReduction=WW3D::Get_Texture_Reduction();	//requested reduction
-
-			if (reqReduction >= mip_count)
-				reqReduction=mip_count-1;	//leave only the lowest level
-
-			//Clamp reduction
-			int curReduction=0;
-			int curWidth=w;
-			int curHeight=h;
-			int minDim=WW3D::Get_Texture_Min_Dimension();
-
-			while (curReduction < reqReduction && curWidth > minDim && curHeight > minDim)
-			{	curWidth >>=1;	//keep dividing
-				curHeight >>=1;
-				curReduction++;
-			}
-			reduction=curReduction;
+			reduction = Calculate_Texture_Reduction(w, h, mip_count);
 			return true;
 		}
 
@@ -1655,24 +1670,7 @@ static bool	Get_Texture_Information
 		for (int i=targa.Header.Width, j=targa.Header.Height; i > 0 && j > 0; i>>=1, j>>=1)
 				mip_count++;
 
-		//Figure out correct reduction
-		int reqReduction=WW3D::Get_Texture_Reduction();	//requested reduction
-
-		if (reqReduction >= mip_count)
-			reqReduction=mip_count-1;	//leave only the lowest level
-
-		//Clamp reduction
-		int curReduction=0;
-		int curWidth=targa.Header.Width;
-		int curHeight=targa.Header.Height;
-		int minDim=WW3D::Get_Texture_Min_Dimension();
-
-		while (curReduction < reqReduction && curWidth > minDim && curHeight > minDim)
-		{	curWidth >>=1;	//keep dividing
-			curHeight >>=1;
-			curReduction++;
-		}
-		reduction=curReduction;
+		reduction = Calculate_Texture_Reduction(targa.Header.Width, targa.Header.Height, mip_count);
 
 		// Destination size will be the next power of two square from the larger width and height...
 		w = targa.Header.Width;
@@ -1690,10 +1688,14 @@ static bool	Get_Texture_Information
 		return false;
 	}
 
+	const unsigned full_width = thumb->Get_Original_Texture_Width();
+	const unsigned full_height = thumb->Get_Original_Texture_Height();
+	mip_count=thumb->Get_Original_Texture_Mip_Level_Count();
+	reduction = Calculate_Texture_Reduction(full_width, full_height, mip_count);
+
 	w=thumb->Get_Original_Texture_Width() >> reduction;
 	h=thumb->Get_Original_Texture_Height() >> reduction;
-	//d=thumb->Get_Original_Texture_Depth() >> reduction; // need to a volume texture support to thumbnails...maybe
-	mip_count=thumb->Get_Original_Texture_Mip_Level_Count();
+	d=1; // need to add volume texture support to thumbnails...maybe
 	format=thumb->Get_Original_Texture_Format();
 	return true;
 }
