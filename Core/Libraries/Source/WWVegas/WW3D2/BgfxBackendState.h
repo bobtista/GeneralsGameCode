@@ -456,6 +456,8 @@ struct BgfxCaches
     std::unordered_map<const IndexBufferClass  *, BgfxIbCacheEntry>      ib;
     std::unordered_map<const TextureBaseClass  *, bgfx::TextureHandle>   texture;
     std::unordered_map<const TextureBaseClass  *, TextureCacheInfo>      textureInfo;
+    std::unordered_map<const TextureBaseClass  *, bgfx::TextureHandle>   textureBaseMip;
+    std::unordered_map<const TextureBaseClass  *, TextureCacheInfo>      textureBaseMipInfo;
     std::unordered_map<const TextureBaseClass  *, BgfxFramebufferEntry>  framebuffer;
     std::unordered_map<const TextureBaseClass  *, bool>                  renderTarget;
     std::vector<bgfx::TextureHandle> deferredDestroys;     // current frame
@@ -519,4 +521,4 @@ extern BgfxCaches     g_caches;
 
 // --- Helpers shared across BgfxBackend*.cpp ---------------------------------
 // Defined in BgfxBackendTextures.cpp.
-bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex);
+bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly = false);
