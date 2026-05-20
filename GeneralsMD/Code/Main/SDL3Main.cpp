@@ -109,15 +109,19 @@ int main(int argc, char **argv)
 
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Build a Win32-style
 	// command-line string from argv so GetCommandLineA() in the compat
-	// shim returns the real arguments. The engine's parseCommandLine
-	// tokenises with nextParam(buf, "\" "), i.e. ' ' and '"' are the
-	// only separators and there is no backslash escape - so we just
-	// wrap any arg that contains a space in double quotes. Args that
-	// contain BOTH a space and a literal '"' are unsupported by the
-	// engine parser itself, so we don't try to encode them either.
-	for (int i = 1; i < argc; ++i)
+	// shim returns the real arguments. The legacy parser expects token 0
+	// to be the executable name and starts parsing at token 1, so argv[0]
+	// must be preserved here.
+	//
+	// The engine's parseCommandLine tokenises with nextParam(buf, "\" "),
+	// i.e. ' ' and '"' are the only separators and there is no backslash
+	// escape - so we just wrap any arg that contains a space in double
+	// quotes. Args that contain BOTH a space and a literal '"' are
+	// unsupported by the engine parser itself, so we don't try to encode
+	// them either.
+	for (int i = 0; i < argc; ++i)
 	{
-		if (i > 1)
+		if (i > 0)
 		{
 			s_compatCommandLineStorage += ' ';
 		}
@@ -151,21 +155,11 @@ int main(int argc, char **argv)
 	}
 	GGC_TRACE("SDL_Init OK");
 
-	Uint32 windowFlags = SDL_WINDOW_RESIZABLE;
-#if defined(__APPLE__)
-	windowFlags |= SDL_WINDOW_METAL;
-#endif
 	int windowW = kDefaultWindowWidth;
 	int windowH = kDefaultWindowHeight;
-	{
-		const SDL_DisplayID primaryDisplay = SDL_GetPrimaryDisplay();
-		const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(primaryDisplay);
-		if (desktopMode != nullptr && desktopMode->w > 0 && desktopMode->h > 0)
-		{
-			windowW = desktopMode->w;
-			windowH = desktopMode->h;
-		}
-	}
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Scan argv for -win/-xres/-yres
+	// before creating the SDL window so those args take effect on the initial
+	// window. The full CommandLine parser runs later inside GameMain.
 	bool wantWindowed = false;
 	for (int argi = 1; argi < argc; ++argi)
 	{
@@ -177,12 +171,28 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
+	{
+		const SDL_DisplayID primaryDisplay = SDL_GetPrimaryDisplay();
+		const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(primaryDisplay);
+		if (!wantWindowed && desktopMode != nullptr && desktopMode->w > 0 && desktopMode->h > 0)
+		{
+			windowW = desktopMode->w;
+			windowH = desktopMode->h;
+		}
+	}
 	if (wantWindowed)
 	{
 		windowW = (requestedW > 0) ? requestedW : kDefaultWindowWidth;
 		windowH = (requestedH > 0) ? requestedH : kDefaultWindowHeight;
 	}
-
+	Uint32 windowFlags = SDL_WINDOW_RESIZABLE;
+	if (wantWindowed)
+	{
+		windowFlags |= SDL_WINDOW_HIDDEN;
+	}
+#if defined(__APPLE__)
+	windowFlags |= SDL_WINDOW_METAL;
+#endif
 	GGC_TRACE("calling SDL_CreateWindow");
 	TheSDL3Window = SDL_CreateWindow(kWindowTitle, windowW, windowH, windowFlags);
 	if (TheSDL3Window == NULL)
