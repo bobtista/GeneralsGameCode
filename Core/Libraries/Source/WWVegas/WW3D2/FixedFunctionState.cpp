@@ -381,7 +381,8 @@ bool FixedFunctionState::Set_Cached_Transform(unsigned transform, const LegacyTr
 RenderStateStruct::RenderStateStruct()
 	:
 	material(0),
-	index_buffer(0)
+	index_buffer(0),
+	sorted_draw_flags(0)
 {
 	unsigned i;
 	for (i=0;i<MAX_VERTEX_STREAMS;++i) vertex_buffers[i]=0;
@@ -435,6 +436,7 @@ RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruct& src)
 	vba_count=src.vba_count;
 	iba_offset=src.iba_offset;
 	index_base_offset=src.index_base_offset;
+	sorted_draw_flags=src.sorted_draw_flags;
 
 	return *this;
 }

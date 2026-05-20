@@ -1386,7 +1386,9 @@ void StreakRendererClass::RenderStreak
 
 		if (sorting)
 		{
+			g_renderBackend->Set_Streak_Render_Active(true);
 			SortingRendererClass::Insert_Triangles(obj_sphere,0,triangleIndex,0,vnum);
+			g_renderBackend->Set_Streak_Render_Active(false);
 		}
 		else
 		{
