@@ -2685,6 +2685,16 @@ void BgfxBackend::Shutdown()
             }
         }
         g_caches.texture.clear();
+        for (auto & kv : g_caches.textureBaseMip)
+        {
+            if (bgfx::isValid(kv.second))
+            {
+                bgfx::destroy(kv.second);
+            }
+        }
+        g_caches.textureBaseMip.clear();
+        g_caches.textureInfo.clear();
+        g_caches.textureBaseMipInfo.clear();
         g_draw.vb         = BGFX_INVALID_HANDLE;
         g_draw.ib         = BGFX_INVALID_HANDLE;
         g_draw.staticVB   = BGFX_INVALID_HANDLE;
@@ -5337,6 +5347,29 @@ static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
     return flags;
 }
 
+static bool IsCurrentStageMipFilterDisabled(unsigned stage)
+{
+    return RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMipFilter) == kTextureSampleNone;
+}
+
+static bgfx::TextureHandle GetCurrentStageTextureHandle(unsigned stage)
+{
+    if (stage >= 4)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+
+    TextureBaseClass *texture = g_draw.sourceTextures[stage];
+    if (texture != nullptr && IsCurrentStageMipFilterDisabled(stage))
+    {
+        // bgfx has point/linear mip selection flags but no sampler flag for
+        // disabled mip filtering. Bind a one-mip sibling texture to preserve
+        // the legacy "sample level 0 only" behavior.
+        return EnsureBgfxTexture(texture, true);
+    }
+    return g_draw.tex[stage];
+}
+
 static void UploadLightUniforms()
 {
     g_stats.lightUniformUploads++;
@@ -5367,10 +5400,11 @@ static void BindTextureStages()
     const uint64_t state = GetEffectiveDrawState();
     if (bgfx::isValid(g_uniforms.sTex0))
     {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(0);
         const bgfx::TextureHandle bound =
             g_draw.textureIsMissing[0] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
-                : (bgfx::isValid(g_draw.tex[0]) ? g_draw.tex[0] : g_device.defaultWhiteTexture);
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(0, g_uniforms.sTex0, bound, GetCurrentStageSamplerFlags(0));
@@ -5379,10 +5413,11 @@ static void BindTextureStages()
     }
     if (bgfx::isValid(g_uniforms.sTex1))
     {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(1);
         const bgfx::TextureHandle bound =
             g_draw.textureIsMissing[1] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
-                : (bgfx::isValid(g_draw.tex[1]) ? g_draw.tex[1] : g_device.defaultWhiteTexture);
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(1, g_uniforms.sTex1, bound, GetCurrentStageSamplerFlags(1));
@@ -5391,10 +5426,11 @@ static void BindTextureStages()
     }
     if (bgfx::isValid(g_uniforms.sTex2))
     {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(2);
         const bgfx::TextureHandle bound =
             g_draw.textureIsMissing[2] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
-                : (bgfx::isValid(g_draw.tex[2]) ? g_draw.tex[2] : g_device.defaultWhiteTexture);
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(2, g_uniforms.sTex2, bound, GetCurrentStageSamplerFlags(2));
@@ -5403,10 +5439,11 @@ static void BindTextureStages()
     }
     if (bgfx::isValid(g_uniforms.sTex3))
     {
+        const bgfx::TextureHandle stageTexture = GetCurrentStageTextureHandle(3);
         const bgfx::TextureHandle bound =
             g_draw.textureIsMissing[3] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
-                : (bgfx::isValid(g_draw.tex[3]) ? g_draw.tex[3] : g_device.defaultWhiteTexture);
+                : (bgfx::isValid(stageTexture) ? stageTexture : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
         {
             bgfx::setTexture(3, g_uniforms.sTex3, bound, GetCurrentStageSamplerFlags(3));
@@ -6178,6 +6215,15 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
     // FlatHeightMap pixel shader family. Stages above 3 still fall
     // through unmigrated.
     {
+        TextureClass * t2d_name = texture ? texture->As_TextureClass() : nullptr;
+        if (t2d_name != nullptr)
+        {
+            // DX8 applies the texture object's filter/address state when the
+            // deferred texture bind is flushed. Apply it before later bind
+            // logic interprets the current stage sampler state.
+            t2d_name->Get_Filter().Apply(stage);
+        }
+
         bgfx::TextureHandle h = EnsureBgfxTexture(texture);
         const bool missingOrUnavailable = IsMissingOrUnavailableTexture(texture, h);
         // TheSuperHackers @bugfix bobtista 16/04/2026 Use white
@@ -6215,8 +6261,6 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
                              texture->Get_Pool()));
             }
         }
-        TextureClass * t2d_name = texture ? texture->As_TextureClass() : nullptr;
-
         // Capture the source texture's wrap mode into bgfx sampler flags
         // so we can pass it at bind time. Without this, WRAP is the
         // default and ramp/LUT textures with CLAMP semantics produce
@@ -6253,13 +6297,6 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
                     g_draw.samplerFlags[3] = samplerFlags;
                     g_draw.textureIsMissing[3] = missingOrUnavailable; break;
             default: break;
-        }
-        if (t2d_name != nullptr)
-        {
-            // DX8 applies texture filter/address state when the deferred
-            // texture bind is flushed. bgfx binds immediately, so mirror that
-            // state here; otherwise WRAP/CLAMP leaks between unrelated draws.
-            t2d_name->Get_Filter().Apply(stage);
         }
     }
 }
