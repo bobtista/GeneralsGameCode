@@ -49,7 +49,16 @@ struct BgfxIbCacheEntry {
     uint32_t num_indices;
 };
 
-struct TextureCacheInfo { unsigned revision; uint16_t w; uint16_t h; };
+struct TextureCacheInfo
+{
+    unsigned revision;
+    uint16_t w;
+    uint16_t h;
+    int sourceFormat = 0;
+    int createFormat = 0;
+    uint16_t mipCount = 0;
+    uint16_t uploadVariant = 0;
+};
 
 struct PendingTransientVB
 {
@@ -188,6 +197,12 @@ struct BgfxDraw
     // Pipeline state
     bgfx::ProgramHandle program = BGFX_INVALID_HANDLE;
     uint64_t            state   = 0;
+    uint64_t            blendFuncBits = 0;
+    bool                alphaBlendEnabled = false;
+    bool                alphaBlendExplicitlySet = false;
+    bool                depthTestEnabled = true;
+    bool                depthWriteEnabled = true;
+    uint64_t            depthFuncBits = BGFX_STATE_DEPTH_TEST_LEQUAL;
 
     // Textures + per-stage sampler flags
     bgfx::TextureHandle tex[4] = {
@@ -320,6 +335,8 @@ struct BgfxOverrides
 {
     bool     blendActive        = false;
     uint64_t blendBits          = 0;
+    bool     blendEnableActive  = false;
+    bool     blendEnableValue   = false;
     bool     atestActive        = false;
     float    atestRef           = 0.0f;
     float    atestFunc          = 0.0f;
@@ -330,6 +347,8 @@ struct BgfxOverrides
     {
         blendActive        = false;
         blendBits          = 0;
+        blendEnableActive  = false;
+        blendEnableValue   = false;
         atestActive        = false;
         atestRef           = 0.0f;
         atestFunc          = 0.0f;
@@ -341,6 +360,12 @@ struct BgfxOverrides
     {
         blendActive = true;
         blendBits   = bits;
+    }
+
+    void SetBlendEnable(bool enable)
+    {
+        blendEnableActive = true;
+        blendEnableValue = enable;
     }
 };
 

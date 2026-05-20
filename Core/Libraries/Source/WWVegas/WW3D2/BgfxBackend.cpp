@@ -1305,22 +1305,10 @@ uint64_t BuildBgfxStateForShader(const ShaderClass & shader)
 {
     uint64_t state = 0;
 
-    state |= TranslateDepthCompare(shader.Get_Depth_Compare());
-
-    if (shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_ENABLE)
-    {
-        state |= BGFX_STATE_WRITE_Z;
-    }
-
     if (shader.Get_Color_Mask() == ShaderClass::COLOR_WRITE_ENABLE)
     {
         state |= BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A;
     }
-
-    const uint64_t srcBits = TranslateBlendFactor(shader.Get_Src_Blend_Func());
-    const uint64_t dstBits = TranslateBlendFactor(shader.Get_Dst_Blend_Func());
-    state |= BGFX_STATE_BLEND_FUNC(srcBits, dstBits);
-    state |= BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
 
     if (shader.Get_Cull_Mode() == ShaderClass::CULL_MODE_ENABLE)
     {
@@ -1569,6 +1557,7 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // transforms. Both render to the popup back buffer.
 const bgfx::ViewId kBgfxDebugView  = 0;
 const bgfx::ViewId kBgfxEngineView = 1;
+const int kBgfxTextureStages = 4;
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Dedicated
 // view id for sorted draws. View 2's view matrix is permanently
@@ -3389,20 +3378,13 @@ RenderBackendTextureLimits BgfxBackend::Get_Texture_Limits() const
         caps->limits.maxTextureSize,
         caps->limits.maxTextureSize,
         caps->limits.maxTextureSize,
-        8
+        kBgfxTextureStages
     };
 }
 
 int BgfxBackend::Get_Max_Texture_Stages() const
 {
-    const bgfx::Caps * caps = bgfx::getCaps();
-    if (caps == nullptr)
-    {
-        return RB_MAX_TEXTURE_STAGES;
-    }
-    return caps->limits.maxTextureSamplers < RB_MAX_TEXTURE_STAGES
-        ? static_cast<int>(caps->limits.maxTextureSamplers)
-        : static_cast<int>(RB_MAX_TEXTURE_STAGES);
+    return kBgfxTextureStages;
 }
 
 void BgfxBackend::Set_MSAA_Mode(RenderBackendMSAAMode mode)
@@ -3418,7 +3400,7 @@ RenderBackendMSAAMode BgfxBackend::Get_MSAA_Mode() const
 bool BgfxBackend::Get_Device_Identity(RenderBackendDeviceIdentity & identity) const
 {
     identity = {};
-    identity.max_simultaneous_textures = RB_MAX_TEXTURE_STAGES;
+    identity.max_simultaneous_textures = kBgfxTextureStages;
     identity.pixel_shader_major = 2;
     identity.pixel_shader_minor = 0;
     return true;
@@ -4468,7 +4450,56 @@ static uint64_t ApplyColorWriteOverride(uint64_t state)
 static uint64_t ApplyBlendEquation(uint64_t state)
 {
     state &= ~BGFX_STATE_BLEND_EQUATION_MASK;
-    state |= g_draw.blendEquationBits;
+    if ((state & BGFX_STATE_BLEND_MASK) != 0)
+    {
+        state |= g_draw.blendEquationBits;
+    }
+    return state;
+}
+
+static bool IsOpaqueBlend(BlendFactor src, BlendFactor dest)
+{
+    return src == RB_BLEND_ONE && dest == RB_BLEND_ZERO;
+}
+
+static uint64_t ApplyBlendState(uint64_t state)
+{
+    state &= ~(BGFX_STATE_BLEND_MASK | BGFX_STATE_BLEND_EQUATION_MASK);
+    const bool blendEnabled = g_overrides.blendEnableActive
+        ? g_overrides.blendEnableValue
+        : g_draw.alphaBlendEnabled;
+    if (blendEnabled)
+    {
+        const uint64_t blendBits = g_overrides.blendActive
+            ? g_overrides.blendBits
+            : g_draw.blendFuncBits;
+        state |= blendBits;
+        state |= g_draw.blendEquationBits;
+    }
+    return state;
+}
+
+static uint64_t ApplyDepthState(uint64_t state)
+{
+    state &= ~(BGFX_STATE_DEPTH_TEST_MASK | BGFX_STATE_WRITE_Z);
+    if (g_draw.depthTestEnabled)
+    {
+        state |= g_draw.depthFuncBits;
+        if (g_draw.depthWriteEnabled)
+        {
+            state |= BGFX_STATE_WRITE_Z;
+        }
+    }
+    return state;
+}
+
+static uint64_t GetEffectiveDrawState()
+{
+    uint64_t state = (g_draw.state != 0)
+        ? g_draw.state
+        : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+    state = ApplyDepthState(state);
+    state = ApplyBlendState(state);
     return state;
 }
 
@@ -4986,7 +5017,7 @@ static void LogBgfxSortedMaterialDecal(const char *event,
                                        unsigned short vertexCount,
                                        uint64_t state)
 {
-    if (!ShouldLogBgfxSortedDecals() || !IsSortedMaterialDecal(g_draw.state))
+    if (!ShouldLogBgfxSortedDecals() || !IsSortedMaterialDecal(GetEffectiveDrawState()))
     {
         return;
     }
@@ -5041,12 +5072,7 @@ static void UpdateAlphaMaskedShadowDecalMode()
 {
     const uint64_t multiplicativeBlend =
         BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
-    uint64_t state = g_draw.state;
-    if (g_overrides.blendActive)
-    {
-        state &= ~BGFX_STATE_BLEND_MASK;
-        state |= g_overrides.blendBits;
-    }
+    uint64_t state = GetEffectiveDrawState();
     const bool isAlphaMaskedShadow =
         IsDefaultInfantryBlobShadowTexture(g_draw.sourceTextures[0])
         && ((state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend);
@@ -5085,12 +5111,7 @@ static RenderBackendProjectedDecalMode GetEffectiveProjectedDecalModeForCurrentD
 
     const uint64_t multiplicativeBlend =
         BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_ZERO, BGFX_STATE_BLEND_SRC_COLOR);
-    uint64_t state = g_draw.state;
-    if (g_overrides.blendActive)
-    {
-        state &= ~BGFX_STATE_BLEND_MASK;
-        state |= g_overrides.blendBits;
-    }
+    uint64_t state = GetEffectiveDrawState();
     const bool validBlobShadow =
         IsDefaultInfantryBlobShadowTexture(g_draw.sourceTextures[0])
         && ((state & BGFX_STATE_BLEND_MASK) == multiplicativeBlend);
@@ -5197,15 +5218,16 @@ static const float kSneakAttackDecalMaxZBias = 0.0f;
 
 static void ClampSortedMaterialDecalZBias()
 {
-    if (!IsSortedMaterialDecal(g_draw.state) && !IsSortedAlphaDepthDecal(g_draw.state))
+    const uint64_t state = GetEffectiveDrawState();
+    if (!IsSortedMaterialDecal(state) && !IsSortedAlphaDepthDecal(state))
     {
         return;
     }
 
-    const float minZBias = IsSneakAttackAlphaDepthDecal(g_draw.state)
+    const float minZBias = IsSneakAttackAlphaDepthDecal(state)
         ? kSneakAttackDecalMinZBias
         : kSortedDecalMinZBias;
-    const float maxZBias = IsSneakAttackAlphaDepthDecal(g_draw.state)
+    const float maxZBias = IsSneakAttackAlphaDepthDecal(state)
         ? kSneakAttackDecalMaxZBias
         : kSortedDecalMaxZBias;
 
@@ -5341,10 +5363,11 @@ static void UploadLightUniforms()
 
 static void BindTextureStages()
 {
+    const uint64_t state = GetEffectiveDrawState();
     if (bgfx::isValid(g_uniforms.sTex0))
     {
         const bgfx::TextureHandle bound =
-            g_draw.textureIsMissing[0] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+            g_draw.textureIsMissing[0] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
                 : (bgfx::isValid(g_draw.tex[0]) ? g_draw.tex[0] : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
@@ -5356,7 +5379,7 @@ static void BindTextureStages()
     if (bgfx::isValid(g_uniforms.sTex1))
     {
         const bgfx::TextureHandle bound =
-            g_draw.textureIsMissing[1] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+            g_draw.textureIsMissing[1] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
                 : (bgfx::isValid(g_draw.tex[1]) ? g_draw.tex[1] : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
@@ -5368,7 +5391,7 @@ static void BindTextureStages()
     if (bgfx::isValid(g_uniforms.sTex2))
     {
         const bgfx::TextureHandle bound =
-            g_draw.textureIsMissing[2] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+            g_draw.textureIsMissing[2] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
                 : (bgfx::isValid(g_draw.tex[2]) ? g_draw.tex[2] : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
@@ -5380,7 +5403,7 @@ static void BindTextureStages()
     if (bgfx::isValid(g_uniforms.sTex3))
     {
         const bgfx::TextureHandle bound =
-            g_draw.textureIsMissing[3] && ShouldHideMissingTextureForCurrentDraw(g_draw.state)
+            g_draw.textureIsMissing[3] && ShouldHideMissingTextureForCurrentDraw(state)
                 ? g_device.defaultTransparentTexture
                 : (bgfx::isValid(g_draw.tex[3]) ? g_draw.tex[3] : g_device.defaultWhiteTexture);
         if (bgfx::isValid(bound))
@@ -5842,7 +5865,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
 
     BindTextureStages();
     UpdateTextureTransforms();
-    if (IsSortedMaterialDecal(g_draw.state))
+    if (IsSortedMaterialDecal(GetEffectiveDrawState()))
     {
         // Terrain rendering leaves this flag set until reset by the
         // shader manager. Sorted material decals, including command-center
@@ -5867,14 +5890,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         ClampSortedMaterialDecalZBias();
     }
     UpdateProjectedDecalModeForCurrentDraw();
-    uint64_t state = (g_draw.state != 0)
-        ? g_draw.state
-        : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
-    if (g_overrides.blendActive)
-    {
-        state &= ~BGFX_STATE_BLEND_MASK;
-        state |= g_overrides.blendBits;
-    }
+    uint64_t state = GetEffectiveDrawState();
     {
         g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(state)
             ? 1.0f
@@ -6102,6 +6118,15 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
     FixedFunctionState::Set_Shader(shader);
     g_draw.program = g_device.uberProgram;
     g_draw.state   = BuildBgfxStateForShader(shader);
+    const uint64_t srcBits = TranslateBlendFactor(shader.Get_Src_Blend_Func());
+    const uint64_t dstBits = TranslateBlendFactor(shader.Get_Dst_Blend_Func());
+    g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(srcBits, dstBits);
+    g_draw.blendEquationBits = BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
+    g_draw.alphaBlendEnabled = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
+    g_draw.alphaBlendExplicitlySet = false;
+    g_draw.depthTestEnabled = true;
+    g_draw.depthWriteEnabled = shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_ENABLE;
+    g_draw.depthFuncBits = TranslateDepthCompare(shader.Get_Depth_Compare());
     BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef, &g_draw.atestFunc);
     g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
     g_draw.legacyPixelShaderMode[0] = static_cast<float>(RB_LEGACY_PIXEL_SHADER_NONE);
@@ -6393,7 +6418,11 @@ void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
     const unsigned d = static_cast<unsigned>(dest);
     if (s >= 1 && s <= 11 && d >= 1 && d <= 11)
     {
-        g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[s], kBgfxBlendMap[d]));
+        g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[s], kBgfxBlendMap[d]);
+        if (!g_draw.alphaBlendExplicitlySet && !IsOpaqueBlend(src, dest))
+        {
+            g_draw.alphaBlendEnabled = true;
+        }
     }
 }
 
@@ -6406,6 +6435,8 @@ void BgfxBackend::Set_Blend_Op(BlendOp op)
 void BgfxBackend::Set_Alpha_Blend_Enable(bool enable)
 {
     RenderStateCache::Set_Render_State(kRenderStateAlphaBlendEnable, enable ? TRUE : FALSE);
+    g_draw.alphaBlendEnabled = enable;
+    g_draw.alphaBlendExplicitlySet = true;
 }
 
 void BgfxBackend::Set_Alpha_Test_Enable(bool enable)
@@ -6438,6 +6469,7 @@ void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
     if (srcIdx >= 1 && srcIdx <= 11 && dstIdx >= 1 && dstIdx <= 11)
     {
         g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[srcIdx], kBgfxBlendMap[dstIdx]));
+        g_overrides.SetBlendEnable(true);
     }
     else
     {
@@ -6465,6 +6497,7 @@ void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc fun
 
 void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
 {
+    g_overrides.SetBlendEnable(enable);
     if (enable)
     {
         g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
@@ -7528,11 +7561,13 @@ void BgfxBackend::Set_Shade_Mode(ShadeMode mode)
 void BgfxBackend::Set_Depth_Test_Enable(bool enable)
 {
     RenderStateCache::Set_Render_State(kRenderStateZEnable, enable ? TRUE : FALSE);
+    g_draw.depthTestEnabled = enable;
 }
 
 void BgfxBackend::Set_Depth_Write_Enable(bool enable)
 {
     RenderStateCache::Set_Render_State(kRenderStateZWriteEnable, enable ? TRUE : FALSE);
+    g_draw.depthWriteEnabled = enable;
 }
 
 void BgfxBackend::Set_Depth_Func(CompareFunc func)
@@ -7552,8 +7587,7 @@ void BgfxBackend::Set_Depth_Func(CompareFunc func)
     const unsigned idx = static_cast<unsigned>(func);
     if (idx < 9)
     {
-        g_draw.state &= ~BGFX_STATE_DEPTH_TEST_MASK;
-        g_draw.state |= kDepthMap[idx];
+        g_draw.depthFuncBits = kDepthMap[idx];
     }
 }
 
@@ -7890,7 +7924,8 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         submitView = kBgfxEngineView;
     }
-    if (IsSortedRotorBlur(g_draw.state) || IsSneakAttackAlphaDepthDecal(g_draw.state))
+    const uint64_t routeState = GetEffectiveDrawState();
+    if (IsSortedRotorBlur(routeState) || IsSneakAttackAlphaDepthDecal(routeState))
     {
         // These sorted meshes need their raw model world matrix and the normal
         // camera view. The pre-view-multiplied sort matrix lands local W3D
@@ -7958,7 +7993,7 @@ void SubmitEngineDraw(unsigned short start_index,
     const float * worldMtx = g_views.inSortFlush
         ? g_frame.sortWorld
         : g_frame.world;
-    if (IsSortedRotorBlur(g_draw.state) || IsSneakAttackAlphaDepthDecal(g_draw.state))
+    if (IsSortedRotorBlur(routeState) || IsSneakAttackAlphaDepthDecal(routeState))
     {
         worldMtx = g_frame.sortWorldRaw;
     }
@@ -8130,7 +8165,7 @@ void SubmitEngineDraw(unsigned short start_index,
     {
         CaptureMaterialStateForBgfx(g_draw.sourceMaterial);
     }
-    if (submitView == kBgfxEngineSortView && IsSortedMaterialDecal(g_draw.state))
+    if (submitView == kBgfxEngineSortView && IsSortedMaterialDecal(GetEffectiveDrawState()))
     {
         // Terrain rendering leaves this flag set until reset by the shader
         // manager. Sorted material decals use the fixed-function TSS path and
@@ -8165,25 +8200,21 @@ void SubmitEngineDraw(unsigned short start_index,
         ClampSortedMaterialDecalZBias();
     }
     UpdateProjectedDecalModeForCurrentDraw();
-    if (IsMultiplicativeBlend(g_draw.state)
-        && (g_draw.state & BGFX_STATE_WRITE_Z) == 0
-        && (g_draw.state & BGFX_STATE_DEPTH_TEST_MASK) != BGFX_STATE_DEPTH_TEST_EQUAL
+    const uint64_t earlyState = GetEffectiveDrawState();
+    if (IsMultiplicativeBlend(earlyState)
+        && (earlyState & BGFX_STATE_WRITE_Z) == 0
+        && (earlyState & BGFX_STATE_DEPTH_TEST_MASK) != BGFX_STATE_DEPTH_TEST_EQUAL
         && !IsEffectiveProjectedShadowDraw())
     {
         LogBgfxRevealDraw("submit-engine", submitView,
-                          polygon_count, vertex_count, g_draw.state,
+                          polygon_count, vertex_count, earlyState,
                           "skip-multiply");
         g_stats.skippedDraws++;
         bgfx::discard(BGFX_DISCARD_ALL);
         return;
     }
     {
-        uint64_t blendState = g_draw.state;
-        if (g_overrides.blendActive)
-        {
-            blendState &= ~BGFX_STATE_BLEND_MASK;
-            blendState |= g_overrides.blendBits;
-        }
+        uint64_t blendState = earlyState;
         g_draw.texcoordSelect2[3] = IsAnyAdditiveBlend(blendState)
             ? 1.0f
             : 0.0f;
@@ -8255,12 +8286,7 @@ void SubmitEngineDraw(unsigned short start_index,
         // with cached lighting off globally so these decals were never lit there.
         // Force unlit here to match, including command-center driveway
         // emblems after player-color remapping.
-        uint64_t effectiveLightingState = g_draw.state;
-        if (g_overrides.blendActive)
-        {
-            effectiveLightingState &= ~BGFX_STATE_BLEND_MASK;
-            effectiveLightingState |= g_overrides.blendBits;
-        }
+        uint64_t effectiveLightingState = earlyState;
         if (ShouldForceUnlitForBakedColorDraw(effectiveLightingState))
         {
             float forced[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
@@ -8371,23 +8397,16 @@ void SubmitEngineDraw(unsigned short start_index,
         bgfx::setUniform(g_uniforms.uTexcoordSelect, g_draw.texcoordSelect);
     }
 
-    uint64_t state = (g_draw.state != 0)
-        ? g_draw.state
-        : (BGFX_STATE_WRITE_RGB | BGFX_STATE_WRITE_A);
+    uint64_t state = GetEffectiveDrawState();
     state |= BGFX_STATE_MSAA;
 
     state = ApplyCullModeOverride(state);
-    if (IsSortedRotorBlur(g_draw.state))
+    if (IsSortedRotorBlur(state))
     {
         // The rotor blur is built from camera-facing sorted cards. Once the
         // cards are replayed through the normal engine view, culling can drop
         // one side of the blur depending on the camera angle.
         state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
-    }
-    if (g_overrides.blendActive)
-    {
-        state &= ~BGFX_STATE_BLEND_MASK;
-        state |= g_overrides.blendBits;
     }
     state = ApplyBlendEquation(state);
 
@@ -8507,7 +8526,7 @@ void SubmitEngineDraw(unsigned short start_index,
     const bool sortedMaterialDecal = submitView == kBgfxEngineSortView
         && (IsSortedMaterialDecal(state)
             || IsSortedAlphaDepthDecal(state)
-            || IsSortedRotorBlur(g_draw.state));
+            || IsSortedRotorBlur(state));
     // Sort-flushed material decals (command-center driveway emblems, upgrade
     // floor marks) are ordinary alpha decals. The wrapper can still have
     // stencil state cached from shroud/player-color passes; applying it here
