@@ -3368,6 +3368,7 @@ bool BgfxBackend::Supports_Texture_Op(RenderBackendTextureOpCapability capabilit
 
 RenderBackendTextureLimits BgfxBackend::Get_Texture_Limits() const
 {
+    constexpr unsigned kTextureAspectRatioLimit = 8;
     const bgfx::Caps * caps = bgfx::getCaps();
     if (caps == nullptr)
     {
@@ -3378,7 +3379,7 @@ RenderBackendTextureLimits BgfxBackend::Get_Texture_Limits() const
         caps->limits.maxTextureSize,
         caps->limits.maxTextureSize,
         caps->limits.maxTextureSize,
-        kBgfxTextureStages
+        kTextureAspectRatioLimit
     };
 }
 
