@@ -951,13 +951,13 @@ void DX8Backend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & 
     {
         DX8Wrapper::_Set_DX8_Transform(
             D3DTS_WORLD,
-            reinterpret_cast<const D3DMATRIX &>(*state.world));
+            To_D3DMATRIX(*state.world));
     }
     if (state.view != nullptr)
     {
         DX8Wrapper::_Set_DX8_Transform(
             D3DTS_VIEW,
-            reinterpret_cast<const D3DMATRIX &>(*state.view));
+            To_D3DMATRIX(*state.view));
     }
     for (int i = 0; i < 4; ++i)
     {
