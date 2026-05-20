@@ -243,6 +243,7 @@ private:
 		unsigned CPUTextureRevision;
 		void Capture_CPU_Texture_Snapshot(IDirect3DBaseTexture8* tex);
 		void Clear_CPU_Texture_Snapshot();
+		bool PreserveCPUTextureSnapshotOnNextLegacySet;
 
 		// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Populated by the asset loader after it calls
