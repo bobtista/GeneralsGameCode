@@ -87,6 +87,7 @@ fi
 mkdir -p "${output_dir}"
 output_dir="$(cd "${output_dir}" && pwd)"
 base_path="${output_dir%/}/${save_name%.sav}"
+find "${output_dir}" -maxdepth 1 -type f -name "${save_name%.sav}.*.bmp" -delete
 
 args=(-nologo -quickstart -loadsave "${save_name}" -bgfxScreenshotAfter "${capture_frame}" "${base_path}")
 if [[ "${windowed}" -eq 1 ]]; then
