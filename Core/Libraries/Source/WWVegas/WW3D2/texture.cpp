@@ -106,6 +106,16 @@ namespace
 		return Should_Use_CPU_Only_Surface_Textures() && asset_type != TextureBaseClass::TEX_REGULAR;
 	}
 
+	MipCountType Legacy_Texture_Mip_Count_For_Construct(void *legacy_texture)
+	{
+#if defined(GGC_BGFX_STANDALONE)
+		(void)legacy_texture;
+		return MIP_LEVELS_1;
+#else
+		return static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount();
+#endif
+	}
+
 	unsigned Requested_Mip_Count(unsigned width, unsigned height, MipCountType mip_level_count)
 	{
 		if (mip_level_count == MIP_LEVELS_ALL) {
@@ -1160,10 +1170,22 @@ TextureClass::TextureClass(void *legacy_texture)
 	(
 		0,
 		0,
-		((MipCountType)static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount())
+		Legacy_Texture_Mip_Count_For_Construct(legacy_texture)
 	),
-	Filter((MipCountType)static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount())
+	Filter(Legacy_Texture_Mip_Count_For_Construct(legacy_texture))
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)legacy_texture;
+	WWASSERT_PRINT(
+		false,
+		"TextureClass(native): standalone bgfx cannot wrap fake-D3D textures");
+	Initialized=false;
+	IsProcedural=true;
+	IsReducible=false;
+	Poke_Legacy_Texture(*this, nullptr);
+	LastAccessed=WW3D::Get_Sync_Time();
+	return;
+#else
 	LegacyBaseTexture *d3d_texture = static_cast<LegacyBaseTexture *>(legacy_texture);
 	Initialized=true;
 	IsProcedural=true;
@@ -1191,6 +1213,7 @@ TextureClass::TextureClass(void *legacy_texture)
 	}
 
 	LastAccessed=WW3D::Get_Sync_Time();
+#endif
 }
 
 //**********************************************************************************************
@@ -1264,6 +1287,15 @@ void TextureClass::Apply_Legacy_Surface
 	bool disable_auto_invalidation
 )
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)native_texture;
+	(void)initialized;
+	(void)disable_auto_invalidation;
+	WWASSERT_PRINT(
+		false,
+		"TextureClass::Apply_Legacy_Surface: standalone bgfx cannot apply fake-D3D textures");
+	return;
+#else
 	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
@@ -1284,6 +1316,7 @@ void TextureClass::Apply_Legacy_Surface
 	}
 	surface->Release();
 
+#endif
 }
 
 
