@@ -226,47 +226,6 @@ extern "C" D3DXVECTOR4 * WINAPI D3DXVec4Transform(D3DXVECTOR4 * out, CONST D3DXV
 }
 
 // -----------------------------------------------------------------------------
-// FVF helpers
-// -----------------------------------------------------------------------------
-
-extern "C" UINT WINAPI D3DXGetFVFVertexSize(DWORD fvf)
-{
-	UINT size = 0;
-	switch (fvf & D3DFVF_POSITION_MASK)
-	{
-	case D3DFVF_XYZ:    size += 3 * sizeof(float); break;
-	case D3DFVF_XYZRHW: size += 4 * sizeof(float); break;
-	case D3DFVF_XYZB1:  size += 3 * sizeof(float) + 1 * sizeof(float); break;
-	case D3DFVF_XYZB2:  size += 3 * sizeof(float) + 2 * sizeof(float); break;
-	case D3DFVF_XYZB3:  size += 3 * sizeof(float) + 3 * sizeof(float); break;
-	case D3DFVF_XYZB4:  size += 3 * sizeof(float) + 4 * sizeof(float); break;
-	case D3DFVF_XYZB5:  size += 3 * sizeof(float) + 5 * sizeof(float); break;
-	default: break;
-	}
-	if (fvf & D3DFVF_NORMAL)
-	{
-		size += 3 * sizeof(float);
-	}
-	if (fvf & D3DFVF_PSIZE)
-	{
-		size += sizeof(float);
-	}
-	if (fvf & D3DFVF_DIFFUSE)
-	{
-		size += sizeof(uint32_t);
-	}
-	if (fvf & D3DFVF_SPECULAR)
-	{
-		size += sizeof(uint32_t);
-	}
-	const DWORD tex_count = (fvf & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
-	// Default 2 floats per set — D3DFVF_TEXCOORDSIZE1..4 overrides aren't
-	// used anywhere in the engine.
-	size += tex_count * 2 * sizeof(float);
-	return size;
-}
-
-// -----------------------------------------------------------------------------
 // Error strings — minimal static table. Real D3DX has a big message pool
 // keyed by HRESULT; we just need enough for debug logs.
 // -----------------------------------------------------------------------------
