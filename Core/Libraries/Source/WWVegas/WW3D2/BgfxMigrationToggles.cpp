@@ -30,6 +30,7 @@ bool Toggle_Default_Enabled(BgfxMigrationToggle toggle)
 	switch (toggle) {
 		case BgfxMigrationToggle::TextureOwnership:
 		case BgfxMigrationToggle::SurfaceOwnership:
+			return true;
 		case BgfxMigrationToggle::RenderTargets:
 		case BgfxMigrationToggle::BufferOwnership:
 			return true;
