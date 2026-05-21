@@ -56,7 +56,6 @@
 #include "TARGA.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
-#include <d3dx8tex.h>
 #include "wwmemlog.h"
 #include "dx8formatconv.h"
 #include "dx8texturelegacytypes.h"
