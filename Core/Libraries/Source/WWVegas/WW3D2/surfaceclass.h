@@ -155,6 +155,8 @@ class SurfaceClass : public RefCountClass
 		void	Capture_CPU_Surface_Snapshot();
 		void	Refresh_CPU_Surface_Snapshot_If_Present();
 		void	Upload_CPU_Surface_Snapshot_To_Legacy();
+		void	Ensure_CPU_Surface_Snapshot_Current();
+		void	Mark_CPU_Surface_Snapshot_Stale();
 		bool	Has_Compatible_CPU_Surface_Snapshot(const SurfaceDescription &desc) const;
 		bool	Has_CPU_Surface_Snapshot() const { return !ImageData.Data.empty(); }
 
@@ -165,6 +167,8 @@ class SurfaceClass : public RefCountClass
 		SurfaceDescription Description;
 		SurfaceImageData ImageData;
 		bool RefreshCPUAfterUnlock;
+		bool CPULockActive;
+		bool CPUImagePossiblyStale;
 		friend class TextureClass;
 		friend class DX8TextureInterop;
 };
