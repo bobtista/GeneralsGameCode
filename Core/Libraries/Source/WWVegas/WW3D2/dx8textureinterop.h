@@ -103,6 +103,7 @@ public:
 			WW3DFormat format,
 			MipCountType mip_level_count,
 			int pool);
+		static WW3DFormat Legacy_Texture_Format_To_WW3DFormat(unsigned int format);
 		static bool Generate_Legacy_Texture_Mips(TextureClass &texture);
 	};
 
@@ -231,6 +232,11 @@ inline IDirect3DVolumeTexture8 *Create_Legacy_Volume_Texture(
 	int pool)
 {
 	return DX8TextureInterop::Create_Legacy_Volume_Texture(width, height, depth, format, mip_level_count, pool);
+}
+
+inline WW3DFormat Legacy_Texture_Format_To_WW3DFormat(unsigned int format)
+{
+	return DX8TextureInterop::Legacy_Texture_Format_To_WW3DFormat(format);
 }
 
 inline bool Generate_Legacy_Texture_Mips(TextureClass &texture)
