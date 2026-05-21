@@ -135,14 +135,14 @@ void DX8TextureInterop::Set_Legacy_Base_Texture(TextureBaseClass &texture, IDire
 			g_renderBackend->Destroy_Resource(texture.m_backendHandle);
 		}
 		texture.m_backendHandle = g_renderBackend->Register_Loaded_Texture(&texture);
-		} else if (texture.LegacyTexture == nullptr && g_renderBackend != nullptr) {
-			if (texture.m_backendHandle != kInvalidRenderResource) {
-				g_renderBackend->Destroy_Resource(texture.m_backendHandle);
-				texture.m_backendHandle = kInvalidRenderResource;
-			}
-			g_renderBackend->Release_Cached_Texture(&texture);
+	} else if (texture.LegacyTexture == nullptr && g_renderBackend != nullptr) {
+		if (texture.m_backendHandle != kInvalidRenderResource) {
+			g_renderBackend->Destroy_Resource(texture.m_backendHandle);
+			texture.m_backendHandle = kInvalidRenderResource;
 		}
+		g_renderBackend->Release_Cached_Texture(&texture);
 	}
+}
 
 void DX8TextureInterop::Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source)
 {
