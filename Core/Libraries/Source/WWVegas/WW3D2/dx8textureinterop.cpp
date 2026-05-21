@@ -442,6 +442,11 @@ IDirect3DVolumeTexture8 *DX8TextureInterop::Create_Legacy_Volume_Texture(
 #endif
 }
 
+WW3DFormat DX8TextureInterop::Legacy_Texture_Format_To_WW3DFormat(unsigned int format)
+{
+	return D3DFormat_To_WW3DFormat(static_cast<D3DFORMAT>(format));
+}
+
 bool DX8TextureInterop::Generate_Legacy_Texture_Mips(TextureClass &texture)
 {
 	IDirect3DTexture8 *native_texture = Peek_Legacy_Texture2D(texture);

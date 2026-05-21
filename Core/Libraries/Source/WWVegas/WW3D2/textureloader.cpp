@@ -57,7 +57,6 @@
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "wwmemlog.h"
-#include "dx8formatconv.h"
 #include "dx8texturelegacytypes.h"
 #include "dx8textureinterop.h"
 #include "texturethumbnail.h"
@@ -2549,7 +2548,7 @@ void TextureLoadTaskClass::Capture_CPU_Texture_Snapshot_From_Locked_Surfaces()
 		mip.Width = desc.Width;
 		mip.Height = desc.Height;
 		mip.Pitch = LockedSurfacePitch[level];
-		mip.Format = D3DFormat_To_WW3DFormat(desc.Format);
+		mip.Format = Legacy_Texture_Format_To_WW3DFormat(static_cast<unsigned int>(desc.Format));
 		const bool compressed =
 			mip.Format == WW3D_FORMAT_DXT1 ||
 			mip.Format == WW3D_FORMAT_DXT2 ||
