@@ -68,8 +68,8 @@ class W3DTreeDrawModuleData;
 struct BreezeInfo;
 class GeometryInfo;
 class W3DProjectedShadow;
-class DX8VertexBufferClass;
-class DX8IndexBufferClass;
+class RenderVertexBufferClass;
+class RenderIndexBufferClass;
 
 //-----------------------------------------------------------------------------
 //           Type Defines
@@ -220,8 +220,8 @@ private:
 				MAX_BUFFERS = 1,
 				SORT_ITERATIONS_PER_FRAME=10};
 	enum {PARTITION_WIDTH_HEIGHT = 100};
-	DX8VertexBufferClass	*m_vertexTree[MAX_BUFFERS];	///<Tree vertex buffer.
-	DX8IndexBufferClass			*m_indexTree[MAX_BUFFERS];	///<indices defining a triangles for the tree drawing.
+	RenderVertexBufferClass	*m_vertexTree[MAX_BUFFERS];	///<Tree vertex buffer.
+	RenderIndexBufferClass			*m_indexTree[MAX_BUFFERS];	///<indices defining a triangles for the tree drawing.
 	DWORD					m_dwTreePixelShader;	///<handle to D3D pixel shader
 	DWORD					m_dwTreeVertexShader;	///<handle to D3D vertex shader
 
