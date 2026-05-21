@@ -1273,6 +1273,12 @@ void SurfaceClass::Allocate_CPU_Surface_Snapshot()
 
 void SurfaceClass::Capture_CPU_Surface_Snapshot()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		D3DSurface == nullptr,
+		"SurfaceClass::Capture_CPU_Surface_Snapshot: standalone bgfx cannot read fake-D3D surface snapshots");
+	return;
+#else
 	ImageData.Format = Description.Format;
 	ImageData.Width = Description.Width;
 	ImageData.Height = Description.Height;
@@ -1305,6 +1311,7 @@ void SurfaceClass::Capture_CPU_Surface_Snapshot()
 	}
 
 	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+#endif
 }
 
 void SurfaceClass::Refresh_CPU_Surface_Snapshot_If_Present()
@@ -1322,6 +1329,11 @@ void SurfaceClass::Upload_CPU_Surface_Snapshot_To_Legacy()
 
 	if (D3DSurface != nullptr)
 	{
+#if defined(GGC_BGFX_STANDALONE)
+		WWASSERT_PRINT(
+			false,
+			"SurfaceClass::Upload_CPU_Surface_Snapshot_To_Legacy: standalone bgfx cannot write fake-D3D surfaces");
+#else
 		const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
 		const unsigned int row_size = Description.Width * pixel_size;
 
@@ -1339,6 +1351,7 @@ void SurfaceClass::Upload_CPU_Surface_Snapshot_To_Legacy()
 		}
 
 		DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+#endif
 	}
 
 	CPUImagePossiblyStale = false;
