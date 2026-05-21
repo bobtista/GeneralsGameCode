@@ -105,8 +105,8 @@ public:
 		Int	m_startFreeIndex;				///<index of vertex at start of unallocated memory.
 		Int m_size;							///<number of vertices allowed in VB.
 		W3DVertexBuffer *m_nextVB;			///<next vertex buffer of same type.
-		RenderVertexBufferClass *m_DX8VertexBuffer;	///<actual render vertex buffer interface
-		W3DRenderTask	*m_renderTaskList;	///<used to help app sort its D3D access by VB.
+		RenderVertexBufferClass *m_renderVertexBuffer;	///<actual render vertex buffer interface
+		W3DRenderTask	*m_renderTaskList;	///<used to help app sort its render buffer access by VB.
 	};
 
 	struct W3DIndexBufferSlot
@@ -126,7 +126,7 @@ public:
 		Int	m_startFreeIndex;				///<index of index at start of unallocated memory.
 		Int m_size;							///<number of vertices allowed in VB.
 		W3DIndexBuffer *m_nextIB;			///<next index buffer of same type.
-		RenderIndexBufferClass *m_DX8IndexBuffer;	///<actual render index buffer interface
+		RenderIndexBufferClass *m_renderIndexBuffer;	///<actual render index buffer interface
 	};
 
 	W3DBufferManager();
