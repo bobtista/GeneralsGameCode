@@ -49,20 +49,12 @@ namespace
 #if defined(GGC_BGFX_STANDALONE)
 	bool Blocks_Legacy_Texture_Create()
 	{
-#if defined(GGC_RENDER_BACKEND_BGFX)
-		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
-#else
-		return false;
-#endif
+		return true;
 	}
 
 	bool Blocks_Legacy_Surface_Create()
 	{
-#if defined(GGC_RENDER_BACKEND_BGFX)
-		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
-#else
-		return false;
-#endif
+		return true;
 	}
 
 	D3DPOOL Legacy_Pool_To_D3D(int pool)
