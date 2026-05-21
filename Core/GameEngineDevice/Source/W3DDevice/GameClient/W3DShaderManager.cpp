@@ -72,7 +72,6 @@
 #include "Common/GlobalData.h"
 #include "Common/GameLOD.h"
 #include "cpudetect.h"
-#include "d3dx8tex.h"
 
 
 // Turn this on to turn off pixel shaders. jba[4/3/2003]
