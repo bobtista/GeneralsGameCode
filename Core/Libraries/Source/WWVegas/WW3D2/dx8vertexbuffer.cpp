@@ -65,10 +65,10 @@ static SortingVertexBufferClass* _DynamicSortingVertexArray=nullptr;
 static unsigned short _DynamicSortingVertexArraySize=0;
 static unsigned short _DynamicSortingVertexArrayOffset=0;
 
-static bool _DynamicDX8VertexBufferInUse=false;
-static DX8VertexBufferClass* _DynamicDX8VertexBuffer=nullptr;
-static unsigned short _DynamicDX8VertexBufferSize=DEFAULT_VB_SIZE;
-static unsigned short _DynamicDX8VertexBufferOffset=0;
+static bool _DynamicBackendVertexBufferInUse=false;
+static DX8VertexBufferClass* _DynamicBackendVertexBuffer=nullptr;
+static unsigned short _DynamicBackendVertexBufferSize=DEFAULT_VB_SIZE;
+static unsigned short _DynamicBackendVertexBufferOffset=0;
 
 static const FVFInfoClass _DynamicFVFInfo(dynamic_fvf_type);
 
@@ -913,8 +913,8 @@ DynamicVBAccessClass::DynamicVBAccessClass(unsigned t,unsigned fvf,unsigned shor
 DynamicVBAccessClass::~DynamicVBAccessClass()
 {
 	if (Type==BUFFER_TYPE_DYNAMIC) {
-		_DynamicDX8VertexBufferInUse=false;
-		_DynamicDX8VertexBufferOffset+=(unsigned) VertexCount;
+		_DynamicBackendVertexBufferInUse=false;
+		_DynamicBackendVertexBufferOffset+=(unsigned) VertexCount;
 	}
 	else {
 		_DynamicSortingVertexArrayInUse=false;
@@ -928,11 +928,11 @@ DynamicVBAccessClass::~DynamicVBAccessClass()
 
 void DynamicVBAccessClass::_Deinit()
 {
-	WWASSERT ((_DynamicDX8VertexBuffer == nullptr) || (_DynamicDX8VertexBuffer->Num_Refs() == 1));
-	REF_PTR_RELEASE(_DynamicDX8VertexBuffer);
-	_DynamicDX8VertexBufferInUse=false;
-	_DynamicDX8VertexBufferSize=DEFAULT_VB_SIZE;
-	_DynamicDX8VertexBufferOffset=0;
+	WWASSERT ((_DynamicBackendVertexBuffer == nullptr) || (_DynamicBackendVertexBuffer->Num_Refs() == 1));
+	REF_PTR_RELEASE(_DynamicBackendVertexBuffer);
+	_DynamicBackendVertexBufferInUse=false;
+	_DynamicBackendVertexBufferSize=DEFAULT_VB_SIZE;
+	_DynamicBackendVertexBufferOffset=0;
 
 	WWASSERT ((_DynamicSortingVertexArray == nullptr) || (_DynamicSortingVertexArray->Num_Refs() == 1));
 	REF_PTR_RELEASE(_DynamicSortingVertexArray);
@@ -945,38 +945,38 @@ void DynamicVBAccessClass::_Deinit()
 void DynamicVBAccessClass::Allocate_Backend_Dynamic_Buffer()
 {
 	WWMEMLOG(MEM_RENDERER);
-	WWASSERT(!_DynamicDX8VertexBufferInUse);
-	_DynamicDX8VertexBufferInUse=true;
+	WWASSERT(!_DynamicBackendVertexBufferInUse);
+	_DynamicBackendVertexBufferInUse=true;
 
 	// If requesting more vertices than dynamic vertex buffer can fit, delete the vb
 	// and adjust the size to the new count.
-	if (VertexCount>_DynamicDX8VertexBufferSize) {
-		REF_PTR_RELEASE(_DynamicDX8VertexBuffer);
-		_DynamicDX8VertexBufferSize=VertexCount;
-		if (_DynamicDX8VertexBufferSize<DEFAULT_VB_SIZE) _DynamicDX8VertexBufferSize=DEFAULT_VB_SIZE;
+	if (VertexCount>_DynamicBackendVertexBufferSize) {
+		REF_PTR_RELEASE(_DynamicBackendVertexBuffer);
+		_DynamicBackendVertexBufferSize=VertexCount;
+		if (_DynamicBackendVertexBufferSize<DEFAULT_VB_SIZE) _DynamicBackendVertexBufferSize=DEFAULT_VB_SIZE;
 	}
 
 	// Create a new vb if one doesn't exist currently
-	if (!_DynamicDX8VertexBuffer) {
+	if (!_DynamicBackendVertexBuffer) {
 		unsigned usage=DX8VertexBufferClass::USAGE_DYNAMIC;
 		if (g_renderBackend && g_renderBackend->Supports_NPatches()) {
 			usage|=DX8VertexBufferClass::USAGE_NPATCHES;
 		}
 
-		_DynamicDX8VertexBuffer=NEW_REF(DX8VertexBufferClass,(
+		_DynamicBackendVertexBuffer=NEW_REF(DX8VertexBufferClass,(
 			dynamic_fvf_type,
-			_DynamicDX8VertexBufferSize,
+			_DynamicBackendVertexBufferSize,
 			(DX8VertexBufferClass::UsageType)usage));
-		_DynamicDX8VertexBufferOffset=0;
+		_DynamicBackendVertexBufferOffset=0;
 	}
 
 	// Any room at the end of the buffer?
-	if (((unsigned)VertexCount+_DynamicDX8VertexBufferOffset)>_DynamicDX8VertexBufferSize) {
-		_DynamicDX8VertexBufferOffset=0;
+	if (((unsigned)VertexCount+_DynamicBackendVertexBufferOffset)>_DynamicBackendVertexBufferSize) {
+		_DynamicBackendVertexBufferOffset=0;
 	}
 
-	REF_PTR_SET(VertexBuffer,_DynamicDX8VertexBuffer);
-	VertexBufferOffset=_DynamicDX8VertexBufferOffset;
+	REF_PTR_SET(VertexBuffer,_DynamicBackendVertexBuffer);
+	VertexBufferOffset=_DynamicBackendVertexBufferOffset;
 }
 
 void DynamicVBAccessClass::Allocate_Sorting_Dynamic_Buffer()
@@ -1024,15 +1024,15 @@ DynamicVBAccessClass::WriteLockClass::WriteLockClass(DynamicVBAccessClass* dynam
 			fvf_name));
 		}
 #endif
-		WWASSERT(_DynamicDX8VertexBuffer);
-//		WWASSERT(!_DynamicDX8VertexBuffer->Engine_Refs());
+		WWASSERT(_DynamicBackendVertexBuffer);
+//		WWASSERT(!_DynamicBackendVertexBuffer->Engine_Refs());
 
 		// Lock with discard contents if the buffer offset is zero
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyVertexBuffer *legacy = Legacy_Vertex_Buffer(static_cast<DX8VertexBufferClass*>(DynamicVBAccess->VertexBuffer))) {
 			DX8_ErrorCode(legacy->Lock(
-				DynamicVBAccess->VertexBufferOffset*_DynamicDX8VertexBuffer->FVF_Info().Get_FVF_Size(),
+				DynamicVBAccess->VertexBufferOffset*_DynamicBackendVertexBuffer->FVF_Info().Get_FVF_Size(),
 				DynamicVBAccess->Get_Vertex_Count()*DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size(),
 				(unsigned char**)&Vertices,
 				RB_LOCK_NOSYSLOCK | (!DynamicVBAccess->VertexBufferOffset ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE)));
@@ -1040,7 +1040,7 @@ DynamicVBAccessClass::WriteLockClass::WriteLockClass(DynamicVBAccessClass* dynam
 #endif
 		{
 			Vertices = static_cast<VertexFormatXYZNDUV2 *>(DynamicVBAccess->VertexBuffer->Lock_CPU_Buffer_Data(
-				DynamicVBAccess->VertexBufferOffset*_DynamicDX8VertexBuffer->FVF_Info().Get_FVF_Size(),
+				DynamicVBAccess->VertexBufferOffset*_DynamicBackendVertexBuffer->FVF_Info().Get_FVF_Size(),
 				DynamicVBAccess->Get_Vertex_Count()*DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size()));
 		}
 		break;
@@ -1096,10 +1096,10 @@ DynamicVBAccessClass::WriteLockClass::~WriteLockClass()
 void DynamicVBAccessClass::_Reset(bool frame_changed)
 {
 	_DynamicSortingVertexArrayOffset=0;
-	if (frame_changed) _DynamicDX8VertexBufferOffset=0;
+	if (frame_changed) _DynamicBackendVertexBufferOffset=0;
 }
 
 unsigned short DynamicVBAccessClass::Get_Default_Vertex_Count()
 {
-	return _DynamicDX8VertexBufferSize;
+	return _DynamicBackendVertexBufferSize;
 }

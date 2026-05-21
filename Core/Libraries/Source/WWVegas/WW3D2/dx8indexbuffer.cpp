@@ -60,10 +60,10 @@ static SortingIndexBufferClass* _DynamicSortingIndexArray;
 static unsigned short _DynamicSortingIndexArraySize=0;
 static unsigned short _DynamicSortingIndexArrayOffset=0;
 
-static bool _DynamicDX8IndexBufferInUse=false;
-static DX8IndexBufferClass* _DynamicDX8IndexBuffer=nullptr;
-static unsigned short _DynamicDX8IndexBufferSize=DEFAULT_IB_SIZE;
-static unsigned short _DynamicDX8IndexBufferOffset=0;
+static bool _DynamicBackendIndexBufferInUse=false;
+static DX8IndexBufferClass* _DynamicBackendIndexBuffer=nullptr;
+static unsigned short _DynamicBackendIndexBufferSize=DEFAULT_IB_SIZE;
+static unsigned short _DynamicBackendIndexBufferOffset=0;
 
 static int _IndexBufferCount;
 static int _IndexBufferTotalIndices;
@@ -556,8 +556,8 @@ DynamicIBAccessClass::~DynamicIBAccessClass()
 {
 	REF_PTR_RELEASE(IndexBuffer);
 	if (Type==BUFFER_TYPE_DYNAMIC) {
-		_DynamicDX8IndexBufferInUse=false;
-		_DynamicDX8IndexBufferOffset+=IndexCount;
+		_DynamicBackendIndexBufferInUse=false;
+		_DynamicBackendIndexBufferOffset+=IndexCount;
 	}
 	else {
 		_DynamicSortingIndexArrayInUse=false;
@@ -567,11 +567,11 @@ DynamicIBAccessClass::~DynamicIBAccessClass()
 
 void DynamicIBAccessClass::_Deinit()
 {
-	WWASSERT ((_DynamicDX8IndexBuffer == nullptr) || (_DynamicDX8IndexBuffer->Num_Refs() == 1));
-	REF_PTR_RELEASE(_DynamicDX8IndexBuffer);
-	_DynamicDX8IndexBufferInUse=false;
-	_DynamicDX8IndexBufferSize=DEFAULT_IB_SIZE;
-	_DynamicDX8IndexBufferOffset=0;
+	WWASSERT ((_DynamicBackendIndexBuffer == nullptr) || (_DynamicBackendIndexBuffer->Num_Refs() == 1));
+	REF_PTR_RELEASE(_DynamicBackendIndexBuffer);
+	_DynamicBackendIndexBufferInUse=false;
+	_DynamicBackendIndexBufferSize=DEFAULT_IB_SIZE;
+	_DynamicBackendIndexBufferOffset=0;
 
 	WWASSERT ((_DynamicSortingIndexArray == nullptr) || (_DynamicSortingIndexArray->Num_Refs() == 1));
 	REF_PTR_RELEASE(_DynamicSortingIndexArray);
@@ -659,37 +659,37 @@ DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 void DynamicIBAccessClass::Allocate_Backend_Dynamic_Buffer()
 {
 	WWMEMLOG(MEM_RENDERER);
-	WWASSERT(!_DynamicDX8IndexBufferInUse);
-	_DynamicDX8IndexBufferInUse=true;
+	WWASSERT(!_DynamicBackendIndexBufferInUse);
+	_DynamicBackendIndexBufferInUse=true;
 
 	// If requesting more indices than dynamic index buffer can fit, delete the ib
 	// and adjust the size to the new count.
-	if (IndexCount>_DynamicDX8IndexBufferSize) {
-		REF_PTR_RELEASE(_DynamicDX8IndexBuffer);
-		_DynamicDX8IndexBufferSize=IndexCount;
-		if (_DynamicDX8IndexBufferSize<DEFAULT_IB_SIZE) _DynamicDX8IndexBufferSize=DEFAULT_IB_SIZE;
+	if (IndexCount>_DynamicBackendIndexBufferSize) {
+		REF_PTR_RELEASE(_DynamicBackendIndexBuffer);
+		_DynamicBackendIndexBufferSize=IndexCount;
+		if (_DynamicBackendIndexBufferSize<DEFAULT_IB_SIZE) _DynamicBackendIndexBufferSize=DEFAULT_IB_SIZE;
 	}
 
 	// Create a new vb if one doesn't exist currently
-	if (!_DynamicDX8IndexBuffer) {
+	if (!_DynamicBackendIndexBuffer) {
 		unsigned usage=DX8IndexBufferClass::USAGE_DYNAMIC;
 		if (g_renderBackend && g_renderBackend->Supports_NPatches()) {
 			usage|=DX8IndexBufferClass::USAGE_NPATCHES;
 		}
 
-		_DynamicDX8IndexBuffer=NEW_REF(DX8IndexBufferClass,(
-			_DynamicDX8IndexBufferSize,
+		_DynamicBackendIndexBuffer=NEW_REF(DX8IndexBufferClass,(
+			_DynamicBackendIndexBufferSize,
 			(DX8IndexBufferClass::UsageType)usage));
-		_DynamicDX8IndexBufferOffset=0;
+		_DynamicBackendIndexBufferOffset=0;
 	}
 
 	// Any room at the end of the buffer?
-	if (((unsigned)IndexCount+_DynamicDX8IndexBufferOffset)>_DynamicDX8IndexBufferSize) {
-		_DynamicDX8IndexBufferOffset=0;
+	if (((unsigned)IndexCount+_DynamicBackendIndexBufferOffset)>_DynamicBackendIndexBufferSize) {
+		_DynamicBackendIndexBufferOffset=0;
 	}
 
-	REF_PTR_SET(IndexBuffer,_DynamicDX8IndexBuffer);
-	IndexBufferOffset=_DynamicDX8IndexBufferOffset;
+	REF_PTR_SET(IndexBuffer,_DynamicBackendIndexBuffer);
+	IndexBufferOffset=_DynamicBackendIndexBufferOffset;
 }
 
 void DynamicIBAccessClass::Allocate_Sorting_Dynamic_Buffer()
@@ -718,10 +718,10 @@ void DynamicIBAccessClass::Allocate_Sorting_Dynamic_Buffer()
 void DynamicIBAccessClass::_Reset(bool frame_changed)
 {
 	_DynamicSortingIndexArrayOffset=0;
-	if (frame_changed) _DynamicDX8IndexBufferOffset=0;
+	if (frame_changed) _DynamicBackendIndexBufferOffset=0;
 }
 
 unsigned short DynamicIBAccessClass::Get_Default_Index_Count()
 {
-	return _DynamicDX8IndexBufferSize;
+	return _DynamicBackendIndexBufferSize;
 }
