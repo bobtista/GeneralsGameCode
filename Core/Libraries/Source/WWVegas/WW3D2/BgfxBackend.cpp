@@ -46,7 +46,6 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <d3d8.h>
 
 #include <unordered_map>
 
