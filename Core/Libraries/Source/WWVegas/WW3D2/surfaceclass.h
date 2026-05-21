@@ -98,6 +98,7 @@ class SurfaceClass : public RefCountClass
 
 		// support for copying from a byte array
 		void Copy(const unsigned char *other);
+		void Copy(const unsigned char *other, unsigned int pitch);
 
 		// support for copying from a byte array
 		void Copy(const Vector2i &min, const Vector2i &max, const unsigned char *other);
