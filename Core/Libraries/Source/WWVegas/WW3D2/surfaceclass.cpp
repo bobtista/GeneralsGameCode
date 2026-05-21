@@ -634,21 +634,7 @@ void SurfaceClass::Copy(
 		}
 		else
 		{
-			LegacyRect dst_rect;
-			dst_rect.left = dstx;
-			dst_rect.right = dstx + copy_width;
-			dst_rect.top = dsty;
-			dst_rect.bottom = dsty + copy_height;
-
-			LegacyLockedRect dst_lock;
-			::ZeroMemory(&dst_lock, sizeof(dst_lock));
-			DX8_ErrorCode(LEGACY_SURFACE->LockRect(&dst_lock, &dst_rect, 0));
-
-			const bool can_copy_from_cpu =
-				other->Has_CPU_Surface_Snapshot() &&
-				other->ImageData.Format == osd.Format &&
-				other->ImageData.Width == osd.Width &&
-				other->ImageData.Height == osd.Height;
+			const bool can_copy_from_cpu = other->Has_Compatible_CPU_Surface_Snapshot(osd);
 			LegacyLockedRect src_lock;
 			::ZeroMemory(&src_lock, sizeof(src_lock));
 			const unsigned char *src_mem = nullptr;
@@ -667,6 +653,32 @@ void SurfaceClass::Copy(
 				src_pitch = src_lock.Pitch;
 			}
 
+			if (Has_Compatible_CPU_Surface_Snapshot(sd))
+			{
+				unsigned char *dst_mem = ImageData.Data.data() + dsty * ImageData.Pitch + dstx * pixel_size;
+				for (unsigned int y = 0; y < copy_height; ++y)
+				{
+					memcpy(dst_mem, src_mem, row_size);
+					src_mem += src_pitch;
+					dst_mem += ImageData.Pitch;
+				}
+				if (!can_copy_from_cpu) {
+					DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->UnlockRect());
+				}
+				Upload_CPU_Surface_Snapshot_To_Legacy();
+				return;
+			}
+
+			LegacyRect dst_rect;
+			dst_rect.left = dstx;
+			dst_rect.right = dstx + copy_width;
+			dst_rect.top = dsty;
+			dst_rect.bottom = dsty + copy_height;
+
+			LegacyLockedRect dst_lock;
+			::ZeroMemory(&dst_lock, sizeof(dst_lock));
+			DX8_ErrorCode(LEGACY_SURFACE->LockRect(&dst_lock, &dst_rect, 0));
+
 			unsigned char *dst_mem = static_cast<unsigned char *>(dst_lock.pBits);
 			for (unsigned int y = 0; y < copy_height; ++y)
 			{
@@ -674,7 +686,6 @@ void SurfaceClass::Copy(
 				src_mem += src_pitch;
 				dst_mem += dst_lock.Pitch;
 			}
-
 			DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 			if (!can_copy_from_cpu) {
 				DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->UnlockRect());
