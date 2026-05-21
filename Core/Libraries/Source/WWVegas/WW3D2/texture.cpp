@@ -1191,6 +1191,10 @@ void TextureClass::Get_Level_Description( SurfaceClass::SurfaceDescription & des
 
 unsigned int TextureClass::Get_Level_Count() const
 {
+	const std::vector<TextureMipSnapshot> &mips = Get_CPU_Texture_Mips();
+	if (!mips.empty()) {
+		return static_cast<unsigned int>(mips.size());
+	}
 	auto *texture = Peek_Legacy_Texture2D(*this);
 	return texture != nullptr ? texture->GetLevelCount() : 0;
 }
@@ -1232,6 +1236,16 @@ void *TextureClass::Get_Legacy_Surface_Level(unsigned int level)
 */
 unsigned TextureClass::Get_Texture_Memory_Usage() const
 {
+	const std::vector<TextureMipSnapshot> &mips = Get_CPU_Texture_Mips();
+	if (!mips.empty())
+	{
+		size_t size = 0;
+		for (const TextureMipSnapshot &mip : mips) {
+			size += mip.Data.size();
+		}
+		return static_cast<unsigned>(size);
+	}
+
 	int size=0;
 	if (!Peek_Legacy_Texture2D(*this)) return 0;
 	for (unsigned i=0;i<Peek_Legacy_Texture2D(*this)->GetLevelCount();++i)
