@@ -705,10 +705,21 @@ void SurfaceClass::Copy(
 
 		const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(sd.Format);
 		const unsigned int row_size = copy_width * pixel_size;
+		const bool dst_has_cpu_snapshot = Has_Compatible_CPU_Surface_Snapshot(sd);
+		const bool src_has_cpu_snapshot = other->Has_Compatible_CPU_Surface_Snapshot(osd);
+
+		if (Should_Use_CPU_Only_Surface_Storage() &&
+			(pixel_size == 0 || !dst_has_cpu_snapshot || !src_has_cpu_snapshot))
+		{
+			WWASSERT_PRINT(
+				false,
+				"SurfaceClass::Copy: BGFX surface ownership missing CPU snapshots; no legacy surface copy fallback is allowed");
+			return;
+		}
 
 		if (other == this)
 		{
-			if (Has_Compatible_CPU_Surface_Snapshot(sd))
+			if (dst_has_cpu_snapshot)
 			{
 				unsigned char *base = ImageData.Data.data();
 				for (unsigned int y = 0; y < copy_height; ++y)
@@ -737,7 +748,7 @@ void SurfaceClass::Copy(
 		}
 		else
 		{
-			const bool can_copy_from_cpu = other->Has_Compatible_CPU_Surface_Snapshot(osd);
+			const bool can_copy_from_cpu = src_has_cpu_snapshot;
 			LegacyLockedRect src_lock;
 			::ZeroMemory(&src_lock, sizeof(src_lock));
 			const unsigned char *src_mem = nullptr;
@@ -756,7 +767,7 @@ void SurfaceClass::Copy(
 				src_pitch = src_lock.Pitch;
 			}
 
-			if (Has_Compatible_CPU_Surface_Snapshot(sd))
+			if (dst_has_cpu_snapshot)
 			{
 				unsigned char *dst_mem = ImageData.Data.data() + dsty * ImageData.Pitch + dstx * pixel_size;
 				for (unsigned int y = 0; y < copy_height; ++y)
@@ -797,6 +808,14 @@ void SurfaceClass::Copy(
 	}
 	else
 	{
+		if (Should_Use_CPU_Only_Surface_Storage())
+		{
+			WWASSERT_PRINT(
+				false,
+				"SurfaceClass::Copy: BGFX surface ownership does not support legacy format-converting surface copies");
+			return;
+		}
+
 		LegacyRect dest;
 		dest.left=dstx;
 		dest.right=dstx+width;
@@ -841,6 +860,14 @@ void SurfaceClass::Stretch_Copy(
 	SurfaceDescription sd,osd;
 	Get_Description(sd);
 	const_cast <SurfaceClass*>(other)->Get_Description(osd);
+
+	if (Should_Use_CPU_Only_Surface_Storage())
+	{
+		WWASSERT_PRINT(
+			false,
+			"SurfaceClass::Stretch_Copy: BGFX surface ownership does not support legacy stretched surface copies");
+		return;
+	}
 
 	LegacyRect src;
 	src.left=srcx;

@@ -1840,6 +1840,18 @@ bool TextureLoadTaskClass::Begin_Load()
 {
 	WWASSERT(TextureLoader::Is_DX8_Thread());
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
+		Texture != nullptr &&
+		Texture->Get_Asset_Type() != TextureBaseClass::TEX_REGULAR)
+	{
+		WWASSERT_PRINT(
+			false,
+			"TextureLoadTaskClass::Begin_Load: cube/volume textures are not migrated to bgfx texture ownership; no legacy fallback is allowed");
+		return false;
+	}
+#endif
+
 	bool loaded = false;
 
 	// if allowed, begin a compressed load
