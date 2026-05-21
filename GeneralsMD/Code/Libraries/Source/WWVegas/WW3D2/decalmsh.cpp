@@ -303,7 +303,7 @@ void RigidDecalMeshClass::Render()
 	/*
 	** Copy the vertices into the dynamic vb
 	*/
-	DynamicVBAccessClass dynamic_vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,Verts.Count());
+	DynamicVBAccessClass dynamic_vb(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,Verts.Count());
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&dynamic_vb);
 		VertexFormatXYZNDUV2 * vertex = lock.Get_Formatted_Vertex_Array();
@@ -333,7 +333,7 @@ void RigidDecalMeshClass::Render()
 	/*
 	** Copy the indices into the dynamic ib
 	*/
-	DynamicIBAccessClass dynamic_ib(BUFFER_TYPE_DYNAMIC_DX8,Polys.Count() * 3);
+	DynamicIBAccessClass dynamic_ib(BUFFER_TYPE_DYNAMIC,Polys.Count() * 3);
 	{
 		DynamicIBAccessClass::WriteLockClass lock(&dynamic_ib);
 		unsigned short * indices = lock.Get_Index_Array();
@@ -801,7 +801,7 @@ void SkinDecalMeshClass::Render()
 	/*
 	** Copy the vertices into the dynamic vb
 	*/
-	DynamicVBAccessClass dynamic_vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,ParentVertexIndices.Count());
+	DynamicVBAccessClass dynamic_vb(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,ParentVertexIndices.Count());
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&dynamic_vb);
 		VertexFormatXYZNDUV2 * vertex = lock.Get_Formatted_Vertex_Array();
@@ -831,7 +831,7 @@ void SkinDecalMeshClass::Render()
 	/*
 	** Copy the indices into the dynamic ib
 	*/
-	DynamicIBAccessClass dynamic_ib(BUFFER_TYPE_DYNAMIC_DX8,Polys.Count() * 3);
+	DynamicIBAccessClass dynamic_ib(BUFFER_TYPE_DYNAMIC,Polys.Count() * 3);
 	{
 		DynamicIBAccessClass::WriteLockClass lock(&dynamic_ib);
 		unsigned short * indices = lock.Get_Index_Array();

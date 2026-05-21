@@ -1579,7 +1579,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		const Real displayHalfWidth = (Real)TheDisplay->getWidth() * 0.5f;
 		const Real displayHalfHeight = (Real)TheDisplay->getHeight() * -0.5f;
 
-		DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,4);
+		DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,4);
 		{
 			DynamicVBAccessClass::WriteLockClass lock(&vb);
 			VertexFormatXYZNDUV2 *verts=lock.Get_Formatted_Vertex_Array();
@@ -1602,7 +1602,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 			}
 		}
 
-		DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX8,6);
+		DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC,6);
 		{
 			DynamicIBAccessClass::WriteLockClass lock(&ib);
 			unsigned short *indices=lock.Get_Index_Array();

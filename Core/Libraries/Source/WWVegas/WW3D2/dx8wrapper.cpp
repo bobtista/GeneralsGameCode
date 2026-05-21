@@ -2236,7 +2236,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 	WWASSERT(FixedFunctionState::Render_State().index_buffer_type==BUFFER_TYPE_SORTING || FixedFunctionState::Render_State().index_buffer_type==BUFFER_TYPE_DYNAMIC_SORTING);
 
 	// Fill dynamic vertex buffer with sorting vertex buffer vertices
-	DynamicVBAccessClass dyn_vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,vertex_count);
+	DynamicVBAccessClass dyn_vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,vertex_count);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&dyn_vb_access);
 		VertexFormatXYZNDUV2* src = static_cast<SortingVertexBufferClass*>(FixedFunctionState::Render_State().vertex_buffers[0])->VertexBuffer;
@@ -2274,7 +2274,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 	}
 
 	// Fill dynamic index buffer with sorting index buffer vertices
-	DynamicIBAccessClass dyn_ib_access(BUFFER_TYPE_DYNAMIC_DX8,index_count);
+	DynamicIBAccessClass dyn_ib_access(BUFFER_TYPE_DYNAMIC,index_count);
 	{
 		DynamicIBAccessClass::WriteLockClass lock(&dyn_ib_access);
 		unsigned short* dest=lock.Get_Index_Array();
@@ -2408,7 +2408,7 @@ void DX8Wrapper::Draw(
 		case BUFFER_TYPE_SORTING:
 			vertex_count=FixedFunctionState::Render_State().vertex_buffers[0]->Get_Vertex_Count()-FixedFunctionState::Render_State().index_base_offset-FixedFunctionState::Render_State().vba_offset-min_vertex_index;
 			break;
-		case BUFFER_TYPE_DYNAMIC_DX8:
+		case BUFFER_TYPE_DYNAMIC:
 		case BUFFER_TYPE_DYNAMIC_SORTING:
 			vertex_count=FixedFunctionState::Render_State().vba_count;
 			break;
@@ -2417,10 +2417,10 @@ void DX8Wrapper::Draw(
 
 	switch (FixedFunctionState::Render_State().vertex_buffer_types[0]) {
 	case BUFFER_TYPE_DX8:
-	case BUFFER_TYPE_DYNAMIC_DX8:
+	case BUFFER_TYPE_DYNAMIC:
 		switch (FixedFunctionState::Render_State().index_buffer_type) {
 		case BUFFER_TYPE_DX8:
-		case BUFFER_TYPE_DYNAMIC_DX8:
+		case BUFFER_TYPE_DYNAMIC:
 			{
 /*				if ((start_index+FixedFunctionState::Render_State().iba_offset+polygon_count*3) > FixedFunctionState::Render_State().index_buffer->Get_Index_Count())
 				{	WWASSERT_PRINT(0,"OVERFLOWING INDEX BUFFER");
@@ -2452,7 +2452,7 @@ void DX8Wrapper::Draw(
 	case BUFFER_TYPE_DYNAMIC_SORTING:
 		switch (FixedFunctionState::Render_State().index_buffer_type) {
 		case BUFFER_TYPE_DX8:
-		case BUFFER_TYPE_DYNAMIC_DX8:
+		case BUFFER_TYPE_DYNAMIC:
 			WWASSERT_PRINT(0,"VB and IB must of same type (sorting or dx8)");
 			break;
 		case BUFFER_TYPE_SORTING:
@@ -2618,7 +2618,7 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 			if (FixedFunctionState::Render_State().vertex_buffers[i]) {
 				switch (FixedFunctionState::Render_State().vertex_buffer_types[i]) {//->Type()) {
 				case BUFFER_TYPE_DX8:
-				case BUFFER_TYPE_DYNAMIC_DX8:
+				case BUFFER_TYPE_DYNAMIC:
 #if !defined(GGC_BGFX_STANDALONE)
 					DX8CALL(SetStreamSource(
 						i,
@@ -2652,7 +2652,7 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 		if (FixedFunctionState::Render_State().index_buffer) {
 			switch (FixedFunctionState::Render_State().index_buffer_type) {//->Type()) {
 			case BUFFER_TYPE_DX8:
-			case BUFFER_TYPE_DYNAMIC_DX8:
+			case BUFFER_TYPE_DYNAMIC:
 #if !defined(GGC_BGFX_STANDALONE)
 				DX8CALL(SetIndices(
 					static_cast<IDirect3DIndexBuffer8 *>(
