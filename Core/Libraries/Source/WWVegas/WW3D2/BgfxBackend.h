@@ -119,15 +119,15 @@ public:
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset) override;
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset) override;
 
-    // Write-side capture hooks. BgfxBackend captures the data into the cache
+    // Write-side upload hooks. BgfxBackend uploads the data into the cache
     // for use by Set_Vertex_Buffer / Set_Index_Buffer.
     // Adds the dynamic variants for DynamicVBAccessClass /
     // DynamicIBAccessClass which get copied into bgfx transient buffers.
 
-    virtual void Capture_Vertex_Data(const VertexBufferClass * vb,
+    virtual void Upload_Vertex_Buffer_Data(const VertexBufferClass * vb,
                                      const void * data,
                                      unsigned int size_bytes) override;
-    virtual void Capture_Index_Data(const IndexBufferClass * ib,
+    virtual void Upload_Index_Buffer_Data(const IndexBufferClass * ib,
                                     const void * data,
                                     unsigned int size_bytes) override;
     virtual void Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
@@ -136,11 +136,11 @@ public:
     virtual void Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
                                             const void * data,
                                             unsigned int size_bytes) override;
-    virtual void Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
+    virtual void Upload_Vertex_Buffer_Sub_Range(const VertexBufferClass * vb,
                                           const void * data,
                                           unsigned int start_vertex,
                                           unsigned int size_bytes) override;
-    virtual void Capture_Index_Sub_Range(const IndexBufferClass * ib,
+    virtual void Upload_Index_Buffer_Sub_Range(const IndexBufferClass * ib,
                                          const void * data,
                                          unsigned int start_index,
                                          unsigned int size_bytes) override;
