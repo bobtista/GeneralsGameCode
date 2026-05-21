@@ -93,30 +93,6 @@
 
 #include <cstdio>
 
-#if defined(GGC_BGFX_STANDALONE)
-#include "TARGA.h"
-#include "ww3dformat.h"
-
-HRESULT Standalone_Filter_Legacy_Texture_Mips(IDirect3DBaseTexture8 *base_texture, unsigned int src_level);
-HRESULT Standalone_Copy_Legacy_Surface(
-	IDirect3DSurface8 *destination,
-	const RECT *destination_rect,
-	IDirect3DSurface8 *source,
-	const RECT *source_rect);
-#endif
-
-#if defined(GGC_BGFX_STANDALONE)
-static bool Blocks_Legacy_Texture_Create()
-{
-	return true;
-}
-
-static bool Blocks_Legacy_Surface_Create()
-{
-	return true;
-}
-#endif
-
 static D3DDEVTYPE Legacy_Device_Type(unsigned value) { return static_cast<D3DDEVTYPE>(value); }
 static D3DRESOURCETYPE Legacy_Resource_Type(unsigned value) { return static_cast<D3DRESOURCETYPE>(value); }
 
@@ -329,6 +305,7 @@ static DynamicVectorClass<StringClass>					_RenderDeviceNameTable;
 static DynamicVectorClass<StringClass>					_RenderDeviceShortNameTable;
 static DynamicVectorClass<RenderDeviceDescClass>	_RenderDeviceDescriptionTable;
 
+#if !defined(GGC_BGFX_STANDALONE)
 static HRESULT Copy_Legacy_Surface_Compat(
 	IDirect3DSurface8 *destination,
 	const RECT *destination_rect,
@@ -336,10 +313,6 @@ static HRESULT Copy_Legacy_Surface_Compat(
 	const RECT *source_rect,
 	unsigned int filter)
 {
-#if defined(GGC_BGFX_STANDALONE)
-	(void)filter;
-	return Standalone_Copy_Legacy_Surface(destination, destination_rect, source, source_rect);
-#else
 	return D3DXLoadSurfaceFromSurface(
 		destination,
 		nullptr,
@@ -349,17 +322,13 @@ static HRESULT Copy_Legacy_Surface_Compat(
 		source_rect,
 		filter,
 		0);
-#endif
 }
 
 static HRESULT Filter_Legacy_Texture_Mips_Compat(IDirect3DBaseTexture8 *base_texture, unsigned int src_level)
 {
-#if defined(GGC_BGFX_STANDALONE)
-	return Standalone_Filter_Legacy_Texture_Mips(base_texture, src_level);
-#else
 	return D3DXFilterTexture(base_texture, nullptr, src_level, D3DX_FILTER_BOX);
-#endif
 }
+#endif
 
 IDirect3DDevice8* DX8_Call_Device()
 {
@@ -2897,183 +2866,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	return texture;
 }
 
-#if defined(GGC_BGFX_STANDALONE)
-// TheSuperHackers @refactor bobtista 22/04/2026 Stage 5 —
-// In standalone we replace D3DXCreateTextureFromFileExA with a direct
-// Targa decoder + stub-device CreateTexture + LockRect write. The goal
-// is to (a) remove D3DX as a black-box in the standalone pixel path so
-// remaining visual bugs don't depend on D3DX internals interacting with
-// our stub and (b) start the work of dropping d3dx8.lib from the link.
-// The bgfx ownership path is blocked before reaching this helper.
-static IDirect3DTexture8 * LoadTextureStandalone_TGA(
-	const char * filename,
-	MipCountType mip_level_count)
-{
-	Targa targa;
-	if (targa.Open(filename, TGA_READMODE) != 0)
-		return nullptr;
-
-	// W3D uses Y-flipped TGA (D3D texels top-down).
-	targa.Header.ImageDescriptor ^= TGAIDF_YORIGIN;
-
-	WW3DFormat src_format = WW3D_FORMAT_UNKNOWN;
-	unsigned src_bpp = 0;
-	Get_WW3D_Format(src_format, src_bpp, targa);
-	if (src_format == WW3D_FORMAT_UNKNOWN)
-		return nullptr;
-
-	const unsigned src_w = targa.Header.Width;
-	const unsigned src_h = targa.Header.Height;
-	if (src_w == 0 || src_h == 0)
-		return nullptr;
-
-	// Decide destination format: 32-bit TGA gets A8R8G8B8, 24-bit gets X8R8G8B8.
-	// All other cases up-convert to A8R8G8B8 so the stub scratch layout (width*4)
-	// matches what EnsureBgfxTexture expects.
-	const bool has_alpha = (targa.Header.PixelDepth == 32)
-		|| (src_format == WW3D_FORMAT_A8R8G8B8)
-		|| (src_format == WW3D_FORMAT_A4R4G4B4)
-		|| (src_format == WW3D_FORMAT_A1R5G5B5);
-	const D3DFORMAT d3d_fmt = has_alpha ? D3DFMT_A8R8G8B8 : D3DFMT_X8R8G8B8;
-
-	// How many mip levels do we actually produce? If caller asked for
-	// MIP_LEVELS_1, just one; otherwise full chain down to 1x1.
-	DWORD levels = 1;
-	if (mip_level_count != MIP_LEVELS_1)
-	{
-		unsigned m = src_w > src_h ? src_w : src_h;
-		while (m > 1) { m >>= 1; ++levels; }
-	}
-
-	IDirect3DTexture8 * texture = nullptr;
-	HRESULT hr = DX8Wrapper::_Get_D3D_Device8()->CreateTexture(
-		src_w, src_h, levels, 0, d3d_fmt, D3DPOOL_MANAGED, &texture);
-	if (hr != D3D_OK || texture == nullptr)
-		return nullptr;
-
-	// Decode file into an internally-allocated buffer owned by targa.
-	// TGA class flips Y-orientation itself based on ImageDescriptor.
-	if (targa.Load(filename, TGAF_IMAGE, false) != 0)
-	{
-		texture->Release();
-		return nullptr;
-	}
-
-	const uint8_t * src = reinterpret_cast<const uint8_t *>(targa.GetImage());
-	if (src == nullptr)
-	{
-		texture->Release();
-		return nullptr;
-	}
-
-	D3DLOCKED_RECT locked = { 0 };
-	if (FAILED(texture->LockRect(0, &locked, nullptr, 0)))
-	{
-		texture->Release();
-		return nullptr;
-	}
-
-	// Convert/copy source pixels into the texture's level-0 scratch.
-	// Targa memory layout is the same little-endian BGRA byte order as
-	// D3D8 A8R8G8B8/X8R8G8B8 so we can straight-copy for 32-bit and
-	// fill alpha=0xFF for 24-bit.
-	const unsigned dst_pitch = static_cast<unsigned>(locked.Pitch);
-	uint8_t * dst = static_cast<uint8_t *>(locked.pBits);
-	if (src_bpp == 4)
-	{
-		for (unsigned y = 0; y < src_h; ++y)
-		{
-			std::memcpy(dst + y * dst_pitch, src + y * src_w * 4, src_w * 4);
-		}
-	}
-	else if (src_bpp == 3)
-	{
-		for (unsigned y = 0; y < src_h; ++y)
-		{
-			const uint8_t * s = src + y * src_w * 3;
-			uint8_t * d = dst + y * dst_pitch;
-			for (unsigned x = 0; x < src_w; ++x)
-			{
-				d[0] = s[0]; d[1] = s[1]; d[2] = s[2]; d[3] = 0xFF;
-				s += 3; d += 4;
-			}
-		}
-	}
-	else
-	{
-		// Other bit depths (16-bit, paletted) — reject; D3DX fallback
-		// will handle these rarer cases.
-		texture->UnlockRect(0);
-		texture->Release();
-		return nullptr;
-	}
-	texture->UnlockRect(0);
-
-	// Generate mip levels via 2x2 box filter (per channel independent).
-	UINT prev_w = src_w;
-	UINT prev_h = src_h;
-	for (DWORD level = 1; level < levels; ++level)
-	{
-		UINT lw = prev_w >> 1; if (lw == 0) lw = 1;
-		UINT lh = prev_h >> 1; if (lh == 0) lh = 1;
-
-		D3DLOCKED_RECT src_l = { 0 };
-		D3DLOCKED_RECT dst_l = { 0 };
-		if (FAILED(texture->LockRect(level - 1, &src_l, nullptr, 0))) break;
-		if (FAILED(texture->LockRect(level, &dst_l, nullptr, 0)))
-		{
-			texture->UnlockRect(level - 1);
-			break;
-		}
-
-		// Clamp the second sample coordinate so 1D parent mips (width==1
-		// or height==1) don't read past their row/column. Matches the
-		// edge-aware box filter in StandaloneLegacyTextureOps.cpp.
-		const UINT parent_w = prev_w;
-		const UINT parent_h = prev_h;
-		const uint8_t * spx = static_cast<const uint8_t *>(src_l.pBits);
-		uint8_t * dpx = static_cast<uint8_t *>(dst_l.pBits);
-		for (UINT y = 0; y < lh; ++y)
-		{
-			const UINT y0 = 2 * y;
-			const UINT y1 = (y0 + 1 < parent_h) ? (y0 + 1) : y0;
-			for (UINT x = 0; x < lw; ++x)
-			{
-				const UINT x0 = 2 * x;
-				const UINT x1 = (x0 + 1 < parent_w) ? (x0 + 1) : x0;
-				const uint8_t * p00 = spx + y0 * src_l.Pitch + x0 * 4;
-				const uint8_t * p10 = spx + y0 * src_l.Pitch + x1 * 4;
-				const uint8_t * p01 = spx + y1 * src_l.Pitch + x0 * 4;
-				const uint8_t * p11 = spx + y1 * src_l.Pitch + x1 * 4;
-				uint8_t * d = dpx + y * dst_l.Pitch + x * 4;
-				d[0] = static_cast<uint8_t>((p00[0] + p10[0] + p01[0] + p11[0] + 2) >> 2);
-				d[1] = static_cast<uint8_t>((p00[1] + p10[1] + p01[1] + p11[1] + 2) >> 2);
-				d[2] = static_cast<uint8_t>((p00[2] + p10[2] + p01[2] + p11[2] + 2) >> 2);
-				d[3] = static_cast<uint8_t>((p00[3] + p10[3] + p01[3] + p11[3] + 2) >> 2);
-			}
-		}
-		texture->UnlockRect(level);
-		texture->UnlockRect(level - 1);
-		prev_w = lw;
-		prev_h = lh;
-	}
-
-	return texture;
-}
-
-static bool HasTgaExtension(const char * filename)
-{
-	if (filename == nullptr) return false;
-	const size_t n = std::strlen(filename);
-	if (n < 4) return false;
-	const char * ext = filename + n - 4;
-	return (ext[0] == '.') &&
-		(ext[1] == 't' || ext[1] == 'T') &&
-		(ext[2] == 'g' || ext[2] == 'G') &&
-		(ext[3] == 'a' || ext[3] == 'A');
-}
-#endif // GGC_BGFX_STANDALONE
-
+#if !defined(GGC_BGFX_STANDALONE)
 static HRESULT Create_Legacy_Cube_Texture_Compat(
 	LPDIRECT3DDEVICE8 device,
 	UINT size,
@@ -3083,23 +2876,7 @@ static HRESULT Create_Legacy_Cube_Texture_Compat(
 	D3DPOOL pool,
 	LPDIRECT3DCUBETEXTURE8 *out_texture)
 {
-#if defined(GGC_BGFX_STANDALONE)
-	if (device == nullptr || out_texture == nullptr)
-	{
-		return E_POINTER;
-	}
-	if (mip_level_count == D3DX_DEFAULT)
-	{
-		mip_level_count = 0;
-	}
-	if (format == D3DFMT_UNKNOWN)
-	{
-		format = D3DFMT_A8R8G8B8;
-	}
-	return device->CreateCubeTexture(size, mip_level_count, usage, format, pool, out_texture);
-#else
 	return D3DXCreateCubeTexture(device, size, mip_level_count, usage, format, pool, out_texture);
-#endif
 }
 
 static HRESULT Create_Legacy_Volume_Texture_Compat(
@@ -3113,24 +2890,9 @@ static HRESULT Create_Legacy_Volume_Texture_Compat(
 	D3DPOOL pool,
 	LPDIRECT3DVOLUMETEXTURE8 *out_texture)
 {
-#if defined(GGC_BGFX_STANDALONE)
-	if (device == nullptr || out_texture == nullptr)
-	{
-		return E_POINTER;
-	}
-	if (mip_level_count == D3DX_DEFAULT)
-	{
-		mip_level_count = 0;
-	}
-	if (format == D3DFMT_UNKNOWN)
-	{
-		format = D3DFMT_A8R8G8B8;
-	}
-	return device->CreateVolumeTexture(width, height, depth, mip_level_count, usage, format, pool, out_texture);
-#else
 	return D3DXCreateVolumeTexture(device, width, height, depth, mip_level_count, usage, format, pool, out_texture);
-#endif
 }
+#endif
 
 IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 (
@@ -3140,43 +2902,15 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DTexture8 *texture = nullptr;
 
 #if defined(GGC_BGFX_STANDALONE)
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"DX8Wrapper::_Create_DX8_Texture(file): BGFX texture ownership is enabled; no fake-D3D texture fallback is allowed");
-		return nullptr;
-	}
-
-	// Bypass D3DX for TGA files in standalone. The D3DX upload path
-	// occasionally produced bad pixel data against our stub device
-	// (unknown internal cause) which showed as dark bands / black
-	// regions on terrain. Direct TGA -> stub LockRect is deterministic.
-	if (HasTgaExtension(filename))
-	{
-		texture = LoadTextureStandalone_TGA(filename, mip_level_count);
-		if (texture != nullptr)
-		{
-			D3DSURFACE_DESC desc;
-			texture->GetLevelDesc(0, &desc);
-			if (desc.Format == D3DFMT_P8) {
-				Log_Missing_Texture_File("paletted TGA", filename);
-				texture->Release();
-				return Get_Legacy_Missing_Texture();
-			}
-			return texture;
-		}
-	}
-
 	WWASSERT_PRINT(
 		false,
-		"DX8Wrapper::_Create_DX8_Texture(file): standalone bgfx legacy texture path cannot load this file; no D3DX fallback is available");
+		"DX8Wrapper::_Create_DX8_Texture(file): standalone bgfx cannot create fake-D3D textures");
 	Log_Missing_Texture_File("standalone legacy texture loader", filename);
-	return Get_Legacy_Missing_Texture();
+	return nullptr;
 #else
+	IDirect3DTexture8 *texture = nullptr;
 
 	// NOTE: If the original image format is not supported as a texture format, it will
 	// automatically be converted to an appropriate format.
@@ -3224,17 +2958,14 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DTexture8 *texture = nullptr;
 
 #if defined(GGC_BGFX_STANDALONE)
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"DX8Wrapper::_Create_DX8_Texture(surface): BGFX texture ownership is enabled; no fake-D3D texture fallback is allowed");
-		return nullptr;
-	}
-#endif
+	WWASSERT_PRINT(
+		false,
+		"DX8Wrapper::_Create_DX8_Texture(surface): standalone bgfx cannot create fake-D3D textures");
+	return nullptr;
+#else
+	IDirect3DTexture8 *texture = nullptr;
 
 	D3DSURFACE_DESC surface_desc;
 	::ZeroMemory(&surface_desc, sizeof(D3DSURFACE_DESC));
@@ -3258,6 +2989,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	}
 
 	return texture;
+#endif
 
 }
 
@@ -3275,17 +3007,14 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_ZTexture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DTexture8* texture = nullptr;
 
 #if defined(GGC_BGFX_STANDALONE)
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"DX8Wrapper::_Create_DX8_ZTexture: BGFX texture ownership is enabled; no fake-D3D depth texture fallback is allowed");
-		return nullptr;
-	}
-#endif
+	WWASSERT_PRINT(
+		false,
+		"DX8Wrapper::_Create_DX8_ZTexture: standalone bgfx cannot create fake-D3D depth textures");
+	return nullptr;
+#else
+	IDirect3DTexture8* texture = nullptr;
 
 	D3DFORMAT zfmt=WW3DZFormat_To_D3DFormat(zformat);
 
@@ -3350,6 +3079,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_ZTexture
 	// allowed for render targets.
 
 	return texture;
+#endif
 }
 
 /*!
@@ -3368,17 +3098,14 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 	WWASSERT(width==height);
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DCubeTexture8* texture=nullptr;
 
 #if defined(GGC_BGFX_STANDALONE)
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"DX8Wrapper::_Create_DX8_Cube_Texture: BGFX texture ownership is enabled; no fake-D3D cube texture fallback is allowed");
-		return nullptr;
-	}
-#endif
+	WWASSERT_PRINT(
+		false,
+		"DX8Wrapper::_Create_DX8_Cube_Texture: standalone bgfx cannot create fake-D3D cube textures");
+	return nullptr;
+#else
+	IDirect3DCubeTexture8* texture=nullptr;
 
 	// Paletted textures not supported!
 	WWASSERT(format!=D3DFMT_P8);
@@ -3494,6 +3221,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 	DX8_ErrorCode(ret);
 
 	return texture;
+#endif
 }
 
 /*!
@@ -3511,17 +3239,14 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	IDirect3DVolumeTexture8* texture=nullptr;
 
 #if defined(GGC_BGFX_STANDALONE)
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"DX8Wrapper::_Create_DX8_Volume_Texture: BGFX texture ownership is enabled; no fake-D3D volume texture fallback is allowed");
-		return nullptr;
-	}
-#endif
+	WWASSERT_PRINT(
+		false,
+		"DX8Wrapper::_Create_DX8_Volume_Texture: standalone bgfx cannot create fake-D3D volume textures");
+	return nullptr;
+#else
+	IDirect3DVolumeTexture8* texture=nullptr;
 
 	// Paletted textures not supported!
 	WWASSERT(format!=D3DFMT_P8);
@@ -3581,6 +3306,7 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 	DX8_ErrorCode(ret);
 
 	return texture;
+#endif
 }
 
 
@@ -3590,14 +3316,11 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(unsigned int width, unsigned
 	DX8_Assert();
 
 #if defined(GGC_BGFX_STANDALONE)
-	if (Blocks_Legacy_Surface_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"DX8Wrapper::_Create_DX8_Surface(size): BGFX surface ownership is enabled; no fake-D3D surface fallback is allowed");
-		return nullptr;
-	}
-#endif
+	WWASSERT_PRINT(
+		false,
+		"DX8Wrapper::_Create_DX8_Surface(size): standalone bgfx cannot create fake-D3D surfaces");
+	return nullptr;
+#else
 
 	IDirect3DSurface8 *surface = nullptr;
 
@@ -3607,6 +3330,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(unsigned int width, unsigned
 	DX8CALL(CreateImageSurface(width, height, WW3DFormat_To_D3DFormat(format), &surface));
 
 	return surface;
+#endif
 }
 
 IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
@@ -3615,14 +3339,11 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 	DX8_Assert();
 
 #if defined(GGC_BGFX_STANDALONE)
-	if (Blocks_Legacy_Surface_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"DX8Wrapper::_Create_DX8_Surface(file): BGFX surface ownership is enabled; no fake-D3D surface fallback is allowed");
-		return nullptr;
-	}
-#endif
+	WWASSERT_PRINT(
+		false,
+		"DX8Wrapper::_Create_DX8_Surface(file): standalone bgfx cannot create fake-D3D surfaces");
+	return nullptr;
+#else
 
 	// Note: Since there is no "D3DXCreateSurfaceFromFile" and no "GetSurfaceInfoFromFile" (the
 	// latter is supposed to be added to D3DX in a future version), we create a texture from the
@@ -3668,6 +3389,7 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 		WW3D_FORMAT_UNKNOWN,
 		true);
 	return surface;
+#endif
 }
 #endif
 
