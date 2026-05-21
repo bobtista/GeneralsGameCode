@@ -46,6 +46,8 @@
 //----------------------------------------------------------------------------
 
 #include "Common/GameMemory.h"
+#include "WW3D2/BgfxMigrationToggles.h"
+#include "WW3D2/surfaceclass.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/textureloader.h"
 #include "WW3D2/RenderBackend.h"
@@ -91,6 +93,22 @@
 //         Private Functions
 //----------------------------------------------------------------------------
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+static TextureClass *Create_Writable_Video_Texture(unsigned width, unsigned height, WW3DFormat format)
+{
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
+		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership))
+	{
+		SurfaceClass *surface = MSGNEW("SurfaceClass") SurfaceClass(width, height, format);
+		TextureClass *texture = MSGNEW("TextureClass") TextureClass(surface, MIP_LEVELS_1);
+		REF_PTR_RELEASE(surface);
+		return texture;
+	}
+
+	return MSGNEW("TextureClass") TextureClass(width, height, format, MIP_LEVELS_1);
+}
+#endif
+
 
 
 //----------------------------------------------------------------------------
@@ -133,7 +151,11 @@ Bool W3DVideoBuffer::allocate( UnsignedInt width, UnsignedInt height )
 		return FALSE;
 	}
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	m_texture = Create_Writable_Video_Texture(m_textureWidth, m_textureHeight, w3dFormat);
+#else
 	m_texture  = MSGNEW("TextureClass") TextureClass ( m_textureWidth, m_textureHeight, w3dFormat, MIP_LEVELS_1 );
+#endif
 
 	if ( m_texture == nullptr )
 	{
