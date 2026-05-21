@@ -1878,6 +1878,15 @@ void ZTextureClass::Apply_Legacy_Surface
 	bool disable_auto_invalidation
 )
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)native_texture;
+	(void)initialized;
+	(void)disable_auto_invalidation;
+	WWASSERT_PRINT(
+		false,
+		"ZTextureClass::Apply_Legacy_Surface: standalone bgfx cannot apply fake-D3D depth textures");
+	return;
+#else
 	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
@@ -1897,6 +1906,7 @@ void ZTextureClass::Apply_Legacy_Surface
 		Height=d3d_desc.Height;
 	}
 	surface->Release();
+#endif
 }
 
 //**********************************************************************************************
@@ -2138,6 +2148,15 @@ void CubeTextureClass::Apply_Legacy_Surface
 	bool disable_auto_invalidation
 )
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)native_texture;
+	(void)initialized;
+	(void)disable_auto_invalidation;
+	WWASSERT_PRINT(
+		false,
+		"CubeTextureClass::Apply_Legacy_Surface: standalone bgfx cannot apply fake-D3D cube textures");
+	return;
+#else
 	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
@@ -2155,6 +2174,7 @@ void CubeTextureClass::Apply_Legacy_Surface
 		Width=d3d_desc.Width;
 		Height=d3d_desc.Height;
 	}
+#endif
 }
 
 
@@ -2356,6 +2376,15 @@ void VolumeTextureClass::Apply_Legacy_Surface
 	bool disable_auto_invalidation
 )
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)native_texture;
+	(void)initialized;
+	(void)disable_auto_invalidation;
+	WWASSERT_PRINT(
+		false,
+		"VolumeTextureClass::Apply_Legacy_Surface: standalone bgfx cannot apply fake-D3D volume textures");
+	return;
+#else
 	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
@@ -2375,4 +2404,5 @@ void VolumeTextureClass::Apply_Legacy_Surface
 		Height=d3d_desc.Height;
 		Depth=d3d_desc.Depth;
 	}
+#endif
 }
