@@ -60,6 +60,7 @@
 #include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/vertmaterial.h"
 class DebugHintObject : public RenderObjClass
 {
@@ -89,10 +90,10 @@ protected:
 	Int m_myColor;	// argb
 	Int m_mySize;
 
-	DX8IndexBufferClass				*m_indexBuffer;
+	RenderIndexBufferClass				*m_indexBuffer;
 	ShaderClass								m_shaderClass; //shader or rendering state for heightmap
 	VertexMaterialClass	  	  *m_vertexMaterialClass;
-	DX8VertexBufferClass			*m_vertexBufferTile;	//First vertex buffer.
+	RenderVertexBufferClass			*m_vertexBufferTile;	//First vertex buffer.
 
 	void initData();
 };
@@ -174,18 +175,18 @@ void DebugHintObject::initData()
 {
 	freeMapResources();	//free old data and ib/vb
 
-	m_indexBuffer = NEW_REF(DX8IndexBufferClass,(3));
+	m_indexBuffer = NEW_REF(RenderIndexBufferClass,(3));
 
 	// Fill up the IB
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 		ib[0]=0;
 		ib[1]=1;
 		ib[2]=2;
 	}
 
-	m_vertexBufferTile = NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,3,DX8VertexBufferClass::USAGE_DEFAULT));
+	m_vertexBufferTile = NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,3,RenderVertexBufferClass::USAGE_DEFAULT));
 
 	//go with a preset material for now.
 	m_vertexMaterialClass = VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
@@ -207,7 +208,7 @@ void DebugHintObject::setLocAndColorAndSize(const Coord3D *loc, Int argb, Int si
 
 	if (m_vertexBufferTile)
 	{
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBufferTile);
+		RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBufferTile);
 		VertexFormatXYZDUV1 *vb = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 
 		Real x1 = m_mySize * 0.866;	// cos(30)
