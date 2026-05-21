@@ -44,6 +44,7 @@
 #include "dx8fvf.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+#include "renderbufferclasses.h"
 #include "thread.h"
 #include "ww3dcolor.h"
 #include "wwmemlog.h"
@@ -66,7 +67,7 @@ static unsigned short _DynamicSortingVertexArraySize=0;
 static unsigned short _DynamicSortingVertexArrayOffset=0;
 
 static bool _DynamicBackendVertexBufferInUse=false;
-static DX8VertexBufferClass* _DynamicBackendVertexBuffer=nullptr;
+static RenderVertexBufferClass* _DynamicBackendVertexBuffer=nullptr;
 static unsigned short _DynamicBackendVertexBufferSize=DEFAULT_VB_SIZE;
 static unsigned short _DynamicBackendVertexBufferOffset=0;
 
@@ -570,6 +571,29 @@ DX8VertexBufferClass::~DX8VertexBufferClass()
 }
 
 // ----------------------------------------------------------------------------
+
+#if defined(GGC_BGFX_STANDALONE)
+RenderVertexBufferClass::RenderVertexBufferClass(unsigned FVF, unsigned short vertex_count_, UsageType usage)
+	:
+	VertexBufferClass(BUFFER_TYPE_STATIC, FVF, vertex_count_)
+{
+	DX8_THREAD_ASSERT();
+	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
+	if (g_renderBackend != nullptr) {
+		m_backendHandle = g_renderBackend->Create_Vertex_Buffer_Resource(this);
+	}
+}
+
+RenderVertexBufferClass::~RenderVertexBufferClass()
+{
+	if (m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
+		g_renderBackend->Destroy_Resource(m_backendHandle);
+		m_backendHandle = kInvalidRenderResource;
+	}
+}
+#endif
+
+// ----------------------------------------------------------------------------
 //
 //
 //
@@ -958,15 +982,15 @@ void DynamicVBAccessClass::Allocate_Backend_Dynamic_Buffer()
 
 	// Create a new vb if one doesn't exist currently
 	if (!_DynamicBackendVertexBuffer) {
-		unsigned usage=DX8VertexBufferClass::USAGE_DYNAMIC;
+		unsigned usage=RenderVertexBufferClass::USAGE_DYNAMIC;
 		if (g_renderBackend && g_renderBackend->Supports_NPatches()) {
-			usage|=DX8VertexBufferClass::USAGE_NPATCHES;
+			usage|=RenderVertexBufferClass::USAGE_NPATCHES;
 		}
 
-		_DynamicBackendVertexBuffer=NEW_REF(DX8VertexBufferClass,(
+		_DynamicBackendVertexBuffer=NEW_REF(RenderVertexBufferClass,(
 			dynamic_fvf_type,
 			_DynamicBackendVertexBufferSize,
-			(DX8VertexBufferClass::UsageType)usage));
+			(RenderVertexBufferClass::UsageType)usage));
 		_DynamicBackendVertexBufferOffset=0;
 	}
 

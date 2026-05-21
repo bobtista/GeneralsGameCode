@@ -25,6 +25,7 @@ class DX8VertexBufferClass;
 #if defined(GGC_BGFX_STANDALONE)
 
 #include "dx8indexbuffer.h"
+#include "dx8vertexbuffer.h"
 
 class RenderIndexBufferClass : public IndexBufferClass
 {
@@ -42,16 +43,31 @@ public:
 	virtual ~RenderIndexBufferClass() override;
 };
 
+class RenderVertexBufferClass : public VertexBufferClass
+{
+	W3DMPO_CODE(RenderVertexBufferClass)
+
+public:
+	enum UsageType {
+		USAGE_DEFAULT = 0,
+		USAGE_DYNAMIC = 1,
+		USAGE_SOFTWAREPROCESSING = 2,
+		USAGE_NPATCHES = 4
+	};
+
+	RenderVertexBufferClass(unsigned FVF, unsigned short vertex_count, UsageType usage = USAGE_DEFAULT);
+	virtual ~RenderVertexBufferClass() override;
+};
+
 #else
 
 class DX8IndexBufferClass;
 using RenderIndexBufferClass = DX8IndexBufferClass;
+using RenderVertexBufferClass = DX8VertexBufferClass;
 
 #endif
 
 // Transitional neutral names for runtime code that only needs WW3D render
-// buffers, not raw Direct3D buffer objects. The concrete implementation is
-// still DX8VertexBufferClass until the vertex-buffer compatibility class
-// split is complete. RenderIndexBufferClass has a standalone bgfx
-// implementation and aliases DX8IndexBufferClass for DX8 reference builds.
-using RenderVertexBufferClass = DX8VertexBufferClass;
+// buffers, not raw Direct3D buffer objects. RenderVertexBufferClass and
+// RenderIndexBufferClass have standalone bgfx implementations and alias the
+// DX8 classes for DX8 reference builds.
