@@ -38,12 +38,12 @@
 #include "W3DDevice/GameClient/W3DWaterTracks.h"
 #include "W3DDevice/GameClient/W3DAssetManager.h"
 #include "texture.h"
-#include "dx8textureinterop.h"
 #include "assetmgr.h"
 #include "rinfo.h"
 #include "camera.h"
 #include "scene.h"
 #if !defined(GGC_BGFX_STANDALONE)
+#include "dx8textureinterop.h"
 #include "dx8wrapper.h"
 #include "d3dx8math.h"
 #endif
