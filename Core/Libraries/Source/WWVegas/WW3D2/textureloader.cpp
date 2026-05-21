@@ -2548,6 +2548,12 @@ void TextureLoadTaskClass::Unlock_Surfaces()
 
 void TextureLoadTaskClass::Capture_CPU_Texture_Snapshot_From_Locked_Surfaces()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		Peek_D3D_Texture() == nullptr,
+		"Capture_CPU_Texture_Snapshot_From_Locked_Surfaces: standalone bgfx should use CPU texture staging, not locked fake-D3D surfaces");
+	return;
+#else
 	if (Texture == nullptr || Texture->As_TextureClass() == nullptr || Peek_D3D_Texture() == nullptr) {
 		return;
 	}
@@ -2586,6 +2592,7 @@ void TextureLoadTaskClass::Capture_CPU_Texture_Snapshot_From_Locked_Surfaces()
 	}
 
 	Texture->Set_CPU_Texture_Snapshot(std::move(mips));
+#endif
 }
 
 bool TextureLoadTaskClass::Should_Use_CPU_Texture_Snapshot_Staging() const
