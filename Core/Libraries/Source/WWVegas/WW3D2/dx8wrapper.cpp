@@ -57,6 +57,7 @@
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8renderer.h"
+#include "BgfxMigrationToggles.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "StubD3D8Device.h"
@@ -96,6 +97,18 @@
 #if defined(GGC_BGFX_STANDALONE)
 #include "TARGA.h"
 #include "ww3dformat.h"
+#endif
+
+#if defined(GGC_BGFX_STANDALONE)
+static bool Blocks_Legacy_Texture_Create()
+{
+	return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+}
+
+static bool Blocks_Legacy_Surface_Create()
+{
+	return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
+}
 #endif
 
 static D3DDEVTYPE Legacy_Device_Type(unsigned value) { return static_cast<D3DDEVTYPE>(value); }
@@ -3009,6 +3022,14 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	IDirect3DTexture8 *texture = nullptr;
 
 #if defined(GGC_BGFX_STANDALONE)
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"DX8Wrapper::_Create_DX8_Texture(file): BGFX texture ownership is enabled; no fake-D3D texture fallback is allowed");
+		return nullptr;
+	}
+
 	// Bypass D3DX for TGA files in standalone. The D3DX upload path
 	// occasionally produced bad pixel data against our stub device
 	// (unknown internal cause) which showed as dark bands / black
@@ -3078,6 +3099,16 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	DX8_Assert();
 	IDirect3DTexture8 *texture = nullptr;
 
+#if defined(GGC_BGFX_STANDALONE)
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"DX8Wrapper::_Create_DX8_Texture(surface): BGFX texture ownership is enabled; no fake-D3D texture fallback is allowed");
+		return nullptr;
+	}
+#endif
+
 	D3DSURFACE_DESC surface_desc;
 	::ZeroMemory(&surface_desc, sizeof(D3DSURFACE_DESC));
 	surface->GetDesc(&surface_desc);
@@ -3118,6 +3149,16 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_ZTexture
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 	IDirect3DTexture8* texture = nullptr;
+
+#if defined(GGC_BGFX_STANDALONE)
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"DX8Wrapper::_Create_DX8_ZTexture: BGFX texture ownership is enabled; no fake-D3D depth texture fallback is allowed");
+		return nullptr;
+	}
+#endif
 
 	D3DFORMAT zfmt=WW3DZFormat_To_D3DFormat(zformat);
 
@@ -3407,6 +3448,16 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(unsigned int width, unsigned
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 
+#if defined(GGC_BGFX_STANDALONE)
+	if (Blocks_Legacy_Surface_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"DX8Wrapper::_Create_DX8_Surface(size): BGFX surface ownership is enabled; no fake-D3D surface fallback is allowed");
+		return nullptr;
+	}
+#endif
+
 	IDirect3DSurface8 *surface = nullptr;
 
 	// Paletted surfaces not supported!
@@ -3421,6 +3472,16 @@ IDirect3DSurface8 * DX8Wrapper::_Create_DX8_Surface(const char *filename_)
 {
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
+
+#if defined(GGC_BGFX_STANDALONE)
+	if (Blocks_Legacy_Surface_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"DX8Wrapper::_Create_DX8_Surface(file): BGFX surface ownership is enabled; no fake-D3D surface fallback is allowed");
+		return nullptr;
+	}
+#endif
 
 	// Note: Since there is no "D3DXCreateSurfaceFromFile" and no "GetSurfaceInfoFromFile" (the
 	// latter is supposed to be added to D3DX in a future version), we create a texture from the
