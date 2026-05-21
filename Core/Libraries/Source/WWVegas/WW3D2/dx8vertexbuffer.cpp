@@ -596,7 +596,7 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 #endif
 
 	if (g_renderBackend != nullptr && !g_renderBackend->Requires_Legacy_Buffer_Resources()) {
-		m_backendHandle = g_renderBackend->Register_Loaded_Vertex_Buffer(this);
+		m_backendHandle = g_renderBackend->Create_Vertex_Buffer_Resource(this);
 		return;
 	}
 
@@ -621,7 +621,7 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 	if (SUCCEEDED(ret)) {
 		// Phase 5 Stage 2: populate backend-neutral handle.
 		if (g_renderBackend != nullptr) {
-			m_backendHandle = g_renderBackend->Register_Loaded_Vertex_Buffer(this);
+			m_backendHandle = g_renderBackend->Create_Vertex_Buffer_Resource(this);
 		}
 		return;
 	}
@@ -652,7 +652,7 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 	if (SUCCEEDED(ret)) {
 		WWDEBUG_SAY(("...Vertex buffer creation successful"));
 		if (g_renderBackend != nullptr) {
-			m_backendHandle = g_renderBackend->Register_Loaded_Vertex_Buffer(this);
+			m_backendHandle = g_renderBackend->Create_Vertex_Buffer_Resource(this);
 		}
 	}
 
