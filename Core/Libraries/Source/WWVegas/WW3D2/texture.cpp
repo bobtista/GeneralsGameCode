@@ -51,6 +51,7 @@
 #include "dx8texturelegacytypes.h"
 #include "dx8textureinterop.h"
 #include "textureloader.h"
+#include "bitmaphandler.h"
 #include "missingtexture.h"
 #include "ffactory.h"
 #include "TextureResourceManager.h"
@@ -63,6 +64,7 @@
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "DXTUtils.h"
+#include <algorithm>
 #include <cstring>
 #include <utility>
 
@@ -79,6 +81,119 @@ namespace
 			format == WW3D_FORMAT_DXT3 ||
 			format == WW3D_FORMAT_DXT4 ||
 			format == WW3D_FORMAT_DXT5;
+	}
+
+	unsigned Requested_Mip_Count(unsigned width, unsigned height, MipCountType mip_level_count)
+	{
+		if (mip_level_count == MIP_LEVELS_ALL) {
+			unsigned levels = 1;
+			unsigned size = std::max(width, height);
+			while (size > 1) {
+				size >>= 1;
+				++levels;
+			}
+			return levels;
+		}
+
+		switch (mip_level_count) {
+		case MIP_LEVELS_1: return 1;
+		case MIP_LEVELS_2: return 2;
+		case MIP_LEVELS_3: return 3;
+		case MIP_LEVELS_4: return 4;
+		case MIP_LEVELS_5: return 5;
+		case MIP_LEVELS_6: return 6;
+		case MIP_LEVELS_7: return 7;
+		case MIP_LEVELS_8: return 8;
+		case MIP_LEVELS_10: return 10;
+		case MIP_LEVELS_11: return 11;
+		case MIP_LEVELS_12: return 12;
+		default: return 1;
+		}
+	}
+
+	bool Build_CPU_Texture_Mips_From_Surface(
+		const SurfaceClass::SurfaceImageData &surface_image,
+		MipCountType mip_level_count,
+		std::vector<TextureBaseClass::TextureMipSnapshot> &mips)
+	{
+		mips.clear();
+		if (surface_image.Format == WW3D_FORMAT_UNKNOWN ||
+			Is_Block_Compressed_Texture_Format(surface_image.Format) ||
+			surface_image.Width == 0 ||
+			surface_image.Height == 0 ||
+			surface_image.Data.empty()) {
+			return false;
+		}
+
+		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(surface_image.Format);
+		const unsigned base_row_size = surface_image.Width * bytes_per_pixel;
+		if (bytes_per_pixel == 0 || surface_image.Pitch < base_row_size) {
+			return false;
+		}
+
+		const unsigned requested_levels = Requested_Mip_Count(surface_image.Width, surface_image.Height, mip_level_count);
+		mips.reserve(requested_levels);
+
+		TextureBaseClass::TextureMipSnapshot base_mip;
+		base_mip.Width = surface_image.Width;
+		base_mip.Height = surface_image.Height;
+		base_mip.Pitch = base_row_size;
+		base_mip.Format = surface_image.Format;
+		base_mip.Data.resize(static_cast<size_t>(base_row_size) * surface_image.Height);
+		for (unsigned y = 0; y < surface_image.Height; ++y) {
+			memcpy(
+				base_mip.Data.data() + y * base_mip.Pitch,
+				surface_image.Data.data() + y * surface_image.Pitch,
+				base_row_size);
+		}
+		mips.push_back(std::move(base_mip));
+
+		while (mips.size() < requested_levels) {
+			const TextureBaseClass::TextureMipSnapshot &previous = mips.back();
+			if (previous.Width == 1 && previous.Height == 1) {
+				break;
+			}
+
+			TextureBaseClass::TextureMipSnapshot mip;
+			mip.Width = std::max(1u, previous.Width / 2);
+			mip.Height = std::max(1u, previous.Height / 2);
+			mip.Pitch = mip.Width * bytes_per_pixel;
+			mip.Format = previous.Format;
+			mip.Data.resize(static_cast<size_t>(mip.Pitch) * mip.Height);
+
+			for (unsigned y = 0; y < mip.Height; ++y) {
+				for (unsigned x = 0; x < mip.Width; ++x) {
+					const unsigned src_x = x * 2;
+					const unsigned src_y = y * 2;
+					const auto read_pixel = [&](unsigned px, unsigned py) {
+						px = std::min(px, previous.Width - 1);
+						py = std::min(py, previous.Height - 1);
+						unsigned color = 0;
+						BitmapHandlerClass::Read_B8G8R8A8(
+							color,
+							previous.Data.data() + py * previous.Pitch + px * bytes_per_pixel,
+							previous.Format,
+							nullptr,
+							0);
+						return color;
+					};
+
+					const unsigned combined = BitmapHandlerClass::Combine_A8R8G8B8(
+						read_pixel(src_x, src_y),
+						read_pixel(src_x + 1, src_y),
+						read_pixel(src_x, src_y + 1),
+						read_pixel(src_x + 1, src_y + 1));
+					BitmapHandlerClass::Write_B8G8R8A8(
+						mip.Data.data() + y * mip.Pitch + x * bytes_per_pixel,
+						mip.Format,
+						combined);
+				}
+			}
+
+			mips.push_back(std::move(mip));
+		}
+
+		return !mips.empty();
 	}
 
 	int Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
@@ -881,15 +996,9 @@ TextureClass::TextureClass
 	);
 	Poke_Legacy_Texture(*this, newTexture);
 	const SurfaceClass::SurfaceImageData *surface_image = surface->Get_CPU_Surface_Image();
-	if (surface_image != nullptr && mip_level_count == MIP_LEVELS_1) {
-		std::vector<TextureMipSnapshot> mips;
-		TextureMipSnapshot mip;
-		mip.Width = surface_image->Width;
-		mip.Height = surface_image->Height;
-		mip.Pitch = surface_image->Pitch;
-		mip.Format = surface_image->Format;
-		mip.Data = surface_image->Data;
-		mips.push_back(std::move(mip));
+	std::vector<TextureMipSnapshot> mips;
+	if (surface_image != nullptr &&
+		Build_CPU_Texture_Mips_From_Surface(*surface_image, mip_level_count, mips)) {
 		Set_CPU_Texture_Snapshot(std::move(mips));
 	} else {
 		Refresh_CPU_Texture_Snapshot();
