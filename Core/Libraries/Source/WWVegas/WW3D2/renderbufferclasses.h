@@ -67,6 +67,18 @@ using RenderVertexBufferClass = DX8VertexBufferClass;
 
 #endif
 
+template <typename BufferClass>
+constexpr typename BufferClass::UsageType Render_Buffer_Usage_Default()
+{
+	return BufferClass::USAGE_DEFAULT;
+}
+
+template <typename BufferClass>
+constexpr typename BufferClass::UsageType Render_Buffer_Usage_Dynamic()
+{
+	return BufferClass::USAGE_DYNAMIC;
+}
+
 // Transitional neutral names for runtime code that only needs WW3D render
 // buffers, not raw Direct3D buffer objects. RenderVertexBufferClass and
 // RenderIndexBufferClass have standalone bgfx implementations and alias the
