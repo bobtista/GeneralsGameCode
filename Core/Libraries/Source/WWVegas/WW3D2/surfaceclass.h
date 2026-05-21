@@ -40,6 +40,7 @@
 
 #include "always.h"
 #include "ww3dformat.h"
+#include <vector>
 
 class SurfaceClass;
 class Vector2i;
@@ -64,6 +65,14 @@ class SurfaceClass : public RefCountClass
 			WW3DFormat		Format;	// Surface format
 			unsigned int	Width;	// Surface width in pixels
 			unsigned int	Height;	// Surface height in pixels
+		};
+
+		struct SurfaceImageData {
+			WW3DFormat Format;
+			unsigned int Width;
+			unsigned int Height;
+			unsigned int Pitch;
+			std::vector<unsigned char> Data;
 		};
 
 		// Create surface with desired height, width and format.
@@ -140,11 +149,18 @@ class SurfaceClass : public RefCountClass
 	private:
 		SurfaceClass(void *legacy_surface);
 		void	Attach_Legacy_Surface(void *surface);
+		void	Update_Description_From_Legacy_Surface();
+		void	Capture_CPU_Surface_Snapshot();
+		void	Refresh_CPU_Surface_Snapshot_If_Present();
+		bool	Has_CPU_Surface_Snapshot() const { return !ImageData.Data.empty(); }
 
 		// Legacy surface object
 		void *D3DSurface;
 
 		WW3DFormat SurfaceFormat;
+		SurfaceDescription Description;
+		SurfaceImageData ImageData;
+		bool RefreshCPUAfterUnlock;
 		friend class TextureClass;
 		friend class DX8TextureInterop;
 };
