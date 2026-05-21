@@ -59,6 +59,7 @@ enum
 
 #include <assetmgr.h>
 #include <texture.h>
+#include "WW3D2/BgfxMigrationToggles.h"
 #include "WW3D2/dx8fvf.h"
 #include "WW3D2/indexbuffer.h"
 #include "WW3D2/renderbufferclasses.h"
@@ -90,12 +91,16 @@ enum
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "W3DDevice/GameClient/W3DProjectedShadow.h"
 #include "WW3D2/camera.h"
+#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/matinfo.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
-#include "WW3D2/ww3d.h"
+#include "WW3D2/surfaceclass.h"
+
+#include <utility>
+#include <vector>
 
 // If TEST_AND_BLEND is defined, it will do an alpha test and blend.  Otherwise just alpha test. jba. [5/30/2003]
 #define dontTEST_AND_BLEND 1
@@ -123,6 +128,21 @@ W3DTreeBuffer::W3DTreeTextureClass::W3DTreeTextureClass(unsigned width, unsigned
 	TextureClass(width, height,
 			WW3D_FORMAT_A8R8G8B8, MIP_LEVELS_ALL )
 {
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
+	{
+		TextureMipSnapshot base_mip;
+		base_mip.Width = width;
+		base_mip.Height = height;
+		base_mip.Pitch = width * 4;
+		base_mip.Format = WW3D_FORMAT_A8R8G8B8;
+		base_mip.Data.assign(static_cast<size_t>(base_mip.Pitch) * height, 0);
+
+		std::vector<TextureMipSnapshot> mips;
+		mips.push_back(std::move(base_mip));
+		Set_CPU_Texture_Snapshot(std::move(mips));
+	}
+#endif
 }
 
 //=============================================================================
@@ -139,21 +159,30 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 	Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 	Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 
-	MutableTextureMipView mip = Begin_Mip_Write(0);
-	if (!mip.Is_Valid())
+	SurfaceClass *surface_level = Get_Surface_Level(0);
+	if (surface_level == nullptr)
 	{
 		return 0;
 	}
 
-	const Int surface_pitch = static_cast<Int>(mip.Pitch);
-	UnsignedByte *surface_bits = mip.Data;
+	SurfaceClass::SurfaceDescription surface_desc;
+	surface_level->Get_Description(surface_desc);
+
+	Int surface_pitch = 0;
+	UnsignedByte *surface_bits = static_cast<UnsignedByte *>(surface_level->Lock(&surface_pitch));
+	if (surface_bits == nullptr)
+	{
+		REF_PTR_RELEASE(surface_level);
+		return 0;
+	}
+
 	Int tilePixelExtent = TILE_PIXEL_EXTENT;
 //	Int numRows = surface_desc.Height/(tilePixelExtent+TILE_OFFSET);
 #ifdef RTS_DEBUG
 	//DASSERT_MSG(tilesPerRow*numRows >= htMap->m_numBitmapTiles,Debug::Format ("Too many tiles."));
 	//DEBUG_ASSERTCRASH((Int)surface_desc.Width >= tilePixelExtent*tilesPerRow, ("Bitmap too small."));
 #endif
-	if (mip.Format == WW3D_FORMAT_A8R8G8B8) {
+	if (surface_desc.Format == WW3D_FORMAT_A8R8G8B8) {
 		Int tileNdx;
 		Int pixelBytes = 4;
 #if 0 // Fill unused texture for debug display.
@@ -193,12 +222,22 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 		}
 
 	}
-	End_Mip_Write(0);
+	surface_level->Unlock();
+	REF_PTR_RELEASE(surface_level);
 	Generate_Mip_Levels();
 	if (WW3D::Get_Texture_Reduction()) {
 		Set_LOD(WW3D::Get_Texture_Reduction());
 	}
-	return(mip.Height);
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (!Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
+#endif
+	{
+		// The tree atlas is populated by writing into the legacy texture surface.
+		// Refresh the backend-neutral CPU copy after mip generation so bgfx sees
+		// the completed atlas instead of the constructor-time empty snapshot.
+		Refresh_CPU_Texture_Snapshot();
+	}
+	return(surface_desc.Height);
 }
 
 
