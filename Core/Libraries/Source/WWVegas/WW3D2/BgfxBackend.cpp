@@ -7684,21 +7684,18 @@ void BgfxBackend::Set_Depth_Func(CompareFunc func)
     }
 }
 
-void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture)
+static const BgfxFramebufferEntry *Ensure_Render_Target_Framebuffer(TextureClass *texture)
 {
     if (texture == nullptr || !g_device.initialized)
     {
-        g_views.renderToTexture = false;
-        g_views.renderTargetTexture = nullptr;
-        return;
+        return nullptr;
     }
 
     auto it = g_caches.framebuffer.find(texture);
     if (it == g_caches.framebuffer.end())
     {
-        TextureClass * tex2d = texture->As_TextureClass();
-        const uint16_t w = tex2d ? static_cast<uint16_t>(tex2d->Get_Width())  : 64;
-        const uint16_t h = tex2d ? static_cast<uint16_t>(tex2d->Get_Height()) : 64;
+        const uint16_t w = static_cast<uint16_t>(texture->Get_Width());
+        const uint16_t h = static_cast<uint16_t>(texture->Get_Height());
 
         bgfx::TextureHandle colorTex = bgfx::createTexture2D(
             w, h, false, 1, bgfx::TextureFormat::RGBA8,
@@ -7718,10 +7715,27 @@ void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass
                      w, h, texture));
     }
 
-    const BgfxFramebufferEntry & entry = it->second;
+    return &it->second;
+}
 
-    bgfx::setViewFrameBuffer(kBgfxRTTView, entry.fb);
-    bgfx::setViewRect(kBgfxRTTView, 0, 0, entry.width, entry.height);
+void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture)
+{
+    if (texture == nullptr || !g_device.initialized)
+    {
+        g_views.renderToTexture = false;
+        g_views.renderTargetTexture = nullptr;
+        return;
+    }
+
+    const BgfxFramebufferEntry *entry = Ensure_Render_Target_Framebuffer(texture);
+    if (entry == nullptr) {
+        g_views.renderToTexture = false;
+        g_views.renderTargetTexture = nullptr;
+        return;
+    }
+
+    bgfx::setViewFrameBuffer(kBgfxRTTView, entry->fb);
+    bgfx::setViewRect(kBgfxRTTView, 0, 0, entry->width, entry->height);
     bgfx::setViewClear(kBgfxRTTView,
                         BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
                         0x000000ff, 1.0f, 0);
@@ -9283,7 +9297,14 @@ RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
     // this phase5 entry — Release_Cached_Texture in the dtor queues it
     // for deferred destroy. We leave entry.texture invalid so
     // Destroy_Resource doesn't try to destroy the same handle twice.
-    EnsureBgfxTexture(tex);
+    if (tex->Is_Render_Target())
+    {
+        Ensure_Render_Target_Framebuffer(tex->As_TextureClass());
+    }
+    else
+    {
+        EnsureBgfxTexture(tex);
+    }
 
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
