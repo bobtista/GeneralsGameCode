@@ -364,12 +364,20 @@ SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch)
 		return static_cast<LockedSurfacePtr>(ImageData.Data.data());
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass::Lock: standalone bgfx requires a CPU surface snapshot");
+	*pitch = 0;
+	return nullptr;
+#else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
 	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
 	*pitch = lock_rect.Pitch;
 	RefreshCPUAfterUnlock = Should_Use_CPU_Surface_Snapshots() && Has_CPU_Surface_Snapshot();
 	return static_cast<LockedSurfacePtr>(lock_rect.pBits);
+#endif
 }
 
 SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch, const Vector2i &min, const Vector2i &max)
@@ -386,6 +394,13 @@ SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch, const Vector2i &mi
 			min.I * pixel_size);
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass::Lock(rect): standalone bgfx requires a CPU surface snapshot");
+	*pitch = 0;
+	return nullptr;
+#else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
 
@@ -399,6 +414,7 @@ SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch, const Vector2i &mi
 	*pitch = lock_rect.Pitch;
 	RefreshCPUAfterUnlock = Should_Use_CPU_Surface_Snapshots() && Has_CPU_Surface_Snapshot();
 	return static_cast<LockedSurfacePtr>(lock_rect.pBits);
+#endif
 }
 
 void SurfaceClass::Unlock()
@@ -410,11 +426,18 @@ void SurfaceClass::Unlock()
 		return;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass::Unlock: standalone bgfx cannot unlock fake-D3D surfaces");
+	return;
+#else
 	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 	if (RefreshCPUAfterUnlock) {
 		RefreshCPUAfterUnlock = false;
 		Capture_CPU_Surface_Snapshot();
 	}
+#endif
 }
 
 /***********************************************************************************************
