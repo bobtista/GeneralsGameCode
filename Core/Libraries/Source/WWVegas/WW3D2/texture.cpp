@@ -884,12 +884,6 @@ TextureClass::TextureClass
 	default: break;
 	}
 
-	LegacyBaseTexture *newTexture = Create_Legacy_Texture_From_Surface
-	(
-		Peek_Legacy_Surface(*surface),
-		mip_level_count
-	);
-	Poke_Legacy_Texture(*this, newTexture);
 	const SurfaceClass::SurfaceImageData *surface_image = surface->Get_CPU_Surface_Image();
 	if (surface_image != nullptr && mip_level_count == MIP_LEVELS_1) {
 		std::vector<TextureMipSnapshot> mips;
@@ -901,7 +895,23 @@ TextureClass::TextureClass
 		mip.Data = surface_image->Data;
 		mips.push_back(std::move(mip));
 		Set_CPU_Texture_Snapshot(std::move(mips));
-	} else {
+	}
+
+	LegacyBaseTexture *newTexture = nullptr;
+	const bool source_has_legacy_surface = surface->D3DSurface != nullptr;
+	if (source_has_legacy_surface)
+	{
+		newTexture = Create_Legacy_Texture_From_Surface
+		(
+			Peek_Legacy_Surface(*surface),
+			mip_level_count
+		);
+	}
+
+	if (newTexture != nullptr || source_has_legacy_surface || !Has_CPU_Texture_Mips()) {
+		Poke_Legacy_Texture(*this, newTexture);
+	}
+	if (!Has_CPU_Texture_Mips()) {
 		Refresh_CPU_Texture_Snapshot();
 	}
 	LastAccessed=WW3D::Get_Sync_Time();
