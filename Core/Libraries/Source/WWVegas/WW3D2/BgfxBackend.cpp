@@ -7706,6 +7706,16 @@ static const BgfxFramebufferEntry *Ensure_Render_Target_Framebuffer(TextureClass
 
         bgfx::TextureHandle attachments[2] = { colorTex, depthTex };
         bgfx::FrameBufferHandle fb = bgfx::createFrameBuffer(2, attachments, true);
+        if (!bgfx::isValid(fb))
+        {
+            if (bgfx::isValid(colorTex)) {
+                bgfx::destroy(colorTex);
+            }
+            if (bgfx::isValid(depthTex)) {
+                bgfx::destroy(depthTex);
+            }
+            return nullptr;
+        }
 
         BgfxFramebufferEntry entry = { fb, colorTex, w, h };
         g_caches.framebuffer[texture] = entry;
@@ -8994,8 +9004,30 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
     entry.kind = BGFX_RR_KIND_TEXTURE;
     entry.d3d_mirror = nullptr;
     entry.texture = BGFX_INVALID_HANDLE;
+    entry.fb = BGFX_INVALID_HANDLE;
+    entry.width = desc.width;
+    entry.height = desc.height;
 
-    if (!desc.is_render_target && desc.mips != nullptr && desc.mip_count > 0) {
+    if (desc.is_render_target) {
+        bgfx::TextureHandle colorTex = bgfx::createTexture2D(
+            desc.width, desc.height, false, 1, bgfx::TextureFormat::RGBA8,
+            BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        bgfx::TextureHandle depthTex = bgfx::createTexture2D(
+            desc.width, desc.height, false, 1, bgfx::TextureFormat::D24S8,
+            BGFX_TEXTURE_RT_WRITE_ONLY);
+        bgfx::TextureHandle attachments[2] = { colorTex, depthTex };
+        entry.fb = bgfx::createFrameBuffer(2, attachments, true);
+        if (bgfx::isValid(entry.fb)) {
+            entry.texture = colorTex;
+        } else {
+            if (bgfx::isValid(colorTex)) {
+                bgfx::destroy(colorTex);
+            }
+            if (bgfx::isValid(depthTex)) {
+                bgfx::destroy(depthTex);
+            }
+        }
+    } else if (desc.mips != nullptr && desc.mip_count > 0) {
         const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(desc.format);
         if (bgfxFmt != bgfx::TextureFormat::Unknown) {
             const uint64_t texFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
@@ -9029,7 +9061,6 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
             }
         }
     }
-    // Render targets are allocated separately through Set_Render_Target_With_Z.
 
     RenderResource rr;
     rr.id = AllocPhase5Id();
@@ -9194,7 +9225,9 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
     // Destroy bgfx side.
     switch (entry.kind) {
         case BGFX_RR_KIND_TEXTURE:
-            if (bgfx::isValid(entry.texture)) {
+            if (bgfx::isValid(entry.fb)) {
+                bgfx::destroy(entry.fb);
+            } else if (bgfx::isValid(entry.texture)) {
                 g_caches.deferredDestroys.push_back(entry.texture);
             }
             break;
@@ -9310,6 +9343,7 @@ RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
     std::memset(&entry, 0, sizeof(entry));
     entry.kind       = BGFX_RR_KIND_TEXTURE;
     entry.texture    = BGFX_INVALID_HANDLE;
+    entry.fb         = BGFX_INVALID_HANDLE;
     entry.d3d_mirror = nullptr;
     entry.owner      = tex;
 
