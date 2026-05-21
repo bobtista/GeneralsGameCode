@@ -693,12 +693,6 @@ void W3DShroud::render(CameraClass *cam)
 		m_pDstTexture->Get_Filter().Set_Min_Filter(m_shroudFilter);
 	}
 
-	//Update video memory texture with sysmem copy
-	SurfaceClass* pDestSurface;
-	{
-		pDestSurface=m_pDstTexture->Get_Surface_Level(0);
-	}
-
 	RECT	srcRect;
 	POINT	dstPoint={1,1};	//first row/column is reserved for border.
 
@@ -717,10 +711,16 @@ void W3DShroud::render(CameraClass *cam)
 		//color in order to keep map border in the state we want.
 		m_clearDstTexture=FALSE;
 
+#if !defined(GGC_RENDER_BACKEND_BGFX)
+		SurfaceClass *pDestSurface=m_pDstTexture->Get_Surface_Level(0);
 		fillBorderShroudData(m_boderShroudLevel, pDestSurface);
+		REF_PTR_RELEASE (pDestSurface);
+#endif
 	}
 
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	{
+		SurfaceClass *pDestSurface=m_pDstTexture->Get_Surface_Level(0);
 		//USE_PERF_TIMER(shroudCopy)
 		// TheSuperHackers @bugfix bobtista 01/06/2026 Route the shroud
 		// destination texture upload through the backend-neutral
@@ -752,7 +752,9 @@ void W3DShroud::render(CameraClass *cam)
 			m_srcTexturePitch,
 			region_width, region_height,
 			src_desc.Format);
+		REF_PTR_RELEASE (pDestSurface);
 	}
+#endif
 
 	// TheSuperHackers @feature bobtista 17/04/2026 Push shroud pixel data to
 	// the bgfx backend so it can mirror the POOL_DEFAULT destination texture.
@@ -835,8 +837,6 @@ void W3DShroud::render(CameraClass *cam)
 			m_srcTexturePitch,
 			srcDesc.Format);
 	}
-
-	REF_PTR_RELEASE (pDestSurface);
 }
 
 #define FOG_INTERPOLATION_RATE	(255.0f/1000.0f)	//take one second to go from black to fully lit.
