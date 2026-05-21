@@ -27,8 +27,6 @@
 #include "always.h"
 #include "rendobj.h"
 #include "w3d_file.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
 #include "shader.h"
 #include "vertmaterial.h"
 #include "Lib/BaseType.h"
@@ -89,29 +87,29 @@ protected:
 	Int m_numExtraBlendTiles;		///<number of blend tiles in m_extraBlendTilePositions.
 	Int	m_numVisibleExtraBlendTiles; ///<number rendered last frame.
 	Int m_extraBlendTilePositionsSize; //<total size of array including unused memory.
-	DX8VertexBufferClass **m_vertexBufferTiles; ///<collection of smaller vertex buffers that make up 1 heightmap
+	RenderVertexBufferClass **m_vertexBufferTiles; ///<collection of smaller vertex buffers that make up 1 heightmap
 	VERTEX_FORMAT *m_vertexBufferBackup; ///< In memory copy of the vertex buffer data for quick update of dynamic lighting.
 	Int m_originX; ///<  Origin point in the grid.  Slides around.
 	Int m_originY; ///< Origin point in the grid.  Slides around.
 	Int m_oversizeDrawWidth; // Oversize draw width required by mission scripts for cinematic sequences.
 	Int m_oversizeDrawHeight; // Oversize draw height required by mission scripts for cinematic sequences.
-	DX8IndexBufferClass			*m_indexBuffer;	///<indices defining triangles in a VB tile.
+	RenderIndexBufferClass			*m_indexBuffer;	///<indices defining triangles in a VB tile.
 	Int	m_numVBTilesX;	///<dimensions of array containing all the vertex buffers
 	Int	m_numVBTilesY;	///<dimensions of array containing all the vertex buffers
 	Int m_numVertexBufferTiles;	///<number of vertex buffers needed to store this heightmap
 	Int	m_numBlockColumnsInLastVB;///<a VB tile may be partially filled, this indicates how many 2x2 vertex blocks are filled.
 	Int	m_numBlockRowsInLastVB;///<a VB tile may be partially filled, this indicates how many 2x2 vertex blocks are filled.
 
-	DX8VertexBufferClass *getVertexBufferTile(Int x, Int y);
+	RenderVertexBufferClass *getVertexBufferTile(Int x, Int y);
 	VERTEX_FORMAT *getVertexBufferBackup(Int x, Int y);
 	UnsignedInt doTheDynamicLight(VERTEX_FORMAT *vb, VERTEX_FORMAT *vbMirror, Vector3*light, Vector3*normal, W3DDynamicLight *pLights[], Int numLights);
 	Int getXWithOrigin(Int x);
 	Int getYWithOrigin(Int x);
 	///update vertex diffuse color for dynamic lights inside given rectangle
-	Int updateVBForLight(DX8VertexBufferClass *pVB, VERTEX_FORMAT *data, Int x0, Int y0, Int x1, Int y1, Int originX, Int originY, W3DDynamicLight *pLights[], Int numLights);
-	Int updateVBForLightOptimized(DX8VertexBufferClass	*pVB, VERTEX_FORMAT *data, Int x0, Int y0, Int x1, Int y1, Int originX, Int originY, W3DDynamicLight *pLights[], Int numLights);
+	Int updateVBForLight(RenderVertexBufferClass *pVB, VERTEX_FORMAT *data, Int x0, Int y0, Int x1, Int y1, Int originX, Int originY, W3DDynamicLight *pLights[], Int numLights);
+	Int updateVBForLightOptimized(RenderVertexBufferClass	*pVB, VERTEX_FORMAT *data, Int x0, Int y0, Int x1, Int y1, Int originX, Int originY, W3DDynamicLight *pLights[], Int numLights);
 	///update vertex buffer vertices inside given rectangle
-	Int updateVB(DX8VertexBufferClass	*pVB, VERTEX_FORMAT *data, Int x0, Int y0, Int x1, Int y1, Int originX, Int originY, WorldHeightMap *pMap, RefRenderObjListIterator *pLightsIterator);
+	Int updateVB(RenderVertexBufferClass	*pVB, VERTEX_FORMAT *data, Int x0, Int y0, Int x1, Int y1, Int originX, Int originY, WorldHeightMap *pMap, RefRenderObjListIterator *pLightsIterator);
 	///update vertex buffers associated with the given rectangle
 	void initDestAlphaLUT();	///<initialize water depth LUT stored in m_destAlphaTexture
 	void renderTerrainPass(CameraClass *pCamera);	///< renders additional terrain pass.
