@@ -431,7 +431,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 	WWASSERT(index_count);
 	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
 	if (g_renderBackend != nullptr && !g_renderBackend->Requires_Legacy_Buffer_Resources()) {
-		m_backendHandle = g_renderBackend->Create_Index_Buffer_Resource(this);
+		m_backendHandle = g_renderBackend->Register_Index_Buffer_Resource(this);
 		return;
 	}
 
@@ -456,7 +456,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 	if (SUCCEEDED(ret)) {
 		// Phase 5 Stage 2: populate backend-neutral handle.
 		if (g_renderBackend != nullptr) {
-			m_backendHandle = g_renderBackend->Create_Index_Buffer_Resource(this);
+			m_backendHandle = g_renderBackend->Register_Index_Buffer_Resource(this);
 		}
 		return;
 	}
@@ -484,7 +484,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 	if (SUCCEEDED(ret)) {
 		WWDEBUG_SAY(("...Index buffer creation successful"));
 		if (g_renderBackend != nullptr) {
-			m_backendHandle = g_renderBackend->Create_Index_Buffer_Resource(this);
+			m_backendHandle = g_renderBackend->Register_Index_Buffer_Resource(this);
 		}
 	}
 
@@ -520,7 +520,7 @@ RenderIndexBufferClass::RenderIndexBufferClass(unsigned short index_count_, Usag
 	WWASSERT(index_count);
 	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
 	if (g_renderBackend != nullptr) {
-		m_backendHandle = g_renderBackend->Create_Index_Buffer_Resource(this);
+		m_backendHandle = g_renderBackend->Register_Index_Buffer_Resource(this);
 	}
 }
 

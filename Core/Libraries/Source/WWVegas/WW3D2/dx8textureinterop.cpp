@@ -134,7 +134,7 @@ void DX8TextureInterop::Set_Legacy_Base_Texture(TextureBaseClass &texture, IDire
 		if (texture.m_backendHandle != kInvalidRenderResource) {
 			g_renderBackend->Destroy_Resource(texture.m_backendHandle);
 		}
-		texture.m_backendHandle = g_renderBackend->Create_Texture_Resource(&texture);
+		texture.m_backendHandle = g_renderBackend->Register_Texture_Resource(&texture);
 	} else if (texture.LegacyTexture == nullptr && g_renderBackend != nullptr) {
 		if (texture.m_backendHandle != kInvalidRenderResource) {
 			g_renderBackend->Destroy_Resource(texture.m_backendHandle);

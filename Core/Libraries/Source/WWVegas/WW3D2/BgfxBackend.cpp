@@ -9257,7 +9257,7 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
 
 // -- Transitional owner-backed resource hooks -------------------------------
 
-RenderResource BgfxBackend::Create_Texture_Resource(TextureBaseClass * tex)
+RenderResource BgfxBackend::Register_Texture_Resource(TextureBaseClass * tex)
 {
     if (tex == nullptr) {
         return kInvalidRenderResource;
@@ -9289,7 +9289,7 @@ RenderResource BgfxBackend::Create_Texture_Resource(TextureBaseClass * tex)
     return RegisterPhase5Entry(entry);
 }
 
-RenderResource BgfxBackend::Create_Vertex_Buffer_Resource(VertexBufferClass * vb)
+RenderResource BgfxBackend::Register_Vertex_Buffer_Resource(VertexBufferClass * vb)
 {
     if (vb == nullptr) {
         return kInvalidRenderResource;
@@ -9302,12 +9302,12 @@ RenderResource BgfxBackend::Create_Vertex_Buffer_Resource(VertexBufferClass * vb
     return RegisterPhase5Entry(MakeVertexBufferResourceEntry(vb));
 }
 
-RenderResource BgfxBackend::Create_Index_Buffer_Resource(IndexBufferClass * ib)
+RenderResource BgfxBackend::Register_Index_Buffer_Resource(IndexBufferClass * ib)
 {
     if (ib == nullptr) {
         return kInvalidRenderResource;
     }
-    // Same rationale as Create_Vertex_Buffer_Resource — leave d3d_mirror
+    // Same rationale as Register_Vertex_Buffer_Resource — leave d3d_mirror
     // null so Destroy_Resource's reference-side Release does nothing.
     return RegisterPhase5Entry(MakeIndexBufferResourceEntry(ib));
 }
