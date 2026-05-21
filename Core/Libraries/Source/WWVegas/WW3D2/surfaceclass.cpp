@@ -1157,6 +1157,11 @@ void SurfaceClass::Update_Description_From_Legacy_Surface()
 {
 	WWASSERT(D3DSurface != nullptr);
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass::Update_Description_From_Legacy_Surface: standalone bgfx cannot read fake-D3D surface descriptions");
+#else
 	LegacySurfaceDesc d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
 	DX8_ErrorCode(LEGACY_SURFACE->GetDesc(&d3d_desc));
@@ -1165,6 +1170,7 @@ void SurfaceClass::Update_Description_From_Legacy_Surface()
 	Description.Width = d3d_desc.Width;
 	Description.Height = d3d_desc.Height;
 	SurfaceFormat = Description.Format;
+#endif
 }
 
 void SurfaceClass::Allocate_CPU_Surface_Snapshot()
