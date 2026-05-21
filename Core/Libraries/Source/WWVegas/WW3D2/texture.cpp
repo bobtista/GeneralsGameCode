@@ -176,7 +176,13 @@ TextureBaseClass::~TextureBaseClass()
 
 	if (LegacyTexture)
 	{
+#if defined(GGC_BGFX_STANDALONE)
+		WWASSERT_PRINT(
+			false,
+			"TextureBaseClass::~TextureBaseClass: standalone bgfx cannot release fake-D3D textures");
+#else
 		Legacy_Texture(LegacyTexture)->Release();
+#endif
 		LegacyTexture = nullptr;
 	}
 	Clear_CPU_Texture_Snapshot();
@@ -268,7 +274,13 @@ void TextureBaseClass::Invalidate()
 
 	if (LegacyTexture)
 	{
+#if defined(GGC_BGFX_STANDALONE)
+		WWASSERT_PRINT(
+			false,
+			"TextureBaseClass::Invalidate: standalone bgfx cannot release fake-D3D textures");
+#else
 		Legacy_Texture(LegacyTexture)->Release();
+#endif
 		LegacyTexture = nullptr;
 	}
 	Clear_CPU_Texture_Snapshot();
@@ -403,7 +415,15 @@ void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 void TextureBaseClass::Load_Locked_Surface()
 {
 	WWPROFILE(("TextureClass::Load_Locked_Surface()"));
-	if (LegacyTexture) Legacy_Texture(LegacyTexture)->Release();
+	if (LegacyTexture) {
+#if defined(GGC_BGFX_STANDALONE)
+		WWASSERT_PRINT(
+			false,
+			"TextureBaseClass::Load_Locked_Surface: standalone bgfx cannot release fake-D3D textures");
+#else
+		Legacy_Texture(LegacyTexture)->Release();
+#endif
+	}
 	LegacyTexture=nullptr;
 	TextureLoader::Request_Thumbnail(this);
 	Initialized=false;
@@ -455,7 +475,14 @@ unsigned int TextureBaseClass::Get_Priority()
 		return 0;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureBaseClass::Get_Priority: standalone bgfx cannot query fake-D3D texture priority");
+	return 0;
+#else
 	return Legacy_Texture(LegacyTexture)->GetPriority();
+#endif
 }
 
 
@@ -471,7 +498,14 @@ unsigned int TextureBaseClass::Set_Priority(unsigned int priority)
 		return 0;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureBaseClass::Set_Priority: standalone bgfx cannot set fake-D3D texture priority");
+	return 0;
+#else
 	return Legacy_Texture(LegacyTexture)->SetPriority(priority);
+#endif
 }
 
 
