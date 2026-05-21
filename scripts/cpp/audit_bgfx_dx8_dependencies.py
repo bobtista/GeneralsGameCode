@@ -40,14 +40,8 @@ SKIP_FILES = {
     "fixedfunctionlegacytypes.h",
     "StubD3D8Device.cpp",
     "StubD3D8Device.h",
-}
-
-FORBIDDEN_BGFX_COMPILED_SOURCES = {
-    # Backend/tools files that should only compile for the DX8 reference path.
-    "DX8Backend.cpp",
-    "dx8texman.cpp",
-    "dx8webbrowser.cpp",
-    "formconv.cpp",
+    "D3DXStandaloneStubs.cpp",
+    "StandaloneLegacyTextureOps.cpp",
 }
 
 FORBIDDEN_BGFX_COMPILED_SOURCES = {
