@@ -25,6 +25,8 @@
 #pragma once
 
 enum waveType CPP_11(: Int);	//forward reference
+class RenderVertexBufferClass;
+class RenderIndexBufferClass;
 
 /// Custom render object that draws animated tracks/waves on the water.
 /**
@@ -48,7 +50,7 @@ public:
 	void init( Real width, Real length, const Vector2 &start, const Vector2 &end, const Char *texturename, Int waveTimeOffset);	///<allocate W3D resources and set size
 	void init( Real width, const Vector2 &start, const Vector2 &end, const Char *texturename);	///<allocate W3D resources and set size
 	Int	update(Int msElapsed);	///< update animation state
-	Int render(DX8VertexBufferClass	*vertexBuffer, Int batchStart);	///<draw this object
+	Int render(RenderVertexBufferClass *vertexBuffer, Int batchStart);	///<draw this object
 
 protected:
 	TextureClass *m_stageZeroTexture;	///<primary texture
@@ -124,9 +126,9 @@ public:
 	WaterTracksObj *findTrack(Vector2 &start, Vector2 &end, waveType type);
 
 protected:
-	DX8VertexBufferClass		*m_vertexBuffer;	///<vertex buffer used to draw all tracks
-	DX8IndexBufferClass			*m_indexBuffer;	///<indices defining triangles in maximum length track
-	DX8IndexBufferClass			*m_batchIndexBuffer;	///<indices defining batched quads
+	RenderVertexBufferClass		*m_vertexBuffer;	///<vertex buffer used to draw all tracks
+	RenderIndexBufferClass		*m_indexBuffer;	///<indices defining triangles in maximum length track
+	RenderIndexBufferClass		*m_batchIndexBuffer;	///<indices defining batched quads
 	VertexMaterialClass	  	  *m_vertexMaterialClass;	///< vertex lighting material
 	ShaderClass m_shaderClass; ///<shader or rendering state for heightmap
 

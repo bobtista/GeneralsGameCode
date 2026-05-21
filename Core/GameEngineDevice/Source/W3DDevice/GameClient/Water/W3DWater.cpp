@@ -54,6 +54,13 @@
 #include "simplevec.h"
 #include "mesh.h"
 #include "matinfo.h"
+#include "WW3D2/dx8fvf.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/renderbufferclasses.h"
+#include "WW3D2/vertexbuffer.h"
+#if !defined(GGC_BGFX_STANDALONE)
+#include "WW3D2/dx8indexbuffer.h"
+#endif
 
 #include "Common/FramePacer.h"
 #include "Common/GameState.h"
@@ -773,8 +780,8 @@ HRESULT WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY, Bool crea
 	}
 
 	REF_PTR_RELEASE(m_waterMeshIndexBuffer);
-	m_waterMeshIndexBuffer=NEW_REF(DX8IndexBufferClass,(m_numIndices));
-	DX8IndexBufferClass::WriteLockClass lockBackendIndexBuffer(m_waterMeshIndexBuffer);
+	m_waterMeshIndexBuffer=NEW_REF(RenderIndexBufferClass,(m_numIndices));
+	RenderIndexBufferClass::WriteLockClass lockBackendIndexBuffer(m_waterMeshIndexBuffer);
 	backendIndices=lockBackendIndexBuffer.Get_Index_Array();
 
 	Int i,j,k;
@@ -914,10 +921,10 @@ void WaterRenderObjClass::ReAcquireResources()
 {
 	HRESULT hr;
 
-	m_indexBuffer=NEW_REF(DX8IndexBufferClass,(6));
+	m_indexBuffer=NEW_REF(RenderIndexBufferClass,(6));
 	// Fill up the IB
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 		//quad of 2 triangles:
 		//	3-----2
