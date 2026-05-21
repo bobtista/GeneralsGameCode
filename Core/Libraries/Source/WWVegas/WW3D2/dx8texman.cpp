@@ -76,6 +76,11 @@ void DX8TextureTrackerClass::Recreate() const
 	);
 }
 
+void DX8TextureTrackerClass::Release() const
+{
+	Set_Legacy_Base_Texture(*Texture, nullptr);
+}
+
 void DX8ZTextureTrackerClass::Recreate() const
 {
 	WWASSERT(Texture->Peek_D3D_Base_Texture()==nullptr);
@@ -90,5 +95,10 @@ void DX8ZTextureTrackerClass::Recreate() const
 			kLegacyDefaultPool
 		)
 	);
+}
+
+void DX8ZTextureTrackerClass::Release() const
+{
+	Set_Legacy_Base_Texture(*Texture, nullptr);
 }
 #endif

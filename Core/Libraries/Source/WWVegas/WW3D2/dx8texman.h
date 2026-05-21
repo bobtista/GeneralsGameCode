@@ -58,6 +58,7 @@ public:
 	{
 	}
 
+	virtual void Release() const override;
 	virtual void Recreate() const override;
 
 private:
@@ -80,6 +81,7 @@ public:
 	{
 	}
 
+	virtual void Release() const override;
 	virtual void Recreate() const override;
 
 private:

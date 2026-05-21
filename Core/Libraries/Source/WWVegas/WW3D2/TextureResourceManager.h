@@ -40,12 +40,9 @@ public:
 	{
 	}
 
+	virtual ~TextureTrackerClass() = default;
+	virtual void Release() const = 0;
 	virtual void Recreate() const = 0;
-
-	void Release()
-	{
-		Texture->Set_D3D_Base_Texture(nullptr);
-	}
 
 	TextureBaseClass *Get_Texture() const { return Texture; }
 
