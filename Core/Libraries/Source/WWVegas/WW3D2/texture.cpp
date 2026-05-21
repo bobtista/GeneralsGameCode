@@ -1099,7 +1099,13 @@ void TextureClass::Init()
 	}
 
 
-	if (!Peek_Legacy_Base_Texture(*this))
+	bool has_bgfx_cpu_thumbnail = false;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	has_bgfx_cpu_thumbnail =
+		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
+		Has_CPU_Texture_Mips();
+#endif
+	if (!Peek_Legacy_Base_Texture(*this) && !has_bgfx_cpu_thumbnail)
 	{
 		if (!WW3D::Get_Thumbnail_Enabled() || MipLevelCount==MIP_LEVELS_1)
 		{
