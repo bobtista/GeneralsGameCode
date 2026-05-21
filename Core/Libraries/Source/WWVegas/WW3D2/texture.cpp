@@ -93,6 +93,15 @@ namespace
 #endif
 	}
 
+	bool Should_Use_CPU_Only_Surface_Textures()
+	{
+#if defined(GGC_RENDER_BACKEND_BGFX)
+		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+#else
+		return false;
+#endif
+	}
+
 	unsigned Requested_Mip_Count(unsigned width, unsigned height, MipCountType mip_level_count)
 	{
 		if (mip_level_count == MIP_LEVELS_ALL) {
@@ -1010,18 +1019,31 @@ TextureClass::TextureClass
 	default: break;
 	}
 
-	LegacyBaseTexture *newTexture = Create_Legacy_Texture_From_Surface
-	(
-		Peek_Legacy_Surface(*surface),
-		mip_level_count
-	);
-	Poke_Legacy_Texture(*this, newTexture);
 	const SurfaceClass::SurfaceImageData *surface_image = surface->Get_CPU_Surface_Image();
 	std::vector<TextureMipSnapshot> mips;
 	if (surface_image != nullptr &&
 		Build_CPU_Texture_Mips_From_Surface(*surface_image, mip_level_count, mips)) {
 		Set_CPU_Texture_Snapshot(std::move(mips));
-	} else {
+	}
+
+	LegacyBaseTexture *newTexture = nullptr;
+	const bool source_has_legacy_surface = surface->D3DSurface != nullptr;
+	const bool use_cpu_owned_texture =
+		Should_Use_CPU_Only_Surface_Textures() &&
+		Has_CPU_Texture_Mips();
+	if (source_has_legacy_surface && !use_cpu_owned_texture)
+	{
+		newTexture = Create_Legacy_Texture_From_Surface
+		(
+			Peek_Legacy_Surface(*surface),
+			mip_level_count
+		);
+	}
+
+	if (newTexture != nullptr || (source_has_legacy_surface && !use_cpu_owned_texture) || !Has_CPU_Texture_Mips()) {
+		Poke_Legacy_Texture(*this, newTexture);
+	}
+	if (!Has_CPU_Texture_Mips()) {
 		Refresh_CPU_Texture_Snapshot();
 	}
 	LastAccessed=WW3D::Get_Sync_Time();
@@ -1089,7 +1111,13 @@ void TextureClass::Init()
 	}
 
 
-	if (!Peek_Legacy_Base_Texture(*this))
+	bool has_bgfx_cpu_thumbnail = false;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	has_bgfx_cpu_thumbnail =
+		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
+		Has_CPU_Texture_Mips();
+#endif
+	if (!Peek_Legacy_Base_Texture(*this) && !has_bgfx_cpu_thumbnail)
 	{
 		if (!WW3D::Get_Thumbnail_Enabled() || MipLevelCount==MIP_LEVELS_1)
 		{
@@ -1320,6 +1348,19 @@ void TextureClass::Update_Surface_Level_From_Surface(unsigned int level, const S
 */
 void TextureClass::Get_Level_Description( SurfaceClass::SurfaceDescription & desc, unsigned int level )
 {
+	const std::vector<TextureMipSnapshot> &mips = Get_CPU_Texture_Mips();
+	if (level < mips.size())
+	{
+		const TextureMipSnapshot &mip = mips[level];
+		if (mip.Format != WW3D_FORMAT_UNKNOWN && mip.Width != 0 && mip.Height != 0)
+		{
+			desc.Format = mip.Format;
+			desc.Width = mip.Width;
+			desc.Height = mip.Height;
+			return;
+		}
+	}
+
 	SurfaceClass * surf = Get_Surface_Level(level);
 	if (surf != nullptr) {
 		surf->Get_Description(desc);
