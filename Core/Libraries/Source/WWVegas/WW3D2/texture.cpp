@@ -274,6 +274,7 @@ TextureBaseClass::TextureBaseClass
 	IsRenderTarget(rendertarget),
 	IsProcedural(false),
 	IsReducible(reducible),
+	IsMissingTexture(false),
 	IsCompressionAllowed(false),
 	InactivationTime(0),
 	ExtendedInactivationTime(0),
@@ -547,6 +548,13 @@ void TextureBaseClass::Load_Locked_Surface()
 */
 bool TextureBaseClass::Is_Missing_Texture()
 {
+	if (IsMissingTexture) {
+		return true;
+	}
+	if (LegacyTexture == nullptr) {
+		return false;
+	}
+
 	bool flag = false;
 	LegacyBaseTexture *missing_texture = Get_Legacy_Missing_Texture();
 

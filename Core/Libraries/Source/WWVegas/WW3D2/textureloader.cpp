@@ -1962,8 +1962,35 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 	WWASSERT(!D3DTexture);
 
 	Log_Texture_Load_Failure("task", Texture ? Texture->Get_Full_Path().str() : nullptr);
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
+		Texture != nullptr &&
+		Texture->As_TextureClass() != nullptr)
+	{
+		TextureClass *texture = Texture->As_TextureClass();
+		std::vector<TextureBaseClass::TextureMipSnapshot> mips;
+		MissingTexture::Build_CPU_Texture_Mips(mips);
+		WWASSERT(!mips.empty());
+		texture->TextureFormat = WW3D_FORMAT_A8R8G8B8;
+		Texture->Width = mips[0].Width;
+		Texture->Height = mips[0].Height;
+		Texture->Set_CPU_Texture_Snapshot(std::move(mips));
+		Texture->Initialized = true;
+		Texture->Mark_Missing_Texture(true);
+		Texture->LastAccessed = WW3D::Get_Sync_Time();
+		if (g_renderBackend != nullptr)
+		{
+			g_renderBackend->Invalidate_Cached_Texture(Texture);
+		}
+		return;
+	}
+#endif
 	D3DTexture = Get_Legacy_Missing_Texture();
 	Apply(true);
+	if (Texture != nullptr)
+	{
+		Texture->Mark_Missing_Texture(true);
+	}
 }
 
 
@@ -1977,6 +2004,7 @@ void TextureLoadTaskClass::Apply(bool initialize)
 	}
 
 	Apply_Legacy_Surface(*Texture, Peek_D3D_Texture(), initialize);
+	Texture->Mark_Missing_Texture(false);
 
 	Peek_D3D_Texture()->Release();
 	D3DTexture = nullptr;
