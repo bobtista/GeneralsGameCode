@@ -1554,6 +1554,14 @@ void TextureClass::Set_LOD(unsigned int lod) const
 */
 void *TextureClass::Get_Legacy_Surface_Level(unsigned int level)
 {
+	if (Should_Use_CPU_Only_Texture_Level_Surfaces())
+	{
+		WWASSERT_PRINT(
+			0,
+			"TextureClass::Get_Legacy_Surface_Level: BGFX surface ownership is enabled; no legacy surface fallback is allowed");
+		return nullptr;
+	}
+
 	if (!Peek_Legacy_Texture2D(*this))
 	{
 		WWASSERT_PRINT(0, "Get_Legacy_Surface_Level: native texture is null!");
@@ -1856,6 +1864,14 @@ void ZTextureClass::Apply_Legacy_Surface
 */
 void *ZTextureClass::Get_Legacy_Surface_Level(unsigned int level)
 {
+	if (Should_Use_CPU_Only_Texture_Level_Surfaces())
+	{
+		WWASSERT_PRINT(
+			0,
+			"ZTextureClass::Get_Legacy_Surface_Level: BGFX surface ownership is enabled; no legacy depth surface fallback is allowed");
+		return nullptr;
+	}
+
 	if (!Peek_Legacy_Texture2D(*this))
 	{
 		WWASSERT_PRINT(0, "Get_Legacy_Surface_Level: native texture is null!");
