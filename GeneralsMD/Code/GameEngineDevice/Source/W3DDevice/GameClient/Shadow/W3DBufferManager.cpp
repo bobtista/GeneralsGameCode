@@ -27,6 +27,7 @@
 #include "W3DDevice/GameClient/W3DBufferManager.h"
 #include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8vertexbuffer.h"
+#include "WW3D2/renderbufferclasses.h"
 
 W3DBufferManager *TheW3DBufferManager=nullptr;	//singleton
 
@@ -190,7 +191,7 @@ Bool W3DBufferManager::ReAcquireResources()
 		W3DVertexBuffer *vb = m_W3DVertexBuffers[i];
 		while (vb)
 		{	DEBUG_ASSERTCRASH( vb->m_DX8VertexBuffer == nullptr, ("ReAcquire of existing vertex buffer"));
-			vb->m_DX8VertexBuffer=NEW_REF(DX8VertexBufferClass,(FVFTypeIndexList[vb->m_format],vb->m_size,DX8VertexBufferClass::USAGE_DEFAULT));
+			vb->m_DX8VertexBuffer=NEW_REF(RenderVertexBufferClass,(FVFTypeIndexList[vb->m_format],vb->m_size,RenderVertexBufferClass::USAGE_DEFAULT));
 			DEBUG_ASSERTCRASH( vb->m_DX8VertexBuffer, ("Failed ReAcquire of vertex buffer"));
 			if (!vb->m_DX8VertexBuffer)
 				return FALSE;
@@ -201,7 +202,7 @@ Bool W3DBufferManager::ReAcquireResources()
 	W3DIndexBuffer *ib = m_W3DIndexBuffers;
 	while (ib)
 	{	DEBUG_ASSERTCRASH( ib->m_DX8IndexBuffer == nullptr, ("ReAcquire of existing index buffer"));
-		ib->m_DX8IndexBuffer=NEW_REF(DX8IndexBufferClass,(ib->m_size,DX8IndexBufferClass::USAGE_DEFAULT));
+		ib->m_DX8IndexBuffer=NEW_REF(RenderIndexBufferClass,(ib->m_size,RenderIndexBufferClass::USAGE_DEFAULT));
 		DEBUG_ASSERTCRASH( ib->m_DX8IndexBuffer, ("Failed ReAcquire of index buffer"));
 		if (!ib->m_DX8IndexBuffer)
 			return FALSE;
@@ -312,7 +313,7 @@ W3DBufferManager::W3DVertexBufferSlot * W3DBufferManager::allocateSlotStorage(VB
 
 		Int vbSize=__max(DEFAULT_VERTEX_BUFFER_SIZE,size);
 
-		pVB->m_DX8VertexBuffer=NEW_REF(DX8VertexBufferClass,(FVFTypeIndexList[fvfType],vbSize,DX8VertexBufferClass::USAGE_DEFAULT));
+		pVB->m_DX8VertexBuffer=NEW_REF(RenderVertexBufferClass,(FVFTypeIndexList[fvfType],vbSize,RenderVertexBufferClass::USAGE_DEFAULT));
 		pVB->m_format=fvfType;
 		pVB->m_startFreeIndex=size;
 		pVB->m_size=vbSize;
@@ -432,7 +433,7 @@ W3DBufferManager::W3DIndexBufferSlot * W3DBufferManager::allocateSlotStorage(Int
 
 		Int ibSize=__max(DEFAULT_INDEX_BUFFER_SIZE,size);
 
-		pIB->m_DX8IndexBuffer=NEW_REF(DX8IndexBufferClass,(ibSize,DX8IndexBufferClass::USAGE_DEFAULT));
+		pIB->m_DX8IndexBuffer=NEW_REF(RenderIndexBufferClass,(ibSize,RenderIndexBufferClass::USAGE_DEFAULT));
 		pIB->m_startFreeIndex=size;
 		pIB->m_size=ibSize;
 		ibSlot=&m_W3DIndexBufferEmptySlots[m_numEmptyIndexSlotsAllocated];
