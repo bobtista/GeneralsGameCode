@@ -58,7 +58,7 @@
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 
-#define DEFAULT_VB_SIZE 5000
+static constexpr unsigned short kDefaultDynamicVertexBufferSize = 5000;
 
 static bool _DynamicSortingVertexArrayInUse=false;
 //static VertexFormatXYZNDUV2* _DynamicSortingVertexArray=nullptr;
@@ -68,7 +68,7 @@ static unsigned short _DynamicSortingVertexArrayOffset=0;
 
 static bool _DynamicBackendVertexBufferInUse=false;
 static RenderVertexBufferClass* _DynamicBackendVertexBuffer=nullptr;
-static unsigned short _DynamicBackendVertexBufferSize=DEFAULT_VB_SIZE;
+static unsigned short _DynamicBackendVertexBufferSize=kDefaultDynamicVertexBufferSize;
 static unsigned short _DynamicBackendVertexBufferOffset=0;
 
 static const FVFInfoClass _DynamicFVFInfo(dynamic_fvf_type);
@@ -955,7 +955,7 @@ void DynamicVBAccessClass::_Deinit()
 	WWASSERT ((_DynamicBackendVertexBuffer == nullptr) || (_DynamicBackendVertexBuffer->Num_Refs() == 1));
 	REF_PTR_RELEASE(_DynamicBackendVertexBuffer);
 	_DynamicBackendVertexBufferInUse=false;
-	_DynamicBackendVertexBufferSize=DEFAULT_VB_SIZE;
+	_DynamicBackendVertexBufferSize=kDefaultDynamicVertexBufferSize;
 	_DynamicBackendVertexBufferOffset=0;
 
 	WWASSERT ((_DynamicSortingVertexArray == nullptr) || (_DynamicSortingVertexArray->Num_Refs() == 1));
@@ -977,7 +977,7 @@ void DynamicVBAccessClass::Allocate_Backend_Dynamic_Buffer()
 	if (VertexCount>_DynamicBackendVertexBufferSize) {
 		REF_PTR_RELEASE(_DynamicBackendVertexBuffer);
 		_DynamicBackendVertexBufferSize=VertexCount;
-		if (_DynamicBackendVertexBufferSize<DEFAULT_VB_SIZE) _DynamicBackendVertexBufferSize=DEFAULT_VB_SIZE;
+		if (_DynamicBackendVertexBufferSize<kDefaultDynamicVertexBufferSize) _DynamicBackendVertexBufferSize=kDefaultDynamicVertexBufferSize;
 	}
 
 	// Create a new vb if one doesn't exist currently
@@ -1014,7 +1014,7 @@ void DynamicVBAccessClass::Allocate_Sorting_Dynamic_Buffer()
 	if (new_vertex_count>_DynamicSortingVertexArraySize) {
 		REF_PTR_RELEASE(_DynamicSortingVertexArray);
 		_DynamicSortingVertexArraySize=new_vertex_count;
-		if (_DynamicSortingVertexArraySize<DEFAULT_VB_SIZE) _DynamicSortingVertexArraySize=DEFAULT_VB_SIZE;
+		if (_DynamicSortingVertexArraySize<kDefaultDynamicVertexBufferSize) _DynamicSortingVertexArraySize=kDefaultDynamicVertexBufferSize;
 	}
 
 	if (!_DynamicSortingVertexArray) {
