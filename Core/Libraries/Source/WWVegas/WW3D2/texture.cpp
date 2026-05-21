@@ -1311,6 +1311,43 @@ unsigned int TextureClass::Get_Level_Count() const
 
 bool TextureClass::Generate_Mip_Levels()
 {
+	const std::vector<TextureMipSnapshot> &mips = Get_CPU_Texture_Mips();
+	if (!mips.empty())
+	{
+		const TextureMipSnapshot &base_mip = mips[0];
+		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(base_mip.Format);
+		if (base_mip.Format != WW3D_FORMAT_UNKNOWN &&
+			!Is_Block_Compressed_Texture_Format(base_mip.Format) &&
+			base_mip.Width != 0 &&
+			base_mip.Height != 0 &&
+			bytes_per_pixel != 0 &&
+			base_mip.Pitch >= base_mip.Width * bytes_per_pixel &&
+			!base_mip.Data.empty())
+		{
+			SurfaceClass::SurfaceImageData base_image;
+			base_image.Format = base_mip.Format;
+			base_image.Width = base_mip.Width;
+			base_image.Height = base_mip.Height;
+			base_image.Pitch = base_mip.Pitch;
+			base_image.Data = base_mip.Data;
+
+			std::vector<TextureMipSnapshot> rebuilt_mips;
+			if (Build_CPU_Texture_Mips_From_Surface(base_image, MipLevelCount, rebuilt_mips))
+			{
+				Set_CPU_Texture_Snapshot(std::move(rebuilt_mips));
+				if (Peek_Legacy_Texture2D(*this) != nullptr)
+				{
+					Generate_Legacy_Texture_Mips(*this);
+				}
+				if (g_renderBackend != nullptr)
+				{
+					g_renderBackend->Invalidate_Cached_Texture(this);
+				}
+				return true;
+			}
+		}
+	}
+
 	return Generate_Legacy_Texture_Mips(*this);
 }
 
