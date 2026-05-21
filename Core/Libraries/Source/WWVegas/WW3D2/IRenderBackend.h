@@ -643,23 +643,23 @@ public:
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset) {}
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Write-side
-    // capture hooks. The W3D engine writes vertex/index data through
+    // upload hooks. The W3D engine writes vertex/index data through
     // VertexBufferClass::WriteLockClass / IndexBufferClass::WriteLockClass
     // (and the various Copy() helpers). At unlock time the data is sitting
     // in a CPU-mapped pointer that the engine just wrote into - that is
-    // the safe moment for the bgfx backend to grab a copy and create its
+    // the safe moment for the bgfx backend to upload a copy and create its
     // own GPU buffer. The DX8 backend ignores these calls; only BgfxBackend
     // uses them. Default empty implementations so existing call sites that
     // do not need them are not forced to override.
-    virtual void Capture_Vertex_Data(const VertexBufferClass * /*vb*/,
+    virtual void Upload_Vertex_Buffer_Data(const VertexBufferClass * /*vb*/,
                                      const void * /*data*/,
                                      unsigned int /*size_bytes*/) {}
-    virtual void Capture_Index_Data(const IndexBufferClass * /*ib*/,
+    virtual void Upload_Index_Buffer_Data(const IndexBufferClass * /*ib*/,
                                     const void * /*data*/,
                                     unsigned int /*size_bytes*/) {}
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Dynamic
-    // capture hooks. Same pattern as above but for DynamicVBAccessClass /
+    // upload hooks. Same pattern as above but for DynamicVBAccessClass /
     // DynamicIBAccessClass. The data pointer and size describe just the
     // sub-range the caller locked - not the entire dynamic ring buffer.
     // BgfxBackend copies the sub-range into a per-frame transient buffer
@@ -673,16 +673,16 @@ public:
                                             unsigned int /*size_bytes*/) {}
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Sub-range
-    // capture. Rigid mesh category containers fill their shared VB / IB
+    // upload. Rigid mesh category containers fill their shared VB / IB
     // via AppendLockClass one sub-range at a time. BgfxBackend creates a
     // bgfx dynamic buffer the first time it sees a VB / IB and updates
     // the sub-range in place. start_vertex / start_index is in elements
     // (verts or shorts), size_bytes is in bytes.
-    virtual void Capture_Vertex_Sub_Range(const VertexBufferClass * /*vb*/,
+    virtual void Upload_Vertex_Buffer_Sub_Range(const VertexBufferClass * /*vb*/,
                                           const void * /*data*/,
                                           unsigned int /*start_vertex*/,
                                           unsigned int /*size_bytes*/) {}
-    virtual void Capture_Index_Sub_Range(const IndexBufferClass * /*ib*/,
+    virtual void Upload_Index_Buffer_Sub_Range(const IndexBufferClass * /*ib*/,
                                          const void * /*data*/,
                                          unsigned int /*start_index*/,
                                          unsigned int /*size_bytes*/) {}
