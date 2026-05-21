@@ -56,8 +56,6 @@ set(WW3D2_SRC
     dx8renderer.h
     dx8rendererdebugger.cpp
     dx8rendererdebugger.h
-    dx8texman.cpp
-    dx8texman.h
     dx8vertexbuffer.cpp
     dx8vertexbuffer.h
     dx8wrapper.cpp
@@ -69,7 +67,6 @@ set(WW3D2_SRC
     font3d.h
     dx8formatconv.h
     dx8textureinterop.h
-    formconv.cpp
     formconv.h
     framgrab.h
     FixedFunctionState.cpp
@@ -255,6 +252,14 @@ add_library(corei_ww3d2 INTERFACE)
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
+if(NOT GGC_BGFX_STANDALONE)
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/formconv.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.h
+    )
+endif()
+
 if(GGC_RENDER_BACKEND STREQUAL "dx8")
     target_sources(corei_ww3d2 INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/DX8Backend.cpp
@@ -283,25 +288,16 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.h
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendState.h
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendTextures.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.h
     )
 
-    # Phase 5.2 — standalone-mode stub D3D8 device. The file itself is
-    # entirely wrapped in #if GGC_BGFX_STANDALONE so compiling it in ref-popup
-    # mode is a harmless no-op. Adding unconditionally keeps CMake simple.
-    target_sources(corei_ww3d2 INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.h
-    )
-
-    # TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 Stage 5 —
-    # In-tree implementations of the D3DX8 helpers the engine calls
-    # (matrix math, mip filter, surface copy, FVF size, error string).
-    # Compiled only for standalone builds, which don't link d3dx8.lib.
-    # Ref-popup builds still pull those symbols from d3dx8.lib and skip
-    # this file entirely.
     if(GGC_BGFX_STANDALONE)
+        # Standalone bgfx still compiles the legacy wrapper while texture and
+        # surface factories migrate, so it needs the in-tree D3D8 interface shim.
         target_sources(corei_ww3d2 INTERFACE
-            ${CMAKE_CURRENT_SOURCE_DIR}/D3DXStandaloneStubs.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.h
         )
     endif()
 
