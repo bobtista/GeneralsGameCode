@@ -54,7 +54,7 @@
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 
-#define DEFAULT_IB_SIZE 5000
+static constexpr unsigned short kDefaultDynamicIndexBufferSize = 5000;
 
 static bool _DynamicSortingIndexArrayInUse=false;
 static SortingIndexBufferClass* _DynamicSortingIndexArray;
@@ -63,7 +63,7 @@ static unsigned short _DynamicSortingIndexArrayOffset=0;
 
 static bool _DynamicBackendIndexBufferInUse=false;
 static RenderIndexBufferClass* _DynamicBackendIndexBuffer=nullptr;
-static unsigned short _DynamicBackendIndexBufferSize=DEFAULT_IB_SIZE;
+static unsigned short _DynamicBackendIndexBufferSize=kDefaultDynamicIndexBufferSize;
 static unsigned short _DynamicBackendIndexBufferOffset=0;
 
 static int _IndexBufferCount;
@@ -595,7 +595,7 @@ void DynamicIBAccessClass::_Deinit()
 	WWASSERT ((_DynamicBackendIndexBuffer == nullptr) || (_DynamicBackendIndexBuffer->Num_Refs() == 1));
 	REF_PTR_RELEASE(_DynamicBackendIndexBuffer);
 	_DynamicBackendIndexBufferInUse=false;
-	_DynamicBackendIndexBufferSize=DEFAULT_IB_SIZE;
+	_DynamicBackendIndexBufferSize=kDefaultDynamicIndexBufferSize;
 	_DynamicBackendIndexBufferOffset=0;
 
 	WWASSERT ((_DynamicSortingIndexArray == nullptr) || (_DynamicSortingIndexArray->Num_Refs() == 1));
@@ -692,7 +692,7 @@ void DynamicIBAccessClass::Allocate_Backend_Dynamic_Buffer()
 	if (IndexCount>_DynamicBackendIndexBufferSize) {
 		REF_PTR_RELEASE(_DynamicBackendIndexBuffer);
 		_DynamicBackendIndexBufferSize=IndexCount;
-		if (_DynamicBackendIndexBufferSize<DEFAULT_IB_SIZE) _DynamicBackendIndexBufferSize=DEFAULT_IB_SIZE;
+		if (_DynamicBackendIndexBufferSize<kDefaultDynamicIndexBufferSize) _DynamicBackendIndexBufferSize=kDefaultDynamicIndexBufferSize;
 	}
 
 	// Create a new vb if one doesn't exist currently
@@ -728,7 +728,7 @@ void DynamicIBAccessClass::Allocate_Sorting_Dynamic_Buffer()
 	if (new_index_count>_DynamicSortingIndexArraySize) {
 		REF_PTR_RELEASE(_DynamicSortingIndexArray);
 		_DynamicSortingIndexArraySize=new_index_count;
-		if (_DynamicSortingIndexArraySize<DEFAULT_IB_SIZE) _DynamicSortingIndexArraySize=DEFAULT_IB_SIZE;
+		if (_DynamicSortingIndexArraySize<kDefaultDynamicIndexBufferSize) _DynamicSortingIndexArraySize=kDefaultDynamicIndexBufferSize;
 	}
 
 	if (!_DynamicSortingIndexArray) {
