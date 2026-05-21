@@ -631,6 +631,43 @@ LegacyLoaderTexture * Load_Compressed_Texture(
 	return d3d_texture;
 }
 
+#if defined(GGC_BGFX_STANDALONE)
+static LegacyLoaderSurface *Load_Compressed_Surface_Level_Zero(
+	const StringClass& filename,
+	WW3DFormat texture_format)
+{
+	DDSFileClass dds_file(filename, 0);
+	if (!dds_file.Is_Available() || !dds_file.Load()) {
+		return nullptr;
+	}
+
+	WW3DFormat dest_format = texture_format;
+	if (dest_format == WW3D_FORMAT_UNKNOWN) {
+		dest_format = Get_Valid_Texture_Format(dds_file.Get_Format(), true);
+	}
+
+	LegacyLoaderSurface *surface = Create_Legacy_Surface(
+		dds_file.Get_Width(0),
+		dds_file.Get_Height(0),
+		dest_format);
+	if (surface == nullptr) {
+		return nullptr;
+	}
+
+	LegacyLoaderLockedRect locked_rect;
+	DX8_ErrorCode(surface->LockRect(&locked_rect, nullptr, 0));
+	dds_file.Copy_Level_To_Surface(
+		0,
+		dest_format,
+		dds_file.Get_Width(0),
+		dds_file.Get_Height(0),
+		reinterpret_cast<unsigned char*>(locked_rect.pBits),
+		locked_rect.Pitch);
+	DX8_ErrorCode(surface->UnlockRect());
+	return surface;
+}
+#endif
+
 static bool Is_Format_Compressed(WW3DFormat texture_format,bool allow_compression)
 {
 	// Verify that the user isn't requesting compressed texture without hardware support
@@ -897,6 +934,12 @@ LegacyLoaderSurface * Load_Legacy_Surface_Immediate(
 	bool compressed=Is_Format_Compressed(texture_format,allow_compression);
 
 	if (compressed) {
+#if defined(GGC_BGFX_STANDALONE)
+		LegacyLoaderSurface *surface = Load_Compressed_Surface_Level_Zero(filename, texture_format);
+		if (surface != nullptr) {
+			return surface;
+		}
+#endif
 		LegacyLoaderTexture * comp_tex=Load_Compressed_Texture(filename,0,MIP_LEVELS_1,WW3D_FORMAT_UNKNOWN);
 		if (comp_tex) {
 			LegacyLoaderSurface * d3d_surface=nullptr;
