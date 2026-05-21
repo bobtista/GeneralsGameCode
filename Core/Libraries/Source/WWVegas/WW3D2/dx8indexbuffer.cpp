@@ -164,6 +164,14 @@ unsigned IndexBufferClass::Get_Total_Allocated_Memory()
 
 void *IndexBufferClass::Lock_CPU_Buffer_Data(unsigned byte_offset, unsigned size)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	if (type == BUFFER_TYPE_STATIC && m_backendHandle == kInvalidRenderResource) {
+		WWASSERT_PRINT(
+			false,
+			"IndexBufferClass::Lock_CPU_Buffer_Data: standalone bgfx static index buffers require a backend resource");
+		return nullptr;
+	}
+#endif
 	const unsigned total_size = index_count * sizeof(unsigned short);
 	if (byte_offset > total_size || size > total_size - byte_offset) {
 		WWASSERT(0);
@@ -185,6 +193,14 @@ void IndexBufferClass::Update_CPU_Buffer_Data(unsigned byte_offset, const void *
 		return;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	if (type == BUFFER_TYPE_STATIC && m_backendHandle == kInvalidRenderResource) {
+		WWASSERT_PRINT(
+			false,
+			"IndexBufferClass::Update_CPU_Buffer_Data: standalone bgfx static index buffers require a backend resource");
+		return;
+	}
+#endif
 	const unsigned total_size = index_count * sizeof(unsigned short);
 	if (byte_offset > total_size || size > total_size - byte_offset) {
 		WWASSERT(0);
