@@ -20,6 +20,9 @@
 #include "dx8textureinterop.h"
 #include "missingtexture.h"
 
+#include <cstring>
+#include <utility>
+
 static unsigned missing_image_width=128;
 static unsigned missing_image_height=128;
 static unsigned missing_image_depth=24;
@@ -75,6 +78,44 @@ void MissingTexture::_Init()
 void MissingTexture::_Deinit()
 {
 	Release_Legacy_Missing_Texture();
+}
+
+void MissingTexture::Build_CPU_Texture_Mips(std::vector<TextureBaseClass::TextureMipSnapshot> &mips)
+{
+	constexpr unsigned kMissingPixel = 0x7FFF00FF;
+	unsigned width = missing_image_width;
+	unsigned height = missing_image_height;
+	mips.clear();
+
+	while (width > 0 && height > 0)
+	{
+		TextureBaseClass::TextureMipSnapshot mip;
+		mip.Width = width;
+		mip.Height = height;
+		mip.Pitch = width * sizeof(kMissingPixel);
+		mip.Format = WW3D_FORMAT_A8R8G8B8;
+		mip.Data.resize(static_cast<size_t>(mip.Pitch) * height);
+
+		for (unsigned y = 0; y < height; ++y)
+		{
+			unsigned char *row = mip.Data.data() + static_cast<size_t>(mip.Pitch) * y;
+			for (unsigned x = 0; x < width; ++x)
+			{
+				std::memcpy(row + x * sizeof(kMissingPixel), &kMissingPixel, sizeof(kMissingPixel));
+			}
+		}
+
+		mips.push_back(std::move(mip));
+		if (width == 1 && height == 1) {
+			break;
+		}
+		if (width > 1) {
+			width >>= 1;
+		}
+		if (height > 1) {
+			height >>= 1;
+		}
+	}
 }
 
 unsigned int missing_image_palette[]={

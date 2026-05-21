@@ -173,6 +173,7 @@ public:
 	PoolType Get_Pool() const { return Pool; }
 
 	bool Is_Missing_Texture();
+	void Mark_Missing_Texture(bool missing) { IsMissingTexture = missing; }
 
 	// Support for self managed textures
 	bool Is_Dirty() { WWASSERT(Pool==POOL_DEFAULT); return Dirty; };
@@ -221,6 +222,7 @@ protected:
 	bool IsCompressionAllowed;
 	bool IsProcedural;
 	bool IsReducible;
+	bool IsMissingTexture;
 
 
 	unsigned InactivationTime;	// In milliseconds

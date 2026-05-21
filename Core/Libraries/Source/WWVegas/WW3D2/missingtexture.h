@@ -19,10 +19,14 @@
 #pragma once
 
 #include "always.h"
+#include "texture.h"
+
+#include <vector>
 
 class MissingTexture
 {
 public:
 	static void _Init();
 	static void _Deinit();
+	static void Build_CPU_Texture_Mips(std::vector<TextureBaseClass::TextureMipSnapshot> &mips);
 };
