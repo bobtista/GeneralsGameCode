@@ -20,8 +20,6 @@
 
 #include "always.h"
 
-class DX8VertexBufferClass;
-
 #if defined(GGC_BGFX_STANDALONE)
 
 #include "indexbufferbase.h"
@@ -62,6 +60,7 @@ public:
 #else
 
 class DX8IndexBufferClass;
+class DX8VertexBufferClass;
 using RenderIndexBufferClass = DX8IndexBufferClass;
 using RenderVertexBufferClass = DX8VertexBufferClass;
 
