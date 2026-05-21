@@ -17,8 +17,8 @@
 */
 
 // 08/05/02 KM Texture class redesign
-#include "dx8textureinterop.h"
 #include "missingtexture.h"
+#include "texturecompat.h"
 
 #include <cstring>
 #include <utility>
