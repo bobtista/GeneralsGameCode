@@ -17,8 +17,8 @@
 */
 
 // TheSuperHackers @refactor bobtista 26/04/2026 Shared DXT block-compressed
-// texture math used by StubD3D8Device and BgfxBackendTextures. Keeping these
-// in one place prevents the pitch/row calculations from diverging.
+// texture math used by the bgfx texture loader. Keeping these in one place
+// prevents the pitch/row calculations from diverging.
 
 #pragma once
 
