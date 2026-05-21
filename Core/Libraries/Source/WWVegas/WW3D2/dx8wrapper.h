@@ -57,8 +57,8 @@
 #include "RenderDeviceCleanupHook.h"
 
 #include "texture.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
 #include "vertmaterial.h"
 #include "RenderStateCache.h"
 #include "FixedFunctionState.h"
@@ -97,6 +97,8 @@ class VertexBufferClass;
 class DynamicVBAccessClass;
 class IndexBufferClass;
 class DynamicIBAccessClass;
+class DX8VertexBufferClass;
+class DX8IndexBufferClass;
 class TextureClass;
 class LightClass;
 class SurfaceClass;
