@@ -204,6 +204,7 @@ public:
 protected:
 
 	void Load_Locked_Surface();
+	void Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> &&mips);
 
 	bool Initialized;
 
@@ -235,7 +236,6 @@ private:
 		std::vector<TextureMipSnapshot> CPUTextureMips;
 		unsigned CPUTextureRevision;
 		void Capture_CPU_Texture_Snapshot(void *native_texture);
-		void Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> &&mips);
 		void Clear_CPU_Texture_Snapshot();
 		bool PreserveCPUTextureSnapshotOnNextLegacySet;
 

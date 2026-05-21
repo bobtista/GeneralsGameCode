@@ -485,6 +485,11 @@ unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool fli
 	return other;
 }
 
+const SurfaceClass::SurfaceImageData *SurfaceClass::Get_CPU_Surface_Image() const
+{
+	return Has_CPU_Surface_Snapshot() ? &ImageData : nullptr;
+}
+
 
 /***********************************************************************************************
  * SurfaceClass::Copy -- Copies a region from one surface to another                           *

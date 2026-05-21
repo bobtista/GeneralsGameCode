@@ -871,7 +871,20 @@ TextureClass::TextureClass
 		mip_level_count
 	);
 	Poke_Legacy_Texture(*this, newTexture);
-	Refresh_CPU_Texture_Snapshot();
+	const SurfaceClass::SurfaceImageData *surface_image = surface->Get_CPU_Surface_Image();
+	if (surface_image != nullptr && mip_level_count == MIP_LEVELS_1) {
+		std::vector<TextureMipSnapshot> mips;
+		TextureMipSnapshot mip;
+		mip.Width = surface_image->Width;
+		mip.Height = surface_image->Height;
+		mip.Pitch = surface_image->Pitch;
+		mip.Format = surface_image->Format;
+		mip.Data = surface_image->Data;
+		mips.push_back(std::move(mip));
+		Set_CPU_Texture_Snapshot(std::move(mips));
+	} else {
+		Refresh_CPU_Texture_Snapshot();
+	}
 	LastAccessed=WW3D::Get_Sync_Time();
 }
 

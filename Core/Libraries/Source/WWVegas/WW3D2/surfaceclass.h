@@ -125,6 +125,7 @@ class SurfaceClass : public RefCountClass
 
 		// makes a copy of the surface into a byte array
 		unsigned char *CreateCopy(int *width,int *height,int*size,bool flip=false);
+		const SurfaceImageData *Get_CPU_Surface_Image() const;
 
 		// Detaching a surface pointer
 		void	Detach ();
