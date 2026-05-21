@@ -1514,8 +1514,7 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // may still reference it. Double-buffer: collect in current frame, destroy
 // after the NEXT bgfx::frame() (2 frames later = guaranteed safe).
 
-// The bgfx texture currently bound to stage 0 by Set_Texture. Used by
-// SubmitEngineDraw - falls back to g_device.defaultWhiteTexture if invalid.
+// The bgfx texture currently bound to stage 0 by Set_Texture.
 
 // Per-stage sampler flags captured from the source TextureClass's
 // Get_U/V_Addr_Mode in Set_Texture. Default 0 = use bgfx's creation-time
@@ -6281,27 +6280,6 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 
         bgfx::TextureHandle h = EnsureBgfxTexture(texture);
         const bool missingOrUnavailable = IsMissingOrUnavailableTexture(texture, h);
-        // TheSuperHackers @bugfix bobtista 16/04/2026 Use white
-        // fallback for render target textures instead of dark blue. The
-        // blue fallback was intended for water reflections but applies to
-        // ALL unresolved RT textures, tinting the entire world blue.
-        // White is the multiplicative identity — it passes through the
-        // vertex/material color and lets the scene look correct until the
-        // RT texture is properly captured.
-        if (!bgfx::isValid(h) && texture != nullptr &&
-            g_caches.renderTarget.count(texture) > 0)
-        {
-            h = g_device.defaultWhiteTexture;
-            static bool s_loggedRTFallback = false;
-            if (!s_loggedRTFallback)
-            {
-                s_loggedRTFallback = true;
-                TextureClass * t2d_fb = texture->As_TextureClass();
-                WWDEBUG_SAY(("[BgfxBackend] RT FALLBACK: stage=%u using white fallback for %s",
-                             stage,
-                             t2d_fb ? t2d_fb->Get_Full_Path().str() : "(null)"));
-            }
-        }
         if (!bgfx::isValid(h) && texture != nullptr &&
             g_caches.renderTarget.count(texture) == 0)
         {
