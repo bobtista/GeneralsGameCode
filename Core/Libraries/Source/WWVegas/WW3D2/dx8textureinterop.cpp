@@ -38,6 +38,27 @@
 namespace
 {
 #if defined(GGC_BGFX_STANDALONE)
+	bool s_initializingMissingTexture = false;
+
+	bool Blocks_Legacy_Texture_Create()
+	{
+#if defined(GGC_RENDER_BACKEND_BGFX)
+		return !s_initializingMissingTexture &&
+			Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+#else
+		return false;
+#endif
+	}
+
+	bool Blocks_Legacy_Surface_Create()
+	{
+#if defined(GGC_RENDER_BACKEND_BGFX)
+		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
+#else
+		return false;
+#endif
+	}
+
 	D3DPOOL Legacy_Pool_To_D3D(int pool)
 	{
 		switch (pool)
@@ -207,6 +228,13 @@ IDirect3DSurface8 *DX8TextureInterop::Create_Legacy_Surface(
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
+	if (Blocks_Legacy_Surface_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"Create_Legacy_Surface: BGFX surface ownership is enabled; no fake-D3D surface fallback is allowed");
+		return nullptr;
+	}
 	IDirect3DSurface8 *surface = nullptr;
 	WWASSERT(format != WW3D_FORMAT_P8);
 	DX8_ErrorCode(Legacy_Device()->CreateImageSurface(width, height, WW3DFormat_To_D3DFormat(format), &surface));
@@ -220,6 +248,13 @@ IDirect3DSurface8 *DX8TextureInterop::Create_Legacy_Surface_From_File(const char
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
+	if (Blocks_Legacy_Surface_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"Create_Legacy_Surface_From_File: BGFX surface ownership is enabled; no fake-D3D surface fallback is allowed");
+		return nullptr;
+	}
 	StringClass filename_string(filename, true);
 	return Load_Legacy_Surface_Immediate(filename_string, WW3D_FORMAT_UNKNOWN, true);
 #else
@@ -237,6 +272,13 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture(
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"Create_Legacy_Texture: BGFX texture ownership is enabled; no fake-D3D texture fallback is allowed");
+		return nullptr;
+	}
 	WWASSERT(format != WW3D_FORMAT_P8);
 
 	IDirect3DTexture8 *texture = nullptr;
@@ -281,6 +323,13 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture_From_Surface(
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"Create_Legacy_Texture_From_Surface: BGFX texture ownership is enabled; no fake-D3D texture fallback is allowed");
+		return nullptr;
+	}
 
 	D3DSURFACE_DESC surface_desc;
 	::ZeroMemory(&surface_desc, sizeof(surface_desc));
@@ -317,6 +366,13 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_ZTexture(
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"Create_Legacy_ZTexture: BGFX texture ownership is enabled; no fake-D3D depth texture fallback is allowed");
+		return nullptr;
+	}
 	IDirect3DTexture8 *texture = nullptr;
 	const D3DFORMAT native_format = WW3DZFormat_To_D3DFormat(zformat);
 	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
@@ -361,6 +417,13 @@ IDirect3DCubeTexture8 *DX8TextureInterop::Create_Legacy_Cube_Texture(
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"Create_Legacy_Cube_Texture: BGFX texture ownership is enabled; no fake-D3D cube texture fallback is allowed");
+		return nullptr;
+	}
 	WWASSERT(width == height);
 	WWASSERT(format != WW3D_FORMAT_P8);
 
@@ -407,6 +470,13 @@ IDirect3DVolumeTexture8 *DX8TextureInterop::Create_Legacy_Volume_Texture(
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"Create_Legacy_Volume_Texture: BGFX texture ownership is enabled; no fake-D3D volume texture fallback is allowed");
+		return nullptr;
+	}
 	WWASSERT(format != WW3D_FORMAT_P8);
 
 	IDirect3DVolumeTexture8 *texture = nullptr;
@@ -460,6 +530,15 @@ bool DX8TextureInterop::Generate_Legacy_Texture_Mips(TextureClass &texture)
 
 IDirect3DTexture8 *Get_Legacy_Missing_Texture()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"Get_Legacy_Missing_Texture: BGFX texture ownership is enabled; no fake-D3D missing texture fallback is allowed");
+		return nullptr;
+	}
+#endif
 	WWASSERT(s_missingTexture);
 	s_missingTexture->AddRef();
 	return s_missingTexture;
@@ -467,6 +546,15 @@ IDirect3DTexture8 *Get_Legacy_Missing_Texture()
 
 IDirect3DSurface8 *Create_Legacy_Missing_Surface()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	if (Blocks_Legacy_Surface_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"Create_Legacy_Missing_Surface: BGFX surface ownership is enabled; no fake-D3D missing surface fallback is allowed");
+		return nullptr;
+	}
+#endif
 	IDirect3DSurface8 *texture_surface = nullptr;
 	DX8_ErrorCode(s_missingTexture->GetSurfaceLevel(0, &texture_surface));
 	D3DSURFACE_DESC texture_surface_desc;
@@ -534,12 +622,18 @@ void Init_Legacy_Missing_Texture(
 {
 	WWASSERT(!s_missingTexture);
 
+#if defined(GGC_BGFX_STANDALONE)
+	s_initializingMissingTexture = true;
+#endif
 	IDirect3DTexture8 *texture = Create_Legacy_Texture(
 		width,
 		height,
 		WW3D_FORMAT_A8R8G8B8,
 		MIP_LEVELS_ALL,
 		LEGACY_TEXTURE_POOL_MANAGED);
+#if defined(GGC_BGFX_STANDALONE)
+	s_initializingMissingTexture = false;
+#endif
 
 	D3DLOCKED_RECT locked_rect;
 	RECT rect;
