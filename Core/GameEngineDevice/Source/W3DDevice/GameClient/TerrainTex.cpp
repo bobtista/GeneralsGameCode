@@ -51,7 +51,7 @@
 #include "W3DDevice/GameClient/WorldHeightMap.h"
 #include "W3DDevice/GameClient/TileData.h"
 #include "Common/GlobalData.h"
-#include "WW3D2/dx8textureinterop.h"
+#include "WW3D2/texturecompat.h"
 #include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/surfaceclass.h"

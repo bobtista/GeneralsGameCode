@@ -160,6 +160,11 @@ void DX8TextureInterop::Share_Legacy_Texture_With(TextureBaseClass &texture, con
 	Set_Legacy_Base_Texture(texture, source != nullptr ? Peek_Legacy_Base_Texture(*source) : nullptr);
 }
 
+void Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source)
+{
+	DX8TextureInterop::Share_Legacy_Texture_With(texture, source);
+}
+
 void DX8TextureInterop::Poke_Legacy_Texture(TextureBaseClass &texture, IDirect3DBaseTexture8 *native_texture)
 {
 	texture.LegacyTexture = native_texture;
