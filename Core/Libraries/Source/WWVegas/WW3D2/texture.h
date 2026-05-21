@@ -205,6 +205,7 @@ protected:
 
 	void Load_Locked_Surface();
 	void Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> &&mips);
+	void Update_CPU_Texture_Mip_Snapshot(unsigned int level, TextureMipSnapshot &&mip);
 
 	bool Initialized;
 
@@ -362,6 +363,7 @@ public:
 
 	// Get the surface of one of the mipmap levels (defaults to highest-resolution one)
 	SurfaceClass *Get_Surface_Level(unsigned int level = 0);
+	void Update_Surface_Level_From_Surface(unsigned int level, const SurfaceClass::SurfaceImageData &image);
 	void Get_Level_Description( SurfaceClass::SurfaceDescription & desc, unsigned int level = 0 );
 	unsigned int Get_Level_Count() const;
 	bool Generate_Mip_Levels();

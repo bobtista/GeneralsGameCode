@@ -43,6 +43,7 @@
 #include <vector>
 
 class SurfaceClass;
+class TextureClass;
 class Vector2i;
 class Vector3;
 class DX8TextureInterop;
@@ -157,6 +158,7 @@ class SurfaceClass : public RefCountClass
 		void	Upload_CPU_Surface_Snapshot_To_Legacy();
 		void	Ensure_CPU_Surface_Snapshot_Current();
 		void	Mark_CPU_Surface_Snapshot_Stale();
+		void	Attach_Texture_Level_Owner(TextureClass *texture, unsigned int level);
 		bool	Has_Compatible_CPU_Surface_Snapshot(const SurfaceDescription &desc) const;
 		bool	Has_CPU_Surface_Snapshot() const { return !ImageData.Data.empty(); }
 
@@ -169,6 +171,8 @@ class SurfaceClass : public RefCountClass
 		bool RefreshCPUAfterUnlock;
 		bool CPULockActive;
 		bool CPUImagePossiblyStale;
+		TextureClass *TextureOwner;
+		unsigned int TextureOwnerLevel;
 		friend class TextureClass;
 		friend class DX8TextureInterop;
 };
