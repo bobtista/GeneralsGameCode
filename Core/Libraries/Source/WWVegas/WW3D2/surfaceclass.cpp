@@ -48,6 +48,8 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "surfaceclass.h"
+#include "BgfxMigrationToggles.h"
+#include "texture.h"
 #include "dx8formatconv.h"
 #include "dx8texturelegacytypes.h"
 #include "dx8textureinterop.h"
@@ -80,6 +82,11 @@ namespace
 			desc.Format != WW3D_FORMAT_UNKNOWN &&
 			!Is_Block_Compressed_Format(desc.Format) &&
 			::Get_Bytes_Per_Pixel(desc.Format) != 0;
+	}
+
+	bool Should_Use_CPU_Surface_Snapshots()
+	{
+		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
 	}
 }
 
@@ -201,7 +208,11 @@ SurfaceClass::SurfaceClass(unsigned width, unsigned height, WW3DFormat format):
 	SurfaceFormat(format),
 	Description{format, width, height},
 	ImageData{format, width, height, 0, {}},
-	RefreshCPUAfterUnlock(false)
+	RefreshCPUAfterUnlock(false),
+	CPULockActive(false),
+	CPUImagePossiblyStale(false),
+	TextureOwner(nullptr),
+	TextureOwnerLevel(0)
 {
 	WWASSERT(width);
 	WWASSERT(height);
@@ -215,11 +226,43 @@ SurfaceClass::SurfaceClass(const char *filename):
 	SurfaceFormat(WW3D_FORMAT_UNKNOWN),
 	Description{WW3D_FORMAT_UNKNOWN, 0, 0},
 	ImageData{WW3D_FORMAT_UNKNOWN, 0, 0, 0, {}},
-	RefreshCPUAfterUnlock(false)
+	RefreshCPUAfterUnlock(false),
+	CPULockActive(false),
+	CPUImagePossiblyStale(false),
+	TextureOwner(nullptr),
+	TextureOwnerLevel(0)
 {
 	D3DSurface = Create_Legacy_Surface_From_File(filename);
 	Update_Description_From_Legacy_Surface();
 	Capture_CPU_Surface_Snapshot();
+}
+
+SurfaceClass::SurfaceClass(const SurfaceImageData &image):
+	D3DSurface(nullptr),
+	SurfaceFormat(image.Format),
+	Description{image.Format, image.Width, image.Height},
+	ImageData{image.Format, image.Width, image.Height, 0, {}},
+	RefreshCPUAfterUnlock(false),
+	CPULockActive(false),
+	CPUImagePossiblyStale(false),
+	TextureOwner(nullptr),
+	TextureOwnerLevel(0)
+{
+	WWASSERT(Can_Store_CPU_Surface_Data(Description));
+	const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
+	const unsigned int row_size = Description.Width * pixel_size;
+	WWASSERT(image.Pitch >= row_size);
+	WWASSERT(image.Data.size() >= static_cast<size_t>(image.Pitch) * Description.Height);
+
+	ImageData.Pitch = row_size;
+	ImageData.Data.resize(static_cast<size_t>(row_size) * Description.Height);
+	for (unsigned int row = 0; row < Description.Height; ++row)
+	{
+		memcpy(
+			ImageData.Data.data() + row * ImageData.Pitch,
+			image.Data.data() + row * image.Pitch,
+			row_size);
+	}
 }
 
 SurfaceClass::SurfaceClass(void *legacy_surface)	:
@@ -227,13 +270,21 @@ SurfaceClass::SurfaceClass(void *legacy_surface)	:
 	SurfaceFormat(WW3D_FORMAT_UNKNOWN),
 	Description{WW3D_FORMAT_UNKNOWN, 0, 0},
 	ImageData{WW3D_FORMAT_UNKNOWN, 0, 0, 0, {}},
-	RefreshCPUAfterUnlock(false)
+	RefreshCPUAfterUnlock(false),
+	CPULockActive(false),
+	CPUImagePossiblyStale(false),
+	TextureOwner(nullptr),
+	TextureOwnerLevel(0)
 {
 	Attach_Legacy_Surface(legacy_surface);
 }
 
 SurfaceClass::~SurfaceClass()
 {
+	if (TextureOwner != nullptr) {
+		TextureOwner->Release_Ref();
+		TextureOwner = nullptr;
+	}
 	if (D3DSurface) {
 		LEGACY_SURFACE->Release();
 		D3DSurface = nullptr;
@@ -254,16 +305,36 @@ unsigned int SurfaceClass::Get_Bytes_Per_Pixel()
 
 SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch)
 {
+	if (Has_Compatible_CPU_Surface_Snapshot(Description))
+	{
+		*pitch = ImageData.Pitch;
+		RefreshCPUAfterUnlock = false;
+		CPULockActive = true;
+		return static_cast<LockedSurfacePtr>(ImageData.Data.data());
+	}
+
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
 	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
 	*pitch = lock_rect.Pitch;
-	RefreshCPUAfterUnlock = Has_CPU_Surface_Snapshot();
+	RefreshCPUAfterUnlock = Should_Use_CPU_Surface_Snapshots() && Has_CPU_Surface_Snapshot();
 	return static_cast<LockedSurfacePtr>(lock_rect.pBits);
 }
 
 SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch, const Vector2i &min, const Vector2i &max)
 {
+	if (Has_Compatible_CPU_Surface_Snapshot(Description))
+	{
+		const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
+		*pitch = ImageData.Pitch;
+		RefreshCPUAfterUnlock = false;
+		CPULockActive = true;
+		return static_cast<LockedSurfacePtr>(
+			ImageData.Data.data() +
+			min.J * ImageData.Pitch +
+			min.I * pixel_size);
+	}
+
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
 
@@ -275,12 +346,19 @@ SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch, const Vector2i &mi
 	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, &rect, 0));
 
 	*pitch = lock_rect.Pitch;
-	RefreshCPUAfterUnlock = Has_CPU_Surface_Snapshot();
+	RefreshCPUAfterUnlock = Should_Use_CPU_Surface_Snapshots() && Has_CPU_Surface_Snapshot();
 	return static_cast<LockedSurfacePtr>(lock_rect.pBits);
 }
 
 void SurfaceClass::Unlock()
 {
+	if (CPULockActive)
+	{
+		CPULockActive = false;
+		Upload_CPU_Surface_Snapshot_To_Legacy();
+		return;
+	}
+
 	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 	if (RefreshCPUAfterUnlock) {
 		RefreshCPUAfterUnlock = false;
@@ -310,6 +388,16 @@ void SurfaceClass::Clear()
 
 	// size of each pixel in bytes
 	unsigned int size=::Get_Bytes_Per_Pixel(sd.Format);
+	if (Has_Compatible_CPU_Surface_Snapshot(sd))
+	{
+		const unsigned int row_size = size * sd.Width;
+		for (unsigned int row = 0; row < sd.Height; ++row)
+		{
+			memset(ImageData.Data.data() + row * ImageData.Pitch, 0, row_size);
+		}
+		Upload_CPU_Surface_Snapshot_To_Legacy();
+		return;
+	}
 
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
@@ -350,6 +438,30 @@ void SurfaceClass::Copy(const unsigned char *other)
 
 	// size of each pixel in bytes
 	unsigned int size=::Get_Bytes_Per_Pixel(sd.Format);
+	Copy(other, sd.Width * size);
+}
+
+
+/***********************************************************************************************
+ * SurfaceClass::Copy -- Copies from a pitched byte array to the surface                       *
+ *=============================================================================================*/
+void SurfaceClass::Copy(const unsigned char *other, unsigned int pitch)
+{
+	SurfaceDescription sd;
+	Get_Description(sd);
+
+	// size of each pixel in bytes
+	unsigned int size=::Get_Bytes_Per_Pixel(sd.Format);
+	if (Has_Compatible_CPU_Surface_Snapshot(sd))
+	{
+		const unsigned int row_size = size * sd.Width;
+		for (unsigned int row = 0; row < sd.Height; ++row)
+		{
+			memcpy(ImageData.Data.data() + row * ImageData.Pitch, other + row * pitch, row_size);
+		}
+		Upload_CPU_Surface_Snapshot_To_Legacy();
+		return;
+	}
 
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
@@ -359,7 +471,7 @@ void SurfaceClass::Copy(const unsigned char *other)
 
 	for (i=0; i<sd.Height; i++)
 	{
-		memcpy(mem,&other[i*sd.Width*size],size*sd.Width);
+		memcpy(mem,&other[i*pitch],size*sd.Width);
 		mem+=lock_rect.Pitch;
 	}
 
@@ -390,6 +502,20 @@ void SurfaceClass::Copy(const Vector2i &min, const Vector2i &max, const unsigned
 
 	// size of each pixel in bytes
 	unsigned int size=::Get_Bytes_Per_Pixel(sd.Format);
+	if (Has_Compatible_CPU_Surface_Snapshot(sd))
+	{
+		int dx=max.I-min.I;
+		for (int i=min.J; i<max.J; i++)
+		{
+			unsigned char *dst =
+				ImageData.Data.data() +
+				i * ImageData.Pitch +
+				min.I * size;
+			memcpy(dst,&other[(i*sd.Width+min.I)*size],size*dx);
+		}
+		Upload_CPU_Surface_Snapshot_To_Legacy();
+		return;
+	}
 
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
@@ -443,10 +569,7 @@ unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool fli
 
 	unsigned char *other=W3DNEWARRAY unsigned char [sd.Height*sd.Width*mysize];
 
-	if (Has_CPU_Surface_Snapshot() &&
-		ImageData.Format == sd.Format &&
-		ImageData.Width == sd.Width &&
-		ImageData.Height == sd.Height)
+	if (Has_Compatible_CPU_Surface_Snapshot(sd))
 	{
 		for (unsigned int i = 0; i < sd.Height; i++)
 		{
@@ -483,6 +606,13 @@ unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool fli
 	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 
 	return other;
+}
+
+const SurfaceClass::SurfaceImageData *SurfaceClass::Get_CPU_Surface_Image() const
+{
+	SurfaceClass *self = const_cast<SurfaceClass *>(this);
+	self->Ensure_CPU_Surface_Snapshot_Current();
+	return self->Has_CPU_Surface_Snapshot() ? &ImageData : nullptr;
 }
 
 
@@ -546,6 +676,19 @@ void SurfaceClass::Copy(
 
 		if (other == this)
 		{
+			if (Has_Compatible_CPU_Surface_Snapshot(sd))
+			{
+				unsigned char *base = ImageData.Data.data();
+				for (unsigned int y = 0; y < copy_height; ++y)
+				{
+					unsigned char *dst_row = base + (dsty + y) * ImageData.Pitch + dstx * pixel_size;
+					unsigned char *src_row = base + (srcy + y) * ImageData.Pitch + srcx * pixel_size;
+					memmove(dst_row, src_row, row_size);
+				}
+				Upload_CPU_Surface_Snapshot_To_Legacy();
+				return;
+			}
+
 			LegacyLockedRect lock_rect;
 			::ZeroMemory(&lock_rect, sizeof(lock_rect));
 			DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
@@ -562,11 +705,40 @@ void SurfaceClass::Copy(
 		}
 		else
 		{
-			LegacyRect src_rect;
-			src_rect.left = srcx;
-			src_rect.right = srcx + copy_width;
-			src_rect.top = srcy;
-			src_rect.bottom = srcy + copy_height;
+			const bool can_copy_from_cpu = other->Has_Compatible_CPU_Surface_Snapshot(osd);
+			LegacyLockedRect src_lock;
+			::ZeroMemory(&src_lock, sizeof(src_lock));
+			const unsigned char *src_mem = nullptr;
+			unsigned int src_pitch = 0;
+			if (can_copy_from_cpu) {
+				src_mem = other->ImageData.Data.data() + srcy * other->ImageData.Pitch + srcx * pixel_size;
+				src_pitch = other->ImageData.Pitch;
+			} else {
+				LegacyRect src_rect;
+				src_rect.left = srcx;
+				src_rect.right = srcx + copy_width;
+				src_rect.top = srcy;
+				src_rect.bottom = srcy + copy_height;
+				DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->LockRect(&src_lock, &src_rect, kLegacyLockReadOnly));
+				src_mem = static_cast<const unsigned char *>(src_lock.pBits);
+				src_pitch = src_lock.Pitch;
+			}
+
+			if (Has_Compatible_CPU_Surface_Snapshot(sd))
+			{
+				unsigned char *dst_mem = ImageData.Data.data() + dsty * ImageData.Pitch + dstx * pixel_size;
+				for (unsigned int y = 0; y < copy_height; ++y)
+				{
+					memcpy(dst_mem, src_mem, row_size);
+					src_mem += src_pitch;
+					dst_mem += ImageData.Pitch;
+				}
+				if (!can_copy_from_cpu) {
+					DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->UnlockRect());
+				}
+				Upload_CPU_Surface_Snapshot_To_Legacy();
+				return;
+			}
 
 			LegacyRect dst_rect;
 			dst_rect.left = dstx;
@@ -574,25 +746,21 @@ void SurfaceClass::Copy(
 			dst_rect.top = dsty;
 			dst_rect.bottom = dsty + copy_height;
 
-			LegacyLockedRect src_lock;
 			LegacyLockedRect dst_lock;
-			::ZeroMemory(&src_lock, sizeof(src_lock));
 			::ZeroMemory(&dst_lock, sizeof(dst_lock));
-
-			DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->LockRect(&src_lock, &src_rect, kLegacyLockReadOnly));
 			DX8_ErrorCode(LEGACY_SURFACE->LockRect(&dst_lock, &dst_rect, 0));
 
-			const unsigned char *src_mem = static_cast<const unsigned char *>(src_lock.pBits);
 			unsigned char *dst_mem = static_cast<unsigned char *>(dst_lock.pBits);
 			for (unsigned int y = 0; y < copy_height; ++y)
 			{
 				memcpy(dst_mem, src_mem, row_size);
-				src_mem += src_lock.Pitch;
+				src_mem += src_pitch;
 				dst_mem += dst_lock.Pitch;
 			}
-
 			DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
-			DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->UnlockRect());
+			if (!can_copy_from_cpu) {
+				DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->UnlockRect());
+			}
 		}
 	}
 	else
@@ -697,10 +865,7 @@ void SurfaceClass::FindBB(Vector2i *min,Vector2i*max)
 		break;
 	}
 
-	if (Has_CPU_Surface_Snapshot() &&
-		ImageData.Format == sd.Format &&
-		ImageData.Width == sd.Width &&
-		ImageData.Height == sd.Height)
+	if (Has_Compatible_CPU_Surface_Snapshot(sd))
 	{
 		int x,y;
 		unsigned int size=::Get_Bytes_Per_Pixel(sd.Format);
@@ -810,10 +975,7 @@ bool SurfaceClass::Is_Transparent_Column(unsigned int column)
 
 	unsigned int size=::Get_Bytes_Per_Pixel(sd.Format);
 
-	if (Has_CPU_Surface_Snapshot() &&
-		ImageData.Format == sd.Format &&
-		ImageData.Width == sd.Width &&
-		ImageData.Height == sd.Height)
+	if (Has_Compatible_CPU_Surface_Snapshot(sd))
 	{
 		for (int y = 0; y < (int) sd.Height; y++)
 		{
@@ -939,8 +1101,11 @@ void SurfaceClass::Capture_CPU_Surface_Snapshot()
 	ImageData.Height = Description.Height;
 	ImageData.Pitch = 0;
 	ImageData.Data.clear();
+	CPUImagePossiblyStale = false;
 
-	if (D3DSurface == nullptr || !Can_Store_CPU_Surface_Data(Description)) {
+	if (!Should_Use_CPU_Surface_Snapshots() ||
+		D3DSurface == nullptr ||
+		!Can_Store_CPU_Surface_Data(Description)) {
 		return;
 	}
 
@@ -970,6 +1135,79 @@ void SurfaceClass::Refresh_CPU_Surface_Snapshot_If_Present()
 	if (Has_CPU_Surface_Snapshot()) {
 		Capture_CPU_Surface_Snapshot();
 	}
+}
+
+void SurfaceClass::Upload_CPU_Surface_Snapshot_To_Legacy()
+{
+	if (!Has_Compatible_CPU_Surface_Snapshot(Description)) {
+		return;
+	}
+
+	if (D3DSurface != nullptr)
+	{
+		const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
+		const unsigned int row_size = Description.Width * pixel_size;
+
+		LegacyLockedRect lock_rect;
+		::ZeroMemory(&lock_rect, sizeof(lock_rect));
+		DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
+
+		const unsigned char *src = ImageData.Data.data();
+		unsigned char *dst = static_cast<unsigned char *>(lock_rect.pBits);
+		for (unsigned int row = 0; row < Description.Height; ++row)
+		{
+			memcpy(dst, src, row_size);
+			src += ImageData.Pitch;
+			dst += lock_rect.Pitch;
+		}
+
+		DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+	}
+
+	CPUImagePossiblyStale = false;
+	if (TextureOwner != nullptr) {
+		TextureOwner->Update_Surface_Level_From_Surface(TextureOwnerLevel, ImageData);
+	}
+}
+
+void SurfaceClass::Ensure_CPU_Surface_Snapshot_Current()
+{
+	if (CPUImagePossiblyStale && Has_CPU_Surface_Snapshot()) {
+		Capture_CPU_Surface_Snapshot();
+	}
+}
+
+void SurfaceClass::Mark_CPU_Surface_Snapshot_Stale()
+{
+	if (Has_CPU_Surface_Snapshot()) {
+		CPUImagePossiblyStale = true;
+	}
+}
+
+void SurfaceClass::Attach_Texture_Level_Owner(TextureClass *texture, unsigned int level)
+{
+	if (TextureOwner != texture)
+	{
+		if (TextureOwner != nullptr) {
+			TextureOwner->Release_Ref();
+		}
+		TextureOwner = texture;
+		if (TextureOwner != nullptr) {
+			TextureOwner->Add_Ref();
+		}
+	}
+	TextureOwnerLevel = level;
+}
+
+bool SurfaceClass::Has_Compatible_CPU_Surface_Snapshot(const SurfaceDescription &desc) const
+{
+	SurfaceClass *self = const_cast<SurfaceClass *>(this);
+	self->Ensure_CPU_Surface_Snapshot_Current();
+	return self->Has_CPU_Surface_Snapshot() &&
+		Should_Use_CPU_Surface_Snapshots() &&
+		self->ImageData.Format == desc.Format &&
+		self->ImageData.Width == desc.Width &&
+		self->ImageData.Height == desc.Height;
 }
 
 
