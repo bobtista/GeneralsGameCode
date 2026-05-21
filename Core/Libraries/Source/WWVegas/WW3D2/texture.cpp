@@ -102,6 +102,11 @@ namespace
 #endif
 	}
 
+	bool Should_Block_Unmigrated_Bgfx_Texture_Type(TextureBaseClass::TexAssetType asset_type)
+	{
+		return Should_Use_CPU_Only_Surface_Textures() && asset_type != TextureBaseClass::TEX_REGULAR;
+	}
+
 	unsigned Requested_Mip_Count(unsigned width, unsigned height, MipCountType mip_level_count)
 	{
 		if (mip_level_count == MIP_LEVELS_ALL) {
@@ -215,6 +220,50 @@ namespace
 		return !mips.empty();
 	}
 
+	bool Build_Blank_CPU_Texture_Mips(
+		unsigned width,
+		unsigned height,
+		WW3DFormat format,
+		MipCountType mip_level_count,
+		std::vector<TextureBaseClass::TextureMipSnapshot> &mips)
+	{
+		mips.clear();
+		if (width == 0 ||
+			height == 0 ||
+			format == WW3D_FORMAT_UNKNOWN ||
+			Is_Block_Compressed_Texture_Format(format)) {
+			return false;
+		}
+
+		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(format);
+		if (bytes_per_pixel == 0) {
+			return false;
+		}
+
+		const unsigned requested_levels = Requested_Mip_Count(width, height, mip_level_count);
+		mips.reserve(requested_levels);
+
+		for (unsigned level = 0; level < requested_levels; ++level)
+		{
+			TextureBaseClass::TextureMipSnapshot mip;
+			mip.Width = width;
+			mip.Height = height;
+			mip.Pitch = width * bytes_per_pixel;
+			mip.Format = format;
+			mip.Data.resize(static_cast<size_t>(mip.Pitch) * mip.Height);
+			std::memset(mip.Data.data(), 0, mip.Data.size());
+			mips.push_back(std::move(mip));
+
+			if (width == 1 && height == 1) {
+				break;
+			}
+			width = std::max(1u, width >> 1);
+			height = std::max(1u, height >> 1);
+		}
+
+		return !mips.empty();
+	}
+
 	int Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
 	{
 		switch (pool)
@@ -269,6 +318,7 @@ TextureBaseClass::TextureBaseClass
 	IsRenderTarget(rendertarget),
 	IsProcedural(false),
 	IsReducible(reducible),
+	IsMissingTexture(false),
 	IsCompressionAllowed(false),
 	InactivationTime(0),
 	ExtendedInactivationTime(0),
@@ -542,6 +592,16 @@ void TextureBaseClass::Load_Locked_Surface()
 */
 bool TextureBaseClass::Is_Missing_Texture()
 {
+	if (IsMissingTexture) {
+		return true;
+	}
+	if (Should_Use_CPU_Only_Surface_Textures()) {
+		return false;
+	}
+	if (LegacyTexture == nullptr) {
+		return false;
+	}
+
 	bool flag = false;
 	LegacyBaseTexture *missing_texture = Get_Legacy_Missing_Texture();
 
@@ -856,6 +916,35 @@ TextureClass::TextureClass
 	default : break;
 	}
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
+	{
+		if (rendertarget)
+		{
+			Poke_Legacy_Texture(*this, nullptr);
+			LastAccessed=WW3D::Get_Sync_Time();
+			return;
+		}
+
+		std::vector<TextureMipSnapshot> mips;
+		if (Build_Blank_CPU_Texture_Mips(width, height, format, mip_level_count, mips))
+		{
+			Set_CPU_Texture_Snapshot(std::move(mips));
+			Poke_Legacy_Texture(*this, nullptr);
+			LastAccessed=WW3D::Get_Sync_Time();
+			return;
+		}
+
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"TextureClass(width,height): BGFX texture ownership cannot create this procedural texture; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+#endif
+
 	const int legacy_pool = Legacy_Texture_Pool(pool);
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Texture
@@ -1104,6 +1193,14 @@ void TextureClass::Init()
 {
 	// If the texture has already been initialised we should exit now
 	if (Initialized) return;
+
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		WWASSERT_PRINT(
+			false,
+			"TextureClass::Init: cube/volume textures are not migrated to bgfx texture ownership; no legacy fallback is allowed");
+		return;
+	}
 
 	WWPROFILE("TextureClass::Init");
 
@@ -1812,6 +1909,17 @@ CubeTextureClass::CubeTextureClass
 
 	const int legacy_pool = Legacy_Texture_Pool(pool);
 
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"CubeTextureClass: bgfx texture ownership has no cube texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Cube_Texture
 		(
@@ -1910,6 +2018,18 @@ CubeTextureClass::CubeTextureClass
 	Set_Texture_Name(name);
 	Set_Full_Path(full_path);
 	WWASSERT(name[0]!='\0');
+
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"CubeTextureClass: bgfx texture ownership has no cube texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
@@ -2005,6 +2125,17 @@ VolumeTextureClass::VolumeTextureClass
 	}
 
 	const int legacy_pool = Legacy_Texture_Pool(pool);
+
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"VolumeTextureClass: bgfx texture ownership has no volume texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Volume_Texture
@@ -2105,6 +2236,18 @@ VolumeTextureClass::VolumeTextureClass
 	Set_Texture_Name(name);
 	Set_Full_Path(full_path);
 	WWASSERT(name[0]!='\0');
+
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"VolumeTextureClass: bgfx texture ownership has no volume texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
