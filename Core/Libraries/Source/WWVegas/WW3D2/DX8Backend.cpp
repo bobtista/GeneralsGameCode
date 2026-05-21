@@ -2000,7 +2000,7 @@ void DX8Backend::Destroy_Resource(RenderResource h)
 // DX8IndexBufferClass. DX8Backend must stay a passive forwarding adapter,
 // so registered legacy resources do not get an owning RenderResource.
 
-RenderResource DX8Backend::Register_Loaded_Texture(TextureBaseClass * /*tex*/)
+RenderResource DX8Backend::Create_Texture_Resource(TextureBaseClass * /*tex*/)
 {
     return kInvalidRenderResource;
 }

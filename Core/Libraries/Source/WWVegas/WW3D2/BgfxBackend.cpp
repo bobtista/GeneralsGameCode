@@ -8943,9 +8943,9 @@ void BgfxBackend::Set_Pixel_Shader(unsigned long pixel_shader)
 // ===========================================================================
 //
 // The returned RenderResource.id is a monotonically-increasing key into
-// g_phase5.table; the entry holds the bgfx handle(s). Legacy loaded resources
-// still enter through Register_Loaded_* and the older caches keyed by their
-// owner objects.
+// g_phase5.table; the entry holds the bgfx handle(s). Owner-backed resources
+// still enter through the transitional *_Resource hooks and the older caches
+// keyed by their owner objects.
 //
 namespace {
 
@@ -9224,9 +9224,9 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
     g_phase5.table.erase(it);
 }
 
-// -- Transitional Register_Loaded_* ----------------------------------------
+// -- Transitional owner-backed resource hooks -------------------------------
 
-RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
+RenderResource BgfxBackend::Create_Texture_Resource(TextureBaseClass * tex)
 {
     if (tex == nullptr) {
         return kInvalidRenderResource;
