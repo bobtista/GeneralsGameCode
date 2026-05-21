@@ -102,7 +102,14 @@ namespace
 IDirect3DBaseTexture8 *DX8TextureInterop::Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
 {
 	texture.LastAccessed=WW3D::Get_Sync_Time();
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		texture.LegacyTexture == nullptr,
+		"Peek_Legacy_Base_Texture: standalone bgfx cannot expose fake-D3D textures");
+	return nullptr;
+#else
 	return static_cast<IDirect3DBaseTexture8 *>(texture.LegacyTexture);
+#endif
 }
 
 IDirect3DTexture8 *DX8TextureInterop::Peek_Legacy_Texture2D(const TextureBaseClass &texture)
@@ -136,7 +143,11 @@ void DX8TextureInterop::Set_Legacy_Base_Texture(TextureBaseClass &texture, IDire
 		old_texture->Release();
 	}
 #endif
+#if defined(GGC_BGFX_STANDALONE)
+	texture.LegacyTexture = nullptr;
+#else
 	texture.LegacyTexture = native_texture;
+#endif
 #if !defined(GGC_BGFX_STANDALONE)
 	if (native_texture != nullptr) {
 		native_texture->AddRef();
@@ -145,7 +156,13 @@ void DX8TextureInterop::Set_Legacy_Base_Texture(TextureBaseClass &texture, IDire
 	bool preserve_cpu_snapshot = false;
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	preserve_cpu_snapshot =
-		native_texture != nullptr
+		(
+#if defined(GGC_BGFX_STANDALONE)
+			true
+#else
+			native_texture != nullptr
+#endif
+		)
 		&& texture.Has_CPU_Texture_Mips()
 		&& texture.PreserveCPUTextureSnapshotOnNextLegacySet
 		&& Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
@@ -195,7 +212,14 @@ void Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass
 
 void DX8TextureInterop::Poke_Legacy_Texture(TextureBaseClass &texture, IDirect3DBaseTexture8 *native_texture)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		native_texture == nullptr,
+		"Poke_Legacy_Texture: standalone bgfx cannot store fake-D3D textures");
+	texture.LegacyTexture = nullptr;
+#else
 	texture.LegacyTexture = native_texture;
+#endif
 }
 
 void DX8TextureInterop::Apply_Legacy_Surface(
@@ -209,8 +233,15 @@ void DX8TextureInterop::Apply_Legacy_Surface(
 
 IDirect3DSurface8 *DX8TextureInterop::Peek_Legacy_Surface(const SurfaceClass &surface)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		surface.D3DSurface == nullptr,
+		"Peek_Legacy_Surface: standalone bgfx cannot expose fake-D3D surfaces");
+	return nullptr;
+#else
 	const_cast<SurfaceClass &>(surface).Mark_CPU_Surface_Snapshot_Stale();
 	return static_cast<IDirect3DSurface8 *>(surface.D3DSurface);
+#endif
 }
 
 SurfaceClass *DX8TextureInterop::Create_Legacy_Surface_Wrapper(IDirect3DSurface8 *surface)
