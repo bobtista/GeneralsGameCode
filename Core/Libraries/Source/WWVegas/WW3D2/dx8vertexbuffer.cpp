@@ -126,7 +126,7 @@ VertexBufferClass::VertexBufferClass(unsigned type_, unsigned FVF, unsigned shor
 	m_backendHandle = kInvalidRenderResource;
 	WWMEMLOG(MEM_RENDERER);
 	WWASSERT(VertexCount);
-	WWASSERT(type==BUFFER_TYPE_DX8 || type==BUFFER_TYPE_SORTING);
+	WWASSERT(type==BUFFER_TYPE_STATIC || type==BUFFER_TYPE_SORTING);
 	WWASSERT(FVF != 0);
 	fvf_info=W3DNEW FVFInfoClass(FVF);
 
@@ -246,7 +246,7 @@ VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass* VertexBuffe
 	WWASSERT(!VertexBuffer->Engine_Refs());
 	VertexBuffer->Add_Ref();
 	switch (VertexBuffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #ifdef VERTEX_BUFFER_LOG
 		{
 		StringClass fvf_name;
@@ -300,7 +300,7 @@ VertexBufferClass::WriteLockClass::~WriteLockClass()
 	// that path misses the bgfx VB cache entirely and rotors/explosions/
 	// tracers never draw.
 		if (Vertices != NULL &&
-			(VertexBuffer->Type() == BUFFER_TYPE_DX8 || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
+			(VertexBuffer->Type() == BUFFER_TYPE_STATIC || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
 			const unsigned int total_bytes = VertexBuffer->Get_Vertex_Count() * VertexBuffer->FVF_Info().Get_FVF_Size();
 			VertexBuffer->Update_CPU_Buffer_Data(0, Vertices, total_bytes);
 			if (g_renderBackend != NULL) {
@@ -308,7 +308,7 @@ VertexBufferClass::WriteLockClass::~WriteLockClass()
 			}
 		}
 	switch (VertexBuffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #ifdef VERTEX_BUFFER_LOG
 		WWDEBUG_SAY(("VertexBuffer->Unlock()"));
 #endif
@@ -346,7 +346,7 @@ VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuf
 	WWASSERT(start_index+index_range<=VertexBuffer->Get_Vertex_Count());
 	VertexBuffer->Add_Ref();
 	switch (VertexBuffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #ifdef VERTEX_BUFFER_LOG
 		{
 		StringClass fvf_name;
@@ -400,7 +400,7 @@ VertexBufferClass::AppendLockClass::~AppendLockClass()
 	// fill their shared SortingVertexBufferClass via AppendLockClass one
 	// mesh at a time, just like the rigid DX8 path.
 		if (Vertices != NULL &&
-			(VertexBuffer->Type() == BUFFER_TYPE_DX8 || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
+			(VertexBuffer->Type() == BUFFER_TYPE_STATIC || VertexBuffer->Type() == BUFFER_TYPE_SORTING)) {
 			const unsigned int fvf_size = VertexBuffer->FVF_Info().Get_FVF_Size();
 			const unsigned int size_bytes = AppendIndexRange * fvf_size;
 			VertexBuffer->Update_CPU_Buffer_Data(AppendStartIndex * fvf_size, Vertices, size_bytes);
@@ -409,7 +409,7 @@ VertexBufferClass::AppendLockClass::~AppendLockClass()
 			}
 		}
 	switch (VertexBuffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 #ifdef VERTEX_BUFFER_LOG
@@ -461,7 +461,7 @@ SortingVertexBufferClass::~SortingVertexBufferClass()
 
 DX8VertexBufferClass::DX8VertexBufferClass(unsigned FVF, unsigned short vertex_count_, UsageType usage)
 	:
-	VertexBufferClass(BUFFER_TYPE_DX8, FVF, vertex_count_),
+	VertexBufferClass(BUFFER_TYPE_STATIC, FVF, vertex_count_),
 	VertexBuffer(nullptr)
 {
 	Create_Vertex_Buffer(usage);
@@ -476,7 +476,7 @@ DX8VertexBufferClass::DX8VertexBufferClass(
 	unsigned short VertexCount,
 	UsageType usage)
 	:
-	VertexBufferClass(BUFFER_TYPE_DX8, FVFInfoClass::Build_FVF(true, false, false, 1), VertexCount),
+	VertexBufferClass(BUFFER_TYPE_STATIC, FVFInfoClass::Build_FVF(true, false, false, 1), VertexCount),
 	VertexBuffer(nullptr)
 {
 	WWASSERT(vertices);
@@ -497,7 +497,7 @@ DX8VertexBufferClass::DX8VertexBufferClass(
 	unsigned short VertexCount,
 	UsageType usage)
 	:
-	VertexBufferClass(BUFFER_TYPE_DX8, FVFInfoClass::Build_FVF(true, true, false, 1), VertexCount),
+	VertexBufferClass(BUFFER_TYPE_STATIC, FVFInfoClass::Build_FVF(true, true, false, 1), VertexCount),
 	VertexBuffer(nullptr)
 {
 	WWASSERT(vertices);
@@ -518,7 +518,7 @@ DX8VertexBufferClass::DX8VertexBufferClass(
 	unsigned short VertexCount,
 	UsageType usage)
 	:
-	VertexBufferClass(BUFFER_TYPE_DX8, FVFInfoClass::Build_FVF(false, true, false, 1), VertexCount),
+	VertexBufferClass(BUFFER_TYPE_STATIC, FVFInfoClass::Build_FVF(false, true, false, 1), VertexCount),
 	VertexBuffer(nullptr)
 {
 	WWASSERT(vertices);
@@ -537,7 +537,7 @@ DX8VertexBufferClass::DX8VertexBufferClass(
 	unsigned short VertexCount,
 	UsageType usage)
 	:
-	VertexBufferClass(BUFFER_TYPE_DX8, FVFInfoClass::Build_FVF(false, false, false, 1), VertexCount),
+	VertexBufferClass(BUFFER_TYPE_STATIC, FVFInfoClass::Build_FVF(false, false, false, 1), VertexCount),
 	VertexBuffer(nullptr)
 {
 	WWASSERT(vertices);

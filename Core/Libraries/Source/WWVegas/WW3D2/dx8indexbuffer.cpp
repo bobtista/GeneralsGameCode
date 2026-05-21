@@ -116,7 +116,7 @@ IndexBufferClass::IndexBufferClass(unsigned type_, unsigned short index_count_)
 		m_backendStaticEligible(false)
 {
 	m_backendHandle = kInvalidRenderResource;
-	WWASSERT(type==BUFFER_TYPE_DX8 || type==BUFFER_TYPE_SORTING);
+	WWASSERT(type==BUFFER_TYPE_STATIC || type==BUFFER_TYPE_SORTING);
 	WWASSERT(index_count);
 
 	_IndexBufferCount++;
@@ -272,7 +272,7 @@ IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* index_buffer_
 	WWASSERT(!index_buffer->Engine_Refs());
 	index_buffer->Add_Ref();
 	switch (index_buffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
@@ -314,7 +314,7 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 	// BUFFER_TYPE_SORTING so sorting FVF category containers feed their
 	// shared IB into the bgfx dynamic IB cache alongside the rigid path.
 		if (indices != NULL &&
-			(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
+			(index_buffer->Type() == BUFFER_TYPE_STATIC || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
 			const unsigned int total_bytes = index_buffer->Get_Index_Count() * sizeof(unsigned short);
 			index_buffer->Update_CPU_Buffer_Data(0, indices, total_bytes);
 			if (g_renderBackend != NULL) {
@@ -322,7 +322,7 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 			}
 		}
 	switch (index_buffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
@@ -353,7 +353,7 @@ IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffe
 	WWASSERT(!index_buffer->Engine_Refs());
 	index_buffer->Add_Ref();
 	switch (index_buffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
@@ -391,7 +391,7 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 capture
 	// sorting IB sub-range writes for sorting FVF category containers.
 		if (indices != NULL &&
-			(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
+			(index_buffer->Type() == BUFFER_TYPE_STATIC || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
 			const unsigned int size_bytes = AppendIndexRange * sizeof(unsigned short);
 			index_buffer->Update_CPU_Buffer_Data(AppendStartIndex * sizeof(unsigned short), indices, size_bytes);
 			if (g_renderBackend != NULL) {
@@ -399,7 +399,7 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 			}
 		}
 	switch (index_buffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
@@ -424,7 +424,7 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 
 DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType usage)
 	:
-	IndexBufferClass(BUFFER_TYPE_DX8,index_count_)
+	IndexBufferClass(BUFFER_TYPE_STATIC,index_count_)
 {
 	DX8_THREAD_ASSERT();
 	WWASSERT(index_count);
