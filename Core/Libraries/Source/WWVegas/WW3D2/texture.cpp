@@ -1177,6 +1177,11 @@ void TextureClass::Update_Surface_Level_From_Surface(unsigned int level, const S
 	auto *texture = Peek_Legacy_Texture2D(*this);
 	if (texture != nullptr)
 	{
+#if defined(GGC_BGFX_STANDALONE)
+		WWASSERT_PRINT(
+			false,
+			"TextureClass::Update_Surface_Level_From_Surface: standalone bgfx cannot update fake-D3D texture mips");
+#else
 		LegacyLockedRect lock_rect;
 		::ZeroMemory(&lock_rect, sizeof(lock_rect));
 		if (SUCCEEDED(texture->LockRect(level, &lock_rect, nullptr, 0)))
@@ -1194,6 +1199,7 @@ void TextureClass::Update_Surface_Level_From_Surface(unsigned int level, const S
 			}
 			DX8_ErrorCode(texture->UnlockRect(level));
 		}
+#endif
 	}
 
 	if (g_renderBackend != nullptr) {
@@ -1284,7 +1290,13 @@ void TextureClass::Set_LOD(unsigned int lod) const
 	auto *texture = Peek_Legacy_Texture2D(*this);
 	if (texture != nullptr)
 	{
+#if defined(GGC_BGFX_STANDALONE)
+		WWASSERT_PRINT(
+			false,
+			"TextureClass::Set_LOD: standalone bgfx cannot set fake-D3D texture LOD");
+#else
 		DX8_ErrorCode(texture->SetLOD(static_cast<DWORD>(lod)));
+#endif
 	}
 }
 
@@ -1323,6 +1335,12 @@ unsigned TextureClass::Get_Texture_Memory_Usage() const
 
 	int size=0;
 	if (!Peek_Legacy_Texture2D(*this)) return 0;
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureClass::Get_Texture_Memory_Usage: standalone bgfx cannot query fake-D3D texture levels");
+	return 0;
+#else
 	for (unsigned i=0;i<Peek_Legacy_Texture2D(*this)->GetLevelCount();++i)
 	{
 		LegacySurfaceDesc desc;
@@ -1330,6 +1348,7 @@ unsigned TextureClass::Get_Texture_Memory_Usage() const
 		size+=desc.Size;
 	}
 	return size;
+#endif
 }
 
 
