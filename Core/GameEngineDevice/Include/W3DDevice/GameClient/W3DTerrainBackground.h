@@ -62,8 +62,8 @@
 class MeshClass;
 class WorldHeightMap;
 class TerrainTextureClass;
-class DX8VertexBufferClass;
-class DX8IndexBufferClass;
+class RenderVertexBufferClass;
+class RenderIndexBufferClass;
 
 //-----------------------------------------------------------------------------
 //           Type Defines
@@ -94,9 +94,9 @@ protected:
 	enum {CULL_STATUS_UNKNOWN, CULL_STATUS_VISIBLE, CULL_STATUS_INVISIBLE} m_cullStatus;
 	AABoxClass						m_bounds;
 
-	DX8VertexBufferClass	*m_vertexTerrain;	///<Terrain vertex buffer.
+	RenderVertexBufferClass	*m_vertexTerrain;	///<Terrain vertex buffer.
 	Int										m_vertexTerrainSize; ///< Num vertices in bib buffer.
-	DX8IndexBufferClass		*m_indexTerrain;	///<indices defining a triangles for the bib drawing.
+	RenderIndexBufferClass		*m_indexTerrain;	///<indices defining a triangles for the bib drawing.
 	Int							  		m_indexTerrainSize;	///<indices available in m_indexTerrain.
 	TerrainTextureClass *m_terrainTexture;	///<Terrain texture
 	TerrainTextureClass *m_terrainTexture2X;	///<Terrain texture
