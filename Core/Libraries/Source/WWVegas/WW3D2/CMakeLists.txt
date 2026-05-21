@@ -210,6 +210,7 @@ set(WW3D2_SRC
     texproject.h
     #textdraw.cpp # unused
     textdraw.h
+    texturecompat.h
     texture.cpp
     texture.h
     TextureResourceManager.cpp
