@@ -1990,17 +1990,36 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 		return;
 	}
 #endif
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoadTaskClass::Apply_Missing_Texture: standalone bgfx cannot apply fake-D3D missing textures");
+	if (Texture != nullptr)
+	{
+		Texture->Mark_Missing_Texture(true);
+	}
+	return;
+#else
 	D3DTexture = Get_Legacy_Missing_Texture();
 	Apply(true);
 	if (Texture != nullptr)
 	{
 		Texture->Mark_Missing_Texture(true);
 	}
+#endif
 }
 
 
 void TextureLoadTaskClass::Apply(bool initialize)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)initialize;
+	WWASSERT_PRINT(
+		D3DTexture == nullptr,
+		"TextureLoadTaskClass::Apply: standalone bgfx cannot apply or release fake-D3D loader textures");
+	D3DTexture = nullptr;
+	return;
+#else
 	WWASSERT(D3DTexture);
 
 	// Verify that none of the mip levels are locked
@@ -2013,6 +2032,7 @@ void TextureLoadTaskClass::Apply(bool initialize)
 
 	Peek_D3D_Texture()->Release();
 	D3DTexture = nullptr;
+#endif
 }
 
 static unsigned Calculate_Texture_Reduction(unsigned width, unsigned height, unsigned mip_count)
