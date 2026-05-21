@@ -167,6 +167,7 @@ public:
 		bool Has_CPU_Texture_Mips() const { return !CPUTextureMips.empty(); }
 		unsigned Get_CPU_Texture_Revision() const { return CPUTextureRevision; }
 		void Refresh_CPU_Texture_Snapshot() { Capture_CPU_Texture_Snapshot(LegacyTexture); }
+		bool Has_Compatibility_Texture() const { return LegacyTexture != nullptr; }
 
 	PoolType Get_Pool() const { return Pool; }
 
