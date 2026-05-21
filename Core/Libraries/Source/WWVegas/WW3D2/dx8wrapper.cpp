@@ -57,7 +57,6 @@
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8renderer.h"
-#include "BgfxMigrationToggles.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "StubD3D8Device.h"
@@ -109,12 +108,12 @@ HRESULT Standalone_Copy_Legacy_Surface(
 #if defined(GGC_BGFX_STANDALONE)
 static bool Blocks_Legacy_Texture_Create()
 {
-	return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+	return true;
 }
 
 static bool Blocks_Legacy_Surface_Create()
 {
-	return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
+	return true;
 }
 #endif
 
