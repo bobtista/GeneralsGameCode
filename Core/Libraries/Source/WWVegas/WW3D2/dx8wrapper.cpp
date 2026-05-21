@@ -2840,8 +2840,9 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 // is to (a) remove D3DX as a black-box in the standalone pixel path so
 // remaining visual bugs don't depend on D3DX internals interacting with
 // our stub and (b) start the work of dropping d3dx8.lib from the link.
-// For non-.tga files (e.g. .dds) we fall back to D3DX; it still works
-// because d3dx8 is statically linked.
+// For non-.tga files (e.g. .dds), the standalone D3DX shim either handles
+// the operation explicitly or returns failure into the existing missing-texture
+// path. The bgfx ownership path is blocked before reaching this helper.
 static IDirect3DTexture8 * LoadTextureStandalone_TGA(
 	const char * filename,
 	MipCountType mip_level_count)
@@ -3243,6 +3244,16 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 	DX8_Assert();
 	IDirect3DCubeTexture8* texture=nullptr;
 
+#if defined(GGC_BGFX_STANDALONE)
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"DX8Wrapper::_Create_DX8_Cube_Texture: BGFX texture ownership is enabled; no fake-D3D cube texture fallback is allowed");
+		return nullptr;
+	}
+#endif
+
 	// Paletted textures not supported!
 	WWASSERT(format!=D3DFMT_P8);
 
@@ -3379,6 +3390,16 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 	IDirect3DVolumeTexture8* texture=nullptr;
+
+#if defined(GGC_BGFX_STANDALONE)
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"DX8Wrapper::_Create_DX8_Volume_Texture: BGFX texture ownership is enabled; no fake-D3D volume texture fallback is allowed");
+		return nullptr;
+	}
+#endif
 
 	// Paletted textures not supported!
 	WWASSERT(format!=D3DFMT_P8);
