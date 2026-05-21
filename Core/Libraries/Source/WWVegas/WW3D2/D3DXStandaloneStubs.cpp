@@ -226,34 +226,6 @@ extern "C" D3DXVECTOR4 * WINAPI D3DXVec4Transform(D3DXVECTOR4 * out, CONST D3DXV
 }
 
 // -----------------------------------------------------------------------------
-// Error strings — minimal static table. Real D3DX has a big message pool
-// keyed by HRESULT; we just need enough for debug logs.
-// -----------------------------------------------------------------------------
-
-extern "C" HRESULT WINAPI D3DXGetErrorStringA(HRESULT hr, LPSTR pBuffer, UINT BufferLen)
-{
-	if (pBuffer == nullptr || BufferLen == 0)
-	{
-		return D3D_OK;
-	}
-	const char * msg;
-	switch (static_cast<UINT>(hr))
-	{
-	case (UINT)D3D_OK:                   msg = "D3D_OK"; break;
-	case (UINT)D3DERR_INVALIDCALL:       msg = "D3DERR_INVALIDCALL"; break;
-	case (UINT)D3DERR_NOTAVAILABLE:      msg = "D3DERR_NOTAVAILABLE"; break;
-	case (UINT)D3DERR_OUTOFVIDEOMEMORY:  msg = "D3DERR_OUTOFVIDEOMEMORY"; break;
-	case (UINT)E_OUTOFMEMORY:            msg = "E_OUTOFMEMORY"; break;
-	case (UINT)E_NOTIMPL:                msg = "E_NOTIMPL"; break;
-	case (UINT)E_FAIL:                   msg = "E_FAIL"; break;
-	default:                              msg = "D3DX unknown error"; break;
-	}
-	std::strncpy(pBuffer, msg, BufferLen - 1);
-	pBuffer[BufferLen - 1] = '\0';
-	return D3D_OK;
-}
-
-// -----------------------------------------------------------------------------
 // Texture / surface helpers
 // -----------------------------------------------------------------------------
 
