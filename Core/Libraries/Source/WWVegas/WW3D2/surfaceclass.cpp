@@ -318,7 +318,13 @@ SurfaceClass::~SurfaceClass()
 		TextureOwner = nullptr;
 	}
 	if (D3DSurface) {
+#if defined(GGC_BGFX_STANDALONE)
+		WWASSERT_PRINT(
+			false,
+			"SurfaceClass::~SurfaceClass: standalone bgfx cannot release fake-D3D surfaces");
+#else
 		LEGACY_SURFACE->Release();
+#endif
 		D3DSurface = nullptr;
 	}
 }
@@ -1128,6 +1134,13 @@ void SurfaceClass::Get_Pixel(Vector3 &rgb, int x, int y, LockedSurfacePtr pBits,
 void SurfaceClass::Attach_Legacy_Surface(void *surface)
 {
 	Detach ();
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		surface == nullptr,
+		"SurfaceClass::Attach_Legacy_Surface: standalone bgfx cannot attach fake-D3D surfaces");
+	D3DSurface = nullptr;
+	return;
+#else
 	D3DSurface = static_cast<LegacySurface *>(surface);
 
 	//
@@ -1137,6 +1150,7 @@ void SurfaceClass::Attach_Legacy_Surface(void *surface)
 		LEGACY_SURFACE->AddRef ();
 		Update_Description_From_Legacy_Surface();
 	}
+#endif
 }
 
 void SurfaceClass::Update_Description_From_Legacy_Surface()
