@@ -301,7 +301,7 @@ public:
     virtual RenderResource Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit);
     virtual void   Destroy_Resource(RenderResource h);
 
-    virtual RenderResource Create_Texture_Resource(TextureBaseClass * tex);
-    virtual RenderResource Create_Vertex_Buffer_Resource(VertexBufferClass * vb);
-    virtual RenderResource Create_Index_Buffer_Resource(IndexBufferClass * ib);
+    virtual RenderResource Register_Texture_Resource(TextureBaseClass * tex);
+    virtual RenderResource Register_Vertex_Buffer_Resource(VertexBufferClass * vb);
+    virtual RenderResource Register_Index_Buffer_Resource(IndexBufferClass * ib);
 };
