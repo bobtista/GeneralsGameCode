@@ -680,6 +680,13 @@ unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool fli
 		return other;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass::CreateCopy: standalone bgfx requires a CPU surface snapshot");
+	delete [] other;
+	return nullptr;
+#else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
 	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect,nullptr,kLegacyLockReadOnly));
@@ -701,6 +708,7 @@ unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool fli
 	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 
 	return other;
+#endif
 }
 
 const SurfaceClass::SurfaceImageData *SurfaceClass::Get_CPU_Surface_Image() const
@@ -1016,6 +1024,12 @@ void SurfaceClass::FindBB(Vector2i *min,Vector2i*max)
 		return;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass::FindBB: standalone bgfx requires a CPU surface snapshot");
+	return;
+#else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
 	LegacyRect rect;
@@ -1057,6 +1071,7 @@ void SurfaceClass::FindBB(Vector2i *min,Vector2i*max)
 
 	*max=realmax;
 	*min=realmin;
+#endif
 }
 
 
@@ -1114,6 +1129,12 @@ bool SurfaceClass::Is_Transparent_Column(unsigned int column)
 		return true;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass::Is_Transparent_Column: standalone bgfx requires a CPU surface snapshot");
+	return true;
+#else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
 	LegacyRect rect;
@@ -1145,6 +1166,7 @@ bool SurfaceClass::Is_Transparent_Column(unsigned int column)
 
 	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 	return true;
+#endif
 }
 
 /***********************************************************************************************
