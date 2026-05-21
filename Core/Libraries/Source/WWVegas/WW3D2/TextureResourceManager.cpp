@@ -18,14 +18,7 @@
 
 #include "TextureResourceManager.h"
 
-#include "dx8textureinterop.h"
-
 TextureTrackerList TextureResourceManagerClass::Managed_Textures;
-
-void TextureTrackerClass::Release()
-{
-	Set_Legacy_Base_Texture(*Texture, nullptr);
-}
 
 void TextureResourceManagerClass::Shutdown()
 {
