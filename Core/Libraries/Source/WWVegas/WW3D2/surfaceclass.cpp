@@ -237,6 +237,34 @@ SurfaceClass::SurfaceClass(const char *filename):
 	Capture_CPU_Surface_Snapshot();
 }
 
+SurfaceClass::SurfaceClass(const SurfaceImageData &image):
+	D3DSurface(nullptr),
+	SurfaceFormat(image.Format),
+	Description{image.Format, image.Width, image.Height},
+	ImageData{image.Format, image.Width, image.Height, 0, {}},
+	RefreshCPUAfterUnlock(false),
+	CPULockActive(false),
+	CPUImagePossiblyStale(false),
+	TextureOwner(nullptr),
+	TextureOwnerLevel(0)
+{
+	WWASSERT(Can_Store_CPU_Surface_Data(Description));
+	const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
+	const unsigned int row_size = Description.Width * pixel_size;
+	WWASSERT(image.Pitch >= row_size);
+	WWASSERT(image.Data.size() >= static_cast<size_t>(image.Pitch) * Description.Height);
+
+	ImageData.Pitch = row_size;
+	ImageData.Data.resize(static_cast<size_t>(row_size) * Description.Height);
+	for (unsigned int row = 0; row < Description.Height; ++row)
+	{
+		memcpy(
+			ImageData.Data.data() + row * ImageData.Pitch,
+			image.Data.data() + row * image.Pitch,
+			row_size);
+	}
+}
+
 SurfaceClass::SurfaceClass(void *legacy_surface)	:
 	D3DSurface(nullptr),
 	SurfaceFormat(WW3D_FORMAT_UNKNOWN),
@@ -1111,27 +1139,31 @@ void SurfaceClass::Refresh_CPU_Surface_Snapshot_If_Present()
 
 void SurfaceClass::Upload_CPU_Surface_Snapshot_To_Legacy()
 {
-	if (!Has_Compatible_CPU_Surface_Snapshot(Description) || D3DSurface == nullptr) {
+	if (!Has_Compatible_CPU_Surface_Snapshot(Description)) {
 		return;
 	}
 
-	const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
-	const unsigned int row_size = Description.Width * pixel_size;
-
-	LegacyLockedRect lock_rect;
-	::ZeroMemory(&lock_rect, sizeof(lock_rect));
-	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
-
-	const unsigned char *src = ImageData.Data.data();
-	unsigned char *dst = static_cast<unsigned char *>(lock_rect.pBits);
-	for (unsigned int row = 0; row < Description.Height; ++row)
+	if (D3DSurface != nullptr)
 	{
-		memcpy(dst, src, row_size);
-		src += ImageData.Pitch;
-		dst += lock_rect.Pitch;
+		const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
+		const unsigned int row_size = Description.Width * pixel_size;
+
+		LegacyLockedRect lock_rect;
+		::ZeroMemory(&lock_rect, sizeof(lock_rect));
+		DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
+
+		const unsigned char *src = ImageData.Data.data();
+		unsigned char *dst = static_cast<unsigned char *>(lock_rect.pBits);
+		for (unsigned int row = 0; row < Description.Height; ++row)
+		{
+			memcpy(dst, src, row_size);
+			src += ImageData.Pitch;
+			dst += lock_rect.Pitch;
+		}
+
+		DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 	}
 
-	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 	CPUImagePossiblyStale = false;
 	if (TextureOwner != nullptr) {
 		TextureOwner->Update_Surface_Level_From_Surface(TextureOwnerLevel, ImageData);

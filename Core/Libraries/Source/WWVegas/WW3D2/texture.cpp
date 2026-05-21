@@ -42,6 +42,7 @@
 #include "texture.h"
 
 #include <d3d8.h>
+#include "BgfxMigrationToggles.h"
 #include "dx8wrapper.h"
 #include "TARGA.h"
 #include <nstrdup.h>
@@ -81,6 +82,15 @@ namespace
 			format == WW3D_FORMAT_DXT3 ||
 			format == WW3D_FORMAT_DXT4 ||
 			format == WW3D_FORMAT_DXT5;
+	}
+
+	bool Should_Use_CPU_Only_Texture_Level_Surfaces()
+	{
+#if defined(GGC_BGFX_STANDALONE)
+		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
+#else
+		return false;
+#endif
 	}
 
 	unsigned Requested_Mip_Count(unsigned width, unsigned height, MipCountType mip_level_count)
@@ -1204,10 +1214,26 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 			!mip.Data.empty() &&
 			mip.Width != 0 &&
 			mip.Height != 0 &&
-			mip.Pitch >= mip.Width * ::Get_Bytes_Per_Pixel(mip.Format))
+			mip.Pitch >= mip.Width * ::Get_Bytes_Per_Pixel(mip.Format) &&
+			mip.Data.size() >= static_cast<size_t>(mip.Pitch) * mip.Height)
 		{
-			SurfaceClass *surface = NEW_REF(SurfaceClass, (mip.Width, mip.Height, mip.Format));
-			surface->Copy(mip.Data.data(), mip.Pitch);
+			SurfaceClass::SurfaceImageData image;
+			image.Format = mip.Format;
+			image.Width = mip.Width;
+			image.Height = mip.Height;
+			image.Pitch = mip.Pitch;
+			image.Data = mip.Data;
+
+			SurfaceClass *surface = nullptr;
+			if (Should_Use_CPU_Only_Texture_Level_Surfaces())
+			{
+				surface = NEW_REF(SurfaceClass, (image));
+			}
+			else
+			{
+				surface = NEW_REF(SurfaceClass, (mip.Width, mip.Height, mip.Format));
+				surface->Copy(mip.Data.data(), mip.Pitch);
+			}
 			surface->Attach_Texture_Level_Owner(this, level);
 			return surface;
 		}
