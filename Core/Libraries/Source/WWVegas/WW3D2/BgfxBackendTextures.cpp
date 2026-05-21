@@ -1614,7 +1614,13 @@ void BgfxBackend::Invalidate_Cached_Texture(TextureBaseClass * texture)
     {
         return;
     }
-    texture->Refresh_CPU_Texture_Snapshot();
+    // CPU-owned textures update their mip snapshots before invalidating the
+    // backend handle. Only recapture from the compatibility texture when no
+    // CPU snapshot exists yet.
+    if (!texture->Has_CPU_Texture_Mips())
+    {
+        texture->Refresh_CPU_Texture_Snapshot();
+    }
     // Set the cached revision to 0 (sentinel) so the next EnsureBgfxTexture
     // detects a change and re-uploads pixel data. Keep dimensions so the
     // in-place update path can check if the bgfx handle is reusable.

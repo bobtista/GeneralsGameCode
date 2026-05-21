@@ -391,6 +391,7 @@ protected:
 	std::vector<TextureAtlasRegion> AtlasRegions;
 
 private:
+	friend class TextureLoadTaskClass;
 	friend class DX8TextureInterop;
 	void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
 	void *Get_Legacy_Surface_Level(unsigned int level = 0);

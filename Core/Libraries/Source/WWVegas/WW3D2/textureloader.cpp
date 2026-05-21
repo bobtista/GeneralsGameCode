@@ -221,6 +221,10 @@ class TextureLoadTaskClass : public TextureLoadTaskListNodeClass
 		virtual void			Lock_Surfaces				();
 		virtual void			Unlock_Surfaces			();
 		void						Capture_CPU_Texture_Snapshot_From_Locked_Surfaces();
+		bool						Should_Use_CPU_Texture_Snapshot_Staging() const;
+		unsigned int			Get_Requested_Mip_Level_Count(unsigned int width, unsigned int height) const;
+		void						Allocate_CPU_Texture_Staging();
+		void						Commit_CPU_Texture_Staging(bool initialize);
 
 		void						Apply							(bool initialize);
 
@@ -236,6 +240,8 @@ class TextureLoadTaskClass : public TextureLoadTaskListNodeClass
 
 		unsigned char *		LockedSurfacePtr[MIP_LEVELS_MAX];
 		unsigned	int			LockedSurfacePitch[MIP_LEVELS_MAX];
+		std::vector<TextureBaseClass::TextureMipSnapshot> StagedCPUTextureMips;
+		bool						UseCPUTextureSnapshotStaging;
 
 		TaskType					Type;
 		PriorityType			Priority;
@@ -1298,6 +1304,8 @@ TextureLoadTaskClass::TextureLoadTaskClass()
 	Height			(0),
 	MipLevelCount	(0),
 	Reduction		(0),
+	StagedCPUTextureMips(),
+	UseCPUTextureSnapshotStaging(false),
 	Type				(TASK_NONE),
 	Priority			(PRIORITY_LOW),
 	State				(STATE_NONE),
@@ -1390,6 +1398,8 @@ void TextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, PriorityTyp
 	State				= STATE_NONE;
 
 	D3DTexture		= nullptr;
+	UseCPUTextureSnapshotStaging = false;
+	StagedCPUTextureMips.clear();
 
 	TextureClass* tex=Texture->As_TextureClass();
 
@@ -1437,6 +1447,8 @@ void TextureLoadTaskClass::Deinit()
 	WWASSERT(Prev == nullptr);
 
 	WWASSERT(D3DTexture == nullptr);
+	WWASSERT(!UseCPUTextureSnapshotStaging);
+	WWASSERT(StagedCPUTextureMips.empty());
 
 	for (int i = 0; i < MIP_LEVELS_MAX; ++i) {
 		WWASSERT(LockedSurfacePtr[i] == nullptr);
@@ -1502,7 +1514,7 @@ bool TextureLoadTaskClass::Begin_Load()
 bool TextureLoadTaskClass::Load()
 {
 	WWMEMLOG(MEM_TEXTURE);
-	WWASSERT(Peek_D3D_Texture());
+	WWASSERT(Peek_D3D_Texture() || UseCPUTextureSnapshotStaging);
 
 	bool loaded = false;
 
@@ -1527,13 +1539,18 @@ void TextureLoadTaskClass::End_Load()
 	WWASSERT(TextureLoader::Is_DX8_Thread());
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership)) {
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
+		!UseCPUTextureSnapshotStaging) {
 		Capture_CPU_Texture_Snapshot_From_Locked_Surfaces();
 	}
 #endif
 
 	Unlock_Surfaces();
-	Apply(true);
+	if (UseCPUTextureSnapshotStaging) {
+		Commit_CPU_Texture_Staging(true);
+	} else {
+		Apply(true);
+	}
 
 	State = STATE_LOAD_COMPLETE;
 }
@@ -1909,6 +1926,16 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 			reducedMipCount -= Reduction;
 	}
 
+	if (Should_Use_CPU_Texture_Snapshot_Staging())
+	{
+		MipLevelCount = Get_Requested_Mip_Level_Count(reducedWidth, reducedHeight);
+		if (MipLevelCount > 0)
+		{
+			UseCPUTextureSnapshotStaging = true;
+			return true;
+		}
+	}
+
 	D3DTexture = Create_Legacy_Texture
 	(
 		reducedWidth,
@@ -2072,6 +2099,12 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 
 void TextureLoadTaskClass::Lock_Surfaces()
 {
+	if (UseCPUTextureSnapshotStaging)
+	{
+		Allocate_CPU_Texture_Staging();
+		return;
+	}
+
 	MipLevelCount = Peek_D3D_Texture()->GetLevelCount();
 
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
@@ -2095,6 +2128,16 @@ void TextureLoadTaskClass::Lock_Surfaces()
 
 void TextureLoadTaskClass::Unlock_Surfaces()
 {
+	if (UseCPUTextureSnapshotStaging)
+	{
+		for (unsigned int i = 0; i < MipLevelCount; ++i)
+		{
+			LockedSurfacePtr[i] = nullptr;
+			LockedSurfacePitch[i] = 0;
+		}
+		return;
+	}
+
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
 	{
 		if (LockedSurfacePtr[i])
@@ -2155,6 +2198,113 @@ void TextureLoadTaskClass::Capture_CPU_Texture_Snapshot_From_Locked_Surfaces()
 	}
 
 	Texture->Set_CPU_Texture_Snapshot(std::move(mips));
+}
+
+bool TextureLoadTaskClass::Should_Use_CPU_Texture_Snapshot_Staging() const
+{
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (!Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) ||
+		Texture == nullptr ||
+		Texture->Get_Asset_Type() != TextureBaseClass::TEX_REGULAR ||
+		Type != TASK_LOAD ||
+		Texture->As_TextureClass() == nullptr)
+	{
+		return false;
+	}
+
+	return Format == WW3D_FORMAT_A8R8G8B8 ||
+		Format == WW3D_FORMAT_X8R8G8B8;
+#else
+	return false;
+#endif
+}
+
+unsigned int TextureLoadTaskClass::Get_Requested_Mip_Level_Count(unsigned int width, unsigned int height) const
+{
+	if (width == 0 || height == 0) {
+		return 0;
+	}
+
+	unsigned int all_levels = 0;
+	for (unsigned int w = width, h = height; w > 0 && h > 0; w >>= 1, h >>= 1) {
+		++all_levels;
+	}
+
+	unsigned int requested_levels = 1;
+	switch (Texture->MipLevelCount) {
+		case MIP_LEVELS_ALL: requested_levels = all_levels; break;
+		case MIP_LEVELS_1: requested_levels = 1; break;
+		case MIP_LEVELS_2: requested_levels = 2; break;
+		case MIP_LEVELS_3: requested_levels = 3; break;
+		case MIP_LEVELS_4: requested_levels = 4; break;
+		case MIP_LEVELS_5: requested_levels = 5; break;
+		case MIP_LEVELS_6: requested_levels = 6; break;
+		case MIP_LEVELS_7: requested_levels = 7; break;
+		case MIP_LEVELS_8: requested_levels = 8; break;
+		case MIP_LEVELS_10: requested_levels = 10; break;
+		case MIP_LEVELS_11: requested_levels = 11; break;
+		case MIP_LEVELS_12: requested_levels = 12; break;
+		default: requested_levels = 1; break;
+	}
+
+	return MIN(requested_levels, all_levels);
+}
+
+void TextureLoadTaskClass::Allocate_CPU_Texture_Staging()
+{
+	WWASSERT(UseCPUTextureSnapshotStaging);
+	WWASSERT(MipLevelCount > 0);
+
+	const unsigned int bytes_per_pixel = Get_Bytes_Per_Pixel(Format);
+	WWASSERT(bytes_per_pixel != 0);
+
+	StagedCPUTextureMips.clear();
+	StagedCPUTextureMips.resize(MipLevelCount);
+
+	unsigned int width = Width;
+	unsigned int height = Height;
+	for (unsigned int level = 0; level < Reduction; ++level)
+	{
+		width >>= 1;
+		height >>= 1;
+	}
+
+	for (unsigned int level = 0; level < MipLevelCount; ++level)
+	{
+		TextureBaseClass::TextureMipSnapshot &mip = StagedCPUTextureMips[level];
+		mip.Width = width;
+		mip.Height = height;
+		mip.Pitch = width * bytes_per_pixel;
+		mip.Format = Format;
+		mip.Data.resize(static_cast<size_t>(mip.Pitch) * mip.Height);
+		LockedSurfacePtr[level] = mip.Data.data();
+		LockedSurfacePitch[level] = mip.Pitch;
+
+		width >>= 1;
+		height >>= 1;
+	}
+}
+
+void TextureLoadTaskClass::Commit_CPU_Texture_Staging(bool initialize)
+{
+	WWASSERT(UseCPUTextureSnapshotStaging);
+	WWASSERT(Texture != nullptr);
+
+	TextureClass *texture = Texture->As_TextureClass();
+	WWASSERT(texture != nullptr);
+	texture->TextureFormat = Format;
+	Texture->Width = Width;
+	Texture->Height = Height;
+	Texture->Set_CPU_Texture_Snapshot(std::move(StagedCPUTextureMips));
+	StagedCPUTextureMips.clear();
+	if (initialize) {
+		Texture->Initialized = true;
+	}
+	Texture->LastAccessed = WW3D::Get_Sync_Time();
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Invalidate_Cached_Texture(texture);
+	}
+	UseCPUTextureSnapshotStaging = false;
 }
 
 
