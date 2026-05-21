@@ -65,11 +65,6 @@ inline void Set_Legacy_Base_Texture(TextureBaseClass &texture, IDirect3DBaseText
 	DX8TextureInterop::Set_Legacy_Base_Texture(texture, native_texture);
 }
 
-inline void Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source)
-{
-	DX8TextureInterop::Share_Legacy_Texture_With(texture, source);
-}
-
 inline void Poke_Legacy_Texture(TextureBaseClass &texture, IDirect3DBaseTexture8 *native_texture)
 {
 	DX8TextureInterop::Poke_Legacy_Texture(texture, native_texture);
