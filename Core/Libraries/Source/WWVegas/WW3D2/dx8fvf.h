@@ -110,6 +110,8 @@ enum {
 };
 
 static constexpr unsigned RENDER_VERTEX_FORMAT_XYZDUV1 = DX8_FVF_XYZDUV1;
+static constexpr unsigned RENDER_VERTEX_FORMAT_XYZDUV2 = DX8_FVF_XYZDUV2;
+static constexpr unsigned RENDER_VERTEX_FORMAT_XYZNDUV1 = DX8_FVF_XYZNDUV1;
 
 // ----------------------------------------------------------------------------
 //
