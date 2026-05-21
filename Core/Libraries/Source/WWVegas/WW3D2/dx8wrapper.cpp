@@ -3049,8 +3049,13 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 			}
 			return texture;
 		}
-		// fall through to D3DX fallback if TGA loader failed
 	}
+
+	WWASSERT_PRINT(
+		false,
+		"DX8Wrapper::_Create_DX8_Texture(file): standalone bgfx legacy texture path cannot load this file; no D3DX fallback is available");
+	Log_Missing_Texture_File("standalone legacy texture loader", filename);
+	return Get_Legacy_Missing_Texture();
 #endif
 
 	// NOTE: If the original image format is not supported as a texture format, it will
