@@ -138,6 +138,7 @@ public:
 	bool Is_Initialized() const { return Initialized; }
 	bool Is_Lightmap() const { return IsLightmap; }
 	bool Is_Procedural() const { return IsProcedural; }
+	bool Is_Render_Target() const { return IsRenderTarget; }
 	bool Is_Reducible() const { return IsReducible; } //can texture be reduced in resolution for LOD purposes?
 
 	static int _Get_Total_Locked_Surface_Size();
@@ -211,6 +212,7 @@ protected:
 
 	// For debug purposes the texture sets this true if it is a lightmap texture
 	bool IsLightmap;
+	bool IsRenderTarget;
 	bool IsCompressionAllowed;
 	bool IsProcedural;
 	bool IsReducible;
