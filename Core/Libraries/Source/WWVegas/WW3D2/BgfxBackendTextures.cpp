@@ -1527,9 +1527,10 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly)
         textureInfo[tex] = { textureRevision, 0, 0 };
     }
 
-    // Only handle TextureClass (regular 2D) for now. Cube and volume
-    // textures take a different path and would need their own helpers.
-    if (tex2d == nullptr)
+    // Only handle regular 2D TextureClass resources here. Cube and volume
+    // textures are dormant in the GeneralsMD bgfx runtime, and would need
+    // separate snapshot/cache/upload plumbing if a real caller appears.
+    if (tex2d == nullptr || tex->Get_Asset_Type() != TextureBaseClass::TEX_REGULAR)
     {
         textureCache[tex] = BGFX_INVALID_HANDLE;
         return BGFX_INVALID_HANDLE;
