@@ -3125,6 +3125,12 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces()
 
 bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"CubeTextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot load fake-D3D cube textures");
+	return false;
+#endif
 	unsigned orig_w,orig_h,orig_d,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
@@ -3227,6 +3233,12 @@ bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 
 bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"CubeTextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot load fake-D3D cube textures");
+	return false;
+#endif
 	unsigned width,height,depth,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
@@ -3485,6 +3497,12 @@ void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 
 bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"VolumeTextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot load fake-D3D volume textures");
+	return false;
+#endif
 	unsigned orig_w,orig_h,orig_d,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
@@ -3593,6 +3611,12 @@ bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 
 bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"VolumeTextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot load fake-D3D volume textures");
+	return false;
+#endif
 	unsigned width,height,depth,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
