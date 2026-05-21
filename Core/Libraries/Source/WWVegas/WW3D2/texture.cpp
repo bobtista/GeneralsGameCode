@@ -595,6 +595,9 @@ bool TextureBaseClass::Is_Missing_Texture()
 	if (IsMissingTexture) {
 		return true;
 	}
+	if (Should_Use_CPU_Only_Surface_Textures()) {
+		return false;
+	}
 	if (LegacyTexture == nullptr) {
 		return false;
 	}
