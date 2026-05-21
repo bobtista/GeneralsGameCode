@@ -404,7 +404,7 @@ public:
 
     // Transitional: populate m_backendHandle on owner-backed wrapper
     // resources. See IRenderBackend.h for context.
-    virtual RenderResource Register_Loaded_Texture(TextureBaseClass * tex) override;
+    virtual RenderResource Create_Texture_Resource(TextureBaseClass * tex) override;
     virtual RenderResource Create_Vertex_Buffer_Resource(VertexBufferClass * vb) override;
     virtual RenderResource Create_Index_Buffer_Resource(IndexBufferClass * ib) override;
 

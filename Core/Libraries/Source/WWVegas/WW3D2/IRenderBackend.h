@@ -1200,7 +1200,7 @@ public:
     // Default: return invalid handle (no-op for backends that don't care
     // about owner-backed resources).
 
-    virtual RenderResource Register_Loaded_Texture(TextureBaseClass * /*tex*/) { return kInvalidRenderResource; }
+    virtual RenderResource Create_Texture_Resource(TextureBaseClass * /*tex*/) { return kInvalidRenderResource; }
     virtual RenderResource Create_Vertex_Buffer_Resource(VertexBufferClass * /*vb*/) { return kInvalidRenderResource; }
     virtual RenderResource Create_Index_Buffer_Resource(IndexBufferClass * /*ib*/) { return kInvalidRenderResource; }
 };

@@ -2742,11 +2742,9 @@ void BgfxBackend::Shutdown()
         g_caches.deferredDestroys.clear();
         g_caches.deferredDestroysPrev.clear();
         // TheSuperHackers @bugfix bobtista 28/04/2026 Drain phase5 table.
-        // Register_Loaded_VB/IB/Dynamic_VB/Dynamic_IB allocate bgfx
-        // resources that game code is supposed to release via
-        // Destroy_Resource, but if shutdown beats teardown they leak. The
-        // texture entries are owned by g_caches.texture (already drained
-        // above) so we skip BGFX_RR_KIND_TEXTURE here.
+        // Registered VB/IB resources are normally released via Destroy_Resource,
+        // but if shutdown beats teardown they leak. Texture entries are owned by
+        // g_caches.texture (already drained above), so skip BGFX_RR_KIND_TEXTURE.
         for (auto & kv : g_phase5.table)
         {
             BgfxPhase5Entry & entry = kv.second;
@@ -2754,8 +2752,6 @@ void BgfxBackend::Shutdown()
             {
                 case BGFX_RR_KIND_VB:     DestroyBgfxHandle(entry.vb);  break;
                 case BGFX_RR_KIND_IB:     DestroyBgfxHandle(entry.ib);  break;
-                case BGFX_RR_KIND_DYN_VB: DestroyBgfxHandle(entry.dvb); break;
-                case BGFX_RR_KIND_DYN_IB: DestroyBgfxHandle(entry.dib); break;
                 default: break;
             }
         }
@@ -8947,9 +8943,9 @@ void BgfxBackend::Set_Pixel_Shader(unsigned long pixel_shader)
 // ===========================================================================
 //
 // The returned RenderResource.id is a monotonically-increasing key into
-// g_phase5.table; the entry holds the bgfx handle(s). Legacy loaded resources
-// still enter through Register_Loaded_* and the older caches keyed by their
-// owner objects.
+// g_phase5.table; the entry holds the bgfx handle(s). Owner-backed resources
+// still enter through the transitional *_Resource hooks and the older caches
+// keyed by their owner objects.
 //
 namespace {
 
@@ -9101,7 +9097,6 @@ RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const 
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_VB;
     entry.d3d_mirror = nullptr;
-    entry.size_bytes = desc.size_bytes;
     entry.vb = BGFX_INVALID_HANDLE;
     entry.dvb = BGFX_INVALID_HANDLE;
     if (initial_data != nullptr
@@ -9129,7 +9124,6 @@ RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const v
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_IB;
     entry.d3d_mirror = nullptr;
-    entry.size_bytes = desc.size_bytes;
     entry.ib = BGFX_INVALID_HANDLE;
     entry.dib = BGFX_INVALID_HANDLE;
     const unsigned int indexSize = indices_are_32bit ? sizeof(uint32_t) : sizeof(uint16_t);
@@ -9145,100 +9139,6 @@ RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const v
     rr.id = AllocPhase5Id();
     g_phase5.table[rr.id] = entry;
     return rr;
-}
-
-RenderResource BgfxBackend::Create_Dynamic_Vertex_Buffer(const BufferDesc & desc)
-{
-    BgfxPhase5Entry entry;
-    std::memset(&entry, 0, sizeof(entry));
-    entry.kind = BGFX_RR_KIND_DYN_VB;
-    entry.d3d_mirror = nullptr;
-    entry.size_bytes = desc.size_bytes;
-    entry.dvb = BGFX_INVALID_HANDLE;
-    // Dynamic VBs in bgfx are implemented on-the-fly via Map_Dynamic
-    // allocating a transient buffer per map. The dvb handle here is a
-    // reservation placeholder for the non-transient path if ever needed.
-
-    RenderResource rr;
-    rr.id = AllocPhase5Id();
-    g_phase5.table[rr.id] = entry;
-    return rr;
-}
-
-RenderResource BgfxBackend::Create_Dynamic_Index_Buffer(const BufferDesc & desc, bool indices_are_32bit)
-{
-    BgfxPhase5Entry entry;
-    std::memset(&entry, 0, sizeof(entry));
-    entry.kind = BGFX_RR_KIND_DYN_IB;
-    entry.d3d_mirror = nullptr;
-    entry.size_bytes = desc.size_bytes;
-    entry.dib = BGFX_INVALID_HANDLE;
-
-    RenderResource rr;
-    rr.id = AllocPhase5Id();
-    g_phase5.table[rr.id] = entry;
-    return rr;
-}
-
-void * BgfxBackend::Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard)
-{
-    return Map_Dynamic_Vertex_Buffer(h, offset, size, discard);
-}
-
-void * BgfxBackend::Map_Dynamic_Vertex_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard)
-{
-    (void)offset;
-    (void)size;
-    (void)discard;
-    auto it = g_phase5.table.find(h.id);
-    if (it == g_phase5.table.end()) {
-        return nullptr;
-    }
-    return nullptr;
-}
-
-void BgfxBackend::Unmap_Dynamic(RenderResource h)
-{
-    Unmap_Dynamic_Vertex_Buffer(h);
-}
-
-void * BgfxBackend::Map_Dynamic_Index_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard)
-{
-    return Map_Dynamic_Vertex_Buffer(h, offset, size, discard);
-}
-
-void BgfxBackend::Unmap_Dynamic_Vertex_Buffer(RenderResource h)
-{
-    auto it = g_phase5.table.find(h.id);
-    if (it == g_phase5.table.end()) {
-        return;
-    }
-}
-
-void BgfxBackend::Unmap_Dynamic_Index_Buffer(RenderResource h)
-{
-    Unmap_Dynamic_Vertex_Buffer(h);
-}
-
-void BgfxBackend::Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
-{
-    Update_Vertex_Sub_Range(h, offset, data, size);
-}
-
-void BgfxBackend::Update_Vertex_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
-{
-    (void)offset;
-    (void)data;
-    (void)size;
-    auto it = g_phase5.table.find(h.id);
-    if (it == g_phase5.table.end()) {
-        return;
-    }
-}
-
-void BgfxBackend::Update_Index_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
-{
-    Update_Vertex_Sub_Range(h, offset, data, size);
 }
 
 void BgfxBackend::Destroy_Resource(RenderResource h)
@@ -9316,16 +9216,6 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
             DestroyStaticIndexResource(entry);
             break;
         }
-        case BGFX_RR_KIND_DYN_VB:
-            if (bgfx::isValid(entry.dvb)) {
-                bgfx::destroy(entry.dvb);
-            }
-            break;
-        case BGFX_RR_KIND_DYN_IB:
-            if (bgfx::isValid(entry.dib)) {
-                bgfx::destroy(entry.dib);
-            }
-            break;
         case BGFX_RR_KIND_NONE:
         default:
             break;
@@ -9334,19 +9224,9 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
     g_phase5.table.erase(it);
 }
 
-void BgfxBackend::Begin_Dynamic_Frame()
-{
-    // TheSuperHackers @perf bobtista 28/04/2026 The earlier per-frame walk
-    // over g_phase5.table to clear using_transient_vb/ib was pure waste —
-    // those flags are never set anywhere and entries are memset to zero on
-    // creation. When Map_Dynamic actually allocates bgfx transient buffers, it must also
-    // push the entry id into a side list so we can scope this clear to
-    // the entries actually touched last frame.
-}
+// -- Transitional owner-backed resource hooks -------------------------------
 
-// -- Transitional Register_Loaded_* ----------------------------------------
-
-RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
+RenderResource BgfxBackend::Create_Texture_Resource(TextureBaseClass * tex)
 {
     if (tex == nullptr) {
         return kInvalidRenderResource;
