@@ -302,6 +302,6 @@ public:
     virtual void   Destroy_Resource(RenderResource h);
 
     virtual RenderResource Register_Loaded_Texture(TextureBaseClass * tex);
-    virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * vb);
-    virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * ib);
+    virtual RenderResource Create_Vertex_Buffer_Resource(VertexBufferClass * vb);
+    virtual RenderResource Create_Index_Buffer_Resource(IndexBufferClass * ib);
 };

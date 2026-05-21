@@ -2005,12 +2005,12 @@ RenderResource DX8Backend::Register_Loaded_Texture(TextureBaseClass * /*tex*/)
     return kInvalidRenderResource;
 }
 
-RenderResource DX8Backend::Register_Loaded_Vertex_Buffer(VertexBufferClass * /*vb*/)
+RenderResource DX8Backend::Create_Vertex_Buffer_Resource(VertexBufferClass * /*vb*/)
 {
     return kInvalidRenderResource;
 }
 
-RenderResource DX8Backend::Register_Loaded_Index_Buffer(IndexBufferClass * /*ib*/)
+RenderResource DX8Backend::Create_Index_Buffer_Resource(IndexBufferClass * /*ib*/)
 {
     return kInvalidRenderResource;
 }

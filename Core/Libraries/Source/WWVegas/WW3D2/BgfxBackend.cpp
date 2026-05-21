@@ -9261,7 +9261,7 @@ RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
     return rr;
 }
 
-RenderResource BgfxBackend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb)
+RenderResource BgfxBackend::Create_Vertex_Buffer_Resource(VertexBufferClass * vb)
 {
     if (vb == nullptr) {
         return kInvalidRenderResource;
@@ -9270,7 +9270,7 @@ RenderResource BgfxBackend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb
     // Destroy_Resource would cast it to IUnknown* and call Release(), which
     // lands on whatever the third virtual of VertexBufferClass happens to
     // be and crashes. The VB's legacy resource lifetime is owned by the
-    // DX8VertexBufferClass dtor; we have no cleanup to do on the reference side.
+    // render wrapper dtor; we have no cleanup to do on the reference side.
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind = BGFX_RR_KIND_VB;
@@ -9285,12 +9285,12 @@ RenderResource BgfxBackend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb
     return rr;
 }
 
-RenderResource BgfxBackend::Register_Loaded_Index_Buffer(IndexBufferClass * ib)
+RenderResource BgfxBackend::Create_Index_Buffer_Resource(IndexBufferClass * ib)
 {
     if (ib == nullptr) {
         return kInvalidRenderResource;
     }
-    // Same rationale as Register_Loaded_Vertex_Buffer — leave d3d_mirror
+    // Same rationale as Create_Vertex_Buffer_Resource — leave d3d_mirror
     // null so Destroy_Resource's reference-side Release does nothing.
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));

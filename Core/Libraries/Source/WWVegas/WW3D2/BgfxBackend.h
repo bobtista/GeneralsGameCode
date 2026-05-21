@@ -389,11 +389,11 @@ public:
     virtual RenderResource Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit) override;
     virtual void   Destroy_Resource(RenderResource h) override;
 
-    // Transitional: populate m_backendHandle on resources created via the
-    // legacy loader. See IRenderBackend.h for context.
+    // Transitional: populate m_backendHandle on owner-backed wrapper
+    // resources. See IRenderBackend.h for context.
     virtual RenderResource Register_Loaded_Texture(TextureBaseClass * tex) override;
-    virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * vb) override;
-    virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * ib) override;
+    virtual RenderResource Create_Vertex_Buffer_Resource(VertexBufferClass * vb) override;
+    virtual RenderResource Create_Index_Buffer_Resource(IndexBufferClass * ib) override;
 
 private:
     int m_textureBitDepth;

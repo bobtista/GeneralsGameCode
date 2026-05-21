@@ -1146,19 +1146,20 @@ public:
     virtual void Destroy_Resource(RenderResource h) {}
 
     // -------------------------------------------------------------------------
-    // Transitional "register loaded resource" hooks (Option 1)
+    // Transitional owner-backed resource hooks (Option 1)
     // -------------------------------------------------------------------------
     //
-    // Populate a backend-neutral handle AFTER the legacy loader has already
-    // created the legacy resource. These are called from the end of the
-    // asset-loader flow so m_backendHandle is populated going forward.
+    // Populate a backend-neutral handle for wrapper resources that still own
+    // their CPU data and, in reference builds, may also own a legacy mirror.
+    // These are called from the end of the wrapper construction flow so
+    // m_backendHandle is populated going forward.
     // Once the legacy loader path is gone, these hooks disappear with
     // it and everything goes through the Create_* methods above.
     //
     // Default: return invalid handle (no-op for backends that don't care
-    // about adopting existing D3D resources).
+    // about owner-backed resources).
 
     virtual RenderResource Register_Loaded_Texture(TextureBaseClass * /*tex*/) { return kInvalidRenderResource; }
-    virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * /*vb*/) { return kInvalidRenderResource; }
-    virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * /*ib*/) { return kInvalidRenderResource; }
+    virtual RenderResource Create_Vertex_Buffer_Resource(VertexBufferClass * /*vb*/) { return kInvalidRenderResource; }
+    virtual RenderResource Create_Index_Buffer_Resource(IndexBufferClass * /*ib*/) { return kInvalidRenderResource; }
 };
