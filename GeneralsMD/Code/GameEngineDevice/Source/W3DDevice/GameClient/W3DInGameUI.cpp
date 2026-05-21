@@ -57,8 +57,10 @@
 
 #ifdef RTS_DEBUG
 #include "W3DDevice/GameClient/HeightMap.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8vertexbuffer.h"
+#endif
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/vertmaterial.h"
