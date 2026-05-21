@@ -1489,9 +1489,9 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	W3DBufferManager::W3DVertexBufferSlot *vbSlot=m_shadowVolumeVB[lightIndex][ meshIndex ];
 	if (!vbSlot)
 		return;
-	if (vbSlot->m_VB->m_DX8VertexBuffer != lastActiveVertexBuffer)
-	{	lastActiveVertexBuffer=vbSlot->m_VB->m_DX8VertexBuffer;
-		g_renderBackend->Set_Vertex_Buffer(vbSlot->m_VB->m_DX8VertexBuffer, 0);
+	if (vbSlot->m_VB->m_renderVertexBuffer != lastActiveVertexBuffer)
+	{	lastActiveVertexBuffer=vbSlot->m_VB->m_renderVertexBuffer;
+		g_renderBackend->Set_Vertex_Buffer(vbSlot->m_VB->m_renderVertexBuffer, 0);
 	}
 
 	DEBUG_ASSERTCRASH(vbSlot->m_size >= numVerts,("Overflowing Shadow Vertex Buffer Slot"));
@@ -1502,7 +1502,7 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 
 	DEBUG_ASSERTCRASH(ibSlot->m_size >= numIndex,("Overflowing Shadow Index Buffer Slot"));
 
-	g_renderBackend->Set_Index_Buffer(ibSlot->m_IB->m_DX8IndexBuffer, vbSlot->m_start);
+	g_renderBackend->Set_Index_Buffer(ibSlot->m_IB->m_renderIndexBuffer, vbSlot->m_start);
 
 	if (g_renderBackend->Is_Triangle_Draw_Enabled())
 	{
@@ -3334,13 +3334,13 @@ void W3DVolumetricShadow::constructVolumeVB( Vector3 *lightPosObject,Real shadow
 		return;
 	}
 
-	RenderVertexBufferClass::AppendLockClass lockVtxBuffer(vbSlot->m_VB->m_DX8VertexBuffer,vbSlot->m_start,vertexCount);
+	RenderVertexBufferClass::AppendLockClass lockVtxBuffer(vbSlot->m_VB->m_renderVertexBuffer,vbSlot->m_start,vertexCount);
 	VertexFormatXYZ *vb = (VertexFormatXYZ*)lockVtxBuffer.Get_Vertex_Array();
 
 	if (vb == nullptr)
 		return;
 
-	RenderIndexBufferClass::AppendLockClass lockIdxBuffer(ibSlot->m_IB->m_DX8IndexBuffer,ibSlot->m_start,polygonCount*3);
+	RenderIndexBufferClass::AppendLockClass lockIdxBuffer(ibSlot->m_IB->m_renderIndexBuffer,ibSlot->m_start,polygonCount*3);
 	UnsignedShort *ib = (UnsignedShort*)lockIdxBuffer.Get_Index_Array();
 
 	if (ib == nullptr)
