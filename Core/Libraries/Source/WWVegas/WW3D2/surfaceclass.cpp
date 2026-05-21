@@ -587,37 +587,51 @@ void SurfaceClass::Copy(
 		}
 		else
 		{
-			LegacyRect src_rect;
-			src_rect.left = srcx;
-			src_rect.right = srcx + copy_width;
-			src_rect.top = srcy;
-			src_rect.bottom = srcy + copy_height;
-
 			LegacyRect dst_rect;
 			dst_rect.left = dstx;
 			dst_rect.right = dstx + copy_width;
 			dst_rect.top = dsty;
 			dst_rect.bottom = dsty + copy_height;
 
-			LegacyLockedRect src_lock;
 			LegacyLockedRect dst_lock;
-			::ZeroMemory(&src_lock, sizeof(src_lock));
 			::ZeroMemory(&dst_lock, sizeof(dst_lock));
-
-			DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->LockRect(&src_lock, &src_rect, kLegacyLockReadOnly));
 			DX8_ErrorCode(LEGACY_SURFACE->LockRect(&dst_lock, &dst_rect, 0));
 
-			const unsigned char *src_mem = static_cast<const unsigned char *>(src_lock.pBits);
+			const bool can_copy_from_cpu =
+				other->Has_CPU_Surface_Snapshot() &&
+				other->ImageData.Format == osd.Format &&
+				other->ImageData.Width == osd.Width &&
+				other->ImageData.Height == osd.Height;
+			LegacyLockedRect src_lock;
+			::ZeroMemory(&src_lock, sizeof(src_lock));
+			const unsigned char *src_mem = nullptr;
+			unsigned int src_pitch = 0;
+			if (can_copy_from_cpu) {
+				src_mem = other->ImageData.Data.data() + srcy * other->ImageData.Pitch + srcx * pixel_size;
+				src_pitch = other->ImageData.Pitch;
+			} else {
+				LegacyRect src_rect;
+				src_rect.left = srcx;
+				src_rect.right = srcx + copy_width;
+				src_rect.top = srcy;
+				src_rect.bottom = srcy + copy_height;
+				DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->LockRect(&src_lock, &src_rect, kLegacyLockReadOnly));
+				src_mem = static_cast<const unsigned char *>(src_lock.pBits);
+				src_pitch = src_lock.Pitch;
+			}
+
 			unsigned char *dst_mem = static_cast<unsigned char *>(dst_lock.pBits);
 			for (unsigned int y = 0; y < copy_height; ++y)
 			{
 				memcpy(dst_mem, src_mem, row_size);
-				src_mem += src_lock.Pitch;
+				src_mem += src_pitch;
 				dst_mem += dst_lock.Pitch;
 			}
 
 			DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
-			DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->UnlockRect());
+			if (!can_copy_from_cpu) {
+				DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->UnlockRect());
+			}
 		}
 	}
 	else
