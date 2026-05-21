@@ -773,6 +773,16 @@ void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const void*
 		}
 		return;
 	}
+#if defined(GGC_BGFX_STANDALONE)
+	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
+		SupportTextureFormat[i]=(i!=WW3D_FORMAT_UNKNOWN);
+		if (SupportTextureFormat[i]) {
+			StringClass name(0,true);
+			Get_WW3D_Format_Name((WW3DFormat)i,name);
+			DXLOG(("Supports texture format: %s\r\n",name.str()));
+		}
+	}
+#else
 	LegacyFormat d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
 	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 		if (i==WW3D_FORMAT_UNKNOWN) {
@@ -795,6 +805,8 @@ void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const void*
 			}
 		}
 	}
+#endif
+	(void)caps;
 }
 
 void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const void* caps_ptr)
@@ -806,6 +818,16 @@ void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const vo
 		}
 		return;
 	}
+#if defined(GGC_BGFX_STANDALONE)
+	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
+		SupportRenderToTextureFormat[i]=(i==WW3D_FORMAT_A8R8G8B8 || i==WW3D_FORMAT_X8R8G8B8);
+		if (SupportRenderToTextureFormat[i]) {
+			StringClass name(0,true);
+			Get_WW3D_Format_Name((WW3DFormat)i,name);
+			DXLOG(("Supports render-to-texture format: %s\r\n",name.str()));
+		}
+	}
+#else
 	LegacyFormat d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
 	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 		if (i==WW3D_FORMAT_UNKNOWN) {
@@ -828,6 +850,8 @@ void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const vo
 			}
 		}
 	}
+#endif
+	(void)caps;
 }
 
 //**********************************************************************************************
@@ -846,6 +870,18 @@ void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const void*
 		return;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	for (unsigned i=0;i<WW3D_ZFORMAT_COUNT;++i)
+	{
+		SupportDepthStencilFormat[i]=(i==WW3D_ZFORMAT_D24S8 || i==WW3D_ZFORMAT_D24X8 || i==WW3D_ZFORMAT_D16);
+		if (SupportDepthStencilFormat[i])
+		{
+			StringClass name(0,true);
+			Get_WW3D_ZFormat_Name((WW3DZFormat)i,name);
+			DXLOG(("Supports depth stencil format: %s\r\n",name.str()));
+		}
+	}
+#else
 	LegacyFormat d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
 
 	for (unsigned i=0;i<WW3D_ZFORMAT_COUNT;++i)
@@ -878,6 +914,8 @@ void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const void*
 			}
 		}
 	}
+#endif
+	(void)caps;
 }
 
 void DX8Caps::Check_Maximum_Texture_Support(const void* caps_ptr)

@@ -282,15 +282,6 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.h
     )
 
-    if(GGC_BGFX_STANDALONE)
-        # Standalone bgfx still compiles the legacy wrapper while texture and
-        # surface factories migrate, so it needs the in-tree D3D8 interface shim.
-        target_sources(corei_ww3d2 INTERFACE
-            ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.h
-        )
-    endif()
-
     # TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.1 shader
     # compilation. Only compile these shaders for the bgfx build. The
     # ggc_compile_bgfx_shader helper (cmake/bgfx.cmake) creates the

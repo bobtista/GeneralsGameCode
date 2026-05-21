@@ -38,8 +38,6 @@ SKIP_FILES = {
     "dx8texturelegacytypes.h",
     "dx8wrapper.cpp",
     "fixedfunctionlegacytypes.h",
-    "StubD3D8Device.cpp",
-    "StubD3D8Device.h",
 }
 
 FORBIDDEN_BGFX_COMPILED_SOURCES = {

@@ -59,7 +59,6 @@
 #include "dx8renderer.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
-#include "StubD3D8Device.h"
 #include "ww3d.h"
 #include "camera.h"
 #include "wwstring.h"
@@ -92,6 +91,7 @@
 #include "shdlib.h"
 
 #include <cstdio>
+#include <cstring>
 
 static D3DDEVTYPE Legacy_Device_Type(unsigned value) { return static_cast<D3DDEVTYPE>(value); }
 static D3DRESOURCETYPE Legacy_Resource_Type(unsigned value) { return static_cast<D3DRESOURCETYPE>(value); }
@@ -291,6 +291,127 @@ unsigned long DX8Wrapper::FrameCount = 0;
 bool								_DX8SingleThreaded										= false;
 
 static D3DPRESENT_PARAMETERS								_PresentParameters;
+
+#if defined(GGC_BGFX_STANDALONE)
+static bool StandaloneDeviceCreated = false;
+
+static void Fill_Standalone_DX8_Caps(D3DCAPS8 &caps)
+{
+	::ZeroMemory(&caps, sizeof(caps));
+	caps.DeviceType = D3DDEVTYPE_HAL;
+	caps.AdapterOrdinal = 0;
+	caps.Caps = 0;
+	caps.Caps2 = D3DCAPS2_CANRENDERWINDOWED | D3DCAPS2_DYNAMICTEXTURES | D3DCAPS2_FULLSCREENGAMMA | D3DCAPS2_CANCALIBRATEGAMMA;
+	caps.Caps3 = 0;
+	caps.PresentationIntervals = D3DPRESENT_INTERVAL_DEFAULT | D3DPRESENT_INTERVAL_IMMEDIATE | D3DPRESENT_INTERVAL_ONE;
+	caps.CursorCaps = D3DCURSORCAPS_COLOR | D3DCURSORCAPS_LOWRES;
+	caps.DevCaps = D3DDEVCAPS_HWTRANSFORMANDLIGHT | D3DDEVCAPS_PUREDEVICE | D3DDEVCAPS_DRAWPRIMTLVERTEX
+		| D3DDEVCAPS_EXECUTESYSTEMMEMORY | D3DDEVCAPS_EXECUTEVIDEOMEMORY
+		| D3DDEVCAPS_TLVERTEXSYSTEMMEMORY | D3DDEVCAPS_TLVERTEXVIDEOMEMORY
+		| D3DDEVCAPS_TEXTURESYSTEMMEMORY | D3DDEVCAPS_TEXTUREVIDEOMEMORY
+		| D3DDEVCAPS_CANRENDERAFTERFLIP | D3DDEVCAPS_TEXTURENONLOCALVIDMEM
+		| D3DDEVCAPS_DRAWPRIMITIVES2 | D3DDEVCAPS_DRAWPRIMITIVES2EX
+		| D3DDEVCAPS_HWRASTERIZATION;
+	caps.PrimitiveMiscCaps = D3DPMISCCAPS_MASKZ | D3DPMISCCAPS_LINEPATTERNREP
+		| D3DPMISCCAPS_CULLNONE | D3DPMISCCAPS_CULLCW | D3DPMISCCAPS_CULLCCW
+		| D3DPMISCCAPS_COLORWRITEENABLE | D3DPMISCCAPS_CLIPTLVERTS
+		| D3DPMISCCAPS_TSSARGTEMP | D3DPMISCCAPS_BLENDOP;
+	caps.RasterCaps = D3DPRASTERCAPS_DITHER | D3DPRASTERCAPS_ZTEST
+		| D3DPRASTERCAPS_FOGVERTEX | D3DPRASTERCAPS_FOGTABLE
+		| D3DPRASTERCAPS_MIPMAPLODBIAS | D3DPRASTERCAPS_ZBIAS
+		| D3DPRASTERCAPS_ANISOTROPY | D3DPRASTERCAPS_WFOG | D3DPRASTERCAPS_ZFOG
+		| D3DPRASTERCAPS_COLORPERSPECTIVE;
+	caps.ZCmpCaps = D3DPCMPCAPS_NEVER | D3DPCMPCAPS_LESS | D3DPCMPCAPS_EQUAL
+		| D3DPCMPCAPS_LESSEQUAL | D3DPCMPCAPS_GREATER | D3DPCMPCAPS_NOTEQUAL
+		| D3DPCMPCAPS_GREATEREQUAL | D3DPCMPCAPS_ALWAYS;
+	caps.SrcBlendCaps = D3DPBLENDCAPS_ZERO | D3DPBLENDCAPS_ONE
+		| D3DPBLENDCAPS_SRCCOLOR | D3DPBLENDCAPS_INVSRCCOLOR
+		| D3DPBLENDCAPS_SRCALPHA | D3DPBLENDCAPS_INVSRCALPHA
+		| D3DPBLENDCAPS_DESTALPHA | D3DPBLENDCAPS_INVDESTALPHA
+		| D3DPBLENDCAPS_DESTCOLOR | D3DPBLENDCAPS_INVDESTCOLOR
+		| D3DPBLENDCAPS_SRCALPHASAT | D3DPBLENDCAPS_BOTHSRCALPHA
+		| D3DPBLENDCAPS_BOTHINVSRCALPHA;
+	caps.DestBlendCaps = caps.SrcBlendCaps;
+	caps.AlphaCmpCaps = caps.ZCmpCaps;
+	caps.ShadeCaps = D3DPSHADECAPS_COLORGOURAUDRGB | D3DPSHADECAPS_SPECULARGOURAUDRGB
+		| D3DPSHADECAPS_ALPHAGOURAUDBLEND | D3DPSHADECAPS_FOGGOURAUD;
+	caps.TextureCaps = D3DPTEXTURECAPS_PERSPECTIVE | D3DPTEXTURECAPS_ALPHA
+		| D3DPTEXTURECAPS_TEXREPEATNOTSCALEDBYSIZE | D3DPTEXTURECAPS_ALPHAPALETTE
+		| D3DPTEXTURECAPS_PROJECTED | D3DPTEXTURECAPS_CUBEMAP
+		| D3DPTEXTURECAPS_VOLUMEMAP | D3DPTEXTURECAPS_MIPMAP
+		| D3DPTEXTURECAPS_MIPVOLUMEMAP | D3DPTEXTURECAPS_MIPCUBEMAP;
+	caps.TextureFilterCaps = D3DPTFILTERCAPS_MINFPOINT | D3DPTFILTERCAPS_MINFLINEAR
+		| D3DPTFILTERCAPS_MINFANISOTROPIC | D3DPTFILTERCAPS_MIPFPOINT
+		| D3DPTFILTERCAPS_MIPFLINEAR | D3DPTFILTERCAPS_MAGFPOINT
+		| D3DPTFILTERCAPS_MAGFLINEAR | D3DPTFILTERCAPS_MAGFANISOTROPIC;
+	caps.CubeTextureFilterCaps = caps.TextureFilterCaps;
+	caps.VolumeTextureFilterCaps = caps.TextureFilterCaps;
+	caps.TextureAddressCaps = D3DPTADDRESSCAPS_WRAP | D3DPTADDRESSCAPS_MIRROR
+		| D3DPTADDRESSCAPS_CLAMP | D3DPTADDRESSCAPS_BORDER
+		| D3DPTADDRESSCAPS_INDEPENDENTUV | D3DPTADDRESSCAPS_MIRRORONCE;
+	caps.VolumeTextureAddressCaps = caps.TextureAddressCaps;
+	caps.LineCaps = D3DLINECAPS_TEXTURE | D3DLINECAPS_ZTEST | D3DLINECAPS_BLEND | D3DLINECAPS_ALPHACMP | D3DLINECAPS_FOG;
+	caps.MaxTextureWidth = 4096;
+	caps.MaxTextureHeight = 4096;
+	caps.MaxVolumeExtent = 256;
+	caps.MaxTextureRepeat = 8192;
+	caps.MaxTextureAspectRatio = 0;
+	caps.MaxAnisotropy = 16;
+	caps.MaxVertexW = 1e10f;
+	caps.GuardBandLeft = -32768.0f;
+	caps.GuardBandTop = -32768.0f;
+	caps.GuardBandRight = 32768.0f;
+	caps.GuardBandBottom = 32768.0f;
+	caps.ExtentsAdjust = 0.0f;
+	caps.StencilCaps = D3DSTENCILCAPS_KEEP | D3DSTENCILCAPS_ZERO | D3DSTENCILCAPS_REPLACE
+		| D3DSTENCILCAPS_INCRSAT | D3DSTENCILCAPS_DECRSAT | D3DSTENCILCAPS_INVERT
+		| D3DSTENCILCAPS_INCR | D3DSTENCILCAPS_DECR;
+	caps.FVFCaps = 8 | D3DFVFCAPS_PSIZE;
+	caps.TextureOpCaps = D3DTEXOPCAPS_DISABLE | D3DTEXOPCAPS_SELECTARG1 | D3DTEXOPCAPS_SELECTARG2
+		| D3DTEXOPCAPS_MODULATE | D3DTEXOPCAPS_MODULATE2X | D3DTEXOPCAPS_MODULATE4X
+		| D3DTEXOPCAPS_ADD | D3DTEXOPCAPS_ADDSIGNED | D3DTEXOPCAPS_ADDSIGNED2X
+		| D3DTEXOPCAPS_SUBTRACT | D3DTEXOPCAPS_ADDSMOOTH
+		| D3DTEXOPCAPS_BLENDDIFFUSEALPHA | D3DTEXOPCAPS_BLENDTEXTUREALPHA
+		| D3DTEXOPCAPS_BLENDFACTORALPHA | D3DTEXOPCAPS_BLENDTEXTUREALPHAPM
+		| D3DTEXOPCAPS_BLENDCURRENTALPHA | D3DTEXOPCAPS_PREMODULATE
+		| D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR | D3DTEXOPCAPS_MODULATECOLOR_ADDALPHA
+		| D3DTEXOPCAPS_MODULATEINVALPHA_ADDCOLOR | D3DTEXOPCAPS_MODULATEINVCOLOR_ADDALPHA
+		| D3DTEXOPCAPS_BUMPENVMAP | D3DTEXOPCAPS_BUMPENVMAPLUMINANCE
+		| D3DTEXOPCAPS_DOTPRODUCT3 | D3DTEXOPCAPS_MULTIPLYADD | D3DTEXOPCAPS_LERP;
+	caps.MaxTextureBlendStages = 8;
+	caps.MaxSimultaneousTextures = 4;
+	caps.VertexProcessingCaps = D3DVTXPCAPS_TEXGEN | D3DVTXPCAPS_MATERIALSOURCE7
+		| D3DVTXPCAPS_DIRECTIONALLIGHTS | D3DVTXPCAPS_POSITIONALLIGHTS
+		| D3DVTXPCAPS_LOCALVIEWER | D3DVTXPCAPS_TWEENING;
+	caps.MaxActiveLights = 8;
+	caps.MaxUserClipPlanes = 6;
+	caps.MaxVertexBlendMatrices = 4;
+	caps.MaxVertexBlendMatrixIndex = 0;
+	caps.MaxPointSize = 256.0f;
+	caps.MaxPrimitiveCount = 65535;
+	caps.MaxVertexIndex = 65535;
+	caps.MaxStreams = 8;
+	caps.MaxStreamStride = 256;
+	caps.VertexShaderVersion = D3DVS_VERSION(1, 1);
+	caps.MaxVertexShaderConst = 256;
+	caps.PixelShaderVersion = D3DPS_VERSION(1, 1);
+	caps.MaxPixelShaderValue = 1.0f;
+}
+
+static void Fill_Standalone_Adapter_Identifier(D3DADAPTER_IDENTIFIER8 &identifier)
+{
+	::ZeroMemory(&identifier, sizeof(identifier));
+	std::snprintf(identifier.Driver, sizeof(identifier.Driver), "%s", "bgfx");
+	std::snprintf(identifier.Description, sizeof(identifier.Description), "%s", "Generals bgfx standalone");
+#ifdef _WIN32
+	identifier.DriverVersion.QuadPart = 0;
+#else
+	identifier.DriverVersionHighPart = 0;
+	identifier.DriverVersionLowPart = 0;
+#endif
+}
+
+#endif
 
 template <typename T>
 static T Legacy_Value(unsigned value)
@@ -525,21 +646,10 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 
 	if (!lite) {
 #if defined(GGC_BGFX_STANDALONE)
-		// TheSuperHackers @refactor bobtista 22/04/2026 Standalone
-		// mode uses a no-op stub device. Skip the LoadLibrary /
-		// Direct3DCreate8 path entirely so d3d8.dll is not a runtime dep.
-		// See StubD3D8Device.cpp for the stub implementation. DX8Wrapper's
-		// state tracking still runs; the underlying
-		// device calls execute against the stub and do nothing. bgfx handles
-		// the real rendering via its own backend.
-		WWDEBUG_SAY(("Using stub legacy interface (standalone)"));
-		D3DInterface = CreateStubD3D8Interface();
-		if (D3DInterface == nullptr) {
-			return false;
-		}
+		WWDEBUG_SAY(("Using standalone bgfx device metadata"));
 		IsInitted = true;
 		Enumerate_Devices();
-		WWDEBUG_SAY(("DX8Wrapper Init completed (stub mode)"));
+		WWDEBUG_SAY(("DX8Wrapper Init completed (standalone bgfx)"));
 #else
 		D3D8Lib = LoadLibrary("D3D8.DLL");
 
@@ -578,7 +688,11 @@ bool DX8Wrapper::Init(void * hwnd, bool lite)
 
 void DX8Wrapper::Shutdown()
 {
-	if (D3DDevice) {
+	if (D3DDevice
+#if defined(GGC_BGFX_STANDALONE)
+		|| StandaloneDeviceCreated
+#endif
+	) {
 
 #if !defined(GGC_BGFX_STANDALONE)
 		Set_Render_Target ((IDirect3DSurface8 *)nullptr);
@@ -758,6 +872,34 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 
 bool DX8Wrapper::Create_Device()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT(!StandaloneDeviceCreated);
+
+	D3DCAPS8 caps;
+	Fill_Standalone_DX8_Caps(caps);
+	Fill_Standalone_Adapter_Identifier(CurrentAdapterIdentifier);
+
+	Vertex_Processing_Behavior=(caps.DevCaps&LEGACY_CAP_HW_TRANSFORM_AND_LIGHT) ?
+		LEGACY_CREATE_MIXED_VERTEXPROCESSING : LEGACY_CREATE_SOFTWARE_VERTEXPROCESSING;
+
+#ifdef CREATE_DX8_MULTI_THREADED
+	Vertex_Processing_Behavior|=LEGACY_CREATE_MULTITHREADED;
+	_DX8SingleThreaded=false;
+#else
+	_DX8SingleThreaded=true;
+#endif
+
+	if (DX8Wrapper_PreserveFPU)
+		Vertex_Processing_Behavior |= LEGACY_CREATE_FPU_PRESERVE;
+
+#ifdef CREATE_DX8_FPU_PRESERVE
+	Vertex_Processing_Behavior|=LEGACY_CREATE_FPU_PRESERVE;
+#endif
+
+	StandaloneDeviceCreated = true;
+	Do_Onetime_Device_Dependent_Inits();
+	return true;
+#else
 	WWASSERT(D3DDevice==nullptr);	// for now, once you've created a device, you're stuck with it!
 
 	D3DCAPS8 caps;
@@ -875,13 +1017,18 @@ bool DX8Wrapper::Create_Device()
 	*/
 	Do_Onetime_Device_Dependent_Inits();
 	return true;
+#endif
 }
 
 bool DX8Wrapper::Reset_Device(bool reload_assets)
 {
 	WWDEBUG_SAY(("Resetting device."));
 	DX8_THREAD_ASSERT();
-	if ((IsInitted) && (D3DDevice != nullptr)) {
+	if ((IsInitted) && (D3DDevice != nullptr
+#if defined(GGC_BGFX_STANDALONE)
+		|| StandaloneDeviceCreated
+#endif
+		)) {
 		// Release all non-MANAGED stuff
 		WW3D::_Invalidate_Textures();
 
@@ -935,6 +1082,22 @@ bool DX8Wrapper::Reset_Device(bool reload_assets)
 
 void DX8Wrapper::Release_Device()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	if (StandaloneDeviceCreated) {
+		FixedFunctionState::Release_Raw_Textures();
+
+		for (unsigned i=0;i<MAX_VERTEX_STREAMS;++i)
+		{
+			if (FixedFunctionState::Render_State().vertex_buffers[i]) FixedFunctionState::Render_State().vertex_buffers[i]->Release_Engine_Ref();
+			REF_PTR_RELEASE(FixedFunctionState::Render_State().vertex_buffers[i]);
+		}
+		if (FixedFunctionState::Render_State().index_buffer) FixedFunctionState::Render_State().index_buffer->Release_Engine_Ref();
+		REF_PTR_RELEASE(FixedFunctionState::Render_State().index_buffer);
+
+		Do_Onetime_Device_Dependent_Shutdowns();
+		StandaloneDeviceCreated = false;
+	}
+#else
 	if (D3DDevice) {
 
 		for (int a=0;a<MAX_TEXTURE_STAGES;++a)
@@ -970,12 +1133,34 @@ void DX8Wrapper::Release_Device()
 		D3DDevice->Release();
 		D3DDevice=nullptr;
 	}
+#endif
 }
 
 void DX8Wrapper::Enumerate_Devices()
 {
 	DX8_Assert();
 
+#if defined(GGC_BGFX_STANDALONE)
+	D3DADAPTER_IDENTIFIER8 id;
+	Fill_Standalone_Adapter_Identifier(id);
+
+	RenderDeviceDescClass desc;
+	desc.set_device_name(id.Description);
+	desc.set_driver_name(id.Driver);
+	desc.set_driver_version("0.0.0.0");
+	desc.reset_resolution_list();
+	desc.add_resolution(640, 480, 32);
+	desc.add_resolution(800, 600, 32);
+	desc.add_resolution(1024, 768, 32);
+	desc.add_resolution(1280, 720, 32);
+	desc.add_resolution(1280, 1024, 32);
+	desc.add_resolution(1920, 1080, 32);
+
+	StringClass device_name(id.Description, true);
+	_RenderDeviceNameTable.Add(device_name);
+	_RenderDeviceShortNameTable.Add(device_name);
+	_RenderDeviceDescriptionTable.Add(desc);
+#else
 	int adapter_count = D3DInterface->GetAdapterCount();
 	for (int adapter_index=0; adapter_index<adapter_count; adapter_index++) {
 
@@ -1074,6 +1259,7 @@ void DX8Wrapper::Enumerate_Devices()
 			}
 		}
 	}
+#endif
 }
 
 bool DX8Wrapper::Set_Any_Render_Device()
@@ -1302,7 +1488,11 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	}
 #endif
 	//must be either resetting existing device or creating a new one.
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT(reset_device || !StandaloneDeviceCreated);
+#else
 	WWASSERT(reset_device || D3DDevice == nullptr);
+#endif
 
 	/*
 	** Initialize values for present parameters.
@@ -1333,7 +1523,14 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 
 		D3DDISPLAYMODE desktop_mode;
 		::ZeroMemory(&desktop_mode, sizeof(desktop_mode));
+#if defined(GGC_BGFX_STANDALONE)
+		desktop_mode.Width = ResolutionWidth;
+		desktop_mode.Height = ResolutionHeight;
+		desktop_mode.RefreshRate = 60;
+		desktop_mode.Format = D3DFMT_A8R8G8B8;
+#else
 		D3DInterface->GetAdapterDisplayMode( CurRenderDevice, &desktop_mode );
+#endif
 
 		_PresentParameters.BackBufferFormat = desktop_mode.Format;
 		DisplayFormat=static_cast<unsigned>(desktop_mode.Format);
@@ -1354,6 +1551,9 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 			return false;
 		}
 
+#if defined(GGC_BGFX_STANDALONE)
+		_PresentParameters.AutoDepthStencilFormat = D3DFMT_D24S8;
+#else
 		if (BitDepth==32 && D3DInterface->CheckDeviceType(0,WW3D_DEVTYPE,desktop_mode.Format,Legacy_Format(21), TRUE) == S_OK)
 		{	//promote 32-bit modes to include destination alpha
 			_PresentParameters.BackBufferFormat = Legacy_Format(21);
@@ -1384,6 +1584,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 				_PresentParameters.AutoDepthStencilFormat=Legacy_Format(0);
 			}
 		}
+#endif
 
 	} else {
 
@@ -1417,6 +1618,9 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 	*/
 	if (MultiSampleAntiAliasing > 0) {
 
+#if defined(GGC_BGFX_STANDALONE)
+		_PresentParameters.MultiSampleType = Legacy_Multisample_Type(MultiSampleAntiAliasing);
+#else
 		HRESULT hrBack = D3DInterface->CheckDeviceMultiSampleType(
 			CurRenderDevice,
 			WW3D_DEVTYPE,
@@ -1439,6 +1643,7 @@ bool DX8Wrapper::Set_Render_Device(int dev, int width, int height, int bits, int
 			WWDEBUG_SAY(("Requested MSAA Mode Not Supported"));
 			MultiSampleAntiAliasing = 0;
 		}
+#endif
 	}
 
 	_PresentParameters.MultiSampleType = Legacy_Multisample_Type(MultiSampleAntiAliasing);
@@ -1600,7 +1805,11 @@ const char * DX8Wrapper::Get_Render_Device_Name(int device_index)
 
 bool DX8Wrapper::Set_Device_Resolution(int width,int height,int bits,int windowed, bool resize_window)
 {
-	if (D3DDevice != nullptr) {
+	if (D3DDevice != nullptr
+#if defined(GGC_BGFX_STANDALONE)
+		|| StandaloneDeviceCreated
+#endif
+	) {
 
 		if (width != -1) {
 			_PresentParameters.BackBufferWidth = ResolutionWidth = width;
@@ -3425,7 +3634,13 @@ void DX8Wrapper::Compute_Caps(WW3DFormat display_format)
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
 	delete CurrentCaps;
+#if defined(GGC_BGFX_STANDALONE)
+	D3DCAPS8 caps;
+	Fill_Standalone_DX8_Caps(caps);
+	CurrentCaps=new DX8Caps(nullptr,static_cast<const void*>(&caps),display_format,&CurrentAdapterIdentifier);
+#else
 	CurrentCaps=new DX8Caps(D3DInterface,D3DDevice,display_format,&CurrentAdapterIdentifier);
+#endif
 }
 
 #if !defined(GGC_BGFX_STANDALONE)
