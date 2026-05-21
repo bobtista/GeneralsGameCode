@@ -1605,6 +1605,20 @@ void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 			}
 			return;
 		}
+
+		Log_Texture_Load_Failure("thumbnail", tc->Get_Full_Path().str());
+		MissingTexture::Build_CPU_Texture_Mips(mips);
+		WWASSERT(!mips.empty());
+		texture->TextureFormat = WW3D_FORMAT_A8R8G8B8;
+		texture->Width = mips[0].Width;
+		texture->Height = mips[0].Height;
+		texture->Set_CPU_Texture_Snapshot(std::move(mips));
+		texture->Mark_Missing_Texture(true);
+		texture->LastAccessed = WW3D::Get_Sync_Time();
+		if (g_renderBackend != nullptr) {
+			g_renderBackend->Invalidate_Cached_Texture(texture);
+		}
+		return;
 	}
 #endif
 
