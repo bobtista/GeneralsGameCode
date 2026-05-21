@@ -348,11 +348,37 @@ RenderDebugStats &DX8Wrapper::stats = g_renderDebugStats;
 **
 ***********************************************************************************/
 
+static HRESULT Get_DX8_Error_String(unsigned res, char *buffer, size_t buffer_size)
+{
+#if defined(GGC_BGFX_STANDALONE)
+	if (buffer == nullptr || buffer_size == 0)
+	{
+		return D3D_OK;
+	}
+	const char *message = nullptr;
+	switch (res)
+	{
+	case D3D_OK:                  message = "D3D_OK"; break;
+	case D3DERR_INVALIDCALL:      message = "D3DERR_INVALIDCALL"; break;
+	case D3DERR_NOTAVAILABLE:     message = "D3DERR_NOTAVAILABLE"; break;
+	case D3DERR_OUTOFVIDEOMEMORY: message = "D3DERR_OUTOFVIDEOMEMORY"; break;
+	case E_OUTOFMEMORY:           message = "E_OUTOFMEMORY"; break;
+	case E_NOTIMPL:               message = "E_NOTIMPL"; break;
+	case E_FAIL:                  message = "E_FAIL"; break;
+	default:                      message = "D3D unknown error"; break;
+	}
+	std::snprintf(buffer, buffer_size, "%s", message);
+	return D3D_OK;
+#else
+	return D3DXGetErrorStringA(res, buffer, static_cast<UINT>(buffer_size));
+#endif
+}
+
 void Log_DX8_ErrorCode(unsigned res)
 {
 	char tmp[256]="";
 
-	HRESULT new_res=D3DXGetErrorStringA(
+	HRESULT new_res=Get_DX8_Error_String(
 		res,
 		tmp,
 		sizeof(tmp));
@@ -368,7 +394,7 @@ void Non_Fatal_Log_DX8_ErrorCode(unsigned res,const char * file,int line)
 {
 	char tmp[256]="";
 
-	HRESULT new_res=D3DXGetErrorStringA(
+	HRESULT new_res=Get_DX8_Error_String(
 		res,
 		tmp,
 		sizeof(tmp));
