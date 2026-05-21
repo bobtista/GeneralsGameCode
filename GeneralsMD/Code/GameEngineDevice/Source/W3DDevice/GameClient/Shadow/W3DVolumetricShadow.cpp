@@ -51,6 +51,7 @@
 #include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -220,8 +221,8 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 // Forward declaration (implementation further down in the file).
 static int EarClip2D(const float * xy, int N, short * out_indices);
 
-DX8VertexBufferClass * shadowVertexBuffer = nullptr;
-DX8IndexBufferClass  * shadowIndexBuffer  = nullptr;
+RenderVertexBufferClass * shadowVertexBuffer = nullptr;
+RenderIndexBufferClass  * shadowIndexBuffer  = nullptr;
 int nShadowVertsInBuf=0;	//model vetices in vertex buffer
 int nShadowStartBatchVertex=0;
 int nShadowIndicesInBuf=0;	//model vetices in vertex buffer
@@ -260,7 +261,7 @@ static Real beX;
 static Real beY;
 static Real beZ;
 
-static DX8VertexBufferClass *lastActiveVertexBuffer=nullptr;
+static RenderVertexBufferClass *lastActiveVertexBuffer=nullptr;
 
 /** A simple structure to hold random geometry (vertices, polygons, etc.).  We'll use this
 * to store shadow volumes. */
@@ -4144,13 +4145,13 @@ Bool W3DVolumetricShadowManager::ReAcquireResources()
 {
 	ReleaseResources();
 
-	shadowIndexBuffer = NEW_REF(DX8IndexBufferClass, (ShadowDynamicIndexCapacity(), DX8IndexBufferClass::USAGE_DYNAMIC));
+	shadowIndexBuffer = NEW_REF(RenderIndexBufferClass, (ShadowDynamicIndexCapacity(), RenderIndexBufferClass::USAGE_DYNAMIC));
 	if (shadowIndexBuffer == nullptr)
 		return FALSE;
 
 	if (shadowVertexBuffer == nullptr)
 	{
-		shadowVertexBuffer = NEW_REF(DX8VertexBufferClass, (SHADOW_DYNAMIC_VOLUME_FVF, ShadowDynamicVertexCapacity(), DX8VertexBufferClass::USAGE_DYNAMIC));
+		shadowVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DYNAMIC_VOLUME_FVF, ShadowDynamicVertexCapacity(), RenderVertexBufferClass::USAGE_DYNAMIC));
 		if (shadowVertexBuffer == nullptr)
 			return FALSE;
 	}
