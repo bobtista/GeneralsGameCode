@@ -444,6 +444,16 @@ void TextureBaseClass::Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> 
 	++CPUTextureRevision;
 }
 
+void TextureBaseClass::Update_CPU_Texture_Mip_Snapshot(unsigned int level, TextureMipSnapshot &&mip)
+{
+	if (CPUTextureMips.size() <= level) {
+		CPUTextureMips.resize(level + 1);
+	}
+	CPUTextureMips[level] = std::move(mip);
+	PreserveCPUTextureSnapshotOnNextLegacySet = true;
+	++CPUTextureRevision;
+}
+
 void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 {
 	PreserveCPUTextureSnapshotOnNextLegacySet = false;
@@ -1197,6 +1207,7 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 		{
 			SurfaceClass *surface = NEW_REF(SurfaceClass, (mip.Width, mip.Height, mip.Format));
 			surface->Copy(mip.Data.data(), mip.Pitch);
+			surface->Attach_Texture_Level_Owner(this, level);
 			return surface;
 		}
 	}
@@ -1213,6 +1224,65 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 	d3d_surface->Release();
 
 	return surface;
+}
+
+void TextureClass::Update_Surface_Level_From_Surface(unsigned int level, const SurfaceClass::SurfaceImageData &image)
+{
+	if (image.Format == WW3D_FORMAT_UNKNOWN ||
+		image.Width == 0 ||
+		image.Height == 0 ||
+		image.Data.empty() ||
+		Is_Block_Compressed_Texture_Format(image.Format))
+	{
+		return;
+	}
+
+	const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(image.Format);
+	if (bytes_per_pixel == 0) {
+		return;
+	}
+
+	const unsigned row_size = image.Width * bytes_per_pixel;
+	TextureMipSnapshot mip;
+	mip.Width = image.Width;
+	mip.Height = image.Height;
+	mip.Pitch = row_size;
+	mip.Format = image.Format;
+	mip.Data.resize(static_cast<size_t>(row_size) * image.Height);
+	for (unsigned row = 0; row < image.Height; ++row)
+	{
+		memcpy(
+			mip.Data.data() + row * mip.Pitch,
+			image.Data.data() + row * image.Pitch,
+			row_size);
+	}
+	Update_CPU_Texture_Mip_Snapshot(level, std::move(mip));
+
+	auto *texture = Peek_Legacy_Texture2D(*this);
+	if (texture != nullptr)
+	{
+		LegacyLockedRect lock_rect;
+		::ZeroMemory(&lock_rect, sizeof(lock_rect));
+		if (SUCCEEDED(texture->LockRect(level, &lock_rect, nullptr, 0)))
+		{
+			if (lock_rect.pBits != nullptr)
+			{
+				const unsigned char *src = image.Data.data();
+				unsigned char *dst = static_cast<unsigned char *>(lock_rect.pBits);
+				for (unsigned row = 0; row < image.Height; ++row)
+				{
+					memcpy(dst, src, row_size);
+					src += image.Pitch;
+					dst += lock_rect.Pitch;
+				}
+			}
+			DX8_ErrorCode(texture->UnlockRect(level));
+		}
+	}
+
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Invalidate_Cached_Texture(this);
+	}
 }
 
 //**********************************************************************************************
