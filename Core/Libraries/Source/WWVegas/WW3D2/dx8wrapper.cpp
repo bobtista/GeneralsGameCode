@@ -78,7 +78,9 @@
 #include "textureloader.h"
 #include "missingtexture.h"
 #include "thread.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include <d3dx8core.h>
+#endif
 #include "pot.h"
 #include "wwprofile.h"
 #include "ffactory.h"

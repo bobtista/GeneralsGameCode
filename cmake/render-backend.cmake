@@ -51,15 +51,10 @@ elseif(GGC_RENDER_BACKEND STREQUAL "bgfx")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_BGFX=1")
 endif()
 
-# TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 5 — standalone
+# TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 5 - standalone
 # bgfx build. When ON, the DX8 reference popup and real d3d8/d3dx8 runtime
-# links are disabled. This does NOT yet remove the legacy DX8Wrapper state
-# and resource compatibility model: standalone mode still runs DX8Wrapper
-# against in-tree no-op D3D8/D3DX stubs so old call sites keep updating the
-# state/resource data that bgfx translates.
-#
-# Removing those compatibility stubs requires the staged migration tracked in
-# docs/BUILD/BGFX_DX8_REMOVAL_PLAN.md.
+# links are disabled. This keeps the transitional DX8Wrapper state model alive
+# without creating a fake D3D device.
 option(GGC_BGFX_STANDALONE "bgfx without the DX8 reference popup or real D3D8 runtime" OFF)
 if(GGC_BGFX_STANDALONE AND NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
     message(FATAL_ERROR
@@ -67,7 +62,7 @@ if(GGC_BGFX_STANDALONE AND NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
 endif()
 if(GGC_BGFX_STANDALONE)
     add_compile_definitions(GGC_BGFX_STANDALONE=1)
-    message(STATUS "Bgfx standalone mode enabled — ref popup disabled.")
+    message(STATUS "Bgfx standalone mode enabled - ref popup disabled.")
 endif()
 
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
