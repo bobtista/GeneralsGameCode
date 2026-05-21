@@ -770,8 +770,13 @@ void W3DBridgeBuffer::allocateBridgeBuffers()
 {
 	if (TheGlobalData->m_headless)
 		return;
-	m_vertexBridge=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_BRIDGE_VERTEX+4,RenderVertexBufferClass::USAGE_DYNAMIC));
-	m_indexBridge=NEW_REF(RenderIndexBufferClass,(MAX_BRIDGE_INDEX+4, RenderIndexBufferClass::USAGE_DYNAMIC));
+	m_vertexBridge=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZNDUV1,
+		MAX_BRIDGE_VERTEX+4,
+		Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+	m_indexBridge=NEW_REF(RenderIndexBufferClass,(
+		MAX_BRIDGE_INDEX+4,
+		Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	m_vertexMaterial=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 #ifdef USE_BRIDGE_NORMALS
 	m_vertexMaterial= NEW VertexMaterialClass();
