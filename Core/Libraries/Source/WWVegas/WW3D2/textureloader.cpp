@@ -56,9 +56,7 @@
 #include "TARGA.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
-#include <d3dx8tex.h>
 #include "wwmemlog.h"
-#include "dx8formatconv.h"
 #include "dx8texturelegacytypes.h"
 #include "dx8textureinterop.h"
 #include "texturethumbnail.h"
@@ -634,43 +632,6 @@ static LegacyLoaderTexture * Load_Compressed_Texture(
 }
 #endif
 
-#if defined(GGC_BGFX_STANDALONE)
-static LegacyLoaderSurface *Load_Compressed_Surface_Level_Zero(
-	const StringClass& filename,
-	WW3DFormat texture_format)
-{
-	DDSFileClass dds_file(filename, 0);
-	if (!dds_file.Is_Available() || !dds_file.Load()) {
-		return nullptr;
-	}
-
-	WW3DFormat dest_format = texture_format;
-	if (dest_format == WW3D_FORMAT_UNKNOWN) {
-		dest_format = Get_Valid_Texture_Format(dds_file.Get_Format(), true);
-	}
-
-	LegacyLoaderSurface *surface = Create_Legacy_Surface(
-		dds_file.Get_Width(0),
-		dds_file.Get_Height(0),
-		dest_format);
-	if (surface == nullptr) {
-		return nullptr;
-	}
-
-	LegacyLoaderLockedRect locked_rect;
-	DX8_ErrorCode(surface->LockRect(&locked_rect, nullptr, 0));
-	dds_file.Copy_Level_To_Surface(
-		0,
-		dest_format,
-		dds_file.Get_Width(0),
-		dds_file.Get_Height(0),
-		reinterpret_cast<unsigned char*>(locked_rect.pBits),
-		locked_rect.Pitch);
-	DX8_ErrorCode(surface->UnlockRect());
-	return surface;
-}
-#endif
-
 static bool Is_Format_Compressed(WW3DFormat texture_format,bool allow_compression)
 {
 	// Verify that the user isn't requesting compressed texture without hardware support
@@ -820,6 +781,7 @@ void TextureLoader::Validate_Texture_Size
 	depth=poweroftwodepth;
 }
 
+#if !defined(GGC_BGFX_STANDALONE)
 static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, const Vector3& hsv_shift)//,WW3DFormat texture_format)
 {
 	WWASSERT(Is_DX8_Thread());
@@ -918,6 +880,7 @@ static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, 
 	return d3d_texture;
 #endif
 }
+#endif
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
 static bool Should_Use_CPU_Texture_Thumbnail(TextureBaseClass *texture)
@@ -1044,17 +1007,20 @@ LegacyLoaderSurface * Load_Legacy_Surface_Immediate(
 	WW3DFormat texture_format,
 	bool allow_compression)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)filename;
+	(void)texture_format;
+	(void)allow_compression;
+	WWASSERT_PRINT(
+		false,
+		"Load_Legacy_Surface_Immediate: standalone bgfx cannot create fake-D3D surfaces");
+	return nullptr;
+#else
 	WWASSERT(Is_DX8_Thread());
 
 	bool compressed=Is_Format_Compressed(texture_format,allow_compression);
 
 	if (compressed) {
-#if defined(GGC_BGFX_STANDALONE)
-		LegacyLoaderSurface *surface = Load_Compressed_Surface_Level_Zero(filename, texture_format);
-		if (surface != nullptr) {
-			return surface;
-		}
-#endif
 		LegacyLoaderTexture * comp_tex=Load_Compressed_Texture(filename,0,MIP_LEVELS_1,WW3D_FORMAT_UNKNOWN);
 		if (comp_tex) {
 			LegacyLoaderSurface * d3d_surface=nullptr;
@@ -1157,6 +1123,114 @@ LegacyLoaderSurface * Load_Legacy_Surface_Immediate(
 	delete[] converted_surface;
 
 	return d3d_surface;
+#endif
+}
+
+bool TextureLoader::Load_Surface_Image_Immediate(
+	const char *filename,
+	WW3DFormat texture_format,
+	bool allow_compression,
+	SurfaceClass::SurfaceImageData &image)
+{
+	WWASSERT(Is_DX8_Thread());
+
+	image = {WW3D_FORMAT_UNKNOWN, 0, 0, 0, {}};
+	if (Is_Format_Compressed(texture_format, allow_compression)) {
+		return false;
+	}
+
+	Targa targa;
+	if (TARGA_ERROR_HANDLER(targa.Open(filename, TGA_READMODE), filename)) {
+		Log_Texture_Load_Failure("surface open", filename);
+		return false;
+	}
+
+	targa.Header.ImageDescriptor ^= TGAIDF_YORIGIN;
+
+	WW3DFormat src_format;
+	WW3DFormat dest_format;
+	unsigned src_bpp = 0;
+	Get_WW3D_Format(dest_format, src_format, src_bpp, targa);
+
+	if (texture_format != WW3D_FORMAT_UNKNOWN) {
+		dest_format = texture_format;
+	}
+
+	unsigned width = targa.Header.Width;
+	unsigned height = targa.Header.Height;
+	unsigned src_width = targa.Header.Width;
+	unsigned src_height = targa.Header.Height;
+
+	char palette[256 * 4];
+	targa.SetPalette(palette);
+	if (TARGA_ERROR_HANDLER(targa.Load(filename, TGAF_IMAGE, false), filename)) {
+		Log_Texture_Load_Failure("surface load", filename);
+		return false;
+	}
+
+	unsigned char *src_surface = reinterpret_cast<unsigned char *>(targa.GetImage());
+	unsigned char *converted_surface = nullptr;
+	if (src_format == WW3D_FORMAT_A1R5G5B5 ||
+		src_format == WW3D_FORMAT_R5G6B5 ||
+		src_format == WW3D_FORMAT_A4R4G4B4 ||
+		src_format == WW3D_FORMAT_P8 ||
+		src_format == WW3D_FORMAT_L8 ||
+		src_width != width ||
+		src_height != height)
+	{
+		converted_surface = W3DNEWARRAY unsigned char[width * height * 4];
+		dest_format = Get_Valid_Texture_Format(WW3D_FORMAT_A8R8G8B8, false);
+		BitmapHandlerClass::Copy_Image(
+			converted_surface,
+			width,
+			height,
+			width * 4,
+			WW3D_FORMAT_A8R8G8B8,
+			src_surface,
+			src_width,
+			src_height,
+			src_width * src_bpp,
+			src_format,
+			reinterpret_cast<unsigned char *>(targa.GetPalette()),
+			targa.Header.CMapDepth >> 3,
+			false);
+		src_surface = converted_surface;
+		src_format = WW3D_FORMAT_A8R8G8B8;
+		src_width = width;
+		src_height = height;
+		src_bpp = Get_Bytes_Per_Pixel(src_format);
+	}
+
+	const unsigned int dest_bpp = Get_Bytes_Per_Pixel(dest_format);
+	if (dest_bpp == 0)
+	{
+		delete[] converted_surface;
+		return false;
+	}
+
+	image.Format = dest_format;
+	image.Width = width;
+	image.Height = height;
+	image.Pitch = width * dest_bpp;
+	image.Data.resize(static_cast<size_t>(image.Pitch) * image.Height);
+
+	BitmapHandlerClass::Copy_Image(
+		image.Data.data(),
+		width,
+		height,
+		image.Pitch,
+		dest_format,
+		src_surface,
+		src_width,
+		src_height,
+		src_width * src_bpp,
+		src_format,
+		reinterpret_cast<unsigned char *>(targa.GetPalette()),
+		targa.Header.CMapDepth >> 3,
+		false);
+
+	delete[] converted_surface;
+	return true;
 }
 
 
@@ -1509,9 +1583,29 @@ void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 			}
 			return;
 		}
+
+		Log_Texture_Load_Failure("thumbnail", tc->Get_Full_Path().str());
+		MissingTexture::Build_CPU_Texture_Mips(mips);
+		WWASSERT(!mips.empty());
+		texture->TextureFormat = WW3D_FORMAT_A8R8G8B8;
+		texture->Width = mips[0].Width;
+		texture->Height = mips[0].Height;
+		texture->Set_CPU_Texture_Snapshot(std::move(mips));
+		texture->Mark_Missing_Texture(true);
+		texture->LastAccessed = WW3D::Get_Sync_Time();
+		if (g_renderBackend != nullptr) {
+			g_renderBackend->Invalidate_Cached_Texture(texture);
+		}
+		return;
 	}
 #endif
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoader::Load_Thumbnail: standalone bgfx cannot use legacy thumbnail texture fallback");
+	return;
+#else
 	// load thumbnail texture
 	LegacyLoaderTexture *d3d_texture = Load_Legacy_Thumbnail(tc->Get_Full_Path(),tc->Get_HSV_Shift());
 
@@ -1524,6 +1618,7 @@ void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 	// release our reference to thumbnail texture
 	d3d_texture->Release();
 	d3d_texture = nullptr;
+#endif
 }
 
 
@@ -1744,6 +1839,18 @@ bool TextureLoadTaskClass::Begin_Load()
 {
 	WWASSERT(TextureLoader::Is_DX8_Thread());
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
+		Texture != nullptr &&
+		Texture->Get_Asset_Type() != TextureBaseClass::TEX_REGULAR)
+	{
+		WWASSERT_PRINT(
+			false,
+			"TextureLoadTaskClass::Begin_Load: cube/volume textures are not migrated to bgfx texture ownership; no legacy fallback is allowed");
+		return false;
+	}
+#endif
+
 	bool loaded = false;
 
 	// if allowed, begin a compressed load
@@ -1854,13 +1961,65 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 	WWASSERT(!D3DTexture);
 
 	Log_Texture_Load_Failure("task", Texture ? Texture->Get_Full_Path().str() : nullptr);
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	const bool use_cpu_missing_texture =
+#if defined(GGC_BGFX_STANDALONE)
+		true;
+#else
+		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+#endif
+	if (use_cpu_missing_texture &&
+		Texture != nullptr &&
+		Texture->As_TextureClass() != nullptr)
+	{
+		TextureClass *texture = Texture->As_TextureClass();
+		std::vector<TextureBaseClass::TextureMipSnapshot> mips;
+		MissingTexture::Build_CPU_Texture_Mips(mips);
+		WWASSERT(!mips.empty());
+		texture->TextureFormat = WW3D_FORMAT_A8R8G8B8;
+		Texture->Width = mips[0].Width;
+		Texture->Height = mips[0].Height;
+		Texture->Set_CPU_Texture_Snapshot(std::move(mips));
+		Texture->Initialized = true;
+		Texture->Mark_Missing_Texture(true);
+		Texture->LastAccessed = WW3D::Get_Sync_Time();
+		if (g_renderBackend != nullptr)
+		{
+			g_renderBackend->Invalidate_Cached_Texture(Texture);
+		}
+		return;
+	}
+#endif
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoadTaskClass::Apply_Missing_Texture: standalone bgfx cannot apply fake-D3D missing textures");
+	if (Texture != nullptr)
+	{
+		Texture->Mark_Missing_Texture(true);
+	}
+	return;
+#else
 	D3DTexture = Get_Legacy_Missing_Texture();
 	Apply(true);
+	if (Texture != nullptr)
+	{
+		Texture->Mark_Missing_Texture(true);
+	}
+#endif
 }
 
 
 void TextureLoadTaskClass::Apply(bool initialize)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)initialize;
+	WWASSERT_PRINT(
+		D3DTexture == nullptr,
+		"TextureLoadTaskClass::Apply: standalone bgfx cannot apply or release fake-D3D loader textures");
+	D3DTexture = nullptr;
+	return;
+#else
 	WWASSERT(D3DTexture);
 
 	// Verify that none of the mip levels are locked
@@ -1869,9 +2028,11 @@ void TextureLoadTaskClass::Apply(bool initialize)
 	}
 
 	Apply_Legacy_Surface(*Texture, Peek_D3D_Texture(), initialize);
+	Texture->Mark_Missing_Texture(false);
 
 	Peek_D3D_Texture()->Release();
 	D3DTexture = nullptr;
+#endif
 }
 
 static unsigned Calculate_Texture_Reduction(unsigned width, unsigned height, unsigned mip_count)
@@ -2104,6 +2265,12 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 		return true;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot create legacy texture fallback");
+	return false;
+#else
 	D3DTexture	= Create_Legacy_Texture
 	(
 		reducedWidth,
@@ -2118,6 +2285,7 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 	);
 
 	return true;
+#endif
 }
 
 bool TextureLoadTaskClass::Begin_Uncompressed_Load()
@@ -2207,6 +2375,12 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 		}
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot create legacy texture fallback");
+	return false;
+#else
 	D3DTexture = Create_Legacy_Texture
 	(
 		reducedWidth,
@@ -2221,6 +2395,7 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 	);
 
 	return true;
+#endif
 }
 
 /*
@@ -2458,7 +2633,7 @@ void TextureLoadTaskClass::Capture_CPU_Texture_Snapshot_From_Locked_Surfaces()
 		mip.Width = desc.Width;
 		mip.Height = desc.Height;
 		mip.Pitch = LockedSurfacePitch[level];
-		mip.Format = D3DFormat_To_WW3DFormat(desc.Format);
+		mip.Format = Legacy_Texture_Format_To_WW3DFormat(static_cast<unsigned int>(desc.Format));
 		const bool compressed =
 			mip.Format == WW3D_FORMAT_DXT1 ||
 			mip.Format == WW3D_FORMAT_DXT2 ||
