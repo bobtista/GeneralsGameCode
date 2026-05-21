@@ -77,6 +77,17 @@ const char *Get_Bgfx_Migration_Toggle_Env(BgfxMigrationToggle toggle)
 
 bool Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle toggle)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	switch (toggle) {
+		case BgfxMigrationToggle::TextureOwnership:
+		case BgfxMigrationToggle::SurfaceOwnership:
+		case BgfxMigrationToggle::RenderTargets:
+		case BgfxMigrationToggle::BufferOwnership:
+			return true;
+		case BgfxMigrationToggle::SemanticState:
+			break;
+	}
+#endif
 	const char *value = std::getenv(Get_Bgfx_Migration_Toggle_Env(toggle));
 	if (value == nullptr) {
 		return Toggle_Default_Enabled(toggle);
