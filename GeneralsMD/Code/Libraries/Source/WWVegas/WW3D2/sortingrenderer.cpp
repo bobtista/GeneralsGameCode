@@ -585,7 +585,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			vertexAllocCount = overlapping_vertex_count;
 		WWASSERT(DEFAULT_SORTING_VERTEX_COUNT == 1 || vertexAllocCount <= DEFAULT_SORTING_VERTEX_COUNT);
 	}
-	DynamicVBAccessClass dyn_vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,vertexAllocCount/*overlapping_vertex_count*/);
+	DynamicVBAccessClass dyn_vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,vertexAllocCount/*overlapping_vertex_count*/);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&dyn_vb_access);
 		VertexFormatXYZNDUV2* dest_verts=(VertexFormatXYZNDUV2 *)lock.Get_Formatted_Vertex_Array();
@@ -711,7 +711,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 		WWASSERT(DEFAULT_SORTING_POLY_COUNT <= 1 || polygonAllocCount <= DEFAULT_SORTING_POLY_COUNT);
 	}
 
-	DynamicIBAccessClass dyn_ib_access(BUFFER_TYPE_DYNAMIC_DX8,polygonAllocCount*3);
+	DynamicIBAccessClass dyn_ib_access(BUFFER_TYPE_DYNAMIC,polygonAllocCount*3);
 	{
 		DynamicIBAccessClass::WriteLockClass lock(&dyn_ib_access);
 		ShortVectorIStruct* sorted_polygon_index_array=(ShortVectorIStruct*)lock.Get_Index_Array();
