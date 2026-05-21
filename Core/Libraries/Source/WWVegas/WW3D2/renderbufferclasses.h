@@ -18,12 +18,40 @@
 
 #pragma once
 
-class DX8IndexBufferClass;
+#include "always.h"
+
 class DX8VertexBufferClass;
+
+#if defined(GGC_BGFX_STANDALONE)
+
+#include "dx8indexbuffer.h"
+
+class RenderIndexBufferClass : public IndexBufferClass
+{
+	W3DMPO_CODE(RenderIndexBufferClass)
+
+public:
+	enum UsageType {
+		USAGE_DEFAULT = 0,
+		USAGE_DYNAMIC = 1,
+		USAGE_SOFTWAREPROCESSING = 2,
+		USAGE_NPATCHES = 4
+	};
+
+	RenderIndexBufferClass(unsigned short index_count, UsageType usage = USAGE_DEFAULT);
+	virtual ~RenderIndexBufferClass() override;
+};
+
+#else
+
+class DX8IndexBufferClass;
+using RenderIndexBufferClass = DX8IndexBufferClass;
+
+#endif
 
 // Transitional neutral names for runtime code that only needs WW3D render
 // buffers, not raw Direct3D buffer objects. The concrete implementation is
-// still DX8VertexBufferClass/DX8IndexBufferClass until the compatibility class
-// split is complete.
-using RenderIndexBufferClass = DX8IndexBufferClass;
+// still DX8VertexBufferClass until the vertex-buffer compatibility class
+// split is complete. RenderIndexBufferClass has a standalone bgfx
+// implementation and aliases DX8IndexBufferClass for DX8 reference builds.
 using RenderVertexBufferClass = DX8VertexBufferClass;

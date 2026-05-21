@@ -42,6 +42,7 @@
 #include "dx8wrapper.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+#include "renderbufferclasses.h"
 #include "sphere.h"
 #include "thread.h"
 #include "wwmemlog.h"
@@ -61,7 +62,7 @@ static unsigned short _DynamicSortingIndexArraySize=0;
 static unsigned short _DynamicSortingIndexArrayOffset=0;
 
 static bool _DynamicBackendIndexBufferInUse=false;
-static DX8IndexBufferClass* _DynamicBackendIndexBuffer=nullptr;
+static RenderIndexBufferClass* _DynamicBackendIndexBuffer=nullptr;
 static unsigned short _DynamicBackendIndexBufferSize=DEFAULT_IB_SIZE;
 static unsigned short _DynamicBackendIndexBufferOffset=0;
 
@@ -222,14 +223,14 @@ void IndexBufferClass::Copy(unsigned int* indices,unsigned first_index,unsigned 
 	WWASSERT(indices);
 
 	if (first_index) {
-		DX8IndexBufferClass::AppendLockClass l(this,first_index,count);
+		IndexBufferClass::AppendLockClass l(this,first_index,count);
 		unsigned short* inds=l.Get_Index_Array();
 		for (unsigned v=0;v<count;++v) {
 			*inds++=(unsigned short)(*indices++);
 		}
 	}
 	else {
-		DX8IndexBufferClass::WriteLockClass l(this);
+		IndexBufferClass::WriteLockClass l(this);
 		unsigned short* inds=l.Get_Index_Array();
 		for (unsigned v=0;v<count;++v) {
 			*inds++=(unsigned short)(*indices++);
@@ -244,14 +245,14 @@ void IndexBufferClass::Copy(unsigned short* indices,unsigned first_index,unsigne
 	WWASSERT(indices);
 
 	if (first_index) {
-		DX8IndexBufferClass::AppendLockClass l(this,first_index,count);
+		IndexBufferClass::AppendLockClass l(this,first_index,count);
 		unsigned short* inds=l.Get_Index_Array();
 		for (unsigned v=0;v<count;++v) {
 			*inds++=*indices++;
 		}
 	}
 	else {
-		DX8IndexBufferClass::WriteLockClass l(this);
+		IndexBufferClass::WriteLockClass l(this);
 		unsigned short* inds=l.Get_Index_Array();
 		for (unsigned v=0;v<count;++v) {
 			*inds++=*indices++;
@@ -509,6 +510,30 @@ DX8IndexBufferClass::~DX8IndexBufferClass()
 }
 
 // ----------------------------------------------------------------------------
+
+#if defined(GGC_BGFX_STANDALONE)
+RenderIndexBufferClass::RenderIndexBufferClass(unsigned short index_count_, UsageType usage)
+	:
+	IndexBufferClass(BUFFER_TYPE_STATIC, index_count_)
+{
+	DX8_THREAD_ASSERT();
+	WWASSERT(index_count);
+	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
+	if (g_renderBackend != nullptr) {
+		m_backendHandle = g_renderBackend->Create_Index_Buffer_Resource(this);
+	}
+}
+
+RenderIndexBufferClass::~RenderIndexBufferClass()
+{
+	if (m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
+		g_renderBackend->Destroy_Resource(m_backendHandle);
+		m_backendHandle = kInvalidRenderResource;
+	}
+}
+#endif
+
+// ----------------------------------------------------------------------------
 //
 //
 //
@@ -672,14 +697,14 @@ void DynamicIBAccessClass::Allocate_Backend_Dynamic_Buffer()
 
 	// Create a new vb if one doesn't exist currently
 	if (!_DynamicBackendIndexBuffer) {
-		unsigned usage=DX8IndexBufferClass::USAGE_DYNAMIC;
+		unsigned usage=RenderIndexBufferClass::USAGE_DYNAMIC;
 		if (g_renderBackend && g_renderBackend->Supports_NPatches()) {
-			usage|=DX8IndexBufferClass::USAGE_NPATCHES;
+			usage|=RenderIndexBufferClass::USAGE_NPATCHES;
 		}
 
-		_DynamicBackendIndexBuffer=NEW_REF(DX8IndexBufferClass,(
+		_DynamicBackendIndexBuffer=NEW_REF(RenderIndexBufferClass,(
 			_DynamicBackendIndexBufferSize,
-			(DX8IndexBufferClass::UsageType)usage));
+			(RenderIndexBufferClass::UsageType)usage));
 		_DynamicBackendIndexBufferOffset=0;
 	}
 
