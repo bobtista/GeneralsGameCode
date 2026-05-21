@@ -20,7 +20,9 @@
 
 #include "legacyd3dmatrix.h"
 
+#if !defined(GGC_BGFX_STANDALONE)
 struct IDirect3DBaseTexture8;
+#endif
 
 struct LegacyFixedFunctionColor
 {
@@ -54,7 +56,11 @@ struct LegacyFixedFunctionLight
 	float Phi;
 };
 
+#if defined(GGC_BGFX_STANDALONE)
+using LegacyRawTexture = void;
+#else
 using LegacyRawTexture = IDirect3DBaseTexture8;
+#endif
 using LegacyTransformMatrix = D3DMATRIX;
 
 constexpr unsigned LEGACY_D3DTS_WORLD = 256;
