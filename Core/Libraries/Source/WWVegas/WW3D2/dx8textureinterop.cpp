@@ -167,6 +167,7 @@ void DX8TextureInterop::Apply_Legacy_Surface(
 
 IDirect3DSurface8 *DX8TextureInterop::Peek_Legacy_Surface(const SurfaceClass &surface)
 {
+	const_cast<SurfaceClass &>(surface).Mark_CPU_Surface_Snapshot_Stale();
 	return static_cast<IDirect3DSurface8 *>(surface.D3DSurface);
 }
 
