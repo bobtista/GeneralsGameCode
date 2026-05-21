@@ -143,6 +143,9 @@ BgfxCaches     g_caches;
 // Asset-ingress resource side-table. id 0 is reserved invalid.
 BgfxPhase5Resources g_phase5 = { {}, 1 };
 
+// Defined in BgfxBackendTextures.cpp.
+bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt);
+
 #if defined(__APPLE__) && defined(SAGE_USE_SDL3)
 // TheSuperHackers @bugfix bobtista 30/04/2026 Owned by SDL3Main.cpp
 // (filled in main() right after SDL_Metal_CreateView). Kept at global
@@ -7684,6 +7687,25 @@ void BgfxBackend::Set_Depth_Func(CompareFunc func)
     }
 }
 
+static bgfx::TextureFormat::Enum Resolve_Render_Target_Color_Format(WW3DFormat format)
+{
+    bgfx::TextureFormat::Enum bgfxFormat = TranslateWW3DFormat(format);
+    const bgfx::Caps *caps = bgfx::getCaps();
+    if (caps != nullptr
+        && bgfxFormat != bgfx::TextureFormat::Unknown
+        && (caps->formats[bgfxFormat] & BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) != 0)
+    {
+        return bgfxFormat;
+    }
+
+    if (caps != nullptr
+        && (caps->formats[bgfx::TextureFormat::BGRA8] & BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) != 0)
+    {
+        return bgfx::TextureFormat::BGRA8;
+    }
+    return bgfx::TextureFormat::RGBA8;
+}
+
 static const BgfxFramebufferEntry *Ensure_Render_Target_Framebuffer(TextureClass *texture)
 {
     if (texture == nullptr || !g_device.initialized)
@@ -7696,9 +7718,11 @@ static const BgfxFramebufferEntry *Ensure_Render_Target_Framebuffer(TextureClass
     {
         const uint16_t w = static_cast<uint16_t>(texture->Get_Width());
         const uint16_t h = static_cast<uint16_t>(texture->Get_Height());
+        const bgfx::TextureFormat::Enum colorFormat =
+            Resolve_Render_Target_Color_Format(texture->Get_Texture_Format());
 
         bgfx::TextureHandle colorTex = bgfx::createTexture2D(
-            w, h, false, 1, bgfx::TextureFormat::RGBA8,
+            w, h, false, 1, colorFormat,
             BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
         bgfx::TextureHandle depthTex = bgfx::createTexture2D(
             w, h, false, 1, bgfx::TextureFormat::D24S8,
@@ -8926,9 +8950,6 @@ void BgfxBackend::Set_Pixel_Shader(unsigned long pixel_shader)
 // still enter through Register_Loaded_* and the older caches keyed by their
 // owner objects.
 //
-// Forward declaration — defined in BgfxBackendTextures.cpp.
-bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt);
-
 namespace {
 
 unsigned __int64 AllocPhase5Id()
@@ -9009,8 +9030,10 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
     entry.height = desc.height;
 
     if (desc.is_render_target) {
+        const bgfx::TextureFormat::Enum colorFormat =
+            Resolve_Render_Target_Color_Format(desc.format);
         bgfx::TextureHandle colorTex = bgfx::createTexture2D(
-            desc.width, desc.height, false, 1, bgfx::TextureFormat::RGBA8,
+            desc.width, desc.height, false, 1, colorFormat,
             BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
         bgfx::TextureHandle depthTex = bgfx::createTexture2D(
             desc.width, desc.height, false, 1, bgfx::TextureFormat::D24S8,
