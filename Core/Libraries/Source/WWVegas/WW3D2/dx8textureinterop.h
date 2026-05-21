@@ -33,21 +33,6 @@ class TextureBaseClass;
 class TextureClass;
 class ZTextureClass;
 
-enum LegacyTexturePoolKind
-{
-	LEGACY_TEXTURE_POOL_DEFAULT = 0,
-	LEGACY_TEXTURE_POOL_MANAGED = 1,
-	LEGACY_TEXTURE_POOL_SYSTEMMEM = 2
-};
-
-struct LegacySurfaceCopyRect
-{
-	long left;
-	long top;
-	long right;
-	long bottom;
-};
-
 class DX8TextureInterop
 {
 public:
