@@ -4145,13 +4145,13 @@ Bool W3DVolumetricShadowManager::ReAcquireResources()
 {
 	ReleaseResources();
 
-	shadowIndexBuffer = NEW_REF(RenderIndexBufferClass, (ShadowDynamicIndexCapacity(), RenderIndexBufferClass::USAGE_DYNAMIC));
+	shadowIndexBuffer = NEW_REF(RenderIndexBufferClass, (ShadowDynamicIndexCapacity(), Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	if (shadowIndexBuffer == nullptr)
 		return FALSE;
 
 	if (shadowVertexBuffer == nullptr)
 	{
-		shadowVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DYNAMIC_VOLUME_FVF, ShadowDynamicVertexCapacity(), RenderVertexBufferClass::USAGE_DYNAMIC));
+		shadowVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DYNAMIC_VOLUME_FVF, ShadowDynamicVertexCapacity(), Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
 		if (shadowVertexBuffer == nullptr)
 			return FALSE;
 	}

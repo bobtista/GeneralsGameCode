@@ -390,13 +390,13 @@ Bool W3DProjectedShadowManager::ReAcquireResources()
 
 	DEBUG_ASSERTCRASH(shadowDecalIndexBuffer == nullptr && shadowDecalVertexBuffer == nullptr, ("ReAcquireResources not released in W3DProjectedShadowManager"));
 
-	shadowDecalIndexBuffer = NEW_REF(RenderIndexBufferClass, (SHADOW_DECAL_INDEX_SIZE, RenderIndexBufferClass::USAGE_DYNAMIC));
+	shadowDecalIndexBuffer = NEW_REF(RenderIndexBufferClass, (SHADOW_DECAL_INDEX_SIZE, Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	if (shadowDecalIndexBuffer == nullptr)
 		return FALSE;
 
 	if (shadowDecalVertexBuffer == nullptr)
 	{
-		shadowDecalVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DECAL_FVF, SHADOW_DECAL_VERTEX_SIZE, RenderVertexBufferClass::USAGE_DYNAMIC));
+		shadowDecalVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DECAL_FVF, SHADOW_DECAL_VERTEX_SIZE, Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
 		if (shadowDecalVertexBuffer == nullptr)
 			return FALSE;
 	}
