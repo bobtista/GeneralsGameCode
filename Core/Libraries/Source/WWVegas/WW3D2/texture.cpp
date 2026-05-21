@@ -93,6 +93,15 @@ namespace
 #endif
 	}
 
+	bool Should_Use_CPU_Only_Surface_Textures()
+	{
+#if defined(GGC_RENDER_BACKEND_BGFX)
+		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+#else
+		return false;
+#endif
+	}
+
 	unsigned Requested_Mip_Count(unsigned width, unsigned height, MipCountType mip_level_count)
 	{
 		if (mip_level_count == MIP_LEVELS_ALL) {
@@ -1019,7 +1028,10 @@ TextureClass::TextureClass
 
 	LegacyBaseTexture *newTexture = nullptr;
 	const bool source_has_legacy_surface = surface->D3DSurface != nullptr;
-	if (source_has_legacy_surface)
+	const bool use_cpu_owned_texture =
+		Should_Use_CPU_Only_Surface_Textures() &&
+		Has_CPU_Texture_Mips();
+	if (source_has_legacy_surface && !use_cpu_owned_texture)
 	{
 		newTexture = Create_Legacy_Texture_From_Surface
 		(
@@ -1028,7 +1040,7 @@ TextureClass::TextureClass
 		);
 	}
 
-	if (newTexture != nullptr || source_has_legacy_surface || !Has_CPU_Texture_Mips()) {
+	if (newTexture != nullptr || (source_has_legacy_surface && !use_cpu_owned_texture) || !Has_CPU_Texture_Mips()) {
 		Poke_Legacy_Texture(*this, newTexture);
 	}
 	if (!Has_CPU_Texture_Mips()) {
