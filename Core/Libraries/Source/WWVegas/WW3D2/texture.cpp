@@ -41,6 +41,7 @@
 
 #include "texture.h"
 
+#include <d3d8.h>
 #include "BgfxMigrationToggles.h"
 #include "dx8wrapper.h"
 #include "TARGA.h"
@@ -98,21 +99,6 @@ namespace
 		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
 #else
 		return false;
-#endif
-	}
-
-	bool Should_Block_Unmigrated_Bgfx_Texture_Type(TextureBaseClass::TexAssetType asset_type)
-	{
-		return Should_Use_CPU_Only_Surface_Textures() && asset_type != TextureBaseClass::TEX_REGULAR;
-	}
-
-	MipCountType Legacy_Texture_Mip_Count_For_Construct(void *legacy_texture)
-	{
-#if defined(GGC_BGFX_STANDALONE)
-		(void)legacy_texture;
-		return MIP_LEVELS_1;
-#else
-		return static_cast<MipCountType>(static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount());
 #endif
 	}
 
@@ -229,50 +215,6 @@ namespace
 		return !mips.empty();
 	}
 
-	bool Build_Blank_CPU_Texture_Mips(
-		unsigned width,
-		unsigned height,
-		WW3DFormat format,
-		MipCountType mip_level_count,
-		std::vector<TextureBaseClass::TextureMipSnapshot> &mips)
-	{
-		mips.clear();
-		if (width == 0 ||
-			height == 0 ||
-			format == WW3D_FORMAT_UNKNOWN ||
-			Is_Block_Compressed_Texture_Format(format)) {
-			return false;
-		}
-
-		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(format);
-		if (bytes_per_pixel == 0) {
-			return false;
-		}
-
-		const unsigned requested_levels = Requested_Mip_Count(width, height, mip_level_count);
-		mips.reserve(requested_levels);
-
-		for (unsigned level = 0; level < requested_levels; ++level)
-		{
-			TextureBaseClass::TextureMipSnapshot mip;
-			mip.Width = width;
-			mip.Height = height;
-			mip.Pitch = width * bytes_per_pixel;
-			mip.Format = format;
-			mip.Data.resize(static_cast<size_t>(mip.Pitch) * mip.Height);
-			std::memset(mip.Data.data(), 0, mip.Data.size());
-			mips.push_back(std::move(mip));
-
-			if (width == 1 && height == 1) {
-				break;
-			}
-			width = std::max(1u, width >> 1);
-			height = std::max(1u, height >> 1);
-		}
-
-		return !mips.empty();
-	}
-
 	int Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
 	{
 		switch (pool)
@@ -327,7 +269,6 @@ TextureBaseClass::TextureBaseClass
 	IsRenderTarget(rendertarget),
 	IsProcedural(false),
 	IsReducible(reducible),
-	IsMissingTexture(false),
 	IsCompressionAllowed(false),
 	InactivationTime(0),
 	ExtendedInactivationTime(0),
@@ -370,13 +311,7 @@ TextureBaseClass::~TextureBaseClass()
 
 	if (LegacyTexture)
 	{
-#if defined(GGC_BGFX_STANDALONE)
-		WWASSERT_PRINT(
-			false,
-			"TextureBaseClass::~TextureBaseClass: standalone bgfx cannot release fake-D3D textures");
-#else
 		Legacy_Texture(LegacyTexture)->Release();
-#endif
 		LegacyTexture = nullptr;
 	}
 	Clear_CPU_Texture_Snapshot();
@@ -468,13 +403,7 @@ void TextureBaseClass::Invalidate()
 
 	if (LegacyTexture)
 	{
-#if defined(GGC_BGFX_STANDALONE)
-		WWASSERT_PRINT(
-			false,
-			"TextureBaseClass::Invalidate: standalone bgfx cannot release fake-D3D textures");
-#else
 		Legacy_Texture(LegacyTexture)->Release();
-#endif
 		LegacyTexture = nullptr;
 	}
 	Clear_CPU_Texture_Snapshot();
@@ -545,41 +474,12 @@ void TextureBaseClass::Update_CPU_Texture_Mip_Snapshot(unsigned int level, Textu
 	++CPUTextureRevision;
 }
 
-void TextureBaseClass::Refresh_CPU_Texture_Snapshot()
-{
-	Capture_CPU_Texture_Snapshot(LegacyTexture);
-}
-
-bool TextureBaseClass::Has_Compatibility_Texture() const
-{
-	return LegacyTexture != nullptr;
-}
-
-void TextureBaseClass::Mark_CPU_Texture_Mips_Changed()
-{
-	PreserveCPUTextureSnapshotOnNextLegacySet = true;
-	++CPUTextureRevision;
-}
-
-void TextureBaseClass::Share_Texture_Storage_With(const TextureBaseClass *source)
-{
-	Share_Legacy_Texture_With(*this, source);
-}
-
 void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 {
 	PreserveCPUTextureSnapshotOnNextLegacySet = false;
 	CPUTextureMips.clear();
 	++CPUTextureRevision;
 
-#if defined(GGC_BGFX_STANDALONE)
-	if (native_texture != nullptr) {
-		WWASSERT_PRINT(
-			false,
-			"TextureBaseClass::Capture_CPU_Texture_Snapshot: standalone bgfx cannot read fake-D3D texture snapshots");
-	}
-	return;
-#else
 	TextureClass * tex2d = As_TextureClass();
 	if (native_texture == nullptr || tex2d == nullptr) {
 		return;
@@ -619,7 +519,6 @@ void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 		DX8_ErrorCode(d3d_texture->UnlockRect(level));
 		CPUTextureMips.push_back(mip);
 	}
-#endif
 }
 
 
@@ -630,15 +529,7 @@ void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 void TextureBaseClass::Load_Locked_Surface()
 {
 	WWPROFILE(("TextureClass::Load_Locked_Surface()"));
-	if (LegacyTexture) {
-#if defined(GGC_BGFX_STANDALONE)
-		WWASSERT_PRINT(
-			false,
-			"TextureBaseClass::Load_Locked_Surface: standalone bgfx cannot release fake-D3D textures");
-#else
-		Legacy_Texture(LegacyTexture)->Release();
-#endif
-	}
+	if (LegacyTexture) Legacy_Texture(LegacyTexture)->Release();
 	LegacyTexture=nullptr;
 	TextureLoader::Request_Thumbnail(this);
 	Initialized=false;
@@ -651,16 +542,6 @@ void TextureBaseClass::Load_Locked_Surface()
 */
 bool TextureBaseClass::Is_Missing_Texture()
 {
-	if (IsMissingTexture) {
-		return true;
-	}
-	if (Should_Use_CPU_Only_Surface_Textures()) {
-		return false;
-	}
-	if (LegacyTexture == nullptr) {
-		return false;
-	}
-
 	bool flag = false;
 	LegacyBaseTexture *missing_texture = Get_Legacy_Missing_Texture();
 
@@ -700,14 +581,7 @@ unsigned int TextureBaseClass::Get_Priority()
 		return 0;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
-	WWASSERT_PRINT(
-		false,
-		"TextureBaseClass::Get_Priority: standalone bgfx cannot query fake-D3D texture priority");
-	return 0;
-#else
 	return Legacy_Texture(LegacyTexture)->GetPriority();
-#endif
 }
 
 
@@ -723,14 +597,7 @@ unsigned int TextureBaseClass::Set_Priority(unsigned int priority)
 		return 0;
 	}
 
-#if defined(GGC_BGFX_STANDALONE)
-	WWASSERT_PRINT(
-		false,
-		"TextureBaseClass::Set_Priority: standalone bgfx cannot set fake-D3D texture priority");
-	return 0;
-#else
 	return Legacy_Texture(LegacyTexture)->SetPriority(priority);
-#endif
 }
 
 
@@ -989,35 +856,6 @@ TextureClass::TextureClass
 	default : break;
 	}
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
-	{
-		if (rendertarget)
-		{
-			Poke_Legacy_Texture(*this, nullptr);
-			LastAccessed=WW3D::Get_Sync_Time();
-			return;
-		}
-
-		std::vector<TextureMipSnapshot> mips;
-		if (Build_Blank_CPU_Texture_Mips(width, height, format, mip_level_count, mips))
-		{
-			Set_CPU_Texture_Snapshot(std::move(mips));
-			Poke_Legacy_Texture(*this, nullptr);
-			LastAccessed=WW3D::Get_Sync_Time();
-			return;
-		}
-
-		Initialized=false;
-		Poke_Legacy_Texture(*this, nullptr);
-		WWASSERT_PRINT(
-			false,
-			"TextureClass(width,height): BGFX texture ownership cannot create this procedural texture; no legacy fallback is allowed");
-		LastAccessed=WW3D::Get_Sync_Time();
-		return;
-	}
-#endif
-
 	const int legacy_pool = Legacy_Texture_Pool(pool);
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Texture
@@ -1225,22 +1063,10 @@ TextureClass::TextureClass(void *legacy_texture)
 	(
 		0,
 		0,
-		Legacy_Texture_Mip_Count_For_Construct(legacy_texture)
+		((MipCountType)static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount())
 	),
-	Filter(Legacy_Texture_Mip_Count_For_Construct(legacy_texture))
+	Filter((MipCountType)static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount())
 {
-#if defined(GGC_BGFX_STANDALONE)
-	(void)legacy_texture;
-	WWASSERT_PRINT(
-		false,
-		"TextureClass(native): standalone bgfx cannot wrap fake-D3D textures");
-	Initialized=false;
-	IsProcedural=true;
-	IsReducible=false;
-	Poke_Legacy_Texture(*this, nullptr);
-	LastAccessed=WW3D::Get_Sync_Time();
-	return;
-#else
 	LegacyBaseTexture *d3d_texture = static_cast<LegacyBaseTexture *>(legacy_texture);
 	Initialized=true;
 	IsProcedural=true;
@@ -1268,7 +1094,6 @@ TextureClass::TextureClass(void *legacy_texture)
 	}
 
 	LastAccessed=WW3D::Get_Sync_Time();
-#endif
 }
 
 //**********************************************************************************************
@@ -1279,14 +1104,6 @@ void TextureClass::Init()
 {
 	// If the texture has already been initialised we should exit now
 	if (Initialized) return;
-
-	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
-	{
-		WWASSERT_PRINT(
-			false,
-			"TextureClass::Init: cube/volume textures are not migrated to bgfx texture ownership; no legacy fallback is allowed");
-		return;
-	}
 
 	WWPROFILE("TextureClass::Init");
 
@@ -1342,15 +1159,6 @@ void TextureClass::Apply_Legacy_Surface
 	bool disable_auto_invalidation
 )
 {
-#if defined(GGC_BGFX_STANDALONE)
-	(void)native_texture;
-	(void)initialized;
-	(void)disable_auto_invalidation;
-	WWASSERT_PRINT(
-		false,
-		"TextureClass::Apply_Legacy_Surface: standalone bgfx cannot apply fake-D3D textures");
-	return;
-#else
 	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
@@ -1371,7 +1179,6 @@ void TextureClass::Apply_Legacy_Surface
 	}
 	surface->Release();
 
-#endif
 }
 
 
@@ -1491,119 +1298,6 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 	return surface;
 }
 
-TextureClass::MutableTextureMipView TextureClass::Begin_Mip_Write(unsigned int level)
-{
-	MutableTextureMipView view;
-	if (TextureFormat == WW3D_FORMAT_UNKNOWN ||
-		Is_Block_Compressed_Texture_Format(TextureFormat))
-	{
-		return view;
-	}
-
-	const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(TextureFormat);
-	if (bytes_per_pixel == 0)
-	{
-		return view;
-	}
-
-	unsigned mip_width = 0;
-	unsigned mip_height = 0;
-	std::vector<TextureMipSnapshot> &mips = Mutable_CPU_Texture_Mips();
-	if (level < mips.size() &&
-		mips[level].Format != WW3D_FORMAT_UNKNOWN &&
-		mips[level].Width != 0 &&
-		mips[level].Height != 0)
-	{
-		mip_width = mips[level].Width;
-		mip_height = mips[level].Height;
-	}
-	else
-	{
-		if (Width <= 0 || Height <= 0)
-		{
-			return view;
-		}
-		mip_width = std::max(1u, static_cast<unsigned>(Width) >> level);
-		mip_height = std::max(1u, static_cast<unsigned>(Height) >> level);
-	}
-
-	const unsigned row_size = mip_width * bytes_per_pixel;
-	if (mips.size() <= level)
-	{
-		mips.resize(level + 1);
-	}
-	TextureMipSnapshot &mip = mips[level];
-	if (mip.Format != TextureFormat ||
-		mip.Width != mip_width ||
-		mip.Height != mip_height ||
-		mip.Pitch < row_size ||
-		mip.Data.size() < static_cast<size_t>(mip.Pitch) * mip.Height)
-	{
-		mip.Format = TextureFormat;
-		mip.Width = mip_width;
-		mip.Height = mip_height;
-		mip.Pitch = row_size;
-		mip.Data.assign(static_cast<size_t>(row_size) * mip_height, 0);
-	}
-
-	view.Format = mip.Format;
-	view.Width = mip.Width;
-	view.Height = mip.Height;
-	view.Pitch = mip.Pitch;
-	view.Data = mip.Data.data();
-	return view;
-}
-
-void TextureClass::End_Mip_Write(unsigned int level)
-{
-	const std::vector<TextureMipSnapshot> &mips = Get_CPU_Texture_Mips();
-	if (level >= mips.size() ||
-		mips[level].Format == WW3D_FORMAT_UNKNOWN ||
-		mips[level].Data.empty())
-	{
-		return;
-	}
-
-	Mark_CPU_Texture_Mips_Changed();
-	auto *texture = Peek_Legacy_Texture2D(*this);
-	if (texture != nullptr)
-	{
-#if defined(GGC_BGFX_STANDALONE)
-		WWASSERT_PRINT(
-			false,
-			"TextureClass::End_Mip_Write: standalone bgfx cannot mirror writes to fake-D3D texture mips");
-#else
-		const TextureMipSnapshot &mip = mips[level];
-		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(mip.Format);
-		const unsigned row_size = mip.Width * bytes_per_pixel;
-		LegacyLockedRect lock_rect;
-		::ZeroMemory(&lock_rect, sizeof(lock_rect));
-		if (bytes_per_pixel != 0 &&
-			row_size != 0 &&
-			SUCCEEDED(texture->LockRect(level, &lock_rect, nullptr, 0)))
-		{
-			if (lock_rect.pBits != nullptr)
-			{
-				const unsigned char *src = mip.Data.data();
-				unsigned char *dst = static_cast<unsigned char *>(lock_rect.pBits);
-				for (unsigned row = 0; row < mip.Height; ++row)
-				{
-					memcpy(dst, src, row_size);
-					src += mip.Pitch;
-					dst += lock_rect.Pitch;
-				}
-			}
-			DX8_ErrorCode(texture->UnlockRect(level));
-		}
-#endif
-	}
-
-	if (g_renderBackend != nullptr)
-	{
-		g_renderBackend->Invalidate_Cached_Texture(this);
-	}
-}
-
 void TextureClass::Update_Surface_Level_From_Surface(unsigned int level, const SurfaceClass::SurfaceImageData &image)
 {
 	if (image.Format == WW3D_FORMAT_UNKNOWN ||
@@ -1639,11 +1333,6 @@ void TextureClass::Update_Surface_Level_From_Surface(unsigned int level, const S
 	auto *texture = Peek_Legacy_Texture2D(*this);
 	if (texture != nullptr)
 	{
-#if defined(GGC_BGFX_STANDALONE)
-		WWASSERT_PRINT(
-			false,
-			"TextureClass::Update_Surface_Level_From_Surface: standalone bgfx cannot update fake-D3D texture mips");
-#else
 		LegacyLockedRect lock_rect;
 		::ZeroMemory(&lock_rect, sizeof(lock_rect));
 		if (SUCCEEDED(texture->LockRect(level, &lock_rect, nullptr, 0)))
@@ -1661,7 +1350,6 @@ void TextureClass::Update_Surface_Level_From_Surface(unsigned int level, const S
 			}
 			DX8_ErrorCode(texture->UnlockRect(level));
 		}
-#endif
 	}
 
 	if (g_renderBackend != nullptr) {
@@ -1688,17 +1376,11 @@ void TextureClass::Get_Level_Description( SurfaceClass::SurfaceDescription & des
 		}
 	}
 
-#if !defined(GGC_BGFX_STANDALONE)
 	SurfaceClass * surf = Get_Surface_Level(level);
 	if (surf != nullptr) {
 		surf->Get_Description(desc);
 	}
 	REF_PTR_RELEASE(surf);
-#else
-	desc.Format = WW3D_FORMAT_UNKNOWN;
-	desc.Width = 0;
-	desc.Height = 0;
-#endif
 }
 
 unsigned int TextureClass::Get_Level_Count() const
@@ -1708,17 +1390,7 @@ unsigned int TextureClass::Get_Level_Count() const
 		return static_cast<unsigned int>(mips.size());
 	}
 	auto *texture = Peek_Legacy_Texture2D(*this);
-#if defined(GGC_BGFX_STANDALONE)
-	if (texture != nullptr)
-	{
-		WWASSERT_PRINT(
-			false,
-			"TextureClass::Get_Level_Count: standalone bgfx cannot query fake-D3D texture levels");
-	}
-	return 0;
-#else
 	return texture != nullptr ? texture->GetLevelCount() : 0;
-#endif
 }
 
 bool TextureClass::Generate_Mip_Levels()
@@ -1775,13 +1447,7 @@ void TextureClass::Set_LOD(unsigned int lod) const
 	auto *texture = Peek_Legacy_Texture2D(*this);
 	if (texture != nullptr)
 	{
-#if defined(GGC_BGFX_STANDALONE)
-		WWASSERT_PRINT(
-			false,
-			"TextureClass::Set_LOD: standalone bgfx cannot set fake-D3D texture LOD");
-#else
 		DX8_ErrorCode(texture->SetLOD(static_cast<DWORD>(lod)));
-#endif
 	}
 }
 
@@ -1791,14 +1457,6 @@ void TextureClass::Set_LOD(unsigned int lod) const
 */
 void *TextureClass::Get_Legacy_Surface_Level(unsigned int level)
 {
-	if (Should_Use_CPU_Only_Texture_Level_Surfaces())
-	{
-		WWASSERT_PRINT(
-			0,
-			"TextureClass::Get_Legacy_Surface_Level: BGFX surface ownership is enabled; no legacy surface fallback is allowed");
-		return nullptr;
-	}
-
 	if (!Peek_Legacy_Texture2D(*this))
 	{
 		WWASSERT_PRINT(0, "Get_Legacy_Surface_Level: native texture is null!");
@@ -1828,12 +1486,6 @@ unsigned TextureClass::Get_Texture_Memory_Usage() const
 
 	int size=0;
 	if (!Peek_Legacy_Texture2D(*this)) return 0;
-#if defined(GGC_BGFX_STANDALONE)
-	WWASSERT_PRINT(
-		false,
-		"TextureClass::Get_Texture_Memory_Usage: standalone bgfx cannot query fake-D3D texture levels");
-	return 0;
-#else
 	for (unsigned i=0;i<Peek_Legacy_Texture2D(*this)->GetLevelCount();++i)
 	{
 		LegacySurfaceDesc desc;
@@ -1841,7 +1493,6 @@ unsigned TextureClass::Get_Texture_Memory_Usage() const
 		size+=desc.Size;
 	}
 	return size;
-#endif
 }
 
 
@@ -2015,27 +1666,17 @@ ZTextureClass::ZTextureClass
 :	TextureBaseClass(width,height, mip_level_count, pool),
 	DepthStencilTextureFormat(zformat)
 {
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
-	{
-		Poke_Legacy_Texture(*this, nullptr);
-		Initialized=true;
-		LastAccessed=WW3D::Get_Sync_Time();
-		return;
-	}
-#endif
-
 	const int legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_ZTexture
-	(
-		width,
-		height,
-		zformat,
-		mip_level_count,
-		legacy_pool
-	)
+		(
+			width,
+			height,
+			zformat,
+			mip_level_count,
+			legacy_pool
+		)
 	);
 
 #if !defined(GGC_BGFX_STANDALONE)
@@ -2081,15 +1722,6 @@ void ZTextureClass::Apply_Legacy_Surface
 	bool disable_auto_invalidation
 )
 {
-#if defined(GGC_BGFX_STANDALONE)
-	(void)native_texture;
-	(void)initialized;
-	(void)disable_auto_invalidation;
-	WWASSERT_PRINT(
-		false,
-		"ZTextureClass::Apply_Legacy_Surface: standalone bgfx cannot apply fake-D3D depth textures");
-	return;
-#else
 	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
@@ -2109,7 +1741,6 @@ void ZTextureClass::Apply_Legacy_Surface
 		Height=d3d_desc.Height;
 	}
 	surface->Release();
-#endif
 }
 
 //**********************************************************************************************
@@ -2118,14 +1749,6 @@ void ZTextureClass::Apply_Legacy_Surface
 */
 void *ZTextureClass::Get_Legacy_Surface_Level(unsigned int level)
 {
-	if (Should_Use_CPU_Only_Texture_Level_Surfaces())
-	{
-		WWASSERT_PRINT(
-			0,
-			"ZTextureClass::Get_Legacy_Surface_Level: BGFX surface ownership is enabled; no legacy depth surface fallback is allowed");
-		return nullptr;
-	}
-
 	if (!Peek_Legacy_Texture2D(*this))
 	{
 		WWASSERT_PRINT(0, "Get_Legacy_Surface_Level: native texture is null!");
@@ -2145,12 +1768,6 @@ unsigned ZTextureClass::Get_Texture_Memory_Usage() const
 {
 	int size=0;
 	if (!Peek_Legacy_Texture2D(*this)) return 0;
-#if defined(GGC_BGFX_STANDALONE)
-	WWASSERT_PRINT(
-		false,
-		"ZTextureClass::Get_Texture_Memory_Usage: standalone bgfx cannot query fake-D3D depth texture levels");
-	return 0;
-#else
 	for (unsigned i=0;i<Peek_Legacy_Texture2D(*this)->GetLevelCount();++i)
 	{
 		LegacySurfaceDesc desc;
@@ -2158,7 +1775,6 @@ unsigned ZTextureClass::Get_Texture_Memory_Usage() const
 		size+=desc.Size;
 	}
 	return size;
-#endif
 }
 
 
@@ -2195,17 +1811,6 @@ CubeTextureClass::CubeTextureClass
 	}
 
 	const int legacy_pool = Legacy_Texture_Pool(pool);
-
-	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
-	{
-		Initialized=false;
-		Poke_Legacy_Texture(*this, nullptr);
-		WWASSERT_PRINT(
-			false,
-			"CubeTextureClass: bgfx texture ownership has no cube texture implementation; no legacy fallback is allowed");
-		LastAccessed=WW3D::Get_Sync_Time();
-		return;
-	}
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Cube_Texture
@@ -2305,18 +1910,6 @@ CubeTextureClass::CubeTextureClass
 	Set_Texture_Name(name);
 	Set_Full_Path(full_path);
 	WWASSERT(name[0]!='\0');
-
-	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
-	{
-		Initialized=false;
-		Poke_Legacy_Texture(*this, nullptr);
-		WWASSERT_PRINT(
-			false,
-			"CubeTextureClass: bgfx texture ownership has no cube texture implementation; no legacy fallback is allowed");
-		LastAccessed=WW3D::Get_Sync_Time();
-		return;
-	}
-
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
@@ -2358,15 +1951,6 @@ void CubeTextureClass::Apply_Legacy_Surface
 	bool disable_auto_invalidation
 )
 {
-#if defined(GGC_BGFX_STANDALONE)
-	(void)native_texture;
-	(void)initialized;
-	(void)disable_auto_invalidation;
-	WWASSERT_PRINT(
-		false,
-		"CubeTextureClass::Apply_Legacy_Surface: standalone bgfx cannot apply fake-D3D cube textures");
-	return;
-#else
 	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
@@ -2384,7 +1968,6 @@ void CubeTextureClass::Apply_Legacy_Surface
 		Width=d3d_desc.Width;
 		Height=d3d_desc.Height;
 	}
-#endif
 }
 
 
@@ -2422,17 +2005,6 @@ VolumeTextureClass::VolumeTextureClass
 	}
 
 	const int legacy_pool = Legacy_Texture_Pool(pool);
-
-	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
-	{
-		Initialized=false;
-		Poke_Legacy_Texture(*this, nullptr);
-		WWASSERT_PRINT(
-			false,
-			"VolumeTextureClass: bgfx texture ownership has no volume texture implementation; no legacy fallback is allowed");
-		LastAccessed=WW3D::Get_Sync_Time();
-		return;
-	}
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Volume_Texture
@@ -2533,18 +2105,6 @@ VolumeTextureClass::VolumeTextureClass
 	Set_Texture_Name(name);
 	Set_Full_Path(full_path);
 	WWASSERT(name[0]!='\0');
-
-	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
-	{
-		Initialized=false;
-		Poke_Legacy_Texture(*this, nullptr);
-		WWASSERT_PRINT(
-			false,
-			"VolumeTextureClass: bgfx texture ownership has no volume texture implementation; no legacy fallback is allowed");
-		LastAccessed=WW3D::Get_Sync_Time();
-		return;
-	}
-
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
@@ -2586,15 +2146,6 @@ void VolumeTextureClass::Apply_Legacy_Surface
 	bool disable_auto_invalidation
 )
 {
-#if defined(GGC_BGFX_STANDALONE)
-	(void)native_texture;
-	(void)initialized;
-	(void)disable_auto_invalidation;
-	WWASSERT_PRINT(
-		false,
-		"VolumeTextureClass::Apply_Legacy_Surface: standalone bgfx cannot apply fake-D3D volume textures");
-	return;
-#else
 	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
@@ -2614,5 +2165,4 @@ void VolumeTextureClass::Apply_Legacy_Surface
 		Height=d3d_desc.Height;
 		Depth=d3d_desc.Depth;
 	}
-#endif
 }
