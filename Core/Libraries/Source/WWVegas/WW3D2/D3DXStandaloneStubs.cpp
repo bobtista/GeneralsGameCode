@@ -298,31 +298,6 @@ extern "C" HRESULT WINAPI D3DXGetErrorStringA(HRESULT hr, LPSTR pBuffer, UINT Bu
 // Texture / surface helpers
 // -----------------------------------------------------------------------------
 
-extern "C" HRESULT WINAPI D3DXCreateTexture(
-	LPDIRECT3DDEVICE8 device,
-	UINT width,
-	UINT height,
-	UINT mip_levels,
-	DWORD usage,
-	D3DFORMAT format,
-	D3DPOOL pool,
-	LPDIRECT3DTEXTURE8 * out_texture)
-{
-	if (device == nullptr || out_texture == nullptr)
-	{
-		return E_POINTER;
-	}
-	if (mip_levels == D3DX_DEFAULT)
-	{
-		mip_levels = 0;
-	}
-	if (format == D3DFMT_UNKNOWN)
-	{
-		format = D3DFMT_A8R8G8B8;
-	}
-	return device->CreateTexture(width, height, mip_levels, usage, format, pool, out_texture);
-}
-
 extern "C" HRESULT WINAPI D3DXCreateCubeTexture(
 	LPDIRECT3DDEVICE8 device,
 	UINT size,

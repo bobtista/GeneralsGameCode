@@ -3056,7 +3056,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 		"DX8Wrapper::_Create_DX8_Texture(file): standalone bgfx legacy texture path cannot load this file; no D3DX fallback is available");
 	Log_Missing_Texture_File("standalone legacy texture loader", filename);
 	return Get_Legacy_Missing_Texture();
-#endif
+#else
 
 	// NOTE: If the original image format is not supported as a texture format, it will
 	// automatically be converted to an appropriate format.
@@ -3093,6 +3093,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 		return Get_Legacy_Missing_Texture();
 	}
 	return texture;
+#endif
 }
 
 IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
