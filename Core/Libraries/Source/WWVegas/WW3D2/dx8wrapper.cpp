@@ -101,6 +101,20 @@
 static D3DDEVTYPE Legacy_Device_Type(unsigned value) { return static_cast<D3DDEVTYPE>(value); }
 static D3DRESOURCETYPE Legacy_Resource_Type(unsigned value) { return static_cast<D3DRESOURCETYPE>(value); }
 
+#if !defined(GGC_BGFX_STANDALONE)
+static IDirect3DVertexBuffer8 *Legacy_Vertex_Buffer(VertexBufferClass *buffer)
+{
+	return static_cast<IDirect3DVertexBuffer8 *>(
+		static_cast<DX8VertexBufferClass *>(buffer)->Get_Legacy_Vertex_Buffer());
+}
+
+static IDirect3DIndexBuffer8 *Legacy_Index_Buffer(IndexBufferClass *buffer)
+{
+	return static_cast<IDirect3DIndexBuffer8 *>(
+		static_cast<DX8IndexBufferClass *>(buffer)->Get_Legacy_Index_Buffer());
+}
+#endif
+
 static LegacyFixedFunctionColor To_Legacy_Color(const D3DCOLORVALUE &color)
 {
 	LegacyFixedFunctionColor result;
@@ -2254,8 +2268,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 #if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(SetStreamSource(
 		0,
-		static_cast<IDirect3DVertexBuffer8 *>(
-			static_cast<DX8VertexBufferClass*>(dyn_vb_access.VertexBuffer)->Get_Legacy_Vertex_Buffer()),
+		Legacy_Vertex_Buffer(dyn_vb_access.VertexBuffer),
 		dyn_vb_access.FVF_Info().Get_FVF_Size()));
 #endif
 	// If using FVF format VB, set the FVF as vertex shader (may not be needed here KM)
@@ -2292,8 +2305,7 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 
 #if !defined(GGC_BGFX_STANDALONE)
 	DX8CALL(SetIndices(
-		static_cast<IDirect3DIndexBuffer8 *>(
-			static_cast<DX8IndexBufferClass*>(dyn_ib_access.IndexBuffer)->Get_Legacy_Index_Buffer()),
+		Legacy_Index_Buffer(dyn_ib_access.IndexBuffer),
 		dyn_vb_access.VertexBufferOffset));
 #endif
 	DX8_RECORD_INDEX_BUFFER_CHANGE();
@@ -2622,8 +2634,7 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 #if !defined(GGC_BGFX_STANDALONE)
 					DX8CALL(SetStreamSource(
 						i,
-						static_cast<IDirect3DVertexBuffer8 *>(
-							static_cast<DX8VertexBufferClass*>(FixedFunctionState::Render_State().vertex_buffers[i])->Get_Legacy_Vertex_Buffer()),
+						Legacy_Vertex_Buffer(FixedFunctionState::Render_State().vertex_buffers[i]),
 						FixedFunctionState::Render_State().vertex_buffers[i]->FVF_Info().Get_FVF_Size()));
 #endif
 					DX8_RECORD_VERTEX_BUFFER_CHANGE();
@@ -2655,8 +2666,7 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 			case BUFFER_TYPE_DYNAMIC:
 #if !defined(GGC_BGFX_STANDALONE)
 				DX8CALL(SetIndices(
-					static_cast<IDirect3DIndexBuffer8 *>(
-						static_cast<DX8IndexBufferClass*>(FixedFunctionState::Render_State().index_buffer)->Get_Legacy_Index_Buffer()),
+					Legacy_Index_Buffer(FixedFunctionState::Render_State().index_buffer),
 					FixedFunctionState::Render_State().index_base_offset+FixedFunctionState::Render_State().vba_offset));
 #endif
 				DX8_RECORD_INDEX_BUFFER_CHANGE();
