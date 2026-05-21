@@ -14,14 +14,8 @@
 */
 
 // TheSuperHackers @refactor bobtista 22/04/2026 Stage 5 —
-// Minimal in-tree implementations of the D3DX8 helper functions the
-// engine actually calls, so the standalone bgfx build can drop the
-// d3dx8.lib static-link dependency entirely. This file only compiles
-// under GGC_BGFX_STANDALONE; in ref-popup mode d3dx8.lib continues to
-// provide these symbols.
-//
-// Not implemented here: non-critical functions (shader assemble from
-// file/resource, mesh loaders, font create, etc.) that aren't called at runtime.
+// Standalone bgfx compatibility texture operations used while legacy surface
+// and texture-copy callers are migrated to CPU-owned data.
 
 #if defined(GGC_BGFX_STANDALONE)
 
@@ -29,7 +23,6 @@
 #include <cstdint>
 
 #include <d3d8.h>
-#include <d3dx8.h>
 
 #include "wwdebug.h"
 
@@ -86,11 +79,9 @@ static inline uint16_t Filter_A4R4G4B4_4(uint16_t a, uint16_t b, uint16_t c, uin
 	return static_cast<uint16_t>((mA << 12) | (mR << 8) | (mG << 4) | mB);
 }
 
-extern "C" HRESULT WINAPI D3DXFilterTexture(
-	LPDIRECT3DBASETEXTURE8 base_texture,
-	CONST PALETTEENTRY * /*palette*/,
-	UINT src_level,
-	DWORD /*filter*/)
+HRESULT Standalone_Filter_Legacy_Texture_Mips(
+	IDirect3DBaseTexture8 *base_texture,
+	unsigned int src_level)
 {
 	if (base_texture == nullptr)
 	{
@@ -102,7 +93,7 @@ extern "C" HRESULT WINAPI D3DXFilterTexture(
 	}
 	LPDIRECT3DTEXTURE8 texture = static_cast<LPDIRECT3DTEXTURE8>(base_texture);
 	const DWORD levels = texture->GetLevelCount();
-	if (src_level == D3DX_DEFAULT)
+	if (src_level == static_cast<unsigned int>(-1))
 	{
 		src_level = 0;
 	}
@@ -220,15 +211,11 @@ extern "C" HRESULT WINAPI D3DXFilterTexture(
 // filter, and color-key arguments are ignored. Format conversion is
 // not supported — caller must match dst and src formats (the engine's
 // SurfaceClass::Copy/Stretch_Copy callers always do).
-extern "C" HRESULT WINAPI D3DXLoadSurfaceFromSurface(
-	LPDIRECT3DSURFACE8 dst,
-	CONST PALETTEENTRY * /*dst_palette*/,
-	CONST RECT * dst_rect,
-	LPDIRECT3DSURFACE8 src,
-	CONST PALETTEENTRY * /*src_palette*/,
-	CONST RECT * src_rect,
-	DWORD /*filter*/,
-	D3DCOLOR /*color_key*/)
+HRESULT Standalone_Copy_Legacy_Surface(
+	IDirect3DSurface8 *dst,
+	const RECT *dst_rect,
+	IDirect3DSurface8 *src,
+	const RECT *src_rect)
 {
 	if (dst == nullptr || src == nullptr)
 	{

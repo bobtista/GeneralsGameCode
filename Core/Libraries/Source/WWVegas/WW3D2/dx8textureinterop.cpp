@@ -35,6 +35,15 @@
 #include "textureloader.h"
 #include "ww3d.h"
 
+#if defined(GGC_BGFX_STANDALONE)
+HRESULT Standalone_Filter_Legacy_Texture_Mips(IDirect3DBaseTexture8 *base_texture, unsigned int src_level);
+HRESULT Standalone_Copy_Legacy_Surface(
+	IDirect3DSurface8 *destination,
+	const RECT *destination_rect,
+	IDirect3DSurface8 *source,
+	const RECT *source_rect);
+#endif
+
 namespace
 {
 #if defined(GGC_BGFX_STANDALONE)
@@ -95,6 +104,38 @@ namespace
 
 	IDirect3DTexture8 *s_missingTexture = nullptr;
 	constexpr unsigned kLegacyMipFilterBox = 5;
+
+	HRESULT Filter_Legacy_Texture_Mips_Compat(IDirect3DBaseTexture8 *base_texture, unsigned int src_level)
+	{
+#if defined(GGC_BGFX_STANDALONE)
+		return Standalone_Filter_Legacy_Texture_Mips(base_texture, src_level);
+#else
+		return D3DXFilterTexture(base_texture, nullptr, src_level, kLegacyMipFilterBox);
+#endif
+	}
+
+	HRESULT Copy_Legacy_Surface_Compat(
+		IDirect3DSurface8 *destination,
+		const RECT *destination_rect,
+		IDirect3DSurface8 *source,
+		const RECT *source_rect,
+		unsigned int filter)
+	{
+#if defined(GGC_BGFX_STANDALONE)
+		(void)filter;
+		return Standalone_Copy_Legacy_Surface(destination, destination_rect, source, source_rect);
+#else
+		return D3DXLoadSurfaceFromSurface(
+			destination,
+			nullptr,
+			destination_rect,
+			source,
+			nullptr,
+			source_rect,
+			filter,
+			0);
+#endif
+	}
 }
 
 IDirect3DBaseTexture8 *DX8TextureInterop::Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
@@ -341,11 +382,11 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture_From_Surface(
 
 	IDirect3DSurface8 *tex_surface = nullptr;
 	DX8_ErrorCode(texture->GetSurfaceLevel(0, &tex_surface));
-	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(tex_surface, nullptr, nullptr, surface, nullptr, nullptr, D3DX_FILTER_BOX, 0));
+	DX8_ErrorCode(Copy_Legacy_Surface_Compat(tex_surface, nullptr, surface, nullptr, kLegacyMipFilterBox));
 	tex_surface->Release();
 
 	if (mip_level_count != MIP_LEVELS_1) {
-		DX8_ErrorCode(D3DXFilterTexture(texture, nullptr, 0, D3DX_FILTER_BOX));
+		DX8_ErrorCode(Filter_Legacy_Texture_Mips_Compat(texture, 0));
 	}
 
 	return texture;
@@ -522,7 +563,7 @@ bool DX8TextureInterop::Generate_Legacy_Texture_Mips(TextureClass &texture)
 		return false;
 	}
 
-	return SUCCEEDED(D3DXFilterTexture(native_texture, nullptr, 0, kLegacyMipFilterBox));
+	return SUCCEEDED(Filter_Legacy_Texture_Mips_Compat(native_texture, 0));
 }
 
 IDirect3DTexture8 *Get_Legacy_Missing_Texture()
@@ -601,15 +642,12 @@ void Copy_Legacy_Surface(
 	source_native_rect.top = source_rect.top;
 	source_native_rect.right = source_rect.right;
 	source_native_rect.bottom = source_rect.bottom;
-	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(
+	DX8_ErrorCode(Copy_Legacy_Surface_Compat(
 		destination,
-		nullptr,
 		&destination_native_rect,
 		source,
-		nullptr,
 		&source_native_rect,
-		filter,
-		0));
+		filter));
 }
 
 void Init_Legacy_Missing_Texture(
@@ -663,15 +701,12 @@ void Init_Legacy_Missing_Texture(
 		DX8_ErrorCode(texture->GetSurfaceLevel(i-1,&src));
 		DX8_ErrorCode(texture->GetSurfaceLevel(i,&dst));
 
-		DX8_ErrorCode(D3DXLoadSurfaceFromSurface(
+		DX8_ErrorCode(Copy_Legacy_Surface_Compat(
 			dst,
-			nullptr,
 			nullptr,
 			src,
 			nullptr,
-			nullptr,
-			kLegacyMipFilterBox,
-			0));
+			kLegacyMipFilterBox));
 
 		src->Release();
 		dst->Release();

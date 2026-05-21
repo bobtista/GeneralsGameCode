@@ -288,7 +288,7 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         target_sources(corei_ww3d2 INTERFACE
             ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.h
-            ${CMAKE_CURRENT_SOURCE_DIR}/D3DXStandaloneStubs.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/StandaloneLegacyTextureOps.cpp
         )
     endif()
 

@@ -97,6 +97,13 @@
 #if defined(GGC_BGFX_STANDALONE)
 #include "TARGA.h"
 #include "ww3dformat.h"
+
+HRESULT Standalone_Filter_Legacy_Texture_Mips(IDirect3DBaseTexture8 *base_texture, unsigned int src_level);
+HRESULT Standalone_Copy_Legacy_Surface(
+	IDirect3DSurface8 *destination,
+	const RECT *destination_rect,
+	IDirect3DSurface8 *source,
+	const RECT *source_rect);
 #endif
 
 #if defined(GGC_BGFX_STANDALONE)
@@ -322,6 +329,38 @@ static auto Legacy_Swap_Effect(unsigned value) { return Legacy_Value<decltype(_P
 static DynamicVectorClass<StringClass>					_RenderDeviceNameTable;
 static DynamicVectorClass<StringClass>					_RenderDeviceShortNameTable;
 static DynamicVectorClass<RenderDeviceDescClass>	_RenderDeviceDescriptionTable;
+
+static HRESULT Copy_Legacy_Surface_Compat(
+	IDirect3DSurface8 *destination,
+	const RECT *destination_rect,
+	IDirect3DSurface8 *source,
+	const RECT *source_rect,
+	unsigned int filter)
+{
+#if defined(GGC_BGFX_STANDALONE)
+	(void)filter;
+	return Standalone_Copy_Legacy_Surface(destination, destination_rect, source, source_rect);
+#else
+	return D3DXLoadSurfaceFromSurface(
+		destination,
+		nullptr,
+		destination_rect,
+		source,
+		nullptr,
+		source_rect,
+		filter,
+		0);
+#endif
+}
+
+static HRESULT Filter_Legacy_Texture_Mips_Compat(IDirect3DBaseTexture8 *base_texture, unsigned int src_level)
+{
+#if defined(GGC_BGFX_STANDALONE)
+	return Standalone_Filter_Legacy_Texture_Mips(base_texture, src_level);
+#else
+	return D3DXFilterTexture(base_texture, nullptr, src_level, D3DX_FILTER_BOX);
+#endif
+}
 
 IDirect3DDevice8* DX8_Call_Device()
 {
@@ -2990,7 +3029,7 @@ static IDirect3DTexture8 * LoadTextureStandalone_TGA(
 
 		// Clamp the second sample coordinate so 1D parent mips (width==1
 		// or height==1) don't read past their row/column. Matches the
-		// edge-aware box filter in D3DXStandaloneStubs.cpp.
+		// edge-aware box filter in StandaloneLegacyTextureOps.cpp.
 		const UINT parent_w = prev_w;
 		const UINT parent_h = prev_h;
 		const uint8_t * spx = static_cast<const uint8_t *>(src_l.pBits);
@@ -3210,13 +3249,13 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 	// Copy the surface to the texture
 	IDirect3DSurface8 *tex_surface = nullptr;
 	texture->GetSurfaceLevel(0, &tex_surface);
-	DX8_ErrorCode(D3DXLoadSurfaceFromSurface(tex_surface, nullptr, nullptr, surface, nullptr, nullptr, D3DX_FILTER_BOX, 0));
+	DX8_ErrorCode(Copy_Legacy_Surface_Compat(tex_surface, nullptr, surface, nullptr, D3DX_FILTER_BOX));
 	tex_surface->Release();
 
 	// Create mipmaps if needed
 	if (mip_level_count!=MIP_LEVELS_1)
 	{
-		DX8_ErrorCode(D3DXFilterTexture(texture, nullptr, 0, D3DX_FILTER_BOX));
+		DX8_ErrorCode(Filter_Legacy_Texture_Mips_Compat(texture, 0));
 	}
 
 	return texture;
