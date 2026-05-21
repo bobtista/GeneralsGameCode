@@ -220,6 +220,50 @@ namespace
 		return !mips.empty();
 	}
 
+	bool Build_Blank_CPU_Texture_Mips(
+		unsigned width,
+		unsigned height,
+		WW3DFormat format,
+		MipCountType mip_level_count,
+		std::vector<TextureBaseClass::TextureMipSnapshot> &mips)
+	{
+		mips.clear();
+		if (width == 0 ||
+			height == 0 ||
+			format == WW3D_FORMAT_UNKNOWN ||
+			Is_Block_Compressed_Texture_Format(format)) {
+			return false;
+		}
+
+		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(format);
+		if (bytes_per_pixel == 0) {
+			return false;
+		}
+
+		const unsigned requested_levels = Requested_Mip_Count(width, height, mip_level_count);
+		mips.reserve(requested_levels);
+
+		for (unsigned level = 0; level < requested_levels; ++level)
+		{
+			TextureBaseClass::TextureMipSnapshot mip;
+			mip.Width = width;
+			mip.Height = height;
+			mip.Pitch = width * bytes_per_pixel;
+			mip.Format = format;
+			mip.Data.resize(static_cast<size_t>(mip.Pitch) * mip.Height);
+			std::memset(mip.Data.data(), 0, mip.Data.size());
+			mips.push_back(std::move(mip));
+
+			if (width == 1 && height == 1) {
+				break;
+			}
+			width = std::max(1u, width >> 1);
+			height = std::max(1u, height >> 1);
+		}
+
+		return !mips.empty();
+	}
+
 	int Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
 	{
 		switch (pool)
@@ -868,6 +912,35 @@ TextureClass::TextureClass
 		break;
 	default : break;
 	}
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
+	{
+		if (rendertarget)
+		{
+			Poke_Legacy_Texture(*this, nullptr);
+			LastAccessed=WW3D::Get_Sync_Time();
+			return;
+		}
+
+		std::vector<TextureMipSnapshot> mips;
+		if (Build_Blank_CPU_Texture_Mips(width, height, format, mip_level_count, mips))
+		{
+			Set_CPU_Texture_Snapshot(std::move(mips));
+			Poke_Legacy_Texture(*this, nullptr);
+			LastAccessed=WW3D::Get_Sync_Time();
+			return;
+		}
+
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"TextureClass(width,height): BGFX texture ownership cannot create this procedural texture; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+#endif
 
 	const int legacy_pool = Legacy_Texture_Pool(pool);
 	Poke_Legacy_Texture(*this,
