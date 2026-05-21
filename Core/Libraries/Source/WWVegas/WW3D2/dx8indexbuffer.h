@@ -70,7 +70,9 @@ public:
 	void Copy(unsigned int* indices,unsigned start_index,unsigned index_count);
 	void Copy(unsigned short* indices,unsigned start_index,unsigned index_count);
 
+#if !defined(GGC_BGFX_STANDALONE)
 	void *Get_Legacy_Index_Buffer()	{ return index_buffer; }
+#endif
 
 private:
 	void *index_buffer;
