@@ -29,8 +29,6 @@
 #include "always.h"
 #include "rendobj.h"
 #include "w3d_file.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
 #include "shader.h"
 #include "vertmaterial.h"
 #include "light.h"
@@ -59,6 +57,7 @@ struct IDirect3DTexture8;
 
 class PolygonTrigger;
 class WaterTracksRenderSystem;
+class RenderIndexBufferClass;
 class Xfer;
 /// Custom render object that draws mirrors, water, and skies.
 /**
@@ -134,8 +133,8 @@ public:
 	void replaceSkyboxTexture(const AsciiString& oldTexName, const AsciiString& newTextName);
 
 protected:
-	DX8IndexBufferClass			*m_indexBuffer;	///<indices defining quad
-	DX8IndexBufferClass			*m_waterMeshIndexBuffer;	///<indices defining the grid-mesh water strip
+	RenderIndexBufferClass		*m_indexBuffer;	///<indices defining quad
+	RenderIndexBufferClass		*m_waterMeshIndexBuffer;	///<indices defining the grid-mesh water strip
 	SceneClass							*m_parentScene;	///<scene to be reflected
 	ShaderClass m_shaderClass; ///<shader or rendering state for heightmap
 	VertexMaterialClass	  		*m_vertexMaterialClass;	///<vertex lighting material

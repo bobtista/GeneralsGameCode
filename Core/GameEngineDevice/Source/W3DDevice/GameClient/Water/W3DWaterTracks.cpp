@@ -61,8 +61,16 @@
 #include "rinfo.h"
 #include "camera.h"
 #include "assetmgr.h"
+#include "WW3D2/dx8fvf.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/renderbufferclasses.h"
+#include "WW3D2/vertexbuffer.h"
+#if !defined(GGC_BGFX_STANDALONE)
+#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx8vertexbuffer.h"
+#endif
 
 //number of vertex pages allocated - allows double buffering of vertex updates.
 //while one is being rendered, another is being updated.  Improves HW parallelism.
@@ -320,7 +328,7 @@ Int WaterTracksObj::update(Int msElapsed)
  */
 //=============================================================================
 
-Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
+Int WaterTracksObj::render(RenderVertexBufferClass *vertexBuffer, Int batchStart)
 {
 	// TheSuperHackers @tweak The wave movement time step is now decoupled from the render update.
 	m_elapsedMs += TheFramePacer->getLogicTimeStepMilliseconds();
@@ -685,11 +693,11 @@ void WaterTracksRenderSystem::ReAcquireResources()
 
 	Int idxCount=(m_stripSizeY-1)*(m_stripSizeX*2+2) - 2;
 
-	m_indexBuffer=NEW_REF(DX8IndexBufferClass,(idxCount));
+	m_indexBuffer=NEW_REF(RenderIndexBufferClass,(idxCount));
 
 	// Fill up the IB
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 
 		for (i=0,j=0,k=0; i<idxCount; j++)
@@ -711,9 +719,9 @@ void WaterTracksRenderSystem::ReAcquireResources()
 		}
 	}
 
-	m_batchIndexBuffer=NEW_REF(DX8IndexBufferClass,(WATER_VB_PAGES*2*3));
+	m_batchIndexBuffer=NEW_REF(RenderIndexBufferClass,(WATER_VB_PAGES*2*3));
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_batchIndexBuffer);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_batchIndexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 
 		for (i=0; i<WATER_VB_PAGES; i++)
@@ -729,7 +737,7 @@ void WaterTracksRenderSystem::ReAcquireResources()
 		}
 	}
 
-	m_vertexBuffer=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,m_stripSizeX*m_stripSizeY*WATER_VB_PAGES,DX8VertexBufferClass::USAGE_DYNAMIC));
+	m_vertexBuffer=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,m_stripSizeX*m_stripSizeY*WATER_VB_PAGES,RenderVertexBufferClass::USAGE_DYNAMIC));
 	m_batchStart=0;
 }
 

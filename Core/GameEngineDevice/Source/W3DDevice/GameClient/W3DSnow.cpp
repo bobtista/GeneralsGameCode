@@ -27,6 +27,7 @@
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/renderbufferclasses.h"
+#include "WW3D2/vertexbuffer.h"
 #if !defined(GGC_BGFX_STANDALONE)
 #include "WW3D2/dx8indexbuffer.h"
 #endif
