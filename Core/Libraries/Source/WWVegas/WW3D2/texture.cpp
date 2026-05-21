@@ -1763,17 +1763,27 @@ ZTextureClass::ZTextureClass
 :	TextureBaseClass(width,height, mip_level_count, pool),
 	DepthStencilTextureFormat(zformat)
 {
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
+	{
+		Poke_Legacy_Texture(*this, nullptr);
+		Initialized=true;
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+#endif
+
 	const int legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_ZTexture
-		(
-			width,
-			height,
-			zformat,
-			mip_level_count,
-			legacy_pool
-		)
+	(
+		width,
+		height,
+		zformat,
+		mip_level_count,
+		legacy_pool
+	)
 	);
 
 #if !defined(GGC_BGFX_STANDALONE)
