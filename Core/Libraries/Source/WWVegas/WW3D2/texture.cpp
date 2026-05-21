@@ -345,6 +345,14 @@ void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 	CPUTextureMips.clear();
 	++CPUTextureRevision;
 
+#if defined(GGC_BGFX_STANDALONE)
+	if (native_texture != nullptr) {
+		WWASSERT_PRINT(
+			false,
+			"TextureBaseClass::Capture_CPU_Texture_Snapshot: standalone bgfx cannot read fake-D3D texture snapshots");
+	}
+	return;
+#else
 	TextureClass * tex2d = As_TextureClass();
 	if (native_texture == nullptr || tex2d == nullptr) {
 		return;
@@ -384,6 +392,7 @@ void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 		DX8_ErrorCode(d3d_texture->UnlockRect(level));
 		CPUTextureMips.push_back(mip);
 	}
+#endif
 }
 
 
