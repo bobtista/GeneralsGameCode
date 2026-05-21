@@ -55,13 +55,12 @@
 #include "Lib/BaseType.h"
 #include "Common/GameType.h"
 #include "Common/AsciiString.h"
+#include "WW3D2/renderbufferclasses.h"
 
 //-----------------------------------------------------------------------------
 //           Forward References
 //-----------------------------------------------------------------------------
 
-class DX8IndexBufferClass;
-class DX8VertexBufferClass;
 class WorldHeightMap;
 //-----------------------------------------------------------------------------
 //           Type Defines
@@ -91,8 +90,8 @@ protected:
 #define MAX_BLENDS 2000
 	enum { MAX_EDGE_VERTEX=4*MAX_BLENDS,
 					MAX_EDGE_INDEX=6*MAX_BLENDS};
-	DX8VertexBufferClass	*m_vertexEdging;	///<Edging vertex buffer.
-	DX8IndexBufferClass			*m_indexEdging;	///<indices defining a triangles for the tree drawing.
+	RenderVertexBufferClass	*m_vertexEdging;	///<Edging vertex buffer.
+	RenderIndexBufferClass	*m_indexEdging;	///<indices defining a triangles for the tree drawing.
 	Int			m_curNumEdgingVertices; ///<Number of vertices used in m_vertexEdging.
 	Int			m_curNumEdgingIndices;	///<Number of indices used in b_indexEdging;
 	Int			m_curEdgingIndexOffset;	///<First index to draw at.  We draw the trees backwards by filling up the index buffer backwards,

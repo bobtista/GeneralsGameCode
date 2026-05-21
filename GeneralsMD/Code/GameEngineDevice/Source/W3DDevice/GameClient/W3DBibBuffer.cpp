@@ -106,8 +106,8 @@ void W3DBibBuffer::loadBibsInVertexAndIndexBuffers()
 	VertexFormatXYZDUV1 *vb;
 	UnsignedShort *ib;
 	// Lock the buffers.
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBib, RB_LOCK_DISCARD);
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBib, RB_LOCK_DISCARD);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBib, RB_LOCK_DISCARD);
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBib, RB_LOCK_DISCARD);
 	vb=(VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 	// Add to the index buffer & vertex buffer.
@@ -261,8 +261,8 @@ void W3DBibBuffer::freeBibBuffers()
 //=============================================================================
 void W3DBibBuffer::allocateBibBuffers()
 {
-	m_vertexBib=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,m_vertexBibSize+4,DX8VertexBufferClass::USAGE_DYNAMIC));
-	m_indexBib=NEW_REF(DX8IndexBufferClass,(m_indexBibSize+4, DX8IndexBufferClass::USAGE_DYNAMIC));
+	m_vertexBib=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,m_vertexBibSize+4,RenderVertexBufferClass::USAGE_DYNAMIC));
+	m_indexBib=NEW_REF(RenderIndexBufferClass,(m_indexBibSize+4, RenderIndexBufferClass::USAGE_DYNAMIC));
 	m_curNumBibVertices=0;
 	m_curNumBibIndices=0;
 }
