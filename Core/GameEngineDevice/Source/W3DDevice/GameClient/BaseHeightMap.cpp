@@ -83,6 +83,10 @@
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
+#if !defined(GGC_BGFX_STANDALONE)
+#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx8vertexbuffer.h"
+#endif
 #include "WW3D2/renderdebugstats.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
@@ -1865,8 +1869,8 @@ void BaseHeightMapRenderObjClass::freeScorchBuffers()
 //=============================================================================
 void BaseHeightMapRenderObjClass::allocateScorchBuffers()
 {
-	m_vertexScorch=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,MAX_SCORCH_VERTEX,DX8VertexBufferClass::USAGE_DEFAULT));
-	m_indexScorch=NEW_REF(DX8IndexBufferClass,(MAX_SCORCH_INDEX));
+	m_vertexScorch=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,MAX_SCORCH_VERTEX,RenderVertexBufferClass::USAGE_DEFAULT));
+	m_indexScorch=NEW_REF(RenderIndexBufferClass,(MAX_SCORCH_INDEX));
 	m_scorchTexture=NEW ScorchTextureClass;
 	m_scorchesInBuffer = 0; // If we just allocated the buffers, we got no scorches in the buffer.
 	m_curNumScorchVertices=0;
@@ -1899,11 +1903,11 @@ void BaseHeightMapRenderObjClass::updateScorches()
 	}
 	m_curNumScorchVertices = 0;
 	m_curNumScorchIndices = 0;
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexScorch);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexScorch);
 	UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 	UnsignedShort *curIb = ib;
 
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexScorch);
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexScorch);
 	VertexFormatXYZDUV1 *vb = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	VertexFormatXYZDUV1 *curVb = vb;
 
