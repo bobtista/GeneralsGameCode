@@ -25,15 +25,29 @@ SEARCH_ROOTS = [
     ROOT / "GeneralsMD" / "Code" / "Libraries" / "Source" / "WWVegas" / "WW3D2",
 ]
 
+# Explicit legacy islands. The audit tracks DX8-shaped coupling that leaks into
+# bgfx-facing code; these files are the compatibility boundary itself.
 SKIP_FILES = {
     "DX8Backend.cpp",
     "DX8Backend.h",
+    "dx8caps.cpp",
+    "dx8deviceinterop.h",
     "dx8formatconv.h",
     "dx8textureinterop.cpp",
     "dx8textureinterop.h",
+    "dx8texturelegacytypes.h",
+    "dx8wrapper.cpp",
+    "fixedfunctionlegacytypes.h",
     "StubD3D8Device.cpp",
     "StubD3D8Device.h",
-    "D3DXStandaloneStubs.cpp",
+}
+
+FORBIDDEN_BGFX_COMPILED_SOURCES = {
+    # Backend/tools files that should only compile for the DX8 reference path.
+    "DX8Backend.cpp",
+    "dx8texman.cpp",
+    "dx8webbrowser.cpp",
+    "formconv.cpp",
 }
 
 CATEGORIES = [
@@ -241,9 +255,20 @@ def rel(path: Path) -> str:
     return os.fspath(path.relative_to(ROOT))
 
 
+def find_forbidden_compiled_sources(compiled_sources: set[Path] | None) -> list[Path]:
+    if compiled_sources is None:
+        return []
+
+    return sorted(
+        path for path in compiled_sources
+        if path.name in FORBIDDEN_BGFX_COMPILED_SOURCES
+    )
+
+
 def main() -> int:
     hits_by_category = {name: defaultdict(list) for name, _ in CATEGORIES}
     compiled_sources = load_compiled_source_files()
+    forbidden_compiled_sources = find_forbidden_compiled_sources(compiled_sources)
 
     for path in iter_source_files(compiled_sources):
         try:
@@ -267,6 +292,10 @@ def main() -> int:
             sample_text = "; ".join(f"{lineno}: {text[:120]}" for lineno, text in samples)
             suffix = "" if len(by_file[path]) <= 3 else f"; +{len(by_file[path]) - 3} more"
             print(f"  {rel(path)} ({len(by_file[path])}) {sample_text}{suffix}")
+
+    print(f"\nforbidden_bgfx_compiled_source: {len(forbidden_compiled_sources)} hits")
+    for path in forbidden_compiled_sources:
+        print(f"  {rel(path)}")
 
     print(f"\ntotal: {total} categorized hits")
     return 0
