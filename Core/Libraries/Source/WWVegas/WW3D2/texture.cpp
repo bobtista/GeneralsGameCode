@@ -1330,6 +1330,19 @@ void TextureClass::Update_Surface_Level_From_Surface(unsigned int level, const S
 */
 void TextureClass::Get_Level_Description( SurfaceClass::SurfaceDescription & desc, unsigned int level )
 {
+	const std::vector<TextureMipSnapshot> &mips = Get_CPU_Texture_Mips();
+	if (level < mips.size())
+	{
+		const TextureMipSnapshot &mip = mips[level];
+		if (mip.Format != WW3D_FORMAT_UNKNOWN && mip.Width != 0 && mip.Height != 0)
+		{
+			desc.Format = mip.Format;
+			desc.Width = mip.Width;
+			desc.Height = mip.Height;
+			return;
+		}
+	}
+
 	SurfaceClass * surf = Get_Surface_Level(level);
 	if (surf != nullptr) {
 		surf->Get_Description(desc);
