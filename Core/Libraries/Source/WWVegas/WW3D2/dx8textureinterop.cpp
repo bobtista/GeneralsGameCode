@@ -47,45 +47,6 @@ HRESULT Standalone_Copy_Legacy_Surface(
 namespace
 {
 #if defined(GGC_BGFX_STANDALONE)
-	bool Blocks_Legacy_Texture_Create()
-	{
-		return true;
-	}
-
-	bool Blocks_Legacy_Surface_Create()
-	{
-		return true;
-	}
-
-	D3DPOOL Legacy_Pool_To_D3D(int pool)
-	{
-		switch (pool)
-		{
-		case LEGACY_TEXTURE_POOL_DEFAULT: return D3DPOOL_DEFAULT;
-		case LEGACY_TEXTURE_POOL_MANAGED: return D3DPOOL_MANAGED;
-		case LEGACY_TEXTURE_POOL_SYSTEMMEM: return D3DPOOL_SYSTEMMEM;
-		default:
-			WWASSERT(0);
-			return D3DPOOL_MANAGED;
-		}
-	}
-
-	IDirect3DDevice8 *Legacy_Device()
-	{
-		DX8_Assert();
-		return DX8_Call_Device();
-	}
-
-	void Release_Unused_Assets_For_Texture_Retry()
-	{
-		TextureClass::Invalidate_Old_Unused_Textures(5000);
-		WW3D::_Invalidate_Mesh_Cache();
-	}
-
-	bool Should_Retry_Texture_Create(HRESULT result)
-	{
-		return result == D3DERR_OUTOFVIDEOMEMORY;
-	}
 #else
 	IDirect3DDevice8 *Legacy_Device()
 	{
@@ -258,17 +219,10 @@ IDirect3DSurface8 *DX8TextureInterop::Create_Legacy_Surface(
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
-	if (Blocks_Legacy_Surface_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"Create_Legacy_Surface: BGFX surface ownership is enabled; no fake-D3D surface fallback is allowed");
-		return nullptr;
-	}
-	IDirect3DSurface8 *surface = nullptr;
-	WWASSERT(format != WW3D_FORMAT_P8);
-	DX8_ErrorCode(Legacy_Device()->CreateImageSurface(width, height, WW3DFormat_To_D3DFormat(format), &surface));
-	return surface;
+	WWASSERT_PRINT(
+		false,
+		"Create_Legacy_Surface: standalone bgfx cannot create fake-D3D surfaces");
+	return nullptr;
 #else
 	return DX8Wrapper::_Create_DX8_Surface(width, height, format);
 #endif
@@ -278,15 +232,10 @@ IDirect3DSurface8 *DX8TextureInterop::Create_Legacy_Surface_From_File(const char
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
-	if (Blocks_Legacy_Surface_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"Create_Legacy_Surface_From_File: BGFX surface ownership is enabled; no fake-D3D surface fallback is allowed");
-		return nullptr;
-	}
-	StringClass filename_string(filename, true);
-	return Load_Legacy_Surface_Immediate(filename_string, WW3D_FORMAT_UNKNOWN, true);
+	WWASSERT_PRINT(
+		false,
+		"Create_Legacy_Surface_From_File: standalone bgfx cannot create fake-D3D surfaces");
+	return nullptr;
 #else
 	return DX8Wrapper::_Create_DX8_Surface(filename);
 #endif
@@ -302,45 +251,10 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture(
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"Create_Legacy_Texture: BGFX texture ownership is enabled; no fake-D3D texture fallback is allowed");
-		return nullptr;
-	}
-	WWASSERT(format != WW3D_FORMAT_P8);
-
-	IDirect3DTexture8 *texture = nullptr;
-	const DWORD usage = render_target ? D3DUSAGE_RENDERTARGET : 0;
-	const D3DFORMAT native_format = WW3DFormat_To_D3DFormat(format);
-	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
-	HRESULT result = Legacy_Device()->CreateTexture(
-		width,
-		height,
-		mip_level_count,
-		usage,
-		native_format,
-		native_pool,
-		&texture);
-
-	if (render_target && result == D3DERR_NOTAVAILABLE) {
-		return nullptr;
-	}
-	if (Should_Retry_Texture_Create(result)) {
-		Release_Unused_Assets_For_Texture_Retry();
-		result = Legacy_Device()->CreateTexture(
-			width,
-			height,
-			mip_level_count,
-			usage,
-			native_format,
-			native_pool,
-			&texture);
-	}
-
-	DX8_ErrorCode(result);
-	return texture;
+	WWASSERT_PRINT(
+		false,
+		"Create_Legacy_Texture: standalone bgfx cannot create fake-D3D textures");
+	return nullptr;
 #else
 	return DX8Wrapper::_Create_DX8_Texture(width, height, format, mip_level_count, static_cast<D3DPOOL>(pool), render_target);
 #endif
@@ -353,35 +267,10 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_Texture_From_Surface(
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
 	DX8_Assert();
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"Create_Legacy_Texture_From_Surface: BGFX texture ownership is enabled; no fake-D3D texture fallback is allowed");
-		return nullptr;
-	}
-
-	D3DSURFACE_DESC surface_desc;
-	::ZeroMemory(&surface_desc, sizeof(surface_desc));
-	DX8_ErrorCode(surface->GetDesc(&surface_desc));
-
-	IDirect3DTexture8 *texture = Create_Legacy_Texture(
-		surface_desc.Width,
-		surface_desc.Height,
-		D3DFormat_To_WW3DFormat(surface_desc.Format),
-		mip_level_count,
-		LEGACY_TEXTURE_POOL_MANAGED);
-
-	IDirect3DSurface8 *tex_surface = nullptr;
-	DX8_ErrorCode(texture->GetSurfaceLevel(0, &tex_surface));
-	DX8_ErrorCode(Copy_Legacy_Surface_Compat(tex_surface, nullptr, surface, nullptr, kLegacyMipFilterBox));
-	tex_surface->Release();
-
-	if (mip_level_count != MIP_LEVELS_1) {
-		DX8_ErrorCode(Filter_Legacy_Texture_Mips_Compat(texture, 0));
-	}
-
-	return texture;
+	WWASSERT_PRINT(
+		false,
+		"Create_Legacy_Texture_From_Surface: standalone bgfx cannot create fake-D3D textures");
+	return nullptr;
 #else
 	return DX8Wrapper::_Create_DX8_Texture(surface, mip_level_count);
 #endif
@@ -396,42 +285,10 @@ IDirect3DTexture8 *DX8TextureInterop::Create_Legacy_ZTexture(
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"Create_Legacy_ZTexture: BGFX texture ownership is enabled; no fake-D3D depth texture fallback is allowed");
-		return nullptr;
-	}
-	IDirect3DTexture8 *texture = nullptr;
-	const D3DFORMAT native_format = WW3DZFormat_To_D3DFormat(zformat);
-	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
-	HRESULT result = Legacy_Device()->CreateTexture(
-		width,
-		height,
-		mip_level_count,
-		D3DUSAGE_DEPTHSTENCIL,
-		native_format,
-		native_pool,
-		&texture);
-
-	if (result == D3DERR_NOTAVAILABLE) {
-		return nullptr;
-	}
-	if (Should_Retry_Texture_Create(result)) {
-		Release_Unused_Assets_For_Texture_Retry();
-		result = Legacy_Device()->CreateTexture(
-			width,
-			height,
-			mip_level_count,
-			D3DUSAGE_DEPTHSTENCIL,
-			native_format,
-			native_pool,
-			&texture);
-	}
-
-	DX8_ErrorCode(result);
-	return texture;
+	WWASSERT_PRINT(
+		false,
+		"Create_Legacy_ZTexture: standalone bgfx cannot create fake-D3D depth textures");
+	return nullptr;
 #else
 	return DX8Wrapper::_Create_DX8_ZTexture(width, height, zformat, mip_level_count, static_cast<D3DPOOL>(pool));
 #endif
@@ -447,44 +304,10 @@ IDirect3DCubeTexture8 *DX8TextureInterop::Create_Legacy_Cube_Texture(
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"Create_Legacy_Cube_Texture: BGFX texture ownership is enabled; no fake-D3D cube texture fallback is allowed");
-		return nullptr;
-	}
-	WWASSERT(width == height);
-	WWASSERT(format != WW3D_FORMAT_P8);
-
-	IDirect3DCubeTexture8 *texture = nullptr;
-	const DWORD usage = render_target ? D3DUSAGE_RENDERTARGET : 0;
-	const D3DFORMAT native_format = WW3DFormat_To_D3DFormat(format);
-	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
-	HRESULT result = Legacy_Device()->CreateCubeTexture(
-		width,
-		mip_level_count,
-		usage,
-		native_format,
-		native_pool,
-		&texture);
-
-	if (render_target && result == D3DERR_NOTAVAILABLE) {
-		return nullptr;
-	}
-	if (Should_Retry_Texture_Create(result)) {
-		Release_Unused_Assets_For_Texture_Retry();
-		result = Legacy_Device()->CreateCubeTexture(
-			width,
-			mip_level_count,
-			usage,
-			native_format,
-			native_pool,
-			&texture);
-	}
-
-	DX8_ErrorCode(result);
-	return texture;
+	WWASSERT_PRINT(
+		false,
+		"Create_Legacy_Cube_Texture: standalone bgfx cannot create fake-D3D cube textures");
+	return nullptr;
 #else
 	return DX8Wrapper::_Create_DX8_Cube_Texture(width, height, format, mip_level_count, static_cast<D3DPOOL>(pool), render_target);
 #endif
@@ -500,43 +323,10 @@ IDirect3DVolumeTexture8 *DX8TextureInterop::Create_Legacy_Volume_Texture(
 {
 #if defined(GGC_BGFX_STANDALONE)
 	DX8_THREAD_ASSERT();
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"Create_Legacy_Volume_Texture: BGFX texture ownership is enabled; no fake-D3D volume texture fallback is allowed");
-		return nullptr;
-	}
-	WWASSERT(format != WW3D_FORMAT_P8);
-
-	IDirect3DVolumeTexture8 *texture = nullptr;
-	const D3DFORMAT native_format = WW3DFormat_To_D3DFormat(format);
-	const D3DPOOL native_pool = Legacy_Pool_To_D3D(pool);
-	HRESULT result = Legacy_Device()->CreateVolumeTexture(
-		width,
-		height,
-		depth,
-		mip_level_count,
-		0,
-		native_format,
-		native_pool,
-		&texture);
-
-	if (Should_Retry_Texture_Create(result)) {
-		Release_Unused_Assets_For_Texture_Retry();
-		result = Legacy_Device()->CreateVolumeTexture(
-			width,
-			height,
-			depth,
-			mip_level_count,
-			0,
-			native_format,
-			native_pool,
-			&texture);
-	}
-
-	DX8_ErrorCode(result);
-	return texture;
+	WWASSERT_PRINT(
+		false,
+		"Create_Legacy_Volume_Texture: standalone bgfx cannot create fake-D3D volume textures");
+	return nullptr;
 #else
 	return DX8Wrapper::_Create_DX8_Volume_Texture(width, height, depth, format, mip_level_count, static_cast<D3DPOOL>(pool));
 #endif
@@ -561,30 +351,25 @@ bool DX8TextureInterop::Generate_Legacy_Texture_Mips(TextureClass &texture)
 IDirect3DTexture8 *Get_Legacy_Missing_Texture()
 {
 #if defined(GGC_BGFX_STANDALONE)
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"Get_Legacy_Missing_Texture: BGFX texture ownership is enabled; no fake-D3D missing texture fallback is allowed");
-		return nullptr;
-	}
-#endif
+	WWASSERT_PRINT(
+		false,
+		"Get_Legacy_Missing_Texture: standalone bgfx cannot return fake-D3D missing textures");
+	return nullptr;
+#else
 	WWASSERT(s_missingTexture);
 	s_missingTexture->AddRef();
 	return s_missingTexture;
+#endif
 }
 
 IDirect3DSurface8 *Create_Legacy_Missing_Surface()
 {
 #if defined(GGC_BGFX_STANDALONE)
-	if (Blocks_Legacy_Surface_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"Create_Legacy_Missing_Surface: BGFX surface ownership is enabled; no fake-D3D missing surface fallback is allowed");
-		return nullptr;
-	}
-#endif
+	WWASSERT_PRINT(
+		false,
+		"Create_Legacy_Missing_Surface: standalone bgfx cannot create fake-D3D missing surfaces");
+	return nullptr;
+#else
 	IDirect3DSurface8 *texture_surface = nullptr;
 	DX8_ErrorCode(s_missingTexture->GetSurfaceLevel(0, &texture_surface));
 	D3DSURFACE_DESC texture_surface_desc;
@@ -615,6 +400,7 @@ IDirect3DSurface8 *Create_Legacy_Missing_Surface()
 	DX8_ErrorCode(surface->UnlockRect());
 	texture_surface->Release();
 	return surface;
+#endif
 }
 
 void Copy_Legacy_Surface(
@@ -650,14 +436,11 @@ void Init_Legacy_Missing_Texture(
 	WWASSERT(!s_missingTexture);
 
 #if defined(GGC_BGFX_STANDALONE)
-	if (Blocks_Legacy_Texture_Create())
-	{
-		WWASSERT_PRINT(
-			false,
-			"Init_Legacy_Missing_Texture: BGFX texture ownership is enabled; no fake-D3D missing texture is allowed");
-		return;
-	}
-#endif
+	WWASSERT_PRINT(
+		false,
+		"Init_Legacy_Missing_Texture: standalone bgfx cannot create fake-D3D missing textures");
+	return;
+#else
 	IDirect3DTexture8 *texture = Create_Legacy_Texture(
 		width,
 		height,
@@ -705,6 +488,7 @@ void Init_Legacy_Missing_Texture(
 	}
 
 	s_missingTexture=texture;
+#endif
 }
 
 void Release_Legacy_Missing_Texture()
