@@ -2510,8 +2510,8 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 
 	while (j != m_numShoreLineTiles)
 	{
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
 
 		{	//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
@@ -2696,8 +2696,8 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 
 	while (!isDone)
 	{
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
 
 		{	//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
