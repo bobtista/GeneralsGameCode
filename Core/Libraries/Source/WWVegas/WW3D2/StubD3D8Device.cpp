@@ -1046,8 +1046,6 @@ public:
 		{
 			m_parent->AddRef();
 		}
-		m_backBuffer = new StubD3D8Surface(this, nullptr, width, height, D3DFMT_A8R8G8B8);
-		m_depthStencil = new StubD3D8Surface(this, nullptr, width, height, D3DFMT_D24S8);
 	}
 	~StubD3D8Device()
 	{
@@ -1145,8 +1143,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*pSwapChain = new StubD3D8SwapChain(this, m_backBuffer);
-		return D3D_OK;
+		*pSwapChain = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::CreateAdditionalSwapChain: standalone bgfx cannot create fake-D3D swap chains");
+		return D3DERR_INVALIDCALL;
 	}
 	STDMETHOD(Reset)(D3DPRESENT_PARAMETERS*) override { return D3D_OK; }
 	STDMETHOD(Present)(CONST RECT*, CONST RECT*, HWND, CONST RGNDATA*) override { return D3D_OK; }
@@ -1156,12 +1155,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*ppBackBuffer = m_backBuffer;
-		if (m_backBuffer)
-		{
-			m_backBuffer->AddRef();
-		}
-		return D3D_OK;
+		*ppBackBuffer = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::GetBackBuffer: standalone bgfx cannot return fake-D3D back buffers");
+		return D3DERR_INVALIDCALL;
 	}
 	STDMETHOD(GetRasterStatus)(D3DRASTER_STATUS* pRasterStatus) override
 	{
@@ -1177,8 +1173,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*ppTexture = new StubD3D8Texture(this, Width, Height, Levels, Usage, Format, Pool);
-		return D3D_OK;
+		*ppTexture = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::CreateTexture: standalone bgfx cannot create fake-D3D textures");
+		return D3DERR_INVALIDCALL;
 	}
 	STDMETHOD(CreateVolumeTexture)(UINT Width, UINT Height, UINT Depth, UINT, DWORD, D3DFORMAT Format, D3DPOOL, IDirect3DVolumeTexture8** ppVolumeTexture) override
 	{
@@ -1186,8 +1183,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*ppVolumeTexture = new StubD3D8VolumeTexture(this, Width, Height, Depth, Format);
-		return D3D_OK;
+		*ppVolumeTexture = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::CreateVolumeTexture: standalone bgfx cannot create fake-D3D volume textures");
+		return D3DERR_INVALIDCALL;
 	}
 	STDMETHOD(CreateCubeTexture)(UINT EdgeLength, UINT, DWORD, D3DFORMAT Format, D3DPOOL, IDirect3DCubeTexture8** ppCubeTexture) override
 	{
@@ -1195,8 +1193,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*ppCubeTexture = new StubD3D8CubeTexture(this, EdgeLength, Format);
-		return D3D_OK;
+		*ppCubeTexture = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::CreateCubeTexture: standalone bgfx cannot create fake-D3D cube textures");
+		return D3DERR_INVALIDCALL;
 	}
 	STDMETHOD(CreateVertexBuffer)(UINT Length, DWORD Usage, DWORD FVF, D3DPOOL Pool, IDirect3DVertexBuffer8** ppVertexBuffer) override
 	{
@@ -1204,8 +1203,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*ppVertexBuffer = new StubD3D8VertexBuffer(this, Length, Usage, FVF, Pool);
-		return D3D_OK;
+		*ppVertexBuffer = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::CreateVertexBuffer: standalone bgfx cannot create fake-D3D vertex buffers");
+		return D3DERR_INVALIDCALL;
 	}
 	STDMETHOD(CreateIndexBuffer)(UINT Length, DWORD Usage, D3DFORMAT Format, D3DPOOL Pool, IDirect3DIndexBuffer8** ppIndexBuffer) override
 	{
@@ -1213,8 +1213,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*ppIndexBuffer = new StubD3D8IndexBuffer(this, Length, Usage, Format, Pool);
-		return D3D_OK;
+		*ppIndexBuffer = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::CreateIndexBuffer: standalone bgfx cannot create fake-D3D index buffers");
+		return D3DERR_INVALIDCALL;
 	}
 	STDMETHOD(CreateRenderTarget)(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE, BOOL, IDirect3DSurface8** ppSurface) override
 	{
@@ -1222,8 +1223,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*ppSurface = new StubD3D8Surface(this, nullptr, Width, Height, Format);
-		return D3D_OK;
+		*ppSurface = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::CreateRenderTarget: standalone bgfx cannot create fake-D3D render targets");
+		return D3DERR_INVALIDCALL;
 	}
 	STDMETHOD(CreateDepthStencilSurface)(UINT Width, UINT Height, D3DFORMAT Format, D3DMULTISAMPLE_TYPE, IDirect3DSurface8** ppSurface) override
 	{
@@ -1231,8 +1233,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*ppSurface = new StubD3D8Surface(this, nullptr, Width, Height, Format);
-		return D3D_OK;
+		*ppSurface = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::CreateDepthStencilSurface: standalone bgfx cannot create fake-D3D depth surfaces");
+		return D3DERR_INVALIDCALL;
 	}
 	STDMETHOD(CreateImageSurface)(UINT Width, UINT Height, D3DFORMAT Format, IDirect3DSurface8** ppSurface) override
 	{
@@ -1240,8 +1243,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*ppSurface = new StubD3D8Surface(this, nullptr, Width, Height, Format);
-		return D3D_OK;
+		*ppSurface = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::CreateImageSurface: standalone bgfx cannot create fake-D3D image surfaces");
+		return D3DERR_INVALIDCALL;
 	}
 
 	// TheSuperHackers @bugfix bobtista 22/04/2026 D3DX8 loads
@@ -1394,12 +1398,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*ppRenderTarget = m_backBuffer;
-		if (m_backBuffer)
-		{
-			m_backBuffer->AddRef();
-		}
-		return D3D_OK;
+		*ppRenderTarget = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::GetRenderTarget: standalone bgfx cannot return fake-D3D render targets");
+		return D3DERR_INVALIDCALL;
 	}
 	STDMETHOD(GetDepthStencilSurface)(IDirect3DSurface8** ppZStencilSurface) override
 	{
@@ -1407,12 +1408,9 @@ public:
 		{
 			return E_POINTER;
 		}
-		*ppZStencilSurface = m_depthStencil;
-		if (m_depthStencil)
-		{
-			m_depthStencil->AddRef();
-		}
-		return D3D_OK;
+		*ppZStencilSurface = nullptr;
+		WWASSERT_PRINT(false, "StubD3D8Device::GetDepthStencilSurface: standalone bgfx cannot return fake-D3D depth surfaces");
+		return D3DERR_INVALIDCALL;
 	}
 	STDMETHOD(BeginScene)() override { return D3D_OK; }
 	STDMETHOD(EndScene)() override { return D3D_OK; }
