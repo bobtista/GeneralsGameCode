@@ -42,8 +42,7 @@
 #include "always.h"
 #include "wwdebug.h"
 #include "dx8fvf.h"
-#include "IRenderBackend.h"
-#include "RenderBufferTypes.h"
+#include "vertexbufferbase.h"
 
 const unsigned dynamic_fvf_type=DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX2|DX8_FVF_FLAG_DIFFUSE;
 
@@ -55,94 +54,7 @@ class Vector4;
 class StringClass;
 class DX8VertexBufferClass;
 class FVFInfoClass;
-class VertexBufferClass;
 struct VertexFormatXYZNDUV2;
-
-class VertexBufferLockClass
-{
-protected:
-	VertexBufferClass* VertexBuffer;
-	void* Vertices;
-
-	// This class can't be used directly, so constructor as to be protected
-	VertexBufferLockClass(VertexBufferClass* vertex_buffer_) : VertexBuffer(vertex_buffer_) {}
-public:
-	void* Get_Vertex_Array() { return Vertices; }
-};
-
-/**
-** DX8VertexBufferClass
-** This class wraps a DX8 vertex buffer.  Use the lock objects to modify or append to the vertex buffer.
-*/
-class VertexBufferClass : public RefCountClass
-{
-protected:
-	VertexBufferClass(unsigned type, unsigned FVF, unsigned short VertexCount);
-	virtual ~VertexBufferClass() override;
-public:
-
-	const FVFInfoClass& FVF_Info() const { return *fvf_info; }
-	unsigned short Get_Vertex_Count() const { return VertexCount; }
-	unsigned Type() const { return type; }
-	const unsigned char * Peek_CPU_Buffer_Data() const { return CPUBufferData; }
-	unsigned Get_CPU_Buffer_Size() const { return CPUBufferSize; }
-	bool Has_CPU_Buffer_Data() const { return CPUBufferValid; }
-	RenderResource Get_Backend_Resource() const { return m_backendHandle; }
-	bool Has_Backend_Resource() const { return m_backendHandle != kInvalidRenderResource; }
-	bool Is_Backend_Static_Eligible() const { return m_backendStaticEligible; }
-	void *Lock_CPU_Buffer_Data(unsigned byte_offset, unsigned size);
-
-	void Add_Engine_Ref() const;
-	void Release_Engine_Ref() const;
-	unsigned Engine_Refs() const { return engine_refs; }
-
-	class WriteLockClass : public VertexBufferLockClass
-	{
-	public:
-		WriteLockClass(VertexBufferClass* vertex_buffer, int flags=0);
-		~WriteLockClass();
-	};
-
-	class AppendLockClass : public VertexBufferLockClass
-	{
-	public:
-		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I added
-		// optional `flags` (e.g. RB_LOCK_DISCARD / RB_LOCK_NOOVERWRITE)
-		// for the dynamic shadow buffer's per-batch append pattern. Default
-		// of 0 keeps existing one-shot DX8VertexBufferClass::Copy callers
-		// unchanged.
-		AppendLockClass(VertexBufferClass* vertex_buffer,unsigned start_index, unsigned index_range, unsigned flags=0);
-		~AppendLockClass();
-	protected:
-		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6
-		// stored so the destructor can report the locked sub-range to
-		// the bgfx write-side capture hook. Not used by the dx8 path.
-		unsigned AppendStartIndex;
-		unsigned AppendIndexRange;
-	};
-
-	static unsigned Get_Total_Buffer_Count();
-	static unsigned Get_Total_Allocated_Vertices();
-	static unsigned Get_Total_Allocated_Memory();
-
-protected:
-	unsigned							type;
-	unsigned short					VertexCount;
-	mutable int						engine_refs;
-	FVFInfoClass*					fvf_info;
-	unsigned char*					CPUBufferData;
-	unsigned						CPUBufferSize;
-	bool							CPUBufferValid;
-	bool							m_backendStaticEligible;
-	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
-	// resource handle. Set by derived classes after calling
-	// g_renderBackend->Create_Vertex_Buffer. Parallel to the class-specific
-	// legacy pointer stored in DX8VertexBufferClass::VertexBuffer, which stays
-	// populated in ref-popup builds.
-	RenderResource					m_backendHandle;
-	void Set_Backend_Static_Eligible(bool eligible) { m_backendStaticEligible = eligible; }
-	void Update_CPU_Buffer_Data(unsigned byte_offset, const void * data, unsigned size);
-};
 
 
 
