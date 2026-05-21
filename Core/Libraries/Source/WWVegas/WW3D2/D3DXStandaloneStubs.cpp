@@ -674,37 +674,4 @@ extern "C" HRESULT WINAPI D3DXCreateTextureFromFileExA(
 	return E_NOTIMPL;
 }
 
-// Shader assembler — the bgfx backend uses its own .sc shaders, so if
-// some code path calls this the result isn't driving bgfx output.
-// Return E_NOTIMPL; callers already handle D3DX assembly failure by
-// falling back to the fixed function pipeline.
-extern "C" HRESULT WINAPI D3DXAssembleShader(
-	LPCVOID /*src*/,
-	UINT /*src_len*/,
-	DWORD /*flags*/,
-	LPD3DXBUFFER * constants,
-	LPD3DXBUFFER * compiled_shader,
-	LPD3DXBUFFER * errors)
-{
-	static bool s_logged = false;
-	if (!s_logged)
-	{
-		s_logged = true;
-		WWDEBUG_SAY(("[D3DXStub] D3DXAssembleShader stubbed (bgfx uses its own shaders)"));
-	}
-	if (constants)
-	{
-		*constants = nullptr;
-	}
-	if (compiled_shader)
-	{
-		*compiled_shader = nullptr;
-	}
-	if (errors)
-	{
-		*errors = nullptr;
-	}
-	return E_NOTIMPL;
-}
-
 #endif // GGC_BGFX_STANDALONE
