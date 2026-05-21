@@ -147,6 +147,7 @@ class SurfaceClass : public RefCountClass
 		WW3DFormat Get_Surface_Format() const { return SurfaceFormat; }
 
 	private:
+		SurfaceClass(const SurfaceImageData &image);
 		SurfaceClass(void *legacy_surface);
 		void	Attach_Legacy_Surface(void *surface);
 		void	Update_Description_From_Legacy_Surface();
