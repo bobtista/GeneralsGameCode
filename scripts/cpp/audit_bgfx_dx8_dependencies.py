@@ -50,6 +50,14 @@ FORBIDDEN_BGFX_COMPILED_SOURCES = {
     "formconv.cpp",
 }
 
+FORBIDDEN_BGFX_COMPILED_SOURCES = {
+    # Backend/tools files that should only compile for the DX8 reference path.
+    "DX8Backend.cpp",
+    "dx8texman.cpp",
+    "dx8webbrowser.cpp",
+    "formconv.cpp",
+}
+
 CATEGORIES = [
     (
         "raw_device",
