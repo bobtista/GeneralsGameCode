@@ -9237,7 +9237,8 @@ RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
     // this phase5 entry — Release_Cached_Texture in the dtor queues it
     // for deferred destroy. We leave entry.texture invalid so
     // Destroy_Resource doesn't try to destroy the same handle twice.
-    if (tex->Is_Render_Target())
+    if (tex->Is_Render_Target() &&
+        Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::RenderTargets))
     {
         Ensure_Render_Target_Framebuffer(tex->As_TextureClass());
     }
