@@ -50,6 +50,7 @@
 #include "surfaceclass.h"
 #include "BgfxMigrationToggles.h"
 #include "texture.h"
+#include "textureloader.h"
 #include "dx8formatconv.h"
 #include "dx8texturelegacytypes.h"
 #include "dx8textureinterop.h"
@@ -86,7 +87,22 @@ namespace
 
 	bool Should_Use_CPU_Surface_Snapshots()
 	{
+#if defined(GGC_BGFX_STANDALONE)
+		return true;
+#else
 		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
+#endif
+	}
+
+	bool Should_Use_CPU_Only_Surface_Storage()
+	{
+#if defined(GGC_BGFX_STANDALONE)
+		return true;
+#elif defined(GGC_RENDER_BACKEND_BGFX)
+		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
+#else
+		return false;
+#endif
 	}
 }
 
@@ -216,9 +232,21 @@ SurfaceClass::SurfaceClass(unsigned width, unsigned height, WW3DFormat format):
 {
 	WWASSERT(width);
 	WWASSERT(height);
+	if (Should_Use_CPU_Only_Surface_Storage() && Can_Store_CPU_Surface_Data(Description))
+	{
+		Allocate_CPU_Surface_Snapshot();
+		return;
+	}
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass(width,height,format): standalone bgfx cannot create legacy surface fallback");
+	return;
+#else
 	D3DSurface = Create_Legacy_Surface(width, height, format);
 	Update_Description_From_Legacy_Surface();
 	Capture_CPU_Surface_Snapshot();
+#endif
 }
 
 SurfaceClass::SurfaceClass(const char *filename):
@@ -232,9 +260,54 @@ SurfaceClass::SurfaceClass(const char *filename):
 	TextureOwner(nullptr),
 	TextureOwnerLevel(0)
 {
+	if (Should_Use_CPU_Only_Surface_Storage())
+	{
+		const bool loaded =
+			TextureLoader::Load_Surface_Image_Immediate(filename, WW3D_FORMAT_UNKNOWN, false, ImageData);
+		WWASSERT_PRINT(
+			loaded,
+			"BGFX CPU surface image load failed; no legacy surface fallback is allowed");
+		if (!loaded) {
+			return;
+		}
+		Description.Format = ImageData.Format;
+		Description.Width = ImageData.Width;
+		Description.Height = ImageData.Height;
+		SurfaceFormat = Description.Format;
+		return;
+	}
+
 	D3DSurface = Create_Legacy_Surface_From_File(filename);
 	Update_Description_From_Legacy_Surface();
 	Capture_CPU_Surface_Snapshot();
+}
+
+SurfaceClass::SurfaceClass(const SurfaceImageData &image):
+	D3DSurface(nullptr),
+	SurfaceFormat(image.Format),
+	Description{image.Format, image.Width, image.Height},
+	ImageData{image.Format, image.Width, image.Height, 0, {}},
+	RefreshCPUAfterUnlock(false),
+	CPULockActive(false),
+	CPUImagePossiblyStale(false),
+	TextureOwner(nullptr),
+	TextureOwnerLevel(0)
+{
+	WWASSERT(Can_Store_CPU_Surface_Data(Description));
+	const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
+	const unsigned int row_size = Description.Width * pixel_size;
+	WWASSERT(image.Pitch >= row_size);
+	WWASSERT(image.Data.size() >= static_cast<size_t>(image.Pitch) * Description.Height);
+
+	ImageData.Pitch = row_size;
+	ImageData.Data.resize(static_cast<size_t>(row_size) * Description.Height);
+	for (unsigned int row = 0; row < Description.Height; ++row)
+	{
+		memcpy(
+			ImageData.Data.data() + row * ImageData.Pitch,
+			image.Data.data() + row * image.Pitch,
+			row_size);
+	}
 }
 
 SurfaceClass::SurfaceClass(void *legacy_surface)	:
@@ -651,10 +724,21 @@ void SurfaceClass::Copy(
 
 		const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(sd.Format);
 		const unsigned int row_size = copy_width * pixel_size;
+		const bool dst_has_cpu_snapshot = Has_Compatible_CPU_Surface_Snapshot(sd);
+		const bool src_has_cpu_snapshot = other->Has_Compatible_CPU_Surface_Snapshot(osd);
+
+		if (Should_Use_CPU_Only_Surface_Storage() &&
+			(pixel_size == 0 || !dst_has_cpu_snapshot || !src_has_cpu_snapshot))
+		{
+			WWASSERT_PRINT(
+				false,
+				"SurfaceClass::Copy: BGFX surface ownership missing CPU snapshots; no legacy surface copy fallback is allowed");
+			return;
+		}
 
 		if (other == this)
 		{
-			if (Has_Compatible_CPU_Surface_Snapshot(sd))
+			if (dst_has_cpu_snapshot)
 			{
 				unsigned char *base = ImageData.Data.data();
 				for (unsigned int y = 0; y < copy_height; ++y)
@@ -683,7 +767,7 @@ void SurfaceClass::Copy(
 		}
 		else
 		{
-			const bool can_copy_from_cpu = other->Has_Compatible_CPU_Surface_Snapshot(osd);
+			const bool can_copy_from_cpu = src_has_cpu_snapshot;
 			LegacyLockedRect src_lock;
 			::ZeroMemory(&src_lock, sizeof(src_lock));
 			const unsigned char *src_mem = nullptr;
@@ -702,7 +786,7 @@ void SurfaceClass::Copy(
 				src_pitch = src_lock.Pitch;
 			}
 
-			if (Has_Compatible_CPU_Surface_Snapshot(sd))
+			if (dst_has_cpu_snapshot)
 			{
 				unsigned char *dst_mem = ImageData.Data.data() + dsty * ImageData.Pitch + dstx * pixel_size;
 				for (unsigned int y = 0; y < copy_height; ++y)
@@ -743,6 +827,14 @@ void SurfaceClass::Copy(
 	}
 	else
 	{
+		if (Should_Use_CPU_Only_Surface_Storage())
+		{
+			WWASSERT_PRINT(
+				false,
+				"SurfaceClass::Copy: BGFX surface ownership does not support legacy format-converting surface copies");
+			return;
+		}
+
 		LegacyRect dest;
 		dest.left=dstx;
 		dest.right=dstx+width;
@@ -787,6 +879,14 @@ void SurfaceClass::Stretch_Copy(
 	SurfaceDescription sd,osd;
 	Get_Description(sd);
 	const_cast <SurfaceClass*>(other)->Get_Description(osd);
+
+	if (Should_Use_CPU_Only_Surface_Storage())
+	{
+		WWASSERT_PRINT(
+			false,
+			"SurfaceClass::Stretch_Copy: BGFX surface ownership does not support legacy stretched surface copies");
+		return;
+	}
 
 	LegacyRect src;
 	src.left=srcx;
@@ -1086,6 +1186,25 @@ void SurfaceClass::Update_Description_From_Legacy_Surface()
 #endif
 }
 
+void SurfaceClass::Allocate_CPU_Surface_Snapshot()
+{
+	ImageData.Format = Description.Format;
+	ImageData.Width = Description.Width;
+	ImageData.Height = Description.Height;
+	ImageData.Pitch = 0;
+	ImageData.Data.clear();
+	CPUImagePossiblyStale = false;
+
+	if (!Can_Store_CPU_Surface_Data(Description)) {
+		return;
+	}
+
+	const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
+	const unsigned int row_size = Description.Width * pixel_size;
+	ImageData.Pitch = row_size;
+	ImageData.Data.resize(static_cast<size_t>(row_size) * Description.Height);
+}
+
 void SurfaceClass::Capture_CPU_Surface_Snapshot()
 {
 	ImageData.Format = Description.Format;
@@ -1131,27 +1250,31 @@ void SurfaceClass::Refresh_CPU_Surface_Snapshot_If_Present()
 
 void SurfaceClass::Upload_CPU_Surface_Snapshot_To_Legacy()
 {
-	if (!Has_Compatible_CPU_Surface_Snapshot(Description) || D3DSurface == nullptr) {
+	if (!Has_Compatible_CPU_Surface_Snapshot(Description)) {
 		return;
 	}
 
-	const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
-	const unsigned int row_size = Description.Width * pixel_size;
-
-	LegacyLockedRect lock_rect;
-	::ZeroMemory(&lock_rect, sizeof(lock_rect));
-	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
-
-	const unsigned char *src = ImageData.Data.data();
-	unsigned char *dst = static_cast<unsigned char *>(lock_rect.pBits);
-	for (unsigned int row = 0; row < Description.Height; ++row)
+	if (D3DSurface != nullptr)
 	{
-		memcpy(dst, src, row_size);
-		src += ImageData.Pitch;
-		dst += lock_rect.Pitch;
+		const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
+		const unsigned int row_size = Description.Width * pixel_size;
+
+		LegacyLockedRect lock_rect;
+		::ZeroMemory(&lock_rect, sizeof(lock_rect));
+		DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
+
+		const unsigned char *src = ImageData.Data.data();
+		unsigned char *dst = static_cast<unsigned char *>(lock_rect.pBits);
+		for (unsigned int row = 0; row < Description.Height; ++row)
+		{
+			memcpy(dst, src, row_size);
+			src += ImageData.Pitch;
+			dst += lock_rect.Pitch;
+		}
+
+		DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 	}
 
-	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 	CPUImagePossiblyStale = false;
 	if (TextureOwner != nullptr) {
 		TextureOwner->Update_Surface_Level_From_Surface(TextureOwnerLevel, ImageData);
