@@ -88,6 +88,15 @@ namespace
 	{
 		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
 	}
+
+	bool Should_Use_CPU_Only_Surface_Storage()
+	{
+#if defined(GGC_RENDER_BACKEND_BGFX)
+		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
+#else
+		return false;
+#endif
+	}
 }
 
 #define LEGACY_SURFACE static_cast<LegacySurface *>(D3DSurface)
@@ -216,6 +225,11 @@ SurfaceClass::SurfaceClass(unsigned width, unsigned height, WW3DFormat format):
 {
 	WWASSERT(width);
 	WWASSERT(height);
+	if (Should_Use_CPU_Only_Surface_Storage() && Can_Store_CPU_Surface_Data(Description))
+	{
+		Allocate_CPU_Surface_Snapshot();
+		return;
+	}
 	D3DSurface = Create_Legacy_Surface(width, height, format);
 	Update_Description_From_Legacy_Surface();
 	Capture_CPU_Surface_Snapshot();
@@ -1092,6 +1106,25 @@ void SurfaceClass::Update_Description_From_Legacy_Surface()
 	Description.Width = d3d_desc.Width;
 	Description.Height = d3d_desc.Height;
 	SurfaceFormat = Description.Format;
+}
+
+void SurfaceClass::Allocate_CPU_Surface_Snapshot()
+{
+	ImageData.Format = Description.Format;
+	ImageData.Width = Description.Width;
+	ImageData.Height = Description.Height;
+	ImageData.Pitch = 0;
+	ImageData.Data.clear();
+	CPUImagePossiblyStale = false;
+
+	if (!Can_Store_CPU_Surface_Data(Description)) {
+		return;
+	}
+
+	const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
+	const unsigned int row_size = Description.Width * pixel_size;
+	ImageData.Pitch = row_size;
+	ImageData.Data.resize(static_cast<size_t>(row_size) * Description.Height);
 }
 
 void SurfaceClass::Capture_CPU_Surface_Snapshot()
