@@ -39,6 +39,7 @@
 #include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -84,8 +85,8 @@ W3DProjectedShadowManager *TheW3DProjectedShadowManager=nullptr;	//global single
 ProjectedShadowManager	*TheProjectedShadowManager;				//global singleton with simpler interface.
 extern const FrustumClass *shadowCameraFrustum;	//defined in W3DShadow.
 ///@todo: Externs from volumetric shadow renderer - these need to be moved into W3DBufferManager
-extern DX8VertexBufferClass * shadowVertexBuffer;
-extern DX8IndexBufferClass  * shadowIndexBuffer;
+extern RenderVertexBufferClass * shadowVertexBuffer;
+extern RenderIndexBufferClass  * shadowIndexBuffer;
 extern int nShadowVertsInBuf;	//model vetices in vertex buffer
 extern int nShadowStartBatchVertex;
 extern int nShadowIndicesInBuf;	//model vetices in vertex buffer
@@ -105,8 +106,8 @@ struct SHADOW_DECAL_VERTEX	//vertex structure passed to D3D
 
 // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4I wrap the
 // decal shadow buffers in W3D classes so g_renderBackend can capture them.
-DX8VertexBufferClass * shadowDecalVertexBuffer = nullptr;
-DX8IndexBufferClass  * shadowDecalIndexBuffer  = nullptr;
+RenderVertexBufferClass * shadowDecalVertexBuffer = nullptr;
+RenderIndexBufferClass  * shadowDecalIndexBuffer  = nullptr;
 int nShadowDecalVertsInBuf=0;	//model vetices in vertex buffer
 int nShadowDecalStartBatchVertex=0;
 int nShadowDecalIndicesInBuf=0;	//model vetices in vertex buffer
@@ -389,13 +390,13 @@ Bool W3DProjectedShadowManager::ReAcquireResources()
 
 	DEBUG_ASSERTCRASH(shadowDecalIndexBuffer == nullptr && shadowDecalVertexBuffer == nullptr, ("ReAcquireResources not released in W3DProjectedShadowManager"));
 
-	shadowDecalIndexBuffer = NEW_REF(DX8IndexBufferClass, (SHADOW_DECAL_INDEX_SIZE, DX8IndexBufferClass::USAGE_DYNAMIC));
+	shadowDecalIndexBuffer = NEW_REF(RenderIndexBufferClass, (SHADOW_DECAL_INDEX_SIZE, RenderIndexBufferClass::USAGE_DYNAMIC));
 	if (shadowDecalIndexBuffer == nullptr)
 		return FALSE;
 
 	if (shadowDecalVertexBuffer == nullptr)
 	{
-		shadowDecalVertexBuffer = NEW_REF(DX8VertexBufferClass, (SHADOW_DECAL_FVF, SHADOW_DECAL_VERTEX_SIZE, DX8VertexBufferClass::USAGE_DYNAMIC));
+		shadowDecalVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DECAL_FVF, SHADOW_DECAL_VERTEX_SIZE, RenderVertexBufferClass::USAGE_DYNAMIC));
 		if (shadowDecalVertexBuffer == nullptr)
 			return FALSE;
 	}
