@@ -20,6 +20,21 @@
 
 class TextureBaseClass;
 
+enum LegacyTexturePoolKind
+{
+	LEGACY_TEXTURE_POOL_DEFAULT = 0,
+	LEGACY_TEXTURE_POOL_MANAGED = 1,
+	LEGACY_TEXTURE_POOL_SYSTEMMEM = 2
+};
+
+struct LegacySurfaceCopyRect
+{
+	long left;
+	long top;
+	long right;
+	long bottom;
+};
+
 void Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source);
 void Init_Legacy_Missing_Texture(
 	unsigned int width,
