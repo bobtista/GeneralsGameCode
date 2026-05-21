@@ -23,11 +23,11 @@
 
 #include "BgfxBackend.h"
 
+#include "BgfxMigrationToggles.h"
 #include "DXTUtils.h"
 #include "dx8fvf.h"
-#include "dx8indexbuffer.h"
-#include "dx8vertexbuffer.h"
 #include "FixedFunctionState.h"
+#include "indexbuffer.h"
 #include "light.h"
 #include "lightenvironment.h"
 #include "matrix3d.h"
@@ -36,6 +36,7 @@
 #include "shader.h"
 #include "texture.h"
 #include "texturefilter.h"
+#include "vertexbuffer.h"
 #include "vector3.h"
 #include "ww3d.h"
 #include "ww3dformat.h"
@@ -142,6 +143,9 @@ BgfxStats      g_stats;
 BgfxCaches     g_caches;
 // Asset-ingress resource side-table. id 0 is reserved invalid.
 BgfxPhase5Resources g_phase5 = { {}, 1 };
+
+// Defined in BgfxBackendTextures.cpp.
+bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt);
 
 #if defined(__APPLE__) && defined(SAGE_USE_SDL3)
 // TheSuperHackers @bugfix bobtista 30/04/2026 Owned by SDL3Main.cpp
@@ -7680,24 +7684,42 @@ void BgfxBackend::Set_Depth_Func(CompareFunc func)
     }
 }
 
-void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture)
+static bgfx::TextureFormat::Enum Resolve_Render_Target_Color_Format(WW3DFormat format)
+{
+    bgfx::TextureFormat::Enum bgfxFormat = TranslateWW3DFormat(format);
+    const bgfx::Caps *caps = bgfx::getCaps();
+    if (caps != nullptr
+        && bgfxFormat != bgfx::TextureFormat::Unknown
+        && (caps->formats[bgfxFormat] & BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) != 0)
+    {
+        return bgfxFormat;
+    }
+
+    if (caps != nullptr
+        && (caps->formats[bgfx::TextureFormat::BGRA8] & BGFX_CAPS_FORMAT_TEXTURE_FRAMEBUFFER) != 0)
+    {
+        return bgfx::TextureFormat::BGRA8;
+    }
+    return bgfx::TextureFormat::RGBA8;
+}
+
+static const BgfxFramebufferEntry *Ensure_Render_Target_Framebuffer(TextureClass *texture)
 {
     if (texture == nullptr || !g_device.initialized)
     {
-        g_views.renderToTexture = false;
-        g_views.renderTargetTexture = nullptr;
-        return;
+        return nullptr;
     }
 
     auto it = g_caches.framebuffer.find(texture);
     if (it == g_caches.framebuffer.end())
     {
-        TextureClass * tex2d = texture->As_TextureClass();
-        const uint16_t w = tex2d ? static_cast<uint16_t>(tex2d->Get_Width())  : 64;
-        const uint16_t h = tex2d ? static_cast<uint16_t>(tex2d->Get_Height()) : 64;
+        const uint16_t w = static_cast<uint16_t>(texture->Get_Width());
+        const uint16_t h = static_cast<uint16_t>(texture->Get_Height());
+        const bgfx::TextureFormat::Enum colorFormat =
+            Resolve_Render_Target_Color_Format(texture->Get_Texture_Format());
 
         bgfx::TextureHandle colorTex = bgfx::createTexture2D(
-            w, h, false, 1, bgfx::TextureFormat::RGBA8,
+            w, h, false, 1, colorFormat,
             BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
         bgfx::TextureHandle depthTex = bgfx::createTexture2D(
             w, h, false, 1, bgfx::TextureFormat::D24S8,
@@ -7705,6 +7727,16 @@ void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass
 
         bgfx::TextureHandle attachments[2] = { colorTex, depthTex };
         bgfx::FrameBufferHandle fb = bgfx::createFrameBuffer(2, attachments, true);
+        if (!bgfx::isValid(fb))
+        {
+            if (bgfx::isValid(colorTex)) {
+                bgfx::destroy(colorTex);
+            }
+            if (bgfx::isValid(depthTex)) {
+                bgfx::destroy(depthTex);
+            }
+            return nullptr;
+        }
 
         BgfxFramebufferEntry entry = { fb, colorTex, w, h };
         g_caches.framebuffer[texture] = entry;
@@ -7714,10 +7746,27 @@ void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass
                      w, h, texture));
     }
 
-    const BgfxFramebufferEntry & entry = it->second;
+    return &it->second;
+}
 
-    bgfx::setViewFrameBuffer(kBgfxRTTView, entry.fb);
-    bgfx::setViewRect(kBgfxRTTView, 0, 0, entry.width, entry.height);
+void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture)
+{
+    if (texture == nullptr || !g_device.initialized)
+    {
+        g_views.renderToTexture = false;
+        g_views.renderTargetTexture = nullptr;
+        return;
+    }
+
+    const BgfxFramebufferEntry *entry = Ensure_Render_Target_Framebuffer(texture);
+    if (entry == nullptr) {
+        g_views.renderToTexture = false;
+        g_views.renderTargetTexture = nullptr;
+        return;
+    }
+
+    bgfx::setViewFrameBuffer(kBgfxRTTView, entry->fb);
+    bgfx::setViewRect(kBgfxRTTView, 0, 0, entry->width, entry->height);
     bgfx::setViewClear(kBgfxRTTView,
                         BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH,
                         0x000000ff, 1.0f, 0);
@@ -8894,13 +8943,10 @@ void BgfxBackend::Set_Pixel_Shader(unsigned long pixel_shader)
 // ===========================================================================
 //
 // The returned RenderResource.id is a monotonically-increasing key into
-// g_phase5.table; the entry holds the bgfx handle(s). Legacy loaded resources
-// still enter through Register_Loaded_* and the older caches keyed by their
-// owner objects.
+// g_phase5.table; the entry holds the bgfx handle(s). Owner-backed resources
+// still enter through the transitional *_Resource hooks and the older caches
+// keyed by their owner objects.
 //
-// Forward declaration — defined in BgfxBackendTextures.cpp.
-bgfx::TextureFormat::Enum TranslateWW3DFormat(WW3DFormat fmt);
-
 namespace {
 
 unsigned __int64 AllocPhase5Id()
@@ -8962,11 +9008,81 @@ const bgfx::Memory * CopySliceToBgfxMemory(const TextureDesc & desc, const MipSl
     return mem;
 }
 
+RenderResource RegisterPhase5Entry(const BgfxPhase5Entry & entry)
+{
+    RenderResource rr;
+    rr.id = AllocPhase5Id();
+    g_phase5.table[rr.id] = entry;
+    return rr;
+}
+
+BgfxPhase5Entry MakeVertexBufferResourceEntry(VertexBufferClass * owner)
+{
+    BgfxPhase5Entry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_VB;
+    entry.vb = BGFX_INVALID_HANDLE;
+    entry.dvb = BGFX_INVALID_HANDLE;
+    entry.d3d_mirror = nullptr;
+    entry.owner = owner;
+    return entry;
+}
+
+BgfxPhase5Entry MakeIndexBufferResourceEntry(IndexBufferClass * owner)
+{
+    BgfxPhase5Entry entry;
+    std::memset(&entry, 0, sizeof(entry));
+    entry.kind = BGFX_RR_KIND_IB;
+    entry.ib = BGFX_INVALID_HANDLE;
+    entry.dib = BGFX_INVALID_HANDLE;
+    entry.d3d_mirror = nullptr;
+    entry.owner = owner;
+    return entry;
+}
+
+bgfx::VertexBufferHandle CreateStaticVertexBufferFromInitialData(const BufferDesc & desc,
+                                                                 const void * initial_data)
+{
+    if (initial_data == nullptr
+        || desc.size_bytes == 0
+        || desc.layout.fvf == 0
+        || desc.layout.stride == 0
+        || (desc.size_bytes % desc.layout.stride) != 0)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+
+    FVFInfoClass fvf(desc.layout.fvf);
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(fvf, layout) || layout.getStride() != desc.layout.stride)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+
+    return bgfx::createVertexBuffer(bgfx::copy(initial_data, desc.size_bytes), layout);
+}
+
+bgfx::IndexBufferHandle CreateStaticIndexBufferFromInitialData(const BufferDesc & desc,
+                                                               const void * initial_data,
+                                                               bool indices_are_32bit)
+{
+    const unsigned int indexSize = indices_are_32bit ? sizeof(uint32_t) : sizeof(uint16_t);
+    if (initial_data == nullptr
+        || desc.size_bytes == 0
+        || (desc.size_bytes % indexSize) != 0)
+    {
+        return BGFX_INVALID_HANDLE;
+    }
+
+    const uint64_t flags = indices_are_32bit ? BGFX_BUFFER_INDEX32 : BGFX_BUFFER_NONE;
+    return bgfx::createIndexBuffer(bgfx::copy(initial_data, desc.size_bytes), flags);
+}
+
 } // namespace
 
 bool BgfxBackend::Requires_Legacy_Buffer_Resources() const
 {
-    return std::getenv("GGC_BGFX_LEGACY_BUFFER_RESOURCES") != nullptr;
+    return !Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::BufferOwnership);
 }
 
 RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
@@ -8976,8 +9092,32 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
     entry.kind = BGFX_RR_KIND_TEXTURE;
     entry.d3d_mirror = nullptr;
     entry.texture = BGFX_INVALID_HANDLE;
+    entry.fb = BGFX_INVALID_HANDLE;
+    entry.width = desc.width;
+    entry.height = desc.height;
 
-    if (!desc.is_render_target && desc.mips != nullptr && desc.mip_count > 0) {
+    if (desc.is_render_target) {
+        const bgfx::TextureFormat::Enum colorFormat =
+            Resolve_Render_Target_Color_Format(desc.format);
+        bgfx::TextureHandle colorTex = bgfx::createTexture2D(
+            desc.width, desc.height, false, 1, colorFormat,
+            BGFX_TEXTURE_RT | BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP);
+        bgfx::TextureHandle depthTex = bgfx::createTexture2D(
+            desc.width, desc.height, false, 1, bgfx::TextureFormat::D24S8,
+            BGFX_TEXTURE_RT_WRITE_ONLY);
+        bgfx::TextureHandle attachments[2] = { colorTex, depthTex };
+        entry.fb = bgfx::createFrameBuffer(2, attachments, true);
+        if (bgfx::isValid(entry.fb)) {
+            entry.texture = colorTex;
+        } else {
+            if (bgfx::isValid(colorTex)) {
+                bgfx::destroy(colorTex);
+            }
+            if (bgfx::isValid(depthTex)) {
+                bgfx::destroy(depthTex);
+            }
+        }
+    } else if (desc.mips != nullptr && desc.mip_count > 0) {
         const bgfx::TextureFormat::Enum bgfxFmt = TranslateWW3DFormat(desc.format);
         if (bgfxFmt != bgfx::TextureFormat::Unknown) {
             const uint64_t texFlags = BGFX_SAMPLER_U_CLAMP | BGFX_SAMPLER_V_CLAMP;
@@ -9011,62 +9151,22 @@ RenderResource BgfxBackend::Create_Texture(const TextureDesc & desc)
             }
         }
     }
-    // Render targets are allocated separately through Set_Render_Target_With_Z.
 
-    RenderResource rr;
-    rr.id = AllocPhase5Id();
-    g_phase5.table[rr.id] = entry;
-    return rr;
+    return RegisterPhase5Entry(entry);
 }
 
 RenderResource BgfxBackend::Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data)
 {
-    BgfxPhase5Entry entry;
-    std::memset(&entry, 0, sizeof(entry));
-    entry.kind = BGFX_RR_KIND_VB;
-    entry.d3d_mirror = nullptr;
-    entry.vb = BGFX_INVALID_HANDLE;
-    entry.dvb = BGFX_INVALID_HANDLE;
-    if (initial_data != nullptr
-        && desc.size_bytes != 0
-        && desc.layout.fvf != 0
-        && desc.layout.stride != 0
-        && (desc.size_bytes % desc.layout.stride) == 0)
-    {
-        FVFInfoClass fvf(desc.layout.fvf);
-        bgfx::VertexLayout layout;
-        if (BuildBgfxLayoutForFVF(fvf, layout) && layout.getStride() == desc.layout.stride)
-        {
-            entry.vb = bgfx::createVertexBuffer(bgfx::copy(initial_data, desc.size_bytes), layout);
-        }
-    }
-    RenderResource rr;
-    rr.id = AllocPhase5Id();
-    g_phase5.table[rr.id] = entry;
-    return rr;
+    BgfxPhase5Entry entry = MakeVertexBufferResourceEntry(nullptr);
+    entry.vb = CreateStaticVertexBufferFromInitialData(desc, initial_data);
+    return RegisterPhase5Entry(entry);
 }
 
 RenderResource BgfxBackend::Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit)
 {
-    BgfxPhase5Entry entry;
-    std::memset(&entry, 0, sizeof(entry));
-    entry.kind = BGFX_RR_KIND_IB;
-    entry.d3d_mirror = nullptr;
-    entry.ib = BGFX_INVALID_HANDLE;
-    entry.dib = BGFX_INVALID_HANDLE;
-    const unsigned int indexSize = indices_are_32bit ? sizeof(uint32_t) : sizeof(uint16_t);
-    if (initial_data != nullptr
-        && desc.size_bytes != 0
-        && (desc.size_bytes % indexSize) == 0)
-    {
-        const uint64_t flags = indices_are_32bit ? BGFX_BUFFER_INDEX32 : BGFX_BUFFER_NONE;
-        entry.ib = bgfx::createIndexBuffer(bgfx::copy(initial_data, desc.size_bytes), flags);
-    }
-
-    RenderResource rr;
-    rr.id = AllocPhase5Id();
-    g_phase5.table[rr.id] = entry;
-    return rr;
+    BgfxPhase5Entry entry = MakeIndexBufferResourceEntry(nullptr);
+    entry.ib = CreateStaticIndexBufferFromInitialData(desc, initial_data, indices_are_32bit);
+    return RegisterPhase5Entry(entry);
 }
 
 void BgfxBackend::Destroy_Resource(RenderResource h)
@@ -9080,7 +9180,9 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
     // Destroy bgfx side.
     switch (entry.kind) {
         case BGFX_RR_KIND_TEXTURE:
-            if (bgfx::isValid(entry.texture)) {
+            if (bgfx::isValid(entry.fb)) {
+                bgfx::destroy(entry.fb);
+            } else if (bgfx::isValid(entry.texture)) {
                 g_caches.deferredDestroys.push_back(entry.texture);
             }
             break;
@@ -9150,9 +9252,9 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
     g_phase5.table.erase(it);
 }
 
-// -- Transitional Register_Loaded_* ----------------------------------------
+// -- Transitional owner-backed resource hooks -------------------------------
 
-RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
+RenderResource BgfxBackend::Create_Texture_Resource(TextureBaseClass * tex)
 {
     if (tex == nullptr) {
         return kInvalidRenderResource;
@@ -9163,22 +9265,28 @@ RenderResource BgfxBackend::Register_Loaded_Texture(TextureBaseClass * tex)
     // this phase5 entry — Release_Cached_Texture in the dtor queues it
     // for deferred destroy. We leave entry.texture invalid so
     // Destroy_Resource doesn't try to destroy the same handle twice.
-    EnsureBgfxTexture(tex);
+    if (tex->Is_Render_Target() &&
+        Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::RenderTargets))
+    {
+        Ensure_Render_Target_Framebuffer(tex->As_TextureClass());
+    }
+    else
+    {
+        EnsureBgfxTexture(tex);
+    }
 
     BgfxPhase5Entry entry;
     std::memset(&entry, 0, sizeof(entry));
     entry.kind       = BGFX_RR_KIND_TEXTURE;
     entry.texture    = BGFX_INVALID_HANDLE;
+    entry.fb         = BGFX_INVALID_HANDLE;
     entry.d3d_mirror = nullptr;
     entry.owner      = tex;
 
-    RenderResource rr;
-    rr.id = AllocPhase5Id();
-    g_phase5.table[rr.id] = entry;
-    return rr;
+    return RegisterPhase5Entry(entry);
 }
 
-RenderResource BgfxBackend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb)
+RenderResource BgfxBackend::Create_Vertex_Buffer_Resource(VertexBufferClass * vb)
 {
     if (vb == nullptr) {
         return kInvalidRenderResource;
@@ -9187,38 +9295,16 @@ RenderResource BgfxBackend::Register_Loaded_Vertex_Buffer(VertexBufferClass * vb
     // Destroy_Resource would cast it to IUnknown* and call Release(), which
     // lands on whatever the third virtual of VertexBufferClass happens to
     // be and crashes. The VB's legacy resource lifetime is owned by the
-    // DX8VertexBufferClass dtor; we have no cleanup to do on the reference side.
-    BgfxPhase5Entry entry;
-    std::memset(&entry, 0, sizeof(entry));
-    entry.kind = BGFX_RR_KIND_VB;
-    entry.vb = BGFX_INVALID_HANDLE;
-    entry.dvb = BGFX_INVALID_HANDLE;
-    entry.d3d_mirror = nullptr;
-    entry.owner = vb;
-
-    RenderResource rr;
-    rr.id = AllocPhase5Id();
-    g_phase5.table[rr.id] = entry;
-    return rr;
+    // render wrapper dtor; we have no cleanup to do on the reference side.
+    return RegisterPhase5Entry(MakeVertexBufferResourceEntry(vb));
 }
 
-RenderResource BgfxBackend::Register_Loaded_Index_Buffer(IndexBufferClass * ib)
+RenderResource BgfxBackend::Create_Index_Buffer_Resource(IndexBufferClass * ib)
 {
     if (ib == nullptr) {
         return kInvalidRenderResource;
     }
-    // Same rationale as Register_Loaded_Vertex_Buffer — leave d3d_mirror
+    // Same rationale as Create_Vertex_Buffer_Resource — leave d3d_mirror
     // null so Destroy_Resource's reference-side Release does nothing.
-    BgfxPhase5Entry entry;
-    std::memset(&entry, 0, sizeof(entry));
-    entry.kind = BGFX_RR_KIND_IB;
-    entry.ib = BGFX_INVALID_HANDLE;
-    entry.dib = BGFX_INVALID_HANDLE;
-    entry.d3d_mirror = nullptr;
-    entry.owner = ib;
-
-    RenderResource rr;
-    rr.id = AllocPhase5Id();
-    g_phase5.table[rr.id] = entry;
-    return rr;
+    return RegisterPhase5Entry(MakeIndexBufferResourceEntry(ib));
 }
