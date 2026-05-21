@@ -154,6 +154,8 @@ class SurfaceClass : public RefCountClass
 		void	Update_Description_From_Legacy_Surface();
 		void	Capture_CPU_Surface_Snapshot();
 		void	Refresh_CPU_Surface_Snapshot_If_Present();
+		void	Upload_CPU_Surface_Snapshot_To_Legacy();
+		bool	Has_Compatible_CPU_Surface_Snapshot(const SurfaceDescription &desc) const;
 		bool	Has_CPU_Surface_Snapshot() const { return !ImageData.Data.empty(); }
 
 		// Legacy surface object
