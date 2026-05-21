@@ -247,6 +247,7 @@ TextureBaseClass::TextureBaseClass
 	FullPath(""),
 	texture_id(unused_texture_id++),
 	IsLightmap(false),
+	IsRenderTarget(rendertarget),
 	IsProcedural(false),
 	IsReducible(reducible),
 	IsCompressionAllowed(false),

@@ -1535,6 +1535,11 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly)
         return BGFX_INVALID_HANDLE;
     }
 
+    if (tex->Is_Render_Target())
+    {
+        g_caches.renderTarget[tex] = true;
+    }
+
     if (tex->Get_Pool() == TextureBaseClass::POOL_DEFAULT)
     {
         auto fbIt = g_caches.framebuffer.find(tex);
@@ -1551,7 +1556,7 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly)
             return fbIt->second.colorTex;
         }
 
-        if (mips.empty())
+        if (tex->Is_Render_Target() || mips.empty())
         {
             g_caches.renderTarget[tex] = true;
             return BGFX_INVALID_HANDLE;
