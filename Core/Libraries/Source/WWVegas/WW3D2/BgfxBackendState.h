@@ -488,10 +488,13 @@ struct BgfxPhase5Entry
 {
     BgfxPhase5Kind kind;
     bgfx::TextureHandle              texture;
+    bgfx::FrameBufferHandle          fb;
     bgfx::VertexBufferHandle         vb;
     bgfx::IndexBufferHandle          ib;
     bgfx::DynamicVertexBufferHandle  dvb;
     bgfx::DynamicIndexBufferHandle   dib;
+    uint16_t width;
+    uint16_t height;
     void * d3d_mirror;               // raw legacy mirror pointer, ref-popup only; nullptr in standalone
     void * owner;                    // TextureBaseClass/VertexBufferClass/IndexBufferClass for loaded-resource caches
     unsigned int size_bytes;         // for dynamic buffers — size of the backing allocation
