@@ -641,37 +641,4 @@ extern "C" HRESULT WINAPI D3DXLoadSurfaceFromSurface(
 	return D3D_OK;
 }
 
-// Non-TGA file loading: dx8wrapper.cpp only hits this as a fallback when
-// the TGA fast path rejects the file. In standalone we just surface
-// MissingTexture through the engine's normal error handling.
-extern "C" HRESULT WINAPI D3DXCreateTextureFromFileExA(
-	LPDIRECT3DDEVICE8 /*device*/,
-	LPCSTR src_file,
-	UINT /*width*/,
-	UINT /*height*/,
-	UINT /*mip_levels*/,
-	DWORD /*usage*/,
-	D3DFORMAT /*format*/,
-	D3DPOOL /*pool*/,
-	DWORD /*filter*/,
-	DWORD /*mip_filter*/,
-	D3DCOLOR /*color_key*/,
-	D3DXIMAGE_INFO * /*src_info*/,
-	PALETTEENTRY * /*palette*/,
-	LPDIRECT3DTEXTURE8 * out_texture)
-{
-	if (out_texture != nullptr)
-	{
-		*out_texture = nullptr;
-	}
-	static bool s_logged = false;
-	if (!s_logged)
-	{
-		s_logged = true;
-		WWDEBUG_SAY(("[D3DXStub] D3DXCreateTextureFromFileExA rejected (non-TGA path) file=%s",
-			src_file ? src_file : "(null)"));
-	}
-	return E_NOTIMPL;
-}
-
 #endif // GGC_BGFX_STANDALONE
