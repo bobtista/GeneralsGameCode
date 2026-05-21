@@ -38,13 +38,10 @@
 namespace
 {
 #if defined(GGC_BGFX_STANDALONE)
-	bool s_initializingMissingTexture = false;
-
 	bool Blocks_Legacy_Texture_Create()
 	{
 #if defined(GGC_RENDER_BACKEND_BGFX)
-		return !s_initializingMissingTexture &&
-			Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
 #else
 		return false;
 #endif
@@ -623,7 +620,13 @@ void Init_Legacy_Missing_Texture(
 	WWASSERT(!s_missingTexture);
 
 #if defined(GGC_BGFX_STANDALONE)
-	s_initializingMissingTexture = true;
+	if (Blocks_Legacy_Texture_Create())
+	{
+		WWASSERT_PRINT(
+			false,
+			"Init_Legacy_Missing_Texture: BGFX texture ownership is enabled; no fake-D3D missing texture is allowed");
+		return;
+	}
 #endif
 	IDirect3DTexture8 *texture = Create_Legacy_Texture(
 		width,
@@ -631,9 +634,6 @@ void Init_Legacy_Missing_Texture(
 		WW3D_FORMAT_A8R8G8B8,
 		MIP_LEVELS_ALL,
 		LEGACY_TEXTURE_POOL_MANAGED);
-#if defined(GGC_BGFX_STANDALONE)
-	s_initializingMissingTexture = false;
-#endif
 
 	D3DLOCKED_RECT locked_rect;
 	RECT rect;
