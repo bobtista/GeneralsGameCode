@@ -49,6 +49,7 @@
 
 #include "surfaceclass.h"
 #include "BgfxMigrationToggles.h"
+#include "texture.h"
 #include "dx8formatconv.h"
 #include "dx8texturelegacytypes.h"
 #include "dx8textureinterop.h"
@@ -209,7 +210,9 @@ SurfaceClass::SurfaceClass(unsigned width, unsigned height, WW3DFormat format):
 	ImageData{format, width, height, 0, {}},
 	RefreshCPUAfterUnlock(false),
 	CPULockActive(false),
-	CPUImagePossiblyStale(false)
+	CPUImagePossiblyStale(false),
+	TextureOwner(nullptr),
+	TextureOwnerLevel(0)
 {
 	WWASSERT(width);
 	WWASSERT(height);
@@ -225,7 +228,9 @@ SurfaceClass::SurfaceClass(const char *filename):
 	ImageData{WW3D_FORMAT_UNKNOWN, 0, 0, 0, {}},
 	RefreshCPUAfterUnlock(false),
 	CPULockActive(false),
-	CPUImagePossiblyStale(false)
+	CPUImagePossiblyStale(false),
+	TextureOwner(nullptr),
+	TextureOwnerLevel(0)
 {
 	D3DSurface = Create_Legacy_Surface_From_File(filename);
 	Update_Description_From_Legacy_Surface();
@@ -239,13 +244,19 @@ SurfaceClass::SurfaceClass(void *legacy_surface)	:
 	ImageData{WW3D_FORMAT_UNKNOWN, 0, 0, 0, {}},
 	RefreshCPUAfterUnlock(false),
 	CPULockActive(false),
-	CPUImagePossiblyStale(false)
+	CPUImagePossiblyStale(false),
+	TextureOwner(nullptr),
+	TextureOwnerLevel(0)
 {
 	Attach_Legacy_Surface(legacy_surface);
 }
 
 SurfaceClass::~SurfaceClass()
 {
+	if (TextureOwner != nullptr) {
+		TextureOwner->Release_Ref();
+		TextureOwner = nullptr;
+	}
 	if (D3DSurface) {
 		LEGACY_SURFACE->Release();
 		D3DSurface = nullptr;
@@ -1122,6 +1133,9 @@ void SurfaceClass::Upload_CPU_Surface_Snapshot_To_Legacy()
 
 	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 	CPUImagePossiblyStale = false;
+	if (TextureOwner != nullptr) {
+		TextureOwner->Update_Surface_Level_From_Surface(TextureOwnerLevel, ImageData);
+	}
 }
 
 void SurfaceClass::Ensure_CPU_Surface_Snapshot_Current()
@@ -1136,6 +1150,21 @@ void SurfaceClass::Mark_CPU_Surface_Snapshot_Stale()
 	if (Has_CPU_Surface_Snapshot()) {
 		CPUImagePossiblyStale = true;
 	}
+}
+
+void SurfaceClass::Attach_Texture_Level_Owner(TextureClass *texture, unsigned int level)
+{
+	if (TextureOwner != texture)
+	{
+		if (TextureOwner != nullptr) {
+			TextureOwner->Release_Ref();
+		}
+		TextureOwner = texture;
+		if (TextureOwner != nullptr) {
+			TextureOwner->Add_Ref();
+		}
+	}
+	TextureOwnerLevel = level;
 }
 
 bool SurfaceClass::Has_Compatible_CPU_Surface_Snapshot(const SurfaceDescription &desc) const
