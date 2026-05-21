@@ -9082,9 +9082,6 @@ bgfx::IndexBufferHandle CreateStaticIndexBufferFromInitialData(const BufferDesc 
 
 bool BgfxBackend::Requires_Legacy_Buffer_Resources() const
 {
-    if (std::getenv("GGC_BGFX_LEGACY_BUFFER_RESOURCES") != nullptr) {
-        return true;
-    }
     return !Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::BufferOwnership);
 }
 
