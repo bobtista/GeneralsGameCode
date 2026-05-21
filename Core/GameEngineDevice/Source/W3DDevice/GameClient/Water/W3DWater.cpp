@@ -1918,7 +1918,7 @@ void WaterRenderObjClass::drawSeaBatch(RenderInfoClass & rinfo)
 		UnsignedShort batchVertexCount = static_cast<UnsignedShort>(totalVertices);
 		UnsignedShort batchTriangleCount = static_cast<UnsignedShort>(totalIndices / 3);
 
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,batchIndexCount);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,batchIndexCount);
 		{
 			DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
 			UnsignedShort *curIb = lockib.Get_Index_Array();
@@ -1944,7 +1944,7 @@ void WaterRenderObjClass::drawSeaBatch(RenderInfoClass & rinfo)
 			}
 		}
 
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,batchVertexCount);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,batchVertexCount);
 		{
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 			VertexFormatXYZNDUV2* vb=lock.Get_Formatted_Vertex_Array();
@@ -2300,7 +2300,7 @@ void WaterRenderObjClass::renderSky()
 	g_renderBackend->Set_Texture(0,setting->skyTexture);
 
 	//draw an infinite sky plane
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,4);
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,4);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 		VertexFormatXYZNDUV2* verts=lock.Get_Formatted_Vertex_Array();
@@ -2404,7 +2404,7 @@ void WaterRenderObjClass::renderSkyBody(Matrix3D *mat)
 	g_renderBackend->Set_Texture(0,m_alphaClippingTexture);
 
 	//draw an infinite sky plane
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,4);
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,4);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 		VertexFormatXYZNDUV2* verts=lock.Get_Formatted_Vertex_Array();
@@ -2508,7 +2508,7 @@ void WaterRenderObjClass::renderWaterMesh()
 	PhasePerFrameY -= 0.1f;
 #endif
 
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,(unsigned short)(mx*my));
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,(unsigned short)(mx*my));
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 		VertexFormatXYZNDUV2 *vb=lock.Get_Formatted_Vertex_Array();
@@ -2914,7 +2914,7 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 	m_drawingRiver = true;
 
 	//allocate 2 triangles per side with 3 indices per triangle
-	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,(rectangleCount+1)*2*3);
+	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,(rectangleCount+1)*2*3);
 	{
 		DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
  		UnsignedShort *curIb = lockib.Get_Index_Array();
@@ -3011,7 +3011,7 @@ void WaterRenderObjClass::drawRiverWater(PolygonTrigger *pTrig)
 #define HEIGHT_TO_USE (0.5f)
 	if (innerNdx >= pTrig->getNumPoints()-1) return;
 	//allocate 2 vertices per side
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,(rectangleCount+1)*2);
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,(rectangleCount+1)*2);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 		VertexFormatXYZNDUV2* vb=lock.Get_Formatted_Vertex_Array();
@@ -3358,7 +3358,7 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 		UnsignedShort batchIndexCount = static_cast<UnsignedShort>(totalIndices);
 		UnsignedShort batchVertexCount = static_cast<UnsignedShort>(totalVertices);
 
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,batchIndexCount);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,batchIndexCount);
 		{
 			DynamicIBAccessClass::WriteLockClass lockib(&ib_access);
 			UnsignedShort *curIb = lockib.Get_Index_Array();
@@ -3395,7 +3395,7 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 			}
 		}
 
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,batchVertexCount);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,batchVertexCount);
 		{
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 			VertexFormatXYZNDUV2* vb=lock.Get_Formatted_Vertex_Array();
@@ -3637,7 +3637,7 @@ void WaterRenderObjClass::renderSkyBody(Matrix3D *mat)
 	g_renderBackend->Set_Texture(0,m_alphaClippingTexture);
 
 	//draw an infinite sky plane
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,4);
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,4);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 		VertexFormatXYZNDUV2* verts=lock.Get_Formatted_Vertex_Array();

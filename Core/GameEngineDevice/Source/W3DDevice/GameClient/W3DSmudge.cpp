@@ -521,7 +521,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 		Int smudgesInRenderBatch=0;
 
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,count*5);	//allocate 5 verts per smudge.
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,count*5);	//allocate 5 verts per smudge.
 		{
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 			VertexFormatXYZNDUV2* verts=lock.Get_Formatted_Vertex_Array();

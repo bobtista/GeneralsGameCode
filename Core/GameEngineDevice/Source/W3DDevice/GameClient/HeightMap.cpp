@@ -2219,8 +2219,8 @@ void HeightMapRenderObjClass::renderExtraBlendTiles()
 	if (maxBlendTiles > 10000)	//we can only fit about 10000 tiles into a single VB.
 		maxBlendTiles = 10000;
 
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,DX8_FVF_XYZNDUV2,maxBlendTiles*4);
-	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,maxBlendTiles*6);
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,DX8_FVF_XYZNDUV2,maxBlendTiles*4);
+	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,maxBlendTiles*6);
 	{
 
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
