@@ -3467,7 +3467,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
 {
     FixedFunctionState::Set_Vertex_Buffer(vb, stream);
     (void)stream;
-    // Cache is populated by Capture_Vertex_Data on the engine's own write
+    // Cache is populated by Upload_Vertex_Buffer_Data on the engine's own write
     // lock. Set_Vertex_Buffer just looks up whatever is already there; on a
     // miss it can rebuild from the buffer object's CPU-side write snapshot.
     g_draw.useTransientVB = false;
@@ -3518,7 +3518,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
                         vb->Get_Vertex_Count() * vb->FVF_Info().Get_FVF_Size();
                     if (vb->Get_CPU_Buffer_Size() >= bytes)
                     {
-                        Capture_Vertex_Data(vb, vb->Peek_CPU_Buffer_Data(), bytes);
+                        Upload_Vertex_Buffer_Data(vb, vb->Peek_CPU_Buffer_Data(), bytes);
                         bgfx::VertexBufferHandle staticHandle = FindResourceStaticVertexBufferHandle(vb);
                         if (bgfx::isValid(staticHandle))
                         {
@@ -3637,7 +3637,7 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
                     const unsigned int bytes = ib->Get_Index_Count() * sizeof(unsigned short);
                     if (ib->Get_CPU_Buffer_Size() >= bytes)
                     {
-                        Capture_Index_Data(ib, ib->Peek_CPU_Buffer_Data(), bytes);
+                        Upload_Index_Buffer_Data(ib, ib->Peek_CPU_Buffer_Data(), bytes);
                         bgfx::IndexBufferHandle staticHandle = FindResourceStaticIndexBufferHandle(ib);
                         if (bgfx::isValid(staticHandle))
                         {
@@ -4105,7 +4105,7 @@ bgfx::DynamicIndexBufferHandle EnsureDynamicIndexBuffer(const IndexBufferClass *
 // engine's destination TextureClass so EnsureBgfxTexture finds it on lookup
 // before reaching the POOL_DEFAULT early-out.
 
-void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
+void BgfxBackend::Upload_Vertex_Buffer_Data(const VertexBufferClass * vb,
                                       const void * data,
                                       unsigned int size_bytes)
 {
@@ -4124,7 +4124,7 @@ void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
         if (!s_loggedVbCaptureSkip)
         {
             s_loggedVbCaptureSkip = true;
-            WWDEBUG_SAY(("[BgfxBackend] skip VB full-capture: "
+            WWDEBUG_SAY(("[BgfxBackend] skip VB full-upload: "
                          "size_bytes=%u stride=%u total=%u",
                          size_bytes, stride, buffer_bytes));
         }
@@ -4145,7 +4145,7 @@ void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
     bgfx::update(h, 0, mem);
 }
 
-void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
+void BgfxBackend::Upload_Index_Buffer_Data(const IndexBufferClass * ib,
                                      const void * data,
                                      unsigned int size_bytes)
 {
@@ -4160,7 +4160,7 @@ void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
         if (!s_loggedIbCaptureSkip)
         {
             s_loggedIbCaptureSkip = true;
-            WWDEBUG_SAY(("[BgfxBackend] skip IB full-capture: "
+            WWDEBUG_SAY(("[BgfxBackend] skip IB full-upload: "
                          "size_bytes=%u total=%u", size_bytes, buffer_bytes));
         }
         return;
@@ -4179,7 +4179,7 @@ void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
     bgfx::update(h, 0, mem);
 }
 
-void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
+void BgfxBackend::Upload_Vertex_Buffer_Sub_Range(const VertexBufferClass * vb,
                                            const void * data,
                                            unsigned int start_vertex,
                                            unsigned int size_bytes)
@@ -4196,7 +4196,7 @@ void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
         if (!s_loggedVbStrideZero)
         {
             s_loggedVbStrideZero = true;
-            WWDEBUG_SAY(("[BgfxBackend] skip VB capture: stride=0 vb=%p", vb));
+            WWDEBUG_SAY(("[BgfxBackend] skip VB upload: stride=0 vb=%p", vb));
         }
         return;
     }
@@ -4208,7 +4208,7 @@ void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
         if (!s_loggedVbSubRangeOor)
         {
             s_loggedVbSubRangeOor = true;
-            WWDEBUG_SAY(("[BgfxBackend] skip VB capture: out-of-range "
+            WWDEBUG_SAY(("[BgfxBackend] skip VB upload: out-of-range "
                          "start_vert=%u size_bytes=%u stride=%u total=%u",
                          start_vertex, size_bytes, stride, buffer_bytes));
         }
@@ -4229,7 +4229,7 @@ void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
 
 }
 
-void BgfxBackend::Capture_Index_Sub_Range(const IndexBufferClass * ib,
+void BgfxBackend::Upload_Index_Buffer_Sub_Range(const IndexBufferClass * ib,
                                           const void * data,
                                           unsigned int start_index,
                                           unsigned int size_bytes)
@@ -4246,7 +4246,7 @@ void BgfxBackend::Capture_Index_Sub_Range(const IndexBufferClass * ib,
         if (!s_loggedIbSubRangeOor)
         {
             s_loggedIbSubRangeOor = true;
-            WWDEBUG_SAY(("[BgfxBackend] skip IB capture: out-of-range "
+            WWDEBUG_SAY(("[BgfxBackend] skip IB upload: out-of-range "
                          "start_idx=%u size_bytes=%u total=%u",
                          start_index, size_bytes, buffer_bytes));
         }

@@ -321,7 +321,7 @@ VertexBufferClass::WriteLockClass::~WriteLockClass()
 			const unsigned int total_bytes = VertexBuffer->Get_Vertex_Count() * VertexBuffer->FVF_Info().Get_FVF_Size();
 			VertexBuffer->Update_CPU_Buffer_Data(0, Vertices, total_bytes);
 			if (g_renderBackend != NULL) {
-				g_renderBackend->Capture_Vertex_Data(VertexBuffer, Vertices, total_bytes);
+				g_renderBackend->Upload_Vertex_Buffer_Data(VertexBuffer, Vertices, total_bytes);
 			}
 		}
 	switch (VertexBuffer->Type()) {
@@ -422,7 +422,7 @@ VertexBufferClass::AppendLockClass::~AppendLockClass()
 			const unsigned int size_bytes = AppendIndexRange * fvf_size;
 			VertexBuffer->Update_CPU_Buffer_Data(AppendStartIndex * fvf_size, Vertices, size_bytes);
 			if (g_renderBackend != NULL) {
-				g_renderBackend->Capture_Vertex_Sub_Range(VertexBuffer, Vertices, AppendStartIndex, size_bytes);
+				g_renderBackend->Upload_Vertex_Buffer_Sub_Range(VertexBuffer, Vertices, AppendStartIndex, size_bytes);
 			}
 		}
 	switch (VertexBuffer->Type()) {

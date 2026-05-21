@@ -335,7 +335,7 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 			const unsigned int total_bytes = index_buffer->Get_Index_Count() * sizeof(unsigned short);
 			index_buffer->Update_CPU_Buffer_Data(0, indices, total_bytes);
 			if (g_renderBackend != NULL) {
-				g_renderBackend->Capture_Index_Data(index_buffer, indices, total_bytes);
+				g_renderBackend->Upload_Index_Buffer_Data(index_buffer, indices, total_bytes);
 			}
 		}
 	switch (index_buffer->Type()) {
@@ -412,7 +412,7 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 			const unsigned int size_bytes = AppendIndexRange * sizeof(unsigned short);
 			index_buffer->Update_CPU_Buffer_Data(AppendStartIndex * sizeof(unsigned short), indices, size_bytes);
 			if (g_renderBackend != NULL) {
-				g_renderBackend->Capture_Index_Sub_Range(index_buffer, indices, AppendStartIndex, size_bytes);
+				g_renderBackend->Upload_Index_Buffer_Sub_Range(index_buffer, indices, AppendStartIndex, size_bytes);
 			}
 		}
 	switch (index_buffer->Type()) {
