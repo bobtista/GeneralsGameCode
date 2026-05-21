@@ -10,7 +10,9 @@
 
 #include "FixedFunctionState.h"
 
+#if !defined(GGC_BGFX_STANDALONE)
 #include "d3d8.h"
+#endif
 #include "indexbuffer.h"
 #include "vertexbuffer.h"
 
@@ -269,6 +271,12 @@ bool FixedFunctionState::Set_Raw_Texture(unsigned stage, LegacyRawTexture * text
 		return false;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		s_rawTextures[stage] == nullptr && texture == nullptr,
+		"FixedFunctionState::Set_Raw_Texture: standalone bgfx cannot own fake-D3D raw textures");
+	s_rawTextures[stage] = nullptr;
+#else
 	if (s_rawTextures[stage]) {
 		s_rawTextures[stage]->Release();
 	}
@@ -276,6 +284,7 @@ bool FixedFunctionState::Set_Raw_Texture(unsigned stage, LegacyRawTexture * text
 	if (s_rawTextures[stage]) {
 		s_rawTextures[stage]->AddRef();
 	}
+#endif
 	return true;
 }
 
@@ -283,7 +292,13 @@ void FixedFunctionState::Release_Raw_Textures()
 {
 	for (unsigned stage = 0; stage < MAX_TEXTURE_STAGES; ++stage) {
 		if (s_rawTextures[stage]) {
+#if defined(GGC_BGFX_STANDALONE)
+			WWASSERT_PRINT(
+				false,
+				"FixedFunctionState::Release_Raw_Textures: standalone bgfx cannot release fake-D3D raw textures");
+#else
 			s_rawTextures[stage]->Release();
+#endif
 			s_rawTextures[stage] = nullptr;
 		}
 	}
