@@ -148,6 +148,15 @@ void DX8TextureInterop::Set_Legacy_Base_Texture(TextureBaseClass &texture, IDire
 
 void DX8TextureInterop::Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source)
 {
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (source != nullptr
+		&& source->Has_CPU_Texture_Mips()
+		&& Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership)) {
+		texture.CPUTextureMips = source->CPUTextureMips;
+		texture.PreserveCPUTextureSnapshotOnNextLegacySet = true;
+		++texture.CPUTextureRevision;
+	}
+#endif
 	Set_Legacy_Base_Texture(texture, source != nullptr ? Peek_Legacy_Base_Texture(*source) : nullptr);
 }
 
