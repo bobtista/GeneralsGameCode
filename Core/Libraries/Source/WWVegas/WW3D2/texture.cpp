@@ -1534,7 +1534,17 @@ unsigned int TextureClass::Get_Level_Count() const
 		return static_cast<unsigned int>(mips.size());
 	}
 	auto *texture = Peek_Legacy_Texture2D(*this);
+#if defined(GGC_BGFX_STANDALONE)
+	if (texture != nullptr)
+	{
+		WWASSERT_PRINT(
+			false,
+			"TextureClass::Get_Level_Count: standalone bgfx cannot query fake-D3D texture levels");
+	}
+	return 0;
+#else
 	return texture != nullptr ? texture->GetLevelCount() : 0;
+#endif
 }
 
 bool TextureClass::Generate_Mip_Levels()
@@ -1961,6 +1971,12 @@ unsigned ZTextureClass::Get_Texture_Memory_Usage() const
 {
 	int size=0;
 	if (!Peek_Legacy_Texture2D(*this)) return 0;
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"ZTextureClass::Get_Texture_Memory_Usage: standalone bgfx cannot query fake-D3D depth texture levels");
+	return 0;
+#else
 	for (unsigned i=0;i<Peek_Legacy_Texture2D(*this)->GetLevelCount();++i)
 	{
 		LegacySurfaceDesc desc;
@@ -1968,6 +1984,7 @@ unsigned ZTextureClass::Get_Texture_Memory_Usage() const
 		size+=desc.Size;
 	}
 	return size;
+#endif
 }
 
 
