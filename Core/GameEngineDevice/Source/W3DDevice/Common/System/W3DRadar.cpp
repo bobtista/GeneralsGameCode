@@ -52,7 +52,9 @@
 #include "W3DDevice/Common/W3DRadar.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
+#include "WW3D2/BgfxMigrationToggles.h"
 #include "WW3D2/texture.h"
+#include "WW3D2/surfaceclass.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WWMath/vector2i.h"
@@ -92,6 +94,20 @@ static WW3DFormat findFormat(const WW3DFormat formats[])
 	}
 	DEBUG_CRASH(("WW3DRadar: No appropriate texture format") );
 	return WW3D_FORMAT_UNKNOWN;
+}
+
+static TextureClass *createWritableRadarTexture(unsigned width, unsigned height, WW3DFormat format)
+{
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
+		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership))
+	{
+		SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
+		TextureClass *texture = MSGNEW("TextureClass") TextureClass(surface, MIP_LEVELS_1);
+		REF_PTR_RELEASE(surface);
+		return texture;
+	}
+
+	return MSGNEW("TextureClass") TextureClass(width, height, format, MIP_LEVELS_1);
 }
 
 //-------------------------------------------------------------------------------------------------
@@ -918,13 +934,11 @@ void W3DRadar::init()
 
 	// allocate our terrain texture
 	// poolify
-	m_terrainTexture = MSGNEW("TextureClass") TextureClass( m_textureWidth, m_textureHeight,
-																			 m_terrainTextureFormat, MIP_LEVELS_1 );
+	m_terrainTexture = createWritableRadarTexture( m_textureWidth, m_textureHeight, m_terrainTextureFormat );
 	DEBUG_ASSERTCRASH( m_terrainTexture, ("W3DRadar: Unable to allocate terrain texture") );
 
 	// allocate our overlay texture
-	m_overlayTexture = MSGNEW("TextureClass") TextureClass( m_textureWidth, m_textureHeight,
-																			 m_overlayTextureFormat, MIP_LEVELS_1 );
+	m_overlayTexture = createWritableRadarTexture( m_textureWidth, m_textureHeight, m_overlayTextureFormat );
 	DEBUG_ASSERTCRASH( m_overlayTexture, ("W3DRadar: Unable to allocate overlay texture") );
 
 	// set filter type for the overlay texture, try it and see if you like it, I don't ;)
@@ -932,8 +946,7 @@ void W3DRadar::init()
 //	m_overlayTexture->Set_Mag_Filter( TextureFilterClass::FILTER_TYPE_NONE );
 
 	// allocate our shroud texture
-	m_shroudTexture = MSGNEW("TextureClass") TextureClass( m_textureWidth, m_textureHeight,
-																			 m_shroudTextureFormat, MIP_LEVELS_1 );
+	m_shroudTexture = createWritableRadarTexture( m_textureWidth, m_textureHeight, m_shroudTextureFormat );
 	DEBUG_ASSERTCRASH( m_shroudTexture, ("W3DRadar: Unable to allocate shroud texture") );
 	m_shroudTexture->Get_Filter().Set_Min_Filter( TextureFilterClass::FILTER_TYPE_DEFAULT );
 	m_shroudTexture->Get_Filter().Set_Mag_Filter( TextureFilterClass::FILTER_TYPE_DEFAULT );
