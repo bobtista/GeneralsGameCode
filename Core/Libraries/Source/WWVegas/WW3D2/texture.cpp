@@ -41,7 +41,6 @@
 
 #include "texture.h"
 
-#include <d3d8.h>
 #include "BgfxMigrationToggles.h"
 #include "dx8wrapper.h"
 #include "TARGA.h"
