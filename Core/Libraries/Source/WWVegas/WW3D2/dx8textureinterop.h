@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "texturecompat.h"
 #include "texturefilter.h"
 #include "ww3dformat.h"
 
@@ -241,11 +242,6 @@ void Copy_Legacy_Surface(
 	IDirect3DSurface8 *source,
 	const LegacySurfaceCopyRect &source_rect,
 	unsigned int filter);
-void Init_Legacy_Missing_Texture(
-	unsigned int width,
-	unsigned int height,
-	const unsigned int *pixels);
-void Release_Legacy_Missing_Texture();
 IDirect3DSurface8 *Load_Legacy_Surface_Immediate(
 	const StringClass &filename,
 	WW3DFormat surface_format,

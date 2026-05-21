@@ -17,8 +17,8 @@
 */
 
 // 08/05/02 KM Texture class redesign
-#include "dx8textureinterop.h"
 #include "missingtexture.h"
+#include "texturecompat.h"
 
 static unsigned missing_image_width=128;
 static unsigned missing_image_height=128;

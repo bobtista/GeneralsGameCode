@@ -21,3 +21,8 @@
 class TextureBaseClass;
 
 void Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source);
+void Init_Legacy_Missing_Texture(
+	unsigned int width,
+	unsigned int height,
+	const unsigned int *pixels);
+void Release_Legacy_Missing_Texture();
