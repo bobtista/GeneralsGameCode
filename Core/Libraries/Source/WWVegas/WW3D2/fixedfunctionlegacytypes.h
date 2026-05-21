@@ -18,7 +18,9 @@
 
 #pragma once
 
-#include "d3d8.h"
+#include "legacyd3dmatrix.h"
+
+struct IDirect3DBaseTexture8;
 
 struct LegacyFixedFunctionColor
 {
@@ -55,4 +57,5 @@ struct LegacyFixedFunctionLight
 using LegacyRawTexture = IDirect3DBaseTexture8;
 using LegacyTransformMatrix = D3DMATRIX;
 
-constexpr unsigned LEGACY_FIXED_FUNCTION_TRANSFORM_COUNT = D3DTS_WORLD + 1;
+constexpr unsigned LEGACY_D3DTS_WORLD = 256;
+constexpr unsigned LEGACY_FIXED_FUNCTION_TRANSFORM_COUNT = LEGACY_D3DTS_WORLD + 1;

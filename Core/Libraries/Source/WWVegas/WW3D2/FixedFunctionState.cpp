@@ -10,6 +10,7 @@
 
 #include "FixedFunctionState.h"
 
+#include "d3d8.h"
 #include "indexbuffer.h"
 #include "vertexbuffer.h"
 
