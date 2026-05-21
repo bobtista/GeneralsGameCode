@@ -59,6 +59,7 @@ enum
 
 #include <assetmgr.h>
 #include <texture.h>
+#include "WW3D2/BgfxMigrationToggles.h"
 #include "WW3D2/dx8fvf.h"
 #include "WW3D2/indexbuffer.h"
 #include "WW3D2/renderbufferclasses.h"
@@ -98,6 +99,8 @@ enum
 #include "WW3D2/meshmdl.h"
 #include "WW3D2/surfaceclass.h"
 
+#include <utility>
+#include <vector>
 
 // If TEST_AND_BLEND is defined, it will do an alpha test and blend.  Otherwise just alpha test. jba. [5/30/2003]
 #define dontTEST_AND_BLEND 1
@@ -123,8 +126,23 @@ texture of the desired height and mip level. */
 //=============================================================================
 W3DTreeBuffer::W3DTreeTextureClass::W3DTreeTextureClass(unsigned width, unsigned height) :
 	TextureClass(width, height,
-		WW3D_FORMAT_A8R8G8B8, MIP_LEVELS_ALL )
+			WW3D_FORMAT_A8R8G8B8, MIP_LEVELS_ALL )
 {
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
+	{
+		TextureMipSnapshot base_mip;
+		base_mip.Width = width;
+		base_mip.Height = height;
+		base_mip.Pitch = width * 4;
+		base_mip.Format = WW3D_FORMAT_A8R8G8B8;
+		base_mip.Data.assign(static_cast<size_t>(base_mip.Pitch) * height, 0);
+
+		std::vector<TextureMipSnapshot> mips;
+		mips.push_back(std::move(base_mip));
+		Set_CPU_Texture_Snapshot(std::move(mips));
+	}
+#endif
 }
 
 //=============================================================================
@@ -210,10 +228,15 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 	if (WW3D::Get_Texture_Reduction()) {
 		Set_LOD(WW3D::Get_Texture_Reduction());
 	}
-	// The tree atlas is populated by writing into the legacy texture surface.
-	// Refresh the backend-neutral CPU copy after mip generation so bgfx sees
-	// the completed atlas instead of the constructor-time empty snapshot.
-	Refresh_CPU_Texture_Snapshot();
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (!Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
+#endif
+	{
+		// The tree atlas is populated by writing into the legacy texture surface.
+		// Refresh the backend-neutral CPU copy after mip generation so bgfx sees
+		// the completed atlas instead of the constructor-time empty snapshot.
+		Refresh_CPU_Texture_Snapshot();
+	}
 	return(surface_desc.Height);
 }
 

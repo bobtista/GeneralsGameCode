@@ -56,6 +56,11 @@ public:
 	static void Validate_Texture_Size(unsigned& width, unsigned& height, unsigned& depth);
 
 	static void	Request_Thumbnail(TextureBaseClass* tc);
+	static bool Load_Surface_Image_Immediate(
+		const char *filename,
+		WW3DFormat texture_format,
+		bool allow_compression,
+		SurfaceClass::SurfaceImageData &image);
 
 	// Adds a loading task to the system. The task if processed in a separate
 	// thread as soon as possible. The task will appear in finished tasks list

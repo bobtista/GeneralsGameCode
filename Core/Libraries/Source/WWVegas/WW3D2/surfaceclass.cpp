@@ -50,6 +50,7 @@
 #include "surfaceclass.h"
 #include "BgfxMigrationToggles.h"
 #include "texture.h"
+#include "textureloader.h"
 #include "dx8formatconv.h"
 #include "dx8texturelegacytypes.h"
 #include "dx8textureinterop.h"
@@ -246,6 +247,23 @@ SurfaceClass::SurfaceClass(const char *filename):
 	TextureOwner(nullptr),
 	TextureOwnerLevel(0)
 {
+	if (Should_Use_CPU_Only_Surface_Storage())
+	{
+		const bool loaded =
+			TextureLoader::Load_Surface_Image_Immediate(filename, WW3D_FORMAT_UNKNOWN, false, ImageData);
+		WWASSERT_PRINT(
+			loaded,
+			"BGFX CPU surface image load failed; no legacy surface fallback is allowed");
+		if (!loaded) {
+			return;
+		}
+		Description.Format = ImageData.Format;
+		Description.Width = ImageData.Width;
+		Description.Height = ImageData.Height;
+		SurfaceFormat = Description.Format;
+		return;
+	}
+
 	D3DSurface = Create_Legacy_Surface_From_File(filename);
 	Update_Description_From_Legacy_Surface();
 	Capture_CPU_Surface_Snapshot();

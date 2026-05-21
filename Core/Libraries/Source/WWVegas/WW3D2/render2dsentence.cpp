@@ -39,6 +39,7 @@
 #include "texture.h"
 #include "wwprofile.h"
 #include "wwmemlog.h"
+#include "BgfxMigrationToggles.h"
 #include "IRenderBackend.h"
 #include "RenderBackend.h"
 
@@ -64,6 +65,20 @@
 #define no_TEST_PLACEMENT 1	 // Shows alignment markers for text.
 
 #define TEXTURE_OFFSET 2
+
+static TextureClass *Create_Writable_Sentence_Texture(unsigned width, unsigned height, WW3DFormat format)
+{
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
+		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership))
+	{
+		SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
+		TextureClass *texture = W3DNEW TextureClass(surface, MIP_LEVELS_1);
+		REF_PTR_RELEASE(surface);
+		return texture;
+	}
+
+	return W3DNEW TextureClass(width, height, format, MIP_LEVELS_1);
+}
 
 #if defined(__APPLE__)
 namespace
@@ -421,7 +436,7 @@ Render2DSentenceClass::Build_Textures ()
 		//
 		//	Create the new texture
 		//
-		TextureClass *new_texture = W3DNEW TextureClass (desc.Width, desc.Width, WW3D_FORMAT_A4R4G4B4, MIP_LEVELS_1);
+		TextureClass *new_texture = Create_Writable_Sentence_Texture (desc.Width, desc.Width, WW3D_FORMAT_A4R4G4B4);
 		SurfaceClass *texture_surface = new_texture->Get_Surface_Level ();
 
 		new_texture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);

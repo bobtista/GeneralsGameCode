@@ -100,16 +100,6 @@ static bool ShouldLogEffectTexture(TextureClass * tex2d)
             || strstr(name, "missile") != nullptr || strstr(name, "Missile") != nullptr);
 }
 
-static bool HasTexturePath(TextureClass *tex2d)
-{
-    if (tex2d == nullptr)
-    {
-        return false;
-    }
-    const char *name = tex2d->Get_Full_Path().str();
-    return name != nullptr && *name != '\0';
-}
-
 static void LogEffectTextureUpload(TextureClass *tex2d,
     bgfx::TextureFormat::Enum bgfxFmt,
     const TextureBaseClass::TextureMipSnapshot &mip,
@@ -1447,23 +1437,24 @@ bgfx::TextureHandle EnsureBgfxTexture(TextureBaseClass * tex, bool baseMipOnly)
         return BGFX_INVALID_HANDLE;
     }
 
-    // Some engine-created textures are unnamed/procedural: they are populated
-    // through the legacy D3D texture object rather than a file load task. If
-    // they reach bgfx before a CPU snapshot exists, pull a snapshot from the
-    // existing D3D texture instead of treating them as missing and binding a
-    // fallback texture. Keep POOL_DEFAULT out of this path; those may be render
-    // targets resolved through the framebuffer cache below.
     TextureClass * tex2d = tex->As_TextureClass();
-    const bool textureOwnershipSnapshotOnly =
-        Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership)
-        && HasTexturePath(tex2d);
-    if (tex2d != nullptr
-        && tex->Get_Pool() != TextureBaseClass::POOL_DEFAULT
-        && tex->Get_CPU_Texture_Mips().empty()
-        && !textureOwnershipSnapshotOnly
-        && tex->Has_Compatibility_Texture())
+    const bool textureOwnershipEnabled =
+        Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+    if (tex2d != nullptr &&
+        tex->Get_Pool() != TextureBaseClass::POOL_DEFAULT &&
+        tex->Get_CPU_Texture_Mips().empty() &&
+        tex->Has_Compatibility_Texture())
     {
-        tex->Refresh_CPU_Texture_Snapshot();
+        if (textureOwnershipEnabled)
+        {
+            WWASSERT_PRINT(
+                false,
+                "EnsureBgfxTexture: BGFX texture ownership missing CPU mips; no compatibility texture recapture is allowed");
+        }
+        else
+        {
+            tex->Refresh_CPU_Texture_Snapshot();
+        }
     }
 
     const unsigned textureRevision = tex->Get_CPU_Texture_Revision();
@@ -1614,12 +1605,18 @@ void BgfxBackend::Invalidate_Cached_Texture(TextureBaseClass * texture)
     {
         return;
     }
-    // CPU-owned textures update their mip snapshots before invalidating the
-    // backend handle. Only recapture from the compatibility texture when no
-    // CPU snapshot exists yet.
     if (!texture->Has_CPU_Texture_Mips())
     {
-        texture->Refresh_CPU_Texture_Snapshot();
+        if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
+        {
+            WWASSERT_PRINT(
+                false,
+                "Invalidate_Cached_Texture: BGFX texture ownership missing CPU mips; no compatibility texture recapture is allowed");
+        }
+        else
+        {
+            texture->Refresh_CPU_Texture_Snapshot();
+        }
     }
     // Set the cached revision to 0 (sentinel) so the next EnsureBgfxTexture
     // detects a change and re-uploads pixel data. Keep dimensions so the

@@ -1149,6 +1149,113 @@ LegacyLoaderSurface * Load_Legacy_Surface_Immediate(
 	return d3d_surface;
 }
 
+bool TextureLoader::Load_Surface_Image_Immediate(
+	const char *filename,
+	WW3DFormat texture_format,
+	bool allow_compression,
+	SurfaceClass::SurfaceImageData &image)
+{
+	WWASSERT(Is_DX8_Thread());
+
+	image = {WW3D_FORMAT_UNKNOWN, 0, 0, 0, {}};
+	if (Is_Format_Compressed(texture_format, allow_compression)) {
+		return false;
+	}
+
+	Targa targa;
+	if (TARGA_ERROR_HANDLER(targa.Open(filename, TGA_READMODE), filename)) {
+		Log_Texture_Load_Failure("surface open", filename);
+		return false;
+	}
+
+	targa.Header.ImageDescriptor ^= TGAIDF_YORIGIN;
+
+	WW3DFormat src_format;
+	WW3DFormat dest_format;
+	unsigned src_bpp = 0;
+	Get_WW3D_Format(dest_format, src_format, src_bpp, targa);
+
+	if (texture_format != WW3D_FORMAT_UNKNOWN) {
+		dest_format = texture_format;
+	}
+
+	unsigned width = targa.Header.Width;
+	unsigned height = targa.Header.Height;
+	unsigned src_width = targa.Header.Width;
+	unsigned src_height = targa.Header.Height;
+
+	char palette[256 * 4];
+	targa.SetPalette(palette);
+	if (TARGA_ERROR_HANDLER(targa.Load(filename, TGAF_IMAGE, false), filename)) {
+		Log_Texture_Load_Failure("surface load", filename);
+		return false;
+	}
+
+	unsigned char *src_surface = reinterpret_cast<unsigned char *>(targa.GetImage());
+	unsigned char *converted_surface = nullptr;
+	if (src_format == WW3D_FORMAT_A1R5G5B5 ||
+		src_format == WW3D_FORMAT_R5G6B5 ||
+		src_format == WW3D_FORMAT_A4R4G4B4 ||
+		src_format == WW3D_FORMAT_P8 ||
+		src_format == WW3D_FORMAT_L8 ||
+		src_width != width ||
+		src_height != height)
+	{
+		converted_surface = W3DNEWARRAY unsigned char[width * height * 4];
+		dest_format = Get_Valid_Texture_Format(WW3D_FORMAT_A8R8G8B8, false);
+		BitmapHandlerClass::Copy_Image(
+			converted_surface,
+			width,
+			height,
+			width * 4,
+			WW3D_FORMAT_A8R8G8B8,
+			src_surface,
+			src_width,
+			src_height,
+			src_width * src_bpp,
+			src_format,
+			reinterpret_cast<unsigned char *>(targa.GetPalette()),
+			targa.Header.CMapDepth >> 3,
+			false);
+		src_surface = converted_surface;
+		src_format = WW3D_FORMAT_A8R8G8B8;
+		src_width = width;
+		src_height = height;
+		src_bpp = Get_Bytes_Per_Pixel(src_format);
+	}
+
+	const unsigned int dest_bpp = Get_Bytes_Per_Pixel(dest_format);
+	if (dest_bpp == 0)
+	{
+		delete[] converted_surface;
+		return false;
+	}
+
+	image.Format = dest_format;
+	image.Width = width;
+	image.Height = height;
+	image.Pitch = width * dest_bpp;
+	image.Data.resize(static_cast<size_t>(image.Pitch) * image.Height);
+
+	BitmapHandlerClass::Copy_Image(
+		image.Data.data(),
+		width,
+		height,
+		image.Pitch,
+		dest_format,
+		src_surface,
+		src_width,
+		src_height,
+		src_width * src_bpp,
+		src_format,
+		reinterpret_cast<unsigned char *>(targa.GetPalette()),
+		targa.Header.CMapDepth >> 3,
+		false);
+
+	delete[] converted_surface;
+	return true;
+}
+
 
 void TextureLoader::Request_Thumbnail(TextureBaseClass *tc)
 {

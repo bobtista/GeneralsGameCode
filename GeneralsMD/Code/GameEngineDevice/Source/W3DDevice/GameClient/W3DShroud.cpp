@@ -31,6 +31,7 @@
 #include "camera.h"
 #include "simplevec.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/BgfxMigrationToggles.h"
 #include "WW3D2/surfaceclass.h"
 #include "Common/MapObject.h"
 #include "Common/PerfTimer.h"
@@ -71,6 +72,22 @@
 #define DEFAULT_SHROUD_CELL_SIZE	MAP_XY_FACTOR	//assume shroud at same resolution as terrain cells.
 #define DEFAULT_TERRAIN_SIZE 1024 //assumed size of largest terrain possible (in vertices)
 #define DEFAULT_VISIBLE_TERRAIN 96	//assumed size of visible terrain cells.
+
+//-----------------------------------------------------------------------------
+
+static TextureClass *Create_Writable_Shroud_Texture(unsigned width, unsigned height, WW3DFormat format)
+{
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
+		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership))
+	{
+		SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
+		TextureClass *texture = MSGNEW("TextureClass") TextureClass(surface, MIP_LEVELS_1);
+		REF_PTR_RELEASE(surface);
+		return texture;
+	}
+
+	return MSGNEW("TextureClass") TextureClass(width, height, format, MIP_LEVELS_1, TextureClass::POOL_DEFAULT);
+}
 
 //-----------------------------------------------------------------------------
 W3DShroud::W3DShroud()
@@ -240,10 +257,10 @@ Bool W3DShroud::ReAcquireResources()
 		// Since we control the video memory copy, we can do partial updates more efficiently. Or do shift blits.
 #if defined(RTS_DEBUG)
 		if (TheGlobalData && TheGlobalData->m_fogOfWarOn)
-			m_pDstTexture = MSGNEW("TextureClass") TextureClass(m_dstTextureWidth,m_dstTextureHeight,WW3D_FORMAT_A4R4G4B4,MIP_LEVELS_1, TextureClass::POOL_DEFAULT);
+			m_pDstTexture = Create_Writable_Shroud_Texture(m_dstTextureWidth,m_dstTextureHeight,WW3D_FORMAT_A4R4G4B4);
 		else
 #endif
-			m_pDstTexture = MSGNEW("TextureClass") TextureClass(m_dstTextureWidth,m_dstTextureHeight,WW3D_FORMAT_R5G6B5,MIP_LEVELS_1, TextureClass::POOL_DEFAULT);
+			m_pDstTexture = Create_Writable_Shroud_Texture(m_dstTextureWidth,m_dstTextureHeight,WW3D_FORMAT_R5G6B5);
 
 		DEBUG_ASSERTCRASH( m_pDstTexture != nullptr, ("Failed ReAcquire of shroud texture"));
 

@@ -857,7 +857,6 @@ TextureClass::TextureClass
 	}
 
 	const int legacy_pool = Legacy_Texture_Pool(pool);
-
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Texture
 		(
@@ -1044,7 +1043,16 @@ TextureClass::TextureClass
 		Poke_Legacy_Texture(*this, newTexture);
 	}
 	if (!Has_CPU_Texture_Mips()) {
-		Refresh_CPU_Texture_Snapshot();
+		if (Should_Use_CPU_Only_Surface_Textures())
+		{
+			WWASSERT_PRINT(
+				0,
+				"TextureClass(SurfaceClass): BGFX texture ownership missing CPU mips; no legacy texture fallback is allowed");
+		}
+		else
+		{
+			Refresh_CPU_Texture_Snapshot();
+		}
 	}
 	LastAccessed=WW3D::Get_Sync_Time();
 }
@@ -1272,6 +1280,13 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 		WWASSERT_PRINT(0, "Get_Surface_Level: LegacyTexture is null!");
 		return nullptr;
 	}
+	if (Should_Use_CPU_Only_Texture_Level_Surfaces())
+	{
+		WWASSERT_PRINT(
+			0,
+			"Get_Surface_Level: BGFX CPU texture-level surface is missing; no legacy surface fallback is allowed");
+		return nullptr;
+	}
 
 	LegacyTextureSurface *d3d_surface = nullptr;
 	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(level, &d3d_surface));
@@ -1404,10 +1419,10 @@ bool TextureClass::Generate_Mip_Levels()
 			if (Build_CPU_Texture_Mips_From_Surface(base_image, MipLevelCount, rebuilt_mips))
 			{
 				Set_CPU_Texture_Snapshot(std::move(rebuilt_mips));
-				if (Peek_Legacy_Texture2D(*this) != nullptr)
-				{
-					Generate_Legacy_Texture_Mips(*this);
-				}
+					if (Peek_Legacy_Texture2D(*this) != nullptr && !Should_Use_CPU_Only_Surface_Textures())
+					{
+						Generate_Legacy_Texture_Mips(*this);
+					}
 				if (g_renderBackend != nullptr)
 				{
 					g_renderBackend->Invalidate_Cached_Texture(this);
@@ -1417,6 +1432,13 @@ bool TextureClass::Generate_Mip_Levels()
 		}
 	}
 
+	if (Should_Use_CPU_Only_Surface_Textures())
+	{
+		WWASSERT_PRINT(
+			0,
+			"Generate_Mip_Levels: BGFX CPU mip source is missing; no legacy mip fallback is allowed");
+		return false;
+	}
 	return Generate_Legacy_Texture_Mips(*this);
 }
 
