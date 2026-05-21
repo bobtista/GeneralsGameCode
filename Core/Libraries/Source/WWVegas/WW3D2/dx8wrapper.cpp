@@ -2840,9 +2840,7 @@ IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 // is to (a) remove D3DX as a black-box in the standalone pixel path so
 // remaining visual bugs don't depend on D3DX internals interacting with
 // our stub and (b) start the work of dropping d3dx8.lib from the link.
-// For non-.tga files (e.g. .dds), the standalone D3DX shim either handles
-// the operation explicitly or returns failure into the existing missing-texture
-// path. The bgfx ownership path is blocked before reaching this helper.
+// The bgfx ownership path is blocked before reaching this helper.
 static IDirect3DTexture8 * LoadTextureStandalone_TGA(
 	const char * filename,
 	MipCountType mip_level_count)
@@ -3011,6 +3009,64 @@ static bool HasTgaExtension(const char * filename)
 		(ext[3] == 'a' || ext[3] == 'A');
 }
 #endif // GGC_BGFX_STANDALONE
+
+static HRESULT Create_Legacy_Cube_Texture_Compat(
+	LPDIRECT3DDEVICE8 device,
+	UINT size,
+	UINT mip_level_count,
+	DWORD usage,
+	D3DFORMAT format,
+	D3DPOOL pool,
+	LPDIRECT3DCUBETEXTURE8 *out_texture)
+{
+#if defined(GGC_BGFX_STANDALONE)
+	if (device == nullptr || out_texture == nullptr)
+	{
+		return E_POINTER;
+	}
+	if (mip_level_count == D3DX_DEFAULT)
+	{
+		mip_level_count = 0;
+	}
+	if (format == D3DFMT_UNKNOWN)
+	{
+		format = D3DFMT_A8R8G8B8;
+	}
+	return device->CreateCubeTexture(size, mip_level_count, usage, format, pool, out_texture);
+#else
+	return D3DXCreateCubeTexture(device, size, mip_level_count, usage, format, pool, out_texture);
+#endif
+}
+
+static HRESULT Create_Legacy_Volume_Texture_Compat(
+	LPDIRECT3DDEVICE8 device,
+	UINT width,
+	UINT height,
+	UINT depth,
+	UINT mip_level_count,
+	DWORD usage,
+	D3DFORMAT format,
+	D3DPOOL pool,
+	LPDIRECT3DVOLUMETEXTURE8 *out_texture)
+{
+#if defined(GGC_BGFX_STANDALONE)
+	if (device == nullptr || out_texture == nullptr)
+	{
+		return E_POINTER;
+	}
+	if (mip_level_count == D3DX_DEFAULT)
+	{
+		mip_level_count = 0;
+	}
+	if (format == D3DFMT_UNKNOWN)
+	{
+		format = D3DFMT_A8R8G8B8;
+	}
+	return device->CreateVolumeTexture(width, height, depth, mip_level_count, usage, format, pool, out_texture);
+#else
+	return D3DXCreateVolumeTexture(device, width, height, depth, mip_level_count, usage, format, pool, out_texture);
+#endif
+}
 
 IDirect3DTexture8 * DX8Wrapper::_Create_DX8_Texture
 (
@@ -3270,8 +3326,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 	// which case we return null.
 	if (rendertarget)
 	{
-		unsigned ret=D3DXCreateCubeTexture
-		(
+		unsigned ret=Create_Legacy_Cube_Texture_Compat(
 			DX8Wrapper::_Get_D3D_Device8(),
 			width,
 			mip_level_count,
@@ -3297,8 +3352,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 			// Invalidate the mesh cache
 			WW3D::_Invalidate_Mesh_Cache();
 
-			ret=D3DXCreateCubeTexture
-			(
+			ret=Create_Legacy_Cube_Texture_Compat(
 				DX8Wrapper::_Get_D3D_Device8(),
 				width,
 				mip_level_count,
@@ -3332,8 +3386,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 	// We should never run out of video memory when allocating a non-rendertarget texture.
 	// However, it seems to happen sometimes when there are a lot of textures in memory and so
 	// if it happens we'll release assets and try again (anything is better than crashing).
-	unsigned ret=D3DXCreateCubeTexture
-	(
+	unsigned ret=Create_Legacy_Cube_Texture_Compat(
 		DX8Wrapper::_Get_D3D_Device8(),
 		width,
 		mip_level_count,
@@ -3353,8 +3406,7 @@ IDirect3DCubeTexture8* DX8Wrapper::_Create_DX8_Cube_Texture
 		// Invalidate the mesh cache
 		WW3D::_Invalidate_Mesh_Cache();
 
-		ret=D3DXCreateCubeTexture
-		(
+		ret=Create_Legacy_Cube_Texture_Compat(
 			DX8Wrapper::_Get_D3D_Device8(),
 			width,
 			mip_level_count,
@@ -3417,8 +3469,7 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 	// We should never run out of video memory when allocating a non-rendertarget texture.
 	// However, it seems to happen sometimes when there are a lot of textures in memory and so
 	// if it happens we'll release assets and try again (anything is better than crashing).
-	unsigned ret=D3DXCreateVolumeTexture
-	(
+	unsigned ret=Create_Legacy_Volume_Texture_Compat(
 		DX8Wrapper::_Get_D3D_Device8(),
 		width,
 		height,
@@ -3440,8 +3491,7 @@ IDirect3DVolumeTexture8* DX8Wrapper::_Create_DX8_Volume_Texture
 		// Invalidate the mesh cache
 		WW3D::_Invalidate_Mesh_Cache();
 
-		ret=D3DXCreateVolumeTexture
-		(
+		ret=Create_Legacy_Volume_Texture_Compat(
 			DX8Wrapper::_Get_D3D_Device8(),
 			width,
 			height,

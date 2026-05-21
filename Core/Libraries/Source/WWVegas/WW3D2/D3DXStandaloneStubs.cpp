@@ -298,56 +298,6 @@ extern "C" HRESULT WINAPI D3DXGetErrorStringA(HRESULT hr, LPSTR pBuffer, UINT Bu
 // Texture / surface helpers
 // -----------------------------------------------------------------------------
 
-extern "C" HRESULT WINAPI D3DXCreateCubeTexture(
-	LPDIRECT3DDEVICE8 device,
-	UINT size,
-	UINT mip_levels,
-	DWORD usage,
-	D3DFORMAT format,
-	D3DPOOL pool,
-	LPDIRECT3DCUBETEXTURE8 * out_texture)
-{
-	if (device == nullptr || out_texture == nullptr)
-	{
-		return E_POINTER;
-	}
-	if (mip_levels == D3DX_DEFAULT)
-	{
-		mip_levels = 0;
-	}
-	if (format == D3DFMT_UNKNOWN)
-	{
-		format = D3DFMT_A8R8G8B8;
-	}
-	return device->CreateCubeTexture(size, mip_levels, usage, format, pool, out_texture);
-}
-
-extern "C" HRESULT WINAPI D3DXCreateVolumeTexture(
-	LPDIRECT3DDEVICE8 device,
-	UINT width,
-	UINT height,
-	UINT depth,
-	UINT mip_levels,
-	DWORD usage,
-	D3DFORMAT format,
-	D3DPOOL pool,
-	LPDIRECT3DVOLUMETEXTURE8 * out_texture)
-{
-	if (device == nullptr || out_texture == nullptr)
-	{
-		return E_POINTER;
-	}
-	if (mip_levels == D3DX_DEFAULT)
-	{
-		mip_levels = 0;
-	}
-	if (format == D3DFMT_UNKNOWN)
-	{
-		format = D3DFMT_A8R8G8B8;
-	}
-	return device->CreateVolumeTexture(width, height, depth, mip_levels, usage, format, pool, out_texture);
-}
-
 // Box-filter mip generator. Walks 2D textures level 1..N-1 and fills each
 // by averaging the previous level's 2x2 quads. Implemented per-format so
 // packed 16-bit formats (A1R5G5B5, R5G6B5, A4R4G4B4) get correct channel
