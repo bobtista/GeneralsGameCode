@@ -35,15 +35,6 @@
 #include "textureloader.h"
 #include "ww3d.h"
 
-#if defined(GGC_BGFX_STANDALONE)
-HRESULT Standalone_Filter_Legacy_Texture_Mips(IDirect3DBaseTexture8 *base_texture, unsigned int src_level);
-HRESULT Standalone_Copy_Legacy_Surface(
-	IDirect3DSurface8 *destination,
-	const RECT *destination_rect,
-	IDirect3DSurface8 *source,
-	const RECT *source_rect);
-#endif
-
 namespace
 {
 #if defined(GGC_BGFX_STANDALONE)
@@ -61,7 +52,12 @@ namespace
 	HRESULT Filter_Legacy_Texture_Mips_Compat(IDirect3DBaseTexture8 *base_texture, unsigned int src_level)
 	{
 #if defined(GGC_BGFX_STANDALONE)
-		return Standalone_Filter_Legacy_Texture_Mips(base_texture, src_level);
+		(void)base_texture;
+		(void)src_level;
+		WWASSERT_PRINT(
+			false,
+			"Filter_Legacy_Texture_Mips_Compat: standalone bgfx cannot filter fake-D3D texture mips");
+		return E_FAIL;
 #else
 		return D3DXFilterTexture(base_texture, nullptr, src_level, kLegacyMipFilterBox);
 #endif
@@ -75,8 +71,15 @@ namespace
 		unsigned int filter)
 	{
 #if defined(GGC_BGFX_STANDALONE)
+		(void)destination;
+		(void)destination_rect;
+		(void)source;
+		(void)source_rect;
 		(void)filter;
-		return Standalone_Copy_Legacy_Surface(destination, destination_rect, source, source_rect);
+		WWASSERT_PRINT(
+			false,
+			"Copy_Legacy_Surface_Compat: standalone bgfx cannot copy fake-D3D surfaces");
+		return E_FAIL;
 #else
 		return D3DXLoadSurfaceFromSurface(
 			destination,

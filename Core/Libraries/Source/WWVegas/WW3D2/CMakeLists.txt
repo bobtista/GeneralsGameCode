@@ -284,11 +284,10 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
 
     if(GGC_BGFX_STANDALONE)
         # Standalone bgfx still compiles the legacy wrapper while texture and
-        # surface factories migrate, so it needs in-tree D3D8/D3DX shims.
+        # surface factories migrate, so it needs the in-tree D3D8 interface shim.
         target_sources(corei_ww3d2 INTERFACE
             ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.h
-            ${CMAKE_CURRENT_SOURCE_DIR}/StandaloneLegacyTextureOps.cpp
         )
     endif()
 
