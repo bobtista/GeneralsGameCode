@@ -2124,18 +2124,24 @@ void W3DProjectedShadow::updateTexture(Vector3 &lightPos)
 
 		m_shadowProjector->Compute_Texture(m_robj,context);
 
-		//Need to copy generated texture into permanent texture.
-		SurfaceClass *oldSurface=m_shadowTexture[0]->getTexture()->Get_Surface_Level();
-		SurfaceClass *newSurface=TheW3DProjectedShadowManager->getRenderTarget()->Get_Surface_Level();
+			//Need to copy generated texture into permanent texture.
+#if defined(GGC_RENDER_BACKEND_BGFX)
+			g_renderBackend->Copy_Render_Target_To_Texture(
+				m_shadowTexture[0]->getTexture(),
+				TheW3DProjectedShadowManager->getRenderTarget());
+#else
+			SurfaceClass *oldSurface=m_shadowTexture[0]->getTexture()->Get_Surface_Level();
+			SurfaceClass *newSurface=TheW3DProjectedShadowManager->getRenderTarget()->Get_Surface_Level();
 
-		//Copy shadow from temporary video-memory surface into a permanent texture
-		oldSurface->Copy(0,0,0,0,DEFAULT_RENDER_TARGET_WIDTH,DEFAULT_RENDER_TARGET_HEIGHT,newSurface);
-		REF_PTR_RELEASE(newSurface);
-		REF_PTR_RELEASE(oldSurface);
-		g_renderBackend->Copy_Render_Target_To_Texture(m_shadowTexture[0]->getTexture(), TheW3DProjectedShadowManager->getRenderTarget());
-		m_shadowProjector->Set_Texture(m_shadowTexture[0]->getTexture());
-		m_shadowTexture[0]->updateBounds(TheW3DShadowManager->getLightPosWorld(0),m_robj);	//update local shadow bounds
-	}
+			//Copy shadow from temporary video-memory surface into a permanent texture
+			oldSurface->Copy(0,0,0,0,DEFAULT_RENDER_TARGET_WIDTH,DEFAULT_RENDER_TARGET_HEIGHT,newSurface);
+			REF_PTR_RELEASE(newSurface);
+			REF_PTR_RELEASE(oldSurface);
+			g_renderBackend->Copy_Render_Target_To_Texture(m_shadowTexture[0]->getTexture(), TheW3DProjectedShadowManager->getRenderTarget());
+#endif
+			m_shadowProjector->Set_Texture(m_shadowTexture[0]->getTexture());
+			m_shadowTexture[0]->updateBounds(TheW3DShadowManager->getLightPosWorld(0),m_robj);	//update local shadow bounds
+		}
 	else
 	if (m_type == SHADOW_DECAL)
 	{	//decal shadows use artist supplied textures.  We just need to tweak the uv coordinates to match
