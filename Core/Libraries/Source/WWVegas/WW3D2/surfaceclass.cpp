@@ -48,6 +48,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "surfaceclass.h"
+#include "BgfxMigrationToggles.h"
 #include "dx8formatconv.h"
 #include "dx8texturelegacytypes.h"
 #include "dx8textureinterop.h"
@@ -80,6 +81,11 @@ namespace
 			desc.Format != WW3D_FORMAT_UNKNOWN &&
 			!Is_Block_Compressed_Format(desc.Format) &&
 			::Get_Bytes_Per_Pixel(desc.Format) != 0;
+	}
+
+	bool Should_Use_CPU_Surface_Snapshots()
+	{
+		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
 	}
 }
 
@@ -258,7 +264,7 @@ SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch)
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
 	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
 	*pitch = lock_rect.Pitch;
-	RefreshCPUAfterUnlock = Has_CPU_Surface_Snapshot();
+	RefreshCPUAfterUnlock = Should_Use_CPU_Surface_Snapshots() && Has_CPU_Surface_Snapshot();
 	return static_cast<LockedSurfacePtr>(lock_rect.pBits);
 }
 
@@ -275,7 +281,7 @@ SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch, const Vector2i &mi
 	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, &rect, 0));
 
 	*pitch = lock_rect.Pitch;
-	RefreshCPUAfterUnlock = Has_CPU_Surface_Snapshot();
+	RefreshCPUAfterUnlock = Should_Use_CPU_Surface_Snapshots() && Has_CPU_Surface_Snapshot();
 	return static_cast<LockedSurfacePtr>(lock_rect.pBits);
 }
 
@@ -945,7 +951,9 @@ void SurfaceClass::Capture_CPU_Surface_Snapshot()
 	ImageData.Pitch = 0;
 	ImageData.Data.clear();
 
-	if (D3DSurface == nullptr || !Can_Store_CPU_Surface_Data(Description)) {
+	if (!Should_Use_CPU_Surface_Snapshots() ||
+		D3DSurface == nullptr ||
+		!Can_Store_CPU_Surface_Data(Description)) {
 		return;
 	}
 
