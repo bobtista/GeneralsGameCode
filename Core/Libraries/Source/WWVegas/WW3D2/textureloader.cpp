@@ -2236,6 +2236,12 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 		return true;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot create legacy texture fallback");
+	return false;
+#else
 	D3DTexture	= Create_Legacy_Texture
 	(
 		reducedWidth,
@@ -2250,6 +2256,7 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 	);
 
 	return true;
+#endif
 }
 
 bool TextureLoadTaskClass::Begin_Uncompressed_Load()
@@ -2339,6 +2346,12 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 		}
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot create legacy texture fallback");
+	return false;
+#else
 	D3DTexture = Create_Legacy_Texture
 	(
 		reducedWidth,
@@ -2353,6 +2366,7 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 	);
 
 	return true;
+#endif
 }
 
 /*
