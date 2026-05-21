@@ -80,6 +80,11 @@ namespace
 	{
 		switch (format)
 		{
+			case WW3D_FORMAT_R5G6B5:
+			case WW3D_FORMAT_A1R5G5B5:
+			case WW3D_FORMAT_A4R4G4B4:
+			case WW3D_FORMAT_A8:
+			case WW3D_FORMAT_L8:
 			case WW3D_FORMAT_A8R8G8B8:
 			case WW3D_FORMAT_X8R8G8B8:
 			case WW3D_FORMAT_DXT1:
@@ -93,9 +98,24 @@ namespace
 		}
 	}
 
+	bool Is_CPU_Texture_Snapshot_DXT_Format(WW3DFormat format)
+	{
+		switch (format)
+		{
+			case WW3D_FORMAT_DXT1:
+			case WW3D_FORMAT_DXT2:
+			case WW3D_FORMAT_DXT3:
+			case WW3D_FORMAT_DXT4:
+			case WW3D_FORMAT_DXT5:
+				return true;
+			default:
+				return false;
+		}
+	}
+
 	unsigned Get_DXT_Block_Byte_Count(WW3DFormat format)
 	{
-		WWASSERT(Is_CPU_Texture_Snapshot_Staging_Format(format));
+		WWASSERT(Is_CPU_Texture_Snapshot_DXT_Format(format));
 		return format == WW3D_FORMAT_DXT1 ? 8 : 16;
 	}
 
@@ -108,6 +128,11 @@ namespace
 	{
 		switch (format)
 		{
+			case WW3D_FORMAT_R5G6B5:
+			case WW3D_FORMAT_A1R5G5B5:
+			case WW3D_FORMAT_A4R4G4B4:
+			case WW3D_FORMAT_A8:
+			case WW3D_FORMAT_L8:
 			case WW3D_FORMAT_A8R8G8B8:
 			case WW3D_FORMAT_X8R8G8B8:
 			{
