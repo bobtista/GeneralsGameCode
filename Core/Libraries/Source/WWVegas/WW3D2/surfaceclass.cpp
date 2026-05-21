@@ -1422,7 +1422,13 @@ void SurfaceClass::Detach ()
 	//	Release the hold we have on the legacy surface object
 	//
 	if (D3DSurface != nullptr) {
+#if defined(GGC_BGFX_STANDALONE)
+		WWASSERT_PRINT(
+			false,
+			"SurfaceClass::Detach: standalone bgfx cannot release fake-D3D surfaces");
+#else
 		LEGACY_SURFACE->Release ();
+#endif
 	}
 
 	D3DSurface = nullptr;
