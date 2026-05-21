@@ -781,6 +781,7 @@ void TextureLoader::Validate_Texture_Size
 	depth=poweroftwodepth;
 }
 
+#if !defined(GGC_BGFX_STANDALONE)
 static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, const Vector3& hsv_shift)//,WW3DFormat texture_format)
 {
 	WWASSERT(Is_DX8_Thread());
@@ -879,6 +880,7 @@ static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, 
 	return d3d_texture;
 #endif
 }
+#endif
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
 static bool Should_Use_CPU_Texture_Thumbnail(TextureBaseClass *texture)
@@ -1598,6 +1600,12 @@ void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 	}
 #endif
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoader::Load_Thumbnail: standalone bgfx cannot use legacy thumbnail texture fallback");
+	return;
+#else
 	// load thumbnail texture
 	LegacyLoaderTexture *d3d_texture = Load_Legacy_Thumbnail(tc->Get_Full_Path(),tc->Get_HSV_Shift());
 
@@ -1610,6 +1618,7 @@ void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 	// release our reference to thumbnail texture
 	d3d_texture->Release();
 	d3d_texture = nullptr;
+#endif
 }
 
 
@@ -1953,7 +1962,13 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 
 	Log_Texture_Load_Failure("task", Texture ? Texture->Get_Full_Path().str() : nullptr);
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
+	const bool use_cpu_missing_texture =
+#if defined(GGC_BGFX_STANDALONE)
+		true;
+#else
+		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+#endif
+	if (use_cpu_missing_texture &&
 		Texture != nullptr &&
 		Texture->As_TextureClass() != nullptr)
 	{
