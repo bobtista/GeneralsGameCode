@@ -102,6 +102,11 @@ namespace
 #endif
 	}
 
+	bool Should_Block_Unmigrated_Bgfx_Texture_Type(TextureBaseClass::TexAssetType asset_type)
+	{
+		return Should_Use_CPU_Only_Surface_Textures() && asset_type != TextureBaseClass::TEX_REGULAR;
+	}
+
 	unsigned Requested_Mip_Count(unsigned width, unsigned height, MipCountType mip_level_count)
 	{
 		if (mip_level_count == MIP_LEVELS_ALL) {
@@ -1097,6 +1102,14 @@ void TextureClass::Init()
 	// If the texture has already been initialised we should exit now
 	if (Initialized) return;
 
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		WWASSERT_PRINT(
+			false,
+			"TextureClass::Init: cube/volume textures are not migrated to bgfx texture ownership; no legacy fallback is allowed");
+		return;
+	}
+
 	WWPROFILE("TextureClass::Init");
 
 	// If the texture has recently been inactivated, increase the inactivation time (this texture obviously
@@ -1790,6 +1803,17 @@ CubeTextureClass::CubeTextureClass
 
 	const int legacy_pool = Legacy_Texture_Pool(pool);
 
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"CubeTextureClass: bgfx texture ownership has no cube texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Cube_Texture
 		(
@@ -1888,6 +1912,18 @@ CubeTextureClass::CubeTextureClass
 	Set_Texture_Name(name);
 	Set_Full_Path(full_path);
 	WWASSERT(name[0]!='\0');
+
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"CubeTextureClass: bgfx texture ownership has no cube texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
@@ -1983,6 +2019,17 @@ VolumeTextureClass::VolumeTextureClass
 	}
 
 	const int legacy_pool = Legacy_Texture_Pool(pool);
+
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"VolumeTextureClass: bgfx texture ownership has no volume texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Volume_Texture
@@ -2083,6 +2130,18 @@ VolumeTextureClass::VolumeTextureClass
 	Set_Texture_Name(name);
 	Set_Full_Path(full_path);
 	WWASSERT(name[0]!='\0');
+
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"VolumeTextureClass: bgfx texture ownership has no volume texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
