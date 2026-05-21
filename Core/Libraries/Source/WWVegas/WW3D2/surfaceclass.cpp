@@ -473,6 +473,12 @@ void SurfaceClass::Clear()
 		return;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass::Clear: standalone bgfx requires a CPU surface snapshot");
+	return;
+#else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
 	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect,nullptr,0));
@@ -487,6 +493,7 @@ void SurfaceClass::Clear()
 
 	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 	Refresh_CPU_Surface_Snapshot_If_Present();
+#endif
 }
 
 
@@ -537,6 +544,12 @@ void SurfaceClass::Copy(const unsigned char *other, unsigned int pitch)
 		return;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass::Copy(bytes): standalone bgfx requires a CPU surface snapshot");
+	return;
+#else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
 	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect,nullptr,0));
@@ -551,6 +564,7 @@ void SurfaceClass::Copy(const unsigned char *other, unsigned int pitch)
 
 	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 	Refresh_CPU_Surface_Snapshot_If_Present();
+#endif
 }
 
 
@@ -591,6 +605,12 @@ void SurfaceClass::Copy(const Vector2i &min, const Vector2i &max, const unsigned
 		return;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass::Copy(rect,bytes): standalone bgfx requires a CPU surface snapshot");
+	return;
+#else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
 	LegacyRect rect;
@@ -611,6 +631,7 @@ void SurfaceClass::Copy(const Vector2i &min, const Vector2i &max, const unsigned
 
 	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
 	Refresh_CPU_Surface_Snapshot_If_Present();
+#endif
 }
 
 
