@@ -19,7 +19,9 @@
 #include "dx8textureinterop.h"
 
 #include <d3d8.h>
+#if !defined(GGC_BGFX_STANDALONE)
 #include <d3dx8tex.h>
+#endif
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
 #include "BgfxMigrationToggles.h"
