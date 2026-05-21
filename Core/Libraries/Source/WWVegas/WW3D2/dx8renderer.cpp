@@ -42,8 +42,8 @@
 
 #include "dx8renderer.h"
 #include "dx8polygonrenderer.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
 #include "dx8fvf.h"
 #include "dx8rendererdebugger.h"
 #include "RenderBufferTypes.h"

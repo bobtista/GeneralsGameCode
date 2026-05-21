@@ -10,8 +10,8 @@
 
 #include "FixedFunctionState.h"
 
-#include "dx8indexbuffer.h"
-#include "dx8vertexbuffer.h"
+#include "indexbuffer.h"
+#include "vertexbuffer.h"
 
 #include <string.h>
 
