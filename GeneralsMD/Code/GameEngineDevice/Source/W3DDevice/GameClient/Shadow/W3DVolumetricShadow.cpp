@@ -198,7 +198,7 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 {
 		float x,y,z;
 };
-#define SHADOW_STATIC_VOLUME_FVF	DX8_FVF_FLAG_XYZ
+#define SHADOW_STATIC_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZ
 
 #ifdef SV_DEBUG	//in debug mode, dynamic shadows are rendered with random diffuse color
 	struct SHADOW_DYNAMIC_VOLUME_VERTEX	//vertex structure passed to D3D
@@ -206,10 +206,10 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 			float x,y,z;
 			DWORD diffuse;
 	};
-	#define SHADOW_DYNAMIC_VOLUME_FVF	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_DIFFUSE
+	#define SHADOW_DYNAMIC_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZD
 #else
 	typedef struct SHADOW_STATIC_VOLUME_VERTEX	SHADOW_DYNAMIC_VOLUME_VERTEX;
-	#define SHADOW_DYNAMIC_VOLUME_FVF	DX8_FVF_FLAG_XYZ
+	#define SHADOW_DYNAMIC_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZ
 #endif
 
 // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I wrap the
