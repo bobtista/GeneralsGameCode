@@ -586,8 +586,9 @@ public:
 } _TextureLoadThread;
 
 
+#if !defined(GGC_BGFX_STANDALONE)
 // TODO: Legacy - remove this call!
-LegacyLoaderTexture * Load_Compressed_Texture(
+static LegacyLoaderTexture * Load_Compressed_Texture(
 	const StringClass& filename,
 	unsigned reduction_factor,
 	MipCountType mip_level_count,
@@ -631,6 +632,7 @@ LegacyLoaderTexture * Load_Compressed_Texture(
 	}
 	return d3d_texture;
 }
+#endif
 
 #if defined(GGC_BGFX_STANDALONE)
 static LegacyLoaderSurface *Load_Compressed_Surface_Level_Zero(
@@ -920,10 +922,17 @@ static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, 
 #if defined(GGC_RENDER_BACKEND_BGFX)
 static bool Should_Use_CPU_Texture_Thumbnail(TextureBaseClass *texture)
 {
-	return texture != nullptr &&
-		texture->Get_Asset_Type() == TextureBaseClass::TEX_REGULAR &&
-		texture->As_TextureClass() != nullptr &&
-		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+	if (texture == nullptr ||
+		texture->Get_Asset_Type() != TextureBaseClass::TEX_REGULAR ||
+		texture->As_TextureClass() == nullptr)
+	{
+		return false;
+	}
+#if defined(GGC_BGFX_STANDALONE)
+	return true;
+#else
+	return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+#endif
 }
 
 static bool Build_CPU_Texture_Thumbnail(
@@ -2404,7 +2413,7 @@ void TextureLoadTaskClass::Unlock_Surfaces()
 	{
 		if (LockedSurfacePtr[i])
 		{
-			WWASSERT(ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
+			WWASSERT(TextureLoader::Is_DX8_Thread());
 			DX8_ErrorCode(Peek_D3D_Texture()->UnlockRect(i));
 		}
 		LockedSurfacePtr[i] = nullptr;
@@ -2472,14 +2481,19 @@ void TextureLoadTaskClass::Capture_CPU_Texture_Snapshot_From_Locked_Surfaces()
 bool TextureLoadTaskClass::Should_Use_CPU_Texture_Snapshot_Staging() const
 {
 #if defined(GGC_RENDER_BACKEND_BGFX)
-	if (!Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) ||
-		Texture == nullptr ||
+	if (Texture == nullptr ||
 		Texture->Get_Asset_Type() != TextureBaseClass::TEX_REGULAR ||
 		Type != TASK_LOAD ||
 		Texture->As_TextureClass() == nullptr)
 	{
 		return false;
 	}
+
+#if !defined(GGC_BGFX_STANDALONE)
+	if (!Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership)) {
+		return false;
+	}
+#endif
 
 	return Is_CPU_Texture_Snapshot_Staging_Format(Format);
 #else
@@ -2946,7 +2960,7 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces()
 		{
 			if (LockedCubeSurfacePtr[f][i])
 			{
-				WWASSERT(ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
+				WWASSERT(TextureLoader::Is_DX8_Thread());
 				DX8_ErrorCode
 				(
 					Peek_D3D_Cube_Texture()->UnlockRect((LegacyLoaderCubeFace)f,i)
@@ -3314,7 +3328,7 @@ void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 	{
 		if (LockedSurfacePtr[i])
 		{
-			WWASSERT(ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
+			WWASSERT(TextureLoader::Is_DX8_Thread());
 			DX8_ErrorCode
 			(
 				Peek_D3D_Volume_Texture()->UnlockBox(i)
