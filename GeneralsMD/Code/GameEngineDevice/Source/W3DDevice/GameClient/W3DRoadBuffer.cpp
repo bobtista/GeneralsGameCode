@@ -191,8 +191,13 @@ void RoadType::loadTexture(AsciiString path, Int ID)
 	m_roadTexture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_REPEAT);
 	m_roadTexture->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_REPEAT);
 
-	m_vertexRoad=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,TheGlobalData->m_maxRoadVertex+4, (s_dynamic?RenderVertexBufferClass::USAGE_DYNAMIC:RenderVertexBufferClass::USAGE_DEFAULT)));
-	m_indexRoad=NEW_REF(RenderIndexBufferClass,(TheGlobalData->m_maxRoadIndex+4, (s_dynamic?RenderIndexBufferClass::USAGE_DYNAMIC:RenderIndexBufferClass::USAGE_DEFAULT)));
+	m_vertexRoad=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZDUV1,
+		TheGlobalData->m_maxRoadVertex+4,
+		(s_dynamic?Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>():Render_Buffer_Usage_Default<RenderVertexBufferClass>())));
+	m_indexRoad=NEW_REF(RenderIndexBufferClass,(
+		TheGlobalData->m_maxRoadIndex+4,
+		(s_dynamic?Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>():Render_Buffer_Usage_Default<RenderIndexBufferClass>())));
 	m_numRoadVertices=0;
 	m_numRoadIndices=0;
 

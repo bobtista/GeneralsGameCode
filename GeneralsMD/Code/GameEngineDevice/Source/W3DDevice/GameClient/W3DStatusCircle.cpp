@@ -167,8 +167,14 @@ Int W3DStatusCircle::initData()
 		ib+=3;	//skip the 3 indices we just filled
 	}
 
-	m_vertexBufferCircle=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,m_numTriangles*3,RenderVertexBufferClass::USAGE_DEFAULT));
-	m_vertexBufferScreen=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,2*3,RenderVertexBufferClass::USAGE_DEFAULT));
+	m_vertexBufferCircle=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZDUV1,
+		m_numTriangles*3,
+		Render_Buffer_Usage_Default<RenderVertexBufferClass>()));
+	m_vertexBufferScreen=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZDUV1,
+		2*3,
+		Render_Buffer_Usage_Default<RenderVertexBufferClass>()));
 
 	//go with a preset material for now.
 	m_vertexMaterialClass=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);

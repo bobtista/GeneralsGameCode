@@ -109,6 +109,8 @@ enum {
 	DX8_FVF_XYZNDCUBEMAP	= DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_FLAG_DIFFUSE
 };
 
+static constexpr unsigned RENDER_VERTEX_FORMAT_XYZDUV1 = DX8_FVF_XYZDUV1;
+
 // ----------------------------------------------------------------------------
 //
 // Util structures for vertex buffer handling. Cast the void pointer returned
