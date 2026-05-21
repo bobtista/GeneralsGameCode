@@ -87,12 +87,18 @@ namespace
 
 	bool Should_Use_CPU_Surface_Snapshots()
 	{
+#if defined(GGC_BGFX_STANDALONE)
+		return true;
+#else
 		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
+#endif
 	}
 
 	bool Should_Use_CPU_Only_Surface_Storage()
 	{
-#if defined(GGC_RENDER_BACKEND_BGFX)
+#if defined(GGC_BGFX_STANDALONE)
+		return true;
+#elif defined(GGC_RENDER_BACKEND_BGFX)
 		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
 #else
 		return false;
@@ -231,9 +237,16 @@ SurfaceClass::SurfaceClass(unsigned width, unsigned height, WW3DFormat format):
 		Allocate_CPU_Surface_Snapshot();
 		return;
 	}
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass(width,height,format): standalone bgfx cannot create legacy surface fallback");
+	return;
+#else
 	D3DSurface = Create_Legacy_Surface(width, height, format);
 	Update_Description_From_Legacy_Surface();
 	Capture_CPU_Surface_Snapshot();
+#endif
 }
 
 SurfaceClass::SurfaceClass(const char *filename):
