@@ -25,7 +25,7 @@ class DX8VertexBufferClass;
 #if defined(GGC_BGFX_STANDALONE)
 
 #include "indexbufferbase.h"
-#include "dx8vertexbuffer.h"
+#include "vertexbufferbase.h"
 
 class RenderIndexBufferClass : public IndexBufferClass
 {
