@@ -333,7 +333,7 @@ public:
     virtual void   Destroy_Resource(RenderResource h);
     virtual void   Begin_Dynamic_Frame();
 
-    virtual RenderResource Register_Loaded_Texture(TextureBaseClass * tex);
+    virtual RenderResource Create_Texture_Resource(TextureBaseClass * tex);
     virtual RenderResource Create_Vertex_Buffer_Resource(VertexBufferClass * vb);
     virtual RenderResource Create_Index_Buffer_Resource(IndexBufferClass * ib);
 };
