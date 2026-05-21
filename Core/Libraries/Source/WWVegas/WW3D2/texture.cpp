@@ -72,6 +72,15 @@ namespace
 {
 	constexpr unsigned kLegacyLockReadOnly = 0x00000010L;
 
+	bool Is_Block_Compressed_Texture_Format(WW3DFormat format)
+	{
+		return format == WW3D_FORMAT_DXT1 ||
+			format == WW3D_FORMAT_DXT2 ||
+			format == WW3D_FORMAT_DXT3 ||
+			format == WW3D_FORMAT_DXT4 ||
+			format == WW3D_FORMAT_DXT5;
+	}
+
 	int Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
 	{
 		switch (pool)
@@ -1067,6 +1076,22 @@ void TextureClass::Apply(unsigned int stage)
 */
 SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 {
+	const std::vector<TextureMipSnapshot> &mips = Get_CPU_Texture_Mips();
+	if (level < mips.size()) {
+		const TextureMipSnapshot &mip = mips[level];
+		if (mip.Format != WW3D_FORMAT_UNKNOWN &&
+			!Is_Block_Compressed_Texture_Format(mip.Format) &&
+			!mip.Data.empty() &&
+			mip.Width != 0 &&
+			mip.Height != 0 &&
+			mip.Pitch >= mip.Width * ::Get_Bytes_Per_Pixel(mip.Format))
+		{
+			SurfaceClass *surface = NEW_REF(SurfaceClass, (mip.Width, mip.Height, mip.Format));
+			surface->Copy(mip.Data.data(), mip.Pitch);
+			return surface;
+		}
+	}
+
 	if (!Peek_Legacy_Texture2D(*this))
 	{
 		WWASSERT_PRINT(0, "Get_Surface_Level: LegacyTexture is null!");

@@ -356,6 +356,20 @@ void SurfaceClass::Copy(const unsigned char *other)
 
 	// size of each pixel in bytes
 	unsigned int size=::Get_Bytes_Per_Pixel(sd.Format);
+	Copy(other, sd.Width * size);
+}
+
+
+/***********************************************************************************************
+ * SurfaceClass::Copy -- Copies from a pitched byte array to the surface                       *
+ *=============================================================================================*/
+void SurfaceClass::Copy(const unsigned char *other, unsigned int pitch)
+{
+	SurfaceDescription sd;
+	Get_Description(sd);
+
+	// size of each pixel in bytes
+	unsigned int size=::Get_Bytes_Per_Pixel(sd.Format);
 
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
@@ -365,7 +379,7 @@ void SurfaceClass::Copy(const unsigned char *other)
 
 	for (i=0; i<sd.Height; i++)
 	{
-		memcpy(mem,&other[i*sd.Width*size],size*sd.Width);
+		memcpy(mem,&other[i*pitch],size*sd.Width);
 		mem+=lock_rect.Pitch;
 	}
 
