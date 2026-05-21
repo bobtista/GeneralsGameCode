@@ -91,5 +91,11 @@ target_link_libraries(core_wwmath PRIVATE
     core_wwsaveload
 )
 
+if(GGC_BGFX_STANDALONE)
+    target_link_libraries(core_wwmath PRIVATE
+        d3d8lib
+    )
+endif()
+
 # @todo Test its impact and see what to do with the legacy functions.
 #add_compile_definitions(core_wwmath PUBLIC ALLOW_TEMPORARIES) # Enables legacy math with "temporaries"
