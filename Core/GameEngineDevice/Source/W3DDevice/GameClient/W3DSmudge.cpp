@@ -36,15 +36,18 @@
 #include "GameClient/View.h"
 #include "GameClient/Display.h"
 #include "WW3D2/texture.h"
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBufferTypes.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderbufferclasses.h"
+#if !defined(GGC_BGFX_STANDALONE)
+#include "WW3D2/dx8indexbuffer.h"
+#endif
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/sortingrenderer.h"
 #include "WW3D2/surfaceclass.h"
+#include "WW3D2/vertexbuffer.h"
 #include "WW3D2/vertmaterial.h"
 #include "WWMath/vector2i.h"
 
@@ -106,11 +109,11 @@ void W3DSmudgeManager::ReAcquireResources()
 	m_backBufferWidth = surface_desc.Width;
 	m_backBufferHeight = surface_desc.Height;
 
-	m_indexBuffer=NEW_REF(DX8IndexBufferClass,(SMUDGE_DRAW_SIZE*4*3));	//allocate 4 triangles per smudge, each with 3 indices.
+	m_indexBuffer=NEW_REF(RenderIndexBufferClass,(SMUDGE_DRAW_SIZE*4*3));	//allocate 4 triangles per smudge, each with 3 indices.
 
 	// Fill up the IB with static vertex indices that will be used for all smudges.
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 		//quad of 4 triangles:
 		//	0-----3
