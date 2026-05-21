@@ -462,7 +462,7 @@ void BoxRenderObjClass::render_box(RenderInfoClass & rinfo,const Vector3 & cente
 		*/
 		DWORD color = WW3DColor::To_ARGB(Color, Opacity);
 
-		int buffer_type = BUFFER_TYPE_DYNAMIC_DX8;
+		int buffer_type = BUFFER_TYPE_DYNAMIC;
 
 		DynamicVBAccessClass vbaccess(buffer_type,dynamic_fvf_type,NUM_BOX_VERTS);
 		{

@@ -906,7 +906,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 
 		if (temp_apt.Count() > 0) {
 
-			int buftype = BUFFER_TYPE_DYNAMIC_DX8;
+			int buftype = BUFFER_TYPE_DYNAMIC;
 			if (Model->Get_Flag(MeshGeometryClass::SORT) && WW3D::Is_Sorting_Enabled()) {
 				buftype = BUFFER_TYPE_DYNAMIC_SORTING;
 			}
