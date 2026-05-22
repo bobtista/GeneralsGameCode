@@ -86,6 +86,10 @@ W3DShroud::W3DShroud()
 	m_boderShroudLevel = (W3DShroudLevel)TheGlobalData->m_shroudAlpha;	//assume border is black
 	m_clearDstTexture = TRUE;	//force clearing of destination texture;
 	m_shroudDirty = TRUE;
+	m_dirtyMinX = 0;
+	m_dirtyMinY = 0;
+	m_dirtyMaxX = 0;
+	m_dirtyMaxY = 0;
 
 	m_cellWidth=DEFAULT_SHROUD_CELL_SIZE;
 	m_cellHeight=DEFAULT_SHROUD_CELL_SIZE;
@@ -293,6 +297,10 @@ void W3DShroud::setShroudLevel(Int x, Int y, W3DShroudLevel level, Bool textureO
 	if (x < m_numCellsX && y < m_numCellsY)
 	{
 		m_shroudDirty = TRUE;
+		if (x < m_dirtyMinX) { m_dirtyMinX = x; }
+		if (y < m_dirtyMinY) { m_dirtyMinY = y; }
+		if (x >= m_dirtyMaxX) { m_dirtyMaxX = x + 1; }
+		if (y >= m_dirtyMaxY) { m_dirtyMaxY = y + 1; }
 		if (level < TheGlobalData->m_shroudAlpha)
 			level = TheGlobalData->m_shroudAlpha;
 
@@ -764,6 +772,10 @@ void W3DShroud::render(CameraClass *cam)
 	if (g_renderBackend != nullptr && m_pSrcTexture != nullptr && m_pDstTexture != nullptr && (m_shroudDirty || shouldCaptureForBgfx))
 	{
 		m_shroudDirty = FALSE;
+		m_dirtyMinX = m_numCellsX;
+		m_dirtyMinY = m_numCellsY;
+		m_dirtyMaxX = 0;
+		m_dirtyMaxY = 0;
 		SurfaceClass::SurfaceDescription srcDesc;
 		m_pSrcTexture->Get_Description(srcDesc);
 		if (std::getenv("GGC_SHROUD_DIAG") != nullptr)
