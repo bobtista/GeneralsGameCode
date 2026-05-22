@@ -1882,12 +1882,20 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
     {
         return;
     }
-    // TheSuperHackers @bugfix bobtista 27/04/2026 Keep shroud/radar updates
-    // conservative. The engine's dirty rect can omit persistent explored
-    // radar state after captures/buildings change ownership, so partial bgfx
-    // uploads leave stale shroud on the radar. Rebuild the full texture from
-    // the supplied source rect plus white fill every update, matching the
-    // known-good path.
+    static std::vector<uint8_t> s_prevShroudData;
+    const unsigned srcBytes = src_height * pitch;
+    if (s_prevShroudData.size() == srcBytes
+        && std::memcmp(s_prevShroudData.data(),
+                       static_cast<const uint8_t *>(pixel_data) + src_y * pitch,
+                       srcBytes) == 0)
+    {
+        return;
+    }
+    s_prevShroudData.resize(srcBytes);
+    std::memcpy(s_prevShroudData.data(),
+                static_cast<const uint8_t *>(pixel_data) + src_y * pitch,
+                srcBytes);
+
     const bgfx::Memory * mem = bgfx::alloc(fullSize);
     std::memset(mem->data, 0xFF, fullSize);
     const unsigned rowBytes = src_width * bpp;
