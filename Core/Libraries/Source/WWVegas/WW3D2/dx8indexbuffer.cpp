@@ -629,7 +629,9 @@ void DynamicIBAccessClass::_Deinit()
 
 DynamicIBAccessClass::WriteLockClass::WriteLockClass(DynamicIBAccessClass* ib_access_)
 	:
-	DynamicIBAccess(ib_access_)
+	DynamicIBAccess(ib_access_),
+	Indices(NULL),
+	DirectBackendWrite(false)
 {
 	DX8_THREAD_ASSERT();
 	DynamicIBAccess->IndexBuffer->Add_Ref();
@@ -648,9 +650,18 @@ DynamicIBAccessClass::WriteLockClass::WriteLockClass(DynamicIBAccessClass* ib_ac
 		} else
 #endif
 		{
-			Indices = static_cast<unsigned short *>(DynamicIBAccess->IndexBuffer->Lock_CPU_Buffer_Data(
-				DynamicIBAccess->IndexBufferOffset*sizeof(WORD),
-				DynamicIBAccess->Get_Index_Count()*sizeof(WORD)));
+			const unsigned int ib_bytes = DynamicIBAccess->Get_Index_Count() * sizeof(unsigned short);
+			if (g_renderBackend != NULL) {
+				Indices = static_cast<unsigned short *>(
+					g_renderBackend->Begin_Dynamic_Index_Write(DynamicIBAccess, ib_bytes));
+			}
+			if (Indices != NULL) {
+				DirectBackendWrite = true;
+			} else {
+				Indices = static_cast<unsigned short *>(DynamicIBAccess->IndexBuffer->Lock_CPU_Buffer_Data(
+					DynamicIBAccess->IndexBufferOffset*sizeof(WORD),
+					ib_bytes));
+			}
 		}
 		break;
 	case BUFFER_TYPE_DYNAMIC_SORTING:
@@ -673,7 +684,11 @@ DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 		// into a bgfx transient IB before Unlock.
 		if (g_renderBackend != NULL && Indices != NULL) {
 			const unsigned int total_bytes = DynamicIBAccess->Get_Index_Count() * sizeof(unsigned short);
-			g_renderBackend->Capture_Dynamic_Index_Data(DynamicIBAccess, Indices, total_bytes);
+			if (DirectBackendWrite) {
+				g_renderBackend->End_Dynamic_Index_Write(DynamicIBAccess, Indices, total_bytes);
+			} else {
+				g_renderBackend->Capture_Dynamic_Index_Data(DynamicIBAccess, Indices, total_bytes);
+			}
 		}
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();

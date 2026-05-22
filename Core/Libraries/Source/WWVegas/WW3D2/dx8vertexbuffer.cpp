@@ -1046,7 +1046,9 @@ void DynamicVBAccessClass::Allocate_Sorting_Dynamic_Buffer()
 static int dx8_lock;
 DynamicVBAccessClass::WriteLockClass::WriteLockClass(DynamicVBAccessClass* dynamic_vb_access_)
 	:
-	DynamicVBAccess(dynamic_vb_access_)
+	DynamicVBAccess(dynamic_vb_access_),
+	Vertices(NULL),
+	DirectBackendWrite(false)
 {
 	DX8_THREAD_ASSERT();
 	switch (DynamicVBAccess->Get_Type()) {
@@ -1079,9 +1081,19 @@ DynamicVBAccessClass::WriteLockClass::WriteLockClass(DynamicVBAccessClass* dynam
 		} else
 #endif
 		{
-			Vertices = static_cast<VertexFormatXYZNDUV2 *>(DynamicVBAccess->VertexBuffer->Lock_CPU_Buffer_Data(
-				DynamicVBAccess->VertexBufferOffset*_DynamicBackendVertexBuffer->FVF_Info().Get_FVF_Size(),
-				DynamicVBAccess->Get_Vertex_Count()*DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size()));
+			const unsigned int vb_bytes = DynamicVBAccess->Get_Vertex_Count() *
+				DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size();
+			if (g_renderBackend != NULL) {
+				Vertices = static_cast<VertexFormatXYZNDUV2 *>(
+					g_renderBackend->Begin_Dynamic_Vertex_Write(DynamicVBAccess, vb_bytes));
+			}
+			if (Vertices != NULL) {
+				DirectBackendWrite = true;
+			} else {
+				Vertices = static_cast<VertexFormatXYZNDUV2 *>(DynamicVBAccess->VertexBuffer->Lock_CPU_Buffer_Data(
+					DynamicVBAccess->VertexBufferOffset*_DynamicBackendVertexBuffer->FVF_Info().Get_FVF_Size(),
+					vb_bytes));
+			}
 		}
 		break;
 	case BUFFER_TYPE_DYNAMIC_SORTING:
@@ -1114,7 +1126,11 @@ DynamicVBAccessClass::WriteLockClass::~WriteLockClass()
 		if (g_renderBackend != NULL && Vertices != NULL) {
 			const unsigned int total_bytes = DynamicVBAccess->Get_Vertex_Count() *
 				DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF_Size();
-			g_renderBackend->Capture_Dynamic_Vertex_Data(DynamicVBAccess, Vertices, total_bytes);
+			if (DirectBackendWrite) {
+				g_renderBackend->End_Dynamic_Vertex_Write(DynamicVBAccess, Vertices, total_bytes);
+			} else {
+				g_renderBackend->Capture_Dynamic_Vertex_Data(DynamicVBAccess, Vertices, total_bytes);
+			}
 		}
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();

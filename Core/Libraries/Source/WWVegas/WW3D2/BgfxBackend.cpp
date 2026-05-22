@@ -6294,6 +6294,65 @@ void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
                          "ok");
 }
 
+void * BgfxBackend::Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
+                                                unsigned int size_bytes)
+{
+    if (!g_device.initialized || vba == nullptr || size_bytes == 0) {
+        return nullptr;
+    }
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vba->FVF_Info(), layout)) {
+        return nullptr;
+    }
+    const uint32_t num_verts = static_cast<uint32_t>(vba->Get_Vertex_Count());
+    if (num_verts == 0 || bgfx::getAvailTransientVertexBuffer(num_verts, layout) < num_verts) {
+        return nullptr;
+    }
+    bgfx::allocTransientVertexBuffer(&g_draw.pendingVB.tvb, num_verts, layout);
+    g_stats.transientVbAllocations++;
+    return g_draw.pendingVB.tvb.data;
+}
+
+void BgfxBackend::End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
+                                            const void * data,
+                                            unsigned int size_bytes)
+{
+    if (!g_device.initialized || vba == nullptr) {
+        return;
+    }
+    g_draw.pendingVB.owner = vba;
+    g_draw.pendingVB.valid = true;
+    g_draw.pendingVB.coplanarNormalBias = HasSubmittedOppositeNormalPairs(
+        vba->FVF_Info(), data, vba->Get_Vertex_Count());
+    g_draw.fvfHasNormal = vba->FVF_Info().Has_Normal();
+}
+
+void * BgfxBackend::Begin_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
+                                               unsigned int size_bytes)
+{
+    if (!g_device.initialized || iba == nullptr || size_bytes == 0) {
+        return nullptr;
+    }
+    const uint32_t num_indices = static_cast<uint32_t>(iba->Get_Index_Count());
+    if (num_indices == 0 || bgfx::getAvailTransientIndexBuffer(num_indices) < num_indices) {
+        return nullptr;
+    }
+    bgfx::allocTransientIndexBuffer(&g_draw.pendingIB.tib, num_indices);
+    g_stats.transientIbAllocations++;
+    return g_draw.pendingIB.tib.data;
+}
+
+void BgfxBackend::End_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
+                                           const void * data,
+                                           unsigned int size_bytes)
+{
+    if (!g_device.initialized || iba == nullptr) {
+        return;
+    }
+    g_draw.pendingIB.owner = iba;
+    g_draw.pendingIB.valid = true;
+}
+
 // -- State: shaders, materials, textures ------------------------------------
 
 void BgfxBackend::Set_Shader(const ShaderClass & shader)
