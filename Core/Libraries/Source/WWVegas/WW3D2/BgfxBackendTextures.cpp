@@ -1901,10 +1901,31 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
             std::memcpy(mem->data + dstOffset, static_cast<const uint8_t *>(pixel_data) + srcOffset, rowBytes);
         }
     }
+    // Keep the CPU-owned texture snapshot in sync with the bgfx shroud upload.
+    // Otherwise the generic texture cache can re-upload the blank construction
+    // snapshot and black out the terrain/object shroud pass.
+    SurfaceClass::SurfaceImageData shroudImage;
+    shroudImage.Width = dst_width;
+    shroudImage.Height = dst_height;
+    shroudImage.Pitch = dst_width * bpp;
+    shroudImage.Format = format;
+    shroudImage.Data.resize(fullSize);
+    std::memcpy(shroudImage.Data.data(), mem->data, fullSize);
+    dst_texture->Update_Surface_Level_From_Surface(0, shroudImage);
+
     bgfx::updateTexture2D(h, 0, 0,
                           0, 0,
                           static_cast<uint16_t>(dst_width),
                           static_cast<uint16_t>(dst_height),
                           mem, static_cast<uint16_t>(dst_width * bpp));
+    g_caches.textureInfo[dst_texture] = {
+        dst_texture->Get_CPU_Texture_Revision(),
+        static_cast<uint16_t>(dst_width),
+        static_cast<uint16_t>(dst_height),
+        static_cast<int>(format),
+        static_cast<int>(bgfxFmt),
+        1,
+        kBgfxTextureUploadNormal
+    };
     DumpShroudTextureForDiagnostics(mem->data, dst_width, dst_height, bpp, format);
 }
