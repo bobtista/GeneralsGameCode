@@ -81,6 +81,7 @@ public:
 	virtual ~DX8PolygonRendererClass() override;
 
 	void								Render(/*const Matrix3D & tm,*/int base_vertex_offset);
+	void								Render_Instanced(int base_vertex_offset);
 	void								Render_Sorted(/*const Matrix3D & tm,*/int base_vertex_offset,const SphereClass & bounding_sphere);
 	void								Set_Vertex_Index_Range(unsigned min_vertex_index_,unsigned vertex_index_range_);
 
@@ -133,6 +134,16 @@ inline void DX8PolygonRendererClass::Render(/*const Matrix3D & tm,*/int base_ver
 			min_vertex_index,
 			vertex_index_range);
 	}
+}
+
+inline void DX8PolygonRendererClass::Render_Instanced(int base_vertex_offset)
+{
+	g_renderBackend->Set_Index_Buffer_Index_Offset(base_vertex_offset);
+	g_renderBackend->Submit_Instanced_Batch(
+		index_offset,
+		strip ? index_count - 2 : index_count / 3,
+		min_vertex_index,
+		vertex_index_range);
 }
 
 inline void DX8PolygonRendererClass::Render_Sorted(/*const Matrix3D & tm,*/int base_vertex_offset,const SphereClass & bounding_sphere)
