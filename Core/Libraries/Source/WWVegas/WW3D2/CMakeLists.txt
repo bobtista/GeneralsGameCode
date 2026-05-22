@@ -294,6 +294,7 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # pair. Single program handles all TSS combinations via uniforms.
     # Replaces the Phase 4D.1 per-preset shader pairs.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber.sc)
+    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber_instanced.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_uber.sc)
     # TheSuperHackers @refactor bobtista 14/04/2026 Phase 4H ported
     # Trees.nvv (grass/blade sway vertex shader). Reuses fs_uber for

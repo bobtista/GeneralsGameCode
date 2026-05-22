@@ -92,6 +92,7 @@ struct BgfxDevice
 
     // Programs
     bgfx::ProgramHandle uberProgram         = BGFX_INVALID_HANDLE; // single uber program; all TSS combos via uniforms.
+    bgfx::ProgramHandle uberInstancedProgram = BGFX_INVALID_HANDLE; // vs_uber_instanced + fs_uber; per-instance world matrix from instance buffer.
     bgfx::ProgramHandle passthroughProgram  = BGFX_INVALID_HANDLE;
     bgfx::ProgramHandle treeProgram         = BGFX_INVALID_HANDLE; // vs_trees + fs_uber; enabled via Set_Tree_Vertex_Shader_Active for swaying grass, else reverts to uberProgram.
     bgfx::ProgramHandle shadowVolumeProgram = BGFX_INVALID_HANDLE;
@@ -328,6 +329,12 @@ struct BgfxDraw
     float objectShroudDim[4]  = { 1.0f, 0.0f, 0.0f, 0.0f };
     bool shroudTextureParamsValid = false;
     bool delayedObjectShroudPass = false;
+
+    // Instancing batch state
+    bgfx::InstanceDataBuffer instanceBatch;
+    unsigned instanceCount = 0;
+    unsigned instanceMax = 0;
+    bool instanceBatchActive = false;
 };
 
 // Overrides: transient per-shader overrides. Reset by Clear_State_Overrides (called from Set_Shader).
@@ -450,6 +457,7 @@ struct BgfxStats
     uint32_t transientIbDraws = 0;
     uint32_t dynamicVbAllocations = 0;
     uint32_t dynamicIbAllocations = 0;
+    uint32_t instancedSavedDrawCalls = 0;
 };
 
 // Caches: long-lived resource maps.

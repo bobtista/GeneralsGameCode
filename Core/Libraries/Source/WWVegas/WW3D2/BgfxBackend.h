@@ -136,6 +136,12 @@ public:
     virtual void Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
                                             const void * data,
                                             unsigned int size_bytes) override;
+    virtual bool Supports_Instancing() const override;
+    virtual bool Begin_Instanced_Batch(unsigned max_instances) override;
+    virtual void Add_Instance(const float * world_matrix_4x4) override;
+    virtual void Submit_Instanced_Batch(unsigned index_offset, unsigned triangle_count,
+                                        unsigned min_vertex_index, unsigned vertex_count) override;
+
     virtual void * Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
                                               unsigned int size_bytes) override;
     virtual void End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
