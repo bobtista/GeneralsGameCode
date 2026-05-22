@@ -24,6 +24,7 @@
 #include "BgfxBackend.h"
 
 #include "BgfxMigrationToggles.h"
+#include "RenderStateDefs.h"
 #include "DXTUtils.h"
 #include "dx8fvf.h"
 #include "FixedFunctionState.h"
@@ -178,13 +179,6 @@ static const float kTssArgDiffuse =  1.0f;
 static const float kTssArgCurrent =  2.0f;
 static const unsigned kTextureArgumentSelectMask = 0x0000000f;
 
-constexpr unsigned kStageStateAddressU = 13, kStageStateAddressV = 14, kStageStateAddressW = 25;
-constexpr unsigned kStageStateMinFilter = 17, kStageStateMagFilter = 16, kStageStateMipFilter = 18;
-constexpr unsigned kStageStateTexcoordIndex = 11, kStageStateTextureTransformFlags = 24, kStageStateMaxAnisotropy = 21;
-constexpr unsigned kStageStateColorOp = 1, kStageStateAlphaOp = 4, kStageStateColorArg0 = 26, kStageStateColorArg1 = 2, kStageStateColorArg2 = 3;
-constexpr unsigned kStageStateAlphaArg0 = 27, kStageStateAlphaArg1 = 5, kStageStateAlphaArg2 = 6;
-constexpr unsigned kStageStateBumpEnvMat00 = 7, kStageStateBumpEnvMat01 = 8, kStageStateBumpEnvMat10 = 9, kStageStateBumpEnvMat11 = 10;
-constexpr unsigned kStageStateBumpEnvLScale = 22, kStageStateBumpEnvLOffset = 23;
 constexpr unsigned kTextureAddressWrap = 1, kTextureAddressClamp = 3, kTextureAddressBorder = 4;
 constexpr unsigned kTextureSampleNone = 0, kTextureSamplePoint = 1, kTextureSampleLinear = 2, kTextureSampleAnisotropic = 3;
 constexpr unsigned kTexcoordGenPassthru = 0x00000000, kTexcoordGenCameraNormal = 0x00010000, kTexcoordGenCameraReflection = 0x00030000, kTexcoordGenCameraPosition = 0x00020000;
@@ -192,17 +186,6 @@ constexpr unsigned kTextureTransformDisable = 0, kTextureTransformProjected = 25
 constexpr unsigned kTextureTransformStage0 = 16, kTransformView = 2;
 constexpr unsigned kTextureArgCurrent = static_cast<unsigned>(RB_TEXARG_CURRENT), kTextureArgTexture = static_cast<unsigned>(RB_TEXARG_TEXTURE), kTextureArgDiffuse = static_cast<unsigned>(RB_TEXARG_DIFFUSE);
 constexpr unsigned kTextureOpDisable = static_cast<unsigned>(RB_TEXOP_DISABLE), kTextureOpSelectArg1 = static_cast<unsigned>(RB_TEXOP_SELECTARG1), kTextureOpSelectArg2 = static_cast<unsigned>(RB_TEXOP_SELECTARG2);
-constexpr unsigned kRenderStateCullMode = 22, kRenderStateZBias = 47, kRenderStateLighting = 137, kRenderStateAmbient = 139;
-constexpr unsigned kRenderStateAmbientMaterialSource = 147, kRenderStateDiffuseMaterialSource = 145, kRenderStateEmissiveMaterialSource = 148;
-constexpr unsigned kRenderStateFogEnable = 28, kRenderStateFogColor = 34, kRenderStateSpecularEnable = 29, kRenderStatePatchSegments = 164;
-constexpr unsigned kRenderStateSrcBlend = 19, kRenderStateDestBlend = 20, kRenderStateBlendOp = 171, kRenderStateAlphaBlendEnable = 27;
-constexpr unsigned kRenderStateAlphaTestEnable = 15, kRenderStateAlphaRef = 24, kRenderStateAlphaFunc = 25, kRenderStateNormalizeNormals = 143;
-constexpr unsigned kRenderStateColorWriteEnable = 168, kRenderStatePointSpriteEnable = 156, kRenderStatePointScaleEnable = 157;
-constexpr unsigned kRenderStatePointSize = 154, kRenderStatePointSizeMin = 155, kRenderStatePointSizeMax = 166;
-constexpr unsigned kRenderStatePointScaleA = 158, kRenderStatePointScaleB = 159, kRenderStatePointScaleC = 160, kRenderStateTextureFactor = 60;
-constexpr unsigned kRenderStateStencilEnable = 52, kRenderStateStencilFunc = 56, kRenderStateStencilRef = 57, kRenderStateStencilMask = 58;
-constexpr unsigned kRenderStateStencilWriteMask = 59, kRenderStateStencilPass = 55, kRenderStateStencilFail = 53, kRenderStateStencilZFail = 54;
-constexpr unsigned kRenderStateFillMode = 8, kRenderStateShadeMode = 9, kRenderStateZEnable = 7, kRenderStateZWriteEnable = 14, kRenderStateZFunc = 23;
 
 static float TextureOpToTssOp(unsigned value)
 {
@@ -4453,7 +4436,7 @@ void BgfxBackend::Release_Legacy_Render_State_For_Sorted_Draw()
 // both Submit_Sorted_Draw and SubmitEngineDraw to avoid duplicated blocks.
 static uint64_t ApplyCullModeOverride(uint64_t state)
 {
-    CullMode cullMode = static_cast<CullMode>(RenderStateCache::Get_Render_State(kRenderStateCullMode));
+    CullMode cullMode = static_cast<CullMode>(RenderStateCache::Get_Render_State(RS::CULLMODE));
     state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
     if (cullMode == RB_CULL_CW)
     {
@@ -5082,7 +5065,7 @@ static void LogBgfxSortedMaterialDecal(const char *event,
                      static_cast<unsigned long long>(state),
                      static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
                      g_draw.zBias[0],
-                     RenderStateCache::Get_Render_State(kRenderStateZBias),
+                     RenderStateCache::Get_Render_State(RS::ZBIAS),
                      TextureDebugName(g_draw.sourceTextures[0]),
                      TextureDebugName(g_draw.sourceTextures[1]),
                      g_draw.tssOps0[0], g_draw.tssOps0[1],
@@ -5342,11 +5325,11 @@ static void BindSoftParticleDepth(bool enable)
 static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
 {
     uint32_t flags = 0;
-    const unsigned addressU = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateAddressU);
-    const unsigned addressV = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateAddressV);
-    const unsigned minFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMinFilter);
-    const unsigned magFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMagFilter);
-    const unsigned mipFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMipFilter);
+    const unsigned addressU = RenderStateCache::Get_Texture_Stage_State(stage, TSS::ADDRESSU);
+    const unsigned addressV = RenderStateCache::Get_Texture_Stage_State(stage, TSS::ADDRESSV);
+    const unsigned minFilter = RenderStateCache::Get_Texture_Stage_State(stage, TSS::MINFILTER);
+    const unsigned magFilter = RenderStateCache::Get_Texture_Stage_State(stage, TSS::MAGFILTER);
+    const unsigned mipFilter = RenderStateCache::Get_Texture_Stage_State(stage, TSS::MIPFILTER);
 
     if (addressU == kTextureAddressClamp || addressU == kTextureAddressBorder)
     {
@@ -5385,7 +5368,7 @@ static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
 
 static bool IsCurrentStageMipFilterDisabled(unsigned stage)
 {
-    return RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMipFilter) == kTextureSampleNone;
+    return RenderStateCache::Get_Texture_Stage_State(stage, TSS::MIPFILTER) == kTextureSampleNone;
 }
 
 static bool ShouldBindSortedParticleBaseMip(unsigned stage)
@@ -5571,7 +5554,7 @@ static void UpdateTextureTransforms()
     // unused black padding in those atlases; stage 1 matters for detail
     // and environment-mapped sub-materials.
     const unsigned texcoordIndex =
-        RenderStateCache::Get_Texture_Stage_State(0, kStageStateTexcoordIndex);
+        RenderStateCache::Get_Texture_Stage_State(0, TSS::TEXCOORDINDEX);
     const unsigned uvIndex = texcoordIndex & 0xFFFF;
     const unsigned texcoordGen = texcoordIndex & 0xFFFF0000;
     // TheSuperHackers @info bobtista 26/04/2026 Only UV sets 0 and 1 are
@@ -5591,7 +5574,7 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSource[0] = GetTexcoordSource(texcoordGen);
 
     const unsigned texFlags =
-        RenderStateCache::Get_Texture_Stage_State(0, kStageStateTextureTransformFlags);
+        RenderStateCache::Get_Texture_Stage_State(0, TSS::TEXTURETRANSFORMFLAGS);
     const unsigned texCount = texFlags & 0xFFu;
     const bool texProjected0 = (texFlags & kTextureTransformProjected) != 0
         && texCount >= kTextureTransformCount3;
@@ -5612,7 +5595,7 @@ static void UpdateTextureTransforms()
     g_draw.texProjected[0] = texProjected0 ? 1.0f : 0.0f;
 
     const unsigned texcoordIndex1 =
-        RenderStateCache::Get_Texture_Stage_State(1, kStageStateTexcoordIndex);
+        RenderStateCache::Get_Texture_Stage_State(1, TSS::TEXCOORDINDEX);
     const unsigned uvIndex1 = texcoordIndex1 & 0xFFFF;
     const unsigned texcoordGen1 = texcoordIndex1 & 0xFFFF0000;
     if (uvIndex1 > 1)
@@ -5628,7 +5611,7 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSource[1] = GetTexcoordSource(texcoordGen1);
 
     const unsigned texFlags1 =
-        RenderStateCache::Get_Texture_Stage_State(1, kStageStateTextureTransformFlags);
+        RenderStateCache::Get_Texture_Stage_State(1, TSS::TEXTURETRANSFORMFLAGS);
     const unsigned texCount1 = texFlags1 & 0xFFu;
     const bool texProjected1 = (texFlags1 & kTextureTransformProjected) != 0
         && texCount1 >= kTextureTransformCount3;
@@ -5649,12 +5632,12 @@ static void UpdateTextureTransforms()
     g_draw.texProjected[1] = texProjected1 ? 1.0f : 0.0f;
 
     const unsigned texcoordIndex2 =
-        RenderStateCache::Get_Texture_Stage_State(2, kStageStateTexcoordIndex);
+        RenderStateCache::Get_Texture_Stage_State(2, TSS::TEXCOORDINDEX);
     const unsigned texcoordGen2 = texcoordIndex2 & 0xFFFF0000;
     g_draw.texcoordSource[2] = GetTexcoordSource(texcoordGen2);
 
     const unsigned texFlags2 =
-        RenderStateCache::Get_Texture_Stage_State(2, kStageStateTextureTransformFlags);
+        RenderStateCache::Get_Texture_Stage_State(2, TSS::TEXTURETRANSFORMFLAGS);
     const unsigned texCount2 = texFlags2 & 0xFFu;
     if (texCount2 >= kTextureTransformCount2)
     {
@@ -5832,7 +5815,7 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
             (ambientSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
         g_draw.vertexColorFlags[3] =
             (emissiveSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
-        const unsigned d3dLighting = RenderStateCache::Get_Render_State(kRenderStateLighting);
+        const unsigned d3dLighting = RenderStateCache::Get_Render_State(RS::LIGHTING);
         g_draw.lightingEnabled[0] =
             (material->Get_Lighting()
              && d3dLighting != 0
@@ -5966,7 +5949,7 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         g_draw.texcoordSelect[1] = 0.0f;
     }
     {
-        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(kRenderStateZBias);
+        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(RS::ZBIAS);
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
@@ -6232,7 +6215,7 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
         material != nullptr
         && material->Get_Lighting()
         && !WW3D::Is_Coloring_Enabled();
-    RenderStateCache::Set_Render_State(kRenderStateLighting, lightingEnabled ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::LIGHTING, lightingEnabled ? TRUE : FALSE);
     g_draw.explicitMaterialState = false;
     CaptureMaterialStateForBgfx(material);
 }
@@ -6252,9 +6235,9 @@ void BgfxBackend::Set_Material_Color_Source(RenderBackendMaterialColorSource amb
                                             RenderBackendMaterialColorSource diffuse_source,
                                             RenderBackendMaterialColorSource emissive_source)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAmbientMaterialSource, static_cast<unsigned>(ambient_source));
-    RenderStateCache::Set_Render_State(kRenderStateDiffuseMaterialSource, static_cast<unsigned>(diffuse_source));
-    RenderStateCache::Set_Render_State(kRenderStateEmissiveMaterialSource, static_cast<unsigned>(emissive_source));
+    RenderStateCache::Set_Render_State(RS::AMBIENTMATERIALSOURCE, static_cast<unsigned>(ambient_source));
+    RenderStateCache::Set_Render_State(RS::DIFFUSEMATERIALSOURCE, static_cast<unsigned>(diffuse_source));
+    RenderStateCache::Set_Render_State(RS::EMISSIVEMATERIALSOURCE, static_cast<unsigned>(emissive_source));
     g_draw.vertexColorFlags[1] = (diffuse_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
     g_draw.vertexColorFlags[2] = (ambient_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
     g_draw.vertexColorFlags[3] = (emissive_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
@@ -6340,7 +6323,7 @@ void BgfxBackend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * 
 
 void BgfxBackend::Set_Ambient(const Vector3 & color)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAmbient, MakeLegacyARGBColor(color, 0.0f));
+    RenderStateCache::Set_Render_State(RS::AMBIENT, MakeLegacyARGBColor(color, 0.0f));
     g_draw.sceneAmbient[0] = color.X;
     g_draw.sceneAmbient[1] = color.Y;
     g_draw.sceneAmbient[2] = color.Z;
@@ -6363,27 +6346,27 @@ void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float
 
 void BgfxBackend::Set_Fog_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateFogEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::FOGENABLE, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Fog_Color(unsigned argb)
 {
-    RenderStateCache::Set_Render_State(kRenderStateFogColor, argb);
+    RenderStateCache::Set_Render_State(RS::FOGCOLOR, argb);
 }
 
 unsigned BgfxBackend::Get_Fog_Color() const
 {
-    return RenderStateCache::Get_Render_State(kRenderStateFogColor);
+    return RenderStateCache::Get_Render_State(RS::FOGCOLOR);
 }
 
 void BgfxBackend::Set_Specular_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateSpecularEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::SPECULARENABLE, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Patch_Segments(float level)
 {
-    RenderStateCache::Set_Render_State(kRenderStatePatchSegments, FloatAsDword(level));
+    RenderStateCache::Set_Render_State(RS::PATCHSEGMENTS, FloatAsDword(level));
 }
 
 void BgfxBackend::Set_Light(unsigned int index, const LightClass & light)
@@ -6482,8 +6465,8 @@ static uint64_t TranslateBlendOp(BlendOp op)
 // command-center bib), painting it black.
 void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 {
-    RenderStateCache::Set_Render_State(kRenderStateSrcBlend, static_cast<unsigned>(src));
-    RenderStateCache::Set_Render_State(kRenderStateDestBlend, static_cast<unsigned>(dest));
+    RenderStateCache::Set_Render_State(RS::SRCBLEND, static_cast<unsigned>(src));
+    RenderStateCache::Set_Render_State(RS::DESTBLEND, static_cast<unsigned>(dest));
     const unsigned s = static_cast<unsigned>(src);
     const unsigned d = static_cast<unsigned>(dest);
     if (s >= 1 && s <= 11 && d >= 1 && d <= 11)
@@ -6498,38 +6481,38 @@ void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 
 void BgfxBackend::Set_Blend_Op(BlendOp op)
 {
-    RenderStateCache::Set_Render_State(kRenderStateBlendOp, static_cast<unsigned>(op));
+    RenderStateCache::Set_Render_State(RS::BLENDOP, static_cast<unsigned>(op));
     g_draw.blendEquationBits = TranslateBlendOp(op);
 }
 
 void BgfxBackend::Set_Alpha_Blend_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAlphaBlendEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::ALPHABLENDENABLE, enable ? TRUE : FALSE);
     g_draw.alphaBlendEnabled = enable;
     g_draw.alphaBlendExplicitlySet = true;
 }
 
 void BgfxBackend::Set_Alpha_Test_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAlphaTestEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::ALPHATESTENABLE, enable ? TRUE : FALSE);
     g_draw.atestEnabled = enable;
 }
 
 void BgfxBackend::Set_Alpha_Test_Reference(unsigned ref)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAlphaRef, ref);
+    RenderStateCache::Set_Render_State(RS::ALPHAREF, ref);
     g_draw.atestRef = ref / 255.0f;
 }
 
 void BgfxBackend::Set_Alpha_Test_Function(CompareFunc func)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAlphaFunc, static_cast<unsigned>(func));
+    RenderStateCache::Set_Render_State(RS::ALPHAFUNC, static_cast<unsigned>(func));
     g_draw.atestFunc = static_cast<float>(func);
 }
 
 void BgfxBackend::Set_Normalize_Normals(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateNormalizeNormals, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::NORMALIZENORMALS, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
@@ -6551,8 +6534,8 @@ void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
                          srcIdx, dstIdx));
         }
     }
-    RenderStateCache::Set_Render_State(kRenderStateSrcBlend, srcIdx);
-    RenderStateCache::Set_Render_State(kRenderStateDestBlend, dstIdx);
+    RenderStateCache::Set_Render_State(RS::SRCBLEND, srcIdx);
+    RenderStateCache::Set_Render_State(RS::DESTBLEND, dstIdx);
 }
 
 void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func)
@@ -6560,9 +6543,9 @@ void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc fun
     g_overrides.atestActive = enable;
     g_overrides.atestRef = enable ? (ref / 255.0f) : 0.0f;
     g_overrides.atestFunc = enable ? static_cast<float>(func) : 0.0f;
-    RenderStateCache::Set_Render_State(kRenderStateAlphaTestEnable, enable ? TRUE : FALSE);
-    RenderStateCache::Set_Render_State(kRenderStateAlphaRef, ref);
-    RenderStateCache::Set_Render_State(kRenderStateAlphaFunc, static_cast<unsigned>(func));
+    RenderStateCache::Set_Render_State(RS::ALPHATESTENABLE, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::ALPHAREF, ref);
+    RenderStateCache::Set_Render_State(RS::ALPHAFUNC, static_cast<unsigned>(func));
 }
 
 void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
@@ -6573,7 +6556,7 @@ void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
         g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
                                                   BGFX_STATE_BLEND_INV_SRC_ALPHA));
     }
-    RenderStateCache::Set_Render_State(kRenderStateAlphaBlendEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::ALPHABLENDENABLE, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
@@ -6582,7 +6565,7 @@ void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
     {
         g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
     }
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, uvIndex);
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, uvIndex);
 }
 
 void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
@@ -6606,8 +6589,8 @@ void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix
 
 void BgfxBackend::Clear_Texture_Transform(unsigned stage)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, stage);
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTextureTransformFlags, kTextureTransformDisable);
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, stage);
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, kTextureTransformDisable);
 
     if (stage < 4)
     {
@@ -6656,7 +6639,7 @@ void BgfxBackend::Set_Texture_Coord_Source(unsigned stage,
         break;
     }
 
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, tci);
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, tci);
     if (stage < 4)
     {
         g_draw.texcoordSource[stage] = static_cast<float>(source);
@@ -6676,7 +6659,7 @@ void BgfxBackend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_coun
     const unsigned flags = (coord_count == 0 ? kTextureTransformDisable : coord_count)
         | (projected ? kTextureTransformProjected : 0);
 
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTextureTransformFlags, flags);
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, flags);
     if (stage < 4)
     {
         g_draw.texProjected[stage] = projected && coord_count >= 3 ? 1.0f : 0.0f;
@@ -6689,28 +6672,28 @@ void BgfxBackend::Set_Texture_Bump_Env_Matrix(unsigned stage,
                                               float m10,
                                               float m11)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat00, FloatAsDword(m00));
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat01, FloatAsDword(m01));
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat10, FloatAsDword(m10));
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat11, FloatAsDword(m11));
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT00, FloatAsDword(m00));
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT01, FloatAsDword(m01));
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT10, FloatAsDword(m10));
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT11, FloatAsDword(m11));
 }
 
 void BgfxBackend::Set_Texture_Bump_Env_Luminance(unsigned stage,
                                                  float scale,
                                                  float offset)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvLScale, FloatAsDword(scale));
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvLOffset, FloatAsDword(offset));
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVLSCALE, FloatAsDword(scale));
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVLOFFSET, FloatAsDword(offset));
 }
 
 void BgfxBackend::Set_Texture_Color_Operation(unsigned stage, RenderBackendTextureOperation op)
 {
-    Set_Texture_Stage_State(stage, kStageStateColorOp, static_cast<unsigned>(op));
+    Set_Texture_Stage_State(stage, TSS::COLOROP, static_cast<unsigned>(op));
 }
 
 void BgfxBackend::Set_Texture_Alpha_Operation(unsigned stage, RenderBackendTextureOperation op)
 {
-    Set_Texture_Stage_State(stage, kStageStateAlphaOp, static_cast<unsigned>(op));
+    Set_Texture_Stage_State(stage, TSS::ALPHAOP, static_cast<unsigned>(op));
 }
 
 void BgfxBackend::Set_Texture_Color_Argument(unsigned stage,
@@ -6718,9 +6701,9 @@ void BgfxBackend::Set_Texture_Color_Argument(unsigned stage,
                                              RenderBackendTextureArgument arg)
 {
     static const unsigned states[] = {
-        kStageStateColorArg0,
-        kStageStateColorArg1,
-        kStageStateColorArg2,
+        TSS::COLORARG0,
+        TSS::COLORARG1,
+        TSS::COLORARG2,
     };
     if (argument_index >= sizeof(states) / sizeof(states[0]))
         return;
@@ -6733,9 +6716,9 @@ void BgfxBackend::Set_Texture_Alpha_Argument(unsigned stage,
                                              RenderBackendTextureArgument arg)
 {
     static const unsigned states[] = {
-        kStageStateAlphaArg0,
-        kStageStateAlphaArg1,
-        kStageStateAlphaArg2,
+        TSS::ALPHAARG0,
+        TSS::ALPHAARG1,
+        TSS::ALPHAARG2,
     };
     if (argument_index >= sizeof(states) / sizeof(states[0]))
         return;
@@ -6777,9 +6760,9 @@ void BgfxBackend::Set_Texture_Address_Mode(unsigned stage,
                                            RenderBackendTextureAddressMode v,
                                            RenderBackendTextureAddressMode w)
 {
-    Set_Texture_Stage_State(stage, kStageStateAddressU, TextureAddressModeToD3DStageState(u));
-    Set_Texture_Stage_State(stage, kStageStateAddressV, TextureAddressModeToD3DStageState(v));
-    Set_Texture_Stage_State(stage, kStageStateAddressW, TextureAddressModeToD3DStageState(w));
+    Set_Texture_Stage_State(stage, TSS::ADDRESSU, TextureAddressModeToD3DStageState(u));
+    Set_Texture_Stage_State(stage, TSS::ADDRESSV, TextureAddressModeToD3DStageState(v));
+    Set_Texture_Stage_State(stage, TSS::ADDRESSW, TextureAddressModeToD3DStageState(w));
 }
 
 static unsigned TextureSampleFilterToD3DStageState(RenderBackendTextureSampleFilter filter)
@@ -6803,34 +6786,34 @@ void BgfxBackend::Set_Texture_Sample_Filter(unsigned stage,
                                             RenderBackendTextureSampleFilter mag_filter,
                                             RenderBackendTextureSampleFilter mip_filter)
 {
-    Set_Texture_Stage_State(stage, kStageStateMinFilter, TextureSampleFilterToD3DStageState(min_filter));
-    Set_Texture_Stage_State(stage, kStageStateMagFilter, TextureSampleFilterToD3DStageState(mag_filter));
-    Set_Texture_Stage_State(stage, kStageStateMipFilter, TextureSampleFilterToD3DStageState(mip_filter));
+    Set_Texture_Stage_State(stage, TSS::MINFILTER, TextureSampleFilterToD3DStageState(min_filter));
+    Set_Texture_Stage_State(stage, TSS::MAGFILTER, TextureSampleFilterToD3DStageState(mag_filter));
+    Set_Texture_Stage_State(stage, TSS::MIPFILTER, TextureSampleFilterToD3DStageState(mip_filter));
 }
 
 void BgfxBackend::Set_Texture_Min_Mag_Filter(unsigned stage,
                                              RenderBackendTextureSampleFilter min_filter,
                                              RenderBackendTextureSampleFilter mag_filter)
 {
-    Set_Texture_Stage_State(stage, kStageStateMinFilter, TextureSampleFilterToD3DStageState(min_filter));
-    Set_Texture_Stage_State(stage, kStageStateMagFilter, TextureSampleFilterToD3DStageState(mag_filter));
+    Set_Texture_Stage_State(stage, TSS::MINFILTER, TextureSampleFilterToD3DStageState(min_filter));
+    Set_Texture_Stage_State(stage, TSS::MAGFILTER, TextureSampleFilterToD3DStageState(mag_filter));
 }
 
 void BgfxBackend::Set_Texture_Mip_Filter(unsigned stage, RenderBackendTextureSampleFilter mip_filter)
 {
-    Set_Texture_Stage_State(stage, kStageStateMipFilter, TextureSampleFilterToD3DStageState(mip_filter));
+    Set_Texture_Stage_State(stage, TSS::MIPFILTER, TextureSampleFilterToD3DStageState(mip_filter));
 }
 
 void BgfxBackend::Set_Texture_Max_Anisotropy(unsigned stage, unsigned max_anisotropy)
 {
-    Set_Texture_Stage_State(stage, kStageStateMaxAnisotropy, max_anisotropy);
+    Set_Texture_Stage_State(stage, TSS::MAXANISOTROPY, max_anisotropy);
 }
 
 void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateAddressU,
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::ADDRESSU,
         clampU ? kTextureAddressClamp : kTextureAddressWrap);
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateAddressV,
+    RenderStateCache::Set_Texture_Stage_State(stage, TSS::ADDRESSV,
         clampV ? kTextureAddressClamp : kTextureAddressWrap);
 
     if (stage < 4)
@@ -6857,44 +6840,44 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
 
     if (stage == 0)
     {
-        if (state == kStageStateColorOp)
+        if (state == TSS::COLOROP)
         {
             g_draw.tssOps0[0] = TextureOpToTssOp(value);
         }
-        else if (state == kStageStateAlphaOp)
+        else if (state == TSS::ALPHAOP)
         {
             g_draw.tssOps0[1] = TextureOpToTssOp(value);
         }
-        else if (state == kStageStateColorArg1)
+        else if (state == TSS::COLORARG1)
         {
             g_draw.tssOps1[0] = TextureArgToTssArg(value);
         }
-        else if (state == kStageStateAlphaArg1)
+        else if (state == TSS::ALPHAARG1)
         {
             g_draw.tssOps1[1] = TextureArgToTssArg(value);
         }
     }
     else if (stage == 1)
     {
-        if (state == kStageStateColorOp)
+        if (state == TSS::COLOROP)
         {
             g_draw.tssOps0[2] = TextureOpToTssOp(value);
         }
-        else if (state == kStageStateAlphaOp)
+        else if (state == TSS::ALPHAOP)
         {
             g_draw.tssOps0[3] = TextureOpToTssOp(value);
         }
-        else if (state == kStageStateColorArg1)
+        else if (state == TSS::COLORARG1)
         {
             g_draw.tssOps1[2] = TextureArgToTssArg(value);
         }
-        else if (state == kStageStateAlphaArg1)
+        else if (state == TSS::ALPHAARG1)
         {
             g_draw.tssOps1[3] = TextureArgToTssArg(value);
         }
     }
 
-    if (state == kStageStateAddressU)
+    if (state == TSS::ADDRESSU)
     {
         g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_U_CLAMP;
         if (value == kTextureAddressClamp)
@@ -6902,7 +6885,7 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
             g_draw.samplerFlags[stage] |= BGFX_SAMPLER_U_CLAMP;
         }
     }
-    else if (state == kStageStateAddressV)
+    else if (state == TSS::ADDRESSV)
     {
         g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_V_CLAMP;
         if (value == kTextureAddressClamp)
@@ -6910,7 +6893,7 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
             g_draw.samplerFlags[stage] |= BGFX_SAMPLER_V_CLAMP;
         }
     }
-    else if (stage == 3 && state == kStageStateTexcoordIndex)
+    else if (stage == 3 && state == TSS::TEXCOORDINDEX)
     {
         const unsigned uvIndex = value & 0xFFFFu;
         const unsigned texcoordGen = value & 0xFFFF0000u;
@@ -6927,29 +6910,29 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
 
 void BgfxBackend::Configure_Custom_Edging_Cloud_Texture_Stages()
 {
-    Set_Texture_Stage_State(0, kStageStateAlphaArg1, kTextureArgCurrent);
-    Set_Texture_Stage_State(0, kStageStateAlphaOp, kTextureOpSelectArg1);
+    Set_Texture_Stage_State(0, TSS::ALPHAARG1, kTextureArgCurrent);
+    Set_Texture_Stage_State(0, TSS::ALPHAOP, kTextureOpSelectArg1);
 
-    Set_Texture_Stage_State(1, kStageStateColorArg1, kTextureArgCurrent);
-    Set_Texture_Stage_State(1, kStageStateColorArg2, kTextureArgTexture);
-    Set_Texture_Stage_State(1, kStageStateColorOp, kTextureOpSelectArg1);
-    Set_Texture_Stage_State(1, kStageStateAlphaArg1, kTextureArgCurrent);
-    Set_Texture_Stage_State(1, kStageStateAlphaArg2, kTextureArgTexture);
-    Set_Texture_Stage_State(1, kStageStateAlphaOp, kTextureOpSelectArg2);
-    Set_Texture_Stage_State(1, kStageStateTexcoordIndex, 1);
+    Set_Texture_Stage_State(1, TSS::COLORARG1, kTextureArgCurrent);
+    Set_Texture_Stage_State(1, TSS::COLORARG2, kTextureArgTexture);
+    Set_Texture_Stage_State(1, TSS::COLOROP, kTextureOpSelectArg1);
+    Set_Texture_Stage_State(1, TSS::ALPHAARG1, kTextureArgCurrent);
+    Set_Texture_Stage_State(1, TSS::ALPHAARG2, kTextureArgTexture);
+    Set_Texture_Stage_State(1, TSS::ALPHAOP, kTextureOpSelectArg2);
+    Set_Texture_Stage_State(1, TSS::TEXCOORDINDEX, 1);
 }
 
 void BgfxBackend::Configure_Shadow_Volume_Fill_Texture_Stages()
 {
-    Set_Texture_Stage_State(0, kStageStateColorArg1, kTextureArgTexture);
-    Set_Texture_Stage_State(0, kStageStateColorArg2, kTextureArgDiffuse);
-    Set_Texture_Stage_State(0, kStageStateColorOp, kTextureOpSelectArg2);
-    Set_Texture_Stage_State(0, kStageStateAlphaOp, kTextureOpDisable);
-    Set_Texture_Stage_State(0, kStageStateTexcoordIndex, 0);
+    Set_Texture_Stage_State(0, TSS::COLORARG1, kTextureArgTexture);
+    Set_Texture_Stage_State(0, TSS::COLORARG2, kTextureArgDiffuse);
+    Set_Texture_Stage_State(0, TSS::COLOROP, kTextureOpSelectArg2);
+    Set_Texture_Stage_State(0, TSS::ALPHAOP, kTextureOpDisable);
+    Set_Texture_Stage_State(0, TSS::TEXCOORDINDEX, 0);
 
-    Set_Texture_Stage_State(1, kStageStateColorOp, kTextureOpDisable);
-    Set_Texture_Stage_State(1, kStageStateAlphaOp, kTextureOpDisable);
-    Set_Texture_Stage_State(1, kStageStateTexcoordIndex, 1);
+    Set_Texture_Stage_State(1, TSS::COLOROP, kTextureOpDisable);
+    Set_Texture_Stage_State(1, TSS::ALPHAOP, kTextureOpDisable);
+    Set_Texture_Stage_State(1, TSS::TEXCOORDINDEX, 1);
 }
 
 void BgfxBackend::Set_Shroud_Texture_Pass_Active(bool active, unsigned stage)
@@ -7174,7 +7157,7 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
     {
         d3dMask |= RB_COLOR_ALPHA;
     }
-    RenderStateCache::Set_Render_State(kRenderStateColorWriteEnable, d3dMask);
+    RenderStateCache::Set_Render_State(RS::COLORWRITEENABLE, d3dMask);
     g_overrides.colorWriteOverride = static_cast<int>(mask);
     g_overrides.suppressDraw = false;
 }
@@ -7184,12 +7167,12 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
 // passes that call Set_Color_Write_Mask(0) actually disable bgfx color writes.
 unsigned BgfxBackend::Get_Color_Write_Mask() const
 {
-    return RenderStateCache::Get_Render_State(kRenderStateColorWriteEnable);
+    return RenderStateCache::Get_Render_State(RS::COLORWRITEENABLE);
 }
 
 void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(kRenderStateColorWriteEnable, mask);
+    RenderStateCache::Set_Render_State(RS::COLORWRITEENABLE, mask);
     uint64_t bgfxMask = 0;
     if (mask & RB_COLOR_RED)
     {
@@ -7213,32 +7196,32 @@ void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 
 void BgfxBackend::Set_Lighting_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateLighting, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::LIGHTING, enable ? TRUE : FALSE);
     g_draw.lightingEnabled[0] = enable ? 1.0f : 0.0f;
 }
 
 void BgfxBackend::Set_Point_Sprite_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStatePointSpriteEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::POINTSPRITEENABLE, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Point_Scale_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStatePointScaleEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::POINTSCALEENABLE, enable ? TRUE : FALSE);
 }
 
 void BgfxBackend::Set_Point_Size(float size, float min_size, float max_size)
 {
-    RenderStateCache::Set_Render_State(kRenderStatePointSize, FloatAsDword(size));
-    RenderStateCache::Set_Render_State(kRenderStatePointSizeMin, FloatAsDword(min_size));
-    RenderStateCache::Set_Render_State(kRenderStatePointSizeMax, FloatAsDword(max_size));
+    RenderStateCache::Set_Render_State(RS::POINTSIZE, FloatAsDword(size));
+    RenderStateCache::Set_Render_State(RS::POINTSIZEMIN, FloatAsDword(min_size));
+    RenderStateCache::Set_Render_State(RS::POINTSIZEMAX, FloatAsDword(max_size));
 }
 
 void BgfxBackend::Set_Point_Scale(float a, float b, float c)
 {
-    RenderStateCache::Set_Render_State(kRenderStatePointScaleA, FloatAsDword(a));
-    RenderStateCache::Set_Render_State(kRenderStatePointScaleB, FloatAsDword(b));
-    RenderStateCache::Set_Render_State(kRenderStatePointScaleC, FloatAsDword(c));
+    RenderStateCache::Set_Render_State(RS::POINTSCALE_A, FloatAsDword(a));
+    RenderStateCache::Set_Render_State(RS::POINTSCALE_B, FloatAsDword(b));
+    RenderStateCache::Set_Render_State(RS::POINTSCALE_C, FloatAsDword(c));
 }
 
 void BgfxBackend::Skip_Next_Bgfx_Submit()
@@ -7262,7 +7245,7 @@ void BgfxBackend::Set_Projected_Decal_Mode(RenderBackendProjectedDecalMode mode)
 // is unnecessary and it clobbers team colors.
 void BgfxBackend::Set_Texture_Factor(unsigned argb)
 {
-    RenderStateCache::Set_Render_State(kRenderStateTextureFactor, argb);
+    RenderStateCache::Set_Render_State(RS::TEXTUREFACTOR, argb);
 }
 
 void BgfxBackend::Set_Shadow_Volume_Shader_Active(bool active)
@@ -7538,67 +7521,67 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 
 void BgfxBackend::Set_Stencil_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::STENCILENABLE, enable ? TRUE : FALSE);
     g_draw.stencilEnabled = enable;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Func(CompareFunc f)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilFunc, static_cast<unsigned>(f));
+    RenderStateCache::Set_Render_State(RS::STENCILFUNC, static_cast<unsigned>(f));
     g_draw.stencilFuncBits = MapCmpFuncToBgfxStencilTest(f);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Ref(unsigned ref)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilRef, ref);
+    RenderStateCache::Set_Render_State(RS::STENCILREF, ref);
     g_draw.stencilRef = ref;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilMask, mask);
+    RenderStateCache::Set_Render_State(RS::STENCILMASK, mask);
     g_draw.stencilReadMask = mask;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Write_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilWriteMask, mask);
+    RenderStateCache::Set_Render_State(RS::STENCILWRITEMASK, mask);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Pass_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilPass, static_cast<unsigned>(op));
+    RenderStateCache::Set_Render_State(RS::STENCILPASS, static_cast<unsigned>(op));
     g_draw.stencilPassOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_PASS_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Fail_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilFail, static_cast<unsigned>(op));
+    RenderStateCache::Set_Render_State(RS::STENCILFAIL, static_cast<unsigned>(op));
     g_draw.stencilFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_S_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilZFail, static_cast<unsigned>(op));
+    RenderStateCache::Set_Render_State(RS::STENCILZFAIL, static_cast<unsigned>(op));
     g_draw.stencilZFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 CullMode BgfxBackend::Get_Cull_Mode() const
 {
-    return static_cast<CullMode>(RenderStateCache::Get_Render_State(kRenderStateCullMode));
+    return static_cast<CullMode>(RenderStateCache::Get_Render_State(RS::CULLMODE));
 }
 
 void BgfxBackend::Set_Cull_Mode(CullMode mode)
 {
-    RenderStateCache::Set_Render_State(kRenderStateCullMode, static_cast<unsigned>(mode));
+    RenderStateCache::Set_Render_State(RS::CULLMODE, static_cast<unsigned>(mode));
     switch (mode)
     {
         case RB_CULL_CW:  g_draw.cullModeBits = 1; break;
@@ -7610,7 +7593,7 @@ void BgfxBackend::Set_Cull_Mode(CullMode mode)
 
 void BgfxBackend::Set_Z_Bias(int bias)
 {
-    RenderStateCache::Set_Render_State(kRenderStateZBias, static_cast<unsigned>(bias));
+    RenderStateCache::Set_Render_State(RS::ZBIAS, static_cast<unsigned>(bias));
 }
 
 void BgfxBackend::Set_Normal_Bias(float bias)
@@ -7620,29 +7603,29 @@ void BgfxBackend::Set_Normal_Bias(float bias)
 
 void BgfxBackend::Set_Fill_Mode(FillMode mode)
 {
-    RenderStateCache::Set_Render_State(kRenderStateFillMode, static_cast<unsigned>(mode));
+    RenderStateCache::Set_Render_State(RS::FILLMODE, static_cast<unsigned>(mode));
 }
 
 void BgfxBackend::Set_Shade_Mode(ShadeMode mode)
 {
-    RenderStateCache::Set_Render_State(kRenderStateShadeMode, static_cast<unsigned>(mode));
+    RenderStateCache::Set_Render_State(RS::SHADEMODE, static_cast<unsigned>(mode));
 }
 
 void BgfxBackend::Set_Depth_Test_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateZEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::ZENABLE, enable ? TRUE : FALSE);
     g_draw.depthTestEnabled = enable;
 }
 
 void BgfxBackend::Set_Depth_Write_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateZWriteEnable, enable ? TRUE : FALSE);
+    RenderStateCache::Set_Render_State(RS::ZWRITEENABLE, enable ? TRUE : FALSE);
     g_draw.depthWriteEnabled = enable;
 }
 
 void BgfxBackend::Set_Depth_Func(CompareFunc func)
 {
-    RenderStateCache::Set_Render_State(kRenderStateZFunc, static_cast<unsigned>(func));
+    RenderStateCache::Set_Render_State(RS::ZFUNC, static_cast<unsigned>(func));
     static const uint64_t kDepthMap[] = {
         0,                              // 0 (unused)
         BGFX_STATE_DEPTH_TEST_NEVER,    // RB_CMP_NEVER = 1
@@ -7774,7 +7757,7 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
     {
         g_lastLightEnv = light_env;
         const Vector3 & ambient = light_env->Get_Equivalent_Ambient();
-        RenderStateCache::Set_Render_State(kRenderStateAmbient, MakeLegacyARGBColor(ambient, 0.0f));
+        RenderStateCache::Set_Render_State(RS::AMBIENT, MakeLegacyARGBColor(ambient, 0.0f));
         g_draw.sceneAmbient[0] = ambient.X;
         g_draw.sceneAmbient[1] = ambient.Y;
         g_draw.sceneAmbient[2] = ambient.Z;
@@ -8292,7 +8275,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // u_zBias to the GPU. Setting g_draw.zBias afterward leaves the uniform
     // at the previous (or default) value and defeats the whole fix.
     {
-        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(kRenderStateZBias);
+        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(RS::ZBIAS);
         const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
         g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
@@ -8345,7 +8328,7 @@ void SubmitEngineDraw(unsigned short start_index,
     // ignore that sentinel and keep the cached value instead of treating
     // the marker bytes as a real color.
     {
-        const unsigned ambientColor = RenderStateCache::Get_Render_State(kRenderStateAmbient);
+        const unsigned ambientColor = RenderStateCache::Get_Render_State(RS::AMBIENT);
         if (ambientColor != 0x12345678)
         {
             g_draw.sceneAmbient[0] = ((ambientColor >> 16) & 0xFF) / 255.0f;
@@ -8419,9 +8402,9 @@ void SubmitEngineDraw(unsigned short start_index,
     // be true to avoid false positives from other effects that set TCI bits.
     bool shroudDetected = false;
     {
-        unsigned depthFunc = RenderStateCache::Get_Render_State(kRenderStateZFunc);
+        unsigned depthFunc = RenderStateCache::Get_Render_State(RS::ZFUNC);
         const unsigned stg = 0;
-        unsigned tci = RenderStateCache::Get_Texture_Stage_State(stg, kStageStateTexcoordIndex);
+        unsigned tci = RenderStateCache::Get_Texture_Stage_State(stg, TSS::TEXCOORDINDEX);
         float shroudParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
         // Projected terrain receivers and cloud/noise stages also use
         // TCI_CAMERASPACEPOSITION. Only the actual shroud overlay uses the

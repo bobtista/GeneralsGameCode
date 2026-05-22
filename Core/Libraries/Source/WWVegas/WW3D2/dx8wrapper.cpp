@@ -52,6 +52,7 @@
 
 #include "dx8wrapper.h"
 #include "dx8textureinterop.h"
+#include "RenderStateDefs.h"
 #include "dx8webbrowser.h"
 #include "dx8fvf.h"
 #include "dx8vertexbuffer.h"
@@ -3755,9 +3756,9 @@ void DX8Wrapper::Set_Light_Environment(LightEnvironmentClass* light_env)
 		}
 		int light_count = light_env->Get_Light_Count();
 		unsigned int color=Convert_Color(light_env->Get_Equivalent_Ambient(),0.0f);
-		if (RenderStateCache::Get_Render_State(D3DRS_AMBIENT)!=color)
+		if (RenderStateCache::Get_Render_State(RS::AMBIENT)!=color)
 		{
-			Commit_Fixed_Function_Render_Value(D3DRS_AMBIENT,color);
+			Commit_Fixed_Function_Render_Value(RS::AMBIENT,color);
 //buggy Radeon 9700 driver doesn't apply new ambient unless the material also changes.
 #if 1
 			FixedFunctionState::Changed_Mask()|=MATERIAL_CHANGED;
