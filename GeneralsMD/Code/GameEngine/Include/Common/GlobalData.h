@@ -160,6 +160,7 @@ public:
 	Bool m_bgfxNoSceneFramebuffer;
 	Bool m_bgfxNoCsm;
 	Bool m_bgfxNoPostFx;
+	Int  m_bgfxMsaa;
 	Int  m_bgfxScreenshotAfter; // 0 = disabled; otherwise once frameIndex >= this value, request a native bgfx screenshot every 500 frames into m_bgfxScreenshotPath.<frame>.bmp
 	AsciiString m_bgfxScreenshotPath;
 	Int  m_textureReductionFactor;	//how much to cut texture resolution: 2 is half, 3 is quarter, etc.
