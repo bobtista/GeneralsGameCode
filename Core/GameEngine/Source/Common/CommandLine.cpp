@@ -1067,6 +1067,26 @@ Int parseNoFPSLimit(char *args[], int num)
 	return 1;
 }
 
+Int parseMaxRenderFPS(char *args[], int num)
+{
+	if (num > 1)
+	{
+		int fps = atoi(args[1]);
+		if (fps <= 0)
+		{
+			TheWritableGlobalData->m_useFpsLimit = false;
+			TheWritableGlobalData->m_framesPerSecondLimit = 30000;
+		}
+		else
+		{
+			TheWritableGlobalData->m_useFpsLimit = true;
+			TheWritableGlobalData->m_framesPerSecondLimit = fps;
+		}
+		return 2;
+	}
+	return 1;
+}
+
 Int parseLogFrameTimes(char *args[], int num)
 {
 	if (TheFramePacer != nullptr)
@@ -1285,6 +1305,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-useWaveEditor", parseUseWaveEditor },
 	{ "-ignoresync", parseSync },
 	{ "-noFPSLimit", parseNoFPSLimit },
+	{ "-maxRenderFPS", parseMaxRenderFPS },
 	{ "-logFrameTimes", parseLogFrameTimes },
 	{ "-logBgfxStats", parseLogBgfxStats },
 	{ "-bgfxNoSceneFramebuffer", parseBgfxNoSceneFramebuffer },
