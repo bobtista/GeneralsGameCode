@@ -2283,6 +2283,11 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         else if (msaaLevel >= 2) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X2; }
         g_device.msaaResetFlags = initArgs.resolution.reset & (BGFX_RESET_MSAA_X2 | BGFX_RESET_MSAA_X4 | BGFX_RESET_MSAA_X8 | BGFX_RESET_MSAA_X16);
     }
+    g_device.srgbEnabled = std::getenv("GGC_BGFX_SRGB") != nullptr;
+    if (g_device.srgbEnabled)
+    {
+        initArgs.resolution.reset |= BGFX_RESET_SRGB_BACKBUFFER;
+    }
     if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
     {
         initArgs.resolution.reset |= BGFX_RESET_DEPTH_CLAMP;
@@ -3158,7 +3163,8 @@ void BgfxBackend::Begin_Scene()
                 DestroySceneFramebuffer();
                 g_device.width = w;
                 g_device.height = h;
-                uint32_t resetFlags = BGFX_RESET_NONE | g_device.msaaResetFlags;
+                uint32_t resetFlags = BGFX_RESET_NONE | g_device.msaaResetFlags
+                    | (g_device.srgbEnabled ? BGFX_RESET_SRGB_BACKBUFFER : 0);
                 if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
                 {
                     resetFlags |= BGFX_RESET_DEPTH_CLAMP;
