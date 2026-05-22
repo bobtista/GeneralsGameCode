@@ -616,10 +616,10 @@ static void FlushBgfxStatsLogWindow()
         const double transVb = g_bgfxStatsLog.bgfxTransientVbUsed / frames;
         const double transIb = g_bgfxStatsLog.bgfxTransientIbUsed / frames;
         std::fprintf(stderr,
-            "BGFX_PERF: %.1fs fps=%.1f cpu=%.2fms draws=%u uploads=%.0f texMem=%lldKB transVB=%.0f transIB=%.0f\n",
+            "BGFX_PERF: %.1fs fps=%.1f cpu=%.2fms draws=%u uploads=%.0f texMem=%lldKB transVB=%.0f transIB=%.0f instSaved=%u\n",
             g_bgfxStatsLog.elapsedSeconds, fps, cpuMs, draws, uploads,
             static_cast<long long>(g_bgfxStatsLog.textureMemoryUsed / 1024),
-            transVb, transIb);
+            transVb, transIb, g_bgfxStatsLog.instancedSavedDrawCalls);
         PerfSessionAccumulate(g_bgfxStatsLog.windowSeconds, g_bgfxStatsLog.frames,
                               cpuMs, fps, draws, g_bgfxStatsLog.textureUploads,
                               g_bgfxStatsLog.textureMemoryUsed, transVb, transIb);
