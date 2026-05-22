@@ -1942,7 +1942,61 @@ void DX8TextureCategoryClass::Render()
 				g_renderBackend->Set_Material(vmaterial);	//restore previous material.
 			}
 			else
-				renderer->Render(mesh->Get_Base_Vertex_Offset());
+			{
+				bool instanced = false;
+				static const bool s_instancingEnabled = std::getenv("GGC_BGFX_INSTANCING") != nullptr;
+				if (s_instancingEnabled
+					&& g_renderBackend->Supports_Instancing()
+					&& !coplanarNormalBias
+					&& mesh->Get_ObjectScale() == 1.0f)
+				{
+					PolyRenderTaskClass * nextScan = prt->Get_Next_Visible();
+					if (nextScan != nullptr
+						&& nextScan->Peek_Polygon_Renderer() == renderer
+						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() == mesh->Get_Base_Vertex_Offset())
+					{
+						unsigned batchCount = 1;
+						for (PolyRenderTaskClass * s = nextScan; s != nullptr; s = s->Get_Next_Visible())
+						{
+							MeshClass * sm = s->Peek_Mesh();
+							if (s->Peek_Polygon_Renderer() != renderer
+								|| sm->Get_Base_Vertex_Offset() != mesh->Get_Base_Vertex_Offset()
+								|| sm->Get_Base_Vertex_Offset() == VERTEX_BUFFER_OVERFLOW
+								|| sm->Get_Alpha_Override() != 1.0f
+								|| (sm->Get_User_Data() && *(int *)sm->Get_User_Data() == RenderObjClass::USER_DATA_MATERIAL_OVERRIDE)
+								|| sm->Peek_Model()->Get_Flag(MeshModelClass::ALIGNED)
+								|| sm->Peek_Model()->Get_Flag(MeshModelClass::ORIENTED)
+								|| sm->Peek_Model()->Get_Flag(MeshModelClass::SKIN)
+								|| ((!!sm->Peek_Model()->Get_Flag(MeshGeometryClass::SORT)) && WW3D::Is_Sorting_Enabled())
+								|| sm->Get_ObjectScale() != 1.0f
+								|| sm->Peek_Model()->Get_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS)
+								|| sm->Get_Lighting_Environment() != lenv) {
+								break;
+							}
+							batchCount++;
+						}
+						if (batchCount >= 2 && g_renderBackend->Begin_Instanced_Batch(batchCount))
+						{
+							g_renderBackend->Add_Instance((const float *)world_transform);
+							unsigned added = 1;
+							while (added < batchCount)
+							{
+								PolyRenderTaskClass * batchPrt = prt->Get_Next_Visible();
+								MeshClass * bMesh = batchPrt->Peek_Mesh();
+								g_renderBackend->Add_Instance((const float *)&bMesh->Get_Transform());
+								added++;
+								prt->Set_Next_Visible(batchPrt->Get_Next_Visible());
+								delete batchPrt;
+							}
+							renderer->Render_Instanced(mesh->Get_Base_Vertex_Offset());
+							instanced = true;
+						}
+					}
+				}
+				if (!instanced) {
+					renderer->Render(mesh->Get_Base_Vertex_Offset());
+				}
+			}
 		}
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)
