@@ -1408,12 +1408,13 @@ static bgfx::TextureHandle CreateBgfxTextureFromSnapshots(TextureClass *tex2d,
     const TextureUploadPlan &plan)
 {
     const TextureBaseClass::TextureMipSnapshot &baseMip = mips[0];
+    const uint64_t texFlags = g_device.srgbEnabled ? BGFX_TEXTURE_SRGB : BGFX_TEXTURE_NONE;
     bgfx::TextureHandle handle = bgfx::createTexture2D(
         static_cast<uint16_t>(baseMip.Width),
         static_cast<uint16_t>(baseMip.Height),
         plan.createMipCount > 1, 1,
         plan.createFormat,
-        BGFX_TEXTURE_NONE,
+        texFlags,
         nullptr);
     if (!bgfx::isValid(handle))
     {
