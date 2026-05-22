@@ -72,6 +72,7 @@ public:
 	{
 		DynamicVBAccessClass* DynamicVBAccess;
 		VertexFormatXYZNDUV2 * Vertices;
+		bool DirectBackendWrite;
 	public:
 		WriteLockClass(DynamicVBAccessClass* vb_access);
 		~WriteLockClass();

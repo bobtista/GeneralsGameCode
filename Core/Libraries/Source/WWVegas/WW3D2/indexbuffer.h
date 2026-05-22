@@ -54,6 +54,7 @@ public:
 	{
 		DynamicIBAccessClass* DynamicIBAccess;
 		unsigned short* Indices;
+		bool DirectBackendWrite;
 	public:
 		WriteLockClass(DynamicIBAccessClass* ib_access);
 		~WriteLockClass();
