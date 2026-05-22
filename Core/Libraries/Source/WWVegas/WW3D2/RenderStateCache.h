@@ -11,6 +11,7 @@
 #pragma once
 
 #include "FixedFunctionState.h"
+#include "RenderStateDefs.h"
 
 class RenderStateCache
 {
