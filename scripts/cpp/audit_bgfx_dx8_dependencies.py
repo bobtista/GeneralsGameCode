@@ -244,6 +244,8 @@ def iter_source_files(compiled_sources: set[Path] | None):
                 continue
             if path.name in SKIP_FILES:
                 continue
+            if "dx8sdk" in path.parts:
+                continue
             if compiled_sources is not None and path.suffix == ".cpp" and path.resolve() not in compiled_sources:
                 continue
             yield path
