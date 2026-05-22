@@ -230,6 +230,7 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params)
 	{ "BgfxNoSceneFramebuffer",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoSceneFramebuffer ) },
 	{ "BgfxNoCsm",							INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoCsm ) },
 	{ "BgfxNoPostFx",					INI::parseBool,				nullptr,			offsetof( GlobalData, m_bgfxNoPostFx ) },
+	{ "BgfxMSAA",						INI::parseInt,				nullptr,			offsetof( GlobalData, m_bgfxMsaa ) },
 	{ "TextureReductionFactor",			INI::parseInt,				nullptr,			offsetof( GlobalData, m_textureReductionFactor ) },
 	{ "UseBehindBuildingMarker",		INI::parseBool,				nullptr,			offsetof( GlobalData, m_enableBehindBuildingMarkers ) },
 	{ "WaterPositionX",							INI::parseReal,				nullptr,			offsetof( GlobalData, m_waterPositionX ) },
@@ -797,6 +798,7 @@ GlobalData::GlobalData()
 	m_bgfxNoSceneFramebuffer = FALSE;
 	m_bgfxNoCsm = FALSE;
 	m_bgfxNoPostFx = FALSE;
+	m_bgfxMsaa = 0;
 	m_bgfxScreenshotAfter = 0;
 	m_bgfxScreenshotPath = "";
 	m_textureReductionFactor = -1;
