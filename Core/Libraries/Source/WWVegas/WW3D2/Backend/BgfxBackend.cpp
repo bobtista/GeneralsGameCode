@@ -2269,9 +2269,19 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     initArgs.resolution.width = static_cast<uint32_t>(g_device.width);
     initArgs.resolution.height = static_cast<uint32_t>(g_device.height);
     initArgs.resolution.reset = BGFX_RESET_NONE;
-    if (std::getenv("GGC_BGFX_MSAA") != nullptr)
     {
-        initArgs.resolution.reset |= BGFX_RESET_MSAA_X4;
+        int msaaLevel = 0;
+        const char * msaaEnv = std::getenv("GGC_BGFX_MSAA");
+        if (msaaEnv != nullptr)
+        {
+            msaaLevel = std::atoi(msaaEnv);
+            if (msaaLevel <= 0) { msaaLevel = 4; }
+        }
+        if (msaaLevel >= 16) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X16; }
+        else if (msaaLevel >= 8) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X8; }
+        else if (msaaLevel >= 4) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X4; }
+        else if (msaaLevel >= 2) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X2; }
+        g_device.msaaResetFlags = initArgs.resolution.reset & (BGFX_RESET_MSAA_X2 | BGFX_RESET_MSAA_X4 | BGFX_RESET_MSAA_X8 | BGFX_RESET_MSAA_X16);
     }
     if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
     {
@@ -3148,7 +3158,7 @@ void BgfxBackend::Begin_Scene()
                 DestroySceneFramebuffer();
                 g_device.width = w;
                 g_device.height = h;
-                uint32_t resetFlags = BGFX_RESET_NONE;
+                uint32_t resetFlags = BGFX_RESET_NONE | g_device.msaaResetFlags;
                 if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
                 {
                     resetFlags |= BGFX_RESET_DEPTH_CLAMP;
