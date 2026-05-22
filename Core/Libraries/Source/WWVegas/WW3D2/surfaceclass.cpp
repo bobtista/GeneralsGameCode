@@ -53,7 +53,10 @@
 #include "textureloader.h"
 #include "dx8formatconv.h"
 #include "dx8texturelegacytypes.h"
+#include "texturecompat.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "dx8textureinterop.h"
+#endif
 #include "dx8wrapper.h"
 #include "vector2i.h"
 #include "colorspace.h"
@@ -277,9 +280,13 @@ SurfaceClass::SurfaceClass(const char *filename):
 		return;
 	}
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(false, "SurfaceClass(filename): standalone bgfx must use CPU surface path");
+#else
 	D3DSurface = Create_Legacy_Surface_From_File(filename);
 	Update_Description_From_Legacy_Surface();
 	Capture_CPU_Surface_Snapshot();
+#endif
 }
 
 SurfaceClass::SurfaceClass(const SurfaceImageData &image):
@@ -879,6 +886,12 @@ void SurfaceClass::Copy(
 	}
 	else
 	{
+#if defined(GGC_BGFX_STANDALONE)
+		WWASSERT_PRINT(
+			false,
+			"SurfaceClass::Copy: standalone bgfx does not support legacy format-converting surface copies");
+		return;
+#else
 		if (Should_Use_CPU_Only_Surface_Storage())
 		{
 			WWASSERT_PRINT(
@@ -902,6 +915,7 @@ void SurfaceClass::Copy(
 			OTHER_LEGACY_SURFACE(other),
 			To_Legacy_Surface_Copy_Rect(src),
 			kLegacySurfaceCopyNoFilter);
+#endif
 	}
 	Refresh_CPU_Surface_Snapshot_If_Present();
 }
@@ -932,6 +946,11 @@ void SurfaceClass::Stretch_Copy(
 	Get_Description(sd);
 	const_cast <SurfaceClass*>(other)->Get_Description(osd);
 
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"SurfaceClass::Stretch_Copy: standalone bgfx does not support legacy stretched surface copies");
+#else
 	if (Should_Use_CPU_Only_Surface_Storage())
 	{
 		WWASSERT_PRINT(
@@ -959,6 +978,7 @@ void SurfaceClass::Stretch_Copy(
 		To_Legacy_Surface_Copy_Rect(src),
 		kLegacySurfaceCopyTriangleFilter);
 	Refresh_CPU_Surface_Snapshot_If_Present();
+#endif
 }
 
 /***********************************************************************************************
