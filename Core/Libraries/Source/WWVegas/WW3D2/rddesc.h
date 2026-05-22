@@ -38,8 +38,10 @@
 
 #include "Vector.h"
 #include "wwstring.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include <d3d8types.h>
 #include <d3d8caps.h>
+#endif
 
 class ResolutionDescClass
 {
