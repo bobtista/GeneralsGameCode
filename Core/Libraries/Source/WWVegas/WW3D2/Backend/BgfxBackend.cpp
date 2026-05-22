@@ -88,6 +88,7 @@
 #include "vs_passthrough_metal.bin.h"
 #include "fs_passthrough_metal.bin.h"
 #include "vs_uber_metal.bin.h"
+#include "vs_uber_instanced_metal.bin.h"
 #include "vs_trees_metal.bin.h"
 #include "fs_uber_metal.bin.h"
 #include "vs_shadow_volume_metal.bin.h"
@@ -109,6 +110,7 @@
 // Single program handles all TSS combinations via uniforms. Replaces the
 // Per-preset shader pairs.
 #include "vs_uber_dx11.bin.h"
+#include "vs_uber_instanced_dx11.bin.h"
 #include "vs_trees_dx11.bin.h"
 #include "fs_uber_dx11.bin.h"
 
@@ -355,6 +357,7 @@ struct BgfxStatsLogWindow
     uint32_t transientIbDraws;
     uint32_t dynamicVbAllocations;
     uint32_t dynamicIbAllocations;
+    uint32_t instancedSavedDrawCalls;
     double bgfxTransientVbUsed;
     double bgfxTransientIbUsed;
     int64_t textureMemoryUsed;
@@ -710,6 +713,7 @@ static void UpdateBgfxStatsLog()
     g_bgfxStatsLog.transientIbDraws += g_stats.transientIbDraws;
     g_bgfxStatsLog.dynamicVbAllocations += g_stats.dynamicVbAllocations;
     g_bgfxStatsLog.dynamicIbAllocations += g_stats.dynamicIbAllocations;
+    g_bgfxStatsLog.instancedSavedDrawCalls += g_stats.instancedSavedDrawCalls;
 
     if (g_bgfxStatsLog.windowSeconds >= 1.0)
     {
@@ -2606,6 +2610,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         GGC_BGFX_SHADER(vs_uber), sizeof(GGC_BGFX_SHADER(vs_uber)), "vs_uber",
         GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
 
+    g_device.uberInstancedProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_uber_instanced), sizeof(GGC_BGFX_SHADER(vs_uber_instanced)), "vs_uber_instanced",
+        GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
+
     g_device.treeProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_trees), sizeof(GGC_BGFX_SHADER(vs_trees)), "vs_trees",
         GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
@@ -2749,6 +2757,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_device.smudgeProgram);
         DestroyBgfxHandle(g_device.fullscreenClearVB);
         DestroyBgfxHandle(g_device.uberProgram);
+        DestroyBgfxHandle(g_device.uberInstancedProgram);
         DestroyBgfxHandle(g_device.treeProgram);
         DestroyBgfxHandle(g_uniforms.uSwayTable);
         DestroyBgfxHandle(g_uniforms.uShroudOffset);
@@ -6311,6 +6320,133 @@ void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
                          g_draw.useTransientIB,
                          g_draw.activeTransientIBOwner == iba,
                          "ok");
+}
+
+void * BgfxBackend::Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
+                                                unsigned int size_bytes)
+{
+    if (!g_device.initialized || vba == nullptr || size_bytes == 0) {
+        return nullptr;
+    }
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vba->FVF_Info(), layout)) {
+        return nullptr;
+    }
+    const uint32_t num_verts = static_cast<uint32_t>(vba->Get_Vertex_Count());
+    if (num_verts == 0 || bgfx::getAvailTransientVertexBuffer(num_verts, layout) < num_verts) {
+        return nullptr;
+    }
+    bgfx::allocTransientVertexBuffer(&g_draw.pendingVB.tvb, num_verts, layout);
+    g_stats.transientVbAllocations++;
+    return g_draw.pendingVB.tvb.data;
+}
+
+void BgfxBackend::End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
+                                            const void * data,
+                                            unsigned int size_bytes)
+{
+    if (!g_device.initialized || vba == nullptr) {
+        return;
+    }
+    g_draw.pendingVB.owner = vba;
+    g_draw.pendingVB.valid = true;
+    g_draw.pendingVB.coplanarNormalBias = HasSubmittedOppositeNormalPairs(
+        vba->FVF_Info(), data, vba->Get_Vertex_Count());
+    g_draw.fvfHasNormal = vba->FVF_Info().Has_Normal();
+}
+
+void * BgfxBackend::Begin_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
+                                               unsigned int size_bytes)
+{
+    if (!g_device.initialized || iba == nullptr || size_bytes == 0) {
+        return nullptr;
+    }
+    const uint32_t num_indices = static_cast<uint32_t>(iba->Get_Index_Count());
+    if (num_indices == 0 || bgfx::getAvailTransientIndexBuffer(num_indices) < num_indices) {
+        return nullptr;
+    }
+    bgfx::allocTransientIndexBuffer(&g_draw.pendingIB.tib, num_indices);
+    g_stats.transientIbAllocations++;
+    return g_draw.pendingIB.tib.data;
+}
+
+void BgfxBackend::End_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
+                                           const void * data,
+                                           unsigned int size_bytes)
+{
+    if (!g_device.initialized || iba == nullptr) {
+        return;
+    }
+    g_draw.pendingIB.owner = iba;
+    g_draw.pendingIB.valid = true;
+}
+
+// -- Instancing -------------------------------------------------------------
+
+bool BgfxBackend::Supports_Instancing() const
+{
+    return g_device.initialized
+        && (bgfx::getCaps()->supported & BGFX_CAPS_INSTANCING) != 0;
+}
+
+bool BgfxBackend::Begin_Instanced_Batch(unsigned max_instances)
+{
+    if (!Supports_Instancing() || max_instances == 0) {
+        return false;
+    }
+
+    bgfx::allocInstanceDataBuffer(&g_draw.instanceBatch, max_instances, 64);
+    if (g_draw.instanceBatch.data == nullptr) {
+        return false;
+    }
+
+    g_draw.instanceCount = 0;
+    g_draw.instanceMax = max_instances;
+    g_draw.instanceBatchActive = true;
+    return true;
+}
+
+void BgfxBackend::Add_Instance(const float * world_matrix_4x4)
+{
+    if (!g_draw.instanceBatchActive || g_draw.instanceCount >= g_draw.instanceMax) {
+        return;
+    }
+    std::memcpy(g_draw.instanceBatch.data + g_draw.instanceCount * 64, world_matrix_4x4, 64);
+    g_draw.instanceCount++;
+}
+
+void BgfxBackend::Submit_Instanced_Batch(unsigned index_offset,
+                                          unsigned triangle_count,
+                                          unsigned min_vertex_index,
+                                          unsigned vertex_count)
+{
+    if (!g_draw.instanceBatchActive || g_draw.instanceCount == 0) {
+        g_draw.instanceBatchActive = false;
+        return;
+    }
+    g_draw.instanceBatchActive = false;
+
+    bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
+
+    float identity[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+    bgfx::setTransform(identity);
+
+    bgfx::ProgramHandle savedProgram = g_draw.program;
+    g_draw.program = g_device.uberInstancedProgram;
+
+    Draw_Triangles(
+        static_cast<unsigned short>(index_offset),
+        static_cast<unsigned short>(triangle_count),
+        static_cast<unsigned short>(min_vertex_index),
+        static_cast<unsigned short>(vertex_count));
+
+    g_draw.program = savedProgram;
+    g_stats.instancedSavedDrawCalls += g_draw.instanceCount - 1;
 }
 
 // -- State: shaders, materials, textures ------------------------------------
