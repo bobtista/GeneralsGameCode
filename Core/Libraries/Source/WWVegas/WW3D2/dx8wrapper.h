@@ -151,15 +151,21 @@ WWINLINE void DX8_ErrorCode(unsigned res)
 }
 
 #ifdef WWDEBUG
+#define DX8_THREAD_ASSERT() if (_DX8SingleThreaded) { WWASSERT_PRINT(DX8Wrapper::_Get_Main_Thread_ID()==ThreadClass::_Get_Current_Thread_ID(),"DX8Wrapper::DX8 calls must be called from the main thread!"); }
+#else
+#define DX8_THREAD_ASSERT() ;
+#endif
+
+#if !defined(GGC_BGFX_STANDALONE)
+#ifdef WWDEBUG
 #define DX8CALL_HRES(x,res) DX8_Assert(); res = DX8_Call_Device()->x; DX8_ErrorCode(res); DX8Wrapper::Increment_DX8_CallCount();
 #define DX8CALL(x) DX8_Assert(); DX8_ErrorCode(DX8_Call_Device()->x); DX8Wrapper::Increment_DX8_CallCount();
 #define DX8CALL_D3D(x) DX8_Assert(); DX8_ErrorCode(DX8_Call_Interface()->x); DX8Wrapper::Increment_DX8_CallCount();
-#define DX8_THREAD_ASSERT() if (_DX8SingleThreaded) { WWASSERT_PRINT(DX8Wrapper::_Get_Main_Thread_ID()==ThreadClass::_Get_Current_Thread_ID(),"DX8Wrapper::DX8 calls must be called from the main thread!"); }
 #else
 #define DX8CALL_HRES(x,res) res = DX8_Call_Device()->x; DX8Wrapper::Increment_DX8_CallCount();
 #define DX8CALL(x) DX8_Call_Device()->x; DX8Wrapper::Increment_DX8_CallCount();
 #define DX8CALL_D3D(x) DX8_Call_Interface()->x; DX8Wrapper::Increment_DX8_CallCount();
-#define DX8_THREAD_ASSERT() ;
+#endif
 #endif
 
 
