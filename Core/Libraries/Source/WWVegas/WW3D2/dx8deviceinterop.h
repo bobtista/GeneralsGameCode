@@ -18,9 +18,11 @@
 
 #pragma once
 
-#include "d3d8.h"
-
 void DX8_Assert();
 void Log_DX8_ErrorCode(unsigned res);
+
+#if !defined(GGC_BGFX_STANDALONE)
+#include "d3d8.h"
 IDirect3DDevice8* DX8_Call_Device();
 IDirect3D8* DX8_Call_Interface();
+#endif
