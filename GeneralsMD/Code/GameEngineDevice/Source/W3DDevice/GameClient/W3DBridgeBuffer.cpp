@@ -135,11 +135,10 @@ are already set.  */
 void W3DBridge::renderBridge(Bool wireframe)
 {
 	if (m_visible && m_numPolygons && m_numVertex) {
-		// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-		// through the IRenderBackend abstraction.
-		if (!wireframe) g_renderBackend->Set_Texture(0,m_bridgeTexture);
-		// Draw all the bridges.
-		g_renderBackend->Draw_Triangles(	m_firstIndex, m_numPolygons, m_firstVertex,	m_numVertex);
+		if (!wireframe) {
+			g_renderBackend->Set_Texture(0, m_bridgeTexture);
+		}
+		g_renderBackend->Draw_Triangles(m_firstIndex, m_numPolygons, m_firstVertex, m_numVertex);
 	}
 }
 
@@ -1166,14 +1165,13 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
 	// through the IRenderBackend abstraction.
 	g_renderBackend->Set_Material(m_vertexMaterial);
-	// Setup the vertex buffer, shader & texture.
 	g_renderBackend->Set_Index_Buffer(m_indexBridge,0);
 	g_renderBackend->Set_Vertex_Buffer(m_vertexBridge,0);
 	g_renderBackend->Set_Shader(detailAlphaShader);
 	g_renderBackend->Apply_Render_State_Changes();
 
-	if (!wireframe && cloudTexture)
-	{	//Force a cloud texture projection into stage 1
+	if (!wireframe && cloudTexture && !g_renderBackend->Has_Shader_Pipeline())
+	{
 		W3DShaderManager::setTexture(1,cloudTexture);
 		W3DShaderManager::setShader(W3DShaderManager::ST_CLOUD_TEXTURE,1);
 	}
@@ -1185,27 +1183,21 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 	}
 
 	if (!wireframe && cloudTexture)
-		//Force a cloud texture projection into stage 1
 		W3DShaderManager::resetShader(W3DShaderManager::ST_CLOUD_TEXTURE);
 
-	//Render shroud pass over all the bridges
-	if (!wireframe && TheTerrainRenderObject->getShroud())
+	if (!wireframe && TheTerrainRenderObject->getShroud()
+		&& !g_renderBackend->Has_Shader_Pipeline())
 	{
-		//Reset to a known shader.
-		// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-		// through the IRenderBackend abstraction.
 		g_renderBackend->Invalidate_Cached_Render_States();
 		g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueShader);
 		g_renderBackend->Set_Material(m_vertexMaterial);
 		g_renderBackend->Set_Index_Buffer(m_indexBridge,0);
 		g_renderBackend->Set_Vertex_Buffer(m_vertexBridge,0);
 		g_renderBackend->Apply_Render_State_Changes();
-		//Apply custom shroud projection shader.
 		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
 		for (curBridge=0; curBridge<m_numBridges; curBridge++) {
 			if (m_bridges[curBridge].isEnabled() && m_bridges[curBridge].isVisible()) {
-				//Pretend we're in wireframe so function doesn't reset the shroud texture.
 				m_bridges[curBridge].renderBridge(TRUE);
 			}
 		}
