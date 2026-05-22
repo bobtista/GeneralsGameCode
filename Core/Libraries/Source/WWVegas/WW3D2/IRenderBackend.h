@@ -672,6 +672,17 @@ public:
                                             const void * /*data*/,
                                             unsigned int /*size_bytes*/) {}
 
+    virtual void * Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * /*vba*/,
+                                              unsigned int /*size_bytes*/) { return nullptr; }
+    virtual void End_Dynamic_Vertex_Write(const DynamicVBAccessClass * /*vba*/,
+                                          const void * /*data*/,
+                                          unsigned int /*size_bytes*/) {}
+    virtual void * Begin_Dynamic_Index_Write(const DynamicIBAccessClass * /*iba*/,
+                                             unsigned int /*size_bytes*/) { return nullptr; }
+    virtual void End_Dynamic_Index_Write(const DynamicIBAccessClass * /*iba*/,
+                                         const void * /*data*/,
+                                         unsigned int /*size_bytes*/) {}
+
     // TheSuperHackers @refactor bobtista 11/04/2026 Sub-range
     // upload. Rigid mesh category containers fill their shared VB / IB
     // via AppendLockClass one sub-range at a time. BgfxBackend creates a
