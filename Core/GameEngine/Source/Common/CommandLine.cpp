@@ -1112,6 +1112,12 @@ Int parseMsaa(char *args[], int num)
 	return 1;
 }
 
+Int parseSrgb(char *args[], int num)
+{
+	setenv("GGC_BGFX_SRGB", "1", 1);
+	return 1;
+}
+
 Int parseLogFrameTimes(char *args[], int num)
 {
 	if (TheFramePacer != nullptr)
@@ -1332,6 +1338,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-noFPSLimit", parseNoFPSLimit },
 	{ "-maxRenderFPS", parseMaxRenderFPS },
 	{ "-msaa", parseMsaa },
+	{ "-srgb", parseSrgb },
 	{ "-logFrameTimes", parseLogFrameTimes },
 	{ "-logBgfxStats", parseLogBgfxStats },
 	{ "-bgfxNoSceneFramebuffer", parseBgfxNoSceneFramebuffer },
