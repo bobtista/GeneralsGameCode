@@ -365,6 +365,88 @@ struct BgfxStatsLogWindow
 
 static BgfxStatsLogWindow g_bgfxStatsLog = {};
 
+struct BgfxPerfSession
+{
+    uint32_t windows;
+    uint32_t totalFrames;
+    double totalSeconds;
+    double cpuMsMin;
+    double cpuMsMax;
+    double cpuMsSum;
+    double fpsMin;
+    double fpsMax;
+    uint32_t drawsMin;
+    uint32_t drawsMax;
+    uint64_t drawsSum;
+    uint64_t uploadsSum;
+    int64_t peakTexMem;
+    double transientVbSum;
+    double transientIbSum;
+};
+
+static BgfxPerfSession g_perfSession = {};
+
+static void PerfSessionAccumulate(double windowSeconds, uint32_t windowFrames,
+                                   double cpuMsAvg, double fps,
+                                   uint32_t drawsAvg, uint32_t uploads,
+                                   int64_t texMem, double transVb, double transIb)
+{
+    if (g_perfSession.windows == 0)
+    {
+        g_perfSession.cpuMsMin = cpuMsAvg;
+        g_perfSession.cpuMsMax = cpuMsAvg;
+        g_perfSession.fpsMin = fps;
+        g_perfSession.fpsMax = fps;
+        g_perfSession.drawsMin = drawsAvg;
+        g_perfSession.drawsMax = drawsAvg;
+    }
+    else
+    {
+        if (cpuMsAvg < g_perfSession.cpuMsMin) { g_perfSession.cpuMsMin = cpuMsAvg; }
+        if (cpuMsAvg > g_perfSession.cpuMsMax) { g_perfSession.cpuMsMax = cpuMsAvg; }
+        if (fps < g_perfSession.fpsMin) { g_perfSession.fpsMin = fps; }
+        if (fps > g_perfSession.fpsMax) { g_perfSession.fpsMax = fps; }
+        if (drawsAvg < g_perfSession.drawsMin) { g_perfSession.drawsMin = drawsAvg; }
+        if (drawsAvg > g_perfSession.drawsMax) { g_perfSession.drawsMax = drawsAvg; }
+    }
+    g_perfSession.windows++;
+    g_perfSession.totalFrames += windowFrames;
+    g_perfSession.totalSeconds += windowSeconds;
+    g_perfSession.cpuMsSum += cpuMsAvg * windowFrames;
+    g_perfSession.drawsSum += static_cast<uint64_t>(drawsAvg) * windowFrames;
+    g_perfSession.uploadsSum += uploads;
+    if (texMem > g_perfSession.peakTexMem) { g_perfSession.peakTexMem = texMem; }
+    g_perfSession.transientVbSum += transVb * windowFrames;
+    g_perfSession.transientIbSum += transIb * windowFrames;
+}
+
+static void PerfSessionPrintSummary()
+{
+    if (g_perfSession.totalFrames == 0) { return; }
+    const double frames = static_cast<double>(g_perfSession.totalFrames);
+    const double avgFps = frames / g_perfSession.totalSeconds;
+    const double avgCpu = g_perfSession.cpuMsSum / frames;
+    const double avgDraws = static_cast<double>(g_perfSession.drawsSum) / frames;
+    std::fprintf(stderr,
+        "\nBGFX_PERF_SUMMARY: %.1fs %u frames\n"
+        "  fps:     avg=%.1f  min=%.1f  max=%.1f\n"
+        "  cpu:     avg=%.2fms  min=%.2fms  max=%.2fms\n"
+        "  draws:   avg=%.0f  min=%u  max=%u\n"
+        "  uploads: %llu total (%.2f/frame)\n"
+        "  texMem:  peak=%lldKB\n"
+        "  transVB: avg=%.0f bytes/frame\n"
+        "  transIB: avg=%.0f bytes/frame\n",
+        g_perfSession.totalSeconds, g_perfSession.totalFrames,
+        avgFps, g_perfSession.fpsMin, g_perfSession.fpsMax,
+        avgCpu, g_perfSession.cpuMsMin, g_perfSession.cpuMsMax,
+        avgDraws, g_perfSession.drawsMin, g_perfSession.drawsMax,
+        static_cast<unsigned long long>(g_perfSession.uploadsSum),
+        static_cast<double>(g_perfSession.uploadsSum) / frames,
+        static_cast<long long>(g_perfSession.peakTexMem / 1024),
+        g_perfSession.transientVbSum / frames,
+        g_perfSession.transientIbSum / frames);
+}
+
 static double AverageOrMinusOne(double total, uint32_t count)
 {
     if (count == 0)
@@ -533,16 +615,20 @@ static void FlushBgfxStatsLogWindow()
     if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr)
     {
         const double frames = static_cast<double>(g_bgfxStatsLog.frames);
+        const double fps = frames / g_bgfxStatsLog.windowSeconds;
+        const double cpuMs = g_bgfxStatsLog.bgfxCpuFrameMs / frames;
+        const uint32_t draws = static_cast<uint32_t>(g_bgfxStatsLog.backendDraws / g_bgfxStatsLog.frames);
+        const double uploads = static_cast<double>(g_bgfxStatsLog.textureUploads) / frames;
+        const double transVb = g_bgfxStatsLog.bgfxTransientVbUsed / frames;
+        const double transIb = g_bgfxStatsLog.bgfxTransientIbUsed / frames;
         std::fprintf(stderr,
-            "BGFX_PERF: %.1fs fps=%.1f cpu=%.2fms draws=%.0f uploads=%.0f texMem=%lld transVB=%.0f transIB=%.0f\n",
-            g_bgfxStatsLog.elapsedSeconds,
-            frames / g_bgfxStatsLog.windowSeconds,
-            g_bgfxStatsLog.bgfxCpuFrameMs / frames,
-            static_cast<double>(g_bgfxStatsLog.backendDraws) / frames,
-            static_cast<double>(g_bgfxStatsLog.textureUploads) / frames,
-            static_cast<int64_t>(g_bgfxStatsLog.textureMemoryUsed),
-            g_bgfxStatsLog.bgfxTransientVbUsed / frames,
-            g_bgfxStatsLog.bgfxTransientIbUsed / frames);
+            "BGFX_PERF: %.1fs fps=%.1f cpu=%.2fms draws=%u uploads=%.0f texMem=%lldKB transVB=%.0f transIB=%.0f\n",
+            g_bgfxStatsLog.elapsedSeconds, fps, cpuMs, draws, uploads,
+            static_cast<long long>(g_bgfxStatsLog.textureMemoryUsed / 1024),
+            transVb, transIb);
+        PerfSessionAccumulate(g_bgfxStatsLog.windowSeconds, g_bgfxStatsLog.frames,
+                              cpuMs, fps, draws, g_bgfxStatsLog.textureUploads,
+                              g_bgfxStatsLog.textureMemoryUsed, transVb, transIb);
     }
 
     ResetBgfxStatsLogWindow();
@@ -2643,6 +2729,11 @@ static void DestroyBgfxHandle(H & h)
 
 void BgfxBackend::Shutdown()
 {
+    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr)
+    {
+        PerfSessionPrintSummary();
+    }
+
     if (g_device.initialized)
     {
         // A load failure or early game exit can tear the renderer down after
