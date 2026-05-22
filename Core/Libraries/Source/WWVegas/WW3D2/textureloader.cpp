@@ -381,7 +381,9 @@ private:
 	unsigned int			Get_Locked_Volume_Row_Pitch(unsigned int level);
 	unsigned int			Get_Locked_Volume_Slice_Pitch(unsigned int level);
 
+#if !defined(GGC_BGFX_STANDALONE)
 	auto*	Peek_D3D_Volume_Texture()				{ return static_cast<decltype(Peek_Legacy_Volume_Texture(*Texture))>(D3DTexture);		}
+#endif
 
 	unsigned	int			LockedSurfaceSlicePitch[MIP_LEVELS_MAX];
 
@@ -1241,10 +1243,11 @@ void TextureLoader::Request_Thumbnail(TextureBaseClass *tc)
 	// serializes calls to Request_Thumbnail from multiple threads.
 	FastCriticalSectionClass::LockClass lock(_ForegroundCriticalSection);
 
-	// Has a Direct3D texture already been loaded?
+#if !defined(GGC_BGFX_STANDALONE)
 	if (Peek_Legacy_Base_Texture(*tc)) {
 		return;
 	}
+#endif
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	if (Should_Use_CPU_Texture_Thumbnail(tc) && tc->Has_CPU_Texture_Mips()) {
 		return;
@@ -3105,6 +3108,9 @@ void CubeTextureLoadTaskClass::Deinit()
 
 void CubeTextureLoadTaskClass::Lock_Surfaces()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(false, "CubeTextureLoadTaskClass::Lock_Surfaces: standalone bgfx does not support cube textures");
+#else
 	for (unsigned int f=0; f<6; f++)
 	{
 		for (unsigned int i=0; i<MipLevelCount; i++)
@@ -3125,10 +3131,14 @@ void CubeTextureLoadTaskClass::Lock_Surfaces()
 			LockedCubeSurfacePitch[f][i]= locked_rect.Pitch;
 		}
 	}
+#endif
 }
 
 void CubeTextureLoadTaskClass::Unlock_Surfaces()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(false, "CubeTextureLoadTaskClass::Unlock_Surfaces: standalone bgfx does not support cube textures");
+#else
 	for (unsigned int f=0; f<6; f++)
 	{
 		for (unsigned int i = 0; i < MipLevelCount; ++i)
@@ -3159,7 +3169,7 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces()
 	D3DTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)",Texture->Get_Full_Path()));
 #endif
-
+#endif
 }
 
 
@@ -3171,7 +3181,7 @@ bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 		false,
 		"CubeTextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot load fake-D3D cube textures");
 	return false;
-#endif
+#else
 	unsigned orig_w,orig_h,orig_d,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
@@ -3270,6 +3280,7 @@ bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 
 	MipLevelCount = mip_level_count;
 	return true;
+#endif
 }
 
 bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
@@ -3279,7 +3290,7 @@ bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
 		false,
 		"CubeTextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot load fake-D3D cube textures");
 	return false;
-#endif
+#else
 	unsigned width,height,depth,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
@@ -3344,6 +3355,7 @@ bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
 	);
 
 	return true;
+#endif
 }
 
 bool CubeTextureLoadTaskClass::Load_Compressed_Mipmap()
@@ -3489,6 +3501,9 @@ void VolumeTextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, Prior
 
 void VolumeTextureLoadTaskClass::Lock_Surfaces()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(false, "VolumeTextureLoadTaskClass::Lock_Surfaces: standalone bgfx does not support volume textures");
+#else
 	for (unsigned int i=0; i<MipLevelCount; i++)
 	{
 		LegacyLoaderLockedBox locked_box;
@@ -3506,11 +3521,15 @@ void VolumeTextureLoadTaskClass::Lock_Surfaces()
 		LockedSurfacePitch[i]		= locked_box.RowPitch;
 		LockedSurfaceSlicePitch[i]	= locked_box.SlicePitch;
 	}
+#endif
 }
 
 
 void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(false, "VolumeTextureLoadTaskClass::Unlock_Surfaces: standalone bgfx does not support volume textures");
+#else
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
 	{
 		if (LockedSurfacePtr[i])
@@ -3531,7 +3550,7 @@ void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 	D3DTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)",Texture->Get_Full_Path()));
 #endif
-
+#endif
 }
 
 
@@ -3543,7 +3562,7 @@ bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 		false,
 		"VolumeTextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot load fake-D3D volume textures");
 	return false;
-#endif
+#else
 	unsigned orig_w,orig_h,orig_d,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
@@ -3648,6 +3667,7 @@ bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 
 	MipLevelCount = mip_level_count;
 	return true;
+#endif
 }
 
 bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
@@ -3657,7 +3677,7 @@ bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 		false,
 		"VolumeTextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot load fake-D3D volume textures");
 	return false;
-#endif
+#else
 	unsigned width,height,depth,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
@@ -3725,6 +3745,7 @@ bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 	);
 
 	return true;
+#endif
 }
 
 bool VolumeTextureLoadTaskClass::Load_Compressed_Mipmap()
