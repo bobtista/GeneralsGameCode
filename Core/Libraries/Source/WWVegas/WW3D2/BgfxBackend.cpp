@@ -286,6 +286,9 @@ static bool g_triangleDrawEnabled = true;
 
 static bool IsBgfxStatsLoggingEnabled()
 {
+    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr) {
+        return true;
+    }
     return GetBgfxDiagnosticFlags().logStats;
 }
 
@@ -516,6 +519,21 @@ static void FlushBgfxStatsLogWindow()
             g_bgfxStatsLog.numTextures,
             g_bgfxStatsLog.numFrameBuffers);
         fclose(file);
+    }
+
+    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr)
+    {
+        const double frames = static_cast<double>(g_bgfxStatsLog.frames);
+        std::fprintf(stderr,
+            "BGFX_PERF: %.1fs fps=%.1f cpu=%.2fms draws=%.0f uploads=%.0f texMem=%lld transVB=%.0f transIB=%.0f\n",
+            g_bgfxStatsLog.elapsedSeconds,
+            frames / g_bgfxStatsLog.windowSeconds,
+            g_bgfxStatsLog.bgfxCpuFrameMs / frames,
+            static_cast<double>(g_bgfxStatsLog.backendDraws) / frames,
+            static_cast<double>(g_bgfxStatsLog.textureUploads) / frames,
+            static_cast<int64_t>(g_bgfxStatsLog.textureMemoryUsed),
+            g_bgfxStatsLog.bgfxTransientVbUsed / frames,
+            g_bgfxStatsLog.bgfxTransientIbUsed / frames);
     }
 
     ResetBgfxStatsLogWindow();
