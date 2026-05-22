@@ -11,7 +11,7 @@
 #pragma once
 
 // Render state indices for RenderStateCache::Get/Set_Render_State.
-// Values match D3DRS_* ordinals so the DX8 backend can use the same cache.
+// Values match legacy render state ordinals so the DX8 backend can use the same cache.
 namespace RS {
 constexpr unsigned ZENABLE = 7;
 constexpr unsigned FILLMODE = 8;
@@ -58,7 +58,7 @@ constexpr unsigned BLENDOP = 171;
 } // namespace RS
 
 // Texture stage state indices for RenderStateCache::Get/Set_Texture_Stage_State.
-// Values match D3DTSS_* ordinals so the DX8 backend can use the same cache.
+// Values match legacy texture stage state ordinals so the DX8 backend can use the same cache.
 namespace TSS {
 constexpr unsigned COLOROP = 1;
 constexpr unsigned COLORARG1 = 2;
