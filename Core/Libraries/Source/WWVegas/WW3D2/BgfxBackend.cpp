@@ -5785,7 +5785,16 @@ static void UploadMaterialUniforms()
 
     if (bgfx::isValid(g_uniforms.uTssOps0))
     {
-        bgfx::setUniform(g_uniforms.uTssOps0, g_draw.tssOps0);
+        float shaderTssOps0[4];
+        float shaderTssOps1[4];
+        float unusedRef, unusedFunc;
+        const ShaderClass & shader = FixedFunctionState::Peek_Render_State().shader;
+        BuildTssOpsForShader(shader, shaderTssOps0, shaderTssOps1, &unusedRef, &unusedFunc);
+        float tssOps0[4] = {
+            g_draw.tssOps0[0], g_draw.tssOps0[1],
+            shaderTssOps0[2], shaderTssOps0[3]
+        };
+        bgfx::setUniform(g_uniforms.uTssOps0, tssOps0);
     }
     if (bgfx::isValid(g_uniforms.uTssOps1))
     {
@@ -6441,7 +6450,10 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
     const uint64_t dstBits = TranslateBlendFactor(shader.Get_Dst_Blend_Func());
     g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(srcBits, dstBits);
     g_draw.blendEquationBits = BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
-    g_draw.alphaBlendEnabled = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
+    {
+        bool newBlend = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
+        g_draw.alphaBlendEnabled = newBlend;
+    }
     g_draw.alphaBlendExplicitlySet = false;
     g_draw.depthTestEnabled = true;
     g_draw.depthWriteEnabled = shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_ENABLE;
@@ -8177,6 +8189,20 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
     g_stats.drawCalls++;
+    if (!g_draw.alphaBlendExplicitlySet)
+    {
+        const ShaderClass & curShader = FixedFunctionState::Peek_Render_State().shader;
+        const uint64_t srcBits = TranslateBlendFactor(curShader.Get_Src_Blend_Func());
+        const uint64_t dstBits = TranslateBlendFactor(curShader.Get_Dst_Blend_Func());
+        g_draw.alphaBlendEnabled = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
+        if (g_draw.alphaBlendEnabled)
+        {
+            g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(srcBits, dstBits);
+        }
+        float shaderOps0[4], shaderOps1[4];
+        BuildTssOpsForShader(curShader, shaderOps0, shaderOps1, &g_draw.atestRef, &g_draw.atestFunc);
+        g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
+    }
     if (!bgfx::isValid(g_draw.program))
     {
         LogBgfxEffectSubmit("submit-engine",
