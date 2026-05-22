@@ -79,7 +79,6 @@
 #include "vs_passthrough_metal.bin.h"
 #include "fs_passthrough_metal.bin.h"
 #include "vs_uber_metal.bin.h"
-#include "vs_uber_instanced_metal.bin.h"
 #include "vs_trees_metal.bin.h"
 #include "fs_uber_metal.bin.h"
 #include "vs_shadow_volume_metal.bin.h"
@@ -101,7 +100,6 @@
 // Single program handles all TSS combinations via uniforms. Replaces the
 // Per-preset shader pairs.
 #include "vs_uber_dx11.bin.h"
-#include "vs_uber_instanced_dx11.bin.h"
 #include "vs_trees_dx11.bin.h"
 #include "fs_uber_dx11.bin.h"
 
@@ -288,9 +286,6 @@ static bool g_triangleDrawEnabled = true;
 
 static bool IsBgfxStatsLoggingEnabled()
 {
-    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr) {
-        return true;
-    }
     return GetBgfxDiagnosticFlags().logStats;
 }
 
@@ -348,7 +343,6 @@ struct BgfxStatsLogWindow
     uint32_t transientIbDraws;
     uint32_t dynamicVbAllocations;
     uint32_t dynamicIbAllocations;
-    uint32_t instancedSavedDrawCalls;
     double bgfxTransientVbUsed;
     double bgfxTransientIbUsed;
     int64_t textureMemoryUsed;
@@ -358,88 +352,6 @@ struct BgfxStatsLogWindow
 };
 
 static BgfxStatsLogWindow g_bgfxStatsLog = {};
-
-struct BgfxPerfSession
-{
-    uint32_t windows;
-    uint32_t totalFrames;
-    double totalSeconds;
-    double cpuMsMin;
-    double cpuMsMax;
-    double cpuMsSum;
-    double fpsMin;
-    double fpsMax;
-    uint32_t drawsMin;
-    uint32_t drawsMax;
-    uint64_t drawsSum;
-    uint64_t uploadsSum;
-    int64_t peakTexMem;
-    double transientVbSum;
-    double transientIbSum;
-};
-
-static BgfxPerfSession g_perfSession = {};
-
-static void PerfSessionAccumulate(double windowSeconds, uint32_t windowFrames,
-                                   double cpuMsAvg, double fps,
-                                   uint32_t drawsAvg, uint32_t uploads,
-                                   int64_t texMem, double transVb, double transIb)
-{
-    if (g_perfSession.windows == 0)
-    {
-        g_perfSession.cpuMsMin = cpuMsAvg;
-        g_perfSession.cpuMsMax = cpuMsAvg;
-        g_perfSession.fpsMin = fps;
-        g_perfSession.fpsMax = fps;
-        g_perfSession.drawsMin = drawsAvg;
-        g_perfSession.drawsMax = drawsAvg;
-    }
-    else
-    {
-        if (cpuMsAvg < g_perfSession.cpuMsMin) { g_perfSession.cpuMsMin = cpuMsAvg; }
-        if (cpuMsAvg > g_perfSession.cpuMsMax) { g_perfSession.cpuMsMax = cpuMsAvg; }
-        if (fps < g_perfSession.fpsMin) { g_perfSession.fpsMin = fps; }
-        if (fps > g_perfSession.fpsMax) { g_perfSession.fpsMax = fps; }
-        if (drawsAvg < g_perfSession.drawsMin) { g_perfSession.drawsMin = drawsAvg; }
-        if (drawsAvg > g_perfSession.drawsMax) { g_perfSession.drawsMax = drawsAvg; }
-    }
-    g_perfSession.windows++;
-    g_perfSession.totalFrames += windowFrames;
-    g_perfSession.totalSeconds += windowSeconds;
-    g_perfSession.cpuMsSum += cpuMsAvg * windowFrames;
-    g_perfSession.drawsSum += static_cast<uint64_t>(drawsAvg) * windowFrames;
-    g_perfSession.uploadsSum += uploads;
-    if (texMem > g_perfSession.peakTexMem) { g_perfSession.peakTexMem = texMem; }
-    g_perfSession.transientVbSum += transVb * windowFrames;
-    g_perfSession.transientIbSum += transIb * windowFrames;
-}
-
-static void PerfSessionPrintSummary()
-{
-    if (g_perfSession.totalFrames == 0) { return; }
-    const double frames = static_cast<double>(g_perfSession.totalFrames);
-    const double avgFps = frames / g_perfSession.totalSeconds;
-    const double avgCpu = g_perfSession.cpuMsSum / frames;
-    const double avgDraws = static_cast<double>(g_perfSession.drawsSum) / frames;
-    std::fprintf(stderr,
-        "\nBGFX_PERF_SUMMARY: %.1fs %u frames\n"
-        "  fps:     avg=%.1f  min=%.1f  max=%.1f\n"
-        "  cpu:     avg=%.2fms  min=%.2fms  max=%.2fms\n"
-        "  draws:   avg=%.0f  min=%u  max=%u\n"
-        "  uploads: %llu total (%.2f/frame)\n"
-        "  texMem:  peak=%lldKB\n"
-        "  transVB: avg=%.0f bytes/frame\n"
-        "  transIB: avg=%.0f bytes/frame\n",
-        g_perfSession.totalSeconds, g_perfSession.totalFrames,
-        avgFps, g_perfSession.fpsMin, g_perfSession.fpsMax,
-        avgCpu, g_perfSession.cpuMsMin, g_perfSession.cpuMsMax,
-        avgDraws, g_perfSession.drawsMin, g_perfSession.drawsMax,
-        static_cast<unsigned long long>(g_perfSession.uploadsSum),
-        static_cast<double>(g_perfSession.uploadsSum) / frames,
-        static_cast<long long>(g_perfSession.peakTexMem / 1024),
-        g_perfSession.transientVbSum / frames,
-        g_perfSession.transientIbSum / frames);
-}
 
 static double AverageOrMinusOne(double total, uint32_t count)
 {
@@ -606,25 +518,6 @@ static void FlushBgfxStatsLogWindow()
         fclose(file);
     }
 
-    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr)
-    {
-        const double frames = static_cast<double>(g_bgfxStatsLog.frames);
-        const double fps = frames / g_bgfxStatsLog.windowSeconds;
-        const double cpuMs = g_bgfxStatsLog.bgfxCpuFrameMs / frames;
-        const uint32_t draws = static_cast<uint32_t>(g_bgfxStatsLog.backendDraws / g_bgfxStatsLog.frames);
-        const double uploads = static_cast<double>(g_bgfxStatsLog.textureUploads) / frames;
-        const double transVb = g_bgfxStatsLog.bgfxTransientVbUsed / frames;
-        const double transIb = g_bgfxStatsLog.bgfxTransientIbUsed / frames;
-        std::fprintf(stderr,
-            "BGFX_PERF: %.1fs fps=%.1f cpu=%.2fms draws=%u uploads=%.0f texMem=%lldKB transVB=%.0f transIB=%.0f instSaved=%u\n",
-            g_bgfxStatsLog.elapsedSeconds, fps, cpuMs, draws, uploads,
-            static_cast<long long>(g_bgfxStatsLog.textureMemoryUsed / 1024),
-            transVb, transIb, g_bgfxStatsLog.instancedSavedDrawCalls);
-        PerfSessionAccumulate(g_bgfxStatsLog.windowSeconds, g_bgfxStatsLog.frames,
-                              cpuMs, fps, draws, g_bgfxStatsLog.textureUploads,
-                              g_bgfxStatsLog.textureMemoryUsed, transVb, transIb);
-    }
-
     ResetBgfxStatsLogWindow();
 }
 
@@ -704,7 +597,6 @@ static void UpdateBgfxStatsLog()
     g_bgfxStatsLog.transientIbDraws += g_stats.transientIbDraws;
     g_bgfxStatsLog.dynamicVbAllocations += g_stats.dynamicVbAllocations;
     g_bgfxStatsLog.dynamicIbAllocations += g_stats.dynamicIbAllocations;
-    g_bgfxStatsLog.instancedSavedDrawCalls += g_stats.instancedSavedDrawCalls;
 
     if (g_bgfxStatsLog.windowSeconds >= 1.0)
     {
@@ -1221,22 +1113,6 @@ uint64_t TranslateDepthCompare(ShaderClass::DepthCompareType cmp)
         case ShaderClass::PASS_GEQUAL:   return BGFX_STATE_DEPTH_TEST_GEQUAL;
         case ShaderClass::PASS_ALWAYS:   return BGFX_STATE_DEPTH_TEST_ALWAYS;
         default:                         return BGFX_STATE_DEPTH_TEST_LEQUAL;
-    }
-}
-
-CompareFunc MapShaderDepthCompareToBackendCompare(ShaderClass::DepthCompareType cmp)
-{
-    switch (cmp)
-    {
-        case ShaderClass::PASS_NEVER:    return RB_CMP_NEVER;
-        case ShaderClass::PASS_LESS:     return RB_CMP_LESS;
-        case ShaderClass::PASS_EQUAL:    return RB_CMP_EQUAL;
-        case ShaderClass::PASS_LEQUAL:   return RB_CMP_LESS_EQUAL;
-        case ShaderClass::PASS_GREATER:  return RB_CMP_GREATER;
-        case ShaderClass::PASS_NOTEQUAL: return RB_CMP_NOT_EQUAL;
-        case ShaderClass::PASS_GEQUAL:   return RB_CMP_GREATER_EQUAL;
-        case ShaderClass::PASS_ALWAYS:   return RB_CMP_ALWAYS;
-        default:                         return RB_CMP_LESS_EQUAL;
     }
 }
 
@@ -2568,10 +2444,6 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         GGC_BGFX_SHADER(vs_uber), sizeof(GGC_BGFX_SHADER(vs_uber)), "vs_uber",
         GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
 
-    g_device.uberInstancedProgram = CreateShaderProgram(
-        GGC_BGFX_SHADER(vs_uber_instanced), sizeof(GGC_BGFX_SHADER(vs_uber_instanced)), "vs_uber_instanced",
-        GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
-
     g_device.treeProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_trees), sizeof(GGC_BGFX_SHADER(vs_trees)), "vs_trees",
         GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
@@ -2695,11 +2567,6 @@ static void DestroyBgfxHandle(H & h)
 
 void BgfxBackend::Shutdown()
 {
-    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr)
-    {
-        PerfSessionPrintSummary();
-    }
-
     if (g_device.initialized)
     {
         // A load failure or early game exit can tear the renderer down after
@@ -2715,7 +2582,6 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_device.smudgeProgram);
         DestroyBgfxHandle(g_device.fullscreenClearVB);
         DestroyBgfxHandle(g_device.uberProgram);
-        DestroyBgfxHandle(g_device.uberInstancedProgram);
         DestroyBgfxHandle(g_device.treeProgram);
         DestroyBgfxHandle(g_uniforms.uSwayTable);
         DestroyBgfxHandle(g_uniforms.uShroudOffset);
@@ -3032,17 +2898,6 @@ bool BgfxBackend::Capture_Back_Buffer_RGBA(unsigned int display_width,
     return false;
 }
 
-bool BgfxBackend::Request_Native_Screen_Shot(const char * path)
-{
-    if (!g_device.initialized || path == nullptr || path[0] == '\0')
-    {
-        return false;
-    }
-
-    bgfx::requestScreenShot(BGFX_INVALID_HANDLE, path);
-    return true;
-}
-
 // -- Frame lifecycle ---------------------------------------------------------
 
 void BgfxBackend::Begin_Scene()
@@ -3266,7 +3121,6 @@ void BgfxBackend::Begin_Scene()
     {
         g_draw.tex[i] = BGFX_INVALID_HANDLE;
         g_draw.samplerFlags[i] = 0;
-        g_draw.mipFilterDisabled[i] = false;
         g_draw.textureIsMissing[i] = false;
         g_draw.sourceTextures[i] = nullptr;
     }
@@ -3403,14 +3257,7 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     // gameplay state of interest, since early frames are loading screens.
 #ifdef RTS_ZEROHOUR
     {
-        int captureFrame = GGC_GetBgfxScreenshotFrame();
-        if (captureFrame <= 0)
-        {
-            if (const char * frameEnv = std::getenv("GGC_BGFX_SCREENSHOT_AFTER"))
-            {
-                captureFrame = std::atoi(frameEnv);
-            }
-        }
+        const int captureFrame = GGC_GetBgfxScreenshotFrame();
         uint32_t interval = 500;
         if (const char * intervalEnv = std::getenv("GGC_BGFX_SCREENSHOT_INTERVAL"))
         {
@@ -3427,10 +3274,6 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         {
             s_lastShotFrame = g_stats.frameIndex;
             const char * basePath = GGC_GetBgfxScreenshotPath();
-            if ((basePath == nullptr || basePath[0] == '\0'))
-            {
-                basePath = std::getenv("GGC_BGFX_SCREENSHOT_PATH");
-            }
             if (basePath != nullptr && basePath[0] != '\0')
             {
                 char numbered[512];
@@ -5222,7 +5065,7 @@ static void LogBgfxSortedMaterialDecal(const char *event,
                      static_cast<unsigned long long>(state),
                      static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
                      g_draw.zBias[0],
-                     g_draw.zBiasUnits,
+                     RenderStateCache::Get_Render_State(RS::ZBIAS),
                      TextureDebugName(g_draw.sourceTextures[0]),
                      TextureDebugName(g_draw.sourceTextures[1]),
                      g_draw.tssOps0[0], g_draw.tssOps0[1],
@@ -5481,12 +5324,51 @@ static void BindSoftParticleDepth(bool enable)
 
 static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
 {
-    return (stage < 4) ? g_draw.samplerFlags[stage] : 0;
+    uint32_t flags = 0;
+    const unsigned addressU = RenderStateCache::Get_Texture_Stage_State(stage, TSS::ADDRESSU);
+    const unsigned addressV = RenderStateCache::Get_Texture_Stage_State(stage, TSS::ADDRESSV);
+    const unsigned minFilter = RenderStateCache::Get_Texture_Stage_State(stage, TSS::MINFILTER);
+    const unsigned magFilter = RenderStateCache::Get_Texture_Stage_State(stage, TSS::MAGFILTER);
+    const unsigned mipFilter = RenderStateCache::Get_Texture_Stage_State(stage, TSS::MIPFILTER);
+
+    if (addressU == kTextureAddressClamp || addressU == kTextureAddressBorder)
+    {
+        flags |= BGFX_SAMPLER_U_CLAMP;
+    }
+    if (addressV == kTextureAddressClamp || addressV == kTextureAddressBorder)
+    {
+        flags |= BGFX_SAMPLER_V_CLAMP;
+    }
+
+    if (minFilter == kTextureSamplePoint)
+    {
+        flags |= BGFX_SAMPLER_MIN_POINT;
+    }
+    else if (minFilter == kTextureSampleAnisotropic)
+    {
+        flags |= BGFX_SAMPLER_MIN_ANISOTROPIC;
+    }
+
+    if (magFilter == kTextureSamplePoint)
+    {
+        flags |= BGFX_SAMPLER_MAG_POINT;
+    }
+    else if (magFilter == kTextureSampleAnisotropic)
+    {
+        flags |= BGFX_SAMPLER_MAG_ANISOTROPIC;
+    }
+
+    if (mipFilter == kTextureSamplePoint)
+    {
+        flags |= BGFX_SAMPLER_MIP_POINT;
+    }
+
+    return flags;
 }
 
 static bool IsCurrentStageMipFilterDisabled(unsigned stage)
 {
-    return stage < 4 && g_draw.mipFilterDisabled[stage];
+    return RenderStateCache::Get_Texture_Stage_State(stage, TSS::MIPFILTER) == kTextureSampleNone;
 }
 
 static bool ShouldBindSortedParticleBaseMip(unsigned stage)
@@ -5671,7 +5553,8 @@ static void UpdateTextureTransforms()
     // cached texture transform plus two-coordinate transform mode. Passing raw UVs sampled the
     // unused black padding in those atlases; stage 1 matters for detail
     // and environment-mapped sub-materials.
-    const unsigned texcoordIndex = g_draw.texcoordIndex[0];
+    const unsigned texcoordIndex =
+        RenderStateCache::Get_Texture_Stage_State(0, TSS::TEXCOORDINDEX);
     const unsigned uvIndex = texcoordIndex & 0xFFFF;
     const unsigned texcoordGen = texcoordIndex & 0xFFFF0000;
     // TheSuperHackers @info bobtista 26/04/2026 Only UV sets 0 and 1 are
@@ -5690,7 +5573,8 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
     g_draw.texcoordSource[0] = GetTexcoordSource(texcoordGen);
 
-    const unsigned texFlags = g_draw.textureTransformFlags[0];
+    const unsigned texFlags =
+        RenderStateCache::Get_Texture_Stage_State(0, TSS::TEXTURETRANSFORMFLAGS);
     const unsigned texCount = texFlags & 0xFFu;
     const bool texProjected0 = (texFlags & kTextureTransformProjected) != 0
         && texCount >= kTextureTransformCount3;
@@ -5710,7 +5594,8 @@ static void UpdateTextureTransforms()
     }
     g_draw.texProjected[0] = texProjected0 ? 1.0f : 0.0f;
 
-    const unsigned texcoordIndex1 = g_draw.texcoordIndex[1];
+    const unsigned texcoordIndex1 =
+        RenderStateCache::Get_Texture_Stage_State(1, TSS::TEXCOORDINDEX);
     const unsigned uvIndex1 = texcoordIndex1 & 0xFFFF;
     const unsigned texcoordGen1 = texcoordIndex1 & 0xFFFF0000;
     if (uvIndex1 > 1)
@@ -5725,7 +5610,8 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSelect2[0] = (uvIndex1 == 1) ? 1.0f : 0.0f;
     g_draw.texcoordSource[1] = GetTexcoordSource(texcoordGen1);
 
-    const unsigned texFlags1 = g_draw.textureTransformFlags[1];
+    const unsigned texFlags1 =
+        RenderStateCache::Get_Texture_Stage_State(1, TSS::TEXTURETRANSFORMFLAGS);
     const unsigned texCount1 = texFlags1 & 0xFFu;
     const bool texProjected1 = (texFlags1 & kTextureTransformProjected) != 0
         && texCount1 >= kTextureTransformCount3;
@@ -5745,11 +5631,13 @@ static void UpdateTextureTransforms()
     }
     g_draw.texProjected[1] = texProjected1 ? 1.0f : 0.0f;
 
-    const unsigned texcoordIndex2 = g_draw.texcoordIndex[2];
+    const unsigned texcoordIndex2 =
+        RenderStateCache::Get_Texture_Stage_State(2, TSS::TEXCOORDINDEX);
     const unsigned texcoordGen2 = texcoordIndex2 & 0xFFFF0000;
     g_draw.texcoordSource[2] = GetTexcoordSource(texcoordGen2);
 
-    const unsigned texFlags2 = g_draw.textureTransformFlags[2];
+    const unsigned texFlags2 =
+        RenderStateCache::Get_Texture_Stage_State(2, TSS::TEXTURETRANSFORMFLAGS);
     const unsigned texCount2 = texFlags2 & 0xFFu;
     if (texCount2 >= kTextureTransformCount2)
     {
@@ -5779,11 +5667,7 @@ static void UploadMaterialUniforms()
 
     if (bgfx::isValid(g_uniforms.uTssOps0))
     {
-        float tssOps0[4] = {
-            g_draw.tssOps0[0], g_draw.tssOps0[1],
-            g_draw.shaderTssOps0[2], g_draw.shaderTssOps0[3]
-        };
-        bgfx::setUniform(g_uniforms.uTssOps0, tssOps0);
+        bgfx::setUniform(g_uniforms.uTssOps0, g_draw.tssOps0);
     }
     if (bgfx::isValid(g_uniforms.uTssOps1))
     {
@@ -6065,8 +5949,10 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         g_draw.texcoordSelect[1] = 0.0f;
     }
     {
+        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(RS::ZBIAS);
+        const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
-        g_draw.zBias[0] = static_cast<float>(g_draw.zBiasUnits) * kZBiasPerUnit;
+        g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
         const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(GetEffectiveDrawState());
         const bool normalBiasFromGeometry =
             g_draw.normalBias[0] != 0.0f
@@ -6299,133 +6185,6 @@ void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
                          "ok");
 }
 
-void * BgfxBackend::Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
-                                                unsigned int size_bytes)
-{
-    if (!g_device.initialized || vba == nullptr || size_bytes == 0) {
-        return nullptr;
-    }
-    bgfx::VertexLayout layout;
-    if (!BuildBgfxLayoutForFVF(vba->FVF_Info(), layout)) {
-        return nullptr;
-    }
-    const uint32_t num_verts = static_cast<uint32_t>(vba->Get_Vertex_Count());
-    if (num_verts == 0 || bgfx::getAvailTransientVertexBuffer(num_verts, layout) < num_verts) {
-        return nullptr;
-    }
-    bgfx::allocTransientVertexBuffer(&g_draw.pendingVB.tvb, num_verts, layout);
-    g_stats.transientVbAllocations++;
-    return g_draw.pendingVB.tvb.data;
-}
-
-void BgfxBackend::End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
-                                            const void * data,
-                                            unsigned int size_bytes)
-{
-    if (!g_device.initialized || vba == nullptr) {
-        return;
-    }
-    g_draw.pendingVB.owner = vba;
-    g_draw.pendingVB.valid = true;
-    g_draw.pendingVB.coplanarNormalBias = HasSubmittedOppositeNormalPairs(
-        vba->FVF_Info(), data, vba->Get_Vertex_Count());
-    g_draw.fvfHasNormal = vba->FVF_Info().Has_Normal();
-}
-
-void * BgfxBackend::Begin_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
-                                               unsigned int size_bytes)
-{
-    if (!g_device.initialized || iba == nullptr || size_bytes == 0) {
-        return nullptr;
-    }
-    const uint32_t num_indices = static_cast<uint32_t>(iba->Get_Index_Count());
-    if (num_indices == 0 || bgfx::getAvailTransientIndexBuffer(num_indices) < num_indices) {
-        return nullptr;
-    }
-    bgfx::allocTransientIndexBuffer(&g_draw.pendingIB.tib, num_indices);
-    g_stats.transientIbAllocations++;
-    return g_draw.pendingIB.tib.data;
-}
-
-void BgfxBackend::End_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
-                                           const void * data,
-                                           unsigned int size_bytes)
-{
-    if (!g_device.initialized || iba == nullptr) {
-        return;
-    }
-    g_draw.pendingIB.owner = iba;
-    g_draw.pendingIB.valid = true;
-}
-
-// -- Instancing -------------------------------------------------------------
-
-bool BgfxBackend::Supports_Instancing() const
-{
-    return g_device.initialized
-        && (bgfx::getCaps()->supported & BGFX_CAPS_INSTANCING) != 0;
-}
-
-bool BgfxBackend::Begin_Instanced_Batch(unsigned max_instances)
-{
-    if (!Supports_Instancing() || max_instances == 0) {
-        return false;
-    }
-
-    bgfx::allocInstanceDataBuffer(&g_draw.instanceBatch, max_instances, 64);
-    if (g_draw.instanceBatch.data == nullptr) {
-        return false;
-    }
-
-    g_draw.instanceCount = 0;
-    g_draw.instanceMax = max_instances;
-    g_draw.instanceBatchActive = true;
-    return true;
-}
-
-void BgfxBackend::Add_Instance(const float * world_matrix_4x4)
-{
-    if (!g_draw.instanceBatchActive || g_draw.instanceCount >= g_draw.instanceMax) {
-        return;
-    }
-    std::memcpy(g_draw.instanceBatch.data + g_draw.instanceCount * 64, world_matrix_4x4, 64);
-    g_draw.instanceCount++;
-}
-
-void BgfxBackend::Submit_Instanced_Batch(unsigned index_offset,
-                                          unsigned triangle_count,
-                                          unsigned min_vertex_index,
-                                          unsigned vertex_count)
-{
-    if (!g_draw.instanceBatchActive || g_draw.instanceCount == 0) {
-        g_draw.instanceBatchActive = false;
-        return;
-    }
-    g_draw.instanceBatchActive = false;
-
-    bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
-
-    float identity[16] = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 0.0f, 1.0f
-    };
-    bgfx::setTransform(identity);
-
-    bgfx::ProgramHandle savedProgram = g_draw.program;
-    g_draw.program = g_device.uberInstancedProgram;
-
-    Draw_Triangles(
-        static_cast<unsigned short>(index_offset),
-        static_cast<unsigned short>(triangle_count),
-        static_cast<unsigned short>(min_vertex_index),
-        static_cast<unsigned short>(vertex_count));
-
-    g_draw.program = savedProgram;
-    g_stats.instancedSavedDrawCalls += g_draw.instanceCount - 1;
-}
-
 // -- State: shaders, materials, textures ------------------------------------
 
 void BgfxBackend::Set_Shader(const ShaderClass & shader)
@@ -6436,20 +6195,13 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
     const uint64_t srcBits = TranslateBlendFactor(shader.Get_Src_Blend_Func());
     const uint64_t dstBits = TranslateBlendFactor(shader.Get_Dst_Blend_Func());
     g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(srcBits, dstBits);
-    g_draw.shaderBlendFuncBits = g_draw.blendFuncBits;
     g_draw.blendEquationBits = BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
-    {
-        bool newBlend = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
-        g_draw.alphaBlendEnabled = newBlend;
-        g_draw.shaderAlphaBlendEnabled = newBlend;
-    }
+    g_draw.alphaBlendEnabled = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
     g_draw.alphaBlendExplicitlySet = false;
     g_draw.depthTestEnabled = true;
     g_draw.depthWriteEnabled = shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_ENABLE;
     g_draw.depthFuncBits = TranslateDepthCompare(shader.Get_Depth_Compare());
-    g_draw.depthFunc = static_cast<unsigned>(MapShaderDepthCompareToBackendCompare(shader.Get_Depth_Compare()));
     BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef, &g_draw.atestFunc);
-    BuildTssOpsForShader(shader, g_draw.shaderTssOps0, g_draw.shaderTssOps1, &g_draw.shaderAtestRef, &g_draw.shaderAtestFunc);
     g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
     g_draw.legacyPixelShaderMode[0] = static_cast<float>(RB_LEGACY_PIXEL_SHADER_NONE);
     Clear_State_Overrides();
@@ -6524,32 +6276,40 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
                              texture->Get_Pool()));
             }
         }
-        // TextureFilterClass::Apply() updates the semantic sampler state above.
-        // Preserve those bits when recording the bind; bridge atlases and thin
-        // particles depend on mip filtering staying disabled after Set_Texture.
-        const uint32_t samplerFlags = stage < 4 ? g_draw.samplerFlags[stage] : 0;
-        const bool mipFilterDisabled = stage < 4 && g_draw.mipFilterDisabled[stage];
+        // Capture the source texture's wrap mode into bgfx sampler flags
+        // so we can pass it at bind time. Without this, WRAP is the
+        // default and ramp/LUT textures with CLAMP semantics produce
+        // visible stripe artifacts at U>=1 (the shoreline checkerboard).
+        uint32_t samplerFlags = 0;
+        if (t2d_name != nullptr)
+        {
+            const TextureFilterClass & flt = t2d_name->Get_Filter();
+            if (flt.Get_U_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
+            {
+                samplerFlags |= BGFX_SAMPLER_U_CLAMP;
+            }
+            if (flt.Get_V_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
+            {
+                samplerFlags |= BGFX_SAMPLER_V_CLAMP;
+            }
+        }
         switch (stage)
         {
             case 0: g_draw.tex[0] = h;
                     g_draw.sourceTextures[0] = texture;
                     g_draw.samplerFlags[0] = samplerFlags;
-                    g_draw.mipFilterDisabled[0] = mipFilterDisabled;
                     g_draw.textureIsMissing[0] = missingOrUnavailable; break;
             case 1: g_draw.tex[1] = h;
                     g_draw.sourceTextures[1] = texture;
                     g_draw.samplerFlags[1] = samplerFlags;
-                    g_draw.mipFilterDisabled[1] = mipFilterDisabled;
                     g_draw.textureIsMissing[1] = missingOrUnavailable; break;
             case 2: g_draw.tex[2] = h;
                     g_draw.sourceTextures[2] = texture;
                     g_draw.samplerFlags[2] = samplerFlags;
-                    g_draw.mipFilterDisabled[2] = mipFilterDisabled;
                     g_draw.textureIsMissing[2] = missingOrUnavailable; break;
             case 3: g_draw.tex[3] = h;
                     g_draw.sourceTextures[3] = texture;
                     g_draw.samplerFlags[3] = samplerFlags;
-                    g_draw.mipFilterDisabled[3] = mipFilterDisabled;
                     g_draw.textureIsMissing[3] = missingOrUnavailable; break;
             default: break;
         }
@@ -6801,10 +6561,6 @@ void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
 
 void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
 {
-    if (stage < 4)
-    {
-        g_draw.texcoordIndex[stage] = uvIndex;
-    }
     if (stage == 0)
     {
         g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
@@ -6838,8 +6594,6 @@ void BgfxBackend::Clear_Texture_Transform(unsigned stage)
 
     if (stage < 4)
     {
-        g_draw.texcoordIndex[stage] = stage;
-        g_draw.textureTransformFlags[stage] = kTextureTransformDisable;
         g_draw.texcoordSource[stage] = 0.0f;
         g_draw.texProjected[stage] = 0.0f;
     }
@@ -6888,7 +6642,6 @@ void BgfxBackend::Set_Texture_Coord_Source(unsigned stage,
     RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, tci);
     if (stage < 4)
     {
-        g_draw.texcoordIndex[stage] = tci;
         g_draw.texcoordSource[stage] = static_cast<float>(source);
     }
     if (stage == 0)
@@ -6909,7 +6662,6 @@ void BgfxBackend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_coun
     RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, flags);
     if (stage < 4)
     {
-        g_draw.textureTransformFlags[stage] = flags;
         g_draw.texProjected[stage] = projected && coord_count >= 3 ? 1.0f : 0.0f;
     }
 }
@@ -7141,56 +6893,18 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
             g_draw.samplerFlags[stage] |= BGFX_SAMPLER_V_CLAMP;
         }
     }
-    else if (state == TSS::MINFILTER)
+    else if (stage == 3 && state == TSS::TEXCOORDINDEX)
     {
-        g_draw.samplerFlags[stage] &= ~(BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MIN_ANISOTROPIC);
-        if (value == kTextureSamplePoint)
-        {
-            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIN_POINT;
-        }
-        else if (value == kTextureSampleAnisotropic)
-        {
-            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIN_ANISOTROPIC;
-        }
-    }
-    else if (state == TSS::MAGFILTER)
-    {
-        g_draw.samplerFlags[stage] &= ~(BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MAG_ANISOTROPIC);
-        if (value == kTextureSamplePoint)
-        {
-            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MAG_POINT;
-        }
-        else if (value == kTextureSampleAnisotropic)
-        {
-            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MAG_ANISOTROPIC;
-        }
-    }
-    else if (state == TSS::MIPFILTER)
-    {
-        g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_MIP_POINT;
-        g_draw.mipFilterDisabled[stage] = value == kTextureSampleNone;
-        if (value == kTextureSamplePoint)
-        {
-            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIP_POINT;
-        }
-    }
-    else if (state == TSS::TEXCOORDINDEX)
-    {
-        g_draw.texcoordIndex[stage] = value;
         const unsigned uvIndex = value & 0xFFFFu;
         const unsigned texcoordGen = value & 0xFFFF0000u;
-        if (stage == 3 && texcoordGen == kTexcoordGenCameraPosition)
+        if (texcoordGen == kTexcoordGenCameraPosition)
         {
             g_draw.texcoordSource[3] = 3.0f;
         }
-        else if (stage == 3)
+        else
         {
             g_draw.texcoordSource[3] = (uvIndex == 1) ? 1.0f : 0.0f;
         }
-    }
-    else if (state == TSS::TEXTURETRANSFORMFLAGS)
-    {
-        g_draw.textureTransformFlags[stage] = value;
     }
 }
 
@@ -7880,7 +7594,6 @@ void BgfxBackend::Set_Cull_Mode(CullMode mode)
 void BgfxBackend::Set_Z_Bias(int bias)
 {
     RenderStateCache::Set_Render_State(RS::ZBIAS, static_cast<unsigned>(bias));
-    g_draw.zBiasUnits = static_cast<unsigned>(bias) & 0xFFu;
 }
 
 void BgfxBackend::Set_Normal_Bias(float bias)
@@ -7913,7 +7626,6 @@ void BgfxBackend::Set_Depth_Write_Enable(bool enable)
 void BgfxBackend::Set_Depth_Func(CompareFunc func)
 {
     RenderStateCache::Set_Render_State(RS::ZFUNC, static_cast<unsigned>(func));
-    g_draw.depthFunc = static_cast<unsigned>(func);
     static const uint64_t kDepthMap[] = {
         0,                              // 0 (unused)
         BGFX_STATE_DEPTH_TEST_NEVER,    // RB_CMP_NEVER = 1
@@ -8220,17 +7932,6 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
     g_stats.drawCalls++;
-    if (!g_draw.alphaBlendExplicitlySet)
-    {
-        g_draw.alphaBlendEnabled = g_draw.shaderAlphaBlendEnabled;
-        if (g_draw.alphaBlendEnabled)
-        {
-            g_draw.blendFuncBits = g_draw.shaderBlendFuncBits;
-        }
-        g_draw.atestRef = g_draw.shaderAtestRef;
-        g_draw.atestFunc = g_draw.shaderAtestFunc;
-        g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
-    }
     if (!bgfx::isValid(g_draw.program))
     {
         LogBgfxEffectSubmit("submit-engine",
@@ -8574,8 +8275,10 @@ void SubmitEngineDraw(unsigned short start_index,
     // u_zBias to the GPU. Setting g_draw.zBias afterward leaves the uniform
     // at the previous (or default) value and defeats the whole fix.
     {
+        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(RS::ZBIAS);
+        const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
         const float kZBiasPerUnit = 0.001f;
-        g_draw.zBias[0] = static_cast<float>(g_draw.zBiasUnits) * kZBiasPerUnit;
+        g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
         const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(routeState);
         const bool normalBiasFromGeometry =
             !is2D
@@ -8617,6 +8320,22 @@ void SubmitEngineDraw(unsigned short start_index,
         UpdateAlphaMaskAndSortedEffectModes(blendState);
     }
     UploadMaterialUniforms();
+    // TheSuperHackers @bugfix bobtista 30/04/2026 Read cached ambient per
+    // draw. Some callers still push ambient straight through DX8Wrapper
+    // without going through g_renderBackend->Set_Ambient, so the cached
+    // g_draw.sceneAmbient can drift and buildings render black.
+    // The wrapper marks unwritten state with 0x12345678 (dx8wrapper.cpp:536);
+    // ignore that sentinel and keep the cached value instead of treating
+    // the marker bytes as a real color.
+    {
+        const unsigned ambientColor = RenderStateCache::Get_Render_State(RS::AMBIENT);
+        if (ambientColor != 0x12345678)
+        {
+            g_draw.sceneAmbient[0] = ((ambientColor >> 16) & 0xFF) / 255.0f;
+            g_draw.sceneAmbient[1] = ((ambientColor >>  8) & 0xFF) / 255.0f;
+            g_draw.sceneAmbient[2] = ((ambientColor >>  0) & 0xFF) / 255.0f;
+        }
+    }
     if (g_draw.lightDirs[0][3] < 0.5f)
     {
         const auto &rs = FixedFunctionState::Render_State();
@@ -8683,9 +8402,9 @@ void SubmitEngineDraw(unsigned short start_index,
     // be true to avoid false positives from other effects that set TCI bits.
     bool shroudDetected = false;
     {
-        unsigned depthFunc = g_draw.depthFunc;
+        unsigned depthFunc = RenderStateCache::Get_Render_State(RS::ZFUNC);
         const unsigned stg = 0;
-        unsigned tci = g_draw.texcoordIndex[stg];
+        unsigned tci = RenderStateCache::Get_Texture_Stage_State(stg, TSS::TEXCOORDINDEX);
         float shroudParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
         // Projected terrain receivers and cloud/noise stages also use
         // TCI_CAMERASPACEPOSITION. Only the actual shroud overlay uses the
