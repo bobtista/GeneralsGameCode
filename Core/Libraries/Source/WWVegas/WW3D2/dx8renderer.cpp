@@ -1931,8 +1931,9 @@ void DX8TextureCategoryClass::Render()
 					&& !coplanarNormalBias
 					&& mesh->Get_ObjectScale() == 1.0f)
 				{
+					static unsigned s_instDiag = 0;
 					PolyRenderTaskClass * nextScan = prt->Get_Next_Visible();
-					if (nextScan != nullptr
+						if (nextScan != nullptr
 						&& nextScan->Peek_Polygon_Renderer() == renderer
 						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() != VERTEX_BUFFER_OVERFLOW
 						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() == mesh->Get_Base_Vertex_Offset())
@@ -1952,7 +1953,7 @@ void DX8TextureCategoryClass::Render()
 								|| ((!!sm->Peek_Model()->Get_Flag(MeshGeometryClass::SORT)) && WW3D::Is_Sorting_Enabled())
 								|| sm->Get_ObjectScale() != 1.0f
 								|| sm->Peek_Model()->Get_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS)
-								|| sm->Get_Lighting_Environment() != lenv) {
+								) {
 								break;
 							}
 							batchCount++;
