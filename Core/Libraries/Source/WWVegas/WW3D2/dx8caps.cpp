@@ -563,20 +563,20 @@ void DX8Caps::Shutdown()
 
 void DX8Caps::Init_Caps(void* device)
 {
-	LegacyDevice* D3DDevice = static_cast<LegacyDevice*>(device);
 	LegacyCaps& caps = Mutable_Legacy_Caps(Caps);
 #if !defined(GGC_BGFX_STANDALONE)
+	LegacyDevice* D3DDevice = static_cast<LegacyDevice*>(device);
 	Set_Legacy_Software_Vertex_Processing(D3DDevice, TRUE);
-#endif
 	DX8CALL(GetDeviceCaps(&caps));
+#endif
 
 	if ((caps.DevCaps&kLegacyHardwareTransformAndLight)==kLegacyHardwareTransformAndLight) {
 		SupportTnL=true;
 
 #if !defined(GGC_BGFX_STANDALONE)
 		Set_Legacy_Software_Vertex_Processing(D3DDevice, FALSE);
-#endif
 		DX8CALL(GetDeviceCaps(&caps));
+#endif
 	} else {
 		SupportTnL=false;
 	}
