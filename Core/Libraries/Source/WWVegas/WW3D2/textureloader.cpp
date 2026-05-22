@@ -2554,6 +2554,7 @@ void TextureLoadTaskClass::Lock_Surfaces()
 		return;
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	MipLevelCount = Peek_D3D_Texture()->GetLevelCount();
 
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
@@ -2572,6 +2573,7 @@ void TextureLoadTaskClass::Lock_Surfaces()
 		LockedSurfacePtr[i]		= (unsigned char *)locked_rect.pBits;
 		LockedSurfacePitch[i]	= locked_rect.Pitch;
 	}
+#endif
 }
 
 
@@ -2587,6 +2589,7 @@ void TextureLoadTaskClass::Unlock_Surfaces()
 		return;
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
 	{
 		if (LockedSurfacePtr[i])
@@ -2603,6 +2606,7 @@ void TextureLoadTaskClass::Unlock_Surfaces()
 	Peek_D3D_Texture()->Release();
 	D3DTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)",Texture->Get_Full_Path()));
+#endif
 #endif
 
 }

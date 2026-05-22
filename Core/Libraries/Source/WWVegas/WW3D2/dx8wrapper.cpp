@@ -2531,11 +2531,12 @@ void DX8Wrapper::Draw_Sorting_IB_VB(
 		Legacy_Vertex_Buffer(dyn_vb_access.VertexBuffer),
 		dyn_vb_access.FVF_Info().Get_FVF_Size()));
 #endif
-	// If using FVF format VB, set the FVF as vertex shader (may not be needed here KM)
+#if !defined(GGC_BGFX_STANDALONE)
 	unsigned fvf=dyn_vb_access.FVF_Info().Get_FVF();
 	if (fvf!=0) {
 		DX8CALL(SetVertexShader(fvf));
 	}
+#endif
 	DX8_RECORD_VERTEX_BUFFER_CHANGE();
 
 	unsigned index_count=0;
@@ -2913,7 +2914,9 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 					WWASSERT(0);
 				}
 			} else {
+#if !defined(GGC_BGFX_STANDALONE)
 				DX8CALL(SetStreamSource(i,nullptr,0));
+#endif
 				DX8_RECORD_VERTEX_BUFFER_CHANGE();
 			}
 		}
@@ -2939,9 +2942,11 @@ void DX8Wrapper::Commit_Deferred_Render_State_Changes()
 			}
 		}
 		else {
+#if !defined(GGC_BGFX_STANDALONE)
 			DX8CALL(SetIndices(
 				nullptr,
 				0));
+#endif
 			DX8_RECORD_INDEX_BUFFER_CHANGE();
 		}
 	}
