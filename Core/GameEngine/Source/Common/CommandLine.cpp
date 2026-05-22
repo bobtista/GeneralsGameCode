@@ -1080,6 +1080,23 @@ Int parseMaxRenderFPS(char *args[], int num)
 	return 1;
 }
 
+Int parseMsaa(char *args[], int num)
+{
+	if (num > 1)
+	{
+		int level = atoi(args[1]);
+		if (level == 2 || level == 4 || level == 8 || level == 16)
+		{
+			TheWritableGlobalData->m_bgfxMsaa = level;
+			char buf[8];
+			snprintf(buf, sizeof(buf), "%d", level);
+			setenv("GGC_BGFX_MSAA", buf, 1);
+		}
+		return 2;
+	}
+	return 1;
+}
+
 Int parseLogFrameTimes(char *args[], int num)
 {
 	if (TheFramePacer != nullptr)
@@ -1295,6 +1312,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-ignoresync", parseSync },
 	{ "-noFPSLimit", parseNoFPSLimit },
 	{ "-maxRenderFPS", parseMaxRenderFPS },
+	{ "-msaa", parseMsaa },
 	{ "-logFrameTimes", parseLogFrameTimes },
 	{ "-logBgfxStats", parseLogBgfxStats },
 	{ "-bgfxNoSceneFramebuffer", parseBgfxNoSceneFramebuffer },
