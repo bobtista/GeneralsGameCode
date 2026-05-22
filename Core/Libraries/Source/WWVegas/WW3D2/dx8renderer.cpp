@@ -42,6 +42,9 @@
 
 #include "dx8renderer.h"
 #include "dx8polygonrenderer.h"
+#include <algorithm>
+#include <vector>
+#include <cstdlib>
 #include "vertexbuffer.h"
 #include "indexbuffer.h"
 #include "dx8fvf.h"
@@ -119,7 +122,9 @@ public:
 	}
 
 	DX8PolygonRendererClass *	Peek_Polygon_Renderer()							{ return Renderer; }
+	const DX8PolygonRendererClass *	Peek_Polygon_Renderer() const				{ return Renderer; }
 	MeshClass *						Peek_Mesh()											{ return Mesh; }
+	const MeshClass *				Peek_Mesh() const									{ return Mesh; }
 
 	PolyRenderTaskClass *		Get_Next_Visible()									{ return NextVisible; }
 	void								Set_Next_Visible(PolyRenderTaskClass * prtc)		{ NextVisible = prtc; }
@@ -1688,6 +1693,34 @@ void DX8TextureCategoryClass::Render()
 
 	bool renderTasksRemaining=false;
 
+	static const bool s_instancingEnabled = std::getenv("GGC_BGFX_INSTANCING") != nullptr;
+	if (s_instancingEnabled && render_task_head != nullptr)
+	{
+		unsigned count = 0;
+		for (PolyRenderTaskClass * c = render_task_head; c != nullptr; c = c->Get_Next_Visible()) {
+			count++;
+		}
+		if (count >= 2)
+		{
+			std::vector<PolyRenderTaskClass *> tasks;
+			tasks.reserve(count);
+			for (PolyRenderTaskClass * c = render_task_head; c != nullptr; c = c->Get_Next_Visible()) {
+				tasks.push_back(c);
+			}
+			std::stable_sort(tasks.begin(), tasks.end(), [](PolyRenderTaskClass * a, PolyRenderTaskClass * b) {
+				auto * ra = a->Peek_Polygon_Renderer();
+				auto * rb = b->Peek_Polygon_Renderer();
+				if (ra != rb) { return ra < rb; }
+				return a->Peek_Mesh()->Get_Base_Vertex_Offset() < b->Peek_Mesh()->Get_Base_Vertex_Offset();
+			});
+			render_task_head = tasks[0];
+			for (unsigned i = 0; i + 1 < count; i++) {
+				tasks[i]->Set_Next_Visible(tasks[i + 1]);
+			}
+			tasks[count - 1]->Set_Next_Visible(nullptr);
+		}
+	}
+
 	PolyRenderTaskClass * prt = render_task_head;
 	PolyRenderTaskClass * last_prt = nullptr;
 
@@ -1893,7 +1926,6 @@ void DX8TextureCategoryClass::Render()
 			else
 			{
 				bool instanced = false;
-				static const bool s_instancingEnabled = std::getenv("GGC_BGFX_INSTANCING") != nullptr;
 				if (s_instancingEnabled
 					&& g_renderBackend->Supports_Instancing()
 					&& !coplanarNormalBias
@@ -1902,6 +1934,7 @@ void DX8TextureCategoryClass::Render()
 					PolyRenderTaskClass * nextScan = prt->Get_Next_Visible();
 					if (nextScan != nullptr
 						&& nextScan->Peek_Polygon_Renderer() == renderer
+						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() != VERTEX_BUFFER_OVERFLOW
 						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() == mesh->Get_Base_Vertex_Offset())
 					{
 						unsigned batchCount = 1;
