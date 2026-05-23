@@ -3391,7 +3391,14 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     // gameplay state of interest, since early frames are loading screens.
 #ifdef RTS_ZEROHOUR
     {
-        const int captureFrame = GGC_GetBgfxScreenshotFrame();
+        int captureFrame = GGC_GetBgfxScreenshotFrame();
+        if (captureFrame <= 0)
+        {
+            if (const char * frameEnv = std::getenv("GGC_BGFX_SCREENSHOT_AFTER"))
+            {
+                captureFrame = std::atoi(frameEnv);
+            }
+        }
         uint32_t interval = 500;
         if (const char * intervalEnv = std::getenv("GGC_BGFX_SCREENSHOT_INTERVAL"))
         {
@@ -3408,6 +3415,10 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         {
             s_lastShotFrame = g_stats.frameIndex;
             const char * basePath = GGC_GetBgfxScreenshotPath();
+            if ((basePath == nullptr || basePath[0] == '\0'))
+            {
+                basePath = std::getenv("GGC_BGFX_SCREENSHOT_PATH");
+            }
             if (basePath != nullptr && basePath[0] != '\0')
             {
                 char numbered[512];

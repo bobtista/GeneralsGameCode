@@ -595,6 +595,20 @@ Completed low-risk migrations:
   render-state cache. Until a semantic sorted-state layout replaces it, bgfx
   buffer binds must continue to mirror into `FixedFunctionState` so sorted
   replay records valid VB/IB state.
+- Bridge rendering in the bgfx/Metal path now forces bridge atlases to the
+  authored base mip and resets stage-0 sampling back to mesh UVs before bridge
+  draws. This fixes camera-dependent black bridge slabs caused by stale
+  projected texture state and collapsed black atlas padding in lower mips.
+  The DX8-era cloud overlay remains disabled for bgfx, but the bridge shroud
+  overlay is active again: the bgfx shroud shader path now receives the
+  explicit projected shroud pass and darkens bridges correctly. Verification
+  used `00000055.sav` with bgfx screenshots only; the same bridge region
+  averaged roughly 66 luma with shroud enabled versus 137 with the diagnostic
+  shroud skip override.
+- The Zero Hour bgfx screenshot hook also accepts
+  `GGC_BGFX_SCREENSHOT_AFTER` and `GGC_BGFX_SCREENSHOT_PATH` environment
+  variables as a fallback when the command-line parser does not populate the
+  capture settings, which makes repeatable visual checks easier on macOS.
 
 Next migration focus:
 

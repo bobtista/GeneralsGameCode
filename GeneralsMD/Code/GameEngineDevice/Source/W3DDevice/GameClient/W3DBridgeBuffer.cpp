@@ -251,6 +251,13 @@ Bool W3DBridge::load(BodyDamageType curDamageState)
 	strlcat(right, ".BRIDGE_RIGHT", ARRAY_SIZE(right));
 
 	m_bridgeTexture = pMgr->Get_Texture(textureFile,  MIP_LEVELS_3);
+	if (m_bridgeTexture != nullptr && g_renderBackend->Has_Shader_Pipeline()) {
+		// Bridge textures are compact atlases whose lower mips can collapse
+		// black padding into visible deck pixels under bgfx/Metal. Keep the
+		// authored level-0 texels stable; the bgfx backend binds a one-mip
+		// sibling whenever the stage mip filter is disabled.
+		m_bridgeTexture->Get_Filter().Set_Mip_Mapping(TextureFilterClass::FILTER_TYPE_NONE);
+	}
 	m_leftMtx.Make_Identity();
 	m_rightMtx.Make_Identity();
 	m_sectionMtx.Make_Identity();
@@ -1168,6 +1175,12 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 	g_renderBackend->Set_Index_Buffer(m_indexBridge,0);
 	g_renderBackend->Set_Vertex_Buffer(m_vertexBridge,0);
 	g_renderBackend->Set_Shader(detailAlphaShader);
+	if (g_renderBackend->Has_Shader_Pipeline()) {
+		g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+		g_renderBackend->Clear_Texture_Transform(0);
+		g_renderBackend->Set_Texture_Transform_Mode(0, 0, false);
+		g_renderBackend->Set_Texture_Mip_Filter(0, RB_TEXTURE_SAMPLE_NONE);
+	}
 	g_renderBackend->Apply_Render_State_Changes();
 
 	if (!wireframe && cloudTexture && !g_renderBackend->Has_Shader_Pipeline())
@@ -1185,8 +1198,7 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 	if (!wireframe && cloudTexture)
 		W3DShaderManager::resetShader(W3DShaderManager::ST_CLOUD_TEXTURE);
 
-	if (!wireframe && TheTerrainRenderObject->getShroud()
-		&& !g_renderBackend->Has_Shader_Pipeline())
+	if (!wireframe && TheTerrainRenderObject->getShroud())
 	{
 		g_renderBackend->Invalidate_Cached_Render_States();
 		g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueShader);
