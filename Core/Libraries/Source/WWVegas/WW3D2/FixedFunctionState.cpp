@@ -28,6 +28,20 @@ namespace
 	unsigned s_textureStageStates[FixedFunctionState::TEXTURE_STAGE_COUNT][FixedFunctionState::TEXTURE_STAGE_STATE_COUNT];
 	LegacyTransformMatrix s_transforms[FixedFunctionState::TRANSFORM_COUNT];
 
+	struct SemanticRenderState
+	{
+		bool cullModeValid;
+		unsigned cullMode;
+		bool lightingValid;
+		bool lightingEnabled;
+		bool fogColorValid;
+		unsigned fogColor;
+		bool colorWriteMaskValid;
+		unsigned colorWriteMask;
+	};
+
+	SemanticRenderState s_semanticRenderState;
+
 	void D3DMatrixIdentity(LegacyTransformMatrix * dxm)
 	{
 		memset(dxm, 0, sizeof(*dxm));
@@ -37,10 +51,52 @@ namespace
 		dxm->_44 = 1.0f;
 	}
 
-	unsigned CachedRenderStateOr(unsigned state, unsigned default_value)
+	void ClearSemanticRenderState()
 	{
-		const unsigned value = FixedFunctionState::Cached_Render_State(state);
-		return (value == FixedFunctionState::INVALID_STATE_VALUE) ? default_value : value;
+		s_semanticRenderState.cullModeValid = true;
+		s_semanticRenderState.cullMode = 0;
+		s_semanticRenderState.lightingValid = true;
+		s_semanticRenderState.lightingEnabled = false;
+		s_semanticRenderState.fogColorValid = true;
+		s_semanticRenderState.fogColor = 0;
+		s_semanticRenderState.colorWriteMaskValid = true;
+		s_semanticRenderState.colorWriteMask = 0;
+	}
+
+	void InvalidateSemanticRenderState()
+	{
+		s_semanticRenderState.cullModeValid = false;
+		s_semanticRenderState.cullMode = 0;
+		s_semanticRenderState.lightingValid = false;
+		s_semanticRenderState.lightingEnabled = false;
+		s_semanticRenderState.fogColorValid = false;
+		s_semanticRenderState.fogColor = 0;
+		s_semanticRenderState.colorWriteMaskValid = false;
+		s_semanticRenderState.colorWriteMask = 0;
+	}
+
+	void MirrorSemanticRenderState(unsigned state, unsigned value)
+	{
+		switch (state) {
+			case RS::CULLMODE:
+				s_semanticRenderState.cullModeValid = true;
+				s_semanticRenderState.cullMode = value;
+				break;
+			case RS::LIGHTING:
+				s_semanticRenderState.lightingValid = true;
+				s_semanticRenderState.lightingEnabled = (value != 0);
+				break;
+			case RS::FOGCOLOR:
+				s_semanticRenderState.fogColorValid = true;
+				s_semanticRenderState.fogColor = value;
+				break;
+			case RS::COLORWRITEENABLE:
+				s_semanticRenderState.colorWriteMaskValid = true;
+				s_semanticRenderState.colorWriteMask = value;
+				break;
+			default:
+				break;
+		}
 	}
 }
 
@@ -316,6 +372,7 @@ void FixedFunctionState::Clear_Cached_State()
 	memset(s_renderStates, 0, sizeof(s_renderStates));
 	memset(s_textureStageStates, 0, sizeof(s_textureStageStates));
 	memset(s_transforms, 0, sizeof(s_transforms));
+	ClearSemanticRenderState();
 }
 
 void FixedFunctionState::Invalidate_Cached_State()
@@ -333,6 +390,7 @@ void FixedFunctionState::Invalidate_Cached_State()
 	}
 
 	memset(s_transforms, 0, sizeof(s_transforms));
+	InvalidateSemanticRenderState();
 }
 
 unsigned FixedFunctionState::Cached_Render_State(unsigned state)
@@ -355,6 +413,7 @@ bool FixedFunctionState::Set_Cached_Render_State(unsigned state, unsigned value)
 	}
 
 	s_renderStates[state] = value;
+	MirrorSemanticRenderState(state, value);
 	return true;
 }
 
@@ -403,27 +462,52 @@ bool FixedFunctionState::Set_Cached_Transform(unsigned transform, const LegacyTr
 
 unsigned FixedFunctionState::Cull_Mode(unsigned default_value)
 {
-	return CachedRenderStateOr(RS::CULLMODE, default_value);
+	return s_semanticRenderState.cullModeValid ? s_semanticRenderState.cullMode : default_value;
+}
+
+bool FixedFunctionState::Set_Cull_Mode(unsigned value)
+{
+	return Set_Cached_Render_State(RS::CULLMODE, value);
 }
 
 bool FixedFunctionState::Lighting_Enabled(bool default_value)
 {
-	return CachedRenderStateOr(RS::LIGHTING, default_value ? 1U : 0U) != 0;
+	return s_semanticRenderState.lightingValid ? s_semanticRenderState.lightingEnabled : default_value;
+}
+
+bool FixedFunctionState::Set_Lighting_Enabled(bool enabled)
+{
+	return Set_Cached_Render_State(RS::LIGHTING, enabled ? 1U : 0U);
 }
 
 unsigned FixedFunctionState::Fog_Color(unsigned default_value)
 {
-	return CachedRenderStateOr(RS::FOGCOLOR, default_value);
+	return s_semanticRenderState.fogColorValid ? s_semanticRenderState.fogColor : default_value;
+}
+
+bool FixedFunctionState::Set_Fog_Color(unsigned value)
+{
+	return Set_Cached_Render_State(RS::FOGCOLOR, value);
 }
 
 unsigned FixedFunctionState::Color_Write_Mask(unsigned default_value)
 {
-	return CachedRenderStateOr(RS::COLORWRITEENABLE, default_value);
+	return s_semanticRenderState.colorWriteMaskValid ? s_semanticRenderState.colorWriteMask : default_value;
+}
+
+bool FixedFunctionState::Set_Color_Write_Mask(unsigned value)
+{
+	return Set_Cached_Render_State(RS::COLORWRITEENABLE, value);
 }
 
 void FixedFunctionState::Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix)
 {
 	Cached_Transform(transform, matrix);
+}
+
+bool FixedFunctionState::Set_Transform_Matrix(unsigned transform, const LegacyTransformMatrix & matrix)
+{
+	return Set_Cached_Transform(transform, matrix);
 }
 
 RenderStateStruct::RenderStateStruct()
