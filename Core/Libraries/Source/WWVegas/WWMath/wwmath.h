@@ -514,12 +514,12 @@ WWINLINE float WWMath::Fast_Inv_Sin(float val)
 	// The table becomes inaccurate near 0 and 2pi so fall back to doing a divide.
 	const int BUFFER = 16;
 	if ((idx0 <= BUFFER) || (idx0 >= SIN_TABLE_SIZE-BUFFER-1)) {
-		return 1.0f / WWMath::Fast_Sin(val);
+		return 1.0f / Fast_Sin(val);
 	} else {
 		return (1.0f - frac) * _FastInvSinTable[idx0] + frac * _FastInvSinTable[idx1];
 	}
 #else
-	return 1.0f / WWMath::Fast_Sin(val);
+	return 1.0f / Fast_Sin(val);
 #endif
 }
 
@@ -561,12 +561,12 @@ WWINLINE float WWMath::Fast_Inv_Cos(float val)
 
 	// The table becomes inaccurate near 0 and 2pi so fall back to doing a divide.
 	if ((idx0 <= 2) || (idx0 >= SIN_TABLE_SIZE-3)) {
-		return 1.0f / WWMath::Fast_Cos(val);
+		return 1.0f / Fast_Cos(val);
 	} else {
 		return (1.0f - frac) * _FastInvSinTable[idx0] + frac * _FastInvSinTable[idx1];
 	}
 #else
-	return 1.0f / WWMath::Fast_Cos(val);
+	return 1.0f / Fast_Cos(val);
 #endif
 }
 
@@ -577,9 +577,9 @@ WWINLINE float WWMath::Fast_Inv_Cos(float val)
 WWINLINE float WWMath::Fast_Acos(float val)
 {
 	// Near -1 and +1, the table becomes too inaccurate
-	if (WWMath::Fabs(val) > 0.975f)
+	if (Fabs(val) > 0.975f)
 	{
-		return WWMath::Acos_Legacy(val);
+		return Acos_Legacy(val);
 	}
 
 	val *= float(ARC_TABLE_SIZE / 2);
@@ -619,9 +619,9 @@ WWINLINE float WWMath::Acos_Legacy(float val)
 WWINLINE float WWMath::Fast_Asin(float val)
 {
 	// Near -1 and +1, the table becomes too inaccurate
-	if (WWMath::Fabs(val) > 0.975f)
+	if (Fabs(val) > 0.975f)
 	{
-		return WWMath::Asin_Legacy(val);
+		return Asin_Legacy(val);
 	}
 
 	val *= float(ARC_TABLE_SIZE / 2);
