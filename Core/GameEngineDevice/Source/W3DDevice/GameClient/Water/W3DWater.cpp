@@ -501,8 +501,8 @@ WaterRenderObjClass::WaterRenderObjClass()
 	m_vertexBufferD3D=nullptr;
 	m_indexBufferD3D=nullptr;
 
-	m_dwWavePixelShader=0;
-	m_dwWaveVertexShader=0;
+	m_wavePixelShader=0;
+	m_waveVertexShader=0;
 #endif
 	m_meshData=nullptr;
 	m_meshDataSize = 0;
@@ -932,11 +932,11 @@ void WaterRenderObjClass::ReleaseResources()
 		m_waterTrackSystem->ReleaseResources();
 
 #if !defined(GGC_BGFX_STANDALONE)
-	if (m_dwWavePixelShader)
-		g_renderBackend->Delete_Pixel_Shader(m_dwWavePixelShader);
+	if (m_wavePixelShader)
+		g_renderBackend->Delete_Pixel_Shader(m_wavePixelShader);
 
-	if (m_dwWaveVertexShader)
-		g_renderBackend->Delete_Vertex_Shader(m_dwWaveVertexShader);
+	if (m_waveVertexShader)
+		g_renderBackend->Delete_Vertex_Shader(m_waveVertexShader);
 #endif
 
 	if (m_waterPixelShader)
@@ -949,8 +949,8 @@ void WaterRenderObjClass::ReleaseResources()
 		g_renderBackend->Delete_Pixel_Shader(m_riverWaterPixelShader);
 
 #if !defined(GGC_BGFX_STANDALONE)
-	m_dwWavePixelShader=0;
-	m_dwWaveVertexShader=0;
+	m_wavePixelShader=0;
+	m_waveVertexShader=0;
 #endif
 	m_waterPixelShader = 0;
 	m_trapezoidWaterPixelShader=0;
@@ -1026,11 +1026,15 @@ void WaterRenderObjClass::ReAcquireResources()
 				(D3DVSD_END())
 			};
 
-			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\wave.pso", &Declaration[0], 0, false, &m_dwWavePixelShader);
+			DWORD wavePixelShader = 0;
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\wave.pso", &Declaration[0], 0, false, &wavePixelShader);
+			m_wavePixelShader = wavePixelShader;
 			if (FAILED(hr))
 				return;
 
-			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\wave.vso", &Declaration[0], 0, true, &m_dwWaveVertexShader);
+			DWORD waveVertexShader = 0;
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\wave.vso", &Declaration[0], 0, true, &waveVertexShader);
+			m_waveVertexShader = waveVertexShader;
 			if (FAILED(hr))
 				return;
 
@@ -2160,8 +2164,8 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	g_renderBackend->Set_Vertex_Shader_Constant(CV_ZERO, &zero, 1);
 	g_renderBackend->Set_Vertex_Shader_Constant(CV_ONE, &one, 1);
 
-	g_renderBackend->Set_Vertex_Shader(m_dwWaveVertexShader);
-	g_renderBackend->Set_Pixel_Shader(m_dwWavePixelShader);
+	g_renderBackend->Set_Vertex_Shader(m_waveVertexShader);
+	g_renderBackend->Set_Pixel_Shader(m_wavePixelShader);
 
 	g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 
