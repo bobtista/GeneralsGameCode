@@ -2419,8 +2419,8 @@ void TerrainLogic::setWaterHeight(const WaterHandle* water, Real height, Real da
 		center.z = 0.0f;    // irrelevant
 
 		// the max radius to scan around us is the diagonal of the bounding region
-		Real maxDist = WWMath::Sqrt_Origin(affectedRegion.width() * affectedRegion.width() +
-		                                   affectedRegion.height() * affectedRegion.height());
+		Real maxDist = WWMath::Sqrt(affectedRegion.width() * affectedRegion.width() +
+		                            affectedRegion.height() * affectedRegion.height());
 
 		// scan the objects in the area of the water affected
 		ObjectIterator* iter = ThePartitionManager->iterateObjectsInRange(&center,
@@ -2946,7 +2946,7 @@ void TerrainLogic::createCraterInTerrain(Object* obj)
 			deltaX = (i * MAP_XY_FACTOR) - pos->x;
 			deltaY = (j * MAP_XY_FACTOR) - pos->y;
 
-			Real distance = WWMath::Sqrt_Origin(sqr(deltaX) + sqr(deltaY));
+			Real distance = WWMath::Sqrt(sqr(deltaX) + sqr(deltaY));
 
 			if (distance < radius)    // inside circle
 			{

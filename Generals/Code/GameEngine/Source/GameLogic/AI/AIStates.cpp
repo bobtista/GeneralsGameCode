@@ -3705,7 +3705,7 @@ StateReturnType AIAttackMoveToState::update()
 		{
 			return ret;
 		}
-		DEBUG_LOG(("AIAttackMoveToState::update Distance from goal %f, retrying.", WWMath::Sqrt_Origin(distSqr)));
+		DEBUG_LOG(("AIAttackMoveToState::update Distance from goal %f, retrying.", WWMath::Sqrt(distSqr)));
 
 		ret = STATE_CONTINUE;
 		m_retryCount--;
