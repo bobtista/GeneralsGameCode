@@ -43,7 +43,11 @@
 
 #include "always.h"
 #include "dllist.h"
+#if defined(GGC_BGFX_STANDALONE)
+#include "dx8standalonetypes.h"
+#else
 #include "d3d8.h"
+#endif
 #include "matrix4.h"
 #include "statistics.h"
 #include "wwstring.h"
