@@ -75,6 +75,13 @@ BGFX_BACKEND_CATEGORIES = [
         "bgfx_legacy_cache_read",
         re.compile(r"RenderStateCache::Get_(?:Render_State|Texture_Stage_State|Transform)\s*\("),
     ),
+    (
+        "bgfx_semantic_state_raw_write",
+        re.compile(
+            r"RenderStateCache::Set_Render_State\s*\(\s*RS::(?:CULLMODE|LIGHTING|FOGCOLOR|COLORWRITEENABLE)\b"
+            r"|RenderStateCache::Set_Transform\s*\("
+        ),
+    ),
 ]
 
 KNOWN_BGFX_MACROS = {
