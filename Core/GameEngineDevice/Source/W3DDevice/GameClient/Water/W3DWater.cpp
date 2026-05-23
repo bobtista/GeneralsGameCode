@@ -43,6 +43,7 @@
 #include "camera.h"
 #include "scene.h"
 #if !defined(GGC_BGFX_STANDALONE)
+#include "dx8textureinterop.h"
 #include "dx8wrapper.h"
 #include "d3dx8math.h"
 #endif
@@ -90,6 +91,35 @@ static inline void W3DWater_BindTexture(unsigned stage, TextureClass * tex)
 {
 	if (g_renderBackend != nullptr)
 		g_renderBackend->Bind_Texture_Immediate(stage, tex);
+}
+
+static inline bool W3DWater_UseBackendSeaBatch()
+{
+	return g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline();
+}
+
+static void W3DWater_FillWhiteTexture(TextureClass *texture)
+{
+	if (texture == nullptr)
+	{
+		return;
+	}
+
+	TextureClass::MutableTextureMipView mip = texture->Begin_Mip_Write(0);
+	if (!mip.Is_Valid())
+	{
+		return;
+	}
+
+	if (mip.Format == WW3D_FORMAT_A4R4G4B4)
+	{
+		*reinterpret_cast<UnsignedShort *>(mip.Data) = 0xffff;
+	}
+	else if (mip.Format == WW3D_FORMAT_A8R8G8B8)
+	{
+		*reinterpret_cast<UnsignedInt *>(mip.Data) = 0xffffffff;
+	}
+	texture->End_Mip_Write(0);
 }
 
 #if !defined(GGC_BGFX_STANDALONE)
@@ -569,9 +599,10 @@ HRESULT WaterRenderObjClass::initBumpMap(IDirect3DTexture8 **pTex, TextureClass 
 		return S_OK;
 	}
 
-	if (pBumpSource->Peek_D3D_Texture())
+	IDirect3DTexture8 *bump_texture = Peek_Legacy_Texture2D(*pBumpSource);
+	if (bump_texture)
 	{
-		numLevels=pBumpSource->Peek_D3D_Texture()->GetLevelCount();
+		numLevels=bump_texture->GetLevelCount();
 	}
 	else
 		return S_OK;
@@ -941,7 +972,10 @@ void WaterRenderObjClass::ReAcquireResources()
 	}
 
 #if !defined(GGC_BGFX_STANDALONE)
-	m_pDev=DX8Wrapper::_Get_D3D_Device8();
+	if (!W3DWater_UseBackendSeaBatch())
+	{
+		m_pDev=DX8Wrapper::_Get_D3D_Device8();
+	}
 #endif
 
 	//We're using the same grid for either 3D Water Mesh or Pixel/Vertex shader.  Just
@@ -962,32 +996,35 @@ void WaterRenderObjClass::ReAcquireResources()
 		// builds batch the sea patch grid through transient backend buffers
 		// instead of creating the old raw shader resources.
 #else
-		if (FAILED(hr=generateIndexBuffer(PATCH_SIZE,PATCH_SIZE,true)))
-			return;
-
-		if (FAILED(hr=generateVertexBuffer(PATCH_SIZE,PATCH_SIZE,sizeof(SEA_PATCH_VERTEX),true)))
-			return;
-
-		//shader decleration
-		DWORD Declaration[]=
+		if (!W3DWater_UseBackendSeaBatch())
 		{
-			(D3DVSD_STREAM(0)),
-			(D3DVSD_REG(0, D3DVSDT_FLOAT3)), // Position
-			(D3DVSD_REG(1, D3DVSDT_D3DCOLOR)), // Diffuse
-			(D3DVSD_REG(2, D3DVSDT_FLOAT2)), // Bump map texture
-			(D3DVSD_END())
-		};
+			if (FAILED(hr=generateIndexBuffer(PATCH_SIZE,PATCH_SIZE,true)))
+				return;
 
-		hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\wave.pso", &Declaration[0], 0, false, &m_dwWavePixelShader);
-		if (FAILED(hr))
-			return;
+			if (FAILED(hr=generateVertexBuffer(PATCH_SIZE,PATCH_SIZE,sizeof(SEA_PATCH_VERTEX),true)))
+				return;
 
-		hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\wave.vso", &Declaration[0], 0, true, &m_dwWaveVertexShader);
-		if (FAILED(hr))
-			return;
+			//shader decleration
+			DWORD Declaration[]=
+			{
+				(D3DVSD_STREAM(0)),
+				(D3DVSD_REG(0, D3DVSDT_FLOAT3)), // Position
+				(D3DVSD_REG(1, D3DVSDT_D3DCOLOR)), // Diffuse
+				(D3DVSD_REG(2, D3DVSDT_FLOAT2)), // Bump map texture
+				(D3DVSD_END())
+			};
 
-		// Create reflection texture
-		m_pReflectionTexture = g_renderBackend->Create_Render_Target (SEA_REFLECTION_SIZE, SEA_REFLECTION_SIZE);
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\wave.pso", &Declaration[0], 0, false, &m_dwWavePixelShader);
+			if (FAILED(hr))
+				return;
+
+			hr = W3DShaderManager::LoadAndCreateLegacyShader("shaders\\wave.vso", &Declaration[0], 0, true, &m_dwWaveVertexShader);
+			if (FAILED(hr))
+				return;
+
+			// Create reflection texture
+			m_pReflectionTexture = g_renderBackend->Create_Render_Target (SEA_REFLECTION_SIZE, SEA_REFLECTION_SIZE);
+		}
 #endif
 	}
 
@@ -997,7 +1034,7 @@ void WaterRenderObjClass::ReAcquireResources()
 	if (W3DShaderManager::getChipset() >= DC_GENERIC_PIXEL_SHADER_1_1)
 	{
 #if defined(GGC_BGFX_STANDALONE)
-		// Standalone bgfx implements these water paths with native programs.
+		// Bgfx implements these water paths with native programs.
 		// Ask the backend for typed compatibility handles so feature gates
 		// keep their behavior without depending on legacy shader bytecode.
 		unsigned long legacyHandle = 0;
@@ -1008,63 +1045,76 @@ void WaterRenderObjClass::ReAcquireResources()
 		if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_TRAPEZOID_WATER, &legacyHandle))
 			m_trapezoidWaterPixelShader = static_cast<DWORD>(legacyHandle);
 #else
-		ID3DXBuffer *compiledShader;
-		const char *shader =
-			"ps.1.1\n \
-			tex t0 \n\
-			tex t1	\n\
-			tex t2	\n\
-			tex t3\n\
-			mul r0,v0,t0 ; blend vertex color into t0. \n\
-			mul r1, t1, t2 ; mul\n\
-			add r0.rgb, r0, t3\n\
-			+mul r0.a, r0, t3\n\
-			add r0.rgb, r0, r1\n";
-		hr = D3DXAssembleShader( shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
-		if (hr==0) {
+		if (W3DWater_UseBackendSeaBatch())
+		{
 			unsigned long legacyHandle = 0;
-			hr = g_renderBackend->Create_Pixel_Shader(
-				reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
-				&legacyHandle) ? S_OK : E_FAIL;
-			m_riverWaterPixelShader = static_cast<DWORD>(legacyHandle);
-			compiledShader->Release();
+			if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_RIVER_WATER, &legacyHandle))
+				m_riverWaterPixelShader = static_cast<DWORD>(legacyHandle);
+			if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_REFLECTIVE_WATER, &legacyHandle))
+				m_waterPixelShader = static_cast<DWORD>(legacyHandle);
+			if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_TRAPEZOID_WATER, &legacyHandle))
+				m_trapezoidWaterPixelShader = static_cast<DWORD>(legacyHandle);
 		}
-		shader =
-			"ps.1.1\n \
-			tex t0 \n\
-			tex t1	\n\
-			texbem t2, t1 ; use t1 as env map adjustment on t2.\n\
-			mul r0,v0,t0 ; blend vertex color into t0. \n\
-			mul r1.rgb,t2,c0 ; reduce t2 (environment mapped reflection) by constant\n\
-			add r0.rgb, r0, r1";
-		hr = D3DXAssembleShader( shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
-		if (hr==0) {
-			unsigned long legacyHandle = 0;
-			hr = g_renderBackend->Create_Pixel_Shader(
-				reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
-				&legacyHandle) ? S_OK : E_FAIL;
-			m_waterPixelShader = static_cast<DWORD>(legacyHandle);
-			compiledShader->Release();
-		}
-		shader =
-			"ps.1.1\n \
-			tex t0 ;get water texture\n\
-			tex t1 ;get white highlights on black background\n\
-			tex t2 ;get white highlights with more tiling\n\
-			tex t3	; get black shroud \n\
-			mul r0,v0,t0 ; blend vertex color and alpha into base texture. \n\
-			mad r0.rgb, t1, t2, r0	; blend sparkles and noise \n\
-			mul r0.rgb, r0, t3 ; blend in black shroud \n\
-			;\n";
-		hr = D3DXAssembleShader( shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
+		else
+		{
+			ID3DXBuffer *compiledShader;
+			const char *shader =
+				"ps.1.1\n \
+				tex t0 \n\
+				tex t1	\n\
+				tex t2	\n\
+				tex t3\n\
+				mul r0,v0,t0 ; blend vertex color into t0. \n\
+				mul r1, t1, t2 ; mul\n\
+				add r0.rgb, r0, t3\n\
+				+mul r0.a, r0, t3\n\
+				add r0.rgb, r0, r1\n";
+			hr = D3DXAssembleShader( shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
 			if (hr==0) {
 				unsigned long legacyHandle = 0;
 				hr = g_renderBackend->Create_Pixel_Shader(
 					reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
 					&legacyHandle) ? S_OK : E_FAIL;
-				m_trapezoidWaterPixelShader = static_cast<DWORD>(legacyHandle);
+				m_riverWaterPixelShader = static_cast<DWORD>(legacyHandle);
 				compiledShader->Release();
 			}
+			shader =
+				"ps.1.1\n \
+				tex t0 \n\
+				tex t1	\n\
+				texbem t2, t1 ; use t1 as env map adjustment on t2.\n\
+				mul r0,v0,t0 ; blend vertex color into t0. \n\
+				mul r1.rgb,t2,c0 ; reduce t2 (environment mapped reflection) by constant\n\
+				add r0.rgb, r0, r1";
+			hr = D3DXAssembleShader( shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
+			if (hr==0) {
+				unsigned long legacyHandle = 0;
+				hr = g_renderBackend->Create_Pixel_Shader(
+					reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
+					&legacyHandle) ? S_OK : E_FAIL;
+				m_waterPixelShader = static_cast<DWORD>(legacyHandle);
+				compiledShader->Release();
+			}
+			shader =
+				"ps.1.1\n \
+				tex t0 ;get water texture\n\
+				tex t1 ;get white highlights on black background\n\
+				tex t2 ;get white highlights with more tiling\n\
+				tex t3	; get black shroud \n\
+				mul r0,v0,t0 ; blend vertex color and alpha into base texture. \n\
+				mad r0.rgb, t1, t2, r0	; blend sparkles and noise \n\
+				mul r0.rgb, r0, t3 ; blend in black shroud \n\
+				;\n";
+			hr = D3DXAssembleShader( shader, strlen(shader), 0, nullptr, &compiledShader, nullptr);
+				if (hr==0) {
+					unsigned long legacyHandle = 0;
+					hr = g_renderBackend->Create_Pixel_Shader(
+						reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
+						&legacyHandle) ? S_OK : E_FAIL;
+					m_trapezoidWaterPixelShader = static_cast<DWORD>(legacyHandle);
+					compiledShader->Release();
+				}
+		}
 #endif
 	}
 
@@ -1080,13 +1130,7 @@ void WaterRenderObjClass::ReAcquireResources()
 		m_waterSparklesTexture->Init();
 	if (m_whiteTexture && !m_whiteTexture->Is_Initialized())
 	{	m_whiteTexture->Init();
-		SurfaceClass *surface=m_whiteTexture->Get_Surface_Level();
-		int pitch;
-		void *pBits = surface->Lock(&pitch);
-		const unsigned int bytesPerPixel = surface->Get_Bytes_Per_Pixel();
-		surface->Draw_Pixel(0, 0, 0xffffffff, bytesPerPixel, pBits, pitch);
-		surface->Unlock();
-		REF_PTR_RELEASE(surface);
+		W3DWater_FillWhiteTexture(m_whiteTexture);
 	}
 }
 
@@ -1197,14 +1241,8 @@ Int WaterRenderObjClass::init(Real waterLevel, Real dx, Real dy, SceneClass *par
 	m_riverTexture=WW3DAssetManager::Get_Instance()->Get_Texture(TheWaterTransparency->m_standingWaterTexture.str());
 
 	//For some reason setting a null texture does not result in 0xffffffff for pixel shaders so using explicit "white" texture.
-	m_whiteTexture=MSGNEW("TextureClass") TextureClass(1,1,WW3D_FORMAT_A4R4G4B4,MIP_LEVELS_1);
-	SurfaceClass *surface=m_whiteTexture->Get_Surface_Level();
-	int pitch;
-	void *pBits = surface->Lock(&pitch);
-	const unsigned int bytesPerPixel = surface->Get_Bytes_Per_Pixel();
-	surface->Draw_Pixel(0, 0, 0xffffffff, bytesPerPixel, pBits, pitch);
-	surface->Unlock();
-	REF_PTR_RELEASE(surface);
+	m_whiteTexture=MSGNEW("TextureClass") TextureClass(1, 1, WW3D_FORMAT_A4R4G4B4, MIP_LEVELS_1);
+	W3DWater_FillWhiteTexture(m_whiteTexture);
 
 	m_waterNoiseTexture=WW3DAssetManager::Get_Instance()->Get_Texture("Noise0000.tga");
 	m_riverAlphaEdge=WW3DAssetManager::Get_Instance()->Get_Texture("TWAlphaEdge.tga");
@@ -1432,7 +1470,7 @@ void WaterRenderObjClass::setTimeOfDay(TimeOfDay tod)
 {
 	m_tod=tod;
 #if !defined(GGC_BGFX_STANDALONE)
-	if (m_waterType == WATER_TYPE_2_PVSHADER)
+	if (m_waterType == WATER_TYPE_2_PVSHADER && !W3DWater_UseBackendSeaBatch())
 		generateVertexBuffer(PATCH_SIZE,PATCH_SIZE,sizeof(SEA_PATCH_VERTEX),true);	//update the water mesh with new lighting/alpha
 #endif
 }
@@ -1506,7 +1544,8 @@ void WaterRenderObjClass::loadSetting( Setting *setting, TimeOfDay timeOfDay )
 void WaterRenderObjClass::updateRenderTargetTextures(CameraClass *cam)
 {
 #if !defined(GGC_BGFX_STANDALONE)
-	if (m_waterType == WATER_TYPE_2_PVSHADER && getClippedWaterPlane(cam, nullptr) &&
+	if (!W3DWater_UseBackendSeaBatch() &&
+		m_waterType == WATER_TYPE_2_PVSHADER && getClippedWaterPlane(cam, nullptr) &&
 		TheTerrainRenderObject && TheTerrainRenderObject->getMap())
 		renderMirror(cam);	//generate texture containing reflected scene
 #endif
@@ -1652,7 +1691,10 @@ void WaterRenderObjClass::Render(RenderInfoClass & rinfo)
 #if defined(GGC_BGFX_STANDALONE)
 			drawSeaBatch(rinfo);
 #else
-			drawSea(rinfo);	//draw water surface
+			if (W3DWater_UseBackendSeaBatch())
+				drawSeaBatch(rinfo);
+			else
+				drawSea(rinfo);	//draw water surface
 #endif
 			break;
 
@@ -3181,13 +3223,7 @@ void WaterRenderObjClass::setupFlatWaterShader()
 			//pixel shader on GF4 generates random colors with SetTexture(3,nullptr).
 			if (!m_whiteTexture->Is_Initialized())
 			{	m_whiteTexture->Init();
-				SurfaceClass *surface=m_whiteTexture->Get_Surface_Level();
-				int pitch;
-				void *pBits = surface->Lock(&pitch);
-				const unsigned int bytesPerPixel = surface->Get_Bytes_Per_Pixel();
-				surface->Draw_Pixel(0, 0, 0xffffffff, bytesPerPixel, pBits, pitch);
-				surface->Unlock();
-				REF_PTR_RELEASE(surface);
+				W3DWater_FillWhiteTexture(m_whiteTexture);
 			}
 			W3DWater_BindTexture(3, m_whiteTexture);
 		}

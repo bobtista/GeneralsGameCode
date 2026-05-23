@@ -58,13 +58,15 @@ class TextureLoadTaskClass;
 class TextureClass;
 class CubeTextureClass;
 class VolumeTextureClass;
+class DX8TextureInterop;
 
 class TextureBaseClass : public RefCountClass
 {
 	friend class TextureLoader;
 	friend class LoaderThreadClass;
-	friend class DX8TextureTrackerClass;  //(gth) so it can call Poke_Texture,
+	friend class DX8TextureTrackerClass;  //(gth) so it can poke the native texture,
 	friend class DX8ZTextureTrackerClass;
+	friend class DX8TextureInterop;
 
 public:
 
@@ -153,10 +155,6 @@ public:
 	// This utility function processes the texture reduction (used during rendering)
 	void Invalidate();
 
-		// texture accessors (dx8)
-		IDirect3DBaseTexture8 *Peek_D3D_Base_Texture() const;
-		void Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex);
-		void Share_Texture_With(const TextureBaseClass *texture);
 		struct TextureMipSnapshot
 		{
 			unsigned Width;
@@ -170,6 +168,8 @@ public:
 		void Release_CPU_Texture_Mips() { CPUTextureMips.clear(); CPUTextureMips.shrink_to_fit(); }
 		unsigned Get_CPU_Texture_Revision() const { return CPUTextureRevision; }
 		void Refresh_CPU_Texture_Snapshot() { Capture_CPU_Texture_Snapshot(LegacyTexture); }
+		void Share_Texture_Storage_With(const TextureBaseClass *source);
+		bool Has_Compatibility_Texture() const { return LegacyTexture != nullptr; }
 
 	PoolType Get_Pool() const { return Pool; }
 
@@ -206,14 +206,13 @@ public:
 	virtual CubeTextureClass* As_CubeTextureClass() { return nullptr; }
 	virtual VolumeTextureClass* As_VolumeTextureClass() { return nullptr; }
 
-	IDirect3DTexture8* Peek_D3D_Texture() const { return (IDirect3DTexture8*)Peek_D3D_Base_Texture(); }
-	IDirect3DVolumeTexture8* Peek_D3D_VolumeTexture() const { return (IDirect3DVolumeTexture8*)Peek_D3D_Base_Texture(); }
-	IDirect3DCubeTexture8* Peek_D3D_CubeTexture() const { return (IDirect3DCubeTexture8*)Peek_D3D_Base_Texture(); }
-
 protected:
 
 	void Load_Locked_Surface();
-	void Poke_Texture(IDirect3DBaseTexture8* tex) { D3DTexture = tex; }
+	void Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> &&mips);
+	void Update_CPU_Texture_Mip_Snapshot(unsigned int level, TextureMipSnapshot &&mip);
+	std::vector<TextureMipSnapshot>& Mutable_CPU_Texture_Mips() { return CPUTextureMips; }
+	void Mark_CPU_Texture_Mips_Changed();
 
 	bool Initialized;
 
@@ -247,8 +246,8 @@ private:
 		std::vector<TextureMipSnapshot> CPUTextureMips;
 		unsigned CPUTextureRevision;
 		void Capture_CPU_Texture_Snapshot(void *native_texture);
-		void Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> &&mips);
 		void Clear_CPU_Texture_Snapshot();
+		bool PreserveCPUTextureSnapshotOnNextLegacySet;
 
 		// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Populated by the asset loader after it calls
@@ -299,6 +298,15 @@ public:
 		unsigned Y;
 		unsigned Width;
 		unsigned Height;
+	};
+	struct MutableTextureMipView
+	{
+		WW3DFormat Format = WW3D_FORMAT_UNKNOWN;
+		unsigned Width = 0;
+		unsigned Height = 0;
+		unsigned Pitch = 0;
+		unsigned char *Data = nullptr;
+		bool Is_Valid() const { return Data != nullptr && Width != 0 && Height != 0 && Pitch != 0; }
 	};
 
 
@@ -373,6 +381,9 @@ public:
 
 	// Get the surface of one of the mipmap levels (defaults to highest-resolution one)
 	SurfaceClass *Get_Surface_Level(unsigned int level = 0);
+	MutableTextureMipView Begin_Mip_Write(unsigned int level = 0);
+	void End_Mip_Write(unsigned int level = 0);
+	void Update_Surface_Level_From_Surface(unsigned int level, const SurfaceClass::SurfaceImageData &image);
 	void Get_Level_Description( SurfaceClass::SurfaceDescription & desc, unsigned int level = 0 );
 	unsigned int Get_Level_Count() const;
 	bool Generate_Mip_Levels();
@@ -398,6 +409,8 @@ protected:
 	std::vector<TextureAtlasRegion> AtlasRegions;
 
 private:
+	friend class TextureLoader;
+	friend class TextureLoadTaskClass;
 	friend class DX8TextureInterop;
 	void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
 	void *Get_Legacy_Surface_Level(unsigned int level = 0);

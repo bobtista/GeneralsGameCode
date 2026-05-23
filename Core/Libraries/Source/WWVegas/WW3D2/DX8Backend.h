@@ -48,6 +48,7 @@ public:
     virtual WW3DFormat Get_Back_Buffer_Format() const;
     virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const;
     virtual SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num) override;
+    virtual bool Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image) override;
     virtual void Set_Texture_Bitdepth(int bitdepth) override;
     virtual int Get_Texture_Bitdepth() const override;
     virtual bool Supports_Texture_Format(WW3DFormat format) const override;

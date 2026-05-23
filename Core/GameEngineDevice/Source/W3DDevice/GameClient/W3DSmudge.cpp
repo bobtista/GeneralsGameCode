@@ -154,48 +154,34 @@ Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int hei
 		return 0;
 	}
 
-	SurfaceClass *surface = g_renderBackend->Capture_Back_Buffer_Surface(0);
-	if (surface == nullptr) {
+	RenderBackendImage image;
+	if (!g_renderBackend->Capture_Back_Buffer_Image(0, image)) {
 		return 0;
 	}
 
-	SurfaceClass::SurfaceDescription desc;
-	surface->Get_Description(desc);
 	if (oX < 0 || oY < 0 ||
-		oX + width > static_cast<int>(desc.Width) ||
-		oY + height > static_cast<int>(desc.Height)) {
-		surface->Release_Ref();
+		oX + width > static_cast<int>(image.Width) ||
+		oY + height > static_cast<int>(image.Height)) {
 		return 0;
 	}
 
-	const int bytesPerPixel = surface->Get_Bytes_Per_Pixel();
+	const int bytesPerPixel = Get_Bytes_Per_Pixel(image.Format);
 	const int rowBytes = width * bytesPerPixel;
 	const int totalBytes = rowBytes * height;
 	const int copyBytes = (bufSize < totalBytes) ? bufSize : totalBytes;
 	if (bytesPerPixel <= 0 || copyBytes <= 0) {
-		surface->Release_Ref();
-		return 0;
-	}
-
-	int pitch = 0;
-	unsigned char *src = static_cast<unsigned char *>(surface->Lock(
-		&pitch,
-		Vector2i(oX, oY),
-		Vector2i(oX + width, oY + height)));
-	if (src == nullptr) {
-		surface->Release_Ref();
 		return 0;
 	}
 
 	int copied = 0;
 	for (int row = 0; row < height && copied < copyBytes; ++row) {
 		const int rowCopy = (copyBytes - copied < rowBytes) ? copyBytes - copied : rowBytes;
-		memcpy(buf + copied, src + row * pitch, rowCopy);
+		const size_t sourceOffset =
+			(static_cast<size_t>(oY + row) * image.Pitch) + (static_cast<size_t>(oX) * bytesPerPixel);
+		memcpy(buf + copied, image.Bytes.data() + sourceOffset, rowCopy);
 		copied += rowCopy;
 	}
 
-	surface->Unlock();
-	surface->Release_Ref();
 	return copied;
 }
 

@@ -310,6 +310,15 @@ void main()
 		return;
 	}
 
+	if (u_projectedDecalMode.x > 0.5
+		&& (stage0UV.x < 0.0 || stage0UV.x > 1.0 || stage0UV.y < 0.0 || stage0UV.y > 1.0))
+	{
+		// W3D projects decals onto terrain cell meshes that can extend beyond
+		// the decal image. DX8 treats that area as non-contributing; clamping the
+		// bgfx sample instead can repeat dark texture padding into blocky patches.
+		discard;
+	}
+
 	if (u_projectedDecalMode.x > (PROJECTED_DECAL_ADDITIVE - 0.5)
 		&& u_projectedDecalMode.x < (PROJECTED_DECAL_ADDITIVE + 0.5))
 	{
@@ -365,9 +374,13 @@ void main()
 	{
 		// Non-blob projected shadows use W3D's preset multiplicative
 		// fixed-function shader: COLOROP=MODULATE and blend ZERO/SRC_COLOR.
-		// The texture RGB is already authored as the destination multiplier,
-		// so do not reinterpret alpha as a mask here.
-		gl_FragColor = vec4(tex0.rgb * diffuse.rgb, 1.0);
+		// Their textures can still carry black RGB in transparent padding.
+		// DX8's texture/decal setup lets that padding contribute as neutral
+		// destination color; in bgfx it must be made explicit or large shadow
+		// receiver meshes stamp blocky black patches around the actual mask.
+		float mask = clamp(tex0.a * diffuse.a, 0.0, 1.0);
+		vec3 multiplier = tex0.rgb * diffuse.rgb;
+		gl_FragColor = vec4(mix(vec3_splat(1.0), multiplier, mask), 1.0);
 		return;
 	}
 
