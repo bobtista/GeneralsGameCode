@@ -217,9 +217,9 @@ protected:
 	TextureClass *m_riverTexture;
 	TextureClass *m_whiteTexture;		///< a texture containing only white used for null pixel shader stages.
 	TextureClass *m_waterNoiseTexture;
-	DWORD	m_waterPixelShader;		///<D3D handle to pixel shader.
-	DWORD	m_riverWaterPixelShader;		///<D3D handle to pixel shader.
-	DWORD	m_trapezoidWaterPixelShader;	///<handle to D3D vertex shader
+	unsigned long m_waterPixelShader;			///< backend legacy water shader handle
+	unsigned long m_riverWaterPixelShader;		///< backend legacy river shader handle
+	unsigned long m_trapezoidWaterPixelShader;	///< backend legacy trapezoid-water shader handle
 	TextureClass *m_waterSparklesTexture;
 	Real m_riverXOffset;
 	Real m_riverYOffset;
