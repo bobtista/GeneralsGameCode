@@ -1390,32 +1390,20 @@ void WW3D::Make_Screen_Shot( const char * filename_base , const float gamma, con
 		gamma_lut[i] = (unsigned char) (256.0f * powf(i / 256.0f, recip));
 	}
 
-	SurfaceClass* surfaceCopy = (g_renderBackend != nullptr) ? g_renderBackend->Capture_Back_Buffer_Surface(0) : nullptr;
-	if (surfaceCopy == nullptr)
+	RenderBackendImage capture;
+	if (g_renderBackend == nullptr || !g_renderBackend->Capture_Back_Buffer_Image(0, capture))
 	{
-		return;
-	}
-
-	SurfaceClass::SurfaceDescription surfaceDesc;
-	surfaceCopy->Get_Description(surfaceDesc);
-
-	struct Rect
-	{
-		int Pitch;
-		void* pBits;
-	} lrect;
-
-	lrect.pBits = surfaceCopy->Lock(&lrect.Pitch);
-	if (lrect.pBits == nullptr)
-	{
-		surfaceCopy->Release_Ref();
+		if (format == BMP && g_renderBackend != nullptr && g_renderBackend->Request_Native_Screen_Shot(filename))
+		{
+			return;
+		}
 		return;
 	}
 
 	unsigned int x,y,index,index2,width,height;
 
-	width = surfaceDesc.Width;
-	height = surfaceDesc.Height;
+	width = capture.Width;
+	height = capture.Height;
 
 	unsigned char *image=W3DNEWARRAY unsigned char[3*width*height];
 
@@ -1426,17 +1414,13 @@ void WW3D::Make_Screen_Shot( const char * filename_base , const float gamma, con
 			// index for image
 			index=3*(x+y*width);
 			// index for fb
-			index2=y*lrect.Pitch+4*x;
+			index2=y*capture.Pitch+4*x;
 
-			image[index]   = gamma_lut[*((unsigned char *) lrect.pBits + index2+2)];
-			image[index+1] = gamma_lut[*((unsigned char *) lrect.pBits + index2+1)];
-			image[index+2] = gamma_lut[*((unsigned char *) lrect.pBits + index2+0)];
+			image[index]   = gamma_lut[*(capture.Bytes.data() + index2+2)];
+			image[index+1] = gamma_lut[*(capture.Bytes.data() + index2+1)];
+			image[index+2] = gamma_lut[*(capture.Bytes.data() + index2+0)];
 		}
 	}
-
-	surfaceCopy->Unlock();
-	surfaceCopy->Release_Ref();
-	surfaceCopy = nullptr;
 
 	switch (format) {
 		case TGA:
@@ -1735,32 +1719,16 @@ void WW3D::Update_Movie_Capture()
 	WWPROFILE("WW3D::Update_Movie_Capture");
 	WWDEBUG_SAY(( "Updating"));
 
-	SurfaceClass* surfaceCopy = (g_renderBackend != nullptr) ? g_renderBackend->Capture_Back_Buffer_Surface(0) : nullptr;
-	if (surfaceCopy == nullptr)
+	RenderBackendImage capture;
+	if (g_renderBackend == nullptr || !g_renderBackend->Capture_Back_Buffer_Image(0, capture))
 	{
-		return;
-	}
-
-	SurfaceClass::SurfaceDescription surfaceDesc;
-	surfaceCopy->Get_Description(surfaceDesc);
-
-	struct Rect
-	{
-		int Pitch;
-		void* pBits;
-	} lrect;
-
-	lrect.pBits = surfaceCopy->Lock(&lrect.Pitch);
-	if (lrect.pBits == nullptr)
-	{
-		surfaceCopy->Release_Ref();
 		return;
 	}
 
 	unsigned int x,y,index,index2,width,height;
 
-	width = surfaceDesc.Width;
-	height = surfaceDesc.Height;
+	width = capture.Width;
+	height = capture.Height;
 
 	char *image=(char *)Movie->GetBuffer();
 
@@ -1771,17 +1739,13 @@ void WW3D::Update_Movie_Capture()
 			// index for image
 			index=3*(x+(height-y-1)*width);
 			// index for fb
-			index2=y*lrect.Pitch+4*x;
+			index2=y*capture.Pitch+4*x;
 
-			image[index]=*((char *) lrect.pBits + index2+0);
-			image[index+1]=*((char *) lrect.pBits + index2+1);
-			image[index+2]=*((char *) lrect.pBits + index2+2);
+			image[index]=*((char *) capture.Bytes.data() + index2+0);
+			image[index+1]=*((char *) capture.Bytes.data() + index2+1);
+			image[index+2]=*((char *) capture.Bytes.data() + index2+2);
 		}
 	}
-
-	surfaceCopy->Unlock();
-	surfaceCopy->Release_Ref();
-	surfaceCopy = nullptr;
 
 	Movie->Grab(image);
 #endif

@@ -168,6 +168,7 @@ public:
 		void Release_CPU_Texture_Mips() { CPUTextureMips.clear(); CPUTextureMips.shrink_to_fit(); }
 		unsigned Get_CPU_Texture_Revision() const { return CPUTextureRevision; }
 		void Refresh_CPU_Texture_Snapshot() { Capture_CPU_Texture_Snapshot(LegacyTexture); }
+		void Share_Texture_Storage_With(const TextureBaseClass *source);
 		bool Has_Compatibility_Texture() const { return LegacyTexture != nullptr; }
 
 	PoolType Get_Pool() const { return Pool; }
@@ -210,6 +211,8 @@ protected:
 	void Load_Locked_Surface();
 	void Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> &&mips);
 	void Update_CPU_Texture_Mip_Snapshot(unsigned int level, TextureMipSnapshot &&mip);
+	std::vector<TextureMipSnapshot>& Mutable_CPU_Texture_Mips() { return CPUTextureMips; }
+	void Mark_CPU_Texture_Mips_Changed();
 
 	bool Initialized;
 
@@ -296,6 +299,15 @@ public:
 		unsigned Width;
 		unsigned Height;
 	};
+	struct MutableTextureMipView
+	{
+		WW3DFormat Format = WW3D_FORMAT_UNKNOWN;
+		unsigned Width = 0;
+		unsigned Height = 0;
+		unsigned Pitch = 0;
+		unsigned char *Data = nullptr;
+		bool Is_Valid() const { return Data != nullptr && Width != 0 && Height != 0 && Pitch != 0; }
+	};
 
 
 	// Create texture with desired height, width and format.
@@ -369,6 +381,8 @@ public:
 
 	// Get the surface of one of the mipmap levels (defaults to highest-resolution one)
 	SurfaceClass *Get_Surface_Level(unsigned int level = 0);
+	MutableTextureMipView Begin_Mip_Write(unsigned int level = 0);
+	void End_Mip_Write(unsigned int level = 0);
 	void Update_Surface_Level_From_Surface(unsigned int level, const SurfaceClass::SurfaceImageData &image);
 	void Get_Level_Description( SurfaceClass::SurfaceDescription & desc, unsigned int level = 0 );
 	unsigned int Get_Level_Count() const;

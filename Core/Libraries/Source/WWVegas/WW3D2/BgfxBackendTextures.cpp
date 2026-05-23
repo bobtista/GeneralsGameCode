@@ -1801,10 +1801,12 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
     static TextureClass * s_lastShroudDst = nullptr;
     static unsigned s_lastShroudW = 0;
     static unsigned s_lastShroudH = 0;
+    bool forceFullUpload = false;
     if (dst_texture != s_lastShroudDst
         || dst_width != s_lastShroudW
         || dst_height != s_lastShroudH)
     {
+        forceFullUpload = true;
         if (s_lastShroudDst != nullptr && s_lastShroudDst != dst_texture)
         {
             auto oldIt = g_caches.texture.find(s_lastShroudDst);
@@ -1864,6 +1866,7 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
             WWDEBUG_SAY(("[BgfxBackend] Shroud texture CREATE FAILED: dst=%ux%u fmt=%d",
                          dst_width, dst_height, static_cast<int>(format)));
         }
+        forceFullUpload = true;
     }
 
     bgfx::TextureHandle h = g_caches.texture[dst_texture];
@@ -1889,15 +1892,16 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
     const unsigned rowBytes = src_width * bpp;
     const uint8_t * srcBase = static_cast<const uint8_t *>(pixel_data) + src_y * pitch;
 
-    if (s_prevShroudData.size() == srcBytes
+    if (!forceFullUpload
+        && s_prevShroudData.size() == srcBytes
         && std::memcmp(s_prevShroudData.data(), srcBase, srcBytes) == 0)
     {
         return;
     }
 
-    if (s_fullShroudImage.size() != fullSize)
+    if (s_fullShroudImage.size() != fullSize || forceFullUpload)
     {
-        s_fullShroudImage.resize(fullSize, 0xFF);
+        s_fullShroudImage.assign(fullSize, 0xFF);
     }
 
     unsigned dirtyRowMin = src_height;
@@ -1907,7 +1911,8 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
     {
         const unsigned srcRowOff = row * pitch + src_x * bpp;
         const unsigned cacheRowOff = row * pitch;
-        bool rowDirty = !hasPrev
+        bool rowDirty = forceFullUpload
+            || !hasPrev
             || std::memcmp(s_prevShroudData.data() + cacheRowOff,
                            srcBase + cacheRowOff, rowBytes) != 0;
         const unsigned dstOffset = ((dst_y + row) * dst_width + dst_x) * bpp;
@@ -1932,13 +1937,18 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
     shroudImage.Data.assign(s_fullShroudImage.begin(), s_fullShroudImage.end());
     dst_texture->Update_Surface_Level_From_Surface(0, shroudImage);
 
-    if (dirtyRowMin >= dirtyRowMax)
+    if (forceFullUpload)
+    {
+        dirtyRowMin = 0;
+        dirtyRowMax = dst_height;
+    }
+    else if (dirtyRowMin >= dirtyRowMax)
     {
         dirtyRowMin = 0;
         dirtyRowMax = src_height;
     }
-    const unsigned uploadY = dst_y + dirtyRowMin;
-    const unsigned uploadH = dirtyRowMax - dirtyRowMin;
+    const unsigned uploadY = forceFullUpload ? 0 : dst_y + dirtyRowMin;
+    const unsigned uploadH = forceFullUpload ? dst_height : dirtyRowMax - dirtyRowMin;
     const unsigned uploadBytes = uploadH * dst_width * bpp;
     const bgfx::Memory * mem = bgfx::alloc(uploadBytes);
     for (unsigned row = 0; row < uploadH; ++row)

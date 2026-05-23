@@ -545,6 +545,17 @@ void TextureBaseClass::Update_CPU_Texture_Mip_Snapshot(unsigned int level, Textu
 	++CPUTextureRevision;
 }
 
+void TextureBaseClass::Mark_CPU_Texture_Mips_Changed()
+{
+	PreserveCPUTextureSnapshotOnNextLegacySet = true;
+	++CPUTextureRevision;
+}
+
+void TextureBaseClass::Share_Texture_Storage_With(const TextureBaseClass *source)
+{
+	Share_Legacy_Texture_With(*this, source);
+}
+
 void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 {
 	PreserveCPUTextureSnapshotOnNextLegacySet = false;
@@ -1468,6 +1479,119 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 	surface->Capture_CPU_Surface_Snapshot();
 
 	return surface;
+}
+
+TextureClass::MutableTextureMipView TextureClass::Begin_Mip_Write(unsigned int level)
+{
+	MutableTextureMipView view;
+	if (TextureFormat == WW3D_FORMAT_UNKNOWN ||
+		Is_Block_Compressed_Texture_Format(TextureFormat))
+	{
+		return view;
+	}
+
+	const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(TextureFormat);
+	if (bytes_per_pixel == 0)
+	{
+		return view;
+	}
+
+	unsigned mip_width = 0;
+	unsigned mip_height = 0;
+	std::vector<TextureMipSnapshot> &mips = Mutable_CPU_Texture_Mips();
+	if (level < mips.size() &&
+		mips[level].Format != WW3D_FORMAT_UNKNOWN &&
+		mips[level].Width != 0 &&
+		mips[level].Height != 0)
+	{
+		mip_width = mips[level].Width;
+		mip_height = mips[level].Height;
+	}
+	else
+	{
+		if (Width <= 0 || Height <= 0)
+		{
+			return view;
+		}
+		mip_width = std::max(1u, static_cast<unsigned>(Width) >> level);
+		mip_height = std::max(1u, static_cast<unsigned>(Height) >> level);
+	}
+
+	const unsigned row_size = mip_width * bytes_per_pixel;
+	if (mips.size() <= level)
+	{
+		mips.resize(level + 1);
+	}
+	TextureMipSnapshot &mip = mips[level];
+	if (mip.Format != TextureFormat ||
+		mip.Width != mip_width ||
+		mip.Height != mip_height ||
+		mip.Pitch < row_size ||
+		mip.Data.size() < static_cast<size_t>(mip.Pitch) * mip.Height)
+	{
+		mip.Format = TextureFormat;
+		mip.Width = mip_width;
+		mip.Height = mip_height;
+		mip.Pitch = row_size;
+		mip.Data.assign(static_cast<size_t>(row_size) * mip_height, 0);
+	}
+
+	view.Format = mip.Format;
+	view.Width = mip.Width;
+	view.Height = mip.Height;
+	view.Pitch = mip.Pitch;
+	view.Data = mip.Data.data();
+	return view;
+}
+
+void TextureClass::End_Mip_Write(unsigned int level)
+{
+	const std::vector<TextureMipSnapshot> &mips = Get_CPU_Texture_Mips();
+	if (level >= mips.size() ||
+		mips[level].Format == WW3D_FORMAT_UNKNOWN ||
+		mips[level].Data.empty())
+	{
+		return;
+	}
+
+	Mark_CPU_Texture_Mips_Changed();
+	auto *texture = Peek_Legacy_Texture2D(*this);
+	if (texture != nullptr)
+	{
+#if defined(GGC_BGFX_STANDALONE)
+		WWASSERT_PRINT(
+			false,
+			"TextureClass::End_Mip_Write: standalone bgfx cannot mirror writes to fake-D3D texture mips");
+#else
+		const TextureMipSnapshot &mip = mips[level];
+		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(mip.Format);
+		const unsigned row_size = mip.Width * bytes_per_pixel;
+		LegacyLockedRect lock_rect;
+		::ZeroMemory(&lock_rect, sizeof(lock_rect));
+		if (bytes_per_pixel != 0 &&
+			row_size != 0 &&
+			SUCCEEDED(texture->LockRect(level, &lock_rect, nullptr, 0)))
+		{
+			if (lock_rect.pBits != nullptr)
+			{
+				const unsigned char *src = mip.Data.data();
+				unsigned char *dst = static_cast<unsigned char *>(lock_rect.pBits);
+				for (unsigned row = 0; row < mip.Height; ++row)
+				{
+					memcpy(dst, src, row_size);
+					src += mip.Pitch;
+					dst += lock_rect.Pitch;
+				}
+			}
+			DX8_ErrorCode(texture->UnlockRect(level));
+		}
+#endif
+	}
+
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Invalidate_Cached_Texture(this);
+	}
 }
 
 void TextureClass::Update_Surface_Level_From_Surface(unsigned int level, const SurfaceClass::SurfaceImageData &image)
