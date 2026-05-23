@@ -1732,12 +1732,12 @@ auto MakeIdentityLegacyCacheMatrix()
 
 void CacheTransform(TransformKind transform, const Matrix4x4 & m)
 {
-    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
+    FixedFunctionState::Set_Transform_Matrix(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
 }
 
 void CacheTransform(TransformKind transform, const Matrix3D & m)
 {
-    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
+    FixedFunctionState::Set_Transform_Matrix(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
 }
 
 void CacheIdentityTransform(TransformKind transform)
@@ -6213,7 +6213,7 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
         material != nullptr
         && material->Get_Lighting()
         && !WW3D::Is_Coloring_Enabled();
-    RenderStateCache::Set_Render_State(RS::LIGHTING, lightingEnabled ? TRUE : FALSE);
+    FixedFunctionState::Set_Lighting_Enabled(lightingEnabled);
     g_draw.explicitMaterialState = false;
     CaptureMaterialStateForBgfx(material);
 }
@@ -6349,7 +6349,7 @@ void BgfxBackend::Set_Fog_Enable(bool enable)
 
 void BgfxBackend::Set_Fog_Color(unsigned argb)
 {
-    RenderStateCache::Set_Render_State(RS::FOGCOLOR, argb);
+    FixedFunctionState::Set_Fog_Color(argb);
 }
 
 unsigned BgfxBackend::Get_Fog_Color() const
@@ -6569,7 +6569,7 @@ void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
 void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
 {
     auto cacheMatrix = MakeLegacyCacheMatrix(matrix);
-    RenderStateCache::Set_Transform(kTextureTransformStage0 + stage, cacheMatrix);
+    FixedFunctionState::Set_Transform_Matrix(kTextureTransformStage0 + stage, cacheMatrix);
 
     if (stage == 0)
     {
@@ -7155,7 +7155,7 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
     {
         d3dMask |= RB_COLOR_ALPHA;
     }
-    RenderStateCache::Set_Render_State(RS::COLORWRITEENABLE, d3dMask);
+    FixedFunctionState::Set_Color_Write_Mask(d3dMask);
     g_overrides.colorWriteOverride = static_cast<int>(mask);
     g_overrides.suppressDraw = false;
 }
@@ -7171,7 +7171,7 @@ unsigned BgfxBackend::Get_Color_Write_Mask() const
 
 void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(RS::COLORWRITEENABLE, mask);
+    FixedFunctionState::Set_Color_Write_Mask(mask);
     uint64_t bgfxMask = 0;
     if (mask & RB_COLOR_RED)
     {
@@ -7195,7 +7195,7 @@ void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 
 void BgfxBackend::Set_Lighting_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(RS::LIGHTING, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Lighting_Enabled(enable);
     g_draw.lightingEnabled[0] = enable ? 1.0f : 0.0f;
 }
 
@@ -7580,7 +7580,7 @@ CullMode BgfxBackend::Get_Cull_Mode() const
 
 void BgfxBackend::Set_Cull_Mode(CullMode mode)
 {
-    RenderStateCache::Set_Render_State(RS::CULLMODE, static_cast<unsigned>(mode));
+    FixedFunctionState::Set_Cull_Mode(static_cast<unsigned>(mode));
     switch (mode)
     {
         case RB_CULL_CW:  g_draw.cullModeBits = 1; break;
