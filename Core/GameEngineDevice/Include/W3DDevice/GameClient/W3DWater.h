@@ -161,8 +161,8 @@ protected:
 	IDirect3DDevice8 *m_pDev;						///<pointer to D3D Device
 	IDirect3DVertexBuffer8 *m_vertexBufferD3D;		///<D3D vertex buffer
 	IDirect3DIndexBuffer8 *m_indexBufferD3D;	///<D3D index buffer
-	DWORD					m_dwWavePixelShader;	///<handle to D3D pixel shader
-	DWORD					m_dwWaveVertexShader;	///<handle to D3D vertex shader
+	unsigned long			m_wavePixelShader;	///<backend legacy pixel shader handle
+	unsigned long			m_waveVertexShader;	///<backend legacy vertex shader handle
 	IDirect3DTexture8 *m_pBumpTexture[NUM_BUMP_FRAMES]; ///<animation frames
 	IDirect3DTexture8 *m_pBumpTexture2[NUM_BUMP_FRAMES]; ///<animation frames
 #endif
