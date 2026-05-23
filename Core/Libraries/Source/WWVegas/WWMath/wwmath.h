@@ -144,7 +144,7 @@ public:
 	static WWINLINE float Asinf(float x) { return gm_asinf(x); }
 	static WWINLINE double Tan(double x) { return gm_tan(x); }
 	static WWINLINE float Tanf(float x) { return gm_tanf(x); }
-	static WWINLINE double Fabs_Origin(double x) { return gm_fabs(x); }
+	static WWINLINE double Fabs(double x) { return gm_fabs(x); }
 	static WWINLINE float Fabsf_Legacy(float x) { return gm_fabsf(x); }
 	static WWINLINE double Pow(double x, double y) { return gm_pow(x, y); }
 	static WWINLINE float Powf(float x, float y) { return gm_powf(x, y); }
@@ -173,7 +173,7 @@ public:
 	static WWINLINE float Asinf(float x) { return asinf(x); }
 	static WWINLINE double Tan(double x) { return tan(x); }
 	static WWINLINE float Tanf(float x) { return tanf(x); }
-	static WWINLINE double Fabs_Origin(double x) { return fabs(x); }
+	static WWINLINE double Fabs(double x) { return fabs(x); }
 	static WWINLINE float Fabsf_Legacy(float x) { return fabsf(x); }
 	static WWINLINE double Pow(double x, double y) { return pow(x, y); }
 	static WWINLINE float Powf(float x, float y) { return powf(x, y); }
