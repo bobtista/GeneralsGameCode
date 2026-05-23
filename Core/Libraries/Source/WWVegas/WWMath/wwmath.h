@@ -118,7 +118,7 @@ public:
 
 	static WWINLINE float Cos(float val);
 	static WWINLINE float Sin(float val);
-	static WWINLINE float Sqrt(float val);
+	static WWINLINE float Sqrt_Legacy(float val);
 	static WWINLINE float Inv_Sqrt(float a);
 	static WWINLINE long Float_To_Long(float f);
 
@@ -659,12 +659,12 @@ WWINLINE float WWMath::Asin(float val)
 // ----------------------------------------------------------------------------
 
 #if USE_DETERMINISTIC_MATH
-WWINLINE float WWMath::Sqrt(float val)
+WWINLINE float WWMath::Sqrt_Legacy(float val)
 {
 	return gm_sqrtf(val);
 }
 #elif defined(_MSC_VER) && defined(_M_IX86)
-WWINLINE float WWMath::Sqrt(float val)
+WWINLINE float WWMath::Sqrt_Legacy(float val)
 {
 	float retval;
 	__asm {
@@ -675,7 +675,7 @@ WWINLINE float WWMath::Sqrt(float val)
 	return retval;
 }
 #else
-WWINLINE float WWMath::Sqrt(float val)
+WWINLINE float WWMath::Sqrt_Legacy(float val)
 {
 	return (float)sqrt(val);
 }

@@ -261,7 +261,7 @@ bool CollisionMath::Collide(const LineSegClass& line, const SphereClass& sphere,
 	}
 	else
 	{
-		float d = WWMath::Sqrt(disc);
+		float d = WWMath::Sqrt_Legacy(disc);
 		float frac = (clen - d) / line.Get_Length();
 		if (frac < 0.0f)
 			frac = (clen + d) / line.Get_Length();
