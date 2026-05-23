@@ -1873,7 +1873,7 @@ void CacheIdentityTransform(TransformKind transform)
 bool IsCachedTransformIdentity(TransformKind transform)
 {
     auto matrix = MakeIdentityLegacyCacheMatrix();
-    RenderStateCache::Get_Transform(static_cast<unsigned>(transform), matrix);
+    FixedFunctionState::Transform_Matrix(static_cast<unsigned>(transform), matrix);
     for (int row = 0; row < 4; ++row)
     {
         for (int col = 0; col < 4; ++col)
@@ -4590,7 +4590,7 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
         && (ContainsCaseInsensitive(texName, "avcomanche_p")
             || ContainsCaseInsensitive(texName, "ubsnkatak_01")))
     {
-        RenderStateCache::Get_Transform(
+        FixedFunctionState::Transform_Matrix(
             static_cast<unsigned>(RB_TRANSFORM_WORLD), state.world);
     }
 }
@@ -4609,7 +4609,7 @@ void BgfxBackend::Release_Legacy_Render_State_For_Sorted_Draw()
 // both Submit_Sorted_Draw and SubmitEngineDraw to avoid duplicated blocks.
 static uint64_t ApplyCullModeOverride(uint64_t state)
 {
-    CullMode cullMode = static_cast<CullMode>(RenderStateCache::Get_Render_State(RS::CULLMODE));
+    CullMode cullMode = static_cast<CullMode>(FixedFunctionState::Cull_Mode(RB_CULL_NONE));
     state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
     if (cullMode == RB_CULL_CW)
     {
@@ -5653,7 +5653,7 @@ static void SetIdentityTextureTransform(float * row0, float * row1)
 static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 {
     auto texMtx = MakeIdentityLegacyCacheMatrix();
-    RenderStateCache::Get_Transform(kTextureTransformStage0 + stage, texMtx);
+    FixedFunctionState::Transform_Matrix(kTextureTransformStage0 + stage, texMtx);
     row0[0] = texMtx.m[0][0];
     row0[1] = texMtx.m[1][0];
     row0[2] = texMtx.m[2][0];
@@ -5671,7 +5671,7 @@ static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 static void ReadTextureTransformZ(unsigned stage, float * rowZ)
 {
     auto texMtx = MakeIdentityLegacyCacheMatrix();
-    RenderStateCache::Get_Transform(kTextureTransformStage0 + stage, texMtx);
+    FixedFunctionState::Transform_Matrix(kTextureTransformStage0 + stage, texMtx);
     rowZ[0] = texMtx.m[0][2];
     rowZ[1] = texMtx.m[1][2];
     rowZ[2] = texMtx.m[2][2];
@@ -5947,11 +5947,9 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
             (ambientSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
         g_draw.vertexColorFlags[3] =
             (emissiveSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
-        const unsigned d3dLighting = RenderStateCache::Get_Render_State(RS::LIGHTING);
         g_draw.lightingEnabled[0] =
             (material->Get_Lighting()
-             && d3dLighting != 0
-             && d3dLighting != 0x12345678
+             && FixedFunctionState::Lighting_Enabled(false)
              && !WW3D::Is_Coloring_Enabled()) ? 1.0f : 0.0f;
 
         Vector3 emissive(0.0f, 0.0f, 0.0f);
@@ -6624,7 +6622,7 @@ void BgfxBackend::Set_Fog_Color(unsigned argb)
 
 unsigned BgfxBackend::Get_Fog_Color() const
 {
-    return RenderStateCache::Get_Render_State(RS::FOGCOLOR);
+    return FixedFunctionState::Fog_Color(0);
 }
 
 void BgfxBackend::Set_Specular_Enable(bool enable)
@@ -7481,7 +7479,8 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
 // passes that call Set_Color_Write_Mask(0) actually disable bgfx color writes.
 unsigned BgfxBackend::Get_Color_Write_Mask() const
 {
-    return RenderStateCache::Get_Render_State(RS::COLORWRITEENABLE);
+    return FixedFunctionState::Color_Write_Mask(
+        RB_COLOR_RED | RB_COLOR_GREEN | RB_COLOR_BLUE | RB_COLOR_ALPHA);
 }
 
 void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
@@ -7890,7 +7889,7 @@ void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp op)
 
 CullMode BgfxBackend::Get_Cull_Mode() const
 {
-    return static_cast<CullMode>(RenderStateCache::Get_Render_State(RS::CULLMODE));
+    return static_cast<CullMode>(FixedFunctionState::Cull_Mode(RB_CULL_NONE));
 }
 
 void BgfxBackend::Set_Cull_Mode(CullMode mode)
@@ -8182,7 +8181,7 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
 void BgfxBackend::Get_Transform(TransformKind transform, Matrix4x4 & m) const
 {
     auto matrix = MakeIdentityLegacyCacheMatrix();
-    RenderStateCache::Get_Transform(static_cast<unsigned>(transform), matrix);
+    FixedFunctionState::Transform_Matrix(static_cast<unsigned>(transform), matrix);
     m = To_Matrix4x4(matrix);
 }
 
@@ -8747,9 +8746,9 @@ void SubmitEngineDraw(unsigned short start_index,
                     // direct world-space params; decomposing camera-space
                     // matrices is fragile across compatibility layers.
                     auto texMtx = MakeIdentityLegacyCacheMatrix();
-                    RenderStateCache::Get_Transform(kTextureTransformStage0 + stg, texMtx);
+                    FixedFunctionState::Transform_Matrix(kTextureTransformStage0 + stg, texMtx);
                     auto viewMtx = MakeIdentityLegacyCacheMatrix();
-                    RenderStateCache::Get_Transform(kTransformView, viewMtx);
+                    FixedFunctionState::Transform_Matrix(kTransformView, viewMtx);
                     auto ts = MakeIdentityLegacyCacheMatrix();
                     for (int rr = 0; rr < 4; rr++)
                     {

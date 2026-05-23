@@ -14,6 +14,7 @@
 #include "d3d8.h"
 #endif
 #include "indexbuffer.h"
+#include "RenderStateDefs.h"
 #include "vertexbuffer.h"
 
 #include <string.h>
@@ -34,6 +35,12 @@ namespace
 		dxm->_22 = 1.0f;
 		dxm->_33 = 1.0f;
 		dxm->_44 = 1.0f;
+	}
+
+	unsigned CachedRenderStateOr(unsigned state, unsigned default_value)
+	{
+		const unsigned value = FixedFunctionState::Cached_Render_State(state);
+		return (value == FixedFunctionState::INVALID_STATE_VALUE) ? default_value : value;
 	}
 }
 
@@ -392,6 +399,31 @@ bool FixedFunctionState::Set_Cached_Transform(unsigned transform, const LegacyTr
 
 	s_transforms[transform] = matrix;
 	return true;
+}
+
+unsigned FixedFunctionState::Cull_Mode(unsigned default_value)
+{
+	return CachedRenderStateOr(RS::CULLMODE, default_value);
+}
+
+bool FixedFunctionState::Lighting_Enabled(bool default_value)
+{
+	return CachedRenderStateOr(RS::LIGHTING, default_value ? 1U : 0U) != 0;
+}
+
+unsigned FixedFunctionState::Fog_Color(unsigned default_value)
+{
+	return CachedRenderStateOr(RS::FOGCOLOR, default_value);
+}
+
+unsigned FixedFunctionState::Color_Write_Mask(unsigned default_value)
+{
+	return CachedRenderStateOr(RS::COLORWRITEENABLE, default_value);
+}
+
+void FixedFunctionState::Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix)
+{
+	Cached_Transform(transform, matrix);
 }
 
 RenderStateStruct::RenderStateStruct()

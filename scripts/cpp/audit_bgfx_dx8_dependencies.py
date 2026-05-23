@@ -76,6 +76,13 @@ CATEGORIES = [
     ),
 ]
 
+BGFX_BACKEND_CATEGORIES = [
+    (
+        "bgfx_legacy_cache_read",
+        re.compile(r"RenderStateCache::Get_(?:Render_State|Texture_Stage_State|Transform)\s*\("),
+    ),
+]
+
 KNOWN_BGFX_MACROS = {
     "GGC_BGFX_STANDALONE": True,
     "GGC_RENDER_BACKEND_BGFX": True,
@@ -268,6 +275,7 @@ def find_forbidden_compiled_sources(compiled_sources: set[Path] | None) -> list[
 
 def main() -> int:
     hits_by_category = {name: defaultdict(list) for name, _ in CATEGORIES}
+    bgfx_backend_hits_by_category = {name: defaultdict(list) for name, _ in BGFX_BACKEND_CATEGORIES}
     compiled_sources = load_compiled_source_files()
     forbidden_compiled_sources = find_forbidden_compiled_sources(compiled_sources)
 
@@ -282,9 +290,13 @@ def main() -> int:
             for name, pattern in CATEGORIES:
                 if pattern.search(line):
                     hits_by_category[name][path].append((lineno, line.strip()))
+            if path.name.startswith("BgfxBackend"):
+                for name, pattern in BGFX_BACKEND_CATEGORIES:
+                    if pattern.search(line):
+                        bgfx_backend_hits_by_category[name][path].append((lineno, line.strip()))
 
     total = 0
-    for name, by_file in hits_by_category.items():
+    for name, by_file in {**hits_by_category, **bgfx_backend_hits_by_category}.items():
         hit_count = sum(len(v) for v in by_file.values())
         total += hit_count
         print(f"\n{name}: {hit_count} hits in {len(by_file)} files")
