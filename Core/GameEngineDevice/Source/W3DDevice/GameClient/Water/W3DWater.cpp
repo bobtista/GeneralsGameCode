@@ -521,9 +521,9 @@ WaterRenderObjClass::WaterRenderObjClass()
 	m_whiteTexture=nullptr;
 	m_waterNoiseTexture=nullptr;
 	m_riverAlphaEdge=nullptr;
-	m_waterPixelShader=0;		///<D3D handle to pixel shader.
-	m_riverWaterPixelShader=0;		///<D3D handle to pixel shader.
-	m_trapezoidWaterPixelShader=0;		///<D3D handle to pixel shader.
+	m_waterPixelShader=0;
+	m_riverWaterPixelShader=0;
+	m_trapezoidWaterPixelShader=0;
 	m_waterSparklesTexture=nullptr;
 	m_riverXOffset=0;
 	m_riverYOffset=0;
@@ -1039,21 +1039,21 @@ void WaterRenderObjClass::ReAcquireResources()
 		// keep their behavior without depending on legacy shader bytecode.
 		unsigned long legacyHandle = 0;
 		if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_RIVER_WATER, &legacyHandle))
-			m_riverWaterPixelShader = static_cast<DWORD>(legacyHandle);
+			m_riverWaterPixelShader = legacyHandle;
 		if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_REFLECTIVE_WATER, &legacyHandle))
-			m_waterPixelShader = static_cast<DWORD>(legacyHandle);
+			m_waterPixelShader = legacyHandle;
 		if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_TRAPEZOID_WATER, &legacyHandle))
-			m_trapezoidWaterPixelShader = static_cast<DWORD>(legacyHandle);
+			m_trapezoidWaterPixelShader = legacyHandle;
 #else
 		if (W3DWater_UseBackendSeaBatch())
 		{
 			unsigned long legacyHandle = 0;
 			if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_RIVER_WATER, &legacyHandle))
-				m_riverWaterPixelShader = static_cast<DWORD>(legacyHandle);
+				m_riverWaterPixelShader = legacyHandle;
 			if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_REFLECTIVE_WATER, &legacyHandle))
-				m_waterPixelShader = static_cast<DWORD>(legacyHandle);
+				m_waterPixelShader = legacyHandle;
 			if (g_renderBackend->Create_Legacy_Pixel_Shader(RB_LEGACY_PIXEL_SHADER_TRAPEZOID_WATER, &legacyHandle))
-				m_trapezoidWaterPixelShader = static_cast<DWORD>(legacyHandle);
+				m_trapezoidWaterPixelShader = legacyHandle;
 		}
 		else
 		{
@@ -1075,7 +1075,7 @@ void WaterRenderObjClass::ReAcquireResources()
 				hr = g_renderBackend->Create_Pixel_Shader(
 					reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
 					&legacyHandle) ? S_OK : E_FAIL;
-				m_riverWaterPixelShader = static_cast<DWORD>(legacyHandle);
+				m_riverWaterPixelShader = legacyHandle;
 				compiledShader->Release();
 			}
 			shader =
@@ -1092,7 +1092,7 @@ void WaterRenderObjClass::ReAcquireResources()
 				hr = g_renderBackend->Create_Pixel_Shader(
 					reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
 					&legacyHandle) ? S_OK : E_FAIL;
-				m_waterPixelShader = static_cast<DWORD>(legacyHandle);
+				m_waterPixelShader = legacyHandle;
 				compiledShader->Release();
 			}
 			shader =
@@ -1111,7 +1111,7 @@ void WaterRenderObjClass::ReAcquireResources()
 					hr = g_renderBackend->Create_Pixel_Shader(
 						reinterpret_cast<const unsigned int *>(compiledShader->GetBufferPointer()),
 						&legacyHandle) ? S_OK : E_FAIL;
-					m_trapezoidWaterPixelShader = static_cast<DWORD>(legacyHandle);
+					m_trapezoidWaterPixelShader = legacyHandle;
 					compiledShader->Release();
 				}
 		}
