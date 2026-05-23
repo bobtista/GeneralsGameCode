@@ -357,7 +357,7 @@ WWINLINE void Matrix3x3::Set(const Vector3& axis, float angle)
 
 WWINLINE void Matrix3x3::Set(const Vector3& axis, float s, float c)
 {
-	WWASSERT(WWMath::Fabs(axis.Length2() - 1.0f) < 0.001f);
+	WWASSERT(WWMath::Fabsf(axis.Length2() - 1.0f) < 0.001f);
 
 	Row[0].Set(
 	  (float)(axis[0] * axis[0] + c * (1.0f - axis[0] * axis[0])),
@@ -426,7 +426,7 @@ WWINLINE Matrix3x3 Matrix3x3::Inverse() const    // Gauss-Jordan elimination wit
 		i1 = j;
 		for (i = j + 1; i < 3; i++)
 		{
-			if (WWMath::Fabs(a[i][j]) > WWMath::Fabs(a[i1][j]))
+			if (WWMath::Fabsf(a[i][j]) > WWMath::Fabsf(a[i1][j]))
 			{
 				i1 = i;
 			}
@@ -1025,7 +1025,7 @@ WWINLINE void Matrix3x3::Rotate_AABox_Extent(const Vector3& extent, Vector3* set
 
 		for (int j = 0; j < 3; j++)
 		{
-			(*set_extent)[i] += WWMath::Fabs(Row[i][j] * extent[j]);
+			(*set_extent)[i] += WWMath::Fabsf(Row[i][j] * extent[j]);
 		}
 	}
 }

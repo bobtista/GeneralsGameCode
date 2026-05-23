@@ -131,11 +131,11 @@ inline bool AABoxIntersectionTestClass::Cull(const AABoxClass& cull_box)
 	Vector3::Subtract(cull_box.Center, Box.Center, &dc);
 	Vector3::Add(cull_box.Extent, Box.Extent, &r);
 
-	if (WWMath::Fabs(dc.X) > r.X)
+	if (WWMath::Fabsf(dc.X) > r.X)
 		return true;
-	if (WWMath::Fabs(dc.Y) > r.Y)
+	if (WWMath::Fabsf(dc.Y) > r.Y)
 		return true;
-	if (WWMath::Fabs(dc.Z) > r.Z)
+	if (WWMath::Fabsf(dc.Z) > r.Z)
 		return true;
 
 	return false;
@@ -231,11 +231,11 @@ inline bool OBBoxIntersectionTestClass::Cull(const AABoxClass& cull_box)
 	Vector3::Subtract(cull_box.Center, BoundingBox.Center, &dc);
 	Vector3::Add(cull_box.Extent, BoundingBox.Extent, &r);
 
-	if (WWMath::Fabs(dc.X) > r.X)
+	if (WWMath::Fabsf(dc.X) > r.X)
 		return true;
-	if (WWMath::Fabs(dc.Y) > r.Y)
+	if (WWMath::Fabsf(dc.Y) > r.Y)
 		return true;
-	if (WWMath::Fabs(dc.Z) > r.Z)
+	if (WWMath::Fabsf(dc.Z) > r.Z)
 		return true;
 
 	return false;

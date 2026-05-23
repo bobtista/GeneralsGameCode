@@ -102,7 +102,7 @@ void LightEnvironmentClass::InputLightStruct::Init_From_Point_Or_Spot_Light(
 	if (light.Get_Flag(LightClass::FAR_ATTENUATION))
 	{
 
-		if (WWMath::Fabs(atten_end - atten_start) < WWMATH_EPSILON)
+		if (WWMath::Fabsf(atten_end - atten_start) < WWMATH_EPSILON)
 		{
 
 			/*
