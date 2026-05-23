@@ -159,7 +159,7 @@ void CameraShakeSystemClass::CameraShakerClass::Compute_Rotations(const Vector3&
 	for (int i = 0; i < 3; i++)
 	{
 		float omega = Omega[i] + (END_OMEGA - Omega[i]) * ElapsedTime;
-		(*set_angles)[i] += AXIS_ROTATION[i] * intensity * WWMath::Sin(omega * ElapsedTime + Phi[i]);
+		(*set_angles)[i] += AXIS_ROTATION[i] * intensity * WWMath::Sinf(omega * ElapsedTime + Phi[i]);
 
 		// WST 11/14/2002. Add in additional random fudge.  There seems to be a too mathematical pattern of shake with the above
 		Vector3 secondary_angles;
