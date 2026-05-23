@@ -3311,32 +3311,24 @@ void W3DDisplay::takeScreenShot()
 			done = true;
 	}
 
-	SurfaceClass* surfaceCopy = (g_renderBackend != nullptr) ? g_renderBackend->Capture_Back_Buffer_Surface(0) : nullptr;
-	if (surfaceCopy == nullptr)
+	RenderBackendImage capture;
+	if (g_renderBackend == nullptr || !g_renderBackend->Capture_Back_Buffer_Image(0, capture))
 	{
-		return;
-	}
+		if (g_renderBackend == nullptr || !g_renderBackend->Request_Native_Screen_Shot(pathname))
+		{
+			return;
+		}
 
-	SurfaceClass::SurfaceDescription surfaceDesc;
-	surfaceCopy->Get_Description(surfaceDesc);
-
-	struct Rect
-	{
-		int Pitch;
-		void* pBits;
-	} lrect;
-
-	lrect.pBits = surfaceCopy->Lock(&lrect.Pitch);
-	if (lrect.pBits == nullptr)
-	{
-		surfaceCopy->Release_Ref();
+		UnicodeString ufileName;
+		ufileName.translate(leafname);
+		TheInGameUI->message(TheGameText->fetch("GUI:ScreenCapture"), ufileName.str());
 		return;
 	}
 
 	unsigned int x,y,index,index2,width,height;
 
-	width = surfaceDesc.Width;
-	height = surfaceDesc.Height;
+	width = capture.Width;
+	height = capture.Height;
 
 	char *image=NEW char[3*width*height];
 #ifdef CAPTURE_TO_TARGA
@@ -3348,17 +3340,13 @@ void W3DDisplay::takeScreenShot()
 			// index for image
 			index=3*(x+y*width);
 			// index for fb
-			index2=y*lrect.Pitch+4*x;
+			index2=y*capture.Pitch+4*x;
 
-			image[index]=*((char *) lrect.pBits + index2+2);
-			image[index+1]=*((char *) lrect.pBits + index2+1);
-			image[index+2]=*((char *) lrect.pBits + index2+0);
+			image[index]=*((char *) capture.Bytes.data() + index2+2);
+			image[index+1]=*((char *) capture.Bytes.data() + index2+1);
+			image[index+2]=*((char *) capture.Bytes.data() + index2+0);
 		}
 	}
-
-	surfaceCopy->Unlock();
-	surfaceCopy->Release_Ref();
-	surfaceCopy = nullptr;
 
 	Targa targ;
 	memset(&targ.Header,0,sizeof(targ.Header));
@@ -3379,17 +3367,13 @@ void W3DDisplay::takeScreenShot()
 			// index for image
 			index=3*(x+y*width);
 			// index for fb
-			index2=y*lrect.Pitch+4*x;
+			index2=y*capture.Pitch+4*x;
 
-			image[index]=*((char *) lrect.pBits + index2+0);
-			image[index+1]=*((char *) lrect.pBits + index2+1);
-			image[index+2]=*((char *) lrect.pBits + index2+2);
+			image[index]=*((char *) capture.Bytes.data() + index2+0);
+			image[index+1]=*((char *) capture.Bytes.data() + index2+1);
+			image[index+2]=*((char *) capture.Bytes.data() + index2+2);
 		}
 	}
-
-	surfaceCopy->Unlock();
-	surfaceCopy->Release_Ref();
-	surfaceCopy = nullptr;
 
 	//Flip the image
 	char *ptr,*ptr1;

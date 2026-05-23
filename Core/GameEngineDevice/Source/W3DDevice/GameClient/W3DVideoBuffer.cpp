@@ -46,11 +46,8 @@
 //----------------------------------------------------------------------------
 
 #include "Common/GameMemory.h"
-#include "WW3D2/BgfxMigrationToggles.h"
-#include "WW3D2/surfaceclass.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/textureloader.h"
-#include "WW3D2/RenderBackend.h"
 #include "W3DDevice/GameClient/W3DVideoBuffer.h"
 
 //----------------------------------------------------------------------------
@@ -93,24 +90,6 @@
 //         Private Functions
 //----------------------------------------------------------------------------
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-static TextureClass *Create_Writable_Video_Texture(unsigned width, unsigned height, WW3DFormat format)
-{
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
-		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership))
-	{
-		SurfaceClass *surface = MSGNEW("SurfaceClass") SurfaceClass(width, height, format);
-		TextureClass *texture = MSGNEW("TextureClass") TextureClass(surface, MIP_LEVELS_1);
-		REF_PTR_RELEASE(surface);
-		return texture;
-	}
-
-	return MSGNEW("TextureClass") TextureClass(width, height, format, MIP_LEVELS_1);
-}
-#endif
-
-
-
 //----------------------------------------------------------------------------
 //         Public Functions
 //----------------------------------------------------------------------------
@@ -123,7 +102,7 @@ static TextureClass *Create_Writable_Video_Texture(unsigned width, unsigned heig
 W3DVideoBuffer::W3DVideoBuffer( VideoBuffer::Type format )
 : VideoBuffer(format),
 	m_texture(nullptr),
-	m_surface(nullptr)
+	m_lockedTexture(FALSE)
 {
 
 }
@@ -151,11 +130,7 @@ Bool W3DVideoBuffer::allocate( UnsignedInt width, UnsignedInt height )
 		return FALSE;
 	}
 
-#if defined(GGC_RENDER_BACKEND_BGFX)
-	m_texture = Create_Writable_Video_Texture(m_textureWidth, m_textureHeight, w3dFormat);
-#else
 	m_texture  = MSGNEW("TextureClass") TextureClass ( m_textureWidth, m_textureHeight, w3dFormat, MIP_LEVELS_1 );
-#endif
 
 	if ( m_texture == nullptr )
 	{
@@ -191,16 +166,20 @@ void*		W3DVideoBuffer::lock()
 {
 	void *mem = nullptr;
 
-	if ( m_surface != nullptr )
+	if ( m_lockedTexture )
 	{
 		unlock();
 	}
 
-	m_surface = m_texture->Get_Surface_Level();
-
-	if ( m_surface )
+	if ( m_texture )
 	{
-		mem = m_surface->Lock( (Int*) &m_pitch );
+		TextureClass::MutableTextureMipView mip = m_texture->Begin_Mip_Write(0);
+		if ( mip.Is_Valid() )
+		{
+			m_pitch = mip.Pitch;
+			mem = mip.Data;
+			m_lockedTexture = TRUE;
+		}
 	}
 
 	return mem;
@@ -212,21 +191,13 @@ void*		W3DVideoBuffer::lock()
 
 void		W3DVideoBuffer::unlock()
 {
-	if ( m_surface != nullptr )
+	if ( m_lockedTexture )
 	{
-		m_surface->Unlock();
-		m_surface->Release_Ref();
-		m_surface = nullptr;
-
-		// TheSuperHackers @fix bobtista 20/04/2026 After a video frame is
-		// written via CPU Lock/Unlock into the underlying texture surface,
-		// invalidate bgfx's cached copy so the next draw re-uploads the
-		// fresh pixels. Without this the bgfx handle holds the first frame
-		// forever and videos (logo, scorescreen, etc.) appear frozen.
-		if ( g_renderBackend != nullptr && m_texture != nullptr )
+		if ( m_texture != nullptr )
 		{
-			g_renderBackend->Invalidate_Cached_Texture(m_texture);
+			m_texture->End_Mip_Write(0);
 		}
+		m_lockedTexture = FALSE;
 	}
 }
 
@@ -253,7 +224,7 @@ void	W3DVideoBuffer::free()
 		m_texture->Release_Ref();
 		m_texture = nullptr;
 	}
-	m_surface = nullptr;
+	m_lockedTexture = FALSE;
 
 	VideoBuffer::free();
 }

@@ -83,9 +83,7 @@
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
-#include "WW3D2/BgfxMigrationToggles.h"
 #include "WW3D2/indexbuffer.h"
-#include "WW3D2/surfaceclass.h"
 #include "WW3D2/vertexbuffer.h"
 #if !defined(GGC_BGFX_STANDALONE)
 #include "WW3D2/dx8indexbuffer.h"
@@ -108,22 +106,6 @@
 
 extern FlatHeightMapRenderObjClass *TheFlatHeightMap;
 extern HeightMapRenderObjClass *TheHeightMap;
-
-#if defined(GGC_RENDER_BACKEND_BGFX)
-static TextureClass *Create_Writable_Height_Map_Texture(unsigned width, unsigned height, WW3DFormat format)
-{
-	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
-		Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership))
-	{
-		SurfaceClass *surface = MSGNEW("SurfaceClass") SurfaceClass(width, height, format);
-		TextureClass *texture = MSGNEW("TextureClass") TextureClass(surface, MIP_LEVELS_1);
-		REF_PTR_RELEASE(surface);
-		return texture;
-	}
-
-	return MSGNEW("TextureClass") TextureClass(width, height, format, MIP_LEVELS_1);
-}
-#endif
 
 //-----------------------------------------------------------------------------
 //         Private Data
@@ -1743,33 +1725,27 @@ void BaseHeightMapRenderObjClass::initDestAlphaLUT()
 	if (!m_destAlphaTexture)
 		return;
 
-	SurfaceClass *surf=m_destAlphaTexture->Get_Surface_Level();
-
-	if (surf)
+	TextureClass::MutableTextureMipView mip = m_destAlphaTexture->Begin_Mip_Write(0);
+	if (mip.Is_Valid() && mip.Format == WW3D_FORMAT_A8R8G8B8 && mip.Width >= 256)
 	{
-		Int pitch;
-		UnsignedInt *pData=(UnsignedInt*)surf->Lock(&pitch);
+		UnsignedInt *pData = reinterpret_cast<UnsignedInt *>(mip.Data);
 
 		Int maxOpacity=(Int)(TheWaterTransparency->m_minWaterOpacity * 255.0f);
 		Int alpha;
 
-		if (pData)
+		// Fill texture with alpha gradient.
+		for (Int x=0; x<256; x++)
 		{
-			//Fill texture with alpha gradient
-			for (Int x=0; x<256; x++)
-			{
-				alpha = x;
-				if (alpha > maxOpacity)
-					alpha = maxOpacity;
-				*pData=(alpha<<24)|0x00ffffff;
-				pData++;
-			}
-			surf->Unlock();
+			alpha = x;
+			if (alpha > maxOpacity)
+				alpha = maxOpacity;
+			*pData=(alpha<<24)|0x00ffffff;
+			pData++;
 		}
+		m_destAlphaTexture->End_Mip_Write(0);
 
 		m_destAlphaTexture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 		m_destAlphaTexture->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
-		REF_PTR_RELEASE(surf);
 		m_currentMinWaterOpacity = TheWaterTransparency->m_minWaterOpacity;
 	}
 }
@@ -1855,11 +1831,7 @@ Int BaseHeightMapRenderObjClass::initHeightData(Int x, Int y, WorldHeightMap *pM
 		REF_PTR_SET(m_map,pMap);	//update our heightmap pointer in case it changed since last call.
 		m_stageTwoTexture=NEW CloudMapTerrainTextureClass;
 		m_stageThreeTexture=NEW LightMapTerrainTextureClass(m_macroTextureName);
-#if defined(GGC_RENDER_BACKEND_BGFX)
-		m_destAlphaTexture=Create_Writable_Height_Map_Texture(256,1,WW3D_FORMAT_A8R8G8B8);
-#else
 		m_destAlphaTexture=MSGNEW("TextureClass") TextureClass(256,1,WW3D_FORMAT_A8R8G8B8,MIP_LEVELS_1);
-#endif
 		initDestAlphaLUT();
 #ifdef DO_SCORCH
 		allocateScorchBuffers();

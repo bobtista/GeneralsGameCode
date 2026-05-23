@@ -328,6 +328,46 @@ SurfaceClass * DX8Backend::Capture_Back_Buffer_Surface(unsigned int num)
     return copy;
 }
 
+bool DX8Backend::Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image)
+{
+    image = RenderBackendImage();
+
+    SurfaceClass * copy = Capture_Back_Buffer_Surface(num);
+    if (copy == nullptr)
+    {
+        return false;
+    }
+
+    SurfaceClass::SurfaceDescription desc;
+    copy->Get_Description(desc);
+
+    int source_pitch = 0;
+    unsigned char *source_bits = static_cast<unsigned char *>(copy->Lock(&source_pitch));
+    if (source_bits == nullptr)
+    {
+        copy->Release_Ref();
+        return false;
+    }
+
+    const unsigned row_bytes = desc.Width * 4;
+    image.Width = desc.Width;
+    image.Height = desc.Height;
+    image.Format = desc.Format;
+    image.Pitch = row_bytes;
+    image.Bytes.resize(static_cast<size_t>(image.Pitch) * image.Height);
+
+    for (unsigned row = 0; row < image.Height; ++row)
+    {
+        memcpy(image.Bytes.data() + static_cast<size_t>(row) * image.Pitch,
+               source_bits + static_cast<size_t>(row) * source_pitch,
+               row_bytes);
+    }
+
+    copy->Unlock();
+    copy->Release_Ref();
+    return true;
+}
+
 void DX8Backend::Set_Texture_Bitdepth(int bitdepth)
 {
     DX8Wrapper::Set_Texture_Bitdepth(bitdepth);
