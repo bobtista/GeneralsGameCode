@@ -123,6 +123,16 @@ static void W3DWater_FillWhiteTexture(TextureClass *texture)
 }
 
 #if !defined(GGC_BGFX_STANDALONE)
+struct Dx8SeaPatchVertex
+{
+	float x;
+	float y;
+	float z;
+	unsigned int c;
+	float tu;
+	float tv;
+};
+
 static inline void W3DWater_GetD3DXTransform(TransformKind transform, D3DXMATRIX & matrix)
 {
 	if (g_renderBackend == nullptr)
@@ -696,7 +706,7 @@ HRESULT WaterRenderObjClass::initBumpMap(IDirect3DTexture8 **pTex, TextureClass 
 //-------------------------------------------------------------------------------------------------
 /** Create and fill a D3D vertex buffer with water surface vertices */
 //-------------------------------------------------------------------------------------------------
-bool WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Int vertexSize, Bool doStatic)
+bool WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Bool doStatic)
 {
 	m_numVertices=sizeX*sizeY;
 	//Assuming dynamic vertex buffer, allocate maximum multiple of required size to allow rendering from
@@ -711,7 +721,7 @@ bool WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Int vertex
 #if defined(GGC_BGFX_STANDALONE)
 	return false;
 #else
-	SEA_PATCH_VERTEX* pVertices;
+	Dx8SeaPatchVertex* pVertices;
 	Setting *setting=&m_settings[m_tod];
 	HRESULT hr;
 
@@ -724,7 +734,7 @@ bool WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Int vertex
 
 		if (FAILED(hr=m_pDev->CreateVertexBuffer
 		(
-			m_numVertices*vertexSize,
+			m_numVertices*sizeof(Dx8SeaPatchVertex),
 			usage,
 			fvf,
 			pool,
@@ -737,7 +747,7 @@ bool WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Int vertex
 	if (FAILED(hr=m_vertexBufferD3D->Lock
 	(
 		0,
-		m_numVertices*sizeof(SEA_PATCH_VERTEX),
+		m_numVertices*sizeof(Dx8SeaPatchVertex),
 		(BYTE**)&pVertices,
 		0//D3DLOCK_DISCARD
 	)))
@@ -987,7 +997,7 @@ void WaterRenderObjClass::ReAcquireResources()
 		//Create new grid data
 		if (!generateIndexBuffer(m_gridCellsX+1,m_gridCellsY+1,false))
 			return;
-		if (!generateVertexBuffer(m_gridCellsX+1,m_gridCellsY+1,sizeof(MaterMeshVertexFormat),false))
+		if (!generateVertexBuffer(m_gridCellsX+1,m_gridCellsY+1,false))
 			return;
 	}
 	else
@@ -1003,7 +1013,7 @@ void WaterRenderObjClass::ReAcquireResources()
 			if (!generateIndexBuffer(PATCH_SIZE,PATCH_SIZE,true))
 				return;
 
-			if (!generateVertexBuffer(PATCH_SIZE,PATCH_SIZE,sizeof(SEA_PATCH_VERTEX),true))
+			if (!generateVertexBuffer(PATCH_SIZE,PATCH_SIZE,true))
 				return;
 
 			//shader decleration
@@ -1333,7 +1343,7 @@ void WaterRenderObjClass::enableWaterGrid(Bool state)
 		//Create new grid data
 		if (!generateIndexBuffer(m_gridCellsX+1,m_gridCellsY+1,false))
 			return;
-		if (!generateVertexBuffer(m_gridCellsX+1,m_gridCellsY+1,sizeof(MaterMeshVertexFormat),false))
+		if (!generateVertexBuffer(m_gridCellsX+1,m_gridCellsY+1,false))
 			return;
 	}
 }
@@ -1473,7 +1483,7 @@ void WaterRenderObjClass::setTimeOfDay(TimeOfDay tod)
 	m_tod=tod;
 #if !defined(GGC_BGFX_STANDALONE)
 	if (m_waterType == WATER_TYPE_2_PVSHADER && !W3DWater_UseBackendSeaBatch())
-		generateVertexBuffer(PATCH_SIZE,PATCH_SIZE,sizeof(SEA_PATCH_VERTEX),true);	//update the water mesh with new lighting/alpha
+		generateVertexBuffer(PATCH_SIZE,PATCH_SIZE,true);	//update the water mesh with new lighting/alpha
 #endif
 }
 
@@ -2167,7 +2177,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 	patchMatrix._33=PATCH_SCALE;
 	patchMatrix._44=1.0f;
 
-	m_pDev->SetStreamSource(0,m_vertexBufferD3D,sizeof(WaterRenderObjClass::SEA_PATCH_VERTEX));
+	m_pDev->SetStreamSource(0,m_vertexBufferD3D,sizeof(Dx8SeaPatchVertex));
 	m_pDev->SetIndices(m_indexBufferD3D,0);
 
 	for (startY=patchY=(seaBox.Center.Y-seaBox.Extent.Y)/(PATCH_WIDTH*PATCH_SCALE); (patchY*PATCH_WIDTH*PATCH_SCALE)<(seaBox.Center.Y+seaBox.Extent.Y); patchY++)
@@ -2223,7 +2233,7 @@ void WaterRenderObjClass::drawSea(RenderInfoClass & rinfo)
 		//do second pass to apply the shroud on water plane
 		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
-		m_pDev->SetStreamSource(0,m_vertexBufferD3D,sizeof(WaterRenderObjClass::SEA_PATCH_VERTEX));
+		m_pDev->SetStreamSource(0,m_vertexBufferD3D,sizeof(Dx8SeaPatchVertex));
 		m_pDev->SetIndices(m_indexBufferD3D,0);
 		for (startY=patchY=(seaBox.Center.Y-seaBox.Extent.Y)/(PATCH_WIDTH*PATCH_SCALE); (patchY*PATCH_WIDTH*PATCH_SCALE)<(seaBox.Center.Y+seaBox.Extent.Y); patchY++)
 		{

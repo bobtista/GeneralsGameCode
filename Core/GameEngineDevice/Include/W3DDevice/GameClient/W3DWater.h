@@ -158,13 +158,6 @@ protected:
 	//Data used in GeForce3 bump-mapped water (uses direct D3D resources for better
 	//performance and compatibility (most of these featues are not supported by W3D).
 #if !defined(GGC_BGFX_STANDALONE)
-	struct SEA_PATCH_VERTEX	//vertex structure passed to D3D
-	{
-		float x,y,z;
-		unsigned int c;
-		float tu, tv;
-	};
-
 	IDirect3DDevice8 *m_pDev;						///<pointer to D3D Device
 	IDirect3DVertexBuffer8 *m_vertexBufferD3D;		///<D3D vertex buffer
 	IDirect3DIndexBuffer8 *m_indexBufferD3D;	///<D3D index buffer
@@ -280,7 +273,7 @@ protected:
 
 	//Methods used for GeForce3 specific water
 	bool generateIndexBuffer(int sizeX, int sizeY, Bool createD3DMirror);	///<Generate water strip index buffer
-	bool generateVertexBuffer( Int sizeX, Int sizeY, Int vertexSize, Bool doFill);///<Generate static vertex buffer
+	bool generateVertexBuffer( Int sizeX, Int sizeY, Bool doStatic);///<Generate static vertex buffer
 
 	// snapshot methods for save/load
 	virtual void crc( Xfer *xfer ) override;
