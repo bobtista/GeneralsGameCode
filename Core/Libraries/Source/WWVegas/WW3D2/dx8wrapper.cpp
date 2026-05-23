@@ -705,11 +705,13 @@ void DX8Wrapper::Shutdown()
 		Release_Device();
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (D3DInterface) {
 		D3DInterface->Release();
 		D3DInterface=nullptr;
 
 	}
+#endif
 
 #if defined(GGC_RENDER_BACKEND_BGFX) && !defined(GGC_BGFX_STANDALONE)
 	// TheSuperHackers @fix bobtista 20/04/2026 Destroy the DX8 reference window and its WNDCLASS created in Init so repeated Init/Shutdown cycles don't leak.
@@ -1872,6 +1874,9 @@ void DX8Wrapper::Get_Render_Target_Resolution(int & set_w,int & set_h,int & set_
 {
 	WWASSERT(IsInitted);
 
+#if defined(GGC_BGFX_STANDALONE)
+	Get_Device_Resolution (set_w, set_h, set_bits, set_windowed);
+#else
 	if (CurrentRenderTarget != nullptr) {
 		D3DSURFACE_DESC info;
 		CurrentRenderTarget->GetDesc (&info);
@@ -1884,6 +1889,7 @@ void DX8Wrapper::Get_Render_Target_Resolution(int & set_w,int & set_h,int & set_
 	} else {
 		Get_Device_Resolution (set_w, set_h, set_bits, set_windowed);
 	}
+#endif
 }
 
 bool DX8Wrapper::Registry_Save_Render_Device( const char * sub_key )
@@ -2031,6 +2037,15 @@ bool DX8Wrapper::Registry_Load_Render_Device( const char * sub_key, char *device
 
 bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,unsigned * set_colorbuffer,unsigned * set_backbuffer,unsigned * set_zmode)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)resx;
+	(void)resy;
+	const unsigned color_format = bitdepth == 16 ? D3DFMT_R5G6B5 : D3DFMT_A8R8G8B8;
+	*set_colorbuffer = color_format;
+	*set_backbuffer = color_format;
+	*set_zmode = bitdepth == 16 ? D3DFMT_D16 : D3DFMT_D24S8;
+	return true;
+#else
 	static unsigned _formats16[] =
 	{
 		23,
@@ -2086,6 +2101,7 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,unsigned *
 	** We found a backbuffer format, now find a zbuffer format
 	*/
 	return Find_Z_Mode(*set_colorbuffer,*set_backbuffer, set_zmode);
+#endif
 };
 
 
@@ -2093,6 +2109,13 @@ bool DX8Wrapper::Find_Color_And_Z_Mode(int resx,int resy,int bitdepth,unsigned *
 // refresh rate
 bool DX8Wrapper::Find_Color_Mode(unsigned colorbuffer, int resx, int resy, UINT *mode)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)colorbuffer;
+	(void)resx;
+	(void)resy;
+	*mode = 0;
+	return true;
+#else
 	UINT i,j,modemax;
 	UINT rx,ry;
 	D3DDISPLAYMODE dmode;
@@ -2141,6 +2164,7 @@ bool DX8Wrapper::Find_Color_Mode(unsigned colorbuffer, int resx, int resy, UINT 
 	else *mode=i;
 
 	return true;
+#endif
 }
 
 // Helper function to find a Z buffer mode for the colorbuffer
@@ -2197,6 +2221,12 @@ bool DX8Wrapper::Find_Z_Mode(unsigned colorbuffer,unsigned backbuffer, unsigned 
 
 bool DX8Wrapper::Test_Z_Mode(unsigned colorbuffer,unsigned backbuffer, unsigned zmode)
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)colorbuffer;
+	(void)backbuffer;
+	(void)zmode;
+	return true;
+#else
 	// See if we have this mode first
 	if (FAILED(D3DInterface->CheckDeviceFormat(0,WW3D_DEVTYPE,
 		Legacy_Format(colorbuffer),2,Legacy_Resource_Type(1),Legacy_Format(zmode))))
@@ -2213,6 +2243,7 @@ bool DX8Wrapper::Test_Z_Mode(unsigned colorbuffer,unsigned backbuffer, unsigned 
 		return false;
 	}
 	return true;
+#endif
 }
 
 

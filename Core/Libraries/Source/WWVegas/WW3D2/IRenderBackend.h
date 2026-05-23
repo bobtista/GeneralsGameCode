@@ -572,7 +572,6 @@ public:
     virtual bool Has_Stencil() const { return false; }
     virtual WW3DFormat Get_Back_Buffer_Format() const { return WW3D_FORMAT_UNKNOWN; }
     virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const { return nullptr; }
-    virtual SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num) { return nullptr; }
     virtual bool Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image) { return false; }
     virtual bool Request_Native_Screen_Shot(const char * /*path*/) { return false; }
     virtual void Set_Texture_Bitdepth(int bitdepth) {}

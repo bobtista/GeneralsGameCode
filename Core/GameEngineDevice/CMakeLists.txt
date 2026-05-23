@@ -265,12 +265,6 @@ if(WIN32)
     )
 endif()
 
-if(GGC_BGFX_STANDALONE)
-    target_link_libraries(corei_gameenginedevice_public INTERFACE
-        d3d8lib
-    )
-endif()
-
 if(SAGE_USE_OPENAL)
     find_package(FFMPEG REQUIRED)
 

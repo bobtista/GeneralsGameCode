@@ -41,7 +41,11 @@
 
 #include "always.h"
 #include "ww3dformat.h"
+#if defined(GGC_BGFX_STANDALONE)
+#include "dx8standalonetypes.h"
+#else
 #include <d3d8.h>
+#endif
 
 class DX8Caps
 {

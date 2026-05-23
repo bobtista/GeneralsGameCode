@@ -22,11 +22,15 @@
 #include "texturefilter.h"
 #include "ww3dformat.h"
 
+#if defined(GGC_BGFX_STANDALONE)
+#include "dx8standalonetypes.h"
+#else
 struct IDirect3DBaseTexture8;
 struct IDirect3DTexture8;
 struct IDirect3DCubeTexture8;
 struct IDirect3DVolumeTexture8;
 struct IDirect3DSurface8;
+#endif
 class StringClass;
 class SurfaceClass;
 class TextureBaseClass;

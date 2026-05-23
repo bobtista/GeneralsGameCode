@@ -302,7 +302,7 @@ SurfaceClass * DX8Backend::Get_Back_Buffer(unsigned int num) const
     return DX8Wrapper::_Get_DX8_Back_Buffer(num);
 }
 
-SurfaceClass * DX8Backend::Capture_Back_Buffer_Surface(unsigned int num)
+static SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num)
 {
     SurfaceClass * back_buffer = DX8Wrapper::_Get_DX8_Back_Buffer(num);
     if (back_buffer == nullptr)

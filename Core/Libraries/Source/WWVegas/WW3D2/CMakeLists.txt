@@ -348,12 +348,6 @@ target_link_libraries(corei_ww3d2 INTERFACE
     core_wwmath
 )
 
-if(GGC_BGFX_STANDALONE)
-    target_link_libraries(corei_ww3d2 INTERFACE
-        d3d8lib
-    )
-endif()
-
 if(APPLE)
     target_link_libraries(corei_ww3d2 INTERFACE
         "-framework CoreGraphics"
