@@ -111,7 +111,9 @@ public:
 	static WWINLINE int Float_To_Int_Chop(float f);
 	static WWINLINE int Float_To_Int_Floor(float f);
 
+	static WWINLINE double Cos(double val);
 	static WWINLINE float Cosf(float val);
+	static WWINLINE double Sin(double val);
 	static WWINLINE float Sinf(float val);
 	static WWINLINE float Sqrt_Legacy(float val);
 	static WWINLINE float Inv_Sqrt_Legacy(float a);
@@ -434,6 +436,15 @@ WWINLINE long WWMath::Float_To_Long(double f)
 // Cos
 // ----------------------------------------------------------------------------
 
+WWINLINE double WWMath::Cos(double val)
+{
+#if USE_DETERMINISTIC_MATH
+	return gm_cos(val);
+#else
+	return cos(val);
+#endif
+}
+
 WWINLINE float WWMath::Cosf(float val)
 {
 #if USE_DETERMINISTIC_MATH
@@ -456,6 +467,15 @@ WWINLINE float WWMath::Cosf(float val)
 // ----------------------------------------------------------------------------
 // Sin
 // ----------------------------------------------------------------------------
+
+WWINLINE double WWMath::Sin(double val)
+{
+#if USE_DETERMINISTIC_MATH
+	return gm_sin(val);
+#else
+	return sin(val);
+#endif
+}
 
 WWINLINE float WWMath::Sinf(float val)
 {
