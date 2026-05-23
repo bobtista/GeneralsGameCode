@@ -46,7 +46,7 @@ public:
     virtual void Set_Device_Cleanup_Hook(RenderDeviceCleanupHook * hook) override;
     virtual bool Has_Stencil() const;
     virtual WW3DFormat Get_Back_Buffer_Format() const;
-    virtual bool Get_Back_Buffer_Description(unsigned int num, RenderBackendSurfaceDescription & desc) const override;
+    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const;
     virtual bool Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image) override;
     virtual void Set_Texture_Bitdepth(int bitdepth) override;
     virtual int Get_Texture_Bitdepth() const override;
@@ -148,7 +148,7 @@ public:
     virtual void Set_Alpha_Test_Function(CompareFunc func);
     virtual void Set_Normalize_Normals(bool enable);
     virtual void Show_Hardware_Cursor(bool show);
-    virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, const RenderBackendImage & image) override;
+    virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface);
     virtual void Set_Hardware_Cursor_Position(int x, int y);
     virtual void Set_Stencil_Enable(bool enable);
     virtual void Set_Stencil_Func(CompareFunc func);

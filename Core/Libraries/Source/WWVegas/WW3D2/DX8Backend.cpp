@@ -318,7 +318,7 @@ bool DX8Backend::Get_Back_Buffer_Description(unsigned int num, RenderBackendSurf
     return desc.Is_Valid();
 }
 
-SurfaceClass * DX8Backend::Capture_Back_Buffer_Surface(unsigned int num)
+static SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num)
 {
     SurfaceClass * back_buffer = DX8Wrapper::_Get_DX8_Back_Buffer(num);
     if (back_buffer == nullptr)
