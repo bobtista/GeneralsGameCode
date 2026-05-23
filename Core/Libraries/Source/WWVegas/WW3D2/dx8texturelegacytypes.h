@@ -18,7 +18,11 @@
 
 #pragma once
 
+#if defined(GGC_BGFX_STANDALONE)
+#include "dx8standalonetypes.h"
+#else
 #include "d3d8.h"
+#endif
 
 using LegacyBaseTexture = IDirect3DBaseTexture8;
 using LegacySurface = IDirect3DSurface8;

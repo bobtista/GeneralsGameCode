@@ -19,7 +19,11 @@
 #pragma once
 
 #include "ww3dformat.h"
+#if defined(GGC_BGFX_STANDALONE)
+#include "dx8standalonetypes.h"
+#else
 #include <d3d8.h>
+#endif
 
 /*
 ** Legacy format conversion boundary. Keep this header out of neutral
