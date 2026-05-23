@@ -124,8 +124,13 @@ public:
 	static bool Set_Cached_Transform(unsigned transform, const LegacyTransformMatrix & matrix);
 
 	static unsigned Cull_Mode(unsigned default_value);
+	static bool Set_Cull_Mode(unsigned value);
 	static bool Lighting_Enabled(bool default_value);
+	static bool Set_Lighting_Enabled(bool enabled);
 	static unsigned Fog_Color(unsigned default_value);
+	static bool Set_Fog_Color(unsigned value);
 	static unsigned Color_Write_Mask(unsigned default_value);
+	static bool Set_Color_Write_Mask(unsigned value);
 	static void Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix);
+	static bool Set_Transform_Matrix(unsigned transform, const LegacyTransformMatrix & matrix);
 };
