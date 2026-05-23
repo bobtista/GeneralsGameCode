@@ -122,4 +122,10 @@ public:
 
 	static void Cached_Transform(unsigned transform, LegacyTransformMatrix & matrix);
 	static bool Set_Cached_Transform(unsigned transform, const LegacyTransformMatrix & matrix);
+
+	static unsigned Cull_Mode(unsigned default_value);
+	static bool Lighting_Enabled(bool default_value);
+	static unsigned Fog_Color(unsigned default_value);
+	static unsigned Color_Write_Mask(unsigned default_value);
+	static void Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix);
 };
