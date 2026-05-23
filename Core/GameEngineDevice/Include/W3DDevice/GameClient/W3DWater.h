@@ -173,8 +173,8 @@ protected:
 	IDirect3DTexture8 *m_pBumpTexture[NUM_BUMP_FRAMES]; ///<animation frames
 	IDirect3DTexture8 *m_pBumpTexture2[NUM_BUMP_FRAMES]; ///<animation frames
 #endif
-	Int	m_numVertices;				///<number of vertices in D3D vertex buffer
-	Int m_numIndices;				///<number of indices in D3D index buffer
+	Int	m_numVertices;				///<number of vertices in the generated water buffer
+	Int m_numIndices;				///<number of indices in the generated water buffer
 	Real				m_fBumpFrame;	///<current animation frame
 	Real				m_fBumpScale;	///<scales bump map uv perturbation
 	TextureClass * m_pReflectionTexture;	///<render target for reflection
@@ -246,12 +246,12 @@ protected:
 		TextureClass	*waterTexture;
 		Int				waterRepeatCount;
 		Real			skyTexelsPerUnit;	//texel density of sky plane (higher value repeats texture more).
-		DWORD			vertex00Diffuse;
-		DWORD			vertex10Diffuse;
-		DWORD			vertex11Diffuse;
-		DWORD			vertex01Diffuse;
-		DWORD			waterDiffuse;
-		DWORD			transparentWaterDiffuse;
+		UnsignedInt		vertex00Diffuse;
+		UnsignedInt		vertex10Diffuse;
+		UnsignedInt		vertex11Diffuse;
+		UnsignedInt		vertex01Diffuse;
+		UnsignedInt		waterDiffuse;
+		UnsignedInt		transparentWaterDiffuse;
 		Real			uScrollPerMs;
 		Real			vScrollPerMs;
 	};
