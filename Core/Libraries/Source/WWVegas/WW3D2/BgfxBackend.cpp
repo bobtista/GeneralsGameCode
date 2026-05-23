@@ -7313,6 +7313,19 @@ void BgfxBackend::Set_Object_Shroud_Dim_Factor(float factor)
     g_draw.objectShroudDim[0] = factor;
 }
 
+void BgfxBackend::Set_Shroud_Texture_Minimum(float minimum)
+{
+    if (minimum < 0.0f)
+    {
+        minimum = 0.0f;
+    }
+    else if (minimum > 1.0f)
+    {
+        minimum = 1.0f;
+    }
+    g_draw.objectShroudDim[3] = minimum;
+}
+
 void BgfxBackend::Set_Shroud_Texture_Params(float offset_x, float offset_y,
                                              float scale_x, float scale_y)
 {
