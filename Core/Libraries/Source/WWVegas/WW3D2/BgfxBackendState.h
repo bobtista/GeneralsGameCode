@@ -335,7 +335,7 @@ struct BgfxDraw
     float shroudOffset[4]     = { 0.0f, 0.0f, 0.0f, 0.0f };
     float shroudScale[4]      = { 0.0f, 0.0f, 1.0f, 1.0f };
     float shroudTextureParams[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-    // .w requests shader-side stage-0 fract() wrapping for repeated decals.
+    // .w optionally clamps shroud multiplicative passes above full black.
     float objectShroudDim[4]  = { 1.0f, 0.0f, 0.0f, 0.0f };
     bool shroudTextureParamsValid = false;
     bool delayedObjectShroudPass = false;
