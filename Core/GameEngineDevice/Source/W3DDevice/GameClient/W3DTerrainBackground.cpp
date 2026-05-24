@@ -52,10 +52,6 @@
 #include <texture.h>
 #include "WW3D2/dx8fvf.h"
 #include "WW3D2/renderbufferclasses.h"
-#if !defined(GGC_BGFX_STANDALONE)
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#endif
 #include "Common/GlobalData.h"
 #include "GameClient/View.h"
 #include "W3DDevice/GameClient/TerrainTex.h"

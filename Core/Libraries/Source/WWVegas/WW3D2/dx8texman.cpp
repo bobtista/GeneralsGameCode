@@ -51,7 +51,7 @@
 // destructor
 
 #include "dx8texman.h"
-#include "dx8textureinterop.h"
+#include "texturecompatibilityinterop.h"
 #include "dx8wrapper.h"
 
 #if !defined(GGC_BGFX_STANDALONE)
