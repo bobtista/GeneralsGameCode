@@ -437,7 +437,6 @@ Render2DSentenceClass::Build_Textures ()
 		//	Create the new texture
 		//
 		TextureClass *new_texture = Create_Writable_Sentence_Texture (desc.Width, desc.Width, WW3D_FORMAT_A4R4G4B4);
-		SurfaceClass *texture_surface = new_texture->Get_Surface_Level ();
 
 		new_texture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 		new_texture->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
@@ -448,14 +447,34 @@ Render2DSentenceClass::Build_Textures ()
 		//
 		//	Copy the contents of the texture from the surface
 		//
-		texture_surface->Copy(0, 0, 0, 0, desc.Width, desc.Height, curr_surface);
-		REF_PTR_RELEASE (texture_surface);
+		TextureClass::MutableTextureMipView mip = new_texture->Begin_Mip_Write(0);
+		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(desc.Format);
+		if (mip.Is_Valid() && bytes_per_pixel != 0) {
+			int source_pitch = 0;
+			const unsigned char *source_bits = static_cast<const unsigned char *>(curr_surface->Lock(&source_pitch));
+			if (source_bits != nullptr && source_pitch > 0) {
+				unsigned copy_width = desc.Width;
+				unsigned copy_height = desc.Height;
+				if (copy_width > mip.Width) {
+					copy_width = mip.Width;
+				}
+				if (copy_height > mip.Height) {
+					copy_height = mip.Height;
+				}
 
-		// TheSuperHackers @fix bobtista 19/04/2026 Invalidate the bgfx texture
-		// cache after CopyRects updates the font atlas. Without this, bgfx's
-		// cached copy has stale glyph data from the previous sentence build.
-		if (g_renderBackend != nullptr)
-			g_renderBackend->Invalidate_Cached_Texture(new_texture);
+				const unsigned row_bytes = copy_width * bytes_per_pixel;
+				unsigned char *dest_bits = mip.Data;
+				for (unsigned row = 0; row < copy_height; ++row) {
+					::memcpy(dest_bits, source_bits, row_bytes);
+					dest_bits += mip.Pitch;
+					source_bits += source_pitch;
+				}
+			}
+			if (source_bits != nullptr) {
+				curr_surface->Unlock();
+			}
+		}
+		new_texture->End_Mip_Write(0);
 
 		//
 		//	Assign this texture to any renderers that need it
