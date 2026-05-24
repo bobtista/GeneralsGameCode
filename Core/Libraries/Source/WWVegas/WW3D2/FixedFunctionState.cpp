@@ -91,6 +91,20 @@ namespace
 		unsigned pointScaleA;
 		unsigned pointScaleB;
 		unsigned pointScaleC;
+		bool stencilEnableValid;
+		bool stencilEnabled;
+		bool stencilFunctionValid;
+		unsigned stencilFunction;
+		bool stencilReferenceValid;
+		unsigned stencilReference;
+		bool stencilReadMaskValid;
+		unsigned stencilReadMask;
+		bool stencilWriteMaskValid;
+		unsigned stencilWriteMask;
+		bool stencilOpsValid;
+		unsigned stencilPassOp;
+		unsigned stencilFailOp;
+		unsigned stencilZFailOp;
 	};
 
 	SemanticRenderState s_semanticRenderState;
@@ -170,6 +184,20 @@ namespace
 		s_semanticRenderState.pointScaleA = 0;
 		s_semanticRenderState.pointScaleB = 0;
 		s_semanticRenderState.pointScaleC = 0;
+		s_semanticRenderState.stencilEnableValid = true;
+		s_semanticRenderState.stencilEnabled = false;
+		s_semanticRenderState.stencilFunctionValid = true;
+		s_semanticRenderState.stencilFunction = 0;
+		s_semanticRenderState.stencilReferenceValid = true;
+		s_semanticRenderState.stencilReference = 0;
+		s_semanticRenderState.stencilReadMaskValid = true;
+		s_semanticRenderState.stencilReadMask = 0;
+		s_semanticRenderState.stencilWriteMaskValid = true;
+		s_semanticRenderState.stencilWriteMask = 0;
+		s_semanticRenderState.stencilOpsValid = true;
+		s_semanticRenderState.stencilPassOp = 0;
+		s_semanticRenderState.stencilFailOp = 0;
+		s_semanticRenderState.stencilZFailOp = 0;
 	}
 
 	void InvalidateSemanticRenderState()
@@ -238,6 +266,20 @@ namespace
 		s_semanticRenderState.pointScaleA = 0;
 		s_semanticRenderState.pointScaleB = 0;
 		s_semanticRenderState.pointScaleC = 0;
+		s_semanticRenderState.stencilEnableValid = false;
+		s_semanticRenderState.stencilEnabled = false;
+		s_semanticRenderState.stencilFunctionValid = false;
+		s_semanticRenderState.stencilFunction = 0;
+		s_semanticRenderState.stencilReferenceValid = false;
+		s_semanticRenderState.stencilReference = 0;
+		s_semanticRenderState.stencilReadMaskValid = false;
+		s_semanticRenderState.stencilReadMask = 0;
+		s_semanticRenderState.stencilWriteMaskValid = false;
+		s_semanticRenderState.stencilWriteMask = 0;
+		s_semanticRenderState.stencilOpsValid = false;
+		s_semanticRenderState.stencilPassOp = 0;
+		s_semanticRenderState.stencilFailOp = 0;
+		s_semanticRenderState.stencilZFailOp = 0;
 	}
 
 	void MirrorSemanticRenderState(unsigned state, unsigned value)
@@ -378,6 +420,38 @@ namespace
 			case RS::POINTSCALE_C:
 				s_semanticRenderState.pointScaleValuesValid = true;
 				s_semanticRenderState.pointScaleC = value;
+				break;
+			case RS::STENCILENABLE:
+				s_semanticRenderState.stencilEnableValid = true;
+				s_semanticRenderState.stencilEnabled = (value != 0);
+				break;
+			case RS::STENCILFUNC:
+				s_semanticRenderState.stencilFunctionValid = true;
+				s_semanticRenderState.stencilFunction = value;
+				break;
+			case RS::STENCILREF:
+				s_semanticRenderState.stencilReferenceValid = true;
+				s_semanticRenderState.stencilReference = value;
+				break;
+			case RS::STENCILMASK:
+				s_semanticRenderState.stencilReadMaskValid = true;
+				s_semanticRenderState.stencilReadMask = value;
+				break;
+			case RS::STENCILWRITEMASK:
+				s_semanticRenderState.stencilWriteMaskValid = true;
+				s_semanticRenderState.stencilWriteMask = value;
+				break;
+			case RS::STENCILPASS:
+				s_semanticRenderState.stencilOpsValid = true;
+				s_semanticRenderState.stencilPassOp = value;
+				break;
+			case RS::STENCILFAIL:
+				s_semanticRenderState.stencilOpsValid = true;
+				s_semanticRenderState.stencilFailOp = value;
+				break;
+			case RS::STENCILZFAIL:
+				s_semanticRenderState.stencilOpsValid = true;
+				s_semanticRenderState.stencilZFailOp = value;
 				break;
 			default:
 				break;
@@ -1014,6 +1088,71 @@ bool FixedFunctionState::Set_Point_Scale_Bits(unsigned a, unsigned b, unsigned c
 	changed |= Set_Cached_Render_State(RS::POINTSCALE_B, b);
 	changed |= Set_Cached_Render_State(RS::POINTSCALE_C, c);
 	return changed;
+}
+
+bool FixedFunctionState::Stencil_Enabled(bool default_value)
+{
+	return s_semanticRenderState.stencilEnableValid ? s_semanticRenderState.stencilEnabled : default_value;
+}
+
+bool FixedFunctionState::Set_Stencil_Enabled(bool enabled)
+{
+	return Set_Cached_Render_State(RS::STENCILENABLE, enabled ? 1U : 0U);
+}
+
+unsigned FixedFunctionState::Stencil_Function(unsigned default_value)
+{
+	return s_semanticRenderState.stencilFunctionValid ? s_semanticRenderState.stencilFunction : default_value;
+}
+
+bool FixedFunctionState::Set_Stencil_Function(unsigned value)
+{
+	return Set_Cached_Render_State(RS::STENCILFUNC, value);
+}
+
+unsigned FixedFunctionState::Stencil_Reference(unsigned default_value)
+{
+	return s_semanticRenderState.stencilReferenceValid ? s_semanticRenderState.stencilReference : default_value;
+}
+
+bool FixedFunctionState::Set_Stencil_Reference(unsigned value)
+{
+	return Set_Cached_Render_State(RS::STENCILREF, value);
+}
+
+unsigned FixedFunctionState::Stencil_Read_Mask(unsigned default_value)
+{
+	return s_semanticRenderState.stencilReadMaskValid ? s_semanticRenderState.stencilReadMask : default_value;
+}
+
+bool FixedFunctionState::Set_Stencil_Read_Mask(unsigned value)
+{
+	return Set_Cached_Render_State(RS::STENCILMASK, value);
+}
+
+unsigned FixedFunctionState::Stencil_Write_Mask(unsigned default_value)
+{
+	return s_semanticRenderState.stencilWriteMaskValid ? s_semanticRenderState.stencilWriteMask : default_value;
+}
+
+bool FixedFunctionState::Set_Stencil_Write_Mask(unsigned value)
+{
+	return Set_Cached_Render_State(RS::STENCILWRITEMASK, value);
+}
+
+bool FixedFunctionState::Set_Stencil_Pass_Op(unsigned value)
+{
+	return Set_Cached_Render_State(RS::STENCILPASS, value);
+}
+
+bool FixedFunctionState::Set_Stencil_Fail_Op(unsigned value)
+{
+	return Set_Cached_Render_State(RS::STENCILFAIL, value);
+}
+
+bool FixedFunctionState::Set_Stencil_ZFail_Op(unsigned value)
+{
+	return Set_Cached_Render_State(RS::STENCILZFAIL, value);
 }
 
 void FixedFunctionState::Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix)
