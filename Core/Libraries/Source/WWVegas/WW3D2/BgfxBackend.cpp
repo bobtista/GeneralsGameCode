@@ -7509,26 +7509,28 @@ void BgfxBackend::Set_Lighting_Enable(bool enable)
 
 void BgfxBackend::Set_Point_Sprite_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(RS::POINTSPRITEENABLE, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Point_Sprite_Enabled(enable);
 }
 
 void BgfxBackend::Set_Point_Scale_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(RS::POINTSCALEENABLE, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Point_Scale_Enabled(enable);
 }
 
 void BgfxBackend::Set_Point_Size(float size, float min_size, float max_size)
 {
-    RenderStateCache::Set_Render_State(RS::POINTSIZE, FloatAsDword(size));
-    RenderStateCache::Set_Render_State(RS::POINTSIZEMIN, FloatAsDword(min_size));
-    RenderStateCache::Set_Render_State(RS::POINTSIZEMAX, FloatAsDword(max_size));
+    FixedFunctionState::Set_Point_Size_Bits(
+        FloatAsDword(size),
+        FloatAsDword(min_size),
+        FloatAsDword(max_size));
 }
 
 void BgfxBackend::Set_Point_Scale(float a, float b, float c)
 {
-    RenderStateCache::Set_Render_State(RS::POINTSCALE_A, FloatAsDword(a));
-    RenderStateCache::Set_Render_State(RS::POINTSCALE_B, FloatAsDword(b));
-    RenderStateCache::Set_Render_State(RS::POINTSCALE_C, FloatAsDword(c));
+    FixedFunctionState::Set_Point_Scale_Bits(
+        FloatAsDword(a),
+        FloatAsDword(b),
+        FloatAsDword(c));
 }
 
 void BgfxBackend::Skip_Next_Bgfx_Submit()

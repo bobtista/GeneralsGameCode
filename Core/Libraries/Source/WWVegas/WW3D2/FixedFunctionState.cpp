@@ -82,6 +82,18 @@ namespace
 		bool normalizeNormalsEnabled;
 		bool textureFactorValid;
 		unsigned textureFactor;
+		bool pointSpriteValid;
+		bool pointSpriteEnabled;
+		bool pointScaleValid;
+		bool pointScaleEnabled;
+		bool pointSizeValid;
+		unsigned pointSize;
+		unsigned pointSizeMin;
+		unsigned pointSizeMax;
+		bool pointScaleValuesValid;
+		unsigned pointScaleA;
+		unsigned pointScaleB;
+		unsigned pointScaleC;
 	};
 
 	SemanticRenderState s_semanticRenderState;
@@ -149,6 +161,18 @@ namespace
 		s_semanticRenderState.normalizeNormalsEnabled = false;
 		s_semanticRenderState.textureFactorValid = true;
 		s_semanticRenderState.textureFactor = 0;
+		s_semanticRenderState.pointSpriteValid = true;
+		s_semanticRenderState.pointSpriteEnabled = false;
+		s_semanticRenderState.pointScaleValid = true;
+		s_semanticRenderState.pointScaleEnabled = false;
+		s_semanticRenderState.pointSizeValid = true;
+		s_semanticRenderState.pointSize = 0;
+		s_semanticRenderState.pointSizeMin = 0;
+		s_semanticRenderState.pointSizeMax = 0;
+		s_semanticRenderState.pointScaleValuesValid = true;
+		s_semanticRenderState.pointScaleA = 0;
+		s_semanticRenderState.pointScaleB = 0;
+		s_semanticRenderState.pointScaleC = 0;
 	}
 
 	void InvalidateSemanticRenderState()
@@ -205,6 +229,18 @@ namespace
 		s_semanticRenderState.normalizeNormalsEnabled = false;
 		s_semanticRenderState.textureFactorValid = false;
 		s_semanticRenderState.textureFactor = 0;
+		s_semanticRenderState.pointSpriteValid = false;
+		s_semanticRenderState.pointSpriteEnabled = false;
+		s_semanticRenderState.pointScaleValid = false;
+		s_semanticRenderState.pointScaleEnabled = false;
+		s_semanticRenderState.pointSizeValid = false;
+		s_semanticRenderState.pointSize = 0;
+		s_semanticRenderState.pointSizeMin = 0;
+		s_semanticRenderState.pointSizeMax = 0;
+		s_semanticRenderState.pointScaleValuesValid = false;
+		s_semanticRenderState.pointScaleA = 0;
+		s_semanticRenderState.pointScaleB = 0;
+		s_semanticRenderState.pointScaleC = 0;
 	}
 
 	void MirrorSemanticRenderState(unsigned state, unsigned value)
@@ -313,6 +349,38 @@ namespace
 			case RS::TEXTUREFACTOR:
 				s_semanticRenderState.textureFactorValid = true;
 				s_semanticRenderState.textureFactor = value;
+				break;
+			case RS::POINTSPRITEENABLE:
+				s_semanticRenderState.pointSpriteValid = true;
+				s_semanticRenderState.pointSpriteEnabled = (value != 0);
+				break;
+			case RS::POINTSCALEENABLE:
+				s_semanticRenderState.pointScaleValid = true;
+				s_semanticRenderState.pointScaleEnabled = (value != 0);
+				break;
+			case RS::POINTSIZE:
+				s_semanticRenderState.pointSizeValid = true;
+				s_semanticRenderState.pointSize = value;
+				break;
+			case RS::POINTSIZEMIN:
+				s_semanticRenderState.pointSizeValid = true;
+				s_semanticRenderState.pointSizeMin = value;
+				break;
+			case RS::POINTSIZEMAX:
+				s_semanticRenderState.pointSizeValid = true;
+				s_semanticRenderState.pointSizeMax = value;
+				break;
+			case RS::POINTSCALE_A:
+				s_semanticRenderState.pointScaleValuesValid = true;
+				s_semanticRenderState.pointScaleA = value;
+				break;
+			case RS::POINTSCALE_B:
+				s_semanticRenderState.pointScaleValuesValid = true;
+				s_semanticRenderState.pointScaleB = value;
+				break;
+			case RS::POINTSCALE_C:
+				s_semanticRenderState.pointScaleValuesValid = true;
+				s_semanticRenderState.pointScaleC = value;
 				break;
 			default:
 				break;
@@ -924,6 +992,44 @@ unsigned FixedFunctionState::Texture_Factor(unsigned default_value)
 bool FixedFunctionState::Set_Texture_Factor(unsigned value)
 {
 	return Set_Cached_Render_State(RS::TEXTUREFACTOR, value);
+}
+
+bool FixedFunctionState::Point_Sprite_Enabled(bool default_value)
+{
+	return s_semanticRenderState.pointSpriteValid ? s_semanticRenderState.pointSpriteEnabled : default_value;
+}
+
+bool FixedFunctionState::Set_Point_Sprite_Enabled(bool enabled)
+{
+	return Set_Cached_Render_State(RS::POINTSPRITEENABLE, enabled ? 1U : 0U);
+}
+
+bool FixedFunctionState::Point_Scale_Enabled(bool default_value)
+{
+	return s_semanticRenderState.pointScaleValid ? s_semanticRenderState.pointScaleEnabled : default_value;
+}
+
+bool FixedFunctionState::Set_Point_Scale_Enabled(bool enabled)
+{
+	return Set_Cached_Render_State(RS::POINTSCALEENABLE, enabled ? 1U : 0U);
+}
+
+bool FixedFunctionState::Set_Point_Size_Bits(unsigned size, unsigned min_size, unsigned max_size)
+{
+	bool changed = false;
+	changed |= Set_Cached_Render_State(RS::POINTSIZE, size);
+	changed |= Set_Cached_Render_State(RS::POINTSIZEMIN, min_size);
+	changed |= Set_Cached_Render_State(RS::POINTSIZEMAX, max_size);
+	return changed;
+}
+
+bool FixedFunctionState::Set_Point_Scale_Bits(unsigned a, unsigned b, unsigned c)
+{
+	bool changed = false;
+	changed |= Set_Cached_Render_State(RS::POINTSCALE_A, a);
+	changed |= Set_Cached_Render_State(RS::POINTSCALE_B, b);
+	changed |= Set_Cached_Render_State(RS::POINTSCALE_C, c);
+	return changed;
 }
 
 void FixedFunctionState::Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix)
