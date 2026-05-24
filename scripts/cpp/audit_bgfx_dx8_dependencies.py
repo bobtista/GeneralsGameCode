@@ -36,6 +36,7 @@ SKIP_FILES = {
     "dx8standalonetypes.h",
     "dx8textureinterop.cpp",
     "dx8textureinterop.h",
+    "dx8texturelegacyd3dtypes.h",
     "dx8texturelegacytypes.h",
     "dx8wrapper.cpp",
     "fixedfunctionlegacytypes.h",
