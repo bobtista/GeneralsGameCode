@@ -119,6 +119,7 @@ public:
 
 	static unsigned Cached_Texture_Stage_State(unsigned stage, unsigned state);
 	static bool Set_Cached_Texture_Stage_State(unsigned stage, unsigned state, unsigned value);
+	static bool Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value);
 
 	static void Cached_Transform(unsigned transform, LegacyTransformMatrix & matrix);
 	static bool Set_Cached_Transform(unsigned transform, const LegacyTransformMatrix & matrix);
