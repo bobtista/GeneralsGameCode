@@ -92,6 +92,18 @@ struct RenderBackendImage
     }
 };
 
+struct RenderBackendSurfaceDescription
+{
+    unsigned Width = 0;
+    unsigned Height = 0;
+    WW3DFormat Format = WW3D_FORMAT_UNKNOWN;
+
+    bool Is_Valid() const
+    {
+        return Width != 0 && Height != 0 && Format != WW3D_FORMAT_UNKNOWN;
+    }
+};
+
 static const unsigned RB_MAX_TEXTURE_STAGES = 8;
 static const unsigned RB_MAX_LIGHTS = 4;
 
@@ -571,7 +583,7 @@ public:
     virtual void Set_Device_Cleanup_Hook(RenderDeviceCleanupHook * hook) {}
     virtual bool Has_Stencil() const { return false; }
     virtual WW3DFormat Get_Back_Buffer_Format() const { return WW3D_FORMAT_UNKNOWN; }
-    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const { return nullptr; }
+    virtual bool Get_Back_Buffer_Description(unsigned int num, RenderBackendSurfaceDescription & desc) const { desc = RenderBackendSurfaceDescription(); return false; }
     virtual bool Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image) { return false; }
     virtual bool Request_Native_Screen_Shot(const char * /*path*/) { return false; }
     virtual void Set_Texture_Bitdepth(int bitdepth) {}

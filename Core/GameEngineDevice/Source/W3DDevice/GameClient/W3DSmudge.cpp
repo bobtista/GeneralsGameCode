@@ -90,18 +90,15 @@ void W3DSmudgeManager::ReAcquireResources()
 {
 	ReleaseResources();
 
-	SurfaceClass::SurfaceDescription surface_desc;
+	RenderBackendSurfaceDescription surface_desc;
 
 #if defined(GGC_BGFX_STANDALONE)
 	surface_desc.Format = WW3D_FORMAT_UNKNOWN;
 	surface_desc.Width = TheDisplay ? TheDisplay->getWidth() : 0;
 	surface_desc.Height = TheDisplay ? TheDisplay->getHeight() : 0;
 #else
-	SurfaceClass *surface = g_renderBackend ? g_renderBackend->Get_Back_Buffer(0) : nullptr;
-	if (!surface)
+	if (!g_renderBackend || !g_renderBackend->Get_Back_Buffer_Description(0, surface_desc))
 		return;
-	surface->Get_Description(surface_desc);
-	REF_PTR_RELEASE(surface);
 
 	m_backgroundTexture = MSGNEW("TextureClass") TextureClass(surface_desc.Width,surface_desc.Height,surface_desc.Format,MIP_LEVELS_1,TextureClass::POOL_DEFAULT, true);
 #endif
@@ -325,7 +322,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	if (!testHardwareSupport())
 		return;
 
-	SurfaceClass::SurfaceDescription surface_desc;
+	RenderBackendSurfaceDescription surface_desc;
 	Bool bgfxSmudgeActive = FALSE;
 
 #if defined(GGC_BGFX_STANDALONE)
@@ -333,20 +330,8 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	surface_desc.Width = TheDisplay->getWidth();
 	surface_desc.Height = TheDisplay->getHeight();
 #else
-	SurfaceClass *backBuffer = g_renderBackend ? g_renderBackend->Get_Back_Buffer(0) : nullptr;
-
-	if (!backBuffer)
+	if (!g_renderBackend || !g_renderBackend->Get_Back_Buffer_Description(0, surface_desc))
 		return;
-
-	SurfaceClass *background=m_backgroundTexture ? m_backgroundTexture->Get_Surface_Level() : nullptr;
-
-	if (!background)
-	{
-		REF_PTR_RELEASE(backBuffer);
-		return;
-	}
-
-	backBuffer->Get_Description(surface_desc);
 #endif
 
 	CameraClass &camera=rinfo.Camera;
@@ -451,19 +436,26 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 	if (!count)
 	{
-#if !defined(GGC_BGFX_STANDALONE)
-		REF_PTR_RELEASE(background);
-		REF_PTR_RELEASE(backBuffer);
-#endif
 		return;	//nothing to render.
 	}
 
 #if !defined(GGC_BGFX_STANDALONE)
 	//Copy the area of backbuffer occupied by smudges into an alternate buffer.
-	background->Copy(0,0,0,0,surface_desc.Width,surface_desc.Height,backBuffer);
+	RenderBackendImage back_buffer_image;
+	if (m_backgroundTexture == nullptr ||
+		g_renderBackend == nullptr ||
+		!g_renderBackend->Capture_Back_Buffer_Image(0, back_buffer_image))
+	{
+		return;
+	}
 
-	REF_PTR_RELEASE(background);
-	REF_PTR_RELEASE(backBuffer);
+	SurfaceClass::SurfaceImageData image;
+	image.Format = back_buffer_image.Format;
+	image.Width = back_buffer_image.Width;
+	image.Height = back_buffer_image.Height;
+	image.Pitch = back_buffer_image.Pitch;
+	image.Data = back_buffer_image.Bytes;
+	m_backgroundTexture->Update_Surface_Level_From_Surface(0, image);
 #else
 	if (!g_renderBackend || !g_renderBackend->Begin_Smudge_Distortion())
 		return;

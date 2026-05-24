@@ -46,7 +46,7 @@ public:
     virtual void Set_Device_Cleanup_Hook(RenderDeviceCleanupHook * hook) override;
     virtual bool Has_Stencil() const;
     virtual WW3DFormat Get_Back_Buffer_Format() const;
-    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const;
+    virtual bool Get_Back_Buffer_Description(unsigned int num, RenderBackendSurfaceDescription & desc) const override;
     virtual bool Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image) override;
     virtual void Set_Texture_Bitdepth(int bitdepth) override;
     virtual int Get_Texture_Bitdepth() const override;
