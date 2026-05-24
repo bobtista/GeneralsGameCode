@@ -898,25 +898,21 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 		texture->Init();
 	}
 
-	SurfaceClass *surface = texture->Get_Surface_Level();
-	if (surface == nullptr)
-	{
-		return nullptr;
-	}
-
 	SurfaceClass::SurfaceDescription desc;
-	surface->Get_Description(desc);
+	texture->Get_Level_Description(desc, 0);
 	if (desc.Width == 0 || desc.Height == 0 || desc.Width > 256 || desc.Height > 256)
 	{
-		REF_PTR_RELEASE(surface);
 		return nullptr;
 	}
 
-	SurfaceClass *readSurface = surface;
 	std::vector<Uint8> decodedPixels;
-	UnsignedByte *src = nullptr;
+	const UnsignedByte *src = nullptr;
 	int pitch = 0;
-	Bool lockedSurface = TRUE;
+	UnsignedInt bytesPerPixel = Get_Bytes_Per_Pixel(desc.Format);
+#if !defined(GGC_BGFX_STANDALONE)
+	SurfaceClass *fallbackSurface = nullptr;
+	Bool lockedSurface = FALSE;
+#endif
 	switch (desc.Format)
 	{
 		case WW3D_FORMAT_DXT1:
@@ -930,7 +926,6 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 			if (!ddsFile.Is_Available() || !ddsFile.Load() || ddsFile.Get_Width(0) != desc.Width ||
 				ddsFile.Get_Height(0) != desc.Height)
 			{
-				REF_PTR_RELEASE(surface);
 				return nullptr;
 			}
 			for (UnsignedInt y = 0; y < desc.Height; ++y)
@@ -948,24 +943,57 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 			desc.Format = WW3D_FORMAT_A8R8G8B8;
 			src = decodedPixels.data();
 			pitch = desc.Width * 4;
-			lockedSurface = FALSE;
+			bytesPerPixel = 4;
 			break;
 		}
 		default:
+		{
+			const std::vector<TextureBaseClass::TextureMipSnapshot> &mips = texture->Get_CPU_Texture_Mips();
+			if (!mips.empty()) {
+				const TextureBaseClass::TextureMipSnapshot &mip = mips[0];
+				const UnsignedInt mipBytesPerPixel = Get_Bytes_Per_Pixel(mip.Format);
+				if (mip.Format != WW3D_FORMAT_UNKNOWN &&
+					mip.Width != 0 &&
+					mip.Height != 0 &&
+					mipBytesPerPixel != 0 &&
+					mip.Pitch >= mip.Width * mipBytesPerPixel &&
+					mip.Data.size() >= static_cast<size_t>(mip.Pitch) * mip.Height)
+				{
+					desc.Format = mip.Format;
+					desc.Width = mip.Width;
+					desc.Height = mip.Height;
+					src = mip.Data.data();
+					pitch = mip.Pitch;
+					bytesPerPixel = mipBytesPerPixel;
+				}
+			}
+
+			if (src == nullptr) {
+#if !defined(GGC_BGFX_STANDALONE)
+				fallbackSurface = texture->Get_Surface_Level();
+				if (fallbackSurface == nullptr) {
+					return nullptr;
+				}
+				fallbackSurface->Get_Description(desc);
+				bytesPerPixel = fallbackSurface->Get_Bytes_Per_Pixel();
+				src = static_cast<UnsignedByte *>(fallbackSurface->Lock(&pitch));
+				lockedSurface = TRUE;
+#else
+				return nullptr;
+#endif
+			}
 			break;
+		}
 	}
 
-	if (lockedSurface)
-	{
-		src = static_cast<UnsignedByte *>(readSurface->Lock(&pitch));
-	}
 	if (src == nullptr)
 	{
-		REF_PTR_RELEASE(surface);
+#if !defined(GGC_BGFX_STANDALONE)
+		REF_PTR_RELEASE(fallbackSurface);
+#endif
 		return nullptr;
 	}
 
-	const UnsignedInt bytesPerPixel = readSurface->Get_Bytes_Per_Pixel();
 	const UnsignedInt cursorPitch = desc.Width * 4;
 	std::vector<Uint8> pixels(cursorPitch * desc.Height, 0);
 	std::vector<Uint8> sourcePixels(cursorPitch * desc.Height, 0);
@@ -975,11 +1003,13 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 
 	if (pixels.empty() || sourcePixels.empty())
 	{
+#if !defined(GGC_BGFX_STANDALONE)
 		if (lockedSurface)
 		{
-			readSurface->Unlock();
+			fallbackSurface->Unlock();
 		}
-		REF_PTR_RELEASE(surface);
+		REF_PTR_RELEASE(fallbackSurface);
+#endif
 		return nullptr;
 	}
 
@@ -1039,11 +1069,13 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 		}
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (lockedSurface)
 	{
-		readSurface->Unlock();
+		fallbackSurface->Unlock();
 	}
-	REF_PTR_RELEASE(surface);
+	REF_PTR_RELEASE(fallbackSurface);
+#endif
 
 	Int hotX = hotSpot.x;
 	Int hotY = hotSpot.y;
