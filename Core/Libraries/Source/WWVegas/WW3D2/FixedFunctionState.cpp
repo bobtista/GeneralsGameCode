@@ -46,6 +46,20 @@ namespace
 		unsigned diffuseMaterialSource;
 		bool emissiveMaterialSourceValid;
 		unsigned emissiveMaterialSource;
+		bool sourceBlendFactorValid;
+		unsigned sourceBlendFactor;
+		bool destinationBlendFactorValid;
+		unsigned destinationBlendFactor;
+		bool blendOpValid;
+		unsigned blendOp;
+		bool alphaBlendValid;
+		bool alphaBlendEnabled;
+		bool alphaTestValid;
+		bool alphaTestEnabled;
+		bool alphaTestReferenceValid;
+		unsigned alphaTestReference;
+		bool alphaTestFunctionValid;
+		unsigned alphaTestFunction;
 	};
 
 	SemanticRenderState s_semanticRenderState;
@@ -77,6 +91,20 @@ namespace
 		s_semanticRenderState.diffuseMaterialSource = 0;
 		s_semanticRenderState.emissiveMaterialSourceValid = true;
 		s_semanticRenderState.emissiveMaterialSource = 0;
+		s_semanticRenderState.sourceBlendFactorValid = true;
+		s_semanticRenderState.sourceBlendFactor = 0;
+		s_semanticRenderState.destinationBlendFactorValid = true;
+		s_semanticRenderState.destinationBlendFactor = 0;
+		s_semanticRenderState.blendOpValid = true;
+		s_semanticRenderState.blendOp = 0;
+		s_semanticRenderState.alphaBlendValid = true;
+		s_semanticRenderState.alphaBlendEnabled = false;
+		s_semanticRenderState.alphaTestValid = true;
+		s_semanticRenderState.alphaTestEnabled = false;
+		s_semanticRenderState.alphaTestReferenceValid = true;
+		s_semanticRenderState.alphaTestReference = 0;
+		s_semanticRenderState.alphaTestFunctionValid = true;
+		s_semanticRenderState.alphaTestFunction = 0;
 	}
 
 	void InvalidateSemanticRenderState()
@@ -97,6 +125,20 @@ namespace
 		s_semanticRenderState.diffuseMaterialSource = 0;
 		s_semanticRenderState.emissiveMaterialSourceValid = false;
 		s_semanticRenderState.emissiveMaterialSource = 0;
+		s_semanticRenderState.sourceBlendFactorValid = false;
+		s_semanticRenderState.sourceBlendFactor = 0;
+		s_semanticRenderState.destinationBlendFactorValid = false;
+		s_semanticRenderState.destinationBlendFactor = 0;
+		s_semanticRenderState.blendOpValid = false;
+		s_semanticRenderState.blendOp = 0;
+		s_semanticRenderState.alphaBlendValid = false;
+		s_semanticRenderState.alphaBlendEnabled = false;
+		s_semanticRenderState.alphaTestValid = false;
+		s_semanticRenderState.alphaTestEnabled = false;
+		s_semanticRenderState.alphaTestReferenceValid = false;
+		s_semanticRenderState.alphaTestReference = 0;
+		s_semanticRenderState.alphaTestFunctionValid = false;
+		s_semanticRenderState.alphaTestFunction = 0;
 	}
 
 	void MirrorSemanticRenderState(unsigned state, unsigned value)
@@ -133,6 +175,34 @@ namespace
 			case RS::EMISSIVEMATERIALSOURCE:
 				s_semanticRenderState.emissiveMaterialSourceValid = true;
 				s_semanticRenderState.emissiveMaterialSource = value;
+				break;
+			case RS::SRCBLEND:
+				s_semanticRenderState.sourceBlendFactorValid = true;
+				s_semanticRenderState.sourceBlendFactor = value;
+				break;
+			case RS::DESTBLEND:
+				s_semanticRenderState.destinationBlendFactorValid = true;
+				s_semanticRenderState.destinationBlendFactor = value;
+				break;
+			case RS::BLENDOP:
+				s_semanticRenderState.blendOpValid = true;
+				s_semanticRenderState.blendOp = value;
+				break;
+			case RS::ALPHABLENDENABLE:
+				s_semanticRenderState.alphaBlendValid = true;
+				s_semanticRenderState.alphaBlendEnabled = (value != 0);
+				break;
+			case RS::ALPHATESTENABLE:
+				s_semanticRenderState.alphaTestValid = true;
+				s_semanticRenderState.alphaTestEnabled = (value != 0);
+				break;
+			case RS::ALPHAREF:
+				s_semanticRenderState.alphaTestReferenceValid = true;
+				s_semanticRenderState.alphaTestReference = value;
+				break;
+			case RS::ALPHAFUNC:
+				s_semanticRenderState.alphaTestFunctionValid = true;
+				s_semanticRenderState.alphaTestFunction = value;
 				break;
 			default:
 				break;
@@ -571,6 +641,68 @@ bool FixedFunctionState::Set_Material_Color_Sources(unsigned ambient_source, uns
 	changed |= Set_Cached_Render_State(RS::AMBIENTMATERIALSOURCE, ambient_source);
 	changed |= Set_Cached_Render_State(RS::DIFFUSEMATERIALSOURCE, diffuse_source);
 	changed |= Set_Cached_Render_State(RS::EMISSIVEMATERIALSOURCE, emissive_source);
+	return changed;
+}
+
+unsigned FixedFunctionState::Source_Blend_Factor(unsigned default_value)
+{
+	return s_semanticRenderState.sourceBlendFactorValid ? s_semanticRenderState.sourceBlendFactor : default_value;
+}
+
+unsigned FixedFunctionState::Destination_Blend_Factor(unsigned default_value)
+{
+	return s_semanticRenderState.destinationBlendFactorValid ? s_semanticRenderState.destinationBlendFactor : default_value;
+}
+
+bool FixedFunctionState::Set_Blend_Factors(unsigned source_factor, unsigned destination_factor)
+{
+	bool changed = false;
+	changed |= Set_Cached_Render_State(RS::SRCBLEND, source_factor);
+	changed |= Set_Cached_Render_State(RS::DESTBLEND, destination_factor);
+	return changed;
+}
+
+unsigned FixedFunctionState::Blend_Op(unsigned default_value)
+{
+	return s_semanticRenderState.blendOpValid ? s_semanticRenderState.blendOp : default_value;
+}
+
+bool FixedFunctionState::Set_Blend_Op(unsigned value)
+{
+	return Set_Cached_Render_State(RS::BLENDOP, value);
+}
+
+bool FixedFunctionState::Alpha_Blend_Enabled(bool default_value)
+{
+	return s_semanticRenderState.alphaBlendValid ? s_semanticRenderState.alphaBlendEnabled : default_value;
+}
+
+bool FixedFunctionState::Set_Alpha_Blend_Enabled(bool enabled)
+{
+	return Set_Cached_Render_State(RS::ALPHABLENDENABLE, enabled ? 1U : 0U);
+}
+
+bool FixedFunctionState::Alpha_Test_Enabled(bool default_value)
+{
+	return s_semanticRenderState.alphaTestValid ? s_semanticRenderState.alphaTestEnabled : default_value;
+}
+
+unsigned FixedFunctionState::Alpha_Test_Reference(unsigned default_value)
+{
+	return s_semanticRenderState.alphaTestReferenceValid ? s_semanticRenderState.alphaTestReference : default_value;
+}
+
+unsigned FixedFunctionState::Alpha_Test_Function(unsigned default_value)
+{
+	return s_semanticRenderState.alphaTestFunctionValid ? s_semanticRenderState.alphaTestFunction : default_value;
+}
+
+bool FixedFunctionState::Set_Alpha_Test_State(bool enabled, unsigned reference, unsigned function)
+{
+	bool changed = false;
+	changed |= Set_Cached_Render_State(RS::ALPHATESTENABLE, enabled ? 1U : 0U);
+	changed |= Set_Cached_Render_State(RS::ALPHAREF, reference);
+	changed |= Set_Cached_Render_State(RS::ALPHAFUNC, function);
 	return changed;
 }
 
