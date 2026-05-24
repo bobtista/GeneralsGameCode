@@ -72,6 +72,16 @@ namespace
 		bool depthWriteEnabled;
 		bool depthFunctionValid;
 		unsigned depthFunction;
+		bool fogEnableValid;
+		bool fogEnabled;
+		bool specularEnableValid;
+		bool specularEnabled;
+		bool patchSegmentsValid;
+		unsigned patchSegments;
+		bool normalizeNormalsValid;
+		bool normalizeNormalsEnabled;
+		bool textureFactorValid;
+		unsigned textureFactor;
 	};
 
 	SemanticRenderState s_semanticRenderState;
@@ -129,6 +139,16 @@ namespace
 		s_semanticRenderState.depthWriteEnabled = false;
 		s_semanticRenderState.depthFunctionValid = true;
 		s_semanticRenderState.depthFunction = 0;
+		s_semanticRenderState.fogEnableValid = true;
+		s_semanticRenderState.fogEnabled = false;
+		s_semanticRenderState.specularEnableValid = true;
+		s_semanticRenderState.specularEnabled = false;
+		s_semanticRenderState.patchSegmentsValid = true;
+		s_semanticRenderState.patchSegments = 0;
+		s_semanticRenderState.normalizeNormalsValid = true;
+		s_semanticRenderState.normalizeNormalsEnabled = false;
+		s_semanticRenderState.textureFactorValid = true;
+		s_semanticRenderState.textureFactor = 0;
 	}
 
 	void InvalidateSemanticRenderState()
@@ -175,6 +195,16 @@ namespace
 		s_semanticRenderState.depthWriteEnabled = false;
 		s_semanticRenderState.depthFunctionValid = false;
 		s_semanticRenderState.depthFunction = 0;
+		s_semanticRenderState.fogEnableValid = false;
+		s_semanticRenderState.fogEnabled = false;
+		s_semanticRenderState.specularEnableValid = false;
+		s_semanticRenderState.specularEnabled = false;
+		s_semanticRenderState.patchSegmentsValid = false;
+		s_semanticRenderState.patchSegments = 0;
+		s_semanticRenderState.normalizeNormalsValid = false;
+		s_semanticRenderState.normalizeNormalsEnabled = false;
+		s_semanticRenderState.textureFactorValid = false;
+		s_semanticRenderState.textureFactor = 0;
 	}
 
 	void MirrorSemanticRenderState(unsigned state, unsigned value)
@@ -263,6 +293,26 @@ namespace
 			case RS::ZFUNC:
 				s_semanticRenderState.depthFunctionValid = true;
 				s_semanticRenderState.depthFunction = value;
+				break;
+			case RS::FOGENABLE:
+				s_semanticRenderState.fogEnableValid = true;
+				s_semanticRenderState.fogEnabled = (value != 0);
+				break;
+			case RS::SPECULARENABLE:
+				s_semanticRenderState.specularEnableValid = true;
+				s_semanticRenderState.specularEnabled = (value != 0);
+				break;
+			case RS::PATCHSEGMENTS:
+				s_semanticRenderState.patchSegmentsValid = true;
+				s_semanticRenderState.patchSegments = value;
+				break;
+			case RS::NORMALIZENORMALS:
+				s_semanticRenderState.normalizeNormalsValid = true;
+				s_semanticRenderState.normalizeNormalsEnabled = (value != 0);
+				break;
+			case RS::TEXTUREFACTOR:
+				s_semanticRenderState.textureFactorValid = true;
+				s_semanticRenderState.textureFactor = value;
 				break;
 			default:
 				break;
@@ -824,6 +874,56 @@ unsigned FixedFunctionState::Depth_Function(unsigned default_value)
 bool FixedFunctionState::Set_Depth_Function(unsigned value)
 {
 	return Set_Cached_Render_State(RS::ZFUNC, value);
+}
+
+bool FixedFunctionState::Fog_Enabled(bool default_value)
+{
+	return s_semanticRenderState.fogEnableValid ? s_semanticRenderState.fogEnabled : default_value;
+}
+
+bool FixedFunctionState::Set_Fog_Enabled(bool enabled)
+{
+	return Set_Cached_Render_State(RS::FOGENABLE, enabled ? 1U : 0U);
+}
+
+bool FixedFunctionState::Specular_Enabled(bool default_value)
+{
+	return s_semanticRenderState.specularEnableValid ? s_semanticRenderState.specularEnabled : default_value;
+}
+
+bool FixedFunctionState::Set_Specular_Enabled(bool enabled)
+{
+	return Set_Cached_Render_State(RS::SPECULARENABLE, enabled ? 1U : 0U);
+}
+
+unsigned FixedFunctionState::Patch_Segments_Bits(unsigned default_value)
+{
+	return s_semanticRenderState.patchSegmentsValid ? s_semanticRenderState.patchSegments : default_value;
+}
+
+bool FixedFunctionState::Set_Patch_Segments_Bits(unsigned value)
+{
+	return Set_Cached_Render_State(RS::PATCHSEGMENTS, value);
+}
+
+bool FixedFunctionState::Normalize_Normals_Enabled(bool default_value)
+{
+	return s_semanticRenderState.normalizeNormalsValid ? s_semanticRenderState.normalizeNormalsEnabled : default_value;
+}
+
+bool FixedFunctionState::Set_Normalize_Normals_Enabled(bool enabled)
+{
+	return Set_Cached_Render_State(RS::NORMALIZENORMALS, enabled ? 1U : 0U);
+}
+
+unsigned FixedFunctionState::Texture_Factor(unsigned default_value)
+{
+	return s_semanticRenderState.textureFactorValid ? s_semanticRenderState.textureFactor : default_value;
+}
+
+bool FixedFunctionState::Set_Texture_Factor(unsigned value)
+{
+	return Set_Cached_Render_State(RS::TEXTUREFACTOR, value);
 }
 
 void FixedFunctionState::Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix)
