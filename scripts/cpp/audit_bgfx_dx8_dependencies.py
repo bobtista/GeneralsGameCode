@@ -88,6 +88,7 @@ BGFX_BACKEND_CATEGORIES = [
             r"POINTSCALE_A|POINTSCALE_B|POINTSCALE_C|STENCILENABLE|STENCILFUNC|"
             r"STENCILREF|STENCILMASK|STENCILWRITEMASK|STENCILPASS|STENCILFAIL|STENCILZFAIL"
             r")\b"
+            r"|RenderStateCache::Set_Texture_Stage_State\s*\("
             r"|RenderStateCache::Set_Transform\s*\("
         ),
     ),

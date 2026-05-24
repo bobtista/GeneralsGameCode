@@ -6829,7 +6829,7 @@ void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
     {
         g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
     }
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, uvIndex);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, uvIndex);
 }
 
 void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
@@ -6853,8 +6853,8 @@ void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix
 
 void BgfxBackend::Clear_Texture_Transform(unsigned stage)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, stage);
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, kTextureTransformDisable);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, stage);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, kTextureTransformDisable);
 
     if (stage < 4)
     {
@@ -6905,7 +6905,7 @@ void BgfxBackend::Set_Texture_Coord_Source(unsigned stage,
         break;
     }
 
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, tci);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, tci);
     if (stage < 4)
     {
         g_draw.texcoordIndex[stage] = tci;
@@ -6926,7 +6926,7 @@ void BgfxBackend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_coun
     const unsigned flags = (coord_count == 0 ? kTextureTransformDisable : coord_count)
         | (projected ? kTextureTransformProjected : 0);
 
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, flags);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, flags);
     if (stage < 4)
     {
         g_draw.textureTransformFlags[stage] = flags;
@@ -6940,18 +6940,18 @@ void BgfxBackend::Set_Texture_Bump_Env_Matrix(unsigned stage,
                                               float m10,
                                               float m11)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT00, FloatAsDword(m00));
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT01, FloatAsDword(m01));
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT10, FloatAsDword(m10));
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT11, FloatAsDword(m11));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT00, FloatAsDword(m00));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT01, FloatAsDword(m01));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT10, FloatAsDword(m10));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT11, FloatAsDword(m11));
 }
 
 void BgfxBackend::Set_Texture_Bump_Env_Luminance(unsigned stage,
                                                  float scale,
                                                  float offset)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVLSCALE, FloatAsDword(scale));
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::BUMPENVLOFFSET, FloatAsDword(offset));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVLSCALE, FloatAsDword(scale));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVLOFFSET, FloatAsDword(offset));
 }
 
 void BgfxBackend::Set_Texture_Color_Operation(unsigned stage, RenderBackendTextureOperation op)
@@ -7079,9 +7079,9 @@ void BgfxBackend::Set_Texture_Max_Anisotropy(unsigned stage, unsigned max_anisot
 
 void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::ADDRESSU,
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::ADDRESSU,
         clampU ? kTextureAddressClamp : kTextureAddressWrap);
-    RenderStateCache::Set_Texture_Stage_State(stage, TSS::ADDRESSV,
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::ADDRESSV,
         clampV ? kTextureAddressClamp : kTextureAddressWrap);
 
     if (stage < 4)
@@ -7100,7 +7100,7 @@ void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clamp
 
 void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, state, value);
+    FixedFunctionState::Set_Texture_Stage_State(stage, state, value);
     if (stage >= 4)
     {
         return;
