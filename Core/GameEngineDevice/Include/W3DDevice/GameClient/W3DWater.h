@@ -272,8 +272,11 @@ protected:
 	void setupJbaWaterShader();
 
 	//Methods used for GeForce3 specific water
-	bool generateIndexBuffer(int sizeX, int sizeY, Bool createD3DMirror);	///<Generate water strip index buffer
-	bool generateVertexBuffer( Int sizeX, Int sizeY, Bool doStatic);///<Generate static vertex buffer
+	bool generateIndexBuffer(int sizeX, int sizeY);	///<Generate water strip index buffer
+#if !defined(GGC_BGFX_STANDALONE)
+	bool generateDx8SeaIndexBuffer(int sizeX, int sizeY);	///<Generate legacy static-sea index buffer
+	bool generateDx8SeaVertexBuffer( Int sizeX, Int sizeY);///<Generate legacy static-sea vertex buffer
+#endif
 
 	// snapshot methods for save/load
 	virtual void crc( Xfer *xfer ) override;

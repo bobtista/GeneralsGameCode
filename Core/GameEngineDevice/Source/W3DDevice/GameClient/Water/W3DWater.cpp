@@ -704,23 +704,16 @@ HRESULT WaterRenderObjClass::initBumpMap(IDirect3DTexture8 **pTex, TextureClass 
 #endif
 
 //-------------------------------------------------------------------------------------------------
-/** Create and fill a D3D vertex buffer with water surface vertices */
+/** Create and fill a legacy DX8 vertex buffer with static sea vertices */
 //-------------------------------------------------------------------------------------------------
-bool WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Bool doStatic)
+#if !defined(GGC_BGFX_STANDALONE)
+bool WaterRenderObjClass::generateDx8SeaVertexBuffer( Int sizeX, Int sizeY)
 {
 	m_numVertices=sizeX*sizeY;
 	//Assuming dynamic vertex buffer, allocate maximum multiple of required size to allow rendering from
 	//different parts of the buffer. 5-15-03: Disabled this since we use DISCARD mode instead to avoid Nvidia Runtime bug. -MW
 	//m_numVertices=(65536 / (sizeX*sizeY))*sizeX*sizeY;
 
-	if (!doStatic)
-	{
-		return true;
-	}
-
-#if defined(GGC_BGFX_STANDALONE)
-	return false;
-#else
 	Dx8SeaPatchVertex* pVertices;
 	Setting *setting=&m_settings[m_tod];
 	HRESULT hr;
@@ -772,71 +765,24 @@ bool WaterRenderObjClass::generateVertexBuffer( Int sizeX, Int sizeY, Bool doSta
 	if (FAILED(hr=m_vertexBufferD3D->Unlock())) return false;
 
 	return true;
-#endif
 }
+#endif
 
 //-------------------------------------------------------------------------------------------------
-/** Create and fill a D3D index buffer with water surface strip indices */
+/** Fill water surface strip indices into one or both output buffers */
 //-------------------------------------------------------------------------------------------------
-bool WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY, Bool createD3DMirror)
+static void W3DWater_FillStripIndices(Int sizeX, Int numIndices, UnsignedShort *legacyIndices, UnsignedShort *backendIndices)
 {
-#if !defined(GGC_BGFX_STANDALONE)
-	HRESULT hr=S_OK;
-#endif
-
-	//Will need SizeY-1 strips, each of length SizeX*2 (2 indices per strip segment).
-	//Will also need 2 extra indices to connect each strip to next one (except last strip)
-	//Total index buffer size = (SizeY-1)*(SizeX*2+2) - 2 (drop the extra 2 indices from last strip)
-
-	m_numIndices=(sizeY-1)*(sizeX*2+2) - 2;
-
-	//old way
-
-	// Create index buffer
-	UnsignedShort *pIndices=nullptr;
-	UnsignedShort *backendIndices=nullptr;
-
-	if (createD3DMirror)
-	{
-#if defined(GGC_BGFX_STANDALONE)
-		return false;
-#else
-		if (FAILED(hr=m_pDev->CreateIndexBuffer
-	(
-		(m_numIndices+2)*sizeof(WORD),
-		D3DUSAGE_WRITEONLY,
-		D3DFMT_INDEX16,
-		D3DPOOL_MANAGED,
-		&m_indexBufferD3D
-	)))
-			return false;
-
-		if (FAILED(hr=m_indexBufferD3D->Lock
-	(
-		0,
-		m_numIndices*sizeof(WORD),
-		(BYTE**)&pIndices,
-		0
-	)))
-			return false;
-#endif
-	}
-
-	REF_PTR_RELEASE(m_waterMeshIndexBuffer);
-	m_waterMeshIndexBuffer=NEW_REF(RenderIndexBufferClass,(m_numIndices));
-	RenderIndexBufferClass::WriteLockClass lockBackendIndexBuffer(m_waterMeshIndexBuffer);
-	backendIndices=lockBackendIndexBuffer.Get_Index_Array();
-
 	Int i,j,k;
 
-	for (i=0,j=0,k=0; i<m_numIndices; j++)
+	for (i=0,j=0,k=0; i<numIndices; j++)
 	{
 		for (;k<(sizeX*(j+1)); k++,i+=2)
 		{
-			if (pIndices != nullptr)
+			if (legacyIndices != nullptr)
 			{
-				pIndices[i]=(UnsignedShort) k+sizeX;
-				pIndices[i+1]=(UnsignedShort) k;
+				legacyIndices[i]=(UnsignedShort) k+sizeX;
+				legacyIndices[i+1]=(UnsignedShort) k;
 			}
 			if (backendIndices != nullptr)
 			{
@@ -847,12 +793,12 @@ bool WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY, Bool createD
 		//Generate 4 degenerate triangle to connect current strip to next strip/row of map
 		//To do this, we just repeat the last index of first strip and first index of new strip.
 		//Any triangles with repeated vertices will be skipped during rendering.
-		if (i<m_numIndices) //check if there is at least 1 more strip to go
+		if (i<numIndices) //check if there is at least 1 more strip to go
 		{
-			if (pIndices != nullptr)
+			if (legacyIndices != nullptr)
 			{
-				pIndices[i]=k-1;
-				pIndices[i+1]=k+sizeX;
+				legacyIndices[i]=k-1;
+				legacyIndices[i+1]=k+sizeX;
 			}
 			if (backendIndices != nullptr)
 			{
@@ -862,6 +808,23 @@ bool WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY, Bool createD
 			i+=2;
 		}
 	}
+}
+
+//-------------------------------------------------------------------------------------------------
+/** Create and fill a backend index buffer with water surface strip indices */
+//-------------------------------------------------------------------------------------------------
+bool WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY)
+{
+	//Will need SizeY-1 strips, each of length SizeX*2 (2 indices per strip segment).
+	//Will also need 2 extra indices to connect each strip to next one (except last strip)
+	//Total index buffer size = (SizeY-1)*(SizeX*2+2) - 2 (drop the extra 2 indices from last strip)
+
+	m_numIndices=(sizeY-1)*(sizeX*2+2) - 2;
+
+	REF_PTR_RELEASE(m_waterMeshIndexBuffer);
+	m_waterMeshIndexBuffer=NEW_REF(RenderIndexBufferClass,(m_numIndices));
+	RenderIndexBufferClass::WriteLockClass lockBackendIndexBuffer(m_waterMeshIndexBuffer);
+	W3DWater_FillStripIndices(sizeX, m_numIndices, nullptr, lockBackendIndexBuffer.Get_Index_Array());
 
 	/*Old way
 	Int step=1;
@@ -903,15 +866,45 @@ bool WaterRenderObjClass::generateIndexBuffer(Int sizeX, Int sizeY, Bool createD
 		s_toggle=!s_toggle;
 	}
 */
-	if (pIndices != nullptr)
-	{
+	return true;
+}
+
 #if !defined(GGC_BGFX_STANDALONE)
-		if (FAILED(hr=m_indexBufferD3D->Unlock())) return false;
-#endif
-	}
+//-------------------------------------------------------------------------------------------------
+/** Create and fill a legacy DX8 index buffer with static sea strip indices */
+//-------------------------------------------------------------------------------------------------
+bool WaterRenderObjClass::generateDx8SeaIndexBuffer(Int sizeX, Int sizeY)
+{
+	HRESULT hr=S_OK;
+	m_numIndices=(sizeY-1)*(sizeX*2+2) - 2;
+
+	if (FAILED(hr=m_pDev->CreateIndexBuffer
+	(
+		(m_numIndices+2)*sizeof(WORD),
+		D3DUSAGE_WRITEONLY,
+		D3DFMT_INDEX16,
+		D3DPOOL_MANAGED,
+		&m_indexBufferD3D
+	)))
+		return false;
+
+	UnsignedShort *pIndices=nullptr;
+	if (FAILED(hr=m_indexBufferD3D->Lock
+	(
+		0,
+		m_numIndices*sizeof(WORD),
+		(BYTE**)&pIndices,
+		0
+	)))
+		return false;
+
+	W3DWater_FillStripIndices(sizeX, m_numIndices, pIndices, nullptr);
+
+	if (FAILED(hr=m_indexBufferD3D->Unlock())) return false;
 
 	return true;
 }
+#endif
 
 //-------------------------------------------------------------------------------------------------
 /** Releases all w3d assets, to prepare for Reset device call. */
@@ -995,9 +988,7 @@ void WaterRenderObjClass::ReAcquireResources()
 	if (m_meshData)
 	{
 		//Create new grid data
-		if (!generateIndexBuffer(m_gridCellsX+1,m_gridCellsY+1,false))
-			return;
-		if (!generateVertexBuffer(m_gridCellsX+1,m_gridCellsY+1,false))
+		if (!generateIndexBuffer(m_gridCellsX+1,m_gridCellsY+1))
 			return;
 	}
 	else
@@ -1010,10 +1001,10 @@ void WaterRenderObjClass::ReAcquireResources()
 #else
 		if (!W3DWater_UseBackendSeaBatch())
 		{
-			if (!generateIndexBuffer(PATCH_SIZE,PATCH_SIZE,true))
+			if (!generateDx8SeaIndexBuffer(PATCH_SIZE,PATCH_SIZE))
 				return;
 
-			if (!generateVertexBuffer(PATCH_SIZE,PATCH_SIZE,true))
+			if (!generateDx8SeaVertexBuffer(PATCH_SIZE,PATCH_SIZE))
 				return;
 
 			//shader decleration
@@ -1345,9 +1336,7 @@ void WaterRenderObjClass::enableWaterGrid(Bool state)
 #endif
 
 		//Create new grid data
-		if (!generateIndexBuffer(m_gridCellsX+1,m_gridCellsY+1,false))
-			return;
-		if (!generateVertexBuffer(m_gridCellsX+1,m_gridCellsY+1,false))
+		if (!generateIndexBuffer(m_gridCellsX+1,m_gridCellsY+1))
 			return;
 	}
 }
@@ -1487,7 +1476,7 @@ void WaterRenderObjClass::setTimeOfDay(TimeOfDay tod)
 	m_tod=tod;
 #if !defined(GGC_BGFX_STANDALONE)
 	if (m_waterType == WATER_TYPE_2_PVSHADER && !W3DWater_UseBackendSeaBatch())
-		generateVertexBuffer(PATCH_SIZE,PATCH_SIZE,true);	//update the water mesh with new lighting/alpha
+		generateDx8SeaVertexBuffer(PATCH_SIZE,PATCH_SIZE);	//update the water mesh with new lighting/alpha
 #endif
 }
 
