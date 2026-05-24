@@ -45,6 +45,8 @@
 #include "assetmgr.h"
 #include "textureloader.h"
 #include "ww3dformat.h"
+#include <cstring>
+#include <vector>
 
 Bitmap2DObjClass::Bitmap2DObjClass
 (
@@ -77,14 +79,48 @@ Bitmap2DObjClass::Bitmap2DObjClass
 	if (!tex->Is_Initialized())
 		TextureLoader::Request_Foreground_Loading(tex);
 
-	SurfaceClass *surface = tex->Get_Surface_Level(0);
+	SurfaceClass::SurfaceDescription sd;
+	tex->Get_Level_Description(sd, 0);
 
-	if (!surface) {
-		surface = NEW_REF(SurfaceClass, (32, 32, Get_Valid_Texture_Format(WW3D_FORMAT_R8G8B8,true)));
+	const TextureBaseClass::TextureMipSnapshot *source_mip = nullptr;
+	const std::vector<TextureBaseClass::TextureMipSnapshot> &mips = tex->Get_CPU_Texture_Mips();
+	if (!mips.empty()) {
+		const TextureBaseClass::TextureMipSnapshot &mip = mips[0];
+		const unsigned bytes_per_pixel = Get_Bytes_Per_Pixel(mip.Format);
+		const unsigned row_size = mip.Width * bytes_per_pixel;
+		if (mip.Format != WW3D_FORMAT_UNKNOWN &&
+			mip.Width != 0 &&
+			mip.Height != 0 &&
+			bytes_per_pixel != 0 &&
+			mip.Pitch >= row_size &&
+			mip.Data.size() >= static_cast<size_t>(mip.Pitch) * mip.Height)
+		{
+			source_mip = &mip;
+			sd.Format = mip.Format;
+			sd.Width = mip.Width;
+			sd.Height = mip.Height;
+		}
 	}
 
-	SurfaceClass::SurfaceDescription sd;
-	surface->Get_Description(sd);
+#if !defined(GGC_BGFX_STANDALONE)
+	SurfaceClass *surface = nullptr;
+	if (source_mip == nullptr) {
+		surface = tex->Get_Surface_Level(0);
+		if (surface != nullptr) {
+			surface->Get_Description(sd);
+		}
+	}
+#endif
+
+	if (source_mip == nullptr
+#if !defined(GGC_BGFX_STANDALONE)
+		&& surface == nullptr
+#endif
+	) {
+		sd.Width = 32;
+		sd.Height = 32;
+		sd.Format = Get_Valid_Texture_Format(WW3D_FORMAT_R8G8B8,true);
+	}
 
 	if (usable_width == -1)
 		usable_width = sd.Width;
@@ -166,12 +202,53 @@ Bitmap2DObjClass::Bitmap2DObjClass
 			int pot				= MAX(Find_POT(iw), Find_POT(ih));
 
 			// create the texture and turn MIP-mapping off.
-			SurfaceClass *piece_surface=NEW_REF(SurfaceClass,(pot,pot,sd.Format));
-			piece_surface->Copy(0,0,tlpx,tlpy,pot,pot,surface);
-			TextureClass *piece_texture =NEW_REF(TextureClass,(piece_surface,MIP_LEVELS_1));
+			TextureClass *piece_texture =NEW_REF(TextureClass,(pot,pot,sd.Format,MIP_LEVELS_1));
+			TextureClass::MutableTextureMipView mip = piece_texture->Begin_Mip_Write(0);
+			const unsigned bytes_per_pixel = Get_Bytes_Per_Pixel(sd.Format);
+			if (mip.Is_Valid() && bytes_per_pixel != 0) {
+				if (source_mip != nullptr) {
+					unsigned copy_width = pot;
+					unsigned copy_height = pot;
+					if (tlpx + static_cast<int>(copy_width) > static_cast<int>(source_mip->Width)) {
+						copy_width = source_mip->Width > static_cast<unsigned>(tlpx) ? source_mip->Width - tlpx : 0;
+					}
+					if (tlpy + static_cast<int>(copy_height) > static_cast<int>(source_mip->Height)) {
+						copy_height = source_mip->Height > static_cast<unsigned>(tlpy) ? source_mip->Height - tlpy : 0;
+					}
+					if (copy_width > mip.Width) {
+						copy_width = mip.Width;
+					}
+					if (copy_height > mip.Height) {
+						copy_height = mip.Height;
+					}
+
+					const unsigned row_bytes = copy_width * bytes_per_pixel;
+					for (unsigned row = 0; row < copy_height; ++row) {
+						const unsigned char *src = source_mip->Data.data() + (tlpy + row) * source_mip->Pitch + tlpx * bytes_per_pixel;
+						unsigned char *dst = mip.Data + row * mip.Pitch;
+						::memcpy(dst, src, row_bytes);
+					}
+				}
+#if !defined(GGC_BGFX_STANDALONE)
+				else if (surface != nullptr) {
+					SurfaceClass *piece_surface=NEW_REF(SurfaceClass,(pot,pot,sd.Format));
+					piece_surface->Copy(0,0,tlpx,tlpy,pot,pot,surface);
+					int source_pitch = 0;
+					const unsigned char *source_bits = static_cast<const unsigned char *>(piece_surface->Lock(&source_pitch));
+					if (source_bits != nullptr && source_pitch > 0) {
+						const unsigned row_bytes = mip.Width * bytes_per_pixel;
+						for (unsigned row = 0; row < mip.Height; ++row) {
+							::memcpy(mip.Data + row * mip.Pitch, source_bits + row * source_pitch, row_bytes);
+						}
+						piece_surface->Unlock();
+					}
+					REF_PTR_RELEASE(piece_surface);
+				}
+#endif
+			}
+			piece_texture->End_Mip_Write(0);
 			piece_texture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 			piece_texture->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
-			REF_PTR_RELEASE(piece_surface);
 
 			// calculate our actual texture coordinates based on the difference between
 			// the width and height of the texture and the width and height the font
@@ -200,7 +277,9 @@ Bitmap2DObjClass::Bitmap2DObjClass
 		}
 	}
 	REF_PTR_RELEASE(tex);
+#if !defined(GGC_BGFX_STANDALONE)
 	REF_PTR_RELEASE(surface);
+#endif
 
 	Set_Dirty();
 }
