@@ -826,7 +826,7 @@ public:
     // extension. Lets W3DMouse drive the device's hardware cursor without
     // touching the raw device directly.
     virtual void Show_Hardware_Cursor(bool show) {}
-    virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface) {}
+    virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, const RenderBackendImage & image) {}
     virtual void Set_Hardware_Cursor_Position(int x, int y) {}
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Stencil state

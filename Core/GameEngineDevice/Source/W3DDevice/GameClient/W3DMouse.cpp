@@ -56,6 +56,36 @@ static const Image *cursorImages[Mouse::NUM_MOUSE_CURSORS];			///<Images for use
 static RenderObjClass *cursorModels[Mouse::NUM_MOUSE_CURSORS];	///< W3D models for each cursor type
 static HAnimClass			*cursorAnims[Mouse::NUM_MOUSE_CURSORS];		///< W3D animations for each cursor type
 
+static Bool CopyTextureBaseMipToBackendImage(TextureClass *texture, RenderBackendImage &image)
+{
+	image = RenderBackendImage();
+	if (texture == nullptr)
+		return FALSE;
+
+	const std::vector<TextureBaseClass::TextureMipSnapshot> &mips = texture->Get_CPU_Texture_Mips();
+	if (mips.empty())
+		return FALSE;
+
+	const TextureBaseClass::TextureMipSnapshot &mip = mips[0];
+	const unsigned bytes_per_pixel = Get_Bytes_Per_Pixel(mip.Format);
+	if (mip.Format == WW3D_FORMAT_UNKNOWN ||
+		mip.Width == 0 ||
+		mip.Height == 0 ||
+		bytes_per_pixel == 0 ||
+		mip.Pitch < mip.Width * bytes_per_pixel ||
+		mip.Data.size() < static_cast<size_t>(mip.Pitch) * mip.Height)
+	{
+		return FALSE;
+	}
+
+	image.Width = mip.Width;
+	image.Height = mip.Height;
+	image.Format = mip.Format;
+	image.Pitch = mip.Pitch;
+	image.Bytes = mip.Data;
+	return TRUE;
+}
+
 ///Mouse polling/update thread function
 static class MouseThreadClass : public ThreadClass
 {
@@ -163,7 +193,7 @@ Bool W3DMouse::releaseHardwareCursorTextures(MouseCursor cursor)
 
 	for (Int i=0; i<MAX_2D_CURSOR_ANIM_FRAMES; i++)
 	{
-		REF_PTR_RELEASE(m_currentHardwareSurface[i]);
+		m_currentHardwareImage[i] = RenderBackendImage();
 		REF_PTR_RELEASE(cursorTextures[cursor][i]);
 	}
 
@@ -195,15 +225,17 @@ Bool W3DMouse::loadHardwareCursorTextures(MouseCursor cursor)
 	{	//single animation frame without trailing numbers
 		snprintf(FrameName, ARRAY_SIZE(FrameName), "%s.tga", baseName);
 		cursorTextures[cursor][0]=	am->Get_Texture(FrameName);
-		m_currentHardwareSurface[0]=cursorTextures[cursor][0]->Get_Surface_Level();
-		m_currentFrames = 1;
+		if (CopyTextureBaseMipToBackendImage(cursorTextures[cursor][0], m_currentHardwareImage[0]))
+			m_currentFrames = 1;
 	}
 	else
 	for (Int i=0; i<animFrames; i++)
 	{
 		snprintf(FrameName, ARRAY_SIZE(FrameName), "%s%04d.tga", baseName, i);
 		if ((cursorTextures[cursor][i]=am->Get_Texture(FrameName)) != nullptr)
-		{	m_currentHardwareSurface[m_currentFrames]=cursorTextures[cursor][i]->Get_Surface_Level();
+		{
+			if (!CopyTextureBaseMipToBackendImage(cursorTextures[cursor][i], m_currentHardwareImage[m_currentFrames]))
+				continue;
 			m_currentFrames++;
 		}
 	}
@@ -236,7 +268,7 @@ void W3DMouse::initHardwareCursorAssets()
 		}
 
 		for (Int x = 0; x < MAX_2D_CURSOR_ANIM_FRAMES; x++)
-			m_currentHardwareSurface[x]=nullptr;
+			m_currentHardwareImage[x] = RenderBackendImage();
 	}
 }
 
@@ -245,7 +277,7 @@ void W3DMouse::freeHardwareCursorAssets()
 	//free pointers to texture surfaces.
 	Int i=0;
 	for (; i<MAX_2D_CURSOR_ANIM_FRAMES; i++)
-		REF_PTR_RELEASE(m_currentHardwareSurface[i]);
+		m_currentHardwareImage[i] = RenderBackendImage();
 
 	//free textures.
 	for (i=0; i<NUM_MOUSE_CURSORS; i++)
@@ -407,7 +439,7 @@ void W3DMouse::setCursor( MouseCursor cursor )
 					loadHardwareCursorTextures(cursor);
 				}
 			}
-			if (m_currentHardwareSurface[0])
+			if (m_currentHardwareImage[0].Is_Valid())
 				doImageChange=TRUE;
 		}
 		// For hardware cursors, we continually set the image on every call even when
@@ -419,7 +451,7 @@ void W3DMouse::setCursor( MouseCursor cursor )
 			m_currentAnimFrame = 0;	//reset animation when cursor changes
 			g_renderBackend->Set_Hardware_Cursor_Image(
 				m_currentHotSpot.x, m_currentHotSpot.y,
-				m_currentHardwareSurface[(Int)m_currentAnimFrame]);
+				m_currentHardwareImage[(Int)m_currentAnimFrame]);
 			g_renderBackend->Show_Hardware_Cursor(true);
 			m_currentHardwareFrame=(Int)m_currentAnimFrame;
 			m_currentHardwareCursor = cursor;
@@ -517,7 +549,7 @@ void W3DMouse::draw()
 					m_currentHardwareFrame=(Int)m_currentAnimFrame;
 					g_renderBackend->Set_Hardware_Cursor_Image(
 						m_currentHotSpot.x, m_currentHotSpot.y,
-						m_currentHardwareSurface[m_currentHardwareFrame]);
+						m_currentHardwareImage[m_currentHardwareFrame]);
 				}
 			}
 		}

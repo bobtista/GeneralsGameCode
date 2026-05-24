@@ -1281,15 +1281,17 @@ void DX8Backend::Show_Hardware_Cursor(bool show)
     }
 }
 
-void DX8Backend::Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface)
+void DX8Backend::Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, const RenderBackendImage & image)
 {
     IDirect3DDevice8 * pDev = DX8Wrapper::_Get_D3D_Device8();
-    if (pDev != nullptr && surface != nullptr)
+    if (pDev != nullptr && image.Is_Valid())
     {
+        SurfaceClass surface(image.Width, image.Height, image.Format);
+        surface.Copy(image.Bytes.data(), image.Pitch);
         pDev->SetCursorProperties(
             static_cast<UINT>(hotspot_x),
             static_cast<UINT>(hotspot_y),
-            Peek_Legacy_Surface(*surface));
+            Peek_Legacy_Surface(surface));
     }
 }
 
