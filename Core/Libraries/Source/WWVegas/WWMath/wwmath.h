@@ -121,6 +121,7 @@ public:
 	static WWINLINE float Inv_Sqrt_Legacy(float a);
 	static WWINLINE double Inv_Sqrt(double x);
 	static WWINLINE float Inv_Sqrtf(float x);
+
 	static WWINLINE float Atan2_Legacy(float x, float y);
 	static WWINLINE double Atan2(double x, double y);
 	static WWINLINE float Atan2f(float x, float y);
@@ -133,27 +134,33 @@ public:
 	static WWINLINE float Asin_Legacy(float val);
 	static WWINLINE double Asin(double x);
 	static WWINLINE float Asinf(float x);
+
 	static WWINLINE double Tan(double x);
 	static WWINLINE float Tanf(float x);
 	static WWINLINE double Cos(double val);
 	static WWINLINE float Cosf(float val);
 	static WWINLINE double Sin(double val);
 	static WWINLINE float Sinf(float val);
+
 	static WWINLINE double Fabs(double x);
 	static WWINLINE float Fabsf(float val);
 	static WWINLINE float Fabsf_Legacy(float x);
+
 	static WWINLINE double Pow(double x, double y);
 	static WWINLINE float Powf(float x, float y);
+
 	static WWINLINE double Ceil(double x);
 	static WWINLINE float Ceilf(float x);
 	static WWINLINE double Floor(double x);
 	static WWINLINE float Floorf(float x);
+
 	static WWINLINE double Exp(double x);
 	static WWINLINE float Expf(float x);
 	static WWINLINE double Log10(double x);
 	static WWINLINE float Log10f(float x);
 	static WWINLINE double Log(double x);
 	static WWINLINE float Logf(float x);
+
 	static WWINLINE double Sinh(double x);
 	static WWINLINE float Sinhf(float x);
 	static WWINLINE double Cosh(double x);
@@ -163,6 +170,7 @@ public:
 
 	static WWINLINE double Round(double x) { return Floor(x + 0.5); }
 	static WWINLINE float Roundf(float x) { return Floorf(x + 0.5f); }
+
 	static WWINLINE bool Fast_Is_Float_Positive(const float& val);
 	static WWINLINE bool Is_Power_Of_2(const unsigned int val);
 
