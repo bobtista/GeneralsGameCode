@@ -298,9 +298,24 @@ WW3DFormat DX8Backend::Get_Back_Buffer_Format() const
     return DX8Wrapper::getBackBufferFormat();
 }
 
-SurfaceClass * DX8Backend::Get_Back_Buffer(unsigned int num) const
+bool DX8Backend::Get_Back_Buffer_Description(unsigned int num, RenderBackendSurfaceDescription & desc) const
 {
-    return DX8Wrapper::_Get_DX8_Back_Buffer(num);
+    desc = RenderBackendSurfaceDescription();
+
+    SurfaceClass * back_buffer = DX8Wrapper::_Get_DX8_Back_Buffer(num);
+    if (back_buffer == nullptr)
+    {
+        return false;
+    }
+
+    SurfaceClass::SurfaceDescription surface_desc;
+    back_buffer->Get_Description(surface_desc);
+    REF_PTR_RELEASE(back_buffer);
+
+    desc.Width = surface_desc.Width;
+    desc.Height = surface_desc.Height;
+    desc.Format = surface_desc.Format;
+    return desc.Is_Valid();
 }
 
 SurfaceClass * DX8Backend::Capture_Back_Buffer_Surface(unsigned int num)

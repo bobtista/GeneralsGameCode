@@ -46,8 +46,7 @@ public:
     virtual void Set_Device_Cleanup_Hook(RenderDeviceCleanupHook * hook) override;
     virtual bool Has_Stencil() const;
     virtual WW3DFormat Get_Back_Buffer_Format() const;
-    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const;
-    virtual SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num) override;
+    virtual bool Get_Back_Buffer_Description(unsigned int num, RenderBackendSurfaceDescription & desc) const override;
     virtual bool Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image) override;
     virtual void Set_Texture_Bitdepth(int bitdepth) override;
     virtual int Get_Texture_Bitdepth() const override;
@@ -320,19 +319,7 @@ public:
     virtual RenderResource Create_Texture(const TextureDesc & desc);
     virtual RenderResource Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data);
     virtual RenderResource Create_Index_Buffer(const BufferDesc & desc, const void * initial_data, bool indices_are_32bit);
-    virtual RenderResource Create_Dynamic_Vertex_Buffer(const BufferDesc & desc);
-    virtual RenderResource Create_Dynamic_Index_Buffer(const BufferDesc & desc, bool indices_are_32bit);
-    virtual void * Map_Dynamic_Vertex_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard);
-    virtual void * Map_Dynamic_Index_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard);
-    virtual void   Unmap_Dynamic_Vertex_Buffer(RenderResource h);
-    virtual void   Unmap_Dynamic_Index_Buffer(RenderResource h);
-    virtual void   Update_Vertex_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size);
-    virtual void   Update_Index_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size);
-    virtual void * Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard);
-    virtual void   Unmap_Dynamic(RenderResource h);
-    virtual void   Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size);
     virtual void   Destroy_Resource(RenderResource h);
-    virtual void   Begin_Dynamic_Frame();
 
     virtual RenderResource Register_Texture_Resource(TextureBaseClass * tex);
     virtual RenderResource Register_Vertex_Buffer_Resource(VertexBufferClass * vb);
