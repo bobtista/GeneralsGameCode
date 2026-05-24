@@ -126,6 +126,8 @@ public:
 
 	static WWINLINE double Sqrt(double x);
 	static WWINLINE float Sqrtf(float x);
+	static WWINLINE double Inv_Sqrt(double x);
+	static WWINLINE float Inv_Sqrtf(float x);
 	static WWINLINE float Atan2_Legacy(float x, float y);
 	static WWINLINE double Atan2(double x, double y);
 	static WWINLINE float Atan2f(float x, float y);
@@ -571,6 +573,16 @@ WWINLINE float WWMath::Sqrtf(float x)
 #else
 	return sqrtf(x);
 #endif
+}
+
+WWINLINE double WWMath::Inv_Sqrt(double x)
+{
+	return 1.0 / Sqrt(x);
+}
+
+WWINLINE float WWMath::Inv_Sqrtf(float x)
+{
+	return 1.0f / Sqrtf(x);
 }
 
 WWINLINE float WWMath::Atan2_Legacy(float x, float y)
