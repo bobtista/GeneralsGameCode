@@ -72,6 +72,13 @@ uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
 // Multiplier applied to shadowed pixels. 1.0 = unshadowed, 0.0 = fully black; we darken to 60% for visible but not crushed shadows.
 #define SHADOW_DARKNESS 0.6
 
+// Blob shadow under infantry uses a smoothstep over the tex0*diffuse alpha; below this the pixel is treated as fully outside the blob mask.
+#define BLOB_MASK_ALPHA_LOW   0.10
+// Above this we're inside the densest part of the blob; smoothstep flattens to 1.0.
+#define BLOB_MASK_ALPHA_HIGH  0.50
+// Maximum darkening applied at the blob center; clamps blob shadow contribution so it remains a visible-but-subtle smudge.
+#define BLOB_MASK_MAX_DARKNESS 0.4
+
 bool alphaTestPass(float alpha, float ref, float func)
 {
 	if (func < 0.5)
@@ -357,13 +364,13 @@ void main()
 	if (u_projectedDecalMode.x > (PROJECTED_DECAL_BLOB_SHADOW - 0.5)
 		&& u_projectedDecalMode.x < (PROJECTED_DECAL_BLOB_SHADOW + 0.5))
 	{
-		// Infantry blob shadows are projected decals with a multiplicative
-		// blend where shader RGB is the destination-color multiplier. The
-		// texture alpha supplies the blob shape, while vertex alpha supplies
-		// W3DProjectedShadow's per-decal fade/clipping. Evaluate this before
-		// the generic TSS path so stale secondary-stage state from reveal
-		// projectors cannot blank or suppress the shadow.
-		float mask = clamp(tex0.a * diffuse.a, 0.0, 1.0);
+		// Default infantry blobs are tiny projected shadow decals. The receiver
+		// mesh is much larger than the visible oval, and ZERO/SRC_COLOR blending
+		// makes any non-neutral source RGB darken the terrain. When a satellite
+		// reveal exposes a squad at once, low-alpha texels from those receiver
+		// triangles accumulate into long dark patches. Suppress the low-alpha
+		// padding while still letting the visible oval darken the terrain.
+		float mask = smoothstep(BLOB_MASK_ALPHA_LOW, BLOB_MASK_ALPHA_HIGH, clamp(tex0.a * diffuse.a, 0.0, 1.0)) * BLOB_MASK_MAX_DARKNESS;
 		vec3 blob = tex0.rgb * diffuse.rgb;
 		gl_FragColor = vec4(mix(vec3_splat(1.0), blob, mask), 1.0);
 		return;
