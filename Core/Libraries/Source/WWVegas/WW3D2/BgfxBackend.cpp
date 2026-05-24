@@ -6601,7 +6601,7 @@ void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float
 
 void BgfxBackend::Set_Fog_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(RS::FOGENABLE, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Fog_Enabled(enable);
 }
 
 void BgfxBackend::Set_Fog_Color(unsigned argb)
@@ -6616,12 +6616,12 @@ unsigned BgfxBackend::Get_Fog_Color() const
 
 void BgfxBackend::Set_Specular_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(RS::SPECULARENABLE, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Specular_Enabled(enable);
 }
 
 void BgfxBackend::Set_Patch_Segments(float level)
 {
-    RenderStateCache::Set_Render_State(RS::PATCHSEGMENTS, FloatAsDword(level));
+    FixedFunctionState::Set_Patch_Segments_Bits(FloatAsDword(level));
 }
 
 void BgfxBackend::Set_Light(unsigned int index, const LightClass & light)
@@ -6775,7 +6775,7 @@ void BgfxBackend::Set_Alpha_Test_Function(CompareFunc func)
 
 void BgfxBackend::Set_Normalize_Normals(bool enable)
 {
-    RenderStateCache::Set_Render_State(RS::NORMALIZENORMALS, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Normalize_Normals_Enabled(enable);
 }
 
 void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
@@ -7552,7 +7552,7 @@ void BgfxBackend::Set_Projected_Decal_Mode(RenderBackendProjectedDecalMode mode)
 // is unnecessary and it clobbers team colors.
 void BgfxBackend::Set_Texture_Factor(unsigned argb)
 {
-    RenderStateCache::Set_Render_State(RS::TEXTUREFACTOR, argb);
+    FixedFunctionState::Set_Texture_Factor(argb);
 }
 
 void BgfxBackend::Set_Shadow_Volume_Shader_Active(bool active)
