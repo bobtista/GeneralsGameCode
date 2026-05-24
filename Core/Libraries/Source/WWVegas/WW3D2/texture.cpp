@@ -1678,11 +1678,17 @@ void TextureClass::Get_Level_Description( SurfaceClass::SurfaceDescription & des
 		}
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	SurfaceClass * surf = Get_Surface_Level(level);
 	if (surf != nullptr) {
 		surf->Get_Description(desc);
 	}
 	REF_PTR_RELEASE(surf);
+#else
+	desc.Format = WW3D_FORMAT_UNKNOWN;
+	desc.Width = 0;
+	desc.Height = 0;
+#endif
 }
 
 unsigned int TextureClass::Get_Level_Count() const
