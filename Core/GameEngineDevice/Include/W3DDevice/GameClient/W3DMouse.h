@@ -48,11 +48,11 @@
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 
 // USER INCLUDES //////////////////////////////////////////////////////////////
+#include "WW3D2/RenderBackend.h"
 #include "Win32Device/GameClient/Win32Mouse.h"
 
 // FORWARD REFERENCES /////////////////////////////////////////////////////////
 class CameraClass;
-class SurfaceClass;
 
 // TYPE DEFINES ///////////////////////////////////////////////////////////////
 
@@ -76,7 +76,7 @@ public:
 
 private:
 	MouseCursor m_currentHardwareCursor;	///< keep track of last cursor image sent to hardware.
-	SurfaceClass *m_currentHardwareSurface[MAX_2D_CURSOR_ANIM_FRAMES];
+	RenderBackendImage m_currentHardwareImage[MAX_2D_CURSOR_ANIM_FRAMES];
 	ICoord2D m_currentHotSpot;
 	Int	m_currentFrames;	///< total number of frames in current 2D cursor animation.
 	Real m_currentAnimFrame;///< current frame of 2D cursor animation.
