@@ -6464,10 +6464,9 @@ static uint64_t TranslateBlendOp(BlendOp op)
 // command-center bib), painting it black.
 void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 {
-    RenderStateCache::Set_Render_State(RS::SRCBLEND, static_cast<unsigned>(src));
-    RenderStateCache::Set_Render_State(RS::DESTBLEND, static_cast<unsigned>(dest));
     const unsigned s = static_cast<unsigned>(src);
     const unsigned d = static_cast<unsigned>(dest);
+    FixedFunctionState::Set_Blend_Factors(s, d);
     if (s >= 1 && s <= 11 && d >= 1 && d <= 11)
     {
         g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[s], kBgfxBlendMap[d]);
@@ -6480,32 +6479,41 @@ void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 
 void BgfxBackend::Set_Blend_Op(BlendOp op)
 {
-    RenderStateCache::Set_Render_State(RS::BLENDOP, static_cast<unsigned>(op));
+    FixedFunctionState::Set_Blend_Op(static_cast<unsigned>(op));
     g_draw.blendEquationBits = TranslateBlendOp(op);
 }
 
 void BgfxBackend::Set_Alpha_Blend_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(RS::ALPHABLENDENABLE, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Alpha_Blend_Enabled(enable);
     g_draw.alphaBlendEnabled = enable;
     g_draw.alphaBlendExplicitlySet = true;
 }
 
 void BgfxBackend::Set_Alpha_Test_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(RS::ALPHATESTENABLE, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Alpha_Test_State(
+        enable,
+        FixedFunctionState::Alpha_Test_Reference(0),
+        FixedFunctionState::Alpha_Test_Function(0));
     g_draw.atestEnabled = enable;
 }
 
 void BgfxBackend::Set_Alpha_Test_Reference(unsigned ref)
 {
-    RenderStateCache::Set_Render_State(RS::ALPHAREF, ref);
+    FixedFunctionState::Set_Alpha_Test_State(
+        FixedFunctionState::Alpha_Test_Enabled(false),
+        ref,
+        FixedFunctionState::Alpha_Test_Function(0));
     g_draw.atestRef = ref / 255.0f;
 }
 
 void BgfxBackend::Set_Alpha_Test_Function(CompareFunc func)
 {
-    RenderStateCache::Set_Render_State(RS::ALPHAFUNC, static_cast<unsigned>(func));
+    FixedFunctionState::Set_Alpha_Test_State(
+        FixedFunctionState::Alpha_Test_Enabled(false),
+        FixedFunctionState::Alpha_Test_Reference(0),
+        static_cast<unsigned>(func));
     g_draw.atestFunc = static_cast<float>(func);
 }
 
@@ -6533,8 +6541,7 @@ void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
                          srcIdx, dstIdx));
         }
     }
-    RenderStateCache::Set_Render_State(RS::SRCBLEND, srcIdx);
-    RenderStateCache::Set_Render_State(RS::DESTBLEND, dstIdx);
+    FixedFunctionState::Set_Blend_Factors(srcIdx, dstIdx);
 }
 
 void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func)
@@ -6542,9 +6549,7 @@ void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc fun
     g_overrides.atestActive = enable;
     g_overrides.atestRef = enable ? (ref / 255.0f) : 0.0f;
     g_overrides.atestFunc = enable ? static_cast<float>(func) : 0.0f;
-    RenderStateCache::Set_Render_State(RS::ALPHATESTENABLE, enable ? TRUE : FALSE);
-    RenderStateCache::Set_Render_State(RS::ALPHAREF, ref);
-    RenderStateCache::Set_Render_State(RS::ALPHAFUNC, static_cast<unsigned>(func));
+    FixedFunctionState::Set_Alpha_Test_State(enable, ref, static_cast<unsigned>(func));
 }
 
 void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
@@ -6555,7 +6560,7 @@ void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
         g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
                                                   BGFX_STATE_BLEND_INV_SRC_ALPHA));
     }
-    RenderStateCache::Set_Render_State(RS::ALPHABLENDENABLE, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Alpha_Blend_Enabled(enable);
 }
 
 void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)

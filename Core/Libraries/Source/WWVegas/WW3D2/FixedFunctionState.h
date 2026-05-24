@@ -137,6 +137,17 @@ public:
 	static unsigned Diffuse_Material_Source(unsigned default_value);
 	static unsigned Emissive_Material_Source(unsigned default_value);
 	static bool Set_Material_Color_Sources(unsigned ambient_source, unsigned diffuse_source, unsigned emissive_source);
+	static unsigned Source_Blend_Factor(unsigned default_value);
+	static unsigned Destination_Blend_Factor(unsigned default_value);
+	static bool Set_Blend_Factors(unsigned source_factor, unsigned destination_factor);
+	static unsigned Blend_Op(unsigned default_value);
+	static bool Set_Blend_Op(unsigned value);
+	static bool Alpha_Blend_Enabled(bool default_value);
+	static bool Set_Alpha_Blend_Enabled(bool enabled);
+	static bool Alpha_Test_Enabled(bool default_value);
+	static unsigned Alpha_Test_Reference(unsigned default_value);
+	static unsigned Alpha_Test_Function(unsigned default_value);
+	static bool Set_Alpha_Test_State(bool enabled, unsigned reference, unsigned function);
 	static void Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix);
 	static bool Set_Transform_Matrix(unsigned transform, const LegacyTransformMatrix & matrix);
 };
