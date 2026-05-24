@@ -45,6 +45,8 @@
 
 class DX8Wrapper;
 class SortingRendererClass;
+
+#if !defined(GGC_BGFX_STANDALONE)
 class DX8IndexBufferClass;
 /**
 ** DX8IndexBufferClass
@@ -77,3 +79,4 @@ public:
 private:
 	void *index_buffer;
 };
+#endif

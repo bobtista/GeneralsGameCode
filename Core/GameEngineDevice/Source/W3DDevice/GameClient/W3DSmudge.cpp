@@ -40,9 +40,6 @@
 #include "WW3D2/RenderBufferTypes.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/renderbufferclasses.h"
-#if !defined(GGC_BGFX_STANDALONE)
-#include "WW3D2/dx8indexbuffer.h"
-#endif
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/sortingrenderer.h"

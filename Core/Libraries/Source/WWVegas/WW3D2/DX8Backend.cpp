@@ -24,7 +24,7 @@
 #include "DX8Backend.h"
 
 #include "dx8fvf.h"
-#include "dx8textureinterop.h"
+#include "texturecompatibilityinterop.h"
 #include "dx8wrapper.h"
 #include "FixedFunctionState.h"
 #include "vector3.h"

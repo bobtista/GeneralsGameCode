@@ -55,7 +55,7 @@
 #include "dx8texturelegacytypes.h"
 #include "texturecompat.h"
 #if !defined(GGC_BGFX_STANDALONE)
-#include "dx8textureinterop.h"
+#include "texturecompatibilityinterop.h"
 #include "dx8wrapper.h"
 #endif
 #include "vector2i.h"

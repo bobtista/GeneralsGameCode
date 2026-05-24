@@ -47,7 +47,7 @@ set(WW3D2_SRC
     dx8caps.h
     dx8fvf.cpp
     dx8fvf.h
-    dx8indexbuffer.cpp
+    indexbuffer.cpp
     dx8indexbuffer.h
     dx8list.h
     dx8polygonrenderer.cpp
@@ -56,17 +56,17 @@ set(WW3D2_SRC
     dx8renderer.h
     dx8rendererdebugger.cpp
     dx8rendererdebugger.h
-    dx8vertexbuffer.cpp
+    vertexbuffer.cpp
     dx8vertexbuffer.h
     dx8wrapper.cpp
     dx8wrapper.h
-    dx8textureinterop.cpp
+    texturecompatibilityinterop.cpp
     dynamesh.cpp
     dynamesh.h
     font3d.cpp
     font3d.h
     dx8formatconv.h
-    dx8textureinterop.h
+    texturecompatibilityinterop.h
     formconv.h
     framgrab.h
     FixedFunctionState.cpp

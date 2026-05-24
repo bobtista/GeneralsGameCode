@@ -63,10 +63,6 @@ enum
 #include "WW3D2/indexbuffer.h"
 #include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/vertexbuffer.h"
-#if !defined(GGC_BGFX_STANDALONE)
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#endif
 #include "Common/FramePacer.h"
 #include "Common/GameUtility.h"
 #include "Common/MapReaderWriterInfo.h"

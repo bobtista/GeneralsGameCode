@@ -50,8 +50,10 @@ class Vector2;
 class Vector3;
 class Vector4;
 class StringClass;
-class DX8VertexBufferClass;
 class FVFInfoClass;
+
+#if !defined(GGC_BGFX_STANDALONE)
+class DX8VertexBufferClass;
 
 /**
 ** DX8VertexBufferClass
@@ -92,3 +94,4 @@ protected:
 
 	void Create_Vertex_Buffer(UsageType usage);
 };
+#endif

@@ -29,7 +29,7 @@ class TextureBaseClass;
 class TextureClass;
 class ZTextureClass;
 
-class DX8TextureInterop
+class TextureCompatibilityInterop
 {
 public:
 	static LegacyBaseTexture *Peek_Legacy_Base_Texture(const TextureBaseClass &texture);
@@ -45,78 +45,78 @@ public:
 		bool initialized,
 		bool disable_auto_invalidation = false);
 
-		static LegacySurface *Peek_Legacy_Surface(const SurfaceClass &surface);
-		static SurfaceClass *Create_Legacy_Surface_Wrapper(LegacySurface *surface);
-		static LegacySurface *Get_Native_Compatibility_Surface_Level(TextureClass &texture, unsigned int level = 0);
-		static LegacySurface *Get_Native_Compatibility_Surface_Level(ZTextureClass &texture, unsigned int level = 0);
-		static LegacySurface *Create_Legacy_Surface(
-			unsigned int width,
-			unsigned int height,
-			WW3DFormat format);
-		static LegacySurface *Create_Legacy_Surface_From_File(const char *filename);
+	static LegacySurface *Peek_Legacy_Surface(const SurfaceClass &surface);
+	static SurfaceClass *Create_Legacy_Surface_Wrapper(LegacySurface *surface);
+	static LegacySurface *Get_Native_Compatibility_Surface_Level(TextureClass &texture, unsigned int level = 0);
+	static LegacySurface *Get_Native_Compatibility_Surface_Level(ZTextureClass &texture, unsigned int level = 0);
+	static LegacySurface *Create_Legacy_Surface(
+		unsigned int width,
+		unsigned int height,
+		WW3DFormat format);
+	static LegacySurface *Create_Legacy_Surface_From_File(const char *filename);
 
-		static LegacyLoaderTexture *Create_Legacy_Texture(
-			unsigned int width,
-			unsigned int height,
-			WW3DFormat format,
-			MipCountType mip_level_count,
-			int pool,
-			bool render_target = false);
-		static LegacyLoaderTexture *Create_Legacy_Texture_From_Surface(
-			LegacySurface *surface,
-			MipCountType mip_level_count);
-		static LegacyLoaderTexture *Create_Legacy_ZTexture(
-			unsigned int width,
-			unsigned int height,
-			WW3DZFormat zformat,
-			MipCountType mip_level_count,
-			int pool);
-		static LegacyLoaderCubeTexture *Create_Legacy_Cube_Texture(
-			unsigned int width,
-			unsigned int height,
-			WW3DFormat format,
-			MipCountType mip_level_count,
-			int pool,
-			bool render_target = false);
-		static LegacyLoaderVolumeTexture *Create_Legacy_Volume_Texture(
-			unsigned int width,
-			unsigned int height,
-			unsigned int depth,
-			WW3DFormat format,
-			MipCountType mip_level_count,
-			int pool);
-		static WW3DFormat Legacy_Texture_Format_To_WW3DFormat(unsigned int format);
-		static bool Generate_Legacy_Texture_Mips(TextureClass &texture);
-	};
+	static LegacyLoaderTexture *Create_Legacy_Texture(
+		unsigned int width,
+		unsigned int height,
+		WW3DFormat format,
+		MipCountType mip_level_count,
+		int pool,
+		bool render_target = false);
+	static LegacyLoaderTexture *Create_Legacy_Texture_From_Surface(
+		LegacySurface *surface,
+		MipCountType mip_level_count);
+	static LegacyLoaderTexture *Create_Legacy_ZTexture(
+		unsigned int width,
+		unsigned int height,
+		WW3DZFormat zformat,
+		MipCountType mip_level_count,
+		int pool);
+	static LegacyLoaderCubeTexture *Create_Legacy_Cube_Texture(
+		unsigned int width,
+		unsigned int height,
+		WW3DFormat format,
+		MipCountType mip_level_count,
+		int pool,
+		bool render_target = false);
+	static LegacyLoaderVolumeTexture *Create_Legacy_Volume_Texture(
+		unsigned int width,
+		unsigned int height,
+		unsigned int depth,
+		WW3DFormat format,
+		MipCountType mip_level_count,
+		int pool);
+	static WW3DFormat Legacy_Texture_Format_To_WW3DFormat(unsigned int format);
+	static bool Generate_Legacy_Texture_Mips(TextureClass &texture);
+};
 
 inline LegacyBaseTexture *Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
 {
-	return DX8TextureInterop::Peek_Legacy_Base_Texture(texture);
+	return TextureCompatibilityInterop::Peek_Legacy_Base_Texture(texture);
 }
 
 inline LegacyLoaderTexture *Peek_Legacy_Texture2D(const TextureBaseClass &texture)
 {
-	return DX8TextureInterop::Peek_Legacy_Texture2D(texture);
+	return TextureCompatibilityInterop::Peek_Legacy_Texture2D(texture);
 }
 
 inline LegacyLoaderCubeTexture *Peek_Legacy_Cube_Texture(const TextureBaseClass &texture)
 {
-	return DX8TextureInterop::Peek_Legacy_Cube_Texture(texture);
+	return TextureCompatibilityInterop::Peek_Legacy_Cube_Texture(texture);
 }
 
 inline LegacyLoaderVolumeTexture *Peek_Legacy_Volume_Texture(const TextureBaseClass &texture)
 {
-	return DX8TextureInterop::Peek_Legacy_Volume_Texture(texture);
+	return TextureCompatibilityInterop::Peek_Legacy_Volume_Texture(texture);
 }
 
 inline void Set_Legacy_Base_Texture(TextureBaseClass &texture, LegacyBaseTexture *native_texture)
 {
-	DX8TextureInterop::Set_Legacy_Base_Texture(texture, native_texture);
+	TextureCompatibilityInterop::Set_Legacy_Base_Texture(texture, native_texture);
 }
 
 inline void Poke_Legacy_Texture(TextureBaseClass &texture, LegacyBaseTexture *native_texture)
 {
-	DX8TextureInterop::Poke_Legacy_Texture(texture, native_texture);
+	TextureCompatibilityInterop::Poke_Legacy_Texture(texture, native_texture);
 }
 
 inline void Apply_Native_Compatibility_Texture(
@@ -125,27 +125,27 @@ inline void Apply_Native_Compatibility_Texture(
 	bool initialized,
 	bool disable_auto_invalidation = false)
 {
-	DX8TextureInterop::Apply_Native_Compatibility_Texture(texture, native_texture, initialized, disable_auto_invalidation);
+	TextureCompatibilityInterop::Apply_Native_Compatibility_Texture(texture, native_texture, initialized, disable_auto_invalidation);
 }
 
 inline LegacySurface *Peek_Legacy_Surface(const SurfaceClass &surface)
 {
-	return DX8TextureInterop::Peek_Legacy_Surface(surface);
+	return TextureCompatibilityInterop::Peek_Legacy_Surface(surface);
 }
 
 inline SurfaceClass *Create_Legacy_Surface_Wrapper(LegacySurface *surface)
 {
-	return DX8TextureInterop::Create_Legacy_Surface_Wrapper(surface);
+	return TextureCompatibilityInterop::Create_Legacy_Surface_Wrapper(surface);
 }
 
 inline LegacySurface *Get_Native_Compatibility_Surface_Level(TextureClass &texture, unsigned int level = 0)
 {
-	return DX8TextureInterop::Get_Native_Compatibility_Surface_Level(texture, level);
+	return TextureCompatibilityInterop::Get_Native_Compatibility_Surface_Level(texture, level);
 }
 
 inline LegacySurface *Get_Native_Compatibility_Surface_Level(ZTextureClass &texture, unsigned int level = 0)
 {
-	return DX8TextureInterop::Get_Native_Compatibility_Surface_Level(texture, level);
+	return TextureCompatibilityInterop::Get_Native_Compatibility_Surface_Level(texture, level);
 }
 
 inline LegacySurface *Create_Legacy_Surface(
@@ -153,12 +153,12 @@ inline LegacySurface *Create_Legacy_Surface(
 	unsigned int height,
 	WW3DFormat format)
 {
-	return DX8TextureInterop::Create_Legacy_Surface(width, height, format);
+	return TextureCompatibilityInterop::Create_Legacy_Surface(width, height, format);
 }
 
 inline LegacySurface *Create_Legacy_Surface_From_File(const char *filename)
 {
-	return DX8TextureInterop::Create_Legacy_Surface_From_File(filename);
+	return TextureCompatibilityInterop::Create_Legacy_Surface_From_File(filename);
 }
 
 inline LegacyLoaderTexture *Create_Legacy_Texture(
@@ -169,14 +169,14 @@ inline LegacyLoaderTexture *Create_Legacy_Texture(
 	int pool,
 	bool render_target = false)
 {
-	return DX8TextureInterop::Create_Legacy_Texture(width, height, format, mip_level_count, pool, render_target);
+	return TextureCompatibilityInterop::Create_Legacy_Texture(width, height, format, mip_level_count, pool, render_target);
 }
 
 inline LegacyLoaderTexture *Create_Legacy_Texture_From_Surface(
 	LegacySurface *surface,
 	MipCountType mip_level_count)
 {
-	return DX8TextureInterop::Create_Legacy_Texture_From_Surface(surface, mip_level_count);
+	return TextureCompatibilityInterop::Create_Legacy_Texture_From_Surface(surface, mip_level_count);
 }
 
 inline LegacyLoaderTexture *Create_Legacy_ZTexture(
@@ -186,7 +186,7 @@ inline LegacyLoaderTexture *Create_Legacy_ZTexture(
 	MipCountType mip_level_count,
 	int pool)
 {
-	return DX8TextureInterop::Create_Legacy_ZTexture(width, height, zformat, mip_level_count, pool);
+	return TextureCompatibilityInterop::Create_Legacy_ZTexture(width, height, zformat, mip_level_count, pool);
 }
 
 inline LegacyLoaderCubeTexture *Create_Legacy_Cube_Texture(
@@ -197,7 +197,7 @@ inline LegacyLoaderCubeTexture *Create_Legacy_Cube_Texture(
 	int pool,
 	bool render_target = false)
 {
-	return DX8TextureInterop::Create_Legacy_Cube_Texture(width, height, format, mip_level_count, pool, render_target);
+	return TextureCompatibilityInterop::Create_Legacy_Cube_Texture(width, height, format, mip_level_count, pool, render_target);
 }
 
 inline LegacyLoaderVolumeTexture *Create_Legacy_Volume_Texture(
@@ -208,17 +208,17 @@ inline LegacyLoaderVolumeTexture *Create_Legacy_Volume_Texture(
 	MipCountType mip_level_count,
 	int pool)
 {
-	return DX8TextureInterop::Create_Legacy_Volume_Texture(width, height, depth, format, mip_level_count, pool);
+	return TextureCompatibilityInterop::Create_Legacy_Volume_Texture(width, height, depth, format, mip_level_count, pool);
 }
 
 inline WW3DFormat Legacy_Texture_Format_To_WW3DFormat(unsigned int format)
 {
-	return DX8TextureInterop::Legacy_Texture_Format_To_WW3DFormat(format);
+	return TextureCompatibilityInterop::Legacy_Texture_Format_To_WW3DFormat(format);
 }
 
 inline bool Generate_Legacy_Texture_Mips(TextureClass &texture)
 {
-	return DX8TextureInterop::Generate_Legacy_Texture_Mips(texture);
+	return TextureCompatibilityInterop::Generate_Legacy_Texture_Mips(texture);
 }
 
 LegacyLoaderTexture *Get_Legacy_Missing_Texture();

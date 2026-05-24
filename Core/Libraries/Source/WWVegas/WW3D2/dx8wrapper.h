@@ -101,8 +101,10 @@ class VertexBufferClass;
 class DynamicVBAccessClass;
 class IndexBufferClass;
 class DynamicIBAccessClass;
+#if !defined(GGC_BGFX_STANDALONE)
 class DX8VertexBufferClass;
 class DX8IndexBufferClass;
+#endif
 class TextureClass;
 class LightClass;
 class SurfaceClass;
@@ -712,8 +714,10 @@ protected:
 
 	friend void DX8_Assert();
 	friend class WW3D;
+#if !defined(GGC_BGFX_STANDALONE)
 	friend class DX8IndexBufferClass;
 	friend class DX8VertexBufferClass;
+#endif
 };
 
 // shader system updates KJM v

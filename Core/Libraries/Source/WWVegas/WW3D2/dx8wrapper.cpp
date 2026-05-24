@@ -52,7 +52,7 @@
 
 #include "dx8wrapper.h"
 #if !defined(GGC_BGFX_STANDALONE)
-#include "dx8textureinterop.h"
+#include "texturecompatibilityinterop.h"
 #endif
 #include "RenderStateDefs.h"
 #include "dx8webbrowser.h"

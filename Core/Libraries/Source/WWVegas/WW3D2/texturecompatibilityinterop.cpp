@@ -16,7 +16,7 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "dx8textureinterop.h"
+#include "texturecompatibilityinterop.h"
 
 #if defined(GGC_BGFX_STANDALONE)
 #include "WWLib/win.h"
@@ -100,7 +100,7 @@ namespace
 	}
 }
 
-LegacyBaseTexture *DX8TextureInterop::Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
+LegacyBaseTexture *TextureCompatibilityInterop::Peek_Legacy_Base_Texture(const TextureBaseClass &texture)
 {
 	texture.LastAccessed=WW3D::Get_Sync_Time();
 #if defined(GGC_BGFX_STANDALONE)
@@ -113,22 +113,22 @@ LegacyBaseTexture *DX8TextureInterop::Peek_Legacy_Base_Texture(const TextureBase
 #endif
 }
 
-LegacyLoaderTexture *DX8TextureInterop::Peek_Legacy_Texture2D(const TextureBaseClass &texture)
+LegacyLoaderTexture *TextureCompatibilityInterop::Peek_Legacy_Texture2D(const TextureBaseClass &texture)
 {
 	return reinterpret_cast<LegacyLoaderTexture *>(Peek_Legacy_Base_Texture(texture));
 }
 
-LegacyLoaderCubeTexture *DX8TextureInterop::Peek_Legacy_Cube_Texture(const TextureBaseClass &texture)
+LegacyLoaderCubeTexture *TextureCompatibilityInterop::Peek_Legacy_Cube_Texture(const TextureBaseClass &texture)
 {
 	return reinterpret_cast<LegacyLoaderCubeTexture *>(Peek_Legacy_Base_Texture(texture));
 }
 
-LegacyLoaderVolumeTexture *DX8TextureInterop::Peek_Legacy_Volume_Texture(const TextureBaseClass &texture)
+LegacyLoaderVolumeTexture *TextureCompatibilityInterop::Peek_Legacy_Volume_Texture(const TextureBaseClass &texture)
 {
 	return reinterpret_cast<LegacyLoaderVolumeTexture *>(Peek_Legacy_Base_Texture(texture));
 }
 
-void DX8TextureInterop::Set_Legacy_Base_Texture(TextureBaseClass &texture, LegacyBaseTexture *native_texture)
+void TextureCompatibilityInterop::Set_Legacy_Base_Texture(TextureBaseClass &texture, LegacyBaseTexture *native_texture)
 {
 	// (gth) Generals does stuff directly with the native texture pointer so lets
 	// reset the access timer whenever someone messes with this pointer.
@@ -192,7 +192,7 @@ void DX8TextureInterop::Set_Legacy_Base_Texture(TextureBaseClass &texture, Legac
 	}
 }
 
-void DX8TextureInterop::Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source)
+void TextureCompatibilityInterop::Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source)
 {
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	if (source != nullptr
@@ -208,10 +208,10 @@ void DX8TextureInterop::Share_Legacy_Texture_With(TextureBaseClass &texture, con
 
 void Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source)
 {
-	DX8TextureInterop::Share_Legacy_Texture_With(texture, source);
+	TextureCompatibilityInterop::Share_Legacy_Texture_With(texture, source);
 }
 
-void DX8TextureInterop::Poke_Legacy_Texture(TextureBaseClass &texture, LegacyBaseTexture *native_texture)
+void TextureCompatibilityInterop::Poke_Legacy_Texture(TextureBaseClass &texture, LegacyBaseTexture *native_texture)
 {
 #if defined(GGC_BGFX_STANDALONE)
 	WWASSERT_PRINT(
@@ -223,7 +223,7 @@ void DX8TextureInterop::Poke_Legacy_Texture(TextureBaseClass &texture, LegacyBas
 #endif
 }
 
-void DX8TextureInterop::Apply_Native_Compatibility_Texture(
+void TextureCompatibilityInterop::Apply_Native_Compatibility_Texture(
 	TextureBaseClass &texture,
 	LegacyBaseTexture *native_texture,
 	bool initialized,
@@ -232,7 +232,7 @@ void DX8TextureInterop::Apply_Native_Compatibility_Texture(
 	texture.Apply_Native_Compatibility_Texture(native_texture, initialized, disable_auto_invalidation);
 }
 
-LegacySurface *DX8TextureInterop::Peek_Legacy_Surface(const SurfaceClass &surface)
+LegacySurface *TextureCompatibilityInterop::Peek_Legacy_Surface(const SurfaceClass &surface)
 {
 #if defined(GGC_BGFX_STANDALONE)
 	WWASSERT_PRINT(
@@ -245,22 +245,22 @@ LegacySurface *DX8TextureInterop::Peek_Legacy_Surface(const SurfaceClass &surfac
 #endif
 }
 
-SurfaceClass *DX8TextureInterop::Create_Legacy_Surface_Wrapper(LegacySurface *surface)
+SurfaceClass *TextureCompatibilityInterop::Create_Legacy_Surface_Wrapper(LegacySurface *surface)
 {
 	return new SurfaceClass(surface);
 }
 
-LegacySurface *DX8TextureInterop::Get_Native_Compatibility_Surface_Level(TextureClass &texture, unsigned int level)
+LegacySurface *TextureCompatibilityInterop::Get_Native_Compatibility_Surface_Level(TextureClass &texture, unsigned int level)
 {
 	return static_cast<LegacySurface *>(texture.Get_Native_Compatibility_Surface_Level(level));
 }
 
-LegacySurface *DX8TextureInterop::Get_Native_Compatibility_Surface_Level(ZTextureClass &texture, unsigned int level)
+LegacySurface *TextureCompatibilityInterop::Get_Native_Compatibility_Surface_Level(ZTextureClass &texture, unsigned int level)
 {
 	return static_cast<LegacySurface *>(texture.Get_Native_Compatibility_Surface_Level(level));
 }
 
-LegacySurface *DX8TextureInterop::Create_Legacy_Surface(
+LegacySurface *TextureCompatibilityInterop::Create_Legacy_Surface(
 	unsigned int width,
 	unsigned int height,
 	WW3DFormat format)
@@ -275,7 +275,7 @@ LegacySurface *DX8TextureInterop::Create_Legacy_Surface(
 #endif
 }
 
-LegacySurface *DX8TextureInterop::Create_Legacy_Surface_From_File(const char *filename)
+LegacySurface *TextureCompatibilityInterop::Create_Legacy_Surface_From_File(const char *filename)
 {
 #if defined(GGC_BGFX_STANDALONE)
 	WWASSERT_PRINT(
@@ -287,7 +287,7 @@ LegacySurface *DX8TextureInterop::Create_Legacy_Surface_From_File(const char *fi
 #endif
 }
 
-LegacyLoaderTexture *DX8TextureInterop::Create_Legacy_Texture(
+LegacyLoaderTexture *TextureCompatibilityInterop::Create_Legacy_Texture(
 	unsigned int width,
 	unsigned int height,
 	WW3DFormat format,
@@ -305,7 +305,7 @@ LegacyLoaderTexture *DX8TextureInterop::Create_Legacy_Texture(
 #endif
 }
 
-LegacyLoaderTexture *DX8TextureInterop::Create_Legacy_Texture_From_Surface(
+LegacyLoaderTexture *TextureCompatibilityInterop::Create_Legacy_Texture_From_Surface(
 	LegacySurface *surface,
 	MipCountType mip_level_count)
 {
@@ -319,7 +319,7 @@ LegacyLoaderTexture *DX8TextureInterop::Create_Legacy_Texture_From_Surface(
 #endif
 }
 
-LegacyLoaderTexture *DX8TextureInterop::Create_Legacy_ZTexture(
+LegacyLoaderTexture *TextureCompatibilityInterop::Create_Legacy_ZTexture(
 	unsigned int width,
 	unsigned int height,
 	WW3DZFormat zformat,
@@ -336,7 +336,7 @@ LegacyLoaderTexture *DX8TextureInterop::Create_Legacy_ZTexture(
 #endif
 }
 
-LegacyLoaderCubeTexture *DX8TextureInterop::Create_Legacy_Cube_Texture(
+LegacyLoaderCubeTexture *TextureCompatibilityInterop::Create_Legacy_Cube_Texture(
 	unsigned int width,
 	unsigned int height,
 	WW3DFormat format,
@@ -354,7 +354,7 @@ LegacyLoaderCubeTexture *DX8TextureInterop::Create_Legacy_Cube_Texture(
 #endif
 }
 
-LegacyLoaderVolumeTexture *DX8TextureInterop::Create_Legacy_Volume_Texture(
+LegacyLoaderVolumeTexture *TextureCompatibilityInterop::Create_Legacy_Volume_Texture(
 	unsigned int width,
 	unsigned int height,
 	unsigned int depth,
@@ -372,7 +372,7 @@ LegacyLoaderVolumeTexture *DX8TextureInterop::Create_Legacy_Volume_Texture(
 #endif
 }
 
-WW3DFormat DX8TextureInterop::Legacy_Texture_Format_To_WW3DFormat(unsigned int format)
+WW3DFormat TextureCompatibilityInterop::Legacy_Texture_Format_To_WW3DFormat(unsigned int format)
 {
 #if defined(GGC_BGFX_STANDALONE)
 	(void)format;
@@ -385,7 +385,7 @@ WW3DFormat DX8TextureInterop::Legacy_Texture_Format_To_WW3DFormat(unsigned int f
 #endif
 }
 
-bool DX8TextureInterop::Generate_Legacy_Texture_Mips(TextureClass &texture)
+bool TextureCompatibilityInterop::Generate_Legacy_Texture_Mips(TextureClass &texture)
 {
 	LegacyLoaderTexture *native_texture = Peek_Legacy_Texture2D(texture);
 	if (native_texture == nullptr)

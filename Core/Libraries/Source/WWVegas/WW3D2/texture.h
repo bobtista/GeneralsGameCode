@@ -57,7 +57,7 @@ class TextureLoadTaskClass;
 class TextureClass;
 class CubeTextureClass;
 class VolumeTextureClass;
-class DX8TextureInterop;
+class TextureCompatibilityInterop;
 struct TextureCompatibilityState;
 
 class TextureBaseClass : public RefCountClass
@@ -66,7 +66,7 @@ class TextureBaseClass : public RefCountClass
 	friend class LoaderThreadClass;
 	friend class DX8TextureTrackerClass;  //(gth) so it can poke the native texture,
 	friend class DX8ZTextureTrackerClass;
-	friend class DX8TextureInterop;
+	friend class TextureCompatibilityInterop;
 
 public:
 
@@ -411,7 +411,7 @@ protected:
 private:
 	friend class TextureLoader;
 	friend class TextureLoadTaskClass;
-	friend class DX8TextureInterop;
+	friend class TextureCompatibilityInterop;
 	void Apply_Native_Compatibility_Texture(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
 	void *Get_Native_Compatibility_Surface_Level(unsigned int level = 0);
 };
@@ -440,7 +440,7 @@ public:
 	virtual unsigned Get_Texture_Memory_Usage() const override;
 
 private:
-	friend class DX8TextureInterop;
+	friend class TextureCompatibilityInterop;
 	void Apply_Native_Compatibility_Texture(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
 	void *Get_Native_Compatibility_Surface_Level(unsigned int level = 0);
 

@@ -67,10 +67,6 @@
 #include "WW3D2/indexbuffer.h"
 #include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/vertexbuffer.h"
-#if !defined(GGC_BGFX_STANDALONE)
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#endif
 
 //number of vertex pages allocated - allows double buffering of vertex updates.
 //while one is being rendered, another is being updated.  Improves HW parallelism.

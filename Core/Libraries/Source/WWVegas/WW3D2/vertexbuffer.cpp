@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : ww3d                                                         *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/ww3d2/dx8vertexbuffer.cpp                    $*
+ *                     $Archive:: /Commando/Code/ww3d2/vertexbuffer.cpp                       $*
  *                                                                                             *
  *              Original Author:: Jani Penttinen                                               *
  *                                                                                             *
@@ -39,8 +39,11 @@
 
 //#define VERTEX_BUFFER_LOG
 
+#include "vertexbuffer.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "dx8vertexbuffer.h"
 #include "dx8wrapper.h"
+#endif
 #include "dx8fvf.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
@@ -49,6 +52,12 @@
 #include "ww3dcolor.h"
 #include "wwmemlog.h"
 #include <cstring>
+
+#if defined(GGC_BGFX_STANDALONE)
+#define RENDER_BUFFER_THREAD_ASSERT()
+#else
+#define RENDER_BUFFER_THREAD_ASSERT() DX8_THREAD_ASSERT()
+#endif
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture vertex
 // data into the active render backend at write-lock time. The bgfx backend
@@ -258,7 +267,7 @@ VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass* VertexBuffe
 	:
 	VertexBufferLockClass(VertexBuffer)
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	WWASSERT(VertexBuffer);
 	WWASSERT(!VertexBuffer->Engine_Refs());
 	VertexBuffer->Add_Ref();
@@ -303,7 +312,7 @@ VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass* VertexBuffe
 
 VertexBufferClass::WriteLockClass::~WriteLockClass()
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture
 	// vertex data into the active render backend BEFORE unlocking. After
 	// Unlock the source pointer becomes invalid, so this is the last
@@ -357,7 +366,7 @@ VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuf
 	AppendStartIndex(start_index),
 	AppendIndexRange(index_range)
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	WWASSERT(VertexBuffer);
 	WWASSERT(!VertexBuffer->Engine_Refs());
 	WWASSERT(start_index+index_range<=VertexBuffer->Get_Vertex_Count());
@@ -404,7 +413,7 @@ VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuf
 
 VertexBufferClass::AppendLockClass::~AppendLockClass()
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 write-side
 	// sub-range capture for bgfx backend. Rigid mesh category containers
 	// fill their shared VB one sub-range at a time via AppendLockClass,
@@ -476,6 +485,7 @@ SortingVertexBufferClass::~SortingVertexBufferClass()
 
 //	bool dynamic=false,bool softwarevp=false);
 
+#if !defined(GGC_BGFX_STANDALONE)
 DX8VertexBufferClass::DX8VertexBufferClass(unsigned FVF, unsigned short vertex_count_, UsageType usage)
 	:
 	VertexBufferClass(BUFFER_TYPE_STATIC, FVF, vertex_count_),
@@ -579,12 +589,11 @@ DX8VertexBufferClass::~DX8VertexBufferClass()
 		g_renderBackend->Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
 	}
-#if !defined(GGC_BGFX_STANDALONE)
 	if (LegacyVertexBuffer *legacy = Legacy_Vertex_Buffer(this)) {
 		legacy->Release();
 	}
-#endif
 }
+#endif
 
 // ----------------------------------------------------------------------------
 
@@ -593,7 +602,7 @@ RenderVertexBufferClass::RenderVertexBufferClass(unsigned FVF, unsigned short ve
 	:
 	VertexBufferClass(BUFFER_TYPE_STATIC, FVF, vertex_count_)
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
 	if (g_renderBackend != nullptr) {
 		m_backendHandle = g_renderBackend->Register_Vertex_Buffer_Resource(this);
@@ -615,9 +624,10 @@ RenderVertexBufferClass::~RenderVertexBufferClass()
 //
 // ----------------------------------------------------------------------------
 
+#if !defined(GGC_BGFX_STANDALONE)
 void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	WWASSERT(!VertexBuffer);
 	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
 
@@ -927,6 +937,9 @@ void DX8VertexBufferClass::Copy(const Vector3* loc, const Vector2* uv, const Vec
 }
 
 // ----------------------------------------------------------------------------
+#endif
+
+// ----------------------------------------------------------------------------
 //
 //
 //
@@ -1050,7 +1063,7 @@ DynamicVBAccessClass::WriteLockClass::WriteLockClass(DynamicVBAccessClass* dynam
 	Vertices(NULL),
 	DirectBackendWrite(false)
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	switch (DynamicVBAccess->Get_Type()) {
 	case BUFFER_TYPE_DYNAMIC:
 #ifdef VERTEX_BUFFER_LOG
@@ -1111,7 +1124,7 @@ DynamicVBAccessClass::WriteLockClass::WriteLockClass(DynamicVBAccessClass* dynam
 
 DynamicVBAccessClass::WriteLockClass::~WriteLockClass()
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	switch (DynamicVBAccess->Get_Type()) {
 	case BUFFER_TYPE_DYNAMIC:
 #ifdef VERTEX_BUFFER_LOG

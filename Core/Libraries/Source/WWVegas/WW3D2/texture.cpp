@@ -51,7 +51,7 @@
 #include "assetmgr.h"
 #include "dx8formatconv.h"
 #include "dx8texturelegacytypes.h"
-#include "dx8textureinterop.h"
+#include "texturecompatibilityinterop.h"
 #include "textureloader.h"
 #include "bitmaphandler.h"
 #include "missingtexture.h"
