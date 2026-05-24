@@ -38,6 +38,14 @@ namespace
 		unsigned fogColor;
 		bool colorWriteMaskValid;
 		unsigned colorWriteMask;
+		bool ambientColorValid;
+		unsigned ambientColor;
+		bool ambientMaterialSourceValid;
+		unsigned ambientMaterialSource;
+		bool diffuseMaterialSourceValid;
+		unsigned diffuseMaterialSource;
+		bool emissiveMaterialSourceValid;
+		unsigned emissiveMaterialSource;
 	};
 
 	SemanticRenderState s_semanticRenderState;
@@ -61,6 +69,14 @@ namespace
 		s_semanticRenderState.fogColor = 0;
 		s_semanticRenderState.colorWriteMaskValid = true;
 		s_semanticRenderState.colorWriteMask = 0;
+		s_semanticRenderState.ambientColorValid = true;
+		s_semanticRenderState.ambientColor = 0;
+		s_semanticRenderState.ambientMaterialSourceValid = true;
+		s_semanticRenderState.ambientMaterialSource = 0;
+		s_semanticRenderState.diffuseMaterialSourceValid = true;
+		s_semanticRenderState.diffuseMaterialSource = 0;
+		s_semanticRenderState.emissiveMaterialSourceValid = true;
+		s_semanticRenderState.emissiveMaterialSource = 0;
 	}
 
 	void InvalidateSemanticRenderState()
@@ -73,6 +89,14 @@ namespace
 		s_semanticRenderState.fogColor = 0;
 		s_semanticRenderState.colorWriteMaskValid = false;
 		s_semanticRenderState.colorWriteMask = 0;
+		s_semanticRenderState.ambientColorValid = false;
+		s_semanticRenderState.ambientColor = 0;
+		s_semanticRenderState.ambientMaterialSourceValid = false;
+		s_semanticRenderState.ambientMaterialSource = 0;
+		s_semanticRenderState.diffuseMaterialSourceValid = false;
+		s_semanticRenderState.diffuseMaterialSource = 0;
+		s_semanticRenderState.emissiveMaterialSourceValid = false;
+		s_semanticRenderState.emissiveMaterialSource = 0;
 	}
 
 	void MirrorSemanticRenderState(unsigned state, unsigned value)
@@ -93,6 +117,22 @@ namespace
 			case RS::COLORWRITEENABLE:
 				s_semanticRenderState.colorWriteMaskValid = true;
 				s_semanticRenderState.colorWriteMask = value;
+				break;
+			case RS::AMBIENT:
+				s_semanticRenderState.ambientColorValid = true;
+				s_semanticRenderState.ambientColor = value;
+				break;
+			case RS::AMBIENTMATERIALSOURCE:
+				s_semanticRenderState.ambientMaterialSourceValid = true;
+				s_semanticRenderState.ambientMaterialSource = value;
+				break;
+			case RS::DIFFUSEMATERIALSOURCE:
+				s_semanticRenderState.diffuseMaterialSourceValid = true;
+				s_semanticRenderState.diffuseMaterialSource = value;
+				break;
+			case RS::EMISSIVEMATERIALSOURCE:
+				s_semanticRenderState.emissiveMaterialSourceValid = true;
+				s_semanticRenderState.emissiveMaterialSource = value;
 				break;
 			default:
 				break;
@@ -498,6 +538,40 @@ unsigned FixedFunctionState::Color_Write_Mask(unsigned default_value)
 bool FixedFunctionState::Set_Color_Write_Mask(unsigned value)
 {
 	return Set_Cached_Render_State(RS::COLORWRITEENABLE, value);
+}
+
+unsigned FixedFunctionState::Ambient_Color(unsigned default_value)
+{
+	return s_semanticRenderState.ambientColorValid ? s_semanticRenderState.ambientColor : default_value;
+}
+
+bool FixedFunctionState::Set_Ambient_Color(unsigned value)
+{
+	return Set_Cached_Render_State(RS::AMBIENT, value);
+}
+
+unsigned FixedFunctionState::Ambient_Material_Source(unsigned default_value)
+{
+	return s_semanticRenderState.ambientMaterialSourceValid ? s_semanticRenderState.ambientMaterialSource : default_value;
+}
+
+unsigned FixedFunctionState::Diffuse_Material_Source(unsigned default_value)
+{
+	return s_semanticRenderState.diffuseMaterialSourceValid ? s_semanticRenderState.diffuseMaterialSource : default_value;
+}
+
+unsigned FixedFunctionState::Emissive_Material_Source(unsigned default_value)
+{
+	return s_semanticRenderState.emissiveMaterialSourceValid ? s_semanticRenderState.emissiveMaterialSource : default_value;
+}
+
+bool FixedFunctionState::Set_Material_Color_Sources(unsigned ambient_source, unsigned diffuse_source, unsigned emissive_source)
+{
+	bool changed = false;
+	changed |= Set_Cached_Render_State(RS::AMBIENTMATERIALSOURCE, ambient_source);
+	changed |= Set_Cached_Render_State(RS::DIFFUSEMATERIALSOURCE, diffuse_source);
+	changed |= Set_Cached_Render_State(RS::EMISSIVEMATERIALSOURCE, emissive_source);
+	return changed;
 }
 
 void FixedFunctionState::Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix)

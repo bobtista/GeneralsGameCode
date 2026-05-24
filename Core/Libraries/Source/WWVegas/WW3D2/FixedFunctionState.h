@@ -131,6 +131,12 @@ public:
 	static bool Set_Fog_Color(unsigned value);
 	static unsigned Color_Write_Mask(unsigned default_value);
 	static bool Set_Color_Write_Mask(unsigned value);
+	static unsigned Ambient_Color(unsigned default_value);
+	static bool Set_Ambient_Color(unsigned value);
+	static unsigned Ambient_Material_Source(unsigned default_value);
+	static unsigned Diffuse_Material_Source(unsigned default_value);
+	static unsigned Emissive_Material_Source(unsigned default_value);
+	static bool Set_Material_Color_Sources(unsigned ambient_source, unsigned diffuse_source, unsigned emissive_source);
 	static void Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix);
 	static bool Set_Transform_Matrix(unsigned transform, const LegacyTransformMatrix & matrix);
 };

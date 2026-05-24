@@ -84,7 +84,10 @@ BGFX_BACKEND_CATEGORIES = [
     (
         "bgfx_semantic_state_raw_write",
         re.compile(
-            r"RenderStateCache::Set_Render_State\s*\(\s*RS::(?:CULLMODE|LIGHTING|FOGCOLOR|COLORWRITEENABLE)\b"
+            r"RenderStateCache::Set_Render_State\s*\(\s*RS::(?:"
+            r"CULLMODE|LIGHTING|FOGCOLOR|COLORWRITEENABLE|AMBIENT|"
+            r"AMBIENTMATERIALSOURCE|DIFFUSEMATERIALSOURCE|EMISSIVEMATERIALSOURCE"
+            r")\b"
             r"|RenderStateCache::Set_Transform\s*\("
         ),
     ),
