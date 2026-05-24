@@ -160,6 +160,16 @@ public:
 	static bool Set_Depth_Write_Enabled(bool enabled);
 	static unsigned Depth_Function(unsigned default_value);
 	static bool Set_Depth_Function(unsigned value);
+	static bool Fog_Enabled(bool default_value);
+	static bool Set_Fog_Enabled(bool enabled);
+	static bool Specular_Enabled(bool default_value);
+	static bool Set_Specular_Enabled(bool enabled);
+	static unsigned Patch_Segments_Bits(unsigned default_value);
+	static bool Set_Patch_Segments_Bits(unsigned value);
+	static bool Normalize_Normals_Enabled(bool default_value);
+	static bool Set_Normalize_Normals_Enabled(bool enabled);
+	static unsigned Texture_Factor(unsigned default_value);
+	static bool Set_Texture_Factor(unsigned value);
 	static void Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix);
 	static bool Set_Transform_Matrix(unsigned transform, const LegacyTransformMatrix & matrix);
 };
