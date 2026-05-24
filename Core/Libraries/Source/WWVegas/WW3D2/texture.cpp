@@ -545,6 +545,16 @@ void TextureBaseClass::Update_CPU_Texture_Mip_Snapshot(unsigned int level, Textu
 	++CPUTextureRevision;
 }
 
+void TextureBaseClass::Refresh_CPU_Texture_Snapshot()
+{
+	Capture_CPU_Texture_Snapshot(LegacyTexture);
+}
+
+bool TextureBaseClass::Has_Compatibility_Texture() const
+{
+	return LegacyTexture != nullptr;
+}
+
 void TextureBaseClass::Mark_CPU_Texture_Mips_Changed()
 {
 	PreserveCPUTextureSnapshotOnNextLegacySet = true;
