@@ -31,7 +31,7 @@ uniform vec4 u_legacyPixelShaderMode; // .x = RenderBackendLegacyPixelShaderMode
 uniform vec4 u_texProjected; // .x > 0.5 = stage 0 projected, .y > 0.5 = stage 1 projected
 uniform vec4 u_vertexColorFlags; // .y/.z/.w: diffuse/ambient/emissive source is COLOR1
 uniform vec4 u_grayscaleEnable; // .x > 0.5 = convert final color to luminance (disabled button state)
-uniform vec4 u_objectShroudDim; // .x = object-status fog/shroud dim multiplier, .z = base-texture alpha-mask cutoff, .w = shroud multiplier floor
+uniform vec4 u_objectShroudDim; // .x = object-status fog/shroud dim multiplier, .z = base-texture alpha-mask cutoff
 uniform vec4 u_cloudParams; // xy = scroll, z = stretch, w > 0.5 = modulate cloud into output
 uniform vec4 u_softParticleParams; // .x enable, .y fade scale, zw inverse scene size
 uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
@@ -275,10 +275,6 @@ void main()
 		if (u_objectShroudDim.x < 0.999)
 		{
 			shroud.rgb *= u_objectShroudDim.x;
-		}
-		if (u_objectShroudDim.w > 0.0)
-		{
-			shroud.rgb = max(shroud.rgb, vec3_splat(u_objectShroudDim.w));
 		}
 		gl_FragColor = shroud;
 		return;

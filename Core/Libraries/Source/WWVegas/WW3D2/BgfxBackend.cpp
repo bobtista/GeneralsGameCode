@@ -6524,44 +6524,32 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
                              texture->Get_Pool()));
             }
         }
-        // Capture the source texture's wrap mode into bgfx sampler flags
-        // so we can pass it at bind time. Without this, WRAP is the
-        // default and ramp/LUT textures with CLAMP semantics produce
-        // visible stripe artifacts at U>=1 (the shoreline checkerboard).
-        uint32_t samplerFlags = 0;
-        if (t2d_name != nullptr)
-        {
-            const TextureFilterClass & flt = t2d_name->Get_Filter();
-            if (flt.Get_U_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
-            {
-                samplerFlags |= BGFX_SAMPLER_U_CLAMP;
-            }
-            if (flt.Get_V_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
-            {
-                samplerFlags |= BGFX_SAMPLER_V_CLAMP;
-            }
-        }
+        // TextureFilterClass::Apply() updates the semantic sampler state above.
+        // Preserve those bits when recording the bind; bridge atlases and thin
+        // particles depend on mip filtering staying disabled after Set_Texture.
+        const uint32_t samplerFlags = stage < 4 ? g_draw.samplerFlags[stage] : 0;
+        const bool mipFilterDisabled = stage < 4 && g_draw.mipFilterDisabled[stage];
         switch (stage)
         {
             case 0: g_draw.tex[0] = h;
                     g_draw.sourceTextures[0] = texture;
                     g_draw.samplerFlags[0] = samplerFlags;
-                    g_draw.mipFilterDisabled[0] = false;
+                    g_draw.mipFilterDisabled[0] = mipFilterDisabled;
                     g_draw.textureIsMissing[0] = missingOrUnavailable; break;
             case 1: g_draw.tex[1] = h;
                     g_draw.sourceTextures[1] = texture;
                     g_draw.samplerFlags[1] = samplerFlags;
-                    g_draw.mipFilterDisabled[1] = false;
+                    g_draw.mipFilterDisabled[1] = mipFilterDisabled;
                     g_draw.textureIsMissing[1] = missingOrUnavailable; break;
             case 2: g_draw.tex[2] = h;
                     g_draw.sourceTextures[2] = texture;
                     g_draw.samplerFlags[2] = samplerFlags;
-                    g_draw.mipFilterDisabled[2] = false;
+                    g_draw.mipFilterDisabled[2] = mipFilterDisabled;
                     g_draw.textureIsMissing[2] = missingOrUnavailable; break;
             case 3: g_draw.tex[3] = h;
                     g_draw.sourceTextures[3] = texture;
                     g_draw.samplerFlags[3] = samplerFlags;
-                    g_draw.mipFilterDisabled[3] = false;
+                    g_draw.mipFilterDisabled[3] = mipFilterDisabled;
                     g_draw.textureIsMissing[3] = missingOrUnavailable; break;
             default: break;
         }
@@ -7297,19 +7285,6 @@ void BgfxBackend::Set_Object_Shroud_Dim_Factor(float factor)
         factor = 1.0f;
     }
     g_draw.objectShroudDim[0] = factor;
-}
-
-void BgfxBackend::Set_Shroud_Texture_Minimum(float minimum)
-{
-    if (minimum < 0.0f)
-    {
-        minimum = 0.0f;
-    }
-    else if (minimum > 1.0f)
-    {
-        minimum = 1.0f;
-    }
-    g_draw.objectShroudDim[3] = minimum;
 }
 
 void BgfxBackend::Set_Shroud_Texture_Params(float offset_x, float offset_y,
