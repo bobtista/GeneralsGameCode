@@ -112,7 +112,7 @@ namespace
 
 	SemanticRenderState s_semanticRenderState;
 
-	void D3DMatrixIdentity(LegacyTransformMatrix * dxm)
+	void LegacyMatrixIdentity(LegacyTransformMatrix * dxm)
 	{
 		memset(dxm, 0, sizeof(*dxm));
 		dxm->_11 = 1.0f;
@@ -653,7 +653,7 @@ void FixedFunctionState::Set_World_Identity()
 		return;
 	}
 
-	D3DMatrixIdentity(&s_renderState.world);
+	LegacyMatrixIdentity(&s_renderState.world);
 	s_changedMask |= WORLD_CHANGED | WORLD_IDENTITY;
 }
 
@@ -663,7 +663,7 @@ void FixedFunctionState::Set_View_Identity()
 		return;
 	}
 
-	D3DMatrixIdentity(&s_renderState.view);
+	LegacyMatrixIdentity(&s_renderState.view);
 	s_changedMask |= VIEW_CHANGED | VIEW_IDENTITY;
 }
 

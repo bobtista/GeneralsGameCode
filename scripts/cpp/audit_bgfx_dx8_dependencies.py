@@ -98,6 +98,10 @@ BGFX_BACKEND_CATEGORIES = [
             r"|RenderStateCache::Set_Transform\s*\("
         ),
     ),
+    (
+        "bgfx_d3d_named_helper",
+        re.compile(r"\b(?:D3DMatrixIdentity|TextureAddressModeToD3DStageState|TextureSampleFilterToD3DStageState)\b"),
+    ),
 ]
 
 KNOWN_BGFX_MACROS = {
