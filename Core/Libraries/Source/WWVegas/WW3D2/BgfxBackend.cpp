@@ -7830,55 +7830,55 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 
 void BgfxBackend::Set_Stencil_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(RS::STENCILENABLE, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Stencil_Enabled(enable);
     g_draw.stencilEnabled = enable;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Func(CompareFunc f)
 {
-    RenderStateCache::Set_Render_State(RS::STENCILFUNC, static_cast<unsigned>(f));
+    FixedFunctionState::Set_Stencil_Function(static_cast<unsigned>(f));
     g_draw.stencilFuncBits = MapCmpFuncToBgfxStencilTest(f);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Ref(unsigned ref)
 {
-    RenderStateCache::Set_Render_State(RS::STENCILREF, ref);
+    FixedFunctionState::Set_Stencil_Reference(ref);
     g_draw.stencilRef = ref;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(RS::STENCILMASK, mask);
+    FixedFunctionState::Set_Stencil_Read_Mask(mask);
     g_draw.stencilReadMask = mask;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Write_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(RS::STENCILWRITEMASK, mask);
+    FixedFunctionState::Set_Stencil_Write_Mask(mask);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Pass_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(RS::STENCILPASS, static_cast<unsigned>(op));
+    FixedFunctionState::Set_Stencil_Pass_Op(static_cast<unsigned>(op));
     g_draw.stencilPassOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_PASS_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Fail_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(RS::STENCILFAIL, static_cast<unsigned>(op));
+    FixedFunctionState::Set_Stencil_Fail_Op(static_cast<unsigned>(op));
     g_draw.stencilFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_S_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(RS::STENCILZFAIL, static_cast<unsigned>(op));
+    FixedFunctionState::Set_Stencil_ZFail_Op(static_cast<unsigned>(op));
     g_draw.stencilZFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_Z_SHIFT);
     UpdateShadowStencilState();
 }
