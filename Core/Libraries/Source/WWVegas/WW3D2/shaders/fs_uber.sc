@@ -357,13 +357,13 @@ void main()
 	if (u_projectedDecalMode.x > (PROJECTED_DECAL_BLOB_SHADOW - 0.5)
 		&& u_projectedDecalMode.x < (PROJECTED_DECAL_BLOB_SHADOW + 0.5))
 	{
-		// Infantry blob shadows are projected decals with a multiplicative
-		// blend where shader RGB is the destination-color multiplier. The
-		// texture alpha supplies the blob shape, while vertex alpha supplies
-		// W3DProjectedShadow's per-decal fade/clipping. Evaluate this before
-		// the generic TSS path so stale secondary-stage state from reveal
-		// projectors cannot blank or suppress the shadow.
-		float mask = clamp(tex0.a * diffuse.a, 0.0, 1.0);
+		// Default infantry blobs are tiny projected shadow decals. The receiver
+		// mesh is much larger than the visible oval, and ZERO/SRC_COLOR blending
+		// makes any non-neutral source RGB darken the terrain. When a satellite
+		// reveal exposes a squad at once, low-alpha texels from those receiver
+		// triangles accumulate into long dark patches. Treat the transparent
+		// portion as exactly neutral and keep only the center of shadowi's mask.
+		float mask = smoothstep(0.60, 0.92, clamp(tex0.a * diffuse.a, 0.0, 1.0)) * 0.12;
 		vec3 blob = tex0.rgb * diffuse.rgb;
 		gl_FragColor = vec4(mix(vec3_splat(1.0), blob, mask), 1.0);
 		return;
