@@ -41,7 +41,7 @@
 
 #include "texture.h"
 
-#include <d3d8.h>
+#include "BgfxMigrationToggles.h"
 #include "dx8wrapper.h"
 #include "TARGA.h"
 #include <nstrdup.h>
@@ -51,6 +51,7 @@
 #include "dx8texturelegacytypes.h"
 #include "dx8textureinterop.h"
 #include "textureloader.h"
+#include "bitmaphandler.h"
 #include "missingtexture.h"
 #include "ffactory.h"
 #include "TextureResourceManager.h"
@@ -63,6 +64,7 @@
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "DXTUtils.h"
+#include <algorithm>
 #include <cstring>
 #include <utility>
 
@@ -79,6 +81,196 @@ namespace
 			format == WW3D_FORMAT_DXT3 ||
 			format == WW3D_FORMAT_DXT4 ||
 			format == WW3D_FORMAT_DXT5;
+	}
+
+	bool Should_Use_CPU_Only_Texture_Level_Surfaces()
+	{
+#if defined(GGC_BGFX_STANDALONE)
+		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::SurfaceOwnership);
+#else
+		return false;
+#endif
+	}
+
+	bool Should_Use_CPU_Only_Surface_Textures()
+	{
+#if defined(GGC_RENDER_BACKEND_BGFX)
+		return Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership);
+#else
+		return false;
+#endif
+	}
+
+	bool Should_Block_Unmigrated_Bgfx_Texture_Type(TextureBaseClass::TexAssetType asset_type)
+	{
+		return Should_Use_CPU_Only_Surface_Textures() && asset_type != TextureBaseClass::TEX_REGULAR;
+	}
+
+	MipCountType Legacy_Texture_Mip_Count_For_Construct(void *legacy_texture)
+	{
+#if defined(GGC_BGFX_STANDALONE)
+		(void)legacy_texture;
+		return MIP_LEVELS_1;
+#else
+		return static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount();
+#endif
+	}
+
+	unsigned Requested_Mip_Count(unsigned width, unsigned height, MipCountType mip_level_count)
+	{
+		if (mip_level_count == MIP_LEVELS_ALL) {
+			unsigned levels = 1;
+			unsigned size = std::max(width, height);
+			while (size > 1) {
+				size >>= 1;
+				++levels;
+			}
+			return levels;
+		}
+
+		switch (mip_level_count) {
+		case MIP_LEVELS_1: return 1;
+		case MIP_LEVELS_2: return 2;
+		case MIP_LEVELS_3: return 3;
+		case MIP_LEVELS_4: return 4;
+		case MIP_LEVELS_5: return 5;
+		case MIP_LEVELS_6: return 6;
+		case MIP_LEVELS_7: return 7;
+		case MIP_LEVELS_8: return 8;
+		case MIP_LEVELS_10: return 10;
+		case MIP_LEVELS_11: return 11;
+		case MIP_LEVELS_12: return 12;
+		default: return 1;
+		}
+	}
+
+	bool Build_CPU_Texture_Mips_From_Surface(
+		const SurfaceClass::SurfaceImageData &surface_image,
+		MipCountType mip_level_count,
+		std::vector<TextureBaseClass::TextureMipSnapshot> &mips)
+	{
+		mips.clear();
+		if (surface_image.Format == WW3D_FORMAT_UNKNOWN ||
+			Is_Block_Compressed_Texture_Format(surface_image.Format) ||
+			surface_image.Width == 0 ||
+			surface_image.Height == 0 ||
+			surface_image.Data.empty()) {
+			return false;
+		}
+
+		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(surface_image.Format);
+		const unsigned base_row_size = surface_image.Width * bytes_per_pixel;
+		if (bytes_per_pixel == 0 || surface_image.Pitch < base_row_size) {
+			return false;
+		}
+
+		const unsigned requested_levels = Requested_Mip_Count(surface_image.Width, surface_image.Height, mip_level_count);
+		mips.reserve(requested_levels);
+
+		TextureBaseClass::TextureMipSnapshot base_mip;
+		base_mip.Width = surface_image.Width;
+		base_mip.Height = surface_image.Height;
+		base_mip.Pitch = base_row_size;
+		base_mip.Format = surface_image.Format;
+		base_mip.Data.resize(static_cast<size_t>(base_row_size) * surface_image.Height);
+		for (unsigned y = 0; y < surface_image.Height; ++y) {
+			memcpy(
+				base_mip.Data.data() + y * base_mip.Pitch,
+				surface_image.Data.data() + y * surface_image.Pitch,
+				base_row_size);
+		}
+		mips.push_back(std::move(base_mip));
+
+		while (mips.size() < requested_levels) {
+			const TextureBaseClass::TextureMipSnapshot &previous = mips.back();
+			if (previous.Width == 1 && previous.Height == 1) {
+				break;
+			}
+
+			TextureBaseClass::TextureMipSnapshot mip;
+			mip.Width = std::max(1u, previous.Width / 2);
+			mip.Height = std::max(1u, previous.Height / 2);
+			mip.Pitch = mip.Width * bytes_per_pixel;
+			mip.Format = previous.Format;
+			mip.Data.resize(static_cast<size_t>(mip.Pitch) * mip.Height);
+
+			for (unsigned y = 0; y < mip.Height; ++y) {
+				for (unsigned x = 0; x < mip.Width; ++x) {
+					const unsigned src_x = x * 2;
+					const unsigned src_y = y * 2;
+					const auto read_pixel = [&](unsigned px, unsigned py) {
+						px = std::min(px, previous.Width - 1);
+						py = std::min(py, previous.Height - 1);
+						unsigned color = 0;
+						BitmapHandlerClass::Read_B8G8R8A8(
+							color,
+							previous.Data.data() + py * previous.Pitch + px * bytes_per_pixel,
+							previous.Format,
+							nullptr,
+							0);
+						return color;
+					};
+
+					const unsigned combined = BitmapHandlerClass::Combine_A8R8G8B8(
+						read_pixel(src_x, src_y),
+						read_pixel(src_x + 1, src_y),
+						read_pixel(src_x, src_y + 1),
+						read_pixel(src_x + 1, src_y + 1));
+					BitmapHandlerClass::Write_B8G8R8A8(
+						mip.Data.data() + y * mip.Pitch + x * bytes_per_pixel,
+						mip.Format,
+						combined);
+				}
+			}
+
+			mips.push_back(std::move(mip));
+		}
+
+		return !mips.empty();
+	}
+
+	bool Build_Blank_CPU_Texture_Mips(
+		unsigned width,
+		unsigned height,
+		WW3DFormat format,
+		MipCountType mip_level_count,
+		std::vector<TextureBaseClass::TextureMipSnapshot> &mips)
+	{
+		mips.clear();
+		if (width == 0 ||
+			height == 0 ||
+			format == WW3D_FORMAT_UNKNOWN ||
+			Is_Block_Compressed_Texture_Format(format)) {
+			return false;
+		}
+
+		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(format);
+		if (bytes_per_pixel == 0) {
+			return false;
+		}
+
+		const unsigned requested_levels = Requested_Mip_Count(width, height, mip_level_count);
+		mips.reserve(requested_levels);
+
+		for (unsigned level = 0; level < requested_levels; ++level)
+		{
+			TextureBaseClass::TextureMipSnapshot mip;
+			mip.Width = width;
+			mip.Height = height;
+			mip.Pitch = width * bytes_per_pixel;
+			mip.Format = format;
+			mip.Data.resize(static_cast<size_t>(mip.Pitch) * mip.Height);
+			std::memset(mip.Data.data(), 0, mip.Data.size());
+			mips.push_back(std::move(mip));
+
+			if (width == 1 && height == 1) {
+				break;
+			}
+			width = std::max(1u, width >> 1);
+			height = std::max(1u, height >> 1);
+		}
+
+		return !mips.empty();
 	}
 
 	int Legacy_Texture_Pool(TextureBaseClass::PoolType pool)
@@ -132,8 +324,10 @@ TextureBaseClass::TextureBaseClass
 	FullPath(""),
 	texture_id(unused_texture_id++),
 	IsLightmap(false),
+	IsRenderTarget(rendertarget),
 	IsProcedural(false),
 	IsReducible(reducible),
+	IsMissingTexture(false),
 	IsCompressionAllowed(false),
 	InactivationTime(0),
 	ExtendedInactivationTime(0),
@@ -351,6 +545,27 @@ void TextureBaseClass::Update_CPU_Texture_Mip_Snapshot(unsigned int level, Textu
 	++CPUTextureRevision;
 }
 
+void TextureBaseClass::Refresh_CPU_Texture_Snapshot()
+{
+	Capture_CPU_Texture_Snapshot(LegacyTexture);
+}
+
+bool TextureBaseClass::Has_Compatibility_Texture() const
+{
+	return LegacyTexture != nullptr;
+}
+
+void TextureBaseClass::Mark_CPU_Texture_Mips_Changed()
+{
+	PreserveCPUTextureSnapshotOnNextLegacySet = true;
+	++CPUTextureRevision;
+}
+
+void TextureBaseClass::Share_Texture_Storage_With(const TextureBaseClass *source)
+{
+	Share_Legacy_Texture_With(*this, source);
+}
+
 void TextureBaseClass::Capture_CPU_Texture_Snapshot(void *native_texture)
 {
 	PreserveCPUTextureSnapshotOnNextLegacySet = false;
@@ -436,6 +651,16 @@ void TextureBaseClass::Load_Locked_Surface()
 */
 bool TextureBaseClass::Is_Missing_Texture()
 {
+	if (IsMissingTexture) {
+		return true;
+	}
+	if (Should_Use_CPU_Only_Surface_Textures()) {
+		return false;
+	}
+	if (LegacyTexture == nullptr) {
+		return false;
+	}
+
 	bool flag = false;
 	LegacyBaseTexture *missing_texture = Get_Legacy_Missing_Texture();
 
@@ -764,8 +989,36 @@ TextureClass::TextureClass
 	default : break;
 	}
 
-	const int legacy_pool = Legacy_Texture_Pool(pool);
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
+	{
+		if (rendertarget)
+		{
+			Poke_Legacy_Texture(*this, nullptr);
+			LastAccessed=WW3D::Get_Sync_Time();
+			return;
+		}
 
+		std::vector<TextureMipSnapshot> mips;
+		if (Build_Blank_CPU_Texture_Mips(width, height, format, mip_level_count, mips))
+		{
+			Set_CPU_Texture_Snapshot(std::move(mips));
+			Poke_Legacy_Texture(*this, nullptr);
+			LastAccessed=WW3D::Get_Sync_Time();
+			return;
+		}
+
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"TextureClass(width,height): BGFX texture ownership cannot create this procedural texture; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+#endif
+
+	const int legacy_pool = Legacy_Texture_Pool(pool);
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Texture
 		(
@@ -928,21 +1181,18 @@ TextureClass::TextureClass
 	}
 
 	const SurfaceClass::SurfaceImageData *surface_image = surface->Get_CPU_Surface_Image();
-	if (surface_image != nullptr && mip_level_count == MIP_LEVELS_1) {
-		std::vector<TextureMipSnapshot> mips;
-		TextureMipSnapshot mip;
-		mip.Width = surface_image->Width;
-		mip.Height = surface_image->Height;
-		mip.Pitch = surface_image->Pitch;
-		mip.Format = surface_image->Format;
-		mip.Data = surface_image->Data;
-		mips.push_back(std::move(mip));
+	std::vector<TextureMipSnapshot> mips;
+	if (surface_image != nullptr &&
+		Build_CPU_Texture_Mips_From_Surface(*surface_image, mip_level_count, mips)) {
 		Set_CPU_Texture_Snapshot(std::move(mips));
 	}
 
 	LegacyBaseTexture *newTexture = nullptr;
 	const bool source_has_legacy_surface = surface->D3DSurface != nullptr;
-	if (source_has_legacy_surface)
+	const bool use_cpu_owned_texture =
+		Should_Use_CPU_Only_Surface_Textures() &&
+		Has_CPU_Texture_Mips();
+	if (source_has_legacy_surface && !use_cpu_owned_texture)
 	{
 		newTexture = Create_Legacy_Texture_From_Surface
 		(
@@ -951,11 +1201,20 @@ TextureClass::TextureClass
 		);
 	}
 
-	if (newTexture != nullptr || source_has_legacy_surface || !Has_CPU_Texture_Mips()) {
+	if (newTexture != nullptr || (source_has_legacy_surface && !use_cpu_owned_texture) || !Has_CPU_Texture_Mips()) {
 		Poke_Legacy_Texture(*this, newTexture);
 	}
 	if (!Has_CPU_Texture_Mips()) {
-		Refresh_CPU_Texture_Snapshot();
+		if (Should_Use_CPU_Only_Surface_Textures())
+		{
+			WWASSERT_PRINT(
+				0,
+				"TextureClass(SurfaceClass): BGFX texture ownership missing CPU mips; no legacy texture fallback is allowed");
+		}
+		else
+		{
+			Refresh_CPU_Texture_Snapshot();
+		}
 	}
 	LastAccessed=WW3D::Get_Sync_Time();
 }
@@ -966,10 +1225,22 @@ TextureClass::TextureClass(void *legacy_texture)
 	(
 		0,
 		0,
-		((MipCountType)static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount())
+		Legacy_Texture_Mip_Count_For_Construct(legacy_texture)
 	),
-	Filter((MipCountType)static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount())
+	Filter(Legacy_Texture_Mip_Count_For_Construct(legacy_texture))
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)legacy_texture;
+	WWASSERT_PRINT(
+		false,
+		"TextureClass(native): standalone bgfx cannot wrap fake-D3D textures");
+	Initialized=false;
+	IsProcedural=true;
+	IsReducible=false;
+	Poke_Legacy_Texture(*this, nullptr);
+	LastAccessed=WW3D::Get_Sync_Time();
+	return;
+#else
 	LegacyBaseTexture *d3d_texture = static_cast<LegacyBaseTexture *>(legacy_texture);
 	Initialized=true;
 	IsProcedural=true;
@@ -997,6 +1268,7 @@ TextureClass::TextureClass(void *legacy_texture)
 	}
 
 	LastAccessed=WW3D::Get_Sync_Time();
+#endif
 }
 
 //**********************************************************************************************
@@ -1007,6 +1279,14 @@ void TextureClass::Init()
 {
 	// If the texture has already been initialised we should exit now
 	if (Initialized) return;
+
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		WWASSERT_PRINT(
+			false,
+			"TextureClass::Init: cube/volume textures are not migrated to bgfx texture ownership; no legacy fallback is allowed");
+		return;
+	}
 
 	WWPROFILE("TextureClass::Init");
 
@@ -1062,6 +1342,15 @@ void TextureClass::Apply_Legacy_Surface
 	bool disable_auto_invalidation
 )
 {
+#if defined(GGC_BGFX_STANDALONE)
+	(void)native_texture;
+	(void)initialized;
+	(void)disable_auto_invalidation;
+	WWASSERT_PRINT(
+		false,
+		"TextureClass::Apply_Legacy_Surface: standalone bgfx cannot apply fake-D3D textures");
+	return;
+#else
 	LegacyBaseTexture *d3d_texture = Legacy_Texture(native_texture);
 	Set_Legacy_Base_Texture(*this, d3d_texture);
 
@@ -1082,6 +1371,7 @@ void TextureClass::Apply_Legacy_Surface
 	}
 	surface->Release();
 
+#endif
 }
 
 
@@ -1153,10 +1443,26 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 			!mip.Data.empty() &&
 			mip.Width != 0 &&
 			mip.Height != 0 &&
-			mip.Pitch >= mip.Width * ::Get_Bytes_Per_Pixel(mip.Format))
+			mip.Pitch >= mip.Width * ::Get_Bytes_Per_Pixel(mip.Format) &&
+			mip.Data.size() >= static_cast<size_t>(mip.Pitch) * mip.Height)
 		{
-			SurfaceClass *surface = NEW_REF(SurfaceClass, (mip.Width, mip.Height, mip.Format));
-			surface->Copy(mip.Data.data(), mip.Pitch);
+			SurfaceClass::SurfaceImageData image;
+			image.Format = mip.Format;
+			image.Width = mip.Width;
+			image.Height = mip.Height;
+			image.Pitch = mip.Pitch;
+			image.Data = mip.Data;
+
+			SurfaceClass *surface = nullptr;
+			if (Should_Use_CPU_Only_Texture_Level_Surfaces())
+			{
+				surface = NEW_REF(SurfaceClass, (image));
+			}
+			else
+			{
+				surface = NEW_REF(SurfaceClass, (mip.Width, mip.Height, mip.Format));
+				surface->Copy(mip.Data.data(), mip.Pitch);
+			}
 			surface->Attach_Texture_Level_Owner(this, level);
 			return surface;
 		}
@@ -1167,13 +1473,135 @@ SurfaceClass *TextureClass::Get_Surface_Level(unsigned int level)
 		WWASSERT_PRINT(0, "Get_Surface_Level: LegacyTexture is null!");
 		return nullptr;
 	}
+	if (Should_Use_CPU_Only_Texture_Level_Surfaces())
+	{
+		WWASSERT_PRINT(
+			0,
+			"Get_Surface_Level: BGFX CPU texture-level surface is missing; no legacy surface fallback is allowed");
+		return nullptr;
+	}
 
 	LegacyTextureSurface *d3d_surface = nullptr;
 	DX8_ErrorCode(Peek_Legacy_Texture2D(*this)->GetSurfaceLevel(level, &d3d_surface));
 	SurfaceClass *surface = Create_Legacy_Surface_Wrapper(d3d_surface);
 	d3d_surface->Release();
+	surface->Attach_Texture_Level_Owner(this, level);
+	surface->Capture_CPU_Surface_Snapshot();
 
 	return surface;
+}
+
+TextureClass::MutableTextureMipView TextureClass::Begin_Mip_Write(unsigned int level)
+{
+	MutableTextureMipView view;
+	if (TextureFormat == WW3D_FORMAT_UNKNOWN ||
+		Is_Block_Compressed_Texture_Format(TextureFormat))
+	{
+		return view;
+	}
+
+	const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(TextureFormat);
+	if (bytes_per_pixel == 0)
+	{
+		return view;
+	}
+
+	unsigned mip_width = 0;
+	unsigned mip_height = 0;
+	std::vector<TextureMipSnapshot> &mips = Mutable_CPU_Texture_Mips();
+	if (level < mips.size() &&
+		mips[level].Format != WW3D_FORMAT_UNKNOWN &&
+		mips[level].Width != 0 &&
+		mips[level].Height != 0)
+	{
+		mip_width = mips[level].Width;
+		mip_height = mips[level].Height;
+	}
+	else
+	{
+		if (Width <= 0 || Height <= 0)
+		{
+			return view;
+		}
+		mip_width = std::max(1u, static_cast<unsigned>(Width) >> level);
+		mip_height = std::max(1u, static_cast<unsigned>(Height) >> level);
+	}
+
+	const unsigned row_size = mip_width * bytes_per_pixel;
+	if (mips.size() <= level)
+	{
+		mips.resize(level + 1);
+	}
+	TextureMipSnapshot &mip = mips[level];
+	if (mip.Format != TextureFormat ||
+		mip.Width != mip_width ||
+		mip.Height != mip_height ||
+		mip.Pitch < row_size ||
+		mip.Data.size() < static_cast<size_t>(mip.Pitch) * mip.Height)
+	{
+		mip.Format = TextureFormat;
+		mip.Width = mip_width;
+		mip.Height = mip_height;
+		mip.Pitch = row_size;
+		mip.Data.assign(static_cast<size_t>(row_size) * mip_height, 0);
+	}
+
+	view.Format = mip.Format;
+	view.Width = mip.Width;
+	view.Height = mip.Height;
+	view.Pitch = mip.Pitch;
+	view.Data = mip.Data.data();
+	return view;
+}
+
+void TextureClass::End_Mip_Write(unsigned int level)
+{
+	const std::vector<TextureMipSnapshot> &mips = Get_CPU_Texture_Mips();
+	if (level >= mips.size() ||
+		mips[level].Format == WW3D_FORMAT_UNKNOWN ||
+		mips[level].Data.empty())
+	{
+		return;
+	}
+
+	Mark_CPU_Texture_Mips_Changed();
+	auto *texture = Peek_Legacy_Texture2D(*this);
+	if (texture != nullptr)
+	{
+#if defined(GGC_BGFX_STANDALONE)
+		WWASSERT_PRINT(
+			false,
+			"TextureClass::End_Mip_Write: standalone bgfx cannot mirror writes to fake-D3D texture mips");
+#else
+		const TextureMipSnapshot &mip = mips[level];
+		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(mip.Format);
+		const unsigned row_size = mip.Width * bytes_per_pixel;
+		LegacyLockedRect lock_rect;
+		::ZeroMemory(&lock_rect, sizeof(lock_rect));
+		if (bytes_per_pixel != 0 &&
+			row_size != 0 &&
+			SUCCEEDED(texture->LockRect(level, &lock_rect, nullptr, 0)))
+		{
+			if (lock_rect.pBits != nullptr)
+			{
+				const unsigned char *src = mip.Data.data();
+				unsigned char *dst = static_cast<unsigned char *>(lock_rect.pBits);
+				for (unsigned row = 0; row < mip.Height; ++row)
+				{
+					memcpy(dst, src, row_size);
+					src += mip.Pitch;
+					dst += lock_rect.Pitch;
+				}
+			}
+			DX8_ErrorCode(texture->UnlockRect(level));
+		}
+#endif
+	}
+
+	if (g_renderBackend != nullptr)
+	{
+		g_renderBackend->Invalidate_Cached_Texture(this);
+	}
 }
 
 void TextureClass::Update_Surface_Level_From_Surface(unsigned int level, const SurfaceClass::SurfaceImageData &image)
@@ -1319,10 +1747,10 @@ bool TextureClass::Generate_Mip_Levels()
 			if (Build_CPU_Texture_Mips_From_Surface(base_image, MipLevelCount, rebuilt_mips))
 			{
 				Set_CPU_Texture_Snapshot(std::move(rebuilt_mips));
-				if (Peek_Legacy_Texture2D(*this) != nullptr)
-				{
-					Generate_Legacy_Texture_Mips(*this);
-				}
+					if (Peek_Legacy_Texture2D(*this) != nullptr && !Should_Use_CPU_Only_Surface_Textures())
+					{
+						Generate_Legacy_Texture_Mips(*this);
+					}
 				if (g_renderBackend != nullptr)
 				{
 					g_renderBackend->Invalidate_Cached_Texture(this);
@@ -1332,6 +1760,13 @@ bool TextureClass::Generate_Mip_Levels()
 		}
 	}
 
+	if (Should_Use_CPU_Only_Surface_Textures())
+	{
+		WWASSERT_PRINT(
+			0,
+			"Generate_Mip_Levels: BGFX CPU mip source is missing; no legacy mip fallback is allowed");
+		return false;
+	}
 	return Generate_Legacy_Texture_Mips(*this);
 }
 
@@ -1356,6 +1791,14 @@ void TextureClass::Set_LOD(unsigned int lod) const
 */
 void *TextureClass::Get_Legacy_Surface_Level(unsigned int level)
 {
+	if (Should_Use_CPU_Only_Texture_Level_Surfaces())
+	{
+		WWASSERT_PRINT(
+			0,
+			"TextureClass::Get_Legacy_Surface_Level: BGFX surface ownership is enabled; no legacy surface fallback is allowed");
+		return nullptr;
+	}
+
 	if (!Peek_Legacy_Texture2D(*this))
 	{
 		WWASSERT_PRINT(0, "Get_Legacy_Surface_Level: native texture is null!");
@@ -1572,17 +2015,27 @@ ZTextureClass::ZTextureClass
 :	TextureBaseClass(width,height, mip_level_count, pool),
 	DepthStencilTextureFormat(zformat)
 {
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership))
+	{
+		Poke_Legacy_Texture(*this, nullptr);
+		Initialized=true;
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+#endif
+
 	const int legacy_pool = Legacy_Texture_Pool(pool);
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_ZTexture
-		(
-			width,
-			height,
-			zformat,
-			mip_level_count,
-			legacy_pool
-		)
+	(
+		width,
+		height,
+		zformat,
+		mip_level_count,
+		legacy_pool
+	)
 	);
 
 #if !defined(GGC_BGFX_STANDALONE)
@@ -1665,6 +2118,14 @@ void ZTextureClass::Apply_Legacy_Surface
 */
 void *ZTextureClass::Get_Legacy_Surface_Level(unsigned int level)
 {
+	if (Should_Use_CPU_Only_Texture_Level_Surfaces())
+	{
+		WWASSERT_PRINT(
+			0,
+			"ZTextureClass::Get_Legacy_Surface_Level: BGFX surface ownership is enabled; no legacy depth surface fallback is allowed");
+		return nullptr;
+	}
+
 	if (!Peek_Legacy_Texture2D(*this))
 	{
 		WWASSERT_PRINT(0, "Get_Legacy_Surface_Level: native texture is null!");
@@ -1734,6 +2195,17 @@ CubeTextureClass::CubeTextureClass
 	}
 
 	const int legacy_pool = Legacy_Texture_Pool(pool);
+
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"CubeTextureClass: bgfx texture ownership has no cube texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
 
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Cube_Texture
@@ -1833,6 +2305,18 @@ CubeTextureClass::CubeTextureClass
 	Set_Texture_Name(name);
 	Set_Full_Path(full_path);
 	WWASSERT(name[0]!='\0');
+
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"CubeTextureClass: bgfx texture ownership has no cube texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
@@ -1939,6 +2423,17 @@ VolumeTextureClass::VolumeTextureClass
 
 	const int legacy_pool = Legacy_Texture_Pool(pool);
 
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"VolumeTextureClass: bgfx texture ownership has no volume texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+
 	Poke_Legacy_Texture(*this,
 		Create_Legacy_Volume_Texture
 		(
@@ -2038,6 +2533,18 @@ VolumeTextureClass::VolumeTextureClass
 	Set_Texture_Name(name);
 	Set_Full_Path(full_path);
 	WWASSERT(name[0]!='\0');
+
+	if (Should_Block_Unmigrated_Bgfx_Texture_Type(Get_Asset_Type()))
+	{
+		Initialized=false;
+		Poke_Legacy_Texture(*this, nullptr);
+		WWASSERT_PRINT(
+			false,
+			"VolumeTextureClass: bgfx texture ownership has no volume texture implementation; no legacy fallback is allowed");
+		LastAccessed=WW3D::Get_Sync_Time();
+		return;
+	}
+
 	if (!WW3D::Is_Texturing_Enabled())
 	{
 		Initialized=true;
