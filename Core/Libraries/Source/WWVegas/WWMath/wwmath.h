@@ -177,8 +177,6 @@ public:
 	static WWINLINE float Min(float a, float b);
 	static WWINLINE float Max(float a, float b);
 
-	static WWINLINE int Float_As_Int(const float f) { return *((int*)&f); }
-
 	// Linearly interpolates between a and b using parameter t in [0, 1].
 	// t = 0 returns a, t = 1 returns b, values in between return a proportionate blend.
 	static WWINLINE float Lerp(float a, float b, float t);
@@ -189,9 +187,6 @@ public:
 	static WWINLINE float Inverse_Lerp(float a, float b, float v);
 	static WWINLINE double Inverse_Lerp(double a, double b, float v);
 
-	static WWINLINE unsigned char Unit_Float_To_Byte(float f) { return (unsigned char)(f * 255.0f); }
-	static WWINLINE float Byte_To_Unit_Float(unsigned char byte) { return ((float)byte) / 255.0f; }
-
 	static WWINLINE bool Is_Valid_Float(float x);
 	static WWINLINE bool Is_Valid_Double(double x);
 
@@ -199,6 +194,9 @@ public:
 	static WWINLINE int Float_To_Int_Floor(float f);
 	static WWINLINE long Float_To_Long(float f);
 	static WWINLINE long Float_To_Long(double f);
+	static WWINLINE int Float_As_Int(const float f) { return *((int*)&f); }
+	static WWINLINE unsigned char Unit_Float_To_Byte(float f) { return (unsigned char)(f * 255.0f); }
+	static WWINLINE float Byte_To_Unit_Float(unsigned char byte) { return ((float)byte) / 255.0f; }
 
 	static WWINLINE float Normalize_Angle(float angle);    // Normalizes the angle to the range -PI..PI
 };
