@@ -802,6 +802,11 @@ bool FixedFunctionState::Set_Cached_Texture_Stage_State(unsigned stage, unsigned
 	return true;
 }
 
+bool FixedFunctionState::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
+{
+	return Set_Cached_Texture_Stage_State(stage, state, value);
+}
+
 void FixedFunctionState::Cached_Transform(unsigned transform, LegacyTransformMatrix & matrix)
 {
 	if (transform >= TRANSFORM_COUNT) {
