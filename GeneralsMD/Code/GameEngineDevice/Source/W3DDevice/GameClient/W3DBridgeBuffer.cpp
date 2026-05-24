@@ -1208,16 +1208,10 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 		g_renderBackend->Apply_Render_State_Changes();
 		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
-		if (g_renderBackend->Has_Shader_Pipeline()) {
-			g_renderBackend->Set_Shroud_Texture_Minimum(0.55f);
-		}
 		for (curBridge=0; curBridge<m_numBridges; curBridge++) {
 			if (m_bridges[curBridge].isEnabled() && m_bridges[curBridge].isVisible()) {
 				m_bridges[curBridge].renderBridge(TRUE);
 			}
-		}
-		if (g_renderBackend->Has_Shader_Pipeline()) {
-			g_renderBackend->Set_Shroud_Texture_Minimum(0.0f);
 		}
 		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 	}
