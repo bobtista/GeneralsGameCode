@@ -170,6 +170,12 @@ public:
 	static bool Set_Normalize_Normals_Enabled(bool enabled);
 	static unsigned Texture_Factor(unsigned default_value);
 	static bool Set_Texture_Factor(unsigned value);
+	static bool Point_Sprite_Enabled(bool default_value);
+	static bool Set_Point_Sprite_Enabled(bool enabled);
+	static bool Point_Scale_Enabled(bool default_value);
+	static bool Set_Point_Scale_Enabled(bool enabled);
+	static bool Set_Point_Size_Bits(unsigned size, unsigned min_size, unsigned max_size);
+	static bool Set_Point_Scale_Bits(unsigned a, unsigned b, unsigned c);
 	static void Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix);
 	static bool Set_Transform_Matrix(unsigned transform, const LegacyTransformMatrix & matrix);
 };
