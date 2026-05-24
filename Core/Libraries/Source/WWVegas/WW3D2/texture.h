@@ -51,7 +51,6 @@
 #include "IRenderBackend.h"
 #include <vector>
 
-class DX8Wrapper;
 class TextureLoader;
 class LoaderThreadClass;
 class TextureLoadTaskClass;
@@ -59,6 +58,7 @@ class TextureClass;
 class CubeTextureClass;
 class VolumeTextureClass;
 class DX8TextureInterop;
+struct TextureCompatibilityState;
 
 class TextureBaseClass : public RefCountClass
 {
@@ -239,10 +239,11 @@ protected:
 	int Height;
 
 private:
-	virtual void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false)=0;
+	virtual void Apply_Native_Compatibility_Texture(void *native_texture, bool initialized, bool disable_auto_invalidation = false)=0;
 
-		// Native compatibility texture object.
-		void *LegacyTexture;
+		TextureCompatibilityState *CompatibilityState;
+		void *Get_Native_Compatibility_Texture() const;
+		void Set_Native_Compatibility_Texture(void *native_texture);
 		std::vector<TextureMipSnapshot> CPUTextureMips;
 		unsigned CPUTextureRevision;
 		void Capture_CPU_Texture_Snapshot(void *native_texture);
@@ -251,10 +252,10 @@ private:
 
 		// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Populated by the asset loader after it calls
-	// g_renderBackend->Create_Texture(). Parallel to LegacyTexture, which is
-	// still populated in legacy/reference builds so existing compatibility code
-	// keeps working. Readers that want to stay backend-neutral should prefer
-	// m_backendHandle over LegacyTexture.
+	// g_renderBackend->Create_Texture(). Parallel to the native compatibility
+	// state used by legacy/reference builds so existing compatibility code keeps
+	// working. Readers that want to stay backend-neutral should prefer
+	// m_backendHandle.
 	RenderResource m_backendHandle;
 
 	// Name
@@ -289,7 +290,6 @@ private:
 class TextureClass : public TextureBaseClass
 {
 	W3DMPO_CODE(TextureClass)
-//	friend DX8Wrapper;
 
 public:
 	struct TextureAtlasRegion
@@ -412,8 +412,8 @@ private:
 	friend class TextureLoader;
 	friend class TextureLoadTaskClass;
 	friend class DX8TextureInterop;
-	void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
-	void *Get_Legacy_Surface_Level(unsigned int level = 0);
+	void Apply_Native_Compatibility_Texture(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
+	void *Get_Native_Compatibility_Surface_Level(unsigned int level = 0);
 };
 
 class ZTextureClass : public TextureBaseClass
@@ -441,8 +441,8 @@ public:
 
 private:
 	friend class DX8TextureInterop;
-	void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
-	void *Get_Legacy_Surface_Level(unsigned int level = 0);
+	void Apply_Native_Compatibility_Texture(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
+	void *Get_Native_Compatibility_Surface_Level(unsigned int level = 0);
 
 	WW3DZFormat DepthStencilTextureFormat;
 };
@@ -487,7 +487,7 @@ public:
 	virtual CubeTextureClass* As_CubeTextureClass() override { return this; }
 
 private:
-	void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
+	void Apply_Native_Compatibility_Texture(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
 
 };
 
@@ -536,7 +536,7 @@ protected:
 	int Depth;
 
 private:
-	void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
+	void Apply_Native_Compatibility_Texture(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
 };
 
 // Utility functions for loading and saving texture descriptions from/to W3D files

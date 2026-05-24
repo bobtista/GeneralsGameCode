@@ -44,6 +44,7 @@
 
 class SurfaceClass;
 class TextureClass;
+struct SurfaceCompatibilityState;
 class Vector2i;
 class Vector3;
 class DX8TextureInterop;
@@ -151,21 +152,22 @@ class SurfaceClass : public RefCountClass
 
 	private:
 		SurfaceClass(const SurfaceImageData &image);
-		SurfaceClass(void *legacy_surface);
-		void	Attach_Legacy_Surface(void *surface);
-		void	Update_Description_From_Legacy_Surface();
+		SurfaceClass(void *native_compatibility_surface);
+		void	Attach_Native_Compatibility_Surface(void *surface);
+		void	Update_Description_From_Native_Compatibility_Surface();
 		void	Allocate_CPU_Surface_Snapshot();
 		void	Capture_CPU_Surface_Snapshot();
 		void	Refresh_CPU_Surface_Snapshot_If_Present();
-		void	Upload_CPU_Surface_Snapshot_To_Legacy();
+		void	Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface();
 		void	Ensure_CPU_Surface_Snapshot_Current();
 		void	Mark_CPU_Surface_Snapshot_Stale();
 		void	Attach_Texture_Level_Owner(TextureClass *texture, unsigned int level);
 		bool	Has_Compatible_CPU_Surface_Snapshot(const SurfaceDescription &desc) const;
 		bool	Has_CPU_Surface_Snapshot() const { return !ImageData.Data.empty(); }
+		void	*Get_Native_Compatibility_Surface() const;
+		void	Set_Native_Compatibility_Surface(void *surface);
 
-		// Legacy surface object
-		void *D3DSurface;
+		SurfaceCompatibilityState *CompatibilityState;
 
 		WW3DFormat SurfaceFormat;
 		SurfaceDescription Description;

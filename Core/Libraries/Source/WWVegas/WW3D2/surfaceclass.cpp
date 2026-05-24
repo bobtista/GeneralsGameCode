@@ -56,11 +56,15 @@
 #include "texturecompat.h"
 #if !defined(GGC_BGFX_STANDALONE)
 #include "dx8textureinterop.h"
-#endif
 #include "dx8wrapper.h"
+#endif
 #include "vector2i.h"
 #include "colorspace.h"
 #include "bound.h"
+
+#if defined(GGC_BGFX_STANDALONE)
+#define DX8_ErrorCode(hr) ((void)(hr))
+#endif
 
 namespace
 {
@@ -109,8 +113,14 @@ namespace
 	}
 }
 
-#define LEGACY_SURFACE static_cast<LegacySurface *>(D3DSurface)
-#define OTHER_LEGACY_SURFACE(surface) static_cast<LegacySurface *>((surface)->D3DSurface)
+struct SurfaceCompatibilityState
+{
+	void *NativeSurface = nullptr;
+};
+
+#define NativeCompatibilitySurface CompatibilityState->NativeSurface
+#define NATIVE_COMPATIBILITY_SURFACE static_cast<LegacySurface *>(NativeCompatibilitySurface)
+#define OTHER_NATIVE_COMPATIBILITY_SURFACE(surface) static_cast<LegacySurface *>((surface)->NativeCompatibilitySurface)
 
 static LegacySurfaceCopyRect To_Legacy_Surface_Copy_Rect(const LegacyRect& rect)
 {
@@ -223,7 +233,7 @@ void Convert_Pixel(unsigned char * pixel,const SurfaceClass::SurfaceDescription 
 **                             SurfaceClass
 *************************************************************************/
 SurfaceClass::SurfaceClass(unsigned width, unsigned height, WW3DFormat format):
-	D3DSurface(nullptr),
+	CompatibilityState(new SurfaceCompatibilityState),
 	SurfaceFormat(format),
 	Description{format, width, height},
 	ImageData{format, width, height, 0, {}},
@@ -246,14 +256,14 @@ SurfaceClass::SurfaceClass(unsigned width, unsigned height, WW3DFormat format):
 		"SurfaceClass(width,height,format): standalone bgfx cannot create legacy surface fallback");
 	return;
 #else
-	D3DSurface = Create_Legacy_Surface(width, height, format);
-	Update_Description_From_Legacy_Surface();
+	NativeCompatibilitySurface = Create_Legacy_Surface(width, height, format);
+	Update_Description_From_Native_Compatibility_Surface();
 	Capture_CPU_Surface_Snapshot();
 #endif
 }
 
 SurfaceClass::SurfaceClass(const char *filename):
-	D3DSurface(nullptr),
+	CompatibilityState(new SurfaceCompatibilityState),
 	SurfaceFormat(WW3D_FORMAT_UNKNOWN),
 	Description{WW3D_FORMAT_UNKNOWN, 0, 0},
 	ImageData{WW3D_FORMAT_UNKNOWN, 0, 0, 0, {}},
@@ -283,14 +293,14 @@ SurfaceClass::SurfaceClass(const char *filename):
 #if defined(GGC_BGFX_STANDALONE)
 	WWASSERT_PRINT(false, "SurfaceClass(filename): standalone bgfx must use CPU surface path");
 #else
-	D3DSurface = Create_Legacy_Surface_From_File(filename);
-	Update_Description_From_Legacy_Surface();
+	NativeCompatibilitySurface = Create_Legacy_Surface_From_File(filename);
+	Update_Description_From_Native_Compatibility_Surface();
 	Capture_CPU_Surface_Snapshot();
 #endif
 }
 
 SurfaceClass::SurfaceClass(const SurfaceImageData &image):
-	D3DSurface(nullptr),
+	CompatibilityState(new SurfaceCompatibilityState),
 	SurfaceFormat(image.Format),
 	Description{image.Format, image.Width, image.Height},
 	ImageData{image.Format, image.Width, image.Height, 0, {}},
@@ -317,8 +327,8 @@ SurfaceClass::SurfaceClass(const SurfaceImageData &image):
 	}
 }
 
-SurfaceClass::SurfaceClass(void *legacy_surface)	:
-	D3DSurface(nullptr),
+SurfaceClass::SurfaceClass(void *native_compatibility_surface)	:
+	CompatibilityState(new SurfaceCompatibilityState),
 	SurfaceFormat(WW3D_FORMAT_UNKNOWN),
 	Description{WW3D_FORMAT_UNKNOWN, 0, 0},
 	ImageData{WW3D_FORMAT_UNKNOWN, 0, 0, 0, {}},
@@ -328,7 +338,7 @@ SurfaceClass::SurfaceClass(void *legacy_surface)	:
 	TextureOwner(nullptr),
 	TextureOwnerLevel(0)
 {
-	Attach_Legacy_Surface(legacy_surface);
+	Attach_Native_Compatibility_Surface(native_compatibility_surface);
 }
 
 SurfaceClass::~SurfaceClass()
@@ -337,16 +347,29 @@ SurfaceClass::~SurfaceClass()
 		TextureOwner->Release_Ref();
 		TextureOwner = nullptr;
 	}
-	if (D3DSurface) {
+	if (NativeCompatibilitySurface) {
 #if defined(GGC_BGFX_STANDALONE)
 		WWASSERT_PRINT(
 			false,
 			"SurfaceClass::~SurfaceClass: standalone bgfx cannot release fake-D3D surfaces");
 #else
-		LEGACY_SURFACE->Release();
+		NATIVE_COMPATIBILITY_SURFACE->Release();
 #endif
-		D3DSurface = nullptr;
+		NativeCompatibilitySurface = nullptr;
 	}
+	delete CompatibilityState;
+	CompatibilityState = nullptr;
+}
+
+void *SurfaceClass::Get_Native_Compatibility_Surface() const
+{
+	return CompatibilityState != nullptr ? CompatibilityState->NativeSurface : nullptr;
+}
+
+void SurfaceClass::Set_Native_Compatibility_Surface(void *surface)
+{
+	WWASSERT(CompatibilityState != nullptr);
+	CompatibilityState->NativeSurface = surface;
 }
 
 void SurfaceClass::Get_Description(SurfaceDescription &surface_desc)
@@ -380,7 +403,7 @@ SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch)
 #else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
-	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&lock_rect, nullptr, 0));
 	*pitch = lock_rect.Pitch;
 	RefreshCPUAfterUnlock = Should_Use_CPU_Surface_Snapshots() && Has_CPU_Surface_Snapshot();
 	return static_cast<LockedSurfacePtr>(lock_rect.pBits);
@@ -416,7 +439,7 @@ SurfaceClass::LockedSurfacePtr SurfaceClass::Lock(int *pitch, const Vector2i &mi
 	rect.top = min.J;
 	rect.right = max.I;
 	rect.bottom = max.J;
-	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, &rect, 0));
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&lock_rect, &rect, 0));
 
 	*pitch = lock_rect.Pitch;
 	RefreshCPUAfterUnlock = Should_Use_CPU_Surface_Snapshots() && Has_CPU_Surface_Snapshot();
@@ -429,7 +452,7 @@ void SurfaceClass::Unlock()
 	if (CPULockActive)
 	{
 		CPULockActive = false;
-		Upload_CPU_Surface_Snapshot_To_Legacy();
+		Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface();
 		return;
 	}
 
@@ -439,7 +462,7 @@ void SurfaceClass::Unlock()
 		"SurfaceClass::Unlock: standalone bgfx cannot unlock fake-D3D surfaces");
 	return;
 #else
-	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 	if (RefreshCPUAfterUnlock) {
 		RefreshCPUAfterUnlock = false;
 		Capture_CPU_Surface_Snapshot();
@@ -476,7 +499,7 @@ void SurfaceClass::Clear()
 		{
 			memset(ImageData.Data.data() + row * ImageData.Pitch, 0, row_size);
 		}
-		Upload_CPU_Surface_Snapshot_To_Legacy();
+		Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface();
 		return;
 	}
 
@@ -488,7 +511,7 @@ void SurfaceClass::Clear()
 #else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
-	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect,nullptr,0));
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&lock_rect,nullptr,0));
 	unsigned int i;
 	unsigned char *mem=(unsigned char *) lock_rect.pBits;
 
@@ -498,7 +521,7 @@ void SurfaceClass::Clear()
 		mem+=lock_rect.Pitch;
 	}
 
-	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 	Refresh_CPU_Surface_Snapshot_If_Present();
 #endif
 }
@@ -547,7 +570,7 @@ void SurfaceClass::Copy(const unsigned char *other, unsigned int pitch)
 		{
 			memcpy(ImageData.Data.data() + row * ImageData.Pitch, other + row * pitch, row_size);
 		}
-		Upload_CPU_Surface_Snapshot_To_Legacy();
+		Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface();
 		return;
 	}
 
@@ -559,7 +582,7 @@ void SurfaceClass::Copy(const unsigned char *other, unsigned int pitch)
 #else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
-	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect,nullptr,0));
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&lock_rect,nullptr,0));
 	unsigned int i;
 	unsigned char *mem=(unsigned char *) lock_rect.pBits;
 
@@ -569,7 +592,7 @@ void SurfaceClass::Copy(const unsigned char *other, unsigned int pitch)
 		mem+=lock_rect.Pitch;
 	}
 
-	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 	Refresh_CPU_Surface_Snapshot_If_Present();
 #endif
 }
@@ -608,7 +631,7 @@ void SurfaceClass::Copy(const Vector2i &min, const Vector2i &max, const unsigned
 				min.I * size;
 			memcpy(dst,&other[(i*sd.Width+min.I)*size],size*dx);
 		}
-		Upload_CPU_Surface_Snapshot_To_Legacy();
+		Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface();
 		return;
 	}
 
@@ -625,7 +648,7 @@ void SurfaceClass::Copy(const Vector2i &min, const Vector2i &max, const unsigned
 	rect.right=max.I;
 	rect.top=min.J;
 	rect.bottom=max.J;
-	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect,&rect,0));
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&lock_rect,&rect,0));
 	int i;
 	unsigned char *mem=(unsigned char *) lock_rect.pBits;
 	int dx=max.I-min.I;
@@ -636,7 +659,7 @@ void SurfaceClass::Copy(const Vector2i &min, const Vector2i &max, const unsigned
 		mem+=lock_rect.Pitch;
 	}
 
-	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 	Refresh_CPU_Surface_Snapshot_If_Present();
 #endif
 }
@@ -696,7 +719,7 @@ unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool fli
 #else
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
-	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect,nullptr,kLegacyLockReadOnly));
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&lock_rect,nullptr,kLegacyLockReadOnly));
 	unsigned int i;
 	unsigned char *mem=(unsigned char *) lock_rect.pBits;
 
@@ -712,7 +735,7 @@ unsigned char *SurfaceClass::CreateCopy(int *width,int *height,int*size,bool fli
 		mem+=lock_rect.Pitch;
 	}
 
-	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 
 	return other;
 #endif
@@ -806,13 +829,13 @@ void SurfaceClass::Copy(
 					unsigned char *src_row = base + (srcy + y) * ImageData.Pitch + srcx * pixel_size;
 					memmove(dst_row, src_row, row_size);
 				}
-				Upload_CPU_Surface_Snapshot_To_Legacy();
+				Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface();
 				return;
 			}
 
 			LegacyLockedRect lock_rect;
 			::ZeroMemory(&lock_rect, sizeof(lock_rect));
-			DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
+			DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&lock_rect, nullptr, 0));
 
 			unsigned char *base = static_cast<unsigned char *>(lock_rect.pBits);
 			for (unsigned int y = 0; y < copy_height; ++y)
@@ -822,7 +845,7 @@ void SurfaceClass::Copy(
 				memmove(dst_row, src_row, row_size);
 			}
 
-			DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+			DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 		}
 		else
 		{
@@ -840,7 +863,7 @@ void SurfaceClass::Copy(
 				src_rect.right = srcx + copy_width;
 				src_rect.top = srcy;
 				src_rect.bottom = srcy + copy_height;
-				DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->LockRect(&src_lock, &src_rect, kLegacyLockReadOnly));
+				DX8_ErrorCode(OTHER_NATIVE_COMPATIBILITY_SURFACE(other)->LockRect(&src_lock, &src_rect, kLegacyLockReadOnly));
 				src_mem = static_cast<const unsigned char *>(src_lock.pBits);
 				src_pitch = src_lock.Pitch;
 			}
@@ -855,9 +878,9 @@ void SurfaceClass::Copy(
 					dst_mem += ImageData.Pitch;
 				}
 				if (!can_copy_from_cpu) {
-					DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->UnlockRect());
+					DX8_ErrorCode(OTHER_NATIVE_COMPATIBILITY_SURFACE(other)->UnlockRect());
 				}
-				Upload_CPU_Surface_Snapshot_To_Legacy();
+				Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface();
 				return;
 			}
 
@@ -869,7 +892,7 @@ void SurfaceClass::Copy(
 
 			LegacyLockedRect dst_lock;
 			::ZeroMemory(&dst_lock, sizeof(dst_lock));
-			DX8_ErrorCode(LEGACY_SURFACE->LockRect(&dst_lock, &dst_rect, 0));
+			DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&dst_lock, &dst_rect, 0));
 
 			unsigned char *dst_mem = static_cast<unsigned char *>(dst_lock.pBits);
 			for (unsigned int y = 0; y < copy_height; ++y)
@@ -878,9 +901,9 @@ void SurfaceClass::Copy(
 				src_mem += src_pitch;
 				dst_mem += dst_lock.Pitch;
 			}
-			DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+			DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 			if (!can_copy_from_cpu) {
-				DX8_ErrorCode(OTHER_LEGACY_SURFACE(other)->UnlockRect());
+				DX8_ErrorCode(OTHER_NATIVE_COMPATIBILITY_SURFACE(other)->UnlockRect());
 			}
 		}
 	}
@@ -910,9 +933,9 @@ void SurfaceClass::Copy(
 		if (dest.bottom>int(sd.Height)) dest.bottom=int(sd.Height);
 
 		Copy_Legacy_Surface(
-			LEGACY_SURFACE,
+			NATIVE_COMPATIBILITY_SURFACE,
 			To_Legacy_Surface_Copy_Rect(dest),
-			OTHER_LEGACY_SURFACE(other),
+			OTHER_NATIVE_COMPATIBILITY_SURFACE(other),
 			To_Legacy_Surface_Copy_Rect(src),
 			kLegacySurfaceCopyNoFilter);
 #endif
@@ -972,9 +995,9 @@ void SurfaceClass::Stretch_Copy(
 	dest.bottom=dsty+dstheight;
 
 	Copy_Legacy_Surface(
-		LEGACY_SURFACE,
+		NATIVE_COMPATIBILITY_SURFACE,
 		To_Legacy_Surface_Copy_Rect(dest),
-		OTHER_LEGACY_SURFACE(other),
+		OTHER_NATIVE_COMPATIBILITY_SURFACE(other),
 		To_Legacy_Surface_Copy_Rect(src),
 		kLegacySurfaceCopyTriangleFilter);
 	Refresh_CPU_Surface_Snapshot_If_Present();
@@ -1060,7 +1083,7 @@ void SurfaceClass::FindBB(Vector2i *min,Vector2i*max)
 	rect.left=min->I;
 	rect.right=max->I;
 
-	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect,&rect,kLegacyLockReadOnly));
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&lock_rect,&rect,kLegacyLockReadOnly));
 
 	int x,y;
 	unsigned int size=::Get_Bytes_Per_Pixel(sd.Format);
@@ -1087,7 +1110,7 @@ void SurfaceClass::FindBB(Vector2i *min,Vector2i*max)
 		}
 	}
 
-	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 
 	*max=realmax;
 	*min=realmin;
@@ -1165,7 +1188,7 @@ bool SurfaceClass::Is_Transparent_Column(unsigned int column)
 	rect.left=column;
 	rect.right=column+1;
 
-	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect,&rect,kLegacyLockReadOnly));
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&lock_rect,&rect,kLegacyLockReadOnly));
 
 	int y;
 
@@ -1179,12 +1202,12 @@ bool SurfaceClass::Is_Transparent_Column(unsigned int column)
 		unsigned char myalpha=alpha[size-1];
 		myalpha=(myalpha>>(8-alphabits)) & mask;
 		if (myalpha) {
-			DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+			DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 			return false;
 		}
 	}
 
-	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 	return true;
 #endif
 }
@@ -1230,40 +1253,40 @@ void SurfaceClass::Get_Pixel(Vector3 &rgb, int x, int y, LockedSurfacePtr pBits,
  * HISTORY:                                                                                    *
  *   3/27/2001  pds : Created.                                                                 *
  *=============================================================================================*/
-void SurfaceClass::Attach_Legacy_Surface(void *surface)
+void SurfaceClass::Attach_Native_Compatibility_Surface(void *surface)
 {
 	Detach ();
 #if defined(GGC_BGFX_STANDALONE)
 	WWASSERT_PRINT(
 		surface == nullptr,
-		"SurfaceClass::Attach_Legacy_Surface: standalone bgfx cannot attach fake-D3D surfaces");
-	D3DSurface = nullptr;
+		"SurfaceClass::Attach_Native_Compatibility_Surface: standalone bgfx cannot attach fake-D3D surfaces");
+	NativeCompatibilitySurface = nullptr;
 	return;
 #else
-	D3DSurface = static_cast<LegacySurface *>(surface);
+	NativeCompatibilitySurface = static_cast<LegacySurface *>(surface);
 
 	//
 	//	Lock a reference onto the object
 	//
-	if (D3DSurface != nullptr) {
-		LEGACY_SURFACE->AddRef ();
-		Update_Description_From_Legacy_Surface();
+	if (NativeCompatibilitySurface != nullptr) {
+		NATIVE_COMPATIBILITY_SURFACE->AddRef ();
+		Update_Description_From_Native_Compatibility_Surface();
 	}
 #endif
 }
 
-void SurfaceClass::Update_Description_From_Legacy_Surface()
+void SurfaceClass::Update_Description_From_Native_Compatibility_Surface()
 {
-	WWASSERT(D3DSurface != nullptr);
+	WWASSERT(NativeCompatibilitySurface != nullptr);
 
 #if defined(GGC_BGFX_STANDALONE)
 	WWASSERT_PRINT(
 		false,
-		"SurfaceClass::Update_Description_From_Legacy_Surface: standalone bgfx cannot read fake-D3D surface descriptions");
+		"SurfaceClass::Update_Description_From_Native_Compatibility_Surface: standalone bgfx cannot read fake-D3D surface descriptions");
 #else
 	LegacySurfaceDesc d3d_desc;
 	::ZeroMemory(&d3d_desc, sizeof(d3d_desc));
-	DX8_ErrorCode(LEGACY_SURFACE->GetDesc(&d3d_desc));
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->GetDesc(&d3d_desc));
 
 	Description.Format = D3DFormat_To_WW3DFormat(d3d_desc.Format);
 	Description.Width = d3d_desc.Width;
@@ -1295,7 +1318,7 @@ void SurfaceClass::Capture_CPU_Surface_Snapshot()
 {
 #if defined(GGC_BGFX_STANDALONE)
 	WWASSERT_PRINT(
-		D3DSurface == nullptr,
+		NativeCompatibilitySurface == nullptr,
 		"SurfaceClass::Capture_CPU_Surface_Snapshot: standalone bgfx cannot read fake-D3D surface snapshots");
 	return;
 #else
@@ -1307,7 +1330,7 @@ void SurfaceClass::Capture_CPU_Surface_Snapshot()
 	CPUImagePossiblyStale = false;
 
 	if (!Should_Use_CPU_Surface_Snapshots() ||
-		D3DSurface == nullptr ||
+		NativeCompatibilitySurface == nullptr ||
 		!Can_Store_CPU_Surface_Data(Description)) {
 		return;
 	}
@@ -1319,7 +1342,7 @@ void SurfaceClass::Capture_CPU_Surface_Snapshot()
 
 	LegacyLockedRect lock_rect;
 	::ZeroMemory(&lock_rect, sizeof(lock_rect));
-	DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, kLegacyLockReadOnly));
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&lock_rect, nullptr, kLegacyLockReadOnly));
 
 	const unsigned char *src = static_cast<const unsigned char *>(lock_rect.pBits);
 	unsigned char *dst = ImageData.Data.data();
@@ -1330,7 +1353,7 @@ void SurfaceClass::Capture_CPU_Surface_Snapshot()
 		dst += ImageData.Pitch;
 	}
 
-	DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+	DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 #endif
 }
 
@@ -1341,25 +1364,25 @@ void SurfaceClass::Refresh_CPU_Surface_Snapshot_If_Present()
 	}
 }
 
-void SurfaceClass::Upload_CPU_Surface_Snapshot_To_Legacy()
+void SurfaceClass::Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface()
 {
 	if (!Has_Compatible_CPU_Surface_Snapshot(Description)) {
 		return;
 	}
 
-	if (D3DSurface != nullptr)
+	if (NativeCompatibilitySurface != nullptr)
 	{
 #if defined(GGC_BGFX_STANDALONE)
 		WWASSERT_PRINT(
 			false,
-			"SurfaceClass::Upload_CPU_Surface_Snapshot_To_Legacy: standalone bgfx cannot write fake-D3D surfaces");
+			"SurfaceClass::Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface: standalone bgfx cannot write fake-D3D surfaces");
 #else
 		const unsigned int pixel_size = ::Get_Bytes_Per_Pixel(Description.Format);
 		const unsigned int row_size = Description.Width * pixel_size;
 
 		LegacyLockedRect lock_rect;
 		::ZeroMemory(&lock_rect, sizeof(lock_rect));
-		DX8_ErrorCode(LEGACY_SURFACE->LockRect(&lock_rect, nullptr, 0));
+		DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->LockRect(&lock_rect, nullptr, 0));
 
 		const unsigned char *src = ImageData.Data.data();
 		unsigned char *dst = static_cast<unsigned char *>(lock_rect.pBits);
@@ -1370,7 +1393,7 @@ void SurfaceClass::Upload_CPU_Surface_Snapshot_To_Legacy()
 			dst += lock_rect.Pitch;
 		}
 
-		DX8_ErrorCode(LEGACY_SURFACE->UnlockRect());
+		DX8_ErrorCode(NATIVE_COMPATIBILITY_SURFACE->UnlockRect());
 #endif
 	}
 
@@ -1441,17 +1464,17 @@ void SurfaceClass::Detach ()
 	//
 	//	Release the hold we have on the legacy surface object
 	//
-	if (D3DSurface != nullptr) {
+	if (NativeCompatibilitySurface != nullptr) {
 #if defined(GGC_BGFX_STANDALONE)
 		WWASSERT_PRINT(
 			false,
 			"SurfaceClass::Detach: standalone bgfx cannot release fake-D3D surfaces");
 #else
-		LEGACY_SURFACE->Release ();
+		NATIVE_COMPATIBILITY_SURFACE->Release ();
 #endif
 	}
 
-	D3DSurface = nullptr;
+	NativeCompatibilitySurface = nullptr;
 	Description.Width = 0;
 	Description.Height = 0;
 	ImageData.Data.clear();

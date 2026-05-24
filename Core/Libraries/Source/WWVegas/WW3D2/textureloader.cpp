@@ -51,7 +51,9 @@
 #include	"bufffile.h"
 #include "ww3d.h"
 #include "assetmgr.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "dx8wrapper.h"
+#endif
 #include "missingtexture.h"
 #include "TARGA.h"
 #include "RenderBackend.h"
@@ -70,6 +72,8 @@
 
 namespace
 {
+	unsigned s_mainRenderThreadId = 0;
+
 	constexpr auto kLegacyManagedPool = LEGACY_TEXTURE_POOL_MANAGED;
 	constexpr auto kLegacySystemPool = LEGACY_TEXTURE_POOL_SYSTEMMEM;
 	constexpr auto kLegacyDefaultPool = LEGACY_TEXTURE_POOL_DEFAULT;
@@ -280,7 +284,7 @@ class TextureLoadTaskClass : public TextureLoadTaskListNodeClass
 		unsigned int			Get_Locked_Surface_Pitch(unsigned int level) const;
 
 		TextureBaseClass *	Peek_Texture				()				{ return Texture;			}
-		LegacyLoaderTexture	*	Peek_D3D_Texture			()				{ return static_cast<LegacyLoaderTexture*>(D3DTexture);		}
+		LegacyLoaderTexture	*	Peek_Native_Compatibility_Texture			()				{ return static_cast<LegacyLoaderTexture*>(NativeCompatibilityTexture);		}
 
 		void						Set_Type						(TaskType t)		{ Type		= t;			}
 		void						Set_Priority				(PriorityType p)	{ Priority	= p;			}
@@ -310,7 +314,7 @@ class TextureLoadTaskClass : public TextureLoadTaskListNodeClass
 		void						Apply							(bool initialize);
 
 		TextureBaseClass*		Texture;
-		void*						D3DTexture;
+		void*						NativeCompatibilityTexture;
 		WW3DFormat				Format;
 
 		unsigned int			Width;
@@ -352,7 +356,7 @@ private:
 	unsigned char*			Get_Locked_CubeMap_Surface_Pointer(unsigned int face, unsigned int level);
 	unsigned int			Get_Locked_CubeMap_Surface_Pitch(unsigned int face, unsigned int level) const;
 
-	LegacyLoaderCubeTexture*	Peek_D3D_Cube_Texture()				{ return static_cast<LegacyLoaderCubeTexture*>(D3DTexture);		}
+	LegacyLoaderCubeTexture*	Peek_Native_Compatibility_Cube_Texture()				{ return static_cast<LegacyLoaderCubeTexture*>(NativeCompatibilityTexture);		}
 
 	unsigned char*			LockedCubeSurfacePtr[6][MIP_LEVELS_MAX];
 	unsigned int			LockedCubeSurfacePitch[6][MIP_LEVELS_MAX];
@@ -382,7 +386,7 @@ private:
 	unsigned int			Get_Locked_Volume_Slice_Pitch(unsigned int level);
 
 #if !defined(GGC_BGFX_STANDALONE)
-	auto*	Peek_D3D_Volume_Texture()				{ return static_cast<decltype(Peek_Legacy_Volume_Texture(*Texture))>(D3DTexture);		}
+	auto*	Peek_Native_Compatibility_Volume_Texture()				{ return static_cast<decltype(Peek_Legacy_Volume_Texture(*Texture))>(NativeCompatibilityTexture);		}
 #endif
 
 	unsigned	int			LockedSurfaceSlicePitch[MIP_LEVELS_MAX];
@@ -692,6 +696,7 @@ static RenderBackendTextureLimits Get_Backend_Texture_Limits()
 void TextureLoader::Init()
 {
 	WWASSERT(!_TextureLoadThread.Is_Running());
+	s_mainRenderThreadId = ThreadClass::_Get_Current_Thread_ID();
 
 	ThumbnailManagerClass::Init();
 
@@ -711,9 +716,13 @@ void TextureLoader::Deinit()
 }
 
 
-bool TextureLoader::Is_DX8_Thread()
+bool TextureLoader::Is_Main_Render_Thread()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	return (ThreadClass::_Get_Current_Thread_ID() == s_mainRenderThreadId);
+#else
 	return (ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
+#endif
 }
 
 
@@ -786,7 +795,7 @@ void TextureLoader::Validate_Texture_Size
 #if !defined(GGC_BGFX_STANDALONE)
 static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, const Vector3& hsv_shift)//,WW3DFormat texture_format)
 {
-	WWASSERT(Is_DX8_Thread());
+	WWASSERT(Is_Main_Render_Thread());
 
 	ThumbnailClass* thumb=nullptr;
 	thumb=ThumbnailManagerClass::Peek_Thumbnail_Instance_From_Any_Manager(filename);
@@ -1018,7 +1027,7 @@ LegacyLoaderSurface * Load_Legacy_Surface_Immediate(
 		"Load_Legacy_Surface_Immediate: standalone bgfx cannot create fake-D3D surfaces");
 	return nullptr;
 #else
-	WWASSERT(Is_DX8_Thread());
+	WWASSERT(Is_Main_Render_Thread());
 
 	bool compressed=Is_Format_Compressed(texture_format,allow_compression);
 
@@ -1134,7 +1143,7 @@ bool TextureLoader::Load_Surface_Image_Immediate(
 	bool allow_compression,
 	SurfaceClass::SurfaceImageData &image)
 {
-	WWASSERT(Is_DX8_Thread());
+	WWASSERT(Is_Main_Render_Thread());
 
 	image = {WW3D_FORMAT_UNKNOWN, 0, 0, 0, {}};
 	if (Is_Format_Compressed(texture_format, allow_compression)) {
@@ -1256,7 +1265,7 @@ void TextureLoader::Request_Thumbnail(TextureBaseClass *tc)
 
 	TextureLoadTaskClass *task = tc->ThumbnailLoadTask;
 
-	if (Is_DX8_Thread()) {
+	if (Is_Main_Render_Thread()) {
 		// load the thumbnail immediately
 		TextureLoader::Load_Thumbnail(tc);
 
@@ -1306,7 +1315,7 @@ void TextureLoader::Request_Background_Loading(TextureBaseClass *tc)
 
 	task = TextureLoadTaskClass::Create(tc, TextureLoadTaskClass::TASK_LOAD, TextureLoadTaskClass::PRIORITY_LOW);
 
-	if (Is_DX8_Thread()) {
+	if (Is_Main_Render_Thread()) {
 		Begin_Load_And_Queue(task);
 	} else {
 		_ForegroundQueue.Push_Back(task);
@@ -1331,7 +1340,7 @@ void TextureLoader::Request_Foreground_Loading(TextureBaseClass *tc)
 	TextureLoadTaskClass *task			= tc->TextureLoadTask;
 	TextureLoadTaskClass *task_thumb = tc->ThumbnailLoadTask;
 
-	if (Is_DX8_Thread()) {
+	if (Is_Main_Render_Thread()) {
 
 		// since we're in the DX8 thread, we can load the entire
 		// texture right now.
@@ -1411,7 +1420,7 @@ void TextureLoader::Flush_Pending_Load_Tasks()
 	// to complete texture loading. If we wanted to flush
 	// the pending tasks from another thread, we'd probably
 	// want to set a bool that is checked by Update().
-	WWASSERT(Is_DX8_Thread());
+	WWASSERT(Is_Main_Render_Thread());
 
 	for (;;) {
 		bool done = false;
@@ -1459,7 +1468,7 @@ void TextureLoader::Flush_Pending_Load_Tasks()
 
 void TextureLoader::Update(void (*network_callback)())
 {
-	WWASSERT_PRINT(Is_DX8_Thread(), "TextureLoader::Update must be called from the main thread!");
+	WWASSERT_PRINT(Is_Main_Render_Thread(), "TextureLoader::Update must be called from the main thread!");
 
 	if (TextureLoadSuspended) {
 		return;
@@ -1491,13 +1500,13 @@ void TextureLoader::Update(void (*network_callback)())
 
 void TextureLoader::Suspend_Texture_Load()
 {
-	WWASSERT_PRINT(Is_DX8_Thread(),"TextureLoader::Suspend_Texture_Load must be called from the main thread!");
+	WWASSERT_PRINT(Is_Main_Render_Thread(),"TextureLoader::Suspend_Texture_Load must be called from the main thread!");
 	TextureLoadSuspended=true;
 }
 
 void TextureLoader::Continue_Texture_Load()
 {
-	WWASSERT_PRINT(Is_DX8_Thread(),"TextureLoader::Continue_Texture_Load must be called from the main thread!");
+	WWASSERT_PRINT(Is_Main_Render_Thread(),"TextureLoader::Continue_Texture_Load must be called from the main thread!");
 	TextureLoadSuspended=false;
 }
 
@@ -1542,7 +1551,7 @@ void TextureLoader::Process_Foreground_Load(TextureLoadTaskClass *task)
 void TextureLoader::Begin_Load_And_Queue(TextureLoadTaskClass *task)
 {
 	// should only be called from the DX8 thread.
-	WWASSERT(Is_DX8_Thread());
+	WWASSERT(Is_Main_Render_Thread());
 
 	if (task->Begin_Load()) {
 		// add to front of background queue. This means the
@@ -1566,7 +1575,7 @@ void TextureLoader::Begin_Load_And_Queue(TextureLoadTaskClass *task)
 void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 {
 	// All legacy texture operations must run from main thread
-	WWASSERT(Is_DX8_Thread());
+	WWASSERT(Is_Main_Render_Thread());
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	if (Should_Use_CPU_Texture_Thumbnail(tc))
@@ -1615,7 +1624,7 @@ void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 	// apply thumbnail to texture
 	if (tc->Get_Asset_Type()==TextureBaseClass::TEX_REGULAR)
 	{
-		Apply_Legacy_Surface(*tc, d3d_texture, false);
+		Apply_Native_Compatibility_Texture(*tc, d3d_texture, false);
 	}
 
 	// release our reference to thumbnail texture
@@ -1662,7 +1671,7 @@ void LoaderThreadClass::Thread_Function()
 
 TextureLoadTaskClass::TextureLoadTaskClass()
 :	Texture			(nullptr),
-	D3DTexture		(nullptr),
+	NativeCompatibilityTexture		(nullptr),
 	Format			(WW3D_FORMAT_UNKNOWN),
 	Width				(0),
 	Height			(0),
@@ -1751,7 +1760,7 @@ void TextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, PriorityTyp
 	WWASSERT(tc);
 
 	// NOTE: we must be in the main thread to avoid corrupting the texture's refcount.
-	WWASSERT(TextureLoader::Is_DX8_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 	REF_PTR_SET(Texture, tc);
 
 	// Make sure texture has a filename.
@@ -1761,7 +1770,7 @@ void TextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, PriorityTyp
 	Priority			= priority;
 	State				= STATE_NONE;
 
-	D3DTexture		= nullptr;
+	NativeCompatibilityTexture		= nullptr;
 	UseCPUTextureSnapshotStaging = false;
 	StagedCPUTextureMips.clear();
 
@@ -1810,7 +1819,7 @@ void TextureLoadTaskClass::Deinit()
 	WWASSERT(Next == nullptr);
 	WWASSERT(Prev == nullptr);
 
-	WWASSERT(D3DTexture == nullptr);
+	WWASSERT(NativeCompatibilityTexture == nullptr);
 	WWASSERT(!UseCPUTextureSnapshotStaging);
 	WWASSERT(StagedCPUTextureMips.empty());
 
@@ -1832,7 +1841,7 @@ void TextureLoadTaskClass::Deinit()
 		}
 
 		// NOTE: we must be in main thread to avoid corrupting Texture's refcount.
-		WWASSERT(TextureLoader::Is_DX8_Thread());
+		WWASSERT(TextureLoader::Is_Main_Render_Thread());
 		REF_PTR_RELEASE(Texture);
 	}
 }
@@ -1840,7 +1849,7 @@ void TextureLoadTaskClass::Deinit()
 
 bool TextureLoadTaskClass::Begin_Load()
 {
-	WWASSERT(TextureLoader::Is_DX8_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
@@ -1890,7 +1899,7 @@ bool TextureLoadTaskClass::Begin_Load()
 bool TextureLoadTaskClass::Load()
 {
 	WWMEMLOG(MEM_TEXTURE);
-	WWASSERT(Peek_D3D_Texture() || UseCPUTextureSnapshotStaging);
+	WWASSERT(Peek_Native_Compatibility_Texture() || UseCPUTextureSnapshotStaging);
 
 	bool loaded = false;
 
@@ -1912,7 +1921,7 @@ bool TextureLoadTaskClass::Load()
 
 void TextureLoadTaskClass::End_Load()
 {
-	WWASSERT(TextureLoader::Is_DX8_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	if (Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership) &&
@@ -1960,8 +1969,8 @@ void TextureLoadTaskClass::Finish_Load()
 
 void TextureLoadTaskClass::Apply_Missing_Texture()
 {
-	WWASSERT(TextureLoader::Is_DX8_Thread());
-	WWASSERT(!D3DTexture);
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
+	WWASSERT(!NativeCompatibilityTexture);
 
 	Log_Texture_Load_Failure("task", Texture ? Texture->Get_Full_Path().str() : nullptr);
 #if defined(GGC_RENDER_BACKEND_BGFX)
@@ -2003,7 +2012,7 @@ void TextureLoadTaskClass::Apply_Missing_Texture()
 	}
 	return;
 #else
-	D3DTexture = Get_Legacy_Missing_Texture();
+	NativeCompatibilityTexture = Get_Legacy_Missing_Texture();
 	Apply(true);
 	if (Texture != nullptr)
 	{
@@ -2018,23 +2027,23 @@ void TextureLoadTaskClass::Apply(bool initialize)
 #if defined(GGC_BGFX_STANDALONE)
 	(void)initialize;
 	WWASSERT_PRINT(
-		D3DTexture == nullptr,
+		NativeCompatibilityTexture == nullptr,
 		"TextureLoadTaskClass::Apply: standalone bgfx cannot apply or release fake-D3D loader textures");
-	D3DTexture = nullptr;
+	NativeCompatibilityTexture = nullptr;
 	return;
 #else
-	WWASSERT(D3DTexture);
+	WWASSERT(NativeCompatibilityTexture);
 
 	// Verify that none of the mip levels are locked
 	for (unsigned i=0;i<MipLevelCount;++i) {
 		WWASSERT(LockedSurfacePtr[i]==nullptr);
 	}
 
-	Apply_Legacy_Surface(*Texture, Peek_D3D_Texture(), initialize);
+	Apply_Native_Compatibility_Texture(*Texture, Peek_Native_Compatibility_Texture(), initialize);
 	Texture->Mark_Missing_Texture(false);
 
-	Peek_D3D_Texture()->Release();
-	D3DTexture = nullptr;
+	Peek_Native_Compatibility_Texture()->Release();
+	NativeCompatibilityTexture = nullptr;
 #endif
 }
 
@@ -2274,7 +2283,7 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 		"TextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot create legacy texture fallback");
 	return false;
 #else
-	D3DTexture	= Create_Legacy_Texture
+	NativeCompatibilityTexture	= Create_Legacy_Texture
 	(
 		reducedWidth,
 		reducedHeight,
@@ -2384,7 +2393,7 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 		"TextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot create legacy texture fallback");
 	return false;
 #else
-	D3DTexture = Create_Legacy_Texture
+	NativeCompatibilityTexture = Create_Legacy_Texture
 	(
 		reducedWidth,
 		reducedHeight,
@@ -2461,7 +2470,7 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 		mip_level_count = max_mip_level_count;
 	}
 
-	D3DTexture	= Create_Legacy_Texture(
+	NativeCompatibilityTexture	= Create_Legacy_Texture(
 		Width,
 		Height,
 		Format,
@@ -2531,7 +2540,7 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 	//	Format = Get_Valid_Texture_Format(Format, false);
 	//}
 
-	D3DTexture = Create_Legacy_Texture
+	NativeCompatibilityTexture = Create_Legacy_Texture
 	(
 		Width,
 		Height,
@@ -2555,14 +2564,14 @@ void TextureLoadTaskClass::Lock_Surfaces()
 	}
 
 #if !defined(GGC_BGFX_STANDALONE)
-	MipLevelCount = Peek_D3D_Texture()->GetLevelCount();
+	MipLevelCount = Peek_Native_Compatibility_Texture()->GetLevelCount();
 
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
 	{
 		LegacyLoaderLockedRect locked_rect;
 		DX8_ErrorCode
 		(
-			Peek_D3D_Texture()->LockRect
+			Peek_Native_Compatibility_Texture()->LockRect
 			(
 				i,
 				&locked_rect,
@@ -2594,17 +2603,17 @@ void TextureLoadTaskClass::Unlock_Surfaces()
 	{
 		if (LockedSurfacePtr[i])
 		{
-			WWASSERT(TextureLoader::Is_DX8_Thread());
-			DX8_ErrorCode(Peek_D3D_Texture()->UnlockRect(i));
+			WWASSERT(TextureLoader::Is_Main_Render_Thread());
+			DX8_ErrorCode(Peek_Native_Compatibility_Texture()->UnlockRect(i));
 		}
 		LockedSurfacePtr[i] = nullptr;
 	}
 
 #ifndef USE_MANAGED_TEXTURES
 	LegacyLoaderTexture * tex = Create_Legacy_Texture(Width, Height, Format, Texture->MipLevelCount,kLegacyDefaultPool);
-	DX8CALL(UpdateTexture(Peek_D3D_Texture(),tex));
-	Peek_D3D_Texture()->Release();
-	D3DTexture=tex;
+	DX8CALL(UpdateTexture(Peek_Native_Compatibility_Texture(),tex));
+	Peek_Native_Compatibility_Texture()->Release();
+	NativeCompatibilityTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)",Texture->Get_Full_Path()));
 #endif
 #endif
@@ -2615,11 +2624,11 @@ void TextureLoadTaskClass::Capture_CPU_Texture_Snapshot_From_Locked_Surfaces()
 {
 #if defined(GGC_BGFX_STANDALONE)
 	WWASSERT_PRINT(
-		Peek_D3D_Texture() == nullptr,
+		Peek_Native_Compatibility_Texture() == nullptr,
 		"Capture_CPU_Texture_Snapshot_From_Locked_Surfaces: standalone bgfx should use CPU texture staging, not locked fake-D3D surfaces");
 	return;
 #else
-	if (Texture == nullptr || Texture->As_TextureClass() == nullptr || Peek_D3D_Texture() == nullptr) {
+	if (Texture == nullptr || Texture->As_TextureClass() == nullptr || Peek_Native_Compatibility_Texture() == nullptr) {
 		return;
 	}
 
@@ -2632,7 +2641,7 @@ void TextureLoadTaskClass::Capture_CPU_Texture_Snapshot_From_Locked_Surfaces()
 		}
 
 		LegacySurfaceDesc desc;
-		if (FAILED(Peek_D3D_Texture()->GetLevelDesc(level, &desc))) {
+		if (FAILED(Peek_Native_Compatibility_Texture()->GetLevelDesc(level, &desc))) {
 			return;
 		}
 
@@ -3019,7 +3028,7 @@ void CubeTextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, Priorit
 	WWASSERT(tc);
 
 	// NOTE: we must be in the main thread to avoid corrupting the texture's refcount.
-	WWASSERT(TextureLoader::Is_DX8_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 	REF_PTR_SET(Texture, tc);
 
 	// Make sure texture has a filename.
@@ -3029,7 +3038,7 @@ void CubeTextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, Priorit
 	Priority			= priority;
 	State				= STATE_NONE;
 
-	D3DTexture		= nullptr;
+	NativeCompatibilityTexture		= nullptr;
 
 	CubeTextureClass* tex=Texture->As_CubeTextureClass();
 
@@ -3079,7 +3088,7 @@ void CubeTextureLoadTaskClass::Deinit()
 	WWASSERT(Next == nullptr);
 	WWASSERT(Prev == nullptr);
 
-	WWASSERT(D3DTexture == nullptr);
+	WWASSERT(NativeCompatibilityTexture == nullptr);
 
 	for (int f=0; f<6; f++)
 	{
@@ -3105,7 +3114,7 @@ void CubeTextureLoadTaskClass::Deinit()
 		}
 
 		// NOTE: we must be in main thread to avoid corrupting Texture's refcount.
-		WWASSERT(TextureLoader::Is_DX8_Thread());
+		WWASSERT(TextureLoader::Is_Main_Render_Thread());
 		REF_PTR_RELEASE(Texture);
 	}
 }
@@ -3122,7 +3131,7 @@ void CubeTextureLoadTaskClass::Lock_Surfaces()
 			LegacyLoaderLockedRect locked_rect;
 			DX8_ErrorCode
 			(
-				Peek_D3D_Cube_Texture()->LockRect
+				Peek_Native_Compatibility_Cube_Texture()->LockRect
 				(
 					(LegacyLoaderCubeFace)f,
 					i,
@@ -3149,10 +3158,10 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces()
 		{
 			if (LockedCubeSurfacePtr[f][i])
 			{
-				WWASSERT(TextureLoader::Is_DX8_Thread());
+				WWASSERT(TextureLoader::Is_Main_Render_Thread());
 				DX8_ErrorCode
 				(
-					Peek_D3D_Cube_Texture()->UnlockRect((LegacyLoaderCubeFace)f,i)
+					Peek_Native_Compatibility_Cube_Texture()->UnlockRect((LegacyLoaderCubeFace)f,i)
 				);
 			}
 			LockedCubeSurfacePtr[f][i] = nullptr;
@@ -3168,9 +3177,9 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces()
 		Texture->MipLevelCount,
 		kLegacyDefaultPool
 	);
-	DX8CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
-	Peek_D3D_Volume_Texture()->Release();
-	D3DTexture=tex;
+	DX8CALL(UpdateTexture(Peek_Native_Compatibility_Volume_Texture(),tex));
+	Peek_Native_Compatibility_Volume_Texture()->Release();
+	NativeCompatibilityTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)",Texture->Get_Full_Path()));
 #endif
 #endif
@@ -3269,7 +3278,7 @@ bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 		mip_level_count = max_mip_level_count;
 	}
 
-	D3DTexture	= Create_Legacy_Cube_Texture
+	NativeCompatibilityTexture	= Create_Legacy_Cube_Texture
 	(
 		Width,
 		Height,
@@ -3345,7 +3354,7 @@ bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
 		Format = Get_Valid_Texture_Format(Format, false);
 	}
 
-	D3DTexture = Create_Legacy_Cube_Texture
+	NativeCompatibilityTexture = Create_Legacy_Cube_Texture
 	(
 		Width,
 		Height,
@@ -3451,7 +3460,7 @@ void VolumeTextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, Prior
 	WWASSERT(tc);
 
 	// NOTE: we must be in the main thread to avoid corrupting the texture's refcount.
-	WWASSERT(TextureLoader::Is_DX8_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 	REF_PTR_SET(Texture, tc);
 
 	// Make sure texture has a filename.
@@ -3461,7 +3470,7 @@ void VolumeTextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, Prior
 	Priority			= priority;
 	State				= STATE_NONE;
 
-	D3DTexture		= nullptr;
+	NativeCompatibilityTexture		= nullptr;
 
 	VolumeTextureClass* tex=Texture->As_VolumeTextureClass();
 
@@ -3513,7 +3522,7 @@ void VolumeTextureLoadTaskClass::Lock_Surfaces()
 		LegacyLoaderLockedBox locked_box;
 		DX8_ErrorCode
 		(
-			Peek_D3D_Volume_Texture()->LockBox
+			Peek_Native_Compatibility_Volume_Texture()->LockBox
 			(
 				i,
 				&locked_box,
@@ -3538,10 +3547,10 @@ void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 	{
 		if (LockedSurfacePtr[i])
 		{
-			WWASSERT(TextureLoader::Is_DX8_Thread());
+			WWASSERT(TextureLoader::Is_Main_Render_Thread());
 			DX8_ErrorCode
 			(
-				Peek_D3D_Volume_Texture()->UnlockBox(i)
+				Peek_Native_Compatibility_Volume_Texture()->UnlockBox(i)
 			);
 		}
 		LockedSurfacePtr[i] = nullptr;
@@ -3549,9 +3558,9 @@ void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 
 #ifndef USE_MANAGED_TEXTURES
 	LegacyLoaderTexture * tex = Create_Legacy_Volume_Texture(Width, Height, Depth, Format, Texture->MipLevelCount,kLegacyDefaultPool);
-	DX8CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
-	Peek_D3D_Volume_Texture()->Release();
-	D3DTexture=tex;
+	DX8CALL(UpdateTexture(Peek_Native_Compatibility_Volume_Texture(),tex));
+	Peek_Native_Compatibility_Volume_Texture()->Release();
+	NativeCompatibilityTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)",Texture->Get_Full_Path()));
 #endif
 #endif
@@ -3655,7 +3664,7 @@ bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 		mip_level_count = max_mip_level_count;
 	}
 
-	D3DTexture	= Create_Legacy_Volume_Texture
+	NativeCompatibilityTexture	= Create_Legacy_Volume_Texture
 	(
 		Width,
 		Height,
@@ -3734,7 +3743,7 @@ bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 		Format = Get_Valid_Texture_Format(Format, false);
 	}
 
-	D3DTexture = Create_Legacy_Volume_Texture
+	NativeCompatibilityTexture = Create_Legacy_Volume_Texture
 	(
 		Width,
 		Height,
