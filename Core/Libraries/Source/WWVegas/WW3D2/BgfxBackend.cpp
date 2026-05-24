@@ -7900,7 +7900,7 @@ void BgfxBackend::Set_Cull_Mode(CullMode mode)
 
 void BgfxBackend::Set_Z_Bias(int bias)
 {
-    RenderStateCache::Set_Render_State(RS::ZBIAS, static_cast<unsigned>(bias));
+    FixedFunctionState::Set_Z_Bias(bias);
     g_draw.zBiasUnits = static_cast<unsigned>(bias) & 0xFFu;
 }
 
@@ -7911,30 +7911,31 @@ void BgfxBackend::Set_Normal_Bias(float bias)
 
 void BgfxBackend::Set_Fill_Mode(FillMode mode)
 {
-    RenderStateCache::Set_Render_State(RS::FILLMODE, static_cast<unsigned>(mode));
+    FixedFunctionState::Set_Fill_Mode(static_cast<unsigned>(mode));
 }
 
 void BgfxBackend::Set_Shade_Mode(ShadeMode mode)
 {
-    RenderStateCache::Set_Render_State(RS::SHADEMODE, static_cast<unsigned>(mode));
+    FixedFunctionState::Set_Shade_Mode(static_cast<unsigned>(mode));
 }
 
 void BgfxBackend::Set_Depth_Test_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(RS::ZENABLE, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Depth_Test_Enabled(enable);
     g_draw.depthTestEnabled = enable;
 }
 
 void BgfxBackend::Set_Depth_Write_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(RS::ZWRITEENABLE, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Depth_Write_Enabled(enable);
     g_draw.depthWriteEnabled = enable;
 }
 
 void BgfxBackend::Set_Depth_Func(CompareFunc func)
 {
-    RenderStateCache::Set_Render_State(RS::ZFUNC, static_cast<unsigned>(func));
-    g_draw.depthFunc = static_cast<unsigned>(func);
+    const unsigned idx = static_cast<unsigned>(func);
+    FixedFunctionState::Set_Depth_Function(idx);
+    g_draw.depthFunc = idx;
     static const uint64_t kDepthMap[] = {
         0,                              // 0 (unused)
         BGFX_STATE_DEPTH_TEST_NEVER,    // RB_CMP_NEVER = 1
@@ -7946,7 +7947,6 @@ void BgfxBackend::Set_Depth_Func(CompareFunc func)
         BGFX_STATE_DEPTH_TEST_GEQUAL,   // RB_CMP_GREATER_EQUAL = 7
         BGFX_STATE_DEPTH_TEST_ALWAYS,   // RB_CMP_ALWAYS = 8
     };
-    const unsigned idx = static_cast<unsigned>(func);
     if (idx < 9)
     {
         g_draw.depthFuncBits = kDepthMap[idx];
