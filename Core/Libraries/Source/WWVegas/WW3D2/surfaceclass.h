@@ -47,7 +47,7 @@ class TextureClass;
 struct SurfaceCompatibilityState;
 class Vector2i;
 class Vector3;
-class DX8TextureInterop;
+class TextureCompatibilityInterop;
 
 /*************************************************************************
 **                             SurfaceClass
@@ -178,5 +178,5 @@ class SurfaceClass : public RefCountClass
 		TextureClass *TextureOwner;
 		unsigned int TextureOwnerLevel;
 		friend class TextureClass;
-		friend class DX8TextureInterop;
+		friend class TextureCompatibilityInterop;
 };

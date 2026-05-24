@@ -60,7 +60,7 @@
 #include "IRenderBackend.h"
 #include "wwmemlog.h"
 #include "dx8texturelegacytypes.h"
-#include "dx8textureinterop.h"
+#include "texturecompatibilityinterop.h"
 #include "texturethumbnail.h"
 #include "ddsfile.h"
 #include "bitmaphandler.h"
