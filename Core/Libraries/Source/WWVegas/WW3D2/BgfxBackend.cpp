@@ -7009,7 +7009,7 @@ void BgfxBackend::Set_Texture_UV_Wrap(unsigned stage, bool enable)
     }
 }
 
-static unsigned TextureAddressModeToD3DStageState(RenderBackendTextureAddressMode mode)
+static unsigned TextureAddressModeToLegacyStageState(RenderBackendTextureAddressMode mode)
 {
     switch (mode)
     {
@@ -7028,12 +7028,12 @@ void BgfxBackend::Set_Texture_Address_Mode(unsigned stage,
                                            RenderBackendTextureAddressMode v,
                                            RenderBackendTextureAddressMode w)
 {
-    Set_Texture_Stage_State(stage, TSS::ADDRESSU, TextureAddressModeToD3DStageState(u));
-    Set_Texture_Stage_State(stage, TSS::ADDRESSV, TextureAddressModeToD3DStageState(v));
-    Set_Texture_Stage_State(stage, TSS::ADDRESSW, TextureAddressModeToD3DStageState(w));
+    Set_Texture_Stage_State(stage, TSS::ADDRESSU, TextureAddressModeToLegacyStageState(u));
+    Set_Texture_Stage_State(stage, TSS::ADDRESSV, TextureAddressModeToLegacyStageState(v));
+    Set_Texture_Stage_State(stage, TSS::ADDRESSW, TextureAddressModeToLegacyStageState(w));
 }
 
-static unsigned TextureSampleFilterToD3DStageState(RenderBackendTextureSampleFilter filter)
+static unsigned TextureSampleFilterToLegacyStageState(RenderBackendTextureSampleFilter filter)
 {
     switch (filter)
     {
@@ -7054,22 +7054,22 @@ void BgfxBackend::Set_Texture_Sample_Filter(unsigned stage,
                                             RenderBackendTextureSampleFilter mag_filter,
                                             RenderBackendTextureSampleFilter mip_filter)
 {
-    Set_Texture_Stage_State(stage, TSS::MINFILTER, TextureSampleFilterToD3DStageState(min_filter));
-    Set_Texture_Stage_State(stage, TSS::MAGFILTER, TextureSampleFilterToD3DStageState(mag_filter));
-    Set_Texture_Stage_State(stage, TSS::MIPFILTER, TextureSampleFilterToD3DStageState(mip_filter));
+    Set_Texture_Stage_State(stage, TSS::MINFILTER, TextureSampleFilterToLegacyStageState(min_filter));
+    Set_Texture_Stage_State(stage, TSS::MAGFILTER, TextureSampleFilterToLegacyStageState(mag_filter));
+    Set_Texture_Stage_State(stage, TSS::MIPFILTER, TextureSampleFilterToLegacyStageState(mip_filter));
 }
 
 void BgfxBackend::Set_Texture_Min_Mag_Filter(unsigned stage,
                                              RenderBackendTextureSampleFilter min_filter,
                                              RenderBackendTextureSampleFilter mag_filter)
 {
-    Set_Texture_Stage_State(stage, TSS::MINFILTER, TextureSampleFilterToD3DStageState(min_filter));
-    Set_Texture_Stage_State(stage, TSS::MAGFILTER, TextureSampleFilterToD3DStageState(mag_filter));
+    Set_Texture_Stage_State(stage, TSS::MINFILTER, TextureSampleFilterToLegacyStageState(min_filter));
+    Set_Texture_Stage_State(stage, TSS::MAGFILTER, TextureSampleFilterToLegacyStageState(mag_filter));
 }
 
 void BgfxBackend::Set_Texture_Mip_Filter(unsigned stage, RenderBackendTextureSampleFilter mip_filter)
 {
-    Set_Texture_Stage_State(stage, TSS::MIPFILTER, TextureSampleFilterToD3DStageState(mip_filter));
+    Set_Texture_Stage_State(stage, TSS::MIPFILTER, TextureSampleFilterToLegacyStageState(mip_filter));
 }
 
 void BgfxBackend::Set_Texture_Max_Anisotropy(unsigned stage, unsigned max_anisotropy)
