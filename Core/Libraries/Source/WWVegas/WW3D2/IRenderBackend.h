@@ -92,6 +92,18 @@ struct RenderBackendImage
     }
 };
 
+struct RenderBackendSurfaceDescription
+{
+    unsigned Width = 0;
+    unsigned Height = 0;
+    WW3DFormat Format = WW3D_FORMAT_UNKNOWN;
+
+    bool Is_Valid() const
+    {
+        return Width != 0 && Height != 0 && Format != WW3D_FORMAT_UNKNOWN;
+    }
+};
+
 static const unsigned RB_MAX_TEXTURE_STAGES = 8;
 static const unsigned RB_MAX_LIGHTS = 4;
 
@@ -571,8 +583,7 @@ public:
     virtual void Set_Device_Cleanup_Hook(RenderDeviceCleanupHook * hook) {}
     virtual bool Has_Stencil() const { return false; }
     virtual WW3DFormat Get_Back_Buffer_Format() const { return WW3D_FORMAT_UNKNOWN; }
-    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const { return nullptr; }
-    virtual SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num) { return nullptr; }
+    virtual bool Get_Back_Buffer_Description(unsigned int num, RenderBackendSurfaceDescription & desc) const { desc = RenderBackendSurfaceDescription(); return false; }
     virtual bool Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image) { return false; }
     virtual bool Request_Native_Screen_Shot(const char * /*path*/) { return false; }
     virtual void Set_Texture_Bitdepth(int bitdepth) {}
@@ -688,6 +699,12 @@ public:
     virtual void Capture_Dynamic_Index_Data(const DynamicIBAccessClass * /*iba*/,
                                             const void * /*data*/,
                                             unsigned int /*size_bytes*/) {}
+
+    virtual bool Supports_Instancing() const { return false; }
+    virtual bool Begin_Instanced_Batch(unsigned max_instances) { return false; }
+    virtual void Add_Instance(const float * world_matrix_4x4) {}
+    virtual void Submit_Instanced_Batch(unsigned index_offset, unsigned triangle_count,
+                                        unsigned min_vertex_index, unsigned vertex_count) {}
 
     virtual void * Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * /*vba*/,
                                               unsigned int /*size_bytes*/) { return nullptr; }
@@ -1099,13 +1116,6 @@ public:
     // leaves unbalanced stencil counts. Default false keeps DX8 unchanged.
     virtual bool Needs_Closed_Shadow_Volumes() const { return false; }
 
-    // TheSuperHackers @refactor bobtista 16/04/2026 CSM:
-    // the engine's shadow system places the sun at a world-space
-    // position for shadow casting (from TerrainLighting data). This
-    // differs from the N.L shading light direction. BgfxBackend uses
-    // this position for its shadow map ortho projection.
-    virtual void Set_Shadow_Light_Position(float /*x*/, float /*y*/, float /*z*/) {}
-
     // TheSuperHackers @feature bobtista 17/04/2026 Shroud texture capture
     // for bgfx. The shroud system's destination texture is POOL_DEFAULT
     // which bgfx cannot lock. This hook lets W3DShroud push the system-
@@ -1193,26 +1203,7 @@ public:
     virtual RenderResource Create_Index_Buffer(const BufferDesc & desc,
                                                const void *       initial_data,
                                                bool               indices_are_32bit) { return kInvalidRenderResource; }
-    virtual RenderResource Create_Dynamic_Vertex_Buffer(const BufferDesc & desc) { return kInvalidRenderResource; }
-    virtual RenderResource Create_Dynamic_Index_Buffer(const BufferDesc & desc,
-                                                       bool               indices_are_32bit) { return kInvalidRenderResource; }
-    virtual void * Map_Dynamic_Vertex_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard) { return nullptr; }
-    virtual void * Map_Dynamic_Index_Buffer(RenderResource h, unsigned int offset, unsigned int size, bool discard) { return nullptr; }
-    virtual void Unmap_Dynamic_Vertex_Buffer(RenderResource h) {}
-    virtual void Unmap_Dynamic_Index_Buffer(RenderResource h) {}
-    virtual void Update_Vertex_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) {}
-    virtual void Update_Index_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size) {}
-    virtual void * Map_Dynamic(RenderResource h, unsigned int offset, unsigned int size, bool discard)
-    {
-        return Map_Dynamic_Vertex_Buffer(h, offset, size, discard);
-    }
-    virtual void Unmap_Dynamic(RenderResource h) { Unmap_Dynamic_Vertex_Buffer(h); }
-    virtual void Update_Sub_Range(RenderResource h, unsigned int offset, const void * data, unsigned int size)
-    {
-        Update_Vertex_Sub_Range(h, offset, data, size);
-    }
     virtual void Destroy_Resource(RenderResource h) {}
-    virtual void   Begin_Dynamic_Frame() {}
 
     // -------------------------------------------------------------------------
     // Transitional owner-backed resource hooks (Option 1)
