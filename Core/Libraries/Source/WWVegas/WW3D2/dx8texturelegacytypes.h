@@ -19,21 +19,24 @@
 #pragma once
 
 #if defined(GGC_BGFX_STANDALONE)
-#include "dx8standalonetypes.h"
+#include "texturecompatibilitytypes.h"
 #else
-#include "d3d8.h"
+#include "dx8texturelegacyd3dtypes.h"
 #endif
 
-using LegacyBaseTexture = IDirect3DBaseTexture8;
-using LegacySurface = IDirect3DSurface8;
-using LegacyTextureSurface = IDirect3DSurface8;
-using LegacySurfaceDesc = D3DSURFACE_DESC;
-using LegacyVolumeDesc = D3DVOLUME_DESC;
-using LegacyLockedRect = D3DLOCKED_RECT;
+#if defined(GGC_BGFX_STANDALONE)
+using LegacyBaseTexture = NativeCompatibilityBaseTexture;
+using LegacySurface = NativeCompatibilitySurface;
+using NativeCompatibilityTextureSurface = NativeCompatibilitySurface;
+using LegacySurfaceDesc = NativeCompatibilitySurfaceDesc;
+using LegacyVolumeDesc = NativeCompatibilityVolumeDesc;
+using LegacyLockedRect = NativeCompatibilityLockedRect;
 
-using LegacyLoaderTexture = IDirect3DTexture8;
-using LegacyLoaderSurface = IDirect3DSurface8;
-using LegacyLoaderCubeTexture = IDirect3DCubeTexture8;
-using LegacyLoaderLockedRect = D3DLOCKED_RECT;
-using LegacyLoaderLockedBox = D3DLOCKED_BOX;
-using LegacyLoaderCubeFace = D3DCUBEMAP_FACES;
+using LegacyLoaderTexture = NativeCompatibilityTexture2D;
+using LegacyLoaderSurface = NativeCompatibilitySurface;
+using LegacyLoaderCubeTexture = NativeCompatibilityCubeTexture;
+using LegacyLoaderVolumeTexture = NativeCompatibilityVolumeTexture;
+using LegacyLoaderLockedRect = NativeCompatibilityLockedRect;
+using LegacyLoaderLockedBox = NativeCompatibilityLockedBox;
+using LegacyLoaderCubeFace = NativeCompatibilityCubeFace;
+#endif
