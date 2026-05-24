@@ -6233,9 +6233,10 @@ void BgfxBackend::Set_Material_Color_Source(RenderBackendMaterialColorSource amb
                                             RenderBackendMaterialColorSource diffuse_source,
                                             RenderBackendMaterialColorSource emissive_source)
 {
-    RenderStateCache::Set_Render_State(RS::AMBIENTMATERIALSOURCE, static_cast<unsigned>(ambient_source));
-    RenderStateCache::Set_Render_State(RS::DIFFUSEMATERIALSOURCE, static_cast<unsigned>(diffuse_source));
-    RenderStateCache::Set_Render_State(RS::EMISSIVEMATERIALSOURCE, static_cast<unsigned>(emissive_source));
+    FixedFunctionState::Set_Material_Color_Sources(
+        static_cast<unsigned>(ambient_source),
+        static_cast<unsigned>(diffuse_source),
+        static_cast<unsigned>(emissive_source));
     g_draw.vertexColorFlags[1] = (diffuse_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
     g_draw.vertexColorFlags[2] = (ambient_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
     g_draw.vertexColorFlags[3] = (emissive_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
@@ -6321,7 +6322,7 @@ void BgfxBackend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * 
 
 void BgfxBackend::Set_Ambient(const Vector3 & color)
 {
-    RenderStateCache::Set_Render_State(RS::AMBIENT, MakeLegacyARGBColor(color, 0.0f));
+    FixedFunctionState::Set_Ambient_Color(MakeLegacyARGBColor(color, 0.0f));
     g_draw.sceneAmbient[0] = color.X;
     g_draw.sceneAmbient[1] = color.Y;
     g_draw.sceneAmbient[2] = color.Z;
@@ -7756,7 +7757,7 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
     {
         g_lastLightEnv = light_env;
         const Vector3 & ambient = light_env->Get_Equivalent_Ambient();
-        RenderStateCache::Set_Render_State(RS::AMBIENT, MakeLegacyARGBColor(ambient, 0.0f));
+        FixedFunctionState::Set_Ambient_Color(MakeLegacyARGBColor(ambient, 0.0f));
         g_draw.sceneAmbient[0] = ambient.X;
         g_draw.sceneAmbient[1] = ambient.Y;
         g_draw.sceneAmbient[2] = ambient.Z;
