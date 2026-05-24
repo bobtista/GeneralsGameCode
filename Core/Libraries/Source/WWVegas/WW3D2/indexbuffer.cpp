@@ -22,7 +22,7 @@
  *                                                                                             *
  *                 Project Name : ww3d                                                         *
  *                                                                                             *
- *                     $Archive:: /Commando/Code/ww3d2/dx8indexbuffer.cpp                     $*
+ *                     $Archive:: /Commando/Code/ww3d2/indexbuffer.cpp                        $*
  *                                                                                             *
  *              Original Author:: Jani Penttinen                                               *
  *                                                                                             *
@@ -38,8 +38,11 @@
 
 //#define INDEX_BUFFER_LOG
 
+#include "indexbuffer.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "dx8indexbuffer.h"
 #include "dx8wrapper.h"
+#endif
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "renderbufferclasses.h"
@@ -48,9 +51,15 @@
 #include "wwmemlog.h"
 #include <cstring>
 
+#if defined(GGC_BGFX_STANDALONE)
+#define RENDER_BUFFER_THREAD_ASSERT()
+#else
+#define RENDER_BUFFER_THREAD_ASSERT() DX8_THREAD_ASSERT()
+#endif
+
 // TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture index
 // data into the active render backend at write-lock time. See the
-// matching comment in dx8vertexbuffer.cpp.
+// matching comment in vertexbuffer.cpp.
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 
@@ -284,7 +293,7 @@ void IndexBufferClass::Copy(unsigned short* indices,unsigned first_index,unsigne
 
 IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* index_buffer_, int flags) : index_buffer(index_buffer_)
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	WWASSERT(index_buffer);
 	WWASSERT(!index_buffer->Engine_Refs());
 	index_buffer->Add_Ref();
@@ -322,7 +331,7 @@ IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* index_buffer_
 
 IndexBufferClass::WriteLockClass::~WriteLockClass()
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture
 	// index data into the active render backend BEFORE unlocking. After
 	// Unlock the source pointer is invalid. The bgfx backend snapshots
@@ -364,7 +373,7 @@ IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffe
 	AppendStartIndex(start_index),
 	AppendIndexRange(index_range)
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	WWASSERT(start_index+index_range<=index_buffer->Get_Index_Count());
 	WWASSERT(index_buffer);
 	WWASSERT(!index_buffer->Engine_Refs());
@@ -400,7 +409,7 @@ IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffe
 
 IndexBufferClass::AppendLockClass::~AppendLockClass()
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 write-side
 	// sub-range capture for bgfx backend. Rigid mesh category containers
 	// fill their shared IB via AppendLockClass; without this hook mesh
@@ -439,11 +448,12 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 //
 // ----------------------------------------------------------------------------
 
+#if !defined(GGC_BGFX_STANDALONE)
 DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType usage)
 	:
 	IndexBufferClass(BUFFER_TYPE_STATIC,index_count_)
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	WWASSERT(index_count);
 	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
 	if (g_renderBackend != nullptr && !g_renderBackend->Requires_Legacy_Buffer_Resources()) {
@@ -518,12 +528,11 @@ DX8IndexBufferClass::~DX8IndexBufferClass()
 		g_renderBackend->Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
 	}
-#if !defined(GGC_BGFX_STANDALONE)
 	if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(this)) {
 		legacy->Release();
 	}
-#endif
 }
+#endif
 
 // ----------------------------------------------------------------------------
 
@@ -532,7 +541,7 @@ RenderIndexBufferClass::RenderIndexBufferClass(unsigned short index_count_, Usag
 	:
 	IndexBufferClass(BUFFER_TYPE_STATIC, index_count_)
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	WWASSERT(index_count);
 	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
 	if (g_renderBackend != nullptr) {
@@ -633,7 +642,7 @@ DynamicIBAccessClass::WriteLockClass::WriteLockClass(DynamicIBAccessClass* ib_ac
 	Indices(NULL),
 	DirectBackendWrite(false)
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	DynamicIBAccess->IndexBuffer->Add_Ref();
 	switch (DynamicIBAccess->Get_Type()) {
 	case BUFFER_TYPE_DYNAMIC:
@@ -676,7 +685,7 @@ DynamicIBAccessClass::WriteLockClass::WriteLockClass(DynamicIBAccessClass* ib_ac
 
 DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 {
-	DX8_THREAD_ASSERT();
+	RENDER_BUFFER_THREAD_ASSERT();
 	switch (DynamicIBAccess->Get_Type()) {
 	case BUFFER_TYPE_DYNAMIC:
 		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2
