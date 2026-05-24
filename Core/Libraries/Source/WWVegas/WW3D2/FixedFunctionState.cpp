@@ -57,6 +57,18 @@ namespace
 		unsigned alphaTestReference;
 		bool alphaTestFunctionValid;
 		unsigned alphaTestFunction;
+		bool zBiasValid;
+		unsigned zBias;
+		bool fillModeValid;
+		unsigned fillMode;
+		bool shadeModeValid;
+		unsigned shadeMode;
+		bool depthTestValid;
+		bool depthTestEnabled;
+		bool depthWriteValid;
+		bool depthWriteEnabled;
+		bool depthFunctionValid;
+		unsigned depthFunction;
 	};
 
 	SemanticRenderState s_semanticRenderState;
@@ -102,6 +114,18 @@ namespace
 		s_semanticRenderState.alphaTestReference = 0;
 		s_semanticRenderState.alphaTestFunctionValid = true;
 		s_semanticRenderState.alphaTestFunction = 0;
+		s_semanticRenderState.zBiasValid = true;
+		s_semanticRenderState.zBias = 0;
+		s_semanticRenderState.fillModeValid = true;
+		s_semanticRenderState.fillMode = 0;
+		s_semanticRenderState.shadeModeValid = true;
+		s_semanticRenderState.shadeMode = 0;
+		s_semanticRenderState.depthTestValid = true;
+		s_semanticRenderState.depthTestEnabled = false;
+		s_semanticRenderState.depthWriteValid = true;
+		s_semanticRenderState.depthWriteEnabled = false;
+		s_semanticRenderState.depthFunctionValid = true;
+		s_semanticRenderState.depthFunction = 0;
 	}
 
 	void InvalidateSemanticRenderState()
@@ -136,6 +160,18 @@ namespace
 		s_semanticRenderState.alphaTestReference = 0;
 		s_semanticRenderState.alphaTestFunctionValid = false;
 		s_semanticRenderState.alphaTestFunction = 0;
+		s_semanticRenderState.zBiasValid = false;
+		s_semanticRenderState.zBias = 0;
+		s_semanticRenderState.fillModeValid = false;
+		s_semanticRenderState.fillMode = 0;
+		s_semanticRenderState.shadeModeValid = false;
+		s_semanticRenderState.shadeMode = 0;
+		s_semanticRenderState.depthTestValid = false;
+		s_semanticRenderState.depthTestEnabled = false;
+		s_semanticRenderState.depthWriteValid = false;
+		s_semanticRenderState.depthWriteEnabled = false;
+		s_semanticRenderState.depthFunctionValid = false;
+		s_semanticRenderState.depthFunction = 0;
 	}
 
 	void MirrorSemanticRenderState(unsigned state, unsigned value)
@@ -200,6 +236,30 @@ namespace
 			case RS::ALPHAFUNC:
 				s_semanticRenderState.alphaTestFunctionValid = true;
 				s_semanticRenderState.alphaTestFunction = value;
+				break;
+			case RS::ZBIAS:
+				s_semanticRenderState.zBiasValid = true;
+				s_semanticRenderState.zBias = value;
+				break;
+			case RS::FILLMODE:
+				s_semanticRenderState.fillModeValid = true;
+				s_semanticRenderState.fillMode = value;
+				break;
+			case RS::SHADEMODE:
+				s_semanticRenderState.shadeModeValid = true;
+				s_semanticRenderState.shadeMode = value;
+				break;
+			case RS::ZENABLE:
+				s_semanticRenderState.depthTestValid = true;
+				s_semanticRenderState.depthTestEnabled = (value != 0);
+				break;
+			case RS::ZWRITEENABLE:
+				s_semanticRenderState.depthWriteValid = true;
+				s_semanticRenderState.depthWriteEnabled = (value != 0);
+				break;
+			case RS::ZFUNC:
+				s_semanticRenderState.depthFunctionValid = true;
+				s_semanticRenderState.depthFunction = value;
 				break;
 			default:
 				break;
@@ -688,6 +748,66 @@ bool FixedFunctionState::Set_Alpha_Test_State(bool enabled, unsigned reference, 
 	changed |= Set_Cached_Render_State(RS::ALPHAREF, reference);
 	changed |= Set_Cached_Render_State(RS::ALPHAFUNC, function);
 	return changed;
+}
+
+int FixedFunctionState::Z_Bias(int default_value)
+{
+	return s_semanticRenderState.zBiasValid ? static_cast<int>(s_semanticRenderState.zBias) : default_value;
+}
+
+bool FixedFunctionState::Set_Z_Bias(int value)
+{
+	return Set_Cached_Render_State(RS::ZBIAS, static_cast<unsigned>(value));
+}
+
+unsigned FixedFunctionState::Fill_Mode(unsigned default_value)
+{
+	return s_semanticRenderState.fillModeValid ? s_semanticRenderState.fillMode : default_value;
+}
+
+bool FixedFunctionState::Set_Fill_Mode(unsigned value)
+{
+	return Set_Cached_Render_State(RS::FILLMODE, value);
+}
+
+unsigned FixedFunctionState::Shade_Mode(unsigned default_value)
+{
+	return s_semanticRenderState.shadeModeValid ? s_semanticRenderState.shadeMode : default_value;
+}
+
+bool FixedFunctionState::Set_Shade_Mode(unsigned value)
+{
+	return Set_Cached_Render_State(RS::SHADEMODE, value);
+}
+
+bool FixedFunctionState::Depth_Test_Enabled(bool default_value)
+{
+	return s_semanticRenderState.depthTestValid ? s_semanticRenderState.depthTestEnabled : default_value;
+}
+
+bool FixedFunctionState::Set_Depth_Test_Enabled(bool enabled)
+{
+	return Set_Cached_Render_State(RS::ZENABLE, enabled ? 1U : 0U);
+}
+
+bool FixedFunctionState::Depth_Write_Enabled(bool default_value)
+{
+	return s_semanticRenderState.depthWriteValid ? s_semanticRenderState.depthWriteEnabled : default_value;
+}
+
+bool FixedFunctionState::Set_Depth_Write_Enabled(bool enabled)
+{
+	return Set_Cached_Render_State(RS::ZWRITEENABLE, enabled ? 1U : 0U);
+}
+
+unsigned FixedFunctionState::Depth_Function(unsigned default_value)
+{
+	return s_semanticRenderState.depthFunctionValid ? s_semanticRenderState.depthFunction : default_value;
+}
+
+bool FixedFunctionState::Set_Depth_Function(unsigned value)
+{
+	return Set_Cached_Render_State(RS::ZFUNC, value);
 }
 
 void FixedFunctionState::Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix)

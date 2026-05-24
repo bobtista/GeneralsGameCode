@@ -148,6 +148,18 @@ public:
 	static unsigned Alpha_Test_Reference(unsigned default_value);
 	static unsigned Alpha_Test_Function(unsigned default_value);
 	static bool Set_Alpha_Test_State(bool enabled, unsigned reference, unsigned function);
+	static int Z_Bias(int default_value);
+	static bool Set_Z_Bias(int value);
+	static unsigned Fill_Mode(unsigned default_value);
+	static bool Set_Fill_Mode(unsigned value);
+	static unsigned Shade_Mode(unsigned default_value);
+	static bool Set_Shade_Mode(unsigned value);
+	static bool Depth_Test_Enabled(bool default_value);
+	static bool Set_Depth_Test_Enabled(bool enabled);
+	static bool Depth_Write_Enabled(bool default_value);
+	static bool Set_Depth_Write_Enabled(bool enabled);
+	static unsigned Depth_Function(unsigned default_value);
+	static bool Set_Depth_Function(unsigned value);
 	static void Transform_Matrix(unsigned transform, LegacyTransformMatrix & matrix);
 	static bool Set_Transform_Matrix(unsigned transform, const LegacyTransformMatrix & matrix);
 };
