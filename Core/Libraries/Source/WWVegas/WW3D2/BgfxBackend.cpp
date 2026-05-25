@@ -4585,10 +4585,16 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
     // The Sneak Attack ground dirt plane uses UBSnkAtak_01.tga and is sorted
     // for texture alpha; replaying it with identity world leaves the wide dirt
     // decal at map origin instead of around the tunnel entrance.
+    // TheSuperHackers @bugfix bobtista 25/05/2026 The police-car lightbar uses
+    // small CopLight*.tga glow meshes attached to animated pivots that move the
+    // active glow up to the roof and the inactive glows down inside the body.
+    // Capturing the live per-mesh world is what lets bgfx place each glow at
+    // the bone's animated position instead of model origin.
     const char *texName = TextureDebugName(g_draw.sourceTextures[0]);
     if (texName != nullptr
         && (ContainsCaseInsensitive(texName, "avcomanche_p")
-            || ContainsCaseInsensitive(texName, "ubsnkatak_01")))
+            || ContainsCaseInsensitive(texName, "ubsnkatak_01")
+            || ContainsCaseInsensitive(texName, "coplight")))
     {
         FixedFunctionState::Transform_Matrix(
             static_cast<unsigned>(RB_TRANSFORM_WORLD), state.world);
@@ -4910,6 +4916,20 @@ static bool IsSortedRotorBlur(uint64_t state)
         && g_draw.tssOps0[2] < 0.5f
         && g_draw.tssOps0[3] < 0.5f
         && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "avcomanche_p");
+}
+
+// TheSuperHackers @bugfix bobtista 25/05/2026 Police-car lightbar glow meshes
+// (CopLight*.tga) live in model space and rely on the per-mesh world transform
+// the same way the Chinook rotor blur and Sneak Attack dirt plane do. Routing
+// them through the sort view, whose pre-view-multiplied matrix and Z-biased
+// projection are tuned for camera-facing particles, washes them out and leaves
+// the glow dim/invisible. Route through the engine view with the raw model
+// world so each animated coplight quad lands at the lightbar with normal
+// brightness, exactly like the other model-space sorted meshes above.
+static bool IsSortedCopLightSprite(uint64_t /*state*/)
+{
+    return g_views.inSortFlush
+        && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "coplight");
 }
 
 static bool ShouldForceUnlitForBakedColorDraw(uint64_t state)
@@ -5513,6 +5533,16 @@ static bool ShouldBindSortedParticleBaseMip(unsigned stage)
     // legacy particle path keeps these sprites legible. Bind stage 0 through
     // the existing one-mip sibling for those dynamic particle draws only; do
     // not apply this to sorted decals or their detail stages.
+    // TheSuperHackers @bugfix bobtista 25/05/2026 The police-car lightbar glow
+    // sprites (CopLight*.tga) are tiny sorted additive meshes whose authored
+    // lower mips carry the red/blue/yellow color. Binding the one-mip
+    // compatibility texture collapses them back to a dull level-0 hotspot, so
+    // exclude them from this remap and let them sample the full mip chain.
+    if (stage == 0
+        && ContainsCaseInsensitive(TextureDebugName(g_draw.sourceTextures[0]), "coplight"))
+    {
+        return false;
+    }
     return stage == 0
         && IsSortedParticleEffect(GetEffectiveDrawState());
 }
@@ -6060,7 +6090,18 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     // otherwise the regular g_frame.world (rigid FVF category with sorting=true
     // has no batch-wrapped Apply_Render_State - it uses the per-mesh world
     // set by the caller via g_renderBackend->Set_Transform).
+    const uint64_t earlyState = GetEffectiveDrawState();
+    const bool copLightSprite = IsSortedCopLightSprite(earlyState);
+    const bgfx::ViewId submitView = copLightSprite ? kBgfxEngineView : kBgfxEngineSortView;
     const float * worldMtx = g_views.inSortFlush ? g_frame.sortWorld : g_frame.world;
+    if (copLightSprite)
+    {
+        // Coplight glow quads are authored in model space the same way the
+        // Chinook rotor blur is. Use the raw per-mesh world so each bone's
+        // animated position lands the quad on the lightbar instead of folding
+        // through the sort view's pre-multiplied matrix.
+        worldMtx = g_frame.sortWorldRaw;
+    }
     bgfx::setTransform(worldMtx);
 
     bgfx::setVertexBuffer(0, &vb, 0, vertex_count);
@@ -6124,11 +6165,11 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
     state = ApplyProjectedAdditiveDecalDrawState(state);
     state = ApplyColorWriteOverride(state);
     state = ApplySortedMaterialDecalDepthState(state);
-    LogBgfxSortedMaterialDecal("submit-sorted", kBgfxEngineSortView,
+    LogBgfxSortedMaterialDecal("submit-sorted", submitView,
                                polygon_count, vertex_count, state);
-    LogBgfxEffectSubmit("submit-sorted", kBgfxEngineSortView,
+    LogBgfxEffectSubmit("submit-sorted", submitView,
                         polygon_count, vertex_count, state, "pre-skip");
-    LogBgfxRevealDraw("submit-sorted", kBgfxEngineSortView,
+    LogBgfxRevealDraw("submit-sorted", submitView,
                       polygon_count, vertex_count, state, "pre-skip");
 
     if (ShouldAllowBgfxDiagnosticDrawOverrides()
@@ -6142,18 +6183,19 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
 
     if (ShouldSkipHiddenMissingTextureDraw(state))
     {
-        LogBgfxRevealDraw("submit-sorted", kBgfxEngineSortView,
+        LogBgfxRevealDraw("submit-sorted", submitView,
                           polygon_count, vertex_count, state, "skip-missing");
         g_stats.skippedDraws++;
         return;
     }
 
     bgfx::setState(state);
-    BindSoftParticleDepth(IsSoftParticleCandidate(state));
-    bgfx::submit(kBgfxEngineSortView, g_draw.program);
-    LogBgfxEffectSubmit("submit-sorted", kBgfxEngineSortView,
+    BindSoftParticleDepth(submitView == kBgfxEngineSortView
+                          && IsSoftParticleCandidate(state));
+    bgfx::submit(submitView, g_draw.program);
+    LogBgfxEffectSubmit("submit-sorted", submitView,
                         polygon_count, vertex_count, state, "submit");
-    LogBgfxRevealDraw("submit-sorted", kBgfxEngineSortView,
+    LogBgfxRevealDraw("submit-sorted", submitView,
                       polygon_count, vertex_count, state, "submit");
     g_stats.baseSubmits++;
     g_stats.transientVbDraws++;
@@ -8345,7 +8387,9 @@ void SubmitEngineDraw(unsigned short start_index,
         submitView = kBgfxEngineView;
     }
     const uint64_t routeState = GetEffectiveDrawState();
-    if (IsSortedRotorBlur(routeState) || IsSneakAttackAlphaDepthDecal(routeState))
+    if (IsSortedRotorBlur(routeState)
+        || IsSneakAttackAlphaDepthDecal(routeState)
+        || IsSortedCopLightSprite(routeState))
     {
         // These sorted meshes need their raw model world matrix and the normal
         // camera view. The pre-view-multiplied sort matrix lands local W3D
@@ -8413,7 +8457,9 @@ void SubmitEngineDraw(unsigned short start_index,
     const float * worldMtx = g_views.inSortFlush
         ? g_frame.sortWorld
         : g_frame.world;
-    if (IsSortedRotorBlur(routeState) || IsSneakAttackAlphaDepthDecal(routeState))
+    if (IsSortedRotorBlur(routeState)
+        || IsSneakAttackAlphaDepthDecal(routeState)
+        || IsSortedCopLightSprite(routeState))
     {
         worldMtx = g_frame.sortWorldRaw;
     }

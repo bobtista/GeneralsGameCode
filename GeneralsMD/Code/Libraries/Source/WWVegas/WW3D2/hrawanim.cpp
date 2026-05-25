@@ -476,7 +476,31 @@ void HRawAnimClass::Get_Translation(Vector3& trans, int pividx, float frame ) co
 		motion->Z->Get_Vector((int)frame1,&(trans1[2]));
 	}
 
-	Vector3::Lerp( trans0, trans1, ratio, &trans );
+	// TheSuperHackers @bugfix bobtista 25/05/2026 Per-axis step-function snap.
+	// WW3D_ENABLE_RAW_ANIM_INTERPOLATION enables lerp across integer animation
+	// frames for HRawAnim, which was disabled in retail. The CVPoliceCar
+	// coplight animation uses HRawAnim translation channels to flip pivots
+	// between hidden and visible positions per integer frame as blinking-light
+	// states; the red pivot crosses the visible↔hidden boundary with deltas
+	// 1.184 / 1.956 / 5.937 on X/Y/Z. Linearly interpolating across any of
+	// these turns each on/off transition into a smooth glide that the user
+	// perceives as the lightbar glow bouncing. Snap to the floor-frame value
+	// when the per-axis delta is larger than a smooth-motion baseline; smooth
+	// translation animations (vehicles, particle emitters, etc.) typically
+	// step well under 1 model unit per integer frame, while state-transition
+	// channels step 1+ units. This implements the @todo in WWDefines.h about
+	// per-animation opt-out of interpolation without changing W3D file format
+	// or breaking smooth animations.
+	const float kTranslationStepThreshold = 1.0f;
+	for (int axis = 0; axis < 3; ++axis) {
+		const float delta = trans1[axis] - trans0[axis];
+		if (delta > kTranslationStepThreshold || delta < -kTranslationStepThreshold) {
+			trans[axis] = trans0[axis];
+		}
+		else {
+			trans[axis] = trans0[axis] + ratio * delta;
+		}
+	}
 }
 
 /***********************************************************************************************
