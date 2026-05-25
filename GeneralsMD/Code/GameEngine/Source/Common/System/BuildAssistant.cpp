@@ -788,8 +788,8 @@ LegalBuildCode BuildAssistant::isLocationClearOfObjects(const Coord3D* worldPos,
 	{
 		myExitPos = *worldPos;
 		checkMyExit = true;
-		Real c = (Real)cos(angle);
-		Real s = (Real)sin(angle);
+		Real c = (Real)WWMath::Cos(angle);
+		Real s = (Real)WWMath::Sin(angle);
 		Real offset = build->getTemplateGeometryInfo().getMajorRadius() + myFactoryExitWidth / 2.0f;
 		myExitPos.x += c * offset;
 		myExitPos.y += s * offset;
@@ -840,8 +840,8 @@ LegalBuildCode BuildAssistant::isLocationClearOfObjects(const Coord3D* worldPos,
 		{
 			hisExitPos = *them->getPosition();
 			checkHisExit = true;
-			Real c = (Real)cos(them->getOrientation());
-			Real s = (Real)sin(them->getOrientation());
+			Real c = (Real)WWMath::Cos(them->getOrientation());
+			Real s = (Real)WWMath::Sin(them->getOrientation());
 			Real offset = them->getGeometryInfo().getMajorRadius() + themFactoryExitWidth / 2.0f;
 			hisExitPos.x += c * offset;
 			hisExitPos.y += s * offset;
