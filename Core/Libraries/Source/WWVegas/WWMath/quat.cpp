@@ -693,7 +693,7 @@ Quaternion Build_Quaternion(const Matrix3D& mat)
 	if (tr > 0.0f)
 	{
 
-		s = sqrt(tr + 1.0);
+		s = WWMath::Sqrt(tr + 1.0);
 		q[3] = s * 0.5;
 		s = 0.5 / s;
 
@@ -712,7 +712,7 @@ Quaternion Build_Quaternion(const Matrix3D& mat)
 		j = _nxt[i];
 		k = _nxt[j];
 
-		s = sqrt((mat[i][i] - (mat[j][j] + mat[k][k])) + 1.0);
+		s = WWMath::Sqrt((mat[i][i] - (mat[j][j] + mat[k][k])) + 1.0);
 
 		q[i] = s * 0.5;
 		if (s != 0.0)
@@ -740,7 +740,7 @@ Quaternion Build_Quaternion(const Matrix3x3& mat)
 	if (tr > 0.0)
 	{
 
-		s = sqrt(tr + 1.0);
+		s = WWMath::Sqrt(tr + 1.0);
 		q[3] = s * 0.5;
 		s = 0.5 / s;
 
@@ -760,7 +760,7 @@ Quaternion Build_Quaternion(const Matrix3x3& mat)
 		j = _nxt[i];
 		k = _nxt[j];
 
-		s = sqrt((mat[i][i] - (mat[j][j] + mat[k][k])) + 1.0);
+		s = WWMath::Sqrt((mat[i][i] - (mat[j][j] + mat[k][k])) + 1.0);
 
 		q[i] = s * 0.5;
 
@@ -789,7 +789,7 @@ Quaternion Build_Quaternion(const Matrix4x4& mat)
 	if (tr > 0.0)
 	{
 
-		s = sqrt(tr + 1.0);
+		s = WWMath::Sqrt(tr + 1.0);
 		q[3] = s * 0.5;
 		s = 0.5 / s;
 
@@ -809,7 +809,7 @@ Quaternion Build_Quaternion(const Matrix4x4& mat)
 		j = _nxt[i];
 		k = _nxt[j];
 
-		s = sqrt((mat[i][i] - (mat[j][j] + mat[k][k])) + 1.0);
+		s = WWMath::Sqrt((mat[i][i] - (mat[j][j] + mat[k][k])) + 1.0);
 
 		q[i] = s * 0.5;
 		if (s != 0.0)

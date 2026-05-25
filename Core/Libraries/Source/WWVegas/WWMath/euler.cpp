@@ -174,7 +174,7 @@ void EulerAnglesClass::From_Matrix(const Matrix3D& M, int order)
 
 	if (s == EULER_REPEAT_YES)
 	{
-		double sy = sqrt(M[i][j] * M[i][j] + M[i][k] * M[i][k]);
+		double sy = WWMath::Sqrt(M[i][j] * M[i][j] + M[i][k] * M[i][k]);
 
 		if (sy > 16 * FLT_EPSILON)
 		{
@@ -194,7 +194,7 @@ void EulerAnglesClass::From_Matrix(const Matrix3D& M, int order)
 	else
 	{
 
-		double cy = sqrt(M[i][i] * M[i][i] + M[j][i] * M[j][i]);
+		double cy = WWMath::Sqrt(M[i][i] * M[i][i] + M[j][i] * M[j][i]);
 
 		if (cy > 16 * FLT_EPSILON)
 		{
