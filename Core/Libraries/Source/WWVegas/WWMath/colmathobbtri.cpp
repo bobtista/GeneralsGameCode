@@ -315,9 +315,9 @@ static inline bool obbtri_check_collision_axis(BTCollisionStruct& context)
 	}
 
 	// compute coordinates of the leading edge of the box at t0 and t1
-	leb0 = context.Box.Extent.X * WWMath::Fabsf(Vector3::Dot_Product(context.TestAxis, context.A[0])) +
-	       context.Box.Extent.Y * WWMath::Fabsf(Vector3::Dot_Product(context.TestAxis, context.A[1])) +
-	       context.Box.Extent.Z * WWMath::Fabsf(Vector3::Dot_Product(context.TestAxis, context.A[2]));
+	leb0 = context.Box.Extent.X * WWMath::Fabsf_Legacy(Vector3::Dot_Product(context.TestAxis, context.A[0])) +
+	       context.Box.Extent.Y * WWMath::Fabsf_Legacy(Vector3::Dot_Product(context.TestAxis, context.A[1])) +
+	       context.Box.Extent.Z * WWMath::Fabsf_Legacy(Vector3::Dot_Product(context.TestAxis, context.A[2]));
 	leb1 = leb0 + axismove;
 
 	// compute coordinate of "leading edge of the triangle" relative to the box center.
@@ -501,9 +501,9 @@ static inline bool obbtri_check_collision_normal_axis(BTCollisionStruct& context
 		context.TestSide = 1.0f;
 	}
 
-	leb0 = context.Box.Extent.X * WWMath::Fabsf(context.AN[0]) +
-	       context.Box.Extent.Y * WWMath::Fabsf(context.AN[1]) +
-	       context.Box.Extent.Z * WWMath::Fabsf(context.AN[2]);
+	leb0 = context.Box.Extent.X * WWMath::Fabsf_Legacy(context.AN[0]) +
+	       context.Box.Extent.Y * WWMath::Fabsf_Legacy(context.AN[1]) +
+	       context.Box.Extent.Z * WWMath::Fabsf_Legacy(context.AN[2]);
 	leb1 = leb0 + axismove;
 	context.TestPoint = 0;
 	lp = dist;    // this is the "optimization", don't have to find lp
@@ -641,7 +641,7 @@ static inline void eval_A0_point(const BTCollisionStruct& context, float* x, int
 	}
 
 	den = Vector3::Dot_Product(context.N, context.AxE[0][edge]);
-	if (WWMath::Fabsf(den) > 0.0f)
+	if (WWMath::Fabsf_Legacy(den) > 0.0f)
 	{
 
 		Vector3::Cross_Product(context.FinalD, context.E[edge], &DxE);
@@ -694,7 +694,7 @@ static inline void eval_A1_point(const BTCollisionStruct& context, float* x, int
 	}
 
 	den = Vector3::Dot_Product(context.N, context.AxE[1][edge]);
-	if (WWMath::Fabsf(den) > 0.0f)
+	if (WWMath::Fabsf_Legacy(den) > 0.0f)
 	{
 
 		Vector3::Cross_Product(context.FinalD, context.E[edge], &DxE);
@@ -747,7 +747,7 @@ static inline void eval_A2_point(const BTCollisionStruct& context, float* x, int
 	}
 
 	den = Vector3::Dot_Product(context.N, context.AxE[2][edge]);
-	if (WWMath::Fabsf(den) > 0.0f)
+	if (WWMath::Fabsf_Legacy(den) > 0.0f)
 	{
 
 		Vector3::Cross_Product(context.FinalD, context.E[edge], &DxE);
@@ -1006,7 +1006,7 @@ bool CollisionMath::Collide(
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = context.AN[0];
-		leb0 = box.Extent[1] * WWMath::Fabsf(context.AE[2][0]) + box.Extent[2] * WWMath::Fabsf(context.AE[1][0]);
+		leb0 = box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[2][0]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[1][0]);
 		if (obbtri_check_collision_cross_axis(context, dp, 2, leb0))
 			goto exit;
 	}
@@ -1020,7 +1020,7 @@ bool CollisionMath::Collide(
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[0];
-		leb0 = box.Extent[1] * WWMath::Fabsf(context.AE[2][1]) + box.Extent[2] * WWMath::Fabsf(context.AE[1][1]);
+		leb0 = box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[2][1]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[1][1]);
 		if (obbtri_check_collision_cross_axis(context, dp, 1, leb0))
 			goto exit;
 	}
@@ -1036,7 +1036,7 @@ bool CollisionMath::Collide(
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[0];
-		leb0 = box.Extent[1] * WWMath::Fabsf(context.AE[2][2]) + box.Extent[2] * WWMath::Fabsf(context.AE[1][2]);
+		leb0 = box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[2][2]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[1][2]);
 		if (obbtri_check_collision_cross_axis(context, dp, 1, leb0))
 			goto exit;
 	}
@@ -1050,7 +1050,7 @@ bool CollisionMath::Collide(
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = context.AN[1];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[2][0]) + box.Extent[2] * WWMath::Fabsf(context.AE[0][0]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[2][0]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[0][0]);
 		if (obbtri_check_collision_cross_axis(context, dp, 2, leb0))
 			goto exit;
 	}
@@ -1064,7 +1064,7 @@ bool CollisionMath::Collide(
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[1];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[2][1]) + box.Extent[2] * WWMath::Fabsf(context.AE[0][1]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[2][1]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[0][1]);
 		if (obbtri_check_collision_cross_axis(context, dp, 1, leb0))
 			goto exit;
 	}
@@ -1079,7 +1079,7 @@ bool CollisionMath::Collide(
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[1];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[2][2]) + box.Extent[2] * WWMath::Fabsf(context.AE[0][2]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[2][2]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[0][2]);
 		if (obbtri_check_collision_cross_axis(context, dp, 1, leb0))
 			goto exit;
 	}
@@ -1093,7 +1093,7 @@ bool CollisionMath::Collide(
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = context.AN[2];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[1][0]) + box.Extent[1] * WWMath::Fabsf(context.AE[0][0]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[1][0]) + box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[0][0]);
 		if (obbtri_check_collision_cross_axis(context, dp, 2, leb0))
 			goto exit;
 	}
@@ -1107,7 +1107,7 @@ bool CollisionMath::Collide(
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[2];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[1][1]) + box.Extent[1] * WWMath::Fabsf(context.AE[0][1]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[1][1]) + box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[0][1]);
 		if (obbtri_check_collision_cross_axis(context, dp, 1, leb0))
 			goto exit;
 	}
@@ -1121,7 +1121,7 @@ bool CollisionMath::Collide(
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[2];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[1][2]) + box.Extent[1] * WWMath::Fabsf(context.AE[0][2]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[1][2]) + box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[0][2]);
 		if (obbtri_check_collision_cross_axis(context, dp, 1, leb0))
 			goto exit;
 	}
@@ -1195,7 +1195,7 @@ exit:
 		Vector3 normal;
 		obbtri_compute_contact_normal(context, &normal);
 
-		if ((WWMath::Fabsf(context.MaxFrac - result->Fraction) > WWMATH_EPSILON) ||
+		if ((WWMath::Fabsf_Legacy(context.MaxFrac - result->Fraction) > WWMATH_EPSILON) ||
 		    (Vector3::Dot_Product(normal, move) < Vector3::Dot_Product(result->Normal, move)))
 		{
 			result->Normal = normal;    // obbtri_compute_contact_normal(context,result);
@@ -1434,9 +1434,9 @@ static inline bool obbtri_check_intersection_normal_axis(
 		dist = -dist;
 	}
 
-	leb0 = context.Box.Extent.X * WWMath::Fabsf(context.AN[0]) +
-	       context.Box.Extent.Y * WWMath::Fabsf(context.AN[1]) +
-	       context.Box.Extent.Z * WWMath::Fabsf(context.AN[2]);
+	leb0 = context.Box.Extent.X * WWMath::Fabsf_Legacy(context.AN[0]) +
+	       context.Box.Extent.Y * WWMath::Fabsf_Legacy(context.AN[1]) +
+	       context.Box.Extent.Z * WWMath::Fabsf_Legacy(context.AN[2]);
 	lp = dist;    // this is the "optimization", don't have to find lp
 
 	return obbtri_intersection_separation_test(context, lp, leb0);
@@ -1509,7 +1509,7 @@ bool CollisionMath::Intersection_Test(const OBBoxClass& box, const TriClass& tri
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = context.AN[0];
-		leb0 = box.Extent[1] * WWMath::Fabsf(context.AE[2][0]) + box.Extent[2] * WWMath::Fabsf(context.AE[1][0]);
+		leb0 = box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[2][0]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[1][0]);
 		if (obbtri_check_intersection_cross_axis(context, dp, leb0))
 			return false;
 	}
@@ -1522,7 +1522,7 @@ bool CollisionMath::Intersection_Test(const OBBoxClass& box, const TriClass& tri
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[0];
-		leb0 = box.Extent[1] * WWMath::Fabsf(context.AE[2][1]) + box.Extent[2] * WWMath::Fabsf(context.AE[1][1]);
+		leb0 = box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[2][1]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[1][1]);
 		if (obbtri_check_intersection_cross_axis(context, dp, leb0))
 			return false;
 	}
@@ -1537,7 +1537,7 @@ bool CollisionMath::Intersection_Test(const OBBoxClass& box, const TriClass& tri
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[0];
-		leb0 = box.Extent[1] * WWMath::Fabsf(context.AE[2][2]) + box.Extent[2] * WWMath::Fabsf(context.AE[1][2]);
+		leb0 = box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[2][2]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[1][2]);
 		if (obbtri_check_intersection_cross_axis(context, dp, leb0))
 			return false;
 	}
@@ -1550,7 +1550,7 @@ bool CollisionMath::Intersection_Test(const OBBoxClass& box, const TriClass& tri
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = context.AN[1];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[2][0]) + box.Extent[2] * WWMath::Fabsf(context.AE[0][0]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[2][0]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[0][0]);
 		if (obbtri_check_intersection_cross_axis(context, dp, leb0))
 			return false;
 	}
@@ -1563,7 +1563,7 @@ bool CollisionMath::Intersection_Test(const OBBoxClass& box, const TriClass& tri
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[1];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[2][1]) + box.Extent[2] * WWMath::Fabsf(context.AE[0][1]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[2][1]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[0][1]);
 		if (obbtri_check_intersection_cross_axis(context, dp, leb0))
 			return false;
 	}
@@ -1577,7 +1577,7 @@ bool CollisionMath::Intersection_Test(const OBBoxClass& box, const TriClass& tri
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[1];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[2][2]) + box.Extent[2] * WWMath::Fabsf(context.AE[0][2]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[2][2]) + box.Extent[2] * WWMath::Fabsf_Legacy(context.AE[0][2]);
 		if (obbtri_check_intersection_cross_axis(context, dp, leb0))
 			return false;
 	}
@@ -1590,7 +1590,7 @@ bool CollisionMath::Intersection_Test(const OBBoxClass& box, const TriClass& tri
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = context.AN[2];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[1][0]) + box.Extent[1] * WWMath::Fabsf(context.AE[0][0]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[1][0]) + box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[0][0]);
 		if (obbtri_check_intersection_cross_axis(context, dp, leb0))
 			return false;
 	}
@@ -1603,7 +1603,7 @@ bool CollisionMath::Intersection_Test(const OBBoxClass& box, const TriClass& tri
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[2];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[1][1]) + box.Extent[1] * WWMath::Fabsf(context.AE[0][1]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[1][1]) + box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[0][1]);
 		if (obbtri_check_intersection_cross_axis(context, dp, leb0))
 			return false;
 	}
@@ -1616,7 +1616,7 @@ bool CollisionMath::Intersection_Test(const OBBoxClass& box, const TriClass& tri
 	if (context.TestAxis.Length2() > AXISLEN_EPSILON2)
 	{
 		dp = -context.AN[2];
-		leb0 = box.Extent[0] * WWMath::Fabsf(context.AE[1][2]) + box.Extent[1] * WWMath::Fabsf(context.AE[0][2]);
+		leb0 = box.Extent[0] * WWMath::Fabsf_Legacy(context.AE[1][2]) + box.Extent[1] * WWMath::Fabsf_Legacy(context.AE[0][2]);
 		if (obbtri_check_intersection_cross_axis(context, dp, leb0))
 			return false;
 	}

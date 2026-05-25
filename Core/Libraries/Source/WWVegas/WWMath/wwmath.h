@@ -146,8 +146,8 @@ public:
 	static WWINLINE float Tanhf(float x);
 
 	static WWINLINE double Fabs(double x);
-	static WWINLINE float Fabsf(float val);
-	static WWINLINE float Fabsf_Legacy(float x);
+	static WWINLINE float Fabsf(float x);
+	static WWINLINE float Fabsf_Legacy(float val);
 
 	static WWINLINE double Ceil(double x);
 	static WWINLINE float Ceilf(float x);
@@ -329,7 +329,7 @@ WWINLINE float WWMath::Inv_Sqrtf(float x)
 WWINLINE float WWMath::Fast_Acos(float val)
 {
 	// Near -1 and +1, the table becomes too inaccurate
-	if (Fabsf(val) > 0.975f)
+	if (Fabsf_Legacy(val) > 0.975f)
 	{
 		return Acos_Legacy(val);
 	}
@@ -354,7 +354,7 @@ WWINLINE float WWMath::Fast_Acos(float val)
 WWINLINE float WWMath::Fast_Asin(float val)
 {
 	// Near -1 and +1, the table becomes too inaccurate
-	if (Fabsf(val) > 0.975f)
+	if (Fabsf_Legacy(val) > 0.975f)
 	{
 		return Asin_Legacy(val);
 	}
@@ -715,7 +715,16 @@ WWINLINE double WWMath::Fabs(double x)
 #endif
 }
 
-WWINLINE float WWMath::Fabsf(float val)
+WWINLINE float WWMath::Fabsf(float x)
+{
+#if USE_DETERMINISTIC_MATH
+	return gm_fabsf(x);
+#else
+	return fabsf(x);
+#endif
+}
+
+WWINLINE float WWMath::Fabsf_Legacy(float val)
 {
 #if USE_DETERMINISTIC_MATH
 	return gm_fabsf(val);
@@ -727,15 +736,6 @@ WWINLINE float WWMath::Fabsf(float val)
 
 #else
 	return fabsf(val);
-#endif
-}
-
-WWINLINE float WWMath::Fabsf_Legacy(float x)
-{
-#if USE_DETERMINISTIC_MATH
-	return gm_fabsf(x);
-#else
-	return fabsf(x);
 #endif
 }
 
