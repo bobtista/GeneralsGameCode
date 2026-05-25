@@ -51,6 +51,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "hrawanim.h"
+#include <cstdlib>
 #include "motchan.h"
 #include "WWLib/chunkio.h"
 #include "assetmgr.h"
@@ -494,7 +495,20 @@ void HRawAnimClass::Get_Translation(Vector3& trans, int pividx, float frame ) co
 		motion->Z->Get_Vector((int)frame1,&(trans1[2]));
 	}
 
-	Vector3::Lerp( trans0, trans1, ratio, &trans );
+	// TheSuperHackers @bugfix bobtista 25/05/2026 Snap to the floor-frame value when a raw-anim
+	// translation channel steps more than 1 unit per integer frame: state-flip channels (e.g.
+	// blinking-light pivots) must not lerp. GGC_DISABLE_RAW_ANIM_STEP_SNAP opts out.
+	static const bool s_stepSnapDisabled = (std::getenv("GGC_DISABLE_RAW_ANIM_STEP_SNAP") != nullptr);
+	const float kTranslationStepThreshold = 1.0f;
+	for (int axis = 0; axis < 3; ++axis) {
+		const float delta = trans1[axis] - trans0[axis];
+		if (!s_stepSnapDisabled && (delta > kTranslationStepThreshold || delta < -kTranslationStepThreshold)) {
+			trans[axis] = trans0[axis];
+		}
+		else {
+			trans[axis] = trans0[axis] + ratio * delta;
+		}
+	}
 }
 
 /***********************************************************************************************
