@@ -352,7 +352,7 @@ WWINLINE Matrix3x3::Matrix3x3(const Vector3& axis, float s_angle, float c_angle)
 
 WWINLINE void Matrix3x3::Set(const Vector3& axis, float angle)
 {
-	Set(axis, sinf(angle), cosf(angle));
+	Set(axis, WWMath::Sinf(angle), WWMath::Cosf(angle));
 }
 
 WWINLINE void Matrix3x3::Set(const Vector3& axis, float s, float c)
@@ -767,7 +767,7 @@ WWINLINE int operator!=(const Matrix3x3& a, const Matrix3x3& b)
  *=============================================================================================*/
 WWINLINE void Matrix3x3::Rotate_X(float theta)
 {
-	Rotate_X(sinf(theta), cosf(theta));
+	Rotate_X(WWMath::Sinf(theta), WWMath::Cosf(theta));
 }
 
 WWINLINE void Matrix3x3::Rotate_X(float s, float c)
@@ -804,7 +804,7 @@ WWINLINE void Matrix3x3::Rotate_X(float s, float c)
  *=============================================================================================*/
 WWINLINE void Matrix3x3::Rotate_Y(float theta)
 {
-	Rotate_Y(sinf(theta), cosf(theta));
+	Rotate_Y(WWMath::Sinf(theta), WWMath::Cosf(theta));
 }
 
 WWINLINE void Matrix3x3::Rotate_Y(float s, float c)
@@ -841,7 +841,7 @@ WWINLINE void Matrix3x3::Rotate_Y(float s, float c)
  *=============================================================================================*/
 WWINLINE void Matrix3x3::Rotate_Z(float theta)
 {
-	Rotate_Z(sinf(theta), cosf(theta));
+	Rotate_Z(WWMath::Sinf(theta), WWMath::Cosf(theta));
 }
 
 WWINLINE void Matrix3x3::Rotate_Z(float s, float c)
@@ -897,7 +897,7 @@ WWINLINE Matrix3x3 Create_X_Rotation_Matrix3(float s, float c)
 
 WWINLINE Matrix3x3 Create_X_Rotation_Matrix3(float rad)
 {
-	return Create_X_Rotation_Matrix3(sinf(rad), cosf(rad));
+	return Create_X_Rotation_Matrix3(WWMath::Sinf(rad), WWMath::Cosf(rad));
 }
 
 /***********************************************************************************************
@@ -933,7 +933,7 @@ WWINLINE Matrix3x3 Create_Y_Rotation_Matrix3(float s, float c)
 
 WWINLINE Matrix3x3 Create_Y_Rotation_Matrix3(float rad)
 {
-	return Create_Y_Rotation_Matrix3(sinf(rad), cosf(rad));
+	return Create_Y_Rotation_Matrix3(WWMath::Sinf(rad), WWMath::Cosf(rad));
 }
 
 /***********************************************************************************************
@@ -969,7 +969,7 @@ WWINLINE Matrix3x3 Create_Z_Rotation_Matrix3(float s, float c)
 
 WWINLINE Matrix3x3 Create_Z_Rotation_Matrix3(float rad)
 {
-	return Create_Z_Rotation_Matrix3(sinf(rad), cosf(rad));
+	return Create_Z_Rotation_Matrix3(WWMath::Sinf(rad), WWMath::Cosf(rad));
 }
 
 WWINLINE void Matrix3x3::Rotate_Vector(const Matrix3x3& A, const Vector3& in, Vector3* out)

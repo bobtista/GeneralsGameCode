@@ -130,8 +130,10 @@ public:
 	static WWINLINE float Fast_Sin(float val);
 	static WWINLINE float Fast_Inv_Sin(float val);
 	static WWINLINE double Cos(double val);
+	static WWINLINE float Cosf(float val);
 	static WWINLINE float Cosf_Legacy(float val);
 	static WWINLINE double Sin(double val);
+	static WWINLINE float Sinf(float val);
 	static WWINLINE float Sinf_Legacy(float val);
 	static WWINLINE double Tan(double x);
 	static WWINLINE float Tanf(float x);
@@ -567,6 +569,15 @@ WWINLINE double WWMath::Cos(double val)
 #endif
 }
 
+WWINLINE float WWMath::Cosf(float val)
+{
+#if USE_DETERMINISTIC_MATH
+	return gm_cosf(val);
+#else
+	return cosf(val);
+#endif
+}
+
 WWINLINE float WWMath::Cosf_Legacy(float val)
 {
 #if USE_DETERMINISTIC_MATH
@@ -592,6 +603,15 @@ WWINLINE double WWMath::Sin(double val)
 	return gm_sin(val);
 #else
 	return sin(val);
+#endif
+}
+
+WWINLINE float WWMath::Sinf(float val)
+{
+#if USE_DETERMINISTIC_MATH
+	return gm_sinf(val);
+#else
+	return sinf(val);
 #endif
 }
 
