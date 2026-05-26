@@ -6546,6 +6546,18 @@ void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
     if (s >= 1 && s <= 11 && d >= 1 && d <= 11)
     {
         g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[s], kBgfxBlendMap[d]);
+        // TheSuperHackers @bugfix bobtista 26/05/2026 If a shader override
+        // (Override_Alpha_Blend_Enable / Override_Blend) is already active,
+        // propagate the explicit Set_Blend_Factors into the override so the
+        // engine's intent wins. ApplyBlendState prefers g_overrides.blendBits
+        // over g_draw.blendFuncBits when an override is active, which silently
+        // dropped the water surface's DEST_ALPHA / INV_DEST_ALPHA shoreline
+        // feather (Override_Alpha_Blend_Enable had stamped the override at
+        // SRC_ALPHA / INV_SRC_ALPHA just above the explicit Set_Blend_Factors).
+        if (g_overrides.blendActive)
+        {
+            g_overrides.SetBlend(g_draw.blendFuncBits);
+        }
         if (!g_draw.alphaBlendExplicitlySet && !IsOpaqueBlend(src, dest))
         {
             g_draw.alphaBlendEnabled = true;
