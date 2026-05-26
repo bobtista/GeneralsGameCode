@@ -51,6 +51,7 @@
 #include "GameClient/Water.h"
 #include "GameLogic/TerrainLogic.h"
 #include "Common/FramePacer.h"
+#include "Common/GameState.h"
 #include "Common/GlobalData.h"
 #include "Common/UnicodeString.h"
 #include "Common/file.h"
@@ -1096,6 +1097,28 @@ void WaterTracksRenderSystem::loadTracks()
 	fileName.concat(".wak");
 
 	File *file = TheFileSystem->openFile(fileName.str(), File::READ | File::BINARY);
+
+	// TheSuperHackers @bugfix bobtista 26/05/2026 On save game load, the
+	// terrain source filename has been rewritten to Save\<name>.map because
+	// the save extracted the embedded .map into the save directory. The
+	// companion .wak is never extracted, so the lookup above misses the surf
+	// data that lives at the pristine .big-archive path. Fall back to the
+	// pristine map name (Maps\<name>\<name>.wak) when the save-relative open
+	// fails.
+	if (file == nullptr && TheGameState != nullptr)
+	{
+		AsciiString pristineName = TheGameState->getPristineMapName();
+		if (!pristineName.isEmpty())
+		{
+			FileSystem::removeExtension(pristineName);
+			pristineName.concat(".wak");
+			if (pristineName != fileName)
+			{
+				file = TheFileSystem->openFile(pristineName.str(), File::READ | File::BINARY);
+			}
+		}
+	}
+
 	WaterTracksObj *umod;
 	Int trackCount=0;
 	Int flipU=0;
