@@ -578,11 +578,15 @@ void SlowDeathBehavior::loadPostProcess()
 
 	Object *obj = getObject();
 	if (!isSlowDeathActivated())
+	{
 		return;
+	}
 
 	UnsignedInt now = TheGameLogic->getFrame();
 	if (now == 0)
+	{
 		now = 1;
+	}
 
 	UnsignedInt wakeFrame = m_destructionFrame;
 	const SlowDeathBehaviorModuleData* d = getSlowDeathBehaviorModuleData();
@@ -594,13 +598,19 @@ void SlowDeathBehavior::loadPostProcess()
 	else
 	{
 		if (d->m_sinkRate > 0.0f && m_sinkFrame < wakeFrame)
+		{
 			wakeFrame = m_sinkFrame;
+		}
 
 		if ((m_flags & (1<<MIDPOINT_EXECUTED)) == 0 && m_midpointFrame < wakeFrame)
+		{
 			wakeFrame = m_midpointFrame;
+		}
 
 		if (wakeFrame < now)
+		{
 			wakeFrame = now;
+		}
 	}
 
 	friend_setNextCallFrame(wakeFrame);
