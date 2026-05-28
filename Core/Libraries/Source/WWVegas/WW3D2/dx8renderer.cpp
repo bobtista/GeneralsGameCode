@@ -1359,7 +1359,7 @@ void DX8SkinFVFCategoryContainer::Render()
 
 		SNAPSHOT_SAY(("Set vb: %x ib: %x",&vb.FVF_Info(),index_buffer));
 
-		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.7 skin
+		// TheSuperHackers @refactor bobtista 11/04/2026 skin
 		// vertices come out of Get_Deformed_Vertices already in world
 		// space (the HTree bone matrices include the container's world
 		// transform), so the draw must use an identity world matrix.

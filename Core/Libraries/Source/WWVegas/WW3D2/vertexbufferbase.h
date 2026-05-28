@@ -62,7 +62,7 @@ public:
 	class AppendLockClass : public VertexBufferLockClass
 	{
 	public:
-		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I added
+		// TheSuperHackers @refactor bobtista 15/04/2026 added
 		// optional `flags` (e.g. RB_LOCK_DISCARD / RB_LOCK_NOOVERWRITE)
 		// for the dynamic shadow buffer's per-batch append pattern. Default
 		// of 0 keeps existing one-shot DX8VertexBufferClass::Copy callers
@@ -70,7 +70,7 @@ public:
 		AppendLockClass(VertexBufferClass* vertex_buffer,unsigned start_index, unsigned index_range, unsigned flags=0);
 		~AppendLockClass();
 	protected:
-		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6
+		// TheSuperHackers @refactor bobtista 11/04/2026
 		// stored so the destructor can report the locked sub-range to
 		// the bgfx write-side capture hook. Not used by the dx8 path.
 		unsigned AppendStartIndex;

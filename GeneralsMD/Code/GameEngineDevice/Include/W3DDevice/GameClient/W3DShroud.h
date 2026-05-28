@@ -113,7 +113,7 @@ protected:
 	Real m_cellWidth;						///<spacing between adjacent cells
 	Real m_cellHeight;						///<spacing between adjacent cells
 	Byte *m_shroudData;						///<holds amount of shroud per cell.
-	// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3C migrated this from
+	// TheSuperHackers @refactor bobtista 10/04/2026  migrated this from
 	// raw surface ownership to SurfaceClass so the shroud system no longer
 	// touches the legacy surface API directly.
 	SurfaceClass *m_pSrcTexture;			///<stores sysmem copy of visible shroud.
