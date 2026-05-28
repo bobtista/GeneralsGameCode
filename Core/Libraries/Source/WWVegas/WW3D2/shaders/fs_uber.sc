@@ -353,7 +353,7 @@ void main()
 		// generic TSS path so stale secondary-stage/shadow state cannot turn
 		// transparent matte pixels into dark geometry.
 		float alpha = clamp(tex0.a * diffuse.a, 0.0, 1.0);
-		if (alpha <= (0.5 / 255.0))
+		if (alpha <= ALPHA_MASK_EPSILON)
 		{
 			discard;
 		}
