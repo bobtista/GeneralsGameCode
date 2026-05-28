@@ -140,11 +140,15 @@ void LifetimeUpdate::loadPostProcess()
 	Object *obj = getObject();
 	UnsignedInt now = TheGameLogic->getFrame();
 	if (now == 0)
+	{
 		now = 1;
+	}
 
 	UnsignedInt wakeFrame = m_dieFrame;
 	if (obj->isEffectivelyDead() || wakeFrame < now)
+	{
 		wakeFrame = now;
+	}
 
 	friend_setNextCallFrame(wakeFrame);
 }
