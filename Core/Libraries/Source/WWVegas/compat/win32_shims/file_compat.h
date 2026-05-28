@@ -37,10 +37,16 @@ inline int _mkdir(const char* path)  {
 }
 
 // Windows file attributes → POSIX stat
+// TheSuperHackers @bugfix bobtista 28/05/2026 Return FILE_ATTRIBUTE_DIRECTORY when the path is a directory so callers can distinguish files from directories.
 inline uint32_t GetFileAttributes(const char* path) {
   struct stat st;
-  if (stat(path, &st) != 0) {
+  if (stat(path, &st) != 0)
+  {
     return 0xFFFFFFFF; // INVALID_FILE_ATTRIBUTES
+  }
+  if (S_ISDIR(st.st_mode))
+  {
+    return 0x10; // FILE_ATTRIBUTE_DIRECTORY
   }
   return 0; // FILE_ATTRIBUTE_NORMAL
 }
