@@ -23,6 +23,7 @@
 
 #include "BgfxBackend.h"
 
+#include "RenderStateDefs.h"
 #include "DXTUtils.h"
 #include "dx8fvf.h"
 #include "FixedFunctionState.h"
@@ -87,6 +88,7 @@
 #include "vs_passthrough_metal.bin.h"
 #include "fs_passthrough_metal.bin.h"
 #include "vs_uber_metal.bin.h"
+#include "vs_uber_instanced_metal.bin.h"
 #include "vs_trees_metal.bin.h"
 #include "fs_uber_metal.bin.h"
 #include "vs_shadow_volume_metal.bin.h"
@@ -108,6 +110,7 @@
 // Single program handles all TSS combinations via uniforms. Replaces the
 // Per-preset shader pairs.
 #include "vs_uber_dx11.bin.h"
+#include "vs_uber_instanced_dx11.bin.h"
 #include "vs_trees_dx11.bin.h"
 #include "fs_uber_dx11.bin.h"
 
@@ -187,13 +190,6 @@ static const float kTssArgDiffuse =  1.0f;
 static const float kTssArgCurrent =  2.0f;
 static const unsigned kTextureArgumentSelectMask = 0x0000000f;
 
-constexpr unsigned kStageStateAddressU = 13, kStageStateAddressV = 14, kStageStateAddressW = 25;
-constexpr unsigned kStageStateMinFilter = 17, kStageStateMagFilter = 16, kStageStateMipFilter = 18;
-constexpr unsigned kStageStateTexcoordIndex = 11, kStageStateTextureTransformFlags = 24, kStageStateMaxAnisotropy = 21;
-constexpr unsigned kStageStateColorOp = 1, kStageStateAlphaOp = 4, kStageStateColorArg0 = 26, kStageStateColorArg1 = 2, kStageStateColorArg2 = 3;
-constexpr unsigned kStageStateAlphaArg0 = 27, kStageStateAlphaArg1 = 5, kStageStateAlphaArg2 = 6;
-constexpr unsigned kStageStateBumpEnvMat00 = 7, kStageStateBumpEnvMat01 = 8, kStageStateBumpEnvMat10 = 9, kStageStateBumpEnvMat11 = 10;
-constexpr unsigned kStageStateBumpEnvLScale = 22, kStageStateBumpEnvLOffset = 23;
 constexpr unsigned kTextureAddressWrap = 1, kTextureAddressClamp = 3, kTextureAddressBorder = 4;
 constexpr unsigned kTextureSampleNone = 0, kTextureSamplePoint = 1, kTextureSampleLinear = 2, kTextureSampleAnisotropic = 3;
 constexpr unsigned kTexcoordGenPassthru = 0x00000000, kTexcoordGenCameraNormal = 0x00010000, kTexcoordGenCameraReflection = 0x00030000, kTexcoordGenCameraPosition = 0x00020000;
@@ -201,17 +197,6 @@ constexpr unsigned kTextureTransformDisable = 0, kTextureTransformProjected = 25
 constexpr unsigned kTextureTransformStage0 = 16, kTransformView = 2;
 constexpr unsigned kTextureArgCurrent = static_cast<unsigned>(RB_TEXARG_CURRENT), kTextureArgTexture = static_cast<unsigned>(RB_TEXARG_TEXTURE), kTextureArgDiffuse = static_cast<unsigned>(RB_TEXARG_DIFFUSE);
 constexpr unsigned kTextureOpDisable = static_cast<unsigned>(RB_TEXOP_DISABLE), kTextureOpSelectArg1 = static_cast<unsigned>(RB_TEXOP_SELECTARG1), kTextureOpSelectArg2 = static_cast<unsigned>(RB_TEXOP_SELECTARG2);
-constexpr unsigned kRenderStateCullMode = 22, kRenderStateZBias = 47, kRenderStateLighting = 137, kRenderStateAmbient = 139;
-constexpr unsigned kRenderStateAmbientMaterialSource = 147, kRenderStateDiffuseMaterialSource = 145, kRenderStateEmissiveMaterialSource = 148;
-constexpr unsigned kRenderStateFogEnable = 28, kRenderStateFogColor = 34, kRenderStateSpecularEnable = 29, kRenderStatePatchSegments = 164;
-constexpr unsigned kRenderStateSrcBlend = 19, kRenderStateDestBlend = 20, kRenderStateBlendOp = 171, kRenderStateAlphaBlendEnable = 27;
-constexpr unsigned kRenderStateAlphaTestEnable = 15, kRenderStateAlphaRef = 24, kRenderStateAlphaFunc = 25, kRenderStateNormalizeNormals = 143;
-constexpr unsigned kRenderStateColorWriteEnable = 168, kRenderStatePointSpriteEnable = 156, kRenderStatePointScaleEnable = 157;
-constexpr unsigned kRenderStatePointSize = 154, kRenderStatePointSizeMin = 155, kRenderStatePointSizeMax = 166;
-constexpr unsigned kRenderStatePointScaleA = 158, kRenderStatePointScaleB = 159, kRenderStatePointScaleC = 160, kRenderStateTextureFactor = 60;
-constexpr unsigned kRenderStateStencilEnable = 52, kRenderStateStencilFunc = 56, kRenderStateStencilRef = 57, kRenderStateStencilMask = 58;
-constexpr unsigned kRenderStateStencilWriteMask = 59, kRenderStateStencilPass = 55, kRenderStateStencilFail = 53, kRenderStateStencilZFail = 54;
-constexpr unsigned kRenderStateFillMode = 8, kRenderStateShadeMode = 9, kRenderStateZEnable = 7, kRenderStateZWriteEnable = 14, kRenderStateZFunc = 23;
 
 static float TextureOpToTssOp(unsigned value)
 {
@@ -312,6 +297,9 @@ static bool g_triangleDrawEnabled = true;
 
 static bool IsBgfxStatsLoggingEnabled()
 {
+    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr) {
+        return true;
+    }
     return GetBgfxDiagnosticFlags().logStats;
 }
 
@@ -369,6 +357,7 @@ struct BgfxStatsLogWindow
     uint32_t transientIbDraws;
     uint32_t dynamicVbAllocations;
     uint32_t dynamicIbAllocations;
+    uint32_t instancedSavedDrawCalls;
     double bgfxTransientVbUsed;
     double bgfxTransientIbUsed;
     int64_t textureMemoryUsed;
@@ -378,6 +367,88 @@ struct BgfxStatsLogWindow
 };
 
 static BgfxStatsLogWindow g_bgfxStatsLog = {};
+
+struct BgfxPerfSession
+{
+    uint32_t windows;
+    uint32_t totalFrames;
+    double totalSeconds;
+    double cpuMsMin;
+    double cpuMsMax;
+    double cpuMsSum;
+    double fpsMin;
+    double fpsMax;
+    uint32_t drawsMin;
+    uint32_t drawsMax;
+    uint64_t drawsSum;
+    uint64_t uploadsSum;
+    int64_t peakTexMem;
+    double transientVbSum;
+    double transientIbSum;
+};
+
+static BgfxPerfSession g_perfSession = {};
+
+static void PerfSessionAccumulate(double windowSeconds, uint32_t windowFrames,
+                                   double cpuMsAvg, double fps,
+                                   uint32_t drawsAvg, uint32_t uploads,
+                                   int64_t texMem, double transVb, double transIb)
+{
+    if (g_perfSession.windows == 0)
+    {
+        g_perfSession.cpuMsMin = cpuMsAvg;
+        g_perfSession.cpuMsMax = cpuMsAvg;
+        g_perfSession.fpsMin = fps;
+        g_perfSession.fpsMax = fps;
+        g_perfSession.drawsMin = drawsAvg;
+        g_perfSession.drawsMax = drawsAvg;
+    }
+    else
+    {
+        if (cpuMsAvg < g_perfSession.cpuMsMin) { g_perfSession.cpuMsMin = cpuMsAvg; }
+        if (cpuMsAvg > g_perfSession.cpuMsMax) { g_perfSession.cpuMsMax = cpuMsAvg; }
+        if (fps < g_perfSession.fpsMin) { g_perfSession.fpsMin = fps; }
+        if (fps > g_perfSession.fpsMax) { g_perfSession.fpsMax = fps; }
+        if (drawsAvg < g_perfSession.drawsMin) { g_perfSession.drawsMin = drawsAvg; }
+        if (drawsAvg > g_perfSession.drawsMax) { g_perfSession.drawsMax = drawsAvg; }
+    }
+    g_perfSession.windows++;
+    g_perfSession.totalFrames += windowFrames;
+    g_perfSession.totalSeconds += windowSeconds;
+    g_perfSession.cpuMsSum += cpuMsAvg * windowFrames;
+    g_perfSession.drawsSum += static_cast<uint64_t>(drawsAvg) * windowFrames;
+    g_perfSession.uploadsSum += uploads;
+    if (texMem > g_perfSession.peakTexMem) { g_perfSession.peakTexMem = texMem; }
+    g_perfSession.transientVbSum += transVb * windowFrames;
+    g_perfSession.transientIbSum += transIb * windowFrames;
+}
+
+static void PerfSessionPrintSummary()
+{
+    if (g_perfSession.totalFrames == 0) { return; }
+    const double frames = static_cast<double>(g_perfSession.totalFrames);
+    const double avgFps = frames / g_perfSession.totalSeconds;
+    const double avgCpu = g_perfSession.cpuMsSum / frames;
+    const double avgDraws = static_cast<double>(g_perfSession.drawsSum) / frames;
+    std::fprintf(stderr,
+        "\nBGFX_PERF_SUMMARY: %.1fs %u frames\n"
+        "  fps:     avg=%.1f  min=%.1f  max=%.1f\n"
+        "  cpu:     avg=%.2fms  min=%.2fms  max=%.2fms\n"
+        "  draws:   avg=%.0f  min=%u  max=%u\n"
+        "  uploads: %llu total (%.2f/frame)\n"
+        "  texMem:  peak=%lldKB\n"
+        "  transVB: avg=%.0f bytes/frame\n"
+        "  transIB: avg=%.0f bytes/frame\n",
+        g_perfSession.totalSeconds, g_perfSession.totalFrames,
+        avgFps, g_perfSession.fpsMin, g_perfSession.fpsMax,
+        avgCpu, g_perfSession.cpuMsMin, g_perfSession.cpuMsMax,
+        avgDraws, g_perfSession.drawsMin, g_perfSession.drawsMax,
+        static_cast<unsigned long long>(g_perfSession.uploadsSum),
+        static_cast<double>(g_perfSession.uploadsSum) / frames,
+        static_cast<long long>(g_perfSession.peakTexMem / 1024),
+        g_perfSession.transientVbSum / frames,
+        g_perfSession.transientIbSum / frames);
+}
 
 static double AverageOrMinusOne(double total, uint32_t count)
 {
@@ -544,6 +615,25 @@ static void FlushBgfxStatsLogWindow()
         fclose(file);
     }
 
+    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr)
+    {
+        const double frames = static_cast<double>(g_bgfxStatsLog.frames);
+        const double fps = frames / g_bgfxStatsLog.windowSeconds;
+        const double cpuMs = g_bgfxStatsLog.bgfxCpuFrameMs / frames;
+        const uint32_t draws = static_cast<uint32_t>(g_bgfxStatsLog.backendDraws / g_bgfxStatsLog.frames);
+        const double uploads = static_cast<double>(g_bgfxStatsLog.textureUploads) / frames;
+        const double transVb = g_bgfxStatsLog.bgfxTransientVbUsed / frames;
+        const double transIb = g_bgfxStatsLog.bgfxTransientIbUsed / frames;
+        std::fprintf(stderr,
+            "BGFX_PERF: %.1fs fps=%.1f cpu=%.2fms draws=%u uploads=%.0f texMem=%lldKB transVB=%.0f transIB=%.0f instSaved=%u\n",
+            g_bgfxStatsLog.elapsedSeconds, fps, cpuMs, draws, uploads,
+            static_cast<long long>(g_bgfxStatsLog.textureMemoryUsed / 1024),
+            transVb, transIb, g_bgfxStatsLog.instancedSavedDrawCalls);
+        PerfSessionAccumulate(g_bgfxStatsLog.windowSeconds, g_bgfxStatsLog.frames,
+                              cpuMs, fps, draws, g_bgfxStatsLog.textureUploads,
+                              g_bgfxStatsLog.textureMemoryUsed, transVb, transIb);
+    }
+
     ResetBgfxStatsLogWindow();
 }
 
@@ -623,6 +713,7 @@ static void UpdateBgfxStatsLog()
     g_bgfxStatsLog.transientIbDraws += g_stats.transientIbDraws;
     g_bgfxStatsLog.dynamicVbAllocations += g_stats.dynamicVbAllocations;
     g_bgfxStatsLog.dynamicIbAllocations += g_stats.dynamicIbAllocations;
+    g_bgfxStatsLog.instancedSavedDrawCalls += g_stats.instancedSavedDrawCalls;
 
     if (g_bgfxStatsLog.windowSeconds >= 1.0)
     {
@@ -1198,6 +1289,22 @@ uint64_t TranslateDepthCompare(ShaderClass::DepthCompareType cmp)
         case ShaderClass::PASS_GEQUAL:   return BGFX_STATE_DEPTH_TEST_GEQUAL;
         case ShaderClass::PASS_ALWAYS:   return BGFX_STATE_DEPTH_TEST_ALWAYS;
         default:                         return BGFX_STATE_DEPTH_TEST_LEQUAL;
+    }
+}
+
+CompareFunc MapShaderDepthCompareToBackendCompare(ShaderClass::DepthCompareType cmp)
+{
+    switch (cmp)
+    {
+        case ShaderClass::PASS_NEVER:    return RB_CMP_NEVER;
+        case ShaderClass::PASS_LESS:     return RB_CMP_LESS;
+        case ShaderClass::PASS_EQUAL:    return RB_CMP_EQUAL;
+        case ShaderClass::PASS_LEQUAL:   return RB_CMP_LESS_EQUAL;
+        case ShaderClass::PASS_GREATER:  return RB_CMP_GREATER;
+        case ShaderClass::PASS_NOTEQUAL: return RB_CMP_NOT_EQUAL;
+        case ShaderClass::PASS_GEQUAL:   return RB_CMP_GREATER_EQUAL;
+        case ShaderClass::PASS_ALWAYS:   return RB_CMP_ALWAYS;
+        default:                         return RB_CMP_LESS_EQUAL;
     }
 }
 
@@ -1807,12 +1914,12 @@ auto MakeIdentityLegacyCacheMatrix()
 
 void CacheTransform(TransformKind transform, const Matrix4x4 & m)
 {
-    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
+    FixedFunctionState::Set_Transform_Matrix(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
 }
 
 void CacheTransform(TransformKind transform, const Matrix3D & m)
 {
-    RenderStateCache::Set_Transform(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
+    FixedFunctionState::Set_Transform_Matrix(static_cast<unsigned>(transform), MakeLegacyCacheMatrix(m));
 }
 
 void CacheIdentityTransform(TransformKind transform)
@@ -1824,7 +1931,7 @@ void CacheIdentityTransform(TransformKind transform)
 bool IsCachedTransformIdentity(TransformKind transform)
 {
     auto matrix = MakeIdentityLegacyCacheMatrix();
-    RenderStateCache::Get_Transform(static_cast<unsigned>(transform), matrix);
+    FixedFunctionState::Transform_Matrix(static_cast<unsigned>(transform), matrix);
     for (int row = 0; row < 4; ++row)
     {
         for (int col = 0; col < 4; ++col)
@@ -2165,9 +2272,24 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     initArgs.resolution.width = static_cast<uint32_t>(g_device.width);
     initArgs.resolution.height = static_cast<uint32_t>(g_device.height);
     initArgs.resolution.reset = BGFX_RESET_NONE;
-    if (std::getenv("GGC_BGFX_MSAA") != nullptr)
     {
-        initArgs.resolution.reset |= BGFX_RESET_MSAA_X4;
+        int msaaLevel = 0;
+        const char * msaaEnv = std::getenv("GGC_BGFX_MSAA");
+        if (msaaEnv != nullptr)
+        {
+            msaaLevel = std::atoi(msaaEnv);
+            if (msaaLevel <= 0) { msaaLevel = 4; }
+        }
+        if (msaaLevel >= 16) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X16; }
+        else if (msaaLevel >= 8) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X8; }
+        else if (msaaLevel >= 4) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X4; }
+        else if (msaaLevel >= 2) { initArgs.resolution.reset |= BGFX_RESET_MSAA_X2; }
+        g_device.msaaResetFlags = initArgs.resolution.reset & (BGFX_RESET_MSAA_X2 | BGFX_RESET_MSAA_X4 | BGFX_RESET_MSAA_X8 | BGFX_RESET_MSAA_X16);
+    }
+    g_device.srgbEnabled = std::getenv("GGC_BGFX_SRGB") != nullptr;
+    if (g_device.srgbEnabled)
+    {
+        initArgs.resolution.reset |= BGFX_RESET_SRGB_BACKBUFFER;
     }
     if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
     {
@@ -2506,6 +2628,10 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         GGC_BGFX_SHADER(vs_uber), sizeof(GGC_BGFX_SHADER(vs_uber)), "vs_uber",
         GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
 
+    g_device.uberInstancedProgram = CreateShaderProgram(
+        GGC_BGFX_SHADER(vs_uber_instanced), sizeof(GGC_BGFX_SHADER(vs_uber_instanced)), "vs_uber_instanced",
+        GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
+
     g_device.treeProgram = CreateShaderProgram(
         GGC_BGFX_SHADER(vs_trees), sizeof(GGC_BGFX_SHADER(vs_trees)), "vs_trees",
         GGC_BGFX_SHADER(fs_uber), sizeof(GGC_BGFX_SHADER(fs_uber)), "fs_uber");
@@ -2629,6 +2755,11 @@ static void DestroyBgfxHandle(H & h)
 
 void BgfxBackend::Shutdown()
 {
+    if (std::getenv("GGC_BGFX_PERF_LOG") != nullptr)
+    {
+        PerfSessionPrintSummary();
+    }
+
     if (g_device.initialized)
     {
         // A load failure or early game exit can tear the renderer down after
@@ -2644,6 +2775,7 @@ void BgfxBackend::Shutdown()
         DestroyBgfxHandle(g_device.smudgeProgram);
         DestroyBgfxHandle(g_device.fullscreenClearVB);
         DestroyBgfxHandle(g_device.uberProgram);
+        DestroyBgfxHandle(g_device.uberInstancedProgram);
         DestroyBgfxHandle(g_device.treeProgram);
         DestroyBgfxHandle(g_uniforms.uSwayTable);
         DestroyBgfxHandle(g_uniforms.uShroudOffset);
@@ -2960,6 +3092,17 @@ bool BgfxBackend::Capture_Back_Buffer_RGBA(unsigned int display_width,
     return false;
 }
 
+bool BgfxBackend::Request_Native_Screen_Shot(const char * path)
+{
+    if (!g_device.initialized || path == nullptr || path[0] == '\0')
+    {
+        return false;
+    }
+
+    bgfx::requestScreenShot(BGFX_INVALID_HANDLE, path);
+    return true;
+}
+
 // -- Frame lifecycle ---------------------------------------------------------
 
 void BgfxBackend::Begin_Scene()
@@ -3034,7 +3177,8 @@ void BgfxBackend::Begin_Scene()
                 DestroySceneFramebuffer();
                 g_device.width = w;
                 g_device.height = h;
-                uint32_t resetFlags = BGFX_RESET_NONE;
+                uint32_t resetFlags = BGFX_RESET_NONE | g_device.msaaResetFlags
+                    | (g_device.srgbEnabled ? BGFX_RESET_SRGB_BACKBUFFER : 0);
                 if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
                 {
                     resetFlags |= BGFX_RESET_DEPTH_CLAMP;
@@ -3156,6 +3300,7 @@ void BgfxBackend::Begin_Scene()
     {
         g_draw.tex[i] = BGFX_INVALID_HANDLE;
         g_draw.samplerFlags[i] = 0;
+        g_draw.mipFilterDisabled[i] = false;
         g_draw.textureIsMissing[i] = false;
         g_draw.sourceTextures[i] = nullptr;
     }
@@ -3287,7 +3432,14 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     // gameplay state of interest, since early frames are loading screens.
 #ifdef RTS_ZEROHOUR
     {
-        const int captureFrame = GGC_GetBgfxScreenshotFrame();
+        int captureFrame = GGC_GetBgfxScreenshotFrame();
+        if (captureFrame <= 0)
+        {
+            if (const char * frameEnv = std::getenv("GGC_BGFX_SCREENSHOT_AFTER"))
+            {
+                captureFrame = std::atoi(frameEnv);
+            }
+        }
         uint32_t interval = 500;
         if (const char * intervalEnv = std::getenv("GGC_BGFX_SCREENSHOT_INTERVAL"))
         {
@@ -3304,6 +3456,10 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         {
             s_lastShotFrame = g_stats.frameIndex;
             const char * basePath = GGC_GetBgfxScreenshotPath();
+            if ((basePath == nullptr || basePath[0] == '\0'))
+            {
+                basePath = std::getenv("GGC_BGFX_SCREENSHOT_PATH");
+            }
             if (basePath != nullptr && basePath[0] != '\0')
             {
                 char numbered[512];
@@ -3496,7 +3652,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
 {
     FixedFunctionState::Set_Vertex_Buffer(vb, stream);
     (void)stream;
-    // Cache is populated by Capture_Vertex_Data on the engine's own write
+    // Cache is populated by Upload_Vertex_Buffer_Data on the engine's own write
     // lock. Set_Vertex_Buffer just looks up whatever is already there; on a
     // miss it can rebuild from the buffer object's CPU-side write snapshot.
     g_draw.useTransientVB = false;
@@ -3547,7 +3703,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
                         vb->Get_Vertex_Count() * vb->FVF_Info().Get_FVF_Size();
                     if (vb->Get_CPU_Buffer_Size() >= bytes)
                     {
-                        Capture_Vertex_Data(vb, vb->Peek_CPU_Buffer_Data(), bytes);
+                        Upload_Vertex_Buffer_Data(vb, vb->Peek_CPU_Buffer_Data(), bytes);
                         bgfx::VertexBufferHandle staticHandle = FindResourceStaticVertexBufferHandle(vb);
                         if (bgfx::isValid(staticHandle))
                         {
@@ -3666,7 +3822,7 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
                     const unsigned int bytes = ib->Get_Index_Count() * sizeof(unsigned short);
                     if (ib->Get_CPU_Buffer_Size() >= bytes)
                     {
-                        Capture_Index_Data(ib, ib->Peek_CPU_Buffer_Data(), bytes);
+                        Upload_Index_Buffer_Data(ib, ib->Peek_CPU_Buffer_Data(), bytes);
                         bgfx::IndexBufferHandle staticHandle = FindResourceStaticIndexBufferHandle(ib);
                         if (bgfx::isValid(staticHandle))
                         {
@@ -4134,7 +4290,7 @@ bgfx::DynamicIndexBufferHandle EnsureDynamicIndexBuffer(const IndexBufferClass *
 // engine's destination TextureClass so EnsureBgfxTexture finds it on lookup
 // before reaching the POOL_DEFAULT early-out.
 
-void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
+void BgfxBackend::Upload_Vertex_Buffer_Data(const VertexBufferClass * vb,
                                       const void * data,
                                       unsigned int size_bytes)
 {
@@ -4153,7 +4309,7 @@ void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
         if (!s_loggedVbCaptureSkip)
         {
             s_loggedVbCaptureSkip = true;
-            WWDEBUG_SAY(("[BgfxBackend] skip VB full-capture: "
+            WWDEBUG_SAY(("[BgfxBackend] skip VB full-upload: "
                          "size_bytes=%u stride=%u total=%u",
                          size_bytes, stride, buffer_bytes));
         }
@@ -4174,7 +4330,7 @@ void BgfxBackend::Capture_Vertex_Data(const VertexBufferClass * vb,
     bgfx::update(h, 0, mem);
 }
 
-void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
+void BgfxBackend::Upload_Index_Buffer_Data(const IndexBufferClass * ib,
                                      const void * data,
                                      unsigned int size_bytes)
 {
@@ -4189,7 +4345,7 @@ void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
         if (!s_loggedIbCaptureSkip)
         {
             s_loggedIbCaptureSkip = true;
-            WWDEBUG_SAY(("[BgfxBackend] skip IB full-capture: "
+            WWDEBUG_SAY(("[BgfxBackend] skip IB full-upload: "
                          "size_bytes=%u total=%u", size_bytes, buffer_bytes));
         }
         return;
@@ -4208,7 +4364,7 @@ void BgfxBackend::Capture_Index_Data(const IndexBufferClass * ib,
     bgfx::update(h, 0, mem);
 }
 
-void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
+void BgfxBackend::Upload_Vertex_Buffer_Sub_Range(const VertexBufferClass * vb,
                                            const void * data,
                                            unsigned int start_vertex,
                                            unsigned int size_bytes)
@@ -4225,7 +4381,7 @@ void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
         if (!s_loggedVbStrideZero)
         {
             s_loggedVbStrideZero = true;
-            WWDEBUG_SAY(("[BgfxBackend] skip VB capture: stride=0 vb=%p", vb));
+            WWDEBUG_SAY(("[BgfxBackend] skip VB upload: stride=0 vb=%p", vb));
         }
         return;
     }
@@ -4237,7 +4393,7 @@ void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
         if (!s_loggedVbSubRangeOor)
         {
             s_loggedVbSubRangeOor = true;
-            WWDEBUG_SAY(("[BgfxBackend] skip VB capture: out-of-range "
+            WWDEBUG_SAY(("[BgfxBackend] skip VB upload: out-of-range "
                          "start_vert=%u size_bytes=%u stride=%u total=%u",
                          start_vertex, size_bytes, stride, buffer_bytes));
         }
@@ -4258,7 +4414,7 @@ void BgfxBackend::Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
 
 }
 
-void BgfxBackend::Capture_Index_Sub_Range(const IndexBufferClass * ib,
+void BgfxBackend::Upload_Index_Buffer_Sub_Range(const IndexBufferClass * ib,
                                           const void * data,
                                           unsigned int start_index,
                                           unsigned int size_bytes)
@@ -4275,7 +4431,7 @@ void BgfxBackend::Capture_Index_Sub_Range(const IndexBufferClass * ib,
         if (!s_loggedIbSubRangeOor)
         {
             s_loggedIbSubRangeOor = true;
-            WWDEBUG_SAY(("[BgfxBackend] skip IB capture: out-of-range "
+            WWDEBUG_SAY(("[BgfxBackend] skip IB upload: out-of-range "
                          "start_idx=%u size_bytes=%u total=%u",
                          start_index, size_bytes, buffer_bytes));
         }
@@ -4443,7 +4599,7 @@ void BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct 
             || ContainsCaseInsensitive(texName, "ubsnkatak_01")
             || ContainsCaseInsensitive(texName, "coplight")))
     {
-        RenderStateCache::Get_Transform(
+        FixedFunctionState::Transform_Matrix(
             static_cast<unsigned>(RB_TRANSFORM_WORLD), state.world);
     }
 }
@@ -4462,7 +4618,7 @@ void BgfxBackend::Release_Legacy_Render_State_For_Sorted_Draw()
 // both Submit_Sorted_Draw and SubmitEngineDraw to avoid duplicated blocks.
 static uint64_t ApplyCullModeOverride(uint64_t state)
 {
-    CullMode cullMode = static_cast<CullMode>(RenderStateCache::Get_Render_State(kRenderStateCullMode));
+    CullMode cullMode = static_cast<CullMode>(FixedFunctionState::Cull_Mode(RB_CULL_NONE));
     state &= ~(BGFX_STATE_CULL_CW | BGFX_STATE_CULL_CCW);
     if (cullMode == RB_CULL_CW)
     {
@@ -5105,7 +5261,7 @@ static void LogBgfxSortedMaterialDecal(const char *event,
                      static_cast<unsigned long long>(state),
                      static_cast<unsigned long long>(state & BGFX_STATE_DEPTH_TEST_MASK),
                      g_draw.zBias[0],
-                     RenderStateCache::Get_Render_State(kRenderStateZBias),
+                     g_draw.zBiasUnits,
                      TextureDebugName(g_draw.sourceTextures[0]),
                      TextureDebugName(g_draw.sourceTextures[1]),
                      g_draw.tssOps0[0], g_draw.tssOps0[1],
@@ -5388,51 +5544,12 @@ static void BindSoftParticleDepth(bool enable)
 
 static uint32_t GetCurrentStageSamplerFlags(unsigned stage)
 {
-    uint32_t flags = 0;
-    const unsigned addressU = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateAddressU);
-    const unsigned addressV = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateAddressV);
-    const unsigned minFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMinFilter);
-    const unsigned magFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMagFilter);
-    const unsigned mipFilter = RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMipFilter);
-
-    if (addressU == kTextureAddressClamp || addressU == kTextureAddressBorder)
-    {
-        flags |= BGFX_SAMPLER_U_CLAMP;
-    }
-    if (addressV == kTextureAddressClamp || addressV == kTextureAddressBorder)
-    {
-        flags |= BGFX_SAMPLER_V_CLAMP;
-    }
-
-    if (minFilter == kTextureSamplePoint)
-    {
-        flags |= BGFX_SAMPLER_MIN_POINT;
-    }
-    else if (minFilter == kTextureSampleAnisotropic)
-    {
-        flags |= BGFX_SAMPLER_MIN_ANISOTROPIC;
-    }
-
-    if (magFilter == kTextureSamplePoint)
-    {
-        flags |= BGFX_SAMPLER_MAG_POINT;
-    }
-    else if (magFilter == kTextureSampleAnisotropic)
-    {
-        flags |= BGFX_SAMPLER_MAG_ANISOTROPIC;
-    }
-
-    if (mipFilter == kTextureSamplePoint)
-    {
-        flags |= BGFX_SAMPLER_MIP_POINT;
-    }
-
-    return flags;
+    return (stage < 4) ? g_draw.samplerFlags[stage] : 0;
 }
 
 static bool IsCurrentStageMipFilterDisabled(unsigned stage)
 {
-    return RenderStateCache::Get_Texture_Stage_State(stage, kStageStateMipFilter) == kTextureSampleNone;
+    return stage < 4 && g_draw.mipFilterDisabled[stage];
 }
 
 static bool ShouldBindSortedParticleBaseMip(unsigned stage)
@@ -5593,7 +5710,7 @@ static void SetIdentityTextureTransform(float * row0, float * row1)
 static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 {
     auto texMtx = MakeIdentityLegacyCacheMatrix();
-    RenderStateCache::Get_Transform(kTextureTransformStage0 + stage, texMtx);
+    FixedFunctionState::Transform_Matrix(kTextureTransformStage0 + stage, texMtx);
     row0[0] = texMtx.m[0][0];
     row0[1] = texMtx.m[1][0];
     row0[2] = texMtx.m[2][0];
@@ -5611,7 +5728,7 @@ static void ReadTextureTransform(unsigned stage, float * row0, float * row1)
 static void ReadTextureTransformZ(unsigned stage, float * rowZ)
 {
     auto texMtx = MakeIdentityLegacyCacheMatrix();
-    RenderStateCache::Get_Transform(kTextureTransformStage0 + stage, texMtx);
+    FixedFunctionState::Transform_Matrix(kTextureTransformStage0 + stage, texMtx);
     rowZ[0] = texMtx.m[0][2];
     rowZ[1] = texMtx.m[1][2];
     rowZ[2] = texMtx.m[2][2];
@@ -5627,8 +5744,7 @@ static void UpdateTextureTransforms()
     // cached texture transform plus two-coordinate transform mode. Passing raw UVs sampled the
     // unused black padding in those atlases; stage 1 matters for detail
     // and environment-mapped sub-materials.
-    const unsigned texcoordIndex =
-        RenderStateCache::Get_Texture_Stage_State(0, kStageStateTexcoordIndex);
+    const unsigned texcoordIndex = g_draw.texcoordIndex[0];
     const unsigned uvIndex = texcoordIndex & 0xFFFF;
     const unsigned texcoordGen = texcoordIndex & 0xFFFF0000;
     // TheSuperHackers @info bobtista 26/04/2026 Only UV sets 0 and 1 are
@@ -5647,8 +5763,7 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
     g_draw.texcoordSource[0] = GetTexcoordSource(texcoordGen);
 
-    const unsigned texFlags =
-        RenderStateCache::Get_Texture_Stage_State(0, kStageStateTextureTransformFlags);
+    const unsigned texFlags = g_draw.textureTransformFlags[0];
     const unsigned texCount = texFlags & 0xFFu;
     const bool texProjected0 = (texFlags & kTextureTransformProjected) != 0
         && texCount >= kTextureTransformCount3;
@@ -5668,8 +5783,7 @@ static void UpdateTextureTransforms()
     }
     g_draw.texProjected[0] = texProjected0 ? 1.0f : 0.0f;
 
-    const unsigned texcoordIndex1 =
-        RenderStateCache::Get_Texture_Stage_State(1, kStageStateTexcoordIndex);
+    const unsigned texcoordIndex1 = g_draw.texcoordIndex[1];
     const unsigned uvIndex1 = texcoordIndex1 & 0xFFFF;
     const unsigned texcoordGen1 = texcoordIndex1 & 0xFFFF0000;
     if (uvIndex1 > 1)
@@ -5684,8 +5798,7 @@ static void UpdateTextureTransforms()
     g_draw.texcoordSelect2[0] = (uvIndex1 == 1) ? 1.0f : 0.0f;
     g_draw.texcoordSource[1] = GetTexcoordSource(texcoordGen1);
 
-    const unsigned texFlags1 =
-        RenderStateCache::Get_Texture_Stage_State(1, kStageStateTextureTransformFlags);
+    const unsigned texFlags1 = g_draw.textureTransformFlags[1];
     const unsigned texCount1 = texFlags1 & 0xFFu;
     const bool texProjected1 = (texFlags1 & kTextureTransformProjected) != 0
         && texCount1 >= kTextureTransformCount3;
@@ -5705,13 +5818,11 @@ static void UpdateTextureTransforms()
     }
     g_draw.texProjected[1] = texProjected1 ? 1.0f : 0.0f;
 
-    const unsigned texcoordIndex2 =
-        RenderStateCache::Get_Texture_Stage_State(2, kStageStateTexcoordIndex);
+    const unsigned texcoordIndex2 = g_draw.texcoordIndex[2];
     const unsigned texcoordGen2 = texcoordIndex2 & 0xFFFF0000;
     g_draw.texcoordSource[2] = GetTexcoordSource(texcoordGen2);
 
-    const unsigned texFlags2 =
-        RenderStateCache::Get_Texture_Stage_State(2, kStageStateTextureTransformFlags);
+    const unsigned texFlags2 = g_draw.textureTransformFlags[2];
     const unsigned texCount2 = texFlags2 & 0xFFu;
     if (texCount2 >= kTextureTransformCount2)
     {
@@ -5741,7 +5852,11 @@ static void UploadMaterialUniforms()
 
     if (bgfx::isValid(g_uniforms.uTssOps0))
     {
-        bgfx::setUniform(g_uniforms.uTssOps0, g_draw.tssOps0);
+        float tssOps0[4] = {
+            g_draw.tssOps0[0], g_draw.tssOps0[1],
+            g_draw.shaderTssOps0[2], g_draw.shaderTssOps0[3]
+        };
+        bgfx::setUniform(g_uniforms.uTssOps0, tssOps0);
     }
     if (bgfx::isValid(g_uniforms.uTssOps1))
     {
@@ -5889,11 +6004,9 @@ static void CaptureMaterialStateForBgfx(const VertexMaterialClass * material)
             (ambientSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
         g_draw.vertexColorFlags[3] =
             (emissiveSource == VertexMaterialClass::COLOR1) ? 1.0f : 0.0f;
-        const unsigned d3dLighting = RenderStateCache::Get_Render_State(kRenderStateLighting);
         g_draw.lightingEnabled[0] =
             (material->Get_Lighting()
-             && d3dLighting != 0
-             && d3dLighting != 0x12345678
+             && FixedFunctionState::Lighting_Enabled(false)
              && !WW3D::Is_Coloring_Enabled()) ? 1.0f : 0.0f;
 
         Vector3 emissive(0.0f, 0.0f, 0.0f);
@@ -6022,10 +6135,8 @@ void BgfxBackend::Submit_Sorted_Draw(const DynamicVBAccessClass & dyn_vb,
         g_draw.texcoordSelect[1] = 0.0f;
     }
     {
-        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(kRenderStateZBias);
-        const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
-        g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
-        TraceLegacyZBiasTranslation(zbiasUnits);
+        g_draw.zBias[0] = static_cast<float>(g_draw.zBiasUnits) * kZBiasPerUnit;
+        TraceLegacyZBiasTranslation(g_draw.zBiasUnits);
         const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(GetEffectiveDrawState());
         const bool normalBiasFromGeometry =
             g_draw.normalBias[0] != 0.0f
@@ -6259,6 +6370,133 @@ void BgfxBackend::Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
                          "ok");
 }
 
+void * BgfxBackend::Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
+                                                unsigned int size_bytes)
+{
+    if (!g_device.initialized || vba == nullptr || size_bytes == 0) {
+        return nullptr;
+    }
+    bgfx::VertexLayout layout;
+    if (!BuildBgfxLayoutForFVF(vba->FVF_Info(), layout)) {
+        return nullptr;
+    }
+    const uint32_t num_verts = static_cast<uint32_t>(vba->Get_Vertex_Count());
+    if (num_verts == 0 || bgfx::getAvailTransientVertexBuffer(num_verts, layout) < num_verts) {
+        return nullptr;
+    }
+    bgfx::allocTransientVertexBuffer(&g_draw.pendingVB.tvb, num_verts, layout);
+    g_stats.transientVbAllocations++;
+    return g_draw.pendingVB.tvb.data;
+}
+
+void BgfxBackend::End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
+                                            const void * data,
+                                            unsigned int size_bytes)
+{
+    if (!g_device.initialized || vba == nullptr) {
+        return;
+    }
+    g_draw.pendingVB.owner = vba;
+    g_draw.pendingVB.valid = true;
+    g_draw.pendingVB.coplanarNormalBias = HasSubmittedOppositeNormalPairs(
+        vba->FVF_Info(), data, vba->Get_Vertex_Count());
+    g_draw.fvfHasNormal = vba->FVF_Info().Has_Normal();
+}
+
+void * BgfxBackend::Begin_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
+                                               unsigned int size_bytes)
+{
+    if (!g_device.initialized || iba == nullptr || size_bytes == 0) {
+        return nullptr;
+    }
+    const uint32_t num_indices = static_cast<uint32_t>(iba->Get_Index_Count());
+    if (num_indices == 0 || bgfx::getAvailTransientIndexBuffer(num_indices) < num_indices) {
+        return nullptr;
+    }
+    bgfx::allocTransientIndexBuffer(&g_draw.pendingIB.tib, num_indices);
+    g_stats.transientIbAllocations++;
+    return g_draw.pendingIB.tib.data;
+}
+
+void BgfxBackend::End_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
+                                           const void * data,
+                                           unsigned int size_bytes)
+{
+    if (!g_device.initialized || iba == nullptr) {
+        return;
+    }
+    g_draw.pendingIB.owner = iba;
+    g_draw.pendingIB.valid = true;
+}
+
+// -- Instancing -------------------------------------------------------------
+
+bool BgfxBackend::Supports_Instancing() const
+{
+    return g_device.initialized
+        && (bgfx::getCaps()->supported & BGFX_CAPS_INSTANCING) != 0;
+}
+
+bool BgfxBackend::Begin_Instanced_Batch(unsigned max_instances)
+{
+    if (!Supports_Instancing() || max_instances == 0) {
+        return false;
+    }
+
+    bgfx::allocInstanceDataBuffer(&g_draw.instanceBatch, max_instances, 64);
+    if (g_draw.instanceBatch.data == nullptr) {
+        return false;
+    }
+
+    g_draw.instanceCount = 0;
+    g_draw.instanceMax = max_instances;
+    g_draw.instanceBatchActive = true;
+    return true;
+}
+
+void BgfxBackend::Add_Instance(const float * world_matrix_4x4)
+{
+    if (!g_draw.instanceBatchActive || g_draw.instanceCount >= g_draw.instanceMax) {
+        return;
+    }
+    std::memcpy(g_draw.instanceBatch.data + g_draw.instanceCount * 64, world_matrix_4x4, 64);
+    g_draw.instanceCount++;
+}
+
+void BgfxBackend::Submit_Instanced_Batch(unsigned index_offset,
+                                          unsigned triangle_count,
+                                          unsigned min_vertex_index,
+                                          unsigned vertex_count)
+{
+    if (!g_draw.instanceBatchActive || g_draw.instanceCount == 0) {
+        g_draw.instanceBatchActive = false;
+        return;
+    }
+    g_draw.instanceBatchActive = false;
+
+    bgfx::setInstanceDataBuffer(&g_draw.instanceBatch, 0, g_draw.instanceCount);
+
+    float identity[16] = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
+    bgfx::setTransform(identity);
+
+    bgfx::ProgramHandle savedProgram = g_draw.program;
+    g_draw.program = g_device.uberInstancedProgram;
+
+    Draw_Triangles(
+        static_cast<unsigned short>(index_offset),
+        static_cast<unsigned short>(triangle_count),
+        static_cast<unsigned short>(min_vertex_index),
+        static_cast<unsigned short>(vertex_count));
+
+    g_draw.program = savedProgram;
+    g_stats.instancedSavedDrawCalls += g_draw.instanceCount - 1;
+}
+
 // -- State: shaders, materials, textures ------------------------------------
 
 void BgfxBackend::Set_Shader(const ShaderClass & shader)
@@ -6269,13 +6507,20 @@ void BgfxBackend::Set_Shader(const ShaderClass & shader)
     const uint64_t srcBits = TranslateBlendFactor(shader.Get_Src_Blend_Func());
     const uint64_t dstBits = TranslateBlendFactor(shader.Get_Dst_Blend_Func());
     g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(srcBits, dstBits);
+    g_draw.shaderBlendFuncBits = g_draw.blendFuncBits;
     g_draw.blendEquationBits = BGFX_STATE_BLEND_EQUATION(BGFX_STATE_BLEND_EQUATION_ADD);
-    g_draw.alphaBlendEnabled = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
+    {
+        bool newBlend = !(srcBits == BGFX_STATE_BLEND_ONE && dstBits == BGFX_STATE_BLEND_ZERO);
+        g_draw.alphaBlendEnabled = newBlend;
+        g_draw.shaderAlphaBlendEnabled = newBlend;
+    }
     g_draw.alphaBlendExplicitlySet = false;
     g_draw.depthTestEnabled = true;
     g_draw.depthWriteEnabled = shader.Get_Depth_Mask() == ShaderClass::DEPTH_WRITE_ENABLE;
     g_draw.depthFuncBits = TranslateDepthCompare(shader.Get_Depth_Compare());
+    g_draw.depthFunc = static_cast<unsigned>(MapShaderDepthCompareToBackendCompare(shader.Get_Depth_Compare()));
     BuildTssOpsForShader(shader, g_draw.tssOps0, g_draw.tssOps1, &g_draw.atestRef, &g_draw.atestFunc);
+    BuildTssOpsForShader(shader, g_draw.shaderTssOps0, g_draw.shaderTssOps1, &g_draw.shaderAtestRef, &g_draw.shaderAtestFunc);
     g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
     g_draw.legacyPixelShaderMode[0] = static_cast<float>(RB_LEGACY_PIXEL_SHADER_NONE);
     Clear_State_Overrides();
@@ -6289,7 +6534,7 @@ void BgfxBackend::Set_Material(const VertexMaterialClass * material)
         material != nullptr
         && material->Get_Lighting()
         && !WW3D::Is_Coloring_Enabled();
-    RenderStateCache::Set_Render_State(kRenderStateLighting, lightingEnabled ? TRUE : FALSE);
+    FixedFunctionState::Set_Lighting_Enabled(lightingEnabled);
     g_draw.explicitMaterialState = false;
     CaptureMaterialStateForBgfx(material);
 }
@@ -6309,9 +6554,10 @@ void BgfxBackend::Set_Material_Color_Source(RenderBackendMaterialColorSource amb
                                             RenderBackendMaterialColorSource diffuse_source,
                                             RenderBackendMaterialColorSource emissive_source)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAmbientMaterialSource, static_cast<unsigned>(ambient_source));
-    RenderStateCache::Set_Render_State(kRenderStateDiffuseMaterialSource, static_cast<unsigned>(diffuse_source));
-    RenderStateCache::Set_Render_State(kRenderStateEmissiveMaterialSource, static_cast<unsigned>(emissive_source));
+    FixedFunctionState::Set_Material_Color_Sources(
+        static_cast<unsigned>(ambient_source),
+        static_cast<unsigned>(diffuse_source),
+        static_cast<unsigned>(emissive_source));
     g_draw.vertexColorFlags[1] = (diffuse_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
     g_draw.vertexColorFlags[2] = (ambient_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
     g_draw.vertexColorFlags[3] = (emissive_source == RB_MATERIAL_COLOR_SOURCE_COLOR1) ? 1.0f : 0.0f;
@@ -6350,40 +6596,32 @@ void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
                              texture->Get_Pool()));
             }
         }
-        // Capture the source texture's wrap mode into bgfx sampler flags
-        // so we can pass it at bind time. Without this, WRAP is the
-        // default and ramp/LUT textures with CLAMP semantics produce
-        // visible stripe artifacts at U>=1 (the shoreline checkerboard).
-        uint32_t samplerFlags = 0;
-        if (t2d_name != nullptr)
-        {
-            const TextureFilterClass & flt = t2d_name->Get_Filter();
-            if (flt.Get_U_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
-            {
-                samplerFlags |= BGFX_SAMPLER_U_CLAMP;
-            }
-            if (flt.Get_V_Addr_Mode() == TextureFilterClass::TEXTURE_ADDRESS_CLAMP)
-            {
-                samplerFlags |= BGFX_SAMPLER_V_CLAMP;
-            }
-        }
+        // TextureFilterClass::Apply() updates the semantic sampler state above.
+        // Preserve those bits when recording the bind; bridge atlases and thin
+        // particles depend on mip filtering staying disabled after Set_Texture.
+        const uint32_t samplerFlags = stage < 4 ? g_draw.samplerFlags[stage] : 0;
+        const bool mipFilterDisabled = stage < 4 && g_draw.mipFilterDisabled[stage];
         switch (stage)
         {
             case 0: g_draw.tex[0] = h;
                     g_draw.sourceTextures[0] = texture;
                     g_draw.samplerFlags[0] = samplerFlags;
+                    g_draw.mipFilterDisabled[0] = mipFilterDisabled;
                     g_draw.textureIsMissing[0] = missingOrUnavailable; break;
             case 1: g_draw.tex[1] = h;
                     g_draw.sourceTextures[1] = texture;
                     g_draw.samplerFlags[1] = samplerFlags;
+                    g_draw.mipFilterDisabled[1] = mipFilterDisabled;
                     g_draw.textureIsMissing[1] = missingOrUnavailable; break;
             case 2: g_draw.tex[2] = h;
                     g_draw.sourceTextures[2] = texture;
                     g_draw.samplerFlags[2] = samplerFlags;
+                    g_draw.mipFilterDisabled[2] = mipFilterDisabled;
                     g_draw.textureIsMissing[2] = missingOrUnavailable; break;
             case 3: g_draw.tex[3] = h;
                     g_draw.sourceTextures[3] = texture;
                     g_draw.samplerFlags[3] = samplerFlags;
+                    g_draw.mipFilterDisabled[3] = mipFilterDisabled;
                     g_draw.textureIsMissing[3] = missingOrUnavailable; break;
             default: break;
         }
@@ -6397,7 +6635,7 @@ void BgfxBackend::Bind_Texture_Immediate(unsigned int stage, TextureBaseClass * 
 
 void BgfxBackend::Set_Ambient(const Vector3 & color)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAmbient, MakeLegacyARGBColor(color, 0.0f));
+    FixedFunctionState::Set_Ambient_Color(MakeLegacyARGBColor(color, 0.0f));
     g_draw.sceneAmbient[0] = color.X;
     g_draw.sceneAmbient[1] = color.Y;
     g_draw.sceneAmbient[2] = color.Z;
@@ -6420,27 +6658,27 @@ void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float
 
 void BgfxBackend::Set_Fog_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateFogEnable, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Fog_Enabled(enable);
 }
 
 void BgfxBackend::Set_Fog_Color(unsigned argb)
 {
-    RenderStateCache::Set_Render_State(kRenderStateFogColor, argb);
+    FixedFunctionState::Set_Fog_Color(argb);
 }
 
 unsigned BgfxBackend::Get_Fog_Color() const
 {
-    return RenderStateCache::Get_Render_State(kRenderStateFogColor);
+    return FixedFunctionState::Fog_Color(0);
 }
 
 void BgfxBackend::Set_Specular_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateSpecularEnable, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Specular_Enabled(enable);
 }
 
 void BgfxBackend::Set_Patch_Segments(float level)
 {
-    RenderStateCache::Set_Render_State(kRenderStatePatchSegments, FloatAsDword(level));
+    FixedFunctionState::Set_Patch_Segments_Bits(FloatAsDword(level));
 }
 
 void BgfxBackend::Set_Light(unsigned int index, const LightClass & light)
@@ -6539,10 +6777,9 @@ static uint64_t TranslateBlendOp(BlendOp op)
 // command-center bib), painting it black.
 void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 {
-    RenderStateCache::Set_Render_State(kRenderStateSrcBlend, static_cast<unsigned>(src));
-    RenderStateCache::Set_Render_State(kRenderStateDestBlend, static_cast<unsigned>(dest));
     const unsigned s = static_cast<unsigned>(src);
     const unsigned d = static_cast<unsigned>(dest);
+    FixedFunctionState::Set_Blend_Factors(s, d);
     if (s >= 1 && s <= 11 && d >= 1 && d <= 11)
     {
         g_draw.blendFuncBits = BGFX_STATE_BLEND_FUNC(kBgfxBlendMap[s], kBgfxBlendMap[d]);
@@ -6567,38 +6804,47 @@ void BgfxBackend::Set_Blend_Factors(BlendFactor src, BlendFactor dest)
 
 void BgfxBackend::Set_Blend_Op(BlendOp op)
 {
-    RenderStateCache::Set_Render_State(kRenderStateBlendOp, static_cast<unsigned>(op));
+    FixedFunctionState::Set_Blend_Op(static_cast<unsigned>(op));
     g_draw.blendEquationBits = TranslateBlendOp(op);
 }
 
 void BgfxBackend::Set_Alpha_Blend_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAlphaBlendEnable, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Alpha_Blend_Enabled(enable);
     g_draw.alphaBlendEnabled = enable;
     g_draw.alphaBlendExplicitlySet = true;
 }
 
 void BgfxBackend::Set_Alpha_Test_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAlphaTestEnable, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Alpha_Test_State(
+        enable,
+        FixedFunctionState::Alpha_Test_Reference(0),
+        FixedFunctionState::Alpha_Test_Function(0));
     g_draw.atestEnabled = enable;
 }
 
 void BgfxBackend::Set_Alpha_Test_Reference(unsigned ref)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAlphaRef, ref);
+    FixedFunctionState::Set_Alpha_Test_State(
+        FixedFunctionState::Alpha_Test_Enabled(false),
+        ref,
+        FixedFunctionState::Alpha_Test_Function(0));
     g_draw.atestRef = ref / 255.0f;
 }
 
 void BgfxBackend::Set_Alpha_Test_Function(CompareFunc func)
 {
-    RenderStateCache::Set_Render_State(kRenderStateAlphaFunc, static_cast<unsigned>(func));
+    FixedFunctionState::Set_Alpha_Test_State(
+        FixedFunctionState::Alpha_Test_Enabled(false),
+        FixedFunctionState::Alpha_Test_Reference(0),
+        static_cast<unsigned>(func));
     g_draw.atestFunc = static_cast<float>(func);
 }
 
 void BgfxBackend::Set_Normalize_Normals(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateNormalizeNormals, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Normalize_Normals_Enabled(enable);
 }
 
 void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
@@ -6620,8 +6866,7 @@ void BgfxBackend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
                          srcIdx, dstIdx));
         }
     }
-    RenderStateCache::Set_Render_State(kRenderStateSrcBlend, srcIdx);
-    RenderStateCache::Set_Render_State(kRenderStateDestBlend, dstIdx);
+    FixedFunctionState::Set_Blend_Factors(srcIdx, dstIdx);
 }
 
 void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func)
@@ -6629,9 +6874,7 @@ void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc fun
     g_overrides.atestActive = enable;
     g_overrides.atestRef = enable ? (ref / 255.0f) : 0.0f;
     g_overrides.atestFunc = enable ? static_cast<float>(func) : 0.0f;
-    RenderStateCache::Set_Render_State(kRenderStateAlphaTestEnable, enable ? TRUE : FALSE);
-    RenderStateCache::Set_Render_State(kRenderStateAlphaRef, ref);
-    RenderStateCache::Set_Render_State(kRenderStateAlphaFunc, static_cast<unsigned>(func));
+    FixedFunctionState::Set_Alpha_Test_State(enable, ref, static_cast<unsigned>(func));
 }
 
 void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
@@ -6642,22 +6885,26 @@ void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
         g_overrides.SetBlend(BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA,
                                                   BGFX_STATE_BLEND_INV_SRC_ALPHA));
     }
-    RenderStateCache::Set_Render_State(kRenderStateAlphaBlendEnable, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Alpha_Blend_Enabled(enable);
 }
 
 void BgfxBackend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
 {
+    if (stage < 4)
+    {
+        g_draw.texcoordIndex[stage] = uvIndex;
+    }
     if (stage == 0)
     {
         g_draw.texcoordSelect[0] = (uvIndex == 1) ? 1.0f : 0.0f;
     }
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, uvIndex);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, uvIndex);
 }
 
 void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix)
 {
     auto cacheMatrix = MakeLegacyCacheMatrix(matrix);
-    RenderStateCache::Set_Transform(kTextureTransformStage0 + stage, cacheMatrix);
+    FixedFunctionState::Set_Transform_Matrix(kTextureTransformStage0 + stage, cacheMatrix);
 
     if (stage == 0)
     {
@@ -6675,11 +6922,13 @@ void BgfxBackend::Set_Texture_Transform(unsigned stage, const Matrix4x4 & matrix
 
 void BgfxBackend::Clear_Texture_Transform(unsigned stage)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, stage);
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTextureTransformFlags, kTextureTransformDisable);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, stage);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, kTextureTransformDisable);
 
     if (stage < 4)
     {
+        g_draw.texcoordIndex[stage] = stage;
+        g_draw.textureTransformFlags[stage] = kTextureTransformDisable;
         g_draw.texcoordSource[stage] = 0.0f;
         g_draw.texProjected[stage] = 0.0f;
     }
@@ -6725,9 +6974,10 @@ void BgfxBackend::Set_Texture_Coord_Source(unsigned stage,
         break;
     }
 
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTexcoordIndex, tci);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXCOORDINDEX, tci);
     if (stage < 4)
     {
+        g_draw.texcoordIndex[stage] = tci;
         g_draw.texcoordSource[stage] = static_cast<float>(source);
     }
     if (stage == 0)
@@ -6745,9 +6995,10 @@ void BgfxBackend::Set_Texture_Transform_Mode(unsigned stage, unsigned coord_coun
     const unsigned flags = (coord_count == 0 ? kTextureTransformDisable : coord_count)
         | (projected ? kTextureTransformProjected : 0);
 
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateTextureTransformFlags, flags);
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::TEXTURETRANSFORMFLAGS, flags);
     if (stage < 4)
     {
+        g_draw.textureTransformFlags[stage] = flags;
         g_draw.texProjected[stage] = projected && coord_count >= 3 ? 1.0f : 0.0f;
     }
 }
@@ -6758,28 +7009,28 @@ void BgfxBackend::Set_Texture_Bump_Env_Matrix(unsigned stage,
                                               float m10,
                                               float m11)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat00, FloatAsDword(m00));
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat01, FloatAsDword(m01));
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat10, FloatAsDword(m10));
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvMat11, FloatAsDword(m11));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT00, FloatAsDword(m00));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT01, FloatAsDword(m01));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT10, FloatAsDword(m10));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVMAT11, FloatAsDword(m11));
 }
 
 void BgfxBackend::Set_Texture_Bump_Env_Luminance(unsigned stage,
                                                  float scale,
                                                  float offset)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvLScale, FloatAsDword(scale));
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateBumpEnvLOffset, FloatAsDword(offset));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVLSCALE, FloatAsDword(scale));
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::BUMPENVLOFFSET, FloatAsDword(offset));
 }
 
 void BgfxBackend::Set_Texture_Color_Operation(unsigned stage, RenderBackendTextureOperation op)
 {
-    Set_Texture_Stage_State(stage, kStageStateColorOp, static_cast<unsigned>(op));
+    Set_Texture_Stage_State(stage, TSS::COLOROP, static_cast<unsigned>(op));
 }
 
 void BgfxBackend::Set_Texture_Alpha_Operation(unsigned stage, RenderBackendTextureOperation op)
 {
-    Set_Texture_Stage_State(stage, kStageStateAlphaOp, static_cast<unsigned>(op));
+    Set_Texture_Stage_State(stage, TSS::ALPHAOP, static_cast<unsigned>(op));
 }
 
 void BgfxBackend::Set_Texture_Color_Argument(unsigned stage,
@@ -6787,9 +7038,9 @@ void BgfxBackend::Set_Texture_Color_Argument(unsigned stage,
                                              RenderBackendTextureArgument arg)
 {
     static const unsigned states[] = {
-        kStageStateColorArg0,
-        kStageStateColorArg1,
-        kStageStateColorArg2,
+        TSS::COLORARG0,
+        TSS::COLORARG1,
+        TSS::COLORARG2,
     };
     if (argument_index >= sizeof(states) / sizeof(states[0]))
         return;
@@ -6802,9 +7053,9 @@ void BgfxBackend::Set_Texture_Alpha_Argument(unsigned stage,
                                              RenderBackendTextureArgument arg)
 {
     static const unsigned states[] = {
-        kStageStateAlphaArg0,
-        kStageStateAlphaArg1,
-        kStageStateAlphaArg2,
+        TSS::ALPHAARG0,
+        TSS::ALPHAARG1,
+        TSS::ALPHAARG2,
     };
     if (argument_index >= sizeof(states) / sizeof(states[0]))
         return;
@@ -6827,7 +7078,7 @@ void BgfxBackend::Set_Texture_UV_Wrap(unsigned stage, bool enable)
     }
 }
 
-static unsigned TextureAddressModeToD3DStageState(RenderBackendTextureAddressMode mode)
+static unsigned TextureAddressModeToLegacyStageState(RenderBackendTextureAddressMode mode)
 {
     switch (mode)
     {
@@ -6846,12 +7097,12 @@ void BgfxBackend::Set_Texture_Address_Mode(unsigned stage,
                                            RenderBackendTextureAddressMode v,
                                            RenderBackendTextureAddressMode w)
 {
-    Set_Texture_Stage_State(stage, kStageStateAddressU, TextureAddressModeToD3DStageState(u));
-    Set_Texture_Stage_State(stage, kStageStateAddressV, TextureAddressModeToD3DStageState(v));
-    Set_Texture_Stage_State(stage, kStageStateAddressW, TextureAddressModeToD3DStageState(w));
+    Set_Texture_Stage_State(stage, TSS::ADDRESSU, TextureAddressModeToLegacyStageState(u));
+    Set_Texture_Stage_State(stage, TSS::ADDRESSV, TextureAddressModeToLegacyStageState(v));
+    Set_Texture_Stage_State(stage, TSS::ADDRESSW, TextureAddressModeToLegacyStageState(w));
 }
 
-static unsigned TextureSampleFilterToD3DStageState(RenderBackendTextureSampleFilter filter)
+static unsigned TextureSampleFilterToLegacyStageState(RenderBackendTextureSampleFilter filter)
 {
     switch (filter)
     {
@@ -6872,34 +7123,34 @@ void BgfxBackend::Set_Texture_Sample_Filter(unsigned stage,
                                             RenderBackendTextureSampleFilter mag_filter,
                                             RenderBackendTextureSampleFilter mip_filter)
 {
-    Set_Texture_Stage_State(stage, kStageStateMinFilter, TextureSampleFilterToD3DStageState(min_filter));
-    Set_Texture_Stage_State(stage, kStageStateMagFilter, TextureSampleFilterToD3DStageState(mag_filter));
-    Set_Texture_Stage_State(stage, kStageStateMipFilter, TextureSampleFilterToD3DStageState(mip_filter));
+    Set_Texture_Stage_State(stage, TSS::MINFILTER, TextureSampleFilterToLegacyStageState(min_filter));
+    Set_Texture_Stage_State(stage, TSS::MAGFILTER, TextureSampleFilterToLegacyStageState(mag_filter));
+    Set_Texture_Stage_State(stage, TSS::MIPFILTER, TextureSampleFilterToLegacyStageState(mip_filter));
 }
 
 void BgfxBackend::Set_Texture_Min_Mag_Filter(unsigned stage,
                                              RenderBackendTextureSampleFilter min_filter,
                                              RenderBackendTextureSampleFilter mag_filter)
 {
-    Set_Texture_Stage_State(stage, kStageStateMinFilter, TextureSampleFilterToD3DStageState(min_filter));
-    Set_Texture_Stage_State(stage, kStageStateMagFilter, TextureSampleFilterToD3DStageState(mag_filter));
+    Set_Texture_Stage_State(stage, TSS::MINFILTER, TextureSampleFilterToLegacyStageState(min_filter));
+    Set_Texture_Stage_State(stage, TSS::MAGFILTER, TextureSampleFilterToLegacyStageState(mag_filter));
 }
 
 void BgfxBackend::Set_Texture_Mip_Filter(unsigned stage, RenderBackendTextureSampleFilter mip_filter)
 {
-    Set_Texture_Stage_State(stage, kStageStateMipFilter, TextureSampleFilterToD3DStageState(mip_filter));
+    Set_Texture_Stage_State(stage, TSS::MIPFILTER, TextureSampleFilterToLegacyStageState(mip_filter));
 }
 
 void BgfxBackend::Set_Texture_Max_Anisotropy(unsigned stage, unsigned max_anisotropy)
 {
-    Set_Texture_Stage_State(stage, kStageStateMaxAnisotropy, max_anisotropy);
+    Set_Texture_Stage_State(stage, TSS::MAXANISOTROPY, max_anisotropy);
 }
 
 void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clampV)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateAddressU,
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::ADDRESSU,
         clampU ? kTextureAddressClamp : kTextureAddressWrap);
-    RenderStateCache::Set_Texture_Stage_State(stage, kStageStateAddressV,
+    FixedFunctionState::Set_Texture_Stage_State(stage, TSS::ADDRESSV,
         clampV ? kTextureAddressClamp : kTextureAddressWrap);
 
     if (stage < 4)
@@ -6918,7 +7169,7 @@ void BgfxBackend::Set_Texture_Clamp_Mode(unsigned stage, bool clampU, bool clamp
 
 void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsigned value)
 {
-    RenderStateCache::Set_Texture_Stage_State(stage, state, value);
+    FixedFunctionState::Set_Texture_Stage_State(stage, state, value);
     if (stage >= 4)
     {
         return;
@@ -6926,44 +7177,44 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
 
     if (stage == 0)
     {
-        if (state == kStageStateColorOp)
+        if (state == TSS::COLOROP)
         {
             g_draw.tssOps0[0] = TextureOpToTssOp(value);
         }
-        else if (state == kStageStateAlphaOp)
+        else if (state == TSS::ALPHAOP)
         {
             g_draw.tssOps0[1] = TextureOpToTssOp(value);
         }
-        else if (state == kStageStateColorArg1)
+        else if (state == TSS::COLORARG1)
         {
             g_draw.tssOps1[0] = TextureArgToTssArg(value);
         }
-        else if (state == kStageStateAlphaArg1)
+        else if (state == TSS::ALPHAARG1)
         {
             g_draw.tssOps1[1] = TextureArgToTssArg(value);
         }
     }
     else if (stage == 1)
     {
-        if (state == kStageStateColorOp)
+        if (state == TSS::COLOROP)
         {
             g_draw.tssOps0[2] = TextureOpToTssOp(value);
         }
-        else if (state == kStageStateAlphaOp)
+        else if (state == TSS::ALPHAOP)
         {
             g_draw.tssOps0[3] = TextureOpToTssOp(value);
         }
-        else if (state == kStageStateColorArg1)
+        else if (state == TSS::COLORARG1)
         {
             g_draw.tssOps1[2] = TextureArgToTssArg(value);
         }
-        else if (state == kStageStateAlphaArg1)
+        else if (state == TSS::ALPHAARG1)
         {
             g_draw.tssOps1[3] = TextureArgToTssArg(value);
         }
     }
 
-    if (state == kStageStateAddressU)
+    if (state == TSS::ADDRESSU)
     {
         g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_U_CLAMP;
         if (value == kTextureAddressClamp)
@@ -6971,7 +7222,7 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
             g_draw.samplerFlags[stage] |= BGFX_SAMPLER_U_CLAMP;
         }
     }
-    else if (state == kStageStateAddressV)
+    else if (state == TSS::ADDRESSV)
     {
         g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_V_CLAMP;
         if (value == kTextureAddressClamp)
@@ -6979,46 +7230,84 @@ void BgfxBackend::Set_Texture_Stage_State(unsigned stage, unsigned state, unsign
             g_draw.samplerFlags[stage] |= BGFX_SAMPLER_V_CLAMP;
         }
     }
-    else if (stage == 3 && state == kStageStateTexcoordIndex)
+    else if (state == TSS::MINFILTER)
     {
+        g_draw.samplerFlags[stage] &= ~(BGFX_SAMPLER_MIN_POINT | BGFX_SAMPLER_MIN_ANISOTROPIC);
+        if (value == kTextureSamplePoint)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIN_POINT;
+        }
+        else if (value == kTextureSampleAnisotropic)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIN_ANISOTROPIC;
+        }
+    }
+    else if (state == TSS::MAGFILTER)
+    {
+        g_draw.samplerFlags[stage] &= ~(BGFX_SAMPLER_MAG_POINT | BGFX_SAMPLER_MAG_ANISOTROPIC);
+        if (value == kTextureSamplePoint)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MAG_POINT;
+        }
+        else if (value == kTextureSampleAnisotropic)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MAG_ANISOTROPIC;
+        }
+    }
+    else if (state == TSS::MIPFILTER)
+    {
+        g_draw.samplerFlags[stage] &= ~BGFX_SAMPLER_MIP_POINT;
+        g_draw.mipFilterDisabled[stage] = value == kTextureSampleNone;
+        if (value == kTextureSamplePoint)
+        {
+            g_draw.samplerFlags[stage] |= BGFX_SAMPLER_MIP_POINT;
+        }
+    }
+    else if (state == TSS::TEXCOORDINDEX)
+    {
+        g_draw.texcoordIndex[stage] = value;
         const unsigned uvIndex = value & 0xFFFFu;
         const unsigned texcoordGen = value & 0xFFFF0000u;
-        if (texcoordGen == kTexcoordGenCameraPosition)
+        if (stage == 3 && texcoordGen == kTexcoordGenCameraPosition)
         {
             g_draw.texcoordSource[3] = 3.0f;
         }
-        else
+        else if (stage == 3)
         {
             g_draw.texcoordSource[3] = (uvIndex == 1) ? 1.0f : 0.0f;
         }
+    }
+    else if (state == TSS::TEXTURETRANSFORMFLAGS)
+    {
+        g_draw.textureTransformFlags[stage] = value;
     }
 }
 
 void BgfxBackend::Configure_Custom_Edging_Cloud_Texture_Stages()
 {
-    Set_Texture_Stage_State(0, kStageStateAlphaArg1, kTextureArgCurrent);
-    Set_Texture_Stage_State(0, kStageStateAlphaOp, kTextureOpSelectArg1);
+    Set_Texture_Stage_State(0, TSS::ALPHAARG1, kTextureArgCurrent);
+    Set_Texture_Stage_State(0, TSS::ALPHAOP, kTextureOpSelectArg1);
 
-    Set_Texture_Stage_State(1, kStageStateColorArg1, kTextureArgCurrent);
-    Set_Texture_Stage_State(1, kStageStateColorArg2, kTextureArgTexture);
-    Set_Texture_Stage_State(1, kStageStateColorOp, kTextureOpSelectArg1);
-    Set_Texture_Stage_State(1, kStageStateAlphaArg1, kTextureArgCurrent);
-    Set_Texture_Stage_State(1, kStageStateAlphaArg2, kTextureArgTexture);
-    Set_Texture_Stage_State(1, kStageStateAlphaOp, kTextureOpSelectArg2);
-    Set_Texture_Stage_State(1, kStageStateTexcoordIndex, 1);
+    Set_Texture_Stage_State(1, TSS::COLORARG1, kTextureArgCurrent);
+    Set_Texture_Stage_State(1, TSS::COLORARG2, kTextureArgTexture);
+    Set_Texture_Stage_State(1, TSS::COLOROP, kTextureOpSelectArg1);
+    Set_Texture_Stage_State(1, TSS::ALPHAARG1, kTextureArgCurrent);
+    Set_Texture_Stage_State(1, TSS::ALPHAARG2, kTextureArgTexture);
+    Set_Texture_Stage_State(1, TSS::ALPHAOP, kTextureOpSelectArg2);
+    Set_Texture_Stage_State(1, TSS::TEXCOORDINDEX, 1);
 }
 
 void BgfxBackend::Configure_Shadow_Volume_Fill_Texture_Stages()
 {
-    Set_Texture_Stage_State(0, kStageStateColorArg1, kTextureArgTexture);
-    Set_Texture_Stage_State(0, kStageStateColorArg2, kTextureArgDiffuse);
-    Set_Texture_Stage_State(0, kStageStateColorOp, kTextureOpSelectArg2);
-    Set_Texture_Stage_State(0, kStageStateAlphaOp, kTextureOpDisable);
-    Set_Texture_Stage_State(0, kStageStateTexcoordIndex, 0);
+    Set_Texture_Stage_State(0, TSS::COLORARG1, kTextureArgTexture);
+    Set_Texture_Stage_State(0, TSS::COLORARG2, kTextureArgDiffuse);
+    Set_Texture_Stage_State(0, TSS::COLOROP, kTextureOpSelectArg2);
+    Set_Texture_Stage_State(0, TSS::ALPHAOP, kTextureOpDisable);
+    Set_Texture_Stage_State(0, TSS::TEXCOORDINDEX, 0);
 
-    Set_Texture_Stage_State(1, kStageStateColorOp, kTextureOpDisable);
-    Set_Texture_Stage_State(1, kStageStateAlphaOp, kTextureOpDisable);
-    Set_Texture_Stage_State(1, kStageStateTexcoordIndex, 1);
+    Set_Texture_Stage_State(1, TSS::COLOROP, kTextureOpDisable);
+    Set_Texture_Stage_State(1, TSS::ALPHAOP, kTextureOpDisable);
+    Set_Texture_Stage_State(1, TSS::TEXCOORDINDEX, 1);
 }
 
 void BgfxBackend::Set_Shroud_Texture_Pass_Active(bool active, unsigned stage)
@@ -7236,7 +7525,7 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
     {
         d3dMask |= RB_COLOR_ALPHA;
     }
-    RenderStateCache::Set_Render_State(kRenderStateColorWriteEnable, d3dMask);
+    FixedFunctionState::Set_Color_Write_Mask(d3dMask);
     g_overrides.colorWriteOverride = static_cast<int>(mask);
     g_overrides.suppressDraw = false;
 }
@@ -7246,12 +7535,13 @@ void BgfxBackend::Set_Color_Write_Enable(bool red, bool green, bool blue, bool a
 // passes that call Set_Color_Write_Mask(0) actually disable bgfx color writes.
 unsigned BgfxBackend::Get_Color_Write_Mask() const
 {
-    return RenderStateCache::Get_Render_State(kRenderStateColorWriteEnable);
+    return FixedFunctionState::Color_Write_Mask(
+        RB_COLOR_RED | RB_COLOR_GREEN | RB_COLOR_BLUE | RB_COLOR_ALPHA);
 }
 
 void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(kRenderStateColorWriteEnable, mask);
+    FixedFunctionState::Set_Color_Write_Mask(mask);
     uint64_t bgfxMask = 0;
     if (mask & RB_COLOR_RED)
     {
@@ -7275,32 +7565,34 @@ void BgfxBackend::Set_Color_Write_Mask(unsigned mask)
 
 void BgfxBackend::Set_Lighting_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateLighting, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Lighting_Enabled(enable);
     g_draw.lightingEnabled[0] = enable ? 1.0f : 0.0f;
 }
 
 void BgfxBackend::Set_Point_Sprite_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStatePointSpriteEnable, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Point_Sprite_Enabled(enable);
 }
 
 void BgfxBackend::Set_Point_Scale_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStatePointScaleEnable, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Point_Scale_Enabled(enable);
 }
 
 void BgfxBackend::Set_Point_Size(float size, float min_size, float max_size)
 {
-    RenderStateCache::Set_Render_State(kRenderStatePointSize, FloatAsDword(size));
-    RenderStateCache::Set_Render_State(kRenderStatePointSizeMin, FloatAsDword(min_size));
-    RenderStateCache::Set_Render_State(kRenderStatePointSizeMax, FloatAsDword(max_size));
+    FixedFunctionState::Set_Point_Size_Bits(
+        FloatAsDword(size),
+        FloatAsDword(min_size),
+        FloatAsDword(max_size));
 }
 
 void BgfxBackend::Set_Point_Scale(float a, float b, float c)
 {
-    RenderStateCache::Set_Render_State(kRenderStatePointScaleA, FloatAsDword(a));
-    RenderStateCache::Set_Render_State(kRenderStatePointScaleB, FloatAsDword(b));
-    RenderStateCache::Set_Render_State(kRenderStatePointScaleC, FloatAsDword(c));
+    FixedFunctionState::Set_Point_Scale_Bits(
+        FloatAsDword(a),
+        FloatAsDword(b),
+        FloatAsDword(c));
 }
 
 void BgfxBackend::Skip_Next_Bgfx_Submit()
@@ -7324,7 +7616,7 @@ void BgfxBackend::Set_Projected_Decal_Mode(RenderBackendProjectedDecalMode mode)
 // is unnecessary and it clobbers team colors.
 void BgfxBackend::Set_Texture_Factor(unsigned argb)
 {
-    RenderStateCache::Set_Render_State(kRenderStateTextureFactor, argb);
+    FixedFunctionState::Set_Texture_Factor(argb);
 }
 
 void BgfxBackend::Set_Shadow_Volume_Shader_Active(bool active)
@@ -7600,67 +7892,67 @@ void BgfxBackend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
 
 void BgfxBackend::Set_Stencil_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilEnable, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Stencil_Enabled(enable);
     g_draw.stencilEnabled = enable;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Func(CompareFunc f)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilFunc, static_cast<unsigned>(f));
+    FixedFunctionState::Set_Stencil_Function(static_cast<unsigned>(f));
     g_draw.stencilFuncBits = MapCmpFuncToBgfxStencilTest(f);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Ref(unsigned ref)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilRef, ref);
+    FixedFunctionState::Set_Stencil_Reference(ref);
     g_draw.stencilRef = ref;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilMask, mask);
+    FixedFunctionState::Set_Stencil_Read_Mask(mask);
     g_draw.stencilReadMask = mask;
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Write_Mask(unsigned mask)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilWriteMask, mask);
+    FixedFunctionState::Set_Stencil_Write_Mask(mask);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Pass_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilPass, static_cast<unsigned>(op));
+    FixedFunctionState::Set_Stencil_Pass_Op(static_cast<unsigned>(op));
     g_draw.stencilPassOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_PASS_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_Fail_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilFail, static_cast<unsigned>(op));
+    FixedFunctionState::Set_Stencil_Fail_Op(static_cast<unsigned>(op));
     g_draw.stencilFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_S_SHIFT);
     UpdateShadowStencilState();
 }
 
 void BgfxBackend::Set_Stencil_ZFail_Op(StencilOp op)
 {
-    RenderStateCache::Set_Render_State(kRenderStateStencilZFail, static_cast<unsigned>(op));
+    FixedFunctionState::Set_Stencil_ZFail_Op(static_cast<unsigned>(op));
     g_draw.stencilZFailOpBits = MapStencilOpToBgfx(op, BGFX_STENCIL_OP_FAIL_Z_SHIFT);
     UpdateShadowStencilState();
 }
 
 CullMode BgfxBackend::Get_Cull_Mode() const
 {
-    return static_cast<CullMode>(RenderStateCache::Get_Render_State(kRenderStateCullMode));
+    return static_cast<CullMode>(FixedFunctionState::Cull_Mode(RB_CULL_NONE));
 }
 
 void BgfxBackend::Set_Cull_Mode(CullMode mode)
 {
-    RenderStateCache::Set_Render_State(kRenderStateCullMode, static_cast<unsigned>(mode));
+    FixedFunctionState::Set_Cull_Mode(static_cast<unsigned>(mode));
     switch (mode)
     {
         case RB_CULL_CW:  g_draw.cullModeBits = 1; break;
@@ -7672,7 +7964,8 @@ void BgfxBackend::Set_Cull_Mode(CullMode mode)
 
 void BgfxBackend::Set_Z_Bias(int bias)
 {
-    RenderStateCache::Set_Render_State(kRenderStateZBias, static_cast<unsigned>(bias));
+    FixedFunctionState::Set_Z_Bias(bias);
+    g_draw.zBiasUnits = static_cast<unsigned>(bias) & 0xFFu;
 }
 
 void BgfxBackend::Set_Normal_Bias(float bias)
@@ -7682,29 +7975,31 @@ void BgfxBackend::Set_Normal_Bias(float bias)
 
 void BgfxBackend::Set_Fill_Mode(FillMode mode)
 {
-    RenderStateCache::Set_Render_State(kRenderStateFillMode, static_cast<unsigned>(mode));
+    FixedFunctionState::Set_Fill_Mode(static_cast<unsigned>(mode));
 }
 
 void BgfxBackend::Set_Shade_Mode(ShadeMode mode)
 {
-    RenderStateCache::Set_Render_State(kRenderStateShadeMode, static_cast<unsigned>(mode));
+    FixedFunctionState::Set_Shade_Mode(static_cast<unsigned>(mode));
 }
 
 void BgfxBackend::Set_Depth_Test_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateZEnable, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Depth_Test_Enabled(enable);
     g_draw.depthTestEnabled = enable;
 }
 
 void BgfxBackend::Set_Depth_Write_Enable(bool enable)
 {
-    RenderStateCache::Set_Render_State(kRenderStateZWriteEnable, enable ? TRUE : FALSE);
+    FixedFunctionState::Set_Depth_Write_Enabled(enable);
     g_draw.depthWriteEnabled = enable;
 }
 
 void BgfxBackend::Set_Depth_Func(CompareFunc func)
 {
-    RenderStateCache::Set_Render_State(kRenderStateZFunc, static_cast<unsigned>(func));
+    const unsigned idx = static_cast<unsigned>(func);
+    FixedFunctionState::Set_Depth_Function(idx);
+    g_draw.depthFunc = idx;
     static const uint64_t kDepthMap[] = {
         0,                              // 0 (unused)
         BGFX_STATE_DEPTH_TEST_NEVER,    // RB_CMP_NEVER = 1
@@ -7716,7 +8011,6 @@ void BgfxBackend::Set_Depth_Func(CompareFunc func)
         BGFX_STATE_DEPTH_TEST_GEQUAL,   // RB_CMP_GREATER_EQUAL = 7
         BGFX_STATE_DEPTH_TEST_ALWAYS,   // RB_CMP_ALWAYS = 8
     };
-    const unsigned idx = static_cast<unsigned>(func);
     if (idx < 9)
     {
         g_draw.depthFuncBits = kDepthMap[idx];
@@ -7836,7 +8130,7 @@ void BgfxBackend::Set_Light_Environment(LightEnvironmentClass * light_env)
     {
         g_lastLightEnv = light_env;
         const Vector3 & ambient = light_env->Get_Equivalent_Ambient();
-        RenderStateCache::Set_Render_State(kRenderStateAmbient, MakeLegacyARGBColor(ambient, 0.0f));
+        FixedFunctionState::Set_Ambient_Color(MakeLegacyARGBColor(ambient, 0.0f));
         g_draw.sceneAmbient[0] = ambient.X;
         g_draw.sceneAmbient[1] = ambient.Y;
         g_draw.sceneAmbient[2] = ambient.Z;
@@ -7945,7 +8239,7 @@ void BgfxBackend::Set_Transform(TransformKind transform, const Matrix3D & m)
 void BgfxBackend::Get_Transform(TransformKind transform, Matrix4x4 & m) const
 {
     auto matrix = MakeIdentityLegacyCacheMatrix();
-    RenderStateCache::Get_Transform(static_cast<unsigned>(transform), matrix);
+    FixedFunctionState::Transform_Matrix(static_cast<unsigned>(transform), matrix);
     m = To_Matrix4x4(matrix);
 }
 
@@ -8011,6 +8305,17 @@ void SubmitEngineDraw(unsigned short start_index,
         return;
     }
     g_stats.drawCalls++;
+    if (!g_draw.alphaBlendExplicitlySet)
+    {
+        g_draw.alphaBlendEnabled = g_draw.shaderAlphaBlendEnabled;
+        if (g_draw.alphaBlendEnabled)
+        {
+            g_draw.blendFuncBits = g_draw.shaderBlendFuncBits;
+        }
+        g_draw.atestRef = g_draw.shaderAtestRef;
+        g_draw.atestFunc = g_draw.shaderAtestFunc;
+        g_draw.atestEnabled = g_draw.atestFunc > 0.0f;
+    }
     if (!bgfx::isValid(g_draw.program))
     {
         LogBgfxEffectSubmit("submit-engine",
@@ -8332,10 +8637,8 @@ void SubmitEngineDraw(unsigned short start_index,
     // u_zBias to the GPU. Setting g_draw.zBias afterward leaves the uniform
     // at the previous (or default) value and defeats the whole fix.
     {
-        const unsigned zbiasRaw = RenderStateCache::Get_Render_State(kRenderStateZBias);
-        const unsigned zbiasUnits = (zbiasRaw == 0x12345678) ? 0u : (zbiasRaw & 0xFFu);
-        g_draw.zBias[0] = static_cast<float>(zbiasUnits) * kZBiasPerUnit;
-        TraceLegacyZBiasTranslation(zbiasUnits);
+        g_draw.zBias[0] = static_cast<float>(g_draw.zBiasUnits) * kZBiasPerUnit;
+        TraceLegacyZBiasTranslation(g_draw.zBiasUnits);
         const bool applySubmittedNormalBias = ShouldApplySubmittedNormalBias(routeState);
         const bool normalBiasFromGeometry =
             !is2D
@@ -8377,22 +8680,6 @@ void SubmitEngineDraw(unsigned short start_index,
         UpdateAlphaMaskAndSortedEffectModes(blendState);
     }
     UploadMaterialUniforms();
-    // TheSuperHackers @bugfix bobtista 30/04/2026 Read cached ambient per
-    // draw. Some callers still push ambient straight through DX8Wrapper
-    // without going through g_renderBackend->Set_Ambient, so the cached
-    // g_draw.sceneAmbient can drift and buildings render black.
-    // The wrapper marks unwritten state with 0x12345678 (dx8wrapper.cpp:536);
-    // ignore that sentinel and keep the cached value instead of treating
-    // the marker bytes as a real color.
-    {
-        const unsigned ambientColor = RenderStateCache::Get_Render_State(kRenderStateAmbient);
-        if (ambientColor != 0x12345678)
-        {
-            g_draw.sceneAmbient[0] = ((ambientColor >> 16) & 0xFF) / 255.0f;
-            g_draw.sceneAmbient[1] = ((ambientColor >>  8) & 0xFF) / 255.0f;
-            g_draw.sceneAmbient[2] = ((ambientColor >>  0) & 0xFF) / 255.0f;
-        }
-    }
     if (g_draw.lightDirs[0][3] < 0.5f)
     {
         const auto &rs = FixedFunctionState::Render_State();
@@ -8444,9 +8731,9 @@ void SubmitEngineDraw(unsigned short start_index,
     // be true to avoid false positives from other effects that set TCI bits.
     bool shroudDetected = false;
     {
-        unsigned depthFunc = RenderStateCache::Get_Render_State(kRenderStateZFunc);
+        unsigned depthFunc = g_draw.depthFunc;
         const unsigned stg = 0;
-        unsigned tci = RenderStateCache::Get_Texture_Stage_State(stg, kStageStateTexcoordIndex);
+        unsigned tci = g_draw.texcoordIndex[stg];
         float shroudParams[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
         // Projected terrain receivers and cloud/noise stages also use
         // TCI_CAMERASPACEPOSITION. Only the actual shroud overlay uses the
@@ -8480,9 +8767,9 @@ void SubmitEngineDraw(unsigned short start_index,
                     // direct world-space params; decomposing camera-space
                     // matrices is fragile across compatibility layers.
                     auto texMtx = MakeIdentityLegacyCacheMatrix();
-                    RenderStateCache::Get_Transform(kTextureTransformStage0 + stg, texMtx);
+                    FixedFunctionState::Transform_Matrix(kTextureTransformStage0 + stg, texMtx);
                     auto viewMtx = MakeIdentityLegacyCacheMatrix();
-                    RenderStateCache::Get_Transform(kTransformView, viewMtx);
+                    FixedFunctionState::Transform_Matrix(kTransformView, viewMtx);
                     auto ts = MakeIdentityLegacyCacheMatrix();
                     for (int rr = 0; rr < 4; rr++)
                     {
@@ -9256,7 +9543,7 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
 
 // -- Transitional owner-backed resource hooks -------------------------------
 
-RenderResource BgfxBackend::Create_Texture_Resource(TextureBaseClass * tex)
+RenderResource BgfxBackend::Register_Texture_Resource(TextureBaseClass * tex)
 {
     if (tex == nullptr) {
         return kInvalidRenderResource;
@@ -9287,7 +9574,7 @@ RenderResource BgfxBackend::Create_Texture_Resource(TextureBaseClass * tex)
     return RegisterResourceEntry(entry);
 }
 
-RenderResource BgfxBackend::Create_Vertex_Buffer_Resource(VertexBufferClass * vb)
+RenderResource BgfxBackend::Register_Vertex_Buffer_Resource(VertexBufferClass * vb)
 {
     if (vb == nullptr) {
         return kInvalidRenderResource;
@@ -9300,12 +9587,12 @@ RenderResource BgfxBackend::Create_Vertex_Buffer_Resource(VertexBufferClass * vb
     return RegisterResourceEntry(MakeVertexBufferResourceEntry(vb));
 }
 
-RenderResource BgfxBackend::Create_Index_Buffer_Resource(IndexBufferClass * ib)
+RenderResource BgfxBackend::Register_Index_Buffer_Resource(IndexBufferClass * ib)
 {
     if (ib == nullptr) {
         return kInvalidRenderResource;
     }
-    // Same rationale as Create_Vertex_Buffer_Resource — leave d3d_mirror
+    // Same rationale as Register_Vertex_Buffer_Resource — leave d3d_mirror
     // null so Destroy_Resource's reference-side Release does nothing.
     return RegisterResourceEntry(MakeIndexBufferResourceEntry(ib));
 }
