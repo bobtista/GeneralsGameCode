@@ -28,13 +28,16 @@
 
 #include "Common/GlobalData.h"
 #include "GameClient/Color.h"
+#include "GameLogic/TerrainLogic.h"
 #include "W3DDevice/GameClient/W3DParticleSys.h"
 #include "W3DDevice/GameClient/W3DAssetManager.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DSmudge.h"
 #include "W3DDevice/GameClient/W3DSnow.h"
+#include "W3DDevice/GameClient/W3DWater.h"
 #include "WW3D2/camera.h"
+#include "WW3D2/RenderBackend.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -238,7 +241,45 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			RGBAArray[count].X = color->red;
 			RGBAArray[count].Y = color->green;
 			RGBAArray[count].Z = color->blue;
-			RGBAArray[count].W = p->getAlpha();
+
+			// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned
+			// ADDITIVE water-surface particles (BattleShipWaterRipples and
+			// similar hull-contact foam) are rendered through the BGFX shader
+			// pipeline noticeably dimmer than DX8 retail at the same camera
+			// distance — likely because the fragment path strips contribution
+			// from anti-aliased ring edges that DX8's fixed-function path
+			// retained. Boost their effective size 2x and color 1.5x (clamped)
+			// so the foam reads at the hull-waterline like the retail reference
+			// without overwhelming the rest of the frame.
+			if (sys->m_isGroundAligned
+				&& sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
+			{
+				sizeArray[count] *= 2.0f;
+				RGBAArray[count].X = MIN(1.0f, color->red   * 1.5f);
+				RGBAArray[count].Y = MIN(1.0f, color->green * 1.5f);
+				RGBAArray[count].Z = MIN(1.0f, color->blue  * 1.5f);
+			}
+
+			// TheSuperHackers @bugfix bobtista 27/05/2026 Additive particles
+			// (Shader=ADDITIVE) keep m_alpha at its initial keyframe value because
+			// ParticleSys.cpp::update() skips alpha keyframe progression for
+			// ADDITIVE shader. For many systems (BattleShipWaterRipples,
+			// BattleshipMuzzleFlashWave, AmphibWaveRest) the initial Alpha1 is
+			// 0.0, which would be fine for DX8 fixed-function additive blend
+			// (which ignores alpha) but the bgfx fs_uber shader pipeline applies
+			// u_matDiffuse multiplication, soft-particle fade, and alpha test on
+			// current.a — any of which can discard pixels when vertex_alpha is 0.
+			// Force vertex alpha to 1.0 for additive draws so the shader's
+			// downstream alpha-aware logic does not filter out additive particles
+			// the way DX8 never had to worry about.
+			if (sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
+			{
+				RGBAArray[count].W = 1.0f;
+			}
+			else
+			{
+				RGBAArray[count].W = p->getAlpha();
+			}
 
 			angleArray[count] = (uint8)(p->getAngle() * 255.0f / (2.0f * PI));
 
@@ -259,8 +300,37 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 					const Coord3D *firstPos = sys->getFirstParticle() != nullptr
 						? sys->getFirstParticle()->getPosition()
 						: nullptr;
+					float minSz = (count > 0) ? sizeArray[0] : 0.0f;
+					float maxSz = minSz;
+					float minA = (count > 0) ? RGBAArray[0].W : 0.0f;
+					float maxA = minA;
+					for (Int idx = 1; idx < count; ++idx) {
+						if (sizeArray[idx] < minSz) {
+							minSz = sizeArray[idx];
+						}
+						if (sizeArray[idx] > maxSz) {
+							maxSz = sizeArray[idx];
+						}
+						if (RGBAArray[idx].W < minA) {
+							minA = RGBAArray[idx].W;
+						}
+						if (RGBAArray[idx].W > maxA) {
+							maxA = RGBAArray[idx].W;
+						}
+					}
+					Real waterZ = 0.0f;
+					Real terrainZ = 0.0f;
+					Bool underwater = FALSE;
+					if (TheWaterRenderObj != nullptr && firstPos != nullptr) {
+						waterZ = TheWaterRenderObj->getWaterHeight(firstPos->x, firstPos->y);
+					}
+					if (TheTerrainLogic != nullptr && firstPos != nullptr) {
+						Real tw = 0.0f, tt = 0.0f;
+						underwater = TheTerrainLogic->isUnderwater(firstPos->x, firstPos->y, &tw, &tt);
+						terrainZ = tt;
+					}
 					std::fprintf(diag,
-						"particle frame=%u type=%s texture=%s count=%d shader=%d streak=%d volume=%u billboard=%d ground=%d first=(%.2f,%.2f,%.2f) texMissing=%d\n",
+						"particle frame=%u type=%s texture=%s count=%d shader=%d streak=%d volume=%u billboard=%d ground=%d first=(%.2f,%.2f,%.2f) waterZ=%.2f terrainZ=%.2f under=%d sizeRange=[%.2f..%.2f] alphaRange=[%.3f..%.3f] firstRGB=(%.2f,%.2f,%.2f) texMissing=%d\n",
 						0u,
 						sys->getParticleTypeName().str(),
 						texture != nullptr ? texture->Get_Full_Path().str() : "<null>",
@@ -273,6 +343,16 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 						firstPos != nullptr ? firstPos->x : 0.0f,
 						firstPos != nullptr ? firstPos->y : 0.0f,
 						firstPos != nullptr ? firstPos->z : 0.0f,
+						waterZ,
+						terrainZ,
+						(int)(underwater ? 1 : 0),
+						minSz,
+						maxSz,
+						minA,
+						maxA,
+						(count > 0) ? RGBAArray[0].X : 0.0f,
+						(count > 0) ? RGBAArray[0].Y : 0.0f,
+						(count > 0) ? RGBAArray[0].Z : 0.0f,
 						texture != nullptr && texture->Is_Missing_Texture() ? 1 : 0);
 					std::fclose(diag);
 				}
