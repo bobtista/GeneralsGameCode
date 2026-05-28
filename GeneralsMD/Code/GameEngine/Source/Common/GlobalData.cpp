@@ -1338,6 +1338,13 @@ AsciiString GlobalData::BuildUserDataPathFromRegistry()
 	//   macOS: ~/Library/Application Support/Command and Conquer Generals Zero Hour Data/
 	//   Linux: $XDG_DATA_HOME/Command and Conquer Generals Zero Hour Data/
 	//          (falls back to ~/.local/share/...)
+	// TheSuperHackers @info bobtista 28/05/2026 The Unix path intentionally
+	// hardcodes the leaf name instead of honoring the UserDataLeafName
+	// registry key the Windows branch reads below. There is no real Windows
+	// registry on Unix, and the platform-appropriate base directory
+	// (Application Support / XDG) already encodes the install context, so
+	// the leaf is baked into the path resolution here rather than re-derived
+	// from a stored value.
 	const char *kLeafName = "Command and Conquer Generals Zero Hour Data";
 
 	std::filesystem::path basePath;
