@@ -6666,9 +6666,8 @@ void BgfxBackend::Set_Ambient(const Vector3 & color)
 
 const Vector3 & BgfxBackend::Get_Ambient() const
 {
-    static Vector3 ambient;
-    ambient.Set(g_draw.sceneAmbient[0], g_draw.sceneAmbient[1], g_draw.sceneAmbient[2]);
-    return ambient;
+    m_ambient.Set(g_draw.sceneAmbient[0], g_draw.sceneAmbient[1], g_draw.sceneAmbient[2]);
+    return m_ambient;
 }
 
 void BgfxBackend::Set_Fog(bool enable, const Vector3 & color, float start, float end)
