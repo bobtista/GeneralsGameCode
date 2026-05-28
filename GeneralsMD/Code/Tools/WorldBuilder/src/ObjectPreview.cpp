@@ -46,7 +46,7 @@
 #include "GameClient/Color.h"
 
 #include "W3DDevice/GameClient/W3DAssetManager.h"
-#include "WW3D2/dx8textureinterop.h"
+#include "WW3D2/texturecompatibilityinterop.h"
 #include "WW3D2/dx8wrapper.h"
 #include "WWLib/TARGA.h"
 
