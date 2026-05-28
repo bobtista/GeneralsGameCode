@@ -1838,6 +1838,24 @@ const ParticleInfo *ParticleSystem::generateParticleInfo( Int particleNum, Int p
 		info.m_vel.z = vr.Z;
 	}
 
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned particles
+	// over water (BattleShipWaterRipples, etc.) are authored to render at
+	// the water surface (e.g. the hull-water interface foam). Their parent
+	// bone can sit at the hull deck level (well above the waterline), and
+	// the system's VolLineStart/End local Z is interpreted as "above the
+	// emitter" — so without a clamp the particles spawn at ship deck
+	// height (Z=30) and the visible foam never lands on the water surface
+	// (Z=21) where retail showed it. Pin ground-aligned particles to just
+	// above the water surface whenever they're over water.
+	if (m_isGroundAligned && TheTerrainLogic != nullptr)
+	{
+		Real waterZ = 0.0f;
+		if (TheTerrainLogic->isUnderwater(info.m_pos.x, info.m_pos.y, &waterZ, nullptr))
+		{
+			info.m_pos.z = waterZ + 0.5f;
+		}
+	}
+
 	info.m_velDamping = m_velDamping.getValue();
 	info.m_angularDamping = m_angularDamping.getValue();
 
