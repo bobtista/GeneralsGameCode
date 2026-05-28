@@ -9,16 +9,16 @@
 **
 **	This program is distributed in the hope that it will be useful,
 **	but WITHOUT ANY WARRANTY; without even the implied warranty of
-**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 **	GNU General Public License for more details.
 **
 **	You should have received a copy of the GNU General Public License
-**	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+**	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 ////////////////////////////////////////////////////////////////////////////////
 //																																						//
-//  (c) 2001-2003 Electronic Arts Inc.																				//
+// (c) 2001-2003 Electronic Arts Inc.																				//
 //																																						//
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -201,7 +201,7 @@ Int W3DStatusCircle::updateCircleVB()
 		const Real theZ = 0.0f;
 		const Real theRadius = 0.02f;
 		const Int theAlpha = 127;
-	  Int diffuse = m_diffuse + (theAlpha<<24);	 // b g<<8 r<<16 a<<24.
+	 Int diffuse = m_diffuse + (theAlpha<<24);	 // b g<<8 r<<16 a<<24.
 		Int limit = m_numTriangles;
 		float curAngle = 0;
 		float deltaAngle = 2*PI/limit;
@@ -210,7 +210,7 @@ Int W3DStatusCircle::updateCircleVB()
 
 			shade=0.7f*255.0f;
 			for (k=0; k<3; k++) {
-				vb->z=  theZ;
+				vb->z= theZ;
 				if (k==0) {
 					vb->x=	0;
 					vb->y=	0;
