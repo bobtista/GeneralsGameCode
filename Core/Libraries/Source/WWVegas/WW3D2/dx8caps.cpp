@@ -507,10 +507,10 @@ DX8Caps::DX8Caps(
 	WW3DFormat display_format,
 	const void* adapter_id)
 	:
-	Direct3D(direct3d),
-	Caps(new LegacyCaps),
 	MaxDisplayWidth(0),
-	MaxDisplayHeight(0)
+	MaxDisplayHeight(0),
+	Caps(new LegacyCaps),
+	Direct3D(direct3d)
 {
 	Init_Caps(device);
 	Compute_Caps(display_format, adapter_id);
@@ -522,10 +522,10 @@ DX8Caps::DX8Caps(
 	WW3DFormat display_format,
 	const void* adapter_id)
 	:
-	Direct3D(direct3d),
-	Caps(new LegacyCaps(Legacy_Caps(caps))),
 	MaxDisplayWidth(0),
-	MaxDisplayHeight(0)
+	MaxDisplayHeight(0),
+	Caps(new LegacyCaps(Legacy_Caps(caps))),
+	Direct3D(direct3d)
 {
 	if ((Legacy_Caps(Caps).DevCaps&kLegacyHardwareTransformAndLight)==kLegacyHardwareTransformAndLight) {
 		SupportTnL=true;
