@@ -6837,30 +6837,22 @@ void BgfxBackend::Set_Alpha_Blend_Enable(bool enable)
     g_draw.alphaBlendExplicitlySet = true;
 }
 
+// TheSuperHackers @bugfix bobtista 28/05/2026 Each single-knob alpha-test setter now writes only its own bucket through Set_Cached_Render_State; the prior code routed through Set_Alpha_Test_State and clobbered the other two buckets with zeros whenever their semantic cache flags were still false.
 void BgfxBackend::Set_Alpha_Test_Enable(bool enable)
 {
-    FixedFunctionState::Set_Alpha_Test_State(
-        enable,
-        FixedFunctionState::Alpha_Test_Reference(0),
-        FixedFunctionState::Alpha_Test_Function(0));
+    FixedFunctionState::Set_Cached_Render_State(RS::ALPHATESTENABLE, enable ? 1U : 0U);
     g_draw.atestEnabled = enable;
 }
 
 void BgfxBackend::Set_Alpha_Test_Reference(unsigned ref)
 {
-    FixedFunctionState::Set_Alpha_Test_State(
-        FixedFunctionState::Alpha_Test_Enabled(false),
-        ref,
-        FixedFunctionState::Alpha_Test_Function(0));
+    FixedFunctionState::Set_Cached_Render_State(RS::ALPHAREF, ref);
     g_draw.atestRef = ref / 255.0f;
 }
 
 void BgfxBackend::Set_Alpha_Test_Function(CompareFunc func)
 {
-    FixedFunctionState::Set_Alpha_Test_State(
-        FixedFunctionState::Alpha_Test_Enabled(false),
-        FixedFunctionState::Alpha_Test_Reference(0),
-        static_cast<unsigned>(func));
+    FixedFunctionState::Set_Cached_Render_State(RS::ALPHAFUNC, static_cast<unsigned>(func));
     g_draw.atestFunc = static_cast<float>(func);
 }
 
