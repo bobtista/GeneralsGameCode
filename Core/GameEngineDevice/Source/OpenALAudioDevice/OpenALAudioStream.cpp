@@ -21,12 +21,16 @@ OpenALAudioStream::OpenALAudioStream()
     alSourcei(m_source, AL_SOURCE_SPATIALIZE_SOFT, AL_FALSE);
 #endif
 
+#ifdef INTENSIVE_AUDIO_DEBUG
     DEBUG_LOG(("OpenALAudioStream created: %i\n", m_source));
+#endif
 }
 
 OpenALAudioStream::~OpenALAudioStream()
 {
+#ifdef INTENSIVE_AUDIO_DEBUG
     DEBUG_LOG(("OpenALAudioStream freed: %i\n", m_source));
+#endif
     // Unbind the buffers first
     alSourceStop(m_source);
     alSourcei(m_source, AL_BUFFER, 0);
@@ -37,11 +41,15 @@ OpenALAudioStream::~OpenALAudioStream()
 
 bool OpenALAudioStream::bufferData(uint8_t *data, size_t data_size, ALenum format, int samplerate)
 {
+#ifdef INTENSIVE_AUDIO_DEBUG
     DEBUG_LOG(("Buffering %zu bytes of data (samplerate: %i, format: %i)\n", data_size, samplerate, format));
+#endif
     ALint num_queued;
     alGetSourcei(m_source, AL_BUFFERS_QUEUED, &num_queued);
     if (num_queued >= AL_STREAM_BUFFER_COUNT) {
+#ifdef INTENSIVE_AUDIO_DEBUG
         DEBUG_LOG(("Having too many buffers already queued: %i", num_queued));
+#endif
         return false;
     }
 
@@ -89,7 +97,9 @@ void OpenALAudioStream::update()
 
     ALint processedBeforeUnqueue = 0;
     alGetSourcei(m_source, AL_BUFFERS_PROCESSED, &processedBeforeUnqueue);
+#ifdef INTENSIVE_AUDIO_DEBUG
     DEBUG_LOG(("%i buffers have been processed\n", processedBeforeUnqueue));
+#endif
 
     // GeneralsX @bugfix BenderAI 22/04/2026 Only unqueue processed data in active playback states.
     ALint processedToUnqueue = ((sourceState == AL_PLAYING || sourceState == AL_PAUSED) ? processedBeforeUnqueue : 0);
@@ -100,7 +110,9 @@ void OpenALAudioStream::update()
     }
 
     alGetSourcei(m_source, AL_BUFFERS_QUEUED, &num_queued);
+#ifdef INTENSIVE_AUDIO_DEBUG
     DEBUG_LOG(("Having %i buffers queued\n", num_queued));
+#endif
 
     if (num_queued < AL_STREAM_BUFFER_COUNT / 2 && m_requireDataCallback) {
         // GeneralsX @bugfix BenderAI 22/04/2026 Do not fake queue growth when callback fails to enqueue data.
@@ -130,7 +142,9 @@ void OpenALAudioStream::update()
 
 void OpenALAudioStream::reset()
 {
+#ifdef INTENSIVE_AUDIO_DEBUG
     DEBUG_LOG(("Resetting stream\n"));
+#endif
     // alSourceStop() marks all queued buffers as processed so they can be
     // unqueued. alSourceRewind() transitions to AL_INITIAL but does NOT move
     // unprocessed buffers to processed state, so the subsequent
