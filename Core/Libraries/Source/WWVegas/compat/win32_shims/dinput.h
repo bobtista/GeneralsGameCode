@@ -1,9 +1,10 @@
 #pragma once
 
+// TheSuperHackers @bugfix bobtista 28/05/2026 Start numbering at 1 so DIK_NUMPAD0 does not collide with KEY_NONE (0) in KeyDefs.h.
 enum DInputKeys
 {
   // keypad keys ----------------------------------------------------------------
-  DIK_NUMPAD0,
+  DIK_NUMPAD0 = 1,
   DIK_NUMPAD1,
   DIK_NUMPAD2,
   DIK_NUMPAD3,
