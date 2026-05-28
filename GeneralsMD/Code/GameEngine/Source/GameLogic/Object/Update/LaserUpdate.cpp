@@ -99,9 +99,13 @@ LaserUpdate::LaserUpdate( Thing *thing, const ModuleData* moduleData ) : ClientU
 LaserUpdate::~LaserUpdate()
 {
 	if( m_particleSystemID )
+	{
 		TheParticleSystemManager->destroyParticleSystemByID( m_particleSystemID );
+	}
 	if( m_targetParticleSystemID )
+	{
 		TheParticleSystemManager->destroyParticleSystemByID( m_targetParticleSystemID );
+	}
 
 }
 
