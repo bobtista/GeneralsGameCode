@@ -921,17 +921,6 @@ Int parseSelectAll( char *args[], int num )
 
 	return 1;
 }
-
-Int parseRunAhead( char *args[], Int num )
-{
-	if (num > 2)
-	{
-		MIN_RUNAHEAD = atoi(args[1]);
-		MAX_FRAMES_AHEAD = atoi(args[2]);
-		FRAME_DATA_LENGTH = (MAX_FRAMES_AHEAD + 1)*2;
-	}
-	return 3;
-}
 #endif
 
 
@@ -1075,6 +1064,49 @@ Int parseNoFPSLimit(char *args[], int num)
 	TheWritableGlobalData->m_useFpsLimit = false;
 	TheWritableGlobalData->m_framesPerSecondLimit = 30000;
 
+	return 1;
+}
+
+Int parseMaxRenderFPS(char *args[], int num)
+{
+	if (num > 1)
+	{
+		int fps = atoi(args[1]);
+		if (fps <= 0)
+		{
+			TheWritableGlobalData->m_useFpsLimit = false;
+			TheWritableGlobalData->m_framesPerSecondLimit = 30000;
+		}
+		else
+		{
+			TheWritableGlobalData->m_useFpsLimit = true;
+			TheWritableGlobalData->m_framesPerSecondLimit = fps;
+		}
+		return 2;
+	}
+	return 1;
+}
+
+Int parseMsaa(char *args[], int num)
+{
+	if (num > 1)
+	{
+		int level = atoi(args[1]);
+		if (level == 2 || level == 4 || level == 8 || level == 16)
+		{
+			TheWritableGlobalData->m_bgfxMsaa = level;
+			char buf[8];
+			snprintf(buf, sizeof(buf), "%d", level);
+			setenv("GGC_BGFX_MSAA", buf, 1);
+		}
+		return 2;
+	}
+	return 1;
+}
+
+Int parseSrgb(char *args[], int num)
+{
+	setenv("GGC_BGFX_SRGB", "1", 1);
 	return 1;
 }
 
@@ -1286,6 +1318,9 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-loadreplay", parseLoadReplay },
 	{ "-ignoresync", parseSync },
 	{ "-noFPSLimit", parseNoFPSLimit },
+	{ "-maxRenderFPS", parseMaxRenderFPS },
+	{ "-msaa", parseMsaa },
+	{ "-srgb", parseSrgb },
 	{ "-logFrameTimes", parseLogFrameTimes },
 	{ "-logBgfxStats", parseLogBgfxStats },
 	{ "-bgfxNoSceneFramebuffer", parseBgfxNoSceneFramebuffer },
@@ -1397,7 +1432,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-logToCon", parseLogToConsole },
 	{ "-vTune", parseVTune },
 	{ "-selectTheUnselectable", parseSelectAll },
-	{ "-RunAhead", parseRunAhead },
 #if ENABLE_CONFIGURABLE_SHROUD
 	{ "-noshroud", parseNoShroud },
 #endif
