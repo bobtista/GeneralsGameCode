@@ -752,7 +752,7 @@ void OpenALAudioManager::playAudioEvent(AudioEventRTS* event)
 			stopAllSpeech();
 		}
 
-		Real curVolume = 1.0;
+		Real curVolume = 1.0f;
 		if (info->m_soundType == AT_Music) {
 			curVolume = m_musicVolume;
 		}
