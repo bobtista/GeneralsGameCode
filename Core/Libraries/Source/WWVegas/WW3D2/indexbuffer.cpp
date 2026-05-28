@@ -57,7 +57,7 @@
 #define RENDER_BUFFER_THREAD_ASSERT() DX8_THREAD_ASSERT()
 #endif
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture index
+// TheSuperHackers @refactor bobtista 11/04/2026 capture index
 // data into the active render backend at write-lock time. See the
 // matching comment in vertexbuffer.cpp.
 #include "RenderBackend.h"
@@ -332,11 +332,11 @@ IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* index_buffer_
 IndexBufferClass::WriteLockClass::~WriteLockClass()
 {
 	RENDER_BUFFER_THREAD_ASSERT();
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture
+	// TheSuperHackers @refactor bobtista 11/04/2026 capture
 	// index data into the active render backend BEFORE unlocking. After
 	// Unlock the source pointer is invalid. The bgfx backend snapshots
 	// the bytes; the dx8 backend ignores the call.
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 include
+	// TheSuperHackers @refactor bobtista 11/04/2026 include
 	// BUFFER_TYPE_SORTING so sorting FVF category containers feed their
 	// shared IB into the bgfx dynamic IB cache alongside the rigid path.
 		if (indices != NULL &&
@@ -410,11 +410,11 @@ IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffe
 IndexBufferClass::AppendLockClass::~AppendLockClass()
 {
 	RENDER_BUFFER_THREAD_ASSERT();
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 write-side
+	// TheSuperHackers @refactor bobtista 11/04/2026 write-side
 	// sub-range capture for bgfx backend. Rigid mesh category containers
 	// fill their shared IB via AppendLockClass; without this hook mesh
 	// indices never reach bgfx and units silently fail to render.
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 capture
+	// TheSuperHackers @refactor bobtista 11/04/2026 capture
 	// sorting IB sub-range writes for sorting FVF category containers.
 		if (indices != NULL &&
 			(index_buffer->Type() == BUFFER_TYPE_STATIC || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
@@ -480,7 +480,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 	index_buffer = new_index_buffer;
 
 	if (SUCCEEDED(ret)) {
-		// Phase 5 Stage 2: populate backend-neutral handle.
+		//: populate backend-neutral handle.
 		if (g_renderBackend != nullptr) {
 			m_backendHandle = g_renderBackend->Register_Index_Buffer_Resource(this);
 		}
@@ -523,7 +523,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 
 DX8IndexBufferClass::~DX8IndexBufferClass()
 {
-	// Phase 5 Stage 2: release backend-neutral handle before the legacy resource.
+	//: release backend-neutral handle before the legacy resource.
 	if (m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
 		g_renderBackend->Destroy_Resource(m_backendHandle);
 		m_backendHandle = kInvalidRenderResource;
@@ -688,7 +688,7 @@ DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 	RENDER_BUFFER_THREAD_ASSERT();
 	switch (DynamicIBAccess->Get_Type()) {
 	case BUFFER_TYPE_DYNAMIC:
-		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2
+		// TheSuperHackers @refactor bobtista 11/04/2026
 		// write-side capture for bgfx backend. Copy locked sub-range
 		// into a bgfx transient IB before Unlock.
 		if (g_renderBackend != NULL && Indices != NULL) {

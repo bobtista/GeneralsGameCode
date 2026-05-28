@@ -210,7 +210,7 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 	#define SHADOW_DYNAMIC_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZ
 #endif
 
-// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I wrap the
+// TheSuperHackers @refactor bobtista 15/04/2026 wrap the
 // dynamic shadow volume buffers in W3D classes so g_renderBackend->
 // Set_Vertex_Buffer / Set_Index_Buffer / Draw_Triangles can route them
 // through the bgfx capture hooks. Lock semantics preserved via the new
@@ -1597,7 +1597,7 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 		}
 	}
 
-	// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I route through
+	// TheSuperHackers @refactor bobtista 15/04/2026 route through
 	// g_renderBackend so DX8Wrapper flushes cached stencil/blend state
 	// before the shadow draw. Clear texture stages to prevent stale
 	// terrain textures from bleeding onto the stencil volume verts.
@@ -2705,7 +2705,7 @@ void W3DVolumetricShadow::buildSilhouette(Int meshIndex, Vector3 *lightPosObject
 // buffer - to be rendered via a dynamic vertex buffer.
 //
 // ============================================================================
-// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I ear-clipping
+// TheSuperHackers @refactor bobtista 15/04/2026 ear-clipping
 // 2D polygon triangulation. Used to close shadow volume caps for bgfx
 // stencil correctness. Input: 2D XY coordinates of N polygon vertices
 // in loop order. Output: triangle indices (each triangle = 3 shorts
@@ -2801,7 +2801,7 @@ static int EarClip2D(const float * xy, int N, short * out_indices)
 }
 
 #if defined(RTS_DEBUG)
-// TheSuperHackers @debug bobtista 15/04/2026 Phase 4I mesh edge-
+// TheSuperHackers @debug bobtista 15/04/2026 mesh edge-
 // manifold audit. A closed 2-manifold has every undirected edge used
 // by EXACTLY TWO triangles. Open tubes have some edges used once (the
 // "rim" edges). Logs the first N distinct audits per construction path.
@@ -3870,7 +3870,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		}
 		g_renderBackend->Set_Stencil_Enable(true);
 	#endif
-		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I migrate
+		// TheSuperHackers @refactor bobtista 15/04/2026 migrate
 		// stencil + cull state via g_renderBackend so BgfxBackend's
 		// capture hooks observe the same values the DX8 reference path
 		// applies. Vertex shader stays raw - DX8Wrapper's Apply will set
@@ -3991,7 +3991,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		g_renderBackend->Set_Cull_Mode(RB_CULL_CW);
 
 
-		// Phase 4F: restore the captured DWORD mask via the new DWORD
+		// restore the captured DWORD mask via the new DWORD
 		// variant Set_Color_Write_Mask (the boolean Set_Color_Write_Enable
 		// would need to re-decode the bitmask).
 		if (oldColorWriteEnable != 0x12345678)
@@ -4018,8 +4018,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 	{	//no shadows to render, but still need to fill stencil buffer
 		//for other effects.
 
-		// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3E partial migration:
-		// same pattern as the main shadow-render branch above.
+		// TheSuperHackers @refactor bobtista 10/04/2026 Same pattern as the main shadow-render branch above.
 
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);

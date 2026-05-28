@@ -102,7 +102,7 @@ struct SHADOW_DECAL_VERTEX	//vertex structure passed to D3D
 
 #define SHADOW_DECAL_FVF	RENDER_VERTEX_FORMAT_XYZDUV1
 
-// TheSuperHackers @refactor bobtista 16/04/2026 Phase 4I wrap the
+// TheSuperHackers @refactor bobtista 16/04/2026 wrap the
 // decal shadow buffers in W3D classes so g_renderBackend can capture them.
 RenderVertexBufferClass * shadowDecalVertexBuffer = nullptr;
 RenderIndexBufferClass  * shadowDecalIndexBuffer  = nullptr;
@@ -488,7 +488,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 
 		Int numVerts = vertsPerRow *vertsPerColumn;	//number of terrain vertices
 
-		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I route
+		// TheSuperHackers @refactor bobtista 15/04/2026 route
 		// projected terrain shadow buffers through W3D classes so bgfx
 		// capture hooks fire. DISCARD on wrap, NOOVERWRITE on append.
 		const bool wrapVerts = (nShadowVertsInBuf > (SHADOW_VERTEX_SIZE-numVerts));
@@ -578,7 +578,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 			}
 		}
 
-		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I route
+		// TheSuperHackers @refactor bobtista 15/04/2026 route
 		// buffers/shader through DX8Wrapper cache so cached stencil/blend
 		// state flushes on Draw_Triangles. The caller has just installed the
 		// TexProjectClass material pass; keep its projected texture stages
@@ -681,7 +681,7 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 
 	g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
-	// TheSuperHackers @bugfix bobtista 16/04/2026 Phase 4I.2 TFACTOR
+	// TheSuperHackers @bugfix bobtista 16/04/2026 TFACTOR
 	// removed. _PresetMultiplicativeShader uses COLORARG2=DIFFUSE (vertex
 	// color), not COLORARG2=TFACTOR, so Set_Texture_Factor is a no-op on
 	// DX8. On bgfx it incorrectly maps to matDiffuse which uniformly

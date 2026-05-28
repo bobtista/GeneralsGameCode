@@ -37,8 +37,7 @@ if(NOT GGC_RENDER_BACKEND STREQUAL "dx8")
     if(NOT WIN32)
         message(WARNING
             "GGC_RENDER_BACKEND=${GGC_RENDER_BACKEND} is being configured on a non-Windows host. "
-            "Cross-platform build targets will land in Phase 4; for now expect compile failures "
-            "outside Windows.")
+            "Cross-platform support is still landing; expect compile failures outside Windows.")
     endif()
 endif()
 
@@ -51,10 +50,10 @@ elseif(GGC_RENDER_BACKEND STREQUAL "bgfx")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_BGFX=1")
 endif()
 
-# TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 5 - standalone
-# bgfx build. When ON, the DX8 reference popup and real d3d8/d3dx8 runtime
-# links are disabled. This keeps the transitional DX8Wrapper state model alive
-# without creating a fake D3D device.
+# TheSuperHackers @refactor bobtista 21/04/2026 Standalone bgfx build.
+# When ON, the DX8 reference popup and real d3d8/d3dx8 runtime links are
+# disabled. This keeps the transitional DX8Wrapper state model alive without
+# creating a fake D3D device.
 option(GGC_BGFX_STANDALONE "bgfx without the DX8 reference popup or real D3D8 runtime" OFF)
 if(GGC_BGFX_STANDALONE AND NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
     message(FATAL_ERROR

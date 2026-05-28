@@ -1504,7 +1504,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
     v[2].color = color;
     v[3].color = color;
 
-	// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3F partial migration:
+	// TheSuperHackers @refactor bobtista 10/04/2026 Route shader/material state through g_renderBackend.
 	g_renderBackend->Set_Shader(PlayerColorShader);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	g_renderBackend->Set_Material(vmat);
