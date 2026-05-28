@@ -21,6 +21,14 @@
 // (felipebraz). Stores HKLM/HKCU emulated key/value pairs in a
 // platform-appropriate config file so the engine's existing registry callers
 // keep working unchanged on Linux and macOS.
+//
+// TheSuperHackers @info bobtista 28/05/2026 Path normalization may rewrite the
+// product-name segment of the caller-supplied path to a canonical alias (for
+// example "Zero Hour\\Foo" is normalized to
+// "command and conquer generals zero hour\\foo"). Callers writing to both
+// the canonical name and a known alias will collide on the same section,
+// which is intentional so mods using slightly different paths still see each
+// other's keys. See NormalizeRegistryPath for the alias table.
 
 #pragma once
 
