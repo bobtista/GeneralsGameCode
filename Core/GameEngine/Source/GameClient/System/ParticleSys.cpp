@@ -1838,6 +1838,20 @@ const ParticleInfo *ParticleSystem::generateParticleInfo( Int particleNum, Int p
 		info.m_vel.z = vr.Z;
 	}
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Pin ground-aligned particles over water to
+	// just above the water surface; the parent bone can sit at hull-deck height, stranding
+	// the foam above the waterline. BGFX-only compensation; DX8 rendered them correctly.
+	if (m_isGroundAligned && TheTerrainLogic != nullptr)
+	{
+		Real waterZ = 0.0f;
+		if (TheTerrainLogic->isUnderwater(info.m_pos.x, info.m_pos.y, &waterZ, nullptr))
+		{
+			info.m_pos.z = waterZ + 0.5f;
+		}
+	}
+#endif
+
 	info.m_velDamping = m_velDamping.getValue();
 	info.m_angularDamping = m_angularDamping.getValue();
 
