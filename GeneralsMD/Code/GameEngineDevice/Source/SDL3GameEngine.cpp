@@ -100,7 +100,6 @@ const char *ReadUtf8Codepoint(const char *text, WideChar &codepoint)
 
 SDL3GameEngine::SDL3GameEngine() :
 	m_sdlWindow(NULL),
-	m_isInitialized(false),
 	m_textInputActive(false)
 {
 }
