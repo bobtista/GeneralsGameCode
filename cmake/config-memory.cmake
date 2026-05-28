@@ -23,8 +23,9 @@ option(RTS_MEMORYPOOL_DEBUG_INTENSE_DMA_BOOKKEEPING "Prints statistics for memor
 # Memory dump options
 option(RTS_CRASHDUMP_ENABLE "Enables writing crash dumps on unhandled exceptions or release crash failures." ON)
 
-if(NOT WIN32)
-    set(RTS_CRASHDUMP_ENABLE OFF CACHE BOOL "Enables writing crash dumps on unhandled exceptions or release crash failures." FORCE)
+# TheSuperHackers @tweak bobtista 28/05/2026 On non-Windows we only soft-default RTS_CRASHDUMP_ENABLE OFF when the user has not already pinned a value in the cache; FORCE was stomping explicit user overrides on every reconfigure.
+if(NOT WIN32 AND NOT DEFINED CACHE{RTS_CRASHDUMP_ENABLE})
+    set(RTS_CRASHDUMP_ENABLE OFF CACHE BOOL "Enables writing crash dumps on unhandled exceptions or release crash failures.")
 endif()
 
 # Game Memory features
