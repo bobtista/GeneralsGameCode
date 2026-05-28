@@ -612,7 +612,8 @@ void OpenALAudioManager::pauseAudio(AudioAffect which)
 		for (it = m_playingSounds.begin(); it != m_playingSounds.end(); ++it) {
 			playing = *it;
 			if (playing) {
-				alSourceStop(playing->m_source);
+				// TheSuperHackers @bugfix bobtista 28/05/2026 alSourcePause preserves playback offset so resume continues from the same sample.
+				alSourcePause(playing->m_source);
 			}
 		}
 	}
@@ -621,7 +622,8 @@ void OpenALAudioManager::pauseAudio(AudioAffect which)
 		for (it = m_playing3DSounds.begin(); it != m_playing3DSounds.end(); ++it) {
 			playing = *it;
 			if (playing) {
-				alSourceStop(playing->m_source);
+				// TheSuperHackers @bugfix bobtista 28/05/2026 alSourcePause preserves playback offset so resume continues from the same sample.
+				alSourcePause(playing->m_source);
 			}
 		}
 	}
