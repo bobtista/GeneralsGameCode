@@ -33,7 +33,7 @@
 /* File name:  OpenALAudioManager.cpp                                         */
 /* Created:    Stephan Vedder, 3/9/2025s                              */
 /* Desc:       This is the implementation for the OpenALAudioManager, which   */
-/*						 interfaces with the Miles Sound System.                       */
+/*						 interfaces with the OpenAL audio system.                      */
 /* Revision History:                                                         */
 /*		3/9/2025 : Initial creation                                           */
 /*---------------------------------------------------------------------------*/
@@ -107,7 +107,7 @@ OpenALAudioManager::OpenALAudioManager(Bool dummy) :
 	m_prefSpeaker(AsciiString::TheEmptyString)
 {
 	m_audioCache = NEW OpenALAudioFileCache;
-	m_provider3D[0].name = "Miles Fast 2D Positional Audio";
+	m_provider3D[0].name = "OpenAL Audio";
 	m_provider3D[0].m_isValid = !m_dummy;
 }
 
@@ -194,7 +194,7 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 	}
 	if (fp)
 	{
-		fprintf(fp, "Miles Sound System version: %s    ", buffer);
+		fprintf(fp, "OpenAL version: %s    ", buffer);
 		fprintf(fp, "Memory Usage : %d/%d\n", m_audioCache->getCurrentlyUsedSize(), m_audioCache->getMaxSize());
 		fprintf(fp, "Sound: %s    ", (isOn(AudioAffect_Sound) ? "Yes" : "No"));
 		fprintf(fp, "3DSound: %s    ", (isOn(AudioAffect_Sound3D) ? "Yes" : "No"));
@@ -1878,7 +1878,7 @@ void OpenALAudioManager::selectProvider(UnsignedInt providerNdx)
 	{
 		m_selectedProvider = PROVIDER_ERROR;
 		// try to select a failsafe
-		providerNdx = getProviderIndex("Miles Fast 2D Positional Audio");
+		providerNdx = getProviderIndex("OpenAL Audio");
 		success = providerNdx < m_providerCount;
 	}
 
