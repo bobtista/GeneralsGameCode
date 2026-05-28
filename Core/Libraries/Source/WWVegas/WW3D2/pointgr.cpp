@@ -973,7 +973,8 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	                  Shader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO &&
 	                  Shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE &&
 	                  WW3D::Is_Sorting_Enabled();
-	const bool pointGroupDiag = std::getenv("GGC_POINTGROUP_DIAG") != nullptr;
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Cache the env probe once at startup; getenv() is not cheap to call every frame per particle group.
+	static const bool pointGroupDiag = std::getenv("GGC_POINTGROUP_DIAG") != nullptr;
 	if (pointGroupDiag)
 	{
 		if (FILE *diag = std::fopen("ggc_pointgroup_diag.txt", "a"))
