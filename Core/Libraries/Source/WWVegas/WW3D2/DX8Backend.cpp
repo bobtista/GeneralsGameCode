@@ -1617,7 +1617,9 @@ void DX8Backend::Set_Texture_Color_Argument(unsigned stage,
         D3DTSS_COLORARG2,
     };
     if (argument_index >= sizeof(states) / sizeof(states[0]))
+    {
         return;
+    }
 
     DX8Wrapper::Set_DX8_Texture_Stage_State(stage, states[argument_index], static_cast<DWORD>(arg));
 }
@@ -1632,7 +1634,9 @@ void DX8Backend::Set_Texture_Alpha_Argument(unsigned stage,
         D3DTSS_ALPHAARG2,
     };
     if (argument_index >= sizeof(states) / sizeof(states[0]))
+    {
         return;
+    }
 
     DX8Wrapper::Set_DX8_Texture_Stage_State(stage, states[argument_index], static_cast<DWORD>(arg));
 }
