@@ -856,7 +856,10 @@ static Bool ReadSurfacePixelRGBA(
 			return TRUE;
 		case WW3D_FORMAT_A4R4G4B4:
 		{
-			const UnsignedInt value = *reinterpret_cast<const UnsignedShort *>(pixel);
+			UnsignedShort raw = 0;
+			// TheSuperHackers @bugfix bobtista 28/05/2026 Avoid an unaligned dereference; std::memcpy is portable on platforms with strict alignment.
+			std::memcpy(&raw, pixel, sizeof(raw));
+			const UnsignedInt value = raw;
 			*a = Scale4To8(value >> 12);
 			*r = Scale4To8(value >> 8);
 			*g = Scale4To8(value >> 4);
@@ -865,7 +868,10 @@ static Bool ReadSurfacePixelRGBA(
 		}
 		case WW3D_FORMAT_A1R5G5B5:
 		{
-			const UnsignedInt value = *reinterpret_cast<const UnsignedShort *>(pixel);
+			UnsignedShort raw = 0;
+			// TheSuperHackers @bugfix bobtista 28/05/2026 Avoid an unaligned dereference; std::memcpy is portable on platforms with strict alignment.
+			std::memcpy(&raw, pixel, sizeof(raw));
+			const UnsignedInt value = raw;
 			*a = (value & 0x8000) ? 255 : 0;
 			*r = Scale5To8(value >> 10);
 			*g = Scale5To8(value >> 5);
@@ -874,7 +880,10 @@ static Bool ReadSurfacePixelRGBA(
 		}
 		case WW3D_FORMAT_R5G6B5:
 		{
-			const UnsignedInt value = *reinterpret_cast<const UnsignedShort *>(pixel);
+			UnsignedShort raw = 0;
+			// TheSuperHackers @bugfix bobtista 28/05/2026 Avoid an unaligned dereference; std::memcpy is portable on platforms with strict alignment.
+			std::memcpy(&raw, pixel, sizeof(raw));
+			const UnsignedInt value = raw;
 			*a = 255;
 			*r = Scale5To8(value >> 11);
 			*g = Scale6To8(value >> 5);
