@@ -67,14 +67,13 @@
 #include "RenderStateCache.h"
 #include "FixedFunctionState.h"
 
-// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3G deprecation sweep.
-// Flag DX8Wrapper methods that have an IRenderBackend equivalent so the
+// TheSuperHackers @refactor bobtista 10/04/2026 Flag DX8Wrapper methods that have an IRenderBackend equivalent so the
 // compiler lists every remaining call site as a warning. The WW3D2 library
 // itself (g_ww3d2 STATIC) defines GGC_ALLOW_DX8WRAPPER to suppress the
 // warning inside DX8Backend.cpp / dx8wrapper.cpp and the rest of WW3D2,
 // which legitimately call DX8Wrapper directly. VC6 tools get a no-op.
 #if defined(_MSC_VER) && _MSC_VER >= 1400 && !defined(GGC_ALLOW_DX8WRAPPER)
-#  define GGC_RB_DEPRECATED __declspec(deprecated("[Phase 3G] migrate to g_renderBackend equivalent"))
+#  define GGC_RB_DEPRECATED __declspec(deprecated("migrate to g_renderBackend equivalent"))
 #else
 #  define GGC_RB_DEPRECATED
 #endif
