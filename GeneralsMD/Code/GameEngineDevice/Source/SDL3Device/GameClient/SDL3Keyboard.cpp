@@ -16,8 +16,7 @@
 
 SDL3Keyboard::SDL3Keyboard() :
 	m_nextGetIndex(0),
-	m_nextFreeIndex(0),
-	m_capsState(false)
+	m_nextFreeIndex(0)
 {
 	reset();
 }
@@ -52,7 +51,9 @@ void SDL3Keyboard::update()
 
 Bool SDL3Keyboard::getCapsState()
 {
-	return m_capsState;
+	// TheSuperHackers @refactor bobtista 28/05/2026 Query SDL for the live caps modifier
+	// so the state never drifts if a key event is dropped (e.g. on focus loss).
+	return (SDL_GetModState() & SDL_KMOD_CAPS) != 0;
 }
 
 void SDL3Keyboard::addSDL3KeyEvent(const SDL_KeyboardEvent &event)
@@ -67,10 +68,6 @@ void SDL3Keyboard::addSDL3KeyEvent(const SDL_KeyboardEvent &event)
 	if (event.repeat != 0)
 	{
 		state |= KEY_STATE_AUTOREPEAT;
-	}
-	if (event.scancode == SDL_SCANCODE_CAPSLOCK && event.down != 0)
-	{
-		m_capsState = !m_capsState;
 	}
 
 	pushKey(key, state);
