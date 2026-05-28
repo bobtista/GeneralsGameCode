@@ -1,4 +1,4 @@
-// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I stencil shadow
+// TheSuperHackers @refactor bobtista 15/04/2026 stencil shadow
 // volume fragment shader. The engine disables color writes for the
 // volume pass (Set_Color_Write_Mask(0)) so this output is discarded at
 // the output-merger; what matters is stencil increment/decrement, which
