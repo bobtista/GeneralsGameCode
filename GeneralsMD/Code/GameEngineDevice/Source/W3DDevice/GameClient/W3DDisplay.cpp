@@ -537,8 +537,22 @@ Int W3DDisplay::getDisplayModeCount()
 	const DynamicVectorClass <ResolutionDescClass> &resolutions=devDesc.Enumerate_Resolutions();
 
 	Int numResolutions=0;
+/*	Bool needStencil=false;
+	Bool needDestinationAlpha=false;
+	Int minBitDepth=16;
+
+	//Walk through all resolutions and determine which ones are compatible with other settings
+	//chosen by user.  For example, 32-bit may be required for shadows, occlusion, soft water edge, etc.
+	if (TheGlobalData->m_useShadowVolumes || (TheGlobalData->m_enableBehindBuildingMarkers && TheGameLogic->getShowBehindBuildingMarkers()))
+		needStencil=true;
+
+	if (TheGlobalData->m_showSoftWaterEdge)
+	{	minBitDepth=32;
+	}
+*/
 	for (int res = 0; res < resolutions.Count ();  res ++)
 	{
+		// Is this the resolution we are looking for?
 		if (isResolutionSupported(resolutions[res]))
 		{
 			numResolutions++;
@@ -653,7 +667,6 @@ Bool W3DDisplay::setDisplayMode( UnsignedInt xres, UnsignedInt yres, UnsignedInt
 	{
 		Render2DClass::Set_Screen_Resolution(RectClass(0, 0, xres, yres));
 		Display::setDisplayMode(xres, yres, bitdepth, windowed);
-		g_renderBackend->Begin_Scene();
 		return TRUE;
 	}
 
