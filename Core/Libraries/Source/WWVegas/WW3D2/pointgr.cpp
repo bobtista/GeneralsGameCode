@@ -921,6 +921,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	Update_Arrays(current_loc, current_diffuse, current_size, current_orient, current_frame,
 		PointCount, PointLoc->Get_Count(), vnum, pnum);
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned point groups
 	// (Billboard=false) leave vertices in world space — the Billboard pre-
 	// transform above is skipped. The BGFX sort-flush view we submit to uses
@@ -930,7 +931,8 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	// and other ground-aligned ADDITIVE particles). Recompute each quad/tri
 	// vertex from the world center + rotated offset and apply the captured
 	// camera view transform inline. The quads stay flat in world XY but end
-	// up in view space ready for sortProj.
+	// up in view space ready for sortProj. This compensation is BGFX-only;
+	// DX8 keeps its original pipeline.
 	if (!Billboard && current_loc != nullptr)
 	{
 		Vector3 *vertex_loc = &VertexLoc[0];
@@ -956,6 +958,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 			}
 		}
 	}
+#endif // GGC_RENDER_BACKEND_BGFX
 
 	// the locations are now in view space
 	// so set world and view matrices to identity and render
