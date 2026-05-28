@@ -179,9 +179,20 @@ namespace
 			}
 		}
 
-		if (MakeDirectory(directory.c_str()) != 0 && errno != EEXIST)
+		// TheSuperHackers @bugfix bobtista 28/05/2026 Only call MakeDirectory
+		// for the trailing path component when the input lacked a separator.
+		// When the loop already created it (path ended with '/' or '\\'),
+		// a second call here would re-stat EEXIST or fail spuriously.
+		if (!directory.empty())
 		{
-			return false;
+			const char lastChar = directory[directory.length() - 1];
+			if (lastChar != '/' && lastChar != '\\')
+			{
+				if (MakeDirectory(directory.c_str()) != 0 && errno != EEXIST)
+				{
+					return false;
+				}
+			}
 		}
 
 		return true;
@@ -464,7 +475,14 @@ namespace
 			return false;
 		}
 
-		FILE *file = fopen(GetRegistryIniPath().c_str(), "w");
+		// TheSuperHackers @bugfix bobtista 28/05/2026 Write to a temporary file
+		// then rename it over the target so a crash mid-write cannot leave the
+		// registry truncated or empty. POSIX rename() is atomic on the same
+		// filesystem.
+		const std::string finalPath = GetRegistryIniPath();
+		const std::string tempPath = finalPath + ".tmp";
+
+		FILE *file = fopen(tempPath.c_str(), "w");
 		if (file == nullptr)
 		{
 			return false;
@@ -482,7 +500,29 @@ namespace
 			fprintf(file, "\n");
 		}
 
-		fclose(file);
+		if (fflush(file) != 0)
+		{
+			fclose(file);
+			remove(tempPath.c_str());
+			return false;
+		}
+
+		if (fclose(file) != 0)
+		{
+			remove(tempPath.c_str());
+			return false;
+		}
+
+#ifdef _WIN32
+		// Windows rename() fails if the destination exists; remove it first.
+		remove(finalPath.c_str());
+#endif
+		if (rename(tempPath.c_str(), finalPath.c_str()) != 0)
+		{
+			remove(tempPath.c_str());
+			return false;
+		}
+
 		return true;
 	}
 }
@@ -550,7 +590,7 @@ namespace RegistryIni
 	bool WriteUnsignedInt(const char *root, const char *path, const char *key, unsigned int value)
 	{
 		char buffer[32];
-		sprintf(buffer, "%u", value);
+		snprintf(buffer, sizeof(buffer), "%u", value);
 		return WriteString(root, path, key, buffer);
 	}
 
