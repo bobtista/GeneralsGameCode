@@ -161,21 +161,8 @@ int main(int argc, char **argv)
 	}
 	GGC_TRACE("SDL_Init OK");
 
-	Uint32 windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
-#if defined(__APPLE__)
-	windowFlags |= SDL_WINDOW_METAL;
-#endif
 	int windowW = kDefaultWindowWidth;
 	int windowH = kDefaultWindowHeight;
-	{
-		const SDL_DisplayID primaryDisplay = SDL_GetPrimaryDisplay();
-		const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(primaryDisplay);
-		if (desktopMode != nullptr && desktopMode->w > 0 && desktopMode->h > 0)
-		{
-			windowW = desktopMode->w;
-			windowH = desktopMode->h;
-		}
-	}
 	bool wantWindowed = false;
 	int requestedW = 0;
 	int requestedH = 0;
@@ -194,6 +181,23 @@ int main(int argc, char **argv)
 			requestedH = atoi(argv[argi + 1]);
 		}
 	}
+	{
+		const SDL_DisplayID primaryDisplay = SDL_GetPrimaryDisplay();
+		const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(primaryDisplay);
+		if (!wantWindowed && desktopMode != nullptr && desktopMode->w > 0 && desktopMode->h > 0)
+		{
+			windowW = desktopMode->w;
+			windowH = desktopMode->h;
+		}
+	}
+	Uint32 windowFlags = SDL_WINDOW_RESIZABLE;
+	if (wantWindowed)
+	{
+		windowFlags |= SDL_WINDOW_HIDDEN;
+	}
+#if defined(__APPLE__)
+	windowFlags |= SDL_WINDOW_METAL;
+#endif
 	GGC_TRACE("calling SDL_CreateWindow");
 	TheSDL3Window = SDL_CreateWindow(kWindowTitle, windowW, windowH, windowFlags);
 	if (TheSDL3Window == NULL)
