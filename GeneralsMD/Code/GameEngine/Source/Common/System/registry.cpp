@@ -101,6 +101,10 @@ static Bool getEnvVar(const char *prefix, AsciiString key, AsciiString& val)
 
 	if (prefixLen + keyLen + 1 > sizeof(envName))
 	{
+		// TheSuperHackers @bugfix bobtista 28/05/2026 Surface buffer overflow
+		// instead of silently failing so misconfigured keys are visible.
+		DEBUG_LOG(("getEnvVar - env name buffer too small for prefix '%s' + key '%s' (need %zu, have %zu)",
+			prefix, keyStr, prefixLen + keyLen + 1, sizeof(envName)));
 		return FALSE;
 	}
 
