@@ -2124,7 +2124,8 @@ AudioEventRTS* OpenALAudioManager::findLowestPrioritySound(AudioEventRTS* event)
 		return NULL;
 	}
 	AudioEventRTS* lowestPriorityEvent = NULL;
-	AudioPriority lowestPriority;
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Initialize to AP_CRITICAL so the first candidate always wins the comparison even though we also guard with !lowestPriorityEvent.
+	AudioPriority lowestPriority = AP_CRITICAL;
 
 	std::list<PlayingAudio*>::const_iterator it;
 	if (event->isPositionalAudio())
