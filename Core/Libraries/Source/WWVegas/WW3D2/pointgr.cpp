@@ -921,6 +921,37 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	Update_Arrays(current_loc, current_diffuse, current_size, current_orient, current_frame,
 		PointCount, PointLoc->Get_Count(), vnum, pnum);
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned point groups skip the
+	// Billboard pre-transform, but the BGFX sort-flush view is projection-only, so apply the
+	// camera view transform to each vertex inline here. BGFX-only; DX8 keeps its pipeline.
+	if (!Billboard && current_loc != nullptr)
+	{
+		Vector3 *vertex_loc = &VertexLoc[0];
+		for (int p = 0; p < PointCount; p++)
+		{
+			unsigned char orient = current_orient
+				? current_orient[p]
+				: DefaultPointOrientation;
+			float psize = current_size
+				? current_size[p]
+				: DefaultPointSize;
+			const int verts = (PointMode == TRIS) ? 3 : 4;
+			const Vector3 *table = (PointMode == TRIS)
+				? _TriVertexLocationOrientationTable[orient]
+				: _QuadVertexLocationOrientationTable[orient];
+			for (int j = 0; j < verts; j++)
+			{
+				Vector3 worldVert = current_loc[p] + table[j] * psize;
+				Vector4 viewVert = view * worldVert;
+				vertex_loc[p*verts + j].X = viewVert.X;
+				vertex_loc[p*verts + j].Y = viewVert.Y;
+				vertex_loc[p*verts + j].Z = viewVert.Z;
+			}
+		}
+	}
+#endif // GGC_RENDER_BACKEND_BGFX
+
 	// the locations are now in view space
 	// so set world and view matrices to identity and render
 
@@ -935,6 +966,9 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	// Enable sorting if the primitives are translucent and alpha testing is not enabled.
 	// TheSuperHackers @bugfix stephanmeesters 30/06/2026 However, do not apply sorting to ground-aligned particles.
 	// This improves performance and resolves rendering artifacts caused by clipping between ground-aligned particles and billboard particles.
+	const bool isGroundAdditive = !Billboard
+		&& Shader.Get_Dst_Blend_Func() == ShaderClass::DSTBLEND_ONE
+		&& Shader.Get_Src_Blend_Func() == ShaderClass::SRCBLEND_ONE;
 	const bool sort = Billboard &&
 	                  Shader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO &&
 	                  Shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE &&
@@ -945,7 +979,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 		if (FILE *diag = std::fopen("ggc_pointgroup_diag.txt", "a"))
 		{
 			std::fprintf(diag,
-				"pointgroup texture=%s points=%d vnum=%d pnum=%d sort=%d billboard=%d mode=%d shader=0x%08x dstBlend=%d alphaTest=%d sortingEnabled=%d first=(%.2f,%.2f,%.2f)\n",
+				"pointgroup texture=%s points=%d vnum=%d pnum=%d sort=%d billboard=%d mode=%d shader=0x%08x srcBlend=%d dstBlend=%d alphaTest=%d sortingEnabled=%d isGroundAdd=%d first=(%.2f,%.2f,%.2f)\n",
 				Texture != nullptr ? Texture->Get_Texture_Name().str() : "<none>",
 				PointCount,
 				vnum,
@@ -954,9 +988,11 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 				Billboard ? 1 : 0,
 				static_cast<int>(PointMode),
 				Shader.Get_Bits(),
+				static_cast<int>(Shader.Get_Src_Blend_Func()),
 				static_cast<int>(Shader.Get_Dst_Blend_Func()),
 				static_cast<int>(Shader.Get_Alpha_Test()),
 				WW3D::Is_Sorting_Enabled() ? 1 : 0,
+				isGroundAdditive ? 1 : 0,
 				current_loc != nullptr && PointCount > 0 ? current_loc[0].X : 0.0f,
 				current_loc != nullptr && PointCount > 0 ? current_loc[0].Y : 0.0f,
 				current_loc != nullptr && PointCount > 0 ? current_loc[0].Z : 0.0f);
