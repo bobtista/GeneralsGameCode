@@ -375,7 +375,7 @@ TextureBaseClass::~TextureBaseClass()
 	if (g_renderBackend != nullptr)
 	{
 		g_renderBackend->Release_Cached_Texture(this);
-		// Phase 5 Stage 1: also release the backend-neutral resource.
+		//: also release the backend-neutral resource.
 		if (m_backendHandle != kInvalidRenderResource) {
 			g_renderBackend->Destroy_Resource(m_backendHandle);
 			m_backendHandle = kInvalidRenderResource;
