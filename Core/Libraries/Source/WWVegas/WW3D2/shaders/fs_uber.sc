@@ -496,7 +496,7 @@ void main()
 	// inherit stale cloud/noise handles from the previous terrain draw
 	// — multiplying by them turned tank turrets and GLA quad-cannon
 	// tops pure black.
-	// TheSuperHackers @bugfix bobtista 23/04/2026 Phase 5.2 gate the
+	// TheSuperHackers @bugfix bobtista 23/04/2026 gate the
 	// stage 2/3 multiply on the terrain texcoord select so only the
 	// legacy DX8 multipass path (which never takes this branch in
 	// standalone — terrain uses the pixel-shader branch above) can
