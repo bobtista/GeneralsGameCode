@@ -554,15 +554,12 @@ void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calib
 
 // -- Frame lifecycle ---------------------------------------------------------
 //
-// TheSuperHackers @refactor bobtista 11/04/2026 Session 2b.
-// Begin_Scene/End_Scene are intentionally empty during the bgfx cutover.
-// ww3d.cpp's WW3D::Begin_Render/End_Render call DX8Wrapper::Begin_Scene /
-// End_Scene directly because the D3D8 device is still the primary renderer
-// in both the =dx8 and =bgfx builds. The g_renderBackend->Begin_Scene /
-// End_Scene pair is a parallel per-frame hook used by BgfxBackend to call
-// bgfx::touch / bgfx::frame alongside the DX8 pipeline. When DX8 is finally
-// removed (post-) these will re-acquire their original forwarding
-// behavior.
+// TheSuperHackers @refactor bobtista 11/04/2026 Begin_Scene/End_Scene are
+// intentionally empty: ww3d.cpp's WW3D::Begin_Render/End_Render call
+// DX8Wrapper::Begin_Scene / End_Scene directly because the D3D8 device is the
+// primary renderer. The g_renderBackend->Begin_Scene / End_Scene pair is a
+// parallel per-frame hook used by BgfxBackend to call bgfx::touch / bgfx::frame
+// alongside the DX8 pipeline.
 
 void DX8Backend::Begin_Scene()
 {
