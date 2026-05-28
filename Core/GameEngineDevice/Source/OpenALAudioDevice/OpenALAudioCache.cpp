@@ -211,11 +211,8 @@ float OpenALAudioFileCache::getBufferLength(ALuint handle)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioFileCache::setMaxSize(UnsignedInt size)
 {
-	// Protect the function, in case we're trying to use this value elsewhere.
-
-	// Hardcoded to 14MiB for now, this is a workaround for the limit
-	//  set by the default config files being 4MB and causing needless reloads.
-	//m_maxSize = size;
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Honor the caller-supplied cache size; previous body was commented out and stuck at the 14MiB ctor default.
+	m_maxSize = size;
 }
 
 //-------------------------------------------------------------------------------------------------
