@@ -6888,7 +6888,15 @@ void BgfxBackend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc fun
     g_overrides.atestActive = enable;
     g_overrides.atestRef = enable ? (ref / 255.0f) : 0.0f;
     g_overrides.atestFunc = enable ? static_cast<float>(func) : 0.0f;
-    FixedFunctionState::Set_Alpha_Test_State(enable, ref, static_cast<unsigned>(func));
+    // TheSuperHackers @bugfix bobtista 28/05/2026 When disabling the override, only clear ALPHATESTENABLE; preserve the existing ALPHAFUNC/ALPHAREF so downstream code observes the unmodified shader state.
+    if (enable)
+    {
+        FixedFunctionState::Set_Alpha_Test_State(enable, ref, static_cast<unsigned>(func));
+    }
+    else
+    {
+        FixedFunctionState::Set_Cached_Render_State(RS::ALPHATESTENABLE, 0U);
+    }
 }
 
 void BgfxBackend::Override_Alpha_Blend_Enable(bool enable)
