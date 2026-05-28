@@ -146,6 +146,7 @@ void OpenALAudioManager::audioDebugDisplay(DebugDisplayInterface* dd, void*, FIL
 	static char buffer[128] = { 0 };
 	if (buffer[0] == 0) {
         strncpy(buffer, alGetString(AL_VERSION), sizeof(buffer));
+        buffer[sizeof(buffer) - 1] = '\0';
 	}
 
 	Coord3D lookPos;
