@@ -64,7 +64,6 @@ private:
 	void updateTextInputState();
 
 	SDL_Window *m_sdlWindow;
-	Bool m_isInitialized;
 	Bool m_textInputActive;
 };
 
