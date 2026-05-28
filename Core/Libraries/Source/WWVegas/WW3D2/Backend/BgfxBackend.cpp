@@ -46,6 +46,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <string>
 
 #include <unordered_map>
 
@@ -533,6 +535,23 @@ static void ResetBgfxStatsLogWindow()
     g_bgfxStatsLog.numFrameBuffers = 0;
 }
 
+// TheSuperHackers @bugfix bobtista 28/05/2026 Allow the perf-log directory to be overridden by GGC_BGFX_PERF_DIR and fall back to the current working directory; the previous hard-coded "C:\\tmp\\bgfx_perf" only ever worked on Windows.
+static std::string GetBgfxPerfLogPath()
+{
+    std::filesystem::path dir;
+    if (const char *env = std::getenv("GGC_BGFX_PERF_DIR"))
+    {
+        dir = env;
+    }
+    else
+    {
+        dir = std::filesystem::current_path();
+    }
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    return (dir / "PerfLog_BgfxStats.csv").string();
+}
+
 static void InitializeBgfxStatsLog()
 {
     g_bgfxStatsLog.initialized = true;
@@ -541,9 +560,8 @@ static void InitializeBgfxStatsLog()
     QueryPerformanceCounter(&g_bgfxStatsLog.lastCounter);
     ResetBgfxStatsLogWindow();
 
-    CreateDirectoryA("C:\\tmp\\bgfx_perf", nullptr);
-
-    FILE * file = fopen("C:\\tmp\\bgfx_perf\\PerfLog_BgfxStats.csv", "wt");
+    const std::string logPath = GetBgfxPerfLogPath();
+    FILE * file = fopen(logPath.c_str(), "wt");
     if (file != nullptr)
     {
         fprintf(file, "elapsed_seconds,window_seconds,window_frames,bgfx_num_draw_avg,bgfx_num_blit_avg,bgfx_cpu_frame_ms_avg,bgfx_gpu_ms_avg,bgfx_wait_render_ms_avg,bgfx_wait_submit_ms_avg,backend_draws_avg,backend_skipped_avg,base_submits_avg,scene_depth_submits_avg,shadow_volume_submits_avg,shadow_apply_submits_avg,smudge_submits_avg,scene_composite_submits_avg,debug_submits_avg,world_draws_avg,ui_draws_avg,water_draws_avg,sorted_draws_avg,effect_draws_avg,rtt_draws_avg,smudge_draws_avg,texture_binds_avg,texture_creates_avg,texture_uploads_avg,texture_copies_avg,material_uniforms_avg,light_uniforms_avg,texture_transform_updates_avg,render_state_copies_avg,transient_vb_alloc_avg,transient_ib_alloc_avg,transient_vb_draw_avg,transient_ib_draw_avg,dynamic_vb_alloc_avg,dynamic_ib_alloc_avg,bgfx_transient_vb_used_avg,bgfx_transient_ib_used_avg,bgfx_texture_memory,bgfx_rt_memory,bgfx_num_textures,bgfx_num_framebuffers\n");
@@ -551,7 +569,7 @@ static void InitializeBgfxStatsLog()
     }
     else
     {
-        WWDEBUG_SAY(("[BgfxBackend] Failed to open C:\\tmp\\bgfx_perf\\PerfLog_BgfxStats.csv"));
+        WWDEBUG_SAY(("[BgfxBackend] Failed to open PerfLog_BgfxStats.csv"));
     }
 }
 
@@ -562,11 +580,13 @@ static void FlushBgfxStatsLogWindow()
         return;
     }
 
-    FILE * file = fopen("C:\\tmp\\bgfx_perf\\PerfLog_BgfxStats.csv", "at");
+    const std::string logPath = GetBgfxPerfLogPath();
+    FILE * file = fopen(logPath.c_str(), "at");
     if (file != nullptr)
     {
         const double frames = static_cast<double>(g_bgfxStatsLog.frames);
-        fprintf(file, "%.3f,%.3f,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%I64d,%I64d,%u,%u\n",
+        // TheSuperHackers @bugfix bobtista 28/05/2026 Format string and arg list got out of sync: drop one stray %.3f and use portable %lld/%llu instead of MSVC-only %I64d.
+        fprintf(file, "%.3f,%.3f,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%lld,%lld,%u,%u\n",
             g_bgfxStatsLog.elapsedSeconds,
             g_bgfxStatsLog.windowSeconds,
             g_bgfxStatsLog.frames,
@@ -608,8 +628,8 @@ static void FlushBgfxStatsLogWindow()
             static_cast<double>(g_bgfxStatsLog.dynamicIbAllocations) / frames,
             g_bgfxStatsLog.bgfxTransientVbUsed / frames,
             g_bgfxStatsLog.bgfxTransientIbUsed / frames,
-            g_bgfxStatsLog.textureMemoryUsed,
-            g_bgfxStatsLog.rtMemoryUsed,
+            static_cast<long long>(g_bgfxStatsLog.textureMemoryUsed),
+            static_cast<long long>(g_bgfxStatsLog.rtMemoryUsed),
             g_bgfxStatsLog.numTextures,
             g_bgfxStatsLog.numFrameBuffers);
         fclose(file);
