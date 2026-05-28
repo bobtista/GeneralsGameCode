@@ -3,7 +3,7 @@ $output v_color0, v_texcoord0, v_texcoord1, v_normal, v_cloudUV, v_stage0UV, v_s
 
 #include <bgfx_shader.sh>
 
-// TheSuperHackers @refactor bobtista 14/04/2026 Phase 4H port of
+// TheSuperHackers @refactor bobtista 14/04/2026 port of
 // Trees.nvv (DX8 vs_1_1). The engine repurposes the vertex normal
 // slot to carry grass/tree animation data:
 //   a_normal.x = sway table index [0..MAX_SWAY_TYPES]

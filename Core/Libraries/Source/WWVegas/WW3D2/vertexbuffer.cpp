@@ -59,7 +59,7 @@
 #define RENDER_BUFFER_THREAD_ASSERT() DX8_THREAD_ASSERT()
 #endif
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture vertex
+// TheSuperHackers @refactor bobtista 11/04/2026 capture vertex
 // data into the active render backend at write-lock time. The bgfx backend
 // uses this to populate its own bgfx vertex buffer cache without having
 // to lock the source d3d8 buffer (which corrupts POOL_DEFAULT VBs on
@@ -313,12 +313,12 @@ VertexBufferClass::WriteLockClass::WriteLockClass(VertexBufferClass* VertexBuffe
 VertexBufferClass::WriteLockClass::~WriteLockClass()
 {
 	RENDER_BUFFER_THREAD_ASSERT();
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4C.4 capture
+	// TheSuperHackers @refactor bobtista 11/04/2026 capture
 	// vertex data into the active render backend BEFORE unlocking. After
 	// Unlock the source pointer becomes invalid, so this is the last
 	// safe moment. The bgfx backend snapshots the bytes; the dx8 backend
 	// ignores the call.
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 also
+	// TheSuperHackers @refactor bobtista 11/04/2026 also
 	// capture BUFFER_TYPE_SORTING writes: sorting FVF category containers
 	// back their shared VB with a SortingVertexBufferClass (CPU array),
 	// and DX8RigidFVFCategoryContainer::Render() passes it straight to
@@ -414,14 +414,14 @@ VertexBufferClass::AppendLockClass::AppendLockClass(VertexBufferClass* VertexBuf
 VertexBufferClass::AppendLockClass::~AppendLockClass()
 {
 	RENDER_BUFFER_THREAD_ASSERT();
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6 write-side
+	// TheSuperHackers @refactor bobtista 11/04/2026 write-side
 	// sub-range capture for bgfx backend. Rigid mesh category containers
 	// fill their shared VB one sub-range at a time via AppendLockClass,
 	// so without this hook unit/vehicle geometry never reaches bgfx.
 	// Vertices points to the start of the locked sub-range and
 	// AppendStartIndex / AppendIndexRange describe its extent. BgfxBackend
 	// uses this to update a bgfx dynamic VB at the matching vertex offset.
-	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 capture
+	// TheSuperHackers @refactor bobtista 11/04/2026 capture
 	// sorting VB sub-range writes as well. Sorting FVF category containers
 	// fill their shared SortingVertexBufferClass via AppendLockClass one
 	// mesh at a time, just like the rigid DX8 path.
@@ -583,7 +583,7 @@ DX8VertexBufferClass::~DX8VertexBufferClass()
 	_DX8VertexBufferCount--;
 	WWDEBUG_SAY(("Current vertex buffer count: %d",_DX8VertexBufferCount));
 #endif
-	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 Stage 2 — release
+	// TheSuperHackers @refactor bobtista 21/04/2026 — release
 	// the backend-neutral handle before the legacy resource goes away.
 	if (m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
 		g_renderBackend->Destroy_Resource(m_backendHandle);
@@ -669,7 +669,7 @@ void DX8VertexBufferClass::Create_Vertex_Buffer(UsageType usage)
 		&new_vertex_buffer);
 	VertexBuffer = new_vertex_buffer;
 	if (SUCCEEDED(ret)) {
-		// Phase 5 Stage 2: populate backend-neutral handle.
+		//: populate backend-neutral handle.
 		if (g_renderBackend != nullptr) {
 			m_backendHandle = g_renderBackend->Register_Vertex_Buffer_Resource(this);
 		}
@@ -1132,7 +1132,7 @@ DynamicVBAccessClass::WriteLockClass::~WriteLockClass()
 		WWASSERT(!dx8_lock);
 		WWDEBUG_SAY(("DynamicVertexBuffer->Unlock()"));
 #endif
-		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2
+		// TheSuperHackers @refactor bobtista 11/04/2026
 		// write-side capture for bgfx backend. Copy the locked sub-range
 		// into a bgfx transient VB before we Unlock. DX8Backend inherits
 		// an empty default so this is a no-op in the dx8 build.

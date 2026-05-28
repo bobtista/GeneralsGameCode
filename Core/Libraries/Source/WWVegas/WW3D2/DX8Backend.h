@@ -159,7 +159,7 @@ public:
     virtual void Set_Stencil_Fail_Op(StencilOp op);
     virtual void Set_Stencil_ZFail_Op(StencilOp op);
 
-    // Phase 4F render-state extension (see IRenderBackend.h).
+    // Extended render-state setters (see IRenderBackend.h).
     virtual void Set_Z_Bias(int bias);
     virtual void Set_Fill_Mode(FillMode mode);
     virtual void Set_Shade_Mode(ShadeMode mode);
@@ -314,7 +314,7 @@ public:
     virtual void Set_Shadow_Map(int idx, ZTextureClass * ztex);
     virtual ZTextureClass * Get_Shadow_Map(int idx) const;
 
-    // -- Resource creation (Phase 5 asset ingress) ---------------------------
+    // -- Resource creation (asset ingress) -----------------------------------
 
     virtual RenderResource Create_Texture(const TextureDesc & desc);
     virtual RenderResource Create_Vertex_Buffer(const BufferDesc & desc, const void * initial_data);
