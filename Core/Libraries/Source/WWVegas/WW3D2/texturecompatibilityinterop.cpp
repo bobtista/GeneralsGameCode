@@ -9,7 +9,7 @@
 **
 **	This program is distributed in the hope that it will be useful,
 **	but WITHOUT ANY WARRANTY; without even the implied warranty of
-**	MERCHANTIBILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 **	GNU General Public License for more details.
 **
 **	You should have received a copy of the GNU General Public License
@@ -194,8 +194,11 @@ void TextureCompatibilityInterop::Set_Legacy_Base_Texture(TextureBaseClass &text
 
 void TextureCompatibilityInterop::Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source)
 {
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Only bump CPUTextureRevision when Set_Legacy_Base_Texture below will actually consume the preserved snapshot (i.e. the source has a non-null legacy texture to share). Bumping unconditionally invalidates downstream caches even when no real share happens.
+	LegacyBaseTexture *shared_legacy = source != nullptr ? Peek_Legacy_Base_Texture(*source) : nullptr;
 #if defined(GGC_RENDER_BACKEND_BGFX)
 	if (source != nullptr
+		&& shared_legacy != nullptr
 		&& source->Has_CPU_Texture_Mips()
 		&& Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle::TextureOwnership)) {
 		texture.CPUTextureMips = source->CPUTextureMips;
@@ -203,7 +206,7 @@ void TextureCompatibilityInterop::Share_Legacy_Texture_With(TextureBaseClass &te
 		++texture.CPUTextureRevision;
 	}
 #endif
-	Set_Legacy_Base_Texture(texture, source != nullptr ? Peek_Legacy_Base_Texture(*source) : nullptr);
+	Set_Legacy_Base_Texture(texture, shared_legacy);
 }
 
 void Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source)
@@ -232,7 +235,7 @@ void TextureCompatibilityInterop::Apply_Native_Compatibility_Texture(
 	texture.Apply_Native_Compatibility_Texture(native_texture, initialized, disable_auto_invalidation);
 }
 
-LegacySurface *TextureCompatibilityInterop::Peek_Legacy_Surface(const SurfaceClass &surface)
+LegacySurface *TextureCompatibilityInterop::Peek_Legacy_Surface(const SurfaceClass &surface, bool intentToWrite)
 {
 #if defined(GGC_BGFX_STANDALONE)
 	WWASSERT_PRINT(
@@ -240,7 +243,11 @@ LegacySurface *TextureCompatibilityInterop::Peek_Legacy_Surface(const SurfaceCla
 		"Peek_Legacy_Surface: standalone bgfx cannot expose fake-D3D surfaces");
 	return nullptr;
 #else
-	const_cast<SurfaceClass &>(surface).Mark_CPU_Surface_Snapshot_Stale();
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Only mark the CPU snapshot stale when the caller intends to write; read-only peeks (capture/back-buffer copy, ObjectPreview, etc.) leave the snapshot valid.
+	if (intentToWrite)
+	{
+		const_cast<SurfaceClass &>(surface).Mark_CPU_Surface_Snapshot_Stale();
+	}
 	return static_cast<LegacySurface *>(surface.Get_Native_Compatibility_Surface());
 #endif
 }
