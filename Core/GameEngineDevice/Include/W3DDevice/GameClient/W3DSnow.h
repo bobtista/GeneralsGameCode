@@ -45,7 +45,7 @@ class W3DSnowManager : public SnowManager
 	void	ReleaseResources();
 	Bool	ReAcquireResources();
 
-	 private:
+private:
 	RenderIndexBufferClass	*m_indexBuffer;
 	TextureClass *m_snowTexture;
 	Real m_snowCeiling;	///<height at the top of the cube with camera at center.
