@@ -54,7 +54,6 @@ private:
 	void handleWindowEvent(const SDL_WindowEvent &event);
 
 	SDL_Window *m_sdlWindow;
-	Bool m_isInitialized;
 };
 
 #endif

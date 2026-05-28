@@ -35,8 +35,7 @@ extern Mouse *TheMouse;
 extern Keyboard *TheKeyboard;
 
 SDL3GameEngine::SDL3GameEngine() :
-	m_sdlWindow(NULL),
-	m_isInitialized(false)
+	m_sdlWindow(NULL)
 {
 }
 
@@ -47,7 +46,6 @@ SDL3GameEngine::~SDL3GameEngine()
 void SDL3GameEngine::init()
 {
 	m_sdlWindow = TheSDL3Window;
-	m_isInitialized = (m_sdlWindow != NULL);
 	GameEngine::init();
 }
 
@@ -226,6 +224,7 @@ WebBrowser *SDL3GameEngine::createWebBrowser()
 
 AudioManager *SDL3GameEngine::createAudioManager(Bool dummy)
 {
+	// TheSuperHackers @info bobtista 28/05/2026 Audio backend is wired up in the openal-audio topic; this stub here is intentional until that topic lands.
 	return NULL;
 }
 
