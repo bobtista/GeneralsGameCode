@@ -2503,7 +2503,8 @@ void OpenALAudioManager::processPlayingList(void)
 				else
 				{
 					Real volForConsideration = getEffectiveVolume(playing->m_audioEventRTS);
-					volForConsideration /= (m_sound3DVolume > 0.0f ? m_soundVolume : 1.0f);
+					// TheSuperHackers @bugfix bobtista 28/05/2026 Normalize against the same 3D volume that getEffectiveVolume already multiplied in; the previous mismatch divided by m_soundVolume.
+					volForConsideration /= (m_sound3DVolume > 0.0f ? m_sound3DVolume : 1.0f);
 					// GeneralsX @bugfix BenderAI 11/03/2026 - guard against null getAudioEventInfo()
 				const AudioEventInfo* pai = (playing->m_audioEventRTS ? playing->m_audioEventRTS->getAudioEventInfo() : nullptr);
 				Bool playAnyways = pai && (BitIsSet(pai->m_type, ST_GLOBAL) || pai->m_priority == AP_CRITICAL);
