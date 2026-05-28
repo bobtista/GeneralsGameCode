@@ -1838,6 +1838,7 @@ const ParticleInfo *ParticleSystem::generateParticleInfo( Int particleNum, Int p
 		info.m_vel.z = vr.Z;
 	}
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned particles
 	// over water (BattleShipWaterRipples, etc.) are authored to render at
 	// the water surface (e.g. the hull-water interface foam). Their parent
@@ -1846,7 +1847,8 @@ const ParticleInfo *ParticleSystem::generateParticleInfo( Int particleNum, Int p
 	// emitter" — so without a clamp the particles spawn at ship deck
 	// height (Z=30) and the visible foam never lands on the water surface
 	// (Z=21) where retail showed it. Pin ground-aligned particles to just
-	// above the water surface whenever they're over water.
+	// above the water surface whenever they're over water. This is a BGFX
+	// backend specific compensation; DX8 already rendered them correctly.
 	if (m_isGroundAligned && TheTerrainLogic != nullptr)
 	{
 		Real waterZ = 0.0f;
@@ -1855,6 +1857,7 @@ const ParticleInfo *ParticleSystem::generateParticleInfo( Int particleNum, Int p
 			info.m_pos.z = waterZ + 0.5f;
 		}
 	}
+#endif
 
 	info.m_velDamping = m_velDamping.getValue();
 	info.m_angularDamping = m_angularDamping.getValue();
