@@ -1,6 +1,6 @@
 $input  a_position
 
-// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I stencil shadow
+// TheSuperHackers @refactor bobtista 15/04/2026 stencil shadow
 // volume vertex shader. Matches the DX8 reference path's SHADOW_VOLUME_FVF
 // (XYZ only, 12 bytes). Transforms position through MVP and leaves hardware
 // clipping to the backend. Manually clamping only clip.z distorts the
