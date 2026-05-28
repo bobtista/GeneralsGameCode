@@ -2853,10 +2853,13 @@ void OpenALAudioManager::closeAnySamplesUsingFile(const void* fileToClose)
 //-------------------------------------------------------------------------------------------------
 void OpenALAudioManager::setDeviceListenerPosition(void)
 {
-	ALfloat listenerOri[] = { m_listenerOrientation.x, m_listenerOrientation.y, m_listenerOrientation.z, 0.0f, 0.0f, 1.0f };
+	// TheSuperHackers @bugfix bobtista 28/05/2026 AL_ORIENTATION takes a forward vector then an up vector; previous code passed the listener position in the forward slot.
+	ALfloat listenerOri[] = { 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f };
 	alListener3f(AL_POSITION, m_listenerPosition.x, m_listenerPosition.y, m_listenerPosition.z);
 	alListenerfv(AL_ORIENTATION, listenerOri);
+#ifdef INTENSIVE_AUDIO_DEBUG
 	DEBUG_LOG(("Listener Position: %f, %f, %f\n", m_listenerPosition.x, m_listenerPosition.y, m_listenerPosition.z));
+#endif
 }
 
 //-------------------------------------------------------------------------------------------------
