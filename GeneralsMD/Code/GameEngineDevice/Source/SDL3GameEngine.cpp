@@ -21,6 +21,8 @@
 #if defined(SAGE_USE_SDL3)
 
 #include <cstdlib>
+#include <cstring>
+#include <strings.h>
 
 #include "Common/AudioRequest.h"
 #include "Common/GameAudio.h"
@@ -402,9 +404,13 @@ AudioManager *SDL3GameEngine::createAudioManager(Bool dummy)
 	// is a clean way to keep the engine running while the audio path
 	// is sorted out. Variable is unprefixed because the toggle benefits
 	// any SDL3+OpenAL platform, not just macOS.
-	if (std::getenv("GGC_NO_AUDIO") != NULL)
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Honor only truthy values so a leftover GGC_NO_AUDIO=0 from an earlier shell doesn't silently disable audio.
 	{
-		dummy = TRUE;
+		const char *envVal = std::getenv("GGC_NO_AUDIO");
+		if (envVal != NULL && (strcmp(envVal, "1") == 0 || strcasecmp(envVal, "true") == 0))
+		{
+			dummy = TRUE;
+		}
 	}
 	return NEW OpenALAudioManager(dummy);
 #endif
