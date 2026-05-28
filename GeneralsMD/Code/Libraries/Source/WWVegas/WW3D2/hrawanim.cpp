@@ -51,6 +51,7 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "hrawanim.h"
+#include <cstdlib>
 #include "motchan.h"
 #include "chunkio.h"
 #include "assetmgr.h"
@@ -509,10 +510,12 @@ void HRawAnimClass::Get_Translation(Vector3& trans, int pividx, float frame ) co
 	// channels step 1+ units. This implements the @todo in WWDefines.h about
 	// per-animation opt-out of interpolation without changing W3D file format
 	// or breaking smooth animations.
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Allow opt-out via GGC_DISABLE_RAW_ANIM_STEP_SNAP env var; the per-axis snap may regress cinematic animations that legitimately interpolate >1 unit per integer frame.
+	static const bool s_stepSnapDisabled = (std::getenv("GGC_DISABLE_RAW_ANIM_STEP_SNAP") != nullptr);
 	const float kTranslationStepThreshold = 1.0f;
 	for (int axis = 0; axis < 3; ++axis) {
 		const float delta = trans1[axis] - trans0[axis];
-		if (delta > kTranslationStepThreshold || delta < -kTranslationStepThreshold) {
+		if (!s_stepSnapDisabled && (delta > kTranslationStepThreshold || delta < -kTranslationStepThreshold)) {
 			trans[axis] = trans0[axis];
 		}
 		else {
