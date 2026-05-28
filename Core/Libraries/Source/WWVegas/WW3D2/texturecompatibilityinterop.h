@@ -9,7 +9,7 @@
 **
 **	This program is distributed in the hope that it will be useful,
 **	but WITHOUT ANY WARRANTY; without even the implied warranty of
-**	MERCHANTIBILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 **	GNU General Public License for more details.
 **
 **	You should have received a copy of the GNU General Public License
@@ -45,7 +45,7 @@ public:
 		bool initialized,
 		bool disable_auto_invalidation = false);
 
-	static LegacySurface *Peek_Legacy_Surface(const SurfaceClass &surface);
+	static LegacySurface *Peek_Legacy_Surface(const SurfaceClass &surface, bool intentToWrite = false);
 	static SurfaceClass *Create_Legacy_Surface_Wrapper(LegacySurface *surface);
 	static LegacySurface *Get_Native_Compatibility_Surface_Level(TextureClass &texture, unsigned int level = 0);
 	static LegacySurface *Get_Native_Compatibility_Surface_Level(ZTextureClass &texture, unsigned int level = 0);
@@ -128,9 +128,9 @@ inline void Apply_Native_Compatibility_Texture(
 	TextureCompatibilityInterop::Apply_Native_Compatibility_Texture(texture, native_texture, initialized, disable_auto_invalidation);
 }
 
-inline LegacySurface *Peek_Legacy_Surface(const SurfaceClass &surface)
+inline LegacySurface *Peek_Legacy_Surface(const SurfaceClass &surface, bool intentToWrite = false)
 {
-	return TextureCompatibilityInterop::Peek_Legacy_Surface(surface);
+	return TextureCompatibilityInterop::Peek_Legacy_Surface(surface, intentToWrite);
 }
 
 inline SurfaceClass *Create_Legacy_Surface_Wrapper(LegacySurface *surface)
