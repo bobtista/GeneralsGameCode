@@ -415,4 +415,6 @@ public:
 private:
     int m_textureBitDepth;
     RenderBackendMSAAMode m_msaaMode;
+    // TheSuperHackers @bugfix bobtista 28/05/2026 Persist the ambient color in a real member so Get_Ambient() returns a stable lvalue mirror of g_draw.sceneAmbient.
+    mutable Vector3 m_ambient;
 };
