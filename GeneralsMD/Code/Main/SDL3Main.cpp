@@ -87,17 +87,33 @@ int main(int argc, char **argv)
 			windowH = desktopMode->h;
 		}
 	}
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Scan argv for -win/-xres/-yres
+	// before creating the SDL window so those args take effect on the initial
+	// window. The full CommandLine parser runs later inside GameMain.
 	bool wantWindowed = false;
+	int requestedW = 0;
+	int requestedH = 0;
 	for (int argi = 1; argi < argc; ++argi)
 	{
 		if (strcmp(argv[argi], "-win") == 0)
 		{
 			wantWindowed = true;
-			windowW = kDefaultWindowWidth;
-			windowH = kDefaultWindowHeight;
-			break;
+		}
+		else if (strcmp(argv[argi], "-xres") == 0 && argi + 1 < argc)
+		{
+			requestedW = atoi(argv[argi + 1]);
+		}
+		else if (strcmp(argv[argi], "-yres") == 0 && argi + 1 < argc)
+		{
+			requestedH = atoi(argv[argi + 1]);
 		}
 	}
+	if (wantWindowed)
+	{
+		windowW = (requestedW > 0) ? requestedW : kDefaultWindowWidth;
+		windowH = (requestedH > 0) ? requestedH : kDefaultWindowHeight;
+	}
+
 	TheSDL3Window = SDL_CreateWindow(kWindowTitle, windowW, windowH, windowFlags);
 	if (TheSDL3Window == NULL)
 	{
