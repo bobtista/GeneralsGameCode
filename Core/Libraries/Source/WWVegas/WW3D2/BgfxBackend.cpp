@@ -8098,6 +8098,8 @@ static const BgfxFramebufferEntry *Ensure_Render_Target_Framebuffer(TextureClass
 
 void BgfxBackend::Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture)
 {
+    // The engine-supplied depth target is intentionally unused; the bgfx framebuffer allocates its own D24S8 attachment.
+    (void)ztexture;
     if (texture == nullptr || !g_device.initialized)
     {
         g_views.renderToTexture = false;
