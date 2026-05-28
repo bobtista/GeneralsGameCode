@@ -280,8 +280,7 @@ target_sources(corei_ww3d2 INTERFACE
 )
 
 # TheSuperHackers @refactor bobtista 10/04/2026 Conditionally include the
-# active render backend's source files. See cmake/render-backend.cmake and
-# Core/Libraries/Source/WWVegas/WW3D2/PHASE2.md.
+# active render backend's source files. See cmake/render-backend.cmake.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_sources(corei_ww3d2 INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.cpp
@@ -292,29 +291,27 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.h
     )
 
-    # TheSuperHackers @refactor bobtista 11/04/2026 Phase 4B.1 shader
-    # compilation. Only compile these shaders for the bgfx build. The
-    # ggc_compile_bgfx_shader helper (cmake/bgfx.cmake) creates the
+    # TheSuperHackers @refactor bobtista 11/04/2026 Compile bgfx shaders.
+    # The ggc_compile_bgfx_shader helper (cmake/bgfx.cmake) creates the
     # ggc_bgfx_shaders STATIC library on first call and attaches every
     # generated .bin.h to it. corei_ww3d2 links it INTERFACE so g_ww3d2 /
     # z_ww3d2 inherit the include directory and build order dependency.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_passthrough.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_passthrough.sc)
-    # TheSuperHackers @refactor bobtista 12/04/2026 Phase 5A uber shader
-    # pair. Single program handles all TSS combinations via uniforms.
-    # Replaces the Phase 4D.1 per-preset shader pairs.
+    # TheSuperHackers @refactor bobtista 12/04/2026 Uber shader pair.
+    # A single program handles all TSS combinations via uniforms; replaces
+    # the earlier per-preset shader pairs.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber_instanced.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_uber.sc)
-    # TheSuperHackers @refactor bobtista 14/04/2026 Phase 4H ported
-    # Trees.nvv (grass/blade sway vertex shader). Reuses fs_uber for
-    # the fragment side.
+    # TheSuperHackers @refactor bobtista 14/04/2026 Ported Trees.nvv
+    # (grass/blade sway vertex shader). Reuses fs_uber for the fragment side.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_trees.sc)
-    # TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I stencil
-    # shadow volume shader pair. XYZ-only verts, no color output.
+    # TheSuperHackers @refactor bobtista 15/04/2026 Stencil shadow volume
+    # shader pair. XYZ-only verts, no color output.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_volume.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_volume.sc)
-    # Phase 4I shadow darkening apply pass (fullscreen quad blend).
+    # Shadow darkening apply pass (fullscreen quad blend).
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_apply.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_apply.sc)
     # TheSuperHackers @feature bobtista 27/04/2026 Scene-color composite
