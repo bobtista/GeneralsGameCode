@@ -40,9 +40,9 @@ public:
 	{
 	}
 
+	virtual ~TextureTrackerClass() = default;
+	virtual void Release() const = 0;
 	virtual void Recreate() const = 0;
-
-	void Release();
 
 	TextureBaseClass *Get_Texture() const { return Texture; }
 
