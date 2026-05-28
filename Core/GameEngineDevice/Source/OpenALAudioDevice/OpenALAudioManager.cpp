@@ -485,8 +485,9 @@ ALenum OpenALAudioManager::getALFormat(uint8_t channels, uint8_t bitsPerSample)
 	if (channels == 2 && bitsPerSample == 32)
 		return AL_FORMAT_STEREO_FLOAT32;
 
-	DEBUG_LOG(("Unknown OpenAL format: %i channels, %i bits per sample", channels, bitsPerSample));
-	return AL_FORMAT_MONO8;
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Return AL_NONE so callers see an invalid format instead of silently mis-decoding as mono 8-bit PCM.
+	DEBUG_CRASH(("Unknown OpenAL format: %i channels, %i bits per sample", channels, bitsPerSample));
+	return AL_NONE;
 }
 
 //-------------------------------------------------------------------------------------------------
