@@ -2223,7 +2223,13 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
     {
         initArgs.resolution.reset |= BGFX_RESET_SRGB_BACKBUFFER;
     }
-    if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
+    // TheSuperHackers @bugfix bobtista 05/06/2026 Depth-clamp OFF by default. It set
+    // DX11 DepthClipEnable=FALSE, disabling near-plane clipping, which ballooned
+    // near-plane-straddling sorted geometry into a fullscreen tint and forced a
+    // shader guard that killed the Particle Uplink Cannon beam. With clipping
+    // restored the beam renders and the tint is gone (matches Metal). Opt back in
+    // via GGC_BGFX_DEPTH_CLAMP=1 if a shadow-volume near/far-clip regression appears.
+    if (std::getenv("GGC_BGFX_DEPTH_CLAMP") != nullptr)
     {
         initArgs.resolution.reset |= BGFX_RESET_DEPTH_CLAMP;
     }
@@ -3191,7 +3197,7 @@ void BgfxBackend::Begin_Scene()
                 g_device.height = h;
                 uint32_t resetFlags = BGFX_RESET_NONE | g_device.msaaResetFlags
                     | (g_device.srgbEnabled ? BGFX_RESET_SRGB_BACKBUFFER : 0);
-                if (std::getenv("GGC_BGFX_NO_DEPTH_CLAMP") == nullptr)
+                if (std::getenv("GGC_BGFX_DEPTH_CLAMP") != nullptr)
                 {
                     resetFlags |= BGFX_RESET_DEPTH_CLAMP;
                 }
