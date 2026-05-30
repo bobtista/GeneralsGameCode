@@ -34,6 +34,12 @@ void main()
 	// scaling the offset by .w keeps the NDC bias roughly constant across
 	// depths. Backend leaves u_zBias.x at 0 for normal draws.
 	gl_Position.z -= u_zBias.x * gl_Position.w;
+	// TheSuperHackers @bugfix bobtista 05/06/2026 The old near-plane "nuke the
+	// vertex" guard is gone. The fullscreen-tint balloon it worked around was
+	// caused by BGFX_RESET_DEPTH_CLAMP disabling DX11 near-plane clipping; with
+	// depth-clamp off (see BgfxBackend Initialize) the rasterizer clips
+	// near-plane-straddling sorted geometry correctly, so the Particle Uplink
+	// Cannon beam renders and no balloon appears - matching Metal.
 
 	v_color0    = (u_vertexColorFlags.x > 0.5) ? a_color0.bgra : vec4_splat(1.0);
 	v_texcoord0 = a_texcoord0;
