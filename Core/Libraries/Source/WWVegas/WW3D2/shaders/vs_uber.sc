@@ -34,6 +34,23 @@ void main()
 	// scaling the offset by .w keeps the NDC bias roughly constant across
 	// depths. Backend leaves u_zBias.x at 0 for normal draws.
 	gl_Position.z -= u_zBias.x * gl_Position.w;
+	// TheSuperHackers @bugfix bobtista 30/05/2026 Near-plane guard. Sorted
+	// draws in the bgfx engine sort view (kBgfxEngineSortView) occasionally
+	// produce vertices with clip-space w near zero or negative when the
+	// model/view chain leaves a model-space quad sitting on top of the
+	// camera. On DX11 the rasterizer clips such triangles to the near plane
+	// and the resulting silhouette balloons across the screen, tinting the
+	// play area the dominant color of the offending sprite (red for
+	// pmredlight, blue/white/cyan for similar building indicators). Metal's
+	// clip rules discard these triangles outright, hiding the bug on macOS.
+	// Push the bad vertex to a degenerate off-screen clip position so the
+	// rasterizer drops or clips its triangle to a sliver instead of painting
+	// a fullscreen overlay. 0.1 is well below any legitimate near-plane
+	// distance for an RTS camera (typical w > 100 for visible geometry).
+	if (gl_Position.w < 0.1)
+	{
+		gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
+	}
 
 	v_color0    = (u_vertexColorFlags.x > 0.5) ? a_color0.bgra : vec4_splat(1.0);
 	v_texcoord0 = a_texcoord0;

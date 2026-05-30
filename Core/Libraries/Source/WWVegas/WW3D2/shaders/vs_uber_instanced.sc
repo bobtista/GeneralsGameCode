@@ -32,6 +32,14 @@ void main()
 	vec4 worldPos = mul(worldMtx, vec4(position, 1.0));
 	gl_Position = mul(u_viewProj, worldPos);
 	gl_Position.z -= u_zBias.x * gl_Position.w;
+	// TheSuperHackers @bugfix bobtista 30/05/2026 Near-plane guard. Mirrors
+	// the vs_uber.sc fix for sorted draws whose model×view chain leaves
+	// vertices straddling the near plane. See vs_uber.sc for the full
+	// rationale.
+	if (gl_Position.w < 0.1)
+	{
+		gl_Position = vec4(10.0, 10.0, 10.0, 1.0);
+	}
 
 	v_color0    = (u_vertexColorFlags.x > 0.5) ? a_color0.bgra : vec4_splat(1.0);
 	v_texcoord0 = a_texcoord0;
