@@ -32,6 +32,8 @@ void main()
 	vec4 worldPos = mul(worldMtx, vec4(position, 1.0));
 	gl_Position = mul(u_viewProj, worldPos);
 	gl_Position.z -= u_zBias.x * gl_Position.w;
+	// TheSuperHackers @bugfix bobtista 05/06/2026 Near-plane guard removed; DX11
+	// near-plane clipping is restored by disabling depth-clamp (see vs_uber.sc).
 
 	v_color0    = (u_vertexColorFlags.x > 0.5) ? a_color0.bgra : vec4_splat(1.0);
 	v_texcoord0 = a_texcoord0;
