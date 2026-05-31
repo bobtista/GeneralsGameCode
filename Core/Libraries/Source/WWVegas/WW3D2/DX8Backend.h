@@ -65,6 +65,14 @@ public:
     virtual void Get_Shader(ShaderClass & shader);
     virtual void Set_Material(const VertexMaterialClass * material);
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture);
+    virtual void Upload_Texture_Region(
+        TextureClass * dst_texture,
+        unsigned int dst_level,
+        unsigned int dst_x, unsigned int dst_y,
+        const void * src_data,
+        unsigned int src_pitch,
+        unsigned int region_width, unsigned int region_height,
+        WW3DFormat format);
     virtual void Apply_Render_State_Changes();
     virtual void Apply_Default_State();
     virtual void Invalidate_Cached_Render_States();
