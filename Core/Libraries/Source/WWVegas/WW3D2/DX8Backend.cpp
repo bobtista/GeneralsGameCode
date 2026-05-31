@@ -24,6 +24,8 @@
 #include "DX8Backend.h"
 
 #include "dx8wrapper.h"
+#include "formconv.h"
+#include "texture.h"
 #include "vector3.h"
 #include "matrix4.h"
 #include "matrix3d.h"
@@ -148,6 +150,77 @@ void DX8Backend::Set_Material(const VertexMaterialClass * material)
 void DX8Backend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 {
     DX8Wrapper::Set_Texture(stage, texture);
+}
+
+void DX8Backend::Upload_Texture_Region(
+    TextureClass * dst_texture,
+    unsigned int dst_level,
+    unsigned int dst_x, unsigned int dst_y,
+    const void * src_data,
+    unsigned int src_pitch,
+    unsigned int region_width, unsigned int region_height,
+    WW3DFormat format)
+{
+    // TheSuperHackers @feature bobtista 01/06/2026 POOL_SYSTEMMEM staging +
+    // IDirect3DDevice8::CopyRects is the only valid transport for writing
+    // POOL_DEFAULT texture levels (which cannot be locked). Callers like
+    // W3DShroud's destination texture rely on this path.
+    if (dst_texture == nullptr ||
+        src_data == nullptr ||
+        region_width == 0 ||
+        region_height == 0 ||
+        format == WW3D_FORMAT_UNKNOWN)
+    {
+        return;
+    }
+    IDirect3DTexture8 * native_texture = dst_texture->Peek_D3D_Texture();
+    IDirect3DDevice8 * device = DX8Wrapper::_Get_D3D_Device8();
+    if (native_texture == nullptr || device == nullptr)
+    {
+        return;
+    }
+    IDirect3DSurface8 * dst_surface = nullptr;
+    if (FAILED(native_texture->GetSurfaceLevel(dst_level, &dst_surface)) ||
+        dst_surface == nullptr)
+    {
+        return;
+    }
+    IDirect3DSurface8 * staging = nullptr;
+    const D3DFORMAT d3d_format = WW3DFormat_To_D3DFormat(format);
+    if (SUCCEEDED(device->CreateImageSurface(
+            region_width, region_height, d3d_format, &staging)) &&
+        staging != nullptr)
+    {
+        D3DLOCKED_RECT staging_lock;
+        ::ZeroMemory(&staging_lock, sizeof(staging_lock));
+        if (SUCCEEDED(staging->LockRect(&staging_lock, nullptr, 0)))
+        {
+            const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(format);
+            const unsigned row_bytes = region_width * bytes_per_pixel;
+            const unsigned char * src_row =
+                static_cast<const unsigned char *>(src_data);
+            unsigned char * dst_row =
+                static_cast<unsigned char *>(staging_lock.pBits);
+            for (unsigned int y = 0; y < region_height; ++y)
+            {
+                memcpy(dst_row, src_row, row_bytes);
+                src_row += src_pitch;
+                dst_row += staging_lock.Pitch;
+            }
+            DX8_ErrorCode(staging->UnlockRect());
+            RECT cr_src_rect = {
+                0, 0,
+                static_cast<LONG>(region_width),
+                static_cast<LONG>(region_height) };
+            POINT cr_dst_point = {
+                static_cast<LONG>(dst_x),
+                static_cast<LONG>(dst_y) };
+            DX8_ErrorCode(device->CopyRects(
+                staging, &cr_src_rect, 1, dst_surface, &cr_dst_point));
+        }
+        staging->Release();
+    }
+    dst_surface->Release();
 }
 
 void DX8Backend::Apply_Render_State_Changes()
