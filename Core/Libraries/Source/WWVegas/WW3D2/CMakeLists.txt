@@ -43,8 +43,10 @@ set(WW3D2_SRC
     distlod.cpp
     distlod.h
     dllist.h
-    DX8Backend.cpp
-    DX8Backend.h
+    Backend/DX8Backend.cpp
+    Backend/DX8Backend.h
+    Backend/RenderBackend.cpp
+    Backend/RenderBackend.h
     dx8caps.cpp
     dx8caps.h
     dx8fvf.cpp
@@ -158,8 +160,6 @@ set(WW3D2_SRC
     proto.h
     proxy.h
     rddesc.h
-    RenderBackend.cpp
-    RenderBackend.h
     #render2d.cpp
     #render2d.h
     render2dsentence.cpp
