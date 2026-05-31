@@ -393,8 +393,10 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	Set_Default_Global_Render_States();
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Construct the global
-	// IRenderBackend instance now that the D3D device is ready.
+	// IRenderBackend instance now that the D3D device is ready, then let it
+	// bring up any device of its own.
 	Init_Render_Backend();
+	g_renderBackend->Initialize(_Hwnd, ResolutionWidth, ResolutionHeight);
 }
 
 inline DWORD F2DW(float f) { return *((unsigned*)&f); }
@@ -458,6 +460,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 	// TheSuperHackers @refactor bobtista 10/04/2026 Tear down the render
 	// backend before the D3D device is released so any backend-owned
 	// resources get released first.
+	g_renderBackend->Shutdown();
 	Shutdown_Render_Backend();
 
 	/*

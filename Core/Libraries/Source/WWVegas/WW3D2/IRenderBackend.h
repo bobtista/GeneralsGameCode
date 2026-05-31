@@ -74,6 +74,13 @@ class IRenderBackend
 public:
     virtual ~IRenderBackend() {}
 
+    // Optional device lifecycle. DX8Wrapper owns the render device and calls
+    // these after the backend is constructed and before it is destroyed. A
+    // backend that drives its own device creates it in Initialize and releases
+    // it in Shutdown; the DX8 reference backend leaves them as no-ops.
+    virtual void Initialize(void * window, int width, int height) {}
+    virtual void Shutdown() {}
+
     virtual bool Is_Device_Lost() const = 0;
     virtual bool Has_Stencil() = 0;
     virtual WW3DFormat Get_Back_Buffer_Format() = 0;
