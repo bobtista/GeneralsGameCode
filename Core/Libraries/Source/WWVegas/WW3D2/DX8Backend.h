@@ -18,10 +18,7 @@
 
 // TheSuperHackers @refactor bobtista 10/04/2026 DX8Backend is the reference
 // implementation of IRenderBackend that forwards every virtual method to the
-// existing DX8Wrapper static facade. It adds zero new rendering logic and
-// performs zero behavior changes — it is pure adaptation so the rest of the
-// engine can start talking to an IRenderBackend pointer while still running
-// on the established DX8 path. See RENDER_BACKEND.md.
+// existing DX8Wrapper static facade. Pure adaptation, no new rendering logic.
 
 #pragma once
 
@@ -33,15 +30,11 @@ public:
     DX8Backend();
     virtual ~DX8Backend();
 
-    // -- Device state queries -------------------------------------------------
-
     virtual bool Is_Device_Lost() const;
     virtual bool Has_Stencil();
     virtual WW3DFormat Get_Back_Buffer_Format();
     virtual SurfaceClass * Get_Back_Buffer(unsigned int num);
     virtual void Set_Gamma(float gamma, float bright, float contrast, bool calibrate, bool uselimit);
-
-    // -- Frame lifecycle ------------------------------------------------------
 
     virtual void Begin_Scene();
     virtual void End_Scene(bool flip_frame);
@@ -51,15 +44,11 @@ public:
                        float dest_alpha, float z, unsigned int stencil);
     virtual void Set_Viewport(const RenderBackendViewport & viewport);
 
-    // -- Vertex / index buffers -----------------------------------------------
-
     virtual void Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream);
     virtual void Set_Vertex_Buffer(const DynamicVBAccessClass & vba);
     virtual void Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset);
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset);
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset);
-
-    // -- State: shaders, materials, textures ---------------------------------
 
     virtual void Set_Shader(const ShaderClass & shader);
     virtual void Get_Shader(ShaderClass & shader);
@@ -68,8 +57,6 @@ public:
     virtual void Apply_Render_State_Changes();
     virtual void Apply_Default_State();
     virtual void Invalidate_Cached_Render_States();
-
-    // -- Transforms -----------------------------------------------------------
 
     virtual void Set_Transform(TransformKind transform, const Matrix4x4 & m);
     virtual void Set_Transform(TransformKind transform, const Matrix3D & m);
@@ -80,8 +67,6 @@ public:
     virtual bool Is_View_Identity();
     virtual void Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix, float znear, float zfar);
 
-    // -- Lighting and fog -----------------------------------------------------
-
     virtual void Set_Light(unsigned int index, const LightClass & light);
     virtual void Set_Ambient(const Vector3 & color);
     virtual const Vector3 & Get_Ambient() const;
@@ -89,8 +74,6 @@ public:
     virtual bool Get_Fog_Enable() const;
     virtual void Set_Light_Environment(LightEnvironmentClass * light_env);
     virtual LightEnvironmentClass * Get_Light_Environment() const;
-
-    // -- Draw calls -----------------------------------------------------------
 
     virtual void Draw_Triangles(unsigned short start_index,
                                 unsigned short polygon_count,
@@ -106,14 +89,11 @@ public:
                             unsigned short min_vertex_index,
                             unsigned short vertex_count);
 
-    // -- Programmable pipeline ------------------------------------------------
-
+    // The shader id is treated as an opaque unsigned long.
     virtual void Set_Vertex_Shader(unsigned long vertex_shader);
     virtual void Set_Pixel_Shader(unsigned long pixel_shader);
     virtual void Set_Vertex_Shader_Constant(int reg, const void * data, int count);
     virtual void Set_Pixel_Shader_Constant(int reg, const void * data, int count);
-
-    // -- Render targets -------------------------------------------------------
 
     virtual TextureClass * Create_Render_Target(int width, int height, WW3DFormat format);
     virtual void Set_Render_Target_With_Z(TextureClass * texture, ZTextureClass * ztexture);

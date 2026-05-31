@@ -38,8 +38,6 @@ DX8Backend::~DX8Backend()
 {
 }
 
-// -- Device state queries ----------------------------------------------------
-
 bool DX8Backend::Is_Device_Lost() const
 {
     return DX8Wrapper::Is_Device_Lost();
@@ -64,8 +62,6 @@ void DX8Backend::Set_Gamma(float gamma, float bright, float contrast, bool calib
 {
     DX8Wrapper::Set_Gamma(gamma, bright, contrast, calibrate, uselimit);
 }
-
-// -- Frame lifecycle ---------------------------------------------------------
 
 void DX8Backend::Begin_Scene()
 {
@@ -101,8 +97,6 @@ void DX8Backend::Set_Viewport(const RenderBackendViewport & viewport)
     DX8Wrapper::Set_Viewport(&vp);
 }
 
-// -- Vertex / index buffers --------------------------------------------------
-
 void DX8Backend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)
 {
     DX8Wrapper::Set_Vertex_Buffer(vb, stream);
@@ -127,8 +121,6 @@ void DX8Backend::Set_Index_Buffer_Index_Offset(unsigned int offset)
 {
     DX8Wrapper::Set_Index_Buffer_Index_Offset(offset);
 }
-
-// -- State: shaders, materials, textures ------------------------------------
 
 void DX8Backend::Set_Shader(const ShaderClass & shader)
 {
@@ -164,8 +156,6 @@ void DX8Backend::Invalidate_Cached_Render_States()
 {
     DX8Wrapper::Invalidate_Cached_Render_States();
 }
-
-// -- Transforms --------------------------------------------------------------
 
 void DX8Backend::Set_Transform(TransformKind transform, const Matrix4x4 & m)
 {
@@ -207,8 +197,6 @@ void DX8Backend::Set_Projection_Transform_With_Z_Bias(const Matrix4x4 & matrix, 
     DX8Wrapper::Set_Projection_Transform_With_Z_Bias(matrix, znear, zfar);
 }
 
-// -- Lighting and fog --------------------------------------------------------
-
 void DX8Backend::Set_Light(unsigned int index, const LightClass & light)
 {
     DX8Wrapper::Set_Light(index, light);
@@ -244,8 +232,6 @@ LightEnvironmentClass * DX8Backend::Get_Light_Environment() const
     return DX8Wrapper::Get_Light_Environment();
 }
 
-// -- Draw calls --------------------------------------------------------------
-
 void DX8Backend::Draw_Triangles(unsigned short start_index,
                                 unsigned short polygon_count,
                                 unsigned short min_vertex_index,
@@ -271,8 +257,6 @@ void DX8Backend::Draw_Strip(unsigned short start_index,
     DX8Wrapper::Draw_Strip(start_index, index_count, min_vertex_index, vertex_count);
 }
 
-// -- Programmable pipeline ---------------------------------------------------
-
 void DX8Backend::Set_Vertex_Shader(unsigned long vertex_shader)
 {
     DX8Wrapper::Set_Vertex_Shader(static_cast<DWORD>(vertex_shader));
@@ -292,8 +276,6 @@ void DX8Backend::Set_Pixel_Shader_Constant(int reg, const void * data, int count
 {
     DX8Wrapper::Set_Pixel_Shader_Constant(reg, data, count);
 }
-
-// -- Render targets ----------------------------------------------------------
 
 TextureClass * DX8Backend::Create_Render_Target(int width, int height, WW3DFormat format)
 {

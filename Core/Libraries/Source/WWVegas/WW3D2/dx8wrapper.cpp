@@ -393,8 +393,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Inits()
 	Set_Default_Global_Render_States();
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Construct the global
-	// IRenderBackend instance now that the D3D device is ready. See
-	// Core/Libraries/Source/WWVegas/WW3D2/RENDER_BACKEND.md.
+	// IRenderBackend instance now that the D3D device is ready.
 	Init_Render_Backend();
 }
 
@@ -458,7 +457,7 @@ void DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns()
 {
 	// TheSuperHackers @refactor bobtista 10/04/2026 Tear down the render
 	// backend before the D3D device is released so any backend-owned
-	// resources get released first. See RENDER_BACKEND.md.
+	// resources get released first.
 	Shutdown_Render_Backend();
 
 	/*

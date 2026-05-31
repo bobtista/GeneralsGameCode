@@ -16,9 +16,9 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 10/04/2026 Render backend global
-// owner. Holds the single g_renderBackend pointer and constructs/destroys
-// the concrete backend instance. See RENDER_BACKEND.md.
+// TheSuperHackers @refactor bobtista 10/04/2026 Render backend global owner.
+// Holds the single g_renderBackend pointer and constructs/destroys the
+// concrete backend instance.
 
 #include "RenderBackend.h"
 #include "DX8Backend.h"
@@ -32,8 +32,6 @@ void Init_Render_Backend()
         return;
     }
 
-    // Phase 1: the DX8 backend is the only option. Phase 2 will introduce
-    // a compile-time flag to pick between DX8, bgfx, and Diligent.
     g_renderBackend = new DX8Backend();
 }
 

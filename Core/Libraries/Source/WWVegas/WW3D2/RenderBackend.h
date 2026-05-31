@@ -17,26 +17,19 @@
 */
 
 // TheSuperHackers @refactor bobtista 10/04/2026 Backend-agnostic access point
-// for the global IRenderBackend instance. Engine-side code should include
-// this header (not IRenderBackend.h or DX8Backend.h directly) to use the
-// render backend. See RENDER_BACKEND.md.
+// for the global IRenderBackend instance. Engine-side code should include this
+// header (not IRenderBackend.h or DX8Backend.h directly) to use the backend.
 
 #pragma once
 
 #include "IRenderBackend.h"
 
-// The active rendering backend. Set by Init_Render_Backend() during
-// WW3D device initialization and cleared by Shutdown_Render_Backend()
-// during device teardown. Never null between those two calls.
+// The active rendering backend. Set by Init_Render_Backend() and cleared by
+// Shutdown_Render_Backend(); never null between those two calls.
 extern IRenderBackend * g_renderBackend;
 
-// Create the render backend. Called by DX8Wrapper::Do_Onetime_Device_Dependent_Inits
-// after the D3D device has been successfully created.
-//
-// Phase 1 always creates a DX8Backend. Phase 2 will add a compile-time
-// option to select between DX8Backend, BgfxBackend, and DiligentBackend.
+// Create the render backend. Must be called after the render device is ready.
 void Init_Render_Backend();
 
-// Destroy the render backend. Called by DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns
-// before the D3D device is released.
+// Destroy the render backend. Must be called before the render device is released.
 void Shutdown_Render_Backend();
