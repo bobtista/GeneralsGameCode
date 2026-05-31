@@ -717,14 +717,30 @@ void W3DShroud::render(CameraClass *cam)
 
 	{
 		//USE_PERF_TIMER(shroudCopy)
-		// TheSuperHackers @refactor bobtista 10/04/2026 SurfaceClass::Copy
-		// in place of _Copy_DX8_Rects.
-		pDestSurface->Copy(
-				dstPoint.x, dstPoint.y,
-				srcRect.left, srcRect.top,
-				srcRect.right - srcRect.left,
-				srcRect.bottom - srcRect.top,
-				m_pSrcTexture);
+		// TheSuperHackers @bugfix bobtista 01/06/2026 Upload via IRenderBackend::Upload_Texture_Region:
+		// the destination is POOL_DEFAULT, where SurfaceClass::Copy's LockRect fallback silently
+		// no-ops; CopyRects is the only legal SYSTEMMEM to DEFAULT transport in DX8.
+		SurfaceClass::SurfaceDescription src_desc;
+		m_pSrcTexture->Get_Description(src_desc);
+		const unsigned int region_width =
+			static_cast<unsigned int>(srcRect.right - srcRect.left);
+		const unsigned int region_height =
+			static_cast<unsigned int>(srcRect.bottom - srcRect.top);
+		const unsigned int bytes_per_pixel =
+			::Get_Bytes_Per_Pixel(src_desc.Format);
+		const unsigned char * src_origin =
+			static_cast<const unsigned char *>(m_srcTextureData) +
+			srcRect.top * m_srcTexturePitch +
+			srcRect.left * bytes_per_pixel;
+		g_renderBackend->Upload_Texture_Region(
+			m_pDstTexture,
+			0,
+			static_cast<unsigned int>(dstPoint.x),
+			static_cast<unsigned int>(dstPoint.y),
+			src_origin,
+			m_srcTexturePitch,
+			region_width, region_height,
+			src_desc.Format);
 	}
 
 	REF_PTR_RELEASE (pDestSurface);
