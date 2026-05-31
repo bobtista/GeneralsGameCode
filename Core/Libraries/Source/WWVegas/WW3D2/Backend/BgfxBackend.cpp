@@ -157,6 +157,19 @@ void BgfxBackend::Set_Texture(unsigned int /*stage*/, TextureBaseClass * /*textu
 {
 }
 
+void BgfxBackend::Upload_Texture_Region(
+    TextureClass * /*dst_texture*/,
+    unsigned int /*dst_level*/,
+    unsigned int /*dst_x*/, unsigned int /*dst_y*/,
+    const void * /*src_data*/,
+    unsigned int /*src_pitch*/,
+    unsigned int /*region_width*/, unsigned int /*region_height*/,
+    WW3DFormat /*format*/)
+{
+    // Stub on render-backend-interface. The bgfx texture mirror lands in
+    // the bgfx-features topic; until then bgfx is not the active backend.
+}
+
 void BgfxBackend::Apply_Render_State_Changes()
 {
 }
