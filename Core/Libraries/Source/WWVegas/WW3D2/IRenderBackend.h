@@ -214,6 +214,21 @@ public:
     virtual void Set_Material(const VertexMaterialClass * material) = 0;
     virtual void Set_Texture(unsigned int stage, TextureBaseClass * texture) = 0;
 
+    // TheSuperHackers @feature bobtista 01/06/2026 Backend-neutral CPU -> GPU
+    // texture region upload. The DX8 backend implements this with a
+    // POOL_SYSTEMMEM staging surface and IDirect3DDevice8::CopyRects -- the
+    // only legal POOL_SYSTEMMEM -> POOL_DEFAULT transport in DX8. Callers
+    // such as W3DShroud that previously talked to D3D8 directly via
+    // DX8Wrapper::_Copy_DX8_Rects route through here instead.
+    virtual void Upload_Texture_Region(
+        TextureClass * dst_texture,
+        unsigned int dst_level,
+        unsigned int dst_x, unsigned int dst_y,
+        const void * src_data,
+        unsigned int src_pitch,
+        unsigned int region_width, unsigned int region_height,
+        WW3DFormat format) = 0;
+
     virtual void Apply_Render_State_Changes() = 0;
     virtual void Apply_Default_State() = 0;
     virtual void Invalidate_Cached_Render_States() = 0;
