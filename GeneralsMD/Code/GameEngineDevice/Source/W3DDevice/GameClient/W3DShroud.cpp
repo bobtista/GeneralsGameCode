@@ -633,21 +633,23 @@ void W3DShroud::render(CameraClass *cam)
 
 	{
 		//USE_PERF_TIMER(shroudCopy)
+		// TheSuperHackers @bugfix bobtista 01/06/2026 Upload via IRenderBackend::Upload_Texture_Region:
+		// the destination is POOL_DEFAULT, which cannot be locked on every backend.
 		const Int copyWidth = min((Int)(srcRect.right - srcRect.left), (Int)(m_dstTextureWidth - dstPoint.x));
 		const Int copyHeight = min((Int)(srcRect.bottom - srcRect.top), (Int)(m_dstTextureHeight - dstPoint.y));
-		Int dstPitch = 0;
-		char *dst = (char *)pDestSurface->Lock(&dstPitch, Vector2i(dstPoint.x, dstPoint.y), Vector2i(dstPoint.x + copyWidth, dstPoint.y + copyHeight));
-		if (dst != nullptr)
-		{
-			const UnsignedShort *src = &m_shroudData[srcRect.left + srcRect.top*m_numCellsX];
-			for (Int row = 0; row < copyHeight; ++row)
-			{
-				memcpy(dst, src, copyWidth * sizeof(UnsignedShort));
-				dst += dstPitch;
-				src += m_numCellsX;
-			}
-			pDestSurface->Unlock();
-		}
+		SurfaceClass::SurfaceDescription dst_desc;
+		pDestSurface->Get_Description(dst_desc);
+		const UnsignedShort *src = &m_shroudData[srcRect.left + srcRect.top*m_numCellsX];
+		WW3D::Get_Render_Backend()->Upload_Texture_Region(
+			m_pDstTexture,
+			0,
+			static_cast<unsigned int>(dstPoint.x),
+			static_cast<unsigned int>(dstPoint.y),
+			reinterpret_cast<const unsigned char *>(src),
+			m_numCellsX * sizeof(UnsignedShort),
+			static_cast<unsigned int>(copyWidth),
+			static_cast<unsigned int>(copyHeight),
+			dst_desc.Format);
 	}
 
 	REF_PTR_RELEASE (pDestSurface);
