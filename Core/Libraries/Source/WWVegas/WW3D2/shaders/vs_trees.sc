@@ -1,5 +1,5 @@
 $input  a_position, a_normal, a_color0, a_texcoord0
-$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV
+$output v_color0, v_texcoord0, v_texcoord1, v_normal, v_cloudUV, v_stage0UV, v_stage1UV, v_stage2UV, v_stage3UV, v_worldPos
 
 #include <bgfx_shader.sh>
 
@@ -20,7 +20,7 @@ $output v_color0, v_texcoord0, v_texcoord1, v_normal, v_lightspace, v_cloudUV
 uniform vec4 u_swayTable[MAX_SWAY_TYPES_PLUS1];
 uniform vec4 u_shroudOffset;
 uniform vec4 u_shroudScale;
-uniform mat4 u_shadowLightViewProj;
+uniform vec4 u_vertexColorFlags; // .x > 0.5 = FVF supplies COLOR0; else use D3D8's white default
 
 void main()
 {
@@ -39,15 +39,23 @@ void main()
 	vec3 swayed = a_position + height * wave.xyz;
 
 	gl_Position = mul(u_modelViewProj, vec4(swayed, 1.0));
+	vec4 worldPos = mul(u_model[0], vec4(swayed, 1.0));
+	v_worldPos = worldPos.xyz;
 
 	// Original: oD0 = v2 * v1.yyyw (replicate color scale). In bgfx
 	// the diffuse comes in as BGRA on D3D paths — keep the same
 	// channel swap the uber shader uses.
-	v_color0 = a_color0.bgra * a_normal.y;
+	vec4 diffuseColor = (u_vertexColorFlags.x > 0.5) ? a_color0.bgra : vec4_splat(1.0);
+	v_color0 = diffuseColor * a_normal.y;
 
-	v_texcoord0 = a_texcoord0;
 	// Shroud UV: (v0.xy + c32.xy) * c33.xy.
-	v_texcoord1 = (a_position.xy + u_shroudOffset.xy) * u_shroudScale.xy;
+	vec2 shroudUV = (a_position.xy + u_shroudOffset.xy) * u_shroudScale.xy;
+	v_texcoord0 = a_texcoord0;
+	v_texcoord1 = shroudUV;
+	v_stage0UV = a_texcoord0;
+	v_stage1UV = shroudUV;
+	v_stage2UV = a_texcoord0;
+	v_stage3UV = a_texcoord0;
 
 	v_normal = vec3(0.0, 0.0, 1.0);  // grass billboards always face up
 
@@ -56,6 +64,4 @@ void main()
 	// u_cloudParams.w controls the enable flag and is gated per-draw by
 	// the backend; this value is effectively unused for grass draws.
 	v_cloudUV = a_position.xy;
-
-	v_lightspace = mul(u_shadowLightViewProj, vec4(a_position, 1.0));
 }
