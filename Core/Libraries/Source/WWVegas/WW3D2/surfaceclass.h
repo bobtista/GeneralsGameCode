@@ -40,15 +40,19 @@
 
 #include "WWLib/always.h"
 #include "ww3dformat.h"
+#include <vector>
 
-struct IDirect3DSurface8;
+class SurfaceClass;
+class TextureClass;
+struct SurfaceCompatibilityState;
 class Vector2i;
 class Vector3;
+class TextureCompatibilityInterop;
 
 /*************************************************************************
 **                             SurfaceClass
 **
-** This is our surface class, which wraps IDirect3DSurface8.
+** This is our surface class, which wraps a legacy render surface.
 **
 ** Hector Yee 2/12/01 - added in fills, blits etc for font3d class
 **
@@ -65,14 +69,19 @@ class SurfaceClass : public RefCountClass
 			unsigned int	Height;	// Surface height in pixels
 		};
 
+		struct SurfaceImageData {
+			WW3DFormat Format;
+			unsigned int Width;
+			unsigned int Height;
+			unsigned int Pitch;
+			std::vector<unsigned char> Data;
+		};
+
 		// Create surface with desired height, width and format.
 		SurfaceClass(unsigned width, unsigned height, WW3DFormat format);
 
 		// Create surface from a file.
 		SurfaceClass(const char *filename);
-
-		// Create the surface from a D3D pointer
-		SurfaceClass(IDirect3DSurface8 *d3d_surface);
 
 		virtual ~SurfaceClass() override;
 
@@ -100,6 +109,7 @@ class SurfaceClass : public RefCountClass
 
 		// support for copying from a byte array
 		void Copy(const unsigned char *other);
+		void Copy(const unsigned char *other, unsigned int pitch);
 
 		// support for copying from a byte array
 		void Copy(const Vector2i &min, const Vector2i &max, const unsigned char *other);
@@ -118,12 +128,9 @@ class SurfaceClass : public RefCountClass
 
 		// makes a copy of the surface into a byte array
 		unsigned char *CreateCopy(int *width,int *height,int*size,bool flip=false);
+		const SurfaceImageData *Get_CPU_Surface_Image() const;
 
-			// For use by TextureClass:
-		IDirect3DSurface8 *Peek_D3D_Surface() { return D3DSurface; }
-
-		// Attaching and detaching a surface pointer
-		void	Attach (IDirect3DSurface8 *surface);
+		// Detaching a surface pointer
 		void	Detach ();
 
 		// draws a horizontal line
@@ -144,10 +151,32 @@ class SurfaceClass : public RefCountClass
 		WW3DFormat Get_Surface_Format() const { return SurfaceFormat; }
 
 	private:
+		SurfaceClass(const SurfaceImageData &image);
+		SurfaceClass(void *native_compatibility_surface);
+		void	Attach_Native_Compatibility_Surface(void *surface);
+		void	Update_Description_From_Native_Compatibility_Surface();
+		void	Allocate_CPU_Surface_Snapshot();
+		void	Capture_CPU_Surface_Snapshot();
+		void	Refresh_CPU_Surface_Snapshot_If_Present();
+		void	Upload_CPU_Surface_Snapshot_To_Native_Compatibility_Surface();
+		void	Ensure_CPU_Surface_Snapshot_Current();
+		void	Mark_CPU_Surface_Snapshot_Stale();
+		void	Attach_Texture_Level_Owner(TextureClass *texture, unsigned int level);
+		bool	Has_Compatible_CPU_Surface_Snapshot(const SurfaceDescription &desc) const;
+		bool	Has_CPU_Surface_Snapshot() const { return !ImageData.Data.empty(); }
+		void	*Get_Native_Compatibility_Surface() const;
+		void	Set_Native_Compatibility_Surface(void *surface);
 
-		// Direct3D surface object
-		IDirect3DSurface8 *D3DSurface;
+		SurfaceCompatibilityState *CompatibilityState;
 
 		WW3DFormat SurfaceFormat;
-	friend class TextureClass;
+		SurfaceDescription Description;
+		SurfaceImageData ImageData;
+		bool RefreshCPUAfterUnlock;
+		bool CPULockActive;
+		bool CPUImagePossiblyStale;
+		TextureClass *TextureOwner;
+		unsigned int TextureOwnerLevel;
+		friend class TextureClass;
+		friend class TextureCompatibilityInterop;
 };

@@ -264,6 +264,5 @@ private:
 
 	uint16 *										LockedPtr;
 	int													LockedStride;
-	TextureClass *							CurTexture;
 	ShaderClass									Shader;
 };
