@@ -52,7 +52,6 @@
 //----------------------------------------------------------------------------
 
 class TextureClass;
-class SurfaceClass;
 
 //----------------------------------------------------------------------------
 //           Type Defines
@@ -72,7 +71,7 @@ class W3DVideoBuffer : public VideoBuffer
 	protected:
 
 		TextureClass	*m_texture;
-		SurfaceClass	*m_surface;
+		Bool					m_lockedTexture;
 
 	public:
 

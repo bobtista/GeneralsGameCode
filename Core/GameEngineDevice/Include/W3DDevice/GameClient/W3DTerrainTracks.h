@@ -27,8 +27,6 @@
 #include "WWLib/always.h"
 #include "WW3D2/rendobj.h"
 #include "WW3D2/w3d_file.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/shader.h"
 #include "WW3D2/vertmaterial.h"
 #include "Lib/BaseType.h"
@@ -39,7 +37,10 @@
 
 class TerrainTracksRenderObjClassSystem;
 class Drawable;
-
+// TheSuperHackers @build bobtista 01/06/2026 RenderVertexBufferClass and
+// RenderIndexBufferClass are type aliases on the dx8 backend; include the
+// shared header so the aliases match the alias the cpp sees.
+#include "WW3D2/renderbufferclasses.h"
 /// Custom render object that draws tracks on the terrain.
 /**
 This render object handles drawing tracks left by objects moving on the terrain.
@@ -133,8 +134,8 @@ public:
 	void unbindTrack( TerrainTracksRenderObjClass *mod );	///<releases control of track object
 
 protected:
-	DX8VertexBufferClass		*m_vertexBuffer;	///<vertex buffer used to draw all tracks
-	DX8IndexBufferClass			*m_indexBuffer;	///<indices defining triangles in maximum length track
+	RenderVertexBufferClass		*m_vertexBuffer;	///<vertex buffer used to draw all tracks
+	RenderIndexBufferClass			*m_indexBuffer;	///<indices defining triangles in maximum length track
 	VertexMaterialClass	  	  *m_vertexMaterialClass;	///< vertex lighting material
 	ShaderClass m_shaderClass; ///<shader or rendering state for heightmap
 
