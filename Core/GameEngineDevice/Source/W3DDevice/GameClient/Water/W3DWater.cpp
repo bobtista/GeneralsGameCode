@@ -2891,7 +2891,31 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 		g_renderBackend->Override_Alpha_Blend_Enable(true);
 		g_renderBackend->Override_Material_Opacity(WATER_MESH_OPACITY);
 
-		if (g_renderBackend->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8 && TheGlobalData->m_showSoftWaterEdge && TheWaterTransparency->m_transparentWaterDepth !=0)
+		// TheSuperHackers @bugfix bobtista 01/06/2026 The bgfx render-to-texture
+		// water pipeline introduced two interacting changes that both have to be
+		// skipped on backends without the bgfx per-view state plumbing (dx8):
+		//
+		//  1) The DESTALPHA / INV_DESTALPHA blend below reads the back-buffer
+		//     alpha channel that the shoreline pass authors. On dx8 nothing
+		//     writes that alpha, so DESTALPHA = 0 and water draws as a
+		//     no-op (terrain shows through where water should be).
+		//
+		//  2) Several upstream passes (terrain HeightMap::Render, the
+		//     shoreline alpha pass, W3DShaderManager::startRenderToTexture)
+		//     leave the color write mask in `(true,true,true,false)` —
+		//     RGB-only — to preserve that alpha channel for water. BgfxBackend
+		//     re-applies the right mask per-view; DX8Backend has no
+		//     equivalent and the mask leaks into the water + UI 2D overlay,
+		//     making every alpha-using late-frame draw invisible.
+		//
+		// Gate both on Has_Shader_Pipeline() so dx8 falls back to a hard-
+		// edge water with the legacy SRC_ALPHA / INV_SRC_ALPHA blend set by
+		// Override_Alpha_Blend_Enable() and _PresetAlphaShader. Soft water
+		// edges remain a bgfx-only feature.
+		if (g_renderBackend->Has_Shader_Pipeline()
+			&& g_renderBackend->Get_Back_Buffer_Format() == WW3D_FORMAT_A8R8G8B8
+			&& TheGlobalData->m_showSoftWaterEdge
+			&& TheWaterTransparency->m_transparentWaterDepth !=0)
 		{
 			if (TheWaterTransparency->m_additiveBlend)
 			{
@@ -2901,6 +2925,13 @@ void WaterRenderObjClass::drawTrapezoidWaterBatch(const std::vector<WaterTrapezo
 			{
 				g_renderBackend->Set_Blend_Factors(RB_BLEND_DEST_ALPHA, RB_BLEND_INV_DEST_ALPHA);
 			}
+		}
+		else if (!g_renderBackend->Has_Shader_Pipeline())
+		{
+			// Restore full RGBA color write so the water draw's alpha output
+			// reaches the framebuffer. Upstream terrain / shoreline passes
+			// leak (true,true,true,false) here on dx8 (see comment above).
+			g_renderBackend->Set_Color_Write_Enable(true, true, true, true);
 		}
 
 		CullMode cull = g_renderBackend->Get_Cull_Mode();

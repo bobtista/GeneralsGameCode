@@ -1794,6 +1794,25 @@ unsigned DX8Backend::Get_Fog_Color() const
     return DX8Wrapper::Get_Fog_Color();
 }
 
+// TheSuperHackers @bugfix bobtista 02/06/2026 Additional forwarders for
+// the override calls W3DWater makes around its batched water draws (commit
+// 0dc6548f2). Override_Alpha_Blend_Enable is already implemented above as
+// part of the Override_* set; Override_Material_Opacity and Clear_State_Overrides
+// are unique to the water batched draw and stay defensive.
+//   Override_Material_Opacity: D3DRS_TEXTUREFACTOR alpha
+//   Clear_State_Overrides:     TFACTOR alpha back to 1.0
+void DX8Backend::Override_Material_Opacity(float opacity)
+{
+    unsigned a = static_cast<unsigned>(opacity * 255.0f);
+    if (a > 255) { a = 255; }
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, (a << 24) | 0x00ffffff);
+}
+
+void DX8Backend::Clear_State_Overrides()
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0xffffffff);
+}
+
 void DX8Backend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
                                              unsigned stencil_read_mask,
                                              unsigned stencil_ref,
