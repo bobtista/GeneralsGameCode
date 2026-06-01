@@ -29,7 +29,6 @@
 
 #pragma once
 
-#include <d3dx8math.h>
 #include "Common/STLTypedefs.h"
 
 #define USUAL_TOLERANCE 1.0f
@@ -37,7 +36,15 @@
 class BezierSegment
 {
 	protected:
-		static const D3DXMATRIX s_bezBasisMatrix;
+		struct AxisCoefficients
+		{
+			Real cubic;
+			Real quadratic;
+			Real linear;
+			Real constant;
+		};
+
+		static AxisCoefficients getAxisCoefficients(Real p0, Real p1, Real p2, Real p3);
 		Coord3D m_controlPoints[4];
 
 	public:	// Constructors

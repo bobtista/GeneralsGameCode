@@ -517,6 +517,7 @@ Bool Particle::update()
 		m_colorRate.blue = 0.0f;
 	}
 
+
 	// if we've gone totally invisible, destroy ourselves
 	if (isInvisible())
 		return false;

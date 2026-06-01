@@ -683,6 +683,21 @@ Int parsePreload( char *args[], int num )
 #endif
 
 
+// TheSuperHackers @feature bobtista 14/05/2026 Load a map directly from the
+// command line in release builds. Useful for creating visual regression saves
+// from maps that are normally only reached through shell flow.
+Int parseLoadMap(char *args[], int num)
+{
+	if (num > 1)
+	{
+		TheWritableGlobalData->m_initialFile = args[1];
+		TheWritableGlobalData->m_shellMapOn = FALSE;
+		TheWritableGlobalData->m_playIntro = FALSE;
+		return 2;
+	}
+	return 1;
+}
+
 #if defined(RTS_DEBUG)
 Int parseDisplayDebug(char *args[], int)
 {
@@ -863,7 +878,6 @@ Int parseWinCursors(char *args[], int num)
 Int parseQuickStart( char *args[], int num )
 {
 	parseNoLogo( args, num );
-	parseNoShellMap( args, num );
 	parseNoWindowAnimation( args, num );
 	return 1;
 }
@@ -908,17 +922,6 @@ Int parseSelectAll( char *args[], int num )
 	TheWritableGlobalData->m_allowUnselectableSelection = TRUE;
 
 	return 1;
-}
-
-Int parseRunAhead( char *args[], Int num )
-{
-	if (num > 2)
-	{
-		MIN_RUNAHEAD = atoi(args[1]);
-		MAX_FRAMES_AHEAD = atoi(args[2]);
-		FRAME_DATA_LENGTH = (MAX_FRAMES_AHEAD + 1)*2;
-	}
-	return 3;
 }
 #endif
 
@@ -1137,13 +1140,6 @@ Int parseBgfxNoSceneFramebuffer(char *args[], int num)
 	return 1;
 }
 
-Int parseBgfxNoCsm(char *args[], int num)
-{
-	TheWritableGlobalData->m_bgfxNoCsm = TRUE;
-
-	return 1;
-}
-
 Int parseBgfxNoPostFx(char *args[], int num)
 {
 	TheWritableGlobalData->m_bgfxNoPostFx = TRUE;
@@ -1325,6 +1321,7 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-noshaders", parseNoShaders },
 	{ "-quickstart", parseQuickStart },
 	{ "-useWaveEditor", parseUseWaveEditor },
+	{ "-loadmap", parseLoadMap },
 	{ "-ignoresync", parseSync },
 	{ "-noFPSLimit", parseNoFPSLimit },
 	{ "-maxRenderFPS", parseMaxRenderFPS },
@@ -1333,7 +1330,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-logFrameTimes", parseLogFrameTimes },
 	{ "-logBgfxStats", parseLogBgfxStats },
 	{ "-bgfxNoSceneFramebuffer", parseBgfxNoSceneFramebuffer },
-	{ "-bgfxNoCsm", parseBgfxNoCsm },
 	{ "-bgfxNoPostFx", parseBgfxNoPostFx },
 	{ "-bgfxScreenshotAfter", parseBgfxScreenshotAfter },
 
@@ -1448,7 +1444,6 @@ static CommandLineParam paramsForEngineInit[] =
 	{ "-logToCon", parseLogToConsole },
 	{ "-vTune", parseVTune },
 	{ "-selectTheUnselectable", parseSelectAll },
-	{ "-RunAhead", parseRunAhead },
 #if ENABLE_CONFIGURABLE_SHROUD
 	{ "-noshroud", parseNoShroud },
 #endif
