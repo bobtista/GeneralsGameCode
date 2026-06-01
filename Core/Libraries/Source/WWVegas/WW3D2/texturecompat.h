@@ -1,6 +1,6 @@
 /*
 **	Command & Conquer Generals Zero Hour(tm)
-**	Copyright 2025 Electronic Arts Inc.
+**	Copyright 2025 TheSuperHackers
 **
 **	This program is free software: you can redistribute it and/or modify
 **	it under the terms of the GNU General Public License as published by
@@ -18,15 +18,26 @@
 
 #pragma once
 
-#include "WWLib/always.h"
-#include "WW3D2/texture.h"
+class TextureBaseClass;
 
-#include <vector>
-
-class MissingTexture
+enum LegacyTexturePoolKind
 {
-public:
-	static void _Init();
-	static void _Deinit();
-	static void Build_CPU_Texture_Mips(std::vector<TextureBaseClass::TextureMipSnapshot> &mips);
+	LEGACY_TEXTURE_POOL_DEFAULT = 0,
+	LEGACY_TEXTURE_POOL_MANAGED = 1,
+	LEGACY_TEXTURE_POOL_SYSTEMMEM = 2
 };
+
+struct LegacySurfaceCopyRect
+{
+	long left;
+	long top;
+	long right;
+	long bottom;
+};
+
+void Share_Legacy_Texture_With(TextureBaseClass &texture, const TextureBaseClass *source);
+void Init_Legacy_Missing_Texture(
+	unsigned int width,
+	unsigned int height,
+	const unsigned int *pixels);
+void Release_Legacy_Missing_Texture();
