@@ -39,7 +39,6 @@
 #include "texture.h"
 #include "WWDebug/wwprofile.h"
 #include "WWDebug/wwmemlog.h"
-#include "dx8wrapper.h"
 #include "IRenderBackend.h"
 #include "RenderBackend.h"
 
@@ -65,6 +64,14 @@
 #define no_TEST_PLACEMENT 1	 // Shows alignment markers for text.
 
 #define TEXTURE_OFFSET 2
+
+static TextureClass *Create_Writable_Sentence_Texture(unsigned width, unsigned height, WW3DFormat format)
+{
+	SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
+	TextureClass *texture = W3DNEW TextureClass(surface, MIP_LEVELS_1);
+	REF_PTR_RELEASE(surface);
+	return texture;
+}
 
 #if defined(__APPLE__)
 namespace
@@ -422,8 +429,7 @@ Render2DSentenceClass::Build_Textures ()
 		//
 		//	Create the new texture
 		//
-		TextureClass *new_texture = W3DNEW TextureClass (desc.Width, desc.Width, WW3D_FORMAT_A4R4G4B4, MIP_LEVELS_1);
-		SurfaceClass *texture_surface = new_texture->Get_Surface_Level ();
+		TextureClass *new_texture = Create_Writable_Sentence_Texture (desc.Width, desc.Width, WW3D_FORMAT_A4R4G4B4);
 
 		new_texture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 		new_texture->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
@@ -434,14 +440,34 @@ Render2DSentenceClass::Build_Textures ()
 		//
 		//	Copy the contents of the texture from the surface
 		//
-		DX8Wrapper::_Copy_DX8_Rects (curr_surface->Peek_D3D_Surface (), nullptr, 0, texture_surface->Peek_D3D_Surface (), nullptr);
-		REF_PTR_RELEASE (texture_surface);
+		TextureClass::MutableTextureMipView mip = new_texture->Begin_Mip_Write(0);
+		const unsigned bytes_per_pixel = ::Get_Bytes_Per_Pixel(desc.Format);
+		if (mip.Is_Valid() && bytes_per_pixel != 0) {
+			int source_pitch = 0;
+			const unsigned char *source_bits = static_cast<const unsigned char *>(curr_surface->Lock(&source_pitch));
+			if (source_bits != nullptr && source_pitch > 0) {
+				unsigned copy_width = desc.Width;
+				unsigned copy_height = desc.Height;
+				if (copy_width > mip.Width) {
+					copy_width = mip.Width;
+				}
+				if (copy_height > mip.Height) {
+					copy_height = mip.Height;
+				}
 
-		// TheSuperHackers @fix bobtista 19/04/2026 Invalidate the bgfx texture
-		// cache after CopyRects updates the font atlas. Without this, bgfx's
-		// cached copy has stale glyph data from the previous sentence build.
-		if (g_renderBackend != nullptr)
-			g_renderBackend->Invalidate_Cached_Texture(new_texture);
+				const unsigned row_bytes = copy_width * bytes_per_pixel;
+				unsigned char *dest_bits = mip.Data;
+				for (unsigned row = 0; row < copy_height; ++row) {
+					::memcpy(dest_bits, source_bits, row_bytes);
+					dest_bits += mip.Pitch;
+					source_bits += source_pitch;
+				}
+			}
+			if (source_bits != nullptr) {
+				curr_surface->Unlock();
+			}
+		}
+		new_texture->End_Mip_Write(0);
 
 		//
 		//	Assign this texture to any renderers that need it
@@ -1012,7 +1038,7 @@ void	Render2DSentenceClass::Build_Sentence_Centered (const WCHAR *text, int *hkX
 
 		if(hkX)
 			*hkX = hotKeyPosX;
-		if(hkX)
+		if(hkY)
 			*hkY = hotKeyPosY;
 }
 ////////////////////////////////////////////////////////////////////////////////////
@@ -1195,7 +1221,7 @@ Vector2	Render2DSentenceClass::Build_Sentence_Not_Centered (const WCHAR *text, i
 
 	if(hkX)
 		*hkX = hotKeyPosX;
-	if(hkX)
+	if(hkY)
 		*hkY = hotKeyPosY;
 
 	return extent;
@@ -1447,13 +1473,25 @@ FontCharsClass::Store_GDI_Char (WCHAR ch)
 	uint16 *curr_buffer_p = BufferList[BufferList.Count() - 1]->Buffer;
 	curr_buffer_p += CurrPixelOffset;
 
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Premultiply RGB by alpha
+	// so anti-aliased edges fade in colour instead of jumping from black to
+	// full white, and zero-fill the trailing rows between bitmap_height and
+	// CharHeight; the buffer stride below advances by CharHeight, and the
+	// previous code left those rows uninitialised, leaving stale words
+	// visible between glyphs on macOS.
 	for (int row = 0; row < bitmap_height; ++row) {
 		for (int col = 0; col < char_width; ++col) {
 			int source_row = row;
 			uint8 pixel_value = glyph_bitmap[static_cast<size_t>(source_row) * static_cast<size_t>(char_width) + col];
-			uint16 pixel_color = (pixel_value != 0) ? 0x0FFF : 0;
+			uint8 rgb_value = (pixel_value >> 4) & 0xF;
+			uint16 pixel_color = static_cast<uint16>(rgb_value) | (static_cast<uint16>(rgb_value) << 4) | (static_cast<uint16>(rgb_value) << 8);
 			uint8 alpha_value = ((pixel_value >> 4) & 0xF);
 			*curr_buffer_p++ = pixel_color | (alpha_value << 12);
+		}
+	}
+	for (int row = bitmap_height; row < CharHeight; ++row) {
+		for (int col = 0; col < char_width; ++col) {
+			*curr_buffer_p++ = 0;
 		}
 	}
 
