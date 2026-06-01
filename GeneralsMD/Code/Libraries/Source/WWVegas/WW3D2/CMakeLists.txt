@@ -245,7 +245,13 @@ target_compile_definitions(z_ww3d2 PRIVATE
 
 target_precompile_headers(z_ww3d2 PRIVATE
     [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
-    [["WW3D2/dx8wrapper.h"]]
+)
+
+if(NOT GGC_BGFX_STANDALONE)
+    target_precompile_headers(z_ww3d2 PRIVATE [["WW3D2/dx8wrapper.h"]])
+endif()
+
+target_precompile_headers(z_ww3d2 PRIVATE
     [["WWLib/always.h"]]
     [["WWLib/STLUtils.h"]]
     [["WWLib/win.h"]]

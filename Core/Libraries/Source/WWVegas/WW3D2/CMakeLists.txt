@@ -43,8 +43,6 @@ set(WW3D2_SRC
     distlod.cpp
     distlod.h
     dllist.h
-    DX8Backend.cpp
-    DX8Backend.h
     dx8caps.cpp
     dx8caps.h
     dx8fvf.cpp
@@ -58,12 +56,8 @@ set(WW3D2_SRC
     dx8renderer.h
     dx8rendererdebugger.cpp
     dx8rendererdebugger.h
-    dx8texman.cpp
-    dx8texman.h
     vertexbuffer.cpp
     dx8vertexbuffer.h
-    dx8webbrowser.cpp
-    dx8webbrowser.h
     dx8wrapper.cpp
     dx8wrapper.h
     texturecompatibilityinterop.cpp
@@ -73,7 +67,6 @@ set(WW3D2_SRC
     font3d.h
     dx8formatconv.h
     texturecompatibilityinterop.h
-    formconv.cpp
     formconv.h
     framgrab.h
     FixedFunctionState.cpp
@@ -259,8 +252,25 @@ add_library(corei_ww3d2 INTERFACE)
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
+if(NOT GGC_BGFX_STANDALONE)
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/formconv.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.h
+    )
+endif()
+
+if(GGC_RENDER_BACKEND STREQUAL "dx8")
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/DX8Backend.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/DX8Backend.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8webbrowser.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8webbrowser.h
+    )
+endif()
+
 # TheSuperHackers @refactor bobtista 10/04/2026 Conditionally include the
-# active render backend's source files. See cmake/render-backend.cmake and
+# active render backend's source files. See cmake/render-backend.cmake.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_sources(corei_ww3d2 INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.cpp
@@ -269,29 +279,27 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendTextures.cpp
     )
 
-    # TheSuperHackers @refactor bobtista 11/04/2026 shader
-    # compilation. Only compile these shaders for the bgfx build. The
-    # ggc_compile_bgfx_shader helper (cmake/bgfx.cmake) creates the
+    # TheSuperHackers @refactor bobtista 11/04/2026 Compile bgfx shaders.
+    # The ggc_compile_bgfx_shader helper (cmake/bgfx.cmake) creates the
     # ggc_bgfx_shaders STATIC library on first call and attaches every
     # generated .bin.h to it. corei_ww3d2 links it INTERFACE so g_ww3d2 /
     # z_ww3d2 inherit the include directory and build order dependency.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_passthrough.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_passthrough.sc)
-    # TheSuperHackers @refactor bobtista 12/04/2026 uber shader
-    # pair. Single program handles all TSS combinations via uniforms.
-    # Replaces the earlier per-preset shader pairs.
+    # TheSuperHackers @refactor bobtista 12/04/2026 Uber shader pair.
+    # A single program handles all TSS combinations via uniforms; replaces
+    # the earlier per-preset shader pairs.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_uber_instanced.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_uber.sc)
-    # TheSuperHackers @refactor bobtista 14/04/2026 ported
-    # Trees.nvv (grass/blade sway vertex shader). Reuses fs_uber for
-    # the fragment side.
+    # TheSuperHackers @refactor bobtista 14/04/2026 Ported Trees.nvv
+    # (grass/blade sway vertex shader). Reuses fs_uber for the fragment side.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_trees.sc)
-    # TheSuperHackers @refactor bobtista 15/04/2026 stencil
-    # shadow volume shader pair. XYZ-only verts, no color output.
+    # TheSuperHackers @refactor bobtista 15/04/2026 Stencil shadow volume
+    # shader pair. XYZ-only verts, no color output.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_volume.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_volume.sc)
-    # shadow darkening apply pass (fullscreen quad blend).
+    # Shadow darkening apply pass (fullscreen quad blend).
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_apply.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_apply.sc)
     # TheSuperHackers @feature bobtista 27/04/2026 Scene-color composite
