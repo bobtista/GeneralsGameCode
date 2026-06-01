@@ -3336,8 +3336,8 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 	#else
 		//disable writes to color buffer
 		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
-		{	DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,0);
+		{	oldColorWriteEnable = g_renderBackend->Get_Color_Write_Mask();
+			g_renderBackend->Set_Color_Write_Mask(0);
 		}
 		else
 		{	//device does not support disabling writes to color buffer so fake it through alpha blending
@@ -3454,13 +3454,10 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		//m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
 
 
-		// note: oldColorWriteEnable is a captured DWORD bitmask read
-		// directly via m_pDev->GetRenderState earlier in this function. The
-		// restore can't go through Set_Color_Write_Enable(r,g,b,a) without
-		// re-decoding the bitmask, so it stays on Set_DX8_Render_State. The
-		// whole save/restore pair migrates together in a future phase.
+		// oldColorWriteEnable is a captured DWORD bitmask; restore it through
+		// the mask variant instead of re-decoding individual channels.
 		if (oldColorWriteEnable != 0x12345678)
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,oldColorWriteEnable);
+			g_renderBackend->Set_Color_Write_Mask(oldColorWriteEnable);
 
 		//
 		// render the big transparent square of shadows in the stencil buffer

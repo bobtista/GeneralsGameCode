@@ -51,7 +51,6 @@
 #include "Common/GlobalData.h"
 #include "GameLogic/GameLogic.h"
 #include "Common/MapObject.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
 
 #if defined(RTS_DEBUG)
@@ -236,8 +235,8 @@ void W3DDebugIcons::Render(RenderInfoClass & rinfo)
 	for (k=0; k<m_numDebugIcons;) {
 		Int curIndex = 0;
 		Int	numVertex = 0;
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,DX8_FVF_XYZNDUV2,numRect*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,numRect*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,RENDER_VERTEX_FORMAT_XYZNDUV2,numRect*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,numRect*6);
 		{
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 		VertexFormatXYZNDUV2* vb= lock.Get_Formatted_Vertex_Array();

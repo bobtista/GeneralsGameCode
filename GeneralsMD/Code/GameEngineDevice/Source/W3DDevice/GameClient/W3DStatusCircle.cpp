@@ -9,16 +9,16 @@
 **
 **	This program is distributed in the hope that it will be useful,
 **	but WITHOUT ANY WARRANTY; without even the implied warranty of
-**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+**	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 **	GNU General Public License for more details.
 **
 **	You should have received a copy of the GNU General Public License
-**	along with this program.  If not, see <http://www.gnu.org/licenses/>.
+**	along with this program. If not, see <http://www.gnu.org/licenses/>.
 */
 
 ////////////////////////////////////////////////////////////////////////////////
 //																																						//
-//  (c) 2001-2003 Electronic Arts Inc.																				//
+// (c) 2001-2003 Electronic Arts Inc.																				//
 //																																						//
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -33,7 +33,7 @@
 #include <WW3D2/coltest.h>
 #include <WW3D2/rinfo.h>
 #include <WW3D2/camera.h>
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx8fvf.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/shader.h"
 #include "Common/GlobalData.h"
@@ -151,10 +151,10 @@ Int W3DStatusCircle::initData()
 	freeMapResources();	//free old data and ib/vb
 
 	m_numTriangles = NUM_TRI;
-	m_indexBuffer=NEW_REF(DX8IndexBufferClass,(m_numTriangles*3));
+	m_indexBuffer=NEW_REF(RenderIndexBufferClass,(m_numTriangles*3));
 
 	// Fill up the IB
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 	UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 
 	for (i=0; i<3*m_numTriangles; i+=3)
@@ -166,8 +166,14 @@ Int W3DStatusCircle::initData()
 		ib+=3;	//skip the 3 indices we just filled
 	}
 
-	m_vertexBufferCircle=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,m_numTriangles*3,DX8VertexBufferClass::USAGE_DEFAULT));
-	m_vertexBufferScreen=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,2*3,DX8VertexBufferClass::USAGE_DEFAULT));
+	m_vertexBufferCircle=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZDUV1,
+		m_numTriangles*3,
+		Render_Buffer_Usage_Default<RenderVertexBufferClass>()));
+	m_vertexBufferScreen=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZDUV1,
+		2*3,
+		Render_Buffer_Usage_Default<RenderVertexBufferClass>()));
 
 	//go with a preset material for now.
 	m_vertexMaterialClass=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
@@ -185,17 +191,17 @@ Int W3DStatusCircle::updateCircleVB()
 {
 	Int i, k;
 	Real shade;
-	DX8VertexBufferClass	*pVB = m_vertexBufferCircle;
+	RenderVertexBufferClass	*pVB = m_vertexBufferCircle;
 	if (m_vertexBufferCircle )
 	{
 		m_needUpdate = false;
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(pVB);
+		RenderVertexBufferClass::WriteLockClass lockVtxBuffer(pVB);
 		VertexFormatXYZDUV1 *vb = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 
 		const Real theZ = 0.0f;
 		const Real theRadius = 0.02f;
 		const Int theAlpha = 127;
-	  Int diffuse = m_diffuse + (theAlpha<<24);	 // b g<<8 r<<16 a<<24.
+	 Int diffuse = m_diffuse + (theAlpha<<24);	 // b g<<8 r<<16 a<<24.
 		Int limit = m_numTriangles;
 		float curAngle = 0;
 		float deltaAngle = 2*PI/limit;
@@ -204,7 +210,7 @@ Int W3DStatusCircle::updateCircleVB()
 
 			shade=0.7f*255.0f;
 			for (k=0; k<3; k++) {
-				vb->z=  theZ;
+				vb->z= theZ;
 				if (k==0) {
 					vb->x=	0;
 					vb->y=	0;
@@ -240,11 +246,11 @@ Int W3DStatusCircle::updateCircleVB()
 
 Int W3DStatusCircle::updateScreenVB(Int diffuse)
 {
-	DX8VertexBufferClass	*pVB = m_vertexBufferScreen;
+	RenderVertexBufferClass	*pVB = m_vertexBufferScreen;
 	if (m_vertexBufferScreen )
 	{
 		m_needUpdate = false;
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(pVB);
+		RenderVertexBufferClass::WriteLockClass lockVtxBuffer(pVB);
 		VertexFormatXYZDUV1 *vb = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 
 		vb->x =	-1;
@@ -317,10 +323,8 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 		if (m_needUpdate) {
 			updateCircleVB();
 		}
-		// TheSuperHackers @refactor bobtista 10/04/2026 introduced the
-		// IRenderBackend migration for this function; completed by
-		// routing the fade blend-op overrides through the new interface API.
-		// See Core/Libraries/Source/WWVegas/WW3D2/RENDER_BACKEND.md.
+		// TheSuperHackers @refactor bobtista 10/04/2026 Route the fade
+		// blend-op overrides through the IRenderBackend interface.
 
 		//Apply the shader and material
 		g_renderBackend->Set_Material(m_vertexMaterialClass);
@@ -367,7 +371,7 @@ void W3DStatusCircle::Render(RenderInfoClass & rinfo)
 			break;
 		case ScriptEngine::FADE_SUBTRACT:
 			// TheSuperHackers @refactor bobtista 10/04/2026 Route the remaining
-			// blend-op override through the IRenderBackend blend extension.
+			// blend-op override through the IRenderBackend extension.
 			g_renderBackend->Set_Blend_Op(RB_BLEND_OP_REV_SUBTRACT);
 			g_renderBackend->Draw_Triangles(	0,2, 0,	(2*3));
 			g_renderBackend->Set_Blend_Op(RB_BLEND_OP_ADD);

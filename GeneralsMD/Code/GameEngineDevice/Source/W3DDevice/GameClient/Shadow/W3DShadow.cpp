@@ -36,14 +36,12 @@
 #include "GameClient/View.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 #include "Lib/BaseType.h"
 #include "W3DDevice/GameClient/HeightMap.h"
-#include "d3dx8math.h"
 #include "Common/GlobalData.h"
 #include "W3DDevice/GameClient/W3DVolumetricShadow.h"
 #include "W3DDevice/GameClient/W3DProjectedShadow.h"
@@ -51,6 +49,8 @@
 #include "WW3D2/statistics.h"
 #include "Common/Debug.h"
 #include "Common/PerfTimer.h"
+
+#include <cstdlib>
 
 #define SUN_DISTANCE_FROM_GROUND	10000.0f	//distance of sun (our only light source).
 
@@ -76,6 +76,15 @@ void DoShadows(RenderInfoClass & rinfo, Bool stencilPass)
 	//USE_PERF_TIMER(shadowsRender)
 	shadowCameraFrustum=&rinfo.Camera.Get_Frustum();
 	Int projectionCount=0;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	// The bgfx backend submits these draws into its main sequential view so
+	// the darken pass lands after terrain/projected decals but before opaque
+	// meshes. The legacy D3D path keeps its original post-mesh stencil pass.
+	const Bool bgfxPreMeshStencilVolumes =
+		std::getenv("GGC_BGFX_LEGACY_POSTMESH_STENCIL_SHADOWS") == nullptr;
+#else
+	const Bool bgfxPreMeshStencilVolumes = FALSE;
+#endif
 
 	//Projected shadows render first because they may fill the stencil buffer
 	//which will be used by the shadow volumes
@@ -85,8 +94,18 @@ void DoShadows(RenderInfoClass & rinfo, Bool stencilPass)
 				projectionCount=TheW3DProjectedShadowManager->renderShadows(rinfo);
 	}
 
+	if (stencilPass == FALSE && bgfxPreMeshStencilVolumes && TheW3DVolumetricShadowManager)
+	{
+			if (TheW3DShadowManager->isShadowScene())
+				TheW3DVolumetricShadowManager->renderShadows(projectionCount);
+			if (TheW3DShadowManager)
+				TheW3DShadowManager->queueShadows(FALSE);
+	}
+
 	if (stencilPass == TRUE && TheW3DVolumetricShadowManager)
 	{
+			if (bgfxPreMeshStencilVolumes)
+				return;
 
 //		TheW3DShadowManager->loadTerrainShadows();
 
@@ -236,11 +255,6 @@ void W3DShadowManager::setLightPosition(Int lightIndex, Real x, Real y, Real z)
 		return;	///@todo: Add support for multiple lights
 
 	LightPosWorld[lightIndex]=Vector3(x,y,z);
-
-	// TheSuperHackers @refactor bobtista 16/04/2026 forward
-	// the shadow sun position to the render backend so bgfx's CSM uses
-	// the same light direction as DX8's stencil shadow system.
-	g_renderBackend->Set_Shadow_Light_Position(x, y, z);
 }
 
 void W3DShadowManager::setTimeOfDay(TimeOfDay tod)
