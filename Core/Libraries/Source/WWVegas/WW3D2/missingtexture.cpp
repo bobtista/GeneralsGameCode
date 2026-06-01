@@ -20,6 +20,9 @@
 #include "missingtexture.h"
 #include "texture.h"
 #include "dx8wrapper.h"
+#include "texturecompat.h"
+#include <cstring>
+#include <utility>
 
 static unsigned missing_image_width=128;
 static unsigned missing_image_height=128;
@@ -28,67 +31,15 @@ static unsigned missing_image_depth=24;
 extern unsigned int missing_image_palette[];
 extern unsigned int missing_image_pixels[];
 
-static IDirect3DTexture8 * _MissingTexture = nullptr;
-
-IDirect3DTexture8* MissingTexture::_Get_Missing_Texture()
-{
-	WWASSERT(_MissingTexture);
-	_MissingTexture->AddRef();
-	return _MissingTexture;
-}
-
-IDirect3DSurface8* MissingTexture::_Create_Missing_Surface()
-{
-	IDirect3DSurface8 *texture_surface = nullptr;
-	DX8_ErrorCode(_MissingTexture->GetSurfaceLevel(0, &texture_surface));
-	D3DSURFACE_DESC texture_surface_desc;
-	::ZeroMemory(&texture_surface_desc, sizeof(D3DSURFACE_DESC));
-	DX8_ErrorCode(texture_surface->GetDesc(&texture_surface_desc));
-
-	IDirect3DSurface8 *surface = nullptr;
-	DX8CALL(CreateImageSurface(
-		texture_surface_desc.Width,
-		texture_surface_desc.Height,
-		texture_surface_desc.Format,
-		&surface));
-	DX8CALL(CopyRects(texture_surface, nullptr, 0, surface, nullptr));
-	texture_surface->Release();
-	return surface;
-}
-
 void MissingTexture::_Init()
 {
-	WWASSERT(!_MissingTexture);
-
-	IDirect3DTexture8* tex=DX8Wrapper::_Create_DX8_Texture
-	(
+#if defined(GGC_BGFX_STANDALONE) && defined(GGC_RENDER_BACKEND_BGFX)
+	return;
+#endif
+	Init_Legacy_Missing_Texture(
 		missing_image_width,
 		missing_image_height,
-		WW3D_FORMAT_A8R8G8B8,
-		MIP_LEVELS_ALL
-	);
-
-	// TheSuperHackers @fix bobtista 09/10/2026 Fill every mip level with the solid color.
-	for (unsigned level=0;level<tex->GetLevelCount();++level)
-	{
-		D3DSURFACE_DESC desc;
-		D3DLOCKED_RECT locked_rect;
-		DX8_ErrorCode(tex->GetLevelDesc(level,&desc));
-		DX8_ErrorCode(tex->LockRect(level,&locked_rect,nullptr,0));
-
-		for (unsigned y=0;y<desc.Height;y++)
-		{
-			unsigned *buffer=reinterpret_cast<unsigned*>(static_cast<unsigned char*>(locked_rect.pBits)+y*locked_rect.Pitch);
-			for (unsigned x=0;x<desc.Width;x++)
-			{
-				buffer[x]=0x7FFF00FF;
-			}
-		}
-
-		DX8_ErrorCode(tex->UnlockRect(level));
-	}
-
-	_MissingTexture=tex;
+		missing_image_pixels);
 /*
 	//Load an 8-bit tga and generate text representation
 	FILE *fp;
@@ -130,8 +81,45 @@ void MissingTexture::_Init()
 
 void MissingTexture::_Deinit()
 {
-	_MissingTexture->Release();
-	_MissingTexture=nullptr;
+	Release_Legacy_Missing_Texture();
+}
+
+void MissingTexture::Build_CPU_Texture_Mips(std::vector<TextureBaseClass::TextureMipSnapshot> &mips)
+{
+	constexpr unsigned kMissingPixel = 0x7FFF00FF;
+	unsigned width = missing_image_width;
+	unsigned height = missing_image_height;
+	mips.clear();
+
+	while (width > 0 && height > 0)
+	{
+		TextureBaseClass::TextureMipSnapshot mip;
+		mip.Width = width;
+		mip.Height = height;
+		mip.Pitch = width * sizeof(kMissingPixel);
+		mip.Format = WW3D_FORMAT_A8R8G8B8;
+		mip.Data.resize(static_cast<size_t>(mip.Pitch) * height);
+
+		for (unsigned y = 0; y < height; ++y)
+		{
+			unsigned char *row = mip.Data.data() + static_cast<size_t>(mip.Pitch) * y;
+			for (unsigned x = 0; x < width; ++x)
+			{
+				std::memcpy(row + x * sizeof(kMissingPixel), &kMissingPixel, sizeof(kMissingPixel));
+			}
+		}
+
+		mips.push_back(std::move(mip));
+		if (width == 1 && height == 1) {
+			break;
+		}
+		if (width > 1) {
+			width >>= 1;
+		}
+		if (height > 1) {
+			height >>= 1;
+		}
+	}
 }
 
 unsigned int missing_image_palette[]={

@@ -46,6 +46,7 @@
 #include "GameClient/Color.h"
 
 #include "W3DDevice/GameClient/W3DAssetManager.h"
+#include "WW3D2/texturecompatibilityinterop.h"
 #include "WW3D2/dx8wrapper.h"
 #include "WWLib/TARGA.h"
 
@@ -255,7 +256,7 @@ static UnsignedByte * generatePreview( const ThingTemplate *tt )
 			if (renderResult == WW3D_ERROR_OK)
 			{
 				SurfaceClass *surface = objectTexture->Get_Surface_Level();
-				data = saveSurface(surface->Peek_D3D_Surface());
+				data = saveSurface(Peek_Legacy_Surface(*surface));
 				REF_PTR_RELEASE(surface);
 			}
 
@@ -321,5 +322,4 @@ void ObjectPreview::DrawMyTexture(CDC *pDc, int top, int left, Int width, Int he
 		DIB_RGB_COLORS, SRCCOPY);
 	delete(pBI);
 }
-
 
