@@ -157,9 +157,6 @@ int main(int argc, char **argv)
 
 	int windowW = kDefaultWindowWidth;
 	int windowH = kDefaultWindowHeight;
-	// TheSuperHackers @bugfix bobtista 28/05/2026 Scan argv for -win/-xres/-yres
-	// before creating the SDL window so those args take effect on the initial
-	// window. The full CommandLine parser runs later inside GameMain.
 	bool wantWindowed = false;
 	for (int argi = 1; argi < argc; ++argi)
 	{
@@ -180,13 +177,21 @@ int main(int argc, char **argv)
 			windowH = desktopMode->h;
 		}
 	}
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Honor -xres/-yres when -win is set so '-win -xres 1600 -yres 1200' produces a 1600x1200 window instead of 800x600.
 	if (wantWindowed)
 	{
-		windowW = (requestedW > 0) ? requestedW : kDefaultWindowWidth;
-		windowH = (requestedH > 0) ? requestedH : kDefaultWindowHeight;
+		if (requestedW > 0)
+		{
+			windowW = requestedW;
+		}
+		if (requestedH > 0)
+		{
+			windowH = requestedH;
+		}
 	}
 	Uint32 windowFlags = SDL_WINDOW_RESIZABLE;
-	if (wantWindowed)
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Hide the window during fullscreen bring-up so it doesn't briefly appear at the requested resolution before SDL_SetWindowFullscreen takes effect; windowed runs show the window immediately.
+	if (!wantWindowed)
 	{
 		windowFlags |= SDL_WINDOW_HIDDEN;
 	}
