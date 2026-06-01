@@ -54,7 +54,6 @@
 #include <WW3D2/coltest.h>
 #include <WW3D2/rinfo.h>
 #include <WW3D2/camera.h>
-#include <d3dx8core.h>
 
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
@@ -82,9 +81,11 @@
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/vertexbuffer.h"
+#include "WW3D2/renderdebugstats.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
 #include "W3DDevice/GameClient/W3DPoly.h"
@@ -308,7 +309,9 @@ BaseHeightMapRenderObjClass::BaseHeightMapRenderObjClass()
 #else
 	m_shroud = NEW W3DShroud;
 #endif
-	DX8Wrapper::SetCleanupHook(this);
+	if (WW3D::Get_Render_Backend() != nullptr) {
+		WW3D::Get_Render_Backend()->Set_Device_Cleanup_Hook(this);
+	}
 }
 
 void BaseHeightMapRenderObjClass::scheduleFullUpdate()
@@ -1447,7 +1450,7 @@ RenderObjClass *	 BaseHeightMapRenderObjClass::Clone() const
 //=============================================================================
 void BaseHeightMapRenderObjClass::loadRoadsAndBridges(W3DTerrainLogic *pTerrainLogic, Bool saveGame)
 {
-	if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
+	if (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Is_Device_Lost())
 		return;	//device not ready to render anything
 
 #ifdef DO_ROADS
@@ -1740,33 +1743,27 @@ void BaseHeightMapRenderObjClass::initDestAlphaLUT()
 	if (!m_destAlphaTexture)
 		return;
 
-	SurfaceClass *surf=m_destAlphaTexture->Get_Surface_Level();
-
-	if (surf)
+	TextureClass::MutableTextureMipView mip = m_destAlphaTexture->Begin_Mip_Write(0);
+	if (mip.Is_Valid() && mip.Format == WW3D_FORMAT_A8R8G8B8 && mip.Width >= 256)
 	{
-		Int pitch;
-		UnsignedInt *pData=(UnsignedInt*)surf->Lock(&pitch);
+		UnsignedInt *pData = reinterpret_cast<UnsignedInt *>(mip.Data);
 
 		Int maxOpacity=(Int)(TheWaterTransparency->m_minWaterOpacity * 255.0f);
 		Int alpha;
 
-		if (pData)
+		// Fill texture with alpha gradient.
+		for (Int x=0; x<256; x++)
 		{
-			//Fill texture with alpha gradient
-			for (Int x=0; x<256; x++)
-			{
-				alpha = x;
-				if (alpha > maxOpacity)
-					alpha = maxOpacity;
-				*pData=(alpha<<24)|0x00ffffff;
-				pData++;
-			}
-			surf->Unlock();
+			alpha = x;
+			if (alpha > maxOpacity)
+				alpha = maxOpacity;
+			*pData=(alpha<<24)|0x00ffffff;
+			pData++;
 		}
+		m_destAlphaTexture->End_Mip_Write(0);
 
 		m_destAlphaTexture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 		m_destAlphaTexture->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
-		REF_PTR_RELEASE(surf);
 		m_currentMinWaterOpacity = TheWaterTransparency->m_minWaterOpacity;
 	}
 }
@@ -2285,7 +2282,7 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 		return;
 
 	//Check if video card is capable of using this effect
-	if (DX8Wrapper::getBackBufferFormat() != WW3D_FORMAT_A8R8G8B8)
+	if (WW3D::Get_Render_Backend()->Get_Back_Buffer_Format() != WW3D_FORMAT_A8R8G8B8)
 		return;	//can't apply effect on cards without destination alpha
 
 	Int vertexCount = 0;
@@ -2310,13 +2307,13 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
 	//Enabled writes to destination alpha only
 	WW3D::Get_Render_Backend()->Set_Color_Write_Enable(false, false, false, true);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
+	WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 
 
 	while (j != m_numShoreLineTiles)
 	{
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
 
 		{	//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
@@ -2448,7 +2445,7 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 		return;
 
 	//Check if video card is capable of using this effect
-	if (DX8Wrapper::getBackBufferFormat() != WW3D_FORMAT_A8R8G8B8)
+	if (WW3D::Get_Render_Backend()->Get_Back_Buffer_Format() != WW3D_FORMAT_A8R8G8B8)
 		return;	//can't apply effect on cards without destination alpha
 
 	Int vertexCount = 0;
@@ -2494,15 +2491,15 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD,Matrix3D(true));
 	//Enabled writes to destination alpha only
 	WW3D::Get_Render_Backend()->Set_Color_Write_Enable(false, false, false, true);
-	DX8Wrapper::Set_DX8_Texture_Stage_State(0,  D3DTSS_TEXCOORDINDEX, 0);
+	WW3D::Get_Render_Backend()->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
 
 	Bool isDone=FALSE;
 	Int lastRenderedTile=0;
 
 	while (!isDone)
 	{
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
 
 		{	//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
@@ -2785,7 +2782,7 @@ called after flush. */
 void BaseHeightMapRenderObjClass::renderTrees(CameraClass * camera)
 {
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableObjects) {
+	if (g_renderDebugStats.m_disableObjects) {
 		return;
 	}
 #endif

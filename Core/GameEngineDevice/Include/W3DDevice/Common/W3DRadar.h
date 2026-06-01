@@ -37,7 +37,6 @@
 
 // FORWARD REFERENCES /////////////////////////////////////////////////////////////////////////////
 class TextureClass;
-class SurfaceClass;
 class TerrainLogic;
 
 // PROTOTYPES /////////////////////////////////////////////////////////////////////////////////////
@@ -109,7 +108,7 @@ protected:
 	WW3DFormat m_shroudTextureFormat;							///< format to use for shroud texture
 	Image *m_shroudImage;													///< shroud image abstraction for drawing
 	TextureClass *m_shroudTexture;								///< shroud texture
-	SurfaceClass *m_shroudSurface;								///< surface to shroud texture
+	Bool m_shroudMipActive;										///< true while bulk shroud mip writes are active
 	void *m_shroudSurfaceBits;										///< shroud surface bits
 	int m_shroudSurfacePitch;											///< shroud surface pitch
 	WW3DFormat m_shroudSurfaceFormat;							///< shroud surface format

@@ -51,8 +51,6 @@
 #include "WW3D2/rendobj.h"
 #include "WW3D2/w3d_file.h"
 #include "WW3D2/texture.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/shader.h"
 #include "WW3D2/vertmaterial.h"
 #include "Lib/BaseType.h"
@@ -70,7 +68,10 @@ class W3DTreeDrawModuleData;
 struct BreezeInfo;
 class GeometryInfo;
 class W3DProjectedShadow;
-
+// TheSuperHackers @build bobtista 01/06/2026 RenderVertexBufferClass and
+// RenderIndexBufferClass are type aliases on the dx8 backend; include the
+// shared header so the aliases match the alias the cpp sees.
+#include "WW3D2/renderbufferclasses.h"
 //-----------------------------------------------------------------------------
 //           Type Defines
 //-----------------------------------------------------------------------------
@@ -220,8 +221,8 @@ private:
 				MAX_BUFFERS = 1,
 				SORT_ITERATIONS_PER_FRAME=10};
 	enum {PARTITION_WIDTH_HEIGHT = 100};
-	DX8VertexBufferClass	*m_vertexTree[MAX_BUFFERS];	///<Tree vertex buffer.
-	DX8IndexBufferClass			*m_indexTree[MAX_BUFFERS];	///<indices defining a triangles for the tree drawing.
+	RenderVertexBufferClass	*m_vertexTree[MAX_BUFFERS];	///<Tree vertex buffer.
+	RenderIndexBufferClass			*m_indexTree[MAX_BUFFERS];	///<indices defining a triangles for the tree drawing.
 	DWORD					m_dwTreePixelShader;	///<handle to D3D pixel shader
 	DWORD					m_dwTreeVertexShader;	///<handle to D3D vertex shader
 

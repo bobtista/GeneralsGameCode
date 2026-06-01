@@ -94,8 +94,8 @@ public:
 	static TextureClass *getShaderTexture(Int stage) { return m_Textures[stage];}	///<returns currently selected texture for given stage
 	///Return last activated shader.
 	static ShaderTypes getCurrentShader() {return m_currentShader;}
-	/// Loads a .vso file and creates a vertex shader for it
-	static HRESULT LoadAndCreateD3DShader(const char* strFilePath, const DWORD* pDeclaration, DWORD Usage, Bool ShaderType, DWORD* pHandle);
+	/// Loads a legacy shader object and creates a backend shader for it.
+	static HRESULT LoadAndCreateLegacyShader(const char* strFilePath, const DWORD* pDeclaration, DWORD Usage, Bool ShaderType, DWORD* pHandle);
 
 	static Bool testMinimumRequirements(ChipsetType *videoChipType, CpuType *cpuType, Int *cpuFreq, MemValueType *numRAM, Real *intBenchIndex, Real *floatBenchIndex, Real *memBenchIndex);
 	static StaticGameLODLevel getGPUPerformanceIndex();
@@ -107,11 +107,11 @@ public:
 	static Bool filterSetup(FilterTypes filter, FilterModes mode);
 
 	// Support routines for filter methods.
-	static Bool canRenderToTexture() { return (m_oldRenderSurface && m_newRenderSurface);}
+	static Bool canRenderToTexture();
 	static void startRenderToTexture(); ///< Sets render target to texture.
-	static IDirect3DTexture8 * endRenderToTexture(); ///< Ends render to texture, & returns texture.
-	static IDirect3DTexture8 * getRenderTexture();	///< returns last used render target texture
-	static Bool isRenderingToTexture() {return m_renderingToTexture; }
+	static Bool endRenderToTexture(); ///< Ends render to texture.
+	static Bool hasRenderTexture();	///< returns whether a captured render target texture is available.
+	static Bool isRenderingToTexture();
 	static void drawViewport(Int color);	///<draws 2 triangles covering the current tactical viewport
 
 
@@ -126,12 +126,6 @@ protected:
 	static FilterTypes m_currentFilter; ///< Last filter that was set.
 	// Info for a render to texture surface for special effects.
 	static Bool m_renderingToTexture;
-	static IDirect3DSurface8 *m_oldRenderSurface;	///<previous render target
-	static IDirect3DTexture8 *m_renderTexture;		///<texture into which rendering will be redirected.
-	static IDirect3DSurface8 *m_newRenderSurface;	///<new render target inside m_renderTexture
-	static IDirect3DSurface8 *m_oldDepthSurface;	///<previous depth buffer surface
-
-
 };
 
 class W3DFilterInterface

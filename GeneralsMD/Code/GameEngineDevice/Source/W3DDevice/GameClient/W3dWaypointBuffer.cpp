@@ -76,7 +76,6 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 
 #include "WW3D2/camera.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -531,5 +530,4 @@ void W3DWaypointBuffer::drawWaypoints(RenderInfoClass &rinfo)
 
 	}
 }
-
 
