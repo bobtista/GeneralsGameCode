@@ -116,7 +116,8 @@
 #include "sortingrenderer.h"
 #include "WWLib/thread.h"
 #include "WWLib/cpudetect.h"
-#include "dx8texman.h"
+#include "TextureResourceManager.h"
+#include "dx8formatconv.h"
 #include "animatedsoundmgr.h"
 #include "static_sort_list.h"
 #include "shdlib.h"
@@ -317,8 +318,8 @@ WW3DErrorType WW3D::Init(void *hwnd, char *defaultpal, bool lite)
 	*/
 	if (!lite) {
 		AnimatedSoundMgrClass::Initialize ();
-		IsInitted = true;
 	}
+	IsInitted = true;
 	WWDEBUG_SAY(("WW3D Init completed"));
 	return WW3D_ERROR_OK;
 }
@@ -371,8 +372,9 @@ WW3DErrorType WW3D::Shutdown()
 		WW3DAssetManager::Get_Instance()->Free_Assets();
 	}
 
-	DX8TextureManagerClass::Shutdown();
+	TextureResourceManagerClass::Shutdown();
 
+	// The backend destructor owns the DX8Wrapper shutdown.
 	delete RenderBackend;
 	RenderBackend = nullptr;
 
@@ -813,23 +815,23 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 
 	WWPROFILE("WW3D::Begin_Render");
 	WWASSERT(IsInitted);
-	HRESULT hr;
 
 	SNAPSHOT_SAY(("=========================================="));
 	SNAPSHOT_SAY(("========== WW3D::Begin_Render ============"));
 	SNAPSHOT_SAY(("==========================================\n"));
 
-	if (DX8Wrapper::_Get_D3D_Device8() && (hr=DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) != D3D_OK)
+	RenderBackendDeviceStatus device_status = (WW3D::Get_Render_Backend() != nullptr) ? WW3D::Get_Render_Backend()->Get_Device_Status() : RB_DEVICE_OK;
+	if (device_status != RB_DEVICE_OK)
 	{
         // If the device was lost, do not render until we get it back
-        if( D3DERR_DEVICELOST == hr )
+        if( RB_DEVICE_LOST == device_status )
             return WW3D_ERROR_GENERIC;	//other app has the device
 
         // Check if the device needs to be reset
-        if( D3DERR_DEVICENOTRESET == hr )
+        if( RB_DEVICE_NOT_RESET == device_status )
         {
             WWDEBUG_SAY(("WW3D::Begin_Render is resetting the device."));
-            DX8Wrapper::Reset_Device();
+            WW3D::Get_Render_Backend()->Reset_Device();
         }
 
 		return WW3D_ERROR_GENERIC;
@@ -879,8 +881,10 @@ WW3DErrorType WW3D::Begin_Render(bool clear,bool clearz,const Vector3 & color, f
 		WW3D::Get_Render_Backend()->Begin_Scene();
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	// Notify D3D that we are beginning to render the frame
-	Get_Render_Backend()->Begin_Scene();
+	DX8Wrapper::Begin_Scene();
+#endif
 
 	return WW3D_ERROR_OK;
 }
@@ -980,16 +984,18 @@ WW3DErrorType WW3D::Render(SceneClass * scene,CameraClass * cam,bool clear,bool 
 		Get_Render_Backend()->Clear(clear, clearz, color);
 	}
 
-	// set the rendering mode
+	// TheSuperHackers @refactor bobtista 21/04/2026 Route fill mode through
+	// WW3D::Get_Render_Backend() so bgfx sees the state (previous raw DX8Wrapper calls
+	// were invisible to the bgfx backend).
 	switch(scene->Get_Polygon_Mode()) {
 		case SceneClass::POINT:
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_POINT);
+			WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_POINT);
 			break;
 		case SceneClass::LINE:
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
+			WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_WIREFRAME);
 			break;
 		case SceneClass::FILL:
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_SOLID);
+			WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_SOLID);
 			break;
 	}
 
@@ -1043,7 +1049,7 @@ WW3DErrorType WW3D::Render(
 	rinfo.Camera.Apply();
 
 	// set the rendering mode
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_FILLMODE,D3DFILL_SOLID);
+	WW3D::Get_Render_Backend()->Set_Fill_Mode(RB_FILL_SOLID);
 
 	// Install the lighting environment if one is supplied
 	if (rinfo.light_environment != nullptr) {
@@ -1388,37 +1394,20 @@ void WW3D::Make_Screen_Shot( const char * filename_base , const float gamma, con
 		gamma_lut[i] = (unsigned char) (256.0f * powf(i / 256.0f, recip));
 	}
 
-	// TheSuperHackers @bugfix xezon 21/05/2025 Get the back buffer and create a copy of the surface.
-	// Originally this code took the front buffer and tried to lock it. This does not work when the
-	// render view clips outside the desktop boundaries. It crashed the game.
-	SurfaceClass* surface = DX8Wrapper::_Get_DX8_Back_Buffer();
-
-	SurfaceClass::SurfaceDescription surfaceDesc;
-	surface->Get_Description(surfaceDesc);
-
-	SurfaceClass* surfaceCopy = NEW_REF(SurfaceClass, (DX8Wrapper::_Create_DX8_Surface(surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format)));
-	DX8Wrapper::_Copy_DX8_Rects(surface->Peek_D3D_Surface(), nullptr, 0, surfaceCopy->Peek_D3D_Surface(), nullptr);
-
-	surface->Release_Ref();
-	surface = nullptr;
-
-	struct Rect
+	RenderBackendImage capture;
+	if (WW3D::Get_Render_Backend() == nullptr || !WW3D::Get_Render_Backend()->Capture_Back_Buffer_Image(0, capture))
 	{
-		int Pitch;
-		void* pBits;
-	} lrect;
-
-	lrect.pBits = surfaceCopy->Lock(&lrect.Pitch);
-	if (lrect.pBits == nullptr)
-	{
-		surfaceCopy->Release_Ref();
+		if (format == BMP && WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Request_Native_Screen_Shot(filename))
+		{
+			return;
+		}
 		return;
 	}
 
 	unsigned int x,y,index,index2,width,height;
 
-	width = surfaceDesc.Width;
-	height = surfaceDesc.Height;
+	width = capture.Width;
+	height = capture.Height;
 
 	unsigned char *image=W3DNEWARRAY unsigned char[3*width*height];
 
@@ -1429,17 +1418,13 @@ void WW3D::Make_Screen_Shot( const char * filename_base , const float gamma, con
 			// index for image
 			index=3*(x+y*width);
 			// index for fb
-			index2=y*lrect.Pitch+4*x;
+			index2=y*capture.Pitch+4*x;
 
-			image[index]   = gamma_lut[*((unsigned char *) lrect.pBits + index2+2)];
-			image[index+1] = gamma_lut[*((unsigned char *) lrect.pBits + index2+1)];
-			image[index+2] = gamma_lut[*((unsigned char *) lrect.pBits + index2+0)];
+			image[index]   = gamma_lut[*(capture.Bytes.data() + index2+2)];
+			image[index+1] = gamma_lut[*(capture.Bytes.data() + index2+1)];
+			image[index+2] = gamma_lut[*(capture.Bytes.data() + index2+0)];
 		}
 	}
-
-	surfaceCopy->Unlock();
-	surfaceCopy->Release_Ref();
-	surfaceCopy = nullptr;
 
 	switch (format) {
 		case TGA:
@@ -1738,37 +1723,16 @@ void WW3D::Update_Movie_Capture()
 	WWPROFILE("WW3D::Update_Movie_Capture");
 	WWDEBUG_SAY(( "Updating"));
 
-	// TheSuperHackers @bugfix xezon 21/05/2025 Get the back buffer and create a copy of the surface.
-	// Originally this code took the front buffer and tried to lock it. This does not work when the
-	// render view clips outside the desktop boundaries. It crashed the game.
-	SurfaceClass* surface = DX8Wrapper::_Get_DX8_Back_Buffer();
-
-	SurfaceClass::SurfaceDescription surfaceDesc;
-	surface->Get_Description(surfaceDesc);
-
-	SurfaceClass* surfaceCopy = NEW_REF(SurfaceClass, (DX8Wrapper::_Create_DX8_Surface(surfaceDesc.Width, surfaceDesc.Height, surfaceDesc.Format)));
-	DX8Wrapper::_Copy_DX8_Rects(surface->Peek_D3D_Surface(), nullptr, 0, surfaceCopy->Peek_D3D_Surface(), nullptr);
-
-	surface->Release_Ref();
-	surface = nullptr;
-
-	struct Rect
+	RenderBackendImage capture;
+	if (WW3D::Get_Render_Backend() == nullptr || !WW3D::Get_Render_Backend()->Capture_Back_Buffer_Image(0, capture))
 	{
-		int Pitch;
-		void* pBits;
-	} lrect;
-
-	lrect.pBits = surfaceCopy->Lock(&lrect.Pitch);
-	if (lrect.pBits == nullptr)
-	{
-		surfaceCopy->Release_Ref();
 		return;
 	}
 
 	unsigned int x,y,index,index2,width,height;
 
-	width = surfaceDesc.Width;
-	height = surfaceDesc.Height;
+	width = capture.Width;
+	height = capture.Height;
 
 	char *image=(char *)Movie->GetBuffer();
 
@@ -1779,17 +1743,13 @@ void WW3D::Update_Movie_Capture()
 			// index for image
 			index=3*(x+(height-y-1)*width);
 			// index for fb
-			index2=y*lrect.Pitch+4*x;
+			index2=y*capture.Pitch+4*x;
 
-			image[index]=*((char *) lrect.pBits + index2+0);
-			image[index+1]=*((char *) lrect.pBits + index2+1);
-			image[index+2]=*((char *) lrect.pBits + index2+2);
+			image[index]=*((char *) capture.Bytes.data() + index2+0);
+			image[index+1]=*((char *) capture.Bytes.data() + index2+1);
+			image[index+2]=*((char *) capture.Bytes.data() + index2+2);
 		}
 	}
-
-	surfaceCopy->Unlock();
-	surfaceCopy->Release_Ref();
-	surfaceCopy = nullptr;
 
 	Movie->Grab(image);
 #endif
@@ -2047,55 +2007,62 @@ void WW3D::Update_Pixel_Center()
 
 void WW3D::Set_Texture_Bitdepth(int bitdepth)
 {
-	DX8Wrapper::Set_Texture_Bitdepth(bitdepth);
+	if (WW3D::Get_Render_Backend() != nullptr) {
+		WW3D::Get_Render_Backend()->Set_Texture_Bitdepth(bitdepth);
+	}
 }
 
 int WW3D::Get_Texture_Bitdepth()
 {
-	return DX8Wrapper::Get_Texture_Bitdepth();
+	return (WW3D::Get_Render_Backend() != nullptr) ? WW3D::Get_Render_Backend()->Get_Texture_Bitdepth() : 16;
 }
 
 void WW3D::Set_MSAA_Mode(MultiSampleModeEnum mode)
 {
+	RenderBackendMSAAMode backend_mode;
 	switch (mode) {
 
 	default:
 	case MULTISAMPLE_MODE_NONE:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_NONE);
+		backend_mode = RB_MSAA_NONE;
 		break;
 
 	case MULTISAMPLE_MODE_2X:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_2_SAMPLES);
+		backend_mode = RB_MSAA_2X;
 		break;
 
 	case MULTISAMPLE_MODE_4X:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_4_SAMPLES);
+		backend_mode = RB_MSAA_4X;
 		break;
 
 	case MULTISAMPLE_MODE_8X:
-		DX8Wrapper::Set_MSAA_Mode(D3DMULTISAMPLE_8_SAMPLES);
+		backend_mode = RB_MSAA_8X;
 		break;
 
+	}
+
+	if (WW3D::Get_Render_Backend() != nullptr) {
+		WW3D::Get_Render_Backend()->Set_MSAA_Mode(backend_mode);
 	}
 }
 
 WW3D::MultiSampleModeEnum WW3D::Get_MSAA_Mode()
 {
-	D3DMULTISAMPLE_TYPE type = DX8Wrapper::Get_MSAA_Mode();
+	RenderBackendMSAAMode mode = (WW3D::Get_Render_Backend() != nullptr) ? WW3D::Get_Render_Backend()->Get_MSAA_Mode() : RB_MSAA_NONE;
 
-	switch (type) {
+	switch (mode) {
 
 	default:
-	case D3DMULTISAMPLE_NONE:
+	case RB_MSAA_NONE:
 		return MULTISAMPLE_MODE_NONE;
 
-	case D3DMULTISAMPLE_2_SAMPLES:
+	case RB_MSAA_2X:
 		return MULTISAMPLE_MODE_2X;
 
-	case D3DMULTISAMPLE_4_SAMPLES:
+	case RB_MSAA_4X:
 		return MULTISAMPLE_MODE_4X;
 
-	case D3DMULTISAMPLE_8_SAMPLES:
+	case RB_MSAA_8X:
 		return MULTISAMPLE_MODE_8X;
 
 	}
@@ -2141,5 +2108,5 @@ void WW3D::Reset_Current_Static_Sort_Lists_To_Default()
 
 void WW3D::Set_Gamma(float gamma,float bright,float contrast,bool calibrate)
 {
-	Get_Render_Backend()->Set_Gamma(gamma,bright,contrast,calibrate);
+	Get_Render_Backend()->Set_Gamma(gamma,bright,contrast,calibrate,true);
 }

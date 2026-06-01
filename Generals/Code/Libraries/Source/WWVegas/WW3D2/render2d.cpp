@@ -595,6 +595,7 @@ void Render2DClass::Render()
 		//special case added to draw grayscale non-alpha blended images.
 		WW3D::Get_Render_Backend()->Set_Shader(ShaderClass::_PresetOpaqueShader);
 		WW3D::Get_Render_Backend()->Apply_Render_State_Changes();	//force update of all regular W3D states.
+		WW3D::Get_Render_Backend()->Set_Grayscale_Mode(true);
 		if (DX8Wrapper::Get_Current_Caps()->Support_Dot3())
 		{
 			//Override W3D states with customizations for grayscale
@@ -630,7 +631,10 @@ void Render2DClass::Render()
 	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_VIEW,view);
 	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_PROJECTION,proj);
 	if (IsGrayScale)
+	{
 		ShaderClass::Invalidate();	//force both stages to be reset.
+		WW3D::Get_Render_Backend()->Set_Grayscale_Mode(false);
+	}
 
 }
 
