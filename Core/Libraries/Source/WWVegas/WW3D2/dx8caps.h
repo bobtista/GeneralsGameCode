@@ -41,7 +41,11 @@
 
 #include "WWLib/always.h"
 #include "ww3dformat.h"
+#if defined(GGC_BGFX_STANDALONE)
+#include "dx8standalonetypes.h"
+#else
 #include <d3d8.h>
+#endif
 
 class DX8Caps
 {
@@ -205,11 +209,14 @@ public:
 	};
 
 
-	DX8Caps(IDirect3D8* direct3d, const D3DCAPS8& caps,WW3DFormat display_format, const D3DADAPTER_IDENTIFIER8& adapter_id);
-	DX8Caps(IDirect3D8* direct3d, IDirect3DDevice8* D3DDevice,WW3DFormat display_format, const D3DADAPTER_IDENTIFIER8& adapter_id);
+	DX8Caps(void* direct3d, const void* caps,WW3DFormat display_format, const void* adapter_id);
+	DX8Caps(void* direct3d, void* device,WW3DFormat display_format, const void* adapter_id);
+	~DX8Caps();
+	DX8Caps(const DX8Caps&) = delete;
+	DX8Caps& operator=(const DX8Caps&) = delete;
 	static void Shutdown();
 
-	void Compute_Caps(WW3DFormat display_format, const D3DADAPTER_IDENTIFIER8& adapter_id);
+	void Compute_Caps(WW3DFormat display_format, const void* adapter_id);
 	bool Support_TnL() const { return SupportTnL; };
 	bool Support_DXTC() const { return SupportDXTC; }
 	bool Support_Gamma() const { return supportGamma; }
@@ -224,10 +231,13 @@ public:
 	bool Support_Cubemaps() const { return SupportCubemaps; }
 	bool Can_Do_Multi_Pass() const { return CanDoMultiPass; }
 	bool Is_Fog_Allowed() const { return IsFogAllowed; }
+	bool Support_Range_Fog() const { return SupportRangeFog; }
 
 	bool Is_Valid_Display_Format(int width, int height, WW3DFormat format);
 
 	int Get_Max_Textures_Per_Pass() const { return MaxTexturesPerPass; }
+	unsigned Get_Max_Texture_Width() const;
+	unsigned Get_Max_Texture_Height() const;
 
 	// -------------------------------------------------------------------------
 	//
@@ -246,7 +256,9 @@ public:
 	bool Support_Render_To_Texture_Format(WW3DFormat format) const { return SupportRenderToTextureFormat[format]; }
 	bool Support_Depth_Stencil_Format(WW3DZFormat format) const { return SupportDepthStencilFormat[format]; }
 
-	D3DCAPS8 const & Get_DX8_Caps() const { return Caps; }
+#if !defined(GGC_BGFX_STANDALONE)
+	D3DCAPS8 const & Get_DX8_Caps() const;
+#endif
 
 	const StringClass& Get_Log() const { return CapsLog; }
 	const StringClass& Get_Compact_Log() const { return CompactLog; }
@@ -270,21 +282,21 @@ private:
 	static DeviceTypeS3 Get_S3_Device(unsigned device_id);
 	static DeviceTypeIntel Get_Intel_Device(unsigned device_id);
 
-	void Init_Caps(IDirect3DDevice8* D3DDevice);
-	void Check_Texture_Format_Support(WW3DFormat display_format,const D3DCAPS8& caps);
-	void Check_Render_To_Texture_Support(WW3DFormat display_format,const D3DCAPS8& caps);
-	void Check_Depth_Stencil_Support(WW3DFormat display_format, const D3DCAPS8& caps);
-	void Check_Texture_Compression_Support(const D3DCAPS8& caps);
-	void Check_Bumpmap_Support(const D3DCAPS8& caps);
-	void Check_Shader_Support(const D3DCAPS8& caps);
-	void Check_Maximum_Texture_Support(const D3DCAPS8& caps);
+	void Init_Caps(void* device);
+	void Check_Texture_Format_Support(WW3DFormat display_format,const void* caps);
+	void Check_Render_To_Texture_Support(WW3DFormat display_format,const void* caps);
+	void Check_Depth_Stencil_Support(WW3DFormat display_format, const void* caps);
+	void Check_Texture_Compression_Support(const void* caps);
+	void Check_Bumpmap_Support(const void* caps);
+	void Check_Shader_Support(const void* caps);
+	void Check_Maximum_Texture_Support(const void* caps);
 	void Check_Driver_Version_Status();
-	void Vendor_Specific_Hacks(const D3DADAPTER_IDENTIFIER8& adapter_id);
+	void Vendor_Specific_Hacks(const void* adapter_id);
 
 	int MaxDisplayWidth;
 	int MaxDisplayHeight;
 
-	D3DCAPS8 Caps;
+	void* Caps;
 	bool SupportTnL;
 	bool SupportDXTC;
 	bool supportGamma;
@@ -300,6 +312,7 @@ private:
 	bool SupportDot3;
 	bool SupportPointSprites;
 	bool SupportCubemaps;
+	bool SupportRangeFog;
 	bool CanDoMultiPass;
 	bool IsFogAllowed;
 	int MaxTexturesPerPass;
@@ -311,7 +324,7 @@ private:
 	DriverVersionStatusType DriverVersionStatus;
 	VendorIdType VendorId;
 	StringClass DriverDLL;
-	IDirect3D8* Direct3D; // warning XDK name conflict KJM
+	void* Direct3D; // warning XDK name conflict KJM
 	StringClass CapsLog;
 	StringClass CompactLog;
 };
