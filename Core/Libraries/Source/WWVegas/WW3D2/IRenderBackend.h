@@ -24,6 +24,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include "ww3dformat.h"
 
@@ -68,6 +69,32 @@ struct RenderBackendLight
     float attenuation[3];
     float theta;
     float phi;
+};
+
+struct RenderBackendImage
+{
+    unsigned Width = 0;
+    unsigned Height = 0;
+    WW3DFormat Format = WW3D_FORMAT_UNKNOWN;
+    unsigned Pitch = 0;
+    std::vector<std::uint8_t> Bytes;
+
+    bool Is_Valid() const
+    {
+        return Width != 0 && Height != 0 && Pitch != 0 && !Bytes.empty();
+    }
+};
+
+struct RenderBackendSurfaceDescription
+{
+    unsigned Width = 0;
+    unsigned Height = 0;
+    WW3DFormat Format = WW3D_FORMAT_UNKNOWN;
+
+    bool Is_Valid() const
+    {
+        return Width != 0 && Height != 0 && Format != WW3D_FORMAT_UNKNOWN;
+    }
 };
 
 static const unsigned RB_MAX_TEXTURE_STAGES = 8;
@@ -525,8 +552,9 @@ public:
     virtual void Set_Device_Cleanup_Hook(RenderDeviceCleanupHook * hook) {}
     virtual bool Has_Stencil() const { return false; }
     virtual WW3DFormat Get_Back_Buffer_Format() const { return WW3D_FORMAT_UNKNOWN; }
-    virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const { return nullptr; }
-    virtual SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num) { return nullptr; }
+    virtual bool Get_Back_Buffer_Description(unsigned int num, RenderBackendSurfaceDescription & desc) const { desc = RenderBackendSurfaceDescription(); return false; }
+    virtual bool Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image) { return false; }
+    virtual bool Request_Native_Screen_Shot(const char * /*path*/) { return false; }
     virtual void Set_Texture_Bitdepth(int bitdepth) {}
     virtual int Get_Texture_Bitdepth() const { return 16; }
     virtual bool Supports_Texture_Format(WW3DFormat format) const { return false; }
@@ -756,7 +784,7 @@ public:
     // extension. Lets W3DMouse drive the device's hardware cursor without
     // touching the raw device directly.
     virtual void Show_Hardware_Cursor(bool show) {}
-    virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, SurfaceClass * surface) {}
+    virtual void Set_Hardware_Cursor_Image(int hotspot_x, int hotspot_y, const RenderBackendImage & image) {}
     virtual void Set_Hardware_Cursor_Position(int x, int y) {}
 
     // TheSuperHackers @refactor bobtista 10/04/2026 Stencil state
