@@ -112,7 +112,7 @@ namespace
 		(void)legacy_texture;
 		return MIP_LEVELS_1;
 #else
-		return static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount();
+		return static_cast<MipCountType>(static_cast<LegacyBaseTexture *>(legacy_texture)->GetLevelCount());
 #endif
 	}
 
