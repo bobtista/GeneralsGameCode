@@ -48,23 +48,361 @@
 #include	"WWLib/bufffile.h"
 #include "ww3d.h"
 #include "assetmgr.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "dx8wrapper.h"
-#include "dx8caps.h"
+#endif
 #include "missingtexture.h"
 #include "WWLib/TARGA.h"
-#include <d3dx8tex.h>
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "WWDebug/wwmemlog.h"
-#include "formconv.h"
+#include "dx8texturelegacytypes.h"
+#include "texturecompatibilityinterop.h"
 #include "texturethumbnail.h"
 #include "ddsfile.h"
 #include "bitmaphandler.h"
+#include "DXTUtils.h"
 #include "WWDebug/wwprofile.h"
 #include <cstdio>
+#include <cstring>
+#include <utility>
+
+namespace
+{
+	unsigned s_mainRenderThreadId = 0;
+
+	constexpr auto kLegacyManagedPool = LEGACY_TEXTURE_POOL_MANAGED;
+	constexpr auto kLegacySystemPool = LEGACY_TEXTURE_POOL_SYSTEMMEM;
+	constexpr auto kLegacyDefaultPool = LEGACY_TEXTURE_POOL_DEFAULT;
+
+	bool Is_CPU_Texture_Snapshot_Staging_Format(WW3DFormat format)
+	{
+		switch (format)
+		{
+			case WW3D_FORMAT_R5G6B5:
+			case WW3D_FORMAT_A1R5G5B5:
+			case WW3D_FORMAT_A4R4G4B4:
+			case WW3D_FORMAT_A8:
+			case WW3D_FORMAT_L8:
+			case WW3D_FORMAT_A8R8G8B8:
+			case WW3D_FORMAT_X8R8G8B8:
+			case WW3D_FORMAT_DXT1:
+			case WW3D_FORMAT_DXT2:
+			case WW3D_FORMAT_DXT3:
+			case WW3D_FORMAT_DXT4:
+			case WW3D_FORMAT_DXT5:
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	bool Is_CPU_Texture_Snapshot_DXT_Format(WW3DFormat format)
+	{
+		switch (format)
+		{
+			case WW3D_FORMAT_DXT1:
+			case WW3D_FORMAT_DXT2:
+			case WW3D_FORMAT_DXT3:
+			case WW3D_FORMAT_DXT4:
+			case WW3D_FORMAT_DXT5:
+				return true;
+			default:
+				return false;
+		}
+	}
+
+	unsigned Get_DXT_Block_Byte_Count(WW3DFormat format)
+	{
+		WWASSERT(Is_CPU_Texture_Snapshot_DXT_Format(format));
+		return format == WW3D_FORMAT_DXT1 ? 8 : 16;
+	}
+
+	bool Get_CPU_Texture_Snapshot_Staging_Layout(
+		WW3DFormat format,
+		unsigned int width,
+		unsigned int height,
+		unsigned int &pitch,
+		unsigned int &rows)
+	{
+		switch (format)
+		{
+			case WW3D_FORMAT_R5G6B5:
+			case WW3D_FORMAT_A1R5G5B5:
+			case WW3D_FORMAT_A4R4G4B4:
+			case WW3D_FORMAT_A8:
+			case WW3D_FORMAT_L8:
+			case WW3D_FORMAT_A8R8G8B8:
+			case WW3D_FORMAT_X8R8G8B8:
+			{
+				const unsigned int bytes_per_pixel = Get_Bytes_Per_Pixel(format);
+				if (bytes_per_pixel == 0) {
+					return false;
+				}
+				pitch = width * bytes_per_pixel;
+				rows = height;
+				return true;
+			}
+
+			case WW3D_FORMAT_DXT1:
+			case WW3D_FORMAT_DXT2:
+			case WW3D_FORMAT_DXT3:
+			case WW3D_FORMAT_DXT4:
+			case WW3D_FORMAT_DXT5:
+				pitch = DXT_SurfacePitch(width, Get_DXT_Block_Byte_Count(format));
+				rows = DXT_SurfaceRows(height);
+				return true;
+
+			default:
+				return false;
+		}
+	}
+}
+
+class TextureLoadTaskListNodeClass
+{
+	friend class TextureLoadTaskListClass;
+
+	public:
+		TextureLoadTaskListNodeClass() : Next(0), Prev(0) { }
+
+		TextureLoadTaskListClass *Get_List()		{ return List; }
+
+		TextureLoadTaskListNodeClass *Next;
+		TextureLoadTaskListNodeClass *Prev;
+		TextureLoadTaskListClass *		List;
+};
+
+
+class TextureLoadTaskListClass
+{
+	// This class implements an unsynchronized, double-linked list of TextureLoadTaskClass
+	// objects, using an embedded list node.
+
+	public:
+		TextureLoadTaskListClass();
+
+		// Returns true if list is empty, false otherwise.
+		bool									Is_Empty		() const		{ return (Root.Next == &Root); }
+
+		// Add a task to beginning of list
+		void									Push_Front	(TextureLoadTaskClass *task);
+
+		// Add a task to end of list
+		void									Push_Back	(TextureLoadTaskClass *task);
+
+		// Remove and return a task from beginning of list, or null if list is empty.
+		TextureLoadTaskClass *			Pop_Front	();
+
+		// Remove and return a task from end of list, or null if list is empty
+		TextureLoadTaskClass *			Pop_Back		();
+
+		// Remove specified task from list, if present
+		void									Remove		(TextureLoadTaskClass *task);
+
+	private:
+		// This list is implemented using a sentinel node.
+		TextureLoadTaskListNodeClass	Root;
+};
+
+
+class SynchronizedTextureLoadTaskListClass : public TextureLoadTaskListClass
+{
+	// This class added thread-safety to the basic TextureLoadTaskListClass.
+
+	public:
+		SynchronizedTextureLoadTaskListClass();
+
+		// See comments above for description of member functions.
+		void									Push_Front	(TextureLoadTaskClass *task);
+		void									Push_Back	(TextureLoadTaskClass *task);
+		TextureLoadTaskClass *			Pop_Front	();
+		TextureLoadTaskClass *			Pop_Back		();
+		void									Remove		(TextureLoadTaskClass *task);
+
+	private:
+		FastCriticalSectionClass		CriticalSection;
+};
+
+/*
+** (gth) The allocation system we're using for TextureLoadTaskClass has gotten a little
+** complicated since Kenny added the new task types for Cube and Volume textures.  The
+** ::Destroy member is used to return a task to the pool now and must be over-ridden in
+** each derived class to put the task back into the correct free list.
+*/
+
+
+class TextureLoadTaskClass : public TextureLoadTaskListNodeClass
+{
+	public:
+		enum TaskType {
+			TASK_NONE,
+			TASK_THUMBNAIL,
+			TASK_LOAD,
+		};
+
+		enum PriorityType {
+			PRIORITY_LOW,
+			PRIORITY_HIGH,
+		};
+
+		enum StateType {
+			STATE_NONE,
+
+			STATE_LOAD_BEGUN,
+			STATE_LOAD_MIPMAP,
+			STATE_LOAD_COMPLETE,
+
+			STATE_COMPLETE,
+		};
+
+
+		TextureLoadTaskClass();
+		~TextureLoadTaskClass();
+
+		static TextureLoadTaskClass *	Create			(TextureBaseClass *tc, TaskType type, PriorityType priority);
+		static void				Delete_Free_Pool			();
+
+		virtual void			Destroy						();
+		virtual void			Init							(TextureBaseClass *tc, TaskType type, PriorityType priority);
+		virtual void			Deinit						();
+
+		TaskType					Get_Type						() const		{ return Type;				}
+		PriorityType			Get_Priority				() const		{ return Priority;		}
+		StateType				Get_State					() const		{ return State;			}
+
+		WW3DFormat				Get_Format					() const		{ return Format;			}
+		unsigned int			Get_Width					() const		{ return Width;			}
+		unsigned int			Get_Height					() const		{ return Height;			}
+		unsigned int			Get_Mip_Level_Count		() const		{ return MipLevelCount; }
+		unsigned int			Get_Reduction				() const		{ return Reduction;		}
+
+		unsigned char *		Get_Locked_Surface_Ptr	(unsigned int level);
+		unsigned int			Get_Locked_Surface_Pitch(unsigned int level) const;
+
+		TextureBaseClass *	Peek_Texture				()				{ return Texture;			}
+		LegacyLoaderTexture	*	Peek_Native_Compatibility_Texture			()				{ return static_cast<LegacyLoaderTexture*>(NativeCompatibilityTexture);		}
+
+		void						Set_Type						(TaskType t)		{ Type		= t;			}
+		void						Set_Priority				(PriorityType p)	{ Priority	= p;			}
+		void						Set_State					(StateType s)		{ State		= s;			}
+
+		bool						Begin_Load					();
+		bool						Load							();
+		void						End_Load						();
+		void						Finish_Load					();
+		void						Apply_Missing_Texture	();
+
+	protected:
+		virtual bool			Begin_Compressed_Load	();
+		virtual bool			Begin_Uncompressed_Load	();
+
+		virtual bool			Load_Compressed_Mipmap	();
+		virtual bool			Load_Uncompressed_Mipmap();
+
+		virtual void			Lock_Surfaces				();
+		virtual void			Unlock_Surfaces			();
+		void						Capture_CPU_Texture_Snapshot_From_Locked_Surfaces();
+		bool						Should_Use_CPU_Texture_Snapshot_Staging() const;
+		unsigned int			Get_Requested_Mip_Level_Count(unsigned int width, unsigned int height) const;
+		void						Allocate_CPU_Texture_Staging();
+		void						Commit_CPU_Texture_Staging(bool initialize);
+
+		void						Apply							(bool initialize);
+
+		TextureBaseClass*		Texture;
+		void*						NativeCompatibilityTexture;
+		WW3DFormat				Format;
+
+		unsigned int			Width;
+		unsigned	int			Height;
+		unsigned	int			MipLevelCount;
+		unsigned	int			Reduction;
+		Vector3					HSVShift;
+
+		unsigned char *		LockedSurfacePtr[MIP_LEVELS_MAX];
+		unsigned	int			LockedSurfacePitch[MIP_LEVELS_MAX];
+		std::vector<TextureBaseClass::TextureMipSnapshot> StagedCPUTextureMips;
+		bool						UseCPUTextureSnapshotStaging;
+
+		TaskType					Type;
+		PriorityType			Priority;
+		StateType				State;
+};
+
+class CubeTextureLoadTaskClass : public TextureLoadTaskClass
+{
+public:
+	CubeTextureLoadTaskClass();
+
+	virtual void			Destroy						() override;
+	virtual void			Init							(TextureBaseClass *tc, TaskType type, PriorityType priority) override;
+	virtual void			Deinit						() override;
+
+protected:
+	virtual bool			Begin_Compressed_Load	() override;
+	virtual bool			Begin_Uncompressed_Load	() override;
+
+	virtual bool			Load_Compressed_Mipmap	() override;
+//	virtual bool			Load_Uncompressed_Mipmap() override;
+
+	virtual void			Lock_Surfaces				() override;
+	virtual void			Unlock_Surfaces			() override;
+
+private:
+	unsigned char*			Get_Locked_CubeMap_Surface_Pointer(unsigned int face, unsigned int level);
+	unsigned int			Get_Locked_CubeMap_Surface_Pitch(unsigned int face, unsigned int level) const;
+
+	LegacyLoaderCubeTexture*	Peek_Native_Compatibility_Cube_Texture()				{ return static_cast<LegacyLoaderCubeTexture*>(NativeCompatibilityTexture);		}
+
+	unsigned char*			LockedCubeSurfacePtr[6][MIP_LEVELS_MAX];
+	unsigned int			LockedCubeSurfacePitch[6][MIP_LEVELS_MAX];
+};
+
+class VolumeTextureLoadTaskClass : public TextureLoadTaskClass
+{
+public:
+	VolumeTextureLoadTaskClass();
+
+	virtual void			Destroy						() override;
+	virtual void			Init							(TextureBaseClass *tc, TaskType type, PriorityType priority) override;
+
+protected:
+	virtual bool			Begin_Compressed_Load	() override;
+	virtual bool			Begin_Uncompressed_Load	() override;
+
+	virtual bool			Load_Compressed_Mipmap	() override;
+//	virtual bool			Load_Uncompressed_Mipmap() override;
+
+	virtual void			Lock_Surfaces				() override;
+	virtual void			Unlock_Surfaces			() override;
+
+private:
+	unsigned char*			Get_Locked_Volume_Pointer(unsigned int level);
+	unsigned int			Get_Locked_Volume_Row_Pitch(unsigned int level);
+	unsigned int			Get_Locked_Volume_Slice_Pitch(unsigned int level);
+
+#if !defined(GGC_BGFX_STANDALONE)
+	auto*	Peek_Native_Compatibility_Volume_Texture()				{ return static_cast<decltype(Peek_Legacy_Volume_Texture(*Texture))>(NativeCompatibilityTexture);		}
+#endif
+
+	unsigned	int			LockedSurfaceSlicePitch[MIP_LEVELS_MAX];
+
+	unsigned int		Depth;
+};
 
 bool TextureLoader::TextureLoadSuspended;
 int TextureLoader::TextureInactiveOverrideTime = 0;
 
 #define USE_MANAGED_TEXTURES
+
+void TextureLoader::Delete_Texture_Load_Tasks(TextureBaseClass *tc)
+{
+	delete tc->TextureLoadTask;
+	tc->TextureLoadTask = nullptr;
+	delete tc->ThumbnailLoadTask;
+	tc->ThumbnailLoadTask = nullptr;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -179,24 +517,19 @@ void SynchronizedTextureLoadTaskListClass::Push_Back(TextureLoadTaskClass *task)
 
 TextureLoadTaskClass *SynchronizedTextureLoadTaskListClass::Pop_Front()
 {
-	// this duplicates code inside base class, but saves us an unnecessary lock.
+	FastCriticalSectionClass::LockClass lock(CriticalSection);
 	if (Is_Empty()) {
 		return nullptr;
 	}
-
-	FastCriticalSectionClass::LockClass lock(CriticalSection);
 	return TextureLoadTaskListClass::Pop_Front();
-
 }
 
 TextureLoadTaskClass *SynchronizedTextureLoadTaskListClass::Pop_Back()
 {
-	// this duplicates code inside base class, but saves us an unnecessary lock.
+	FastCriticalSectionClass::LockClass lock(CriticalSection);
 	if (Is_Empty()) {
 		return nullptr;
 	}
-
-	FastCriticalSectionClass::LockClass lock(CriticalSection);
 	return TextureLoadTaskListClass::Pop_Back();
 }
 
@@ -254,8 +587,9 @@ public:
 } _TextureLoadThread;
 
 
+#if !defined(GGC_BGFX_STANDALONE)
 // TODO: Legacy - remove this call!
-IDirect3DTexture8* Load_Compressed_Texture(
+static LegacyLoaderTexture * Load_Compressed_Texture(
 	const StringClass& filename,
 	unsigned reduction_factor,
 	MipCountType mip_level_count,
@@ -275,31 +609,40 @@ IDirect3DTexture8* Load_Compressed_Texture(
 	// Note that the nearest valid format could be anything, even uncompressed.
 	if (dest_format==WW3D_FORMAT_UNKNOWN) dest_format=Get_Valid_Texture_Format(dds_file.Get_Format(),true);
 
-	IDirect3DTexture8* d3d_texture = DX8Wrapper::_Create_DX8_Texture
+	LegacyLoaderTexture * d3d_texture = Create_Legacy_Texture
 	(
 		width,
 		height,
 		dest_format,
-		(MipCountType)mips
+		(MipCountType)mips,
+		LEGACY_TEXTURE_POOL_MANAGED
 	);
 
 	for (unsigned level=0;level<mips;++level) {
-		IDirect3DSurface8* d3d_surface=nullptr;
+		LegacyLoaderLockedRect locked_rect;
 		WWASSERT(d3d_texture);
-		DX8_ErrorCode(d3d_texture->GetSurfaceLevel(level/*-reduction_factor*/,&d3d_surface));
-		dds_file.Copy_Level_To_Surface(level,d3d_surface);
-		d3d_surface->Release();
+		DX8_ErrorCode(d3d_texture->LockRect(level,&locked_rect,nullptr,0));
+		dds_file.Copy_Level_To_Surface(
+			level,
+			dest_format,
+			dds_file.Get_Width(level),
+			dds_file.Get_Height(level),
+			reinterpret_cast<unsigned char*>(locked_rect.pBits),
+			locked_rect.Pitch);
+		DX8_ErrorCode(d3d_texture->UnlockRect(level));
 	}
 	return d3d_texture;
 }
+#endif
 
 static bool Is_Format_Compressed(WW3DFormat texture_format,bool allow_compression)
 {
 	// Verify that the user isn't requesting compressed texture without hardware support
 
 	bool compressed=false;
+	const bool supports_compression = g_renderBackend && g_renderBackend->Supports_Compressed_Textures();
 	if (texture_format!=WW3D_FORMAT_UNKNOWN) {
-		if (!DX8Wrapper::Get_Current_Caps()->Support_DXTC() || !allow_compression) {
+		if (!supports_compression || !allow_compression) {
 			WWASSERT(texture_format!=WW3D_FORMAT_DXT1);
 			WWASSERT(texture_format!=WW3D_FORMAT_DXT2);
 			WWASSERT(texture_format!=WW3D_FORMAT_DXT3);
@@ -319,10 +662,25 @@ static bool Is_Format_Compressed(WW3DFormat texture_format,bool allow_compressio
 	// defined as non-compressed.
 	compressed|=(
 		texture_format==WW3D_FORMAT_UNKNOWN &&
-		DX8Wrapper::Get_Current_Caps()->Support_DXTC() &&
+		supports_compression &&
 		allow_compression);
 
 	return compressed;
+}
+
+static RenderBackendTextureLimits Get_Backend_Texture_Limits()
+{
+	if (g_renderBackend)
+	{
+		RenderBackendTextureLimits limits = g_renderBackend->Get_Texture_Limits();
+		if (limits.max_width == 0) limits.max_width = 2048;
+		if (limits.max_height == 0) limits.max_height = 2048;
+		if (limits.max_volume_extent == 0) limits.max_volume_extent = 2048;
+		if (limits.max_aspect_ratio == 0) limits.max_aspect_ratio = 8;
+		return limits;
+	}
+
+	return { 2048, 2048, 2048, 8 };
 }
 
 
@@ -335,6 +693,7 @@ static bool Is_Format_Compressed(WW3DFormat texture_format,bool allow_compressio
 void TextureLoader::Init()
 {
 	WWASSERT(!_TextureLoadThread.Is_Running());
+	s_mainRenderThreadId = ThreadClass::_Get_Current_Thread_ID();
 
 	ThumbnailManagerClass::Init();
 
@@ -354,9 +713,13 @@ void TextureLoader::Deinit()
 }
 
 
-bool TextureLoader::Is_DX8_Thread()
+bool TextureLoader::Is_Main_Render_Thread()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	return (ThreadClass::_Get_Current_Thread_ID() == s_mainRenderThreadId);
+#else
 	return (ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
+#endif
 }
 
 
@@ -373,7 +736,7 @@ void TextureLoader::Validate_Texture_Size
 	unsigned& depth
 )
 {
-	const D3DCAPS8& dx8caps=DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps();
+	const RenderBackendTextureLimits limits = Get_Backend_Texture_Limits();
 
 	unsigned poweroftwowidth = 1;
 	while (poweroftwowidth < width)
@@ -388,40 +751,36 @@ void TextureLoader::Validate_Texture_Size
 	}
 
 	unsigned poweroftwodepth = 1;
-	while (poweroftwodepth < depth)
+	while (poweroftwodepth< depth)
 	{
 		poweroftwodepth <<= 1;
 	}
 
-	if (poweroftwowidth>dx8caps.MaxTextureWidth)
+	if (poweroftwowidth>limits.max_width)
 	{
-		poweroftwowidth=dx8caps.MaxTextureWidth;
+		poweroftwowidth=limits.max_width;
 	}
-	if (poweroftwoheight>dx8caps.MaxTextureHeight)
+	if (poweroftwoheight>limits.max_height)
 	{
-		poweroftwoheight=dx8caps.MaxTextureHeight;
+		poweroftwoheight=limits.max_height;
 	}
-	if (poweroftwodepth>dx8caps.MaxVolumeExtent)
+	if (poweroftwodepth>limits.max_volume_extent)
 	{
-		poweroftwodepth=dx8caps.MaxVolumeExtent;
+		poweroftwodepth=limits.max_volume_extent;
 	}
 
-	const unsigned maxTextureAspectRatio = dx8caps.MaxTextureAspectRatio;
-	if (maxTextureAspectRatio != 0)
+	if (poweroftwowidth>poweroftwoheight)
 	{
-		if (poweroftwowidth>poweroftwoheight)
+		while (poweroftwowidth/poweroftwoheight>limits.max_aspect_ratio)
 		{
-			while (poweroftwowidth/poweroftwoheight > maxTextureAspectRatio)
-			{
-				poweroftwoheight*=2;
-			}
+			poweroftwoheight*=2;
 		}
-		else
+	}
+	else
+	{
+		while (poweroftwoheight/poweroftwowidth>limits.max_aspect_ratio)
 		{
-			while (poweroftwoheight/poweroftwowidth > maxTextureAspectRatio)
-			{
-				poweroftwowidth*=2;
-			}
+			poweroftwowidth*=2;
 		}
 	}
 
@@ -430,9 +789,10 @@ void TextureLoader::Validate_Texture_Size
 	depth=poweroftwodepth;
 }
 
-IDirect3DTexture8* TextureLoader::Load_Thumbnail(const StringClass& filename, const Vector3& hsv_shift)//,WW3DFormat texture_format)
+#if !defined(GGC_BGFX_STANDALONE)
+static LegacyLoaderTexture * Load_Legacy_Thumbnail(const StringClass& filename, const Vector3& hsv_shift)//,WW3DFormat texture_format)
 {
-	WWASSERT(Is_DX8_Thread());
+	WWASSERT(Is_Main_Render_Thread());
 
 	ThumbnailClass* thumb=nullptr;
 	thumb=ThumbnailManagerClass::Peek_Thumbnail_Instance_From_Any_Manager(filename);
@@ -440,7 +800,7 @@ IDirect3DTexture8* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 	// If no thumb is found return a missing texture
 	if (!thumb) {
 		Log_Texture_Load_Failure("thumbnail", filename);
-		return MissingTexture::_Get_Missing_Texture();
+		return Get_Legacy_Missing_Texture();
 	}
 
 	WWASSERT(thumb->Get_Format()==WW3D_FORMAT_A4R4G4B4);
@@ -455,19 +815,19 @@ IDirect3DTexture8* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 		WWASSERT(dest_format==texture_format);
 	}
 
-	IDirect3DTexture8* sysmem_texture = DX8Wrapper::_Create_DX8_Texture(
+	LegacyLoaderTexture * sysmem_texture = Create_Legacy_Texture(
 		thumb->Get_Width(),
 		thumb->Get_Height(),
 		dest_format,
 		MIP_LEVELS_ALL,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED);
+		kLegacyManagedPool);
 #else
-		D3DPOOL_SYSTEMMEM);
+		kLegacySystemPool);
 #endif
 
 	unsigned level=0;
-	D3DLOCKED_RECT locked_rects[12]={0};
+	LegacyLoaderLockedRect locked_rects[12]={0};
 	WWASSERT(sysmem_texture->GetLevelCount()<=12);
 
 	// Lock all surfaces
@@ -515,12 +875,12 @@ IDirect3DTexture8* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 #ifdef USE_MANAGED_TEXTURES
 	return sysmem_texture;
 #else
-	IDirect3DTexture8* d3d_texture = DX8Wrapper::_Create_DX8_Texture(
+	LegacyLoaderTexture * d3d_texture = Create_Legacy_Texture(
 		thumb->Get_Width(),
 		thumb->Get_Height(),
 		dest_format,
 		TextureBaseClass::MIP_LEVELS_ALL,
-		D3DPOOL_DEFAULT);
+		kLegacyDefaultPool);
 	DX8CALL(UpdateTexture(sysmem_texture,d3d_texture));
 	sysmem_texture->Release();
 
@@ -528,6 +888,115 @@ IDirect3DTexture8* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 	return d3d_texture;
 #endif
 }
+#endif
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+static bool Should_Use_CPU_Texture_Thumbnail(TextureBaseClass *texture)
+{
+	if (texture == nullptr ||
+		texture->Get_Asset_Type() != TextureBaseClass::TEX_REGULAR ||
+		texture->As_TextureClass() == nullptr)
+	{
+		return false;
+	}
+	return true;
+}
+
+static bool Build_CPU_Texture_Thumbnail(
+	const StringClass& filename,
+	const Vector3& hsv_shift,
+	WW3DFormat &dest_format,
+	std::vector<TextureBaseClass::TextureMipSnapshot> &mips)
+{
+	ThumbnailClass* thumb = ThumbnailManagerClass::Peek_Thumbnail_Instance_From_Any_Manager(filename);
+	if (!thumb)
+	{
+		Log_Texture_Load_Failure("thumbnail", filename);
+		return false;
+	}
+
+	WWASSERT(thumb->Get_Format()==WW3D_FORMAT_A4R4G4B4);
+	dest_format = Get_Valid_Texture_Format(WW3D_FORMAT_A4R4G4B4, false);
+
+	unsigned int level_count = 0;
+	for (unsigned int width = thumb->Get_Width(), height = thumb->Get_Height();
+		width != 0 && height != 0 && level_count < MIP_LEVELS_MAX;
+		width >>= 1, height >>= 1)
+	{
+		++level_count;
+	}
+	if (level_count == 0) {
+		return false;
+	}
+
+	mips.clear();
+	mips.resize(level_count);
+	unsigned int width = thumb->Get_Width();
+	unsigned int height = thumb->Get_Height();
+	for (unsigned int level = 0; level < level_count; ++level)
+	{
+		TextureBaseClass::TextureMipSnapshot &mip = mips[level];
+		unsigned int pitch = 0;
+		unsigned int rows = 0;
+		if (!Get_CPU_Texture_Snapshot_Staging_Layout(dest_format, width, height, pitch, rows)) {
+			mips.clear();
+			return false;
+		}
+		mip.Width = width;
+		mip.Height = height;
+		mip.Pitch = pitch;
+		mip.Format = dest_format;
+		mip.Data.resize(static_cast<size_t>(pitch) * rows);
+		width >>= 1;
+		height >>= 1;
+	}
+
+	unsigned char *src_surface = thumb->Peek_Bitmap();
+	unsigned src_pitch = thumb->Get_Width() * 2; // Thumbs are always 16 bits.
+	WW3DFormat src_format = thumb->Get_Format();
+	Vector3 hsv = hsv_shift;
+	for (unsigned int level = 0; level + 1 < level_count; ++level)
+	{
+		BitmapHandlerClass::Copy_Image_Generate_Mipmap(
+			mips[level].Width,
+			mips[level].Height,
+			mips[level].Data.data(),
+			mips[level].Pitch,
+			dest_format,
+			src_surface,
+			src_pitch,
+			src_format,
+			mips[level + 1].Data.data(),
+			mips[level + 1].Pitch,
+			hsv);
+		hsv = Vector3(0.0f, 0.0f, 0.0f);
+		src_format = dest_format;
+		src_surface = mips[level].Data.data();
+		src_pitch = mips[level].Pitch;
+	}
+
+	if (level_count == 1)
+	{
+		BitmapHandlerClass::Copy_Image(
+			mips[0].Data.data(),
+			mips[0].Width,
+			mips[0].Height,
+			mips[0].Pitch,
+			dest_format,
+			thumb->Peek_Bitmap(),
+			thumb->Get_Width(),
+			thumb->Get_Height(),
+			thumb->Get_Width() * 2,
+			thumb->Get_Format(),
+			nullptr,
+			0,
+			false,
+			hsv_shift);
+	}
+
+	return true;
+}
+#endif
 
 
 // ----------------------------------------------------------------------------
@@ -537,19 +1006,28 @@ IDirect3DTexture8* TextureLoader::Load_Thumbnail(const StringClass& filename, co
 // format and performs color space conversion.
 //
 // ----------------------------------------------------------------------------
-IDirect3DSurface8* TextureLoader::Load_Surface_Immediate(
+LegacyLoaderSurface * Load_Legacy_Surface_Immediate(
 	const StringClass& filename,
 	WW3DFormat texture_format,
 	bool allow_compression)
 {
-	WWASSERT(Is_DX8_Thread());
+#if defined(GGC_BGFX_STANDALONE)
+	(void)filename;
+	(void)texture_format;
+	(void)allow_compression;
+	WWASSERT_PRINT(
+		false,
+		"Load_Legacy_Surface_Immediate: standalone bgfx cannot create fake-D3D surfaces");
+	return nullptr;
+#else
+	WWASSERT(Is_Main_Render_Thread());
 
 	bool compressed=Is_Format_Compressed(texture_format,allow_compression);
 
 	if (compressed) {
-		IDirect3DTexture8* comp_tex=Load_Compressed_Texture(filename,0,MIP_LEVELS_1,WW3D_FORMAT_UNKNOWN);
+		LegacyLoaderTexture * comp_tex=Load_Compressed_Texture(filename,0,MIP_LEVELS_1,WW3D_FORMAT_UNKNOWN);
 		if (comp_tex) {
-			IDirect3DSurface8* d3d_surface=nullptr;
+			LegacyLoaderSurface * d3d_surface=nullptr;
 			DX8_ErrorCode(comp_tex->GetSurfaceLevel(0,&d3d_surface));
 			comp_tex->Release();
 			return d3d_surface;
@@ -560,7 +1038,7 @@ IDirect3DSurface8* TextureLoader::Load_Surface_Immediate(
 	Targa targa;
 	if (TARGA_ERROR_HANDLER(targa.Open(filename, TGA_READMODE),filename)) {
 		Log_Texture_Load_Failure("surface open", filename);
-		return MissingTexture::_Create_Missing_Surface();
+		return Create_Legacy_Missing_Surface();
 	}
 
 	// DX8 uses image upside down compared to TGA
@@ -586,7 +1064,7 @@ IDirect3DSurface8* TextureLoader::Load_Surface_Immediate(
 	targa.SetPalette(palette);
 	if (TARGA_ERROR_HANDLER(targa.Load(filename, TGAF_IMAGE, false),filename)) {
 		Log_Texture_Load_Failure("surface load", filename);
-		return MissingTexture::_Create_Missing_Surface();
+		return Create_Legacy_Missing_Surface();
 	}
 
 	unsigned char* src_surface=(unsigned char*)targa.GetImage();
@@ -620,9 +1098,9 @@ IDirect3DSurface8* TextureLoader::Load_Surface_Immediate(
 
 	unsigned src_pitch=src_width*src_bpp;
 
-	IDirect3DSurface8* d3d_surface = DX8Wrapper::_Create_DX8_Surface(width,height,dest_format);
+	LegacyLoaderSurface * d3d_surface = Create_Legacy_Surface(width,height,dest_format);
 	WWASSERT(d3d_surface);
-	D3DLOCKED_RECT locked_rect;
+	LegacyLoaderLockedRect locked_rect;
 	DX8_ErrorCode(
 		d3d_surface->LockRect(
 			&locked_rect,
@@ -649,6 +1127,114 @@ IDirect3DSurface8* TextureLoader::Load_Surface_Immediate(
 	delete[] converted_surface;
 
 	return d3d_surface;
+#endif
+}
+
+bool TextureLoader::Load_Surface_Image_Immediate(
+	const char *filename,
+	WW3DFormat texture_format,
+	bool allow_compression,
+	SurfaceClass::SurfaceImageData &image)
+{
+	WWASSERT(Is_Main_Render_Thread());
+
+	image = {WW3D_FORMAT_UNKNOWN, 0, 0, 0, {}};
+	if (Is_Format_Compressed(texture_format, allow_compression)) {
+		return false;
+	}
+
+	Targa targa;
+	if (TARGA_ERROR_HANDLER(targa.Open(filename, TGA_READMODE), filename)) {
+		Log_Texture_Load_Failure("surface open", filename);
+		return false;
+	}
+
+	targa.Header.ImageDescriptor ^= TGAIDF_YORIGIN;
+
+	WW3DFormat src_format;
+	WW3DFormat dest_format;
+	unsigned src_bpp = 0;
+	Get_WW3D_Format(dest_format, src_format, src_bpp, targa);
+
+	if (texture_format != WW3D_FORMAT_UNKNOWN) {
+		dest_format = texture_format;
+	}
+
+	unsigned width = targa.Header.Width;
+	unsigned height = targa.Header.Height;
+	unsigned src_width = targa.Header.Width;
+	unsigned src_height = targa.Header.Height;
+
+	char palette[256 * 4];
+	targa.SetPalette(palette);
+	if (TARGA_ERROR_HANDLER(targa.Load(filename, TGAF_IMAGE, false), filename)) {
+		Log_Texture_Load_Failure("surface load", filename);
+		return false;
+	}
+
+	unsigned char *src_surface = reinterpret_cast<unsigned char *>(targa.GetImage());
+	unsigned char *converted_surface = nullptr;
+	if (src_format == WW3D_FORMAT_A1R5G5B5 ||
+		src_format == WW3D_FORMAT_R5G6B5 ||
+		src_format == WW3D_FORMAT_A4R4G4B4 ||
+		src_format == WW3D_FORMAT_P8 ||
+		src_format == WW3D_FORMAT_L8 ||
+		src_width != width ||
+		src_height != height)
+	{
+		converted_surface = W3DNEWARRAY unsigned char[width * height * 4];
+		dest_format = Get_Valid_Texture_Format(WW3D_FORMAT_A8R8G8B8, false);
+		BitmapHandlerClass::Copy_Image(
+			converted_surface,
+			width,
+			height,
+			width * 4,
+			WW3D_FORMAT_A8R8G8B8,
+			src_surface,
+			src_width,
+			src_height,
+			src_width * src_bpp,
+			src_format,
+			reinterpret_cast<unsigned char *>(targa.GetPalette()),
+			targa.Header.CMapDepth >> 3,
+			false);
+		src_surface = converted_surface;
+		src_format = WW3D_FORMAT_A8R8G8B8;
+		src_width = width;
+		src_height = height;
+		src_bpp = Get_Bytes_Per_Pixel(src_format);
+	}
+
+	const unsigned int dest_bpp = Get_Bytes_Per_Pixel(dest_format);
+	if (dest_bpp == 0)
+	{
+		delete[] converted_surface;
+		return false;
+	}
+
+	image.Format = dest_format;
+	image.Width = width;
+	image.Height = height;
+	image.Pitch = width * dest_bpp;
+	image.Data.resize(static_cast<size_t>(image.Pitch) * image.Height);
+
+	BitmapHandlerClass::Copy_Image(
+		image.Data.data(),
+		width,
+		height,
+		image.Pitch,
+		dest_format,
+		src_surface,
+		src_width,
+		src_height,
+		src_width * src_bpp,
+		src_format,
+		reinterpret_cast<unsigned char *>(targa.GetPalette()),
+		targa.Header.CMapDepth >> 3,
+		false);
+
+	delete[] converted_surface;
+	return true;
 }
 
 
@@ -659,14 +1245,20 @@ void TextureLoader::Request_Thumbnail(TextureBaseClass *tc)
 	// serializes calls to Request_Thumbnail from multiple threads.
 	FastCriticalSectionClass::LockClass lock(_ForegroundCriticalSection);
 
-	// Has a Direct3D texture already been loaded?
-	if (tc->Peek_D3D_Base_Texture()) {
+#if !defined(GGC_BGFX_STANDALONE)
+	if (Peek_Legacy_Base_Texture(*tc)) {
 		return;
 	}
+#endif
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Should_Use_CPU_Texture_Thumbnail(tc) && tc->Has_CPU_Texture_Mips()) {
+		return;
+	}
+#endif
 
 	TextureLoadTaskClass *task = tc->ThumbnailLoadTask;
 
-	if (Is_DX8_Thread()) {
+	if (Is_Main_Render_Thread()) {
 		// load the thumbnail immediately
 		TextureLoader::Load_Thumbnail(tc);
 
@@ -716,7 +1308,7 @@ void TextureLoader::Request_Background_Loading(TextureBaseClass *tc)
 
 	task = TextureLoadTaskClass::Create(tc, TextureLoadTaskClass::TASK_LOAD, TextureLoadTaskClass::PRIORITY_LOW);
 
-	if (Is_DX8_Thread()) {
+	if (Is_Main_Render_Thread()) {
 		Begin_Load_And_Queue(task);
 	} else {
 		_ForegroundQueue.Push_Back(task);
@@ -741,7 +1333,7 @@ void TextureLoader::Request_Foreground_Loading(TextureBaseClass *tc)
 	TextureLoadTaskClass *task			= tc->TextureLoadTask;
 	TextureLoadTaskClass *task_thumb = tc->ThumbnailLoadTask;
 
-	if (Is_DX8_Thread()) {
+	if (Is_Main_Render_Thread()) {
 
 		// since we're in the DX8 thread, we can load the entire
 		// texture right now.
@@ -821,7 +1413,7 @@ void TextureLoader::Flush_Pending_Load_Tasks()
 	// to complete texture loading. If we wanted to flush
 	// the pending tasks from another thread, we'd probably
 	// want to set a bool that is checked by Update().
-	WWASSERT(Is_DX8_Thread());
+	WWASSERT(Is_Main_Render_Thread());
 
 	for (;;) {
 		bool done = false;
@@ -869,7 +1461,7 @@ void TextureLoader::Flush_Pending_Load_Tasks()
 
 void TextureLoader::Update(void (*network_callback)())
 {
-	WWASSERT_PRINT(Is_DX8_Thread(), "TextureLoader::Update must be called from the main thread!");
+	WWASSERT_PRINT(Is_Main_Render_Thread(), "TextureLoader::Update must be called from the main thread!");
 
 	if (TextureLoadSuspended) {
 		return;
@@ -901,13 +1493,13 @@ void TextureLoader::Update(void (*network_callback)())
 
 void TextureLoader::Suspend_Texture_Load()
 {
-	WWASSERT_PRINT(Is_DX8_Thread(),"TextureLoader::Suspend_Texture_Load must be called from the main thread!");
+	WWASSERT_PRINT(Is_Main_Render_Thread(),"TextureLoader::Suspend_Texture_Load must be called from the main thread!");
 	TextureLoadSuspended=true;
 }
 
 void TextureLoader::Continue_Texture_Load()
 {
-	WWASSERT_PRINT(Is_DX8_Thread(),"TextureLoader::Continue_Texture_Load must be called from the main thread!");
+	WWASSERT_PRINT(Is_Main_Render_Thread(),"TextureLoader::Continue_Texture_Load must be called from the main thread!");
 	TextureLoadSuspended=false;
 }
 
@@ -952,7 +1544,7 @@ void TextureLoader::Process_Foreground_Load(TextureLoadTaskClass *task)
 void TextureLoader::Begin_Load_And_Queue(TextureLoadTaskClass *task)
 {
 	// should only be called from the DX8 thread.
-	WWASSERT(Is_DX8_Thread());
+	WWASSERT(Is_Main_Render_Thread());
 
 	if (task->Begin_Load()) {
 		// add to front of background queue. This means the
@@ -975,21 +1567,63 @@ void TextureLoader::Begin_Load_And_Queue(TextureLoadTaskClass *task)
 
 void TextureLoader::Load_Thumbnail(TextureBaseClass *tc)
 {
-	// All D3D operations must run from main thread
-	WWASSERT(Is_DX8_Thread());
+	// All legacy texture operations must run from main thread
+	WWASSERT(Is_Main_Render_Thread());
 
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Should_Use_CPU_Texture_Thumbnail(tc))
+	{
+		TextureClass *texture = tc->As_TextureClass();
+		std::vector<TextureBaseClass::TextureMipSnapshot> mips;
+		WW3DFormat format = WW3D_FORMAT_UNKNOWN;
+		if (Build_CPU_Texture_Thumbnail(tc->Get_Full_Path(), tc->Get_HSV_Shift(), format, mips))
+		{
+			texture->TextureFormat = format;
+			texture->Width = mips[0].Width;
+			texture->Height = mips[0].Height;
+			texture->Set_CPU_Texture_Snapshot(std::move(mips));
+			texture->LastAccessed = WW3D::Get_Sync_Time();
+			if (g_renderBackend != nullptr) {
+				g_renderBackend->Invalidate_Cached_Texture(texture);
+			}
+			return;
+		}
+
+		Log_Texture_Load_Failure("thumbnail", tc->Get_Full_Path().str());
+		MissingTexture::Build_CPU_Texture_Mips(mips);
+		WWASSERT(!mips.empty());
+		texture->TextureFormat = WW3D_FORMAT_A8R8G8B8;
+		texture->Width = mips[0].Width;
+		texture->Height = mips[0].Height;
+		texture->Set_CPU_Texture_Snapshot(std::move(mips));
+		texture->Mark_Missing_Texture(true);
+		texture->LastAccessed = WW3D::Get_Sync_Time();
+		if (g_renderBackend != nullptr) {
+			g_renderBackend->Invalidate_Cached_Texture(texture);
+		}
+		return;
+	}
+#endif
+
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoader::Load_Thumbnail: standalone bgfx cannot use legacy thumbnail texture fallback");
+	return;
+#else
 	// load thumbnail texture
-	IDirect3DTexture8 *d3d_texture = Load_Thumbnail(tc->Get_Full_Path(),tc->Get_HSV_Shift());
+	LegacyLoaderTexture *d3d_texture = Load_Legacy_Thumbnail(tc->Get_Full_Path(),tc->Get_HSV_Shift());
 
 	// apply thumbnail to texture
 	if (tc->Get_Asset_Type()==TextureBaseClass::TEX_REGULAR)
 	{
-		tc->Apply_New_Surface(d3d_texture, false);
+		Apply_Native_Compatibility_Texture(*tc, d3d_texture, false);
 	}
 
 	// release our reference to thumbnail texture
 	d3d_texture->Release();
 	d3d_texture = nullptr;
+#endif
 }
 
 
@@ -1030,12 +1664,14 @@ void LoaderThreadClass::Thread_Function()
 
 TextureLoadTaskClass::TextureLoadTaskClass()
 :	Texture			(nullptr),
-	D3DTexture		(nullptr),
+	NativeCompatibilityTexture		(nullptr),
 	Format			(WW3D_FORMAT_UNKNOWN),
 	Width				(0),
 	Height			(0),
-	MipLevelCount	(MIP_LEVELS_ALL),
+	MipLevelCount	(0),
 	Reduction		(0),
+	StagedCPUTextureMips(),
+	UseCPUTextureSnapshotStaging(false),
 	Type				(TASK_NONE),
 	Priority			(PRIORITY_LOW),
 	State				(STATE_NONE),
@@ -1117,7 +1753,7 @@ void TextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, PriorityTyp
 	WWASSERT(tc);
 
 	// NOTE: we must be in the main thread to avoid corrupting the texture's refcount.
-	WWASSERT(TextureLoader::Is_DX8_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 	REF_PTR_SET(Texture, tc);
 
 	// Make sure texture has a filename.
@@ -1127,7 +1763,9 @@ void TextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, PriorityTyp
 	Priority			= priority;
 	State				= STATE_NONE;
 
-	D3DTexture		= nullptr;
+	NativeCompatibilityTexture		= nullptr;
+	UseCPUTextureSnapshotStaging = false;
+	StagedCPUTextureMips.clear();
 
 	TextureClass* tex=Texture->As_TextureClass();
 
@@ -1174,7 +1812,9 @@ void TextureLoadTaskClass::Deinit()
 	WWASSERT(Next == nullptr);
 	WWASSERT(Prev == nullptr);
 
-	WWASSERT(D3DTexture == nullptr);
+	WWASSERT(NativeCompatibilityTexture == nullptr);
+	WWASSERT(!UseCPUTextureSnapshotStaging);
+	WWASSERT(StagedCPUTextureMips.empty());
 
 	for (int i = 0; i < MIP_LEVELS_MAX; ++i) {
 		WWASSERT(LockedSurfacePtr[i] == nullptr);
@@ -1194,7 +1834,7 @@ void TextureLoadTaskClass::Deinit()
 		}
 
 		// NOTE: we must be in main thread to avoid corrupting Texture's refcount.
-		WWASSERT(TextureLoader::Is_DX8_Thread());
+		WWASSERT(TextureLoader::Is_Main_Render_Thread());
 		REF_PTR_RELEASE(Texture);
 	}
 }
@@ -1202,7 +1842,18 @@ void TextureLoadTaskClass::Deinit()
 
 bool TextureLoadTaskClass::Begin_Load()
 {
-	WWASSERT(TextureLoader::Is_DX8_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Texture != nullptr &&
+		Texture->Get_Asset_Type() != TextureBaseClass::TEX_REGULAR)
+	{
+		WWASSERT_PRINT(
+			false,
+			"TextureLoadTaskClass::Begin_Load: cube/volume textures are not migrated to bgfx texture ownership; no legacy fallback is allowed");
+		return false;
+	}
+#endif
 
 	bool loaded = false;
 
@@ -1240,7 +1891,7 @@ bool TextureLoadTaskClass::Begin_Load()
 bool TextureLoadTaskClass::Load()
 {
 	WWMEMLOG(MEM_TEXTURE);
-	WWASSERT(Peek_D3D_Texture());
+	WWASSERT(Peek_Native_Compatibility_Texture() || UseCPUTextureSnapshotStaging);
 
 	bool loaded = false;
 
@@ -1262,10 +1913,20 @@ bool TextureLoadTaskClass::Load()
 
 void TextureLoadTaskClass::End_Load()
 {
-	WWASSERT(TextureLoader::Is_DX8_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
+
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (!UseCPUTextureSnapshotStaging) {
+		Capture_CPU_Texture_Snapshot_From_Locked_Surfaces();
+	}
+#endif
 
 	Unlock_Surfaces();
-	Apply(true);
+	if (UseCPUTextureSnapshotStaging) {
+		Commit_CPU_Texture_Staging(true);
+	} else {
+		Apply(true);
+	}
 
 	State = STATE_LOAD_COMPLETE;
 }
@@ -1299,56 +1960,111 @@ void TextureLoadTaskClass::Finish_Load()
 
 void TextureLoadTaskClass::Apply_Missing_Texture()
 {
-	WWASSERT(TextureLoader::Is_DX8_Thread());
-	WWASSERT(!D3DTexture);
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
+	WWASSERT(!NativeCompatibilityTexture);
 
 	Log_Texture_Load_Failure("task", Texture ? Texture->Get_Full_Path().str() : nullptr);
-	D3DTexture = MissingTexture::_Get_Missing_Texture();
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	const bool use_cpu_missing_texture =
+		true;
+	if (use_cpu_missing_texture &&
+		Texture != nullptr &&
+		Texture->As_TextureClass() != nullptr)
+	{
+		TextureClass *texture = Texture->As_TextureClass();
+		std::vector<TextureBaseClass::TextureMipSnapshot> mips;
+		MissingTexture::Build_CPU_Texture_Mips(mips);
+		WWASSERT(!mips.empty());
+		texture->TextureFormat = WW3D_FORMAT_A8R8G8B8;
+		Texture->Width = mips[0].Width;
+		Texture->Height = mips[0].Height;
+		Texture->Set_CPU_Texture_Snapshot(std::move(mips));
+		Texture->Initialized = true;
+		Texture->Mark_Missing_Texture(true);
+		Texture->LastAccessed = WW3D::Get_Sync_Time();
+		if (g_renderBackend != nullptr)
+		{
+			g_renderBackend->Invalidate_Cached_Texture(Texture);
+		}
+		return;
+	}
+#endif
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoadTaskClass::Apply_Missing_Texture: standalone bgfx cannot apply fake-D3D missing textures");
+	if (Texture != nullptr)
+	{
+		Texture->Mark_Missing_Texture(true);
+	}
+	return;
+#else
+	NativeCompatibilityTexture = Get_Legacy_Missing_Texture();
 	Apply(true);
+	if (Texture != nullptr)
+	{
+		Texture->Mark_Missing_Texture(true);
+	}
+#endif
 }
 
 
 void TextureLoadTaskClass::Apply(bool initialize)
 {
-	WWASSERT(D3DTexture);
+#if defined(GGC_BGFX_STANDALONE)
+	(void)initialize;
+	WWASSERT_PRINT(
+		NativeCompatibilityTexture == nullptr,
+		"TextureLoadTaskClass::Apply: standalone bgfx cannot apply or release fake-D3D loader textures");
+	NativeCompatibilityTexture = nullptr;
+	return;
+#else
+	WWASSERT(NativeCompatibilityTexture);
 
 	// Verify that none of the mip levels are locked
 	for (unsigned i=0;i<MipLevelCount;++i) {
 		WWASSERT(LockedSurfacePtr[i]==nullptr);
 	}
 
-	Texture->Apply_New_Surface(D3DTexture, initialize);
+	Apply_Native_Compatibility_Texture(*Texture, Peek_Native_Compatibility_Texture(), initialize);
+	Texture->Mark_Missing_Texture(false);
 
-	D3DTexture->Release();
-	D3DTexture = nullptr;
+	Peek_Native_Compatibility_Texture()->Release();
+	NativeCompatibilityTexture = nullptr;
+#endif
 }
 
-
-static unsigned Get_Requested_Reduction(unsigned width, unsigned height, unsigned mip_count)
+static unsigned Calculate_Texture_Reduction(unsigned width, unsigned height, unsigned mip_count)
 {
-	// Figure out correct reduction
-	unsigned reqReduction = WW3D::Get_Texture_Reduction();
+	const unsigned min_reducible_dimension = 32;
+	if (width <= min_reducible_dimension || height <= min_reducible_dimension || mip_count <= 1)
+		return 0;
 
-	// Leave only the lowest level
-	if (reqReduction >= max(mip_count, 1u))
-		reqReduction = mip_count-1;
+	int reqReduction = WW3D::Get_Texture_Reduction();	//requested reduction
 
-	// Clamp reduction
+	if (reqReduction >= static_cast<int>(mip_count))
+		reqReduction = mip_count - 1;	//leave only the lowest level
+
+	if (reqReduction < 0)
+		reqReduction = 0;
+
+	//Clamp reduction
 	unsigned curReduction = 0;
 	unsigned curWidth = width;
 	unsigned curHeight = height;
-	unsigned minDim = WW3D::Get_Texture_Min_Dimension();
+	int minDim = WW3D::Get_Texture_Min_Dimension();
 
-	while (curReduction < reqReduction && curWidth > minDim && curHeight > minDim)
+	while (curReduction < static_cast<unsigned>(reqReduction)
+		&& curWidth > static_cast<unsigned>(minDim)
+		&& curHeight > static_cast<unsigned>(minDim))
 	{
-		curWidth >>= 1;
+		curWidth >>= 1;	//keep dividing
 		curHeight >>= 1;
 		curReduction++;
 	}
 
 	return curReduction;
 }
-
 
 static bool	Get_Texture_Information
 (
@@ -1369,8 +2085,7 @@ static bool	Get_Texture_Information
 		if (compressed)
 		{
 			DDSFileClass dds_file(filename, 0);
-			if (!dds_file.Is_Available())
-				return false;
+			if (!dds_file.Is_Available()) return false;
 
 			// Destination size will be the next power of two square from the larger width and height...
 			w = dds_file.Get_Width(0);
@@ -1378,8 +2093,7 @@ static bool	Get_Texture_Information
 			d = dds_file.Get_Depth(0);
 			format = dds_file.Get_Format();
 			mip_count = dds_file.Get_Mip_Level_Count();
-			reduction = Get_Requested_Reduction(w, h, mip_count);
-
+			reduction = Calculate_Texture_Reduction(w, h, mip_count);
 			return true;
 		}
 
@@ -1393,17 +2107,18 @@ static bool	Get_Texture_Information
 		WW3DFormat dest_format;
 		Get_WW3D_Format(dest_format,format,bpp,targa);
 
-		// Figure out how many mip levels this texture will occupy
 		mip_count = 0;
+
+		//Figure out how many mip levels this texture will occupy
 		for (int i=targa.Header.Width, j=targa.Header.Height; i > 0 && j > 0; i>>=1, j>>=1)
 				mip_count++;
+
+		reduction = Calculate_Texture_Reduction(targa.Header.Width, targa.Header.Height, mip_count);
 
 		// Destination size will be the next power of two square from the larger width and height...
 		w = targa.Header.Width;
 		h = targa.Header.Height;
 		d = 1;
-		reduction = Get_Requested_Reduction(w, h, mip_count);
-
 		return true;
 	}
 
@@ -1416,135 +2131,30 @@ static bool	Get_Texture_Information
 		return false;
 	}
 
-	w=thumb->Get_Original_Texture_Width();
-	h=thumb->Get_Original_Texture_Height();
-	d=1;
+	const unsigned full_width = thumb->Get_Original_Texture_Width();
+	const unsigned full_height = thumb->Get_Original_Texture_Height();
 	mip_count=thumb->Get_Original_Texture_Mip_Level_Count();
+	reduction = Calculate_Texture_Reduction(full_width, full_height, mip_count);
+
+	w=thumb->Get_Original_Texture_Width() >> reduction;
+	h=thumb->Get_Original_Texture_Height() >> reduction;
+	d=1; // need to add volume texture support to thumbnails...maybe
 	format=thumb->Get_Original_Texture_Format();
-	reduction=0;
-
 	return true;
-}
-
-
-static void Validate_Reduction(const TextureBaseClass* texture, unsigned& reduction, unsigned mip_count)
-{
-	if (!texture->Is_Reducible() || texture->MipLevelCount == MIP_LEVELS_1)
-	{
-		reduction = 0;
-	}
-	else if (texture->MipLevelCount != MIP_LEVELS_ALL && reduction >= (unsigned)texture->MipLevelCount)
-	{
-		reduction = (unsigned)texture->MipLevelCount - 1;
-	}
-
-	if (reduction >= mip_count)
-	{
-		reduction = 0; // should not be possible, but check just in case.
-	}
-}
-
-// Will not present textures smaller than 4 pixels wide or high.
-static constexpr const unsigned MinTextureDim = 4u;
-static constexpr const unsigned MinTextureDepth = 1u;
-
-// If the size doesn't match, try and see if texture reduction would help...
-// (mainly for cases where loaded texture is larger than hardware limit)
-static void Apply_Dim_Reduction(unsigned& width, unsigned& height, unsigned& reduction, unsigned mip_count)
-{
-	unsigned dummy_depth = 1;
-
-	for (unsigned r = reduction; r < mip_count; ++r)
-	{
-		unsigned w = max(width >> r, MinTextureDim);
-		unsigned h = max(height >> r, MinTextureDim);
-		unsigned tmp_w = w;
-		unsigned tmp_h = h;
-
-		TextureLoader::Validate_Texture_Size(w, h, dummy_depth);
-
-		if (w == tmp_w && h == tmp_h)
-		{
-			width = w;
-			height = h;
-			reduction = r;
-			break;
-		}
-	}
-}
-
-// If the size doesn't match, try and see if texture reduction would help...
-// (mainly for cases where loaded texture is larger than hardware limit)
-static void Apply_Dim_Reduction_With_Depth(unsigned& width, unsigned& height, unsigned& depth, unsigned& reduction, unsigned mip_count)
-{
-	for (unsigned r = reduction; r < mip_count; ++r)
-	{
-		unsigned w = max(width >> r, MinTextureDim);
-		unsigned h = max(height >> r, MinTextureDim);
-		unsigned d = max(depth >> r, MinTextureDepth);
-		unsigned tmp_w = w;
-		unsigned tmp_h = h;
-		unsigned tmp_d = d;
-
-		TextureLoader::Validate_Texture_Size(w, h, d);
-
-		if (w == tmp_w && h == tmp_h && d == tmp_d)
-		{
-			width = w;
-			height = h;
-			depth = d;
-			reduction = r;
-			break;
-		}
-	}
-}
-
-
-static void Apply_Mip_Reduction(unsigned& mip_level_count, unsigned reduction, unsigned width, unsigned height, unsigned mip_count)
-{
-	// If texture wants all mip levels, take as many as the file contains (not necessarily all)
-	// Otherwise take as many mip levels as the texture wants, not to exceed the count in file...
-	if (mip_level_count == MIP_LEVELS_ALL)
-	{
-		mip_level_count = mip_count;
-	}
-	else
-	{
-		if (mip_level_count > mip_count)
-			mip_level_count = mip_count;
-	}
-
-	// Reduce requested number by those removed.
-	WWASSERT(reduction < mip_level_count);
-	mip_level_count -= reduction;
-
-	// Once more, verify that the mip level count is correct (in case it was changed here it might not
-	// match the size...well actually it doesn't have to match but it can't be bigger than the size)
-	unsigned int max_mip_level_count = 1;
-	unsigned int dim = MinTextureDim;
-
-	while (dim < width && dim < height)
-	{
-		dim <<= 1;
-		max_mip_level_count++;
-	}
-
-	if (mip_level_count > max_mip_level_count)
-		mip_level_count = max_mip_level_count;
 }
 
 
 bool TextureLoadTaskClass::Begin_Compressed_Load()
 {
-	unsigned orig_width,orig_height,orig_depth,orig_mip_count,orig_reduction;
+	unsigned orig_w,orig_h,orig_d,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
 		  (
 				Texture->Get_Full_Path(),
-				orig_reduction,
-				orig_width,
-				orig_height,
-				orig_depth,
+				reduction,
+				orig_w,
+				orig_h,
+				orig_d,
 				orig_format,
 				orig_mip_count,
 				true
@@ -1554,44 +2164,140 @@ bool TextureLoadTaskClass::Begin_Compressed_Load()
 		return false;
 	}
 
-	Format = Get_Valid_Texture_Format(orig_format, Texture->Is_Compression_Allowed());
+	// Destination size will be the next power of two square from the larger width and height...
+	unsigned int width	= orig_w;
+	unsigned int height	= orig_h;
+	TextureLoader::Validate_Texture_Size(width, height,orig_d);
 
-	Reduction = orig_reduction;
-	Validate_Reduction(Texture, Reduction, orig_mip_count);
+	// If the size doesn't match, try and see if texture reduction would help... (mainly for
+	// cases where loaded texture is larger than hardware limit)
+	if (width != orig_w || height != orig_h)
+	{
+		for (unsigned int i = 1; i < orig_mip_count; ++i)
+		{
+			unsigned w=orig_w>>i;
+			if (w<4) w=4;
+			unsigned h=orig_h>>i;
+			if (h<4) h=4;
+			unsigned tmp_w=w;
+			unsigned tmp_h=h;
 
-	Width = orig_width;
-	Height = orig_height;
-	Apply_Dim_Reduction(Width, Height, Reduction, orig_mip_count);
+			TextureLoader::Validate_Texture_Size(w,h,orig_d);
 
-	Apply_Mip_Reduction(MipLevelCount, Reduction, Width, Height, orig_mip_count);
+			if (w == tmp_w && h == tmp_h)
+			{
+				Reduction	+= i;
+				width			=	w;
+				height		=	h;
+				break;
+			}
+		}
+	}
 
-	D3DTexture	= DX8Wrapper::_Create_DX8_Texture
-	(
-		Width,
-		Height,
-		Format,
-		(MipCountType)MipLevelCount,
-#ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+	Width		= width;
+	Height	= height;
+	Format	= Get_Valid_Texture_Format(orig_format, Texture->Is_Compression_Allowed());
+	Reduction = reduction;
+
+
+	if (!Texture->Is_Reducible() || Texture->MipLevelCount == MIP_LEVELS_1)
+		Reduction = 0;	//app doesn't want this texture to ever be reduced.
+	else
+	//Make sure we don't reduce below the level requested by the app
+	if (Texture->MipLevelCount != MIP_LEVELS_ALL && (Texture->MipLevelCount - Reduction) < 1)
+		Reduction = Texture->MipLevelCount - 1;
+
+	//Another sanity check
+	if (Reduction >= orig_mip_count)
+		Reduction = 0;	//should not be possible to get here, but check just in case.
+
+	unsigned int mip_level_count = Get_Mip_Level_Count();
+	int reducedWidth=Width;
+	int reducedHeight=Height;
+
+	// If texture wants all mip levels, take as many as the file contains (not necessarily all)
+	// Otherwise take as many mip levels as the texture wants, not to exceed the count in file...
+	if (!mip_level_count)
+	{
+		reducedWidth >>= Reduction;
+		reducedHeight >>= Reduction;
+		mip_level_count = orig_mip_count-Reduction;//dds_file.Get_Mip_Level_Count();
+		if (mip_level_count < 1)
+			mip_level_count = 1;	//sanity check to make sure something gets loaded.
+	}
+	else
+	{
+		if (mip_level_count > orig_mip_count)
+		{	//dds_file.Get_Mip_Level_Count()) {
+			mip_level_count = orig_mip_count;//dds_file.Get_Mip_Level_Count();
+		}
+
+		if (Reduction)
+		{	reducedWidth >>= Reduction;
+			reducedHeight >>= Reduction;
+			mip_level_count -= Reduction;	//reduced requested number by those removed.
+		}
+	}
+
+	// Once more, verify that the mip level count is correct (in case it was changed here it might not
+	// match the size...well actually it doesn't have to match but it can't be bigger than the size)
+	unsigned int max_mip_level_count = 1;
+	unsigned int w = 4;
+	unsigned int h = 4;
+
+	while (w < Width && h < Height)
+	{
+		w += w;
+		h += h;
+		max_mip_level_count++;
+	}
+
+	if (mip_level_count > max_mip_level_count)
+	{
+		mip_level_count = max_mip_level_count;
+	}
+
+	MipLevelCount = mip_level_count;
+	if (Should_Use_CPU_Texture_Snapshot_Staging() && MipLevelCount > 0)
+	{
+		UseCPUTextureSnapshotStaging = true;
+		return true;
+	}
+
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot create legacy texture fallback");
+	return false;
 #else
-		D3DPOOL_SYSTEMMEM
+	NativeCompatibilityTexture	= Create_Legacy_Texture
+	(
+		reducedWidth,
+		reducedHeight,
+		Format,
+		(MipCountType)mip_level_count,
+#ifdef USE_MANAGED_TEXTURES
+		kLegacyManagedPool
+#else
+		kLegacySystemPool
 #endif
 	);
 
 	return true;
+#endif
 }
 
 bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 {
-	unsigned orig_width,orig_height,orig_depth,orig_mip_count,orig_reduction;
+	unsigned width,height,depth,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
 		  (
 				Texture->Get_Full_Path(),
-				orig_reduction,
-				orig_width,
-				orig_height,
-				orig_depth,
+				reduction,
+				width,
+				height,
+				depth,
 				orig_format,
 				orig_mip_count,
 				false
@@ -1613,54 +2319,246 @@ bool TextureLoadTaskClass::Begin_Uncompressed_Load()
 	}
 
 	// Destination size will be the next power of two square from the larger width and height...
-	unsigned ow = orig_width;
-	unsigned oh = orig_height;
-	TextureLoader::Validate_Texture_Size(orig_width, orig_height,orig_depth);
-	if (orig_width != ow || orig_height != oh)
+	unsigned ow = width;
+	unsigned oh = height;
+	TextureLoader::Validate_Texture_Size(width, height,depth);
+	if (width != ow || height != oh)
 	{
-		WWDEBUG_SAY(("Invalid texture size, scaling required. Texture: %s, size: %d x %d -> %d x %d", Texture->Get_Full_Path().str(), ow, oh, orig_width, orig_height));
+		WWDEBUG_SAY(("Invalid texture size, scaling required. Texture: %s, size: %d x %d -> %d x %d", Texture->Get_Full_Path().str(), ow, oh, width, height));
 	}
 
-	Width		= orig_width;
-	Height	= orig_height;
-	Reduction = 0;
+	Width		= width;
+	Height	= height;
+	Reduction = reduction;
+
+	if (!Texture->Is_Reducible() || Texture->MipLevelCount == MIP_LEVELS_1)
+		Reduction = 0;	//app doesn't want this texture to ever be reduced.
+	else
+	//Make sure we don't reduce below the level requested by the app
+	if (Texture->MipLevelCount != MIP_LEVELS_ALL && (Texture->MipLevelCount - Reduction) < 1)
+		Reduction = Texture->MipLevelCount - 1;
+
+	//Another sanity check
+	if (Reduction >= orig_mip_count)
+		Reduction = 0;	//should not be possible to get here, but check just in case.
 
 	if (Format == WW3D_FORMAT_UNKNOWN)
 	{
 		Format=dest_format;
+	//	Format = Get_Valid_Texture_Format(dest_format, false); validated above
 	}
 	else
 	{
 		Format = Get_Valid_Texture_Format(Format, false);
 	}
 
-	D3DTexture = DX8Wrapper::_Create_DX8_Texture
+	int reducedWidth=Width;
+	int reducedHeight=Height;
+	int reducedMipCount=Texture->MipLevelCount;
+
+	if (Reduction)
+	{	//we don't care about specific levels so reduce them if needed.
+		reducedWidth >>= Reduction;
+		reducedHeight >>= Reduction;
+		if (reducedMipCount != MIP_LEVELS_ALL)
+			reducedMipCount -= Reduction;
+	}
+
+	if (Should_Use_CPU_Texture_Snapshot_Staging())
+	{
+		MipLevelCount = Get_Requested_Mip_Level_Count(reducedWidth, reducedHeight);
+		if (MipLevelCount > 0)
+		{
+			UseCPUTextureSnapshotStaging = true;
+			return true;
+		}
+	}
+
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"TextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot create legacy texture fallback");
+	return false;
+#else
+	NativeCompatibilityTexture = Create_Legacy_Texture
+	(
+		reducedWidth,
+		reducedHeight,
+		Format,
+		(MipCountType)reducedMipCount,
+#ifdef USE_MANAGED_TEXTURES
+		kLegacyManagedPool
+#else
+		kLegacySystemPool
+#endif
+	);
+
+	return true;
+#endif
+}
+
+/*
+bool TextureLoadTaskClass::Begin_Compressed_Load()
+{
+	DDSFileClass dds_file(Texture->Get_Full_Path(), Get_Reduction());
+	if (!dds_file.Is_Available()) {
+		return false;
+	}
+
+	// Destination size will be the next power of two square from the larger width and height...
+	unsigned int width	= dds_file.Get_Width(0);
+	unsigned int height	= dds_file.Get_Height(0);
+	TextureLoader::Validate_Texture_Size(width, height);
+
+	// If the size doesn't match, try and see if texture reduction would help... (mainly for
+	// cases where loaded texture is larger than hardware limit)
+	if (width != dds_file.Get_Width(0) || height != dds_file.Get_Height(0)) {
+		for (unsigned int i = 1; i < dds_file.Get_Mip_Level_Count(); ++i) {
+			unsigned int w = dds_file.Get_Width(i);
+			unsigned int h = dds_file.Get_Height(i);
+			TextureLoader::Validate_Texture_Size(w,h);
+
+			if (w == dds_file.Get_Width(i) && h == dds_file.Get_Height(i)) {
+				Reduction	+= i;
+				width			=	w;
+				height		=	h;
+				break;
+			}
+		}
+	}
+
+	Width		= width;
+	Height	= height;
+	Format	= Get_Valid_Texture_Format(dds_file.Get_Format(), Texture->Is_Compression_Allowed());
+
+	unsigned int mip_level_count = Get_Mip_Level_Count();
+
+	// If texture wants all mip levels, take as many as the file contains (not necessarily all)
+	// Otherwise take as many mip levels as the texture wants, not to exceed the count in file...
+	if (!mip_level_count) {
+		mip_level_count = dds_file.Get_Mip_Level_Count();
+	} else if (mip_level_count > dds_file.Get_Mip_Level_Count()) {
+		mip_level_count = dds_file.Get_Mip_Level_Count();
+	}
+
+	// Once more, verify that the mip level count is correct (in case it was changed here it might not
+	// match the size...well actually it doesn't have to match but it can't be bigger than the size)
+	unsigned int max_mip_level_count = 1;
+	unsigned int w = 4;
+	unsigned int h = 4;
+
+	while (w < Width && h < Height) {
+		w += w;
+		h += h;
+		max_mip_level_count++;
+	}
+
+	if (mip_level_count > max_mip_level_count) {
+		mip_level_count = max_mip_level_count;
+	}
+
+	NativeCompatibilityTexture	= Create_Legacy_Texture(
+		Width,
+		Height,
+		Format,
+		(TextureBaseClass::MipCountType)mip_level_count,
+#ifdef USE_MANAGED_TEXTURES
+		kLegacyManagedPool);
+#else
+		kLegacySystemPool);
+#endif
+	MipLevelCount = mip_level_count;
+	return true;
+}
+
+
+bool TextureLoadTaskClass::Begin_Uncompressed_Load()
+{
+	Targa targa;
+	if (TARGA_ERROR_HANDLER(targa.Open(Texture->Get_Full_Path(), TGA_READMODE), Texture->Get_Full_Path())) {
+		return false;
+	}
+
+	unsigned int bpp;
+	WW3DFormat src_format, dest_format;
+	Get_WW3D_Format(dest_format,src_format,bpp,targa);
+
+	if (	src_format != WW3D_FORMAT_A8R8G8B8
+		&&	src_format != WW3D_FORMAT_R8G8B8
+		&&	src_format != WW3D_FORMAT_X8R8G8B8) {
+		WWDEBUG_SAY(("Invalid TGA format used in %s - only 24 and 32 bit formats should be used!", Texture->Get_Full_Path()));
+	}
+
+	// Destination size will be the next power of two square from the larger width and height...
+	unsigned width=targa.Header.Width, height=targa.Header.Height;
+	int ReductionFactor=Get_Reduction();
+	int MipLevels=0;
+
+	//Figure out how many mip levels this texture will occupy
+	for (int i=width, j=height; i > 0 && j > 0; i>>=1, j>>=1)
+		MipLevels++;
+
+	//Adjust the reduction factor to keep textures above some minimum dimensions
+	if (MipLevels <= WW3D::Get_Texture_Min_Mip_Levels())
+		ReductionFactor=0;
+	else
+	{	int mipToDrop=MipLevels-WW3D::Get_Texture_Min_Mip_Levels();
+		if (ReductionFactor >= mipToDrop)
+		ReductionFactor=mipToDrop;
+	}
+
+	width=targa.Header.Width>>ReductionFactor;
+	height=targa.Header.Height>>ReductionFactor;
+	unsigned ow = width;
+	unsigned oh = height;
+	TextureLoader::Validate_Texture_Size(width, height);
+	if (width != ow || height != oh) {
+		WWDEBUG_SAY(("Invalid texture size, scaling required. Texture: %s, size: %d x %d -> %d x %d", Texture->Get_Full_Path(), ow, oh, width, height));
+	}
+
+	Width		= width;
+	Height	= height;
+
+	// changed because format was being read from previous loading task?! KJM
+	Format=dest_format;
+	//if (Format == WW3D_FORMAT_UNKNOWN) {
+	//	Format = Get_Valid_Texture_Format(dest_format, false);
+	//} else {
+	//	Format = Get_Valid_Texture_Format(Format, false);
+	//}
+
+	NativeCompatibilityTexture = Create_Legacy_Texture
 	(
 		Width,
 		Height,
 		Format,
 		Texture->MipLevelCount,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+		kLegacyManagedPool);
 #else
-		D3DPOOL_SYSTEMMEM
+		kLegacySystemPool);
 #endif
-	);
-
 	return true;
 }
-
+*/
 
 void TextureLoadTaskClass::Lock_Surfaces()
 {
-	MipLevelCount = D3DTexture->GetLevelCount();
+	if (UseCPUTextureSnapshotStaging)
+	{
+		Allocate_CPU_Texture_Staging();
+		return;
+	}
+
+#if !defined(GGC_BGFX_STANDALONE)
+	MipLevelCount = Peek_Native_Compatibility_Texture()->GetLevelCount();
 
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
 	{
-		D3DLOCKED_RECT locked_rect;
+		LegacyLoaderLockedRect locked_rect;
 		DX8_ErrorCode
 		(
-			Peek_D3D_Texture()->LockRect
+			Peek_Native_Compatibility_Texture()->LockRect
 			(
 				i,
 				&locked_rect,
@@ -1671,29 +2569,201 @@ void TextureLoadTaskClass::Lock_Surfaces()
 		LockedSurfacePtr[i]		= (unsigned char *)locked_rect.pBits;
 		LockedSurfacePitch[i]	= locked_rect.Pitch;
 	}
+#endif
 }
 
 
 void TextureLoadTaskClass::Unlock_Surfaces()
 {
+	if (UseCPUTextureSnapshotStaging)
+	{
+		for (unsigned int i = 0; i < MipLevelCount; ++i)
+		{
+			LockedSurfacePtr[i] = nullptr;
+			LockedSurfacePitch[i] = 0;
+		}
+		return;
+	}
+
+#if !defined(GGC_BGFX_STANDALONE)
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
 	{
 		if (LockedSurfacePtr[i])
 		{
-			WWASSERT(ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
-			DX8_ErrorCode(Peek_D3D_Texture()->UnlockRect(i));
+			WWASSERT(TextureLoader::Is_Main_Render_Thread());
+			DX8_ErrorCode(Peek_Native_Compatibility_Texture()->UnlockRect(i));
 		}
 		LockedSurfacePtr[i] = nullptr;
 	}
 
 #ifndef USE_MANAGED_TEXTURES
-	IDirect3DTexture8* tex = DX8Wrapper::_Create_DX8_Texture(Width, Height, Format, Texture->MipLevelCount,D3DPOOL_DEFAULT);
-	DX8CALL(UpdateTexture(Peek_D3D_Texture(),tex));
-	Peek_D3D_Texture()->Release();
-	D3DTexture=tex;
+	LegacyLoaderTexture * tex = Create_Legacy_Texture(Width, Height, Format, Texture->MipLevelCount,kLegacyDefaultPool);
+	DX8CALL(UpdateTexture(Peek_Native_Compatibility_Texture(),tex));
+	Peek_Native_Compatibility_Texture()->Release();
+	NativeCompatibilityTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)",Texture->Get_Full_Path()));
 #endif
+#endif
 
+}
+
+void TextureLoadTaskClass::Capture_CPU_Texture_Snapshot_From_Locked_Surfaces()
+{
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		Peek_Native_Compatibility_Texture() == nullptr,
+		"Capture_CPU_Texture_Snapshot_From_Locked_Surfaces: standalone bgfx should use CPU texture staging, not locked fake-D3D surfaces");
+	return;
+#else
+	if (Texture == nullptr || Texture->As_TextureClass() == nullptr || Peek_Native_Compatibility_Texture() == nullptr) {
+		return;
+	}
+
+	std::vector<TextureBaseClass::TextureMipSnapshot> mips;
+	mips.reserve(MipLevelCount);
+	for (unsigned int level = 0; level < MipLevelCount; ++level)
+	{
+		if (LockedSurfacePtr[level] == nullptr) {
+			return;
+		}
+
+		LegacySurfaceDesc desc;
+		if (FAILED(Peek_Native_Compatibility_Texture()->GetLevelDesc(level, &desc))) {
+			return;
+		}
+
+		TextureBaseClass::TextureMipSnapshot mip;
+		mip.Width = desc.Width;
+		mip.Height = desc.Height;
+		mip.Pitch = LockedSurfacePitch[level];
+		mip.Format = Legacy_Texture_Format_To_WW3DFormat(static_cast<unsigned int>(desc.Format));
+		const bool compressed =
+			mip.Format == WW3D_FORMAT_DXT1 ||
+			mip.Format == WW3D_FORMAT_DXT2 ||
+			mip.Format == WW3D_FORMAT_DXT3 ||
+			mip.Format == WW3D_FORMAT_DXT4 ||
+			mip.Format == WW3D_FORMAT_DXT5;
+		const unsigned rows = compressed ? DXT_SurfaceRows(mip.Height) : mip.Height;
+		const unsigned size = rows * mip.Pitch;
+		mip.Data.resize(size);
+		if (size != 0) {
+			std::memcpy(&mip.Data[0], LockedSurfacePtr[level], size);
+		}
+		mips.push_back(mip);
+	}
+
+	Texture->Set_CPU_Texture_Snapshot(std::move(mips));
+#endif
+}
+
+bool TextureLoadTaskClass::Should_Use_CPU_Texture_Snapshot_Staging() const
+{
+#if defined(GGC_RENDER_BACKEND_BGFX)
+	if (Texture == nullptr ||
+		Texture->Get_Asset_Type() != TextureBaseClass::TEX_REGULAR ||
+		Type != TASK_LOAD ||
+		Texture->As_TextureClass() == nullptr)
+	{
+		return false;
+	}
+
+	return Is_CPU_Texture_Snapshot_Staging_Format(Format);
+#else
+	return false;
+#endif
+}
+
+unsigned int TextureLoadTaskClass::Get_Requested_Mip_Level_Count(unsigned int width, unsigned int height) const
+{
+	if (width == 0 || height == 0) {
+		return 0;
+	}
+
+	unsigned int all_levels = 0;
+	for (unsigned int w = width, h = height; w > 0 && h > 0; w >>= 1, h >>= 1) {
+		++all_levels;
+	}
+
+	unsigned int requested_levels = 1;
+	switch (Texture->MipLevelCount) {
+		case MIP_LEVELS_ALL: requested_levels = all_levels; break;
+		case MIP_LEVELS_1: requested_levels = 1; break;
+		case MIP_LEVELS_2: requested_levels = 2; break;
+		case MIP_LEVELS_3: requested_levels = 3; break;
+		case MIP_LEVELS_4: requested_levels = 4; break;
+		case MIP_LEVELS_5: requested_levels = 5; break;
+		case MIP_LEVELS_6: requested_levels = 6; break;
+		case MIP_LEVELS_7: requested_levels = 7; break;
+		case MIP_LEVELS_8: requested_levels = 8; break;
+		case MIP_LEVELS_10: requested_levels = 10; break;
+		case MIP_LEVELS_11: requested_levels = 11; break;
+		case MIP_LEVELS_12: requested_levels = 12; break;
+		default: requested_levels = 1; break;
+	}
+
+	return MIN(requested_levels, all_levels);
+}
+
+void TextureLoadTaskClass::Allocate_CPU_Texture_Staging()
+{
+	WWASSERT(UseCPUTextureSnapshotStaging);
+	WWASSERT(MipLevelCount > 0);
+
+	StagedCPUTextureMips.clear();
+	StagedCPUTextureMips.resize(MipLevelCount);
+
+	unsigned int width = Width;
+	unsigned int height = Height;
+	for (unsigned int level = 0; level < Reduction; ++level)
+	{
+		width >>= 1;
+		height >>= 1;
+	}
+
+	for (unsigned int level = 0; level < MipLevelCount; ++level)
+	{
+		TextureBaseClass::TextureMipSnapshot &mip = StagedCPUTextureMips[level];
+		unsigned int pitch = 0;
+		unsigned int rows = 0;
+		const bool valid_layout = Get_CPU_Texture_Snapshot_Staging_Layout(Format, width, height, pitch, rows);
+		WWASSERT(valid_layout);
+
+		mip.Width = width;
+		mip.Height = height;
+		mip.Pitch = pitch;
+		mip.Format = Format;
+		mip.Data.resize(static_cast<size_t>(mip.Pitch) * rows);
+		LockedSurfacePtr[level] = mip.Data.data();
+		LockedSurfacePitch[level] = mip.Pitch;
+
+		width >>= 1;
+		height >>= 1;
+	}
+}
+
+void TextureLoadTaskClass::Commit_CPU_Texture_Staging(bool initialize)
+{
+	WWASSERT(UseCPUTextureSnapshotStaging);
+	WWASSERT(Texture != nullptr);
+
+	TextureClass *texture = Texture->As_TextureClass();
+	WWASSERT(texture != nullptr);
+	texture->TextureFormat = Format;
+	if (!StagedCPUTextureMips.empty())
+	{
+		Texture->Width = StagedCPUTextureMips[0].Width;
+		Texture->Height = StagedCPUTextureMips[0].Height;
+	}
+	Texture->Set_CPU_Texture_Snapshot(std::move(StagedCPUTextureMips));
+	StagedCPUTextureMips.clear();
+	if (initialize) {
+		Texture->Initialized = true;
+	}
+	Texture->LastAccessed = WW3D::Get_Sync_Time();
+	if (g_renderBackend != nullptr) {
+		g_renderBackend->Invalidate_Cached_Texture(texture);
+	}
+	UseCPUTextureSnapshotStaging = false;
 }
 
 
@@ -1701,20 +2771,26 @@ bool TextureLoadTaskClass::Load_Compressed_Mipmap()
 {
 	DDSFileClass dds_file(Texture->Get_Full_Path(), Get_Reduction());
 
-	// if we can't load from file, indicate error.
+	// if we can't load from file, indicate rror.
 	if (!dds_file.Is_Available() || !dds_file.Load())
 	{
 		return false;
 	}
 
 	// regular 2d texture
-	unsigned int width = Get_Width();
-	unsigned int height = Get_Height();
+	unsigned int width	= Get_Width();
+	unsigned int height	= Get_Height();
+
+	if (Reduction)
+	{	for (unsigned int level = 0; level < Reduction; ++level) {
+			width		>>= 1;
+			height		>>= 1;
+		}
+	}
 
 	for (unsigned int level = 0; level < Get_Mip_Level_Count(); ++level)
 	{
-		WWASSERT(width >= MinTextureDim && height >= MinTextureDim);
-
+		WWASSERT(width && height);
 		dds_file.Copy_Level_To_Surface
 		(
 			level,
@@ -1726,8 +2802,8 @@ bool TextureLoadTaskClass::Load_Compressed_Mipmap()
 			HSVShift
 		);
 
-		width >>= 1;
-		height >>= 1;
+		width		>>= 1;
+		height	>>= 1;
 	}
 
 	return true;
@@ -1933,7 +3009,7 @@ void CubeTextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, Priorit
 	WWASSERT(tc);
 
 	// NOTE: we must be in the main thread to avoid corrupting the texture's refcount.
-	WWASSERT(TextureLoader::Is_DX8_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 	REF_PTR_SET(Texture, tc);
 
 	// Make sure texture has a filename.
@@ -1943,7 +3019,7 @@ void CubeTextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, Priorit
 	Priority			= priority;
 	State				= STATE_NONE;
 
-	D3DTexture		= nullptr;
+	NativeCompatibilityTexture		= nullptr;
 
 	CubeTextureClass* tex=Texture->As_CubeTextureClass();
 
@@ -1993,7 +3069,7 @@ void CubeTextureLoadTaskClass::Deinit()
 	WWASSERT(Next == nullptr);
 	WWASSERT(Prev == nullptr);
 
-	WWASSERT(D3DTexture == nullptr);
+	WWASSERT(NativeCompatibilityTexture == nullptr);
 
 	for (int f=0; f<6; f++)
 	{
@@ -2019,23 +3095,26 @@ void CubeTextureLoadTaskClass::Deinit()
 		}
 
 		// NOTE: we must be in main thread to avoid corrupting Texture's refcount.
-		WWASSERT(TextureLoader::Is_DX8_Thread());
+		WWASSERT(TextureLoader::Is_Main_Render_Thread());
 		REF_PTR_RELEASE(Texture);
 	}
 }
 
 void CubeTextureLoadTaskClass::Lock_Surfaces()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(false, "CubeTextureLoadTaskClass::Lock_Surfaces: standalone bgfx does not support cube textures");
+#else
 	for (unsigned int f=0; f<6; f++)
 	{
 		for (unsigned int i=0; i<MipLevelCount; i++)
 		{
-			D3DLOCKED_RECT locked_rect;
+			LegacyLoaderLockedRect locked_rect;
 			DX8_ErrorCode
 			(
-				Peek_D3D_Cube_Texture()->LockRect
+				Peek_Native_Compatibility_Cube_Texture()->LockRect
 				(
-					(D3DCUBEMAP_FACES)f,
+					(LegacyLoaderCubeFace)f,
 					i,
 					&locked_rect,
 					nullptr,
@@ -2046,20 +3125,24 @@ void CubeTextureLoadTaskClass::Lock_Surfaces()
 			LockedCubeSurfacePitch[f][i]= locked_rect.Pitch;
 		}
 	}
+#endif
 }
 
 void CubeTextureLoadTaskClass::Unlock_Surfaces()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(false, "CubeTextureLoadTaskClass::Unlock_Surfaces: standalone bgfx does not support cube textures");
+#else
 	for (unsigned int f=0; f<6; f++)
 	{
 		for (unsigned int i = 0; i < MipLevelCount; ++i)
 		{
 			if (LockedCubeSurfacePtr[f][i])
 			{
-				WWASSERT(ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
+				WWASSERT(TextureLoader::Is_Main_Render_Thread());
 				DX8_ErrorCode
 				(
-					Peek_D3D_Cube_Texture()->UnlockRect((D3DCUBEMAP_FACES)f,i)
+					Peek_Native_Compatibility_Cube_Texture()->UnlockRect((LegacyLoaderCubeFace)f,i)
 				);
 			}
 			LockedCubeSurfacePtr[f][i] = nullptr;
@@ -2067,35 +3150,41 @@ void CubeTextureLoadTaskClass::Unlock_Surfaces()
 	}
 
 #ifndef USE_MANAGED_TEXTURES
-	IDirect3DCubeTexture8* tex = DX8Wrapper::_Create_DX8_Cube_Texture
+	LegacyLoaderCubeTexture * tex = Create_Legacy_Cube_Texture
 	(
 		Width,
 		Height,
 		Format,
 		Texture->MipLevelCount,
-		D3DPOOL_DEFAULT
+		kLegacyDefaultPool
 	);
-	DX8CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
-	Peek_D3D_Volume_Texture()->Release();
-	D3DTexture=tex;
+	DX8CALL(UpdateTexture(Peek_Native_Compatibility_Volume_Texture(),tex));
+	Peek_Native_Compatibility_Volume_Texture()->Release();
+	NativeCompatibilityTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)",Texture->Get_Full_Path()));
 #endif
-
+#endif
 }
 
 
 
 bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 {
-	unsigned orig_width,orig_height,orig_depth,orig_mip_count,orig_reduction;
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"CubeTextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot load fake-D3D cube textures");
+	return false;
+#else
+	unsigned orig_w,orig_h,orig_d,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
 		  (
 				Texture->Get_Full_Path(),
-				orig_reduction,
-				orig_width,
-				orig_height,
-				orig_depth,
+				reduction,
+				orig_w,
+				orig_h,
+				orig_d,
 				orig_format,
 				orig_mip_count,
 				true
@@ -2105,44 +3194,106 @@ bool CubeTextureLoadTaskClass::Begin_Compressed_Load()
 		return false;
 	}
 
-	Format = Get_Valid_Texture_Format(orig_format, Texture->Is_Compression_Allowed());
+	// Destination size will be the next power of two square from the larger width and height...
+	unsigned int width	= orig_w;
+	unsigned int height	= orig_h;
+	TextureLoader::Validate_Texture_Size(width, height,orig_d);
 
-	Reduction = orig_reduction;
-	Validate_Reduction(Texture, Reduction, orig_mip_count);
+	// If the size doesn't match, try and see if texture reduction would help... (mainly for
+	// cases where loaded texture is larger than hardware limit)
+	if (width != orig_w || height != orig_h)
+	{
+		for (unsigned int i = 1; i < orig_mip_count; ++i)
+		{
+			unsigned w=orig_w>>i;
+			if (w<4) w=4;
+			unsigned h=orig_h>>i;
+			if (h<4) h=4;
+			unsigned tmp_w=w;
+			unsigned tmp_h=h;
 
-	Width = orig_width;
-	Height = orig_height;
-	Apply_Dim_Reduction(Width, Height, Reduction, orig_mip_count);
+			TextureLoader::Validate_Texture_Size(w,h,orig_d);
 
-	Apply_Mip_Reduction(MipLevelCount, Reduction, Width, Height, orig_mip_count);
+			if (w == tmp_w && h == tmp_h)
+			{
+				Reduction	+= i;
+				width			=	w;
+				height		=	h;
+				break;
+			}
+		}
+	}
 
-	D3DTexture	= DX8Wrapper::_Create_DX8_Cube_Texture
+	Width		= width;
+	Height	= height;
+	Format	= Get_Valid_Texture_Format(orig_format, Texture->Is_Compression_Allowed());
+
+	unsigned int mip_level_count = Get_Mip_Level_Count();
+
+	// If texture wants all mip levels, take as many as the file contains (not necessarily all)
+	// Otherwise take as many mip levels as the texture wants, not to exceed the count in file...
+	if (!mip_level_count)
+	{
+		mip_level_count = orig_mip_count;//dds_file.Get_Mip_Level_Count();
+	}
+	else if (mip_level_count > orig_mip_count)
+	{//dds_file.Get_Mip_Level_Count()) {
+		mip_level_count = orig_mip_count;//dds_file.Get_Mip_Level_Count();
+	}
+
+	// Once more, verify that the mip level count is correct (in case it was changed here it might not
+	// match the size...well actually it doesn't have to match but it can't be bigger than the size)
+	unsigned int max_mip_level_count = 1;
+	unsigned int w = 4;
+	unsigned int h = 4;
+
+	while (w < Width && h < Height)
+	{
+		w += w;
+		h += h;
+		max_mip_level_count++;
+	}
+
+	if (mip_level_count > max_mip_level_count)
+	{
+		mip_level_count = max_mip_level_count;
+	}
+
+	NativeCompatibilityTexture	= Create_Legacy_Cube_Texture
 	(
 		Width,
 		Height,
 		Format,
-		(MipCountType)MipLevelCount,
+		(MipCountType)mip_level_count,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+		kLegacyManagedPool
 #else
-		D3DPOOL_SYSTEMMEM
+		kLegacySystemPool
 #endif
 	);
 
+	MipLevelCount = mip_level_count;
 	return true;
+#endif
 }
 
 bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
 {
-	unsigned orig_width,orig_height,orig_depth,orig_mip_count,orig_reduction;
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"CubeTextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot load fake-D3D cube textures");
+	return false;
+#else
+	unsigned width,height,depth,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
 		  (
 				Texture->Get_Full_Path(),
-				orig_reduction,
-				orig_width,
-				orig_height,
-				orig_depth,
+				reduction,
+				width,
+				height,
+				depth,
 				orig_format,
 				orig_mip_count,
 				false
@@ -2164,17 +3315,16 @@ bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
 	}
 
 	// Destination size will be the next power of two square from the larger width and height...
-	unsigned ow = orig_width;
-	unsigned oh = orig_height;
-	TextureLoader::Validate_Texture_Size(orig_width, orig_height,orig_depth);
-	if (orig_width != ow || orig_height != oh)
+	unsigned ow = width;
+	unsigned oh = height;
+	TextureLoader::Validate_Texture_Size(width, height,depth);
+	if (width != ow || height != oh)
 	{
-		WWDEBUG_SAY(("Invalid texture size, scaling required. Texture: %s, size: %d x %d -> %d x %d", Texture->Get_Full_Path().str(), ow, oh, orig_width, orig_height));
+		WWDEBUG_SAY(("Invalid texture size, scaling required. Texture: %s, size: %d x %d -> %d x %d", Texture->Get_Full_Path().str(), ow, oh, width, height));
 	}
 
-	Width		= orig_width;
-	Height	= orig_height;
-	Reduction = 0;
+	Width		= width;
+	Height	= height;
 
 	if (Format == WW3D_FORMAT_UNKNOWN)
 	{
@@ -2185,27 +3335,28 @@ bool CubeTextureLoadTaskClass::Begin_Uncompressed_Load()
 		Format = Get_Valid_Texture_Format(Format, false);
 	}
 
-	D3DTexture = DX8Wrapper::_Create_DX8_Cube_Texture
+	NativeCompatibilityTexture = Create_Legacy_Cube_Texture
 	(
 		Width,
 		Height,
 		Format,
 		Texture->MipLevelCount,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+		kLegacyManagedPool
 #else
-		D3DPOOL_SYSTEMMEM
+		kLegacySystemPool
 #endif
 	);
 
 	return true;
+#endif
 }
 
 bool CubeTextureLoadTaskClass::Load_Compressed_Mipmap()
 {
 	DDSFileClass dds_file(Texture->Get_Full_Path(), Get_Reduction());
 
-	// if we can't load from file, indicate error.
+	// if we can't load from file, indicate rror.
 	if (!dds_file.Is_Available() || !dds_file.Load())
 	{
 		return false;
@@ -2219,7 +3370,7 @@ bool CubeTextureLoadTaskClass::Load_Compressed_Mipmap()
 
 		for (unsigned int level=0; level<Get_Mip_Level_Count(); level++)
 		{
-			WWASSERT(width >= MinTextureDim && height >= MinTextureDim);
+			WWASSERT(width && height);
 
 			// get cube map surface
 			dds_file.Copy_CubeMap_Level_To_Surface
@@ -2234,8 +3385,8 @@ bool CubeTextureLoadTaskClass::Load_Compressed_Mipmap()
 				HSVShift
 			);
 
-			width >>= 1;
-			height >>= 1;
+			width>>=1;
+			height>>=1;
 		}
 	}
 
@@ -2290,7 +3441,7 @@ void VolumeTextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, Prior
 	WWASSERT(tc);
 
 	// NOTE: we must be in the main thread to avoid corrupting the texture's refcount.
-	WWASSERT(TextureLoader::Is_DX8_Thread());
+	WWASSERT(TextureLoader::Is_Main_Render_Thread());
 	REF_PTR_SET(Texture, tc);
 
 	// Make sure texture has a filename.
@@ -2300,7 +3451,7 @@ void VolumeTextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, Prior
 	Priority			= priority;
 	State				= STATE_NONE;
 
-	D3DTexture		= nullptr;
+	NativeCompatibilityTexture		= nullptr;
 
 	VolumeTextureClass* tex=Texture->As_VolumeTextureClass();
 
@@ -2344,12 +3495,15 @@ void VolumeTextureLoadTaskClass::Init(TextureBaseClass* tc, TaskType type, Prior
 
 void VolumeTextureLoadTaskClass::Lock_Surfaces()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(false, "VolumeTextureLoadTaskClass::Lock_Surfaces: standalone bgfx does not support volume textures");
+#else
 	for (unsigned int i=0; i<MipLevelCount; i++)
 	{
-		D3DLOCKED_BOX locked_box;
+		LegacyLoaderLockedBox locked_box;
 		DX8_ErrorCode
 		(
-			Peek_D3D_Volume_Texture()->LockBox
+			Peek_Native_Compatibility_Volume_Texture()->LockBox
 			(
 				i,
 				&locked_box,
@@ -2361,47 +3515,57 @@ void VolumeTextureLoadTaskClass::Lock_Surfaces()
 		LockedSurfacePitch[i]		= locked_box.RowPitch;
 		LockedSurfaceSlicePitch[i]	= locked_box.SlicePitch;
 	}
+#endif
 }
 
 
 void VolumeTextureLoadTaskClass::Unlock_Surfaces()
 {
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(false, "VolumeTextureLoadTaskClass::Unlock_Surfaces: standalone bgfx does not support volume textures");
+#else
 	for (unsigned int i = 0; i < MipLevelCount; ++i)
 	{
 		if (LockedSurfacePtr[i])
 		{
-			WWASSERT(ThreadClass::_Get_Current_Thread_ID() == DX8Wrapper::_Get_Main_Thread_ID());
+			WWASSERT(TextureLoader::Is_Main_Render_Thread());
 			DX8_ErrorCode
 			(
-				Peek_D3D_Volume_Texture()->UnlockBox(i)
+				Peek_Native_Compatibility_Volume_Texture()->UnlockBox(i)
 			);
 		}
 		LockedSurfacePtr[i] = nullptr;
 	}
 
 #ifndef USE_MANAGED_TEXTURES
-	IDirect3DTexture8* tex = DX8Wrapper::_Create_DX8_Volume_Texture(Width, Height, Depth, Format, Texture->MipLevelCount,D3DPOOL_DEFAULT);
-	DX8CALL(UpdateTexture(Peek_D3D_Volume_Texture(),tex));
-	Peek_D3D_Volume_Texture()->Release();
-	D3DTexture=tex;
+	LegacyLoaderTexture * tex = Create_Legacy_Volume_Texture(Width, Height, Depth, Format, Texture->MipLevelCount,kLegacyDefaultPool);
+	DX8CALL(UpdateTexture(Peek_Native_Compatibility_Volume_Texture(),tex));
+	Peek_Native_Compatibility_Volume_Texture()->Release();
+	NativeCompatibilityTexture=tex;
 	WWDEBUG_SAY(("Created non-managed texture (%s)",Texture->Get_Full_Path()));
 #endif
-
+#endif
 }
 
 
 
 bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 {
-	unsigned orig_width,orig_height,orig_depth,orig_mip_count,orig_reduction;
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"VolumeTextureLoadTaskClass::Begin_Compressed_Load: standalone bgfx cannot load fake-D3D volume textures");
+	return false;
+#else
+	unsigned orig_w,orig_h,orig_d,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
 		  (
 				Texture->Get_Full_Path(),
-				orig_reduction,
-				orig_width,
-				orig_height,
-				orig_depth,
+				reduction,
+				orig_w,
+				orig_h,
+				orig_d,
 				orig_format,
 				orig_mip_count,
 				true
@@ -2411,46 +3575,112 @@ bool VolumeTextureLoadTaskClass::Begin_Compressed_Load()
 		return false;
 	}
 
-	Format = Get_Valid_Texture_Format(orig_format, Texture->Is_Compression_Allowed());
+	// Destination size will be the next power of two square from the larger width and height...
+	unsigned int width	= orig_w;
+	unsigned int height	= orig_h;
+	unsigned int depth	= orig_d;
+	TextureLoader::Validate_Texture_Size(width, height, depth);
 
-	Reduction = orig_reduction;
-	Validate_Reduction(Texture, Reduction, orig_mip_count);
+	// If the size doesn't match, try and see if texture reduction would help... (mainly for
+	// cases where loaded texture is larger than hardware limit)
+	if (width != orig_w || height != orig_h || depth != orig_d)
+	{
+		for (unsigned int i = 1; i < orig_mip_count; ++i)
+		{
+			unsigned w=orig_w>>i;
+			if (w<4) w=4;
+			unsigned h=orig_h>>i;
+			if (h<4) h=4;
+			unsigned d=orig_d>>i;
+			if (d<1) d=1;
+			unsigned tmp_w=w;
+			unsigned tmp_h=h;
+			unsigned tmp_d=d;
 
-	Width = orig_width;
-	Height = orig_height;
-	Depth = orig_depth;
-	Apply_Dim_Reduction_With_Depth(Width, Height, Depth, Reduction, orig_mip_count);
+			TextureLoader::Validate_Texture_Size(w,h,d);
 
-	Apply_Mip_Reduction(MipLevelCount, Reduction, Width, Height, orig_mip_count);
+			if (w == tmp_w && h == tmp_h && d== tmp_d)
+			{
+				Reduction	+= i;
+				width			=	w;
+				height		=	h;
+				depth			=  d;
+				break;
+			}
+		}
+	}
 
-	D3DTexture	= DX8Wrapper::_Create_DX8_Volume_Texture
+	Width		= width;
+	Height	= height;
+	Depth		= depth;
+	Format	= Get_Valid_Texture_Format(orig_format, Texture->Is_Compression_Allowed());
+
+	unsigned int mip_level_count = Get_Mip_Level_Count();
+
+	// If texture wants all mip levels, take as many as the file contains (not necessarily all)
+	// Otherwise take as many mip levels as the texture wants, not to exceed the count in file...
+	if (!mip_level_count)
+	{
+		mip_level_count = orig_mip_count;//dds_file.Get_Mip_Level_Count();
+	}
+	else if (mip_level_count > orig_mip_count)
+	{//dds_file.Get_Mip_Level_Count()) {
+		mip_level_count = orig_mip_count;//dds_file.Get_Mip_Level_Count();
+	}
+
+	// Once more, verify that the mip level count is correct (in case it was changed here it might not
+	// match the size...well actually it doesn't have to match but it can't be bigger than the size)
+	unsigned int max_mip_level_count = 1;
+	unsigned int w = 4;
+	unsigned int h = 4;
+
+	while (w < Width && h < Height)
+	{
+		w += w;
+		h += h;
+		max_mip_level_count++;
+	}
+	if (mip_level_count > max_mip_level_count)
+	{
+		mip_level_count = max_mip_level_count;
+	}
+
+	NativeCompatibilityTexture	= Create_Legacy_Volume_Texture
 	(
 		Width,
 		Height,
 		Depth,
 		Format,
-		(MipCountType)MipLevelCount,
+		(MipCountType)mip_level_count,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+		kLegacyManagedPool
 #else
-		D3DPOOL_SYSTEMMEM
+		kLegacySystemPool
 #endif
 	);
 
+	MipLevelCount = mip_level_count;
 	return true;
+#endif
 }
 
 bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 {
-	unsigned orig_width,orig_height,orig_depth,orig_mip_count,orig_reduction;
+#if defined(GGC_BGFX_STANDALONE)
+	WWASSERT_PRINT(
+		false,
+		"VolumeTextureLoadTaskClass::Begin_Uncompressed_Load: standalone bgfx cannot load fake-D3D volume textures");
+	return false;
+#else
+	unsigned width,height,depth,orig_mip_count,reduction;
 	WW3DFormat orig_format;
 	if (!Get_Texture_Information
 		  (
 				Texture->Get_Full_Path(),
-				orig_reduction,
-				orig_width,
-				orig_height,
-				orig_depth,
+				reduction,
+				width,
+				height,
+				depth,
 				orig_format,
 				orig_mip_count,
 				false
@@ -2472,19 +3702,18 @@ bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 	}
 
 	// Destination size will be the next power of two square from the larger width and height...
-	unsigned ow = orig_width;
-	unsigned oh = orig_height;
-	unsigned od = orig_depth;
-	TextureLoader::Validate_Texture_Size(orig_width, orig_height, orig_depth);
-	if (orig_width != ow || orig_height != oh || orig_depth != od)
+	unsigned ow = width;
+	unsigned oh = height;
+	unsigned od = depth;
+	TextureLoader::Validate_Texture_Size(width, height, depth);
+	if (width != ow || height != oh || depth != od)
 	{
-		WWDEBUG_SAY(("Invalid texture size, scaling required. Texture: %s, size: %d x %d -> %d x %d", Texture->Get_Full_Path().str(), ow, oh, orig_width, orig_height));
+		WWDEBUG_SAY(("Invalid texture size, scaling required. Texture: %s, size: %d x %d -> %d x %d", Texture->Get_Full_Path().str(), ow, oh, width, height));
 	}
 
-	Width		= orig_width;
-	Height	= orig_height;
-	Depth		= orig_depth;
-	Reduction = 0;
+	Width		= width;
+	Height	= height;
+	Depth		= depth;
 
 	if (Format == WW3D_FORMAT_UNKNOWN)
 	{
@@ -2495,7 +3724,7 @@ bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 		Format = Get_Valid_Texture_Format(Format, false);
 	}
 
-	D3DTexture = DX8Wrapper::_Create_DX8_Volume_Texture
+	NativeCompatibilityTexture = Create_Legacy_Volume_Texture
 	(
 		Width,
 		Height,
@@ -2503,33 +3732,38 @@ bool VolumeTextureLoadTaskClass::Begin_Uncompressed_Load()
 		Format,
 		Texture->MipLevelCount,
 #ifdef USE_MANAGED_TEXTURES
-		D3DPOOL_MANAGED
+		kLegacyManagedPool
 #else
-		D3DPOOL_SYSTEMMEM
+		kLegacySystemPool
 #endif
 	);
 
 	return true;
+#endif
 }
 
 bool VolumeTextureLoadTaskClass::Load_Compressed_Mipmap()
 {
 	DDSFileClass dds_file(Texture->Get_Full_Path(), Get_Reduction());
 
-	// if we can't load from file, indicate error.
+	// if we can't load from file, indicate rror.
 	if (!dds_file.Is_Available() || !dds_file.Load())
 	{
 		return false;
 	}
 
 	// load volume
-	unsigned int width = Get_Width();
-	unsigned int height = Get_Height();
-	unsigned int depth = Depth;
+	unsigned int depth=dds_file.Get_Depth(0);
+	unsigned int width=Get_Width();
+	unsigned int height=Get_Height();
+
+	WWASSERT(width && height && depth);
 
 	for (unsigned int level=0; level<Get_Mip_Level_Count(); level++)
 	{
-		WWASSERT(width >= MinTextureDim && height >= MinTextureDim && depth >= MinTextureDepth);
+		if (width<1) width=1;
+		if (height<1) height=1;
+		if (depth<1) depth=1;
 
 		// get volume
 		dds_file.Copy_Volume_Level_To_Surface
@@ -2545,9 +3779,9 @@ bool VolumeTextureLoadTaskClass::Load_Compressed_Mipmap()
 			HSVShift
 		);
 
-		width >>= 1;
-		height >>= 1;
-		depth = max(depth >> 1, MinTextureDepth);
+		width>>=1;
+		height>>=1;
+		depth>>=1;
 	}
 
 	return true;
