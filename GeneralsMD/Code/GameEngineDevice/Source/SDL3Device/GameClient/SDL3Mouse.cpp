@@ -20,6 +20,7 @@
 #include <cstring>
 #include <vector>
 
+#include "Common/FileSystem.h"
 #include "SDL3GameEngine.h"
 #include "GameClient/Display.h"
 #include "GameClient/Image.h"
@@ -205,7 +206,7 @@ void SDL3Mouse::setCursor(MouseCursor cursor)
 void SDL3Mouse::setPosition(Int x, Int y)
 {
 	Mouse::setPosition(x, y);
-	if (TheSDL3Window != NULL)
+	if (TheSDL3Window != NULL && std::getenv("GGC_DISABLE_MOUSE_WARP") == NULL)
 	{
 		float rawX = static_cast<float>(x);
 		float rawY = static_cast<float>(y);
@@ -224,16 +225,19 @@ void SDL3Mouse::capture()
 {
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Win32Mouse calls
 	// ClipCursor(&windowRect); SDL3's analog is SDL_SetWindowMouseGrab.
-	// Disabled by default on macOS while we are still debugging window
-	// foregrounding - calling SDL_SetWindowMouseGrab early in init
-	// appears to suppress the window from coming up at all on M4 +
-	// macOS Tahoe. GGC_MOUSE_GRAB=1 turns it on for users who want the
-	// edge-scroll-clip behaviour back.
-	if (TheSDL3Window != NULL && std::getenv("GGC_MOUSE_GRAB") != NULL)
-	{
-		SDL_SetWindowMouseGrab(TheSDL3Window, true);
+		// Disabled by default on macOS while we are still debugging window
+		// foregrounding. GGC_MOUSE_GRAB=1 turns it on for users who want the
+		// edge-scroll-clip behaviour back.
+		if (TheSDL3Window != NULL && std::getenv("GGC_MOUSE_GRAB") != NULL)
+		{
+			SDL_SetWindowMouseGrab(TheSDL3Window, true);
+			onCursorCaptured(SDL_GetWindowMouseGrab(TheSDL3Window) ? TRUE : FALSE);
+		}
+		else
+		{
+			onCursorCaptured(FALSE);
+		}
 	}
-}
 
 void SDL3Mouse::releaseCapture()
 {
@@ -241,6 +245,7 @@ void SDL3Mouse::releaseCapture()
 	{
 		SDL_SetWindowMouseGrab(TheSDL3Window, false);
 	}
+	onCursorCaptured(FALSE);
 }
 
 UnsignedByte SDL3Mouse::getMouseEvent(MouseIO *result, Bool flush)
@@ -524,23 +529,26 @@ static Sint32 ReadLE32S(const Uint8 *p)
 
 static Bool LoadBinaryFile(const char *path, std::vector<Uint8> &data)
 {
-	FILE *file = std::fopen(path, "rb");
-	if (file == nullptr)
+	if (TheFileSystem == nullptr)
 	{
 		return FALSE;
 	}
-	std::fseek(file, 0, SEEK_END);
-	const long size = std::ftell(file);
-	std::fseek(file, 0, SEEK_SET);
-	if (size <= 0)
+
+	File *sageFile = TheFileSystem->openFile(path, File::READ | File::BINARY);
+	if (sageFile == nullptr)
 	{
-		std::fclose(file);
 		return FALSE;
 	}
-	data.resize(static_cast<size_t>(size));
-	const size_t read = std::fread(data.data(), 1, data.size(), file);
-	std::fclose(file);
-	return read == data.size();
+	const Int size = sageFile->size();
+	char *buffer = sageFile->readEntireAndClose();
+	if (buffer == nullptr || size <= 0)
+	{
+		delete[] buffer;
+		return FALSE;
+	}
+	data.assign(reinterpret_cast<Uint8 *>(buffer), reinterpret_cast<Uint8 *>(buffer) + size);
+	delete[] buffer;
+	return TRUE;
 }
 
 static Bool FindANIIconChunkInRange(
@@ -844,7 +852,10 @@ static Bool ReadSurfacePixelRGBA(
 			return TRUE;
 		case WW3D_FORMAT_A4R4G4B4:
 		{
-			const UnsignedInt value = *reinterpret_cast<const UnsignedShort *>(pixel);
+			UnsignedShort raw = 0;
+			// TheSuperHackers @bugfix bobtista 28/05/2026 Avoid an unaligned dereference; std::memcpy is portable on platforms with strict alignment.
+			std::memcpy(&raw, pixel, sizeof(raw));
+			const UnsignedInt value = raw;
 			*a = Scale4To8(value >> 12);
 			*r = Scale4To8(value >> 8);
 			*g = Scale4To8(value >> 4);
@@ -853,7 +864,10 @@ static Bool ReadSurfacePixelRGBA(
 		}
 		case WW3D_FORMAT_A1R5G5B5:
 		{
-			const UnsignedInt value = *reinterpret_cast<const UnsignedShort *>(pixel);
+			UnsignedShort raw = 0;
+			// TheSuperHackers @bugfix bobtista 28/05/2026 Avoid an unaligned dereference; std::memcpy is portable on platforms with strict alignment.
+			std::memcpy(&raw, pixel, sizeof(raw));
+			const UnsignedInt value = raw;
 			*a = (value & 0x8000) ? 255 : 0;
 			*r = Scale5To8(value >> 10);
 			*g = Scale5To8(value >> 5);
@@ -862,7 +876,10 @@ static Bool ReadSurfacePixelRGBA(
 		}
 		case WW3D_FORMAT_R5G6B5:
 		{
-			const UnsignedInt value = *reinterpret_cast<const UnsignedShort *>(pixel);
+			UnsignedShort raw = 0;
+			// TheSuperHackers @bugfix bobtista 28/05/2026 Avoid an unaligned dereference; std::memcpy is portable on platforms with strict alignment.
+			std::memcpy(&raw, pixel, sizeof(raw));
+			const UnsignedInt value = raw;
 			*a = 255;
 			*r = Scale5To8(value >> 11);
 			*g = Scale6To8(value >> 5);
@@ -886,25 +903,21 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 		texture->Init();
 	}
 
-	SurfaceClass *surface = texture->Get_Surface_Level();
-	if (surface == nullptr)
-	{
-		return nullptr;
-	}
-
 	SurfaceClass::SurfaceDescription desc;
-	surface->Get_Description(desc);
+	texture->Get_Level_Description(desc, 0);
 	if (desc.Width == 0 || desc.Height == 0 || desc.Width > 256 || desc.Height > 256)
 	{
-		REF_PTR_RELEASE(surface);
 		return nullptr;
 	}
 
-	SurfaceClass *readSurface = surface;
 	std::vector<Uint8> decodedPixels;
-	UnsignedByte *src = nullptr;
+	const UnsignedByte *src = nullptr;
 	int pitch = 0;
-	Bool lockedSurface = TRUE;
+	UnsignedInt bytesPerPixel = Get_Bytes_Per_Pixel(desc.Format);
+#if !defined(GGC_BGFX_STANDALONE)
+	SurfaceClass *fallbackSurface = nullptr;
+	Bool lockedSurface = FALSE;
+#endif
 	switch (desc.Format)
 	{
 		case WW3D_FORMAT_DXT1:
@@ -918,7 +931,6 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 			if (!ddsFile.Is_Available() || !ddsFile.Load() || ddsFile.Get_Width(0) != desc.Width ||
 				ddsFile.Get_Height(0) != desc.Height)
 			{
-				REF_PTR_RELEASE(surface);
 				return nullptr;
 			}
 			for (UnsignedInt y = 0; y < desc.Height; ++y)
@@ -936,24 +948,57 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 			desc.Format = WW3D_FORMAT_A8R8G8B8;
 			src = decodedPixels.data();
 			pitch = desc.Width * 4;
-			lockedSurface = FALSE;
+			bytesPerPixel = 4;
 			break;
 		}
 		default:
+		{
+			const std::vector<TextureBaseClass::TextureMipSnapshot> &mips = texture->Get_CPU_Texture_Mips();
+			if (!mips.empty()) {
+				const TextureBaseClass::TextureMipSnapshot &mip = mips[0];
+				const UnsignedInt mipBytesPerPixel = Get_Bytes_Per_Pixel(mip.Format);
+				if (mip.Format != WW3D_FORMAT_UNKNOWN &&
+					mip.Width != 0 &&
+					mip.Height != 0 &&
+					mipBytesPerPixel != 0 &&
+					mip.Pitch >= mip.Width * mipBytesPerPixel &&
+					mip.Data.size() >= static_cast<size_t>(mip.Pitch) * mip.Height)
+				{
+					desc.Format = mip.Format;
+					desc.Width = mip.Width;
+					desc.Height = mip.Height;
+					src = mip.Data.data();
+					pitch = mip.Pitch;
+					bytesPerPixel = mipBytesPerPixel;
+				}
+			}
+
+			if (src == nullptr) {
+#if !defined(GGC_BGFX_STANDALONE)
+				fallbackSurface = texture->Get_Surface_Level();
+				if (fallbackSurface == nullptr) {
+					return nullptr;
+				}
+				fallbackSurface->Get_Description(desc);
+				bytesPerPixel = fallbackSurface->Get_Bytes_Per_Pixel();
+				src = static_cast<UnsignedByte *>(fallbackSurface->Lock(&pitch));
+				lockedSurface = TRUE;
+#else
+				return nullptr;
+#endif
+			}
 			break;
+		}
 	}
 
-	if (lockedSurface)
-	{
-		src = static_cast<UnsignedByte *>(readSurface->Lock(&pitch));
-	}
 	if (src == nullptr)
 	{
-		REF_PTR_RELEASE(surface);
+#if !defined(GGC_BGFX_STANDALONE)
+		REF_PTR_RELEASE(fallbackSurface);
+#endif
 		return nullptr;
 	}
 
-	const UnsignedInt bytesPerPixel = readSurface->Get_Bytes_Per_Pixel();
 	const UnsignedInt cursorPitch = desc.Width * 4;
 	std::vector<Uint8> pixels(cursorPitch * desc.Height, 0);
 	std::vector<Uint8> sourcePixels(cursorPitch * desc.Height, 0);
@@ -963,11 +1008,13 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 
 	if (pixels.empty() || sourcePixels.empty())
 	{
+#if !defined(GGC_BGFX_STANDALONE)
 		if (lockedSurface)
 		{
-			readSurface->Unlock();
+			fallbackSurface->Unlock();
 		}
-		REF_PTR_RELEASE(surface);
+		REF_PTR_RELEASE(fallbackSurface);
+#endif
 		return nullptr;
 	}
 
@@ -1027,11 +1074,13 @@ SDL_Cursor *SDL3Mouse::createSDLColorCursor(TextureClass *texture, const ICoord2
 		}
 	}
 
+#if !defined(GGC_BGFX_STANDALONE)
 	if (lockedSurface)
 	{
-		readSurface->Unlock();
+		fallbackSurface->Unlock();
 	}
-	REF_PTR_RELEASE(surface);
+	REF_PTR_RELEASE(fallbackSurface);
+#endif
 
 	Int hotX = hotSpot.x;
 	Int hotY = hotSpot.y;
