@@ -41,119 +41,13 @@
 #include "WWLib/always.h"
 #include "WWDebug/wwdebug.h"
 #include "WWMath/sphere.h"
+#include "WW3D2/indexbuffer.h"
 
 class DX8Wrapper;
 class SortingRendererClass;
-struct IDirect3DIndexBuffer8;
+
+#if !defined(GGC_BGFX_STANDALONE)
 class DX8IndexBufferClass;
-class SortingIndexBufferClass;
-
-// ----------------------------------------------------------------------------
-
-class IndexBufferClass : public RefCountClass
-{
-protected:
-	virtual ~IndexBufferClass() override;
-public:
-	IndexBufferClass(unsigned type, unsigned short index_count);
-
-	void Copy(unsigned int* indices,unsigned start_index,unsigned index_count);
-	void Copy(unsigned short* indices,unsigned start_index,unsigned index_count);
-
-	unsigned short Get_Index_Count() const { return index_count; }
-
-	unsigned Type() const { return type; }
-
-	void Add_Engine_Ref() const;
-	void Release_Engine_Ref() const;
-	unsigned Engine_Refs() const { return engine_refs; }
-
-	class WriteLockClass
-	{
-		IndexBufferClass* index_buffer;
-		unsigned short* indices;
-	public:
-		WriteLockClass(IndexBufferClass* index_buffer, int flags=0);
-		~WriteLockClass();
-
-		unsigned short* Get_Index_Array() { return indices; }
-	};
-
-	class AppendLockClass
-	{
-		IndexBufferClass* index_buffer;
-		unsigned short* indices;
-		// TheSuperHackers @refactor bobtista 11/04/2026
-		// stored so the destructor can report the locked sub-range to
-		// the bgfx write-side capture hook. Not used by the dx8 path.
-		unsigned AppendStartIndex;
-		unsigned AppendIndexRange;
-	public:
-		// TheSuperHackers @refactor bobtista 15/04/2026 added
-		// optional `flags` (D3DLOCK_DISCARD / D3DLOCK_NOOVERWRITE).
-		AppendLockClass(IndexBufferClass* index_buffer,unsigned start_index, unsigned index_range, unsigned flags=0);
-		~AppendLockClass();
-
-		unsigned short* Get_Index_Array() { return indices; }
-	};
-
-	static unsigned Get_Total_Buffer_Count();
-	static unsigned Get_Total_Allocated_Indices();
-	static unsigned Get_Total_Allocated_Memory();
-
-protected:
-	mutable int					engine_refs;
-	unsigned short				index_count;		// number of indices
-	unsigned						type;
-};
-
-
-// HY 2/14/01
-// Created
-class DynamicIBAccessClass
-{
-	W3DMPO_CODE(DynamicIBAccessClass)
-
-	friend DX8Wrapper;
-	friend SortingRendererClass;
-
-	unsigned Type;
-	unsigned short IndexCount;
-	unsigned short IndexBufferOffset;
-	IndexBufferClass* IndexBuffer;
-
-	void Allocate_Sorting_Dynamic_Buffer();
-	void Allocate_DX8_Dynamic_Buffer();
-
-public:
-	DynamicIBAccessClass(unsigned short type, unsigned short index_count);
-	~DynamicIBAccessClass();
-
-	unsigned Get_Type() const { return Type; }
-	unsigned short Get_Index_Count() const { return IndexCount; }
-
-	// Call at the end of the execution, or at whatever time you wish to release
-	// the recycled dynamic index buffer.
-	static void _Deinit();
-	static void _Reset(bool frame_changed);
-	static unsigned short Get_Default_Index_Count();	///<current size of dynamic index buffer
-
-	// To lock the index buffer, create instance of this write class locally.
-	// The buffer is automatically unlocked when you exit the scope.
-	class WriteLockClass
-	{
-		DynamicIBAccessClass* DynamicIBAccess;
-		unsigned short* Indices;
-	public:
-		WriteLockClass(DynamicIBAccessClass* ib_access);
-		~WriteLockClass();
-		unsigned short* Get_Index_Array() { return Indices; }
-	};
-
-	friend WriteLockClass;
-};
-
-
 /**
 ** DX8IndexBufferClass
 ** This class wraps a DX8 index buffer.
@@ -178,27 +72,11 @@ public:
 	void Copy(unsigned int* indices,unsigned start_index,unsigned index_count);
 	void Copy(unsigned short* indices,unsigned start_index,unsigned index_count);
 
-	IDirect3DIndexBuffer8* Get_DX8_Index_Buffer()	{ return index_buffer; }
+#if !defined(GGC_BGFX_STANDALONE)
+	void *Get_Legacy_Index_Buffer()	{ return index_buffer; }
+#endif
 
 private:
-	IDirect3DIndexBuffer8*	index_buffer;		// actual dx8 index buffer
+	void *index_buffer;
 };
-
-
-
-class SortingIndexBufferClass : public IndexBufferClass
-{
-	W3DMPO_CODE(SortingIndexBufferClass)
-
-	friend DX8Wrapper;
-	friend SortingRendererClass;
-	friend IndexBufferClass::WriteLockClass;
-	friend IndexBufferClass::AppendLockClass;
-	friend DynamicIBAccessClass::WriteLockClass;
-public:
-	SortingIndexBufferClass(unsigned short index_count);
-	virtual ~SortingIndexBufferClass() override;
-
-protected:
-	unsigned short* index_buffer;
-};
+#endif
