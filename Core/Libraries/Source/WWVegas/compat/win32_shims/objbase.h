@@ -51,8 +51,8 @@ typedef GUID *LPGUID;
     static const GUID name = { l, w1, w2, { b1, b2, b3, b4, b5, b6, b7, b8 } }
 #endif
 
-// IID_IUnknown — the universal COM interface ID. Defined here so non-Windows
-// builds that talk to COM stubs (StubD3D8Device, etc.) can compare against it.
+// IID_IUnknown - the universal COM interface ID. Defined here so non-Windows
+// builds that talk to COM shims can compare against it.
 #ifndef IID_IUnknown_DEFINED
 #define IID_IUnknown_DEFINED
 DEFINE_GUID(IID_IUnknown, 0x00000000, 0x0000, 0x0000, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46);
