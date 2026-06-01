@@ -75,7 +75,6 @@
 #include "ww3d.h"
 #include "Renderer.h"
 #include "WWMath/matrix4.h"
-#include "dx8wrapper.h"
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Route the
 // camera's view + projection matrices through the active render backend

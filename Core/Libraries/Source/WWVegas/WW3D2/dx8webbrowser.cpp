@@ -32,9 +32,10 @@
 
 #include "dx8webbrowser.h"
 #include "ww3d.h"
-#include "dx8wrapper.h"
 
 #if ENABLE_EMBEDDED_BROWSER
+
+#include "dx8wrapper.h"
 
 #if defined(_MSC_VER) && _MSC_VER < 1300
 

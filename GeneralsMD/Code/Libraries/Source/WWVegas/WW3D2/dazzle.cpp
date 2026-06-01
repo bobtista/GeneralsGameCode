@@ -55,7 +55,7 @@
 #include "WWLib/chunkio.h"
 #include "WWLib/WWFILE.h"
 #include "WWLib/inisup.h"
-#include "dx8wrapper.h"
+#include "ww3dcolor.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 #include "dx8vertexbuffer.h"
@@ -389,7 +389,7 @@ void LensflareTypeClass::Generate_Vertex_Buffers(
 		if (col[0]>1.0f) col[0]=1.0f;
 		if (col[1]>1.0f) col[1]=1.0f;
 		if (col[2]>1.0f) col[2]=1.0f;
-		unsigned color=DX8Wrapper::Convert_Color(col,1.0f);
+		unsigned color=WW3DColor::To_ARGB(col,1.0f);
 
 		vertex->x=x+ix;
 		vertex->y=y-iy;
@@ -919,7 +919,7 @@ void DazzleRenderObjClass::Render(RenderInfoClass & rinfo)
 
 	if (	Is_Not_Hidden_At_All() &&
 			_dazzle_rendering_enabled &&
-			!DX8Wrapper::Is_Render_To_Texture()	)
+			(!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Is_Render_To_Texture())	)
 	{
 		// First check if the dazzle is blinking and is "off"
 		bool is_on = true;
@@ -944,8 +944,8 @@ void DazzleRenderObjClass::Render(RenderInfoClass & rinfo)
 //			visibility = _VisibilityHandler->Compute_Dazzle_Visibility(rinfo,this,position);
 
 			Matrix4x4 view_transform,projection_transform;
-			DX8Wrapper::Get_Transform(D3DTS_VIEW,view_transform);
-			DX8Wrapper::Get_Transform(D3DTS_PROJECTION,projection_transform);
+			WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view_transform);
+			WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_PROJECTION, projection_transform);
 			Vector3 camera_loc(rinfo.Camera.Get_Position());
 			Vector3 camera_dir(-view_transform[2][0],-view_transform[2][1],-view_transform[2][2]);
 //			const Matrix3D& cam = rinfo.Camera.Get_Transform();
@@ -1021,9 +1021,9 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 	Matrix4x4 view_transform;
 	Matrix4x4 world_transform;
 	Matrix4x4 projection_transform;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,view_transform);
-	DX8Wrapper::Get_Transform(D3DTS_WORLD,world_transform);
-	DX8Wrapper::Get_Transform(D3DTS_PROJECTION,projection_transform);
+	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view_transform);
+	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_WORLD, world_transform);
+	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_PROJECTION, projection_transform);
 	old_view_transform=view_transform;
 	old_world_transform=world_transform;
 	old_projection_transform=projection_transform;
@@ -1070,7 +1070,7 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 		lens_max_verts=4*lensflare->lic.flare_count;
 	}
 
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,vertex_count*2+lens_max_verts);
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,vertex_count*2+lens_max_verts);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 		VertexFormatXYZNDUV2* verts=lock.Get_Formatted_Vertex_Array();
@@ -1099,7 +1099,7 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 			if (col[1]>1.0f) col[1]=1.0f;
 			if (col[2]>1.0f) col[2]=1.0f;
 
-			unsigned color=DX8Wrapper::Convert_Color(col,1.0f);
+			unsigned color=WW3DColor::To_ARGB(col,1.0f);
 
 			dl=current_vloc+(dazzle_dxt-dazzle_dyt)*current_dazzle_size;
 			vertex->x=dl.X;
@@ -1150,7 +1150,7 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 			if (col[1]>1.0f) col[1]=1.0f;
 			if (col[2]>1.0f) col[2]=1.0f;
 
-			unsigned color=DX8Wrapper::Convert_Color(col,1.0f);
+			unsigned color=WW3DColor::To_ARGB(col,1.0f);
 
 			Vector3 offset;
 
@@ -1219,7 +1219,7 @@ void DazzleRenderObjClass::Render_Dazzle(CameraClass* camera)
 
 	WW3D::Get_Render_Backend()->Set_Vertex_Buffer(vb_access);
 
-	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,poly_count*3);
+	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,poly_count*3);
 	{
 		DynamicIBAccessClass::WriteLockClass lock(&ib_access);
 		unsigned short* inds=lock.Get_Index_Array();

@@ -19,11 +19,12 @@
 #include "statistics.h"
 #include "WWLib/wwstring.h"
 #include "WWLib/simplevec.h"
-#include "dx8renderer.h"
-#include "dx8wrapper.h"
-#include "dx8caps.h"
 #include "textureloader.h"
 #include "texture.h"
+#include "shader.h"
+#include "ww3d.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 
 #include <memory.h>
 #ifdef _UNIX
@@ -296,7 +297,7 @@ void Debug_Statistics::Record_DX8_Skin_Polys_And_Vertices(int pcount,int vcount)
 
 void Debug_Statistics::Record_DX8_Polys_And_Vertices(int pcount,int vcount,const ShaderClass& shader)
 {
-	if (shader.Get_NPatch_Enable()==ShaderClass::NPATCH_ENABLE && DX8Wrapper::Get_Current_Caps()->Support_NPatches()) {
+	if (shader.Get_NPatch_Enable()==ShaderClass::NPATCH_ENABLE && WW3D::Get_Render_Backend() && WW3D::Get_Render_Backend()->Supports_NPatches()) {
 		unsigned level=WW3D::Get_NPatches_Level();
 		level*=level;
 		pcount*=level;
@@ -388,8 +389,8 @@ void Debug_Statistics::Begin_Statistics()
 	terrain_particle_batches=0;
 	draw_calls=0;
 	Record_Texture_Begin();
-	DX8Wrapper::Begin_Statistics();
-//	DX8MeshRendererClass::Begin_Statistics();
+	if (WW3D::Get_Render_Backend() != nullptr)
+		WW3D::Get_Render_Backend()->Begin_Device_Statistics();
 }
 
 void Debug_Statistics::End_Statistics()
@@ -405,8 +406,8 @@ void Debug_Statistics::End_Statistics()
 	last_frame_terrain_particle_triangles=terrain_particle_triangles;
 	last_frame_terrain_particle_batches=terrain_particle_batches;
 	last_frame_draw_calls=draw_calls;
-//	DX8MeshRendererClass::End_Statistics();
-	DX8Wrapper::End_Statistics();
+	if (WW3D::Get_Render_Backend() != nullptr)
+		WW3D::Get_Render_Backend()->End_Device_Statistics();
 }
 
 void Debug_Statistics::Shutdown_Statistics()
@@ -414,4 +415,3 @@ void Debug_Statistics::Shutdown_Statistics()
 	texture_statistics_string.Release_Resources();
 }
 // ----------------------------------------------------------------------------
-
