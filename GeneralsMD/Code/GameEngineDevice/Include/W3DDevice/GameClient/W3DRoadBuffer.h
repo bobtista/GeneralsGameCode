@@ -50,8 +50,7 @@
 #include "WWLib/always.h"
 #include "WW3D2/rendobj.h"
 #include "WW3D2/w3d_file.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx8fvf.h"
 #include "WW3D2/shader.h"
 #include "WW3D2/vertmaterial.h"
 //#include "common/GameFileSystem.h"
@@ -59,11 +58,11 @@
 #include "Lib/BaseType.h"
 #include "Common/GameType.h"
 #include "Common/AsciiString.h"
+#include "WW3D2/renderbufferclasses.h"
 
 //-----------------------------------------------------------------------------
 //           Forward References
 //-----------------------------------------------------------------------------
-
 //-----------------------------------------------------------------------------
 //           Type Defines
 //-----------------------------------------------------------------------------
@@ -153,8 +152,8 @@ public:
 	~RoadType();
 protected:
 	TextureClass *m_roadTexture;	///<Roads texture
-	DX8VertexBufferClass	*m_vertexRoad;	///<Road vertex buffer.
-	DX8IndexBufferClass			*m_indexRoad;	///<indices defining a triangles for the road drawing.
+	RenderVertexBufferClass	*m_vertexRoad;	///<Road vertex buffer.
+	RenderIndexBufferClass	*m_indexRoad;	///<indices defining a triangles for the road drawing.
 	Int			m_numRoadVertices; ///<Number of vertices used in m_vertexRoad.
 	Int			m_numRoadIndices;	///<Number of indices used in b_indexRoad;
 	Int					  m_uniqueID;     ///< ID of the road type in INI.
@@ -170,8 +169,8 @@ public:
 	Int getStacking() {return m_stackingOrder;}
 	void setStacking(Int order) {m_stackingOrder = order;}
 	Int getUniqueID() {return m_uniqueID;};
-	DX8VertexBufferClass	*getVB() {return m_vertexRoad;};
-	DX8IndexBufferClass		*getIB() {return m_indexRoad;}
+	RenderVertexBufferClass	*getVB() {return m_vertexRoad;};
+	RenderIndexBufferClass	*getIB() {return m_indexRoad;}
 	Int getNumVertices() {return m_numRoadVertices;}
 	void setNumIndices(Int num) {m_numRoadIndices=num;}
 	void setNumVertices(Int num) {m_numRoadVertices=num;}

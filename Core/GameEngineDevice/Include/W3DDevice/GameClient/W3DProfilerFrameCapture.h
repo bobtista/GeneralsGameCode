@@ -34,7 +34,6 @@ public:
 private:
 	bool ShouldReuseLastCapture(UnsignedInt currentTimeMs) const;
 
-	DWORD m_swizzleShader = 0;
 	UnsignedInt m_lastCaptureTimeMs = 0;
 	UnsignedInt m_lastCaptureHeight = 0;
 	std::vector<UnsignedByte> m_lastCapturePixels;

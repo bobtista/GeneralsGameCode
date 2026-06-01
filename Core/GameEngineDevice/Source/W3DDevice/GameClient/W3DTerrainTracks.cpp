@@ -54,7 +54,8 @@
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/assetmgr.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/dx8fvf.h"
+#include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/scene.h"
 #include "GameLogic/TerrainLogic.h"
@@ -596,11 +597,11 @@ void TerrainTracksRenderObjClassSystem::ReAcquireResources()
 	REF_PTR_RELEASE(m_vertexBuffer);
 
 	//Create static index buffers.  These will index the vertex buffers holding the track segments
-	m_indexBuffer=NEW_REF(DX8IndexBufferClass,((m_maxTankTrackEdges-1)*6));
+	m_indexBuffer=NEW_REF(RenderIndexBufferClass,((m_maxTankTrackEdges-1)*6));
 
 	// Fill up the IB
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 
 		for (i=0; i<(m_maxTankTrackEdges-1); i++)
@@ -615,7 +616,7 @@ void TerrainTracksRenderObjClassSystem::ReAcquireResources()
 
 	DEBUG_ASSERTCRASH(numModules*m_maxTankTrackEdges*2 < 65535, ("Too many terrain track edges"));
 
-	m_vertexBuffer=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,numModules*m_maxTankTrackEdges*2,DX8VertexBufferClass::USAGE_DYNAMIC));
+	m_vertexBuffer=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,numModules*m_maxTankTrackEdges*2,RenderVertexBufferClass::USAGE_DYNAMIC));
 }
 
 //=============================================================================
@@ -825,7 +826,7 @@ Try improving the fit to vertical surfaces like cliffs.
 	//check if there is anything to draw and fill vertex buffer
 	if (m_edgesToFlush >= 2)
 	{
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBuffer);
+		RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBuffer);
 		VertexFormatXYZDUV1 *verts = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 		trackStartIndex=0;
 

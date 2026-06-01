@@ -28,13 +28,16 @@
 
 #include "Common/GlobalData.h"
 #include "GameClient/Color.h"
+#include "GameLogic/TerrainLogic.h"
 #include "W3DDevice/GameClient/W3DParticleSys.h"
 #include "W3DDevice/GameClient/W3DAssetManager.h"
 #include "W3DDevice/GameClient/W3DDisplay.h"
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DSmudge.h"
 #include "W3DDevice/GameClient/W3DSnow.h"
+#include "W3DDevice/GameClient/W3DWater.h"
 #include "WW3D2/camera.h"
+#include "WW3D2/RenderBackend.h"
 
 
 //------------------------------------------------------------------------------ Performance Timers
@@ -109,7 +112,9 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 {
 
 	if (m_readyToRender == false)
+	{
 		return;
+	}
 
 	// external mechanism must tell us when it's OK to render again...
 	m_readyToRender = false;
@@ -160,7 +165,9 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 
 		// only look at particle/point style systems
 		if (sys->isUsingDrawables())
+		{
 			continue;
+		}
 
 		// TheSuperHackers @performance Mauller 16/08/2026 Skip processing particle system if no particles are in view.
 		UnsignedInt particleCount = 0;
@@ -262,7 +269,45 @@ void W3DParticleSystemManager::doParticles(RenderInfoClass &rinfo)
 			RGBAArray[pointCount].X = color->red;
 			RGBAArray[pointCount].Y = color->green;
 			RGBAArray[pointCount].Z = color->blue;
-			RGBAArray[pointCount].W = p->getAlpha();
+
+			// TheSuperHackers @bugfix bobtista 28/05/2026 Ground-aligned
+			// ADDITIVE water-surface particles (BattleShipWaterRipples and
+			// similar hull-contact foam) are rendered through the BGFX shader
+			// pipeline noticeably dimmer than DX8 retail at the same camera
+			// distance — likely because the fragment path strips contribution
+			// from anti-aliased ring edges that DX8's fixed-function path
+			// retained. Boost their effective size 2x and color 1.5x (clamped)
+			// so the foam reads at the hull-waterline like the retail reference
+			// without overwhelming the rest of the frame.
+			if (sys->m_isGroundAligned
+				&& sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
+			{
+				sizeArray[pointCount] *= 2.0f;
+				RGBAArray[pointCount].X = MIN(1.0f, color->red   * 1.5f);
+				RGBAArray[pointCount].Y = MIN(1.0f, color->green * 1.5f);
+				RGBAArray[pointCount].Z = MIN(1.0f, color->blue  * 1.5f);
+			}
+
+			// TheSuperHackers @bugfix bobtista 27/05/2026 Additive particles
+			// (Shader=ADDITIVE) keep m_alpha at its initial keyframe value because
+			// ParticleSys.cpp::update() skips alpha keyframe progression for
+			// ADDITIVE shader. For many systems (BattleShipWaterRipples,
+			// BattleshipMuzzleFlashWave, AmphibWaveRest) the initial Alpha1 is
+			// 0.0, which would be fine for DX8 fixed-function additive blend
+			// (which ignores alpha) but the bgfx fs_uber shader pipeline applies
+			// u_matDiffuse multiplication, soft-particle fade, and alpha test on
+			// current.a — any of which can discard pixels when vertex_alpha is 0.
+			// Force vertex alpha to 1.0 for additive draws so the shader's
+			// downstream alpha-aware logic does not filter out additive particles
+			// the way DX8 never had to worry about.
+			if (sys->getShaderType() == ParticleSystemInfo::ADDITIVE)
+			{
+				RGBAArray[pointCount].W = 1.0f;
+			}
+			else
+			{
+				RGBAArray[pointCount].W = p->getAlpha();
+			}
 
 			angleArray[pointCount] = (uint8)(p->getAngle() * 255.0f / (2.0f * PI));
 

@@ -27,12 +27,11 @@
 #include "WWLib/always.h"
 #include "WW3D2/rendobj.h"
 #include "WW3D2/w3d_file.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/shader.h"
 #include "WW3D2/vertmaterial.h"
 #include "Lib/BaseType.h"
 #include "Common/GameType.h"
+#include "WW3D2/renderbufferclasses.h"
 
 /// Custom render object that draws mirrors, water, and skies.
 /**
@@ -71,7 +70,7 @@ public:
 	void toggleCloudLayer(Bool state)	{	m_useCloudLayer=state;}	///<enables/disables the cloud layer
 
 protected:
-	DX8IndexBufferClass			*m_indexBuffer;	///<indices defining quad
+	RenderIndexBufferClass			*m_indexBuffer;	///<indices defining quad
 	SceneClass							*m_parentScene;	///<scene to be reflected
 	ShaderClass m_shaderClass; ///<shader or rendering state for heightmap
 	VertexMaterialClass	  		*m_vertexMaterialClass;	///<vertex lighting material
