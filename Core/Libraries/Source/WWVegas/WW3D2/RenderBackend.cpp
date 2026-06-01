@@ -16,20 +16,9 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 10/04/2026 Render backend global
-// owner. Holds the single g_renderBackend pointer and constructs/destroys
-// the concrete backend instance.
-//
-// The concrete backend is selected at compile time via the GGC_RENDER_BACKEND
-// CMake flag which sets one of:
-//   GGC_RENDER_BACKEND_DX8      - DirectX 8 (default, VC6-compatible, Windows only)
-//   GGC_RENDER_BACKEND_BGFX     - bgfx (DX11/Vulkan/Metal/GL, cross-platform)
-//
-// Exactly one of these is defined in any given build. If none are defined
-// (a legacy build that hasn't included render-backend.cmake) we default to
-// DX8 so the legacy path keeps working unchanged.
-//
-// See RENDER_BACKEND.md.
+// TheSuperHackers @refactor bobtista 10/04/2026 Render backend global owner: holds the
+// single g_renderBackend pointer and constructs/destroys the concrete backend, selected
+// at compile time via GGC_RENDER_BACKEND_DX8 (default) or GGC_RENDER_BACKEND_BGFX.
 
 #include "RenderBackend.h"
 
