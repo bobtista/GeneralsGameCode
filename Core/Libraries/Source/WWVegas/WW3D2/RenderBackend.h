@@ -19,7 +19,7 @@
 // TheSuperHackers @refactor bobtista 10/04/2026 Backend-agnostic access point
 // for the global IRenderBackend instance. Engine-side code should include
 // this header (not IRenderBackend.h or DX8Backend.h directly) to use the
-// render backend. See RENDER_BACKEND.md.
+// render backend.
 
 #pragma once
 
@@ -31,10 +31,9 @@
 extern IRenderBackend * g_renderBackend;
 
 // Create the render backend. Called by DX8Wrapper::Do_Onetime_Device_Dependent_Inits
-// after the D3D device has been successfully created.
-//
-// Always creates a DX8Backend for now. A compile-time
-// option to select between DX8Backend and BgfxBackend.
+// after the D3D device has been successfully created. The concrete backend
+// (DX8Backend or BgfxBackend) is selected at compile time via the
+// GGC_RENDER_BACKEND CMake flag.
 void Init_Render_Backend();
 
 // Destroy the render backend. Called by DX8Wrapper::Do_Onetime_Device_Dependent_Shutdowns
