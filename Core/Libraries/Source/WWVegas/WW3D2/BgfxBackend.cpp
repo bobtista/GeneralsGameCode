@@ -24,6 +24,8 @@
 #include "BgfxBackend.h"
 
 #include "BgfxMigrationToggles.h"
+#include "DrawCallLog.h"
+#include "RenderDocTrigger.h"
 #include "RenderStateDefs.h"
 #include "DXTUtils.h"
 #include "dx8fvf.h"
@@ -3589,6 +3591,9 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     }
 #endif
 
+    DrawCallLog_End_Frame();
+    RenderDoc_Maybe_Trigger_Capture();
+
     bgfx::frame();
 
 #if defined(SAGE_USE_SDL3)
@@ -6686,6 +6691,17 @@ void BgfxBackend::Submit_Instanced_Batch(unsigned index_offset,
                                           unsigned min_vertex_index,
                                           unsigned vertex_count)
 {
+    if (DrawCallLog_Is_Active()) {
+        const TextureBaseClass * tex0 = FixedFunctionState::Render_State().Textures[0];
+        const char * tex_name = (tex0 != nullptr) ? tex0->Get_Texture_Name().str() : "";
+        DrawCallLog_Record(
+            4, triangle_count, vertex_count,
+            FixedFunctionState::Render_State().vertex_buffer_types[0],
+            FixedFunctionState::Render_State().index_buffer_type,
+            FixedFunctionState::Render_State().shader.Get_Bits(),
+            FixedFunctionState::Render_State().sorted_draw_flags,
+            tex_name);
+    }
     if (!g_draw.instanceBatchActive || g_draw.instanceCount == 0) {
         g_draw.instanceBatchActive = false;
         return;
@@ -9343,6 +9359,17 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
                                  unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
+    if (DrawCallLog_Is_Active()) {
+        const TextureBaseClass * tex0 = FixedFunctionState::Render_State().Textures[0];
+        const char * tex_name = (tex0 != nullptr) ? tex0->Get_Texture_Name().str() : "";
+        DrawCallLog_Record(
+            4, polygon_count, vertex_count,
+            FixedFunctionState::Render_State().vertex_buffer_types[0],
+            FixedFunctionState::Render_State().index_buffer_type,
+            FixedFunctionState::Render_State().shader.Get_Bits(),
+            FixedFunctionState::Render_State().sorted_draw_flags,
+            tex_name);
+    }
     // If DX8Wrapper::Draw_Sorting_IB_VB already submitted
     // the draw with correctly remapped args against its internal dynamic
     // buffers, skip the outer submit.
