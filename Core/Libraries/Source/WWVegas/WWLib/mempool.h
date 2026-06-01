@@ -199,6 +199,18 @@ ObjectPoolClass<T,BLOCK_SIZE>::ObjectPoolClass() :
 template<class T,int BLOCK_SIZE>
 ObjectPoolClass<T,BLOCK_SIZE>::~ObjectPoolClass()
 {
+#if defined(__APPLE__) && defined(GGC_BGFX_STANDALONE)
+	// TheSuperHackers @bugfix bobtista 04/05/2026 The legacy engine leaves
+	// some global multi-list users alive until process teardown. On macOS the
+	// static AutoPoolClass allocators can then destruct after their list owners,
+	// walking stale pool metadata and producing misleading crash reports during
+	// exit. Let the OS reclaim these small pools on process termination; set
+	// GGC_STRICT_POOL_SHUTDOWN=1 when specifically auditing shutdown leaks.
+	if (getenv("GGC_STRICT_POOL_SHUTDOWN") == nullptr)
+	{
+		return;
+	}
+#endif
 	// assert that the user gave back all of the memory he was using
 	WWASSERT(FreeObjectCount == TotalObjectCount);
 

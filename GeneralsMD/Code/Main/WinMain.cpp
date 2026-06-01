@@ -567,13 +567,11 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message,
 				if( TheWin32Mouse == nullptr )
 					return 0;
 
-				// ignore when window is not active
-#if !defined(GGC_RENDER_BACKEND_BGFX)
-				if( !isWinMainActive )
-					return 0;
-#endif
+					// ignore when window is not active
+					if( !isWinMainActive )
+						return 0;
 
-				Int x = (Int)LOWORD( lParam );
+					Int x = (Int)LOWORD( lParam );
 				Int y = (Int)HIWORD( lParam );
 				RECT rect;
 
