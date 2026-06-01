@@ -531,8 +531,12 @@ public:
 
 
 #if !defined(GGC_BGFX_STANDALONE)
-	static IDirect3DDevice8* _Get_D3D_Device8() { return D3DDevice; }
-	static IDirect3D8* _Get_D3D8() { return D3DInterface; }
+	// TheSuperHackers @build bobtista 01/06/2026 Out-of-line getters; the
+	// header cannot reference the file-static D3DDevice / D3DInterface
+	// pointers (defined in dx8wrapper.cpp) from inline bodies -- every TU
+	// including this header would otherwise fail to compile.
+	static IDirect3DDevice8* _Get_D3D_Device8();
+	static IDirect3D8* _Get_D3D8();
 #endif
 	/// Returns the display format - added by TR for video playback - not part of W3D
 	static WW3DFormat	getBackBufferFormat();
@@ -704,6 +708,10 @@ protected:
 	friend class WW3D;
 	friend class DX8IndexBufferClass;
 	friend class DX8VertexBufferClass;
+	// TheSuperHackers @build bobtista 01/06/2026 DX8Backend is the
+	// reference adapter that bridges IRenderBackend to DX8Wrapper. It needs
+	// access to the protected MSAA / texture-bitdepth accessors.
+	friend class DX8Backend;
 };
 
 // shader system updates KJM v

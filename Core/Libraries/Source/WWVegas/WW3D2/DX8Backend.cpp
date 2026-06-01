@@ -25,7 +25,7 @@
 
 #include "dx8fvf.h"
 #include "dx8wrapper.h"
-#include "formconv.h"
+#include "dx8formatconv.h"
 #include "FixedFunctionState.h"
 #include "vector3.h"
 #include "matrix4.h"

@@ -269,6 +269,16 @@ unsigned							DX8Wrapper::FogColor										= 0;
 
 static IDirect3D8 *			D3DInterface								= nullptr;
 static IDirect3DDevice8 *	D3DDevice									= nullptr;
+
+// TheSuperHackers @build bobtista 01/06/2026 Out-of-line getters for the
+// file-static D3D8 device + interface pointers above. dx8wrapper.h forward-
+// declares these; defining them inline there would expose the file-static
+// pointers to every TU that includes the header, which fails to compile.
+#if !defined(GGC_BGFX_STANDALONE)
+IDirect3DDevice8 * DX8Wrapper::_Get_D3D_Device8() { return D3DDevice; }
+IDirect3D8 * DX8Wrapper::_Get_D3D8() { return D3DInterface; }
+#endif
+
 static IDirect3DSurface8 *	CurrentRenderTarget						= nullptr;
 static IDirect3DSurface8 *	CurrentDepthBuffer						= nullptr;
 static IDirect3DSurface8 *	DefaultRenderTarget						= nullptr;
