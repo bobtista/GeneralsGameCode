@@ -63,7 +63,7 @@
 #include "Common/version.h"
 #include "BuildVersion.h"
 
-#if SAGE_USE_SDL3
+#if RTS_SDL3_ENABLE
 	#include <SDL3/SDL.h>
 	#include "SDL3GameEngine.h"
 	#include "GameClient/Keyboard.h"
@@ -95,7 +95,7 @@ static Bool gDoPaint = true;
 static Bool isWinMainActive = false;
 
 static HBITMAP gLoadScreenBitmap = nullptr;
-#if SAGE_USE_SDL3
+#if RTS_SDL3_ENABLE
 static SDL_Surface* gLoadScreenSurface = nullptr;
 #endif
 
@@ -1058,14 +1058,14 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		{
 			fclose(fileImage);
 			gLoadScreenBitmap = (HBITMAP)LoadImage(hInstance, filePath, IMAGE_BITMAP, 0, 0, LR_SHARED | LR_LOADFROMFILE);
-	#if SAGE_USE_SDL3
+	#if RTS_SDL3_ENABLE
 			gLoadScreenSurface = SDL_LoadBMP(filePath);
 	#endif
 		}
 		else
 		{
 			gLoadScreenBitmap = (HBITMAP)LoadImage(hInstance, fileName, IMAGE_BITMAP, 0, 0, LR_SHARED | LR_LOADFROMFILE);
-	#if SAGE_USE_SDL3
+	#if RTS_SDL3_ENABLE
 			gLoadScreenSurface = SDL_LoadBMP(fileName);
 	#endif
 		}
@@ -1073,7 +1073,7 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 
 		// in release, the file only ever lives in the root dir
 		gLoadScreenBitmap = (HBITMAP)LoadImage(hInstance, "Install_Final.bmp", IMAGE_BITMAP, 0, 0, LR_SHARED | LR_LOADFROMFILE);
-	#if SAGE_USE_SDL3
+	#if RTS_SDL3_ENABLE
 		gLoadScreenSurface = SDL_LoadBMP("Install_Final.bmp");
 	#endif
 #endif
@@ -1085,7 +1085,7 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 #endif
 
 		// register windows class and create application window
-#if SAGE_USE_SDL3
+#if RTS_SDL3_ENABLE
 		if (!TheGlobalData->m_headless)
 		{
 			if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS | SDL_INIT_GAMEPAD))
@@ -1146,7 +1146,7 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 		// save our application instance for future use
 		ApplicationHInstance = hInstance;
 
-#if SAGE_USE_SDL3
+#if RTS_SDL3_ENABLE
 		if (gLoadScreenSurface != nullptr)
 		{
 			SDL_DestroySurface(gLoadScreenSurface);
@@ -1227,7 +1227,7 @@ Int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
 //=============================================================================
 GameEngine* CreateGameEngine()
 {
-#if SAGE_USE_SDL3
+#if RTS_SDL3_ENABLE
 	SDL3GameEngine* engine = NEW SDL3GameEngine;
 	engine->setIsActive(isWinMainActive);
 	return engine;

@@ -66,7 +66,7 @@ include(cmake/config.cmake)
 include(cmake/gamespy.cmake)
 include(cmake/lzhl.cmake)
 
-if(SAGE_USE_SDL3 AND NOT IS_VS6_BUILD)
+if(RTS_SDL3_ENABLE AND NOT IS_VS6_BUILD)
     include(cmake/sdl3.cmake)
 endif()
 
