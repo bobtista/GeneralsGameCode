@@ -269,18 +269,6 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendTextures.cpp
     )
 
-    # TheSuperHackers @refactor bobtista 22/04/2026
-    # In-tree implementations of the D3DX8 helpers the engine calls
-    # (matrix math, mip filter, surface copy, FVF size, error string).
-    # Compiled only for standalone builds, which don't link d3dx8.lib.
-    # Ref-popup builds still pull those symbols from d3dx8.lib and skip
-    # this file entirely.
-    if(GGC_BGFX_STANDALONE)
-        target_sources(corei_ww3d2 INTERFACE
-            ${CMAKE_CURRENT_SOURCE_DIR}/D3DXStandaloneStubs.cpp
-        )
-    endif()
-
     # TheSuperHackers @refactor bobtista 11/04/2026 shader
     # compilation. Only compile these shaders for the bgfx build. The
     # ggc_compile_bgfx_shader helper (cmake/bgfx.cmake) creates the
