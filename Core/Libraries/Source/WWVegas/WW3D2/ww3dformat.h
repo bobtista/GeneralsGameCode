@@ -48,13 +48,13 @@ class Vector4;
 class Targa;
 
 /*
-** Enum for possible surface formats. This is a small subset of the D3DFORMAT
-** enum which lists the formats supported by DX8; we will add new members to
-** this list as needed (keeping it in the same order as D3DFORMAT).
+** Enum for possible surface formats. This is a small subset of the legacy
+** renderer format enum; we will add new members to this list as needed while
+** preserving the compatibility ordering.
 ** NOTE: Whenever this is changed, formconv.h/.cpp must be modified as well
-** (that contains the code for converting between this and D3DFORMAT)..
+** (that contains the code for converting between this and legacy formats).
 **
-** The format names use the D3DFORMAT conventions:
+** The format names use the legacy renderer format conventions:
 **      A = Alpha
 **      R = Red
 **      G = Green
@@ -172,7 +172,7 @@ void Color_to_Vector4(Vector4* outc,const unsigned int inc,const WW3DFormat form
 
 // Define matching WW3D format based from Targa header.
 //
-// dest_format - WW3DFormat that can be used as a destination (D3D surface) on current hardware
+// dest_format - WW3DFormat that can be used as a destination surface on current hardware
 // src_format - WW3DFormat that represents the format the bitmap is stored in the targa file.
 // src_bpp - bytes per pixel in the source surface
 // targa - reference to the targa object...
