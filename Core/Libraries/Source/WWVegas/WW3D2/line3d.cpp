@@ -53,9 +53,9 @@
 #include "WWDebug/wwdebug.h"
 #include "WW3D2/ww3d.h"
 #include "WW3D2/rinfo.h"
-#include "dx8wrapper.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
+#include "WW3D2/ww3dcolor.h"
+#include "WW3D2/vertexbuffer.h"
+#include "WW3D2/indexbuffer.h"
 #include "dx8fvf.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
@@ -277,13 +277,13 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 
 	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD,Transform);
 
-	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,8);
+	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,8);
 	{
 		DynamicVBAccessClass::WriteLockClass Lock(&vb);
 		const FVFInfoClass &fi=vb.FVF_Info();
 		unsigned char *vb=(unsigned char*)Lock.Get_Formatted_Vertex_Array();
 		int i;
-		unsigned int color=DX8Wrapper::Convert_Color(Color);
+		unsigned int color=WW3DColor::To_ARGB(Color);
 
 		for (i=0; i<8; i++)
 		{
@@ -293,7 +293,7 @@ void Line3DClass::Render(RenderInfoClass & rinfo)
 		}
 	}
 
-	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX8,36);
+	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC,36);
 	{
 		DynamicIBAccessClass::WriteLockClass Lock(&ib);
 		unsigned short *mem=Lock.Get_Index_Array();
@@ -513,4 +513,3 @@ int Line3DClass::Get_Num_Polys() const
 {
 	return 12;
 }
-

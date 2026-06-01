@@ -47,13 +47,11 @@
 #include "WW3D2/texture.h"
 #include "WWMath/matrix4.h"
 #include "WWMath/matrix3d.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/sortingrenderer.h"
 #include "vertmaterial.h"
 #include "WW3D2/dx8fvf.h"
-#include "WW3D2/dx8caps.h"
 #include "WW3D2/RenderBackend.h"
 #include "WWDebug/wwprofile.h"
 #include "WWDebug/wwmemlog.h"
@@ -616,14 +614,14 @@ void Render2DClass::Render()
 	int width, height, bits;
 	bool windowed;
 	WW3D::Get_Device_Resolution( width, height, bits, windowed );
-	D3DVIEWPORT8 vp = { 0 };
-	vp.X			= 0;
-	vp.Y			= 0;
-	vp.Width		= width;
-	vp.Height	= height;
-	vp.MinZ		= 0;
-	vp.MaxZ		= 1;
-	DX8Wrapper::Set_Viewport(&vp);
+	RenderBackendViewport vp;
+	vp.x = 0;
+	vp.y = 0;
+	vp.width = width;
+	vp.height = height;
+	vp.min_z = 0.0f;
+	vp.max_z = 1.0f;
+	g_renderBackend->Set_Viewport(vp);
 	g_renderBackend->Set_Texture(0,Texture);
 
 	VertexMaterialClass *vm=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
@@ -634,7 +632,7 @@ void Render2DClass::Render()
 	g_renderBackend->Set_View_Identity();
 	g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,identity);
 
-	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,Vertices.Count());
+	DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,Vertices.Count());
 	{
 		DynamicVBAccessClass::WriteLockClass Lock(&vb);
 		const FVFInfoClass &fi=vb.FVF_Info();
@@ -651,7 +649,7 @@ void Render2DClass::Render()
 		}
 	}
 
-	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX8,Indices.Count());
+	DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC,Indices.Count());
 	{
 		DynamicIBAccessClass::WriteLockClass Lock(&ib);
 		unsigned short *mem=Lock.Get_Index_Array();
@@ -666,32 +664,8 @@ void Render2DClass::Render()
 	{	//special case added to draw grayscale non-alpha blended images.
 		g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueShader);
 		g_renderBackend->Apply_Render_State_Changes();	//force update of all regular W3D states.
-		// TheSuperHackers @feature bobtista 20/04/2026 bgfx grayscale path — DX8 TSS
-		// ops below are ignored by the bgfx backend, so drive luminance conversion
-		// via a shader uniform instead.
 		g_renderBackend->Set_Grayscale_Mode(true);
-		if (DX8Wrapper::Get_Current_Caps()->Support_Dot3())
-		{	//Override W3D states with customizations for grayscale
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x80A5CA8E);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG0, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MULTIPLYADD);
-
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_CURRENT);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_DOTPRODUCT3);
-		}
-		else
-		{	//doesn't have DOT3 blend mode so fake it another way.
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x60606060);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_COLOROP, D3DTOP_MODULATE);
-
-			// TheSuperHackers @bugfix Stubbjax 08/01/2026 Fix possible greyscale rendering issues on hardware without DOT3 support.
-			DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP, D3DTOP_DISABLE);
-		}
+		g_renderBackend->Configure_Grayscale_Texture_Stages();
 	}
 	else
 		g_renderBackend->Set_Shader(Shader);
@@ -705,6 +679,13 @@ void Render2DClass::Render()
 		g_renderBackend->Set_Grayscale_Mode(false);
 	}
 
+	// TheSuperHackers @bugfix bobtista 23/04/2026 Unbind slot 0 after 2D UI
+	// draws so the UI atlas cannot leak into subsequent 3D draws via the
+	// shader pipeline's sampler cache.
+	if (g_renderBackend->Has_Shader_Pipeline())
+	{
+		g_renderBackend->Set_Texture(0, nullptr);
+	}
 }
 
 
