@@ -47,13 +47,24 @@
 
 class ChunkLoadClass;
 class ChunkSaveClass;
+class DX8Wrapper;
 
-#define DYN_MAT8
-#ifdef DYN_MAT8
-class DynD3DMATERIAL8;
-#else
-struct _D3DMATERIAL8;
-#endif
+struct VertexMaterialColor
+{
+	float r;
+	float g;
+	float b;
+	float a;
+};
+
+struct VertexMaterialSettings
+{
+	VertexMaterialColor Diffuse;
+	VertexMaterialColor Ambient;
+	VertexMaterialColor Specular;
+	VertexMaterialColor Emissive;
+	float Power;
+};
 
 /**
 ** VertexMaterialClass
@@ -64,7 +75,7 @@ class VertexMaterialClass : public RefCountClass
 {
 	W3DMPO_CODE(VertexMaterialClass)
 
-	friend DX8Wrapper;
+	friend class DX8Wrapper;
 
 public:
 	/*
@@ -86,9 +97,9 @@ public:
 	};
 
 	enum ColorSourceType {
-		MATERIAL = 0,				// D3DMCS_MATERIAL - the color source should be taken from the material setting
-		COLOR1,						// D3DMCS_COLOR1 - the color should be taken from per-vertex color array 1 (aka D3DFVF_DIFFUSE)
-		COLOR2,						// D3DMCS_COLOR2 - the color should be taken from per-vertex color array 2 (aka D3DFVF_SPECULAR)
+		MATERIAL = 0,				// color source should be taken from the material setting
+		COLOR1,						// per-vertex diffuse color array
+		COLOR2,						// per-vertex specular color array
 	};
 
 	enum PresetType
@@ -234,17 +245,11 @@ public:
 	void Make_Unique();
 
 private:
-	// We're using the pointer instead of the actual structure
-	// so we don't have to include the d3d header - HY
-#ifdef DYN_MAT8
-	DynD3DMATERIAL8 *			MaterialDyn;
-#else
-	_D3DMATERIAL8 *				MaterialOld;
-#endif
+	VertexMaterialSettings	Material;
 	unsigned int					Flags;
-	unsigned int					AmbientColorSource;
-	unsigned int					EmissiveColorSource;
-	unsigned int					DiffuseColorSource;
+	ColorSourceType				AmbientColorSource;
+	ColorSourceType				EmissiveColorSource;
+	ColorSourceType				DiffuseColorSource;
 	StringClass						Name;
 	TextureMapperClass *	Mapper[MeshBuilderClass::MAX_STAGES];
 	unsigned int					UVSource[MeshBuilderClass::MAX_STAGES];
@@ -255,11 +260,11 @@ private:
 
 private:
 	/*
-	** Apply the render states to D3D
+	** Apply the render states to the active render backend
 	*/
 	void					Apply() const;
 	/*
-	** Apply the render states corresponding to a nullptr vertex material to D3D
+	** Apply the render states corresponding to a nullptr vertex material
 	*/
 	static void			Apply_Null();
 	unsigned long		Compute_CRC() const;

@@ -45,8 +45,6 @@
 #include "WWSaveLoad/definition.h"
 #include "WWSaveLoad/definitionmgr.h"
 #include "WWSaveLoad/definitionclassids.h"
-#include "WWAudio/WWAudio.h"
-#include "WWAudio/AudibleSound.h"
 #include "htree.h"
 #include "hanim.h"
 #include "soundlibrarybridge.h"

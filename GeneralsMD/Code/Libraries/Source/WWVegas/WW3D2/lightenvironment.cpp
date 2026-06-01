@@ -424,4 +424,3 @@ void LightEnvironmentClass::Calculate_Fill_Light()
 	Add_Fill_Light();
 }
 
-
