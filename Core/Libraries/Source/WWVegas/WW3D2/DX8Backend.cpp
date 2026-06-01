@@ -413,6 +413,32 @@ void DX8Backend::Set_Cull_Mode(CullMode mode)
     DX8Wrapper::Set_DX8_Render_State(D3DRS_CULLMODE, static_cast<unsigned>(mode));
 }
 
+// TheSuperHackers @bugfix bobtista 01/06/2026 Forward Override_* state
+// overrides 1:1 to the legacy DX8Wrapper render-state calls. See header
+// for the failure mode they fix.
+void DX8Backend::Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_SRCBLEND,  static_cast<unsigned>(srcBlend));
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_DESTBLEND, static_cast<unsigned>(dstBlend));
+}
+
+void DX8Backend::Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, enable ? TRUE : FALSE);
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAREF,        ref);
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHAFUNC,       static_cast<unsigned>(func));
+}
+
+void DX8Backend::Override_Alpha_Blend_Enable(bool enable)
+{
+    DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE, enable ? TRUE : FALSE);
+}
+
+void DX8Backend::Override_Texcoord_Index(unsigned stage, unsigned uvIndex)
+{
+    DX8Wrapper::Set_DX8_Texture_Stage_State(stage, D3DTSS_TEXCOORDINDEX, uvIndex);
+}
+
 // -- Transforms --------------------------------------------------------------
 
 void DX8Backend::Set_Transform(TransformKind transform, const Matrix4x4 & m)

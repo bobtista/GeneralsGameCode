@@ -108,6 +108,18 @@ public:
     virtual void Set_Texture_Factor(unsigned argb);
     virtual void Set_Cull_Mode(CullMode mode);
 
+    // TheSuperHackers @bugfix bobtista 01/06/2026 Forward Override_* state
+    // overrides 1:1 to the legacy DX8Wrapper render-state calls so the dx8
+    // backend reproduces the pre-refactor rendering. Without these, the
+    // terrain 2-pass blend, road alpha-test, water destalpha trick, and
+    // custom-edging passes all execute with stale render state (e.g. terrain
+    // pass 1 keeps texcoord index 0, ALPHABLENDENABLE off) so terrain tiles
+    // never write to the framebuffer.
+    virtual void Override_Blend(BlendFactor srcBlend, BlendFactor dstBlend) override;
+    virtual void Override_Alpha_Test(bool enable, unsigned ref, CompareFunc func) override;
+    virtual void Override_Alpha_Blend_Enable(bool enable) override;
+    virtual void Override_Texcoord_Index(unsigned stage, unsigned uvIndex) override;
+
     // -- Transforms -----------------------------------------------------------
 
     virtual void Set_Transform(TransformKind transform, const Matrix4x4 & m);
