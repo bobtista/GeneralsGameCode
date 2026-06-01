@@ -39,49 +39,8 @@
 
 #pragma once
 
-#include "WWLib/always.h"
-#include "texture.h"
-#include "dx8wrapper.h"
-#include "ww3dformat.h"
-#include "dx8list.h"
-#include "WWLib/multilist.h"
-
-class DX8TextureManagerClass;
-
-class TextureTrackerClass : public MultiListObjectClass
-{
-public:
-	TextureTrackerClass
-	(
-		unsigned int w,
-		unsigned int h,
-		MipCountType count,
-		TextureBaseClass *tex
-	)
-	: Width(w),
-	  Height(h),
-	  Mip_level_count(count),
-	  Texture(tex)
-	{
-	}
-
-	virtual void Recreate() const =0;
-
-	void Release()
-	{
-		Texture->Set_D3D_Base_Texture(nullptr);
-	}
-
-	TextureBaseClass* Get_Texture() const { return Texture; }
-
-
-protected:
-
-	unsigned int Width;
-	unsigned int Height;
-	MipCountType Mip_level_count;
-	TextureBaseClass *Texture;
-};
+#include "WW3D2/TextureResourceManager.h"
+#include "WW3D2/ww3dformat.h"
 
 class DX8TextureTrackerClass : public TextureTrackerClass
 {
@@ -99,22 +58,8 @@ public:
 	{
 	}
 
-	virtual void Recreate() const override
-	{
-		WWASSERT(Texture->Peek_D3D_Base_Texture()==nullptr);
-		Texture->Poke_Texture
-		(
-			DX8Wrapper::_Create_DX8_Texture
-			(
-				Width,
-				Height,
-				Format,
-				Mip_level_count,
-				D3DPOOL_DEFAULT,
-				RenderTarget
-			)
-		);
-	}
+	virtual void Release() const override;
+	virtual void Recreate() const override;
 
 private:
 	WW3DFormat Format;
@@ -136,36 +81,11 @@ public:
 	{
 	}
 
-	virtual void Recreate() const override
-	{
-		WWASSERT(Texture->Peek_D3D_Base_Texture()==nullptr);
-		Texture->Poke_Texture
-		(
-			DX8Wrapper::_Create_DX8_ZTexture
-			(
-				Width,
-				Height,
-				ZFormat,
-				Mip_level_count,
-				D3DPOOL_DEFAULT
-			)
-		);
-	}
-
+	virtual void Release() const override;
+	virtual void Recreate() const override;
 
 private:
 	WW3DZFormat ZFormat;
 };
 
-
-class DX8TextureManagerClass
-{
-public:
-	static void Shutdown();
-	static void Add(TextureTrackerClass *track);
-	static void Remove(TextureBaseClass *tex);
-	static void Release_Textures();
-	static void Recreate_Textures();
-private:
-	static TextureTrackerList Managed_Textures;
-};
+using DX8TextureManagerClass = TextureResourceManagerClass;

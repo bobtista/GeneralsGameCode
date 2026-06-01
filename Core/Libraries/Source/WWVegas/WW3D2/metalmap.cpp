@@ -306,9 +306,12 @@ void MetalMapManagerClass::Update_Textures()
 			cur_params.AmbientColor.Z * CurrentAmbient.Z);
 		Vector3 white(1.0f, 1.0f, 1.0f);
 
-		SurfaceClass * metal_map_surface = Textures[i]->Get_Surface_Level(0);
-		int pitch;
-		unsigned char *map=(unsigned char *) metal_map_surface->Lock(&pitch);
+		TextureClass::MutableTextureMipView mip = Textures[i]->Begin_Mip_Write(0);
+		if (!mip.Is_Valid()) {
+			continue;
+		}
+
+		unsigned char *map = mip.Data;
 		int idx=0;
 		for (int y = 0; y < METALMAP_SIZE; y++) {
 			for (int x = 0; x < METALMAP_SIZE; x++) {
@@ -336,10 +339,9 @@ void MetalMapManagerClass::Update_Textures()
 				}
 				idx++;
 			}
-			map+=pitch;
+			map+=mip.Pitch;
 		}
-		metal_map_surface->Unlock();
-		REF_PTR_RELEASE(metal_map_surface);
+		Textures[i]->End_Mip_Write(0);
 	}
 }
 
