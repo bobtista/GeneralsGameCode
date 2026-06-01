@@ -652,21 +652,18 @@ void W3DShroud::render(CameraClass *cam)
 
 	// TheSuperHackers @feature bobtista 17/04/2026 Push shroud pixel data to
 	// the bgfx backend so it can mirror the POOL_DEFAULT destination texture.
-	// m_srcTextureData is the persistently-mapped system-memory surface that
-	// the shroud system writes into; we read from it after the CopyRects above
-	// has pushed the same data to the DX8 video-memory copy.
-	if (WW3D::Get_Render_Backend() != nullptr && m_pSrcTexture != nullptr && m_pDstTexture != nullptr)
+	// m_shroudData is the system-memory copy of the visible shroud.
+	if (WW3D::Get_Render_Backend() != nullptr && m_shroudData != nullptr && m_pDstTexture != nullptr)
 	{
-		SurfaceClass::SurfaceDescription srcDesc;
-		m_pSrcTexture->Get_Description(srcDesc);
 		WW3D::Get_Render_Backend()->Capture_Shroud_Texture(
 			m_pDstTexture,
-			m_srcTextureData,
+			m_shroudData,
 			m_dstTextureWidth, m_dstTextureHeight,
 			visEndX - visStartX, visEndY - visStartY,
+			visStartX, visStartY,
 			dstPoint.x, dstPoint.y,
-			m_srcTexturePitch,
-			srcDesc.Format);
+			m_numCellsX * sizeof(UnsignedShort),
+			m_pDstTexture->Get_Texture_Format());
 	}
 
 	REF_PTR_RELEASE (pDestSurface);

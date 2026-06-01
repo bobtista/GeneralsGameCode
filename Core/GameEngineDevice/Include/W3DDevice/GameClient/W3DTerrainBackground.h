@@ -50,8 +50,6 @@
 #include "WWLib/always.h"
 #include "WW3D2/rendobj.h"
 #include "WW3D2/w3d_file.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/shader.h"
 #include "WW3D2/vertmaterial.h"
 #include "Lib/BaseType.h"
@@ -64,7 +62,10 @@
 class MeshClass;
 class WorldHeightMap;
 class TerrainTextureClass;
-
+// TheSuperHackers @build bobtista 01/06/2026 RenderVertexBufferClass and
+// RenderIndexBufferClass are type aliases on the dx8 backend; include the
+// shared header so the aliases match the alias the cpp sees.
+#include "WW3D2/renderbufferclasses.h"
 //-----------------------------------------------------------------------------
 //           Type Defines
 //-----------------------------------------------------------------------------
@@ -94,9 +95,9 @@ protected:
 	enum {CULL_STATUS_UNKNOWN, CULL_STATUS_VISIBLE, CULL_STATUS_INVISIBLE} m_cullStatus;
 	AABoxClass						m_bounds;
 
-	DX8VertexBufferClass	*m_vertexTerrain;	///<Terrain vertex buffer.
+	RenderVertexBufferClass	*m_vertexTerrain;	///<Terrain vertex buffer.
 	Int										m_vertexTerrainSize; ///< Num vertices in bib buffer.
-	DX8IndexBufferClass		*m_indexTerrain;	///<indices defining a triangles for the bib drawing.
+	RenderIndexBufferClass		*m_indexTerrain;	///<indices defining a triangles for the bib drawing.
 	Int							  		m_indexTerrainSize;	///<indices available in m_indexTerrain.
 	TerrainTextureClass *m_terrainTexture;	///<Terrain texture
 	TerrainTextureClass *m_terrainTexture2X;	///<Terrain texture
