@@ -30,7 +30,6 @@
 #include "Lib/BaseType.h"
 #include "WW3D2/camera.h"
 #include "WWLib/simplevec.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/surfaceclass.h"
 #include "Common/MapObject.h"
@@ -42,7 +41,11 @@
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/textureloader.h"
 #include "Common/GlobalData.h"
+#include "GameLogic/GameLogic.h"
 #include "GameLogic/PartitionManager.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 
 
 //-----------------------------------------------------------------------------
@@ -70,6 +73,16 @@
 #define DEFAULT_VISIBLE_TERRAIN 96	//assumed size of visible terrain cells.
 
 //-----------------------------------------------------------------------------
+
+static TextureClass *Create_Writable_Shroud_Texture(unsigned width, unsigned height, WW3DFormat format)
+{
+	SurfaceClass *surface = NEW_REF(SurfaceClass, (width, height, format));
+	TextureClass *texture = MSGNEW("TextureClass") TextureClass(surface, MIP_LEVELS_1);
+	REF_PTR_RELEASE(surface);
+	return texture;
+}
+
+//-----------------------------------------------------------------------------
 W3DShroud::W3DShroud()
 {
 	m_finalFogData=nullptr;
@@ -83,6 +96,10 @@ W3DShroud::W3DShroud()
 	m_boderShroudLevel = (W3DShroudLevel)TheGlobalData->m_shroudAlpha;	//assume border is black
 	m_clearDstTexture = TRUE;	//force clearing of destination texture;
 	m_shroudDirty = TRUE;
+	m_dirtyMinX = 0;
+	m_dirtyMinY = 0;
+	m_dirtyMaxX = 0;
+	m_dirtyMaxY = 0;
 
 	m_cellWidth=DEFAULT_SHROUD_CELL_SIZE;
 	m_cellHeight=DEFAULT_SHROUD_CELL_SIZE;
@@ -237,10 +254,10 @@ Bool W3DShroud::ReAcquireResources()
 		// Since we control the video memory copy, we can do partial updates more efficiently. Or do shift blits.
 #if defined(RTS_DEBUG)
 		if (TheGlobalData && TheGlobalData->m_fogOfWarOn)
-			m_pDstTexture = MSGNEW("TextureClass") TextureClass(m_dstTextureWidth,m_dstTextureHeight,WW3D_FORMAT_A4R4G4B4,MIP_LEVELS_1, TextureClass::POOL_DEFAULT);
+			m_pDstTexture = Create_Writable_Shroud_Texture(m_dstTextureWidth,m_dstTextureHeight,WW3D_FORMAT_A4R4G4B4);
 		else
 #endif
-			m_pDstTexture = MSGNEW("TextureClass") TextureClass(m_dstTextureWidth,m_dstTextureHeight,WW3D_FORMAT_R5G6B5,MIP_LEVELS_1, TextureClass::POOL_DEFAULT);
+			m_pDstTexture = Create_Writable_Shroud_Texture(m_dstTextureWidth,m_dstTextureHeight,WW3D_FORMAT_R5G6B5);
 
 		DEBUG_ASSERTCRASH( m_pDstTexture != nullptr, ("Failed ReAcquire of shroud texture"));
 
@@ -290,6 +307,10 @@ void W3DShroud::setShroudLevel(Int x, Int y, W3DShroudLevel level, Bool textureO
 	if (x < m_numCellsX && y < m_numCellsY)
 	{
 		m_shroudDirty = TRUE;
+		if (x < m_dirtyMinX) { m_dirtyMinX = x; }
+		if (y < m_dirtyMinY) { m_dirtyMinY = y; }
+		if (x >= m_dirtyMaxX) { m_dirtyMaxX = x + 1; }
+		if (y >= m_dirtyMaxY) { m_dirtyMaxY = y + 1; }
 		if (level < TheGlobalData->m_shroudAlpha)
 			level = TheGlobalData->m_shroudAlpha;
 
@@ -688,12 +709,6 @@ void W3DShroud::render(CameraClass *cam)
 		m_pDstTexture->Get_Filter().Set_Min_Filter(m_shroudFilter);
 	}
 
-	//Update video memory texture with sysmem copy
-	SurfaceClass* pDestSurface;
-	{
-		pDestSurface=m_pDstTexture->Get_Surface_Level(0);
-	}
-
 	RECT	srcRect;
 	POINT	dstPoint={1,1};	//first row/column is reserved for border.
 
@@ -712,10 +727,16 @@ void W3DShroud::render(CameraClass *cam)
 		//color in order to keep map border in the state we want.
 		m_clearDstTexture=FALSE;
 
+#if !defined(GGC_RENDER_BACKEND_BGFX)
+		SurfaceClass *pDestSurface=m_pDstTexture->Get_Surface_Level(0);
 		fillBorderShroudData(m_boderShroudLevel, pDestSurface);
+		REF_PTR_RELEASE (pDestSurface);
+#endif
 	}
 
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	{
+		SurfaceClass *pDestSurface=m_pDstTexture->Get_Surface_Level(0);
 		//USE_PERF_TIMER(shroudCopy)
 		// TheSuperHackers @bugfix bobtista 01/06/2026 Upload via IRenderBackend::Upload_Texture_Region:
 		// the destination is POOL_DEFAULT, where SurfaceClass::Copy's LockRect fallback silently
@@ -741,38 +762,95 @@ void W3DShroud::render(CameraClass *cam)
 			m_srcTexturePitch,
 			region_width, region_height,
 			src_desc.Format);
+		REF_PTR_RELEASE (pDestSurface);
 	}
+#endif
 
 	// TheSuperHackers @feature bobtista 17/04/2026 Push shroud pixel data to
 	// the bgfx backend so it can mirror the POOL_DEFAULT destination texture.
-	// m_srcTextureData is the persistently-mapped system-memory surface that
-	// the shroud system writes into; we read from it after the CopyRects above
-	// has pushed the same data to the DX8 video-memory copy.
-	if (g_renderBackend != nullptr && m_pSrcTexture != nullptr && m_pDstTexture != nullptr && m_shroudDirty)
+	// DX8 only needs the surface copy above when the shroud changed. Bgfx cannot
+	// sample the DX8 destination surface, so keep its mirror synchronized with the
+	// current render window even when no individual shroud cell changed this frame.
+	const Bool shouldCaptureForBgfx = g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline();
+	if (g_renderBackend != nullptr && m_pSrcTexture != nullptr && m_pDstTexture != nullptr && (m_shroudDirty || shouldCaptureForBgfx))
 	{
 		m_shroudDirty = FALSE;
+		m_dirtyMinX = m_numCellsX;
+		m_dirtyMinY = m_numCellsY;
+		m_dirtyMaxX = 0;
+		m_dirtyMaxY = 0;
 		SurfaceClass::SurfaceDescription srcDesc;
 		m_pSrcTexture->Get_Description(srcDesc);
+		if (std::getenv("GGC_SHROUD_DIAG") != nullptr)
+		{
+			static int s_shroudDiagCount = 0;
+			int shroudDiagLimit = 32;
+			if (const char *limitEnv = std::getenv("GGC_SHROUD_DIAG_LIMIT"))
+			{
+				const int parsedLimit = std::atoi(limitEnv);
+				if (parsedLimit > 0)
+				{
+					shroudDiagLimit = parsedLimit;
+				}
+			}
+			if (s_shroudDiagCount < shroudDiagLimit)
+			{
+				const unsigned short *pixels = reinterpret_cast<const unsigned short *>(m_srcTextureData);
+				const unsigned pitchPixels = m_srcTexturePitch / sizeof(unsigned short);
+				unsigned checksum = 2166136261u;
+				unsigned minPixel = 0xffff;
+				unsigned maxPixel = 0;
+				unsigned blackCount = 0;
+				unsigned whiteCount = 0;
+				unsigned darkCount = 0;
+				unsigned brightCount = 0;
+				for (Int yy = visStartY; yy < visEndY; ++yy)
+				{
+					for (Int xx = visStartX; xx < visEndX; ++xx)
+					{
+						const unsigned pixel = pixels[yy * pitchPixels + xx];
+						checksum ^= pixel & 0xff;
+						checksum *= 16777619u;
+						checksum ^= (pixel >> 8) & 0xff;
+						checksum *= 16777619u;
+						if (pixel < minPixel) minPixel = pixel;
+						if (pixel > maxPixel) maxPixel = pixel;
+						if (pixel == 0x0000) ++blackCount;
+						if (pixel == 0xffff) ++whiteCount;
+						const unsigned r = (pixel >> 11) & 0x1f;
+						const unsigned g = (pixel >> 5) & 0x3f;
+						const unsigned b = pixel & 0x1f;
+						const unsigned lum = r * 2 + g + b * 2;
+						if (lum < 24) ++darkCount;
+						if (lum > 140) ++brightCount;
+					}
+				}
+				if (FILE *diag = std::fopen("ggc_shroud_diag.txt", "a"))
+				{
+					std::fprintf(diag,
+						"upload=%d frame=%u srcRect=(%d,%d)-(%d,%d) dst=%ux%u srcFmt=%d pitch=%u checksum=0x%08x min=0x%04x max=0x%04x black=%u white=%u dark=%u bright=%u origin=(%.2f,%.2f) cell=(%.2f,%.2f)\n",
+						s_shroudDiagCount,
+						TheGameLogic != nullptr ? TheGameLogic->getFrame() : 0,
+						srcRect.left, srcRect.top, srcRect.right, srcRect.bottom,
+						m_dstTextureWidth, m_dstTextureHeight, static_cast<int>(srcDesc.Format),
+						m_srcTexturePitch, checksum, minPixel, maxPixel, blackCount, whiteCount,
+						darkCount, brightCount, m_drawOriginX, m_drawOriginY,
+						m_cellWidth, m_cellHeight);
+					std::fclose(diag);
+				}
+				++s_shroudDiagCount;
+			}
+		}
 		g_renderBackend->Capture_Shroud_Texture(
 			m_pDstTexture,
 			m_srcTextureData,
 			m_dstTextureWidth, m_dstTextureHeight,
 			visEndX - visStartX, visEndY - visStartY,
+			visStartX, visStartY,
 			dstPoint.x, dstPoint.y,
 			m_srcTexturePitch,
 			srcDesc.Format);
 	}
-	else
-	{
-		static int s_shroudSkipLog = 0;
-		if (s_shroudSkipLog++ < 3)
-		{
-			WWDEBUG_SAY(("[SHROUD CAP] SKIPPED: backend=%p src=%p dst=%p",
-				g_renderBackend, m_pSrcTexture, m_pDstTexture));
-		}
-	}
-
-	REF_PTR_RELEASE (pDestSurface);
 }
 
 #define FOG_INTERPOLATION_RATE	(255.0f/1000.0f)	//take one second to go from black to fully lit.
@@ -839,8 +917,17 @@ void W3DShroudMaterialPassClass::Install_Materials() const
 {
 	if (TheTerrainRenderObject->getShroud())
 	{
- 		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
+		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
+		if (g_renderBackend)
+		{
+			if (m_isTransparentObjectPass)
+			{
+				g_renderBackend->Set_Object_Shroud_Dim_Factor(m_objectShroudDimFactor);
+				g_renderBackend->Set_Object_Shroud_Alpha_Mask_Texture(m_contextTexture);
+			}
+			g_renderBackend->Set_Object_Shroud_Texture_Pass_Active(m_isTransparentObjectPass);
+		}
 	}
 }
 
@@ -848,6 +935,11 @@ void W3DShroudMaterialPassClass::Install_Materials() const
 ///Restore render states that W3D doesn't know about.
 void W3DShroudMaterialPassClass::UnInstall_Materials() const
 {
+	if (g_renderBackend)
+	{
+		g_renderBackend->Set_Object_Shroud_Texture_Pass_Active(false);
+		g_renderBackend->Set_Object_Shroud_Alpha_Mask_Texture(nullptr);
+	}
 	W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 }
 

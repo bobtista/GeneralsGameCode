@@ -56,7 +56,6 @@
 #include "W3DDevice/GameClient/HeightMap.h"
 #include "W3DDevice/GameClient/W3DDynamicLight.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/dx8renderer.h"
@@ -127,8 +126,8 @@ void W3DCustomEdging::loadEdgingsInVertexAndIndexBuffers(WorldHeightMap *pMap, I
 	VertexFormatXYZDUV2 *vb;
 	UnsignedShort *ib;
 	// Lock the buffers.
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexEdging);
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexEdging);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexEdging);
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexEdging);
 	vb=(VertexFormatXYZDUV2*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 
@@ -314,8 +313,13 @@ void W3DCustomEdging::freeEdgingBuffers()
 //=============================================================================
 void W3DCustomEdging::allocateEdgingBuffers()
 {
-	m_vertexEdging=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV2,MAX_EDGE_VERTEX+4,DX8VertexBufferClass::USAGE_DYNAMIC));
-	m_indexEdging=NEW_REF(DX8IndexBufferClass,(2*MAX_EDGE_INDEX+4, DX8IndexBufferClass::USAGE_DYNAMIC));
+	m_vertexEdging=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZDUV2,
+		MAX_EDGE_VERTEX+4,
+		Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+	m_indexEdging=NEW_REF(RenderIndexBufferClass,(
+		2*MAX_EDGE_INDEX+4,
+		Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	m_curNumEdgingVertices=0;
 	m_curNumEdgingIndices=0;
 	//m_edgeTexture = MSGNEW("TextureClass") TextureClass("EdgingTemplate.tga","EdgingTemplate.tga", MIP_LEVELS_3);
@@ -379,8 +383,8 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 	g_renderBackend->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 
 #if 0 // Dumps out unmasked data.
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHABLENDENABLE,false);
-	DX8Wrapper::Set_DX8_Render_State(D3DRS_ALPHATESTENABLE, false);	//test pixels if transparent(clipped) before rendering.
+	g_renderBackend->Set_Alpha_Blend_Enable(false);
+	g_renderBackend->Set_Alpha_Test_Enable(false);	//test pixels if transparent(clipped) before rendering.
 	g_renderBackend->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 #endif
 	g_renderBackend->Set_Texture(1, nullptr);
@@ -391,18 +395,7 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 		g_renderBackend->Apply_Render_State_Changes();
 		g_renderBackend->Set_Texture(0,cloudTexture);
 		g_renderBackend->Apply_Render_State_Changes();
-#if 1
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAARG1,   D3DTA_CURRENT );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 0, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG1 );
-
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG1, D3DTA_CURRENT );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLORARG2, D3DTA_TEXTURE );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_COLOROP,   D3DTOP_SELECTARG1 );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAARG1,   D3DTA_CURRENT );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAARG2,   D3DTA_TEXTURE );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_ALPHAOP,   D3DTOP_SELECTARG2 );
-		DX8Wrapper::Set_DX8_Texture_Stage_State( 1, D3DTSS_TEXCOORDINDEX, 1 );
-#endif
+		g_renderBackend->Configure_Custom_Edging_Cloud_Texture_Stages();
 		g_renderBackend->Override_Alpha_Test(true, 0x80, RB_CMP_NOT_EQUAL);
 		g_renderBackend->Override_Blend(RB_BLEND_DEST_COLOR, RB_BLEND_ZERO);
 		g_renderBackend->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
@@ -419,5 +412,3 @@ void W3DCustomEdging::drawEdging(WorldHeightMap *pMap, Int minX, Int maxX, Int m
 		g_renderBackend->Draw_Triangles(	m_curEdgingIndexOffset, m_curNumEdgingIndices/3, 0,	m_curNumEdgingVertices);
 	}
 }
-
-
