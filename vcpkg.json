@@ -5,5 +5,9 @@
     "ffmpeg",
     "sdl3",
     "sdl3-image"
+  ],
+  "overrides": [
+    { "name": "sdl3", "version": "3.4.10" },
+    { "name": "sdl3-image", "version": "3.4.4" }
   ]
 }
