@@ -16,16 +16,15 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 10/04/2026 Backend-agnostic access point
-// for the active IRenderBackend instance. Engine-side code should include
-// this header (not IRenderBackend.h or DX8Backend.h directly) to use the
-// render backend.
-
 #pragma once
 
-#include "IRenderBackend.h"
-#include "ww3d.h"
+enum {
+	BUFFER_TYPE_STATIC,
+	BUFFER_TYPE_SORTING,
+	BUFFER_TYPE_DYNAMIC,
+	BUFFER_TYPE_DYNAMIC_SORTING,
+	BUFFER_TYPE_INVALID
+};
 
-// The active rendering backend is owned by WW3D. It is created by
-// WW3D::Init and destroyed by WW3D::Shutdown, so it is never null
-// between those two calls.
+constexpr unsigned BUFFER_TYPE_DX8 = BUFFER_TYPE_STATIC;
+constexpr unsigned BUFFER_TYPE_DYNAMIC_DX8 = BUFFER_TYPE_DYNAMIC;
