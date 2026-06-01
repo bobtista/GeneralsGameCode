@@ -32,19 +32,69 @@
 #include "GameLogic/GhostObject.h"
 #include "GameLogic/PartitionManager.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+
 namespace rts
 {
+
+static Bool shouldLogPlayerContext()
+{
+	return std::getenv("GGC_PLAYER_CONTEXT_DIAG") != nullptr;
+}
+
+static int playerIndexOrMinusOne(Player *player)
+{
+	return player != nullptr ? player->getPlayerIndex() : -1;
+}
+
+static const char *playerSideOrNull(Player *player)
+{
+	return player != nullptr ? player->getSide().str() : "<null>";
+}
+
+static void logPlayerContext(const char *event, Player *subject)
+{
+	if (!shouldLogPlayerContext())
+		return;
+
+	Player *local = ThePlayerList != nullptr ? ThePlayerList->getLocalPlayer() : nullptr;
+	Player *observed = TheControlBar != nullptr ? TheControlBar->getObservedPlayer() : nullptr;
+	Player *lookAt = TheControlBar != nullptr ? TheControlBar->getObserverLookAtPlayer() : nullptr;
+	Player *effective = observed != nullptr ? observed : local;
+
+	if (FILE *diag = std::fopen("ggc_player_context_diag.txt", "a"))
+	{
+		std::fprintf(diag,
+			"%s frame=%u subject=%d/%s local=%d/%s observed=%d/%s lookAt=%d/%s effective=%d/%s\n",
+			event,
+			TheGameLogic != nullptr ? TheGameLogic->getFrame() : 0,
+			playerIndexOrMinusOne(subject),
+			playerSideOrNull(subject),
+			playerIndexOrMinusOne(local),
+			playerSideOrNull(local),
+			playerIndexOrMinusOne(observed),
+			playerSideOrNull(observed),
+			playerIndexOrMinusOne(lookAt),
+			playerSideOrNull(lookAt),
+			playerIndexOrMinusOne(effective),
+			playerSideOrNull(effective));
+		std::fclose(diag);
+	}
+}
 
 namespace detail
 {
 static void changePlayerCommon(Player* player)
 {
+	logPlayerContext("changePlayerCommon:before", player);
 	TheParticleSystemManager->setLocalPlayerIndex(player->getPlayerIndex());
 	ThePartitionManager->refreshShroudForLocalPlayer();
 	TheGhostObjectManager->setLocalPlayerIndex(player->getPlayerIndex());
 	TheGameClient->updateFakeDrawables();
 	TheRadar->refreshObjects();
 	TheInGameUI->deselectAllDrawables();
+	logPlayerContext("changePlayerCommon:after", player);
 }
 
 } // namespace detail
@@ -73,6 +123,12 @@ Player* getObservedOrLocalPlayer()
 	{
 		DEBUG_ASSERTCRASH(ThePlayerList != nullptr, ("ThePlayerList is null"));
 		player = ThePlayerList->getLocalPlayer();
+	}
+	static Player *lastPlayer = nullptr;
+	if (player != lastPlayer)
+	{
+		logPlayerContext("effectivePlayerChanged", player);
+		lastPlayer = player;
 	}
 	return player;
 }
@@ -103,6 +159,7 @@ void changeLocalPlayer(Player* player)
 {
 	DEBUG_ASSERTCRASH(player != nullptr, ("Player is null"));
 
+	logPlayerContext("changeLocalPlayer:before", player);
 	ThePlayerList->setLocalPlayer(player);
 	TheControlBar->setObserverLookAtPlayer(nullptr);
 	TheControlBar->setObservedPlayer(nullptr);
@@ -110,10 +167,12 @@ void changeLocalPlayer(Player* player)
 	TheControlBar->initSpecialPowershortcutBar(player);
 
 	detail::changePlayerCommon(player);
+	logPlayerContext("changeLocalPlayer:after", player);
 }
 
 void changeObservedPlayer(Player* player)
 {
+	logPlayerContext("changeObservedPlayer:before", player);
 	TheControlBar->setObserverLookAtPlayer(player);
 
 	const Bool canBeginObservePlayer = TheGlobalData->m_enablePlayerObserver && TheGhostObjectManager->trackAllPlayers();
@@ -128,6 +187,7 @@ void changeObservedPlayer(Player* player)
 			becomePlayer = ThePlayerList->findPlayerWithNameKey(TheNameKeyGenerator->nameToKey("ReplayObserver"));
 		detail::changePlayerCommon(becomePlayer);
 	}
+	logPlayerContext("changeObservedPlayer:after", player);
 }
 
 } // namespace rts
