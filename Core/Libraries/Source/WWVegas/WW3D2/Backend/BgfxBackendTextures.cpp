@@ -1752,10 +1752,12 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
     static TextureClass * s_lastShroudDst = nullptr;
     static unsigned s_lastShroudW = 0;
     static unsigned s_lastShroudH = 0;
+    bool forceFullUpload = false;
     if (dst_texture != s_lastShroudDst
         || dst_width != s_lastShroudW
         || dst_height != s_lastShroudH)
     {
+        forceFullUpload = true;
         if (s_lastShroudDst != nullptr && s_lastShroudDst != dst_texture)
         {
             auto oldIt = g_caches.texture.find(s_lastShroudDst);
@@ -1815,6 +1817,7 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
             WWDEBUG_SAY(("[BgfxBackend] Shroud texture CREATE FAILED: dst=%ux%u fmt=%d",
                          dst_width, dst_height, static_cast<int>(format)));
         }
+        forceFullUpload = true;
     }
 
     bgfx::TextureHandle h = g_caches.texture[dst_texture];
@@ -1835,48 +1838,81 @@ void BgfxBackend::Capture_Shroud_Texture(TextureClass * dst_texture,
         return;
     }
     static std::vector<uint8_t> s_prevShroudData;
+    static std::vector<uint8_t> s_fullShroudImage;
     const unsigned srcBytes = src_height * pitch;
-    if (s_prevShroudData.size() == srcBytes
-        && std::memcmp(s_prevShroudData.data(),
-                       static_cast<const uint8_t *>(pixel_data) + src_y * pitch,
-                       srcBytes) == 0)
+    const unsigned rowBytes = src_width * bpp;
+    const uint8_t * srcBase = static_cast<const uint8_t *>(pixel_data) + src_y * pitch;
+
+    if (!forceFullUpload
+        && s_prevShroudData.size() == srcBytes
+        && std::memcmp(s_prevShroudData.data(), srcBase, srcBytes) == 0)
     {
         return;
     }
-    s_prevShroudData.resize(srcBytes);
-    std::memcpy(s_prevShroudData.data(),
-                static_cast<const uint8_t *>(pixel_data) + src_y * pitch,
-                srcBytes);
 
-    const bgfx::Memory * mem = bgfx::alloc(fullSize);
-    std::memset(mem->data, 0xFF, fullSize);
-    const unsigned rowBytes = src_width * bpp;
+    if (s_fullShroudImage.size() != fullSize || forceFullUpload)
+    {
+        s_fullShroudImage.assign(fullSize, 0xFF);
+    }
+
+    unsigned dirtyRowMin = src_height;
+    unsigned dirtyRowMax = 0;
+    const bool hasPrev = s_prevShroudData.size() == srcBytes;
     for (unsigned row = 0; row < src_height; ++row)
     {
+        const unsigned srcRowOff = row * pitch + src_x * bpp;
+        const unsigned cacheRowOff = row * pitch;
+        bool rowDirty = forceFullUpload
+            || !hasPrev
+            || std::memcmp(s_prevShroudData.data() + cacheRowOff,
+                           srcBase + cacheRowOff, rowBytes) != 0;
         const unsigned dstOffset = ((dst_y + row) * dst_width + dst_x) * bpp;
-        const unsigned srcOffset = (src_y + row) * pitch + src_x * bpp;
-        const unsigned srcSize = (src_y + src_height) * pitch;
-        if (dstOffset + rowBytes <= fullSize && srcOffset + rowBytes <= srcSize)
+        if (rowDirty && dstOffset + rowBytes <= fullSize)
         {
-            std::memcpy(mem->data + dstOffset, static_cast<const uint8_t *>(pixel_data) + srcOffset, rowBytes);
+            std::memcpy(s_fullShroudImage.data() + dstOffset,
+                        static_cast<const uint8_t *>(pixel_data) + src_y * pitch + srcRowOff,
+                        rowBytes);
+            if (row < dirtyRowMin) { dirtyRowMin = row; }
+            if (row >= dirtyRowMax) { dirtyRowMax = row + 1; }
         }
     }
-    // Keep the CPU-owned texture snapshot in sync with the bgfx shroud upload.
-    // Otherwise the generic texture cache can re-upload the blank construction
-    // snapshot and black out the terrain/object shroud pass.
+
+    s_prevShroudData.resize(srcBytes);
+    std::memcpy(s_prevShroudData.data(), srcBase, srcBytes);
+
     SurfaceClass::SurfaceImageData shroudImage;
     shroudImage.Width = dst_width;
     shroudImage.Height = dst_height;
     shroudImage.Pitch = dst_width * bpp;
     shroudImage.Format = format;
-    shroudImage.Data.resize(fullSize);
-    std::memcpy(shroudImage.Data.data(), mem->data, fullSize);
+    shroudImage.Data.assign(s_fullShroudImage.begin(), s_fullShroudImage.end());
     dst_texture->Update_Surface_Level_From_Surface(0, shroudImage);
 
+    if (forceFullUpload)
+    {
+        dirtyRowMin = 0;
+        dirtyRowMax = dst_height;
+    }
+    else if (dirtyRowMin >= dirtyRowMax)
+    {
+        dirtyRowMin = 0;
+        dirtyRowMax = src_height;
+    }
+    const unsigned uploadY = forceFullUpload ? 0 : dst_y + dirtyRowMin;
+    const unsigned uploadH = forceFullUpload ? dst_height : dirtyRowMax - dirtyRowMin;
+    const unsigned uploadBytes = uploadH * dst_width * bpp;
+    const bgfx::Memory * mem = bgfx::alloc(uploadBytes);
+    for (unsigned row = 0; row < uploadH; ++row)
+    {
+        const unsigned imgOff = ((uploadY + row) * dst_width) * bpp;
+        std::memcpy(mem->data + row * dst_width * bpp,
+                    s_fullShroudImage.data() + imgOff,
+                    dst_width * bpp);
+    }
     bgfx::updateTexture2D(h, 0, 0,
-                          0, 0,
+                          0, static_cast<uint16_t>(uploadY),
                           static_cast<uint16_t>(dst_width),
-                          static_cast<uint16_t>(dst_height),
+                          static_cast<uint16_t>(uploadH),
                           mem, static_cast<uint16_t>(dst_width * bpp));
     g_caches.textureInfo[dst_texture] = {
         dst_texture->Get_CPU_Texture_Revision(),
