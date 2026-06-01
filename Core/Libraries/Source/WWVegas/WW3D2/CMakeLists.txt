@@ -269,6 +269,21 @@ if(GGC_RENDER_BACKEND STREQUAL "dx8")
     )
 endif()
 
+# TheSuperHackers @feature bobtista 01/06/2026 Backend-agnostic RenderDoc
+# capture trigger, compiled for every backend so the env var works in both
+# dx8 and bgfx builds.
+target_sources(corei_ww3d2 INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/RenderDocTrigger.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/RenderDocTrigger.h
+)
+
+# TheSuperHackers @feature bobtista 01/06/2026 Backend-agnostic draw-call
+# logger. Writes CSV per frame when GGC_DRAWLOG_AFTER+GGC_DRAWLOG_PATH set.
+target_sources(corei_ww3d2 INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/DrawCallLog.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/DrawCallLog.h
+)
+
 # TheSuperHackers @refactor bobtista 10/04/2026 Conditionally include the
 # active render backend's source files. See cmake/render-backend.cmake.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")

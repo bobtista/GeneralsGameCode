@@ -672,12 +672,17 @@ Int parsePreload( char *args[], int num )
 #endif
 
 
-// TheSuperHackers @feature bobtista 17/04/2026 Load a save game file from the command line
+// TheSuperHackers @feature bobtista 17/04/2026 Load a save game file from the command line.
+// TheSuperHackers @tweak bobtista 01/06/2026 also skip intro/sizzle/shellmap so frame counting
+// starts near gameplay — needed for deterministic side-by-side diagnostic captures.
 Int parseLoadSave(char *args[], int num)
 {
 	if (num > 1)
 	{
 		TheWritableGlobalData->m_loadSaveGame = args[1];
+		TheWritableGlobalData->m_shellMapOn = FALSE;
+		TheWritableGlobalData->m_playIntro = FALSE;
+		TheWritableGlobalData->m_playSizzle = FALSE;
 	}
 	return 2;
 }
