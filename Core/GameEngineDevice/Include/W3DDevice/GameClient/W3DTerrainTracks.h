@@ -37,9 +37,10 @@
 
 class TerrainTracksRenderObjClassSystem;
 class Drawable;
-class RenderVertexBufferClass;
-class RenderIndexBufferClass;
-
+// TheSuperHackers @build bobtista 01/06/2026 RenderVertexBufferClass and
+// RenderIndexBufferClass are type aliases on the dx8 backend; include the
+// shared header so the aliases match the alias the cpp sees.
+#include "WW3D2/renderbufferclasses.h"
 /// Custom render object that draws tracks on the terrain.
 /**
 This render object handles drawing tracks left by objects moving on the terrain.
