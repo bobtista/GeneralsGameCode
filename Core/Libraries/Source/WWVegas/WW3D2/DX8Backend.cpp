@@ -26,6 +26,8 @@
 #include "dx8fvf.h"
 #include "texturecompatibilityinterop.h"
 #include "dx8wrapper.h"
+#include "DrawCallLog.h"
+#include "RenderDocTrigger.h"
 #include "dx8formatconv.h"
 #include "FixedFunctionState.h"
 #include "vector3.h"
@@ -36,8 +38,10 @@
 #include "surfaceclass.h"
 #include "texture.h"
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <d3dx8core.h>
-#include <string.h>
 
 namespace
 {
@@ -598,8 +602,127 @@ void DX8Backend::Begin_Scene()
 {
 }
 
+namespace
+{
+
+// TheSuperHackers @feature bobtista 01/06/2026 In-engine back-buffer screenshot for dx8 via
+// GGC_DX8_SCREENSHOT_AFTER/INTERVAL/PATH (persistent user env vars), mirroring the bgfx
+// mechanism; GDI capture cannot see D3D8 surfaces, so this writes a BMP from the back buffer.
+struct Dx8ScreenshotState
+{
+    int targetFrame = -1;
+    int interval = 0;
+    char basePath[512] = {};
+    bool envResolved = false;
+    int frameIndex = 0;
+};
+
+Dx8ScreenshotState & Get_Dx8_Screenshot_State()
+{
+    static Dx8ScreenshotState s;
+    return s;
+}
+
+void Resolve_Dx8_Screenshot_Env()
+{
+    Dx8ScreenshotState & s = Get_Dx8_Screenshot_State();
+    if (s.envResolved) {
+        return;
+    }
+    s.envResolved = true;
+    if (const char * a = std::getenv("GGC_DX8_SCREENSHOT_AFTER")) {
+        s.targetFrame = std::atoi(a);
+    }
+    if (const char * i = std::getenv("GGC_DX8_SCREENSHOT_INTERVAL")) {
+        s.interval = std::atoi(i);
+    }
+    if (const char * p = std::getenv("GGC_DX8_SCREENSHOT_PATH")) {
+        std::strncpy(s.basePath, p, sizeof(s.basePath) - 1);
+    }
+}
+
+bool Should_Take_Dx8_Screenshot()
+{
+    Dx8ScreenshotState & s = Get_Dx8_Screenshot_State();
+    if (s.targetFrame <= 0 || s.basePath[0] == '\0') {
+        return false;
+    }
+    if (s.frameIndex == s.targetFrame) {
+        return true;
+    }
+    if (s.interval > 0
+        && s.frameIndex > s.targetFrame
+        && ((s.frameIndex - s.targetFrame) % s.interval) == 0) {
+        return true;
+    }
+    return false;
+}
+
+// Write a 32-bit top-down BGRA bitmap. Treats the source as BGRA8 regardless
+// of the reported format — D3D8's swap buffer is normally A8R8G8B8 (which is
+// little-endian BGRA) so this is correct for the common case. Returns true on
+// successful write.
+bool Save_Bgra_Bmp(const char * path, unsigned width, unsigned height,
+                   unsigned src_pitch, const std::uint8_t * src_bytes)
+{
+    FILE * f = std::fopen(path, "wb");
+    if (f == nullptr) {
+        return false;
+    }
+    const std::uint32_t row_bytes = width * 4;
+    const std::uint32_t pixel_data_bytes = row_bytes * height;
+    const std::uint32_t bf_size = 14 + 40 + pixel_data_bytes;
+
+    // BITMAPFILEHEADER
+    std::uint8_t header[14] = {};
+    header[0] = 'B'; header[1] = 'M';
+    header[2] = static_cast<std::uint8_t>(bf_size & 0xFF);
+    header[3] = static_cast<std::uint8_t>((bf_size >> 8) & 0xFF);
+    header[4] = static_cast<std::uint8_t>((bf_size >> 16) & 0xFF);
+    header[5] = static_cast<std::uint8_t>((bf_size >> 24) & 0xFF);
+    header[10] = 14 + 40;  // offset to pixel data
+    std::fwrite(header, 1, sizeof(header), f);
+
+    // BITMAPINFOHEADER (40 bytes), height NEGATIVE so it's top-down
+    std::uint8_t info[40] = {};
+    info[0] = 40;
+    info[4] = static_cast<std::uint8_t>(width & 0xFF);
+    info[5] = static_cast<std::uint8_t>((width >> 8) & 0xFF);
+    info[6] = static_cast<std::uint8_t>((width >> 16) & 0xFF);
+    info[7] = static_cast<std::uint8_t>((width >> 24) & 0xFF);
+    const std::int32_t neg_h = -static_cast<std::int32_t>(height);
+    std::memcpy(info + 8, &neg_h, 4);
+    info[12] = 1; // planes
+    info[14] = 32; // bits per pixel
+    std::memcpy(info + 20, &pixel_data_bytes, 4);
+    std::fwrite(info, 1, sizeof(info), f);
+
+    for (unsigned row = 0; row < height; ++row) {
+        std::fwrite(src_bytes + static_cast<size_t>(row) * src_pitch, 1, row_bytes, f);
+    }
+    std::fclose(f);
+    return true;
+}
+
+} // namespace
+
 void DX8Backend::End_Scene(bool /*flip_frame*/)
 {
+    DrawCallLog_End_Frame();
+    RenderDoc_Maybe_Trigger_Capture();
+
+    Resolve_Dx8_Screenshot_Env();
+    if (Should_Take_Dx8_Screenshot()) {
+        RenderBackendImage img;
+        if (Capture_Back_Buffer_Image(0, img) && img.Is_Valid()) {
+            Dx8ScreenshotState & s = Get_Dx8_Screenshot_State();
+            char path[640];
+            std::snprintf(path, sizeof(path), "%s.%06d.bmp",
+                s.basePath, s.frameIndex);
+            Save_Bgra_Bmp(path, img.Width, img.Height, img.Pitch, img.Bytes.data());
+        }
+    }
+    ++Get_Dx8_Screenshot_State().frameIndex;
 }
 
 void DX8Backend::Flip_To_Primary()
