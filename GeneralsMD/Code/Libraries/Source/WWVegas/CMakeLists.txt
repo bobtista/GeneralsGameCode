@@ -5,6 +5,12 @@ target_link_libraries(z_wwcommon INTERFACE
     core_wwcommon
 )
 
+if(NOT GGC_BGFX_STANDALONE)
+    target_link_libraries(z_wwcommon INTERFACE
+        d3d8lib
+    )
+endif()
+
 target_include_directories(z_wwcommon INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )

@@ -45,7 +45,7 @@ foreach(_t bgfx bx bimg shaderc bimg_decode bimg_encode)
     endif()
 endforeach()
 
-# TheSuperHackers @refactor bobtista 11/04/2026 shader compilation.
+# TheSuperHackers @refactor bobtista 11/04/2026 bgfx shader compilation.
 # bgfx shaders are authored in ".sc" files (GLSL-ish with bgfx pragmas) and
 # compiled by the shaderc tool (built as part of bgfx.cmake) into per-platform
 # bytecode. The --bin2c option emits a C header with the compiled bytecode as
@@ -61,7 +61,8 @@ endforeach()
 # generated headers (from either the corei_ww3d2 INTERFACE chain or directly).
 #
 # The generated header ends up at ${CMAKE_BINARY_DIR}/ggc_bgfx_shaders/
-# with the C array named from the basename, e.g. vs_passthrough_dx11.
+# with the C array named from the basename, e.g. vs_passthrough_dx11 on
+# Windows or vs_passthrough_metal / vs_passthrough_spirv elsewhere.
 #
 # The varying.def.sc file is resolved relative to the .sc file's directory
 # and must exist there.
