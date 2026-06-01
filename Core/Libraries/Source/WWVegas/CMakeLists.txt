@@ -2,11 +2,16 @@
 add_library(core_wwcommon INTERFACE)
 
 target_link_libraries(core_wwcommon INTERFACE
-    d3d8lib
     deps_dbghelp
     deps_usp10
     stlport
 )
+
+if(NOT GGC_BGFX_STANDALONE)
+    target_link_libraries(core_wwcommon INTERFACE
+        d3d8lib
+    )
+endif()
 
 # TheSuperHackers @build bobtista 29/04/2026 deps_miles is Win-only (the
 # Miles Sound System runtime loader). On non-Win we use OpenAL instead.

@@ -1,11 +1,11 @@
 # cmake/render-backend.cmake
 #
 # TheSuperHackers @refactor bobtista 10/04/2026 Selects the rendering backend
-# for WW3D2 at configure time. See Core/Libraries/Source/WWVegas/WW3D2/RENDER_BACKEND.md
+# for WW3D2 at configure time.
 #
 # Valid values:
-#   dx8      - existing DirectX 8 backend. Default. VC6-compatible. Windows only.
-#   bgfx     - bgfx abstraction over DX11/Vulkan/Metal/GL. Cross-platform. MSVC 2022+.
+#   dx8  - existing DirectX 8 backend. Default. VC6-compatible. Windows only.
+#   bgfx - bgfx abstraction over DX11/Vulkan/Metal/GL. Cross-platform. MSVC 2022+.
 #
 # When set to bgfx the dependency module is included from cmake/bgfx.cmake.
 # It is not fetched when dx8 is selected.
@@ -37,8 +37,7 @@ if(NOT GGC_RENDER_BACKEND STREQUAL "dx8")
     if(NOT WIN32)
         message(WARNING
             "GGC_RENDER_BACKEND=${GGC_RENDER_BACKEND} is being configured on a non-Windows host. "
-            "Cross-platform build targets will land later; for now expect compile failures "
-            "outside Windows.")
+            "Cross-platform support is still landing; expect compile failures outside Windows.")
     endif()
 endif()
 
@@ -49,6 +48,20 @@ if(GGC_RENDER_BACKEND STREQUAL "dx8")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_DX8=1")
 elseif(GGC_RENDER_BACKEND STREQUAL "bgfx")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_BGFX=1")
+endif()
+
+# TheSuperHackers @refactor bobtista 21/04/2026 Standalone bgfx build.
+# When ON, the DX8 reference popup and real d3d8/d3dx8 runtime links are
+# disabled. This keeps the transitional DX8Wrapper state model alive without
+# creating a fake D3D device.
+option(GGC_BGFX_STANDALONE "bgfx without the DX8 reference popup or real D3D8 runtime" OFF)
+if(GGC_BGFX_STANDALONE AND NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
+    message(FATAL_ERROR
+        "GGC_BGFX_STANDALONE=ON requires GGC_RENDER_BACKEND=bgfx.")
+endif()
+if(GGC_BGFX_STANDALONE)
+    add_compile_definitions(GGC_BGFX_STANDALONE=1)
+    message(STATUS "Bgfx standalone mode enabled - ref popup disabled.")
 endif()
 
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
