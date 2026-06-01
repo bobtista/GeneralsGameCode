@@ -36,6 +36,9 @@
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////
 #include <assert.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <map>
 #include <utility>
 #include <vector>
@@ -45,16 +48,13 @@
 #include "GameClient/View.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
-#include "WW3D2/dx8wrapper.h"
-#include "WW3D2/dx8vertexbuffer.h"
-#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 #include "Lib/BaseType.h"
 #include "W3DDevice/GameClient/HeightMap.h"
-#include "d3dx8math.h"
 #include "Common/GlobalData.h"
 #include "Common/DrawModule.h"
 #include "W3DDevice/GameClient/W3DVolumetricShadow.h"
@@ -63,6 +63,7 @@
 #include "GameLogic/TerrainLogic.h"
 #include "WW3D2/dx8caps.h"
 #include "GameClient/Drawable.h"
+#include "Common/ThingTemplate.h"
 #ifdef USE_WWSHADE
 #include "wwshade/shdmesh.h"
 #include "wwshade/shdsubmesh.h"
@@ -95,11 +96,107 @@ const Real cosAngleToCare = cos ((0.2 * PI) / 180.0);	//1.5 degree difference
 //#define SV_DEBUG
 //#define SV_DEBUG_BOUNDS
 
+static bool ShadowPathDiagEnabled()
+{
+	return std::getenv("GGC_SHADOW_PATH_DIAG") != nullptr;
+}
+
+static const char *DrawableTemplateName(const Drawable *draw)
+{
+	return draw != nullptr && draw->getTemplate() != nullptr
+		? draw->getTemplate()->getName().str()
+		: "(null-drawable)";
+}
+
+static void LogVolumetricShadowPath(const char *event,
+	RenderObjClass *robj,
+	Drawable *draw,
+	const Shadow::ShadowTypeInfo *shadowInfo,
+	int renderedCount,
+	const char *reason)
+{
+	if (!ShadowPathDiagEnabled())
+		return;
+
+	if (FILE *diag = std::fopen("ggc_shadow_path_diag.txt", "a"))
+	{
+		std::fprintf(diag,
+			"%s volume requestedMask=0x%x robj=%s drawable=%u template=%s rendered=%d useVolumes=%d hasStencil=%d shadowSize=(%.3f,%.3f) reason=%s\n",
+			event,
+			shadowInfo != nullptr ? static_cast<unsigned>(shadowInfo->m_type) : 0,
+			robj != nullptr && robj->Get_Name() != nullptr ? robj->Get_Name() : "(null-robj)",
+			draw != nullptr ? static_cast<unsigned>(draw->getID()) : 0,
+			DrawableTemplateName(draw),
+			renderedCount,
+			TheGlobalData != nullptr && TheGlobalData->m_useShadowVolumes ? 1 : 0,
+			g_renderBackend != nullptr && g_renderBackend->Has_Stencil() ? 1 : 0,
+			shadowInfo != nullptr ? shadowInfo->m_sizeX : 0.0f,
+			shadowInfo != nullptr ? shadowInfo->m_sizeY : 0.0f,
+			reason != nullptr ? reason : "");
+		std::fclose(diag);
+	}
+}
+
+static bool ShouldSkipBgfxStaticVolumeShadow(const Drawable *draw)
+{
+	if (std::getenv("GGC_BGFX_SKIP_STATIC_VOLUME_SHADOWS") == nullptr)
+		return false;
+	if (g_renderBackend == nullptr)
+		return false;
+
+	const ThingTemplate *tmplate = draw != nullptr ? draw->getTemplate() : nullptr;
+	if (tmplate == nullptr)
+		return false;
+
+	if (std::getenv("GGC_BGFX_SKIP_AIRCRAFT_VOLUME_SHADOWS") != nullptr
+		&& tmplate->isKindOf(KINDOF_AIRCRAFT))
+		return true;
+	if (std::getenv("GGC_BGFX_SKIP_VEHICLE_VOLUME_SHADOWS") != nullptr
+		&& tmplate->isKindOf(KINDOF_VEHICLE))
+		return true;
+	if (std::getenv("GGC_BGFX_SKIP_BOAT_VOLUME_SHADOWS") != nullptr
+		&& tmplate->isKindOf(KINDOF_BOAT))
+		return true;
+
+	return !tmplate->isKindOf(KINDOF_VEHICLE)
+		&& !tmplate->isKindOf(KINDOF_AIRCRAFT)
+		&& !tmplate->isKindOf(KINDOF_BOAT);
+}
+
+static bool BgfxUseShadowVolumeZFail()
+{
+	if (g_renderBackend == nullptr || !g_renderBackend->Needs_Closed_Shadow_Volumes())
+		return false;
+
+	const char *algo = std::getenv("GGC_BGFX_STENCIL_ALGO");
+	return algo != nullptr
+		&& (std::strcmp(algo, "zfail") == 0
+			|| std::strcmp(algo, "zfail-swap") == 0);
+}
+
+static bool BgfxSwapShadowVolumeZFailOps()
+{
+	const char *algo = std::getenv("GGC_BGFX_STENCIL_ALGO");
+	return algo != nullptr
+		&& (std::strcmp(algo, "zfail-swap") == 0
+			|| std::strcmp(algo, "zpass-swap") == 0);
+}
+
+static bool BgfxFlipShadowVolumeCapWinding()
+{
+	return std::getenv("GGC_BGFX_FLIP_CAP_WINDING") != nullptr;
+}
+
+static bool BgfxUseSaturatedShadowVolumeIncrement()
+{
+	return std::getenv("GGC_BGFX_STENCIL_INCR_SAT") != nullptr;
+}
+
 struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 {
 		float x,y,z;
 };
-#define SHADOW_STATIC_VOLUME_FVF	D3DFVF_XYZ
+#define SHADOW_STATIC_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZ
 
 #ifdef SV_DEBUG	//in debug mode, dynamic shadows are rendered with random diffuse color
 	struct SHADOW_DYNAMIC_VOLUME_VERTEX	//vertex structure passed to D3D
@@ -107,29 +204,46 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 			float x,y,z;
 			DWORD diffuse;
 	};
-	#define SHADOW_DYNAMIC_VOLUME_FVF	D3DFVF_XYZ|D3DFVF_DIFFUSE
+	#define SHADOW_DYNAMIC_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZD
 #else
 	typedef struct SHADOW_STATIC_VOLUME_VERTEX	SHADOW_DYNAMIC_VOLUME_VERTEX;
-	#define SHADOW_DYNAMIC_VOLUME_FVF	D3DFVF_XYZ
+	#define SHADOW_DYNAMIC_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZ
 #endif
 
-// TheSuperHackers @refactor bobtista 15/04/2026 wrap the
-// dynamic shadow volume buffers in W3D classes so g_renderBackend->
-// Set_Vertex_Buffer / Set_Index_Buffer / Draw_Triangles can route them
-// through the bgfx capture hooks. Lock semantics preserved via the new
-// flags parameter on AppendLockClass (D3DLOCK_NOOVERWRITE for partial
-// appends, D3DLOCK_DISCARD via WriteLockClass on wrap-around).
-// Forward declaration (implementation further down in the file).
+// TheSuperHackers @refactor bobtista 15/04/2026 Wrap the dynamic shadow volume buffers in
+// W3D classes so g_renderBackend draws route through the bgfx capture hooks. Forward declaration.
 static int EarClip2D(const float * xy, int N, short * out_indices);
 
-DX8VertexBufferClass * shadowVertexBuffer = nullptr;
-DX8IndexBufferClass  * shadowIndexBuffer  = nullptr;
+RenderVertexBufferClass * shadowVertexBuffer = nullptr;
+RenderIndexBufferClass  * shadowIndexBuffer  = nullptr;
 int nShadowVertsInBuf=0;	//model vetices in vertex buffer
 int nShadowStartBatchVertex=0;
 int nShadowIndicesInBuf=0;	//model vetices in vertex buffer
 int nShadowStartBatchIndex=0;
 int SHADOW_VERTEX_SIZE=4096;
 int SHADOW_INDEX_SIZE=8192;
+
+static int ShadowDynamicVertexCapacity()
+{
+#if defined(GGC_BGFX_STANDALONE)
+	return 32768;
+#else
+	if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
+		return 32768;
+	return SHADOW_VERTEX_SIZE;
+#endif
+}
+
+static int ShadowDynamicIndexCapacity()
+{
+#if defined(GGC_BGFX_STANDALONE)
+	return 65535;
+#else
+	if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
+		return 65535;
+	return SHADOW_INDEX_SIZE;
+#endif
+}
 
 //Rough bounding box around visible portion of the terrain
 //useful for quick culling
@@ -140,7 +254,7 @@ static Real beX;
 static Real beY;
 static Real beZ;
 
-static LPDIRECT3DVERTEXBUFFER8 lastActiveVertexBuffer=nullptr;
+static RenderVertexBufferClass *lastActiveVertexBuffer=nullptr;
 
 /** A simple structure to hold random geometry (vertices, polygons, etc.).  We'll use this
 * to store shadow volumes. */
@@ -1343,10 +1457,7 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	Geometry *geometry;
 	Int numVerts, numPolys, numIndex;
 
-	//Get D3D Device used by W3D for quicker access.
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	if (!m_pDev)
+	if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 		return;
 
 	geometry = m_shadowVolume[lightIndex][ meshIndex ];
@@ -1371,9 +1482,9 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	W3DBufferManager::W3DVertexBufferSlot *vbSlot=m_shadowVolumeVB[lightIndex][ meshIndex ];
 	if (!vbSlot)
 		return;
-	if (vbSlot->m_VB->m_DX8VertexBuffer->Get_DX8_Vertex_Buffer() != lastActiveVertexBuffer)
-	{	lastActiveVertexBuffer=vbSlot->m_VB->m_DX8VertexBuffer->Get_DX8_Vertex_Buffer();
-		g_renderBackend->Set_Vertex_Buffer(vbSlot->m_VB->m_DX8VertexBuffer, 0);
+	if (vbSlot->m_VB->m_renderVertexBuffer != lastActiveVertexBuffer)
+	{	lastActiveVertexBuffer=vbSlot->m_VB->m_renderVertexBuffer;
+		g_renderBackend->Set_Vertex_Buffer(vbSlot->m_VB->m_renderVertexBuffer, 0);
 	}
 
 	DEBUG_ASSERTCRASH(vbSlot->m_size >= numVerts,("Overflowing Shadow Vertex Buffer Slot"));
@@ -1384,9 +1495,9 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 
 	DEBUG_ASSERTCRASH(ibSlot->m_size >= numIndex,("Overflowing Shadow Index Buffer Slot"));
 
-	g_renderBackend->Set_Index_Buffer(ibSlot->m_IB->m_DX8IndexBuffer, vbSlot->m_start);
+	g_renderBackend->Set_Index_Buffer(ibSlot->m_IB->m_renderIndexBuffer, vbSlot->m_start);
 
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (g_renderBackend->Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
 		g_renderBackend->Set_Shadow_Volume_Shader_Active(true);
@@ -1407,10 +1518,7 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 	SHADOW_DYNAMIC_VOLUME_VERTEX* pvVertices;
 	UnsignedShort *pvIndices;
 
-	//Get D3D Device used by W3D for quicker access.
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	if (!m_pDev)
+	if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 		return;
 
 
@@ -1433,13 +1541,22 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 
 
 	// Wrap-around (DISCARD) when the buffer can't fit this batch.
-	const bool wrapVerts = (nShadowVertsInBuf > (SHADOW_VERTEX_SIZE - numVerts));
+	const int vertexCapacity = ShadowDynamicVertexCapacity();
+	const int indexCapacity = ShadowDynamicIndexCapacity();
+	if (numVerts > vertexCapacity || numIndex > indexCapacity)
+	{
+		LogVolumetricShadowPath("render-dynamic-skip", m_robj, nullptr, nullptr,
+			numPolys, "shadow-volume-batch-exceeds-dynamic-buffer");
+		return;
+	}
+
+	const bool wrapVerts = (nShadowVertsInBuf > (vertexCapacity - numVerts));
 	if (wrapVerts) {
 		nShadowVertsInBuf = 0;
 		nShadowStartBatchVertex = 0;
 	}
 	{
-		const unsigned vbFlags = wrapVerts ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		const unsigned vbFlags = wrapVerts ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 		VertexBufferClass::AppendLockClass vbLock(shadowVertexBuffer, nShadowVertsInBuf, numVerts, vbFlags);
 		pvVertices = (SHADOW_DYNAMIC_VOLUME_VERTEX *)vbLock.Get_Vertex_Array();
 #ifdef SV_DEBUG
@@ -1460,13 +1577,13 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 		}
 	}
 
-	const bool wrapIndices = (nShadowIndicesInBuf > (SHADOW_INDEX_SIZE - numIndex));
+	const bool wrapIndices = (nShadowIndicesInBuf > (indexCapacity - numIndex));
 	if (wrapIndices) {
 		nShadowIndicesInBuf = 0;
 		nShadowStartBatchIndex = 0;
 	}
 	{
-		const unsigned ibFlags = wrapIndices ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		const unsigned ibFlags = wrapIndices ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 		IndexBufferClass::AppendLockClass ibLock(shadowIndexBuffer, nShadowIndicesInBuf, numIndex, ibFlags);
 		pvIndices = ibLock.Get_Index_Array();
 		if (pvIndices)
@@ -1485,9 +1602,9 @@ void W3DVolumetricShadow::RenderDynamicMeshVolume(Int meshIndex, Int lightIndex,
 	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD, *meshXform);
 	g_renderBackend->Set_Vertex_Buffer(shadowVertexBuffer, 0);
 	g_renderBackend->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
-	lastActiveVertexBuffer = shadowVertexBuffer->Get_DX8_Vertex_Buffer();
+	lastActiveVertexBuffer = shadowVertexBuffer;
 
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (g_renderBackend->Is_Triangle_Draw_Enabled())
 	{
 		Debug_Statistics::Record_DX8_Polys_And_Vertices(numPolys,numVerts,ShaderClass::_PresetOpaqueShader);
 		g_renderBackend->Set_Shadow_Volume_Shader_Active(true);
@@ -1546,10 +1663,7 @@ void W3DVolumetricShadow::RenderMeshVolumeBounds(Int meshIndex, Int lightIndex, 
 
 	static Vector3 verts[8];
 
-	//Get D3D Device used by W3D for quicker access.
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	if (!m_pDev)
+	if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 		return;
 
 	Vector3 meshPosition;
@@ -1584,13 +1698,20 @@ void W3DVolumetricShadow::RenderMeshVolumeBounds(Int meshIndex, Int lightIndex, 
 		return;
 
 
-	const bool wrapVerts = (nShadowVertsInBuf > (SHADOW_VERTEX_SIZE - numVerts));
+	const int vertexCapacity = ShadowDynamicVertexCapacity();
+	const int indexCapacity = ShadowDynamicIndexCapacity();
+	if (numVerts > vertexCapacity || numIndex > indexCapacity)
+	{
+		return;
+	}
+
+	const bool wrapVerts = (nShadowVertsInBuf > (vertexCapacity - numVerts));
 	if (wrapVerts) {
 		nShadowVertsInBuf = 0;
 		nShadowStartBatchVertex = 0;
 	}
 	{
-		const unsigned vbFlags = wrapVerts ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		const unsigned vbFlags = wrapVerts ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 		VertexBufferClass::AppendLockClass vbLock(shadowVertexBuffer, nShadowVertsInBuf, numVerts, vbFlags);
 		pvVertices = (SHADOW_DYNAMIC_VOLUME_VERTEX *)vbLock.Get_Vertex_Array();
 		srand(0x1345465);
@@ -1608,13 +1729,13 @@ void W3DVolumetricShadow::RenderMeshVolumeBounds(Int meshIndex, Int lightIndex, 
 		}
 	}
 
-	const bool wrapIndices = (nShadowIndicesInBuf > (SHADOW_INDEX_SIZE - numIndex));
+	const bool wrapIndices = (nShadowIndicesInBuf > (indexCapacity - numIndex));
 	if (wrapIndices) {
 		nShadowIndicesInBuf = 0;
 		nShadowStartBatchIndex = 0;
 	}
 	{
-		const unsigned ibFlags = wrapIndices ? D3DLOCK_DISCARD : D3DLOCK_NOOVERWRITE;
+		const unsigned ibFlags = wrapIndices ? RB_LOCK_DISCARD : RB_LOCK_NOOVERWRITE;
 		IndexBufferClass::AppendLockClass ibLock(shadowIndexBuffer, nShadowIndicesInBuf, numIndex, ibFlags);
 		pvIndices = ibLock.Get_Index_Array();
 		if (pvIndices)
@@ -1807,7 +1928,7 @@ void W3DVolumetricShadow::Update()
 			groundHeight=TheTerrainLogic->getGroundHeight(pos.X,pos.Y);	//logic knows about bridges so use if available.
 		else
 			groundHeight=TheTerrainRenderObject->getHeightMapHeight(pos.X,pos.Y, nullptr);
-   		if (fabs(pos.Z - groundHeight) >= AIRBORNE_UNIT_GROUND_DELTA)
+		if (fabs(pos.Z - groundHeight) >= AIRBORNE_UNIT_GROUND_DELTA)
    		{
  			Real extent = MAX_SHADOW_LENGTH_EXTRA_AIRBORNE_SCALE_FACTOR * m_robjExtent;
  			if (WWMath::Fabs(pos.X - bcX) > (beX + extent) ||
@@ -1817,7 +1938,16 @@ void W3DVolumetricShadow::Update()
 
 			//this unit is above ground, extend shadow volume to reach lowest point on the terrain plus extra bit to make
 			//sure shadow goes under ground.
-   			updateVolumes(fabs(pos.Z - TheTerrainRenderObject->getMinHeight()) + SHADOW_EXTRUSION_BUFFER);
+			Real airborneZOffset = fabs(pos.Z - TheTerrainRenderObject->getMinHeight()) + SHADOW_EXTRUSION_BUFFER;
+			if (g_renderBackend != nullptr
+				&& g_renderBackend->Needs_Closed_Shadow_Volumes()
+				&& m_shadowLengthScale > 10.0f)
+			{
+				airborneZOffset = fabs(pos.Z - groundHeight) - SHADOW_EXTRUSION_BUFFER;
+				if (airborneZOffset < 0.0f)
+					airborneZOffset = 0.0f;
+			}
+			updateVolumes(airborneZOffset);
    		}
    		else
  		{	//normal object that is not floating above ground so we don't need to extend the shadow lower than the object's
@@ -2587,16 +2717,21 @@ static int EarClip2D(const float * xy, int N, short * out_indices)
 
 	// Determine polygon winding via shoelace signed area.
 	float signedArea = 0.0f;
-	for (int i = 0; i < N; ++i)
+	int i;
+	int j;
+	for (i = 0; i < N; ++i)
 	{
-		int j = (i + 1) % N;
-		signedArea += xy[i*2]   * xy[j*2+1];
-		signedArea -= xy[j*2]   * xy[i*2+1];
+		int nextIndex = (i + 1) % N;
+		signedArea += xy[i*2]   * xy[nextIndex*2+1];
+		signedArea -= xy[nextIndex*2]   * xy[i*2+1];
 	}
 	const bool polygonCCW = (signedArea > 0.0f);
 
 	std::vector<int> poly(N);
-	for (int i = 0; i < N; ++i) poly[i] = i;
+	for (i = 0; i < N; ++i)
+	{
+		poly[i] = i;
+	}
 
 	int outCount = 0;
 	int safetyMax = N * N;
@@ -2604,7 +2739,7 @@ static int EarClip2D(const float * xy, int N, short * out_indices)
 	{
 		bool foundEar = false;
 		const int M = static_cast<int>(poly.size());
-		for (int i = 0; i < M; ++i)
+		for (i = 0; i < M; ++i)
 		{
 			const int iPrev = poly[(i + M - 1) % M];
 			const int iCurr = poly[i];
@@ -2620,10 +2755,13 @@ static int EarClip2D(const float * xy, int N, short * out_indices)
 			}
 			// No other vertex may lie inside triangle (iPrev, iCurr, iNext).
 			bool hasInside = false;
-			for (int j = 0; j < M; ++j)
+			for (j = 0; j < M; ++j)
 			{
 				const int iTest = poly[j];
-				if (iTest == iPrev || iTest == iCurr || iTest == iNext) continue;
+				if (iTest == iPrev || iTest == iCurr || iTest == iNext)
+				{
+					continue;
+				}
 				const float px = xy[iTest*2], py = xy[iTest*2+1];
 				const float d1 = (px - bx) * (ay - by) - (ax - bx) * (py - by);
 				const float d2 = (px - cx) * (by - cy) - (bx - cx) * (py - cy);
@@ -2657,6 +2795,7 @@ static int EarClip2D(const float * xy, int N, short * out_indices)
 	return outCount;
 }
 
+#if defined(RTS_DEBUG)
 // TheSuperHackers @debug bobtista 15/04/2026 mesh edge-
 // manifold audit. A closed 2-manifold has every undirected edge used
 // by EXACTLY TWO triangles. Open tubes have some edges used once (the
@@ -2665,7 +2804,10 @@ static void AuditShadowVolumeEdges(Geometry * shadowVolume, int vertexCount,
                                    int polygonCount, const char * tag)
 {
 	static int s_auditCount = 0;
-	if (s_auditCount++ >= 20) return;
+	if (s_auditCount++ >= 20)
+	{
+		return;
+	}
 
 	std::map<std::pair<int,int>, int> edgeCount;
 	for (int p = 0; p < polygonCount; ++p)
@@ -2676,7 +2818,10 @@ static void AuditShadowVolumeEdges(Geometry * shadowVolume, int vertexCount,
 		{
 			int a = idx[e];
 			int b = idx[(e+1) % 3];
-			if (a > b) std::swap(a, b);
+			if (a > b)
+			{
+				std::swap(a, b);
+			}
 			edgeCount[std::make_pair(a, b)]++;
 		}
 	}
@@ -2693,6 +2838,7 @@ static void AuditShadowVolumeEdges(Geometry * shadowVolume, int vertexCount,
 	             used1, used2, usedOther,
 	             (used1 == 0 && usedOther == 0) ? "CLOSED_MANIFOLD" : "OPEN_OR_NON_MANIFOLD"));
 }
+#endif
 
 void W3DVolumetricShadow::constructVolume( Vector3 *lightPosObject,Real shadowExtrudeDistance, Int volumeIndex, Int meshIndex )
 {
@@ -2908,10 +3054,65 @@ void W3DVolumetricShadow::constructVolume( Vector3 *lightPosObject,Real shadowEx
 #endif
 	}
 
+	if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
+	{
+		for (i = 0; i < geomMesh->GetNumPolygon(); ++i)
+		{
+			PolyNeighbor *polyNeighbor = geomMesh->GetPolyNeighbor(i);
+			if (polyNeighbor == nullptr || !BitIsSet(polyNeighbor->status, POLY_VISIBLE))
+				continue;
+
+			Short poly[3];
+			geomMesh->GetPolygonIndex(i, poly);
+			Short capIndex[3];
+			for (k = 0; k < 3; ++k)
+			{
+				const Vector3& v = geomMesh->GetVertex(poly[k]);
+				shadowVolume->SetVertex(vertexCount + k, &v);
+				extrude2 = v - *lightPosObject;
+				extrude2 *= shadowExtrudeDistance;
+				extrude2 += v;
+				shadowVolume->SetVertex(vertexCount + 3 + k, &extrude2);
+			}
+
+			if (BgfxFlipShadowVolumeCapWinding())
+			{
+				capIndex[0] = vertexCount;
+				capIndex[1] = vertexCount + 2;
+				capIndex[2] = vertexCount + 1;
+			}
+			else
+			{
+				capIndex[0] = vertexCount;
+				capIndex[1] = vertexCount + 1;
+				capIndex[2] = vertexCount + 2;
+			}
+			shadowVolume->SetPolygonIndex(polygonCount++, capIndex);
+
+			if (BgfxFlipShadowVolumeCapWinding())
+			{
+				capIndex[0] = vertexCount + 3;
+				capIndex[1] = vertexCount + 4;
+				capIndex[2] = vertexCount + 5;
+			}
+			else
+			{
+				capIndex[0] = vertexCount + 5;
+				capIndex[1] = vertexCount + 4;
+				capIndex[2] = vertexCount + 3;
+			}
+			shadowVolume->SetPolygonIndex(polygonCount++, capIndex);
+
+			vertexCount += 6;
+		}
+	}
+
 	shadowVolume->SetNumActivePolygon(polygonCount);
 	shadowVolume->SetNumActiveVertex(vertexCount);
 
+#if defined(RTS_DEBUG)
 	AuditShadowVolumeEdges(shadowVolume, vertexCount, polygonCount, "constructVolume(dynamic)");
+#endif
 }
 
 // constructVolumeVB ==========================================================
@@ -2968,6 +3169,12 @@ void W3DVolumetricShadow::constructVolumeVB( Vector3 *lightPosObject,Real shadow
 		assert( 0 );
 		return;
 
+	}
+
+	geomMesh = m_geometry->getMesh(meshIndex);
+	if (geomMesh == nullptr)
+	{
+		return;
 	}
 
 	//*****************************************************************************************/
@@ -3071,6 +3278,19 @@ void W3DVolumetricShadow::constructVolumeVB( Vector3 *lightPosObject,Real shadow
 			maxStripLength=__max(maxStripLength,stripLength);
 	#endif
 		}
+
+		if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
+		{
+			for (i = 0; i < geomMesh->GetNumPolygon(); ++i)
+			{
+				PolyNeighbor *polyNeighbor = geomMesh->GetPolyNeighbor(i);
+				if (polyNeighbor != nullptr && BitIsSet(polyNeighbor->status, POLY_VISIBLE))
+				{
+					vertexCount += 6;
+					polygonCount += 2;
+				}
+			}
+		}
 	}
 	//***********************************************************************************************
 
@@ -3107,15 +3327,13 @@ void W3DVolumetricShadow::constructVolumeVB( Vector3 *lightPosObject,Real shadow
 		return;
 	}
 
-	geomMesh = m_geometry->getMesh(meshIndex);
-
-	DX8VertexBufferClass::AppendLockClass lockVtxBuffer(vbSlot->m_VB->m_DX8VertexBuffer,vbSlot->m_start,vertexCount);
+	RenderVertexBufferClass::AppendLockClass lockVtxBuffer(vbSlot->m_VB->m_renderVertexBuffer,vbSlot->m_start,vertexCount);
 	VertexFormatXYZ *vb = (VertexFormatXYZ*)lockVtxBuffer.Get_Vertex_Array();
 
 	if (vb == nullptr)
 		return;
 
-	DX8IndexBufferClass::AppendLockClass lockIdxBuffer(ibSlot->m_IB->m_DX8IndexBuffer,ibSlot->m_start,polygonCount*3);
+	RenderIndexBufferClass::AppendLockClass lockIdxBuffer(ibSlot->m_IB->m_renderIndexBuffer,ibSlot->m_start,polygonCount*3);
 	UnsignedShort *ib = (UnsignedShort*)lockIdxBuffer.Get_Index_Array();
 
 	if (ib == nullptr)
@@ -3252,6 +3470,62 @@ void W3DVolumetricShadow::constructVolumeVB( Vector3 *lightPosObject,Real shadow
 		}
 	}
 
+	if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
+	{
+		for (i = 0; i < geomMesh->GetNumPolygon(); ++i)
+		{
+			PolyNeighbor *polyNeighbor = geomMesh->GetPolyNeighbor(i);
+			if (polyNeighbor == nullptr || !BitIsSet(polyNeighbor->status, POLY_VISIBLE))
+				continue;
+
+			Short poly[3];
+			geomMesh->GetPolygonIndex(i, poly);
+			for (k = 0; k < 3; ++k)
+			{
+				const Vector3& v = geomMesh->GetVertex(poly[k]);
+				*vb++ = *(VertexFormatXYZ *)&v;
+				extrude2 = v - *lightPosObject;
+				extrude2 *= shadowExtrudeDistance;
+				extrude2 += v;
+				*vb++ = *(VertexFormatXYZ *)&extrude2;
+			}
+
+			if (BgfxFlipShadowVolumeCapWinding())
+			{
+				ib[0] = vertexCount;
+				ib[1] = vertexCount + 4;
+				ib[2] = vertexCount + 2;
+			}
+			else
+			{
+				ib[0] = vertexCount;
+				ib[1] = vertexCount + 2;
+				ib[2] = vertexCount + 4;
+			}
+			ib += 3;
+			polygonCount++;
+
+			if (BgfxFlipShadowVolumeCapWinding())
+			{
+				ib[0] = vertexCount + 1;
+				ib[1] = vertexCount + 3;
+				ib[2] = vertexCount + 5;
+			}
+			else
+			{
+				ib[0] = vertexCount + 5;
+				ib[1] = vertexCount + 3;
+				ib[2] = vertexCount + 1;
+			}
+			ib += 3;
+			polygonCount++;
+
+			vertexCount += 6;
+		}
+		shadowVolume->SetNumActivePolygon(polygonCount);
+		shadowVolume->SetNumActiveVertex(vertexCount);
+	}
+
 //	DEBUG_ASSERTLOG(polygonCount == vertexCount, ("WARNING***Shadow volume mesh not optimal: %s",m_geometry->Get_Name()));
 }
 
@@ -3319,6 +3593,16 @@ Bool W3DVolumetricShadow::allocateShadowVolume( Int volumeIndex, Int meshIndex )
 	//is known.
 	if (shadowVolume->GetFlags() & SHADOW_DYNAMIC)
 	{
+		if (g_renderBackend != nullptr && g_renderBackend->Needs_Closed_Shadow_Volumes())
+		{
+			W3DShadowGeometryMesh *geomMesh = m_geometry != nullptr ? m_geometry->getMesh(meshIndex) : nullptr;
+			if (geomMesh != nullptr)
+			{
+				numPolygons += geomMesh->GetNumPolygon() * 2;
+				numVertices += geomMesh->GetNumPolygon() * 6;
+			}
+		}
+
 		//for dynamic shadow casters, we need to allocate the maximum amount of vertices that could ever be required.
 //		if (m_shadowVolumeVB[ volumeIndex ][meshIndex])
 //			TheW3DBufferManager->releaseSlot(m_shadowVolumeVB[ volumeIndex ][meshIndex]);
@@ -3476,15 +3760,7 @@ void W3DVolumetricShadow::resetSilhouette( Int meshIndex )
 // ============================================================================
 void W3DVolumetricShadowManager::renderStencilShadows()
 {
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	if (!m_pDev)
-		return;	//need device to render anything.
-
-	struct _TRANSLITVERTEX {
-	    D3DXVECTOR4 p;
-		DWORD color;   // diffuse color
-	} v[4];
+	LogVolumetricShadowPath("renderStencilShadows", nullptr, nullptr, nullptr, 0, nullptr);
 
 	Int xpos, ypos, width, height;
 
@@ -3492,64 +3768,20 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 	width=TheTacticalView->getWidth();
 	height=TheTacticalView->getHeight();
 
-    v[0].p = D3DXVECTOR4( xpos+width, ypos+height, 0.0f, 1.0f );
-    v[1].p = D3DXVECTOR4( xpos+width, 0, 0.0f, 1.0f );
-    v[2].p = D3DXVECTOR4(  xpos, ypos+height, 0.0f, 1.0f );
-    v[3].p = D3DXVECTOR4(  xpos,  0, 0.0f, 1.0f );
-    v[0].color = TheW3DShadowManager->getShadowColor();
-    v[1].color = TheW3DShadowManager->getShadowColor();
-	v[2].color = TheW3DShadowManager->getShadowColor();
-    v[3].color = TheW3DShadowManager->getShadowColor();
-
-#if !defined(GGC_BGFX_STANDALONE)
-	//draw polygons like this is very inefficient but for only 2 triangles, it's
-	//not worth bothering with index/vertex buffers.
-	m_pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
-
-	// Use alpha blending to draw the transparent shadow
-    m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, TRUE );
-//  m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA );
-//  m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA );
-		m_pDev->SetRenderState( D3DRS_SRCBLEND,  D3DBLEND_DESTCOLOR);
-		m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ZERO );
-
-
-	// Set stencil states
-    m_pDev->SetRenderState( D3DRS_ZENABLE,          TRUE );
-		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_ALWAYS);
-
-	// Only write where stencil val >= 1 (count indicates # of shadows that
-	// overlap that pixel)
-    m_pDev->SetRenderState( D3DRS_STENCILENABLE, TRUE );
-    m_pDev->SetRenderState( D3DRS_STENCILFUNC, D3DCMP_LESSEQUAL );	//reference value is less or equal to stencil
-    m_pDev->SetRenderState( D3DRS_STENCILPASS, D3DSTENCILOP_KEEP );
-	//Upper bits of stencil could be used for storing occluded models which are player colored.  So we mask out those
-	//pixels and only use the lower bits for shadow calculations.
-	m_pDev->SetRenderState( D3DRS_STENCILMASK,     ~TheW3DShadowManager->getStencilShadowMask());
-    m_pDev->SetRenderState( D3DRS_STENCILREF,      0x1 );
-
-
-	m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);
-
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
-		m_pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANSLITVERTEX));
-#endif
-
-	// TheSuperHackers @refactor bobtista 15/04/2026 issue the
-	// matching darken pass on the bgfx backend. DX8 already drew the
-	// quad above via raw m_pDev; bgfx never saw those raw calls, so ask
-	// the backend to draw its own fullscreen darkening quad with the
-	// same stencil test (LEQUAL ref=1 mask=~shadowMask).
 	g_renderBackend->Apply_Stencil_Shadow_Darken(
 		TheW3DShadowManager->getShadowColor(),
 		~TheW3DShadowManager->getStencilShadowMask(),
-		0x1);
+		0x1,
+		xpos,
+		ypos,
+		width,
+		height);
 
 #if !defined(GGC_BGFX_STANDALONE)
-	m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
-	m_pDev->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );
+	g_renderBackend->Set_Shade_Mode(RB_SHADE_GOURAUD);
+	g_renderBackend->Set_Alpha_Blend_Enable(false);
 	// turn off the stencil buffer
-	m_pDev->SetRenderState( D3DRS_STENCILENABLE, FALSE );
+	g_renderBackend->Set_Stencil_Enable(false);
 #endif
 
 }
@@ -3558,6 +3790,8 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 {
 	W3DVolumetricShadow *shadow;
 	Int numRenderedShadows = 0;
+	LogVolumetricShadowPath("renderShadows-begin", nullptr, nullptr, nullptr, 0,
+		forceStencilFill ? "forceStencilFill" : nullptr);
 
  	AABoxClass bbox;
 
@@ -3577,23 +3811,13 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 	if (m_shadowList && TheGlobalData->m_useShadowVolumes)
 	{
 
-		LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-		if (!m_pDev)
+		if (!g_renderBackend || g_renderBackend->Is_Device_Lost())
 			return;	//need device to render anything.
 
  		//According to Nvidia there's a D3D bug that happens if you don't start with a
  		//new dynamic VB each frame - so we force a DISCARD by overflowing the counter.
  		nShadowIndicesInBuf = 0xffff;
  		nShadowVertsInBuf = 0xffff;
-
-		// TheSuperHackers @refactor bobtista 10/04/2026 partial migration:
-		// the high-level Set_Material/Set_Shader/Set_Texture/Apply_Render_State_Changes
-		// calls below are routed through g_renderBackend. The raw m_pDev->SetRenderState
-		// and m_pDev->SetTextureStageState calls in the same function remain on the
-		// IDirect3DDevice8 device pointer because they belong to the deeply-coupled
-		// stencil-volume rendering inner loop.
-		// list and the reasoning behind the partial migration.
 
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
@@ -3606,47 +3830,37 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		// turn off z writing
-		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
-	  m_pDev->SetRenderState( D3DRS_ZENABLE,          TRUE );
-		m_pDev->SetRenderState(D3DRS_ZWRITEENABLE , FALSE);
-		m_pDev->SetRenderState(D3DRS_ALPHATESTENABLE, FALSE);
-		m_pDev->SetRenderState(D3DRS_FOGENABLE, FALSE);
+		g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
+	  g_renderBackend->Set_Depth_Test_Enable(true);
+		g_renderBackend->Set_Depth_Write_Enable(false);
+		g_renderBackend->Set_Alpha_Test_Enable(false);
+		g_renderBackend->Set_Fog_Enable(false);
 
 
 		// setup the TMU to default
-		m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_FLAT);
-		m_pDev->SetRenderState(D3DRS_LIGHTING, FALSE);
-		m_pDev->SetTextureStageState( 0, D3DTSS_COLORARG1, D3DTA_TEXTURE );
-		m_pDev->SetTextureStageState( 0, D3DTSS_COLORARG2, D3DTA_DIFFUSE );
-		m_pDev->SetTextureStageState( 0, D3DTSS_COLOROP,   D3DTOP_SELECTARG2);
-		m_pDev->SetTextureStageState( 0, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-		m_pDev->SetTextureStageState( 0, D3DTSS_TEXCOORDINDEX, 0 );
-
-		m_pDev->SetTextureStageState( 1, D3DTSS_COLOROP,   D3DTOP_DISABLE);
-		m_pDev->SetTextureStageState( 1, D3DTSS_ALPHAOP,   D3DTOP_DISABLE );
-		m_pDev->SetTextureStageState( 1, D3DTSS_TEXCOORDINDEX, 1 );
-		m_pDev->SetTexture(0,nullptr);
-		m_pDev->SetTexture(1,nullptr);
+		g_renderBackend->Set_Shade_Mode(RB_SHADE_FLAT);
+		g_renderBackend->Set_Lighting_Enable(false);
+		g_renderBackend->Configure_Shadow_Volume_Fill_Texture_Stages();
+		g_renderBackend->Bind_Texture_Immediate(0, nullptr);
+		g_renderBackend->Bind_Texture_Immediate(1, nullptr);
 
 		DWORD oldColorWriteEnable=0x12345678;
 
 	#ifdef SV_DEBUG
-		m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , TRUE);
-		m_pDev->SetRenderState( D3DRS_STENCILENABLE, FALSE );
-		m_pDev->SetRenderState( D3DRS_SRCBLEND, /*D3DBLEND_DESTCOLOR*/D3DBLEND_ONE );
-		m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ZERO );
-		m_pDev->SetRenderState(D3DRS_ZFUNC, D3DCMP_LESSEQUAL);
+		g_renderBackend->Set_Alpha_Blend_Enable(true);
+		g_renderBackend->Set_Stencil_Enable(false);
+		g_renderBackend->Set_Blend_Factors(RB_BLEND_ONE, RB_BLEND_ZERO);
+		g_renderBackend->Set_Depth_Func(RB_CMP_LESS_EQUAL);
 	#else
 		//disable writes to color buffer
-		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
-		{	DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
+		if (g_renderBackend->Supports_Color_Write_Mask())
+		{	oldColorWriteEnable = g_renderBackend->Get_Color_Write_Mask();
 			g_renderBackend->Set_Color_Write_Mask(0);
 		}
 		else
 		{	//device does not support disabling writes to color buffer so fake it through alpha blending
-			m_pDev->SetRenderState( D3DRS_SRCBLEND, D3DBLEND_ZERO );
-			m_pDev->SetRenderState( D3DRS_DESTBLEND, D3DBLEND_ONE );
-			m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , TRUE);
+			g_renderBackend->Set_Blend_Factors(RB_BLEND_ZERO, RB_BLEND_ONE);
+			g_renderBackend->Set_Alpha_Blend_Enable(true);
 		}
 		g_renderBackend->Set_Stencil_Enable(true);
 	#endif
@@ -3659,15 +3873,21 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		g_renderBackend->Set_Stencil_Ref(0x80808080);
 		g_renderBackend->Set_Stencil_Mask(TheW3DShadowManager->getStencilShadowMask());
 		g_renderBackend->Set_Stencil_Write_Mask(0xffffffff);
-		g_renderBackend->Set_Stencil_ZFail_Op(RB_STENCIL_OP_KEEP);
+		const bool bgfxZFailVolumes = BgfxUseShadowVolumeZFail();
+		const bool bgfxSwapZFailOps = BgfxSwapShadowVolumeZFailOps();
+		g_renderBackend->Set_Stencil_ZFail_Op(bgfxZFailVolumes
+			? (bgfxSwapZFailOps ? RB_STENCIL_OP_DECR : RB_STENCIL_OP_INCR)
+			: RB_STENCIL_OP_KEEP);
 		g_renderBackend->Set_Stencil_Fail_Op(RB_STENCIL_OP_KEEP);
-		g_renderBackend->Set_Stencil_Pass_Op(RB_STENCIL_OP_INCR);
+		g_renderBackend->Set_Stencil_Pass_Op(bgfxZFailVolumes
+			? RB_STENCIL_OP_KEEP
+			: (bgfxSwapZFailOps
+				? RB_STENCIL_OP_DECR_SAT
+				: (BgfxUseSaturatedShadowVolumeIncrement() ? RB_STENCIL_OP_INCR_SAT : RB_STENCIL_OP_INCR)));
 
-		m_pDev->SetVertexShader(SHADOW_DYNAMIC_VOLUME_FVF);
+		g_renderBackend->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
 
 		g_renderBackend->Set_Cull_Mode(RB_CULL_CW);
-//		m_pDev->SetRenderState(D3DRS_ZBIAS,1);	///@todo: See if this helps or makes things worse.
-		//m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_WIREFRAME);
 
 
 		lastActiveVertexBuffer=nullptr;	//reset
@@ -3697,7 +3917,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		}
 
 		// Set vertex format to that used by static shadow volumes
-		m_pDev->SetVertexShader(W3DBufferManager::getDX8Format(W3DBufferManager::VBM_FVF_XYZ));
+		g_renderBackend->Set_Vertex_Shader(W3DBufferManager::getDX8Format(W3DBufferManager::VBM_FVF_XYZ));
 
 		//Empty queue of static shadow volumes to render.
 		W3DBufferManager::W3DVertexBuffer *nextVb;
@@ -3714,7 +3934,14 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		}
 
 		// change the stencil op to decrement
-		g_renderBackend->Set_Stencil_Pass_Op(RB_STENCIL_OP_DECR_SAT);
+		g_renderBackend->Set_Stencil_ZFail_Op(bgfxZFailVolumes
+			? (bgfxSwapZFailOps ? RB_STENCIL_OP_INCR : RB_STENCIL_OP_DECR)
+			: RB_STENCIL_OP_KEEP);
+		g_renderBackend->Set_Stencil_Pass_Op(bgfxZFailVolumes
+			? RB_STENCIL_OP_KEEP
+			: (bgfxSwapZFailOps
+				? (BgfxUseSaturatedShadowVolumeIncrement() ? RB_STENCIL_OP_INCR_SAT : RB_STENCIL_OP_INCR)
+				: RB_STENCIL_OP_DECR_SAT));
 
 		//
 		// invert normals of shadow volumes so we can decrement in the
@@ -3733,7 +3960,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 			}
 		}
 
-		m_pDev->SetVertexShader(SHADOW_DYNAMIC_VOLUME_FVF);
+		g_renderBackend->Set_Vertex_Shader(SHADOW_DYNAMIC_VOLUME_FVF);
 		//flush any dynamic shadow volumes
 		shadowDynamicTask=m_dynamicShadowVolumesToRender;
 		while (shadowDynamicTask)
@@ -3750,11 +3977,9 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		}
 
 		g_renderBackend->Set_Cull_Mode(RB_CULL_CW);
-//		m_pDev->SetRenderState(D3DRS_ZBIAS,0);	///@todo: See if this helps or makes things worse.
-		//m_pDev->SetRenderState(D3DRS_FILLMODE,D3DFILL_SOLID);
 
 
-		// Restore the captured DWORD mask via the new DWORD
+		// restore the captured DWORD mask via the new DWORD
 		// variant Set_Color_Write_Mask (the boolean Set_Color_Write_Enable
 		// would need to re-decode the bitmask).
 		if (oldColorWriteEnable != 0x12345678)
@@ -3767,10 +3992,12 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 ///@todo: Put this check back in after water is fixed so it doesn't require shadow rendering to fix alpha.
 //		if (numRenderedShadows)
 			renderStencilShadows();
+		LogVolumetricShadowPath("renderShadows-end", nullptr, nullptr, nullptr,
+			numRenderedShadows, "volumes");
 
-		m_pDev->SetRenderState(D3DRS_SHADEMODE, D3DSHADE_GOURAUD);
-		m_pDev->SetRenderState(D3DRS_ALPHABLENDENABLE , FALSE);
-		m_pDev->SetRenderState(D3DRS_LIGHTING, FALSE);
+		g_renderBackend->Set_Shade_Mode(RB_SHADE_GOURAUD);
+		g_renderBackend->Set_Alpha_Blend_Enable(false);
+		g_renderBackend->Set_Lighting_Enable(false);
 
 		g_renderBackend->Invalidate_Cached_Render_States();
 	}
@@ -3779,8 +4006,7 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 	{	//no shadows to render, but still need to fill stencil buffer
 		//for other effects.
 
-		// TheSuperHackers @refactor bobtista 10/04/2026 partial migration:
-		// same pattern as the main shadow-render branch above.
+		// TheSuperHackers @refactor bobtista 10/04/2026 Same pattern as the main shadow-render branch above.
 
 		//Set W3D to some known state
 		VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
@@ -3791,6 +4017,8 @@ void W3DVolumetricShadowManager::renderShadows( Bool forceStencilFill )
 		g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
 		renderStencilShadows();
+		LogVolumetricShadowPath("renderShadows-end", nullptr, nullptr, nullptr,
+			0, "forceStencilFill");
 
 		g_renderBackend->Invalidate_Cached_Render_States();
 	}
@@ -3902,13 +4130,13 @@ Bool W3DVolumetricShadowManager::ReAcquireResources()
 {
 	ReleaseResources();
 
-	shadowIndexBuffer = NEW_REF(DX8IndexBufferClass, (SHADOW_INDEX_SIZE, DX8IndexBufferClass::USAGE_DYNAMIC));
+	shadowIndexBuffer = NEW_REF(RenderIndexBufferClass, (ShadowDynamicIndexCapacity(), Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	if (shadowIndexBuffer == nullptr)
 		return FALSE;
 
 	if (shadowVertexBuffer == nullptr)
 	{
-		shadowVertexBuffer = NEW_REF(DX8VertexBufferClass, (SHADOW_DYNAMIC_VOLUME_FVF, SHADOW_VERTEX_SIZE, DX8VertexBufferClass::USAGE_DYNAMIC));
+		shadowVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DYNAMIC_VOLUME_FVF, ShadowDynamicVertexCapacity(), Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
 		if (shadowVertexBuffer == nullptr)
 			return FALSE;
 	}
@@ -3949,7 +4177,17 @@ W3DVolumetricShadow* W3DVolumetricShadowManager::addShadow(RenderObjClass *robj,
 	// TheSuperHackers @bugfix bobtista 05/06/2026 Guard g_renderBackend, which can be
 	// null before the backend exists or during a device-lost/reset window.
 	if (!g_renderBackend || !g_renderBackend->Has_Stencil() || !robj || !TheGlobalData->m_useShadowVolumes)
+	{
+		LogVolumetricShadowPath("addShadow-skip", robj, draw, shadowInfo, 0,
+			"no-stencil-no-robj-or-disabled");
 		return nullptr;	//right now we require a stencil buffer
+	}
+	if (ShouldSkipBgfxStaticVolumeShadow(draw))
+	{
+		LogVolumetricShadowPath("addShadow-skip", robj, draw, shadowInfo, 0,
+			"bgfx-dynamic-volume-only");
+		return nullptr;
+	}
 
 	W3DShadowGeometry *sg=nullptr;
 	if (!robj)
@@ -3958,7 +4196,11 @@ W3DVolumetricShadow* W3DVolumetricShadowManager::addShadow(RenderObjClass *robj,
 	const char *name=robj->Get_Name();
 
 	if (!name)
+	{
+		LogVolumetricShadowPath("addShadow-skip", robj, draw, shadowInfo, 0,
+			"no-render-object-name");
 		return nullptr;
+	}
 
 	sg=m_W3DShadowGeometryManager->Get_Geom(name);
 
@@ -3968,14 +4210,22 @@ W3DVolumetricShadow* W3DVolumetricShadowManager::addShadow(RenderObjClass *robj,
 		//try loading again
 		sg=m_W3DShadowGeometryManager->Get_Geom(name);
 		if (sg==nullptr)
+		{
+			LogVolumetricShadowPath("addShadow-skip", robj, draw, shadowInfo, 0,
+				"missing-shadow-geometry");
 			return nullptr;	//could not create the shadow geometry
+		}
 	}
 
 	W3DVolumetricShadow *shadow = NEW W3DVolumetricShadow;	// poolify
 
 	// sanity
 	if( shadow == nullptr )
+	{
+		LogVolumetricShadowPath("addShadow-skip", robj, draw, shadowInfo, 0,
+			"allocation-failed");
 		return nullptr;
+	}
 
 	shadow->setRenderObject(robj);
 	shadow->SetGeometry(sg);
@@ -3996,6 +4246,7 @@ W3DVolumetricShadow* W3DVolumetricShadowManager::addShadow(RenderObjClass *robj,
 	// add to our shadow list through the shadow next links
 	shadow->m_next = m_shadowList;
 	m_shadowList = shadow;
+	LogVolumetricShadowPath("addShadow", robj, draw, shadowInfo, 0, nullptr);
 	return shadow;
 }
 

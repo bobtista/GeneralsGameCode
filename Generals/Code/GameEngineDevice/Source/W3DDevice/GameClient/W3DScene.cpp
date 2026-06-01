@@ -1258,8 +1258,8 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		//disable writes to color buffer
 		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
 		{
-			DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
-			DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,0);
+			oldColorWriteEnable = g_renderBackend->Get_Color_Write_Mask();
+			g_renderBackend->Set_Color_Write_Mask(0);
 		}
 		else
 		{
@@ -1293,7 +1293,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 	DX8Wrapper::Set_DX8_Render_State(D3DRS_ZFUNC, D3DCMP_ALWAYS);
 
 	if (oldColorWriteEnable != 0x12345678)
-		DX8Wrapper::Set_DX8_Render_State(D3DRS_COLORWRITEENABLE,oldColorWriteEnable);
+		g_renderBackend->Set_Color_Write_Mask(oldColorWriteEnable);
 
 }
 
@@ -1952,4 +1952,3 @@ void RTS3DScene::Visibility_Check(CameraClass * camera)
 
  *
  */
-

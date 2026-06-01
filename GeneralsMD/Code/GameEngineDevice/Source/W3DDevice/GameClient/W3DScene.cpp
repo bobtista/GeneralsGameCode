@@ -59,15 +59,16 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/sortingrenderer.h"
-#include "WW3D2/dx8wrapper.h"
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8vertexbuffer.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/vertexbuffer.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/light.h"
 #include "WW3D2/matpass.h"
 #include "WW3D2/shader.h"
 #include "WW3D2/dx8caps.h"
 #include "WW3D2/colorspace.h"
+#include "WW3D2/renderdebugstats.h"
+#include "WW3D2/ww3dcolor.h"
 
 #include "WW3D2/shdlib.h"
 
@@ -174,6 +175,7 @@ static void SceneDiagWrite(Bool drawTerrainOnly, Int numPotentialOccluders, Int 
 		g_sceneDiag.renderOneShrouded);
 	fflush(fp);
 }
+
 }
 
 // No texturing, no zbuffer reading/writing, primary gradient, no
@@ -212,6 +214,16 @@ RTS3DScene::RTS3DScene()
 #else
 	m_shroudMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
 #endif
+	m_objectClearShroudMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
+	m_objectClearShroudMaterialPass->enableTransparentObjectPass(TRUE);
+	m_objectClearShroudMaterialPass->Enable_On_Translucent_Meshes(true);
+	m_objectClearShroudMaterialPass->setObjectShroudDimFactor(1.0f);
+	m_objectFogMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
+	m_objectFogMaterialPass->enableTransparentObjectPass(TRUE);
+	m_objectFogMaterialPass->Enable_On_Translucent_Meshes(true);
+	m_objectShroudMaterialPass = NEW_REF(W3DShroudMaterialPassClass,());
+	m_objectShroudMaterialPass->enableTransparentObjectPass(TRUE);
+	m_objectShroudMaterialPass->Enable_On_Translucent_Meshes(true);
 
 	m_maskMaterialPass = NEW_REF(W3DMaskMaterialPassClass,());
 	m_customPassMode = SCENE_PASS_DEFAULT;
@@ -317,6 +329,9 @@ RTS3DScene::~RTS3DScene()
 	REF_PTR_RELEASE(m_scratchLight);
 
 	REF_PTR_RELEASE(m_shroudMaterialPass);
+	REF_PTR_RELEASE(m_objectClearShroudMaterialPass);
+	REF_PTR_RELEASE(m_objectFogMaterialPass);
+	REF_PTR_RELEASE(m_objectShroudMaterialPass);
 
 	REF_PTR_RELEASE(m_maskMaterialPass);
 
@@ -779,7 +794,7 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 					ss = OBJECTSHROUD_PARTIAL_CLEAR;
 				}
 			}
- 			if (!robj->Peek_Scene())
+			if (!robj->Peek_Scene())
  				return;	//this object was removed by the getShroudedStatus() call.
 		}
 		else
@@ -795,7 +810,6 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 					ss = OBJECTSHROUD_SHROUDED;	//we will assume that drawables without objects are 'particle' like and therefore don't need drawing if fogged/shrouded.
 			}
 		}
-
 		if (draw->isKindOf(KINDOF_INFANTRY))
 		{
 			//ambient = m_infantryAmbient;  //has no effect - see comment on m_infantryAmbient
@@ -902,6 +916,19 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 			//lighting environment applied which emulates the look of fog.
 			rinfo.light_environment = &m_foggedLightEnv;
 			robj->Render(rinfo);
+			if (g_renderBackend && g_renderBackend->Requires_Delayed_Object_Shroud_Pass())
+			{
+				const float clearAlpha = TheGlobalData->m_clearAlpha != 0
+					? static_cast<float>(TheGlobalData->m_clearAlpha)
+					: 255.0f;
+				m_objectFogMaterialPass->setObjectShroudDimFactor(
+					static_cast<float>(TheGlobalData->m_fogAlpha) / clearAlpha);
+				rinfo.Push_Override_Flags(RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY);
+				rinfo.Push_Material_Pass(m_objectFogMaterialPass);
+				robj->Render(rinfo);
+				rinfo.Pop_Material_Pass();
+				rinfo.Pop_Override_Flags();
+			}
 			rinfo.light_environment = nullptr;
 			return;
 		}
@@ -943,7 +970,7 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 			  }
 			  lightEnv.Add_Light(*(LightClass*)dynaLightIt.Peek_Obj());
 		  }
-    }
+		}
 
 		lightEnv.Pre_Render_Update(rinfo.Camera.Get_Transform());
 		rinfo.light_environment = &lightEnv;
@@ -954,16 +981,28 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 			if (!TheGlobalData->m_shroudOn)
 				ss = OBJECTSHROUD_CLEAR;
 #endif
-
 			if (m_customPassMode == SCENE_PASS_DEFAULT)
 			{
 				if (ss <= OBJECTSHROUD_CLEAR)
 				{
+					const Bool scheduleClearPass =
+						draw
+						&& draw->isKindOf(KINDOF_STRUCTURE)
+						&& g_renderBackend
+						&& g_renderBackend->Requires_Delayed_Object_Shroud_Pass();
 					if (SceneDiagEnabled())
 					{
 						g_sceneDiag.renderOneClear++;
 					}
 					robj->Render(rinfo);
+					if (scheduleClearPass)
+					{
+						rinfo.Push_Override_Flags(RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY);
+						rinfo.Push_Material_Pass(m_objectClearShroudMaterialPass);
+						robj->Render(rinfo);
+						rinfo.Pop_Material_Pass();
+						rinfo.Pop_Override_Flags();
+					}
 				}
 				else
 				{
@@ -978,9 +1017,26 @@ void RTS3DScene::renderOneObject(RenderInfoClass &rinfo, RenderObjClass *robj, I
 							g_sceneDiag.renderOneShrouded++;
 						}
 					}
-					rinfo.Push_Material_Pass(m_shroudMaterialPass);
-					robj->Render(rinfo);
-					rinfo.Pop_Material_Pass();
+					if (g_renderBackend && g_renderBackend->Requires_Delayed_Object_Shroud_Pass())
+					{
+						const float clearAlpha = TheGlobalData->m_clearAlpha != 0 ? static_cast<float>(TheGlobalData->m_clearAlpha) : 255.0f;
+						m_objectFogMaterialPass->setObjectShroudDimFactor(static_cast<float>(TheGlobalData->m_fogAlpha) / clearAlpha);
+						m_objectShroudMaterialPass->setObjectShroudDimFactor(static_cast<float>(TheGlobalData->m_shroudAlpha) / clearAlpha);
+						W3DShroudMaterialPassClass *objectShroudPass =
+							(ss >= OBJECTSHROUD_SHROUDED) ? m_objectShroudMaterialPass : m_objectFogMaterialPass;
+						robj->Render(rinfo);
+						rinfo.Push_Override_Flags(RenderInfoClass::RINFO_OVERRIDE_ADDITIONAL_PASSES_ONLY);
+						rinfo.Push_Material_Pass(objectShroudPass);
+						robj->Render(rinfo);
+						rinfo.Pop_Material_Pass();
+						rinfo.Pop_Override_Flags();
+					}
+					else
+					{
+						rinfo.Push_Material_Pass(m_shroudMaterialPass);
+						robj->Render(rinfo);
+						rinfo.Pop_Material_Pass();
+					}
 				}
 			}
 			else if (m_maskMaterialPass)
@@ -1133,6 +1189,11 @@ void RTS3DScene::updatePlayerColorPasses()
 
 #define ZBias 0.0001f
 
+// TheSuperHackers @info bobtista 28/04/2026 Legacy z-bias units (0..16) used
+// to push wireframe overlay draws toward the camera so they stay visible
+// over the underlying solid pass. Was a raw 7 in the legacy renderer path.
+#define WIREFRAME_OVERLAY_ZBIAS 7
+
 //DECLARE_PERF_TIMER(NonTerrainRender)
 void RTS3DScene::Render(RenderInfoClass & rinfo)
 {
@@ -1160,7 +1221,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			//a projected alpha texture which will later be used to determine where
 			//wireframe should be visible.
 			///@todo: Clearing to black may not be needed if the scene already did the clear.
-			g_renderBackend->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_ALPHA);
+			g_renderBackend->Set_Color_Write_Mask(RB_COLOR_ALPHA);
 			g_renderBackend->Set_Z_Bias(0);
 			//Since all objects will be rendered with same material, disable resetting until all are done.
 			m_maskMaterialPass->setAllowUninstall(FALSE);
@@ -1170,7 +1231,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			m_maskMaterialPass->setAllowUninstall(TRUE);
 			m_maskMaterialPass->UnInstall_Materials();
 
-			g_renderBackend->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			g_renderBackend->Set_Color_Write_Mask(RB_COLOR_RGB);
 
 			ShaderClass::Invalidate();
 		}
@@ -1185,7 +1246,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			//wireframe should be visible.
 			///@todo: Clearing to black may not be needed if the scene already did the clear.
 			g_renderBackend->Clear(true, false, Vector3(0.0f,0.0f,0.0f),1.0f);	// Clear color but not z
-			g_renderBackend->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_ALPHA);
+			g_renderBackend->Set_Color_Write_Mask(RB_COLOR_ALPHA);
 			g_renderBackend->Set_Z_Bias(0);
 
 			//We're only filling the z-buffer so ignore normal textures and state changes to speed things up.
@@ -1198,7 +1259,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			m_maskMaterialPass->setAllowUninstall(TRUE);
 			m_maskMaterialPass->UnInstall_Materials();
 
-			g_renderBackend->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			g_renderBackend->Set_Color_Write_Mask(RB_COLOR_RGB);
 			WW3D::Enable_Coloring(0xff008000);
 			WW3D::Enable_Texturing(false);
 			g_renderBackend->Set_Fill_Mode(RB_FILL_WIREFRAME);
@@ -1210,16 +1271,14 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			rinfo.Camera.Set_Zbuffer_Range(nearZ, farZ-ZBias);
 			rinfo.Camera.Apply();
 
-//			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 4);
-			Customized_Render(rinfo);	//render wireframe where z-test passes
+				Customized_Render(rinfo);	//render wireframe where z-test passes
 			Flush(rinfo);
 			g_renderBackend->Set_Fill_Mode(RB_FILL_SOLID);
 
 			rinfo.Camera.Set_Zbuffer_Range(nearZ, farZ);
 			rinfo.Camera.Apply();
 
-//			DX8Wrapper::Set_DX8_Render_State (D3DRS_ZBIAS, 0);
-			WW3D::Enable_Texturing(old_enable);
+				WW3D::Enable_Texturing(old_enable);
 			WW3D::Enable_Coloring(0);
 
 			ShaderClass::Invalidate();
@@ -1234,13 +1293,13 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 			Customized_Render(rinfo);
 			Flush(rinfo);
 			//Re-enable writes to color buffer.
-			g_renderBackend->Set_Color_Write_Mask(D3DCOLORWRITEENABLE_BLUE|D3DCOLORWRITEENABLE_GREEN|D3DCOLORWRITEENABLE_RED);
+			g_renderBackend->Set_Color_Write_Mask(RB_COLOR_RGB);
 
 			switch (Get_Extra_Pass_Polygon_Mode()) {
 			case EXTRA_PASS_LINE:
 				WW3D::Enable_Texturing(false);
 				g_renderBackend->Set_Fill_Mode(RB_FILL_WIREFRAME);
-				g_renderBackend->Set_Z_Bias(7);
+				g_renderBackend->Set_Z_Bias(WIREFRAME_OVERLAY_ZBIAS);
 				Customized_Render(rinfo);
 				break;
 			case EXTRA_PASS_CLEAR_LINE:
@@ -1248,7 +1307,7 @@ void RTS3DScene::Render(RenderInfoClass & rinfo)
 				WW3D::Enable_Texturing(false);
 				WW3D::Enable_Coloring(0xff008000);
 				g_renderBackend->Set_Fill_Mode(RB_FILL_WIREFRAME);
-				g_renderBackend->Set_Z_Bias(7);
+				g_renderBackend->Set_Z_Bias(WIREFRAME_OVERLAY_ZBIAS);
 				Customized_Render(rinfo);
 				break;
 			}
@@ -1332,7 +1391,7 @@ void RTS3DScene::Customized_Render( RenderInfoClass &rinfo )
 		return;
 	}
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableObjects) {
+	if (g_renderDebugStats.m_disableObjects) {
 		return;
 	}
 #endif
@@ -1445,30 +1504,12 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
     v[2].color = color;
     v[3].color = color;
 
-	// TheSuperHackers @refactor bobtista 10/04/2026 partial migration:
-	// the high-level Set_Shader/Set_Material/Apply_Render_State_Changes calls
-	// and all the stencil + alpha-blend state setters in this function (and
-	// the rest of W3DScene.cpp) are routed through g_renderBackend via the
-	// new stencil state extension. The remaining low-level Set_DX8_Render_State
-	// calls (D3DRS_ZBIAS, COLORWRITEENABLE, FILLMODE, ZENABLE/ZFUNC,
-	// SRCBLEND/DESTBLEND pairs, AMBIENT) and the raw m_pDev->* device pointer
-	// access points stay on DX8Wrapper::* for now.
+	// TheSuperHackers @refactor bobtista 10/04/2026 Route shader/material state through g_renderBackend.
 	g_renderBackend->Set_Shader(PlayerColorShader);
 	VertexMaterialClass *vmat=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 	g_renderBackend->Set_Material(vmat);
 	REF_PTR_RELEASE(vmat);
 	g_renderBackend->Apply_Render_State_Changes();	//force update all render states
-
-#if !defined(GGC_BGFX_STANDALONE)
-	LPDIRECT3DDEVICE8 m_pDev=DX8Wrapper::_Get_D3D_Device8();
-
-	if (!m_pDev)
-		return;	//need device to render anything.
-
-	//draw polygons like this is very inefficient but for only 2 triangles, it's
-	//not worth bothering with index/vertex buffers.
-	m_pDev->SetVertexShader(D3DFVF_XYZRHW | D3DFVF_DIFFUSE);
-#endif
 
 	// Set stencil states
 	g_renderBackend->Set_Stencil_Enable(true);
@@ -1488,9 +1529,9 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		g_renderBackend->Set_Depth_Func(RB_CMP_NEVER);	//fail all access to the frame buffer to improve memory bandwidth
 
 		//disable writes to color buffer
-		if (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE)
+		if (g_renderBackend->Supports_Color_Write_Mask())
 		{
-			DX8Wrapper::_Get_D3D_Device8()->GetRenderState(D3DRS_COLORWRITEENABLE, &oldColorWriteEnable);
+			oldColorWriteEnable = g_renderBackend->Get_Color_Write_Mask();
 			g_renderBackend->Set_Color_Write_Mask(0);
 		}
 		else
@@ -1515,9 +1556,13 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		g_renderBackend->Set_Blend_Factors(RB_BLEND_SRC_ALPHA, RB_BLEND_INV_SRC_ALPHA);
 	}
 
-	if (DX8Wrapper::_Is_Triangle_Draw_Enabled())
+	if (g_renderBackend->Is_Triangle_Draw_Enabled())
 #if defined(GGC_BGFX_STANDALONE)
 	{
+	// TheSuperHackers @bugfix bobtista 30/04/2026 Explicitly route the player-color stencil wash
+	// to the effect-overlay view; the backend's bounds+stencil heuristic also caught UI quads.
+		g_renderBackend->Begin_Effect_Overlay();
+
 		Matrix4x4 view,proj;
 		Matrix4x4 identity(true);
 
@@ -1530,7 +1575,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		const Real displayHalfWidth = (Real)TheDisplay->getWidth() * 0.5f;
 		const Real displayHalfHeight = (Real)TheDisplay->getHeight() * -0.5f;
 
-		DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,4);
+		DynamicVBAccessClass vb(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,4);
 		{
 			DynamicVBAccessClass::WriteLockClass lock(&vb);
 			VertexFormatXYZNDUV2 *verts=lock.Get_Formatted_Vertex_Array();
@@ -1553,7 +1598,7 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 			}
 		}
 
-		DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC_DX8,6);
+		DynamicIBAccessClass ib(BUFFER_TYPE_DYNAMIC,6);
 		{
 			DynamicIBAccessClass::WriteLockClass lock(&ib);
 			unsigned short *indices=lock.Get_Index_Array();
@@ -1573,9 +1618,11 @@ void renderStenciledPlayerColor( UnsignedInt color, UnsignedInt stencilRef, Bool
 		g_renderBackend->Draw_Triangles(0,2,0,4);
 		g_renderBackend->Set_Transform(RB_TRANSFORM_VIEW,view);
 		g_renderBackend->Set_Transform(RB_TRANSFORM_PROJECTION,proj);
+
+		g_renderBackend->End_Effect_Overlay();
 	}
 #else
-		m_pDev->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, v, sizeof(_TRANSLITVERTEX));
+		g_renderBackend->Draw_Screen_Color_Quad(color, xpos, ypos, width, height);
 #endif
 
 	// turn off the stencil buffer
@@ -1671,11 +1718,11 @@ void RTS3DScene::flushOccludedObjectsIntoStencil(RenderInfoClass & rinfo)
 					Object *object=draw->getObject();
 
 					Int color=object->getControllingPlayer()->getPlayerColor();
-					RGB_To_HSV(hsv,Vector3(((color>>16)&0xff)/255.0f,((color>>8)&0xff)/255.0f,(color &0xff)/255.0f));
-					hsv.Z*=TheGlobalData->m_occludedLuminanceScale;
-					HSV_To_RGB(rgb,hsv);
-					visiblePlayerColors[numVisiblePlayerColors++]=DX8Wrapper::Convert_Color(rgb,0.5f);
-				}
+						RGB_To_HSV(hsv,Vector3(((color>>16)&0xff)/255.0f,((color>>8)&0xff)/255.0f,(color &0xff)/255.0f));
+						hsv.Z*=TheGlobalData->m_occludedLuminanceScale;
+						HSV_To_RGB(rgb,hsv);
+						visiblePlayerColors[numVisiblePlayerColors++]=WW3DColor::To_ARGB(rgb,0.5f);
+					}
 
 				Int thisPlayerColorIndex=playerColorIndex[k];
 

@@ -65,7 +65,6 @@
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/dx8renderer.h"
 #include "WW3D2/mesh.h"
@@ -132,11 +131,10 @@ are already set.  */
 void W3DBridge::renderBridge(Bool wireframe)
 {
 	if (m_visible && m_numPolygons && m_numVertex) {
-		// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-		// through the IRenderBackend abstraction.
-		if (!wireframe) g_renderBackend->Set_Texture(0,m_bridgeTexture);
-		// Draw all the bridges.
-		g_renderBackend->Draw_Triangles(	m_firstIndex, m_numPolygons, m_firstVertex,	m_numVertex);
+		if (!wireframe) {
+			g_renderBackend->Set_Texture(0, m_bridgeTexture);
+		}
+		g_renderBackend->Draw_Triangles(m_firstIndex, m_numPolygons, m_firstVertex, m_numVertex);
 	}
 }
 
@@ -249,6 +247,13 @@ Bool W3DBridge::load(BodyDamageType curDamageState)
 	strlcat(right, ".BRIDGE_RIGHT", ARRAY_SIZE(right));
 
 	m_bridgeTexture = pMgr->Get_Texture(textureFile,  MIP_LEVELS_3);
+	if (m_bridgeTexture != nullptr && g_renderBackend->Has_Shader_Pipeline()) {
+		// Bridge textures are compact atlases whose lower mips can collapse
+		// black padding into visible deck pixels under bgfx/Metal. Keep the
+		// authored level-0 texels stable; the bgfx backend binds a one-mip
+		// sibling whenever the stage mip filter is disabled.
+		m_bridgeTexture->Get_Filter().Set_Mip_Mapping(TextureFilterClass::FILTER_TYPE_NONE);
+	}
 	m_leftMtx.Make_Identity();
 	m_rightMtx.Make_Identity();
 	m_sectionMtx.Make_Identity();
@@ -696,8 +701,8 @@ void W3DBridgeBuffer::loadBridgesInVertexAndIndexBuffers(RefRenderObjListIterato
 	VertexFormatXYZNDUV1 *vb;
 	UnsignedShort *ib;
 	// Lock the buffers.
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBridge, D3DLOCK_DISCARD);
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBridge, D3DLOCK_DISCARD);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBridge, RB_LOCK_DISCARD);
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBridge, RB_LOCK_DISCARD);
 	vb=(VertexFormatXYZNDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 
@@ -769,8 +774,13 @@ void W3DBridgeBuffer::allocateBridgeBuffers()
 {
 	if (TheGlobalData->m_headless)
 		return;
-	m_vertexBridge=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_BRIDGE_VERTEX+4,DX8VertexBufferClass::USAGE_DYNAMIC));
-	m_indexBridge=NEW_REF(DX8IndexBufferClass,(MAX_BRIDGE_INDEX+4, DX8IndexBufferClass::USAGE_DYNAMIC));
+	m_vertexBridge=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZNDUV1,
+		MAX_BRIDGE_VERTEX+4,
+		Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+	m_indexBridge=NEW_REF(RenderIndexBufferClass,(
+		MAX_BRIDGE_INDEX+4,
+		Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	m_vertexMaterial=VertexMaterialClass::Get_Preset(VertexMaterialClass::PRELIT_DIFFUSE);
 #ifdef USE_BRIDGE_NORMALS
 	m_vertexMaterial= NEW VertexMaterialClass();
@@ -1158,18 +1168,19 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
 	// through the IRenderBackend abstraction.
 	g_renderBackend->Set_Material(m_vertexMaterial);
-	// Setup the vertex buffer, shader & texture.
 	g_renderBackend->Set_Index_Buffer(m_indexBridge,0);
 	g_renderBackend->Set_Vertex_Buffer(m_vertexBridge,0);
 	g_renderBackend->Set_Shader(detailAlphaShader);
-#ifdef RTS_DEBUG
-	//DX8Wrapper::Set_Shader(detailShader); // shows alpha clipping.
-#endif
-
+	if (g_renderBackend->Has_Shader_Pipeline()) {
+		g_renderBackend->Set_Texture_Coord_Source(0, RB_TEXCOORD_MESH_UV, 0);
+		g_renderBackend->Clear_Texture_Transform(0);
+		g_renderBackend->Set_Texture_Transform_Mode(0, 0, false);
+		g_renderBackend->Set_Texture_Mip_Filter(0, RB_TEXTURE_SAMPLE_NONE);
+	}
 	g_renderBackend->Apply_Render_State_Changes();
 
-	if (!wireframe && cloudTexture)
-	{	//Force a cloud texture projection into stage 1
+	if (!wireframe && cloudTexture && !g_renderBackend->Has_Shader_Pipeline())
+	{
 		W3DShaderManager::setTexture(1,cloudTexture);
 		W3DShaderManager::setShader(W3DShaderManager::ST_CLOUD_TEXTURE,1);
 	}
@@ -1181,32 +1192,23 @@ void W3DBridgeBuffer::drawBridges(CameraClass * camera, Bool wireframe, TextureC
 	}
 
 	if (!wireframe && cloudTexture)
-		//Force a cloud texture projection into stage 1
 		W3DShaderManager::resetShader(W3DShaderManager::ST_CLOUD_TEXTURE);
 
-	//Render shroud pass over all the bridges
 	if (!wireframe && TheTerrainRenderObject->getShroud())
 	{
-		//Reset to a known shader.
-		// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
-		// through the IRenderBackend abstraction.
 		g_renderBackend->Invalidate_Cached_Render_States();
 		g_renderBackend->Set_Shader(ShaderClass::_PresetOpaqueShader);
 		g_renderBackend->Set_Material(m_vertexMaterial);
 		g_renderBackend->Set_Index_Buffer(m_indexBridge,0);
 		g_renderBackend->Set_Vertex_Buffer(m_vertexBridge,0);
 		g_renderBackend->Apply_Render_State_Changes();
-		//Apply custom shroud projection shader.
 		W3DShaderManager::setTexture(0,TheTerrainRenderObject->getShroud()->getShroudTexture());
 		W3DShaderManager::setShader(W3DShaderManager::ST_SHROUD_TEXTURE, 0);
 		for (curBridge=0; curBridge<m_numBridges; curBridge++) {
 			if (m_bridges[curBridge].isEnabled() && m_bridges[curBridge].isVisible()) {
-				//Pretend we're in wireframe so function doesn't reset the shroud texture.
 				m_bridges[curBridge].renderBridge(TRUE);
 			}
 		}
 		W3DShaderManager::resetShader(W3DShaderManager::ST_SHROUD_TEXTURE);
 	}
 }
-
-

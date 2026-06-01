@@ -59,10 +59,10 @@
 #include "WW3D2/meshmdl.h"
 #include "WW3D2/part_emt.h"
 #include "WW3D2/vertmaterial.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/texture.h"
 #include "WW3D2/surfaceclass.h"
 #include "WW3D2/textureloader.h"
+#include "WW3D2/ww3dcolor.h"
 #include "WW3D2/ww3dformat.h"
 #include "WW3D2/colorspace.h"
 #include <WWDebug/wwprofile.h>
@@ -94,6 +94,37 @@ static FILE *W3DAssetDiagFile()
 		fp = fopen("ggc_w3d_asset_diag.txt", "wt");
 	}
 	return fp;
+}
+
+static SurfaceClass *Create_Texture_Mip_Surface(TextureClass *texture, unsigned int level)
+{
+	if (texture == nullptr) {
+		return nullptr;
+	}
+
+	const std::vector<TextureBaseClass::TextureMipSnapshot> &mips = texture->Get_CPU_Texture_Mips();
+	if (level < mips.size()) {
+		const TextureBaseClass::TextureMipSnapshot &mip = mips[level];
+		const unsigned bytes_per_pixel = Get_Bytes_Per_Pixel(mip.Format);
+		const unsigned row_size = mip.Width * bytes_per_pixel;
+		if (mip.Format != WW3D_FORMAT_UNKNOWN &&
+			mip.Width != 0 &&
+			mip.Height != 0 &&
+			bytes_per_pixel != 0 &&
+			mip.Pitch >= row_size &&
+			mip.Data.size() >= static_cast<size_t>(mip.Pitch) * mip.Height)
+		{
+			SurfaceClass *surface = NEW_REF(SurfaceClass, (mip.Width, mip.Height, mip.Format));
+			surface->Copy(mip.Data.data(), mip.Pitch);
+			return surface;
+		}
+	}
+
+#if !defined(GGC_BGFX_STANDALONE)
+	return texture->Get_Surface_Level(level);
+#else
+	return nullptr;
+#endif
 }
 
 static void W3DAssetDiagLog(const char *fmt, ...)
@@ -709,7 +740,10 @@ TextureClass * W3DAssetManager::Recolor_Texture_One_Time(TextureClass *texture, 
 	psize=Get_Bytes_Per_Pixel(desc.Format);
 	DEBUG_ASSERTCRASH( psize == 2 || psize == 4, ("Can't Recolor Texture %s", name) );
 
-	oldsurf=texture->Get_Surface_Level();
+	oldsurf=Create_Texture_Mip_Surface(texture, 0);
+	if (oldsurf == nullptr) {
+		return nullptr;
+	}
 
 	newsurf=NEW_REF(SurfaceClass,(desc.Width,desc.Height,desc.Format));
 	newsurf->Copy(0,0,0,0,desc.Width,desc.Height,oldsurf);
@@ -1556,9 +1590,9 @@ void W3DAssetManager::Recolor_Vertices(unsigned int *color, int count, const Vec
 
 	for (i=0; i<count; i++)
 	{
-		rgba=DX8Wrapper::Convert_Color(color[i]);
+		rgba=WW3DColor::From_ARGB(color[i]);
 		Recolor(reinterpret_cast<Vector3&>(rgba),hsv_shift);
-		color[i]=DX8Wrapper::Convert_Color_Clamp(rgba);
+		color[i]=WW3DColor::To_ARGB_Clamp(rgba);
 	}
 }
 
@@ -1591,7 +1625,10 @@ TextureClass * W3DAssetManager::Recolor_Texture_One_Time(TextureClass *texture, 
 
 	// if texture is monochrome and no value shifting
 	// return nullptr
-	smallsurf=texture->Get_Surface_Level((TextureClass::MipCountType)texture->Get_Mip_Level_Count()-1);
+	smallsurf=Create_Texture_Mip_Surface(texture, texture->Get_Mip_Level_Count() - 1);
+	if (smallsurf == nullptr) {
+		return nullptr;
+	}
 	if (hsv_shift.Z==0.0f && smallsurf->Is_Monochrome())
 	{
 		REF_PTR_RELEASE(smallsurf);
@@ -1599,7 +1636,10 @@ TextureClass * W3DAssetManager::Recolor_Texture_One_Time(TextureClass *texture, 
 	}
 	REF_PTR_RELEASE(smallsurf);
 
-	oldsurf=texture->Get_Surface_Level();
+	oldsurf=Create_Texture_Mip_Surface(texture, 0);
+	if (oldsurf == nullptr) {
+		return nullptr;
+	}
 
 	newsurf=NEW_REF(SurfaceClass,(desc.Width,desc.Height,desc.Format));
 	newsurf->Copy(0,0,0,0,desc.Width,desc.Height,oldsurf);
