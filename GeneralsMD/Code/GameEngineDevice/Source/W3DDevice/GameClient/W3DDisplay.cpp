@@ -79,6 +79,7 @@ static void drawFramerateBar();
 #include "W3DDevice/GameClient/W3DScene.h"
 #include "W3DDevice/GameClient/W3DTerrainTracks.h"
 #include "W3DDevice/GameClient/W3DWater.h"
+#include "WW3D2/statistics.h"
 #include "W3DDevice/GameClient/W3DVideoBuffer.h"
 #include "W3DDevice/GameClient/W3DShaderManager.h"
 #include "W3DDevice/GameClient/W3DDebugDisplay.h"
@@ -91,7 +92,7 @@ static void drawFramerateBar();
 #include "WW3D2/predlod.h"
 #include "WW3D2/part_emt.h"
 #include "WW3D2/part_ldr.h"
-#include "WW3D2/dx8caps.h"
+#include "WW3D2/renderdebugstats.h"
 #include "WW3D2/ww3dformat.h"
 #include "WW3D2/agg_def.h"
 #include "WW3D2/IRenderBackend.h"
@@ -1025,10 +1026,10 @@ void W3DDisplay::init()
 			return;
 		}
 
-		// TheSuperHackers @fix bobtista 21/04/2026 D3D8 half-pixel UV bias causes sub-pixel misalignment on D3D11/bgfx (visible stripes on UI atlases from half-texel sampling offsets). Call this AFTER Set_Render_Device because the render backend is only constructed by Do_Onetime_Device_Dependent_Inits which Set_Render_Device triggers — calling earlier would read g_renderBackend=nullptr and incorrectly enable the bias on bgfx.
+		// TheSuperHackers @fix bobtista 21/04/2026 Legacy half-pixel UV bias causes sub-pixel misalignment on shader backends (visible stripes on UI atlases from half-texel sampling offsets). Call this AFTER Set_Render_Device because the render backend is only constructed by Do_Onetime_Device_Dependent_Inits which Set_Render_Device triggers — calling earlier would read g_renderBackend=nullptr and incorrectly enable the bias on bgfx.
 		const bool shaderPipeline =
 			(g_renderBackend != nullptr && g_renderBackend->Has_Shader_Pipeline());
-		WW3D::Set_Screen_UV_Bias( shaderPipeline ? FALSE : TRUE );  ///< TRUE makes text look good on D3D8
+		WW3D::Set_Screen_UV_Bias( shaderPipeline ? FALSE : TRUE );  ///< TRUE keeps text aligned on the legacy fixed-function backend.
 
 		//Check if level was never set and default to setting most suitable for system.
 		if (TheGameLODManager->getStaticLODLevel() == STATIC_GAME_LOD_UNKNOWN)
@@ -1305,76 +1306,76 @@ void W3DDisplay::gatherDebugStats()
 		} else if (statMode == gameOverhead) {
 			gameOverheadMS = ms;
 			statMode = console;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = false;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = false;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == console) {
 			consoleMS = ms;
 			statMode = threeDOverhead;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == threeDOverhead) {
 			threeDOverheadMS = ms;
 			statMode = terrain;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableTerrain = false;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == terrain) {
 			terrainMS = ms;
 			statMode = objects;
-			DX8Wrapper::stats.m_disableOverhead = true;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableOverhead = true;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = false;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == objects) {
 			objectMS = ms;
 			statMode = overlap;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableWater = false;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_sleepTime = (int)(terrainMS);
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableOverhead = false;
+			g_renderDebugStats.m_disableTerrain = false;
+			g_renderDebugStats.m_disableWater = false;
+			g_renderDebugStats.m_disableObjects = false;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_sleepTime = (int)(terrainMS);
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == overlap) {
 			overlapMS = ms;
 			statMode = normal;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = false;
-			DX8Wrapper::stats.m_disableWater = false;
-			DX8Wrapper::stats.m_disableObjects = false;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_sleepTime = 0;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_disableOverhead = false;
+			g_renderDebugStats.m_disableTerrain = false;
+			g_renderDebugStats.m_disableWater = false;
+			g_renderDebugStats.m_disableObjects = false;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_sleepTime = 0;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 		} else if (statMode == normal) {
 			overlapMS = (ms + ((int)terrainMS) - overlapMS );
 			statMode = disabled;
 			extendedStats = SHOW_STATS_TIME;
 
 			// Done collecting stats. Re-enable stuff
-			DX8Wrapper::stats.m_disableConsole = false;
-			DX8Wrapper::stats.m_debugLinesToShow = -1;
-		} else if (!DX8Wrapper::stats.m_showingStats) {
+			g_renderDebugStats.m_disableConsole = false;
+			g_renderDebugStats.m_debugLinesToShow = -1;
+		} else if (!g_renderDebugStats.m_showingStats) {
 			// start collecting extended info.
-			DX8Wrapper::stats.m_showingStats = true;
-			DX8Wrapper::stats.m_disableOverhead = false;
-			DX8Wrapper::stats.m_disableTerrain = true;
-			DX8Wrapper::stats.m_disableWater = true;
-			DX8Wrapper::stats.m_disableObjects = true;
-			DX8Wrapper::stats.m_disableConsole = true;
-			DX8Wrapper::stats.m_debugLinesToShow = 1;
+			g_renderDebugStats.m_showingStats = true;
+			g_renderDebugStats.m_disableOverhead = false;
+			g_renderDebugStats.m_disableTerrain = true;
+			g_renderDebugStats.m_disableWater = true;
+			g_renderDebugStats.m_disableObjects = true;
+			g_renderDebugStats.m_disableConsole = true;
+			g_renderDebugStats.m_debugLinesToShow = 1;
 			statMode = sync;
 			gameOverheadMS = 0.0f;
 			threeDOverheadMS = 0.0f;
@@ -1736,9 +1737,9 @@ void W3DDisplay::drawDebugStats()
 
 	int linesOfStrings = DisplayStringCount;
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_debugLinesToShow > -1)
+	if (g_renderDebugStats.m_debugLinesToShow > -1)
 	{
-		linesOfStrings = DX8Wrapper::stats.m_debugLinesToShow;
+		linesOfStrings = g_renderDebugStats.m_debugLinesToShow;
 	}
 
 #endif
@@ -1972,7 +1973,7 @@ AGAIN:
 #ifdef EXTENDED_STATS
 	else
 	{
-		DX8Wrapper::stats.m_showingStats = false;
+		g_renderDebugStats.m_showingStats = false;
 	}
 #endif
 
@@ -2055,7 +2056,8 @@ AGAIN:
 	do {
 
 		// update all views of the world - recomputes data which will affect drawing
-		if (DX8Wrapper::_Get_D3D_Device8() && (DX8Wrapper::_Get_D3D_Device8()->TestCooperativeLevel()) == D3D_OK)
+		const Bool renderDeviceReady = (g_renderBackend != nullptr && !g_renderBackend->Is_Device_Lost());
+		if (renderDeviceReady)
 		{	//Checking if we have the device before updating views because the heightmap crashes otherwise while
 			//trying to refresh the visible terrain geometry.
 //			if(TheGlobalData->m_loadScreenRender != TRUE)
@@ -2220,7 +2222,7 @@ AGAIN:
 	} while (freezeTime && !TheTacticalView->isCameraMovementFinished());
 
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableOverhead) {
+	if (g_renderDebugStats.m_disableOverhead) {
 		goto AGAIN;
 	}
 #endif
@@ -3049,34 +3051,34 @@ VideoBuffer*	W3DDisplay::createVideoBuffer()
 	// the BGR0 frames FFmpeg produces on little-endian macOS. Avoid 16-bit
 	// R5G6B5 here; it is both slower in swscale and currently renders with
 	// swapped-looking colors through the bgfx texture path.
-	if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+	if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
 	{
 		format = VideoBuffer::TYPE_X8R8G8B8;
 	}
 #endif
 
-	WW3DFormat displayFormat = DX8Wrapper::getBackBufferFormat();
+	WW3DFormat displayFormat = g_renderBackend->Get_Back_Buffer_Format();
 
-	if ( format == VideoBuffer::TYPE_UNKNOWN && DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( displayFormat ))
+	if ( format == VideoBuffer::TYPE_UNKNOWN && g_renderBackend && g_renderBackend->Supports_Texture_Format( displayFormat ))
 	{
 		format = W3DVideoBuffer::W3DFormatToType( displayFormat );
 	}
 
 	if ( format == VideoBuffer::TYPE_UNKNOWN )
 	{
-		if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
+		if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_X8R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_X8R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R8G8B8 ))
+		else if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_R8G8B8 ))
 		{
 			format = VideoBuffer::TYPE_R8G8B8;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_R5G6B5 ))
+		else if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_R5G6B5 ))
 		{
 			format = VideoBuffer::TYPE_R5G6B5;
 		}
-		else if ( DX8Wrapper::Get_Current_Caps()->Support_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
+		else if ( g_renderBackend && g_renderBackend->Supports_Texture_Format( WW3D_FORMAT_X1R5G5B5 ))
 		{
 			format = VideoBuffer::TYPE_X1R5G5B5;
 		}
@@ -3143,7 +3145,10 @@ void W3DDisplay::drawVideoBuffer( VideoBuffer *buffer, Int startX, Int startY, I
 {
 	W3DVideoBuffer *vbuffer = (W3DVideoBuffer*) buffer;
 
-	setup2DRenderState(vbuffer->texture(), DRAW_IMAGE_ALPHA, FALSE);
+	// Video buffers are opaque frames. The legacy D3D X8 formats sampled the
+	// unused alpha byte as 1.0; drawing them solid keeps the bgfx path from
+	// depending on undefined X-channel contents.
+	setup2DRenderState(vbuffer->texture(), DRAW_IMAGE_SOLID, FALSE);
 
 	m_2DRender->Add_Quad( RectClass( startX, startY, endX, endY ),
 												vbuffer->Rect( 0, 0, 1, 1) );
@@ -3205,6 +3210,200 @@ void W3DDisplay::setShroudLevel( Int x, Int y, CellShroudStatus setting )
 		TheTerrainRenderObject->notifyShroudChanged();
 
 	}
+}
+
+//=============================================================================
+///Utility function to dump data into a .BMP file
+static void CreateBMPFile(LPTSTR pszFile, char *image, Int width, Int height)
+{
+	HANDLE hf;                  // file handle
+	BITMAPFILEHEADER hdr;       // bitmap file-header
+	PBITMAPINFOHEADER pbih;     // bitmap info-header
+	LPBYTE lpBits;              // memory pointer
+	DWORD dwTotal;              // total count of bytes
+	DWORD cb;                   // incremental count of bytes
+	BYTE *hp;                   // byte pointer
+	DWORD dwTmp;
+
+	PBITMAPINFO pbmi;
+
+	pbmi = (PBITMAPINFO) LocalAlloc(LPTR,sizeof(BITMAPINFOHEADER));
+	if (pbmi == nullptr)
+		return;
+
+	pbmi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+	pbmi->bmiHeader.biWidth = width;
+	pbmi->bmiHeader.biHeight = height;
+	pbmi->bmiHeader.biPlanes = 1;
+	pbmi->bmiHeader.biBitCount = 24;
+	pbmi->bmiHeader.biCompression = BI_RGB;
+	pbmi->bmiHeader.biSizeImage = (pbmi->bmiHeader.biWidth + 7) /8 * pbmi->bmiHeader.biHeight * 24;
+	pbmi->bmiHeader.biClrImportant = 0;
+
+	pbih = (PBITMAPINFOHEADER) pbmi;
+	lpBits = (LPBYTE) image;
+
+	// Create the .BMP file.
+	hf = CreateFile(pszFile,
+		GENERIC_READ | GENERIC_WRITE,
+		(DWORD) 0,
+		nullptr,
+		CREATE_ALWAYS,
+		FILE_ATTRIBUTE_NORMAL,
+		(HANDLE) nullptr);
+
+	if (hf != INVALID_HANDLE_VALUE)
+	{
+		hdr.bfType = 0x4d42;        // 0x42 = "B" 0x4d = "M"
+		// Compute the size of the entire file.
+		hdr.bfSize = (DWORD) (sizeof(BITMAPFILEHEADER) +
+									pbih->biSize + pbih->biClrUsed
+									* sizeof(RGBQUAD) + pbih->biSizeImage);
+		hdr.bfReserved1 = 0;
+		hdr.bfReserved2 = 0;
+
+		// Compute the offset to the array of color indices.
+		hdr.bfOffBits = (DWORD) sizeof(BITMAPFILEHEADER) +
+										pbih->biSize + pbih->biClrUsed
+										* sizeof (RGBQUAD);
+
+		// Copy the BITMAPFILEHEADER into the .BMP file.
+		if (WriteFile(hf, (LPVOID) &hdr, sizeof(BITMAPFILEHEADER),
+				(LPDWORD) &dwTmp,  nullptr))
+		{
+			// Copy the BITMAPINFOHEADER and RGBQUAD array into the file.
+			if (WriteFile(hf, (LPVOID) pbih, sizeof(BITMAPINFOHEADER) + pbih->biClrUsed * sizeof (RGBQUAD),(LPDWORD) &dwTmp, nullptr))
+			{
+				// Copy the array of color indices into the .BMP file.
+				dwTotal = cb = pbih->biSizeImage;
+				hp = lpBits;
+				WriteFile(hf, (LPSTR) hp, (int) cb, (LPDWORD) &dwTmp, nullptr);
+			}
+		}
+
+		// Close the .BMP file.
+		CloseHandle(hf);
+	}
+
+	// Free memory.
+	LocalFree( (HLOCAL) pbmi);
+}
+
+///Save Screen Capture to a file
+void W3DDisplay::takeScreenShot()
+{
+	char leafname[256];
+	char pathname[1024];
+
+	static int frame_number = 1;
+
+	Bool done = false;
+	while (!done) {
+#ifdef CAPTURE_TO_TARGA
+		sprintf( leafname, "%s%.3d.tga", "sshot", frame_number++);
+#else
+		sprintf( leafname, "%s%.3d.bmp", "sshot", frame_number++);
+#endif
+		strlcpy(pathname, TheGlobalData->getPath_UserData().str(), ARRAY_SIZE(pathname));
+		strlcat(pathname, leafname, ARRAY_SIZE(pathname));
+		if (_access( pathname, 0 ) == -1)
+			done = true;
+	}
+
+	RenderBackendImage capture;
+	if (g_renderBackend == nullptr || !g_renderBackend->Capture_Back_Buffer_Image(0, capture))
+	{
+		if (g_renderBackend == nullptr || !g_renderBackend->Request_Native_Screen_Shot(pathname))
+		{
+			return;
+		}
+
+		UnicodeString ufileName;
+		ufileName.translate(leafname);
+		TheInGameUI->message(TheGameText->fetch("GUI:ScreenCapture"), ufileName.str());
+		return;
+	}
+
+	unsigned int x,y,index,index2,width,height;
+
+	width = capture.Width;
+	height = capture.Height;
+
+	char *image=NEW char[3*width*height];
+#ifdef CAPTURE_TO_TARGA
+	//bytes are mixed in targa files, not rgb order.
+	for (y=0; y<height; y++)
+	{
+		for (x=0; x<width; x++)
+		{
+			// index for image
+			index=3*(x+y*width);
+			// index for fb
+			index2=y*capture.Pitch+4*x;
+
+			image[index]=*((char *) capture.Bytes.data() + index2+2);
+			image[index+1]=*((char *) capture.Bytes.data() + index2+1);
+			image[index+2]=*((char *) capture.Bytes.data() + index2+0);
+		}
+	}
+
+	Targa targ;
+	memset(&targ.Header,0,sizeof(targ.Header));
+	targ.Header.Width=width;
+	targ.Header.Height=height;
+	targ.Header.PixelDepth=24;
+	targ.Header.ImageType=TGA_TRUECOLOR;
+	targ.SetImage(image);
+	targ.YFlip();
+
+	targ.Save(pathname,TGAF_IMAGE,false);
+#else	//capturing to bmp file
+	//bmp is same byte order
+	for (y=0; y<height; y++)
+	{
+		for (x=0; x<width; x++)
+		{
+			// index for image
+			index=3*(x+y*width);
+			// index for fb
+			index2=y*capture.Pitch+4*x;
+
+			image[index]=*((char *) capture.Bytes.data() + index2+0);
+			image[index+1]=*((char *) capture.Bytes.data() + index2+1);
+			image[index+2]=*((char *) capture.Bytes.data() + index2+2);
+		}
+	}
+
+	//Flip the image
+	char *ptr,*ptr1;
+	char  v,v1;
+
+	for (y = 0; y < (height >> 1); y++)
+	{
+		/* Compute address of lines to exchange. */
+		ptr = (image + ((width * y) * 3));
+		ptr1 = (image + ((width * (height - 1)) * 3));
+		ptr1 -= ((width * y) * 3);
+
+		/* Exchange all the pixels on this scan line. */
+		for (x = 0; x < (width * 3); x++)
+			{
+			v = *ptr;
+			v1 = *ptr1;
+			*ptr = v1;
+			*ptr1 = v;
+			ptr++;
+			ptr1++;
+			}
+	}
+	CreateBMPFile(pathname, image, width, height);
+#endif
+
+	delete [] image;
+
+	UnicodeString ufileName;
+	ufileName.translate(leafname);
+	TheInGameUI->message(TheGameText->fetch("GUI:ScreenCapture"), ufileName.str());
 }
 
 /** Start/Stop capturing an AVI movie*/

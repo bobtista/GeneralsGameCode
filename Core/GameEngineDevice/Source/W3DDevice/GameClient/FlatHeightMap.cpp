@@ -56,7 +56,6 @@
 #include <WW3D2/coltest.h>
 #include <WW3D2/rinfo.h>
 #include <WW3D2/camera.h>
-#include <d3dx8core.h>
 #include "Common/GlobalData.h"
 #include "Common/PerfTimer.h"
 
@@ -82,7 +81,7 @@
 #include "W3DDevice/GameClient/W3DShadow.h"
 #include "W3DDevice/GameClient/W3DWater.h"
 #include "W3DDevice/GameClient/W3DShroud.h"
-#include "WW3D2/dx8wrapper.h"
+#include "WW3D2/renderdebugstats.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
@@ -483,10 +482,13 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 #endif
 
 #ifdef EXTENDED_STATS
-	if (DX8Wrapper::stats.m_disableTerrain) {
+	if (g_renderDebugStats.m_disableTerrain) {
 		return;
 	}
 #endif
+	// TheSuperHackers @bugfix bobtista 28/04/2026 Keep flat terrain in sync
+	// with the bgfx cloudmap path used by regular terrain.
+	W3DShaderManager::pushCloudShadowToBackend(doCloud, doCloud ? m_stageTwoTexture : nullptr);
 
 	// TheSuperHackers @refactor bobtista 10/04/2026 Route high-level calls
 	// through the IRenderBackend abstraction.
@@ -529,6 +531,13 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 
  	if (m_disableTextures)
  		devicePasses=1;	//force to 1 lighting-only pass
+
+	// TheSuperHackers @bugfix bobtista 24/04/2026 Same rationale as HeightMap:
+	// shader pipeline cannot emulate legacy camera-space texcoord generation.
+	if (g_renderBackend->Has_Shader_Pipeline())
+	{
+		devicePasses = 1;
+	}
 
  	//Specify all textures that this shader may need.
  	W3DShaderManager::setTexture(0,m_stageZeroTexture);
@@ -643,6 +652,6 @@ void FlatHeightMapRenderObjClass::Render(RenderInfoClass & rinfo)
 	m_stageTwoTexture->restore();
 	ShaderClass::Invalidate();
 	g_renderBackend->Set_Material(nullptr);
+	W3DShaderManager::pushCloudShadowToBackend(false, nullptr);
 
 }
-
