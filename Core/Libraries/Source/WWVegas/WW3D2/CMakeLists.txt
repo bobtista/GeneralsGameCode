@@ -66,10 +66,13 @@ set(WW3D2_SRC
     dx8webbrowser.h
     dx8wrapper.cpp
     dx8wrapper.h
+    texturecompatibilityinterop.cpp
     dynamesh.cpp
     dynamesh.h
     font3d.cpp
     font3d.h
+    dx8formatconv.h
+    texturecompatibilityinterop.h
     formconv.cpp
     formconv.h
     framgrab.h
@@ -212,8 +215,11 @@ set(WW3D2_SRC
     texproject.h
     #textdraw.cpp # unused
     textdraw.h
+    texturecompat.h
     texture.cpp
     texture.h
+    TextureResourceManager.cpp
+    TextureResourceManager.h
     texturefilter.cpp
     texturefilter.h
     textureloader.cpp
