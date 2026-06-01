@@ -51,7 +51,7 @@
 #endif
 
 #include "dx8wrapper.h"
-#include "dx8textureinterop.h"
+#include "texturecompatibilityinterop.h"
 #include "RenderStateDefs.h"
 #include "dx8webbrowser.h"
 #include "dx8fvf.h"
@@ -4273,14 +4273,14 @@ void DX8Wrapper::Set_Render_Target_With_Z
 )
 {
 	WWASSERT(texture!=nullptr);
-	IDirect3DSurface8 * d3d_surf = Get_Legacy_Surface_Level(*texture);
+	IDirect3DSurface8 * d3d_surf = Get_Native_Compatibility_Surface_Level(*texture);
 	WWASSERT(d3d_surf != nullptr);
 
 	IDirect3DSurface8* d3d_zbuf=nullptr;
 	if (ztexture!=nullptr)
 	{
 
-		d3d_zbuf=Get_Legacy_Surface_Level(*ztexture);
+		d3d_zbuf=Get_Native_Compatibility_Surface_Level(*ztexture);
 		WWASSERT(d3d_zbuf!=nullptr);
 		Set_Render_Target(d3d_surf,d3d_zbuf);
 		d3d_zbuf->Release();
