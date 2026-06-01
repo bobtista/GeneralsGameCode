@@ -328,8 +328,10 @@ static SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num)
 
     SurfaceClass::SurfaceDescription desc;
     back_buffer->Get_Description(desc);
-    SurfaceClass * copy = NEW_REF(SurfaceClass, (
-        DX8Wrapper::_Create_DX8_Surface(desc.Width, desc.Height, desc.Format)));
+    // TheSuperHackers @build bobtista 01/06/2026 SurfaceClass(void*) is
+    // private; use the public Create_Legacy_Surface_Wrapper factory.
+    SurfaceClass * copy = Create_Legacy_Surface_Wrapper(
+        DX8Wrapper::_Create_DX8_Surface(desc.Width, desc.Height, desc.Format));
     if (copy != nullptr)
     {
         DX8Wrapper::_Copy_DX8_Rects(
@@ -849,7 +851,7 @@ bool DX8Backend::Capture_Back_Buffer_RGBA(unsigned int display_width,
     }
     DX8Wrapper::_Copy_DX8_Rects(back_buffer_surface, nullptr, 0, intermediate_surface, nullptr);
 
-    small_render_target_surface = Get_Legacy_Surface_Level(*render_target);
+    small_render_target_surface = Get_Native_Compatibility_Surface_Level(*render_target);
     if (small_render_target_surface == nullptr) {
         goto cleanup;
     }
@@ -1139,7 +1141,7 @@ void DX8Backend::Upload_Texture_Region(
     {
         return;
     }
-    IDirect3DTexture8 * native_texture = dst_texture->Peek_D3D_Texture();
+    IDirect3DTexture8 * native_texture = Peek_Legacy_Texture2D(*dst_texture);
     IDirect3DDevice8 * device = DX8Wrapper::_Get_D3D_Device8();
     if (native_texture == nullptr || device == nullptr)
     {
