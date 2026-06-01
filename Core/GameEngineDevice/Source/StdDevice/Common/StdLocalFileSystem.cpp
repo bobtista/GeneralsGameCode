@@ -128,7 +128,10 @@ static std::filesystem::path fixFilenameFromWindowsPath(const Char *filename, In
 
 		std::filesystem::path pathFixed;
 		std::filesystem::path pathCurrent;
-		for (auto& p : path)
+		// TheSuperHackers @build bobtista 29/04/2026 std::filesystem::path's
+		// iterator dereferences to a temporary on Apple Clang's libc++; use
+		// auto-by-value (or const ref) instead of non-const ref.
+		for (auto p : path)
 		{
 			std::filesystem::path pathFixedPart;
 

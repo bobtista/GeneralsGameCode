@@ -98,6 +98,8 @@ the retail game data — see [Getting the Game Files](docs/BUILD/GETTING_THE_GAM
 ```bash
 scripts/build/macos/fetch-game-data.sh   # open-source INI/UI/Art data
 # copy retail .big files into ~/TheSuperHackers/GeneralsZH/
+# copy retail Data/Cursors/*.ani into ~/TheSuperHackers/GeneralsZH/Data/Cursors/
+# copy retail Data/Scripts/*.scb into ~/TheSuperHackers/GeneralsZH/Data/Scripts/
 ~/TheSuperHackers/GeneralsZH/run.sh      # launch
 ```
 
