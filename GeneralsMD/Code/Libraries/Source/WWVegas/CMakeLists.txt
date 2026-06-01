@@ -3,9 +3,14 @@ add_library(z_wwcommon INTERFACE)
 
 target_link_libraries(z_wwcommon INTERFACE
     core_wwcommon
-    d3d8lib
     stlport
 )
+
+if(NOT GGC_BGFX_STANDALONE)
+    target_link_libraries(z_wwcommon INTERFACE
+        d3d8lib
+    )
+endif()
 
 # TheSuperHackers @build bobtista 29/04/2026 milesstub is Win-only.
 if(WIN32)

@@ -54,10 +54,7 @@ if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQU
     include(cmake/bink.cmake)
 endif()
 
-# The standalone bgfx renderer still uses legacy D3D8/D3DX8 headers for
-# shared math/types even on non-Windows builds, so make the min-dx8-sdk
-# header target available there as well.
-if(GGC_BGFX_STANDALONE OR ((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4))
+if((WIN32 OR "${CMAKE_SYSTEM}" MATCHES "Windows") AND ${CMAKE_SIZEOF_VOID_P} EQUAL 4)
     include(cmake/dx8.cmake)
 endif()
 
