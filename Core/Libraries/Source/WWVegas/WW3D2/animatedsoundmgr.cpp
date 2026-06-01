@@ -42,8 +42,6 @@
 #include "WWLib/inisup.h"
 #include "WWLib/ffactory.h"
 #include "WWLib/WWFILE.h"
-#include "WWAudio/WWAudio.h"
-#include "WWAudio/AudibleSound.h"
 #include "htree.h"
 #include "hanim.h"
 #include "soundlibrarybridge.h"

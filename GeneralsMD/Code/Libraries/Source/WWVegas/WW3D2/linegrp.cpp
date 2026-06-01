@@ -41,11 +41,12 @@
 #include "linegrp.h"
 #include "texture.h"
 #include "vertmaterial.h"
+#include "ww3dcolor.h"
+#include "RenderBackend.h"
+#include "IRenderBackend.h"
 #include "dx8wrapper.h"
 #include "Renderer.h"
 #include "WWMath/wwmath.h"
-#include "WW3D2/RenderBackend.h"
-#include "WW3D2/IRenderBackend.h"
 #include "rinfo.h"
 #include "camera.h"
 #include "dx8indexbuffer.h"
@@ -284,7 +285,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Save off the view matrix
 	Matrix4x4 view;
-	Renderer::Get_Transform(RenderTransform_View, view);
+	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view);
 
 	Matrix4x4 identity(true);
 	WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, identity);
@@ -322,7 +323,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 	// construct the tetrahedra in the index buffers
 	// assume first vertex is the apex, followed by offset[0-3]
 
-	DynamicIBAccessClass iba(sort?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8,num_indices);
+	DynamicIBAccessClass iba(sort?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC,num_indices);
 
 	{
 		DynamicIBAccessClass::WriteLockClass lock(&iba);
@@ -389,7 +390,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 
 	// make the vertex buffers
 
-	DynamicVBAccessClass vba(sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,num_vertices);
+	DynamicVBAccessClass vba(sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,num_vertices);
 
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&vba);
@@ -420,7 +421,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 					vb->x			= end.X;
 					vb->y			= end.Y;
 					vb->z			= end.Z;
-					vb->diffuse	= DX8Wrapper::Convert_Color(taildiffuse);
+					vb->diffuse	= WW3DColor::To_ARGB(taildiffuse);
 					vb->u1		= ucoord;
 					vb->v1		= 1.0f;
 					vb++;
@@ -430,7 +431,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 						vb->x			= loc.X;
 						vb->y			= loc.Y;
 						vb->z			= loc.Z;
-						vb->diffuse	= DX8Wrapper::Convert_Color(diffuse);
+						vb->diffuse	= WW3DColor::To_ARGB(diffuse);
 						vb->u1		= ucoord;
 						vb->v1		= 0.0f;
 						vb++;
@@ -443,7 +444,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 						vb->x			= loc.X;
 						vb->y			= loc.Y;
 						vb->z			= loc.Z;
-						vb->diffuse	= DX8Wrapper::Convert_Color(diffuse);
+						vb->diffuse	= WW3DColor::To_ARGB(diffuse);
 						vb->u1		= ucoord;
 						vb->v1		= 0.0f;
 						vb++;
@@ -457,7 +458,7 @@ void	LineGroupClass::Render(RenderInfoClass &rinfo)
 						vb->x			= loc.X;
 						vb->y			= loc.Y;
 						vb->z			= loc.Z;
-						vb->diffuse	= DX8Wrapper::Convert_Color(taildiffuse);
+						vb->diffuse	= WW3DColor::To_ARGB(taildiffuse);
 						vb->u1		= ucoord;
 						vb->v1		= 1.0f;
 						vb++;

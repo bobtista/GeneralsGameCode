@@ -35,6 +35,9 @@
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
 
 #include "dynamesh.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
+#include "ww3dcolor.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
 #include "dx8wrapper.h"
@@ -182,7 +185,7 @@ void DynamicMeshModel::Render(RenderInfoClass & rinfo)
 	// Process texture reductions:
 //	MatInfo->Process_Texture_Reduction();
 
-	unsigned buffer_type=(Get_Flag(MeshGeometryClass::SORT)&& WW3D::Is_Sorting_Enabled()) ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+	unsigned buffer_type=(Get_Flag(MeshGeometryClass::SORT)&& WW3D::Is_Sorting_Enabled()) ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC;
 
 	/*
 	** Write the vertex data to the vertex buffer. We assume the FVF contains positions, normals,
@@ -466,7 +469,7 @@ bool DynamicMeshClass::End_Vertex()
 //			color->Z = CurVertexColor[color_array_index].Z;
 //			color->W = CurVertexColor[color_array_index].W;
 			unsigned * color = &((Model->Get_Color_Array(color_array_index))[VertCount]);
-			*color=DX8Wrapper::Convert_Color_Clamp(CurVertexColor[color_array_index]);
+			*color=WW3DColor::To_ARGB_Clamp(CurVertexColor[color_array_index]);
 		}
 	}
 
@@ -832,5 +835,3 @@ void DynamicScreenMeshClass::Reset()
 	Reset_Flags();
 	Reset_Mesh_Counters();
 }
-
-

@@ -84,7 +84,6 @@
 #include "matpass.h"
 #include "bwrender.h"
 #include "assetmgr.h"
-#include "dx8wrapper.h"
 #include "RenderBackend.h"
 
 
@@ -1165,7 +1164,10 @@ bool TexProjectClass::Compute_Texture
 		}
 		WW3D::Activate_Snapshot(snapshot);	// End_Render() ends the shapsnot, so restore the state
 
-		DX8Wrapper::Set_Render_Target((IDirect3DSurface8 *)nullptr);
+		// TheSuperHackers @fix bobtista 21/04/2026 Route the end-of-RTT-pass target clear through
+		// WW3D::Get_Render_Backend() so the bgfx renderToTexture flag is reset and later draws are not
+		// misrouted to the RTT view.
+		WW3D::Get_Render_Backend()->Set_Render_Target_With_Z(nullptr, nullptr);
 		return renderResult == WW3D_ERROR_OK;
 	}
 
@@ -1388,4 +1390,3 @@ void TexProjectClass::Update_WS_Bounding_Volume()
 	WorldBoundingVolume.Compute_Axis_Aligned_Extent(&extent);
 	Set_Cull_Box(AABoxClass(WorldBoundingVolume.Center,extent));
 }
-

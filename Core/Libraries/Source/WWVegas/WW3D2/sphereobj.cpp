@@ -85,6 +85,9 @@
 #include "WWLib/wwstring.h"
 #include "camera.h"
 #include "statistics.h"
+#include "ww3dcolor.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
 #include "dx8wrapper.h"
 #include "Renderer.h"
 #include "dx8vertexbuffer.h"
@@ -238,6 +241,7 @@ SphereRenderObjClass::SphereRenderObjClass(const SphereRenderObjClass & src)
 
 SphereRenderObjClass::~SphereRenderObjClass()
 {
+	REF_PTR_RELEASE(SphereTexture);
 	REF_PTR_RELEASE(SphereMaterial);
 }
 
@@ -477,7 +481,7 @@ void SphereRenderObjClass::render_sphere()
 
 	// Enable sorting if the primitive is translucent, alpha testing is not enabled, and sorting is enabled globally.
 	const bool sort = (SphereShader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (SphereShader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
- 	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC;
 
 	DynamicVBAccessClass vb(buffer_type, dynamic_fvf_type, mesh.Vertex_ct);
 	{
@@ -495,7 +499,7 @@ void SphereRenderObjClass::render_sphere()
 			vb->nz = mesh.vtx_normal[i].Z;
 
 			if (Flags & USE_ALPHA_VECTOR) {
-				vb->diffuse = DX8Wrapper::Convert_Color(mesh.dcg[i]);
+				vb->diffuse = WW3DColor::To_ARGB(mesh.dcg[i]);
 			} else {
 				vb->diffuse = 0xFFFFFFFF;		// TODO could combine the material color with this and turn off lighting
 			}
@@ -662,7 +666,7 @@ void SphereRenderObjClass::Render(RenderInfoClass & rinfo)
 		// Camera Align
 		if (Flags & USE_CAMERA_ALIGN) {
 			Matrix4x4 view,ident(true);
-			Renderer::Get_Transform(RenderTransform_View,view);
+			WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view);
 
 			Vector4 wpos(Transform[0][3],Transform[1][3],Transform[2][3],1);
 			Vector4 cpos;
@@ -1360,6 +1364,8 @@ fan_size(0),
 fans(nullptr),
 face_ct(0),
 tri_poly(nullptr),
+dcg(nullptr),
+IsAdditive(false),
 inverse_alpha(false)
 {
 	// compute # of vertices
@@ -1397,6 +1403,8 @@ fan_size(0),
 fans(nullptr),
 face_ct(0),
 tri_poly(nullptr),
+dcg(nullptr),
+IsAdditive(false),
 inverse_alpha(false)
 {
 
@@ -1673,7 +1681,7 @@ void SphereMeshClass::Generate(float radius, int slices, int stacks)
 	}
 
 	// Make Sure ptr is where I expect it to be
-	WWASSERT(((int)out) == ((int)(tri_poly + face_ct)));
+	WWASSERT(out == (tri_poly + face_ct));
 
 	//
 	//	Fill in the DCG array
@@ -1733,4 +1741,3 @@ void SphereMeshClass::Free()
 }
 
 // EOF - sphereobj.cpp
-

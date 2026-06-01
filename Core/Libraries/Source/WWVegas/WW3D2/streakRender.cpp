@@ -28,6 +28,7 @@
 #include "streakRender.h"
 #include "ww3d.h"
 #include "rinfo.h"
+#include "ww3dcolor.h"
 #include "dx8wrapper.h"
 #include "Renderer.h"
 #include "sortingrenderer.h"
@@ -35,8 +36,13 @@
 #include "WWMath/Vector3i.h"
 #include "WWLib/RANDOM.h"
 #include "WWMath/v3_rnd.h"
+#include "WW3D2/vertmaterial.h"
+#include "WW3D2/vertexbuffer.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/dx8fvf.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/IRenderBackend.h"
+#include "WW3D2/w3d_file.h"
 
 
 /* We have chunking logic which handles N segments at a time. To simplify the subdivision logic,
@@ -1281,7 +1287,7 @@ void StreakRendererClass::RenderStreak
 
 		// If color is not white or opacity not 100%, enable gradient in shader and in renderer - otherwise disable.
 		//unsigned int rgba;
-		//rgba=DX8Wrapper::Convert_Color(Color,Opacity);
+		//rgba=WW3DColor::To_ARGB(Color,Opacity);
 		//bool rgba_all=(rgba==0xFFFFFFFF);
 
 //		int colorIndex = 0;
@@ -1290,7 +1296,7 @@ void StreakRendererClass::RenderStreak
 //			//vertexArray[vertexIndex].diffuse = rgba;/// OLD WAY COLORS THEM ALL TO THE COLOR,OPACITY MEMBERS /////////////////
 //			unsigned int perPointARGB;
 //			colorIndex = MIN(vertexIndex / 2, point_cnt);
-//			perPointARGB = DX8Wrapper::Convert_Color( colors[colorIndex] );// twice as many verts as points? or so?
+//			perPointARGB = WW3DColor::To_ARGB( colors[colorIndex] );// twice as many verts as points? or so?
 //			vertexArray[vertexIndex].diffuse = perPointARGB;
 //			vertexArray[vertexIndex].u1 = (float)((vertexIndex&2) == 2);
 //			vertexArray[vertexIndex].v1 = (float)((vertexIndex&1) == 1);
@@ -1326,7 +1332,7 @@ void StreakRendererClass::RenderStreak
 		** Render
 		*/
 
-		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),dynamic_fvf_type,vnum);
+		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC),dynamic_fvf_type,vnum);
 		// Copy in the data to the  VB
 		{
 			DynamicVBAccessClass::WriteLockClass Lock(&Verts);
@@ -1340,13 +1346,13 @@ void StreakRendererClass::RenderStreak
 				vb[i].x = vertexArray[i].x;
 				vb[i].y = vertexArray[i].y;
 				vb[i].z = vertexArray[i].z;
-				vb[i].diffuse = DX8Wrapper::Convert_Color_Clamp(colors[MIN((i/2), point_cnt)]); // TODO: Does not work correctly when subdivision are not 0
+				vb[i].diffuse = WW3DColor::To_ARGB_Clamp(colors[MIN((i/2), point_cnt)]); // TODO: Does not work correctly when subdivision are not 0
 				vb[i].u1 = vertexArray[i].u1;
 				vb[i].v1 = vertexArray[i].v1;
 			}
 		}
 
-		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),triangleIndex*3);
+		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC),triangleIndex*3);
 		{
 			unsigned int i;
 			DynamicIBAccessClass::WriteLockClass lock(&ib_access);
@@ -1368,7 +1374,9 @@ void StreakRendererClass::RenderStreak
 
 		if (sorting)
 		{
+			WW3D::Get_Render_Backend()->Set_Streak_Render_Active(true);
 			SortingRendererClass::Insert_Triangles(obj_sphere,0,triangleIndex,0,vnum);
+			WW3D::Get_Render_Backend()->Set_Streak_Render_Active(false);
 		}
 		else
 		{

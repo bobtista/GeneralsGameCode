@@ -49,6 +49,8 @@
 #include "dx8renderer.h"
 #include "WWLib/hashtemplate.h"
 #include <Utility/bit_adapter.h>
+#include "WW3D2/RenderBackend.h"
+#include "WW3D2/IRenderBackend.h"
 
 
 /*
@@ -640,7 +642,7 @@ void GapFillerClass::Shrink_Buffers()
 
 void MeshModelClass::Init_For_NPatch_Rendering()
 {
-	if (!DX8Wrapper::Get_Current_Caps()->Support_NPatches()) return;
+	if (!WW3D::Get_Render_Backend() || !WW3D::Get_Render_Backend()->Supports_NPatches()) return;
 	if (!Get_Flag(MeshGeometryClass::ALLOW_NPATCHES)) return;
 	if (GapFiller) return;
 

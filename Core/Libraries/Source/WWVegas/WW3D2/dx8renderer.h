@@ -45,7 +45,6 @@
 #include "WWLib/Vector.h"
 #include "dx8list.h"
 #include "WW3D2/shader.h"
-#include "dx8wrapper.h"
 #include "WW3D2/meshmatdesc.h"
 
 class IndexBufferClass;

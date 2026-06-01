@@ -854,6 +854,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 				mat->Set_Emissive(m_materialPassEmissiveOverride*oldEmissive);
 			}
 		}
+		pass->Set_Context_Texture(Model->Peek_Single_Texture(0, 0), 0);
 		pass->Install_Materials();
 		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib, 0);
 
@@ -881,6 +882,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 		}
 		//MW: Need uninstall custom materials in case they leave D3D in unknown state
 		pass->UnInstall_Materials();
+		pass->Set_Context_Texture(nullptr, 0);
 
 	} else if ((pass->Get_Cull_Volume() != nullptr) && (MaterialPassClass::Is_Per_Polygon_Culling_Enabled())) {
 
@@ -907,7 +909,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 
 		if (temp_apt.Count() > 0) {
 
-			int buftype = BUFFER_TYPE_DYNAMIC_DX8;
+			int buftype = BUFFER_TYPE_DYNAMIC;
 			if (Model->Get_Flag(MeshGeometryClass::SORT) && WW3D::Is_Sorting_Enabled()) {
 				buftype = BUFFER_TYPE_DYNAMIC_SORTING;
 			}
@@ -948,6 +950,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 			** Render
 			*/
 			int vertex_offset = Model->PolygonRendererList.Peek_Head()->Get_Vertex_Offset();
+			pass->Set_Context_Texture(Model->Peek_Single_Texture(0, 0), 0);
 			pass->Install_Materials();
 
 			WW3D::Get_Render_Backend()->Set_Transform(RB_TRANSFORM_WORLD, Get_Transform());
@@ -960,6 +963,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 				max_v-min_v+1);
 			//MW: Need uninstall custom materials in case they leave D3D in unknown state
 			pass->UnInstall_Materials();
+			pass->Set_Context_Texture(nullptr, 0);
 		}
 	} else {
 
@@ -982,6 +986,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 				mat->Set_Emissive(m_materialPassEmissiveOverride*oldEmissive);
 			}
 		}
+		pass->Set_Context_Texture(Model->Peek_Single_Texture(0, 0), 0);
 		pass->Install_Materials();
 		WW3D::Get_Render_Backend()->Set_Index_Buffer(ib, 0);
 
@@ -1010,6 +1015,7 @@ void MeshClass::Render_Material_Pass(MaterialPassClass * pass,IndexBufferClass *
 		}
 		//MW: Need uninstall custom materials in case they leave D3D in unknown state
 		pass->UnInstall_Materials();
+		pass->Set_Context_Texture(nullptr, 0);
 	}
 }
 
@@ -1599,7 +1605,6 @@ int MeshClass::Get_Draw_Call_Count() const
 		return 0;
 	}
 }
-
 
 
 

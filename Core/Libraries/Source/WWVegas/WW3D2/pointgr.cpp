@@ -80,6 +80,9 @@
 #include "WWLib/Vector.h"
 #include "WWMath/vp.h"
 #include "WWMath/matrix4.h"
+#include "ww3dcolor.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
 #include "dx8wrapper.h"
 #include "Renderer.h"
 #include "dx8vertexbuffer.h"
@@ -90,6 +93,11 @@
 #include "sortingrenderer.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+#include "renderbufferclasses.h"
+
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 // Upgraded to DX8 2/2/01 HY
 
@@ -119,19 +127,23 @@ Vector3 PointGroupClass::_ScreenspaceVertexLocationSizeTable[2][3] =
 	Vector3(-0.7f, 2.0f, -1.0f)
 };
 
+// useful for particles that aren't aligned with the screen.
+static Vector3 GroundMultiplierX(1.0f, 0.0f, 0.0f);
+static Vector3 GroundMultiplierY(0.0f, 1.0f, 0.0f);
+
 // Some internal variables
 VectorClass<Vector3>			VertexLoc;		// camera-space vertex locations
 VectorClass<Vector4>			VertexDiffuse;	// vertex diffuse/alpha colors
 VectorClass<Vector2>			VertexUV;		// vertex texture coords
 
-// Some DX 8 variables
+// Some render buffer constants
 #define MAX_VB_SIZE			2048
 #define MAX_TRI_POINTS		MAX_VB_SIZE/3
 #define MAX_TRI_IB_SIZE		3*MAX_TRI_POINTS
 #define MAX_QUAD_POINTS		MAX_VB_SIZE/4
 #define MAX_QUAD_IB_SIZE	6*MAX_QUAD_POINTS
 
-DX8IndexBufferClass			*Tris, *Quads;						// Index buffers.
+RenderIndexBufferClass		*Tris, *Quads;					// Index buffers.
 SortingIndexBufferClass		*SortingTris, *SortingQuads;	// Sorting index buffers.
 
 /**************************************************************************
@@ -878,7 +890,7 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 
 	// Get the world and view matrices
 	Matrix4x4 view;
-	Renderer::Get_Transform(RenderTransform_View,view);
+	WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view);
 
 	// Transform the point locations from worldspace to camera space if needed
 	// (i.e. if they are not already in camera space):
@@ -931,6 +943,30 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	                  Shader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO &&
 	                  Shader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE &&
 	                  WW3D::Is_Sorting_Enabled();
+	const bool pointGroupDiag = std::getenv("GGC_POINTGROUP_DIAG") != nullptr;
+	if (pointGroupDiag)
+	{
+		if (FILE *diag = std::fopen("ggc_pointgroup_diag.txt", "a"))
+		{
+			std::fprintf(diag,
+				"pointgroup texture=%s points=%d vnum=%d pnum=%d sort=%d billboard=%d mode=%d shader=0x%08x dstBlend=%d alphaTest=%d sortingEnabled=%d first=(%.2f,%.2f,%.2f)\n",
+				Texture != nullptr ? Texture->Get_Texture_Name().str() : "<none>",
+				PointCount,
+				vnum,
+				pnum,
+				sort ? 1 : 0,
+				Billboard ? 1 : 0,
+				static_cast<int>(PointMode),
+				Shader.Get_Bits(),
+				static_cast<int>(Shader.Get_Dst_Blend_Func()),
+				static_cast<int>(Shader.Get_Alpha_Test()),
+				WW3D::Is_Sorting_Enabled() ? 1 : 0,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].X : 0.0f,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].Y : 0.0f,
+				current_loc != nullptr && PointCount > 0 ? current_loc[0].Z : 0.0f);
+			std::fclose(diag);
+		}
+	}
 
 	IndexBufferClass *indexbuffer;
 	int	verticesperprimitive;/// lorenzen fixed
@@ -947,10 +983,14 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	}
 
 	current = 0;
+	if (sort)
+	{
+		WW3D::Get_Render_Backend()->Set_Point_Group_Render_Active(true);
+	}
 	while (current<vnum)
 	{
 		delta=MIN(vnum-current,MAX_VB_SIZE);
-		DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, delta);
+		DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC, dynamic_fvf_type, delta);
 
 		// Copy in the data to the VB
 		{
@@ -967,12 +1007,12 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 				// Copy Locations
 				*(Vector3*)(vb+fvfinfo.Get_Location_Offset())=VertexLoc[i];
 				if (current_diffuse) {
-					unsigned color=DX8Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
+					unsigned color=WW3DColor::To_ARGB_Clamp(VertexDiffuse[i]);
 					*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=color;
 				}
 				else
 					*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=
-						DX8Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
+						WW3DColor::To_ARGB_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
 				*(Vector2*)(vb+fvfinfo.Get_Tex_Offset(0))=VertexUV[i];
 				vb+=fvfinfo.Get_FVF_Size();
 			}
@@ -991,6 +1031,10 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 		}
 
 		current+=delta;
+	}
+	if (sort)
+	{
+		WW3D::Get_Render_Backend()->Set_Point_Group_Render_Active(false);
 	}
 
 	// restore the matrices
@@ -1218,21 +1262,26 @@ void PointGroupClass::Update_Arrays(
 				Matrix4x4 view;
 				Vector4 result;
 				if (!Billboard) {
-					Renderer::Get_Transform(RenderTransform_View,view);
+					WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view);
 				}
 
 				// Scale vertex offsets and add them to point locations to get vertex locations
-				for (i = 0; i < active_points; i++) {
-					if (!Billboard) {
-						// If we're not billboarding, then the coordinate we have is in screen space.
-						const float angle = (float)point_orientation[i] / 255.0f * 2 * WWMATH_PI;
-						const float c = WWMath::Cos(angle);
-						const float s = WWMath::Sin(angle);
-
-						Vector2 orientedVecX(1.0f, 0.0f);
-						Vector2 orientedVecY(0.0f, 1.0f);
-						orientedVecX.Rotate(-s, c);
-						orientedVecY.Rotate(-s, c);
+					for (i = 0; i < active_points; i++) {
+						if (!Billboard) {
+							// If we're not billboarding, then the coordinate we have is in screen space.
+							const float angle = static_cast<float>(point_orientation[i]) / 255.0f * WWMATH_TWO_PI;
+							const float c = std::cos(angle);
+							const float s = std::sin(angle);
+							const Vector4 orientedVecX(
+								GroundMultiplierX.X * c + GroundMultiplierX.Y * s,
+								GroundMultiplierX.X * -s + GroundMultiplierX.Y * c,
+								GroundMultiplierX.Z,
+								1.0f);
+							const Vector4 orientedVecY(
+								GroundMultiplierY.X * c + GroundMultiplierY.Y * s,
+								GroundMultiplierY.X * -s + GroundMultiplierY.Y * c,
+								GroundMultiplierY.Z,
+								1.0f);
 
 						vertex_loc[vert + 0].X = point_loc[i].X +	(orientedVecX.X + orientedVecY.X) * point_size[i];
 						vertex_loc[vert + 0].Y = point_loc[i].Y +	(orientedVecX.Y + orientedVecY.Y) * point_size[i];
@@ -1546,21 +1595,21 @@ void PointGroupClass::_Init()
 	}
 
 	// Create the IBs
-	Tris=NEW_REF(DX8IndexBufferClass,(MAX_TRI_IB_SIZE));
-	Quads=NEW_REF(DX8IndexBufferClass,(MAX_QUAD_IB_SIZE));
+	Tris=NEW_REF(RenderIndexBufferClass,(MAX_TRI_IB_SIZE));
+	Quads=NEW_REF(RenderIndexBufferClass,(MAX_QUAD_IB_SIZE));
 	SortingTris=NEW_REF(SortingIndexBufferClass,(MAX_TRI_IB_SIZE));
 	SortingQuads=NEW_REF(SortingIndexBufferClass,(MAX_QUAD_IB_SIZE));
 
 	// Fill up the IBs
 	{
-		DX8IndexBufferClass::WriteLockClass locktris(Tris);
+		RenderIndexBufferClass::WriteLockClass locktris(Tris);
 		unsigned short *ib=locktris.Get_Index_Array();
 		for (i=0; i<MAX_TRI_IB_SIZE; i++) ib[i]=(unsigned short) i;
 	}
 
 	{
 		unsigned short vert=0;
-		DX8IndexBufferClass::WriteLockClass lockquads(Quads);
+		RenderIndexBufferClass::WriteLockClass lockquads(Quads);
 		unsigned short *ib=lockquads.Get_Index_Array();
 		vert=0;
 		for (i=0; i<MAX_QUAD_IB_SIZE; i+=6)
@@ -1711,7 +1760,7 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 		// Get the world and view matrices
 		Matrix4x4 view;
-		Renderer::Get_Transform(RenderTransform_View,view);
+		WW3D::Get_Render_Backend()->Get_Transform(RB_TRANSFORM_VIEW, view);
 
 
 
@@ -1877,10 +1926,14 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		}
 
 		current = 0;
+		if (sort)
+		{
+			WW3D::Get_Render_Backend()->Set_Point_Group_Render_Active(true);
+		}
 		while (current<vnum)
 		{
 			delta=MIN(vnum-current,MAX_VB_SIZE);
-			DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, delta);
+			DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC, dynamic_fvf_type, delta);
 
 			// Copy in the data to the VB
 			{
@@ -1899,12 +1952,12 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 					*(Vector3*)(vb+fvfinfo.Get_Location_Offset()) = VertexLoc[i];
 
 					if (current_diffuse) {
-						unsigned color=DX8Wrapper::Convert_Color_Clamp(VertexDiffuse[i]);
+						unsigned color=WW3DColor::To_ARGB_Clamp(VertexDiffuse[i]);
 						*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=color;
 					}
 					else
 						*(unsigned int*)(vb+fvfinfo.Get_Diffuse_Offset())=
-							DX8Wrapper::Convert_Color_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
+							WW3DColor::To_ARGB_Clamp(Vector4(DefaultPointColor[0],DefaultPointColor[1],DefaultPointColor[2],DefaultPointAlpha));
 					*(Vector2*)(vb+fvfinfo.Get_Tex_Offset(0))=VertexUV[i];
 					vb+=fvfinfo.Get_FVF_Size();
 				}
@@ -1923,6 +1976,10 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 
 			current+=delta;
+		}
+		if (sort)
+		{
+			WW3D::Get_Render_Backend()->Set_Point_Group_Render_Active(false);
 		}
 
 
