@@ -25,9 +25,10 @@
 #pragma once
 
 enum waveType CPP_11(: Int);	//forward reference
-class RenderVertexBufferClass;
-class RenderIndexBufferClass;
-
+// TheSuperHackers @build bobtista 01/06/2026 RenderVertexBufferClass and
+// RenderIndexBufferClass are type aliases on the dx8 backend; include the
+// shared header so the aliases match the alias the cpp sees.
+#include "WW3D2/renderbufferclasses.h"
 /// Custom render object that draws animated tracks/waves on the water.
 /**
 	This is an object which draws a small breaking wave or splash animation.  These objects are

@@ -68,9 +68,10 @@ class W3DTreeDrawModuleData;
 struct BreezeInfo;
 class GeometryInfo;
 class W3DProjectedShadow;
-class RenderVertexBufferClass;
-class RenderIndexBufferClass;
-
+// TheSuperHackers @build bobtista 01/06/2026 RenderVertexBufferClass and
+// RenderIndexBufferClass are type aliases on the dx8 backend; include the
+// shared header so the aliases match the alias the cpp sees.
+#include "WW3D2/renderbufferclasses.h"
 //-----------------------------------------------------------------------------
 //           Type Defines
 //-----------------------------------------------------------------------------

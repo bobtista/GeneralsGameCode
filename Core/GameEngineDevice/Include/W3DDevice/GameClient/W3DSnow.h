@@ -23,7 +23,9 @@
 #include "GameClient/Snow.h"
 
 class RenderInfoClass;
-class RenderIndexBufferClass;
+// TheSuperHackers @build bobtista 01/06/2026 RenderIndexBufferClass is a type
+// alias on the dx8 backend; include the shared header.
+#include "WW3D2/renderbufferclasses.h"
 class TextureClass;
 #if !defined(GGC_BGFX_STANDALONE)
 class W3DSnowPointSpriteRenderer;

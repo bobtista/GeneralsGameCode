@@ -61,7 +61,15 @@ public:
 
 #else
 
-class DX8IndexBufferClass;
+// TheSuperHackers @build bobtista 01/06/2026 Pull the complete DX8 buffer
+// class definitions in here so the aliases below resolve to a complete type
+// in every translation unit that includes this header. Forward declarations
+// alone leave RenderIndexBufferClass / RenderVertexBufferClass usable only as
+// pointer-to-incomplete in code shared with the bgfx backend (USAGE_* enums,
+// WriteLockClass nested type, NEW_REF, static_cast to base IndexBufferClass /
+// VertexBufferClass all require the full definition).
+#include "dx8indexbuffer.h"
+#include "dx8vertexbuffer.h"
 using RenderIndexBufferClass = DX8IndexBufferClass;
 using RenderVertexBufferClass = DX8VertexBufferClass;
 

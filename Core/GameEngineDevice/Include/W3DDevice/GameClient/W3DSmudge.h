@@ -28,8 +28,9 @@ class Vector3;
 class Vector4;
 class TextureClass;
 class RenderInfoClass;
-class RenderIndexBufferClass;
-
+// TheSuperHackers @build bobtista 01/06/2026 RenderIndexBufferClass is a type
+// alias on the dx8 backend; include the shared header.
+#include "WW3D2/renderbufferclasses.h"
 //#define USE_COPY_RECTS	1	//this was the old method that didn't render to texture. Just copied backbuffer into texture. Slow on Nvidia.
 
 class W3DSmudgeManager final : public SmudgeManager
