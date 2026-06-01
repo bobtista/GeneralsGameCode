@@ -36,7 +36,7 @@
  *---------------------------------------------------------------------------------------------*
  * Functions:                                                                                  *
  * - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - */
-#include "formconv.h"
+#include "dx8formatconv.h"
 
 D3DFORMAT WW3DFormatToD3DFormatConversionArray[] = {
 	D3DFMT_UNKNOWN,

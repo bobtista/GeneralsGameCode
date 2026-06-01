@@ -19,16 +19,14 @@
 #pragma once
 
 #include "WWLib/always.h"
+#include "WW3D2/texture.h"
 
-struct IDirect3DTexture8;
-struct IDirect3DSurface8;
+#include <vector>
 
 class MissingTexture
 {
 public:
 	static void _Init();
 	static void _Deinit();
-
-	static IDirect3DTexture8* _Get_Missing_Texture();		// Return a reference to missing texture
-	static IDirect3DSurface8* _Create_Missing_Surface();	// Create new surface which contain missing texture image
+	static void Build_CPU_Texture_Mips(std::vector<TextureBaseClass::TextureMipSnapshot> &mips);
 };
