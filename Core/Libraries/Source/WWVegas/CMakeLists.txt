@@ -7,9 +7,14 @@ target_compile_definitions(core_wwcommon INTERFACE
 )
 
 target_link_libraries(core_wwcommon INTERFACE
-    d3d8lib
     stlport
 )
+
+if(NOT GGC_BGFX_STANDALONE)
+    target_link_libraries(core_wwcommon INTERFACE
+        d3d8lib
+    )
+endif()
 
 # TheSuperHackers @build bobtista 29/04/2026 milesstub is Win-only (the
 # Miles Sound System SDK stub). On non-Win we use OpenAL instead.

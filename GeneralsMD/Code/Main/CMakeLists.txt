@@ -37,11 +37,9 @@ if(SAGE_USE_SDL3)
 endif()
 
 # TheSuperHackers @build bobtista 22/04/2026
-# In standalone bgfx mode all D3D8/D3DX8 symbol references resolve to
-# in-tree implementations: StubD3D8Device.cpp replaces Direct3DCreate8
-# and the IDirect3D* vtables, D3DXStandaloneStubs.cpp replaces the
-# D3DX matrix/texture helpers. Neither d3d8.lib nor d3dx8.lib is
-# needed in the link. Ref-popup keeps both.
+# Standalone bgfx owns the device through bgfx and supplies the remaining
+# D3DX helper symbols in-tree, so neither d3d8.lib nor d3dx8.lib is needed.
+# Ref-popup keeps both for the real DX8 reference path.
 if(NOT GGC_BGFX_STANDALONE)
     target_link_libraries(z_generals PRIVATE d3d8 d3dx8)
 endif()
