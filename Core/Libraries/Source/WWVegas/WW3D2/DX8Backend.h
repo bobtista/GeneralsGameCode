@@ -253,6 +253,15 @@ public:
     virtual void Set_Fog_Enable(bool enable) override;
     virtual void Set_Fog_Color(unsigned argb) override;
     virtual unsigned Get_Fog_Color() const override;
+
+    // TheSuperHackers @bugfix bobtista 02/06/2026 Additional forwarders
+    // for the override calls the W3DWater batched draw path makes (commit
+    // 0dc6548f2). BgfxBackend implements them; the IRenderBackend defaults
+    // are empty no-ops. Override_Alpha_Blend_Enable is already declared
+    // above as part of the Override_* set; the two below are unique to the
+    // water batched draw and keep the override mechanism functional on dx8.
+    virtual void Override_Material_Opacity(float opacity) override;
+    virtual void Clear_State_Overrides() override;
     virtual void Apply_Stencil_Shadow_Darken(unsigned shadow_color,
                                              unsigned stencil_read_mask,
                                              unsigned stencil_ref,
