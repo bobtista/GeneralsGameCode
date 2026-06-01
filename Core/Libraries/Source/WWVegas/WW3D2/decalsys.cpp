@@ -394,10 +394,10 @@ void MultiFixedPoolDecalSystemClass::Clear_All_Decals()
 MultiFixedPoolDecalSystemClass::LogicalDecalClass & MultiFixedPoolDecalSystemClass::find_logical_decal(uint32 pool_id, uint32 slot_id)
 {
 	assert(pool_id < PoolCount);
-	pool_id = MIN(pool_id, PoolCount);
+	pool_id = MIN(pool_id, PoolCount - 1);
 	LogicalDecalPoolClass & pool = Pools[pool_id];
 	assert(slot_id < pool.Size);
-	slot_id = MIN(slot_id, pool.Size);
+	slot_id = MIN(slot_id, pool.Size - 1);
 	return pool.Array[slot_id];
 }
 

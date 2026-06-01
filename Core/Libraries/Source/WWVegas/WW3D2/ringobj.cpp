@@ -88,9 +88,9 @@
 #include "camera.h"
 #include "statistics.h"
 #include "predlod.h"
-#include "dx8wrapper.h"
-#include "dx8indexbuffer.h"
-#include "dx8vertexbuffer.h"
+#include "ww3dcolor.h"
+#include "indexbuffer.h"
+#include "vertexbuffer.h"
 #include "sortingrenderer.h"
 #include "WWMath/Vector3i.h"
 #include "visrasterizer.h"
@@ -539,7 +539,7 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 
 	// Enable sorting if the primitive is translucent, alpha testing is not enabled, and sorting is enabled globally.
 	const bool sort = (RingShader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (RingShader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
-	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC;
 
 	DynamicVBAccessClass vb(buffer_type, dynamic_fvf_type, ring.Vertex_ct);
 	{
@@ -551,9 +551,9 @@ void RingRenderObjClass::render_ring(RenderInfoClass & rinfo,const Vector3 & cen
 		//
 		unsigned color;
 		if (RingShader.Get_Dst_Blend_Func () == ShaderClass::DSTBLEND_ONE) {
-			color = DX8Wrapper::Convert_Color(Alpha * Color,1.0f);
+			color = WW3DColor::To_ARGB(Alpha * Color,1.0f);
 		} else {
-			color = DX8Wrapper::Convert_Color(Color,Alpha);
+			color = WW3DColor::To_ARGB(Color,Alpha);
 		}
 
 		for (int i=0; i<ring.Vertex_ct; i++)
@@ -1616,11 +1616,11 @@ RingMeshClass::~RingMeshClass()
 void RingMeshClass::Free()
 {
 
-	delete vtx;
-	delete orig_vtx;
-	delete vtx_normal;
-	delete vtx_uv;
-	delete tri_poly;
+	delete[] vtx;
+	delete[] orig_vtx;
+	delete[] vtx_normal;
+	delete[] vtx_uv;
+	delete[] tri_poly;
 
 	vtx			= nullptr;
 	orig_vtx		= nullptr;
