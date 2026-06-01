@@ -16,16 +16,16 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 10/04/2026 Backend-agnostic access point
-// for the active IRenderBackend instance. Engine-side code should include
-// this header (not IRenderBackend.h or DX8Backend.h directly) to use the
-// render backend.
-
 #pragma once
 
-#include "IRenderBackend.h"
-#include "ww3d.h"
+// Called before and after render-device reset so device-dependent resources can
+// be released and reacquired without exposing the full DX8 wrapper facade.
+class RenderDeviceCleanupHook
+{
+public:
+	virtual ~RenderDeviceCleanupHook() = default;
+	virtual void ReleaseResources() = 0;
+	virtual void ReAcquireResources() = 0;
+};
 
-// The active rendering backend is owned by WW3D. It is created by
-// WW3D::Init and destroyed by WW3D::Shutdown, so it is never null
-// between those two calls.
+using DX8_CleanupHook = RenderDeviceCleanupHook;

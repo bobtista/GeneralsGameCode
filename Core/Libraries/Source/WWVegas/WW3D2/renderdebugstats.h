@@ -16,16 +16,34 @@
 **	along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// TheSuperHackers @refactor bobtista 10/04/2026 Backend-agnostic access point
-// for the active IRenderBackend instance. Engine-side code should include
-// this header (not IRenderBackend.h or DX8Backend.h directly) to use the
-// render backend.
-
 #pragma once
 
-#include "IRenderBackend.h"
-#include "ww3d.h"
+#ifdef EXTENDED_STATS
 
-// The active rendering backend is owned by WW3D. It is created by
-// WW3D::Init and destroyed by WW3D::Shutdown, so it is never null
-// between those two calls.
+struct RenderDebugStats
+{
+	RenderDebugStats() :
+		m_showingStats(false),
+		m_disableTerrain(false),
+		m_disableWater(false),
+		m_disableObjects(false),
+		m_disableOverhead(false),
+		m_disableConsole(false),
+		m_debugLinesToShow(-1),
+		m_sleepTime(0)
+	{
+	}
+
+	bool m_showingStats;
+	bool m_disableTerrain;
+	bool m_disableWater;
+	bool m_disableObjects;
+	bool m_disableOverhead;
+	bool m_disableConsole;
+	int  m_debugLinesToShow;
+	int  m_sleepTime;
+};
+
+extern RenderDebugStats g_renderDebugStats;
+
+#endif

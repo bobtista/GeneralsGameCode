@@ -206,6 +206,7 @@ struct BgfxDraw
     bool                depthTestEnabled = true;
     bool                depthWriteEnabled = true;
     uint64_t            depthFuncBits = BGFX_STATE_DEPTH_TEST_LEQUAL;
+    unsigned            depthFunc = 4;
 
     // Textures + per-stage sampler flags
     bgfx::TextureHandle tex[4] = {
@@ -213,6 +214,9 @@ struct BgfxDraw
         BGFX_INVALID_HANDLE, BGFX_INVALID_HANDLE
     };
     uint32_t samplerFlags[4] = { 0, 0, 0, 0 };
+    bool mipFilterDisabled[4] = { false, false, false, false };
+    unsigned texcoordIndex[4] = { 0, 1, 2, 3 };
+    unsigned textureTransformFlags[4] = { 0, 0, 0, 0 };
     bool textureIsMissing[4] = { false, false, false, false };
     TextureBaseClass * sourceTextures[4] = { nullptr, nullptr, nullptr, nullptr };
     const VertexMaterialClass * sourceMaterial = nullptr;
@@ -256,9 +260,15 @@ struct BgfxDraw
     float grayscaleEnable[4]  = { 0.0f, 0.0f, 0.0f, 0.0f };
     float tssOps0[4]          = { 3.0f, 3.0f, 0.0f, 0.0f };
     float tssOps1[4]          = { 0.0f, 0.0f, 0.0f, 0.0f };
+    float shaderTssOps0[4]    = { 3.0f, 3.0f, 0.0f, 0.0f };
+    float shaderTssOps1[4]    = { 0.0f, 0.0f, 0.0f, 0.0f };
     bool atestEnabled         = false;
     float atestRef            = 0.0f;
     float atestFunc           = 0.0f;
+    bool shaderAlphaBlendEnabled = false;
+    uint64_t shaderBlendFuncBits = 0;
+    float shaderAtestRef      = 0.0f;
+    float shaderAtestFunc     = 0.0f;
     float texcoordSelect[4]   = { 0.0f, 0.0f, 0.0f, 0.0f };
     // .x/.y are used by vs_uber for stage-1 UV routing and transform state.
     // .w tags additive blend draws for black-matte discard in fs_uber.
@@ -318,13 +328,13 @@ struct BgfxDraw
     // in vs_uber.sc as gl_Position.z -= u_zBias.x * gl_Position.w; sourced from the
     // cached z-bias at submit time so decals keep their anti-z-fighting bias.
     float zBias[4]            = { 0.0f, 0.0f, 0.0f, 0.0f };
+    unsigned zBiasUnits       = 0;
     float normalBias[4]       = { 0.0f, 0.0f, 0.0f, 0.0f };
     float legacyPixelShaderMode[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
     float swayTable[11][4]    = {{0}};
     float shroudOffset[4]     = { 0.0f, 0.0f, 0.0f, 0.0f };
     float shroudScale[4]      = { 0.0f, 0.0f, 1.0f, 1.0f };
     float shroudTextureParams[4] = { 0.0f, 0.0f, 1.0f, 1.0f };
-    // .w requests shader-side stage-0 fract() wrapping for repeated decals.
     float objectShroudDim[4]  = { 1.0f, 0.0f, 0.0f, 0.0f };
     bool shroudTextureParamsValid = false;
     bool delayedObjectShroudPass = false;

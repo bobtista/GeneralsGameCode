@@ -75,6 +75,8 @@ set(WW3D2_SRC
     formconv.cpp
     formconv.h
     framgrab.h
+    FixedFunctionState.cpp
+    FixedFunctionState.h
     hanim.cpp
     hanim.h
     #hanimmgr.cpp
@@ -160,6 +162,8 @@ set(WW3D2_SRC
     proxy.h
     rddesc.h
     RenderBackend.h
+    RenderStateCache.cpp
+    RenderStateCache.h
     #render2d.cpp
     #render2d.h
     render2dsentence.cpp
@@ -170,6 +174,8 @@ set(WW3D2_SRC
     rendobj.h
     #rinfo.cpp
     #rinfo.h
+    renderdebugstats.cpp
+    renderdebugstats.h
     ringobj.cpp
     ringobj.h
     robjlist.h
