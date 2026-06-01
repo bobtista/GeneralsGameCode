@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <strings.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
 
 #ifndef CALLBACK
@@ -287,7 +289,33 @@ extern const char *g_compatCommandLine;
 inline const char *GetCommandLineA() { return g_compatCommandLine != nullptr ? g_compatCommandLine : ""; }
 inline DWORD GetModuleFileName(HMODULE, char *, DWORD size) { (void)size; return 0; }
 inline DWORD GetModuleFileNameA(HMODULE, char *, DWORD size) { (void)size; return 0; }
-inline void GetLocalTime(SYSTEMTIME *t) { if (t) { *t = SYSTEMTIME{}; } }
+inline void GetLocalTime(SYSTEMTIME *t)
+{
+    if (t == nullptr) {
+        return;
+    }
+
+    struct timeval tv;
+    if (gettimeofday(&tv, nullptr) != 0) {
+        *t = SYSTEMTIME{};
+        return;
+    }
+
+    struct tm local_tm;
+    if (localtime_r(&tv.tv_sec, &local_tm) == nullptr) {
+        *t = SYSTEMTIME{};
+        return;
+    }
+
+    t->wYear = static_cast<WORD>(local_tm.tm_year + 1900);
+    t->wMonth = static_cast<WORD>(local_tm.tm_mon + 1);
+    t->wDayOfWeek = static_cast<WORD>(local_tm.tm_wday);
+    t->wDay = static_cast<WORD>(local_tm.tm_mday);
+    t->wHour = static_cast<WORD>(local_tm.tm_hour);
+    t->wMinute = static_cast<WORD>(local_tm.tm_min);
+    t->wSecond = static_cast<WORD>(local_tm.tm_sec);
+    t->wMilliseconds = static_cast<WORD>(tv.tv_usec / 1000);
+}
 inline DWORD GetLastError() { return static_cast<DWORD>(errno); }
 inline void SetLastError(DWORD code) { errno = static_cast<int>(code); }
 
@@ -1011,26 +1039,7 @@ static inline char *strupr(char *src)
     return src;
 }
 
-// TheSuperHackers @build bobtista 29/04/2026 GetCurrentDirectory is provided
-// by file_compat.h.
-#if 0
-static inline DWORD GetCurrentDirectory(DWORD buffer_len, char *buffer)
-{
-    if (buffer == nullptr || buffer_len == 0) {
-        return 0;
-    }
-
-    if (::getcwd(buffer, static_cast<size_t>(buffer_len)) == nullptr) {
-        buffer[0] = '\0';
-        return 0;
-    }
-
-    return static_cast<DWORD>(::strlen(buffer));
-}
-#endif
-
-// TheSuperHackers @build bobtista 29/04/2026 GetFileAttributes is provided
-// by file_compat.h (included earlier in this header).
+// TheSuperHackers @build bobtista 29/04/2026 GetCurrentDirectory and GetFileAttributes are provided by file_compat.h.
 
 static inline HMODULE LoadLibrary(const char *path)
 {
