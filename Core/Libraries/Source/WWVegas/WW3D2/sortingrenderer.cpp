@@ -41,17 +41,19 @@
 #include "sortingrenderer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
-#include "dx8wrapper.h"
+#include "WW3D2/dllist.h"
+#include "WW3D2/FixedFunctionState.h"
+#include "WW3D2/RenderBufferTypes.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/vertmaterial.h"
 #include "texture.h"
-#include "d3d8.h"
-#include "d3dx8math.h"
 #include "statistics.h"
 #include <WWDebug/wwprofile.h>
 #include <algorithm>
 #include <list>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 
@@ -78,6 +80,37 @@ struct TempIndexStruct
 	unsigned short idx;
 	float z;
 };
+
+static Matrix4x4 Multiply_Sorted_Matrix(const Matrix4x4& lhs, const Matrix4x4& rhs)
+{
+	Matrix4x4 result;
+	for (int row = 0; row < 4; ++row) {
+		for (int col = 0; col < 4; ++col) {
+			result[row][col] =
+				lhs[row][0] * rhs[0][col] +
+				lhs[row][1] * rhs[1][col] +
+				lhs[row][2] * rhs[2][col] +
+				lhs[row][3] * rhs[3][col];
+		}
+	}
+	return result;
+}
+
+static Matrix4x4 Get_Sorted_World_View_Matrix(const RenderStateStruct& state)
+{
+	static_assert(sizeof(state.world) == sizeof(Matrix4x4), "sorted matrix snapshot must match Matrix4x4 for reinterpret_cast");
+	return Multiply_Sorted_Matrix(
+		reinterpret_cast<const Matrix4x4&>(state.world),
+		reinterpret_cast<const Matrix4x4&>(state.view));
+}
+
+static Vector3 Transform_Sorted_Point(const Vector3& point, const Matrix4x4& matrix)
+{
+	return Vector3(
+		point.X * matrix[0][0] + point.Y * matrix[1][0] + point.Z * matrix[2][0] + matrix[3][0],
+		point.X * matrix[0][1] + point.Y * matrix[1][1] + point.Z * matrix[2][1] + matrix[3][1],
+		point.X * matrix[0][2] + point.Y * matrix[1][2] + point.Z * matrix[2][2] + matrix[3][2]);
+}
 
 bool operator <(const TempIndexStruct &l, const TempIndexStruct &r) { return l.z < r.z; }
 bool operator <=(const TempIndexStruct &l, const TempIndexStruct &r) { return l.z <= r.z; }
@@ -231,7 +264,7 @@ void SortingRendererClass::Insert_Triangles(
 
 	SortingNodeStruct* state=Get_Sorting_Struct();
 
-	DX8Wrapper::Get_Render_State(state->sorting_state);
+	g_renderBackend->Capture_Legacy_Render_State_For_Sorted_Draw(state->sorting_state);
 
  	WWASSERT(
 		((state->sorting_state.index_buffer_type==BUFFER_TYPE_SORTING || state->sorting_state.index_buffer_type==BUFFER_TYPE_DYNAMIC_SORTING) &&
@@ -245,14 +278,8 @@ void SortingRendererClass::Insert_Triangles(
 
 	if (bounding_sphere.Is_Valid())
 	{
-		D3DXMATRIX mtx=(D3DXMATRIX&)state->sorting_state.world*(D3DXMATRIX&)state->sorting_state.view;
-		D3DXVECTOR3 vec=(D3DXVECTOR3&)bounding_sphere.Center;
-		D3DXVECTOR4 transformed_vec;
-		D3DXVec3Transform(
-			&transformed_vec,
-			&vec,
-			&mtx);
-		state->transformed_center=Vector3(transformed_vec[0],transformed_vec[1],transformed_vec[2]);
+		const Matrix4x4 mtx = Get_Sorted_World_View_Matrix(state->sorting_state);
+		state->transformed_center = Transform_Sorted_Point(bounding_sphere.Center, mtx);
 
 		Insert_To_Sorted_List(state);
 	}
@@ -316,7 +343,7 @@ void Release_Refs(SortingNodeStruct* state)
 	}
 	REF_PTR_RELEASE(state->sorting_state.index_buffer);
 	REF_PTR_RELEASE(state->sorting_state.material);
-	for (i=0;i<DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass();++i)
+	for (i=0;i<RB_MAX_TEXTURE_STAGES;++i)
 	{
 		REF_PTR_RELEASE(state->sorting_state.Textures[i]);
 	}
@@ -365,81 +392,111 @@ void SortingRendererClass::Insert_To_Sorting_Pool(SortingNodeStruct* state)
 // ----------------------------------------------------------------------------
 //static unsigned prevLight = 0xffffffff;
 
+static RenderBackendLight Make_Render_Backend_Light(const RenderStateStruct & render_state, int index)
+{
+	const auto & light = render_state.Lights[index];
+	RenderBackendLight rb_light;
+	rb_light.type = light.Type;
+	rb_light.position[0] = light.Position.x;
+	rb_light.position[1] = light.Position.y;
+	rb_light.position[2] = light.Position.z;
+	rb_light.direction[0] = light.Direction.x;
+	rb_light.direction[1] = light.Direction.y;
+	rb_light.direction[2] = light.Direction.z;
+	rb_light.diffuse[0] = light.Diffuse.r;
+	rb_light.diffuse[1] = light.Diffuse.g;
+	rb_light.diffuse[2] = light.Diffuse.b;
+	rb_light.ambient[0] = light.Ambient.r;
+	rb_light.ambient[1] = light.Ambient.g;
+	rb_light.ambient[2] = light.Ambient.b;
+	rb_light.specular[0] = light.Specular.r;
+	rb_light.specular[1] = light.Specular.g;
+	rb_light.specular[2] = light.Specular.b;
+	rb_light.range = light.Range;
+	rb_light.falloff = light.Falloff;
+	rb_light.attenuation[0] = light.Attenuation0;
+	rb_light.attenuation[1] = light.Attenuation1;
+	rb_light.attenuation[2] = light.Attenuation2;
+	rb_light.theta = light.Theta;
+	rb_light.phi = light.Phi;
+	return rb_light;
+}
+
+static RenderBackendSortedBatchState Make_Render_Backend_Sorted_State(RenderStateStruct & render_state)
+{
+	static_assert(sizeof(render_state.world) == sizeof(Matrix4x4), "sorted matrix snapshot must match Matrix4x4 for reinterpret_cast");
+	RenderBackendSortedBatchState rb_state;
+	rb_state.shader = &render_state.shader;
+	rb_state.material = render_state.material;
+	for (unsigned i = 0; i < RB_MAX_TEXTURE_STAGES; ++i)
+	{
+		rb_state.textures[i] = render_state.Textures[i];
+	}
+	rb_state.world = &reinterpret_cast<const Matrix4x4&>(render_state.world);
+	rb_state.view = &reinterpret_cast<const Matrix4x4&>(render_state.view);
+	const bool use_lights = (render_state.material != nullptr && render_state.material->Get_Lighting());
+	for (int i = 0; i < 4; ++i)
+	{
+		rb_state.lights.lights[i] = Make_Render_Backend_Light(render_state, i);
+		rb_state.lights.enabled[i] = use_lights && render_state.LightEnable[i];
+	}
+	rb_state.draw_flags = render_state.sorted_draw_flags;
+	return rb_state;
+}
+
 static void Apply_Render_State(RenderStateStruct& render_state)
 {
-	// TheSuperHackers @refactor bobtista 11/04/2026 Route
-	// sorted batch state through g_renderBackend so the bgfx backend
-	// sees the per-batch shader/material/texture/world/view. Previously
-	// these went straight to DX8Wrapper, so the bgfx side kept whatever
-	// state the last opaque draw left behind and sorted particles,
-	// rotors, tracers, and explosions never showed up.
-	g_renderBackend->Set_Shader(render_state.shader);
+	g_renderBackend->Apply_Sorted_Batch_State(Make_Render_Backend_Sorted_State(render_state));
+}
 
-	g_renderBackend->Set_Material(render_state.material);
+static bool Should_Log_Sort_Effect_Diag()
+{
+	static const bool enabled = std::getenv("GGC_SORT_EFFECT_DIAG") != nullptr;
+	return enabled;
+}
 
-	for (int i=0;i<DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass();++i)
+static void Log_Sort_Effect_Diag(const char* event, unsigned start_index, unsigned polygon_count, SortingNodeStruct* state)
+{
+	if (!Should_Log_Sort_Effect_Diag())
 	{
-		g_renderBackend->Set_Texture(i,render_state.Textures[i]);
+		return;
 	}
 
-	// Must use _Set_DX8_Transform (direct device write) not the
-	// render_state-dirty-flag path: the sort loop does not run
-	// Apply_Render_State_Changes between batches, so the dirty-flag
-	// route would leave each batch with the previous batch's device
-	// transform and things like helicopter rotors disappear.
-	DX8Wrapper::_Set_DX8_Transform(D3DTS_WORLD, render_state.world);
-	DX8Wrapper::_Set_DX8_Transform(D3DTS_VIEW,  render_state.view);
-
-	// feed the bgfx backend the same per-batch transforms
-	// via a dedicated capture hook. BgfxBackend pre-multiplies them
-	// into an effective world matrix and submits to its own view id
-	// so the opaque view is never stomped. No-op on DX8Backend.
-	g_renderBackend->Capture_Sorted_Batch_Transforms(
-		reinterpret_cast<const Matrix4x4&>(render_state.world),
-		reinterpret_cast<const Matrix4x4&>(render_state.view));
-
-	if (!render_state.material->Get_Lighting())
-		return;	//no point changing lights if they are ignored.
-  //prevLight = render_state.lightsHash;
-
+	TextureClass* tex0 = (state != nullptr && state->sorting_state.Textures[0] != nullptr)
+		? state->sorting_state.Textures[0]->As_TextureClass()
+		: nullptr;
+	const char* texName = tex0 != nullptr ? tex0->Get_Full_Path().str() : "(null)";
+	static const bool logAll = std::getenv("GGC_SORT_EFFECT_DIAG_ALL") != nullptr;
+	if (!logAll
+		&& strnicmp(texName, "ex", 2) != 0
+		&& std::strstr(texName, "fire") == nullptr
+		&& std::strstr(texName, "smoke") == nullptr
+		&& std::strstr(texName, "noise") == nullptr)
 	{
-		const D3DLIGHT8 & src = render_state.Lights[0];
-		RenderBackendLight rbLight;
-		rbLight.direction[0] = src.Direction.x;
-		rbLight.direction[1] = src.Direction.y;
-		rbLight.direction[2] = src.Direction.z;
-		rbLight.diffuse[0] = src.Diffuse.r;
-		rbLight.diffuse[1] = src.Diffuse.g;
-		rbLight.diffuse[2] = src.Diffuse.b;
-		g_renderBackend->Capture_Sorted_Batch_Light(rbLight, render_state.LightEnable[0]);
+		return;
 	}
 
-	if (render_state.LightEnable[0]) {
-		DX8Wrapper::Set_DX8_Light(0,&render_state.Lights[0]);
-		if (render_state.LightEnable[1]) {
-			DX8Wrapper::Set_DX8_Light(1,&render_state.Lights[1]);
-			if (render_state.LightEnable[2]) {
-				DX8Wrapper::Set_DX8_Light(2,&render_state.Lights[2]);
-				if (render_state.LightEnable[3]) {
-					DX8Wrapper::Set_DX8_Light(3,&render_state.Lights[3]);
-				}
-				else {
-					DX8Wrapper::Set_DX8_Light(3,nullptr);
-				}
-			}
-			else {
-				DX8Wrapper::Set_DX8_Light(2,nullptr);
-			}
-		}
-		else {
-			DX8Wrapper::Set_DX8_Light(1,nullptr);
-		}
+	float worldTx = 0.0f, worldTy = 0.0f, worldTz = 0.0f;
+	if (state != nullptr)
+	{
+		const Matrix4x4& w = reinterpret_cast<const Matrix4x4&>(state->sorting_state.world);
+		worldTx = w[3][0];
+		worldTy = w[3][1];
+		worldTz = w[3][2];
 	}
-	else {
-		DX8Wrapper::Set_DX8_Light(0,nullptr);
+	float centerZ = state != nullptr ? state->transformed_center.Z : 0.0f;
+
+	if (FILE* diag = std::fopen("ggc_sort_effect_diag.txt", "a"))
+	{
+		std::fprintf(diag,
+			"%s polys=%u tex=%s shader=0x%08x worldT=(%.2f,%.2f,%.2f) centerZ=%.3f\n",
+			event,
+			polygon_count,
+			texName,
+			state != nullptr ? state->sorting_state.shader.Get_Bits() : 0,
+			worldTx, worldTy, worldTz, centerZ);
+		std::fclose(diag);
 	}
-
-
 }
 
 // ----------------------------------------------------------------------------
@@ -451,12 +508,17 @@ static bool Render_State_Matches(const RenderStateStruct& left, const RenderStat
 		return false;
 	}
 
+	if (left.sorted_draw_flags != right.sorted_draw_flags)
+	{
+		return false;
+	}
+
 	if (left.material != right.material)
 	{
 		return false;
 	}
 
-	for (int texture_index=0; texture_index<DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass(); ++texture_index)
+	for (int texture_index=0; texture_index<g_renderBackend->Get_Max_Texture_Stages(); ++texture_index)
 	{
 		if (left.Textures[texture_index] != right.Textures[texture_index])
 		{
@@ -492,9 +554,16 @@ static bool Render_State_Matches(const RenderStateStruct& left, const RenderStat
 
 // ----------------------------------------------------------------------------
 
-static void Draw_Sorted_Run(unsigned start_index, unsigned count_to_render, SortingNodeStruct* state)
+static void Draw_Sorted_Run(unsigned start_index,
+                            unsigned count_to_render,
+                            SortingNodeStruct* state,
+                            const DynamicVBAccessClass& dyn_vb_access,
+                            const DynamicIBAccessClass& dyn_ib_access)
 {
 	Apply_Render_State(state->sorting_state);
+	g_renderBackend->Set_Index_Buffer(dyn_ib_access, 0);
+	g_renderBackend->Set_Vertex_Buffer(dyn_vb_access);
+	Log_Sort_Effect_Diag("draw-run", start_index, count_to_render, state);
 
 	g_renderBackend->Draw_Triangles(
 		start_index*3,
@@ -508,6 +577,7 @@ static void Draw_Sorted_Run(unsigned start_index, unsigned count_to_render, Sort
 void SortingRendererClass::Flush_Sorting_Pool()
 {
 	if (!overlapping_node_count) return;
+	Log_Sort_Effect_Diag("flush-start", 0, overlapping_polygon_count, overlapping_nodes[0]);
 
 	SNAPSHOT_SAY(("SortingSystem - Flush"));
 
@@ -515,12 +585,15 @@ void SortingRendererClass::Flush_Sorting_Pool()
 	TempIndexStruct* tis=Get_Temp_Index_Array(overlapping_polygon_count);
 
 	unsigned vertexAllocCount = overlapping_vertex_count;
-	if (DynamicVBAccessClass::Get_Default_Vertex_Count() < DEFAULT_SORTING_VERTEX_COUNT)
-		vertexAllocCount = DEFAULT_SORTING_VERTEX_COUNT;	//make sure that we force the DX8 dynamic vertex buffer to maximum size
-	if (overlapping_vertex_count > vertexAllocCount)
-		vertexAllocCount = overlapping_vertex_count;
-	WWASSERT(DEFAULT_SORTING_VERTEX_COUNT == 1 || vertexAllocCount <= DEFAULT_SORTING_VERTEX_COUNT);
-	DynamicVBAccessClass dyn_vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,vertexAllocCount/*overlapping_vertex_count*/);
+	if (!g_renderBackend->Has_Shader_Pipeline())
+	{
+		if (DynamicVBAccessClass::Get_Default_Vertex_Count() < DEFAULT_SORTING_VERTEX_COUNT)
+			vertexAllocCount = DEFAULT_SORTING_VERTEX_COUNT;	//make sure that we force the DX8 dynamic vertex buffer to maximum size
+		if (overlapping_vertex_count > vertexAllocCount)
+			vertexAllocCount = overlapping_vertex_count;
+		WWASSERT(DEFAULT_SORTING_VERTEX_COUNT == 1 || vertexAllocCount <= DEFAULT_SORTING_VERTEX_COUNT);
+	}
+	DynamicVBAccessClass dyn_vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,vertexAllocCount/*overlapping_vertex_count*/);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&dyn_vb_access);
 		VertexFormatXYZNDUV2* dest_verts=(VertexFormatXYZNDUV2 *)lock.Get_Formatted_Vertex_Array();
@@ -542,10 +615,19 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			// it is because D3D is in illegal state, and the only known cure is rebooting.
 			// This illegal state is usually caused by Quake3-engine powered games such as MOHAA.
 			memcpy(dest_verts, src_verts, sizeof(VertexFormatXYZNDUV2)*state->vertex_count);
+			// TheSuperHackers @refactor bobtista 17/05/2026 The old avcomanche_p
+			// vertex-offset hack translated the rotor-blur quad to its hub by
+			// adding bounding_sphere.Center to each vertex. That stand-in was
+			// needed when bgfx's sorted replay couldn't see the per-mesh world
+			// transform, but it only restored the position - never the rotation.
+			// BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw now reads
+			// the live RB_TRANSFORM_WORLD from the render-state cache for rotor
+			// draws, so sortWorld feeds the full mesh world (translation + spin)
+			// into setTransform and the blur disc actually rotates instead of
+			// wobbling. Keeping the hack would double-translate the vertices.
 			dest_verts += state->vertex_count;
 
-			D3DXMATRIX d3d_mtx=(D3DXMATRIX&)state->sorting_state.world*(D3DXMATRIX&)state->sorting_state.view;
-			const Matrix4x4& mtx=(const Matrix4x4&)d3d_mtx;
+			const Matrix4x4 mtx = Get_Sorted_World_View_Matrix(state->sorting_state);
 
 			unsigned short* indices=nullptr;
 			SortingIndexBufferClass* index_buffer=static_cast<SortingIndexBufferClass*>(state->sorting_state.index_buffer);
@@ -555,7 +637,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			indices+=state->start_index;
 			indices+=state->sorting_state.iba_offset;
 
-			if (mtx[0][2] == 0.0f && mtx[1][2] == 0.0f && mtx[3][2] == 0.0f && mtx[2][2] == 1.0f) {
+				if (mtx[0][2] == 0.0f && mtx[1][2] == 0.0f && mtx[3][2] == 0.0f && mtx[2][2] == 1.0f) {
 				// The common case for particle systems.
 				for (int i=0;i<state->polygon_count;++i) {
 					unsigned short idx1=indices[i*3]-state->min_vertex_index;
@@ -628,7 +710,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 		}
 		const unsigned chunkEnd = chunkOffset + chunkCount;
 
-		DynamicIBAccessClass dyn_ib_access(BUFFER_TYPE_DYNAMIC_DX8,chunkCount*3);
+		DynamicIBAccessClass dyn_ib_access(BUFFER_TYPE_DYNAMIC,chunkCount*3);
 		{
 			DynamicIBAccessClass::WriteLockClass lock(&dyn_ib_access);
 			ShortVectorIStruct* sorted_polygon_index_array=(ShortVectorIStruct*)lock.Get_Index_Array();
@@ -642,8 +724,9 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 		g_renderBackend->Set_Index_Buffer(dyn_ib_access, 0); // Override with this buffer (do something to prevent need for this!)
 		g_renderBackend->Set_Vertex_Buffer(dyn_vb_access); // Override with this buffer (do something to prevent need for this!)
+		Log_Sort_Effect_Diag("buffers-set", 0, overlapping_polygon_count, overlapping_nodes[0]);
 
-		DX8Wrapper::Apply_Render_State_Changes();
+		g_renderBackend->Apply_Render_State_Changes();
 
 		unsigned count_to_render=1;
 		unsigned start_index=0;
@@ -652,7 +735,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			SortingNodeStruct* next_state=overlapping_nodes[tis[i].idx];
 			if (!Render_State_Matches(state->sorting_state,next_state->sorting_state))
 			{
-				Draw_Sorted_Run(start_index,count_to_render,state);
+				Draw_Sorted_Run(start_index,count_to_render,state,dyn_vb_access,dyn_ib_access);
 
 				count_to_render=0;
 				start_index=i - chunkOffset;
@@ -663,7 +746,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 
 		// Render any remaining polygons...
 		if (count_to_render) {
-			Draw_Sorted_Run(start_index,count_to_render,state);
+			Draw_Sorted_Run(start_index,count_to_render,state,dyn_vb_access,dyn_ib_access);
 		}
 
 		chunkOffset += chunkCount;
@@ -695,8 +778,8 @@ void SortingRendererClass::Flush()
 	WWPROFILE("SortingRenderer::Flush");
 	Matrix4x4 old_view;
 	Matrix4x4 old_world;
-	DX8Wrapper::Get_Transform(D3DTS_VIEW,old_view);
-	DX8Wrapper::Get_Transform(D3DTS_WORLD,old_world);
+	g_renderBackend->Get_Transform(RB_TRANSFORM_VIEW, old_view);
+	g_renderBackend->Get_Transform(RB_TRANSFORM_WORLD, old_world);
 
 	// TheSuperHackers @perf stephanmeesters 04/07/2026
 	// Splice nodes that have no bounding information (Z=0.0) at the correct location into the sorted list.
@@ -715,41 +798,34 @@ void SortingRendererClass::Flush()
 			Insert_To_Sorting_Pool(state);
 		}
 		else {
-			g_renderBackend->Set_Shader(state->sorting_state.shader);
-			g_renderBackend->Set_Material(state->sorting_state.material);
-			for (int t = 0; t < DX8Wrapper::Get_Current_Caps()->Get_Max_Textures_Per_Pass(); ++t)
-			{
-				g_renderBackend->Set_Texture(t, state->sorting_state.Textures[t]);
-			}
+			g_renderBackend->Apply_Sorted_Batch_State(
+				Make_Render_Backend_Sorted_State(state->sorting_state));
 			g_renderBackend->Set_Vertex_Buffer(state->sorting_state.vertex_buffers[0], 0);
 			g_renderBackend->Set_Index_Buffer(state->sorting_state.index_buffer,
 				state->sorting_state.index_base_offset);
 			g_renderBackend->Set_Index_Buffer_Index_Offset(state->sorting_state.vba_offset);
 
-			// Restore DX8 render state: the g_renderBackend calls above
-			// forwarded to DX8Wrapper which corrupted vba_offset/iba_offset
-			// (Set_Vertex_Buffer resets vba_offset to 0). Re-applying the
-			// saved state fixes this for the DX8 draw path.
-			DX8Wrapper::Set_Render_State(state->sorting_state);
+			// Restore legacy DX8 render state: the backend calls above can
+			// mutate vba_offset/iba_offset in the DX8 render-state cache.
+			// Re-applying the saved state fixes this for the DX8 draw path;
+			// bgfx treats this as a no-op.
+			g_renderBackend->Restore_Legacy_Render_State_For_Sorted_Draw(state->sorting_state);
 
 			// Use the sort view for transforms to avoid stomping view 1.
 			g_renderBackend->Begin_Sorted_Batch_Pass();
-			g_renderBackend->Capture_Sorted_Batch_Transforms(
-				reinterpret_cast<const Matrix4x4&>(state->sorting_state.world),
-				reinterpret_cast<const Matrix4x4&>(state->sorting_state.view));
 
 			g_renderBackend->Draw_Triangles(state->start_index, state->polygon_count, state->min_vertex_index, state->vertex_count);
 			g_renderBackend->End_Sorted_Batch_Pass();
-			DX8Wrapper::Release_Render_State();
+			g_renderBackend->Release_Legacy_Render_State_For_Sorted_Draw();
 			Release_Refs(state);
 			clean_list.push_front(state);
 		}
 	}
 
-	bool old_enable=DX8Wrapper::_Is_Triangle_Draw_Enabled();
-	DX8Wrapper::_Enable_Triangle_Draw(_EnableTriangleDraw);
+	bool old_enable=g_renderBackend->Is_Triangle_Draw_Enabled();
+	g_renderBackend->Set_Triangle_Draw_Enabled(_EnableTriangleDraw);
 	Flush_Sorting_Pool();
-	DX8Wrapper::_Enable_Triangle_Draw(old_enable);
+	g_renderBackend->Set_Triangle_Draw_Enabled(old_enable);
 
 	g_renderBackend->Set_Index_Buffer(nullptr, 0);
 	g_renderBackend->Set_Vertex_Buffer(nullptr, 0);
