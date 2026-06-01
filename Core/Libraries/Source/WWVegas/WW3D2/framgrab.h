@@ -42,9 +42,11 @@
 #pragma warning (push, 3)	// (gth) system headers complain at warning level 4...
 #endif
 
+#ifdef _WIN32
 #include "windows.h"
 #include "windowsx.h"
 #include "vfw.h"
+#endif
 
 #if defined (_MSC_VER)
 #pragma warning (pop)
@@ -80,6 +82,7 @@ protected:
 	MODE Mode;
 	long Counter; // used for incrementing filename cunter, etc.
 
+#ifdef _WIN32
 	void GrabAVI(void *BitmapPointer);
 	void GrabRawFrame(void *BitmapPointer);
 
@@ -95,5 +98,39 @@ protected:
 
 	// convert the SR image into AVI byte ordering
 	void ConvertFrame(void *BitmapPointer);
+#else
+	void GrabAVI(void * /*BitmapPointer*/) {}
+	void GrabRawFrame(void * /*BitmapPointer*/) {}
+	void CleanupAVI() {}
+	void ConvertFrame(void * /*BitmapPointer*/) {}
+
+	long *Bitmap = nullptr;
+#endif
 
 };
+
+#ifndef _WIN32
+inline FrameGrabClass::FrameGrabClass(const char *filename, MODE mode, int width, int height, int bitdepth, float framerate)
+    : Filename(filename), FrameRate(framerate), Mode(mode), Counter(0)
+{
+    (void)bitdepth;
+    const size_t pixel_count = static_cast<size_t>(width) * static_cast<size_t>(height);
+    Bitmap = (pixel_count > 0) ? new long[pixel_count]{} : nullptr;
+}
+
+inline FrameGrabClass::~FrameGrabClass()
+{
+    delete[] Bitmap;
+    Bitmap = nullptr;
+}
+
+inline void FrameGrabClass::ConvertGrab(void *BitmapPointer)
+{
+    (void)BitmapPointer;
+}
+
+inline void FrameGrabClass::Grab(void *BitmapPointer)
+{
+    (void)BitmapPointer;
+}
+#endif
