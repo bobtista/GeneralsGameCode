@@ -40,15 +40,50 @@
 #include "WWLib/always.h"
 #include "dx8caps.h"
 #include "dx8wrapper.h"
-#include "formconv.h"
+#include "dx8formatconv.h"
 #pragma warning (disable : 4201)		// nonstandard extension - nameless struct
 #include <windows.h>
-#include <mmsystem.h>
 
 static StringClass CapsWorkString;
 
 #define DXLOG(n) CapsWorkString.Format n ; CapsLog+=CapsWorkString;
 #define COMPACTLOG(n) CapsWorkString.Format n ; CompactLog+=CapsWorkString;
+
+namespace
+{
+	using LegacyDirect3D = IDirect3D8;
+	using LegacyDevice = IDirect3DDevice8;
+	using LegacyCaps = D3DCAPS8;
+	using LegacyAdapterIdentifier = D3DADAPTER_IDENTIFIER8;
+	using LegacyFormat = D3DFORMAT;
+
+	LegacyCaps& Mutable_Legacy_Caps(void* caps)
+	{
+		return *static_cast<LegacyCaps*>(caps);
+	}
+
+	const LegacyCaps& Legacy_Caps(const void* caps)
+	{
+		return *static_cast<const LegacyCaps*>(caps);
+	}
+
+#if !defined(GGC_BGFX_STANDALONE)
+	constexpr auto kLegacySoftwareVertexProcessingState = D3DRS_SOFTWAREVERTEXPROCESSING;
+#endif
+	constexpr auto kLegacyHardwareTransformAndLight = D3DDEVCAPS_HWTRANSFORMANDLIGHT, kLegacyNPatches = D3DDEVCAPS_NPATCHES;
+	constexpr auto kLegacyZBias = D3DPRASTERCAPS_ZBIAS, kLegacyRangeFog = D3DPRASTERCAPS_FOGRANGE, kLegacyFullscreenGamma = D3DCAPS2_FULLSCREENGAMMA;
+	constexpr auto kLegacyModulateAlphaAddColor = D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR, kLegacyDotProduct3 = D3DTEXOPCAPS_DOTPRODUCT3, kLegacyBumpEnv = D3DTEXOPCAPS_BUMPENVMAP, kLegacyBumpEnvLuminance = D3DTEXOPCAPS_BUMPENVMAPLUMINANCE;
+	constexpr auto kLegacyCubeMap = D3DPTEXTURECAPS_CUBEMAP, kLegacyMagAnisotropic = D3DPTFILTERCAPS_MAGFANISOTROPIC, kLegacyMinAnisotropic = D3DPTFILTERCAPS_MINFANISOTROPIC;
+	constexpr auto kLegacyTextureResource = D3DRTYPE_TEXTURE;
+	constexpr auto kLegacyRenderTargetUsage = D3DUSAGE_RENDERTARGET, kLegacyDepthStencilUsage = D3DUSAGE_DEPTHSTENCIL;
+
+#if !defined(GGC_BGFX_STANDALONE)
+	void Set_Legacy_Software_Vertex_Processing(LegacyDevice *device, BOOL enabled)
+	{
+		device->SetRenderState(kLegacySoftwareVertexProcessingState, enabled);
+	}
+#endif
+}
 
 static const char* const VendorNames[]={
 	"Unknown",
@@ -467,31 +502,32 @@ DX8Caps::DeviceTypeIntel DX8Caps::Get_Intel_Device(unsigned device_id)
 }
 
 DX8Caps::DX8Caps(
-	IDirect3D8* direct3d,
-	IDirect3DDevice8* D3DDevice,
+	void* direct3d,
+	void* device,
 	WW3DFormat display_format,
-	const D3DADAPTER_IDENTIFIER8& adapter_id)
+	const void* adapter_id)
 	:
-	Direct3D(direct3d),
 	MaxDisplayWidth(0),
-	MaxDisplayHeight(0)
+	MaxDisplayHeight(0),
+	Caps(new LegacyCaps),
+	Direct3D(direct3d)
 {
-	Init_Caps(D3DDevice);
+	Init_Caps(device);
 	Compute_Caps(display_format, adapter_id);
 }
 
 DX8Caps::DX8Caps(
-	IDirect3D8* direct3d,
-	const D3DCAPS8& caps,
+	void* direct3d,
+	const void* caps,
 	WW3DFormat display_format,
-	const D3DADAPTER_IDENTIFIER8& adapter_id)
+	const void* adapter_id)
 	:
-	Direct3D(direct3d),
-	Caps(caps),
 	MaxDisplayWidth(0),
-	MaxDisplayHeight(0)
+	MaxDisplayHeight(0),
+	Caps(new LegacyCaps(Legacy_Caps(caps))),
+	Direct3D(direct3d)
 {
-	if ((Caps.DevCaps&D3DDEVCAPS_HWTRANSFORMANDLIGHT)==D3DDEVCAPS_HWTRANSFORMANDLIGHT) {
+	if ((Legacy_Caps(Caps).DevCaps&kLegacyHardwareTransformAndLight)==kLegacyHardwareTransformAndLight) {
 		SupportTnL=true;
 	} else {
 		SupportTnL=false;
@@ -499,6 +535,18 @@ DX8Caps::DX8Caps(
 
 	Compute_Caps(display_format,adapter_id);
 }
+
+DX8Caps::~DX8Caps()
+{
+	delete static_cast<LegacyCaps*>(Caps);
+}
+
+#if !defined(GGC_BGFX_STANDALONE)
+D3DCAPS8 const& DX8Caps::Get_DX8_Caps() const
+{
+	return Legacy_Caps(Caps);
+}
+#endif
 
 //Don't really need this but I added this function to free static variables so
 //they don't show up in our memory manager as a leak. -MW 7-22-03
@@ -513,16 +561,22 @@ void DX8Caps::Shutdown()
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Init_Caps(IDirect3DDevice8* D3DDevice)
+void DX8Caps::Init_Caps(void* device)
 {
-	D3DDevice->SetRenderState(D3DRS_SOFTWAREVERTEXPROCESSING,TRUE);
-	DX8CALL(GetDeviceCaps(&Caps));
+	LegacyCaps& caps = Mutable_Legacy_Caps(Caps);
+#if !defined(GGC_BGFX_STANDALONE)
+	LegacyDevice* D3DDevice = static_cast<LegacyDevice*>(device);
+	Set_Legacy_Software_Vertex_Processing(D3DDevice, TRUE);
+	DX8CALL(GetDeviceCaps(&caps));
+#endif
 
-	if ((Caps.DevCaps&D3DDEVCAPS_HWTRANSFORMANDLIGHT)==D3DDEVCAPS_HWTRANSFORMANDLIGHT) {
+	if ((caps.DevCaps&kLegacyHardwareTransformAndLight)==kLegacyHardwareTransformAndLight) {
 		SupportTnL=true;
 
-		D3DDevice->SetRenderState(D3DRS_SOFTWAREVERTEXPROCESSING,FALSE);
-		DX8CALL(GetDeviceCaps(&Caps));
+#if !defined(GGC_BGFX_STANDALONE)
+		Set_Legacy_Software_Vertex_Processing(D3DDevice, FALSE);
+		DX8CALL(GetDeviceCaps(&caps));
+#endif
 	} else {
 		SupportTnL=false;
 	}
@@ -533,8 +587,10 @@ void DX8Caps::Init_Caps(IDirect3DDevice8* D3DDevice)
 // Compute the caps bits
 //
 // ----------------------------------------------------------------------------
-void DX8Caps::Compute_Caps(WW3DFormat display_format, const D3DADAPTER_IDENTIFIER8& adapter_id)
+void DX8Caps::Compute_Caps(WW3DFormat display_format, const void* adapter_id_ptr)
 {
+	const LegacyAdapterIdentifier& adapter_id = *static_cast<const LegacyAdapterIdentifier*>(adapter_id_ptr);
+	const LegacyCaps& caps = Legacy_Caps(Caps);
 //	Init_Caps(D3DDevice);
 
 	CanDoMultiPass=true;
@@ -546,10 +602,17 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const D3DADAPTER_IDENTIFIE
 	DXLOG(("Driver: %s\r\n",adapter_id.Driver));
 
 	DriverDLL=adapter_id.Driver;
+#ifdef _WIN32
 	int Product = HIWORD(adapter_id.DriverVersion.HighPart);
 	int Version = LOWORD(adapter_id.DriverVersion.HighPart);
 	int SubVersion = HIWORD(adapter_id.DriverVersion.LowPart);
 	DriverBuildVersion = LOWORD(adapter_id.DriverVersion.LowPart);
+#else
+	int Product = HIWORD(adapter_id.DriverVersionHighPart);
+	int Version = LOWORD(adapter_id.DriverVersionHighPart);
+	int SubVersion = HIWORD(adapter_id.DriverVersionLowPart);
+	DriverBuildVersion = LOWORD(adapter_id.DriverVersionLowPart);
+#endif
 
 	DXLOG(("Product=%d, Version=%d, SubVersion=%d, Build=%d\r\n",Product, Version, SubVersion, DriverBuildVersion));
 
@@ -633,15 +696,16 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const D3DADAPTER_IDENTIFIE
 		adapter_id.DeviceIdentifier.Data4[7]));
 
 
-	SupportPointSprites = (Caps.MaxPointSize > 1.0f);
-	SupportNPatches = ((Caps.DevCaps&D3DDEVCAPS_NPATCHES)==D3DDEVCAPS_NPATCHES);
-	SupportZBias = ((Caps.RasterCaps&D3DPRASTERCAPS_ZBIAS)==D3DPRASTERCAPS_ZBIAS);
-	supportGamma=((Caps.Caps2&D3DCAPS2_FULLSCREENGAMMA)==D3DCAPS2_FULLSCREENGAMMA);
-	SupportModAlphaAddClr = (Caps.TextureOpCaps & D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR) == D3DTEXOPCAPS_MODULATEALPHA_ADDCOLOR;
-	SupportDot3=(Caps.TextureOpCaps & D3DTEXOPCAPS_DOTPRODUCT3) == D3DTEXOPCAPS_DOTPRODUCT3;
-	SupportCubemaps=(Caps.TextureCaps & D3DPTEXTURECAPS_CUBEMAP) == D3DPTEXTURECAPS_CUBEMAP;
+	SupportPointSprites = (caps.MaxPointSize > 1.0f);
+	SupportNPatches = ((caps.DevCaps&kLegacyNPatches)==kLegacyNPatches);
+	SupportZBias = ((caps.RasterCaps&kLegacyZBias)==kLegacyZBias);
+	SupportRangeFog = ((caps.RasterCaps&kLegacyRangeFog)==kLegacyRangeFog);
+	supportGamma=((caps.Caps2&kLegacyFullscreenGamma)==kLegacyFullscreenGamma);
+	SupportModAlphaAddClr = (caps.TextureOpCaps & kLegacyModulateAlphaAddColor) == kLegacyModulateAlphaAddColor;
+	SupportDot3=(caps.TextureOpCaps & kLegacyDotProduct3) == kLegacyDotProduct3;
+	SupportCubemaps=(caps.TextureCaps & kLegacyCubeMap) == kLegacyCubeMap;
 	SupportAnisotropicFiltering=
-		(Caps.TextureFilterCaps&D3DPTFILTERCAPS_MAGFANISOTROPIC) && (Caps.TextureFilterCaps&D3DPTFILTERCAPS_MINFANISOTROPIC);
+		(caps.TextureFilterCaps&kLegacyMagAnisotropic) && (caps.TextureFilterCaps&kLegacyMinAnisotropic);
 
 	DXLOG(("Hardware T&L support: %s\r\n",SupportTnL ? "Yes" : "No"));
 	DXLOG(("NPatch support: %s\r\n",SupportNPatches ? "Yes" : "No"));
@@ -651,20 +715,20 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const D3DADAPTER_IDENTIFIE
 	DXLOG(("Dot3 support: %s\r\n",SupportDot3 ? "Yes" : "No"));
 	DXLOG(("Anisotropic filtering support: %s\r\n",SupportAnisotropicFiltering ? "Yes" : "No"));
 
-	Check_Texture_Format_Support(display_format,Caps);
-	Check_Render_To_Texture_Support(display_format,Caps);
-	Check_Depth_Stencil_Support(display_format,Caps);
-	Check_Texture_Compression_Support(Caps);
-	Check_Bumpmap_Support(Caps);
-	Check_Shader_Support(Caps);
+	Check_Texture_Format_Support(display_format,&caps);
+	Check_Render_To_Texture_Support(display_format,&caps);
+	Check_Depth_Stencil_Support(display_format,&caps);
+	Check_Texture_Compression_Support(&caps);
+	Check_Bumpmap_Support(&caps);
+	Check_Shader_Support(&caps);
 	Check_Driver_Version_Status();
-	Check_Maximum_Texture_Support(Caps);
+	Check_Maximum_Texture_Support(&caps);
 
-	MaxTexturesPerPass=Caps.MaxSimultaneousTextures;
+	MaxTexturesPerPass=caps.MaxSimultaneousTextures;
 
 	DXLOG(("Max textures per pass: %d\r\n",MaxTexturesPerPass));
 
-	Vendor_Specific_Hacks(adapter_id);
+	Vendor_Specific_Hacks(&adapter_id);
 	CapsWorkString="";
 }
 
@@ -674,10 +738,11 @@ void DX8Caps::Compute_Caps(WW3DFormat display_format, const D3DADAPTER_IDENTIFIE
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Check_Bumpmap_Support(const D3DCAPS8& caps)
+void DX8Caps::Check_Bumpmap_Support(const void* caps_ptr)
 {
-	SupportBumpEnvmap=!!(caps.TextureOpCaps & D3DTEXOPCAPS_BUMPENVMAP);
-	SupportBumpEnvmapLuminance=!!(caps.TextureOpCaps & D3DTEXOPCAPS_BUMPENVMAPLUMINANCE);
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
+	SupportBumpEnvmap=!!(caps.TextureOpCaps & kLegacyBumpEnv);
+	SupportBumpEnvmapLuminance=!!(caps.TextureOpCaps & kLegacyBumpEnvLuminance);
 	DXLOG(("Bumpmap support: %s\r\n",SupportBumpEnvmap ? "Yes" : "No"));
 	DXLOG(("Bumpmap luminance support: %s\r\n",SupportBumpEnvmapLuminance ? "Yes" : "No"));
 }
@@ -688,8 +753,9 @@ void DX8Caps::Check_Bumpmap_Support(const D3DCAPS8& caps)
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Check_Texture_Compression_Support(const D3DCAPS8& caps)
+void DX8Caps::Check_Texture_Compression_Support(const void* caps_ptr)
 {
+	(void)caps_ptr;
 	SupportDXTC=SupportTextureFormat[WW3D_FORMAT_DXT1]|
 		SupportTextureFormat[WW3D_FORMAT_DXT2]|
 		SupportTextureFormat[WW3D_FORMAT_DXT3]|
@@ -698,15 +764,26 @@ void DX8Caps::Check_Texture_Compression_Support(const D3DCAPS8& caps)
 	DXLOG(("Texture compression support: %s\r\n",SupportDXTC ? "Yes" : "No"));
 }
 
-void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const D3DCAPS8& caps)
+void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const void* caps_ptr)
 {
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
 	if (display_format==WW3D_FORMAT_UNKNOWN) {
 		for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 			SupportTextureFormat[i]=false;
 		}
 		return;
 	}
-	D3DFORMAT d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
+#if defined(GGC_BGFX_STANDALONE)
+	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
+		SupportTextureFormat[i]=(i!=WW3D_FORMAT_UNKNOWN);
+		if (SupportTextureFormat[i]) {
+			StringClass name(0,true);
+			Get_WW3D_Format_Name((WW3DFormat)i,name);
+			DXLOG(("Supports texture format: %s\r\n",name.str()));
+		}
+	}
+#else
+	LegacyFormat d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
 	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 		if (i==WW3D_FORMAT_UNKNOWN) {
 			SupportTextureFormat[i]=false;
@@ -714,12 +791,12 @@ void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const D3DCA
 		else {
 			WW3DFormat format=(WW3DFormat)i;
 			SupportTextureFormat[i]=SUCCEEDED(
-				Direct3D->CheckDeviceFormat(
+				static_cast<LegacyDirect3D*>(Direct3D)->CheckDeviceFormat(
 					caps.AdapterOrdinal,
 					caps.DeviceType,
 					d3d_display_format,
 					0,
-					D3DRTYPE_TEXTURE,
+					kLegacyTextureResource,
 					WW3DFormat_To_D3DFormat(format)));
 			if (SupportTextureFormat[i]) {
 				StringClass name(0,true);
@@ -728,17 +805,30 @@ void DX8Caps::Check_Texture_Format_Support(WW3DFormat display_format,const D3DCA
 			}
 		}
 	}
+#endif
+	(void)caps;
 }
 
-void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const D3DCAPS8& caps)
+void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const void* caps_ptr)
 {
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
 	if (display_format==WW3D_FORMAT_UNKNOWN) {
 		for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 			SupportRenderToTextureFormat[i]=false;
 		}
 		return;
 	}
-	D3DFORMAT d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
+#if defined(GGC_BGFX_STANDALONE)
+	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
+		SupportRenderToTextureFormat[i]=(i==WW3D_FORMAT_A8R8G8B8 || i==WW3D_FORMAT_X8R8G8B8);
+		if (SupportRenderToTextureFormat[i]) {
+			StringClass name(0,true);
+			Get_WW3D_Format_Name((WW3DFormat)i,name);
+			DXLOG(("Supports render-to-texture format: %s\r\n",name.str()));
+		}
+	}
+#else
+	LegacyFormat d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
 	for (unsigned i=0;i<WW3D_FORMAT_COUNT;++i) {
 		if (i==WW3D_FORMAT_UNKNOWN) {
 			SupportRenderToTextureFormat[i]=false;
@@ -746,12 +836,12 @@ void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const D3
 		else {
 			WW3DFormat format=(WW3DFormat)i;
 			SupportRenderToTextureFormat[i]=SUCCEEDED(
-				Direct3D->CheckDeviceFormat(
+				static_cast<LegacyDirect3D*>(Direct3D)->CheckDeviceFormat(
 					caps.AdapterOrdinal,
 					caps.DeviceType,
 					d3d_display_format,
-					D3DUSAGE_RENDERTARGET,
-					D3DRTYPE_TEXTURE,
+					kLegacyRenderTargetUsage,
+					kLegacyTextureResource,
 					WW3DFormat_To_D3DFormat(format)));
 			if (SupportRenderToTextureFormat[i]) {
 				StringClass name(0,true);
@@ -760,14 +850,17 @@ void DX8Caps::Check_Render_To_Texture_Support(WW3DFormat display_format,const D3
 			}
 		}
 	}
+#endif
+	(void)caps;
 }
 
 //**********************************************************************************************
 //! Check Depth Stencil Format Support
 /*! KJM
 */
-void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const D3DCAPS8& caps)
+void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const void* caps_ptr)
 {
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
 	if (display_format==WW3D_FORMAT_UNKNOWN)
 	{
 		for (unsigned i=0;i<WW3D_ZFORMAT_COUNT;++i)
@@ -777,7 +870,19 @@ void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const D3DCA
 		return;
 	}
 
-	D3DFORMAT d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
+#if defined(GGC_BGFX_STANDALONE)
+	for (unsigned i=0;i<WW3D_ZFORMAT_COUNT;++i)
+	{
+		SupportDepthStencilFormat[i]=(i==WW3D_ZFORMAT_D24S8 || i==WW3D_ZFORMAT_D24X8 || i==WW3D_ZFORMAT_D16);
+		if (SupportDepthStencilFormat[i])
+		{
+			StringClass name(0,true);
+			Get_WW3D_ZFormat_Name((WW3DZFormat)i,name);
+			DXLOG(("Supports depth stencil format: %s\r\n",name.str()));
+		}
+	}
+#else
+	LegacyFormat d3d_display_format=WW3DFormat_To_D3DFormat(display_format);
 
 	for (unsigned i=0;i<WW3D_ZFORMAT_COUNT;++i)
 	{
@@ -790,13 +895,13 @@ void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const D3DCA
 			WW3DZFormat format=(WW3DZFormat)i;
 			SupportDepthStencilFormat[i]=SUCCEEDED
 			(
-				Direct3D->CheckDeviceFormat
+				static_cast<LegacyDirect3D*>(Direct3D)->CheckDeviceFormat
 				(
 					caps.AdapterOrdinal,
 					caps.DeviceType,
 					d3d_display_format,
-					D3DUSAGE_DEPTHSTENCIL,
-					D3DRTYPE_TEXTURE,
+					kLegacyDepthStencilUsage,
+					kLegacyTextureResource,
 					WW3DZFormat_To_D3DFormat(format)
 				)
 			);
@@ -809,15 +914,19 @@ void DX8Caps::Check_Depth_Stencil_Support(WW3DFormat display_format, const D3DCA
 			}
 		}
 	}
+#endif
+	(void)caps;
 }
 
-void DX8Caps::Check_Maximum_Texture_Support(const D3DCAPS8& caps)
+void DX8Caps::Check_Maximum_Texture_Support(const void* caps_ptr)
 {
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
 	MaxSimultaneousTextures=caps.MaxSimultaneousTextures;
 }
 
-void DX8Caps::Check_Shader_Support(const D3DCAPS8& caps)
+void DX8Caps::Check_Shader_Support(const void* caps_ptr)
 {
+	const LegacyCaps& caps = *static_cast<const LegacyCaps*>(caps_ptr);
 	VertexShaderVersion=caps.VertexShaderVersion;
 	PixelShaderVersion=caps.PixelShaderVersion;
 	DXLOG(("Vertex shader version: %d.%d, pixel shader version: %d.%d\r\n",
@@ -999,6 +1108,16 @@ bool DX8Caps::Is_Valid_Display_Format(int width, int height, WW3DFormat format)
 	return true;
 }
 
+unsigned DX8Caps::Get_Max_Texture_Width() const
+{
+	return Legacy_Caps(Caps).MaxTextureWidth;
+}
+
+unsigned DX8Caps::Get_Max_Texture_Height() const
+{
+	return Legacy_Caps(Caps).MaxTextureHeight;
+}
+
 // ----------------------------------------------------------------------------
 //
 // Implement some vendor-specific hacks to fix certain driver bugs that can't be
@@ -1006,8 +1125,9 @@ bool DX8Caps::Is_Valid_Display_Format(int width, int height, WW3DFormat format)
 //
 // ----------------------------------------------------------------------------
 
-void DX8Caps::Vendor_Specific_Hacks(const D3DADAPTER_IDENTIFIER8& adapter_id)
+void DX8Caps::Vendor_Specific_Hacks(const void* adapter_id_ptr)
 {
+	const LegacyAdapterIdentifier& adapter_id = *static_cast<const LegacyAdapterIdentifier*>(adapter_id_ptr);
 	if (VendorId==VENDOR_NVIDIA)
     {
 		if (SupportNPatches) {
@@ -1163,9 +1283,8 @@ void DX8Caps::Vendor_Specific_Hacks(const D3DADAPTER_IDENTIFIER8& adapter_id)
 
 	if (VendorId==VENDOR_VMWARE) {
 		// TheSuperHackers @bugfix Stubbjax 15/01/2026 Disable DOT3 support for VMWare's virtual GPU.
-		// The D3DTA_ALPHAREPLICATE modifier fails when passed to a D3DTOP_MULTIPLYADD operation.
+		// The alpha-replicate modifier fails when passed to multiply-add on this legacy driver.
 		DXLOG(("Disabling DOT3 on VMWare\r\n"));
 		SupportDot3 = false;
 	}
 }
-
