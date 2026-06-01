@@ -868,54 +868,61 @@ bool DX8Backend::Capture_Back_Buffer_RGBA(unsigned int display_width,
     Set_Pixel_Shader_Constant(1, kMaskG, 1);
     Set_Pixel_Shader_Constant(2, kMaskB, 1);
 
-    struct QuadVertex
+    // TheSuperHackers @build bobtista 01/06/2026 Wrap initialized locals in
+    // block scopes so the subsequent `goto cleanup` statements don't cross
+    // their initialization (ill-formed in C++ -- C2362 under MSVC).
     {
-        float x, y, z, rhw;
-        float u, v;
-    } vtx[4];
-    const float left = -0.5f;
-    const float top = -0.5f;
-    const float right = static_cast<float>(image_size) - 0.5f;
-    const float bottom = static_cast<float>(capture_height) - 0.5f;
-    vtx[0] = {right, bottom, 0.0f, 1.0f, 1.0f, 1.0f};
-    vtx[1] = {right, top,    0.0f, 1.0f, 1.0f, 0.0f};
-    vtx[2] = {left,  bottom, 0.0f, 1.0f, 0.0f, 1.0f};
-    vtx[3] = {left,  top,    0.0f, 1.0f, 0.0f, 0.0f};
-    DX8Wrapper::Set_DX8_Texture(0, intermediate_texture);
-    texture_changed = true;
-    DX8Wrapper::Set_Vertex_Shader(D3DFVF_XYZRHW | D3DFVF_TEX1);
-    if (FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vtx, sizeof(QuadVertex)))) {
-        goto cleanup;
+        struct QuadVertex
+        {
+            float x, y, z, rhw;
+            float u, v;
+        } vtx[4];
+        const float left = -0.5f;
+        const float top = -0.5f;
+        const float right = static_cast<float>(image_size) - 0.5f;
+        const float bottom = static_cast<float>(capture_height) - 0.5f;
+        vtx[0] = {right, bottom, 0.0f, 1.0f, 1.0f, 1.0f};
+        vtx[1] = {right, top,    0.0f, 1.0f, 1.0f, 0.0f};
+        vtx[2] = {left,  bottom, 0.0f, 1.0f, 0.0f, 1.0f};
+        vtx[3] = {left,  top,    0.0f, 1.0f, 0.0f, 0.0f};
+        DX8Wrapper::Set_DX8_Texture(0, intermediate_texture);
+        texture_changed = true;
+        DX8Wrapper::Set_Vertex_Shader(D3DFVF_XYZRHW | D3DFVF_TEX1);
+        if (FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vtx, sizeof(QuadVertex)))) {
+            goto cleanup;
+        }
     }
 
-    RECT src_rect;
-    src_rect.left = 0;
-    src_rect.top = 0;
-    src_rect.right = image_size;
-    src_rect.bottom = capture_height;
-    POINT dst_point;
-    dst_point.x = 0;
-    dst_point.y = 0;
-    DX8Wrapper::_Copy_DX8_Rects(
-        small_render_target_surface,
-        &src_rect,
-        1,
-        surface_class->Peek_D3D_Surface(),
-        &dst_point);
-
-    int pitch = 0;
-    void * bits = surface_class->Lock(&pitch);
-    if (bits == nullptr) {
-        goto cleanup;
-    }
-
-    for (unsigned int row = 0; row < capture_height; ++row)
     {
-        memcpy(output_pixels + row * row_bytes,
-               static_cast<const unsigned char *>(bits) + row * pitch,
-               row_bytes);
+        RECT src_rect;
+        src_rect.left = 0;
+        src_rect.top = 0;
+        src_rect.right = image_size;
+        src_rect.bottom = capture_height;
+        POINT dst_point;
+        dst_point.x = 0;
+        dst_point.y = 0;
+        DX8Wrapper::_Copy_DX8_Rects(
+            small_render_target_surface,
+            &src_rect,
+            1,
+            surface_class->Peek_D3D_Surface(),
+            &dst_point);
+
+        int pitch = 0;
+        void * bits = surface_class->Lock(&pitch);
+        if (bits == nullptr) {
+            goto cleanup;
+        }
+
+        for (unsigned int row = 0; row < capture_height; ++row)
+        {
+            memcpy(output_pixels + row * row_bytes,
+                   static_cast<const unsigned char *>(bits) + row * pitch,
+                   row_bytes);
+        }
+        surface_class->Unlock();
     }
-    surface_class->Unlock();
 
     *output_width = image_size;
     *output_height = capture_height;
