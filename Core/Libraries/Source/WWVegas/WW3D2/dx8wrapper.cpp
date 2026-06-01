@@ -52,6 +52,7 @@
 
 #include "dx8wrapper.h"
 #include "texturecompatibilityinterop.h"
+#include "DrawCallLog.h"
 #include "RenderStateDefs.h"
 #include "dx8webbrowser.h"
 #include "dx8fvf.h"
@@ -2619,6 +2620,20 @@ void DX8Wrapper::Draw(
 			vertex_count=FixedFunctionState::Render_State().vba_count;
 			break;
 		}
+	}
+
+	if (DrawCallLog_Is_Active()) {
+		const TextureBaseClass * tex0 = FixedFunctionState::Render_State().Textures[0];
+		const char * tex_name = (tex0 != nullptr) ? tex0->Get_Texture_Name().str() : "";
+		DrawCallLog_Record(
+			primitive_type,
+			polygon_count,
+			vertex_count,
+			FixedFunctionState::Render_State().vertex_buffer_types[0],
+			FixedFunctionState::Render_State().index_buffer_type,
+			FixedFunctionState::Render_State().shader.Get_Bits(),
+			FixedFunctionState::Render_State().sorted_draw_flags,
+			tex_name);
 	}
 
 	switch (FixedFunctionState::Render_State().vertex_buffer_types[0]) {
