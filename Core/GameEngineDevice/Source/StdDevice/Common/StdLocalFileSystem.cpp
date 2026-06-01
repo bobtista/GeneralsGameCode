@@ -130,7 +130,10 @@ static std::filesystem::path fixFilenameFromWindowsPath(const Char *filename, In
 		// for a relative path. The first part of a relative path is then matched like the parts after it.
 		std::filesystem::path pathFixed = path.root_path();
 		std::filesystem::path pathCurrent = path.root_path();
-		for (auto& p : path.relative_path())
+		// TheSuperHackers @build bobtista 29/04/2026 std::filesystem::path's
+		// iterator dereferences to a temporary on Apple Clang's libc++; use
+		// auto-by-value (or const ref) instead of non-const ref.
+		for (auto p : path.relative_path())
 		{
 			std::filesystem::path pathFixedPart;
 			if (std::filesystem::exists(pathCurrent / p, ec))
