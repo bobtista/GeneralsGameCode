@@ -2468,6 +2468,20 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 
 	m_numVisibleShoreLineTiles=0;
 
+	// TheSuperHackers @bugfix bobtista 01/06/2026 The shoreline-alpha
+	// soft water edge pass writes the back-buffer alpha channel for later
+	// DESTALPHA blending of the water surface. It was added as part of the
+	// bgfx render-to-texture work; the BgfxBackend manages mask
+	// restoration across its view-based draw queue. On dx8 nothing restores
+	// the color write mask after this pass — the function exits with
+	// Set_Color_Write_Enable(true,true,true,false) (RGB-only), masking the
+	// alpha output of every subsequent draw and silently breaking the
+	// water trapezoid + UI overlay passes. Gate the whole pass on
+	// Has_Shader_Pipeline() so backends without the per-view mask plumbing
+	// (i.e. dx8) skip it entirely and inherit the legacy hard-edge water.
+	if (g_renderBackend != nullptr && !g_renderBackend->Has_Shader_Pipeline())
+		return;
+
 	if (!TheGlobalData->m_showSoftWaterEdge || TheWaterTransparency->m_transparentWaterDepth==0 || m_numShoreLineTiles == 0)
 		return;
 
@@ -2630,6 +2644,13 @@ are assumed to be sorted.  Not used by World Builder. */
 void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 {
 	m_numVisibleShoreLineTiles=0;
+
+	// See the matching comment in renderShoreLines above — the shoreline
+	// alpha pass leaves the color write mask in a non-default state that
+	// only the bgfx view system restores. Skip on dx8 / any non-shader
+	// backend.
+	if (g_renderBackend != nullptr && !g_renderBackend->Has_Shader_Pipeline())
+		return;
 
 	if (!TheGlobalData->m_showSoftWaterEdge || TheWaterTransparency->m_transparentWaterDepth==0 || m_numShoreLineTiles == 0)
 		return;
