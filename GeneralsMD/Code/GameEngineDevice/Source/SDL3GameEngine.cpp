@@ -13,6 +13,8 @@
 #if defined(SAGE_USE_SDL3)
 
 #include <cstdlib>
+#include <cstring>
+#include <strings.h>
 
 #include "Common/AudioRequest.h"
 #include "Common/GameAudio.h"
@@ -100,6 +102,8 @@ void SDL3GameEngine::pollSDL3Events()
 			case SDL_EVENT_WINDOW_CLOSE_REQUESTED:
 			case SDL_EVENT_WINDOW_FOCUS_GAINED:
 			case SDL_EVENT_WINDOW_FOCUS_LOST:
+			case SDL_EVENT_WINDOW_MOUSE_ENTER:
+			case SDL_EVENT_WINDOW_MOUSE_LEAVE:
 				handleWindowEvent(event.window);
 				break;
 
@@ -205,10 +209,52 @@ void SDL3GameEngine::handleWindowEvent(const SDL_WindowEvent &event)
 	else if (event.type == SDL_EVENT_WINDOW_FOCUS_GAINED)
 	{
 		setIsActive(true);
+		if (TheKeyboard != NULL)
+		{
+			TheKeyboard->resetKeys();
+		}
+		if (TheMouse != NULL)
+		{
+			TheMouse->regainFocus();
+			if (SDL_GetMouseFocus() == m_sdlWindow)
+			{
+				TheMouse->onCursorMovedInside();
+			}
+			else if (TheMouse->isCursorInside())
+			{
+				TheMouse->onCursorMovedOutside();
+			}
+		}
 	}
 	else if (event.type == SDL_EVENT_WINDOW_FOCUS_LOST)
 	{
 		setIsActive(false);
+		if (TheKeyboard != NULL)
+		{
+			TheKeyboard->resetKeys();
+		}
+		if (TheMouse != NULL)
+		{
+			TheMouse->loseFocus();
+			if (TheMouse->isCursorInside())
+			{
+				TheMouse->onCursorMovedOutside();
+			}
+		}
+	}
+	else if (event.type == SDL_EVENT_WINDOW_MOUSE_ENTER)
+	{
+		if (TheMouse != NULL)
+		{
+			TheMouse->onCursorMovedInside();
+		}
+	}
+	else if (event.type == SDL_EVENT_WINDOW_MOUSE_LEAVE)
+	{
+		if (TheMouse != NULL && TheMouse->isCursorInside())
+		{
+			TheMouse->onCursorMovedOutside();
+		}
 	}
 }
 
@@ -298,17 +344,15 @@ WebBrowser *SDL3GameEngine::createWebBrowser()
 AudioManager *SDL3GameEngine::createAudioManager(Bool dummy)
 {
 #if defined(SAGE_USE_OPENAL)
-	// TheSuperHackers @bugfix bobtista 30/04/2026 GGC_NO_AUDIO=1 forces
-	// the dummy audio manager even when not headless. macOS Tahoe
-	// intermittently crashes inside CoreAudio's notification dispatch
-	// (HALC_ProxyNotifications, malloc-double-free) shortly after the
-	// game reaches the shell map. Letting users disable audio entirely
-	// is a clean way to keep the engine running while the audio path
-	// is sorted out. Variable is unprefixed because the toggle benefits
-	// any SDL3+OpenAL platform, not just macOS.
-	if (std::getenv("GGC_NO_AUDIO") != NULL)
+	// TheSuperHackers @bugfix bobtista 30/04/2026 GGC_NO_AUDIO=1 forces the dummy audio
+	// manager even when not headless (useful on any SDL3+OpenAL platform); only truthy
+	// values are honored so a leftover GGC_NO_AUDIO=0 does not silently disable audio.
 	{
-		dummy = TRUE;
+		const char *envVal = std::getenv("GGC_NO_AUDIO");
+		if (envVal != NULL && (strcmp(envVal, "1") == 0 || strcasecmp(envVal, "true") == 0))
+		{
+			dummy = TRUE;
+		}
 	}
 	return NEW OpenALAudioManager(dummy);
 #endif
