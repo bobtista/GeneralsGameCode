@@ -386,6 +386,36 @@ bool DX8Backend::Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage 
     return true;
 }
 
+// TheSuperHackers @bugfix bobtista 03/06/2026 GPU-direct back-buffer →
+// texture-surface copy for the smudge background snapshot. Replaces the
+// per-frame Capture_Back_Buffer_Image + CPU readback that was leaking
+// ~4 MB of system memory per call (causing dx8 to exhaust the 2 GB
+// virtual address space within ~14 s on heavy combat saves). CopyRects
+// stays entirely on the GPU and reuses dst_texture's POOL_DEFAULT
+// surface across frames — zero allocations.
+bool DX8Backend::Copy_Back_Buffer_To_Texture(unsigned int num, TextureClass * dst_texture)
+{
+    if (dst_texture == nullptr) {
+        return false;
+    }
+    SurfaceClass * back_buffer = DX8Wrapper::_Get_DX8_Back_Buffer(num);
+    if (back_buffer == nullptr) {
+        return false;
+    }
+    // TextureClass::Get_Surface_Level returns a fresh wrapper around the
+    // CPU mip data — copying onto that wouldn't update the GPU texture.
+    // Pull the actual D3D8 surface level via the compatibility interop.
+    IDirect3DSurface8 * dst_native = Get_Native_Compatibility_Surface_Level(*dst_texture, 0);
+    IDirect3DSurface8 * bb_native = Peek_Legacy_Surface(*back_buffer);
+    if (dst_native == nullptr || bb_native == nullptr) {
+        REF_PTR_RELEASE(back_buffer);
+        return false;
+    }
+    DX8Wrapper::_Copy_DX8_Rects(bb_native, nullptr, 0, dst_native, nullptr);
+    REF_PTR_RELEASE(back_buffer);
+    return true;
+}
+
 void DX8Backend::Set_Texture_Bitdepth(int bitdepth)
 {
     DX8Wrapper::Set_Texture_Bitdepth(bitdepth);
