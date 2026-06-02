@@ -482,6 +482,21 @@ struct BgfxCaches
     std::unordered_map<const TextureBaseClass  *, bool>                  renderTarget;
     std::vector<bgfx::TextureHandle> deferredDestroys;     // current frame
     std::vector<bgfx::TextureHandle> deferredDestroysPrev; // previous frame, safe to destroy
+    // TheSuperHackers @bugfix bobtista 02/06/2026 Dynamic VB/IB handles orphaned by a
+    // mid-frame resize must outlive the in-flight frame that may still reference them;
+    // destroyed one frame later, like the textures above.
+    std::vector<bgfx::DynamicVertexBufferHandle> deferredDestroyVB;
+    std::vector<bgfx::DynamicVertexBufferHandle> deferredDestroyVBPrev;
+    std::vector<bgfx::DynamicIndexBufferHandle>  deferredDestroyIB;
+    std::vector<bgfx::DynamicIndexBufferHandle>  deferredDestroyIBPrev;
+    // TheSuperHackers @bugfix bobtista 02/06/2026 Immutable static VB/IB handles dropped
+    // when a static-eligible buffer demotes to the dynamic path are still referenced by the
+    // draw recorded earlier this frame. Defer their destroy one frame, same as the dynamic
+    // queues above, to avoid the single in-gameplay "RefCount is 1 (expected 0)" warning.
+    std::vector<bgfx::VertexBufferHandle> deferredDestroyStaticVB;
+    std::vector<bgfx::VertexBufferHandle> deferredDestroyStaticVBPrev;
+    std::vector<bgfx::IndexBufferHandle>  deferredDestroyStaticIB;
+    std::vector<bgfx::IndexBufferHandle>  deferredDestroyStaticIBPrev;
 };
 
 // ---asset-ingress resource table -----------------------------------
@@ -512,6 +527,10 @@ struct BgfxResourceEntry
     uint16_t height;
     void * d3d_mirror;               // raw legacy mirror pointer, ref-popup only; nullptr in standalone
     void * owner;                    // TextureBaseClass/VertexBufferClass/IndexBufferClass for loaded-resource caches
+    // TheSuperHackers @perf bobtista 02/06/2026 Content hash of the data last captured into
+    // the static vb/ib; when a re-upload hash-matches the GPU copy the recreate is skipped.
+    uint64_t vbContentHash;
+    uint64_t ibContentHash;
 };
 
 struct BgfxResourceRegistry
