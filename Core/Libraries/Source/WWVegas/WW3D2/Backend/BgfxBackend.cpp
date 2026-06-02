@@ -806,12 +806,32 @@ public:
     }
     void traceVargs(const char * filePath, uint16_t line, const char * format, va_list argList) override
     {
+        // TheSuperHackers @perf bobtista 02/06/2026 A Debug-config build compiles bgfx
+        // itself in Debug, which turns on its internal BX_TRACE narration (per texture,
+        // per uniform, per bind). Printing+flushing every one of those thousands of lines
+        // per frame dragged the Debug build to ~5fps. Suppress the informational flood by
+        // default; surface WARN/ERROR lines always, and emit everything only when the
+        // operator opts in via GGC_TRACE. The level word is literal in bgfx's format
+        // string, so we can classify before formatting and skip the vsnprintf entirely
+        // for suppressed lines.
+        static const bool s_verbose = (std::getenv("GGC_TRACE") != nullptr);
+        const bool isImportant = (format != nullptr)
+            && (std::strstr(format, "WARN") != nullptr || std::strstr(format, "ERROR") != nullptr);
+        if (!s_verbose && !isImportant)
+        {
+            return;
+        }
         char buf[512];
         std::vsnprintf(buf, sizeof(buf), format, argList);
         size_t len = std::strlen(buf);
         while (len > 0 && (buf[len-1] == '\n' || buf[len-1] == '\r')) { buf[--len] = '\0'; }
         std::fprintf(stderr, "[bgfx] %s:%u: %s\n", filePath ? filePath : "?", line, buf);
-        std::fflush(stderr);
+        // Flush important lines so they survive a subsequent crash; let the opt-in verbose
+        // flood rely on normal stdio buffering to avoid a syscall per line.
+        if (isImportant)
+        {
+            std::fflush(stderr);
+        }
     }
     void profilerBegin(const char * name, uint32_t /*abgr*/, const char * filePath, uint16_t line) override
     {
