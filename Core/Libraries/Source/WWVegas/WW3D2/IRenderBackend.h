@@ -554,6 +554,16 @@ public:
     virtual WW3DFormat Get_Back_Buffer_Format() const { return WW3D_FORMAT_UNKNOWN; }
     virtual bool Get_Back_Buffer_Description(unsigned int num, RenderBackendSurfaceDescription & desc) const { desc = RenderBackendSurfaceDescription(); return false; }
     virtual bool Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image) { return false; }
+
+    // TheSuperHackers @bugfix bobtista 03/06/2026 GPU-direct backbuffer copy
+    // to a texture's level-0 surface. Used by W3DSmudge to keep a persistent
+    // background snapshot without allocating per-frame system-memory surfaces
+    // (the previous Capture_Back_Buffer_Image route on dx8 was leaking ~4 MB
+    // per call and exhausting the 2 GB virtual address space). DX8 backend
+    // does a CopyRects from back buffer to the texture's POOL_DEFAULT surface;
+    // bgfx can blit from its scene RT. Default returns false so callers
+    // know to fall back.
+    virtual bool Copy_Back_Buffer_To_Texture(unsigned int /*num*/, TextureClass * /*dst_texture*/) { return false; }
     virtual bool Request_Native_Screen_Shot(const char * /*path*/) { return false; }
     virtual void Set_Texture_Bitdepth(int bitdepth) {}
     virtual int Get_Texture_Bitdepth() const { return 16; }
