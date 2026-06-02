@@ -2766,7 +2766,23 @@ void BgfxBackend::Shutdown()
         // Flush that partial frame before destroying resources; Metal asserts
         // if bgfx shutdown releases an in-flight command encoder that never
         // reached its normal frame boundary.
-        bgfx::frame();
+        // TheSuperHackers @bugfix bobtista 02/06/2026 Unbind every view's framebuffer and
+        // pump several empty frames before destroying any GPU resources. The textures and
+        // buffers we destroy below are still referenced by the last gameplay frame's
+        // command buffers and by view-framebuffer attachments; destroying them while those
+        // references are live makes bgfx emit a "RefCount is 1 (expected 0)" warning per
+        // resource even though the destroy itself succeeds. Pumping empty frames retires the
+        // last frame's command buffers (bgfx keeps a few in flight) so the destroys are clean.
+        const bgfx::ViewId kBgfxMaxViewId = 15;
+        for (bgfx::ViewId v = 0; v <= kBgfxMaxViewId; ++v)
+        {
+            bgfx::setViewFrameBuffer(v, BGFX_INVALID_HANDLE);
+        }
+        const int kShutdownDrainFrames = 4;
+        for (int prep = 0; prep < kShutdownDrainFrames; ++prep)
+        {
+            bgfx::frame();
+        }
 
         DestroyBgfxHandle(g_device.passthroughProgram);
         DestroyBgfxHandle(g_device.sceneCompositeProgram);
@@ -2915,10 +2931,34 @@ void BgfxBackend::Shutdown()
         }
         g_caches.deferredDestroys.clear();
         g_caches.deferredDestroysPrev.clear();
+        // TheSuperHackers @bugfix bobtista 02/06/2026 Drain the dynamic VB/IB deferred-
+        // destroy queues too, so resized-out handles do not leak past shutdown.
+        for (auto & h : g_caches.deferredDestroyVB)     { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyVBPrev) { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyIB)     { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyIBPrev) { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        g_caches.deferredDestroyVB.clear();
+        g_caches.deferredDestroyVBPrev.clear();
+        g_caches.deferredDestroyIB.clear();
+        g_caches.deferredDestroyIBPrev.clear();
+        for (auto & h : g_caches.deferredDestroyStaticVB)     { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyStaticVBPrev) { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyStaticIB)     { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        for (auto & h : g_caches.deferredDestroyStaticIBPrev) { if (bgfx::isValid(h)) { bgfx::destroy(h); } }
+        g_caches.deferredDestroyStaticVB.clear();
+        g_caches.deferredDestroyStaticVBPrev.clear();
+        g_caches.deferredDestroyStaticIB.clear();
+        g_caches.deferredDestroyStaticIBPrev.clear();
         // TheSuperHackers @bugfix bobtista 28/04/2026 Drain phase5 table.
         // Registered VB/IB resources are normally released via Destroy_Resource,
-        // but if shutdown beats teardown they leak. Texture entries are owned by
-        // g_caches.texture (already drained above), so skip BGFX_RR_KIND_TEXTURE.
+        // but if shutdown beats teardown they leak.
+        // TheSuperHackers @bugfix bobtista 02/06/2026 Also destroy texture entries the same
+        // way Destroy_Resource does. Two flavors exist: entries from Register_Texture_Resource
+        // keep entry.fb/entry.texture invalid (the handle lives in g_caches.texture, drained
+        // above) so the isValid guards make them a safe no-op; entries from Create_Texture own
+        // a standalone entry.texture (or a render-target entry.fb) that no cache holds, and
+        // were previously leaked at shutdown. Destroy directly here, not via the deferred
+        // queue, which was already drained above.
         for (auto & kv : g_phase5.table)
         {
             BgfxPhase5Entry & entry = kv.second;
@@ -2926,11 +2966,32 @@ void BgfxBackend::Shutdown()
             {
                 case BGFX_RR_KIND_VB:     DestroyBgfxHandle(entry.vb);  break;
                 case BGFX_RR_KIND_IB:     DestroyBgfxHandle(entry.ib);  break;
+                case BGFX_RR_KIND_TEXTURE:
+                    if (bgfx::isValid(entry.fb))
+                    {
+                        DestroyBgfxHandle(entry.fb);
+                    }
+                    else
+                    {
+                        DestroyBgfxHandle(entry.texture);
+                    }
+                    break;
                 default: break;
             }
         }
         g_phase5.table.clear();
-        bgfx::frame();
+        // TheSuperHackers @bugfix bobtista 02/06/2026 bgfx releases native GPU resources
+        // lazily across its frame-latency window, so a single bgfx::frame() after queuing
+        // all the destroys above leaves many still pending when bgfx::shutdown() runs,
+        // producing a flood of "RefCount is 1 (expected 0)" warnings at exit. Pump enough
+        // frames to fully drain the deferred native-release pipeline before shutdown.
+        // bgfx's internal BGFX_CONFIG_MAX_FRAME_LATENCY is not exposed in the public
+        // headers; its default is 3, so 4 frames covers the worst case with margin.
+        const int kShutdownFlushFrames = 4;
+        for (int flush = 0; flush < kShutdownFlushFrames; ++flush)
+        {
+            bgfx::frame();
+        }
         bgfx::shutdown();
         g_device.initialized = false;
         WWDEBUG_SAY(("[BgfxBackend] bgfx::shutdown complete."));
@@ -3127,6 +3188,42 @@ void BgfxBackend::Begin_Scene()
         }
     }
     g_caches.deferredDestroysPrev.clear();
+    // TheSuperHackers @bugfix bobtista 02/06/2026 Same one-frame-delayed destroy for
+    // dynamic VB/IB handles orphaned by a resize last frame.
+    for (auto & h : g_caches.deferredDestroyVBPrev)
+    {
+        if (bgfx::isValid(h))
+        {
+            bgfx::destroy(h);
+        }
+    }
+    g_caches.deferredDestroyVBPrev.clear();
+    for (auto & h : g_caches.deferredDestroyIBPrev)
+    {
+        if (bgfx::isValid(h))
+        {
+            bgfx::destroy(h);
+        }
+    }
+    g_caches.deferredDestroyIBPrev.clear();
+    // TheSuperHackers @bugfix bobtista 02/06/2026 Same one-frame-delayed destroy for static
+    // VB/IB handles dropped by a demotion-to-dynamic last frame.
+    for (auto & h : g_caches.deferredDestroyStaticVBPrev)
+    {
+        if (bgfx::isValid(h))
+        {
+            bgfx::destroy(h);
+        }
+    }
+    g_caches.deferredDestroyStaticVBPrev.clear();
+    for (auto & h : g_caches.deferredDestroyStaticIBPrev)
+    {
+        if (bgfx::isValid(h))
+        {
+            bgfx::destroy(h);
+        }
+    }
+    g_caches.deferredDestroyStaticIBPrev.clear();
     // Show the DX8 reference popup after a few frames, giving the game's
     // input system time to fully initialize. Showing too early steals focus
     // and permanently blocks mouse capture.
@@ -3517,6 +3614,12 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     // Begin_Scene drained prev, so it is empty here; swap is cheaper than
     // insert+clear and avoids any vector growth.
     g_caches.deferredDestroysPrev.swap(g_caches.deferredDestroys);
+    // TheSuperHackers @bugfix bobtista 02/06/2026 Rotate the dynamic VB/IB deferred-
+    // destroy queues the same way.
+    g_caches.deferredDestroyVBPrev.swap(g_caches.deferredDestroyVB);
+    g_caches.deferredDestroyIBPrev.swap(g_caches.deferredDestroyIB);
+    g_caches.deferredDestroyStaticVBPrev.swap(g_caches.deferredDestroyStaticVB);
+    g_caches.deferredDestroyStaticIBPrev.swap(g_caches.deferredDestroyStaticIB);
 
     // Transient buffers are freed at bgfx::frame time. Invalidate the
     // pending and current slots so nothing next frame tries to reuse
@@ -4135,6 +4238,59 @@ void DestroyStaticIndexResource(BgfxPhase5Entry & entry)
     entry.ib = BGFX_INVALID_HANDLE;
 }
 
+// TheSuperHackers @bugfix bobtista 02/06/2026 Like DestroyStaticVertexResource but defers
+// the bgfx::destroy by one frame. Used when a static-eligible buffer demotes to the dynamic
+// path mid-frame: the immutable buffer may still be referenced by a draw recorded earlier
+// this frame, so destroying it now triggers a "RefCount is 1 (expected 0)" warning.
+void DeferDestroyStaticVertexResource(BgfxPhase5Entry & entry)
+{
+    if (!bgfx::isValid(entry.vb))
+    {
+        return;
+    }
+    if (g_draw.useStaticVB
+        && bgfx::isValid(g_draw.staticVB)
+        && g_draw.staticVB.idx == entry.vb.idx)
+    {
+        g_draw.staticVB = BGFX_INVALID_HANDLE;
+        g_draw.useStaticVB = false;
+    }
+    g_caches.deferredDestroyStaticVB.push_back(entry.vb);
+    entry.vb = BGFX_INVALID_HANDLE;
+}
+
+void DeferDestroyStaticIndexResource(BgfxPhase5Entry & entry)
+{
+    if (!bgfx::isValid(entry.ib))
+    {
+        return;
+    }
+    if (g_draw.useStaticIB
+        && bgfx::isValid(g_draw.staticIB)
+        && g_draw.staticIB.idx == entry.ib.idx)
+    {
+        g_draw.staticIB = BGFX_INVALID_HANDLE;
+        g_draw.useStaticIB = false;
+    }
+    g_caches.deferredDestroyStaticIB.push_back(entry.ib);
+    entry.ib = BGFX_INVALID_HANDLE;
+}
+
+// TheSuperHackers @perf bobtista 02/06/2026 FNV-1a 64-bit content hash used to detect
+// byte-identical re-uploads of static-eligible buffers so the GPU buffer recreate can be
+// skipped. size_bytes seeds the hash so a size change can never collide with a content match.
+static uint64_t HashBufferContent(const void * data, unsigned int size_bytes)
+{
+    uint64_t hash = 1469598103934665603ULL ^ static_cast<uint64_t>(size_bytes);
+    const unsigned char * bytes = static_cast<const unsigned char *>(data);
+    for (unsigned int i = 0; i < size_bytes; ++i)
+    {
+        hash ^= static_cast<uint64_t>(bytes[i]);
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
+
 bool TryCaptureStaticVertexBuffer(const VertexBufferClass * vb,
                                   const void * data,
                                   unsigned int size_bytes)
@@ -4154,6 +4310,23 @@ bool TryCaptureStaticVertexBuffer(const VertexBufferClass * vb,
     {
         return false;
     }
+    const uint64_t contentHash = HashBufferContent(data, size_bytes);
+    if (bgfx::isValid(entry->vb))
+    {
+        if (entry->vbContentHash == contentHash)
+        {
+            return true;
+        }
+        // TheSuperHackers @perf bobtista 02/06/2026 Content changed, so this
+        // static-eligible buffer is effectively dynamic. Drop the immutable buffer and
+        // fall through to the in-place dynamic path, which reuses one native buffer for
+        // the buffer's lifetime. Recreating an immutable buffer (and orphaning the old
+        // one) every frame was the dominant source of the "RefCount is 1 (expected 0)"
+        // leak warnings at shutdown. EnsureDynamicVertexBuffer marks entry->dvb valid,
+        // so subsequent uploads skip this static path entirely.
+        DeferDestroyStaticVertexResource(*entry);
+        return false;
+    }
     bgfx::VertexLayout layout;
     if (!BuildBgfxLayoutForFVF(vb->FVF_Info(), layout) || layout.getStride() != stride)
     {
@@ -4168,6 +4341,7 @@ bool TryCaptureStaticVertexBuffer(const VertexBufferClass * vb,
         return false;
     }
     entry->vb = h;
+    entry->vbContentHash = contentHash;
     return true;
 }
 
@@ -4189,7 +4363,19 @@ bool TryCaptureStaticIndexBuffer(const IndexBufferClass * ib,
     {
         return false;
     }
-
+    const uint64_t contentHash = HashBufferContent(data, size_bytes);
+    if (bgfx::isValid(entry->ib))
+    {
+        if (entry->ibContentHash == contentHash)
+        {
+            return true;
+        }
+        // TheSuperHackers @perf bobtista 02/06/2026 Content changed: demote to the in-place
+        // dynamic path instead of recreating an immutable buffer every frame. See the
+        // matching note in TryCaptureStaticVertexBuffer.
+        DeferDestroyStaticIndexResource(*entry);
+        return false;
+    }
     bgfx::IndexBufferHandle h = bgfx::createIndexBuffer(bgfx::copy(data, size_bytes));
     DestroyStaticIndexResource(*entry);
     if (!bgfx::isValid(h))
@@ -4197,6 +4383,7 @@ bool TryCaptureStaticIndexBuffer(const IndexBufferClass * ib,
         return false;
     }
     entry->ib = h;
+    entry->ibContentHash = contentHash;
     return true;
 }
 
@@ -4208,10 +4395,17 @@ bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClas
     auto it = g_caches.vb.find(vb);
     if (it != g_caches.vb.end())
     {
-        // Stale pointer reuse detection: engine can destroy a VB and
-        // allocate a new one at the same address with different
-        // dimensions. If dimensions changed, drop the stale handle.
-        if (it->second.num_verts == num_verts && it->second.stride == engine_stride)
+        // TheSuperHackers @perf bobtista 02/06/2026 Grow-only reuse. The cached
+        // num_verts is the bgfx buffer's CAPACITY. As long as the layout (stride) is
+        // unchanged and the buffer is at least as large as the engine now needs, reuse
+        // it and let the upload write only the live sub-range. The engine resizes these
+        // dynamic buffers nearly every frame; recreating a GPU buffer each time wasted
+        // CPU and (because bgfx keeps frames in flight) produced an unbounded stream of
+        // "RefCount is 1 (expected 0)" destroy warnings. Only recreate to GROW, or when
+        // the vertex layout changes.
+        if (it->second.stride == engine_stride
+            && it->second.num_verts >= num_verts
+            && bgfx::isValid(it->second.handle))
         {
             MirrorDynamicVertexHandleToResource(vb, it->second.handle);
             return it->second.handle;
@@ -4219,7 +4413,9 @@ bgfx::DynamicVertexBufferHandle EnsureDynamicVertexBuffer(const VertexBufferClas
         ClearDynamicVertexHandleFromResource(vb, it->second.handle);
         if (bgfx::isValid(it->second.handle))
         {
-            bgfx::destroy(it->second.handle);
+            // Defer the destroy of the grown-out handle by one frame: a draw recorded
+            // earlier this frame may still reference it until bgfx::frame() executes.
+            g_caches.deferredDestroyVB.push_back(it->second.handle);
         }
         g_caches.vb.erase(it);
     }
@@ -4270,7 +4466,9 @@ bgfx::DynamicIndexBufferHandle EnsureDynamicIndexBuffer(const IndexBufferClass *
     auto it = g_caches.ib.find(ib);
     if (it != g_caches.ib.end())
     {
-        if (it->second.num_indices == num_indices && bgfx::isValid(it->second.handle))
+        // TheSuperHackers @perf bobtista 02/06/2026 Grow-only reuse; cached num_indices
+        // is the buffer CAPACITY. See the matching note in EnsureDynamicVertexBuffer.
+        if (it->second.num_indices >= num_indices && bgfx::isValid(it->second.handle))
         {
             MirrorDynamicIndexHandleToResource(ib, it->second.handle);
             return it->second.handle;
@@ -4278,7 +4476,8 @@ bgfx::DynamicIndexBufferHandle EnsureDynamicIndexBuffer(const IndexBufferClass *
         ClearDynamicIndexHandleFromResource(ib, it->second.handle);
         if (bgfx::isValid(it->second.handle))
         {
-            bgfx::destroy(it->second.handle);
+            // Defer the destroy of the grown-out handle by one frame.
+            g_caches.deferredDestroyIB.push_back(it->second.handle);
         }
         g_caches.ib.erase(it);
     }
@@ -9425,7 +9624,8 @@ bgfx::VertexBufferHandle CreateStaticVertexBufferFromInitialData(const BufferDes
         return BGFX_INVALID_HANDLE;
     }
 
-    return bgfx::createVertexBuffer(bgfx::copy(initial_data, desc.size_bytes), layout);
+    bgfx::VertexBufferHandle h = bgfx::createVertexBuffer(bgfx::copy(initial_data, desc.size_bytes), layout);
+    return h;
 }
 
 bgfx::IndexBufferHandle CreateStaticIndexBufferFromInitialData(const BufferDesc & desc,
@@ -9441,7 +9641,8 @@ bgfx::IndexBufferHandle CreateStaticIndexBufferFromInitialData(const BufferDesc 
     }
 
     const uint64_t flags = indices_are_32bit ? BGFX_BUFFER_INDEX32 : BGFX_BUFFER_NONE;
-    return bgfx::createIndexBuffer(bgfx::copy(initial_data, desc.size_bytes), flags);
+    bgfx::IndexBufferHandle h = bgfx::createIndexBuffer(bgfx::copy(initial_data, desc.size_bytes), flags);
+    return h;
 }
 
 } // namespace
@@ -9565,7 +9766,12 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
                     {
                         g_draw.vb = BGFX_INVALID_HANDLE;
                     }
-                    bgfx::destroy(vbIt->second.handle);
+                    // TheSuperHackers @bugfix bobtista 02/06/2026 Defer one frame: the
+                    // engine frees this dynamic VB mid-frame, but a draw recorded earlier
+                    // this frame may still reference the handle until bgfx::frame(). Immediate
+                    // destroy here was the source of the per-frame "RefCount is 1 (expected 0)"
+                    // warnings (the texture case above already defers for the same reason).
+                    g_caches.deferredDestroyVB.push_back(vbIt->second.handle);
                     destroyedDynamic = bgfx::isValid(entry.dvb) && entry.dvb.idx == vbIt->second.handle.idx;
                 }
                 g_caches.vb.erase(vbIt);
@@ -9576,7 +9782,7 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
                 {
                     g_draw.vb = BGFX_INVALID_HANDLE;
                 }
-                bgfx::destroy(entry.dvb);
+                g_caches.deferredDestroyVB.push_back(entry.dvb);
             }
             DestroyStaticVertexResource(entry);
             break;
@@ -9594,7 +9800,9 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
                     {
                         g_draw.ib = BGFX_INVALID_HANDLE;
                     }
-                    bgfx::destroy(ibIt->second.handle);
+                    // TheSuperHackers @bugfix bobtista 02/06/2026 Defer one frame; see the
+                    // matching note in the VB case above.
+                    g_caches.deferredDestroyIB.push_back(ibIt->second.handle);
                     destroyedDynamic = bgfx::isValid(entry.dib) && entry.dib.idx == ibIt->second.handle.idx;
                 }
                 g_caches.ib.erase(ibIt);
@@ -9605,7 +9813,7 @@ void BgfxBackend::Destroy_Resource(RenderResource h)
                 {
                     g_draw.ib = BGFX_INVALID_HANDLE;
                 }
-                bgfx::destroy(entry.dib);
+                g_caches.deferredDestroyIB.push_back(entry.dib);
             }
             DestroyStaticIndexResource(entry);
             break;

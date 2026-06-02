@@ -485,6 +485,23 @@ struct BgfxCaches
     std::unordered_map<const TextureBaseClass  *, bool>                  renderTarget;
     std::vector<bgfx::TextureHandle> deferredDestroys;     // current frame
     std::vector<bgfx::TextureHandle> deferredDestroysPrev; // previous frame, safe to destroy
+    // TheSuperHackers @bugfix bobtista 02/06/2026 Dynamic VB/IB handles orphaned by a
+    // mid-frame resize must outlive the in-flight frame that may still reference them,
+    // exactly like textures above. Destroying them immediately triggers bgfx "RefCount
+    // is 1 (expected 0)" warnings and risks freeing a resource a recorded-but-not-yet-
+    // executed draw still uses. Queue here and destroy one frame later.
+    std::vector<bgfx::DynamicVertexBufferHandle> deferredDestroyVB;
+    std::vector<bgfx::DynamicVertexBufferHandle> deferredDestroyVBPrev;
+    std::vector<bgfx::DynamicIndexBufferHandle>  deferredDestroyIB;
+    std::vector<bgfx::DynamicIndexBufferHandle>  deferredDestroyIBPrev;
+    // TheSuperHackers @bugfix bobtista 02/06/2026 Immutable static VB/IB handles dropped
+    // when a static-eligible buffer demotes to the dynamic path are still referenced by the
+    // draw recorded earlier this frame. Defer their destroy one frame, same as the dynamic
+    // queues above, to avoid the single in-gameplay "RefCount is 1 (expected 0)" warning.
+    std::vector<bgfx::VertexBufferHandle> deferredDestroyStaticVB;
+    std::vector<bgfx::VertexBufferHandle> deferredDestroyStaticVBPrev;
+    std::vector<bgfx::IndexBufferHandle>  deferredDestroyStaticIB;
+    std::vector<bgfx::IndexBufferHandle>  deferredDestroyStaticIBPrev;
 };
 
 // ---asset-ingress resource table -----------------------------------
@@ -515,6 +532,13 @@ struct BgfxPhase5Entry
     uint16_t height;
     void * d3d_mirror;               // raw legacy mirror pointer, ref-popup only; nullptr in standalone
     void * owner;                    // TextureBaseClass/VertexBufferClass/IndexBufferClass for loaded-resource caches
+    // TheSuperHackers @perf bobtista 02/06/2026 Content hash of the data last captured into
+    // the static vb/ib. The engine re-uploads many static-eligible buffers every frame with
+    // byte-identical contents; on bgfx that meant a createVertexBuffer/destroy churn per frame
+    // (orphaned native Metal buffers, RefCount-leak warnings at shutdown). When the incoming
+    // bytes hash-match what is already on the GPU we skip the recreate entirely.
+    uint64_t vbContentHash;
+    uint64_t ibContentHash;
 };
 
 struct BgfxPhase5Resources
