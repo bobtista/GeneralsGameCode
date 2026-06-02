@@ -482,8 +482,6 @@ void ConnectionManager::destroyGameMessages()
  */
 void ConnectionManager::doRelay()
 {
-	static Int numPackets = 0;
-	static Int numCommands = 0;
 
 	NetPacket* packet = nullptr;
 
@@ -517,10 +515,7 @@ void ConnectionManager::doRelay()
 					sendRemoteCommand(cmd);
 				}
 				cmd = cmd->getNext();
-
-				++numCommands;
 			}
-			++numPackets;
 
 			// Delete this packet since we won't be needing it anymore.
 			deleteInstance(packet);
@@ -547,10 +542,7 @@ void ConnectionManager::doRelay()
 			sendRemoteCommand(cmd);
 		}
 		cmd = cmd->getNext();
-
-		++numCommands;
 	}
-	++numPackets;
 
 	// Delete this packet since we won't be needing it anymore.
 	deleteInstance(packet);
