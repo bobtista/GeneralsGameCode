@@ -1017,86 +1017,6 @@ static void UpdateShadowStencilState()
     g_draw.shadowStencilBack = BGFX_STENCIL_NONE;
 }
 
-// Sway table: 11 entries (no-sway at index 0, MAX_SWAY_TYPES=10 active).
-
-// Sampler uniform shared by all textured fragment shaders. Bound to stage 0.
-// TheSuperHackers @refactor bobtista 11/04/2026 Material
-// diffuse uniform. Carries the VertexMaterialClass::Get_Diffuse color
-// + opacity from Set_Material into the fragment shader so team colors
-// (which the W3D engine writes into the material diffuse channel) and
-// alpha fades modulate the output.
-// TheSuperHackers @feature bobtista 20/04/2026 Material emissive uniform.
-// Legacy fixed-function adds the material's emissive color to the lit
-// output through the emissive material-source state. Self-
-// illuminating meshes like the "move here" hint rely on this to produce
-// their glow color even when no light reaches them. fs_uber needs this
-// term or such meshes render black.
-// Grayscale output override for disabled 2D UI elements (Render2DClass::Enable_Grayscale).
-// Legacy path uses dot-product texture op + TFACTOR=0x80A5CA8E (luminance weights); bgfx path
-// applies the dot-product at the end of fs_uber when g_draw.grayscaleEnable[0] > 0.5.
-// Alpha-test parameters consumed by fs_textured_lit_atest. .x is the
-// reference threshold in [0, 1]; engine writes ShaderClass alpha-ref / 255.
-// Named u_atestParams (not u_alphaRef) to avoid bgfx_shader.sh's internal
-// u_alphaRef4 conflict. See fs_textured_lit_atest.sc for details.
-
-// TSS operation uniforms. Encode the DX8 texture stage state
-// operations so the uber fragment shader can evaluate them at runtime.
-
-// Post-ShaderClass blend/alpha-test overrides. Set by Override_Blend /
-// Override_Alpha_Test, cleared by Clear_State_Overrides (called from Set_Shader).
-// TheSuperHackers @feature bobtista 16/04/2026 2D overlay active flag.
-// Set by Set_View_Identity (Render2DClass enters 2D mode), cleared by
-// Set_Transform(VIEW) when a real camera view is restored or at Begin_Scene.
-
-// UV set selection: when > 0, the fragment shader samples stage 0
-// from v_texcoord1 instead of v_texcoord0. Set by the terrain shader
-// when it changes the stage texcoord index to 1 for the blend pass.
-
-// Shroud pass: the legacy path uses camera-space position texcoords to auto-
-// generate UVs from camera-space vertex positions, combined with a texture
-// transform matrix. bgfx has no equivalent, so we upload the full texture
-// matrix and let the vertex shader compute the UVs explicitly.
-
-// TheSuperHackers @feature bobtista 20/04/2026 Cloud-shadow modulation
-// for terrain (DX8 ST_TERRAIN_BASE_NOISE1 / _NOISE12). Scroll offset
-// advances each frame from TerrainShader2Stage::m_xOffset/m_yOffset;
-// the fragment shader multiplies the sampled cloud color into the base.
-// .xy = scroll offset, .z = world→UV stretch, .w > 0.5 = enable.
-// .y = terrain blend flag: when > 0, shader does lerp(tex0, tex1, vertex_alpha)
-// using UV set 0 for tex0 and UV set 1 for tex1
-
-// Lighting uniforms. The engine supports up to 4 lights
-// (typically 1 directional sun + 0-3 point lights). We pack light data
-// into vec4 arrays and push them per-draw so the uber fragment shader
-// can evaluate real N.L lighting instead of the hardcoded fake sun.
-// 4 lights packed into vec4 arrays (one element per light).
-// u_lightDirs[i].xyz = direction toward light, .w = enabled flag
-// u_lightColors[i].rgb = diffuse color
-// Defaults match the old hardcoded sun: direction TOWARD light (positive),
-// white diffuse, reasonable ambient. These are used until the first
-// Set_Light_Environment call provides real game lights.
-// Tracks whether the current material has lighting enabled.
-// When false, the vertex color contains pre-baked lighting (terrain)
-// and the fragment shader should NOT apply N.L lighting on top.
-
-// TheSuperHackers @refactor bobtista 11/04/2026 Default 1x1
-// white texture. Real Set_Texture wiring is not in place yet, so the
-// textured shaders need SOMETHING bound to s_tex0 or the native backend returns
-// undefined values. A 1x1 opaque white texture is a sensible default
-// because the fragment shader does texColor * v_color0 - white * vc
-// gives the vertex color through unmodified.
-// Track which engine textures are render targets so we can use the
-// transparent fallback instead of white.
-
-// Vertex layout used by the test triangle. Position + packed RGBA color.
-// Initialized in Initialize since bgfx::VertexLayout::begin needs bgfx to be
-// up and running (it queries the active renderer for the pos type).
-
-// TheSuperHackers @refactor bobtista 11/04/2026 Standard
-// vertex layouts. One per common FVF format. Initialized in Initialize,
-// used by's vertex buffer creation path. Names follow the FVF
-// tags - P=position, N=normal, D=diffuse (color0), T<n>=texcoord<n>.
-
 // TheSuperHackers @refactor bobtista 26/04/2026 Shader program creation
 // helper. Creates a bgfx program from compiled bytecode, sets debug names,
 // and cleans up on failure.
@@ -1285,10 +1205,9 @@ namespace
 //   - else                                -> g_device.passthroughProgram (debug)
 //
 // State bit translation is mechanical: depth compare, depth write, color
-// write, blend factors, cull. Detail-blend / fog / specular gradient are
-// not handled here yet - they need shader code, not state bits, and that
-// lands when we add the terrain shader and the fixed-function lighting
-// path.
+// write, blend factors, cull. Detail-blend / fog / specular gradient need
+// shader code rather than state bits, so they are not handled by this
+// translation.
 
 uint64_t TranslateBlendFactor(ShaderClass::SrcBlendFuncType src)
 {
@@ -1694,18 +1613,9 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
     return out.getStride() == totalSize;
 }
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Vertex/index
-// buffer caches. The engine recycles VertexBufferClass / IndexBufferClass
-// instances throughout its lifetime, so we cache the bgfx handle keyed
-// by the source pointer. On first encounter we lock the source buffer
-// for read, copy bytes via bgfx::copy(), and create a bgfx static buffer.
-// Cache is destroyed wholesale in Shutdown - we don't try to react to
-// VertexBufferClass destruction yet, which means handles may outlive
-// their source until shutdown. That's fine for the prototype.
-//
-// Pointer reuse is theoretically possible but unlikely in a single
-// session; if it bites us we'll add a generation counter or hook the
-// destructor.
+// TheSuperHackers @refactor bobtista 11/04/2026 Vertex/index buffer caches keyed by the
+// source buffer pointer: copy bytes on first sight, create a bgfx buffer, destroy
+// wholesale in Shutdown.
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Switched from
 // static bgfx VB/IB handles to dynamic ones. Rigid mesh category containers
@@ -1754,10 +1664,7 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // capture. The engine calls Set_Transform with world / view / projection
 // matrices in W3D row-major form (Vector4 Row[4]). bgfx wants column-
 // major float[16] for setViewTransform / setTransform. We convert with
-// a transpose copy. Whether the resulting matrices produce visually
-// correct geometry depends on multiplication order conventions; if
-// things look mirrored or upside-down, the row-vector vs column-vector
-// convention is the next thing to investigate.
+// a transpose copy.
 //
 // We capture all three matrices and apply them per-submit. View and
 // projection are written via setViewTransform on view 1; world is set
@@ -2039,7 +1946,6 @@ static bool IsReadableSceneDepthEnabled()
 // is no longer needed because bgfx renders into the same window as the game.
 // The engine's projection matrix already matches the bgfx framebuffer aspect.
 
-// TheSuperHackers @bugfix bobtista 11/04/2026 Buffer copy
 // TheSuperHackers @refactor bobtista 11/04/2026 Texture
 // capture. Unlike vertex buffers, W3D textures default to POOL_MANAGED,
 // which is safe to lock read-only on the Intel UHD driver.
