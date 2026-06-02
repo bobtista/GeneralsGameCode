@@ -339,9 +339,10 @@ void LANAPI::update()
 	}
 
 	// Handle any new messages
-	int i;
-	for (i = 0; i < MAX_MESSAGES && !LANbuttonPushed; ++i)
+	for (size_t i = 0; i < ARRAY_SIZE(m_transport->m_inBuffer); ++i)
 	{
+		DEBUG_ASSERTCRASH(!LANbuttonPushed, ("LANbuttonPushed has an unexpected value"));
+
 		if (m_transport->m_inBuffer[i].length > 0)
 		{
 			// Process the new message
@@ -429,6 +430,10 @@ void LANAPI::update()
 
 			// Mark it as read
 			m_transport->m_inBuffer[i].length = 0;
+		}
+		else
+		{
+			break;
 		}
 	}
 	if (LANbuttonPushed)
