@@ -106,6 +106,16 @@ struct SHADOW_DECAL_VERTEX	//vertex structure passed to D3D
 // decal shadow buffers in W3D classes so g_renderBackend can capture them.
 RenderVertexBufferClass * shadowDecalVertexBuffer = nullptr;
 RenderIndexBufferClass  * shadowDecalIndexBuffer  = nullptr;
+// TheSuperHackers @bugfix bobtista 31/05/2026 The projected decal list draws from its own
+// dynamic buffers; sharing the shadowDecal* buffers let a re-lock overwrite still-pending
+// blob shadow submits in the bgfx deferred-submit model.
+RenderVertexBufferClass * decalListVertexBuffer = nullptr;
+RenderIndexBufferClass  * decalListIndexBuffer  = nullptr;
+// TheSuperHackers @bugfix bobtista 01/06/2026 Dedicated buffers for the infantry blob
+// batch; sharing shadowDecal* let the second texture-batch re-lock overwrite the pending
+// blob draw at frame end, vanishing most infantry blob shadows.
+RenderVertexBufferClass * blobDecalVertexBuffer = nullptr;
+RenderIndexBufferClass  * blobDecalIndexBuffer  = nullptr;
 int nShadowDecalVertsInBuf=0;	//model vetices in vertex buffer
 int nShadowDecalStartBatchVertex=0;
 int nShadowDecalIndicesInBuf=0;	//model vetices in vertex buffer
@@ -399,6 +409,30 @@ Bool W3DProjectedShadowManager::ReAcquireResources()
 			return FALSE;
 	}
 
+	// TheSuperHackers @bugfix bobtista 31/05/2026 Dedicated buffers for the decal-list pass.
+	decalListIndexBuffer = NEW_REF(RenderIndexBufferClass, (SHADOW_DECAL_INDEX_SIZE, Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
+	if (decalListIndexBuffer == nullptr)
+		return FALSE;
+
+	if (decalListVertexBuffer == nullptr)
+	{
+		decalListVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DECAL_FVF, SHADOW_DECAL_VERTEX_SIZE, Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+		if (decalListVertexBuffer == nullptr)
+			return FALSE;
+	}
+
+	// TheSuperHackers @bugfix bobtista 01/06/2026 Dedicated buffers for the infantry blob batch.
+	blobDecalIndexBuffer = NEW_REF(RenderIndexBufferClass, (SHADOW_DECAL_INDEX_SIZE, Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
+	if (blobDecalIndexBuffer == nullptr)
+		return FALSE;
+
+	if (blobDecalVertexBuffer == nullptr)
+	{
+		blobDecalVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DECAL_FVF, SHADOW_DECAL_VERTEX_SIZE, Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+		if (blobDecalVertexBuffer == nullptr)
+			return FALSE;
+	}
+
 	return TRUE;
 }
 
@@ -408,6 +442,10 @@ void W3DProjectedShadowManager::ReleaseResources()
 	REF_PTR_RELEASE(m_dynamicRenderTarget);	//need to create a new render target
 	REF_PTR_RELEASE(shadowDecalIndexBuffer);
 	REF_PTR_RELEASE(shadowDecalVertexBuffer);
+	REF_PTR_RELEASE(decalListIndexBuffer);
+	REF_PTR_RELEASE(decalListVertexBuffer);
+	REF_PTR_RELEASE(blobDecalIndexBuffer);
+	REF_PTR_RELEASE(blobDecalVertexBuffer);
 }
 
 void W3DProjectedShadowManager::invalidateCachedLightPositions()
@@ -681,13 +719,12 @@ void W3DProjectedShadowManager::flushDecals(W3DShadowTexture *texture, ShadowTyp
 
 	g_renderBackend->Apply_Render_State_Changes();	//force update of view and projection matrices
 
-	// TheSuperHackers @bugfix bobtista 16/04/2026 TFACTOR
-	// removed. _PresetMultiplicativeShader uses COLORARG2=DIFFUSE (vertex
-	// color), not COLORARG2=TFACTOR, so Set_Texture_Factor is a no-op on
-	// DX8. On bgfx it incorrectly maps to matDiffuse which uniformly
-	// darkens the entire quad, making the square boundary visible. The
-	// shadow shape comes from the texture alone via multiplicative blend.
-
+	// TheSuperHackers @bugfix bobtista 16/04/2026 TFACTOR removed.
+	// _PresetMultiplicativeShader uses COLORARG2=DIFFUSE (vertex color), not
+	// COLORARG2=TFACTOR, so Set_Texture_Factor is a no-op on DX8. On bgfx it
+	// incorrectly maps to matDiffuse which uniformly darkens the entire quad,
+	// making the square boundary visible. The shadow shape comes from the
+	// texture alone via multiplicative blend.
 
 	g_renderBackend->Set_Index_Buffer(shadowDecalIndexBuffer, nShadowDecalStartBatchVertex);
 	g_renderBackend->Set_Transform(RB_TRANSFORM_WORLD, reinterpret_cast<const Matrix4x4&>(mWorld));
@@ -1099,6 +1136,12 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 		objXform=shadow->m_robj->Get_Transform();
 		Real groundHeight=TheTerrainRenderObject->getHeightMapHeight(objPos.X, objPos.Y, &normal);
 		Vector3 groundNormal(normal.x,normal.y,normal.z);
+		// TheSuperHackers @bugfix bobtista 31/05/2026 Normalize the ground normal and
+		// the derived v axis. getHeightMapHeight returns an unnormalized normal, and
+		// the cross product below is only unit-length if both inputs are; without this
+		// the blob quad gets a wrong-length/zero v axis and collapses, so the simple
+		// infantry blob shadow renders nothing.
+		groundNormal.Normalize();
 
 		//Find new tu vector parallel to terrain by projecting existing x_vector onto
 		//terrain normal and subtracting the result.
@@ -1108,6 +1151,13 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 		uVector.Normalize();
 		//Find new tv vector parallel to terrain by crossing new tu vector with terrain normal.
 		Vector3::Cross_Product(uVector,groundNormal,&vVector);
+		vVector.Normalize();
+
+		// Blob decal size can carry a negative Y (used as a V-flip in the legacy
+		// projected path). For the simple quad use the magnitude for geometry so a
+		// negative size cannot fold the quad onto itself.
+		const Real simpleSizeX = fabs(shadow->m_decalSizeX);
+		const Real simpleSizeY = fabs(shadow->m_decalSizeY);
 
 		Int numVerts = 4;	//number of decal vertices
 		Int numIndex=6;	//(2 triangles).
@@ -1127,6 +1177,15 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 
 		objPos.Z=groundHeight;	//force decal to ground level
 		objPos += groundNormal * 1.0f;	//offset decal slightly above terrain to reduce z-fighting.
+
+		// TheSuperHackers @bugfix bobtista 01/06/2026 Drape the blob quad over the
+		// terrain by sampling the heightmap at each corner and pinning that corner's
+		// Z to its own ground height (plus the lift), instead of emitting one flat
+		// quad tilted to the center normal. A flat quad's downhill corners sink below
+		// sloped terrain and get depth-rejected, so the blob vanishes when zoomed out
+		// (worse for larger quads that span more undulation); this is the clipping the
+		// original TODO describes.
+		Coord3D cornerNormal;
 		Vector3 vertex;
 
 		{
@@ -1137,7 +1196,8 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 			if(pvVertices)
 			{
 				//Top-left
-				vertex = objPos + vVector * shadow->m_decalSizeY * -0.5f - uVector * shadow->m_decalSizeX * 0.5f;
+				vertex = objPos + vVector * simpleSizeY * -0.5f - uVector * simpleSizeX * 0.5f;
+				vertex.Z = TheTerrainRenderObject->getHeightMapHeight(vertex.X, vertex.Y, &cornerNormal) + 1.0f;
 				pvVertices->x=vertex.X;
 				pvVertices->y=vertex.Y;
 				pvVertices->z=vertex.Z;
@@ -1152,7 +1212,8 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 				pvVertices++;
 
 				//Bottom-left
-				vertex += vVector * shadow->m_decalSizeY;
+				vertex += vVector * simpleSizeY;
+				vertex.Z = TheTerrainRenderObject->getHeightMapHeight(vertex.X, vertex.Y, &cornerNormal) + 1.0f;
 				pvVertices->x=vertex.X;
 				pvVertices->y=vertex.Y;
 				pvVertices->z=vertex.Z;
@@ -1162,7 +1223,8 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 				pvVertices++;
 
 				//Bottom-right
-				vertex += uVector * shadow->m_decalSizeX;
+				vertex += uVector * simpleSizeX;
+				vertex.Z = TheTerrainRenderObject->getHeightMapHeight(vertex.X, vertex.Y, &cornerNormal) + 1.0f;
 				pvVertices->x=vertex.X;
 				pvVertices->y=vertex.Y;
 				pvVertices->z=vertex.Z;
@@ -1172,7 +1234,8 @@ void W3DProjectedShadowManager::queueSimpleDecal(W3DProjectedShadow *shadow)
 				pvVertices++;
 
 				//Top-right
-				vertex -= vVector * shadow->m_decalSizeY;
+				vertex -= vVector * simpleSizeY;
+				vertex.Z = TheTerrainRenderObject->getHeightMapHeight(vertex.X, vertex.Y, &cornerNormal) + 1.0f;
 				pvVertices->x=vertex.X;
 				pvVertices->y=vertex.Y;
 				pvVertices->z=vertex.Z;
@@ -1266,6 +1329,13 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 		// Render the object
 		TheDX8MeshRenderer.Set_Camera(&rinfo.Camera);
 
+		// TheSuperHackers @bugfix bobtista 01/06/2026 Point the buffer globals at the blob
+		// buffers while a blob run is active so interleaved blob and non-blob batches never
+		// alias one buffer; the pending batch is always flushed before a switch.
+		RenderVertexBufferClass *savedShadowVB = shadowDecalVertexBuffer;
+		RenderIndexBufferClass *savedShadowIB = shadowDecalIndexBuffer;
+		bool blobBuffersActive = false;
+
 		//keep track of active decal texture so we can render all decals at once.
 		W3DShadowTexture *lastShadowDecalTexture=nullptr;
 		ShadowType lastShadowType = SHADOW_NONE;
@@ -1278,6 +1348,19 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 					shadow->update();
 				if (shadow->m_type & SHADOW_DECAL)
 				{
+					// TheSuperHackers @bugfix bobtista 01/06/2026 Decide whether this
+					// decal will be routed to queueSimpleDecal (blob buffers) or to
+					// queueDecal (shared buffers) before we touch the buffer globals,
+					// mirroring the queueSimpleDecal gate below.
+					bool useBlobBuffer = false;
+#if defined(GGC_RENDER_BACKEND_BGFX)
+					if (shadow->m_robj != nullptr
+						&& IsDefaultInfantryBlobShadowDecal(shadow->m_shadowTexture[0], shadow->m_type))
+					{
+						useBlobBuffer = true;
+					}
+#endif
+
 					if (lastShadowDecalTexture == nullptr)
 						lastShadowDecalTexture=shadow->m_shadowTexture[0];
 					if (lastShadowType == SHADOW_NONE)
@@ -1289,10 +1372,54 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 						lastShadowDecalTexture=shadow->m_shadowTexture[0];
 						lastShadowType=shadow->m_type;
 					}
+
+					// TheSuperHackers @bugfix bobtista 01/06/2026 Point the buffer
+					// globals at the buffer set this run needs. The pending batch was
+					// already flushed above on the texture change, so switching here
+					// never splits a batch across buffers. Force a fresh DISCARD on the
+					// newly-selected buffer so its batch starts at offset 0.
+					if (useBlobBuffer != blobBuffersActive)
+					{
+						if (useBlobBuffer)
+						{
+							shadowDecalVertexBuffer = blobDecalVertexBuffer;
+							shadowDecalIndexBuffer = blobDecalIndexBuffer;
+						}
+						else
+						{
+							shadowDecalVertexBuffer = savedShadowVB;
+							shadowDecalIndexBuffer = savedShadowIB;
+						}
+						blobBuffersActive = useBlobBuffer;
+						nShadowDecalVertsInBuf = 0xffff;
+						nShadowDecalIndicesInBuf = 0xffff;
+						nShadowDecalStartBatchVertex = 0;
+						nShadowDecalStartBatchIndex = 0;
+					}
 					///@todo: may need to fix this if shadows are large enough to be seen while object is not visible
 					if (shadow->m_robj == nullptr || shadow->m_robj->Is_Really_Visible() || shadow->m_type == SHADOW_DECAL)
-					{	//queueSimpleDecal(shadow);
-						queueDecal(shadow);	//only draw shadow if casting object is visible
+					{
+						// TheSuperHackers @bugfix bobtista 31/05/2026 Default infantry
+						// blob shadows are tiny (~14 units). queueDecal projects them
+						// onto the heightmap receiver mesh, where they only cover a
+						// cell or two; the covered-cell count shifts with camera zoom
+						// and terrain LOD, so the blobs flicker, partially render, or
+						// vanish when zoomed out. queueSimpleDecal emits a fixed
+						// 4-vertex ground quad sized to the blob with full [0,1] UV,
+						// which is zoom-independent. Route default infantry blobs there
+						// (bgfx only); everything else keeps the heightmap projection.
+#if defined(GGC_RENDER_BACKEND_BGFX)
+						// useBlobBuffer was computed above with the identical gate and
+						// selected the dedicated blob buffers, so reuse it here.
+						if (useBlobBuffer)
+						{
+							queueSimpleDecal(shadow);
+						}
+						else
+#endif
+						{
+							queueDecal(shadow);	//only draw shadow if casting object is visible
+						}
 						projectionCount++;
 					}
 					continue;
@@ -1379,10 +1506,27 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 		}
 
 		flushDecals(lastShadowDecalTexture,lastShadowType);	//make sure there are not any unrendered decals left over.
+
+		// TheSuperHackers @bugfix bobtista 01/06/2026 Restore the shadow-decal buffer
+		// globals after the m_shadowList pass so the dedicated blob buffers are never
+		// left selected for the later decal-list pass (which captures these globals).
+		shadowDecalVertexBuffer = savedShadowVB;
+		shadowDecalIndexBuffer = savedShadowIB;
+
 		TheDX8MeshRenderer.Flush();	//draw all the shadow receiving objects
 	}
 	if (m_decalList)
 	{
+		// TheSuperHackers @bugfix bobtista 31/05/2026 Point queueDecal/flushDecals
+		// at the dedicated decal-list buffers so this pass does not re-lock the
+		// buffer the still-pending blob/projection shadow submits depend on.
+		RenderVertexBufferClass *savedDecalVB = shadowDecalVertexBuffer;
+		RenderIndexBufferClass *savedDecalIB = shadowDecalIndexBuffer;
+		shadowDecalVertexBuffer = decalListVertexBuffer;
+		shadowDecalIndexBuffer = decalListIndexBuffer;
+		nShadowDecalVertsInBuf = 0xffff;	//force a fresh DISCARD on the decal-list buffer
+		nShadowDecalIndicesInBuf = 0xffff;
+
 		//keep track of active decal texture so we can render all decals at once.
 		W3DShadowTexture *lastShadowDecalTexture=nullptr;
 		ShadowType lastShadowType = SHADOW_NONE;
@@ -1412,7 +1556,18 @@ Int W3DProjectedShadowManager::renderShadows(RenderInfoClass & rinfo)
 		}
 
 		flushDecals(lastShadowDecalTexture,lastShadowType);	//make sure there are not any unrendered decals left over.
+
+		// TheSuperHackers @bugfix bobtista 01/06/2026 Restore the shadow-decal buffer
+		// globals after the decal-list pass. Without this restore the globals stay
+		// pointed at decalListVertexBuffer/decalListIndexBuffer, so on every later
+		// frame the m_shadowList blob pass locks the decal-list buffer too. The
+		// reveal/radius decal pass then re-locks that shared buffer and overwrites the
+		// still-pending blob shadow submits in the bgfx deferred-submit model, making
+		// infantry blob shadows vanish whenever a reveal targeting decal is active.
+		shadowDecalVertexBuffer = savedDecalVB;
+		shadowDecalIndexBuffer = savedDecalIB;
 	}
+
 	return projectionCount;
 }
 
