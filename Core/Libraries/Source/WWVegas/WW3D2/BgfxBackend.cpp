@@ -1011,12 +1011,11 @@ static void UpdateShadowStencilState()
 // When false, the vertex color contains pre-baked lighting (terrain)
 // and the fragment shader should NOT apply N.L lighting on top.
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Default 1x1
-// white texture. Real Set_Texture wiring is not in place yet, so the
-// textured shaders need SOMETHING bound to s_tex0 or the native backend returns
-// undefined values. A 1x1 opaque white texture is a sensible default
-// because the fragment shader does texColor * v_color0 - white * vc
-// gives the vertex color through unmodified.
+// TheSuperHackers @refactor bobtista 11/04/2026 Default 1x1 opaque white
+// texture bound to s_tex0 as a fallback for draws with no texture, so
+// textured shaders never sample an unbound sampler (the native backend
+// returns undefined values otherwise). White is the identity for
+// texColor * v_color0, so the vertex color passes through unmodified.
 // Track which engine textures are render targets so we can use the
 // transparent fallback instead of white.
 
@@ -1026,7 +1025,7 @@ static void UpdateShadowStencilState()
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Standard
 // vertex layouts. One per common FVF format. Initialized in Initialize,
-// used by's vertex buffer creation path. Names follow the FVF
+// used by the vertex buffer creation path. Names follow the FVF
 // tags - P=position, N=normal, D=diffuse (color0), T<n>=texcoord<n>.
 
 // TheSuperHackers @refactor bobtista 26/04/2026 Shader program creation
@@ -1217,10 +1216,9 @@ namespace
 //   - else                                -> g_device.passthroughProgram (debug)
 //
 // State bit translation is mechanical: depth compare, depth write, color
-// write, blend factors, cull. Detail-blend / fog / specular gradient are
-// not handled here yet - they need shader code, not state bits, and that
-// lands when we add the terrain shader and the fixed-function lighting
-// path.
+// write, blend factors, cull. Detail-blend / fog / specular gradient need
+// shader code rather than state bits, so they are not handled by this
+// translation.
 
 uint64_t TranslateBlendFactor(ShaderClass::SrcBlendFuncType src)
 {
@@ -1631,9 +1629,7 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // instances throughout its lifetime, so we cache the bgfx handle keyed
 // by the source pointer. On first encounter we lock the source buffer
 // for read, copy bytes via bgfx::copy(), and create a bgfx static buffer.
-// Cache is destroyed wholesale in Shutdown - we don't try to react to
-// VertexBufferClass destruction yet, which means handles may outlive
-// their source until shutdown. That's fine for the prototype.
+// Cache is destroyed wholesale in Shutdown.
 //
 // Pointer reuse is theoretically possible but unlikely in a single
 // session; if it bites us we'll add a generation counter or hook the
@@ -1686,10 +1682,7 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // capture. The engine calls Set_Transform with world / view / projection
 // matrices in W3D row-major form (Vector4 Row[4]). bgfx wants column-
 // major float[16] for setViewTransform / setTransform. We convert with
-// a transpose copy. Whether the resulting matrices produce visually
-// correct geometry depends on multiplication order conventions; if
-// things look mirrored or upside-down, the row-vector vs column-vector
-// convention is the next thing to investigate.
+// a transpose copy.
 //
 // We capture all three matrices and apply them per-submit. View and
 // projection are written via setViewTransform on view 1; world is set
@@ -1994,7 +1987,6 @@ static bool IsReadableSceneDepthEnabled()
 // is no longer needed because bgfx renders into the same window as the game.
 // The engine's projection matrix already matches the bgfx framebuffer aspect.
 
-// TheSuperHackers @bugfix bobtista 11/04/2026 Buffer copy
 // TheSuperHackers @refactor bobtista 11/04/2026 Texture
 // capture. Unlike vertex buffers, W3D textures default to POOL_MANAGED,
 // which is safe to lock read-only on the Intel UHD driver.
