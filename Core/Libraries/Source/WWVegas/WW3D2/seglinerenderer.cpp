@@ -47,8 +47,13 @@
 #include "RANDOM.h"
 #include "v3_rnd.h"
 #include "meshgeometry.h"
+#include "vertmaterial.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
+#include "dx8fvf.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+#include "w3d_file.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -1173,7 +1178,7 @@ void SegLineRendererClass::Render
 		** Render
 		*/
 
-		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),dynamic_fvf_type,vnum);
+		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC),dynamic_fvf_type,vnum);
 		// Copy in the data to the  VB
 		{
 			DynamicVBAccessClass::WriteLockClass Lock(&Verts);
@@ -1201,7 +1206,7 @@ void SegLineRendererClass::Render
 			}
 		}
 
-		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),tidx*3);
+		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC),tidx*3);
 		{
 			unsigned int i;
 			DynamicIBAccessClass::WriteLockClass lock(&ib_access);
@@ -1222,7 +1227,9 @@ void SegLineRendererClass::Render
 		g_renderBackend->Set_Shader(shader);
 
 		if (sorting) {
+			g_renderBackend->Set_Streak_Render_Active(true);
 			SortingRendererClass::Insert_Triangles(obj_sphere,0,tidx,0,vnum);
+			g_renderBackend->Set_Streak_Render_Active(false);
 		} else {
 			g_renderBackend->Draw_Triangles(0,tidx,0,vnum);
 		}

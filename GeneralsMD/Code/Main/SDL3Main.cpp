@@ -153,21 +153,8 @@ int main(int argc, char **argv)
 	}
 	GGC_TRACE("SDL_Init OK");
 
-	Uint32 windowFlags = SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIDDEN;
-#if defined(__APPLE__)
-	windowFlags |= SDL_WINDOW_METAL;
-#endif
 	int windowW = kDefaultWindowWidth;
 	int windowH = kDefaultWindowHeight;
-	{
-		const SDL_DisplayID primaryDisplay = SDL_GetPrimaryDisplay();
-		const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(primaryDisplay);
-		if (desktopMode != nullptr && desktopMode->w > 0 && desktopMode->h > 0)
-		{
-			windowW = desktopMode->w;
-			windowH = desktopMode->h;
-		}
-	}
 	bool wantWindowed = false;
 	for (int argi = 1; argi < argc; ++argi)
 	{
@@ -179,6 +166,36 @@ int main(int argc, char **argv)
 			break;
 		}
 	}
+	{
+		const SDL_DisplayID primaryDisplay = SDL_GetPrimaryDisplay();
+		const SDL_DisplayMode *desktopMode = SDL_GetDesktopDisplayMode(primaryDisplay);
+		if (!wantWindowed && desktopMode != nullptr && desktopMode->w > 0 && desktopMode->h > 0)
+		{
+			windowW = desktopMode->w;
+			windowH = desktopMode->h;
+		}
+	}
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Honor -xres/-yres when -win is set so '-win -xres 1600 -yres 1200' produces a 1600x1200 window instead of 800x600.
+	if (wantWindowed)
+	{
+		if (requestedW > 0)
+		{
+			windowW = requestedW;
+		}
+		if (requestedH > 0)
+		{
+			windowH = requestedH;
+		}
+	}
+	Uint32 windowFlags = SDL_WINDOW_RESIZABLE;
+	// TheSuperHackers @bugfix bobtista 28/05/2026 Hide the window during fullscreen bring-up so it doesn't briefly appear at the requested resolution before SDL_SetWindowFullscreen takes effect; windowed runs show the window immediately.
+	if (!wantWindowed)
+	{
+		windowFlags |= SDL_WINDOW_HIDDEN;
+	}
+#if defined(__APPLE__)
+	windowFlags |= SDL_WINDOW_METAL;
+#endif
 	GGC_TRACE("calling SDL_CreateWindow");
 	TheSDL3Window = SDL_CreateWindow(kWindowTitle, windowW, windowH, windowFlags);
 	if (TheSDL3Window == NULL)

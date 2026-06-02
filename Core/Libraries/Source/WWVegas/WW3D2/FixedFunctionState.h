@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include "d3d8.h"
+#include "fixedfunctionlegacytypes.h"
 #include "shader.h"
 #include "texture.h"
 #include "vertmaterial.h"
@@ -22,10 +22,6 @@ class IndexBufferClass;
 class VertexBufferClass;
 class DynamicIBAccessClass;
 class DynamicVBAccessClass;
-
-using LegacyFixedFunctionLight = D3DLIGHT8;
-using LegacyRawTexture = IDirect3DBaseTexture8;
-using LegacyTransformMatrix = D3DMATRIX;
 
 struct RenderStateStruct
 {
@@ -44,6 +40,7 @@ struct RenderStateStruct
 	VertexBufferClass* vertex_buffers[MAX_VERTEX_STREAMS];
 	IndexBufferClass* index_buffer;
 	unsigned short index_base_offset;
+	unsigned int sorted_draw_flags;
 
 	RenderStateStruct();
 	~RenderStateStruct();
@@ -66,6 +63,10 @@ public:
 		TEXTURE1_CHANGED = 1 << 7,
 		TEXTURE2_CHANGED = 1 << 8,
 		TEXTURE3_CHANGED = 1 << 9,
+		TEXTURE4_CHANGED = 1 << 10,
+		TEXTURE5_CHANGED = 1 << 11,
+		TEXTURE6_CHANGED = 1 << 12,
+		TEXTURE7_CHANGED = 1 << 13,
 		MATERIAL_CHANGED = 1 << 14,
 		SHADER_CHANGED = 1 << 15,
 		VERTEX_BUFFER_CHANGED = 1 << 16,
@@ -74,14 +75,15 @@ public:
 		VIEW_IDENTITY = 1 << 19,
 
 		TEXTURES_CHANGED =
-			TEXTURE0_CHANGED | TEXTURE1_CHANGED | TEXTURE2_CHANGED | TEXTURE3_CHANGED,
+			TEXTURE0_CHANGED | TEXTURE1_CHANGED | TEXTURE2_CHANGED | TEXTURE3_CHANGED |
+			TEXTURE4_CHANGED | TEXTURE5_CHANGED | TEXTURE6_CHANGED | TEXTURE7_CHANGED,
 		LIGHTS_CHANGED =
 			LIGHT0_CHANGED | LIGHT1_CHANGED | LIGHT2_CHANGED | LIGHT3_CHANGED,
 
 		RENDER_STATE_COUNT = 256,
 		TEXTURE_STAGE_COUNT = 8,
 		TEXTURE_STAGE_STATE_COUNT = 32,
-		TRANSFORM_COUNT = D3DTS_WORLD + 1,
+		TRANSFORM_COUNT = LEGACY_FIXED_FUNCTION_TRANSFORM_COUNT,
 		INVALID_STATE_VALUE = 0x12345678
 	};
 

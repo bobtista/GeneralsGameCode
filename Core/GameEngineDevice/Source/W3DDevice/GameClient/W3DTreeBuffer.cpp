@@ -59,8 +59,14 @@ enum
 
 #include <assetmgr.h>
 #include <texture.h>
+#include "WW3D2/dx8fvf.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/renderbufferclasses.h"
+#include "WW3D2/vertexbuffer.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8vertexbuffer.h"
+#endif
 #include "Common/FramePacer.h"
 #include "Common/GameUtility.h"
 #include "Common/MapReaderWriterInfo.h"
@@ -84,14 +90,12 @@ enum
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "W3DDevice/GameClient/W3DProjectedShadow.h"
 #include "WW3D2/camera.h"
-#include "WW3D2/dx8wrapper.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
 #include "WW3D2/matinfo.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
-#include "WW3D2/surfaceclass.h"
-
+#include "WW3D2/ww3d.h"
 
 // If TEST_AND_BLEND is defined, it will do an alpha test and blend.  Otherwise just alpha test. jba. [5/30/2003]
 #define dontTEST_AND_BLEND 1
@@ -117,7 +121,7 @@ texture of the desired height and mip level. */
 //=============================================================================
 W3DTreeBuffer::W3DTreeTextureClass::W3DTreeTextureClass(unsigned width, unsigned height) :
 	TextureClass(width, height,
-		WW3D_FORMAT_A8R8G8B8, MIP_LEVELS_ALL )
+			WW3D_FORMAT_A8R8G8B8, MIP_LEVELS_ALL )
 {
 }
 
@@ -135,30 +139,21 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 	Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 	Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 
-	SurfaceClass *surface_level = Get_Surface_Level(0);
-	if (surface_level == nullptr)
+	MutableTextureMipView mip = Begin_Mip_Write(0);
+	if (!mip.Is_Valid())
 	{
 		return 0;
 	}
 
-	SurfaceClass::SurfaceDescription surface_desc;
-	surface_level->Get_Description(surface_desc);
-
-	Int surface_pitch = 0;
-	UnsignedByte *surface_bits = static_cast<UnsignedByte *>(surface_level->Lock(&surface_pitch));
-	if (surface_bits == nullptr)
-	{
-		REF_PTR_RELEASE(surface_level);
-		return 0;
-	}
-
+	const Int surface_pitch = static_cast<Int>(mip.Pitch);
+	UnsignedByte *surface_bits = mip.Data;
 	Int tilePixelExtent = TILE_PIXEL_EXTENT;
 //	Int numRows = surface_desc.Height/(tilePixelExtent+TILE_OFFSET);
 #ifdef RTS_DEBUG
 	//DASSERT_MSG(tilesPerRow*numRows >= htMap->m_numBitmapTiles,Debug::Format ("Too many tiles."));
 	//DEBUG_ASSERTCRASH((Int)surface_desc.Width >= tilePixelExtent*tilesPerRow, ("Bitmap too small."));
 #endif
-	if (surface_desc.Format == WW3D_FORMAT_A8R8G8B8) {
+	if (mip.Format == WW3D_FORMAT_A8R8G8B8) {
 		Int tileNdx;
 		Int pixelBytes = 4;
 #if 0 // Fill unused texture for debug display.
@@ -198,17 +193,12 @@ int W3DTreeBuffer::W3DTreeTextureClass::update(W3DTreeBuffer *buffer)
 		}
 
 	}
-	surface_level->Unlock();
-	REF_PTR_RELEASE(surface_level);
+	End_Mip_Write(0);
 	Generate_Mip_Levels();
 	if (WW3D::Get_Texture_Reduction()) {
 		Set_LOD(WW3D::Get_Texture_Reduction());
 	}
-	// The tree atlas is populated by writing into the legacy texture surface.
-	// Refresh the backend-neutral CPU copy after mip generation so bgfx sees
-	// the completed atlas instead of the constructor-time empty snapshot.
-	Refresh_CPU_Texture_Snapshot();
-	return(surface_desc.Height);
+	return(mip.Height);
 }
 
 
@@ -736,11 +726,11 @@ void W3DTreeBuffer::loadTreesInVertexAndIndexBuffers(RefRenderObjListIterator *p
 		UnsignedShort *ib;
 		// Lock the buffers.
 	#ifdef USE_STATIC
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTree[bNdx], 0);
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], 0);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTree[bNdx], 0);
+		RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], 0);
 	#else
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTree[bNdx], RB_LOCK_DISCARD);
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], RB_LOCK_DISCARD);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexTree[bNdx], RB_LOCK_DISCARD);
+		RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], RB_LOCK_DISCARD);
 	#endif
 		vb=(VertexFormatXYZNDUV1*)lockVtxBuffer.Get_Vertex_Array();
 		ib = lockIdxBuffer.Get_Index_Array();
@@ -1000,9 +990,9 @@ void W3DTreeBuffer::updateVertexBuffer()
 		VertexFormatXYZNDUV1 *vb;
 		// Lock the buffers.
 	#ifdef USE_STATIC
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], 0);
+		RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], 0);
 	#else
-		DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], RB_LOCK_DISCARD);
+		RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexTree[bNdx], RB_LOCK_DISCARD);
 	#endif
 		vb=(VertexFormatXYZNDUV1*)lockVtxBuffer.Get_Vertex_Array();
 		if (!vb) {
@@ -1231,11 +1221,11 @@ void W3DTreeBuffer::allocateTreeBuffers()
 	Int i;
 	for	(i=0; i<MAX_BUFFERS; i++) {
 	#ifdef USE_STATIC
-		m_vertexTree[i]=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_TREE_VERTEX+4,DX8VertexBufferClass::USAGE_DEFAULT));
-		m_indexTree[i]=NEW_REF(DX8IndexBufferClass,(MAX_TREE_INDEX+4, DX8IndexBufferClass::USAGE_DEFAULT));
+		m_vertexTree[i]=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_TREE_VERTEX+4,RenderVertexBufferClass::USAGE_DEFAULT));
+		m_indexTree[i]=NEW_REF(RenderIndexBufferClass,(MAX_TREE_INDEX+4, RenderIndexBufferClass::USAGE_DEFAULT));
 	#else
-		m_vertexTree[i]=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_TREE_VERTEX+4,DX8VertexBufferClass::USAGE_DYNAMIC));
-		m_indexTree[i]=NEW_REF(DX8IndexBufferClass,(MAX_TREE_INDEX+4, DX8IndexBufferClass::USAGE_DYNAMIC));
+		m_vertexTree[i]=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZNDUV1,MAX_TREE_VERTEX+4,RenderVertexBufferClass::USAGE_DYNAMIC));
+		m_indexTree[i]=NEW_REF(RenderIndexBufferClass,(MAX_TREE_INDEX+4, RenderIndexBufferClass::USAGE_DYNAMIC));
 	#endif
 		m_curNumTreeVertices[i]=0;
 		m_curNumTreeIndices[i]=0;
@@ -1642,9 +1632,9 @@ void W3DTreeBuffer::drawTrees(CameraClass * camera, RefRenderObjListIterator *pD
 	// Setup the vertex buffer, shader & texture.
 	g_renderBackend->Set_Shader(detailAlphaShader);
 	g_renderBackend->Set_Texture(0,m_treeTexture);
-	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8, 6);
+	DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC, 6);
 	//draw an infinite sky plane
-	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8, DX8_FVF_XYZNDUV2, 4);
+	DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC, DX8_FVF_XYZNDUV2, 4);
 	{
 		DynamicIBAccessClass::WriteLockClass ibLock(&ib_access);
 		UnsignedShort *ndx = ibLock.Get_Index_Array();

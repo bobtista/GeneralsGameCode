@@ -10,8 +10,8 @@
 
 #include "FixedFunctionState.h"
 
-#include "dx8indexbuffer.h"
-#include "dx8vertexbuffer.h"
+#include "indexbuffer.h"
+#include "vertexbuffer.h"
 
 #include <string.h>
 
@@ -381,7 +381,8 @@ bool FixedFunctionState::Set_Cached_Transform(unsigned transform, const LegacyTr
 RenderStateStruct::RenderStateStruct()
 	:
 	material(0),
-	index_buffer(0)
+	index_buffer(0),
+	sorted_draw_flags(0)
 {
 	unsigned i;
 	for (i=0;i<MAX_VERTEX_STREAMS;++i) vertex_buffers[i]=0;
@@ -417,20 +418,10 @@ RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruct& src)
 		REF_PTR_SET(Textures[i],src.Textures[i]);
 	}
 
-	LightEnable[0]=src.LightEnable[0];
-	LightEnable[1]=src.LightEnable[1];
-	LightEnable[2]=src.LightEnable[2];
-	LightEnable[3]=src.LightEnable[3];
-	if (LightEnable[0]) {
-		Lights[0]=src.Lights[0];
-		if (LightEnable[1]) {
-			Lights[1]=src.Lights[1];
-			if (LightEnable[2]) {
-				Lights[2]=src.Lights[2];
-				if (LightEnable[3]) {
-					Lights[3]=src.Lights[3];
-				}
-			}
+	for (i=0; i<4; ++i) {
+		LightEnable[i]=src.LightEnable[i];
+		if (LightEnable[i]) {
+			Lights[i]=src.Lights[i];
 		}
 	}
 
@@ -445,6 +436,7 @@ RenderStateStruct& RenderStateStruct::operator= (const RenderStateStruct& src)
 	vba_count=src.vba_count;
 	iba_offset=src.iba_offset;
 	index_base_offset=src.index_base_offset;
+	sorted_draw_flags=src.sorted_draw_flags;
 
 	return *this;
 }

@@ -36,15 +36,18 @@
 #include "GameClient/View.h"
 #include "GameClient/Display.h"
 #include "WW3D2/texture.h"
-#include "WW3D2/dx8indexbuffer.h"
-#include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBufferTypes.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderbufferclasses.h"
+#if !defined(GGC_BGFX_STANDALONE)
+#include "WW3D2/dx8indexbuffer.h"
+#endif
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/sortingrenderer.h"
 #include "WW3D2/surfaceclass.h"
+#include "WW3D2/vertexbuffer.h"
 #include "WW3D2/vertmaterial.h"
 #include "WWMath/vector2i.h"
 
@@ -106,11 +109,11 @@ void W3DSmudgeManager::ReAcquireResources()
 	m_backBufferWidth = surface_desc.Width;
 	m_backBufferHeight = surface_desc.Height;
 
-	m_indexBuffer=NEW_REF(DX8IndexBufferClass,(SMUDGE_DRAW_SIZE*4*3));	//allocate 4 triangles per smudge, each with 3 indices.
+	m_indexBuffer=NEW_REF(RenderIndexBufferClass,(SMUDGE_DRAW_SIZE*4*3));	//allocate 4 triangles per smudge, each with 3 indices.
 
 	// Fill up the IB with static vertex indices that will be used for all smudges.
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 		//quad of 4 triangles:
 		//	0-----3
@@ -151,48 +154,34 @@ Int copyRect(unsigned char *buf, Int bufSize, int oX, int oY, int width, int hei
 		return 0;
 	}
 
-	SurfaceClass *surface = g_renderBackend->Capture_Back_Buffer_Surface(0);
-	if (surface == nullptr) {
+	RenderBackendImage image;
+	if (!g_renderBackend->Capture_Back_Buffer_Image(0, image)) {
 		return 0;
 	}
 
-	SurfaceClass::SurfaceDescription desc;
-	surface->Get_Description(desc);
 	if (oX < 0 || oY < 0 ||
-		oX + width > static_cast<int>(desc.Width) ||
-		oY + height > static_cast<int>(desc.Height)) {
-		surface->Release_Ref();
+		oX + width > static_cast<int>(image.Width) ||
+		oY + height > static_cast<int>(image.Height)) {
 		return 0;
 	}
 
-	const int bytesPerPixel = surface->Get_Bytes_Per_Pixel();
+	const int bytesPerPixel = Get_Bytes_Per_Pixel(image.Format);
 	const int rowBytes = width * bytesPerPixel;
 	const int totalBytes = rowBytes * height;
 	const int copyBytes = (bufSize < totalBytes) ? bufSize : totalBytes;
 	if (bytesPerPixel <= 0 || copyBytes <= 0) {
-		surface->Release_Ref();
-		return 0;
-	}
-
-	int pitch = 0;
-	unsigned char *src = static_cast<unsigned char *>(surface->Lock(
-		&pitch,
-		Vector2i(oX, oY),
-		Vector2i(oX + width, oY + height)));
-	if (src == nullptr) {
-		surface->Release_Ref();
 		return 0;
 	}
 
 	int copied = 0;
 	for (int row = 0; row < height && copied < copyBytes; ++row) {
 		const int rowCopy = (copyBytes - copied < rowBytes) ? copyBytes - copied : rowBytes;
-		memcpy(buf + copied, src + row * pitch, rowCopy);
+		const size_t sourceOffset =
+			(static_cast<size_t>(oY + row) * image.Pitch) + (static_cast<size_t>(oX) * bytesPerPixel);
+		memcpy(buf + copied, image.Bytes.data() + sourceOffset, rowCopy);
 		copied += rowCopy;
 	}
 
-	surface->Unlock();
-	surface->Release_Ref();
 	return copied;
 }
 
@@ -518,7 +507,7 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 
 		Int smudgesInRenderBatch=0;
 
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,count*5);	//allocate 5 verts per smudge.
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,count*5);	//allocate 5 verts per smudge.
 		{
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 			VertexFormatXYZNDUV2* verts=lock.Get_Formatted_Vertex_Array();

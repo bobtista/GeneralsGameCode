@@ -25,31 +25,35 @@
 
 #include "Common/Debug.h"
 #include "W3DDevice/GameClient/W3DBufferManager.h"
+#include "WW3D2/dx8fvf.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8vertexbuffer.h"
+#endif
+#include "WW3D2/renderbufferclasses.h"
 
 W3DBufferManager *TheW3DBufferManager=nullptr;	//singleton
 
 static int FVFTypeIndexList[W3DBufferManager::MAX_FVF]=
 {
-	DX8_FVF_FLAG_XYZ,
-	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_DIFFUSE,
-	DX8_FVF_FLAG_XYZ|DX8_FVF_TEX1,
-	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_DIFFUSE|DX8_FVF_TEX1,
-	DX8_FVF_FLAG_XYZ|DX8_FVF_TEX2,
-	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_DIFFUSE|DX8_FVF_TEX2,
-	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL,
-	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_FLAG_DIFFUSE,
-	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX1,
-	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_FLAG_DIFFUSE|DX8_FVF_TEX1,
-	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX2,
-	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_FLAG_DIFFUSE|DX8_FVF_TEX2,
-	DX8_FVF_FLAG_XYZRHW,
-	DX8_FVF_FLAG_XYZRHW|DX8_FVF_FLAG_DIFFUSE,
-	DX8_FVF_FLAG_XYZRHW|DX8_FVF_TEX1,
-	DX8_FVF_FLAG_XYZRHW|DX8_FVF_FLAG_DIFFUSE|DX8_FVF_TEX1,
-	DX8_FVF_FLAG_XYZRHW|DX8_FVF_TEX2,
-	DX8_FVF_FLAG_XYZRHW|DX8_FVF_FLAG_DIFFUSE|DX8_FVF_TEX2
+	RENDER_VERTEX_FORMAT_XYZ,
+	RENDER_VERTEX_FORMAT_XYZD,
+	RENDER_VERTEX_FORMAT_XYZUV1,
+	RENDER_VERTEX_FORMAT_XYZDUV1,
+	RENDER_VERTEX_FORMAT_XYZUV2,
+	RENDER_VERTEX_FORMAT_XYZDUV2,
+	RENDER_VERTEX_FORMAT_XYZN,
+	RENDER_VERTEX_FORMAT_XYZND,
+	RENDER_VERTEX_FORMAT_XYZNUV1,
+	RENDER_VERTEX_FORMAT_XYZNDUV1,
+	RENDER_VERTEX_FORMAT_XYZNUV2,
+	RENDER_VERTEX_FORMAT_XYZNDUV2,
+	RENDER_VERTEX_FORMAT_XYZRHW,
+	RENDER_VERTEX_FORMAT_XYZRHWD,
+	RENDER_VERTEX_FORMAT_XYZRHWUV1,
+	RENDER_VERTEX_FORMAT_XYZRHWDUV1,
+	RENDER_VERTEX_FORMAT_XYZRHWUV2,
+	RENDER_VERTEX_FORMAT_XYZRHWDUV2
 };
 
 Int W3DBufferManager::getDX8Format(VBM_FVF_TYPES format)
@@ -143,7 +147,7 @@ void W3DBufferManager::freeAllBuffers()
 		W3DVertexBuffer *vb = m_W3DVertexBuffers[i];
 		while (vb)
 		{	DEBUG_ASSERTCRASH(vb->m_usedSlots == nullptr, ("Freeing Non-Empty Vertex Buffer"));
-			REF_PTR_RELEASE(vb->m_DX8VertexBuffer);
+			REF_PTR_RELEASE(vb->m_renderVertexBuffer);
 			m_numEmptyVertexBuffersAllocated--;
 			vb=vb->m_nextVB;	//get next vertex buffer of this type
 		}
@@ -153,7 +157,7 @@ void W3DBufferManager::freeAllBuffers()
 	W3DIndexBuffer *ib = m_W3DIndexBuffers;
 	while (ib)
 	{	DEBUG_ASSERTCRASH(ib->m_usedSlots == nullptr, ("Freeing Non-Empty Index Buffer"));
-		REF_PTR_RELEASE(ib->m_DX8IndexBuffer);
+		REF_PTR_RELEASE(ib->m_renderIndexBuffer);
 		m_numEmptyIndexBuffersAllocated--;
 		ib=ib->m_nextIB;	//get next vertex buffer of this type
 	}
@@ -170,7 +174,7 @@ void W3DBufferManager::ReleaseResources()
 		W3DVertexBuffer *vb = m_W3DVertexBuffers[i];
 		while (vb)
 		{
-			REF_PTR_RELEASE(vb->m_DX8VertexBuffer);
+			REF_PTR_RELEASE(vb->m_renderVertexBuffer);
 			vb=vb->m_nextVB;	//get next vertex buffer of this type
 		}
 	}
@@ -178,7 +182,7 @@ void W3DBufferManager::ReleaseResources()
 	W3DIndexBuffer *ib = m_W3DIndexBuffers;
 	while (ib)
 	{
-		REF_PTR_RELEASE(ib->m_DX8IndexBuffer);
+		REF_PTR_RELEASE(ib->m_renderIndexBuffer);
 		ib=ib->m_nextIB;	//get next vertex buffer of this type
 	}
 }
@@ -189,10 +193,10 @@ Bool W3DBufferManager::ReAcquireResources()
 	{
 		W3DVertexBuffer *vb = m_W3DVertexBuffers[i];
 		while (vb)
-		{	DEBUG_ASSERTCRASH( vb->m_DX8VertexBuffer == nullptr, ("ReAcquire of existing vertex buffer"));
-			vb->m_DX8VertexBuffer=NEW_REF(DX8VertexBufferClass,(FVFTypeIndexList[vb->m_format],vb->m_size,DX8VertexBufferClass::USAGE_DEFAULT));
-			DEBUG_ASSERTCRASH( vb->m_DX8VertexBuffer, ("Failed ReAcquire of vertex buffer"));
-			if (!vb->m_DX8VertexBuffer)
+		{	DEBUG_ASSERTCRASH( vb->m_renderVertexBuffer == nullptr, ("ReAcquire of existing vertex buffer"));
+			vb->m_renderVertexBuffer=NEW_REF(RenderVertexBufferClass,(FVFTypeIndexList[vb->m_format],vb->m_size,Render_Buffer_Usage_Default<RenderVertexBufferClass>()));
+			DEBUG_ASSERTCRASH( vb->m_renderVertexBuffer, ("Failed ReAcquire of vertex buffer"));
+			if (!vb->m_renderVertexBuffer)
 				return FALSE;
 			vb=vb->m_nextVB;	//get next vertex buffer of this type
 		}
@@ -200,10 +204,10 @@ Bool W3DBufferManager::ReAcquireResources()
 
 	W3DIndexBuffer *ib = m_W3DIndexBuffers;
 	while (ib)
-	{	DEBUG_ASSERTCRASH( ib->m_DX8IndexBuffer == nullptr, ("ReAcquire of existing index buffer"));
-		ib->m_DX8IndexBuffer=NEW_REF(DX8IndexBufferClass,(ib->m_size,DX8IndexBufferClass::USAGE_DEFAULT));
-		DEBUG_ASSERTCRASH( ib->m_DX8IndexBuffer, ("Failed ReAcquire of index buffer"));
-		if (!ib->m_DX8IndexBuffer)
+	{	DEBUG_ASSERTCRASH( ib->m_renderIndexBuffer == nullptr, ("ReAcquire of existing index buffer"));
+		ib->m_renderIndexBuffer=NEW_REF(RenderIndexBufferClass,(ib->m_size,Render_Buffer_Usage_Default<RenderIndexBufferClass>()));
+		DEBUG_ASSERTCRASH( ib->m_renderIndexBuffer, ("Failed ReAcquire of index buffer"));
+		if (!ib->m_renderIndexBuffer)
 			return FALSE;
 		ib=ib->m_nextIB;	//get next vertex buffer of this type
 	}
@@ -312,7 +316,7 @@ W3DBufferManager::W3DVertexBufferSlot * W3DBufferManager::allocateSlotStorage(VB
 
 		Int vbSize=__max(DEFAULT_VERTEX_BUFFER_SIZE,size);
 
-		pVB->m_DX8VertexBuffer=NEW_REF(DX8VertexBufferClass,(FVFTypeIndexList[fvfType],vbSize,DX8VertexBufferClass::USAGE_DEFAULT));
+		pVB->m_renderVertexBuffer=NEW_REF(RenderVertexBufferClass,(FVFTypeIndexList[fvfType],vbSize,Render_Buffer_Usage_Default<RenderVertexBufferClass>()));
 		pVB->m_format=fvfType;
 		pVB->m_startFreeIndex=size;
 		pVB->m_size=vbSize;
@@ -432,7 +436,7 @@ W3DBufferManager::W3DIndexBufferSlot * W3DBufferManager::allocateSlotStorage(Int
 
 		Int ibSize=__max(DEFAULT_INDEX_BUFFER_SIZE,size);
 
-		pIB->m_DX8IndexBuffer=NEW_REF(DX8IndexBufferClass,(ibSize,DX8IndexBufferClass::USAGE_DEFAULT));
+		pIB->m_renderIndexBuffer=NEW_REF(RenderIndexBufferClass,(ibSize,Render_Buffer_Usage_Default<RenderIndexBufferClass>()));
 		pIB->m_startFreeIndex=size;
 		pIB->m_size=ibSize;
 		ibSlot=&m_W3DIndexBufferEmptySlots[m_numEmptyIndexSlotsAllocated];

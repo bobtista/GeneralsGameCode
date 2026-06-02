@@ -36,9 +36,12 @@
 #include "GameClient/View.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/dx8indexbuffer.h"
+#endif
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -84,8 +87,8 @@ W3DProjectedShadowManager *TheW3DProjectedShadowManager=nullptr;	//global single
 ProjectedShadowManager	*TheProjectedShadowManager;				//global singleton with simpler interface.
 extern const FrustumClass *shadowCameraFrustum;	//defined in W3DShadow.
 ///@todo: Externs from volumetric shadow renderer - these need to be moved into W3DBufferManager
-extern DX8VertexBufferClass * shadowVertexBuffer;
-extern DX8IndexBufferClass  * shadowIndexBuffer;
+extern RenderVertexBufferClass * shadowVertexBuffer;
+extern RenderIndexBufferClass  * shadowIndexBuffer;
 extern int nShadowVertsInBuf;	//model vetices in vertex buffer
 extern int nShadowStartBatchVertex;
 extern int nShadowIndicesInBuf;	//model vetices in vertex buffer
@@ -101,12 +104,12 @@ struct SHADOW_DECAL_VERTEX	//vertex structure passed to D3D
 		float u,v;
 };
 
-#define SHADOW_DECAL_FVF	DX8_FVF_FLAG_XYZ|DX8_FVF_TEX1|DX8_FVF_FLAG_DIFFUSE
+#define SHADOW_DECAL_FVF	RENDER_VERTEX_FORMAT_XYZDUV1
 
 // TheSuperHackers @refactor bobtista 16/04/2026 Phase 4I wrap the
 // decal shadow buffers in W3D classes so g_renderBackend can capture them.
-DX8VertexBufferClass * shadowDecalVertexBuffer = nullptr;
-DX8IndexBufferClass  * shadowDecalIndexBuffer  = nullptr;
+RenderVertexBufferClass * shadowDecalVertexBuffer = nullptr;
+RenderIndexBufferClass  * shadowDecalIndexBuffer  = nullptr;
 int nShadowDecalVertsInBuf=0;	//model vetices in vertex buffer
 int nShadowDecalStartBatchVertex=0;
 int nShadowDecalIndicesInBuf=0;	//model vetices in vertex buffer
@@ -389,13 +392,13 @@ Bool W3DProjectedShadowManager::ReAcquireResources()
 
 	DEBUG_ASSERTCRASH(shadowDecalIndexBuffer == nullptr && shadowDecalVertexBuffer == nullptr, ("ReAcquireResources not released in W3DProjectedShadowManager"));
 
-	shadowDecalIndexBuffer = NEW_REF(DX8IndexBufferClass, (SHADOW_DECAL_INDEX_SIZE, DX8IndexBufferClass::USAGE_DYNAMIC));
+	shadowDecalIndexBuffer = NEW_REF(RenderIndexBufferClass, (SHADOW_DECAL_INDEX_SIZE, Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	if (shadowDecalIndexBuffer == nullptr)
 		return FALSE;
 
 	if (shadowDecalVertexBuffer == nullptr)
 	{
-		shadowDecalVertexBuffer = NEW_REF(DX8VertexBufferClass, (SHADOW_DECAL_FVF, SHADOW_DECAL_VERTEX_SIZE, DX8VertexBufferClass::USAGE_DYNAMIC));
+		shadowDecalVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DECAL_FVF, SHADOW_DECAL_VERTEX_SIZE, Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
 		if (shadowDecalVertexBuffer == nullptr)
 			return FALSE;
 	}
@@ -451,7 +454,7 @@ Int W3DProjectedShadowManager::renderProjectedTerrainShadow(W3DProjectedShadow *
 	Bool flipForBlend;
 
 
-	#define SHADOW_VOLUME_FVF	DX8_FVF_FLAG_XYZ
+	#define SHADOW_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZ
 
 	if (TheTerrainRenderObject)
 	{
@@ -2121,18 +2124,24 @@ void W3DProjectedShadow::updateTexture(Vector3 &lightPos)
 
 		m_shadowProjector->Compute_Texture(m_robj,context);
 
-		//Need to copy generated texture into permanent texture.
-		SurfaceClass *oldSurface=m_shadowTexture[0]->getTexture()->Get_Surface_Level();
-		SurfaceClass *newSurface=TheW3DProjectedShadowManager->getRenderTarget()->Get_Surface_Level();
+			//Need to copy generated texture into permanent texture.
+#if defined(GGC_RENDER_BACKEND_BGFX)
+			g_renderBackend->Copy_Render_Target_To_Texture(
+				m_shadowTexture[0]->getTexture(),
+				TheW3DProjectedShadowManager->getRenderTarget());
+#else
+			SurfaceClass *oldSurface=m_shadowTexture[0]->getTexture()->Get_Surface_Level();
+			SurfaceClass *newSurface=TheW3DProjectedShadowManager->getRenderTarget()->Get_Surface_Level();
 
-		//Copy shadow from temporary video-memory surface into a permanent texture
-		oldSurface->Copy(0,0,0,0,DEFAULT_RENDER_TARGET_WIDTH,DEFAULT_RENDER_TARGET_HEIGHT,newSurface);
-		REF_PTR_RELEASE(newSurface);
-		REF_PTR_RELEASE(oldSurface);
-		g_renderBackend->Copy_Render_Target_To_Texture(m_shadowTexture[0]->getTexture(), TheW3DProjectedShadowManager->getRenderTarget());
-		m_shadowProjector->Set_Texture(m_shadowTexture[0]->getTexture());
-		m_shadowTexture[0]->updateBounds(TheW3DShadowManager->getLightPosWorld(0),m_robj);	//update local shadow bounds
-	}
+			//Copy shadow from temporary video-memory surface into a permanent texture
+			oldSurface->Copy(0,0,0,0,DEFAULT_RENDER_TARGET_WIDTH,DEFAULT_RENDER_TARGET_HEIGHT,newSurface);
+			REF_PTR_RELEASE(newSurface);
+			REF_PTR_RELEASE(oldSurface);
+			g_renderBackend->Copy_Render_Target_To_Texture(m_shadowTexture[0]->getTexture(), TheW3DProjectedShadowManager->getRenderTarget());
+#endif
+			m_shadowProjector->Set_Texture(m_shadowTexture[0]->getTexture());
+			m_shadowTexture[0]->updateBounds(TheW3DShadowManager->getLightPosWorld(0),m_robj);	//update local shadow bounds
+		}
 	else
 	if (m_type == SHADOW_DECAL)
 	{	//decal shadows use artist supplied textures.  We just need to tweak the uv coordinates to match

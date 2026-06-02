@@ -18,11 +18,16 @@ uniform vec4 u_tex1TransformZ; // stage-1 texture matrix column for w' (projecte
 uniform vec4 u_tex2Transform0; // stage-2 texture matrix column for u': dot(source xyzw)
 uniform vec4 u_tex2Transform1; // stage-2 texture matrix column for v': dot(source xyzw)
 uniform vec4 u_texProjected; // .x > 0.5 = stage 0 D3DTTFF_PROJECTED, .y same for stage 1
-uniform vec4 u_zBias;        // .x = post-projection clip-space Z offset (subtracted from gl_Position.z * w) so decal geometry beats z-fighting against the terrain it sits on. Mirrors D3DRS_ZBIAS.
+uniform vec4 u_zBias;        // .x = post-projection clip-space Z offset. .y = object-space normal offset for authored coplanar opposite faces.
 
 void main()
 {
-	gl_Position = mul(u_modelViewProj, vec4(a_position, 1.0));
+	vec3 position = a_position;
+	if (u_zBias.y != 0.0)
+	{
+		position += a_normal * u_zBias.y;
+	}
+	gl_Position = mul(u_modelViewProj, vec4(position, 1.0));
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Apply post-projection Z
 	// bias the same way D3DRS_ZBIAS pulls geometry toward the camera in DX8.
 	// gl_Position.z is in clip space ahead of the perspective divide, so

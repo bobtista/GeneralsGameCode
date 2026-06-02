@@ -1033,26 +1033,7 @@ static inline char *strupr(char *src)
     return src;
 }
 
-// TheSuperHackers @build bobtista 29/04/2026 GetCurrentDirectory is provided
-// by file_compat.h.
-#if 0
-static inline DWORD GetCurrentDirectory(DWORD buffer_len, char *buffer)
-{
-    if (buffer == nullptr || buffer_len == 0) {
-        return 0;
-    }
-
-    if (::getcwd(buffer, static_cast<size_t>(buffer_len)) == nullptr) {
-        buffer[0] = '\0';
-        return 0;
-    }
-
-    return static_cast<DWORD>(::strlen(buffer));
-}
-#endif
-
-// TheSuperHackers @build bobtista 29/04/2026 GetFileAttributes is provided
-// by file_compat.h (included earlier in this header).
+// TheSuperHackers @build bobtista 29/04/2026 GetCurrentDirectory and GetFileAttributes are provided by file_compat.h.
 
 static inline HMODULE LoadLibrary(const char *path)
 {

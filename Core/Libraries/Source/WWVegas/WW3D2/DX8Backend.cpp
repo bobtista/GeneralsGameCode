@@ -25,7 +25,7 @@
 
 #include "dx8fvf.h"
 #include "dx8wrapper.h"
-#include "formconv.h"
+#include "dx8formatconv.h"
 #include "FixedFunctionState.h"
 #include "vector3.h"
 #include "matrix4.h"
@@ -51,6 +51,8 @@ struct DX8ViewCaptureState
 
 static DX8ViewCaptureState g_tacticalViewCapture = { nullptr, nullptr, nullptr, nullptr, false };
 static DWORD g_profilerSwizzleShader = 0;
+static const DWORD kGrayscaleLuminanceWeights = 0x80A5CA8E;
+static const DWORD kGrayscaleFlatGray = 0x60606060;
 
 static DWORD FloatAsDword(float value)
 {
@@ -324,6 +326,46 @@ SurfaceClass * DX8Backend::Capture_Back_Buffer_Surface(unsigned int num)
 
     back_buffer->Release_Ref();
     return copy;
+}
+
+bool DX8Backend::Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image)
+{
+    image = RenderBackendImage();
+
+    SurfaceClass * copy = Capture_Back_Buffer_Surface(num);
+    if (copy == nullptr)
+    {
+        return false;
+    }
+
+    SurfaceClass::SurfaceDescription desc;
+    copy->Get_Description(desc);
+
+    int source_pitch = 0;
+    unsigned char *source_bits = static_cast<unsigned char *>(copy->Lock(&source_pitch));
+    if (source_bits == nullptr)
+    {
+        copy->Release_Ref();
+        return false;
+    }
+
+    const unsigned row_bytes = desc.Width * 4;
+    image.Width = desc.Width;
+    image.Height = desc.Height;
+    image.Format = desc.Format;
+    image.Pitch = row_bytes;
+    image.Bytes.resize(static_cast<size_t>(image.Pitch) * image.Height);
+
+    for (unsigned row = 0; row < image.Height; ++row)
+    {
+        memcpy(image.Bytes.data() + static_cast<size_t>(row) * image.Pitch,
+               source_bits + static_cast<size_t>(row) * source_pitch,
+               row_bytes);
+    }
+
+    copy->Unlock();
+    copy->Release_Ref();
+    return true;
 }
 
 void DX8Backend::Set_Texture_Bitdepth(int bitdepth)
@@ -826,54 +868,61 @@ bool DX8Backend::Capture_Back_Buffer_RGBA(unsigned int display_width,
     Set_Pixel_Shader_Constant(1, kMaskG, 1);
     Set_Pixel_Shader_Constant(2, kMaskB, 1);
 
-    struct QuadVertex
+    // TheSuperHackers @build bobtista 01/06/2026 Wrap initialized locals in
+    // block scopes so the subsequent `goto cleanup` statements don't cross
+    // their initialization (ill-formed in C++ -- C2362 under MSVC).
     {
-        float x, y, z, rhw;
-        float u, v;
-    } vtx[4];
-    const float left = -0.5f;
-    const float top = -0.5f;
-    const float right = static_cast<float>(image_size) - 0.5f;
-    const float bottom = static_cast<float>(capture_height) - 0.5f;
-    vtx[0] = {right, bottom, 0.0f, 1.0f, 1.0f, 1.0f};
-    vtx[1] = {right, top,    0.0f, 1.0f, 1.0f, 0.0f};
-    vtx[2] = {left,  bottom, 0.0f, 1.0f, 0.0f, 1.0f};
-    vtx[3] = {left,  top,    0.0f, 1.0f, 0.0f, 0.0f};
-    DX8Wrapper::Set_DX8_Texture(0, intermediate_texture);
-    texture_changed = true;
-    DX8Wrapper::Set_Vertex_Shader(D3DFVF_XYZRHW | D3DFVF_TEX1);
-    if (FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vtx, sizeof(QuadVertex)))) {
-        goto cleanup;
+        struct QuadVertex
+        {
+            float x, y, z, rhw;
+            float u, v;
+        } vtx[4];
+        const float left = -0.5f;
+        const float top = -0.5f;
+        const float right = static_cast<float>(image_size) - 0.5f;
+        const float bottom = static_cast<float>(capture_height) - 0.5f;
+        vtx[0] = {right, bottom, 0.0f, 1.0f, 1.0f, 1.0f};
+        vtx[1] = {right, top,    0.0f, 1.0f, 1.0f, 0.0f};
+        vtx[2] = {left,  bottom, 0.0f, 1.0f, 0.0f, 1.0f};
+        vtx[3] = {left,  top,    0.0f, 1.0f, 0.0f, 0.0f};
+        DX8Wrapper::Set_DX8_Texture(0, intermediate_texture);
+        texture_changed = true;
+        DX8Wrapper::Set_Vertex_Shader(D3DFVF_XYZRHW | D3DFVF_TEX1);
+        if (FAILED(device->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, vtx, sizeof(QuadVertex)))) {
+            goto cleanup;
+        }
     }
 
-    RECT src_rect;
-    src_rect.left = 0;
-    src_rect.top = 0;
-    src_rect.right = image_size;
-    src_rect.bottom = capture_height;
-    POINT dst_point;
-    dst_point.x = 0;
-    dst_point.y = 0;
-    DX8Wrapper::_Copy_DX8_Rects(
-        small_render_target_surface,
-        &src_rect,
-        1,
-        surface_class->Peek_D3D_Surface(),
-        &dst_point);
-
-    int pitch = 0;
-    void * bits = surface_class->Lock(&pitch);
-    if (bits == nullptr) {
-        goto cleanup;
-    }
-
-    for (unsigned int row = 0; row < capture_height; ++row)
     {
-        memcpy(output_pixels + row * row_bytes,
-               static_cast<const unsigned char *>(bits) + row * pitch,
-               row_bytes);
+        RECT src_rect;
+        src_rect.left = 0;
+        src_rect.top = 0;
+        src_rect.right = image_size;
+        src_rect.bottom = capture_height;
+        POINT dst_point;
+        dst_point.x = 0;
+        dst_point.y = 0;
+        DX8Wrapper::_Copy_DX8_Rects(
+            small_render_target_surface,
+            &src_rect,
+            1,
+            surface_class->Peek_D3D_Surface(),
+            &dst_point);
+
+        int pitch = 0;
+        void * bits = surface_class->Lock(&pitch);
+        if (bits == nullptr) {
+            goto cleanup;
+        }
+
+        for (unsigned int row = 0; row < capture_height; ++row)
+        {
+            memcpy(output_pixels + row * row_bytes,
+                   static_cast<const unsigned char *>(bits) + row * pitch,
+                   row_bytes);
+        }
+        surface_class->Unlock();
     }
-    surface_class->Unlock();
 
     *output_width = image_size;
     *output_height = capture_height;
@@ -949,13 +998,13 @@ void DX8Backend::Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & 
     {
         DX8Wrapper::_Set_DX8_Transform(
             D3DTS_WORLD,
-            reinterpret_cast<const D3DMATRIX &>(*state.world));
+            To_D3DMATRIX(*state.world));
     }
     if (state.view != nullptr)
     {
         DX8Wrapper::_Set_DX8_Transform(
             D3DTS_VIEW,
-            reinterpret_cast<const D3DMATRIX &>(*state.view));
+            To_D3DMATRIX(*state.view));
     }
     for (int i = 0; i < 4; ++i)
     {
@@ -1314,6 +1363,9 @@ unsigned DX8Backend::Get_Color_Write_Mask() const
 
 bool DX8Backend::Supports_Color_Write_Mask() const
 {
+    if (!DX8Wrapper::Get_Current_Caps()) {
+        return false;
+    }
     return (DX8Wrapper::Get_Current_Caps()->Get_DX8_Caps().PrimitiveMiscCaps & D3DPMISCCAPS_COLORWRITEENABLE) != 0;
 }
 
@@ -1360,7 +1412,7 @@ void DX8Backend::Configure_Grayscale_Texture_Stages()
 {
     if (Supports_Dot3())
     {
-        DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x80A5CA8E);
+        DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, kGrayscaleLuminanceWeights);
         DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_COLORARG0, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
         DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
         DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_COLORARG2, D3DTA_TFACTOR | D3DTA_ALPHAREPLICATE);
@@ -1373,7 +1425,7 @@ void DX8Backend::Configure_Grayscale_Texture_Stages()
     else
     {
         // Fallback for hardware without DOT3 blend support.
-        DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, 0x60606060);
+        DX8Wrapper::Set_DX8_Render_State(D3DRS_TEXTUREFACTOR, kGrayscaleFlatGray);
         DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
         DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_COLORARG2, D3DTA_TFACTOR);
         DX8Wrapper::Set_DX8_Texture_Stage_State(0, D3DTSS_COLOROP, D3DTOP_MODULATE);
@@ -1749,9 +1801,9 @@ void DX8Backend::Apply_Stencil_Shadow_Darken(unsigned shadow_color,
     } vertices[4];
 
     vertices[0].x = x + width; vertices[0].y = y + height; vertices[0].z = 0.0f; vertices[0].w = 1.0f;
-    vertices[1].x = x + width; vertices[1].y = 0.0f;       vertices[1].z = 0.0f; vertices[1].w = 1.0f;
+    vertices[1].x = x + width; vertices[1].y = (float)y;   vertices[1].z = 0.0f; vertices[1].w = 1.0f;
     vertices[2].x = x;         vertices[2].y = y + height; vertices[2].z = 0.0f; vertices[2].w = 1.0f;
-    vertices[3].x = x;         vertices[3].y = 0.0f;       vertices[3].z = 0.0f; vertices[3].w = 1.0f;
+    vertices[3].x = x;         vertices[3].y = (float)y;   vertices[3].z = 0.0f; vertices[3].w = 1.0f;
 
     vertices[0].color = shadow_color;
     vertices[1].color = shadow_color;
@@ -1849,9 +1901,9 @@ void DX8Backend::Draw_Screen_Color_Quad(unsigned color, int x, int y, int width,
     } vertices[4];
 
     vertices[0].x = x + width; vertices[0].y = y + height; vertices[0].z = 0.0f; vertices[0].w = 1.0f;
-    vertices[1].x = x + width; vertices[1].y = 0.0f;       vertices[1].z = 0.0f; vertices[1].w = 1.0f;
+    vertices[1].x = x + width; vertices[1].y = (float)y;   vertices[1].z = 0.0f; vertices[1].w = 1.0f;
     vertices[2].x = x;         vertices[2].y = y + height; vertices[2].z = 0.0f; vertices[2].w = 1.0f;
-    vertices[3].x = x;         vertices[3].y = 0.0f;       vertices[3].z = 0.0f; vertices[3].w = 1.0f;
+    vertices[3].x = x;         vertices[3].y = (float)y;   vertices[3].z = 0.0f; vertices[3].w = 1.0f;
 
     vertices[0].color = color;
     vertices[1].color = color;
@@ -2198,17 +2250,17 @@ void DX8Backend::Begin_Dynamic_Frame()
 // DX8IndexBufferClass. DX8Backend must stay a passive forwarding adapter,
 // so registered legacy resources do not get an owning RenderResource.
 
-RenderResource DX8Backend::Register_Loaded_Texture(TextureBaseClass * /*tex*/)
+RenderResource DX8Backend::Register_Texture_Resource(TextureBaseClass * /*tex*/)
 {
     return kInvalidRenderResource;
 }
 
-RenderResource DX8Backend::Register_Loaded_Vertex_Buffer(VertexBufferClass * /*vb*/)
+RenderResource DX8Backend::Register_Vertex_Buffer_Resource(VertexBufferClass * /*vb*/)
 {
     return kInvalidRenderResource;
 }
 
-RenderResource DX8Backend::Register_Loaded_Index_Buffer(IndexBufferClass * /*ib*/)
+RenderResource DX8Backend::Register_Index_Buffer_Resource(IndexBufferClass * /*ib*/)
 {
     return kInvalidRenderResource;
 }

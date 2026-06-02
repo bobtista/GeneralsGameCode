@@ -34,8 +34,13 @@
 #include "Vector3i.h"
 #include "RANDOM.h"
 #include "v3_rnd.h"
+#include "vertmaterial.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
+#include "dx8fvf.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+#include "w3d_file.h"
 
 
 /* We have chunking logic which handles N segments at a time. To simplify the subdivision logic,
@@ -1324,7 +1329,7 @@ void StreakRendererClass::RenderStreak
 		** Render
 		*/
 
-		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),dynamic_fvf_type,vnum);
+		DynamicVBAccessClass Verts((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC),dynamic_fvf_type,vnum);
 		// Copy in the data to the  VB
 		{
 			DynamicVBAccessClass::WriteLockClass Lock(&Verts);
@@ -1359,7 +1364,7 @@ void StreakRendererClass::RenderStreak
 			}
 		}
 
-		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC_DX8),triangleIndex*3);
+		DynamicIBAccessClass ib_access((sorting?BUFFER_TYPE_DYNAMIC_SORTING:BUFFER_TYPE_DYNAMIC),triangleIndex*3);
 		{
 			unsigned int i;
 			DynamicIBAccessClass::WriteLockClass lock(&ib_access);
@@ -1381,7 +1386,9 @@ void StreakRendererClass::RenderStreak
 
 		if (sorting)
 		{
+			g_renderBackend->Set_Streak_Render_Active(true);
 			SortingRendererClass::Insert_Triangles(obj_sphere,0,triangleIndex,0,vnum);
+			g_renderBackend->Set_Streak_Render_Active(false);
 		}
 		else
 		{
