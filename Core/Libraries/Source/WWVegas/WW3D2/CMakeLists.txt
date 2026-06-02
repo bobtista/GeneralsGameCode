@@ -62,12 +62,13 @@ set(WW3D2_SRC
     dx8vertexbuffer.h
     dx8wrapper.cpp
     dx8wrapper.h
+    dx8textureinterop.cpp
     dynamesh.cpp
     dynamesh.h
     font3d.cpp
     font3d.h
     dx8formatconv.h
-    formconv.cpp
+    dx8textureinterop.h
     formconv.h
     framgrab.h
     FixedFunctionState.cpp
@@ -252,6 +253,14 @@ add_library(corei_ww3d2 INTERFACE)
 
 target_sources(corei_ww3d2 INTERFACE ${WW3D2_SRC})
 
+if(NOT GGC_BGFX_STANDALONE)
+    target_sources(corei_ww3d2 INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/formconv.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/dx8texman.h
+    )
+endif()
+
 if(GGC_RENDER_BACKEND STREQUAL "dx8")
     target_sources(corei_ww3d2 INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/DX8Backend.cpp
@@ -260,6 +269,16 @@ if(GGC_RENDER_BACKEND STREQUAL "dx8")
         ${CMAKE_CURRENT_SOURCE_DIR}/dx8webbrowser.h
     )
 endif()
+
+# TheSuperHackers @build bobtista 01/06/2026 BgfxMigrationToggles must be
+# compiled for every backend. Shared code (notably SurfaceClass and texture
+# ownership decisions) calls Is_Bgfx_Migration_Toggle_Enabled regardless of
+# the active backend; the implementation already gates its bgfx-only
+# short-circuits on GGC_BGFX_STANDALONE so compiling under dx8 is safe.
+target_sources(corei_ww3d2 INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/BgfxMigrationToggles.h
+)
 
 # TheSuperHackers @refactor bobtista 10/04/2026 Conditionally include the
 # active render backend's source files. See cmake/render-backend.cmake and
@@ -272,22 +291,12 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
         ${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackendTextures.cpp
     )
 
-    # Phase 5.2 — standalone-mode stub D3D8 device. The file itself is
-    # entirely wrapped in #if GGC_BGFX_STANDALONE so compiling it in ref-popup
-    # mode is a harmless no-op. Adding unconditionally keeps CMake simple.
-    target_sources(corei_ww3d2 INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.h
-    )
-
-    # TheSuperHackers @refactor bobtista 22/04/2026 Phase 5.2 Stage 5 —
-    # In-tree implementations of the D3DX8 helpers the engine calls
-    # (matrix math, mip filter, surface copy, FVF size, error string).
-    # Compiled only for standalone builds, which don't link d3dx8.lib.
-    # Ref-popup builds still pull those symbols from d3dx8.lib and skip
-    # this file entirely.
     if(GGC_BGFX_STANDALONE)
+        # Standalone bgfx still compiles the legacy wrapper while texture and
+        # surface factories migrate, so it needs in-tree D3D8/D3DX shims.
         target_sources(corei_ww3d2 INTERFACE
+            ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/StubD3D8Device.h
             ${CMAKE_CURRENT_SOURCE_DIR}/D3DXStandaloneStubs.cpp
         )
     endif()
@@ -316,9 +325,6 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # Phase 4I shadow darkening apply pass (fullscreen quad blend).
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_apply.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_apply.sc)
-    # Phase 4I.2 CSM (cascaded shadow maps) — depth-only caster pass.
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_shadow_caster.sc)
-    ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_shadow_caster.sc)
     # TheSuperHackers @feature bobtista 27/04/2026 Scene-color composite
     # pass. World/effects render to an offscreen framebuffer, then this
     # identity pass copies it to the swapchain before UI draws.
@@ -334,6 +340,10 @@ if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     # through the fixed-function uber shader.
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/vs_smudge.sc)
     ggc_compile_bgfx_shader(${CMAKE_CURRENT_SOURCE_DIR}/shaders/fs_smudge.sc)
+    get_property(GGC_BGFX_GENERATED_SHADER_HEADERS GLOBAL PROPERTY GGC_BGFX_SHADER_HEADERS)
+    set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/BgfxBackend.cpp PROPERTIES
+        OBJECT_DEPENDS "${GGC_BGFX_GENERATED_SHADER_HEADERS}"
+    )
     target_link_libraries(corei_ww3d2 INTERFACE ggc_bgfx_shaders)
 endif()
 
@@ -355,6 +365,14 @@ target_link_libraries(corei_ww3d2 INTERFACE
     core_wwlib
     core_wwmath
 )
+
+if(APPLE)
+    target_link_libraries(corei_ww3d2 INTERFACE
+        "-framework CoreGraphics"
+        "-framework CoreText"
+        "-framework CoreFoundation"
+    )
+endif()
 
 # Link the backend's native libraries into whoever consumes corei_ww3d2.
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")

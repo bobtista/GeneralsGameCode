@@ -48,9 +48,12 @@
 #include "GameClient/View.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/light.h"
+#if !defined(GGC_BGFX_STANDALONE)
 #include "WW3D2/dx8vertexbuffer.h"
 #include "WW3D2/dx8indexbuffer.h"
+#endif
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderbufferclasses.h"
 #include "WW3D2/hlod.h"
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
@@ -197,7 +200,7 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 {
 		float x,y,z;
 };
-#define SHADOW_STATIC_VOLUME_FVF	DX8_FVF_FLAG_XYZ
+#define SHADOW_STATIC_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZ
 
 #ifdef SV_DEBUG	//in debug mode, dynamic shadows are rendered with random diffuse color
 	struct SHADOW_DYNAMIC_VOLUME_VERTEX	//vertex structure passed to D3D
@@ -205,10 +208,10 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 			float x,y,z;
 			DWORD diffuse;
 	};
-	#define SHADOW_DYNAMIC_VOLUME_FVF	DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_DIFFUSE
+	#define SHADOW_DYNAMIC_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZD
 #else
 	typedef struct SHADOW_STATIC_VOLUME_VERTEX	SHADOW_DYNAMIC_VOLUME_VERTEX;
-	#define SHADOW_DYNAMIC_VOLUME_FVF	DX8_FVF_FLAG_XYZ
+	#define SHADOW_DYNAMIC_VOLUME_FVF	RENDER_VERTEX_FORMAT_XYZ
 #endif
 
 // TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I wrap the
@@ -220,8 +223,8 @@ struct SHADOW_STATIC_VOLUME_VERTEX	//vertex structure passed to D3D
 // Forward declaration (implementation further down in the file).
 static int EarClip2D(const float * xy, int N, short * out_indices);
 
-DX8VertexBufferClass * shadowVertexBuffer = nullptr;
-DX8IndexBufferClass  * shadowIndexBuffer  = nullptr;
+RenderVertexBufferClass * shadowVertexBuffer = nullptr;
+RenderIndexBufferClass  * shadowIndexBuffer  = nullptr;
 int nShadowVertsInBuf=0;	//model vetices in vertex buffer
 int nShadowStartBatchVertex=0;
 int nShadowIndicesInBuf=0;	//model vetices in vertex buffer
@@ -260,7 +263,7 @@ static Real beX;
 static Real beY;
 static Real beZ;
 
-static DX8VertexBufferClass *lastActiveVertexBuffer=nullptr;
+static RenderVertexBufferClass *lastActiveVertexBuffer=nullptr;
 
 /** A simple structure to hold random geometry (vertices, polygons, etc.).  We'll use this
 * to store shadow volumes. */
@@ -1488,9 +1491,9 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 	W3DBufferManager::W3DVertexBufferSlot *vbSlot=m_shadowVolumeVB[lightIndex][ meshIndex ];
 	if (!vbSlot)
 		return;
-	if (vbSlot->m_VB->m_DX8VertexBuffer != lastActiveVertexBuffer)
-	{	lastActiveVertexBuffer=vbSlot->m_VB->m_DX8VertexBuffer;
-		g_renderBackend->Set_Vertex_Buffer(vbSlot->m_VB->m_DX8VertexBuffer, 0);
+	if (vbSlot->m_VB->m_renderVertexBuffer != lastActiveVertexBuffer)
+	{	lastActiveVertexBuffer=vbSlot->m_VB->m_renderVertexBuffer;
+		g_renderBackend->Set_Vertex_Buffer(vbSlot->m_VB->m_renderVertexBuffer, 0);
 	}
 
 	DEBUG_ASSERTCRASH(vbSlot->m_size >= numVerts,("Overflowing Shadow Vertex Buffer Slot"));
@@ -1501,7 +1504,7 @@ void W3DVolumetricShadow::RenderMeshVolume(Int meshIndex, Int lightIndex, const 
 
 	DEBUG_ASSERTCRASH(ibSlot->m_size >= numIndex,("Overflowing Shadow Index Buffer Slot"));
 
-	g_renderBackend->Set_Index_Buffer(ibSlot->m_IB->m_DX8IndexBuffer, vbSlot->m_start);
+	g_renderBackend->Set_Index_Buffer(ibSlot->m_IB->m_renderIndexBuffer, vbSlot->m_start);
 
 	if (g_renderBackend->Is_Triangle_Draw_Enabled())
 	{
@@ -3333,13 +3336,13 @@ void W3DVolumetricShadow::constructVolumeVB( Vector3 *lightPosObject,Real shadow
 		return;
 	}
 
-	DX8VertexBufferClass::AppendLockClass lockVtxBuffer(vbSlot->m_VB->m_DX8VertexBuffer,vbSlot->m_start,vertexCount);
+	RenderVertexBufferClass::AppendLockClass lockVtxBuffer(vbSlot->m_VB->m_renderVertexBuffer,vbSlot->m_start,vertexCount);
 	VertexFormatXYZ *vb = (VertexFormatXYZ*)lockVtxBuffer.Get_Vertex_Array();
 
 	if (vb == nullptr)
 		return;
 
-	DX8IndexBufferClass::AppendLockClass lockIdxBuffer(ibSlot->m_IB->m_DX8IndexBuffer,ibSlot->m_start,polygonCount*3);
+	RenderIndexBufferClass::AppendLockClass lockIdxBuffer(ibSlot->m_IB->m_renderIndexBuffer,ibSlot->m_start,polygonCount*3);
 	UnsignedShort *ib = (UnsignedShort*)lockIdxBuffer.Get_Index_Array();
 
 	if (ib == nullptr)
@@ -4144,13 +4147,13 @@ Bool W3DVolumetricShadowManager::ReAcquireResources()
 {
 	ReleaseResources();
 
-	shadowIndexBuffer = NEW_REF(DX8IndexBufferClass, (ShadowDynamicIndexCapacity(), DX8IndexBufferClass::USAGE_DYNAMIC));
+	shadowIndexBuffer = NEW_REF(RenderIndexBufferClass, (ShadowDynamicIndexCapacity(), Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	if (shadowIndexBuffer == nullptr)
 		return FALSE;
 
 	if (shadowVertexBuffer == nullptr)
 	{
-		shadowVertexBuffer = NEW_REF(DX8VertexBufferClass, (SHADOW_DYNAMIC_VOLUME_FVF, ShadowDynamicVertexCapacity(), DX8VertexBufferClass::USAGE_DYNAMIC));
+		shadowVertexBuffer = NEW_REF(RenderVertexBufferClass, (SHADOW_DYNAMIC_VOLUME_FVF, ShadowDynamicVertexCapacity(), Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
 		if (shadowVertexBuffer == nullptr)
 			return FALSE;
 	}

@@ -58,9 +58,11 @@
 #include "WW3D2/camera.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
-#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8renderer.h"
+#if !defined(GGC_BGFX_STANDALONE)
+#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8vertexbuffer.h"
+#endif
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 
@@ -128,8 +130,8 @@ void W3DCustomEdging::loadEdgingsInVertexAndIndexBuffers(WorldHeightMap *pMap, I
 	VertexFormatXYZDUV2 *vb;
 	UnsignedShort *ib;
 	// Lock the buffers.
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexEdging);
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexEdging);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexEdging);
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexEdging);
 	vb=(VertexFormatXYZDUV2*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 
@@ -315,8 +317,13 @@ void W3DCustomEdging::freeEdgingBuffers()
 //=============================================================================
 void W3DCustomEdging::allocateEdgingBuffers()
 {
-	m_vertexEdging=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV2,MAX_EDGE_VERTEX+4,DX8VertexBufferClass::USAGE_DYNAMIC));
-	m_indexEdging=NEW_REF(DX8IndexBufferClass,(2*MAX_EDGE_INDEX+4, DX8IndexBufferClass::USAGE_DYNAMIC));
+	m_vertexEdging=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZDUV2,
+		MAX_EDGE_VERTEX+4,
+		Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+	m_indexEdging=NEW_REF(RenderIndexBufferClass,(
+		2*MAX_EDGE_INDEX+4,
+		Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	m_curNumEdgingVertices=0;
 	m_curNumEdgingIndices=0;
 	//m_edgeTexture = MSGNEW("TextureClass") TextureClass("EdgingTemplate.tga","EdgingTemplate.tga", MIP_LEVELS_3);

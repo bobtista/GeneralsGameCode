@@ -24,6 +24,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include "ww3dformat.h"
 
@@ -77,7 +78,22 @@ struct RenderBackendLight
     float phi;
 };
 
+struct RenderBackendImage
+{
+    unsigned Width = 0;
+    unsigned Height = 0;
+    WW3DFormat Format = WW3D_FORMAT_UNKNOWN;
+    unsigned Pitch = 0;
+    std::vector<std::uint8_t> Bytes;
+
+    bool Is_Valid() const
+    {
+        return Width != 0 && Height != 0 && Pitch != 0 && !Bytes.empty();
+    }
+};
+
 static const unsigned RB_MAX_TEXTURE_STAGES = 8;
+static const unsigned RB_MAX_LIGHTS = 4;
 
 enum RenderBackendLockFlags
 {
@@ -166,8 +182,8 @@ inline RenderBackendTextureArgument operator|(RenderBackendTextureArgument lhs, 
 
 struct RenderBackendLightState
 {
-    RenderBackendLight lights[4];
-    bool enabled[4];
+    RenderBackendLight lights[RB_MAX_LIGHTS];
+    bool enabled[RB_MAX_LIGHTS];
 };
 
 struct RenderBackendMaterialState
@@ -205,6 +221,14 @@ struct RenderBackendSortedBatchState
     const Matrix4x4 * world;
     const Matrix4x4 * view;
     RenderBackendLightState lights;
+    unsigned int draw_flags;
+};
+
+enum RenderBackendSortedDrawFlags
+{
+    RB_SORTED_DRAW_NONE        = 0,
+    RB_SORTED_DRAW_POINT_GROUP = 1 << 0,
+    RB_SORTED_DRAW_STREAK      = 1 << 1
 };
 
 enum TransformKind
@@ -549,6 +573,8 @@ public:
     virtual WW3DFormat Get_Back_Buffer_Format() const { return WW3D_FORMAT_UNKNOWN; }
     virtual SurfaceClass * Get_Back_Buffer(unsigned int num) const { return nullptr; }
     virtual SurfaceClass * Capture_Back_Buffer_Surface(unsigned int num) { return nullptr; }
+    virtual bool Capture_Back_Buffer_Image(unsigned int num, RenderBackendImage & image) { return false; }
+    virtual bool Request_Native_Screen_Shot(const char * /*path*/) { return false; }
     virtual void Set_Texture_Bitdepth(int bitdepth) {}
     virtual int Get_Texture_Bitdepth() const { return 16; }
     virtual bool Supports_Texture_Format(WW3DFormat format) const { return false; }
@@ -634,23 +660,23 @@ public:
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset) {}
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Write-side
-    // capture hooks. The W3D engine writes vertex/index data through
+    // upload hooks. The W3D engine writes vertex/index data through
     // VertexBufferClass::WriteLockClass / IndexBufferClass::WriteLockClass
     // (and the various Copy() helpers). At unlock time the data is sitting
     // in a CPU-mapped pointer that the engine just wrote into - that is
-    // the safe moment for the bgfx backend to grab a copy and create its
+    // the safe moment for the bgfx backend to upload a copy and create its
     // own GPU buffer. The DX8 backend ignores these calls; only BgfxBackend
     // uses them. Default empty implementations so existing call sites that
     // do not need them are not forced to override.
-    virtual void Capture_Vertex_Data(const VertexBufferClass * /*vb*/,
+    virtual void Upload_Vertex_Buffer_Data(const VertexBufferClass * /*vb*/,
                                      const void * /*data*/,
                                      unsigned int /*size_bytes*/) {}
-    virtual void Capture_Index_Data(const IndexBufferClass * /*ib*/,
+    virtual void Upload_Index_Buffer_Data(const IndexBufferClass * /*ib*/,
                                     const void * /*data*/,
                                     unsigned int /*size_bytes*/) {}
 
     // TheSuperHackers @refactor bobtista 11/04/2026 Dynamic
-    // capture hooks. Same pattern as above but for DynamicVBAccessClass /
+    // upload hooks. Same pattern as above but for DynamicVBAccessClass /
     // DynamicIBAccessClass. The data pointer and size describe just the
     // sub-range the caller locked - not the entire dynamic ring buffer.
     // BgfxBackend copies the sub-range into a per-frame transient buffer
@@ -663,17 +689,28 @@ public:
                                             const void * /*data*/,
                                             unsigned int /*size_bytes*/) {}
 
+    virtual void * Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * /*vba*/,
+                                              unsigned int /*size_bytes*/) { return nullptr; }
+    virtual void End_Dynamic_Vertex_Write(const DynamicVBAccessClass * /*vba*/,
+                                          const void * /*data*/,
+                                          unsigned int /*size_bytes*/) {}
+    virtual void * Begin_Dynamic_Index_Write(const DynamicIBAccessClass * /*iba*/,
+                                             unsigned int /*size_bytes*/) { return nullptr; }
+    virtual void End_Dynamic_Index_Write(const DynamicIBAccessClass * /*iba*/,
+                                         const void * /*data*/,
+                                         unsigned int /*size_bytes*/) {}
+
     // TheSuperHackers @refactor bobtista 11/04/2026 Sub-range
-    // capture. Rigid mesh category containers fill their shared VB / IB
+    // upload. Rigid mesh category containers fill their shared VB / IB
     // via AppendLockClass one sub-range at a time. BgfxBackend creates a
     // bgfx dynamic buffer the first time it sees a VB / IB and updates
     // the sub-range in place. start_vertex / start_index is in elements
     // (verts or shorts), size_bytes is in bytes.
-    virtual void Capture_Vertex_Sub_Range(const VertexBufferClass * /*vb*/,
+    virtual void Upload_Vertex_Buffer_Sub_Range(const VertexBufferClass * /*vb*/,
                                           const void * /*data*/,
                                           unsigned int /*start_vertex*/,
                                           unsigned int /*size_bytes*/) {}
-    virtual void Capture_Index_Sub_Range(const IndexBufferClass * /*ib*/,
+    virtual void Upload_Index_Buffer_Sub_Range(const IndexBufferClass * /*ib*/,
                                          const void * /*data*/,
                                          unsigned int /*start_index*/,
                                          unsigned int /*size_bytes*/) {}
@@ -687,6 +724,8 @@ public:
     virtual void Begin_Sorted_Batch_Pass() {}
     virtual void End_Sorted_Batch_Pass() {}
     virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & /*state*/) {}
+    virtual void Set_Point_Group_Render_Active(bool /*active*/) {}
+    virtual void Set_Streak_Render_Active(bool /*active*/) {}
     virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & /*state*/) {}
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & /*state*/) {}
     virtual void Release_Legacy_Render_State_For_Sorted_Draw() {}
@@ -795,6 +834,7 @@ public:
     // bitmask from GetRenderState use this, callers that know the four
     // channel flags use the boolean form.
     virtual void Set_Z_Bias(int bias) {}
+    virtual void Set_Normal_Bias(float bias) {}
     virtual void Set_Fill_Mode(FillMode mode) {}
     virtual void Set_Shade_Mode(ShadeMode mode) {}
     virtual void Set_Depth_Test_Enable(bool enable) {}
@@ -1175,19 +1215,20 @@ public:
     virtual void   Begin_Dynamic_Frame() {}
 
     // -------------------------------------------------------------------------
-    // Transitional "register loaded resource" hooks (Option 1)
+    // Transitional owner-backed resource hooks (Option 1)
     // -------------------------------------------------------------------------
     //
-    // Populate a backend-neutral handle AFTER the legacy loader has already
-    // created the legacy resource. These are called from the end of the
-    // asset-loader flow so m_backendHandle is populated going forward.
+    // Populate a backend-neutral handle for wrapper resources that still own
+    // their CPU data and, in reference builds, may also own a legacy mirror.
+    // These are called from the end of the wrapper construction flow so
+    // m_backendHandle is populated going forward.
     // Once the legacy loader path is gone, these hooks disappear with
     // it and everything goes through the Create_* methods above.
     //
     // Default: return invalid handle (no-op for backends that don't care
-    // about adopting existing D3D resources).
+    // about owner-backed resources).
 
-    virtual RenderResource Register_Loaded_Texture(TextureBaseClass * /*tex*/) { return kInvalidRenderResource; }
-    virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * /*vb*/) { return kInvalidRenderResource; }
-    virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * /*ib*/) { return kInvalidRenderResource; }
+    virtual RenderResource Register_Texture_Resource(TextureBaseClass * /*tex*/) { return kInvalidRenderResource; }
+    virtual RenderResource Register_Vertex_Buffer_Resource(VertexBufferClass * /*vb*/) { return kInvalidRenderResource; }
+    virtual RenderResource Register_Index_Buffer_Resource(IndexBufferClass * /*ib*/) { return kInvalidRenderResource; }
 };

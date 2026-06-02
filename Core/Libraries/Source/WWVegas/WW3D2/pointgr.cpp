@@ -81,14 +81,15 @@
 #include "vp.h"
 #include "matrix4.h"
 #include "ww3dcolor.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
 #include "rinfo.h"
 #include "camera.h"
 #include "dx8fvf.h"
 #include "sortingrenderer.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+#include "renderbufferclasses.h"
 
 #include <cmath>
 #include <cstdio>
@@ -131,14 +132,14 @@ VectorClass<Vector3>			VertexLoc;		// camera-space vertex locations
 VectorClass<Vector4>			VertexDiffuse;	// vertex diffuse/alpha colors
 VectorClass<Vector2>			VertexUV;		// vertex texture coords
 
-// Some DX 8 variables
+// Some render buffer constants
 #define MAX_VB_SIZE			2048
 #define MAX_TRI_POINTS		MAX_VB_SIZE/3
 #define MAX_TRI_IB_SIZE		3*MAX_TRI_POINTS
 #define MAX_QUAD_POINTS		MAX_VB_SIZE/4
 #define MAX_QUAD_IB_SIZE	6*MAX_QUAD_POINTS
 
-DX8IndexBufferClass			*Tris, *Quads;						// Index buffers.
+RenderIndexBufferClass		*Tris, *Quads;					// Index buffers.
 SortingIndexBufferClass		*SortingTris, *SortingQuads;	// Sorting index buffers.
 
 /**************************************************************************
@@ -973,10 +974,14 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 	}
 
 	current = 0;
+	if (sort)
+	{
+		g_renderBackend->Set_Point_Group_Render_Active(true);
+	}
 	while (current<vnum)
 	{
 		delta=MIN(vnum-current,MAX_VB_SIZE);
-		DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, delta);
+		DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC, dynamic_fvf_type, delta);
 
 		// Copy in the data to the VB
 		{
@@ -1017,6 +1022,10 @@ void PointGroupClass::Render(RenderInfoClass &rinfo)
 		}
 
 		current+=delta;
+	}
+	if (sort)
+	{
+		g_renderBackend->Set_Point_Group_Render_Active(false);
 	}
 
 	// restore the matrices
@@ -1563,21 +1572,21 @@ void PointGroupClass::_Init()
 	}
 
 	// Create the IBs
-	Tris=NEW_REF(DX8IndexBufferClass,(MAX_TRI_IB_SIZE));
-	Quads=NEW_REF(DX8IndexBufferClass,(MAX_QUAD_IB_SIZE));
+	Tris=NEW_REF(RenderIndexBufferClass,(MAX_TRI_IB_SIZE));
+	Quads=NEW_REF(RenderIndexBufferClass,(MAX_QUAD_IB_SIZE));
 	SortingTris=NEW_REF(SortingIndexBufferClass,(MAX_TRI_IB_SIZE));
 	SortingQuads=NEW_REF(SortingIndexBufferClass,(MAX_QUAD_IB_SIZE));
 
 	// Fill up the IBs
 	{
-		DX8IndexBufferClass::WriteLockClass locktris(Tris);
+		RenderIndexBufferClass::WriteLockClass locktris(Tris);
 		unsigned short *ib=locktris.Get_Index_Array();
 		for (i=0; i<MAX_TRI_IB_SIZE; i++) ib[i]=(unsigned short) i;
 	}
 
 	{
 		unsigned short vert=0;
-		DX8IndexBufferClass::WriteLockClass lockquads(Quads);
+		RenderIndexBufferClass::WriteLockClass lockquads(Quads);
 		unsigned short *ib=lockquads.Get_Index_Array();
 		vert=0;
 		for (i=0; i<MAX_QUAD_IB_SIZE; i+=6)
@@ -1893,10 +1902,14 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 		float nudge = 0;
 
 		current = 0;
+		if (sort)
+		{
+			g_renderBackend->Set_Point_Group_Render_Active(true);
+		}
 		while (current<vnum)
 		{
 			delta=MIN(vnum-current,MAX_VB_SIZE);
-			DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8, dynamic_fvf_type, delta);
+			DynamicVBAccessClass PointVerts (sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC, dynamic_fvf_type, delta);
 
 			// Copy in the data to the VB
 			{
@@ -1939,6 +1952,10 @@ void PointGroupClass::RenderVolumeParticle(RenderInfoClass &rinfo, unsigned int 
 
 
 			current+=delta;
+		}
+		if (sort)
+		{
+			g_renderBackend->Set_Point_Group_Render_Active(false);
 		}
 
 

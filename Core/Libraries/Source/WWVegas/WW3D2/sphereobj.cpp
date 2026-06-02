@@ -86,8 +86,8 @@
 #include "camera.h"
 #include "statistics.h"
 #include "ww3dcolor.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
 #include "sortingrenderer.h"
 #include "visrasterizer.h"
 #include "RenderBackend.h"
@@ -237,6 +237,7 @@ SphereRenderObjClass::SphereRenderObjClass(const SphereRenderObjClass & src)
 
 SphereRenderObjClass::~SphereRenderObjClass()
 {
+	REF_PTR_RELEASE(SphereTexture);
 	REF_PTR_RELEASE(SphereMaterial);
 }
 
@@ -476,7 +477,7 @@ void SphereRenderObjClass::render_sphere()
 
 	// Enable sorting if the primitive is translucent, alpha testing is not enabled, and sorting is enabled globally.
 	const bool sort = (SphereShader.Get_Dst_Blend_Func() != ShaderClass::DSTBLEND_ZERO) && (SphereShader.Get_Alpha_Test() == ShaderClass::ALPHATEST_DISABLE) && (WW3D::Is_Sorting_Enabled());
- 	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8;
+	const unsigned int buffer_type = sort ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC;
 
 	DynamicVBAccessClass vb(buffer_type, dynamic_fvf_type, mesh.Vertex_ct);
 	{
@@ -1364,6 +1365,8 @@ fan_size(0),
 fans(nullptr),
 face_ct(0),
 tri_poly(nullptr),
+dcg(nullptr),
+IsAdditive(false),
 inverse_alpha(false)
 {
 	// compute # of vertices
@@ -1401,6 +1404,8 @@ fan_size(0),
 fans(nullptr),
 face_ct(0),
 tri_poly(nullptr),
+dcg(nullptr),
+IsAdditive(false),
 inverse_alpha(false)
 {
 
@@ -1677,7 +1682,7 @@ void SphereMeshClass::Generate(float radius, int slices, int stacks)
 	}
 
 	// Make Sure ptr is where I expect it to be
-	WWASSERT(((int)out) == ((int)(tri_poly + face_ct)));
+	WWASSERT(out == (tri_poly + face_ct));
 
 	//
 	//	Fill in the DCG array

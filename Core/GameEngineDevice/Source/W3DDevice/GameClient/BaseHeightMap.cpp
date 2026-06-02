@@ -83,6 +83,12 @@
 #include "W3DDevice/GameClient/W3DShroud.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/vertexbuffer.h"
+#if !defined(GGC_BGFX_STANDALONE)
+#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx8vertexbuffer.h"
+#endif
 #include "WW3D2/renderdebugstats.h"
 #include "WW3D2/light.h"
 #include "WW3D2/scene.h"
@@ -1719,33 +1725,27 @@ void BaseHeightMapRenderObjClass::initDestAlphaLUT()
 	if (!m_destAlphaTexture)
 		return;
 
-	SurfaceClass *surf=m_destAlphaTexture->Get_Surface_Level();
-
-	if (surf)
+	TextureClass::MutableTextureMipView mip = m_destAlphaTexture->Begin_Mip_Write(0);
+	if (mip.Is_Valid() && mip.Format == WW3D_FORMAT_A8R8G8B8 && mip.Width >= 256)
 	{
-		Int pitch;
-		UnsignedInt *pData=(UnsignedInt*)surf->Lock(&pitch);
+		UnsignedInt *pData = reinterpret_cast<UnsignedInt *>(mip.Data);
 
 		Int maxOpacity=(Int)(TheWaterTransparency->m_minWaterOpacity * 255.0f);
 		Int alpha;
 
-		if (pData)
+		// Fill texture with alpha gradient.
+		for (Int x=0; x<256; x++)
 		{
-			//Fill texture with alpha gradient
-			for (Int x=0; x<256; x++)
-			{
-				alpha = x;
-				if (alpha > maxOpacity)
-					alpha = maxOpacity;
-				*pData=(alpha<<24)|0x00ffffff;
-				pData++;
-			}
-			surf->Unlock();
+			alpha = x;
+			if (alpha > maxOpacity)
+				alpha = maxOpacity;
+			*pData=(alpha<<24)|0x00ffffff;
+			pData++;
 		}
+		m_destAlphaTexture->End_Mip_Write(0);
 
 		m_destAlphaTexture->Get_Filter().Set_U_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
 		m_destAlphaTexture->Get_Filter().Set_V_Addr_Mode(TextureFilterClass::TEXTURE_ADDRESS_CLAMP);
-		REF_PTR_RELEASE(surf);
 		m_currentMinWaterOpacity = TheWaterTransparency->m_minWaterOpacity;
 	}
 }
@@ -1865,8 +1865,8 @@ void BaseHeightMapRenderObjClass::freeScorchBuffers()
 //=============================================================================
 void BaseHeightMapRenderObjClass::allocateScorchBuffers()
 {
-	m_vertexScorch=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,MAX_SCORCH_VERTEX,DX8VertexBufferClass::USAGE_DEFAULT));
-	m_indexScorch=NEW_REF(DX8IndexBufferClass,(MAX_SCORCH_INDEX));
+	m_vertexScorch=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,MAX_SCORCH_VERTEX,RenderVertexBufferClass::USAGE_DEFAULT));
+	m_indexScorch=NEW_REF(RenderIndexBufferClass,(MAX_SCORCH_INDEX));
 	m_scorchTexture=NEW ScorchTextureClass;
 	m_scorchesInBuffer = 0; // If we just allocated the buffers, we got no scorches in the buffer.
 	m_curNumScorchVertices=0;
@@ -1899,11 +1899,11 @@ void BaseHeightMapRenderObjClass::updateScorches()
 	}
 	m_curNumScorchVertices = 0;
 	m_curNumScorchIndices = 0;
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexScorch);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexScorch);
 	UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 	UnsignedShort *curIb = ib;
 
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexScorch);
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexScorch);
 	VertexFormatXYZDUV1 *vb = (VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	VertexFormatXYZDUV1 *curVb = vb;
 
@@ -2506,8 +2506,8 @@ void BaseHeightMapRenderObjClass::renderShoreLines(CameraClass *pCamera)
 
 	while (j != m_numShoreLineTiles)
 	{
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
 
 		{	//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
@@ -2692,8 +2692,8 @@ void BaseHeightMapRenderObjClass::renderShoreLinesSorted(CameraClass *pCamera)
 
 	while (!isDone)
 	{
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
-		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC_DX8,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,DEFAULT_MAX_BATCH_SHORELINE_TILES*4);
+		DynamicIBAccessClass ib_access(BUFFER_TYPE_DYNAMIC,DEFAULT_MAX_BATCH_SHORELINE_TILES*6);
 
 		{	//Need to put this in another code block so vb/ib gets automatically locked/unlocked by destructors
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);

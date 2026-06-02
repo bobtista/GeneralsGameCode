@@ -42,6 +42,7 @@
 #include "dx8wrapper.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+#include "renderbufferclasses.h"
 #include "sphere.h"
 #include "thread.h"
 #include "wwmemlog.h"
@@ -53,17 +54,17 @@
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
 
-#define DEFAULT_IB_SIZE 5000
+static constexpr unsigned short kDefaultDynamicIndexBufferSize = 5000;
 
 static bool _DynamicSortingIndexArrayInUse=false;
 static SortingIndexBufferClass* _DynamicSortingIndexArray;
 static unsigned short _DynamicSortingIndexArraySize=0;
 static unsigned short _DynamicSortingIndexArrayOffset=0;
 
-static bool _DynamicDX8IndexBufferInUse=false;
-static DX8IndexBufferClass* _DynamicDX8IndexBuffer=nullptr;
-static unsigned short _DynamicDX8IndexBufferSize=DEFAULT_IB_SIZE;
-static unsigned short _DynamicDX8IndexBufferOffset=0;
+static bool _DynamicBackendIndexBufferInUse=false;
+static RenderIndexBufferClass* _DynamicBackendIndexBuffer=nullptr;
+static unsigned short _DynamicBackendIndexBufferSize=kDefaultDynamicIndexBufferSize;
+static unsigned short _DynamicBackendIndexBufferOffset=0;
 
 static int _IndexBufferCount;
 static int _IndexBufferTotalIndices;
@@ -116,7 +117,7 @@ IndexBufferClass::IndexBufferClass(unsigned type_, unsigned short index_count_)
 		m_backendStaticEligible(false)
 {
 	m_backendHandle = kInvalidRenderResource;
-	WWASSERT(type==BUFFER_TYPE_DX8 || type==BUFFER_TYPE_SORTING);
+	WWASSERT(type==BUFFER_TYPE_STATIC || type==BUFFER_TYPE_SORTING);
 	WWASSERT(index_count);
 
 	_IndexBufferCount++;
@@ -222,14 +223,14 @@ void IndexBufferClass::Copy(unsigned int* indices,unsigned first_index,unsigned 
 	WWASSERT(indices);
 
 	if (first_index) {
-		DX8IndexBufferClass::AppendLockClass l(this,first_index,count);
+		IndexBufferClass::AppendLockClass l(this,first_index,count);
 		unsigned short* inds=l.Get_Index_Array();
 		for (unsigned v=0;v<count;++v) {
 			*inds++=(unsigned short)(*indices++);
 		}
 	}
 	else {
-		DX8IndexBufferClass::WriteLockClass l(this);
+		IndexBufferClass::WriteLockClass l(this);
 		unsigned short* inds=l.Get_Index_Array();
 		for (unsigned v=0;v<count;++v) {
 			*inds++=(unsigned short)(*indices++);
@@ -244,14 +245,14 @@ void IndexBufferClass::Copy(unsigned short* indices,unsigned first_index,unsigne
 	WWASSERT(indices);
 
 	if (first_index) {
-		DX8IndexBufferClass::AppendLockClass l(this,first_index,count);
+		IndexBufferClass::AppendLockClass l(this,first_index,count);
 		unsigned short* inds=l.Get_Index_Array();
 		for (unsigned v=0;v<count;++v) {
 			*inds++=*indices++;
 		}
 	}
 	else {
-		DX8IndexBufferClass::WriteLockClass l(this);
+		IndexBufferClass::WriteLockClass l(this);
 		unsigned short* inds=l.Get_Index_Array();
 		for (unsigned v=0;v<count;++v) {
 			*inds++=*indices++;
@@ -272,7 +273,7 @@ IndexBufferClass::WriteLockClass::WriteLockClass(IndexBufferClass* index_buffer_
 	WWASSERT(!index_buffer->Engine_Refs());
 	index_buffer->Add_Ref();
 	switch (index_buffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
@@ -314,15 +315,15 @@ IndexBufferClass::WriteLockClass::~WriteLockClass()
 	// BUFFER_TYPE_SORTING so sorting FVF category containers feed their
 	// shared IB into the bgfx dynamic IB cache alongside the rigid path.
 		if (indices != NULL &&
-			(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
+			(index_buffer->Type() == BUFFER_TYPE_STATIC || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
 			const unsigned int total_bytes = index_buffer->Get_Index_Count() * sizeof(unsigned short);
 			index_buffer->Update_CPU_Buffer_Data(0, indices, total_bytes);
 			if (g_renderBackend != NULL) {
-				g_renderBackend->Capture_Index_Data(index_buffer, indices, total_bytes);
+				g_renderBackend->Upload_Index_Buffer_Data(index_buffer, indices, total_bytes);
 			}
 		}
 	switch (index_buffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
@@ -353,7 +354,7 @@ IndexBufferClass::AppendLockClass::AppendLockClass(IndexBufferClass* index_buffe
 	WWASSERT(!index_buffer->Engine_Refs());
 	index_buffer->Add_Ref();
 	switch (index_buffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
@@ -391,15 +392,15 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 	// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.10 capture
 	// sorting IB sub-range writes for sorting FVF category containers.
 		if (indices != NULL &&
-			(index_buffer->Type() == BUFFER_TYPE_DX8 || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
+			(index_buffer->Type() == BUFFER_TYPE_STATIC || index_buffer->Type() == BUFFER_TYPE_SORTING)) {
 			const unsigned int size_bytes = AppendIndexRange * sizeof(unsigned short);
 			index_buffer->Update_CPU_Buffer_Data(AppendStartIndex * sizeof(unsigned short), indices, size_bytes);
 			if (g_renderBackend != NULL) {
-				g_renderBackend->Capture_Index_Sub_Range(index_buffer, indices, AppendStartIndex, size_bytes);
+				g_renderBackend->Upload_Index_Buffer_Sub_Range(index_buffer, indices, AppendStartIndex, size_bytes);
 			}
 		}
 	switch (index_buffer->Type()) {
-	case BUFFER_TYPE_DX8:
+	case BUFFER_TYPE_STATIC:
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
 		if (LegacyIndexBuffer *legacy = Legacy_Index_Buffer(static_cast<DX8IndexBufferClass*>(index_buffer))) {
@@ -424,13 +425,13 @@ IndexBufferClass::AppendLockClass::~AppendLockClass()
 
 DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType usage)
 	:
-	IndexBufferClass(BUFFER_TYPE_DX8,index_count_)
+	IndexBufferClass(BUFFER_TYPE_STATIC,index_count_)
 {
 	DX8_THREAD_ASSERT();
 	WWASSERT(index_count);
 	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
 	if (g_renderBackend != nullptr && !g_renderBackend->Requires_Legacy_Buffer_Resources()) {
-		m_backendHandle = g_renderBackend->Register_Loaded_Index_Buffer(this);
+		m_backendHandle = g_renderBackend->Register_Index_Buffer_Resource(this);
 		return;
 	}
 
@@ -455,7 +456,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 	if (SUCCEEDED(ret)) {
 		// Phase 5 Stage 2: populate backend-neutral handle.
 		if (g_renderBackend != nullptr) {
-			m_backendHandle = g_renderBackend->Register_Loaded_Index_Buffer(this);
+			m_backendHandle = g_renderBackend->Register_Index_Buffer_Resource(this);
 		}
 		return;
 	}
@@ -483,7 +484,7 @@ DX8IndexBufferClass::DX8IndexBufferClass(unsigned short index_count_,UsageType u
 	if (SUCCEEDED(ret)) {
 		WWDEBUG_SAY(("...Index buffer creation successful"));
 		if (g_renderBackend != nullptr) {
-			m_backendHandle = g_renderBackend->Register_Loaded_Index_Buffer(this);
+			m_backendHandle = g_renderBackend->Register_Index_Buffer_Resource(this);
 		}
 	}
 
@@ -507,6 +508,30 @@ DX8IndexBufferClass::~DX8IndexBufferClass()
 	}
 #endif
 }
+
+// ----------------------------------------------------------------------------
+
+#if defined(GGC_BGFX_STANDALONE)
+RenderIndexBufferClass::RenderIndexBufferClass(unsigned short index_count_, UsageType usage)
+	:
+	IndexBufferClass(BUFFER_TYPE_STATIC, index_count_)
+{
+	DX8_THREAD_ASSERT();
+	WWASSERT(index_count);
+	Set_Backend_Static_Eligible((usage & USAGE_DYNAMIC) == 0);
+	if (g_renderBackend != nullptr) {
+		m_backendHandle = g_renderBackend->Register_Index_Buffer_Resource(this);
+	}
+}
+
+RenderIndexBufferClass::~RenderIndexBufferClass()
+{
+	if (m_backendHandle != kInvalidRenderResource && g_renderBackend != nullptr) {
+		g_renderBackend->Destroy_Resource(m_backendHandle);
+		m_backendHandle = kInvalidRenderResource;
+	}
+}
+#endif
 
 // ----------------------------------------------------------------------------
 //
@@ -543,9 +568,9 @@ DynamicIBAccessClass::DynamicIBAccessClass(unsigned short type_, unsigned short 
 	IndexBuffer(nullptr),
 	Type(type_)
 {
-	WWASSERT(Type==BUFFER_TYPE_DYNAMIC_DX8 || Type==BUFFER_TYPE_DYNAMIC_SORTING);
-	if (Type==BUFFER_TYPE_DYNAMIC_DX8) {
-		Allocate_DX8_Dynamic_Buffer();
+	WWASSERT(Type==BUFFER_TYPE_DYNAMIC || Type==BUFFER_TYPE_DYNAMIC_SORTING);
+	if (Type==BUFFER_TYPE_DYNAMIC) {
+		Allocate_Backend_Dynamic_Buffer();
 	}
 	else {
 		Allocate_Sorting_Dynamic_Buffer();
@@ -555,9 +580,9 @@ DynamicIBAccessClass::DynamicIBAccessClass(unsigned short type_, unsigned short 
 DynamicIBAccessClass::~DynamicIBAccessClass()
 {
 	REF_PTR_RELEASE(IndexBuffer);
-	if (Type==BUFFER_TYPE_DYNAMIC_DX8) {
-		_DynamicDX8IndexBufferInUse=false;
-		_DynamicDX8IndexBufferOffset+=IndexCount;
+	if (Type==BUFFER_TYPE_DYNAMIC) {
+		_DynamicBackendIndexBufferInUse=false;
+		_DynamicBackendIndexBufferOffset+=IndexCount;
 	}
 	else {
 		_DynamicSortingIndexArrayInUse=false;
@@ -567,11 +592,11 @@ DynamicIBAccessClass::~DynamicIBAccessClass()
 
 void DynamicIBAccessClass::_Deinit()
 {
-	WWASSERT ((_DynamicDX8IndexBuffer == nullptr) || (_DynamicDX8IndexBuffer->Num_Refs() == 1));
-	REF_PTR_RELEASE(_DynamicDX8IndexBuffer);
-	_DynamicDX8IndexBufferInUse=false;
-	_DynamicDX8IndexBufferSize=DEFAULT_IB_SIZE;
-	_DynamicDX8IndexBufferOffset=0;
+	WWASSERT ((_DynamicBackendIndexBuffer == nullptr) || (_DynamicBackendIndexBuffer->Num_Refs() == 1));
+	REF_PTR_RELEASE(_DynamicBackendIndexBuffer);
+	_DynamicBackendIndexBufferInUse=false;
+	_DynamicBackendIndexBufferSize=kDefaultDynamicIndexBufferSize;
+	_DynamicBackendIndexBufferOffset=0;
 
 	WWASSERT ((_DynamicSortingIndexArray == nullptr) || (_DynamicSortingIndexArray->Num_Refs() == 1));
 	REF_PTR_RELEASE(_DynamicSortingIndexArray);
@@ -588,12 +613,14 @@ void DynamicIBAccessClass::_Deinit()
 
 DynamicIBAccessClass::WriteLockClass::WriteLockClass(DynamicIBAccessClass* ib_access_)
 	:
-	DynamicIBAccess(ib_access_)
+	DynamicIBAccess(ib_access_),
+	Indices(NULL),
+	DirectBackendWrite(false)
 {
 	DX8_THREAD_ASSERT();
 	DynamicIBAccess->IndexBuffer->Add_Ref();
 	switch (DynamicIBAccess->Get_Type()) {
-	case BUFFER_TYPE_DYNAMIC_DX8:
+	case BUFFER_TYPE_DYNAMIC:
 		WWASSERT(DynamicIBAccess);
 //		WWASSERT(!dynamic_dx8_index_buffer->Engine_Refs());
 #if !defined(GGC_BGFX_STANDALONE)
@@ -607,9 +634,18 @@ DynamicIBAccessClass::WriteLockClass::WriteLockClass(DynamicIBAccessClass* ib_ac
 		} else
 #endif
 		{
-			Indices = static_cast<unsigned short *>(DynamicIBAccess->IndexBuffer->Lock_CPU_Buffer_Data(
-				DynamicIBAccess->IndexBufferOffset*sizeof(WORD),
-				DynamicIBAccess->Get_Index_Count()*sizeof(WORD)));
+			const unsigned int ib_bytes = DynamicIBAccess->Get_Index_Count() * sizeof(unsigned short);
+			if (g_renderBackend != NULL) {
+				Indices = static_cast<unsigned short *>(
+					g_renderBackend->Begin_Dynamic_Index_Write(DynamicIBAccess, ib_bytes));
+			}
+			if (Indices != NULL) {
+				DirectBackendWrite = true;
+			} else {
+				Indices = static_cast<unsigned short *>(DynamicIBAccess->IndexBuffer->Lock_CPU_Buffer_Data(
+					DynamicIBAccess->IndexBufferOffset*sizeof(WORD),
+					ib_bytes));
+			}
 		}
 		break;
 	case BUFFER_TYPE_DYNAMIC_SORTING:
@@ -626,13 +662,17 @@ DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 {
 	DX8_THREAD_ASSERT();
 	switch (DynamicIBAccess->Get_Type()) {
-	case BUFFER_TYPE_DYNAMIC_DX8:
+	case BUFFER_TYPE_DYNAMIC:
 		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.2
 		// write-side capture for bgfx backend. Copy locked sub-range
 		// into a bgfx transient IB before Unlock.
 		if (g_renderBackend != NULL && Indices != NULL) {
 			const unsigned int total_bytes = DynamicIBAccess->Get_Index_Count() * sizeof(unsigned short);
-			g_renderBackend->Capture_Dynamic_Index_Data(DynamicIBAccess, Indices, total_bytes);
+			if (DirectBackendWrite) {
+				g_renderBackend->End_Dynamic_Index_Write(DynamicIBAccess, Indices, total_bytes);
+			} else {
+				g_renderBackend->Capture_Dynamic_Index_Data(DynamicIBAccess, Indices, total_bytes);
+			}
 		}
 #if !defined(GGC_BGFX_STANDALONE)
 		DX8_Assert();
@@ -656,40 +696,40 @@ DynamicIBAccessClass::WriteLockClass::~WriteLockClass()
 //
 // ----------------------------------------------------------------------------
 
-void DynamicIBAccessClass::Allocate_DX8_Dynamic_Buffer()
+void DynamicIBAccessClass::Allocate_Backend_Dynamic_Buffer()
 {
 	WWMEMLOG(MEM_RENDERER);
-	WWASSERT(!_DynamicDX8IndexBufferInUse);
-	_DynamicDX8IndexBufferInUse=true;
+	WWASSERT(!_DynamicBackendIndexBufferInUse);
+	_DynamicBackendIndexBufferInUse=true;
 
 	// If requesting more indices than dynamic index buffer can fit, delete the ib
 	// and adjust the size to the new count.
-	if (IndexCount>_DynamicDX8IndexBufferSize) {
-		REF_PTR_RELEASE(_DynamicDX8IndexBuffer);
-		_DynamicDX8IndexBufferSize=IndexCount;
-		if (_DynamicDX8IndexBufferSize<DEFAULT_IB_SIZE) _DynamicDX8IndexBufferSize=DEFAULT_IB_SIZE;
+	if (IndexCount>_DynamicBackendIndexBufferSize) {
+		REF_PTR_RELEASE(_DynamicBackendIndexBuffer);
+		_DynamicBackendIndexBufferSize=IndexCount;
+		if (_DynamicBackendIndexBufferSize<kDefaultDynamicIndexBufferSize) _DynamicBackendIndexBufferSize=kDefaultDynamicIndexBufferSize;
 	}
 
 	// Create a new vb if one doesn't exist currently
-	if (!_DynamicDX8IndexBuffer) {
-		unsigned usage=DX8IndexBufferClass::USAGE_DYNAMIC;
+	if (!_DynamicBackendIndexBuffer) {
+		unsigned usage=RenderIndexBufferClass::USAGE_DYNAMIC;
 		if (g_renderBackend && g_renderBackend->Supports_NPatches()) {
-			usage|=DX8IndexBufferClass::USAGE_NPATCHES;
+			usage|=RenderIndexBufferClass::USAGE_NPATCHES;
 		}
 
-		_DynamicDX8IndexBuffer=NEW_REF(DX8IndexBufferClass,(
-			_DynamicDX8IndexBufferSize,
-			(DX8IndexBufferClass::UsageType)usage));
-		_DynamicDX8IndexBufferOffset=0;
+		_DynamicBackendIndexBuffer=NEW_REF(RenderIndexBufferClass,(
+			_DynamicBackendIndexBufferSize,
+			(RenderIndexBufferClass::UsageType)usage));
+		_DynamicBackendIndexBufferOffset=0;
 	}
 
 	// Any room at the end of the buffer?
-	if (((unsigned)IndexCount+_DynamicDX8IndexBufferOffset)>_DynamicDX8IndexBufferSize) {
-		_DynamicDX8IndexBufferOffset=0;
+	if (((unsigned)IndexCount+_DynamicBackendIndexBufferOffset)>_DynamicBackendIndexBufferSize) {
+		_DynamicBackendIndexBufferOffset=0;
 	}
 
-	REF_PTR_SET(IndexBuffer,_DynamicDX8IndexBuffer);
-	IndexBufferOffset=_DynamicDX8IndexBufferOffset;
+	REF_PTR_SET(IndexBuffer,_DynamicBackendIndexBuffer);
+	IndexBufferOffset=_DynamicBackendIndexBufferOffset;
 }
 
 void DynamicIBAccessClass::Allocate_Sorting_Dynamic_Buffer()
@@ -703,7 +743,7 @@ void DynamicIBAccessClass::Allocate_Sorting_Dynamic_Buffer()
 	if (new_index_count>_DynamicSortingIndexArraySize) {
 		REF_PTR_RELEASE(_DynamicSortingIndexArray);
 		_DynamicSortingIndexArraySize=new_index_count;
-		if (_DynamicSortingIndexArraySize<DEFAULT_IB_SIZE) _DynamicSortingIndexArraySize=DEFAULT_IB_SIZE;
+		if (_DynamicSortingIndexArraySize<kDefaultDynamicIndexBufferSize) _DynamicSortingIndexArraySize=kDefaultDynamicIndexBufferSize;
 	}
 
 	if (!_DynamicSortingIndexArray) {
@@ -718,10 +758,10 @@ void DynamicIBAccessClass::Allocate_Sorting_Dynamic_Buffer()
 void DynamicIBAccessClass::_Reset(bool frame_changed)
 {
 	_DynamicSortingIndexArrayOffset=0;
-	if (frame_changed) _DynamicDX8IndexBufferOffset=0;
+	if (frame_changed) _DynamicBackendIndexBufferOffset=0;
 }
 
 unsigned short DynamicIBAccessClass::Get_Default_Index_Count()
 {
-	return _DynamicDX8IndexBufferSize;
+	return _DynamicBackendIndexBufferSize;
 }
