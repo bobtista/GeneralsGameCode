@@ -33,6 +33,7 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 // SYSTEM INCLUDES ////////////////////////////////////////////////////////////////////////////////
+#include <stdio.h>
 #include <stdlib.h>
 #include <windows.h>
 
@@ -273,6 +274,20 @@ void W3DView::setOrigin( Int x, Int y)
 #define MIN_CAPPED_ZOOM (0.5f) //WST 10.19.2002. JSC integrated 5/20/03.
 void W3DView::buildCameraPosition( Vector3& sourcePos, Vector3& targetPos )
 {
+	// TheSuperHackers @info bobtista 31/05/2026 Authoritative client-side zoom override for headless
+	// diagnostics. This is the latest point each client frame where m_zoom is consumed to build the
+	// camera, so forcing it here bypasses every zoom-limit clamp and desired-height recompute.
+	if (const char *ggcForceZoom = getenv("GGC_FORCE_ZOOM"))
+	{
+		m_zoom = (Real)atof(ggcForceZoom);
+		static Bool s_ggcForceZoomLogged = false;
+		if (!s_ggcForceZoomLogged)
+		{
+			s_ggcForceZoomLogged = true;
+			fprintf(stderr, "[GGC_FORCE_ZOOM] applied zoom=%.3f\n", m_zoom);
+		}
+	}
+
 	const Real zoom = getZoom();
 	const Real angle = getAngle();
 	const Real pitch = getPitch();
