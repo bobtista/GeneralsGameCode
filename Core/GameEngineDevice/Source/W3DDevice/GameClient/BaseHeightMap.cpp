@@ -1884,7 +1884,13 @@ void BaseHeightMapRenderObjClass::allocateScorchBuffers()
 //=============================================================================
 void BaseHeightMapRenderObjClass::updateScorches()
 {
-	if (m_scorchesInBuffer > 1) {
+	// TheSuperHackers @bugfix bobtista 02/06/2026 Skip the rebuild when the buffer already
+	// reflects every current scorch. The old `> 1` test never matched when exactly one scorch
+	// existed, so updateScorches re-locked and re-uploaded the (identical) 8194-vertex /
+	// 49164-index buffers every frame. addScorch resets m_scorchesInBuffer to 0 to force a
+	// rebuild, so "buffer holds all scorches" is m_scorchesInBuffer == m_numScorches. Harmless
+	// on DX8 (cheap managed re-lock) but on bgfx it recreated an immutable GPU buffer per frame.
+	if (m_scorchesInBuffer == m_numScorches) {
 		return;
 	}
 	if (m_numScorches==0) {
