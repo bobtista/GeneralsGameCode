@@ -50,11 +50,12 @@ class NetPacket : public MemoryPoolObject
 	MEMORY_POOL_GLUE_WITH_USERLOOKUP_CREATE(NetPacket, "NetPacket")
 public:
 	NetPacket();
-	NetPacket(TransportMessage* msg);
+	NetPacket(const TransportMessage& msg);
 	// virtual ~NetPacket();
 
 	void init();
 	void reset();
+	void CopyTransportMessage(const TransportMessage& msg);
 	void setAddress(Int addr, Int port);
 	Bool addCommand(NetCommandRef* msg);
 	Int getNumCommands();

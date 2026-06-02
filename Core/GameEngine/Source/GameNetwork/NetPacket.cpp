@@ -183,14 +183,19 @@ NetPacket::NetPacket()
 /**
  * Constructor given raw transport data.
  */
-NetPacket::NetPacket(TransportMessage* msg)
+NetPacket::NetPacket(const TransportMessage& msg)
 {
 	init();
-	m_packetLen = msg->length;
-	memcpy(m_packet, msg->data, MAX_PACKET_SIZE);
+	CopyTransportMessage(msg);
+}
+
+void NetPacket::CopyTransportMessage(const TransportMessage& msg)
+{
+	m_packetLen = msg.length;
+	memcpy(m_packet, msg.data, MAX_PACKET_SIZE);
 	m_numCommands = -1;
-	m_addr = msg->addr;
-	m_port = msg->port;
+	m_addr = msg.addr;
+	m_port = msg.port;
 }
 
 /**
