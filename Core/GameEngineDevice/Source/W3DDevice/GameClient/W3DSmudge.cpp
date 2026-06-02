@@ -437,22 +437,35 @@ void W3DSmudgeManager::render(RenderInfoClass &rinfo)
 	}
 
 #if !defined(GGC_BGFX_STANDALONE)
-	//Copy the area of backbuffer occupied by smudges into an alternate buffer.
-	RenderBackendImage back_buffer_image;
-	if (m_backgroundTexture == nullptr ||
-		g_renderBackend == nullptr ||
-		!g_renderBackend->Capture_Back_Buffer_Image(0, back_buffer_image))
+	if (m_backgroundTexture == nullptr || g_renderBackend == nullptr)
 	{
 		return;
 	}
 
-	SurfaceClass::SurfaceImageData image;
-	image.Format = back_buffer_image.Format;
-	image.Width = back_buffer_image.Width;
-	image.Height = back_buffer_image.Height;
-	image.Pitch = back_buffer_image.Pitch;
-	image.Data = back_buffer_image.Bytes;
-	m_backgroundTexture->Update_Surface_Level_From_Surface(0, image);
+	// TheSuperHackers @bugfix bobtista 03/06/2026 Prefer the GPU-direct
+	// back-buffer→texture copy when the backend supports it (DX8Backend
+	// implements via CopyRects, no per-frame allocation). Commit 312261d93
+	// switched this path to Capture_Back_Buffer_Image, which on dx8 creates
+	// a fresh 4 MB IDirect3DSurface8 + 4 MB std::vector<uint8_t> per call and
+	// leaks ~78 MB/s of virtual address space — exhausting the 2 GB 32-bit
+	// limit in ~14 s of gameplay (silent stall at frame ~300). bgfx and any
+	// backend without the direct copy fall through to the image readback path.
+	if (!g_renderBackend->Copy_Back_Buffer_To_Texture(0, m_backgroundTexture))
+	{
+		RenderBackendImage back_buffer_image;
+		if (!g_renderBackend->Capture_Back_Buffer_Image(0, back_buffer_image))
+		{
+			return;
+		}
+
+		SurfaceClass::SurfaceImageData image;
+		image.Format = back_buffer_image.Format;
+		image.Width = back_buffer_image.Width;
+		image.Height = back_buffer_image.Height;
+		image.Pitch = back_buffer_image.Pitch;
+		image.Data = back_buffer_image.Bytes;
+		m_backgroundTexture->Update_Surface_Level_From_Surface(0, image);
+	}
 #else
 	if (!g_renderBackend || !g_renderBackend->Begin_Smudge_Distortion())
 		return;
