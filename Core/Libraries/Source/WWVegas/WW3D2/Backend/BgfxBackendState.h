@@ -8,7 +8,7 @@
 **	(at your option) any later version.
 */
 
-// TheSuperHackers @refactor bobtista 21/04/2026 Shared render-state structs for the bgfx backend. Included by BgfxBackend.cpp (which defines the instances) and BgfxBackendTextures.cpp (which references them). See BgfxBackend.cpp for the design rationale of the 8-struct split.
+// TheSuperHackers @refactor bobtista 21/04/2026 Shared render-state structs for the bgfx backend. Included by BgfxBackend.cpp (which defines the instances) and BgfxBackendTextures.cpp (which references them).
 #pragma once
 
 #include <cstdint>
