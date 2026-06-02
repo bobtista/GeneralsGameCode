@@ -159,17 +159,17 @@ void Connection::sendNetCommandMsg(NetCommandMsg* msg, UnsignedByte relay)
 		packet->reset();
 
 		NetCommandRef* tempref = NEW_NETCOMMANDREF(msg);
-
-		Bool msgFits = packet->addCommand(tempref);
-		deleteInstance(tempref);    // delete the temporary reference.
-		tempref = nullptr;
-
-		if (!msgFits)
+		if (packet->addCommand(tempref))
 		{
-			NetCommandRef* origref = NEW_NETCOMMANDREF(msg);
-			origref->setRelay(relay);
+			deleteInstance(tempref);
+			tempref = nullptr;
+		}
+		else
+		{
+			tempref->setRelay(relay);
+
 			// the message doesn't fit in a single packet, need to split it up.
-			NetPacketList packetList = NetPacket::ConstructBigCommandPacketList(origref);
+			NetPacketList packetList = NetPacket::ConstructBigCommandPacketList(tempref);
 			NetPacketListIter tempPacketPtr = packetList.begin();
 
 			while (tempPacketPtr != packetList.end())
@@ -194,8 +194,8 @@ void Connection::sendNetCommandMsg(NetCommandMsg* msg, UnsignedByte relay)
 				list = nullptr;
 			}
 
-			deleteInstance(origref);
-			origref = nullptr;
+			deleteInstance(tempref);
+			tempref = nullptr;
 
 			return;
 		}
