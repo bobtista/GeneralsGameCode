@@ -72,12 +72,11 @@ uniform vec4 u_zBias; // .x = clip-z offset applied in the vertex shader
 // Multiplier applied to shadowed pixels. 1.0 = unshadowed, 0.0 = fully black; we darken to 60% for visible but not crushed shadows.
 #define SHADOW_DARKNESS 0.6
 
-// Blob shadow under infantry uses a smoothstep over the tex0*diffuse alpha; below this the pixel is treated as fully outside the blob mask.
-#define BLOB_MASK_ALPHA_LOW   0.10
-// Above this we're inside the densest part of the blob; smoothstep flattens to 1.0.
-#define BLOB_MASK_ALPHA_HIGH  0.50
-// Maximum darkening applied at the blob center; clamps blob shadow contribution so it remains a visible-but-subtle smudge.
-#define BLOB_MASK_MAX_DARKNESS 0.4
+// Maximum darkening applied at the blob center under the multiplicative blend.
+// The blob darkening is driven directly by ShadowI's soft alpha (no smoothstep):
+// the alpha over the coarse heightmap receiver is mostly below 0.5, so a smoothstep
+// gate crushed it to nothing and made infantry shadows invisible on bgfx.
+#define BLOB_MASK_MAX_DARKNESS 0.7
 
 bool alphaTestPass(float alpha, float ref, float func)
 {
@@ -317,13 +316,28 @@ void main()
 		return;
 	}
 
-	if (u_projectedDecalMode.x > 0.5
-		&& (stage0UV.x < 0.0 || stage0UV.x > 1.0 || stage0UV.y < 0.0 || stage0UV.y > 1.0))
+	vec2 projectedDecalUV = v_texcoord0;
+	vec4 projectedDecalTex = tex0;
+	if (u_projectedDecalMode.x > 0.5)
 	{
-		// W3D projects decals onto terrain cell meshes that can extend beyond
-		// the decal image. DX8 treats that area as non-contributing; clamping the
-		// bgfx sample instead can repeat dark texture padding into blocky patches.
-		discard;
+		projectedDecalTex = texture2D(s_tex0, projectedDecalUV);
+		// TheSuperHackers @bugfix bobtista 31/05/2026 Default infantry blob shadows
+		// (mode 1) project onto a coarse heightmap receiver quad much larger than the
+		// [0,1] decal image, so most blob fragments have out-of-range UVs. Discarding
+		// them (needed for the other projected-decal modes) erased almost the whole
+		// blob, leaving infantry shadows nearly invisible. ShadowI is clamp-sampled
+		// with a transparent (alpha 0) border, so out-of-range fragments already add
+		// no darkening; keep them for the blob branch instead of discarding.
+		bool isBlobMode = u_projectedDecalMode.x > (PROJECTED_DECAL_BLOB_SHADOW - 0.5)
+			&& u_projectedDecalMode.x < (PROJECTED_DECAL_BLOB_SHADOW + 0.5);
+		if (!isBlobMode
+			&& (projectedDecalUV.x < 0.0 || projectedDecalUV.x > 1.0 || projectedDecalUV.y < 0.0 || projectedDecalUV.y > 1.0))
+		{
+			// W3D projects decals onto terrain cell meshes that can extend beyond
+			// the decal image. DX8 treats that area as non-contributing; clamping the
+			// bgfx sample instead can repeat dark texture padding into blocky patches.
+			discard;
+		}
 	}
 
 	if (u_projectedDecalMode.x > (PROJECTED_DECAL_ADDITIVE - 0.5)
@@ -335,7 +349,7 @@ void main()
 		// They are not lit meshes and must not inherit stale material,
 		// secondary-stage or blob-shadow state from the shared decal
 		// batch path.
-		vec4 projected = vec4(tex0.rgb * diffuse.rgb, 0.0);
+		vec4 projected = vec4(projectedDecalTex.rgb * diffuse.rgb, 0.0);
 		if (max(max(projected.r, projected.g), projected.b) <= ADDITIVE_MATTE_EPSILON)
 		{
 			discard;
@@ -352,27 +366,26 @@ void main()
 		// the draw's SRC_ALPHA/INV_SRC_ALPHA blend. Keep them out of the
 		// generic TSS path so stale secondary-stage/shadow state cannot turn
 		// transparent matte pixels into dark geometry.
-		float alpha = clamp(tex0.a * diffuse.a, 0.0, 1.0);
+		float alpha = clamp(projectedDecalTex.a * diffuse.a, 0.0, 1.0);
 		if (alpha <= ALPHA_MASK_EPSILON)
 		{
 			discard;
 		}
-		gl_FragColor = vec4(tex0.rgb * diffuse.rgb, alpha);
+		gl_FragColor = vec4(projectedDecalTex.rgb * diffuse.rgb, alpha);
 		return;
 	}
 
 	if (u_projectedDecalMode.x > (PROJECTED_DECAL_BLOB_SHADOW - 0.5)
 		&& u_projectedDecalMode.x < (PROJECTED_DECAL_BLOB_SHADOW + 0.5))
 	{
-		// Default infantry blobs are tiny projected shadow decals. The receiver
-		// mesh is much larger than the visible oval, and ZERO/SRC_COLOR blending
-		// makes any non-neutral source RGB darken the terrain. When a satellite
-		// reveal exposes a squad at once, low-alpha texels from those receiver
-		// triangles accumulate into long dark patches. Suppress the low-alpha
-		// padding while still letting the visible oval darken the terrain.
-		float mask = smoothstep(BLOB_MASK_ALPHA_LOW, BLOB_MASK_ALPHA_HIGH, clamp(tex0.a * diffuse.a, 0.0, 1.0)) * BLOB_MASK_MAX_DARKNESS;
-		vec3 blob = tex0.rgb * diffuse.rgb;
-		gl_FragColor = vec4(mix(vec3_splat(1.0), blob, mask), 1.0);
+		// Default infantry blobs are authored as a soft ALPHA mask (ShadowI RGB is
+		// white). Darken the terrain directly by that alpha under the ZERO/SRC_COLOR
+		// multiplicative blend; emitting (1 - mask) darkens by mask at the blob
+		// center and falls off softly to the transparent edge. No smoothstep: the
+		// alpha over the coarse heightmap receiver is mostly below 0.5, so a
+		// smoothstep gate crushed it to nothing and made the blobs invisible.
+		float mask = clamp(projectedDecalTex.a * diffuse.a, 0.0, 1.0) * BLOB_MASK_MAX_DARKNESS;
+		gl_FragColor = vec4(vec3_splat(1.0 - mask), 1.0);
 		return;
 	}
 
@@ -385,8 +398,8 @@ void main()
 		// DX8's texture/decal setup lets that padding contribute as neutral
 		// destination color; in bgfx it must be made explicit or large shadow
 		// receiver meshes stamp blocky black patches around the actual mask.
-		float mask = clamp(tex0.a * diffuse.a, 0.0, 1.0);
-		vec3 multiplier = tex0.rgb * diffuse.rgb;
+		float mask = clamp(projectedDecalTex.a * diffuse.a, 0.0, 1.0);
+		vec3 multiplier = projectedDecalTex.rgb * diffuse.rgb;
 		gl_FragColor = vec4(mix(vec3_splat(1.0), multiplier, mask), 1.0);
 		return;
 	}
