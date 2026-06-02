@@ -109,8 +109,7 @@
 #include "fs_passthrough_dx11.bin.h"
 
 // TheSuperHackers @refactor bobtista 12/04/2026 Uber shader pair.
-// Single program handles all TSS combinations via uniforms. Replaces the
-// Per-preset shader pairs.
+// Single program handles all TSS combinations via uniforms.
 #include "vs_uber_dx11.bin.h"
 #include "vs_uber_instanced_dx11.bin.h"
 #include "vs_trees_dx11.bin.h"
@@ -1617,26 +1616,9 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // source buffer pointer: copy bytes on first sight, create a bgfx buffer, destroy
 // wholesale in Shutdown.
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Switched from
-// static bgfx VB/IB handles to dynamic ones. Rigid mesh category containers
-// fill their shared VB / IB one sub-range at a time via AppendLockClass,
-// which requires in-place sub-range updates that only dynamic bgfx buffers
-// support. Full-buffer writes (WriteLockClass) also go through the same
-// dynamic path - created once, updated with bgfx::update as the engine
-// rewrites the buffer.
-// TheSuperHackers @refactor bobtista 15/04/2026 Cache entries
-// store (handle, num_verts, stride) so we can detect the case where the
-// engine destroys a VertexBufferClass and reuses the memory address for
-// a new VB with different dimensions — otherwise we'd hand back a stale
-// handle and bgfx would truncate writes / crash on staging creation.
-// TheSuperHackers @fix bobtista 19/04/2026 Track raw texture pointers
-// and dimensions alongside TextureClass* to detect stale cache entries
-// (address reuse) and enable in-place updates for same-sized textures.
-// TheSuperHackers @fix bobtista 19/04/2026 Deferred texture destruction.
-// When a stale texture cache entry is detected (raw pointer changed), the
-// old bgfx handle can't be destroyed immediately because in-flight draws
-// may still reference it. Double-buffer: collect in current frame, destroy
-// after the NEXT bgfx::frame() (2 frames later = guaranteed safe).
+// TheSuperHackers @refactor bobtista 11/04/2026 Dynamic bgfx VB/IB handles: AppendLockClass
+// sub-range writes need in-place updates only dynamic buffers support. Cache entries store
+// dimensions to detect address reuse; stale handles are destroyed two frames later.
 
 // The bgfx texture currently bound to stage 0 by Set_Texture.
 
@@ -1942,9 +1924,9 @@ static bool IsReadableSceneDepthEnabled()
     return softParticleParams[0] > 0.5f;
 }
 
-// TheSuperHackers @refactor bobtista 16/04/2026 Aspect correction
-// is no longer needed because bgfx renders into the same window as the game.
-// The engine's projection matrix already matches the bgfx framebuffer aspect.
+// TheSuperHackers @refactor bobtista 16/04/2026 No aspect correction needed:
+// bgfx renders into the game's window and the engine's projection matrix
+// already matches the framebuffer aspect.
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Texture
 // capture. Unlike vertex buffers, W3D textures default to POOL_MANAGED,
