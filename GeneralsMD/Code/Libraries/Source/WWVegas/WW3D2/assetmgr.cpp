@@ -306,7 +306,7 @@ WW3DAssetManager::~WW3DAssetManager()
 
 static void Create_Number_String(StringClass& number, unsigned value)
 {
-	unsigned miljoonat=value/(1024*1028);
+	unsigned miljoonat=value/(1024*1024);
 	unsigned tuhannet=(value/1024)%1024;
 	unsigned ykkoset=value%1024;
 	if (miljoonat) {

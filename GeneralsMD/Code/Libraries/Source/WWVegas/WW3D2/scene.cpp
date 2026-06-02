@@ -64,6 +64,7 @@
 #include "scene.h"
 #include "plane.h"
 #include "camera.h"
+#include "lightenvironment.h"
 #include "ww3d.h"
 #include "rinfo.h"
 #include "chunkio.h"

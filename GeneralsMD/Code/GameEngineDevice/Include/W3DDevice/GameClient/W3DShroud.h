@@ -113,7 +113,7 @@ protected:
 	Real m_cellWidth;						///<spacing between adjacent cells
 	Real m_cellHeight;						///<spacing between adjacent cells
 	Byte *m_shroudData;						///<holds amount of shroud per cell.
-	// TheSuperHackers @refactor bobtista 10/04/2026 Phase 3C migrated this from
+	// TheSuperHackers @refactor bobtista 10/04/2026  migrated this from
 	// raw surface ownership to SurfaceClass so the shroud system no longer
 	// touches the legacy surface API directly.
 	SurfaceClass *m_pSrcTexture;			///<stores sysmem copy of visible shroud.
@@ -128,6 +128,10 @@ protected:
 	Bool m_drawFogOfWar;					///<switch to draw alternate fog style instead of solid black
 	Bool m_clearDstTexture;				///<flag indicating we must clear video memory destination texture
 	Bool m_shroudDirty;					///<true when setShroudLevel has written new data since last render
+	Int m_dirtyMinX;
+	Int m_dirtyMinY;
+	Int m_dirtyMaxX;
+	Int m_dirtyMaxY;
 	W3DShroudLevel m_boderShroudLevel;			///<color used to clear the shroud border
 	W3DShroudLevel *m_finalFogData;			///<copy of logical shroud in an easier to access array.
 	W3DShroudLevel *m_currentFogData;		///<copy of intermediate logical shroud while it's interpolated.

@@ -61,8 +61,16 @@
 #include "rinfo.h"
 #include "camera.h"
 #include "assetmgr.h"
+#include "WW3D2/dx8fvf.h"
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/indexbuffer.h"
+#include "WW3D2/renderbufferclasses.h"
+#include "WW3D2/vertexbuffer.h"
+#if !defined(GGC_BGFX_STANDALONE)
+#include "WW3D2/dx8indexbuffer.h"
+#include "WW3D2/dx8vertexbuffer.h"
+#endif
 
 //number of vertex pages allocated - allows double buffering of vertex updates.
 //while one is being rendered, another is being updated.  Improves HW parallelism.
@@ -132,9 +140,30 @@ WaterTracksObj::~WaterTracksObj()
 //=============================================================================
 WaterTracksObj::WaterTracksObj()
 {
+	m_type=WaveTypePond;
+	m_x=0;
+	m_y=0;
 	m_stageZeroTexture=nullptr;
 	m_bound=false;
 	m_initTimeOffset=0;
+	m_elapsedMs=0;
+	m_flipU=0;
+	m_nextSystem=nullptr;
+	m_prevSystem=nullptr;
+	m_waveDistance=0;
+	m_initialVelocity=0;
+	m_totalMs=0;
+	m_fadeMs=0;
+	m_waveInitialWidth=0;
+	m_waveInitialHeight=0;
+	m_waveFinalWidth=0;
+	m_waveFinalHeight=0;
+	m_timeToReachBeach=0;
+	m_frontSlowDownAcc=0;
+	m_timeToStop=0;
+	m_timeToRetreat=0;
+	m_backSlowDownAcc=0;
+	m_timeToCompress=0;
 }
 
 //=============================================================================
@@ -202,30 +231,35 @@ void WaterTracksObj::init( Real width, Real length, const Vector2 &start, const 
 	//m_startPos -= m_waveDir*m_width;
 	//move back initial tip off of wave a couple units off the final position
 	//to give it some room to travel. Travel vector is stored in m_waveDir.
-	m_waveDistance = waveTypeInfo[m_type].m_waveDistance;	//total distance traveled by wave front
+	if (m_type < WaveTypeStationary) {
+		m_waveDistance = waveTypeInfo[m_type].m_waveDistance;
+	} else {
+		m_waveDistance = 0;
+	}
 
 	m_waveDir *= m_waveDistance;
 	m_startPos -= m_waveDir;	//move start point down away from shoreline
 
-	m_initialVelocity=waveTypeInfo[m_type].m_initialVelocity;			//velocity per ms
-	m_totalMs = m_waveDistance/m_initialVelocity; //amount of time for wave to travel complete distance
+	if (m_type < WaveTypeStationary) {
+		m_initialVelocity=waveTypeInfo[m_type].m_initialVelocity;			//velocity per ms
+		m_totalMs = m_waveDistance/m_initialVelocity; //amount of time for wave to travel complete distance
 
-	m_fadeMs = waveTypeInfo[m_type].m_fadeMs;		//time for wave to fade out after it stops on beach
+		m_fadeMs = waveTypeInfo[m_type].m_fadeMs;		//time for wave to fade out after it stops on beach
 
-	m_waveInitialWidth=length * waveTypeInfo[m_type].m_initialWidthFraction;///<width of wave segment when it first appears
-	m_waveInitialHeight=m_waveInitialWidth * waveTypeInfo[m_type].m_initialHeightWidthFraction;	///<height of wave segment when it first appears
-	m_waveFinalWidth=length;	///<width of wave segment at full size
-	m_waveFinalHeight=width;		///<final height of unstretched wave
+		m_waveInitialWidth=length * waveTypeInfo[m_type].m_initialWidthFraction;///<width of wave segment when it first appears
+		m_waveInitialHeight=m_waveInitialWidth * waveTypeInfo[m_type].m_initialHeightWidthFraction;	///<height of wave segment when it first appears
+		m_waveFinalWidth=length;	///<width of wave segment at full size
+		m_waveFinalHeight=width;		///<final height of unstretched wave
 
-	//get total time for front to complete its cycle
-	m_timeToReachBeach=(m_waveDistance - m_waveFinalHeight)/m_initialVelocity;
-	m_frontSlowDownAcc= -(m_initialVelocity*m_initialVelocity)/(2*m_waveFinalHeight);	//deceleration of wave after it hits land
-	m_timeToStop = -m_initialVelocity/m_frontSlowDownAcc;
-	m_timeToRetreat = sqrt(fabs(2.0f*m_waveFinalHeight/m_frontSlowDownAcc));
-	m_totalMs = m_timeToReachBeach + m_timeToStop + m_timeToRetreat;	//total time that wave front is on screen
-	m_backSlowDownAcc = (2.0f*m_waveInitialHeight/(m_timeToStop*m_timeToStop));//((m_waveInitialHeight - m_velocity*m_timeToStop)*2.0f)/(m_timeToStop*m_timeToStop);
-	m_timeToCompress = waveTypeInfo[m_type].m_timeToCompress;	//time for back of wave to continue moving forward after front starts retreating.
-
+		//get total time for front to complete its cycle
+		m_timeToReachBeach=(m_waveDistance - m_waveFinalHeight)/m_initialVelocity;
+		m_frontSlowDownAcc= -(m_initialVelocity*m_initialVelocity)/(2*m_waveFinalHeight);	//deceleration of wave after it hits land
+		m_timeToStop = -m_initialVelocity/m_frontSlowDownAcc;
+		m_timeToRetreat = sqrt(fabs(2.0f*m_waveFinalHeight/m_frontSlowDownAcc));
+		m_totalMs = m_timeToReachBeach + m_timeToStop + m_timeToRetreat;	//total time that wave front is on screen
+		m_backSlowDownAcc = (2.0f*m_waveInitialHeight/(m_timeToStop*m_timeToStop));//((m_waveInitialHeight - m_velocity*m_timeToStop)*2.0f)/(m_timeToStop*m_timeToStop);
+		m_timeToCompress = waveTypeInfo[m_type].m_timeToCompress;	//time for back of wave to continue moving forward after front starts retreating.
+	}
 
 	if (m_type == WaveTypeStationary)
 	{	//this is a stationary wave slightly behind starting point
@@ -294,7 +328,7 @@ Int WaterTracksObj::update(Int msElapsed)
  */
 //=============================================================================
 
-Int WaterTracksObj::render(DX8VertexBufferClass	*vertexBuffer, Int batchStart)
+Int WaterTracksObj::render(RenderVertexBufferClass *vertexBuffer, Int batchStart)
 {
 	// TheSuperHackers @tweak The wave movement time step is now decoupled from the render update.
 	m_elapsedMs += TheFramePacer->getLogicTimeStepMilliseconds();
@@ -659,11 +693,11 @@ void WaterTracksRenderSystem::ReAcquireResources()
 
 	Int idxCount=(m_stripSizeY-1)*(m_stripSizeX*2+2) - 2;
 
-	m_indexBuffer=NEW_REF(DX8IndexBufferClass,(idxCount));
+	m_indexBuffer=NEW_REF(RenderIndexBufferClass,(idxCount));
 
 	// Fill up the IB
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 
 		for (i=0,j=0,k=0; i<idxCount; j++)
@@ -685,9 +719,9 @@ void WaterTracksRenderSystem::ReAcquireResources()
 		}
 	}
 
-	m_batchIndexBuffer=NEW_REF(DX8IndexBufferClass,(WATER_VB_PAGES*2*3));
+	m_batchIndexBuffer=NEW_REF(RenderIndexBufferClass,(WATER_VB_PAGES*2*3));
 	{
-		DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_batchIndexBuffer);
+		RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_batchIndexBuffer);
 		UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 
 		for (i=0; i<WATER_VB_PAGES; i++)
@@ -703,7 +737,7 @@ void WaterTracksRenderSystem::ReAcquireResources()
 		}
 	}
 
-	m_vertexBuffer=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,m_stripSizeX*m_stripSizeY*WATER_VB_PAGES,DX8VertexBufferClass::USAGE_DYNAMIC));
+	m_vertexBuffer=NEW_REF(RenderVertexBufferClass,(DX8_FVF_XYZDUV1,m_stripSizeX*m_stripSizeY*WATER_VB_PAGES,RenderVertexBufferClass::USAGE_DYNAMIC));
 	m_batchStart=0;
 }
 
@@ -836,6 +870,7 @@ void WaterTracksRenderSystem::shutdown()
 
 	}
 
+	REF_PTR_RELEASE(m_batchIndexBuffer);
 	REF_PTR_RELEASE(m_indexBuffer);
 	REF_PTR_RELEASE(m_vertexMaterialClass);
 	REF_PTR_RELEASE(m_vertexBuffer);
@@ -1078,14 +1113,12 @@ void WaterTracksRenderSystem::loadTracks()
 		file->seek(0, File::START);
 		for (Int i=0; i<trackCount; i++)
 		{
-		tryagain:
 			file->read(&startPos,sizeof(startPos));
 			file->read(&endPos,sizeof(endPos));
 			file->read(&wtype,sizeof(wtype));
-			//Check if this track already exists.
 			if (findTrack(startPos,endPos,wtype))
-			{	i++;
-				goto tryagain;
+			{
+				continue;
 			}
 
 			umod=bindTrack(wtype);

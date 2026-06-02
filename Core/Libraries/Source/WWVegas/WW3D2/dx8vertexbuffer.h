@@ -42,10 +42,7 @@
 #include "always.h"
 #include "wwdebug.h"
 #include "dx8fvf.h"
-#include "IRenderBackend.h"
-#include "RenderBufferTypes.h"
-
-const unsigned dynamic_fvf_type=DX8_FVF_FLAG_XYZ|DX8_FVF_FLAG_NORMAL|DX8_FVF_TEX2|DX8_FVF_FLAG_DIFFUSE;
+#include "vertexbuffer.h"
 
 class DX8Wrapper;
 class SortingRendererClass;
@@ -55,174 +52,6 @@ class Vector4;
 class StringClass;
 class DX8VertexBufferClass;
 class FVFInfoClass;
-class VertexBufferClass;
-struct VertexFormatXYZNDUV2;
-
-class VertexBufferLockClass
-{
-protected:
-	VertexBufferClass* VertexBuffer;
-	void* Vertices;
-
-	// This class can't be used directly, so constructor as to be protected
-	VertexBufferLockClass(VertexBufferClass* vertex_buffer_) : VertexBuffer(vertex_buffer_) {}
-public:
-	void* Get_Vertex_Array() { return Vertices; }
-};
-
-/**
-** DX8VertexBufferClass
-** This class wraps a DX8 vertex buffer.  Use the lock objects to modify or append to the vertex buffer.
-*/
-class VertexBufferClass : public RefCountClass
-{
-protected:
-	VertexBufferClass(unsigned type, unsigned FVF, unsigned short VertexCount);
-	virtual ~VertexBufferClass() override;
-public:
-
-	const FVFInfoClass& FVF_Info() const { return *fvf_info; }
-	unsigned short Get_Vertex_Count() const { return VertexCount; }
-	unsigned Type() const { return type; }
-	const unsigned char * Peek_CPU_Buffer_Data() const { return CPUBufferData; }
-	unsigned Get_CPU_Buffer_Size() const { return CPUBufferSize; }
-	bool Has_CPU_Buffer_Data() const { return CPUBufferValid; }
-	RenderResource Get_Backend_Resource() const { return m_backendHandle; }
-	bool Has_Backend_Resource() const { return m_backendHandle != kInvalidRenderResource; }
-	bool Is_Backend_Static_Eligible() const { return m_backendStaticEligible; }
-	void *Lock_CPU_Buffer_Data(unsigned byte_offset, unsigned size);
-
-	void Add_Engine_Ref() const;
-	void Release_Engine_Ref() const;
-	unsigned Engine_Refs() const { return engine_refs; }
-
-	class WriteLockClass : public VertexBufferLockClass
-	{
-	public:
-		WriteLockClass(VertexBufferClass* vertex_buffer, int flags=0);
-		~WriteLockClass();
-	};
-
-	class AppendLockClass : public VertexBufferLockClass
-	{
-	public:
-		// TheSuperHackers @refactor bobtista 15/04/2026 Phase 4I added
-		// optional `flags` (e.g. RB_LOCK_DISCARD / RB_LOCK_NOOVERWRITE)
-		// for the dynamic shadow buffer's per-batch append pattern. Default
-		// of 0 keeps existing one-shot DX8VertexBufferClass::Copy callers
-		// unchanged.
-		AppendLockClass(VertexBufferClass* vertex_buffer,unsigned start_index, unsigned index_range, unsigned flags=0);
-		~AppendLockClass();
-	protected:
-		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.6
-		// stored so the destructor can report the locked sub-range to
-		// the bgfx write-side capture hook. Not used by the dx8 path.
-		unsigned AppendStartIndex;
-		unsigned AppendIndexRange;
-	};
-
-	static unsigned Get_Total_Buffer_Count();
-	static unsigned Get_Total_Allocated_Vertices();
-	static unsigned Get_Total_Allocated_Memory();
-
-protected:
-	unsigned							type;
-	unsigned short					VertexCount;
-	mutable int						engine_refs;
-	FVFInfoClass*					fvf_info;
-	unsigned char*					CPUBufferData;
-	unsigned						CPUBufferSize;
-	bool							CPUBufferValid;
-	bool							m_backendStaticEligible;
-	// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
-	// resource handle. Set by derived classes after calling
-	// g_renderBackend->Create_Vertex_Buffer. Parallel to the class-specific
-	// legacy pointer stored in DX8VertexBufferClass::VertexBuffer, which stays
-	// populated in ref-popup builds.
-	RenderResource					m_backendHandle;
-	void Set_Backend_Static_Eligible(bool eligible) { m_backendStaticEligible = eligible; }
-	void Update_CPU_Buffer_Data(unsigned byte_offset, const void * data, unsigned size);
-};
-
-
-
-/**
-** Dynamic vertex buffer access is a wrapper to a single cycled dynamic vertex
-** buffer.
-** DynamicVBAccess gains an access to the dynamic vertex buffer and only
-** only of these are allowed at any one time.
-**
-** The dynamic fvf buffers are always of the same type.
-**
-** NOTE: Dynamic vertex buffers accessors should only be used locally!
-**
-*/
-
-class DynamicVBAccessClass
-{
-	friend DX8Wrapper;
-	friend SortingRendererClass;
-
-	const FVFInfoClass& FVFInfo;
-	unsigned Type;
-	unsigned short VertexCount;
-	unsigned short VertexBufferOffset;
-	VertexBufferClass* VertexBuffer;
-//	static VertexFormatXYZNDUV2* _Get_Sorting_Vertex_Array();
-
-	void Allocate_Sorting_Dynamic_Buffer();
-	void Allocate_DX8_Dynamic_Buffer();
-public:
-	// Type parameter can be either BUFFER_TYPE_DYNAMIC_DX8 or BUFFER_TYPE_DYNAMIC_SORTING.
-
-	// Note: Even though the constructor takes fvf as a parameter, currently the
-	// only acceptable parameter is "dynamic_fvf_type". Any other type will
-	// result to an assert.
-	DynamicVBAccessClass(unsigned type,unsigned fvf,unsigned short vertex_count);
-	~DynamicVBAccessClass();
-
-	// Access fvf
-	const FVFInfoClass& FVF_Info() const { return FVFInfo; }
-	unsigned Get_Type() const { return Type; }
-	unsigned short Get_Vertex_Count() const { return VertexCount; }
-	unsigned short Get_Vertex_Buffer_Offset() const { return VertexBufferOffset; }
-	VertexBufferClass * Get_Vertex_Buffer() const { return VertexBuffer; }
-
-	// Call at the end of the execution, or at whatever time you wish to release
-	// the recycled dynamic vertex buffer.
-	static void _Deinit();
-	static void _Reset(bool frame_changed);
-	static unsigned short Get_Default_Vertex_Count();	///<current size of dynamic vertex buffer
-
-	// To lock the vertex buffer, create instance of this write class locally.
-	// The buffer is automatically unlocked when you exit the scope.
-	class WriteLockClass// : public VertexBufferLockClass
-	{
-		DynamicVBAccessClass* DynamicVBAccess;
-		VertexFormatXYZNDUV2 * Vertices;
-	public:
-		WriteLockClass(DynamicVBAccessClass* vb_access);
-		~WriteLockClass();
-
-		// Use this function to get a pointer to the first vertex you can write into.
-		// If we ever change the format used by DynamicVBAccessClass, then the
-		// return type of this function will change and we'll easily find all code
-		// using it.
-		VertexFormatXYZNDUV2 * Get_Formatted_Vertex_Array();
-	};
-	friend WriteLockClass;
-};
-
-// ----------------------------------------------------------------------------
-
-inline VertexFormatXYZNDUV2 * DynamicVBAccessClass::WriteLockClass::Get_Formatted_Vertex_Array()
-{
-	// assert that the format of the dynamic vertex buffer is still what we think it is.
-	WWASSERT(DynamicVBAccess->VertexBuffer->FVF_Info().Get_FVF() == dynamic_fvf_type);
-	return Vertices;
-}
-
-// ----------------------------------------------------------------------------
 
 /**
 ** DX8VertexBufferClass
@@ -247,7 +76,9 @@ public:
 	DX8VertexBufferClass(const Vector3* vertices, const Vector4* diffuse, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
 	DX8VertexBufferClass(const Vector3* vertices, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
 
+#if !defined(GGC_BGFX_STANDALONE)
 	void *Get_Legacy_Vertex_Buffer() { return VertexBuffer; }
+#endif
 
 	void Copy(const Vector3* loc, unsigned first_vertex, unsigned count);
 	void Copy(const Vector3* loc, const Vector2* uv, unsigned first_vertex, unsigned count);
@@ -260,27 +91,4 @@ protected:
 	void *VertexBuffer;
 
 	void Create_Vertex_Buffer(UsageType usage);
-};
-
-
-/**
-** SortingVertexBufferClass
-** This class acts as a vertex buffer for the vertices that need to be passed to alpha renderer.
-*/
-class SortingVertexBufferClass : public VertexBufferClass
-{
-	W3DMPO_CODE(SortingVertexBufferClass)
-
-	friend DX8Wrapper;
-	friend SortingRendererClass;
-	friend VertexBufferClass::WriteLockClass;
-	friend VertexBufferClass::AppendLockClass;
-	friend DynamicVBAccessClass::WriteLockClass;
-
-	VertexFormatXYZNDUV2* VertexBuffer;
-
-protected:
-	virtual ~SortingVertexBufferClass() override;
-public:
-	SortingVertexBufferClass(unsigned short VertexCount);
 };

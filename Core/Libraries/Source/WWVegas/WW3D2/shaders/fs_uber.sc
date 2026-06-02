@@ -23,7 +23,7 @@ uniform vec4 u_lightParams[4]; // x inner range, y outer/range, z > 0.5 point, w
 uniform vec4 u_sceneAmbient;   // scene ambient color (rgb)
 uniform vec4 u_lightingEnabled; // .x > 0.5 = apply N.L lighting; else vertex is pre-lit
 uniform vec4 u_texcoordSelect; // .x > 0.5 = use v_texcoord1 for stage 0 sampling
-uniform vec4 u_texcoordSelect2; // .w > 0.5 = additive blend draw
+uniform vec4 u_texcoordSelect2; // .z > 1.5 = sorted rotor mask, .w > 0.5 = additive blend draw
 uniform vec4 u_texcoordSource; // .w selects legacy water stage-3 UV source
 uniform vec4 u_shroudParams; // xy = offset, zw = scale
 uniform vec4 u_projectedDecalMode; // .x = RenderBackendProjectedDecalMode
@@ -223,6 +223,40 @@ void main()
 	}
 	vec4 tex3 = texture2D(s_tex3, stage3UV);
 
+	if (u_texcoordSelect2.z > 2.5)
+	{
+		// Sneak Attack ground dirt is authored as a sorted translucent W3D
+		// quad. Use the texture alpha directly; inherited material opacity can
+		// be zero on this replay path and erase the broad dirt stain.
+		float alpha = clamp(tex0.a * diffuse.a, 0.0, 1.0);
+		if (alpha <= ALPHA_MASK_EPSILON)
+		{
+			discard;
+		}
+		gl_FragColor = vec4(tex0.rgb * diffuse.rgb, alpha);
+		return;
+	}
+
+	if (u_texcoordSelect2.z > 1.5)
+	{
+		// Chinook rotor blur is authored as a sorted translucent mask. Keep
+		// it out of the generic material path so stale vehicle material alpha
+		// cannot erase the cards after the sorted pool is replayed.
+		float mask = max(tex0.a, dot(tex0.rgb, LUMA_WEIGHTS));
+		float alpha = clamp(mask * diffuse.a, 0.0, 1.0);
+		if (alpha <= ALPHA_MASK_EPSILON)
+		{
+			discard;
+		}
+		vec3 color = tex0.rgb * diffuse.rgb;
+		if (max(max(color.r, color.g), color.b) <= ADDITIVE_MATTE_EPSILON)
+		{
+			color = vec3_splat(mask) * diffuse.rgb;
+		}
+		gl_FragColor = vec4(color, alpha);
+		return;
+	}
+
 	if (u_texcoordSelect.z > 0.5)
 	{
 		// Projected shroud overlays are destination multipliers. The terrain
@@ -274,6 +308,15 @@ void main()
 		}
 		gl_FragColor = water;
 		return;
+	}
+
+	if (u_projectedDecalMode.x > 0.5
+		&& (stage0UV.x < 0.0 || stage0UV.x > 1.0 || stage0UV.y < 0.0 || stage0UV.y > 1.0))
+	{
+		// W3D projects decals onto terrain cell meshes that can extend beyond
+		// the decal image. DX8 treats that area as non-contributing; clamping the
+		// bgfx sample instead can repeat dark texture padding into blocky patches.
+		discard;
 	}
 
 	if (u_projectedDecalMode.x > (PROJECTED_DECAL_ADDITIVE - 0.5)
@@ -331,9 +374,13 @@ void main()
 	{
 		// Non-blob projected shadows use W3D's preset multiplicative
 		// fixed-function shader: COLOROP=MODULATE and blend ZERO/SRC_COLOR.
-		// The texture RGB is already authored as the destination multiplier,
-		// so do not reinterpret alpha as a mask here.
-		gl_FragColor = vec4(tex0.rgb * diffuse.rgb, 1.0);
+		// Their textures can still carry black RGB in transparent padding.
+		// DX8's texture/decal setup lets that padding contribute as neutral
+		// destination color; in bgfx it must be made explicit or large shadow
+		// receiver meshes stamp blocky black patches around the actual mask.
+		float mask = clamp(tex0.a * diffuse.a, 0.0, 1.0);
+		vec3 multiplier = tex0.rgb * diffuse.rgb;
+		gl_FragColor = vec4(mix(vec3_splat(1.0), multiplier, mask), 1.0);
 		return;
 	}
 

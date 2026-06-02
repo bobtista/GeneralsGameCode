@@ -26,6 +26,11 @@
 #endif
 #include "WW3D2/IRenderBackend.h"
 #include "WW3D2/RenderBackend.h"
+#include "WW3D2/renderbufferclasses.h"
+#include "WW3D2/vertexbuffer.h"
+#if !defined(GGC_BGFX_STANDALONE)
+#include "WW3D2/dx8indexbuffer.h"
+#endif
 #include "WW3D2/rinfo.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/assetmgr.h"
@@ -208,11 +213,11 @@ Bool W3DSnowManager::ReAcquireResources()
 	}
 	else
 	{
-		m_indexBuffer=NEW_REF(DX8IndexBufferClass,(SNOW_BATCH_SIZE *6));	//allocate 2 triangles per flake, each with 3 indices.
+		m_indexBuffer=NEW_REF(RenderIndexBufferClass,(SNOW_BATCH_SIZE *6));	//allocate 2 triangles per flake, each with 3 indices.
 
 		// Fill up the IB with static vertex indices that will be used for all smudges.
 		{
-			DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
+			RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBuffer);
 			UnsignedShort *ib=lockIdxBuffer.Get_Index_Array();
 			//quad of 4 triangles:
 			//	0-----3
@@ -604,7 +609,7 @@ void W3DSnowManager::renderAsQuads(RenderInfoClass &rinfo, Int cubeOriginX, Int 
 
 		Int numberInBatch=0;
 
-		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,batchSize*4);	//allocate 4 verts per flake
+		DynamicVBAccessClass vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,batchSize*4);	//allocate 4 verts per flake
 		{
 			DynamicVBAccessClass::WriteLockClass lock(&vb_access);
 			VertexFormatXYZNDUV2* verts=lock.Get_Formatted_Vertex_Array();

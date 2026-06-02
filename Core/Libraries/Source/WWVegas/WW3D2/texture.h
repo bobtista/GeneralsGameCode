@@ -58,13 +58,15 @@ class TextureLoadTaskClass;
 class TextureClass;
 class CubeTextureClass;
 class VolumeTextureClass;
+class DX8TextureInterop;
 
 class TextureBaseClass : public RefCountClass
 {
 	friend class TextureLoader;
 	friend class LoaderThreadClass;
-	friend class DX8TextureTrackerClass;  //(gth) so it can call Poke_Texture,
+	friend class DX8TextureTrackerClass;  //(gth) so it can poke the native texture,
 	friend class DX8ZTextureTrackerClass;
+	friend class DX8TextureInterop;
 
 public:
 
@@ -136,6 +138,7 @@ public:
 	bool Is_Initialized() const { return Initialized; }
 	bool Is_Lightmap() const { return IsLightmap; }
 	bool Is_Procedural() const { return IsProcedural; }
+	bool Is_Render_Target() const { return IsRenderTarget; }
 	bool Is_Reducible() const { return IsReducible; } //can texture be reduced in resolution for LOD purposes?
 
 	static int _Get_Total_Locked_Surface_Size();
@@ -152,10 +155,6 @@ public:
 	// This utility function processes the texture reduction (used during rendering)
 	void Invalidate();
 
-		// texture accessors (dx8)
-		IDirect3DBaseTexture8 *Peek_D3D_Base_Texture() const;
-		void Set_D3D_Base_Texture(IDirect3DBaseTexture8* tex);
-		void Share_Texture_With(const TextureBaseClass *texture);
 		struct TextureMipSnapshot
 		{
 			unsigned Width;
@@ -166,12 +165,16 @@ public:
 		};
 		const std::vector<TextureMipSnapshot>& Get_CPU_Texture_Mips() const { return CPUTextureMips; }
 		bool Has_CPU_Texture_Mips() const { return !CPUTextureMips.empty(); }
+		void Release_CPU_Texture_Mips() { CPUTextureMips.clear(); CPUTextureMips.shrink_to_fit(); }
 		unsigned Get_CPU_Texture_Revision() const { return CPUTextureRevision; }
 		void Refresh_CPU_Texture_Snapshot() { Capture_CPU_Texture_Snapshot(LegacyTexture); }
+		void Share_Texture_Storage_With(const TextureBaseClass *source);
+		bool Has_Compatibility_Texture() const { return LegacyTexture != nullptr; }
 
 	PoolType Get_Pool() const { return Pool; }
 
 	bool Is_Missing_Texture();
+	void Mark_Missing_Texture(bool missing) { IsMissingTexture = missing; }
 
 	// Support for self managed textures
 	bool Is_Dirty() { WWASSERT(Pool==POOL_DEFAULT); return Dirty; };
@@ -203,22 +206,23 @@ public:
 	virtual CubeTextureClass* As_CubeTextureClass() { return nullptr; }
 	virtual VolumeTextureClass* As_VolumeTextureClass() { return nullptr; }
 
-	IDirect3DTexture8* Peek_D3D_Texture() const { return (IDirect3DTexture8*)Peek_D3D_Base_Texture(); }
-	IDirect3DVolumeTexture8* Peek_D3D_VolumeTexture() const { return (IDirect3DVolumeTexture8*)Peek_D3D_Base_Texture(); }
-	IDirect3DCubeTexture8* Peek_D3D_CubeTexture() const { return (IDirect3DCubeTexture8*)Peek_D3D_Base_Texture(); }
-
 protected:
 
 	void Load_Locked_Surface();
-	void Poke_Texture(IDirect3DBaseTexture8* tex) { D3DTexture = tex; }
+	void Set_CPU_Texture_Snapshot(std::vector<TextureMipSnapshot> &&mips);
+	void Update_CPU_Texture_Mip_Snapshot(unsigned int level, TextureMipSnapshot &&mip);
+	std::vector<TextureMipSnapshot>& Mutable_CPU_Texture_Mips() { return CPUTextureMips; }
+	void Mark_CPU_Texture_Mips_Changed();
 
 	bool Initialized;
 
 	// For debug purposes the texture sets this true if it is a lightmap texture
 	bool IsLightmap;
+	bool IsRenderTarget;
 	bool IsCompressionAllowed;
 	bool IsProcedural;
 	bool IsReducible;
+	bool IsMissingTexture;
 
 
 	unsigned InactivationTime;	// In milliseconds
@@ -243,6 +247,7 @@ private:
 		unsigned CPUTextureRevision;
 		void Capture_CPU_Texture_Snapshot(void *native_texture);
 		void Clear_CPU_Texture_Snapshot();
+		bool PreserveCPUTextureSnapshotOnNextLegacySet;
 
 		// TheSuperHackers @refactor bobtista 21/04/2026 Phase 5 backend-neutral
 	// resource handle. Populated by the asset loader after it calls
@@ -293,6 +298,15 @@ public:
 		unsigned Y;
 		unsigned Width;
 		unsigned Height;
+	};
+	struct MutableTextureMipView
+	{
+		WW3DFormat Format = WW3D_FORMAT_UNKNOWN;
+		unsigned Width = 0;
+		unsigned Height = 0;
+		unsigned Pitch = 0;
+		unsigned char *Data = nullptr;
+		bool Is_Valid() const { return Data != nullptr && Width != 0 && Height != 0 && Pitch != 0; }
 	};
 
 
@@ -367,6 +381,9 @@ public:
 
 	// Get the surface of one of the mipmap levels (defaults to highest-resolution one)
 	SurfaceClass *Get_Surface_Level(unsigned int level = 0);
+	MutableTextureMipView Begin_Mip_Write(unsigned int level = 0);
+	void End_Mip_Write(unsigned int level = 0);
+	void Update_Surface_Level_From_Surface(unsigned int level, const SurfaceClass::SurfaceImageData &image);
 	void Get_Level_Description( SurfaceClass::SurfaceDescription & desc, unsigned int level = 0 );
 	unsigned int Get_Level_Count() const;
 	bool Generate_Mip_Levels();
@@ -392,6 +409,8 @@ protected:
 	std::vector<TextureAtlasRegion> AtlasRegions;
 
 private:
+	friend class TextureLoader;
+	friend class TextureLoadTaskClass;
 	friend class DX8TextureInterop;
 	void Apply_Legacy_Surface(void *native_texture, bool initialized, bool disable_auto_invalidation = false) override;
 	void *Get_Legacy_Surface_Level(unsigned int level = 0);

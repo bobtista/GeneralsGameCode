@@ -20,6 +20,7 @@
 #include <cstring>
 #include <vector>
 
+#include "Common/FileSystem.h"
 #include "SDL3GameEngine.h"
 #include "GameClient/Display.h"
 #include "GameClient/Image.h"
@@ -221,16 +222,19 @@ void SDL3Mouse::capture()
 {
 	// TheSuperHackers @bugfix bobtista 30/04/2026 Win32Mouse calls
 	// ClipCursor(&windowRect); SDL3's analog is SDL_SetWindowMouseGrab.
-	// Disabled by default on macOS while we are still debugging window
-	// foregrounding - calling SDL_SetWindowMouseGrab early in init
-	// appears to suppress the window from coming up at all on M4 +
-	// macOS Tahoe. GGC_MOUSE_GRAB=1 turns it on for users who want the
-	// edge-scroll-clip behaviour back.
-	if (TheSDL3Window != NULL && std::getenv("GGC_MOUSE_GRAB") != NULL)
-	{
-		SDL_SetWindowMouseGrab(TheSDL3Window, true);
+		// Disabled by default on macOS while we are still debugging window
+		// foregrounding. GGC_MOUSE_GRAB=1 turns it on for users who want the
+		// edge-scroll-clip behaviour back.
+		if (TheSDL3Window != NULL && std::getenv("GGC_MOUSE_GRAB") != NULL)
+		{
+			SDL_SetWindowMouseGrab(TheSDL3Window, true);
+			onCursorCaptured(SDL_GetWindowMouseGrab(TheSDL3Window) ? TRUE : FALSE);
+		}
+		else
+		{
+			onCursorCaptured(FALSE);
+		}
 	}
-}
 
 void SDL3Mouse::releaseCapture()
 {
@@ -238,6 +242,7 @@ void SDL3Mouse::releaseCapture()
 	{
 		SDL_SetWindowMouseGrab(TheSDL3Window, false);
 	}
+	onCursorCaptured(FALSE);
 }
 
 UnsignedByte SDL3Mouse::getMouseEvent(MouseIO *result, Bool flush)
@@ -520,23 +525,26 @@ static Sint32 ReadLE32S(const Uint8 *p)
 
 static Bool LoadBinaryFile(const char *path, std::vector<Uint8> &data)
 {
-	FILE *file = std::fopen(path, "rb");
-	if (file == nullptr)
+	if (TheFileSystem == nullptr)
 	{
 		return FALSE;
 	}
-	std::fseek(file, 0, SEEK_END);
-	const long size = std::ftell(file);
-	std::fseek(file, 0, SEEK_SET);
-	if (size <= 0)
+
+	File *sageFile = TheFileSystem->openFile(path, File::READ | File::BINARY);
+	if (sageFile == nullptr)
 	{
-		std::fclose(file);
 		return FALSE;
 	}
-	data.resize(static_cast<size_t>(size));
-	const size_t read = std::fread(data.data(), 1, data.size(), file);
-	std::fclose(file);
-	return read == data.size();
+	const Int size = sageFile->size();
+	char *buffer = sageFile->readEntireAndClose();
+	if (buffer == nullptr || size <= 0)
+	{
+		delete[] buffer;
+		return FALSE;
+	}
+	data.assign(reinterpret_cast<Uint8 *>(buffer), reinterpret_cast<Uint8 *>(buffer) + size);
+	delete[] buffer;
+	return TRUE;
 }
 
 static Bool FindANIIconChunkInRange(

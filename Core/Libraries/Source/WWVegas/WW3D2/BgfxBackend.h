@@ -61,6 +61,7 @@ public:
     virtual void End_Scene(bool flip_frame) override;
     virtual bool Has_Stencil() const override { return true; }
     virtual WW3DFormat Get_Back_Buffer_Format() const override;
+    virtual bool Request_Native_Screen_Shot(const char * path) override;
     virtual void Set_Texture_Bitdepth(int bitdepth) override;
     virtual int Get_Texture_Bitdepth() const override;
     virtual bool Supports_Texture_Format(WW3DFormat format) const override;
@@ -119,15 +120,15 @@ public:
     virtual void Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset) override;
     virtual void Set_Index_Buffer_Index_Offset(unsigned int offset) override;
 
-    // Write-side capture hooks. BgfxBackend captures the data into the cache
+    // Write-side upload hooks. BgfxBackend uploads the data into the cache
     // for use by Set_Vertex_Buffer / Set_Index_Buffer.
     // Adds the dynamic variants for DynamicVBAccessClass /
     // DynamicIBAccessClass which get copied into bgfx transient buffers.
 
-    virtual void Capture_Vertex_Data(const VertexBufferClass * vb,
+    virtual void Upload_Vertex_Buffer_Data(const VertexBufferClass * vb,
                                      const void * data,
                                      unsigned int size_bytes) override;
-    virtual void Capture_Index_Data(const IndexBufferClass * ib,
+    virtual void Upload_Index_Buffer_Data(const IndexBufferClass * ib,
                                     const void * data,
                                     unsigned int size_bytes) override;
     virtual void Capture_Dynamic_Vertex_Data(const DynamicVBAccessClass * vba,
@@ -136,17 +137,29 @@ public:
     virtual void Capture_Dynamic_Index_Data(const DynamicIBAccessClass * iba,
                                             const void * data,
                                             unsigned int size_bytes) override;
-    virtual void Capture_Vertex_Sub_Range(const VertexBufferClass * vb,
+    virtual void * Begin_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
+                                              unsigned int size_bytes) override;
+    virtual void End_Dynamic_Vertex_Write(const DynamicVBAccessClass * vba,
+                                          const void * data,
+                                          unsigned int size_bytes) override;
+    virtual void * Begin_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
+                                             unsigned int size_bytes) override;
+    virtual void End_Dynamic_Index_Write(const DynamicIBAccessClass * iba,
+                                         const void * data,
+                                         unsigned int size_bytes) override;
+    virtual void Upload_Vertex_Buffer_Sub_Range(const VertexBufferClass * vb,
                                           const void * data,
                                           unsigned int start_vertex,
                                           unsigned int size_bytes) override;
-    virtual void Capture_Index_Sub_Range(const IndexBufferClass * ib,
+    virtual void Upload_Index_Buffer_Sub_Range(const IndexBufferClass * ib,
                                          const void * data,
                                          unsigned int start_index,
                                          unsigned int size_bytes) override;
     virtual void Begin_Sorted_Batch_Pass() override;
     virtual void End_Sorted_Batch_Pass() override;
     virtual void Apply_Sorted_Batch_State(const RenderBackendSortedBatchState & state) override;
+    virtual void Set_Point_Group_Render_Active(bool active) override;
+    virtual void Set_Streak_Render_Active(bool active) override;
     virtual void Capture_Legacy_Render_State_For_Sorted_Draw(RenderStateStruct & state) override;
     virtual void Restore_Legacy_Render_State_For_Sorted_Draw(const RenderStateStruct & state) override;
     virtual void Release_Legacy_Render_State_For_Sorted_Draw() override;
@@ -297,6 +310,7 @@ public:
     virtual void Set_Texture_Factor(unsigned argb) override;
 
     virtual void Set_Z_Bias(int bias) override;
+    virtual void Set_Normal_Bias(float bias) override;
     virtual void Set_Fill_Mode(FillMode mode) override;
     virtual void Set_Shade_Mode(ShadeMode mode) override;
     virtual void Set_Depth_Test_Enable(bool enable) override;
@@ -399,11 +413,11 @@ public:
     virtual void   Destroy_Resource(RenderResource h) override;
     virtual void   Begin_Dynamic_Frame() override;
 
-    // Transitional: populate m_backendHandle on resources created via the
-    // legacy loader. See IRenderBackend.h for context.
-    virtual RenderResource Register_Loaded_Texture(TextureBaseClass * tex) override;
-    virtual RenderResource Register_Loaded_Vertex_Buffer(VertexBufferClass * vb) override;
-    virtual RenderResource Register_Loaded_Index_Buffer(IndexBufferClass * ib) override;
+    // Transitional: populate m_backendHandle on owner-backed wrapper
+    // resources. See IRenderBackend.h for context.
+    virtual RenderResource Register_Texture_Resource(TextureBaseClass * tex) override;
+    virtual RenderResource Register_Vertex_Buffer_Resource(VertexBufferClass * vb) override;
+    virtual RenderResource Register_Index_Buffer_Resource(IndexBufferClass * ib) override;
 
 private:
     int m_textureBitDepth;

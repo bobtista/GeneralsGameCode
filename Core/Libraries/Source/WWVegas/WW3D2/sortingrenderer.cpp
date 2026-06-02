@@ -41,6 +41,8 @@
 #include "sortingrenderer.h"
 #include "dx8vertexbuffer.h"
 #include "dx8indexbuffer.h"
+#include "dllist.h"
+#include "FixedFunctionState.h"
 #include "RenderBufferTypes.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
@@ -350,7 +352,7 @@ void Release_Refs(SortingNodeStruct* state)
 	}
 	REF_PTR_RELEASE(state->sorting_state.index_buffer);
 	REF_PTR_RELEASE(state->sorting_state.material);
-	for (i=0;i<g_renderBackend->Get_Max_Texture_Stages();++i)
+	for (i=0;i<RB_MAX_TEXTURE_STAGES;++i)
 	{
 		REF_PTR_RELEASE(state->sorting_state.Textures[i]);
 	}
@@ -430,6 +432,7 @@ static RenderBackendSortedBatchState Make_Render_Backend_Sorted_State(RenderStat
 		rb_state.lights.lights[i] = Make_Render_Backend_Light(render_state, i);
 		rb_state.lights.enabled[i] = use_lights && render_state.LightEnable[i];
 	}
+	rb_state.draw_flags = render_state.sorted_draw_flags;
 	return rb_state;
 }
 
@@ -440,7 +443,8 @@ static void Apply_Render_State(RenderStateStruct& render_state)
 
 static bool Should_Log_Sort_Effect_Diag()
 {
-	return std::getenv("GGC_SORT_EFFECT_DIAG") != nullptr;
+	static const bool enabled = std::getenv("GGC_SORT_EFFECT_DIAG") != nullptr;
+	return enabled;
 }
 
 static void Log_Sort_Effect_Diag(const char* event, unsigned start_index, unsigned polygon_count, SortingNodeStruct* state)
@@ -454,7 +458,9 @@ static void Log_Sort_Effect_Diag(const char* event, unsigned start_index, unsign
 		? state->sorting_state.Textures[0]->As_TextureClass()
 		: nullptr;
 	const char* texName = tex0 != nullptr ? tex0->Get_Full_Path().str() : "(null)";
-	if (strnicmp(texName, "ex", 2) != 0
+	static const bool logAll = std::getenv("GGC_SORT_EFFECT_DIAG_ALL") != nullptr;
+	if (!logAll
+		&& strnicmp(texName, "ex", 2) != 0
 		&& std::strstr(texName, "fire") == nullptr
 		&& std::strstr(texName, "smoke") == nullptr
 		&& std::strstr(texName, "noise") == nullptr)
@@ -462,26 +468,25 @@ static void Log_Sort_Effect_Diag(const char* event, unsigned start_index, unsign
 		return;
 	}
 
+	float worldTx = 0.0f, worldTy = 0.0f, worldTz = 0.0f;
+	if (state != nullptr)
+	{
+		const Matrix4x4& w = reinterpret_cast<const Matrix4x4&>(state->sorting_state.world);
+		worldTx = w[3][0];
+		worldTy = w[3][1];
+		worldTz = w[3][2];
+	}
+	float centerZ = state != nullptr ? state->transformed_center.Z : 0.0f;
+
 	if (FILE* diag = std::fopen("ggc_sort_effect_diag.txt", "a"))
 	{
 		std::fprintf(diag,
-			"%s nodes=%u poolPolys=%u poolVerts=%u start=%u polys=%u statePolys=%u stateVerts=%u shader=0x%08x tex=%s vbType=%d ibType=%d vbaOff=%u ibaOff=%u idxBase=%u minVert=%u\n",
+			"%s polys=%u tex=%s shader=0x%08x worldT=(%.2f,%.2f,%.2f) centerZ=%.3f\n",
 			event,
-			overlapping_node_count,
-			overlapping_polygon_count,
-			overlapping_vertex_count,
-			start_index,
 			polygon_count,
-			state != nullptr ? state->polygon_count : 0,
-			state != nullptr ? state->vertex_count : 0,
-			state != nullptr ? state->sorting_state.shader.Get_Bits() : 0,
 			texName,
-			state != nullptr ? state->sorting_state.vertex_buffer_types[0] : BUFFER_TYPE_INVALID,
-			state != nullptr ? state->sorting_state.index_buffer_type : BUFFER_TYPE_INVALID,
-			state != nullptr ? state->sorting_state.vba_offset : 0,
-			state != nullptr ? state->sorting_state.iba_offset : 0,
-			state != nullptr ? state->sorting_state.index_base_offset : 0,
-			state != nullptr ? state->min_vertex_index : 0);
+			state != nullptr ? state->sorting_state.shader.Get_Bits() : 0,
+			worldTx, worldTy, worldTz, centerZ);
 		std::fclose(diag);
 	}
 }
@@ -491,6 +496,11 @@ static void Log_Sort_Effect_Diag(const char* event, unsigned start_index, unsign
 static bool Render_State_Matches(const RenderStateStruct& left, const RenderStateStruct& right)
 {
 	if (left.shader.Get_Bits() != right.shader.Get_Bits())
+	{
+		return false;
+	}
+
+	if (left.sorted_draw_flags != right.sorted_draw_flags)
 	{
 		return false;
 	}
@@ -575,7 +585,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			vertexAllocCount = overlapping_vertex_count;
 		WWASSERT(DEFAULT_SORTING_VERTEX_COUNT == 1 || vertexAllocCount <= DEFAULT_SORTING_VERTEX_COUNT);
 	}
-	DynamicVBAccessClass dyn_vb_access(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,vertexAllocCount/*overlapping_vertex_count*/);
+	DynamicVBAccessClass dyn_vb_access(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,vertexAllocCount/*overlapping_vertex_count*/);
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&dyn_vb_access);
 		VertexFormatXYZNDUV2* dest_verts=(VertexFormatXYZNDUV2 *)lock.Get_Formatted_Vertex_Array();
@@ -597,6 +607,16 @@ void SortingRendererClass::Flush_Sorting_Pool()
 			// it is because D3D is in illegal state, and the only known cure is rebooting.
 			// This illegal state is usually caused by Quake3-engine powered games such as MOHAA.
 			memcpy(dest_verts, src_verts, sizeof(VertexFormatXYZNDUV2)*state->vertex_count);
+			// TheSuperHackers @refactor bobtista 17/05/2026 The old avcomanche_p
+			// vertex-offset hack translated the rotor-blur quad to its hub by
+			// adding bounding_sphere.Center to each vertex. That stand-in was
+			// needed when bgfx's sorted replay couldn't see the per-mesh world
+			// transform, but it only restored the position - never the rotation.
+			// BgfxBackend::Capture_Legacy_Render_State_For_Sorted_Draw now reads
+			// the live RB_TRANSFORM_WORLD from the render-state cache for rotor
+			// draws, so sortWorld feeds the full mesh world (translation + spin)
+			// into setTransform and the blur disc actually rotates instead of
+			// wobbling. Keeping the hack would double-translate the vertices.
 			dest_verts += state->vertex_count;
 
 			const Matrix4x4 mtx = Get_Sorted_World_View_Matrix(state->sorting_state);
@@ -682,7 +702,7 @@ void SortingRendererClass::Flush_Sorting_Pool()
 		}
 		const unsigned chunkEnd = chunkOffset + chunkCount;
 
-		DynamicIBAccessClass dyn_ib_access(BUFFER_TYPE_DYNAMIC_DX8,chunkCount*3);
+		DynamicIBAccessClass dyn_ib_access(BUFFER_TYPE_DYNAMIC,chunkCount*3);
 		{
 			DynamicIBAccessClass::WriteLockClass lock(&dyn_ib_access);
 			ShortVectorIStruct* sorted_polygon_index_array=(ShortVectorIStruct*)lock.Get_Index_Array();

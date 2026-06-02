@@ -42,18 +42,23 @@
 
 #include "dx8renderer.h"
 #include "dx8polygonrenderer.h"
-#include "dx8vertexbuffer.h"
-#include "dx8indexbuffer.h"
+#include <algorithm>
+#include <vector>
+#include <cstdlib>
+#include "vertexbuffer.h"
+#include "indexbuffer.h"
 #include "dx8fvf.h"
 #include "dx8rendererdebugger.h"
 #include "RenderBufferTypes.h"
 #include "RenderBackend.h"
 #include "IRenderBackend.h"
+#include "renderbufferclasses.h"
 #include "wwdebug.h"
 #include "wwprofile.h"
 #include "wwmemlog.h"
 #include "rinfo.h"
 #include "statistics.h"
+#include "texture.h"
 #include "meshmdl.h"
 #include "vp.h"
 #include "decalmsh.h"
@@ -117,7 +122,9 @@ public:
 	}
 
 	DX8PolygonRendererClass *	Peek_Polygon_Renderer()							{ return Renderer; }
+	const DX8PolygonRendererClass *	Peek_Polygon_Renderer() const				{ return Renderer; }
 	MeshClass *						Peek_Mesh()											{ return Mesh; }
+	const MeshClass *				Peek_Mesh() const									{ return Mesh; }
 
 	PolyRenderTaskClass *		Get_Next_Visible()									{ return NextVisible; }
 	void								Set_Next_Visible(PolyRenderTaskClass * prtc)		{ NextVisible = prtc; }
@@ -979,10 +986,10 @@ void DX8RigidFVFCategoryContainer::Add_Mesh(MeshModelClass* mmc_)
 			WWASSERT(vertex_buffer->FVF_Info().Get_FVF()==FVF);	// Only one sorting FVF type!
 		}
 		else {
-			vertex_buffer=NEW_REF(DX8VertexBufferClass,(
+			vertex_buffer=NEW_REF(RenderVertexBufferClass,(
 				FVF,
 				vb_size,
-				(g_renderBackend && g_renderBackend->Supports_NPatches() && WW3D::Get_NPatches_Level()>1) ? DX8VertexBufferClass::USAGE_NPATCHES : DX8VertexBufferClass::USAGE_DEFAULT));
+				(g_renderBackend && g_renderBackend->Supports_NPatches() && WW3D::Get_NPatches_Level()>1) ? RenderVertexBufferClass::USAGE_NPATCHES : RenderVertexBufferClass::USAGE_DEFAULT));
 		}
 	}
 
@@ -1154,9 +1161,9 @@ void DX8FVFCategoryContainer::Generate_Texture_Categories(Vertex_Split_Table& sp
 			index_buffer=NEW_REF(SortingIndexBufferClass,(ib_size));
 		}
 		else {
-			index_buffer=NEW_REF(DX8IndexBufferClass,(
+			index_buffer=NEW_REF(RenderIndexBufferClass,(
 				ib_size,
-				(g_renderBackend && g_renderBackend->Supports_NPatches() && WW3D::Get_NPatches_Level()>1) ? DX8IndexBufferClass::USAGE_NPATCHES : DX8IndexBufferClass::USAGE_DEFAULT));
+				(g_renderBackend && g_renderBackend->Supports_NPatches() && WW3D::Get_NPatches_Level()>1) ? RenderIndexBufferClass::USAGE_NPATCHES : RenderIndexBufferClass::USAGE_DEFAULT));
 		}
 	}
 
@@ -1251,7 +1258,7 @@ void DX8SkinFVFCategoryContainer::Render()
 	}
 
 	DynamicVBAccessClass vb(
-		sorting ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC_DX8,
+		sorting ? BUFFER_TYPE_DYNAMIC_SORTING : BUFFER_TYPE_DYNAMIC,
 		dynamic_fvf_type,
 		maxVertexCount);
 	SNAPSHOT_SAY(("DynamicVBAccess - %s - %d vertices",sorting ? "sorting" : "non-sorting",VisibleVertexCount));
@@ -1352,7 +1359,7 @@ void DX8SkinFVFCategoryContainer::Render()
 
 		SNAPSHOT_SAY(("Set vb: %x ib: %x",&vb.FVF_Info(),index_buffer));
 
-		// TheSuperHackers @refactor bobtista 11/04/2026 Phase 4G.7 skin
+		// TheSuperHackers @refactor bobtista 11/04/2026 skin
 		// vertices come out of Get_Deformed_Vertices already in world
 		// space (the HTree bone matrices include the container's world
 		// transform), so the draw must use an identity world matrix.
@@ -1686,6 +1693,34 @@ void DX8TextureCategoryClass::Render()
 
 	bool renderTasksRemaining=false;
 
+	static const bool s_instancingEnabled = std::getenv("GGC_BGFX_INSTANCING") != nullptr;
+	if (s_instancingEnabled && render_task_head != nullptr)
+	{
+		unsigned count = 0;
+		for (PolyRenderTaskClass * c = render_task_head; c != nullptr; c = c->Get_Next_Visible()) {
+			count++;
+		}
+		if (count >= 2)
+		{
+			std::vector<PolyRenderTaskClass *> tasks;
+			tasks.reserve(count);
+			for (PolyRenderTaskClass * c = render_task_head; c != nullptr; c = c->Get_Next_Visible()) {
+				tasks.push_back(c);
+			}
+			std::stable_sort(tasks.begin(), tasks.end(), [](PolyRenderTaskClass * a, PolyRenderTaskClass * b) {
+				auto * ra = a->Peek_Polygon_Renderer();
+				auto * rb = b->Peek_Polygon_Renderer();
+				if (ra != rb) { return ra < rb; }
+				return a->Peek_Mesh()->Get_Base_Vertex_Offset() < b->Peek_Mesh()->Get_Base_Vertex_Offset();
+			});
+			render_task_head = tasks[0];
+			for (unsigned i = 0; i + 1 < count; i++) {
+				tasks[i]->Set_Next_Visible(tasks[i + 1]);
+			}
+			tasks[count - 1]->Set_Next_Visible(nullptr);
+		}
+	}
+
 	PolyRenderTaskClass * prt = render_task_head;
 	PolyRenderTaskClass * last_prt = nullptr;
 
@@ -1828,6 +1863,9 @@ void DX8TextureCategoryClass::Render()
 		/*
 		** Render mesh using either sorting or immediate pipeline
 		*/
+			const bool coplanarNormalBias = mesh->Peek_Model()->Get_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS) != 0;
+			g_renderBackend->Set_Normal_Bias(coplanarNormalBias ? 0.02f : 0.0f);
+
 		//(gth) this if statement's contents are not tabbed to avoid perforce merge problems...
 		if (!DX8RendererDebugger::Is_Enabled() || !mesh->Is_Disabled_By_Debugger()) {
 
@@ -1888,15 +1926,16 @@ void DX8TextureCategoryClass::Render()
 			else
 			{
 				bool instanced = false;
-				static const bool s_instancingEnabled = std::getenv("GGC_BGFX_INSTANCING") != nullptr;
 				if (s_instancingEnabled
 					&& g_renderBackend->Supports_Instancing()
 					&& !coplanarNormalBias
 					&& mesh->Get_ObjectScale() == 1.0f)
 				{
+					static unsigned s_instDiag = 0;
 					PolyRenderTaskClass * nextScan = prt->Get_Next_Visible();
-					if (nextScan != nullptr
+						if (nextScan != nullptr
 						&& nextScan->Peek_Polygon_Renderer() == renderer
+						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() != VERTEX_BUFFER_OVERFLOW
 						&& nextScan->Peek_Mesh()->Get_Base_Vertex_Offset() == mesh->Get_Base_Vertex_Offset())
 					{
 						unsigned batchCount = 1;
@@ -1914,7 +1953,7 @@ void DX8TextureCategoryClass::Render()
 								|| ((!!sm->Peek_Model()->Get_Flag(MeshGeometryClass::SORT)) && WW3D::Is_Sorting_Enabled())
 								|| sm->Get_ObjectScale() != 1.0f
 								|| sm->Peek_Model()->Get_Flag(MeshGeometryClass::COPLANAR_NORMAL_BIAS)
-								|| sm->Get_Lighting_Environment() != lenv) {
+								) {
 								break;
 							}
 							batchCount++;
@@ -1941,6 +1980,9 @@ void DX8TextureCategoryClass::Render()
 					renderer->Render(mesh->Get_Base_Vertex_Offset());
 				}
 			}
+		}
+		if (coplanarNormalBias) {
+			g_renderBackend->Set_Normal_Bias(0.0f);
 		}
 //--------------------------------------------------------------------
 		if (mesh->Get_ObjectScale() != 1.0f)

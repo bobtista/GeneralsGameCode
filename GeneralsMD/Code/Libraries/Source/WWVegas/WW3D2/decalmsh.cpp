@@ -303,7 +303,7 @@ void RigidDecalMeshClass::Render()
 	/*
 	** Copy the vertices into the dynamic vb
 	*/
-	DynamicVBAccessClass dynamic_vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,Verts.Count());
+	DynamicVBAccessClass dynamic_vb(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,Verts.Count());
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&dynamic_vb);
 		VertexFormatXYZNDUV2 * vertex = lock.Get_Formatted_Vertex_Array();
@@ -333,7 +333,7 @@ void RigidDecalMeshClass::Render()
 	/*
 	** Copy the indices into the dynamic ib
 	*/
-	DynamicIBAccessClass dynamic_ib(BUFFER_TYPE_DYNAMIC_DX8,Polys.Count() * 3);
+	DynamicIBAccessClass dynamic_ib(BUFFER_TYPE_DYNAMIC,Polys.Count() * 3);
 	{
 		DynamicIBAccessClass::WriteLockClass lock(&dynamic_ib);
 		unsigned short * indices = lock.Get_Index_Array();
@@ -656,10 +656,10 @@ bool RigidDecalMeshClass::Delete_Decal(uint32 id)
 	/*
 	** Remove all materials used by this decal (remember to release refs!)
 	*/
-	for (int fi=decal->FaceStartIndex; fi<decal->FaceCount; fi++) {
+	for (int fi=decal->FaceStartIndex; fi<decal->FaceStartIndex+decal->FaceCount; fi++) {
 		REF_PTR_RELEASE(Textures[fi]);
 	}
-	for (int vi=decal->VertexStartIndex; vi<decal->VertexCount; vi++) {
+	for (int vi=decal->VertexStartIndex; vi<decal->VertexStartIndex+decal->VertexCount; vi++) {
 		REF_PTR_RELEASE(VertexMaterials[vi]);
 	}
 	Shaders.Delete_Range(decal->FaceStartIndex,decal->FaceCount);
@@ -801,7 +801,7 @@ void SkinDecalMeshClass::Render()
 	/*
 	** Copy the vertices into the dynamic vb
 	*/
-	DynamicVBAccessClass dynamic_vb(BUFFER_TYPE_DYNAMIC_DX8,dynamic_fvf_type,ParentVertexIndices.Count());
+	DynamicVBAccessClass dynamic_vb(BUFFER_TYPE_DYNAMIC,dynamic_fvf_type,ParentVertexIndices.Count());
 	{
 		DynamicVBAccessClass::WriteLockClass lock(&dynamic_vb);
 		VertexFormatXYZNDUV2 * vertex = lock.Get_Formatted_Vertex_Array();
@@ -831,7 +831,7 @@ void SkinDecalMeshClass::Render()
 	/*
 	** Copy the indices into the dynamic ib
 	*/
-	DynamicIBAccessClass dynamic_ib(BUFFER_TYPE_DYNAMIC_DX8,Polys.Count() * 3);
+	DynamicIBAccessClass dynamic_ib(BUFFER_TYPE_DYNAMIC,Polys.Count() * 3);
 	{
 		DynamicIBAccessClass::WriteLockClass lock(&dynamic_ib);
 		unsigned short * indices = lock.Get_Index_Array();
@@ -1072,10 +1072,10 @@ bool SkinDecalMeshClass::Delete_Decal(uint32 id)
 	/*
 	** Remove all materials used by this decal (remember to release refs!)
 	*/
-	for (int fi = decal->FaceStartIndex; fi < decal->FaceCount; fi++) {
+	for (int fi = decal->FaceStartIndex; fi < decal->FaceStartIndex + decal->FaceCount; fi++) {
 		REF_PTR_RELEASE(Textures[fi]);
 	}
-	for (int vi=decal->VertexStartIndex; vi<decal->VertexCount; vi++) {
+	for (int vi=decal->VertexStartIndex; vi<decal->VertexStartIndex+decal->VertexCount; vi++) {
 		REF_PTR_RELEASE(VertexMaterials[vi]);
 	}
 	Shaders.Delete_Range(decal->FaceStartIndex,decal->FaceCount);

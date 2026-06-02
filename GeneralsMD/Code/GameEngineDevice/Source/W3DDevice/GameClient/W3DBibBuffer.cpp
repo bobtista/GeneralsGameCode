@@ -57,9 +57,11 @@
 #include "W3DDevice/GameClient/W3DDynamicLight.h"
 #include "WW3D2/camera.h"
 #include "WW3D2/RenderBackend.h"
-#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8renderer.h"
+#if !defined(GGC_BGFX_STANDALONE)
+#include "WW3D2/dx8indexbuffer.h"
 #include "WW3D2/dx8vertexbuffer.h"
+#endif
 #include "WW3D2/mesh.h"
 #include "WW3D2/meshmdl.h"
 
@@ -106,8 +108,8 @@ void W3DBibBuffer::loadBibsInVertexAndIndexBuffers()
 	VertexFormatXYZDUV1 *vb;
 	UnsignedShort *ib;
 	// Lock the buffers.
-	DX8IndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBib, RB_LOCK_DISCARD);
-	DX8VertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBib, RB_LOCK_DISCARD);
+	RenderIndexBufferClass::WriteLockClass lockIdxBuffer(m_indexBib, RB_LOCK_DISCARD);
+	RenderVertexBufferClass::WriteLockClass lockVtxBuffer(m_vertexBib, RB_LOCK_DISCARD);
 	vb=(VertexFormatXYZDUV1*)lockVtxBuffer.Get_Vertex_Array();
 	ib = lockIdxBuffer.Get_Index_Array();
 	// Add to the index buffer & vertex buffer.
@@ -261,8 +263,13 @@ void W3DBibBuffer::freeBibBuffers()
 //=============================================================================
 void W3DBibBuffer::allocateBibBuffers()
 {
-	m_vertexBib=NEW_REF(DX8VertexBufferClass,(DX8_FVF_XYZDUV1,m_vertexBibSize+4,DX8VertexBufferClass::USAGE_DYNAMIC));
-	m_indexBib=NEW_REF(DX8IndexBufferClass,(m_indexBibSize+4, DX8IndexBufferClass::USAGE_DYNAMIC));
+	m_vertexBib=NEW_REF(RenderVertexBufferClass,(
+		RENDER_VERTEX_FORMAT_XYZDUV1,
+		m_vertexBibSize+4,
+		Render_Buffer_Usage_Dynamic<RenderVertexBufferClass>()));
+	m_indexBib=NEW_REF(RenderIndexBufferClass,(
+		m_indexBibSize+4,
+		Render_Buffer_Usage_Dynamic<RenderIndexBufferClass>()));
 	m_curNumBibVertices=0;
 	m_curNumBibIndices=0;
 }
