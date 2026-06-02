@@ -100,8 +100,7 @@
 #include "fs_passthrough_dx11.bin.h"
 
 // TheSuperHackers @refactor bobtista 12/04/2026 Uber shader pair.
-// Single program handles all TSS combinations via uniforms. Replaces the
-// Per-preset shader pairs.
+// Single program handles all TSS combinations via uniforms.
 #include "vs_uber_dx11.bin.h"
 #include "vs_uber_instanced_dx11.bin.h"
 #include "vs_trees_dx11.bin.h"
@@ -1635,8 +1634,8 @@ static bool BuildBgfxLayoutForFVFUncached(const FVFInfoClass & fvf, bgfx::Vertex
 // session; if it bites us we'll add a generation counter or hook the
 // destructor.
 
-// TheSuperHackers @refactor bobtista 11/04/2026 Switched from
-// static bgfx VB/IB handles to dynamic ones. Rigid mesh category containers
+// TheSuperHackers @refactor bobtista 11/04/2026 Dynamic bgfx VB/IB
+// handles. Rigid mesh category containers
 // fill their shared VB / IB one sub-range at a time via AppendLockClass,
 // which requires in-place sub-range updates that only dynamic bgfx buffers
 // support. Full-buffer writes (WriteLockClass) also go through the same
@@ -1983,9 +1982,9 @@ static bool IsReadableSceneDepthEnabled()
     return softParticleParams[0] > 0.5f;
 }
 
-// TheSuperHackers @refactor bobtista 16/04/2026 Aspect correction
-// is no longer needed because bgfx renders into the same window as the game.
-// The engine's projection matrix already matches the bgfx framebuffer aspect.
+// TheSuperHackers @refactor bobtista 16/04/2026 No aspect correction needed:
+// bgfx renders into the game's window and the engine's projection matrix
+// already matches the framebuffer aspect.
 
 // TheSuperHackers @refactor bobtista 11/04/2026 Texture
 // capture. Unlike vertex buffers, W3D textures default to POOL_MANAGED,
