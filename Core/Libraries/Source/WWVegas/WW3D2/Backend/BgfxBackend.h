@@ -17,10 +17,8 @@
 */
 
 // TheSuperHackers @refactor bobtista 11/04/2026 BgfxBackend.
-// IRenderBackend implementation that drives bgfx directly. Earlier cutover
-// stages inherited DX8Backend so every bgfx call also programmed a legacy
-// mirror device; bgfx now owns the render-state, transform, buffer, and
-// texture snapshots it needs, so this backend no longer depends on that base.
+// IRenderBackend implementation that drives bgfx directly. It owns the
+// render-state, transform, buffer, and texture snapshots it needs.
 //
 // This header MUST NOT be included from any VC6 translation unit. The VC6
 // build always uses DX8Backend; the bgfx backend requires MSVC 2022+ and C++17.
