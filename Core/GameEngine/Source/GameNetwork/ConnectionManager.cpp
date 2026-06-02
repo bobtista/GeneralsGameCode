@@ -500,13 +500,13 @@ void ConnectionManager::doRelay()
 
 			// Get the command list from the packet.
 			NetCommandList* cmdList = packet->getCommandList();
-			NetCommandRef* cmd = cmdList->getFirstMessage();
 
 			// Iterate through the commands in this packet and send them to the proper connections.
-			while (cmd != nullptr)
+			for (NetCommandRef* cmd = cmdList->getFirstMessage(); cmd; cmd = cmd->getNext())
 			{
 				// DEBUG_LOG(("ConnectionManager::doRelay() - Looking at a command of type %s",
 				// GetNetCommandTypeAsString(cmd->getCommand()->getNetCommandType())));
+
 				if (CommandRequiresAck(cmd->getCommand()))
 				{
 					ackCommand(cmd, m_localSlot);
@@ -515,7 +515,6 @@ void ConnectionManager::doRelay()
 				{
 					sendRemoteCommand(cmd);
 				}
-				cmd = cmd->getNext();
 			}
 
 			deleteInstance(cmdList);
@@ -527,8 +526,7 @@ void ConnectionManager::doRelay()
 	}
 
 	NetCommandList* cmdList = m_netCommandWrapperList->getReadyCommands();
-	NetCommandRef* cmd = cmdList->getFirstMessage();
-	while (cmd != nullptr)
+	for (NetCommandRef* cmd = cmdList->getFirstMessage(); cmd; cmd = cmd->getNext())
 	{
 		if (CommandRequiresAck(cmd->getCommand()))
 		{
@@ -538,7 +536,6 @@ void ConnectionManager::doRelay()
 		{
 			sendRemoteCommand(cmd);
 		}
-		cmd = cmd->getNext();
 	}
 
 	deleteInstance(cmdList);
