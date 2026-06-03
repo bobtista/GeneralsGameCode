@@ -3169,32 +3169,22 @@ public:
     explicit ScopedSectionTimer(PerfSectionId id)
         : m_section(g_perf_sections[id])
     {
-#if defined(_WIN32)
         LARGE_INTEGER c; QueryPerformanceCounter(&c); m_start = c.QuadPart;
-#else
-        m_start = 0;
-#endif
     }
     ~ScopedSectionTimer()
     {
-#if defined(_WIN32)
         LARGE_INTEGER c; QueryPerformanceCounter(&c);
         m_section.total_ticks += c.QuadPart - m_start;
         m_section.calls++;
-#endif
     }
 };
 #define PERF_TIME(id) ScopedSectionTimer _pst_##id(id)
 
 static long long QueryNow()
 {
-#if defined(_WIN32)
     LARGE_INTEGER c;
     QueryPerformanceCounter(&c);
     return c.QuadPart;
-#else
-    return 0;
-#endif
 }
 
 static void ResolveTimingEnv()
@@ -3203,11 +3193,14 @@ static void ResolveTimingEnv()
         return;
     }
     g_timing.env_resolved = true;
-#if defined(_WIN32)
+    // TheSuperHackers @perf bobtista 03/06/2026 QueryPerformanceCounter/Frequency
+    // are provided by the portable Windows-compat shim (already used for the
+    // PerfLog timers), so the per-section frame-timing profiler works on macOS
+    // too. The old _WIN32 guard left g_timing.freq == 0, silently disabling the
+    // submit_us/frame_us CSV on every non-Windows build.
     LARGE_INTEGER f;
     QueryPerformanceFrequency(&f);
     g_timing.freq = f.QuadPart;
-#endif
     if (const char * e = std::getenv("GGC_BGFX_FRAME_TIMING_AFTER")) {
         g_timing.target_frame = std::atoi(e);
     }
