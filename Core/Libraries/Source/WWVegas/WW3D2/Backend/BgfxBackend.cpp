@@ -1073,28 +1073,33 @@ bgfx::ProgramHandle CreateShaderProgram(
 
 bgfx::RendererType::Enum GetConfiguredRendererType()
 {
-#if defined(__APPLE__)
-    // TheSuperHackers @bugfix bobtista 30/04/2026 GGC_BGFX_RENDERER lets
-    // us A/B-test backends at run time on macOS. Apple's Metal JIT
-    // compiler (AGX/MTLCompiler) has multiple intermittent crash bugs
-    // on macOS Tahoe + M4 - hand-compiling fragment shaders, EOT
-    // helpers, and constant-clear programs all crash with EXC_BAD_ACCESS
-    // at different rates per launch. OpenGL backend goes through a
-    // separate (older, deprecated, but stable) driver path so it is
-    // useful as a fallback. "metal" / "gl" / "vulkan" supported.
+    // TheSuperHackers @perf bobtista 03/06/2026 GGC_BGFX_RENDERER selects the bgfx renderer at
+    // run time on any platform: dx11/d3d11, dx12/d3d12, vulkan, metal, gl. bgfx's DX11 and
+    // DX12 backends share SM5 DXBC shaders, so no shader recompile is needed.
     const char *override_ = std::getenv("GGC_BGFX_RENDERER");
     if (override_ != nullptr)
     {
-        if (std::strcmp(override_, "gl") == 0 || std::strcmp(override_, "opengl") == 0)
+        if (std::strcmp(override_, "dx12") == 0 || std::strcmp(override_, "d3d12") == 0)
         {
-            return bgfx::RendererType::OpenGL;
+            return bgfx::RendererType::Direct3D12;
+        }
+        if (std::strcmp(override_, "dx11") == 0 || std::strcmp(override_, "d3d11") == 0)
+        {
+            return bgfx::RendererType::Direct3D11;
         }
         if (std::strcmp(override_, "vulkan") == 0)
         {
             return bgfx::RendererType::Vulkan;
         }
+        if (std::strcmp(override_, "metal") == 0)
+        {
+            return bgfx::RendererType::Metal;
+        }
+        if (std::strcmp(override_, "gl") == 0 || std::strcmp(override_, "opengl") == 0)
+        {
+            return bgfx::RendererType::OpenGL;
+        }
     }
-#endif
 #if defined(GGC_BGFX_RENDERER_METAL)
     return bgfx::RendererType::Metal;
 #elif defined(GGC_BGFX_RENDERER_VULKAN)
