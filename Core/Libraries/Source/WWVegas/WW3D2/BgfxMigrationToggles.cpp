@@ -89,7 +89,7 @@ const char *Get_Bgfx_Migration_Toggle_Env(BgfxMigrationToggle toggle)
 
 bool Is_Bgfx_Migration_Toggle_Enabled(BgfxMigrationToggle toggle)
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	switch (toggle) {
 		case BgfxMigrationToggle::TextureOwnership:
 		case BgfxMigrationToggle::SurfaceOwnership:

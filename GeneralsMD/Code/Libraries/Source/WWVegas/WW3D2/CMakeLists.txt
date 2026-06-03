@@ -247,7 +247,7 @@ target_precompile_headers(z_ww3d2 PRIVATE
     [["Utility/CppMacros.h"]] # Must be first, to be removed when abandoning VC6
 )
 
-if(NOT GGC_BGFX_STANDALONE)
+if(NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
     target_precompile_headers(z_ww3d2 PRIVATE [["dx8wrapper.h"]])
 endif()
 
