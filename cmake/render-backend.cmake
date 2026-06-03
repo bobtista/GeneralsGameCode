@@ -50,19 +50,11 @@ elseif(GGC_RENDER_BACKEND STREQUAL "bgfx")
     set(GGC_RENDER_BACKEND_COMPILE_DEFINE "GGC_RENDER_BACKEND_BGFX=1")
 endif()
 
-# TheSuperHackers @refactor bobtista 21/04/2026 Standalone bgfx build.
-# When ON, the DX8 reference popup and real d3d8/d3dx8 runtime links are
-# disabled. This keeps the transitional DX8Wrapper state model alive without
-# creating a fake D3D device.
-option(GGC_BGFX_STANDALONE "bgfx without the DX8 reference popup or real D3D8 runtime" OFF)
-if(GGC_BGFX_STANDALONE AND NOT GGC_RENDER_BACKEND STREQUAL "bgfx")
-    message(FATAL_ERROR
-        "GGC_BGFX_STANDALONE=ON requires GGC_RENDER_BACKEND=bgfx.")
-endif()
-if(GGC_BGFX_STANDALONE)
-    add_compile_definitions(GGC_BGFX_STANDALONE=1)
-    message(STATUS "Bgfx standalone mode enabled - ref popup disabled.")
-endif()
+# TheSuperHackers @refactor bobtista 03/06/2026 The bgfx backend no longer
+# creates a real D3D8 device or a DX8 reference popup; it always renders to the
+# main window directly. The former GGC_BGFX_STANDALONE toggle is gone - the
+# GGC_RENDER_BACKEND_BGFX compile define now drives every former-standalone
+# code path, and the dx8/d3d8 runtime is linked only for GGC_RENDER_BACKEND=dx8.
 
 if(GGC_RENDER_BACKEND STREQUAL "bgfx")
     if(NOT DEFINED GGC_BGFX_RENDERER)

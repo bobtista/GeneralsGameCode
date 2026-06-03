@@ -1726,10 +1726,6 @@ const float kPostSharpenAmount           = 0.08f;
 const float kPostSaturation              = 1.015f;
 const float kPostContrast                = 1.01f;
 const float kPostFxaaAmount              = 0.35f;
-// Frames to wait before showing the DX8 reference popup. The game's input system and shell menu need a beat after device init to fully settle; popping the ref window earlier steals focus and blocks mouse capture. ~0.5s at 60fps.
-const int kDX8RefWindowShowDelayFrames   = 30;
-// TheSuperHackers @bugfix bobtista 28/05/2026 File-scope so a device reset can rewind it; otherwise the function-local static remembered the "already shown" -1 sentinel through bgfx::reset cycles.
-static int s_dx8RefFrameCount = 0;
 
 // Render-to-texture state. Set by Set_Render_Target_With_Z, cleared
 // when the back buffer is restored. SubmitEngineDraw routes to
@@ -2170,8 +2166,6 @@ void BgfxBackend::Initialize(void * hwnd, int /*width*/, int /*height*/)
         std::fflush(stderr);
     }
 #endif
-    // TheSuperHackers @bugfix bobtista 28/05/2026 Rewind the DX8-ref show-and-focus counter so device-reset scenarios re-run the focus reassert.
-    s_dx8RefFrameCount = 0;
     if (g_device.initialized)
     {
         WWDEBUG_SAY(("[BgfxBackend] Initialize called twice; ignoring."));
@@ -3175,37 +3169,6 @@ void BgfxBackend::Begin_Scene()
         }
     }
     g_caches.deferredDestroyFBPrev.clear();
-
-    // Show the DX8 reference popup after a few frames, giving the game's
-    // input system time to fully initialize. Showing too early steals focus
-    // and permanently blocks mouse capture.
-    // TheSuperHackers @build bobtista 29/04/2026 No DX8 ref popup on
-    // non-Windows builds (no Win32 windowing API).
-#ifdef _WIN32
-    {
-        if (s_dx8RefFrameCount >= 0)
-        {
-            s_dx8RefFrameCount++;
-            if (s_dx8RefFrameCount > kDX8RefWindowShowDelayFrames)
-            {
-                s_dx8RefFrameCount = -1;
-                HWND dx8Hwnd = FindWindowW(L"GGC_DX8RefWindow", nullptr);
-                if (dx8Hwnd)
-                {
-                    ShowWindow(dx8Hwnd, SW_SHOWNA);
-                }
-                // Re-assert focus on the main game window. Use SetFocus
-                // instead of SetForegroundWindow which has restrictions
-                // on Windows that can cause it to silently fail.
-                if (g_device.window)
-                {
-                    SetForegroundWindow(g_device.window);
-                    SetFocus(g_device.window);
-                }
-            }
-        }
-    }
-#endif
 
 
     // Check if the game window was resized (e.g., by Set_Render_Device) and
