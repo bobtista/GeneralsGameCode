@@ -52,7 +52,7 @@ class Vector4;
 class StringClass;
 class FVFInfoClass;
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 class DX8VertexBufferClass;
 
 /**
@@ -78,7 +78,7 @@ public:
 	DX8VertexBufferClass(const Vector3* vertices, const Vector4* diffuse, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
 	DX8VertexBufferClass(const Vector3* vertices, const Vector2* tex_coords, unsigned short VertexCount,UsageType usage=USAGE_DEFAULT);
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	void *Get_Legacy_Vertex_Buffer() { return VertexBuffer; }
 #endif
 

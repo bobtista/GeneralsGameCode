@@ -1144,7 +1144,7 @@ void WaterRenderObjClass::loadSetting( Setting *setting, TimeOfDay timeOfDay )
 //-------------------------------------------------------------------------------------------------
 void WaterRenderObjClass::updateRenderTargetTextures(CameraClass *cam)
 {
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	if (!W3DWater_UseBackendWater() &&
 		m_waterType == WATER_TYPE_2_PVSHADER && getClippedWaterPlane(cam, nullptr) &&
 		TheTerrainRenderObject && TheTerrainRenderObject->getMap())
@@ -1975,7 +1975,7 @@ void WaterRenderObjClass::renderWaterMesh()
 			vb->nx = C.X;
 			vb->ny = C.Y;
 			vb->nz = C.Z;
-#elif defined(GGC_BGFX_STANDALONE)
+#elif defined(GGC_RENDER_BACKEND_BGFX)
 			vb->nx = 0.0f;
 			vb->ny = 0.0f;
 			vb->nz = 1.0f;

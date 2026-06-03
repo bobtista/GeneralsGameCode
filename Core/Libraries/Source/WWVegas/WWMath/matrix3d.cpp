@@ -67,7 +67,7 @@
 
 #include "WWLib/win.h"
 #include "legacyd3dmatrix.h"
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 struct D3DXMATRIX : public D3DMATRIX {};
 #else
 #include <d3dx8math.h>
