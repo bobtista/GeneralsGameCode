@@ -143,6 +143,7 @@ extern "C" void GGC_GetBgfxSoftParticleParams(float * params);
 extern "C" int  GGC_GetBgfxScreenshotFrame();
 extern "C" const char * GGC_GetBgfxScreenshotPath();
 extern "C" void GGC_ClearBgfxScreenshotRequest();
+extern "C" int  GGC_GetCurrentLogicFrame();
 #endif
 
 // Render-state globals. Defined here (external linkage), declared `extern`
@@ -3136,6 +3137,50 @@ struct BgfxFrameTiming
 };
 static BgfxFrameTiming g_timing;
 
+// TheSuperHackers @perf bobtista 03/06/2026 In-code function profiler.
+// Buckets are reset at the top of every frame's End_Scene timing log and
+// accumulated by ScopedSectionTimer instances placed at the top of hot
+// BgfxBackend functions. Cumulative per-frame ticks + call counts get
+// written to the CSV alongside the frame timing.
+enum PerfSectionId {
+    PERF_SECT_SET_TEXTURE,
+    PERF_SECT_SET_VB,
+    PERF_SECT_SET_IB,
+    PERF_SECT_SUBMIT_DRAW,
+    PERF_SECT_DRAW_TRIANGLES,
+    PERF_SECT_APPLY_TEX,
+    PERF_SECT_UPLOAD_UNIFORMS,
+    PERF_SECT_BEGIN_SCENE,
+    PERF_SECT_COUNT
+};
+struct PerfSection { long long total_ticks = 0; uint32_t calls = 0; };
+static PerfSection g_perf_sections[PERF_SECT_COUNT];
+
+class ScopedSectionTimer
+{
+    PerfSection & m_section;
+    long long m_start;
+public:
+    explicit ScopedSectionTimer(PerfSectionId id)
+        : m_section(g_perf_sections[id])
+    {
+#if defined(_WIN32)
+        LARGE_INTEGER c; QueryPerformanceCounter(&c); m_start = c.QuadPart;
+#else
+        m_start = 0;
+#endif
+    }
+    ~ScopedSectionTimer()
+    {
+#if defined(_WIN32)
+        LARGE_INTEGER c; QueryPerformanceCounter(&c);
+        m_section.total_ticks += c.QuadPart - m_start;
+        m_section.calls++;
+#endif
+    }
+};
+#define PERF_TIME(id) ScopedSectionTimer _pst_##id(id)
+
 static long long QueryNow()
 {
 #if defined(_WIN32)
@@ -3187,6 +3232,10 @@ void BgfxBackend::Begin_Scene()
 
     ResolveTimingEnv();
     long long prev_t3 = g_timing.t3_post_frame;
+    for (int i = 0; i < PERF_SECT_COUNT; ++i) {
+        g_perf_sections[i].total_ticks = 0;
+        g_perf_sections[i].calls = 0;
+    }
     if (TimingActive()) {
         g_timing.t0_begin_scene = QueryNow();
     }
@@ -3582,6 +3631,39 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                 bgfx::requestScreenShot(BGFX_INVALID_HANDLE, numbered);
             }
         }
+
+        // TheSuperHackers @feature bobtista 03/06/2026 Deterministic same-moment capture.
+        // GGC_BGFX_SCREENSHOT_LOGICFRAME=N writes exactly one screenshot at the first render
+        // frame where the simulation reaches logic frame N. Save replay at a fixed logic rate
+        // is deterministic, so the captured scene state is identical across runs and backends
+        // (unlike the render-frame trigger above, whose timing drifts with render speed). Use
+        // this for A/B comparisons. Output: <path>.L<logicframe>.bmp
+        static bool s_logicShotDone = false;
+        int targetLogicFrame = 0;
+        if (const char * logicEnv = std::getenv("GGC_BGFX_SCREENSHOT_LOGICFRAME"))
+        {
+            targetLogicFrame = std::atoi(logicEnv);
+        }
+        if (targetLogicFrame > 0 && !s_logicShotDone)
+        {
+            const int curLogicFrame = GGC_GetCurrentLogicFrame();
+            if (curLogicFrame >= targetLogicFrame)
+            {
+                s_logicShotDone = true;
+                const char * basePath = GGC_GetBgfxScreenshotPath();
+                if ((basePath == nullptr || basePath[0] == '\0'))
+                {
+                    basePath = std::getenv("GGC_BGFX_SCREENSHOT_PATH");
+                }
+                if (basePath != nullptr && basePath[0] != '\0')
+                {
+                    char numbered[512];
+                    std::snprintf(numbered, sizeof(numbered), "%s.L%06d.bmp",
+                                  basePath, curLogicFrame);
+                    bgfx::requestScreenShot(BGFX_INVALID_HANDLE, numbered);
+                }
+            }
+        }
     }
 #endif
 
@@ -3622,7 +3704,10 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                     std::fprintf(f,
                         "frame,inter_us,scene_us,frame_us,total_us,draws,binds,uniforms,"
                         "world_draws,sort_draws,shadow_submits,water_draws,"
-                        "tex_creates,tex_uploads\n");
+                        "tex_creates,tex_uploads,inst_saved,"
+                        "set_tex_us,set_tex_n,set_vb_us,set_vb_n,set_ib_us,set_ib_n,"
+                        "submit_us,submit_n,draw_us,draw_n,"
+                        "apply_tex_us,apply_tex_n,uniforms_us,uniforms_n\n");
                     s_headerWritten = true;
                 }
                 const double us_per_tick = 1000000.0 / static_cast<double>(g_timing.freq);
@@ -3634,7 +3719,9 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                 const long long total_ticks = (s_prev_t3 > 0)
                     ? (g_timing.t3_post_frame - s_prev_t3) : 0;
                 s_prev_t3 = g_timing.t3_post_frame;
-                std::fprintf(f, "%u,%.1f,%.1f,%.1f,%.1f,%u,%u,%u,%u,%u,%u,%u,%u,%u\n",
+                std::fprintf(f,
+                    "%u,%.1f,%.1f,%.1f,%.1f,%u,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
+                    "%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u,%.1f,%u\n",
                     g_stats.frameIndex,
                     inter_ticks * us_per_tick,
                     scene_ticks * us_per_tick,
@@ -3648,7 +3735,22 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
                     g_stats.shadowVolumeSubmits,
                     g_stats.waterDraws,
                     g_stats.textureCreates,
-                    g_stats.textureUploads);
+                    g_stats.textureUploads,
+                    g_stats.instancedSavedDrawCalls,
+                    g_perf_sections[PERF_SECT_SET_TEXTURE].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_SET_TEXTURE].calls,
+                    g_perf_sections[PERF_SECT_SET_VB].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_SET_VB].calls,
+                    g_perf_sections[PERF_SECT_SET_IB].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_SET_IB].calls,
+                    g_perf_sections[PERF_SECT_SUBMIT_DRAW].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_SUBMIT_DRAW].calls,
+                    g_perf_sections[PERF_SECT_DRAW_TRIANGLES].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_DRAW_TRIANGLES].calls,
+                    g_perf_sections[PERF_SECT_APPLY_TEX].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_APPLY_TEX].calls,
+                    g_perf_sections[PERF_SECT_UPLOAD_UNIFORMS].total_ticks * us_per_tick,
+                    g_perf_sections[PERF_SECT_UPLOAD_UNIFORMS].calls);
                 std::fclose(f);
             }
         }
@@ -3824,6 +3926,7 @@ void MirrorDynamicIndexHandleToResource(const IndexBufferClass * ib,
 
 void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int stream)
 {
+    PERF_TIME(PERF_SECT_SET_VB);
     FixedFunctionState::Set_Vertex_Buffer(vb, stream);
     (void)stream;
     // Cache is populated by Upload_Vertex_Buffer_Data on the engine's own write
@@ -3909,6 +4012,7 @@ void BgfxBackend::Set_Vertex_Buffer(const VertexBufferClass * vb, unsigned int s
 
 void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 {
+    PERF_TIME(PERF_SECT_SET_VB);
     FixedFunctionState::Set_Vertex_Buffer(vba);
     g_draw.vertexColorFlags[0] =
         vba.FVF_Info().Has_Diffuse() ? 1.0f : 0.0f;
@@ -3967,6 +4071,7 @@ void BgfxBackend::Set_Vertex_Buffer(const DynamicVBAccessClass & vba)
 
 void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short index_base_offset)
 {
+    PERF_TIME(PERF_SECT_SET_IB);
     FixedFunctionState::Set_Index_Buffer(ib, index_base_offset);
     g_draw.useTransientIB = false;
     g_draw.useStaticIB = false;
@@ -4037,6 +4142,7 @@ void BgfxBackend::Set_Index_Buffer(const IndexBufferClass * ib, unsigned short i
 
 void BgfxBackend::Set_Index_Buffer(const DynamicIBAccessClass & iba, unsigned short index_base_offset)
 {
+    PERF_TIME(PERF_SECT_SET_IB);
     FixedFunctionState::Set_Index_Buffer(iba, index_base_offset);
     g_draw.useStaticIB = false;
     g_draw.staticIB = BGFX_INVALID_HANDLE;
@@ -6123,6 +6229,7 @@ static void UploadLightUniforms()
 
 static void BindTextureStages()
 {
+    PERF_TIME(PERF_SECT_APPLY_TEX);
     const uint64_t state = GetEffectiveDrawState();
     if (bgfx::isValid(g_uniforms.sTex0))
     {
@@ -6334,7 +6441,13 @@ static void UpdateTextureTransforms()
     }
 }
 
+static void UploadMaterialUniforms_Body();
 static void UploadMaterialUniforms()
+{
+    PERF_TIME(PERF_SECT_UPLOAD_UNIFORMS);
+    UploadMaterialUniforms_Body();
+}
+static void UploadMaterialUniforms_Body()
 {
     g_stats.materialUniformUploads++;
     if (bgfx::isValid(g_uniforms.uMatDiffuse))
@@ -7100,6 +7213,7 @@ void BgfxBackend::Set_Material_Color_Source(RenderBackendMaterialColorSource amb
 
 void BgfxBackend::Set_Texture(unsigned int stage, TextureBaseClass * texture)
 {
+    PERF_TIME(PERF_SECT_SET_TEXTURE);
     FixedFunctionState::Set_Texture(stage, texture);
     // Stages 0-3 wired. Covers terrain base + detail
     // + cloud + noise, the standard 4-stage layout used by the
@@ -8876,6 +8990,7 @@ void SubmitEngineDraw(unsigned short start_index,
                       unsigned short vertex_count,
                       bool triangle_strip = false)
 {
+    PERF_TIME(PERF_SECT_SUBMIT_DRAW);
     if (g_overrides.suppressDraw)
     {
         g_stats.skippedDraws++;
@@ -9659,6 +9774,7 @@ void BgfxBackend::Draw_Triangles(unsigned short start_index,
                                  unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
+    PERF_TIME(PERF_SECT_DRAW_TRIANGLES);
     if (DrawCallLog_Is_Active()) {
         const TextureBaseClass * tex0 = FixedFunctionState::Render_State().Textures[0];
         const char * tex_name = (tex0 != nullptr) ? tex0->Get_Texture_Name().str() : "";
@@ -9691,6 +9807,7 @@ void BgfxBackend::Draw_Triangles(unsigned int buffer_type,
                                  unsigned short min_vertex_index,
                                  unsigned short vertex_count)
 {
+    PERF_TIME(PERF_SECT_DRAW_TRIANGLES);
     (void)buffer_type;
     if (g_views.skipNextSubmitEngineDraw)
     {

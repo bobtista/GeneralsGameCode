@@ -602,6 +602,11 @@ void DX8Backend::Begin_Scene()
 {
 }
 
+// TheSuperHackers @feature bobtista 03/06/2026 Simulation frame accessor (defined
+// in GlobalData.cpp) so the dx8 screenshot can fire at a deterministic logic frame,
+// matching the bgfx GGC_BGFX_SCREENSHOT_LOGICFRAME trigger for cross-backend A/B.
+extern "C" int GGC_GetCurrentLogicFrame();
+
 namespace
 {
 
@@ -615,6 +620,8 @@ struct Dx8ScreenshotState
     char basePath[512] = {};
     bool envResolved = false;
     int frameIndex = 0;
+    int targetLogicFrame = 0;
+    bool logicShotDone = false;
 };
 
 Dx8ScreenshotState & Get_Dx8_Screenshot_State()
@@ -638,6 +645,9 @@ void Resolve_Dx8_Screenshot_Env()
     }
     if (const char * p = std::getenv("GGC_DX8_SCREENSHOT_PATH")) {
         std::strncpy(s.basePath, p, sizeof(s.basePath) - 1);
+    }
+    if (const char * l = std::getenv("GGC_DX8_SCREENSHOT_LOGICFRAME")) {
+        s.targetLogicFrame = std::atoi(l);
     }
 }
 
@@ -720,6 +730,27 @@ void DX8Backend::End_Scene(bool /*flip_frame*/)
             std::snprintf(path, sizeof(path), "%s.%06d.bmp",
                 s.basePath, s.frameIndex);
             Save_Bgra_Bmp(path, img.Width, img.Height, img.Pitch, img.Bytes.data());
+        }
+    }
+
+    // TheSuperHackers @feature bobtista 03/06/2026 Deterministic same-moment capture.
+    // GGC_DX8_SCREENSHOT_LOGICFRAME=N writes one screenshot at the first frame where
+    // the simulation reaches logic frame N, matching the bgfx trigger so dx8 and bgfx
+    // captures can be compared at the identical scene state. Output: <base>.L<frame>.bmp
+    {
+        Dx8ScreenshotState & s = Get_Dx8_Screenshot_State();
+        if (s.targetLogicFrame > 0 && !s.logicShotDone && s.basePath[0] != '\0') {
+            const int curLogicFrame = GGC_GetCurrentLogicFrame();
+            if (curLogicFrame >= s.targetLogicFrame) {
+                s.logicShotDone = true;
+                RenderBackendImage img;
+                if (Capture_Back_Buffer_Image(0, img) && img.Is_Valid()) {
+                    char path[640];
+                    std::snprintf(path, sizeof(path), "%s.L%06d.bmp",
+                        s.basePath, curLogicFrame);
+                    Save_Bgra_Bmp(path, img.Width, img.Height, img.Pitch, img.Bytes.data());
+                }
+            }
         }
     }
     ++Get_Dx8_Screenshot_State().frameIndex;
