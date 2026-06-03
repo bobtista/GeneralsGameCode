@@ -756,7 +756,21 @@ static void UpdateBgfxStatsLog()
 static void LogFrameStats()
 {
 #ifdef RTS_DEBUG
-    if (g_stats.frameIndex <= 10 || (g_stats.frameIndex % 60) == 0)
+    // TheSuperHackers @perf bobtista 03/06/2026 Default off; opt in via
+    // GGC_BGFX_PERF_LOG=1 (interval in frames, default 300). The big
+    // formatted string used to fire every 60 frames + first 10, costing
+    // measurable Debug FPS on heavy-combat saves. Cache the env probe.
+    static int s_perfLogInterval = -1;
+    if (s_perfLogInterval < 0) {
+        const char * env = std::getenv("GGC_BGFX_PERF_LOG");
+        if (env != nullptr) {
+            int v = std::atoi(env);
+            s_perfLogInterval = (v > 0) ? v : 300;
+        } else {
+            s_perfLogInterval = 0;  // disabled
+        }
+    }
+    if (s_perfLogInterval > 0 && (g_stats.frameIndex % s_perfLogInterval) == 0)
     {
         WWDEBUG_SAY(("[BGFX PERF] frame=%u draws=%u skipped=%u submits(base/depth/vol/apply/smudge/comp/debug)=%u/%u/%u/%u/%u/%u/%u views(world/ui/water/sort/effect/rtt/smudge)=%u/%u/%u/%u/%u/%u/%u binds=%u uniforms(mat/light)=%u/%u texxf=%u rsCopies=%u transientAlloc(vb/ib)=%u/%u transientDraw(vb/ib)=%u/%u dynAlloc(vb/ib)=%u/%u",
             g_stats.frameIndex,
@@ -3103,6 +3117,66 @@ bool BgfxBackend::Request_Native_Screen_Shot(const char * path)
 
 // -- Frame lifecycle ---------------------------------------------------------
 
+// TheSuperHackers @perf bobtista 03/06/2026 Per-frame timing instrumentation.
+// GGC_BGFX_FRAME_TIMING_AFTER=N + GGC_BGFX_FRAME_TIMING_PATH=base activates
+// CSV logging at frame N onward, INTERVAL controls cadence (default 60).
+// Records the four stamps below; from them the analyzer can extract
+// inter-frame ms, end-scene work, and bgfx::frame() time.
+struct BgfxFrameTiming
+{
+    long long t0_begin_scene = 0;    // Begin_Scene entry
+    long long t1_end_scene = 0;      // End_Scene entry
+    long long t2_pre_frame = 0;      // just before bgfx::frame()
+    long long t3_post_frame = 0;     // just after bgfx::frame()
+    long long freq = 0;
+    int target_frame = -1;
+    int interval = 60;
+    char base_path[512] = {};
+    bool env_resolved = false;
+};
+static BgfxFrameTiming g_timing;
+
+static long long QueryNow()
+{
+#if defined(_WIN32)
+    LARGE_INTEGER c;
+    QueryPerformanceCounter(&c);
+    return c.QuadPart;
+#else
+    return 0;
+#endif
+}
+
+static void ResolveTimingEnv()
+{
+    if (g_timing.env_resolved) {
+        return;
+    }
+    g_timing.env_resolved = true;
+#if defined(_WIN32)
+    LARGE_INTEGER f;
+    QueryPerformanceFrequency(&f);
+    g_timing.freq = f.QuadPart;
+#endif
+    if (const char * e = std::getenv("GGC_BGFX_FRAME_TIMING_AFTER")) {
+        g_timing.target_frame = std::atoi(e);
+    }
+    if (const char * e = std::getenv("GGC_BGFX_FRAME_TIMING_INTERVAL")) {
+        int v = std::atoi(e);
+        if (v > 0) { g_timing.interval = v; }
+    }
+    if (const char * e = std::getenv("GGC_BGFX_FRAME_TIMING_PATH")) {
+        std::strncpy(g_timing.base_path, e, sizeof(g_timing.base_path) - 1);
+    }
+}
+
+static bool TimingActive()
+{
+    return g_timing.target_frame > 0
+        && g_timing.base_path[0] != '\0'
+        && static_cast<int>(g_stats.frameIndex) >= g_timing.target_frame;
+}
+
 void BgfxBackend::Begin_Scene()
 {
     PROFILER_SECTION_NAME("bgfx Begin_Scene");
@@ -3110,6 +3184,13 @@ void BgfxBackend::Begin_Scene()
     {
         return;
     }
+
+    ResolveTimingEnv();
+    long long prev_t3 = g_timing.t3_post_frame;
+    if (TimingActive()) {
+        g_timing.t0_begin_scene = QueryNow();
+    }
+    (void)prev_t3;  // captured for inter-frame log below
 
     const bool preserveRenderToTexture =
         g_views.renderToTexture && g_views.renderTargetTexture != nullptr;
@@ -3388,6 +3469,10 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     {
         return;
     }
+
+    if (TimingActive()) {
+        g_timing.t1_end_scene = QueryNow();
+    }
     // Re-apply captured camera transforms to both views. The engine calls
     // Set_Projection_Transform_With_Z_Bias multiple times per frame
     // (camera, water reflections, shadows, sneak attack). Since bgfx's
@@ -3503,6 +3588,9 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
     DrawCallLog_End_Frame();
     RenderDoc_Maybe_Trigger_Capture();
 
+    if (TimingActive()) {
+        g_timing.t2_pre_frame = QueryNow();
+    }
     bgfx::frame();
     // TheSuperHackers @perf bobtista 24/06/2026 Feed per-frame bgfx stats to
     // Tracy plots so CPU time, draw count, and GPU time share one timeline.
@@ -3520,6 +3608,51 @@ void BgfxBackend::End_Scene(bool /*flip_frame*/)
         }
     }
 #endif
+    if (TimingActive()) {
+        g_timing.t3_post_frame = QueryNow();
+        if (g_timing.freq > 0
+            && (g_stats.frameIndex % g_timing.interval) == 0)
+        {
+            char path[640];
+            std::snprintf(path, sizeof(path), "%s.csv", g_timing.base_path);
+            static bool s_headerWritten = false;
+            FILE * f = std::fopen(path, s_headerWritten ? "a" : "w");
+            if (f != nullptr) {
+                if (!s_headerWritten) {
+                    std::fprintf(f,
+                        "frame,inter_us,scene_us,frame_us,total_us,draws,binds,uniforms,"
+                        "world_draws,sort_draws,shadow_submits,water_draws,"
+                        "tex_creates,tex_uploads\n");
+                    s_headerWritten = true;
+                }
+                const double us_per_tick = 1000000.0 / static_cast<double>(g_timing.freq);
+                static long long s_prev_t3 = 0;
+                const long long inter_ticks = (s_prev_t3 > 0)
+                    ? (g_timing.t0_begin_scene - s_prev_t3) : 0;
+                const long long scene_ticks = g_timing.t2_pre_frame - g_timing.t1_end_scene;
+                const long long frame_ticks = g_timing.t3_post_frame - g_timing.t2_pre_frame;
+                const long long total_ticks = (s_prev_t3 > 0)
+                    ? (g_timing.t3_post_frame - s_prev_t3) : 0;
+                s_prev_t3 = g_timing.t3_post_frame;
+                std::fprintf(f, "%u,%.1f,%.1f,%.1f,%.1f,%u,%u,%u,%u,%u,%u,%u,%u,%u\n",
+                    g_stats.frameIndex,
+                    inter_ticks * us_per_tick,
+                    scene_ticks * us_per_tick,
+                    frame_ticks * us_per_tick,
+                    total_ticks * us_per_tick,
+                    g_stats.drawCalls,
+                    g_stats.textureBinds,
+                    g_stats.materialUniformUploads,
+                    g_stats.worldDraws,
+                    g_stats.sortedDraws,
+                    g_stats.shadowVolumeSubmits,
+                    g_stats.waterDraws,
+                    g_stats.textureCreates,
+                    g_stats.textureUploads);
+                std::fclose(f);
+            }
+        }
+    }
 
 #if defined(SAGE_USE_SDL3)
     if (!g_device.mainWindowShown && g_device.window != nullptr)
