@@ -225,7 +225,7 @@ int SHADOW_INDEX_SIZE=8192;
 
 static int ShadowDynamicVertexCapacity()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	return 32768;
 #else
 	if (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Needs_Closed_Shadow_Volumes())
@@ -236,7 +236,7 @@ static int ShadowDynamicVertexCapacity()
 
 static int ShadowDynamicIndexCapacity()
 {
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	return 65535;
 #else
 	if (WW3D::Get_Render_Backend() != nullptr && WW3D::Get_Render_Backend()->Needs_Closed_Shadow_Volumes())
@@ -3777,7 +3777,7 @@ void W3DVolumetricShadowManager::renderStencilShadows()
 		width,
 		height);
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 	WW3D::Get_Render_Backend()->Set_Shade_Mode(RB_SHADE_GOURAUD);
 	WW3D::Get_Render_Backend()->Set_Alpha_Blend_Enable(false);
 	// turn off the stencil buffer

@@ -176,7 +176,7 @@ void RoadType::loadTexture(AsciiString path, Int ID)
 	/// @todo - delay loading textures and only load textures referenced by map.
 	WW3DAssetManager *pMgr = W3DAssetManager::Get_Instance();
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_1);
 #else
 	m_roadTexture = pMgr->Get_Texture(path.str(), MIP_LEVELS_3);
@@ -3321,7 +3321,7 @@ void W3DRoadBuffer::drawRoads(CameraClass * camera, TextureClass *cloudTexture, 
  	//Find number of passes required to render current shader
 	devicePasses=W3DShaderManager::getShaderPasses(st);
 
-#if defined(GGC_BGFX_STANDALONE)
+#if defined(GGC_RENDER_BACKEND_BGFX)
 	// TheSuperHackers @bugfix bobtista 24/04/2026 — roads use
 	// the same cloud/noise multipass family as terrain; bgfx's fixed
 	// function fallback does not emulate TCI_CAMERASPACEPOSITION, so

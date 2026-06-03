@@ -18,7 +18,7 @@
 
 #pragma once
 
-#if !defined(GGC_BGFX_STANDALONE)
+#if !defined(GGC_RENDER_BACKEND_BGFX)
 #error dx8standalonetypes.h is only for the standalone bgfx compatibility build.
 #endif
 
